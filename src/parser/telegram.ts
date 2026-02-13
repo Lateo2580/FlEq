@@ -80,7 +80,7 @@ function extractEarthquake(
 
   const originTime = str(dig(earthquake, "OriginTime"));
   const hypo = dig(earthquake, "Hypocenter");
-  const area = dig(hypo, "Area");
+  const area = first(dig(hypo, "Area") as unknown[]);
   const name = str(dig(area, "Name"));
 
   // 座標パース: "+35.7+139.8-10000/" 形式
@@ -145,8 +145,9 @@ function extractIntensity(
   const intensity = dig(body, "Intensity");
   if (!intensity) return undefined;
 
-  const observation = dig(intensity, "Observation");
-  if (!observation) return undefined;
+  const rawObservation = dig(intensity, "Observation");
+  if (!rawObservation) return undefined;
+  const observation = first(rawObservation as unknown[]);
 
   const maxInt = str(dig(observation, "MaxInt"));
 
