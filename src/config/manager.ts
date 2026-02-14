@@ -4,6 +4,14 @@ import * as os from "os";
 import { ConfigFile, Classification } from "../types";
 import * as log from "../utils/logger";
 
+/** 設定エラー */
+export class ConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigError";
+  }
+}
+
 /** Configファイルのディレクトリ */
 const CONFIG_DIR = path.join(os.homedir(), ".config", "dmdata-monitor");
 
@@ -11,7 +19,7 @@ const CONFIG_DIR = path.join(os.homedir(), ".config", "dmdata-monitor");
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
 /** 有効な分類区分 */
-const VALID_CLASSIFICATIONS: Classification[] = [
+export const VALID_CLASSIFICATIONS: Classification[] = [
   "telegram.earthquake",
   "eew.forecast",
   "eew.warning",
@@ -59,12 +67,15 @@ export function loadConfig(): ConfigFile {
   }
 }
 
-/** Configファイルに書き込む */
+/** Configファイルに書き込む (APIキーを含むため 0600 で保存) */
 export function saveConfig(config: ConfigFile): void {
   if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
 }
 
 /** パースした値をバリデーションして ConfigFile にする */
@@ -123,12 +134,12 @@ function parseClassifications(input: string): Classification[] {
     );
 }
 
-/** 設定値を1件セットする */
+/** 設定値を1件セットする。無効な入力の場合は ConfigError をスローする。 */
 export function setConfigValue(key: string, value: string): void {
   if (!(key in CONFIG_KEYS)) {
-    log.error(`不明な設定キー: ${key}`);
-    log.error(`有効なキー: ${Object.keys(CONFIG_KEYS).join(", ")}`);
-    process.exit(1);
+    throw new ConfigError(
+      `不明な設定キー: ${key}\n有効なキー: ${Object.keys(CONFIG_KEYS).join(", ")}`
+    );
   }
 
   const config = loadConfig();
@@ -140,18 +151,18 @@ export function setConfigValue(key: string, value: string): void {
     case "classifications": {
       const parsed = parseClassifications(value);
       if (parsed.length === 0) {
-        log.error(`無効な区分: ${value}`);
-        log.error(`有効な値: ${VALID_CLASSIFICATIONS.join(", ")}`);
-        process.exit(1);
+        throw new ConfigError(
+          `無効な区分: ${value}\n有効な値: ${VALID_CLASSIFICATIONS.join(", ")}`
+        );
       }
       config.classifications = parsed;
       break;
     }
     case "testMode":
       if (!(VALID_TEST_MODES as readonly string[]).includes(value)) {
-        log.error(`無効なテストモード: ${value}`);
-        log.error(`有効な値: ${VALID_TEST_MODES.join(", ")}`);
-        process.exit(1);
+        throw new ConfigError(
+          `無効なテストモード: ${value}\n有効な値: ${VALID_TEST_MODES.join(", ")}`
+        );
       }
       config.testMode = value as ConfigFile["testMode"];
       break;
@@ -161,16 +172,18 @@ export function setConfigValue(key: string, value: string): void {
     case "maxReconnectDelaySec": {
       const num = Number(value);
       if (isNaN(num) || num <= 0) {
-        log.error("maxReconnectDelaySec は正の数値を指定してください。");
-        process.exit(1);
+        throw new ConfigError(
+          "maxReconnectDelaySec は正の数値を指定してください。"
+        );
       }
       config.maxReconnectDelaySec = num;
       break;
     }
     case "keepExistingConnections":
       if (value !== "true" && value !== "false") {
-        log.error("keepExistingConnections は true または false を指定してください。");
-        process.exit(1);
+        throw new ConfigError(
+          "keepExistingConnections は true または false を指定してください。"
+        );
       }
       config.keepExistingConnections = value === "true";
       break;
@@ -179,12 +192,12 @@ export function setConfigValue(key: string, value: string): void {
   saveConfig(config);
 }
 
-/** 設定値を1件削除する */
+/** 設定値を1件削除する。無効なキーの場合は ConfigError をスローする。 */
 export function unsetConfigValue(key: string): void {
   if (!(key in CONFIG_KEYS)) {
-    log.error(`不明な設定キー: ${key}`);
-    log.error(`有効なキー: ${Object.keys(CONFIG_KEYS).join(", ")}`);
-    process.exit(1);
+    throw new ConfigError(
+      `不明な設定キー: ${key}\n有効なキー: ${Object.keys(CONFIG_KEYS).join(", ")}`
+    );
   }
 
   const config = loadConfig();

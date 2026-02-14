@@ -28,6 +28,9 @@ const xmlParser = new XMLParser({
   },
 });
 
+/** 展開後の最大許容サイズ (10 MB) */
+const MAX_DECOMPRESSED_SIZE = 10 * 1024 * 1024;
+
 /** body フィールドをデコードしてXML文字列を返す */
 export function decodeBody(msg: WsDataMessage): string {
   let buf: Buffer;
@@ -39,9 +42,15 @@ export function decodeBody(msg: WsDataMessage): string {
   }
 
   if (msg.compression === "gzip") {
-    buf = zlib.gunzipSync(buf);
+    buf = zlib.gunzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_SIZE });
   } else if (msg.compression === "zip") {
-    buf = zlib.inflateSync(buf);
+    buf = zlib.unzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_SIZE });
+  }
+
+  if (buf.length > MAX_DECOMPRESSED_SIZE) {
+    throw new Error(
+      `展開後のサイズが上限を超えています: ${buf.length} bytes (上限: ${MAX_DECOMPRESSED_SIZE} bytes)`
+    );
   }
 
   return buf.toString("utf-8");

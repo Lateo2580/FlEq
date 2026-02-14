@@ -4,7 +4,8 @@ import { Command } from "commander";
 // dotenvのログ出力を抑制
 process.env.DOTENV_CONFIG_QUIET = "true";
 import dotenv from "dotenv";
-dotenv.config();import chalk from "chalk";
+dotenv.config();
+import chalk from "chalk";
 import {
   AppConfig,
   Classification,
@@ -19,6 +20,8 @@ import {
   printConfig,
   printConfigKeys,
   getConfigPath,
+  ConfigError,
+  VALID_CLASSIFICATIONS,
 } from "./config/manager";
 import { listContracts } from "./api/client";
 import { WebSocketManager } from "./websocket/manager";
@@ -26,7 +29,6 @@ import { ReplHandler } from "./repl/handler";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
-  decodeBody,
 } from "./parser/telegram";
 import {
   displayEarthquakeInfo,
@@ -83,16 +85,32 @@ configCmd
   .command("set <key> <value>")
   .description("設定値をセットする")
   .action((key: string, value: string) => {
-    setConfigValue(key, value);
-    log.info(`設定しました: ${key}`);
+    try {
+      setConfigValue(key, value);
+      log.info(`設定しました: ${key}`);
+    } catch (err) {
+      if (err instanceof ConfigError) {
+        log.error(err.message);
+        process.exit(1);
+      }
+      throw err;
+    }
   });
 
 configCmd
   .command("unset <key>")
   .description("設定値を削除する")
   .action((key: string) => {
-    unsetConfigValue(key);
-    log.info(`削除しました: ${key}`);
+    try {
+      unsetConfigValue(key);
+      log.info(`削除しました: ${key}`);
+    } catch (err) {
+      if (err instanceof ConfigError) {
+        log.error(err.message);
+        process.exit(1);
+      }
+      throw err;
+    }
   });
 
 configCmd
@@ -139,12 +157,6 @@ async function main(opts: {
   }
 
   // 分類区分の解析 (CLI > Configファイル > デフォルト)
-  const validClassifications: Classification[] = [
-    "telegram.earthquake",
-    "eew.forecast",
-    "eew.warning",
-  ];
-
   let classifications: Classification[];
   if (opts.classifications != null) {
     classifications = opts.classifications
@@ -158,9 +170,9 @@ async function main(opts: {
   }
 
   for (const c of classifications) {
-    if (!validClassifications.includes(c)) {
+    if (!VALID_CLASSIFICATIONS.includes(c)) {
       log.error(`無効な区分: ${c}`);
-      log.error(`有効な値: ${validClassifications.join(", ")}`);
+      log.error(`有効な値: ${VALID_CLASSIFICATIONS.join(", ")}`);
       process.exit(1);
     }
   }

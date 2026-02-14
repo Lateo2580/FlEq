@@ -8,7 +8,7 @@ function separator(char = "─", len = 60): string {
 }
 
 /** 震度に応じた色を返す */
-function intensityColor(intensity: string): chalk.Chalk {
+export function intensityColor(intensity: string): chalk.Chalk {
   const norm = intensity.replace(/\s+/g, "");
   switch (norm) {
     case "1":
@@ -180,31 +180,31 @@ export function displayEewInfo(
 
   if (isCancelled) {
     // キャンセル報
-    console.log(chalk.bgGreen.black.bold("".repeat(60)));
+    console.log(chalk.bgGreen.black.bold(" ".repeat(60)));
     console.log(
       chalk.bgGreen.black.bold(
         ` ✓ 緊急地震速報 取消`.padEnd(59) + " "
       )
     );
-    console.log(chalk.bgGreen.black.bold("".repeat(60)));
+    console.log(chalk.bgGreen.black.bold(" ".repeat(60)));
   } else if (info.isWarning) {
     // 警報
-    console.log(chalk.bgRed.white.bold("".repeat(60)));
+    console.log(chalk.bgRed.white.bold(" ".repeat(60)));
     console.log(
       chalk.bgRed.white.bold(
         ` ⚠⚠⚠ 緊急地震速報（警報） ⚠⚠⚠`.padEnd(59) + " "
       )
     );
-    console.log(chalk.bgRed.white.bold("".repeat(60)));
+    console.log(chalk.bgRed.white.bold(" ".repeat(60)));
   } else {
     // 予報
-    console.log(chalk.bgYellow.black.bold("".repeat(60)));
+    console.log(chalk.bgYellow.black.bold(" ".repeat(60)));
     console.log(
       chalk.bgYellow.black.bold(
         ` ⚡ 緊急地震速報（予報）`.padEnd(59) + " "
       )
     );
-    console.log(chalk.bgYellow.black.bold("".repeat(60)));
+    console.log(chalk.bgYellow.black.bold(" ".repeat(60)));
   }
 
   if (info.isTest) {

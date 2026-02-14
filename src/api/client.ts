@@ -26,13 +26,45 @@ function request(
     };
 
     const req = https.request(options, (res) => {
+      const statusCode = res.statusCode ?? 0;
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
+        // Content-Type チェック
+        const contentType = res.headers["content-type"] || "";
+        if (!contentType.includes("application/json")) {
+          reject(
+            new Error(
+              `${method} ${parsed.pathname}: 予期しない Content-Type: ${contentType} (status=${statusCode}, body=${data.slice(0, 200)})`
+            )
+          );
+          return;
+        }
+
         try {
-          resolve(JSON.parse(data));
+          const json: unknown = JSON.parse(data);
+
+          // HTTP ステータスコードの検証
+          if (statusCode < 200 || statusCode >= 300) {
+            const errMsg =
+              typeof json === "object" && json != null && "error" in json
+                ? (json as { error: { message?: string } }).error?.message || "Unknown error"
+                : data.slice(0, 200);
+            reject(
+              new Error(
+                `${method} ${parsed.pathname}: HTTP ${statusCode}: ${errMsg}`
+              )
+            );
+            return;
+          }
+
+          resolve(json);
         } catch {
-          reject(new Error(`Invalid JSON response: ${data.slice(0, 200)}`));
+          reject(
+            new Error(
+              `${method} ${parsed.pathname}: JSON パース失敗 (status=${statusCode}): ${data.slice(0, 200)}`
+            )
+          );
         }
       });
     });

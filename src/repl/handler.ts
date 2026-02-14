@@ -4,6 +4,7 @@ import { AppConfig } from "../types";
 import { WebSocketManager } from "../websocket/manager";
 import { listEarthquakes, listContracts, listSockets } from "../api/client";
 import { printConfig } from "../config/manager";
+import { intensityColor } from "../display/formatter";
 import * as log from "../utils/logger";
 
 const PROMPT = "fleq> ";
@@ -265,33 +266,4 @@ function formatTime(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** 震度に応じた色 (display/formatter.ts と同等) */
-function intensityColor(intensity: string): chalk.Chalk {
-  const norm = intensity.replace(/\s+/g, "");
-  switch (norm) {
-    case "1":
-      return chalk.gray;
-    case "2":
-      return chalk.blue;
-    case "3":
-      return chalk.green;
-    case "4":
-      return chalk.yellow;
-    case "5-":
-    case "5弱":
-      return chalk.rgb(255, 165, 0);
-    case "5+":
-    case "5強":
-      return chalk.rgb(255, 100, 0);
-    case "6-":
-    case "6弱":
-      return chalk.redBright;
-    case "6+":
-    case "6強":
-      return chalk.red;
-    case "7":
-      return chalk.bgRed.white;
-    default:
-      return chalk.white;
-  }
-}
+

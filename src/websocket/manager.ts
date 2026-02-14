@@ -15,6 +15,9 @@ export interface WsManagerEvents {
   onDisconnected: (reason: string) => void;
 }
 
+/** サーバーからの ping が途絶えたとみなすまでのミリ秒 */
+const HEARTBEAT_TIMEOUT_MS = 90_000;
+
 export class WebSocketManager {
   private config: AppConfig;
   private events: WsManagerEvents;
@@ -22,6 +25,7 @@ export class WebSocketManager {
   private reconnectAttempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private pingTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
   private lastPingId: string | null = null;
   private shouldRun = true;
   private socketId: number | null = null;
@@ -65,6 +69,10 @@ export class WebSocketManager {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
+    if (this.heartbeatTimer) {
+      clearTimeout(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 
   private async doConnect(): Promise<void> {
@@ -84,6 +92,7 @@ export class WebSocketManager {
       this.ws.on("open", () => {
         this.reconnectAttempt = 0;
         log.info("WebSocket 接続成功");
+        this.resetHeartbeat();
         this.events.onConnected();
       });
 
@@ -111,10 +120,20 @@ export class WebSocketManager {
     }
   }
 
+  /** WebSocket.Data を文字列に安全に変換する */
+  private static normalizeWsData(raw: WebSocket.Data): string {
+    if (typeof raw === "string") return raw;
+    if (Buffer.isBuffer(raw)) return raw.toString("utf-8");
+    if (raw instanceof ArrayBuffer) return Buffer.from(raw).toString("utf-8");
+    if (Array.isArray(raw)) return Buffer.concat(raw).toString("utf-8");
+    return String(raw);
+  }
+
   private handleMessage(raw: WebSocket.Data): void {
     let msg: WsMessage;
     try {
-      msg = JSON.parse(raw.toString());
+      const text = WebSocketManager.normalizeWsData(raw);
+      msg = JSON.parse(text);
     } catch {
       log.error("受信データのJSONパースに失敗");
       return;
@@ -130,6 +149,7 @@ export class WebSocketManager {
 
       case "ping":
         this.lastPingId = msg.pingId;
+        this.resetHeartbeat();
         this.sendPong(msg.pingId);
         break;
 
@@ -162,22 +182,46 @@ export class WebSocketManager {
     }
   }
 
+  /** ハートビートタイマーをリセット（ping/data受信時に呼ぶ） */
+  private resetHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearTimeout(this.heartbeatTimer);
+    }
+    this.heartbeatTimer = setTimeout(() => {
+      log.warn(
+        `ハートビートタイムアウト: ${HEARTBEAT_TIMEOUT_MS / 1000}秒間 ping を受信していません`
+      );
+      if (this.ws) {
+        this.ws.close(4000, "heartbeat timeout");
+      }
+    }, HEARTBEAT_TIMEOUT_MS);
+  }
+
   /** 指数バックオフで再接続をスケジュール */
   private scheduleReconnect(): void {
     if (!this.shouldRun) return;
 
+    // 既にタイマーがスケジュール済みなら重複を防止
+    if (this.reconnectTimer) {
+      log.debug("再接続タイマーは既にスケジュール済みです");
+      return;
+    }
+
     this.reconnectAttempt++;
-    // 指数バックオフ: 1, 2, 4, 8, ... 秒（上限あり）
-    const delay = Math.min(
+    // 指数バックオフ: 1, 2, 4, 8, ... 秒（上限あり）+ ジッター
+    const baseDelay = Math.min(
       Math.pow(2, this.reconnectAttempt - 1) * 1000,
       this.config.maxReconnectDelaySec * 1000
     );
+    const jitter = Math.random() * 1000;
+    const delay = baseDelay + jitter;
 
     log.info(
-      `${(delay / 1000).toFixed(0)}秒後に再接続します (試行 #${this.reconnectAttempt})`
+      `${(delay / 1000).toFixed(1)}秒後に再接続します (試行 #${this.reconnectAttempt})`
     );
 
     this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
       await this.doConnect();
     }, delay);
   }
