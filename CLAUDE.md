@@ -13,6 +13,7 @@ npm run build        # TypeScript コンパイル → dist/
 npm start            # コンパイル済みアプリ実行
 npm run dev          # ビルド + 実行
 npm run clean        # dist/ 削除
+npm test             # vitest でテスト実行
 ```
 
 ## 技術スタック
@@ -80,6 +81,51 @@ index.ts (bootstrap) → cli/build-command.ts (Commander定義)
 - `ui/` — ユーザーインターフェース (ターミナル表示, REPL)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック
+
+## 電文タイプとルーティング
+
+`message-router.ts` が受信電文を classification と head.type で振り分ける。
+
+| 電文タイプ | 分類 | パーサ関数 | 表示関数 | 型 |
+|-----------|------|-----------|---------|-----|
+| VXSE43 | `eew.warning` | `parseEewTelegram` | `displayEewInfo` | `ParsedEewInfo` |
+| VXSE44 | `eew.forecast` | `parseEewTelegram` | `displayEewInfo` | `ParsedEewInfo` |
+| VXSE45 | `eew.forecast` | `parseEewTelegram` | `displayEewInfo` | `ParsedEewInfo` |
+| VXSE51 | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` | `ParsedEarthquakeInfo` |
+| VXSE52 | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` | `ParsedEarthquakeInfo` |
+| VXSE53 | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` | `ParsedEarthquakeInfo` |
+| VXSE56 | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` | `ParsedSeismicTextInfo` |
+| VXSE60 | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` | `ParsedSeismicTextInfo` |
+| VXSE61 | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` | `ParsedEarthquakeInfo` |
+| VTSE41 | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` | `ParsedTsunamiInfo` |
+| VTSE51 | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` | `ParsedTsunamiInfo` |
+| VTSE52 | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` | `ParsedTsunamiInfo` |
+
+### ルーティング優先順位 (message-router.ts)
+
+1. `eew.forecast` / `eew.warning` → EEW パス (EewTracker で重複検出)
+2. `telegram.earthquake` + `VXSE56`/`VXSE60` → テキスト系パス
+3. `telegram.earthquake` + `VXSE*` → 地震情報パス
+4. `telegram.earthquake` + `VTSE*` → 津波情報パス
+5. それ以外 → `displayRawHeader` (フォールバック)
+
+### フレームレベル判定 (formatter.ts)
+
+表示フレームは `FrameLevel` (`critical` / `warning` / `normal` / `info` / `cancel`) で切り替わる。
+
+- **地震情報**: 震度6弱以上→critical、震度4以上→warning、取消→cancel、その他→normal
+- **EEW**: 警報→critical、取消→cancel、予報→warning
+- **津波情報**: 大津波警報→critical、津波警報→warning、取消→cancel、その他→normal
+- **テキスト情報**: 取消→cancel、その他→info
+
+## テスト
+
+- テストフレームワーク: **vitest** (`npm test` で実行)
+- テストフィクスチャ: `test/fixtures/` に実際の気象庁 XML 電文を配置
+- フィクスチャ命名規則: `{分類番号}_{連番}_{日付}_{電文タイプ}.xml` (例: `32-35_01_02_240613_VXSE52.xml`)
+- モックメッセージ: `test/helpers/mock-message.ts` の `createMockWsDataMessage(fixtureName)` でフィクスチャから `WsDataMessage` を構築
+- フィクスチャ定数: `FIXTURE_VXSE53_ENCHI` 等の名前付き定数で参照 (mock-message.ts で export)
+- 表示関数テスト: `vi.spyOn(console, "log")` で stdout をキャプチャし、出力内容を検証
 
 ## コーディング規約
 
