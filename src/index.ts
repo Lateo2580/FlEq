@@ -22,6 +22,7 @@ import {
 } from "./config/manager";
 import { listContracts } from "./api/client";
 import { WebSocketManager } from "./websocket/manager";
+import { ReplHandler } from "./repl/handler";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
@@ -218,19 +219,30 @@ async function main(opts: {
   printBanner(config);
 
   // WebSocket接続
+  let replHandler: ReplHandler | null = null;
+
   const manager = new WebSocketManager(config, {
-    onData: handleData,
+    onData: (msg) => {
+      handleData(msg);
+      if (replHandler) replHandler.refreshPrompt();
+    },
     onConnected: () => {
       log.info(chalk.green("✓ リアルタイム受信中..."));
+      if (replHandler) replHandler.refreshPrompt();
     },
     onDisconnected: (reason) => {
       log.warn(`切断されました: ${reason}`);
+      if (replHandler) replHandler.refreshPrompt();
     },
   });
+
+  // REPL ハンドラ
+  replHandler = new ReplHandler(config, manager);
 
   // グレースフルシャットダウン
   const shutdown = () => {
     log.info("シャットダウン中...");
+    if (replHandler) replHandler.stop();
     manager.close();
     process.exit(0);
   };
@@ -239,6 +251,7 @@ async function main(opts: {
   process.on("SIGTERM", shutdown);
 
   await manager.connect();
+  replHandler.start();
 }
 
 /** 起動バナー表示 */

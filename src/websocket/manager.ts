@@ -3,6 +3,12 @@ import { AppConfig, WsMessage, WsDataMessage } from "../types";
 import { prepareAndStartSocket } from "../api/client";
 import * as log from "../utils/logger";
 
+export interface WsManagerStatus {
+  connected: boolean;
+  socketId: number | null;
+  reconnectAttempt: number;
+}
+
 export interface WsManagerEvents {
   onData: (msg: WsDataMessage) => void;
   onConnected: () => void;
@@ -29,6 +35,15 @@ export class WebSocketManager {
   async connect(): Promise<void> {
     this.shouldRun = true;
     await this.doConnect();
+  }
+
+  /** 接続状態を返す */
+  getStatus(): WsManagerStatus {
+    return {
+      connected: this.ws != null && this.ws.readyState === WebSocket.OPEN,
+      socketId: this.socketId,
+      reconnectAttempt: this.reconnectAttempt,
+    };
   }
 
   /** 接続を停止する */

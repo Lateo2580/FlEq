@@ -194,6 +194,47 @@ export type WsMessage =
   | WsDataMessage
   | WsErrorMessage;
 
+// ── dmdata.jp 地震履歴 API レスポンス型 ──
+
+/** 地震履歴の各アイテム */
+export interface GdEarthquakeItem {
+  id: number;
+  type: string;
+  eventId: string;
+  originTime: string | null;
+  arrivalTime: string;
+  hypocenter: {
+    code: string;
+    name: string;
+    coordinate: {
+      latitude: { text: string; value: string } | null;
+      longitude: { text: string; value: string } | null;
+      height: { type: string; unit: string; value: string } | null;
+      geodeticSystem: string | null;
+    } | null;
+    depth: { type: string; unit: string; value: string } | null;
+    detailed: { code: string; name: string } | null;
+  } | null;
+  magnitude: {
+    type: string;
+    unit: string;
+    value: string | null;
+  } | null;
+  maxInt: string | null;
+}
+
+/** 地震履歴 API レスポンス */
+export interface GdEarthquakeListResponse {
+  responseId: string;
+  responseTime: string;
+  status: "ok" | "error";
+  items: GdEarthquakeItem[];
+  error?: {
+    message: string;
+    code: number;
+  };
+}
+
 // ── パース済み地震情報型 ──
 
 export interface ParsedEarthquakeInfo {

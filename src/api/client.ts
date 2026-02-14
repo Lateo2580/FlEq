@@ -1,5 +1,5 @@
 import https from "https";
-import { AppConfig, SocketStartResponse, SocketListResponse, ContractListResponse } from "../types";
+import { AppConfig, SocketStartResponse, SocketListResponse, ContractListResponse, GdEarthquakeListResponse } from "../types";
 import * as log from "../utils/logger";
 
 const API_BASE = "https://api.dmdata.jp/v2";
@@ -70,6 +70,26 @@ export async function listContracts(apiKey: string): Promise<string[]> {
 
   log.debug(`契約済み区分: ${validClassifications.join(", ") || "(なし)"}`);
   return validClassifications;
+}
+
+/** 地震履歴を取得 */
+export async function listEarthquakes(
+  apiKey: string,
+  limit = 10
+): Promise<GdEarthquakeListResponse> {
+  log.debug(`GET /v2/gd/earthquake?limit=${limit}`);
+  const res = (await request(
+    "GET",
+    `${API_BASE}/gd/earthquake?limit=${limit}`,
+    apiKey
+  )) as GdEarthquakeListResponse;
+
+  if (res.status === "error") {
+    throw new Error(
+      `Earthquake List failed: ${res.error?.message} (code: ${res.error?.code})`
+    );
+  }
+  return res;
 }
 
 /** 既存のオープンソケットを取得 */
