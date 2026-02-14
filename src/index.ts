@@ -20,6 +20,7 @@ import {
   printConfigKeys,
   getConfigPath,
 } from "./config/manager";
+import { listContracts } from "./api/client";
 import { WebSocketManager } from "./websocket/manager";
 import {
   parseEarthquakeTelegram,
@@ -183,6 +184,35 @@ async function main(opts: {
     keepExistingConnections:
       opts.keepExisting ?? fileConfig.keepExistingConnections ?? DEFAULT_CONFIG.keepExistingConnections,
   };
+
+  // 契約状況チェック
+  try {
+    const contractedClassifications = await listContracts(apiKey);
+    const skipped = classifications.filter(
+      (c) => !contractedClassifications.includes(c)
+    );
+    const active = classifications.filter((c) =>
+      contractedClassifications.includes(c)
+    );
+
+    for (const s of skipped) {
+      log.warn(`${s} は未契約のためスキップします`);
+    }
+
+    if (active.length === 0) {
+      log.error(
+        "有効な契約区分がありません。dmdata.jp で区分を契約してください。"
+      );
+      process.exit(1);
+    }
+
+    config.classifications = active as Classification[];
+  } catch (err) {
+    log.warn(
+      `契約状況の確認に失敗しました: ${err instanceof Error ? err.message : err}`
+    );
+    log.warn("指定された区分のまま接続を試みます");
+  }
 
   // 起動バナー
   printBanner(config);

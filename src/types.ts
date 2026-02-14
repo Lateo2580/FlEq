@@ -41,6 +41,29 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
 
 // ── dmdata.jp API レスポンス型 ──
 
+/** Contract List レスポンス */
+export interface ContractListResponse {
+  responseId: string;
+  responseTime: string;
+  status: "ok" | "error";
+  items: ContractItem[];
+  error?: {
+    message: string;
+    code: number;
+  };
+}
+
+export interface ContractItem {
+  id: number;
+  planId: number;
+  planName: string;
+  classification: string;
+  price: number;
+  start: string;
+  end: string | null;
+  isValid: boolean;
+}
+
 /** Socket Start レスポンス */
 export interface SocketStartResponse {
   responseId: string;

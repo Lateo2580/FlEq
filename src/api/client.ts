@@ -1,5 +1,5 @@
 import https from "https";
-import { AppConfig, SocketStartResponse, SocketListResponse } from "../types";
+import { AppConfig, SocketStartResponse, SocketListResponse, ContractListResponse } from "../types";
 import * as log from "../utils/logger";
 
 const API_BASE = "https://api.dmdata.jp/v2";
@@ -47,6 +47,29 @@ function request(
     }
     req.end();
   });
+}
+
+/** 契約一覧を取得し、有効な区分を返す */
+export async function listContracts(apiKey: string): Promise<string[]> {
+  log.debug("GET /v2/contract");
+  const res = (await request(
+    "GET",
+    `${API_BASE}/contract`,
+    apiKey
+  )) as ContractListResponse;
+
+  if (res.status === "error") {
+    throw new Error(
+      `Contract List failed: ${res.error?.message} (code: ${res.error?.code})`
+    );
+  }
+
+  const validClassifications = res.items
+    .filter((item) => item.isValid)
+    .map((item) => item.classification);
+
+  log.debug(`契約済み区分: ${validClassifications.join(", ") || "(なし)"}`);
+  return validClassifications;
 }
 
 /** 既存のオープンソケットを取得 */
