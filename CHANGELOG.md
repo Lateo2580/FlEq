@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.4](https://github.com/Lateo2580/FlEq/compare/v0.1.3...v0.1.4) (2026-02-14)
+
+
+### 機能追加
+
+* REPL インタラクティブコマンドを実装 ([6bc7524](https://github.com/Lateo2580/FlEq/commit/6bc7524db9ebea82710db5988238923e1ffe0169))
+
 ## [0.1.3](https://github.com/Lateo2580/FlEq/compare/v0.1.2...v0.1.3) (2026-02-14)
 
 
