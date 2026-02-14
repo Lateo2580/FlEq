@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.16](https://github.com/Lateo2580/FlEq/compare/v0.1.15...v0.1.16) (2026-02-14)
+
+
+### バグ修正
+
+* historyテーブル描画の全角文字幅対応 ([7ec77e3](https://github.com/Lateo2580/FlEq/commit/7ec77e378689e43a1f0604bf781be62930d2969c))
+
 ## [0.1.15](https://github.com/Lateo2580/FlEq/compare/v0.1.14...v0.1.15) (2026-02-14)
 
 
