@@ -299,7 +299,8 @@ export function parseEewTelegram(
           const prefAreas = dig(pref, "Area");
           if (Array.isArray(prefAreas)) {
             for (const area of prefAreas) {
-              const forecastInt = dig(area, "ForecastInt") || dig(area, "ForecastIntFrom");
+              const rawForecastInt = dig(area, "ForecastInt") || dig(area, "ForecastIntFrom");
+              const forecastInt = Array.isArray(rawForecastInt) ? rawForecastInt[0] : rawForecastInt;
               areas.push({
                 name: str(dig(area, "Name")),
                 intensity: str(dig(forecastInt, "From") || forecastInt || ""),
