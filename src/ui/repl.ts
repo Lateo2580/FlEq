@@ -167,22 +167,45 @@ export class ReplHandler {
       return;
     }
 
+    // カラム幅定義
+    const COL = { time: 18, hypo: 14, mag: 6, depth: 8, int: 8 };
+
+    const hLine = (l: string, m: string, r: string, h: string) =>
+      chalk.gray(
+        `  ${l}${h.repeat(COL.time + 2)}${m}${h.repeat(COL.hypo + 2)}${m}${h.repeat(COL.mag + 2)}${m}${h.repeat(COL.depth + 2)}${m}${h.repeat(COL.int + 2)}${r}`
+      );
+
     console.log();
+    console.log(hLine("┌", "┬", "┐", "─"));
+    console.log(chalk.gray("  │ ") +
+      chalk.cyan("発生時刻".padEnd(COL.time - 2)) + chalk.gray("   │ ") +
+      chalk.cyan("震源地".padEnd(COL.hypo - 1)) + chalk.gray("    │ ") +
+      chalk.cyan("規模".padEnd(COL.mag)) + chalk.gray(" │ ") +
+      chalk.cyan("深さ".padEnd(COL.depth)) + chalk.gray(" │ ") +
+      chalk.cyan("最大震度".padEnd(COL.int)) + chalk.gray(" │")
+    );
+    console.log(hLine("├", "┼", "┤", "─"));
+
     for (const item of res.items) {
-      const time = formatTime(item.originTime || item.arrivalTime);
-      const hypo = item.hypocenter?.name || "不明";
+      const time = formatShortTime(item.originTime || item.arrivalTime);
+      const hypo = truncate(item.hypocenter?.name || "不明", COL.hypo);
       const mag =
         item.magnitude?.value != null ? `M${item.magnitude.value}` : "M---";
-      const maxInt = item.maxInt != null ? `最大震度${item.maxInt}` : "";
+      const depth = formatDepth(item);
+      const maxInt = item.maxInt != null ? item.maxInt : "---";
 
       const intColor = item.maxInt != null ? intensityColor(item.maxInt) : chalk.gray;
-      console.log(
-        chalk.gray(`  [${time}] `) +
-          chalk.white(hypo.padEnd(12)) +
-          chalk.yellow(` ${mag.padEnd(6)}`) +
-          intColor(` ${maxInt}`)
+
+      console.log(chalk.gray("  │ ") +
+        chalk.white(padEndVisible(time, COL.time)) + chalk.gray(" │ ") +
+        chalk.white(padEndVisible(hypo, COL.hypo)) + chalk.gray(" │ ") +
+        chalk.yellow(padEndVisible(mag, COL.mag)) + chalk.gray(" │ ") +
+        chalk.white(padEndVisible(depth, COL.depth)) + chalk.gray(" │ ") +
+        intColor(padEndVisible(maxInt, COL.int)) + chalk.gray(" │")
       );
     }
+
+    console.log(hLine("└", "┴", "┘", "─"));
     console.log();
   }
 
@@ -258,11 +281,34 @@ export class ReplHandler {
   }
 }
 
-/** ISO 文字列を "YYYY-MM-DD HH:mm:ss" に整形 */
-function formatTime(iso: string): string {
+/** ISO 文字列を "MM-DD HH:mm:ss" に整形 (テーブル用短縮形) */
+function formatShortTime(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** 文字列を指定幅に切り詰める (全角考慮なし簡易版) */
+function truncate(str: string, maxLen: number): string {
+  if (str.length <= maxLen) return str;
+  return str.substring(0, maxLen - 1) + "…";
+}
+
+/** 可視幅を考慮した padEnd */
+function padEndVisible(str: string, width: number): string {
+  const visLen = str.length;
+  const pad = Math.max(0, width - visLen);
+  return str + " ".repeat(pad);
+}
+
+/** GdEarthquakeItem から深さ文字列を生成 */
+function formatDepth(item: import("../types").GdEarthquakeItem): string {
+  if (item.hypocenter?.depth?.value != null) {
+    const val = item.hypocenter.depth.value;
+    const unit = item.hypocenter.depth.unit || "km";
+    return `${val}${unit}`;
+  }
+  return "---";
 }
 

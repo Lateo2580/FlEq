@@ -148,6 +148,192 @@ describe("EewTracker", () => {
     });
   });
 
+  describe("差分計算", () => {
+    it("マグニチュード変化を検出する", () => {
+      const info1 = createEewInfo({
+        serial: "1",
+        eventId: "event-diff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "event-diff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.3",
+        },
+      });
+
+      tracker.update(info1);
+      const result = tracker.update(info2);
+
+      expect(result.diff).toBeDefined();
+      expect(result.diff!.magnitudeChange).toBe("+0.3");
+    });
+
+    it("深さ変化を検出する", () => {
+      const info1 = createEewInfo({
+        serial: "1",
+        eventId: "event-depth",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "event-depth",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "30km",
+          magnitude: "5.0",
+        },
+      });
+
+      tracker.update(info1);
+      const result = tracker.update(info2);
+
+      expect(result.diff).toBeDefined();
+      expect(result.diff!.depthChange).toBe("-10km");
+    });
+
+    it("震源地名変更を検出する", () => {
+      const info1 = createEewInfo({
+        serial: "1",
+        eventId: "event-hypo",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "event-hypo",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "愛媛県南予",
+          latitude: "N33.3",
+          longitude: "E132.5",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+
+      tracker.update(info1);
+      const result = tracker.update(info2);
+
+      expect(result.diff).toBeDefined();
+      expect(result.diff!.hypocenterChange).toBe(true);
+    });
+
+    it("変化がない場合 diff は undefined", () => {
+      const info1 = createEewInfo({
+        serial: "1",
+        eventId: "event-nodiff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "event-nodiff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+
+      tracker.update(info1);
+      const result = tracker.update(info2);
+
+      expect(result.diff).toBeUndefined();
+    });
+
+    it("新規イベントには diff がない", () => {
+      const info = createEewInfo({
+        serial: "1",
+        eventId: "event-new-no-diff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+
+      const result = tracker.update(info);
+
+      expect(result.isNew).toBe(true);
+      expect(result.diff).toBeUndefined();
+    });
+
+    it("previousInfo が返される", () => {
+      const info1 = createEewInfo({
+        serial: "1",
+        eventId: "event-prev",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.0",
+        },
+      });
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "event-prev",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "40km",
+          magnitude: "5.5",
+        },
+      });
+
+      tracker.update(info1);
+      const result = tracker.update(info2);
+
+      expect(result.previousInfo).toBeDefined();
+      expect(result.previousInfo!.earthquake!.magnitude).toBe("5.0");
+    });
+  });
+
   describe("自動クリーンアップ", () => {
     beforeEach(() => {
       vi.useFakeTimers();

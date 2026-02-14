@@ -4,8 +4,11 @@ import {
   intensityColor,
   displayEarthquakeInfo,
   displayEewInfo,
+  formatRelativeTime,
+  formatTimestamp,
 } from "../../src/ui/formatter";
 import { ParsedEarthquakeInfo, ParsedEewInfo } from "../../src/types";
+import type { EewDiff } from "../../src/features/eew-tracker";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
@@ -225,5 +228,117 @@ describe("displayEewInfo", () => {
 
     expect(output).toContain("同時3件");
     expect(output).toContain("Event:");
+  });
+
+  it("EEW差分情報: マグニチュード変化が表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE44",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    const diff: EewDiff = { magnitudeChange: "+0.3" };
+    displayEewInfo(info!, { activeCount: 1, diff });
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    expect(output).toContain("+0.3");
+  });
+});
+
+// ── フレーム描画テスト ──
+
+describe("フレーム描画", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("地震情報にフレーム文字が含まれる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
+      head: {
+        type: "VXSE53",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEarthquakeTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEarthquakeInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // フレーム文字が含まれる（normal レベルの場合 ┌ / └ / │）
+    expect(output).toMatch(/[┌└│┐┘├┤─╔╚║╗╝╠╣═]/);
+  });
+
+  it("EEW予報にフレーム文字が含まれる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE44",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // EEW 予報は warning レベル → 二重枠
+    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
+  });
+});
+
+// ── 時刻フォーマットテスト ──
+
+describe("formatRelativeTime", () => {
+  it("数秒前を正しく表示", () => {
+    const now = new Date();
+    now.setSeconds(now.getSeconds() - 5);
+    expect(formatRelativeTime(now.toISOString())).toBe("5秒前");
+  });
+
+  it("数分前を正しく表示", () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - 3);
+    expect(formatRelativeTime(now.toISOString())).toBe("3分前");
+  });
+
+  it("数時間前を正しく表示", () => {
+    const now = new Date();
+    now.setHours(now.getHours() - 2);
+    expect(formatRelativeTime(now.toISOString())).toBe("2時間前");
+  });
+});
+
+describe("formatTimestamp", () => {
+  it("絶対+相対時刻を併記する", () => {
+    const now = new Date();
+    now.setSeconds(now.getSeconds() - 10);
+    const result = formatTimestamp(now.toISOString());
+    expect(result).toContain("10秒前");
+    expect(result).toMatch(/\d{1,2}:\d{2}:\d{2}/);
   });
 });

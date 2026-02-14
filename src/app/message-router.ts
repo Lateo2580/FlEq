@@ -40,7 +40,10 @@ export function createMessageHandler(): (msg: WsDataMessage) => void {
           );
           return;
         }
-        displayEewInfo(eewInfo, { activeCount: result.activeCount });
+        displayEewInfo(eewInfo, {
+          activeCount: result.activeCount,
+          diff: result.diff,
+        });
       } else {
         displayRawHeader(msg);
       }

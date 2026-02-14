@@ -1,5 +1,17 @@
 import { ParsedEewInfo } from "../types";
 
+/** EEW 更新時の差分情報 */
+export interface EewDiff {
+  /** マグニチュード変化 ("+0.3" or "-0.2") */
+  magnitudeChange?: string;
+  /** 深さ変化 ("+10km" or "-5km") */
+  depthChange?: string;
+  /** 最大予測震度変化 ("4→5弱") */
+  maxIntChange?: string;
+  /** 震源地名が変わったか */
+  hypocenterChange?: boolean;
+}
+
 /** EEW イベントの状態 */
 interface EewEvent {
   eventId: string;
@@ -7,6 +19,8 @@ interface EewEvent {
   isWarning: boolean;
   isCancelled: boolean;
   lastUpdate: Date;
+  /** 前回のパース済み EEW 情報 (差分計算用) */
+  previousInfo?: ParsedEewInfo;
 }
 
 /** EewTracker.update() の戻り値 */
@@ -19,10 +33,94 @@ export interface EewUpdateResult {
   isCancelled: boolean;
   /** 現在アクティブなイベント数 */
   activeCount: number;
+  /** 前回との差分情報 (更新時のみ) */
+  diff?: EewDiff;
+  /** 前回の EEW 情報 */
+  previousInfo?: ParsedEewInfo;
 }
 
 /** 古いイベントを自動削除するまでの時間 (ミリ秒) */
 const CLEANUP_THRESHOLD_MS = 10 * 60 * 1000; // 10分
+
+/** 深さ文字列から数値(km)を抽出 */
+function parseDepthKm(depth: string): number | null {
+  const m = depth.match(/(\d+)\s*km/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/** 震度文字列をソート用数値に変換 */
+function intensityToNum(int: string): number {
+  const norm = int.replace(/\s+/g, "");
+  const map: Record<string, number> = {
+    "1": 1, "2": 2, "3": 3, "4": 4,
+    "5-": 5, "5弱": 5, "5+": 6, "5強": 6,
+    "6-": 7, "6弱": 7, "6+": 8, "6強": 8, "7": 9,
+  };
+  return map[norm] ?? 0;
+}
+
+/** 予測震度リストから最大震度を取得 */
+function getMaxForecastIntensity(areas: { name: string; intensity: string }[]): string | null {
+  if (areas.length === 0) return null;
+  let maxInt = areas[0].intensity;
+  let maxNum = intensityToNum(maxInt);
+  for (let i = 1; i < areas.length; i++) {
+    const num = intensityToNum(areas[i].intensity);
+    if (num > maxNum) {
+      maxNum = num;
+      maxInt = areas[i].intensity;
+    }
+  }
+  return maxInt;
+}
+
+/** 2つの EEW 情報から差分を計算 */
+function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefined {
+  const diff: EewDiff = {};
+  let hasDiff = false;
+
+  // マグニチュード変化
+  if (prev.earthquake?.magnitude && curr.earthquake?.magnitude) {
+    const prevMag = parseFloat(prev.earthquake.magnitude);
+    const currMag = parseFloat(curr.earthquake.magnitude);
+    if (!isNaN(prevMag) && !isNaN(currMag) && prevMag !== currMag) {
+      const delta = currMag - prevMag;
+      diff.magnitudeChange = (delta > 0 ? "+" : "") + delta.toFixed(1);
+      hasDiff = true;
+    }
+  }
+
+  // 深さ変化
+  if (prev.earthquake?.depth && curr.earthquake?.depth) {
+    const prevD = parseDepthKm(prev.earthquake.depth);
+    const currD = parseDepthKm(curr.earthquake.depth);
+    if (prevD != null && currD != null && prevD !== currD) {
+      const delta = currD - prevD;
+      diff.depthChange = (delta > 0 ? "+" : "") + delta + "km";
+      hasDiff = true;
+    }
+  }
+
+  // 最大予測震度変化 (配列順に依存せず最大値を正規化して比較)
+  if (prev.forecastIntensity?.areas.length && curr.forecastIntensity?.areas.length) {
+    const prevMax = getMaxForecastIntensity(prev.forecastIntensity.areas);
+    const currMax = getMaxForecastIntensity(curr.forecastIntensity.areas);
+    if (prevMax && currMax && prevMax !== currMax) {
+      diff.maxIntChange = `${prevMax}→${currMax}`;
+      hasDiff = true;
+    }
+  }
+
+  // 震源地名変化
+  if (prev.earthquake?.hypocenterName && curr.earthquake?.hypocenterName) {
+    if (prev.earthquake.hypocenterName !== curr.earthquake.hypocenterName) {
+      diff.hypocenterChange = true;
+      hasDiff = true;
+    }
+  }
+
+  return hasDiff ? diff : undefined;
+}
 
 /**
  * 複数の EEW イベントを EventID ごとに追跡し、
@@ -63,17 +161,24 @@ export class EewTracker {
         };
       }
 
+      // 差分計算
+      const diff = existing.previousInfo ? computeDiff(existing.previousInfo, info) : undefined;
+      const previousInfo = existing.previousInfo;
+
       // 状態更新
       existing.lastSerial = Math.max(existing.lastSerial, serial);
       existing.isWarning = existing.isWarning || info.isWarning;
       existing.isCancelled = isCancelled;
       existing.lastUpdate = new Date();
+      existing.previousInfo = info;
 
       return {
         isNew: false,
         isDuplicate: false,
         isCancelled,
         activeCount: this.getActiveCount(),
+        diff,
+        previousInfo,
       };
     }
 
@@ -84,6 +189,7 @@ export class EewTracker {
       isWarning: info.isWarning,
       isCancelled,
       lastUpdate: new Date(),
+      previousInfo: info,
     });
 
     return {
