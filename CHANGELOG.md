@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.15](https://github.com/Lateo2580/FlEq/compare/v0.1.14...v0.1.15) (2026-02-14)
+
+
+### ドキュメント
+
+* CLAUDE.mdに電文ルーティング・テスト・フレームレベルの情報を追記 ([2f99b42](https://github.com/Lateo2580/FlEq/commit/2f99b429965199a2cd0a47ead2a3e8ff13d059a2))
+
 ## [0.1.14](https://github.com/Lateo2580/FlEq/compare/v0.1.13...v0.1.14) (2026-02-14)
 
 
