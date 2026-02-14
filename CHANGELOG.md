@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.8](https://github.com/Lateo2580/FlEq/compare/v0.1.7...v0.1.8) (2026-02-14)
+
+
+### ドキュメント
+
+* README にテスト・Config管理・EEWトラッカー等の情報を追加 ([ca72259](https://github.com/Lateo2580/FlEq/commit/ca72259e4dc8a248dd91ee78649342dcdb13c2df))
+
 ## [0.1.7](https://github.com/Lateo2580/FlEq/compare/v0.1.6...v0.1.7) (2026-02-14)
 
 
