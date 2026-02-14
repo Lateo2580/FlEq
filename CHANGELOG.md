@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.2](https://github.com/Lateo2580/FlEq/compare/v0.1.1...v0.1.2) (2026-02-14)
+
+
+### リファクタリング
+
+* bin フィールドのコマンド名を fleq に変更 ([9b527e8](https://github.com/Lateo2580/FlEq/commit/9b527e8ca346b15af17c13e7a328b28fb27474b8))
+
+
+### ドキュメント
+
+* CLAUDE.md にリリースフロー手順を追加 ([5ffa4c1](https://github.com/Lateo2580/FlEq/commit/5ffa4c1bea85b720c3bc3c0165f4d80e16db5909))
+
 ## [0.1.1](https://github.com/Lateo2580/FlEq/compare/v0.1.0...v0.1.1) (2026-02-14)
 
 ## 0.1.0 (2026-02-14)
