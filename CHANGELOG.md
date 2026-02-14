@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.9](https://github.com/Lateo2580/FlEq/compare/v0.1.8...v0.1.9) (2026-02-14)
+
+
+### リファクタリング
+
+* src/ ディレクトリ構成を責務ベースに再編成 ([ecfca64](https://github.com/Lateo2580/FlEq/commit/ecfca644ec8d544de78202655a863c25435e1168))
+
 ## [0.1.8](https://github.com/Lateo2580/FlEq/compare/v0.1.7...v0.1.8) (2026-02-14)
 
 
