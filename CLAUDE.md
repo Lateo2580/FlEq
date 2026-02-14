@@ -77,3 +77,15 @@ dmdata-monitor config keys          # 設定可能なキー一覧を表示
 ```
 
 設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`
+
+## リリースフロー
+
+コードを変更した際は、以下の手順でバージョンを更新してからプッシュすること:
+
+1. Conventional Commits 形式でコミットする (`feat:`, `fix:`, `refactor:` 等)
+2. `npm run release` を実行（コミットタイプに応じて自動で patch/minor バージョンが上がる）
+3. `git push --follow-tags` でコミットとタグをプッシュする
+
+- **破壊的変更**がある場合: `npm run release:major`
+- **新機能**の場合: 通常の `npm run release` で minor が上がる (`feat:`)
+- **バグ修正**の場合: 通常の `npm run release` で patch が上がる (`fix:`)
