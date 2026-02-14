@@ -1,0 +1,14 @@
+{
+  "types": [
+    { "type": "feat", "section": "機能追加" },
+    { "type": "fix", "section": "バグ修正" },
+    { "type": "perf", "section": "パフォーマンス改善" },
+    { "type": "refactor", "section": "リファクタリング" },
+    { "type": "docs", "section": "ドキュメント" },
+    { "type": "chore", "section": "その他", "hidden": true },
+    { "type": "style", "section": "スタイル", "hidden": true },
+    { "type": "test", "section": "テスト", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "build", "section": "ビルド", "hidden": true }
+  ]
+}

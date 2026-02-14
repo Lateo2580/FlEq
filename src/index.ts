@@ -34,9 +34,8 @@ import {
 import * as log from "./utils/logger";
 import { LogLevel } from "./utils/logger";
 
-// .env ファイルの読み込み（DOTENV_CONFIG_QUIETは上で設定済み）
-
-const VERSION = "0.1.0";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version: VERSION } = require("../package.json") as { version: string };
 
 // ── CLI定義 ──
 
