@@ -63,6 +63,35 @@ npm start -- --debug
 npm start -- --keep-existing
 ```
 
+## テスト
+
+```bash
+# テスト実行
+npm test
+
+# ウォッチモード
+npm run test:watch
+```
+
+- Vitest を使用
+- テストファイル: 3件（計39テスト）
+- フィクスチャ: `test/fixtures/` に実電文XML 14件
+- モックヘルパー: `test/helpers/mock-message.ts`
+
+```
+test/
+├── parser/
+│   └── telegram.test.ts
+├── display/
+│   └── formatter.test.ts
+├── eew/
+│   └── tracker.test.ts
+├── fixtures/
+│   └── *.xml (14 files)
+└── helpers/
+    └── mock-message.ts
+```
+
 ## CLIオプション
 
 | オプション | 説明 | デフォルト |
@@ -72,6 +101,28 @@ npm start -- --keep-existing
 | `--test <mode>` | テスト電文: `no` / `including` / `only` | `no` |
 | `--keep-existing` | 既存接続を維持 | `false` |
 | `--debug` | デバッグログ表示 | `false` |
+
+## Config管理
+
+永続設定は `~/.config/dmdata-monitor/config.json` に保存されます。
+`config` サブコマンドで管理できます。
+
+```bash
+# 現在の設定を表示
+npm start -- config show
+
+# 設定値をセット
+npm start -- config set <key> <value>
+
+# 設定値を削除
+npm start -- config unset <key>
+
+# Configファイルの保存先を表示
+npm start -- config path
+
+# 設定可能キー一覧を表示
+npm start -- config keys
+```
 
 ## アーキテクチャ
 
@@ -87,6 +138,12 @@ src/
 │   └── telegram.ts       # XML電文パーサー（gzip+base64デコード含む）
 ├── display/
 │   └── formatter.ts      # ターミナル表示（色付き整形出力）
+├── eew/
+│   └── tracker.ts        # EEWイベント追跡（EventID管理・重複/取消検出・自動クリーンアップ）
+├── config/
+│   └── manager.ts        # 設定ファイル管理（読み書き・バリデーション）
+├── repl/
+│   └── handler.ts        # 対話コマンド（help/history/status/config等）
 └── utils/
     └── logger.ts         # ロガー
 ```
@@ -97,9 +154,11 @@ src/
 - gzip圧縮+base64エンコードされたXML電文の自動デコード
 - 震度に応じた色分け表示
 - 緊急地震速報（警報/予報）の視覚的な強調表示
+- EEWイベントの同時追跡（EventID単位、重複報スキップ、取消対応）
 - 指数バックオフによる自動再接続
 - ping-pongによる接続維持
 - 既存ソケットの自動クリーンアップ
+- Configファイルによる永続設定管理
 
 ## ライセンス
 
