@@ -35,19 +35,20 @@ export DMDATA_API_KEY=your_api_key_here
 
 **方法2: .envファイル**
 ```bash
-cp .env.example .env
-# .env を編集してAPIキーを設定
+cat > .env <<'EOF'
+DMDATA_API_KEY=your-key-here
+EOF
 ```
 
-**方法3: コマンドラインオプション**
+**方法3: Configに保存**
 ```bash
-npm start -- --api-key your_api_key_here
+npm start -- config set apiKey your_api_key_here
 ```
 
 ## 使い方
 
 ```bash
-# 地震・津波情報を受信（デフォルト）
+# デフォルト区分を受信（telegram.earthquake,eew.forecast,eew.warning）
 npm start
 
 # 複数の区分を受信
@@ -120,12 +121,12 @@ npm run mcp:bridge
 
 ```
 test/
-├── parser/
-│   └── telegram.test.ts
-├── display/
+├── dmdata/
+│   └── telegram-parser.test.ts
+├── ui/
 │   └── formatter.test.ts
-├── eew/
-│   └── tracker.test.ts
+├── features/
+│   └── eew-tracker.test.ts
 ├── fixtures/
 │   └── *.xml (14 files)
 └── helpers/
@@ -137,7 +138,7 @@ test/
 | オプション | 説明 | デフォルト |
 |-----------|------|-----------|
 | `-k, --api-key <key>` | dmdata.jp APIキー | 環境変数 `DMDATA_API_KEY` |
-| `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake` |
+| `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning` |
 | `--test <mode>` | テスト電文: `no` / `including` / `only` | `no` |
 | `--keep-existing` | 既存接続を維持 | `false` |
 | `--debug` | デバッグログ表示 | `false` |
@@ -164,28 +165,64 @@ npm start -- config path
 npm start -- config keys
 ```
 
+設定可能なキー:
+
+| キー | 説明 |
+|------|------|
+| `apiKey` | dmdata.jp APIキー |
+| `classifications` | 受信区分 (カンマ区切り: `telegram.earthquake,eew.forecast,eew.warning`) |
+| `testMode` | テスト電文モード: `"no"` / `"including"` / `"only"` |
+| `appName` | アプリケーション名 |
+| `maxReconnectDelaySec` | 再接続の最大待機秒数 |
+| `keepExistingConnections` | 既存のWebSocket接続を維持するか (`true` / `false`) |
+
+## REPLコマンド
+
+実行中に `fleq> ` プロンプトで以下のコマンドを利用できます。
+
+| コマンド | 説明 |
+|----------|------|
+| `help` | コマンド一覧を表示 |
+| `history [N]` | 地震履歴を取得・表示（デフォルト10件） |
+| `status` | WebSocket 接続状態を表示 |
+| `config` | 現在の設定を表示 |
+| `contract` | 契約区分一覧を表示 |
+| `socket` | 接続中のソケット一覧を表示 |
+| `quit` / `exit` | アプリケーションを終了 |
+
+## CLIバイナリとnpm scripts
+
+- CLIバイナリ名: `fleq` (`package.json` の `bin` 設定)
+- `npm run dev`: build + run
+- `npm run clean`: `dist/` を削除
+- `npm run release`: バージョン更新（Conventional Commitsに基づく）
+- `npm run release:minor`: minor リリース
+- `npm run release:major`: major リリース
+
 ## アーキテクチャ
 
 ```
 src/
-├── index.ts              # エントリポイント・CLI定義
-├── types.ts              # 型定義
-├── api/
-│   └── client.ts         # dmdata.jp REST API クライアント
-├── websocket/
-│   └── manager.ts        # WebSocket接続管理（自動再接続・ping-pong）
-├── parser/
-│   └── telegram.ts       # XML電文パーサー（gzip+base64デコード含む）
-├── display/
-│   └── formatter.ts      # ターミナル表示（色付き整形出力）
-├── eew/
-│   └── tracker.ts        # EEWイベント追跡（EventID管理・重複/取消検出・自動クリーンアップ）
-├── config/
-│   └── manager.ts        # 設定ファイル管理（読み書き・バリデーション）
-├── repl/
-│   └── handler.ts        # 対話コマンド（help/history/status/config等）
-└── utils/
-    └── logger.ts         # ロガー
+├── index.ts                    # エントリポイント (薄いブートストラップのみ)
+├── types.ts                    # 共有型定義
+├── config.ts                   # Configファイル管理 (読み書き・バリデーション)
+├── logger.ts                   # ログレベル付きロガー
+├── cli/
+│   ├── build-command.ts        # Commander CLI定義
+│   └── run-command.ts          # CLIアクションハンドラ (設定解決・起動バナー)
+├── app/
+│   ├── start-monitor.ts        # メインオーケストレーション (接続・REPL・シャットダウン)
+│   └── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
+├── dmdata/
+│   ├── rest-client.ts          # dmdata.jp REST API クライアント
+│   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
+│   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
+├── features/
+│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理)
+│   └── mcp-bridge.ts           # MCP連携ブリッジ (実験的)
+└── ui/
+    ├── formatter.ts            # ターミナル表示フォーマッタ
+    └── repl.ts                 # REPL インタラクション
 ```
 
 ## 主な機能
