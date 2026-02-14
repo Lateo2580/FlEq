@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.3](https://github.com/Lateo2580/FlEq/compare/v0.1.2...v0.1.3) (2026-02-14)
+
+
+### 機能追加
+
+* 起動時に契約状況を確認し契約済み区分のみで接続する ([efad1ce](https://github.com/Lateo2580/FlEq/commit/efad1ce4394c24a6d78887ab185f3a9a00d0f719))
+
 ## [0.1.2](https://github.com/Lateo2580/FlEq/compare/v0.1.1...v0.1.2) (2026-02-14)
 
 
