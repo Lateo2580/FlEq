@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.14](https://github.com/Lateo2580/FlEq/compare/v0.1.13...v0.1.14) (2026-02-14)
+
+
+### 機能追加
+
+* 津波・地震活動テキスト電文の構造化パース・表示とテスト追加 ([9a16436](https://github.com/Lateo2580/FlEq/commit/9a16436d981d927a3ed8a3a3b71890db11353a0f))
+
 ## [0.1.13](https://github.com/Lateo2580/FlEq/compare/v0.1.12...v0.1.13) (2026-02-14)
 
 ## [0.1.12](https://github.com/Lateo2580/FlEq/compare/v0.1.11...v0.1.12) (2026-02-14)
