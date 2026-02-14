@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.7](https://github.com/Lateo2580/FlEq/compare/v0.1.6...v0.1.7) (2026-02-14)
+
+
+### 機能追加
+
+* Vitest テスト基盤を構築し、パーサー・表示・EEWトラッカーのテストを追加 ([6fd8b7d](https://github.com/Lateo2580/FlEq/commit/6fd8b7d68672cfd649e0fed31f5aa64bf32d76e5))
+
 ## [0.1.6](https://github.com/Lateo2580/FlEq/compare/v0.1.5...v0.1.6) (2026-02-14)
 
 
