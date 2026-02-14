@@ -4,7 +4,7 @@ import {
   decodeBody,
   parseEarthquakeTelegram,
   parseEewTelegram,
-} from "../../src/parser/telegram";
+} from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
   readFixture,

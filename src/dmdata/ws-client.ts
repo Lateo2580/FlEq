@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import { AppConfig, WsMessage, WsDataMessage } from "../types";
-import { prepareAndStartSocket } from "../api/client";
-import * as log from "../utils/logger";
+import { prepareAndStartSocket } from "./rest-client";
+import * as log from "../logger";
 
 export interface WsManagerStatus {
   connected: boolean;

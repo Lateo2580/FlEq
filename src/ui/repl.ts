@@ -1,11 +1,11 @@
 import readline from "readline";
 import chalk from "chalk";
 import { AppConfig } from "../types";
-import { WebSocketManager } from "../websocket/manager";
-import { listEarthquakes, listContracts, listSockets } from "../api/client";
-import { printConfig } from "../config/manager";
-import { intensityColor } from "../display/formatter";
-import * as log from "../utils/logger";
+import { WebSocketManager } from "../dmdata/ws-client";
+import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
+import { printConfig } from "../config";
+import { intensityColor } from "./formatter";
+import * as log from "../logger";
 
 const PROMPT = "fleq> ";
 
@@ -265,5 +265,4 @@ function formatTime(iso: string): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
-
 

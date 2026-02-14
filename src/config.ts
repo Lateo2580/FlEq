@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { ConfigFile, Classification } from "../types";
-import * as log from "../utils/logger";
+import { ConfigFile, Classification } from "./types";
+import * as log from "./logger";
 
 /** 設定エラー */
 export class ConfigError extends Error {

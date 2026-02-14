@@ -5,7 +5,7 @@ import {
   ParsedEarthquakeInfo,
   ParsedEewInfo,
 } from "../types";
-import * as log from "../utils/logger";
+import * as log from "../logger";
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,

@@ -1,6 +1,6 @@
 import https from "https";
 import { AppConfig, SocketStartResponse, SocketListResponse, ContractListResponse, GdEarthquakeListResponse } from "../types";
-import * as log from "../utils/logger";
+import * as log from "../logger";
 
 const API_BASE = "https://api.dmdata.jp/v2";
 

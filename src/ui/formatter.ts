@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { ParsedEarthquakeInfo, ParsedEewInfo, WsDataMessage } from "../types";
-import * as log from "../utils/logger";
+import * as log from "../logger";
 
 /** 区切り線 */
 function separator(char = "─", len = 60): string {

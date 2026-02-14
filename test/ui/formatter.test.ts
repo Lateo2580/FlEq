@@ -4,12 +4,12 @@ import {
   intensityColor,
   displayEarthquakeInfo,
   displayEewInfo,
-} from "../../src/display/formatter";
+} from "../../src/ui/formatter";
 import { ParsedEarthquakeInfo, ParsedEewInfo } from "../../src/types";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
-} from "../../src/parser/telegram";
+} from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,
