@@ -4,7 +4,7 @@ import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { printConfig } from "../config";
-import { intensityColor } from "./formatter";
+import { intensityColor, visualPadEnd, visualWidth } from "../ui/formatter";
 import * as log from "../logger";
 
 const PROMPT = "fleq> ";
@@ -168,7 +168,7 @@ export class ReplHandler {
     }
 
     // カラム幅定義
-    const COL = { time: 18, hypo: 14, mag: 6, depth: 8, int: 8 };
+    const COL = { time: 18, hypo: 16, mag: 6, depth: 8, int: 8 };
 
     const hLine = (l: string, m: string, r: string, h: string) =>
       chalk.gray(
@@ -178,11 +178,11 @@ export class ReplHandler {
     console.log();
     console.log(hLine("┌", "┬", "┐", "─"));
     console.log(chalk.gray("  │ ") +
-      chalk.cyan("発生時刻".padEnd(COL.time - 2)) + chalk.gray("   │ ") +
-      chalk.cyan("震源地".padEnd(COL.hypo - 1)) + chalk.gray("    │ ") +
-      chalk.cyan("規模".padEnd(COL.mag)) + chalk.gray(" │ ") +
-      chalk.cyan("深さ".padEnd(COL.depth)) + chalk.gray(" │ ") +
-      chalk.cyan("最大震度".padEnd(COL.int)) + chalk.gray(" │")
+      chalk.cyan(visualPadEnd("発生時刻", COL.time)) + chalk.gray(" │ ") +
+      chalk.cyan(visualPadEnd("震源地", COL.hypo)) + chalk.gray(" │ ") +
+      chalk.cyan(visualPadEnd("規模", COL.mag)) + chalk.gray(" │ ") +
+      chalk.cyan(visualPadEnd("深さ", COL.depth)) + chalk.gray(" │ ") +
+      chalk.cyan(visualPadEnd("最大震度", COL.int)) + chalk.gray(" │")
     );
     console.log(hLine("├", "┼", "┤", "─"));
 
@@ -197,11 +197,11 @@ export class ReplHandler {
       const intColor = item.maxInt != null ? intensityColor(item.maxInt) : chalk.gray;
 
       console.log(chalk.gray("  │ ") +
-        chalk.white(padEndVisible(time, COL.time)) + chalk.gray(" │ ") +
-        chalk.white(padEndVisible(hypo, COL.hypo)) + chalk.gray(" │ ") +
-        chalk.yellow(padEndVisible(mag, COL.mag)) + chalk.gray(" │ ") +
-        chalk.white(padEndVisible(depth, COL.depth)) + chalk.gray(" │ ") +
-        intColor(padEndVisible(maxInt, COL.int)) + chalk.gray(" │")
+        chalk.white(visualPadEnd(time, COL.time)) + chalk.gray(" │ ") +
+        chalk.white(visualPadEnd(hypo, COL.hypo)) + chalk.gray(" │ ") +
+        chalk.yellow(visualPadEnd(mag, COL.mag)) + chalk.gray(" │ ") +
+        chalk.white(visualPadEnd(depth, COL.depth)) + chalk.gray(" │ ") +
+        intColor(visualPadEnd(maxInt, COL.int)) + chalk.gray(" │")
       );
     }
 
@@ -289,17 +289,27 @@ function formatShortTime(iso: string): string {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** 文字列を指定幅に切り詰める (全角考慮なし簡易版) */
-function truncate(str: string, maxLen: number): string {
-  if (str.length <= maxLen) return str;
-  return str.substring(0, maxLen - 1) + "…";
-}
+/** 文字列を視覚幅で指定幅に切り詰める */
+function truncate(str: string, maxWidth: number): string {
+  if (maxWidth <= 0) return "";
+  if (visualWidth(str) <= maxWidth) return str;
 
-/** 可視幅を考慮した padEnd */
-function padEndVisible(str: string, width: number): string {
-  const visLen = str.length;
-  const pad = Math.max(0, width - visLen);
-  return str + " ".repeat(pad);
+  const ellipsis = "…";
+  const ellipsisWidth = visualWidth(ellipsis);
+  if (maxWidth <= ellipsisWidth) return ellipsis;
+
+  const targetWidth = maxWidth - ellipsisWidth;
+  let result = "";
+  let width = 0;
+
+  for (const ch of str) {
+    const chWidth = visualWidth(ch);
+    if (width + chWidth > targetWidth) break;
+    result += ch;
+    width += chWidth;
+  }
+
+  return result + ellipsis;
 }
 
 /** GdEarthquakeItem から深さ文字列を生成 */
@@ -311,4 +321,3 @@ function formatDepth(item: import("../types").GdEarthquakeItem): string {
   }
   return "---";
 }
-

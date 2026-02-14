@@ -59,7 +59,7 @@ function stripAnsi(str: string): string {
 }
 
 /** 文字列の視覚的な幅を計算（全角文字を2として数える） */
-function visualWidth(str: string): number {
+export function visualWidth(str: string): number {
   const plain = stripAnsi(str);
   let width = 0;
   for (const ch of plain) {
@@ -87,7 +87,7 @@ function visualWidth(str: string): number {
 }
 
 /** 視覚幅を考慮してスペースでパディング（padEnd の全角対応版） */
-function visualPadEnd(str: string, targetWidth: number): string {
+export function visualPadEnd(str: string, targetWidth: number): string {
   const currentWidth = visualWidth(str);
   const padSize = Math.max(0, targetWidth - currentWidth);
   return str + " ".repeat(padSize);
