@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.13](https://github.com/Lateo2580/FlEq/compare/v0.1.12...v0.1.13) (2026-02-14)
+
 ## [0.1.12](https://github.com/Lateo2580/FlEq/compare/v0.1.11...v0.1.12) (2026-02-14)
 
 
