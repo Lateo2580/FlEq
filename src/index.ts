@@ -33,6 +33,7 @@ import {
   displayEewInfo,
   displayRawHeader,
 } from "./display/formatter";
+import { EewTracker } from "./eew/tracker";
 import * as log from "./utils/logger";
 import { LogLevel } from "./utils/logger";
 
@@ -265,6 +266,9 @@ function printBanner(config: AppConfig): void {
   console.log();
 }
 
+/** EEW イベントトラッカー */
+const eewTracker = new EewTracker();
+
 /** 受信データのハンドリング */
 function handleData(msg: WsDataMessage): void {
   // XML電文でない場合はヘッダ情報のみ表示
@@ -283,7 +287,12 @@ function handleData(msg: WsDataMessage): void {
   ) {
     const eewInfo = parseEewTelegram(msg);
     if (eewInfo) {
-      displayEewInfo(eewInfo);
+      const result = eewTracker.update(eewInfo);
+      if (result.isDuplicate) {
+        log.debug(`EEW 重複報スキップ: EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
+        return;
+      }
+      displayEewInfo(eewInfo, { activeCount: result.activeCount });
     } else {
       displayRawHeader(msg);
     }

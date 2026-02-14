@@ -163,11 +163,31 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   console.log();
 }
 
+/** EEW 表示時のコンテキスト情報 */
+export interface EewDisplayContext {
+  /** 現在アクティブなイベント数 */
+  activeCount: number;
+}
+
 /** EEW情報を整形して表示 */
-export function displayEewInfo(info: ParsedEewInfo): void {
+export function displayEewInfo(
+  info: ParsedEewInfo,
+  context?: EewDisplayContext
+): void {
   console.log();
 
-  if (info.isWarning) {
+  const isCancelled = info.infoType === "取消";
+
+  if (isCancelled) {
+    // キャンセル報
+    console.log(chalk.bgGreen.black.bold("".repeat(60)));
+    console.log(
+      chalk.bgGreen.black.bold(
+        ` ✓ 緊急地震速報 取消`.padEnd(59) + " "
+      )
+    );
+    console.log(chalk.bgGreen.black.bold("".repeat(60)));
+  } else if (info.isWarning) {
     // 警報
     console.log(chalk.bgRed.white.bold("".repeat(60)));
     console.log(
@@ -191,15 +211,34 @@ export function displayEewInfo(info: ParsedEewInfo): void {
     console.log(chalk.bgMagenta.white.bold(" ■ テスト電文 "));
   }
 
-  console.log(
-    chalk.gray(
-      ` 第${info.serial || "?"}報  EventID: ${info.eventId || "不明"}  ${info.infoType}`
-    )
-  );
+  // 複数イベント同時発生時は EventID を目立たせる
+  const activeCount = context?.activeCount ?? 0;
+  if (activeCount >= 2 && info.eventId) {
+    console.log(
+      chalk.bgCyan.black.bold(` Event: ${info.eventId} `) +
+        chalk.gray(` 第${info.serial || "?"}報  ${info.infoType}`) +
+        chalk.yellow(` [同時${activeCount}件]`)
+    );
+  } else {
+    console.log(
+      chalk.gray(
+        ` 第${info.serial || "?"}報  EventID: ${info.eventId || "不明"}  ${info.infoType}`
+      )
+    );
+  }
   console.log(chalk.gray(` 発表: ${info.reportDateTime}  ${info.publishingOffice}`));
 
   if (info.headline) {
     console.log(chalk.bold.white(` ${info.headline}`));
+  }
+
+  if (isCancelled && !info.earthquake) {
+    // キャンセル報で震源情報がない場合
+    console.log(separator());
+    console.log(chalk.green(`   この地震についての緊急地震速報は取り消されました。`));
+    console.log(separator("═"));
+    console.log();
+    return;
   }
 
   if (info.earthquake) {
@@ -219,6 +258,15 @@ export function displayEewInfo(info: ParsedEewInfo): void {
         chalk.white(`   規模: `) + chalk.red.bold(`M${eq.magnitude}`)
       );
     }
+  }
+
+  if (isCancelled) {
+    // キャンセル報で震源情報はあるが予測震度は省略
+    console.log(separator());
+    console.log(chalk.green(`   この地震についての緊急地震速報は取り消されました。`));
+    console.log(separator("═"));
+    console.log();
+    return;
   }
 
   if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {
