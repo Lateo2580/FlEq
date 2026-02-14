@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.12](https://github.com/Lateo2580/FlEq/compare/v0.1.11...v0.1.12) (2026-02-14)
+
+
+### バグ修正
+
+* EEW表示フォーマットを改善（バナー幅・時刻形式・レイアウト調整） ([aa6e44f](https://github.com/Lateo2580/FlEq/commit/aa6e44f6b2f37ab9eaa630e7f0fe24ff9b114ff5))
+
 ## [0.1.11](https://github.com/Lateo2580/FlEq/compare/v0.1.10...v0.1.11) (2026-02-14)
 
 
