@@ -32,7 +32,7 @@ export interface ConfigFile {
 
 /** デフォルト設定 */
 export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
-  classifications: ["telegram.earthquake"],
+  classifications: ["telegram.earthquake", "eew.forecast", "eew.warning"],
   testMode: "no",
   appName: "dmdata-monitor",
   maxReconnectDelaySec: 60,
