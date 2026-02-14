@@ -8,9 +8,18 @@ dotenv.config();import chalk from "chalk";
 import {
   AppConfig,
   Classification,
+  ConfigFile,
   DEFAULT_CONFIG,
   WsDataMessage,
 } from "./types";
+import {
+  loadConfig,
+  setConfigValue,
+  unsetConfigValue,
+  printConfig,
+  printConfigKeys,
+  getConfigPath,
+} from "./config/manager";
 import { WebSocketManager } from "./websocket/manager";
 import {
   parseEarthquakeTelegram,
@@ -45,17 +54,58 @@ program
   )
   .option(
     "-c, --classifications <items>",
-    "受信区分 (カンマ区切り: telegram.earthquake,eew.forecast,eew.warning)",
-    "telegram.earthquake"
+    "受信区分 (カンマ区切り: telegram.earthquake,eew.forecast,eew.warning)"
   )
   .option(
     "--test <mode>",
-    'テスト電文: "no" | "including" | "only"',
-    "no"
+    'テスト電文: "no" | "including" | "only"'
   )
-  .option("--keep-existing", "既存のWebSocket接続を維持する", false)
+  .option("--keep-existing", "既存のWebSocket接続を維持する")
   .option("--debug", "デバッグログを表示", false)
   .action(main);
+
+// ── config サブコマンド ──
+
+const configCmd = program
+  .command("config")
+  .description("Configファイルの設定を管理する");
+
+configCmd
+  .command("show")
+  .description("現在の設定を表示する")
+  .action(() => {
+    printConfig();
+  });
+
+configCmd
+  .command("set <key> <value>")
+  .description("設定値をセットする")
+  .action((key: string, value: string) => {
+    setConfigValue(key, value);
+    log.info(`設定しました: ${key}`);
+  });
+
+configCmd
+  .command("unset <key>")
+  .description("設定値を削除する")
+  .action((key: string) => {
+    unsetConfigValue(key);
+    log.info(`削除しました: ${key}`);
+  });
+
+configCmd
+  .command("path")
+  .description("Configファイルのパスを表示する")
+  .action(() => {
+    console.log(getConfigPath());
+  });
+
+configCmd
+  .command("keys")
+  .description("設定可能なキー一覧を表示する")
+  .action(() => {
+    printConfigKeys();
+  });
 
 program.parse();
 
@@ -63,9 +113,9 @@ program.parse();
 
 async function main(opts: {
   apiKey?: string;
-  classifications: string;
-  test: string;
-  keepExisting: boolean;
+  classifications?: string;
+  test?: string;
+  keepExisting?: boolean;
   debug: boolean;
 }): Promise<void> {
   // ログレベル設定
@@ -73,26 +123,38 @@ async function main(opts: {
     log.setLogLevel(LogLevel.DEBUG);
   }
 
-  // APIキー
-  const apiKey = opts.apiKey || process.env.DMDATA_API_KEY;
+  // Configファイル読み込み
+  const fileConfig: ConfigFile = loadConfig();
+  log.debug(`Config: ${getConfigPath()}`);
+
+  // APIキー (CLI > 環境変数 > Configファイル)
+  const apiKey = opts.apiKey || process.env.DMDATA_API_KEY || fileConfig.apiKey;
   if (!apiKey) {
     log.error(
-      "APIキーが指定されていません。--api-key オプションまたは環境変数 DMDATA_API_KEY を設定してください。"
+      "APIキーが指定されていません。--api-key オプション、環境変数 DMDATA_API_KEY、または config set apiKey で設定してください。"
     );
     process.exit(1);
   }
 
-  // 分類区分の解析
-  const classifications = opts.classifications
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean) as Classification[];
-
+  // 分類区分の解析 (CLI > Configファイル > デフォルト)
   const validClassifications: Classification[] = [
     "telegram.earthquake",
     "eew.forecast",
     "eew.warning",
   ];
+
+  let classifications: Classification[];
+  if (opts.classifications != null) {
+    classifications = opts.classifications
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean) as Classification[];
+  } else if (fileConfig.classifications != null) {
+    classifications = fileConfig.classifications;
+  } else {
+    classifications = DEFAULT_CONFIG.classifications;
+  }
+
   for (const c of classifications) {
     if (!validClassifications.includes(c)) {
       log.error(`無効な区分: ${c}`);
@@ -101,8 +163,12 @@ async function main(opts: {
     }
   }
 
-  // テストモード
-  const testMode = opts.test as "no" | "including" | "only";
+  // テストモード (CLI > Configファイル > デフォルト)
+  const testMode: "no" | "including" | "only" =
+    opts.test != null
+      ? (opts.test as "no" | "including" | "only")
+      : fileConfig.testMode ?? DEFAULT_CONFIG.testMode;
+
   if (!["no", "including", "only"].includes(testMode)) {
     log.error(`無効なテストモード: ${testMode}`);
     process.exit(1);
@@ -112,9 +178,11 @@ async function main(opts: {
     apiKey,
     classifications,
     testMode,
-    appName: DEFAULT_CONFIG.appName,
-    maxReconnectDelaySec: DEFAULT_CONFIG.maxReconnectDelaySec,
-    keepExistingConnections: opts.keepExisting,
+    appName: fileConfig.appName ?? DEFAULT_CONFIG.appName,
+    maxReconnectDelaySec:
+      fileConfig.maxReconnectDelaySec ?? DEFAULT_CONFIG.maxReconnectDelaySec,
+    keepExistingConnections:
+      opts.keepExisting ?? fileConfig.keepExistingConnections ?? DEFAULT_CONFIG.keepExistingConnections,
   };
 
   // 起動バナー

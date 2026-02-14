@@ -20,6 +20,16 @@ export interface AppConfig {
   keepExistingConnections: boolean;
 }
 
+/** Configファイルの設定 (全フィールド任意) */
+export interface ConfigFile {
+  apiKey?: string;
+  classifications?: Classification[];
+  testMode?: "no" | "including" | "only";
+  appName?: string;
+  maxReconnectDelaySec?: number;
+  keepExistingConnections?: boolean;
+}
+
 /** デフォルト設定 */
 export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   classifications: ["telegram.earthquake"],
