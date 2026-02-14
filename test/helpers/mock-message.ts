@@ -32,11 +32,6 @@ export const FIXTURE_VXSE53_DRILL_2 = "32-35_04_04_240613_VXSE53.xml";
 /** VXSE44 EEW予報 Serial=10 */
 export const FIXTURE_VXSE44_S10 = "36_01_10_240613_VXSE44.xml";
 
-/** VXSE44 EEW予報 Serial=11 */
-export const FIXTURE_VXSE44_S11 = "36_01_11_240613_VXSE44.xml";
-
-/** VXSE44 EEW予報 Serial=12 (別報) */
-export const FIXTURE_VXSE44_S12 = "36_01_12_240613_VXSE44.xml";
 
 /** VXSE45 EEW地震動予報 Serial=1 初報 */
 export const FIXTURE_VXSE45_S1 = "77_01_01_240613_VXSE45.xml";
@@ -44,8 +39,6 @@ export const FIXTURE_VXSE45_S1 = "77_01_01_240613_VXSE45.xml";
 /** VXSE45 EEW地震動予報 Serial=26 */
 export const FIXTURE_VXSE45_S26 = "77_01_26_240613_VXSE45.xml";
 
-/** VXSE45 EEW地震動予報 Serial=32 */
-export const FIXTURE_VXSE45_S32 = "77_01_32_240613_VXSE45.xml";
 
 /** VXSE45 EEW地震動予報 取消報 Serial=32 */
 export const FIXTURE_VXSE45_CANCEL = "77_01_33_240613_VXSE45.xml";
