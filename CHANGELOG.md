@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.11](https://github.com/Lateo2580/FlEq/compare/v0.1.10...v0.1.11) (2026-02-14)
+
+
+### 機能追加
+
+* 表示レイアウトを優先度別フレーム・カード形式に改修し情報伝達力を向上 ([2d06d2d](https://github.com/Lateo2580/FlEq/commit/2d06d2da7007a300f430ce3150119c656688713e))
+
 ## [0.1.10](https://github.com/Lateo2580/FlEq/compare/v0.1.9...v0.1.10) (2026-02-14)
 
 
