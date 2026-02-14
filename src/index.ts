@@ -215,26 +215,7 @@ async function main(opts: {
 /** 起動バナー表示 */
 function printBanner(config: AppConfig): void {
   console.log();
-  console.log(
-    chalk.cyan.bold(
-      "╔══════════════════════════════════════════════════════════╗"
-    )
-  );
-  console.log(
-    chalk.cyan.bold(
-      `║  dmdata-monitor v${VERSION}                                 ║`
-    )
-  );
-  console.log(
-    chalk.cyan.bold(
-      "║  Project DM-D.S.S リアルタイム地震・津波情報モニター   ║"
-    )
-  );
-  console.log(
-    chalk.cyan.bold(
-      "╚══════════════════════════════════════════════════════════╝"
-    )
-  );
+  console.log(chalk.cyan.bold(`${config.appName} v${VERSION} — Project DM-D.S.S リアルタイム地震・津波情報モニター`));
   console.log();
   log.info(`受信区分: ${config.classifications.join(", ")}`);
   log.info(`テストモード: ${config.testMode}`);
