@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.5](https://github.com/Lateo2580/FlEq/compare/v0.1.4...v0.1.5) (2026-02-14)
+
+
+### 機能追加
+
+* EEW キャンセル報表示と複数イベント同時管理を実装 ([1ae9f0a](https://github.com/Lateo2580/FlEq/commit/1ae9f0ac1822b18825249e08b922b124d5e39949))
+
 ## [0.1.4](https://github.com/Lateo2580/FlEq/compare/v0.1.3...v0.1.4) (2026-02-14)
 
 
