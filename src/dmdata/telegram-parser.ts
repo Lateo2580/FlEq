@@ -4,6 +4,11 @@ import {
   WsDataMessage,
   ParsedEarthquakeInfo,
   ParsedEewInfo,
+  ParsedTsunamiInfo,
+  ParsedSeismicTextInfo,
+  TsunamiForecastItem,
+  TsunamiObservationStation,
+  TsunamiEstimationItem,
 } from "../types";
 import * as log from "../logger";
 
@@ -23,6 +28,8 @@ const xmlParser = new XMLParser({
       "Category",
       "ForecastInt",
       "Observation",
+      "Station",
+      "Estimation",
     ];
     return arrayTags.includes(name);
   },
@@ -318,6 +325,205 @@ export function parseEewTelegram(
   } catch (err) {
     log.error(
       `EEW電文パースエラー: ${err instanceof Error ? err.message : err}`
+    );
+    return null;
+  }
+}
+
+/** 津波電文(VTSE41/51/52)をパース */
+export function parseTsunamiTelegram(
+  msg: WsDataMessage
+): ParsedTsunamiInfo | null {
+  try {
+    const xmlStr = decodeBody(msg);
+    const parsed = parseXml(xmlStr);
+
+    const report =
+      dig(parsed, "Report") ||
+      dig(parsed, "jmx:Report") ||
+      dig(parsed, "jmx_seis:Report");
+
+    if (!report) {
+      log.debug("Report ノードが見つかりません");
+      return null;
+    }
+
+    const head = dig(report, "Head");
+    const body = dig(report, "Body");
+    const warningComment = dig(body, "Comments", "WarningComment");
+    const warningCommentText = Array.isArray(warningComment)
+      ? str(dig(warningComment[0], "Text"))
+      : str(dig(warningComment, "Text"));
+
+    const info: ParsedTsunamiInfo = {
+      type: msg.head.type,
+      infoType: str(dig(head, "InfoType")),
+      title: str(dig(head, "Title")),
+      reportDateTime: str(dig(head, "ReportDateTime")),
+      headline: str(dig(head, "Headline", "Text")) || null,
+      publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
+      warningComment: warningCommentText,
+      isTest: msg.head.test,
+    };
+
+    const tsunami = dig(body, "Tsunami");
+
+    const forecastItems = dig(tsunami, "Forecast", "Item");
+    if (Array.isArray(forecastItems)) {
+      const forecast: TsunamiForecastItem[] = [];
+      for (const item of forecastItems) {
+        const area = first(dig(item, "Area") as unknown[]);
+        const category = first(dig(item, "Category") as unknown[]);
+        const kind = first(dig(category, "Kind") as unknown[]);
+        const areaName = str(dig(area, "Name")).trim();
+        if (!areaName) {
+          continue;
+        }
+        const maxHeightDescription =
+          str(dig(item, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
+          str(dig(item, "MaxHeight", "TsunamiHeight", "@_description"));
+        const firstHeight =
+          str(dig(item, "FirstHeight", "ArrivalTime")) ||
+          str(dig(item, "FirstHeight", "Condition"));
+        forecast.push({
+          areaName,
+          kind: str(dig(kind, "Name")),
+          maxHeightDescription,
+          firstHeight,
+        });
+      }
+      if (forecast.length > 0) {
+        info.forecast = forecast;
+      }
+    }
+
+    const rawObservation = dig(tsunami, "Observation");
+    const observationsNodes = Array.isArray(rawObservation)
+      ? rawObservation
+      : rawObservation
+        ? [rawObservation]
+        : [];
+    if (observationsNodes.length > 0) {
+      const observations: TsunamiObservationStation[] = [];
+      for (const node of observationsNodes) {
+        const items = dig(node, "Item");
+        if (!Array.isArray(items)) {
+          continue;
+        }
+        for (const item of items) {
+          const stationsRaw = dig(item, "Station");
+          const stations = Array.isArray(stationsRaw)
+            ? stationsRaw
+            : stationsRaw
+              ? [stationsRaw]
+              : [];
+          for (const station of stations) {
+            observations.push({
+              name: str(dig(station, "Name")),
+              sensor: str(dig(station, "Sensor")),
+              arrivalTime: str(dig(station, "FirstHeight", "ArrivalTime")),
+              initial: str(dig(station, "FirstHeight", "Initial")),
+              maxHeightCondition: str(dig(station, "MaxHeight", "Condition")),
+            });
+          }
+        }
+      }
+      if (observations.length > 0) {
+        info.observations = observations;
+      }
+    }
+
+    const rawEstimation = dig(tsunami, "Estimation");
+    const estimationNodes = Array.isArray(rawEstimation)
+      ? rawEstimation
+      : rawEstimation
+        ? [rawEstimation]
+        : [];
+    if (estimationNodes.length > 0) {
+      const estimations: TsunamiEstimationItem[] = [];
+      for (const node of estimationNodes) {
+        const items = dig(node, "Item");
+        if (!Array.isArray(items)) {
+          continue;
+        }
+        for (const item of items) {
+          const area = first(dig(item, "Area") as unknown[]);
+          const areaName = str(dig(area, "Name")).trim();
+          if (!areaName) {
+            continue;
+          }
+          const maxHeightDescription =
+            str(dig(item, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
+            str(dig(item, "MaxHeight", "TsunamiHeight", "@_description")) ||
+            str(dig(item, "MaxHeight", "Condition"));
+          const firstHeight =
+            str(dig(item, "FirstHeight", "ArrivalTime")) ||
+            str(dig(item, "FirstHeight", "Condition"));
+          estimations.push({
+            areaName,
+            maxHeightDescription,
+            firstHeight,
+          });
+        }
+      }
+      if (estimations.length > 0) {
+        info.estimations = estimations;
+      }
+    }
+
+    let earthquake = dig(body, "Earthquake");
+    if (Array.isArray(earthquake)) {
+      earthquake = earthquake[0];
+    }
+    if (earthquake) {
+      info.earthquake = extractEarthquake(earthquake);
+    }
+
+    return info;
+  } catch (err) {
+    log.error(
+      `津波電文パースエラー: ${err instanceof Error ? err.message : err}`
+    );
+    return null;
+  }
+}
+
+/** 地震活動テキスト電文(VXSE56/VXSE60)をパース */
+export function parseSeismicTextTelegram(
+  msg: WsDataMessage
+): ParsedSeismicTextInfo | null {
+  try {
+    const xmlStr = decodeBody(msg);
+    const parsed = parseXml(xmlStr);
+
+    const report =
+      dig(parsed, "Report") ||
+      dig(parsed, "jmx:Report") ||
+      dig(parsed, "jmx_seis:Report");
+
+    if (!report) {
+      log.debug("Report ノードが見つかりません");
+      return null;
+    }
+
+    const head = dig(report, "Head");
+    const body = dig(report, "Body");
+
+    const info: ParsedSeismicTextInfo = {
+      type: msg.head.type,
+      infoType: str(dig(head, "InfoType")),
+      title: str(dig(head, "Title")),
+      reportDateTime: str(dig(head, "ReportDateTime")),
+      headline: str(dig(head, "Headline", "Text")) || null,
+      publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
+      bodyText: str(dig(body, "Text")),
+      isTest: msg.head.test,
+    };
+
+    return info;
+  } catch (err) {
+    log.error(
+      `地震活動テキスト電文パースエラー: ${err instanceof Error ? err.message : err}`
     );
     return null;
   }

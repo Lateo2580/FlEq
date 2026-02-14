@@ -308,3 +308,62 @@ export interface ParsedEewInfo {
   /** 警報かどうか */
   isWarning: boolean;
 }
+
+/** 津波予報区域ごとの警報情報 */
+export interface TsunamiForecastItem {
+  areaName: string;
+  kind: string;
+  maxHeightDescription: string;
+  firstHeight: string;
+}
+
+/** 沖合津波観測局情報 */
+export interface TsunamiObservationStation {
+  name: string;
+  sensor: string;
+  arrivalTime: string;
+  initial: string;
+  maxHeightCondition: string;
+}
+
+/** 沖合津波推定情報 */
+export interface TsunamiEstimationItem {
+  areaName: string;
+  maxHeightDescription: string;
+  firstHeight: string;
+}
+
+/** パース済み津波情報 (VTSE41/51/52) */
+export interface ParsedTsunamiInfo {
+  type: string;
+  infoType: string;
+  title: string;
+  reportDateTime: string;
+  headline: string | null;
+  publishingOffice: string;
+  forecast?: TsunamiForecastItem[];
+  observations?: TsunamiObservationStation[];
+  estimations?: TsunamiEstimationItem[];
+  earthquake?: {
+    originTime: string;
+    hypocenterName: string;
+    latitude: string;
+    longitude: string;
+    depth: string;
+    magnitude: string;
+  };
+  warningComment: string;
+  isTest: boolean;
+}
+
+/** パース済み地震活動テキスト情報 (VXSE56, VXSE60) */
+export interface ParsedSeismicTextInfo {
+  type: string;
+  infoType: string;
+  title: string;
+  reportDateTime: string;
+  headline: string | null;
+  publishingOffice: string;
+  bodyText: string;
+  isTest: boolean;
+}

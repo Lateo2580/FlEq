@@ -2,10 +2,14 @@ import { WsDataMessage } from "../types";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
+  parseTsunamiTelegram,
+  parseSeismicTextTelegram,
 } from "../dmdata/telegram-parser";
 import {
   displayEarthquakeInfo,
   displayEewInfo,
+  displayTsunamiInfo,
+  displaySeismicTextInfo,
   displayRawHeader,
 } from "../ui/formatter";
 import { EewTracker } from "../features/eew-tracker";
@@ -52,7 +56,18 @@ export function createMessageHandler(): (msg: WsDataMessage) => void {
 
     // 地震・津波区分
     if (classification === "telegram.earthquake") {
-      // 地震情報系 (VXSE51, VXSE52, VXSE53 等)
+      // VXSE56/VXSE60: テキスト系
+      if (headType === "VXSE56" || headType === "VXSE60") {
+        const textInfo = parseSeismicTextTelegram(msg);
+        if (textInfo) {
+          displaySeismicTextInfo(textInfo);
+        } else {
+          displayRawHeader(msg);
+        }
+        return;
+      }
+
+      // VXSE51/52/53/61 等: 地震情報系
       if (headType.startsWith("VXSE")) {
         const eqInfo = parseEarthquakeTelegram(msg);
         if (eqInfo) {
@@ -63,11 +78,11 @@ export function createMessageHandler(): (msg: WsDataMessage) => void {
         return;
       }
 
-      // 津波系 (VTSE41, VTSE51, VTSE52 等) - 現時点ではヘッダ表示+ヘッドライン
+      // VTSE41/51/52: 津波系
       if (headType.startsWith("VTSE")) {
-        const eqInfo = parseEarthquakeTelegram(msg);
-        if (eqInfo) {
-          displayEarthquakeInfo(eqInfo);
+        const tsunamiInfo = parseTsunamiTelegram(msg);
+        if (tsunamiInfo) {
+          displayTsunamiInfo(tsunamiInfo);
         } else {
           displayRawHeader(msg);
         }

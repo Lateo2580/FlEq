@@ -4,16 +4,27 @@ import {
   decodeBody,
   parseEarthquakeTelegram,
   parseEewTelegram,
+  parseTsunamiTelegram,
+  parseSeismicTextTelegram,
 } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
-  readFixture,
-  encodeXml,
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VXSE51_CANCEL,
   FIXTURE_VXSE53_ENCHI,
   FIXTURE_VXSE53_CANCEL,
   FIXTURE_VXSE53_DRILL_1,
+  FIXTURE_VXSE52_HYPO_1,
+  FIXTURE_VXSE56_ACTIVITY_1,
+  FIXTURE_VXSE60_1,
+  FIXTURE_VXSE60_CANCEL,
+  FIXTURE_VXSE61_1,
+  FIXTURE_VXSE61_CANCEL,
+  FIXTURE_VTSE41_WARN,
+  FIXTURE_VTSE41_CANCEL,
+  FIXTURE_VTSE51_INFO,
+  FIXTURE_VTSE52_OFFSHORE,
+  FIXTURE_VXSE43_WARNING_S1,
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_S26,
@@ -144,6 +155,62 @@ describe("parseEarthquakeTelegram", () => {
     });
   });
 
+  describe("VXSE52 震源に関する情報", () => {
+    it("震源情報は抽出され、震度情報は含まれない", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE52_HYPO_1, {
+        head: {
+          type: "VXSE52",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: true,
+        },
+      });
+
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.type).toBe("VXSE52");
+      expect(result!.earthquake).toBeDefined();
+      expect(result!.earthquake!.hypocenterName).toBe("駿河湾");
+      expect(result!.earthquake!.magnitude).toBe("6.6");
+      expect(result!.intensity).toBeUndefined();
+    });
+  });
+
+  describe("VXSE61 震源要素更新", () => {
+    it("震源要素更新の発表電文をパースできる", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE61_1, {
+        head: {
+          type: "VXSE61",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.type).toBe("VXSE61");
+      expect(result!.earthquake).toBeDefined();
+      expect(result!.earthquake!.hypocenterName).toBe("駿河湾");
+      expect(result!.earthquake!.magnitude).toBe("6.5");
+    });
+
+    it("取消電文の InfoType=取消 を取得できる", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE61_CANCEL, {
+        head: {
+          type: "VXSE61",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.infoType).toBe("取消");
+    });
+  });
+
   describe("VXSE51 取消報", () => {
     it("InfoType=取消 が正しく反映される", () => {
       const msg = createMockWsDataMessage(FIXTURE_VXSE51_CANCEL, {
@@ -184,6 +251,29 @@ describe("parseEarthquakeTelegram", () => {
 // ── parseEewTelegram ──
 
 describe("parseEewTelegram", () => {
+  describe("VXSE43 EEW警報", () => {
+    it("警報区分としてパースされる", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
+        head: {
+          type: "VXSE43",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.type).toBe("VXSE43");
+      expect(result!.isWarning).toBe(true);
+      expect(result!.earthquake).toBeDefined();
+      expect(result!.earthquake!.hypocenterName).toBe("豊後水道");
+      expect(result!.earthquake!.magnitude).toBe("5.8");
+      expect(result!.forecastIntensity).toBeDefined();
+      expect(result!.forecastIntensity!.areas.length).toBeGreaterThan(1);
+    });
+  });
+
   describe("VXSE44 EEW予報", () => {
     it("EventID・Serial・震源・予測震度リストを抽出する", () => {
       const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
@@ -290,6 +380,131 @@ describe("parseEewTelegram", () => {
       expect(result!.serial).toBe("32");
       expect(result!.eventId).toBe("20240417231454");
     });
+  });
+});
+
+// ── parseSeismicTextTelegram ──
+
+describe("parseSeismicTextTelegram", () => {
+  it("VXSE56 地震活動情報の本文を抽出できる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1, {
+      head: {
+        type: "VXSE56",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseSeismicTextTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VXSE56");
+    expect(result!.headline).toBeTruthy();
+    expect(result!.bodyText).toContain("伊豆東部");
+    expect(result!.bodyText.length).toBeGreaterThan(100);
+  });
+
+  it("VXSE60 取消電文の InfoType=取消 を取得できる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE60_CANCEL, {
+      head: {
+        type: "VXSE60",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseSeismicTextTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VXSE60");
+    expect(result!.infoType).toBe("取消");
+  });
+
+  it("VXSE60 発表電文をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE60_1, {
+      head: {
+        type: "VXSE60",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseSeismicTextTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.headline).toContain("地震回数に関する情報");
+  });
+});
+
+// ── parseTsunamiTelegram ──
+
+describe("parseTsunamiTelegram", () => {
+  it("VTSE41 津波警報をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
+      head: {
+        type: "VTSE41",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseTsunamiTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VTSE41");
+    expect(result!.forecast).toBeDefined();
+    expect(result!.forecast!.some((item) => item.kind.includes("大津波警報"))).toBe(true);
+    expect(result!.forecast![0].maxHeightDescription).toBe("巨大");
+  });
+
+  it("VTSE41 取消電文の InfoType=取消 を取得できる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL, {
+      head: {
+        type: "VTSE41",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseTsunamiTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.infoType).toBe("取消");
+  });
+
+  it("VTSE51 津波情報をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VTSE51_INFO, {
+      head: {
+        type: "VTSE51",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseTsunamiTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.forecast).toBeDefined();
+    expect(result!.forecast!.length).toBeGreaterThan(0);
+  });
+
+  it("VTSE52 沖合津波情報をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VTSE52_OFFSHORE, {
+      head: {
+        type: "VTSE52",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseTsunamiTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.observations).toBeDefined();
+    expect(result!.observations!.length).toBeGreaterThan(0);
+    expect(result!.observations!.some((obs) => obs.sensor === "ＧＰＳ波浪計")).toBe(true);
+    expect(result!.estimations).toBeDefined();
+    expect(result!.estimations!.length).toBeGreaterThan(0);
   });
 });
 

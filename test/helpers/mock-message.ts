@@ -32,6 +32,14 @@ export const FIXTURE_VXSE53_DRILL_2 = "32-35_04_04_240613_VXSE53.xml";
 /** VXSE44 EEW予報 Serial=10 */
 export const FIXTURE_VXSE44_S10 = "36_01_10_240613_VXSE44.xml";
 
+/** VXSE43 EEW警報 Serial=1 */
+export const FIXTURE_VXSE43_WARNING_S1 = "37_01_01_240613_VXSE43.xml";
+
+/** VXSE43 EEW警報 Serial=2 */
+export const FIXTURE_VXSE43_WARNING_S2 = "37_01_02_240613_VXSE43.xml";
+
+/** VXSE43 EEW警報 Serial=3 */
+export const FIXTURE_VXSE43_WARNING_S3 = "37_01_03_240613_VXSE43.xml";
 
 /** VXSE45 EEW地震動予報 Serial=1 初報 */
 export const FIXTURE_VXSE45_S1 = "77_01_01_240613_VXSE45.xml";
@@ -42,6 +50,48 @@ export const FIXTURE_VXSE45_S26 = "77_01_26_240613_VXSE45.xml";
 
 /** VXSE45 EEW地震動予報 取消報 Serial=32 */
 export const FIXTURE_VXSE45_CANCEL = "77_01_33_240613_VXSE45.xml";
+
+/** VXSE52 震源に関する情報 */
+export const FIXTURE_VXSE52_HYPO_1 = "32-35_01_02_240613_VXSE52.xml";
+
+/** VXSE52 震源に関する情報 (別報) */
+export const FIXTURE_VXSE52_HYPO_2 = "32-35_04_03_240613_VXSE52.xml";
+
+/** VXSE52 震源に関する情報 */
+export const FIXTURE_VXSE52_HYPO_3 = "32-35_06_02_100915_VXSE52.xml";
+
+/** VXSE52 震源に関する情報 */
+export const FIXTURE_VXSE52_HYPO_4 = "33_12_01_240613_VXSE52.xml";
+
+/** VXSE56 地震活動情報 */
+export const FIXTURE_VXSE56_ACTIVITY_1 = "32-35_09_01_191111_VXSE56.xml";
+
+/** VXSE56 地震活動情報 (別報) */
+export const FIXTURE_VXSE56_ACTIVITY_2 = "32-35_09_02_220316_VXSE56.xml";
+
+/** VXSE60 地震回数情報 */
+export const FIXTURE_VXSE60_1 = "32-35_03_01_100514_VXSE60.xml";
+
+/** VXSE60 地震回数情報 取消 */
+export const FIXTURE_VXSE60_CANCEL = "32-35_10_02_220510_VXSE60.xml";
+
+/** VXSE61 震源要素更新 */
+export const FIXTURE_VXSE61_1 = "32-35_03_02_240613_VXSE61.xml";
+
+/** VXSE61 震源要素更新 取消 */
+export const FIXTURE_VXSE61_CANCEL = "32-35_06_10_100915_VXSE61.xml";
+
+/** VTSE41 津波警報・注意報 */
+export const FIXTURE_VTSE41_WARN = "32-39_11_02_250206_VTSE41.xml";
+
+/** VTSE41 津波警報・注意報 取消 */
+export const FIXTURE_VTSE41_CANCEL = "38-39_03_01_210805_VTSE41.xml";
+
+/** VTSE51 津波情報 */
+export const FIXTURE_VTSE51_INFO = "32-39_11_03_250206_VTSE51.xml";
+
+/** VTSE52 沖合の津波情報 */
+export const FIXTURE_VTSE52_OFFSHORE = "61_11_01_250206_VTSE52.xml";
 
 /** フィクスチャXMLを読み込む */
 export function readFixture(filename: string): string {
@@ -66,15 +116,18 @@ export function createMockWsDataMessage(
   const body = encodeXml(xml);
 
   // ファイル名から type を推定
-  const typeMatch = fixtureName.match(/(VXSE\d+)/);
+  const typeMatch = fixtureName.match(/(V[TX]SE\d+)/);
   const type = typeMatch ? typeMatch[1] : "VXSE53";
+  const classification = type === "VXSE43"
+    ? "eew.warning"
+    : (type === "VXSE44" || type === "VXSE45")
+      ? "eew.forecast"
+      : "telegram.earthquake";
 
   const base: WsDataMessage = {
     type: "data",
     version: "2.0",
-    classification: type.startsWith("VXSE4") || type.startsWith("VXSE5")
-      ? "eew.forecast"
-      : "telegram.earthquake",
+    classification,
     id: "test-id-001",
     passing: [{ name: "test", time: new Date().toISOString() }],
     head: {

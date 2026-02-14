@@ -4,19 +4,24 @@ import {
   intensityColor,
   displayEarthquakeInfo,
   displayEewInfo,
+  displayTsunamiInfo,
+  displaySeismicTextInfo,
   formatRelativeTime,
   formatTimestamp,
 } from "../../src/ui/formatter";
-import { ParsedEarthquakeInfo, ParsedEewInfo } from "../../src/types";
 import type { EewDiff } from "../../src/features/eew-tracker";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
+  parseTsunamiTelegram,
+  parseSeismicTextTelegram,
 } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VXSE53_ENCHI,
+  FIXTURE_VXSE56_ACTIVITY_1,
+  FIXTURE_VTSE41_WARN,
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_CANCEL,
 } from "../helpers/mock-message";
@@ -250,6 +255,71 @@ describe("displayEewInfo", () => {
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
 
     expect(output).toContain("+0.3");
+  });
+});
+
+describe("displayTsunamiInfo", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("VTSE41 の大津波警報を critical フレームで表示する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
+      head: {
+        type: "VTSE41",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+    const info = parseTsunamiTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayTsunamiInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    expect(output).toContain("╔");
+    expect(output).toContain("岩手県");
+    expect(output).toContain("巨大");
+  });
+});
+
+describe("displaySeismicTextInfo", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("VXSE56 の本文とタイトルを表示する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1, {
+      head: {
+        type: "VXSE56",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+    const info = parseSeismicTextTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displaySeismicTextInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    expect(output).toContain("伊豆東部");
+    expect(output).toContain("地震の活動状況等に関する情報");
   });
 });
 

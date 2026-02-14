@@ -1,5 +1,11 @@
 import chalk from "chalk";
-import { ParsedEarthquakeInfo, ParsedEewInfo, WsDataMessage } from "../types";
+import {
+  ParsedEarthquakeInfo,
+  ParsedEewInfo,
+  ParsedTsunamiInfo,
+  ParsedSeismicTextInfo,
+  WsDataMessage,
+} from "../types";
 import type { EewDiff } from "../features/eew-tracker";
 import * as log from "../logger";
 
@@ -157,8 +163,8 @@ function typeLabel(type: string): string {
     VXSE52: "震源に関する情報",
     VXSE53: "震源・震度に関する情報",
     VXSE56: "地震の活動状況等に関する情報",
-    VXSE60: "地震の活動状況等に関する情報",
-    VXSE61: "地震回数に関する情報",
+    VXSE60: "地震回数に関する情報",
+    VXSE61: "顕著な地震の震源要素更新のお知らせ",
     VTSE41: "津波警報・注意報・予報",
     VTSE51: "津波情報",
     VTSE52: "沖合の津波情報",
@@ -464,6 +470,173 @@ export function displayEewInfo(
     console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`)));
   }
 
+  console.log(frameBottom(level));
+  console.log();
+}
+
+/** 津波情報のフレームレベルを決定 */
+function tsunamiFrameLevel(info: ParsedTsunamiInfo): FrameLevel {
+  if (info.infoType === "取消") return "cancel";
+  const kinds = (info.forecast || []).map((f) => f.kind);
+  if (kinds.some((kind) => kind.includes("大津波警報"))) return "critical";
+  if (kinds.some((kind) => kind.includes("津波警報"))) return "warning";
+  return "normal";
+}
+
+/** 津波種別の表示順 */
+function tsunamiKindRank(kind: string): number {
+  if (kind.includes("大津波警報")) return 0;
+  if (kind.includes("津波警報")) return 1;
+  if (kind.includes("津波注意報")) return 2;
+  if (kind.includes("津波予報")) return 3;
+  return 99;
+}
+
+/** 時刻文字列なら整形し、そうでなければそのまま返す */
+function prettyTimeOrText(value: string): string {
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) {
+    return value;
+  }
+  return formatTimestamp(value);
+}
+
+/** 津波情報を整形して表示 */
+export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
+  const level = tsunamiFrameLevel(info);
+  const label = typeLabel(info.type);
+
+  console.log();
+  console.log(frameTop(level));
+
+  if (info.isTest) {
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+  }
+
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  console.log(frameLine(level, titleContent));
+
+  if (info.headline) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.bold.white(info.headline)));
+  }
+
+  if (info.earthquake) {
+    const eq = info.earthquake;
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName)));
+    if (eq.originTime) {
+      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
+    }
+    if (eq.latitude && eq.longitude) {
+      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`)));
+    }
+    if (eq.magnitude) {
+      console.log(frameLine(level, chalk.white("規模: ") + colorMagnitude(eq.magnitude)));
+    }
+  }
+
+  if (info.forecast && info.forecast.length > 0) {
+    console.log(frameDivider(level));
+    const sorted = [...info.forecast].sort(
+      (a, b) => tsunamiKindRank(a.kind) - tsunamiKindRank(b.kind)
+    );
+    for (const item of sorted) {
+      let kindText = chalk.white(item.kind);
+      if (item.kind.includes("大津波警報")) {
+        kindText = chalk.bgRed.white.bold(item.kind);
+      } else if (item.kind.includes("津波警報")) {
+        kindText = chalk.red.bold(item.kind);
+      } else if (item.kind.includes("津波注意報")) {
+        kindText = chalk.yellow(item.kind);
+      }
+
+      const extra: string[] = [];
+      if (item.maxHeightDescription) extra.push(item.maxHeightDescription);
+      if (item.firstHeight) extra.push(prettyTimeOrText(item.firstHeight));
+      const extraText = extra.length > 0 ? chalk.gray(` (${extra.join(" / ")})`) : "";
+      console.log(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText));
+    }
+  }
+
+  if (info.observations && info.observations.length > 0) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.bold.white("沖合観測")));
+    for (const station of info.observations) {
+      const parts = [
+        station.name,
+        station.sensor,
+        station.initial,
+        station.maxHeightCondition,
+      ].filter((v) => Boolean(v));
+      const arrival = station.arrivalTime ? ` ${prettyTimeOrText(station.arrivalTime)}` : "";
+      console.log(frameLine(level, chalk.white(parts.join(" / ") + arrival)));
+    }
+  }
+
+  if (info.estimations && info.estimations.length > 0) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.bold.white("沿岸推定")));
+    for (const estimation of info.estimations) {
+      const extra: string[] = [];
+      if (estimation.maxHeightDescription) extra.push(estimation.maxHeightDescription);
+      if (estimation.firstHeight) extra.push(prettyTimeOrText(estimation.firstHeight));
+      console.log(
+        frameLine(
+          level,
+          chalk.white(`${estimation.areaName}${extra.length ? ` (${extra.join(" / ")})` : ""}`)
+        )
+      );
+    }
+  }
+
+  if (info.warningComment) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.yellow(info.warningComment)));
+  }
+
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+  console.log(frameBottom(level));
+  console.log();
+}
+
+/** 地震活動テキスト情報を整形して表示 */
+export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
+  const level: FrameLevel = info.infoType === "取消" ? "cancel" : "info";
+  const label = typeLabel(info.type);
+
+  console.log();
+  console.log(frameTop(level));
+
+  if (info.isTest) {
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+  }
+
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  console.log(frameLine(level, titleContent));
+
+  if (info.headline) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.bold.white(info.headline)));
+  }
+
+  const bodyLines = info.bodyText
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0);
+
+  if (bodyLines.length > 0) {
+    console.log(frameDivider(level));
+    const maxLines = 15;
+    for (const line of bodyLines.slice(0, maxLines)) {
+      console.log(frameLine(level, chalk.white(line)));
+    }
+    if (bodyLines.length > maxLines) {
+      console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`)));
+    }
+  }
+
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
   console.log(frameBottom(level));
   console.log();
 }
