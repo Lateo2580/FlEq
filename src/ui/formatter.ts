@@ -52,6 +52,41 @@ function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, "");
 }
 
+/** 文字列の視覚的な幅を計算（全角文字を2として数える） */
+function visualWidth(str: string): number {
+  const plain = stripAnsi(str);
+  let width = 0;
+  for (const ch of plain) {
+    const cp = ch.codePointAt(0) ?? 0;
+    // CJK統合漢字、ひらがな、カタカナ、全角記号、全角括弧等
+    if (
+      (cp >= 0x1100 && cp <= 0x115F) ||   // Hangul Jamo
+      (cp >= 0x2E80 && cp <= 0x303E) ||   // CJK部首・記号
+      (cp >= 0x3041 && cp <= 0x33BF) ||   // ひらがな・カタカナ・CJK互換
+      (cp >= 0x3400 && cp <= 0x4DBF) ||   // CJK統合漢字拡張A
+      (cp >= 0x4E00 && cp <= 0xA4CF) ||   // CJK統合漢字 + Yi
+      (cp >= 0xAC00 && cp <= 0xD7AF) ||   // Hangul Syllables
+      (cp >= 0xF900 && cp <= 0xFAFF) ||   // CJK互換漢字
+      (cp >= 0xFE30 && cp <= 0xFE4F) ||   // CJK互換形
+      (cp >= 0xFF01 && cp <= 0xFF60) ||   // 全角ASCII・半角カタカナ
+      (cp >= 0xFFE0 && cp <= 0xFFE6) ||   // 全角記号
+      (cp >= 0x20000 && cp <= 0x2FA1F)    // CJK統合漢字拡張B-F
+    ) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+/** 視覚幅を考慮してスペースでパディング（padEnd の全角対応版） */
+function visualPadEnd(str: string, targetWidth: number): string {
+  const currentWidth = visualWidth(str);
+  const padSize = Math.max(0, targetWidth - currentWidth);
+  return str + " ".repeat(padSize);
+}
+
 // ── 時刻フォーマット ──
 
 /** 相対時刻文字列を返す ("3秒前", "2分前" etc.) */
@@ -66,12 +101,17 @@ export function formatRelativeTime(isoStr: string): string {
   return `${Math.floor(diff / 86400_000)}日前`;
 }
 
-/** 絶対+相対時刻を併記 ("HH:mm:ss (N秒前)") */
+/** 絶対+相対時刻を併記 ("YYYY-MM-DD HH:MM:SS (N秒前)") */
 export function formatTimestamp(isoStr: string): string {
   const d = new Date(isoStr);
   if (isNaN(d.getTime())) return isoStr;
-  const time = d.toLocaleTimeString("ja-JP", { hour12: false });
-  return `${time} (${formatRelativeTime(isoStr)})`;
+  const yyyy = d.getFullYear();
+  const MM = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss} (${formatRelativeTime(isoStr)})`;
 }
 
 /** 区切り線 (後方互換用、新コードではフレーム関数を使用) */
@@ -296,30 +336,24 @@ export function displayEewInfo(
   console.log();
 
   // バナー (警報/予報/取消のヘッダー)
+  const bannerWidth = FRAME_WIDTH;
+  const serialTag = info.serial ? ` #${info.serial}` : "";
+
   if (isCancelled) {
-    console.log(chalk.bgGreen.black.bold(" ".repeat(60)));
-    console.log(
-      chalk.bgGreen.black.bold(
-        ` ✓ 緊急地震速報 取消`.padEnd(59) + " "
-      )
-    );
-    console.log(chalk.bgGreen.black.bold(" ".repeat(60)));
+    const bannerText = ` 緊急地震速報 取消${serialTag}`;
+    console.log(chalk.bgGreen.black.bold(" ".repeat(bannerWidth)));
+    console.log(chalk.bgGreen.black.bold(visualPadEnd(bannerText, bannerWidth)));
+    console.log(chalk.bgGreen.black.bold(" ".repeat(bannerWidth)));
   } else if (info.isWarning) {
-    console.log(chalk.bgRed.white.bold(" ".repeat(60)));
-    console.log(
-      chalk.bgRed.white.bold(
-        ` ⚠⚠⚠ 緊急地震速報（警報） ⚠⚠⚠`.padEnd(59) + " "
-      )
-    );
-    console.log(chalk.bgRed.white.bold(" ".repeat(60)));
+    const bannerText = ` 緊急地震速報（警報）${serialTag}`;
+    console.log(chalk.bgRed.white.bold(" ".repeat(bannerWidth)));
+    console.log(chalk.bgRed.white.bold(visualPadEnd(bannerText, bannerWidth)));
+    console.log(chalk.bgRed.white.bold(" ".repeat(bannerWidth)));
   } else {
-    console.log(chalk.bgYellow.black.bold(" ".repeat(60)));
-    console.log(
-      chalk.bgYellow.black.bold(
-        ` ⚡ 緊急地震速報（予報）`.padEnd(59) + " "
-      )
-    );
-    console.log(chalk.bgYellow.black.bold(" ".repeat(60)));
+    const bannerText = ` 緊急地震速報（予報）${serialTag}`;
+    console.log(chalk.bgYellow.black.bold(" ".repeat(bannerWidth)));
+    console.log(chalk.bgYellow.black.bold(visualPadEnd(bannerText, bannerWidth)));
+    console.log(chalk.bgYellow.black.bold(" ".repeat(bannerWidth)));
   }
 
   // フレーム開始
@@ -330,19 +364,16 @@ export function displayEewInfo(
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
   }
 
-  // 複数イベント同時発生
+  // 複数イベント同時発生の注記
   const activeCount = context?.activeCount ?? 0;
   if (activeCount >= 2 && info.eventId) {
     console.log(frameLine(level,
-      chalk.bgCyan.black.bold(` Event: ${info.eventId} `) +
-        chalk.gray(` 第${info.serial || "?"}報  ${info.infoType}`) +
-        chalk.yellow(` [同時${activeCount}件]`)
+      chalk.yellow(`同時${activeCount}件発生中`) +
+        chalk.gray(`  ${info.infoType}`)
     ));
   } else {
     console.log(frameLine(level,
-      chalk.gray(
-        `第${info.serial || "?"}報  EventID: ${info.eventId || "不明"}  ${info.infoType}`
-      )
+      chalk.gray(info.infoType)
     ));
   }
 
@@ -365,7 +396,6 @@ export function displayEewInfo(
     if (info.earthquake?.depth) {
       cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
     }
-    cardParts.push(chalk.white("第") + chalk.bold.white(info.serial || "?") + chalk.white("報"));
     console.log(frameLine(level, cardParts.join(chalk.gray("  │  "))));
   }
 
@@ -410,6 +440,10 @@ export function displayEewInfo(
   if (isCancelled) {
     console.log(frameDivider(level));
     console.log(frameLine(level, chalk.green("この地震についての緊急地震速報は取り消されました。")));
+    if (info.eventId) {
+      console.log(frameDivider(level));
+      console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`)));
+    }
     console.log(frameBottom(level));
     console.log();
     return;
@@ -424,6 +458,12 @@ export function displayEewInfo(
     }
   }
 
+  // EventID (最終行)
+  if (info.eventId) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`)));
+  }
+
   console.log(frameBottom(level));
   console.log();
 }
@@ -433,7 +473,7 @@ export function displayRawHeader(msg: WsDataMessage): void {
   console.log();
   console.log(separator());
   console.log(
-    chalk.cyan(`📨 電文受信: `) +
+    chalk.cyan(`電文受信: `) +
       chalk.white(msg.xmlReport?.control?.title || msg.head.type) +
       chalk.gray(` [${msg.head.type}]`)
   );

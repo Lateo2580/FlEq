@@ -227,7 +227,7 @@ describe("displayEewInfo", () => {
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
 
     expect(output).toContain("同時3件");
-    expect(output).toContain("Event:");
+    expect(output).toContain("EventID:");
   });
 
   it("EEW差分情報: マグニチュード変化が表示される", () => {
