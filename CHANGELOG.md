@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.18](https://github.com/Lateo2580/FlEq/compare/v0.1.17...v0.1.18) (2026-02-15)
+
+
+### バグ修正
+
+* frameLineの罫線位置ズレを全角文字幅対応で修正 ([2cedbb3](https://github.com/Lateo2580/FlEq/commit/2cedbb39e1368736c10992a157b7b8c0ec737c35))
+
 ## [0.1.17](https://github.com/Lateo2580/FlEq/compare/v0.1.16...v0.1.17) (2026-02-15)
 
 
