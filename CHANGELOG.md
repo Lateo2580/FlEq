@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.17](https://github.com/Lateo2580/FlEq/compare/v0.1.16...v0.1.17) (2026-02-15)
+
+
+### 機能追加
+
+* 受信待機中のステータスラインをフッターに表示 ([54e83ae](https://github.com/Lateo2580/FlEq/commit/54e83ae50c951a4de887c26e23f73a7e60217015))
+
+
+### ドキュメント
+
+* READMEを実装現状に合わせて更新 ([dd2bbe9](https://github.com/Lateo2580/FlEq/commit/dd2bbe9eed359e7a64f1a8c02e5d5edba23ec10c))
+
 ## [0.1.16](https://github.com/Lateo2580/FlEq/compare/v0.1.15...v0.1.16) (2026-02-14)
 
 
