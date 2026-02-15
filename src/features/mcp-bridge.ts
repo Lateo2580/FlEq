@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "child_process";
-import { resolve, relative, sep } from "path";
+import { resolve, relative, sep, delimiter } from "path";
 
 type JsonRpcId = string | number;
 
@@ -258,10 +258,14 @@ async function runClaude(prompt: string, args: ToolCallArgs): Promise<string> {
 
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      child.kill();
       setTimeout(() => {
         if (!child.killed) {
-          child.kill("SIGKILL");
+          if (process.platform === "win32") {
+            spawn("taskkill", ["/pid", String(child.pid), "/f", "/t"], { stdio: "ignore" });
+          } else {
+            child.kill("SIGKILL");
+          }
         }
       }, 3000).unref();
     }, timeoutMs);
@@ -324,7 +328,7 @@ function isSubPath(target: string, base: string): boolean {
 
 function parseAllowedDirs(raw: string | undefined): string[] {
   const values = (raw || process.cwd())
-    .split(":")
+    .split(delimiter)
     .map((value) => value.trim())
     .filter(Boolean)
     .map((value) => resolve(value));

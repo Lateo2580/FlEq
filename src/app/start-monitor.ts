@@ -47,6 +47,9 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+  if (process.platform === "win32") {
+    process.on("SIGHUP", shutdown);
+  }
 
   await manager.connect();
   replHandler.start();
