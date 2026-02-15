@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.20](https://github.com/Lateo2580/FlEq/compare/v0.1.19...v0.1.20) (2026-02-15)
+
+
+### バグ修正
+
+* DELETE APIの204レスポンスを正常処理に修正 ([a72610a](https://github.com/Lateo2580/FlEq/commit/a72610ac507e9c25a7dbc95a575511e594963cb1))
+
 ## [0.1.19](https://github.com/Lateo2580/FlEq/compare/v0.1.18...v0.1.19) (2026-02-15)
 
 
