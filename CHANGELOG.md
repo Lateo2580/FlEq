@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.19](https://github.com/Lateo2580/FlEq/compare/v0.1.18...v0.1.19) (2026-02-15)
+
+
+### バグ修正
+
+* Windows互換性の修正 (パス区切り・シグナル・npmスクリプト) ([be62e10](https://github.com/Lateo2580/FlEq/commit/be62e103891c5cb4cc85264265a5b1f5e6901592))
+
 ## [0.1.18](https://github.com/Lateo2580/FlEq/compare/v0.1.17...v0.1.18) (2026-02-15)
 
 
