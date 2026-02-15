@@ -37,7 +37,7 @@ function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {
 function frameLine(level: FrameLevel, content: string, width: number = FRAME_WIDTH): string {
   const f = FRAMES[level];
   // ANSI エスケープを除去して可視幅を計算
-  const visibleLen = stripAnsi(content).length;
+  const visibleLen = visualWidth(content);
   const pad = Math.max(0, width - 4 - visibleLen);
   return f.color(f.v) + " " + content + " ".repeat(pad) + " " + f.color(f.v);
 }
