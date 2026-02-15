@@ -30,6 +30,12 @@ function request(
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
+        // 204 No Content は成功（ボディなし）なのでそのまま返す
+        if (statusCode === 204) {
+          resolve({});
+          return;
+        }
+
         // Content-Type チェック
         const contentType = res.headers["content-type"] || "";
         if (!contentType.includes("application/json")) {
