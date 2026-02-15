@@ -1,6 +1,6 @@
 {
   "name": "dmdata-monitor",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "Project DM-D.S.S (dmdata.jp) リアルタイム地震・津波・EEW情報モニター CLI",
   "main": "dist/index.js",
   "bin": {

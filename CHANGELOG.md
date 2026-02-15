@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.21](https://github.com/Lateo2580/FlEq/compare/v0.1.20...v0.1.21) (2026-02-15)
+
+
+### バグ修正
+
+* WebSocketエラーメッセージの安全なパースに修正 ([8900223](https://github.com/Lateo2580/FlEq/commit/89002233d4f51e0fab08bcbcac17aefefeda05da))
+
 ## [0.1.20](https://github.com/Lateo2580/FlEq/compare/v0.1.19...v0.1.20) (2026-02-15)
 
 
