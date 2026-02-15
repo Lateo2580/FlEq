@@ -2,6 +2,13 @@
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
+## 現在の状態（2026-02-15 時点）
+
+- バージョン: `0.1.16`
+- デフォルトブランチ: `main`
+- テスト: 3ファイル / 65テスト（`npm test` で全件成功）
+- XMLフィクスチャ: `test/fixtures/*.xml` に 43件
+
 ## 対応情報
 
 | 区分 | 分類名 | 内容 |
@@ -18,8 +25,8 @@ Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地
 ## セットアップ
 
 ```bash
-git clone <repository-url>
-cd dmdata-monitor
+git clone git@github.com:Lateo2580/FlEq.git
+cd FlEq
 npm install
 npm run build
 ```
@@ -74,6 +81,11 @@ npm test
 npm run test:watch
 ```
 
+- テストフレームワーク: Vitest
+- テストファイル: 3件（計65テスト）
+- フィクスチャ: `test/fixtures/` に実電文XML 43件
+- モックヘルパー: `test/helpers/mock-message.ts`
+
 ## Claude Code連携 (MCP Bridge)
 
 Codex から Claude Code を呼び出すための MCP サーバーを同梱しています。
@@ -112,25 +124,6 @@ npm run mcp:bridge
     }
   }
 }
-```
-
-- Vitest を使用
-- テストファイル: 3件（計39テスト）
-- フィクスチャ: `test/fixtures/` に実電文XML 14件
-- モックヘルパー: `test/helpers/mock-message.ts`
-
-```
-test/
-├── dmdata/
-│   └── telegram-parser.test.ts
-├── ui/
-│   └── formatter.test.ts
-├── features/
-│   └── eew-tracker.test.ts
-├── fixtures/
-│   └── *.xml (14 files)
-└── helpers/
-    └── mock-message.ts
 ```
 
 ## CLIオプション
@@ -175,6 +168,17 @@ npm start -- config keys
 | `appName` | アプリケーション名 |
 | `maxReconnectDelaySec` | 再接続の最大待機秒数 |
 | `keepExistingConnections` | 既存のWebSocket接続を維持するか (`true` / `false`) |
+
+設定の優先順位（高い順）:
+
+1. CLI オプション (`--api-key`, `--classifications`, `--test`, `--keep-existing`)
+2. 環境変数 `DMDATA_API_KEY`
+3. Configファイル (`~/.config/dmdata-monitor/config.json`)
+4. デフォルト値 (`DEFAULT_CONFIG`)
+
+補足:
+
+- Config保存時は `0600` パーミッションで書き込みます（APIキー保護）。
 
 ## REPLコマンド
 
@@ -225,15 +229,34 @@ src/
     └── repl.ts                 # REPL インタラクション
 ```
 
+## 対応電文タイプ（実装ベース）
+
+| 電文タイプ | 分類 | パーサ関数 | 表示関数 |
+|-----------|------|-----------|---------|
+| `VXSE43` | `eew.warning` | `parseEewTelegram` | `displayEewInfo` |
+| `VXSE44` | `eew.forecast` | `parseEewTelegram` | `displayEewInfo` |
+| `VXSE45` | `eew.forecast` | `parseEewTelegram` | `displayEewInfo` |
+| `VXSE51` | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` |
+| `VXSE52` | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` |
+| `VXSE53` | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` |
+| `VXSE56` | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` |
+| `VXSE60` | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` |
+| `VXSE61` | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` |
+| `VTSE41` | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` |
+| `VTSE51` | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` |
+| `VTSE52` | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` |
+
 ## 主な機能
 
 - WebSocketによるリアルタイム受信
 - gzip圧縮+base64エンコードされたXML電文の自動デコード
+- 展開サイズ上限チェック（10MB）
 - 震度に応じた色分け表示
 - 緊急地震速報（警報/予報）の視覚的な強調表示
 - EEWイベントの同時追跡（EventID単位、重複報スキップ、取消対応）
 - 指数バックオフによる自動再接続
 - ping-pongによる接続維持
+- ハートビート監視（90秒）
 - 既存ソケットの自動クリーンアップ
 - Configファイルによる永続設定管理
 
