@@ -6,6 +6,7 @@ import {
   displayEewInfo,
   displayTsunamiInfo,
   displaySeismicTextInfo,
+  formatElapsedTime,
   formatRelativeTime,
   formatTimestamp,
 } from "../../src/ui/formatter";
@@ -410,5 +411,15 @@ describe("formatTimestamp", () => {
     const result = formatTimestamp(now.toISOString());
     expect(result).toContain("10秒前");
     expect(result).toMatch(/\d{1,2}:\d{2}:\d{2}/);
+  });
+});
+
+describe("formatElapsedTime", () => {
+  it("1時間2分3秒を HH:MM:SS で表示する", () => {
+    expect(formatElapsedTime(3_723_000)).toBe("01:02:03");
+  });
+
+  it("負の値は 00:00:00 に丸める", () => {
+    expect(formatElapsedTime(-10)).toBe("00:00:00");
   });
 });

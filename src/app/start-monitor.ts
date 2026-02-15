@@ -11,16 +11,26 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   const manager = new WebSocketManager(config, {
     onData: (msg) => {
-      handleData(msg);
-      if (replHandler) replHandler.refreshPrompt();
+      if (replHandler) replHandler.beforeDisplayMessage();
+      try {
+        handleData(msg);
+      } finally {
+        if (replHandler) replHandler.afterDisplayMessage();
+      }
     },
     onConnected: () => {
       log.info(chalk.green("✓ リアルタイム受信中..."));
-      if (replHandler) replHandler.refreshPrompt();
+      if (replHandler) {
+        replHandler.setConnected(true);
+        replHandler.refreshPrompt();
+      }
     },
     onDisconnected: (reason) => {
       log.warn(`切断されました: ${reason}`);
-      if (replHandler) replHandler.refreshPrompt();
+      if (replHandler) {
+        replHandler.setConnected(false);
+        replHandler.refreshPrompt();
+      }
     },
   });
 

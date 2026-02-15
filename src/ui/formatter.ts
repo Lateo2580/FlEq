@@ -120,6 +120,16 @@ export function formatTimestamp(isoStr: string): string {
   return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss} (${formatRelativeTime(isoStr)})`;
 }
 
+/** 経過時間を "HH:MM:SS" 形式に整形 */
+export function formatElapsedTime(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const totalSec = Math.floor(safeMs / 1000);
+  const hh = Math.floor(totalSec / 3600);
+  const mm = Math.floor((totalSec % 3600) / 60);
+  const ss = totalSec % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
 /** 区切り線 (後方互換用、新コードではフレーム関数を使用) */
 function separator(char = "─", len = 60): string {
   return chalk.gray(char.repeat(len));

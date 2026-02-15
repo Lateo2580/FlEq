@@ -4,7 +4,12 @@ import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { printConfig } from "../config";
-import { intensityColor, visualPadEnd, visualWidth } from "../ui/formatter";
+import {
+  formatElapsedTime,
+  intensityColor,
+  visualPadEnd,
+  visualWidth,
+} from "../ui/formatter";
 import * as log from "../logger";
 
 const PROMPT = "fleq> ";
@@ -14,15 +19,157 @@ interface CommandEntry {
   handler: (args: string) => void | Promise<void>;
 }
 
+interface StatusLineContext {
+  hasRepl: () => boolean;
+  getInputLength: () => number;
+}
+
+class StatusLine {
+  private static readonly TICK_MS = 1000;
+
+  private context: StatusLineContext;
+  private timer: NodeJS.Timeout | null = null;
+  private suspended = false;
+  private started = false;
+  private hasStatusRow = false;
+  private pulseOn = true;
+  private connectedAt: number | null = null;
+  private lastMessageTime: number | null = null;
+
+  constructor(context: StatusLineContext) {
+    this.context = context;
+  }
+
+  start(): void {
+    this.started = true;
+    if (!process.stdout.isTTY || this.timer) {
+      return;
+    }
+    this.timer = setInterval(() => {
+      this.pulseOn = !this.pulseOn;
+      this.render();
+    }, StatusLine.TICK_MS);
+    this.render();
+  }
+
+  stop(): void {
+    this.started = false;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.clear();
+  }
+
+  setConnected(connected: boolean): void {
+    if (connected) {
+      this.connectedAt = Date.now();
+      this.lastMessageTime = null;
+    } else {
+      this.connectedAt = null;
+      this.lastMessageTime = null;
+    }
+    this.render();
+  }
+
+  markMessageReceived(): void {
+    this.lastMessageTime = Date.now();
+    this.render();
+  }
+
+  suspend(): void {
+    this.suspended = true;
+    this.clear();
+  }
+
+  resume(): void {
+    this.suspended = false;
+    this.render();
+  }
+
+  onPromptRendered(): void {
+    this.render();
+  }
+
+  private shouldRender(): boolean {
+    return (
+      this.started &&
+      !this.suspended &&
+      process.stdout.isTTY &&
+      this.context.hasRepl() &&
+      this.context.getInputLength() === 0
+    );
+  }
+
+  private render(): void {
+    if (!this.shouldRender()) {
+      return;
+    }
+
+    const text = this.buildText();
+    if (!this.hasStatusRow) {
+      process.stdout.write("\x1b[s");
+      process.stdout.write("\n");
+      process.stdout.write("\x1b[u");
+      this.hasStatusRow = true;
+    }
+
+    process.stdout.write("\x1b[s");
+    process.stdout.write("\x1b[1B\r\x1b[2K");
+    process.stdout.write(text);
+    process.stdout.write("\x1b[u");
+  }
+
+  private clear(): void {
+    if (!process.stdout.isTTY || !this.hasStatusRow || !this.context.hasRepl()) {
+      this.hasStatusRow = false;
+      return;
+    }
+    process.stdout.write("\x1b[s");
+    process.stdout.write("\x1b[1B\r\x1b[2K");
+    process.stdout.write("\x1b[u");
+    this.hasStatusRow = false;
+  }
+
+  private buildText(): string {
+    const pulse = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
+
+    if (this.connectedAt == null) {
+      return (
+        chalk.gray("  接続待機中 ") +
+        pulse +
+        chalk.gray("  再接続を待機しています")
+      );
+    }
+
+    const baseTime = this.lastMessageTime ?? this.connectedAt;
+    const label =
+      this.lastMessageTime != null ? "最終受信から" : "接続から";
+    const elapsed = formatElapsedTime(Date.now() - baseTime);
+
+    return (
+      chalk.gray("  待機中 ") +
+      pulse +
+      chalk.gray(`  ${label} `) +
+      chalk.white(elapsed)
+    );
+  }
+}
+
 export class ReplHandler {
   private config: AppConfig;
   private wsManager: WebSocketManager;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
+  private statusLine: StatusLine;
 
   constructor(config: AppConfig, wsManager: WebSocketManager) {
     this.config = config;
     this.wsManager = wsManager;
+    this.statusLine = new StatusLine({
+      hasRepl: () => this.rl != null,
+      getInputLength: () => this.rl?.line.length ?? 0,
+    });
 
     this.commands = {
       help: {
@@ -69,9 +216,11 @@ export class ReplHandler {
     });
 
     this.rl.on("line", (line) => {
+      this.statusLine.suspend();
       const trimmed = line.trim();
       if (trimmed.length === 0) {
         this.prompt();
+        this.statusLine.resume();
         return;
       }
 
@@ -82,6 +231,7 @@ export class ReplHandler {
       if (entry == null) {
         console.log(chalk.yellow(`  不明なコマンド: ${cmd} (help で一覧を表示)`));
         this.prompt();
+        this.statusLine.resume();
         return;
       }
 
@@ -93,9 +243,13 @@ export class ReplHandler {
               `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
             );
           })
-          .finally(() => this.prompt());
+          .finally(() => {
+            this.prompt();
+            this.statusLine.resume();
+          });
       } else {
         this.prompt();
+        this.statusLine.resume();
       }
     });
 
@@ -104,10 +258,12 @@ export class ReplHandler {
     });
 
     this.prompt();
+    this.statusLine.start();
   }
 
   /** REPL を停止する */
   stop(): void {
+    this.statusLine.stop();
     if (this.rl) {
       this.rl.close();
       this.rl = null;
@@ -117,13 +273,31 @@ export class ReplHandler {
   /** プロンプトを再表示する (データ出力後に呼ぶ) */
   refreshPrompt(): void {
     if (this.rl) {
-      this.rl.prompt();
+      this.prompt();
     }
+  }
+
+  /** WebSocket 接続状態を待機表示に反映 */
+  setConnected(connected: boolean): void {
+    this.statusLine.setConnected(connected);
+  }
+
+  /** 電文表示の前処理（待機行を隠す） */
+  beforeDisplayMessage(): void {
+    this.statusLine.suspend();
+  }
+
+  /** 電文表示の後処理（受信時刻更新・待機行再開） */
+  afterDisplayMessage(): void {
+    this.statusLine.markMessageReceived();
+    this.refreshPrompt();
+    this.statusLine.resume();
   }
 
   private prompt(): void {
     if (this.rl) {
       this.rl.prompt();
+      this.statusLine.onPromptRendered();
     }
   }
 
@@ -276,6 +450,7 @@ export class ReplHandler {
 
   private handleQuit(): void {
     log.info("シャットダウン中...");
+    this.statusLine.stop();
     this.wsManager.close();
     process.exit(0);
   }
