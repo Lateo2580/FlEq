@@ -130,14 +130,16 @@ export class WebSocketManager {
   }
 
   private handleMessage(raw: WebSocket.Data): void {
-    let msg: WsMessage;
+    let parsed: unknown;
     try {
       const text = WebSocketManager.normalizeWsData(raw);
-      msg = JSON.parse(text);
+      parsed = JSON.parse(text);
     } catch {
       log.error("受信データのJSONパースに失敗");
       return;
     }
+
+    const msg = parsed as WsMessage;
 
     switch (msg.type) {
       case "start":
@@ -164,11 +166,23 @@ export class WebSocketManager {
         this.events.onData(msg);
         break;
 
-      case "error":
-        log.error(
-          `サーバーエラー: ${msg.error.message} (code=${msg.error.code})`
-        );
+      case "error": {
+        // サーバーのエラー構造が想定と異なる場合に備え安全にアクセス
+        const raw = parsed as Record<string, unknown>;
+        const errorObj = raw["error"];
+        let errMsg: string;
+        let errCode: string;
+        if (typeof errorObj === "object" && errorObj != null) {
+          const e = errorObj as Record<string, unknown>;
+          errMsg = String(e["message"] ?? "unknown");
+          errCode = String(e["code"] ?? "unknown");
+        } else {
+          errMsg = JSON.stringify(raw);
+          errCode = "unknown";
+        }
+        log.error(`サーバーエラー: ${errMsg} (code=${errCode})`);
         break;
+      }
 
       default:
         log.debug(`未知のメッセージタイプ: ${(msg as { type: string }).type}`);
