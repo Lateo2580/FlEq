@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.23](https://github.com/Lateo2580/FlEq/compare/v0.1.22...v0.1.23) (2026-02-17)
+
+
+### リファクタリング
+
+* MCPブリッジ機能を削除 ([39267b7](https://github.com/Lateo2580/FlEq/commit/39267b7a111588ad8d6b159a4bb980e5f8eb44a2))
+
 ## [0.1.22](https://github.com/Lateo2580/FlEq/compare/v0.1.21...v0.1.22) (2026-02-17)
 
 
