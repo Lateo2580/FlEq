@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.1.22](https://github.com/Lateo2580/FlEq/compare/v0.1.21...v0.1.22) (2026-02-17)
+
+
+### 機能追加
+
+* EEW受信時のログ記録機能を追加 ([9277b0e](https://github.com/Lateo2580/FlEq/commit/9277b0eed4e83c402cf1f0d39c0cfd7768cb4995))
+
 ## [0.1.21](https://github.com/Lateo2580/FlEq/compare/v0.1.20...v0.1.21) (2026-02-15)
 
 
