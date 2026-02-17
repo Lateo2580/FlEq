@@ -128,6 +128,11 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
  */
 export class EewTracker {
   private events = new Map<string, EewEvent>();
+  private readonly onCleanup?: (eventId: string) => void;
+
+  constructor(options?: { onCleanup?: (eventId: string) => void }) {
+    this.onCleanup = options?.onCleanup;
+  }
 
   /** EEW 情報を受け取り、状態を更新して結果を返す */
   update(info: ParsedEewInfo): EewUpdateResult {
@@ -212,10 +217,15 @@ export class EewTracker {
   /** 最終更新から一定時間経過したイベントを削除 */
   private cleanup(): void {
     const now = Date.now();
+    const expired: string[] = [];
     for (const [id, ev] of this.events) {
       if (now - ev.lastUpdate.getTime() > CLEANUP_THRESHOLD_MS) {
-        this.events.delete(id);
+        expired.push(id);
       }
+    }
+    for (const id of expired) {
+      this.events.delete(id);
+      this.onCleanup?.(id);
     }
   }
 }

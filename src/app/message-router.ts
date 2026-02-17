@@ -13,14 +13,25 @@ import {
   displayRawHeader,
 } from "../ui/formatter";
 import { EewTracker } from "../features/eew-tracker";
+import { EewEventLogger } from "../features/eew-logger";
 import * as log from "../logger";
 
-/** EEW イベントトラッカー */
-const eewTracker = new EewTracker();
+/** createMessageHandler の戻り値 */
+export interface MessageHandlerResult {
+  handler: (msg: WsDataMessage) => void;
+  eewLogger: EewEventLogger;
+}
 
 /** 受信データのハンドリング */
-export function createMessageHandler(): (msg: WsDataMessage) => void {
-  return (msg: WsDataMessage): void => {
+export function createMessageHandler(): MessageHandlerResult {
+  const eewLogger = new EewEventLogger();
+  const eewTracker = new EewTracker({
+    onCleanup: (eventId) => {
+      eewLogger.closeEvent(eventId, "タイムアウト");
+    },
+  });
+
+  const handler = (msg: WsDataMessage): void => {
     // XML電文でない場合はヘッダ情報のみ表示
     if (msg.format !== "xml" || !msg.head.xml) {
       displayRawHeader(msg);
@@ -44,6 +55,15 @@ export function createMessageHandler(): (msg: WsDataMessage) => void {
           );
           return;
         }
+
+        // ログ記録 (非重複報のみ)
+        eewLogger.logReport(eewInfo, result);
+
+        // 取消報の場合はログを閉じる
+        if (result.isCancelled && eewInfo.eventId) {
+          eewLogger.closeEvent(eewInfo.eventId, "取消");
+        }
+
         displayEewInfo(eewInfo, {
           activeCount: result.activeCount,
           diff: result.diff,
@@ -93,4 +113,6 @@ export function createMessageHandler(): (msg: WsDataMessage) => void {
     // その他の電文
     displayRawHeader(msg);
   };
+
+  return { handler, eewLogger };
 }
