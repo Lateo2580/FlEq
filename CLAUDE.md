@@ -45,7 +45,6 @@ src/
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 ├── features/
 │   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理)
-│   └── mcp-bridge.ts           # MCP連携ブリッジ (実験的)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
     └── repl.ts                 # REPL インタラクション
@@ -77,7 +76,7 @@ index.ts (bootstrap) → cli/build-command.ts (Commander定義)
 - `cli/` — CLI定義と設定解決を担当、ランタイムロジックを持たない
 - `app/` — アプリケーションのオーケストレーションとメッセージルーティング
 - `dmdata/` — dmdata.jp との通信層 (REST, WebSocket, 電文パース)
-- `features/` — ドメイン固有の機能 (EEW追跡, MCP連携)
+- `features/` — ドメイン固有の機能 (EEW追跡)
 - `ui/` — ユーザーインターフェース (ターミナル表示, REPL)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック

@@ -2,11 +2,11 @@
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
-## 現在の状態（2026-02-15 時点）
+## 現在の状態（2026-02-17 時点）
 
-- バージョン: `0.1.16`
+- バージョン: `0.1.22`
 - デフォルトブランチ: `main`
-- テスト: 3ファイル / 65テスト（`npm test` で全件成功）
+- テスト: 4ファイル / 75テスト（`npm test` で全件成功）
 - XMLフィクスチャ: `test/fixtures/*.xml` に 43件
 
 ## 対応情報
@@ -82,49 +82,9 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 3件（計65テスト）
+- テストファイル: 4件（計75テスト）
 - フィクスチャ: `test/fixtures/` に実電文XML 43件
 - モックヘルパー: `test/helpers/mock-message.ts`
-
-## Claude Code連携 (MCP Bridge)
-
-Codex から Claude Code を呼び出すための MCP サーバーを同梱しています。
-
-```bash
-# Bridge 起動
-npm run mcp:bridge
-```
-
-### ツール仕様
-
-- Tool名: `ask_claude`
-- 引数:
-  - `prompt` (必須, string)
-  - `cwd` (任意, string)
-  - `timeoutMs` (任意, number)
-  - `maxOutputChars` (任意, number)
-
-### 環境変数
-
-- `CLAUDE_BRIDGE_COMMAND` (default: `claude`)
-- `CLAUDE_BRIDGE_ARGS_PREFIX` (default: `-p`)
-- `CLAUDE_BRIDGE_ALLOWED_DIRS` (default: 現在ディレクトリ。複数は `:` 区切り)
-- `CLAUDE_BRIDGE_TIMEOUT_MS` (default: `120000`)
-- `CLAUDE_BRIDGE_MAX_OUTPUT_CHARS` (default: `20000`)
-
-### Codex MCP設定例
-
-```json
-{
-  "mcpServers": {
-    "claude-bridge": {
-      "command": "npm",
-      "args": ["run", "mcp:bridge"],
-      "cwd": "/Users/plaintall/Dev/FlEq"
-    }
-  }
-}
-```
 
 ## CLIオプション
 
@@ -223,7 +183,6 @@ src/
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 ├── features/
 │   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理)
-│   └── mcp-bridge.ts           # MCP連携ブリッジ (実験的)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
     └── repl.ts                 # REPL インタラクション
