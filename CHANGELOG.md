@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.0.1](https://github.com/Lateo2580/FlEq/compare/v1.0.0...v1.0.1) (2026-02-18)
+
+
+### バグ修正
+
+* WebSocketメッセージのランタイム検証追加・serial NaN対策・EEW最大予測震度修正・REPL終了責務分離 ([8b392a5](https://github.com/Lateo2580/FlEq/commit/8b392a5a6baf7a8430d4964e5079587507282718))
+
 ## [1.0.0](https://github.com/Lateo2580/FlEq/compare/v0.1.23...v1.0.0) (2026-02-18)
 
 
