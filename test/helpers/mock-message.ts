@@ -135,6 +135,7 @@ export function createMockWsDataMessage(
       author: "気象庁",
       time: new Date().toISOString(),
       test: false,
+      xml: true,
     },
     xmlReport: {
       control: {

@@ -50,19 +50,19 @@ export async function runMonitor(opts: {
     classifications = opts.classifications
       .split(",")
       .map((s) => s.trim())
-      .filter(Boolean) as Classification[];
+      .filter((s): s is Classification =>
+        VALID_CLASSIFICATIONS.includes(s as Classification)
+      );
   } else if (fileConfig.classifications != null) {
     classifications = fileConfig.classifications;
   } else {
     classifications = DEFAULT_CONFIG.classifications;
   }
 
-  for (const c of classifications) {
-    if (!VALID_CLASSIFICATIONS.includes(c)) {
-      log.error(`無効な区分: ${c}`);
-      log.error(`有効な値: ${VALID_CLASSIFICATIONS.join(", ")}`);
-      process.exit(1);
-    }
+  if (classifications.length === 0) {
+    log.error(`有効な区分が指定されていません。`);
+    log.error(`有効な値: ${VALID_CLASSIFICATIONS.join(", ")}`);
+    process.exit(1);
   }
 
   // テストモード (CLI > Configファイル > デフォルト)
