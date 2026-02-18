@@ -161,6 +161,7 @@ export class ReplHandler {
   private wsManager: WebSocketManager;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
+  private stopping = false;
   private statusLine: StatusLine;
 
   constructor(config: AppConfig, wsManager: WebSocketManager) {
@@ -254,7 +255,9 @@ export class ReplHandler {
     });
 
     this.rl.on("close", () => {
-      this.handleQuit();
+      if (!this.stopping) {
+        this.handleQuit();
+      }
     });
 
     this.prompt();
@@ -263,6 +266,7 @@ export class ReplHandler {
 
   /** REPL を停止する */
   stop(): void {
+    this.stopping = true;
     this.statusLine.stop();
     if (this.rl) {
       this.rl.close();

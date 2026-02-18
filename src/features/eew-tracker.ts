@@ -150,13 +150,14 @@ export class EewTracker {
       };
     }
 
-    const serial = parseInt(info.serial || "0", 10);
+    const serialRaw = parseInt(info.serial || "", 10);
+    const serial: number | null = Number.isFinite(serialRaw) ? serialRaw : null;
     const isCancelled = info.infoType === "取消";
     const existing = this.events.get(eventId);
 
     if (existing) {
       // 既知のイベント — 報数チェック
-      if (!isCancelled && serial > 0 && serial <= existing.lastSerial) {
+      if (!isCancelled && serial != null && serial > 0 && serial <= existing.lastSerial) {
         // 同じか古い報数 → 重複
         return {
           isNew: false,
@@ -171,7 +172,9 @@ export class EewTracker {
       const previousInfo = existing.previousInfo;
 
       // 状態更新
-      existing.lastSerial = Math.max(existing.lastSerial, serial);
+      if (serial != null) {
+        existing.lastSerial = Math.max(existing.lastSerial, serial);
+      }
       existing.isWarning = existing.isWarning || info.isWarning;
       existing.isCancelled = isCancelled;
       existing.lastUpdate = new Date();
@@ -190,7 +193,7 @@ export class EewTracker {
     // 新規イベント
     this.events.set(eventId, {
       eventId,
-      lastSerial: serial,
+      lastSerial: serial ?? 0,
       isWarning: info.isWarning,
       isCancelled,
       lastUpdate: new Date(),

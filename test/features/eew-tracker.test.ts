@@ -334,6 +334,66 @@ describe("EewTracker", () => {
     });
   });
 
+  describe("serial 非数値耐性", () => {
+    it("serial='abc' でもクラッシュせず lastSerial が壊れない", () => {
+      tracker.update(createEewInfo({ serial: "5", eventId: "event-nan" }));
+
+      // 非数値 serial を受信
+      expect(() =>
+        tracker.update(createEewInfo({ serial: "abc", eventId: "event-nan" }))
+      ).not.toThrow();
+
+      // その後 serial=6 の更新が重複扱いにならない
+      const result = tracker.update(
+        createEewInfo({ serial: "6", eventId: "event-nan" })
+      );
+      expect(result.isDuplicate).toBe(false);
+    });
+
+    it("serial='' でも lastSerial が壊れない", () => {
+      tracker.update(createEewInfo({ serial: "3", eventId: "event-empty" }));
+
+      // 空 serial を受信
+      tracker.update(createEewInfo({ serial: "", eventId: "event-empty" }));
+
+      // その後 serial=4 の更新が重複扱いにならない
+      const result = tracker.update(
+        createEewInfo({ serial: "4", eventId: "event-empty" })
+      );
+      expect(result.isDuplicate).toBe(false);
+    });
+
+    it("serial=null 相当でも lastSerial が NaN 化しない", () => {
+      tracker.update(createEewInfo({ serial: "2", eventId: "event-null" }));
+
+      // null を文字列化したもの
+      tracker.update(createEewInfo({ serial: null, eventId: "event-null" }));
+
+      // serial=3 の更新が正常に通る
+      const result = tracker.update(
+        createEewInfo({ serial: "3", eventId: "event-null" })
+      );
+      expect(result.isDuplicate).toBe(false);
+    });
+
+    it("非数値 serial 後に isDuplicate 判定が正常に機能する", () => {
+      tracker.update(createEewInfo({ serial: "10", eventId: "event-mixed" }));
+      tracker.update(createEewInfo({ serial: "xyz", eventId: "event-mixed" }));
+
+      // serial=5 (10より古い) は重複扱い
+      const dup = tracker.update(
+        createEewInfo({ serial: "5", eventId: "event-mixed" })
+      );
+      expect(dup.isDuplicate).toBe(true);
+
+      // serial=11 (10より新しい) は重複でない
+      const fresh = tracker.update(
+        createEewInfo({ serial: "11", eventId: "event-mixed" })
+      );
+      expect(fresh.isDuplicate).toBe(false);
+    });
+  });
+
   describe("自動クリーンアップ", () => {
     beforeEach(() => {
       vi.useFakeTimers();

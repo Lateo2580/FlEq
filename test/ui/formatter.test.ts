@@ -236,6 +236,63 @@ describe("displayEewInfo", () => {
     expect(output).toContain("EventID:");
   });
 
+  it("forecastIntensity.areas の順序が異なっても最大予測震度が一致する", () => {
+    const baseInfo = {
+      type: "VXSE45",
+      infoType: "発表",
+      title: "緊急地震速報（地震動予報）",
+      reportDateTime: new Date().toISOString(),
+      headline: null,
+      publishingOffice: "気象庁",
+      serial: "1",
+      eventId: "20240417231454",
+      isTest: false,
+      isWarning: false,
+    };
+
+    // areas の先頭が最大でないケース: 最大は "5強"
+    const infoLowFirst = {
+      ...baseInfo,
+      forecastIntensity: {
+        areas: [
+          { name: "北部", intensity: "3" },
+          { name: "中部", intensity: "5強" },
+          { name: "南部", intensity: "4" },
+        ],
+      },
+    };
+    // areas の先頭が最大のケース: 最大は "5強"
+    const infoHighFirst = {
+      ...baseInfo,
+      forecastIntensity: {
+        areas: [
+          { name: "中部", intensity: "5強" },
+          { name: "南部", intensity: "4" },
+          { name: "北部", intensity: "3" },
+        ],
+      },
+    };
+
+    logSpy.mockClear();
+    displayEewInfo(infoLowFirst);
+    const output1 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    logSpy.mockClear();
+    displayEewInfo(infoHighFirst);
+    const output2 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // どちらの順序でも "5強" が最大として表示される
+    expect(output1).toContain("5強");
+    expect(output2).toContain("5強");
+
+    // 最大予測震度を含む行の内容が同じ
+    const maxLine1 = logSpy.mock.calls
+      .map((args) => String(args[0]))
+      .find((line) => line.includes("最大予測震度"));
+    expect(maxLine1).toBeDefined();
+    expect(maxLine1).toContain("5強");
+  });
+
   it("EEW差分情報: マグニチュード変化が表示される", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
       classification: "eew.forecast",

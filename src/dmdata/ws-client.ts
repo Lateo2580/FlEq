@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { AppConfig, WsMessage, WsDataMessage } from "../types";
+import { AppConfig, WsDataMessage, WsStartMessage, WsPingMessage } from "../types";
 import { prepareAndStartSocket } from "./rest-client";
 import * as log from "../logger";
 
@@ -17,6 +17,28 @@ export interface WsManagerEvents {
 
 /** サーバーからの ping が途絶えたとみなすまでのミリ秒 */
 const HEARTBEAT_TIMEOUT_MS = 90_000;
+
+/** 受信オブジェクトが WsDataMessage の必須フィールドを持つか確認 */
+function isWsDataMessage(parsed: unknown): parsed is WsDataMessage {
+  if (typeof parsed !== "object" || parsed == null) return false;
+  const msg = parsed as Record<string, unknown>;
+  if (typeof msg["id"] !== "string") return false;
+  if (typeof msg["head"] !== "object" || msg["head"] == null) return false;
+  const head = msg["head"] as Record<string, unknown>;
+  return typeof head["type"] === "string";
+}
+
+function isWsStartMessage(parsed: unknown): parsed is WsStartMessage {
+  if (typeof parsed !== "object" || parsed == null) return false;
+  const msg = parsed as Record<string, unknown>;
+  return typeof msg["socketId"] === "number" && Array.isArray(msg["classifications"]);
+}
+
+function isWsPingMessage(parsed: unknown): parsed is WsPingMessage {
+  if (typeof parsed !== "object" || parsed == null) return false;
+  const msg = parsed as Record<string, unknown>;
+  return typeof msg["pingId"] === "string";
+}
 
 export class WebSocketManager {
   private config: AppConfig;
@@ -139,20 +161,34 @@ export class WebSocketManager {
       return;
     }
 
-    const msg = parsed as WsMessage;
+    if (typeof parsed !== "object" || parsed == null) {
+      log.warn("受信データが不正な形式です");
+      return;
+    }
 
-    switch (msg.type) {
+    const obj = parsed as Record<string, unknown>;
+    const msgType = typeof obj["type"] === "string" ? obj["type"] : null;
+
+    switch (msgType) {
       case "start":
-        this.socketId = msg.socketId;
+        if (!isWsStartMessage(parsed)) {
+          log.warn("start メッセージのスキーマが不正です");
+          break;
+        }
+        this.socketId = parsed.socketId;
         log.info(
-          `セッション開始: socketId=${msg.socketId}, 区分=[${msg.classifications.join(", ")}]`
+          `セッション開始: socketId=${parsed.socketId}, 区分=[${parsed.classifications.join(", ")}]`
         );
         break;
 
       case "ping":
-        this.lastPingId = msg.pingId;
+        if (!isWsPingMessage(parsed)) {
+          log.warn("ping メッセージのスキーマが不正です");
+          break;
+        }
+        this.lastPingId = parsed.pingId;
         this.resetHeartbeat();
-        this.sendPong(msg.pingId);
+        this.sendPong(parsed.pingId);
         break;
 
       case "pong":
@@ -160,16 +196,18 @@ export class WebSocketManager {
         break;
 
       case "data":
+        if (!isWsDataMessage(parsed)) {
+          log.warn("data メッセージのスキーマが不正です (id/head/head.type が欠落)");
+          break;
+        }
         log.debug(
-          `データ受信: type=${msg.head.type}, id=${msg.id.slice(0, 16)}...`
+          `データ受信: type=${parsed.head.type}, id=${parsed.id.slice(0, 16)}...`
         );
-        this.events.onData(msg);
+        this.events.onData(parsed);
         break;
 
       case "error": {
-        // サーバーのエラー構造が想定と異なる場合に備え安全にアクセス
-        const raw = parsed as Record<string, unknown>;
-        const errorObj = raw["error"];
+        const errorObj = obj["error"];
         let errMsg: string;
         let errCode: string;
         if (typeof errorObj === "object" && errorObj != null) {
@@ -177,7 +215,7 @@ export class WebSocketManager {
           errMsg = String(e["message"] ?? "unknown");
           errCode = String(e["code"] ?? "unknown");
         } else {
-          errMsg = JSON.stringify(raw);
+          errMsg = JSON.stringify(obj);
           errCode = "unknown";
         }
         log.error(`サーバーエラー: ${errMsg} (code=${errCode})`);
@@ -185,7 +223,7 @@ export class WebSocketManager {
       }
 
       default:
-        log.debug(`未知のメッセージタイプ: ${(msg as { type: string }).type}`);
+        log.debug(`未知のメッセージタイプ: ${msgType ?? "(型なし)"}`);
     }
   }
 

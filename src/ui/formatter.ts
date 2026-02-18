@@ -398,9 +398,13 @@ export function displayEewInfo(
     console.log(frameDivider(level));
     const cardParts: string[] = [];
     if (info.forecastIntensity?.areas.length) {
-      const topInt = info.forecastIntensity.areas[0].intensity;
-      const ic = intensityColor(topInt);
-      let intLabel = chalk.white("最大予測震度 ") + ic.bold(topInt);
+      const areas = info.forecastIntensity.areas;
+      const maxInt = areas.reduce((best, area) =>
+        intensityToNumeric(area.intensity) > intensityToNumeric(best) ? area.intensity : best,
+        areas[0].intensity
+      );
+      const ic = intensityColor(maxInt);
+      let intLabel = chalk.white("最大予測震度 ") + ic.bold(maxInt);
       if (diff?.maxIntChange) {
         intLabel += chalk.cyan(` (${diff.maxIntChange})`);
       }

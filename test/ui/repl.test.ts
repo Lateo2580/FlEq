@@ -335,4 +335,38 @@ describe("ReplHandler", () => {
       handler.stop();
     });
   });
+
+  describe("stop() の責務分離", () => {
+    it("stop() を呼んでも process.exit が呼ばれない", () => {
+      const exitSpy = vi
+        .spyOn(process, "exit")
+        .mockImplementation((() => {}) as (code?: number) => never);
+
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+      handler.stop();
+
+      // readline の close イベントを手動発火 (stop 後なので handleQuit に到達しない)
+      mockRl.emit("close");
+
+      expect(exitSpy).not.toHaveBeenCalled();
+      exitSpy.mockRestore();
+    });
+
+    it("close イベントが stop() を経由せずに発火した場合は process.exit が呼ばれる", () => {
+      const exitSpy = vi
+        .spyOn(process, "exit")
+        .mockImplementation((() => {}) as (code?: number) => never);
+
+      const wsManager = createMockWsManager();
+      const handler = new ReplHandler(createConfig(), wsManager);
+      handler.start();
+
+      // stop() を呼ばずに close イベントを直接発火 → handleQuit が呼ばれる
+      mockRl.emit("close");
+
+      expect(exitSpy).toHaveBeenCalledWith(0);
+      exitSpy.mockRestore();
+    });
+  });
 });

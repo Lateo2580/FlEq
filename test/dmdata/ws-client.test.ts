@@ -499,4 +499,98 @@ describe("WebSocketManager", () => {
       manager.close();
     });
   });
+
+  describe("スキーマ検証 (type=data 不正入力)", () => {
+    it("id が欠落した data メッセージでもクラッシュしない", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+
+      // id フィールドなし
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({ type: "data", head: { type: "VXSE53" } })
+      );
+
+      expect(events.onData).not.toHaveBeenCalled();
+
+      manager.close();
+    });
+
+    it("head が欠落した data メッセージでもクラッシュしない", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+
+      // head フィールドなし
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({ type: "data", id: "abc123" })
+      );
+
+      expect(events.onData).not.toHaveBeenCalled();
+
+      manager.close();
+    });
+
+    it("head.type が数値の data メッセージでもクラッシュしない", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+
+      // head.type が文字列でない
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({ type: "data", id: "abc123", head: { type: 42 } })
+      );
+
+      expect(events.onData).not.toHaveBeenCalled();
+
+      manager.close();
+    });
+
+    it("socketId が欠落した start メッセージでもクラッシュしない", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+
+      // socketId なし
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({ type: "start", classifications: ["telegram.earthquake"] })
+      );
+
+      // socketId が記録されていないこと (null のまま)
+      expect(manager.getStatus().socketId).toBeNull();
+
+      manager.close();
+    });
+
+    it("pingId が欠落した ping メッセージでもクラッシュしない", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+
+      // pingId なし
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({ type: "ping" })
+      );
+
+      // pong は送信されない
+      expect(mockWsInstance.send).not.toHaveBeenCalled();
+
+      manager.close();
+    });
+  });
 });
