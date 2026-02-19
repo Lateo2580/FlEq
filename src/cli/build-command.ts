@@ -19,7 +19,7 @@ export function buildProgram(): Command {
   const program = new Command();
 
   program
-    .name("dmdata-monitor")
+    .name("fleq")
     .description(
       "Project DM-D.S.S (dmdata.jp) の地震・津波・EEW情報をリアルタイム受信・表示するCLIツール"
     )

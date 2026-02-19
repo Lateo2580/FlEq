@@ -49,7 +49,7 @@ describe("Config", () => {
 
     it("正常な設定ファイルを読み込む", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -77,7 +77,7 @@ describe("Config", () => {
 
     it("JSON 構文エラーの場合に空オブジェクトを返す", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -90,7 +90,7 @@ describe("Config", () => {
 
     it("不正な形式 (配列) の場合に空オブジェクトを返す", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(path.join(configDir, "config.json"), "[]");
 
@@ -102,7 +102,7 @@ describe("Config", () => {
   describe("validateConfig (loadConfig 経由で間接テスト)", () => {
     it("不正な classification をフィルタする", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -117,7 +117,7 @@ describe("Config", () => {
 
     it("不正な testMode を無視する", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -130,7 +130,7 @@ describe("Config", () => {
 
     it("空文字列の apiKey を無視する", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -143,7 +143,7 @@ describe("Config", () => {
 
     it("負の maxReconnectDelaySec を無視する", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -156,7 +156,7 @@ describe("Config", () => {
 
     it("文字列カンマ区切りの classifications をパースする", async () => {
       const config = await importConfig();
-      const configDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      const configDir = path.join(tmpDir, ".config", "fleq");
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, "config.json"),
@@ -330,7 +330,7 @@ describe("Config", () => {
       const config = await importConfig();
       const p = config.getConfigPath();
       expect(p).toContain("config.json");
-      expect(p).toContain("dmdata-monitor");
+      expect(p).toContain("fleq");
     });
 
     it("設定可能なキー一覧を表示する", async () => {

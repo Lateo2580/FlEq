@@ -12,11 +12,34 @@ export class ConfigError extends Error {
   }
 }
 
+/** 旧Configファイルのディレクトリ (マイグレーション用) */
+const OLD_CONFIG_DIR = path.join(os.homedir(), ".config", "dmdata-monitor");
+
 /** Configファイルのディレクトリ */
-const CONFIG_DIR = path.join(os.homedir(), ".config", "dmdata-monitor");
+const CONFIG_DIR = path.join(os.homedir(), ".config", "fleq");
 
 /** Configファイルのパス */
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
+
+/** 旧パスから新パスへ設定ファイルをマイグレーションする */
+function migrateConfigIfNeeded(): void {
+  const oldConfigPath = path.join(OLD_CONFIG_DIR, "config.json");
+  if (fs.existsSync(oldConfigPath) && !fs.existsSync(CONFIG_PATH)) {
+    try {
+      if (!fs.existsSync(CONFIG_DIR)) {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+      }
+      fs.copyFileSync(oldConfigPath, CONFIG_PATH);
+      log.info(
+        `設定ファイルを移行しました: ${oldConfigPath} → ${CONFIG_PATH}`
+      );
+    } catch (err) {
+      if (err instanceof Error) {
+        log.warn(`設定ファイルの移行に失敗しました: ${err.message}`);
+      }
+    }
+  }
+}
 
 /** 有効な分類区分 */
 export const VALID_CLASSIFICATIONS: Classification[] = [
@@ -45,6 +68,7 @@ export function getConfigPath(): string {
 
 /** Configファイルを読み込む */
 export function loadConfig(): ConfigFile {
+  migrateConfigIfNeeded();
   if (!fs.existsSync(CONFIG_PATH)) {
     return {};
   }

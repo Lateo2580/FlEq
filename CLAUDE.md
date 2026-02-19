@@ -143,17 +143,17 @@ index.ts (bootstrap) → cli/build-command.ts (Commander定義)
 1. CLI オプション (`--api-key`, `-c`, `--test`, `--keep-existing`)
 2. 環境変数 `DMDATA_API_KEY` (APIキーのみ)
 3. `.env` ファイル (APIキーのみ)
-4. Configファイル (`~/.config/dmdata-monitor/config.json`)
+4. Configファイル (`~/.config/fleq/config.json`)
 5. デフォルト値 (`DEFAULT_CONFIG`)
 
 ### Configファイル管理
 
 ```bash
-dmdata-monitor config show          # 現在の設定を表示
-dmdata-monitor config set <key> <value>  # 設定値をセット
-dmdata-monitor config unset <key>   # 設定値を削除
-dmdata-monitor config path          # Configファイルのパスを表示
-dmdata-monitor config keys          # 設定可能なキー一覧を表示
+fleq config show          # 現在の設定を表示
+fleq config set <key> <value>  # 設定値をセット
+fleq config unset <key>   # 設定値を削除
+fleq config path          # Configファイルのパスを表示
+fleq config keys          # 設定可能なキー一覧を表示
 ```
 
 設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`
