@@ -9,6 +9,8 @@ import {
 } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
+  readFixture,
+  encodeXml,
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VXSE51_CANCEL,
   FIXTURE_VXSE53_ENCHI,
@@ -486,6 +488,85 @@ describe("parseEewTelegram", () => {
       const result = parseEewTelegram(msg);
       expect(result).not.toBeNull();
       expect(result!.maxIntChangeReason).toBe(9);
+    });
+
+    it("falls back to assumed hypocenter when condition is missing but PLUM signals exist", () => {
+      const xml = readFixture(FIXTURE_VXSE45_PLUM)
+        .replace(/<Condition>仮定震源要素<\/Condition>/, "");
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+      msg.body = encodeXml(xml);
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.maxIntChangeReason).toBe(9);
+      expect(result!.isAssumedHypocenter).toBe(true);
+    });
+
+    it("does not mis-detect assumed hypocenter from M1.0 + 10km alone", () => {
+      const xml = readFixture(FIXTURE_VXSE45_S1)
+        .replace(">4.2<", ">1.0<")
+        .replace("-40000/", "-10000/");
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+      msg.body = encodeXml(xml);
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.earthquake!.magnitude).toBe("1");
+      expect(result!.earthquake!.depth).toBe("10km");
+      expect(result!.maxIntChangeReason).toBeUndefined();
+      expect(result!.isAssumedHypocenter).toBe(false);
+    });
+
+    it("detects PLUM and arrived conditions with normalized text", () => {
+      const xml = readFixture(FIXTURE_VXSE45_PLUM)
+        .replace(
+          "<Condition>ＰＬＵＭ法で推定</Condition>",
+          "<Condition> PLUM 法 で 推定 </Condition>"
+        )
+        .replace(
+          "<Condition>既に主要動到達と推測</Condition>",
+          "<Condition> 既に 主要動 到達 と推測 </Condition>"
+        );
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+      msg.body = encodeXml(xml);
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+
+      const noto = result!.forecastIntensity!.areas.find((a) => a.name === "石川県能登");
+      expect(noto).toBeDefined();
+      expect(noto!.isPlum).toBe(true);
+
+      const toyama = result!.forecastIntensity!.areas.find((a) => a.name === "富山県東部");
+      expect(toyama).toBeDefined();
+      expect(toyama!.hasArrived).toBe(true);
     });
 
     it("混合電文で通常推定地域とPLUM法地域を区別する", () => {

@@ -165,11 +165,15 @@ export class EewEventLogger {
       const eq = info.earthquake;
       lines.push(`震源: ${eq.hypocenterName}`);
 
-      let magDepth = `M${eq.magnitude}  深さ${eq.depth}`;
-      if (diff) {
-        magDepth += formatDiff(diff);
+      if (info.isAssumedHypocenter) {
+        lines.push("仮定震源要素 (震源未確定・PLUM法による推定)");
+      } else {
+        let magDepth = `M${eq.magnitude}  深さ${eq.depth}`;
+        if (diff) {
+          magDepth += formatDiff(diff);
+        }
+        lines.push(magDepth);
       }
-      lines.push(magDepth);
     }
 
     if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {

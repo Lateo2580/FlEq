@@ -88,6 +88,33 @@ function first<T>(val: T | T[]): T {
   return Array.isArray(val) ? val[0] : val;
 }
 
+function normalizeConditionText(condition: string): string {
+  if (!condition) return "";
+  return condition.normalize("NFKC").replace(/\s+/g, "");
+}
+
+function isAssumedHypocenterCondition(condition: string): boolean {
+  return normalizeConditionText(condition).includes("仮定震源要素");
+}
+
+function isPlumAreaCondition(condition: string): boolean {
+  return /PLUM法/.test(normalizeConditionText(condition));
+}
+
+function hasArrivedAreaCondition(condition: string): boolean {
+  return normalizeConditionText(condition).includes("既に主要動到達");
+}
+
+function isAssumedHypocenterFallbackPattern(
+  earthquake: ParsedEarthquakeInfo["earthquake"] | undefined
+): boolean {
+  if (!earthquake) return false;
+  const mag = parseFloat(earthquake.magnitude);
+  const depthMatch = earthquake.depth.match(/^(\d+)km$/);
+  const depthKm = depthMatch ? parseInt(depthMatch[1], 10) : -1;
+  return mag === 1.0 && depthKm === 10;
+}
+
 /** 震源関連の情報を抽出 */
 function extractEarthquake(
   earthquake: unknown
@@ -284,7 +311,7 @@ export function parseEewTelegram(
     // 仮定震源要素の検出
     const earthquake = dig(body, "Earthquake");
     const earthquakeCondition = str(dig(earthquake, "Condition"));
-    let isAssumedHypocenter = earthquakeCondition.includes("仮定震源要素");
+    const assumedHypocenterByCondition = isAssumedHypocenterCondition(earthquakeCondition);
 
     const info: ParsedEewInfo = {
       type: msg.head.type,
@@ -314,18 +341,8 @@ export function parseEewTelegram(
     // 震源
     if (earthquake) {
       info.earthquake = extractEarthquake(earthquake);
-
-      // 仮定震源要素のフォールバック検出: M=1.0 + depth=10km
-      if (!isAssumedHypocenter && info.earthquake) {
-        const mag = parseFloat(info.earthquake.magnitude);
-        const depthMatch = info.earthquake.depth.match(/^(\d+)km$/);
-        const depthKm = depthMatch ? parseInt(depthMatch[1], 10) : -1;
-        if (mag === 1.0 && depthKm === 10) {
-          isAssumedHypocenter = true;
-        }
-      }
     }
-    info.isAssumedHypocenter = isAssumedHypocenter;
+    let hasPlumArea = false;
 
     // 予測震度
     const forecast = dig(body, "Intensity", "Forecast");
@@ -363,8 +380,8 @@ export function parseEewTelegram(
 
               // Condition パース
               const condition = str(dig(area, "Condition"));
-              const isPlum = condition.includes("ＰＬＵＭ法で推定") || undefined;
-              const hasArrived = condition.includes("既に主要動到達と推測") || undefined;
+              const isPlum = isPlumAreaCondition(condition) || undefined;
+              const hasArrived = hasArrivedAreaCondition(condition) || undefined;
 
               areas.push({
                 name: str(dig(area, "Name")),
@@ -377,10 +394,17 @@ export function parseEewTelegram(
           }
         }
       }
+      hasPlumArea = areas.some((area) => area.isPlum === true);
       if (areas.length > 0) {
         info.forecastIntensity = { ...(maxLgInt ? { maxLgInt } : {}), areas };
       }
     }
+
+    const assumedHypocenterByFallback =
+      isAssumedHypocenterFallbackPattern(info.earthquake) &&
+      (info.maxIntChangeReason === 9 || hasPlumArea);
+    info.isAssumedHypocenter =
+      assumedHypocenterByCondition || assumedHypocenterByFallback;
 
     return info;
   } catch (err) {

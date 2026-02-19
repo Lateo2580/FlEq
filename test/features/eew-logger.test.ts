@@ -31,6 +31,7 @@ function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
         { name: "大分県", intensity: "3" },
       ],
     },
+    isAssumedHypocenter: false,
     isTest: false,
     isWarning: false,
     ...overrides,
@@ -128,6 +129,30 @@ describe("EewEventLogger", () => {
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
       expect(content).toContain("第1報 (警報)");
+    });
+
+    it("仮定震源要素ではMと深さを出力しない", () => {
+      const info = createEewInfo({
+        serial: "3",
+        eventId: "ev003a",
+        isAssumedHypocenter: true,
+        earthquake: {
+          originTime: "2024-04-17T23:14:47+09:00",
+          hypocenterName: "test-hypocenter",
+          latitude: "N33.1",
+          longitude: "E132.4",
+          depth: "10km",
+          magnitude: "1.0",
+        },
+      });
+      const result = createUpdateResult({ isNew: true });
+      logger.logReport(info, result);
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(content).toContain("仮定震源要素");
+      expect(content).not.toContain("M1.0");
+      expect(content).not.toContain("深さ10km");
     });
 
     it("取消報を記録する", () => {
