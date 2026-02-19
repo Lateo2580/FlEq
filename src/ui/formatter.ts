@@ -419,6 +419,11 @@ export function displayEewInfo(
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
   }
 
+  // PLUM法ラベル (MaxIntChangeReason=9)
+  if (info.maxIntChangeReason === 9) {
+    console.log(frameLine(level, chalk.magenta("PLUM法") + chalk.gray(" による予測震度変化")));
+  }
+
   // 複数イベント同時発生の注記
   const activeCount = context?.activeCount ?? 0;
   if (activeCount >= 2 && info.eventId) {
@@ -456,10 +461,10 @@ export function displayEewInfo(
         cardParts.push(chalk.white("長周期階級 ") + lc.bold(maxLgInt));
       }
     }
-    if (info.earthquake?.magnitude) {
+    if (info.earthquake?.magnitude && !info.isAssumedHypocenter) {
       cardParts.push(colorMagnitude(info.earthquake.magnitude));
     }
-    if (info.earthquake?.depth) {
+    if (info.earthquake?.depth && !info.isAssumedHypocenter) {
       cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
     }
     console.log(frameLine(level, cardParts.join(chalk.gray("  │  "))));
@@ -469,6 +474,11 @@ export function displayEewInfo(
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level));
+
+    if (info.isAssumedHypocenter) {
+      console.log(frameLine(level, chalk.magenta("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)")));
+    }
+
     const hypoContent = diff?.hypocenterChange
       ? chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName) + chalk.cyan(" (変更)")
       : chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName);
@@ -477,7 +487,7 @@ export function displayEewInfo(
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
     }
-    if (eq.magnitude) {
+    if (eq.magnitude && !info.isAssumedHypocenter) {
       let magLine = chalk.white("規模: ") + colorMagnitude(eq.magnitude);
       if (diff?.magnitudeChange) {
         const arrow = diff.magnitudeChange.startsWith("+") ? "↑" : "↓";
@@ -485,7 +495,7 @@ export function displayEewInfo(
       }
       console.log(frameLine(level, magLine));
     }
-    if (eq.depth) {
+    if (eq.depth && !info.isAssumedHypocenter) {
       let depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
       if (diff?.depthChange) {
         const arrow = diff.depthChange.startsWith("+") ? "↓" : "↑";
@@ -521,6 +531,12 @@ export function displayEewInfo(
     for (const area of info.forecastIntensity.areas) {
       const color = intensityColor(area.intensity);
       let areaText = chalk.white(area.name);
+      if (area.isPlum) {
+        areaText += chalk.magenta(" [PLUM]");
+      }
+      if (area.hasArrived) {
+        areaText += chalk.red(" [到達]");
+      }
       if (area.lgIntensity && lgIntToNumeric(area.lgIntensity) >= 1) {
         const lc = lgIntensityColor(area.lgIntensity);
         areaText += lc(` [長周期${area.lgIntensity}]`);

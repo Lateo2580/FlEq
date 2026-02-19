@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>緊急地震速報（地震動予報）</Title><DateTime>2026-01-01T00:00:30Z</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>緊急地震速報（地震動予報）</Title><ReportDateTime>2026-01-01T09:00:30+09:00</ReportDateTime><TargetDateTime>2026-01-01T09:00:30+09:00</TargetDateTime><EventID>20260101090005</EventID><InfoType>発表</InfoType><Serial>10</Serial><InfoKind>緊急地震速報</InfoKind><InfoKindVersion>1.2_0</InfoKindVersion><Headline><Text></Text></Headline></Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Earthquake>
+      <OriginTime>2026-01-01T09:00:00+09:00</OriginTime>
+      <ArrivalTime>2026-01-01T09:00:05+09:00</ArrivalTime>
+      <Hypocenter>
+        <Area>
+          <Name>石川県能登地方</Name>
+          <Code type="震央地名">360</Code>
+          <jmx_eb:Coordinate description="北緯３７．５度　東経１３７．３度　深さ　１０ｋｍ">+37.5+137.3-10000/</jmx_eb:Coordinate>
+          <ReduceName>石川県能登</ReduceName>
+          <ReduceCode type="短縮用震央地名">9360</ReduceCode>
+          <LandOrSea>内陸</LandOrSea>
+        </Area>
+        <Accuracy>
+          <Epicenter rank="4" rank2="4">NaN</Epicenter>
+          <Depth rank="4">NaN</Depth>
+          <MagnitudeCalculation rank="4">NaN</MagnitudeCalculation>
+          <NumberOfMagnitudeCalculation>5</NumberOfMagnitudeCalculation>
+        </Accuracy>
+      </Hypocenter>
+      <jmx_eb:Magnitude type="Mj" description="Ｍ６．５">6.5</jmx_eb:Magnitude>
+    </Earthquake>
+    <Intensity>
+      <Forecast>
+        <ForecastInt><From>6-</From><To>6-</To></ForecastInt>
+        <ForecastLgInt><From>0</From><To>0</To></ForecastLgInt>
+        <Pref>
+          <Name>石川県</Name>
+          <Code>17</Code>
+          <Area>
+            <Name>石川県能登</Name>
+            <Code>360</Code>
+            <ForecastInt><From>6-</From><To>6-</To></ForecastInt>
+          </Area>
+          <Area>
+            <Name>石川県加賀</Name>
+            <Code>361</Code>
+            <ForecastInt><From>4</From><To>4</To></ForecastInt>
+          </Area>
+        </Pref>
+        <Pref>
+          <Name>富山県</Name>
+          <Code>16</Code>
+          <Area>
+            <Name>富山県東部</Name>
+            <Code>350</Code>
+            <ForecastInt><From>5-</From><To>5-</To></ForecastInt>
+            <Condition>ＰＬＵＭ法で推定</Condition>
+          </Area>
+          <Area>
+            <Name>富山県西部</Name>
+            <Code>351</Code>
+            <ForecastInt><From>4</From><To>4</To></ForecastInt>
+            <Condition>既に主要動到達と推測</Condition>
+          </Area>
+        </Pref>
+      </Forecast>
+    </Intensity>
+  </Body>
+</Report>

@@ -27,6 +27,8 @@ import {
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_CANCEL,
   FIXTURE_VXSE43_WARNING_S1,
+  FIXTURE_VXSE45_PLUM,
+  FIXTURE_VXSE45_MIXED,
 } from "../helpers/mock-message";
 
 // ── intensityColor ──
@@ -389,6 +391,62 @@ describe("displayEewInfo", () => {
     expect(output).toContain("長周期階級");
     // 大分県中部に [長周期1] が表示される
     expect(output).toContain("[長周期1]");
+  });
+
+  it("PLUM法: 仮定震源要素ラベルが表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE45",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    expect(output).toContain("仮定震源要素");
+    expect(output).toContain("PLUM法");
+    // PLUM法地域マーカー
+    expect(output).toContain("[PLUM]");
+    // 既到達マーカー
+    expect(output).toContain("[到達]");
+    // 仮定震源要素ではM・深さを表示しない
+    expect(output).not.toContain("M1.0");
+    expect(output).not.toContain("規模:");
+  });
+
+  it("混合電文: PLUM法地域と通常地域が混在して表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE45_MIXED, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE45",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // 通常推定の震源情報が表示される (仮定震源要素ではない)
+    expect(output).toContain("M6.5");
+    expect(output).not.toContain("仮定震源要素");
+    // PLUM法地域マーカー
+    expect(output).toContain("[PLUM]");
+    // 既到達マーカー
+    expect(output).toContain("[到達]");
   });
 
   it("EEW差分情報: マグニチュード変化が表示される", () => {

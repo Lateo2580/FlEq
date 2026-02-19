@@ -1,13 +1,13 @@
-# dmdata-monitor
+# FlEq
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
 ## 現在の状態（2026-02-19 時点）
 
-- バージョン: `1.0.1`
+- バージョン: `1.2.0`
 - デフォルトブランチ: `main`
-- テスト: 10ファイル / 193テスト（`npm test` で全件成功）
-- XMLフィクスチャ: `test/fixtures/*.xml` に 43件
+- テスト: 10ファイル / 209テスト（`npm test` で全件成功）
+- XMLフィクスチャ: `test/fixtures/*.xml` に 45件
 
 ## 対応情報
 
@@ -82,8 +82,8 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 10件（計193テスト）
-- フィクスチャ: `test/fixtures/` に実電文XML 43件
+- テストファイル: 10件（計209テスト）
+- フィクスチャ: `test/fixtures/` に実電文XML 45件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
 ## CLIオプション
@@ -98,7 +98,7 @@ npm run test:watch
 
 ## Config管理
 
-永続設定は `~/.config/dmdata-monitor/config.json` に保存されます。
+永続設定は `~/.config/fleq/config.json` に保存されます。
 `config` サブコマンドで管理できます。
 
 ```bash
@@ -134,7 +134,7 @@ npm start -- config keys
 1. CLI オプション (`--api-key`, `--classifications`, `--test`, `--keep-existing`)
 2. 環境変数 `DMDATA_API_KEY`（APIキーのみ）
 3. `.env` ファイル（APIキーのみ）
-4. Configファイル (`~/.config/dmdata-monitor/config.json`)
+4. Configファイル (`~/.config/fleq/config.json`)
 5. デフォルト値 (`DEFAULT_CONFIG`)
 
 補足:
@@ -214,6 +214,7 @@ src/
 - 展開サイズ上限チェック（10MB）
 - 震度に応じた色分け表示
 - 緊急地震速報（警報/予報）の視覚的な強調表示
+- PLUM法・仮定震源要素・既到達の検出と視覚的表示
 - EEWイベントの同時追跡（EventID単位、重複報スキップ、取消対応）
 - EEWイベントのログファイル記録（イベント別ファイル出力）
 - 指数バックオフによる自動再接続

@@ -34,7 +34,7 @@ export interface ConfigFile {
 export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   classifications: ["telegram.earthquake", "eew.forecast", "eew.warning"],
   testMode: "no",
-  appName: "dmdata-monitor",
+  appName: "fleq",
   maxReconnectDelaySec: 60,
   keepExistingConnections: false,
 };
@@ -302,11 +302,23 @@ export interface ParsedEewInfo {
     depth: string;
     magnitude: string;
   };
+  /** 仮定震源要素かどうか (PLUM法のみで通常震源推定不可) */
+  isAssumedHypocenter: boolean;
+  /** Appendix: 最大予測震度変化理由コード */
+  maxIntChangeReason?: number;
   /** 予測震度 */
   forecastIntensity?: {
     /** 最大予測長周期地震動階級 */
     maxLgInt?: string;
-    areas: { name: string; intensity: string; lgIntensity?: string }[];
+    areas: {
+      name: string;
+      intensity: string;
+      lgIntensity?: string;
+      /** PLUM法による予測か */
+      isPlum?: boolean;
+      /** 既に主要動到達と推測 */
+      hasArrived?: boolean;
+    }[];
   };
   isTest: boolean;
   /** 警報かどうか */

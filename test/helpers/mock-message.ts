@@ -93,6 +93,12 @@ export const FIXTURE_VTSE51_INFO = "32-39_11_03_250206_VTSE51.xml";
 /** VTSE52 沖合の津波情報 */
 export const FIXTURE_VTSE52_OFFSHORE = "61_11_01_250206_VTSE52.xml";
 
+/** VXSE45 PLUM法のみ (仮定震源要素) */
+export const FIXTURE_VXSE45_PLUM = "77_02_01_260101_VXSE45_PLUM.xml";
+
+/** VXSE45 混合 (通常推定 + PLUM法地域) */
+export const FIXTURE_VXSE45_MIXED = "77_02_02_260101_VXSE45_MIXED.xml";
+
 /** フィクスチャXMLを読み込む */
 export function readFixture(filename: string): string {
   return fs.readFileSync(path.join(FIXTURES_DIR, filename), "utf-8");

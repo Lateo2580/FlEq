@@ -281,6 +281,11 @@ export function parseEewTelegram(
     const head = dig(report, "Head");
     const body = dig(report, "Body");
 
+    // 仮定震源要素の検出
+    const earthquake = dig(body, "Earthquake");
+    const earthquakeCondition = str(dig(earthquake, "Condition"));
+    let isAssumedHypocenter = earthquakeCondition.includes("仮定震源要素");
+
     const info: ParsedEewInfo = {
       type: msg.head.type,
       infoType: str(dig(head, "InfoType")),
@@ -292,13 +297,35 @@ export function parseEewTelegram(
       eventId: str(dig(head, "EventID")) || null,
       isTest: msg.head.test,
       isWarning: msg.classification === "eew.warning",
+      isAssumedHypocenter: false,
     };
 
+    // Appendix: MaxIntChangeReason (Intensity > Forecast > Appendix)
+    const maxIntChangeReasonStr = str(
+      dig(body, "Intensity", "Forecast", "Appendix", "MaxIntChangeReason")
+    );
+    if (maxIntChangeReasonStr) {
+      const parsed = parseInt(maxIntChangeReasonStr, 10);
+      if (!isNaN(parsed)) {
+        info.maxIntChangeReason = parsed;
+      }
+    }
+
     // 震源
-    const earthquake = dig(body, "Earthquake");
     if (earthquake) {
       info.earthquake = extractEarthquake(earthquake);
+
+      // 仮定震源要素のフォールバック検出: M=1.0 + depth=10km
+      if (!isAssumedHypocenter && info.earthquake) {
+        const mag = parseFloat(info.earthquake.magnitude);
+        const depthMatch = info.earthquake.depth.match(/^(\d+)km$/);
+        const depthKm = depthMatch ? parseInt(depthMatch[1], 10) : -1;
+        if (mag === 1.0 && depthKm === 10) {
+          isAssumedHypocenter = true;
+        }
+      }
     }
+    info.isAssumedHypocenter = isAssumedHypocenter;
 
     // 予測震度
     const forecast = dig(body, "Intensity", "Forecast");
@@ -312,7 +339,13 @@ export function parseEewTelegram(
       );
       const maxLgInt = overallLgIntFrom || undefined;
 
-      const areas: { name: string; intensity: string; lgIntensity?: string }[] = [];
+      const areas: {
+        name: string;
+        intensity: string;
+        lgIntensity?: string;
+        isPlum?: boolean;
+        hasArrived?: boolean;
+      }[] = [];
       const prefs = dig(forecast, "Pref");
       if (Array.isArray(prefs)) {
         for (const pref of prefs) {
@@ -328,10 +361,17 @@ export function parseEewTelegram(
                 ? str(dig(rawLgInt[0], "From"))
                 : str(dig(rawLgInt, "From"));
 
+              // Condition パース
+              const condition = str(dig(area, "Condition"));
+              const isPlum = condition.includes("ＰＬＵＭ法で推定") || undefined;
+              const hasArrived = condition.includes("既に主要動到達と推測") || undefined;
+
               areas.push({
                 name: str(dig(area, "Name")),
                 intensity: str(dig(forecastInt, "From") || forecastInt || ""),
                 ...(lgInt ? { lgIntensity: lgInt } : {}),
+                ...(isPlum ? { isPlum } : {}),
+                ...(hasArrived ? { hasArrived } : {}),
               });
             }
           }

@@ -29,6 +29,8 @@ import {
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_S26,
   FIXTURE_VXSE45_CANCEL,
+  FIXTURE_VXSE45_PLUM,
+  FIXTURE_VXSE45_MIXED,
 } from "../helpers/mock-message";
 
 // ── decodeBody ──
@@ -411,6 +413,129 @@ describe("parseEewTelegram", () => {
       expect(result!.infoType).toBe("取消");
       expect(result!.serial).toBe("32");
       expect(result!.eventId).toBe("20240417231454");
+    });
+  });
+
+  describe("PLUM法・仮定震源要素", () => {
+    it("仮定震源要素を検出する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.isAssumedHypocenter).toBe(true);
+    });
+
+    it("PLUM法地域を検出する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.forecastIntensity).toBeDefined();
+
+      const noto = result!.forecastIntensity!.areas.find((a) => a.name === "石川県能登");
+      expect(noto).toBeDefined();
+      expect(noto!.isPlum).toBe(true);
+    });
+
+    it("既到達Conditionを検出する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+
+      const toyama = result!.forecastIntensity!.areas.find((a) => a.name === "富山県東部");
+      expect(toyama).toBeDefined();
+      expect(toyama!.hasArrived).toBe(true);
+    });
+
+    it("MaxIntChangeReason をパースする", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.maxIntChangeReason).toBe(9);
+    });
+
+    it("混合電文で通常推定地域とPLUM法地域を区別する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_MIXED, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.isAssumedHypocenter).toBe(false);
+
+      const areas = result!.forecastIntensity!.areas;
+
+      // 通常推定地域
+      const noto = areas.find((a) => a.name === "石川県能登");
+      expect(noto).toBeDefined();
+      expect(noto!.isPlum).toBeUndefined();
+
+      // PLUM法地域
+      const toyamaE = areas.find((a) => a.name === "富山県東部");
+      expect(toyamaE).toBeDefined();
+      expect(toyamaE!.isPlum).toBe(true);
+
+      // 既到達地域
+      const toyamaW = areas.find((a) => a.name === "富山県西部");
+      expect(toyamaW).toBeDefined();
+      expect(toyamaW!.hasArrived).toBe(true);
+    });
+
+    it("通常電文で isAssumedHypocenter: false であることを確認する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE45",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.isAssumedHypocenter).toBe(false);
+      expect(result!.maxIntChangeReason).toBeUndefined();
     });
   });
 });
