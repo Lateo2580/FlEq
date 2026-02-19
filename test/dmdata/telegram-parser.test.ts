@@ -272,6 +272,38 @@ describe("parseEewTelegram", () => {
       expect(result!.forecastIntensity).toBeDefined();
       expect(result!.forecastIntensity!.areas.length).toBeGreaterThan(1);
     });
+
+    it("長周期地震動階級 (ForecastLgInt) を抽出する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
+        head: {
+          type: "VXSE43",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEewTelegram(msg);
+      expect(result).not.toBeNull();
+
+      // 全体の最大予測長周期地震動階級
+      expect(result!.forecastIntensity!.maxLgInt).toBe("1");
+
+      // 各地域の長周期地震動階級
+      const oitaChubu = result!.forecastIntensity!.areas.find(
+        (a) => a.name === "大分県中部"
+      );
+      expect(oitaChubu).toBeDefined();
+      expect(oitaChubu!.lgIntensity).toBe("1");
+
+      // 長周期地震動階級 0 の地域は lgIntensity が省略されないことを確認
+      const ehimeNanyo = result!.forecastIntensity!.areas.find(
+        (a) => a.name === "愛媛県南予"
+      );
+      expect(ehimeNanyo).toBeDefined();
+      // "0" は truthy なので設定される
+      expect(ehimeNanyo!.lgIntensity).toBe("0");
+    });
   });
 
   describe("VXSE44 EEW予報", () => {

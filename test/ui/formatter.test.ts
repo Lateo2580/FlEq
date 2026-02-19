@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import chalk from "chalk";
 import {
   intensityColor,
+  lgIntensityColor,
   displayEarthquakeInfo,
   displayEewInfo,
   displayTsunamiInfo,
@@ -25,6 +26,7 @@ import {
   FIXTURE_VTSE41_WARN,
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_CANCEL,
+  FIXTURE_VXSE43_WARNING_S1,
 } from "../helpers/mock-message";
 
 // ── intensityColor ──
@@ -84,6 +86,36 @@ describe("intensityColor", () => {
   });
 });
 
+// ── lgIntensityColor ──
+
+describe("lgIntensityColor", () => {
+  beforeEach(() => {
+    chalk.level = 3;
+  });
+
+  it("階級0 → gray", () => {
+    expect(lgIntensityColor("0")).toBe(chalk.gray);
+  });
+
+  it("階級1 → green", () => {
+    expect(lgIntensityColor("1")).toBe(chalk.green);
+  });
+
+  it("階級2 → yellow", () => {
+    expect(lgIntensityColor("2")).toBe(chalk.yellow);
+  });
+
+  it("階級3 → orange 系", () => {
+    const result = lgIntensityColor("3")("test");
+    expect(result).toContain("test");
+    expect(result).not.toBe("test");
+  });
+
+  it("階級4 → red", () => {
+    expect(lgIntensityColor("4")).toBe(chalk.red);
+  });
+});
+
 // ── displayEarthquakeInfo (stdout キャプチャ) ──
 
 describe("displayEarthquakeInfo", () => {
@@ -123,6 +155,49 @@ describe("displayEarthquakeInfo", () => {
     expect(output).toContain("M7.1");
     // 津波情報
     expect(output).toContain("津波の心配はありません");
+  });
+
+  it("長周期地震動階級が含まれる地震情報を正しく表示する", () => {
+    const info = {
+      type: "VXSE53",
+      infoType: "発表",
+      title: "震源・震度に関する情報",
+      reportDateTime: new Date().toISOString(),
+      headline: null,
+      publishingOffice: "気象庁",
+      earthquake: {
+        originTime: new Date().toISOString(),
+        hypocenterName: "石川県能登地方",
+        latitude: "N37.5",
+        longitude: "E137.3",
+        depth: "10km",
+        magnitude: "7.6",
+      },
+      intensity: {
+        maxInt: "7",
+        maxLgInt: "4",
+        areas: [
+          { name: "石川県能登", intensity: "7", lgIntensity: "4" },
+          { name: "新潟県上越", intensity: "5強", lgIntensity: "3" },
+          { name: "富山県東部", intensity: "5弱", lgIntensity: "1" },
+          { name: "石川県加賀", intensity: "5強" },
+        ],
+      },
+      isTest: false,
+    };
+
+    displayEarthquakeInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // カード部分に長周期階級が表示される
+    expect(output).toContain("長周期階級");
+    // 地域ごとの長周期表示
+    expect(output).toContain("[長周期4]");
+    expect(output).toContain("[長周期3]");
+    expect(output).toContain("[長周期1]");
+    // lgIntensity なしの地域には長周期表示がない
+    // (石川県加賀は 5強 で lgIntensity undefined)
   });
 
   it("VXSE51 震度速報: 地域名と震度が含まれる", () => {
@@ -291,6 +366,29 @@ describe("displayEewInfo", () => {
       .find((line) => line.includes("最大予測震度"));
     expect(maxLine1).toBeDefined();
     expect(maxLine1).toContain("5強");
+  });
+
+  it("EEW警報: 長周期地震動階級が表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
+      head: {
+        type: "VXSE43",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // 長周期地震動階級がカードに表示される
+    expect(output).toContain("長周期階級");
+    // 大分県中部に [長周期1] が表示される
+    expect(output).toContain("[長周期1]");
   });
 
   it("EEW差分情報: マグニチュード変化が表示される", () => {

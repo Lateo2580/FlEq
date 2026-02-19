@@ -166,6 +166,30 @@ export function intensityColor(intensity: string): chalk.Chalk {
   }
 }
 
+/** 長周期地震動階級に応じた色を返す */
+export function lgIntensityColor(lgInt: string): chalk.Chalk {
+  switch (lgInt) {
+    case "0":
+      return chalk.gray;
+    case "1":
+      return chalk.green;
+    case "2":
+      return chalk.yellow;
+    case "3":
+      return chalk.rgb(255, 100, 0); // orange
+    case "4":
+      return chalk.red;
+    default:
+      return chalk.white;
+  }
+}
+
+/** 長周期地震動階級の数値変換 (フレームレベル判定用) */
+function lgIntToNumeric(lgInt: string): number {
+  const map: Record<string, number> = { "0": 0, "1": 1, "2": 2, "3": 3, "4": 4 };
+  return map[lgInt] ?? -1;
+}
+
 /** 電文タイプの日本語名 */
 function typeLabel(type: string): string {
   const map: Record<string, string> = {
@@ -248,12 +272,16 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
   console.log(frameLine(level, titleContent));
 
-  // カード1行目: 最重要3項目
+  // カード1行目: 最重要項目
   console.log(frameDivider(level));
   const cardParts: string[] = [];
   if (info.intensity) {
     const ic = intensityColor(info.intensity.maxInt);
     cardParts.push(chalk.white("最大震度 ") + ic.bold(info.intensity.maxInt));
+  }
+  if (info.intensity?.maxLgInt && lgIntToNumeric(info.intensity.maxLgInt) >= 1) {
+    const lc = lgIntensityColor(info.intensity.maxLgInt);
+    cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.intensity.maxLgInt));
   }
   if (info.earthquake?.magnitude) {
     cardParts.push(colorMagnitude(info.earthquake.magnitude));
@@ -311,7 +339,18 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
 
     for (const [int, names] of sorted) {
       const color = intensityColor(int);
-      console.log(frameLine(level, color(`震度${int}: `) + chalk.white(names.join(", "))));
+      // 長周期地震動階級付きの地域名を生成
+      const areaTexts = names.map((name) => {
+        const areaData = info.intensity!.areas.find(
+          (a) => a.name === name && a.intensity === int
+        );
+        if (areaData?.lgIntensity && lgIntToNumeric(areaData.lgIntensity) >= 1) {
+          const lc = lgIntensityColor(areaData.lgIntensity);
+          return chalk.white(name) + lc(` [長周期${areaData.lgIntensity}]`);
+        }
+        return chalk.white(name);
+      });
+      console.log(frameLine(level, color(`震度${int}: `) + areaTexts.join(chalk.white(", "))));
     }
   }
 
@@ -409,6 +448,13 @@ export function displayEewInfo(
         intLabel += chalk.cyan(` (${diff.maxIntChange})`);
       }
       cardParts.push(intLabel);
+
+      // 最大予測長周期地震動階級
+      const maxLgInt = info.forecastIntensity.maxLgInt;
+      if (maxLgInt && lgIntToNumeric(maxLgInt) >= 1) {
+        const lc = lgIntensityColor(maxLgInt);
+        cardParts.push(chalk.white("長周期階級 ") + lc.bold(maxLgInt));
+      }
     }
     if (info.earthquake?.magnitude) {
       cardParts.push(colorMagnitude(info.earthquake.magnitude));
@@ -474,7 +520,12 @@ export function displayEewInfo(
     console.log(frameDivider(level));
     for (const area of info.forecastIntensity.areas) {
       const color = intensityColor(area.intensity);
-      console.log(frameLine(level, color(`震度${area.intensity}: `) + chalk.white(area.name)));
+      let areaText = chalk.white(area.name);
+      if (area.lgIntensity && lgIntToNumeric(area.lgIntensity) >= 1) {
+        const lc = lgIntensityColor(area.lgIntensity);
+        areaText += lc(` [長周期${area.lgIntensity}]`);
+      }
+      console.log(frameLine(level, color(`震度${area.intensity}: `) + areaText));
     }
   }
 

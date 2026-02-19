@@ -269,8 +269,10 @@ export interface ParsedEarthquakeInfo {
   intensity?: {
     /** 最大震度 */
     maxInt: string;
+    /** 最大長周期地震動階級 */
+    maxLgInt?: string;
     /** 各地の震度 (地域名 → 震度) */
-    areas: { name: string; intensity: string }[];
+    areas: { name: string; intensity: string; lgIntensity?: string }[];
   };
   /** 津波情報 */
   tsunami?: {
@@ -302,7 +304,9 @@ export interface ParsedEewInfo {
   };
   /** 予測震度 */
   forecastIntensity?: {
-    areas: { name: string; intensity: string }[];
+    /** 最大予測長周期地震動階級 */
+    maxLgInt?: string;
+    areas: { name: string; intensity: string; lgIntensity?: string }[];
   };
   isTest: boolean;
   /** 警報かどうか */

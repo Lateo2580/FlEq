@@ -166,24 +166,28 @@ function extractIntensity(
   const observation = first(rawObservation as unknown[]);
 
   const maxInt = str(dig(observation, "MaxInt"));
+  const maxLgIntRaw = str(dig(observation, "MaxLgInt"));
+  const maxLgInt = maxLgIntRaw || undefined;
 
-  const areas: { name: string; intensity: string }[] = [];
+  const areas: { name: string; intensity: string; lgIntensity?: string }[] = [];
   const prefs = dig(observation, "Pref");
   if (Array.isArray(prefs)) {
     for (const pref of prefs) {
       const prefAreas = dig(pref, "Area");
       if (Array.isArray(prefAreas)) {
         for (const area of prefAreas) {
+          const lgInt = str(dig(area, "MaxLgInt"));
           areas.push({
             name: str(dig(area, "Name")),
             intensity: str(dig(area, "MaxInt")),
+            ...(lgInt ? { lgIntensity: lgInt } : {}),
           });
         }
       }
     }
   }
 
-  return { maxInt, areas };
+  return { maxInt, ...(maxLgInt ? { maxLgInt } : {}), areas };
 }
 
 /** 津波情報を抽出 */
@@ -299,7 +303,16 @@ export function parseEewTelegram(
     // 予測震度
     const forecast = dig(body, "Intensity", "Forecast");
     if (forecast) {
-      const areas: { name: string; intensity: string }[] = [];
+      // 全体の最大予測長周期地震動階級
+      const overallLgInt = dig(forecast, "ForecastLgInt");
+      const overallLgIntFrom = str(
+        Array.isArray(overallLgInt)
+          ? dig(overallLgInt[0], "From")
+          : dig(overallLgInt, "From")
+      );
+      const maxLgInt = overallLgIntFrom || undefined;
+
+      const areas: { name: string; intensity: string; lgIntensity?: string }[] = [];
       const prefs = dig(forecast, "Pref");
       if (Array.isArray(prefs)) {
         for (const pref of prefs) {
@@ -308,16 +321,24 @@ export function parseEewTelegram(
             for (const area of prefAreas) {
               const rawForecastInt = dig(area, "ForecastInt") || dig(area, "ForecastIntFrom");
               const forecastInt = Array.isArray(rawForecastInt) ? rawForecastInt[0] : rawForecastInt;
+
+              // 長周期地震動階級
+              const rawLgInt = dig(area, "ForecastLgInt");
+              const lgInt = Array.isArray(rawLgInt)
+                ? str(dig(rawLgInt[0], "From"))
+                : str(dig(rawLgInt, "From"));
+
               areas.push({
                 name: str(dig(area, "Name")),
                 intensity: str(dig(forecastInt, "From") || forecastInt || ""),
+                ...(lgInt ? { lgIntensity: lgInt } : {}),
               });
             }
           }
         }
       }
       if (areas.length > 0) {
-        info.forecastIntensity = { areas };
+        info.forecastIntensity = { ...(maxLgInt ? { maxLgInt } : {}), areas };
       }
     }
 
