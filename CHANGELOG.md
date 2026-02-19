@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.0](https://github.com/Lateo2580/FlEq/compare/v1.1.0...v1.2.0) (2026-02-19)
+
+
+### 機能追加
+
+* PLUM法・仮定震源要素・既到達の検出と表示に対応 ([0409cda](https://github.com/Lateo2580/FlEq/commit/0409cda61a98fcb6b659a7f497c05382559d50b8))
+
 ## [1.1.0](https://github.com/Lateo2580/FlEq/compare/v1.0.1...v1.1.0) (2026-02-19)
 
 
