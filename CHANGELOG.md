@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.1](https://github.com/Lateo2580/FlEq/compare/v1.2.0...v1.2.1) (2026-02-19)
+
+
+### バグ修正
+
+* dmdata-monitor から fleq へのリネーム漏れを修正 ([49b7ef7](https://github.com/Lateo2580/FlEq/commit/49b7ef778aeda3f41c04d759b8464a44c9e8c343))
+* 仮定震源要素の誤検出を防止し検出ロジックを堅牢化 ([dec2e7d](https://github.com/Lateo2580/FlEq/commit/dec2e7d4eb5e495fb627cd72d32f8a7f39ef1d25))
+
 ## [1.2.0](https://github.com/Lateo2580/FlEq/compare/v1.1.0...v1.2.0) (2026-02-19)
 
 
