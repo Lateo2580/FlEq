@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.1.0](https://github.com/Lateo2580/FlEq/compare/v1.0.1...v1.1.0) (2026-02-19)
+
+
+### 機能追加
+
+* 長周期地震動階級の表示に対応 ([7465301](https://github.com/Lateo2580/FlEq/commit/74653014d2b5adbad752a03fcbdb9030abf37d1d))
+
+
+### ドキュメント
+
+* README更新 - v1.0.1の現状に合わせて情報を反映 ([5c49b26](https://github.com/Lateo2580/FlEq/commit/5c49b26b37156c08f90fd3f5f55dd7a13b435ac8))
+
 ## [1.0.1](https://github.com/Lateo2580/FlEq/compare/v1.0.0...v1.0.1) (2026-02-18)
 
 
