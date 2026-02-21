@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.3.2](https://github.com/Lateo2580/FlEq/compare/v1.3.1...v1.3.2) (2026-02-21)
+
+
+### バグ修正
+
+* 発生時刻・発表時刻から相対時刻表示（x秒前）を削除 ([2bd5f23](https://github.com/Lateo2580/FlEq/commit/2bd5f23a8a8c4d32c44c0d0d36ad280317ee6c0e))
+
 ## [1.3.1](https://github.com/Lateo2580/FlEq/compare/v1.3.0...v1.3.1) (2026-02-21)
 
 
