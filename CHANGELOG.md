@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.2.2](https://github.com/Lateo2580/FlEq/compare/v1.2.1...v1.2.2) (2026-02-21)
+
+
+### バグ修正
+
+* ステータス表示をプロンプト内蔵方式に変更し視認性を改善 ([f6bcc27](https://github.com/Lateo2580/FlEq/commit/f6bcc274e7edd249940597873025d97100f63627))
+
 ## [1.2.1](https://github.com/Lateo2580/FlEq/compare/v1.2.0...v1.2.1) (2026-02-19)
 
 
