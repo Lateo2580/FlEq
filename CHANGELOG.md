@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.5.1](https://github.com/Lateo2580/FlEq/compare/v1.5.0...v1.5.1) (2026-02-21)
+
+
+### バグ修正
+
+* クロスプラットフォーム互換性の修正 ([72f4f0c](https://github.com/Lateo2580/FlEq/commit/72f4f0c6d3cce03250abcb23f043556a8740475c))
+
 ## [1.5.0](https://github.com/Lateo2580/FlEq/compare/v1.4.0...v1.5.0) (2026-02-21)
 
 
