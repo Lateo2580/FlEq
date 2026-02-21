@@ -372,7 +372,7 @@ export interface ParsedTsunamiInfo {
   isTest: boolean;
 }
 
-/** パース済み地震活動テキスト情報 (VXSE56, VXSE60) */
+/** パース済み地震活動テキスト情報 (VXSE56, VXSE60, VZSE40) */
 export interface ParsedSeismicTextInfo {
   type: string;
   infoType: string;
@@ -381,5 +381,63 @@ export interface ParsedSeismicTextInfo {
   headline: string | null;
   publishingOffice: string;
   bodyText: string;
+  isTest: boolean;
+}
+
+/** パース済み南海トラフ関連情報 (VYSE50/51/52, VYSE60) */
+export interface ParsedNankaiTroughInfo {
+  type: string;
+  infoType: string;
+  title: string;
+  reportDateTime: string;
+  headline: string | null;
+  publishingOffice: string;
+  /** InfoSerial (VYSE60 にはない) */
+  infoSerial?: {
+    name: string;
+    code: string;
+  };
+  /** 本文テキスト */
+  bodyText: string;
+  /** 次回情報予告 */
+  nextAdvisory?: string;
+  isTest: boolean;
+}
+
+/** 長周期地震動観測地域 */
+export interface LgObservationArea {
+  name: string;
+  maxInt: string;
+  maxLgInt: string;
+}
+
+/** パース済み長周期地震動観測情報 (VXSE62) */
+export interface ParsedLgObservationInfo {
+  type: string;
+  infoType: string;
+  title: string;
+  reportDateTime: string;
+  headline: string | null;
+  publishingOffice: string;
+  earthquake?: {
+    originTime: string;
+    hypocenterName: string;
+    latitude: string;
+    longitude: string;
+    depth: string;
+    magnitude: string;
+  };
+  /** 最大震度 */
+  maxInt?: string;
+  /** 最大長周期地震動階級 */
+  maxLgInt?: string;
+  /** 長周期地震動カテゴリ */
+  lgCategory?: string;
+  /** 地域別観測データ */
+  areas: LgObservationArea[];
+  /** コメント */
+  comment?: string;
+  /** 詳細情報URI */
+  detailUri?: string;
   isTest: boolean;
 }

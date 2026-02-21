@@ -6,6 +6,9 @@ import {
   ParsedEewInfo,
   ParsedTsunamiInfo,
   ParsedSeismicTextInfo,
+  ParsedNankaiTroughInfo,
+  ParsedLgObservationInfo,
+  LgObservationArea,
   TsunamiForecastItem,
   TsunamiObservationStation,
   TsunamiEstimationItem,
@@ -573,7 +576,7 @@ export function parseTsunamiTelegram(
   }
 }
 
-/** 地震活動テキスト電文(VXSE56/VXSE60)をパース */
+/** 地震活動テキスト電文(VXSE56/VXSE60/VZSE40)をパース */
 export function parseSeismicTextTelegram(
   msg: WsDataMessage
 ): ParsedSeismicTextInfo | null {
@@ -609,6 +612,168 @@ export function parseSeismicTextTelegram(
   } catch (err) {
     log.error(
       `地震活動テキスト電文パースエラー: ${err instanceof Error ? err.message : err}`
+    );
+    return null;
+  }
+}
+
+/** 南海トラフ関連電文(VYSE50/51/52/VYSE60)をパース */
+export function parseNankaiTroughTelegram(
+  msg: WsDataMessage
+): ParsedNankaiTroughInfo | null {
+  try {
+    const xmlStr = decodeBody(msg);
+    const parsed = parseXml(xmlStr);
+
+    const report =
+      dig(parsed, "Report") ||
+      dig(parsed, "jmx:Report") ||
+      dig(parsed, "jmx_seis:Report");
+
+    if (!report) {
+      log.debug("Report ノードが見つかりません");
+      return null;
+    }
+
+    const head = dig(report, "Head");
+    const body = dig(report, "Body");
+
+    const info: ParsedNankaiTroughInfo = {
+      type: msg.head.type,
+      infoType: str(dig(head, "InfoType")),
+      title: str(dig(head, "Title")),
+      reportDateTime: str(dig(head, "ReportDateTime")),
+      headline: str(dig(head, "Headline", "Text")) || null,
+      publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
+      bodyText: "",
+      isTest: msg.head.test,
+    };
+
+    // EarthquakeInfo がある場合 (通常の発表電文)
+    const eqInfo = dig(body, "EarthquakeInfo");
+    if (eqInfo) {
+      // InfoSerial (VYSE60 には存在しない場合がある)
+      const infoSerial = dig(eqInfo, "InfoSerial");
+      if (infoSerial) {
+        const name = str(dig(infoSerial, "Name"));
+        const code = str(dig(infoSerial, "Code"));
+        if (name && code) {
+          info.infoSerial = { name, code };
+        }
+      }
+
+      info.bodyText = str(dig(eqInfo, "Text"));
+    } else {
+      // 取消電文等: Body > Text 直下
+      info.bodyText = str(dig(body, "Text"));
+    }
+
+    // NextAdvisory
+    const nextAdvisory = str(dig(body, "NextAdvisory"));
+    if (nextAdvisory) {
+      info.nextAdvisory = nextAdvisory.trim();
+    }
+
+    return info;
+  } catch (err) {
+    log.error(
+      `南海トラフ関連電文パースエラー: ${err instanceof Error ? err.message : err}`
+    );
+    return null;
+  }
+}
+
+/** 長周期地震動観測情報(VXSE62)をパース */
+export function parseLgObservationTelegram(
+  msg: WsDataMessage
+): ParsedLgObservationInfo | null {
+  try {
+    const xmlStr = decodeBody(msg);
+    const parsed = parseXml(xmlStr);
+
+    const report =
+      dig(parsed, "Report") ||
+      dig(parsed, "jmx:Report") ||
+      dig(parsed, "jmx_seis:Report");
+
+    if (!report) {
+      log.debug("Report ノードが見つかりません");
+      return null;
+    }
+
+    const head = dig(report, "Head");
+    const body = dig(report, "Body");
+
+    const info: ParsedLgObservationInfo = {
+      type: msg.head.type,
+      infoType: str(dig(head, "InfoType")),
+      title: str(dig(head, "Title")),
+      reportDateTime: str(dig(head, "ReportDateTime")),
+      headline: str(dig(head, "Headline", "Text")) || null,
+      publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
+      areas: [],
+      isTest: msg.head.test,
+    };
+
+    // 震源
+    let earthquake = dig(body, "Earthquake");
+    if (Array.isArray(earthquake)) {
+      earthquake = earthquake[0];
+    }
+    if (earthquake) {
+      info.earthquake = extractEarthquake(earthquake);
+    }
+
+    // 震度・長周期地震動観測
+    const intensity = dig(body, "Intensity");
+    if (intensity) {
+      const rawObservation = dig(intensity, "Observation");
+      if (rawObservation) {
+        const observation = first(rawObservation as unknown[]);
+
+        info.maxInt = str(dig(observation, "MaxInt")) || undefined;
+        info.maxLgInt = str(dig(observation, "MaxLgInt")) || undefined;
+        info.lgCategory = str(dig(observation, "LgCategory")) || undefined;
+
+        // 地域レベルの集計
+        const prefs = dig(observation, "Pref");
+        if (Array.isArray(prefs)) {
+          for (const pref of prefs) {
+            const prefAreas = dig(pref, "Area");
+            if (Array.isArray(prefAreas)) {
+              for (const area of prefAreas) {
+                const areaMaxInt = str(dig(area, "MaxInt"));
+                const areaMaxLgInt = str(dig(area, "MaxLgInt"));
+                if (areaMaxLgInt) {
+                  info.areas.push({
+                    name: str(dig(area, "Name")),
+                    maxInt: areaMaxInt,
+                    maxLgInt: areaMaxLgInt,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // コメント
+    const freeComment = str(dig(body, "Comments", "FreeFormComment"));
+    if (freeComment) {
+      info.comment = freeComment.trim();
+    }
+
+    // 詳細URI
+    const uri = str(dig(body, "Comments", "URI"));
+    if (uri) {
+      info.detailUri = uri.trim();
+    }
+
+    return info;
+  } catch (err) {
+    log.error(
+      `長周期地震動観測情報パースエラー: ${err instanceof Error ? err.message : err}`
     );
     return null;
   }

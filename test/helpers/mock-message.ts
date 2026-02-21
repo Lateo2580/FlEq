@@ -99,9 +99,47 @@ export const FIXTURE_VXSE45_PLUM = "77_02_01_260101_VXSE45_PLUM.xml";
 /** VXSE45 混合 (通常推定 + PLUM法地域) */
 export const FIXTURE_VXSE45_MIXED = "77_02_02_260101_VXSE45_MIXED.xml";
 
-/** フィクスチャXMLを読み込む */
+/** VZSE40 地震・津波に関するお知らせ */
+export const FIXTURE_VZSE40_NOTICE = "42_01_01_100514_VZSE40.xml";
+
+/** VZSE40 地震・津波に関するお知らせ (取消) */
+export const FIXTURE_VZSE40_CANCEL = "42_03_01_220402_VZSE40.xml";
+
+/** VYSE50 南海トラフ地震臨時情報 (調査中 Code=111) */
+export const FIXTURE_VYSE50_INVESTIGATION = "74_01_01_200512_VYSE50.xml";
+
+/** VYSE50 南海トラフ地震臨時情報 (巨大地震警戒 Code=120) */
+export const FIXTURE_VYSE50_ALERT = "74_01_04_200512_VYSE50.xml";
+
+/** VYSE50 南海トラフ地震臨時情報 (巨大地震注意 Code=130) */
+export const FIXTURE_VYSE50_CAUTION = "74_01_06_200512_VYSE50.xml";
+
+/** VYSE50 南海トラフ地震臨時情報 (調査終了 Code=190) */
+export const FIXTURE_VYSE50_CLOSED = "74_01_07_200512_VYSE50.xml";
+
+/** VYSE50 南海トラフ地震臨時情報 (取消) */
+export const FIXTURE_VYSE50_CANCEL = "74_03_01_220318_VYSE50.xml";
+
+/** VYSE51 南海トラフ地震関連解説情報 (臨時 Code=210) */
+export const FIXTURE_VYSE51_ADVISORY = "75_01_01_200512_VYSE51.xml";
+
+/** VYSE52 南海トラフ地震関連解説情報 (定例 Code=200) */
+export const FIXTURE_VYSE52_REGULAR = "75_01_04_200512_VYSE52.xml";
+
+/** VXSE62 長周期地震動に関する観測情報 */
+export const FIXTURE_VXSE62_LGOBS = "78_01_01_240613_VXSE62.xml";
+
+/** VYSE60 北海道・三陸沖後発地震注意情報 */
+export const FIXTURE_VYSE60_AFTERSHOCK = "80_01_01_240821_VYSE60.xml";
+
+/** フィクスチャXMLを読み込む (fixtures/ → selected_xml/ フォールバック) */
 export function readFixture(filename: string): string {
-  return fs.readFileSync(path.join(FIXTURES_DIR, filename), "utf-8");
+  const primaryPath = path.join(FIXTURES_DIR, filename);
+  if (fs.existsSync(primaryPath)) {
+    return fs.readFileSync(primaryPath, "utf-8");
+  }
+  const fallbackPath = path.join(FIXTURES_DIR, "selected_xml", filename);
+  return fs.readFileSync(fallbackPath, "utf-8");
 }
 
 /** XMLをgzip+base64エンコードする */
@@ -122,7 +160,7 @@ export function createMockWsDataMessage(
   const body = encodeXml(xml);
 
   // ファイル名から type を推定
-  const typeMatch = fixtureName.match(/(V[TX]SE\d+)/);
+  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+)/);
   const type = typeMatch ? typeMatch[1] : "VXSE53";
   const classification = type === "VXSE43"
     ? "eew.warning"

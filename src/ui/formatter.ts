@@ -4,6 +4,8 @@ import {
   ParsedEewInfo,
   ParsedTsunamiInfo,
   ParsedSeismicTextInfo,
+  ParsedNankaiTroughInfo,
+  ParsedLgObservationInfo,
   WsDataMessage,
 } from "../types";
 import type { EewDiff } from "../features/eew-tracker";
@@ -205,6 +207,12 @@ function typeLabel(type: string): string {
     VXSE43: "緊急地震速報（警報）",
     VXSE44: "緊急地震速報（予報）",
     VXSE45: "緊急地震速報（地震動予報）",
+    VXSE62: "長周期地震動に関する観測情報",
+    VZSE40: "地震・津波に関するお知らせ",
+    VYSE50: "南海トラフ地震臨時情報",
+    VYSE51: "南海トラフ地震関連解説情報（臨時）",
+    VYSE52: "南海トラフ地震関連解説情報（定例）",
+    VYSE60: "北海道・三陸沖後発地震注意情報",
   };
   return map[type] || type;
 }
@@ -718,6 +726,198 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
   }
 
   console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+  console.log(frameBottom(level));
+  console.log();
+}
+
+/** 南海トラフ関連情報のフレームレベルを決定 */
+function nankaiTroughFrameLevel(info: ParsedNankaiTroughInfo): FrameLevel {
+  if (info.infoType === "取消") return "cancel";
+  if (!info.infoSerial) {
+    // VYSE60 (InfoSerial なし) → warning
+    return "warning";
+  }
+  const code = info.infoSerial.code;
+  if (code === "120") return "critical";    // 巨大地震警戒
+  if (code === "130") return "warning";     // 巨大地震注意
+  if (code === "111" || code === "112" || code === "113") return "warning"; // 調査中
+  if (code === "210" || code === "219") return "warning"; // 臨時解説
+  if (code === "190" || code === "200") return "info";    // 調査終了 / 定例解説
+  return "warning";
+}
+
+/** 南海トラフ関連情報を整形して表示 */
+export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
+  const level = nankaiTroughFrameLevel(info);
+  const label = typeLabel(info.type);
+
+  console.log();
+
+  // critical/warning 時はバナー表示
+  if (level === "critical") {
+    const bannerText = ` ${info.title}`;
+    console.log(chalk.bgRed.white.bold(" ".repeat(FRAME_WIDTH)));
+    console.log(chalk.bgRed.white.bold(visualPadEnd(bannerText, FRAME_WIDTH)));
+    console.log(chalk.bgRed.white.bold(" ".repeat(FRAME_WIDTH)));
+  } else if (level === "warning") {
+    const bannerText = ` ${info.title}`;
+    console.log(chalk.bgYellow.black.bold(" ".repeat(FRAME_WIDTH)));
+    console.log(chalk.bgYellow.black.bold(visualPadEnd(bannerText, FRAME_WIDTH)));
+    console.log(chalk.bgYellow.black.bold(" ".repeat(FRAME_WIDTH)));
+  }
+
+  console.log(frameTop(level));
+
+  // テスト電文
+  if (info.isTest) {
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+  }
+
+  // タイトル行
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  console.log(frameLine(level, titleContent));
+
+  // InfoSerial (状態名)
+  if (info.infoSerial) {
+    console.log(frameDivider(level));
+    const serialColor = level === "critical" ? chalk.red.bold : chalk.yellow.bold;
+    console.log(frameLine(level, chalk.white("状態: ") + serialColor(info.infoSerial.name)));
+  }
+
+  // 本文
+  const bodyLines = info.bodyText
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0);
+
+  if (bodyLines.length > 0) {
+    console.log(frameDivider(level));
+    const maxLines = 20;
+    for (const line of bodyLines.slice(0, maxLines)) {
+      console.log(frameLine(level, chalk.white(line)));
+    }
+    if (bodyLines.length > maxLines) {
+      console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`)));
+    }
+  }
+
+  // 次回情報予告
+  if (info.nextAdvisory) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.cyan(info.nextAdvisory)));
+  }
+
+  // 発表時刻
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+
+  console.log(frameBottom(level));
+  console.log();
+}
+
+/** 長周期地震動観測情報のフレームレベルを決定 */
+function lgObservationFrameLevel(info: ParsedLgObservationInfo): FrameLevel {
+  if (info.infoType === "取消") return "cancel";
+  if (info.maxLgInt) {
+    const num = lgIntToNumeric(info.maxLgInt);
+    if (num >= 4) return "critical";
+    if (num >= 3) return "warning";
+    if (num >= 2) return "normal";
+  }
+  return "info";
+}
+
+/** 長周期地震動観測情報を整形して表示 */
+export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
+  const level = lgObservationFrameLevel(info);
+  const label = typeLabel(info.type);
+
+  console.log();
+  console.log(frameTop(level));
+
+  // テスト電文
+  if (info.isTest) {
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+  }
+
+  // タイトル行
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  console.log(frameLine(level, titleContent));
+
+  // カード: 長周期階級 / 震度 / M / 深さ
+  console.log(frameDivider(level));
+  const cardParts: string[] = [];
+  if (info.maxLgInt) {
+    const lc = lgIntensityColor(info.maxLgInt);
+    cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.maxLgInt));
+  }
+  if (info.maxInt) {
+    const ic = intensityColor(info.maxInt);
+    cardParts.push(chalk.white("最大震度 ") + ic.bold(info.maxInt));
+  }
+  if (info.earthquake?.magnitude) {
+    cardParts.push(colorMagnitude(info.earthquake.magnitude));
+  }
+  if (info.earthquake?.depth) {
+    cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
+  }
+  if (cardParts.length > 0) {
+    console.log(frameLine(level, cardParts.join(chalk.gray("  │  "))));
+  }
+
+  // 震源詳細
+  if (info.earthquake) {
+    const eq = info.earthquake;
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName)));
+    if (eq.originTime) {
+      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
+    }
+    if (eq.latitude && eq.longitude) {
+      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`)));
+    }
+  }
+
+  // ヘッドライン
+  if (info.headline) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.bold.white(info.headline)));
+  }
+
+  // 地域リスト (LgInt 降順)
+  if (info.areas.length > 0) {
+    console.log(frameDivider(level));
+    const sorted = [...info.areas].sort((a, b) =>
+      lgIntToNumeric(b.maxLgInt) - lgIntToNumeric(a.maxLgInt)
+    );
+    for (const area of sorted) {
+      const lc = lgIntensityColor(area.maxLgInt);
+      const ic = intensityColor(area.maxInt);
+      console.log(frameLine(level,
+        lc(`長周期${area.maxLgInt}: `) +
+        chalk.white(area.name) +
+        ic(` (震度${area.maxInt})`)
+      ));
+    }
+  }
+
+  // コメント
+  if (info.comment) {
+    console.log(frameDivider(level));
+    const commentLines = info.comment.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    for (const line of commentLines) {
+      console.log(frameLine(level, chalk.gray(line.trimEnd())));
+    }
+  }
+
+  // 詳細URI
+  if (info.detailUri) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.cyan(info.detailUri)));
+  }
+
+  // 発表時刻
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+
   console.log(frameBottom(level));
   console.log();
 }

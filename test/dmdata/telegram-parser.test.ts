@@ -6,6 +6,8 @@ import {
   parseEewTelegram,
   parseTsunamiTelegram,
   parseSeismicTextTelegram,
+  parseNankaiTroughTelegram,
+  parseLgObservationTelegram,
 } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
@@ -33,6 +35,17 @@ import {
   FIXTURE_VXSE45_CANCEL,
   FIXTURE_VXSE45_PLUM,
   FIXTURE_VXSE45_MIXED,
+  FIXTURE_VZSE40_NOTICE,
+  FIXTURE_VZSE40_CANCEL,
+  FIXTURE_VYSE50_INVESTIGATION,
+  FIXTURE_VYSE50_ALERT,
+  FIXTURE_VYSE50_CAUTION,
+  FIXTURE_VYSE50_CLOSED,
+  FIXTURE_VYSE50_CANCEL,
+  FIXTURE_VYSE51_ADVISORY,
+  FIXTURE_VYSE52_REGULAR,
+  FIXTURE_VXSE62_LGOBS,
+  FIXTURE_VYSE60_AFTERSHOCK,
 } from "../helpers/mock-message";
 
 // ── decodeBody ──
@@ -783,5 +796,275 @@ describe("座標パース (parseCoordinate)", () => {
     expect(result!.earthquake!.latitude).toBe("S17.2");
     expect(result!.earthquake!.longitude).toBe("E178.6");
     expect(result!.earthquake!.depth).toBe("570km");
+  });
+});
+
+// ── parseSeismicTextTelegram (VZSE40) ──
+
+describe("parseSeismicTextTelegram (VZSE40)", () => {
+  it("VZSE40 お知らせ電文の本文を抽出できる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VZSE40_NOTICE, {
+      head: {
+        type: "VZSE40",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseSeismicTextTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VZSE40");
+    expect(result!.infoType).toBe("発表");
+    expect(result!.bodyText).toContain("沖縄県");
+  });
+
+  it("VZSE40 取消電文の InfoType=取消 を取得できる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VZSE40_CANCEL, {
+      head: {
+        type: "VZSE40",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseSeismicTextTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.infoType).toBe("取消");
+  });
+});
+
+// ── parseNankaiTroughTelegram ──
+
+describe("parseNankaiTroughTelegram", () => {
+  it("VYSE50 調査中 (Code=111) をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_INVESTIGATION, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VYSE50");
+    expect(result!.infoType).toBe("発表");
+    expect(result!.infoSerial).toBeDefined();
+    expect(result!.infoSerial!.code).toBe("111");
+    expect(result!.infoSerial!.name).toBe("調査中");
+    expect(result!.bodyText).toContain("南海トラフ地震");
+    expect(result!.nextAdvisory).toBeDefined();
+    expect(result!.nextAdvisory).toContain("南海トラフ地震臨時情報");
+  });
+
+  it("VYSE50 巨大地震警戒 (Code=120) をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.infoSerial!.code).toBe("120");
+    expect(result!.infoSerial!.name).toBe("巨大地震警戒");
+  });
+
+  it("VYSE50 巨大地震注意 (Code=130) をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CAUTION, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.infoSerial!.code).toBe("130");
+    expect(result!.infoSerial!.name).toBe("巨大地震注意");
+  });
+
+  it("VYSE50 調査終了 (Code=190) をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CLOSED, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.infoSerial!.code).toBe("190");
+    expect(result!.infoSerial!.name).toBe("調査終了");
+  });
+
+  it("VYSE50 取消電文をパースできる (EarthquakeInfo なし)", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CANCEL, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.infoType).toBe("取消");
+    expect(result!.infoSerial).toBeUndefined();
+    expect(result!.bodyText).toContain("取り消します");
+  });
+
+  it("VYSE51 臨時解説情報 (Code=210) をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE51_ADVISORY, {
+      head: {
+        type: "VYSE51",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VYSE51");
+    expect(result!.infoSerial!.code).toBe("210");
+  });
+
+  it("VYSE52 定例解説情報 (Code=200) をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE52_REGULAR, {
+      head: {
+        type: "VYSE52",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VYSE52");
+    expect(result!.infoSerial!.code).toBe("200");
+  });
+
+  it("VYSE60 後発地震注意情報をパースできる (InfoSerial なし)", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE60_AFTERSHOCK, {
+      head: {
+        type: "VYSE60",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseNankaiTroughTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VYSE60");
+    expect(result!.infoSerial).toBeUndefined();
+    expect(result!.bodyText).toContain("三陸沖");
+  });
+});
+
+// ── parseLgObservationTelegram ──
+
+describe("parseLgObservationTelegram", () => {
+  it("VXSE62 長周期地震動観測情報をパースできる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseLgObservationTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("VXSE62");
+    expect(result!.infoType).toBe("発表");
+    expect(result!.title).toBe("長周期地震動に関する観測情報");
+  });
+
+  it("震源情報を抽出する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseLgObservationTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.earthquake).toBeDefined();
+    expect(result!.earthquake!.hypocenterName).toBe("岩手県沖");
+    expect(result!.earthquake!.magnitude).toBe("6.3");
+  });
+
+  it("最大長周期地震動階級と最大震度を抽出する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseLgObservationTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.maxLgInt).toBe("3");
+    expect(result!.maxInt).toBe("5-");
+    expect(result!.lgCategory).toBe("4");
+  });
+
+  it("地域別の長周期地震動階級を抽出する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseLgObservationTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.areas.length).toBeGreaterThan(0);
+
+    // 宮城県北部が長周期階級3
+    const miyagi = result!.areas.find((a) => a.name === "宮城県北部");
+    expect(miyagi).toBeDefined();
+    expect(miyagi!.maxLgInt).toBe("3");
+    expect(miyagi!.maxInt).toBe("4");
+  });
+
+  it("コメントとURIを抽出する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseLgObservationTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.comment).toBeDefined();
+    expect(result!.comment).toContain("長周期地震動階級");
+    expect(result!.detailUri).toBeDefined();
+    expect(result!.detailUri).toContain("https://");
   });
 });

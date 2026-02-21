@@ -4,12 +4,16 @@ import {
   parseEewTelegram,
   parseTsunamiTelegram,
   parseSeismicTextTelegram,
+  parseNankaiTroughTelegram,
+  parseLgObservationTelegram,
 } from "../dmdata/telegram-parser";
 import {
   displayEarthquakeInfo,
   displayEewInfo,
   displayTsunamiInfo,
   displaySeismicTextInfo,
+  displayNankaiTroughInfo,
+  displayLgObservationInfo,
   displayRawHeader,
 } from "../ui/formatter";
 import { EewTracker } from "../features/eew-tracker";
@@ -76,11 +80,22 @@ export function createMessageHandler(): MessageHandlerResult {
 
     // 地震・津波区分
     if (classification === "telegram.earthquake") {
-      // VXSE56/VXSE60: テキスト系
-      if (headType === "VXSE56" || headType === "VXSE60") {
+      // VXSE56/VXSE60/VZSE40: テキスト系
+      if (headType === "VXSE56" || headType === "VXSE60" || headType === "VZSE40") {
         const textInfo = parseSeismicTextTelegram(msg);
         if (textInfo) {
           displaySeismicTextInfo(textInfo);
+        } else {
+          displayRawHeader(msg);
+        }
+        return;
+      }
+
+      // VXSE62: 長周期地震動観測情報
+      if (headType === "VXSE62") {
+        const lgInfo = parseLgObservationTelegram(msg);
+        if (lgInfo) {
+          displayLgObservationInfo(lgInfo);
         } else {
           displayRawHeader(msg);
         }
@@ -103,6 +118,17 @@ export function createMessageHandler(): MessageHandlerResult {
         const tsunamiInfo = parseTsunamiTelegram(msg);
         if (tsunamiInfo) {
           displayTsunamiInfo(tsunamiInfo);
+        } else {
+          displayRawHeader(msg);
+        }
+        return;
+      }
+
+      // VYSE50/51/52/60: 南海トラフ関連・後発地震注意情報
+      if (headType.startsWith("VYSE")) {
+        const nankaiInfo = parseNankaiTroughTelegram(msg);
+        if (nankaiInfo) {
+          displayNankaiTroughInfo(nankaiInfo);
         } else {
           displayRawHeader(msg);
         }

@@ -7,6 +7,8 @@ import {
   displayEewInfo,
   displayTsunamiInfo,
   displaySeismicTextInfo,
+  displayNankaiTroughInfo,
+  displayLgObservationInfo,
   formatElapsedTime,
   formatRelativeTime,
   formatTimestamp,
@@ -17,6 +19,8 @@ import {
   parseEewTelegram,
   parseTsunamiTelegram,
   parseSeismicTextTelegram,
+  parseNankaiTroughTelegram,
+  parseLgObservationTelegram,
 } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
@@ -29,6 +33,11 @@ import {
   FIXTURE_VXSE43_WARNING_S1,
   FIXTURE_VXSE45_PLUM,
   FIXTURE_VXSE45_MIXED,
+  FIXTURE_VYSE50_ALERT,
+  FIXTURE_VYSE50_CLOSED,
+  FIXTURE_VYSE50_CANCEL,
+  FIXTURE_VYSE60_AFTERSHOCK,
+  FIXTURE_VXSE62_LGOBS,
 } from "../helpers/mock-message";
 
 // ── intensityColor ──
@@ -634,5 +643,156 @@ describe("formatElapsedTime", () => {
 
   it("負の値は 00:00:00 に丸める", () => {
     expect(formatElapsedTime(-10)).toBe("00:00:00");
+  });
+});
+
+// ── displayNankaiTroughInfo ──
+
+describe("displayNankaiTroughInfo", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("VYSE50 巨大地震警戒: critical フレームでバナー表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // 二重枠 (critical)
+    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
+    // 状態名
+    expect(output).toContain("巨大地震警戒");
+    // 南海トラフ
+    expect(output).toContain("南海トラフ");
+  });
+
+  it("VYSE50 調査終了: info フレームで表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CLOSED, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // info フレーム (┌ / └)
+    expect(output).toMatch(/[┌└│┐┘]/);
+    expect(output).toContain("調査終了");
+  });
+
+  it("VYSE50 取消: cancel フレームで表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CANCEL, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    expect(output).toContain("取消");
+    expect(output).toContain("取り消します");
+  });
+
+  it("VYSE60 後発地震注意: warning フレームで表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE60_AFTERSHOCK, {
+      head: {
+        type: "VYSE60",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // warning フレーム (二重枠)
+    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
+    expect(output).toContain("三陸沖");
+  });
+});
+
+// ── displayLgObservationInfo ──
+
+describe("displayLgObservationInfo", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("VXSE62 長周期階級3: warning フレームで表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseLgObservationTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayLgObservationInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // warning フレーム (二重枠)
+    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
+    // 長周期階級
+    expect(output).toContain("長周期階級");
+    // 震源名
+    expect(output).toContain("岩手県沖");
+    // M6.3
+    expect(output).toContain("M6.3");
+    // 地域名
+    expect(output).toContain("宮城県北部");
+    // URI
+    expect(output).toContain("https://");
   });
 });
