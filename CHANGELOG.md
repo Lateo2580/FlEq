@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.3.1](https://github.com/Lateo2580/FlEq/compare/v1.3.0...v1.3.1) (2026-02-21)
+
+
+### バグ修正
+
+* ログのタイムスタンプをUTCからJST(ローカル時刻)表示に変更 ([b849f3d](https://github.com/Lateo2580/FlEq/commit/b849f3d26d9e36bee6e7439e7f8ef1be87b3f575))
+
 ## [1.3.0](https://github.com/Lateo2580/FlEq/compare/v1.2.2...v1.3.0) (2026-02-21)
 
 
