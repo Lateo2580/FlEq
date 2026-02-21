@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.3.0](https://github.com/Lateo2580/FlEq/compare/v1.2.2...v1.3.0) (2026-02-21)
+
+
+### 機能追加
+
+* VZSE40/VYSE50-52/VYSE60/VXSE62 電文タイプの対応を追加 ([eb62fe6](https://github.com/Lateo2580/FlEq/commit/eb62fe6064354f94340418c2469081b0175f5bc3))
+
 ## [1.2.2](https://github.com/Lateo2580/FlEq/compare/v1.2.1...v1.2.2) (2026-02-21)
 
 
