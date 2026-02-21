@@ -323,6 +323,8 @@ export interface ParsedEewInfo {
   isTest: boolean;
   /** 警報かどうか */
   isWarning: boolean;
+  /** 次回情報予告 (最終報の場合にテキストが入る) */
+  nextAdvisory?: string;
 }
 
 /** 津波予報区域ごとの警報情報 */

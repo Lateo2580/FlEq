@@ -409,6 +409,12 @@ export function parseEewTelegram(
     info.isAssumedHypocenter =
       assumedHypocenterByCondition || assumedHypocenterByFallback;
 
+    // NextAdvisory (最終報)
+    const nextAdvisory = str(dig(body, "NextAdvisory"));
+    if (nextAdvisory) {
+      info.nextAdvisory = nextAdvisory.trim();
+    }
+
     return info;
   } catch (err) {
     log.error(

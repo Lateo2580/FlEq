@@ -541,6 +541,12 @@ export function displayEewInfo(
     }
   }
 
+  // 最終報
+  if (info.nextAdvisory) {
+    console.log(frameDivider(level));
+    console.log(frameLine(level, chalk.cyan(info.nextAdvisory)));
+  }
+
   // EventID (最終行)
   if (info.eventId) {
     console.log(frameDivider(level));
