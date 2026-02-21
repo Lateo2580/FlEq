@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.4.0](https://github.com/Lateo2580/FlEq/compare/v1.3.2...v1.4.0) (2026-02-21)
+
+
+### 機能追加
+
+* 緊急地震速報の最終報表示に対応（NextAdvisoryタグ） ([59ee89e](https://github.com/Lateo2580/FlEq/commit/59ee89ed5c7c72ed926ba2fe0fd8380ef68d9749))
+
 ## [1.3.2](https://github.com/Lateo2580/FlEq/compare/v1.3.1...v1.3.2) (2026-02-21)
 
 
