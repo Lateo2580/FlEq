@@ -97,19 +97,7 @@ export function visualPadEnd(str: string, targetWidth: number): string {
 
 // ── 時刻フォーマット ──
 
-/** 相対時刻文字列を返す ("3秒前", "2分前" etc.) */
-export function formatRelativeTime(isoStr: string): string {
-  const ts = new Date(isoStr).getTime();
-  if (isNaN(ts)) return "";
-  const diff = Date.now() - ts;
-  if (diff < 0) return "未来";
-  if (diff < 60_000) return `${Math.floor(diff / 1000)}秒前`;
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}分前`;
-  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}時間前`;
-  return `${Math.floor(diff / 86400_000)}日前`;
-}
-
-/** 絶対+相対時刻を併記 ("YYYY-MM-DD HH:MM:SS (N秒前)") */
+/** 絶対時刻を整形 ("YYYY-MM-DD HH:MM:SS") */
 export function formatTimestamp(isoStr: string): string {
   const d = new Date(isoStr);
   if (isNaN(d.getTime())) return isoStr;
@@ -119,7 +107,7 @@ export function formatTimestamp(isoStr: string): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
-  return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss} (${formatRelativeTime(isoStr)})`;
+  return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
 }
 
 /** 経過時間を "HH:MM:SS" 形式に整形 */

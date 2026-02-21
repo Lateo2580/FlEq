@@ -10,7 +10,6 @@ import {
   displayNankaiTroughInfo,
   displayLgObservationInfo,
   formatElapsedTime,
-  formatRelativeTime,
   formatTimestamp,
 } from "../../src/ui/formatter";
 import type { EewDiff } from "../../src/features/eew-tracker";
@@ -606,33 +605,14 @@ describe("フレーム描画", () => {
 
 // ── 時刻フォーマットテスト ──
 
-describe("formatRelativeTime", () => {
-  it("数秒前を正しく表示", () => {
-    const now = new Date();
-    now.setSeconds(now.getSeconds() - 5);
-    expect(formatRelativeTime(now.toISOString())).toBe("5秒前");
-  });
-
-  it("数分前を正しく表示", () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - 3);
-    expect(formatRelativeTime(now.toISOString())).toBe("3分前");
-  });
-
-  it("数時間前を正しく表示", () => {
-    const now = new Date();
-    now.setHours(now.getHours() - 2);
-    expect(formatRelativeTime(now.toISOString())).toBe("2時間前");
-  });
-});
-
 describe("formatTimestamp", () => {
-  it("絶対+相対時刻を併記する", () => {
-    const now = new Date();
-    now.setSeconds(now.getSeconds() - 10);
-    const result = formatTimestamp(now.toISOString());
-    expect(result).toContain("10秒前");
-    expect(result).toMatch(/\d{1,2}:\d{2}:\d{2}/);
+  it("絶対時刻を YYYY-MM-DD HH:MM:SS 形式で返す", () => {
+    const result = formatTimestamp("2024-06-13T12:34:56+09:00");
+    expect(result).toBe("2024-06-13 12:34:56");
+  });
+
+  it("不正な文字列はそのまま返す", () => {
+    expect(formatTimestamp("invalid")).toBe("invalid");
   });
 });
 
