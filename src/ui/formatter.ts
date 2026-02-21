@@ -54,10 +54,17 @@ function frameBottom(level: FrameLevel, width: number = FRAME_WIDTH): string {
   return f.color(f.bl + f.h.repeat(width - 2) + f.br);
 }
 
-/** ANSI エスケープシーケンスを除去 */
+/** ANSI / VT エスケープシーケンスを除去 (表示幅計算用 & インジェクション防止) */
 function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*m/g, "");
+  return str.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "");
+}
+
+/** 外部由来の文字列から制御文字・ANSIエスケープを除去して安全にする */
+function sanitizeForTerminal(str: string): string {
+  // ANSIエスケープ除去後、残った制御文字(改行・タブ以外)を除去
+  // eslint-disable-next-line no-control-regex
+  return stripAnsi(str).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 }
 
 /** 文字列の視覚的な幅を計算（全角文字を2として数える） */
@@ -922,15 +929,15 @@ export function displayRawHeader(msg: WsDataMessage): void {
   console.log(separator());
   console.log(
     chalk.cyan(`電文受信: `) +
-      chalk.white(msg.xmlReport?.control?.title || msg.head.type) +
-      chalk.gray(` [${msg.head.type}]`)
+      chalk.white(sanitizeForTerminal(msg.xmlReport?.control?.title || msg.head.type)) +
+      chalk.gray(` [${sanitizeForTerminal(msg.head.type)}]`)
   );
   if (msg.xmlReport) {
     const r = msg.xmlReport;
-    console.log(chalk.gray(`   ${r.head.title}`));
-    console.log(chalk.gray(`   ${r.head.reportDateTime}  ${r.control.publishingOffice}`));
+    console.log(chalk.gray(`   ${sanitizeForTerminal(r.head.title)}`));
+    console.log(chalk.gray(`   ${sanitizeForTerminal(r.head.reportDateTime)}  ${sanitizeForTerminal(r.control.publishingOffice)}`));
     if (r.head.headline) {
-      console.log(chalk.white(`   ${r.head.headline}`));
+      console.log(chalk.white(`   ${sanitizeForTerminal(r.head.headline)}`));
     }
   }
   console.log(separator());

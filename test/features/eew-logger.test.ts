@@ -64,11 +64,12 @@ describe("EewEventLogger", () => {
   });
 
   describe("logReport", () => {
-    it("第1報でログファイルを作成する", () => {
+    it("第1報でログファイルを作成する", async () => {
       const info = createEewInfo({ serial: "1", eventId: "ev001" });
       const result = createUpdateResult({ isNew: true });
 
       logger.logReport(info, result);
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       expect(files).toHaveLength(1);
@@ -84,7 +85,7 @@ describe("EewEventLogger", () => {
       expect(content).toContain("愛媛県");
     });
 
-    it("続報を同一ファイルに追記する", () => {
+    it("続報を同一ファイルに追記する", async () => {
       const info1 = createEewInfo({ serial: "1", eventId: "ev002" });
       const result1 = createUpdateResult({ isNew: true });
       logger.logReport(info1, result1);
@@ -106,6 +107,7 @@ describe("EewEventLogger", () => {
         diff: { magnitudeChange: "+0.3", depthChange: "-5km" },
       });
       logger.logReport(info2, result2);
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       expect(files).toHaveLength(1);
@@ -117,7 +119,7 @@ describe("EewEventLogger", () => {
       expect(content).toContain("深さ-5km");
     });
 
-    it("警報を正しく記録する", () => {
+    it("警報を正しく記録する", async () => {
       const info = createEewInfo({
         serial: "1",
         eventId: "ev003",
@@ -125,13 +127,14 @@ describe("EewEventLogger", () => {
       });
       const result = createUpdateResult({ isNew: true });
       logger.logReport(info, result);
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
       expect(content).toContain("第1報 (警報)");
     });
 
-    it("仮定震源要素ではMと深さを出力しない", () => {
+    it("仮定震源要素ではMと深さを出力しない", async () => {
       const info = createEewInfo({
         serial: "3",
         eventId: "ev003a",
@@ -147,6 +150,7 @@ describe("EewEventLogger", () => {
       });
       const result = createUpdateResult({ isNew: true });
       logger.logReport(info, result);
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
@@ -155,7 +159,7 @@ describe("EewEventLogger", () => {
       expect(content).not.toContain("深さ10km");
     });
 
-    it("取消報を記録する", () => {
+    it("取消報を記録する", async () => {
       const info = createEewInfo({
         serial: "5",
         eventId: "ev004",
@@ -171,6 +175,7 @@ describe("EewEventLogger", () => {
 
       // 取消報を追記
       logger.logReport(info, result);
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
@@ -180,7 +185,7 @@ describe("EewEventLogger", () => {
   });
 
   describe("nextAdvisory (最終報)", () => {
-    it("最終報テキストがログに含まれる", () => {
+    it("最終報テキストがログに含まれる", async () => {
       const info = createEewInfo({
         serial: "10",
         eventId: "ev-final",
@@ -188,6 +193,7 @@ describe("EewEventLogger", () => {
       });
       const result = createUpdateResult({ isNew: true });
       logger.logReport(info, result);
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
@@ -196,11 +202,12 @@ describe("EewEventLogger", () => {
   });
 
   describe("closeEvent", () => {
-    it("記録終了行を追記する", () => {
+    it("記録終了行を追記する", async () => {
       const info = createEewInfo({ serial: "1", eventId: "ev005" });
       logger.logReport(info, createUpdateResult({ isNew: true }));
 
       logger.closeEvent("ev005", "取消");
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
@@ -214,13 +221,14 @@ describe("EewEventLogger", () => {
   });
 
   describe("closeAll", () => {
-    it("全アクティブイベントを閉じる", () => {
+    it("全アクティブイベントを閉じる", async () => {
       const info1 = createEewInfo({ serial: "1", eventId: "ev006" });
       const info2 = createEewInfo({ serial: "1", eventId: "ev007" });
       logger.logReport(info1, createUpdateResult({ isNew: true }));
       logger.logReport(info2, createUpdateResult({ isNew: true }));
 
       logger.closeAll();
+      await logger.flush();
 
       const files = fs.readdirSync(tmpDir).sort();
       expect(files).toHaveLength(2);
@@ -233,10 +241,11 @@ describe("EewEventLogger", () => {
   });
 
   describe("逐次書き込み", () => {
-    it("各報が即座にファイルに反映される", () => {
+    it("各報が即座にファイルに反映される", async () => {
       const eventId = "ev008";
       const info1 = createEewInfo({ serial: "1", eventId });
       logger.logReport(info1, createUpdateResult({ isNew: true }));
+      await logger.flush();
 
       // 第1報の時点でファイルが読める
       const files = fs.readdirSync(tmpDir);
@@ -247,6 +256,7 @@ describe("EewEventLogger", () => {
       // 第2報を追記
       const info2 = createEewInfo({ serial: "2", eventId });
       logger.logReport(info2, createUpdateResult({ isNew: false }));
+      await logger.flush();
 
       const content2 = fs.readFileSync(filePath, "utf-8");
       expect(content2).toContain("第1報");

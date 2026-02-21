@@ -7,6 +7,12 @@ import * as log from "../logger";
 /** ログ出力のデフォルトディレクトリ */
 const DEFAULT_LOG_DIR = path.join(process.cwd(), "eew-logs");
 
+/** eventId をファイル名に安全な文字列へサニタイズ (パストラバーサル防止) */
+function sanitizeEventId(eventId: string): string {
+  // 英数字・ハイフン・アンダースコアのみ残す
+  return eventId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+}
+
 /** 数値を2桁ゼロ埋め */
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 
@@ -39,15 +45,27 @@ function formatDiff(diff: EewDiff): string {
   return parts.length > 0 ? `  [${parts.join(", ")}]` : "";
 }
 
+/** 非同期ファイル書き込み (エラーはログ出力のみ) */
+async function appendFileAsync(filePath: string, data: string): Promise<void> {
+  try {
+    await fs.promises.appendFile(filePath, data, "utf-8");
+  } catch (err) {
+    if (err instanceof Error) {
+      log.error(`EEW ログ書き込み失敗: ${err.message}`);
+    }
+  }
+}
+
 /**
  * EEW イベントごとにログファイルへ逐次追記するロガー。
- * 各報の受信時に appendFileSync で即座にディスクへ書き込み、
- * 停電・ネットワーク遮断時でもそれまでの記録を保全する。
+ * 各報の受信時に非同期でディスクへ書き込む。
  */
 export class EewEventLogger {
   private readonly logDir: string;
   /** eventId → ファイルパス */
   private activeFiles = new Map<string, string>();
+  /** 書き込みの順序保証用チェーン (eventId → Promise) */
+  private writeChains = new Map<string, Promise<void>>();
 
   constructor(logDir?: string) {
     this.logDir = logDir ?? DEFAULT_LOG_DIR;
@@ -55,18 +73,12 @@ export class EewEventLogger {
 
   /** EEW 報を受信した際に呼び出す。第1報でファイル作成、続報は追記。 */
   logReport(info: ParsedEewInfo, result: EewUpdateResult): void {
-    const eventId = info.eventId || "unknown";
+    const eventId = sanitizeEventId(info.eventId || "unknown");
 
-    try {
-      if (result.isNew) {
-        this.startNewEvent(eventId, info);
-      } else {
-        this.appendReport(eventId, info, result.diff);
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        log.error(`EEW ログ書き込み失敗: ${err.message}`);
-      }
+    if (result.isNew) {
+      this.startNewEvent(eventId, info);
+    } else {
+      this.appendReport(eventId, info, result.diff);
     }
   }
 
@@ -75,15 +87,9 @@ export class EewEventLogger {
     const filePath = this.activeFiles.get(eventId);
     if (filePath == null) return;
 
-    try {
-      const line = `\n--- 記録終了 (${reason}) ${nowTimeStr()} ---\n`;
-      fs.appendFileSync(filePath, line, "utf-8");
-      log.debug(`EEW ログ記録終了: ${filePath}`);
-    } catch (err) {
-      if (err instanceof Error) {
-        log.error(`EEW ログ終了書き込み失敗: ${err.message}`);
-      }
-    }
+    const line = `\n--- 記録終了 (${reason}) ${nowTimeStr()} ---\n`;
+    this.enqueueWrite(eventId, filePath, line);
+    log.debug(`EEW ログ記録終了: ${filePath}`);
     this.activeFiles.delete(eventId);
   }
 
@@ -100,6 +106,11 @@ export class EewEventLogger {
     return this.logDir;
   }
 
+  /** 全書き込みの完了を待つ (テスト用) */
+  async flush(): Promise<void> {
+    await Promise.all([...this.writeChains.values()]);
+  }
+
   /** 新規イベントのログファイルを作成 */
   private startNewEvent(eventId: string, info: ParsedEewInfo): void {
     this.ensureLogDir();
@@ -111,7 +122,7 @@ export class EewEventLogger {
     const header = this.buildHeader(eventId, info);
     const report = this.buildReportBlock(info, undefined);
 
-    fs.appendFileSync(filePath, header + report, "utf-8");
+    this.enqueueWrite(eventId, filePath, header + report);
     log.info(`EEW ログ記録開始: ${filePath}`);
   }
 
@@ -129,7 +140,14 @@ export class EewEventLogger {
 
     const filePath = this.activeFiles.get(eventId)!;
     const report = this.buildReportBlock(info, diff);
-    fs.appendFileSync(filePath, report, "utf-8");
+    this.enqueueWrite(eventId, filePath, report);
+  }
+
+  /** 書き込みをチェーンに追加して順序を保証する */
+  private enqueueWrite(eventId: string, filePath: string, data: string): void {
+    const prev = this.writeChains.get(eventId) ?? Promise.resolve();
+    const next = prev.then(() => appendFileAsync(filePath, data));
+    this.writeChains.set(eventId, next);
   }
 
   /** ファイルヘッダを構築 */

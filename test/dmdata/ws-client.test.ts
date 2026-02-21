@@ -346,20 +346,19 @@ describe("WebSocketManager", () => {
       expect(mockPrepare).not.toHaveBeenCalled();
     });
 
-    it("close イベント2回で再接続が2回スケジュールされる", async () => {
+    it("close イベント2回でも安全に1回だけ再接続する", async () => {
       const events = createEvents();
       const manager = new WebSocketManager(createConfig(), events);
 
       await manager.connect();
       mockWsInstance.emit("open");
 
-      // 2回連続で close イベント (close ハンドラは clearTimers→scheduleReconnect)
+      // 2回連続で close イベント — 1回目で ws=null になるため2回目はスキップ
       mockWsInstance.emit("close", 1006, Buffer.from("err1"));
       mockWsInstance.emit("close", 1006, Buffer.from("err2"));
 
-      // close ハンドラは clearTimers でタイマーをクリアしてから scheduleReconnect するため
-      // 各 close イベントで attempt がインクリメントされる
-      expect(manager.getStatus().reconnectAttempt).toBe(2);
+      expect(manager.getStatus().reconnectAttempt).toBe(1);
+      expect(events.onDisconnected).toHaveBeenCalledOnce();
 
       manager.close();
     });

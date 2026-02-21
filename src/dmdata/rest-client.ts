@@ -201,8 +201,10 @@ export async function prepareAndStartSocket(
     try {
       const list = await listSockets(config.apiKey);
       const openSockets = list.items.filter((s) => s.status === "open");
-      for (const sock of openSockets) {
-        await closeSocket(config.apiKey, sock.id);
+      if (openSockets.length > 0) {
+        await Promise.allSettled(
+          openSockets.map((sock) => closeSocket(config.apiKey, sock.id))
+        );
       }
     } catch (err) {
       log.warn(

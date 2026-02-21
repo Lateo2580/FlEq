@@ -36,15 +36,27 @@ npm run build
 以下のいずれかの方法で設定してください。
 
 **方法1: 環境変数**
+
+bash / zsh:
 ```bash
 export DMDATA_API_KEY=your_api_key_here
 ```
 
+PowerShell:
+```powershell
+$env:DMDATA_API_KEY = "your_api_key_here"
+```
+
+CMD:
+```cmd
+set DMDATA_API_KEY=your_api_key_here
+```
+
 **方法2: .envファイル**
-```bash
-cat > .env <<'EOF'
+
+プロジェクトルートに `.env` ファイルを作成し、以下の内容を記述してください:
+```
 DMDATA_API_KEY=your-key-here
-EOF
 ```
 
 **方法3: Configに保存**

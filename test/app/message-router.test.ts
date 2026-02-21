@@ -26,6 +26,10 @@ import { WsDataMessage } from "../../src/types";
 import * as fs from "fs";
 
 // fs をモックして eew-logger のファイル書き込みを抑制
+const { appendFileMock } = vi.hoisted(() => {
+  const appendFileMock = vi.fn().mockResolvedValue(undefined);
+  return { appendFileMock };
+});
 vi.mock("fs", async () => {
   const actual = await vi.importActual<typeof import("fs")>("fs");
   return {
@@ -37,6 +41,10 @@ vi.mock("fs", async () => {
       return actual.existsSync(p);
     },
     mkdirSync: vi.fn(),
+    promises: {
+      ...actual.promises,
+      appendFile: appendFileMock,
+    },
   };
 });
 
@@ -108,18 +116,19 @@ describe("message-router 統合テスト", () => {
       expect(output).toContain("最終報");
     });
 
-    it("NextAdvisory 付き電文でログが '最終報' 理由で閉じられる", () => {
+    it("NextAdvisory 付き電文でログが '最終報' 理由で閉じられる", async () => {
       const { handler } = createMessageHandler();
-      const appendSpy = vi.mocked(fs.appendFileSync);
-      appendSpy.mockClear();
+      appendFileMock.mockClear();
 
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_FINAL);
       handler(msg);
 
-      // appendFileSync の呼び出しの中に「記録終了 (最終報)」を含むものがある
-      const calls = appendSpy.mock.calls.map((c) => String(c[1]));
-      const hasCloseCall = calls.some((text) => text.includes("記録終了 (最終報)"));
-      expect(hasCloseCall).toBe(true);
+      // 非同期書き込みが完了するのを待つ
+      await vi.waitFor(() => {
+        const calls = appendFileMock.mock.calls.map((c: unknown[]) => String(c[1]));
+        const hasCloseCall = calls.some((text: string) => text.includes("記録終了 (最終報)"));
+        expect(hasCloseCall).toBe(true);
+      });
     });
   });
 

@@ -123,16 +123,32 @@ export class WebSocketManager {
       });
 
       this.ws.on("close", (code: number, reason: Buffer) => {
+        // error ハンドラで既に処理済みの場合はスキップ
+        if (this.ws == null) return;
         const reasonStr = reason.toString() || `code=${code}`;
         log.warn(`WebSocket 切断: ${reasonStr}`);
         this.clearTimers();
         this.ws = null;
+        this.socketId = null;
         this.events.onDisconnected(reasonStr);
         this.scheduleReconnect();
       });
 
       this.ws.on("error", (err: Error) => {
         log.error(`WebSocket エラー: ${err.message}`);
+        // close イベントが発火しない場合に備えて再接続を保証
+        if (this.ws) {
+          try {
+            this.ws.close();
+          } catch {
+            // close() 自体の失敗は無視
+          }
+          this.clearTimers();
+          this.ws = null;
+          this.socketId = null;
+          this.events.onDisconnected(`error: ${err.message}`);
+          this.scheduleReconnect();
+        }
       });
     } catch (err) {
       log.error(
