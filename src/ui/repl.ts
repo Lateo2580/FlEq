@@ -208,7 +208,8 @@ export class ReplHandler {
   /** 電文表示の前処理（現在のプロンプト行をクリア） */
   beforeDisplayMessage(): void {
     if (process.stdout.isTTY && this.rl) {
-      process.stdout.write("\r\x1b[2K");
+      readline.cursorTo(process.stdout, 0);
+      readline.clearLine(process.stdout, 0);
     }
   }
 
