@@ -12,53 +12,18 @@ import {
 } from "../ui/formatter";
 import * as log from "../logger";
 
-const PROMPT = "fleq> ";
-
 interface CommandEntry {
   description: string;
   handler: (args: string) => void | Promise<void>;
 }
 
-interface StatusLineContext {
-  hasRepl: () => boolean;
-  getInputLength: () => number;
-}
-
 class StatusLine {
-  private static readonly TICK_MS = 1000;
-
-  private context: StatusLineContext;
-  private timer: NodeJS.Timeout | null = null;
-  private suspended = false;
-  private started = false;
-  private hasStatusRow = false;
   private pulseOn = true;
   private connectedAt: number | null = null;
   private lastMessageTime: number | null = null;
 
-  constructor(context: StatusLineContext) {
-    this.context = context;
-  }
-
-  start(): void {
-    this.started = true;
-    if (!process.stdout.isTTY || this.timer) {
-      return;
-    }
-    this.timer = setInterval(() => {
-      this.pulseOn = !this.pulseOn;
-      this.render();
-    }, StatusLine.TICK_MS);
-    this.render();
-  }
-
-  stop(): void {
-    this.started = false;
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.clear();
+  tick(): void {
+    this.pulseOn = !this.pulseOn;
   }
 
   setConnected(connected: boolean): void {
@@ -69,89 +34,27 @@ class StatusLine {
       this.connectedAt = null;
       this.lastMessageTime = null;
     }
-    this.render();
   }
 
   markMessageReceived(): void {
     this.lastMessageTime = Date.now();
-    this.render();
   }
 
-  suspend(): void {
-    this.suspended = true;
-    this.clear();
-  }
-
-  resume(): void {
-    this.suspended = false;
-    this.render();
-  }
-
-  onPromptRendered(): void {
-    this.render();
-  }
-
-  private shouldRender(): boolean {
-    return (
-      this.started &&
-      !this.suspended &&
-      process.stdout.isTTY &&
-      this.context.hasRepl() &&
-      this.context.getInputLength() === 0
-    );
-  }
-
-  private render(): void {
-    if (!this.shouldRender()) {
-      return;
-    }
-
-    const text = this.buildText();
-    if (!this.hasStatusRow) {
-      process.stdout.write("\x1b[s");
-      process.stdout.write("\n");
-      process.stdout.write("\x1b[u");
-      this.hasStatusRow = true;
-    }
-
-    process.stdout.write("\x1b[s");
-    process.stdout.write("\x1b[1B\r\x1b[2K");
-    process.stdout.write(text);
-    process.stdout.write("\x1b[u");
-  }
-
-  private clear(): void {
-    if (!process.stdout.isTTY || !this.hasStatusRow || !this.context.hasRepl()) {
-      this.hasStatusRow = false;
-      return;
-    }
-    process.stdout.write("\x1b[s");
-    process.stdout.write("\x1b[1B\r\x1b[2K");
-    process.stdout.write("\x1b[u");
-    this.hasStatusRow = false;
-  }
-
-  private buildText(): string {
-    const pulse = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
-
+  buildPrefix(): string {
     if (this.connectedAt == null) {
       return (
-        chalk.gray("  接続待機中 ") +
-        pulse +
-        chalk.gray("  再接続を待機しています")
+        chalk.gray("fleq [") + chalk.gray("○ --:--:--") + chalk.gray("]> ")
       );
     }
-
+    const dot = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
     const baseTime = this.lastMessageTime ?? this.connectedAt;
-    const label =
-      this.lastMessageTime != null ? "最終受信から" : "接続から";
     const elapsed = formatElapsedTime(Date.now() - baseTime);
-
     return (
-      chalk.gray("  待機中 ") +
-      pulse +
-      chalk.gray(`  ${label} `) +
-      chalk.white(elapsed)
+      chalk.gray("fleq [") +
+      dot +
+      chalk.gray(" ") +
+      chalk.white(elapsed) +
+      chalk.gray("]> ")
     );
   }
 }
@@ -163,14 +66,13 @@ export class ReplHandler {
   private commands: Record<string, CommandEntry>;
   private stopping = false;
   private statusLine: StatusLine;
+  private statusTimer: NodeJS.Timeout | null = null;
+  private commandRunning = false;
 
   constructor(config: AppConfig, wsManager: WebSocketManager) {
     this.config = config;
     this.wsManager = wsManager;
-    this.statusLine = new StatusLine({
-      hasRepl: () => this.rl != null,
-      getInputLength: () => this.rl?.line.length ?? 0,
-    });
+    this.statusLine = new StatusLine();
 
     this.commands = {
       help: {
@@ -213,15 +115,25 @@ export class ReplHandler {
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: chalk.gray(PROMPT),
+      prompt: this.buildPromptString(),
     });
 
+    if (process.stdout.isTTY) {
+      this.statusTimer = setInterval(() => {
+        this.statusLine.tick();
+        if (!this.commandRunning && this.rl && this.rl.line.length === 0) {
+          this.rl.setPrompt(this.buildPromptString());
+          this.rl.prompt();
+        }
+      }, 1000);
+    }
+
     this.rl.on("line", (line) => {
-      this.statusLine.suspend();
+      this.commandRunning = true;
       const trimmed = line.trim();
       if (trimmed.length === 0) {
+        this.commandRunning = false;
         this.prompt();
-        this.statusLine.resume();
         return;
       }
 
@@ -231,8 +143,8 @@ export class ReplHandler {
 
       if (entry == null) {
         console.log(chalk.yellow(`  不明なコマンド: ${cmd} (help で一覧を表示)`));
+        this.commandRunning = false;
         this.prompt();
-        this.statusLine.resume();
         return;
       }
 
@@ -245,12 +157,12 @@ export class ReplHandler {
             );
           })
           .finally(() => {
+            this.commandRunning = false;
             this.prompt();
-            this.statusLine.resume();
           });
       } else {
+        this.commandRunning = false;
         this.prompt();
-        this.statusLine.resume();
       }
     });
 
@@ -261,47 +173,62 @@ export class ReplHandler {
     });
 
     this.prompt();
-    this.statusLine.start();
   }
 
   /** REPL を停止する */
   stop(): void {
     this.stopping = true;
-    this.statusLine.stop();
+    if (this.statusTimer) {
+      clearInterval(this.statusTimer);
+      this.statusTimer = null;
+    }
     if (this.rl) {
       this.rl.close();
       this.rl = null;
     }
   }
 
-  /** プロンプトを再表示する (データ出力後に呼ぶ) */
+  /** プロンプトを再表示する (データ出力後・接続状態変化時に呼ぶ) */
   refreshPrompt(): void {
-    if (this.rl) {
+    if (this.rl && !this.commandRunning) {
       this.prompt();
     }
   }
 
-  /** WebSocket 接続状態を待機表示に反映 */
+  /** WebSocket 接続状態をプロンプトに反映 */
   setConnected(connected: boolean): void {
     this.statusLine.setConnected(connected);
+    // 接続状態が変わった瞬間にプロンプト文字列を更新しておく
+    // (実際の再描画は呼び出し元の refreshPrompt() で行う)
+    if (this.rl) {
+      this.rl.setPrompt(this.buildPromptString());
+    }
   }
 
-  /** 電文表示の前処理（待機行を隠す） */
+  /** 電文表示の前処理（現在のプロンプト行をクリア） */
   beforeDisplayMessage(): void {
-    this.statusLine.suspend();
+    if (process.stdout.isTTY && this.rl) {
+      process.stdout.write("\r\x1b[2K");
+    }
   }
 
-  /** 電文表示の後処理（受信時刻更新・待機行再開） */
+  /** 電文表示の後処理（受信時刻更新・プロンプト再描画） */
   afterDisplayMessage(): void {
     this.statusLine.markMessageReceived();
-    this.refreshPrompt();
-    this.statusLine.resume();
+    this.prompt();
+  }
+
+  private buildPromptString(): string {
+    if (!process.stdout.isTTY) {
+      return chalk.gray("fleq> ");
+    }
+    return this.statusLine.buildPrefix();
   }
 
   private prompt(): void {
     if (this.rl) {
+      this.rl.setPrompt(this.buildPromptString());
       this.rl.prompt();
-      this.statusLine.onPromptRendered();
     }
   }
 
@@ -454,7 +381,7 @@ export class ReplHandler {
 
   private handleQuit(): void {
     log.info("シャットダウン中...");
-    this.statusLine.stop();
+    this.stop();
     this.wsManager.close();
     process.exit(0);
   }

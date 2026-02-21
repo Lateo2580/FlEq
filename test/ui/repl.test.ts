@@ -7,6 +7,7 @@ vi.mock("readline", () => {
   const mockRl = new EventEmitter();
   Object.assign(mockRl, {
     prompt: vi.fn(),
+    setPrompt: vi.fn(),
     close: vi.fn(),
     line: "",
   });
@@ -73,7 +74,7 @@ function createMockWsManager(): WebSocketManager {
 
 describe("ReplHandler", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
-  let mockRl: EventEmitter & { prompt: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; line: string };
+  let mockRl: EventEmitter & { prompt: ReturnType<typeof vi.fn>; setPrompt: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; line: string };
 
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
