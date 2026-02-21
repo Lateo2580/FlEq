@@ -68,6 +68,12 @@ export function createMessageHandler(): MessageHandlerResult {
           eewLogger.closeEvent(eewInfo.eventId, "取消");
         }
 
+        // 最終報の場合はログを閉じ、トラッカーのイベントを終了扱いにする
+        if (eewInfo.nextAdvisory && eewInfo.eventId && !result.isCancelled) {
+          eewLogger.closeEvent(eewInfo.eventId, "最終報");
+          eewTracker.finalizeEvent(eewInfo.eventId);
+        }
+
         displayEewInfo(eewInfo, {
           activeCount: result.activeCount,
           diff: result.diff,

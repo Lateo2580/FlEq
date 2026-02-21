@@ -20,8 +20,10 @@ import {
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_S26,
   FIXTURE_VXSE45_CANCEL,
+  FIXTURE_VXSE45_FINAL,
 } from "../helpers/mock-message";
 import { WsDataMessage } from "../../src/types";
+import * as fs from "fs";
 
 // fs をモックして eew-logger のファイル書き込みを抑制
 vi.mock("fs", async () => {
@@ -93,6 +95,31 @@ describe("message-router 統合テスト", () => {
 
       const output = getOutput();
       expect(output).toContain("取消");
+    });
+  });
+
+  describe("EEW 最終報", () => {
+    it("NextAdvisory 付き電文で最終報テキストが表示される", () => {
+      const { handler } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_FINAL);
+      handler(msg);
+
+      const output = getOutput();
+      expect(output).toContain("最終報");
+    });
+
+    it("NextAdvisory 付き電文でログが '最終報' 理由で閉じられる", () => {
+      const { handler } = createMessageHandler();
+      const appendSpy = vi.mocked(fs.appendFileSync);
+      appendSpy.mockClear();
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_FINAL);
+      handler(msg);
+
+      // appendFileSync の呼び出しの中に「記録終了 (最終報)」を含むものがある
+      const calls = appendSpy.mock.calls.map((c) => String(c[1]));
+      const hasCloseCall = calls.some((text) => text.includes("記録終了 (最終報)"));
+      expect(hasCloseCall).toBe(true);
     });
   });
 

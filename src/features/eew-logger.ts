@@ -192,6 +192,11 @@ export class EewEventLogger {
       }
     }
 
+    // 最終報
+    if (info.nextAdvisory) {
+      lines.push(info.nextAdvisory);
+    }
+
     lines.push("");
     return lines.join("\n");
   }

@@ -132,6 +132,9 @@ export const FIXTURE_VXSE62_LGOBS = "78_01_01_240613_VXSE62.xml";
 /** VYSE60 北海道・三陸沖後発地震注意情報 */
 export const FIXTURE_VYSE60_AFTERSHOCK = "80_01_01_240821_VYSE60.xml";
 
+/** VXSE45 EEW地震動予報 最終報 (NextAdvisory付き) */
+export const FIXTURE_VXSE45_FINAL = "77_01_30_260101_VXSE45_FINAL.xml";
+
 /** フィクスチャXMLを読み込む (fixtures/ → selected_xml/ フォールバック) */
 export function readFixture(filename: string): string {
   const primaryPath = path.join(FIXTURES_DIR, filename);

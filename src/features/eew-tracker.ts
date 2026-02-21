@@ -18,6 +18,8 @@ interface EewEvent {
   lastSerial: number;
   isWarning: boolean;
   isCancelled: boolean;
+  /** 最終報を受信済みか */
+  isFinalized: boolean;
   lastUpdate: Date;
   /** 前回のパース済み EEW 情報 (差分計算用) */
   previousInfo?: ParsedEewInfo;
@@ -196,6 +198,7 @@ export class EewTracker {
       lastSerial: serial ?? 0,
       isWarning: info.isWarning,
       isCancelled,
+      isFinalized: false,
       lastUpdate: new Date(),
       previousInfo: info,
     });
@@ -208,11 +211,23 @@ export class EewTracker {
     };
   }
 
-  /** 現在アクティブ（キャンセルされていない）イベント数を返す */
+  /**
+   * イベントを終了扱いにする (最終報受信時)。
+   * 遅延到着した重複報の検出のためエントリは保持し、
+   * アクティブカウントからは除外する。
+   */
+  finalizeEvent(eventId: string): void {
+    const ev = this.events.get(eventId);
+    if (ev) {
+      ev.isFinalized = true;
+    }
+  }
+
+  /** 現在アクティブ（キャンセル・最終報済みでない）イベント数を返す */
   getActiveCount(): number {
     let count = 0;
     for (const ev of this.events.values()) {
-      if (!ev.isCancelled) count++;
+      if (!ev.isCancelled && !ev.isFinalized) count++;
     }
     return count;
   }

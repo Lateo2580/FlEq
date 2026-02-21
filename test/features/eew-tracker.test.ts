@@ -394,6 +394,32 @@ describe("EewTracker", () => {
     });
   });
 
+  describe("最終報 (finalizeEvent)", () => {
+    it("finalizeEvent でイベントが activeCount から除外される", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-002" }));
+      expect(tracker.getActiveCount()).toBe(2);
+
+      tracker.finalizeEvent("event-001");
+      expect(tracker.getActiveCount()).toBe(1);
+    });
+
+    it("finalize 後も重複報の検出は機能する", () => {
+      tracker.update(createEewInfo({ serial: "5", eventId: "event-fin" }));
+      tracker.finalizeEvent("event-fin");
+
+      // 古い serial は重複扱い
+      const result = tracker.update(
+        createEewInfo({ serial: "3", eventId: "event-fin" })
+      );
+      expect(result.isDuplicate).toBe(true);
+    });
+
+    it("存在しない eventId を finalize してもエラーにならない", () => {
+      expect(() => tracker.finalizeEvent("nonexistent")).not.toThrow();
+    });
+  });
+
   describe("自動クリーンアップ", () => {
     beforeEach(() => {
       vi.useFakeTimers();

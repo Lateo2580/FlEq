@@ -179,6 +179,22 @@ describe("EewEventLogger", () => {
     });
   });
 
+  describe("nextAdvisory (最終報)", () => {
+    it("最終報テキストがログに含まれる", () => {
+      const info = createEewInfo({
+        serial: "10",
+        eventId: "ev-final",
+        nextAdvisory: "この情報をもって、緊急地震速報：最終報とします。",
+      });
+      const result = createUpdateResult({ isNew: true });
+      logger.logReport(info, result);
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(content).toContain("この情報をもって、緊急地震速報：最終報とします。");
+    });
+  });
+
   describe("closeEvent", () => {
     it("記録終了行を追記する", () => {
       const info = createEewInfo({ serial: "1", eventId: "ev005" });
