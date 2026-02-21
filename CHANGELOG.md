@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.5.0](https://github.com/Lateo2580/FlEq/compare/v1.4.0...v1.5.0) (2026-02-21)
+
+
+### 機能追加
+
+* EEW最終報(NextAdvisory)でログ記録終了とトラッカー終了を実行 ([3bee95e](https://github.com/Lateo2580/FlEq/commit/3bee95eba09a1924e952c265fb128b2410249002))
+
 ## [1.4.0](https://github.com/Lateo2580/FlEq/compare/v1.3.2...v1.4.0) (2026-02-21)
 
 
