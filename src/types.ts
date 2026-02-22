@@ -18,6 +18,8 @@ export interface AppConfig {
   maxReconnectDelaySec: number;
   /** 既存接続を維持するか */
   keepExistingConnections: boolean;
+  /** テーブル表示幅 */
+  tableWidth: number;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -28,6 +30,7 @@ export interface ConfigFile {
   appName?: string;
   maxReconnectDelaySec?: number;
   keepExistingConnections?: boolean;
+  tableWidth?: number;
 }
 
 /** デフォルト設定 */
@@ -37,6 +40,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   appName: "fleq",
   maxReconnectDelaySec: 60,
   keepExistingConnections: false,
+  tableWidth: 60,
 };
 
 // ── dmdata.jp API レスポンス型 ──

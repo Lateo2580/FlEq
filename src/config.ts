@@ -59,6 +59,7 @@ const CONFIG_KEYS: Record<string, string> = {
   appName: "アプリケーション名",
   maxReconnectDelaySec: "再接続の最大待機秒数",
   keepExistingConnections: "既存のWebSocket接続を維持するか (true/false)",
+  tableWidth: "テーブル表示幅 (40〜200)",
 };
 
 /** Configファイルのパスを返す */
@@ -145,6 +146,10 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
     config.keepExistingConnections = raw.keepExistingConnections;
   }
 
+  if (typeof raw.tableWidth === "number" && raw.tableWidth >= 40 && raw.tableWidth <= 200) {
+    config.tableWidth = raw.tableWidth;
+  }
+
   return config;
 }
 
@@ -211,6 +216,16 @@ export function setConfigValue(key: string, value: string): void {
       }
       config.keepExistingConnections = value === "true";
       break;
+    case "tableWidth": {
+      const tw = Number(value);
+      if (isNaN(tw) || !Number.isInteger(tw) || tw < 40 || tw > 200) {
+        throw new ConfigError(
+          "tableWidth は 40〜200 の整数を指定してください。"
+        );
+      }
+      config.tableWidth = tw;
+      break;
+    }
   }
 
   saveConfig(config);

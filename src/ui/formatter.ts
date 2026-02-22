@@ -10,6 +10,7 @@ import {
 } from "../types";
 import type { EewDiff } from "../features/eew-tracker";
 import * as log from "../logger";
+import { loadConfig } from "../config";
 
 // ── フレーム描画ユーティリティ ──
 
@@ -30,6 +31,12 @@ const FRAMES: Record<FrameLevel, {
 };
 
 const FRAME_WIDTH = 60;
+
+/** Config から tableWidth を読み取り、未設定なら FRAME_WIDTH (60) を返す */
+function getFrameWidth(): number {
+  const config = loadConfig();
+  return config.tableWidth ?? FRAME_WIDTH;
+}
 
 function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {
   const f = FRAMES[level];
@@ -100,6 +107,46 @@ export function visualPadEnd(str: string, targetWidth: number): string {
   const currentWidth = visualWidth(str);
   const padSize = Math.max(0, targetWidth - currentWidth);
   return str + " ".repeat(padSize);
+}
+
+/**
+ * コンテンツがフレーム幅を超える場合に折り返して複数の frameLine を生成する。
+ * カンマ+スペース区切りを基準に折り返し、2行目以降は indent 分のスペースでインデントする。
+ */
+export function wrapFrameLines(
+  level: FrameLevel,
+  content: string,
+  width: number,
+  indent: number = 0
+): string[] {
+  const innerWidth = width - 4; // フレーム内の有効幅 (左右の罫線+スペース)
+  if (visualWidth(content) <= innerWidth) {
+    return [frameLine(level, content, width)];
+  }
+
+  // カンマ+スペース区切りで分割
+  const parts = content.split(", ");
+  if (parts.length <= 1) {
+    // 分割できない場合はそのまま出力
+    return [frameLine(level, content, width)];
+  }
+
+  const lines: string[] = [];
+  const indentStr = " ".repeat(indent);
+  let currentLine = parts[0];
+
+  for (let i = 1; i < parts.length; i++) {
+    const candidate = currentLine + ", " + parts[i];
+    if (visualWidth(candidate) <= innerWidth) {
+      currentLine = candidate;
+    } else {
+      lines.push(frameLine(level, currentLine + ",", width));
+      currentLine = indentStr + parts[i];
+    }
+  }
+  lines.push(frameLine(level, currentLine, width));
+
+  return lines;
 }
 
 // ── 時刻フォーマット ──
@@ -262,21 +309,22 @@ function tsunamiShort(info: ParsedEarthquakeInfo): string {
 export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   const level = earthquakeFrameLevel(info);
   const label = typeLabel(info.type);
+  const width = getFrameWidth();
 
   console.log();
-  console.log(frameTop(level));
+  console.log(frameTop(level, width));
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
   // タイトル行
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
-  console.log(frameLine(level, titleContent));
+  console.log(frameLine(level, titleContent, width));
 
   // カード1行目: 最重要項目
-  console.log(frameDivider(level));
+  console.log(frameDivider(level, width));
   const cardParts: string[] = [];
   if (info.intensity) {
     const ic = intensityColor(info.intensity.maxInt);
@@ -297,34 +345,36 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     cardParts.push(tsunamiText);
   }
   if (cardParts.length > 0) {
-    console.log(frameLine(level, cardParts.join(chalk.gray("  │  "))));
+    console.log(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
   }
 
   // 震源詳細
   if (info.earthquake) {
     const eq = info.earthquake;
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName), width));
     if (eq.originTime) {
-      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
+      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
     if (eq.latitude && eq.longitude) {
-      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`)));
+      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
     }
   }
 
   // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
 
   // ヘッドライン
   if (info.headline) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white(info.headline)));
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
   }
 
   // 震度一覧
   if (info.intensity && info.intensity.areas.length > 0) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
 
     const byIntensity = new Map<string, string[]>();
     for (const area of info.intensity.areas) {
@@ -353,17 +403,22 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
         }
         return chalk.white(name);
       });
-      console.log(frameLine(level, color(`震度${int}: `) + areaTexts.join(chalk.white(", "))));
+      const prefix = color(`震度${int}: `);
+      const indentWidth = visualWidth(stripAnsi(prefix));
+      const content = prefix + areaTexts.join(chalk.white(", "));
+      for (const line of wrapFrameLines(level, content, width, indentWidth)) {
+        console.log(line);
+      }
     }
   }
 
   // 津波 (詳細)
   if (info.tsunami) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.white(`${info.tsunami.text}`)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.white(`${info.tsunami.text}`), width));
   }
 
-  console.log(frameBottom(level));
+  console.log(frameBottom(level, width));
   console.log();
 }
 
@@ -390,11 +445,12 @@ export function displayEewInfo(
   const isCancelled = info.infoType === "取消";
   const level = eewFrameLevel(info);
   const diff = context?.diff;
+  const width = getFrameWidth();
 
   console.log();
 
   // バナー (警報/予報/取消のヘッダー)
-  const bannerWidth = FRAME_WIDTH;
+  const bannerWidth = width;
   const serialTag = info.serial ? ` #${info.serial}` : "";
 
   if (isCancelled) {
@@ -415,16 +471,16 @@ export function displayEewInfo(
   }
 
   // フレーム開始
-  console.log(frameTop(level));
+  console.log(frameTop(level, width));
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
   // PLUM法ラベル (MaxIntChangeReason=9)
   if (info.maxIntChangeReason === 9) {
-    console.log(frameLine(level, chalk.magenta("PLUM法") + chalk.gray(" による予測震度変化")));
+    console.log(frameLine(level, chalk.magenta("PLUM法") + chalk.gray(" による予測震度変化"), width));
   }
 
   // 複数イベント同時発生の注記
@@ -432,17 +488,19 @@ export function displayEewInfo(
   if (activeCount >= 2 && info.eventId) {
     console.log(frameLine(level,
       chalk.yellow(`同時${activeCount}件発生中`) +
-        chalk.gray(`  ${info.infoType}`)
+        chalk.gray(`  ${info.infoType}`),
+      width
     ));
   } else {
     console.log(frameLine(level,
-      chalk.gray(info.infoType)
+      chalk.gray(info.infoType),
+      width
     ));
   }
 
   // カード1行目: 最重要項目
   if (!isCancelled) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const cardParts: string[] = [];
     if (info.forecastIntensity?.areas.length) {
       const areas = info.forecastIntensity.areas;
@@ -470,25 +528,25 @@ export function displayEewInfo(
     if (info.earthquake?.depth && !info.isAssumedHypocenter) {
       cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
     }
-    console.log(frameLine(level, cardParts.join(chalk.gray("  │  "))));
+    console.log(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
   }
 
   // 震源詳細
   if (info.earthquake) {
     const eq = info.earthquake;
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
 
     if (info.isAssumedHypocenter) {
-      console.log(frameLine(level, chalk.magenta("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)")));
+      console.log(frameLine(level, chalk.magenta("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
     }
 
     const hypoContent = diff?.hypocenterChange
       ? chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName) + chalk.cyan(" (変更)")
       : chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName);
-    console.log(frameLine(level, hypoContent));
+    console.log(frameLine(level, hypoContent, width));
 
     if (eq.originTime) {
-      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
+      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
     if (eq.magnitude && !info.isAssumedHypocenter) {
       let magLine = chalk.white("規模: ") + colorMagnitude(eq.magnitude);
@@ -496,7 +554,7 @@ export function displayEewInfo(
         const arrow = diff.magnitudeChange.startsWith("+") ? "↑" : "↓";
         magLine += chalk.cyan(` ${arrow}${diff.magnitudeChange}`);
       }
-      console.log(frameLine(level, magLine));
+      console.log(frameLine(level, magLine, width));
     }
     if (eq.depth && !info.isAssumedHypocenter) {
       let depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
@@ -504,33 +562,35 @@ export function displayEewInfo(
         const arrow = diff.depthChange.startsWith("+") ? "↓" : "↑";
         depthLine += chalk.cyan(` ${arrow}${diff.depthChange}`);
       }
-      console.log(frameLine(level, depthLine));
+      console.log(frameLine(level, depthLine, width));
     }
   }
 
   // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
 
   if (info.headline) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white(info.headline)));
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
   }
 
   if (isCancelled) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.green("この地震についての緊急地震速報は取り消されました。")));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.green("この地震についての緊急地震速報は取り消されました。"), width));
     if (info.eventId) {
-      console.log(frameDivider(level));
-      console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`)));
+      console.log(frameDivider(level, width));
+      console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
     }
-    console.log(frameBottom(level));
+    console.log(frameBottom(level, width));
     console.log();
     return;
   }
 
   // 予測震度一覧
   if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     for (const area of info.forecastIntensity.areas) {
       const color = intensityColor(area.intensity);
       let areaText = chalk.white(area.name);
@@ -544,23 +604,23 @@ export function displayEewInfo(
         const lc = lgIntensityColor(area.lgIntensity);
         areaText += lc(` [長周期${area.lgIntensity}]`);
       }
-      console.log(frameLine(level, color(`震度${area.intensity}: `) + areaText));
+      console.log(frameLine(level, color(`震度${area.intensity}: `) + areaText, width));
     }
   }
 
   // 最終報
   if (info.nextAdvisory) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.cyan(info.nextAdvisory)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.cyan(info.nextAdvisory), width));
   }
 
   // EventID (最終行)
   if (info.eventId) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
   }
 
-  console.log(frameBottom(level));
+  console.log(frameBottom(level, width));
   console.log();
 }
 
@@ -595,39 +655,42 @@ function prettyTimeOrText(value: string): string {
 export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   const level = tsunamiFrameLevel(info);
   const label = typeLabel(info.type);
+  const width = getFrameWidth();
 
   console.log();
-  console.log(frameTop(level));
+  console.log(frameTop(level, width));
 
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
-  console.log(frameLine(level, titleContent));
+  console.log(frameLine(level, titleContent, width));
 
   if (info.headline) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white(info.headline)));
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
   }
 
   if (info.earthquake) {
     const eq = info.earthquake;
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName), width));
     if (eq.originTime) {
-      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
+      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
     if (eq.latitude && eq.longitude) {
-      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`)));
+      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
     }
     if (eq.magnitude) {
-      console.log(frameLine(level, chalk.white("規模: ") + colorMagnitude(eq.magnitude)));
+      console.log(frameLine(level, chalk.white("規模: ") + colorMagnitude(eq.magnitude), width));
     }
   }
 
   if (info.forecast && info.forecast.length > 0) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const sorted = [...info.forecast].sort(
       (a, b) => tsunamiKindRank(a.kind) - tsunamiKindRank(b.kind)
     );
@@ -645,13 +708,13 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       if (item.maxHeightDescription) extra.push(item.maxHeightDescription);
       if (item.firstHeight) extra.push(prettyTimeOrText(item.firstHeight));
       const extraText = extra.length > 0 ? chalk.gray(` (${extra.join(" / ")})`) : "";
-      console.log(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText));
+      console.log(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText, width));
     }
   }
 
   if (info.observations && info.observations.length > 0) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white("沖合観測")));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.bold.white("沖合観測"), width));
     for (const station of info.observations) {
       const parts = [
         station.name,
@@ -660,13 +723,13 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
         station.maxHeightCondition,
       ].filter((v) => Boolean(v));
       const arrival = station.arrivalTime ? ` ${prettyTimeOrText(station.arrivalTime)}` : "";
-      console.log(frameLine(level, chalk.white(parts.join(" / ") + arrival)));
+      console.log(frameLine(level, chalk.white(parts.join(" / ") + arrival), width));
     }
   }
 
   if (info.estimations && info.estimations.length > 0) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white("沿岸推定")));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.bold.white("沿岸推定"), width));
     for (const estimation of info.estimations) {
       const extra: string[] = [];
       if (estimation.maxHeightDescription) extra.push(estimation.maxHeightDescription);
@@ -674,19 +737,20 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       console.log(
         frameLine(
           level,
-          chalk.white(`${estimation.areaName}${extra.length ? ` (${extra.join(" / ")})` : ""}`)
+          chalk.white(`${estimation.areaName}${extra.length ? ` (${extra.join(" / ")})` : ""}`),
+          width
         )
       );
     }
   }
 
   if (info.warningComment) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.yellow(info.warningComment)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.yellow(info.warningComment), width));
   }
 
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
-  console.log(frameBottom(level));
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
+  console.log(frameBottom(level, width));
   console.log();
 }
 
@@ -694,20 +758,23 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
 export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
   const level: FrameLevel = info.infoType === "取消" ? "cancel" : "info";
   const label = typeLabel(info.type);
+  const width = getFrameWidth();
 
   console.log();
-  console.log(frameTop(level));
+  console.log(frameTop(level, width));
 
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
-  console.log(frameLine(level, titleContent));
+  console.log(frameLine(level, titleContent, width));
 
   if (info.headline) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white(info.headline)));
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
   }
 
   const bodyLines = info.bodyText
@@ -716,18 +783,18 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
     .filter((line) => line.trim().length > 0);
 
   if (bodyLines.length > 0) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const maxLines = 15;
     for (const line of bodyLines.slice(0, maxLines)) {
-      console.log(frameLine(level, chalk.white(line)));
+      console.log(frameLine(level, chalk.white(line), width));
     }
     if (bodyLines.length > maxLines) {
-      console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`)));
+      console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`), width));
     }
   }
 
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
-  console.log(frameBottom(level));
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
+  console.log(frameBottom(level, width));
   console.log();
 }
 
@@ -751,38 +818,39 @@ function nankaiTroughFrameLevel(info: ParsedNankaiTroughInfo): FrameLevel {
 export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   const level = nankaiTroughFrameLevel(info);
   const label = typeLabel(info.type);
+  const width = getFrameWidth();
 
   console.log();
 
   // critical/warning 時はバナー表示
   if (level === "critical") {
     const bannerText = ` ${info.title}`;
-    console.log(chalk.bgRed.white.bold(" ".repeat(FRAME_WIDTH)));
-    console.log(chalk.bgRed.white.bold(visualPadEnd(bannerText, FRAME_WIDTH)));
-    console.log(chalk.bgRed.white.bold(" ".repeat(FRAME_WIDTH)));
+    console.log(chalk.bgRed.white.bold(" ".repeat(width)));
+    console.log(chalk.bgRed.white.bold(visualPadEnd(bannerText, width)));
+    console.log(chalk.bgRed.white.bold(" ".repeat(width)));
   } else if (level === "warning") {
     const bannerText = ` ${info.title}`;
-    console.log(chalk.bgYellow.black.bold(" ".repeat(FRAME_WIDTH)));
-    console.log(chalk.bgYellow.black.bold(visualPadEnd(bannerText, FRAME_WIDTH)));
-    console.log(chalk.bgYellow.black.bold(" ".repeat(FRAME_WIDTH)));
+    console.log(chalk.bgYellow.black.bold(" ".repeat(width)));
+    console.log(chalk.bgYellow.black.bold(visualPadEnd(bannerText, width)));
+    console.log(chalk.bgYellow.black.bold(" ".repeat(width)));
   }
 
-  console.log(frameTop(level));
+  console.log(frameTop(level, width));
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
   // タイトル行
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
-  console.log(frameLine(level, titleContent));
+  console.log(frameLine(level, titleContent, width));
 
   // InfoSerial (状態名)
   if (info.infoSerial) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const serialColor = level === "critical" ? chalk.red.bold : chalk.yellow.bold;
-    console.log(frameLine(level, chalk.white("状態: ") + serialColor(info.infoSerial.name)));
+    console.log(frameLine(level, chalk.white("状態: ") + serialColor(info.infoSerial.name), width));
   }
 
   // 本文
@@ -792,26 +860,26 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
     .filter((line) => line.trim().length > 0);
 
   if (bodyLines.length > 0) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const maxLines = 20;
     for (const line of bodyLines.slice(0, maxLines)) {
-      console.log(frameLine(level, chalk.white(line)));
+      console.log(frameLine(level, chalk.white(line), width));
     }
     if (bodyLines.length > maxLines) {
-      console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`)));
+      console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`), width));
     }
   }
 
   // 次回情報予告
   if (info.nextAdvisory) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.cyan(info.nextAdvisory)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.cyan(info.nextAdvisory), width));
   }
 
   // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
 
-  console.log(frameBottom(level));
+  console.log(frameBottom(level, width));
   console.log();
 }
 
@@ -831,21 +899,22 @@ function lgObservationFrameLevel(info: ParsedLgObservationInfo): FrameLevel {
 export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   const level = lgObservationFrameLevel(info);
   const label = typeLabel(info.type);
+  const width = getFrameWidth();
 
   console.log();
-  console.log(frameTop(level));
+  console.log(frameTop(level, width));
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 ")));
+    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
   // タイトル行
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
-  console.log(frameLine(level, titleContent));
+  console.log(frameLine(level, titleContent, width));
 
   // カード: 長周期階級 / 震度 / M / 深さ
-  console.log(frameDivider(level));
+  console.log(frameDivider(level, width));
   const cardParts: string[] = [];
   if (info.maxLgInt) {
     const lc = lgIntensityColor(info.maxLgInt);
@@ -862,31 +931,33 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
   }
   if (cardParts.length > 0) {
-    console.log(frameLine(level, cardParts.join(chalk.gray("  │  "))));
+    console.log(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
   }
 
   // 震源詳細
   if (info.earthquake) {
     const eq = info.earthquake;
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName), width));
     if (eq.originTime) {
-      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime))));
+      console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
     if (eq.latitude && eq.longitude) {
-      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`)));
+      console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
     }
   }
 
   // ヘッドライン
   if (info.headline) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.bold.white(info.headline)));
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
   }
 
   // 地域リスト (LgInt 降順)
   if (info.areas.length > 0) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const sorted = [...info.areas].sort((a, b) =>
       lgIntToNumeric(b.maxLgInt) - lgIntToNumeric(a.maxLgInt)
     );
@@ -896,30 +967,31 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
       console.log(frameLine(level,
         lc(`長周期${area.maxLgInt}: `) +
         chalk.white(area.name) +
-        ic(` (震度${area.maxInt})`)
+        ic(` (震度${area.maxInt})`),
+        width
       ));
     }
   }
 
   // コメント
   if (info.comment) {
-    console.log(frameDivider(level));
+    console.log(frameDivider(level, width));
     const commentLines = info.comment.split(/\r?\n/).filter((l) => l.trim().length > 0);
     for (const line of commentLines) {
-      console.log(frameLine(level, chalk.gray(line.trimEnd())));
+      console.log(frameLine(level, chalk.gray(line.trimEnd()), width));
     }
   }
 
   // 詳細URI
   if (info.detailUri) {
-    console.log(frameDivider(level));
-    console.log(frameLine(level, chalk.cyan(info.detailUri)));
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.cyan(info.detailUri), width));
   }
 
   // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice)));
+  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
 
-  console.log(frameBottom(level));
+  console.log(frameBottom(level, width));
   console.log();
 }
 
