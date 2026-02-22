@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.6.0](https://github.com/Lateo2580/FlEq/compare/v1.5.0...v1.6.0) (2026-02-22)
+
+
+### 機能追加
+
+* テーブル幅設定とテキスト折り返し機能を追加 ([5ea3bcf](https://github.com/Lateo2580/FlEq/commit/5ea3bcfb7813b7b087cd1ef3745751578dc32988))
+
+
+### バグ修正
+
+* クロスプラットフォーム互換性の修正 ([72f4f0c](https://github.com/Lateo2580/FlEq/commit/72f4f0c6d3cce03250abcb23f043556a8740475c))
+* セキュリティ・安定性・品質の改善 ([f041853](https://github.com/Lateo2580/FlEq/commit/f04185376a92d865f1a7530dd7a015653e2ca40b))
+
 ## [1.5.2](https://github.com/Lateo2580/FlEq/compare/v1.5.1...v1.5.2) (2026-02-21)
 
 
