@@ -36,11 +36,18 @@ function nowFileTimestamp(): string {
 }
 
 /** 差分情報をテキスト化 */
-function formatDiff(diff: EewDiff): string {
+function formatDiff(diff: EewDiff, info: ParsedEewInfo): string {
   const parts: string[] = [];
-  if (diff.magnitudeChange) parts.push(`M${diff.magnitudeChange}`);
-  if (diff.depthChange) parts.push(`深さ${diff.depthChange}`);
-  if (diff.maxIntChange) parts.push(diff.maxIntChange);
+  if (diff.previousMagnitude && info.earthquake?.magnitude) {
+    parts.push(`M${diff.previousMagnitude}→M${info.earthquake.magnitude}`);
+  }
+  if (diff.previousDepth && info.earthquake?.depth) {
+    parts.push(`${diff.previousDepth}→${info.earthquake.depth}`);
+  }
+  if (diff.previousMaxInt && info.forecastIntensity?.areas.length) {
+    const topInt = info.forecastIntensity.areas[0].intensity;
+    parts.push(`震度${diff.previousMaxInt}→${topInt}`);
+  }
   if (diff.hypocenterChange) parts.push("震源変更");
   return parts.length > 0 ? `  [${parts.join(", ")}]` : "";
 }
@@ -188,7 +195,7 @@ export class EewEventLogger {
       } else {
         let magDepth = `M${eq.magnitude}  深さ${eq.depth}`;
         if (diff) {
-          magDepth += formatDiff(diff);
+          magDepth += formatDiff(diff, info);
         }
         lines.push(magDepth);
       }

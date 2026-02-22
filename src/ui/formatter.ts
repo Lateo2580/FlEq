@@ -509,9 +509,11 @@ export function displayEewInfo(
         areas[0].intensity
       );
       const ic = intensityColor(maxInt);
-      let intLabel = chalk.white("最大予測震度 ") + ic.bold(maxInt);
-      if (diff?.maxIntChange) {
-        intLabel += chalk.cyan(` (${diff.maxIntChange})`);
+      let intLabel: string;
+      if (diff?.previousMaxInt) {
+        intLabel = chalk.white("最大予測震度 ") + chalk.gray(diff.previousMaxInt) + chalk.white(" → ") + ic.bold(maxInt);
+      } else {
+        intLabel = chalk.white("最大予測震度 ") + ic.bold(maxInt);
       }
       cardParts.push(intLabel);
 
@@ -549,18 +551,20 @@ export function displayEewInfo(
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
     if (eq.magnitude && !info.isAssumedHypocenter) {
-      let magLine = chalk.white("規模: ") + colorMagnitude(eq.magnitude);
-      if (diff?.magnitudeChange) {
-        const arrow = diff.magnitudeChange.startsWith("+") ? "↑" : "↓";
-        magLine += chalk.cyan(` ${arrow}${diff.magnitudeChange}`);
+      let magLine: string;
+      if (diff?.previousMagnitude) {
+        magLine = chalk.white("規模: ") + chalk.gray(`M${diff.previousMagnitude}`) + chalk.white(" → ") + chalk.bold(colorMagnitude(eq.magnitude));
+      } else {
+        magLine = chalk.white("規模: ") + colorMagnitude(eq.magnitude);
       }
       console.log(frameLine(level, magLine, width));
     }
     if (eq.depth && !info.isAssumedHypocenter) {
-      let depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
-      if (diff?.depthChange) {
-        const arrow = diff.depthChange.startsWith("+") ? "↓" : "↑";
-        depthLine += chalk.cyan(` ${arrow}${diff.depthChange}`);
+      let depthLine: string;
+      if (diff?.previousDepth) {
+        depthLine = chalk.white("深さ: ") + chalk.gray(diff.previousDepth) + chalk.white(" → ") + chalk.bold.white(eq.depth);
+      } else {
+        depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
       }
       console.log(frameLine(level, depthLine, width));
     }

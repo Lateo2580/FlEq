@@ -2,12 +2,12 @@ import { ParsedEewInfo } from "../types";
 
 /** EEW 更新時の差分情報 */
 export interface EewDiff {
-  /** マグニチュード変化 ("+0.3" or "-0.2") */
-  magnitudeChange?: string;
-  /** 深さ変化 ("+10km" or "-5km") */
-  depthChange?: string;
-  /** 最大予測震度変化 ("4→5弱") */
-  maxIntChange?: string;
+  /** マグニチュード変化 (前の値) */
+  previousMagnitude?: string;
+  /** 深さ変化 (前の値) */
+  previousDepth?: string;
+  /** 最大予測震度変化 (前の値) */
+  previousMaxInt?: string;
   /** 震源地名が変わったか */
   hypocenterChange?: boolean;
 }
@@ -86,8 +86,7 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
     const prevMag = parseFloat(prev.earthquake.magnitude);
     const currMag = parseFloat(curr.earthquake.magnitude);
     if (!isNaN(prevMag) && !isNaN(currMag) && prevMag !== currMag) {
-      const delta = currMag - prevMag;
-      diff.magnitudeChange = (delta > 0 ? "+" : "") + delta.toFixed(1);
+      diff.previousMagnitude = prev.earthquake.magnitude;
       hasDiff = true;
     }
   }
@@ -97,8 +96,7 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
     const prevD = parseDepthKm(prev.earthquake.depth);
     const currD = parseDepthKm(curr.earthquake.depth);
     if (prevD != null && currD != null && prevD !== currD) {
-      const delta = currD - prevD;
-      diff.depthChange = (delta > 0 ? "+" : "") + delta + "km";
+      diff.previousDepth = prev.earthquake.depth;
       hasDiff = true;
     }
   }
@@ -108,7 +106,7 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
     const prevMax = getMaxForecastIntensity(prev.forecastIntensity.areas);
     const currMax = getMaxForecastIntensity(curr.forecastIntensity.areas);
     if (prevMax && currMax && prevMax !== currMax) {
-      diff.maxIntChange = `${prevMax}→${currMax}`;
+      diff.previousMaxInt = prevMax;
       hasDiff = true;
     }
   }

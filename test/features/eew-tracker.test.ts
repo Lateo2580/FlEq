@@ -179,7 +179,7 @@ describe("EewTracker", () => {
       const result = tracker.update(info2);
 
       expect(result.diff).toBeDefined();
-      expect(result.diff!.magnitudeChange).toBe("+0.3");
+      expect(result.diff!.previousMagnitude).toBe("5.0");
     });
 
     it("深さ変化を検出する", () => {
@@ -212,7 +212,7 @@ describe("EewTracker", () => {
       const result = tracker.update(info2);
 
       expect(result.diff).toBeDefined();
-      expect(result.diff!.depthChange).toBe("-10km");
+      expect(result.diff!.previousDepth).toBe("40km");
     });
 
     it("震源地名変更を検出する", () => {

@@ -471,12 +471,13 @@ describe("displayEewInfo", () => {
     const info = parseEewTelegram(msg);
     expect(info).not.toBeNull();
 
-    const diff: EewDiff = { magnitudeChange: "+0.3" };
+    const diff: EewDiff = { previousMagnitude: "6.2" };
     displayEewInfo(info!, { activeCount: 1, diff });
 
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
 
-    expect(output).toContain("+0.3");
+    expect(output).toContain("M6.2");
+    expect(output).toContain("→");
   });
 });
 

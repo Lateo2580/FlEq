@@ -104,7 +104,7 @@ describe("EewEventLogger", () => {
       });
       const result2 = createUpdateResult({
         isNew: false,
-        diff: { magnitudeChange: "+0.3", depthChange: "-5km" },
+        diff: { previousMagnitude: "4.2", previousDepth: "40km" },
       });
       logger.logReport(info2, result2);
       await logger.flush();
@@ -115,8 +115,8 @@ describe("EewEventLogger", () => {
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
       expect(content).toContain("第1報 (予報)");
       expect(content).toContain("第2報 (予報)");
-      expect(content).toContain("M+0.3");
-      expect(content).toContain("深さ-5km");
+      expect(content).toContain("M4.2→M4.5");
+      expect(content).toContain("40km→35km");
     });
 
     it("警報を正しく記録する", async () => {
