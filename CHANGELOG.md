@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.7.0](https://github.com/Lateo2580/FlEq/compare/v1.6.0...v1.7.0) (2026-02-22)
+
+
+### 機能追加
+
+* EEW差分表記を「前の値 → 新しい値」形式に変更 ([cb662d6](https://github.com/Lateo2580/FlEq/commit/cb662d6c648915a7e40947812bbb3a545d0430f7))
+
 ## [1.6.0](https://github.com/Lateo2580/FlEq/compare/v1.5.0...v1.6.0) (2026-02-22)
 
 
