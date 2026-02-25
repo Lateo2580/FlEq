@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.7.1](https://github.com/Lateo2580/FlEq/compare/v1.7.0...v1.7.1) (2026-02-25)
+
+
+### バグ修正
+
+* 再接続時に自分の旧接続だけを閉じるように改善 ([ceae4dd](https://github.com/Lateo2580/FlEq/commit/ceae4ddc1d22941a0609790b196d5f8a0e14ff43))
+
 ## [1.7.0](https://github.com/Lateo2580/FlEq/compare/v1.6.0...v1.7.0) (2026-02-22)
 
 
