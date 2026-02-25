@@ -195,9 +195,11 @@ export async function startSocket(
 
 /** 既存のオープン接続をすべて閉じてから Socket Start する */
 export async function prepareAndStartSocket(
-  config: AppConfig
+  config: AppConfig,
+  previousSocketId?: number
 ): Promise<SocketStartResponse> {
   if (!config.keepExistingConnections) {
+    // 既存動作: 全オープンソケットを閉じる
     try {
       const list = await listSockets(config.apiKey);
       const openSockets = list.items.filter((s) => s.status === "open");
@@ -209,6 +211,15 @@ export async function prepareAndStartSocket(
     } catch (err) {
       log.warn(
         `既存ソケット確認中にエラー: ${err instanceof Error ? err.message : err}`
+      );
+    }
+  } else if (previousSocketId != null) {
+    // 自分の旧接続だけを閉じる
+    try {
+      await closeSocket(config.apiKey, previousSocketId);
+    } catch (err) {
+      log.warn(
+        `旧ソケット(id=${previousSocketId})のクローズに失敗: ${err instanceof Error ? err.message : err}`
       );
     }
   }

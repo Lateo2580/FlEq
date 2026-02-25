@@ -51,6 +51,7 @@ export class WebSocketManager {
   private lastPingId: string | null = null;
   private shouldRun = true;
   private socketId: number | null = null;
+  private previousSocketId: number | null = null;
 
   constructor(config: AppConfig, events: WsManagerEvents) {
     this.config = config;
@@ -100,7 +101,7 @@ export class WebSocketManager {
   private async doConnect(): Promise<void> {
     try {
       log.info("Socket Start を実行中...");
-      const startRes = await prepareAndStartSocket(this.config);
+      const startRes = await prepareAndStartSocket(this.config, this.previousSocketId ?? undefined);
 
       if (!startRes.websocket) {
         throw new Error("WebSocket URL が取得できませんでした");
@@ -113,6 +114,7 @@ export class WebSocketManager {
 
       this.ws.on("open", () => {
         this.reconnectAttempt = 0;
+        this.previousSocketId = null;
         log.info("WebSocket 接続成功");
         this.resetHeartbeat();
         this.events.onConnected();
@@ -129,6 +131,7 @@ export class WebSocketManager {
         log.warn(`WebSocket 切断: ${reasonStr}`);
         this.clearTimers();
         this.ws = null;
+        this.previousSocketId = this.socketId;
         this.socketId = null;
         this.events.onDisconnected(reasonStr);
         this.scheduleReconnect();
@@ -145,6 +148,7 @@ export class WebSocketManager {
           }
           this.clearTimers();
           this.ws = null;
+          this.previousSocketId = this.socketId;
           this.socketId = null;
           this.events.onDisconnected(`error: ${err.message}`);
           this.scheduleReconnect();
