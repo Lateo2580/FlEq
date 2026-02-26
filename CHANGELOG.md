@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.9.0](https://github.com/Lateo2580/FlEq/compare/v1.8.0...v1.9.0) (2026-02-26)
+
+
+### 機能追加
+
+* EEWで主要動到達と推測される地域をリスト表示 ([9d7a5fb](https://github.com/Lateo2580/FlEq/commit/9d7a5fb613db9bd323504baf831e806d7bc767c4))
+
 ## [1.8.0](https://github.com/Lateo2580/FlEq/compare/v1.7.1...v1.8.0) (2026-02-26)
 
 
