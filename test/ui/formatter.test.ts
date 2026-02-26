@@ -425,6 +425,9 @@ describe("displayEewInfo", () => {
     expect(output).toContain("[PLUM]");
     // 既到達マーカー
     expect(output).toContain("[到達]");
+    // 主要動到達と推測される地域リスト
+    expect(output).toContain("既に主要動到達と推測:");
+    expect(output).toContain("富山県東部");
     // 仮定震源要素ではM・深さを表示しない
     expect(output).not.toContain("M1.0");
     expect(output).not.toContain("規模:");
@@ -455,6 +458,9 @@ describe("displayEewInfo", () => {
     expect(output).toContain("[PLUM]");
     // 既到達マーカー
     expect(output).toContain("[到達]");
+    // 主要動到達と推測される地域リスト
+    expect(output).toContain("既に主要動到達と推測:");
+    expect(output).toContain("富山県西部");
   });
 
   it("EEW差分情報: マグニチュード変化が表示される", () => {

@@ -612,6 +612,19 @@ export function displayEewInfo(
     }
   }
 
+  // 主要動到達と推測される地域
+  if (info.forecastIntensity) {
+    const arrivedAreas = info.forecastIntensity.areas.filter((a) => a.hasArrived);
+    if (arrivedAreas.length > 0) {
+      console.log(frameDivider(level, width));
+      console.log(frameLine(level, chalk.red("既に主要動到達と推測:"), width));
+      const names = arrivedAreas.map((a) => a.name).join("、");
+      for (const line of wrapFrameLines(level, chalk.red(names), width)) {
+        console.log(line);
+      }
+    }
+  }
+
   // 最終報
   if (info.nextAdvisory) {
     console.log(frameDivider(level, width));
