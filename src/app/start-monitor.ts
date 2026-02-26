@@ -7,7 +7,7 @@ import * as log from "../logger";
 
 export async function startMonitor(config: AppConfig): Promise<void> {
   let replHandler: ReplHandler | null = null;
-  const { handler: handleData, eewLogger } = createMessageHandler();
+  const { handler: handleData, eewLogger, notifier } = createMessageHandler();
 
   const manager = new WebSocketManager(config, {
     onData: (msg) => {
@@ -35,7 +35,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   });
 
   // REPL ハンドラ
-  replHandler = new ReplHandler(config, manager);
+  replHandler = new ReplHandler(config, manager, notifier);
 
   // グレースフルシャットダウン
   const shutdown = () => {

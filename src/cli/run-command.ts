@@ -88,6 +88,7 @@ export async function runMonitor(opts: {
       fileConfig.keepExistingConnections ??
       DEFAULT_CONFIG.keepExistingConnections,
     tableWidth: fileConfig.tableWidth ?? DEFAULT_CONFIG.tableWidth,
+    notify: { ...DEFAULT_CONFIG.notify, ...fileConfig.notify },
   };
 
   // 契約状況チェック

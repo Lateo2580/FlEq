@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { ConfigFile, Classification } from "./types";
+import { ConfigFile, Classification, NotifyCategory } from "./types";
 import * as log from "./logger";
 
 /** 設定エラー */
@@ -50,6 +50,16 @@ export const VALID_CLASSIFICATIONS: Classification[] = [
 
 /** 有効なテストモード */
 const VALID_TEST_MODES = ["no", "including", "only"] as const;
+
+/** 有効な通知カテゴリ */
+const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
+  "eew",
+  "earthquake",
+  "tsunami",
+  "seismicText",
+  "nankaiTrough",
+  "lgObservation",
+];
 
 /** 設定可能なキーと説明 */
 const CONFIG_KEYS: Record<string, string> = {
@@ -148,6 +158,22 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
 
   if (typeof raw.tableWidth === "number" && raw.tableWidth >= 40 && raw.tableWidth <= 200) {
     config.tableWidth = raw.tableWidth;
+  }
+
+  if (typeof raw.notify === "object" && raw.notify != null && !Array.isArray(raw.notify)) {
+    const notifyRaw = raw.notify as Record<string, unknown>;
+    const notify: Partial<Record<NotifyCategory, boolean>> = {};
+    for (const [key, val] of Object.entries(notifyRaw)) {
+      if (
+        VALID_NOTIFY_CATEGORIES.includes(key as NotifyCategory) &&
+        typeof val === "boolean"
+      ) {
+        notify[key as NotifyCategory] = val;
+      }
+    }
+    if (Object.keys(notify).length > 0) {
+      config.notify = notify;
+    }
   }
 
   return config;

@@ -18,17 +18,20 @@ import {
 } from "../ui/formatter";
 import { EewTracker } from "../features/eew-tracker";
 import { EewEventLogger } from "../features/eew-logger";
+import { Notifier } from "../features/notifier";
 import * as log from "../logger";
 
 /** createMessageHandler の戻り値 */
 export interface MessageHandlerResult {
   handler: (msg: WsDataMessage) => void;
   eewLogger: EewEventLogger;
+  notifier: Notifier;
 }
 
 /** 受信データのハンドリング */
 export function createMessageHandler(): MessageHandlerResult {
   const eewLogger = new EewEventLogger();
+  const notifier = new Notifier();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -78,6 +81,7 @@ export function createMessageHandler(): MessageHandlerResult {
           activeCount: result.activeCount,
           diff: result.diff,
         });
+        notifier.notifyEew(eewInfo, result);
       } else {
         displayRawHeader(msg);
       }
@@ -91,6 +95,7 @@ export function createMessageHandler(): MessageHandlerResult {
         const textInfo = parseSeismicTextTelegram(msg);
         if (textInfo) {
           displaySeismicTextInfo(textInfo);
+          notifier.notifySeismicText(textInfo);
         } else {
           displayRawHeader(msg);
         }
@@ -102,6 +107,7 @@ export function createMessageHandler(): MessageHandlerResult {
         const lgInfo = parseLgObservationTelegram(msg);
         if (lgInfo) {
           displayLgObservationInfo(lgInfo);
+          notifier.notifyLgObservation(lgInfo);
         } else {
           displayRawHeader(msg);
         }
@@ -113,6 +119,7 @@ export function createMessageHandler(): MessageHandlerResult {
         const eqInfo = parseEarthquakeTelegram(msg);
         if (eqInfo) {
           displayEarthquakeInfo(eqInfo);
+          notifier.notifyEarthquake(eqInfo);
         } else {
           displayRawHeader(msg);
         }
@@ -124,6 +131,7 @@ export function createMessageHandler(): MessageHandlerResult {
         const tsunamiInfo = parseTsunamiTelegram(msg);
         if (tsunamiInfo) {
           displayTsunamiInfo(tsunamiInfo);
+          notifier.notifyTsunami(tsunamiInfo);
         } else {
           displayRawHeader(msg);
         }
@@ -135,6 +143,7 @@ export function createMessageHandler(): MessageHandlerResult {
         const nankaiInfo = parseNankaiTroughTelegram(msg);
         if (nankaiInfo) {
           displayNankaiTroughInfo(nankaiInfo);
+          notifier.notifyNankaiTrough(nankaiInfo);
         } else {
           displayRawHeader(msg);
         }
@@ -146,5 +155,5 @@ export function createMessageHandler(): MessageHandlerResult {
     displayRawHeader(msg);
   };
 
-  return { handler, eewLogger };
+  return { handler, eewLogger, notifier };
 }

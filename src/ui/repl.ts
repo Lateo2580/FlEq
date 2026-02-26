@@ -1,9 +1,10 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig } from "../types";
+import { AppConfig, NotifyCategory } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { printConfig } from "../config";
+import { Notifier, NOTIFY_CATEGORY_LABELS } from "../features/notifier";
 import {
   formatElapsedTime,
   intensityColor,
@@ -62,6 +63,7 @@ class StatusLine {
 export class ReplHandler {
   private config: AppConfig;
   private wsManager: WebSocketManager;
+  private notifier: Notifier;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
   private stopping = false;
@@ -69,9 +71,10 @@ export class ReplHandler {
   private statusTimer: NodeJS.Timeout | null = null;
   private commandRunning = false;
 
-  constructor(config: AppConfig, wsManager: WebSocketManager) {
+  constructor(config: AppConfig, wsManager: WebSocketManager, notifier: Notifier) {
     this.config = config;
     this.wsManager = wsManager;
+    this.notifier = notifier;
     this.statusLine = new StatusLine();
 
     this.commands = {
@@ -98,6 +101,10 @@ export class ReplHandler {
       socket: {
         description: "接続中のソケット一覧を表示",
         handler: () => this.handleSocket(),
+      },
+      notify: {
+        description: "通知設定の表示・切替 (例: notify eew, notify all:on)",
+        handler: (args) => this.handleNotify(args),
       },
       quit: {
         description: "アプリケーションを終了",
@@ -378,6 +385,62 @@ export class ReplHandler {
       }
     }
     console.log();
+  }
+
+  private handleNotify(args: string): void {
+    const trimmed = args.trim();
+
+    // 引数なし → 一覧表示
+    if (trimmed.length === 0) {
+      const settings = this.notifier.getSettings();
+      console.log();
+      console.log(chalk.cyan.bold("  通知設定:"));
+      console.log();
+      for (const [cat, label] of Object.entries(NOTIFY_CATEGORY_LABELS)) {
+        const enabled = settings[cat as NotifyCategory];
+        const status = enabled
+          ? chalk.green("ON")
+          : chalk.red("OFF");
+        console.log(
+          chalk.white(`  ${cat.padEnd(14)}`) +
+            chalk.gray(`${label}  `) +
+            status
+        );
+      }
+      console.log();
+      console.log(
+        chalk.gray("  使い方: notify <category> / notify all:on / notify all:off")
+      );
+      console.log();
+      return;
+    }
+
+    // all:on / all:off
+    if (trimmed === "all:on") {
+      this.notifier.setAll(true);
+      console.log(chalk.green("  全通知を有効にしました"));
+      return;
+    }
+    if (trimmed === "all:off") {
+      this.notifier.setAll(false);
+      console.log(chalk.yellow("  全通知を無効にしました"));
+      return;
+    }
+
+    // カテゴリ指定 → トグル
+    const cat = trimmed as NotifyCategory;
+    if (!(cat in NOTIFY_CATEGORY_LABELS)) {
+      console.log(
+        chalk.yellow(`  不明なカテゴリ: ${trimmed}`) +
+          chalk.gray(` (有効: ${Object.keys(NOTIFY_CATEGORY_LABELS).join(", ")})`)
+      );
+      return;
+    }
+
+    const newState = this.notifier.toggleCategory(cat);
+    const label = NOTIFY_CATEGORY_LABELS[cat];
+    const status = newState ? chalk.green("ON") : chalk.red("OFF");
+    console.log(`  ${label} (${cat}): ${status}`);
   }
 
   private handleQuit(): void {

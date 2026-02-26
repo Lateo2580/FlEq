@@ -1,3 +1,15 @@
+/** 通知カテゴリ */
+export type NotifyCategory =
+  | "eew"
+  | "earthquake"
+  | "tsunami"
+  | "seismicText"
+  | "nankaiTrough"
+  | "lgObservation";
+
+/** 通知設定 (カテゴリごとの ON/OFF) */
+export type NotifySettings = Record<NotifyCategory, boolean>;
+
 /** dmdata.jp API の分類区分 */
 export type Classification =
   | "telegram.earthquake" // 地震・津波関連
@@ -20,6 +32,8 @@ export interface AppConfig {
   keepExistingConnections: boolean;
   /** テーブル表示幅 */
   tableWidth: number;
+  /** 通知設定 */
+  notify: NotifySettings;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -31,6 +45,7 @@ export interface ConfigFile {
   maxReconnectDelaySec?: number;
   keepExistingConnections?: boolean;
   tableWidth?: number;
+  notify?: Partial<NotifySettings>;
 }
 
 /** デフォルト設定 */
@@ -41,6 +56,14 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   maxReconnectDelaySec: 60,
   keepExistingConnections: false,
   tableWidth: 60,
+  notify: {
+    eew: true,
+    earthquake: true,
+    tsunami: true,
+    seismicText: true,
+    nankaiTrough: true,
+    lgObservation: true,
+  },
 };
 
 // ── dmdata.jp API レスポンス型 ──
