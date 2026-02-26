@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.8.0](https://github.com/Lateo2580/FlEq/compare/v1.7.1...v1.8.0) (2026-02-26)
+
+
+### 機能追加
+
+* デスクトップ通知機能を追加 ([5affacc](https://github.com/Lateo2580/FlEq/commit/5affacc6821c03d94917fa4454df6ee4e9fd803e))
+
 ## [1.7.1](https://github.com/Lateo2580/FlEq/compare/v1.7.0...v1.7.1) (2026-02-25)
 
 
