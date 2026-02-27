@@ -483,25 +483,19 @@ export function displayEewInfo(
     console.log(frameLine(level, chalk.magenta("PLUM法") + chalk.gray(" による予測震度変化"), width));
   }
 
-  // 複数イベント同時発生の注記
+  // カード1行目: infoType + 最重要項目
   const activeCount = context?.activeCount ?? 0;
-  if (activeCount >= 2 && info.eventId) {
-    console.log(frameLine(level,
-      chalk.yellow(`同時${activeCount}件発生中`) +
-        chalk.gray(`  ${info.infoType}`),
-      width
-    ));
-  } else {
-    console.log(frameLine(level,
-      chalk.gray(info.infoType),
-      width
-    ));
-  }
-
-  // カード1行目: 最重要項目
   if (!isCancelled) {
     console.log(frameDivider(level, width));
     const cardParts: string[] = [];
+
+    // infoType (+ 同時発生注記)
+    if (activeCount >= 2 && info.eventId) {
+      cardParts.push(chalk.yellow(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`));
+    } else {
+      cardParts.push(chalk.gray(info.infoType));
+    }
+
     if (info.forecastIntensity?.areas.length) {
       const areas = info.forecastIntensity.areas;
       const maxInt = areas.reduce((best, area) =>
@@ -531,6 +525,20 @@ export function displayEewInfo(
       cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
     }
     console.log(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
+  } else {
+    // 取消時はinfoTypeのみ
+    if (activeCount >= 2 && info.eventId) {
+      console.log(frameLine(level,
+        chalk.yellow(`同時${activeCount}件発生中`) +
+          chalk.gray(`  ${info.infoType}`),
+        width
+      ));
+    } else {
+      console.log(frameLine(level,
+        chalk.gray(info.infoType),
+        width
+      ));
+    }
   }
 
   // 震源詳細
