@@ -2,12 +2,12 @@
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
-## 現在の状態（2026-02-19 時点）
+## 現在の状態（2026-02-27 時点）
 
-- バージョン: `1.2.0`
+- バージョン: `1.9.0`
 - デフォルトブランチ: `main`
-- テスト: 10ファイル / 209テスト（`npm test` で全件成功）
-- XMLフィクスチャ: `test/fixtures/*.xml` に 45件
+- テスト: 10ファイル / 237テスト（`npm test` で全件成功）
+- XMLフィクスチャ: `test/fixtures/` に 62件
 
 ## 対応情報
 
@@ -94,8 +94,8 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 10件（計209テスト）
-- フィクスチャ: `test/fixtures/` に実電文XML 45件
+- テストファイル: 10件（計237テスト）
+- フィクスチャ: `test/fixtures/` に実電文XML 62件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
 ## CLIオプション
@@ -140,6 +140,7 @@ npm start -- config keys
 | `appName` | アプリケーション名 |
 | `maxReconnectDelaySec` | 再接続の最大待機秒数 |
 | `keepExistingConnections` | 既存のWebSocket接続を維持するか (`true` / `false`) |
+| `tableWidth` | テーブル表示幅 (40〜200、デフォルト: 60) |
 
 設定の優先順位（高い順）:
 
@@ -165,6 +166,9 @@ npm start -- config keys
 | `config` | 現在の設定を表示 |
 | `contract` | 契約区分一覧を表示 |
 | `socket` | 接続中のソケット一覧を表示 |
+| `notify` | 通知カテゴリのON/OFF状態を表示 |
+| `notify <category>` | 指定カテゴリの通知をトグル |
+| `notify all:on` / `all:off` | 全カテゴリの通知を一括ON/OFF |
 | `quit` / `exit` | アプリケーションを終了 |
 
 ## CLIバイナリとnpm scripts
@@ -195,8 +199,9 @@ src/
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 ├── features/
-│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理)
-│   └── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
+│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
+│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
+│   └── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
     └── repl.ts                 # REPL インタラクション
@@ -218,6 +223,12 @@ src/
 | `VTSE41` | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` |
 | `VTSE51` | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` |
 | `VTSE52` | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` |
+| `VZSE40` | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` |
+| `VXSE62` | `telegram.earthquake` | `parseLgObservationTelegram` | `displayLgObservationInfo` |
+| `VYSE50` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
+| `VYSE51` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
+| `VYSE52` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
+| `VYSE60` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
 
 ## 主な機能
 
@@ -228,7 +239,15 @@ src/
 - 緊急地震速報（警報/予報）の視覚的な強調表示
 - PLUM法・仮定震源要素・既到達の検出と視覚的表示
 - EEWイベントの同時追跡（EventID単位、重複報スキップ、取消対応）
-- EEWイベントのログファイル記録（イベント別ファイル出力）
+- EEWイベントのログファイル記録（イベント別ファイル出力、差分表記対応）
+- EEW最終報（NextAdvisory）の検出とログ・トラッカー自動終了
+- EEW差分表記（前の値 → 新しい値 形式）
+- テーブル幅設定（40〜200）とテキスト折り返し機能
+- 南海トラフ地震関連情報（VYSE50-52/VYSE60）の表示
+- 長周期地震動に関する観測情報（VXSE62）の表示
+- 地震活動に関する情報（VZSE40）の表示
+- EEWで主要動到達と推測される地域のリスト表示
+- デスクトップ通知機能（カテゴリ別ON/OFF、REPLで管理）
 - 指数バックオフによる自動再接続
 - ping-pongによる接続維持
 - ハートビート監視（90秒）

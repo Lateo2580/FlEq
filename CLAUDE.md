@@ -24,6 +24,7 @@ npm test             # vitest でテスト実行
 - fast-xml-parser — XML電文パース
 - chalk ^4 (CommonJS版) — ターミナル色付け
 - dotenv — 環境変数読み込み
+- node-notifier — デスクトップ通知
 
 ## ディレクトリ構成
 
@@ -44,18 +45,29 @@ src/
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 ├── features/
-│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理)
+│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
+│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
+│   └── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
     └── repl.ts                 # REPL インタラクション
 
 test/
+├── app/
+│   └── message-router.test.ts
+├── cli/
+│   └── run-command.test.ts
+├── config.test.ts
 ├── dmdata/
-│   └── telegram-parser.test.ts
+│   ├── rest-client.test.ts
+│   ├── telegram-parser.test.ts
+│   └── ws-client.test.ts
 ├── features/
+│   ├── eew-logger.test.ts
 │   └── eew-tracker.test.ts
 ├── ui/
-│   └── formatter.test.ts
+│   ├── formatter.test.ts
+│   └── repl.test.ts
 ├── fixtures/                   # XMLテストフィクスチャ
 └── helpers/
     └── mock-message.ts
@@ -71,15 +83,18 @@ index.ts (bootstrap) → cli/build-command.ts (Commander定義)
         → dmdata/telegram-parser.ts (XML解析)
         → ui/formatter.ts (色付き表示)
         → features/eew-tracker.ts (EEW追跡)
+        → features/eew-logger.ts (EEWログ記録)
+        → features/notifier.ts (デスクトップ通知)
 ```
 
 - `cli/` — CLI定義と設定解決を担当、ランタイムロジックを持たない
 - `app/` — アプリケーションのオーケストレーションとメッセージルーティング
 - `dmdata/` — dmdata.jp との通信層 (REST, WebSocket, 電文パース)
-- `features/` — ドメイン固有の機能 (EEW追跡)
+- `features/` — ドメイン固有の機能 (EEW追跡・ログ記録・デスクトップ通知)
 - `ui/` — ユーザーインターフェース (ターミナル表示, REPL)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック
+- `createMessageHandler()` は `{ handler, eewLogger, notifier }` を返す
 
 ## 電文タイプとルーティング
 
@@ -96,26 +111,36 @@ index.ts (bootstrap) → cli/build-command.ts (Commander定義)
 | VXSE56 | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` | `ParsedSeismicTextInfo` |
 | VXSE60 | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` | `ParsedSeismicTextInfo` |
 | VXSE61 | `telegram.earthquake` | `parseEarthquakeTelegram` | `displayEarthquakeInfo` | `ParsedEarthquakeInfo` |
+| VXSE62 | `telegram.earthquake` | `parseLgObservationTelegram` | `displayLgObservationInfo` | `ParsedLgObservationInfo` |
 | VTSE41 | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` | `ParsedTsunamiInfo` |
 | VTSE51 | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` | `ParsedTsunamiInfo` |
 | VTSE52 | `telegram.earthquake` | `parseTsunamiTelegram` | `displayTsunamiInfo` | `ParsedTsunamiInfo` |
+| VZSE40 | `telegram.earthquake` | `parseSeismicTextTelegram` | `displaySeismicTextInfo` | `ParsedSeismicTextInfo` |
+| VYSE50 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
+| VYSE51 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
+| VYSE52 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
+| VYSE60 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
 
 ### ルーティング優先順位 (message-router.ts)
 
-1. `eew.forecast` / `eew.warning` → EEW パス (EewTracker で重複検出)
-2. `telegram.earthquake` + `VXSE56`/`VXSE60` → テキスト系パス
-3. `telegram.earthquake` + `VXSE*` → 地震情報パス
-4. `telegram.earthquake` + `VTSE*` → 津波情報パス
-5. それ以外 → `displayRawHeader` (フォールバック)
+1. `eew.forecast` / `eew.warning` → EEW パス (EewTracker で重複検出、EewEventLogger でログ記録)
+2. `telegram.earthquake` + `VXSE56`/`VXSE60`/`VZSE40` → テキスト系パス
+3. `telegram.earthquake` + `VXSE62` → 長周期地震動観測情報パス
+4. `telegram.earthquake` + `VXSE*` → 地震情報パス
+5. `telegram.earthquake` + `VTSE*` → 津波情報パス
+6. `telegram.earthquake` + `VYSE*` → 南海トラフ地震関連情報パス
+7. それ以外 → `displayRawHeader` (フォールバック)
 
 ### フレームレベル判定 (formatter.ts)
 
 表示フレームは `FrameLevel` (`critical` / `warning` / `normal` / `info` / `cancel`) で切り替わる。
 
 - **地震情報**: 震度6弱以上→critical、震度4以上→warning、取消→cancel、その他→normal
-- **EEW**: 警報→critical、取消→cancel、予報→warning
+- **EEW**: 警報→critical、取消→cancel、予報→warning、最終報→NextAdvisory検出でログ終了・トラッカー終了
 - **津波情報**: 大津波警報→critical、津波警報→warning、取消→cancel、その他→normal
 - **テキスト情報**: 取消→cancel、その他→info
+- **南海トラフ情報**: コード120→critical、コード130/111-113/210-219→warning、コード190/200→info
+- **長周期地震動観測**: LgInt4→critical、LgInt3→warning、LgInt2→normal、その他→info
 
 ## テスト
 
@@ -156,7 +181,9 @@ fleq config path          # Configファイルのパスを表示
 fleq config keys          # 設定可能なキー一覧を表示
 ```
 
-設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`
+設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `notify`
+
+通知設定 (`notify`) はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
 
 ## リリースフロー
 
