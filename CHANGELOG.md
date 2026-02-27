@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.9.1](https://github.com/Lateo2580/FlEq/compare/v1.9.0...v1.9.1) (2026-02-27)
+
+
+### ドキュメント
+
+* CLAUDE.mdとREADMEをv1.9.0の現状に合わせて更新 ([81b563f](https://github.com/Lateo2580/FlEq/commit/81b563fd2f6dd36662cd972aa1407184aae49b65))
+
 ## [1.9.0](https://github.com/Lateo2580/FlEq/compare/v1.8.0...v1.9.0) (2026-02-26)
 
 
