@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.9.2](https://github.com/Lateo2580/FlEq/compare/v1.9.1...v1.9.2) (2026-02-27)
+
+
+### リファクタリング
+
+* EEW表示でinfoTypeをカード行に統合 ([5a922eb](https://github.com/Lateo2580/FlEq/commit/5a922ebc20841691a0c32fe90bee08be7e93ee58))
+
 ## [1.9.1](https://github.com/Lateo2580/FlEq/compare/v1.9.0...v1.9.1) (2026-02-27)
 
 
