@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.0](https://github.com/Lateo2580/FlEq/compare/v1.9.2...v1.10.0) (2026-02-28)
+
+
+### 機能追加
+
+* REPLにtablewidthコマンドを追加 ([0e67615](https://github.com/Lateo2580/FlEq/commit/0e676150672854d1056159e30b0e9aef2a7c87d8))
+
+
+### バグ修正
+
+* buildスクリプトでdist/index.jsに実行権限を自動付与 ([91348ee](https://github.com/Lateo2580/FlEq/commit/91348ee14c8576fc39a4d432fe932266bf81d196))
+
+
+### ドキュメント
+
+* 電文タイプ別表示リファレンスを追加 ([8acf0e2](https://github.com/Lateo2580/FlEq/commit/8acf0e27323019ba4dcee74f957548164f00d7ce))
+
 ## [1.9.3](https://github.com/Lateo2580/FlEq/compare/v1.9.2...v1.9.3) (2026-02-28)
 
 
