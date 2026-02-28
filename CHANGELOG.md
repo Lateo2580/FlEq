@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.11.0](https://github.com/Lateo2580/FlEq/compare/v1.10.1...v1.11.0) (2026-02-28)
+
+
+### 機能追加
+
+* EEW同時発生時のバナー色分けと震源地名表示 ([7de64d6](https://github.com/Lateo2580/FlEq/commit/7de64d6d8979b8090584817c6718bb0fddd12729))
+
 ## [1.10.1](https://github.com/Lateo2580/FlEq/compare/v1.10.0...v1.10.1) (2026-02-28)
 
 
