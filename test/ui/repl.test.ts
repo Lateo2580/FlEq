@@ -26,6 +26,8 @@ vi.mock("../../src/dmdata/rest-client", () => ({
 
 vi.mock("../../src/config", () => ({
   printConfig: vi.fn(),
+  loadConfig: vi.fn(() => ({})),
+  saveConfig: vi.fn(),
 }));
 
 vi.mock("../../src/logger", () => ({
@@ -43,7 +45,7 @@ import {
   listContracts,
   listSockets,
 } from "../../src/dmdata/rest-client";
-import { printConfig } from "../../src/config";
+import { printConfig, loadConfig, saveConfig } from "../../src/config";
 import { AppConfig } from "../../src/types";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
@@ -58,6 +60,7 @@ function createConfig(): AppConfig {
     appName: "test-app",
     maxReconnectDelaySec: 60,
     keepExistingConnections: false,
+    tableWidth: 60,
   };
 }
 
@@ -332,6 +335,92 @@ describe("ReplHandler", () => {
       expect(output).toContain("history");
       expect(output).toContain("status");
       expect(output).toContain("quit");
+
+      handler.stop();
+    });
+  });
+
+  describe("tablewidth コマンド", () => {
+    const mockLoadConfig = vi.mocked(loadConfig);
+    const mockSaveConfig = vi.mocked(saveConfig);
+
+    it("引数なしで現在のテーブル幅を表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+
+      simulateLine("tablewidth");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("現在のテーブル幅: 60");
+
+      handler.stop();
+    });
+
+    it("有効な数値でテーブル幅を変更・永続化する", () => {
+      mockLoadConfig.mockReturnValue({});
+
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+
+      simulateLine("tablewidth 100");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("テーブル幅を 100 に変更しました");
+      expect(mockSaveConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ tableWidth: 100 })
+      );
+
+      handler.stop();
+    });
+
+    it("範囲外の数値でエラーを表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+
+      simulateLine("tablewidth 10");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("40〜200");
+
+      handler.stop();
+    });
+
+    it("数値でない引数でエラーを表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+
+      simulateLine("tablewidth abc");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("40〜200");
+
+      handler.stop();
+    });
+
+    it("境界値40が受け入れられる", () => {
+      mockLoadConfig.mockReturnValue({});
+
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+
+      simulateLine("tablewidth 40");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("テーブル幅を 40 に変更しました");
+
+      handler.stop();
+    });
+
+    it("境界値200が受け入れられる", () => {
+      mockLoadConfig.mockReturnValue({});
+
+      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      handler.start();
+
+      simulateLine("tablewidth 200");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("テーブル幅を 200 に変更しました");
 
       handler.stop();
     });

@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { AppConfig, NotifyCategory } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
-import { printConfig } from "../config";
+import { loadConfig, saveConfig, printConfig } from "../config";
 import { Notifier, NOTIFY_CATEGORY_LABELS } from "../features/notifier";
 import {
   formatElapsedTime,
@@ -105,6 +105,10 @@ export class ReplHandler {
       notify: {
         description: "通知設定の表示・切替 (例: notify eew, notify all:on)",
         handler: (args) => this.handleNotify(args),
+      },
+      tablewidth: {
+        description: "テーブル幅の表示・変更 (例: tablewidth 80)",
+        handler: (args) => this.handleTableWidth(args),
       },
       quit: {
         description: "アプリケーションを終了",
@@ -441,6 +445,28 @@ export class ReplHandler {
     const label = NOTIFY_CATEGORY_LABELS[cat];
     const status = newState ? chalk.green("ON") : chalk.red("OFF");
     console.log(`  ${label} (${cat}): ${status}`);
+  }
+
+  private handleTableWidth(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      console.log(`  現在のテーブル幅: ${this.config.tableWidth ?? "(未設定)"}`);
+      console.log(chalk.gray("  使い方: tablewidth <40〜200>"));
+      return;
+    }
+
+    const width = Number(trimmed);
+    if (isNaN(width) || !Number.isInteger(width) || width < 40 || width > 200) {
+      console.log(chalk.yellow("  tableWidth は 40〜200 の整数を指定してください。"));
+      return;
+    }
+
+    this.config.tableWidth = width;
+    const config = loadConfig();
+    config.tableWidth = width;
+    saveConfig(config);
+    console.log(`  テーブル幅を ${width} に変更しました。`);
   }
 
   private handleQuit(): void {
