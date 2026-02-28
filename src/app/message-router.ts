@@ -80,6 +80,7 @@ export function createMessageHandler(): MessageHandlerResult {
         displayEewInfo(eewInfo, {
           activeCount: result.activeCount,
           diff: result.diff,
+          colorIndex: result.colorIndex,
         });
         notifier.notifyEew(eewInfo, result);
       } else {

@@ -485,6 +485,106 @@ describe("displayEewInfo", () => {
     expect(output).toContain("M6.2");
     expect(output).toContain("→");
   });
+
+  it("colorIndex=0 のバナーはデフォルト色で表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE44",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    expect(output).toContain("緊急地震速報（予報）");
+  });
+
+  it("colorIndex=1 のバナーは異なる色で表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE44",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    // colorIndex=0 で取得
+    displayEewInfo(info!, { activeCount: 2, colorIndex: 0 });
+    const output0 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    logSpy.mockClear();
+
+    // colorIndex=1 で取得
+    displayEewInfo(info!, { activeCount: 2, colorIndex: 1 });
+    const output1 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // 両方とも表示されるが、バナー行のANSIエスケープが異なる
+    expect(output0).toContain("緊急地震速報（予報）");
+    expect(output1).toContain("緊急地震速報（予報）");
+    // バナー部分の色が異なることを確認（最初のログ行 = バナー空行）
+    const banner0FirstLine = logSpy.mock.calls[0]?.[0];
+    expect(output0).not.toBe(output1);
+  });
+
+  it("バナーに震源地名が含まれる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE44",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+    // このフィクスチャには震源地名が含まれているはず
+    if (info!.earthquake?.hypocenterName) {
+      displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
+
+      const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+      // バナーに震源地名が含まれている
+      expect(output).toContain(info!.earthquake.hypocenterName);
+    }
+  });
+
+  it("警報バナーも colorIndex で色分けされる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
+      classification: "eew.warning",
+      head: {
+        type: "VXSE43",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!, { activeCount: 2, colorIndex: 0 });
+    const output0 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    logSpy.mockClear();
+
+    displayEewInfo(info!, { activeCount: 2, colorIndex: 1 });
+    const output1 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    expect(output0).toContain("緊急地震速報（警報）");
+    expect(output1).toContain("緊急地震速報（警報）");
+    expect(output0).not.toBe(output1);
+  });
 });
 
 describe("displayTsunamiInfo", () => {

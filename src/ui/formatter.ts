@@ -428,6 +428,32 @@ export interface EewDisplayContext {
   activeCount: number;
   /** 前回との差分情報 */
   diff?: EewDiff;
+  /** バナー色分け用のカラーインデックス (0始まり) */
+  colorIndex?: number;
+}
+
+/** EEW バナー色パレット (警報: 赤系バリエーション) */
+const EEW_WARNING_BANNER_PALETTE: chalk.Chalk[] = [
+  chalk.bgRed.white.bold,                        // 赤 (デフォルト)
+  chalk.bgRgb(200, 0, 60).white.bold,            // クリムゾン
+  chalk.bgRgb(220, 80, 0).white.bold,            // 朱色
+  chalk.bgRgb(180, 0, 120).white.bold,           // ローズ
+  chalk.bgRgb(160, 40, 0).white.bold,            // えんじ
+];
+
+/** EEW バナー色パレット (予報: 黄系バリエーション) */
+const EEW_FORECAST_BANNER_PALETTE: chalk.Chalk[] = [
+  chalk.bgYellow.black.bold,                     // 黄色 (デフォルト)
+  chalk.bgRgb(255, 180, 0).black.bold,           // 琥珀色
+  chalk.bgRgb(255, 140, 0).black.bold,           // ダークオレンジ
+  chalk.bgRgb(240, 210, 60).black.bold,          // 山吹色
+  chalk.bgRgb(255, 160, 60).black.bold,          // みかん色
+];
+
+/** colorIndex からバナースタイルを取得 */
+function getEewBannerStyle(isWarning: boolean, colorIndex: number): chalk.Chalk {
+  const palette = isWarning ? EEW_WARNING_BANNER_PALETTE : EEW_FORECAST_BANNER_PALETTE;
+  return palette[colorIndex % palette.length];
 }
 
 /** EEW のフレームレベルを決定 */
@@ -452,22 +478,21 @@ export function displayEewInfo(
   // バナー (警報/予報/取消のヘッダー)
   const bannerWidth = width;
   const serialTag = info.serial ? ` #${info.serial}` : "";
+  const hypocenterTag = info.earthquake?.hypocenterName ? ` ${info.earthquake.hypocenterName}` : "";
+  const colorIndex = context?.colorIndex ?? 0;
 
   if (isCancelled) {
-    const bannerText = ` 緊急地震速報 取消${serialTag}`;
+    const bannerText = ` 緊急地震速報 取消${serialTag}${hypocenterTag}`;
     console.log(chalk.bgGreen.black.bold(" ".repeat(bannerWidth)));
     console.log(chalk.bgGreen.black.bold(visualPadEnd(bannerText, bannerWidth)));
     console.log(chalk.bgGreen.black.bold(" ".repeat(bannerWidth)));
-  } else if (info.isWarning) {
-    const bannerText = ` 緊急地震速報（警報）${serialTag}`;
-    console.log(chalk.bgRed.white.bold(" ".repeat(bannerWidth)));
-    console.log(chalk.bgRed.white.bold(visualPadEnd(bannerText, bannerWidth)));
-    console.log(chalk.bgRed.white.bold(" ".repeat(bannerWidth)));
   } else {
-    const bannerText = ` 緊急地震速報（予報）${serialTag}`;
-    console.log(chalk.bgYellow.black.bold(" ".repeat(bannerWidth)));
-    console.log(chalk.bgYellow.black.bold(visualPadEnd(bannerText, bannerWidth)));
-    console.log(chalk.bgYellow.black.bold(" ".repeat(bannerWidth)));
+    const bannerStyle = getEewBannerStyle(info.isWarning, colorIndex);
+    const typeLabel = info.isWarning ? "警報" : "予報";
+    const bannerText = ` 緊急地震速報（${typeLabel}）${serialTag}${hypocenterTag}`;
+    console.log(bannerStyle(" ".repeat(bannerWidth)));
+    console.log(bannerStyle(visualPadEnd(bannerText, bannerWidth)));
+    console.log(bannerStyle(" ".repeat(bannerWidth)));
   }
 
   // フレーム開始 (テスト電文/PLUM法ラベルがある場合のみ先にframeTopを出す)

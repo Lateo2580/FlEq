@@ -148,6 +148,84 @@ describe("EewTracker", () => {
     });
   });
 
+  describe("カラーインデックス", () => {
+    it("最初のイベントは colorIndex=0", () => {
+      const result = tracker.update(
+        createEewInfo({ serial: "1", eventId: "event-001" })
+      );
+      expect(result.colorIndex).toBe(0);
+    });
+
+    it("2つ目のイベントは colorIndex=1", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
+      const result = tracker.update(
+        createEewInfo({ serial: "1", eventId: "event-002" })
+      );
+      expect(result.colorIndex).toBe(1);
+    });
+
+    it("3つ目のイベントは colorIndex=2", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-002" }));
+      const result = tracker.update(
+        createEewInfo({ serial: "1", eventId: "event-003" })
+      );
+      expect(result.colorIndex).toBe(2);
+    });
+
+    it("イベント取消後にインデックスが再利用される", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-002" }));
+
+      // event-001 を取消 → colorIndex=0 が空く
+      tracker.update(
+        createEewInfo({ serial: "2", eventId: "event-001", infoType: "取消" })
+      );
+
+      // 新規イベントは空いた 0 を再利用
+      const result = tracker.update(
+        createEewInfo({ serial: "1", eventId: "event-003" })
+      );
+      expect(result.colorIndex).toBe(0);
+    });
+
+    it("イベント finalize 後にインデックスが再利用される", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-002" }));
+
+      tracker.finalizeEvent("event-001");
+
+      const result = tracker.update(
+        createEewInfo({ serial: "1", eventId: "event-003" })
+      );
+      expect(result.colorIndex).toBe(0);
+    });
+
+    it("既存イベントの更新では同じ colorIndex が返る", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
+      const r2 = tracker.update(
+        createEewInfo({ serial: "2", eventId: "event-001" })
+      );
+      expect(r2.colorIndex).toBe(0);
+    });
+
+    it("重複報でも colorIndex が返る", () => {
+      tracker.update(createEewInfo({ serial: "5", eventId: "event-001" }));
+      const dup = tracker.update(
+        createEewInfo({ serial: "3", eventId: "event-001" })
+      );
+      expect(dup.isDuplicate).toBe(true);
+      expect(dup.colorIndex).toBe(0);
+    });
+
+    it("EventIDなしの場合は colorIndex=0", () => {
+      const result = tracker.update(
+        createEewInfo({ serial: "1", eventId: "" })
+      );
+      expect(result.colorIndex).toBe(0);
+    });
+  });
+
   describe("差分計算", () => {
     it("マグニチュード変化を検出する", () => {
       const info1 = createEewInfo({

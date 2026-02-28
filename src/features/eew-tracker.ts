@@ -23,6 +23,8 @@ interface EewEvent {
   lastUpdate: Date;
   /** 前回のパース済み EEW 情報 (差分計算用) */
   previousInfo?: ParsedEewInfo;
+  /** バナー色分け用のカラーインデックス (0始まり) */
+  colorIndex: number;
 }
 
 /** EewTracker.update() の戻り値 */
@@ -39,6 +41,8 @@ export interface EewUpdateResult {
   diff?: EewDiff;
   /** 前回の EEW 情報 */
   previousInfo?: ParsedEewInfo;
+  /** バナー色分け用のカラーインデックス (0始まり) */
+  colorIndex: number;
 }
 
 /** 古いイベントを自動削除するまでの時間 (ミリ秒) */
@@ -147,6 +151,7 @@ export class EewTracker {
         isDuplicate: false,
         isCancelled: info.infoType === "取消",
         activeCount: this.getActiveCount(),
+        colorIndex: 0,
       };
     }
 
@@ -164,6 +169,7 @@ export class EewTracker {
           isDuplicate: true,
           isCancelled: false,
           activeCount: this.getActiveCount(),
+          colorIndex: existing.colorIndex,
         };
       }
 
@@ -187,10 +193,12 @@ export class EewTracker {
         activeCount: this.getActiveCount(),
         diff,
         previousInfo,
+        colorIndex: existing.colorIndex,
       };
     }
 
     // 新規イベント
+    const colorIndex = this.nextColorIndex();
     this.events.set(eventId, {
       eventId,
       lastSerial: serial ?? 0,
@@ -199,6 +207,7 @@ export class EewTracker {
       isFinalized: false,
       lastUpdate: new Date(),
       previousInfo: info,
+      colorIndex,
     });
 
     return {
@@ -206,6 +215,7 @@ export class EewTracker {
       isDuplicate: false,
       isCancelled,
       activeCount: this.getActiveCount(),
+      colorIndex,
     };
   }
 
@@ -219,6 +229,17 @@ export class EewTracker {
     if (ev) {
       ev.isFinalized = true;
     }
+  }
+
+  /** 未使用の最小カラーインデックスを返す */
+  private nextColorIndex(): number {
+    const used = new Set<number>();
+    for (const ev of this.events.values()) {
+      if (!ev.isCancelled && !ev.isFinalized) used.add(ev.colorIndex);
+    }
+    let idx = 0;
+    while (used.has(idx)) idx++;
+    return idx;
   }
 
   /** 現在アクティブ（キャンセル・最終報済みでない）イベント数を返す */
