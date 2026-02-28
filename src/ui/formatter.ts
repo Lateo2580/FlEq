@@ -470,8 +470,11 @@ export function displayEewInfo(
     console.log(chalk.bgYellow.black.bold(" ".repeat(bannerWidth)));
   }
 
-  // フレーム開始
-  console.log(frameTop(level, width));
+  // フレーム開始 (テスト電文/PLUM法ラベルがある場合のみ先にframeTopを出す)
+  const hasPreContent = info.isTest || info.maxIntChangeReason === 9;
+  if (hasPreContent) {
+    console.log(frameTop(level, width));
+  }
 
   // テスト電文
   if (info.isTest) {
@@ -486,7 +489,7 @@ export function displayEewInfo(
   // カード1行目: infoType + 最重要項目
   const activeCount = context?.activeCount ?? 0;
   if (!isCancelled) {
-    console.log(frameDivider(level, width));
+    console.log(hasPreContent ? frameDivider(level, width) : frameTop(level, width));
     const cardParts: string[] = [];
 
     // infoType (+ 同時発生注記)
@@ -527,6 +530,9 @@ export function displayEewInfo(
     console.log(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
   } else {
     // 取消時はinfoTypeのみ
+    if (!hasPreContent) {
+      console.log(frameTop(level, width));
+    }
     if (activeCount >= 2 && info.eventId) {
       console.log(frameLine(level,
         chalk.yellow(`同時${activeCount}件発生中`) +
