@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.1](https://github.com/Lateo2580/FlEq/compare/v1.10.0...v1.10.1) (2026-02-28)
+
+
+### バグ修正
+
+* EEW表示のバナーとカード間の空きフレームを削除 ([e38681f](https://github.com/Lateo2580/FlEq/commit/e38681f61889346e72a4030891e3a7487317cee8))
+
 ## [1.10.0](https://github.com/Lateo2580/FlEq/compare/v1.9.2...v1.10.0) (2026-02-28)
 
 
