@@ -70,6 +70,7 @@ const CONFIG_KEYS: Record<string, string> = {
   maxReconnectDelaySec: "再接続の最大待機秒数",
   keepExistingConnections: "既存のWebSocket接続を維持するか (true/false)",
   tableWidth: "テーブル表示幅 (40〜200)",
+  infoFullText: "お知らせ電文の全文表示 (true/false)",
 };
 
 /** Configファイルのパスを返す */
@@ -158,6 +159,10 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
 
   if (typeof raw.tableWidth === "number" && raw.tableWidth >= 40 && raw.tableWidth <= 200) {
     config.tableWidth = raw.tableWidth;
+  }
+
+  if (typeof raw.infoFullText === "boolean") {
+    config.infoFullText = raw.infoFullText;
   }
 
   if (typeof raw.notify === "object" && raw.notify != null && !Array.isArray(raw.notify)) {
@@ -252,6 +257,14 @@ export function setConfigValue(key: string, value: string): void {
       config.tableWidth = tw;
       break;
     }
+    case "infoFullText":
+      if (value !== "true" && value !== "false") {
+        throw new ConfigError(
+          "infoFullText は true または false を指定してください。"
+        );
+      }
+      config.infoFullText = value === "true";
+      break;
   }
 
   saveConfig(config);

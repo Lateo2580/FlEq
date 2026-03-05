@@ -32,6 +32,8 @@ export interface AppConfig {
   keepExistingConnections: boolean;
   /** テーブル表示幅 */
   tableWidth: number;
+  /** お知らせ電文の全文表示 */
+  infoFullText: boolean;
   /** 通知設定 */
   notify: NotifySettings;
 }
@@ -45,6 +47,7 @@ export interface ConfigFile {
   maxReconnectDelaySec?: number;
   keepExistingConnections?: boolean;
   tableWidth?: number;
+  infoFullText?: boolean;
   notify?: Partial<NotifySettings>;
 }
 
@@ -56,6 +59,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   maxReconnectDelaySec: 60,
   keepExistingConnections: false,
   tableWidth: 60,
+  infoFullText: false,
   notify: {
     eew: true,
     earthquake: true,

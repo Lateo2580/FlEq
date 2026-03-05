@@ -149,6 +149,54 @@ export function wrapFrameLines(
   return lines;
 }
 
+/**
+ * テキストを文字単位で折り返す。CJK文字は幅2として計算。
+ * フレーム装飾は含まず、折り返し後の各行を文字列配列で返す。
+ */
+export function wrapTextLines(text: string, maxWidth: number): string[] {
+  if (maxWidth <= 0) return [text];
+  if (visualWidth(text) <= maxWidth) return [text];
+
+  const lines: string[] = [];
+  let currentLine = "";
+  let currentWidth = 0;
+
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    let charWidth = 1;
+    if (
+      (cp >= 0x1100 && cp <= 0x115F) ||
+      (cp >= 0x2E80 && cp <= 0x303E) ||
+      (cp >= 0x3041 && cp <= 0x33BF) ||
+      (cp >= 0x3400 && cp <= 0x4DBF) ||
+      (cp >= 0x4E00 && cp <= 0xA4CF) ||
+      (cp >= 0xAC00 && cp <= 0xD7AF) ||
+      (cp >= 0xF900 && cp <= 0xFAFF) ||
+      (cp >= 0xFE30 && cp <= 0xFE4F) ||
+      (cp >= 0xFF01 && cp <= 0xFF60) ||
+      (cp >= 0xFFE0 && cp <= 0xFFE6) ||
+      (cp >= 0x20000 && cp <= 0x2FA1F)
+    ) {
+      charWidth = 2;
+    }
+
+    if (currentWidth + charWidth > maxWidth) {
+      lines.push(currentLine);
+      currentLine = ch;
+      currentWidth = charWidth;
+    } else {
+      currentLine += ch;
+      currentWidth += charWidth;
+    }
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+}
+
 // ── 時刻フォーマット ──
 
 /** 絶対時刻を整形 ("YYYY-MM-DD HH:MM:SS") */
@@ -840,11 +888,17 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
 
   if (bodyLines.length > 0) {
     console.log(frameDivider(level, width));
+    const config = loadConfig();
+    const showFull = config.infoFullText === true;
     const maxLines = 15;
-    for (const line of bodyLines.slice(0, maxLines)) {
-      console.log(frameLine(level, chalk.white(line), width));
+    const innerWidth = width - 4;
+    const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
+    for (const line of displayLines) {
+      for (const wrapped of wrapTextLines(line, innerWidth)) {
+        console.log(frameLine(level, chalk.white(wrapped), width));
+      }
     }
-    if (bodyLines.length > maxLines) {
+    if (!showFull && bodyLines.length > maxLines) {
       console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`), width));
     }
   }
@@ -917,11 +971,17 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
 
   if (bodyLines.length > 0) {
     console.log(frameDivider(level, width));
+    const config = loadConfig();
+    const showFull = config.infoFullText === true;
     const maxLines = 20;
-    for (const line of bodyLines.slice(0, maxLines)) {
-      console.log(frameLine(level, chalk.white(line), width));
+    const innerWidth = width - 4;
+    const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
+    for (const line of displayLines) {
+      for (const wrapped of wrapTextLines(line, innerWidth)) {
+        console.log(frameLine(level, chalk.white(wrapped), width));
+      }
     }
-    if (bodyLines.length > maxLines) {
+    if (!showFull && bodyLines.length > maxLines) {
       console.log(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`), width));
     }
   }

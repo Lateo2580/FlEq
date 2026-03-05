@@ -110,6 +110,10 @@ export class ReplHandler {
         description: "テーブル幅の表示・変更 (例: tablewidth 80)",
         handler: (args) => this.handleTableWidth(args),
       },
+      infotext: {
+        description: "お知らせ電文の全文/省略切替 (例: infotext full)",
+        handler: (args) => this.handleInfoText(args),
+      },
       quit: {
         description: "アプリケーションを終了",
         handler: () => this.handleQuit(),
@@ -467,6 +471,33 @@ export class ReplHandler {
     config.tableWidth = width;
     saveConfig(config);
     console.log(`  テーブル幅を ${width} に変更しました。`);
+  }
+
+  private handleInfoText(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      const current = this.config.infoFullText ? "full (全文表示)" : "short (省略表示)";
+      console.log(`  お知らせ電文表示: ${current}`);
+      console.log(chalk.gray("  使い方: infotext full / infotext short"));
+      return;
+    }
+
+    if (trimmed === "full") {
+      this.config.infoFullText = true;
+      const config = loadConfig();
+      config.infoFullText = true;
+      saveConfig(config);
+      console.log("  お知らせ電文を全文表示に変更しました。");
+    } else if (trimmed === "short") {
+      this.config.infoFullText = false;
+      const config = loadConfig();
+      config.infoFullText = false;
+      saveConfig(config);
+      console.log("  お知らせ電文を省略表示に変更しました。");
+    } else {
+      console.log(chalk.yellow("  full または short を指定してください。"));
+    }
   }
 
   private handleQuit(): void {

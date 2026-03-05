@@ -11,6 +11,7 @@ import {
   displayLgObservationInfo,
   formatElapsedTime,
   formatTimestamp,
+  wrapTextLines,
 } from "../../src/ui/formatter";
 import type { EewDiff } from "../../src/features/eew-tracker";
 import {
@@ -881,5 +882,43 @@ describe("displayLgObservationInfo", () => {
     expect(output).toContain("宮城県北部");
     // URI
     expect(output).toContain("https://");
+  });
+});
+
+// ── wrapTextLines ──
+
+describe("wrapTextLines", () => {
+  it("幅以内の文字列はそのまま1行で返す", () => {
+    const result = wrapTextLines("hello", 10);
+    expect(result).toEqual(["hello"]);
+  });
+
+  it("ASCII文字列を幅で折り返す", () => {
+    const result = wrapTextLines("abcdefghij", 5);
+    expect(result).toEqual(["abcde", "fghij"]);
+  });
+
+  it("CJK文字を幅2として折り返す", () => {
+    // 各漢字は幅2、maxWidth=6 なので3文字ずつ
+    const result = wrapTextLines("漢字テスト情報", 6);
+    expect(result).toEqual(["漢字テ", "スト情", "報"]);
+  });
+
+  it("空文字列は空配列を返す", () => {
+    const result = wrapTextLines("", 10);
+    // visualWidth("") = 0 <= 10 なのでそのまま返る
+    expect(result).toEqual([""]);
+  });
+
+  it("maxWidth が 0 以下の場合はそのまま返す", () => {
+    const result = wrapTextLines("test", 0);
+    expect(result).toEqual(["test"]);
+  });
+
+  it("混合文字列（ASCII + CJK）を正しく折り返す", () => {
+    // "ab漢字cd" → a=1, b=1, 漢=2, 字=2, c=1, d=1 → 合計8
+    // maxWidth=5: "ab漢"(1+1+2=4), 次に"字"追加で6>5 → 折り返し
+    const result = wrapTextLines("ab漢字cd", 5);
+    expect(result).toEqual(["ab漢", "字cd"]);
   });
 });

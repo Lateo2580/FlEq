@@ -248,6 +248,29 @@ describe("Config", () => {
       ).toThrow(config.ConfigError);
     });
 
+    it("infoFullText を設定できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("infoFullText", "true");
+
+      const result = config.loadConfig();
+      expect(result.infoFullText).toBe(true);
+    });
+
+    it("infoFullText を false に設定できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("infoFullText", "false");
+
+      const result = config.loadConfig();
+      expect(result.infoFullText).toBe(false);
+    });
+
+    it("不正な infoFullText で ConfigError をスローする", async () => {
+      const config = await importConfig();
+      expect(() =>
+        config.setConfigValue("infoFullText", "yes")
+      ).toThrow(config.ConfigError);
+    });
+
     it("不明なキーで ConfigError をスローする", async () => {
       const config = await importConfig();
       expect(() => config.setConfigValue("unknown", "val")).toThrow(
