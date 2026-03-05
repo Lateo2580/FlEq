@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.12.0](https://github.com/Lateo2580/FlEq/compare/v1.11.0...v1.12.0) (2026-03-05)
+
+
+### 機能追加
+
+* お知らせ電文の全文表示切替と本文行の自動折り返し ([bf8db31](https://github.com/Lateo2580/FlEq/commit/bf8db31a8df7a02f1e54f7b67c384f9305f1c667))
+
 ## [1.11.0](https://github.com/Lateo2580/FlEq/compare/v1.10.1...v1.11.0) (2026-02-28)
 
 
