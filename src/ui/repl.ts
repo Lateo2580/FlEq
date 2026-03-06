@@ -16,6 +16,7 @@ import {
   getDisplayMode,
 } from "../ui/formatter";
 import * as log from "../logger";
+import { WAITING_TIPS } from "./waiting-tips";
 
 interface CommandEntry {
   description: string;
@@ -27,6 +28,9 @@ class StatusLine {
   private pulseOn = true;
   private connectedAt: number | null = null;
   private lastMessageTime: number | null = null;
+  private dayKey = "";
+  private dailyReceived = 0;
+  private dailyEewReceived = 0;
 
   tick(): void {
     this.pulseOn = !this.pulseOn;
@@ -42,8 +46,13 @@ class StatusLine {
     }
   }
 
-  markMessageReceived(): void {
+  markMessageReceived(classification: string): void {
     this.lastMessageTime = Date.now();
+    this.rotateDailyCountersIfNeeded();
+    this.dailyReceived++;
+    if (classification === "eew.forecast" || classification === "eew.warning") {
+      this.dailyEewReceived++;
+    }
   }
 
   buildPrefix(): string {
@@ -55,13 +64,28 @@ class StatusLine {
     const dot = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
     const baseTime = this.lastMessageTime ?? this.connectedAt;
     const elapsed = formatElapsedTime(Date.now() - baseTime);
+    const summary = `今日 受信${this.dailyReceived}/EEW${this.dailyEewReceived}`;
     return (
       chalk.gray("fleq [") +
       dot +
       chalk.gray(" ") +
       chalk.white(elapsed) +
+      chalk.gray(" | ") +
+      chalk.white(summary) +
       chalk.gray("]> ")
     );
+  }
+
+  getLastMessageTime(): number | null {
+    return this.lastMessageTime;
+  }
+
+  private rotateDailyCountersIfNeeded(): void {
+    const nowKey = new Date().toISOString().slice(0, 10);
+    if (this.dayKey === nowKey) return;
+    this.dayKey = nowKey;
+    this.dailyReceived = 0;
+    this.dailyEewReceived = 0;
   }
 }
 
@@ -95,6 +119,9 @@ export class ReplHandler {
   private statusLine: StatusLine;
   private statusTimer: NodeJS.Timeout | null = null;
   private commandRunning = false;
+  private tipIntervalMs: number;
+  private nextTipAt: number | null = null;
+  private tipIndex = 0;
 
   constructor(
     config: AppConfig,
@@ -107,6 +134,8 @@ export class ReplHandler {
     this.notifier = notifier;
     this.onQuit = onQuit;
     this.statusLine = new StatusLine();
+    this.tipIntervalMs = this.config.waitTipIntervalMin * 60 * 1000;
+    this.tipIndex = Math.floor(Math.random() * WAITING_TIPS.length);
 
     this.commands = {
       help: {
@@ -158,6 +187,11 @@ export class ReplHandler {
         detail: "infotext full: 全文表示\n  infotext short: 省略表示 (デフォルト)",
         handler: (args) => this.handleInfoText(args),
       },
+      tipinterval: {
+        description: "待機中ヒント表示間隔の表示・変更 (例: tipinterval 15)",
+        detail: "tipinterval: 現在のヒント間隔(分)を表示\n  tipinterval <0〜1440>: ヒント間隔を分で変更 (0で無効)",
+        handler: (args) => this.handleTipInterval(args),
+      },
       mode: {
         description: "表示モード切替 (例: mode compact)",
         detail: "mode: 現在のモードを表示\n  mode normal: フルフレーム表示 (デフォルト)\n  mode compact: 1行サマリー表示\n  長時間モニタリング時は compact がおすすめです。",
@@ -193,8 +227,10 @@ export class ReplHandler {
     });
 
     if (process.stdout.isTTY) {
+      this.resetTipSchedule();
       this.statusTimer = setInterval(() => {
         this.statusLine.tick();
+        this.maybeShowWaitingTip();
         if (!this.commandRunning && this.rl && this.rl.line.length === 0) {
           this.rl.setPrompt(this.buildPromptString());
           this.rl.prompt();
@@ -300,8 +336,9 @@ export class ReplHandler {
   }
 
   /** 電文表示の後処理（受信時刻更新・プロンプト再描画） */
-  afterDisplayMessage(): void {
-    this.statusLine.markMessageReceived();
+  afterDisplayMessage(classification: string): void {
+    this.statusLine.markMessageReceived(classification);
+    this.resetTipSchedule();
     this.prompt();
   }
 
@@ -309,7 +346,13 @@ export class ReplHandler {
     if (!process.stdout.isTTY) {
       return chalk.gray("fleq> ");
     }
-    return this.statusLine.buildPrefix();
+    const base = this.statusLine.buildPrefix().replace(/> $/, "");
+    const status = this.wsManager.getStatus();
+    if (!status.connected || status.heartbeatDeadlineAt == null) {
+      return `${base}> `;
+    }
+    const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));
+    return `${base}${chalk.gray(" | ")}${chalk.white(`ping in ${sec}s`)}${chalk.gray("]> ")}`;
   }
 
   private prompt(): void {
@@ -667,6 +710,34 @@ export class ReplHandler {
     console.log(`  表示モードを ${mode} に変更しました。`);
   }
 
+  private handleTipInterval(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      console.log(`  待機中ヒント間隔: ${this.config.waitTipIntervalMin}分`);
+      console.log(chalk.gray("  使い方: tipinterval <0〜1440> (0で無効)"));
+      return;
+    }
+
+    const min = Number(trimmed);
+    if (isNaN(min) || !Number.isInteger(min) || min < 0 || min > 1440) {
+      console.log(chalk.yellow("  tipinterval は 0〜1440 の整数を指定してください。"));
+      return;
+    }
+
+    this.config.waitTipIntervalMin = min;
+    this.tipIntervalMs = min * 60 * 1000;
+    this.resetTipSchedule();
+    const config = loadConfig();
+    config.waitTipIntervalMin = min;
+    saveConfig(config);
+    if (min === 0) {
+      console.log("  待機中ヒントを無効化しました。");
+      return;
+    }
+    console.log(`  待機中ヒント間隔を ${min}分 に変更しました。`);
+  }
+
   private handleMute(args: string): void {
     const trimmed = args.trim();
 
@@ -716,6 +787,30 @@ export class ReplHandler {
     log.info("シャットダウン中...");
     this.stop();
     this.onQuit();
+  }
+
+  private maybeShowWaitingTip(): void {
+    if (!this.rl || this.commandRunning || this.rl.line.length > 0) return;
+    if (this.tipIntervalMs <= 0 || this.nextTipAt == null) return;
+    const status = this.wsManager.getStatus();
+    if (!status.connected) return;
+
+    const lastMessageAt = this.statusLine.getLastMessageTime();
+    if (lastMessageAt != null && Date.now() - lastMessageAt < 10_000) return;
+    if (Date.now() < this.nextTipAt) return;
+
+    const tip = WAITING_TIPS[this.tipIndex % WAITING_TIPS.length];
+    this.tipIndex++;
+    this.nextTipAt = Date.now() + this.tipIntervalMs;
+    console.log(chalk.gray(`  ${tip}`));
+  }
+
+  private resetTipSchedule(): void {
+    if (this.tipIntervalMs <= 0) {
+      this.nextTipAt = null;
+      return;
+    }
+    this.nextTipAt = Date.now() + this.tipIntervalMs;
   }
 }
 

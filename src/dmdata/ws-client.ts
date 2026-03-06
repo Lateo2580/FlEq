@@ -7,6 +7,7 @@ export interface WsManagerStatus {
   connected: boolean;
   socketId: number | null;
   reconnectAttempt: number;
+  heartbeatDeadlineAt: number | null;
 }
 
 export interface WsManagerEvents {
@@ -50,6 +51,7 @@ export class WebSocketManager {
   private shouldRun = true;
   private socketId: number | null = null;
   private previousSocketId: number | null = null;
+  private heartbeatDeadlineAt: number | null = null;
 
   constructor(config: AppConfig, events: WsManagerEvents) {
     this.config = config;
@@ -68,6 +70,7 @@ export class WebSocketManager {
       connected: this.ws != null && this.ws.readyState === WebSocket.OPEN,
       socketId: this.socketId,
       reconnectAttempt: this.reconnectAttempt,
+      heartbeatDeadlineAt: this.heartbeatDeadlineAt,
     };
   }
 
@@ -79,6 +82,7 @@ export class WebSocketManager {
       this.ws.close(1000, "client shutdown");
       this.ws = null;
     }
+    this.heartbeatDeadlineAt = null;
   }
 
   private clearTimers(): void {
@@ -131,6 +135,7 @@ export class WebSocketManager {
         this.ws = null;
         this.previousSocketId = this.socketId;
         this.socketId = null;
+        this.heartbeatDeadlineAt = null;
         this.events.onDisconnected(reasonStr);
         this.scheduleReconnect();
       });
@@ -148,6 +153,7 @@ export class WebSocketManager {
         this.ws = null;
         this.previousSocketId = this.socketId;
         this.socketId = null;
+        this.heartbeatDeadlineAt = null;
         this.events.onDisconnected(`error: ${err.message}`);
         this.scheduleReconnect();
       });
@@ -256,10 +262,12 @@ export class WebSocketManager {
     if (this.heartbeatTimer) {
       clearTimeout(this.heartbeatTimer);
     }
+    this.heartbeatDeadlineAt = Date.now() + HEARTBEAT_TIMEOUT_MS;
     this.heartbeatTimer = setTimeout(() => {
       log.warn(
         `ハートビートタイムアウト: ${HEARTBEAT_TIMEOUT_MS / 1000}秒間 ping を受信していません`
       );
+      this.heartbeatDeadlineAt = null;
       if (this.ws) {
         this.ws.close(4000, "heartbeat timeout");
       }

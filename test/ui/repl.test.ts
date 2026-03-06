@@ -84,6 +84,7 @@ function createConfig(): AppConfig {
     tableWidth: 60,
     infoFullText: false,
     displayMode: "normal",
+    waitTipIntervalMin: 30,
     notify: {
       eew: true,
       earthquake: true,
@@ -101,6 +102,7 @@ function createMockWsManager(): WebSocketManager {
       connected: true,
       socketId: 42,
       reconnectAttempt: 0,
+      heartbeatDeadlineAt: Date.now() + 30_000,
     })),
     close: vi.fn(),
   } as unknown as WebSocketManager;
@@ -231,6 +233,7 @@ describe("ReplHandler", () => {
         connected: false,
         socketId: null,
         reconnectAttempt: 3,
+        heartbeatDeadlineAt: null,
       });
 
       const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), vi.fn());
@@ -452,6 +455,40 @@ describe("ReplHandler", () => {
 
       const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
       expect(output).toContain("テーブル幅を 200 に変更しました");
+
+      handler.stop();
+    });
+  });
+
+  describe("tipinterval コマンド", () => {
+    const mockLoadConfig = vi.mocked(loadConfig);
+    const mockSaveConfig = vi.mocked(saveConfig);
+
+    it("引数なしで現在のヒント間隔を表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
+      handler.start();
+
+      simulateLine("tipinterval");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("待機中ヒント間隔: 30分");
+
+      handler.stop();
+    });
+
+    it("有効な数値でヒント間隔を変更・永続化する", () => {
+      mockLoadConfig.mockReturnValue({});
+
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
+      handler.start();
+
+      simulateLine("tipinterval 15");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("待機中ヒント間隔を 15分 に変更しました");
+      expect(mockSaveConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ waitTipIntervalMin: 15 })
+      );
 
       handler.stop();
     });
