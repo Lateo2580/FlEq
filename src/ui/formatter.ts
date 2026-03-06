@@ -371,6 +371,14 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
   console.log(frameLine(level, titleContent, width));
 
+  // ヘッドライン
+  if (info.headline) {
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
+  }
+
   // カード1行目: 最重要項目
   console.log(frameDivider(level, width));
   const cardParts: string[] = [];
@@ -411,14 +419,6 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
 
   // 発表時刻
   console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
-
-  // ヘッドライン
-  if (info.headline) {
-    console.log(frameDivider(level, width));
-    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
-      console.log(line);
-    }
-  }
 
   // 震度一覧
   if (info.intensity && info.intensity.areas.length > 0) {
@@ -620,6 +620,14 @@ export function displayEewInfo(
     }
   }
 
+  // ヘッドライン
+  if (info.headline) {
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
+  }
+
   // 震源詳細
   if (info.earthquake) {
     const eq = info.earthquake;
@@ -659,13 +667,6 @@ export function displayEewInfo(
 
   // 発表時刻
   console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
-
-  if (info.headline) {
-    console.log(frameDivider(level, width));
-    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
-      console.log(line);
-    }
-  }
 
   if (isCancelled) {
     console.log(frameDivider(level, width));
@@ -1029,6 +1030,14 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
   console.log(frameLine(level, titleContent, width));
 
+  // ヘッドライン
+  if (info.headline) {
+    console.log(frameDivider(level, width));
+    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
+      console.log(line);
+    }
+  }
+
   // カード: 長周期階級 / 震度 / M / 深さ
   console.log(frameDivider(level, width));
   const cardParts: string[] = [];
@@ -1060,14 +1069,6 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     }
     if (eq.latitude && eq.longitude) {
       console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
-    }
-  }
-
-  // ヘッドライン
-  if (info.headline) {
-    console.log(frameDivider(level, width));
-    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
-      console.log(line);
     }
   }
 
