@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.16.0](https://github.com/Lateo2580/FlEq/compare/v1.15.1...v1.16.0) (2026-03-06)
+
+
+### 機能追加
+
+* 津波情報のワイドテーブル表示対応（幅80以上でカラム区切りテーブル） ([6a926c9](https://github.com/Lateo2580/FlEq/commit/6a926c94acce23a58c1c0d1d818015bef599146a))
+
 ## [1.15.1](https://github.com/Lateo2580/FlEq/compare/v1.15.0...v1.15.1) (2026-03-06)
 
 
