@@ -12,7 +12,7 @@ import {
 } from "../config";
 import { listContracts } from "../dmdata/rest-client";
 import { startMonitor } from "../app/start-monitor";
-import { setFrameWidth, setInfoFullText } from "../ui/formatter";
+import { setFrameWidth, setInfoFullText, setDisplayMode } from "../ui/formatter";
 import * as log from "../logger";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -25,6 +25,7 @@ export async function runMonitor(opts: {
   classifications?: string;
   test?: string;
   keepExisting?: boolean;
+  mode?: string;
   debug: boolean;
 }): Promise<void> {
   // ログレベル設定
@@ -39,21 +40,35 @@ export async function runMonitor(opts: {
   // APIキー (CLI > 環境変数 > Configファイル)
   const apiKey = opts.apiKey || process.env.DMDATA_API_KEY || fileConfig.apiKey;
   if (!apiKey) {
-    log.error(
-      "APIキーが指定されていません。--api-key オプション、環境変数 DMDATA_API_KEY、または config set apiKey で設定してください。"
-    );
+    log.error("APIキーが指定されていません。");
+    console.log();
+    console.log(chalk.white("  以下のいずれかの方法で設定してください:"));
+    console.log(chalk.gray("    1. ") + chalk.white("fleq init") + chalk.gray("           — インタラクティブセットアップ"));
+    console.log(chalk.gray("    2. ") + chalk.white("fleq config set apiKey <key>") + chalk.gray(" — 直接設定"));
+    console.log(chalk.gray("    3. ") + chalk.white("fleq --api-key <key>") + chalk.gray("         — CLI引数で指定"));
+    console.log(chalk.gray("    4. ") + chalk.white("DMDATA_API_KEY=<key>") + chalk.gray("         — 環境変数で指定"));
+    console.log();
     process.exit(1);
   }
 
   // 分類区分の解析 (CLI > Configファイル > デフォルト)
   let classifications: Classification[];
   if (opts.classifications != null) {
-    classifications = opts.classifications
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s): s is Classification =>
-        VALID_CLASSIFICATIONS.includes(s as Classification)
-      );
+    const allTokens = opts.classifications.split(",").map((s) => s.trim());
+    const valid: Classification[] = [];
+    const invalid: string[] = [];
+    for (const token of allTokens) {
+      if (VALID_CLASSIFICATIONS.includes(token as Classification)) {
+        valid.push(token as Classification);
+      } else if (token.length > 0) {
+        invalid.push(token);
+      }
+    }
+    if (invalid.length > 0) {
+      log.warn(`無効な区分を無視しました: ${invalid.join(", ")}`);
+      log.warn(`有効な値: ${VALID_CLASSIFICATIONS.join(", ")}`);
+    }
+    classifications = valid;
   } else if (fileConfig.classifications != null) {
     classifications = fileConfig.classifications;
   } else {
@@ -73,7 +88,14 @@ export async function runMonitor(opts: {
       : fileConfig.testMode ?? DEFAULT_CONFIG.testMode;
 
   if (!["no", "including", "only"].includes(testMode)) {
-    log.error(`無効なテストモード: ${testMode}`);
+    log.error(`無効なテストモード: ${testMode} (有効な値: no, including, only)`);
+    process.exit(1);
+  }
+
+  // 表示モード (CLI > Configファイル > デフォルト)
+  const displayModeRaw = opts.mode ?? fileConfig.displayMode ?? DEFAULT_CONFIG.displayMode;
+  if (displayModeRaw !== "normal" && displayModeRaw !== "compact") {
+    log.error(`無効な表示モード: ${displayModeRaw} (有効な値: normal, compact)`);
     process.exit(1);
   }
 
@@ -90,6 +112,7 @@ export async function runMonitor(opts: {
       DEFAULT_CONFIG.keepExistingConnections,
     tableWidth: fileConfig.tableWidth ?? DEFAULT_CONFIG.tableWidth,
     infoFullText: fileConfig.infoFullText ?? DEFAULT_CONFIG.infoFullText,
+    displayMode: displayModeRaw,
     notify: { ...DEFAULT_CONFIG.notify, ...fileConfig.notify },
   };
 
@@ -127,6 +150,7 @@ export async function runMonitor(opts: {
     setFrameWidth(config.tableWidth);
   }
   setInfoFullText(config.infoFullText ?? false);
+  setDisplayMode(config.displayMode);
 
   printBanner(config);
   await startMonitor(config);
@@ -143,6 +167,10 @@ function printBanner(config: AppConfig): void {
   console.log();
   log.info(`受信区分: ${config.classifications.join(", ")}`);
   log.info(`テストモード: ${config.testMode}`);
+  if (config.displayMode !== "normal") {
+    log.info(`表示モード: ${config.displayMode}`);
+  }
   log.info("接続を開始します...");
+  console.log(chalk.gray("  help でコマンド一覧を表示"));
   console.log();
 }

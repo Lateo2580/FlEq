@@ -3,11 +3,14 @@ import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { ReplHandler } from "../ui/repl";
 import { createMessageHandler } from "../app/message-router";
+import { formatTimestamp } from "../ui/formatter";
 import * as log from "../logger";
 
 export async function startMonitor(config: AppConfig): Promise<void> {
-  let replHandler: ReplHandler | null = null;
   const { handler: handleData, eewLogger, notifier } = createMessageHandler();
+
+  /** 切断時刻 (再接続時のギャップ表示用) */
+  let disconnectedAt: number | null = null;
 
   const manager = new WebSocketManager(config, {
     onData: (msg) => {
@@ -23,13 +26,21 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       }
     },
     onConnected: () => {
-      log.info(chalk.green("✓ リアルタイム受信中..."));
+      // 再接続時: 切断期間の通知
+      if (disconnectedAt != null) {
+        const gapStart = formatTimestamp(new Date(disconnectedAt).toISOString());
+        const gapEnd = formatTimestamp(new Date().toISOString());
+        log.warn(`${gapStart} 〜 ${gapEnd} の間、電文を受信できていない可能性があります`);
+        disconnectedAt = null;
+      }
+      log.info(chalk.green("リアルタイム受信中..."));
       if (replHandler) {
         replHandler.setConnected(true);
         replHandler.refreshPrompt();
       }
     },
     onDisconnected: (reason) => {
+      disconnectedAt = Date.now();
       log.warn(`切断されました: ${reason}`);
       if (replHandler) {
         replHandler.setConnected(false);
@@ -37,9 +48,6 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       }
     },
   });
-
-  // REPL ハンドラ
-  replHandler = new ReplHandler(config, manager, notifier);
 
   // グレースフルシャットダウン
   let shuttingDown = false;
@@ -58,12 +66,25 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     process.exit(0);
   };
 
+  // REPL ハンドラ (シャットダウンコールバックを渡す)
+  const replHandler = new ReplHandler(config, manager, notifier, () => {
+    shutdown();
+  });
+
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
   if (process.platform !== "win32") {
     process.on("SIGHUP", shutdown);
   }
 
-  await manager.connect();
+  // REPL を先に起動 (接続中もコマンド入力可能にする)
   replHandler.start();
+
+  // バックグラウンドで接続開始
+  try {
+    await manager.connect();
+  } catch (err) {
+    log.error(`接続に失敗しました: ${err instanceof Error ? err.message : err}`);
+    log.info("retry コマンドで再接続を試みることができます。");
+  }
 }

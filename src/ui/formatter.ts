@@ -6,6 +6,7 @@ import {
   ParsedSeismicTextInfo,
   ParsedNankaiTroughInfo,
   ParsedLgObservationInfo,
+  DisplayMode,
   WsDataMessage,
 } from "../types";
 import type { EewDiff } from "../features/eew-tracker";
@@ -34,6 +35,21 @@ export function getInfoFullText(): boolean {
   return cachedInfoFullText;
 }
 
+// ── 表示モードキャッシュ ──
+
+/** 現在の表示モード */
+let cachedDisplayMode: DisplayMode = "normal";
+
+/** 表示モードを外部から設定する */
+export function setDisplayMode(mode: DisplayMode): void {
+  cachedDisplayMode = mode;
+}
+
+/** 表示モードの現在値を返す */
+export function getDisplayMode(): DisplayMode {
+  return cachedDisplayMode;
+}
+
 // ── フレーム描画ユーティリティ ──
 
 /** フレームの優先度レベル */
@@ -50,6 +66,15 @@ const FRAMES: Record<FrameLevel, {
   normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", color: chalk.cyan },
   info:     { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", color: chalk.gray },
   cancel:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", color: chalk.green },
+};
+
+/** フレームレベルのテキストラベル (アクセシビリティ: 色が見えない環境向け) */
+const SEVERITY_LABELS: Record<FrameLevel, string> = {
+  critical: "[緊急]",
+  warning:  "[警告]",
+  normal:   "[情報]",
+  info:     "[通知]",
+  cancel:   "[取消]",
 };
 
 const FRAME_WIDTH = 60;
@@ -132,7 +157,9 @@ export function visualPadEnd(str: string, targetWidth: number): string {
 
 /**
  * コンテンツがフレーム幅を超える場合に折り返して複数の frameLine を生成する。
- * カンマ+スペース区切りを基準に折り返し、2行目以降は indent 分のスペースでインデントする。
+ * カンマ+スペース / 日本語句読点(、。) / パイプ区切りを基準に折り返す。
+ * 分割できない場合は文字単位でハード折り返しする。
+ * 2行目以降は indent 分のスペースでインデントする。
  */
 export function wrapFrameLines(
   level: FrameLevel,
@@ -145,29 +172,46 @@ export function wrapFrameLines(
     return [frameLine(level, content, width)];
   }
 
-  // カンマ+スペース区切りで分割
-  const parts = content.split(", ");
-  if (parts.length <= 1) {
-    // 分割できない場合はそのまま出力
-    return [frameLine(level, content, width)];
-  }
+  // 複数の区切りパターンで分割を試行
+  const delimiters = [", ", "、", "  │  "];
+  let parts: string[] | null = null;
+  let joinStr = "";
 
-  const lines: string[] = [];
-  const indentStr = " ".repeat(indent);
-  let currentLine = parts[0];
-
-  for (let i = 1; i < parts.length; i++) {
-    const candidate = currentLine + ", " + parts[i];
-    if (visualWidth(candidate) <= innerWidth) {
-      currentLine = candidate;
-    } else {
-      lines.push(frameLine(level, currentLine + ",", width));
-      currentLine = indentStr + parts[i];
+  for (const delim of delimiters) {
+    const split = content.split(delim);
+    if (split.length > 1) {
+      parts = split;
+      joinStr = delim;
+      break;
     }
   }
-  lines.push(frameLine(level, currentLine, width));
 
-  return lines;
+  if (parts != null && parts.length > 1) {
+    const lines: string[] = [];
+    const indentStr = " ".repeat(indent);
+    let currentLine = parts[0];
+
+    for (let i = 1; i < parts.length; i++) {
+      const candidate = currentLine + joinStr + parts[i];
+      if (visualWidth(candidate) <= innerWidth) {
+        currentLine = candidate;
+      } else {
+        // 末尾にカンマ区切りの場合はカンマを付与
+        const suffix = joinStr === ", " ? "," : "";
+        lines.push(frameLine(level, currentLine + suffix, width));
+        currentLine = indentStr + parts[i];
+      }
+    }
+    lines.push(frameLine(level, currentLine, width));
+    return lines;
+  }
+
+  // 分割できない場合は文字単位でハード折り返し
+  const wrapped = wrapTextLines(stripAnsi(content), innerWidth);
+  if (wrapped.length <= 1) {
+    return [frameLine(level, content, width)];
+  }
+  return wrapped.map((line) => frameLine(level, line, width));
 }
 
 /**
@@ -380,6 +424,23 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   const label = typeLabel(info.type);
   const width = getFrameWidth();
 
+  // コンパクトモード: 1行サマリー
+  if (cachedDisplayMode === "compact") {
+    const parts: string[] = [];
+    parts.push(SEVERITY_LABELS[level]);
+    parts.push(label);
+    if (info.earthquake) {
+      parts.push(info.earthquake.hypocenterName);
+      parts.push(`M${info.earthquake.magnitude}`);
+    }
+    if (info.intensity) parts.push(`震度${info.intensity.maxInt}`);
+    const ts = tsunamiShort(info);
+    if (ts) parts.push(stripAnsi(ts));
+    const color = FRAMES[level].color;
+    console.log(color(parts.join("  ")));
+    return;
+  }
+
   console.log();
   console.log(frameTop(level, width));
 
@@ -388,8 +449,8 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
-  // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  // タイトル行 (severity ラベル付き)
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   // ヘッドライン
@@ -542,6 +603,29 @@ export function displayEewInfo(
   const level = eewFrameLevel(info);
   const diff = context?.diff;
   const width = getFrameWidth();
+
+  // コンパクトモード: 1行サマリー
+  if (cachedDisplayMode === "compact") {
+    const parts: string[] = [];
+    parts.push(SEVERITY_LABELS[level]);
+    const typeTag = isCancelled ? "EEW取消" : info.isWarning ? "EEW警報" : "EEW予報";
+    parts.push(typeTag);
+    if (info.serial) parts.push(`#${info.serial}`);
+    if (info.earthquake) parts.push(info.earthquake.hypocenterName);
+    if (info.forecastIntensity?.areas.length) {
+      const maxInt = info.forecastIntensity.areas.reduce((best, area) =>
+        intensityToNumeric(area.intensity) > intensityToNumeric(best) ? area.intensity : best,
+        info.forecastIntensity.areas[0].intensity
+      );
+      parts.push(`震度${maxInt}`);
+    }
+    if (info.earthquake?.magnitude && !info.isAssumedHypocenter) {
+      parts.push(`M${info.earthquake.magnitude}`);
+    }
+    const color = FRAMES[level].color;
+    console.log(color(parts.join("  ")));
+    return;
+  }
 
   console.log();
 
@@ -784,6 +868,22 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   const label = typeLabel(info.type);
   const width = getFrameWidth();
 
+  // コンパクトモード
+  if (cachedDisplayMode === "compact") {
+    const parts: string[] = [];
+    parts.push(SEVERITY_LABELS[level]);
+    parts.push(label);
+    if (info.forecast && info.forecast.length > 0) {
+      const kinds = [...new Set(info.forecast.map((f) => f.kind))];
+      parts.push(kinds.join("・"));
+      const areas = info.forecast.slice(0, 3).map((f) => f.areaName);
+      parts.push(areas.join(", "));
+    }
+    const color = FRAMES[level].color;
+    console.log(color(parts.join("  ")));
+    return;
+  }
+
   console.log();
   console.log(frameTop(level, width));
 
@@ -791,7 +891,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   if (info.headline) {
@@ -887,6 +987,17 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
   const label = typeLabel(info.type);
   const width = getFrameWidth();
 
+  // コンパクトモード
+  if (cachedDisplayMode === "compact") {
+    const parts: string[] = [];
+    parts.push(SEVERITY_LABELS[level]);
+    parts.push(label);
+    if (info.headline) parts.push(info.headline.slice(0, 40));
+    const color = FRAMES[level].color;
+    console.log(color(parts.join("  ")));
+    return;
+  }
+
   console.log();
   console.log(frameTop(level, width));
 
@@ -894,7 +1005,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   if (info.headline) {
@@ -952,6 +1063,17 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   const label = typeLabel(info.type);
   const width = getFrameWidth();
 
+  // コンパクトモード
+  if (cachedDisplayMode === "compact") {
+    const parts: string[] = [];
+    parts.push(SEVERITY_LABELS[level]);
+    parts.push(label);
+    if (info.infoSerial) parts.push(info.infoSerial.name);
+    const color = FRAMES[level].color;
+    console.log(color(parts.join("  ")));
+    return;
+  }
+
   console.log();
 
   // critical/warning 時はバナー表示
@@ -975,7 +1097,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   }
 
   // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   // InfoSerial (状態名)
@@ -1038,6 +1160,19 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   const label = typeLabel(info.type);
   const width = getFrameWidth();
 
+  // コンパクトモード
+  if (cachedDisplayMode === "compact") {
+    const parts: string[] = [];
+    parts.push(SEVERITY_LABELS[level]);
+    parts.push(label);
+    if (info.earthquake) parts.push(info.earthquake.hypocenterName);
+    if (info.maxLgInt) parts.push(`長周期${info.maxLgInt}`);
+    if (info.maxInt) parts.push(`震度${info.maxInt}`);
+    const color = FRAMES[level].color;
+    console.log(color(parts.join("  ")));
+    return;
+  }
+
   console.log();
   console.log(frameTop(level, width));
 
@@ -1047,7 +1182,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   }
 
   // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   // ヘッドライン

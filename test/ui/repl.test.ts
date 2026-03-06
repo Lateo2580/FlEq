@@ -37,6 +37,26 @@ vi.mock("../../src/logger", () => ({
   debug: vi.fn(),
 }));
 
+vi.mock("../../src/features/notifier", () => ({
+  Notifier: class {
+    getSettings() { return { eew: true, earthquake: true, tsunami: true, seismicText: true, nankaiTrough: true, lgObservation: true }; }
+    toggleCategory() { return false; }
+    setAll() { /* noop */ }
+    isMuted() { return false; }
+    muteRemaining() { return 0; }
+    mute() { /* noop */ }
+    unmute() { /* noop */ }
+  },
+  NOTIFY_CATEGORY_LABELS: {
+    eew: "緊急地震速報",
+    earthquake: "地震情報",
+    tsunami: "津波情報",
+    seismicText: "地震活動テキスト",
+    nankaiTrough: "南海トラフ関連",
+    lgObservation: "長周期地震動",
+  },
+}));
+
 import readline from "readline";
 import { ReplHandler } from "../../src/ui/repl";
 import { WebSocketManager } from "../../src/dmdata/ws-client";
@@ -46,6 +66,7 @@ import {
   listSockets,
 } from "../../src/dmdata/rest-client";
 import { printConfig, loadConfig, saveConfig } from "../../src/config";
+import { Notifier } from "../../src/features/notifier";
 import { AppConfig } from "../../src/types";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
@@ -61,6 +82,16 @@ function createConfig(): AppConfig {
     maxReconnectDelaySec: 60,
     keepExistingConnections: false,
     tableWidth: 60,
+    infoFullText: false,
+    displayMode: "normal",
+    notify: {
+      eew: true,
+      earthquake: true,
+      tsunami: true,
+      seismicText: true,
+      nankaiTrough: true,
+      lgObservation: true,
+    },
   };
 }
 
@@ -125,7 +156,7 @@ describe("ReplHandler", () => {
         ],
       });
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("history");
@@ -144,7 +175,7 @@ describe("ReplHandler", () => {
     });
 
     it("不正な件数でエラーメッセージを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("history abc");
@@ -156,7 +187,7 @@ describe("ReplHandler", () => {
     });
 
     it("0件の場合のメッセージ", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("history 0");
@@ -168,7 +199,7 @@ describe("ReplHandler", () => {
     });
 
     it("負数の場合のメッセージ", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("history -5");
@@ -182,7 +213,7 @@ describe("ReplHandler", () => {
 
   describe("status コマンド", () => {
     it("接続状態を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("status");
@@ -202,7 +233,7 @@ describe("ReplHandler", () => {
         reconnectAttempt: 3,
       });
 
-      const handler = new ReplHandler(createConfig(), wsManager);
+      const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("status");
@@ -222,7 +253,7 @@ describe("ReplHandler", () => {
         "eew.forecast",
       ]);
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("contract");
@@ -263,7 +294,7 @@ describe("ReplHandler", () => {
         ],
       });
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("socket");
@@ -282,7 +313,7 @@ describe("ReplHandler", () => {
 
   describe("config コマンド", () => {
     it("printConfig を呼び出す", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("config");
@@ -295,7 +326,7 @@ describe("ReplHandler", () => {
 
   describe("不明コマンド", () => {
     it("フォールバックメッセージを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("unknown-cmd");
@@ -310,7 +341,7 @@ describe("ReplHandler", () => {
 
   describe("空行", () => {
     it("空行を入力してもエラーにならない", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("");
@@ -325,7 +356,7 @@ describe("ReplHandler", () => {
 
   describe("help コマンド", () => {
     it("コマンド一覧を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("help");
@@ -345,7 +376,7 @@ describe("ReplHandler", () => {
     const mockSaveConfig = vi.mocked(saveConfig);
 
     it("引数なしで現在のテーブル幅を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("tablewidth");
@@ -359,7 +390,7 @@ describe("ReplHandler", () => {
     it("有効な数値でテーブル幅を変更・永続化する", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("tablewidth 100");
@@ -374,7 +405,7 @@ describe("ReplHandler", () => {
     });
 
     it("範囲外の数値でエラーを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("tablewidth 10");
@@ -386,7 +417,7 @@ describe("ReplHandler", () => {
     });
 
     it("数値でない引数でエラーを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("tablewidth abc");
@@ -400,7 +431,7 @@ describe("ReplHandler", () => {
     it("境界値40が受け入れられる", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("tablewidth 40");
@@ -414,7 +445,7 @@ describe("ReplHandler", () => {
     it("境界値200が受け入れられる", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
 
       simulateLine("tablewidth 200");
@@ -432,7 +463,7 @@ describe("ReplHandler", () => {
         .spyOn(process, "exit")
         .mockImplementation((() => {}) as (code?: number) => never);
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), vi.fn());
       handler.start();
       handler.stop();
 
@@ -443,20 +474,16 @@ describe("ReplHandler", () => {
       exitSpy.mockRestore();
     });
 
-    it("close イベントが stop() を経由せずに発火した場合は process.exit が呼ばれる", () => {
-      const exitSpy = vi
-        .spyOn(process, "exit")
-        .mockImplementation((() => {}) as (code?: number) => never);
-
+    it("close イベントが stop() を経由せずに発火した場合は onQuit が呼ばれる", () => {
+      const onQuit = vi.fn();
       const wsManager = createMockWsManager();
-      const handler = new ReplHandler(createConfig(), wsManager);
+      const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), onQuit);
       handler.start();
 
       // stop() を呼ばずに close イベントを直接発火 → handleQuit が呼ばれる
       mockRl.emit("close");
 
-      expect(exitSpy).toHaveBeenCalledWith(0);
-      exitSpy.mockRestore();
+      expect(onQuit).toHaveBeenCalled();
     });
   });
 });

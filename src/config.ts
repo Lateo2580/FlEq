@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { ConfigFile, Classification, NotifyCategory } from "./types";
+import { ConfigFile, Classification, DisplayMode, NotifyCategory } from "./types";
 import * as log from "./logger";
 
 /** 設定エラー */
@@ -51,6 +51,9 @@ export const VALID_CLASSIFICATIONS: Classification[] = [
 /** 有効なテストモード */
 const VALID_TEST_MODES = ["no", "including", "only"] as const;
 
+/** 有効な表示モード */
+const VALID_DISPLAY_MODES: DisplayMode[] = ["normal", "compact"];
+
 /** 有効な通知カテゴリ */
 const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
   "eew",
@@ -71,6 +74,7 @@ const CONFIG_KEYS: Record<string, string> = {
   keepExistingConnections: "既存のWebSocket接続を維持するか (true/false)",
   tableWidth: "テーブル表示幅 (40〜200)",
   infoFullText: "お知らせ電文の全文表示 (true/false)",
+  displayMode: '表示モード: "normal" | "compact"',
 };
 
 /** Configファイルのパスを返す */
@@ -163,6 +167,13 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
 
   if (typeof raw.infoFullText === "boolean") {
     config.infoFullText = raw.infoFullText;
+  }
+
+  if (
+    typeof raw.displayMode === "string" &&
+    (VALID_DISPLAY_MODES as readonly string[]).includes(raw.displayMode)
+  ) {
+    config.displayMode = raw.displayMode as DisplayMode;
   }
 
   if (typeof raw.notify === "object" && raw.notify != null && !Array.isArray(raw.notify)) {
@@ -264,6 +275,14 @@ export function setConfigValue(key: string, value: string): void {
         );
       }
       config.infoFullText = value === "true";
+      break;
+    case "displayMode":
+      if (!(VALID_DISPLAY_MODES as readonly string[]).includes(value)) {
+        throw new ConfigError(
+          `無効な表示モード: ${value}\n有効な値: ${VALID_DISPLAY_MODES.join(", ")}`
+        );
+      }
+      config.displayMode = value as DisplayMode;
       break;
   }
 

@@ -1,6 +1,6 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig, NotifyCategory } from "../types";
+import { AppConfig, DisplayMode, NotifyCategory } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { loadConfig, saveConfig, printConfig } from "../config";
@@ -12,11 +12,14 @@ import {
   visualWidth,
   setFrameWidth,
   setInfoFullText,
+  setDisplayMode,
+  getDisplayMode,
 } from "../ui/formatter";
 import * as log from "../logger";
 
 interface CommandEntry {
   description: string;
+  detail?: string;
   handler: (args: string) => void | Promise<void>;
 }
 
@@ -62,10 +65,30 @@ class StatusLine {
   }
 }
 
+/** レーベンシュタイン距離 (typo候補用) */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0) as number[]);
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
 export class ReplHandler {
   private config: AppConfig;
   private wsManager: WebSocketManager;
   private notifier: Notifier;
+  private onQuit: () => void;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
   private stopping = false;
@@ -73,55 +96,89 @@ export class ReplHandler {
   private statusTimer: NodeJS.Timeout | null = null;
   private commandRunning = false;
 
-  constructor(config: AppConfig, wsManager: WebSocketManager, notifier: Notifier) {
+  constructor(
+    config: AppConfig,
+    wsManager: WebSocketManager,
+    notifier: Notifier,
+    onQuit: () => void
+  ) {
     this.config = config;
     this.wsManager = wsManager;
     this.notifier = notifier;
+    this.onQuit = onQuit;
     this.statusLine = new StatusLine();
 
     this.commands = {
       help: {
-        description: "コマンド一覧を表示",
-        handler: () => this.handleHelp(),
+        description: "コマンド一覧を表示 (例: help status)",
+        detail: "引数なしで一覧表示。help <command> でコマンドの詳細を表示。",
+        handler: (args) => this.handleHelp(args),
+      },
+      "?": {
+        description: "help のエイリアス",
+        handler: (args) => this.handleHelp(args),
       },
       history: {
         description: "地震履歴を取得・表示 (例: history 5)",
+        detail: "dmdata.jp API から直近の地震履歴を取得します。\n  引数: 件数 (1〜100, デフォルト10)\n  例: history 20",
         handler: (args) => this.handleHistory(args),
       },
       status: {
         description: "WebSocket 接続状態を表示",
+        detail: "現在の WebSocket 接続状態、SocketID、再接続試行回数を表示します。",
         handler: () => this.handleStatus(),
       },
       config: {
         description: "現在の設定を表示",
+        detail: "Configファイルに保存された設定を一覧表示します。",
         handler: () => this.handleConfig(),
       },
       contract: {
         description: "契約区分一覧を表示",
+        detail: "dmdata.jp で契約している区分を API から取得して表示します。",
         handler: () => this.handleContract(),
       },
       socket: {
         description: "接続中のソケット一覧を表示",
+        detail: "dmdata.jp で現在開いているソケット一覧を表示します。",
         handler: () => this.handleSocket(),
       },
       notify: {
-        description: "通知設定の表示・切替 (例: notify eew, notify all:on)",
+        description: "通知設定の表示・切替 (例: notify eew on)",
+        detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation",
         handler: (args) => this.handleNotify(args),
       },
       tablewidth: {
         description: "テーブル幅の表示・変更 (例: tablewidth 80)",
+        detail: "引数なし: 現在のテーブル幅を表示\n  tablewidth <40〜200>: テーブル幅を変更\n  変更は即座に反映され、Configファイルに保存されます。",
         handler: (args) => this.handleTableWidth(args),
       },
       infotext: {
         description: "お知らせ電文の全文/省略切替 (例: infotext full)",
+        detail: "infotext full: 全文表示\n  infotext short: 省略表示 (デフォルト)",
         handler: (args) => this.handleInfoText(args),
+      },
+      mode: {
+        description: "表示モード切替 (例: mode compact)",
+        detail: "mode: 現在のモードを表示\n  mode normal: フルフレーム表示 (デフォルト)\n  mode compact: 1行サマリー表示\n  長時間モニタリング時は compact がおすすめです。",
+        handler: (args) => this.handleMode(args),
+      },
+      mute: {
+        description: "通知を一時ミュート (例: mute 30m)",
+        detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
+        handler: (args) => this.handleMute(args),
+      },
+      retry: {
+        description: "WebSocket 再接続を試行",
+        detail: "切断中の場合に手動で再接続を試みます。",
+        handler: () => this.handleRetry(),
       },
       quit: {
         description: "アプリケーションを終了",
         handler: () => this.handleQuit(),
       },
       exit: {
-        description: "アプリケーションを終了",
+        description: "quit のエイリアス",
         handler: () => this.handleQuit(),
       },
     };
@@ -159,7 +216,13 @@ export class ReplHandler {
       const entry = this.commands[cmd];
 
       if (entry == null) {
-        console.log(chalk.yellow(`  不明なコマンド: ${cmd} (help で一覧を表示)`));
+        // typo候補を検索
+        const suggestion = this.findSuggestion(cmd);
+        if (suggestion) {
+          console.log(chalk.yellow(`  不明なコマンド: ${cmd}`) + chalk.gray(` — もしかして: ${chalk.white(suggestion)}`));
+        } else {
+          console.log(chalk.yellow(`  不明なコマンド: ${cmd}`) + chalk.gray(" (help で一覧を表示)"));
+        }
         this.commandRunning = false;
         this.prompt();
         return;
@@ -223,8 +286,6 @@ export class ReplHandler {
   /** WebSocket 接続状態をプロンプトに反映 */
   setConnected(connected: boolean): void {
     this.statusLine.setConnected(connected);
-    // 接続状態が変わった瞬間にプロンプト文字列を更新しておく
-    // (実際の再描画は呼び出し元の refreshPrompt() で行う)
     if (this.rl) {
       this.rl.setPrompt(this.buildPromptString());
     }
@@ -258,23 +319,65 @@ export class ReplHandler {
     }
   }
 
+  /** typo候補を検索 (距離2以内で最も近いコマンドを返す) */
+  private findSuggestion(input: string): string | null {
+    let bestCmd: string | null = null;
+    let bestDist = 3; // 距離2以内を候補にする
+    const displayed = new Set<string>();
+    for (const name of Object.keys(this.commands)) {
+      if (name === "?" || name === "exit") continue;
+      if (displayed.has(name)) continue;
+      displayed.add(name);
+      const dist = levenshtein(input.toLowerCase(), name.toLowerCase());
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCmd = name;
+      }
+    }
+    return bestCmd;
+  }
+
   // ── コマンドハンドラ ──
 
-  private handleHelp(): void {
+  private handleHelp(args: string): void {
+    const trimmed = args.trim();
+
+    // help <command> — 詳細表示
+    if (trimmed.length > 0) {
+      const entry = this.commands[trimmed];
+      if (entry == null) {
+        console.log(chalk.yellow(`  不明なコマンド: ${trimmed}`));
+        return;
+      }
+      console.log();
+      console.log(chalk.cyan.bold(`  ${trimmed}`) + chalk.gray(` — ${entry.description}`));
+      if (entry.detail) {
+        console.log();
+        for (const line of entry.detail.split("\n")) {
+          console.log(chalk.white(`  ${line}`));
+        }
+      }
+      console.log();
+      return;
+    }
+
+    // help — 一覧
     console.log();
     console.log(chalk.cyan.bold("  利用可能なコマンド:"));
     console.log();
 
     const displayed = new Set<string>();
     for (const [name, entry] of Object.entries(this.commands)) {
-      // exit は quit と同じなので省略
-      if (name === "exit") continue;
+      if (name === "exit" || name === "?") continue;
       if (displayed.has(entry.description)) continue;
       displayed.add(entry.description);
       console.log(
         chalk.white(`  ${name.padEnd(12)}`) + chalk.gray(entry.description)
       );
     }
+    console.log(
+      chalk.white(`  ${"?".padEnd(12)}`) + chalk.gray("help のエイリアス")
+    );
     console.log(
       chalk.white(`  ${"exit".padEnd(12)}`) +
         chalk.gray("quit のエイリアス")
@@ -415,6 +518,10 @@ export class ReplHandler {
       const settings = this.notifier.getSettings();
       console.log();
       console.log(chalk.cyan.bold("  通知設定:"));
+      if (this.notifier.isMuted()) {
+        const remaining = this.notifier.muteRemaining();
+        console.log(chalk.yellow(`  (ミュート中: 残り ${formatDuration(remaining)})`));
+      }
       console.log();
       for (const [cat, label] of Object.entries(NOTIFY_CATEGORY_LABELS)) {
         const enabled = settings[cat as NotifyCategory];
@@ -429,7 +536,7 @@ export class ReplHandler {
       }
       console.log();
       console.log(
-        chalk.gray("  使い方: notify <category> / notify all:on / notify all:off")
+        chalk.gray("  使い方: notify <category> [on|off] / notify all:on / notify all:off")
       );
       console.log();
       return;
@@ -447,17 +554,38 @@ export class ReplHandler {
       return;
     }
 
-    // カテゴリ指定 → トグル
-    const cat = trimmed as NotifyCategory;
+    // カテゴリ指定 (+ 任意の on/off)
+    const parts = trimmed.split(/\s+/);
+    const cat = parts[0] as NotifyCategory;
+    const action = parts[1]?.toLowerCase();
+
     if (!(cat in NOTIFY_CATEGORY_LABELS)) {
       console.log(
-        chalk.yellow(`  不明なカテゴリ: ${trimmed}`) +
+        chalk.yellow(`  不明なカテゴリ: ${parts[0]}`) +
           chalk.gray(` (有効: ${Object.keys(NOTIFY_CATEGORY_LABELS).join(", ")})`)
       );
       return;
     }
 
-    const newState = this.notifier.toggleCategory(cat);
+    let newState: boolean;
+    if (action === "on") {
+      const settings = this.notifier.getSettings();
+      if (settings[cat]) {
+        console.log(`  ${NOTIFY_CATEGORY_LABELS[cat]} (${cat}): 既に ${chalk.green("ON")} です`);
+        return;
+      }
+      newState = this.notifier.toggleCategory(cat);
+    } else if (action === "off") {
+      const settings = this.notifier.getSettings();
+      if (!settings[cat]) {
+        console.log(`  ${NOTIFY_CATEGORY_LABELS[cat]} (${cat}): 既に ${chalk.red("OFF")} です`);
+        return;
+      }
+      newState = this.notifier.toggleCategory(cat);
+    } else {
+      newState = this.notifier.toggleCategory(cat);
+    }
+
     const label = NOTIFY_CATEGORY_LABELS[cat];
     const status = newState ? chalk.green("ON") : chalk.red("OFF");
     console.log(`  ${label} (${cat}): ${status}`);
@@ -515,11 +643,79 @@ export class ReplHandler {
     }
   }
 
+  private handleMode(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      const current = getDisplayMode();
+      console.log(`  表示モード: ${current}`);
+      console.log(chalk.gray("  使い方: mode normal / mode compact"));
+      return;
+    }
+
+    if (trimmed !== "normal" && trimmed !== "compact") {
+      console.log(chalk.yellow(`  無効なモード: ${trimmed}`) + chalk.gray(" (normal / compact)"));
+      return;
+    }
+
+    const mode = trimmed as DisplayMode;
+    this.config.displayMode = mode;
+    setDisplayMode(mode);
+    const config = loadConfig();
+    config.displayMode = mode;
+    saveConfig(config);
+    console.log(`  表示モードを ${mode} に変更しました。`);
+  }
+
+  private handleMute(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      if (this.notifier.isMuted()) {
+        const remaining = this.notifier.muteRemaining();
+        console.log(`  ミュート中: 残り ${formatDuration(remaining)}`);
+      } else {
+        console.log("  ミュートなし");
+      }
+      console.log(chalk.gray("  使い方: mute <duration> (例: 30m, 1h, 90s) / mute off"));
+      return;
+    }
+
+    if (trimmed === "off") {
+      this.notifier.unmute();
+      console.log("  ミュートを解除しました。");
+      return;
+    }
+
+    const ms = parseDuration(trimmed);
+    if (ms == null || ms <= 0) {
+      console.log(chalk.yellow("  無効な時間指定です。例: 30m, 1h, 90s"));
+      return;
+    }
+
+    this.notifier.mute(ms);
+    console.log(`  通知を ${formatDuration(ms)} ミュートしました。`);
+  }
+
+  private async handleRetry(): Promise<void> {
+    const status = this.wsManager.getStatus();
+    if (status.connected) {
+      console.log(chalk.gray("  既に接続中です。"));
+      return;
+    }
+
+    console.log(chalk.gray("  再接続を試行中..."));
+    try {
+      await this.wsManager.connect();
+    } catch (err) {
+      log.error(`再接続に失敗しました: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
   private handleQuit(): void {
     log.info("シャットダウン中...");
     this.stop();
-    this.wsManager.close();
-    process.exit(0);
+    this.onQuit();
   }
 }
 
@@ -562,4 +758,30 @@ function formatDepth(item: import("../types").GdEarthquakeItem): string {
     return `${val}${unit}`;
   }
   return "---";
+}
+
+/** 時間文字列をミリ秒に変換 (例: "30m" → 1800000, "1h" → 3600000, "90s" → 90000) */
+function parseDuration(input: string): number | null {
+  const match = input.match(/^(\d+)(s|m|h)$/);
+  if (!match) return null;
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  switch (unit) {
+    case "s": return value * 1000;
+    case "m": return value * 60 * 1000;
+    case "h": return value * 60 * 60 * 1000;
+    default: return null;
+  }
+}
+
+/** ミリ秒を人間可読な時間文字列に変換 */
+function formatDuration(ms: number): string {
+  const totalSec = Math.ceil(ms / 1000);
+  if (totalSec < 60) return `${totalSec}秒`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min < 60) return sec > 0 ? `${min}分${sec}秒` : `${min}分`;
+  const hour = Math.floor(min / 60);
+  const remMin = min % 60;
+  return remMin > 0 ? `${hour}時間${remMin}分` : `${hour}時間`;
 }

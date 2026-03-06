@@ -26,6 +26,7 @@ export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
 
 export class Notifier {
   private settings: NotifySettings;
+  private muteUntil: number | null = null;
 
   constructor() {
     const fileConfig = loadConfig();
@@ -33,6 +34,37 @@ export class Notifier {
       ...DEFAULT_CONFIG.notify,
       ...fileConfig.notify,
     };
+  }
+
+  /** 指定ミリ秒間、通知をミュートする */
+  mute(durationMs: number): void {
+    this.muteUntil = Date.now() + durationMs;
+  }
+
+  /** ミュートを解除する */
+  unmute(): void {
+    this.muteUntil = null;
+  }
+
+  /** 現在ミュート中かどうか */
+  isMuted(): boolean {
+    if (this.muteUntil == null) return false;
+    if (Date.now() >= this.muteUntil) {
+      this.muteUntil = null;
+      return false;
+    }
+    return true;
+  }
+
+  /** ミュート残り時間 (ms)。ミュート中でなければ 0 */
+  muteRemaining(): number {
+    if (this.muteUntil == null) return 0;
+    const remaining = this.muteUntil - Date.now();
+    if (remaining <= 0) {
+      this.muteUntil = null;
+      return 0;
+    }
+    return remaining;
   }
 
   /** カテゴリのトグル → 新しい状態を返す */
@@ -188,6 +220,7 @@ export class Notifier {
   }
 
   private send(title: string, message: string): void {
+    if (this.isMuted()) return;
     try {
       const nn = this.getNotifier();
       if (nn) {

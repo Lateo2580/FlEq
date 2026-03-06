@@ -9,6 +9,7 @@ import {
 } from "../config";
 import * as log from "../logger";
 import { runMonitor } from "./run-command";
+import { runInit } from "./init-command";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require("../../package.json") as {
@@ -37,8 +38,18 @@ export function buildProgram(): Command {
       'テスト電文: "no" | "including" | "only"'
     )
     .option("--keep-existing", "既存のWebSocket接続を維持する")
+    .option(
+      "--mode <mode>",
+      '表示モード: "normal" | "compact"'
+    )
     .option("--debug", "デバッグログを表示", false)
     .action(runMonitor);
+
+  // init コマンド
+  program
+    .command("init")
+    .description("インタラクティブに初期設定を行う")
+    .action(runInit);
 
   const configCmd = program
     .command("config")

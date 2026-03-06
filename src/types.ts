@@ -1,3 +1,6 @@
+/** 表示モード */
+export type DisplayMode = "normal" | "compact";
+
 /** 通知カテゴリ */
 export type NotifyCategory =
   | "eew"
@@ -34,6 +37,8 @@ export interface AppConfig {
   tableWidth: number;
   /** お知らせ電文の全文表示 */
   infoFullText: boolean;
+  /** 表示モード */
+  displayMode: DisplayMode;
   /** 通知設定 */
   notify: NotifySettings;
 }
@@ -48,6 +53,7 @@ export interface ConfigFile {
   keepExistingConnections?: boolean;
   tableWidth?: number;
   infoFullText?: boolean;
+  displayMode?: DisplayMode;
   notify?: Partial<NotifySettings>;
 }
 
@@ -60,6 +66,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   keepExistingConnections: false,
   tableWidth: 60,
   infoFullText: false,
+  displayMode: "normal",
   notify: {
     eew: true,
     earthquake: true,
