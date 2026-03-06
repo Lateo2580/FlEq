@@ -79,6 +79,9 @@ const SEVERITY_LABELS: Record<FrameLevel, string> = {
 
 const FRAME_WIDTH = 60;
 
+/** テーブル幅がこの値以上のとき、津波情報をカラム区切りテーブルで表示 */
+const WIDE_TABLE_THRESHOLD = 80;
+
 /** キャッシュ済みの tableWidth を返す。未設定なら FRAME_WIDTH (60) */
 function getFrameWidth(): number {
   return cachedFrameWidth ?? FRAME_WIDTH;
@@ -153,6 +156,58 @@ export function visualPadEnd(str: string, targetWidth: number): string {
   const currentWidth = visualWidth(str);
   const padSize = Math.max(0, targetWidth - currentWidth);
   return str + " ".repeat(padSize);
+}
+
+/**
+ * フレーム内にカラム区切りテーブルを描画する。
+ * headers: ヘッダー文字列の配列 (スタイル適用前)
+ * rows: 各行のセル配列 (chalk でスタイル適用済み)
+ * 最後のカラムは残り幅を使い切る可変幅。
+ */
+function renderFrameTable(
+  level: FrameLevel,
+  headers: string[],
+  rows: string[][],
+  width: number,
+): void {
+  const innerWidth = width - 4;
+  const numCols = headers.length;
+  // 各カラムの最大視覚幅を計算
+  const colWidths = headers.map((h, i) => {
+    let maxW = visualWidth(h);
+    for (const row of rows) {
+      if (row[i] != null) {
+        maxW = Math.max(maxW, visualWidth(row[i]));
+      }
+    }
+    return maxW;
+  });
+
+  // セパレータ幅 " │ " = 3 文字 × (カラム数 - 1)
+  const separatorWidth = (numCols - 1) * 3;
+  const totalContent = colWidths.reduce((a, b) => a + b, 0) + separatorWidth;
+
+  // 合計がフレーム内幅を超える場合、最後のカラムを縮小
+  if (totalContent > innerWidth) {
+    const shrink = totalContent - innerWidth;
+    colWidths[numCols - 1] = Math.max(4, colWidths[numCols - 1] - shrink);
+  }
+
+  const colSep = chalk.gray(" │ ");
+  const headerLine = headers
+    .map((h, i) => visualPadEnd(chalk.bold(h), colWidths[i]))
+    .join(colSep);
+  console.log(frameLine(level, headerLine, width));
+
+  // セパレータ行
+  const sepParts = colWidths.map((w) => "─".repeat(w));
+  console.log(frameLine(level, chalk.gray(sepParts.join("─┼─")), width));
+
+  // データ行
+  for (const row of rows) {
+    const cells = row.map((cell, i) => visualPadEnd(cell ?? "", colWidths[i]));
+    console.log(frameLine(level, cells.join(colSep), width));
+  }
 }
 
 /**
@@ -921,53 +976,105 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     const sorted = [...info.forecast].sort(
       (a, b) => tsunamiKindRank(a.kind) - tsunamiKindRank(b.kind)
     );
-    for (const item of sorted) {
-      let kindText = chalk.white(item.kind);
-      if (item.kind.includes("大津波警報")) {
-        kindText = chalk.bgRed.white.bold(item.kind);
-      } else if (item.kind.includes("津波警報")) {
-        kindText = chalk.red.bold(item.kind);
-      } else if (item.kind.includes("津波注意報")) {
-        kindText = chalk.yellow(item.kind);
-      }
 
-      const extra: string[] = [];
-      if (item.maxHeightDescription) extra.push(item.maxHeightDescription);
-      if (item.firstHeight) extra.push(prettyTimeOrText(item.firstHeight));
-      const extraText = extra.length > 0 ? chalk.gray(` (${extra.join(" / ")})`) : "";
-      console.log(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText, width));
+    if (width >= WIDE_TABLE_THRESHOLD) {
+      // ワイドテーブル: カラム区切り表示
+      const headers = ["区分", "地域名", "波高", "到達予想"];
+      const rows = sorted.map((item) => {
+        let kindText = chalk.white(item.kind);
+        if (item.kind.includes("大津波警報")) {
+          kindText = chalk.bgRed.white.bold(item.kind);
+        } else if (item.kind.includes("津波警報")) {
+          kindText = chalk.red.bold(item.kind);
+        } else if (item.kind.includes("津波注意報")) {
+          kindText = chalk.yellow(item.kind);
+        }
+        return [
+          kindText,
+          chalk.white(item.areaName),
+          item.maxHeightDescription ? chalk.white(item.maxHeightDescription) : chalk.gray("―"),
+          item.firstHeight ? chalk.white(prettyTimeOrText(item.firstHeight)) : chalk.gray("―"),
+        ];
+      });
+      renderFrameTable(level, headers, rows, width);
+    } else {
+      // 通常表示: 1行ずつ
+      for (const item of sorted) {
+        let kindText = chalk.white(item.kind);
+        if (item.kind.includes("大津波警報")) {
+          kindText = chalk.bgRed.white.bold(item.kind);
+        } else if (item.kind.includes("津波警報")) {
+          kindText = chalk.red.bold(item.kind);
+        } else if (item.kind.includes("津波注意報")) {
+          kindText = chalk.yellow(item.kind);
+        }
+
+        const extra: string[] = [];
+        if (item.maxHeightDescription) extra.push(item.maxHeightDescription);
+        if (item.firstHeight) extra.push(prettyTimeOrText(item.firstHeight));
+        const extraText = extra.length > 0 ? chalk.gray(` (${extra.join(" / ")})`) : "";
+        console.log(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText, width));
+      }
     }
   }
 
   if (info.observations && info.observations.length > 0) {
     console.log(frameDivider(level, width));
     console.log(frameLine(level, chalk.bold.white("沖合観測"), width));
-    for (const station of info.observations) {
-      const parts = [
-        station.name,
-        station.sensor,
-        station.initial,
-        station.maxHeightCondition,
-      ].filter((v) => Boolean(v));
-      const arrival = station.arrivalTime ? ` ${prettyTimeOrText(station.arrivalTime)}` : "";
-      console.log(frameLine(level, chalk.white(parts.join(" / ") + arrival), width));
+
+    if (width >= WIDE_TABLE_THRESHOLD) {
+      // ワイドテーブル: カラム区切り表示
+      const headers = ["観測点", "センサー", "初動", "最大波高", "到達時刻"];
+      const rows = info.observations.map((station) => [
+        chalk.white(station.name),
+        station.sensor ? chalk.white(station.sensor) : chalk.gray("―"),
+        station.initial ? chalk.white(station.initial) : chalk.gray("―"),
+        station.maxHeightCondition ? chalk.white(station.maxHeightCondition) : chalk.gray("―"),
+        station.arrivalTime ? chalk.white(prettyTimeOrText(station.arrivalTime)) : chalk.gray("―"),
+      ]);
+      renderFrameTable(level, headers, rows, width);
+    } else {
+      // 通常表示: 1行ずつ
+      for (const station of info.observations) {
+        const parts = [
+          station.name,
+          station.sensor,
+          station.initial,
+          station.maxHeightCondition,
+        ].filter((v) => Boolean(v));
+        const arrival = station.arrivalTime ? ` ${prettyTimeOrText(station.arrivalTime)}` : "";
+        console.log(frameLine(level, chalk.white(parts.join(" / ") + arrival), width));
+      }
     }
   }
 
   if (info.estimations && info.estimations.length > 0) {
     console.log(frameDivider(level, width));
     console.log(frameLine(level, chalk.bold.white("沿岸推定"), width));
-    for (const estimation of info.estimations) {
-      const extra: string[] = [];
-      if (estimation.maxHeightDescription) extra.push(estimation.maxHeightDescription);
-      if (estimation.firstHeight) extra.push(prettyTimeOrText(estimation.firstHeight));
-      console.log(
-        frameLine(
-          level,
-          chalk.white(`${estimation.areaName}${extra.length ? ` (${extra.join(" / ")})` : ""}`),
-          width
-        )
-      );
+
+    if (width >= WIDE_TABLE_THRESHOLD) {
+      // ワイドテーブル: カラム区切り表示
+      const headers = ["地域名", "波高", "到達予想"];
+      const rows = info.estimations.map((estimation) => [
+        chalk.white(estimation.areaName),
+        estimation.maxHeightDescription ? chalk.white(estimation.maxHeightDescription) : chalk.gray("―"),
+        estimation.firstHeight ? chalk.white(prettyTimeOrText(estimation.firstHeight)) : chalk.gray("―"),
+      ]);
+      renderFrameTable(level, headers, rows, width);
+    } else {
+      // 通常表示: 1行ずつ
+      for (const estimation of info.estimations) {
+        const extra: string[] = [];
+        if (estimation.maxHeightDescription) extra.push(estimation.maxHeightDescription);
+        if (estimation.firstHeight) extra.push(prettyTimeOrText(estimation.firstHeight));
+        console.log(
+          frameLine(
+            level,
+            chalk.white(`${estimation.areaName}${extra.length ? ` (${extra.join(" / ")})` : ""}`),
+            width
+          )
+        );
+      }
     }
   }
 

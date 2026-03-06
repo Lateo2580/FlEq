@@ -12,6 +12,7 @@ import {
   formatElapsedTime,
   formatTimestamp,
   wrapTextLines,
+  setFrameWidth,
 } from "../../src/ui/formatter";
 import type { EewDiff } from "../../src/features/eew-tracker";
 import {
@@ -618,6 +619,59 @@ describe("displayTsunamiInfo", () => {
     expect(output).toContain("╔");
     expect(output).toContain("岩手県");
     expect(output).toContain("巨大");
+  });
+
+  it("幅80以上でカラム区切りテーブル表示になる", () => {
+    setFrameWidth(100);
+    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
+      head: {
+        type: "VTSE41",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+    const info = parseTsunamiTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayTsunamiInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    // テーブルヘッダーが存在する
+    expect(output).toContain("区分");
+    expect(output).toContain("地域名");
+    expect(output).toContain("波高");
+    expect(output).toContain("到達予想");
+    // セパレータが存在する
+    expect(output).toContain("─┼─");
+    // データも含まれる
+    expect(output).toContain("岩手県");
+    expect(output).toContain("巨大");
+
+    // 幅をデフォルトに戻す
+    setFrameWidth(60);
+  });
+
+  it("幅60ではカラム区切りテーブルにならない", () => {
+    setFrameWidth(60);
+    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
+      head: {
+        type: "VTSE41",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+    const info = parseTsunamiTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayTsunamiInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    // テーブルヘッダーが含まれない
+    expect(output).not.toContain("─┼─");
+    // データは含まれる
+    expect(output).toContain("岩手県");
   });
 });
 
