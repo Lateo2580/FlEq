@@ -12,6 +12,7 @@ import {
 } from "../config";
 import { listContracts } from "../dmdata/rest-client";
 import { startMonitor } from "../app/start-monitor";
+import { setFrameWidth, setInfoFullText } from "../ui/formatter";
 import * as log from "../logger";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -120,6 +121,12 @@ export async function runMonitor(opts: {
     );
     log.warn("指定された区分のまま接続を試みます");
   }
+
+  // formatter キャッシュ初期化
+  if (config.tableWidth != null) {
+    setFrameWidth(config.tableWidth);
+  }
+  setInfoFullText(config.infoFullText ?? false);
 
   printBanner(config);
   await startMonitor(config);

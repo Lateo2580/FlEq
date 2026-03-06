@@ -46,9 +46,7 @@ export class WebSocketManager {
   private ws: WebSocket | null = null;
   private reconnectAttempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  private pingTimer: NodeJS.Timeout | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
-  private lastPingId: string | null = null;
   private shouldRun = true;
   private socketId: number | null = null;
   private previousSocketId: number | null = null;
@@ -88,10 +86,6 @@ export class WebSocketManager {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    if (this.pingTimer) {
-      clearInterval(this.pingTimer);
-      this.pingTimer = null;
-    }
     if (this.heartbeatTimer) {
       clearTimeout(this.heartbeatTimer);
       this.heartbeatTimer = null;
@@ -110,9 +104,12 @@ export class WebSocketManager {
       const wsUrl = startRes.websocket.url;
       log.info(`WebSocket に接続中: ${wsUrl.replace(/ticket=.*/, "ticket=***")}`);
 
-      this.ws = new WebSocket(wsUrl, ["dmdata.v2"]);
+      const socket = new WebSocket(wsUrl, ["dmdata.v2"]);
+      this.ws = socket;
 
-      this.ws.on("open", () => {
+      socket.on("open", () => {
+        // 古いソケットのイベントが遅延到着した場合はスキップ
+        if (this.ws !== socket) return;
         this.reconnectAttempt = 0;
         this.previousSocketId = null;
         log.info("WebSocket 接続成功");
@@ -120,13 +117,14 @@ export class WebSocketManager {
         this.events.onConnected();
       });
 
-      this.ws.on("message", (raw: WebSocket.Data) => {
+      socket.on("message", (raw: WebSocket.Data) => {
+        if (this.ws !== socket) return;
         this.handleMessage(raw);
       });
 
-      this.ws.on("close", (code: number, reason: Buffer) => {
-        // error ハンドラで既に処理済みの場合はスキップ
-        if (this.ws == null) return;
+      socket.on("close", (code: number, reason: Buffer) => {
+        // 古いソケット or 既に処理済みならスキップ
+        if (this.ws !== socket) return;
         const reasonStr = reason.toString() || `code=${code}`;
         log.warn(`WebSocket 切断: ${reasonStr}`);
         this.clearTimers();
@@ -137,22 +135,21 @@ export class WebSocketManager {
         this.scheduleReconnect();
       });
 
-      this.ws.on("error", (err: Error) => {
+      socket.on("error", (err: Error) => {
         log.error(`WebSocket エラー: ${err.message}`);
-        // close イベントが発火しない場合に備えて再接続を保証
-        if (this.ws) {
-          try {
-            this.ws.close();
-          } catch {
-            // close() 自体の失敗は無視
-          }
-          this.clearTimers();
-          this.ws = null;
-          this.previousSocketId = this.socketId;
-          this.socketId = null;
-          this.events.onDisconnected(`error: ${err.message}`);
-          this.scheduleReconnect();
+        // 古いソケットのエラーは無視
+        if (this.ws !== socket) return;
+        try {
+          socket.close();
+        } catch {
+          // close() 自体の失敗は無視
         }
+        this.clearTimers();
+        this.ws = null;
+        this.previousSocketId = this.socketId;
+        this.socketId = null;
+        this.events.onDisconnected(`error: ${err.message}`);
+        this.scheduleReconnect();
       });
     } catch (err) {
       log.error(
@@ -206,7 +203,6 @@ export class WebSocketManager {
           log.warn("ping メッセージのスキーマが不正です");
           break;
         }
-        this.lastPingId = parsed.pingId;
         this.resetHeartbeat();
         this.sendPong(parsed.pingId);
         break;
@@ -220,6 +216,7 @@ export class WebSocketManager {
           log.warn("data メッセージのスキーマが不正です (id/head/head.type が欠落)");
           break;
         }
+        this.resetHeartbeat();
         log.debug(
           `データ受信: type=${parsed.head.type}, id=${parsed.id.slice(0, 16)}...`
         );
@@ -254,7 +251,7 @@ export class WebSocketManager {
     }
   }
 
-  /** ハートビートタイマーをリセット（ping/data受信時に呼ぶ） */
+  /** ハートビートタイマーをリセット (ping/data 受信時に呼ぶ) */
   private resetHeartbeat(): void {
     if (this.heartbeatTimer) {
       clearTimeout(this.heartbeatTimer);

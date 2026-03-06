@@ -4,6 +4,15 @@ import * as log from "../logger";
 
 const API_BASE = "https://api.dmdata.jp/v2";
 
+/** TLS ハンドシェイクを再利用するための keep-alive エージェント (遅延初期化) */
+let keepAliveAgent: https.Agent | null = null;
+function getKeepAliveAgent(): https.Agent {
+  if (keepAliveAgent == null) {
+    keepAliveAgent = new https.Agent({ keepAlive: true });
+  }
+  return keepAliveAgent;
+}
+
 /** HTTPS リクエストを Promise でラップ */
 function request(
   method: "GET" | "POST" | "DELETE",
@@ -20,6 +29,7 @@ function request(
       port: 443,
       path: parsed.pathname + parsed.search,
       method,
+      agent: getKeepAliveAgent(),
       headers: {
         "Content-Type": "application/json",
       },

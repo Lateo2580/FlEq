@@ -10,6 +10,8 @@ import {
   intensityColor,
   visualPadEnd,
   visualWidth,
+  setFrameWidth,
+  setInfoFullText,
 } from "../ui/formatter";
 import * as log from "../logger";
 
@@ -163,19 +165,27 @@ export class ReplHandler {
         return;
       }
 
-      const result = entry.handler(args);
-      if (result instanceof Promise) {
-        result
-          .catch((err: unknown) => {
-            log.error(
-              `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
-            );
-          })
-          .finally(() => {
-            this.commandRunning = false;
-            this.prompt();
-          });
-      } else {
+      try {
+        const result = entry.handler(args);
+        if (result instanceof Promise) {
+          result
+            .catch((err: unknown) => {
+              log.error(
+                `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
+              );
+            })
+            .finally(() => {
+              this.commandRunning = false;
+              this.prompt();
+            });
+        } else {
+          this.commandRunning = false;
+          this.prompt();
+        }
+      } catch (err) {
+        log.error(
+          `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
+        );
         this.commandRunning = false;
         this.prompt();
       }
@@ -273,11 +283,13 @@ export class ReplHandler {
   }
 
   private async handleHistory(args: string): Promise<void> {
-    const limit = args.length > 0 ? parseInt(args, 10) : 10;
-    if (isNaN(limit) || limit <= 0) {
+    const MAX_HISTORY = 100;
+    const raw = args.length > 0 ? parseInt(args, 10) : 10;
+    if (isNaN(raw) || raw <= 0) {
       console.log(chalk.yellow("  件数は正の整数で指定してください"));
       return;
     }
+    const limit = Math.min(raw, MAX_HISTORY);
 
     console.log(chalk.gray("  地震履歴を取得中..."));
 
@@ -467,6 +479,7 @@ export class ReplHandler {
     }
 
     this.config.tableWidth = width;
+    setFrameWidth(width);
     const config = loadConfig();
     config.tableWidth = width;
     saveConfig(config);
@@ -485,12 +498,14 @@ export class ReplHandler {
 
     if (trimmed === "full") {
       this.config.infoFullText = true;
+      setInfoFullText(true);
       const config = loadConfig();
       config.infoFullText = true;
       saveConfig(config);
       console.log("  お知らせ電文を全文表示に変更しました。");
     } else if (trimmed === "short") {
       this.config.infoFullText = false;
+      setInfoFullText(false);
       const config = loadConfig();
       config.infoFullText = false;
       saveConfig(config);

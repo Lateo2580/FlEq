@@ -153,7 +153,12 @@ export class EewEventLogger {
   /** 書き込みをチェーンに追加して順序を保証する */
   private enqueueWrite(eventId: string, filePath: string, data: string): void {
     const prev = this.writeChains.get(eventId) ?? Promise.resolve();
-    const next = prev.then(() => appendFileAsync(filePath, data));
+    const next = prev.then(() => appendFileAsync(filePath, data)).then(() => {
+      // チェーンが完了し、かつアクティブファイルが閉じられていれば Map から除去
+      if (!this.activeFiles.has(eventId) && this.writeChains.get(eventId) === next) {
+        this.writeChains.delete(eventId);
+      }
+    });
     this.writeChains.set(eventId, next);
   }
 

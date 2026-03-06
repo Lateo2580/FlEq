@@ -57,6 +57,11 @@ vi.mock("https", () => ({
       lastMockReq = createMockRequest();
       return lastMockReq;
     },
+    Agent: class MockAgent {
+      constructor(_opts?: Record<string, unknown>) {
+        // stub
+      }
+    },
   },
 }));
 

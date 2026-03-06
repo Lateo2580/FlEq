@@ -10,7 +10,29 @@ import {
 } from "../types";
 import type { EewDiff } from "../features/eew-tracker";
 import * as log from "../logger";
-import { loadConfig } from "../config";
+
+// ── フレーム幅キャッシュ ──
+
+/** 現在のフレーム幅 (setFrameWidth で更新、getFrameWidth で参照) */
+let cachedFrameWidth: number | null = null;
+
+/** フレーム幅を外部から設定する (config 変更時に呼ぶ) */
+export function setFrameWidth(width: number): void {
+  cachedFrameWidth = width;
+}
+
+/** infoFullText キャッシュ */
+let cachedInfoFullText = false;
+
+/** infoFullText を外部から設定する */
+export function setInfoFullText(value: boolean): void {
+  cachedInfoFullText = value;
+}
+
+/** infoFullText の現在値を返す */
+export function getInfoFullText(): boolean {
+  return cachedInfoFullText;
+}
 
 // ── フレーム描画ユーティリティ ──
 
@@ -32,10 +54,9 @@ const FRAMES: Record<FrameLevel, {
 
 const FRAME_WIDTH = 60;
 
-/** Config から tableWidth を読み取り、未設定なら FRAME_WIDTH (60) を返す */
+/** キャッシュ済みの tableWidth を返す。未設定なら FRAME_WIDTH (60) */
 function getFrameWidth(): number {
-  const config = loadConfig();
-  return config.tableWidth ?? FRAME_WIDTH;
+  return cachedFrameWidth ?? FRAME_WIDTH;
 }
 
 function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {
@@ -424,11 +445,14 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   if (info.intensity && info.intensity.areas.length > 0) {
     console.log(frameDivider(level, width));
 
+    // 震度×地域名 → エリアデータの Map を事前構築 (O(n) ルックアップ用)
+    const areaDataMap = new Map<string, typeof info.intensity.areas[0]>();
     const byIntensity = new Map<string, string[]>();
     for (const area of info.intensity.areas) {
       const key = area.intensity;
       if (!byIntensity.has(key)) byIntensity.set(key, []);
       byIntensity.get(key)!.push(area.name);
+      areaDataMap.set(`${key}:${area.name}`, area);
     }
 
     const order = ["7", "6+", "6強", "6-", "6弱", "5+", "5強", "5-", "5弱", "4", "3", "2", "1"];
@@ -442,9 +466,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
       const color = intensityColor(int);
       // 長周期地震動階級付きの地域名を生成
       const areaTexts = names.map((name) => {
-        const areaData = info.intensity!.areas.find(
-          (a) => a.name === name && a.intensity === int
-        );
+        const areaData = areaDataMap.get(`${int}:${name}`);
         if (areaData?.lgIntensity && lgIntToNumeric(areaData.lgIntensity) >= 1) {
           const lc = lgIntensityColor(areaData.lgIntensity);
           return chalk.white(name) + lc(` [長周期${areaData.lgIntensity}]`);
@@ -889,8 +911,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
 
   if (bodyLines.length > 0) {
     console.log(frameDivider(level, width));
-    const config = loadConfig();
-    const showFull = config.infoFullText === true;
+    const showFull = cachedInfoFullText;
     const maxLines = 15;
     const innerWidth = width - 4;
     const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
@@ -972,8 +993,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
 
   if (bodyLines.length > 0) {
     console.log(frameDivider(level, width));
-    const config = loadConfig();
-    const showFull = config.infoFullText === true;
+    const showFull = cachedInfoFullText;
     const maxLines = 20;
     const innerWidth = width - 4;
     const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);

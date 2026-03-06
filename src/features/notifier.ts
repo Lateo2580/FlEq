@@ -1,4 +1,4 @@
-import notifier from "node-notifier";
+import type NodeNotifier from "node-notifier";
 import {
   NotifyCategory,
   NotifySettings,
@@ -173,9 +173,26 @@ export class Notifier {
 
   // ── 内部メソッド ──
 
+  private _notifier: typeof NodeNotifier | null = null;
+
+  private getNotifier(): typeof NodeNotifier | null {
+    if (this._notifier == null) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        this._notifier = require("node-notifier") as typeof NodeNotifier;
+      } catch {
+        log.debug("node-notifier の読み込みに失敗しました");
+      }
+    }
+    return this._notifier;
+  }
+
   private send(title: string, message: string): void {
     try {
-      notifier.notify({ title, message, sound: false });
+      const nn = this.getNotifier();
+      if (nn) {
+        nn.notify({ title, message, sound: false });
+      }
     } catch (err) {
       if (err instanceof Error) {
         log.debug(`通知送信エラー: ${err.message}`);

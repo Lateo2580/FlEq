@@ -14,6 +14,10 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       if (replHandler) replHandler.beforeDisplayMessage();
       try {
         handleData(msg);
+      } catch (err) {
+        log.error(
+          `電文処理エラー: ${err instanceof Error ? err.message : err}`
+        );
       } finally {
         if (replHandler) replHandler.afterDisplayMessage();
       }
@@ -38,9 +42,17 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   replHandler = new ReplHandler(config, manager, notifier);
 
   // グレースフルシャットダウン
-  const shutdown = () => {
+  let shuttingDown = false;
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     log.info("シャットダウン中...");
     eewLogger.closeAll();
+    try {
+      await eewLogger.flush();
+    } catch {
+      // flush 失敗は無視
+    }
     if (replHandler) replHandler.stop();
     manager.close();
     process.exit(0);
