@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.14.0](https://github.com/Lateo2580/FlEq/compare/v1.13.1...v1.14.0) (2026-03-06)
+
+
+### 機能追加
+
+* UX改善10項目の一括実装 ([8fcb129](https://github.com/Lateo2580/FlEq/commit/8fcb12951eaea1d9a8550a6d7718a44ff5fb3ace))
+
 ## [1.13.1](https://github.com/Lateo2580/FlEq/compare/v1.13.0...v1.13.1) (2026-03-06)
 
 
