@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.15.0](https://github.com/Lateo2580/FlEq/compare/v1.14.0...v1.15.0) (2026-03-06)
+
+
+### 機能追加
+
+* enhance idle monitoring prompt and waiting tips ([1eccd24](https://github.com/Lateo2580/FlEq/commit/1eccd24cd0093f912b019341749ee413e0b40535))
+
+
+### バグ修正
+
+* quitコマンドで「シャットダウン中…」が重複表示される問題を修正 ([12d3c8d](https://github.com/Lateo2580/FlEq/commit/12d3c8df3e51ee5324b66e6ae34364094558bf57))
+
 ## [1.14.0](https://github.com/Lateo2580/FlEq/compare/v1.13.1...v1.14.0) (2026-03-06)
 
 
