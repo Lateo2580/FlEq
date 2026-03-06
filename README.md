@@ -2,12 +2,12 @@
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
-## 現在の状態（2026-02-27 時点）
+## 現在の状態（2026-03-07 時点）
 
-- バージョン: `1.9.0`
+- バージョン: `1.15.0`
 - デフォルトブランチ: `main`
-- テスト: 10ファイル / 237テスト（`npm test` で全件成功）
-- XMLフィクスチャ: `test/fixtures/` に 62件
+- テスト: 10ファイル / 268テスト（`npm test` で全件成功）
+- XMLフィクスチャ: `test/fixtures/` に 46件
 
 ## 対応情報
 
@@ -67,6 +67,9 @@ npm start -- config set apiKey your_api_key_here
 ## 使い方
 
 ```bash
+# インタラクティブ初期設定（初回推奨）
+npm start -- init
+
 # デフォルト区分を受信（telegram.earthquake,eew.forecast,eew.warning）
 npm start
 
@@ -75,6 +78,9 @@ npm start -- -c telegram.earthquake,eew.warning
 
 # テスト電文も含めて受信
 npm start -- --test including
+
+# 表示モードを指定して起動
+npm start -- --mode compact
 
 # デバッグログを表示
 npm start -- --debug
@@ -94,8 +100,8 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 10件（計237テスト）
-- フィクスチャ: `test/fixtures/` に実電文XML 62件
+- テストファイル: 10件（計268テスト）
+- フィクスチャ: `test/fixtures/` に実電文XML 46件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
 ## CLIオプション
@@ -106,6 +112,7 @@ npm run test:watch
 | `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning` |
 | `--test <mode>` | テスト電文: `no` / `including` / `only` | `no` |
 | `--keep-existing` | 既存接続を維持 | `false` |
+| `--mode <mode>` | 表示モード: `normal` / `compact` | `normal` |
 | `--debug` | デバッグログ表示 | `false` |
 
 ## Config管理
@@ -141,7 +148,9 @@ npm start -- config keys
 | `maxReconnectDelaySec` | 再接続の最大待機秒数 |
 | `keepExistingConnections` | 既存のWebSocket接続を維持するか (`true` / `false`) |
 | `tableWidth` | テーブル表示幅 (40〜200、デフォルト: 60) |
-| `waitTipIntervalMin` | 待機中ヒント表示間隔（分, 0〜1440、デフォルト: 30） |
+| `infoFullText` | お知らせ電文の全文表示 (`true` / `false`) |
+| `displayMode` | 表示モード: `"normal"` / `"compact"` |
+| `waitTipIntervalMin` | 待機中ヒント表示間隔（分, 0で無効、デフォルト: 30） |
 
 設定の優先順位（高い順）:
 
@@ -161,7 +170,7 @@ npm start -- config keys
 
 | コマンド | 説明 |
 |----------|------|
-| `help` | コマンド一覧を表示 |
+| `help` / `?` | コマンド一覧を表示 |
 | `history [N]` | 地震履歴を取得・表示（デフォルト10件） |
 | `status` | WebSocket 接続状態を表示 |
 | `config` | 現在の設定を表示 |
@@ -170,7 +179,12 @@ npm start -- config keys
 | `notify` | 通知カテゴリのON/OFF状態を表示 |
 | `notify <category>` | 指定カテゴリの通知をトグル |
 | `notify all:on` / `all:off` | 全カテゴリの通知を一括ON/OFF |
+| `tablewidth [N]` | テーブル幅の表示・変更（例: `tablewidth 80`） |
+| `infotext [full/short]` | お知らせ電文の全文/省略切替 |
 | `tipinterval [N]` | 待機中ヒント表示間隔（分）を表示・変更（0で無効） |
+| `mode [normal/compact]` | 表示モード切替 |
+| `mute [duration]` | 通知を一時ミュート（例: `mute 30m`、`mute off` で解除） |
+| `retry` | WebSocket 再接続を手動試行 |
 | `quit` / `exit` | アプリケーションを終了 |
 
 ## CLIバイナリとnpm scripts
@@ -192,6 +206,7 @@ src/
 ├── logger.ts                   # ログレベル付きロガー
 ├── cli/
 │   ├── build-command.ts        # Commander CLI定義
+│   ├── init-command.ts         # インタラクティブ初期設定 (fleq init)
 │   └── run-command.ts          # CLIアクションハンドラ (設定解決・起動バナー)
 ├── app/
 │   ├── start-monitor.ts        # メインオーケストレーション (接続・REPL・シャットダウン)
@@ -206,7 +221,8 @@ src/
 │   └── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
-    └── repl.ts                 # REPL インタラクション
+    ├── repl.ts                 # REPL インタラクション
+    └── waiting-tips.ts         # 待機中ヒント定義
 ```
 
 ## 対応電文タイプ（実装ベース）
@@ -245,6 +261,11 @@ src/
 - EEW最終報（NextAdvisory）の検出とログ・トラッカー自動終了
 - EEW差分表記（前の値 → 新しい値 形式）
 - テーブル幅設定（40〜200）とテキスト折り返し機能
+- 表示モード切替（normal / compact）
+- お知らせ電文の全文/省略切替
+- 通知の一時ミュート機能（時間指定）
+- 待機中ヒント表示（間隔設定可能、0で無効）
+- インタラクティブ初期設定（`fleq init`）
 - 南海トラフ地震関連情報（VYSE50-52/VYSE60）の表示
 - 長周期地震動に関する観測情報（VXSE62）の表示
 - 地震活動に関する情報（VZSE40）の表示

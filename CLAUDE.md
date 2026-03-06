@@ -36,6 +36,7 @@ src/
 ├── logger.ts                   # ログレベル付きロガー
 ├── cli/
 │   ├── build-command.ts        # Commander CLI定義
+│   ├── init-command.ts         # インタラクティブ初期設定 (fleq init)
 │   └── run-command.ts          # CLIアクションハンドラ (設定解決・起動バナー)
 ├── app/
 │   ├── start-monitor.ts        # メインオーケストレーション (接続・REPL・シャットダウン)
@@ -50,7 +51,8 @@ src/
 │   └── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
-    └── repl.ts                 # REPL インタラクション
+    ├── repl.ts                 # REPL インタラクション
+    └── waiting-tips.ts         # 待機中ヒント定義
 
 test/
 ├── app/
@@ -181,7 +183,7 @@ fleq config path          # Configファイルのパスを表示
 fleq config keys          # 設定可能なキー一覧を表示
 ```
 
-設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `notify`
+設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `waitTipIntervalMin`, `notify`
 
 通知設定 (`notify`) はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
 
