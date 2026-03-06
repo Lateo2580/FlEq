@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.13.0](https://github.com/Lateo2580/FlEq/compare/v1.12.0...v1.13.0) (2026-03-06)
+
+
+### 機能追加
+
+* headline文をタイトル行直後に移動 ([ae51ede](https://github.com/Lateo2580/FlEq/commit/ae51ede96352d2278aae3b24b8132b5ed57bb4af))
+
 ## [1.12.0](https://github.com/Lateo2580/FlEq/compare/v1.11.0...v1.12.0) (2026-03-05)
 
 
