@@ -784,8 +784,6 @@ export class ReplHandler {
   }
 
   private handleQuit(): void {
-    log.info("シャットダウン中...");
-    this.stop();
     this.onQuit();
   }
 
