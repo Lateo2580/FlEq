@@ -39,6 +39,8 @@ export interface AppConfig {
   infoFullText: boolean;
   /** 表示モード */
   displayMode: DisplayMode;
+  /** 待機中ヒント表示間隔 (分) */
+  waitTipIntervalMin: number;
   /** 通知設定 */
   notify: NotifySettings;
 }
@@ -54,6 +56,7 @@ export interface ConfigFile {
   tableWidth?: number;
   infoFullText?: boolean;
   displayMode?: DisplayMode;
+  waitTipIntervalMin?: number;
   notify?: Partial<NotifySettings>;
 }
 
@@ -67,6 +70,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   tableWidth: 60,
   infoFullText: false,
   displayMode: "normal",
+  waitTipIntervalMin: 30,
   notify: {
     eew: true,
     earthquake: true,

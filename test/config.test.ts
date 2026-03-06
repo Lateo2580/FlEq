@@ -271,6 +271,21 @@ describe("Config", () => {
       ).toThrow(config.ConfigError);
     });
 
+    it("waitTipIntervalMin を設定できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("waitTipIntervalMin", "45");
+
+      const result = config.loadConfig();
+      expect(result.waitTipIntervalMin).toBe(45);
+    });
+
+    it("不正な waitTipIntervalMin で ConfigError をスローする", async () => {
+      const config = await importConfig();
+      expect(() => config.setConfigValue("waitTipIntervalMin", "1500")).toThrow(
+        config.ConfigError
+      );
+    });
+
     it("不明なキーで ConfigError をスローする", async () => {
       const config = await importConfig();
       expect(() => config.setConfigValue("unknown", "val")).toThrow(
@@ -365,6 +380,7 @@ describe("Config", () => {
       expect(output).toContain("apiKey");
       expect(output).toContain("classifications");
       expect(output).toContain("testMode");
+      expect(output).toContain("waitTipIntervalMin");
 
       spy.mockRestore();
     });

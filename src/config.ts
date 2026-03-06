@@ -75,6 +75,7 @@ const CONFIG_KEYS: Record<string, string> = {
   tableWidth: "テーブル表示幅 (40〜200)",
   infoFullText: "お知らせ電文の全文表示 (true/false)",
   displayMode: '表示モード: "normal" | "compact"',
+  waitTipIntervalMin: "待機中ヒント表示間隔 (分, 0で無効)",
 };
 
 /** Configファイルのパスを返す */
@@ -174,6 +175,15 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
     (VALID_DISPLAY_MODES as readonly string[]).includes(raw.displayMode)
   ) {
     config.displayMode = raw.displayMode as DisplayMode;
+  }
+
+  if (
+    typeof raw.waitTipIntervalMin === "number" &&
+    Number.isInteger(raw.waitTipIntervalMin) &&
+    raw.waitTipIntervalMin >= 0 &&
+    raw.waitTipIntervalMin <= 1440
+  ) {
+    config.waitTipIntervalMin = raw.waitTipIntervalMin;
   }
 
   if (typeof raw.notify === "object" && raw.notify != null && !Array.isArray(raw.notify)) {
@@ -284,6 +294,16 @@ export function setConfigValue(key: string, value: string): void {
       }
       config.displayMode = value as DisplayMode;
       break;
+    case "waitTipIntervalMin": {
+      const min = Number(value);
+      if (isNaN(min) || !Number.isInteger(min) || min < 0 || min > 1440) {
+        throw new ConfigError(
+          "waitTipIntervalMin は 0〜1440 の整数を指定してください。"
+        );
+      }
+      config.waitTipIntervalMin = min;
+      break;
+    }
   }
 
   saveConfig(config);

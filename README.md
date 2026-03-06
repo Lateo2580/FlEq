@@ -141,6 +141,7 @@ npm start -- config keys
 | `maxReconnectDelaySec` | 再接続の最大待機秒数 |
 | `keepExistingConnections` | 既存のWebSocket接続を維持するか (`true` / `false`) |
 | `tableWidth` | テーブル表示幅 (40〜200、デフォルト: 60) |
+| `waitTipIntervalMin` | 待機中ヒント表示間隔（分, 0〜1440、デフォルト: 30） |
 
 設定の優先順位（高い順）:
 
@@ -169,6 +170,7 @@ npm start -- config keys
 | `notify` | 通知カテゴリのON/OFF状態を表示 |
 | `notify <category>` | 指定カテゴリの通知をトグル |
 | `notify all:on` / `all:off` | 全カテゴリの通知を一括ON/OFF |
+| `tipinterval [N]` | 待機中ヒント表示間隔（分）を表示・変更（0で無効） |
 | `quit` / `exit` | アプリケーションを終了 |
 
 ## CLIバイナリとnpm scripts

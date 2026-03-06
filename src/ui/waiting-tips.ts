@@ -1,0 +1,18 @@
+export const WAITING_TIPS: string[] = [
+  "Tip: help で利用可能なコマンド一覧を表示できます。",
+  "Tip: mode compact にすると長時間監視でもログが追いやすくなります。",
+  "Tip: status で接続状態や再接続試行回数を確認できます。",
+  "Tip: history 20 で直近20件の地震履歴を確認できます。",
+  "Tip: tablewidth 80 のように表示幅を環境に合わせて調整できます。",
+  "Tip: infotext full でお知らせ電文を全文表示に切り替えできます。",
+  "Tip: mute 30m で通知を30分だけ一時停止できます。",
+  "Tip: mute off で通知ミュートを解除できます。",
+  "Tip: notify でカテゴリ別通知のON/OFF状態を確認できます。",
+  "Tip: notify all:off で全カテゴリ通知を一括で停止できます。",
+  "Tip: notify eew on のようにカテゴリ個別に通知設定を変更できます。",
+  "Tip: contract で現在契約中の区分を確認できます。",
+  "Tip: socket で現在開いているソケット一覧を確認できます。",
+  "Tip: retry は切断中に手動で再接続を試す時に使えます。",
+  "Tip: config で現在の永続設定を確認できます。",
+  "Tip: fleq config set waitTipIntervalMin 10 でヒント間隔を10分に変更できます。",
+];
