@@ -30,13 +30,23 @@ async function importConfig() {
 }
 
 describe("Config", () => {
+  let savedXdgConfigHome: string | undefined;
+
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-config-test-"));
+    // XDG_CONFIG_HOME を tmpDir/.config に固定して OS 差異を吸収
+    savedXdgConfigHome = process.env.XDG_CONFIG_HOME;
+    process.env.XDG_CONFIG_HOME = path.join(tmpDir, ".config");
   });
 
   afterEach(() => {
     // tmpDir をクリーンアップ
     fs.rmSync(tmpDir, { recursive: true, force: true });
+    if (savedXdgConfigHome === undefined) {
+      delete process.env.XDG_CONFIG_HOME;
+    } else {
+      process.env.XDG_CONFIG_HOME = savedXdgConfigHome;
+    }
     vi.restoreAllMocks();
   });
 
@@ -332,7 +342,7 @@ describe("Config", () => {
   });
 
   describe("マイグレーション", () => {
-    it("旧 Config から移行したファイル権限も 0600 に寄せる", async () => {
+    it("旧アプリ名 (dmdata-monitor) から移行できる", async () => {
       const oldDir = path.join(tmpDir, ".config", "dmdata-monitor");
       fs.mkdirSync(oldDir, { recursive: true });
       const oldPath = path.join(oldDir, "config.json");
@@ -346,9 +356,41 @@ describe("Config", () => {
 
       expect(result.apiKey).toBe("legacy-key");
       if (process.platform !== "win32") {
-        const newPath = path.join(tmpDir, ".config", "fleq", "config.json");
-        const stat = fs.statSync(newPath);
+        const configPath = config.getConfigPath();
+        const stat = fs.statSync(configPath);
         expect(stat.mode & 0o777).toBe(0o600);
+      }
+    });
+
+    it("レガシーパス (~/.config/fleq/) からの移行が優先される", async () => {
+      // macOS/Windows で XDG_CONFIG_HOME 指定時、~/.config/fleq/ がレガシーパスになるケース
+      const customDir = path.join(tmpDir, "custom-xdg");
+      process.env.XDG_CONFIG_HOME = customDir;
+
+      try {
+        // レガシーパス (~/.config/fleq/) にファイルを作成
+        const legacyDir = path.join(tmpDir, ".config", "fleq");
+        fs.mkdirSync(legacyDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(legacyDir, "config.json"),
+          JSON.stringify({ apiKey: "legacy-fleq-key" })
+        );
+
+        // 旧アプリ名パスにもファイルを作成
+        const oldDir = path.join(tmpDir, ".config", "dmdata-monitor");
+        fs.mkdirSync(oldDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(oldDir, "config.json"),
+          JSON.stringify({ apiKey: "dmdata-key" })
+        );
+
+        const config = await importConfig();
+        const result = config.loadConfig();
+
+        // レガシーパスが優先される
+        expect(result.apiKey).toBe("legacy-fleq-key");
+      } finally {
+        delete process.env.XDG_CONFIG_HOME;
       }
     });
   });
@@ -415,6 +457,69 @@ describe("Config", () => {
       expect(output).toContain("waitTipIntervalMin");
 
       spy.mockRestore();
+    });
+  });
+
+  describe("getConfigDir (OS別パス)", () => {
+    it("XDG_CONFIG_HOME が設定されている場合はそちらを優先する", async () => {
+      const customDir = path.join(tmpDir, "custom-xdg");
+      process.env.XDG_CONFIG_HOME = customDir;
+      const config = await importConfig();
+      const dir = config.getConfigDir();
+      expect(dir).toBe(path.join(customDir, "fleq"));
+    });
+
+    it("XDG_CONFIG_HOME 未設定時はパスに fleq を含む", async () => {
+      delete process.env.XDG_CONFIG_HOME;
+      const config = await importConfig();
+      const dir = config.getConfigDir();
+      expect(dir).toContain("fleq");
+    });
+  });
+
+  describe("resolveConfigDir (純粋関数テスト)", () => {
+    const HOME = "/mock/home";
+
+    it.each([
+      {
+        label: "XDG_CONFIG_HOME 優先 (全OS共通)",
+        platform: "linux" as NodeJS.Platform,
+        env: { XDG_CONFIG_HOME: "/custom/xdg" },
+        expected: path.join("/custom/xdg", "fleq"),
+      },
+      {
+        label: "macOS デフォルト",
+        platform: "darwin" as NodeJS.Platform,
+        env: {},
+        expected: path.join(HOME, "Library", "Application Support", "fleq"),
+      },
+      {
+        label: "Windows (APPDATA あり)",
+        platform: "win32" as NodeJS.Platform,
+        env: { APPDATA: "C:\\Users\\test\\AppData\\Roaming" },
+        expected: path.join("C:\\Users\\test\\AppData\\Roaming", "fleq"),
+      },
+      {
+        label: "Windows (APPDATA なし → フォールバック)",
+        platform: "win32" as NodeJS.Platform,
+        env: {},
+        expected: path.join(HOME, "AppData", "Roaming", "fleq"),
+      },
+      {
+        label: "Linux デフォルト",
+        platform: "linux" as NodeJS.Platform,
+        env: {},
+        expected: path.join(HOME, ".config", "fleq"),
+      },
+      {
+        label: "FreeBSD (default branch)",
+        platform: "freebsd" as NodeJS.Platform,
+        env: {},
+        expected: path.join(HOME, ".config", "fleq"),
+      },
+    ])("$label", async ({ platform, env, expected }) => {
+      const config = await importConfig();
+      expect(config.resolveConfigDir(platform, env, HOME)).toBe(expected);
     });
   });
 

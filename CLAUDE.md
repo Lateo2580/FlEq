@@ -166,7 +166,7 @@ index.ts (bootstrap) → engine/cli.ts (Commander定義)
 1. CLI オプション (`--api-key`, `-c`, `--test`, `--keep-existing`)
 2. 環境変数 `DMDATA_API_KEY` (APIキーのみ)
 3. `.env` ファイル (APIキーのみ)
-4. Configファイル (`~/.config/fleq/config.json`)
+4. Configファイル (OS別: macOS `~/Library/Application Support/fleq/`, Linux `~/.config/fleq/`, Windows `%APPDATA%\fleq\`。`XDG_CONFIG_HOME` 設定時はそちら優先)
 5. デフォルト値 (`DEFAULT_CONFIG`)
 
 ### Configファイル管理

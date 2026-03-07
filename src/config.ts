@@ -15,8 +15,49 @@ export class ConfigError extends Error {
 /** 旧Configファイルのディレクトリ (マイグレーション用) */
 const OLD_CONFIG_DIR = path.join(os.homedir(), ".config", "dmdata-monitor");
 
+/** レガシーConfigディレクトリ (macOS/Windows でのマイグレーション用) */
+const LEGACY_CONFIG_DIR = path.join(os.homedir(), ".config", "fleq");
+
+/**
+ * OS・環境変数・ホームディレクトリからConfigディレクトリを解決する純粋関数。
+ * テスト時に platform / env / homedir を差し替えられる。
+ *
+ * 優先順位:
+ * 1. 環境変数 XDG_CONFIG_HOME (設定されている場合)
+ * 2. OS 別のデフォルトパス:
+ *    - macOS:   ~/Library/Application Support/fleq
+ *    - Windows: %APPDATA%/fleq
+ *    - Linux 等: ~/.config/fleq (XDG 標準)
+ */
+export function resolveConfigDir(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  homedir: string = os.homedir()
+): string {
+  if (env.XDG_CONFIG_HOME) {
+    return path.join(env.XDG_CONFIG_HOME, "fleq");
+  }
+
+  switch (platform) {
+    case "darwin":
+      return path.join(homedir, "Library", "Application Support", "fleq");
+    case "win32":
+      return path.join(
+        env.APPDATA || path.join(homedir, "AppData", "Roaming"),
+        "fleq"
+      );
+    default:
+      return path.join(homedir, ".config", "fleq");
+  }
+}
+
+/** 現在のプロセス環境で設定ディレクトリを返す (resolveConfigDir のショートハンド) */
+export function getConfigDir(): string {
+  return resolveConfigDir();
+}
+
 /** Configファイルのディレクトリ */
-const CONFIG_DIR = path.join(os.homedir(), ".config", "fleq");
+const CONFIG_DIR = getConfigDir();
 
 /** Configファイルのパス */
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
@@ -32,23 +73,49 @@ function hardenConfigPermissions(filePath: string): void {
   }
 }
 
-/** 旧パスから新パスへ設定ファイルをマイグレーションする */
+/**
+ * 旧パスから新パスへ設定ファイルをマイグレーションする。
+ *
+ * 移行元の優先順位 (先にヒットした方を移行):
+ * 1. ~/.config/fleq/config.json (macOS/Windows でレガシーパスに保存されていた場合)
+ * 2. ~/.config/dmdata-monitor/config.json (旧アプリ名)
+ */
 function migrateConfigIfNeeded(): void {
-  const oldConfigPath = path.join(OLD_CONFIG_DIR, "config.json");
-  if (fs.existsSync(oldConfigPath) && !fs.existsSync(CONFIG_PATH)) {
-    try {
-      if (!fs.existsSync(CONFIG_DIR)) {
+  if (fs.existsSync(CONFIG_PATH)) return;
+
+  // パス比較は正規化して行う (symlink・末尾スラッシュ・大文字小文字の差異を吸収)
+  const isSamePath = (a: string, b: string): boolean =>
+    path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+
+  // 移行元候補 (優先順)
+  const migrationSources = [
+    // レガシーパス (macOS/Windows で ~/.config/fleq/ に保存されていた場合)
+    ...(!isSamePath(LEGACY_CONFIG_DIR, CONFIG_DIR)
+      ? [path.join(LEGACY_CONFIG_DIR, "config.json")]
+      : []),
+    // 旧アプリ名
+    path.join(OLD_CONFIG_DIR, "config.json"),
+  ];
+
+  for (const sourcePath of migrationSources) {
+    if (fs.existsSync(sourcePath)) {
+      try {
         fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+        // COPYFILE_EXCL: 既にファイルが存在する場合はエラーにして上書きを防ぐ
+        fs.copyFileSync(sourcePath, CONFIG_PATH, fs.constants.COPYFILE_EXCL);
+        hardenConfigPermissions(CONFIG_PATH);
+        log.info(
+          `設定ファイルを移行しました: ${sourcePath} → ${CONFIG_PATH}`
+        );
+      } catch (err) {
+        // 別プロセスが先に作成した場合は成功扱い
+        const e = err as NodeJS.ErrnoException;
+        if (e.code === "EEXIST") return;
+        if (err instanceof Error) {
+          log.warn(`設定ファイルの移行に失敗しました: ${err.message}`);
+        }
       }
-      fs.copyFileSync(oldConfigPath, CONFIG_PATH);
-      hardenConfigPermissions(CONFIG_PATH);
-      log.info(
-        `設定ファイルを移行しました: ${oldConfigPath} → ${CONFIG_PATH}`
-      );
-    } catch (err) {
-      if (err instanceof Error) {
-        log.warn(`設定ファイルの移行に失敗しました: ${err.message}`);
-      }
+      return;
     }
   }
 }

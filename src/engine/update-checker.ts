@@ -1,12 +1,12 @@
 import * as https from "https";
 import * as fs from "fs";
 import * as path from "path";
-import * as os from "os";
 import chalk from "chalk";
 import * as log from "../logger";
+import { getConfigDir } from "../config";
 
 /** チェック結果のキャッシュファイルパス */
-const CACHE_DIR = path.join(os.homedir(), ".config", "fleq");
+const CACHE_DIR = getConfigDir();
 const CACHE_PATH = path.join(CACHE_DIR, ".update-check");
 
 /** チェック間隔: 24時間 */

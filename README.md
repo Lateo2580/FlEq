@@ -15,6 +15,14 @@ Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地
 - Node.js 18以上
 - dmdata.jp のAPIキー（`socket.start` および該当区分の `telegram.get.*` 権限が必要）
 
+## 対応OS
+
+| OS | 対応状況 | 備考 |
+|----|---------|------|
+| macOS 10.13+ | 対応 | メイン開発・テスト環境 |
+| Linux (x64 / ARM) | 対応 | Raspberry Pi 等の ARM デバイスでも動作 |
+| Windows 10+ | 対応 | ConPTY 対応のターミナルを推奨 |
+
 ## インストール
 
 ### npm からインストール
@@ -66,7 +74,7 @@ set DMDATA_API_KEY=your_api_key_here
 fleq config set apiKey your_api_key_here
 ```
 
-保存先は `fleq config path` で確認できます（デフォルト: `~/.config/fleq/config.json`）。
+保存先は `fleq config path` で確認できます（OSごとに異なります。詳細は「Config管理」を参照）。
 
 **方法3: .envファイル**
 
@@ -111,7 +119,7 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 11件（計285テスト）
+- テストファイル: 11件（計294テスト）
 - フィクスチャ: `test/fixtures/` に実電文XML 62件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
@@ -129,8 +137,16 @@ npm run test:watch
 
 ## Config管理
 
-永続設定は `~/.config/fleq/config.json` に保存されます。
-`config` サブコマンドで管理できます。
+永続設定はOS別のディレクトリに保存されます。`config` サブコマンドで管理できます。
+
+| OS | デフォルトパス |
+|----|---------------|
+| macOS | `~/Library/Application Support/fleq/config.json` |
+| Linux | `~/.config/fleq/config.json` |
+| Windows | `%APPDATA%\fleq\config.json` |
+
+環境変数 `XDG_CONFIG_HOME` が設定されている場合は、全OSで `$XDG_CONFIG_HOME/fleq/config.json` が優先されます。
+旧バージョンで `~/.config/fleq/` や `~/.config/dmdata-monitor/` に保存された設定は、初回起動時に自動的に移行されます。
 
 ```bash
 # 現在の設定を表示します
@@ -169,7 +185,7 @@ fleq config keys
 1. CLI オプション (`--api-key`, `--classifications`, `--test`, `--keep-existing`, `--close-others`)
 2. 環境変数 `DMDATA_API_KEY`（APIキーのみ）
 3. `.env` ファイル（APIキーのみ）
-4. Configファイル (`~/.config/fleq/config.json`)
+4. Configファイル（`fleq config path` で確認可能）
 5. デフォルト値 (`DEFAULT_CONFIG`)
 
 補足:
@@ -284,12 +300,32 @@ src/
 - 長周期地震動に関する観測情報（VXSE62）の表示
 - 地震活動に関する情報（VZSE40）の表示
 - EEWで主要動到達と推測される地域のリスト表示
-- デスクトップ通知機能（カテゴリ別ON/OFF、REPLで管理）
+- デスクトップ通知機能（カテゴリ別ON/OFF、REPLで管理。下記「デスクトップ通知」参照）
 - 指数バックオフによる自動再接続
 - ping-pongによる接続維持
 - ハートビート監視（90秒）
 - 既存ソケットの自動クリーンアップ
 - Configファイルによる永続設定管理
+
+## デスクトップ通知
+
+`node-notifier` パッケージによるデスクトップ通知に対応しています（optional dependency）。
+
+| OS | 通知バックエンド |
+|----|----------------|
+| macOS | Notification Center |
+| Linux | `notify-send` (`libnotify`) |
+| Windows | Windows Toast Notifications |
+
+**Linux での注意事項:**
+
+- デスクトップ環境では通常 `notify-send` がプリインストールされていますが、ない場合は手動インストールが必要です:
+  ```bash
+  # Debian / Ubuntu / Raspberry Pi OS
+  sudo apt install libnotify-bin
+  ```
+- ヘッドレス環境（サーバー、SSH接続のみ）では通知を表示する手段がないため、通知機能は自動的に無効になります。アプリの動作には影響しません。
+- `node-notifier` のインストールに失敗した場合でも、通知以外の機能は正常に動作します。
 
 ## ライセンス
 

@@ -5,6 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 vi.mock("../../src/config", () => ({
   loadConfig: vi.fn(() => ({})),
   getConfigPath: vi.fn(() => "/mock/config.json"),
+  getConfigDir: vi.fn(() => "/mock/config"),
+  resolveConfigDir: vi.fn(() => "/mock/config"),
   VALID_CLASSIFICATIONS: [
     "telegram.earthquake",
     "eew.forecast",
