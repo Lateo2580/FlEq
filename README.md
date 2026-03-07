@@ -59,16 +59,20 @@ CMD:
 set DMDATA_API_KEY=your_api_key_here
 ```
 
-**方法2: .envファイル**
+**方法2: Configに保存（推奨）**
 
-プロジェクトルートに `.env` ファイルを作成し、以下の内容を記述してください。
-```
-DMDATA_API_KEY=your-key-here
-```
-
-**方法3: Configに保存**
+グローバルインストール時はこちらが最も簡単です。
 ```bash
 fleq config set apiKey your_api_key_here
+```
+
+保存先は `fleq config path` で確認できます（デフォルト: `~/.config/fleq/config.json`）。
+
+**方法3: .envファイル**
+
+カレントディレクトリの `.env` ファイルから読み込みます（ソースからの実行時に便利です）。
+```
+DMDATA_API_KEY=your-key-here
 ```
 
 ## 使い方
