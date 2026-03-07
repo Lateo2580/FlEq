@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.18.1](https://github.com/Lateo2580/FlEq/compare/v1.18.0...v1.18.1) (2026-03-07)
+
+
+### バグ修正
+
+* exit/quitコマンド実行後にzshの%記号が表示される問題を修正 ([8bfa4c8](https://github.com/Lateo2580/FlEq/commit/8bfa4c83a9a98cb70a49cf34984601c64d687d31))
+
 ## [1.18.0](https://github.com/Lateo2580/FlEq/compare/v1.17.0...v1.18.0) (2026-03-07)
 
 
