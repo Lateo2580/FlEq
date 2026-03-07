@@ -13,6 +13,7 @@ import {
 import { listContracts } from "../dmdata/rest-client";
 import { startMonitor } from "../app/start-monitor";
 import { setFrameWidth, setInfoFullText, setDisplayMode } from "../ui/formatter";
+import * as updateChecker from "../features/update-checker";
 import * as log from "../logger";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -154,6 +155,7 @@ export async function runMonitor(opts: {
   setDisplayMode(config.displayMode);
 
   printBanner(config);
+  updateChecker.checkForUpdates("fleq", VERSION);
   await startMonitor(config);
 }
 
