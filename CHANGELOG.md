@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.21.0](https://github.com/Lateo2580/FlEq/compare/v1.20.2...v1.21.0) (2026-03-07)
+
+
+### 機能追加
+
+* OS別設定パス対応とXDG_CONFIG_HOMEサポート ([2f5fcd1](https://github.com/Lateo2580/FlEq/commit/2f5fcd16a222851357df46669c63047b18e35753))
+
 ## [1.20.2](https://github.com/Lateo2580/FlEq/compare/v1.20.1...v1.20.2) (2026-03-07)
 
 
