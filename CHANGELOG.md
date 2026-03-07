@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.19.1](https://github.com/Lateo2580/FlEq/compare/v1.19.0...v1.19.1) (2026-03-07)
+
+
+### リファクタリング
+
+* type/reportDateTime/publishingOfficeの表示を統一し各テーブル最下段に移動 ([6f3c10f](https://github.com/Lateo2580/FlEq/commit/6f3c10f7d4df6efb1d9fa2f807635fdc0a697a7f))
+
 ## [1.19.0](https://github.com/Lateo2580/FlEq/compare/v1.18.1...v1.19.0) (2026-03-07)
 
 
