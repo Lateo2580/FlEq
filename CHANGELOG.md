@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.19.0](https://github.com/Lateo2580/FlEq/compare/v1.18.1...v1.19.0) (2026-03-07)
+
+
+### 機能追加
+
+* helpコマンドで設定変更可能なコマンドの現在値を表示 ([2c15715](https://github.com/Lateo2580/FlEq/commit/2c157158dfe70f2c09c559d3002ebc82071eb99d))
+
 ## [1.18.1](https://github.com/Lateo2580/FlEq/compare/v1.18.0...v1.18.1) (2026-03-07)
 
 
