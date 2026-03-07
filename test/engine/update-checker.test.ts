@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isNewerVersion } from "../../src/features/update-checker";
+import { isNewerVersion } from "../../src/engine/update-checker";
 
 describe("isNewerVersion", () => {
   it("メジャーバージョンが大きい場合 true", () => {

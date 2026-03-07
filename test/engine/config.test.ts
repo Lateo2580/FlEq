@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
-vi.mock("../src/logger", () => ({
+vi.mock("../../src/logger", () => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock("os", async () => {
 async function importConfig() {
   // モジュールキャッシュをクリアして再評価
   vi.resetModules();
-  return await import("../src/config");
+  return await import("../../src/config");
 }
 
 describe("Config", () => {

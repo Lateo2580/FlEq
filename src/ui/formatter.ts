@@ -9,7 +9,7 @@ import {
   DisplayMode,
   WsDataMessage,
 } from "../types";
-import type { EewDiff } from "../features/eew-tracker";
+import type { EewDiff } from "../engine/eew-tracker";
 import * as log from "../logger";
 
 // ── CUD パレット (岡部・伊東 カラーユニバーサルデザイン推奨色ベース) ──

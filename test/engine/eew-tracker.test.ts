@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EewTracker } from "../../src/features/eew-tracker";
+import { EewTracker } from "../../src/engine/eew-tracker";
 import { ParsedEewInfo } from "../../src/types";
 
 /** テスト用の ParsedEewInfo を生成する */

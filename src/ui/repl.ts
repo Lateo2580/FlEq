@@ -4,7 +4,7 @@ import { AppConfig, DisplayMode, NotifyCategory } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { loadConfig, saveConfig, printConfig } from "../config";
-import { Notifier, NOTIFY_CATEGORY_LABELS } from "../features/notifier";
+import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notifier";
 import {
   formatElapsedTime,
   intensityColor,

@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { EewEventLogger } from "../../src/features/eew-logger";
-import { EewUpdateResult } from "../../src/features/eew-tracker";
+import { EewEventLogger } from "../../src/engine/eew-logger";
+import { EewUpdateResult } from "../../src/engine/eew-tracker";
 import { ParsedEewInfo } from "../../src/types";
 
 /** テスト用の ParsedEewInfo を生成する */

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createMessageHandler } from "../../src/app/message-router";
+import { createMessageHandler } from "../../src/engine/message-router";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,

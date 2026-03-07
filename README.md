@@ -6,7 +6,7 @@ Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地
 
 - バージョン: `1.15.0`
 - デフォルトブランチ: `main`
-- テスト: 10ファイル / 268テスト（`npm test` で全件成功）
+- テスト: 11ファイル / 279テスト（`npm test` で全件成功）
 - XMLフィクスチャ: `test/fixtures/` に 46件
 
 ## 対応情報
@@ -100,7 +100,7 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 10件（計268テスト）
+- テストファイル: 11件（計279テスト）
 - フィクスチャ: `test/fixtures/` に実電文XML 46件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
@@ -204,21 +204,20 @@ src/
 ├── types.ts                    # 共有型定義
 ├── config.ts                   # Configファイル管理 (読み書き・バリデーション)
 ├── logger.ts                   # ログレベル付きロガー
-├── cli/
-│   ├── build-command.ts        # Commander CLI定義
-│   ├── init-command.ts         # インタラクティブ初期設定 (fleq init)
-│   └── run-command.ts          # CLIアクションハンドラ (設定解決・起動バナー)
-├── app/
-│   ├── start-monitor.ts        # メインオーケストレーション (接続・REPL・シャットダウン)
-│   └── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
+├── engine/
+│   ├── cli.ts                  # Commander CLI定義
+│   ├── cli-init.ts             # インタラクティブ初期設定 (fleq init)
+│   ├── cli-run.ts              # CLIアクションハンドラ (設定解決・起動バナー)
+│   ├── monitor.ts              # メインオーケストレーション (接続・REPL・シャットダウン)
+│   ├── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
+│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
+│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
+│   ├── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
+│   └── update-checker.ts       # npm 最新バージョンチェック
 ├── dmdata/
 │   ├── rest-client.ts          # dmdata.jp REST API クライアント
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
-├── features/
-│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
-│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
-│   └── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
     ├── repl.ts                 # REPL インタラクション

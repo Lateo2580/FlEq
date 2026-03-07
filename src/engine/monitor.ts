@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { ReplHandler } from "../ui/repl";
-import { createMessageHandler } from "../app/message-router";
+import { createMessageHandler } from "./message-router";
 import { formatTimestamp } from "../ui/formatter";
 import * as log from "../logger";
 

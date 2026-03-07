@@ -37,7 +37,7 @@ vi.mock("../../src/logger", () => ({
   debug: vi.fn(),
 }));
 
-vi.mock("../../src/features/notifier", () => ({
+vi.mock("../../src/engine/notifier", () => ({
   Notifier: class {
     getSettings() { return { eew: true, earthquake: true, tsunami: true, seismicText: true, nankaiTrough: true, lgObservation: true }; }
     toggleCategory() { return false; }
@@ -66,7 +66,7 @@ import {
   listSockets,
 } from "../../src/dmdata/rest-client";
 import { printConfig, loadConfig, saveConfig } from "../../src/config";
-import { Notifier } from "../../src/features/notifier";
+import { Notifier } from "../../src/engine/notifier";
 import { AppConfig } from "../../src/types";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);

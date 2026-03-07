@@ -16,7 +16,7 @@ vi.mock("../../src/dmdata/rest-client", () => ({
   listContracts: vi.fn(),
 }));
 
-vi.mock("../../src/app/start-monitor", () => ({
+vi.mock("../../src/engine/monitor", () => ({
   startMonitor: vi.fn(),
 }));
 
@@ -29,10 +29,10 @@ vi.mock("../../src/logger", () => ({
   LogLevel: { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 },
 }));
 
-import { runMonitor } from "../../src/cli/run-command";
+import { runMonitor } from "../../src/engine/cli-run";
 import { loadConfig } from "../../src/config";
 import { listContracts } from "../../src/dmdata/rest-client";
-import { startMonitor } from "../../src/app/start-monitor";
+import { startMonitor } from "../../src/engine/monitor";
 import * as log from "../../src/logger";
 
 const mockLoadConfig = vi.mocked(loadConfig);

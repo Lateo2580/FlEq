@@ -34,39 +34,37 @@ src/
 ├── types.ts                    # 共有型定義
 ├── config.ts                   # Configファイル管理 (読み書き・バリデーション)
 ├── logger.ts                   # ログレベル付きロガー
-├── cli/
-│   ├── build-command.ts        # Commander CLI定義
-│   ├── init-command.ts         # インタラクティブ初期設定 (fleq init)
-│   └── run-command.ts          # CLIアクションハンドラ (設定解決・起動バナー)
-├── app/
-│   ├── start-monitor.ts        # メインオーケストレーション (接続・REPL・シャットダウン)
-│   └── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
+├── engine/
+│   ├── cli.ts                  # Commander CLI定義
+│   ├── cli-init.ts             # インタラクティブ初期設定 (fleq init)
+│   ├── cli-run.ts              # CLIアクションハンドラ (設定解決・起動バナー)
+│   ├── monitor.ts              # メインオーケストレーション (接続・REPL・シャットダウン)
+│   ├── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
+│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
+│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
+│   ├── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
+│   └── update-checker.ts       # npm 最新バージョンチェック
 ├── dmdata/
 │   ├── rest-client.ts          # dmdata.jp REST API クライアント
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
-├── features/
-│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
-│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
-│   └── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
     ├── repl.ts                 # REPL インタラクション
     └── waiting-tips.ts         # 待機中ヒント定義
 
 test/
-├── app/
-│   └── message-router.test.ts
-├── cli/
-│   └── run-command.test.ts
-├── config.test.ts
+├── engine/
+│   ├── cli-run.test.ts
+│   ├── config.test.ts
+│   ├── message-router.test.ts
+│   ├── eew-tracker.test.ts
+│   ├── eew-logger.test.ts
+│   └── update-checker.test.ts
 ├── dmdata/
 │   ├── rest-client.test.ts
 │   ├── telegram-parser.test.ts
 │   └── ws-client.test.ts
-├── features/
-│   ├── eew-logger.test.ts
-│   └── eew-tracker.test.ts
 ├── ui/
 │   ├── formatter.test.ts
 │   └── repl.test.ts
@@ -78,21 +76,19 @@ test/
 ## アーキテクチャ
 
 ```
-index.ts (bootstrap) → cli/build-command.ts (Commander定義)
-  → cli/run-command.ts (設定解決・契約チェック)
-    → app/start-monitor.ts (WebSocket接続・REPL起動)
-      → app/message-router.ts (電文振り分け)
+index.ts (bootstrap) → engine/cli.ts (Commander定義)
+  → engine/cli-run.ts (設定解決・契約チェック)
+    → engine/monitor.ts (WebSocket接続・REPL起動)
+      → engine/message-router.ts (電文振り分け)
         → dmdata/telegram-parser.ts (XML解析)
         → ui/formatter.ts (色付き表示)
-        → features/eew-tracker.ts (EEW追跡)
-        → features/eew-logger.ts (EEWログ記録)
-        → features/notifier.ts (デスクトップ通知)
+        → engine/eew-tracker.ts (EEW追跡)
+        → engine/eew-logger.ts (EEWログ記録)
+        → engine/notifier.ts (デスクトップ通知)
 ```
 
-- `cli/` — CLI定義と設定解決を担当、ランタイムロジックを持たない
-- `app/` — アプリケーションのオーケストレーションとメッセージルーティング
+- `engine/` — CLI定義・設定解決・オーケストレーション・ドメイン機能 (EEW追跡・ログ記録・通知)
 - `dmdata/` — dmdata.jp との通信層 (REST, WebSocket, 電文パース)
-- `features/` — ドメイン固有の機能 (EEW追跡・ログ記録・デスクトップ通知)
 - `ui/` — ユーザーインターフェース (ターミナル表示, REPL)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック

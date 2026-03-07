@@ -16,9 +16,9 @@ import {
   displayLgObservationInfo,
   displayRawHeader,
 } from "../ui/formatter";
-import { EewTracker } from "../features/eew-tracker";
-import { EewEventLogger } from "../features/eew-logger";
-import { Notifier } from "../features/notifier";
+import { EewTracker } from "./eew-tracker";
+import { EewEventLogger } from "./eew-logger";
+import { Notifier } from "./notifier";
 import * as log from "../logger";
 
 /** createMessageHandler の戻り値 */

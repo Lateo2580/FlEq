@@ -14,7 +14,7 @@ import {
   wrapTextLines,
   setFrameWidth,
 } from "../../src/ui/formatter";
-import type { EewDiff } from "../../src/features/eew-tracker";
+import type { EewDiff } from "../../src/engine/eew-tracker";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,

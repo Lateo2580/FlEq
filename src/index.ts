@@ -3,7 +3,7 @@
 process.env.DOTENV_CONFIG_QUIET = "true";
 import dotenv from "dotenv";
 dotenv.config();
-import { buildProgram } from "./cli/build-command";
+import { buildProgram } from "./engine/cli";
 
 const program = buildProgram();
 program.parseAsync().catch((err: unknown) => {

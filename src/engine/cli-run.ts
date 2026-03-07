@@ -11,9 +11,9 @@ import {
   VALID_CLASSIFICATIONS,
 } from "../config";
 import { listContracts } from "../dmdata/rest-client";
-import { startMonitor } from "../app/start-monitor";
+import { startMonitor } from "./monitor";
 import { setFrameWidth, setInfoFullText, setDisplayMode } from "../ui/formatter";
-import * as updateChecker from "../features/update-checker";
+import * as updateChecker from "./update-checker";
 import * as log from "../logger";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires

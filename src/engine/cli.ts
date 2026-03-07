@@ -8,8 +8,8 @@ import {
   ConfigError,
 } from "../config";
 import * as log from "../logger";
-import { runMonitor } from "./run-command";
-import { runInit } from "./init-command";
+import { runMonitor } from "./cli-run";
+import { runInit } from "./cli-init";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require("../../package.json") as {
