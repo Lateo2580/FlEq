@@ -18,6 +18,7 @@ interface MockRequest extends EventEmitter {
 let lastMockReq: MockRequest;
 let lastMockRes: MockResponse;
 let requestCallback: ((res: MockResponse) => void) | null = null;
+let lastRequestOptions: Record<string, unknown> | null = null;
 
 function createMockRequest(): MockRequest {
   const emitter = new EventEmitter() as MockRequest;
@@ -50,9 +51,10 @@ function createMockResponse(
 vi.mock("https", () => ({
   default: {
     request: (
-      _options: unknown,
+      options: unknown,
       callback: (res: MockResponse) => void
     ) => {
+      lastRequestOptions = options as Record<string, unknown>;
       requestCallback = callback;
       lastMockReq = createMockRequest();
       return lastMockReq;
@@ -114,6 +116,7 @@ const TEST_API_KEY = "test-key";
 describe("REST Client", () => {
   beforeEach(() => {
     requestCallback = null;
+    lastRequestOptions = null;
   });
 
   afterEach(() => {
@@ -137,6 +140,13 @@ describe("REST Client", () => {
 
       const result = await promise;
       expect(result).toEqual(["telegram.earthquake", "eew.forecast"]);
+      expect(lastRequestOptions).toMatchObject({
+        path: "/v2/contract",
+        headers: expect.objectContaining({
+          Authorization: `Basic ${Buffer.from(`${TEST_API_KEY}:`).toString("base64")}`,
+          Accept: "application/json",
+        }),
+      });
     });
 
     it("エラーステータスの場合 throw する", async () => {

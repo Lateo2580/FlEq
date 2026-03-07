@@ -26,6 +26,7 @@ export async function runMonitor(opts: {
   classifications?: string;
   test?: string;
   keepExisting?: boolean;
+  closeOthers?: boolean;
   mode?: string;
   debug: boolean;
 }): Promise<void> {
@@ -108,9 +109,13 @@ export async function runMonitor(opts: {
     maxReconnectDelaySec:
       fileConfig.maxReconnectDelaySec ?? DEFAULT_CONFIG.maxReconnectDelaySec,
     keepExistingConnections:
-      opts.keepExisting ??
-      fileConfig.keepExistingConnections ??
-      DEFAULT_CONFIG.keepExistingConnections,
+      opts.closeOthers === true
+        ? false
+        : (
+            opts.keepExisting ??
+            fileConfig.keepExistingConnections ??
+            DEFAULT_CONFIG.keepExistingConnections
+          ),
     tableWidth: fileConfig.tableWidth ?? DEFAULT_CONFIG.tableWidth,
     infoFullText: fileConfig.infoFullText ?? DEFAULT_CONFIG.infoFullText,
     displayMode: displayModeRaw,

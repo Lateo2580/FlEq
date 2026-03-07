@@ -311,6 +311,23 @@ describe("runMonitor", () => {
         expect.objectContaining({ keepExistingConnections: true })
       );
     });
+
+    it("CLI の closeOthers が config より優先", async () => {
+      mockLoadConfig.mockReturnValue({
+        apiKey: "key",
+        keepExistingConnections: true,
+      });
+
+      await runMonitor({
+        apiKey: "key",
+        closeOthers: true,
+        debug: false,
+      });
+
+      expect(mockStartMonitor).toHaveBeenCalledWith(
+        expect.objectContaining({ keepExistingConnections: false })
+      );
+    });
   });
 
   describe("デバッグモード", () => {

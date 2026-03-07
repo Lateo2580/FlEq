@@ -121,6 +121,7 @@ describe("ReplHandler", () => {
       configurable: true,
     });
     mockRl = (readline.createInterface as ReturnType<typeof vi.fn>)() as typeof mockRl;
+    mockRl.setMaxListeners(0);
   });
 
   afterEach(() => {

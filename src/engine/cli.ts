@@ -22,49 +22,56 @@ export function buildProgram(): Command {
   program
     .name("fleq")
     .description(
-      "Project DM-D.S.S (dmdata.jp) の地震・津波・EEW情報をリアルタイム受信・表示するCLIツール"
+      "Project DM-D.S.S (dmdata.jp) の地震・津波・EEW情報をリアルタイムで受信・表示するCLIツールです"
     )
     .version(VERSION)
     .option(
       "-k, --api-key <key>",
-      "dmdata.jp APIキー (環境変数 DMDATA_API_KEY でも指定可)"
+      "dmdata.jp APIキーを指定します（環境変数 DMDATA_API_KEY でも指定できます）"
     )
     .option(
       "-c, --classifications <items>",
-      "受信区分 (カンマ区切り: telegram.earthquake,eew.forecast,eew.warning)"
+      "受信区分を指定します（カンマ区切り: telegram.earthquake,eew.forecast,eew.warning）"
     )
     .option(
       "--test <mode>",
-      'テスト電文: "no" | "including" | "only"'
+      'テスト電文の扱いを指定します: "no" | "including" | "only"'
     )
-    .option("--keep-existing", "既存のWebSocket接続を維持する")
+    .option(
+      "--keep-existing",
+      "既存のWebSocket接続を維持します（互換オプション。現在はこちらがデフォルトです）"
+    )
+    .option(
+      "--close-others",
+      "同一APIキーの既存 open socket を閉じてから接続します"
+    )
     .option(
       "--mode <mode>",
-      '表示モード: "normal" | "compact"'
+      '表示モードを指定します: "normal" | "compact"'
     )
-    .option("--debug", "デバッグログを表示", false)
+    .option("--debug", "デバッグログを表示します", false)
     .action(runMonitor);
 
   // init コマンド
   program
     .command("init")
-    .description("インタラクティブに初期設定を行う")
+    .description("インタラクティブに初期設定を行います")
     .action(runInit);
 
   const configCmd = program
     .command("config")
-    .description("Configファイルの設定を管理する");
+    .description("Configファイルの設定を管理します");
 
   configCmd
     .command("show")
-    .description("現在の設定を表示する")
+    .description("現在の設定を表示します")
     .action(() => {
       printConfig();
     });
 
   configCmd
     .command("set <key> <value>")
-    .description("設定値をセットする")
+    .description("設定値を保存します")
     .action((key: string, value: string) => {
       try {
         setConfigValue(key, value);
@@ -80,7 +87,7 @@ export function buildProgram(): Command {
 
   configCmd
     .command("unset <key>")
-    .description("設定値を削除する")
+    .description("設定値を削除します")
     .action((key: string) => {
       try {
         unsetConfigValue(key);
@@ -96,14 +103,14 @@ export function buildProgram(): Command {
 
   configCmd
     .command("path")
-    .description("Configファイルのパスを表示する")
+    .description("Configファイルのパスを表示します")
     .action(() => {
       console.log(getConfigPath());
     });
 
   configCmd
     .command("keys")
-    .description("設定可能なキー一覧を表示する")
+    .description("設定可能なキー一覧を表示します")
     .action(() => {
       printConfigKeys();
     });

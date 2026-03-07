@@ -2,13 +2,6 @@
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
-## 現在の状態（2026-03-07 時点）
-
-- バージョン: `1.15.0`
-- デフォルトブランチ: `main`
-- テスト: 11ファイル / 279テスト（`npm test` で全件成功）
-- XMLフィクスチャ: `test/fixtures/` に 46件
-
 ## 対応情報
 
 | 区分 | 分類名 | 内容 |
@@ -22,10 +15,24 @@ Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地
 - Node.js 18以上
 - dmdata.jp のAPIキー（`socket.start` および該当区分の `telegram.get.*` 権限が必要）
 
-## セットアップ
+## インストール
+
+### npm からインストール
 
 ```bash
-git clone git@github.com:Lateo2580/FlEq.git
+npm install -g fleq
+```
+
+または単発実行もできます。
+
+```bash
+npx fleq --help
+```
+
+### ソースから実行
+
+```bash
+git clone https://github.com/Lateo2580/FlEq.git
 cd FlEq
 npm install
 npm run build
@@ -54,54 +61,54 @@ set DMDATA_API_KEY=your_api_key_here
 
 **方法2: .envファイル**
 
-プロジェクトルートに `.env` ファイルを作成し、以下の内容を記述してください:
+プロジェクトルートに `.env` ファイルを作成し、以下の内容を記述してください。
 ```
 DMDATA_API_KEY=your-key-here
 ```
 
 **方法3: Configに保存**
 ```bash
-npm start -- config set apiKey your_api_key_here
+fleq config set apiKey your_api_key_here
 ```
 
 ## 使い方
 
 ```bash
-# インタラクティブ初期設定（初回推奨）
-npm start -- init
+# インタラクティブ初期設定を行います（初回推奨）
+fleq init
 
-# デフォルト区分を受信（telegram.earthquake,eew.forecast,eew.warning）
-npm start
+# デフォルト区分を受信します（telegram.earthquake,eew.forecast,eew.warning）
+fleq
 
-# 複数の区分を受信
-npm start -- -c telegram.earthquake,eew.warning
+# 複数の区分を受信します
+fleq -c telegram.earthquake,eew.warning
 
-# テスト電文も含めて受信
-npm start -- --test including
+# テスト電文も含めて受信します
+fleq --test including
 
-# 表示モードを指定して起動
-npm start -- --mode compact
+# 表示モードを指定して起動します
+fleq --mode compact
 
-# デバッグログを表示
-npm start -- --debug
+# デバッグログを表示します
+fleq --debug
 
-# 既存のWebSocket接続を維持
-npm start -- --keep-existing
+# 同一APIキーの既存 open socket を閉じてから接続します
+fleq --close-others
 ```
 
 ## テスト
 
 ```bash
-# テスト実行
+# テストを実行します
 npm test
 
-# ウォッチモード
+# ウォッチモードで実行します
 npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 11件（計279テスト）
-- フィクスチャ: `test/fixtures/` に実電文XML 46件
+- テストファイル: 11件（計285テスト）
+- フィクスチャ: `test/fixtures/` に実電文XML 62件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
 ## CLIオプション
@@ -111,7 +118,8 @@ npm run test:watch
 | `-k, --api-key <key>` | dmdata.jp APIキー | 環境変数 `DMDATA_API_KEY` |
 | `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning` |
 | `--test <mode>` | テスト電文: `no` / `including` / `only` | `no` |
-| `--keep-existing` | 既存接続を維持 | `false` |
+| `--keep-existing` | 既存接続を維持します（互換オプション。現在はデフォルトです） | `true` |
+| `--close-others` | 同一APIキーの既存 open socket を閉じてから接続します | `false` |
 | `--mode <mode>` | 表示モード: `normal` / `compact` | `normal` |
 | `--debug` | デバッグログ表示 | `false` |
 
@@ -121,20 +129,20 @@ npm run test:watch
 `config` サブコマンドで管理できます。
 
 ```bash
-# 現在の設定を表示
-npm start -- config show
+# 現在の設定を表示します
+fleq config show
 
-# 設定値をセット
-npm start -- config set <key> <value>
+# 設定値を保存します
+fleq config set <key> <value>
 
-# 設定値を削除
-npm start -- config unset <key>
+# 設定値を削除します
+fleq config unset <key>
 
-# Configファイルの保存先を表示
-npm start -- config path
+# Configファイルの保存先を表示します
+fleq config path
 
-# 設定可能キー一覧を表示
-npm start -- config keys
+# 設定可能キー一覧を表示します
+fleq config keys
 ```
 
 設定可能なキー:
@@ -146,7 +154,7 @@ npm start -- config keys
 | `testMode` | テスト電文モード: `"no"` / `"including"` / `"only"` |
 | `appName` | アプリケーション名 |
 | `maxReconnectDelaySec` | 再接続の最大待機秒数 |
-| `keepExistingConnections` | 既存のWebSocket接続を維持するか (`true` / `false`) |
+| `keepExistingConnections` | 同一APIキーの既存 open socket を維持するかどうか (`true` / `false`) |
 | `tableWidth` | テーブル表示幅 (40〜200、デフォルト: 60) |
 | `infoFullText` | お知らせ電文の全文表示 (`true` / `false`) |
 | `displayMode` | 表示モード: `"normal"` / `"compact"` |
@@ -154,7 +162,7 @@ npm start -- config keys
 
 設定の優先順位（高い順）:
 
-1. CLI オプション (`--api-key`, `--classifications`, `--test`, `--keep-existing`)
+1. CLI オプション (`--api-key`, `--classifications`, `--test`, `--keep-existing`, `--close-others`)
 2. 環境変数 `DMDATA_API_KEY`（APIキーのみ）
 3. `.env` ファイル（APIキーのみ）
 4. Configファイル (`~/.config/fleq/config.json`)
@@ -162,7 +170,10 @@ npm start -- config keys
 
 補足:
 
-- Config保存時は `0600` パーミッションで書き込みます（APIキー保護）。
+- Config保存時と既存Config読み込み時は、可能な範囲で `0600` パーミッションへ調整します（APIキー保護のためです）。
+- 更新チェックを無効にしたい場合は `FLEQ_NO_UPDATE_CHECK=1` を設定してください。
+- DMDATA 公式仕様に合わせ、REST API の認証は `Authorization: Basic ...` を使用します。
+- DMDATA 公式では、同時接続数に余裕がない場合のみ `Socket Close v2` の利用が案内されています。通常運用では `--close-others` は不要です。
 
 ## REPLコマンド
 

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { isNewerVersion } from "../../src/engine/update-checker";
+import {
+  isNewerVersion,
+  isUpdateCheckDisabled,
+} from "../../src/engine/update-checker";
 
 describe("isNewerVersion", () => {
   it("メジャーバージョンが大きい場合 true", () => {
@@ -41,5 +44,22 @@ describe("isNewerVersion", () => {
     expect(isNewerVersion("1.17.0", "invalid")).toBe(false);
     expect(isNewerVersion("", "")).toBe(false);
     expect(isNewerVersion("1.2", "1.3.0")).toBe(false);
+  });
+});
+
+describe("isUpdateCheckDisabled", () => {
+  it("未設定なら false", () => {
+    expect(isUpdateCheckDisabled({})).toBe(false);
+  });
+
+  it("truthy な値なら true", () => {
+    expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "1" })).toBe(true);
+    expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "true" })).toBe(true);
+    expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "ON" })).toBe(true);
+  });
+
+  it("それ以外は false", () => {
+    expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "0" })).toBe(false);
+    expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "false" })).toBe(false);
   });
 });

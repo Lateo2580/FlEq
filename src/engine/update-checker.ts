@@ -20,6 +20,13 @@ interface UpdateCheckCache {
   latestVersion: string;
 }
 
+/** 環境変数で更新確認を無効化しているか */
+export function isUpdateCheckDisabled(env = process.env): boolean {
+  const raw = env.FLEQ_NO_UPDATE_CHECK;
+  if (raw == null) return false;
+  return ["1", "true", "yes", "on"].includes(raw.toLowerCase());
+}
+
 /** キャッシュを読み込む。無効ならnullを返す */
 function readCache(): UpdateCheckCache | null {
   try {
@@ -131,6 +138,11 @@ export function checkForUpdates(
   packageName: string,
   currentVersion: string
 ): void {
+  if (isUpdateCheckDisabled()) {
+    log.debug("update check skipped by FLEQ_NO_UPDATE_CHECK");
+    return;
+  }
+
   // キャッシュが有効なら registry にアクセスしない
   const cache = readCache();
   if (cache != null && Date.now() - cache.lastCheck < CHECK_INTERVAL_MS) {

@@ -182,6 +182,16 @@ describe("Config", () => {
       expect(result.apiKey).toBe("new-key");
     });
 
+    it("保存後に Config ファイル権限を 0600 に寄せる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("apiKey", "new-key");
+
+      if (process.platform !== "win32") {
+        const stat = fs.statSync(path.join(tmpDir, ".config", "fleq", "config.json"));
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
+    });
+
     it("classifications をカンマ区切りで設定できる", async () => {
       const config = await importConfig();
       config.setConfigValue(
@@ -318,6 +328,28 @@ describe("Config", () => {
       expect(() => config.unsetConfigValue("unknown")).toThrow(
         config.ConfigError
       );
+    });
+  });
+
+  describe("マイグレーション", () => {
+    it("旧 Config から移行したファイル権限も 0600 に寄せる", async () => {
+      const oldDir = path.join(tmpDir, ".config", "dmdata-monitor");
+      fs.mkdirSync(oldDir, { recursive: true });
+      const oldPath = path.join(oldDir, "config.json");
+      fs.writeFileSync(oldPath, JSON.stringify({ apiKey: "legacy-key" }));
+      if (process.platform !== "win32") {
+        fs.chmodSync(oldPath, 0o644);
+      }
+
+      const config = await importConfig();
+      const result = config.loadConfig();
+
+      expect(result.apiKey).toBe("legacy-key");
+      if (process.platform !== "win32") {
+        const newPath = path.join(tmpDir, ".config", "fleq", "config.json");
+        const stat = fs.statSync(newPath);
+        expect(stat.mode & 0o777).toBe(0o600);
+      }
     });
   });
 

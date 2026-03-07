@@ -13,6 +13,11 @@ function getKeepAliveAgent(): https.Agent {
   return keepAliveAgent;
 }
 
+/** dmdata.jp REST API の推奨方式に合わせて Basic 認証ヘッダーを構築 */
+function buildAuthorizationHeader(apiKey: string): string {
+  return `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`;
+}
+
 /** HTTPS リクエストを Promise でラップ */
 function request(
   method: "GET" | "POST" | "DELETE",
@@ -22,8 +27,6 @@ function request(
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
-    // APIキーをクエリパラメータとして付与（dmdata.jp公式方式）
-    parsed.searchParams.set("key", apiKey);
     const options: https.RequestOptions = {
       hostname: parsed.hostname,
       port: 443,
@@ -31,6 +34,8 @@ function request(
       method,
       agent: getKeepAliveAgent(),
       headers: {
+        Accept: "application/json",
+        Authorization: buildAuthorizationHeader(apiKey),
         "Content-Type": "application/json",
       },
     };

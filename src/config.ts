@@ -21,6 +21,17 @@ const CONFIG_DIR = path.join(os.homedir(), ".config", "fleq");
 /** Configファイルのパス */
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
+/** Configファイルの権限を可能な範囲で 0600 に寄せる */
+function hardenConfigPermissions(filePath: string): void {
+  try {
+    fs.chmodSync(filePath, 0o600);
+  } catch (err) {
+    if (err instanceof Error) {
+      log.warn(`Configファイル権限の調整に失敗しました: ${err.message}`);
+    }
+  }
+}
+
 /** 旧パスから新パスへ設定ファイルをマイグレーションする */
 function migrateConfigIfNeeded(): void {
   const oldConfigPath = path.join(OLD_CONFIG_DIR, "config.json");
@@ -30,6 +41,7 @@ function migrateConfigIfNeeded(): void {
         fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
       }
       fs.copyFileSync(oldConfigPath, CONFIG_PATH);
+      hardenConfigPermissions(CONFIG_PATH);
       log.info(
         `設定ファイルを移行しました: ${oldConfigPath} → ${CONFIG_PATH}`
       );
@@ -91,6 +103,7 @@ export function loadConfig(): ConfigFile {
   }
 
   try {
+    hardenConfigPermissions(CONFIG_PATH);
     const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed == null || Array.isArray(parsed)) {
@@ -117,6 +130,7 @@ export function saveConfig(config: ConfigFile): void {
     encoding: "utf-8",
     mode: 0o600,
   });
+  hardenConfigPermissions(CONFIG_PATH);
 }
 
 /** パースした値をバリデーションして ConfigFile にする */
