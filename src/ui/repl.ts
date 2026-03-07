@@ -58,7 +58,7 @@ class StatusLine {
   buildPrefix(): string {
     if (this.connectedAt == null) {
       return (
-        chalk.gray("fleq [") + chalk.gray("○ --:--:--") + chalk.gray("]> ")
+        chalk.gray("FlEq [") + chalk.gray("○ --:--:--") + chalk.gray("]> ")
       );
     }
     const dot = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
@@ -66,7 +66,7 @@ class StatusLine {
     const elapsed = formatElapsedTime(Date.now() - baseTime);
     const summary = `今日 受信${this.dailyReceived}/EEW${this.dailyEewReceived}`;
     return (
-      chalk.gray("fleq [") +
+      chalk.gray("FlEq [") +
       dot +
       chalk.gray(" ") +
       chalk.white(elapsed) +
@@ -344,7 +344,7 @@ export class ReplHandler {
 
   private buildPromptString(): string {
     if (!process.stdout.isTTY) {
-      return chalk.gray("fleq> ");
+      return chalk.gray("FlEq> ");
     }
     const base = this.statusLine.buildPrefix().replace(/> $/, "");
     const status = this.wsManager.getStatus();
@@ -380,8 +380,8 @@ export class ReplHandler {
     return bestCmd;
   }
 
-  /** 設定変更可能なコマンドの現在値を返す */
-  private getCurrentSettingValues(): Record<string, string> {
+  /** 設定変更可能なコマンドの現在値と設定可能な値を返す */
+  private getCurrentSettingValues(): Record<string, { current: string; options?: string }> {
     const notifySettings = this.notifier.getSettings();
     const onCount = Object.values(notifySettings).filter(Boolean).length;
     const totalCount = Object.keys(notifySettings).length;
@@ -390,16 +390,34 @@ export class ReplHandler {
       : "";
 
     return {
-      tablewidth: String(this.config.tableWidth ?? "未設定"),
-      infotext: this.config.infoFullText ? "full" : "short",
-      tipinterval: this.config.waitTipIntervalMin === 0
-        ? "無効"
-        : `${this.config.waitTipIntervalMin}分`,
-      mode: getDisplayMode(),
-      notify: `${onCount}/${totalCount} ON${muteInfo}`,
-      mute: this.notifier.isMuted()
-        ? `残り ${formatDuration(this.notifier.muteRemaining())}`
-        : "OFF",
+      tablewidth: {
+        current: String(this.config.tableWidth ?? "未設定"),
+        options: "40〜200",
+      },
+      infotext: {
+        current: this.config.infoFullText ? "full" : "short",
+        options: "full / short",
+      },
+      tipinterval: {
+        current: this.config.waitTipIntervalMin === 0
+          ? "無効"
+          : `${this.config.waitTipIntervalMin}分`,
+        options: "0〜1440 (0で無効)",
+      },
+      mode: {
+        current: getDisplayMode(),
+        options: "normal / compact",
+      },
+      notify: {
+        current: `${onCount}/${totalCount} ON${muteInfo}`,
+        options: "eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation",
+      },
+      mute: {
+        current: this.notifier.isMuted()
+          ? `残り ${formatDuration(this.notifier.muteRemaining())}`
+          : "OFF",
+        options: "<duration> (例: 30m, 1h, 90s) / off",
+      },
     };
   }
 
@@ -438,8 +456,10 @@ export class ReplHandler {
       if (name === "exit" || name === "?") continue;
       if (displayed.has(entry.description)) continue;
       displayed.add(entry.description);
-      const valueSuffix = currentValues[name] != null
-        ? chalk.gray(" [") + chalk.yellow(currentValues[name]) + chalk.gray("]")
+      const setting = currentValues[name];
+      const valueSuffix = setting != null
+        ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]") +
+          (setting.options ? chalk.gray(` (${setting.options})`) : "")
         : "";
       console.log(
         chalk.white(`  ${name.padEnd(12)}`) + chalk.gray(entry.description) + valueSuffix
