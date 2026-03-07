@@ -380,6 +380,29 @@ export class ReplHandler {
     return bestCmd;
   }
 
+  /** 設定変更可能なコマンドの現在値を返す */
+  private getCurrentSettingValues(): Record<string, string> {
+    const notifySettings = this.notifier.getSettings();
+    const onCount = Object.values(notifySettings).filter(Boolean).length;
+    const totalCount = Object.keys(notifySettings).length;
+    const muteInfo = this.notifier.isMuted()
+      ? `, ミュート中`
+      : "";
+
+    return {
+      tablewidth: String(this.config.tableWidth ?? "未設定"),
+      infotext: this.config.infoFullText ? "full" : "short",
+      tipinterval: this.config.waitTipIntervalMin === 0
+        ? "無効"
+        : `${this.config.waitTipIntervalMin}分`,
+      mode: getDisplayMode(),
+      notify: `${onCount}/${totalCount} ON${muteInfo}`,
+      mute: this.notifier.isMuted()
+        ? `残り ${formatDuration(this.notifier.muteRemaining())}`
+        : "OFF",
+    };
+  }
+
   // ── コマンドハンドラ ──
 
   private handleHelp(args: string): void {
@@ -409,13 +432,17 @@ export class ReplHandler {
     console.log(chalk.cyan.bold("  利用可能なコマンド:"));
     console.log();
 
+    const currentValues = this.getCurrentSettingValues();
     const displayed = new Set<string>();
     for (const [name, entry] of Object.entries(this.commands)) {
       if (name === "exit" || name === "?") continue;
       if (displayed.has(entry.description)) continue;
       displayed.add(entry.description);
+      const valueSuffix = currentValues[name] != null
+        ? chalk.gray(" [") + chalk.yellow(currentValues[name]) + chalk.gray("]")
+        : "";
       console.log(
-        chalk.white(`  ${name.padEnd(12)}`) + chalk.gray(entry.description)
+        chalk.white(`  ${name.padEnd(12)}`) + chalk.gray(entry.description) + valueSuffix
       );
     }
     console.log(
