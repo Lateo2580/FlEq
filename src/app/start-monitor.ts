@@ -63,13 +63,12 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     }
     if (replHandler) replHandler.stop();
     manager.close();
+    if (process.stdout.isTTY) process.stdout.write("\n");
     process.exit(0);
   };
 
   // REPL ハンドラ (シャットダウンコールバックを渡す)
-  const replHandler = new ReplHandler(config, manager, notifier, () => {
-    shutdown();
-  });
+  const replHandler = new ReplHandler(config, manager, notifier, shutdown);
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);

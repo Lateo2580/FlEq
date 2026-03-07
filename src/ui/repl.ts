@@ -112,7 +112,7 @@ export class ReplHandler {
   private config: AppConfig;
   private wsManager: WebSocketManager;
   private notifier: Notifier;
-  private onQuit: () => void;
+  private onQuit: () => void | Promise<void>;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
   private stopping = false;
@@ -127,7 +127,7 @@ export class ReplHandler {
     config: AppConfig,
     wsManager: WebSocketManager,
     notifier: Notifier,
-    onQuit: () => void
+    onQuit: () => void | Promise<void>
   ) {
     this.config = config;
     this.wsManager = wsManager;
@@ -275,18 +275,18 @@ export class ReplHandler {
             })
             .finally(() => {
               this.commandRunning = false;
-              this.prompt();
+              if (!this.stopping) this.prompt();
             });
         } else {
           this.commandRunning = false;
-          this.prompt();
+          if (!this.stopping) this.prompt();
         }
       } catch (err) {
         log.error(
           `コマンド実行エラー: ${err instanceof Error ? err.message : err}`
         );
         this.commandRunning = false;
-        this.prompt();
+        if (!this.stopping) this.prompt();
       }
     });
 
@@ -783,8 +783,9 @@ export class ReplHandler {
     }
   }
 
-  private handleQuit(): void {
-    this.onQuit();
+  private async handleQuit(): Promise<void> {
+    this.stop();
+    await this.onQuit();
   }
 
   private maybeShowWaitingTip(): void {
