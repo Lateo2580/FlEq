@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.20.0](https://github.com/Lateo2580/FlEq/compare/v1.19.1...v1.20.0) (2026-03-07)
+
+
+### 機能追加
+
+* helpコマンドで設定可能な値を表示し、待機画面の表示名をFlEqに変更 ([0226b96](https://github.com/Lateo2580/FlEq/commit/0226b96697c3d1c68c6ab28e436ad62ddf17776d))
+
 ## [1.19.1](https://github.com/Lateo2580/FlEq/compare/v1.19.0...v1.19.1) (2026-03-07)
 
 
