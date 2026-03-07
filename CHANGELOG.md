@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.20.1](https://github.com/Lateo2580/FlEq/compare/v1.20.0...v1.20.1) (2026-03-07)
+
+
+### リファクタリング
+
+* cli/app/featuresをengine/に統合しディレクトリ構成を簡素化 ([2a54261](https://github.com/Lateo2580/FlEq/commit/2a5426150f3315e92d1b6e3bbaaf3bc6bf64a509))
+
 ## [1.20.0](https://github.com/Lateo2580/FlEq/compare/v1.19.1...v1.20.0) (2026-03-07)
 
 
