@@ -518,6 +518,21 @@ function tsunamiShort(info: ParsedEarthquakeInfo): string {
   return chalk.white(t.length > 10 ? t.substring(0, 10) + "…" : t);
 }
 
+/** 共通フッター: type / reportDateTime / publishingOffice をテーブル最下段に表示 */
+function renderFooter(
+  level: FrameLevel,
+  type: string,
+  reportDateTime: string,
+  publishingOffice: string,
+  width: number
+): void {
+  console.log(frameDivider(level, width));
+  console.log(frameLine(level,
+    chalk.gray(`${type}  ${formatTimestamp(reportDateTime)}  ${publishingOffice}`),
+    width
+  ));
+}
+
 /** 地震情報を整形して表示 */
 export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   const level = earthquakeFrameLevel(info);
@@ -550,7 +565,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   }
 
   // タイトル行 (severity ラベル付き)
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   // ヘッドライン
@@ -599,9 +614,6 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     }
   }
 
-  // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
-
   // 震度一覧
   if (info.intensity && info.intensity.areas.length > 0) {
     console.log(frameDivider(level, width));
@@ -648,6 +660,9 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     console.log(frameDivider(level, width));
     console.log(frameLine(level, chalk.white(`${info.tsunami.text}`), width));
   }
+
+  // フッター
+  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
 
   console.log(frameBottom(level, width));
   console.log();
@@ -879,9 +894,6 @@ export function displayEewInfo(
     }
   }
 
-  // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
-
   if (isCancelled) {
     console.log(frameDivider(level, width));
     console.log(frameLine(level, cudFg(CUD.raspberry)("この地震についての緊急地震速報は取り消されました。"), width));
@@ -889,6 +901,7 @@ export function displayEewInfo(
       console.log(frameDivider(level, width));
       console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
     }
+    renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
     console.log(frameBottom(level, width));
     console.log();
     return;
@@ -933,11 +946,14 @@ export function displayEewInfo(
     console.log(frameLine(level, cudFg(CUD.sky)(info.nextAdvisory), width));
   }
 
-  // EventID (最終行)
+  // EventID
   if (info.eventId) {
     console.log(frameDivider(level, width));
     console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
   }
+
+  // フッター
+  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
 
   console.log(frameBottom(level, width));
   console.log();
@@ -999,7 +1015,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   if (info.headline) {
@@ -1136,7 +1152,9 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     console.log(frameLine(level, cudFg(CUD.orange)(info.warningComment), width));
   }
 
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
+  // フッター
+  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
+
   console.log(frameBottom(level, width));
   console.log();
 }
@@ -1165,7 +1183,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
     console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
   }
 
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   if (info.headline) {
@@ -1196,7 +1214,9 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
     }
   }
 
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
+  // フッター
+  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
+
   console.log(frameBottom(level, width));
   console.log();
 }
@@ -1259,7 +1279,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   }
 
   // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   // InfoSerial (状態名)
@@ -1297,8 +1317,8 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
     console.log(frameLine(level, cudFg(CUD.sky)(info.nextAdvisory), width));
   }
 
-  // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
+  // フッター
+  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
 
   console.log(frameBottom(level, width));
   console.log();
@@ -1344,7 +1364,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   }
 
   // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(` [${info.type}]`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
+  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
   console.log(frameLine(level, titleContent, width));
 
   // ヘッドライン
@@ -1422,8 +1442,8 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     console.log(frameLine(level, cudFg(CUD.sky)(info.detailUri), width));
   }
 
-  // 発表時刻
-  console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
+  // フッター
+  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width);
 
   console.log(frameBottom(level, width));
   console.log();
