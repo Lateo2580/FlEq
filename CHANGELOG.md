@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.18.0](https://github.com/Lateo2580/FlEq/compare/v1.17.0...v1.18.0) (2026-03-07)
+
+
+### 機能追加
+
+* 起動時にnpm registryから最新バージョンを確認し更新通知を表示 ([57d167f](https://github.com/Lateo2580/FlEq/commit/57d167f8464a6055720ee544745c9c94c0c876ba))
+
 ## [1.17.0](https://github.com/Lateo2580/FlEq/compare/v1.16.0...v1.17.0) (2026-03-07)
 
 
