@@ -12,6 +12,38 @@ import {
 import type { EewDiff } from "../features/eew-tracker";
 import * as log from "../logger";
 
+// ── CUD パレット (岡部・伊東 カラーユニバーサルデザイン推奨色ベース) ──
+
+/** CUD 推奨色の RGB 定数 */
+const CUD = {
+  /** グレー: 低優先度・補助テキスト */
+  gray:       [132, 145, 158] as const,
+  /** スカイブルー: 通常・長周期階級1 */
+  sky:        [86, 180, 233] as const,
+  /** ブルー: 震度3 */
+  blue:       [0, 114, 178] as const,
+  /** ブルーグリーン: 震度4・津波なし */
+  blueGreen:  [0, 158, 115] as const,
+  /** イエロー: 震度5弱・M3+ */
+  yellow:     [240, 228, 66] as const,
+  /** オレンジ: 警告レベル */
+  orange:     [230, 159, 0] as const,
+  /** 朱赤 (バーミリオン): 危険レベル */
+  vermillion: [213, 94, 0] as const,
+  /** ラズベリー: 取消・キャンセル */
+  raspberry:  [204, 121, 167] as const,
+  /** ダークレッド: 最高警戒 (背景用) */
+  darkRed:    [122, 30, 0] as const,
+} as const;
+
+/** CUD RGB タプルから chalk.rgb を返すショートカット */
+const cudFg = (c: readonly [number, number, number]): chalk.Chalk =>
+  chalk.rgb(c[0], c[1], c[2]);
+
+/** CUD RGB タプルから chalk.bgRgb を返すショートカット */
+const cudBg = (c: readonly [number, number, number]): chalk.Chalk =>
+  chalk.bgRgb(c[0], c[1], c[2]);
+
 // ── フレーム幅キャッシュ ──
 
 /** 現在のフレーム幅 (setFrameWidth で更新、getFrameWidth で参照) */
@@ -55,18 +87,31 @@ export function getDisplayMode(): DisplayMode {
 /** フレームの優先度レベル */
 type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
 
-/** フレーム文字セット */
-const FRAMES: Record<FrameLevel, {
+/** フレーム文字セット (罫線のみ — 色は遅延生成) */
+interface FrameChars {
   tl: string; tr: string; bl: string; br: string;
   h: string; v: string; divL: string; divR: string;
-  color: chalk.Chalk;
-}> = {
-  critical: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣", color: chalk.red },
-  warning:  { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣", color: chalk.yellow },
-  normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", color: chalk.cyan },
-  info:     { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", color: chalk.gray },
-  cancel:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", color: chalk.green },
+  /** CUD RGB 値 (遅延で cudFg を生成するため色値だけ保持) */
+  rgb: readonly [number, number, number];
+}
+
+const FRAME_CHARS: Record<FrameLevel, FrameChars> = {
+  critical: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣", rgb: CUD.vermillion },
+  warning:  { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣", rgb: CUD.orange },
+  normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", rgb: CUD.sky },
+  info:     { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", rgb: CUD.gray },
+  cancel:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", rgb: CUD.raspberry },
 };
+
+/** フレームレベルに対応する色を返す (呼び出し時点の chalk.level を反映) */
+function frameColor(level: FrameLevel): chalk.Chalk {
+  return cudFg(FRAME_CHARS[level].rgb);
+}
+
+/** FRAMES 互換のアクセサ — 罫線文字 + 色 */
+function getFrame(level: FrameLevel): FrameChars & { color: chalk.Chalk } {
+  return { ...FRAME_CHARS[level], color: frameColor(level) };
+}
 
 /** フレームレベルのテキストラベル (アクセシビリティ: 色が見えない環境向け) */
 const SEVERITY_LABELS: Record<FrameLevel, string> = {
@@ -88,12 +133,12 @@ function getFrameWidth(): number {
 }
 
 function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {
-  const f = FRAMES[level];
+  const f = getFrame(level);
   return f.color(f.tl + f.h.repeat(width - 2) + f.tr);
 }
 
 function frameLine(level: FrameLevel, content: string, width: number = FRAME_WIDTH): string {
-  const f = FRAMES[level];
+  const f = getFrame(level);
   // ANSI エスケープを除去して可視幅を計算
   const visibleLen = visualWidth(content);
   const pad = Math.max(0, width - 4 - visibleLen);
@@ -101,12 +146,12 @@ function frameLine(level: FrameLevel, content: string, width: number = FRAME_WID
 }
 
 function frameDivider(level: FrameLevel, width: number = FRAME_WIDTH): string {
-  const f = FRAMES[level];
+  const f = getFrame(level);
   return f.color(f.divL + f.h.repeat(width - 2) + f.divR);
 }
 
 function frameBottom(level: FrameLevel, width: number = FRAME_WIDTH): string {
-  const f = FRAMES[level];
+  const f = getFrame(level);
   return f.color(f.bl + f.h.repeat(width - 2) + f.br);
 }
 
@@ -347,50 +392,50 @@ function separator(char = "─", len = 60): string {
   return chalk.gray(char.repeat(len));
 }
 
-/** 震度に応じた色を返す */
+/** 震度に応じた色を返す (CUD対応) */
 export function intensityColor(intensity: string): chalk.Chalk {
   const norm = intensity.replace(/\s+/g, "");
   switch (norm) {
     case "1":
-      return chalk.gray;
+      return cudFg(CUD.gray);
     case "2":
-      return chalk.blue;
+      return cudFg(CUD.sky);
     case "3":
-      return chalk.green;
+      return cudFg(CUD.blue);
     case "4":
-      return chalk.yellow;
+      return cudFg(CUD.blueGreen);
     case "5-":
     case "5弱":
-      return chalk.rgb(255, 165, 0); // orange
+      return cudFg(CUD.yellow);
     case "5+":
     case "5強":
-      return chalk.rgb(255, 100, 0);
+      return cudFg(CUD.orange);
     case "6-":
     case "6弱":
-      return chalk.redBright;
+      return cudFg(CUD.vermillion).bold;
     case "6+":
     case "6強":
-      return chalk.red;
+      return cudBg(CUD.vermillion).black.bold;
     case "7":
-      return chalk.bgRed.white;
+      return cudBg(CUD.darkRed).white.bold;
     default:
       return chalk.white;
   }
 }
 
-/** 長周期地震動階級に応じた色を返す */
+/** 長周期地震動階級に応じた色を返す (CUD対応) */
 export function lgIntensityColor(lgInt: string): chalk.Chalk {
   switch (lgInt) {
     case "0":
-      return chalk.gray;
+      return cudFg(CUD.gray);
     case "1":
-      return chalk.green;
+      return cudFg(CUD.sky);
     case "2":
-      return chalk.yellow;
+      return cudFg(CUD.yellow);
     case "3":
-      return chalk.rgb(255, 100, 0); // orange
+      return cudFg(CUD.orange);
     case "4":
-      return chalk.red;
+      return cudBg(CUD.vermillion).black.bold;
     default:
       return chalk.white;
   }
@@ -449,16 +494,16 @@ function earthquakeFrameLevel(info: ParsedEarthquakeInfo): FrameLevel {
   return "normal";
 }
 
-/** マグニチュードに色を付ける */
+/** マグニチュードに色を付ける (CUD対応) */
 function colorMagnitude(magStr: string): string {
   const mag = parseFloat(magStr);
   const magColor =
     mag >= 7.0
-      ? chalk.bgRed.white.bold
+      ? cudBg(CUD.darkRed).white.bold
       : mag >= 5.0
-        ? chalk.red.bold
+        ? cudFg(CUD.vermillion).bold
         : mag >= 3.0
-          ? chalk.yellow
+          ? cudFg(CUD.yellow)
           : chalk.white;
   return magColor(`M${magStr}`);
 }
@@ -467,9 +512,9 @@ function colorMagnitude(magStr: string): string {
 function tsunamiShort(info: ParsedEarthquakeInfo): string {
   if (!info.tsunami) return "";
   const t = info.tsunami.text;
-  if (t.includes("心配はありません") || t.includes("心配なし")) return chalk.green("津波なし");
-  if (t.includes("注意")) return chalk.yellow("津波注意");
-  if (t.includes("警報")) return chalk.red("津波警報");
+  if (t.includes("心配はありません") || t.includes("心配なし")) return cudFg(CUD.blueGreen)("津波なし");
+  if (t.includes("注意")) return cudFg(CUD.orange)("津波注意");
+  if (t.includes("警報")) return cudFg(CUD.vermillion)("津波警報");
   return chalk.white(t.length > 10 ? t.substring(0, 10) + "…" : t);
 }
 
@@ -491,7 +536,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     if (info.intensity) parts.push(`震度${info.intensity.maxInt}`);
     const ts = tsunamiShort(info);
     if (ts) parts.push(stripAnsi(ts));
-    const color = FRAMES[level].color;
+    const color = frameColor(level);
     console.log(color(parts.join("  ")));
     return;
   }
@@ -618,27 +663,34 @@ export interface EewDisplayContext {
   colorIndex?: number;
 }
 
-/** EEW バナー色パレット (警報: 赤系バリエーション) */
-const EEW_WARNING_BANNER_PALETTE: chalk.Chalk[] = [
-  chalk.bgRed.white.bold,                        // 赤 (デフォルト)
-  chalk.bgRgb(200, 0, 60).white.bold,            // クリムゾン
-  chalk.bgRgb(220, 80, 0).white.bold,            // 朱色
-  chalk.bgRgb(180, 0, 120).white.bold,           // ローズ
-  chalk.bgRgb(160, 40, 0).white.bold,            // えんじ
-];
+/**
+ * EEW バナー色パレット (遅延生成: chalk.level が確定した後に呼ぶ)
+ * chalk v4 では bgRgb() 呼び出し時点の level で ANSI コードが確定するため、
+ * モジュールレベル定数ではなく関数で都度生成する。
+ */
+function getWarningBannerPalette(): chalk.Chalk[] {
+  return [
+    cudBg(CUD.darkRed).white.bold,                           // ダークレッド (デフォルト)
+    chalk.bgRgb(156, 58, 0).white.bold,                      // ブラウンレッド
+    chalk.bgRgb(178, 71, 0).white.bold,                      // レンガ色
+    cudBg(CUD.vermillion).black.bold,                        // バーミリオン
+    chalk.bgRgb(230, 120, 40).black.bold,                    // ダークオレンジ
+  ];
+}
 
-/** EEW バナー色パレット (予報: 黄系バリエーション) */
-const EEW_FORECAST_BANNER_PALETTE: chalk.Chalk[] = [
-  chalk.bgYellow.black.bold,                     // 黄色 (デフォルト)
-  chalk.bgRgb(255, 180, 0).black.bold,           // 琥珀色
-  chalk.bgRgb(255, 140, 0).black.bold,           // ダークオレンジ
-  chalk.bgRgb(240, 210, 60).black.bold,          // 山吹色
-  chalk.bgRgb(255, 160, 60).black.bold,          // みかん色
-];
+function getForecastBannerPalette(): chalk.Chalk[] {
+  return [
+    cudBg(CUD.yellow).black.bold,                            // CUD黄 (デフォルト)
+    cudBg(CUD.orange).black.bold,                            // CUDオレンジ
+    chalk.bgRgb(245, 185, 40).black.bold,                    // ゴールド
+    chalk.bgRgb(255, 210, 105).black.bold,                   // ライトゴールド
+    chalk.bgRgb(255, 235, 170).black.bold,                   // ペールイエロー
+  ];
+}
 
 /** colorIndex からバナースタイルを取得 */
 function getEewBannerStyle(isWarning: boolean, colorIndex: number): chalk.Chalk {
-  const palette = isWarning ? EEW_WARNING_BANNER_PALETTE : EEW_FORECAST_BANNER_PALETTE;
+  const palette = isWarning ? getWarningBannerPalette() : getForecastBannerPalette();
   return palette[colorIndex % palette.length];
 }
 
@@ -677,7 +729,7 @@ export function displayEewInfo(
     if (info.earthquake?.magnitude && !info.isAssumedHypocenter) {
       parts.push(`M${info.earthquake.magnitude}`);
     }
-    const color = FRAMES[level].color;
+    const color = frameColor(level);
     console.log(color(parts.join("  ")));
     return;
   }
@@ -692,9 +744,10 @@ export function displayEewInfo(
 
   if (isCancelled) {
     const bannerText = ` 緊急地震速報 取消${serialTag}${hypocenterTag}`;
-    console.log(chalk.bgGreen.black.bold(" ".repeat(bannerWidth)));
-    console.log(chalk.bgGreen.black.bold(visualPadEnd(bannerText, bannerWidth)));
-    console.log(chalk.bgGreen.black.bold(" ".repeat(bannerWidth)));
+    const cancelBanner = cudBg(CUD.raspberry).black.bold;
+    console.log(cancelBanner(" ".repeat(bannerWidth)));
+    console.log(cancelBanner(visualPadEnd(bannerText, bannerWidth)));
+    console.log(cancelBanner(" ".repeat(bannerWidth)));
   } else {
     const bannerStyle = getEewBannerStyle(info.isWarning, colorIndex);
     const typeLabel = info.isWarning ? "警報" : "予報";
@@ -728,7 +781,7 @@ export function displayEewInfo(
 
     // infoType (+ 同時発生注記)
     if (activeCount >= 2 && info.eventId) {
-      cardParts.push(chalk.yellow(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`));
+      cardParts.push(cudFg(CUD.orange)(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`));
     } else {
       cardParts.push(chalk.gray(info.infoType));
     }
@@ -769,7 +822,7 @@ export function displayEewInfo(
     }
     if (activeCount >= 2 && info.eventId) {
       console.log(frameLine(level,
-        chalk.yellow(`同時${activeCount}件発生中`) +
+        cudFg(CUD.orange)(`同時${activeCount}件発生中`) +
           chalk.gray(`  ${info.infoType}`),
         width
       ));
@@ -799,7 +852,7 @@ export function displayEewInfo(
     }
 
     const hypoContent = diff?.hypocenterChange
-      ? chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName) + chalk.cyan(" (変更)")
+      ? chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName) + cudFg(CUD.sky)(" (変更)")
       : chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName);
     console.log(frameLine(level, hypoContent, width));
 
@@ -831,7 +884,7 @@ export function displayEewInfo(
 
   if (isCancelled) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.green("この地震についての緊急地震速報は取り消されました。"), width));
+    console.log(frameLine(level, cudFg(CUD.raspberry)("この地震についての緊急地震速報は取り消されました。"), width));
     if (info.eventId) {
       console.log(frameDivider(level, width));
       console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
@@ -851,7 +904,7 @@ export function displayEewInfo(
         areaText += chalk.magenta(" [PLUM]");
       }
       if (area.hasArrived) {
-        areaText += chalk.red(" [到達]");
+        areaText += cudFg(CUD.vermillion)(" [到達]");
       }
       if (area.lgIntensity && lgIntToNumeric(area.lgIntensity) >= 1) {
         const lc = lgIntensityColor(area.lgIntensity);
@@ -866,9 +919,9 @@ export function displayEewInfo(
     const arrivedAreas = info.forecastIntensity.areas.filter((a) => a.hasArrived);
     if (arrivedAreas.length > 0) {
       console.log(frameDivider(level, width));
-      console.log(frameLine(level, chalk.red("既に主要動到達と推測:"), width));
+      console.log(frameLine(level, cudFg(CUD.vermillion)("既に主要動到達と推測:"), width));
       const names = arrivedAreas.map((a) => a.name).join("、");
-      for (const line of wrapFrameLines(level, chalk.red(names), width)) {
+      for (const line of wrapFrameLines(level, cudFg(CUD.vermillion)(names), width)) {
         console.log(line);
       }
     }
@@ -877,7 +930,7 @@ export function displayEewInfo(
   // 最終報
   if (info.nextAdvisory) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.cyan(info.nextAdvisory), width));
+    console.log(frameLine(level, cudFg(CUD.sky)(info.nextAdvisory), width));
   }
 
   // EventID (最終行)
@@ -934,7 +987,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       const areas = info.forecast.slice(0, 3).map((f) => f.areaName);
       parts.push(areas.join(", "));
     }
-    const color = FRAMES[level].color;
+    const color = frameColor(level);
     console.log(color(parts.join("  ")));
     return;
   }
@@ -983,11 +1036,11 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       const rows = sorted.map((item) => {
         let kindText = chalk.white(item.kind);
         if (item.kind.includes("大津波警報")) {
-          kindText = chalk.bgRed.white.bold(item.kind);
+          kindText = cudBg(CUD.darkRed).white.bold(item.kind);
         } else if (item.kind.includes("津波警報")) {
-          kindText = chalk.red.bold(item.kind);
+          kindText = cudFg(CUD.vermillion).bold(item.kind);
         } else if (item.kind.includes("津波注意報")) {
-          kindText = chalk.yellow(item.kind);
+          kindText = cudFg(CUD.orange)(item.kind);
         }
         return [
           kindText,
@@ -1002,11 +1055,11 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       for (const item of sorted) {
         let kindText = chalk.white(item.kind);
         if (item.kind.includes("大津波警報")) {
-          kindText = chalk.bgRed.white.bold(item.kind);
+          kindText = cudBg(CUD.darkRed).white.bold(item.kind);
         } else if (item.kind.includes("津波警報")) {
-          kindText = chalk.red.bold(item.kind);
+          kindText = cudFg(CUD.vermillion).bold(item.kind);
         } else if (item.kind.includes("津波注意報")) {
-          kindText = chalk.yellow(item.kind);
+          kindText = cudFg(CUD.orange)(item.kind);
         }
 
         const extra: string[] = [];
@@ -1080,7 +1133,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
 
   if (info.warningComment) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.yellow(info.warningComment), width));
+    console.log(frameLine(level, cudFg(CUD.orange)(info.warningComment), width));
   }
 
   console.log(frameLine(level, chalk.gray("発表: ") + chalk.gray(formatTimestamp(info.reportDateTime) + "  " + info.publishingOffice), width));
@@ -1100,7 +1153,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
     parts.push(SEVERITY_LABELS[level]);
     parts.push(label);
     if (info.headline) parts.push(info.headline.slice(0, 40));
-    const color = FRAMES[level].color;
+    const color = frameColor(level);
     console.log(color(parts.join("  ")));
     return;
   }
@@ -1176,7 +1229,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
     parts.push(SEVERITY_LABELS[level]);
     parts.push(label);
     if (info.infoSerial) parts.push(info.infoSerial.name);
-    const color = FRAMES[level].color;
+    const color = frameColor(level);
     console.log(color(parts.join("  ")));
     return;
   }
@@ -1186,14 +1239,16 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // critical/warning 時はバナー表示
   if (level === "critical") {
     const bannerText = ` ${info.title}`;
-    console.log(chalk.bgRed.white.bold(" ".repeat(width)));
-    console.log(chalk.bgRed.white.bold(visualPadEnd(bannerText, width)));
-    console.log(chalk.bgRed.white.bold(" ".repeat(width)));
+    const critBanner = cudBg(CUD.darkRed).white.bold;
+    console.log(critBanner(" ".repeat(width)));
+    console.log(critBanner(visualPadEnd(bannerText, width)));
+    console.log(critBanner(" ".repeat(width)));
   } else if (level === "warning") {
     const bannerText = ` ${info.title}`;
-    console.log(chalk.bgYellow.black.bold(" ".repeat(width)));
-    console.log(chalk.bgYellow.black.bold(visualPadEnd(bannerText, width)));
-    console.log(chalk.bgYellow.black.bold(" ".repeat(width)));
+    const warnBanner = cudBg(CUD.orange).black.bold;
+    console.log(warnBanner(" ".repeat(width)));
+    console.log(warnBanner(visualPadEnd(bannerText, width)));
+    console.log(warnBanner(" ".repeat(width)));
   }
 
   console.log(frameTop(level, width));
@@ -1210,7 +1265,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // InfoSerial (状態名)
   if (info.infoSerial) {
     console.log(frameDivider(level, width));
-    const serialColor = level === "critical" ? chalk.red.bold : chalk.yellow.bold;
+    const serialColor = level === "critical" ? cudFg(CUD.vermillion).bold : cudFg(CUD.orange).bold;
     console.log(frameLine(level, chalk.white("状態: ") + serialColor(info.infoSerial.name), width));
   }
 
@@ -1239,7 +1294,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // 次回情報予告
   if (info.nextAdvisory) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.cyan(info.nextAdvisory), width));
+    console.log(frameLine(level, cudFg(CUD.sky)(info.nextAdvisory), width));
   }
 
   // 発表時刻
@@ -1275,7 +1330,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     if (info.earthquake) parts.push(info.earthquake.hypocenterName);
     if (info.maxLgInt) parts.push(`長周期${info.maxLgInt}`);
     if (info.maxInt) parts.push(`震度${info.maxInt}`);
-    const color = FRAMES[level].color;
+    const color = frameColor(level);
     console.log(color(parts.join("  ")));
     return;
   }
@@ -1364,7 +1419,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   // 詳細URI
   if (info.detailUri) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.cyan(info.detailUri), width));
+    console.log(frameLine(level, cudFg(CUD.sky)(info.detailUri), width));
   }
 
   // 発表時刻
@@ -1379,7 +1434,7 @@ export function displayRawHeader(msg: WsDataMessage): void {
   console.log();
   console.log(separator());
   console.log(
-    chalk.cyan(`電文受信: `) +
+    cudFg(CUD.sky)(`電文受信: `) +
       chalk.white(sanitizeForTerminal(msg.xmlReport?.control?.title || msg.head.type)) +
       chalk.gray(` [${sanitizeForTerminal(msg.head.type)}]`)
   );

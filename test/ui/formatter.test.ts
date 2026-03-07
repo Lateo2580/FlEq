@@ -49,28 +49,30 @@ describe("intensityColor", () => {
     chalk.level = 3;
   });
 
-  it("震度1 → gray", () => {
-    expect(intensityColor("1")).toBe(chalk.gray);
+  // CUD対応: chalk.rgb を使うため出力文字列で比較する
+  it("震度1 → CUD gray (rgb(132,145,158))", () => {
+    const result = intensityColor("1")("test");
+    expect(result).toBe(chalk.rgb(132, 145, 158)("test"));
   });
 
-  it("震度2 → blue", () => {
-    expect(intensityColor("2")).toBe(chalk.blue);
+  it("震度2 → CUD sky (rgb(86,180,233))", () => {
+    const result = intensityColor("2")("test");
+    expect(result).toBe(chalk.rgb(86, 180, 233)("test"));
   });
 
-  it("震度3 → green", () => {
-    expect(intensityColor("3")).toBe(chalk.green);
+  it("震度3 → CUD blue (rgb(0,114,178))", () => {
+    const result = intensityColor("3")("test");
+    expect(result).toBe(chalk.rgb(0, 114, 178)("test"));
   });
 
-  it("震度4 → yellow", () => {
-    expect(intensityColor("4")).toBe(chalk.yellow);
+  it("震度4 → CUD blueGreen (rgb(0,158,115))", () => {
+    const result = intensityColor("4")("test");
+    expect(result).toBe(chalk.rgb(0, 158, 115)("test"));
   });
 
-  it("震度5弱 → orange 系", () => {
-    const color = intensityColor("5弱");
-    // chalk.rgb は毎回新しい関数を返すので、出力文字列で比較
-    const result = color("test");
-    expect(result).toContain("test");
-    expect(result).not.toBe("test"); // 色コードが付加されている
+  it("震度5弱 → CUD yellow (rgb(240,228,66))", () => {
+    const result = intensityColor("5弱")("test");
+    expect(result).toBe(chalk.rgb(240, 228, 66)("test"));
   });
 
   it("震度5- と 5弱 は同じ色になる", () => {
@@ -79,18 +81,21 @@ describe("intensityColor", () => {
     expect(a).toBe(b);
   });
 
-  it("震度6弱 → redBright", () => {
-    expect(intensityColor("6弱")).toBe(chalk.redBright);
-    expect(intensityColor("6-")).toBe(chalk.redBright);
+  it("震度6弱 → CUD vermillion bold", () => {
+    const result = intensityColor("6弱")("test");
+    expect(result).toBe(chalk.rgb(213, 94, 0).bold("test"));
+    expect(intensityColor("6-")("test")).toBe(result);
   });
 
-  it("震度6強 → red", () => {
-    expect(intensityColor("6強")).toBe(chalk.red);
-    expect(intensityColor("6+")).toBe(chalk.red);
+  it("震度6強 → CUD vermillion 背景", () => {
+    const result = intensityColor("6強")("test");
+    expect(result).toBe(chalk.bgRgb(213, 94, 0).black.bold("test"));
+    expect(intensityColor("6+")("test")).toBe(result);
   });
 
-  it("震度7 → bgRed.white", () => {
-    expect(intensityColor("7")).toBe(chalk.bgRed.white);
+  it("震度7 → CUD darkRed 背景白文字", () => {
+    const result = intensityColor("7")("test");
+    expect(result).toBe(chalk.bgRgb(122, 30, 0).white.bold("test"));
   });
 
   it("不明な震度 → white", () => {
@@ -105,26 +110,30 @@ describe("lgIntensityColor", () => {
     chalk.level = 3;
   });
 
-  it("階級0 → gray", () => {
-    expect(lgIntensityColor("0")).toBe(chalk.gray);
+  // CUD対応: chalk.rgb を使うため出力文字列で比較する
+  it("階級0 → CUD gray", () => {
+    const result = lgIntensityColor("0")("test");
+    expect(result).toBe(chalk.rgb(132, 145, 158)("test"));
   });
 
-  it("階級1 → green", () => {
-    expect(lgIntensityColor("1")).toBe(chalk.green);
+  it("階級1 → CUD sky", () => {
+    const result = lgIntensityColor("1")("test");
+    expect(result).toBe(chalk.rgb(86, 180, 233)("test"));
   });
 
-  it("階級2 → yellow", () => {
-    expect(lgIntensityColor("2")).toBe(chalk.yellow);
+  it("階級2 → CUD yellow", () => {
+    const result = lgIntensityColor("2")("test");
+    expect(result).toBe(chalk.rgb(240, 228, 66)("test"));
   });
 
-  it("階級3 → orange 系", () => {
+  it("階級3 → CUD orange", () => {
     const result = lgIntensityColor("3")("test");
-    expect(result).toContain("test");
-    expect(result).not.toBe("test");
+    expect(result).toBe(chalk.rgb(230, 159, 0)("test"));
   });
 
-  it("階級4 → red", () => {
-    expect(lgIntensityColor("4")).toBe(chalk.red);
+  it("階級4 → CUD vermillion 背景", () => {
+    const result = lgIntensityColor("4")("test");
+    expect(result).toBe(chalk.bgRgb(213, 94, 0).black.bold("test"));
   });
 });
 
@@ -509,6 +518,10 @@ describe("displayEewInfo", () => {
   });
 
   it("colorIndex=1 のバナーは異なる色で表示される", () => {
+    // truecolor レベルを強制 (CI環境でも確実にRGB差分が出るようにする)
+    const origLevel = chalk.level;
+    chalk.level = 3;
+
     const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
       classification: "eew.forecast",
       head: {
@@ -524,19 +537,22 @@ describe("displayEewInfo", () => {
 
     // colorIndex=0 で取得
     displayEewInfo(info!, { activeCount: 2, colorIndex: 0 });
-    const output0 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    // バナー空行(2行目: index 1) を取得 (index 0 = console.log() の空行)
+    const banner0 = String(logSpy.mock.calls[1]?.[0]);
     logSpy.mockClear();
 
     // colorIndex=1 で取得
     displayEewInfo(info!, { activeCount: 2, colorIndex: 1 });
-    const output1 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    const banner1 = String(logSpy.mock.calls[1]?.[0]);
 
-    // 両方とも表示されるが、バナー行のANSIエスケープが異なる
-    expect(output0).toContain("緊急地震速報（予報）");
+    // 両方とも緊急地震速報のテキストを含む
+    const output1 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
     expect(output1).toContain("緊急地震速報（予報）");
-    // バナー部分の色が異なることを確認（最初のログ行 = バナー空行）
-    const banner0FirstLine = logSpy.mock.calls[0]?.[0];
-    expect(output0).not.toBe(output1);
+
+    // バナー行のANSIエスケープが異なることを確認
+    expect(banner0).not.toBe(banner1);
+
+    chalk.level = origLevel;
   });
 
   it("バナーに震源地名が含まれる", () => {
