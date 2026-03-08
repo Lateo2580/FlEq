@@ -155,6 +155,7 @@ const CONFIG_KEYS: Record<string, string> = {
   infoFullText: "お知らせ電文の全文表示 (true/false)",
   displayMode: '表示モード: "normal" | "compact"',
   waitTipIntervalMin: "待機中ヒント表示間隔 (分, 0で無効)",
+  sound: "通知音の有効/無効 (true/false)",
 };
 
 /** Configファイルのパスを返す */
@@ -265,6 +266,10 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
     raw.waitTipIntervalMin <= 1440
   ) {
     config.waitTipIntervalMin = raw.waitTipIntervalMin;
+  }
+
+  if (typeof raw.sound === "boolean") {
+    config.sound = raw.sound;
   }
 
   if (typeof raw.notify === "object" && raw.notify != null && !Array.isArray(raw.notify)) {
@@ -385,6 +390,14 @@ export function setConfigValue(key: string, value: string): void {
       config.waitTipIntervalMin = min;
       break;
     }
+    case "sound":
+      if (value !== "true" && value !== "false") {
+        throw new ConfigError(
+          "sound は true または false を指定してください。"
+        );
+      }
+      config.sound = value === "true";
+      break;
   }
 
   saveConfig(config);

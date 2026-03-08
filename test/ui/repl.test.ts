@@ -46,6 +46,8 @@ vi.mock("../../src/engine/notifier", () => ({
     muteRemaining() { return 0; }
     mute() { /* noop */ }
     unmute() { /* noop */ }
+    getSoundEnabled() { return true; }
+    setSoundEnabled() { /* noop */ }
   },
   NOTIFY_CATEGORY_LABELS: {
     eew: "緊急地震速報",

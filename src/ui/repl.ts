@@ -198,6 +198,11 @@ export class ReplHandler {
         detail: "mode: 現在のモードを表示\n  mode normal: フルフレーム表示 (デフォルト)\n  mode compact: 1行サマリー表示\n  長時間モニタリング時は compact がおすすめです。",
         handler: (args) => this.handleMode(args),
       },
+      sound: {
+        description: "通知音の ON/OFF 切替",
+        detail: "sound: 現在の状態を表示\n  sound on: 通知音を有効にする\n  sound off: 通知音を無効にする",
+        handler: (args) => this.handleSound(args),
+      },
       mute: {
         description: "通知を一時ミュート (例: mute 30m)",
         detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
@@ -391,6 +396,10 @@ export class ReplHandler {
       : "";
 
     return {
+      sound: {
+        current: this.notifier.getSoundEnabled() ? "ON" : "OFF",
+        options: "on / off",
+      },
       tablewidth: {
         current: String(this.config.tableWidth ?? "未設定"),
         options: "40〜200",
@@ -784,6 +793,28 @@ export class ReplHandler {
       return;
     }
     console.log(`  待機中ヒント間隔を ${min}分 に変更しました。`);
+  }
+
+  private handleSound(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      const current = this.notifier.getSoundEnabled();
+      const status = current ? chalk.green("ON") : chalk.red("OFF");
+      console.log(`  通知音: ${status}`);
+      console.log(chalk.gray("  使い方: sound on / sound off"));
+      return;
+    }
+
+    if (trimmed === "on") {
+      this.notifier.setSoundEnabled(true);
+      console.log(`  通知音を ${chalk.green("ON")} にしました。`);
+    } else if (trimmed === "off") {
+      this.notifier.setSoundEnabled(false);
+      console.log(`  通知音を ${chalk.red("OFF")} にしました。`);
+    } else {
+      console.log(chalk.yellow("  on または off を指定してください。"));
+    }
   }
 
   private handleMute(args: string): void {

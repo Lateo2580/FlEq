@@ -12,6 +12,7 @@ import {
 } from "../types";
 import { loadConfig, saveConfig } from "../config";
 import { EewUpdateResult } from "./eew-tracker";
+import { playSound, SoundLevel } from "./sound-player";
 import * as log from "../logger";
 
 /** 通知カテゴリと日本語ラベルの対応 */
@@ -26,6 +27,7 @@ export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
 
 export class Notifier {
   private settings: NotifySettings;
+  private soundEnabled: boolean;
   private muteUntil: number | null = null;
 
   constructor() {
@@ -34,6 +36,7 @@ export class Notifier {
       ...DEFAULT_CONFIG.notify,
       ...fileConfig.notify,
     };
+    this.soundEnabled = fileConfig.sound ?? DEFAULT_CONFIG.sound;
   }
 
   /** 指定ミリ秒間、通知をミュートする */
@@ -87,23 +90,37 @@ export class Notifier {
     return { ...this.settings };
   }
 
+  /** 通知音が有効かどうか */
+  getSoundEnabled(): boolean {
+    return this.soundEnabled;
+  }
+
+  /** 通知音の有効/無効を切り替える */
+  setSoundEnabled(enabled: boolean): void {
+    this.soundEnabled = enabled;
+    this.persist();
+  }
+
   // ── 電文タイプ別通知 ──
 
   notifyEew(info: ParsedEewInfo, result: EewUpdateResult): void {
     if (!this.settings.eew) return;
 
-    // 通知条件: 第1報 / 予報→警報切替 / 取消報
+    // 通知条件: 第1報 / 予報→警報切替 / 取消報 / 最終報
     const isUpgradeToWarning =
       result.previousInfo?.isWarning === false && info.isWarning === true;
+    const isFinal = info.nextAdvisory != null;
 
-    if (!result.isNew && !isUpgradeToWarning && !result.isCancelled) {
+    if (!result.isNew && !isUpgradeToWarning && !result.isCancelled && !isFinal) {
       return;
     }
 
     if (result.isCancelled) {
-      this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました");
+      this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました", "cancel");
       return;
     }
+
+    const soundLevel: SoundLevel = info.isWarning ? "critical" : "warning";
 
     const title = info.isWarning
       ? "緊急地震速報（警報）"
@@ -115,16 +132,18 @@ export class Notifier {
       ? `${info.earthquake.hypocenterName} / M${info.earthquake.magnitude} / 最大予測震度${maxInt}`
       : title;
 
-    this.send(title, body);
+    this.send(title, body, soundLevel);
   }
 
   notifyEarthquake(info: ParsedEarthquakeInfo): void {
     if (!this.settings.earthquake) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
       return;
     }
+
+    const soundLevel = this.earthquakeSoundLevel(info);
 
     const parts: string[] = [];
     if (info.earthquake) {
@@ -134,16 +153,18 @@ export class Notifier {
     if (info.intensity) {
       parts.push(`最大震度${info.intensity.maxInt}`);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : (info.headline ?? info.title));
+    this.send(info.title, parts.length > 0 ? parts.join(" / ") : (info.headline ?? info.title), soundLevel);
   }
 
   notifyTsunami(info: ParsedTsunamiInfo): void {
     if (!this.settings.tsunami) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
       return;
     }
+
+    const soundLevel = this.tsunamiSoundLevel(info);
 
     const parts: string[] = [];
     if (info.forecast && info.forecast.length > 0) {
@@ -155,40 +176,42 @@ export class Notifier {
     if (info.headline) {
       parts.push(info.headline);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title);
+    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, soundLevel);
   }
 
   notifySeismicText(info: ParsedSeismicTextInfo): void {
     if (!this.settings.seismicText) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
       return;
     }
 
     const body = info.headline ?? info.bodyText.slice(0, 80);
-    this.send(info.title, body);
+    this.send(info.title, body, "info");
   }
 
   notifyNankaiTrough(info: ParsedNankaiTroughInfo): void {
     if (!this.settings.nankaiTrough) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
       return;
     }
 
     const body = info.headline ?? info.bodyText.slice(0, 80);
-    this.send(info.title, body);
+    this.send(info.title, body, "warning");
   }
 
   notifyLgObservation(info: ParsedLgObservationInfo): void {
     if (!this.settings.lgObservation) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
       return;
     }
+
+    const soundLevel = this.lgObservationSoundLevel(info);
 
     const parts: string[] = [];
     if (info.earthquake) {
@@ -200,7 +223,7 @@ export class Notifier {
     if (info.maxInt) {
       parts.push(`最大震度${info.maxInt}`);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title);
+    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, soundLevel);
   }
 
   // ── 内部メソッド ──
@@ -219,7 +242,7 @@ export class Notifier {
     return this._notifier;
   }
 
-  private send(title: string, message: string): void {
+  private send(title: string, message: string, level?: SoundLevel): void {
     if (this.isMuted()) return;
     try {
       const nn = this.getNotifier();
@@ -231,12 +254,43 @@ export class Notifier {
         log.debug(`通知送信エラー: ${err.message}`);
       }
     }
+    if (this.soundEnabled && level) {
+      playSound(level);
+    }
+  }
+
+  /** 地震情報のサウンドレベルを判定 */
+  private earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
+    if (!info.intensity) return "normal";
+    const num = intensityToSortNum(info.intensity.maxInt);
+    if (num >= 7) return "critical"; // 震度6弱以上
+    if (num >= 4) return "warning";  // 震度4以上
+    return "normal";
+  }
+
+  /** 津波情報のサウンドレベルを判定 */
+  private tsunamiSoundLevel(info: ParsedTsunamiInfo): SoundLevel {
+    if (!info.forecast || info.forecast.length === 0) return "normal";
+    const kinds = info.forecast.map((f) => f.kind);
+    if (kinds.some((k) => k.includes("大津波"))) return "critical";
+    if (kinds.some((k) => k.includes("津波警報"))) return "warning";
+    return "normal";
+  }
+
+  /** 長周期地震動観測のサウンドレベルを判定 */
+  private lgObservationSoundLevel(info: ParsedLgObservationInfo): SoundLevel {
+    if (!info.maxLgInt) return "normal";
+    if (info.maxLgInt === "4") return "critical";
+    if (info.maxLgInt === "3") return "warning";
+    if (info.maxLgInt === "2") return "normal";
+    return "info";
   }
 
   private persist(): void {
     try {
       const config = loadConfig();
       config.notify = { ...this.settings };
+      config.sound = this.soundEnabled;
       saveConfig(config);
     } catch (err) {
       if (err instanceof Error) {

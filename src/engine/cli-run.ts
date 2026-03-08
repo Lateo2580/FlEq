@@ -121,6 +121,7 @@ export async function runMonitor(opts: {
     displayMode: displayModeRaw,
     waitTipIntervalMin: fileConfig.waitTipIntervalMin ?? DEFAULT_CONFIG.waitTipIntervalMin,
     notify: { ...DEFAULT_CONFIG.notify, ...fileConfig.notify },
+    sound: fileConfig.sound ?? DEFAULT_CONFIG.sound,
   };
 
   // 契約状況チェック

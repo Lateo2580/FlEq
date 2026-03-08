@@ -43,6 +43,8 @@ export interface AppConfig {
   waitTipIntervalMin: number;
   /** 通知設定 */
   notify: NotifySettings;
+  /** 通知音の有効/無効 */
+  sound: boolean;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -58,6 +60,7 @@ export interface ConfigFile {
   displayMode?: DisplayMode;
   waitTipIntervalMin?: number;
   notify?: Partial<NotifySettings>;
+  sound?: boolean;
 }
 
 /** デフォルト設定 */
@@ -79,6 +82,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     nankaiTrough: true,
     lgObservation: true,
   },
+  sound: true,
 };
 
 // ── dmdata.jp API レスポンス型 ──
