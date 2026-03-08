@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.24.0](https://github.com/Lateo2580/FlEq/compare/v1.23.0...v1.24.0) (2026-03-08)
+
+
+### 機能追加
+
+* REPLにcolorsコマンド追加、helpコマンド一覧をアルファベット順に ([9c4e9e8](https://github.com/Lateo2580/FlEq/commit/9c4e9e8834a01e54d200d725c56a560e198cfae8))
+
 ## [1.23.0](https://github.com/Lateo2580/FlEq/compare/v1.22.0...v1.23.0) (2026-03-08)
 
 
