@@ -8,6 +8,7 @@ import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notifier";
 import {
   formatElapsedTime,
   intensityColor,
+  lgIntensityColor,
   visualPadEnd,
   visualWidth,
   setFrameWidth,
@@ -157,6 +158,11 @@ export class ReplHandler {
         description: "WebSocket 接続状態を表示",
         detail: "現在の WebSocket 接続状態、SocketID、再接続試行回数を表示します。",
         handler: () => this.handleStatus(),
+      },
+      colors: {
+        description: "カラーパレット・震度色の一覧を表示",
+        detail: "CUD (カラーユニバーサルデザイン) パレットと、\n  震度・長周期地震動階級・フレームレベルに対応する色を確認できます。",
+        handler: () => this.handleColors(),
       },
       config: {
         description: "現在の設定を表示",
@@ -462,8 +468,11 @@ export class ReplHandler {
 
     const currentValues = this.getCurrentSettingValues();
     const displayed = new Set<string>();
-    for (const [name, entry] of Object.entries(this.commands)) {
-      if (name === "exit" || name === "?") continue;
+    const commandNames = Object.keys(this.commands)
+      .filter((name) => name !== "exit" && name !== "?")
+      .sort();
+    for (const name of commandNames) {
+      const entry = this.commands[name];
       if (displayed.has(entry.description)) continue;
       displayed.add(entry.description);
       const setting = currentValues[name];
@@ -565,6 +574,67 @@ export class ReplHandler {
         chalk.white("  再接続試行: ") +
           chalk.yellow(`#${status.reconnectAttempt}`)
       );
+    }
+    console.log();
+  }
+
+  private handleColors(): void {
+    console.log();
+    console.log(chalk.cyan.bold("  CUD カラーパレット:"));
+    console.log();
+    const palette: Array<{ name: string; rgb: [number, number, number]; usage: string }> = [
+      { name: "gray",       rgb: [132, 145, 158], usage: "低優先度・補助テキスト" },
+      { name: "sky",        rgb: [86, 180, 233],  usage: "通常・長周期階級1" },
+      { name: "blue",       rgb: [0, 114, 178],   usage: "震度3" },
+      { name: "blueGreen",  rgb: [0, 158, 115],   usage: "震度4・津波なし" },
+      { name: "yellow",     rgb: [240, 228, 66],  usage: "震度5弱・M3+" },
+      { name: "orange",     rgb: [230, 159, 0],   usage: "警告レベル" },
+      { name: "vermillion", rgb: [213, 94, 0],    usage: "危険レベル" },
+      { name: "raspberry",  rgb: [204, 121, 167], usage: "取消・キャンセル" },
+      { name: "darkRed",    rgb: [122, 30, 0],    usage: "最高警戒 (背景用)" },
+    ];
+    for (const p of palette) {
+      const swatch = chalk.rgb(p.rgb[0], p.rgb[1], p.rgb[2])("██");
+      const rgbStr = `(${p.rgb.join(", ")})`;
+      console.log(
+        `  ${swatch} ` +
+        chalk.white(p.name.padEnd(12)) +
+        chalk.gray(rgbStr.padEnd(16)) +
+        chalk.gray(p.usage)
+      );
+    }
+
+    console.log();
+    console.log(chalk.cyan.bold("  震度カラー:"));
+    console.log();
+    const intensities = ["1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"];
+    for (const int of intensities) {
+      const color = intensityColor(int);
+      console.log(`  ${color("██")} ${color(`震度${int}`)}`);
+    }
+
+    console.log();
+    console.log(chalk.cyan.bold("  長周期地震動階級カラー:"));
+    console.log();
+    const lgInts = ["0", "1", "2", "3", "4"];
+    for (const lg of lgInts) {
+      const color = lgIntensityColor(lg);
+      console.log(`  ${color("██")} ${color(`階級${lg}`)}`);
+    }
+
+    console.log();
+    console.log(chalk.cyan.bold("  フレームレベル:"));
+    console.log();
+    const levels: Array<{ name: string; rgb: [number, number, number]; label: string }> = [
+      { name: "critical", rgb: [213, 94, 0],    label: "[緊急] 二重線フレーム" },
+      { name: "warning",  rgb: [230, 159, 0],   label: "[警告] 二重線フレーム" },
+      { name: "normal",   rgb: [86, 180, 233],  label: "[情報] 通常フレーム" },
+      { name: "info",     rgb: [132, 145, 158], label: "[通知] 通常フレーム" },
+      { name: "cancel",   rgb: [204, 121, 167], label: "[取消] 通常フレーム" },
+    ];
+    for (const lv of levels) {
+      const color = chalk.rgb(lv.rgb[0], lv.rgb[1], lv.rgb[2]);
+      console.log(`  ${color("██")} ${color(lv.name.padEnd(10))} ${chalk.gray(lv.label)}`);
     }
     console.log();
   }
