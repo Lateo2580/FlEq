@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.23.0](https://github.com/Lateo2580/FlEq/compare/v1.22.0...v1.23.0) (2026-03-08)
+
+
+### 機能追加
+
+* 通知音機能を追加（OS別ネイティブサウンド再生） ([2fc90ce](https://github.com/Lateo2580/FlEq/commit/2fc90ce630a5bfab5b138aa0b1608ebbc1c909ee))
+
 ## [1.22.0](https://github.com/Lateo2580/FlEq/compare/v1.21.0...v1.22.0) (2026-03-07)
 
 
