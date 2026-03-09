@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.26.0](https://github.com/Lateo2580/FlEq/compare/v1.25.0...v1.26.0) (2026-03-09)
+
+
+### 機能追加
+
+* カスタム効果音対応（assets/sounds/ にmp3/wavを配置で自動切替） ([1d666de](https://github.com/Lateo2580/FlEq/commit/1d666de4005f885e847edd47030f19a6ee54d113))
+
 ## [1.25.0](https://github.com/Lateo2580/FlEq/compare/v1.24.0...v1.25.0) (2026-03-09)
 
 
