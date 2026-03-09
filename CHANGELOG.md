@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.25.0](https://github.com/Lateo2580/FlEq/compare/v1.24.0...v1.25.0) (2026-03-09)
+
+
+### 機能追加
+
+* 待機中Tipを70個→160個に拡充（全5カテゴリ） ([17a9e2b](https://github.com/Lateo2580/FlEq/commit/17a9e2b9837f10c68218d3f71b5ea3a8d1e8a96d))
+
 ## [1.24.0](https://github.com/Lateo2580/FlEq/compare/v1.23.0...v1.24.0) (2026-03-08)
 
 
