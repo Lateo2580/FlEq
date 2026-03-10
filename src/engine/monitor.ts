@@ -11,6 +11,8 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   /** 切断時刻 (再接続時のギャップ表示用) */
   let disconnectedAt: number | null = null;
+  /** 初回接続フラグ (help メッセージ表示用) */
+  let isFirstConnection = true;
 
   const manager = new WebSocketManager(config, {
     onData: (msg) => {
@@ -34,6 +36,10 @@ export async function startMonitor(config: AppConfig): Promise<void> {
         disconnectedAt = null;
       }
       log.info(chalk.green("リアルタイム受信中..."));
+      if (isFirstConnection) {
+        console.log(chalk.gray("  help でコマンド一覧を表示"));
+        isFirstConnection = false;
+      }
       if (replHandler) {
         replHandler.setConnected(true);
         replHandler.refreshPrompt();

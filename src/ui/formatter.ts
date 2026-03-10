@@ -54,6 +54,11 @@ export function setFrameWidth(width: number): void {
   cachedFrameWidth = width;
 }
 
+/** フレーム幅を自動モード (ターミナル幅追従) に戻す */
+export function clearFrameWidth(): void {
+  cachedFrameWidth = null;
+}
+
 /** infoFullText キャッシュ */
 let cachedInfoFullText = false;
 
@@ -127,9 +132,12 @@ const FRAME_WIDTH = 60;
 /** テーブル幅がこの値以上のとき、津波情報をカラム区切りテーブルで表示 */
 const WIDE_TABLE_THRESHOLD = 80;
 
-/** キャッシュ済みの tableWidth を返す。未設定なら FRAME_WIDTH (60) */
+/** キャッシュ済みの tableWidth を返す。未設定ならターミナル幅に追従 (fallback: 60) */
 function getFrameWidth(): number {
-  return cachedFrameWidth ?? FRAME_WIDTH;
+  if (cachedFrameWidth != null) return cachedFrameWidth;
+  const cols = process.stdout.columns;
+  if (cols == null || cols < 40) return FRAME_WIDTH;
+  return Math.min(cols, 200);
 }
 
 function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {

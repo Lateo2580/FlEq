@@ -36,8 +36,8 @@ export interface AppConfig {
   maxReconnectDelaySec: number;
   /** 同一APIキーの既存 open socket を維持するか */
   keepExistingConnections: boolean;
-  /** テーブル表示幅 */
-  tableWidth: number;
+  /** テーブル表示幅 (null = ターミナル幅に自動追従) */
+  tableWidth: number | null;
   /** お知らせ電文の全文表示 */
   infoFullText: boolean;
   /** 表示モード */
@@ -76,7 +76,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   appName: "fleq",
   maxReconnectDelaySec: 60,
   keepExistingConnections: true,
-  tableWidth: 60,
+  tableWidth: null,
   infoFullText: false,
   displayMode: "normal",
   promptClock: "elapsed",

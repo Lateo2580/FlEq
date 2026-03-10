@@ -116,7 +116,7 @@ export async function runMonitor(opts: {
             fileConfig.keepExistingConnections ??
             DEFAULT_CONFIG.keepExistingConnections
           ),
-    tableWidth: fileConfig.tableWidth ?? DEFAULT_CONFIG.tableWidth,
+    tableWidth: fileConfig.tableWidth ?? null,
     infoFullText: fileConfig.infoFullText ?? DEFAULT_CONFIG.infoFullText,
     displayMode: displayModeRaw,
     promptClock: fileConfig.promptClock ?? DEFAULT_CONFIG.promptClock,
@@ -124,6 +124,15 @@ export async function runMonitor(opts: {
     notify: { ...DEFAULT_CONFIG.notify, ...fileConfig.notify },
     sound: fileConfig.sound ?? DEFAULT_CONFIG.sound,
   };
+
+  // Banner title (契約チェック前に表示)
+  console.log();
+  console.log(
+    chalk.cyan.bold.inverse(
+      `${config.appName} v${VERSION} — Project DM-D.S.S リアルタイム地震・津波情報モニター`
+    )
+  );
+  console.log();
 
   // 契約状況チェック
   try {
@@ -168,19 +177,11 @@ export async function runMonitor(opts: {
 
 /** 起動バナー表示 */
 function printBanner(config: AppConfig): void {
-  console.log();
-  console.log(
-    chalk.cyan.bold(
-      `${config.appName} v${VERSION} — Project DM-D.S.S リアルタイム地震・津波情報モニター`
-    )
-  );
-  console.log();
   log.info(`受信区分: ${config.classifications.join(", ")}`);
   log.info(`テストモード: ${config.testMode}`);
   if (config.displayMode !== "normal") {
     log.info(`表示モード: ${config.displayMode}`);
   }
   log.info("接続を開始します...");
-  console.log(chalk.gray("  help でコマンド一覧を表示"));
   console.log();
 }

@@ -1,4 +1,6 @@
 import type NodeNotifier from "node-notifier";
+import * as path from "path";
+import * as fs from "fs";
 import {
   NotifyCategory,
   NotifySettings,
@@ -14,6 +16,12 @@ import { loadConfig, saveConfig } from "../config";
 import { EewUpdateResult } from "./eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";
 import * as log from "../logger";
+
+/** 通知アイコンのパス (assets/icons/icon.png が存在する場合に使用) */
+const NOTIFY_ICON_PATH = path.resolve(__dirname, "../../assets/icons/icon.png");
+
+/** 通知アプリ名 */
+const NOTIFY_APP_NAME = "FlEq";
 
 /** 通知カテゴリと日本語ラベルの対応 */
 export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
@@ -247,7 +255,13 @@ export class Notifier {
     try {
       const nn = this.getNotifier();
       if (nn) {
-        nn.notify({ title, message, sound: false });
+        nn.notify({
+          title,
+          message,
+          sound: false,
+          appID: NOTIFY_APP_NAME,
+          ...(fs.existsSync(NOTIFY_ICON_PATH) ? { icon: NOTIFY_ICON_PATH } : {}),
+        });
       }
     } catch (err) {
       if (err instanceof Error) {

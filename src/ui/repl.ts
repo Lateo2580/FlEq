@@ -12,6 +12,7 @@ import {
   visualPadEnd,
   visualWidth,
   setFrameWidth,
+  clearFrameWidth,
   setInfoFullText,
   setDisplayMode,
   getDisplayMode,
@@ -183,8 +184,8 @@ export class ReplHandler {
         handler: (args) => this.handleNotify(args),
       },
       tablewidth: {
-        description: "テーブル幅の表示・変更 (例: tablewidth 80)",
-        detail: "引数なし: 現在のテーブル幅を表示\n  tablewidth <40〜200>: テーブル幅を変更\n  変更は即座に反映され、Configファイルに保存されます。",
+        description: "テーブル幅の表示・変更 (例: tablewidth 80 / tablewidth auto)",
+        detail: "引数なし: 現在のテーブル幅を表示\n  tablewidth <40〜200>: テーブル幅を固定値に変更\n  tablewidth auto: ターミナル幅に自動追従 (デフォルト)\n  変更は即座に反映され、Configファイルに保存されます。",
         handler: (args) => this.handleTableWidth(args),
       },
       infotext: {
@@ -410,8 +411,10 @@ export class ReplHandler {
         options: "on / off",
       },
       tablewidth: {
-        current: String(this.config.tableWidth ?? "未設定"),
-        options: "40〜200",
+        current: this.config.tableWidth == null
+          ? `auto (${process.stdout.columns ?? 60})`
+          : `${this.config.tableWidth} (固定)`,
+        options: "40〜200 / auto",
       },
       infotext: {
         current: this.config.infoFullText ? "full" : "short",
@@ -772,14 +775,30 @@ export class ReplHandler {
     const trimmed = args.trim();
 
     if (trimmed.length === 0) {
-      console.log(`  現在のテーブル幅: ${this.config.tableWidth ?? "(未設定)"}`);
-      console.log(chalk.gray("  使い方: tablewidth <40〜200>"));
+      if (this.config.tableWidth == null) {
+        const cols = process.stdout.columns ?? 60;
+        console.log(`  現在のテーブル幅: auto (ターミナル幅: ${cols})`);
+      } else {
+        console.log(`  現在のテーブル幅: ${this.config.tableWidth} (固定)`);
+      }
+      console.log(chalk.gray("  使い方: tablewidth <40〜200> / tablewidth auto"));
+      return;
+    }
+
+    if (trimmed === "auto") {
+      this.config.tableWidth = null;
+      clearFrameWidth();
+      const config = loadConfig();
+      delete config.tableWidth;
+      saveConfig(config);
+      const cols = process.stdout.columns ?? 60;
+      console.log(`  テーブル幅を auto に変更しました。(現在のターミナル幅: ${cols})`);
       return;
     }
 
     const width = Number(trimmed);
     if (isNaN(width) || !Number.isInteger(width) || width < 40 || width > 200) {
-      console.log(chalk.yellow("  tableWidth は 40〜200 の整数を指定してください。"));
+      console.log(chalk.yellow("  tableWidth は 40〜200 の整数、または auto を指定してください。"));
       return;
     }
 

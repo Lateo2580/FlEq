@@ -199,9 +199,8 @@ export class WebSocketManager {
           break;
         }
         this.socketId = parsed.socketId;
-        log.info(
-          `セッション開始: socketId=${parsed.socketId}, 区分=[${parsed.classifications.join(", ")}]`
-        );
+        log.info(`セッション開始: socketId=${parsed.socketId}`);
+        log.info(`区分: [${parsed.classifications.join(", ")}]`);
         break;
 
       case "ping":
