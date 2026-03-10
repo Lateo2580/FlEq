@@ -1,6 +1,6 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig, DisplayMode, NotifyCategory } from "../types";
+import { AppConfig, DisplayMode, PromptClock, NotifyCategory } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { loadConfig, saveConfig, printConfig } from "../config";
@@ -29,9 +29,7 @@ class StatusLine {
   private pulseOn = true;
   private connectedAt: number | null = null;
   private lastMessageTime: number | null = null;
-  private dayKey = "";
-  private dailyReceived = 0;
-  private dailyEewReceived = 0;
+  private clockMode: PromptClock = "elapsed";
 
   tick(): void {
     this.pulseOn = !this.pulseOn;
@@ -47,13 +45,16 @@ class StatusLine {
     }
   }
 
-  markMessageReceived(classification: string): void {
+  markMessageReceived(): void {
     this.lastMessageTime = Date.now();
-    this.rotateDailyCountersIfNeeded();
-    this.dailyReceived++;
-    if (classification === "eew.forecast" || classification === "eew.warning") {
-      this.dailyEewReceived++;
-    }
+  }
+
+  setClockMode(mode: PromptClock): void {
+    this.clockMode = mode;
+  }
+
+  getClockMode(): PromptClock {
+    return this.clockMode;
   }
 
   buildPrefix(): string {
@@ -63,16 +64,14 @@ class StatusLine {
       );
     }
     const dot = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
-    const baseTime = this.lastMessageTime ?? this.connectedAt;
-    const elapsed = formatElapsedTime(Date.now() - baseTime);
-    const summary = `今日 受信${this.dailyReceived}/EEW${this.dailyEewReceived}`;
+    const timeStr = this.clockMode === "clock"
+      ? formatCurrentTime()
+      : formatElapsedTime(Date.now() - (this.lastMessageTime ?? this.connectedAt));
     return (
       chalk.gray("FlEq [") +
       dot +
       chalk.gray(" ") +
-      chalk.white(elapsed) +
-      chalk.gray(" | ") +
-      chalk.white(summary) +
+      chalk.white(timeStr) +
       chalk.gray("]> ")
     );
   }
@@ -80,15 +79,13 @@ class StatusLine {
   getLastMessageTime(): number | null {
     return this.lastMessageTime;
   }
+}
 
-  private rotateDailyCountersIfNeeded(): void {
-    const now = new Date();
-    const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    if (this.dayKey === nowKey) return;
-    this.dayKey = nowKey;
-    this.dailyReceived = 0;
-    this.dailyEewReceived = 0;
-  }
+/** 現在時刻を HH:mm:ss 形式で返す */
+function formatCurrentTime(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 }
 
 /** レーベンシュタイン距離 (typo候補用) */
@@ -136,6 +133,7 @@ export class ReplHandler {
     this.notifier = notifier;
     this.onQuit = onQuit;
     this.statusLine = new StatusLine();
+    this.statusLine.setClockMode(this.config.promptClock);
     this.tipIntervalMs = this.config.waitTipIntervalMin * 60 * 1000;
     this.tipIndex = Math.floor(Math.random() * WAITING_TIPS.length);
 
@@ -203,6 +201,11 @@ export class ReplHandler {
         description: "表示モード切替 (例: mode compact)",
         detail: "mode: 現在のモードを表示\n  mode normal: フルフレーム表示 (デフォルト)\n  mode compact: 1行サマリー表示\n  長時間モニタリング時は compact がおすすめです。",
         handler: (args) => this.handleMode(args),
+      },
+      clock: {
+        description: "プロンプト時計の切替 (例: clock / clock elapsed)",
+        detail: "clock: 経過時間/現在時刻をトグル切替\n  clock elapsed: 経過時間表示 (デフォルト)\n  clock now: 現在時刻表示",
+        handler: (args) => this.handleClock(args),
       },
       sound: {
         description: "通知音の ON/OFF 切替",
@@ -348,8 +351,8 @@ export class ReplHandler {
   }
 
   /** 電文表示の後処理（受信時刻更新・プロンプト再描画） */
-  afterDisplayMessage(classification: string): void {
-    this.statusLine.markMessageReceived(classification);
+  afterDisplayMessage(): void {
+    this.statusLine.markMessageReceived();
     this.resetTipSchedule();
     this.prompt();
   }
@@ -423,6 +426,10 @@ export class ReplHandler {
       mode: {
         current: getDisplayMode(),
         options: "normal / compact",
+      },
+      clock: {
+        current: this.statusLine.getClockMode() === "clock" ? "現在時刻" : "経過時間",
+        options: "elapsed / now",
       },
       notify: {
         current: `${onCount}/${totalCount} ON${muteInfo}`,
@@ -835,6 +842,42 @@ export class ReplHandler {
     config.displayMode = mode;
     saveConfig(config);
     console.log(`  表示モードを ${mode} に変更しました。`);
+  }
+
+  private handleClock(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      // トグル
+      const current = this.statusLine.getClockMode();
+      const next: PromptClock = current === "elapsed" ? "clock" : "elapsed";
+      this.statusLine.setClockMode(next);
+      this.config.promptClock = next;
+      const config = loadConfig();
+      config.promptClock = next;
+      saveConfig(config);
+      const label = next === "clock" ? "現在時刻" : "経過時間";
+      console.log(`  プロンプト時計を ${label} に切り替えました。`);
+      return;
+    }
+
+    if (trimmed === "elapsed") {
+      this.statusLine.setClockMode("elapsed");
+      this.config.promptClock = "elapsed";
+      const config = loadConfig();
+      config.promptClock = "elapsed";
+      saveConfig(config);
+      console.log("  プロンプト時計を 経過時間 に変更しました。");
+    } else if (trimmed === "now") {
+      this.statusLine.setClockMode("clock");
+      this.config.promptClock = "clock";
+      const config = loadConfig();
+      config.promptClock = "clock";
+      saveConfig(config);
+      console.log("  プロンプト時計を 現在時刻 に変更しました。");
+    } else {
+      console.log(chalk.yellow("  elapsed または now を指定してください。"));
+    }
   }
 
   private handleTipInterval(args: string): void {

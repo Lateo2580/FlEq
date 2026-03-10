@@ -119,6 +119,7 @@ export async function runMonitor(opts: {
     tableWidth: fileConfig.tableWidth ?? DEFAULT_CONFIG.tableWidth,
     infoFullText: fileConfig.infoFullText ?? DEFAULT_CONFIG.infoFullText,
     displayMode: displayModeRaw,
+    promptClock: fileConfig.promptClock ?? DEFAULT_CONFIG.promptClock,
     waitTipIntervalMin: fileConfig.waitTipIntervalMin ?? DEFAULT_CONFIG.waitTipIntervalMin,
     notify: { ...DEFAULT_CONFIG.notify, ...fileConfig.notify },
     sound: fileConfig.sound ?? DEFAULT_CONFIG.sound,

@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { ConfigFile, Classification, DisplayMode, NotifyCategory } from "./types";
+import { ConfigFile, Classification, DisplayMode, PromptClock, NotifyCategory } from "./types";
 import * as log from "./logger";
 
 /** 設定エラー */
@@ -133,6 +133,9 @@ const VALID_TEST_MODES = ["no", "including", "only"] as const;
 /** 有効な表示モード */
 const VALID_DISPLAY_MODES: DisplayMode[] = ["normal", "compact"];
 
+/** 有効なプロンプト時計モード */
+const VALID_PROMPT_CLOCKS: PromptClock[] = ["elapsed", "clock"];
+
 /** 有効な通知カテゴリ */
 const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
   "eew",
@@ -154,6 +157,7 @@ const CONFIG_KEYS: Record<string, string> = {
   tableWidth: "テーブル表示幅 (40〜200)",
   infoFullText: "お知らせ電文の全文表示 (true/false)",
   displayMode: '表示モード: "normal" | "compact"',
+  promptClock: 'プロンプト時計: "elapsed" (経過時間) | "clock" (現在時刻)',
   waitTipIntervalMin: "待機中ヒント表示間隔 (分, 0で無効)",
   sound: "通知音の有効/無効 (true/false)",
 };
@@ -257,6 +261,13 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
     (VALID_DISPLAY_MODES as readonly string[]).includes(raw.displayMode)
   ) {
     config.displayMode = raw.displayMode as DisplayMode;
+  }
+
+  if (
+    typeof raw.promptClock === "string" &&
+    (VALID_PROMPT_CLOCKS as readonly string[]).includes(raw.promptClock)
+  ) {
+    config.promptClock = raw.promptClock as PromptClock;
   }
 
   if (
@@ -379,6 +390,14 @@ export function setConfigValue(key: string, value: string): void {
         );
       }
       config.displayMode = value as DisplayMode;
+      break;
+    case "promptClock":
+      if (!(VALID_PROMPT_CLOCKS as readonly string[]).includes(value)) {
+        throw new ConfigError(
+          `無効なプロンプト時計: ${value}\n有効な値: ${VALID_PROMPT_CLOCKS.join(", ")}`
+        );
+      }
+      config.promptClock = value as PromptClock;
       break;
     case "waitTipIntervalMin": {
       const min = Number(value);

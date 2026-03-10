@@ -22,7 +22,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
           `電文処理エラー: ${err instanceof Error ? err.message : err}`
         );
       } finally {
-        if (replHandler) replHandler.afterDisplayMessage(msg.classification);
+        if (replHandler) replHandler.afterDisplayMessage();
       }
     },
     onConnected: () => {

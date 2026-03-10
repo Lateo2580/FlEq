@@ -1,6 +1,9 @@
 /** 表示モード */
 export type DisplayMode = "normal" | "compact";
 
+/** プロンプト時計モード */
+export type PromptClock = "elapsed" | "clock";
+
 /** 通知カテゴリ */
 export type NotifyCategory =
   | "eew"
@@ -39,6 +42,8 @@ export interface AppConfig {
   infoFullText: boolean;
   /** 表示モード */
   displayMode: DisplayMode;
+  /** プロンプト時計モード */
+  promptClock: PromptClock;
   /** 待機中ヒント表示間隔 (分) */
   waitTipIntervalMin: number;
   /** 通知設定 */
@@ -58,6 +63,7 @@ export interface ConfigFile {
   tableWidth?: number;
   infoFullText?: boolean;
   displayMode?: DisplayMode;
+  promptClock?: PromptClock;
   waitTipIntervalMin?: number;
   notify?: Partial<NotifySettings>;
   sound?: boolean;
@@ -73,6 +79,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   tableWidth: 60,
   infoFullText: false,
   displayMode: "normal",
+  promptClock: "elapsed",
   waitTipIntervalMin: 30,
   notify: {
     eew: true,
