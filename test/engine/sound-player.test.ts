@@ -9,6 +9,7 @@ vi.mock("../../src/logger", () => ({
 
 const mockExecFile = vi.fn();
 const mockExec = vi.fn();
+const mockExistsSync = vi.fn();
 
 vi.mock("child_process", () => ({
   execFile: (...args: unknown[]) => {
@@ -30,6 +31,11 @@ vi.mock("child_process", () => ({
   },
 }));
 
+vi.mock("fs", async () => {
+  const actual = await vi.importActual<typeof import("fs")>("fs");
+  return { ...actual, existsSync: (...args: unknown[]) => mockExistsSync(...args) };
+});
+
 describe("sound-player", () => {
   let stdoutWriteSpy: ReturnType<typeof vi.spyOn>;
   let originalPlatform: NodeJS.Platform;
@@ -39,6 +45,8 @@ describe("sound-player", () => {
     originalPlatform = process.platform;
     mockExecFile.mockClear();
     mockExec.mockClear();
+    // デフォルトではカスタム効果音なし (システムサウンドフォールバックのテスト用)
+    mockExistsSync.mockReturnValue(false);
     stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
   });
 
@@ -100,6 +108,40 @@ describe("sound-player", () => {
     playSound("cancel");
     expect(mockExecFile).not.toHaveBeenCalled();
     expect(stdoutWriteSpy).toHaveBeenCalledWith("\x07");
+  });
+
+  it("カスタム効果音: ファイルが存在すればカスタムパスで再生する (Windows)", async () => {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("critical.mp3"));
+    const { playSound } = await import("../../src/engine/sound-player");
+    playSound("critical");
+    expect(mockExec).toHaveBeenCalledTimes(1);
+    const cmd = mockExec.mock.calls[0][0] as string;
+    expect(cmd).toContain("critical.mp3");
+    expect(cmd).toContain("MediaPlayer");
+    expect(cmd).not.toContain("Windows Critical Stop.wav");
+  });
+
+  it("カスタム効果音: ファイルが存在すればカスタムパスで再生する (macOS)", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("warning.mp3"));
+    const { playSound } = await import("../../src/engine/sound-player");
+    playSound("warning");
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    expect(mockExecFile.mock.calls[0][0]).toBe("afplay");
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args[0]).toContain("warning.mp3");
+  });
+
+  it("カスタム効果音: ファイルが存在すればカスタムパスで再生する (Linux mp3)", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("info.mp3"));
+    const { playSound } = await import("../../src/engine/sound-player");
+    playSound("info");
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    expect(mockExecFile.mock.calls[0][0]).toBe("ffplay");
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args.some((a: string) => a.endsWith("info.mp3"))).toBe(true);
   });
 
   it("全サウンドレベルに対応する", async () => {

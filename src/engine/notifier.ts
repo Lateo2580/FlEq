@@ -263,7 +263,6 @@ export class Notifier {
   private earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
     if (!info.intensity) return "normal";
     const num = intensityToSortNum(info.intensity.maxInt);
-    if (num >= 7) return "critical"; // 震度6弱以上
     if (num >= 4) return "warning";  // 震度4以上
     return "normal";
   }
@@ -272,18 +271,19 @@ export class Notifier {
   private tsunamiSoundLevel(info: ParsedTsunamiInfo): SoundLevel {
     if (!info.forecast || info.forecast.length === 0) return "normal";
     const kinds = info.forecast.map((f) => f.kind);
-    if (kinds.some((k) => k.includes("大津波"))) return "critical";
-    if (kinds.some((k) => k.includes("津波警報"))) return "warning";
+    // 注意報・警報・大津波警報のいずれかが含まれていれば critical
+    if (kinds.some((k) => k.includes("津波") && !k.includes("解除"))) return "critical";
+    // 解除のみの場合は warning
+    if (kinds.some((k) => k.includes("解除"))) return "warning";
     return "normal";
   }
 
   /** 長周期地震動観測のサウンドレベルを判定 */
   private lgObservationSoundLevel(info: ParsedLgObservationInfo): SoundLevel {
     if (!info.maxLgInt) return "normal";
-    if (info.maxLgInt === "4") return "critical";
-    if (info.maxLgInt === "3") return "warning";
-    if (info.maxLgInt === "2") return "normal";
-    return "info";
+    if (info.maxLgInt === "4" || info.maxLgInt === "3") return "critical";
+    if (info.maxLgInt === "2" || info.maxLgInt === "1") return "warning";
+    return "normal";
   }
 
   private persist(): void {

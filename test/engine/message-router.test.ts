@@ -25,6 +25,11 @@ import {
 import { WsDataMessage } from "../../src/types";
 import * as fs from "fs";
 
+// sound-player をモックしてテスト中に通知音が鳴るのを抑制
+vi.mock("../../src/engine/sound-player", () => ({
+  playSound: vi.fn(),
+}));
+
 // fs をモックして eew-logger のファイル書き込みを抑制
 const { appendFileMock } = vi.hoisted(() => {
   const appendFileMock = vi.fn().mockResolvedValue(undefined);
