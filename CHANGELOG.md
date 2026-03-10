@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.27.0](https://github.com/Lateo2580/FlEq/compare/v1.26.0...v1.27.0) (2026-03-10)
+
+
+### 機能追加
+
+* プロンプト簡素化とclock切替コマンド追加 ([1c6b2d3](https://github.com/Lateo2580/FlEq/commit/1c6b2d322a22df9df4554950276df3f8fd5a81a1))
+
+
+### リファクタリング
+
+* ログ出力からタイムスタンプ・ラベルを除去しシンプルな表示に統一 ([c2680f6](https://github.com/Lateo2580/FlEq/commit/c2680f6d4182534d13da7a5e015a5f7af39e89a8))
+
 ## [1.26.0](https://github.com/Lateo2580/FlEq/compare/v1.25.0...v1.26.0) (2026-03-09)
 
 

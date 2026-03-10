@@ -1,6 +1,6 @@
 {
   "name": "fleq",
-  "version": "1.26.0",
+  "version": "1.27.0",
   "description": "Project DM-D.S.S (dmdata.jp) リアルタイム地震・津波・EEW情報モニター CLI",
   "main": "dist/index.js",
   "bin": {
