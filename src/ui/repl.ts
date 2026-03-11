@@ -18,6 +18,7 @@ import {
   getDisplayMode,
 } from "../ui/formatter";
 import * as log from "../logger";
+import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { WAITING_TIPS } from "./waiting-tips";
 
 interface CommandEntry {
@@ -59,6 +60,26 @@ class StatusLine {
   }
 
   buildPrefix(): string {
+    if (this.connectedAt == null) {
+      return (
+        chalk.gray("FlEq [") + chalk.gray("○ --:--:--") + chalk.gray("]> ")
+      );
+    }
+    const dot = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
+    const timeStr = this.clockMode === "clock"
+      ? formatCurrentTime()
+      : formatElapsedTime(Date.now() - (this.lastMessageTime ?? this.connectedAt));
+    return (
+      chalk.gray("FlEq [") +
+      dot +
+      chalk.gray(" ") +
+      chalk.white(timeStr) +
+      chalk.gray("]> ")
+    );
+  }
+
+  /** ログ出力用プレフィックス */
+  buildLogPrefix(): string {
     if (this.connectedAt == null) {
       return (
         chalk.gray("FlEq [") + chalk.gray("○ --:--:--") + chalk.gray("]> ")
@@ -236,6 +257,24 @@ export class ReplHandler {
 
   /** REPL を開始する */
   start(): void {
+    // ロガーのプレフィックスを StatusLine に連動させる
+    setLogPrefixBuilder(() => this.statusLine.buildLogPrefix());
+    // ログ出力前にプロンプト行をクリアし、出力後に再描画する
+    setLogHooks({
+      beforeLog: () => {
+        if (process.stdout.isTTY && this.rl) {
+          readline.cursorTo(process.stdout, 0);
+          readline.clearLine(process.stdout, 0);
+        }
+      },
+      afterLog: () => {
+        if (this.rl && !this.stopping) {
+          this.rl.setPrompt(this.buildPromptString());
+          this.rl.prompt();
+        }
+      },
+    });
+
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -318,6 +357,8 @@ export class ReplHandler {
   /** REPL を停止する */
   stop(): void {
     this.stopping = true;
+    setLogPrefixBuilder(null);
+    setLogHooks(null);
     if (this.statusTimer) {
       clearInterval(this.statusTimer);
       this.statusTimer = null;

@@ -37,7 +37,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       }
       log.info(chalk.green("リアルタイム受信中..."));
       if (isFirstConnection) {
-        console.log(chalk.gray("  help でコマンド一覧を表示"));
+        log.info(chalk.gray("help でコマンド一覧を表示"));
         isFirstConnection = false;
       }
       if (replHandler) {

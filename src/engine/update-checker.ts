@@ -171,10 +171,8 @@ function printUpdateNotice(
   latest: string,
   packageName: string
 ): void {
-  console.log(
-    chalk.yellow(
-      `  Update available: v${current} → v${latest}  ` +
-        chalk.gray(`npm install -g ${packageName}@latest`)
-    )
+  log.warn(
+    `Update available: v${current} → v${latest}  ` +
+      chalk.gray(`npm install -g ${packageName}@latest`)
   );
 }

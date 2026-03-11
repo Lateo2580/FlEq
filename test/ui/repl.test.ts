@@ -35,6 +35,8 @@ vi.mock("../../src/logger", () => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
+  setLogPrefixBuilder: vi.fn(),
+  setLogHooks: vi.fn(),
 }));
 
 vi.mock("../../src/engine/notifier", () => ({
