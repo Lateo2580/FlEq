@@ -1,10 +1,11 @@
 import chalk from "chalk";
 import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
-import { ReplHandler } from "../ui/repl";
 import { createMessageHandler } from "./message-router";
 import { formatTimestamp } from "../ui/formatter";
 import * as log from "../logger";
+
+import type { ReplHandler as ReplHandlerType } from "../ui/repl";
 
 export async function startMonitor(config: AppConfig): Promise<void> {
   const { handler: handleData, eewLogger, notifier } = createMessageHandler();
@@ -13,6 +14,9 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   let disconnectedAt: number | null = null;
   /** 初回接続フラグ (help メッセージ表示用) */
   let isFirstConnection = true;
+
+  /** REPL ハンドラ (遅延ロード後に設定) */
+  let replHandler: ReplHandlerType | null = null;
 
   const manager = new WebSocketManager(config, {
     onData: (msg) => {
@@ -73,8 +77,9 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     process.exit(0);
   };
 
-  // REPL ハンドラ (シャットダウンコールバックを渡す)
-  const replHandler = new ReplHandler(config, manager, notifier, shutdown);
+  // REPL ハンドラ (遅延ロード)
+  const { ReplHandler } = await import("../ui/repl");
+  replHandler = new ReplHandler(config, manager, notifier, shutdown);
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);

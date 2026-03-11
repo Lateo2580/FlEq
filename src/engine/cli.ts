@@ -8,8 +8,7 @@ import {
   ConfigError,
 } from "../config";
 import * as log from "../logger";
-import { runMonitor } from "./cli-run";
-import { runInit } from "./cli-init";
+import type { RunMonitorOptions } from "./cli-run";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require("../../package.json") as {
@@ -50,13 +49,19 @@ export function buildProgram(): Command {
       '表示モードを指定します: "normal" | "compact"'
     )
     .option("--debug", "デバッグログを表示します", false)
-    .action(runMonitor);
+    .action(async (opts: RunMonitorOptions) => {
+      const { runMonitor } = await import("./cli-run");
+      return runMonitor(opts);
+    });
 
   // init コマンド
   program
     .command("init")
     .description("インタラクティブに初期設定を行います")
-    .action(runInit);
+    .action(async () => {
+      const { runInit } = await import("./cli-init");
+      return runInit();
+    });
 
   const configCmd = program
     .command("config")

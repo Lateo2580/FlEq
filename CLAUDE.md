@@ -11,7 +11,9 @@ WebSocket 経由で電文を受信し、パース・色付き表示を行う。
 npm install          # 依存インストール
 npm run build        # TypeScript コンパイル → dist/
 npm start            # コンパイル済みアプリ実行
+npm run start:lowmem # メモリ最適化モードで実行 (--optimize-for-size)
 npm run dev          # ビルド + 実行
+npm run dev:lowmem   # ビルド + メモリ最適化モードで実行
 npm run clean        # dist/ 削除
 npm test             # vitest でテスト実行
 ```
@@ -77,7 +79,7 @@ test/
 
 ```
 index.ts (bootstrap) → engine/cli.ts (Commander定義)
-  → engine/cli-run.ts (設定解決・契約チェック)
+  → engine/cli-run.ts (設定解決・契約チェック)        ← dynamic import
     → engine/monitor.ts (WebSocket接続・REPL起動)
       → engine/message-router.ts (電文振り分け)
         → dmdata/telegram-parser.ts (XML解析)
@@ -85,6 +87,7 @@ index.ts (bootstrap) → engine/cli.ts (Commander定義)
         → engine/eew-tracker.ts (EEW追跡)
         → engine/eew-logger.ts (EEWログ記録)
         → engine/notifier.ts (デスクトップ通知)
+      → ui/repl.ts (REPL インタラクション)             ← dynamic import
 ```
 
 - `engine/` — CLI定義・設定解決・オーケストレーション・ドメイン機能 (EEW追跡・ログ記録・通知)
@@ -93,6 +96,7 @@ index.ts (bootstrap) → engine/cli.ts (Commander定義)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック
 - `createMessageHandler()` は `{ handler, eewLogger, notifier }` を返す
+- 遅延ロード: `cli.ts` → `cli-run.ts` / `cli-init.ts`、`monitor.ts` → `ui/repl.ts` は dynamic import で必要時のみロード（メモリ最適化）
 
 ## 電文タイプとルーティング
 

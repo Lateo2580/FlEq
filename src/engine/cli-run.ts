@@ -21,7 +21,8 @@ const { version: VERSION } = require("../../package.json") as {
   version: string;
 };
 
-export async function runMonitor(opts: {
+/** runMonitor に渡す CLI オプション */
+export interface RunMonitorOptions {
   apiKey?: string;
   classifications?: string;
   test?: string;
@@ -29,7 +30,9 @@ export async function runMonitor(opts: {
   closeOthers?: boolean;
   mode?: string;
   debug: boolean;
-}): Promise<void> {
+}
+
+export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   // ログレベル設定
   if (opts.debug) {
     log.setLogLevel(log.LogLevel.DEBUG);

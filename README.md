@@ -119,7 +119,7 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 11件（計294テスト）
+- テストファイル: 13件（計305テスト）
 - フィクスチャ: `test/fixtures/` に実電文XML 62件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
@@ -222,6 +222,8 @@ fleq config keys
 
 - CLIバイナリ名: `fleq` (`package.json` の `bin` 設定)
 - `npm run dev`: build + run
+- `npm run dev:lowmem`: build + メモリ最適化モードで run（`--optimize-for-size`）
+- `npm run start:lowmem`: メモリ最適化モードで run（Raspberry Pi 等の低メモリ環境向け）
 - `npm run clean`: `dist/` を削除
 - `npm run release`: バージョン更新（Conventional Commitsに基づく）
 - `npm run release:minor`: minor リリース
