@@ -214,7 +214,7 @@ export async function prepareAndStartSocket(
   previousSocketId?: number
 ): Promise<SocketStartResponse> {
   if (!config.keepExistingConnections) {
-    // 既存動作: 全オープンソケットを閉じる
+    // 全オープンソケットを閉じる
     try {
       const list = await listSockets(config.apiKey);
       const openSockets = list.items.filter((s) => s.status === "open");
@@ -229,12 +229,28 @@ export async function prepareAndStartSocket(
       );
     }
   } else if (previousSocketId != null) {
-    // 自分の旧接続だけを閉じる
+    // 再接続: 自分の旧接続だけを閉じる
     try {
       await closeSocket(config.apiKey, previousSocketId);
     } catch (err) {
       log.warn(
         `旧ソケット(id=${previousSocketId})のクローズに失敗: ${err instanceof Error ? err.message : err}`
+      );
+    }
+  } else {
+    // 初回起動: 前回セッションの残留ソケットをクリーンアップ
+    try {
+      const list = await listSockets(config.apiKey);
+      const openSockets = list.items.filter((s) => s.status === "open");
+      if (openSockets.length > 0) {
+        log.info(`前回セッションの残留ソケットを ${openSockets.length} 件クローズします`);
+        await Promise.allSettled(
+          openSockets.map((sock) => closeSocket(config.apiKey, sock.id))
+        );
+      }
+    } catch (err) {
+      log.warn(
+        `残留ソケット確認中にエラー: ${err instanceof Error ? err.message : err}`
       );
     }
   }

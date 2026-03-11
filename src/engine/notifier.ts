@@ -1,4 +1,3 @@
-import type NodeNotifier from "node-notifier";
 import * as path from "path";
 import * as fs from "fs";
 import {
@@ -15,6 +14,7 @@ import {
 import { loadConfig, saveConfig } from "../config";
 import { EewUpdateResult } from "./eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";
+import * as nodeNotifierLoader from "./node-notifier-loader";
 import * as log from "../logger";
 
 /** 通知アイコンのパス (assets/icons/icon.png が存在する場合に使用) */
@@ -236,14 +236,12 @@ export class Notifier {
 
   // ── 内部メソッド ──
 
-  private _notifier: typeof NodeNotifier | null = null;
+  private _notifier: nodeNotifierLoader.NodeNotifierLike | null = null;
 
-  private getNotifier(): typeof NodeNotifier | null {
+  private getNotifier(): nodeNotifierLoader.NodeNotifierLike | null {
     if (this._notifier == null) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        this._notifier = require("node-notifier") as typeof NodeNotifier;
-      } catch {
+      this._notifier = nodeNotifierLoader.loadNodeNotifier();
+      if (this._notifier == null) {
         log.debug("node-notifier の読み込みに失敗しました");
       }
     }
