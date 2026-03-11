@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.28.0](https://github.com/Lateo2580/FlEq/compare/v1.27.0...v1.28.0) (2026-03-11)
+
+
+### 機能追加
+
+* カスタム効果音ファイル追加とサウンドレベル判定ロジック改善 ([a3e6f94](https://github.com/Lateo2580/FlEq/commit/a3e6f9431b1932a747c76f7bd893342884d6833c))
+* ログ出力に統一プレフィックス(FlEq [○ --:--:--]>)を付与 ([5401569](https://github.com/Lateo2580/FlEq/commit/540156980f6ce379e8d699bc6a63b4e8a787f92d))
+* 起動ログ表示順序変更、tableWidth auto対応、通知アイコン追加 ([e38f6e6](https://github.com/Lateo2580/FlEq/commit/e38f6e6ea6aa7ec410653d6a7d25329706d4a54d))
+
+
+### バグ修正
+
+* テスト実行時のトースト通知を確実に抑制 ([37b794d](https://github.com/Lateo2580/FlEq/commit/37b794d2c91794a5dad5496b7890cce07f8f0843))
+
 ## [1.27.0](https://github.com/Lateo2580/FlEq/compare/v1.26.0...v1.27.0) (2026-03-10)
 
 
