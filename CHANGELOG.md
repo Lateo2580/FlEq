@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.29.0](https://github.com/Lateo2580/FlEq/compare/v1.28.0...v1.29.0) (2026-03-11)
+
+
+### 機能追加
+
+* メモリ最適化 (遅延ロード・V8フラグ opt-in) ([731f2ab](https://github.com/Lateo2580/FlEq/commit/731f2ab70022cb17221a1a614993b6e489b920aa))
+
 ## [1.28.0](https://github.com/Lateo2580/FlEq/compare/v1.27.0...v1.28.0) (2026-03-11)
 
 
