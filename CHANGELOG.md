@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.30.0](https://github.com/Lateo2580/FlEq/compare/v1.29.0...v1.30.0) (2026-03-12)
+
+
+### 機能追加
+
+* グレースフルシャットダウン時にREST APIでソケットを削除 ([3dad936](https://github.com/Lateo2580/FlEq/commit/3dad9362b4f043f9ab890cc6b1bbce816fddf452))
+
 ## [1.29.0](https://github.com/Lateo2580/FlEq/compare/v1.28.0...v1.29.0) (2026-03-11)
 
 
