@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
+import { closeSocket } from "../dmdata/rest-client";
 import { createMessageHandler } from "./message-router";
 import { formatTimestamp } from "../ui/formatter";
 import * as log from "../logger";
@@ -59,6 +60,24 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     },
   });
 
+  /** REST API でソケットを削除 (タイムアウト付き) */
+  const SHUTDOWN_SOCKET_CLOSE_TIMEOUT_MS = 3000;
+  const closeSocketViaApi = async (): Promise<void> => {
+    const socketId = manager.getStatus().socketId;
+    if (socketId == null) return;
+    try {
+      await Promise.race([
+        closeSocket(config.apiKey, socketId),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), SHUTDOWN_SOCKET_CLOSE_TIMEOUT_MS)
+        ),
+      ]);
+    } catch {
+      // タイムアウトやネットワークエラーは無視して終了を続行
+      log.debug("シャットダウン時のソケットクローズに失敗 (次回起動時にクリーンアップされます)");
+    }
+  };
+
   // グレースフルシャットダウン
   let shuttingDown = false;
   const shutdown = async () => {
@@ -72,7 +91,9 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       // flush 失敗は無視
     }
     if (replHandler) replHandler.stop();
+    const socketClosePromise = closeSocketViaApi();
     manager.close();
+    await socketClosePromise;
     if (process.stdout.isTTY) process.stdout.write("\n");
     process.exit(0);
   };
