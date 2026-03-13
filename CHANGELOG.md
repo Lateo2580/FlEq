@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.31.1](https://github.com/Lateo2580/FlEq/compare/v1.31.0...v1.31.1) (2026-03-13)
+
+
+### バグ修正
+
+* サーバーエラーメッセージのパース改善と再接続時404の静粛化 ([f175f9a](https://github.com/Lateo2580/FlEq/commit/f175f9a226bb97e82ca4aa7ada38d2d0e179bdc3))
+
 ## [1.31.0](https://github.com/Lateo2580/FlEq/compare/v1.30.0...v1.31.0) (2026-03-13)
 
 
