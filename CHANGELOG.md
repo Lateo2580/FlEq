@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.31.0](https://github.com/Lateo2580/FlEq/compare/v1.30.0...v1.31.0) (2026-03-13)
+
+
+### 機能追加
+
+* fleq init のUXを改善 (番号選択式・説明付き・保存前確認) ([ed51b6c](https://github.com/Lateo2580/FlEq/commit/ed51b6c59a998d16376d16b29f748156e11b2ec4))
+
 ## [1.30.0](https://github.com/Lateo2580/FlEq/compare/v1.29.0...v1.30.0) (2026-03-12)
 
 
