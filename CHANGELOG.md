@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.31.2](https://github.com/Lateo2580/FlEq/compare/v1.31.1...v1.31.2) (2026-03-13)
+
+
+### バグ修正
+
+* 複数デバイス同時運用時に他デバイスのソケットを閉じてしまう問題を修正 ([c2adff0](https://github.com/Lateo2580/FlEq/commit/c2adff06516edba6fac6ad77ed6956f2c6c73909))
+
 ## [1.31.1](https://github.com/Lateo2580/FlEq/compare/v1.31.0...v1.31.1) (2026-03-13)
 
 
