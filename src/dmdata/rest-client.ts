@@ -229,13 +229,16 @@ export async function prepareAndStartSocket(
       );
     }
   } else if (previousSocketId != null) {
-    // 再接続: 自分の旧接続だけを閉じる
+    // 再接続: 自分の旧接続だけを閉じる (サーバー側で既に閉じられている場合は 404 が返る)
     try {
       await closeSocket(config.apiKey, previousSocketId);
     } catch (err) {
-      log.warn(
-        `旧ソケット(id=${previousSocketId})のクローズに失敗: ${err instanceof Error ? err.message : err}`
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("404")) {
+        log.debug(`旧ソケット(id=${previousSocketId})は既にサーバー側で閉じられています`);
+      } else {
+        log.warn(`旧ソケット(id=${previousSocketId})のクローズに失敗: ${errMsg}`);
+      }
     }
   } else {
     // 初回起動: 前回セッションの残留ソケットをクリーンアップ

@@ -233,9 +233,14 @@ export class WebSocketManager {
         let errMsg: string;
         let errCode: string;
         if (typeof errorObj === "object" && errorObj != null) {
+          // error がオブジェクト形式: { error: { message, code } }
           const e = errorObj as Record<string, unknown>;
           errMsg = String(e["message"] ?? "unknown");
           errCode = String(e["code"] ?? "unknown");
+        } else if (typeof errorObj === "string") {
+          // error が文字列形式: { error: "Closed by user.", code: 4808 }
+          errMsg = errorObj;
+          errCode = String(obj["code"] ?? "unknown");
         } else {
           errMsg = JSON.stringify(obj);
           errCode = "unknown";
