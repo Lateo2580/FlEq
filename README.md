@@ -195,6 +195,20 @@ fleq config keys
 - DMDATA 公式仕様に合わせ、REST API の認証は `Authorization: Basic ...` を使用します。
 - DMDATA 公式では、同時接続数に余裕がない場合のみ `Socket Close v2` の利用が案内されています。通常運用では `--close-others` は不要です。
 
+## 複数デバイスでの同時運用
+
+同一アカウントの複数APIキーを使って、複数のデバイスで FlEq を同時に起動する場合は、**デバイスごとに異なる `appName` を設定**してください。
+
+```bash
+# デバイスA（例: Mac）
+fleq config set appName fleq-mac
+
+# デバイスB（例: Raspberry Pi）
+fleq config set appName fleq-raspi
+```
+
+FlEq は起動時に前回セッションの残留ソケットをクリーンアップしますが、`appName` が同じだと他デバイスのソケットまで閉じてしまいます。デバイスごとに異なる `appName` を設定することで、自分のソケットのみがクリーンアップ対象となり、他デバイスの接続に影響しません。
+
 ## REPLコマンド
 
 実行中に `fleq> ` プロンプトで以下のコマンドを利用できます。

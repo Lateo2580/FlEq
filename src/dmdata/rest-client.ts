@@ -242,11 +242,20 @@ export async function prepareAndStartSocket(
     }
   } else {
     // 初回起動: 前回セッションの残留ソケットをクリーンアップ
+    // appName でフィルタリングし、他デバイスのソケットを誤って閉じないようにする
     try {
       const list = await listSockets(config.apiKey);
-      const openSockets = list.items.filter((s) => s.status === "open");
+      const openSockets = list.items.filter(
+        (s) => s.status === "open" && s.appName === config.appName
+      );
       if (openSockets.length > 0) {
-        log.info(`前回セッションの残留ソケットを ${openSockets.length} 件クローズします`);
+        const skipped = list.items.filter(
+          (s) => s.status === "open" && s.appName !== config.appName
+        ).length;
+        log.info(
+          `前回セッションの残留ソケットを ${openSockets.length} 件クローズします` +
+          (skipped > 0 ? ` (他アプリの ${skipped} 件は維持)` : "")
+        );
         await Promise.allSettled(
           openSockets.map((sock) => closeSocket(config.apiKey, sock.id))
         );
