@@ -214,11 +214,19 @@ export async function prepareAndStartSocket(
   previousSocketId?: number
 ): Promise<SocketStartResponse> {
   if (!config.keepExistingConnections) {
-    // 全オープンソケットを閉じる
+    // 同一 appName のオープンソケットを閉じる（他デバイスのソケットは維持）
     try {
       const list = await listSockets(config.apiKey);
-      const openSockets = list.items.filter((s) => s.status === "open");
+      const openSockets = list.items.filter(
+        (s) => s.status === "open" && s.appName === config.appName
+      );
       if (openSockets.length > 0) {
+        const skipped = list.items.filter(
+          (s) => s.status === "open" && s.appName !== config.appName
+        ).length;
+        if (skipped > 0) {
+          log.info(`他アプリの ${skipped} 件のソケットは維持します`);
+        }
         await Promise.allSettled(
           openSockets.map((sock) => closeSocket(config.apiKey, sock.id))
         );
