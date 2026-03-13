@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.31.3](https://github.com/Lateo2580/FlEq/compare/v1.31.2...v1.31.3) (2026-03-13)
+
+
+### バグ修正
+
+* keepExistingConnections=false パスでも appName フィルタリングを適用 ([20358f0](https://github.com/Lateo2580/FlEq/commit/20358f088b342fb5c59547256f2aa85c5717f193))
+
 ## [1.31.2](https://github.com/Lateo2580/FlEq/compare/v1.31.1...v1.31.2) (2026-03-13)
 
 
