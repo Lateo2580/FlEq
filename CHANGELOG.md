@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.31.4](https://github.com/Lateo2580/FlEq/compare/v1.31.3...v1.31.4) (2026-03-14)
+
+
+### バグ修正
+
+* ソケットクリーンアップにデバッグログ追加で原因調査を容易に ([e79e316](https://github.com/Lateo2580/FlEq/commit/e79e31601489d2686d33f4b4cfaabe85a2e77d36))
+
 ## [1.31.3](https://github.com/Lateo2580/FlEq/compare/v1.31.2...v1.31.3) (2026-03-13)
 
 
