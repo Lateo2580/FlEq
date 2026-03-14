@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.32.2](https://github.com/Lateo2580/FlEq/compare/v1.32.1...v1.32.2) (2026-03-14)
+
+
+### バグ修正
+
+* プロンプトの経過時間とping時間の区切り表示を修正 ([33c53e4](https://github.com/Lateo2580/FlEq/commit/33c53e42358c8d1bb255813a4d82e5c569be6aa4))
+
 ## [1.32.1](https://github.com/Lateo2580/FlEq/compare/v1.32.0...v1.32.1) (2026-03-14)
 
 
