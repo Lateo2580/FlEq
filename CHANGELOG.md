@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.33.0](https://github.com/Lateo2580/FlEq/compare/v1.32.4...v1.33.0) (2026-03-14)
+
+
+### 機能追加
+
+* 待機中ヒントに歴史的大地震・今後想定される地震の情報を追加 ([11e182e](https://github.com/Lateo2580/FlEq/commit/11e182e8134b93e681d5f7e9c0af9094130e75fb))
+
 ## [1.32.4](https://github.com/Lateo2580/FlEq/compare/v1.32.3...v1.32.4) (2026-03-14)
 
 
