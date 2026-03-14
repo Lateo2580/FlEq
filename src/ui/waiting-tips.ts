@@ -20,7 +20,7 @@ export const WAITING_TIPS: string[] = [
   "Tip: clear でターミナルの画面をクリアできます。",
   "Tip: quit または exit でモニタリングを終了できます。",
   "Tip: history だけを入力すると、デフォルトの10件分の地震履歴が表示されます。",
-  "Tip: mode full にすると詳細情報も含めたフル表示に戻せます。",
+  "Tip: mode normal にすると詳細情報も含めたフル表示に戻せます。",
 
   // ── コマンド応用 ──
   "Tip: help notify や help mute で、そのコマンドだけの詳しい使い方を確認できます。",

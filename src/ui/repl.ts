@@ -239,6 +239,10 @@ export class ReplHandler {
         detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
         handler: (args) => this.handleMute(args),
       },
+      clear: {
+        description: "ターミナル画面をクリア",
+        handler: () => this.handleClear(),
+      },
       retry: {
         description: "WebSocket 再接続を試行",
         detail: "切断中の場合に手動で再接続を試みます。",
@@ -1018,6 +1022,10 @@ export class ReplHandler {
 
     this.notifier.mute(ms);
     console.log(`  通知を ${formatDuration(ms)} ミュートしました。`);
+  }
+
+  private handleClear(): void {
+    console.clear();
   }
 
   private async handleRetry(): Promise<void> {
