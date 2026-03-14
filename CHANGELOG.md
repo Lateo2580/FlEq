@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.34.0](https://github.com/Lateo2580/FlEq/compare/v1.33.0...v1.34.0) (2026-03-14)
+
+
+### 機能追加
+
+* helpカテゴリ分け・EEWログ設定コマンド・history表示順逆転 ([c40f185](https://github.com/Lateo2580/FlEq/commit/c40f1851d3b3da1bbcf931b6523d340ec16bae61))
+
 ## [1.33.0](https://github.com/Lateo2580/FlEq/compare/v1.32.4...v1.33.0) (2026-03-14)
 
 
