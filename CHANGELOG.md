@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.32.4](https://github.com/Lateo2580/FlEq/compare/v1.32.3...v1.32.4) (2026-03-14)
+
+
+### リファクタリング
+
+* 関数分割・重複解消・マジックナンバー定数化・ネスト平坦化 ([4e0a7c5](https://github.com/Lateo2580/FlEq/commit/4e0a7c5875dddcb24fe02bcad44f6c986a8999b4))
+
 ## [1.32.3](https://github.com/Lateo2580/FlEq/compare/v1.32.2...v1.32.3) (2026-03-14)
 
 
