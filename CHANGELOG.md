@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.35.0](https://github.com/Lateo2580/FlEq/compare/v1.34.0...v1.35.0) (2026-03-14)
+
+
+### 機能追加
+
+* Tip表示・電文受信時に入力中の文字をクリアして行更新を再開 ([1384876](https://github.com/Lateo2580/FlEq/commit/13848767265b88615b5ac754c625fb457509ff6a))
+
 ## [1.34.0](https://github.com/Lateo2580/FlEq/compare/v1.33.0...v1.34.0) (2026-03-14)
 
 
