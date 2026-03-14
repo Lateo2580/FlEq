@@ -217,12 +217,17 @@ export async function prepareAndStartSocket(
     // 同一 appName のオープンソケットを閉じる（他デバイスのソケットは維持）
     try {
       const list = await listSockets(config.apiKey);
-      const openSockets = list.items.filter(
-        (s) => s.status === "open" && s.appName === config.appName
+      const allOpen = list.items.filter((s) => s.status === "open");
+      log.debug(
+        `オープンソケット一覧 (${allOpen.length} 件): ${allOpen.map((s) => `id=${s.id},appName=${s.appName ?? "(null)"}`).join("; ") || "(なし)"}`
+      );
+      log.debug(`自アプリ名: "${config.appName}", keepExisting=${config.keepExistingConnections}`);
+      const openSockets = allOpen.filter(
+        (s) => s.appName === config.appName
       );
       if (openSockets.length > 0) {
-        const skipped = list.items.filter(
-          (s) => s.status === "open" && s.appName !== config.appName
+        const skipped = allOpen.filter(
+          (s) => s.appName !== config.appName
         ).length;
         if (skipped > 0) {
           log.info(`他アプリの ${skipped} 件のソケットは維持します`);
@@ -253,12 +258,17 @@ export async function prepareAndStartSocket(
     // appName でフィルタリングし、他デバイスのソケットを誤って閉じないようにする
     try {
       const list = await listSockets(config.apiKey);
-      const openSockets = list.items.filter(
-        (s) => s.status === "open" && s.appName === config.appName
+      const allOpen = list.items.filter((s) => s.status === "open");
+      log.debug(
+        `オープンソケット一覧 (${allOpen.length} 件): ${allOpen.map((s) => `id=${s.id},appName=${s.appName ?? "(null)"}`).join("; ") || "(なし)"}`
+      );
+      log.debug(`自アプリ名: "${config.appName}", keepExisting=${config.keepExistingConnections}`);
+      const openSockets = allOpen.filter(
+        (s) => s.appName === config.appName
       );
       if (openSockets.length > 0) {
-        const skipped = list.items.filter(
-          (s) => s.status === "open" && s.appName !== config.appName
+        const skipped = allOpen.filter(
+          (s) => s.appName !== config.appName
         ).length;
         log.info(
           `前回セッションの残留ソケットを ${openSockets.length} 件クローズします` +
