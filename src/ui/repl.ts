@@ -407,10 +407,10 @@ export class ReplHandler {
     if (!process.stdout.isTTY) {
       return chalk.gray("FlEq> ");
     }
-    const base = this.statusLine.buildPrefix().replace(/> $/, "");
+    const base = this.statusLine.buildPrefix().replace(/]> $/, "");
     const status = this.wsManager.getStatus();
     if (!status.connected || status.heartbeatDeadlineAt == null) {
-      return `${base}> `;
+      return `${base}${chalk.gray("]> ")}`;
     }
     const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));
     return `${base}${chalk.gray(" | ")}${chalk.white(`ping in ${sec}s`)}${chalk.gray("]> ")}`;
