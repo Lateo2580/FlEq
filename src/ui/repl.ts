@@ -440,9 +440,10 @@ export class ReplHandler {
     }
   }
 
-  /** 電文表示の前処理（現在のプロンプト行をクリア） */
+  /** 電文表示の前処理（入力中の文字をクリアし、プロンプト行をクリア） */
   beforeDisplayMessage(): void {
     if (process.stdout.isTTY && this.rl) {
+      this.clearInput();
       readline.cursorTo(process.stdout, 0);
       readline.clearLine(process.stdout, 0);
     }
@@ -473,6 +474,17 @@ export class ReplHandler {
       this.rl.setPrompt(this.buildPromptString());
       this.rl.prompt();
     }
+  }
+
+  /** 入力中の文字をクリアしてプロンプト行を再描画する */
+  private clearInput(): void {
+    if (!this.rl || !process.stdout.isTTY) return;
+    if (this.rl.line.length === 0) return;
+    readline.cursorTo(process.stdout, 0);
+    readline.clearLine(process.stdout, 0);
+    // readline 内部バッファをリセット (Node.js 実行時は書き込み可能)
+    (this.rl as unknown as { line: string; cursor: number }).line = "";
+    (this.rl as unknown as { line: string; cursor: number }).cursor = 0;
   }
 
   /** typo候補を検索 (距離2以内で最も近いコマンドを返す) */
@@ -1229,7 +1241,7 @@ export class ReplHandler {
   }
 
   private maybeShowWaitingTip(): void {
-    if (!this.rl || this.commandRunning || this.rl.line.length > 0) return;
+    if (!this.rl || this.commandRunning) return;
     if (this.tipIntervalMs <= 0 || this.nextTipAt == null) return;
     const status = this.wsManager.getStatus();
     if (!status.connected) return;
@@ -1238,6 +1250,7 @@ export class ReplHandler {
     if (lastMessageAt != null && Date.now() - lastMessageAt < 10_000) return;
     if (Date.now() < this.nextTipAt) return;
 
+    this.clearInput();
     const tip = WAITING_TIPS[this.tipIndex % WAITING_TIPS.length];
     this.tipIndex++;
     this.nextTipAt = Date.now() + this.tipIntervalMs;
