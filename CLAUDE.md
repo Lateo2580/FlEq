@@ -183,9 +183,11 @@ fleq config path          # Configファイルのパスを表示
 fleq config keys          # 設定可能なキー一覧を表示
 ```
 
-設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `waitTipIntervalMin`, `notify`
+設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `waitTipIntervalMin`, `notify`, `eewLog`, `eewLogFields`
 
 通知設定 (`notify`) はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
+
+EEWログ設定 (`eewLog`, `eewLogFields`) はREPLの `eewlog` コマンドで管理する (ログ記録ON/OFF、記録項目の選択: hypocenter, magnitude, forecastIntensity, forecastAreas, diff)
 
 ## リリースフロー
 

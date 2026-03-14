@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { ParsedEewInfo } from "../types";
+import { ParsedEewInfo, EewLogField } from "../types";
 import { EewDiff, EewUpdateResult } from "./eew-tracker";
 import * as log from "../logger";
 
@@ -73,13 +73,51 @@ export class EewEventLogger {
   private activeFiles = new Map<string, string>();
   /** 書き込みの順序保証用チェーン (eventId → Promise) */
   private writeChains = new Map<string, Promise<void>>();
+  /** ログ記録が有効かどうか */
+  private enabled = true;
+  /** 記録対象のフィールド */
+  private fields: Record<EewLogField, boolean> = {
+    hypocenter: true,
+    magnitude: true,
+    forecastIntensity: true,
+    forecastAreas: true,
+    diff: true,
+  };
 
   constructor(logDir?: string) {
     this.logDir = logDir ?? DEFAULT_LOG_DIR;
   }
 
+  /** ログ記録の有効/無効を設定 */
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+  }
+
+  /** ログ記録が有効かどうかを返す */
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  /** 記録対象フィールドを設定 */
+  setFields(fields: Record<EewLogField, boolean>): void {
+    this.fields = { ...fields };
+  }
+
+  /** 記録対象フィールドを返す */
+  getFields(): Record<EewLogField, boolean> {
+    return { ...this.fields };
+  }
+
+  /** 特定フィールドの有効/無効を切り替え */
+  toggleField(field: EewLogField): boolean {
+    this.fields[field] = !this.fields[field];
+    return this.fields[field];
+  }
+
   /** EEW 報を受信した際に呼び出す。第1報でファイル作成、続報は追記。 */
   logReport(info: ParsedEewInfo, result: EewUpdateResult): void {
+    if (!this.enabled) return;
+
     const eventId = sanitizeEventId(info.eventId || "unknown");
 
     if (result.isNew) {
@@ -193,32 +231,44 @@ export class EewEventLogger {
 
     if (info.earthquake) {
       const eq = info.earthquake;
-      lines.push(`震源: ${eq.hypocenterName}`);
+      if (this.fields.hypocenter) {
+        lines.push(`震源: ${eq.hypocenterName}`);
+      }
 
       if (info.isAssumedHypocenter) {
-        lines.push("仮定震源要素 (震源未確定・PLUM法による推定)");
-      } else {
-        let magDepth = `M${eq.magnitude}  深さ${eq.depth}`;
-        if (diff) {
-          magDepth += formatDiff(diff, info);
+        if (this.fields.hypocenter) {
+          lines.push("仮定震源要素 (震源未確定・PLUM法による推定)");
         }
-        lines.push(magDepth);
+      } else {
+        if (this.fields.magnitude) {
+          lines.push(`M${eq.magnitude}  深さ${eq.depth}`);
+        }
+        if (this.fields.diff && diff) {
+          const diffStr = formatDiff(diff, info);
+          if (diffStr.length > 0) {
+            lines.push(`変化:${diffStr}`);
+          }
+        }
       }
     }
 
     if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {
-      const topInt = info.forecastIntensity.areas[0].intensity;
-      lines.push(`最大予測震度: ${topInt}`);
-
-      // 震度ごとにグループ化して地域名を表示
-      const byIntensity = new Map<string, string[]>();
-      for (const area of info.forecastIntensity.areas) {
-        const existing = byIntensity.get(area.intensity) ?? [];
-        existing.push(area.name);
-        byIntensity.set(area.intensity, existing);
+      if (this.fields.forecastIntensity) {
+        const topInt = info.forecastIntensity.areas[0].intensity;
+        lines.push(`最大予測震度: ${topInt}`);
       }
-      for (const [intensity, names] of byIntensity) {
-        lines.push(`  震度${intensity}: ${names.join(", ")}`);
+
+      if (this.fields.forecastAreas) {
+        // 震度ごとにグループ化して地域名を表示
+        const byIntensity = new Map<string, string[]>();
+        for (const area of info.forecastIntensity.areas) {
+          const existing = byIntensity.get(area.intensity) ?? [];
+          existing.push(area.name);
+          byIntensity.set(area.intensity, existing);
+        }
+        for (const [intensity, names] of byIntensity) {
+          lines.push(`  震度${intensity}: ${names.join(", ")}`);
+        }
       }
     }
 

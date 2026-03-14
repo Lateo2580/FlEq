@@ -31,6 +31,10 @@ function updateReplConnectionState(repl: ReplHandlerType | null, connected: bool
 export async function startMonitor(config: AppConfig): Promise<void> {
   const { handler: routeMessage, eewLogger, notifier } = createMessageHandler();
 
+  // EEW ログ設定を反映
+  eewLogger.setEnabled(config.eewLog);
+  eewLogger.setFields(config.eewLogFields);
+
   let disconnectedAt: number | null = null;
   let isFirstConnection = true;
   let replHandler: ReplHandlerType | null = null;
@@ -100,7 +104,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, shutdown);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown);
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);

@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { ConfigFile, Classification, DisplayMode, PromptClock, NotifyCategory } from "./types";
+import { ConfigFile, Classification, DisplayMode, PromptClock, NotifyCategory, EewLogField } from "./types";
 import * as secretUtils from "./utils/secrets";
 import * as log from "./logger";
 
@@ -137,6 +137,15 @@ const VALID_DISPLAY_MODES: DisplayMode[] = ["normal", "compact"];
 /** 有効なプロンプト時計モード */
 const VALID_PROMPT_CLOCKS: PromptClock[] = ["elapsed", "clock"];
 
+/** 有効な EEW ログ記録項目 */
+export const VALID_EEW_LOG_FIELDS: EewLogField[] = [
+  "hypocenter",
+  "magnitude",
+  "forecastIntensity",
+  "forecastAreas",
+  "diff",
+];
+
 /** 有効な通知カテゴリ */
 const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
   "eew",
@@ -161,6 +170,7 @@ const CONFIG_KEYS: Record<string, string> = {
   promptClock: 'プロンプト時計: "elapsed" (経過時間) | "clock" (現在時刻)',
   waitTipIntervalMin: "待機中ヒント表示間隔 (分, 0で無効)",
   sound: "通知音の有効/無効 (true/false)",
+  eewLog: "EEWログ記録の有効/無効 (true/false)",
 };
 
 /** Configファイルのパスを返す */
@@ -222,6 +232,8 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyPromptClock(config, raw.promptClock);
   applyWaitTipInterval(config, raw.waitTipIntervalMin);
   applyBooleanField(config, "sound", raw.sound);
+  applyBooleanField(config, "eewLog", raw.eewLog);
+  applyEewLogFields(config, raw.eewLogFields);
   applyNotifySettings(config, raw.notify);
 
   return config;
@@ -274,7 +286,7 @@ function applyReconnectDelay(config: ConfigFile, value: unknown): void {
 
 function applyBooleanField(
   config: ConfigFile,
-  field: "keepExistingConnections" | "infoFullText" | "sound",
+  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog",
   value: unknown
 ): void {
   if (typeof value === "boolean") {
@@ -333,6 +345,25 @@ function applyNotifySettings(config: ConfigFile, value: unknown): void {
   }
   if (Object.keys(notify).length > 0) {
     config.notify = notify;
+  }
+}
+
+function applyEewLogFields(config: ConfigFile, value: unknown): void {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
+    return;
+  }
+  const raw = value as Record<string, unknown>;
+  const fields: Partial<Record<EewLogField, boolean>> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (
+      VALID_EEW_LOG_FIELDS.includes(key as EewLogField) &&
+      typeof val === "boolean"
+    ) {
+      fields[key as EewLogField] = val;
+    }
+  }
+  if (Object.keys(fields).length > 0) {
+    config.eewLogFields = fields;
   }
 }
 
@@ -454,6 +485,14 @@ export function setConfigValue(key: string, value: string): void {
         );
       }
       config.sound = value === "true";
+      break;
+    case "eewLog":
+      if (value !== "true" && value !== "false") {
+        throw new ConfigError(
+          "eewLog は true または false を指定してください。"
+        );
+      }
+      config.eewLog = value === "true";
       break;
   }
 

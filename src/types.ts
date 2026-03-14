@@ -4,6 +4,14 @@ export type DisplayMode = "normal" | "compact";
 /** プロンプト時計モード */
 export type PromptClock = "elapsed" | "clock";
 
+/** EEW ログ記録項目 */
+export type EewLogField =
+  | "hypocenter"
+  | "magnitude"
+  | "forecastIntensity"
+  | "forecastAreas"
+  | "diff";
+
 /** 通知カテゴリ */
 export type NotifyCategory =
   | "eew"
@@ -50,6 +58,10 @@ export interface AppConfig {
   notify: NotifySettings;
   /** 通知音の有効/無効 */
   sound: boolean;
+  /** EEW ログ記録の有効/無効 */
+  eewLog: boolean;
+  /** EEW ログ記録項目 */
+  eewLogFields: Record<EewLogField, boolean>;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -67,6 +79,8 @@ export interface ConfigFile {
   waitTipIntervalMin?: number;
   notify?: Partial<NotifySettings>;
   sound?: boolean;
+  eewLog?: boolean;
+  eewLogFields?: Partial<Record<EewLogField, boolean>>;
 }
 
 /** デフォルト設定 */
@@ -90,6 +104,14 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     lgObservation: true,
   },
   sound: true,
+  eewLog: true,
+  eewLogFields: {
+    hypocenter: true,
+    magnitude: true,
+    forecastIntensity: true,
+    forecastAreas: true,
+    diff: true,
+  },
 };
 
 // ── dmdata.jp API レスポンス型 ──

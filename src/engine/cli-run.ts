@@ -126,6 +126,8 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     waitTipIntervalMin: fileConfig.waitTipIntervalMin ?? DEFAULT_CONFIG.waitTipIntervalMin,
     notify: { ...DEFAULT_CONFIG.notify, ...fileConfig.notify },
     sound: fileConfig.sound ?? DEFAULT_CONFIG.sound,
+    eewLog: fileConfig.eewLog ?? DEFAULT_CONFIG.eewLog,
+    eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
   };
 
   // Banner title (契約チェック前に表示)

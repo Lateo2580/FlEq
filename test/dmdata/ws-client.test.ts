@@ -87,6 +87,15 @@ function createConfig(overrides?: Partial<AppConfig>): AppConfig {
     appName: "test-app",
     maxReconnectDelaySec: 60,
     keepExistingConnections: false,
+    tableWidth: null,
+    infoFullText: false,
+    displayMode: "normal",
+    promptClock: "elapsed",
+    waitTipIntervalMin: 30,
+    notify: { eew: true, earthquake: true, tsunami: true, seismicText: true, nankaiTrough: true, lgObservation: true },
+    sound: true,
+    eewLog: true,
+    eewLogFields: { hypocenter: true, magnitude: true, forecastIntensity: true, forecastAreas: true, diff: true },
     ...overrides,
   };
 }

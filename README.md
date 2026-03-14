@@ -179,6 +179,8 @@ fleq config keys
 | `infoFullText` | お知らせ電文の全文表示 (`true` / `false`) |
 | `displayMode` | 表示モード: `"normal"` / `"compact"` |
 | `waitTipIntervalMin` | 待機中ヒント表示間隔（分, 0で無効、デフォルト: 30） |
+| `eewLog` | EEWログ記録の有効/無効 (`true` / `false`) |
+| `eewLogFields` | EEWログ記録項目の設定（オブジェクト形式） |
 
 設定の優先順位（高い順）:
 
@@ -213,22 +215,45 @@ FlEq は起動時に前回セッションの残留ソケットをクリーンア
 
 実行中に `fleq> ` プロンプトで以下のコマンドを利用できます。
 
+`help` コマンドでカテゴリ別のコマンド一覧を表示できます。
+
+### 情報
 | コマンド | 説明 |
 |----------|------|
 | `help` / `?` | コマンド一覧を表示 |
-| `history [N]` | 地震履歴を取得・表示（デフォルト10件） |
+| `history [N]` | 地震履歴を取得・表示（デフォルト10件、最新が一番下） |
+| `colors` | カラーパレット・震度色の一覧を表示 |
+
+### ステータス
+| コマンド | 説明 |
+|----------|------|
 | `status` | WebSocket 接続状態を表示 |
 | `config` | 現在の設定を表示 |
 | `contract` | 契約区分一覧を表示 |
 | `socket` | 接続中のソケット一覧を表示 |
+
+### 設定
+| コマンド | 説明 |
+|----------|------|
 | `notify` | 通知カテゴリのON/OFF状態を表示 |
-| `notify <category>` | 指定カテゴリの通知をトグル |
+| `notify <category> [on\|off]` | 指定カテゴリの通知をトグル/ON/OFF |
 | `notify all:on` / `all:off` | 全カテゴリの通知を一括ON/OFF |
+| `eewlog` | EEWログ記録の設定を表示 |
+| `eewlog on` / `off` | EEWログ記録の有効/無効を切替 |
+| `eewlog fields` | EEWログ記録項目の一覧表示 |
+| `eewlog fields <field> [on\|off]` | 記録項目のトグル/ON/OFF |
 | `tablewidth [N]` | テーブル幅の表示・変更（例: `tablewidth 80`） |
 | `infotext [full/short]` | お知らせ電文の全文/省略切替 |
 | `tipinterval [N]` | 待機中ヒント表示間隔（分）を表示・変更（0で無効） |
 | `mode [normal/compact]` | 表示モード切替 |
+| `clock [elapsed/now]` | プロンプト時計の切替 |
+| `sound [on/off]` | 通知音のON/OFF切替 |
 | `mute [duration]` | 通知を一時ミュート（例: `mute 30m`、`mute off` で解除） |
+
+### 操作
+| コマンド | 説明 |
+|----------|------|
+| `clear` | ターミナル画面をクリア |
 | `retry` | WebSocket 再接続を手動試行 |
 | `quit` / `exit` | アプリケーションを終了 |
 
@@ -303,7 +328,7 @@ src/
 - 緊急地震速報（警報/予報）の視覚的な強調表示
 - PLUM法・仮定震源要素・既到達の検出と視覚的表示
 - EEWイベントの同時追跡（EventID単位、重複報スキップ、取消対応）
-- EEWイベントのログファイル記録（イベント別ファイル出力、差分表記対応）
+- EEWイベントのログファイル記録（イベント別ファイル出力、差分表記対応、記録項目の選択可能）
 - EEW最終報（NextAdvisory）の検出とログ・トラッカー自動終了
 - EEW差分表記（前の値 → 新しい値 形式）
 - テーブル幅設定（40〜200）とテキスト折り返し機能

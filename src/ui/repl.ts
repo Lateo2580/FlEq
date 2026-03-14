@@ -1,10 +1,11 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig, DisplayMode, PromptClock, NotifyCategory } from "../types";
+import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
-import { loadConfig, saveConfig, printConfig } from "../config";
+import { loadConfig, saveConfig, printConfig, VALID_EEW_LOG_FIELDS } from "../config";
 import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notifier";
+import { EewEventLogger } from "../engine/eew-logger";
 import {
   formatElapsedTime,
   intensityColor,
@@ -21,9 +22,30 @@ import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { WAITING_TIPS } from "./waiting-tips";
 
+/** コマンドのカテゴリ */
+type CommandCategory = "info" | "status" | "settings" | "operation";
+
+/** カテゴリ表示名 */
+const CATEGORY_LABELS: Record<CommandCategory, string> = {
+  info: "情報",
+  status: "ステータス",
+  settings: "設定",
+  operation: "操作",
+};
+
+/** EEW ログ記録項目の表示ラベル */
+const EEW_LOG_FIELD_LABELS: Record<EewLogField, string> = {
+  hypocenter: "震源情報",
+  magnitude: "M値・深さ",
+  forecastIntensity: "最大予測震度",
+  forecastAreas: "予測震度地域リスト",
+  diff: "差分情報",
+};
+
 interface CommandEntry {
   description: string;
   detail?: string;
+  category: CommandCategory;
   handler: (args: string) => void | Promise<void>;
 }
 
@@ -134,6 +156,7 @@ export class ReplHandler {
   private config: AppConfig;
   private wsManager: WebSocketManager;
   private notifier: Notifier;
+  private eewLogger: EewEventLogger;
   private onQuit: () => void | Promise<void>;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
@@ -149,11 +172,13 @@ export class ReplHandler {
     config: AppConfig,
     wsManager: WebSocketManager,
     notifier: Notifier,
+    eewLogger: EewEventLogger,
     onQuit: () => void | Promise<void>
   ) {
     this.config = config;
     this.wsManager = wsManager;
     this.notifier = notifier;
+    this.eewLogger = eewLogger;
     this.onQuit = onQuit;
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
@@ -164,97 +189,123 @@ export class ReplHandler {
       help: {
         description: "コマンド一覧を表示 (例: help status)",
         detail: "引数なしで一覧表示。help <command> でコマンドの詳細を表示。",
+        category: "info",
         handler: (args) => this.handleHelp(args),
       },
       "?": {
         description: "help のエイリアス",
+        category: "info",
         handler: (args) => this.handleHelp(args),
       },
       history: {
         description: "地震履歴を取得・表示 (例: history 5)",
         detail: "dmdata.jp API から直近の地震履歴を取得します。\n  引数: 件数 (1〜100, デフォルト10)\n  例: history 20",
+        category: "info",
         handler: (args) => this.handleHistory(args),
-      },
-      status: {
-        description: "WebSocket 接続状態を表示",
-        detail: "現在の WebSocket 接続状態、SocketID、再接続試行回数を表示します。",
-        handler: () => this.handleStatus(),
       },
       colors: {
         description: "カラーパレット・震度色の一覧を表示",
         detail: "CUD (カラーユニバーサルデザイン) パレットと、\n  震度・長周期地震動階級・フレームレベルに対応する色を確認できます。",
+        category: "info",
         handler: () => this.handleColors(),
+      },
+      status: {
+        description: "WebSocket 接続状態を表示",
+        detail: "現在の WebSocket 接続状態、SocketID、再接続試行回数を表示します。",
+        category: "status",
+        handler: () => this.handleStatus(),
       },
       config: {
         description: "現在の設定を表示",
         detail: "Configファイルに保存された設定を一覧表示します。",
+        category: "status",
         handler: () => this.handleConfig(),
       },
       contract: {
         description: "契約区分一覧を表示",
         detail: "dmdata.jp で契約している区分を API から取得して表示します。",
+        category: "status",
         handler: () => this.handleContract(),
       },
       socket: {
         description: "接続中のソケット一覧を表示",
         detail: "dmdata.jp で現在開いているソケット一覧を表示します。",
+        category: "status",
         handler: () => this.handleSocket(),
       },
       notify: {
         description: "通知設定の表示・切替 (例: notify eew on)",
         detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation",
+        category: "settings",
         handler: (args) => this.handleNotify(args),
+      },
+      eewlog: {
+        description: "EEWログ記録の設定 (例: eewlog on / eewlog fields)",
+        detail: "eewlog: 現在のログ記録設定を表示\n  eewlog on: ログ記録を有効にする\n  eewlog off: ログ記録を無効にする\n  eewlog fields: 記録項目の一覧表示\n  eewlog fields <field>: 項目のトグル切替\n  eewlog fields <field> on/off: 項目の有効/無効\n  項目: hypocenter, magnitude, forecastIntensity, forecastAreas, diff",
+        category: "settings",
+        handler: (args) => this.handleEewLog(args),
       },
       tablewidth: {
         description: "テーブル幅の表示・変更 (例: tablewidth 80 / tablewidth auto)",
         detail: "引数なし: 現在のテーブル幅を表示\n  tablewidth <40〜200>: テーブル幅を固定値に変更\n  tablewidth auto: ターミナル幅に自動追従 (デフォルト)\n  変更は即座に反映され、Configファイルに保存されます。",
+        category: "settings",
         handler: (args) => this.handleTableWidth(args),
       },
       infotext: {
         description: "お知らせ電文の全文/省略切替 (例: infotext full)",
         detail: "infotext full: 全文表示\n  infotext short: 省略表示 (デフォルト)",
+        category: "settings",
         handler: (args) => this.handleInfoText(args),
       },
       tipinterval: {
         description: "待機中ヒント表示間隔の表示・変更 (例: tipinterval 15)",
         detail: "tipinterval: 現在のヒント間隔(分)を表示\n  tipinterval <0〜1440>: ヒント間隔を分で変更 (0で無効)",
+        category: "settings",
         handler: (args) => this.handleTipInterval(args),
       },
       mode: {
         description: "表示モード切替 (例: mode compact)",
         detail: "mode: 現在のモードを表示\n  mode normal: フルフレーム表示 (デフォルト)\n  mode compact: 1行サマリー表示\n  長時間モニタリング時は compact がおすすめです。",
+        category: "settings",
         handler: (args) => this.handleMode(args),
       },
       clock: {
         description: "プロンプト時計の切替 (例: clock / clock elapsed)",
         detail: "clock: 経過時間/現在時刻をトグル切替\n  clock elapsed: 経過時間表示 (デフォルト)\n  clock now: 現在時刻表示",
+        category: "settings",
         handler: (args) => this.handleClock(args),
       },
       sound: {
         description: "通知音の ON/OFF 切替",
         detail: "sound: 現在の状態を表示\n  sound on: 通知音を有効にする\n  sound off: 通知音を無効にする",
+        category: "settings",
         handler: (args) => this.handleSound(args),
       },
       mute: {
         description: "通知を一時ミュート (例: mute 30m)",
         detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
+        category: "settings",
         handler: (args) => this.handleMute(args),
       },
       clear: {
         description: "ターミナル画面をクリア",
+        category: "operation",
         handler: () => this.handleClear(),
       },
       retry: {
         description: "WebSocket 再接続を試行",
         detail: "切断中の場合に手動で再接続を試みます。",
+        category: "operation",
         handler: () => this.handleRetry(),
       },
       quit: {
         description: "アプリケーションを終了",
+        category: "operation",
         handler: () => this.handleQuit(),
       },
       exit: {
         description: "quit のエイリアス",
+        category: "operation",
         handler: () => this.handleQuit(),
       },
     };
@@ -490,6 +541,16 @@ export class ReplHandler {
           : "OFF",
         options: "<duration> (例: 30m, 1h, 90s) / off",
       },
+      eewlog: {
+        current: this.eewLogger.isEnabled()
+          ? (() => {
+            const fields = this.eewLogger.getFields();
+            const onCount = Object.values(fields).filter(Boolean).length;
+            return `ON (${onCount}/${Object.keys(fields).length}項目)`;
+          })()
+          : "OFF",
+        options: "on / off / fields",
+      },
     };
   }
 
@@ -517,36 +578,37 @@ export class ReplHandler {
       return;
     }
 
-    // help — 一覧
+    // help — カテゴリ別一覧
     console.log();
     console.log(chalk.cyan.bold("  利用可能なコマンド:"));
-    console.log();
 
     const currentValues = this.getCurrentSettingValues();
     const displayed = new Set<string>();
-    const commandNames = Object.keys(this.commands)
-      .filter((name) => name !== "exit" && name !== "?")
-      .sort();
-    for (const name of commandNames) {
-      const entry = this.commands[name];
-      if (displayed.has(entry.description)) continue;
-      displayed.add(entry.description);
-      const setting = currentValues[name];
-      const valueSuffix = setting != null
-        ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]") +
-          (setting.options ? chalk.gray(` (${setting.options})`) : "")
-        : "";
-      console.log(
-        chalk.white(`  ${name.padEnd(12)}`) + chalk.gray(entry.description) + valueSuffix
-      );
+    const categoryOrder: CommandCategory[] = ["info", "status", "settings", "operation"];
+
+    for (const category of categoryOrder) {
+      console.log();
+      console.log(chalk.cyan(`  [${CATEGORY_LABELS[category]}]`));
+
+      const commandNames = Object.keys(this.commands)
+        .filter((name) => name !== "exit" && name !== "?" && this.commands[name].category === category);
+      for (const name of commandNames) {
+        const entry = this.commands[name];
+        if (displayed.has(entry.description)) continue;
+        displayed.add(entry.description);
+        const setting = currentValues[name];
+        const valueSuffix = setting != null
+          ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]") +
+            (setting.options ? chalk.gray(` (${setting.options})`) : "")
+          : "";
+        console.log(
+          chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + valueSuffix
+        );
+      }
     }
-    console.log(
-      chalk.white(`  ${"?".padEnd(12)}`) + chalk.gray("help のエイリアス")
-    );
-    console.log(
-      chalk.white(`  ${"exit".padEnd(12)}`) +
-        chalk.gray("quit のエイリアス")
-    );
+
+    console.log();
+    console.log(chalk.gray("  エイリアス: ") + chalk.white("?") + chalk.gray(" → help, ") + chalk.white("exit") + chalk.gray(" → quit"));
     console.log();
   }
 
@@ -587,7 +649,9 @@ export class ReplHandler {
     );
     console.log(hLine("├", "┼", "┤", "─"));
 
-    for (const item of res.items) {
+    // 最新が一番下に来るように逆順で表示
+    const items = [...res.items].reverse();
+    for (const item of items) {
       const time = formatShortTime(item.originTime || item.arrivalTime);
       const hypo = truncate(item.hypocenter?.name || "不明", COL.hypo);
       const mag =
@@ -1023,6 +1087,121 @@ export class ReplHandler {
 
     this.notifier.mute(ms);
     console.log(`  通知を ${formatDuration(ms)} ミュートしました。`);
+  }
+
+  private handleEewLog(args: string): void {
+    const trimmed = args.trim();
+
+    // 引数なし → 現在の設定を表示
+    if (trimmed.length === 0) {
+      const enabled = this.eewLogger.isEnabled();
+      const status = enabled ? chalk.green("ON") : chalk.red("OFF");
+      console.log();
+      console.log(chalk.cyan.bold("  EEW ログ記録:") + ` ${status}`);
+      if (enabled) {
+        console.log();
+        const fields = this.eewLogger.getFields();
+        for (const [field, label] of Object.entries(EEW_LOG_FIELD_LABELS)) {
+          const fieldEnabled = fields[field as EewLogField];
+          const fieldStatus = fieldEnabled ? chalk.green("ON") : chalk.red("OFF");
+          console.log(
+            chalk.white(`  ${field.padEnd(20)}`) +
+              chalk.gray(`${label}  `) +
+              fieldStatus
+          );
+        }
+      }
+      console.log();
+      console.log(
+        chalk.gray("  使い方: eewlog on/off / eewlog fields / eewlog fields <field> [on|off]")
+      );
+      console.log();
+      return;
+    }
+
+    // on / off
+    if (trimmed === "on") {
+      this.eewLogger.setEnabled(true);
+      this.config.eewLog = true;
+      const config = loadConfig();
+      config.eewLog = true;
+      saveConfig(config);
+      console.log(`  EEW ログ記録を ${chalk.green("ON")} にしました。`);
+      return;
+    }
+    if (trimmed === "off") {
+      this.eewLogger.setEnabled(false);
+      this.config.eewLog = false;
+      const config = loadConfig();
+      config.eewLog = false;
+      saveConfig(config);
+      console.log(`  EEW ログ記録を ${chalk.red("OFF")} にしました。`);
+      return;
+    }
+
+    // fields サブコマンド
+    if (trimmed === "fields") {
+      const fields = this.eewLogger.getFields();
+      console.log();
+      console.log(chalk.cyan.bold("  EEW ログ記録項目:"));
+      console.log();
+      for (const [field, label] of Object.entries(EEW_LOG_FIELD_LABELS)) {
+        const fieldEnabled = fields[field as EewLogField];
+        const fieldStatus = fieldEnabled ? chalk.green("ON") : chalk.red("OFF");
+        console.log(
+          chalk.white(`  ${field.padEnd(20)}`) +
+            chalk.gray(`${label}  `) +
+            fieldStatus
+        );
+      }
+      console.log();
+      return;
+    }
+
+    // fields <field> [on|off]
+    if (trimmed.startsWith("fields ")) {
+      const parts = trimmed.slice(7).trim().split(/\s+/);
+      const fieldName = parts[0] as EewLogField;
+      const action = parts[1]?.toLowerCase();
+
+      if (!VALID_EEW_LOG_FIELDS.includes(fieldName)) {
+        console.log(
+          chalk.yellow(`  不明な項目: ${parts[0]}`) +
+            chalk.gray(` (有効: ${VALID_EEW_LOG_FIELDS.join(", ")})`)
+        );
+        return;
+      }
+
+      let newState: boolean;
+      const fields = this.eewLogger.getFields();
+      if (action === "on") {
+        if (fields[fieldName]) {
+          console.log(`  ${EEW_LOG_FIELD_LABELS[fieldName]} (${fieldName}): 既に ${chalk.green("ON")} です`);
+          return;
+        }
+        newState = this.eewLogger.toggleField(fieldName);
+      } else if (action === "off") {
+        if (!fields[fieldName]) {
+          console.log(`  ${EEW_LOG_FIELD_LABELS[fieldName]} (${fieldName}): 既に ${chalk.red("OFF")} です`);
+          return;
+        }
+        newState = this.eewLogger.toggleField(fieldName);
+      } else {
+        newState = this.eewLogger.toggleField(fieldName);
+      }
+
+      const label = EEW_LOG_FIELD_LABELS[fieldName];
+      const status = newState ? chalk.green("ON") : chalk.red("OFF");
+      console.log(`  ${label} (${fieldName}): ${status}`);
+
+      // 設定を永続化
+      const config = loadConfig();
+      config.eewLogFields = this.eewLogger.getFields();
+      saveConfig(config);
+      return;
+    }
+
+    console.log(chalk.yellow("  使い方: eewlog on/off / eewlog fields / eewlog fields <field> [on|off]"));
   }
 
   private handleClear(): void {
