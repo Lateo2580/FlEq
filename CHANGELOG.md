@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.32.0](https://github.com/Lateo2580/FlEq/compare/v1.31.5...v1.32.0) (2026-03-14)
+
+
+### 機能追加
+
+* ターミナルタイトルにアプリ名とバージョンを表示 ([4f22d68](https://github.com/Lateo2580/FlEq/commit/4f22d680de7a26c2cb38adc072a3abb109fd2c3d))
+
+
+### ドキュメント
+
+* raspi500セットアップガイドにmicroSD寿命対策と複数デバイス同時運用を追記 ([033c4b4](https://github.com/Lateo2580/FlEq/commit/033c4b4f434be8bb034c1611140ebadc4f1525ca))
+
 ## [1.31.5](https://github.com/Lateo2580/FlEq/compare/v1.31.4...v1.31.5) (2026-03-14)
 
 
