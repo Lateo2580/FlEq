@@ -137,6 +137,9 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   );
   console.log();
 
+  // ターミナルタイトル設定
+  setTerminalTitle(`${config.appName} v${VERSION}`);
+
   // 契約状況チェック
   try {
     const contractedClassifications = await listContracts(apiKey);
@@ -176,6 +179,21 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   printBanner(config);
   updateChecker.checkForUpdates("fleq", VERSION);
   await startMonitor(config);
+}
+
+/** ターミナルタイトルを設定する (ANSI OSC sequence) */
+function setTerminalTitle(title: string): void {
+  if (process.stdout.isTTY) {
+    process.stdout.write(`\x1b]2;${title}\x07`);
+  }
+}
+
+/** ターミナルタイトルをリセットする */
+export function resetTerminalTitle(): void {
+  if (process.stdout.isTTY) {
+    // 空文字を設定するとターミナルがデフォルトタイトルに戻る
+    process.stdout.write(`\x1b]2;\x07`);
+  }
 }
 
 /** 起動バナー表示 */

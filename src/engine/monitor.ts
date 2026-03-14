@@ -3,6 +3,7 @@ import { AppConfig } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { closeSocket } from "../dmdata/rest-client";
 import { createMessageHandler } from "./message-router";
+import { resetTerminalTitle } from "./cli-run";
 import { formatTimestamp } from "../ui/formatter";
 import * as log from "../logger";
 
@@ -94,6 +95,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     const socketClosePromise = closeSocketViaApi();
     manager.close();
     await socketClosePromise;
+    resetTerminalTitle();
     if (process.stdout.isTTY) process.stdout.write("\n");
     process.exit(0);
   };
