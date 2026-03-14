@@ -208,11 +208,43 @@ export async function startSocket(
   return res;
 }
 
+/** サーバー側でソケット削除が反映されるのを待つ (最大 MAX_RETRIES 回リトライ) */
+async function awaitSocketCleanup(
+  apiKey: string,
+  closedIds: number[]
+): Promise<void> {
+  const MAX_RETRIES = 5;
+  const RETRY_INTERVAL_MS = 500;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    await new Promise((r) => setTimeout(r, RETRY_INTERVAL_MS));
+    try {
+      const list = await listSockets(apiKey);
+      const stillOpen = list.items.filter(
+        (s) => s.status === "open" && closedIds.includes(s.id)
+      );
+      if (stillOpen.length === 0) {
+        log.debug(`ソケット削除の反映を確認 (${attempt} 回目)`);
+        return;
+      }
+      log.debug(
+        `ソケット削除待機中... 残存 ${stillOpen.length} 件 (${attempt}/${MAX_RETRIES})`
+      );
+    } catch {
+      // リスト取得失敗は無視して次のリトライへ
+    }
+  }
+  log.warn("ソケット削除の反映を確認できませんでしたが、続行します");
+}
+
 /** 既存のオープン接続をすべて閉じてから Socket Start する */
 export async function prepareAndStartSocket(
   config: AppConfig,
   previousSocketId?: number
 ): Promise<SocketStartResponse> {
+  /** クリーンアップで DELETE を送信したソケット ID */
+  const closedIds: number[] = [];
+
   if (!config.keepExistingConnections) {
     // 同一 appName のオープンソケットを閉じる（他デバイスのソケットは維持）
     try {
@@ -235,6 +267,7 @@ export async function prepareAndStartSocket(
         await Promise.allSettled(
           openSockets.map((sock) => closeSocket(config.apiKey, sock.id))
         );
+        closedIds.push(...openSockets.map((s) => s.id));
       }
     } catch (err) {
       log.warn(
@@ -245,6 +278,7 @@ export async function prepareAndStartSocket(
     // 再接続: 自分の旧接続だけを閉じる (サーバー側で既に閉じられている場合は 404 が返る)
     try {
       await closeSocket(config.apiKey, previousSocketId);
+      closedIds.push(previousSocketId);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("404")) {
@@ -277,12 +311,19 @@ export async function prepareAndStartSocket(
         await Promise.allSettled(
           openSockets.map((sock) => closeSocket(config.apiKey, sock.id))
         );
+        closedIds.push(...openSockets.map((s) => s.id));
       }
     } catch (err) {
       log.warn(
         `残留ソケット確認中にエラー: ${err instanceof Error ? err.message : err}`
       );
     }
+  }
+
+  // ソケットを閉じた場合、サーバー側で削除が反映されるのを待ってから新規作成する
+  // (反映前に POST /v2/socket すると同時接続上限を超過し、他デバイスが切断される)
+  if (closedIds.length > 0) {
+    await awaitSocketCleanup(config.apiKey, closedIds);
   }
 
   return startSocket(config);
