@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.32.1](https://github.com/Lateo2580/FlEq/compare/v1.32.0...v1.32.1) (2026-03-14)
+
+
+### バグ修正
+
+* clearコマンド実装とmode fullのtip誤記を修正 ([b3611a0](https://github.com/Lateo2580/FlEq/commit/b3611a0b475303736d31b05fc3115c38df66f06e))
+
 ## [1.32.0](https://github.com/Lateo2580/FlEq/compare/v1.31.5...v1.32.0) (2026-03-14)
 
 
