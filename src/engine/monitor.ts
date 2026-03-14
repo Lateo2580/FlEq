@@ -9,29 +9,35 @@ import * as log from "../logger";
 
 import type { ReplHandler as ReplHandlerType } from "../ui/repl";
 
+const SOCKET_CLOSE_TIMEOUT_MS = 3000;
+
+function withReplDisplay(repl: ReplHandlerType | null, action: () => void): void {
+  repl?.beforeDisplayMessage();
+  try {
+    action();
+  } catch (err) {
+    log.error(`電文処理エラー: ${err instanceof Error ? err.message : err}`);
+  } finally {
+    repl?.afterDisplayMessage();
+  }
+}
+
+function updateReplConnectionState(repl: ReplHandlerType | null, connected: boolean): void {
+  if (!repl) return;
+  repl.setConnected(connected);
+  repl.refreshPrompt();
+}
+
 export async function startMonitor(config: AppConfig): Promise<void> {
-  const { handler: handleData, eewLogger, notifier } = createMessageHandler();
+  const { handler: routeMessage, eewLogger, notifier } = createMessageHandler();
 
-  /** 切断時刻 (再接続時のギャップ表示用) */
   let disconnectedAt: number | null = null;
-  /** 初回接続フラグ (help メッセージ表示用) */
   let isFirstConnection = true;
-
-  /** REPL ハンドラ (遅延ロード後に設定) */
   let replHandler: ReplHandlerType | null = null;
 
   const manager = new WebSocketManager(config, {
     onData: (msg) => {
-      if (replHandler) replHandler.beforeDisplayMessage();
-      try {
-        handleData(msg);
-      } catch (err) {
-        log.error(
-          `電文処理エラー: ${err instanceof Error ? err.message : err}`
-        );
-      } finally {
-        if (replHandler) replHandler.afterDisplayMessage();
-      }
+      withReplDisplay(replHandler, () => routeMessage(msg));
     },
     onConnected: () => {
       // 再接続時: 切断期間の通知
@@ -46,23 +52,15 @@ export async function startMonitor(config: AppConfig): Promise<void> {
         log.info(chalk.gray("help でコマンド一覧を表示"));
         isFirstConnection = false;
       }
-      if (replHandler) {
-        replHandler.setConnected(true);
-        replHandler.refreshPrompt();
-      }
+      updateReplConnectionState(replHandler, true);
     },
     onDisconnected: (reason) => {
       disconnectedAt = Date.now();
       log.warn(`切断されました: ${reason}`);
-      if (replHandler) {
-        replHandler.setConnected(false);
-        replHandler.refreshPrompt();
-      }
+      updateReplConnectionState(replHandler, false);
     },
   });
 
-  /** REST API でソケットを削除 (タイムアウト付き) */
-  const SHUTDOWN_SOCKET_CLOSE_TIMEOUT_MS = 3000;
   const closeSocketViaApi = async (): Promise<void> => {
     const socketId = manager.getStatus().socketId;
     if (socketId == null) return;
@@ -70,7 +68,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
       await Promise.race([
         closeSocket(config.apiKey, socketId),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("timeout")), SHUTDOWN_SOCKET_CLOSE_TIMEOUT_MS)
+          setTimeout(() => reject(new Error("timeout")), SOCKET_CLOSE_TIMEOUT_MS)
         ),
       ]);
     } catch {

@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { loadConfig, saveConfig, VALID_CLASSIFICATIONS, getConfigPath } from "../config";
 import { listContracts } from "../dmdata/rest-client";
 import { Classification, ConfigFile } from "../types";
+import * as secretUtils from "../utils/secrets";
 import * as log from "../logger";
 
 /** 区分選択肢メタデータ */
@@ -164,7 +165,7 @@ export async function runInit(): Promise<void> {
     console.log(chalk.gray("  取得先: https://manager.dmdata.jp/control/apikey"));
     console.log(chalk.gray("  ヒント: マイページの「APIキー」から発行・確認できます"));
     if (existingConfig.apiKey) {
-      console.log(chalk.gray(`  現在: ${maskApiKey(existingConfig.apiKey)}`));
+      console.log(chalk.gray(`  現在: ${secretUtils.maskApiKey(existingConfig.apiKey)}`));
     }
     console.log();
 
@@ -252,7 +253,7 @@ export async function runInit(): Promise<void> {
     console.log();
     console.log(chalk.white.bold("  設定内容"));
     console.log(chalk.gray("  ─────────────────────────────"));
-    console.log(`  APIキー:   ${chalk.white(maskApiKey(apiKey))}`);
+    console.log(`  APIキー:   ${chalk.white(secretUtils.maskApiKey(apiKey))}`);
     console.log(
       `  受信区分:  ${chalk.white(selectedClassifications.map((c) => classificationLabel(c)).join(", "))}`
     );
@@ -289,8 +290,3 @@ export async function runInit(): Promise<void> {
   }
 }
 
-/** APIキーをマスクする */
-function maskApiKey(key: string): string {
-  if (key.length <= 8) return "****";
-  return key.substring(0, 4) + "****" + key.substring(key.length - 4);
-}

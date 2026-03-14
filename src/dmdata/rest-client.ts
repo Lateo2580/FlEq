@@ -3,6 +3,9 @@ import { AppConfig, SocketStartResponse, SocketListResponse, ContractListRespons
 import * as log from "../logger";
 
 const API_BASE = "https://api.dmdata.jp/v2";
+const REQUEST_TIMEOUT_MS = 15_000;
+const SOCKET_CLEANUP_MAX_RETRIES = 5;
+const SOCKET_CLEANUP_RETRY_INTERVAL_MS = 500;
 
 /** TLS ハンドシェイクを再利用するための keep-alive エージェント (遅延初期化) */
 let keepAliveAgent: https.Agent | null = null;
@@ -91,8 +94,8 @@ function request(
     });
 
     req.on("error", reject);
-    req.setTimeout(15000, () => {
-      req.destroy(new Error("Request timeout (15s)"));
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      req.destroy(new Error(`Request timeout (${REQUEST_TIMEOUT_MS / 1000}s)`));
     });
 
     if (body) {
@@ -208,16 +211,13 @@ export async function startSocket(
   return res;
 }
 
-/** サーバー側でソケット削除が反映されるのを待つ (最大 MAX_RETRIES 回リトライ) */
+/** サーバー側でソケット削除が反映されるのを待つ */
 async function awaitSocketCleanup(
   apiKey: string,
   closedIds: number[]
 ): Promise<void> {
-  const MAX_RETRIES = 5;
-  const RETRY_INTERVAL_MS = 500;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    await new Promise((r) => setTimeout(r, RETRY_INTERVAL_MS));
+  for (let attempt = 1; attempt <= SOCKET_CLEANUP_MAX_RETRIES; attempt++) {
+    await new Promise((r) => setTimeout(r, SOCKET_CLEANUP_RETRY_INTERVAL_MS));
     try {
       const list = await listSockets(apiKey);
       const stillOpen = list.items.filter(
@@ -228,7 +228,7 @@ async function awaitSocketCleanup(
         return;
       }
       log.debug(
-        `ソケット削除待機中... 残存 ${stillOpen.length} 件 (${attempt}/${MAX_RETRIES})`
+        `ソケット削除待機中... 残存 ${stillOpen.length} 件 (${attempt}/${SOCKET_CLEANUP_MAX_RETRIES})`
       );
     } catch {
       // リスト取得失敗は無視して次のリトライへ

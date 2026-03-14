@@ -19,6 +19,9 @@ export interface WsManagerEvents {
 /** サーバーからの ping が途絶えたとみなすまでのミリ秒 */
 const HEARTBEAT_TIMEOUT_MS = 90_000;
 
+/** 再接続ジッターの最大値 (ミリ秒) */
+const RECONNECT_JITTER_MS = 1_000;
+
 /** 受信オブジェクトが WsDataMessage の必須フィールドを持つか確認 */
 function isWsDataMessage(parsed: unknown): parsed is WsDataMessage {
   if (typeof parsed !== "object" || parsed == null) return false;
@@ -189,27 +192,16 @@ export class WebSocketManager {
       return;
     }
 
-    const obj = parsed as Record<string, unknown>;
-    const msgType = typeof obj["type"] === "string" ? obj["type"] : null;
+    const messageObject = parsed as Record<string, unknown>;
+    const messageType = typeof messageObject["type"] === "string" ? messageObject["type"] : null;
 
-    switch (msgType) {
+    switch (messageType) {
       case "start":
-        if (!isWsStartMessage(parsed)) {
-          log.warn("start メッセージのスキーマが不正です");
-          break;
-        }
-        this.socketId = parsed.socketId;
-        log.info(`セッション開始: socketId=${parsed.socketId}`);
-        log.info(`区分: [${parsed.classifications.join(", ")}]`);
+        this.handleStartMessage(parsed);
         break;
 
       case "ping":
-        if (!isWsPingMessage(parsed)) {
-          log.warn("ping メッセージのスキーマが不正です");
-          break;
-        }
-        this.resetHeartbeat();
-        this.sendPong(parsed.pingId);
+        this.handlePingMessage(parsed);
         break;
 
       case "pong":
@@ -217,41 +209,67 @@ export class WebSocketManager {
         break;
 
       case "data":
-        if (!isWsDataMessage(parsed)) {
-          log.warn("data メッセージのスキーマが不正です (id/head/head.type が欠落)");
-          break;
-        }
-        this.resetHeartbeat();
-        log.debug(
-          `データ受信: type=${parsed.head.type}, id=${parsed.id.slice(0, 16)}...`
-        );
-        this.events.onData(parsed);
+        this.handleDataMessage(parsed);
         break;
 
-      case "error": {
-        const errorObj = obj["error"];
-        let errMsg: string;
-        let errCode: string;
-        if (typeof errorObj === "object" && errorObj != null) {
-          // error がオブジェクト形式: { error: { message, code } }
-          const e = errorObj as Record<string, unknown>;
-          errMsg = String(e["message"] ?? "unknown");
-          errCode = String(e["code"] ?? "unknown");
-        } else if (typeof errorObj === "string") {
-          // error が文字列形式: { error: "Closed by user.", code: 4808 }
-          errMsg = errorObj;
-          errCode = String(obj["code"] ?? "unknown");
-        } else {
-          errMsg = JSON.stringify(obj);
-          errCode = "unknown";
-        }
-        log.error(`サーバーエラー: ${errMsg} (code=${errCode})`);
+      case "error":
+        this.logServerError(messageObject);
         break;
-      }
 
       default:
-        log.debug(`未知のメッセージタイプ: ${msgType ?? "(型なし)"}`);
+        log.debug(`未知のメッセージタイプ: ${messageType ?? "(型なし)"}`);
     }
+  }
+
+  private handleStartMessage(parsed: unknown): void {
+    if (!isWsStartMessage(parsed)) {
+      log.warn("start メッセージのスキーマが不正です");
+      return;
+    }
+    this.socketId = parsed.socketId;
+    log.info(`セッション開始: socketId=${parsed.socketId}`);
+    log.info(`区分: [${parsed.classifications.join(", ")}]`);
+  }
+
+  private handlePingMessage(parsed: unknown): void {
+    if (!isWsPingMessage(parsed)) {
+      log.warn("ping メッセージのスキーマが不正です");
+      return;
+    }
+    this.resetHeartbeat();
+    this.sendPong(parsed.pingId);
+  }
+
+  private handleDataMessage(parsed: unknown): void {
+    if (!isWsDataMessage(parsed)) {
+      log.warn("data メッセージのスキーマが不正です (id/head/head.type が欠落)");
+      return;
+    }
+    this.resetHeartbeat();
+    log.debug(
+      `データ受信: type=${parsed.head.type}, id=${parsed.id.slice(0, 16)}...`
+    );
+    this.events.onData(parsed);
+  }
+
+  private logServerError(messageObject: Record<string, unknown>): void {
+    const errorObj = messageObject["error"];
+    let errMsg: string;
+    let errCode: string;
+    if (typeof errorObj === "object" && errorObj != null) {
+      // error がオブジェクト形式: { error: { message, code } }
+      const e = errorObj as Record<string, unknown>;
+      errMsg = String(e["message"] ?? "unknown");
+      errCode = String(e["code"] ?? "unknown");
+    } else if (typeof errorObj === "string") {
+      // error が文字列形式: { error: "Closed by user.", code: 4808 }
+      errMsg = errorObj;
+      errCode = String(messageObject["code"] ?? "unknown");
+    } else {
+      errMsg = JSON.stringify(messageObject);
+      errCode = "unknown";
+    }
+    log.error(`サーバーエラー: ${errMsg} (code=${errCode})`);
   }
 
   private sendPong(pingId: string): void {
@@ -294,7 +312,7 @@ export class WebSocketManager {
       Math.pow(2, this.reconnectAttempt - 1) * 1000,
       this.config.maxReconnectDelaySec * 1000
     );
-    const jitter = Math.random() * 1000;
+    const jitter = Math.random() * RECONNECT_JITTER_MS;
     const delay = baseDelay + jitter;
 
     log.info(

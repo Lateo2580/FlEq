@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { ConfigFile, Classification, DisplayMode, PromptClock, NotifyCategory } from "./types";
+import * as secretUtils from "./utils/secrets";
 import * as log from "./logger";
 
 /** 設定エラー */
@@ -209,97 +210,130 @@ export function saveConfig(config: ConfigFile): void {
 function validateConfig(raw: Record<string, unknown>): ConfigFile {
   const config: ConfigFile = {};
 
-  if (typeof raw.apiKey === "string" && raw.apiKey.length > 0) {
-    config.apiKey = raw.apiKey;
-  }
+  applyApiKey(config, raw.apiKey);
+  applyClassifications(config, raw.classifications);
+  applyTestMode(config, raw.testMode);
+  applyAppName(config, raw.appName);
+  applyReconnectDelay(config, raw.maxReconnectDelaySec);
+  applyBooleanField(config, "keepExistingConnections", raw.keepExistingConnections);
+  applyTableWidth(config, raw.tableWidth);
+  applyBooleanField(config, "infoFullText", raw.infoFullText);
+  applyDisplayMode(config, raw.displayMode);
+  applyPromptClock(config, raw.promptClock);
+  applyWaitTipInterval(config, raw.waitTipIntervalMin);
+  applyBooleanField(config, "sound", raw.sound);
+  applyNotifySettings(config, raw.notify);
 
-  if (typeof raw.classifications === "string") {
-    const parsed = parseClassifications(raw.classifications);
+  return config;
+}
+
+function applyApiKey(config: ConfigFile, value: unknown): void {
+  if (typeof value === "string" && value.length > 0) {
+    config.apiKey = value;
+  }
+}
+
+function applyClassifications(config: ConfigFile, value: unknown): void {
+  if (typeof value === "string") {
+    const parsed = parseClassifications(value);
     if (parsed.length > 0) {
       config.classifications = parsed;
     }
-  } else if (Array.isArray(raw.classifications)) {
-    const valid = raw.classifications.filter(
+  } else if (Array.isArray(value)) {
+    const validClassifications = value.filter(
       (c): c is Classification =>
         typeof c === "string" &&
         VALID_CLASSIFICATIONS.includes(c as Classification)
     );
-    if (valid.length > 0) {
-      config.classifications = valid;
+    if (validClassifications.length > 0) {
+      config.classifications = validClassifications;
     }
   }
+}
 
+function applyTestMode(config: ConfigFile, value: unknown): void {
   if (
-    typeof raw.testMode === "string" &&
-    (VALID_TEST_MODES as readonly string[]).includes(raw.testMode)
+    typeof value === "string" &&
+    (VALID_TEST_MODES as readonly string[]).includes(value)
   ) {
-    config.testMode = raw.testMode as ConfigFile["testMode"];
+    config.testMode = value as ConfigFile["testMode"];
   }
+}
 
-  if (typeof raw.appName === "string" && raw.appName.length > 0) {
-    config.appName = raw.appName;
+function applyAppName(config: ConfigFile, value: unknown): void {
+  if (typeof value === "string" && value.length > 0) {
+    config.appName = value;
   }
+}
 
-  if (typeof raw.maxReconnectDelaySec === "number" && raw.maxReconnectDelaySec > 0) {
-    config.maxReconnectDelaySec = raw.maxReconnectDelaySec;
+function applyReconnectDelay(config: ConfigFile, value: unknown): void {
+  if (typeof value === "number" && value > 0) {
+    config.maxReconnectDelaySec = value;
   }
+}
 
-  if (typeof raw.keepExistingConnections === "boolean") {
-    config.keepExistingConnections = raw.keepExistingConnections;
+function applyBooleanField(
+  config: ConfigFile,
+  field: "keepExistingConnections" | "infoFullText" | "sound",
+  value: unknown
+): void {
+  if (typeof value === "boolean") {
+    config[field] = value;
   }
+}
 
-  if (typeof raw.tableWidth === "number" && raw.tableWidth >= 40 && raw.tableWidth <= 200) {
-    config.tableWidth = raw.tableWidth;
+function applyTableWidth(config: ConfigFile, value: unknown): void {
+  if (typeof value === "number" && value >= 40 && value <= 200) {
+    config.tableWidth = value;
   }
+}
 
-  if (typeof raw.infoFullText === "boolean") {
-    config.infoFullText = raw.infoFullText;
-  }
-
+function applyDisplayMode(config: ConfigFile, value: unknown): void {
   if (
-    typeof raw.displayMode === "string" &&
-    (VALID_DISPLAY_MODES as readonly string[]).includes(raw.displayMode)
+    typeof value === "string" &&
+    (VALID_DISPLAY_MODES as readonly string[]).includes(value)
   ) {
-    config.displayMode = raw.displayMode as DisplayMode;
+    config.displayMode = value as DisplayMode;
   }
+}
 
+function applyPromptClock(config: ConfigFile, value: unknown): void {
   if (
-    typeof raw.promptClock === "string" &&
-    (VALID_PROMPT_CLOCKS as readonly string[]).includes(raw.promptClock)
+    typeof value === "string" &&
+    (VALID_PROMPT_CLOCKS as readonly string[]).includes(value)
   ) {
-    config.promptClock = raw.promptClock as PromptClock;
+    config.promptClock = value as PromptClock;
   }
+}
 
+function applyWaitTipInterval(config: ConfigFile, value: unknown): void {
   if (
-    typeof raw.waitTipIntervalMin === "number" &&
-    Number.isInteger(raw.waitTipIntervalMin) &&
-    raw.waitTipIntervalMin >= 0 &&
-    raw.waitTipIntervalMin <= 1440
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 1440
   ) {
-    config.waitTipIntervalMin = raw.waitTipIntervalMin;
+    config.waitTipIntervalMin = value;
   }
+}
 
-  if (typeof raw.sound === "boolean") {
-    config.sound = raw.sound;
+function applyNotifySettings(config: ConfigFile, value: unknown): void {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
+    return;
   }
-
-  if (typeof raw.notify === "object" && raw.notify != null && !Array.isArray(raw.notify)) {
-    const notifyRaw = raw.notify as Record<string, unknown>;
-    const notify: Partial<Record<NotifyCategory, boolean>> = {};
-    for (const [key, val] of Object.entries(notifyRaw)) {
-      if (
-        VALID_NOTIFY_CATEGORIES.includes(key as NotifyCategory) &&
-        typeof val === "boolean"
-      ) {
-        notify[key as NotifyCategory] = val;
-      }
+  const notifyRaw = value as Record<string, unknown>;
+  const notify: Partial<Record<NotifyCategory, boolean>> = {};
+  for (const [key, val] of Object.entries(notifyRaw)) {
+    if (
+      VALID_NOTIFY_CATEGORIES.includes(key as NotifyCategory) &&
+      typeof val === "boolean"
+    ) {
+      notify[key as NotifyCategory] = val;
     }
-    if (Object.keys(notify).length > 0) {
-      config.notify = notify;
-    }
   }
-
-  return config;
+  if (Object.keys(notify).length > 0) {
+    config.notify = notify;
+  }
 }
 
 /** カンマ区切りの分類区分文字列をパースする */
@@ -458,7 +492,7 @@ export function printConfig(): void {
     const val = config[key as keyof ConfigFile];
     if (val !== undefined) {
       const displayValue =
-        key === "apiKey" ? maskApiKey(String(val)) : formatValue(val);
+        key === "apiKey" ? secretUtils.maskApiKey(String(val)) : formatValue(val);
       console.log(`  ${key} = ${displayValue}`);
       console.log(`    # ${description}`);
     }
@@ -476,14 +510,6 @@ export function printConfigKeys(): void {
     console.log(`    ${description}`);
   }
   console.log();
-}
-
-/** APIキーをマスクする */
-function maskApiKey(key: string): string {
-  if (key.length <= 8) {
-    return "****";
-  }
-  return key.substring(0, 4) + "****" + key.substring(key.length - 4);
 }
 
 /** 値を表示用にフォーマットする */

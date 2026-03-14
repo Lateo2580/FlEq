@@ -1,4 +1,5 @@
 import { ParsedEewInfo } from "../types";
+import * as intensityUtils from "../utils/intensity";
 
 /** EEW 更新時の差分情報 */
 export interface EewDiff {
@@ -54,26 +55,15 @@ function parseDepthKm(depth: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
-/** 震度文字列をソート用数値に変換 */
-function intensityToNum(int: string): number {
-  const norm = int.replace(/\s+/g, "");
-  const map: Record<string, number> = {
-    "1": 1, "2": 2, "3": 3, "4": 4,
-    "5-": 5, "5弱": 5, "5+": 6, "5強": 6,
-    "6-": 7, "6弱": 7, "6+": 8, "6強": 8, "7": 9,
-  };
-  return map[norm] ?? 0;
-}
-
 /** 予測震度リストから最大震度を取得 */
 function getMaxForecastIntensity(areas: { name: string; intensity: string }[]): string | null {
   if (areas.length === 0) return null;
   let maxInt = areas[0].intensity;
-  let maxNum = intensityToNum(maxInt);
+  let maxRank = intensityUtils.intensityToRank(maxInt);
   for (let i = 1; i < areas.length; i++) {
-    const num = intensityToNum(areas[i].intensity);
-    if (num > maxNum) {
-      maxNum = num;
+    const rank = intensityUtils.intensityToRank(areas[i].intensity);
+    if (rank > maxRank) {
+      maxRank = rank;
       maxInt = areas[i].intensity;
     }
   }

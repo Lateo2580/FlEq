@@ -39,7 +39,7 @@ const xmlParser = new XMLParser({
 });
 
 /** 展開後の最大許容サイズ (10 MB) */
-const MAX_DECOMPRESSED_SIZE = 10 * 1024 * 1024;
+const MAX_DECOMPRESSED_BYTES = 10 * 1024 * 1024;
 
 /** body フィールドをデコードしてXML文字列を返す */
 export function decodeBody(msg: WsDataMessage): string {
@@ -52,14 +52,14 @@ export function decodeBody(msg: WsDataMessage): string {
   }
 
   if (msg.compression === "gzip") {
-    buf = zlib.gunzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_SIZE });
+    buf = zlib.gunzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_BYTES });
   } else if (msg.compression === "zip") {
-    buf = zlib.unzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_SIZE });
+    buf = zlib.unzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_BYTES });
   }
 
-  if (buf.length > MAX_DECOMPRESSED_SIZE) {
+  if (buf.length > MAX_DECOMPRESSED_BYTES) {
     throw new Error(
-      `展開後のサイズが上限を超えています: ${buf.length} bytes (上限: ${MAX_DECOMPRESSED_SIZE} bytes)`
+      `展開後のサイズが上限を超えています: ${buf.length} bytes (上限: ${MAX_DECOMPRESSED_BYTES} bytes)`
     );
   }
 
@@ -234,6 +234,197 @@ function extractTsunami(body: unknown): ParsedEarthquakeInfo["tsunami"] | undefi
   return { text };
 }
 
+// ── EEW ヘルパー ──
+
+function parseMaxIntChangeReason(body: unknown): number | undefined {
+  const raw = str(dig(body, "Intensity", "Forecast", "Appendix", "MaxIntChangeReason"));
+  if (!raw) return undefined;
+  const code = Number.parseInt(raw, 10);
+  return Number.isNaN(code) ? undefined : code;
+}
+
+function extractEewForecastAreas(
+  body: unknown
+): {
+  areas: { name: string; intensity: string; lgIntensity?: string; isPlum?: boolean; hasArrived?: boolean }[];
+  maxLgInt?: string;
+  hasPlumArea: boolean;
+} | undefined {
+  const forecast = dig(body, "Intensity", "Forecast");
+  if (!forecast) return undefined;
+
+  const overallLgInt = dig(forecast, "ForecastLgInt");
+  const overallLgIntFrom = str(
+    Array.isArray(overallLgInt)
+      ? dig(overallLgInt[0], "From")
+      : dig(overallLgInt, "From")
+  );
+  const maxLgInt = overallLgIntFrom || undefined;
+
+  const areas: {
+    name: string;
+    intensity: string;
+    lgIntensity?: string;
+    isPlum?: boolean;
+    hasArrived?: boolean;
+  }[] = [];
+  const prefs = dig(forecast, "Pref");
+  if (Array.isArray(prefs)) {
+    for (const pref of prefs) {
+      const prefAreas = dig(pref, "Area");
+      if (Array.isArray(prefAreas)) {
+        for (const area of prefAreas) {
+          const rawForecastInt = dig(area, "ForecastInt") || dig(area, "ForecastIntFrom");
+          const forecastInt = Array.isArray(rawForecastInt) ? rawForecastInt[0] : rawForecastInt;
+
+          const rawLgInt = dig(area, "ForecastLgInt");
+          const lgInt = Array.isArray(rawLgInt)
+            ? str(dig(rawLgInt[0], "From"))
+            : str(dig(rawLgInt, "From"));
+
+          const condition = str(dig(area, "Condition"));
+          const isPlum = isPlumAreaCondition(condition) || undefined;
+          const hasArrived = hasArrivedAreaCondition(condition) || undefined;
+
+          areas.push({
+            name: str(dig(area, "Name")),
+            intensity: str(dig(forecastInt, "From") || forecastInt || ""),
+            ...(lgInt ? { lgIntensity: lgInt } : {}),
+            ...(isPlum ? { isPlum } : {}),
+            ...(hasArrived ? { hasArrived } : {}),
+          });
+        }
+      }
+    }
+  }
+
+  const hasPlumArea = areas.some((a) => a.isPlum === true);
+  return { areas, maxLgInt, hasPlumArea };
+}
+
+// ── 津波ヘルパー ──
+
+function extractTsunamiObservations(tsunamiNode: unknown): TsunamiObservationStation[] {
+  const rawObservation = dig(tsunamiNode, "Observation");
+  const observationsNodes = Array.isArray(rawObservation)
+    ? rawObservation
+    : rawObservation
+      ? [rawObservation]
+      : [];
+
+  const observations: TsunamiObservationStation[] = [];
+  for (const node of observationsNodes) {
+    const items = dig(node, "Item");
+    if (!Array.isArray(items)) {
+      continue;
+    }
+    for (const item of items) {
+      const stationsRaw = dig(item, "Station");
+      const stations = Array.isArray(stationsRaw)
+        ? stationsRaw
+        : stationsRaw
+          ? [stationsRaw]
+          : [];
+      for (const station of stations) {
+        observations.push({
+          name: str(dig(station, "Name")),
+          sensor: str(dig(station, "Sensor")),
+          arrivalTime: str(dig(station, "FirstHeight", "ArrivalTime")),
+          initial: str(dig(station, "FirstHeight", "Initial")),
+          maxHeightCondition: str(dig(station, "MaxHeight", "Condition")),
+        });
+      }
+    }
+  }
+  return observations;
+}
+
+function extractTsunamiEstimations(tsunamiNode: unknown): TsunamiEstimationItem[] {
+  const rawEstimation = dig(tsunamiNode, "Estimation");
+  const estimationNodes = Array.isArray(rawEstimation)
+    ? rawEstimation
+    : rawEstimation
+      ? [rawEstimation]
+      : [];
+
+  const estimations: TsunamiEstimationItem[] = [];
+  for (const node of estimationNodes) {
+    const items = dig(node, "Item");
+    if (!Array.isArray(items)) {
+      continue;
+    }
+    for (const item of items) {
+      const area = first(dig(item, "Area") as unknown[]);
+      const areaName = str(dig(area, "Name")).trim();
+      if (!areaName) {
+        continue;
+      }
+      const maxHeightDescription =
+        str(dig(item, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
+        str(dig(item, "MaxHeight", "TsunamiHeight", "@_description")) ||
+        str(dig(item, "MaxHeight", "Condition"));
+      const firstHeight =
+        str(dig(item, "FirstHeight", "ArrivalTime")) ||
+        str(dig(item, "FirstHeight", "Condition"));
+      estimations.push({
+        areaName,
+        maxHeightDescription,
+        firstHeight,
+      });
+    }
+  }
+  return estimations;
+}
+
+// ── 長周期地震動ヘルパー ──
+
+function extractLgObservationDetails(body: unknown): {
+  maxInt?: string;
+  maxLgInt?: string;
+  lgCategory?: string;
+  areas: LgObservationArea[];
+} {
+  const result: {
+    maxInt?: string;
+    maxLgInt?: string;
+    lgCategory?: string;
+    areas: LgObservationArea[];
+  } = { areas: [] };
+
+  const intensity = dig(body, "Intensity");
+  if (!intensity) return result;
+
+  const rawObservation = dig(intensity, "Observation");
+  if (!rawObservation) return result;
+
+  const observation = first(rawObservation as unknown[]);
+  result.maxInt = str(dig(observation, "MaxInt")) || undefined;
+  result.maxLgInt = str(dig(observation, "MaxLgInt")) || undefined;
+  result.lgCategory = str(dig(observation, "LgCategory")) || undefined;
+
+  const prefs = dig(observation, "Pref");
+  if (Array.isArray(prefs)) {
+    for (const pref of prefs) {
+      const prefAreas = dig(pref, "Area");
+      if (Array.isArray(prefAreas)) {
+        for (const area of prefAreas) {
+          const areaMaxInt = str(dig(area, "MaxInt"));
+          const areaMaxLgInt = str(dig(area, "MaxLgInt"));
+          if (areaMaxLgInt) {
+            result.areas.push({
+              name: str(dig(area, "Name")),
+              maxInt: areaMaxInt,
+              maxLgInt: areaMaxLgInt,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 // ── 公開API ──
 
 /** 地震関連電文(VXSE51/52/53等)をパース */
@@ -330,77 +521,19 @@ export function parseEewTelegram(
       isAssumedHypocenter: false,
     };
 
-    // Appendix: MaxIntChangeReason (Intensity > Forecast > Appendix)
-    const maxIntChangeReasonStr = str(
-      dig(body, "Intensity", "Forecast", "Appendix", "MaxIntChangeReason")
-    );
-    if (maxIntChangeReasonStr) {
-      const parsed = parseInt(maxIntChangeReasonStr, 10);
-      if (!isNaN(parsed)) {
-        info.maxIntChangeReason = parsed;
-      }
-    }
+    info.maxIntChangeReason = parseMaxIntChangeReason(body);
 
-    // 震源
     if (earthquake) {
       info.earthquake = extractEarthquake(earthquake);
     }
-    let hasPlumArea = false;
 
-    // 予測震度
-    const forecast = dig(body, "Intensity", "Forecast");
-    if (forecast) {
-      // 全体の最大予測長周期地震動階級
-      const overallLgInt = dig(forecast, "ForecastLgInt");
-      const overallLgIntFrom = str(
-        Array.isArray(overallLgInt)
-          ? dig(overallLgInt[0], "From")
-          : dig(overallLgInt, "From")
-      );
-      const maxLgInt = overallLgIntFrom || undefined;
-
-      const areas: {
-        name: string;
-        intensity: string;
-        lgIntensity?: string;
-        isPlum?: boolean;
-        hasArrived?: boolean;
-      }[] = [];
-      const prefs = dig(forecast, "Pref");
-      if (Array.isArray(prefs)) {
-        for (const pref of prefs) {
-          const prefAreas = dig(pref, "Area");
-          if (Array.isArray(prefAreas)) {
-            for (const area of prefAreas) {
-              const rawForecastInt = dig(area, "ForecastInt") || dig(area, "ForecastIntFrom");
-              const forecastInt = Array.isArray(rawForecastInt) ? rawForecastInt[0] : rawForecastInt;
-
-              // 長周期地震動階級
-              const rawLgInt = dig(area, "ForecastLgInt");
-              const lgInt = Array.isArray(rawLgInt)
-                ? str(dig(rawLgInt[0], "From"))
-                : str(dig(rawLgInt, "From"));
-
-              // Condition パース
-              const condition = str(dig(area, "Condition"));
-              const isPlum = isPlumAreaCondition(condition) || undefined;
-              const hasArrived = hasArrivedAreaCondition(condition) || undefined;
-
-              areas.push({
-                name: str(dig(area, "Name")),
-                intensity: str(dig(forecastInt, "From") || forecastInt || ""),
-                ...(lgInt ? { lgIntensity: lgInt } : {}),
-                ...(isPlum ? { isPlum } : {}),
-                ...(hasArrived ? { hasArrived } : {}),
-              });
-            }
-          }
-        }
-      }
-      hasPlumArea = areas.some((area) => area.isPlum === true);
-      if (areas.length > 0) {
-        info.forecastIntensity = { ...(maxLgInt ? { maxLgInt } : {}), areas };
-      }
+    const forecastResult = extractEewForecastAreas(body);
+    const hasPlumArea = forecastResult?.hasPlumArea ?? false;
+    if (forecastResult && forecastResult.areas.length > 0) {
+      info.forecastIntensity = {
+        ...(forecastResult.maxLgInt ? { maxLgInt: forecastResult.maxLgInt } : {}),
+        areas: forecastResult.areas,
+      };
     }
 
     const assumedHypocenterByFallback =
@@ -491,78 +624,14 @@ export function parseTsunamiTelegram(
       }
     }
 
-    const rawObservation = dig(tsunami, "Observation");
-    const observationsNodes = Array.isArray(rawObservation)
-      ? rawObservation
-      : rawObservation
-        ? [rawObservation]
-        : [];
-    if (observationsNodes.length > 0) {
-      const observations: TsunamiObservationStation[] = [];
-      for (const node of observationsNodes) {
-        const items = dig(node, "Item");
-        if (!Array.isArray(items)) {
-          continue;
-        }
-        for (const item of items) {
-          const stationsRaw = dig(item, "Station");
-          const stations = Array.isArray(stationsRaw)
-            ? stationsRaw
-            : stationsRaw
-              ? [stationsRaw]
-              : [];
-          for (const station of stations) {
-            observations.push({
-              name: str(dig(station, "Name")),
-              sensor: str(dig(station, "Sensor")),
-              arrivalTime: str(dig(station, "FirstHeight", "ArrivalTime")),
-              initial: str(dig(station, "FirstHeight", "Initial")),
-              maxHeightCondition: str(dig(station, "MaxHeight", "Condition")),
-            });
-          }
-        }
-      }
-      if (observations.length > 0) {
-        info.observations = observations;
-      }
+    const observations = extractTsunamiObservations(tsunami);
+    if (observations.length > 0) {
+      info.observations = observations;
     }
 
-    const rawEstimation = dig(tsunami, "Estimation");
-    const estimationNodes = Array.isArray(rawEstimation)
-      ? rawEstimation
-      : rawEstimation
-        ? [rawEstimation]
-        : [];
-    if (estimationNodes.length > 0) {
-      const estimations: TsunamiEstimationItem[] = [];
-      for (const node of estimationNodes) {
-        const items = dig(node, "Item");
-        if (!Array.isArray(items)) {
-          continue;
-        }
-        for (const item of items) {
-          const area = first(dig(item, "Area") as unknown[]);
-          const areaName = str(dig(area, "Name")).trim();
-          if (!areaName) {
-            continue;
-          }
-          const maxHeightDescription =
-            str(dig(item, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
-            str(dig(item, "MaxHeight", "TsunamiHeight", "@_description")) ||
-            str(dig(item, "MaxHeight", "Condition"));
-          const firstHeight =
-            str(dig(item, "FirstHeight", "ArrivalTime")) ||
-            str(dig(item, "FirstHeight", "Condition"));
-          estimations.push({
-            areaName,
-            maxHeightDescription,
-            firstHeight,
-          });
-        }
-      }
-      if (estimations.length > 0) {
-        info.estimations = estimations;
-      }
+    const estimations = extractTsunamiEstimations(tsunami);
+    if (estimations.length > 0) {
+      info.estimations = estimations;
     }
 
     let earthquake = dig(body, "Earthquake");
@@ -730,39 +799,11 @@ export function parseLgObservationTelegram(
       info.earthquake = extractEarthquake(earthquake);
     }
 
-    // 震度・長周期地震動観測
-    const intensity = dig(body, "Intensity");
-    if (intensity) {
-      const rawObservation = dig(intensity, "Observation");
-      if (rawObservation) {
-        const observation = first(rawObservation as unknown[]);
-
-        info.maxInt = str(dig(observation, "MaxInt")) || undefined;
-        info.maxLgInt = str(dig(observation, "MaxLgInt")) || undefined;
-        info.lgCategory = str(dig(observation, "LgCategory")) || undefined;
-
-        // 地域レベルの集計
-        const prefs = dig(observation, "Pref");
-        if (Array.isArray(prefs)) {
-          for (const pref of prefs) {
-            const prefAreas = dig(pref, "Area");
-            if (Array.isArray(prefAreas)) {
-              for (const area of prefAreas) {
-                const areaMaxInt = str(dig(area, "MaxInt"));
-                const areaMaxLgInt = str(dig(area, "MaxLgInt"));
-                if (areaMaxLgInt) {
-                  info.areas.push({
-                    name: str(dig(area, "Name")),
-                    maxInt: areaMaxInt,
-                    maxLgInt: areaMaxLgInt,
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    const lgDetails = extractLgObservationDetails(body);
+    info.maxInt = lgDetails.maxInt;
+    info.maxLgInt = lgDetails.maxLgInt;
+    info.lgCategory = lgDetails.lgCategory;
+    info.areas = lgDetails.areas;
 
     // コメント
     const freeComment = str(dig(body, "Comments", "FreeFormComment"));

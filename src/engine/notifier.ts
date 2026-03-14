@@ -15,6 +15,7 @@ import { loadConfig, saveConfig } from "../config";
 import { EewUpdateResult } from "./eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";
 import * as nodeNotifierLoader from "./node-notifier-loader";
+import * as intensityUtils from "../utils/intensity";
 import * as log from "../logger";
 
 /** 通知アイコンのパス (assets/icons/icon.png が存在する場合に使用) */
@@ -271,11 +272,9 @@ export class Notifier {
     }
   }
 
-  /** 地震情報のサウンドレベルを判定 */
   private earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
     if (!info.intensity) return "normal";
-    const num = intensityToSortNum(info.intensity.maxInt);
-    if (num >= 4) return "warning";  // 震度4以上
+    if (intensityUtils.intensityToRank(info.intensity.maxInt) >= 4) return "warning";
     return "normal";
   }
 
@@ -311,32 +310,19 @@ export class Notifier {
     }
   }
 
-  /** EEW の予測震度配列から最大震度を取得 */
   private findMaxForecastInt(info: ParsedEewInfo): string {
     if (!info.forecastIntensity?.areas || info.forecastIntensity.areas.length === 0) {
       return "不明";
     }
-    // areas の先頭が最大震度のケースが多いが、安全のため全走査
     let maxLabel = info.forecastIntensity.areas[0].intensity;
-    let maxNum = intensityToSortNum(maxLabel);
+    let maxRank = intensityUtils.intensityToRank(maxLabel);
     for (const area of info.forecastIntensity.areas) {
-      const num = intensityToSortNum(area.intensity);
-      if (num > maxNum) {
-        maxNum = num;
+      const rank = intensityUtils.intensityToRank(area.intensity);
+      if (rank > maxRank) {
+        maxRank = rank;
         maxLabel = area.intensity;
       }
     }
     return maxLabel;
   }
-}
-
-/** 震度文字列をソート用数値に変換 */
-function intensityToSortNum(int: string): number {
-  const norm = int.replace(/\s+/g, "");
-  const map: Record<string, number> = {
-    "1": 1, "2": 2, "3": 3, "4": 4,
-    "5-": 5, "5弱": 5, "5+": 6, "5強": 6,
-    "6-": 7, "6弱": 7, "6+": 8, "6強": 8, "7": 9,
-  };
-  return map[norm] ?? 0;
 }
