@@ -59,10 +59,11 @@ class StatusLine {
     return this.clockMode;
   }
 
-  buildPrefix(): string {
+  buildPrefix(options?: { noSuffix?: boolean }): string {
+    const suffix = options?.noSuffix ? "" : chalk.gray("]> ");
     if (this.connectedAt == null) {
       return (
-        chalk.gray("FlEq [") + chalk.gray("○ --:--:--") + chalk.gray("]> ")
+        chalk.gray("FlEq [") + chalk.gray("○ --:--:--") + suffix
       );
     }
     const dot = this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
@@ -74,7 +75,7 @@ class StatusLine {
       dot +
       chalk.gray(" ") +
       chalk.white(timeStr) +
-      chalk.gray("]> ")
+      suffix
     );
   }
 
@@ -407,7 +408,7 @@ export class ReplHandler {
     if (!process.stdout.isTTY) {
       return chalk.gray("FlEq> ");
     }
-    const base = this.statusLine.buildPrefix().replace(/]> $/, "");
+    const base = this.statusLine.buildPrefix({ noSuffix: true });
     const status = this.wsManager.getStatus();
     if (!status.connected || status.heartbeatDeadlineAt == null) {
       return `${base}${chalk.gray("]> ")}`;
