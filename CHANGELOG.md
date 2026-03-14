@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.31.5](https://github.com/Lateo2580/FlEq/compare/v1.31.4...v1.31.5) (2026-03-14)
+
+
+### バグ修正
+
+* ソケット削除後にサーバー側の反映を待ってから新規作成する ([df2a202](https://github.com/Lateo2580/FlEq/commit/df2a202db13a8df06549beb6829bac2166346443))
+
 ## [1.31.4](https://github.com/Lateo2580/FlEq/compare/v1.31.3...v1.31.4) (2026-03-14)
 
 
