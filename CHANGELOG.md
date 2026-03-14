@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.32.3](https://github.com/Lateo2580/FlEq/compare/v1.32.2...v1.32.3) (2026-03-14)
+
+
+### バグ修正
+
+* ANSI エスケープコードを含むプロンプトの区切り修正 ([ab7e89c](https://github.com/Lateo2580/FlEq/commit/ab7e89c2e560e9de3d36452986fd2908b7a7a7d6))
+
 ## [1.32.2](https://github.com/Lateo2580/FlEq/compare/v1.32.1...v1.32.2) (2026-03-14)
 
 
