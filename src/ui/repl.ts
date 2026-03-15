@@ -729,11 +729,10 @@ export class ReplHandler {
       { name: "darkRed",    rgb: [122, 30, 0],    usage: "最高警戒 (背景用)" },
     ];
     for (const p of palette) {
-      const fgSwatch = chalk.rgb(p.rgb[0], p.rgb[1], p.rgb[2])("██");
-      const bgSwatch = chalk.bgRgb(p.rgb[0], p.rgb[1], p.rgb[2])("  ");
+      const swatch = chalk.rgb(p.rgb[0], p.rgb[1], p.rgb[2])("██");
       const rgbStr = `(${p.rgb.join(", ")})`;
       console.log(
-        `  ${fgSwatch} ${bgSwatch} ` +
+        `  ${swatch} ` +
         chalk.white(p.name.padEnd(12)) +
         chalk.gray(rgbStr.padEnd(16)) +
         chalk.gray(p.usage)
@@ -744,7 +743,8 @@ export class ReplHandler {
     console.log();
     console.log(chalk.cyan.bold("  震度カラー:"));
     console.log();
-    const intensities: Array<{ label: string; key: string }> = [
+    // fg: 文字色のみ, fg+bg: 文字色+背景色を分離表示
+    const intensities: Array<{ label: string; key: string; fg?: [number, number, number]; bg?: [number, number, number] }> = [
       { label: "震度1",  key: "1" },
       { label: "震度2",  key: "2" },
       { label: "震度3",  key: "3" },
@@ -752,28 +752,34 @@ export class ReplHandler {
       { label: "震度5弱", key: "5弱" },
       { label: "震度5強", key: "5強" },
       { label: "震度6弱", key: "6弱" },
-      { label: "震度6強", key: "6強" },
-      { label: "震度7",  key: "7" },
+      { label: "震度6強", key: "6強", fg: [0, 0, 0],     bg: [213, 94, 0] },
+      { label: "震度7",  key: "7",   fg: [255, 255, 255], bg: [122, 30, 0] },
     ];
     this.printColorGrid(termWidth, intensities, (item) => {
+      if (item.fg && item.bg) {
+        return this.renderFgBgItem(item.label, item.fg, item.bg);
+      }
       const color = intensityColor(item.key);
-      return { fgSwatch: color("██"), label: color(item.label), visualLen: visualWidth(item.label) + 3 };
+      return { cell: `${color("██")} ${color(item.label)}`, visualLen: visualWidth(item.label) + 3 };
     });
 
     // ── 長周期地震動階級カラー (マルチカラム) ──
     console.log();
     console.log(chalk.cyan.bold("  長周期地震動階級カラー:"));
     console.log();
-    const lgInts: Array<{ label: string; key: string }> = [
+    const lgInts: Array<{ label: string; key: string; fg?: [number, number, number]; bg?: [number, number, number] }> = [
       { label: "階級0", key: "0" },
       { label: "階級1", key: "1" },
       { label: "階級2", key: "2" },
       { label: "階級3", key: "3" },
-      { label: "階級4", key: "4" },
+      { label: "階級4", key: "4", fg: [0, 0, 0], bg: [213, 94, 0] },
     ];
     this.printColorGrid(termWidth, lgInts, (item) => {
+      if (item.fg && item.bg) {
+        return this.renderFgBgItem(item.label, item.fg, item.bg);
+      }
       const color = lgIntensityColor(item.key);
-      return { fgSwatch: color("██"), label: color(item.label), visualLen: visualWidth(item.label) + 3 };
+      return { cell: `${color("██")} ${color(item.label)}`, visualLen: visualWidth(item.label) + 3 };
     });
 
     // ── フレームレベル (マルチカラム) ──
@@ -790,20 +796,34 @@ export class ReplHandler {
     this.printColorGrid(termWidth, levels, (lv) => {
       const color = chalk.rgb(lv.rgb[0], lv.rgb[1], lv.rgb[2]);
       const text = `${lv.name} ${lv.label}`;
-      return { fgSwatch: color("██"), label: color(text), visualLen: visualWidth(text) + 3 };
+      return { cell: `${color("██")} ${color(text)}`, visualLen: visualWidth(text) + 3 };
     });
     console.log();
   }
 
   /**
+   * fg/bg 分離表示用のセルを生成する。
+   * 文字色 ██ と背景色 ██ を横に並べてラベルを添える。
+   */
+  private renderFgBgItem(
+    label: string,
+    fg: [number, number, number],
+    bg: [number, number, number],
+  ): { cell: string; visualLen: number } {
+    const fgBlock = chalk.rgb(fg[0], fg[1], fg[2])("██");
+    const bgBlock = chalk.bgRgb(bg[0], bg[1], bg[2])("  ");
+    // "██ ██ label" → swatch(2) + space(1) + swatch(2) + space(1) + label
+    return { cell: `${fgBlock} ${bgBlock} ${chalk.white(label)}`, visualLen: visualWidth(label) + 6 };
+  }
+
+  /**
    * 色付きアイテムをターミナル幅に応じたマルチカラムで出力する。
-   * renderFn は各アイテムから { fgSwatch, label, visualLen } を返す。
-   * visualLen は "██ {label}" 全体の表示幅。
+   * renderFn は各アイテムから { cell, visualLen } を返す。
    */
   private printColorGrid<T>(
     termWidth: number,
     items: T[],
-    renderFn: (item: T) => { fgSwatch: string; label: string; visualLen: number },
+    renderFn: (item: T) => { cell: string; visualLen: number },
   ): void {
     const rendered = items.map(renderFn);
     // 最大表示幅 + マージンでカラム幅を決定
@@ -815,9 +835,8 @@ export class ReplHandler {
     let line = "";
     let col = 0;
     for (const r of rendered) {
-      const cell = `${r.fgSwatch} ${r.label}`;
       const pad = colWidth - r.visualLen;
-      line += cell + " ".repeat(Math.max(0, pad));
+      line += r.cell + " ".repeat(Math.max(0, pad));
       col++;
       if (col >= cols) {
         console.log(`${" ".repeat(indent)}${line}`);
