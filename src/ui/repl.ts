@@ -19,9 +19,11 @@ import {
   getDisplayMode,
 } from "../ui/formatter";
 import * as themeModule from "../ui/theme";
+import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/sound-player";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { WAITING_TIPS } from "./waiting-tips";
+import { TEST_TABLES } from "./test-samples";
 
 /** コマンドのカテゴリ */
 type CommandCategory = "info" | "status" | "settings" | "operation";
@@ -59,10 +61,16 @@ const EEW_LOG_FIELD_GROUPS: { label: string; fields: EewLogField[] }[] = [
   { label: "予測地域", fields: ["forecastAreas", "lgIntensity", "isPlum", "hasArrived"] },
 ];
 
+interface SubcommandEntry {
+  description: string;
+  detail?: string;
+}
+
 interface CommandEntry {
   description: string;
   detail?: string;
   category: CommandCategory;
+  subcommands?: Record<string, SubcommandEntry>;
   handler: (args: string) => void | Promise<void>;
 }
 
@@ -327,6 +335,22 @@ export class ReplHandler {
         detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
         category: "settings",
         handler: (args) => this.handleMute(args),
+      },
+      test: {
+        description: "テスト機能",
+        detail: "test sound [level]: サウンドテスト\n  test table [type]: 表示形式テスト",
+        category: "operation",
+        subcommands: {
+          sound: {
+            description: "サウンドテスト",
+            detail: "引数なし: 利用可能なサウンドレベル一覧を表示\n  test sound <level>: 指定レベルのサウンドを再生\n  レベル: critical, warning, normal, info, cancel",
+          },
+          table: {
+            description: "表示形式テスト",
+            detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: サンプルデータを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation",
+          },
+        },
+        handler: (args) => this.handleTest(args),
       },
       clear: {
         description: "ターミナル画面をクリア",
@@ -612,19 +636,53 @@ export class ReplHandler {
   private handleHelp(args: string): void {
     const trimmed = args.trim();
 
-    // help <command> — 詳細表示
+    // help <command> [subcommand] — 詳細表示
     if (trimmed.length > 0) {
-      const entry = this.commands[trimmed];
+      const parts = trimmed.split(/\s+/);
+      const entry = this.commands[parts[0]];
       if (entry == null) {
-        console.log(chalk.yellow(`  不明なコマンド: ${trimmed}`));
+        console.log(chalk.yellow(`  不明なコマンド: ${parts[0]}`));
         return;
       }
+
+      // サブコマンド解決
+      if (parts.length > 1 && entry.subcommands) {
+        const sub = entry.subcommands[parts[1]];
+        if (sub == null) {
+          console.log(chalk.yellow(`  不明なサブコマンド: ${parts[0]} ${parts[1]}`));
+          return;
+        }
+        console.log();
+        console.log(chalk.cyan.bold(`  ${parts[0]} ${parts[1]}`) + chalk.gray(` — ${sub.description}`));
+        if (sub.detail) {
+          console.log();
+          for (const line of sub.detail.split("\n")) {
+            console.log(chalk.white(`  ${line}`));
+          }
+        }
+        console.log();
+        return;
+      }
+
       console.log();
-      console.log(chalk.cyan.bold(`  ${trimmed}`) + chalk.gray(` — ${entry.description}`));
+      console.log(chalk.cyan.bold(`  ${parts[0]}`) + chalk.gray(` — ${entry.description}`));
       if (entry.detail) {
         console.log();
         for (const line of entry.detail.split("\n")) {
           console.log(chalk.white(`  ${line}`));
+        }
+      }
+      // サブコマンド一覧
+      if (entry.subcommands) {
+        console.log();
+        const subNames = Object.keys(entry.subcommands).sort();
+        for (let i = 0; i < subNames.length; i++) {
+          const subName = subNames[i];
+          const sub = entry.subcommands[subName];
+          const prefix = i < subNames.length - 1 ? "├─" : "└─";
+          console.log(
+            chalk.gray(`      ${prefix} `) + chalk.white(subName.padEnd(10)) + chalk.gray(sub.description)
+          );
         }
       }
       console.log();
@@ -644,7 +702,8 @@ export class ReplHandler {
       console.log(chalk.cyan(`  [${CATEGORY_LABELS[category]}]`));
 
       const commandNames = Object.keys(this.commands)
-        .filter((name) => name !== "exit" && name !== "?" && this.commands[name].category === category);
+        .filter((name) => name !== "exit" && name !== "?" && this.commands[name].category === category)
+        .sort();
       for (const name of commandNames) {
         const entry = this.commands[name];
         if (displayed.has(entry.description)) continue;
@@ -657,6 +716,18 @@ export class ReplHandler {
         console.log(
           chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + valueSuffix
         );
+        // サブコマンドツリー表示
+        if (entry.subcommands) {
+          const subNames = Object.keys(entry.subcommands).sort();
+          for (let i = 0; i < subNames.length; i++) {
+            const subName = subNames[i];
+            const sub = entry.subcommands[subName];
+            const prefix = i < subNames.length - 1 ? "├─" : "└─";
+            console.log(
+              chalk.gray(`      ${prefix} `) + chalk.white(subName.padEnd(10)) + chalk.gray(sub.description)
+            );
+          }
+        }
       }
     }
 
@@ -1487,6 +1558,89 @@ export class ReplHandler {
     }
 
     console.log(chalk.yellow("  使い方: eewlog on/off / eewlog fields / eewlog fields <field> [on|off]"));
+  }
+
+  private handleTest(args: string): void {
+    const parts = args.trim().split(/\s+/).filter(Boolean);
+    const sub = parts[0] ?? "";
+
+    if (sub === "") {
+      const testEntry = this.commands["test"];
+      console.log();
+      console.log(chalk.cyan.bold("  test サブコマンド:"));
+      if (testEntry.subcommands) {
+        for (const [name, sc] of Object.entries(testEntry.subcommands)) {
+          console.log(chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(sc.description));
+        }
+      }
+      console.log();
+      console.log(chalk.gray("  詳細: help test <subcommand>"));
+      console.log();
+      return;
+    }
+
+    if (sub === "sound") {
+      this.handleTestSound(parts.slice(1).join(" "));
+      return;
+    }
+
+    if (sub === "table") {
+      this.handleTestTable(parts.slice(1).join(" "));
+      return;
+    }
+
+    console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(" (sound / table)"));
+  }
+
+  private handleTestSound(args: string): void {
+    const level = args.trim();
+
+    if (level === "") {
+      console.log();
+      console.log(chalk.cyan.bold("  利用可能なサウンドレベル:"));
+      for (const l of SOUND_LEVELS) {
+        console.log(chalk.white(`    ${l}`));
+      }
+      console.log();
+      console.log(chalk.gray("  使い方: test sound <level>"));
+      console.log();
+      return;
+    }
+
+    if (!isSoundLevel(level)) {
+      console.log(chalk.yellow(`  不明なサウンドレベル: ${level}`));
+      console.log(chalk.gray(`  有効な値: ${SOUND_LEVELS.join(", ")}`));
+      return;
+    }
+
+    console.log(chalk.gray(`  サウンドテスト: ${level} を再生中...`));
+    playSound(level);
+  }
+
+  private handleTestTable(args: string): void {
+    const type = args.trim();
+
+    if (type === "") {
+      console.log();
+      console.log(chalk.cyan.bold("  利用可能な電文タイプ:"));
+      for (const [key, entry] of Object.entries(TEST_TABLES)) {
+        console.log(chalk.white(`    ${key.padEnd(16)}`) + chalk.gray(entry.label));
+      }
+      console.log();
+      console.log(chalk.gray("  使い方: test table <type>"));
+      console.log();
+      return;
+    }
+
+    const entry = TEST_TABLES[type];
+    if (entry == null) {
+      console.log(chalk.yellow(`  不明な電文タイプ: ${type}`));
+      console.log(chalk.gray(`  有効な値: ${Object.keys(TEST_TABLES).join(", ")}`));
+      return;
+    }
+
+    console.log(chalk.gray(`  表示テスト: ${entry.label} を実行中...`));
+    entry.run();
   }
 
   private handleClear(): void {

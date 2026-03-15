@@ -3,8 +3,16 @@ import * as fs from "fs";
 import * as path from "path";
 import * as log from "../logger";
 
+/** 通知音レベル一覧 (型導出の信頼できる唯一のソース) */
+export const SOUND_LEVELS = ["critical", "warning", "normal", "info", "cancel"] as const;
+
 /** 通知音レベル */
-export type SoundLevel = "critical" | "warning" | "normal" | "info" | "cancel";
+export type SoundLevel = (typeof SOUND_LEVELS)[number];
+
+/** 文字列が有効な SoundLevel かを判定する型ガード */
+export function isSoundLevel(value: string): value is SoundLevel {
+  return (SOUND_LEVELS as readonly string[]).includes(value);
+}
 
 /** カスタム効果音ディレクトリ (プロジェクトルート/assets/sounds/) */
 const CUSTOM_SOUNDS_DIR = path.resolve(__dirname, "..", "..", "assets", "sounds");
