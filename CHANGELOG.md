@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.36.0](https://github.com/Lateo2580/FlEq/compare/v1.35.0...v1.36.0) (2026-03-15)
+
+
+### 機能追加
+
+* PLUM法EEWバナー装飾行の色を青系に変更 ([dc00a3a](https://github.com/Lateo2580/FlEq/commit/dc00a3a47061add228861d738a06ef68e29373dd))
+
+
+### バグ修正
+
+* waiting-tipsのプロンプト説明文を現行仕様に合わせて修正 ([56fc3fc](https://github.com/Lateo2580/FlEq/commit/56fc3fc69d1d7e4678262514494950a6a6a2d79b))
+
+
+### ドキュメント
+
+* display-reference.mdの記載を実装に合わせて修正 ([c74c5c4](https://github.com/Lateo2580/FlEq/commit/c74c5c4d4ee69b6bd86d317607fd74eba4a6941a))
+* display-reference.mdの色テーブルにHEXカラーコード列を追加 ([227251a](https://github.com/Lateo2580/FlEq/commit/227251a2c21ffad634d576fc84395ae80b501dad))
+
 ## [1.35.0](https://github.com/Lateo2580/FlEq/compare/v1.34.0...v1.35.0) (2026-03-14)
 
 
