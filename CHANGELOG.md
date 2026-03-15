@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.41.0](https://github.com/Lateo2580/FlEq/compare/v1.40.1...v1.41.0) (2026-03-15)
+
+
+### 機能追加
+
+* REPLにtestコマンド追加・helpのツリー表示とサブコマンド解決を実装 ([8584f9d](https://github.com/Lateo2580/FlEq/commit/8584f9d855538088dc5d211f2e3950117c355435))
+
 ## [1.40.1](https://github.com/Lateo2580/FlEq/compare/v1.40.0...v1.40.1) (2026-03-15)
 
 
