@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.37.2](https://github.com/Lateo2580/FlEq/compare/v1.37.1...v1.37.2) (2026-03-15)
+
+
+### バグ修正
+
+* colorsコマンドの震度6強/7・階級4のラベルを実際の表示スタイルに修正 ([3cbfdfa](https://github.com/Lateo2580/FlEq/commit/3cbfdfaf31a11eef0af734049c7d97cc7836504d))
+
 ## [1.37.1](https://github.com/Lateo2580/FlEq/compare/v1.37.0...v1.37.1) (2026-03-15)
 
 
