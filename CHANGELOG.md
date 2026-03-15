@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.38.0](https://github.com/Lateo2580/FlEq/compare/v1.37.3...v1.38.0) (2026-03-15)
+
+
+### 機能追加
+
+* EEWログに7項目を追加し、REPL表示をグループ化 ([8ea1a29](https://github.com/Lateo2580/FlEq/commit/8ea1a29d442a00fecc7b315ce76f268cc4168ba6))
+
 ## [1.37.3](https://github.com/Lateo2580/FlEq/compare/v1.37.2...v1.37.3) (2026-03-15)
 
 
