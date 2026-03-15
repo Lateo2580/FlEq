@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.39.1](https://github.com/Lateo2580/FlEq/compare/v1.39.0...v1.39.1) (2026-03-15)
+
+
+### バグ修正
+
+* テーマ機能の型安全性・堅牢性を強化 ([66794d3](https://github.com/Lateo2580/FlEq/commit/66794d3172dd6533ecccea4d53882f6f8c71f36f))
+
 ## [1.39.0](https://github.com/Lateo2580/FlEq/compare/v1.38.0...v1.39.0) (2026-03-15)
 
 
