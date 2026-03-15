@@ -569,7 +569,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
   }
 
   // タイトル行 (severity ラベル付き)
@@ -613,7 +613,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName), width));
+    console.log(frameLine(level, chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName), width));
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
@@ -694,10 +694,10 @@ export interface EewDisplayContext {
 function getWarningBannerPalette(): chalk.Chalk[] {
   return [
     cudBg(CUD.darkRed).white.bold,                           // ダークレッド (デフォルト)
-    chalk.bgRgb(156, 58, 0).white.bold,                      // ブラウンレッド
-    chalk.bgRgb(178, 71, 0).white.bold,                      // レンガ色
-    cudBg(CUD.vermillion).black.bold,                        // バーミリオン
-    chalk.bgRgb(230, 120, 40).black.bold,                    // ダークオレンジ
+    cudBg(CUD.vermillion).white.bold,                        // バーミリオン (白文字)
+    cudBg(CUD.vermillion).black.bold,                        // バーミリオン (黒文字)
+    cudBg(CUD.orange).black.bold,                            // オレンジ
+    cudBg(CUD.raspberry).black.bold,                         // ラズベリー
   ];
 }
 
@@ -705,9 +705,9 @@ function getForecastBannerPalette(): chalk.Chalk[] {
   return [
     cudBg(CUD.yellow).black.bold,                            // CUD黄 (デフォルト)
     cudBg(CUD.orange).black.bold,                            // CUDオレンジ
-    chalk.bgRgb(245, 185, 40).black.bold,                    // ゴールド
-    chalk.bgRgb(255, 210, 105).black.bold,                   // ライトゴールド
-    chalk.bgRgb(255, 235, 170).black.bold,                   // ペールイエロー
+    cudBg(CUD.sky).black.bold,                               // CUDスカイブルー
+    cudBg(CUD.blueGreen).black.bold,                         // CUDブルーグリーン
+    cudBg(CUD.gray).white.bold,                              // CUDグレー
   ];
 }
 
@@ -796,12 +796,12 @@ export function displayEewInfo(
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
   }
 
   // PLUM法ラベル (MaxIntChangeReason=9)
   if (info.maxIntChangeReason === 9) {
-    console.log(frameLine(level, chalk.magenta("PLUM法") + chalk.gray(" による予測震度変化"), width));
+    console.log(frameLine(level, cudFg(CUD.raspberry)("PLUM法") + chalk.gray(" による予測震度変化"), width));
   }
 
   // カード1行目: infoType + 最重要項目
@@ -879,12 +879,12 @@ export function displayEewInfo(
     console.log(frameDivider(level, width));
 
     if (info.isAssumedHypocenter) {
-      console.log(frameLine(level, chalk.magenta("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
+      console.log(frameLine(level, cudFg(CUD.raspberry)("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
     }
 
     const hypoContent = diff?.hypocenterChange
-      ? chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName) + cudFg(CUD.sky)(" (変更)")
-      : chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName);
+      ? chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName) + cudFg(CUD.sky)(" (変更)")
+      : chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName);
     console.log(frameLine(level, hypoContent, width));
 
     if (eq.originTime) {
@@ -930,7 +930,7 @@ export function displayEewInfo(
       const color = intensityColor(area.intensity);
       let areaText = chalk.white(area.name);
       if (area.isPlum) {
-        areaText += chalk.magenta(" [PLUM]");
+        areaText += cudFg(CUD.raspberry)(" [PLUM]");
       }
       if (area.hasArrived) {
         areaText += cudFg(CUD.vermillion)(" [到達]");
@@ -1028,7 +1028,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   console.log(frameTop(level, width));
 
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
   }
 
   const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
@@ -1044,7 +1044,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName), width));
+    console.log(frameLine(level, chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName), width));
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
@@ -1196,7 +1196,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
   console.log(frameTop(level, width));
 
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
   }
 
   const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
@@ -1291,7 +1291,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
   }
 
   // タイトル行
@@ -1376,7 +1376,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, chalk.bgMagenta.white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
   }
 
   // タイトル行
@@ -1416,7 +1416,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.white("震源地: ") + chalk.bold.yellow(eq.hypocenterName), width));
+    console.log(frameLine(level, chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName), width));
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
