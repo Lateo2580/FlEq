@@ -711,6 +711,9 @@ export class ReplHandler {
   }
 
   private handleColors(): void {
+    const termWidth = process.stdout.columns || 80;
+
+    // ── CUD カラーパレット ──
     console.log();
     console.log(chalk.cyan.bold("  CUD カラーパレット:"));
     console.log();
@@ -726,49 +729,105 @@ export class ReplHandler {
       { name: "darkRed",    rgb: [122, 30, 0],    usage: "最高警戒 (背景用)" },
     ];
     for (const p of palette) {
-      const swatch = chalk.rgb(p.rgb[0], p.rgb[1], p.rgb[2])("██");
+      const fgSwatch = chalk.rgb(p.rgb[0], p.rgb[1], p.rgb[2])("██");
+      const bgSwatch = chalk.bgRgb(p.rgb[0], p.rgb[1], p.rgb[2])("  ");
       const rgbStr = `(${p.rgb.join(", ")})`;
       console.log(
-        `  ${swatch} ` +
+        `  ${fgSwatch} ${bgSwatch} ` +
         chalk.white(p.name.padEnd(12)) +
         chalk.gray(rgbStr.padEnd(16)) +
         chalk.gray(p.usage)
       );
     }
 
+    // ── 震度カラー (マルチカラム) ──
     console.log();
     console.log(chalk.cyan.bold("  震度カラー:"));
     console.log();
-    const intensities = ["1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"];
-    for (const int of intensities) {
-      const color = intensityColor(int);
-      console.log(`  ${color("██")} ${color(`震度${int}`)}`);
-    }
+    const intensities: Array<{ label: string; key: string }> = [
+      { label: "震度1",  key: "1" },
+      { label: "震度2",  key: "2" },
+      { label: "震度3",  key: "3" },
+      { label: "震度4",  key: "4" },
+      { label: "震度5弱", key: "5弱" },
+      { label: "震度5強", key: "5強" },
+      { label: "震度6弱", key: "6弱" },
+      { label: "震度6強", key: "6強" },
+      { label: "震度7",  key: "7" },
+    ];
+    this.printColorGrid(termWidth, intensities, (item) => {
+      const color = intensityColor(item.key);
+      return { fgSwatch: color("██"), label: color(item.label), visualLen: visualWidth(item.label) + 3 };
+    });
 
+    // ── 長周期地震動階級カラー (マルチカラム) ──
     console.log();
     console.log(chalk.cyan.bold("  長周期地震動階級カラー:"));
     console.log();
-    const lgInts = ["0", "1", "2", "3", "4"];
-    for (const lg of lgInts) {
-      const color = lgIntensityColor(lg);
-      console.log(`  ${color("██")} ${color(`階級${lg}`)}`);
-    }
+    const lgInts: Array<{ label: string; key: string }> = [
+      { label: "階級0", key: "0" },
+      { label: "階級1", key: "1" },
+      { label: "階級2", key: "2" },
+      { label: "階級3", key: "3" },
+      { label: "階級4", key: "4" },
+    ];
+    this.printColorGrid(termWidth, lgInts, (item) => {
+      const color = lgIntensityColor(item.key);
+      return { fgSwatch: color("██"), label: color(item.label), visualLen: visualWidth(item.label) + 3 };
+    });
 
+    // ── フレームレベル (マルチカラム) ──
     console.log();
     console.log(chalk.cyan.bold("  フレームレベル:"));
     console.log();
     const levels: Array<{ name: string; rgb: [number, number, number]; label: string }> = [
-      { name: "critical", rgb: [213, 94, 0],    label: "[緊急] 二重線フレーム" },
-      { name: "warning",  rgb: [230, 159, 0],   label: "[警告] 二重線フレーム" },
-      { name: "normal",   rgb: [86, 180, 233],  label: "[情報] 通常フレーム" },
-      { name: "info",     rgb: [132, 145, 158], label: "[通知] 通常フレーム" },
-      { name: "cancel",   rgb: [204, 121, 167], label: "[取消] 通常フレーム" },
+      { name: "critical", rgb: [213, 94, 0],    label: "[緊急] 二重線" },
+      { name: "warning",  rgb: [230, 159, 0],   label: "[警告] 二重線" },
+      { name: "normal",   rgb: [86, 180, 233],  label: "[情報] 通常" },
+      { name: "info",     rgb: [132, 145, 158], label: "[通知] 通常" },
+      { name: "cancel",   rgb: [204, 121, 167], label: "[取消] 通常" },
     ];
-    for (const lv of levels) {
+    this.printColorGrid(termWidth, levels, (lv) => {
       const color = chalk.rgb(lv.rgb[0], lv.rgb[1], lv.rgb[2]);
-      console.log(`  ${color("██")} ${color(lv.name.padEnd(10))} ${chalk.gray(lv.label)}`);
-    }
+      const text = `${lv.name} ${lv.label}`;
+      return { fgSwatch: color("██"), label: color(text), visualLen: visualWidth(text) + 3 };
+    });
     console.log();
+  }
+
+  /**
+   * 色付きアイテムをターミナル幅に応じたマルチカラムで出力する。
+   * renderFn は各アイテムから { fgSwatch, label, visualLen } を返す。
+   * visualLen は "██ {label}" 全体の表示幅。
+   */
+  private printColorGrid<T>(
+    termWidth: number,
+    items: T[],
+    renderFn: (item: T) => { fgSwatch: string; label: string; visualLen: number },
+  ): void {
+    const rendered = items.map(renderFn);
+    // 最大表示幅 + マージンでカラム幅を決定
+    const maxVisual = Math.max(...rendered.map((r) => r.visualLen));
+    const colWidth = maxVisual + 3; // 右余白
+    const indent = 2;
+    const cols = Math.max(1, Math.floor((termWidth - indent) / colWidth));
+
+    let line = "";
+    let col = 0;
+    for (const r of rendered) {
+      const cell = `${r.fgSwatch} ${r.label}`;
+      const pad = colWidth - r.visualLen;
+      line += cell + " ".repeat(Math.max(0, pad));
+      col++;
+      if (col >= cols) {
+        console.log(`${" ".repeat(indent)}${line}`);
+        line = "";
+        col = 0;
+      }
+    }
+    if (line.length > 0) {
+      console.log(`${" ".repeat(indent)}${line}`);
+    }
   }
 
   private handleConfig(): void {
