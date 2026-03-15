@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.39.0](https://github.com/Lateo2580/FlEq/compare/v1.38.0...v1.39.0) (2026-03-15)
+
+
+### 機能追加
+
+* カラーテーマカスタマイズ機能を追加 ([ea33f1d](https://github.com/Lateo2580/FlEq/commit/ea33f1def602cd49d5a2b2f9acd862f60a8efd39))
+
 ## [1.38.0](https://github.com/Lateo2580/FlEq/compare/v1.37.3...v1.38.0) (2026-03-15)
 
 
