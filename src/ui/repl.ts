@@ -18,6 +18,7 @@ import {
   setDisplayMode,
   getDisplayMode,
 } from "../ui/formatter";
+import * as themeModule from "../ui/theme";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { WAITING_TIPS } from "./waiting-tips";
@@ -147,6 +148,24 @@ function formatCurrentTime(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+/** 震度キーから対応するロール名を返す */
+function getIntensityRole(key: string): themeModule.RoleName | null {
+  const map: Record<string, themeModule.RoleName> = {
+    "1": "intensity1", "2": "intensity2", "3": "intensity3", "4": "intensity4",
+    "5弱": "intensity5Lower", "5強": "intensity5Upper",
+    "6弱": "intensity6Lower", "6強": "intensity6Upper", "7": "intensity7",
+  };
+  return map[key] ?? null;
+}
+
+/** 長周期階級キーから対応するロール名を返す */
+function getLgIntRole(key: string): themeModule.RoleName | null {
+  const map: Record<string, themeModule.RoleName> = {
+    "0": "lgInt0", "1": "lgInt1", "2": "lgInt2", "3": "lgInt3", "4": "lgInt4",
+  };
+  return map[key] ?? null;
 }
 
 /** レーベンシュタイン距離 (typo候補用) */
@@ -296,6 +315,12 @@ export class ReplHandler {
         detail: "sound: 現在の状態を表示\n  sound on: 通知音を有効にする\n  sound off: 通知音を無効にする",
         category: "settings",
         handler: (args) => this.handleSound(args),
+      },
+      theme: {
+        description: "カラーテーマの表示・管理 (例: theme path / theme reload)",
+        detail: "theme: テーマ概要を表示\n  theme path: theme.json のパスを表示\n  theme show: 全パレット色・全ロールスタイルを一覧表示\n  theme reset: デフォルト theme.json を書き出し\n  theme reload: theme.json を再読込\n  theme validate: theme.json を検証",
+        category: "settings",
+        handler: (args) => this.handleTheme(args),
       },
       mute: {
         description: "通知を一時ミュート (例: mute 30m)",
@@ -728,30 +753,36 @@ export class ReplHandler {
 
   private handleColors(): void {
     const termWidth = process.stdout.columns || 80;
+    const palette = themeModule.getPalette();
+
+    const PALETTE_USAGE: Record<string, string> = {
+      gray: "低優先度・補助テキスト",
+      sky: "通常・長周期階級1",
+      blue: "震度3",
+      blueGreen: "震度4・津波なし",
+      yellow: "震度5弱・M3+",
+      orange: "警告レベル",
+      vermillion: "危険レベル",
+      raspberry: "取消・キャンセル",
+      darkRed: "最高警戒 (背景用)",
+    };
 
     // ── CUD カラーパレット ──
     console.log();
     console.log(chalk.cyan.bold("  CUD カラーパレット:"));
+    if (themeModule.isCustomized()) {
+      console.log(chalk.gray("  (カスタムテーマ適用中)"));
+    }
     console.log();
-    const palette: Array<{ name: string; rgb: [number, number, number]; usage: string }> = [
-      { name: "gray",       rgb: [132, 145, 158], usage: "低優先度・補助テキスト" },
-      { name: "sky",        rgb: [86, 180, 233],  usage: "通常・長周期階級1" },
-      { name: "blue",       rgb: [0, 114, 178],   usage: "震度3" },
-      { name: "blueGreen",  rgb: [0, 158, 115],   usage: "震度4・津波なし" },
-      { name: "yellow",     rgb: [240, 228, 66],  usage: "震度5弱・M3+" },
-      { name: "orange",     rgb: [230, 159, 0],   usage: "警告レベル" },
-      { name: "vermillion", rgb: [213, 94, 0],    usage: "危険レベル" },
-      { name: "raspberry",  rgb: [204, 121, 167], usage: "取消・キャンセル" },
-      { name: "darkRed",    rgb: [122, 30, 0],    usage: "最高警戒 (背景用)" },
-    ];
-    for (const p of palette) {
-      const swatch = chalk.rgb(p.rgb[0], p.rgb[1], p.rgb[2])("██");
-      const rgbStr = `(${p.rgb.join(", ")})`;
+    for (const name of themeModule.getPaletteNames()) {
+      const rgb = palette[name];
+      const swatch = chalk.rgb(rgb[0], rgb[1], rgb[2])("██");
+      const rgbStr = `(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
       console.log(
         `  ${swatch} ` +
-        chalk.white(p.name.padEnd(12)) +
+        chalk.white(name.padEnd(12)) +
         chalk.gray(rgbStr.padEnd(16)) +
-        chalk.gray(p.usage)
+        chalk.gray(PALETTE_USAGE[name] ?? "")
       );
     }
 
@@ -759,62 +790,198 @@ export class ReplHandler {
     console.log();
     console.log(chalk.cyan.bold("  震度カラー:"));
     console.log();
-    // fg: 文字色のみ, fg+bg: 文字色+背景色を分離表示
-    const intensities: Array<{ label: string; key: string; fg?: [number, number, number]; bg?: [number, number, number] }> = [
-      { label: "震度1",  key: "1" },
-      { label: "震度2",  key: "2" },
-      { label: "震度3",  key: "3" },
-      { label: "震度4",  key: "4" },
-      { label: "震度5弱", key: "5弱" },
-      { label: "震度5強", key: "5強" },
-      { label: "震度6弱", key: "6弱" },
-      { label: "震度6強", key: "6強", fg: [0, 0, 0],     bg: [213, 94, 0] },
-      { label: "震度7",  key: "7",   fg: [255, 255, 255], bg: [122, 30, 0] },
-    ];
+    const intensityKeys = ["1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7"];
+    const intensities = intensityKeys.map((key) => {
+      const label = `震度${key}`;
+      const style = intensityColor(key);
+      const role = getIntensityRole(key);
+      const resolved = role ? themeModule.getRole(role) : null;
+      return { label, key, style, resolved };
+    });
     this.printColorGrid(termWidth, intensities, (item) => {
-      const color = intensityColor(item.key);
-      if (item.fg && item.bg) {
-        return this.renderFgBgItem(item.label, item.fg, item.bg, color);
+      if (item.resolved?.bg && item.resolved?.fg) {
+        return this.renderFgBgItem(
+          item.label,
+          item.resolved.fg as [number, number, number],
+          item.resolved.bg as [number, number, number],
+          item.style,
+        );
       }
-      return { cell: `${color("██")} ${color(item.label)}`, visualLen: visualWidth(item.label) + 3 };
+      return { cell: `${item.style("██")} ${item.style(item.label)}`, visualLen: visualWidth(item.label) + 3 };
     });
 
     // ── 長周期地震動階級カラー (マルチカラム) ──
     console.log();
     console.log(chalk.cyan.bold("  長周期地震動階級カラー:"));
     console.log();
-    const lgInts: Array<{ label: string; key: string; fg?: [number, number, number]; bg?: [number, number, number] }> = [
-      { label: "階級0", key: "0" },
-      { label: "階級1", key: "1" },
-      { label: "階級2", key: "2" },
-      { label: "階級3", key: "3" },
-      { label: "階級4", key: "4", fg: [0, 0, 0], bg: [213, 94, 0] },
-    ];
+    const lgIntKeys = ["0", "1", "2", "3", "4"];
+    const lgInts = lgIntKeys.map((key) => {
+      const label = `階級${key}`;
+      const style = lgIntensityColor(key);
+      const role = getLgIntRole(key);
+      const resolved = role ? themeModule.getRole(role) : null;
+      return { label, key, style, resolved };
+    });
     this.printColorGrid(termWidth, lgInts, (item) => {
-      const color = lgIntensityColor(item.key);
-      if (item.fg && item.bg) {
-        return this.renderFgBgItem(item.label, item.fg, item.bg, color);
+      if (item.resolved?.bg && item.resolved?.fg) {
+        return this.renderFgBgItem(
+          item.label,
+          item.resolved.fg as [number, number, number],
+          item.resolved.bg as [number, number, number],
+          item.style,
+        );
       }
-      return { cell: `${color("██")} ${color(item.label)}`, visualLen: visualWidth(item.label) + 3 };
+      return { cell: `${item.style("██")} ${item.style(item.label)}`, visualLen: visualWidth(item.label) + 3 };
     });
 
     // ── フレームレベル (マルチカラム) ──
     console.log();
     console.log(chalk.cyan.bold("  フレームレベル:"));
     console.log();
-    const levels: Array<{ name: string; rgb: [number, number, number]; label: string }> = [
-      { name: "critical", rgb: [213, 94, 0],    label: "[緊急] 二重線" },
-      { name: "warning",  rgb: [230, 159, 0],   label: "[警告] 二重線" },
-      { name: "normal",   rgb: [86, 180, 233],  label: "[情報] 通常" },
-      { name: "info",     rgb: [132, 145, 158], label: "[通知] 通常" },
-      { name: "cancel",   rgb: [204, 121, 167], label: "[取消] 通常" },
+    const frameRoles: Array<{ name: string; role: themeModule.RoleName; label: string }> = [
+      { name: "critical", role: "frameCritical", label: "[緊急] 二重線" },
+      { name: "warning",  role: "frameWarning",  label: "[警告] 二重線" },
+      { name: "normal",   role: "frameNormal",   label: "[情報] 通常" },
+      { name: "info",     role: "frameInfo",      label: "[通知] 通常" },
+      { name: "cancel",   role: "frameCancel",    label: "[取消] 通常" },
     ];
-    this.printColorGrid(termWidth, levels, (lv) => {
-      const color = chalk.rgb(lv.rgb[0], lv.rgb[1], lv.rgb[2]);
+    this.printColorGrid(termWidth, frameRoles, (lv) => {
+      const style = themeModule.getRoleChalk(lv.role);
       const text = `${lv.name} ${lv.label}`;
-      return { cell: `${color("██")} ${color(text)}`, visualLen: visualWidth(text) + 3 };
+      return { cell: `${style("██")} ${style(text)}`, visualLen: visualWidth(text) + 3 };
     });
     console.log();
+  }
+
+  private handleTheme(args: string): void {
+    const sub = args.trim().toLowerCase();
+
+    if (sub === "" || sub === "info") {
+      // テーマ概要
+      const palette = themeModule.getPalette();
+      console.log();
+      console.log(chalk.cyan.bold("  カラーテーマ:"));
+      console.log();
+      // パレットスウォッチ (1行に全色)
+      const swatches = themeModule.getPaletteNames().map((name) => {
+        const rgb = palette[name];
+        return chalk.rgb(rgb[0], rgb[1], rgb[2])("██");
+      });
+      console.log(`  ${swatches.join(" ")}`);
+      console.log();
+      console.log(chalk.white(`  theme.json: `) + chalk.gray(themeModule.getThemePath()));
+      console.log(chalk.white(`  カスタマイズ: `) + (themeModule.isCustomized() ? chalk.green("あり") : chalk.gray("なし (デフォルト)")));
+      console.log();
+      console.log(chalk.gray("  サブコマンド: theme path / show / reset / reload / validate"));
+      console.log();
+      return;
+    }
+
+    if (sub === "path") {
+      console.log(`  ${themeModule.getThemePath()}`);
+      return;
+    }
+
+    if (sub === "show") {
+      this.handleThemeShow();
+      return;
+    }
+
+    if (sub === "reset") {
+      this.handleThemeReset();
+      return;
+    }
+
+    if (sub === "reload") {
+      const warnings = themeModule.reloadTheme();
+      if (warnings.length === 0) {
+        console.log(chalk.green("  テーマを再読込しました"));
+      } else {
+        console.log(chalk.yellow("  テーマを再読込しました (警告あり):"));
+        for (const w of warnings) {
+          console.log(chalk.yellow(`    ${w}`));
+        }
+      }
+      return;
+    }
+
+    if (sub === "validate") {
+      const { valid, warnings } = themeModule.validateThemeFile();
+      if (valid && warnings.length === 0) {
+        console.log(chalk.green("  theme.json に問題はありません"));
+      } else if (valid) {
+        console.log(chalk.yellow("  theme.json の検証結果:"));
+        for (const w of warnings) {
+          console.log(chalk.yellow(`    ${w}`));
+        }
+      } else {
+        console.log(chalk.red("  theme.json に問題があります:"));
+        for (const w of warnings) {
+          console.log(chalk.red(`    ${w}`));
+        }
+      }
+      return;
+    }
+
+    console.log(chalk.yellow(`  不明なサブコマンド: ${args.trim()}`));
+    console.log(chalk.gray("  使い方: theme / theme path / theme show / theme reset / theme reload / theme validate"));
+  }
+
+  private handleThemeShow(): void {
+    const termWidth = process.stdout.columns || 80;
+    const palette = themeModule.getPalette();
+
+    console.log();
+    console.log(chalk.cyan.bold("  パレット:"));
+    console.log();
+    for (const name of themeModule.getPaletteNames()) {
+      const rgb = palette[name];
+      const swatch = chalk.rgb(rgb[0], rgb[1], rgb[2])("██");
+      const hex = themeModule.rgbToHex(rgb);
+      console.log(`  ${swatch} ${chalk.white(name.padEnd(12))} ${chalk.gray(hex)}`);
+    }
+
+    console.log();
+    console.log(chalk.cyan.bold("  ロール:"));
+    console.log();
+    const roleNames = themeModule.getRoleNames();
+    const maxNameLen = Math.max(...roleNames.map((n) => n.length));
+    for (const name of roleNames) {
+      const style = themeModule.getRoleChalk(name);
+      const resolved = themeModule.getRole(name);
+      const parts: string[] = [];
+      if (resolved.fg) parts.push(`fg: ${themeModule.rgbToHex(resolved.fg)}`);
+      if (resolved.bg) parts.push(`bg: ${themeModule.rgbToHex(resolved.bg)}`);
+      if (resolved.bold) parts.push("bold");
+      const preview = style("Sample");
+      console.log(
+        `  ${chalk.white(name.padEnd(maxNameLen + 1))} ${preview}  ${chalk.gray(parts.join(", "))}`
+      );
+    }
+    console.log();
+  }
+
+  private handleThemeReset(): void {
+    if (!this.rl) return;
+    const rl = this.rl;
+    rl.question(
+      chalk.yellow("  デフォルトの theme.json を書き出しますか？ (y/N) "),
+      (answer: string) => {
+        if (answer.trim().toLowerCase() === "y") {
+          const warnings = themeModule.resetTheme();
+          console.log(chalk.green(`  theme.json を書き出しました: ${themeModule.getThemePath()}`));
+          if (warnings.length > 0) {
+            for (const w of warnings) {
+              console.log(chalk.yellow(`    ${w}`));
+            }
+          }
+        } else {
+          console.log(chalk.gray("  キャンセルしました"));
+        }
+        rl.setPrompt(this.buildPromptString());
+        rl.prompt();
+      }
+    );
   }
 
   /**

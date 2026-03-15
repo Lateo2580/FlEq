@@ -11,38 +11,8 @@ import {
 } from "../types";
 import type { EewDiff } from "../engine/eew-tracker";
 import * as log from "../logger";
-
-// ── CUD パレット (岡部・伊東 カラーユニバーサルデザイン推奨色ベース) ──
-
-/** CUD 推奨色の RGB 定数 */
-const CUD = {
-  /** グレー: 低優先度・補助テキスト */
-  gray:       [132, 145, 158] as const,
-  /** スカイブルー: 通常・長周期階級1 */
-  sky:        [86, 180, 233] as const,
-  /** ブルー: 震度3 */
-  blue:       [0, 114, 178] as const,
-  /** ブルーグリーン: 震度4・津波なし */
-  blueGreen:  [0, 158, 115] as const,
-  /** イエロー: 震度5弱・M3+ */
-  yellow:     [240, 228, 66] as const,
-  /** オレンジ: 警告レベル */
-  orange:     [230, 159, 0] as const,
-  /** 朱赤 (バーミリオン): 危険レベル */
-  vermillion: [213, 94, 0] as const,
-  /** ラズベリー: 取消・キャンセル */
-  raspberry:  [204, 121, 167] as const,
-  /** ダークレッド: 最高警戒 (背景用) */
-  darkRed:    [122, 30, 0] as const,
-} as const;
-
-/** CUD RGB タプルから chalk.rgb を返すショートカット */
-const cudFg = (c: readonly [number, number, number]): chalk.Chalk =>
-  chalk.rgb(c[0], c[1], c[2]);
-
-/** CUD RGB タプルから chalk.bgRgb を返すショートカット */
-const cudBg = (c: readonly [number, number, number]): chalk.Chalk =>
-  chalk.bgRgb(c[0], c[1], c[2]);
+import * as theme from "./theme";
+import type { RoleName } from "./theme";
 
 // ── フレーム幅キャッシュ ──
 
@@ -92,25 +62,32 @@ export function getDisplayMode(): DisplayMode {
 /** フレームの優先度レベル */
 type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
 
-/** フレーム文字セット (罫線のみ — 色は遅延生成) */
+/** フレーム文字セット (罫線のみ) */
 interface FrameChars {
   tl: string; tr: string; bl: string; br: string;
   h: string; v: string; divL: string; divR: string;
-  /** CUD RGB 値 (遅延で cudFg を生成するため色値だけ保持) */
-  rgb: readonly [number, number, number];
 }
 
 const FRAME_CHARS: Record<FrameLevel, FrameChars> = {
-  critical: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣", rgb: CUD.vermillion },
-  warning:  { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣", rgb: CUD.orange },
-  normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", rgb: CUD.sky },
-  info:     { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", rgb: CUD.gray },
-  cancel:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤", rgb: CUD.raspberry },
+  critical: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣" },
+  warning:  { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣" },
+  normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
+  info:     { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
+  cancel:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
+};
+
+/** フレームレベル → ロール名マッピング */
+const FRAME_ROLE_MAP: Record<FrameLevel, RoleName> = {
+  critical: "frameCritical",
+  warning: "frameWarning",
+  normal: "frameNormal",
+  info: "frameInfo",
+  cancel: "frameCancel",
 };
 
 /** フレームレベルに対応する色を返す (呼び出し時点の chalk.level を反映) */
 function frameColor(level: FrameLevel): chalk.Chalk {
-  return cudFg(FRAME_CHARS[level].rgb);
+  return theme.getRoleChalk(FRAME_ROLE_MAP[level]);
 }
 
 /** FRAMES 互換のアクセサ — 罫線文字 + 色 */
@@ -405,27 +382,27 @@ export function intensityColor(intensity: string): chalk.Chalk {
   const norm = intensity.replace(/\s+/g, "");
   switch (norm) {
     case "1":
-      return cudFg(CUD.gray);
+      return theme.getRoleChalk("intensity1");
     case "2":
-      return cudFg(CUD.sky);
+      return theme.getRoleChalk("intensity2");
     case "3":
-      return cudFg(CUD.blue);
+      return theme.getRoleChalk("intensity3");
     case "4":
-      return cudFg(CUD.blueGreen);
+      return theme.getRoleChalk("intensity4");
     case "5-":
     case "5弱":
-      return cudFg(CUD.yellow);
+      return theme.getRoleChalk("intensity5Lower");
     case "5+":
     case "5強":
-      return cudFg(CUD.orange);
+      return theme.getRoleChalk("intensity5Upper");
     case "6-":
     case "6弱":
-      return cudFg(CUD.vermillion).bold;
+      return theme.getRoleChalk("intensity6Lower");
     case "6+":
     case "6強":
-      return cudBg(CUD.vermillion).black.bold;
+      return theme.getRoleChalk("intensity6Upper");
     case "7":
-      return cudBg(CUD.darkRed).white.bold;
+      return theme.getRoleChalk("intensity7");
     default:
       return chalk.white;
   }
@@ -435,15 +412,15 @@ export function intensityColor(intensity: string): chalk.Chalk {
 export function lgIntensityColor(lgInt: string): chalk.Chalk {
   switch (lgInt) {
     case "0":
-      return cudFg(CUD.gray);
+      return theme.getRoleChalk("lgInt0");
     case "1":
-      return cudFg(CUD.sky);
+      return theme.getRoleChalk("lgInt1");
     case "2":
-      return cudFg(CUD.yellow);
+      return theme.getRoleChalk("lgInt2");
     case "3":
-      return cudFg(CUD.orange);
+      return theme.getRoleChalk("lgInt3");
     case "4":
-      return cudBg(CUD.vermillion).black.bold;
+      return theme.getRoleChalk("lgInt4");
     default:
       return chalk.white;
   }
@@ -507,11 +484,11 @@ function colorMagnitude(magStr: string): string {
   const mag = parseFloat(magStr);
   const magColor =
     mag >= 7.0
-      ? cudBg(CUD.darkRed).white.bold
+      ? theme.getRoleChalk("magnitudeMax")
       : mag >= 5.0
-        ? cudFg(CUD.vermillion).bold
+        ? theme.getRoleChalk("magnitudeHigh")
         : mag >= 3.0
-          ? cudFg(CUD.yellow)
+          ? theme.getRoleChalk("magnitudeLow")
           : chalk.white;
   return magColor(`M${magStr}`);
 }
@@ -520,9 +497,9 @@ function colorMagnitude(magStr: string): string {
 function tsunamiShort(info: ParsedEarthquakeInfo): string {
   if (!info.tsunami) return "";
   const t = info.tsunami.text;
-  if (t.includes("心配はありません") || t.includes("心配なし")) return cudFg(CUD.blueGreen)("津波なし");
-  if (t.includes("注意")) return cudFg(CUD.orange)("津波注意");
-  if (t.includes("警報")) return cudFg(CUD.vermillion)("津波警報");
+  if (t.includes("心配はありません") || t.includes("心配なし")) return theme.getRoleChalk("tsunamiNone")("津波なし");
+  if (t.includes("注意")) return theme.getRoleChalk("tsunamiAdvisory")("津波注意");
+  if (t.includes("警報")) return theme.getRoleChalk("tsunamiWarning")("津波警報");
   return chalk.white(t.length > 10 ? t.substring(0, 10) + "…" : t);
 }
 
@@ -569,7 +546,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
   }
 
   // タイトル行 (severity ラベル付き)
@@ -613,7 +590,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName), width));
+    console.log(frameLine(level, chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName), width));
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
@@ -693,21 +670,21 @@ export interface EewDisplayContext {
  */
 function getWarningBannerPalette(): chalk.Chalk[] {
   return [
-    cudBg(CUD.darkRed).white.bold,                           // ダークレッド (デフォルト)
-    cudBg(CUD.vermillion).white.bold,                        // バーミリオン (白文字)
-    cudBg(CUD.vermillion).black.bold,                        // バーミリオン (黒文字)
-    cudBg(CUD.orange).black.bold,                            // オレンジ
-    cudBg(CUD.raspberry).black.bold,                         // ラズベリー
+    theme.getRoleChalk("eewWarningBanner"),
+    theme.getRoleChalk("eewWarningBanner1"),
+    theme.getRoleChalk("eewWarningBanner2"),
+    theme.getRoleChalk("eewWarningBanner3"),
+    theme.getRoleChalk("eewWarningBanner4"),
   ];
 }
 
 function getForecastBannerPalette(): chalk.Chalk[] {
   return [
-    cudBg(CUD.yellow).black.bold,                            // CUD黄 (デフォルト)
-    cudBg(CUD.orange).black.bold,                            // CUDオレンジ
-    cudBg(CUD.sky).black.bold,                               // CUDスカイブルー
-    cudBg(CUD.blueGreen).black.bold,                         // CUDブルーグリーン
-    cudBg(CUD.gray).white.bold,                              // CUDグレー
+    theme.getRoleChalk("eewForecastBanner"),
+    theme.getRoleChalk("eewForecastBanner1"),
+    theme.getRoleChalk("eewForecastBanner2"),
+    theme.getRoleChalk("eewForecastBanner3"),
+    theme.getRoleChalk("eewForecastBanner4"),
   ];
 }
 
@@ -720,8 +697,8 @@ function getEewBannerStyle(isWarning: boolean, colorIndex: number): chalk.Chalk 
 /** PLUM法バナーの装飾行スタイル (1行目・3行目用) */
 function getPlumDecorStyle(isWarning: boolean): chalk.Chalk {
   return isWarning
-    ? cudBg(CUD.blue).white.bold      // 警報PLUM: CUD青
-    : cudBg(CUD.sky).black.bold;      // 予報PLUM: CUD空色
+    ? theme.getRoleChalk("plumDecorWarning")
+    : theme.getRoleChalk("plumDecorForecast");
 }
 
 /** EEW のフレームレベルを決定 */
@@ -774,7 +751,7 @@ export function displayEewInfo(
 
   if (isCancelled) {
     const bannerText = ` 緊急地震速報 取消${serialTag}${hypocenterTag}`;
-    const cancelBanner = cudBg(CUD.raspberry).black.bold;
+    const cancelBanner = theme.getRoleChalk("eewCancelBanner");
     console.log(cancelBanner(" ".repeat(bannerWidth)));
     console.log(cancelBanner(visualPadEnd(bannerText, bannerWidth)));
     console.log(cancelBanner(" ".repeat(bannerWidth)));
@@ -796,12 +773,12 @@ export function displayEewInfo(
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
   }
 
   // PLUM法ラベル (MaxIntChangeReason=9)
   if (info.maxIntChangeReason === 9) {
-    console.log(frameLine(level, cudFg(CUD.raspberry)("PLUM法") + chalk.gray(" による予測震度変化"), width));
+    console.log(frameLine(level, theme.getRoleChalk("plumLabel")("PLUM法") + chalk.gray(" による予測震度変化"), width));
   }
 
   // カード1行目: infoType + 最重要項目
@@ -812,7 +789,7 @@ export function displayEewInfo(
 
     // infoType (+ 同時発生注記)
     if (activeCount >= 2 && info.eventId) {
-      cardParts.push(cudFg(CUD.orange)(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`));
+      cardParts.push(theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`));
     } else {
       cardParts.push(chalk.gray(info.infoType));
     }
@@ -853,7 +830,7 @@ export function displayEewInfo(
     }
     if (activeCount >= 2 && info.eventId) {
       console.log(frameLine(level,
-        cudFg(CUD.orange)(`同時${activeCount}件発生中`) +
+        theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`) +
           chalk.gray(`  ${info.infoType}`),
         width
       ));
@@ -879,12 +856,12 @@ export function displayEewInfo(
     console.log(frameDivider(level, width));
 
     if (info.isAssumedHypocenter) {
-      console.log(frameLine(level, cudFg(CUD.raspberry)("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
+      console.log(frameLine(level, theme.getRoleChalk("plumLabel")("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
     }
 
     const hypoContent = diff?.hypocenterChange
-      ? chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName) + cudFg(CUD.sky)(" (変更)")
-      : chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName);
+      ? chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName) + theme.getRoleChalk("nextAdvisory")(" (変更)")
+      : chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName);
     console.log(frameLine(level, hypoContent, width));
 
     if (eq.originTime) {
@@ -912,7 +889,7 @@ export function displayEewInfo(
 
   if (isCancelled) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, cudFg(CUD.raspberry)("この地震についての緊急地震速報は取り消されました。"), width));
+    console.log(frameLine(level, theme.getRoleChalk("cancelText")("この地震についての緊急地震速報は取り消されました。"), width));
     if (info.eventId) {
       console.log(frameDivider(level, width));
       console.log(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
@@ -930,10 +907,10 @@ export function displayEewInfo(
       const color = intensityColor(area.intensity);
       let areaText = chalk.white(area.name);
       if (area.isPlum) {
-        areaText += cudFg(CUD.raspberry)(" [PLUM]");
+        areaText += theme.getRoleChalk("plumLabel")(" [PLUM]");
       }
       if (area.hasArrived) {
-        areaText += cudFg(CUD.vermillion)(" [到達]");
+        areaText += theme.getRoleChalk("arrivedLabel")(" [到達]");
       }
       if (area.lgIntensity && lgIntToNumeric(area.lgIntensity) >= 1) {
         const lc = lgIntensityColor(area.lgIntensity);
@@ -948,9 +925,9 @@ export function displayEewInfo(
     const arrivedAreas = info.forecastIntensity.areas.filter((a) => a.hasArrived);
     if (arrivedAreas.length > 0) {
       console.log(frameDivider(level, width));
-      console.log(frameLine(level, cudFg(CUD.vermillion)("既に主要動到達と推測:"), width));
+      console.log(frameLine(level, theme.getRoleChalk("arrivedLabel")("既に主要動到達と推測:"), width));
       const names = arrivedAreas.map((a) => a.name).join("、");
-      for (const line of wrapFrameLines(level, cudFg(CUD.vermillion)(names), width)) {
+      for (const line of wrapFrameLines(level, theme.getRoleChalk("arrivedLabel")(names), width)) {
         console.log(line);
       }
     }
@@ -959,7 +936,7 @@ export function displayEewInfo(
   // 最終報
   if (info.nextAdvisory) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, cudFg(CUD.sky)(info.nextAdvisory), width));
+    console.log(frameLine(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width));
   }
 
   // EventID
@@ -1028,7 +1005,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   console.log(frameTop(level, width));
 
   if (info.isTest) {
-    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
   }
 
   const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
@@ -1044,7 +1021,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName), width));
+    console.log(frameLine(level, chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName), width));
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
@@ -1068,11 +1045,11 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       const rows = sorted.map((item) => {
         let kindText = chalk.white(item.kind);
         if (item.kind.includes("大津波警報")) {
-          kindText = cudBg(CUD.darkRed).white.bold(item.kind);
+          kindText = theme.getRoleChalk("tsunamiMajor")(item.kind);
         } else if (item.kind.includes("津波警報")) {
-          kindText = cudFg(CUD.vermillion).bold(item.kind);
+          kindText = theme.getRoleChalk("tsunamiWarning")(item.kind);
         } else if (item.kind.includes("津波注意報")) {
-          kindText = cudFg(CUD.orange)(item.kind);
+          kindText = theme.getRoleChalk("tsunamiAdvisory")(item.kind);
         }
         return [
           kindText,
@@ -1087,11 +1064,11 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       for (const item of sorted) {
         let kindText = chalk.white(item.kind);
         if (item.kind.includes("大津波警報")) {
-          kindText = cudBg(CUD.darkRed).white.bold(item.kind);
+          kindText = theme.getRoleChalk("tsunamiMajor")(item.kind);
         } else if (item.kind.includes("津波警報")) {
-          kindText = cudFg(CUD.vermillion).bold(item.kind);
+          kindText = theme.getRoleChalk("tsunamiWarning")(item.kind);
         } else if (item.kind.includes("津波注意報")) {
-          kindText = cudFg(CUD.orange)(item.kind);
+          kindText = theme.getRoleChalk("tsunamiAdvisory")(item.kind);
         }
 
         const extra: string[] = [];
@@ -1165,7 +1142,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
 
   if (info.warningComment) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, cudFg(CUD.orange)(info.warningComment), width));
+    console.log(frameLine(level, theme.getRoleChalk("warningComment")(info.warningComment), width));
   }
 
   // フッター
@@ -1196,7 +1173,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
   console.log(frameTop(level, width));
 
   if (info.isTest) {
-    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
   }
 
   const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
@@ -1275,13 +1252,13 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // critical/warning 時はバナー表示
   if (level === "critical") {
     const bannerText = ` ${info.title}`;
-    const critBanner = cudBg(CUD.darkRed).white.bold;
+    const critBanner = theme.getRoleChalk("nankaiCriticalBanner");
     console.log(critBanner(" ".repeat(width)));
     console.log(critBanner(visualPadEnd(bannerText, width)));
     console.log(critBanner(" ".repeat(width)));
   } else if (level === "warning") {
     const bannerText = ` ${info.title}`;
-    const warnBanner = cudBg(CUD.orange).black.bold;
+    const warnBanner = theme.getRoleChalk("nankaiWarningBanner");
     console.log(warnBanner(" ".repeat(width)));
     console.log(warnBanner(visualPadEnd(bannerText, width)));
     console.log(warnBanner(" ".repeat(width)));
@@ -1291,7 +1268,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
   }
 
   // タイトル行
@@ -1301,7 +1278,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // InfoSerial (状態名)
   if (info.infoSerial) {
     console.log(frameDivider(level, width));
-    const serialColor = level === "critical" ? cudFg(CUD.vermillion).bold : cudFg(CUD.orange).bold;
+    const serialColor = level === "critical" ? theme.getRoleChalk("nankaiSerialCritical") : theme.getRoleChalk("nankaiSerialWarning");
     console.log(frameLine(level, chalk.white("状態: ") + serialColor(info.infoSerial.name), width));
   }
 
@@ -1330,7 +1307,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // 次回情報予告
   if (info.nextAdvisory) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, cudFg(CUD.sky)(info.nextAdvisory), width));
+    console.log(frameLine(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width));
   }
 
   // フッター
@@ -1376,7 +1353,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
 
   // テスト電文
   if (info.isTest) {
-    console.log(frameLine(level, cudBg(CUD.raspberry).white.bold(" テスト電文 "), width));
+    console.log(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
   }
 
   // タイトル行
@@ -1416,7 +1393,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   if (info.earthquake) {
     const eq = info.earthquake;
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.white("震源地: ") + cudFg(CUD.yellow).bold(eq.hypocenterName), width));
+    console.log(frameLine(level, chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName), width));
     if (eq.originTime) {
       console.log(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
     }
@@ -1455,7 +1432,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
   // 詳細URI
   if (info.detailUri) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, cudFg(CUD.sky)(info.detailUri), width));
+    console.log(frameLine(level, theme.getRoleChalk("detailUri")(info.detailUri), width));
   }
 
   // フッター
@@ -1470,7 +1447,7 @@ export function displayRawHeader(msg: WsDataMessage): void {
   console.log();
   console.log(separator());
   console.log(
-    cudFg(CUD.sky)(`電文受信: `) +
+    theme.getRoleChalk("rawHeaderLabel")(`電文受信: `) +
       chalk.white(sanitizeForTerminal(msg.xmlReport?.control?.title || msg.head.type)) +
       chalk.gray(` [${sanitizeForTerminal(msg.head.type)}]`)
   );

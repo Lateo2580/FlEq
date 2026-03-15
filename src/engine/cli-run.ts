@@ -13,6 +13,7 @@ import {
 import { listContracts } from "../dmdata/rest-client";
 import { startMonitor } from "./monitor";
 import { setFrameWidth, setInfoFullText, setDisplayMode } from "../ui/formatter";
+import { loadTheme } from "../ui/theme";
 import * as updateChecker from "./update-checker";
 import * as log from "../logger";
 
@@ -169,6 +170,12 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
       `契約状況の確認に失敗しました: ${err instanceof Error ? err.message : err}`
     );
     log.warn("指定された区分のまま接続を試みます");
+  }
+
+  // テーマ読込
+  const themeWarnings = loadTheme();
+  for (const w of themeWarnings) {
+    log.warn(w);
   }
 
   // formatter キャッシュ初期化

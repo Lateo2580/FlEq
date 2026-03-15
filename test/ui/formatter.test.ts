@@ -89,13 +89,13 @@ describe("intensityColor", () => {
 
   it("震度6強 → CUD vermillion 背景", () => {
     const result = intensityColor("6強")("test");
-    expect(result).toBe(chalk.bgRgb(213, 94, 0).black.bold("test"));
+    expect(result).toBe(chalk.bgRgb(213, 94, 0).rgb(0, 0, 0).bold("test"));
     expect(intensityColor("6+")("test")).toBe(result);
   });
 
   it("震度7 → CUD darkRed 背景白文字", () => {
     const result = intensityColor("7")("test");
-    expect(result).toBe(chalk.bgRgb(122, 30, 0).white.bold("test"));
+    expect(result).toBe(chalk.bgRgb(122, 30, 0).rgb(255, 255, 255).bold("test"));
   });
 
   it("不明な震度 → white", () => {
@@ -133,7 +133,7 @@ describe("lgIntensityColor", () => {
 
   it("階級4 → CUD vermillion 背景", () => {
     const result = lgIntensityColor("4")("test");
-    expect(result).toBe(chalk.bgRgb(213, 94, 0).black.bold("test"));
+    expect(result).toBe(chalk.bgRgb(213, 94, 0).rgb(0, 0, 0).bold("test"));
   });
 });
 
