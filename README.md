@@ -2,6 +2,47 @@
 
 Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
 
+## クイックスタート
+
+FlEq を最短で使い始めるには、以下の手順を実行してください。
+
+### 方法1: `fleq init` を使う（初回推奨）
+
+対話形式で API キーや受信設定をまとめて行えます。
+
+```bash
+npm install -g fleq
+fleq init
+fleq
+```
+
+### 方法2: 手動で設定する
+
+対話なしで設定したい場合は、API キーを保存してから起動します。
+
+```bash
+npm install -g fleq
+fleq config set apiKey your_api_key_here
+fleq
+```
+
+環境変数を使う場合は、以下でも起動できます。
+
+```bash
+export DMDATA_API_KEY=your_api_key_here
+fleq
+```
+
+PowerShell:
+
+```powershell
+$env:DMDATA_API_KEY = "your_api_key_here"
+fleq
+```
+
+初回は `telegram.earthquake,eew.forecast,eew.warning` を受信対象として起動します。
+契約内容によっては一部の区分を受信できない場合があります。
+
 ## 対応情報
 
 | 区分 | 分類名 | 内容 |
@@ -12,8 +53,18 @@ Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地
 
 ## 必要条件
 
-- Node.js 18以上
-- dmdata.jp のAPIキー（`socket.start` および該当区分の `telegram.get.*` 権限が必要）
+FlEq を利用するには、以下が必要です。
+
+- Node.js 18 以上
+- dmdata.jp のアカウント
+- dmdata.jp で発行した API キー
+- API キーに `socket.start` と、利用する区分に対応した `telegram.get.*` 権限
+
+受信する情報の種類によって、必要な契約区分や権限が異なります。
+たとえば、緊急地震速報（`eew.forecast` / `eew.warning`）の受信には、対応する契約が必要です。
+
+API キーをまだ取得していない場合は、先に dmdata.jp でアカウント作成と API キー発行を行ってください。
+対応 OS については下記の「対応OS」を参照してください。
 
 ## 対応OS
 
@@ -83,30 +134,82 @@ fleq config set apiKey your_api_key_here
 DMDATA_API_KEY=your-key-here
 ```
 
-## 使い方
+## 基本的な使い方
+
+初めて使う場合は、次の順で進めると分かりやすいです。
+
+### 1. 初期設定を行う
+
+まずは API キーを設定します。初回は対話形式の `init` が簡単です。
 
 ```bash
-# インタラクティブ初期設定を行います（初回推奨）
 fleq init
+```
 
-# デフォルト区分を受信します（telegram.earthquake,eew.forecast,eew.warning）
+対話なしで設定する場合は、次のように API キーを保存できます。
+
+```bash
+fleq config set apiKey your_api_key_here
+```
+
+### 2. そのまま起動する
+
+デフォルト設定で起動すると、以下の区分を受信します。
+
+- `telegram.earthquake`
+- `eew.forecast`
+- `eew.warning`
+
+```bash
 fleq
+```
 
-# 複数の区分を受信します
+契約内容によっては、一部の区分を受信できない場合があります。
+
+### 3. 必要に応じて受信区分を指定する
+
+受信したい区分だけを指定して起動できます。
+
+```bash
 fleq -c telegram.earthquake,eew.warning
+```
 
-# テスト電文も含めて受信します
-fleq --test including
+### 4. 表示や動作を調整する
 
-# 表示モードを指定して起動します
+表示モードを切り替えたい場合:
+
+```bash
 fleq --mode compact
+```
 
-# デバッグログを表示します
+テスト電文も受信したい場合:
+
+```bash
+fleq --test including
+```
+
+デバッグログを表示したい場合:
+
+```bash
 fleq --debug
+```
 
-# 同一APIキーの既存 open socket を閉じてから接続します
+同一 API キーの既存 open socket を閉じてから接続したい場合:
+
+```bash
 fleq --close-others
 ```
+
+### 5. 実行中は REPL コマンドを使える
+
+起動中は `fleq>` プロンプトで各種コマンドを利用できます。
+
+- `help`: コマンド一覧を表示
+- `status`: 接続状態を確認
+- `config`: 現在の設定を確認
+- `quit`: 終了
+
+詳しくは下記の「REPLコマンド」を参照してください。
 
 ## テスト
 
