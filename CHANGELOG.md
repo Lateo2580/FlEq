@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.37.0](https://github.com/Lateo2580/FlEq/compare/v1.36.0...v1.37.0) (2026-03-15)
+
+
+### 機能追加
+
+* colorsコマンドの表示をマルチカラム対応＆文字色/背景色を分離表示 ([1018df5](https://github.com/Lateo2580/FlEq/commit/1018df5aa657188c9bae8ea6c0fea8c26970e35d))
+
 ## [1.36.0](https://github.com/Lateo2580/FlEq/compare/v1.35.0...v1.36.0) (2026-03-15)
 
 
