@@ -756,10 +756,10 @@ export class ReplHandler {
       { label: "震度7",  key: "7",   fg: [255, 255, 255], bg: [122, 30, 0] },
     ];
     this.printColorGrid(termWidth, intensities, (item) => {
-      if (item.fg && item.bg) {
-        return this.renderFgBgItem(item.label, item.fg, item.bg);
-      }
       const color = intensityColor(item.key);
+      if (item.fg && item.bg) {
+        return this.renderFgBgItem(item.label, item.fg, item.bg, color);
+      }
       return { cell: `${color("██")} ${color(item.label)}`, visualLen: visualWidth(item.label) + 3 };
     });
 
@@ -775,10 +775,10 @@ export class ReplHandler {
       { label: "階級4", key: "4", fg: [0, 0, 0], bg: [213, 94, 0] },
     ];
     this.printColorGrid(termWidth, lgInts, (item) => {
-      if (item.fg && item.bg) {
-        return this.renderFgBgItem(item.label, item.fg, item.bg);
-      }
       const color = lgIntensityColor(item.key);
+      if (item.fg && item.bg) {
+        return this.renderFgBgItem(item.label, item.fg, item.bg, color);
+      }
       return { cell: `${color("██")} ${color(item.label)}`, visualLen: visualWidth(item.label) + 3 };
     });
 
@@ -803,17 +803,18 @@ export class ReplHandler {
 
   /**
    * fg/bg 分離表示用のセルを生成する。
-   * 文字色 ██ と背景色 ██ を横に並べてラベルを添える。
+   * 文字色 ██ と背景色 ██ を横に並べ、ラベルは実際の表示スタイル(fg+bg)で表示する。
    */
   private renderFgBgItem(
     label: string,
     fg: [number, number, number],
     bg: [number, number, number],
+    style: chalk.Chalk,
   ): { cell: string; visualLen: number } {
     const fgBlock = chalk.rgb(fg[0], fg[1], fg[2])("██");
     const bgBlock = chalk.bgRgb(bg[0], bg[1], bg[2])("  ");
     // "██ ██ label" → swatch(2) + space(1) + swatch(2) + space(1) + label
-    return { cell: `${fgBlock} ${bgBlock} ${chalk.white(label)}`, visualLen: visualWidth(label) + 6 };
+    return { cell: `${fgBlock} ${bgBlock} ${style(label)}`, visualLen: visualWidth(label) + 6 };
   }
 
   /**
