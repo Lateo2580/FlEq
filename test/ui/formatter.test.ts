@@ -246,6 +246,27 @@ describe("displayEarthquakeInfo", () => {
     expect(output).toContain("震度4");
     expect(output).toContain("震度3");
   });
+
+  it("VXSE51 震度速報: 震源未確定メッセージが表示される", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO, {
+      head: {
+        type: "VXSE51",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEarthquakeTelegram(msg);
+    expect(info).not.toBeNull();
+    // VXSE51 は震源情報を含まない
+    expect(info!.earthquake).toBeUndefined();
+
+    displayEarthquakeInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    expect(output).toContain("震源についてはただいま調査中です");
+  });
 });
 
 // ── displayEewInfo (stdout キャプチャ) ──

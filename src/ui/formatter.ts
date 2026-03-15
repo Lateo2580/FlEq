@@ -597,6 +597,9 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     if (eq.latitude && eq.longitude) {
       console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
     }
+  } else if (info.type === "VXSE51") {
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.yellow("※ 震源についてはただいま調査中です"), width));
   }
 
   // 震度一覧
