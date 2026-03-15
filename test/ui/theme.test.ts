@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -12,7 +12,11 @@ import {
   getPalette,
   getRole,
   generateDefaultThemeJson,
+  validateThemeFile,
+  resetTheme,
+  getThemePath,
   DEFAULT_PALETTE,
+  DEFAULT_ROLES,
 } from "../../src/ui/theme";
 import type {
   ThemeFile,
@@ -21,6 +25,7 @@ import type {
   RgbTuple,
   RoleName,
 } from "../../src/ui/theme";
+import * as config from "../../src/config";
 
 // ── hexToRgb ──
 
@@ -69,62 +74,7 @@ describe("rgbToHex", () => {
 describe("resolveTheme", () => {
   const defaults = {
     palette: DEFAULT_PALETTE,
-    roles: {
-      frameCritical: "vermillion" as const,
-      frameWarning: "orange" as const,
-      frameNormal: "sky" as const,
-      frameInfo: "gray" as const,
-      frameCancel: "raspberry" as const,
-      intensity1: "gray" as const,
-      intensity2: "sky" as const,
-      intensity3: "blue" as const,
-      intensity4: "blueGreen" as const,
-      intensity5Lower: "yellow" as const,
-      intensity5Upper: "orange" as const,
-      intensity6Lower: { fg: "vermillion", bold: true } as const,
-      intensity6Upper: { bg: "vermillion", fg: "#000000", bold: true } as const,
-      intensity7: { bg: "darkRed", fg: "#FFFFFF", bold: true } as const,
-      lgInt0: "gray" as const,
-      lgInt1: "sky" as const,
-      lgInt2: "yellow" as const,
-      lgInt3: "orange" as const,
-      lgInt4: { bg: "vermillion", fg: "#000000", bold: true } as const,
-      magnitudeLow: "yellow" as const,
-      magnitudeHigh: { fg: "vermillion", bold: true } as const,
-      magnitudeMax: { bg: "darkRed", fg: "#FFFFFF", bold: true } as const,
-      tsunamiNone: "blueGreen" as const,
-      tsunamiAdvisory: "orange" as const,
-      tsunamiWarning: { fg: "vermillion", bold: true } as const,
-      tsunamiMajor: { bg: "darkRed", fg: "#FFFFFF", bold: true } as const,
-      eewWarningBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as const,
-      eewForecastBanner: { bg: "yellow", fg: "#000000", bold: true } as const,
-      eewCancelBanner: { bg: "raspberry", fg: "#000000", bold: true } as const,
-      plumLabel: "raspberry" as const,
-      arrivedLabel: "vermillion" as const,
-      cancelText: "raspberry" as const,
-      testBadge: { bg: "raspberry", fg: "#FFFFFF", bold: true } as const,
-      hypocenter: { fg: "yellow", bold: true } as const,
-      concurrent: "orange" as const,
-      nextAdvisory: "sky" as const,
-      warningComment: "orange" as const,
-      detailUri: "sky" as const,
-      textMuted: "gray" as const,
-      nankaiCriticalBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as const,
-      nankaiWarningBanner: { bg: "orange", fg: "#000000", bold: true } as const,
-      nankaiSerialCritical: { fg: "vermillion", bold: true } as const,
-      nankaiSerialWarning: { fg: "orange", bold: true } as const,
-      eewWarningBanner1: { bg: "vermillion", fg: "#FFFFFF", bold: true } as const,
-      eewWarningBanner2: { bg: "vermillion", fg: "#000000", bold: true } as const,
-      eewWarningBanner3: { bg: "orange", fg: "#000000", bold: true } as const,
-      eewWarningBanner4: { bg: "raspberry", fg: "#000000", bold: true } as const,
-      eewForecastBanner1: { bg: "orange", fg: "#000000", bold: true } as const,
-      eewForecastBanner2: { bg: "sky", fg: "#000000", bold: true } as const,
-      eewForecastBanner3: { bg: "blueGreen", fg: "#000000", bold: true } as const,
-      eewForecastBanner4: { bg: "gray", fg: "#FFFFFF", bold: true } as const,
-      plumDecorWarning: { bg: "blue", fg: "#FFFFFF", bold: true } as const,
-      plumDecorForecast: { bg: "sky", fg: "#000000", bold: true } as const,
-      rawHeaderLabel: "sky" as const,
-    },
+    roles: DEFAULT_ROLES,
   };
 
   it("空入力で全デフォルトが返る", () => {
@@ -223,6 +173,46 @@ describe("resolveTheme", () => {
     expect(warnings.length).toBe(1);
     expect(warnings[0]).toContain("未知のキー");
   });
+
+  it("不正型 role 値 (数値) で警告 + デフォルトフォールバック", () => {
+    const { theme, warnings } = resolveTheme(
+      { roles: { frameCritical: 123 as unknown as string } },
+      defaults,
+    );
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toContain("不正な値の形式です");
+    expect(theme.roles.frameCritical).toEqual({ fg: [213, 94, 0], bold: false });
+  });
+
+  it("不正型 role 値 (配列) で警告 + デフォルトフォールバック", () => {
+    const { theme, warnings } = resolveTheme(
+      { roles: { frameWarning: [] as unknown as string } },
+      defaults,
+    );
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toContain("不正な値の形式です");
+    expect(theme.roles.frameWarning).toEqual({ fg: [230, 159, 0], bold: false });
+  });
+
+  it("不正型 role 値 (fg が数値) で警告 + デフォルトフォールバック", () => {
+    const { theme, warnings } = resolveTheme(
+      { roles: { frameCritical: { fg: 1 } as unknown as string } },
+      defaults,
+    );
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toContain("不正な値の形式です");
+    expect(theme.roles.frameCritical).toEqual({ fg: [213, 94, 0], bold: false });
+  });
+
+  it("不正型 role 値 (bold が文字列) で警告 + デフォルトフォールバック", () => {
+    const { theme, warnings } = resolveTheme(
+      { roles: { frameCritical: { bold: "true" } as unknown as string } },
+      defaults,
+    );
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toContain("不正な値の形式です");
+    expect(theme.roles.frameCritical).toEqual({ fg: [213, 94, 0], bold: false });
+  });
 });
 
 // ── loadThemeFromPath ──
@@ -272,6 +262,31 @@ describe("loadThemeFromPath", () => {
     expect(warnings.length).toBe(1);
     expect(warnings[0]).toContain("不正");
   });
+
+  it("palette が配列の場合は無視される", () => {
+    fs.writeFileSync(path.join(tmpDir, "theme.json"), JSON.stringify({ palette: [1, 2, 3] }));
+    const warnings = loadThemeFromPath(path.join(tmpDir, "theme.json"));
+    expect(warnings.some((w) => w.includes("palette"))).toBe(true);
+    expect(getPalette().gray).toEqual([132, 145, 158]);
+  });
+
+  it("roles が文字列の場合は無視される", () => {
+    fs.writeFileSync(path.join(tmpDir, "theme.json"), JSON.stringify({ roles: "invalid" }));
+    const warnings = loadThemeFromPath(path.join(tmpDir, "theme.json"));
+    expect(warnings.some((w) => w.includes("roles"))).toBe(true);
+  });
+
+  it("不正型 role 値を含む theme.json で警告 + フォールバック", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "theme.json"),
+      JSON.stringify({ roles: { frameCritical: 123 } }),
+    );
+    const warnings = loadThemeFromPath(path.join(tmpDir, "theme.json"));
+    expect(warnings.some((w) => w.includes("不正な値の形式です"))).toBe(true);
+    // デフォルトにフォールバック
+    const role = getRole("frameCritical");
+    expect(role).toEqual({ fg: [213, 94, 0], bold: false });
+  });
 });
 
 // ── getRoleChalk ──
@@ -299,6 +314,104 @@ describe("getRoleChalk", () => {
     const c = getRoleChalk("intensity7");
     const result = c("test");
     expect(result).toBe(chalk.bgRgb(122, 30, 0).rgb(255, 255, 255).bold("test"));
+  });
+
+  it("同一 chalk.level で同一参照を返す (キャッシュ)", () => {
+    const c1 = getRoleChalk("frameCritical");
+    const c2 = getRoleChalk("frameCritical");
+    expect(c1).toBe(c2);
+  });
+
+  it("テーマリロード後はキャッシュがクリアされる", () => {
+    const c1 = getRoleChalk("frameCritical");
+    loadThemeFromPath("/nonexistent-path"); // キャッシュクリア
+    const c2 = getRoleChalk("frameCritical");
+    // 同じ結果だが異なるインスタンス（キャッシュクリア済み）
+    expect(c1).not.toBe(c2);
+    expect(c1("test")).toBe(c2("test"));
+  });
+});
+
+// ── validateThemeFile ──
+
+describe("validateThemeFile", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-validate-"));
+    vi.spyOn(config, "getConfigDir").mockReturnValue(tmpDir);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("theme.json がない場合は valid: true", () => {
+    const result = validateThemeFile();
+    expect(result.valid).toBe(true);
+    expect(result.warnings[0]).toContain("見つかりません");
+  });
+
+  it("正常な theme.json で valid: true + 警告なし", () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "theme.json"),
+      JSON.stringify({ palette: { gray: "#AABBCC" } }),
+    );
+    const result = validateThemeFile();
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("不正構造の theme.json で valid: false", () => {
+    fs.writeFileSync(path.join(tmpDir, "theme.json"), "[]");
+    const result = validateThemeFile();
+    expect(result.valid).toBe(false);
+    expect(result.warnings[0]).toContain("不正");
+  });
+
+  it("palette が配列の場合は警告", () => {
+    fs.writeFileSync(path.join(tmpDir, "theme.json"), JSON.stringify({ palette: [] }));
+    const result = validateThemeFile();
+    expect(result.valid).toBe(false);
+    expect(result.warnings.some((w) => w.includes("palette"))).toBe(true);
+  });
+});
+
+// ── resetTheme ──
+
+describe("resetTheme", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "theme-reset-"));
+    vi.spyOn(config, "getConfigDir").mockReturnValue(tmpDir);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("デフォルト theme.json を書き出し、再読込で警告なし", () => {
+    const warnings = resetTheme();
+    expect(warnings).toEqual([]);
+    // ファイルが存在する
+    expect(fs.existsSync(path.join(tmpDir, "theme.json"))).toBe(true);
+    // 書き出された内容が有効な JSON
+    const content = fs.readFileSync(path.join(tmpDir, "theme.json"), "utf-8");
+    const parsed = JSON.parse(content);
+    expect(parsed).toHaveProperty("palette");
+    expect(parsed).toHaveProperty("roles");
+  });
+
+  it("既存 theme.json があっても上書きされる", () => {
+    fs.writeFileSync(path.join(tmpDir, "theme.json"), '{"palette":{}}');
+    const warnings = resetTheme();
+    expect(warnings).toEqual([]);
+    const content = fs.readFileSync(path.join(tmpDir, "theme.json"), "utf-8");
+    const parsed = JSON.parse(content);
+    expect(parsed.palette.gray).toBe("#84919E");
   });
 });
 

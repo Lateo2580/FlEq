@@ -24,13 +24,25 @@ export type RgbTuple = readonly [number, number, number];
 type HexColor = string;
 
 /** ロールのスタイル定義（ファイル上の形式） */
-type RoleStyleDef =
+export type RoleStyleDef =
   | string
   | {
       bg?: string; // パレット名 or HEX
       fg?: string; // パレット名 or HEX
       bold?: boolean;
     };
+
+/** RoleStyleDef の型ガード */
+function isRoleStyleDef(value: unknown): value is RoleStyleDef {
+  if (typeof value === "string") return true;
+  if (typeof value !== "object" || value == null || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    (v.fg == null || typeof v.fg === "string") &&
+    (v.bg == null || typeof v.bg === "string") &&
+    (v.bold == null || typeof v.bold === "boolean")
+  );
+}
 
 /** 解決済みスタイル */
 export interface ResolvedStyle {
@@ -82,7 +94,7 @@ const PALETTE_NAMES: PaletteColorName[] = [
 // ── デフォルトロール ──
 
 /** セマンティックロール定義 */
-const DEFAULT_ROLES = {
+export const DEFAULT_ROLES = {
   // frame
   frameCritical: "vermillion" as RoleStyleDef,
   frameWarning: "orange" as RoleStyleDef,
@@ -241,6 +253,28 @@ function resolveRoleStyle(
   };
 }
 
+/** パース済みオブジェクトを ThemeFile として安全に変換する */
+function sanitizeThemeInput(parsed: Record<string, unknown>): { themeFile: ThemeFile; warnings: string[] } {
+  const warnings: string[] = [];
+  const themeFile: ThemeFile = {};
+
+  if ("palette" in parsed) {
+    if (typeof parsed.palette === "object" && parsed.palette != null && !Array.isArray(parsed.palette)) {
+      themeFile.palette = parsed.palette as Record<string, string>;
+    } else {
+      warnings.push("palette はオブジェクトである必要があります。無視します。");
+    }
+  }
+  if ("roles" in parsed) {
+    if (typeof parsed.roles === "object" && parsed.roles != null && !Array.isArray(parsed.roles)) {
+      themeFile.roles = parsed.roles as Record<string, RoleStyleDef>;
+    } else {
+      warnings.push("roles はオブジェクトである必要があります。無視します。");
+    }
+  }
+  return { themeFile, warnings };
+}
+
 /** 純粋関数: ThemeFile → ResolvedTheme + 警告リスト */
 export function resolveTheme(
   raw: ThemeFile,
@@ -274,6 +308,12 @@ export function resolveTheme(
 
   for (const roleName of ROLE_NAMES) {
     const rawRole = raw.roles?.[roleName];
+    if (rawRole != null && !isRoleStyleDef(rawRole)) {
+      warnings.push(`roles.${roleName}: 不正な値の形式です (文字列またはオブジェクト{fg?,bg?,bold?}を指定してください)`);
+      const fallback = resolveRoleStyle(defaults.roles[roleName], palette);
+      roles[roleName] = fallback.style;
+      continue;
+    }
     const def = rawRole ?? defaults.roles[roleName];
     const { style, warnings: roleWarnings } = resolveRoleStyle(def, palette);
     for (const w of roleWarnings) {
@@ -305,9 +345,19 @@ export function resolveTheme(
 
 // ── デフォルトテーマの事前解決 ──
 
+/** テーマオブジェクトを再帰的にフリーズする */
+function deepFreezeTheme(theme: ResolvedTheme): ResolvedTheme {
+  Object.freeze(theme.palette);
+  for (const rgb of Object.values(theme.palette)) Object.freeze(rgb);
+  Object.freeze(theme.roles);
+  for (const style of Object.values(theme.roles)) Object.freeze(style);
+  Object.freeze(theme);
+  return theme;
+}
+
 function buildDefaultResolvedTheme(): ResolvedTheme {
   const { theme } = resolveTheme({}, { palette: DEFAULT_PALETTE, roles: DEFAULT_ROLES });
-  return theme;
+  return deepFreezeTheme(theme);
 }
 
 // ── モジュール状態 ──
@@ -330,6 +380,8 @@ export function loadTheme(): string[] {
 
 /** パス指定でテーマを読み込む (テスト用) */
 export function loadThemeFromPath(themePath: string): string[] {
+  chalkCache.clear();
+
   if (!fs.existsSync(themePath)) {
     currentTheme = buildDefaultResolvedTheme();
     return [];
@@ -342,13 +394,13 @@ export function loadThemeFromPath(themePath: string): string[] {
       currentTheme = buildDefaultResolvedTheme();
       return ["theme.json の形式が不正です。デフォルトテーマを使用します。"];
     }
-    const themeFile = parsed as ThemeFile;
+    const { themeFile, warnings: sanitizeWarnings } = sanitizeThemeInput(parsed as Record<string, unknown>);
     const { theme, warnings } = resolveTheme(themeFile, {
       palette: DEFAULT_PALETTE,
       roles: DEFAULT_ROLES,
     });
-    currentTheme = theme;
-    return warnings;
+    currentTheme = deepFreezeTheme(theme);
+    return [...sanitizeWarnings, ...warnings];
   } catch (err) {
     currentTheme = buildDefaultResolvedTheme();
     if (err instanceof SyntaxError) {
@@ -370,13 +422,20 @@ export function reloadTheme(): string[] {
 export function resetTheme(): string[] {
   const themePath = getThemePath();
   const dir = path.dirname(themePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    }
+    fs.writeFileSync(themePath, generateDefaultThemeJson(), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+  } catch (err) {
+    if (err instanceof Error) {
+      return [`theme.json の書き出しに失敗しました: ${err.message}`];
+    }
+    return ["theme.json の書き出しに失敗しました。"];
   }
-  fs.writeFileSync(themePath, generateDefaultThemeJson(), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
   return loadThemeFromPath(themePath);
 }
 
@@ -393,12 +452,13 @@ export function validateThemeFile(): { valid: boolean; warnings: string[] } {
     if (typeof parsed !== "object" || parsed == null || Array.isArray(parsed)) {
       return { valid: false, warnings: ["theme.json の形式が不正です (オブジェクトである必要があります)"] };
     }
-    const themeFile = parsed as ThemeFile;
+    const { themeFile, warnings: sanitizeWarnings } = sanitizeThemeInput(parsed as Record<string, unknown>);
     const { warnings } = resolveTheme(themeFile, {
       palette: DEFAULT_PALETTE,
       roles: DEFAULT_ROLES,
     });
-    return { valid: warnings.length === 0, warnings };
+    const allWarnings = [...sanitizeWarnings, ...warnings];
+    return { valid: allWarnings.length === 0, warnings: allWarnings };
   } catch (err) {
     if (err instanceof SyntaxError) {
       return { valid: false, warnings: [`JSONパースエラー: ${err.message}`] };
@@ -422,9 +482,16 @@ export function getRole(name: RoleName): ResolvedStyle {
   return currentTheme.roles[name];
 }
 
-/** ResolvedStyle → chalk.Chalk に変換して返す */
+let chalkCache = new Map<string, chalk.Chalk>();
+
+/** ResolvedStyle → chalk.Chalk に変換して返す (キャッシュ付き) */
 export function getRoleChalk(name: RoleName): chalk.Chalk {
-  return styleToChalk(currentTheme.roles[name]);
+  const key = `${chalk.level}:${name}`;
+  const cached = chalkCache.get(key);
+  if (cached) return cached;
+  const built = styleToChalk(currentTheme.roles[name]);
+  chalkCache.set(key, built);
+  return built;
 }
 
 /** ResolvedStyle を chalk.Chalk に変換する */

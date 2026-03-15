@@ -802,8 +802,8 @@ export class ReplHandler {
       if (item.resolved?.bg && item.resolved?.fg) {
         return this.renderFgBgItem(
           item.label,
-          item.resolved.fg as [number, number, number],
-          item.resolved.bg as [number, number, number],
+          item.resolved.fg,
+          item.resolved.bg,
           item.style,
         );
       }
@@ -826,8 +826,8 @@ export class ReplHandler {
       if (item.resolved?.bg && item.resolved?.fg) {
         return this.renderFgBgItem(
           item.label,
-          item.resolved.fg as [number, number, number],
-          item.resolved.bg as [number, number, number],
+          item.resolved.fg,
+          item.resolved.bg,
           item.style,
         );
       }
@@ -968,12 +968,17 @@ export class ReplHandler {
       chalk.yellow("  デフォルトの theme.json を書き出しますか？ (y/N) "),
       (answer: string) => {
         if (answer.trim().toLowerCase() === "y") {
-          const warnings = themeModule.resetTheme();
-          console.log(chalk.green(`  theme.json を書き出しました: ${themeModule.getThemePath()}`));
-          if (warnings.length > 0) {
-            for (const w of warnings) {
-              console.log(chalk.yellow(`    ${w}`));
+          try {
+            const warnings = themeModule.resetTheme();
+            console.log(chalk.green(`  theme.json を書き出しました: ${themeModule.getThemePath()}`));
+            if (warnings.length > 0) {
+              for (const w of warnings) {
+                console.log(chalk.yellow(`    ${w}`));
+              }
             }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "不明なエラー";
+            console.log(chalk.red(`  theme.json の書き出しに失敗しました: ${msg}`));
           }
         } else {
           console.log(chalk.gray("  キャンセルしました"));
@@ -990,8 +995,8 @@ export class ReplHandler {
    */
   private renderFgBgItem(
     label: string,
-    fg: [number, number, number],
-    bg: [number, number, number],
+    fg: readonly [number, number, number],
+    bg: readonly [number, number, number],
     style: chalk.Chalk,
   ): { cell: string; visualLen: number } {
     const fgBlock = chalk.rgb(fg[0], fg[1], fg[2])("██");
