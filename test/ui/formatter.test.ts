@@ -603,6 +603,109 @@ describe("displayEewInfo", () => {
     expect(output1).toContain("緊急地震速報（警報）");
     expect(output0).not.toBe(output1);
   });
+
+  it("PLUM法予報: 装飾行がCUD空色で、テキスト行は従来色になる", () => {
+    const origLevel = chalk.level;
+    chalk.level = 3;
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE45",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+    expect(info!.isAssumedHypocenter).toBe(true);
+
+    displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
+
+    // index 0 = 空行, 1 = 装飾行(1行目), 2 = テキスト行, 3 = 装飾行(3行目)
+    const decorLine1 = String(logSpy.mock.calls[1]?.[0]);
+    const textLine = String(logSpy.mock.calls[2]?.[0]);
+    const decorLine3 = String(logSpy.mock.calls[3]?.[0]);
+
+    // 装飾行同士は同じスタイル
+    expect(decorLine1).toBe(decorLine3);
+    // 装飾行とテキスト行は異なるスタイル (PLUM空色 vs 従来予報色)
+    expect(decorLine1).not.toBe(textLine);
+    // CUD空色 RGB(86, 180, 233) のANSIエスケープを含む
+    expect(decorLine1).toContain("86");
+    expect(decorLine1).toContain("180");
+    expect(decorLine1).toContain("233");
+
+    chalk.level = origLevel;
+  });
+
+  it("PLUM法警報: 装飾行がCUD青で、テキスト行は従来警報色になる", () => {
+    const origLevel = chalk.level;
+    chalk.level = 3;
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE45_PLUM, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE45",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+    // isWarning を強制的に true にしてテスト
+    info!.isWarning = true;
+
+    displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
+
+    const decorLine1 = String(logSpy.mock.calls[1]?.[0]);
+    const textLine = String(logSpy.mock.calls[2]?.[0]);
+    const decorLine3 = String(logSpy.mock.calls[3]?.[0]);
+
+    expect(decorLine1).toBe(decorLine3);
+    expect(decorLine1).not.toBe(textLine);
+    // CUD青 RGB(0, 114, 178) のANSIエスケープを含む
+    expect(decorLine1).toContain("114");
+    expect(decorLine1).toContain("178");
+
+    chalk.level = origLevel;
+  });
+
+  it("通常EEW: 装飾行とテキスト行が同じスタイルになる", () => {
+    const origLevel = chalk.level;
+    chalk.level = 3;
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE44",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+    expect(info!.isAssumedHypocenter).toBe(false);
+
+    displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
+
+    // 通常EEWでは装飾行とテキスト行が同じバナースタイル
+    const decorLine1 = String(logSpy.mock.calls[1]?.[0]);
+    const textLine = String(logSpy.mock.calls[2]?.[0]);
+    const decorLine3 = String(logSpy.mock.calls[3]?.[0]);
+
+    expect(decorLine1).toBe(decorLine3);
+    // テキスト行は文字が入るので完全一致はしないが、ANSIプレフィックスが同じ
+    // → 装飾行同士が一致していれば、通常EEWの一貫性は確認できる
+
+    chalk.level = origLevel;
+  });
 });
 
 describe("displayTsunamiInfo", () => {

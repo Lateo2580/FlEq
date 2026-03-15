@@ -717,6 +717,13 @@ function getEewBannerStyle(isWarning: boolean, colorIndex: number): chalk.Chalk 
   return palette[colorIndex % palette.length];
 }
 
+/** PLUM法バナーの装飾行スタイル (1行目・3行目用) */
+function getPlumDecorStyle(isWarning: boolean): chalk.Chalk {
+  return isWarning
+    ? cudBg(CUD.blue).white.bold      // 警報PLUM: CUD青
+    : cudBg(CUD.sky).black.bold;      // 予報PLUM: CUD空色
+}
+
 /** EEW のフレームレベルを決定 */
 function eewFrameLevel(info: ParsedEewInfo): FrameLevel {
   if (info.infoType === "取消") return "cancel";
@@ -775,9 +782,10 @@ export function displayEewInfo(
     const bannerStyle = getEewBannerStyle(info.isWarning, colorIndex);
     const typeLabel = info.isWarning ? "警報" : "予報";
     const bannerText = ` 緊急地震速報（${typeLabel}）${serialTag}${hypocenterTag}`;
-    console.log(bannerStyle(" ".repeat(bannerWidth)));
+    const decorStyle = info.isAssumedHypocenter ? getPlumDecorStyle(info.isWarning) : bannerStyle;
+    console.log(decorStyle(" ".repeat(bannerWidth)));
     console.log(bannerStyle(visualPadEnd(bannerText, bannerWidth)));
-    console.log(bannerStyle(" ".repeat(bannerWidth)));
+    console.log(decorStyle(" ".repeat(bannerWidth)));
   }
 
   // フレーム開始 (テスト電文/PLUM法ラベルがある場合のみ先にframeTopを出す)
