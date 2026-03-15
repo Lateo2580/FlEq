@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.37.1](https://github.com/Lateo2580/FlEq/compare/v1.37.0...v1.37.1) (2026-03-15)
+
+
+### バグ修正
+
+* colorsコマンドでCUDパレットを元の表示に戻し、震度/長周期の文字色・背景色を分離表示 ([7994c16](https://github.com/Lateo2580/FlEq/commit/7994c16d321221a7451b6d76a2878ef97e003b32))
+
 ## [1.37.0](https://github.com/Lateo2580/FlEq/compare/v1.36.0...v1.37.0) (2026-03-15)
 
 
