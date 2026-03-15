@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.37.3](https://github.com/Lateo2580/FlEq/compare/v1.37.2...v1.37.3) (2026-03-15)
+
+
+### バグ修正
+
+* 全表示色をCUDカラーパレット準拠に統一 ([23fde8c](https://github.com/Lateo2580/FlEq/commit/23fde8c9545c8b4c209ec650db3652d3076b4a96))
+
 ## [1.37.2](https://github.com/Lateo2580/FlEq/compare/v1.37.1...v1.37.2) (2026-03-15)
 
 
