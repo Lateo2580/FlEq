@@ -36,11 +36,27 @@ const CATEGORY_LABELS: Record<CommandCategory, string> = {
 /** EEW ログ記録項目の表示ラベル */
 const EEW_LOG_FIELD_LABELS: Record<EewLogField, string> = {
   hypocenter: "震源情報",
+  originTime: "発生時刻",
+  coordinates: "緯度・経度",
   magnitude: "M値・深さ",
   forecastIntensity: "最大予測震度",
+  maxLgInt: "最大予測長周期階級",
   forecastAreas: "予測震度地域リスト",
+  lgIntensity: "地域別長周期階級",
+  isPlum: "PLUM法フラグ",
+  hasArrived: "主要動到達フラグ",
   diff: "差分情報",
+  maxIntChangeReason: "震度変化理由",
 };
+
+/** EEW ログ記録項目のグループ定義 */
+const EEW_LOG_FIELD_GROUPS: { label: string; fields: EewLogField[] }[] = [
+  { label: "震源", fields: ["hypocenter", "originTime", "coordinates"] },
+  { label: "規模", fields: ["magnitude"] },
+  { label: "変化", fields: ["diff", "maxIntChangeReason"] },
+  { label: "予測概要", fields: ["forecastIntensity", "maxLgInt"] },
+  { label: "予測地域", fields: ["forecastAreas", "lgIntensity", "isPlum", "hasArrived"] },
+];
 
 interface CommandEntry {
   description: string;
@@ -241,7 +257,7 @@ export class ReplHandler {
       },
       eewlog: {
         description: "EEWログ記録の設定 (例: eewlog on / eewlog fields)",
-        detail: "eewlog: 現在のログ記録設定を表示\n  eewlog on: ログ記録を有効にする\n  eewlog off: ログ記録を無効にする\n  eewlog fields: 記録項目の一覧表示\n  eewlog fields <field>: 項目のトグル切替\n  eewlog fields <field> on/off: 項目の有効/無効\n  項目: hypocenter, magnitude, forecastIntensity, forecastAreas, diff",
+        detail: "eewlog: 現在のログ記録設定を表示\n  eewlog on: ログ記録を有効にする\n  eewlog off: ログ記録を無効にする\n  eewlog fields: 記録項目の一覧表示 (グループ別)\n  eewlog fields <field>: 項目のトグル切替\n  eewlog fields <field> on/off: 項目の有効/無効\n  [震源] hypocenter, originTime, coordinates\n  [規模] magnitude\n  [変化] diff, maxIntChangeReason\n  [予測概要] forecastIntensity, maxLgInt\n  [予測地域] forecastAreas, lgIntensity, isPlum, hasArrived",
         category: "settings",
         handler: (args) => this.handleEewLog(args),
       },
@@ -1192,14 +1208,17 @@ export class ReplHandler {
       if (enabled) {
         console.log();
         const fields = this.eewLogger.getFields();
-        for (const [field, label] of Object.entries(EEW_LOG_FIELD_LABELS)) {
-          const fieldEnabled = fields[field as EewLogField];
-          const fieldStatus = fieldEnabled ? chalk.green("ON") : chalk.red("OFF");
-          console.log(
-            chalk.white(`  ${field.padEnd(20)}`) +
-              chalk.gray(`${label}  `) +
-              fieldStatus
-          );
+        for (const group of EEW_LOG_FIELD_GROUPS) {
+          console.log(chalk.cyan(`  [${group.label}]`));
+          for (const field of group.fields) {
+            const fieldEnabled = fields[field];
+            const fieldStatus = fieldEnabled ? chalk.green("ON") : chalk.red("OFF");
+            console.log(
+              chalk.white(`    ${field.padEnd(22)}`) +
+                chalk.gray(`${EEW_LOG_FIELD_LABELS[field]}  `) +
+                fieldStatus
+            );
+          }
         }
       }
       console.log();
@@ -1236,14 +1255,17 @@ export class ReplHandler {
       console.log();
       console.log(chalk.cyan.bold("  EEW ログ記録項目:"));
       console.log();
-      for (const [field, label] of Object.entries(EEW_LOG_FIELD_LABELS)) {
-        const fieldEnabled = fields[field as EewLogField];
-        const fieldStatus = fieldEnabled ? chalk.green("ON") : chalk.red("OFF");
-        console.log(
-          chalk.white(`  ${field.padEnd(20)}`) +
-            chalk.gray(`${label}  `) +
-            fieldStatus
-        );
+      for (const group of EEW_LOG_FIELD_GROUPS) {
+        console.log(chalk.cyan(`  [${group.label}]`));
+        for (const field of group.fields) {
+          const fieldEnabled = fields[field];
+          const fieldStatus = fieldEnabled ? chalk.green("ON") : chalk.red("OFF");
+          console.log(
+            chalk.white(`    ${field.padEnd(22)}`) +
+              chalk.gray(`${EEW_LOG_FIELD_LABELS[field]}  `) +
+              fieldStatus
+          );
+        }
       }
       console.log();
       return;

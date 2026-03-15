@@ -140,10 +140,17 @@ const VALID_PROMPT_CLOCKS: PromptClock[] = ["elapsed", "clock"];
 /** 有効な EEW ログ記録項目 */
 export const VALID_EEW_LOG_FIELDS: EewLogField[] = [
   "hypocenter",
+  "originTime",
+  "coordinates",
   "magnitude",
   "forecastIntensity",
+  "maxLgInt",
   "forecastAreas",
+  "lgIntensity",
+  "isPlum",
+  "hasArrived",
   "diff",
+  "maxIntChangeReason",
 ];
 
 /** 有効な通知カテゴリ */

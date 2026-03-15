@@ -7,10 +7,17 @@ export type PromptClock = "elapsed" | "clock";
 /** EEW ログ記録項目 */
 export type EewLogField =
   | "hypocenter"
+  | "originTime"
+  | "coordinates"
   | "magnitude"
   | "forecastIntensity"
+  | "maxLgInt"
   | "forecastAreas"
-  | "diff";
+  | "lgIntensity"
+  | "isPlum"
+  | "hasArrived"
+  | "diff"
+  | "maxIntChangeReason";
 
 /** 通知カテゴリ */
 export type NotifyCategory =
@@ -107,10 +114,17 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   eewLog: true,
   eewLogFields: {
     hypocenter: true,
+    originTime: true,
+    coordinates: true,
     magnitude: true,
     forecastIntensity: true,
+    maxLgInt: true,
     forecastAreas: true,
+    lgIntensity: true,
+    isPlum: true,
+    hasArrived: true,
     diff: true,
+    maxIntChangeReason: true,
   },
 };
 

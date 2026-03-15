@@ -7,6 +7,16 @@ import * as log from "../logger";
 /** ログ出力のデフォルトディレクトリ */
 const DEFAULT_LOG_DIR = path.join(process.cwd(), "eew-logs");
 
+/** MaxIntChangeReason コードの表示ラベル */
+const MAX_INT_CHANGE_REASON_LABELS: Record<number, string> = {
+  0: "不明",
+  1: "M変化",
+  2: "震源変化",
+  3: "M+震源",
+  4: "深さ変化",
+  9: "PLUM法",
+};
+
 /** eventId をファイル名に安全な文字列へサニタイズ (パストラバーサル防止) */
 function sanitizeEventId(eventId: string): string {
   // 英数字・ハイフン・アンダースコアのみ残す
@@ -78,10 +88,17 @@ export class EewEventLogger {
   /** 記録対象のフィールド */
   private fields: Record<EewLogField, boolean> = {
     hypocenter: true,
+    originTime: true,
+    coordinates: true,
     magnitude: true,
     forecastIntensity: true,
+    maxLgInt: true,
     forecastAreas: true,
+    lgIntensity: true,
+    isPlum: true,
+    hasArrived: true,
     diff: true,
+    maxIntChangeReason: true,
   };
 
   constructor(logDir?: string) {
@@ -209,6 +226,34 @@ export class EewEventLogger {
     return lines.join("\n");
   }
 
+  /** 地域名に注記 ({Lx,P,A}) を付与 */
+  private formatAreaName(area: {
+    name: string;
+    lgIntensity?: string;
+    isPlum?: boolean;
+    hasArrived?: boolean;
+  }): string {
+    const flags: string[] = [];
+    if (this.fields.lgIntensity && area.lgIntensity) {
+      flags.push(`L${area.lgIntensity}`);
+    }
+    if (this.fields.isPlum && area.isPlum) {
+      flags.push("P");
+    }
+    if (this.fields.hasArrived && area.hasArrived) {
+      flags.push("A");
+    }
+    return flags.length > 0 ? `${area.name}{${flags.join(",")}}` : area.name;
+  }
+
+  /** 地域注記の凡例行が必要かどうか判定 */
+  private needsAreaLegend(areas: { lgIntensity?: string; isPlum?: boolean; hasArrived?: boolean }[]): boolean {
+    if (this.fields.lgIntensity && areas.some(a => a.lgIntensity)) return true;
+    if (this.fields.isPlum && areas.some(a => a.isPlum)) return true;
+    if (this.fields.hasArrived && areas.some(a => a.hasArrived)) return true;
+    return false;
+  }
+
   /** 1報分のテキストブロックを構築 */
   private buildReportBlock(info: ParsedEewInfo, diff?: EewDiff): string {
     const serial = info.serial ?? "?";
@@ -235,6 +280,16 @@ export class EewEventLogger {
         lines.push(`震源: ${eq.hypocenterName}`);
       }
 
+      // originTime (hypocenter が OFF なら非表示)
+      if (this.fields.hypocenter && this.fields.originTime && eq.originTime) {
+        lines.push(`  発生: ${formatLocalTime(eq.originTime)}`);
+      }
+
+      // coordinates (hypocenter が OFF なら非表示)
+      if (this.fields.hypocenter && this.fields.coordinates && eq.latitude && eq.longitude) {
+        lines.push(`  座標: ${eq.latitude} ${eq.longitude}`);
+      }
+
       if (info.isAssumedHypocenter) {
         if (this.fields.hypocenter) {
           lines.push("仮定震源要素 (震源未確定・PLUM法による推定)");
@@ -249,6 +304,11 @@ export class EewEventLogger {
             lines.push(`変化:${diffStr}`);
           }
         }
+        // maxIntChangeReason (diff の直下)
+        if (this.fields.maxIntChangeReason && info.maxIntChangeReason != null) {
+          const label = MAX_INT_CHANGE_REASON_LABELS[info.maxIntChangeReason] ?? "不明";
+          lines.push(`震度変化理由: ${label} [${info.maxIntChangeReason}]`);
+        }
       }
     }
 
@@ -258,12 +318,26 @@ export class EewEventLogger {
         lines.push(`最大予測震度: ${topInt}`);
       }
 
+      // maxLgInt (forecastIntensity が OFF なら非表示)
+      if (this.fields.forecastIntensity && this.fields.maxLgInt && info.forecastIntensity.maxLgInt) {
+        lines.push(`最大予測長周期階級: ${info.forecastIntensity.maxLgInt}`);
+      }
+
       if (this.fields.forecastAreas) {
+        // 注記の凡例行
+        if (this.needsAreaLegend(info.forecastIntensity.areas)) {
+          const legendParts: string[] = [];
+          if (this.fields.lgIntensity) legendParts.push("Lx=長周期階級");
+          if (this.fields.isPlum) legendParts.push("P=PLUM");
+          if (this.fields.hasArrived) legendParts.push("A=主要動到達");
+          lines.push(`  注記: {${legendParts.join(", ")}}`);
+        }
+
         // 震度ごとにグループ化して地域名を表示
         const byIntensity = new Map<string, string[]>();
         for (const area of info.forecastIntensity.areas) {
           const existing = byIntensity.get(area.intensity) ?? [];
-          existing.push(area.name);
+          existing.push(this.formatAreaName(area));
           byIntensity.set(area.intensity, existing);
         }
         for (const [intensity, names] of byIntensity) {
