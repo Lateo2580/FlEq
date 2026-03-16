@@ -542,7 +542,7 @@ describe("parseEewTelegram", () => {
 
       const result = parseEewTelegram(msg);
       expect(result).not.toBeNull();
-      expect(result!.earthquake!.magnitude).toBe("1");
+      expect(result!.earthquake!.magnitude).toBe("1.0");
       expect(result!.earthquake!.depth).toBe("10km");
       expect(result!.maxIntChangeReason).toBeUndefined();
       expect(result!.isAssumedHypocenter).toBe(false);

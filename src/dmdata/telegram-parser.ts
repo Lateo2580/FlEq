@@ -138,13 +138,17 @@ function extractEarthquake(
   );
   const { lat, lon, depth } = parseCoordinate(coordStr);
 
-  const mag = str(
+  const magRaw = str(
     dig(earthquake, "jmx_eb:Magnitude", "#text") ||
       dig(earthquake, "Magnitude", "#text") ||
       dig(earthquake, "jmx_eb:Magnitude") ||
       dig(earthquake, "Magnitude") ||
       ""
   );
+  // "4" → "4.0" のように小数点第1位を保証する
+  const mag = magRaw && !isNaN(parseFloat(magRaw))
+    ? parseFloat(magRaw).toFixed(1)
+    : magRaw;
 
   return {
     originTime,

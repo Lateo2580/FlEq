@@ -3,3 +3,4 @@ dist/
 .env
 eew-logs/
 .DS_Store
+.claude/settings.local.json
