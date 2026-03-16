@@ -1179,8 +1179,14 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
 
   if (info.headline) {
     console.log(frameDivider(level, width));
-    for (const line of wrapFrameLines(level, chalk.bold.white(info.headline), width)) {
-      console.log(line);
+    const headlineLines = info.headline
+      .split(/\r?\n/)
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim().length > 0);
+    for (const hl of headlineLines) {
+      for (const wrapped of wrapFrameLines(level, chalk.bold.white(hl), width)) {
+        console.log(wrapped);
+      }
     }
   }
 
@@ -1194,7 +1200,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     if (eq.latitude && eq.longitude) {
       console.log(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
     }
-    if (eq.magnitude) {
+    if (eq.magnitude && !isNaN(parseFloat(eq.magnitude))) {
       console.log(frameLine(level, chalk.white("規模: ") + colorMagnitude(eq.magnitude), width));
     }
   }
