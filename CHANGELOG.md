@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.45.0](https://github.com/Lateo2580/FlEq/compare/v1.44.0...v1.45.0) (2026-03-16)
+
+
+### 機能追加
+
+* 津波情報にバナー表示を追加し、warningCommentの折り返しを修正 ([19e2b25](https://github.com/Lateo2580/FlEq/commit/19e2b2575104f71b15209b33b690642e58103b10))
+
+
+### バグ修正
+
+* マグニチュード値の小数点第1位を保証する表示修正 ([2e53250](https://github.com/Lateo2580/FlEq/commit/2e53250b67902d99333fc3b94727124afc3d1d53))
+
+
+### ドキュメント
+
+* 仕様書をソースコード実装に同期 ([e65959e](https://github.com/Lateo2580/FlEq/commit/e65959ee9344970a502e33d19d9659a2b31d3291))
+
 ## [1.44.0](https://github.com/Lateo2580/FlEq/compare/v1.43.0...v1.44.0) (2026-03-16)
 
 
