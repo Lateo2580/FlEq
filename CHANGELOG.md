@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.45.1](https://github.com/Lateo2580/FlEq/compare/v1.45.0...v1.45.1) (2026-03-16)
+
+
+### バグ修正
+
+* 津波情報のヘッドライン改行処理とNaN規模表示を修正 ([821c57f](https://github.com/Lateo2580/FlEq/commit/821c57f57e7a5cf154957948d92972c9994b78f8))
+
 ## [1.45.0](https://github.com/Lateo2580/FlEq/compare/v1.44.0...v1.45.0) (2026-03-16)
 
 
