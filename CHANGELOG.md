@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.44.0](https://github.com/Lateo2580/FlEq/compare/v1.43.0...v1.44.0) (2026-03-16)
+
+
+### 機能追加
+
+* test tableコマンドに番号指定のバリエーション表示を追加 ([38daab3](https://github.com/Lateo2580/FlEq/commit/38daab38de17c23ded03760df0a43a568f57d98f))
+* 南海トラフ情報のマグニチュード単独パターン強調表示を追加 ([c99f68f](https://github.com/Lateo2580/FlEq/commit/c99f68f6b10b8eb37634e1cbe94a02dc8815da3e))
+
 ## [1.43.0](https://github.com/Lateo2580/FlEq/compare/v1.42.0...v1.43.0) (2026-03-16)
 
 
