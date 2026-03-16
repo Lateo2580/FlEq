@@ -382,7 +382,7 @@ export class ReplHandler {
       },
       test: {
         description: "テスト機能",
-        detail: "test sound [level]: サウンドテスト\n  test table [type]: 表示形式テスト",
+        detail: "test sound [level]: サウンドテスト\n  test table [type] [番号]: 表示形式テスト",
         category: "operation",
         subcommands: {
           sound: {
@@ -391,7 +391,7 @@ export class ReplHandler {
           },
           table: {
             description: "表示形式テスト",
-            detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: サンプルデータを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation",
+            detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: バリエーション一覧を表示\n  test table <type> <番号>: 指定バリエーションを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation",
           },
         },
         handler: (args) => this.handleTest(args),
@@ -1662,16 +1662,23 @@ export class ReplHandler {
   }
 
   private handleTestTable(args: string): void {
-    const type = args.trim();
+    const parts = args.trim().split(/\s+/).filter(Boolean);
+    const type = parts[0] ?? "";
+    const variantArg = parts[1];
 
     if (type === "") {
       console.log();
       console.log(chalk.cyan.bold("  利用可能な電文タイプ:"));
       for (const [key, entry] of Object.entries(TEST_TABLES)) {
-        console.log(chalk.white(`    ${key.padEnd(16)}`) + chalk.gray(entry.label));
+        const count = entry.variants.length;
+        console.log(
+          chalk.white(`    ${key.padEnd(16)}`) +
+            chalk.gray(`${entry.label}`) +
+            chalk.gray(` (${count}件)`),
+        );
       }
       console.log();
-      console.log(chalk.gray("  使い方: test table <type>"));
+      console.log(chalk.gray("  使い方: test table <type> [番号]"));
       console.log();
       return;
     }
@@ -1679,12 +1686,38 @@ export class ReplHandler {
     const entry = TEST_TABLES[type];
     if (entry == null) {
       console.log(chalk.yellow(`  不明な電文タイプ: ${type}`));
-      console.log(chalk.gray(`  有効な値: ${Object.keys(TEST_TABLES).join(", ")}`));
+      console.log(
+        chalk.gray(`  有効な値: ${Object.keys(TEST_TABLES).join(", ")}`),
+      );
       return;
     }
 
-    console.log(chalk.gray(`  表示テスト: ${entry.label} を実行中...`));
-    entry.run();
+    // 番号指定なし → バリエーション一覧を表示
+    if (variantArg == null) {
+      console.log();
+      console.log(chalk.cyan.bold(`  ${entry.label} バリエーション:`));
+      for (const [i, v] of entry.variants.entries()) {
+        console.log(chalk.white(`    ${String(i + 1).padEnd(4)}`) + chalk.gray(v.label));
+      }
+      console.log();
+      console.log(chalk.gray(`  使い方: test table ${type} <番号>`));
+      console.log();
+      return;
+    }
+
+    const variantNum = parseInt(variantArg, 10);
+    if (isNaN(variantNum) || variantNum < 1 || variantNum > entry.variants.length) {
+      console.log(
+        chalk.yellow(`  不明な番号: ${variantArg} (1〜${entry.variants.length})`),
+      );
+      return;
+    }
+
+    const variant = entry.variants[variantNum - 1];
+    console.log(
+      chalk.gray(`  表示テスト: ${entry.label} #${variantNum} ${variant.label}`),
+    );
+    variant.run();
   }
 
   private handleClear(): void {
