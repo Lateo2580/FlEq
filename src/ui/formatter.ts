@@ -699,7 +699,6 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   }
 
   // カード1行目: 最重要項目
-  console.log(frameDivider(level, width));
   const cardParts: string[] = [];
   if (info.intensity) {
     const ic = intensityColor(info.intensity.maxInt);
@@ -720,6 +719,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     cardParts.push(tsunamiText);
   }
   if (cardParts.length > 0) {
+    console.log(frameDivider(level, width));
     console.log(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
   }
 
@@ -1142,6 +1142,32 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   }
 
   console.log();
+
+  // バナー表示 (津波注意報/津波警報/大津波警報)
+  if (level === "critical") {
+    // 大津波警報: 1,3段目 white背景、2段目 darkRed背景+白文字
+    const bannerText = ` ${label}`;
+    const decorStyle = theme.getRoleChalk("tsunamiMajorBannerDecor");
+    const majorStyle = theme.getRoleChalk("tsunamiMajorBanner");
+    console.log(decorStyle(" ".repeat(width)));
+    console.log(majorStyle(visualPadEnd(bannerText, width)));
+    console.log(decorStyle(" ".repeat(width)));
+  } else if (level === "warning") {
+    // 津波警報: vermillion背景+白文字
+    const bannerText = ` ${label}`;
+    const warnStyle = theme.getRoleChalk("tsunamiWarningBanner");
+    console.log(warnStyle(" ".repeat(width)));
+    console.log(warnStyle(visualPadEnd(bannerText, width)));
+    console.log(warnStyle(" ".repeat(width)));
+  } else if (level === "normal") {
+    // 津波注意報: yellow背景+黒文字
+    const bannerText = ` ${label}`;
+    const advStyle = theme.getRoleChalk("tsunamiAdvisoryBanner");
+    console.log(advStyle(" ".repeat(width)));
+    console.log(advStyle(visualPadEnd(bannerText, width)));
+    console.log(advStyle(" ".repeat(width)));
+  }
+
   console.log(frameTop(level, width));
 
   if (info.isTest) {
@@ -1282,7 +1308,16 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
 
   if (info.warningComment) {
     console.log(frameDivider(level, width));
-    console.log(frameLine(level, theme.getRoleChalk("warningComment")(info.warningComment), width));
+    const warnStyle = theme.getRoleChalk("warningComment");
+    const commentLines = info.warningComment
+      .split(/\r?\n/)
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim().length > 0);
+    for (const line of commentLines) {
+      for (const wrapped of wrapFrameLines(level, warnStyle(line), width)) {
+        console.log(wrapped);
+      }
+    }
   }
 
   // フッター

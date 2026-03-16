@@ -148,6 +148,12 @@ export const DEFAULT_ROLES = {
   detailUri: "sky" as RoleStyleDef,
   textMuted: "gray" as RoleStyleDef,
 
+  // tsunami banner
+  tsunamiAdvisoryBanner: { bg: "yellow", fg: "#000000", bold: true } as RoleStyleDef,
+  tsunamiWarningBanner: { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  tsunamiMajorBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  tsunamiMajorBannerDecor: { bg: "#FFFFFF", fg: "#000000", bold: true } as RoleStyleDef,
+
   // nankai trough
   nankaiCriticalBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as RoleStyleDef,
   nankaiWarningBanner: { bg: "orange", fg: "#000000", bold: true } as RoleStyleDef,
