@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.42.0](https://github.com/Lateo2580/FlEq/compare/v1.41.0...v1.42.0) (2026-03-16)
+
+
+### 機能追加
+
+* helpコマンドの全設定コマンドにサブコマンドツリー表示を追加 ([dfad680](https://github.com/Lateo2580/FlEq/commit/dfad680b5e05564a2bae248fc1c3c1b09201973a))
+
+
+### ドキュメント
+
+* READMEにクイックスタート追加・必要条件と使い方セクションを改善 ([df88992](https://github.com/Lateo2580/FlEq/commit/df88992d1df7b9478af736e54fcf434b7f8c9a07))
+
 ## [1.41.0](https://github.com/Lateo2580/FlEq/compare/v1.40.1...v1.41.0) (2026-03-15)
 
 
