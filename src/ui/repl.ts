@@ -280,60 +280,104 @@ export class ReplHandler {
         description: "通知設定の表示・切替 (例: notify eew on)",
         detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation",
         category: "settings",
+        subcommands: {
+          "<category>": { description: "トグル切替 / on / off" },
+          "all:on": { description: "全カテゴリを有効にする" },
+          "all:off": { description: "全カテゴリを無効にする" },
+        },
         handler: (args) => this.handleNotify(args),
       },
       eewlog: {
         description: "EEWログ記録の設定 (例: eewlog on / eewlog fields)",
         detail: "eewlog: 現在のログ記録設定を表示\n  eewlog on: ログ記録を有効にする\n  eewlog off: ログ記録を無効にする\n  eewlog fields: 記録項目の一覧表示 (グループ別)\n  eewlog fields <field>: 項目のトグル切替\n  eewlog fields <field> on/off: 項目の有効/無効\n  [震源] hypocenter, originTime, coordinates\n  [規模] magnitude\n  [変化] diff, maxIntChangeReason\n  [予測概要] forecastIntensity, maxLgInt\n  [予測地域] forecastAreas, lgIntensity, isPlum, hasArrived",
         category: "settings",
+        subcommands: {
+          on: { description: "ログ記録を有効にする" },
+          off: { description: "ログ記録を無効にする" },
+          fields: { description: "記録項目の一覧・切替" },
+        },
         handler: (args) => this.handleEewLog(args),
       },
       tablewidth: {
         description: "テーブル幅の表示・変更 (例: tablewidth 80 / tablewidth auto)",
         detail: "引数なし: 現在のテーブル幅を表示\n  tablewidth <40〜200>: テーブル幅を固定値に変更\n  tablewidth auto: ターミナル幅に自動追従 (デフォルト)\n  変更は即座に反映され、Configファイルに保存されます。",
         category: "settings",
+        subcommands: {
+          "<40-200>": { description: "テーブル幅を固定値に変更" },
+          auto: { description: "ターミナル幅に自動追従" },
+        },
         handler: (args) => this.handleTableWidth(args),
       },
       infotext: {
         description: "お知らせ電文の全文/省略切替 (例: infotext full)",
         detail: "infotext full: 全文表示\n  infotext short: 省略表示 (デフォルト)",
         category: "settings",
+        subcommands: {
+          full: { description: "全文表示" },
+          short: { description: "省略表示 (デフォルト)" },
+        },
         handler: (args) => this.handleInfoText(args),
       },
       tipinterval: {
         description: "待機中ヒント表示間隔の表示・変更 (例: tipinterval 15)",
         detail: "tipinterval: 現在のヒント間隔(分)を表示\n  tipinterval <0〜1440>: ヒント間隔を分で変更 (0で無効)",
         category: "settings",
+        subcommands: {
+          "<0-1440>": { description: "ヒント間隔を分で変更 (0で無効)" },
+        },
         handler: (args) => this.handleTipInterval(args),
       },
       mode: {
         description: "表示モード切替 (例: mode compact)",
         detail: "mode: 現在のモードを表示\n  mode normal: フルフレーム表示 (デフォルト)\n  mode compact: 1行サマリー表示\n  長時間モニタリング時は compact がおすすめです。",
         category: "settings",
+        subcommands: {
+          normal: { description: "フルフレーム表示 (デフォルト)" },
+          compact: { description: "1行サマリー表示" },
+        },
         handler: (args) => this.handleMode(args),
       },
       clock: {
         description: "プロンプト時計の切替 (例: clock / clock elapsed)",
         detail: "clock: 経過時間/現在時刻をトグル切替\n  clock elapsed: 経過時間表示 (デフォルト)\n  clock now: 現在時刻表示",
         category: "settings",
+        subcommands: {
+          elapsed: { description: "経過時間表示 (デフォルト)" },
+          now: { description: "現在時刻表示" },
+        },
         handler: (args) => this.handleClock(args),
       },
       sound: {
         description: "通知音の ON/OFF 切替",
         detail: "sound: 現在の状態を表示\n  sound on: 通知音を有効にする\n  sound off: 通知音を無効にする",
         category: "settings",
+        subcommands: {
+          on: { description: "通知音を有効にする" },
+          off: { description: "通知音を無効にする" },
+        },
         handler: (args) => this.handleSound(args),
       },
       theme: {
         description: "カラーテーマの表示・管理 (例: theme path / theme reload)",
         detail: "theme: テーマ概要を表示\n  theme path: theme.json のパスを表示\n  theme show: 全パレット色・全ロールスタイルを一覧表示\n  theme reset: デフォルト theme.json を書き出し\n  theme reload: theme.json を再読込\n  theme validate: theme.json を検証",
         category: "settings",
+        subcommands: {
+          path: { description: "theme.json のパスを表示" },
+          show: { description: "全パレット色・ロールスタイル一覧" },
+          reset: { description: "デフォルト theme.json を書き出し" },
+          reload: { description: "theme.json を再読込" },
+          validate: { description: "theme.json を検証" },
+        },
         handler: (args) => this.handleTheme(args),
       },
       mute: {
         description: "通知を一時ミュート (例: mute 30m)",
         detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
         category: "settings",
+        subcommands: {
+          "<duration>": { description: "指定時間ミュート (例: 30m, 1h)" },
+          off: { description: "ミュート解除" },
+        },
         handler: (args) => this.handleMute(args),
       },
       test: {
@@ -1680,7 +1724,9 @@ export class ReplHandler {
     this.clearInput();
     const tip = WAITING_TIPS[this.tipIndex % WAITING_TIPS.length];
     this.tipIndex++;
-    this.nextTipAt = Date.now() + this.tipIntervalMs;
+    do {
+      this.nextTipAt += this.tipIntervalMs;
+    } while (this.nextTipAt <= Date.now());
     console.log(chalk.gray(`  ${tip}`));
   }
 
