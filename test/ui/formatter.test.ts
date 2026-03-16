@@ -1211,6 +1211,48 @@ describe("collectHighlightSpans", () => {
     expect(spans).toHaveLength(2);
     expect(spans[0].start).toBeLessThan(spans[1].start);
   });
+
+  it("マグニチュード６．８以上 がマッチする", () => {
+    const rules = [
+      makeRule(
+        "モーメントマグニチュード[（Ｍｗ）０-９0-9．.クラス以上]*|マグニチュード[（Ｍ）０-９0-9．.クラス以上]*|Ｍｗ[０-９0-9]+",
+        () => chalk.bold.white,
+      ),
+    ];
+    const text = "マグニチュード６．８以上の地震が発生";
+    const spans = collectHighlightSpans(text, rules);
+    expect(spans).toHaveLength(1);
+    const matched = Array.from(text).slice(spans[0].start, spans[0].end).join("");
+    expect(matched).toBe("マグニチュード６．８以上");
+  });
+
+  it("モーメントマグニチュード８．０以上 が1つのspanでマッチする", () => {
+    const rules = [
+      makeRule(
+        "モーメントマグニチュード[（Ｍｗ）０-９0-9．.クラス以上]*|マグニチュード[（Ｍ）０-９0-9．.クラス以上]*|Ｍｗ[０-９0-9]+",
+        () => chalk.bold.white,
+      ),
+    ];
+    const text = "モーメントマグニチュード８．０以上と推定";
+    const spans = collectHighlightSpans(text, rules);
+    expect(spans).toHaveLength(1);
+    const matched = Array.from(text).slice(spans[0].start, spans[0].end).join("");
+    expect(matched).toBe("モーメントマグニチュード８．０以上");
+  });
+
+  it("マグニチュード 単独（数値なし）でもマッチする", () => {
+    const rules = [
+      makeRule(
+        "モーメントマグニチュード[（Ｍｗ）０-９0-9．.クラス以上]*|マグニチュード[（Ｍ）０-９0-9．.クラス以上]*|Ｍｗ[０-９0-9]+",
+        () => chalk.bold.white,
+      ),
+    ];
+    const text = "マグニチュードの大きさについて";
+    const spans = collectHighlightSpans(text, rules);
+    expect(spans).toHaveLength(1);
+    const matched = Array.from(text).slice(spans[0].start, spans[0].end).join("");
+    expect(matched).toBe("マグニチュード");
+  });
 });
 
 // ── displaySeismicTextInfo ハイライトテスト ──
