@@ -1,6 +1,6 @@
 # UI モジュール仕様書
 
-`src/ui/` 配下の4ファイルについて、設計・API・内部ロジックを記述する。
+`src/ui/` 配下の5ファイルについて、設計・API・内部ロジックを記述する。
 
 ---
 
@@ -33,6 +33,8 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `visualPadEnd(str: string, targetWidth: number): string` | 視覚幅を考慮したスペースパディング (`padEnd` の全角対応版) |
 | `wrapFrameLines(level: FrameLevel, content: string, width: number, indent?: number): string[]` | フレーム内でコンテンツを折り返し、frameLine 付きの文字列配列を返す |
 | `wrapTextLines(text: string, maxWidth: number): string[]` | テキストを文字単位で折り返す (フレーム装飾なし) |
+| `collectHighlightSpans(line: string, rules: readonly HighlightRule[]): HighlightSpan[]` | テキスト行からキーワード強調の適用区間を収集する |
+| `highlightAndWrap(line: string, rules: readonly HighlightRule[], maxWidth: number): string[]` | キーワード強調を適用しつつ折り返し済みの行配列を返す |
 | `formatTimestamp(isoStr: string): string` | ISO 文字列を `"YYYY-MM-DD HH:MM:SS"` に整形 |
 | `formatElapsedTime(ms: number): string` | ミリ秒を `"HH:MM:SS"` 形式に整形 |
 | `intensityColor(intensity: string): chalk.Chalk` | 震度文字列に対応する chalk スタイルを返す (テーマロール経由) |
@@ -98,6 +100,36 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 #### EEW バナー
 
 EEW 表示は通常のフレームの上にバナー (3 行の背景色付きブロック) を描画する。`colorIndex` により警報用 5 色 / 予報用 5 色のパレットから色を選択し、同時発生する複数 EEW を色で識別可能にする。PLUM 法の場合はバナーの装飾行 (1 行目・3 行目) に専用スタイルを適用する。
+
+#### 本文キーワード強調
+
+テキスト系電文と南海トラフ情報の本文表示で、重要キーワードをハイライト表示する機能。`HighlightRule` と `HighlightSpan` の2つの内部インターフェースで構成される。
+
+```ts
+interface HighlightRule {
+  source: string;            // 正規表現のソース文字列
+  flags: string;             // 正規表現のフラグ
+  style: () => chalk.Chalk;  // 遅延評価のスタイル (テーマ再読込対応)
+}
+
+interface HighlightSpan {
+  start: number;  // 文字インデックス開始位置
+  end: number;    // 文字インデックス終了位置
+  style: chalk.Chalk;
+}
+```
+
+ルール定数:
+
+| 定数名 | 対象電文 | 主なパターン |
+|---|---|---|
+| `NANKAI_COMMON_RULES` | 南海トラフ全般 | 巨大地震警戒・注意、マグニチュード、調査中/終了 等 |
+| `NANKAI_VYSE52_EXTRA_RULES` | VYSE52 追加 | ゆっくりすべり、特段の変化なし |
+| `SEISMIC_TEXT_RULES` | テキスト系 | 活発、最大マグニチュード、最大震度、防災上の留意事項 |
+
+`collectHighlightSpans()` は行内の全ルールをマッチし、重複区間を排除（同一開始位置では長いマッチ優先）した上でソート済みの `HighlightSpan[]` を返す。`highlightAndWrap()` はまず平文で折り返し、各行の文字オフセットを追跡しながらスパンの ANSI スタイルを適用する。
+
+`displaySeismicTextInfo()` と `displayNankaiTroughInfo()` が本文表示時にこれらの関数を使用する。
 
 #### セキュリティ
 
@@ -205,6 +237,7 @@ interface CommandEntry {
 | `sound` | settings | 通知音の ON/OFF |
 | `theme` | settings | カラーテーマの表示・管理 (path / show / reset / reload / validate) |
 | `mute` | settings | 通知の一時ミュート (時間指定) |
+| `test` | operation | テスト機能 (`test sound [level]`: サウンドテスト、`test table [type] [番号]`: 表示形式テスト) |
 | `clear` | operation | ターミナル画面クリア |
 | `retry` | operation | WebSocket 手動再接続 |
 | `quit` / `exit` | operation | アプリケーション終了 |
@@ -244,7 +277,7 @@ interface CommandEntry {
 
 ### 依存関係
 
-- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `DisplayMode`, `PromptClock`, `NotifyCategory`, `EewLogField`), `../dmdata/ws-client` (`WebSocketManager`), `../dmdata/rest-client` (`listEarthquakes`, `listContracts`, `listSockets`), `../config` (`loadConfig`, `saveConfig`, `printConfig`, `VALID_EEW_LOG_FIELDS`), `../engine/notifier` (`Notifier`, `NOTIFY_CATEGORY_LABELS`), `../engine/eew-logger` (`EewEventLogger`), `./formatter` (設定キャッシュ操作・ユーティリティ), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./waiting-tips` (`WAITING_TIPS`)
+- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `DisplayMode`, `PromptClock`, `NotifyCategory`, `EewLogField`), `../dmdata/ws-client` (`WebSocketManager`), `../dmdata/rest-client` (`listEarthquakes`, `listContracts`, `listSockets`), `../config` (`loadConfig`, `saveConfig`, `printConfig`, `VALID_EEW_LOG_FIELDS`), `../engine/notifier` (`Notifier`, `NOTIFY_CATEGORY_LABELS`), `../engine/eew-logger` (`EewEventLogger`), `../engine/sound-player` (`playSound`, `isSoundLevel`, `SOUND_LEVELS`), `./formatter` (設定キャッシュ操作・ユーティリティ), `./test-samples` (`TEST_TABLES`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./waiting-tips` (`WAITING_TIPS`)
 - **接続先**: `engine/monitor.ts` から dynamic import で生成・`start()` / `stop()` / `setConnected()` / `beforeDisplayMessage()` / `afterDisplayMessage()` が呼ばれる
 
 ### 設計ノート
@@ -427,3 +460,70 @@ REPL 待機中に定期表示するヒントメッセージの定義ファイル
 - `resolveTheme()` は純粋関数として実装され、副作用のないテスト容易な設計。モジュール状態 (`currentTheme`) への書き込みは `loadTheme*()` 系関数が担う。
 - `deepFreezeTheme()` でテーマオブジェクトをフリーズすることで、意図しない変更を防止している。
 - CUD 推奨色をデフォルトに採用することで、色覚特性に関わらず情報を区別しやすい配色を実現している。
+
+---
+
+## test-samples.ts
+
+### 概要
+
+REPL の `test table` コマンド用のテストデータとディスパッチマップを定義するモジュール。6種の電文タイプそれぞれについて複数のバリエーション（通常・警報・取消・PLUM法等）を提供し、番号指定で個別のバリエーションを表示できる。テストフィクスチャ XML からの動的読み込みとハードコード済みフォールバックデータの二段構えで、フィクスチャ不在環境でも動作する。
+
+### エクスポートAPI
+
+#### 型
+
+| 名前 | 説明 |
+|---|---|
+| `TestTableVariant` | テストバリエーション定義 (`label: string`, `run: () => void`) |
+| `TestTableEntry` | テスト表示エントリ (`label: string`, `variants: TestTableVariant[]`) |
+
+#### 定数
+
+| 名前 | 型 | 説明 |
+|---|---|---|
+| `SAMPLE_EARTHQUAKE` | `ParsedEarthquakeInfo` | 地震情報のデフォルトサンプル (震度7・critical) |
+| `SAMPLE_EEW` | `ParsedEewInfo` | EEW のデフォルトサンプル (予報) |
+| `SAMPLE_TSUNAMI` | `ParsedTsunamiInfo` | 津波情報のデフォルトサンプル (津波警報) |
+| `SAMPLE_SEISMIC_TEXT` | `ParsedSeismicTextInfo` | テキスト系電文のデフォルトサンプル |
+| `SAMPLE_NANKAI_TROUGH` | `ParsedNankaiTroughInfo` | 南海トラフ情報のデフォルトサンプル (コード120・調査中) |
+| `SAMPLE_LG_OBSERVATION` | `ParsedLgObservationInfo` | 長周期地震動のデフォルトサンプル (階級4) |
+| `TEST_TABLES` | `Record<string, TestTableEntry>` | テスト表示ディスパッチマップ |
+
+#### TEST_TABLES のバリエーション
+
+| キー | バリエーション数 | 内容 |
+|---|---|---|
+| `earthquake` | 6 | 震度7 / 震度4(warning) / 取消 / 遠地地震 / 震度速報 / 長周期階級付き |
+| `eew` | 5 | 予報 / 警報(critical) / 取消 / PLUM法 / 最終報 |
+| `tsunami` | 6 | 津波警報 / 大津波警報(critical) / 津波注意報 / 取消 / 観測情報 / 沖合観測 |
+| `seismicText` | 2 | 通常発表 / 取消 |
+| `nankaiTrough` | 3 | 調査中(critical) / 巨大地震注意(warning) / 調査終了(info) |
+| `lgObservation` | 3 | 階級4(critical) / 階級3(warning) / 階級2(normal) |
+
+### 内部ロジック
+
+#### フィクスチャ読み込み
+
+`loadFixture(filename)` は `test/fixtures/` ディレクトリから XML ファイルを読み込み、gzip 圧縮 + base64 エンコードして `WsDataMessage` を構築する。ファイル名から電文タイプ (`VXSE43` 等) と分類 (`eew.warning` 等) を自動推定する。`test/fixtures/selected_xml/` サブディレクトリもフォールバック先として探索する。
+
+`fromFixture<T>(filename, parser)` はジェネリックなラッパーで、フィクスチャ読み込み + パースを一括で行い、失敗時は `null` を返す。電文タイプごとに `earthquakeFromFixture()`, `eewFromFixture()` 等のヘルパー関数がある。
+
+#### フォールバックサンプル
+
+各バリエーションにはハードコード済みのフォールバック定数（`FALLBACK_EARTHQUAKE_WARNING`, `FALLBACK_EEW_CANCEL` 等、15種以上）が定義されており、フィクスチャが存在しない環境（npm パッケージとしてインストールした場合等）でも `test table` コマンドが動作する。
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `fs`, `path`, `zlib` | フィクスチャファイルの読み込み・圧縮 |
+| `../types` | パース済み電文型、`WsDataMessage` |
+| `./formatter` | 各種 `display*` 表示関数 |
+| `../dmdata/telegram-parser` | 各種パース関数 |
+
+### 設計ノート
+
+- フィクスチャ優先 + フォールバックの二段構えにより、開発環境ではリアルな XML データでテストし、配布環境ではハードコードデータで動作保証する。
+- 各バリエーションの `run()` は引数なしの `() => void` で統一されており、ディスパッチマップから番号で呼び出すだけの単純な設計。
+- `TEST_TABLES` のキーは REPL の `test table <type>` コマンドの引数に対応する。

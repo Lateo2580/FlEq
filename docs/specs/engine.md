@@ -1,6 +1,6 @@
 # engine/ モジュール仕様書
 
-本文書は `src/engine/` 配下の9ファイルについて、エクスポートAPI・内部ロジック・依存関係・設計意図を記述する。
+本文書は `src/engine/` 配下の11ファイルについて、エクスポートAPI・内部ロジック・依存関係・設計意図を記述する。
 
 ---
 
@@ -162,6 +162,8 @@ function resetTerminalTitle(): void
 | `testMode` | `--test` | — | `fileConfig.testMode` | `DEFAULT_CONFIG.testMode` |
 | `keepExistingConnections` | `--close-others` で `false` / `--keep-existing` で `true` | — | `fileConfig.keepExistingConnections` | `DEFAULT_CONFIG.keepExistingConnections` |
 | `displayMode` | `--mode` | — | `fileConfig.displayMode` | `DEFAULT_CONFIG.displayMode` |
+| `promptClock` | — | — | `fileConfig.promptClock` | `DEFAULT_CONFIG.promptClock` |
+| `sound` | — | — | `fileConfig.sound` | `DEFAULT_CONFIG.sound` |
 
 `--close-others` が `true` の場合、他のオプションに関わらず `keepExistingConnections` は `false` になる。
 
@@ -679,9 +681,18 @@ class Notifier {
 4. `soundEnabled` かつ `level` 指定があれば `playSound(level)` を呼び出し
 5. 通知送信エラーはデバッグログのみ
 
+#### 内部メソッド
+
+| メソッド | 説明 |
+|---------|------|
+| `earthquakeSoundLevel(info)` | 地震情報のサウンドレベルを判定 (震度4以上→`warning`、他→`normal`) |
+| `tsunamiSoundLevel(info)` | 津波情報のサウンドレベルを判定 (警報・注意報含む→`critical`、解除のみ→`warning`、他→`normal`) |
+| `lgObservationSoundLevel(info)` | 長周期地震動のサウンドレベルを判定 (階級3-4→`critical`、階級1-2→`warning`、他→`normal`) |
+| `findMaxForecastInt(info)` | EEW の予測震度地域リストから最大予測震度を `intensityToRank()` で比較して返す。地域がない場合は `"不明"` |
+
 #### 設定の永続化
 
-`persist()` は `loadConfig()` → 設定上書き → `saveConfig()` の流れで Config ファイルに書き込む。エラー時は `log.warn()` のみ。
+`persist()` は `loadConfig()` → 設定上書き → `saveConfig()` の流れで Config ファイルに書き込む。`notify` と `sound` を同時に永続化する。エラー時は `log.warn()` のみ。
 
 ### 依存関係
 
@@ -785,3 +796,108 @@ interface UpdateCheckCache {
 - `checkForUpdates` が void を返す設計は意図的。起動フローをブロックしないことが最優先であり、更新通知は best-effort。
 - キャッシュの書き込み失敗もサイレントに処理し、次回起動時に再チェックする設計。
 - `isNewerVersion` と `isUpdateCheckDisabled` を export しているのはテスト容易性のため。
+
+---
+
+## node-notifier-loader.ts
+
+### 概要
+
+`node-notifier` パッケージの遅延ロードとテスト時のオーバーライドを提供するユーティリティモジュール。`notifier.ts` が直接 `require("node-notifier")` せず、このモジュール経由でアクセスすることで、テスト時にモックを差し込みやすくしている。
+
+### エクスポートAPI
+
+```ts
+type NodeNotifierLike = Pick<typeof NodeNotifier, "notify">
+
+function setNodeNotifierOverride(notifier: NodeNotifierLike | null | undefined): void
+function loadNodeNotifier(): NodeNotifierLike | null
+```
+
+| シグネチャ | 説明 |
+|---|---|
+| `NodeNotifierLike` | `node-notifier` の `notify` メソッドのみを持つ型 |
+| `setNodeNotifierOverride(notifier)` | テスト用のオーバーライドを設定する。`undefined` でリセット |
+| `loadNodeNotifier()` | オーバーライドが設定されていればそれを返し、なければ `require("node-notifier")` で動的ロードする。読み込み失敗時は `null` |
+
+### 内部ロジック
+
+- `nodeNotifierOverride` モジュール変数でオーバーライドを保持する。`undefined`（未設定）と `null`（明示的に無効化）を区別する。
+- `loadNodeNotifier()` はオーバーライドが `undefined` でない場合はオーバーライド値をそのまま返す（`null` 含む）。`undefined` の場合のみ `require()` を試行する。
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `node-notifier` | 型のみインポート (`import type`)。実体は `require()` で遅延ロード |
+
+### 設計ノート
+
+- オーバーライドパターンにより、テスト時にグローバルな `jest.mock()` や `vi.mock()` を使わずに通知モックを差し込める。
+- `null` と `undefined` を区別する三値設計。`setNodeNotifierOverride(null)` で「通知を無効化」、`setNodeNotifierOverride(undefined)` で「オーバーライド解除」を表現する。
+
+---
+
+## sound-player.ts
+
+### 概要
+
+通知音の再生を担うユーティリティモジュール。カスタム効果音ファイル（`assets/sounds/`）を優先的に再生し、存在しなければ OS ネイティブのシステムサウンドにフォールバックする。Windows / macOS / Linux の3プラットフォームに対応し、再生は fire-and-forget で行う。
+
+### エクスポートAPI
+
+```ts
+const SOUND_LEVELS: readonly ["critical", "warning", "normal", "info", "cancel"]
+type SoundLevel = "critical" | "warning" | "normal" | "info" | "cancel"
+function isSoundLevel(value: string): value is SoundLevel
+function playSound(level: SoundLevel): void
+```
+
+| シグネチャ | 説明 |
+|---|---|
+| `SOUND_LEVELS` | 有効なサウンドレベルのタプル定数。`SoundLevel` 型の導出元 |
+| `SoundLevel` | 通知音レベルの型 (`"critical"` / `"warning"` / `"normal"` / `"info"` / `"cancel"`) |
+| `isSoundLevel(value)` | 文字列が有効な `SoundLevel` かを判定する型ガード |
+| `playSound(level)` | 指定レベルの通知音を再生する。エラーはデバッグログのみで例外をスローしない |
+
+### 内部ロジック
+
+#### カスタム効果音
+
+`assets/sounds/` ディレクトリに `{level}.mp3` または `{level}.wav` を配置すると、システムサウンドより優先して再生される。`findCustomSound()` が `.mp3` → `.wav` の優先順で探索する。
+
+#### プラットフォーム別再生
+
+| プラットフォーム | カスタム音 | システムサウンド |
+|---|---|---|
+| Windows | PowerShell + WPF `MediaPlayer` (mp3/wav 対応) | PowerShell + `SoundPlayer` (`%SYSTEMROOT%\Media\*.wav`) |
+| macOS | `afplay` コマンド | `afplay` (`/System/Library/Sounds/*.aiff`) |
+| Linux | mp3: `ffplay`、wav: `paplay` → `aplay` フォールバック | `canberra-gtk-play` → BEL 文字フォールバック |
+
+#### システムサウンドマッピング
+
+| レベル | Windows | macOS | Linux (canberra) |
+|---|---|---|---|
+| `critical` | Windows Critical Stop.wav | Sosumi.aiff | dialog-error |
+| `warning` | Windows Exclamation.wav | Basso.aiff | dialog-warning |
+| `normal` | Windows Notify Calendar.wav | Glass.aiff | message-new-instant |
+| `info` | Windows Notify Email.wav | Tink.aiff | dialog-information |
+| `cancel` | Windows Recycle.wav | Pop.aiff | bell (BEL 文字) |
+
+#### BEL 文字フォールバック
+
+Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に書き込んでターミナルベルを鳴らす。`cancel` レベルは canberra を経由せず直接 BEL にフォールバックする。
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `child_process` | `execFile`, `exec` — 外部コマンドによるサウンド再生 |
+| `fs`, `path` | カスタム効果音ファイルの探索 |
+| `../logger` | デバッグログ出力 |
+
+### 設計ノート
+
+- 全再生関数はコールバックベースで非同期実行し、Promise を返さない fire-and-forget 設計。通知音の再生失敗がアプリケーションの動作に影響しない。
+- Windows ではカスタム音に WPF `MediaPlayer` (mp3 対応)、システム音に WinForms `SoundPlayer` (wav のみ) を使い分けている。
+- `SOUND_LEVELS` を `as const` タプルとし、`SoundLevel` 型を `typeof SOUND_LEVELS[number]` で導出することで、定数と型の一貫性を保証している。
