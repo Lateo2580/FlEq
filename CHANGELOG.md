@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.43.0](https://github.com/Lateo2580/FlEq/compare/v1.42.0...v1.43.0) (2026-03-16)
+
+
+### 機能追加
+
+* テキスト電文・南海トラフ情報の本文キーワード強調表示 ([fd6b937](https://github.com/Lateo2580/FlEq/commit/fd6b937e0fa1a941714ab0f48736a1b408b668ad))
+
 ## [1.42.0](https://github.com/Lateo2580/FlEq/compare/v1.41.0...v1.42.0) (2026-03-16)
 
 
