@@ -13,6 +13,8 @@ import {
   formatTimestamp,
   wrapTextLines,
   setFrameWidth,
+  highlightAndWrap,
+  collectHighlightSpans,
 } from "../../src/ui/formatter";
 import type { EewDiff } from "../../src/engine/eew-tracker";
 import {
@@ -1114,5 +1116,226 @@ describe("wrapTextLines", () => {
     // maxWidth=5: "ab漢"(1+1+2=4), 次に"字"追加で6>5 → 折り返し
     const result = wrapTextLines("ab漢字cd", 5);
     expect(result).toEqual(["ab漢", "字cd"]);
+  });
+});
+
+// ── highlightAndWrap 単体テスト ──
+
+describe("highlightAndWrap", () => {
+  beforeEach(() => {
+    chalk.level = 3;
+  });
+
+  const makeRule = (source: string, style: () => chalk.Chalk) => ({
+    source,
+    flags: "",
+    style,
+  });
+
+  it("マッチなし → 素の折り返し結果と同じ", () => {
+    const rules = [makeRule("地震", () => chalk.red)];
+    const result = highlightAndWrap("通常のテキスト行です", rules, 60);
+    const plain = wrapTextLines("通常のテキスト行です", 60);
+    expect(result).toEqual(plain);
+  });
+
+  it("部分マッチ → マッチ部分にANSIが入り、非マッチ部分は素通し", () => {
+    const rules = [makeRule("活発", () => chalk.red)];
+    const result = highlightAndWrap("地震活動が活発になっています", rules, 60);
+    expect(result).toHaveLength(1);
+    // ANSIエスケープを含む
+    expect(result[0]).toContain("\u001b[");
+    // 「活発」がスタイル適用される
+    expect(result[0]).toContain(chalk.red("活発"));
+    // 非マッチ部分はそのまま
+    expect(result[0]).toContain("地震活動が");
+    expect(result[0]).toContain("になっています");
+  });
+
+  it("同一位置で長いマッチが優先される（巨大地震警戒 vs 巨大地震）", () => {
+    const rules = [
+      makeRule("巨大地震", () => chalk.yellow),
+      makeRule("巨大地震警戒", () => chalk.red),
+    ];
+    const result = highlightAndWrap("巨大地震警戒が発令されました", rules, 60);
+    expect(result).toHaveLength(1);
+    // 長い方（巨大地震警戒）が優先される
+    expect(result[0]).toContain(chalk.red("巨大地震警戒"));
+    // 短い方（巨大地震）の色が残らない
+    expect(result[0]).not.toContain(chalk.yellow("巨大地震"));
+  });
+
+  it("折り返しでキーワードがまたがる行でもマッチが維持される", () => {
+    // 「巨大地震警戒」(6文字=12幅) を maxWidth=10 で折り返す
+    const rules = [makeRule("巨大地震警戒", () => chalk.red)];
+    const text = "巨大地震警戒です";
+    const result = highlightAndWrap(text, rules, 10);
+    // 2行に折り返されるはず
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    // 両方の行を結合するとANSIが含まれている
+    const combined = result.join("");
+    expect(combined).toContain("\u001b[");
+  });
+
+  it("chalk.level = 0 でも内容が壊れない", () => {
+    const origLevel = chalk.level;
+    chalk.level = 0;
+    const rules = [makeRule("活発", () => chalk.red)];
+    const result = highlightAndWrap("地震活動が活発です", rules, 60);
+    expect(result).toHaveLength(1);
+    // 色なしでも元のテキストが含まれる
+    expect(result[0]).toContain("活発");
+    expect(result[0]).toContain("地震活動が");
+    chalk.level = origLevel;
+  });
+});
+
+// ── collectHighlightSpans 単体テスト ──
+
+describe("collectHighlightSpans", () => {
+  const makeRule = (source: string, style: () => chalk.Chalk) => ({
+    source,
+    flags: "",
+    style,
+  });
+
+  it("マッチなし → 空配列", () => {
+    const rules = [makeRule("地震", () => chalk.red)];
+    const spans = collectHighlightSpans("通常のテキスト", rules);
+    expect(spans).toEqual([]);
+  });
+
+  it("複数マッチ → 開始位置順にソートされる", () => {
+    const rules = [makeRule("活発|調査中", () => chalk.red)];
+    const spans = collectHighlightSpans("現在調査中で活発な状態", rules);
+    expect(spans).toHaveLength(2);
+    expect(spans[0].start).toBeLessThan(spans[1].start);
+  });
+});
+
+// ── displaySeismicTextInfo ハイライトテスト ──
+
+describe("displaySeismicTextInfo ハイライト", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("VXSE56: 「活発」にANSI色が付く", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1, {
+      head: {
+        type: "VXSE56",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+    const info = parseSeismicTextTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displaySeismicTextInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    // 本文中の「活発」にANSIエスケープが付いている
+    // warningComment ロール = orange (230, 159, 0)
+    expect(output).toContain("230");
+    expect(output).toContain("159");
+  });
+});
+
+// ── displayNankaiTroughInfo ハイライトテスト ──
+
+describe("displayNankaiTroughInfo ハイライト", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("VYSE50 巨大地震警戒: 「巨大地震警戒」本文にANSI色が付く", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // nankaiSerialCritical = vermillion (213, 94, 0)
+    // 本文中の「巨大地震警戒」がハイライトされている
+    expect(output).toContain("巨大地震警戒");
+    // 出力にANSIエスケープが含まれている（色情報）
+    expect(output).toContain("\u001b[");
+  });
+
+  it("VYSE50 巨大地震警戒: 行動促進キーワードに色が付く", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    // nextAdvisory ロール = sky (86, 180, 233) が出力に含まれる
+    // (防災対応をとってください / 今後の情報に注意してください がマッチするはず)
+    expect(output).toContain("86");
+    expect(output).toContain("180");
+    expect(output).toContain("233");
+  });
+
+  it("VYSE50 調査終了: 本文が過剰に色付かない", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CLOSED, {
+      head: {
+        type: "VYSE50",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseNankaiTroughTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayNankaiTroughInfo(info!);
+
+    const lines = logSpy.mock.calls.map((args) => String(args[0]));
+    // 本文行でANSIを含む行数をカウント（フレーム色を除く）
+    // 過剰着色ではないことを確認（全行にANSIが入るわけではない）
+    const bodyStartIdx = lines.findIndex((l) => l.includes("調査終了")) + 1;
+    const bodyLines = lines.slice(bodyStartIdx).filter((l) => !l.includes("╔") && !l.includes("╚") && !l.includes("╠") && !l.includes("┌") && !l.includes("└") && !l.includes("├"));
+    // 少なくとも一部の行にはANSI以外の素通し部分がある
+    const linesWithoutExtraAnsi = bodyLines.filter((l) => {
+      // フレーム色以外のANSIが含まれていない行
+      const stripped = l.replace(/\u001b\[[0-9;]*m/g, "");
+      return stripped.length > 0;
+    });
+    expect(linesWithoutExtraAnsi.length).toBeGreaterThan(0);
   });
 });

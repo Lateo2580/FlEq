@@ -347,6 +347,143 @@ export function wrapTextLines(text: string, maxWidth: number): string[] {
   return lines;
 }
 
+// ── 本文キーワード強調 ──
+
+/** 本文キーワード強調ルール */
+interface HighlightRule {
+  /** マッチパターン（source + flags で保持し、都度 new RegExp する） */
+  source: string;
+  flags: string;
+  /** 適用する chalk スタイル（テーマ再読込対応のため遅延評価） */
+  style: () => chalk.Chalk;
+}
+
+/** マッチ済み区間 */
+interface HighlightSpan {
+  start: number;
+  end: number;
+  style: chalk.Chalk;
+}
+
+// ── 南海トラフ共通ルール ──
+
+const NANKAI_COMMON_RULES: readonly HighlightRule[] = [
+  { source: "巨大地震警戒", flags: "", style: () => theme.getRoleChalk("nankaiSerialCritical") },
+  { source: "大規模地震", flags: "", style: () => theme.getRoleChalk("nankaiSerialCritical") },
+  { source: "巨大地震注意|後発地震注意情報|後発地震への注意", flags: "", style: () => theme.getRoleChalk("nankaiSerialWarning") },
+  { source: "調査中|調査を開始", flags: "", style: () => theme.getRoleChalk("nankaiSerialWarning") },
+  { source: "モーメントマグニチュード|Ｍｗ[０-９0-9]+", flags: "", style: () => chalk.bold.white },
+  { source: "防災対応をとってください|今後の情報に注意してください|身の安全を守る行動", flags: "", style: () => theme.getRoleChalk("nextAdvisory") },
+  { source: "相対的に高まっている", flags: "", style: () => theme.getRoleChalk("warningComment") },
+  { source: "調査終了", flags: "", style: () => theme.getRoleChalk("textMuted") },
+];
+
+// ── VYSE52 追加ルール ──
+
+const NANKAI_VYSE52_EXTRA_RULES: readonly HighlightRule[] = [
+  { source: "特段の変化は観測されていません", flags: "", style: () => theme.getRoleChalk("textMuted") },
+  { source: "短期的ゆっくりすべり|長期的ゆっくりすべり", flags: "", style: () => chalk.bold.white },
+];
+
+// ── テキスト系ルール ──
+
+const SEISMIC_TEXT_RULES: readonly HighlightRule[] = [
+  { source: "活発", flags: "", style: () => theme.getRoleChalk("warningComment") },
+  { source: "最大マグニチュード[０-９0-9Ｍ．.]+程度|マグニチュード[０-９0-9．.]+", flags: "", style: () => theme.getRoleChalk("warningComment") },
+  { source: "最大震度[０-９0-9][弱強]?|震度[０-９0-9][弱強]?を観測", flags: "", style: () => theme.getRoleChalk("warningComment") },
+  { source: "防災上の留意事項|見通し", flags: "", style: () => chalk.bold.white },
+];
+
+/** 電文種別に応じた南海トラフルールを返す */
+function getNankaiRules(type: string): readonly HighlightRule[] {
+  if (type === "VYSE52") {
+    return [...NANKAI_COMMON_RULES, ...NANKAI_VYSE52_EXTRA_RULES];
+  }
+  return NANKAI_COMMON_RULES;
+}
+
+/** 電文種別に応じたテキスト系ルールを返す */
+function getSeismicTextRules(_type: string): readonly HighlightRule[] {
+  return SEISMIC_TEXT_RULES;
+}
+
+/** 元の行からマッチspanを収集する */
+export function collectHighlightSpans(line: string, rules: readonly HighlightRule[]): HighlightSpan[] {
+  const spans: HighlightSpan[] = [];
+
+  for (const rule of rules) {
+    const flags = rule.flags.includes("g") ? rule.flags : rule.flags + "g";
+    const regex = new RegExp(rule.source, flags);
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(line)) !== null) {
+      // 文字列インデックスをchar配列インデックスに変換
+      const startCharIdx = Array.from(line.slice(0, match.index)).length;
+      const matchChars = Array.from(match[0]).length;
+      const endCharIdx = startCharIdx + matchChars;
+
+      // 既存spanと重複しない場合のみ追加（同一開始位置では長いマッチ優先）
+      const overlapping = spans.find(s => startCharIdx < s.end && endCharIdx > s.start);
+      if (!overlapping) {
+        spans.push({ start: startCharIdx, end: endCharIdx, style: rule.style() });
+      } else if (overlapping.start === startCharIdx && matchChars > (overlapping.end - overlapping.start)) {
+        // 同一開始位置で長い方が勝つ
+        overlapping.end = endCharIdx;
+        overlapping.style = rule.style();
+      }
+    }
+  }
+  return spans.sort((a, b) => a.start - b.start);
+}
+
+/** span付きの行を折り返し、各折り返し行にANSIを適用する */
+export function highlightAndWrap(
+  line: string, rules: readonly HighlightRule[], maxWidth: number
+): string[] {
+  const spans = collectHighlightSpans(line, rules);
+
+  // spanがなければ従来通り（素通し）
+  if (spans.length === 0) {
+    return wrapTextLines(line, maxWidth);
+  }
+
+  // 平文で折り返し
+  const wrappedLines = wrapTextLines(line, maxWidth);
+
+  // 各折り返し行に対して、charオフセットを追跡しながらspanを適用
+  let charOffset = 0;
+  return wrappedLines.map((wrapped) => {
+    const chars = Array.from(wrapped);
+    const lineEnd = charOffset + chars.length;
+
+    // この行にかかるspanを取得
+    const relevantSpans = spans.filter(s => s.start < lineEnd && s.end > charOffset);
+
+    if (relevantSpans.length === 0) {
+      charOffset = lineEnd;
+      return wrapped;
+    }
+
+    // spanに応じて部分ごとに色付け
+    let result = "";
+    let pos = charOffset;
+    for (const span of relevantSpans) {
+      const spanStart = Math.max(span.start, charOffset);
+      const spanEnd = Math.min(span.end, lineEnd);
+      if (pos < spanStart) {
+        result += chars.slice(pos - charOffset, spanStart - charOffset).join("");
+      }
+      result += span.style(chars.slice(spanStart - charOffset, spanEnd - charOffset).join(""));
+      pos = spanEnd;
+    }
+    if (pos < lineEnd) {
+      result += chars.slice(pos - charOffset).join("");
+    }
+
+    charOffset = lineEnd;
+    return result;
+  });
+}
+
 // ── 時刻フォーマット ──
 
 /** 絶対時刻を整形 ("YYYY-MM-DD HH:MM:SS") */
@@ -1199,10 +1336,11 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
     const showFull = cachedInfoFullText;
     const maxLines = 15;
     const innerWidth = width - 4;
+    const rules = getSeismicTextRules(info.type);
     const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
     for (const line of displayLines) {
-      for (const wrapped of wrapTextLines(line, innerWidth)) {
-        console.log(frameLine(level, chalk.white(wrapped), width));
+      for (const highlighted of highlightAndWrap(line, rules, innerWidth)) {
+        console.log(frameLine(level, highlighted, width));
       }
     }
     if (!showFull && bodyLines.length > maxLines) {
@@ -1296,10 +1434,11 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
     const showFull = cachedInfoFullText;
     const maxLines = 20;
     const innerWidth = width - 4;
+    const rules = getNankaiRules(info.type);
     const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
     for (const line of displayLines) {
-      for (const wrapped of wrapTextLines(line, innerWidth)) {
-        console.log(frameLine(level, chalk.white(wrapped), width));
+      for (const highlighted of highlightAndWrap(line, rules, innerWidth)) {
+        console.log(frameLine(level, highlighted, width));
       }
     }
     if (!showFull && bodyLines.length > maxLines) {
