@@ -181,6 +181,45 @@ describe("Config", () => {
         "eew.warning",
       ]);
     });
+
+    it("正常な maxObservations を読み込む", async () => {
+      const config = await importConfig();
+      const configDir = path.join(tmpDir, ".config", "fleq");
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({ maxObservations: 10 })
+      );
+
+      const result = config.loadConfig();
+      expect(result.maxObservations).toBe(10);
+    });
+
+    it("範囲外の maxObservations を無視する", async () => {
+      const config = await importConfig();
+      const configDir = path.join(tmpDir, ".config", "fleq");
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({ maxObservations: 0 })
+      );
+
+      const result = config.loadConfig();
+      expect(result.maxObservations).toBeUndefined();
+    });
+
+    it("非整数の maxObservations を無視する", async () => {
+      const config = await importConfig();
+      const configDir = path.join(tmpDir, ".config", "fleq");
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({ maxObservations: 5.5 })
+      );
+
+      const result = config.loadConfig();
+      expect(result.maxObservations).toBeUndefined();
+    });
   });
 
   describe("setConfigValue", () => {
@@ -320,6 +359,28 @@ describe("Config", () => {
 
       const result = config.loadConfig();
       expect(result.appName).toBe("second");
+    });
+
+    it("maxObservations に正常な整数値をセットできる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("maxObservations", "10");
+      const result = config.loadConfig();
+      expect(result.maxObservations).toBe(10);
+    });
+
+    it("maxObservations の off で設定を削除できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("maxObservations", "10");
+      config.setConfigValue("maxObservations", "off");
+      const result = config.loadConfig();
+      expect(result.maxObservations).toBeUndefined();
+    });
+
+    it("maxObservations に範囲外の値でエラーになる", async () => {
+      const config = await importConfig();
+      expect(() => config.setConfigValue("maxObservations", "0")).toThrow();
+      expect(() => config.setConfigValue("maxObservations", "1000")).toThrow();
+      expect(() => config.setConfigValue("maxObservations", "abc")).toThrow();
     });
   });
 

@@ -12,7 +12,7 @@ import {
 } from "../config";
 import { listContracts } from "../dmdata/rest-client";
 import { startMonitor } from "./monitor";
-import { setFrameWidth, setInfoFullText, setDisplayMode } from "../ui/formatter";
+import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations } from "../ui/formatter";
 import { loadTheme } from "../ui/theme";
 import * as updateChecker from "./update-checker";
 import * as log from "../logger";
@@ -129,6 +129,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     sound: fileConfig.sound ?? DEFAULT_CONFIG.sound,
     eewLog: fileConfig.eewLog ?? DEFAULT_CONFIG.eewLog,
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
+    maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
   };
 
   // Banner title (契約チェック前に表示)
@@ -184,6 +185,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   }
   setInfoFullText(config.infoFullText ?? false);
   setDisplayMode(config.displayMode);
+  setMaxObservations(config.maxObservations);
 
   printBanner(config);
   updateChecker.checkForUpdates("fleq", VERSION);

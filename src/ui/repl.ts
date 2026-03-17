@@ -1,6 +1,6 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField } from "../types";
+import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField, PromptStatusProvider, PromptStatusSegment, DetailProvider } from "../types";
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { loadConfig, saveConfig, printConfig, VALID_EEW_LOG_FIELDS } from "../config";
@@ -17,6 +17,8 @@ import {
   setInfoFullText,
   setDisplayMode,
   getDisplayMode,
+  setMaxObservations,
+  getMaxObservations,
 } from "../ui/formatter";
 import * as themeModule from "../ui/theme";
 import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/sound-player";
@@ -210,19 +212,25 @@ export class ReplHandler {
   private tipIntervalMs: number;
   private nextTipAt: number | null = null;
   private tipIndex = 0;
+  private statusProviders: PromptStatusProvider[];
+  private detailProviders: DetailProvider[];
 
   constructor(
     config: AppConfig,
     wsManager: WebSocketManager,
     notifier: Notifier,
     eewLogger: EewEventLogger,
-    onQuit: () => void | Promise<void>
+    onQuit: () => void | Promise<void>,
+    statusProviders: PromptStatusProvider[] = [],
+    detailProviders: DetailProvider[] = [],
   ) {
     this.config = config;
     this.wsManager = wsManager;
     this.notifier = notifier;
     this.eewLogger = eewLogger;
     this.onQuit = onQuit;
+    this.statusProviders = statusProviders;
+    this.detailProviders = detailProviders;
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
     this.tipIntervalMs = this.config.waitTipIntervalMin * 60 * 1000;
@@ -251,6 +259,15 @@ export class ReplHandler {
         detail: "CUD (カラーユニバーサルデザイン) パレットと、\n  震度・長周期地震動階級・フレームレベルに対応する色を確認できます。",
         category: "info",
         handler: () => this.handleColors(),
+      },
+      detail: {
+        description: "直近の津波情報を再表示 (例: detail tsunami)",
+        detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示",
+        category: "info",
+        subcommands: {
+          tsunami: { description: "津波情報を再表示" },
+        },
+        handler: (args) => this.handleDetail(args),
       },
       status: {
         description: "WebSocket 接続状態を表示",
@@ -379,6 +396,16 @@ export class ReplHandler {
           off: { description: "ミュート解除" },
         },
         handler: (args) => this.handleMute(args),
+      },
+      fold: {
+        description: "観測点の表示件数制限 (例: fold 10 / fold off)",
+        detail: "fold: 現在の設定を表示\n  fold <N>: 上位N件に制限\n  fold off: 全件表示に戻す",
+        category: "settings",
+        subcommands: {
+          "<N>": { description: "観測点を上位N件に制限 (1〜999)" },
+          off: { description: "全件表示に戻す" },
+        },
+        handler: (args) => this.handleFold(args),
       },
       test: {
         description: "テスト機能",
@@ -571,11 +598,24 @@ export class ReplHandler {
     }
     const base = this.statusLine.buildPrefix({ noSuffix: true });
     const status = this.wsManager.getStatus();
-    if (!status.connected || status.heartbeatDeadlineAt == null) {
+
+    // ステータスプロバイダーからセグメント収集 → priority 順ソート
+    const segments = this.statusProviders
+      .map((p) => p.getPromptStatus())
+      .filter((s): s is PromptStatusSegment => s != null)
+      .sort((a, b) => a.priority - b.priority);
+
+    const parts: string[] = segments.map((s) => s.text);
+
+    if (status.connected && status.heartbeatDeadlineAt != null) {
+      const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));
+      parts.push(chalk.white(`ping in ${sec}s`));
+    }
+
+    if (parts.length === 0) {
       return `${base}${chalk.gray("]> ")}`;
     }
-    const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));
-    return `${base}${chalk.gray(" | ")}${chalk.white(`ping in ${sec}s`)}${chalk.gray("]> ")}`;
+    return `${base}${chalk.gray(" | ")}${parts.join(chalk.gray(" | "))}${chalk.gray("]> ")}`;
   }
 
   private prompt(): void {
@@ -676,6 +716,24 @@ export class ReplHandler {
   }
 
   // ── コマンドハンドラ ──
+
+  private handleDetail(args: string): void {
+    const sub = args.trim().toLowerCase();
+
+    // 引数なし or "tsunami" → 津波情報を再表示
+    if (sub === "" || sub === "tsunami") {
+      const provider = this.detailProviders.find((p) => p.category === "tsunami");
+      if (provider == null || !provider.hasDetail()) {
+        console.log(chalk.gray("  現在、継続中の津波情報はありません。"));
+      } else {
+        provider.showDetail();
+      }
+      return;
+    }
+
+    // 未知のサブコマンド
+    console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(" (利用可能: tsunami)"));
+  }
 
   private handleHelp(args: string): void {
     const trimmed = args.trim();
@@ -1451,6 +1509,44 @@ export class ReplHandler {
     } else {
       console.log(chalk.yellow("  on または off を指定してください。"));
     }
+  }
+
+  private handleFold(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      const current = getMaxObservations();
+      if (current == null) {
+        console.log("  観測点表示: 全件表示");
+      } else {
+        console.log(`  観測点表示: 上位 ${current} 件に制限`);
+      }
+      console.log(chalk.gray("  使い方: fold <N> / fold off"));
+      return;
+    }
+
+    if (trimmed === "off") {
+      setMaxObservations(null);
+      this.config.maxObservations = null;
+      const config = loadConfig();
+      delete config.maxObservations;
+      saveConfig(config);
+      console.log("  観測点表示を全件表示に戻しました。");
+      return;
+    }
+
+    const n = Number(trimmed);
+    if (isNaN(n) || !Number.isInteger(n) || n < 1 || n > 999) {
+      console.log(chalk.yellow("  1〜999 の整数、または off を指定してください。"));
+      return;
+    }
+
+    setMaxObservations(n);
+    this.config.maxObservations = n;
+    const config = loadConfig();
+    config.maxObservations = n;
+    saveConfig(config);
+    console.log(`  観測点表示を上位 ${n} 件に制限しました。`);
   }
 
   private handleMute(args: string): void {

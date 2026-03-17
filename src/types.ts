@@ -69,6 +69,8 @@ export interface AppConfig {
   eewLog: boolean;
   /** EEW ログ記録項目 */
   eewLogFields: Record<EewLogField, boolean>;
+  /** 観測点の最大表示件数 (null = 全件表示) */
+  maxObservations: number | null;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -88,6 +90,7 @@ export interface ConfigFile {
   sound?: boolean;
   eewLog?: boolean;
   eewLogFields?: Partial<Record<EewLogField, boolean>>;
+  maxObservations?: number;
 }
 
 /** デフォルト設定 */
@@ -126,7 +129,29 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     diff: true,
     maxIntChangeReason: true,
   },
+  maxObservations: null,
 };
+
+// ── プロンプトステータス ──
+
+/** プロンプトに表示するステータスセグメント */
+export interface PromptStatusSegment {
+  text: string;       // chalk 適用済みテキスト
+  priority: number;   // 小さいほど左側に表示
+}
+
+/** プロンプトにステータスを提供する */
+export interface PromptStatusProvider {
+  getPromptStatus(): PromptStatusSegment | null;
+}
+
+/** detail コマンドの表示を提供する */
+export interface DetailProvider {
+  readonly category: string;       // "tsunami", "eew" 等
+  readonly emptyMessage: string;   // 情報なし時のメッセージ
+  hasDetail(): boolean;
+  showDetail(): void;
+}
 
 // ── dmdata.jp API レスポンス型 ──
 

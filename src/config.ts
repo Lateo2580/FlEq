@@ -178,6 +178,7 @@ const CONFIG_KEYS: Record<string, string> = {
   waitTipIntervalMin: "待機中ヒント表示間隔 (分, 0で無効)",
   sound: "通知音の有効/無効 (true/false)",
   eewLog: "EEWログ記録の有効/無効 (true/false)",
+  maxObservations: '観測点の最大表示件数 (1〜999 / "off" で全件表示)',
 };
 
 /** Configファイルのパスを返す */
@@ -242,6 +243,7 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyBooleanField(config, "eewLog", raw.eewLog);
   applyEewLogFields(config, raw.eewLogFields);
   applyNotifySettings(config, raw.notify);
+  applyMaxObservations(config, raw.maxObservations);
 
   return config;
 }
@@ -352,6 +354,12 @@ function applyNotifySettings(config: ConfigFile, value: unknown): void {
   }
   if (Object.keys(notify).length > 0) {
     config.notify = notify;
+  }
+}
+
+function applyMaxObservations(config: ConfigFile, value: unknown): void {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 999) {
+    config.maxObservations = value;
   }
 }
 
@@ -501,6 +509,20 @@ export function setConfigValue(key: string, value: string): void {
       }
       config.eewLog = value === "true";
       break;
+    case "maxObservations": {
+      if (value === "off") {
+        delete config.maxObservations;
+        break;
+      }
+      const mo = Number(value);
+      if (isNaN(mo) || !Number.isInteger(mo) || mo < 1 || mo > 999) {
+        throw new ConfigError(
+          'maxObservations は 1〜999 の整数、または "off" を指定してください。'
+        );
+      }
+      config.maxObservations = mo;
+      break;
+    }
   }
 
   saveConfig(config);

@@ -249,6 +249,38 @@ describe("message-router 統合テスト", () => {
       expect(output).toContain("津波");
     });
 
+    it("VTSE41 受信で tsunamiState が更新される", () => {
+      const { handler, tsunamiState } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
+      handler(msg);
+
+      // VTSE41 の警報レベルが設定される
+      expect(tsunamiState.getLevel()).not.toBeNull();
+    });
+
+    it("VTSE41 取消報で tsunamiState がクリアされる", () => {
+      const { handler, tsunamiState } = createMessageHandler();
+      // まず警報
+      handler(createMockWsDataMessage(FIXTURE_VTSE41_WARN));
+      expect(tsunamiState.getLevel()).not.toBeNull();
+
+      // 取消
+      handler(createMockWsDataMessage(FIXTURE_VTSE41_CANCEL));
+      expect(tsunamiState.getLevel()).toBeNull();
+    });
+
+    it("VTSE51 では tsunamiState が更新されない", () => {
+      const { handler, tsunamiState } = createMessageHandler();
+      handler(createMockWsDataMessage(FIXTURE_VTSE51_INFO));
+      expect(tsunamiState.getLevel()).toBeNull();
+    });
+
+    it("createMessageHandler() が tsunamiState を返す", () => {
+      const result = createMessageHandler();
+      expect(result.tsunamiState).toBeDefined();
+      expect(result.tsunamiState.category).toBe("tsunami");
+    });
+
     it("VTSE41 取消報を処理する", () => {
       const { handler } = createMessageHandler();
       const msg = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);

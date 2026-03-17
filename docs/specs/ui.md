@@ -24,6 +24,8 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `getInfoFullText(): boolean` | `infoFullText` の現在値を返す |
 | `setDisplayMode(mode: DisplayMode): void` | 表示モード (`"normal"` / `"compact"`) を設定する |
 | `getDisplayMode(): DisplayMode` | 現在の表示モードを返す |
+| `setMaxObservations(value: number \| null): void` | 観測点の最大表示件数を設定する (`null` で全件表示) |
+| `getMaxObservations(): number \| null` | 観測点最大表示件数の現在値を返す |
 
 #### ユーティリティ
 
@@ -143,8 +145,10 @@ interface HighlightSpan {
 ### 設計ノート
 
 - 色のハードコードを避け、すべて `theme.getRoleChalk()` 経由とすることで、`theme.json` によるカスタマイズを実現している。
-- 表示状態 (フレーム幅・表示モード・全文表示フラグ) はモジュールレベル変数でキャッシュし、各 `display*` 関数が引数なしで参照できるようにしている。これはパフォーマンスと API 簡潔性のトレードオフ。
+- 表示状態 (フレーム幅・表示モード・全文表示フラグ・観測点最大表示件数) はモジュールレベル変数でキャッシュし、各 `display*` 関数が引数なしで参照できるようにしている。これはパフォーマンスと API 簡潔性のトレードオフ。
 - `FrameLevel` を全電文タイプ共通の抽象レベルとすることで、フレーム描画コードの重複を排除している。
+- **レンダーバッファ**: 6つの `display*` 関数は `createRenderBuffer()` で行をバッファに蓄積し、`flushWithRecap()` で一括出力する。TTY かつ行数がターミナル高さを超える場合、フレーム下部直前に「▼ サマリー」セクション (タイトル行・カード行・ヘッドライン1行目) を再掲する。非TTY や行数が十分少ない場合はそのまま出力する。
+- **観測点折りたたみ**: `cachedMaxObservations` が非 `null` の場合、震度一覧・予測震度一覧・津波予報/観測/推定・長周期地域リストの表示件数を制限し、超過分を「... 他 XX 地点」として表示する。REPL の `fold` コマンドまたは `fleq config set maxObservations` で設定する。
 - `visualWidth()` は独自実装で Unicode コードポイント範囲を判定する。`wcwidth` 等の外部ライブラリを使わないことで依存を最小化している。
 
 ---
@@ -168,7 +172,9 @@ class ReplHandler {
     wsManager: WebSocketManager,
     notifier: Notifier,
     eewLogger: EewEventLogger,
-    onQuit: () => void | Promise<void>
+    onQuit: () => void | Promise<void>,
+    statusProviders?: PromptStatusProvider[],
+    detailProviders?: DetailProvider[],
   )
 
   start(): void
@@ -199,9 +205,10 @@ class ReplHandler {
 - `connectedAt` / `lastMessageTime`: 経過時間計算用のタイムスタンプ
 - `clockMode`: `"elapsed"` (経過時間) / `"clock"` (現在時刻) の表示切替
 
-プロンプト形式: `FlEq [● HH:MM:SS | ping in Ns]> `
+プロンプト形式: `FlEq [● HH:MM:SS | <ステータス> | ping in Ns]> `
 - 未接続時: `FlEq [○ --:--:--]> `
 - ping までの残り秒数は `wsManager.getStatus().heartbeatDeadlineAt` から算出
+- ステータスセグメント: `PromptStatusProvider` から動的に収集し、`priority` 順 (昇順) で `|` 区切り表示。津波警報発令中は `津波警報` 等がテーマロール色付きで挿入される
 
 #### コマンドシステム
 
@@ -223,6 +230,7 @@ interface CommandEntry {
 | `help` / `?` | info | コマンド一覧・詳細表示 |
 | `history` | info | dmdata.jp API から地震履歴を取得・テーブル表示 |
 | `colors` | info | CUD パレット・震度色・フレームレベル色の一覧表示 |
+| `detail` | info | 直近の津波情報を再表示 (`detail` / `detail tsunami`) |
 | `status` | status | WebSocket 接続状態・SocketID・再接続試行回数の表示 |
 | `config` | status | Config ファイルの設定一覧 |
 | `contract` | status | dmdata.jp の契約区分一覧 (API 呼び出し) |
@@ -237,6 +245,7 @@ interface CommandEntry {
 | `sound` | settings | 通知音の ON/OFF |
 | `theme` | settings | カラーテーマの表示・管理 (path / show / reset / reload / validate) |
 | `mute` | settings | 通知の一時ミュート (時間指定) |
+| `fold` | settings | 観測点の表示件数制限 (`fold <N>`: 上位N件, `fold off`: 全件表示) |
 | `test` | operation | テスト機能 (`test sound [level]`: サウンドテスト、`test table [type] [番号]`: 表示形式テスト) |
 | `clear` | operation | ターミナル画面クリア |
 | `retry` | operation | WebSocket 手動再接続 |

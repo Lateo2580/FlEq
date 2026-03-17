@@ -13,6 +13,7 @@ import {
   formatTimestamp,
   wrapTextLines,
   setFrameWidth,
+  setMaxObservations,
   highlightAndWrap,
   collectHighlightSpans,
 } from "../../src/ui/formatter";
@@ -41,6 +42,7 @@ import {
   FIXTURE_VYSE50_CANCEL,
   FIXTURE_VYSE60_AFTERSHOCK,
   FIXTURE_VXSE62_LGOBS,
+  FIXTURE_VXSE53_DRILL_1,
 } from "../helpers/mock-message";
 
 // ── intensityColor ──
@@ -1379,5 +1381,115 @@ describe("displayNankaiTroughInfo ハイライト", () => {
       return stripped.length > 0;
     });
     expect(linesWithoutExtraAnsi.length).toBeGreaterThan(0);
+  });
+});
+
+// ── バッファリング + recap テスト ──
+
+describe("バッファリング + recap", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let origIsTTY: boolean | undefined;
+  let origRows: number | undefined;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    setFrameWidth(60);
+    setMaxObservations(null);
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    origIsTTY = process.stdout.isTTY;
+    origRows = process.stdout.rows;
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    Object.defineProperty(process.stdout, "isTTY", { value: origIsTTY, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: origRows, writable: true, configurable: true });
+    setMaxObservations(null);
+  });
+
+  it("ターミナルが十分大きい場合、recap が挿入されない", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 200, writable: true, configurable: true });
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    const info = parseEarthquakeTelegram(msg);
+    displayEarthquakeInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).not.toContain("▼ サマリー");
+  });
+
+  it("ターミナルが小さい場合、recap が挿入される", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    const info = parseEarthquakeTelegram(msg);
+    displayEarthquakeInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).toContain("▼ サマリー");
+  });
+
+  it("非TTY の場合、recap が挿入されない", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: undefined, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    const info = parseEarthquakeTelegram(msg);
+    displayEarthquakeInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).not.toContain("▼ サマリー");
+  });
+
+  it("EEW でもターミナルが小さい場合に recap が挿入される", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+
+    const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+    const info = parseEewTelegram(msg);
+    displayEewInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).toContain("▼ サマリー");
+  });
+});
+
+// ── 観測点折りたたみテスト ──
+
+describe("観測点折りたたみ", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    chalk.level = 3;
+    setFrameWidth(60);
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    setMaxObservations(null);
+  });
+
+  it("setMaxObservations(3) で地震情報の観測点が制限される", () => {
+    setMaxObservations(3);
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_DRILL_1);
+    const info = parseEarthquakeTelegram(msg);
+    displayEarthquakeInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).toContain("他");
+    expect(output).toContain("地点");
+  });
+
+  it("setMaxObservations(null) で全件表示される", () => {
+    setMaxObservations(null);
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_DRILL_1);
+    const info = parseEarthquakeTelegram(msg);
+    displayEarthquakeInfo(info);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).not.toContain("... 他");
   });
 });

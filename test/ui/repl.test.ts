@@ -523,6 +523,65 @@ describe("ReplHandler", () => {
     });
   });
 
+  describe("detail コマンド", () => {
+    it("情報なし時にメッセージを表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      handler.start();
+
+      simulateLine("detail");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("継続中の津波情報はありません");
+
+      handler.stop();
+    });
+
+    it("detail tsunami でも同様に動作する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      handler.start();
+
+      simulateLine("detail tsunami");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("継続中の津波情報はありません");
+
+      handler.stop();
+    });
+
+    it("不明なサブコマンドでエラーを表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      handler.start();
+
+      simulateLine("detail unknown");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("不明なサブコマンド");
+
+      handler.stop();
+    });
+
+    it("DetailProvider がある場合に showDetail() を呼ぶ", () => {
+      const mockProvider = {
+        category: "tsunami",
+        emptyMessage: "情報なし",
+        hasDetail: () => true,
+        showDetail: vi.fn(),
+      };
+
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
+        [], [mockProvider],
+      );
+      handler.start();
+
+      simulateLine("detail");
+
+      expect(mockProvider.showDetail).toHaveBeenCalled();
+
+      handler.stop();
+    });
+  });
+
   describe("stop() の責務分離", () => {
     it("stop() を呼んでも process.exit が呼ばれない", () => {
       const exitSpy = vi

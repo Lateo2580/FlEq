@@ -19,6 +19,7 @@ import {
 import { EewTracker } from "./eew-tracker";
 import { EewEventLogger } from "./eew-logger";
 import { Notifier } from "./notifier";
+import { TsunamiStateHolder } from "./tsunami-state";
 import * as log from "../logger";
 
 /** createMessageHandler の戻り値 */
@@ -26,12 +27,14 @@ export interface MessageHandlerResult {
   handler: (msg: WsDataMessage) => void;
   eewLogger: EewEventLogger;
   notifier: Notifier;
+  tsunamiState: TsunamiStateHolder;
 }
 
 /** 受信データのハンドリング */
 export function createMessageHandler(): MessageHandlerResult {
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
+  const tsunamiState = new TsunamiStateHolder();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -131,6 +134,10 @@ export function createMessageHandler(): MessageHandlerResult {
       if (headType.startsWith("VTSE")) {
         const tsunamiInfo = parseTsunamiTelegram(msg);
         if (tsunamiInfo) {
+          // VTSE41 (津波警報・注意報) の場合のみ状態を更新
+          if (headType === "VTSE41") {
+            tsunamiState.update(tsunamiInfo);
+          }
           displayTsunamiInfo(tsunamiInfo);
           notifier.notifyTsunami(tsunamiInfo);
         } else {
@@ -156,5 +163,5 @@ export function createMessageHandler(): MessageHandlerResult {
     displayRawHeader(msg);
   };
 
-  return { handler, eewLogger, notifier };
+  return { handler, eewLogger, notifier, tsunamiState };
 }

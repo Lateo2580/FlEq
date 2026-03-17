@@ -26,7 +26,7 @@ npm test             # vitest でテスト実行
 - fast-xml-parser — XML電文パース
 - chalk ^4 (CommonJS版) — ターミナル色付け
 - dotenv — 環境変数読み込み
-- node-notifier — デスクトップ通知
+- node-notifier (optional) — デスクトップ通知
 
 ## ディレクトリ構成
 
@@ -36,6 +36,9 @@ src/
 ├── types.ts                    # 共有型定義
 ├── config.ts                   # Configファイル管理 (読み書き・バリデーション)
 ├── logger.ts                   # ログレベル付きロガー
+├── utils/
+│   ├── intensity.ts            # 震度ランク変換 (intensityToRank)
+│   └── secrets.ts              # APIキーマスク (maskApiKey)
 ├── engine/
 │   ├── cli.ts                  # Commander CLI定義
 │   ├── cli-init.ts             # インタラクティブ初期設定 (fleq init)
@@ -45,6 +48,9 @@ src/
 │   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
 │   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
 │   ├── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
+│   ├── node-notifier-loader.ts # node-notifier 遅延ロード (optional dependency)
+│   ├── sound-player.ts         # クロスプラットフォーム通知音再生
+│   ├── tsunami-state.ts        # 津波警報状態管理 (プロンプト表示・detail コマンド)
 │   └── update-checker.ts       # npm 最新バージョンチェック
 ├── dmdata/
 │   ├── rest-client.ts          # dmdata.jp REST API クライアント
@@ -52,16 +58,26 @@ src/
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
+    ├── theme.ts                # テーマシステム (カラーパレット・ロール定義)
     ├── repl.ts                 # REPL インタラクション
+    ├── test-samples.ts         # 表示テスト用サンプルデータ
     └── waiting-tips.ts         # 待機中ヒント定義
 
+docs/
+├── display-reference.md        # 表示リファレンス
+├── raspi500-setup-guide.md     # Raspberry Pi 500 セットアップガイド
+└── specs/                      # 仕様書 (dmdata.md, engine.md, root.md, ui.md)
+
 test/
+├── setup.ts                    # vitest 共通セットアップ (node-notifier モック)
 ├── engine/
 │   ├── cli-run.test.ts
 │   ├── config.test.ts
 │   ├── message-router.test.ts
 │   ├── eew-tracker.test.ts
 │   ├── eew-logger.test.ts
+│   ├── notifier.test.ts
+│   ├── sound-player.test.ts
 │   └── update-checker.test.ts
 ├── dmdata/
 │   ├── rest-client.test.ts
@@ -69,7 +85,8 @@ test/
 │   └── ws-client.test.ts
 ├── ui/
 │   ├── formatter.test.ts
-│   └── repl.test.ts
+│   ├── repl.test.ts
+│   └── theme.test.ts
 ├── fixtures/                   # XMLテストフィクスチャ
 └── helpers/
     └── mock-message.ts
@@ -83,20 +100,24 @@ index.ts (bootstrap) → engine/cli.ts (Commander定義)
     → engine/monitor.ts (WebSocket接続・REPL起動)
       → engine/message-router.ts (電文振り分け)
         → dmdata/telegram-parser.ts (XML解析)
-        → ui/formatter.ts (色付き表示)
+        → ui/formatter.ts (色付き表示)     ← ui/theme.ts (テーマ)
         → engine/eew-tracker.ts (EEW追跡)
         → engine/eew-logger.ts (EEWログ記録)
         → engine/notifier.ts (デスクトップ通知)
+          → engine/node-notifier-loader.ts (optional依存の遅延ロード)
+          → engine/sound-player.ts (通知音再生)
       → ui/repl.ts (REPL インタラクション)             ← dynamic import
 ```
 
-- `engine/` — CLI定義・設定解決・オーケストレーション・ドメイン機能 (EEW追跡・ログ記録・通知)
+- `engine/` — CLI定義・設定解決・オーケストレーション・ドメイン機能 (EEW追跡・ログ記録・通知・通知音)
 - `dmdata/` — dmdata.jp との通信層 (REST, WebSocket, 電文パース)
-- `ui/` — ユーザーインターフェース (ターミナル表示, REPL)
+- `ui/` — ユーザーインターフェース (ターミナル表示, REPL, テーマ)
+- `utils/` — 汎用ユーティリティ (震度ランク変換, シークレットマスク)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック
 - `createMessageHandler()` は `{ handler, eewLogger, notifier }` を返す
 - 遅延ロード: `cli.ts` → `cli-run.ts` / `cli-init.ts`、`monitor.ts` → `ui/repl.ts` は dynamic import で必要時のみロード（メモリ最適化）
+- テーマ: `ui/theme.ts` が `theme.json` (Configディレクトリ) を読み込み、CUD配色準拠のカラーパレット + 52のセマンティックロールで表示色を管理
 
 ## 電文タイプとルーティング
 
@@ -147,6 +168,7 @@ index.ts (bootstrap) → engine/cli.ts (Commander定義)
 ## テスト
 
 - テストフレームワーク: **vitest** (`npm test` で実行)
+- 共通セットアップ: `test/setup.ts` で node-notifier のグローバルモックを提供
 - テストフィクスチャ: `test/fixtures/` に実際の気象庁 XML 電文を配置
 - フィクスチャ命名規則: `{分類番号}_{連番}_{日付}_{電文タイプ}.xml` (例: `32-35_01_02_240613_VXSE52.xml`)
 - モックメッセージ: `test/helpers/mock-message.ts` の `createMockWsDataMessage(fixtureName)` でフィクスチャから `WsDataMessage` を構築
@@ -167,7 +189,7 @@ index.ts (bootstrap) → engine/cli.ts (Commander定義)
 
 設定は以下の優先順位で解決される (上位が優先):
 
-1. CLI オプション (`--api-key`, `-c`, `--test`, `--keep-existing`)
+1. CLI オプション (`--api-key`, `-c`, `--test`, `--keep-existing`, `--close-others`, `--mode`, `--debug`)
 2. 環境変数 `DMDATA_API_KEY` (APIキーのみ)
 3. `.env` ファイル (APIキーのみ)
 4. Configファイル (OS別: macOS `~/Library/Application Support/fleq/`, Linux `~/.config/fleq/`, Windows `%APPDATA%\fleq\`。`XDG_CONFIG_HOME` 設定時はそちら優先)
@@ -183,11 +205,13 @@ fleq config path          # Configファイルのパスを表示
 fleq config keys          # 設定可能なキー一覧を表示
 ```
 
-設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `waitTipIntervalMin`, `notify`, `eewLog`, `eewLogFields`
+設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `promptClock`, `waitTipIntervalMin`, `sound`, `eewLog`, `maxObservations`
 
-通知設定 (`notify`) はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
+通知設定はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
 
-EEWログ設定 (`eewLog`, `eewLogFields`) はREPLの `eewlog` コマンドで管理する (ログ記録ON/OFF、記録項目の選択: hypocenter, magnitude, forecastIntensity, forecastAreas, diff)
+通知音設定 (`sound`) で通知音の有効/無効を切り替える。サウンドファイルは `assets/sounds/` に配置、OS標準サウンドへのフォールバックあり
+
+EEWログ設定 (`eewLog`) はREPLの `eewlog` コマンドで管理する (ログ記録ON/OFF、記録項目の選択)
 
 ## リリースフロー
 
