@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.46.0](https://github.com/Lateo2580/FlEq/compare/v1.45.1...v1.46.0) (2026-03-17)
+
+
+### 機能追加
+
+* 津波警報レベルのプロンプト表示とdetailコマンドを追加 ([b595ac6](https://github.com/Lateo2580/FlEq/commit/b595ac67e2765c9e4b6279a52361c4110378148c))
+
 ## [1.45.1](https://github.com/Lateo2580/FlEq/compare/v1.45.0...v1.45.1) (2026-03-16)
 
 
