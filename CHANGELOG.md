@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.47.3](https://github.com/Lateo2580/FlEq/compare/v1.47.2...v1.47.3) (2026-03-19)
+
+
+### バグ修正
+
+* clearコマンド後にプロンプトが毎秒新しい行として出力される問題を修正 ([088f34c](https://github.com/Lateo2580/FlEq/commit/088f34cdac965cfe4022255e6fbbd2e90993e77f))
+
 ## [1.47.2](https://github.com/Lateo2580/FlEq/compare/v1.47.1...v1.47.2) (2026-03-19)
 
 
