@@ -1,10 +1,10 @@
 import readline from "readline";
 import chalk from "chalk";
-import { loadConfig, saveConfig, VALID_CLASSIFICATIONS, getConfigPath } from "../config";
-import { listContracts } from "../dmdata/rest-client";
-import { Classification, ConfigFile } from "../types";
-import * as secretUtils from "../utils/secrets";
-import * as log from "../logger";
+import { loadConfig, saveConfig, VALID_CLASSIFICATIONS, getConfigPath } from "../../config";
+import { listContracts } from "../../dmdata/rest-client";
+import { Classification, ConfigFile } from "../../types";
+import * as secretUtils from "../../utils/secrets";
+import * as log from "../../logger";
 
 /** 区分選択肢メタデータ */
 const CLASSIFICATION_OPTIONS: ReadonlyArray<{

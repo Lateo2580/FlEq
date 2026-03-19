@@ -10,16 +10,16 @@ import {
   ParsedNankaiTroughInfo,
   ParsedLgObservationInfo,
   DEFAULT_CONFIG,
-} from "../types";
-import { loadConfig, saveConfig } from "../config";
-import { EewUpdateResult } from "./eew-tracker";
+} from "../../types";
+import { loadConfig, saveConfig } from "../../config";
+import { EewUpdateResult } from "../eew/eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";
 import * as nodeNotifierLoader from "./node-notifier-loader";
-import * as intensityUtils from "../utils/intensity";
-import * as log from "../logger";
+import * as intensityUtils from "../../utils/intensity";
+import * as log from "../../logger";
 
 /** 通知アイコンのパス (assets/icons/icon.png が存在する場合に使用) */
-const NOTIFY_ICON_PATH = path.resolve(__dirname, "../../assets/icons/icon.png");
+const NOTIFY_ICON_PATH = path.resolve(__dirname, "../../../assets/icons/icon.png");
 
 /** 通知アプリ名 */
 const NOTIFY_APP_NAME = "FlEq";

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createMessageHandler } from "../../src/engine/message-router";
+import { createMessageHandler } from "../../src/engine/messages/message-router";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,
@@ -26,7 +26,7 @@ import { WsDataMessage } from "../../src/types";
 import * as fs from "fs";
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
-vi.mock("../../src/engine/sound-player", () => ({
+vi.mock("../../src/engine/notification/sound-player", () => ({
   playSound: vi.fn(),
 }));
 

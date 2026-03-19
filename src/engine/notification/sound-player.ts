@@ -1,7 +1,7 @@
 import { execFile, exec } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import * as log from "../logger";
+import * as log from "../../logger";
 
 /** 通知音レベル一覧 (型導出の信頼できる唯一のソース) */
 export const SOUND_LEVELS = ["critical", "warning", "normal", "info", "cancel"] as const;
@@ -15,7 +15,7 @@ export function isSoundLevel(value: string): value is SoundLevel {
 }
 
 /** カスタム効果音ディレクトリ (プロジェクトルート/assets/sounds/) */
-const CUSTOM_SOUNDS_DIR = path.resolve(__dirname, "..", "..", "assets", "sounds");
+const CUSTOM_SOUNDS_DIR = path.resolve(__dirname, "..", "..", "..", "assets", "sounds");
 
 /** カスタム効果音のファイル名 (拡張子なし — mp3 → wav の順で探索) */
 const CUSTOM_SOUND_FILES: Record<SoundLevel, string> = {

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { detectTsunamiAlertLevel, TsunamiStateHolder } from "../../src/engine/tsunami-state";
+import { detectTsunamiAlertLevel, TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { ParsedTsunamiInfo } from "../../src/types";
 
 // sound-player をモック
-vi.mock("../../src/engine/sound-player", () => ({
+vi.mock("../../src/engine/notification/sound-player", () => ({
   playSound: vi.fn(),
 }));
 

@@ -4,41 +4,29 @@ import {
   Classification,
   ConfigFile,
   DEFAULT_CONFIG,
-} from "../types";
+} from "../../types";
 import {
   loadConfig,
   getConfigPath,
   VALID_CLASSIFICATIONS,
-} from "../config";
-import { listContracts } from "../dmdata/rest-client";
-import { startMonitor } from "./monitor";
-import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations } from "../ui/formatter";
-import { loadTheme } from "../ui/theme";
-import * as updateChecker from "./update-checker";
-import * as log from "../logger";
+} from "../../config";
+import * as log from "../../logger";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { version: VERSION } = require("../../package.json") as {
-  version: string;
-};
-
-/** runMonitor に渡す CLI オプション */
-export interface RunMonitorOptions {
+/** CLI オプションのうち設定解決に必要なフィールド */
+export interface ResolverOptions {
   apiKey?: string;
   classifications?: string;
   test?: string;
   keepExisting?: boolean;
   closeOthers?: boolean;
   mode?: string;
-  debug: boolean;
 }
 
-export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
-  // ログレベル設定
-  if (opts.debug) {
-    log.setLogLevel(log.LogLevel.DEBUG);
-  }
-
+/**
+ * CLI引数 → 環境変数 → .env → Configファイル → デフォルト値 の優先順位で設定を解決する。
+ * 致命的なバリデーションエラー時は process.exit(1) する。
+ */
+export function resolveConfig(opts: ResolverOptions): AppConfig {
   // Configファイル読み込み
   const fileConfig: ConfigFile = loadConfig();
   log.debug(`Config: ${getConfigPath()}`);
@@ -105,7 +93,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     process.exit(1);
   }
 
-  const config: AppConfig = {
+  return {
     apiKey,
     classifications,
     testMode,
@@ -131,89 +119,4 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
     maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
   };
-
-  // Banner title (契約チェック前に表示)
-  console.log();
-  console.log(
-    chalk.cyan.bold.inverse(
-      `${config.appName} v${VERSION} — Project DM-D.S.S リアルタイム地震・津波情報モニター`
-    )
-  );
-  console.log();
-
-  // ターミナルタイトル設定
-  setTerminalTitle(`${config.appName} v${VERSION}`);
-
-  // 契約状況チェック
-  try {
-    const contractedClassifications = await listContracts(apiKey);
-    const skipped = classifications.filter(
-      (c) => !contractedClassifications.includes(c)
-    );
-    const active = classifications.filter((c) =>
-      contractedClassifications.includes(c)
-    );
-
-    for (const s of skipped) {
-      log.warn(`${s} は未契約のためスキップします`);
-    }
-
-    if (active.length === 0) {
-      log.error(
-        "有効な契約区分がありません。dmdata.jp で区分を契約してください。"
-      );
-      process.exit(1);
-    }
-
-    config.classifications = active as Classification[];
-  } catch (err) {
-    log.warn(
-      `契約状況の確認に失敗しました: ${err instanceof Error ? err.message : err}`
-    );
-    log.warn("指定された区分のまま接続を試みます");
-  }
-
-  // テーマ読込
-  const themeWarnings = loadTheme();
-  for (const w of themeWarnings) {
-    log.warn(w);
-  }
-
-  // formatter キャッシュ初期化
-  if (config.tableWidth != null) {
-    setFrameWidth(config.tableWidth);
-  }
-  setInfoFullText(config.infoFullText ?? false);
-  setDisplayMode(config.displayMode);
-  setMaxObservations(config.maxObservations);
-
-  printBanner(config);
-  updateChecker.checkForUpdates("fleq", VERSION);
-  await startMonitor(config);
-}
-
-/** ターミナルタイトルを設定する (ANSI OSC sequence) */
-function setTerminalTitle(title: string): void {
-  if (process.stdout.isTTY) {
-    process.stdout.write(`\x1b]2;${title}\x07`);
-  }
-}
-
-/** ターミナルタイトルをリセットする */
-export function resetTerminalTitle(): void {
-  if (process.stdout.isTTY) {
-    // 空文字を設定するとターミナルがデフォルトタイトルに戻る
-    process.stdout.write(`\x1b]2;\x07`);
-  }
-}
-
-/** 起動バナー表示 */
-function printBanner(config: AppConfig): void {
-  log.info(`受信区分: ${config.classifications.join(", ")}`);
-  log.info(`テストモード: ${config.testMode}`);
-  if (config.displayMode !== "normal") {
-    log.info(`表示モード: ${config.displayMode}`);
-  }
-  log.info("接続を開始します...");
-  console.log();
 }

@@ -40,18 +40,27 @@ src/
 │   ├── intensity.ts            # 震度ランク変換 (intensityToRank)
 │   └── secrets.ts              # APIキーマスク (maskApiKey)
 ├── engine/
-│   ├── cli.ts                  # Commander CLI定義
-│   ├── cli-init.ts             # インタラクティブ初期設定 (fleq init)
-│   ├── cli-run.ts              # CLIアクションハンドラ (設定解決・起動バナー)
-│   ├── monitor.ts              # メインオーケストレーション (接続・REPL・シャットダウン)
-│   ├── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
-│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
-│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
-│   ├── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
-│   ├── node-notifier-loader.ts # node-notifier 遅延ロード (optional dependency)
-│   ├── sound-player.ts         # クロスプラットフォーム通知音再生
-│   ├── tsunami-state.ts        # 津波警報状態管理 (プロンプト表示・detail コマンド)
-│   └── update-checker.ts       # npm 最新バージョンチェック
+│   ├── cli/
+│   │   ├── cli.ts              # Commander CLI定義
+│   │   ├── cli-init.ts         # インタラクティブ初期設定 (fleq init)
+│   │   └── cli-run.ts          # CLIアクションハンドラ (起動バナー・契約チェック)
+│   ├── startup/
+│   │   ├── config-resolver.ts  # 設定解決 (CLI引数→環境変数→Config→デフォルト)
+│   │   └── update-checker.ts   # npm 最新バージョンチェック
+│   ├── monitor/
+│   │   ├── monitor.ts          # メインオーケストレーション (接続・受信委譲)
+│   │   ├── shutdown.ts         # グレースフルシャットダウン処理
+│   │   └── repl-coordinator.ts # REPL表示・接続状態の協調制御
+│   ├── messages/
+│   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全17種類)
+│   │   └── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
+│   ├── eew/
+│   │   ├── eew-tracker.ts      # EEW イベント追跡 (重複検出・状態管理・最終報処理)
+│   │   └── eew-logger.ts       # EEW ログファイル記録 (イベント別ファイル出力)
+│   └── notification/
+│       ├── notifier.ts         # デスクトップ通知 (カテゴリ別ON/OFF)
+│       ├── node-notifier-loader.ts # node-notifier 遅延ロード (optional dependency)
+│       └── sound-player.ts     # クロスプラットフォーム通知音再生
 ├── dmdata/
 │   ├── rest-client.ts          # dmdata.jp REST API クライアント
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
@@ -95,28 +104,36 @@ test/
 ## アーキテクチャ
 
 ```
-index.ts (bootstrap) → engine/cli.ts (Commander定義)
-  → engine/cli-run.ts (設定解決・契約チェック)        ← dynamic import
-    → engine/monitor.ts (WebSocket接続・REPL起動)
-      → engine/message-router.ts (電文振り分け)
+index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
+  → engine/cli/cli-run.ts (契約チェック・起動バナー)    ← dynamic import
+    → engine/startup/config-resolver.ts (設定解決)
+    → engine/monitor/monitor.ts (WebSocket接続・受信委譲)
+      → engine/messages/message-router.ts (電文分類・振り分け)
         → dmdata/telegram-parser.ts (XML解析)
         → ui/formatter.ts (色付き表示)     ← ui/theme.ts (テーマ)
-        → engine/eew-tracker.ts (EEW追跡)
-        → engine/eew-logger.ts (EEWログ記録)
-        → engine/notifier.ts (デスクトップ通知)
-          → engine/node-notifier-loader.ts (optional依存の遅延ロード)
-          → engine/sound-player.ts (通知音再生)
+        → engine/eew/eew-tracker.ts (EEW追跡)
+        → engine/eew/eew-logger.ts (EEWログ記録)
+        → engine/notification/notifier.ts (デスクトップ通知)
+          → engine/notification/node-notifier-loader.ts (optional依存の遅延ロード)
+          → engine/notification/sound-player.ts (通知音再生)
+      → engine/monitor/shutdown.ts (シャットダウン処理)
+      → engine/monitor/repl-coordinator.ts (REPL協調)
       → ui/repl.ts (REPL インタラクション)             ← dynamic import
 ```
 
-- `engine/` — CLI定義・設定解決・オーケストレーション・ドメイン機能 (EEW追跡・ログ記録・通知・通知音)
+- `engine/cli/` — CLI定義・アクションハンドラ
+- `engine/startup/` — 設定解決・アップデートチェック
+- `engine/monitor/` — オーケストレーション・シャットダウン・REPL協調
+- `engine/messages/` — 電文分類・振り分け・津波状態管理
+- `engine/eew/` — EEW追跡・ログ記録
+- `engine/notification/` — デスクトップ通知・通知音
 - `dmdata/` — dmdata.jp との通信層 (REST, WebSocket, 電文パース)
 - `ui/` — ユーザーインターフェース (ターミナル表示, REPL, テーマ)
 - `utils/` — 汎用ユーティリティ (震度ランク変換, シークレットマスク)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック
-- `createMessageHandler()` は `{ handler, eewLogger, notifier }` を返す
-- 遅延ロード: `cli.ts` → `cli-run.ts` / `cli-init.ts`、`monitor.ts` → `ui/repl.ts` は dynamic import で必要時のみロード（メモリ最適化）
+- `createMessageHandler()` は `{ handler, eewLogger, notifier, tsunamiState }` を返す
+- 遅延ロード: `cli/cli.ts` → `cli/cli-run.ts` / `cli/cli-init.ts`、`monitor/monitor.ts` → `ui/repl.ts` は dynamic import で必要時のみロード（メモリ最適化）
 - テーマ: `ui/theme.ts` が `theme.json` (Configディレクトリ) を読み込み、CUD配色準拠のカラーパレット + 52のセマンティックロールで表示色を管理
 
 ## 電文タイプとルーティング

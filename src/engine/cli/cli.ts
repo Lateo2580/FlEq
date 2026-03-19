@@ -6,12 +6,12 @@ import {
   printConfigKeys,
   getConfigPath,
   ConfigError,
-} from "../config";
-import * as log from "../logger";
+} from "../../config";
+import * as log from "../../logger";
 import type { RunMonitorOptions } from "./cli-run";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { version: VERSION } = require("../../package.json") as {
+const { version: VERSION } = require("../../../package.json") as {
   version: string;
 };
 

@@ -2,8 +2,8 @@ import * as https from "https";
 import * as fs from "fs";
 import * as path from "path";
 import chalk from "chalk";
-import * as log from "../logger";
-import { getConfigDir } from "../config";
+import * as log from "../../logger";
+import { getConfigDir } from "../../config";
 
 /** チェック結果のキャッシュファイルパス */
 const CACHE_DIR = getConfigDir();

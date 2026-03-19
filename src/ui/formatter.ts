@@ -9,7 +9,7 @@ import {
   DisplayMode,
   WsDataMessage,
 } from "../types";
-import type { EewDiff } from "../engine/eew-tracker";
+import type { EewDiff } from "../engine/eew/eew-tracker";
 import * as log from "../logger";
 import * as theme from "./theme";
 import type { RoleName } from "./theme";

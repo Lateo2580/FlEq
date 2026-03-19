@@ -139,8 +139,8 @@ interface HighlightSpan {
 
 ### 依存関係
 
-- **インポート元**: `chalk`, `../types` (パース済み電文型, `DisplayMode`, `WsDataMessage`), `../engine/eew-tracker` (`EewDiff` 型), `../logger`, `./theme` (ロール色の解決)
-- **接続先**: `engine/message-router.ts` から各 `display*` 関数が呼ばれる。`ui/repl.ts` から設定キャッシュ操作関数・ユーティリティ関数が呼ばれる
+- **インポート元**: `chalk`, `../types` (パース済み電文型, `DisplayMode`, `WsDataMessage`), `../engine/eew/eew-tracker` (`EewDiff` 型), `../logger`, `./theme` (ロール色の解決)
+- **接続先**: `engine/messages/message-router.ts` から各 `display*` 関数が呼ばれる。`ui/repl.ts` から設定キャッシュ操作関数・ユーティリティ関数が呼ばれる
 
 ### 設計ノート
 
@@ -286,8 +286,8 @@ interface CommandEntry {
 
 ### 依存関係
 
-- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `DisplayMode`, `PromptClock`, `NotifyCategory`, `EewLogField`), `../dmdata/ws-client` (`WebSocketManager`), `../dmdata/rest-client` (`listEarthquakes`, `listContracts`, `listSockets`), `../config` (`loadConfig`, `saveConfig`, `printConfig`, `VALID_EEW_LOG_FIELDS`), `../engine/notifier` (`Notifier`, `NOTIFY_CATEGORY_LABELS`), `../engine/eew-logger` (`EewEventLogger`), `../engine/sound-player` (`playSound`, `isSoundLevel`, `SOUND_LEVELS`), `./formatter` (設定キャッシュ操作・ユーティリティ), `./test-samples` (`TEST_TABLES`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./waiting-tips` (`WAITING_TIPS`)
-- **接続先**: `engine/monitor.ts` から dynamic import で生成・`start()` / `stop()` / `setConnected()` / `beforeDisplayMessage()` / `afterDisplayMessage()` が呼ばれる
+- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `DisplayMode`, `PromptClock`, `NotifyCategory`, `EewLogField`), `../dmdata/ws-client` (`WebSocketManager`), `../dmdata/rest-client` (`listEarthquakes`, `listContracts`, `listSockets`), `../config` (`loadConfig`, `saveConfig`, `printConfig`, `VALID_EEW_LOG_FIELDS`), `../engine/notification/notifier` (`Notifier`, `NOTIFY_CATEGORY_LABELS`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/notification/sound-player` (`playSound`, `isSoundLevel`, `SOUND_LEVELS`), `./formatter` (設定キャッシュ操作・ユーティリティ), `./test-samples` (`TEST_TABLES`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./waiting-tips` (`WAITING_TIPS`)
+- **接続先**: `engine/monitor/monitor.ts` から dynamic import で生成・`start()` / `stop()` / `setConnected()` / `beforeDisplayMessage()` / `afterDisplayMessage()` が呼ばれる
 
 ### 設計ノート
 

@@ -40,7 +40,7 @@ vi.mock("../../src/logger", () => ({
   setLogHooks: vi.fn(),
 }));
 
-vi.mock("../../src/engine/eew-logger", () => ({
+vi.mock("../../src/engine/eew/eew-logger", () => ({
   EewEventLogger: class {
     isEnabled() { return true; }
     setEnabled() { /* noop */ }
@@ -52,7 +52,7 @@ vi.mock("../../src/engine/eew-logger", () => ({
   },
 }));
 
-vi.mock("../../src/engine/notifier", () => ({
+vi.mock("../../src/engine/notification/notifier", () => ({
   Notifier: class {
     getSettings() { return { eew: true, earthquake: true, tsunami: true, seismicText: true, nankaiTrough: true, lgObservation: true }; }
     toggleCategory() { return false; }
@@ -83,8 +83,8 @@ import {
   listSockets,
 } from "../../src/dmdata/rest-client";
 import { printConfig, loadConfig, saveConfig } from "../../src/config";
-import { Notifier } from "../../src/engine/notifier";
-import { EewEventLogger } from "../../src/engine/eew-logger";
+import { Notifier } from "../../src/engine/notification/notifier";
+import { EewEventLogger } from "../../src/engine/eew/eew-logger";
 import { AppConfig } from "../../src/types";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);

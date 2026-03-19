@@ -57,7 +57,7 @@ describe("sound-player", () => {
 
   it("Windows: PowerShell 経由で WAV ファイルを再生する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
     expect(mockExec).toHaveBeenCalledTimes(1);
     const cmd = mockExec.mock.calls[0][0] as string;
@@ -67,7 +67,7 @@ describe("sound-player", () => {
 
   it("Windows: warning レベルで正しいサウンドファイルを使用する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("warning");
     const cmd = mockExec.mock.calls[0][0] as string;
     expect(cmd).toContain("Windows Exclamation.wav");
@@ -75,7 +75,7 @@ describe("sound-player", () => {
 
   it("macOS: afplay でサウンドファイルを再生する", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
     expect(mockExecFile).toHaveBeenCalledTimes(1);
     expect(mockExecFile.mock.calls[0][0]).toBe("afplay");
@@ -85,7 +85,7 @@ describe("sound-player", () => {
 
   it("macOS: info レベルで Tink.aiff を使用する", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("info");
     const args = mockExecFile.mock.calls[0][1] as string[];
     expect(args).toContain("/System/Library/Sounds/Tink.aiff");
@@ -93,7 +93,7 @@ describe("sound-player", () => {
 
   it("Linux: canberra-gtk-play でイベント音を再生する", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
     expect(mockExecFile).toHaveBeenCalledTimes(1);
     expect(mockExecFile.mock.calls[0][0]).toBe("canberra-gtk-play");
@@ -104,7 +104,7 @@ describe("sound-player", () => {
 
   it("Linux: cancel レベルではターミナルbell を使用する", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("cancel");
     expect(mockExecFile).not.toHaveBeenCalled();
     expect(stdoutWriteSpy).toHaveBeenCalledWith("\x07");
@@ -113,7 +113,7 @@ describe("sound-player", () => {
   it("カスタム効果音: ファイルが存在すればカスタムパスで再生する (Windows)", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
     mockExistsSync.mockImplementation((p: string) => p.endsWith("critical.mp3"));
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
     expect(mockExec).toHaveBeenCalledTimes(1);
     const cmd = mockExec.mock.calls[0][0] as string;
@@ -125,7 +125,7 @@ describe("sound-player", () => {
   it("カスタム効果音: ファイルが存在すればカスタムパスで再生する (macOS)", async () => {
     Object.defineProperty(process, "platform", { value: "darwin" });
     mockExistsSync.mockImplementation((p: string) => p.endsWith("warning.mp3"));
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("warning");
     expect(mockExecFile).toHaveBeenCalledTimes(1);
     expect(mockExecFile.mock.calls[0][0]).toBe("afplay");
@@ -136,7 +136,7 @@ describe("sound-player", () => {
   it("カスタム効果音: ファイルが存在すればカスタムパスで再生する (Linux mp3)", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
     mockExistsSync.mockImplementation((p: string) => p.endsWith("info.mp3"));
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("info");
     expect(mockExecFile).toHaveBeenCalledTimes(1);
     expect(mockExecFile.mock.calls[0][0]).toBe("ffplay");
@@ -146,7 +146,7 @@ describe("sound-player", () => {
 
   it("全サウンドレベルに対応する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
-    const { playSound } = await import("../../src/engine/sound-player");
+    const { playSound } = await import("../../src/engine/notification/sound-player");
     const levels = ["critical", "warning", "normal", "info", "cancel"] as const;
     for (const level of levels) {
       expect(() => playSound(level)).not.toThrow();

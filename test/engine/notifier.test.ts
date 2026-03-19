@@ -6,7 +6,7 @@ vi.mock("../../src/config", () => ({
   saveConfig: vi.fn(),
 }));
 
-vi.mock("../../src/engine/sound-player", () => ({
+vi.mock("../../src/engine/notification/sound-player", () => ({
   playSound: vi.fn(),
 }));
 
@@ -15,7 +15,7 @@ vi.mock("../../src/logger", () => ({
   warn: vi.fn(),
 }));
 
-import { Notifier } from "../../src/engine/notifier";
+import { Notifier } from "../../src/engine/notification/notifier";
 import type { ParsedEarthquakeInfo } from "../../src/types";
 
 describe("Notifier", () => {

@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
-import { ParsedEewInfo, EewLogField } from "../types";
+import { ParsedEewInfo, EewLogField } from "../../types";
 import { EewDiff, EewUpdateResult } from "./eew-tracker";
-import * as log from "../logger";
+import * as log from "../../logger";
 
 /** ログ出力のデフォルトディレクトリ */
 const DEFAULT_LOG_DIR = path.join(process.cwd(), "eew-logs");

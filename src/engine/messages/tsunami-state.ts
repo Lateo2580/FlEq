@@ -3,9 +3,9 @@ import {
   PromptStatusProvider,
   PromptStatusSegment,
   DetailProvider,
-} from "../types";
-import { getRoleChalk, RoleName } from "../ui/theme";
-import { displayTsunamiInfo } from "../ui/formatter";
+} from "../../types";
+import { getRoleChalk, RoleName } from "../../ui/theme";
+import { displayTsunamiInfo } from "../../ui/formatter";
 
 /** 津波警報レベル (優先度順) */
 type TsunamiAlertLevel = "大津波警報" | "津波警報" | "津波注意報";

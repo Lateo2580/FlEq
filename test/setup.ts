@@ -23,7 +23,7 @@ vi.mock("node-notifier", () => ({
  * これにより、Notifier クラスが実際の node-notifier を require() する
  * パスを完全に遮断する。
  */
-vi.mock("../src/engine/node-notifier-loader", () => ({
+vi.mock("../src/engine/notification/node-notifier-loader", () => ({
   loadNodeNotifier: () => ({ notify: notifyMock }),
   setNodeNotifierOverride: vi.fn(),
 }));

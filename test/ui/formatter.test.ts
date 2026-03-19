@@ -17,7 +17,7 @@ import {
   highlightAndWrap,
   collectHighlightSpans,
 } from "../../src/ui/formatter";
-import type { EewDiff } from "../../src/engine/eew-tracker";
+import type { EewDiff } from "../../src/engine/eew/eew-tracker";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,

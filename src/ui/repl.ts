@@ -4,8 +4,8 @@ import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField, Promp
 import { WebSocketManager } from "../dmdata/ws-client";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { loadConfig, saveConfig, printConfig, VALID_EEW_LOG_FIELDS } from "../config";
-import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notifier";
-import { EewEventLogger } from "../engine/eew-logger";
+import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notification/notifier";
+import { EewEventLogger } from "../engine/eew/eew-logger";
 import {
   formatElapsedTime,
   intensityColor,
@@ -21,7 +21,7 @@ import {
   getMaxObservations,
 } from "../ui/formatter";
 import * as themeModule from "../ui/theme";
-import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/sound-player";
+import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/notification/sound-player";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { WAITING_TIPS } from "./waiting-tips";

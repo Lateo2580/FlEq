@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isNewerVersion,
   isUpdateCheckDisabled,
-} from "../../src/engine/update-checker";
+} from "../../src/engine/startup/update-checker";
 
 describe("isNewerVersion", () => {
   it("メジャーバージョンが大きい場合 true", () => {

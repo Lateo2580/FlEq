@@ -1,5 +1,5 @@
-import { ParsedEewInfo } from "../types";
-import * as intensityUtils from "../utils/intensity";
+import { ParsedEewInfo } from "../../types";
+import * as intensityUtils from "../../utils/intensity";
 
 /** EEW 更新時の差分情報 */
 export interface EewDiff {
