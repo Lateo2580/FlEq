@@ -506,6 +506,8 @@ export class ReplHandler {
         this.statusLine.tick();
         this.maybeShowWaitingTip();
         if (!this.commandRunning && this.rl && this.rl.line.length === 0) {
+          readline.cursorTo(process.stdout, 0);
+          readline.clearLine(process.stdout, 0);
           this.rl.setPrompt(this.buildPromptString());
           this.rl.prompt();
         }
@@ -2012,7 +2014,13 @@ export class ReplHandler {
   }
 
   private handleClear(): void {
-    console.clear();
+    if (process.stdout.isTTY) {
+      // readline 互換のクリア (内部カーソル状態を壊さない)
+      readline.cursorTo(process.stdout, 0, 0);
+      readline.clearScreenDown(process.stdout);
+    } else {
+      console.clear();
+    }
   }
 
   private async handleRetry(): Promise<void> {
