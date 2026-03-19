@@ -4,8 +4,8 @@ import { parseTsunamiTelegram } from "../../dmdata/telegram-parser";
 import { TsunamiStateHolder } from "../messages/tsunami-state";
 import * as log from "../../logger";
 
-/** TelegramListItem を WsDataMessage 互換の形に変換する */
-function toWsDataMessage(item: TelegramListItem): WsDataMessage {
+/** TelegramListItem を WsDataMessage 互換の形に変換する (body は呼び出し側で確認済み前提) */
+function toWsDataMessage(item: TelegramListItem, body: string): WsDataMessage {
   return {
     type: "data",
     version: "2.0",
@@ -17,7 +17,7 @@ function toWsDataMessage(item: TelegramListItem): WsDataMessage {
     format: item.format,
     compression: item.compression,
     encoding: item.encoding,
-    body: item.body,
+    body,
   };
 }
 
@@ -38,7 +38,13 @@ export async function restoreTsunamiState(
     }
 
     const item = res.items[0];
-    const msg = toWsDataMessage(item);
+
+    if (!item.body) {
+      log.debug("VTSE41 電文に body が含まれていません: 津波状態の復元をスキップ");
+      return null;
+    }
+
+    const msg = toWsDataMessage(item, item.body);
     const info = parseTsunamiTelegram(msg);
 
     if (info == null) {

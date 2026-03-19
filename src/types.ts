@@ -392,7 +392,7 @@ export interface TelegramListItem {
   format: "xml" | "a/n" | "binary" | "json" | null;
   compression: "gzip" | "zip" | null;
   encoding: "base64" | "utf-8" | null;
-  body: string;
+  body?: string;
 }
 
 /** 電文リスト API レスポンス */
