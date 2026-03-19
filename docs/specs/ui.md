@@ -253,7 +253,50 @@ interface CommandEntry {
 
 #### コマンドディスパッチ
 
-`line` イベントで入力を空白分割し、先頭をコマンド名として `this.commands` からハンドラを取得する。未知のコマンドにはレーベンシュタイン距離 (距離 2 以内) で typo 候補を提示する。
+`line` イベントで入力を空白分割し、先頭をコマンド名として `resolveCommand()` でハンドラを解決する。コマンド名の大文字小文字は区別しない (case-insensitive)。未知のコマンドにはレーベンシュタイン距離 (距離 2 以内) で typo 候補を提示する。
+
+##### コマンド短縮形 (エイリアス)
+
+長いコマンド名には短縮形が定義されており、`COMMAND_ALIASES` マップで管理する:
+
+| コマンド | 短縮形 |
+|---|---|
+| history | hist |
+| colors | cols |
+| detail | det |
+| status | stat |
+| config | conf |
+| contract | cont |
+| socket | sock |
+| notify | noti |
+| eewlog | ewlg |
+| tablewidth | tw |
+| infotext | itxt |
+| tipinterval | tint |
+| sound | snd |
+| theme | thm |
+| backup | bkup |
+| clear | cls |
+
+##### 通知カテゴリ短縮形
+
+`notify` コマンドのカテゴリ名にも短縮形がある (`CATEGORY_ALIASES`):
+
+| カテゴリ | 短縮形 |
+|---|---|
+| earthquake | eq |
+| tsunami | tsu |
+| seismicText | st |
+| nankaiTrough | nt |
+| lgObservation | lgob |
+
+`all:on` / `all:off` にも短縮形 `aon` / `aoff` がある。
+
+##### test table 電文タイプ短縮形
+
+`test table` の電文タイプ名にも同様の短縮形がある (`TABLE_TYPE_ALIASES`): `eq`, `tsu`, `st`, `nt`, `lgob`。
+
+すべてのサブコマンド引数 (`on`/`off`/`full`/`short`/`normal`/`compact`/`elapsed`/`now`/`auto` 等) も大文字小文字を区別しない。
 
 ハンドラが Promise を返す場合は `.catch()` + `.finally()` で非同期完了を待ち、完了後にプロンプトを再描画する。
 

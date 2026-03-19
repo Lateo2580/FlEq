@@ -46,6 +46,7 @@ src/
 │   │   └── cli-run.ts          # CLIアクションハンドラ (起動バナー・契約チェック)
 │   ├── startup/
 │   │   ├── config-resolver.ts  # 設定解決 (CLI引数→環境変数→Config→デフォルト)
+│   │   ├── tsunami-initializer.ts # 起動時の津波警報状態復元 (REST API)
 │   │   └── update-checker.ts   # npm 最新バージョンチェック
 │   ├── monitor/
 │   │   ├── monitor.ts          # メインオーケストレーション (接続・受信委譲)
@@ -90,6 +91,7 @@ test/
 │   ├── eew-logger.test.ts
 │   ├── notifier.test.ts
 │   ├── sound-player.test.ts
+│   ├── tsunami-initializer.test.ts
 │   └── update-checker.test.ts
 ├── dmdata/
 │   ├── endpoint-selector.test.ts
@@ -113,6 +115,7 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
   → engine/cli/cli-run.ts (契約チェック・起動バナー)    ← dynamic import
     → engine/startup/config-resolver.ts (設定解決)
     → engine/monitor/monitor.ts (WebSocket接続・受信委譲)
+      → engine/startup/tsunami-initializer.ts (起動時の津波状態復元)
       → engine/messages/message-router.ts (電文分類・振り分け)
         → dmdata/telegram-parser.ts (XML解析)
         → ui/formatter.ts (色付き表示)     ← ui/theme.ts (テーマ)
@@ -127,7 +130,7 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
 ```
 
 - `engine/cli/` — CLI定義・アクションハンドラ
-- `engine/startup/` — 設定解決・アップデートチェック
+- `engine/startup/` — 設定解決・アップデートチェック・津波状態復元
 - `engine/monitor/` — オーケストレーション・シャットダウン・REPL協調
 - `engine/messages/` — 電文分類・振り分け・津波状態管理
 - `engine/eew/` — EEW追跡・ログ記録

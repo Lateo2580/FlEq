@@ -521,17 +521,17 @@ export class ReplHandler {
         return;
       }
 
-      const [cmd, ...rest] = trimmed.split(/\s+/);
+      const [rawCmd, ...rest] = trimmed.split(/\s+/);
       const args = rest.join(" ");
-      const entry = this.commands[cmd];
+      const entry = this.resolveCommand(rawCmd);
 
       if (entry == null) {
         // typo候補を検索
-        const suggestion = this.findSuggestion(cmd);
+        const suggestion = this.findSuggestion(rawCmd);
         if (suggestion) {
-          console.log(chalk.yellow(`  不明なコマンド: ${cmd}`) + chalk.gray(` — もしかして: ${chalk.white(suggestion)}`));
+          console.log(chalk.yellow(`  不明なコマンド: ${rawCmd}`) + chalk.gray(` — もしかして: ${chalk.white(suggestion)}`));
         } else {
-          console.log(chalk.yellow(`  不明なコマンド: ${cmd}`) + chalk.gray(" (help で一覧を表示)"));
+          console.log(chalk.yellow(`  不明なコマンド: ${rawCmd}`) + chalk.gray(" (help で一覧を表示)"));
         }
         this.commandRunning = false;
         this.prompt();
@@ -636,7 +636,14 @@ export class ReplHandler {
 
     if (status.connected && status.heartbeatDeadlineAt != null) {
       const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));
-      parts.push(chalk.white(`ping in ${sec}s`));
+      const palette = themeModule.getPalette();
+      const pingColor =
+        sec <= 29
+          ? chalk.rgb(...palette.vermillion)
+          : sec <= 69
+            ? chalk.rgb(...palette.yellow)
+            : chalk.white;
+      parts.push(pingColor(`ping in ${sec}s`));
     }
 
     if (parts.length === 0) {
@@ -661,6 +668,79 @@ export class ReplHandler {
     // readline 内部バッファをリセット (Node.js 実行時は書き込み可能)
     (this.rl as unknown as { line: string; cursor: number }).line = "";
     (this.rl as unknown as { line: string; cursor: number }).cursor = 0;
+  }
+
+  /** コマンド名のエイリアス (短縮形 → 正式名) */
+  private static readonly COMMAND_ALIASES: Record<string, string> = {
+    hist: "history",
+    cols: "colors",
+    det: "detail",
+    stat: "status",
+    conf: "config",
+    cont: "contract",
+    sock: "socket",
+    noti: "notify",
+    ewlg: "eewlog",
+    tw: "tablewidth",
+    itxt: "infotext",
+    tint: "tipinterval",
+    snd: "sound",
+    thm: "theme",
+    bkup: "backup",
+    cls: "clear",
+  };
+
+  /** 通知カテゴリ名のエイリアス (短縮形 → 正式名) */
+  private static readonly CATEGORY_ALIASES: Record<string, NotifyCategory> = {
+    eq: "earthquake",
+    tsu: "tsunami",
+    st: "seismicText",
+    nt: "nankaiTrough",
+    lgob: "lgObservation",
+  };
+
+  /** カテゴリ名を解決する (case-insensitive + エイリアス) */
+  private static resolveNotifyCategory(input: string): NotifyCategory | null {
+    const lower = input.toLowerCase();
+    // 正式名で完全一致 (case-insensitive)
+    for (const cat of Object.keys(NOTIFY_CATEGORY_LABELS)) {
+      if (cat.toLowerCase() === lower) return cat as NotifyCategory;
+    }
+    // エイリアスで検索
+    return ReplHandler.CATEGORY_ALIASES[lower] ?? null;
+  }
+
+  /** test table 電文タイプ名のエイリアス (短縮形 → 正式名) */
+  private static readonly TABLE_TYPE_ALIASES: Record<string, string> = {
+    eq: "earthquake",
+    tsu: "tsunami",
+    st: "seismicText",
+    nt: "nankaiTrough",
+    lgob: "lgObservation",
+  };
+
+  /** test table の電文タイプ名を解決する (case-insensitive + エイリアス) */
+  private static resolveTestTableType(input: string): string | null {
+    const lower = input.toLowerCase();
+    // 正式名で完全一致 (case-insensitive)
+    for (const key of Object.keys(TEST_TABLES)) {
+      if (key.toLowerCase() === lower) return key;
+    }
+    // エイリアスで検索
+    return ReplHandler.TABLE_TYPE_ALIASES[lower] ?? null;
+  }
+
+  /** コマンド名を解決する (case-insensitive + エイリアス) */
+  private resolveCommand(input: string): CommandEntry | undefined {
+    const lower = input.toLowerCase();
+    // 正式名で完全一致 (case-insensitive)
+    for (const [name, entry] of Object.entries(this.commands)) {
+      if (name.toLowerCase() === lower) return entry;
+    }
+    // エイリアスで検索
+    const canonical = ReplHandler.COMMAND_ALIASES[lower];
+    if (canonical != null) return this.commands[canonical];
+    return undefined;
   }
 
   /** typo候補を検索 (距離2以内で最も近いコマンドを返す) */
@@ -768,7 +848,7 @@ export class ReplHandler {
     // help <command> [subcommand] — 詳細表示
     if (trimmed.length > 0) {
       const parts = trimmed.split(/\s+/);
-      const entry = this.commands[parts[0]];
+      const entry = this.resolveCommand(parts[0]);
       if (entry == null) {
         console.log(chalk.yellow(`  不明なコマンド: ${parts[0]}`));
         return;
@@ -842,8 +922,12 @@ export class ReplHandler {
           ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]") +
             (setting.options ? chalk.gray(` (${setting.options})`) : "")
           : "";
+        // エイリアス (短縮形) を逆引き
+        const alias = Object.entries(ReplHandler.COMMAND_ALIASES)
+          .find(([, v]) => v === name)?.[0];
+        const aliasSuffix = alias != null ? chalk.gray(` (${alias})`) : "";
         console.log(
-          chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + valueSuffix
+          chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + aliasSuffix + valueSuffix
         );
         // サブコマンドツリー表示
         if (entry.subcommands) {
@@ -861,7 +945,7 @@ export class ReplHandler {
     }
 
     console.log();
-    console.log(chalk.gray("  エイリアス: ") + chalk.white("?") + chalk.gray(" → help, ") + chalk.white("exit") + chalk.gray(" → quit"));
+    console.log(chalk.gray("  エイリアス: ") + chalk.white("?") + chalk.gray(" → help, ") + chalk.white("exit") + chalk.gray(" → quit (コマンド名の大文字小文字は区別しません)"));
     console.log();
   }
 
@@ -1367,10 +1451,15 @@ export class ReplHandler {
         const status = enabled
           ? chalk.green("ON")
           : chalk.red("OFF");
+        // 短縮形を逆引き
+        const alias = Object.entries(ReplHandler.CATEGORY_ALIASES)
+          .find(([, v]) => v === cat)?.[0];
+        const aliasPart = alias != null ? chalk.gray(` (${alias})`) : "";
         console.log(
           chalk.white(`  ${cat.padEnd(14)}`) +
             chalk.gray(`${label}  `) +
-            status
+            status +
+            aliasPart
         );
       }
       console.log();
@@ -1381,13 +1470,14 @@ export class ReplHandler {
       return;
     }
 
-    // all:on / all:off
-    if (trimmed === "all:on") {
+    // all:on / all:off (case-insensitive)
+    const lower = trimmed.toLowerCase();
+    if (lower === "all:on" || lower === "aon") {
       this.notifier.setAll(true);
       console.log(chalk.green("  全通知を有効にしました"));
       return;
     }
-    if (trimmed === "all:off") {
+    if (lower === "all:off" || lower === "aoff") {
       this.notifier.setAll(false);
       console.log(chalk.yellow("  全通知を無効にしました"));
       return;
@@ -1395,10 +1485,10 @@ export class ReplHandler {
 
     // カテゴリ指定 (+ 任意の on/off)
     const parts = trimmed.split(/\s+/);
-    const cat = parts[0] as NotifyCategory;
+    const cat = ReplHandler.resolveNotifyCategory(parts[0]);
     const action = parts[1]?.toLowerCase();
 
-    if (!(cat in NOTIFY_CATEGORY_LABELS)) {
+    if (cat == null) {
       console.log(
         chalk.yellow(`  不明なカテゴリ: ${parts[0]}`) +
           chalk.gray(` (有効: ${Object.keys(NOTIFY_CATEGORY_LABELS).join(", ")})`)
@@ -1444,7 +1534,7 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed === "auto") {
+    if (trimmed.toLowerCase() === "auto") {
       this.config.tableWidth = null;
       clearFrameWidth();
       const config = loadConfig();
@@ -1479,14 +1569,15 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed === "full") {
+    const infoLower = trimmed.toLowerCase();
+    if (infoLower === "full") {
       this.config.infoFullText = true;
       setInfoFullText(true);
       const config = loadConfig();
       config.infoFullText = true;
       saveConfig(config);
       console.log("  お知らせ電文を全文表示に変更しました。");
-    } else if (trimmed === "short") {
+    } else if (infoLower === "short") {
       this.config.infoFullText = false;
       setInfoFullText(false);
       const config = loadConfig();
@@ -1508,12 +1599,13 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed !== "normal" && trimmed !== "compact") {
+    const modeLower = trimmed.toLowerCase();
+    if (modeLower !== "normal" && modeLower !== "compact") {
       console.log(chalk.yellow(`  無効なモード: ${trimmed}`) + chalk.gray(" (normal / compact)"));
       return;
     }
 
-    const mode = trimmed as DisplayMode;
+    const mode = modeLower as DisplayMode;
     this.config.displayMode = mode;
     setDisplayMode(mode);
     const config = loadConfig();
@@ -1539,14 +1631,15 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed === "elapsed") {
+    const clockLower = trimmed.toLowerCase();
+    if (clockLower === "elapsed") {
       this.statusLine.setClockMode("elapsed");
       this.config.promptClock = "elapsed";
       const config = loadConfig();
       config.promptClock = "elapsed";
       saveConfig(config);
       console.log("  プロンプト時計を 経過時間 に変更しました。");
-    } else if (trimmed === "now") {
+    } else if (clockLower === "now") {
       this.statusLine.setClockMode("clock");
       this.config.promptClock = "clock";
       const config = loadConfig();
@@ -1597,10 +1690,11 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed === "on") {
+    const soundLower = trimmed.toLowerCase();
+    if (soundLower === "on") {
       this.notifier.setSoundEnabled(true);
       console.log(`  通知音を ${chalk.green("ON")} にしました。`);
-    } else if (trimmed === "off") {
+    } else if (soundLower === "off") {
       this.notifier.setSoundEnabled(false);
       console.log(`  通知音を ${chalk.red("OFF")} にしました。`);
     } else {
@@ -1622,7 +1716,7 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed === "off") {
+    if (trimmed.toLowerCase() === "off") {
       setMaxObservations(null);
       this.config.maxObservations = null;
       const config = loadConfig();
@@ -1660,7 +1754,7 @@ export class ReplHandler {
       return;
     }
 
-    if (trimmed === "off") {
+    if (trimmed.toLowerCase() === "off") {
       this.notifier.unmute();
       console.log("  ミュートを解除しました。");
       return;
@@ -1709,8 +1803,9 @@ export class ReplHandler {
       return;
     }
 
-    // on / off
-    if (trimmed === "on") {
+    // on / off (case-insensitive)
+    const eewlogLower = trimmed.toLowerCase();
+    if (eewlogLower === "on") {
       this.eewLogger.setEnabled(true);
       this.config.eewLog = true;
       const config = loadConfig();
@@ -1719,7 +1814,7 @@ export class ReplHandler {
       console.log(`  EEW ログ記録を ${chalk.green("ON")} にしました。`);
       return;
     }
-    if (trimmed === "off") {
+    if (eewlogLower === "off") {
       this.eewLogger.setEnabled(false);
       this.config.eewLog = false;
       const config = loadConfig();
@@ -1729,8 +1824,8 @@ export class ReplHandler {
       return;
     }
 
-    // fields サブコマンド
-    if (trimmed === "fields") {
+    // fields サブコマンド (case-insensitive: "fields" or "fld")
+    if (eewlogLower === "fields" || eewlogLower === "fld") {
       const fields = this.eewLogger.getFields();
       console.log();
       console.log(chalk.cyan.bold("  EEW ログ記録項目:"));
@@ -1751,9 +1846,10 @@ export class ReplHandler {
       return;
     }
 
-    // fields <field> [on|off]
-    if (trimmed.startsWith("fields ")) {
-      const parts = trimmed.slice(7).trim().split(/\s+/);
+    // fields <field> [on|off] (case-insensitive prefix)
+    if (eewlogLower.startsWith("fields ") || eewlogLower.startsWith("fld ")) {
+      const fieldsPrefixLen = eewlogLower.startsWith("fld ") ? 4 : 7;
+      const parts = trimmed.slice(fieldsPrefixLen).trim().split(/\s+/);
       const fieldName = parts[0] as EewLogField;
       const action = parts[1]?.toLowerCase();
 
@@ -1816,12 +1912,13 @@ export class ReplHandler {
       return;
     }
 
-    if (sub === "sound") {
+    const subLower = sub.toLowerCase();
+    if (subLower === "sound" || subLower === "snd") {
       this.handleTestSound(parts.slice(1).join(" "));
       return;
     }
 
-    if (sub === "table") {
+    if (subLower === "table" || subLower === "tbl") {
       this.handleTestTable(parts.slice(1).join(" "));
       return;
     }
@@ -1830,7 +1927,7 @@ export class ReplHandler {
   }
 
   private handleTestSound(args: string): void {
-    const level = args.trim();
+    const level = args.trim().toLowerCase();
 
     if (level === "") {
       console.log();
@@ -1876,7 +1973,8 @@ export class ReplHandler {
       return;
     }
 
-    const entry = TEST_TABLES[type];
+    const resolvedType = ReplHandler.resolveTestTableType(type);
+    const entry = resolvedType != null ? TEST_TABLES[resolvedType] : undefined;
     if (entry == null) {
       console.log(chalk.yellow(`  不明な電文タイプ: ${type}`));
       console.log(
@@ -1893,7 +1991,7 @@ export class ReplHandler {
         console.log(chalk.white(`    ${String(i + 1).padEnd(4)}`) + chalk.gray(v.label));
       }
       console.log();
-      console.log(chalk.gray(`  使い方: test table ${type} <番号>`));
+      console.log(chalk.gray(`  使い方: test table ${resolvedType} <番号>`));
       console.log();
       return;
     }

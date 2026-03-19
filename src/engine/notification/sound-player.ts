@@ -109,17 +109,16 @@ function playCustomSound(filePath: string, platform: string): void {
   }
 }
 
-/** Windows: WPF MediaPlayer で mp3/wav を再生 */
+/** Windows: winmm.dll mciSendString で mp3/wav を同期再生 */
 function playCustomSoundWindows(filePath: string): void {
-  // MediaPlayer は mp3/wav 両対応。PlaySync 相当のため Open→Play→Sleep で待機。
+  // MediaPlayer (WPF) は非同期ロードのためタイミング問題が起きやすい。
+  // mciSendString は同期 (wait) で確実に再生できる。
+  const escaped = filePath.replace(/'/g, "''");
   const psCommand = [
-    `Add-Type -AssemblyName PresentationCore;`,
-    `$p = New-Object System.Windows.Media.MediaPlayer;`,
-    `$p.Open([Uri]'${filePath.replace(/'/g, "''")}');`,
-    `$p.Play();`,
-    `Start-Sleep -Milliseconds 100;`,
-    `while($p.Position -lt $p.NaturalDuration.TimeSpan){Start-Sleep -Milliseconds 100};`,
-    `$p.Close()`,
+    `Add-Type -Namespace Win32 -Name Mci -MemberDefinition '[DllImport("winmm.dll",CharSet=[System.Runtime.InteropServices.CharSet]::Unicode)]public static extern int mciSendStringW(string cmd,System.Text.StringBuilder ret,int retLen,System.IntPtr hwnd);';`,
+    `[Win32.Mci]::mciSendStringW('open "' + '${escaped}' + '" type mpegvideo alias fleqsnd',$null,0,[IntPtr]::Zero)|Out-Null;`,
+    `[Win32.Mci]::mciSendStringW('play fleqsnd wait',$null,0,[IntPtr]::Zero)|Out-Null;`,
+    `[Win32.Mci]::mciSendStringW('close fleqsnd',$null,0,[IntPtr]::Zero)|Out-Null`,
   ].join(" ");
   exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
     if (err) {

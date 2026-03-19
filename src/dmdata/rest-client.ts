@@ -1,5 +1,5 @@
 import https from "https";
-import { AppConfig, SocketStartResponse, SocketListResponse, ContractListResponse, GdEarthquakeListResponse } from "../types";
+import { AppConfig, SocketStartResponse, SocketListResponse, ContractListResponse, GdEarthquakeListResponse, TelegramListResponse } from "../types";
 import * as log from "../logger";
 
 const API_BASE = "https://api.dmdata.jp/v2";
@@ -143,6 +143,32 @@ export async function listEarthquakes(
   if (res.status === "error") {
     throw new Error(
       `Earthquake List failed: ${res.error?.message} (code: ${res.error?.code})`
+    );
+  }
+  return res;
+}
+
+/** 電文リストを取得 (GET /v2/telegram) */
+export async function listTelegrams(
+  apiKey: string,
+  type: string,
+  limit = 1
+): Promise<TelegramListResponse> {
+  const params = new URLSearchParams({
+    type,
+    limit: String(limit),
+    formatMode: "raw",
+  });
+  log.debug(`GET /v2/telegram?${params}`);
+  const res = (await request(
+    "GET",
+    `${API_BASE}/telegram?${params}`,
+    apiKey
+  )) as TelegramListResponse;
+
+  if (res.status === "error") {
+    throw new Error(
+      `Telegram List failed: ${res.error?.message} (code: ${res.error?.code})`
     );
   }
   return res;

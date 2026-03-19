@@ -353,6 +353,61 @@ export interface GdEarthquakeListResponse {
   };
 }
 
+// ── dmdata.jp 電文取得 API レスポンス型 ──
+
+/** 電文リスト API の個別アイテム (GET /v2/telegram) */
+export interface TelegramListItem {
+  serial: number;
+  id: string;
+  classification: string;
+  head: {
+    type: string;
+    author: string;
+    target?: string;
+    time: string;
+    designation?: string | null;
+    test: boolean;
+    xml?: boolean;
+  };
+  xmlReport?: {
+    control: {
+      title: string;
+      dateTime: string;
+      status: string;
+      editorialOffice: string;
+      publishingOffice: string;
+    };
+    head: {
+      title: string;
+      reportDateTime: string;
+      targetDateTime: string;
+      eventId: string | null;
+      serial: string | null;
+      infoType: string;
+      infoKind: string;
+      infoKindVersion: string;
+      headline: string | null;
+    };
+  };
+  format: "xml" | "a/n" | "binary" | "json" | null;
+  compression: "gzip" | "zip" | null;
+  encoding: "base64" | "utf-8" | null;
+  body: string;
+}
+
+/** 電文リスト API レスポンス */
+export interface TelegramListResponse {
+  responseId: string;
+  responseTime: string;
+  status: "ok" | "error";
+  items: TelegramListItem[];
+  nextToken?: string;
+  error?: {
+    message: string;
+    code: number;
+  };
+}
+
 // ── パース済み地震情報型 ──
 
 export interface ParsedEarthquakeInfo {

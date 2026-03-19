@@ -118,7 +118,7 @@ describe("sound-player", () => {
     expect(mockExec).toHaveBeenCalledTimes(1);
     const cmd = mockExec.mock.calls[0][0] as string;
     expect(cmd).toContain("critical.mp3");
-    expect(cmd).toContain("MediaPlayer");
+    expect(cmd).toContain("mciSendStringW");
     expect(cmd).not.toContain("Windows Critical Stop.wav");
   });
 
