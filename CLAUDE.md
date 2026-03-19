@@ -64,6 +64,9 @@ src/
 ├── dmdata/
 │   ├── rest-client.ts          # dmdata.jp REST API クライアント
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
+│   ├── connection-manager.ts   # 接続管理インターフェース (ConnectionManager)
+│   ├── multi-connection-manager.ts # 複線接続管理 (primary + backup)
+│   ├── endpoint-selector.ts    # エンドポイント選択・リージョン間フェイルオーバー
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
@@ -89,6 +92,8 @@ test/
 │   ├── sound-player.test.ts
 │   └── update-checker.test.ts
 ├── dmdata/
+│   ├── endpoint-selector.test.ts
+│   ├── multi-connection-manager.test.ts
 │   ├── rest-client.test.ts
 │   ├── telegram-parser.test.ts
 │   └── ws-client.test.ts
@@ -222,7 +227,7 @@ fleq config path          # Configファイルのパスを表示
 fleq config keys          # 設定可能なキー一覧を表示
 ```
 
-設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `promptClock`, `waitTipIntervalMin`, `sound`, `eewLog`, `maxObservations`
+設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `promptClock`, `waitTipIntervalMin`, `sound`, `eewLog`, `maxObservations`, `backup`
 
 通知設定はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
 

@@ -76,7 +76,7 @@ vi.mock("../../src/engine/notification/notifier", () => ({
 
 import readline from "readline";
 import { ReplHandler } from "../../src/ui/repl";
-import { WebSocketManager } from "../../src/dmdata/ws-client";
+import { ConnectionManager } from "../../src/dmdata/connection-manager";
 import {
   listEarthquakes,
   listContracts,
@@ -124,8 +124,9 @@ function createConfig(): AppConfig {
   };
 }
 
-function createMockWsManager(): WebSocketManager {
+function createMockWsManager(): ConnectionManager {
   return {
+    connect: vi.fn(),
     getStatus: vi.fn(() => ({
       connected: true,
       socketId: 42,
@@ -133,7 +134,7 @@ function createMockWsManager(): WebSocketManager {
       heartbeatDeadlineAt: Date.now() + 30_000,
     })),
     close: vi.fn(),
-  } as unknown as WebSocketManager;
+  };
 }
 
 describe("ReplHandler", () => {

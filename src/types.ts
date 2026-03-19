@@ -71,6 +71,8 @@ export interface AppConfig {
   eewLogFields: Record<EewLogField, boolean>;
   /** 観測点の最大表示件数 (null = 全件表示) */
   maxObservations: number | null;
+  /** EEW副回線の有効/無効 */
+  backup: boolean;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -91,6 +93,7 @@ export interface ConfigFile {
   eewLog?: boolean;
   eewLogFields?: Partial<Record<EewLogField, boolean>>;
   maxObservations?: number;
+  backup?: boolean;
 }
 
 /** デフォルト設定 */
@@ -130,6 +133,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     maxIntChangeReason: true,
   },
   maxObservations: null,
+  backup: false,
 };
 
 // ── プロンプトステータス ──

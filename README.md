@@ -222,8 +222,8 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 13件（計305テスト）
-- フィクスチャ: `test/fixtures/` に実電文XML 62件
+- テストファイル: 17件
+- フィクスチャ: `test/fixtures/` に実電文XML 46件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
 ## CLIオプション
@@ -282,8 +282,12 @@ fleq config keys
 | `infoFullText` | お知らせ電文の全文表示 (`true` / `false`) |
 | `displayMode` | 表示モード: `"normal"` / `"compact"` |
 | `waitTipIntervalMin` | 待機中ヒント表示間隔（分, 0で無効、デフォルト: 30） |
+| `promptClock` | プロンプト時計: `"elapsed"` (経過時間) / `"clock"` (現在時刻) |
+| `sound` | 通知音の有効/無効 (`true` / `false`) |
 | `eewLog` | EEWログ記録の有効/無効 (`true` / `false`) |
 | `eewLogFields` | EEWログ記録項目の設定（オブジェクト形式） |
+| `maxObservations` | 観測点の最大表示件数 (1〜999 / `"off"` で全件表示) |
+| `backup` | EEW副回線の有効/無効 (`true` / `false`) |
 
 設定の優先順位（高い順）:
 
@@ -326,6 +330,7 @@ FlEq は起動時に前回セッションの残留ソケットをクリーンア
 | `help` / `?` | コマンド一覧を表示 |
 | `history [N]` | 地震履歴を取得・表示（デフォルト10件、最新が一番下） |
 | `colors` | カラーパレット・震度色の一覧を表示 |
+| `detail [tsunami]` | 直近の津波情報を再表示 |
 
 ### ステータス
 | コマンド | 説明 |
@@ -345,17 +350,22 @@ FlEq は起動時に前回セッションの残留ソケットをクリーンア
 | `eewlog on` / `off` | EEWログ記録の有効/無効を切替 |
 | `eewlog fields` | EEWログ記録項目の一覧表示 |
 | `eewlog fields <field> [on\|off]` | 記録項目のトグル/ON/OFF |
-| `tablewidth [N]` | テーブル幅の表示・変更（例: `tablewidth 80`） |
+| `tablewidth [N\|auto]` | テーブル幅の表示・変更（例: `tablewidth 80`、`tablewidth auto` で自動追従） |
 | `infotext [full/short]` | お知らせ電文の全文/省略切替 |
 | `tipinterval [N]` | 待機中ヒント表示間隔（分）を表示・変更（0で無効） |
 | `mode [normal/compact]` | 表示モード切替 |
 | `clock [elapsed/now]` | プロンプト時計の切替 |
 | `sound [on/off]` | 通知音のON/OFF切替 |
+| `theme` | カラーテーマの表示・管理（`theme path` / `theme show` / `theme reset` / `theme reload` / `theme validate`） |
 | `mute [duration]` | 通知を一時ミュート（例: `mute 30m`、`mute off` で解除） |
+| `fold [N\|off]` | 観測点の表示件数制限（例: `fold 10`、`fold off` で全件表示） |
 
 ### 操作
 | コマンド | 説明 |
 |----------|------|
+| `test sound [level]` | サウンドテスト（レベル: critical, warning, normal, info, cancel） |
+| `test table [type] [番号]` | 表示形式テスト |
+| `backup [on/off]` | EEW副回線の状態表示・起動/停止 |
 | `clear` | ターミナル画面をクリア |
 | `retry` | WebSocket 再接続を手動試行 |
 | `quit` / `exit` | アプリケーションを終了 |
@@ -379,23 +389,43 @@ src/
 ├── types.ts                    # 共有型定義
 ├── config.ts                   # Configファイル管理 (読み書き・バリデーション)
 ├── logger.ts                   # ログレベル付きロガー
+├── utils/
+│   ├── intensity.ts            # 震度ランク変換 (intensityToRank)
+│   └── secrets.ts              # APIキーマスク (maskApiKey)
 ├── engine/
-│   ├── cli.ts                  # Commander CLI定義
-│   ├── cli-init.ts             # インタラクティブ初期設定 (fleq init)
-│   ├── cli-run.ts              # CLIアクションハンドラ (設定解決・起動バナー)
-│   ├── monitor.ts              # メインオーケストレーション (接続・REPL・シャットダウン)
-│   ├── message-router.ts       # 受信メッセージの振り分け (EEW/地震/津波)
-│   ├── eew-tracker.ts          # EEW イベント追跡 (重複検出・状態管理・最終報処理)
-│   ├── eew-logger.ts           # EEW ログファイル記録 (イベント別ファイル出力)
-│   ├── notifier.ts             # デスクトップ通知 (カテゴリ別ON/OFF)
-│   └── update-checker.ts       # npm 最新バージョンチェック
+│   ├── cli/
+│   │   ├── cli.ts              # Commander CLI定義
+│   │   ├── cli-init.ts         # インタラクティブ初期設定 (fleq init)
+│   │   └── cli-run.ts          # CLIアクションハンドラ (起動バナー・契約チェック)
+│   ├── startup/
+│   │   ├── config-resolver.ts  # 設定解決 (CLI引数→環境変数→Config→デフォルト)
+│   │   └── update-checker.ts   # npm 最新バージョンチェック
+│   ├── monitor/
+│   │   ├── monitor.ts          # メインオーケストレーション (接続・受信委譲)
+│   │   ├── shutdown.ts         # グレースフルシャットダウン処理
+│   │   └── repl-coordinator.ts # REPL表示・接続状態の協調制御
+│   ├── messages/
+│   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全17種類)
+│   │   └── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
+│   ├── eew/
+│   │   ├── eew-tracker.ts      # EEW イベント追跡 (重複検出・状態管理・最終報処理)
+│   │   └── eew-logger.ts       # EEW ログファイル記録 (イベント別ファイル出力)
+│   └── notification/
+│       ├── notifier.ts         # デスクトップ通知 (カテゴリ別ON/OFF)
+│       ├── node-notifier-loader.ts # node-notifier 遅延ロード (optional dependency)
+│       └── sound-player.ts     # クロスプラットフォーム通知音再生
 ├── dmdata/
 │   ├── rest-client.ts          # dmdata.jp REST API クライアント
 │   ├── ws-client.ts            # WebSocket 接続管理 (再接続・ping-pong)
+│   ├── connection-manager.ts   # 接続管理インターフェース (ConnectionManager)
+│   ├── multi-connection-manager.ts # 複線接続管理 (primary + backup)
+│   ├── endpoint-selector.ts    # エンドポイント選択・リージョン間フェイルオーバー
 │   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
 └── ui/
     ├── formatter.ts            # ターミナル表示フォーマッタ
+    ├── theme.ts                # テーマシステム (カラーパレット・ロール定義)
     ├── repl.ts                 # REPL インタラクション
+    ├── test-samples.ts         # 表示テスト用サンプルデータ
     └── waiting-tips.ts         # 待機中ヒント定義
 ```
 
@@ -434,17 +464,23 @@ src/
 - EEWイベントのログファイル記録（イベント別ファイル出力、差分表記対応、記録項目の選択可能）
 - EEW最終報（NextAdvisory）の検出とログ・トラッカー自動終了
 - EEW差分表記（前の値 → 新しい値 形式）
-- テーブル幅設定（40〜200）とテキスト折り返し機能
+- テーブル幅設定（40〜200、`auto` でターミナル幅に自動追従）とテキスト折り返し機能
 - 表示モード切替（normal / compact）
 - お知らせ電文の全文/省略切替
 - 通知の一時ミュート機能（時間指定）
 - 待機中ヒント表示（間隔設定可能、0で無効）
 - インタラクティブ初期設定（`fleq init`）
+- 津波警報状態管理とプロンプト表示（`detail` コマンドで津波情報を再表示）
+- 通知音再生（レベル別サウンド、クロスプラットフォーム対応）
 - 南海トラフ地震関連情報（VYSE50-52/VYSE60）の表示
 - 長周期地震動に関する観測情報（VXSE62）の表示
 - 地震活動に関する情報（VZSE40）の表示
 - EEWで主要動到達と推測される地域のリスト表示
 - デスクトップ通知機能（カテゴリ別ON/OFF、REPLで管理。下記「デスクトップ通知」参照）
+- テーマシステム（CUD配色準拠のカラーパレット + セマンティックロール、`theme.json` でカスタマイズ可能）
+- 観測点の表示件数制限（`fold` コマンド）
+- EEW副回線（backup）による複線接続
+- エンドポイント選択・リージョン間フェイルオーバー
 - 指数バックオフによる自動再接続
 - ping-pongによる接続維持
 - ハートビート監視（90秒）

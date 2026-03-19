@@ -182,14 +182,14 @@ function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: number): vo
   console.log(frameDivider(level, width));
   console.log(frameLine(level, chalk.gray("▼ サマリー"), width));
   if (buf.titleLine != null) {
-    console.log(frameLine(level, buf.titleLine, width));
+    console.log(buf.titleLine);
   }
   if (buf.cardLine != null) {
-    console.log(frameLine(level, buf.cardLine, width));
+    console.log(buf.cardLine);
   }
   // headline は1行目のみ
   if (buf.headlineLines.length > 0) {
-    console.log(frameLine(level, buf.headlineLines[0], width));
+    console.log(buf.headlineLines[0]);
   }
 
   // tail 出力 (frameBottom + 空行)

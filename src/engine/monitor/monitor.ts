@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { AppConfig } from "../../types";
-import { WebSocketManager } from "../../dmdata/ws-client";
+import { MultiConnectionManager } from "../../dmdata/multi-connection-manager";
 import { createMessageHandler } from "../messages/message-router";
 import { resetTerminalTitle } from "../cli/cli-run";
 import { formatTimestamp } from "../../ui/formatter";
@@ -21,7 +21,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   let isFirstConnection = true;
   let replHandler: ReplHandlerType | null = null;
 
-  const manager = new WebSocketManager(config, {
+  const manager = new MultiConnectionManager(config, {
     onData: (msg) => {
       withReplDisplay(replHandler, () => routeMessage(msg));
     },
@@ -68,6 +68,14 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   // バックグラウンドで接続開始
   try {
     await manager.connect();
+    // 副回線の自動起動
+    if (config.backup) {
+      try {
+        await manager.startBackup();
+      } catch (err) {
+        log.warn(`副回線の起動に失敗しました: ${err instanceof Error ? err.message : err}`);
+      }
+    }
   } catch (err) {
     log.error(`接続に失敗しました: ${err instanceof Error ? err.message : err}`);
     log.info("retry コマンドで再接続を試みることができます。");

@@ -1,6 +1,8 @@
 import WebSocket from "ws";
 import { AppConfig, WsDataMessage, WsStartMessage, WsPingMessage } from "../types";
 import { prepareAndStartSocket } from "./rest-client";
+import { EndpointSelector } from "./endpoint-selector";
+import { ConnectionManager } from "./connection-manager";
 import * as log from "../logger";
 
 export interface WsManagerStatus {
@@ -44,7 +46,7 @@ function isWsPingMessage(parsed: unknown): parsed is WsPingMessage {
   return typeof msg["pingId"] === "string";
 }
 
-export class WebSocketManager {
+export class WebSocketManager implements ConnectionManager {
   private config: AppConfig;
   private events: WsManagerEvents;
   private ws: WebSocket | null = null;
@@ -55,6 +57,9 @@ export class WebSocketManager {
   private socketId: number | null = null;
   private previousSocketId: number | null = null;
   private heartbeatDeadlineAt: number | null = null;
+  private endpointSelector = new EndpointSelector();
+  /** connect 世代番号 — close() 時にインクリメントして in-flight connect を無効化する */
+  private connectSeq = 0;
 
   constructor(config: AppConfig, events: WsManagerEvents) {
     this.config = config;
@@ -64,7 +69,8 @@ export class WebSocketManager {
   /** 接続を開始する */
   async connect(): Promise<void> {
     this.shouldRun = true;
-    await this.doConnect();
+    const seq = ++this.connectSeq;
+    await this.doConnect(seq);
   }
 
   /** 接続状態を返す */
@@ -80,6 +86,7 @@ export class WebSocketManager {
   /** 接続を停止する */
   close(): void {
     this.shouldRun = false;
+    this.connectSeq++;
     this.clearTimers();
     if (this.ws) {
       this.ws.close(1000, "client shutdown");
@@ -99,16 +106,22 @@ export class WebSocketManager {
     }
   }
 
-  private async doConnect(): Promise<void> {
+  private async doConnect(seq: number): Promise<void> {
     try {
       log.info("Socket Start を実行中...");
       const startRes = await prepareAndStartSocket(this.config, this.previousSocketId ?? undefined);
+
+      // close() が呼ばれていたら接続を中断
+      if (!this.shouldRun || seq !== this.connectSeq) {
+        log.debug("接続中断: close() が呼ばれたため新しいソケットを作成しません");
+        return;
+      }
 
       if (!startRes.websocket) {
         throw new Error("WebSocket URL が取得できませんでした");
       }
 
-      const wsUrl = startRes.websocket.url;
+      const wsUrl = this.endpointSelector.resolveUrl(startRes.websocket.url);
       log.info(`WebSocket に接続中: ${wsUrl.replace(/ticket=.*/, "ticket=***")}`);
 
       const socket = new WebSocket(wsUrl, ["dmdata.v2"]);
@@ -119,6 +132,7 @@ export class WebSocketManager {
         if (this.ws !== socket) return;
         this.reconnectAttempt = 0;
         this.previousSocketId = null;
+        this.endpointSelector.recordConnected(wsUrl);
         log.info("WebSocket 接続成功");
         this.resetHeartbeat();
         this.events.onConnected();
@@ -139,6 +153,7 @@ export class WebSocketManager {
         this.previousSocketId = this.socketId;
         this.socketId = null;
         this.heartbeatDeadlineAt = null;
+        this.endpointSelector.recordDisconnected();
         this.events.onDisconnected(reasonStr);
         this.scheduleReconnect();
       });
@@ -157,6 +172,7 @@ export class WebSocketManager {
         this.previousSocketId = this.socketId;
         this.socketId = null;
         this.heartbeatDeadlineAt = null;
+        this.endpointSelector.recordDisconnected();
         this.events.onDisconnected(`error: ${err.message}`);
         this.scheduleReconnect();
       });
@@ -319,9 +335,10 @@ export class WebSocketManager {
       `${(delay / 1000).toFixed(1)}秒後に再接続します (試行 #${this.reconnectAttempt})`
     );
 
+    const currentSeq = this.connectSeq;
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
-      await this.doConnect();
+      await this.doConnect(currentSeq);
     }, delay);
   }
 }

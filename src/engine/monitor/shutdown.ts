@@ -1,4 +1,4 @@
-import { WebSocketManager } from "../../dmdata/ws-client";
+import { ConnectionManager } from "../../dmdata/connection-manager";
 import { closeSocket } from "../../dmdata/rest-client";
 import { EewEventLogger } from "../eew/eew-logger";
 import * as log from "../../logger";
@@ -7,13 +7,13 @@ import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
 const SOCKET_CLOSE_TIMEOUT_MS = 3000;
 
-/**
- * API 経由でソケットをクローズする。
- * タイムアウトやネットワークエラーは無視して終了を続行する。
- */
-async function closeSocketViaApi(apiKey: string, manager: WebSocketManager): Promise<void> {
-  const socketId = manager.getStatus().socketId;
-  if (socketId == null) return;
+/** 構造的型ガード: getAllSocketIds メソッドを持つか */
+function hasGetAllSocketIds(m: ConnectionManager): m is ConnectionManager & { getAllSocketIds(): number[] } {
+  return "getAllSocketIds" in m && typeof (m as Record<string, unknown>)["getAllSocketIds"] === "function";
+}
+
+/** 単一ソケットを API 経由でクローズする (タイムアウト付き) */
+async function closeSingleSocket(apiKey: string, socketId: number): Promise<void> {
   try {
     await Promise.race([
       closeSocket(apiKey, socketId),
@@ -22,15 +22,31 @@ async function closeSocketViaApi(apiKey: string, manager: WebSocketManager): Pro
       ),
     ]);
   } catch {
-    // タイムアウトやネットワークエラーは無視して終了を続行
-    log.debug("シャットダウン時のソケットクローズに失敗 (次回起動時にクリーンアップされます)");
+    log.debug(`シャットダウン時のソケットクローズに失敗: socketId=${socketId} (次回起動時にクリーンアップされます)`);
+  }
+}
+
+/**
+ * API 経由でソケットをクローズする。
+ * MultiConnectionManager の場合は全ソケットを並列クローズする。
+ * タイムアウトやネットワークエラーは無視して終了を続行する。
+ */
+async function closeSocketViaApi(apiKey: string, manager: ConnectionManager): Promise<void> {
+  if (hasGetAllSocketIds(manager)) {
+    const socketIds = manager.getAllSocketIds();
+    if (socketIds.length === 0) return;
+    await Promise.all(socketIds.map((id) => closeSingleSocket(apiKey, id)));
+  } else {
+    const socketId = manager.getStatus().socketId;
+    if (socketId == null) return;
+    await closeSingleSocket(apiKey, socketId);
   }
 }
 
 /** シャットダウンハンドラのコンテキスト */
 export interface ShutdownContext {
   apiKey: string;
-  manager: WebSocketManager;
+  manager: ConnectionManager;
   eewLogger: EewEventLogger;
   getReplHandler: () => ReplHandlerType | null;
   /** ターミナルタイトルをリセットする (CLI層からの注入) */

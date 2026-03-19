@@ -118,5 +118,6 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
     eewLog: fileConfig.eewLog ?? DEFAULT_CONFIG.eewLog,
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
     maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
+    backup: fileConfig.backup ?? DEFAULT_CONFIG.backup,
   };
 }

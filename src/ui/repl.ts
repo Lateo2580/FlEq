@@ -1,7 +1,9 @@
 import readline from "readline";
 import chalk from "chalk";
 import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField, PromptStatusProvider, PromptStatusSegment, DetailProvider } from "../types";
-import { WebSocketManager } from "../dmdata/ws-client";
+import { ConnectionManager } from "../dmdata/connection-manager";
+import { WsManagerStatus } from "../dmdata/ws-client";
+import type { StartBackupResult } from "../dmdata/multi-connection-manager";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
 import { loadConfig, saveConfig, printConfig, VALID_EEW_LOG_FIELDS } from "../config";
 import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notification/notifier";
@@ -178,6 +180,21 @@ function getLgIntRole(key: string): themeModule.RoleName | null {
   return map[key] ?? null;
 }
 
+/** 構造的型ガード: backup 機能を持つ ConnectionManager か */
+function hasBackupSupport(m: ConnectionManager): m is ConnectionManager & {
+  startBackup(): Promise<StartBackupResult>;
+  stopBackup(): void;
+  isBackupRunning(): boolean;
+  getBackupStatus(): WsManagerStatus | null;
+} {
+  return (
+    "startBackup" in m &&
+    "stopBackup" in m &&
+    "isBackupRunning" in m &&
+    "getBackupStatus" in m
+  );
+}
+
 /** レーベンシュタイン距離 (typo候補用) */
 function levenshtein(a: string, b: string): number {
   const m = a.length;
@@ -199,7 +216,7 @@ function levenshtein(a: string, b: string): number {
 
 export class ReplHandler {
   private config: AppConfig;
-  private wsManager: WebSocketManager;
+  private wsManager: ConnectionManager;
   private notifier: Notifier;
   private eewLogger: EewEventLogger;
   private onQuit: () => void | Promise<void>;
@@ -217,7 +234,7 @@ export class ReplHandler {
 
   constructor(
     config: AppConfig,
-    wsManager: WebSocketManager,
+    wsManager: ConnectionManager,
     notifier: Notifier,
     eewLogger: EewEventLogger,
     onQuit: () => void | Promise<void>,
@@ -427,6 +444,16 @@ export class ReplHandler {
         description: "ターミナル画面をクリア",
         category: "operation",
         handler: () => this.handleClear(),
+      },
+      backup: {
+        description: "EEW副回線の起動/停止 (例: backup on)",
+        detail: "backup: 副回線の状態を表示\n  backup on: 副回線を起動\n  backup off: 副回線を停止",
+        category: "operation",
+        subcommands: {
+          on: { description: "副回線を起動" },
+          off: { description: "副回線を停止" },
+        },
+        handler: (args) => this.handleBackup(args),
       },
       retry: {
         description: "WebSocket 再接続を試行",
@@ -921,7 +948,77 @@ export class ReplHandler {
           chalk.yellow(`#${status.reconnectAttempt}`)
       );
     }
+    // 副回線情報
+    if (hasBackupSupport(this.wsManager)) {
+      if (this.wsManager.isBackupRunning()) {
+        const backupStatus = this.wsManager.getBackupStatus();
+        console.log(
+          chalk.white("  副回線: ") +
+            (backupStatus?.connected
+              ? chalk.green.bold("接続中")
+              : chalk.yellow("再接続中"))
+        );
+        if (backupStatus?.socketId != null) {
+          console.log(
+            chalk.white("  副回線 SocketID: ") + chalk.white(String(backupStatus.socketId))
+          );
+        }
+      } else {
+        console.log(chalk.white("  副回線: ") + chalk.gray("未起動"));
+      }
+    }
     console.log();
+  }
+
+  private async handleBackup(args: string): Promise<void> {
+    if (!hasBackupSupport(this.wsManager)) {
+      console.log(chalk.yellow("  この構成では副回線は利用できません"));
+      return;
+    }
+
+    const sub = args.trim().toLowerCase();
+    if (sub === "") {
+      // 状態表示
+      if (this.wsManager.isBackupRunning()) {
+        const bs = this.wsManager.getBackupStatus();
+        console.log(
+          chalk.white("  副回線: ") +
+            (bs?.connected ? chalk.green.bold("接続中") : chalk.yellow("再接続中"))
+        );
+        if (bs?.socketId != null) {
+          console.log(chalk.white("  SocketID: ") + chalk.white(String(bs.socketId)));
+        }
+      } else {
+        console.log(chalk.white("  副回線: ") + chalk.gray("未起動"));
+      }
+      return;
+    }
+
+    if (sub === "on") {
+      const result = await this.wsManager.startBackup();
+      if (result !== "started") {
+        // 起動失敗時は Config を変更しない
+        return;
+      }
+      // 成功時のみ Config に永続化
+      const fileConfig = loadConfig();
+      fileConfig.backup = true;
+      saveConfig(fileConfig);
+      this.config.backup = true;
+      return;
+    }
+
+    if (sub === "off") {
+      this.wsManager.stopBackup();
+      // Config に永続化
+      const fileConfig = loadConfig();
+      fileConfig.backup = false;
+      saveConfig(fileConfig);
+      this.config.backup = false;
+      return;
+    }
+
+    console.log(chalk.yellow("  使い方: backup / backup on / backup off"));
   }
 
   private handleColors(): void {

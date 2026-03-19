@@ -179,6 +179,7 @@ const CONFIG_KEYS: Record<string, string> = {
   sound: "通知音の有効/無効 (true/false)",
   eewLog: "EEWログ記録の有効/無効 (true/false)",
   maxObservations: '観測点の最大表示件数 (1〜999 / "off" で全件表示)',
+  backup: "EEW副回線の有効/無効 (true/false)",
 };
 
 /** Configファイルのパスを返す */
@@ -244,6 +245,7 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyEewLogFields(config, raw.eewLogFields);
   applyNotifySettings(config, raw.notify);
   applyMaxObservations(config, raw.maxObservations);
+  applyBooleanField(config, "backup", raw.backup);
 
   return config;
 }
@@ -295,7 +297,7 @@ function applyReconnectDelay(config: ConfigFile, value: unknown): void {
 
 function applyBooleanField(
   config: ConfigFile,
-  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog",
+  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog" | "backup",
   value: unknown
 ): void {
   if (typeof value === "boolean") {
@@ -508,6 +510,14 @@ export function setConfigValue(key: string, value: string): void {
         );
       }
       config.eewLog = value === "true";
+      break;
+    case "backup":
+      if (value !== "true" && value !== "false") {
+        throw new ConfigError(
+          "backup は true または false を指定してください。"
+        );
+      }
+      config.backup = value === "true";
       break;
     case "maxObservations": {
       if (value === "off") {
