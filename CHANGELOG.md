@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.47.0](https://github.com/Lateo2580/FlEq/compare/v1.46.0...v1.47.0) (2026-03-19)
+
+
+### 機能追加
+
+* EEW副回線(backup)とエンドポイントフェイルオーバーを追加 ([b0cdc5a](https://github.com/Lateo2580/FlEq/commit/b0cdc5a68903e99af4d20f763423e7c6c18ad26e))
+* 津波状態復元・REPLコマンド短縮形・通知音改善・ping色分け ([373bcde](https://github.com/Lateo2580/FlEq/commit/373bcde975f95ba38086bb8c11d381816b14e124))
+
+
+### リファクタリング
+
+* engine/をサブディレクトリ化し責務を明確に分離 ([0e4f2c5](https://github.com/Lateo2580/FlEq/commit/0e4f2c58064ebd7c7b3bdc1b4c8bec5b364db7df))
+
 ## [1.46.0](https://github.com/Lateo2580/FlEq/compare/v1.45.1...v1.46.0) (2026-03-17)
 
 
