@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.47.2](https://github.com/Lateo2580/FlEq/compare/v1.47.1...v1.47.2) (2026-03-19)
+
+
+### バグ修正
+
+* chalk トゥルーカラー強制で端末間の色表示差異を解消 ([39b04cd](https://github.com/Lateo2580/FlEq/commit/39b04cd73ca739fa5b9ce58337c88ea4a65f6c26))
+
 ## [1.47.1](https://github.com/Lateo2580/FlEq/compare/v1.47.0...v1.47.1) (2026-03-19)
 
 
