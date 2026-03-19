@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.47.1](https://github.com/Lateo2580/FlEq/compare/v1.47.0...v1.47.1) (2026-03-19)
+
+
+### バグ修正
+
+* Telegram List APIのbody未返却時のパースエラーを修正 ([1fcd0dc](https://github.com/Lateo2580/FlEq/commit/1fcd0dca97647c3890821909ea923d46aff48b45))
+
 ## [1.47.0](https://github.com/Lateo2580/FlEq/compare/v1.46.0...v1.47.0) (2026-03-19)
 
 
