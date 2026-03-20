@@ -27,6 +27,11 @@ const CLASSIFICATION_OPTIONS: ReadonlyArray<{
     label: "緊急地震速報（警報）",
     description: "警報レベルのEEWを受信します",
   },
+  {
+    value: "telegram.volcano",
+    label: "火山関連",
+    description: "噴火警報、噴火速報、降灰予報、火山の状況に関する解説情報など",
+  },
 ];
 
 /** テストモード選択肢メタデータ */
