@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.48.0](https://github.com/Lateo2580/FlEq/compare/v1.47.3...v1.48.0) (2026-03-20)
+
+
+### 機能追加
+
+* 火山区分(telegram.volcano)対応 — 10種類の火山電文パース・表示・通知 ([695094e](https://github.com/Lateo2580/FlEq/commit/695094e29224b51a3a6859affe09bfb531523019))
+
 ## [1.47.3](https://github.com/Lateo2580/FlEq/compare/v1.47.2...v1.47.3) (2026-03-19)
 
 
