@@ -12,7 +12,7 @@ import * as log from "../../logger";
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
 export async function startMonitor(config: AppConfig): Promise<void> {
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState } = createMessageHandler();
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState } = createMessageHandler();
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
@@ -59,7 +59,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, [tsunamiState], [tsunamiState]);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, [tsunamiState, volcanoState], [tsunamiState, volcanoState]);
 
   registerShutdownSignals(shutdown);
 

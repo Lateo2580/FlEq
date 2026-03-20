@@ -53,13 +53,15 @@ src/
 │   │   ├── shutdown.ts         # グレースフルシャットダウン処理
 │   │   └── repl-coordinator.ts # REPL表示・接続状態の協調制御
 │   ├── messages/
-│   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全17種類)
-│   │   └── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
+│   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全27種類)
+│   │   ├── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
+│   │   └── volcano-state.ts    # 火山警報状態管理 (複数火山同時追跡・プロンプト・detail)
 │   ├── eew/
 │   │   ├── eew-tracker.ts      # EEW イベント追跡 (重複検出・状態管理・最終報処理)
 │   │   └── eew-logger.ts       # EEW ログファイル記録 (イベント別ファイル出力)
 │   └── notification/
 │       ├── notifier.ts         # デスクトップ通知 (カテゴリ別ON/OFF)
+│       ├── volcano-presentation.ts # 火山電文の表示/通知レベル判定
 │       ├── node-notifier-loader.ts # node-notifier 遅延ロード (optional dependency)
 │       └── sound-player.ts     # クロスプラットフォーム通知音再生
 ├── dmdata/
@@ -68,9 +70,13 @@ src/
 │   ├── connection-manager.ts   # 接続管理インターフェース (ConnectionManager)
 │   ├── multi-connection-manager.ts # 複線接続管理 (primary + backup)
 │   ├── endpoint-selector.ts    # エンドポイント選択・リージョン間フェイルオーバー
-│   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
+│   ├── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
+│   └── volcano-parser.ts       # 火山電文パーサ (10種類の火山電文に対応)
 └── ui/
-    ├── formatter.ts            # ターミナル表示フォーマッタ
+    ├── formatter.ts            # 共通ターミナル表示ユーティリティ (フレーム描画・テキスト処理)
+    ├── eew-formatter.ts        # EEW 表示フォーマッタ
+    ├── earthquake-formatter.ts # 地震・津波・テキスト・南海トラフ・長周期 表示フォーマッタ
+    ├── volcano-formatter.ts    # 火山 表示フォーマッタ
     ├── theme.ts                # テーマシステム (カラーパレット・ロール定義)
     ├── repl.ts                 # REPL インタラクション
     ├── test-samples.ts         # 表示テスト用サンプルデータ
@@ -92,15 +98,20 @@ test/
 │   ├── notifier.test.ts
 │   ├── sound-player.test.ts
 │   ├── tsunami-initializer.test.ts
+│   ├── tsunami-state.test.ts
+│   ├── volcano-state.test.ts
+│   ├── volcano-presentation.test.ts
 │   └── update-checker.test.ts
 ├── dmdata/
 │   ├── endpoint-selector.test.ts
 │   ├── multi-connection-manager.test.ts
 │   ├── rest-client.test.ts
 │   ├── telegram-parser.test.ts
+│   ├── volcano-parser.test.ts
 │   └── ws-client.test.ts
 ├── ui/
 │   ├── formatter.test.ts
+│   ├── volcano-formatter.test.ts
 │   ├── repl.test.ts
 │   └── theme.test.ts
 ├── fixtures/                   # XMLテストフィクスチャ
@@ -118,7 +129,11 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
       → engine/startup/tsunami-initializer.ts (起動時の津波状態復元)
       → engine/messages/message-router.ts (電文分類・振り分け)
         → dmdata/telegram-parser.ts (XML解析)
-        → ui/formatter.ts (色付き表示)     ← ui/theme.ts (テーマ)
+        → dmdata/volcano-parser.ts (火山電文解析)
+        → ui/formatter.ts (共通表示)       ← ui/theme.ts (テーマ)
+        → ui/eew-formatter.ts (EEW表示)
+        → ui/earthquake-formatter.ts (地震・津波表示)
+        → ui/volcano-formatter.ts (火山表示)
         → engine/eew/eew-tracker.ts (EEW追跡)
         → engine/eew/eew-logger.ts (EEWログ記録)
         → engine/notification/notifier.ts (デスクトップ通知)
@@ -132,7 +147,7 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
 - `engine/cli/` — CLI定義・アクションハンドラ
 - `engine/startup/` — 設定解決・アップデートチェック・津波状態復元
 - `engine/monitor/` — オーケストレーション・シャットダウン・REPL協調
-- `engine/messages/` — 電文分類・振り分け・津波状態管理
+- `engine/messages/` — 電文分類・振り分け・津波状態管理・火山状態管理
 - `engine/eew/` — EEW追跡・ログ記録
 - `engine/notification/` — デスクトップ通知・通知音
 - `dmdata/` — dmdata.jp との通信層 (REST, WebSocket, 電文パース)
@@ -140,9 +155,9 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
 - `utils/` — 汎用ユーティリティ (震度ランク変換, シークレットマスク)
 - WebSocketManager がイベント駆動で onData / onConnected / onDisconnected を発火
 - 指数バックオフによる自動再接続、Ping-Pong でヘルスチェック
-- `createMessageHandler()` は `{ handler, eewLogger, notifier, tsunamiState }` を返す
+- `createMessageHandler()` は `{ handler, eewLogger, notifier, tsunamiState, volcanoState }` を返す
 - 遅延ロード: `cli/cli.ts` → `cli/cli-run.ts` / `cli/cli-init.ts`、`monitor/monitor.ts` → `ui/repl.ts` は dynamic import で必要時のみロード（メモリ最適化）
-- テーマ: `ui/theme.ts` が `theme.json` (Configディレクトリ) を読み込み、CUD配色準拠のカラーパレット + 52のセマンティックロールで表示色を管理
+- テーマ: `ui/theme.ts` が `theme.json` (Configディレクトリ) を読み込み、CUD配色準拠のカラーパレット + 67のセマンティックロールで表示色を管理
 
 ## 電文タイプとルーティング
 
@@ -168,16 +183,27 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
 | VYSE51 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
 | VYSE52 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
 | VYSE60 | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` | `ParsedNankaiTroughInfo` |
+| VZVO40 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoTextInfo` |
+| VFVO50 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoAlertInfo` |
+| VFVO51 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoTextInfo` |
+| VFVO52 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoEruptionInfo` |
+| VFSVii | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoAlertInfo` |
+| VFVO53 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoAshfallInfo` |
+| VFVO54 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoAshfallInfo` |
+| VFVO55 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoAshfallInfo` |
+| VFVO56 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoEruptionInfo` |
+| VFVO60 | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` | `ParsedVolcanoPlumeInfo` |
 
 ### ルーティング優先順位 (message-router.ts)
 
 1. `eew.forecast` / `eew.warning` → EEW パス (EewTracker で重複検出、EewEventLogger でログ記録)
-2. `telegram.earthquake` + `VXSE56`/`VXSE60`/`VZSE40` → テキスト系パス
-3. `telegram.earthquake` + `VXSE62` → 長周期地震動観測情報パス
-4. `telegram.earthquake` + `VXSE*` → 地震情報パス
-5. `telegram.earthquake` + `VTSE*` → 津波情報パス
-6. `telegram.earthquake` + `VYSE*` → 南海トラフ地震関連情報パス
-7. それ以外 → `displayRawHeader` (フォールバック)
+2. `telegram.volcano` → 火山パス (VolcanoStateHolder で状態追跡、VolcanoPresentation で表示/通知レベル判定)
+3. `telegram.earthquake` + `VXSE56`/`VXSE60`/`VZSE40` → テキスト系パス
+4. `telegram.earthquake` + `VXSE62` → 長周期地震動観測情報パス
+5. `telegram.earthquake` + `VXSE*` → 地震情報パス
+6. `telegram.earthquake` + `VTSE*` → 津波情報パス
+7. `telegram.earthquake` + `VYSE*` → 南海トラフ地震関連情報パス
+8. それ以外 → `displayRawHeader` (フォールバック)
 
 ### フレームレベル判定 (formatter.ts)
 
@@ -189,6 +215,17 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
 - **テキスト情報**: 取消→cancel、その他→info
 - **南海トラフ情報**: コード120→critical、コード130/111-113/210-219→warning、コード190/200→info
 - **長周期地震動観測**: LgInt4→critical、LgInt3→warning、LgInt2→normal、その他→info
+- **火山情報** (volcano-presentation.ts で判定):
+  - 取消→cancel
+  - VFVO56 噴火速報→critical
+  - VFVO50 Lv4-5引上げ→critical、Lv2-3引上げ→warning、引下げ/解除→normal
+  - VFVO50 Lv4-5継続(初見→critical、再通知→warning)、Lv2-3継続(初見→warning、再通知→normal)
+  - VFVO52 爆発/噴火多発/噴煙≥3000m→warning、軽微→normal
+  - VFVO54 降灰速報→warning、VFVO55 降灰詳細→normal、VFVO53 降灰定時→info
+  - VFVO51 臨時→warning、通常→info
+  - VFSVii 海上警報(Code31/36)→warning、海上予報(Code33)→normal
+  - VFVO60 推定噴煙流向報→normal
+  - VZVO40 お知らせ→info
 
 ## テスト
 
@@ -232,7 +269,7 @@ fleq config keys          # 設定可能なキー一覧を表示
 
 設定可能なキー: `apiKey`, `classifications`, `testMode`, `appName`, `maxReconnectDelaySec`, `keepExistingConnections`, `tableWidth`, `infoFullText`, `displayMode`, `promptClock`, `waitTipIntervalMin`, `sound`, `eewLog`, `maxObservations`, `backup`
 
-通知設定はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation)
+通知設定はREPLの `notify` コマンドで管理する (カテゴリ別ON/OFF: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation, volcano)
 
 通知音設定 (`sound`) で通知音の有効/無効を切り替える。サウンドファイルは `assets/sounds/` に配置、OS標準サウンドへのフォールバックあり
 

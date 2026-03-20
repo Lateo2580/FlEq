@@ -9,8 +9,10 @@ import {
   ParsedSeismicTextInfo,
   ParsedNankaiTroughInfo,
   ParsedLgObservationInfo,
+  ParsedVolcanoInfo,
   DEFAULT_CONFIG,
 } from "../../types";
+import { VolcanoPresentation } from "./volcano-presentation";
 import { loadConfig, saveConfig } from "../../config";
 import { EewUpdateResult } from "../eew/eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";
@@ -32,6 +34,7 @@ export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
   seismicText: "地震活動テキスト",
   nankaiTrough: "南海トラフ関連",
   lgObservation: "長周期地震動",
+  volcano: "火山情報",
 };
 
 export class Notifier {
@@ -233,6 +236,17 @@ export class Notifier {
       parts.push(`最大震度${info.maxInt}`);
     }
     this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, soundLevel);
+  }
+
+  notifyVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void {
+    if (!this.settings.volcano) return;
+
+    if (info.infoType === "取消") {
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      return;
+    }
+
+    this.send(info.title, presentation.summary, presentation.soundLevel);
   }
 
   // ── 内部メソッド ──

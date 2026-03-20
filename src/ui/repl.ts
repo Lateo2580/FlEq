@@ -278,11 +278,12 @@ export class ReplHandler {
         handler: () => this.handleColors(),
       },
       detail: {
-        description: "直近の津波情報を再表示 (例: detail tsunami)",
-        detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示",
+        description: "直近の情報を再表示 (例: detail tsunami, detail volcano)",
+        detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示\n  detail volcano: 火山警報状態を再表示",
         category: "info",
         subcommands: {
           tsunami: { description: "津波情報を再表示" },
+          volcano: { description: "火山警報状態を再表示" },
         },
         handler: (args) => this.handleDetail(args),
       },
@@ -312,7 +313,7 @@ export class ReplHandler {
       },
       notify: {
         description: "通知設定の表示・切替 (例: notify eew on)",
-        detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation",
+        detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation, volcano",
         category: "settings",
         subcommands: {
           "<category>": { description: "トグル切替 / on / off" },
@@ -435,7 +436,7 @@ export class ReplHandler {
           },
           table: {
             description: "表示形式テスト",
-            detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: バリエーション一覧を表示\n  test table <type> <番号>: 指定バリエーションを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation",
+            detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: バリエーション一覧を表示\n  test table <type> <番号>: 指定バリエーションを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation, volcano",
           },
         },
         handler: (args) => this.handleTest(args),

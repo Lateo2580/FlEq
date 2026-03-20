@@ -30,7 +30,7 @@ export function buildProgram(): Command {
     )
     .option(
       "-c, --classifications <items>",
-      "受信区分を指定します（カンマ区切り: telegram.earthquake,eew.forecast,eew.warning）"
+      "受信区分を指定します（カンマ区切り: telegram.earthquake,eew.forecast,eew.warning,telegram.volcano）"
     )
     .option(
       "--test <mode>",

@@ -26,7 +26,8 @@ export type NotifyCategory =
   | "tsunami"
   | "seismicText"
   | "nankaiTrough"
-  | "lgObservation";
+  | "lgObservation"
+  | "volcano";
 
 /** 通知設定 (カテゴリごとの ON/OFF) */
 export type NotifySettings = Record<NotifyCategory, boolean>;
@@ -35,7 +36,8 @@ export type NotifySettings = Record<NotifyCategory, boolean>;
 export type Classification =
   | "telegram.earthquake" // 地震・津波関連
   | "eew.forecast" // 緊急地震速報（予報）
-  | "eew.warning"; // 緊急地震速報（警報）
+  | "eew.warning" // 緊急地震速報（警報）
+  | "telegram.volcano"; // 火山関連
 
 /** アプリケーション設定 */
 export interface AppConfig {
@@ -98,7 +100,7 @@ export interface ConfigFile {
 
 /** デフォルト設定 */
 export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
-  classifications: ["telegram.earthquake", "eew.forecast", "eew.warning"],
+  classifications: ["telegram.earthquake", "eew.forecast", "eew.warning", "telegram.volcano"],
   testMode: "no",
   appName: "fleq",
   maxReconnectDelaySec: 60,
@@ -115,6 +117,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     seismicText: true,
     nankaiTrough: true,
     lgObservation: true,
+    volcano: true,
   },
   sound: true,
   eewLog: true,
@@ -616,3 +619,132 @@ export interface ParsedLgObservationInfo {
   detailUri?: string;
   isTest: boolean;
 }
+
+// ── パース済み火山情報型 ──
+
+/** 火山電文の head.type リテラル */
+export type VolcanoHeadType =
+  | "VZVO40" | "VFVO50" | "VFVO51" | "VFVO52" | "VFSVii"
+  | "VFVO53" | "VFVO54" | "VFVO55" | "VFVO56" | "VFVO60";
+
+/** 正規化されたアクション（パーサが XML の Condition 等から変換） */
+export type VolcanoAction = "issue" | "continue" | "raise" | "lower" | "release" | "cancel";
+
+/** 対象市町村 */
+export interface VolcanoMunicipality {
+  name: string;
+  code: string;
+  kind: string;
+}
+
+/** 降灰予報の時間帯 */
+export interface AshForecastPeriod {
+  startTime: string;
+  endTime: string;
+  areas: AshArea[];
+}
+
+/** 降灰予報の地域 */
+export interface AshArea {
+  name: string;
+  code: string;
+  ashCode: string;
+  ashName: string;
+  thickness: number | null;
+}
+
+/** 風向データ */
+export interface WindProfileEntry {
+  altitude: string;
+  degree: number | null;
+  speed: number | null;
+}
+
+/** 共通ベース */
+interface ParsedVolcanoBase {
+  domain: "volcano";
+  kind: "alert" | "eruption" | "ashfall" | "text" | "plume";
+  type: VolcanoHeadType;
+  infoType: string;           // 発表, 訂正, 取消
+  title: string;
+  reportDateTime: string;
+  eventDateTime: string | null;
+  headline: string | null;
+  publishingOffice: string;
+  volcanoName: string;
+  volcanoCode: string;
+  coordinate: string | null;
+  isTest: boolean;
+}
+
+/** 噴火警報・予報 (VFVO50, VFSVii) */
+export interface ParsedVolcanoAlertInfo extends ParsedVolcanoBase {
+  kind: "alert";
+  type: "VFVO50" | "VFSVii";
+  alertLevel: 1 | 2 | 3 | 4 | 5 | null;
+  alertLevelCode: string | null;
+  action: VolcanoAction;
+  previousLevelCode: string | null;
+  warningKind: string;
+  municipalities: VolcanoMunicipality[];
+  bodyText: string;
+  preventionText: string;
+  isMarine: boolean;
+}
+
+/** 噴火に関する火山観測報 (VFVO52, VFVO56) */
+export interface ParsedVolcanoEruptionInfo extends ParsedVolcanoBase {
+  kind: "eruption";
+  type: "VFVO52" | "VFVO56";
+  phenomenonCode: string;
+  phenomenonName: string;
+  craterName: string | null;
+  plumeHeight: number | null;
+  plumeHeightUnknown: boolean;
+  plumeDirection: string | null;
+  isFlashReport: boolean;
+  bodyText: string;
+}
+
+/** 降灰予報 (VFVO53, VFVO54, VFVO55) */
+export interface ParsedVolcanoAshfallInfo extends ParsedVolcanoBase {
+  kind: "ashfall";
+  type: "VFVO53" | "VFVO54" | "VFVO55";
+  subKind: "scheduled" | "rapid" | "detailed";
+  craterName: string | null;
+  ashForecasts: AshForecastPeriod[];
+  plumeHeight: number | null;
+  plumeDirection: string | null;
+  bodyText: string;
+}
+
+/** 火山の状況に関する解説情報 / 火山に関するお知らせ (VZVO40, VFVO51) */
+export interface ParsedVolcanoTextInfo extends ParsedVolcanoBase {
+  kind: "text";
+  type: "VZVO40" | "VFVO51";
+  alertLevel: 1 | 2 | 3 | 4 | 5 | null;
+  alertLevelCode: string | null;
+  isExtraordinary: boolean;
+  bodyText: string;
+  nextAdvisory: string | null;
+}
+
+/** 推定噴煙流向報 (VFVO60) */
+export interface ParsedVolcanoPlumeInfo extends ParsedVolcanoBase {
+  kind: "plume";
+  type: "VFVO60";
+  phenomenonCode: string;
+  craterName: string | null;
+  plumeHeight: number | null;
+  plumeDirection: string | null;
+  windProfile: WindProfileEntry[];
+  bodyText: string;
+}
+
+/** パース済み火山情報 (discriminated union) */
+export type ParsedVolcanoInfo =
+  | ParsedVolcanoAlertInfo
+  | ParsedVolcanoEruptionInfo
+  | ParsedVolcanoAshfallInfo
+  | ParsedVolcanoTextInfo
+  | ParsedVolcanoPlumeInfo;

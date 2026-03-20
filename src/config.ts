@@ -126,6 +126,7 @@ export const VALID_CLASSIFICATIONS: Classification[] = [
   "telegram.earthquake",
   "eew.forecast",
   "eew.warning",
+  "telegram.volcano",
 ];
 
 /** 有効なテストモード */

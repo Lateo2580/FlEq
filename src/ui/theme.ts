@@ -176,6 +176,29 @@ export const DEFAULT_ROLES = {
 
   // raw header
   rawHeaderLabel: "sky" as RoleStyleDef,
+
+  // volcano: 噴火警戒レベル (5段階)
+  volcanoLevel1: "blueGreen" as RoleStyleDef,
+  volcanoLevel2: { fg: "blue", bold: true } as RoleStyleDef,
+  volcanoLevel3: { fg: "yellow", bold: true } as RoleStyleDef,
+  volcanoLevel4: { fg: "vermillion", bold: true } as RoleStyleDef,
+  volcanoLevel5: { bg: "darkRed", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+
+  // volcano: 噴火現象 (4種)
+  volcanoPhenomenonExplosion: { fg: "vermillion", bold: true } as RoleStyleDef,
+  volcanoPhenomenonEruption: { fg: "orange", bold: true } as RoleStyleDef,
+  volcanoPhenomenonFrequent: { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  volcanoPhenomenonPossible: { fg: "sky", bold: true } as RoleStyleDef,
+
+  // volcano: 降灰量 (4段階)
+  volcanoAshfallLight: "sky" as RoleStyleDef,
+  volcanoAshfallModerate: { fg: "yellow", bold: true } as RoleStyleDef,
+  volcanoAshfallHeavy: { fg: "orange", bold: true } as RoleStyleDef,
+  volcanoAshfallBallistic: { fg: "vermillion", bold: true } as RoleStyleDef,
+
+  // volcano: バナー
+  volcanoAlertBanner: { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  volcanoFlashBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as RoleStyleDef,
 } as const;
 
 /** ロール名の型 */

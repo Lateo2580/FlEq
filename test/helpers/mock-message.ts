@@ -135,6 +135,65 @@ export const FIXTURE_VYSE60_AFTERSHOCK = "80_01_01_240821_VYSE60.xml";
 /** VXSE45 EEW地震動予報 最終報 (NextAdvisory付き) */
 export const FIXTURE_VXSE45_FINAL = "77_01_30_260101_VXSE45_FINAL.xml";
 
+// ── 火山フィクスチャ ──
+
+/** VFVO50 噴火警報 (レベル3 引上げ) */
+export const FIXTURE_VFVO50_ALERT_LV3 = "45_01_01_200522_VFVO50.xml";
+
+/** VFVO50 噴火警報 (レベル3 継続) */
+export const FIXTURE_VFVO50_ALERT_CONTINUE = "45_02_01_200522_VFVO50.xml";
+
+/** VFVO50 噴火警報 (レベル1 引下げ) */
+export const FIXTURE_VFVO50_ALERT_LOWER = "45_03_01_200731_VFVO50.xml";
+
+/** VFVO51 火山の状況に関する解説情報 (臨時) */
+export const FIXTURE_VFVO51_EXTRA = "44_01_01_151008_VFVO51.xml";
+
+/** VFVO51 火山の状況に関する解説情報 (通常) */
+export const FIXTURE_VFVO51_NORMAL = "44_02_01_200522_VFVO51.xml";
+
+/** VFVO51 火山の状況に関する解説情報 (別パターン) */
+export const FIXTURE_VFVO51_3 = "44_03_01_200731_VFVO51.xml";
+
+/** VFVO52 噴火に関する火山観測報 */
+export const FIXTURE_VFVO52_ERUPTION_1 = "43_01_01_200522_VFVO52.xml";
+
+/** VFVO52 噴火に関する火山観測報 (別パターン) */
+export const FIXTURE_VFVO52_ERUPTION_2 = "43_02_01_200522_VFVO52.xml";
+
+/** VFVO52 噴火に関する火山観測報 (別パターン) */
+export const FIXTURE_VFVO52_ERUPTION_3 = "43_03_01_200522_VFVO52.xml";
+
+/** VFSVii 火山海上警報 */
+export const FIXTURE_VFSV_MARINE = "46_01_01_170103_VFSVii.xml";
+
+/** VFVO53 降灰予報 (定時) */
+export const FIXTURE_VFVO53_ASH_REGULAR = "66_01_01_210517_VFVO53.xml";
+
+/** VFVO54 降灰予報 (速報) */
+export const FIXTURE_VFVO54_ASH_RAPID = "66_01_02_210514_VFVO54.xml";
+
+/** VFVO55 降灰予報 (詳細) */
+export const FIXTURE_VFVO55_ASH_DETAIL = "66_01_03_210514_VFVO55.xml";
+
+/** VFVO56 噴火速報 */
+export const FIXTURE_VFVO56_FLASH_1 = "67_01_01_140927_VFVO56.xml";
+
+/** VFVO56 噴火速報 (2報目) */
+export const FIXTURE_VFVO56_FLASH_2 = "67_01_02_140927_VFVO56.xml";
+
+/** VFVO56 噴火速報 (3報目) */
+export const FIXTURE_VFVO56_FLASH_3 = "67_01_03_140927_VFVO56.xml";
+
+/** VFVO56 噴火速報 (4報目) */
+export const FIXTURE_VFVO56_FLASH_4 = "67_01_04_140927_VFVO56.xml";
+
+/** VFVO60 推定噴煙流向報 */
+export const FIXTURE_VFVO60_PLUME = "79_01_01_210527_VFVO60.xml";
+
+/** VZVO40 火山に関するお知らせ */
+export const FIXTURE_VZVO40_NOTICE = "42_02_01_071130_VZVO40.xml";
+
 /** フィクスチャXMLを読み込む (fixtures/ → selected_xml/ フォールバック) */
 export function readFixture(filename: string): string {
   const primaryPath = path.join(FIXTURES_DIR, filename);
@@ -163,13 +222,15 @@ export function createMockWsDataMessage(
   const body = encodeXml(xml);
 
   // ファイル名から type を推定
-  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+)/);
+  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+)/);
   const type = typeMatch ? typeMatch[1] : "VXSE53";
   const classification = type === "VXSE43"
     ? "eew.warning"
     : (type === "VXSE44" || type === "VXSE45")
       ? "eew.forecast"
-      : "telegram.earthquake";
+      : (type.startsWith("VFVO") || type.startsWith("VFSV") || type === "VZVO40")
+        ? "telegram.volcano"
+        : "telegram.earthquake";
 
   const base: WsDataMessage = {
     type: "data",

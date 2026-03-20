@@ -8,16 +8,18 @@ import type {
   ParsedSeismicTextInfo,
   ParsedNankaiTroughInfo,
   ParsedLgObservationInfo,
+  ParsedVolcanoInfo,
   WsDataMessage,
 } from "../types";
+import { displayEewInfo } from "./eew-formatter";
 import {
   displayEarthquakeInfo,
-  displayEewInfo,
   displayTsunamiInfo,
   displaySeismicTextInfo,
   displayNankaiTroughInfo,
   displayLgObservationInfo,
-} from "./formatter";
+} from "./earthquake-formatter";
+import { displayVolcanoInfo } from "./volcano-formatter";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
@@ -26,6 +28,9 @@ import {
   parseNankaiTroughTelegram,
   parseLgObservationTelegram,
 } from "../dmdata/telegram-parser";
+import { parseVolcanoTelegram } from "../dmdata/volcano-parser";
+import { resolveVolcanoPresentation } from "../engine/notification/volcano-presentation";
+import { VolcanoStateHolder } from "../engine/messages/volcano-state";
 
 // ── フィクスチャ読み込みヘルパー ──
 
@@ -47,14 +52,16 @@ function loadFixture(filename: string): WsDataMessage | null {
     const xml = fs.readFileSync(xmlPath, "utf-8");
     const body = zlib.gzipSync(Buffer.from(xml, "utf-8")).toString("base64");
 
-    const typeMatch = filename.match(/(V[TXYZ]SE\d+)/);
+    const typeMatch = filename.match(/(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+)/);
     const type = typeMatch ? typeMatch[1] : "VXSE53";
     const classification =
       type === "VXSE43"
         ? "eew.warning"
         : type === "VXSE44" || type === "VXSE45"
           ? "eew.forecast"
-          : "telegram.earthquake";
+          : type.startsWith("VFVO") || type.startsWith("VFSV") || type.startsWith("VZVO")
+            ? "telegram.volcano"
+            : "telegram.earthquake";
 
     return {
       type: "data",
@@ -967,4 +974,42 @@ export const TEST_TABLES: Record<string, TestTableEntry> = {
       },
     ],
   },
+  volcano: {
+    label: "火山情報",
+    variants: volcanoVariants(),
+  },
 };
+
+// ── 火山テストバリエーション ──
+
+function volcanoVariants(): TestTableEntry["variants"] {
+  const fixtures = [
+    { file: "45_01_01_200522_VFVO50.xml", label: "噴火警報（Lv3引上げ）" },
+    { file: "45_02_01_200522_VFVO50.xml", label: "噴火警報（Lv5引上げ）" },
+    { file: "67_01_01_140927_VFVO56.xml", label: "噴火速報" },
+    { file: "43_01_01_200522_VFVO52.xml", label: "火山観測報（噴火）" },
+    { file: "66_01_02_210514_VFVO54.xml", label: "降灰予報（速報）" },
+    { file: "66_01_03_210514_VFVO55.xml", label: "降灰予報（詳細）" },
+    { file: "46_01_01_170103_VFSVii.xml", label: "海上警報" },
+    { file: "79_01_01_210527_VFVO60.xml", label: "推定噴煙流向報" },
+    { file: "42_02_01_071130_VZVO40.xml", label: "火山に関するお知らせ" },
+  ];
+  const tempState = new VolcanoStateHolder();
+  return fixtures.map(({ file, label }) => ({
+    label,
+    run: () => {
+      const msg = loadFixture(file);
+      if (!msg) {
+        console.log(`  フィクスチャが見つかりません: ${file}`);
+        return;
+      }
+      const info = parseVolcanoTelegram(msg);
+      if (!info) {
+        console.log(`  パースに失敗しました: ${file}`);
+        return;
+      }
+      const presentation = resolveVolcanoPresentation(info, tempState);
+      displayVolcanoInfo(info, presentation);
+    },
+  }));
+}

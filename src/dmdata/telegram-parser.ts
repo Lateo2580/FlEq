@@ -33,6 +33,10 @@ const xmlParser = new XMLParser({
       "Observation",
       "Station",
       "Estimation",
+      // 火山電文
+      "VolcanoInfo",
+      "AshInfo",
+      "WindAboveCraterElements",
     ];
     return arrayTags.includes(name);
   },
@@ -73,7 +77,7 @@ export function parseXml(xmlStr: string): Record<string, unknown> {
 
 // ── ヘルパー: 安全なプロパティアクセス ──
 
-function dig(obj: unknown, ...keys: string[]): unknown {
+export function dig(obj: unknown, ...keys: string[]): unknown {
   let current = obj;
   for (const key of keys) {
     if (current == null || typeof current !== "object") return undefined;
@@ -82,12 +86,12 @@ function dig(obj: unknown, ...keys: string[]): unknown {
   return current;
 }
 
-function str(val: unknown): string {
+export function str(val: unknown): string {
   if (val == null) return "";
   return String(val);
 }
 
-function first<T>(val: T | T[]): T {
+export function first<T>(val: T | T[]): T {
   return Array.isArray(val) ? val[0] : val;
 }
 

@@ -5,7 +5,7 @@ import {
   DetailProvider,
 } from "../../types";
 import { getRoleChalk, RoleName } from "../../ui/theme";
-import { displayTsunamiInfo } from "../../ui/formatter";
+import { displayTsunamiInfo } from "../../ui/earthquake-formatter";
 
 /** 津波警報レベル (優先度順) */
 type TsunamiAlertLevel = "大津波警報" | "津波警報" | "津波注意報";

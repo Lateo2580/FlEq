@@ -316,6 +316,8 @@ interface MessageHandlerResult {
   handler: (msg: WsDataMessage) => void;
   eewLogger: EewEventLogger;
   notifier: Notifier;
+  tsunamiState: TsunamiStateHolder;
+  volcanoState: VolcanoStateHolder;
 }
 
 function createMessageHandler(): MessageHandlerResult
@@ -324,6 +326,8 @@ function createMessageHandler(): MessageHandlerResult
 - `handler` — 受信メッセージをルーティングする関数。
 - `eewLogger` — EEW ログ設定の変更用に外部公開。
 - `notifier` — 通知設定の変更用に外部公開。
+- `tsunamiState` — 津波警報状態の保持・detail コマンド用に外部公開。
+- `volcanoState` — 火山警報状態の保持・detail コマンド用に外部公開。
 
 ### 内部ロジック
 
@@ -348,7 +352,13 @@ function createMessageHandler(): MessageHandlerResult
    - `parseTsunamiTelegram()` → `displayTsunamiInfo()` → `notifier.notifyTsunami()`
 7. **`telegram.earthquake` + `VYSE*`** — 南海トラフ関連
    - `parseNankaiTroughTelegram()` → `displayNankaiTroughInfo()` → `notifier.notifyNankaiTrough()`
-8. **それ以外** — `displayRawHeader()` フォールバック
+8. **`telegram.volcano`** — 火山情報
+   - `parseVolcanoTelegram()` でパース
+   - `resolveVolcanoPresentation()` で表示/通知レベル判定
+   - `displayVolcanoInfo()` で表示
+   - `volcanoState.update()` で状態更新
+   - `notifier.notifyVolcano()` で通知
+9. **それ以外** — `displayRawHeader()` フォールバック
 
 全パスで共通して、パース失敗時は `displayRawHeader()` にフォールバックする。
 
@@ -362,10 +372,16 @@ function createMessageHandler(): MessageHandlerResult
 |-------------|------|
 | `../../types` | `WsDataMessage` |
 | `../../dmdata/telegram-parser` | 各種パーサ関数 |
-| `../../ui/formatter` | 各種表示関数、`displayRawHeader` |
+| `../../dmdata/volcano-parser` | `parseVolcanoTelegram` |
+| `../../ui/formatter` | `displayRawHeader` |
+| `../../ui/eew-formatter` | `displayEewInfo` |
+| `../../ui/earthquake-formatter` | 地震・津波・テキスト・南海トラフ・長周期の表示関数 |
+| `../../ui/volcano-formatter` | `displayVolcanoInfo` |
 | `../eew/eew-tracker` | `EewTracker` |
 | `../eew/eew-logger` | `EewEventLogger` |
 | `../notification/notifier` | `Notifier` |
+| `../notification/volcano-presentation` | `resolveVolcanoPresentation` |
+| `../messages/volcano-state` | `VolcanoStateHolder` |
 | `../../logger` | ログ出力 |
 
 ### 設計ノート
@@ -1134,3 +1150,109 @@ class TsunamiStateHolder implements PromptStatusProvider, DetailProvider {
 
 - `PromptStatusProvider` と `DetailProvider` の両方を実装することで、プロンプト表示と detail コマンドの両方に対応。`message-router.ts` で `createMessageHandler()` の戻り値として公開される。
 - 警報レベルの優先度は `LEVEL_PRIORITY` 定数で管理し、最大優先度のレベルを採用する。
+
+---
+
+## messages/volcano-state.ts
+
+### 概要
+
+火山警報の状態を保持し、複数火山の同時追跡に対応するモジュール。`PromptStatusProvider` と `DetailProvider` の両インターフェースを実装する。火山コード (`volcanoCode`) をキーとする Map で各火山のアラートエントリを管理し、再通知判定にも利用される。
+
+### エクスポートAPI
+
+```ts
+class VolcanoStateHolder implements PromptStatusProvider, DetailProvider {
+  readonly category: string;       // "volcano"
+  readonly emptyMessage: string;
+  update(info: ParsedVolcanoInfo): void;
+  isRenotification(info: ParsedVolcanoAlertInfo): boolean;
+  clear(): void;
+  size(): number;
+  getEntry(volcanoCode: string): VolcanoAlertEntry | undefined;
+  getPromptStatus(): PromptStatusSegment | null;
+  hasDetail(): boolean;
+  showDetail(): void;
+}
+```
+
+### 内部ロジック
+
+#### 状態更新 (`update`)
+
+- `kind !== "alert"` → 無視（eruption, ashfall 等は状態追跡しない）
+- 取消報 (`infoType === "取消"`) → エントリ削除
+- 解除 (`action === "release"`) → エントリ削除
+- レベル1 + 継続 → エントリ削除（通常状態に戻った）
+- それ以外 → エントリを upsert
+
+#### 再通知判定 (`isRenotification`)
+
+既存エントリと `alertLevel`, `alertLevelCode`, `action` が全て同一の場合 `true`。`volcano-presentation.ts` がフレームレベルの初見/再通知の切り替えに使用する。
+
+#### プロンプト表示 (`getPromptStatus`)
+
+全エントリから最も高い `alertLevel` のエントリを選び、テーマロールで色付けした `{火山名} Lv{N}` 文字列を返す。`priority: 20`。
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `../../types` | `ParsedVolcanoInfo`, `ParsedVolcanoAlertInfo`, `PromptStatusProvider`, `DetailProvider` |
+| `../../ui/theme` | `getRoleChalk`, `RoleName` — テーマロールによる色付け |
+
+### 設計ノート
+
+- 津波の `TsunamiStateHolder` が単一状態を管理するのに対し、`VolcanoStateHolder` は複数火山の同時追跡を Map で実現する（同時に複数の火山が活動することが実運用であり得る）。
+- `size()`, `getEntry()` はテスト専用API。
+
+---
+
+## notification/volcano-presentation.ts
+
+### 概要
+
+火山電文の表示フレームレベル (`FrameLevel`)、通知音レベル (`SoundLevel`)、通知本文要約 (`summary`) を一元的に判定するモジュール。判定は `ParsedVolcanoInfo` の `kind` と各フィールド、および `VolcanoStateHolder` の再通知判定を組み合わせて行う。
+
+### エクスポートAPI
+
+```ts
+interface VolcanoPresentation {
+  frameLevel: FrameLevel;
+  soundLevel: SoundLevel;
+  summary: string;
+}
+
+function resolveVolcanoPresentation(
+  info: ParsedVolcanoInfo,
+  volcanoState: VolcanoStateHolder,
+): VolcanoPresentation
+```
+
+### 判定ロジック
+
+1. **全種別共通**: `infoType === "取消"` → cancel / cancel
+2. **VFVO56 (噴火速報)**: critical / critical
+3. **VFVO50 (噴火警報)**:
+   - 引上げ Lv4-5 → critical / critical、Lv2-3 → warning / warning
+   - 引下げ / 解除 → normal / normal
+   - 継続 Lv4-5 (初見→critical、再通知→warning) / normal
+   - 継続 Lv2-3 (初見→warning / normal、再通知→normal / info)
+   - Lv1 継続 → normal / info
+4. **VFSVii**: Code 31/36 → warning / warning、Code 33 → normal / normal
+5. **VFVO52**: 爆発(51) / 噴火多発(56) / 噴煙≥3000m → warning / normal、軽微 → normal / info
+6. **VFVO54**: warning / warning
+7. **VFVO55**: normal / normal
+8. **VFVO53**: info / info
+9. **VFVO51 臨時**: warning / normal、通常 → info / info
+10. **VFVO60**: normal / info
+11. **VZVO40**: info / info
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `../../types` | `ParsedVolcanoInfo` 各種 |
+| `../../ui/formatter` | `FrameLevel` |
+| `./sound-player` | `SoundLevel` |
+| `../messages/volcano-state` | `VolcanoStateHolder` |

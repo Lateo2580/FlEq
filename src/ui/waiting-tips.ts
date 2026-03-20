@@ -88,7 +88,7 @@ export const WAITING_TIPS: string[] = [
   "Tip: 避難時はブレーカーを落としてから出ると、通電火災のリスクを減らせます。",
 
   // ── ツールの仕組み ──
-  "Tip: FlEq は既定で telegram.earthquake、eew.forecast、eew.warning を受け、telegram.earthquake は電文種別ごとに地震・津波・南海トラフなどへ振り分けています。",
+  "Tip: FlEq は既定で telegram.earthquake、eew.forecast、eew.warning、telegram.volcano を受け、電文種別ごとに地震・津波・南海トラフ・火山などへ振り分けています。",
   "Tip: notify の eew カテゴリは、EEW予報とEEW警報の両方をまとめて扱います。",
   "Tip: 切断時の再接続は 1秒、2秒、4秒… と待ち時間を伸ばす指数バックオフで、少しランダム幅も入ります。",
   "Tip: サーバーから ping を受けるたびに pong を返して、接続の生存確認をしています。",
@@ -112,6 +112,9 @@ export const WAITING_TIPS: string[] = [
   "Tip: --keep-existing オプションを使うと、既存の WebSocket 接続を切断せずに新しい接続を追加できます。",
   "Tip: 南海トラフ関連情報は VYSE50/51/52/60 の4種類の電文で構成されています。",
   "Tip: 長周期地震動の観測情報は VXSE62 電文で、高層ビルへの影響を示す専用の電文です。",
+  "Tip: 火山電文は10種類（VFVO50/51/52/53/54/55/56/60, VFSVii, VZVO40）で、噴火警報・噴火速報・降灰予報などを扱います。",
+  "Tip: 噴火警戒レベルは1（活火山であることに留意）〜5（避難）の5段階です。レベル引上げは critical フレームで表示されます。",
+  "Tip: VFVO56 は噴火速報で、噴火が発生した直後にいち早く伝える電文です。critical フレームで表示されます。",
   "Tip: compact モードでは、地震情報のうち観測点ごとの詳細震度表示が省略されます。",
   "Tip: FlEq は電文の gzip + base64 エンコードされた本文を自動でデコードしてから XML パースします。",
   "Tip: プロンプトの ● が点滅しているのは接続が生きている証拠です。○ のままなら切断中です。",

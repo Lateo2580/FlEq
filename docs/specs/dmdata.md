@@ -475,3 +475,59 @@ EEW 予測地域の `Condition` フィールドから以下を検出する:
 - `isArray` 設定で特定タグを常に配列化することで、XML の「要素が1つだとオブジェクト、複数だと配列」という挙動の揺れを吸収している。これにより下流のコードで `Array.isArray` チェックを省略できる。
 - すべてのパース関数は try-catch で囲み、パースエラー時は `null` を返す設計。呼び出し側でエラーハンドリングの負担を軽減し、1つの電文のパース失敗がアプリ全体を停止させないようにしている。
 - 展開後サイズの上限 (`MAX_DECOMPRESSED_BYTES = 10MB`) は、悪意のある圧縮爆弾やメモリ枯渇に対する防御。`zlib.gunzipSync` の `maxOutputLength` オプションと展開後の再チェックの二重ガードで保護している。
+
+---
+
+## volcano-parser.ts
+
+### 概要
+
+火山電文 (`telegram.volcano`) の XML をパースし、10種類の `head.type` に対応した `ParsedVolcanoInfo` discriminated union を返すモジュール。共通のヘルパー関数群と5つの電文タイプ別パーサで構成される。`telegram-parser.ts` から `decodeBody`, `parseXml`, `dig`, `str`, `first` を import して再利用する。
+
+### エクスポートAPI
+
+```ts
+function parseVolcanoTelegram(msg: WsDataMessage): ParsedVolcanoInfo | null
+```
+
+`msg.head.type` で振り分け、以下の5つの内部パーサに委譲する:
+
+| 内部パーサ | 対象 head.type | 返却型 |
+|-----------|---------------|--------|
+| `parseVolcanoAlert` | VFVO50, VFSVii | `ParsedVolcanoAlertInfo` |
+| `parseVolcanoEruption` | VFVO52, VFVO56 | `ParsedVolcanoEruptionInfo` |
+| `parseVolcanoAshfall` | VFVO53, VFVO54, VFVO55 | `ParsedVolcanoAshfallInfo` |
+| `parseVolcanoText` | VZVO40, VFVO51 | `ParsedVolcanoTextInfo` |
+| `parseVolcanoPlume` | VFVO60 | `ParsedVolcanoPlumeInfo` |
+
+### 内部ロジック
+
+#### 共通ヘルパー
+
+- `findReport(parsed)` — `Report` / `jmx:Report` / `jmx_seis:Report` を試行
+- `levelCodeToNumber(code)` — `"11"`→1, `"12"`→2, ..., `"15"`→5、それ以外→null
+- `conditionToAction(condition, infoType)` — XML の Condition 値を `VolcanoAction` に正規化
+- `extractVolcanoBase(report, headType, msg)` — 火山名・コード・座標等の共通フィールドを抽出。`Body > VolcanoInfo` の `codeType === "火山名"` の Area から取得
+- `extractPlumeObservation(body)` — 噴煙高度・方向・火口名の抽出。`VolcanoObservation > ColorPlume` から取得
+
+#### 降灰予報パーサ (`parseVolcanoAshfall`)
+
+`Body > AshInfos > AshInfo` から時間帯ごとの降灰データ (`AshForecastPeriod`) を構築。各 Item 内の `Kind` から降灰種別コード・名称・厚み (Size) を、`Areas > Area` から対象地域を抽出する。
+
+#### テキスト系パーサ (`parseVolcanoText`)
+
+VZVO40 は `Body > Text` 直下、VFVO51 は `Body > VolcanoInfoContent > VolcanoActivity` からテキストを取得。VFVO51 では `Head > Headline > Information` から複数火山のレベルコードを走査し、最高レベルを `alertLevelCode` に採用する。
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `../types` | `ParsedVolcanoInfo` 各種、`VolcanoHeadType`, `VolcanoAction` 等 |
+| `./telegram-parser` | `decodeBody`, `parseXml`, `dig`, `str`, `first` |
+| `../logger` | ログ出力 |
+
+### 設計ノート
+
+- `telegram-parser.ts` のヘルパー (`dig`, `str`, `first`) を再利用することで、XML ノード探索のパターンを統一し、名前空間プレフィックスの有無に対応している。
+- `extractVolcanoBase` は `VolcanoInfo` の `@_type` に依存せず、`codeType === "火山名"` で Area を検索するため、異なる VolcanoInfo 構造（対象火山、海上、対象市町村等）に対して汎用的に動作する。
+- 全パース関数は try-catch で囲み、エラー時は `null` を返す。`telegram-parser.ts` と同じ設計方針。

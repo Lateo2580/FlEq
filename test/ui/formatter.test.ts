@@ -3,12 +3,6 @@ import chalk from "chalk";
 import {
   intensityColor,
   lgIntensityColor,
-  displayEarthquakeInfo,
-  displayEewInfo,
-  displayTsunamiInfo,
-  displaySeismicTextInfo,
-  displayNankaiTroughInfo,
-  displayLgObservationInfo,
   formatElapsedTime,
   formatTimestamp,
   wrapTextLines,
@@ -17,6 +11,14 @@ import {
   highlightAndWrap,
   collectHighlightSpans,
 } from "../../src/ui/formatter";
+import { displayEewInfo } from "../../src/ui/eew-formatter";
+import {
+  displayEarthquakeInfo,
+  displayTsunamiInfo,
+  displaySeismicTextInfo,
+  displayNankaiTroughInfo,
+  displayLgObservationInfo,
+} from "../../src/ui/earthquake-formatter";
 import type { EewDiff } from "../../src/engine/eew/eew-tracker";
 import {
   parseEarthquakeTelegram,

@@ -7,19 +7,23 @@ import {
   parseNankaiTroughTelegram,
   parseLgObservationTelegram,
 } from "../../dmdata/telegram-parser";
+import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
+import { displayRawHeader } from "../../ui/formatter";
+import { displayEewInfo } from "../../ui/eew-formatter";
 import {
   displayEarthquakeInfo,
-  displayEewInfo,
   displayTsunamiInfo,
   displaySeismicTextInfo,
   displayNankaiTroughInfo,
   displayLgObservationInfo,
-  displayRawHeader,
-} from "../../ui/formatter";
+} from "../../ui/earthquake-formatter";
+import { displayVolcanoInfo } from "../../ui/volcano-formatter";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
 import { Notifier } from "../notification/notifier";
 import { TsunamiStateHolder } from "./tsunami-state";
+import { VolcanoStateHolder } from "./volcano-state";
+import { resolveVolcanoPresentation } from "../notification/volcano-presentation";
 import * as log from "../../logger";
 
 // ── 電文分類 (Route) ──
@@ -32,6 +36,7 @@ type Route =
   | "earthquake"
   | "tsunami"
   | "nankaiTrough"
+  | "volcano"
   | "raw";
 
 /**
@@ -43,11 +48,16 @@ type Route =
  *   4. telegram.earthquake + VXSE* → 地震情報
  *   5. telegram.earthquake + VTSE* → 津波情報
  *   6. telegram.earthquake + VYSE* → 南海トラフ
- *   7. その他 → raw
+ *   7. telegram.volcano → 火山情報
+ *   8. その他 → raw
  */
 function classifyMessage(classification: string, headType: string): Route {
   if (classification === "eew.forecast" || classification === "eew.warning") {
     return "eew";
+  }
+
+  if (classification === "telegram.volcano") {
+    return "volcano";
   }
 
   if (classification === "telegram.earthquake") {
@@ -179,6 +189,23 @@ function handleNankaiTrough(msg: WsDataMessage, notifier: Notifier): void {
   }
 }
 
+/** 火山情報パス */
+function handleVolcano(
+  msg: WsDataMessage,
+  notifier: Notifier,
+  volcanoState: VolcanoStateHolder,
+): void {
+  const volcanoInfo = parseVolcanoTelegram(msg);
+  if (volcanoInfo) {
+    const presentation = resolveVolcanoPresentation(volcanoInfo, volcanoState);
+    displayVolcanoInfo(volcanoInfo, presentation);
+    volcanoState.update(volcanoInfo);
+    notifier.notifyVolcano(volcanoInfo, presentation);
+  } else {
+    displayRawHeader(msg);
+  }
+}
+
 // ── ファクトリ ──
 
 /** createMessageHandler の戻り値 */
@@ -187,6 +214,7 @@ export interface MessageHandlerResult {
   eewLogger: EewEventLogger;
   notifier: Notifier;
   tsunamiState: TsunamiStateHolder;
+  volcanoState: VolcanoStateHolder;
 }
 
 /** 受信データのハンドリング */
@@ -194,6 +222,7 @@ export function createMessageHandler(): MessageHandlerResult {
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
+  const volcanoState = new VolcanoStateHolder();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -228,11 +257,14 @@ export function createMessageHandler(): MessageHandlerResult {
       case "nankaiTrough":
         handleNankaiTrough(msg, notifier);
         break;
+      case "volcano":
+        handleVolcano(msg, notifier, volcanoState);
+        break;
       case "raw":
         displayRawHeader(msg);
         break;
     }
   };
 
-  return { handler, eewLogger, notifier, tsunamiState };
+  return { handler, eewLogger, notifier, tsunamiState, volcanoState };
 }

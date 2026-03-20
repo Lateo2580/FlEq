@@ -1,16 +1,8 @@
 import chalk from "chalk";
 import {
-  ParsedEarthquakeInfo,
-  ParsedEewInfo,
-  ParsedTsunamiInfo,
-  ParsedSeismicTextInfo,
-  ParsedNankaiTroughInfo,
-  ParsedLgObservationInfo,
   DisplayMode,
   WsDataMessage,
 } from "../types";
-import type { EewDiff } from "../engine/eew/eew-tracker";
-import * as log from "../logger";
 import * as theme from "./theme";
 import type { RoleName } from "./theme";
 
@@ -81,7 +73,7 @@ interface MarkedLine {
 }
 
 /** バッファリングインターフェース */
-interface RenderBuffer {
+export interface RenderBuffer {
   push(line: string): void;
   pushEmpty(): void;
   pushTitle(line: string): void;
@@ -94,7 +86,7 @@ interface RenderBuffer {
   readonly headlineLines: readonly string[];
 }
 
-function createRenderBuffer(): RenderBuffer {
+export function createRenderBuffer(): RenderBuffer {
   const _lines: MarkedLine[] = [];
   let _titleLine: string | null = null;
   let _cardLine: string | null = null;
@@ -134,7 +126,7 @@ const RECAP_RESERVE_ROWS = 3;
  * バッファの内容を出力し、ターミナル高さを超える場合はフレーム下部直前に
  * サマリー (recap) を再掲する。
  */
-function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: number): void {
+export function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: number): void {
   const isTTY = process.stdout.isTTY;
   const rows = process.stdout.rows;
 
@@ -205,7 +197,7 @@ function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: number): vo
 // ── フレーム描画ユーティリティ ──
 
 /** フレームの優先度レベル */
-type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
+export type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
 
 /** フレーム文字セット (罫線のみ) */
 interface FrameChars {
@@ -213,7 +205,7 @@ interface FrameChars {
   h: string; v: string; divL: string; divR: string;
 }
 
-const FRAME_CHARS: Record<FrameLevel, FrameChars> = {
+export const FRAME_CHARS: Record<FrameLevel, FrameChars> = {
   critical: { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣" },
   warning:  { tl: "╔", tr: "╗", bl: "╚", br: "╝", h: "═", v: "║", divL: "╠", divR: "╣" },
   normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
@@ -231,7 +223,7 @@ const FRAME_ROLE_MAP: Record<FrameLevel, RoleName> = {
 };
 
 /** フレームレベルに対応する色を返す (呼び出し時点の chalk.level を反映) */
-function frameColor(level: FrameLevel): chalk.Chalk {
+export function frameColor(level: FrameLevel): chalk.Chalk {
   return theme.getRoleChalk(FRAME_ROLE_MAP[level]);
 }
 
@@ -241,7 +233,7 @@ function getFrame(level: FrameLevel): FrameChars & { color: chalk.Chalk } {
 }
 
 /** フレームレベルのテキストラベル (アクセシビリティ: 色が見えない環境向け) */
-const SEVERITY_LABELS: Record<FrameLevel, string> = {
+export const SEVERITY_LABELS: Record<FrameLevel, string> = {
   critical: "[緊急]",
   warning:  "[警告]",
   normal:   "[情報]",
@@ -251,23 +243,20 @@ const SEVERITY_LABELS: Record<FrameLevel, string> = {
 
 const FRAME_WIDTH = 60;
 
-/** テーブル幅がこの値以上のとき、津波情報をカラム区切りテーブルで表示 */
-const WIDE_TABLE_THRESHOLD = 80;
-
 /** キャッシュ済みの tableWidth を返す。未設定ならターミナル幅に追従 (fallback: 60) */
-function getFrameWidth(): number {
+export function getFrameWidth(): number {
   if (cachedFrameWidth != null) return cachedFrameWidth;
   const cols = process.stdout.columns;
   if (cols == null || cols < 40) return FRAME_WIDTH;
   return Math.min(cols, 200);
 }
 
-function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {
+export function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string {
   const f = getFrame(level);
   return f.color(f.tl + f.h.repeat(width - 2) + f.tr);
 }
 
-function frameLine(level: FrameLevel, content: string, width: number = FRAME_WIDTH): string {
+export function frameLine(level: FrameLevel, content: string, width: number = FRAME_WIDTH): string {
   const f = getFrame(level);
   // ANSI エスケープを除去して可視幅を計算
   const visibleLen = visualWidth(content);
@@ -275,18 +264,18 @@ function frameLine(level: FrameLevel, content: string, width: number = FRAME_WID
   return f.color(f.v) + " " + content + " ".repeat(pad) + " " + f.color(f.v);
 }
 
-function frameDivider(level: FrameLevel, width: number = FRAME_WIDTH): string {
+export function frameDivider(level: FrameLevel, width: number = FRAME_WIDTH): string {
   const f = getFrame(level);
   return f.color(f.divL + f.h.repeat(width - 2) + f.divR);
 }
 
-function frameBottom(level: FrameLevel, width: number = FRAME_WIDTH): string {
+export function frameBottom(level: FrameLevel, width: number = FRAME_WIDTH): string {
   const f = getFrame(level);
   return f.color(f.bl + f.h.repeat(width - 2) + f.br);
 }
 
 /** ANSI / VT エスケープシーケンスを除去 (表示幅計算用 & インジェクション防止) */
-function stripAnsi(str: string): string {
+export function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "");
 }
@@ -339,7 +328,7 @@ export function visualPadEnd(str: string, targetWidth: number): string {
  * rows: 各行のセル配列 (chalk でスタイル適用済み)
  * 最後のカラムは残り幅を使い切る可変幅。
  */
-function renderFrameTable(
+export function renderFrameTable(
   level: FrameLevel,
   headers: string[],
   rows: string[][],
@@ -497,7 +486,7 @@ export function wrapTextLines(text: string, maxWidth: number): string[] {
 // ── 本文キーワード強調 ──
 
 /** 本文キーワード強調ルール */
-interface HighlightRule {
+export interface HighlightRule {
   /** マッチパターン（source + flags で保持し、都度 new RegExp する） */
   source: string;
   flags: string;
@@ -506,52 +495,10 @@ interface HighlightRule {
 }
 
 /** マッチ済み区間 */
-interface HighlightSpan {
+export interface HighlightSpan {
   start: number;
   end: number;
   style: chalk.Chalk;
-}
-
-// ── 南海トラフ共通ルール ──
-
-const NANKAI_COMMON_RULES: readonly HighlightRule[] = [
-  { source: "巨大地震警戒", flags: "", style: () => theme.getRoleChalk("nankaiSerialCritical") },
-  { source: "大規模地震", flags: "", style: () => theme.getRoleChalk("nankaiSerialCritical") },
-  { source: "巨大地震注意|後発地震注意情報|後発地震への注意", flags: "", style: () => theme.getRoleChalk("nankaiSerialWarning") },
-  { source: "調査中|調査を開始", flags: "", style: () => theme.getRoleChalk("nankaiSerialWarning") },
-  { source: "モーメントマグニチュード[（Ｍｗ）０-９0-9．.クラス以上]*|マグニチュード[（Ｍ）０-９0-9．.クラス以上]*|Ｍｗ[０-９0-9]+", flags: "", style: () => chalk.bold.white },
-  { source: "防災対応をとってください|今後の情報に注意してください|身の安全を守る行動", flags: "", style: () => theme.getRoleChalk("nextAdvisory") },
-  { source: "相対的に高まっている", flags: "", style: () => theme.getRoleChalk("warningComment") },
-  { source: "調査終了", flags: "", style: () => theme.getRoleChalk("textMuted") },
-];
-
-// ── VYSE52 追加ルール ──
-
-const NANKAI_VYSE52_EXTRA_RULES: readonly HighlightRule[] = [
-  { source: "特段の変化は観測されていません", flags: "", style: () => theme.getRoleChalk("textMuted") },
-  { source: "短期的ゆっくりすべり|長期的ゆっくりすべり", flags: "", style: () => chalk.bold.white },
-];
-
-// ── テキスト系ルール ──
-
-const SEISMIC_TEXT_RULES: readonly HighlightRule[] = [
-  { source: "活発", flags: "", style: () => theme.getRoleChalk("warningComment") },
-  { source: "最大マグニチュード[０-９0-9Ｍ．.]+程度|マグニチュード[０-９0-9．.]+", flags: "", style: () => theme.getRoleChalk("warningComment") },
-  { source: "最大震度[０-９0-9][弱強]?|震度[０-９0-9][弱強]?を観測", flags: "", style: () => theme.getRoleChalk("warningComment") },
-  { source: "防災上の留意事項|見通し", flags: "", style: () => chalk.bold.white },
-];
-
-/** 電文種別に応じた南海トラフルールを返す */
-function getNankaiRules(type: string): readonly HighlightRule[] {
-  if (type === "VYSE52") {
-    return [...NANKAI_COMMON_RULES, ...NANKAI_VYSE52_EXTRA_RULES];
-  }
-  return NANKAI_COMMON_RULES;
-}
-
-/** 電文種別に応じたテキスト系ルールを返す */
-function getSeismicTextRules(_type: string): readonly HighlightRule[] {
-  return SEISMIC_TEXT_RULES;
 }
 
 /** 元の行からマッチspanを収集する */
@@ -710,39 +657,16 @@ export function lgIntensityColor(lgInt: string): chalk.Chalk {
   }
 }
 
+// ── 共通ヘルパー (配信区分別フォーマッタから使用) ──
+
 /** 長周期地震動階級の数値変換 (フレームレベル判定用) */
-function lgIntToNumeric(lgInt: string): number {
+export function lgIntToNumeric(lgInt: string): number {
   const map: Record<string, number> = { "0": 0, "1": 1, "2": 2, "3": 3, "4": 4 };
   return map[lgInt] ?? -1;
 }
 
-/** 電文タイプの日本語名 */
-function typeLabel(type: string): string {
-  const map: Record<string, string> = {
-    VXSE51: "震度速報",
-    VXSE52: "震源に関する情報",
-    VXSE53: "震源・震度に関する情報",
-    VXSE56: "地震の活動状況等に関する情報",
-    VXSE60: "地震回数に関する情報",
-    VXSE61: "顕著な地震の震源要素更新のお知らせ",
-    VTSE41: "津波警報・注意報・予報",
-    VTSE51: "津波情報",
-    VTSE52: "沖合の津波情報",
-    VXSE43: "緊急地震速報（警報）",
-    VXSE44: "緊急地震速報（予報）",
-    VXSE45: "緊急地震速報（地震動予報）",
-    VXSE62: "長周期地震動に関する観測情報",
-    VZSE40: "地震・津波に関するお知らせ",
-    VYSE50: "南海トラフ地震臨時情報",
-    VYSE51: "南海トラフ地震関連解説情報（臨時）",
-    VYSE52: "南海トラフ地震関連解説情報（定例）",
-    VYSE60: "北海道・三陸沖後発地震注意情報",
-  };
-  return map[type] || type;
-}
-
 /** 震度文字列から数値優先度を返す (フレームレベル判定用) */
-function intensityToNumeric(maxInt: string): number {
+export function intensityToNumeric(maxInt: string): number {
   const norm = maxInt.replace(/\s+/g, "");
   const map: Record<string, number> = {
     "1": 1, "2": 2, "3": 3, "4": 4,
@@ -752,19 +676,8 @@ function intensityToNumeric(maxInt: string): number {
   return map[norm] ?? 0;
 }
 
-/** 地震情報のフレームレベルを決定 */
-function earthquakeFrameLevel(info: ParsedEarthquakeInfo): FrameLevel {
-  if (info.infoType === "取消") return "cancel";
-  if (info.intensity) {
-    const num = intensityToNumeric(info.intensity.maxInt);
-    if (num >= 7) return "critical";  // 6弱以上
-    if (num >= 4) return "warning";   // 4以上
-  }
-  return "normal";
-}
-
 /** マグニチュードに色を付ける (CUD対応) */
-function colorMagnitude(magStr: string): string {
+export function colorMagnitude(magStr: string): string {
   const mag = parseFloat(magStr);
   const magColor =
     mag >= 7.0
@@ -777,18 +690,8 @@ function colorMagnitude(magStr: string): string {
   return magColor(`M${magStr}`);
 }
 
-/** 津波情報の短縮テキスト */
-function tsunamiShort(info: ParsedEarthquakeInfo): string {
-  if (!info.tsunami) return "";
-  const t = info.tsunami.text;
-  if (t.includes("心配はありません") || t.includes("心配なし")) return theme.getRoleChalk("tsunamiNone")("津波なし");
-  if (t.includes("注意")) return theme.getRoleChalk("tsunamiAdvisory")("津波注意");
-  if (t.includes("警報")) return theme.getRoleChalk("tsunamiWarning")("津波警報");
-  return chalk.white(t.length > 10 ? t.substring(0, 10) + "…" : t);
-}
-
 /** 共通フッター: type / reportDateTime / publishingOffice をテーブル最下段に表示 */
-function renderFooter(
+export function renderFooter(
   level: FrameLevel,
   type: string,
   reportDateTime: string,
@@ -804,1085 +707,7 @@ function renderFooter(
   ));
 }
 
-/** 地震情報を整形して表示 */
-export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
-  const level = earthquakeFrameLevel(info);
-  const label = typeLabel(info.type);
-  const width = getFrameWidth();
-
-  // コンパクトモード: 1行サマリー
-  if (cachedDisplayMode === "compact") {
-    const parts: string[] = [];
-    parts.push(SEVERITY_LABELS[level]);
-    parts.push(label);
-    if (info.earthquake) {
-      parts.push(info.earthquake.hypocenterName);
-      parts.push(`M${info.earthquake.magnitude}`);
-    }
-    if (info.intensity) parts.push(`震度${info.intensity.maxInt}`);
-    const ts = tsunamiShort(info);
-    if (ts) parts.push(stripAnsi(ts));
-    const color = frameColor(level);
-    console.log(color(parts.join("  ")));
-    return;
-  }
-
-  const buf = createRenderBuffer();
-
-  buf.pushEmpty();
-  buf.push(frameTop(level, width));
-
-  // テスト電文
-  if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
-  }
-
-  // タイトル行 (severity ラベル付き)
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
-
-  // ヘッドライン
-  if (info.headline) {
-    buf.push(frameDivider(level, width));
-    const headlineWrapped = wrapFrameLines(level, chalk.bold.white(info.headline), width);
-    for (let i = 0; i < headlineWrapped.length; i++) {
-      if (i === 0) {
-        buf.pushHeadline(headlineWrapped[i]);
-      } else {
-        buf.push(headlineWrapped[i]);
-      }
-    }
-  }
-
-  // カード1行目: 最重要項目
-  const cardParts: string[] = [];
-  if (info.intensity) {
-    const ic = intensityColor(info.intensity.maxInt);
-    cardParts.push(chalk.white("最大震度 ") + ic.bold(info.intensity.maxInt));
-  }
-  if (info.intensity?.maxLgInt && lgIntToNumeric(info.intensity.maxLgInt) >= 1) {
-    const lc = lgIntensityColor(info.intensity.maxLgInt);
-    cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.intensity.maxLgInt));
-  }
-  if (info.earthquake?.magnitude) {
-    cardParts.push(colorMagnitude(info.earthquake.magnitude));
-  }
-  if (info.earthquake?.depth) {
-    cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
-  }
-  const tsunamiText = tsunamiShort(info);
-  if (tsunamiText) {
-    cardParts.push(tsunamiText);
-  }
-  if (cardParts.length > 0) {
-    buf.push(frameDivider(level, width));
-    buf.pushCard(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
-  }
-
-  // 震源詳細
-  if (info.earthquake) {
-    const eq = info.earthquake;
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName), width));
-    if (eq.originTime) {
-      buf.push(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
-    }
-    if (eq.latitude && eq.longitude) {
-      buf.push(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
-    }
-  } else if (info.type === "VXSE51") {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.yellow("※ 震源についてはただいま調査中です"), width));
-  }
-
-  // 震度一覧
-  if (info.intensity && info.intensity.areas.length > 0) {
-    buf.push(frameDivider(level, width));
-
-    // 震度×地域名 → エリアデータの Map を事前構築 (O(n) ルックアップ用)
-    const areaDataMap = new Map<string, typeof info.intensity.areas[0]>();
-    const byIntensity = new Map<string, string[]>();
-    for (const area of info.intensity.areas) {
-      const key = area.intensity;
-      if (!byIntensity.has(key)) byIntensity.set(key, []);
-      byIntensity.get(key)!.push(area.name);
-      areaDataMap.set(`${key}:${area.name}`, area);
-    }
-
-    const order = ["7", "6+", "6強", "6-", "6弱", "5+", "5強", "5-", "5弱", "4", "3", "2", "1"];
-    const sorted = [...byIntensity.entries()].sort((a, b) => {
-      const ai = order.indexOf(a[0]);
-      const bi = order.indexOf(b[0]);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
-
-    // 折りたたみ: 表示地点数を制限
-    let totalAreas = 0;
-    let hiddenAreas = 0;
-    const maxObs = cachedMaxObservations;
-
-    for (const [int, names] of sorted) {
-      // 折りたたみ判定
-      let displayNames = names;
-      if (maxObs != null) {
-        const remaining = maxObs - totalAreas;
-        if (remaining <= 0) {
-          hiddenAreas += names.length;
-          continue;
-        }
-        if (names.length > remaining) {
-          hiddenAreas += names.length - remaining;
-          displayNames = names.slice(0, remaining);
-        }
-        totalAreas += displayNames.length;
-      }
-
-      const color = intensityColor(int);
-      // 長周期地震動階級付きの地域名を生成
-      const areaTexts = displayNames.map((name) => {
-        const areaData = areaDataMap.get(`${int}:${name}`);
-        if (areaData?.lgIntensity && lgIntToNumeric(areaData.lgIntensity) >= 1) {
-          const lc = lgIntensityColor(areaData.lgIntensity);
-          return chalk.white(name) + lc(` [長周期${areaData.lgIntensity}]`);
-        }
-        return chalk.white(name);
-      });
-      const prefix = color(`震度${int}: `);
-      const indentWidth = visualWidth(stripAnsi(prefix));
-      const content = prefix + areaTexts.join(chalk.white(", "));
-      for (const line of wrapFrameLines(level, content, width, indentWidth)) {
-        buf.push(line);
-      }
-    }
-
-    if (hiddenAreas > 0) {
-      buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenAreas} 地点`), width));
-    }
-  }
-
-  // 津波 (詳細)
-  if (info.tsunami) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.white(`${info.tsunami.text}`), width));
-  }
-
-  // フッター
-  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-
-  flushWithRecap(buf, level, width);
-}
-
-/** EEW 表示時のコンテキスト情報 */
-export interface EewDisplayContext {
-  /** 現在アクティブなイベント数 */
-  activeCount: number;
-  /** 前回との差分情報 */
-  diff?: EewDiff;
-  /** バナー色分け用のカラーインデックス (0始まり) */
-  colorIndex?: number;
-}
-
-/**
- * EEW バナー色パレット (遅延生成: chalk.level が確定した後に呼ぶ)
- * chalk v4 では bgRgb() 呼び出し時点の level で ANSI コードが確定するため、
- * モジュールレベル定数ではなく関数で都度生成する。
- */
-function getWarningBannerPalette(): chalk.Chalk[] {
-  return [
-    theme.getRoleChalk("eewWarningBanner"),
-    theme.getRoleChalk("eewWarningBanner1"),
-    theme.getRoleChalk("eewWarningBanner2"),
-    theme.getRoleChalk("eewWarningBanner3"),
-    theme.getRoleChalk("eewWarningBanner4"),
-  ];
-}
-
-function getForecastBannerPalette(): chalk.Chalk[] {
-  return [
-    theme.getRoleChalk("eewForecastBanner"),
-    theme.getRoleChalk("eewForecastBanner1"),
-    theme.getRoleChalk("eewForecastBanner2"),
-    theme.getRoleChalk("eewForecastBanner3"),
-    theme.getRoleChalk("eewForecastBanner4"),
-  ];
-}
-
-/** colorIndex からバナースタイルを取得 */
-function getEewBannerStyle(isWarning: boolean, colorIndex: number): chalk.Chalk {
-  const palette = isWarning ? getWarningBannerPalette() : getForecastBannerPalette();
-  return palette[colorIndex % palette.length];
-}
-
-/** PLUM法バナーの装飾行スタイル (1行目・3行目用) */
-function getPlumDecorStyle(isWarning: boolean): chalk.Chalk {
-  return isWarning
-    ? theme.getRoleChalk("plumDecorWarning")
-    : theme.getRoleChalk("plumDecorForecast");
-}
-
-/** EEW のフレームレベルを決定 */
-function eewFrameLevel(info: ParsedEewInfo): FrameLevel {
-  if (info.infoType === "取消") return "cancel";
-  if (info.isWarning) return "critical";
-  return "warning";
-}
-
-/** EEW情報を整形して表示 */
-export function displayEewInfo(
-  info: ParsedEewInfo,
-  context?: EewDisplayContext
-): void {
-  const isCancelled = info.infoType === "取消";
-  const level = eewFrameLevel(info);
-  const diff = context?.diff;
-  const width = getFrameWidth();
-
-  // コンパクトモード: 1行サマリー
-  if (cachedDisplayMode === "compact") {
-    const parts: string[] = [];
-    parts.push(SEVERITY_LABELS[level]);
-    const typeTag = isCancelled ? "EEW取消" : info.isWarning ? "EEW警報" : "EEW予報";
-    parts.push(typeTag);
-    if (info.serial) parts.push(`#${info.serial}`);
-    if (info.earthquake) parts.push(info.earthquake.hypocenterName);
-    if (info.forecastIntensity?.areas.length) {
-      const maxInt = info.forecastIntensity.areas.reduce((best, area) =>
-        intensityToNumeric(area.intensity) > intensityToNumeric(best) ? area.intensity : best,
-        info.forecastIntensity.areas[0].intensity
-      );
-      parts.push(`震度${maxInt}`);
-    }
-    if (info.earthquake?.magnitude && !info.isAssumedHypocenter) {
-      parts.push(`M${info.earthquake.magnitude}`);
-    }
-    const color = frameColor(level);
-    console.log(color(parts.join("  ")));
-    return;
-  }
-
-  const buf = createRenderBuffer();
-
-  buf.pushEmpty();
-
-  // バナー (警報/予報/取消のヘッダー)
-  const bannerWidth = width;
-  const serialTag = info.serial ? ` #${info.serial}` : "";
-  const hypocenterTag = info.earthquake?.hypocenterName ? ` ${info.earthquake.hypocenterName}` : "";
-  const colorIndex = context?.colorIndex ?? 0;
-
-  if (isCancelled) {
-    const bannerText = ` 緊急地震速報 取消${serialTag}${hypocenterTag}`;
-    const cancelBanner = theme.getRoleChalk("eewCancelBanner");
-    buf.push(cancelBanner(" ".repeat(bannerWidth)));
-    buf.push(cancelBanner(visualPadEnd(bannerText, bannerWidth)));
-    buf.push(cancelBanner(" ".repeat(bannerWidth)));
-  } else {
-    const bannerStyle = getEewBannerStyle(info.isWarning, colorIndex);
-    const typeLbl = info.isWarning ? "警報" : "予報";
-    const bannerText = ` 緊急地震速報（${typeLbl}）${serialTag}${hypocenterTag}`;
-    const decorStyle = info.isAssumedHypocenter ? getPlumDecorStyle(info.isWarning) : bannerStyle;
-    buf.push(decorStyle(" ".repeat(bannerWidth)));
-    buf.push(bannerStyle(visualPadEnd(bannerText, bannerWidth)));
-    buf.push(decorStyle(" ".repeat(bannerWidth)));
-  }
-
-  // フレーム開始 (テスト電文/PLUM法ラベルがある場合のみ先にframeTopを出す)
-  const hasPreContent = info.isTest || info.maxIntChangeReason === 9;
-  if (hasPreContent) {
-    buf.push(frameTop(level, width));
-  }
-
-  // テスト電文
-  if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
-  }
-
-  // PLUM法ラベル (MaxIntChangeReason=9)
-  if (info.maxIntChangeReason === 9) {
-    buf.push(frameLine(level, theme.getRoleChalk("plumLabel")("PLUM法") + chalk.gray(" による予測震度変化"), width));
-  }
-
-  // カード1行目: infoType + 最重要項目
-  const activeCount = context?.activeCount ?? 0;
-  if (!isCancelled) {
-    buf.push(hasPreContent ? frameDivider(level, width) : frameTop(level, width));
-    const cardParts: string[] = [];
-
-    // infoType (+ 同時発生注記)
-    if (activeCount >= 2 && info.eventId) {
-      cardParts.push(theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`) + chalk.gray(` ${info.infoType}`));
-    } else {
-      cardParts.push(chalk.gray(info.infoType));
-    }
-
-    if (info.forecastIntensity?.areas.length) {
-      const areas = info.forecastIntensity.areas;
-      const maxInt = areas.reduce((best, area) =>
-        intensityToNumeric(area.intensity) > intensityToNumeric(best) ? area.intensity : best,
-        areas[0].intensity
-      );
-      const ic = intensityColor(maxInt);
-      let intLabel: string;
-      if (diff?.previousMaxInt) {
-        intLabel = chalk.white("最大予測震度 ") + chalk.gray(diff.previousMaxInt) + chalk.white(" → ") + ic.bold(maxInt);
-      } else {
-        intLabel = chalk.white("最大予測震度 ") + ic.bold(maxInt);
-      }
-      cardParts.push(intLabel);
-
-      // 最大予測長周期地震動階級
-      const maxLgInt = info.forecastIntensity.maxLgInt;
-      if (maxLgInt && lgIntToNumeric(maxLgInt) >= 1) {
-        const lc = lgIntensityColor(maxLgInt);
-        cardParts.push(chalk.white("長周期階級 ") + lc.bold(maxLgInt));
-      }
-    }
-    if (info.earthquake?.magnitude && !info.isAssumedHypocenter) {
-      cardParts.push(colorMagnitude(info.earthquake.magnitude));
-    }
-    if (info.earthquake?.depth && !info.isAssumedHypocenter) {
-      cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
-    }
-    buf.pushCard(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
-  } else {
-    // 取消時はinfoTypeのみ
-    if (!hasPreContent) {
-      buf.push(frameTop(level, width));
-    }
-    if (activeCount >= 2 && info.eventId) {
-      buf.push(frameLine(level,
-        theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`) +
-          chalk.gray(`  ${info.infoType}`),
-        width
-      ));
-    } else {
-      buf.push(frameLine(level,
-        chalk.gray(info.infoType),
-        width
-      ));
-    }
-  }
-
-  // ヘッドライン
-  if (info.headline) {
-    buf.push(frameDivider(level, width));
-    const headlineWrapped = wrapFrameLines(level, chalk.bold.white(info.headline), width);
-    for (let i = 0; i < headlineWrapped.length; i++) {
-      if (i === 0) {
-        buf.pushHeadline(headlineWrapped[i]);
-      } else {
-        buf.push(headlineWrapped[i]);
-      }
-    }
-  }
-
-  // 震源詳細
-  if (info.earthquake) {
-    const eq = info.earthquake;
-    buf.push(frameDivider(level, width));
-
-    if (info.isAssumedHypocenter) {
-      buf.push(frameLine(level, theme.getRoleChalk("plumLabel")("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
-    }
-
-    const hypoContent = diff?.hypocenterChange
-      ? chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName) + theme.getRoleChalk("nextAdvisory")(" (変更)")
-      : chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName);
-    buf.push(frameLine(level, hypoContent, width));
-
-    if (eq.originTime) {
-      buf.push(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
-    }
-    if (eq.magnitude && !info.isAssumedHypocenter) {
-      let magLine: string;
-      if (diff?.previousMagnitude) {
-        magLine = chalk.white("規模: ") + chalk.gray(`M${diff.previousMagnitude}`) + chalk.white(" → ") + chalk.bold(colorMagnitude(eq.magnitude));
-      } else {
-        magLine = chalk.white("規模: ") + colorMagnitude(eq.magnitude);
-      }
-      buf.push(frameLine(level, magLine, width));
-    }
-    if (eq.depth && !info.isAssumedHypocenter) {
-      let depthLine: string;
-      if (diff?.previousDepth) {
-        depthLine = chalk.white("深さ: ") + chalk.gray(diff.previousDepth) + chalk.white(" → ") + chalk.bold.white(eq.depth);
-      } else {
-        depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
-      }
-      buf.push(frameLine(level, depthLine, width));
-    }
-  }
-
-  if (isCancelled) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("cancelText")("この地震についての緊急地震速報は取り消されました。"), width));
-    if (info.eventId) {
-      buf.push(frameDivider(level, width));
-      buf.push(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
-    }
-    renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-    buf.push(frameBottom(level, width));
-    buf.pushEmpty();
-    flushWithRecap(buf, level, width);
-    return;
-  }
-
-  // 予測震度一覧
-  if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {
-    buf.push(frameDivider(level, width));
-    const maxObs = cachedMaxObservations;
-    const allAreas = info.forecastIntensity.areas;
-    const displayAreas = maxObs != null ? allAreas.slice(0, maxObs) : allAreas;
-    const hiddenCount = allAreas.length - displayAreas.length;
-
-    for (const area of displayAreas) {
-      const color = intensityColor(area.intensity);
-      let areaText = chalk.white(area.name);
-      if (area.isPlum) {
-        areaText += theme.getRoleChalk("plumLabel")(" [PLUM]");
-      }
-      if (area.hasArrived) {
-        areaText += theme.getRoleChalk("arrivedLabel")(" [到達]");
-      }
-      if (area.lgIntensity && lgIntToNumeric(area.lgIntensity) >= 1) {
-        const lc = lgIntensityColor(area.lgIntensity);
-        areaText += lc(` [長周期${area.lgIntensity}]`);
-      }
-      buf.push(frameLine(level, color(`震度${area.intensity}: `) + areaText, width));
-    }
-
-    if (hiddenCount > 0) {
-      buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenCount} 地点`), width));
-    }
-  }
-
-  // 主要動到達と推測される地域
-  if (info.forecastIntensity) {
-    const arrivedAreas = info.forecastIntensity.areas.filter((a) => a.hasArrived);
-    if (arrivedAreas.length > 0) {
-      buf.push(frameDivider(level, width));
-      buf.push(frameLine(level, theme.getRoleChalk("arrivedLabel")("既に主要動到達と推測:"), width));
-      const names = arrivedAreas.map((a) => a.name).join("、");
-      for (const line of wrapFrameLines(level, theme.getRoleChalk("arrivedLabel")(names), width)) {
-        buf.push(line);
-      }
-    }
-  }
-
-  // 最終報
-  if (info.nextAdvisory) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width));
-  }
-
-  // EventID
-  if (info.eventId) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
-  }
-
-  // フッター
-  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-
-  flushWithRecap(buf, level, width);
-}
-
-/** 津波情報のフレームレベルを決定 */
-function tsunamiFrameLevel(info: ParsedTsunamiInfo): FrameLevel {
-  if (info.infoType === "取消") return "cancel";
-  const kinds = (info.forecast || []).map((f) => f.kind);
-  if (kinds.some((kind) => kind.includes("大津波警報"))) return "critical";
-  if (kinds.some((kind) => kind.includes("津波警報"))) return "warning";
-  return "normal";
-}
-
-/** 津波種別の表示順 */
-function tsunamiKindRank(kind: string): number {
-  if (kind.includes("大津波警報")) return 0;
-  if (kind.includes("津波警報")) return 1;
-  if (kind.includes("津波注意報")) return 2;
-  if (kind.includes("津波予報")) return 3;
-  return 99;
-}
-
-/** 時刻文字列なら整形し、そうでなければそのまま返す */
-function prettyTimeOrText(value: string): string {
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) {
-    return value;
-  }
-  return formatTimestamp(value);
-}
-
-/** 津波情報を整形して表示 */
-export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
-  const level = tsunamiFrameLevel(info);
-  const label = typeLabel(info.type);
-  const width = getFrameWidth();
-
-  // コンパクトモード
-  if (cachedDisplayMode === "compact") {
-    const parts: string[] = [];
-    parts.push(SEVERITY_LABELS[level]);
-    parts.push(label);
-    if (info.forecast && info.forecast.length > 0) {
-      const kinds = [...new Set(info.forecast.map((f) => f.kind))];
-      parts.push(kinds.join("・"));
-      const areas = info.forecast.slice(0, 3).map((f) => f.areaName);
-      parts.push(areas.join(", "));
-    }
-    const color = frameColor(level);
-    console.log(color(parts.join("  ")));
-    return;
-  }
-
-  const buf = createRenderBuffer();
-
-  buf.pushEmpty();
-
-  // バナー表示 (津波注意報/津波警報/大津波警報)
-  if (level === "critical") {
-    const bannerText = ` ${label}`;
-    const decorStyle = theme.getRoleChalk("tsunamiMajorBannerDecor");
-    const majorStyle = theme.getRoleChalk("tsunamiMajorBanner");
-    buf.push(decorStyle(" ".repeat(width)));
-    buf.push(majorStyle(visualPadEnd(bannerText, width)));
-    buf.push(decorStyle(" ".repeat(width)));
-  } else if (level === "warning") {
-    const bannerText = ` ${label}`;
-    const warnStyle = theme.getRoleChalk("tsunamiWarningBanner");
-    buf.push(warnStyle(" ".repeat(width)));
-    buf.push(warnStyle(visualPadEnd(bannerText, width)));
-    buf.push(warnStyle(" ".repeat(width)));
-  } else if (level === "normal") {
-    const bannerText = ` ${label}`;
-    const advStyle = theme.getRoleChalk("tsunamiAdvisoryBanner");
-    buf.push(advStyle(" ".repeat(width)));
-    buf.push(advStyle(visualPadEnd(bannerText, width)));
-    buf.push(advStyle(" ".repeat(width)));
-  }
-
-  buf.push(frameTop(level, width));
-
-  if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
-  }
-
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
-
-  if (info.headline) {
-    buf.push(frameDivider(level, width));
-    const headlineLines = info.headline
-      .split(/\r?\n/)
-      .map((l) => l.trimEnd())
-      .filter((l) => l.trim().length > 0);
-    let firstHeadline = true;
-    for (const hl of headlineLines) {
-      for (const wrapped of wrapFrameLines(level, chalk.bold.white(hl), width)) {
-        if (firstHeadline) {
-          buf.pushHeadline(wrapped);
-          firstHeadline = false;
-        } else {
-          buf.push(wrapped);
-        }
-      }
-    }
-  }
-
-  if (info.earthquake) {
-    const eq = info.earthquake;
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName), width));
-    if (eq.originTime) {
-      buf.push(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
-    }
-    if (eq.latitude && eq.longitude) {
-      buf.push(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
-    }
-    if (eq.magnitude && !isNaN(parseFloat(eq.magnitude))) {
-      buf.push(frameLine(level, chalk.white("規模: ") + colorMagnitude(eq.magnitude), width));
-    }
-  }
-
-  if (info.forecast && info.forecast.length > 0) {
-    buf.push(frameDivider(level, width));
-    const sorted = [...info.forecast].sort(
-      (a, b) => tsunamiKindRank(a.kind) - tsunamiKindRank(b.kind)
-    );
-
-    // 折りたたみ
-    const maxObs = cachedMaxObservations;
-    const displaySorted = maxObs != null ? sorted.slice(0, maxObs) : sorted;
-    const hiddenForecast = sorted.length - displaySorted.length;
-
-    if (width >= WIDE_TABLE_THRESHOLD) {
-      const headers = ["区分", "地域名", "波高", "到達予想"];
-      const rows = displaySorted.map((item) => {
-        let kindText = chalk.white(item.kind);
-        if (item.kind.includes("大津波警報")) {
-          kindText = theme.getRoleChalk("tsunamiMajor")(item.kind);
-        } else if (item.kind.includes("津波警報")) {
-          kindText = theme.getRoleChalk("tsunamiWarning")(item.kind);
-        } else if (item.kind.includes("津波注意報")) {
-          kindText = theme.getRoleChalk("tsunamiAdvisory")(item.kind);
-        }
-        return [
-          kindText,
-          chalk.white(item.areaName),
-          item.maxHeightDescription ? chalk.white(item.maxHeightDescription) : chalk.gray("―"),
-          item.firstHeight ? chalk.white(prettyTimeOrText(item.firstHeight)) : chalk.gray("―"),
-        ];
-      });
-      renderFrameTable(level, headers, rows, width, buf);
-    } else {
-      for (const item of displaySorted) {
-        let kindText = chalk.white(item.kind);
-        if (item.kind.includes("大津波警報")) {
-          kindText = theme.getRoleChalk("tsunamiMajor")(item.kind);
-        } else if (item.kind.includes("津波警報")) {
-          kindText = theme.getRoleChalk("tsunamiWarning")(item.kind);
-        } else if (item.kind.includes("津波注意報")) {
-          kindText = theme.getRoleChalk("tsunamiAdvisory")(item.kind);
-        }
-
-        const extra: string[] = [];
-        if (item.maxHeightDescription) extra.push(item.maxHeightDescription);
-        if (item.firstHeight) extra.push(prettyTimeOrText(item.firstHeight));
-        const extraText = extra.length > 0 ? chalk.gray(` (${extra.join(" / ")})`) : "";
-        buf.push(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText, width));
-      }
-    }
-
-    if (hiddenForecast > 0) {
-      buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenForecast} 地点`), width));
-    }
-  }
-
-  if (info.observations && info.observations.length > 0) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.bold.white("沖合観測"), width));
-
-    const maxObs = cachedMaxObservations;
-    const displayObs = maxObs != null ? info.observations.slice(0, maxObs) : info.observations;
-    const hiddenObs = info.observations.length - displayObs.length;
-
-    if (width >= WIDE_TABLE_THRESHOLD) {
-      const headers = ["観測点", "センサー", "初動", "最大波高", "到達時刻"];
-      const rows = displayObs.map((station) => [
-        chalk.white(station.name),
-        station.sensor ? chalk.white(station.sensor) : chalk.gray("―"),
-        station.initial ? chalk.white(station.initial) : chalk.gray("―"),
-        station.maxHeightCondition ? chalk.white(station.maxHeightCondition) : chalk.gray("―"),
-        station.arrivalTime ? chalk.white(prettyTimeOrText(station.arrivalTime)) : chalk.gray("―"),
-      ]);
-      renderFrameTable(level, headers, rows, width, buf);
-    } else {
-      for (const station of displayObs) {
-        const parts = [
-          station.name,
-          station.sensor,
-          station.initial,
-          station.maxHeightCondition,
-        ].filter((v) => Boolean(v));
-        const arrival = station.arrivalTime ? ` ${prettyTimeOrText(station.arrivalTime)}` : "";
-        buf.push(frameLine(level, chalk.white(parts.join(" / ") + arrival), width));
-      }
-    }
-
-    if (hiddenObs > 0) {
-      buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenObs} 地点`), width));
-    }
-  }
-
-  if (info.estimations && info.estimations.length > 0) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.bold.white("沿岸推定"), width));
-
-    const maxObs = cachedMaxObservations;
-    const displayEst = maxObs != null ? info.estimations.slice(0, maxObs) : info.estimations;
-    const hiddenEst = info.estimations.length - displayEst.length;
-
-    if (width >= WIDE_TABLE_THRESHOLD) {
-      const headers = ["地域名", "波高", "到達予想"];
-      const rows = displayEst.map((estimation) => [
-        chalk.white(estimation.areaName),
-        estimation.maxHeightDescription ? chalk.white(estimation.maxHeightDescription) : chalk.gray("―"),
-        estimation.firstHeight ? chalk.white(prettyTimeOrText(estimation.firstHeight)) : chalk.gray("―"),
-      ]);
-      renderFrameTable(level, headers, rows, width, buf);
-    } else {
-      for (const estimation of displayEst) {
-        const extra: string[] = [];
-        if (estimation.maxHeightDescription) extra.push(estimation.maxHeightDescription);
-        if (estimation.firstHeight) extra.push(prettyTimeOrText(estimation.firstHeight));
-        buf.push(
-          frameLine(
-            level,
-            chalk.white(`${estimation.areaName}${extra.length ? ` (${extra.join(" / ")})` : ""}`),
-            width
-          )
-        );
-      }
-    }
-
-    if (hiddenEst > 0) {
-      buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenEst} 地点`), width));
-    }
-  }
-
-  if (info.warningComment) {
-    buf.push(frameDivider(level, width));
-    const warnStyle = theme.getRoleChalk("warningComment");
-    const commentLines = info.warningComment
-      .split(/\r?\n/)
-      .map((l) => l.trimEnd())
-      .filter((l) => l.trim().length > 0);
-    for (const line of commentLines) {
-      for (const wrapped of wrapFrameLines(level, warnStyle(line), width)) {
-        buf.push(wrapped);
-      }
-    }
-  }
-
-  // フッター
-  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-
-  flushWithRecap(buf, level, width);
-}
-
-/** 地震活動テキスト情報を整形して表示 */
-export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
-  const level: FrameLevel = info.infoType === "取消" ? "cancel" : "info";
-  const label = typeLabel(info.type);
-  const width = getFrameWidth();
-
-  // コンパクトモード
-  if (cachedDisplayMode === "compact") {
-    const parts: string[] = [];
-    parts.push(SEVERITY_LABELS[level]);
-    parts.push(label);
-    if (info.headline) parts.push(info.headline.slice(0, 40));
-    const color = frameColor(level);
-    console.log(color(parts.join("  ")));
-    return;
-  }
-
-  const buf = createRenderBuffer();
-
-  buf.pushEmpty();
-  buf.push(frameTop(level, width));
-
-  if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
-  }
-
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
-
-  if (info.headline) {
-    buf.push(frameDivider(level, width));
-    const headlineWrapped = wrapFrameLines(level, chalk.bold.white(info.headline), width);
-    for (let i = 0; i < headlineWrapped.length; i++) {
-      if (i === 0) {
-        buf.pushHeadline(headlineWrapped[i]);
-      } else {
-        buf.push(headlineWrapped[i]);
-      }
-    }
-  }
-
-  const bodyLines = info.bodyText
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0);
-
-  if (bodyLines.length > 0) {
-    buf.push(frameDivider(level, width));
-    const showFull = cachedInfoFullText;
-    const maxLines = 15;
-    const innerWidth = width - 4;
-    const rules = getSeismicTextRules(info.type);
-    const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
-    for (const line of displayLines) {
-      for (const highlighted of highlightAndWrap(line, rules, innerWidth)) {
-        buf.push(frameLine(level, highlighted, width));
-      }
-    }
-    if (!showFull && bodyLines.length > maxLines) {
-      buf.push(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`), width));
-    }
-  }
-
-  // フッター
-  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-
-  flushWithRecap(buf, level, width);
-}
-
-/** 南海トラフ関連情報のフレームレベルを決定 */
-function nankaiTroughFrameLevel(info: ParsedNankaiTroughInfo): FrameLevel {
-  if (info.infoType === "取消") return "cancel";
-  if (!info.infoSerial) {
-    // VYSE60 (InfoSerial なし) → warning
-    return "warning";
-  }
-  const code = info.infoSerial.code;
-  if (code === "120") return "critical";    // 巨大地震警戒
-  if (code === "130") return "warning";     // 巨大地震注意
-  if (code === "111" || code === "112" || code === "113") return "warning"; // 調査中
-  if (code === "210" || code === "219") return "warning"; // 臨時解説
-  if (code === "190" || code === "200") return "info";    // 調査終了 / 定例解説
-  return "warning";
-}
-
-/** 南海トラフ関連情報を整形して表示 */
-export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
-  const level = nankaiTroughFrameLevel(info);
-  const label = typeLabel(info.type);
-  const width = getFrameWidth();
-
-  // コンパクトモード
-  if (cachedDisplayMode === "compact") {
-    const parts: string[] = [];
-    parts.push(SEVERITY_LABELS[level]);
-    parts.push(label);
-    if (info.infoSerial) parts.push(info.infoSerial.name);
-    const color = frameColor(level);
-    console.log(color(parts.join("  ")));
-    return;
-  }
-
-  const buf = createRenderBuffer();
-
-  buf.pushEmpty();
-
-  // critical/warning 時はバナー表示
-  if (level === "critical") {
-    const bannerText = ` ${info.title}`;
-    const critBanner = theme.getRoleChalk("nankaiCriticalBanner");
-    buf.push(critBanner(" ".repeat(width)));
-    buf.push(critBanner(visualPadEnd(bannerText, width)));
-    buf.push(critBanner(" ".repeat(width)));
-  } else if (level === "warning") {
-    const bannerText = ` ${info.title}`;
-    const warnBanner = theme.getRoleChalk("nankaiWarningBanner");
-    buf.push(warnBanner(" ".repeat(width)));
-    buf.push(warnBanner(visualPadEnd(bannerText, width)));
-    buf.push(warnBanner(" ".repeat(width)));
-  }
-
-  buf.push(frameTop(level, width));
-
-  // テスト電文
-  if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
-  }
-
-  // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
-
-  // InfoSerial (状態名)
-  if (info.infoSerial) {
-    buf.push(frameDivider(level, width));
-    const serialColor = level === "critical" ? theme.getRoleChalk("nankaiSerialCritical") : theme.getRoleChalk("nankaiSerialWarning");
-    buf.push(frameLine(level, chalk.white("状態: ") + serialColor(info.infoSerial.name), width));
-  }
-
-  // 本文
-  const bodyLines = info.bodyText
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0);
-
-  if (bodyLines.length > 0) {
-    buf.push(frameDivider(level, width));
-    const showFull = cachedInfoFullText;
-    const maxLines = 20;
-    const innerWidth = width - 4;
-    const rules = getNankaiRules(info.type);
-    const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
-    for (const line of displayLines) {
-      for (const highlighted of highlightAndWrap(line, rules, innerWidth)) {
-        buf.push(frameLine(level, highlighted, width));
-      }
-    }
-    if (!showFull && bodyLines.length > maxLines) {
-      buf.push(frameLine(level, chalk.gray(`... (全${bodyLines.length}行)`), width));
-    }
-  }
-
-  // 次回情報予告
-  if (info.nextAdvisory) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width));
-  }
-
-  // フッター
-  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-
-  flushWithRecap(buf, level, width);
-}
-
-/** 長周期地震動観測情報のフレームレベルを決定 */
-function lgObservationFrameLevel(info: ParsedLgObservationInfo): FrameLevel {
-  if (info.infoType === "取消") return "cancel";
-  if (info.maxLgInt) {
-    const num = lgIntToNumeric(info.maxLgInt);
-    if (num >= 4) return "critical";
-    if (num >= 3) return "warning";
-    if (num >= 2) return "normal";
-  }
-  return "info";
-}
-
-/** 長周期地震動観測情報を整形して表示 */
-export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
-  const level = lgObservationFrameLevel(info);
-  const label = typeLabel(info.type);
-  const width = getFrameWidth();
-
-  // コンパクトモード
-  if (cachedDisplayMode === "compact") {
-    const parts: string[] = [];
-    parts.push(SEVERITY_LABELS[level]);
-    parts.push(label);
-    if (info.earthquake) parts.push(info.earthquake.hypocenterName);
-    if (info.maxLgInt) parts.push(`長周期${info.maxLgInt}`);
-    if (info.maxInt) parts.push(`震度${info.maxInt}`);
-    const color = frameColor(level);
-    console.log(color(parts.join("  ")));
-    return;
-  }
-
-  const buf = createRenderBuffer();
-
-  buf.pushEmpty();
-  buf.push(frameTop(level, width));
-
-  // テスト電文
-  if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
-  }
-
-  // タイトル行
-  const titleContent = chalk.bold(`${label}`) + chalk.gray(`  ${info.infoType}`) + chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
-
-  // ヘッドライン
-  if (info.headline) {
-    buf.push(frameDivider(level, width));
-    const headlineWrapped = wrapFrameLines(level, chalk.bold.white(info.headline), width);
-    for (let i = 0; i < headlineWrapped.length; i++) {
-      if (i === 0) {
-        buf.pushHeadline(headlineWrapped[i]);
-      } else {
-        buf.push(headlineWrapped[i]);
-      }
-    }
-  }
-
-  // カード: 長周期階級 / 震度 / M / 深さ
-  buf.push(frameDivider(level, width));
-  const cardParts: string[] = [];
-  if (info.maxLgInt) {
-    const lc = lgIntensityColor(info.maxLgInt);
-    cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.maxLgInt));
-  }
-  if (info.maxInt) {
-    const ic = intensityColor(info.maxInt);
-    cardParts.push(chalk.white("最大震度 ") + ic.bold(info.maxInt));
-  }
-  if (info.earthquake?.magnitude) {
-    cardParts.push(colorMagnitude(info.earthquake.magnitude));
-  }
-  if (info.earthquake?.depth) {
-    cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
-  }
-  if (cardParts.length > 0) {
-    buf.pushCard(frameLine(level, cardParts.join(chalk.gray("  │  ")), width));
-  }
-
-  // 震源詳細
-  if (info.earthquake) {
-    const eq = info.earthquake;
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName), width));
-    if (eq.originTime) {
-      buf.push(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
-    }
-    if (eq.latitude && eq.longitude) {
-      buf.push(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
-    }
-  }
-
-  // 地域リスト (LgInt 降順)
-  if (info.areas.length > 0) {
-    buf.push(frameDivider(level, width));
-    const sorted = [...info.areas].sort((a, b) =>
-      lgIntToNumeric(b.maxLgInt) - lgIntToNumeric(a.maxLgInt)
-    );
-
-    // 折りたたみ
-    const maxObs = cachedMaxObservations;
-    const displayAreas = maxObs != null ? sorted.slice(0, maxObs) : sorted;
-    const hiddenCount = sorted.length - displayAreas.length;
-
-    for (const area of displayAreas) {
-      const lc = lgIntensityColor(area.maxLgInt);
-      const ic = intensityColor(area.maxInt);
-      buf.push(frameLine(level,
-        lc(`長周期${area.maxLgInt}: `) +
-        chalk.white(area.name) +
-        ic(` (震度${area.maxInt})`),
-        width
-      ));
-    }
-
-    if (hiddenCount > 0) {
-      buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenCount} 地点`), width));
-    }
-  }
-
-  // コメント
-  if (info.comment) {
-    buf.push(frameDivider(level, width));
-    const commentLines = info.comment.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    for (const line of commentLines) {
-      buf.push(frameLine(level, chalk.gray(line.trimEnd()), width));
-    }
-  }
-
-  // 詳細URI
-  if (info.detailUri) {
-    buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("detailUri")(info.detailUri), width));
-  }
-
-  // フッター
-  renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
-
-  buf.push(frameBottom(level, width));
-  buf.pushEmpty();
-
-  flushWithRecap(buf, level, width);
-}
+// ── フォールバック表示 ──
 
 /** xmlReport の情報だけで簡易表示（パース失敗時のフォールバック） */
 export function displayRawHeader(msg: WsDataMessage): void {
