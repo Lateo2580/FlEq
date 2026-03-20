@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.48.1](https://github.com/Lateo2580/FlEq/compare/v1.48.0...v1.48.1) (2026-03-20)
+
+
+### バグ修正
+
+* fleq init に火山関連(telegram.volcano)の選択肢を追加 ([d3247be](https://github.com/Lateo2580/FlEq/commit/d3247becb33479f56e102275fd24cbd2bf705763))
+
 ## [1.48.0](https://github.com/Lateo2580/FlEq/compare/v1.47.3...v1.48.0) (2026-03-20)
 
 
