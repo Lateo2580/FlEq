@@ -475,12 +475,13 @@ function parseVolcanoText(
         const items = dig(info, "Item");
         const itemList = Array.isArray(items) ? items : items ? [items] : [];
         // 最も高いレベルを採用（複数火山のケース）
+        // レベルコード 11〜15 のみ比較対象とし、海上警報コード等は除外
         for (const item of itemList) {
           const kind = dig(item, "Kind");
           const kindObj = Array.isArray(kind) ? kind[0] : kind;
           const code = str(dig(kindObj, "Code"));
-          if (code) {
-            if (!alertLevelCode || code > alertLevelCode) {
+          if (code && levelCodeToNumber(code) != null) {
+            if (!alertLevelCode || Number(code) > Number(alertLevelCode)) {
               alertLevelCode = code;
             }
           }

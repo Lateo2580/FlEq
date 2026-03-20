@@ -53,6 +53,8 @@ export class VolcanoStateHolder
   update(info: ParsedVolcanoInfo): void {
     // alert 系のみ状態追跡
     if (info.kind !== "alert") return;
+    // volcanoCode が欠落している場合はスキップ (Map キー衝突を防ぐ)
+    if (!info.volcanoCode) return;
     const alertInfo = info as ParsedVolcanoAlertInfo;
 
     // 取消報 → エントリ削除

@@ -3,6 +3,7 @@ import { AppConfig } from "../../types";
 import { MultiConnectionManager } from "../../dmdata/multi-connection-manager";
 import { createMessageHandler } from "../messages/message-router";
 import { restoreTsunamiState } from "../startup/tsunami-initializer";
+import { restoreVolcanoState } from "../startup/volcano-initializer";
 import { resetTerminalTitle } from "../cli/cli-run";
 import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
@@ -66,8 +67,9 @@ export async function startMonitor(config: AppConfig): Promise<void> {
   // REPL を先に起動 (接続中もコマンド入力可能にする)
   replHandler.start();
 
-  // 起動時: 最新の津波警報状態を復元 (WebSocket 接続前に実行)
+  // 起動時: 最新の津波・火山警報状態を復元 (WebSocket 接続前に実行)
   await restoreTsunamiState(config.apiKey, tsunamiState);
+  await restoreVolcanoState(config.apiKey, volcanoState);
 
   // バックグラウンドで接続開始
   try {

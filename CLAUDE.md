@@ -47,6 +47,7 @@ src/
 │   ├── startup/
 │   │   ├── config-resolver.ts  # 設定解決 (CLI引数→環境変数→Config→デフォルト)
 │   │   ├── tsunami-initializer.ts # 起動時の津波警報状態復元 (REST API)
+│   │   ├── volcano-initializer.ts # 起動時の火山警報状態復元 (REST API)
 │   │   └── update-checker.ts   # npm 最新バージョンチェック
 │   ├── monitor/
 │   │   ├── monitor.ts          # メインオーケストレーション (接続・受信委譲)
@@ -127,6 +128,7 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
     → engine/startup/config-resolver.ts (設定解決)
     → engine/monitor/monitor.ts (WebSocket接続・受信委譲)
       → engine/startup/tsunami-initializer.ts (起動時の津波状態復元)
+      → engine/startup/volcano-initializer.ts (起動時の火山警報状態復元)
       → engine/messages/message-router.ts (電文分類・振り分け)
         → dmdata/telegram-parser.ts (XML解析)
         → dmdata/volcano-parser.ts (火山電文解析)

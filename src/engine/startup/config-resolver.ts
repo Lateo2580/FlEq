@@ -65,6 +65,13 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
     classifications = valid;
   } else if (fileConfig.classifications != null) {
     classifications = fileConfig.classifications;
+    // v1.48 で追加された telegram.volcano が含まれていない場合、案内を表示
+    if (!classifications.includes("telegram.volcano")) {
+      log.info(
+        "火山情報の受信には telegram.volcano の追加が必要です: " +
+        chalk.white("fleq config set classifications " + [...classifications, "telegram.volcano"].join(","))
+      );
+    }
   } else {
     classifications = DEFAULT_CONFIG.classifications;
   }

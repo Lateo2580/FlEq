@@ -162,6 +162,7 @@ const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
   "seismicText",
   "nankaiTrough",
   "lgObservation",
+  "volcano",
 ];
 
 /** 設定可能なキーと説明 */
