@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.48.2](https://github.com/Lateo2580/FlEq/compare/v1.48.1...v1.48.2) (2026-03-20)
+
+
+### バグ修正
+
+* 火山機能の安定性・品質向上 (Codexレビュー指摘対応) ([aaaf489](https://github.com/Lateo2580/FlEq/commit/aaaf489e2e6333df3a5c343f4c28b226fe478f78))
+
 ## [1.48.1](https://github.com/Lateo2580/FlEq/compare/v1.48.0...v1.48.1) (2026-03-20)
 
 
