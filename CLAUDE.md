@@ -55,6 +55,7 @@ src/
 │   │   └── repl-coordinator.ts # REPL表示・接続状態の協調制御
 │   ├── messages/
 │   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全27種類)
+│   │   ├── volcano-vfvo53-aggregator.ts # VFVO53 定時バッチ集約 (複数火山まとめ表示)
 │   │   ├── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
 │   │   └── volcano-state.ts    # 火山警報状態管理 (複数火山同時追跡・プロンプト・detail)
 │   ├── eew/
@@ -101,6 +102,7 @@ test/
 │   ├── tsunami-initializer.test.ts
 │   ├── tsunami-state.test.ts
 │   ├── volcano-state.test.ts
+│   ├── volcano-vfvo53-aggregator.test.ts
 │   ├── volcano-presentation.test.ts
 │   └── update-checker.test.ts
 ├── dmdata/
@@ -130,6 +132,7 @@ index.ts (bootstrap) → engine/cli/cli.ts (Commander定義)
       → engine/startup/tsunami-initializer.ts (起動時の津波状態復元)
       → engine/startup/volcano-initializer.ts (起動時の火山警報状態復元)
       → engine/messages/message-router.ts (電文分類・振り分け)
+        → engine/messages/volcano-vfvo53-aggregator.ts (VFVO53 バッチ集約)
         → dmdata/telegram-parser.ts (XML解析)
         → dmdata/volcano-parser.ts (火山電文解析)
         → ui/formatter.ts (共通表示)       ← ui/theme.ts (テーマ)

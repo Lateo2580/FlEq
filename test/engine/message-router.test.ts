@@ -21,6 +21,8 @@ import {
   FIXTURE_VXSE45_S26,
   FIXTURE_VXSE45_CANCEL,
   FIXTURE_VXSE45_FINAL,
+  FIXTURE_VFVO53_ASH_REGULAR,
+  FIXTURE_VFVO54_ASH_RAPID,
 } from "../helpers/mock-message";
 import { WsDataMessage } from "../../src/types";
 import * as fs from "fs";
@@ -306,6 +308,89 @@ describe("message-router 統合テスト", () => {
 
       const output = getOutput();
       expect(output.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("VFVO53 アグリゲータ統合", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("VFVO53 はバッファリングされ、即時表示されない", () => {
+      const { handler } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
+      handler(msg);
+
+      // aggregator がバッファリングするため、quiet window 前は表示されない
+      const output = getOutput();
+      expect(output).not.toContain("降灰予報");
+    });
+
+    it("VFVO53 は quiet window 後に表示される", () => {
+      const { handler } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
+      handler(msg);
+
+      vi.advanceTimersByTime(8_000);
+
+      const output = getOutput();
+      expect(output).toContain("降灰予報");
+      expect(output).toContain("桜島");
+    });
+
+    it("flushAndDisposeVolcanoBuffer でバッファ内の VFVO53 が表示される", () => {
+      const { handler, flushAndDisposeVolcanoBuffer } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
+      handler(msg);
+
+      // タイマー待ちなしでも flushAndDispose で強制 flush
+      flushAndDisposeVolcanoBuffer();
+
+      const output = getOutput();
+      expect(output).toContain("降灰予報");
+      expect(output).toContain("桜島");
+    });
+
+    it("VFVO54 割り込みで VFVO53 バッファが flush され、VFVO54 も表示される", () => {
+      const { handler } = createMessageHandler();
+
+      // VFVO53 をバッファリング
+      handler(createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR));
+      expect(getOutput()).not.toContain("降灰予報");
+
+      // VFVO54 割り込み → バッファ flush + VFVO54 即時表示
+      handler(createMockWsDataMessage(FIXTURE_VFVO54_ASH_RAPID));
+
+      const output = getOutput();
+      // VFVO53 の flush 分 (通知なし flush だが表示はされる)
+      expect(output).toContain("降灰予報（定時）");
+      // VFVO54 の即時表示分
+      expect(output).toContain("降灰予報（速報）");
+    });
+
+    it("VFVO54 割り込み時、flush された VFVO53 の通知は抑制される", () => {
+      const { handler, notifier } = createMessageHandler();
+      const volcanoSpy = vi.spyOn(notifier, "notifyVolcano");
+      const batchSpy = vi.spyOn(notifier, "notifyVolcanoBatch");
+
+      // VFVO53 をバッファリング
+      handler(createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR));
+
+      // VFVO54 割り込み
+      handler(createMockWsDataMessage(FIXTURE_VFVO54_ASH_RAPID));
+
+      // flush された VFVO53 は notify: false なので notifyVolcano が呼ばれない
+      // VFVO54 は直接委譲なので notifyVolcano が1回呼ばれる
+      const volcanoInfoArgs = volcanoSpy.mock.calls.map((c) => c[0]);
+      expect(volcanoInfoArgs).toHaveLength(1);
+      expect(volcanoInfoArgs[0].type).toBe("VFVO54");
+
+      // バッチ通知は呼ばれない (1件なので emitSingle 経由)
+      expect(batchSpy).not.toHaveBeenCalled();
     });
   });
 

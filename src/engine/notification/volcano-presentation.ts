@@ -4,6 +4,7 @@ import {
   ParsedVolcanoEruptionInfo,
   ParsedVolcanoAshfallInfo,
 } from "../../types";
+import type { Vfvo53BatchItems } from "../messages/volcano-vfvo53-aggregator";
 import { FrameLevel } from "../../ui/formatter";
 import { SoundLevel } from "./sound-player";
 import { VolcanoStateHolder } from "../messages/volcano-state";
@@ -173,6 +174,26 @@ function buildEruptionSummary(info: ParsedVolcanoEruptionInfo): string {
     parts.push("噴煙高度不明");
   }
   return parts.join(" / ");
+}
+
+// ── バッチ presentation ──
+
+/** VFVO53 バッチの表示レベル・通知レベル・通知要約を判定する */
+export function resolveVolcanoBatchPresentation(batch: Vfvo53BatchItems): VolcanoPresentation {
+  return {
+    frameLevel: "info",
+    soundLevel: "info",
+    summary: buildBatchSummary(batch),
+  };
+}
+
+function buildBatchSummary(batch: Vfvo53BatchItems): string {
+  const count = batch.items.length;
+  const MAX_NAMES = 3;
+  const names = batch.items.slice(0, MAX_NAMES).map((i) => i.volcanoName);
+  const rest = count - MAX_NAMES;
+  const nameList = rest > 0 ? `${names.join("、")} +${rest}` : names.join("、");
+  return `${count}火山: ${nameList}`;
 }
 
 function buildAshfallSummary(info: ParsedVolcanoAshfallInfo): string {

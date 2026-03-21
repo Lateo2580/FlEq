@@ -13,7 +13,7 @@ import * as log from "../../logger";
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
 export async function startMonitor(config: AppConfig): Promise<void> {
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState } = createMessageHandler();
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, flushAndDisposeVolcanoBuffer } = createMessageHandler();
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
@@ -56,6 +56,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
     eewLogger,
     getReplHandler: () => replHandler,
     resetTerminalTitle,
+    flushAndDisposeVolcanoBuffer,
   });
 
   // REPL ハンドラ (遅延ロード)

@@ -318,6 +318,7 @@ interface MessageHandlerResult {
   notifier: Notifier;
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
+  flushAndDisposeVolcanoBuffer: () => void;
 }
 
 function createMessageHandler(): MessageHandlerResult
@@ -328,6 +329,7 @@ function createMessageHandler(): MessageHandlerResult
 - `notifier` — 通知設定の変更用に外部公開。
 - `tsunamiState` — 津波警報状態の保持・detail コマンド用に外部公開。
 - `volcanoState` — 火山警報状態の保持・detail コマンド用に外部公開。
+- `flushAndDisposeVolcanoBuffer` — VFVO53 バッファの flush + タイマー破棄。シャットダウン時に呼び出す。
 
 ### 内部ロジック
 
@@ -354,10 +356,10 @@ function createMessageHandler(): MessageHandlerResult
    - `parseNankaiTroughTelegram()` → `displayNankaiTroughInfo()` → `notifier.notifyNankaiTrough()`
 8. **`telegram.volcano`** — 火山情報
    - `parseVolcanoTelegram()` でパース
-   - `resolveVolcanoPresentation()` で表示/通知レベル判定
-   - `displayVolcanoInfo()` で表示
-   - `volcanoState.update()` で状態更新
-   - `notifier.notifyVolcano()` で通知
+   - `VolcanoVfvo53Aggregator.handle()` に委譲
+     - VFVO53 定時（取消以外）→ バッファリング → quiet window 後にまとめ表示
+     - VFVO53 取消 → 即時表示 + バッファから除去
+     - その他 → pending バッファを通知なし flush → 従来パイプライン（`resolveVolcanoPresentation()` → `displayVolcanoInfo()` → `volcanoState.update()` → `notifier.notifyVolcano()`）
 9. **それ以外** — `displayRawHeader()` フォールバック
 
 全パスで共通して、パース失敗時は `displayRawHeader()` にフォールバックする。
@@ -376,7 +378,9 @@ function createMessageHandler(): MessageHandlerResult
 | `../../ui/formatter` | `displayRawHeader` |
 | `../../ui/eew-formatter` | `displayEewInfo` |
 | `../../ui/earthquake-formatter` | 地震・津波・テキスト・南海トラフ・長周期の表示関数 |
-| `../../ui/volcano-formatter` | `displayVolcanoInfo` |
+| `../../ui/volcano-formatter` | `displayVolcanoInfo`, `displayVolcanoAshfallBatch` |
+| `./volcano-vfvo53-aggregator` | `VolcanoVfvo53Aggregator` |
+| `../notification/volcano-presentation` | `resolveVolcanoPresentation`, `resolveVolcanoBatchPresentation` |
 | `../eew/eew-tracker` | `EewTracker` |
 | `../eew/eew-logger` | `EewEventLogger` |
 | `../notification/notifier` | `Notifier` |
@@ -1063,6 +1067,7 @@ interface ShutdownContext {
   eewLogger: EewEventLogger;
   getReplHandler: () => ReplHandlerType | null;
   resetTerminalTitle: () => void;
+  flushAndDisposeVolcanoBuffer?: () => void;
 }
 
 function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
@@ -1076,7 +1081,8 @@ function registerShutdownSignals(shutdown: () => Promise<void>): void
 ### 内部ロジック
 
 シャットダウン時の処理順序:
-1. EEW ログの全イベントをクローズ (`eewLogger.closeAll()`)
+1. VFVO53 バッファの flush + タイマー破棄 (`flushAndDisposeVolcanoBuffer()`)
+2. EEW ログの全イベントをクローズ (`eewLogger.closeAll()`)
 2. EEW ログのフラッシュ (失敗は無視)
 3. REPL の停止
 4. API 経由でソケットをクローズ (3秒タイムアウト、失敗は無視)
@@ -1183,6 +1189,75 @@ class TsunamiStateHolder implements PromptStatusProvider, DetailProvider {
 
 - `PromptStatusProvider` と `DetailProvider` の両方を実装することで、プロンプト表示と detail コマンドの両方に対応。`message-router.ts` で `createMessageHandler()` の戻り値として公開される。
 - 警報レベルの優先度は `LEVEL_PRIORITY` 定数で管理し、最大優先度のレベルを採用する。
+
+---
+
+## messages/volcano-vfvo53-aggregator.ts
+
+### 概要
+
+VFVO53（降灰予報・定時）をバッファリングし、複数火山分をまとめて1フレームとして表示・通知するための集約モジュール。定時で一斉に届く複数火山の VFVO53 が個別に処理されることによる通知音連発・ログ大量出力を防ぐ。
+
+### エクスポートAPI
+
+```ts
+interface Vfvo53BatchItems {
+  reportDateTime: string;
+  isTest: boolean;
+  items: ParsedVolcanoAshfallInfo[];
+}
+
+interface FlushOptions {
+  notify: boolean;
+}
+
+class VolcanoVfvo53Aggregator {
+  constructor(
+    emitSingle: (info: ParsedVolcanoInfo) => void,
+    emitBatch: (batch: Vfvo53BatchItems, opts: FlushOptions) => void,
+    opts?: { quietMs?: number; maxWaitMs?: number; maxItems?: number },
+  );
+  handle(info: ParsedVolcanoInfo): void;
+  flushAndDispose(): void;
+}
+```
+
+### バッファリング戦略
+
+| パラメータ | デフォルト値 | 説明 |
+|-----------|-------------|------|
+| `quietMs` | 8000ms | 電文到着が途切れてからの待機時間 |
+| `maxWaitMs` | 90000ms | 最初の電文到着からの最大待機時間 |
+| `maxItems` | 20 | バッファ内の最大火山数 |
+
+- **バッチキー**: `reportDateTime + isTest` で同一発表サイクルをグルーピング
+- 到着が続く間は `quietMs` でタイマーリセット（ただし `maxWaitMs` を超えない）
+- 同一火山は `volcanoCode` で上書き保持（訂正/重複対応）
+- flush reason をデバッグログに出力
+
+### 電文種別ごとの処理
+
+| 電文 | 処理 |
+|------|------|
+| VFVO53 定時（取消以外） | バッファリング |
+| VFVO53 取消 | 即時 `emitSingle` + バッファから同 `volcanoCode` を除去 |
+| その他の火山電文 | pending バッファを `notify: false` で flush → `emitSingle` |
+
+### flush 条件
+
+- `quiet`: quiet window 満了
+- `maxWait`: 最大待機時間到達
+- `maxItems`: バッファ上限到達（即時）
+- `interrupt`: 非 VFVO53 電文の割り込み（`notify: false`）
+- `newBatchKey`: バッチキー不一致
+- `dispose`: `flushAndDispose()` 呼び出し
+
+### 設計ノート
+
+- 単発（1件のみ）の場合は `emitSingle` にフォールバックし、既存の単発表示を維持
+- `flushAndDispose()` で flush + タイマー破棄。シャットダウン時に monitor → shutdown 経由で呼ばれる
+- dispose 後は全電文を `emitSingle` に直接委譲（バッファリングしない）
+- コンストラクタ引数でタイマー値を上書き可能（テスト用）
 
 ---
 

@@ -17,13 +17,14 @@ import {
   displayNankaiTroughInfo,
   displayLgObservationInfo,
 } from "../../ui/earthquake-formatter";
-import { displayVolcanoInfo } from "../../ui/volcano-formatter";
+import { displayVolcanoInfo, displayVolcanoAshfallBatch } from "../../ui/volcano-formatter";
+import { VolcanoVfvo53Aggregator } from "./volcano-vfvo53-aggregator";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
 import { Notifier } from "../notification/notifier";
 import { TsunamiStateHolder } from "./tsunami-state";
 import { VolcanoStateHolder } from "./volcano-state";
-import { resolveVolcanoPresentation } from "../notification/volcano-presentation";
+import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../notification/volcano-presentation";
 import * as log from "../../logger";
 
 // ── 電文分類 (Route) ──
@@ -189,18 +190,14 @@ function handleNankaiTrough(msg: WsDataMessage, notifier: Notifier): void {
   }
 }
 
-/** 火山情報パス */
+/** 火山情報パス (aggregator 経由) */
 function handleVolcano(
   msg: WsDataMessage,
-  notifier: Notifier,
-  volcanoState: VolcanoStateHolder,
+  vfvo53Aggregator: VolcanoVfvo53Aggregator,
 ): void {
   const volcanoInfo = parseVolcanoTelegram(msg);
   if (volcanoInfo) {
-    const presentation = resolveVolcanoPresentation(volcanoInfo, volcanoState);
-    displayVolcanoInfo(volcanoInfo, presentation);
-    volcanoState.update(volcanoInfo);
-    notifier.notifyVolcano(volcanoInfo, presentation);
+    vfvo53Aggregator.handle(volcanoInfo);
   } else {
     displayRawHeader(msg);
   }
@@ -215,6 +212,7 @@ export interface MessageHandlerResult {
   notifier: Notifier;
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
+  flushAndDisposeVolcanoBuffer: () => void;
 }
 
 /** 受信データのハンドリング */
@@ -228,6 +226,27 @@ export function createMessageHandler(): MessageHandlerResult {
       eewLogger.closeEvent(eventId, "タイムアウト");
     },
   });
+
+  // VFVO53 バッチ集約器
+  const vfvo53Aggregator = new VolcanoVfvo53Aggregator(
+    // emitSingle: 従来の単発処理パイプライン (opts?.notify === false なら通知スキップ)
+    (info, opts) => {
+      const presentation = resolveVolcanoPresentation(info, volcanoState);
+      displayVolcanoInfo(info, presentation);
+      volcanoState.update(info);
+      if (opts?.notify !== false) {
+        notifier.notifyVolcano(info, presentation);
+      }
+    },
+    // emitBatch: バッチ専用処理
+    (batch, opts) => {
+      const presentation = resolveVolcanoBatchPresentation(batch);
+      displayVolcanoAshfallBatch(batch, presentation);
+      if (opts.notify) {
+        notifier.notifyVolcanoBatch(batch, presentation);
+      }
+    },
+  );
 
   const handler = (msg: WsDataMessage): void => {
     // XML電文でない場合はヘッダ情報のみ表示
@@ -258,7 +277,7 @@ export function createMessageHandler(): MessageHandlerResult {
         handleNankaiTrough(msg, notifier);
         break;
       case "volcano":
-        handleVolcano(msg, notifier, volcanoState);
+        handleVolcano(msg, vfvo53Aggregator);
         break;
       case "raw":
         displayRawHeader(msg);
@@ -266,5 +285,12 @@ export function createMessageHandler(): MessageHandlerResult {
     }
   };
 
-  return { handler, eewLogger, notifier, tsunamiState, volcanoState };
+  return {
+    handler,
+    eewLogger,
+    notifier,
+    tsunamiState,
+    volcanoState,
+    flushAndDisposeVolcanoBuffer: () => vfvo53Aggregator.flushAndDispose(),
+  };
 }

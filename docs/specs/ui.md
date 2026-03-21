@@ -603,9 +603,15 @@ function displayVolcanoInfo(
   info: ParsedVolcanoInfo,
   presentation: VolcanoPresentation,
 ): void
+
+function displayVolcanoAshfallBatch(
+  batch: Vfvo53BatchItems,
+  presentation: VolcanoPresentation,
+): void
 ```
 
-`presentation.frameLevel` でフレームのスタイルを決定し、`info.kind` で内部レンダラを振り分ける。`infoType === "取消"` の場合は共通の取消表示を行う。
+- `displayVolcanoInfo` — `presentation.frameLevel` でフレームのスタイルを決定し、`info.kind` で内部レンダラを振り分ける。`infoType === "取消"` の場合は共通の取消表示を行う。
+- `displayVolcanoAshfallBatch` — VFVO53 バッチのまとめ表示。テーブル形式（幅≥80）または1火山1行リスト（狭幅）で表示する。`やや多量(72)以上` / `小さな噴石(75)` の火山は色付き強調。compact モードでは1行要約。
 
 ### 内部ロジック
 
@@ -643,3 +649,4 @@ function displayVolcanoInfo(
 | `./formatter` | `FrameLevel`, `RenderBuffer`, フレーム描画プリミティブ, `formatTimestamp`, `wrapFrameLines` 等 |
 | `./theme` | `getRoleChalk`, `RoleName` |
 | `../engine/notification/volcano-presentation` | `VolcanoPresentation` |
+| `../engine/messages/volcano-vfvo53-aggregator` | `Vfvo53BatchItems` |

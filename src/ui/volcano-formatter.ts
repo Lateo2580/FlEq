@@ -7,6 +7,7 @@ import {
   ParsedVolcanoTextInfo,
   ParsedVolcanoPlumeInfo,
 } from "../types";
+import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggregator";
 import {
   FrameLevel,
   RenderBuffer,
@@ -626,4 +627,157 @@ export function displayVolcanoInfo(
   renderBuf.pushEmpty();
 
   flushWithRecap(renderBuf, level, width);
+}
+
+// ── VFVO53 バッチ表示 ──
+
+/** 各火山の最大降灰コードを取得 */
+function getMaxAshCode(info: ParsedVolcanoAshfallInfo): string {
+  let max = "0";
+  for (const period of info.ashForecasts) {
+    for (const area of period.areas) {
+      if (area.ashCode > max) max = area.ashCode;
+    }
+  }
+  return max;
+}
+
+/** 各火山の最大降灰名を取得 */
+function getMaxAshName(info: ParsedVolcanoAshfallInfo): string {
+  let maxCode = "0";
+  let maxName = "";
+  for (const period of info.ashForecasts) {
+    for (const area of period.areas) {
+      if (area.ashCode > maxCode) {
+        maxCode = area.ashCode;
+        maxName = area.ashName;
+      }
+    }
+  }
+  return maxName;
+}
+
+/** 注目地域（最大降灰コードの地域名、最大3件） */
+function getNotableAreas(info: ParsedVolcanoAshfallInfo, maxCount: number): string[] {
+  const maxCode = getMaxAshCode(info);
+  const names = new Set<string>();
+  for (const period of info.ashForecasts) {
+    for (const area of period.areas) {
+      if (area.ashCode === maxCode) names.add(area.name);
+      if (names.size >= maxCount) return [...names];
+    }
+  }
+  return [...names];
+}
+
+/** 注目火山かどうか（やや多量72以上 or 小さな噴石75） */
+function isNotable(info: ParsedVolcanoAshfallInfo): boolean {
+  const code = getMaxAshCode(info);
+  return code >= "72";
+}
+
+/** VFVO53 バッチのまとめ表示 */
+export function displayVolcanoAshfallBatch(
+  batch: Vfvo53BatchItems,
+  presentation: VolcanoPresentation,
+): void {
+  const width = getFrameWidth();
+  const level = presentation.frameLevel;
+  const count = batch.items.length;
+  const notableCount = batch.items.filter(isNotable).length;
+
+  // バッチタイトル
+  const titleBase = `降灰予報（定時） ${count}火山`;
+  const title = batch.isTest
+    ? `${getRoleChalk("testBadge")(" TEST ")} ${titleBase}`
+    : titleBase;
+
+  // コンパクトモード: 1行サマリー
+  if (getDisplayMode() === "compact") {
+    const parts: string[] = [SEVERITY_LABELS[level], titleBase];
+    // 注目火山を先頭に最大2件
+    const notable = batch.items.filter(isNotable).slice(0, 2);
+    if (notable.length > 0) {
+      parts.push(notable.map((i) => {
+        const ashName = getMaxAshName(i);
+        return `${i.volcanoName}(${ashName})`;
+      }).join(", "));
+    }
+    const rest = count - notable.length;
+    if (rest > 0) parts.push(`他${rest}`);
+    const color = frameColor(level);
+    console.log(color(parts.join("  ")));
+    return;
+  }
+
+  const buf = createRenderBuffer();
+  buf.pushEmpty();
+
+  // フレーム開始
+  buf.push(frameTop(level, width));
+
+  // タイトル行
+  const titleContent = ` ${title}  ${chalk.gray(SEVERITY_LABELS[level])}`;
+  buf.pushTitle(frameLine(level, titleContent, width));
+
+  // カード行 (recap用)
+  {
+    const totalAreas = new Set(
+      batch.items.flatMap((i) => i.ashForecasts.flatMap((p) => p.areas).map((a) => a.name)),
+    ).size;
+    const cardText = notableCount > 0
+      ? `${count}火山  注目${notableCount}  計${totalAreas}地域`
+      : `${count}火山  計${totalAreas}地域`;
+    buf.push(frameDivider(level, width));
+    buf.pushCard(frameLine(level, ` ${cardText}`, width));
+  }
+
+  // テーブル or リスト
+  buf.push(frameDivider(level, width));
+
+  // 降灰量が強い順にソート
+  const sorted = [...batch.items].sort((a, b) => {
+    const codeA = getMaxAshCode(a);
+    const codeB = getMaxAshCode(b);
+    if (codeB !== codeA) return codeB.localeCompare(codeA);
+    return a.volcanoName.localeCompare(b.volcanoName, "ja");
+  });
+
+  if (width >= 80) {
+    // テーブル形式
+    const headers = ["火山", "最大降灰", "注目地域", "時間帯数"];
+    const rows: string[][] = sorted.map((info) => {
+      const maxAshCode = getMaxAshCode(info);
+      const maxAshName = getMaxAshName(info);
+      const notable = isNotable(info);
+      const ashFn = notable ? getRoleChalk(ashfallRole(maxAshCode)) : (s: string) => s;
+      const areas = getNotableAreas(info, 3);
+      const areaStr = areas.join(", ");
+      return [
+        notable ? chalk.bold(info.volcanoName) : info.volcanoName,
+        ashFn(maxAshName),
+        areaStr,
+        `${info.ashForecasts.length}`,
+      ];
+    });
+    renderFrameTable(level, headers, rows, width, buf);
+  } else {
+    // 狭幅: 1火山1行
+    for (const info of sorted) {
+      const maxAshCode = getMaxAshCode(info);
+      const maxAshName = getMaxAshName(info);
+      const ashFn = getRoleChalk(ashfallRole(maxAshCode));
+      const line = ` ${info.volcanoName}  ${ashFn(maxAshName)}  ${info.ashForecasts.length}時間帯`;
+      for (const wl of wrapFrameLines(level, line, width)) {
+        buf.push(wl);
+      }
+    }
+  }
+
+  // 共通フッター
+  renderFooter(level, "VFVO53", batch.reportDateTime, batch.items[0].publishingOffice, width, buf);
+  buf.push(frameBottom(level, width));
+  buf.pushEmpty();
+
+  flushWithRecap(buf, level, width);
 }

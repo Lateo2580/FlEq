@@ -249,6 +249,11 @@ export class Notifier {
     this.send(info.title, presentation.summary, presentation.soundLevel);
   }
 
+  notifyVolcanoBatch(batch: { items: { volcanoName: string }[] }, presentation: VolcanoPresentation): void {
+    if (!this.settings.volcano) return;
+    this.send("降灰予報（定時）", presentation.summary, presentation.soundLevel);
+  }
+
   // ── 内部メソッド ──
 
   private _notifier: nodeNotifierLoader.NodeNotifierLike | null = null;
