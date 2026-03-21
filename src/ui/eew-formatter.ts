@@ -243,16 +243,26 @@ export function displayEewInfo(
       buf.push(frameLine(level, theme.getRoleChalk("plumLabel")("仮定震源要素") + chalk.gray(" (震源未確定・PLUM法による推定)"), width));
     }
 
-    const hypoContent = diff?.hypocenterChange
-      ? chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName) + theme.getRoleChalk("nextAdvisory")(" (変更)")
-      : chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName);
-    buf.push(frameLine(level, hypoContent, width));
-
-    if (eq.originTime) {
-      buf.push(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
-    }
-    if (eq.latitude && eq.longitude) {
-      buf.push(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
+    if (info.isAssumedHypocenter) {
+      // 仮定震源要素: 震源・発生時刻・位置をグレーアウト
+      buf.push(frameLine(level, chalk.gray("震源地: ") + chalk.gray(eq.hypocenterName), width));
+      if (eq.originTime) {
+        buf.push(frameLine(level, chalk.gray("発生: ") + chalk.gray(formatTimestamp(eq.originTime)), width));
+      }
+      if (eq.latitude && eq.longitude) {
+        buf.push(frameLine(level, chalk.gray("位置: ") + chalk.gray(`${eq.latitude} ${eq.longitude}`), width));
+      }
+    } else {
+      const hypoContent = diff?.hypocenterChange
+        ? chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName) + theme.getRoleChalk("nextAdvisory")(" (変更)")
+        : chalk.white("震源地: ") + theme.getRoleChalk("hypocenter")(eq.hypocenterName);
+      buf.push(frameLine(level, hypoContent, width));
+      if (eq.originTime) {
+        buf.push(frameLine(level, chalk.white("発生: ") + chalk.white(formatTimestamp(eq.originTime)), width));
+      }
+      if (eq.latitude && eq.longitude) {
+        buf.push(frameLine(level, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`), width));
+      }
     }
     if (eq.magnitude && !info.isAssumedHypocenter) {
       let magLine: string;
@@ -309,7 +319,9 @@ export function displayEewInfo(
         const lc = lgIntensityColor(area.lgIntensity);
         areaText += lc(` [長周期${area.lgIntensity}]`);
       }
-      buf.push(frameLine(level, color(`震度${area.intensity}: `) + areaText, width));
+      for (const wl of wrapFrameLines(level, color(`震度${area.intensity}: `) + areaText, width)) {
+        buf.push(wl);
+      }
     }
 
     if (hiddenCount > 0) {
@@ -333,7 +345,9 @@ export function displayEewInfo(
   // 最終報
   if (info.nextAdvisory) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width));
+    for (const wl of wrapFrameLines(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width)) {
+      buf.push(wl);
+    }
   }
 
   // EventID
