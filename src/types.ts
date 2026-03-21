@@ -32,6 +32,28 @@ export type NotifyCategory =
 /** 通知設定 (カテゴリごとの ON/OFF) */
 export type NotifySettings = Record<NotifyCategory, boolean>;
 
+/** 省略表示の上限設定 */
+export interface TruncationLimits {
+  // ── 本文行数 ──
+  seismicTextLines: number;
+  nankaiTroughLines: number;
+  volcanoAlertLines: number;
+  volcanoEruptionLines: number;
+  volcanoTextLines: number;
+  volcanoAshfallQuickLines: number;
+  volcanoAshfallDetailLines: number;
+  volcanoAshfallRegularLines: number;
+  volcanoPreventionLines: number;
+  // ── 件数 ──
+  volcanoMunicipalities: number;
+  ashfallAreasQuick: number;
+  ashfallAreasOther: number;
+  ashfallPeriodsQuick: number;
+  ashfallPeriodsOther: number;
+  plumeWindSampleRows: number;
+  tsunamiCompactForecastAreas: number;
+}
+
 /** dmdata.jp API の分類区分 */
 export type Classification =
   | "telegram.earthquake" // 地震・津波関連
@@ -75,6 +97,8 @@ export interface AppConfig {
   maxObservations: number | null;
   /** EEW副回線の有効/無効 */
   backup: boolean;
+  /** 省略表示の上限設定 */
+  truncation: TruncationLimits;
 }
 
 /** Configファイルの設定 (全フィールド任意) */
@@ -96,6 +120,7 @@ export interface ConfigFile {
   eewLogFields?: Partial<Record<EewLogField, boolean>>;
   maxObservations?: number;
   backup?: boolean;
+  truncation?: Partial<TruncationLimits>;
 }
 
 /** デフォルト設定 */
@@ -137,6 +162,24 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   },
   maxObservations: null,
   backup: false,
+  truncation: {
+    seismicTextLines: 15,
+    nankaiTroughLines: 20,
+    volcanoAlertLines: 10,
+    volcanoEruptionLines: 8,
+    volcanoTextLines: 8,
+    volcanoAshfallQuickLines: 8,
+    volcanoAshfallDetailLines: 16,
+    volcanoAshfallRegularLines: 10,
+    volcanoPreventionLines: 8,
+    volcanoMunicipalities: 6,
+    ashfallAreasQuick: 5,
+    ashfallAreasOther: 3,
+    ashfallPeriodsQuick: 1,
+    ashfallPeriodsOther: 3,
+    plumeWindSampleRows: 5,
+    tsunamiCompactForecastAreas: 3,
+  },
 };
 
 // ── プロンプトステータス ──

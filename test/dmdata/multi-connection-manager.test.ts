@@ -22,7 +22,7 @@ vi.mock("../../src/logger", () => ({
 
 import { WsManagerEvents } from "../../src/dmdata/ws-client";
 import { MultiConnectionManager } from "../../src/dmdata/multi-connection-manager";
-import { AppConfig, WsDataMessage } from "../../src/types";
+import { AppConfig, DEFAULT_CONFIG, WsDataMessage } from "../../src/types";
 import * as log from "../../src/logger";
 
 function createConfig(overrides?: Partial<AppConfig>): AppConfig {
@@ -64,6 +64,7 @@ function createConfig(overrides?: Partial<AppConfig>): AppConfig {
     },
     maxObservations: null,
     backup: false,
+    truncation: { ...DEFAULT_CONFIG.truncation },
     ...overrides,
   };
 }

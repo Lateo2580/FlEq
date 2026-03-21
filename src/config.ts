@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { ConfigFile, Classification, DisplayMode, PromptClock, NotifyCategory, EewLogField } from "./types";
+import { ConfigFile, Classification, DisplayMode, PromptClock, NotifyCategory, EewLogField, TruncationLimits, DEFAULT_CONFIG } from "./types";
 import * as secretUtils from "./utils/secrets";
 import * as log from "./logger";
 
@@ -165,6 +165,26 @@ const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
   "volcano",
 ];
 
+/** 有効な省略上限キー */
+export const VALID_TRUNCATION_KEYS: (keyof TruncationLimits)[] = [
+  "seismicTextLines",
+  "nankaiTroughLines",
+  "volcanoAlertLines",
+  "volcanoEruptionLines",
+  "volcanoTextLines",
+  "volcanoAshfallQuickLines",
+  "volcanoAshfallDetailLines",
+  "volcanoAshfallRegularLines",
+  "volcanoPreventionLines",
+  "volcanoMunicipalities",
+  "ashfallAreasQuick",
+  "ashfallAreasOther",
+  "ashfallPeriodsQuick",
+  "ashfallPeriodsOther",
+  "plumeWindSampleRows",
+  "tsunamiCompactForecastAreas",
+];
+
 /** 設定可能なキーと説明 */
 const CONFIG_KEYS: Record<string, string> = {
   apiKey: "dmdata.jp APIキー",
@@ -182,6 +202,7 @@ const CONFIG_KEYS: Record<string, string> = {
   eewLog: "EEWログ記録の有効/無効 (true/false)",
   maxObservations: '観測点の最大表示件数 (1〜999 / "off" で全件表示)',
   backup: "EEW副回線の有効/無効 (true/false)",
+  truncation: "省略表示の上限設定 (truncation.<key> で個別設定)",
 };
 
 /** Configファイルのパスを返す */
@@ -248,6 +269,7 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyNotifySettings(config, raw.notify);
   applyMaxObservations(config, raw.maxObservations);
   applyBooleanField(config, "backup", raw.backup);
+  applyTruncation(config, raw.truncation);
 
   return config;
 }
@@ -367,6 +389,28 @@ function applyMaxObservations(config: ConfigFile, value: unknown): void {
   }
 }
 
+function applyTruncation(config: ConfigFile, value: unknown): void {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
+    return;
+  }
+  const raw = value as Record<string, unknown>;
+  const truncation: Partial<TruncationLimits> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (
+      VALID_TRUNCATION_KEYS.includes(key as keyof TruncationLimits) &&
+      typeof val === "number" &&
+      Number.isInteger(val) &&
+      val >= 1 &&
+      val <= 999
+    ) {
+      truncation[key as keyof TruncationLimits] = val;
+    }
+  }
+  if (Object.keys(truncation).length > 0) {
+    config.truncation = truncation;
+  }
+}
+
 function applyEewLogFields(config: ConfigFile, value: unknown): void {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
     return;
@@ -398,6 +442,27 @@ function parseClassifications(input: string): Classification[] {
 
 /** 設定値を1件セットする。無効な入力の場合は ConfigError をスローする。 */
 export function setConfigValue(key: string, value: string): void {
+  // truncation.xxx ドットキー対応
+  if (key.startsWith("truncation.")) {
+    const subKey = key.slice("truncation.".length);
+    if (!VALID_TRUNCATION_KEYS.includes(subKey as keyof TruncationLimits)) {
+      throw new ConfigError(
+        `不明な truncation キー: ${subKey}\n有効なキー: ${VALID_TRUNCATION_KEYS.join(", ")}`
+      );
+    }
+    const num = Number(value);
+    if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 999) {
+      throw new ConfigError(
+        `${subKey} は 1〜999 の整数を指定してください。`
+      );
+    }
+    const config = loadConfig();
+    if (config.truncation == null) config.truncation = {};
+    config.truncation[subKey as keyof TruncationLimits] = num;
+    saveConfig(config);
+    return;
+  }
+
   if (!(key in CONFIG_KEYS)) {
     throw new ConfigError(
       `不明な設定キー: ${key}\n有効なキー: ${Object.keys(CONFIG_KEYS).join(", ")}`
@@ -542,6 +607,32 @@ export function setConfigValue(key: string, value: string): void {
 
 /** 設定値を1件削除する。無効なキーの場合は ConfigError をスローする。 */
 export function unsetConfigValue(key: string): void {
+  // truncation ドットキー対応
+  if (key === "truncation") {
+    const config = loadConfig();
+    delete config.truncation;
+    saveConfig(config);
+    return;
+  }
+  if (key.startsWith("truncation.")) {
+    const subKey = key.slice("truncation.".length);
+    if (!VALID_TRUNCATION_KEYS.includes(subKey as keyof TruncationLimits)) {
+      throw new ConfigError(
+        `不明な truncation キー: ${subKey}\n有効なキー: ${VALID_TRUNCATION_KEYS.join(", ")}`
+      );
+    }
+    const config = loadConfig();
+    if (config.truncation != null) {
+      delete config.truncation[subKey as keyof TruncationLimits];
+      // 空になったらオブジェクトごと削除
+      if (Object.keys(config.truncation).length === 0) {
+        delete config.truncation;
+      }
+    }
+    saveConfig(config);
+    return;
+  }
+
   if (!(key in CONFIG_KEYS)) {
     throw new ConfigError(
       `不明な設定キー: ${key}\n有効なキー: ${Object.keys(CONFIG_KEYS).join(", ")}`
@@ -569,6 +660,19 @@ export function printConfig(): void {
   }
 
   for (const [key, description] of Object.entries(CONFIG_KEYS)) {
+    if (key === "truncation") {
+      const trunc = config.truncation;
+      if (trunc != null && Object.keys(trunc).length > 0) {
+        console.log(`  truncation:`);
+        console.log(`    # ${description}`);
+        for (const [tk, tv] of Object.entries(trunc)) {
+          const def = DEFAULT_CONFIG.truncation[tk as keyof TruncationLimits];
+          const marker = tv !== def ? " *" : "";
+          console.log(`    ${tk} = ${tv}${marker}`);
+        }
+      }
+      continue;
+    }
     const val = config[key as keyof ConfigFile];
     if (val !== undefined) {
       const displayValue =
@@ -588,6 +692,12 @@ export function printConfigKeys(): void {
   for (const [key, description] of Object.entries(CONFIG_KEYS)) {
     console.log(`  ${key}`);
     console.log(`    ${description}`);
+    if (key === "truncation") {
+      for (const tk of VALID_TRUNCATION_KEYS) {
+        const def = DEFAULT_CONFIG.truncation[tk];
+        console.log(`    truncation.${tk} (default: ${def})`);
+      }
+    }
   }
   console.log();
 }

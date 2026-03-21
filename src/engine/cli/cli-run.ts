@@ -5,7 +5,7 @@ import {
 } from "../../types";
 import { listContracts } from "../../dmdata/rest-client";
 import { startMonitor } from "../monitor/monitor";
-import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations } from "../../ui/formatter";
+import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations, setTruncation } from "../../ui/formatter";
 import { loadTheme } from "../../ui/theme";
 import { resolveConfig } from "../startup/config-resolver";
 import * as updateChecker from "../startup/update-checker";
@@ -90,6 +90,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   setInfoFullText(config.infoFullText ?? false);
   setDisplayMode(config.displayMode);
   setMaxObservations(config.maxObservations);
+  setTruncation(config.truncation);
 
   printBanner(config);
   updateChecker.checkForUpdates("fleq", VERSION);

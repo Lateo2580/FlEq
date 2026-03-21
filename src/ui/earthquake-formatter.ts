@@ -13,6 +13,7 @@ import {
   getFrameWidth,
   getDisplayMode,
   getInfoFullText,
+  getTruncation,
   getMaxObservations,
   SEVERITY_LABELS,
   frameColor,
@@ -142,6 +143,28 @@ function tsunamiFrameLevel(info: ParsedTsunamiInfo): FrameLevel {
   if (kinds.some((kind) => kind.includes("大津波警報"))) return "critical";
   if (kinds.some((kind) => kind.includes("津波警報"))) return "warning";
   return "normal";
+}
+
+/** 津波電文のバナーラベルを forecast の kind から決定する */
+function tsunamiBannerLabel(info: ParsedTsunamiInfo): string {
+  // 取消や forecast がない場合は電文タイプラベルをそのまま使う
+  if (info.infoType === "取消" || !info.forecast || info.forecast.length === 0) {
+    return typeLabel(info.type);
+  }
+
+  const kinds = info.forecast.map((f) => f.kind);
+  const hasMajor = kinds.some((k) => k.includes("大津波警報"));
+  const hasWarning = kinds.some((k) => k.includes("津波警報") && !k.includes("大津波警報"));
+  const hasAdvisory = kinds.some((k) => k.includes("津波注意報"));
+  const hasForecast = kinds.some((k) => k.includes("津波予報"));
+
+  const parts: string[] = [];
+  if (hasMajor) parts.push("大津波警報");
+  if (hasWarning) parts.push("津波警報");
+  if (hasAdvisory) parts.push("津波注意報");
+  if (hasForecast) parts.push("津波予報");
+
+  return parts.length > 0 ? parts.join("・") : typeLabel(info.type);
 }
 
 /** 津波種別の表示順 */
@@ -355,7 +378,9 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   // 津波 (詳細)
   if (info.tsunami) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.white(`${info.tsunami.text}`), width));
+    for (const wl of wrapFrameLines(level, chalk.white(`${info.tsunami.text}`), width)) {
+      buf.push(wl);
+    }
   }
 
   // フッター
@@ -371,17 +396,16 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
 export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
   const level = tsunamiFrameLevel(info);
   const label = typeLabel(info.type);
+  const bannerLabel = tsunamiBannerLabel(info);
   const width = getFrameWidth();
 
   // コンパクトモード
   if (getDisplayMode() === "compact") {
     const parts: string[] = [];
     parts.push(SEVERITY_LABELS[level]);
-    parts.push(label);
+    parts.push(bannerLabel);
     if (info.forecast && info.forecast.length > 0) {
-      const kinds = [...new Set(info.forecast.map((f) => f.kind))];
-      parts.push(kinds.join("・"));
-      const areas = info.forecast.slice(0, 3).map((f) => f.areaName);
+      const areas = info.forecast.slice(0, getTruncation().tsunamiCompactForecastAreas).map((f) => f.areaName);
       parts.push(areas.join(", "));
     }
     const color = frameColor(level);
@@ -395,20 +419,20 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
 
   // バナー表示 (津波注意報/津波警報/大津波警報)
   if (level === "critical") {
-    const bannerText = ` ${label}`;
+    const bannerText = ` ${bannerLabel}`;
     const decorStyle = theme.getRoleChalk("tsunamiMajorBannerDecor");
     const majorStyle = theme.getRoleChalk("tsunamiMajorBanner");
     buf.push(decorStyle(" ".repeat(width)));
     buf.push(majorStyle(visualPadEnd(bannerText, width)));
     buf.push(decorStyle(" ".repeat(width)));
   } else if (level === "warning") {
-    const bannerText = ` ${label}`;
+    const bannerText = ` ${bannerLabel}`;
     const warnStyle = theme.getRoleChalk("tsunamiWarningBanner");
     buf.push(warnStyle(" ".repeat(width)));
     buf.push(warnStyle(visualPadEnd(bannerText, width)));
     buf.push(warnStyle(" ".repeat(width)));
   } else if (level === "normal") {
-    const bannerText = ` ${label}`;
+    const bannerText = ` ${bannerLabel}`;
     const advStyle = theme.getRoleChalk("tsunamiAdvisoryBanner");
     buf.push(advStyle(" ".repeat(width)));
     buf.push(advStyle(visualPadEnd(bannerText, width)));
@@ -503,7 +527,9 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
         if (item.maxHeightDescription) extra.push(item.maxHeightDescription);
         if (item.firstHeight) extra.push(prettyTimeOrText(item.firstHeight));
         const extraText = extra.length > 0 ? chalk.gray(` (${extra.join(" / ")})`) : "";
-        buf.push(frameLine(level, kindText + chalk.white(` ${item.areaName}`) + extraText, width));
+        for (const wl of wrapFrameLines(level, kindText + chalk.white(` ${item.areaName}`) + extraText, width)) {
+          buf.push(wl);
+        }
       }
     }
 
@@ -656,7 +682,7 @@ export function displaySeismicTextInfo(info: ParsedSeismicTextInfo): void {
   if (bodyLines.length > 0) {
     buf.push(frameDivider(level, width));
     const showFull = getInfoFullText();
-    const maxLines = 15;
+    const maxLines = getTruncation().seismicTextLines;
     const innerWidth = width - 4;
     const rules = getSeismicTextRules(info.type);
     const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
@@ -742,7 +768,7 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   if (bodyLines.length > 0) {
     buf.push(frameDivider(level, width));
     const showFull = getInfoFullText();
-    const maxLines = 20;
+    const maxLines = getTruncation().nankaiTroughLines;
     const innerWidth = width - 4;
     const rules = getNankaiRules(info.type);
     const displayLines = showFull ? bodyLines : bodyLines.slice(0, maxLines);
@@ -759,7 +785,9 @@ export function displayNankaiTroughInfo(info: ParsedNankaiTroughInfo): void {
   // 次回情報予告
   if (info.nextAdvisory) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width));
+    for (const line of wrapFrameLines(level, theme.getRoleChalk("nextAdvisory")(info.nextAdvisory), width)) {
+      buf.push(line);
+    }
   }
 
   // フッター
@@ -884,14 +912,20 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     buf.push(frameDivider(level, width));
     const commentLines = info.comment.split(/\r?\n/).filter((l) => l.trim().length > 0);
     for (const line of commentLines) {
-      buf.push(frameLine(level, chalk.gray(line.trimEnd()), width));
+      const wrapped = wrapFrameLines(level, chalk.gray(line.trimEnd()), width);
+      for (const wl of wrapped) {
+        buf.push(wl);
+      }
     }
   }
 
   // 詳細URI
   if (info.detailUri) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, theme.getRoleChalk("detailUri")(info.detailUri), width));
+    const uriWrapped = wrapFrameLines(level, theme.getRoleChalk("detailUri")(info.detailUri), width);
+    for (const wl of uriWrapped) {
+      buf.push(wl);
+    }
   }
 
   // フッター

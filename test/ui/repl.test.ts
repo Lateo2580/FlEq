@@ -85,7 +85,7 @@ import {
 import { printConfig, loadConfig, saveConfig } from "../../src/config";
 import { Notifier } from "../../src/engine/notification/notifier";
 import { EewEventLogger } from "../../src/engine/eew/eew-logger";
-import { AppConfig } from "../../src/types";
+import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
 const mockListContracts = vi.mocked(listContracts);
@@ -121,6 +121,9 @@ function createConfig(): AppConfig {
       forecastAreas: true,
       diff: true,
     },
+    maxObservations: null,
+    backup: false,
+    truncation: { ...DEFAULT_CONFIG.truncation },
   };
 }
 

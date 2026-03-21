@@ -1,11 +1,11 @@
 import readline from "readline";
 import chalk from "chalk";
-import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField, PromptStatusProvider, PromptStatusSegment, DetailProvider } from "../types";
+import { AppConfig, DisplayMode, PromptClock, NotifyCategory, EewLogField, TruncationLimits, DEFAULT_CONFIG, PromptStatusProvider, PromptStatusSegment, DetailProvider } from "../types";
 import { ConnectionManager } from "../dmdata/connection-manager";
 import { WsManagerStatus } from "../dmdata/ws-client";
 import type { StartBackupResult } from "../dmdata/multi-connection-manager";
 import { listEarthquakes, listContracts, listSockets } from "../dmdata/rest-client";
-import { loadConfig, saveConfig, printConfig, VALID_EEW_LOG_FIELDS } from "../config";
+import { loadConfig, saveConfig, printConfig, VALID_EEW_LOG_FIELDS, VALID_TRUNCATION_KEYS } from "../config";
 import { Notifier, NOTIFY_CATEGORY_LABELS } from "../engine/notification/notifier";
 import { EewEventLogger } from "../engine/eew/eew-logger";
 import {
@@ -21,6 +21,8 @@ import {
   getDisplayMode,
   setMaxObservations,
   getMaxObservations,
+  setTruncation,
+  getTruncation,
 } from "../ui/formatter";
 import * as themeModule from "../ui/theme";
 import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/notification/sound-player";
@@ -425,6 +427,17 @@ export class ReplHandler {
         },
         handler: (args) => this.handleFold(args),
       },
+      limit: {
+        description: "省略表示の上限設定 (例: limit volcanoAlertLines 15)",
+        detail: "limit: 現在の省略設定を一覧表示\n  limit <key> <N>: 上限値を変更 (1〜999)\n  limit <key> default: デフォルト値に戻す\n  limit reset: 全項目をデフォルトに戻す",
+        category: "settings",
+        subcommands: {
+          "<key> <N>": { description: "上限値を変更 (1〜999)" },
+          "<key> default": { description: "デフォルト値に戻す" },
+          reset: { description: "全項目をデフォルトに戻す" },
+        },
+        handler: (args) => this.handleLimit(args),
+      },
       test: {
         description: "テスト機能",
         detail: "test sound [level]: サウンドテスト\n  test table [type] [番号]: 表示形式テスト",
@@ -690,6 +703,7 @@ export class ReplHandler {
     snd: "sound",
     thm: "theme",
     bkup: "backup",
+    lim: "limit",
     cls: "clear",
   };
 
@@ -720,6 +734,7 @@ export class ReplHandler {
     st: "seismicText",
     nt: "nankaiTrough",
     lgob: "lgObservation",
+    vc: "volcano",
   };
 
   /** test table の電文タイプ名を解決する (case-insensitive + エイリアス) */
@@ -821,6 +836,16 @@ export class ReplHandler {
           })()
           : "OFF",
         options: "on / off / fields",
+      },
+      limit: {
+        current: (() => {
+          const t = this.config.truncation;
+          const d = DEFAULT_CONFIG.truncation;
+          const changed = (Object.keys(d) as (keyof TruncationLimits)[])
+            .filter((k) => t[k] !== d[k]).length;
+          return changed > 0 ? `${changed}項目変更済` : "デフォルト";
+        })(),
+        options: "limit で詳細表示",
       },
     };
   }
@@ -1743,6 +1768,131 @@ export class ReplHandler {
     console.log(`  観測点表示を上位 ${n} 件に制限しました。`);
   }
 
+  /** 省略上限キーの日本語ラベル */
+  private static readonly TRUNCATION_LABELS: Record<keyof TruncationLimits, string> = {
+    seismicTextLines: "地震テキスト本文",
+    nankaiTroughLines: "南海トラフ本文",
+    volcanoAlertLines: "火山警報本文",
+    volcanoEruptionLines: "火山観測報本文",
+    volcanoTextLines: "火山解説情報本文",
+    volcanoAshfallQuickLines: "降灰速報(VFVO54)本文",
+    volcanoAshfallDetailLines: "降灰詳細(VFVO55)本文",
+    volcanoAshfallRegularLines: "降灰定時(VFVO53)本文",
+    volcanoPreventionLines: "火山警報 防災事項",
+    volcanoMunicipalities: "火山警報 対象市町村",
+    ashfallAreasQuick: "降灰速報(VFVO54) 地域数",
+    ashfallAreasOther: "降灰予報 地域数",
+    ashfallPeriodsQuick: "降灰速報(VFVO54) 時間帯数",
+    ashfallPeriodsOther: "降灰予報 時間帯数",
+    plumeWindSampleRows: "噴煙流向報 風向データ行数",
+    tsunamiCompactForecastAreas: "津波compact 予報地域数",
+  };
+
+  private handleLimit(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      // 全項目一覧表示
+      const current = getTruncation();
+      const defaults = DEFAULT_CONFIG.truncation;
+      console.log("  省略表示の上限設定:");
+      console.log();
+
+      const linesKeys: (keyof TruncationLimits)[] = [
+        "seismicTextLines", "nankaiTroughLines",
+        "volcanoAlertLines", "volcanoEruptionLines", "volcanoTextLines",
+        "volcanoAshfallQuickLines", "volcanoAshfallDetailLines", "volcanoAshfallRegularLines",
+        "volcanoPreventionLines",
+      ];
+      const countKeys: (keyof TruncationLimits)[] = [
+        "volcanoMunicipalities",
+        "ashfallAreasQuick", "ashfallAreasOther",
+        "ashfallPeriodsQuick", "ashfallPeriodsOther",
+        "plumeWindSampleRows", "tsunamiCompactForecastAreas",
+      ];
+
+      const printGroup = (label: string, keys: (keyof TruncationLimits)[]): void => {
+        console.log(chalk.gray(`  [${label}]`));
+        for (const key of keys) {
+          const val = current[key];
+          const def = defaults[key];
+          const changed = val !== def;
+          const valStr = changed ? chalk.yellow(String(val)) : String(val);
+          const desc = ReplHandler.TRUNCATION_LABELS[key];
+          console.log(`  ${key.padEnd(30)} ${valStr.padStart(changed ? 14 : 4)}  ${chalk.gray(`(default: ${def})`)}  ${chalk.gray(desc)}`);
+        }
+      };
+
+      printGroup("本文行数", linesKeys);
+      console.log();
+      printGroup("件数", countKeys);
+      console.log();
+      console.log(chalk.gray("  使い方: limit <key> <N> / limit <key> default / limit reset"));
+      console.log(chalk.gray("  ※ infotext full 時は本文行数制限は無効になります"));
+      return;
+    }
+
+    // limit reset
+    if (trimmed.toLowerCase() === "reset") {
+      const defaults = { ...DEFAULT_CONFIG.truncation };
+      setTruncation(defaults);
+      this.config.truncation = defaults;
+      const config = loadConfig();
+      delete config.truncation;
+      saveConfig(config);
+      console.log("  省略上限設定を全てデフォルトに戻しました。");
+      return;
+    }
+
+    // limit <key> <value|default>
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) {
+      console.log(chalk.yellow("  使い方: limit <key> <N> / limit <key> default / limit reset"));
+      return;
+    }
+
+    const [keyStr, valueStr] = parts;
+    if (!VALID_TRUNCATION_KEYS.includes(keyStr as keyof TruncationLimits)) {
+      console.log(chalk.yellow(`  不明なキー: ${keyStr}`));
+      console.log(chalk.gray("  有効なキー: limit で一覧表示"));
+      return;
+    }
+    const tKey = keyStr as keyof TruncationLimits;
+
+    if (valueStr.toLowerCase() === "default") {
+      // デフォルト値に戻す
+      const defaults = DEFAULT_CONFIG.truncation;
+      const newTrunc = { ...getTruncation(), [tKey]: defaults[tKey] };
+      setTruncation(newTrunc);
+      this.config.truncation = newTrunc;
+      const config = loadConfig();
+      if (config.truncation != null) {
+        delete config.truncation[tKey];
+        if (Object.keys(config.truncation).length === 0) {
+          delete config.truncation;
+        }
+      }
+      saveConfig(config);
+      console.log(`  ${tKey} をデフォルト (${defaults[tKey]}) に戻しました。`);
+      return;
+    }
+
+    const num = Number(valueStr);
+    if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 999) {
+      console.log(chalk.yellow("  1〜999 の整数、または default を指定してください。"));
+      return;
+    }
+
+    const newTrunc = { ...getTruncation(), [tKey]: num };
+    setTruncation(newTrunc);
+    this.config.truncation = newTrunc;
+    const config = loadConfig();
+    if (config.truncation == null) config.truncation = {};
+    config.truncation[tKey] = num;
+    saveConfig(config);
+    console.log(`  ${tKey} を ${num} に変更しました。`);
+  }
+
   private handleMute(args: string): void {
     const trimmed = args.trim();
 
@@ -1962,10 +2112,18 @@ export class ReplHandler {
     if (type === "") {
       console.log();
       console.log(chalk.cyan.bold("  利用可能な電文タイプ:"));
+      // エイリアス逆引きマップ (正式名 → 短縮形[])
+      const aliasReverse: Record<string, string[]> = {};
+      for (const [alias, canonical] of Object.entries(ReplHandler.TABLE_TYPE_ALIASES)) {
+        (aliasReverse[canonical] ??= []).push(alias);
+      }
       for (const [key, entry] of Object.entries(TEST_TABLES)) {
         const count = entry.variants.length;
+        const aliases = aliasReverse[key];
+        const aliasText = aliases != null ? ` (${aliases.join(", ")})` : "";
+        const nameCol = `${key}${aliasText}`;
         console.log(
-          chalk.white(`    ${key.padEnd(16)}`) +
+          chalk.white(`    ${nameCol.padEnd(24)}`) +
             chalk.gray(`${entry.label}`) +
             chalk.gray(` (${count}件)`),
         );

@@ -126,5 +126,6 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
     maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
     backup: fileConfig.backup ?? DEFAULT_CONFIG.backup,
+    truncation: { ...DEFAULT_CONFIG.truncation, ...fileConfig.truncation },
   };
 }

@@ -75,7 +75,7 @@ vi.mock("../../src/logger", () => ({
 
 import { WebSocketManager, WsManagerEvents } from "../../src/dmdata/ws-client";
 import { prepareAndStartSocket } from "../../src/dmdata/rest-client";
-import { AppConfig } from "../../src/types";
+import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
 
 const mockPrepare = vi.mocked(prepareAndStartSocket);
 
@@ -96,6 +96,7 @@ function createConfig(overrides?: Partial<AppConfig>): AppConfig {
     sound: true,
     eewLog: true,
     eewLogFields: { hypocenter: true, magnitude: true, forecastIntensity: true, forecastAreas: true, diff: true },
+    truncation: { ...DEFAULT_CONFIG.truncation },
     ...overrides,
   };
 }

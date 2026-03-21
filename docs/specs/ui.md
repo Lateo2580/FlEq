@@ -34,6 +34,8 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `getDisplayMode(): DisplayMode` | 現在の表示モードを返す |
 | `setMaxObservations(value: number \| null): void` | 観測点の最大表示件数を設定する (`null` で全件表示) |
 | `getMaxObservations(): number \| null` | 観測点最大表示件数の現在値を返す |
+| `setTruncation(value: TruncationLimits): void` | 省略表示の上限設定を更新する。REPL の `limit` コマンドから呼ばれる |
+| `getTruncation(): TruncationLimits` | 省略表示上限の現在値を返す |
 
 #### ユーティリティ
 
@@ -250,6 +252,7 @@ interface CommandEntry {
 | `theme` | settings | カラーテーマの表示・管理 (path / show / reset / reload / validate) |
 | `mute` | settings | 通知の一時ミュート (時間指定) |
 | `fold` | settings | 観測点の表示件数制限 (`fold <N>`: 上位N件, `fold off`: 全件表示) |
+| `limit` | settings | 省略表示上限の確認・変更 (`limit <key> <N>` / `limit <key> default` / `limit reset`) |
 | `test` | operation | テスト機能 (`test sound [level]`: サウンドテスト、`test table [type] [番号]`: 表示形式テスト) |
 | `clear` | operation | ターミナル画面クリア |
 | `retry` | operation | WebSocket 手動再接続 |
@@ -280,6 +283,7 @@ interface CommandEntry {
 | sound | snd |
 | theme | thm |
 | backup | bkup |
+| limit | lim |
 | clear | cls |
 
 ##### 通知カテゴリ短縮形

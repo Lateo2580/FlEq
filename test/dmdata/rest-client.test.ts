@@ -81,7 +81,7 @@ import {
   closeSocket,
   startSocket,
 } from "../../src/dmdata/rest-client";
-import { AppConfig } from "../../src/types";
+import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
 
 function respondWith(
   statusCode: number,
@@ -264,6 +264,9 @@ describe("REST Client", () => {
         sound: true,
         eewLog: true,
         eewLogFields: { hypocenter: true, magnitude: true, forecastIntensity: true, forecastAreas: true, diff: true },
+        maxObservations: null,
+        backup: false,
+        truncation: { ...DEFAULT_CONFIG.truncation },
       };
 
       const promise = startSocket(config);

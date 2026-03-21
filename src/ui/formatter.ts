@@ -1,6 +1,8 @@
 import chalk from "chalk";
 import {
   DisplayMode,
+  TruncationLimits,
+  DEFAULT_CONFIG,
   WsDataMessage,
 } from "../types";
 import * as theme from "./theme";
@@ -62,6 +64,21 @@ export function setMaxObservations(value: number | null): void {
 /** 観測点最大表示件数の現在値を返す */
 export function getMaxObservations(): number | null {
   return cachedMaxObservations;
+}
+
+// ── 省略上限キャッシュ ──
+
+/** 現在の省略上限設定 */
+let cachedTruncation: TruncationLimits = { ...DEFAULT_CONFIG.truncation };
+
+/** 省略上限設定を外部から設定する */
+export function setTruncation(value: TruncationLimits): void {
+  cachedTruncation = value;
+}
+
+/** 省略上限設定の現在値を返す */
+export function getTruncation(): TruncationLimits {
+  return cachedTruncation;
 }
 
 // ── レンダーバッファ ──

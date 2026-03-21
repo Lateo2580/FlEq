@@ -402,6 +402,60 @@ describe("Config", () => {
     });
   });
 
+  describe("truncation (ドットキー)", () => {
+    it("truncation.volcanoAlertLines を設定できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("truncation.volcanoAlertLines", "20");
+      const result = config.loadConfig();
+      expect(result.truncation?.volcanoAlertLines).toBe(20);
+    });
+
+    it("truncation.volcanoAlertLines に範囲外の値でエラーになる", async () => {
+      const config = await importConfig();
+      expect(() => config.setConfigValue("truncation.volcanoAlertLines", "0")).toThrow(config.ConfigError);
+      expect(() => config.setConfigValue("truncation.volcanoAlertLines", "1000")).toThrow(config.ConfigError);
+      expect(() => config.setConfigValue("truncation.volcanoAlertLines", "abc")).toThrow(config.ConfigError);
+    });
+
+    it("不明な truncation サブキーでエラーになる", async () => {
+      const config = await importConfig();
+      expect(() => config.setConfigValue("truncation.unknown", "5")).toThrow(config.ConfigError);
+    });
+
+    it("unsetConfigValue で truncation サブキーを削除できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("truncation.volcanoAlertLines", "20");
+      config.unsetConfigValue("truncation.volcanoAlertLines");
+      const result = config.loadConfig();
+      expect(result.truncation).toBeUndefined();
+    });
+
+    it("unsetConfigValue で truncation 全体を削除できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("truncation.volcanoAlertLines", "20");
+      config.setConfigValue("truncation.volcanoTextLines", "12");
+      config.unsetConfigValue("truncation");
+      const result = config.loadConfig();
+      expect(result.truncation).toBeUndefined();
+    });
+
+    it("validateConfig で truncation オブジェクトをバリデーションする", async () => {
+      const config = await importConfig();
+      const fs = await import("fs");
+      const configPath = config.getConfigPath();
+      // ディレクトリを作成してから直接JSONを書き込む
+      const dir = (await import("path")).dirname(configPath);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(configPath, JSON.stringify({
+        truncation: { volcanoAlertLines: 20, invalidKey: 99, volcanoTextLines: -1 },
+      }));
+      const result = config.loadConfig();
+      expect(result.truncation?.volcanoAlertLines).toBe(20);
+      expect(result.truncation).not.toHaveProperty("invalidKey");
+      expect(result.truncation).not.toHaveProperty("volcanoTextLines");
+    });
+  });
+
   describe("マイグレーション", () => {
     it("旧アプリ名 (dmdata-monitor) から移行できる", async () => {
       const oldDir = path.join(tmpDir, ".config", "dmdata-monitor");

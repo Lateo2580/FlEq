@@ -17,6 +17,7 @@ import {
   getFrameWidth,
   getDisplayMode,
   getInfoFullText,
+  getTruncation,
   frameTop,
   frameLine,
   frameDivider,
@@ -227,15 +228,18 @@ function renderVolcanoHeader(
     : ` ${info.title}  ${chalk.gray(SEVERITY_LABELS[level])}`;
   buf.pushTitle(frameLine(level, titleContent, width));
 
-  // 火山名・日時
+  // 火山名（日時はフッターに表示するため省略）
   const volcanoLabel = info.volcanoName || "(不明)";
-  const timeStr = formatTimestamp(info.reportDateTime);
-  buf.push(frameLine(level, ` ${volcanoLabel}  ${chalk.gray(timeStr)}`, width));
+  buf.push(frameLine(level, ` ${volcanoLabel}`, width));
 
   // ヘッドライン — pushHeadline で recap 対応（最初の行のみ）
   if (info.headline) {
     buf.push(frameDivider(level, width));
-    const wrapped = wrapFrameLines(level, ` ${info.headline}`, width);
+    // 複数行ヘッドラインの各行に先頭スペースを付与して整列
+    const indentedHeadline = info.headline.replace(/\r\n?/g, "\n").split("\n").map((l) => ` ${l}`).join("\n");
+    const wrapped = wrapFrameLines(level, indentedHeadline, width)
+      // ＜＞内は他セクションと重複するためグレーアウト（折り返し後に適用）
+      .map((line) => line.replace(/＜[^＞]*＞/g, (m) => chalk.gray(m)));
     for (let i = 0; i < wrapped.length; i++) {
       if (i === 0) {
         buf.pushHeadline(wrapped[i]);
@@ -277,8 +281,9 @@ function renderAlert(info: ParsedVolcanoAlertInfo, level: FrameLevel, width: num
   if (info.municipalities.length > 0) {
     buf.push(frameDivider(level, width));
     const muniNames = info.municipalities.map((m) => m.name);
-    const muniLine = muniNames.slice(0, 6).join(", ");
-    const suffix = muniNames.length > 6 ? ` 他${muniNames.length - 6}件` : "";
+    const maxMuni = getTruncation().volcanoMunicipalities;
+    const muniLine = muniNames.slice(0, maxMuni).join(", ");
+    const suffix = muniNames.length > maxMuni ? ` 他${muniNames.length - maxMuni}件` : "";
     pushWrapped(buf, level, ` ${chalk.gray("対象:")} ${muniLine}${suffix}`, width);
   }
 
@@ -294,12 +299,12 @@ function renderAlert(info: ParsedVolcanoAlertInfo, level: FrameLevel, width: num
     buf.push(frameDivider(level, width));
     const fullText = getInfoFullText();
     const bodyLines = info.bodyText.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    const maxLines = fullText ? bodyLines.length * 2 : 10;
+    const maxLines = fullText ? bodyLines.length * 2 : getTruncation().volcanoAlertLines;
     pushHighlightedBody(buf, level, info.bodyText, width, maxLines);
   }
   if (info.isMarine && info.preventionText) {
     buf.push(frameDivider(level, width));
-    pushHighlightedBody(buf, level, info.preventionText, width, 8);
+    pushHighlightedBody(buf, level, info.preventionText, width, getTruncation().volcanoPreventionLines);
   }
 }
 
@@ -334,7 +339,7 @@ function renderEruption(info: ParsedVolcanoEruptionInfo, level: FrameLevel, widt
   if (info.bodyText) {
     buf.push(frameDivider(level, width));
     const fullText = getInfoFullText();
-    const maxLines = fullText ? 999 : 8;
+    const maxLines = fullText ? 999 : getTruncation().volcanoEruptionLines;
     pushHighlightedBody(buf, level, info.bodyText, width, maxLines);
   }
 }
@@ -344,7 +349,7 @@ function renderAshfall(info: ParsedVolcanoAshfallInfo, level: FrameLevel, width:
 
   // カード行 (recap 用 1行サマリー) — 全降灰Kindを表示
   {
-    const totalAreas = info.ashForecasts.reduce((sum, p) => sum + p.areas.length, 0);
+    const totalAreas = new Set(info.ashForecasts.flatMap((p) => p.areas).map((a) => a.name)).size;
     // ashCode ごとに一意化し、重い順に全Kindを並べる
     const allAreas = info.ashForecasts.flatMap((p) => p.areas);
     const ashKinds = Array.from(
@@ -375,17 +380,19 @@ function renderAshfall(info: ParsedVolcanoAshfallInfo, level: FrameLevel, width:
   if (info.bodyText) {
     buf.push(frameDivider(level, width));
     const fullText = getInfoFullText();
+    const t = getTruncation();
     const maxLines = fullText ? 999
-      : info.type === "VFVO55" ? 16
-      : info.type === "VFVO54" ? 8
-      : 10;
+      : info.type === "VFVO55" ? t.volcanoAshfallDetailLines
+      : info.type === "VFVO54" ? t.volcanoAshfallQuickLines
+      : t.volcanoAshfallRegularLines;
     pushHighlightedBody(buf, level, info.bodyText, width, maxLines);
   }
 
   // 降灰予報データ
   if (info.ashForecasts.length > 0) {
     buf.push(frameDivider(level, width));
-    const maxPeriods = info.type === "VFVO54" ? 1 : 3;
+    const tr = getTruncation();
+    const maxPeriods = info.type === "VFVO54" ? tr.ashfallPeriodsQuick : tr.ashfallPeriodsOther;
     const periods = info.ashForecasts.slice(0, maxPeriods);
 
     // 幅80以上: renderFrameTable で表組み
@@ -399,7 +406,7 @@ function renderAshfall(info: ParsedVolcanoAshfallInfo, level: FrameLevel, width:
           const codeB = parseInt(b.ashCode, 10) || 0;
           return codeB - codeA;
         });
-        const maxAreas = info.type === "VFVO54" ? 5 : 3;
+        const maxAreas = info.type === "VFVO54" ? tr.ashfallAreasQuick : tr.ashfallAreasOther;
         const displayed = sortedAreas.slice(0, maxAreas);
         for (let i = 0; i < displayed.length; i++) {
           const area = displayed[i];
@@ -428,12 +435,14 @@ function renderAshfall(info: ParsedVolcanoAshfallInfo, level: FrameLevel, width:
           const codeB = parseInt(b.ashCode, 10) || 0;
           return codeB - codeA;
         });
-        const maxAreas = info.type === "VFVO54" ? 5 : 3;
+        const maxAreas = info.type === "VFVO54" ? tr.ashfallAreasQuick : tr.ashfallAreasOther;
         const displayed = sortedAreas.slice(0, maxAreas);
         for (const area of displayed) {
           const ashRole = ashfallRole(area.ashCode);
           const ashFn = getRoleChalk(ashRole);
-          buf.push(frameLine(level, `   ${ashFn(area.ashName)} ${area.name}`, width));
+          for (const wl of wrapFrameLines(level, `   ${ashFn(area.ashName)} ${area.name}`, width)) {
+            buf.push(wl);
+          }
         }
         if (sortedAreas.length > maxAreas) {
           buf.push(frameLine(level, `   ${chalk.gray(`他${sortedAreas.length - maxAreas}件`)}`, width));
@@ -464,11 +473,11 @@ function renderText(info: ParsedVolcanoTextInfo, level: FrameLevel, width: numbe
     buf.push(frameLine(level, ` ${bannerFn(" 臨時 ")}`, width));
   }
 
-  // 本文 — getInfoFullText() で全文表示、デフォルトは8行まで
+  // 本文 — getInfoFullText() で全文表示
   if (info.bodyText) {
     buf.push(frameDivider(level, width));
     const fullText = getInfoFullText();
-    const maxLines = fullText ? 999 : 8;
+    const maxLines = fullText ? 999 : getTruncation().volcanoTextLines;
     pushHighlightedBody(buf, level, info.bodyText, width, maxLines);
   }
 
@@ -476,7 +485,9 @@ function renderText(info: ParsedVolcanoTextInfo, level: FrameLevel, width: numbe
   if (info.nextAdvisory) {
     buf.push(frameDivider(level, width));
     const naFn = getRoleChalk("nextAdvisory");
-    buf.push(frameLine(level, ` ${naFn(info.nextAdvisory)}`, width));
+    for (const wl of wrapFrameLines(level, ` ${naFn(info.nextAdvisory)}`, width)) {
+      buf.push(wl);
+    }
   }
 }
 
@@ -515,9 +526,10 @@ function renderPlume(info: ParsedVolcanoPlumeInfo, level: FrameLevel, width: num
   if (info.windProfile.length > 0) {
     buf.push(frameDivider(level, width));
     const headers = ["高度", "風向(°)", "風速"];
-    // 代表高度を間引き (最大5行)
-    const step = Math.max(1, Math.floor(info.windProfile.length / 5));
-    const sampled = info.windProfile.filter((_, i) => i % step === 0).slice(0, 5);
+    // 代表高度を間引き
+    const maxWind = getTruncation().plumeWindSampleRows;
+    const step = Math.max(1, Math.floor(info.windProfile.length / maxWind));
+    const sampled = info.windProfile.filter((_, i) => i % step === 0).slice(0, maxWind);
     const rows = sampled.map((wp) => [
       wp.altitude,
       wp.degree != null ? `${wp.degree}°` : "—",
@@ -533,7 +545,7 @@ function renderCancel(info: ParsedVolcanoInfo, width: number, buf: RenderBuffer)
   const level: FrameLevel = "cancel";
   buf.push(frameTop(level, width));
   buf.pushTitle(frameLine(level, ` ${SEVERITY_LABELS[level]} ${info.title}`, width));
-  buf.push(frameLine(level, ` ${info.volcanoName}  ${chalk.gray(formatTimestamp(info.reportDateTime))}`, width));
+  buf.push(frameLine(level, ` ${info.volcanoName}`, width));
   buf.push(frameDivider(level, width));
   const cancelFn = getRoleChalk("cancelText");
   buf.push(frameLine(level, ` ${cancelFn("この情報は取り消されました")}`, width));
@@ -560,7 +572,7 @@ export function displayVolcanoInfo(
         parts.push(info.phenomenonName);
         break;
       case "ashfall":
-        parts.push(`${info.ashForecasts.flatMap((p) => p.areas).length}地域`);
+        parts.push(`${new Set(info.ashForecasts.flatMap((p) => p.areas).map((a) => a.name)).size}地域`);
         break;
       case "text":
         if (info.headline) parts.push(info.headline.slice(0, 30));

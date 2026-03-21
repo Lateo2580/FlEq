@@ -85,6 +85,7 @@
 | `sound` | `boolean` | 通知音の有効/無効 |
 | `eewLog` | `boolean` | EEW ログ記録の有効/無効 |
 | `eewLogFields` | `Record<EewLogField, boolean>` | EEW ログ記録項目 |
+| `truncation` | `TruncationLimits` | 省略表示の上限設定 (16キー: `*Lines` 系は `infoFullText=true` 時に無視) |
 
 #### インターフェース — dmdata.jp API レスポンス
 
@@ -145,6 +146,7 @@
 - `tableWidth`: `null` (自動)
 - `notify`: 全カテゴリ `true`
 - `eewLogFields`: 全項目 `true`
+- `truncation`: 全キーにデフォルト値を設定 (各キーのデフォルトは型定義を参照)
 
 ### 内部ロジック
 
@@ -233,6 +235,7 @@ class ConfigError extends Error
 - `waitTipIntervalMin`: 0 以上 1440 以下の整数
 - `notify`: オブジェクト内の各キーが有効な `NotifyCategory` かつ値が `boolean`
 - `eewLogFields`: オブジェクト内の各キーが有効な `EewLogField` かつ値が `boolean`
+- `truncation`: オブジェクト内の各キーが有効な `TruncationLimits` のキーかつ値が正の整数 (`applyTruncation`)
 - 真偽値フィールド (`keepExistingConnections`, `infoFullText`, `sound`, `eewLog`): `typeof value === "boolean"`
 
 無効な値は無視されて結果の `ConfigFile` に含まれない (エラーにはならない)。一方、`setConfigValue()` では無効な値で `ConfigError` をスローする。
