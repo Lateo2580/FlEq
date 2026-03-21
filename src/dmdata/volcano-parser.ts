@@ -18,6 +18,44 @@ import * as log from "../logger";
 
 // ── 共通ヘルパー ──
 
+/**
+ * 行頭ラベル部分（コロンの前）の全角スペースだけを除去する。
+ * 市町村区切り等の全角スペースは保持する。
+ *
+ * "火　山：浅間山"                → "火山：浅間山"
+ * "鹿児島市　日置市　いちき串木野市" → そのまま
+ */
+const LABEL_PREFIX_RE = /^(\s*(?:[0-9０-９]+[.．、]\s*)?)([^:：\n]+)([:：])(.*)$/u;
+
+function normalizeVolcanoBodyLine(line: string): string {
+  const trimmedRight = line.replace(/[ \t\u3000]+$/gu, "");
+  if (!trimmedRight) return "";
+
+  const match = trimmedRight.match(LABEL_PREFIX_RE);
+  if (!match) return trimmedRight;
+
+  const [, prefix, rawLabel, colon, rest] = match;
+
+  // ラベル部に全角/半角スペースがなければそのまま
+  if (!/[ \u3000]/u.test(rawLabel)) return trimmedRight;
+
+  // 説明文っぽい内容（句読点・括弧を含む）はラベル扱いしない
+  if (/[、。,，．()（）]/u.test(rawLabel)) return trimmedRight;
+
+  const label = rawLabel.replace(/[ \u3000]+/gu, "");
+  return `${prefix}${label}${colon}${rest}`;
+}
+
+export function normalizeVolcanoBodyText(text: string): string {
+  return text
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map(normalizeVolcanoBodyLine)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Report ノードを取得 */
 function findReport(parsed: Record<string, unknown>): unknown {
   return (
@@ -53,14 +91,15 @@ function extractVolcanoBase(
   report: unknown,
   headType: VolcanoHeadType,
   msg: WsDataMessage,
-): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "bodyText" | "preventionText" | "isMarine"> {
+): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "marineAreas" | "marineWarningKind" | "marineAlertLevelCode" | "bodyText" | "preventionText" | "isMarine"> {
   const head = dig(report, "Head");
   const body = dig(report, "Body");
 
   const infoType = str(dig(head, "InfoType"));
   const title = str(dig(head, "Title"));
   const reportDateTime = str(dig(head, "ReportDateTime"));
-  const headline = str(dig(head, "Headline", "Text")) || null;
+  const headlineRaw = str(dig(head, "Headline", "Text"));
+  const headline = headlineRaw ? normalizeVolcanoBodyText(headlineRaw) : null;
   const publishingOffice = msg.xmlReport?.control?.publishingOffice || "";
 
   // 火山名・コード・座標を Body > VolcanoInfo から取得
@@ -273,6 +312,11 @@ function parseVolcanoAlert(
 
   // 対象市町村
   const municipalities: VolcanoMunicipality[] = [];
+  // 対象海上予報区
+  const marineAreas: VolcanoMunicipality[] = [];
+  let marineWarningKind: string | null = null;
+  let marineAlertLevelCode: string | null = null;
+
   for (const vi of infos) {
     const viType = str(dig(vi, "@_type"));
     if (viType.includes("対象市町村等")) {
@@ -294,11 +338,33 @@ function parseVolcanoAlert(
         }
       }
     }
+    if (viType.includes("対象海上予報区")) {
+      const items = dig(vi, "Item");
+      const itemList = Array.isArray(items) ? items : items ? [items] : [];
+      for (const item of itemList) {
+        const kind = dig(item, "Kind");
+        const kindObj = Array.isArray(kind) ? kind[0] : kind;
+        const kindName = str(dig(kindObj, "Name"));
+        const kindCode = str(dig(kindObj, "Code"));
+        if (kindName) marineWarningKind = marineWarningKind || kindName;
+        if (kindCode) marineAlertLevelCode = marineAlertLevelCode || kindCode;
+        const areas = dig(item, "Areas");
+        const areaList = dig(areas, "Area");
+        const areaArr = Array.isArray(areaList) ? areaList : areaList ? [areaList] : [];
+        for (const area of areaArr) {
+          marineAreas.push({
+            name: str(dig(area, "Name")),
+            code: str(dig(area, "Code")),
+            kind: kindName,
+          });
+        }
+      }
+    }
   }
 
   // VolcanoInfoContent
   const content = dig(body, "VolcanoInfoContent");
-  const bodyText = str(dig(content, "VolcanoActivity"));
+  const bodyText = normalizeVolcanoBodyText(str(dig(content, "VolcanoActivity")));
   const preventionText = str(dig(content, "VolcanoPrevention"));
 
   return {
@@ -311,6 +377,9 @@ function parseVolcanoAlert(
     previousLevelCode,
     warningKind,
     municipalities,
+    marineAreas,
+    marineWarningKind,
+    marineAlertLevelCode,
     bodyText,
     preventionText,
     isMarine,
@@ -351,7 +420,7 @@ function parseVolcanoEruption(
 
   // VolcanoInfoContent
   const content = dig(body, "VolcanoInfoContent");
-  const bodyText = str(dig(content, "VolcanoActivity"));
+  const bodyText = normalizeVolcanoBodyText(str(dig(content, "VolcanoActivity")));
 
   return {
     ...base,
@@ -429,7 +498,7 @@ function parseVolcanoAshfall(
 
   // VolcanoInfoContent
   const content = dig(body, "VolcanoInfoContent");
-  const bodyText = str(dig(content, "VolcanoActivity") || dig(content, "VolcanoHeadline"));
+  const bodyText = normalizeVolcanoBodyText(str(dig(content, "VolcanoActivity") || dig(content, "VolcanoHeadline")));
 
   return {
     ...base,
@@ -458,10 +527,10 @@ function parseVolcanoText(
   // VFVO51 は Body > VolcanoInfoContent > VolcanoActivity にテキスト
   let bodyText = "";
   if (headType === "VZVO40") {
-    bodyText = str(dig(body, "Text"));
+    bodyText = normalizeVolcanoBodyText(str(dig(body, "Text")));
   } else {
     const content = dig(body, "VolcanoInfoContent");
-    bodyText = str(dig(content, "VolcanoActivity"));
+    bodyText = normalizeVolcanoBodyText(str(dig(content, "VolcanoActivity")));
   }
 
   // レベル情報 (VFVO51 のみ)
@@ -572,7 +641,7 @@ function parseVolcanoPlume(
     }
   }
 
-  const bodyText = str(dig(body, "Text"));
+  const bodyText = normalizeVolcanoBodyText(str(dig(body, "Text")));
 
   return {
     ...base,

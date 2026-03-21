@@ -1,6 +1,6 @@
 # FlEq
 
-Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報をリアルタイムにCLIで受信・表示するツールです。
+Project DM-D.S.S (dmdata.jp) のAPIを利用して、地震・津波・緊急地震速報・火山情報をリアルタイムにCLIで受信・表示するツールです。
 
 ## クイックスタート
 
@@ -40,7 +40,7 @@ $env:DMDATA_API_KEY = "your_api_key_here"
 fleq
 ```
 
-初回は `telegram.earthquake,eew.forecast,eew.warning` を受信対象として起動します。
+初回は `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano` を受信対象として起動します。
 契約内容によっては一部の区分を受信できない場合があります。
 
 ## 対応情報
@@ -50,6 +50,7 @@ fleq
 | 地震・津波関連 | `telegram.earthquake` | 震度速報、震源情報、震源・震度情報、津波警報等 |
 | 緊急地震速報（予報） | `eew.forecast` | EEW予報（要契約） |
 | 緊急地震速報（警報） | `eew.warning` | EEW警報（要契約） |
+| 火山関連 | `telegram.volcano` | 噴火警報、噴火速報、降灰予報、火山の状況に関する解説情報等 |
 
 ## 必要条件
 
@@ -159,6 +160,7 @@ fleq config set apiKey your_api_key_here
 - `telegram.earthquake`
 - `eew.forecast`
 - `eew.warning`
+- `telegram.volcano`
 
 ```bash
 fleq
@@ -222,8 +224,8 @@ npm run test:watch
 ```
 
 - テストフレームワーク: Vitest
-- テストファイル: 17件
-- フィクスチャ: `test/fixtures/` に実電文XML 46件
+- テストファイル: 22件
+- フィクスチャ: `test/fixtures/` に実電文XML 81件
 - モックヘルパー: `test/helpers/mock-message.ts`
 
 ## CLIオプション
@@ -231,7 +233,7 @@ npm run test:watch
 | オプション | 説明 | デフォルト |
 |-----------|------|-----------|
 | `-k, --api-key <key>` | dmdata.jp APIキー | 環境変数 `DMDATA_API_KEY` |
-| `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning` |
+| `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano` |
 | `--test <mode>` | テスト電文: `no` / `including` / `only` | `no` |
 | `--keep-existing` | 既存接続を維持します（互換オプション。現在はデフォルトです） | `true` |
 | `--close-others` | 同一APIキーの既存 open socket を閉じてから接続します | `false` |
@@ -273,7 +275,7 @@ fleq config keys
 | キー | 説明 |
 |------|------|
 | `apiKey` | dmdata.jp APIキー |
-| `classifications` | 受信区分 (カンマ区切り: `telegram.earthquake,eew.forecast,eew.warning`) |
+| `classifications` | 受信区分 (カンマ区切り: `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano`) |
 | `testMode` | テスト電文モード: `"no"` / `"including"` / `"only"` |
 | `appName` | アプリケーション名 |
 | `maxReconnectDelaySec` | 再接続の最大待機秒数 |
@@ -330,7 +332,7 @@ FlEq は起動時に前回セッションの残留ソケットをクリーンア
 | `help` / `?` | コマンド一覧を表示 |
 | `history [N]` | 地震履歴を取得・表示（デフォルト10件、最新が一番下） |
 | `colors` | カラーパレット・震度色の一覧を表示 |
-| `detail [tsunami]` | 直近の津波情報を再表示 |
+| `detail [tsunami\|volcano]` | 直近の津波情報または火山警報状態を再表示 |
 
 ### ステータス
 | コマンド | 説明 |
@@ -399,19 +401,23 @@ src/
 │   │   └── cli-run.ts          # CLIアクションハンドラ (起動バナー・契約チェック)
 │   ├── startup/
 │   │   ├── config-resolver.ts  # 設定解決 (CLI引数→環境変数→Config→デフォルト)
+│   │   ├── tsunami-initializer.ts # 起動時の津波警報状態復元 (REST API)
+│   │   ├── volcano-initializer.ts # 起動時の火山警報状態復元 (REST API)
 │   │   └── update-checker.ts   # npm 最新バージョンチェック
 │   ├── monitor/
 │   │   ├── monitor.ts          # メインオーケストレーション (接続・受信委譲)
 │   │   ├── shutdown.ts         # グレースフルシャットダウン処理
 │   │   └── repl-coordinator.ts # REPL表示・接続状態の協調制御
 │   ├── messages/
-│   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全17種類)
-│   │   └── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
+│   │   ├── message-router.ts   # 受信メッセージの分類・振り分け (全27種類)
+│   │   ├── tsunami-state.ts    # 津波警報状態管理 (プロンプト表示・detail コマンド)
+│   │   └── volcano-state.ts    # 火山警報状態管理 (複数火山同時追跡・プロンプト・detail)
 │   ├── eew/
 │   │   ├── eew-tracker.ts      # EEW イベント追跡 (重複検出・状態管理・最終報処理)
 │   │   └── eew-logger.ts       # EEW ログファイル記録 (イベント別ファイル出力)
 │   └── notification/
 │       ├── notifier.ts         # デスクトップ通知 (カテゴリ別ON/OFF)
+│       ├── volcano-presentation.ts # 火山電文の表示/通知レベル判定
 │       ├── node-notifier-loader.ts # node-notifier 遅延ロード (optional dependency)
 │       └── sound-player.ts     # クロスプラットフォーム通知音再生
 ├── dmdata/
@@ -420,9 +426,13 @@ src/
 │   ├── connection-manager.ts   # 接続管理インターフェース (ConnectionManager)
 │   ├── multi-connection-manager.ts # 複線接続管理 (primary + backup)
 │   ├── endpoint-selector.ts    # エンドポイント選択・リージョン間フェイルオーバー
-│   └── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
+│   ├── telegram-parser.ts      # XML電文パーサ (gzip+base64デコード)
+│   └── volcano-parser.ts       # 火山電文パーサ (10種類の火山電文に対応)
 └── ui/
-    ├── formatter.ts            # ターミナル表示フォーマッタ
+    ├── formatter.ts            # 共通ターミナル表示ユーティリティ (フレーム描画・テキスト処理)
+    ├── eew-formatter.ts        # EEW 表示フォーマッタ
+    ├── earthquake-formatter.ts # 地震・津波・テキスト・南海トラフ・長周期 表示フォーマッタ
+    ├── volcano-formatter.ts    # 火山 表示フォーマッタ
     ├── theme.ts                # テーマシステム (カラーパレット・ロール定義)
     ├── repl.ts                 # REPL インタラクション
     ├── test-samples.ts         # 表示テスト用サンプルデータ
@@ -451,6 +461,16 @@ src/
 | `VYSE51` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
 | `VYSE52` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
 | `VYSE60` | `telegram.earthquake` | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
+| `VZVO40` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO50` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO51` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO52` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFSVii` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO53` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO54` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO55` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO56` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| `VFVO60` | `telegram.volcano` | `parseVolcanoTelegram` | `displayVolcanoInfo` |
 
 ## 主な機能
 
@@ -475,6 +495,9 @@ src/
 - 南海トラフ地震関連情報（VYSE50-52/VYSE60）の表示
 - 長周期地震動に関する観測情報（VXSE62）の表示
 - 地震活動に関する情報（VZSE40）の表示
+- 火山情報の表示（噴火警報・噴火速報・降灰予報・火山の状況に関する解説情報・噴煙流向報・火山海上警報等、10種類の火山電文に対応）
+- 火山警報状態管理（複数火山の同時追跡、プロンプト表示、`detail volcano` コマンドで再表示）
+- 起動時の津波・火山警報状態復元（REST APIで最新状態を取得）
 - EEWで主要動到達と推測される地域のリスト表示
 - デスクトップ通知機能（カテゴリ別ON/OFF、REPLで管理。下記「デスクトップ通知」参照）
 - テーマシステム（CUD配色準拠のカラーパレット + セマンティックロール、`theme.json` でカスタマイズ可能）

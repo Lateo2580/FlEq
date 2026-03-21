@@ -10,6 +10,10 @@ import {
   setMaxObservations,
   highlightAndWrap,
   collectHighlightSpans,
+  createRenderBuffer,
+  flushWithRecap,
+  frameLine,
+  frameBottom,
 } from "../../src/ui/formatter";
 import { displayEewInfo } from "../../src/ui/eew-formatter";
 import {
@@ -1455,6 +1459,24 @@ describe("バッファリング + recap", () => {
 
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).toContain("▼ サマリー");
+  });
+
+  it("pushTitle/pushCard/pushHeadline が空のバッファでは recap セクションが出ない", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+
+    const buf = createRenderBuffer();
+    // pushTitle/pushCard/pushHeadline を使わず、通常行のみ積む
+    for (let i = 0; i < 20; i++) {
+      buf.push(frameLine("normal", `行${i}`, 60));
+    }
+    buf.push(frameBottom("normal", 60));
+    buf.pushEmpty();
+
+    flushWithRecap(buf, "normal", 60);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
+    expect(output).not.toContain("▼ サマリー");
   });
 });
 

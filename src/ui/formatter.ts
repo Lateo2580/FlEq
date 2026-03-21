@@ -170,18 +170,21 @@ export function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: numb
     }
   }
 
-  // recap セクション
-  console.log(frameDivider(level, width));
-  console.log(frameLine(level, chalk.gray("▼ サマリー"), width));
-  if (buf.titleLine != null) {
-    console.log(buf.titleLine);
-  }
-  if (buf.cardLine != null) {
-    console.log(buf.cardLine);
-  }
-  // headline は1行目のみ
-  if (buf.headlineLines.length > 0) {
-    console.log(buf.headlineLines[0]);
+  // recap セクション — 要約データがある場合のみ表示
+  const hasRecapData = buf.titleLine != null || buf.cardLine != null || buf.headlineLines.length > 0;
+  if (hasRecapData) {
+    console.log(frameDivider(level, width));
+    console.log(frameLine(level, chalk.gray("▼ サマリー"), width));
+    if (buf.titleLine != null) {
+      console.log(buf.titleLine);
+    }
+    if (buf.cardLine != null) {
+      console.log(buf.cardLine);
+    }
+    // headline は1行目のみ
+    if (buf.headlineLines.length > 0) {
+      console.log(buf.headlineLines[0]);
+    }
   }
 
   // tail 出力 (frameBottom + 空行)
@@ -258,10 +261,14 @@ export function frameTop(level: FrameLevel, width: number = FRAME_WIDTH): string
 
 export function frameLine(level: FrameLevel, content: string, width: number = FRAME_WIDTH): string {
   const f = getFrame(level);
+  // 生改行が混入すると罫線が崩れるため、空白に置換して防御
+  const safeContent = (content.includes("\n") || content.includes("\r"))
+    ? content.replace(/\r?\n/g, " ")
+    : content;
   // ANSI エスケープを除去して可視幅を計算
-  const visibleLen = visualWidth(content);
+  const visibleLen = visualWidth(safeContent);
   const pad = Math.max(0, width - 4 - visibleLen);
-  return f.color(f.v) + " " + content + " ".repeat(pad) + " " + f.color(f.v);
+  return f.color(f.v) + " " + safeContent + " ".repeat(pad) + " " + f.color(f.v);
 }
 
 export function frameDivider(level: FrameLevel, width: number = FRAME_WIDTH): string {
@@ -378,11 +385,36 @@ export function renderFrameTable(
 
 /**
  * コンテンツがフレーム幅を超える場合に折り返して複数の frameLine を生成する。
+ * 改行文字で段落分割した上で、各段落を区切り文字ベースで折り返す。
  * カンマ+スペース / 日本語句読点(、。) / パイプ区切りを基準に折り返す。
  * 分割できない場合は文字単位でハード折り返しする。
  * 2行目以降は indent 分のスペースでインデントする。
  */
 export function wrapFrameLines(
+  level: FrameLevel,
+  content: string,
+  width: number,
+  indent: number = 0
+): string[] {
+  // 改行で段落分割し、各段落を個別に折り返す
+  const paragraphs = content.replace(/\r\n?/g, "\n").split("\n");
+  if (paragraphs.length > 1) {
+    const out: string[] = [];
+    for (const p of paragraphs) {
+      if (p === "" || p.trim() === "") {
+        out.push(frameLine(level, "", width));
+        continue;
+      }
+      out.push(...wrapSingleLine(level, p, width, indent));
+    }
+    return out;
+  }
+
+  return wrapSingleLine(level, content, width, indent);
+}
+
+/** 単一行（改行なし）の折り返し処理 */
+function wrapSingleLine(
   level: FrameLevel,
   content: string,
   width: number,

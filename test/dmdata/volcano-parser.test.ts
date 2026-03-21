@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVolcanoTelegram } from "../../src/dmdata/volcano-parser";
+import { parseVolcanoTelegram, normalizeVolcanoBodyText } from "../../src/dmdata/volcano-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VFVO50_ALERT_LV3,
@@ -288,6 +288,39 @@ describe("parseVolcanoTelegram", () => {
       const msg = createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3);
       const result = parseVolcanoTelegram(msg);
       expect(result!.coordinate).toBeTruthy();
+    });
+  });
+
+  // ── normalizeVolcanoBodyText ──
+
+  describe("normalizeVolcanoBodyText", () => {
+    it("行頭ラベル内の全角スペースを除去する", () => {
+      expect(normalizeVolcanoBodyText("火　山：浅間山")).toBe("火山：浅間山");
+      expect(normalizeVolcanoBodyText("日　時：2024年")).toBe("日時：2024年");
+    });
+
+    it("連続する全角スペースはラベル内のみ除去する", () => {
+      expect(normalizeVolcanoBodyText("火\u3000\u3000山：浅間山")).toBe("火山：浅間山");
+      expect(normalizeVolcanoBodyText("日\u3000\u3000時：2024年")).toBe("日時：2024年");
+    });
+
+    it("コロンのない行の全角スペースは保持する", () => {
+      // 市町村区切りの全角スペースは保持
+      expect(normalizeVolcanoBodyText("鹿児島市\u3000日置市\u3000いちき串木野市")).toBe("鹿児島市\u3000日置市\u3000いちき串木野市");
+      expect(normalizeVolcanoBodyText("あ\u3000\u3000い")).toBe("あ\u3000\u3000い");
+    });
+
+    it("空文字列を安全に処理する", () => {
+      expect(normalizeVolcanoBodyText("")).toBe("");
+    });
+
+    it("VFVO52 の bodyText に「火　山」が含まれない", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VFVO52_ERUPTION_1);
+      const result = parseVolcanoTelegram(msg);
+      expect(result).not.toBeNull();
+      if (result!.kind === "eruption" && result!.bodyText) {
+        expect(result!.bodyText).not.toContain("火\u3000山");
+      }
     });
   });
 });

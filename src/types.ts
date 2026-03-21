@@ -687,6 +687,9 @@ export interface ParsedVolcanoAlertInfo extends ParsedVolcanoBase {
   previousLevelCode: string | null;
   warningKind: string;
   municipalities: VolcanoMunicipality[];
+  marineAreas: VolcanoMunicipality[];
+  marineWarningKind: string | null;
+  marineAlertLevelCode: string | null;
   bodyText: string;
   preventionText: string;
   isMarine: boolean;
