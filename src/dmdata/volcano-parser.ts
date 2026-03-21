@@ -96,7 +96,9 @@ function extractVolcanoBase(
   const body = dig(report, "Body");
 
   const infoType = str(dig(head, "InfoType"));
-  const title = str(dig(head, "Title"));
+  const titleRaw = str(dig(head, "Title"));
+  // Head > Title は「火山名　御嶽山　噴火速報」のように「火山名＋山名」がプレフィックスされる場合がある
+  const title = titleRaw.replace(/^火山名\s+\S+\s+/, "");
   const reportDateTime = str(dig(head, "ReportDateTime"));
   const headlineRaw = str(dig(head, "Headline", "Text"));
   const headline = headlineRaw ? normalizeVolcanoBodyText(headlineRaw) : null;
