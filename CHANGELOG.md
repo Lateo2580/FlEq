@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.49.0](https://github.com/Lateo2580/FlEq/compare/v1.48.2...v1.49.0) (2026-03-21)
+
+
+### 機能追加
+
+* VFVO53（降灰予報・定時）まとめ表示機能を追加 ([53e8700](https://github.com/Lateo2580/FlEq/commit/53e87006db20505d447b84cb91018551aa16e78f))
+* 電文タイプ別の省略表示上限設定 (truncation) を追加 ([545def8](https://github.com/Lateo2580/FlEq/commit/545def854161ec23e900b636dafd5068ba05ab5c))
+
+
+### バグ修正
+
+* EEW表示の仮定震源グレーアウトと長行折り返し対応 ([bdde3d6](https://github.com/Lateo2580/FlEq/commit/bdde3d60efecfb8c6e76f389cf347ad1be5f04b5))
+* 火山フォーマッタの表示品質を大幅改善 ([f59c7e8](https://github.com/Lateo2580/FlEq/commit/f59c7e8255291b7eeaa8bebd525200346f4015ab))
+* 火山電文タイトルから「火山名＋山名」プレフィックスを除去 ([04e76d0](https://github.com/Lateo2580/FlEq/commit/04e76d0465c8dac9cdf5ce28b9f179329c06f3e6))
+
+
+### ドキュメント
+
+* 電文フローのドキュメントを追加 ([a108e12](https://github.com/Lateo2580/FlEq/commit/a108e12725856e791e222bdf9ff9da43a31b4350))
+* 表示リファレンスに火山情報セクションを追加 ([4f772c9](https://github.com/Lateo2580/FlEq/commit/4f772c9fc33bb34b4dfb169025990973a2aee476))
+
 ## [1.48.2](https://github.com/Lateo2580/FlEq/compare/v1.48.1...v1.48.2) (2026-03-20)
 
 
