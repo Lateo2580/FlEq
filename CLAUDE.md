@@ -114,6 +114,6 @@ npm run start:lowmem # メモリ最適化モードで実行
 
 ## リリースフロー
 
-1. Conventional Commits 形式でコミット (`feat:`, `fix:`, `refactor:` 等)
-2. `npm run release` (コミットタイプに応じて自動で patch/minor)。破壊的変更は `npm run release:major`
-3. `git push --follow-tags`
+- **方針**: 機能まとめリリース。日々のコミットは `git push` で積み、意味のあるまとまり（新機能追加・複数のUI改善など）が溜まったタイミングでリリースする。コミットごとにリリースしない
+- **コミット**: Conventional Commits 形式 (`feat:`, `fix:`, `refactor:` 等)
+- **リリース手順**: `npm run release` → `git push --follow-tags`。破壊的変更は `npm run release:major`
