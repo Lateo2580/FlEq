@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.49.2](https://github.com/Lateo2580/FlEq/compare/v1.49.1...v1.49.2) (2026-03-22)
+
+
+### バグ修正
+
+* formatTimestamp テストをタイムゾーン非依存に修正 ([8729402](https://github.com/Lateo2580/FlEq/commit/8729402f99c803054ce77ca1ffee5ba77b77468d))
+
 ## [1.49.1](https://github.com/Lateo2580/FlEq/compare/v1.49.0...v1.49.1) (2026-03-22)
 
 ## [1.49.0](https://github.com/Lateo2580/FlEq/compare/v1.48.2...v1.49.0) (2026-03-21)
