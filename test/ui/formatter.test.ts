@@ -919,8 +919,11 @@ describe("フレーム描画", () => {
 
 describe("formatTimestamp", () => {
   it("絶対時刻を YYYY-MM-DD HH:MM:SS 形式で返す", () => {
+    // ローカルタイムゾーンに依存するため、期待値も同じ方法で算出
+    const d = new Date("2024-06-13T12:34:56+09:00");
+    const expected = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
     const result = formatTimestamp("2024-06-13T12:34:56+09:00");
-    expect(result).toBe("2024-06-13 12:34:56");
+    expect(result).toBe(expected);
   });
 
   it("不正な文字列はそのまま返す", () => {
