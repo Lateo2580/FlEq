@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.50.0](https://github.com/Lateo2580/FlEq/compare/v1.49.8...v1.50.0) (2026-03-22)
+
+
+### 機能追加
+
+* add Material Symbols notification icons for all categories ([034ec40](https://github.com/Lateo2580/FlEq/commit/034ec40bb11b5937ec3b12b219b99b6c74515b4b))
+* add resolveIconPath with 3-step fallback ([015f175](https://github.com/Lateo2580/FlEq/commit/015f1755fa4a95a45667ffa253c2d456d830ed57))
+* pass category to send() and update all 15 call sites ([9aba49e](https://github.com/Lateo2580/FlEq/commit/9aba49e078f979fc2d2064039932da1749e1da00))
+* per-category notification icons with 3-step fallback ([5695d1a](https://github.com/Lateo2580/FlEq/commit/5695d1ab418fdaf2ca42e59c05ab250ba2622a7e))
+
+
+### バグ修正
+
+* align waiting tip timing with prompt elapsed clock ([7b7566c](https://github.com/Lateo2580/FlEq/commit/7b7566c9bd2e89d360be6b145e9329c7bda4c2d5))
+
+
+### ドキュメント
+
+* add notification icons implementation plan ([e95e2be](https://github.com/Lateo2580/FlEq/commit/e95e2be2ec8d9af015dea8a34134d66d296b0dda))
+* add notification icons per category & level design spec ([fc17b13](https://github.com/Lateo2580/FlEq/commit/fc17b13df790069620cddc7329a5089912e06450))
+* add review policy and superpowers archive rule to CLAUDE.md ([8039a58](https://github.com/Lateo2580/FlEq/commit/8039a58f57ab3909bf113a14272aebce08e01974))
+* address spec review feedback — export resolveIconPath, add call site table, clarify icon matrix ([6a5c9e7](https://github.com/Lateo2580/FlEq/commit/6a5c9e7c702fb0dfd55b053c7d5fa79180c5a25e))
+* fix stale call site count (9 → 15) ([aca503e](https://github.com/Lateo2580/FlEq/commit/aca503e85a6725636bd82be24084458a755eecf4))
+* overhaul waiting tips for commands and system mechanics ([e2dd76d](https://github.com/Lateo2580/FlEq/commit/e2dd76db822a6629ef9f1f2f7e184b39aa778965))
+* README.md を全面改稿 — ユーザー導線の整理・正確性向上 ([a6ca946](https://github.com/Lateo2580/FlEq/commit/a6ca946bd1a57828b1dec10f47e61d16e4704ebc))
+* streamline CLAUDE.md with concise architecture map and routing table ([1d01f45](https://github.com/Lateo2580/FlEq/commit/1d01f4573391c5e7ba60f52f8c4168f2526c1b2b))
+* update release flow to batched release policy ([cebe8ed](https://github.com/Lateo2580/FlEq/commit/cebe8ed65a033e095893b37200cc2921f3079f9c))
+
 ## [1.49.8](https://github.com/Lateo2580/FlEq/compare/v1.49.7...v1.49.8) (2026-03-22)
 
 
