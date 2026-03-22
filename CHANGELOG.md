@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.49.5](https://github.com/Lateo2580/FlEq/compare/v1.49.4...v1.49.5) (2026-03-22)
+
+
+### ドキュメント
+
+* README に dmdata.jp の契約が必要な旨を追記 ([07735f9](https://github.com/Lateo2580/FlEq/commit/07735f93a78588ea9b4d8754f5c742e392494e59))
+
 ## [1.49.4](https://github.com/Lateo2580/FlEq/compare/v1.49.3...v1.49.4) (2026-03-22)
 
 
