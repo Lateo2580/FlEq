@@ -301,8 +301,8 @@ fleq config keys
 
 補足:
 
-- Config保存時と既存Config読み込み時は、可能な範囲で `0600` パーミッションへ調整します（APIキー保護のためです）。
-- 更新チェックを無効にしたい場合は `FLEQ_NO_UPDATE_CHECK=1` を設定してください。
+- Config保存時と既存Config読み込み時は、可能な範囲で `0600` パーミッションへ調整します（APIキー保護のためです）。Windows では POSIX パーミッションが実効的でないため、ファイルシステムの ACL に依存します。
+- **更新チェック:** FlEq は起動時に npm registry (`registry.npmjs.org`) へ HTTP リクエストを送信し、新しいバージョンの有無を確認します。npm registry に接続できない場合は GitHub Releases API (`api.github.com`) にフォールバックします。チェック結果は 24 時間キャッシュされ、キャッシュが有効な間は外部通信を行いません。この機能を無効にしたい場合は、環境変数 `FLEQ_NO_UPDATE_CHECK=1` を設定してください。
 - DMDATA 公式仕様に合わせ、REST API の認証は `Authorization: Basic ...` を使用します。
 - DMDATA 公式では、同時接続数に余裕がない場合のみ `Socket Close v2` の利用が案内されています。通常運用では `--close-others` は不要です。
 

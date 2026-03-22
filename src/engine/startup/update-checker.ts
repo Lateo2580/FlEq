@@ -12,8 +12,11 @@ const CACHE_PATH = path.join(CACHE_DIR, ".update-check");
 /** チェック間隔: 24時間 */
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-/** npm registry へのリクエストタイムアウト: 3秒 */
+/** 各ソースへのリクエストタイムアウト: 3秒 */
 const REQUEST_TIMEOUT_MS = 3000;
+
+/** GitHub リポジトリ (owner/repo) */
+const GITHUB_REPO = "Lateo2580/FlEq";
 
 interface UpdateCheckCache {
   lastCheck: number;
@@ -62,46 +65,93 @@ function writeCache(cache: UpdateCheckCache): void {
   }
 }
 
-/** npm registry から最新バージョンを取得する */
-function fetchLatestVersion(packageName: string): Promise<string> {
+/** 指定 URL から JSON を取得し、バージョン文字列を抽出する */
+function fetchJson(url: string, extractVersion: (data: unknown) => string | null): Promise<string> {
   return new Promise((resolve, reject) => {
-    const url = `https://registry.npmjs.org/${packageName}/latest`;
-    const req = https.get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
-      if (res.statusCode !== 200) {
-        res.resume();
-        reject(new Error(`HTTP ${res.statusCode}`));
-        return;
-      }
-
-      let data = "";
-      res.setEncoding("utf-8");
-      res.on("data", (chunk: string) => {
-        data += chunk;
-      });
-      res.on("end", () => {
-        try {
-          const parsed: unknown = JSON.parse(data);
-          if (
-            typeof parsed === "object" &&
-            parsed != null &&
-            "version" in parsed &&
-            typeof (parsed as { version: string }).version === "string"
-          ) {
-            resolve((parsed as { version: string }).version);
-          } else {
-            reject(new Error("Unexpected response format"));
-          }
-        } catch {
-          reject(new Error("JSON parse error"));
+    const req = https.get(
+      url,
+      { timeout: REQUEST_TIMEOUT_MS, headers: { "User-Agent": "fleq-update-checker" } },
+      (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
         }
-      });
-    });
+
+        let data = "";
+        res.setEncoding("utf-8");
+        res.on("data", (chunk: string) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          try {
+            const parsed: unknown = JSON.parse(data);
+            const version = extractVersion(parsed);
+            if (version != null) {
+              resolve(version);
+            } else {
+              reject(new Error("Unexpected response format"));
+            }
+          } catch {
+            reject(new Error("JSON parse error"));
+          }
+        });
+      }
+    );
 
     req.on("error", reject);
     req.on("timeout", () => {
       req.destroy();
       reject(new Error("Request timeout"));
     });
+  });
+}
+
+/** npm registry から最新バージョンを取得する */
+function fetchFromNpm(packageName: string): Promise<string> {
+  return fetchJson(
+    `https://registry.npmjs.org/${packageName}/latest`,
+    (data) => {
+      if (
+        typeof data === "object" &&
+        data != null &&
+        "version" in data &&
+        typeof (data as { version: string }).version === "string"
+      ) {
+        return (data as { version: string }).version;
+      }
+      return null;
+    }
+  );
+}
+
+/** GitHub Releases API から最新バージョンを取得する */
+function fetchFromGitHub(): Promise<string> {
+  return fetchJson(
+    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+    (data) => {
+      if (
+        typeof data === "object" &&
+        data != null &&
+        "tag_name" in data &&
+        typeof (data as { tag_name: string }).tag_name === "string"
+      ) {
+        // tag_name は "v1.49.0" 形式。normalizeVersion が v プレフィックスを処理する
+        return (data as { tag_name: string }).tag_name;
+      }
+      return null;
+    }
+  );
+}
+
+/**
+ * npm registry → GitHub Releases の順でフォールバックしながら最新バージョンを取得する。
+ * 両方失敗した場合のみ reject する。
+ */
+function fetchLatestVersion(packageName: string): Promise<string> {
+  return fetchFromNpm(packageName).catch((npmErr: unknown) => {
+    log.debug(`npm registry failed: ${npmErr instanceof Error ? npmErr.message : String(npmErr)}, trying GitHub`);
+    return fetchFromGitHub();
   });
 }
 
