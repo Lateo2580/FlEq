@@ -166,7 +166,7 @@ private send(title: string, message: string, category: NotifyCategory, level?: S
 
 各メソッドの `this.send()` 呼び出しに自身のカテゴリを追加する。
 
-対象の全 `this.send()` 呼び出し (9箇所):
+対象の全 `this.send()` 呼び出し (15箇所):
 
 | メソッド | 呼び出し箇所 | category |
 | --- | --- | --- |
