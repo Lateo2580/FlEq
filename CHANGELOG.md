@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.49.4](https://github.com/Lateo2580/FlEq/compare/v1.49.3...v1.49.4) (2026-03-22)
+
+
+### バグ修正
+
+* **ci:** setup-node から registry-url を除去し OIDC 認証を有効化 ([dd88007](https://github.com/Lateo2580/FlEq/commit/dd88007cb423e258987000162451e8e7b1fbd0a3))
+
 ## [1.49.3](https://github.com/Lateo2580/FlEq/compare/v1.49.2...v1.49.3) (2026-03-22)
 
 ## [1.49.2](https://github.com/Lateo2580/FlEq/compare/v1.49.1...v1.49.2) (2026-03-22)
