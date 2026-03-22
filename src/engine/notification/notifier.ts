@@ -20,9 +20,6 @@ import * as nodeNotifierLoader from "./node-notifier-loader";
 import * as intensityUtils from "../../utils/intensity";
 import * as log from "../../logger";
 
-/** 通知アイコンのパス (assets/icons/icon.png が存在する場合に使用) */
-const NOTIFY_ICON_PATH = path.resolve(__dirname, "../../../assets/icons/icon.png");
-
 /** 通知アイコンディレクトリ */
 const ICONS_DIR = path.resolve(__dirname, "../../../assets/icons");
 
@@ -168,7 +165,7 @@ export class Notifier {
     }
 
     if (result.isCancelled) {
-      this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました", "cancel");
+      this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました", "eew", "cancel");
       return;
     }
 
@@ -184,14 +181,14 @@ export class Notifier {
       ? `${info.earthquake.hypocenterName} / M${info.earthquake.magnitude} / 最大予測震度${maxInt}`
       : title;
 
-    this.send(title, body, soundLevel);
+    this.send(title, body, "eew", soundLevel);
   }
 
   notifyEarthquake(info: ParsedEarthquakeInfo): void {
     if (!this.settings.earthquake) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "earthquake", "cancel");
       return;
     }
 
@@ -205,14 +202,14 @@ export class Notifier {
     if (info.intensity) {
       parts.push(`最大震度${info.intensity.maxInt}`);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : (info.headline ?? info.title), soundLevel);
+    this.send(info.title, parts.length > 0 ? parts.join(" / ") : (info.headline ?? info.title), "earthquake", soundLevel);
   }
 
   notifyTsunami(info: ParsedTsunamiInfo): void {
     if (!this.settings.tsunami) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "tsunami", "cancel");
       return;
     }
 
@@ -228,38 +225,38 @@ export class Notifier {
     if (info.headline) {
       parts.push(info.headline);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, soundLevel);
+    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, "tsunami", soundLevel);
   }
 
   notifySeismicText(info: ParsedSeismicTextInfo): void {
     if (!this.settings.seismicText) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "seismicText", "cancel");
       return;
     }
 
     const body = info.headline ?? info.bodyText.slice(0, 80);
-    this.send(info.title, body, "info");
+    this.send(info.title, body, "seismicText", "info");
   }
 
   notifyNankaiTrough(info: ParsedNankaiTroughInfo): void {
     if (!this.settings.nankaiTrough) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "nankaiTrough", "cancel");
       return;
     }
 
     const body = info.headline ?? info.bodyText.slice(0, 80);
-    this.send(info.title, body, "warning");
+    this.send(info.title, body, "nankaiTrough", "warning");
   }
 
   notifyLgObservation(info: ParsedLgObservationInfo): void {
     if (!this.settings.lgObservation) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "lgObservation", "cancel");
       return;
     }
 
@@ -275,23 +272,23 @@ export class Notifier {
     if (info.maxInt) {
       parts.push(`最大震度${info.maxInt}`);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, soundLevel);
+    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, "lgObservation", soundLevel);
   }
 
   notifyVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void {
     if (!this.settings.volcano) return;
 
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "cancel");
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "volcano", "cancel");
       return;
     }
 
-    this.send(info.title, presentation.summary, presentation.soundLevel);
+    this.send(info.title, presentation.summary, "volcano", presentation.soundLevel);
   }
 
   notifyVolcanoBatch(batch: { items: { volcanoName: string }[] }, presentation: VolcanoPresentation): void {
     if (!this.settings.volcano) return;
-    this.send("降灰予報（定時）", presentation.summary, presentation.soundLevel);
+    this.send("降灰予報（定時）", presentation.summary, "volcano", presentation.soundLevel);
   }
 
   // ── 内部メソッド ──
@@ -308,17 +305,18 @@ export class Notifier {
     return this._notifier;
   }
 
-  private send(title: string, message: string, level?: SoundLevel): void {
+  private send(title: string, message: string, category: NotifyCategory, level?: SoundLevel): void {
     if (this.isMuted()) return;
     try {
       const nn = this.getNotifier();
       if (nn) {
+        const iconPath = resolveIconPath(category, level);
         nn.notify({
           title,
           message,
           sound: false,
           appID: NOTIFY_APP_NAME,
-          ...(fs.existsSync(NOTIFY_ICON_PATH) ? { icon: NOTIFY_ICON_PATH } : {}),
+          ...(iconPath ? { icon: iconPath } : {}),
         });
       }
     } catch (err) {
