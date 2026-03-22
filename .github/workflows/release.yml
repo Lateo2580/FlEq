@@ -18,7 +18,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for OIDC trusted publishing support (>=11.5.1)
+        run: npm install -g npm@latest
 
       - run: npm ci
 
