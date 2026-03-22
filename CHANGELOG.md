@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.49.6](https://github.com/Lateo2580/FlEq/compare/v1.49.5...v1.49.6) (2026-03-22)
+
+
+### バグ修正
+
+* **ci:** NPM_TOKEN と registry-url を復元 ([f63d1c4](https://github.com/Lateo2580/FlEq/commit/f63d1c46a7c7009b3e54b493891969544982fbd9))
+
 ## [1.49.5](https://github.com/Lateo2580/FlEq/compare/v1.49.4...v1.49.5) (2026-03-22)
 
 
