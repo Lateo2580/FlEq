@@ -1,5 +1,5 @@
 {
-  "name": "fleq",
+  "name": "@sayue_ltr/fleq",
   "version": "1.49.2",
   "description": "Project DM-D.S.S (dmdata.jp) リアルタイム地震・津波・EEW情報モニター CLI",
   "main": "dist/index.js",
