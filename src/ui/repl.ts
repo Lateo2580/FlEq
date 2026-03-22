@@ -155,6 +155,11 @@ class StatusLine {
   getLastMessageTime(): number | null {
     return this.lastMessageTime;
   }
+
+  /** プロンプト経過時間の基準時刻を返す (lastMessageTime ?? connectedAt) */
+  getElapsedBase(): number | null {
+    return this.lastMessageTime ?? this.connectedAt;
+  }
 }
 
 /** 現在時刻を HH:mm:ss 形式で返す */
@@ -229,7 +234,7 @@ export class ReplHandler {
   private statusTimer: NodeJS.Timeout | null = null;
   private commandRunning = false;
   private tipIntervalMs: number;
-  private nextTipAt: number | null = null;
+  private lastTipMilestone = 0;
   private tipIndex = 0;
   private statusProviders: PromptStatusProvider[];
   private detailProviders: DetailProvider[];
@@ -2204,29 +2209,39 @@ export class ReplHandler {
 
   private maybeShowWaitingTip(): void {
     if (!this.rl || this.commandRunning) return;
-    if (this.tipIntervalMs <= 0 || this.nextTipAt == null) return;
+    if (this.tipIntervalMs <= 0) return;
     const status = this.wsManager.getStatus();
     if (!status.connected) return;
 
+    const base = this.statusLine.getElapsedBase();
+    if (base == null) return;
+
     const lastMessageAt = this.statusLine.getLastMessageTime();
     if (lastMessageAt != null && Date.now() - lastMessageAt < 10_000) return;
-    if (Date.now() < this.nextTipAt) return;
+
+    const elapsed = Date.now() - base;
+    const currentMilestone = Math.floor(elapsed / this.tipIntervalMs);
+    if (currentMilestone <= this.lastTipMilestone) return;
 
     this.clearInput();
     const tip = WAITING_TIPS[this.tipIndex % WAITING_TIPS.length];
     this.tipIndex++;
-    do {
-      this.nextTipAt += this.tipIntervalMs;
-    } while (this.nextTipAt <= Date.now());
+    this.lastTipMilestone = currentMilestone;
     console.log(chalk.gray(`  ${tip}`));
   }
 
   private resetTipSchedule(): void {
     if (this.tipIntervalMs <= 0) {
-      this.nextTipAt = null;
+      this.lastTipMilestone = 0;
       return;
     }
-    this.nextTipAt = Date.now() + this.tipIntervalMs;
+    const base = this.statusLine.getElapsedBase();
+    if (base == null) {
+      this.lastTipMilestone = 0;
+      return;
+    }
+    const elapsed = Date.now() - base;
+    this.lastTipMilestone = Math.floor(elapsed / this.tipIntervalMs);
   }
 }
 
