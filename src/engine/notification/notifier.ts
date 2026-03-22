@@ -23,6 +23,46 @@ import * as log from "../../logger";
 /** 通知アイコンのパス (assets/icons/icon.png が存在する場合に使用) */
 const NOTIFY_ICON_PATH = path.resolve(__dirname, "../../../assets/icons/icon.png");
 
+/** 通知アイコンディレクトリ */
+const ICONS_DIR = path.resolve(__dirname, "../../../assets/icons");
+
+/** NotifyCategory → アイコンファイル名プレフィックス */
+const CATEGORY_ICON_PREFIX: Record<NotifyCategory, string> = {
+  eew: "eew",
+  earthquake: "earthquake",
+  tsunami: "tsunami",
+  seismicText: "seismic-text",
+  nankaiTrough: "nankai-trough",
+  lgObservation: "lg-observation",
+  volcano: "volcano",
+};
+
+/**
+ * カテゴリとレベルからアイコンパスを解決する。
+ * 3段フォールバック: {prefix}-{level}.png → {prefix}.png → default.png
+ * いずれも見つからなければ undefined を返す。
+ */
+export function resolveIconPath(
+  category: NotifyCategory,
+  level?: SoundLevel,
+): string | undefined {
+  const prefix = CATEGORY_ICON_PREFIX[category];
+  const candidates: string[] = [];
+
+  if (level) {
+    candidates.push(path.join(ICONS_DIR, `${prefix}-${level}.png`));
+  }
+  candidates.push(path.join(ICONS_DIR, `${prefix}.png`));
+  candidates.push(path.join(ICONS_DIR, "default.png"));
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
 /** 通知アプリ名 */
 const NOTIFY_APP_NAME = "FlEq";
 
