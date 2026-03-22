@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import * as fs from "fs";
 import { notifyMock } from "../setup";
+
+vi.mock("fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs")>();
+  return { ...actual };
+});
 
 vi.mock("../../src/config", () => ({
   loadConfig: () => ({}),
@@ -15,7 +21,7 @@ vi.mock("../../src/logger", () => ({
   warn: vi.fn(),
 }));
 
-import { Notifier } from "../../src/engine/notification/notifier";
+import { Notifier, resolveIconPath } from "../../src/engine/notification/notifier";
 import type { ParsedEarthquakeInfo } from "../../src/types";
 
 describe("Notifier", () => {
@@ -48,5 +54,59 @@ describe("Notifier", () => {
     notifier.notifyEarthquake(info);
 
     expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("resolveIconPath", () => {
+  it("returns {prefix}-{level}.png when it exists", () => {
+    const spy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    const result = resolveIconPath("tsunami", "critical");
+    expect(result).toMatch(/tsunami-critical\.png$/);
+    spy.mockRestore();
+  });
+
+  it("falls back to {prefix}.png when level-specific icon is missing", () => {
+    const spy = vi.spyOn(fs, "existsSync").mockImplementation((p) => {
+      return String(p).endsWith("tsunami.png");
+    });
+    const result = resolveIconPath("tsunami", "critical");
+    expect(result).toMatch(/tsunami\.png$/);
+    expect(result).not.toMatch(/tsunami-critical/);
+    spy.mockRestore();
+  });
+
+  it("falls back to default.png when category icon is also missing", () => {
+    const spy = vi.spyOn(fs, "existsSync").mockImplementation((p) => {
+      return String(p).endsWith("default.png");
+    });
+    const result = resolveIconPath("tsunami", "critical");
+    expect(result).toMatch(/default\.png$/);
+    spy.mockRestore();
+  });
+
+  it("returns undefined when no icon files exist", () => {
+    const spy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
+    const result = resolveIconPath("tsunami", "critical");
+    expect(result).toBeUndefined();
+    spy.mockRestore();
+  });
+
+  it("skips level-specific candidate when level is undefined", () => {
+    const calls: string[] = [];
+    const spy = vi.spyOn(fs, "existsSync").mockImplementation((p) => {
+      calls.push(String(p));
+      return String(p).endsWith("earthquake.png");
+    });
+    const result = resolveIconPath("earthquake");
+    expect(result).toMatch(/earthquake\.png$/);
+    expect(calls.some((c) => c.includes("earthquake-"))).toBe(false);
+    spy.mockRestore();
+  });
+
+  it("maps camelCase categories to kebab-case prefixes", () => {
+    const spy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
+    const result = resolveIconPath("seismicText", "info");
+    expect(result).toMatch(/seismic-text-info\.png$/);
+    spy.mockRestore();
   });
 });
