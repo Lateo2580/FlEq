@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.49.8](https://github.com/Lateo2580/FlEq/compare/v1.49.7...v1.49.8) (2026-03-22)
+
+
+### バグ修正
+
+* **ci:** npm を v11.5.1+ に更新し OIDC publish を有効化 ([f6c55e2](https://github.com/Lateo2580/FlEq/commit/f6c55e22b9c98d644236e7db4619e86d1cc0411c))
+
 ## [1.49.7](https://github.com/Lateo2580/FlEq/compare/v1.49.6...v1.49.7) (2026-03-22)
 
 ## [1.49.6](https://github.com/Lateo2580/FlEq/compare/v1.49.5...v1.49.6) (2026-03-22)
