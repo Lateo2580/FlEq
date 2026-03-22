@@ -21,6 +21,9 @@
 
 各段階で `fs.existsSync()` による存在チェックを行い、最初に見つかったパスを採用する。
 
+> **キャッシュについて:** 通知はイベント駆動で低頻度のため、`fs.existsSync()` のキャッシュは不要。
+> アイコンファイルの追加・削除を再起動なしで反映できるメリットもある。
+
 ### Category-to-Prefix Mapping
 
 `NotifyCategory` の camelCase キーを kebab-case に変換したものをプレフィックスとする。
@@ -43,7 +46,14 @@
 
 ### Full Icon Matrix
 
-ユーザーが用意可能なアイコン一覧 (全て任意、フォールバックあり):
+ユーザーが用意可能なアイコン一覧 (全て任意、フォールバックあり)。
+以下は各カテゴリで実際に使用されるレベルに基づく代表例。
+列挙されていないカテゴリ×レベルの組み合わせ (例: `earthquake-normal.png`) も
+配置すればフォールバックより優先して使用される。
+
+> **Note:** `earthquake-critical.png` は現状リストにない。これは意図的で、
+> `earthquakeSoundLevel()` が `"warning"` / `"normal"` のみを返すため。
+> 将来 critical レベルを追加する場合はアイコンも追加可能。
 
 ```
 assets/icons/
@@ -90,6 +100,12 @@ assets/icons/
 `Notifier` クラスの public API (メソッドシグネチャ) は変更しない。
 呼び出し元 (`message-router.ts` 等) への影響はない。
 
+### Imports
+
+新規 import は不要。`fs`, `path` は既にインポート済み。
+`ICONS_DIR` のパス深度 (`../../../`) は `sound-player.ts` の `CUSTOM_SOUNDS_DIR` と同じで、
+コンパイル後の `dist/engine/notification/notifier.js` からプロジェクトルートへの相対パスに対応する。
+
 ### New Constants & Functions
 
 ```typescript
@@ -112,7 +128,7 @@ const CATEGORY_ICON_PREFIX: Record<NotifyCategory, string> = {
  * 3段フォールバック: {prefix}-{level}.png → {prefix}.png → default.png
  * いずれも見つからなければ undefined を返す。
  */
-function resolveIconPath(
+export function resolveIconPath(
   category: NotifyCategory,
   level?: SoundLevel,
 ): string | undefined {
@@ -149,6 +165,26 @@ private send(title: string, message: string, category: NotifyCategory, level?: S
 ### Modified: Each `notify*()` Method
 
 各メソッドの `this.send()` 呼び出しに自身のカテゴリを追加する。
+
+対象の全 `this.send()` 呼び出し (9箇所):
+
+| メソッド | 呼び出し箇所 | category |
+| --- | --- | --- |
+| `notifyEew` | 取消パス (L131) | `"eew"` |
+| `notifyEew` | 通常パス (L147) | `"eew"` |
+| `notifyEarthquake` | 取消パス (L154) | `"earthquake"` |
+| `notifyEarthquake` | 通常パス (L168) | `"earthquake"` |
+| `notifyTsunami` | 取消パス (L175) | `"tsunami"` |
+| `notifyTsunami` | 通常パス (L191) | `"tsunami"` |
+| `notifySeismicText` | 取消パス (L198) | `"seismicText"` |
+| `notifySeismicText` | 通常パス (L203) | `"seismicText"` |
+| `notifyNankaiTrough` | 取消パス (L210) | `"nankaiTrough"` |
+| `notifyNankaiTrough` | 通常パス (L215) | `"nankaiTrough"` |
+| `notifyLgObservation` | 取消パス (L223) | `"lgObservation"` |
+| `notifyLgObservation` | 通常パス (L238) | `"lgObservation"` |
+| `notifyVolcano` | 取消パス (L245) | `"volcano"` |
+| `notifyVolcano` | 通常パス (L249) | `"volcano"` |
+| `notifyVolcanoBatch` | 通常パス (L254) | `"volcano"` |
 
 例 (`notifyTsunami`):
 ```typescript
