@@ -106,14 +106,20 @@ docs/site/
 
 ## GitHub Pages 設定
 
-リポジトリの Settings > Pages で:
-- Source: `Deploy from a branch`
-- Branch: `main`
-- Folder: `/docs/site`
+GitHub Pages のブランチ設定では `/` か `/docs` のみ選択可能で、サブフォルダ (`/docs/site`) は直接指定できない。
+そのため GitHub Actions ワークフローでデプロイする:
+
+- Source: `GitHub Actions`
+- ワークフロー: `.github/workflows/pages.yml`
+- トリガー: `main` ブランチの `docs/site/**` への push
+- 処理: `docs/site/` の内容を `actions/upload-pages-artifact` + `actions/deploy-pages` でデプロイ
+
+### スクリーンショットのプレースホルダー
+
+初期実装ではスクリーンショット画像がないため、ターミナル風にスタイリングした `<div>` で擬似的な出力例を表示する。実際の画像が用意でき次第差し替える。
 
 ## スコープ外
 
 - 多言語対応（日本語のみ）
 - ドキュメントサイト機能（README やリポジトリ内 docs に委任）
-- CI/CD によるサイトビルド（静的ファイルのため不要）
 - アナリティクス・トラッキング
