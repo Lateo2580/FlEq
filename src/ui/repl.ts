@@ -28,7 +28,7 @@ import * as themeModule from "../ui/theme";
 import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/notification/sound-player";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
-import { WAITING_TIPS } from "./waiting-tips";
+import { TipShuffler } from "./tip-shuffler";
 import { TEST_TABLES } from "./test-samples";
 
 /** コマンドのカテゴリ */
@@ -235,7 +235,7 @@ export class ReplHandler {
   private commandRunning = false;
   private tipIntervalMs: number;
   private lastTipMilestone = 0;
-  private tipIndex = 0;
+  private tipShuffler = new TipShuffler();
   private statusProviders: PromptStatusProvider[];
   private detailProviders: DetailProvider[];
 
@@ -258,7 +258,6 @@ export class ReplHandler {
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
     this.tipIntervalMs = this.config.waitTipIntervalMin * 60 * 1000;
-    this.tipIndex = Math.floor(Math.random() * WAITING_TIPS.length);
 
     this.commands = {
       help: {
@@ -2224,8 +2223,7 @@ export class ReplHandler {
     if (currentMilestone <= this.lastTipMilestone) return;
 
     this.clearInput();
-    const tip = WAITING_TIPS[this.tipIndex % WAITING_TIPS.length];
-    this.tipIndex++;
+    const tip = this.tipShuffler.next();
     this.lastTipMilestone = currentMilestone;
     console.log(chalk.gray(`  ${tip}`));
   }
