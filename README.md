@@ -321,6 +321,12 @@ npm uninstall -g @sayue_ltr/fleq
 
 Config ファイルを削除する場合は、`fleq config path` で表示されたディレクトリを手動で削除してください。
 
+## 出典
+
+テストで使用しているフィクスチャデータ (`test/fixtures/`) は、気象庁防災情報 XML のサンプルデータを加工して作成しています。
+
+> 気象庁「防災情報 XML フォーマット 技術資料」 (https://xml.kishou.go.jp/tec_material.html) を加工して作成
+
 ## ライセンス
 
 MIT
