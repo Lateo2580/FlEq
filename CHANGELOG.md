@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.50.1](https://github.com/Lateo2580/FlEq/compare/v1.50.0...v1.50.1) (2026-03-23)
+
+
+### ドキュメント
+
+* add JMA data attribution to README ([13c664a](https://github.com/Lateo2580/FlEq/commit/13c664a81ee4d4b0213ba98d870ae860ca777660))
+
 ## [1.50.0](https://github.com/Lateo2580/FlEq/compare/v1.49.8...v1.50.0) (2026-03-22)
 
 
