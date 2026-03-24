@@ -7,6 +7,32 @@
 }
 
 /* ===== Theme: Light (default) ===== */
+:root {
+  --bg: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --text: #1a1a1a;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --card-bg: #ffffff;
+  --code-bg: #f3f4f6;
+  --accent: #2563eb;
+}
+
+/* OS dark preference — applies when JS hasn't set data-theme yet */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0f1117;
+    --bg-secondary: #1a1d27;
+    --text: #e8eaf0;
+    --text-secondary: #8b9299;
+    --border: #2d3140;
+    --card-bg: #1a1d27;
+    --code-bg: #1e2130;
+    --accent: #60a5fa;
+  }
+}
+
+/* ===== Theme: Explicit overrides (set by JS) ===== */
 [data-theme="light"] {
   --bg: #ffffff;
   --bg-secondary: #f5f7fa;
@@ -18,7 +44,6 @@
   --accent: #2563eb;
 }
 
-/* ===== Theme: Dark ===== */
 [data-theme="dark"] {
   --bg: #0f1117;
   --bg-secondary: #1a1d27;
@@ -28,20 +53,6 @@
   --card-bg: #1a1d27;
   --code-bg: #1e2130;
   --accent: #60a5fa;
-}
-
-/* Respect system preference: treat unset data-theme as dark when user prefers dark */
-@media (prefers-color-scheme: dark) {
-  [data-theme="light"]:not([data-theme]) {
-    --bg: #0f1117;
-    --bg-secondary: #1a1d27;
-    --text: #e8eaf0;
-    --text-secondary: #8b9299;
-    --border: #2d3140;
-    --card-bg: #1a1d27;
-    --code-bg: #1e2130;
-    --accent: #60a5fa;
-  }
 }
 
 /* ===== Base ===== */
