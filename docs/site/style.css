@@ -144,6 +144,20 @@ a:hover {
 }
 
 /* Icon visibility by theme */
+/* Default (no data-theme yet): show light icon, hide dark */
+:root:not([data-theme]) .icon-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .icon-dark {
+    display: initial;
+  }
+  :root:not([data-theme]) .icon-light {
+    display: none;
+  }
+}
+
 [data-theme="light"] .icon-dark {
   display: none;
 }
@@ -218,6 +232,11 @@ a:hover {
 }
 
 /* ===== Features Section ===== */
+.section,
+.section-alt {
+  scroll-margin-top: 4rem;
+}
+
 .section {
   max-width: 960px;
   margin: 0 auto;

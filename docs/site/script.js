@@ -35,6 +35,8 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
       setTimeout(function () {
         btn.textContent = original;
       }, 1500);
+    }).catch(function () {
+      // Clipboard API unavailable (non-HTTPS or denied permission) — silent fail
     });
   });
 });
