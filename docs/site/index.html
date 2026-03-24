@@ -158,6 +158,74 @@
     </div>
   </section>
 
+  <!-- インストール -->
+  <section class="section-alt" id="install">
+    <div class="section-inner">
+      <h2 class="section-title">インストール</h2>
+      <p class="section-label">GETTING STARTED</p>
+
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>インストール</h3>
+            <div class="step-code">
+              <code>npm install -g @sayue_ltr/fleq</code>
+              <button class="copy-btn" data-copy="npm install -g @sayue_ltr/fleq" aria-label="コマンドをコピー">コピー</button>
+            </div>
+            <p class="step-alt">または単発で実行:</p>
+            <div class="step-code">
+              <code>npx @sayue_ltr/fleq --help</code>
+              <button class="copy-btn" data-copy="npx @sayue_ltr/fleq --help" aria-label="コマンドをコピー">コピー</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>初期設定</h3>
+            <p>対話形式で API キーや受信設定をまとめて行えます。</p>
+            <div class="step-code">
+              <code>fleq init</code>
+              <button class="copy-btn" data-copy="fleq init" aria-label="コマンドをコピー">コピー</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>起動</h3>
+            <div class="step-code">
+              <code>fleq</code>
+              <button class="copy-btn" data-copy="fleq" aria-label="コマンドをコピー">コピー</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="install-notes">
+        <h3>前提条件</h3>
+        <ul>
+          <li><strong>Node.js 18 以上</strong>が必要です</li>
+          <li><a href="https://dmdata.jp/" target="_blank" rel="noopener">dmdata.jp</a> のアカウントと API キーが必要です</li>
+          <li>API キーには <code>socket.start</code> 権限と受信区分の <code>telegram.get.*</code> 権限を付与してください</li>
+          <li>受信する情報の種類によっては dmdata.jp の有料契約が必要です</li>
+        </ul>
+        <h3>対応 OS</h3>
+        <table class="os-table">
+          <thead><tr><th>OS</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td>macOS 10.13+</td><td>メイン開発・テスト環境</td></tr>
+            <tr><td>Linux (x64 / ARM)</td><td>Raspberry Pi 等の ARM デバイスでも動作</td></tr>
+            <tr><td>Windows 10+</td><td>ConPTY 対応のターミナルを推奨</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <script src="script.js"></script>
 </body>
 </html>
