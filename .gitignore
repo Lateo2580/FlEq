@@ -5,3 +5,5 @@ eew-logs/
 .DS_Store
 .claude/settings.local.json
 tmp.py
+.superpowers/
+.worktrees/
