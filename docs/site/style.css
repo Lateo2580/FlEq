@@ -268,3 +268,77 @@ a:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Screenshot Section ===== */
+.section-alt {
+  background: var(--bg-secondary);
+}
+
+.section-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.terminal {
+  max-width: 600px;
+  margin: 2rem auto 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  text-align: left;
+}
+
+.terminal-header {
+  background: #2d2d2d;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  gap: 0.5rem;
+}
+
+.terminal-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.terminal-dot.red {
+  background: #ff5f57;
+}
+
+.terminal-dot.yellow {
+  background: #febc2e;
+}
+
+.terminal-dot.green {
+  background: #28c840;
+}
+
+.terminal-title {
+  font-size: 0.75rem;
+  color: #999;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.terminal-body {
+  background: #1e1e1e;
+  padding: 1rem 1.5rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #d4d4d4;
+  line-height: 1.6;
+}
+
+.term-line.dim {
+  color: #666;
+}
+
+.term-line.accent {
+  color: #6bc5f7;
+}
+
+.term-line.warn {
+  color: #ffd43b;
+}
