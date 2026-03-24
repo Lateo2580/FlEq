@@ -110,7 +110,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 ## レビュー方針
 
 - コードレビューはサブエージェントではなく **Codex MCP に依頼**する
-- Superpowers が生成した specs/plans は作業完了後 `docs/Superpowers_Archive/` に移動する
+- Superpowers が生成した specs/plans は作業完了後 `C:/Users/meiri/Dev/Superpowers_Archive/` に移動し、`docs/superpowers/` を削除する
 
 ## リリースフロー
 
