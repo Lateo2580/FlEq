@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlEq — リアルタイム地震・津波・EEW情報モニター CLI</title>
+  <meta name="description" content="dmdata.jp の API を利用して、地震・津波・緊急地震速報（EEW）・火山情報をリアルタイムに CLI で受信・表示するツール">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ナビバー -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">FlEq</a>
+      <div class="nav-links">
+        <a href="#features">機能</a>
+        <a href="#categories">対応区分</a>
+        <a href="#install">インストール</a>
+        <a href="https://github.com/Lateo2580/FlEq" target="_blank" rel="noopener">GitHub</a>
+        <button class="theme-toggle" id="theme-toggle" aria-label="テーマ切替">
+          <span class="icon-light">☀️</span>
+          <span class="icon-dark">🌙</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ヒーロー -->
+  <section class="hero">
+    <h1 class="hero-title">FlEq</h1>
+    <p class="hero-subtitle">地震・津波・EEW・火山情報をリアルタイムに CLI で受信</p>
+    <div class="hero-install">
+      <code id="install-cmd">npm install -g @sayue_ltr/fleq</code>
+      <button class="copy-btn" data-copy="npm install -g @sayue_ltr/fleq" aria-label="コマンドをコピー">コピー</button>
+    </div>
+    <!-- NOTE: バージョンはリリース時に更新すること -->
+    <p class="hero-meta">v1.50.1 · MIT License</p>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
