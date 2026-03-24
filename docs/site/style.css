@@ -1,0 +1,207 @@
+/* ===== Reset ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+/* ===== Theme: Light (default) ===== */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --text: #1a1a1a;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --card-bg: #ffffff;
+  --code-bg: #f3f4f6;
+  --accent: #2563eb;
+}
+
+/* ===== Theme: Dark ===== */
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --bg-secondary: #1a1d27;
+  --text: #e8eaf0;
+  --text-secondary: #8b9299;
+  --border: #2d3140;
+  --card-bg: #1a1d27;
+  --code-bg: #1e2130;
+  --accent: #60a5fa;
+}
+
+/* Respect system preference: treat unset data-theme as dark when user prefers dark */
+@media (prefers-color-scheme: dark) {
+  [data-theme="light"]:not([data-theme]) {
+    --bg: #0f1117;
+    --bg-secondary: #1a1d27;
+    --text: #e8eaf0;
+    --text-secondary: #8b9299;
+    --border: #2d3140;
+    --card-bg: #1a1d27;
+    --code-bg: #1e2130;
+    --accent: #60a5fa;
+  }
+}
+
+/* ===== Base ===== */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ===== Navbar ===== */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+}
+
+.nav-logo {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--text);
+  letter-spacing: -0.25px;
+}
+
+.nav-logo:hover {
+  text-decoration: none;
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.nav-links a {
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.nav-links a:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* ===== Theme Toggle ===== */
+.theme-toggle {
+  /* Button reset */
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  border-radius: 0.25rem;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  background: var(--bg-secondary);
+}
+
+/* Icon visibility by theme */
+[data-theme="light"] .icon-dark {
+  display: none;
+}
+
+[data-theme="dark"] .icon-light {
+  display: none;
+}
+
+/* ===== Hero ===== */
+.hero {
+  text-align: center;
+  padding: 4rem 1.5rem 3rem;
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.hero-subtitle {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  font-size: 1.125rem;
+}
+
+.hero-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--code-bg);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-top: 1.75rem;
+  border: 1px solid var(--border);
+}
+
+.hero-install code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.copy-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  color: var(--text);
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.copy-btn:active {
+  color: var(--accent);
+}
+
+.hero-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
