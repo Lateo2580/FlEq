@@ -590,6 +590,7 @@ export function renderGroupedItemList(options: {
 /**
  * 単純な名前リストを描画する。
  * `label + name, name, ...` 形式。2行目以降は label 幅分のハンギングインデント。
+ * label 指定時は ` label ` の形式（先頭・末尾にスペース）で gray 表示される。
  */
 export function renderSimpleNameList(options: {
   level: FrameLevel;
