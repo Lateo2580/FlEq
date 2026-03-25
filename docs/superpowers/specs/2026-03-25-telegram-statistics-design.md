@@ -4,6 +4,13 @@
 
 セッション中に受信した電文のタイプ別統計を REPL コマンド `stats` で表示する機能。セッション単位（メモリのみ、再起動でリセット）。
 
+### 統計対象の範囲
+
+- **XML 電文のみ**を統計対象とする。非 XML メッセージ（`msg.format !== "xml"` や `!msg.head.xml`）は統計に含めない
+- **テスト電文**（`msg.head.test === true`）も通常電文と同様にカウントする（テストモードで稼働時に統計が空になるのを避けるため）
+- **EEW 重複報**（`EewTracker` が `isDuplicate` と判定した報）は統計に**含めない**。ユーザーに表示されなかった電文をカウントしても意味がないため
+- **パース失敗**で `displayRawHeader()` にフォールバックした電文は、EEW 以外は統計に**含める**（`record()` がパース前に呼ばれるため）。**EEW のパース失敗**は統計に**含めない**（EEW は重複報スキップとの整合のため `handleEew()` 内でパース・重複判定後に記録するので、パース失敗時点では `record()` が呼ばれない）
+
 ## データモデル
 
 ### `TelegramStats` クラス
@@ -22,9 +29,13 @@ type StatsCategory = "eew" | "earthquake" | "tsunami" | "volcano" | "nankaiTroug
 interface StatsRecord {
   headType: string;           // "VXSE53", "VTSE41" など
   category: StatsCategory;    // ルーターが判定済みのカテゴリ
-  eventId?: string | null;    // xmlReport.head.eventId（EEW・地震用）
+  eventId?: string | null;    // EEW・地震の eventId（情報源は後述）
 }
 ```
+
+**`eventId` の情報源**:
+- **EEW**: `record()` の呼び出し位置は `switch (route)` の前だが、EEW の場合は重複報スキップとの整合を取るため、`handleEew()` 内でパース後に `stats.record()` を呼ぶ。`eventId` は `parseEewTelegram()` が返す `eewInfo.eventId` を使用する（既存の EewTracker と同じ情報源）
+- **地震**: `msg.xmlReport?.head.eventId` を使用する。`updateMaxInt()` も同じ経路
 
 #### 内部状態
 
@@ -60,8 +71,8 @@ interface StatsRecord {
 
 ルーターの既存 `Route` → `StatsCategory` のマッピング:
 
-| Route | StatsCategory | 含まれる headType |
-|-------|---------------|------------------|
+| Route | StatsCategory | 既知の headType 例 |
+|-------|---------------|-------------------|
 | `eew` | `eew` | VXSE43, VXSE44, VXSE45 |
 | `earthquake` | `earthquake` | VXSE51, VXSE52, VXSE53, VXSE61 |
 | `seismicText` | `earthquake` | VXSE56, VXSE60, VZSE40 |
@@ -69,26 +80,52 @@ interface StatsRecord {
 | `tsunami` | `tsunami` | VTSE41, VTSE51, VTSE52 |
 | `nankaiTrough` | `nankaiTrough` | VYSE50, VYSE51, VYSE52, VYSE60 |
 | `volcano` | `volcano` | VFVO50-56, VFVO60, VFSVii, VZVO40 |
-| `raw` | `other` | 未知の電文 |
+| `raw` | `other` | （分類不能な電文） |
 
-`routeToCategory()` ヘルパー関数で変換する。`seismicText` と `lgObservation` は統計上 `earthquake` にまとめる。
+`routeToCategory()` ヘルパー関数は **Route 値のみ**で変換する（headType による分岐は行わない）。headType 列は既知の例であり、新しい headType が追加されてもルーターの `classifyMessage()` が正しく Route を返せば統計側の変更は不要。`seismicText` と `lgObservation` は統計上 `earthquake` にまとめる。
 
 ## ルーター統合
 
 ### カウント記録のフック位置
 
-`message-router.ts` の `createMessageHandler()` 内、`handler` 関数の `classifyMessage()` 直後・`switch (route)` 直前で `stats.record()` を呼ぶ。
+`message-router.ts` の `createMessageHandler()` 内、`handler` 関数で統計を記録する。
+
+**記録タイミング**:
+- **EEW 以外**: `classifyMessage()` 直後・`switch (route)` 直前で `stats.record()` を呼ぶ。非 XML チェック（`msg.format !== "xml"`）の後なので、非 XML 電文は統計に入らない
+- **EEW**: 重複報スキップ後に `handleEew()` 内で呼ぶ（重複報を除外するため）
 
 ```ts
+// handler 関数内
+if (msg.format !== "xml" || !msg.head.xml) {
+  displayRawHeader(msg);
+  return;
+}
+
 const route = classifyMessage(msg.classification, msg.head.type);
 
-stats.record({
-  headType: msg.head.type,
-  category: routeToCategory(route),
-  eventId: msg.xmlReport?.head.eventId ?? null,
-});
+// EEW 以外はここで記録（EEW は handleEew 内で記録）
+if (route !== "eew") {
+  stats.record({
+    headType: msg.head.type,
+    category: routeToCategory(route),
+    eventId: msg.xmlReport?.head.eventId ?? null,
+  });
+}
 
 switch (route) { ... }
+```
+
+**EEW の記録** (`handleEew()` 内):
+```ts
+const result = eewTracker.update(eewInfo);
+if (result.isDuplicate) { return; }  // 重複報はスキップ
+
+// 重複でない場合のみ統計に記録
+stats.record({
+  headType: msg.head.type,
+  category: "eew",
+  eventId: eewInfo.eventId,  // パース結果の eventId を使用
+});
 ```
 
 ### 最大震度の更新
@@ -235,7 +272,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 ```ts
 stats: {
-  desc: "電文統計を表示",
+  description: "電文統計を表示",
   category: "info",
   handler: () => this.handleStats(),
 }
@@ -243,8 +280,46 @@ stats: {
 
 ### ReplHandler への注入
 
-- コンストラクタ引数に `stats: TelegramStats` を追加
-- `monitor.ts` の `startMonitor()` 内で `createMessageHandler()` が返す `stats` を `ReplHandler` に渡す
+`ReplHandler` のコンストラクタに `stats: TelegramStats` 引数を追加する。既存のシグネチャ:
+
+```ts
+constructor(
+  config: AppConfig,
+  wsManager: ConnectionManager,
+  notifier: Notifier,
+  eewLogger: EewEventLogger,
+  onQuit: () => void | Promise<void>,
+  statusProviders: PromptStatusProvider[] = [],
+  detailProviders: DetailProvider[] = [],
+)
+```
+
+`stats` は `onQuit` の後、`statusProviders` の前に挿入する（デフォルト値を持つ引数の前に置く）:
+
+```ts
+constructor(
+  config: AppConfig,
+  wsManager: ConnectionManager,
+  notifier: Notifier,
+  eewLogger: EewEventLogger,
+  onQuit: () => void | Promise<void>,
+  stats: TelegramStats,
+  statusProviders: PromptStatusProvider[] = [],
+  detailProviders: DetailProvider[] = [],
+)
+```
+
+`monitor.ts` の呼び出し箇所も対応して更新する:
+
+```ts
+// 現行
+replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown,
+  [tsunamiState, volcanoState], [tsunamiState, volcanoState]);
+
+// 変更後
+replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown,
+  stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState]);
+```
 
 ### handleStats() の実装
 
@@ -264,11 +339,53 @@ private handleStats(): void {
 | `src/engine/messages/message-router.ts` | 変更 | TelegramStats インスタンス化、record() / updateMaxInt() 呼び出し、MessageHandlerResult に stats 追加 |
 | `src/ui/repl.ts` | 変更 | stats コマンド登録、TelegramStats をコンストラクタで受け取り |
 | `src/engine/monitor/monitor.ts` | 変更 | stats の受け渡し（createMessageHandler → ReplHandler） |
+| `test/ui/repl.test.ts` | 変更 | ReplHandler コンストラクタの stats 引数追加に伴う全呼び出し箇所の更新 |
 
 ## テスト方針
 
-- `TelegramStats` のユニットテスト: record / updateMaxInt / getSnapshot の動作確認
-- 最大震度の優先順位テスト: VXSE51 → VXSE53 の上書きが正しく動作すること
-- EEW イベント数の独自集計テスト
-- `displayStatistics()` のスナップショットテスト: 出力文字列の検証
-- 0件時の表示テスト
+### テストファイル
+
+| ファイル | 対象 |
+|---------|------|
+| `test/engine/telegram-stats.test.ts` | **新規** — TelegramStats クラスのユニットテスト |
+| `test/ui/statistics-formatter.test.ts` | **新規** — displayStatistics() の出力テスト |
+| `test/engine/message-router.test.ts` | 変更 — stats 記録の統合テスト追加 |
+
+### TelegramStats テストケース
+
+- `record()`: headType ごとのカウント加算、カテゴリの逆引き登録
+- `record()` + EEW: eventId が `eewEventIds` に追加されること
+- `record()` + EEW: eventId が null の場合はイベント数に加算しないこと
+- `updateMaxInt()`: VXSE53 > VXSE61 > VXSE51 の優先順で上書きされること
+- `updateMaxInt()`: 低優先の type では既存エントリを上書きしないこと
+- `getSnapshot()`: 内部状態を正しく反映したスナップショットを返すこと
+- 0件時: 空のスナップショットを返すこと
+
+### displayStatistics() テストケース
+
+- 0件: 「まだ電文を受信していません」が表示されること
+- 単一カテゴリ: フレーム幅がコンテンツに合わせて算出されること
+- 複数カテゴリ: カテゴリ間が `frameDivider()` で区切られること
+- 最大震度内訳: 地震セクション末尾に表示されること
+- EEW イベント数: カテゴリ見出しに「N件 / Mイベント」で表示されること
+- 出力検証は `stripAnsi()` で ANSI エスケープを除去して文字列比較
+
+### message-router 統合テストケース
+
+- EEW 重複報は統計に含まれないこと
+- EEW パース失敗時は統計に含まれないこと
+- EEW 以外のパース失敗でフォールバックした電文は統計に含まれること
+- 非 XML メッセージ（`msg.format !== "xml"`）は統計に含まれないこと
+- テスト電文（`msg.head.test === true`）は通常電文と同様にカウントされること
+
+### 既存テストへの影響
+
+`ReplHandler` のコンストラクタシグネチャ変更により、`test/ui/repl.test.ts` の全 `new ReplHandler(...)` 呼び出しに `stats` 引数の追加が必要。テスト用には `new TelegramStats()` を渡す。
+
+また、`stats` コマンド自体の統合テストも `test/ui/repl.test.ts` に追加する:
+- `stats` コマンド実行時に `displayStatistics()` が呼ばれること
+- コマンドが `commands` レジストリに登録されていること
+
+### テストヘルパーの拡張
+
+`createMockWsDataMessage()` は `xmlReport.head.eventId` がデフォルトで `null` のため、EEW イベント数や最大震度のテストでは `eventId` を明示的に設定したモックを作成する必要がある。EEW の場合は `parseEewTelegram()` 経由で `eewInfo.eventId` を取得するため、フィクスチャ XML 内の `<EventID>` 要素から自動で取れる。
