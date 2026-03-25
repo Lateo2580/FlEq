@@ -36,6 +36,9 @@ import {
   lgIntToNumeric,
   colorMagnitude,
   renderFooter,
+  renderGroupedItemList,
+  type GroupedListItem,
+  type GroupedListGroup,
 } from "./formatter";
 
 // ── テーブル幅閾値 ──
@@ -879,7 +882,7 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     }
   }
 
-  // 地域リスト (LgInt 降順)
+  // 地域リスト (LgInt 降順 → 階級別グループ化)
   if (info.areas.length > 0) {
     buf.push(frameDivider(level, width));
     const sorted = [...info.areas].sort((a, b) =>
@@ -891,16 +894,29 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     const displayAreas = maxObs != null ? sorted.slice(0, maxObs) : sorted;
     const hiddenCount = sorted.length - displayAreas.length;
 
+    // 長周期階級別にグループ化
+    const byLgInt = new Map<string, GroupedListItem[]>();
     for (const area of displayAreas) {
-      const lc = lgIntensityColor(area.maxLgInt);
+      const key = area.maxLgInt;
+      if (!byLgInt.has(key)) byLgInt.set(key, []);
       const ic = intensityColor(area.maxInt);
-      buf.push(frameLine(level,
-        lc(`長周期${area.maxLgInt}: `) +
-        chalk.white(area.name) +
-        ic(` (震度${area.maxInt})`),
-        width
-      ));
+      byLgInt.get(key)!.push({
+        primary: chalk.white(area.name),
+        badges: [ic(` (震度${area.maxInt})`)],
+      });
     }
+
+    // LgInt 降順でソート
+    const sortedEntries = [...byLgInt.entries()].sort((a, b) =>
+      lgIntToNumeric(b[0]) - lgIntToNumeric(a[0])
+    );
+
+    const groups: GroupedListGroup[] = sortedEntries.map(([lgInt, items]) => ({
+      prefix: lgIntensityColor(lgInt)(`長周期${lgInt}: `),
+      items,
+    }));
+
+    renderGroupedItemList({ level, width, groups, buf });
 
     if (hiddenCount > 0) {
       buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenCount} 地点`), width));
