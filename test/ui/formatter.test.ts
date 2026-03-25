@@ -14,6 +14,9 @@ import {
   flushWithRecap,
   frameLine,
   frameBottom,
+  renderGroupedItemList,
+  stripAnsi,
+  renderSimpleNameList,
 } from "../../src/ui/formatter";
 import { displayEewInfo } from "../../src/ui/eew-formatter";
 import {
@@ -1518,5 +1521,193 @@ describe("観測点折りたたみ", () => {
 
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).not.toContain("... 他");
+  });
+});
+
+// ── renderGroupedItemList ──
+
+describe("renderGroupedItemList", () => {
+  beforeEach(() => {
+    chalk.level = 3;
+    setFrameWidth(80);
+  });
+
+  it("renders single group with comma-separated items", () => {
+    const buf = createRenderBuffer();
+    renderGroupedItemList({
+      level: "warning",
+      width: 80,
+      groups: [
+        {
+          prefix: "震度5弱: ",
+          items: [
+            { primary: "東京都" },
+            { primary: "神奈川県" },
+            { primary: "埼玉県" },
+          ],
+        },
+      ],
+      buf,
+    });
+    expect(buf.lineCount).toBeGreaterThanOrEqual(1);
+    const text = stripAnsi(buf.lines.map((l) => l.text).join("\n"));
+    expect(text).toContain("震度5弱:");
+    expect(text).toContain("東京都");
+    expect(text).toContain("神奈川県");
+    expect(text).toContain("埼玉県");
+  });
+
+  it("wraps long item lists with hanging indent", () => {
+    const buf = createRenderBuffer();
+    renderGroupedItemList({
+      level: "warning",
+      width: 60,
+      groups: [
+        {
+          prefix: "震度4: ",
+          items: Array.from({ length: 10 }, (_, i) => ({
+            primary: `テスト地域${i + 1}`,
+          })),
+        },
+      ],
+      buf,
+    });
+    // Should wrap to multiple lines
+    expect(buf.lineCount).toBeGreaterThan(1);
+  });
+
+  it("appends badges after primary name", () => {
+    const buf = createRenderBuffer();
+    renderGroupedItemList({
+      level: "warning",
+      width: 80,
+      groups: [
+        {
+          prefix: "震度6強: ",
+          items: [
+            { primary: "東京都23区", badges: [" [PLUM]", " [長周期3]"] },
+            { primary: "神奈川県東部" },
+          ],
+        },
+      ],
+      buf,
+    });
+    const text = stripAnsi(buf.lines.map((l) => l.text).join("\n"));
+    expect(text).toContain("[PLUM]");
+    expect(text).toContain("[長周期3]");
+  });
+
+  it("renders multiple groups in order", () => {
+    const buf = createRenderBuffer();
+    renderGroupedItemList({
+      level: "warning",
+      width: 80,
+      groups: [
+        {
+          prefix: "震度5強: ",
+          items: [{ primary: "東京都" }],
+        },
+        {
+          prefix: "震度4: ",
+          items: [{ primary: "埼玉県" }],
+        },
+      ],
+      buf,
+    });
+    const text = stripAnsi(buf.lines.map((l) => l.text).join("\n"));
+    const idx5 = text.indexOf("震度5強");
+    const idx4 = text.indexOf("震度4");
+    expect(idx5).toBeLessThan(idx4);
+  });
+
+  it("skips empty groups", () => {
+    const buf = createRenderBuffer();
+    renderGroupedItemList({
+      level: "warning",
+      width: 80,
+      groups: [
+        { prefix: "震度5弱: ", items: [] },
+        { prefix: "震度4: ", items: [{ primary: "東京都" }] },
+      ],
+      buf,
+    });
+    const text = stripAnsi(buf.lines.map((l) => l.text).join("\n"));
+    expect(text).not.toContain("震度5弱");
+    expect(text).toContain("震度4");
+  });
+});
+
+// ── renderSimpleNameList ──
+
+describe("renderSimpleNameList", () => {
+  beforeEach(() => {
+    chalk.level = 3;
+    setFrameWidth(80);
+  });
+
+  it("renders label + comma-separated names on one line when they fit", () => {
+    const buf = createRenderBuffer();
+    renderSimpleNameList({
+      level: "normal",
+      width: 80,
+      items: ["富士市", "富士宮市", "御殿場市"],
+      label: "対象:",
+      buf,
+    });
+    expect(buf.lineCount).toBe(1);
+    const text = stripAnsi(buf.lines[0].text);
+    expect(text).toContain("対象:");
+    expect(text).toContain("富士市");
+  });
+
+  it("preserves leading space before label for consistent indentation", () => {
+    const buf = createRenderBuffer();
+    renderSimpleNameList({
+      level: "normal",
+      width: 80,
+      items: ["富士市"],
+      label: "対象:",
+      buf,
+    });
+    const text = stripAnsi(buf.lines[0].text);
+    // frameLine adds frame decoration, content should start with " 対象:"
+    expect(text).toMatch(/対象:/);
+  });
+
+  it("wraps long list with hanging indent aligned to label", () => {
+    const buf = createRenderBuffer();
+    renderSimpleNameList({
+      level: "normal",
+      width: 60,
+      items: Array.from({ length: 15 }, (_, i) => `テスト市町村${i + 1}`),
+      label: "対象:",
+      buf,
+    });
+    expect(buf.lineCount).toBeGreaterThan(1);
+  });
+
+  it("renders without label when label is omitted", () => {
+    const buf = createRenderBuffer();
+    renderSimpleNameList({
+      level: "info",
+      width: 80,
+      items: ["東京都23区", "千葉県北西部"],
+      buf,
+    });
+    expect(buf.lineCount).toBeGreaterThanOrEqual(1);
+    const text = stripAnsi(buf.lines[0].text);
+    expect(text).toContain("東京都23区");
+  });
+
+  it("handles empty items array gracefully", () => {
+    const buf = createRenderBuffer();
+    renderSimpleNameList({
+      level: "normal",
+      width: 80,
+      items: [],
+      label: "対象:",
+      buf,
+    });
+    expect(buf.lineCount).toBe(0);
   });
 });

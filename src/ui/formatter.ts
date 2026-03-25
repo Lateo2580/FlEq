@@ -532,6 +532,88 @@ export function wrapTextLines(text: string, maxWidth: number): string[] {
   return lines;
 }
 
+// ── グループ化項目リスト ──
+
+export interface GroupedListItem {
+  /** 地域名等のメインテキスト (chalk styled OK) */
+  primary: string;
+  /** " [PLUM]", " [長周期3]" 等のバッジ (chalk styled OK, 先頭スペースは呼び出し側が付与) */
+  badges?: string[];
+}
+
+export interface GroupedListGroup {
+  /** "震度5弱: " 等のプレフィックス (chalk styled OK) */
+  prefix: string;
+  /** グループ内の項目一覧 */
+  items: GroupedListItem[];
+}
+
+/**
+ * 震度別・階級別にグループ化された項目リストを描画する。
+ * 各グループは `prefix + item, item, ...` 形式で、2行目以降は prefix 幅分のハンギングインデント。
+ * badges は primary の直後に連結される（先頭スペースは呼び出し側で付与済み想定）。
+ */
+export function renderGroupedItemList(options: {
+  level: FrameLevel;
+  width: number;
+  groups: GroupedListGroup[];
+  buf?: Pick<RenderBuffer, "push">;
+  itemSeparator?: string;
+}): void {
+  const { level, width, groups, itemSeparator = ", " } = options;
+  const out = options.buf
+    ? (line: string) => options.buf!.push(line)
+    : (line: string) => console.log(line);
+
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+
+    const prefix = group.prefix;
+    const indentWidth = visualWidth(stripAnsi(prefix));
+
+    // 各項目を "primary + badges" 形式の文字列に組み立て
+    const itemTexts = group.items.map((item) => {
+      let text = item.primary;
+      if (item.badges != null && item.badges.length > 0) {
+        text += item.badges.join("");
+      }
+      return text;
+    });
+
+    const content = prefix + itemTexts.join(itemSeparator);
+    for (const line of wrapFrameLines(level, content, width, indentWidth)) {
+      out(line);
+    }
+  }
+}
+
+/**
+ * 単純な名前リストを描画する。
+ * `label + name, name, ...` 形式。2行目以降は label 幅分のハンギングインデント。
+ */
+export function renderSimpleNameList(options: {
+  level: FrameLevel;
+  width: number;
+  items: string[];
+  label?: string;
+  buf?: Pick<RenderBuffer, "push">;
+  separator?: string;
+}): void {
+  const { level, width, items, label, separator = ", " } = options;
+  if (items.length === 0) return;
+
+  const out = options.buf
+    ? (line: string) => options.buf!.push(line)
+    : (line: string) => console.log(line);
+
+  const prefix = label ? ` ${chalk.gray(label)} ` : "";
+  const indentWidth = label ? visualWidth(stripAnsi(prefix)) : 0;
+  const content = prefix + items.join(separator);
+  for (const line of wrapFrameLines(level, content, width, indentWidth)) {
+    out(line);
+  }
+}
+
 // ── 本文キーワード強調 ──
 
 /** 本文キーワード強調ルール */
