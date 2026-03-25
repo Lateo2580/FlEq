@@ -468,8 +468,8 @@ describe("displayEewInfo", () => {
     expect(output).toContain("PLUM法");
     // PLUM法地域マーカー
     expect(output).toContain("[PLUM]");
-    // 既到達マーカー
-    expect(output).toContain("[到達]");
+    // [到達] は予報区域一覧には含まれず、到達セクションに集約される
+    // 到達セクションの存在は別途確認
     // 主要動到達と推測される地域リスト
     expect(output).toContain("既に主要動到達と推測:");
     expect(output).toContain("富山県東部");
@@ -501,8 +501,7 @@ describe("displayEewInfo", () => {
     expect(output).not.toContain("仮定震源要素");
     // PLUM法地域マーカー
     expect(output).toContain("[PLUM]");
-    // 既到達マーカー
-    expect(output).toContain("[到達]");
+    // [到達] は予報区域一覧には含まれず、到達セクションに集約される
     // 主要動到達と推測される地域リスト
     expect(output).toContain("既に主要動到達と推測:");
     expect(output).toContain("富山県西部");
@@ -739,6 +738,38 @@ describe("displayEewInfo", () => {
     // → 装飾行同士が一致していれば、通常EEWの一貫性は確認できる
 
     chalk.level = origLevel;
+  });
+
+  it("EEW予報区域: 同震度の地域がカンマ区切りで1行にまとまる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE45_MIXED, {
+      classification: "eew.forecast",
+      head: {
+        type: "VXSE45",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseEewTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayEewInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+    const lines = output.split("\n");
+
+    // 各震度ラベルは1回だけ出現する（グループ化されている証拠）
+    const intensityLabels = lines.filter((l) => stripAnsi(l).match(/震度\d/));
+    const uniqueLabels = new Set(intensityLabels.map((l) => {
+      const m = stripAnsi(l).match(/震度[0-9+\-強弱]+:/);
+      return m ? m[0] : null;
+    }).filter(Boolean));
+    // 同じ震度ラベルが複数行に出現しない（1行にまとまっている）
+    for (const label of uniqueLabels) {
+      const count = intensityLabels.filter((l) => stripAnsi(l).includes(label!)).length;
+      expect(count).toBe(1);
+    }
   });
 });
 
@@ -1092,6 +1123,29 @@ describe("displayLgObservationInfo", () => {
     expect(output).toContain("宮城県北部");
     // URI
     expect(output).toContain("https://");
+  });
+
+  it("VXSE62: 同じ長周期階級の地域がカンマ区切りでまとまる", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
+      head: {
+        type: "VXSE62",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const info = parseLgObservationTelegram(msg);
+    expect(info).not.toBeNull();
+
+    displayLgObservationInfo(info!);
+
+    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+
+    // 長周期ラベルが含まれる
+    expect(output).toContain("長周期");
+    // 地域名がカンマ区切りで表示される（1行に複数地域）
+    expect(output).toContain("宮城県北部");
   });
 });
 

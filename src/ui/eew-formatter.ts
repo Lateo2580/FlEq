@@ -24,6 +24,9 @@ import {
   colorMagnitude,
   renderFooter,
   formatTimestamp,
+  renderGroupedItemList,
+  type GroupedListItem,
+  type GroupedListGroup,
 } from "./formatter";
 
 // ── EEW 表示コンテキスト ──
@@ -306,23 +309,40 @@ export function displayEewInfo(
     const displayAreas = maxObs != null ? allAreas.slice(0, maxObs) : allAreas;
     const hiddenCount = allAreas.length - displayAreas.length;
 
+    // 震度別にグループ化
+    const byIntensity = new Map<string, GroupedListItem[]>();
     for (const area of displayAreas) {
-      const color = intensityColor(area.intensity);
-      let areaText = chalk.white(area.name);
+      const key = area.intensity;
+      if (!byIntensity.has(key)) byIntensity.set(key, []);
+      const badges: string[] = [];
       if (area.isPlum) {
-        areaText += theme.getRoleChalk("plumLabel")(" [PLUM]");
+        badges.push(theme.getRoleChalk("plumLabel")(" [PLUM]"));
       }
-      if (area.hasArrived) {
-        areaText += theme.getRoleChalk("arrivedLabel")(" [到達]");
-      }
+      // [到達] は下部の専用セクションに集約するため、ここでは付与しない
       if (area.lgIntensity && lgIntToNumeric(area.lgIntensity) >= 1) {
         const lc = lgIntensityColor(area.lgIntensity);
-        areaText += lc(` [長周期${area.lgIntensity}]`);
+        badges.push(lc(` [長周期${area.lgIntensity}]`));
       }
-      for (const wl of wrapFrameLines(level, color(`震度${area.intensity}: `) + areaText, width)) {
-        buf.push(wl);
-      }
+      byIntensity.get(key)!.push({
+        primary: chalk.white(area.name),
+        badges: badges.length > 0 ? badges : undefined,
+      });
     }
+
+    // 震度降順でソート
+    const order = ["7", "6+", "6強", "6-", "6弱", "5+", "5強", "5-", "5弱", "4", "3", "2", "1"];
+    const sortedEntries = [...byIntensity.entries()].sort((a, b) => {
+      const ai = order.indexOf(a[0]);
+      const bi = order.indexOf(b[0]);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    const groups: GroupedListGroup[] = sortedEntries.map(([int, items]) => ({
+      prefix: intensityColor(int)(`震度${int}: `),
+      items,
+    }));
+
+    renderGroupedItemList({ level, width, groups, buf });
 
     if (hiddenCount > 0) {
       buf.push(frameLine(level, chalk.gray(`... 他 ${hiddenCount} 地点`), width));
