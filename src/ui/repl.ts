@@ -1783,7 +1783,6 @@ export class ReplHandler {
     volcanoAshfallDetailLines: "降灰詳細(VFVO55)本文",
     volcanoAshfallRegularLines: "降灰定時(VFVO53)本文",
     volcanoPreventionLines: "火山警報 防災事項",
-    volcanoMunicipalities: "火山警報 対象市町村",
     ashfallAreasQuick: "降灰速報(VFVO54) 地域数",
     ashfallAreasOther: "降灰予報 地域数",
     ashfallPeriodsQuick: "降灰速報(VFVO54) 時間帯数",
@@ -1809,7 +1808,6 @@ export class ReplHandler {
         "volcanoPreventionLines",
       ];
       const countKeys: (keyof TruncationLimits)[] = [
-        "volcanoMunicipalities",
         "ashfallAreasQuick", "ashfallAreasOther",
         "ashfallPeriodsQuick", "ashfallPeriodsOther",
         "plumeWindSampleRows", "tsunamiCompactForecastAreas",

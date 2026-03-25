@@ -176,7 +176,6 @@ export const VALID_TRUNCATION_KEYS: (keyof TruncationLimits)[] = [
   "volcanoAshfallDetailLines",
   "volcanoAshfallRegularLines",
   "volcanoPreventionLines",
-  "volcanoMunicipalities",
   "ashfallAreasQuick",
   "ashfallAreasOther",
   "ashfallPeriodsQuick",

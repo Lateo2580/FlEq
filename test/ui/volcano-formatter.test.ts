@@ -249,6 +249,14 @@ describe("displayVolcanoInfo", () => {
     }
   });
 
+  it("VFVO50 で対象市町村が truncation なしで全件表示される", () => {
+    const output = displayFixture(FIXTURE_VFVO50_ALERT_LV3);
+    // 「他N件」が出ないことを確認
+    expect(output).not.toMatch(/他\d+件/);
+    // 「対象:」ラベルが表示される
+    expect(output).toContain("対象:");
+  });
+
   it("infoFullText=true で VZVO40 本文が4行以上表示される", () => {
     setInfoFullText(true);
     try {

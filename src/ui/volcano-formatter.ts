@@ -30,6 +30,7 @@ import {
   renderFooter,
   renderFrameTable,
   highlightAndWrap,
+  renderSimpleNameList,
 } from "./formatter";
 import { getRoleChalk, RoleName } from "./theme";
 import { VolcanoPresentation } from "../engine/notification/volcano-presentation";
@@ -115,14 +116,6 @@ function levelCodeToDisplay(code: string): string {
     "36": "周辺海域警戒",
   };
   return map[code] ?? code;
-}
-
-/** wrapFrameLines の結果を RenderBuffer に push */
-function pushWrapped(buf: RenderBuffer, level: FrameLevel, content: string, width: number): void {
-  const lines = wrapFrameLines(level, content, width);
-  for (const line of lines) {
-    buf.push(line);
-  }
 }
 
 // ── 火山本文ハイライト ──
@@ -278,21 +271,30 @@ function renderAlert(info: ParsedVolcanoAlertInfo, level: FrameLevel, width: num
     buf.pushCard(frameLine(level, ` ${cardParts.join("  ")}`, width));
   }
 
-  // 対象市町村
+  // 対象市町村 (全件表示)
   if (info.municipalities.length > 0) {
     buf.push(frameDivider(level, width));
     const muniNames = info.municipalities.map((m) => m.name);
-    const maxMuni = getTruncation().volcanoMunicipalities;
-    const muniLine = muniNames.slice(0, maxMuni).join(", ");
-    const suffix = muniNames.length > maxMuni ? ` 他${muniNames.length - maxMuni}件` : "";
-    pushWrapped(buf, level, ` ${chalk.gray("対象:")} ${muniLine}${suffix}`, width);
+    renderSimpleNameList({
+      level,
+      width,
+      items: muniNames,
+      label: "対象:",
+      buf,
+    });
   }
 
   // 対象海上予報区
   if (info.marineAreas.length > 0) {
     buf.push(frameDivider(level, width));
     const areaNames = info.marineAreas.map((a) => a.name);
-    pushWrapped(buf, level, ` ${chalk.gray("対象海域:")} ${areaNames.join(", ")}`, width);
+    renderSimpleNameList({
+      level,
+      width,
+      items: areaNames,
+      label: "対象海域:",
+      buf,
+    });
   }
 
   // 本文 (VolcanoActivity) / 防災事項 (VolcanoPrevention)

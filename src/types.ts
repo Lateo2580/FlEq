@@ -45,7 +45,6 @@ export interface TruncationLimits {
   volcanoAshfallRegularLines: number;
   volcanoPreventionLines: number;
   // ── 件数 ──
-  volcanoMunicipalities: number;
   ashfallAreasQuick: number;
   ashfallAreasOther: number;
   ashfallPeriodsQuick: number;
@@ -172,7 +171,6 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     volcanoAshfallDetailLines: 16,
     volcanoAshfallRegularLines: 10,
     volcanoPreventionLines: 8,
-    volcanoMunicipalities: 6,
     ashfallAreasQuick: 5,
     ashfallAreasOther: 3,
     ashfallPeriodsQuick: 1,
