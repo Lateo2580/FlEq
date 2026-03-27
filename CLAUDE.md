@@ -107,6 +107,15 @@ npm run start:lowmem # メモリ最適化モードで実行
 
 新しい設定項目を追加する際もこの優先順位に従うこと。
 
+## Claude Harness Policy
+
+- `CLAUDE.md` は常設の制約・設計原則を置く（「憲法」）
+- Skills は特定タスクの手順とチェックリストを置く
+- Hooks は機械的に判定できる自動ガードだけを置く
+- 重い検証やリリース判定は Hook に寄せず、npm scripts / CI に残す
+- Hook は短時間・決定的・副作用最小を原則とする
+- 詳細設計は `docs/specs/claude-harness.md` を参照
+
 ## レビュー方針
 
 - コードレビューはサブエージェントではなく **Codex MCP に依頼**する
