@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMessageHandler } from "../../src/engine/messages/message-router";
+import { TelegramStats } from "../../src/engine/messages/telegram-stats";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,
@@ -440,6 +441,104 @@ describe("message-router 統合テスト", () => {
 
       const output = getOutput();
       expect(output.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("統計記録 (TelegramStats)", () => {
+    it("地震電文を統計に記録する", () => {
+      const { handler, stats } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+      handler(msg);
+
+      const snap = stats.getSnapshot();
+      expect(snap.countByType.get("VXSE53")).toBe(1);
+      expect(snap.categoryByType.get("VXSE53")).toBe("earthquake");
+    });
+
+    it("EEW 重複報は統計に含まれない", () => {
+      const { handler, stats } = createMessageHandler();
+      const msg1 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+      const msg2 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+      handler(msg1);
+      handler(msg2);
+
+      const snap = stats.getSnapshot();
+      expect(snap.countByType.get("VXSE45")).toBe(1);
+    });
+
+    it("非 XML メッセージは統計に含まれない", () => {
+      const { handler, stats } = createMessageHandler();
+      const msg: WsDataMessage = {
+        type: "data",
+        version: "2.0",
+        classification: "telegram.earthquake",
+        id: "test-non-xml",
+        passing: [],
+        head: { type: "VXSE53", author: "気象庁", time: new Date().toISOString(), test: false, xml: false },
+        format: null,
+        compression: null,
+        encoding: null,
+        body: "not-xml",
+      };
+      handler(msg);
+
+      const snap = stats.getSnapshot();
+      expect(snap.totalCount).toBe(0);
+    });
+
+    it("EEW パース失敗は統計に含まれない", () => {
+      const { handler, stats } = createMessageHandler();
+      // xml: true だが body が壊れた EEW 電文 → parseEewTelegram が null を返す
+      const msg: WsDataMessage = {
+        type: "data",
+        version: "2.0",
+        classification: "eew.forecast",
+        id: "test-eew-parse-fail",
+        passing: [],
+        head: { type: "VXSE45", author: "気象庁", time: new Date().toISOString(), test: false, xml: true },
+        format: "xml",
+        compression: null,
+        encoding: "utf-8",
+        body: "not-valid-eew-xml",
+      };
+      handler(msg);
+
+      const snap = stats.getSnapshot();
+      expect(snap.totalCount).toBe(0);
+    });
+
+    it("非 EEW パース失敗 (フォールバック表示) は統計に含まれる", () => {
+      const { handler, stats } = createMessageHandler();
+      // xml: true だが body が壊れた地震電文 → parseEarthquakeTelegram が null → displayRawHeader
+      // ただし stats.record() はルーティング時点で呼ばれるのでカウントされる
+      const msg: WsDataMessage = {
+        type: "data",
+        version: "2.0",
+        classification: "telegram.earthquake",
+        id: "test-eq-parse-fail",
+        passing: [],
+        head: { type: "VXSE53", author: "気象庁", time: new Date().toISOString(), test: false, xml: true },
+        format: "xml",
+        compression: null,
+        encoding: "utf-8",
+        body: "not-valid-earthquake-xml",
+      };
+      handler(msg);
+
+      const snap = stats.getSnapshot();
+      expect(snap.countByType.get("VXSE53")).toBe(1);
+      expect(snap.categoryByType.get("VXSE53")).toBe("earthquake");
+    });
+
+    it("テスト電文は通常電文と同様にカウントされる", () => {
+      const { handler, stats } = createMessageHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
+        head: { type: "VXSE53", author: "気象庁", time: new Date().toISOString(), test: true, xml: true },
+      });
+      handler(msg);
+
+      const snap = stats.getSnapshot();
+      expect(snap.countByType.get("VXSE53")).toBe(1);
     });
   });
 });

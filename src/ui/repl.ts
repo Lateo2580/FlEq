@@ -30,6 +30,8 @@ import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { TipShuffler } from "./tip-shuffler";
 import { TEST_TABLES } from "./test-samples";
+import { TelegramStats } from "../engine/messages/telegram-stats";
+import { displayStatistics } from "./statistics-formatter";
 
 /** コマンドのカテゴリ */
 type CommandCategory = "info" | "status" | "settings" | "operation";
@@ -238,6 +240,7 @@ export class ReplHandler {
   private tipShuffler = new TipShuffler();
   private statusProviders: PromptStatusProvider[];
   private detailProviders: DetailProvider[];
+  private stats: TelegramStats;
 
   constructor(
     config: AppConfig,
@@ -245,6 +248,7 @@ export class ReplHandler {
     notifier: Notifier,
     eewLogger: EewEventLogger,
     onQuit: () => void | Promise<void>,
+    stats: TelegramStats,
     statusProviders: PromptStatusProvider[] = [],
     detailProviders: DetailProvider[] = [],
   ) {
@@ -253,6 +257,7 @@ export class ReplHandler {
     this.notifier = notifier;
     this.eewLogger = eewLogger;
     this.onQuit = onQuit;
+    this.stats = stats;
     this.statusProviders = statusProviders;
     this.detailProviders = detailProviders;
     this.statusLine = new StatusLine();
@@ -276,6 +281,11 @@ export class ReplHandler {
         detail: "dmdata.jp API から直近の地震履歴を取得します。\n  引数: 件数 (1〜100, デフォルト10)\n  例: history 20",
         category: "info",
         handler: (args) => this.handleHistory(args),
+      },
+      stats: {
+        description: "電文統計を表示",
+        category: "info",
+        handler: () => this.handleStats(),
       },
       colors: {
         description: "カラーパレット・震度色の一覧を表示",
@@ -979,6 +989,10 @@ export class ReplHandler {
     console.log();
     console.log(chalk.gray("  エイリアス: ") + chalk.white("?") + chalk.gray(" → help, ") + chalk.white("exit") + chalk.gray(" → quit (コマンド名の大文字小文字は区別しません)"));
     console.log();
+  }
+
+  private handleStats(): void {
+    displayStatistics(this.stats.getSnapshot());
   }
 
   private async handleHistory(args: string): Promise<void> {

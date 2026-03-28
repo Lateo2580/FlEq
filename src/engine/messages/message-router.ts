@@ -26,6 +26,7 @@ import { TsunamiStateHolder } from "./tsunami-state";
 import { VolcanoStateHolder } from "./volcano-state";
 import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../notification/volcano-presentation";
 import * as log from "../../logger";
+import { TelegramStats, routeToCategory } from "./telegram-stats";
 
 // ── 電文分類 (Route) ──
 
@@ -90,6 +91,7 @@ function handleEew(
   eewTracker: EewTracker,
   eewLogger: EewEventLogger,
   notifier: Notifier,
+  stats: TelegramStats,
 ): void {
   const eewInfo = parseEewTelegram(msg);
   if (!eewInfo) {
@@ -104,6 +106,13 @@ function handleEew(
     );
     return;
   }
+
+  // 統計記録 (非重複報のみ)
+  stats.record({
+    headType: msg.head.type,
+    category: "eew",
+    eventId: eewInfo.eventId,
+  });
 
   // ログ記録 (非重複報のみ)
   eewLogger.logReport(eewInfo, result);
@@ -150,9 +159,13 @@ function handleLgObservation(msg: WsDataMessage, notifier: Notifier): void {
 }
 
 /** 地震情報 (VXSE51/52/53/61 等) パス */
-function handleEarthquake(msg: WsDataMessage, notifier: Notifier): void {
+function handleEarthquake(msg: WsDataMessage, notifier: Notifier, stats: TelegramStats): void {
   const eqInfo = parseEarthquakeTelegram(msg);
   if (eqInfo) {
+    const eventId = msg.xmlReport?.head.eventId;
+    if (eventId && eqInfo.intensity?.maxInt) {
+      stats.updateMaxInt(eventId, eqInfo.intensity.maxInt, msg.head.type);
+    }
     displayEarthquakeInfo(eqInfo);
     notifier.notifyEarthquake(eqInfo);
   } else {
@@ -212,6 +225,7 @@ export interface MessageHandlerResult {
   notifier: Notifier;
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
+  stats: TelegramStats;
   flushAndDisposeVolcanoBuffer: () => void;
 }
 
@@ -221,6 +235,7 @@ export function createMessageHandler(): MessageHandlerResult {
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
+  const stats = new TelegramStats();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -257,9 +272,18 @@ export function createMessageHandler(): MessageHandlerResult {
 
     const route = classifyMessage(msg.classification, msg.head.type);
 
+    // EEW 以外はここで統計記録 (EEW は handleEew 内で記録)
+    if (route !== "eew") {
+      stats.record({
+        headType: msg.head.type,
+        category: routeToCategory(route),
+        eventId: msg.xmlReport?.head.eventId ?? null,
+      });
+    }
+
     switch (route) {
       case "eew":
-        handleEew(msg, eewTracker, eewLogger, notifier);
+        handleEew(msg, eewTracker, eewLogger, notifier, stats);
         break;
       case "seismicText":
         handleSeismicText(msg, notifier);
@@ -268,7 +292,7 @@ export function createMessageHandler(): MessageHandlerResult {
         handleLgObservation(msg, notifier);
         break;
       case "earthquake":
-        handleEarthquake(msg, notifier);
+        handleEarthquake(msg, notifier, stats);
         break;
       case "tsunami":
         handleTsunami(msg, notifier, tsunamiState);
@@ -291,6 +315,7 @@ export function createMessageHandler(): MessageHandlerResult {
     notifier,
     tsunamiState,
     volcanoState,
+    stats,
     flushAndDisposeVolcanoBuffer: () => vfvo53Aggregator.flushAndDispose(),
   };
 }

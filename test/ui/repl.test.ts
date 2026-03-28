@@ -86,6 +86,7 @@ import { printConfig, loadConfig, saveConfig } from "../../src/config";
 import { Notifier } from "../../src/engine/notification/notifier";
 import { EewEventLogger } from "../../src/engine/eew/eew-logger";
 import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
+import { TelegramStats } from "../../src/engine/messages/telegram-stats";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
 const mockListContracts = vi.mocked(listContracts);
@@ -191,7 +192,7 @@ describe("ReplHandler", () => {
         ],
       });
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("history");
@@ -210,7 +211,7 @@ describe("ReplHandler", () => {
     });
 
     it("不正な件数でエラーメッセージを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("history abc");
@@ -222,7 +223,7 @@ describe("ReplHandler", () => {
     });
 
     it("0件の場合のメッセージ", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("history 0");
@@ -234,7 +235,7 @@ describe("ReplHandler", () => {
     });
 
     it("負数の場合のメッセージ", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("history -5");
@@ -248,7 +249,7 @@ describe("ReplHandler", () => {
 
   describe("status コマンド", () => {
     it("接続状態を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("status");
@@ -269,7 +270,7 @@ describe("ReplHandler", () => {
         heartbeatDeadlineAt: null,
       });
 
-      const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("status");
@@ -289,7 +290,7 @@ describe("ReplHandler", () => {
         "eew.forecast",
       ]);
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("contract");
@@ -330,7 +331,7 @@ describe("ReplHandler", () => {
         ],
       });
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("socket");
@@ -349,7 +350,7 @@ describe("ReplHandler", () => {
 
   describe("config コマンド", () => {
     it("printConfig を呼び出す", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("config");
@@ -362,7 +363,7 @@ describe("ReplHandler", () => {
 
   describe("不明コマンド", () => {
     it("フォールバックメッセージを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("unknown-cmd");
@@ -377,7 +378,7 @@ describe("ReplHandler", () => {
 
   describe("空行", () => {
     it("空行を入力してもエラーにならない", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("");
@@ -392,7 +393,7 @@ describe("ReplHandler", () => {
 
   describe("help コマンド", () => {
     it("コマンド一覧を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("help");
@@ -412,7 +413,7 @@ describe("ReplHandler", () => {
     const mockSaveConfig = vi.mocked(saveConfig);
 
     it("引数なしで現在のテーブル幅を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tablewidth");
@@ -426,7 +427,7 @@ describe("ReplHandler", () => {
     it("有効な数値でテーブル幅を変更・永続化する", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tablewidth 100");
@@ -441,7 +442,7 @@ describe("ReplHandler", () => {
     });
 
     it("範囲外の数値でエラーを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tablewidth 10");
@@ -453,7 +454,7 @@ describe("ReplHandler", () => {
     });
 
     it("数値でない引数でエラーを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tablewidth abc");
@@ -467,7 +468,7 @@ describe("ReplHandler", () => {
     it("境界値40が受け入れられる", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tablewidth 40");
@@ -481,7 +482,7 @@ describe("ReplHandler", () => {
     it("境界値200が受け入れられる", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tablewidth 200");
@@ -498,7 +499,7 @@ describe("ReplHandler", () => {
     const mockSaveConfig = vi.mocked(saveConfig);
 
     it("引数なしで現在のヒント間隔を表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tipinterval");
@@ -512,7 +513,7 @@ describe("ReplHandler", () => {
     it("有効な数値でヒント間隔を変更・永続化する", () => {
       mockLoadConfig.mockReturnValue({});
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("tipinterval 15");
@@ -529,7 +530,7 @@ describe("ReplHandler", () => {
 
   describe("detail コマンド", () => {
     it("情報なし時にメッセージを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("detail");
@@ -541,7 +542,7 @@ describe("ReplHandler", () => {
     });
 
     it("detail tsunami でも同様に動作する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("detail tsunami");
@@ -553,7 +554,7 @@ describe("ReplHandler", () => {
     });
 
     it("不明なサブコマンドでエラーを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("detail unknown");
@@ -574,7 +575,7 @@ describe("ReplHandler", () => {
 
       const handler = new ReplHandler(
         createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
-        [], [mockProvider],
+        new TelegramStats(), [], [mockProvider],
       );
       handler.start();
 
@@ -586,13 +587,47 @@ describe("ReplHandler", () => {
     });
   });
 
+  describe("stats コマンド", () => {
+    it("stats コマンドで統計フレームを表示する", () => {
+      const stats = new TelegramStats();
+      stats.record({ headType: "VXSE53", category: "earthquake" });
+
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), stats,
+      );
+      handler.start();
+
+      simulateLine("stats");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("統計");
+
+      handler.stop();
+    });
+
+    it("stats コマンドが help に表示される", () => {
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats(),
+      );
+      handler.start();
+
+      simulateLine("help");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("stats");
+      expect(output).toContain("電文統計");
+
+      handler.stop();
+    });
+  });
+
   describe("stop() の責務分離", () => {
     it("stop() を呼んでも process.exit が呼ばれない", () => {
       const exitSpy = vi
         .spyOn(process, "exit")
         .mockImplementation((() => {}) as (code?: number) => never);
 
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn());
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
       handler.stop();
 
@@ -606,7 +641,7 @@ describe("ReplHandler", () => {
     it("close イベントが stop() を経由せずに発火した場合は onQuit が呼ばれる", () => {
       const onQuit = vi.fn();
       const wsManager = createMockWsManager();
-      const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), new EewEventLogger(), onQuit);
+      const handler = new ReplHandler(createConfig(), wsManager, new Notifier(), new EewEventLogger(), onQuit, new TelegramStats());
       handler.start();
 
       // stop() を呼ばずに close イベントを直接発火 → handleQuit が呼ばれる
