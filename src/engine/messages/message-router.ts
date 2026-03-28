@@ -1,12 +1,4 @@
 import { WsDataMessage } from "../../types";
-import {
-  parseEarthquakeTelegram,
-  parseEewTelegram,
-  parseTsunamiTelegram,
-  parseSeismicTextTelegram,
-  parseNankaiTroughTelegram,
-  parseLgObservationTelegram,
-} from "../../dmdata/telegram-parser";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { displayRawHeader } from "../../ui/formatter";
 import { displayEewInfo } from "../../ui/eew-formatter";
@@ -25,8 +17,10 @@ import { Notifier } from "../notification/notifier";
 import { TsunamiStateHolder } from "./tsunami-state";
 import { VolcanoStateHolder } from "./volcano-state";
 import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../notification/volcano-presentation";
-import * as log from "../../logger";
 import { TelegramStats, routeToCategory } from "./telegram-stats";
+import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
+import { toPresentationEvent } from "../presentation/events/to-presentation-event";
+import type { ProcessOutcome, PresentationEvent } from "../presentation/types";
 
 // ── 電文分類 (Route) ──
 
@@ -83,136 +77,65 @@ function classifyMessage(classification: string, headType: string): Route {
   return "raw";
 }
 
-// ── ルート別処理 ──
+// ── dispatch / stats helpers ──
 
-/** EEW パス: パース → 重複判定 → ログ → 表示 → 通知 */
-function handleEew(
-  msg: WsDataMessage,
-  eewTracker: EewTracker,
-  eewLogger: EewEventLogger,
-  notifier: Notifier,
-  stats: TelegramStats,
-): void {
-  const eewInfo = parseEewTelegram(msg);
-  if (!eewInfo) {
-    displayRawHeader(msg);
-    return;
-  }
-
-  const result = eewTracker.update(eewInfo);
-  if (result.isDuplicate) {
-    log.debug(
-      `EEW 重複報スキップ: EventID=${eewInfo.eventId} 第${eewInfo.serial}報`
-    );
-    return;
-  }
-
-  // 統計記録 (非重複報のみ)
-  stats.record({
-    headType: msg.head.type,
-    category: "eew",
-    eventId: eewInfo.eventId,
-  });
-
-  // ログ記録 (非重複報のみ)
-  eewLogger.logReport(eewInfo, result);
-
-  // 取消報の場合はログを閉じる
-  if (result.isCancelled && eewInfo.eventId) {
-    eewLogger.closeEvent(eewInfo.eventId, "取消");
-  }
-
-  // 最終報の場合はログを閉じ、トラッカーのイベントを終了扱いにする
-  if (eewInfo.nextAdvisory && eewInfo.eventId && !result.isCancelled) {
-    eewLogger.closeEvent(eewInfo.eventId, "最終報");
-    eewTracker.finalizeEvent(eewInfo.eventId);
-  }
-
-  displayEewInfo(eewInfo, {
-    activeCount: result.activeCount,
-    diff: result.diff,
-    colorIndex: result.colorIndex,
-  });
-  notifier.notifyEew(eewInfo, result);
-}
-
-/** テキスト系 (VXSE56/VXSE60/VZSE40) パス */
-function handleSeismicText(msg: WsDataMessage, notifier: Notifier): void {
-  const textInfo = parseSeismicTextTelegram(msg);
-  if (textInfo) {
-    displaySeismicTextInfo(textInfo);
-    notifier.notifySeismicText(textInfo);
-  } else {
-    displayRawHeader(msg);
-  }
-}
-
-/** 長周期地震動観測情報 (VXSE62) パス */
-function handleLgObservation(msg: WsDataMessage, notifier: Notifier): void {
-  const lgInfo = parseLgObservationTelegram(msg);
-  if (lgInfo) {
-    displayLgObservationInfo(lgInfo);
-    notifier.notifyLgObservation(lgInfo);
-  } else {
-    displayRawHeader(msg);
-  }
-}
-
-/** 地震情報 (VXSE51/52/53/61 等) パス */
-function handleEarthquake(msg: WsDataMessage, notifier: Notifier, stats: TelegramStats): void {
-  const eqInfo = parseEarthquakeTelegram(msg);
-  if (eqInfo) {
-    const eventId = msg.xmlReport?.head.eventId;
-    if (eventId && eqInfo.intensity?.maxInt) {
-      stats.updateMaxInt(eventId, eqInfo.intensity.maxInt, msg.head.type);
+/** ProcessOutcome に基づいて表示・通知を実行する */
+function dispatchDisplay(outcome: ProcessOutcome, notifier: Notifier): void {
+  switch (outcome.domain) {
+    case "eew": {
+      displayEewInfo(outcome.parsed, {
+        activeCount: outcome.eewResult.activeCount,
+        diff: outcome.eewResult.diff,
+        colorIndex: outcome.eewResult.colorIndex,
+      });
+      notifier.notifyEew(outcome.parsed, outcome.eewResult);
+      break;
     }
-    displayEarthquakeInfo(eqInfo);
-    notifier.notifyEarthquake(eqInfo);
-  } else {
-    displayRawHeader(msg);
-  }
-}
-
-/** 津波情報 (VTSE41/51/52) パス */
-function handleTsunami(
-  msg: WsDataMessage,
-  notifier: Notifier,
-  tsunamiState: TsunamiStateHolder,
-): void {
-  const tsunamiInfo = parseTsunamiTelegram(msg);
-  if (tsunamiInfo) {
-    // VTSE41 (津波警報・注意報) の場合のみ状態を更新
-    if (msg.head.type === "VTSE41") {
-      tsunamiState.update(tsunamiInfo);
+    case "earthquake": {
+      displayEarthquakeInfo(outcome.parsed);
+      notifier.notifyEarthquake(outcome.parsed);
+      break;
     }
-    displayTsunamiInfo(tsunamiInfo);
-    notifier.notifyTsunami(tsunamiInfo);
-  } else {
-    displayRawHeader(msg);
+    case "seismicText": {
+      displaySeismicTextInfo(outcome.parsed);
+      notifier.notifySeismicText(outcome.parsed);
+      break;
+    }
+    case "lgObservation": {
+      displayLgObservationInfo(outcome.parsed);
+      notifier.notifyLgObservation(outcome.parsed);
+      break;
+    }
+    case "tsunami": {
+      displayTsunamiInfo(outcome.parsed);
+      notifier.notifyTsunami(outcome.parsed);
+      break;
+    }
+    case "nankaiTrough": {
+      displayNankaiTroughInfo(outcome.parsed);
+      notifier.notifyNankaiTrough(outcome.parsed);
+      break;
+    }
+    case "raw": {
+      displayRawHeader(outcome.msg);
+      break;
+    }
+    // volcano: NOT handled here — volcano goes through aggregator
   }
 }
 
-/** 南海トラフ関連 (VYSE50/51/52/60) パス */
-function handleNankaiTrough(msg: WsDataMessage, notifier: Notifier): void {
-  const nankaiInfo = parseNankaiTroughTelegram(msg);
-  if (nankaiInfo) {
-    displayNankaiTroughInfo(nankaiInfo);
-    notifier.notifyNankaiTrough(nankaiInfo);
-  } else {
-    displayRawHeader(msg);
+/** outcome.stats に基づいて統計を記録する */
+function recordStats(outcome: ProcessOutcome, stats: TelegramStats): void {
+  if (outcome.stats.shouldRecord) {
+    stats.record({
+      headType: outcome.headType,
+      category: outcome.statsCategory,
+      eventId: outcome.stats.eventId,
+    });
   }
-}
-
-/** 火山情報パス (aggregator 経由) */
-function handleVolcano(
-  msg: WsDataMessage,
-  vfvo53Aggregator: VolcanoVfvo53Aggregator,
-): void {
-  const volcanoInfo = parseVolcanoTelegram(msg);
-  if (volcanoInfo) {
-    vfvo53Aggregator.handle(volcanoInfo);
-  } else {
-    displayRawHeader(msg);
+  if (outcome.stats.maxIntUpdate) {
+    const u = outcome.stats.maxIntUpdate;
+    stats.updateMaxInt(u.eventId, u.maxInt, u.headType);
   }
 }
 
@@ -241,6 +164,13 @@ export function createMessageHandler(): MessageHandlerResult {
       eewLogger.closeEvent(eventId, "タイムアウト");
     },
   });
+
+  const processDeps: ProcessDeps = {
+    eewTracker,
+    eewLogger,
+    tsunamiState,
+    volcanoState,
+  };
 
   // VFVO53 バッチ集約器
   const vfvo53Aggregator = new VolcanoVfvo53Aggregator(
@@ -272,41 +202,39 @@ export function createMessageHandler(): MessageHandlerResult {
 
     const route = classifyMessage(msg.classification, msg.head.type);
 
-    // EEW 以外はここで統計記録 (EEW は handleEew 内で記録)
-    if (route !== "eew") {
+    // 火山は VFVO53 aggregator 経由の特殊パス (PresentationEvent パイプライン未統合)
+    // TODO: Phase 2 で aggregator emit 内に VolcanoOutcome → toPresentationEvent 変換を追加し
+    //       --filter / --template / --compact で火山電文も扱えるようにする
+    if (route === "volcano") {
+      const volcanoInfo = parseVolcanoTelegram(msg);
+      if (volcanoInfo) {
+        vfvo53Aggregator.handle(volcanoInfo);
+      } else {
+        displayRawHeader(msg);
+      }
+      // 火山の統計記録 (aggregator 経由でも即座に記録)
       stats.record({
         headType: msg.head.type,
         category: routeToCategory(route),
         eventId: msg.xmlReport?.head.eventId ?? null,
       });
+      return;
     }
 
-    switch (route) {
-      case "eew":
-        handleEew(msg, eewTracker, eewLogger, notifier, stats);
-        break;
-      case "seismicText":
-        handleSeismicText(msg, notifier);
-        break;
-      case "lgObservation":
-        handleLgObservation(msg, notifier);
-        break;
-      case "earthquake":
-        handleEarthquake(msg, notifier, stats);
-        break;
-      case "tsunami":
-        handleTsunami(msg, notifier, tsunamiState);
-        break;
-      case "nankaiTrough":
-        handleNankaiTrough(msg, notifier);
-        break;
-      case "volcano":
-        handleVolcano(msg, vfvo53Aggregator);
-        break;
-      case "raw":
-        displayRawHeader(msg);
-        break;
+    // 火山以外: processMessage → recordStats → dispatchDisplay
+    const outcome = processMsg(msg, route, processDeps);
+    if (outcome == null) {
+      // EEW 重複 → 表示・統計記録なし
+      return;
     }
+
+    recordStats(outcome, stats);
+
+    // Phase 2 以降で --filter / --template が PresentationEvent を消費する
+    const _event: PresentationEvent = toPresentationEvent(outcome);
+    void _event;
+
+    dispatchDisplay(outcome, notifier);
   };
 
   return {
