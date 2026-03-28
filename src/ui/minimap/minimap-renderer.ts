@@ -1,77 +1,150 @@
 import chalk from "chalk";
 import type { PresentationEvent } from "../../engine/presentation/types";
 import { intensityColor, intensityToNumeric } from "../formatter";
-import type { BlockId, MinimapCell } from "./types";
-import { ALL_BLOCK_IDS, mapAreaToBlock } from "./block-mapping";
+import type { PrefId, MinimapCell } from "./types";
+import { PREF_PLACEMENTS, GRID_ROWS, GRID_COLS, ALL_PREF_IDS } from "./grid-layout";
+import { mapAreaToPref } from "./pref-mapping";
 
-// ── Layout ──
+// ── Constants ──
 
-/**
- * Minimap layout: 4 rows, each row is an array of { blockId, col }.
- * col is the 0-based column position (each cell is 9 chars wide: "[XXX xx] ").
- */
-const LAYOUT: Array<Array<{ blockId: BlockId; col: number }>> = [
-  [{ blockId: "HKD", col: 3 }],
-  [
-    { blockId: "TOH", col: 0 },
-    { blockId: "KKS", col: 1 },
-    { blockId: "IZO", col: 2 },
-  ],
-  [
-    { blockId: "HKR", col: 0 },
-    { blockId: "TOK", col: 1 },
-    { blockId: "KIN", col: 2 },
-    { blockId: "CHG", col: 3 },
-  ],
-  [
-    { blockId: "SKK", col: 1 },
-    { blockId: "KNB", col: 2 },
-    { blockId: "KNS", col: 3 },
-    { blockId: "OKN", col: 4 },
-  ],
+/** Width of a single cell including trailing space: "AA:xx " = 6 chars */
+const CELL_WIDTH = 6;
+
+/** Continuation marker for multi-cell prefectures */
+const CONTINUATION = "·····";
+
+// ── Legend ──
+
+/** Intensity values in display order */
+const INTENSITY_LEGEND = ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
+
+/** Tsunami abbreviations in display order */
+const TSUNAMI_LEGEND: Array<{ abbrev: string; label: string; color: chalk.Chalk }> = [
+  { abbrev: "MJ", label: "MJ", color: chalk.redBright },
+  { abbrev: "WN", label: "WN", color: chalk.red },
+  { abbrev: "AD", label: "AD", color: chalk.yellow },
 ];
 
-/** Width of a single cell including trailing space: "[XXX xx] " = 9 chars */
-const CELL_WIDTH = 9;
+/**
+ * Build legend lines to overlay in the upper-left empty area.
+ * Returns an array of { row, text } for rows 0-3.
+ */
+function buildLegend(): Array<{ row: number; text: string }> {
+  const lines: Array<{ row: number; text: string }> = [];
+
+  // Row 0: "震度:" header + first 4 values
+  const intLine1 = INTENSITY_LEGEND.slice(0, 4)
+    .map((v) => intensityColor(v)(v.padEnd(2)))
+    .join(" ");
+  lines.push({ row: 0, text: `震度: ${intLine1}` });
+
+  // Row 1: next 4 values
+  const intLine2 = INTENSITY_LEGEND.slice(4, 8)
+    .map((v) => intensityColor(v)(v.padEnd(2)))
+    .join(" ");
+  lines.push({ row: 1, text: `      ${intLine2}` });
+
+  // Row 2: last value (7)
+  const intLine3 = intensityColor("7")("7 ");
+  lines.push({ row: 2, text: `      ${intLine3}` });
+
+  // Row 3: tsunami header + values
+  const tsunamiText = TSUNAMI_LEGEND.map((t) => t.color(t.label)).join(" ");
+  lines.push({ row: 3, text: `津波: ${tsunamiText}` });
+
+  return lines;
+}
+
+// ── ANSI strip helper ──
+
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\u001b\[[0-9;]*m/g, "");
+}
 
 // ── Rendering ──
 
 /**
  * Render the minimap from a set of cells.
- * Returns 4 lines of text representing the ASCII minimap.
+ * Returns 12 lines of text representing the ASCII minimap with legend overlay.
  */
 export function renderMinimap(cells: MinimapCell[]): string[] {
-  const cellMap = new Map<BlockId, MinimapCell>();
+  // Build cell lookup
+  const cellMap = new Map<PrefId, MinimapCell>();
   for (const cell of cells) {
-    cellMap.set(cell.blockId, cell);
+    cellMap.set(cell.prefId, cell);
   }
 
+  // Build placement lookup: (row,col) -> { prefId, isAnchor }
+  const gridMap = new Map<string, { prefId: PrefId; isAnchor: boolean }>();
+  for (const placement of PREF_PLACEMENTS) {
+    for (const pos of placement.cells) {
+      const key = `${pos.row},${pos.col}`;
+      gridMap.set(key, {
+        prefId: placement.id,
+        isAnchor: pos.row === placement.anchor.row && pos.col === placement.anchor.col,
+      });
+    }
+  }
+
+  // Build legend
+  const legend = buildLegend();
+  const legendByRow = new Map<number, string>();
+  for (const entry of legend) {
+    legendByRow.set(entry.row, entry.text);
+  }
+
+  // Render each row
   const lines: string[] = [];
-  for (const row of LAYOUT) {
-    // Determine leading spaces based on the minimum column in this row
-    const minCol = Math.min(...row.map((r) => r.col));
-    let line = " ".repeat(minCol * CELL_WIDTH);
+  for (let row = 0; row < GRID_ROWS; row++) {
+    let line = "";
 
-    for (let i = 0; i < row.length; i++) {
-      const entry = row[i];
-      const cell = cellMap.get(entry.blockId);
+    // Find the last occupied column in this row
+    let lastCol = -1;
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (gridMap.has(`${row},${col}`)) lastCol = col;
+    }
 
-      // Fill gaps between non-contiguous columns
-      if (i > 0) {
-        const gap = entry.col - row[i - 1].col - 1;
-        if (gap > 0) {
-          line += " ".repeat(gap * CELL_WIDTH);
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = `${row},${col}`;
+      const entry = gridMap.get(key);
+
+      if (entry == null) {
+        // Empty cell (ocean) — check if legend should be rendered here
+        if (legendByRow.has(row) && col === 0) {
+          const legendText = legendByRow.get(row)!;
+          line += legendText;
+          // Calculate how many columns the legend text spans
+          const legendVisualLen = stripAnsi(legendText).length;
+          const colsSpanned = Math.ceil(legendVisualLen / CELL_WIDTH);
+          col += colsSpanned - 1; // skip ahead (loop will increment)
+          continue;
         }
-      }
-
-      const content = cell?.content ?? ".";
-      const padded = content.length >= 2 ? content.slice(0, 2) : content.padEnd(2);
-      const inner = `${entry.blockId} ${padded}`;
-
-      if (cell?.color) {
-        line += cell.color(`[${inner}]`) + " ";
+        if (col <= lastCol) {
+          line += " ".repeat(CELL_WIDTH);
+        }
       } else {
-        line += chalk.dim(`[${inner}]`) + " ";
+        const cell = cellMap.get(entry.prefId);
+        const content = cell?.content ?? "..";
+        const isMatch = content !== "..";
+
+        if (entry.isAnchor) {
+          // Anchor cell: show "AA:xx"
+          const padded = content.length >= 2 ? content.slice(0, 2) : content.padEnd(2);
+          const text = `${entry.prefId}:${padded}`;
+          if (isMatch && cell?.color) {
+            line += cell.color(text) + " ";
+          } else {
+            line += chalk.dim(text) + " ";
+          }
+        } else {
+          // Continuation cell: show "·····"
+          if (isMatch && cell?.color) {
+            line += cell.color(CONTINUATION) + " ";
+          } else {
+            line += chalk.dim(CONTINUATION) + " ";
+          }
+        }
       }
     }
 
@@ -121,54 +194,36 @@ function tsunamiKindPriority(abbrev: string): number {
 
 /**
  * Build MinimapCell[] from a PresentationEvent.
- * Assigns block-level data (max intensity, tsunami kind, etc.) for each matched block.
+ * Assigns prefecture-level data (max intensity, tsunami kind) for each matched area.
  */
 export function buildMinimapCells(event: PresentationEvent): MinimapCell[] {
-  const blockData = new Map<BlockId, { content: string; color?: chalk.Chalk; priority: number }>();
+  const prefData = new Map<PrefId, { content: string; color?: chalk.Chalk; priority: number }>();
 
-  if (event.domain === "earthquake" || event.domain === "lgObservation") {
-    // Use areaItems with maxInt
+  if (event.domain === "earthquake" || event.domain === "lgObservation" || event.domain === "eew") {
     for (const item of event.areaItems) {
-      const blockId = mapAreaToBlock(item.name);
-      if (blockId == null) continue;
-      const maxInt = item.maxInt ?? ".";
-      const rank = maxInt !== "." ? intensityToNumeric(maxInt) : -1;
-      const existing = blockData.get(blockId);
+      const prefId = mapAreaToPref(item.name);
+      if (prefId == null) continue;
+      const maxInt = item.maxInt ?? "..";
+      const rank = maxInt !== ".." ? intensityToNumeric(maxInt) : -1;
+      const existing = prefData.get(prefId);
       if (!existing || rank > existing.priority) {
-        blockData.set(blockId, {
+        prefData.set(prefId, {
           content: maxInt,
-          color: maxInt !== "." ? intensityColor(maxInt) : undefined,
-          priority: rank,
-        });
-      }
-    }
-  } else if (event.domain === "eew") {
-    // Use areaItems (forecast areas) with maxInt
-    for (const item of event.areaItems) {
-      const blockId = mapAreaToBlock(item.name);
-      if (blockId == null) continue;
-      const maxInt = item.maxInt ?? ".";
-      const rank = maxInt !== "." ? intensityToNumeric(maxInt) : -1;
-      const existing = blockData.get(blockId);
-      if (!existing || rank > existing.priority) {
-        blockData.set(blockId, {
-          content: maxInt,
-          color: maxInt !== "." ? intensityColor(maxInt) : undefined,
+          color: maxInt !== ".." ? intensityColor(maxInt) : undefined,
           priority: rank,
         });
       }
     }
   } else if (event.domain === "tsunami") {
-    // Use areaItems with kind for tsunami type
     for (const item of event.areaItems) {
-      const blockId = mapAreaToBlock(item.name);
-      if (blockId == null) continue;
+      const prefId = mapAreaToPref(item.name);
+      if (prefId == null) continue;
       const kind = item.kind ?? "";
       const abbrev = tsunamiKindAbbrev(kind);
       const priority = tsunamiKindPriority(abbrev);
-      const existing = blockData.get(blockId);
+      const existing = prefData.get(prefId);
       if (!existing || priority > existing.priority) {
-        blockData.set(blockId, {
+        prefData.set(prefId, {
           content: abbrev,
           color: tsunamiColor(abbrev),
           priority,
@@ -177,14 +232,14 @@ export function buildMinimapCells(event: PresentationEvent): MinimapCell[] {
     }
   }
 
-  // Build cells for all blocks
+  // Build cells for all prefectures
   const cells: MinimapCell[] = [];
-  for (const blockId of ALL_BLOCK_IDS) {
-    const data = blockData.get(blockId);
+  for (const prefId of ALL_PREF_IDS) {
+    const data = prefData.get(prefId);
     if (data) {
-      cells.push({ blockId, content: data.content, color: data.color });
+      cells.push({ prefId, content: data.content, color: data.color });
     } else {
-      cells.push({ blockId, content: "." });
+      cells.push({ prefId, content: ".." });
     }
   }
 
@@ -197,14 +252,11 @@ export function buildMinimapCells(event: PresentationEvent): MinimapCell[] {
  * Determine whether the minimap should be shown for this event.
  */
 export function shouldShowMinimap(event: PresentationEvent): boolean {
-  // Terminal width check
   const termWidth = process.stdout.columns ?? 80;
-  if (termWidth < 100) return false;
+  if (termWidth < 80) return false;
 
-  // Cancelled events are not shown
   if (event.isCancellation) return false;
 
-  // Domain-specific checks
   switch (event.domain) {
     case "earthquake": {
       if (event.areaCount === 0) return false;
@@ -221,7 +273,6 @@ export function shouldShowMinimap(event: PresentationEvent): boolean {
       const rank = event.maxIntRank ?? 0;
       return rank >= 4 || event.areaCount >= 4;
     }
-    // Text, nankai-trough, volcano, raw: never show
     default:
       return false;
   }
