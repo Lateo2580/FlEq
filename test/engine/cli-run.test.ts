@@ -95,7 +95,8 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: "cli-key" })
+        expect.objectContaining({ apiKey: "cli-key" }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -106,7 +107,8 @@ describe("runMonitor", () => {
       await runMonitor({ debug: false });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: "env-key" })
+        expect.objectContaining({ apiKey: "env-key" }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -116,7 +118,8 @@ describe("runMonitor", () => {
       await runMonitor({ debug: false });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ apiKey: "config-key" })
+        expect.objectContaining({ apiKey: "config-key" }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -135,7 +138,8 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
-        })
+        }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -153,7 +157,8 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["eew.warning"],
-        })
+        }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -170,7 +175,8 @@ describe("runMonitor", () => {
             "eew.forecast",
             "eew.warning",
           ],
-        })
+        }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
   });
@@ -210,7 +216,8 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
-        })
+        }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
   });
@@ -231,7 +238,8 @@ describe("runMonitor", () => {
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
-        })
+        }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -275,7 +283,8 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ testMode: "including" })
+        expect.objectContaining({ testMode: "including" }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -291,7 +300,8 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ testMode: "only" })
+        expect.objectContaining({ testMode: "only" }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
   });
@@ -310,7 +320,8 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ keepExistingConnections: true })
+        expect.objectContaining({ keepExistingConnections: true }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
 
@@ -327,7 +338,8 @@ describe("runMonitor", () => {
       });
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ keepExistingConnections: false })
+        expect.objectContaining({ keepExistingConnections: false }),
+        expect.objectContaining({ filter: null, template: null })
       );
     });
   });

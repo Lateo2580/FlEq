@@ -9,11 +9,12 @@ import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
 import * as log from "../../logger";
+import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
-export async function startMonitor(config: AppConfig): Promise<void> {
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, flushAndDisposeVolcanoBuffer } = createMessageHandler();
+export async function startMonitor(config: AppConfig, pipeline?: FilterTemplatePipeline): Promise<void> {
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined });
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
@@ -61,7 +62,7 @@ export async function startMonitor(config: AppConfig): Promise<void> {
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState]);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipeline ?? undefined);
 
   registerShutdownSignals(shutdown);
 

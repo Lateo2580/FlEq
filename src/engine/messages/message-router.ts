@@ -20,6 +20,8 @@ import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../
 import { TelegramStats, routeToCategory } from "./telegram-stats";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
+import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
+import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 import type { ProcessOutcome, PresentationEvent } from "../presentation/types";
 
 // ── 電文分類 (Route) ──
@@ -79,47 +81,59 @@ function classifyMessage(classification: string, headType: string): Route {
 
 // ── dispatch / stats helpers ──
 
-/** ProcessOutcome に基づいて表示・通知を実行する */
-function dispatchDisplay(outcome: ProcessOutcome, notifier: Notifier): void {
+/** 通知のみ実行 (filter 非適用) */
+function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): void {
   switch (outcome.domain) {
-    case "eew": {
+    case "eew":
+      notifier.notifyEew(outcome.parsed, outcome.eewResult);
+      break;
+    case "earthquake":
+      notifier.notifyEarthquake(outcome.parsed);
+      break;
+    case "seismicText":
+      notifier.notifySeismicText(outcome.parsed);
+      break;
+    case "lgObservation":
+      notifier.notifyLgObservation(outcome.parsed);
+      break;
+    case "tsunami":
+      notifier.notifyTsunami(outcome.parsed);
+      break;
+    case "nankaiTrough":
+      notifier.notifyNankaiTrough(outcome.parsed);
+      break;
+    // raw, volcano: 通知なし
+  }
+}
+
+/** 表示のみ実行 (filter 適用後) */
+function dispatchDisplayOnly(outcome: ProcessOutcome): void {
+  switch (outcome.domain) {
+    case "eew":
       displayEewInfo(outcome.parsed, {
         activeCount: outcome.eewResult.activeCount,
         diff: outcome.eewResult.diff,
         colorIndex: outcome.eewResult.colorIndex,
       });
-      notifier.notifyEew(outcome.parsed, outcome.eewResult);
       break;
-    }
-    case "earthquake": {
+    case "earthquake":
       displayEarthquakeInfo(outcome.parsed);
-      notifier.notifyEarthquake(outcome.parsed);
       break;
-    }
-    case "seismicText": {
+    case "seismicText":
       displaySeismicTextInfo(outcome.parsed);
-      notifier.notifySeismicText(outcome.parsed);
       break;
-    }
-    case "lgObservation": {
+    case "lgObservation":
       displayLgObservationInfo(outcome.parsed);
-      notifier.notifyLgObservation(outcome.parsed);
       break;
-    }
-    case "tsunami": {
+    case "tsunami":
       displayTsunamiInfo(outcome.parsed);
-      notifier.notifyTsunami(outcome.parsed);
       break;
-    }
-    case "nankaiTrough": {
+    case "nankaiTrough":
       displayNankaiTroughInfo(outcome.parsed);
-      notifier.notifyNankaiTrough(outcome.parsed);
       break;
-    }
-    case "raw": {
+    case "raw":
       displayRawHeader(outcome.msg);
       break;
-    }
     // volcano: NOT handled here — volcano goes through aggregator
   }
 }
@@ -141,6 +155,11 @@ function recordStats(outcome: ProcessOutcome, stats: TelegramStats): void {
 
 // ── ファクトリ ──
 
+/** createMessageHandler のオプション */
+export interface MessageHandlerOptions {
+  pipeline?: FilterTemplatePipeline;
+}
+
 /** createMessageHandler の戻り値 */
 export interface MessageHandlerResult {
   handler: (msg: WsDataMessage) => void;
@@ -153,7 +172,8 @@ export interface MessageHandlerResult {
 }
 
 /** 受信データのハンドリング */
-export function createMessageHandler(): MessageHandlerResult {
+export function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerResult {
+  const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null };
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
@@ -230,11 +250,23 @@ export function createMessageHandler(): MessageHandlerResult {
 
     recordStats(outcome, stats);
 
-    // Phase 2 以降で --filter / --template が PresentationEvent を消費する
-    const _event: PresentationEvent = toPresentationEvent(outcome);
-    void _event;
+    // 通知は filter 非適用
+    dispatchNotify(outcome, notifier);
 
-    dispatchDisplay(outcome, notifier);
+    // filter → template 適用
+    const event: PresentationEvent = toPresentationEvent(outcome);
+
+    if (!shouldDisplay(event, pipeline)) {
+      return; // 表示のみ抑制
+    }
+
+    const templateOutput = renderTemplate(event, pipeline);
+    if (templateOutput != null) {
+      console.log(templateOutput);
+      return;
+    }
+
+    dispatchDisplayOnly(outcome);
   };
 
   return {

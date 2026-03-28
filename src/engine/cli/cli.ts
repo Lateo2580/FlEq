@@ -48,6 +48,16 @@ export function buildProgram(): Command {
       "--mode <mode>",
       '表示モードを指定します: "normal" | "compact"'
     )
+    .option(
+      "--filter <expr>",
+      "条件式で電文を絞り込みます (複数指定で AND 結合)",
+      (val: string, prev: string[]) => [...prev, val],
+      [] as string[],
+    )
+    .option(
+      "--template <template>",
+      "電文の1行要約テンプレートを指定します (@ でファイル読込)",
+    )
     .option("--debug", "デバッグログを表示します", false)
     .action(async (opts: RunMonitorOptions) => {
       const { runMonitor } = await import("./cli-run");

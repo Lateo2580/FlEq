@@ -98,6 +98,10 @@ export interface AppConfig {
   backup: boolean;
   /** 省略表示の上限設定 */
   truncation: TruncationLimits;
+  /** フィルタ式 (複数指定で AND 結合) */
+  filterExprs?: string[];
+  /** テンプレート式 */
+  templateExpr?: string;
 }
 
 /** Configファイルの設定 (全フィールド任意) */

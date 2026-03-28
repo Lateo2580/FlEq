@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import * as fs from "fs";
 import {
   AppConfig,
   Classification,
@@ -10,6 +11,9 @@ import { loadTheme } from "../../ui/theme";
 import { resolveConfig } from "../startup/config-resolver";
 import * as updateChecker from "../startup/update-checker";
 import * as log from "../../logger";
+import { compileFilter } from "../filter";
+import { compileTemplate } from "../template";
+import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require("../../../package.json") as {
@@ -24,6 +28,8 @@ export interface RunMonitorOptions {
   keepExisting?: boolean;
   closeOthers?: boolean;
   mode?: string;
+  filter?: string[];
+  template?: string;
   debug: boolean;
 }
 
@@ -92,9 +98,42 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   setMaxObservations(config.maxObservations);
   setTruncation(config.truncation);
 
+  // Filter / Template コンパイル
+  const pipeline: FilterTemplatePipeline = { filter: null, template: null };
+
+  if (opts.filter && opts.filter.length > 0) {
+    try {
+      const predicates = opts.filter.map((expr) => compileFilter(expr));
+      pipeline.filter = (event) => predicates.every((p) => p(event));
+      log.info(`フィルタ: ${opts.filter.join(" AND ")}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        log.error(`フィルタのコンパイルに失敗しました:\n${err.message}`);
+      }
+      process.exit(1);
+    }
+  }
+
+  if (opts.template) {
+    try {
+      let tplSource = opts.template;
+      if (tplSource.startsWith("@")) {
+        const filePath = tplSource.slice(1).replace(/^~/, process.env.HOME ?? process.env.USERPROFILE ?? "");
+        tplSource = fs.readFileSync(filePath, "utf-8").trim();
+      }
+      pipeline.template = compileTemplate(tplSource);
+      log.info("テンプレート: カスタム");
+    } catch (err) {
+      if (err instanceof Error) {
+        log.warn(`テンプレートのコンパイルに失敗しました:\n${err.message}`);
+      }
+      // template エラーは警告のみ — 通常表示にフォールバック
+    }
+  }
+
   printBanner(config);
   updateChecker.checkForUpdates("fleq", VERSION);
-  await startMonitor(config);
+  await startMonitor(config, pipeline);
 }
 
 /** ターミナルタイトルを設定する (ANSI OSC sequence) */

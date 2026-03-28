@@ -26,6 +26,9 @@ import {
 } from "../ui/formatter";
 import * as themeModule from "../ui/theme";
 import { playSound, isSoundLevel, SOUND_LEVELS } from "../engine/notification/sound-player";
+import { compileFilter } from "../engine/filter";
+import { FilterSyntaxError, FilterTypeError, FilterFieldError } from "../engine/filter";
+import type { FilterTemplatePipeline } from "../engine/filter-template/pipeline";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { TipShuffler } from "./tip-shuffler";
@@ -241,6 +244,9 @@ export class ReplHandler {
   private statusProviders: PromptStatusProvider[];
   private detailProviders: DetailProvider[];
   private stats: TelegramStats;
+  private pipeline: FilterTemplatePipeline | null;
+  private filterExpr: string | null = null;
+  private filterUpdatedAt: Date | null = null;
 
   constructor(
     config: AppConfig,
@@ -251,6 +257,7 @@ export class ReplHandler {
     stats: TelegramStats,
     statusProviders: PromptStatusProvider[] = [],
     detailProviders: DetailProvider[] = [],
+    pipeline?: FilterTemplatePipeline,
   ) {
     this.config = config;
     this.wsManager = wsManager;
@@ -260,6 +267,7 @@ export class ReplHandler {
     this.stats = stats;
     this.statusProviders = statusProviders;
     this.detailProviders = detailProviders;
+    this.pipeline = pipeline ?? null;
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
     this.tipIntervalMs = this.config.waitTipIntervalMin * 60 * 1000;
@@ -387,6 +395,17 @@ export class ReplHandler {
           compact: { description: "1行サマリー表示" },
         },
         handler: (args) => this.handleMode(args),
+      },
+      filter: {
+        description: "フィルタの表示・設定 (例: filter set domain = \"eew\")",
+        detail: "filter: 現在のフィルタ状態を表示\n  filter set <expr>: フィルタを即時適用\n  filter clear: フィルタを解除\n  filter test <expr>: 構文チェックのみ（適用しない）",
+        category: "settings",
+        subcommands: {
+          set: { description: "フィルタを即時適用" },
+          clear: { description: "フィルタを解除" },
+          test: { description: "構文チェックのみ" },
+        },
+        handler: (args) => this.handleFilter(args),
       },
       clock: {
         description: "プロンプト時計の切替 (例: clock / clock elapsed)",
@@ -663,6 +682,11 @@ export class ReplHandler {
       .sort((a, b) => a.priority - b.priority);
 
     const parts: string[] = segments.map((s) => s.text);
+
+    // フィルタ状態セグメント
+    if (this.pipeline?.filter != null) {
+      parts.push(chalk.cyan("F:on"));
+    }
 
     if (status.connected && status.heartbeatDeadlineAt != null) {
       const sec = Math.max(0, Math.ceil((status.heartbeatDeadlineAt - Date.now()) / 1000));
@@ -1658,6 +1682,90 @@ export class ReplHandler {
     config.displayMode = mode;
     saveConfig(config);
     console.log(`  表示モードを ${mode} に変更しました。`);
+  }
+
+  private handleFilter(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      // 状態表示
+      if (this.pipeline?.filter == null) {
+        console.log(`  フィルタ: ${chalk.gray("無効")}`);
+      } else {
+        console.log(`  フィルタ: ${chalk.green("有効")}`);
+        console.log(`  式: ${this.filterExpr ?? "(CLI起動時に設定)"}`);
+        if (this.filterUpdatedAt != null) {
+          const ts = this.filterUpdatedAt.toLocaleString("ja-JP");
+          console.log(`  最終更新: ${ts}`);
+        }
+      }
+      console.log(chalk.gray("  使い方: filter set <expr> / filter clear / filter test <expr>"));
+      return;
+    }
+
+    const [sub, ...rest] = trimmed.split(/\s+/);
+    const subLower = sub.toLowerCase();
+
+    if (subLower === "clear") {
+      if (this.pipeline != null) {
+        this.pipeline.filter = null;
+      }
+      this.filterExpr = null;
+      this.filterUpdatedAt = null;
+      console.log("  フィルタを解除しました。");
+      return;
+    }
+
+    if (subLower === "test") {
+      const expr = rest.join(" ").trim();
+      if (expr.length === 0) {
+        console.log(chalk.yellow("  式を指定してください。") + chalk.gray(" 例: filter test domain = \"eew\""));
+        return;
+      }
+      try {
+        compileFilter(expr);
+        console.log(chalk.green("  構文OK") + chalk.gray(` — ${expr}`));
+      } catch (err) {
+        this.printFilterError(err);
+      }
+      return;
+    }
+
+    if (subLower === "set") {
+      const expr = rest.join(" ").trim();
+      if (expr.length === 0) {
+        console.log(chalk.yellow("  式を指定してください。") + chalk.gray(" 例: filter set domain = \"eew\""));
+        return;
+      }
+      if (this.pipeline == null) {
+        console.log(chalk.yellow("  フィルタパイプラインが利用できません。"));
+        return;
+      }
+      try {
+        const predicate = compileFilter(expr);
+        this.pipeline.filter = predicate;
+        this.filterExpr = expr;
+        this.filterUpdatedAt = new Date();
+        console.log(chalk.green("  フィルタを適用しました。") + chalk.gray(` — ${expr}`));
+      } catch (err) {
+        this.printFilterError(err);
+      }
+      return;
+    }
+
+    console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(" (set / clear / test)"));
+  }
+
+  private printFilterError(err: unknown): void {
+    if (err instanceof FilterSyntaxError) {
+      console.log(chalk.red(`  ${err.format()}`));
+    } else if (err instanceof FilterFieldError) {
+      console.log(chalk.red(`  ${err.format()}`));
+    } else if (err instanceof FilterTypeError) {
+      console.log(chalk.red(`  ${err.message}`));
+    } else {
+      console.log(chalk.red(`  エラー: ${err instanceof Error ? err.message : err}`));
+    }
   }
 
   private handleClock(args: string): void {
