@@ -13,6 +13,14 @@ npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 - REPL による実行中の設定変更・状態確認
 - CUD 配色準拠のテーマシステム（カスタマイズ可能）
 - Raspberry Pi 等の低メモリ環境でも動作
+- 電文統計（`stats` コマンド）でセッション中の受信状況を一覧表示
+- `--filter` で条件式による電文の絞り込み表示
+- `--template` でユーザー定義テンプレートによる 1 行要約カスタマイズ
+- `--compact` 改善: 端末幅に応じた幅適応型 1 行表示
+- `--focus` で条件に一致しない電文を薄く（dim compact）表示
+- `--summary-interval` で N 分ごとの定期受信要約（sparkline グラフ付き）
+- `--night` ナイトモード（彩度・輝度を抑制、危険色は維持）
+- 地震/EEW/津波の地域情報を ASCII ミニマップ（12 ブロック列島形）で表示
 
 ## 出力例
 
@@ -121,6 +129,18 @@ fleq --debug
 
 # 同一APIキーの既存ソケットを閉じてから接続
 fleq --close-others
+
+# EEW 警報だけ表示（通知・統計は全電文が対象）
+fleq --filter 'domain = "eew" and isWarning = true'
+
+# テンプレートで 1 行要約をカスタマイズ
+fleq --template '{{title}} {{hypocenterName|default:"-"}} M{{magnitude|default:"-"}} 最大{{maxInt|default:"-"}}'
+
+# 震度 4 以上にフォーカス（それ以外は薄く表示）
+fleq --focus 'maxInt >= "4"'
+
+# ナイトモード + 30 分ごとの受信要約
+fleq --night --summary-interval 30
 ```
 
 デフォルトの受信区分は `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano` です。
@@ -136,6 +156,11 @@ fleq --close-others
 | `--keep-existing` | 既存接続を維持（互換オプション。現在はデフォルト動作） | `true` |
 | `--close-others` | 同一 API キーの既存ソケットを閉じてから接続 | `false` |
 | `--mode <mode>` | 表示モード: `normal` / `compact` | `normal` |
+| `--filter <expr>` | 条件式で電文を絞り込み表示（通知・統計には非適用） | なし |
+| `--focus <expr>` | 条件に一致しない電文を dim compact 表示に落とす | なし |
+| `--template <tpl>` | ユーザー定義テンプレートで 1 行要約をカスタマイズ | なし |
+| `--summary-interval <min>` | N 分ごとの定期受信要約を表示（sparkline 付き） | `0`（無効） |
+| `--night` | ナイトモード（彩度・輝度を抑制、危険色は維持） | `false` |
 | `--debug` | デバッグログ表示 | `false` |
 
 ## 設定
@@ -180,6 +205,8 @@ fleq config keys          # 設定可能キー一覧を表示
 | `eewLog` | EEW ログ記録の有効/無効 (`true` / `false`) |
 | `maxObservations` | 観測点の最大表示件数 (1〜999 / `"off"` で全件表示) |
 | `backup` | EEW 副回線の有効/無効 (`true` / `false`) |
+| `nightMode` | ナイトモードの有効/無効 (`true` / `false`) |
+| `summaryInterval` | 定期受信要約の間隔（分、0 で無効） |
 | `truncation` | 省略表示の上限設定（`truncation.<key> <N>` で個別設定。`fleq config keys` で詳細を確認） |
 
 > **補足:** `eewLogFields`（EEW ログの記録項目）と通知カテゴリ設定は、REPL の `eewlog fields` / `notify` コマンドで管理します。
@@ -226,6 +253,8 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
 | `history [N]` | 地震履歴を取得・表示（デフォルト 10 件、最新が一番下） |
 | `colors` | カラーパレット・震度色の一覧を表示 |
 | `detail [tsunami\|volcano]` | 直近の津波情報または火山警報状態を再表示 |
+| `stats` | セッション中の電文受信統計を表示 |
+| `summary` | 直近の定期受信要約を手動表示 |
 
 ### ステータス
 | コマンド | 説明 |
@@ -248,6 +277,12 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
 | `tablewidth [N\|auto]` | テーブル幅の表示・変更（`auto` でターミナル幅に自動追従） |
 | `infotext [full/short]` | お知らせ電文の全文/省略切替 |
 | `tipinterval [N]` | 待機中ヒント表示間隔（分）を表示・変更（0 で無効） |
+| `filter set <expr>` | フィルタ条件を動的に設定 |
+| `filter clear` | フィルタ条件をクリア |
+| `filter test <expr>` | フィルタ式の構文チェック |
+| `focus set <expr>` | フォーカス条件を動的に設定 |
+| `focus clear` | フォーカス条件をクリア |
+| `night [on/off]` | ナイトモードの ON/OFF 切替 |
 | `mode [normal/compact]` | 表示モード切替 |
 | `clock [elapsed/now]` | プロンプト時計の切替（`now` は Config 上の `"clock"` に対応） |
 | `sound [on/off]` | 通知音の ON/OFF 切替 |
@@ -308,6 +343,7 @@ A: `notify-send` がインストールされているか確認してください
 
 ## 関連ドキュメント
 
+- [CLI 強化機能ガイド](docs/cli-features.md) — フィルタ・テンプレート・フォーカス等の詳細な使い方
 - [表示リファレンス](docs/display-reference.md) — 電文タイプ別の表示フォーマット一覧
 - [Raspberry Pi 500 セットアップガイド](docs/raspi500-setup-guide.md) — Raspberry Pi での常時稼働セットアップ
 - [内部仕様書](docs/specs/) — アーキテクチャ・電文ルーティング・UI 仕様等の開発者向けドキュメント

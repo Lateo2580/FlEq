@@ -7,6 +7,8 @@ export interface MinuteBucket {
   received: number;
   matched: number;
   byDomain: Partial<Record<PresentationDomain, number>>;
+  maxIntRank: number;
+  maxIntStr: string | null;
 }
 
 /** getSnapshot() の戻り値 */
@@ -24,8 +26,6 @@ const MINUTE_MS = 60_000;
 /** 直近30分のリングバッファで受信統計を追跡する */
 export class SummaryWindowTracker {
   private buckets: MinuteBucket[] = [];
-  private maxIntRankSeen = 0;
-  private maxIntStrSeen: string | null = null;
 
   /** イベントを記録する */
   record(event: PresentationEvent, matched: boolean, now?: number): void {
@@ -39,12 +39,12 @@ export class SummaryWindowTracker {
     }
     bucket.byDomain[event.domain] = (bucket.byDomain[event.domain] ?? 0) + 1;
 
-    // maxInt 追跡
+    // maxInt 追跡 (バケット単位で記録)
     if (event.maxInt != null) {
       const rank = intensityToRank(event.maxInt);
-      if (rank > this.maxIntRankSeen) {
-        this.maxIntRankSeen = rank;
-        this.maxIntStrSeen = event.maxInt;
+      if (rank > bucket.maxIntRank) {
+        bucket.maxIntRank = rank;
+        bucket.maxIntStr = event.maxInt;
       }
     }
   }
@@ -66,6 +66,16 @@ export class SummaryWindowTracker {
       }
     }
 
+    // maxInt を残存バケットから再計算 (30分窓で減衰)
+    let maxIntRank = 0;
+    let maxIntStr: string | null = null;
+    for (const bucket of this.buckets) {
+      if (bucket.maxIntRank > maxIntRank) {
+        maxIntRank = bucket.maxIntRank;
+        maxIntStr = bucket.maxIntStr;
+      }
+    }
+
     // sparklineData: 30スロット (古い順 → 新しい順)
     const sparklineData = this.buildSparklineData(ts);
 
@@ -73,7 +83,7 @@ export class SummaryWindowTracker {
       totalReceived,
       totalMatched,
       byDomain,
-      maxIntSeen: this.maxIntStrSeen,
+      maxIntSeen: maxIntStr,
       sparklineData,
     };
   }
@@ -81,8 +91,6 @@ export class SummaryWindowTracker {
   /** 統計をクリアする */
   clear(): void {
     this.buckets = [];
-    this.maxIntRankSeen = 0;
-    this.maxIntStrSeen = null;
   }
 
   /** 30分超の古いバケットを除去する */
@@ -102,6 +110,8 @@ export class SummaryWindowTracker {
       received: 0,
       matched: 0,
       byDomain: {},
+      maxIntRank: 0,
+      maxIntStr: null,
     };
     this.buckets.push(bucket);
     return bucket;

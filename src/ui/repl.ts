@@ -35,6 +35,7 @@ import { TipShuffler } from "./tip-shuffler";
 import { TEST_TABLES } from "./test-samples";
 import { TelegramStats } from "../engine/messages/telegram-stats";
 import { SummaryWindowTracker } from "../engine/messages/summary-tracker";
+import type { SummaryTimerControl } from "../engine/monitor/monitor";
 import { formatSummaryInterval } from "./summary-interval-formatter";
 import { displayStatistics } from "./statistics-formatter";
 
@@ -248,7 +249,7 @@ export class ReplHandler {
   private stats: TelegramStats;
   private pipeline: FilterTemplatePipeline | null;
   private summaryTracker: SummaryWindowTracker | null;
-  private summaryTimerId: NodeJS.Timeout | null = null;
+  private summaryTimerControl: SummaryTimerControl | null = null;
   private summaryIntervalMin: number | null = null;
   private filterExpr: string | null = null;
   private filterUpdatedAt: Date | null = null;
@@ -560,6 +561,11 @@ export class ReplHandler {
         handler: () => this.handleQuit(),
       },
     };
+  }
+
+  /** 定期要約タイマーの制御オブジェクトを設定する */
+  setSummaryTimerControl(control: SummaryTimerControl): void {
+    this.summaryTimerControl = control;
   }
 
   /** REPL を開始する */
@@ -1970,9 +1976,13 @@ export class ReplHandler {
     }
 
     if (sub === "now") {
-      const snapshot = this.summaryTracker.getSnapshot();
-      const output = formatSummaryInterval(snapshot, 30, true);
-      console.log(output);
+      if (this.summaryTimerControl != null) {
+        this.summaryTimerControl.showNow();
+      } else {
+        const snapshot = this.summaryTracker.getSnapshot();
+        const output = formatSummaryInterval(snapshot, 30, true);
+        console.log(output);
+      }
       return;
     }
 
@@ -1987,6 +1997,7 @@ export class ReplHandler {
       }
       this.summaryIntervalMin = minutes;
       this.config.summaryInterval = minutes;
+      this.summaryTimerControl?.start(minutes);
       console.log(`  定期要約を ${chalk.green("ON")} にしました (${minutes}分間隔)。`);
       return;
     }
@@ -1994,6 +2005,7 @@ export class ReplHandler {
     if (sub === "off") {
       this.summaryIntervalMin = null;
       this.config.summaryInterval = null;
+      this.summaryTimerControl?.stop();
       console.log(`  定期要約を ${chalk.red("OFF")} にしました。`);
       return;
     }

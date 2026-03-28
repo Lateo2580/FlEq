@@ -16,6 +16,14 @@ import type { SummaryWindowTracker } from "../messages/summary-tracker";
 
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
+/** REPL から定期要約タイマーを制御するためのインターフェース */
+export interface SummaryTimerControl {
+  start(intervalMinutes: number): void;
+  stop(): void;
+  isRunning(): boolean;
+  showNow(): void;
+}
+
 export async function startMonitor(config: AppConfig, pipeline?: FilterTemplatePipeline): Promise<void> {
   const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined });
 
@@ -70,7 +78,8 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
   registerShutdownSignals(shutdown);
 
   // 定期要約タイマー
-  setupSummaryInterval(config, summaryTracker, () => replHandler);
+  const summaryTimerControl = createSummaryTimerControl(config, summaryTracker, () => replHandler);
+  replHandler.setSummaryTimerControl(summaryTimerControl);
 
 
   // REPL を先に起動 (接続中もコマンド入力可能にする)
@@ -97,23 +106,48 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
   }
 }
 
-/** 定期要約タイマーのセットアップ。summaryInterval が null なら何もしない。 */
-function setupSummaryInterval(
+/** 定期要約タイマーの制御オブジェクトを生成する。初期値が設定済みなら自動起動する。 */
+function createSummaryTimerControl(
   config: AppConfig,
   tracker: SummaryWindowTracker,
   getReplHandler: () => ReplHandlerType | null,
-): void {
-  if (config.summaryInterval == null) return;
+): SummaryTimerControl {
+  let timer: NodeJS.Timeout | null = null;
 
-  const intervalMs = config.summaryInterval * 60_000;
-  const timer = setInterval(() => {
+  function showOutput(intervalMinutes: number): void {
     const snapshot = tracker.getSnapshot();
-    const output = formatSummaryInterval(snapshot, config.summaryInterval!, true);
+    const output = formatSummaryInterval(snapshot, intervalMinutes, true);
     withReplDisplay(getReplHandler(), () => {
       console.log(output);
     });
-  }, intervalMs);
+  }
 
-  // プロセス終了時にタイマーが残らないようにする
-  timer.unref();
+  const control: SummaryTimerControl = {
+    start(intervalMinutes: number): void {
+      // 既存タイマーを停止してから再起動
+      control.stop();
+      const intervalMs = intervalMinutes * 60_000;
+      timer = setInterval(() => showOutput(intervalMinutes), intervalMs);
+      timer.unref();
+    },
+    stop(): void {
+      if (timer != null) {
+        clearInterval(timer);
+        timer = null;
+      }
+    },
+    isRunning(): boolean {
+      return timer != null;
+    },
+    showNow(): void {
+      showOutput(30);
+    },
+  };
+
+  // 初期値が設定されていれば自動起動
+  if (config.summaryInterval != null) {
+    control.start(config.summaryInterval);
+  }
+
+  return control;
 }

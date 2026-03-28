@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { WsDataMessage } from "../../types";
+import type { WsDataMessage, ParsedVolcanoInfo } from "../../types";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { displayRawHeader, getDisplayMode } from "../../ui/formatter";
 import { renderSummaryLine } from "../../ui/summary";
@@ -12,7 +12,7 @@ import {
   displayLgObservationInfo,
 } from "../../ui/earthquake-formatter";
 import { displayVolcanoInfo, displayVolcanoAshfallBatch } from "../../ui/volcano-formatter";
-import { VolcanoVfvo53Aggregator } from "./volcano-vfvo53-aggregator";
+import { VolcanoVfvo53Aggregator, type FlushOptions, type Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
 import { Notifier } from "../notification/notifier";
@@ -22,11 +22,12 @@ import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../
 import { TelegramStats, routeToCategory } from "./telegram-stats";
 import { SummaryWindowTracker } from "./summary-tracker";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
+import { buildVolcanoOutcome } from "../presentation/processors/process-volcano";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 import { PresentationDiffStore } from "../presentation/diff-store";
-import type { ProcessOutcome, PresentationEvent } from "../presentation/types";
+import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../presentation/types";
 
 // ── 電文分類 (Route) ──
 
@@ -199,26 +200,158 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     volcanoState,
   };
 
-  // VFVO53 バッチ集約器
-  const vfvo53Aggregator = new VolcanoVfvo53Aggregator(
-    // emitSingle: 従来の単発処理パイプライン (opts?.notify === false なら通知スキップ)
-    (info, opts) => {
-      const presentation = resolveVolcanoPresentation(info, volcanoState);
+  // 火山電文の WsDataMessage キャッシュ (volcanoCode → msg)
+  // aggregator の emitSingle/emitBatch コールバックでは WsDataMessage が渡されないため、
+  // handler で受信時にキャッシュし、emit 時に復元して PresentationEvent パイプラインに通す。
+  const volcanoMsgCache = new Map<string, WsDataMessage>();
+
+  /**
+   * 火山単発電文の PresentationEvent パイプライン処理。
+   * filter/template/focus/diff/summary に通して表示を制御する。
+   * 通知は filter 非適用なので先に実行する。
+   */
+  function emitVolcanoSingle(info: ParsedVolcanoInfo, opts?: FlushOptions): void {
+    // buildVolcanoOutcome は volcanoState.update() の前に呼ぶ
+    // (trackedBefore の算出に現在の state が必要)
+    const cachedMsg = volcanoMsgCache.get(info.volcanoCode);
+    const outcome = cachedMsg ? buildVolcanoOutcome(cachedMsg, info, volcanoState) : null;
+
+    const presentation = resolveVolcanoPresentation(info, volcanoState);
+    volcanoState.update(info);
+
+    // 通知は filter 非適用
+    if (opts?.notify !== false) {
+      notifier.notifyVolcano(info, presentation);
+    }
+
+    // PresentationEvent パイプライン
+    if (outcome) {
+      const rawEvent: PresentationEvent = toPresentationEvent(outcome);
+      const event = diffStore.apply(rawEvent);
+
+      const displayed = shouldDisplay(event, pipeline);
+      summaryTracker.record(event, displayed);
+
+      if (!displayed) {
+        volcanoMsgCache.delete(info.volcanoCode);
+        return;
+      }
+
+      const isFocused = pipeline.focus == null || pipeline.focus(event);
+      if (!isFocused) {
+        console.log(chalk.dim(renderSummaryLine(event)));
+        volcanoMsgCache.delete(info.volcanoCode);
+        return;
+      }
+
+      const templateOutput = renderTemplate(event, pipeline);
+      if (templateOutput != null) {
+        console.log(templateOutput);
+        volcanoMsgCache.delete(info.volcanoCode);
+        return;
+      }
+
+      if (getDisplayMode() === "compact") {
+        console.log(renderSummaryLine(event));
+        volcanoMsgCache.delete(info.volcanoCode);
+        return;
+      }
+
+      // 通常表示
       displayVolcanoInfo(info, presentation);
-      volcanoState.update(info);
-      if (opts?.notify !== false) {
-        notifier.notifyVolcano(info, presentation);
+    } else {
+      // msg キャッシュがない場合はフォールバック表示
+      displayVolcanoInfo(info, presentation);
+    }
+
+    volcanoMsgCache.delete(info.volcanoCode);
+  }
+
+  /**
+   * 火山バッチ電文の PresentationEvent パイプライン処理。
+   */
+  function emitVolcanoBatch(batch: Vfvo53BatchItems, opts: FlushOptions): void {
+    const presentation = resolveVolcanoBatchPresentation(batch);
+
+    // 通知は filter 非適用
+    if (opts.notify) {
+      notifier.notifyVolcanoBatch(batch, presentation);
+    }
+
+    // バッチの代表 msg を取得 (最初の item の volcanoCode でキャッシュを参照)
+    const firstItem = batch.items[0];
+    const cachedMsg = firstItem ? volcanoMsgCache.get(firstItem.volcanoCode) : undefined;
+
+    if (cachedMsg) {
+      const batchOutcome: VolcanoBatchOutcome = {
+        domain: "volcano",
+        msg: cachedMsg,
+        headType: cachedMsg.head.type,
+        statsCategory: "volcano",
+        parsed: batch.items,
+        isBatch: true,
+        volcanoPresentation: presentation,
+        batchReportDateTime: batch.reportDateTime,
+        batchIsTest: batch.isTest,
+        stats: {
+          shouldRecord: false, // stats は handler レベルで既に記録済み
+        },
+        presentation: {
+          frameLevel: presentation.frameLevel,
+          soundLevel: presentation.soundLevel,
+          notifyCategory: "volcano",
+        },
+      };
+
+      const rawEvent: PresentationEvent = toPresentationEvent(batchOutcome);
+      const event = diffStore.apply(rawEvent);
+
+      const displayed = shouldDisplay(event, pipeline);
+      summaryTracker.record(event, displayed);
+
+      if (!displayed) {
+        cleanupBatchCache(batch);
+        return;
       }
-    },
-    // emitBatch: バッチ専用処理
-    (batch, opts) => {
-      const presentation = resolveVolcanoBatchPresentation(batch);
+
+      const isFocused = pipeline.focus == null || pipeline.focus(event);
+      if (!isFocused) {
+        console.log(chalk.dim(renderSummaryLine(event)));
+        cleanupBatchCache(batch);
+        return;
+      }
+
+      const templateOutput = renderTemplate(event, pipeline);
+      if (templateOutput != null) {
+        console.log(templateOutput);
+        cleanupBatchCache(batch);
+        return;
+      }
+
+      if (getDisplayMode() === "compact") {
+        console.log(renderSummaryLine(event));
+        cleanupBatchCache(batch);
+        return;
+      }
+
+      // 通常表示
       displayVolcanoAshfallBatch(batch, presentation);
-      if (opts.notify) {
-        notifier.notifyVolcanoBatch(batch, presentation);
-      }
-    },
-  );
+    } else {
+      // msg キャッシュがない場合はフォールバック表示
+      displayVolcanoAshfallBatch(batch, presentation);
+    }
+
+    cleanupBatchCache(batch);
+  }
+
+  function cleanupBatchCache(batch: Vfvo53BatchItems): void {
+    for (const item of batch.items) {
+      volcanoMsgCache.delete(item.volcanoCode);
+    }
+  }
+
+  // VFVO53 バッチ集約器
+  const vfvo53Aggregator = new VolcanoVfvo53Aggregator(emitVolcanoSingle, emitVolcanoBatch);
 
   const handler = (msg: WsDataMessage): void => {
     // XML電文でない場合はヘッダ情報のみ表示
@@ -229,12 +362,13 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     const route = classifyMessage(msg.classification, msg.head.type);
 
-    // 火山は VFVO53 aggregator 経由の特殊パス (PresentationEvent パイプライン未統合)
-    // TODO: Phase 2 で aggregator emit 内に VolcanoOutcome → toPresentationEvent 変換を追加し
-    //       --filter / --template / --compact で火山電文も扱えるようにする
+    // 火山は VFVO53 aggregator 経由の特殊パス
+    // emitSingle/emitBatch コールバック内で PresentationEvent パイプラインに通す。
+    // volcanoMsgCache に msg をキャッシュし、emit 時に復元する。
     if (route === "volcano") {
       const volcanoInfo = parseVolcanoTelegram(msg);
       if (volcanoInfo) {
+        volcanoMsgCache.set(volcanoInfo.volcanoCode, msg);
         vfvo53Aggregator.handle(volcanoInfo);
       } else {
         displayRawHeader(msg);
