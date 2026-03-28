@@ -126,6 +126,7 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
     maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
     nightMode: fileConfig.nightMode ?? DEFAULT_CONFIG.nightMode,
+    summaryInterval: fileConfig.summaryInterval ?? DEFAULT_CONFIG.summaryInterval,
     backup: fileConfig.backup ?? DEFAULT_CONFIG.backup,
     truncation: { ...DEFAULT_CONFIG.truncation, ...fileConfig.truncation },
   };
