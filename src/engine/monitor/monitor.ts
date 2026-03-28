@@ -11,10 +11,13 @@ import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
 import * as log from "../../logger";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 
+import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
+import type { SummaryWindowTracker } from "../messages/summary-tracker";
+
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
 export async function startMonitor(config: AppConfig, pipeline?: FilterTemplatePipeline): Promise<void> {
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined });
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined });
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
@@ -62,9 +65,13 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipeline ?? undefined);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipeline ?? undefined, summaryTracker);
 
   registerShutdownSignals(shutdown);
+
+  // 定期要約タイマー
+  setupSummaryInterval(config, summaryTracker, () => replHandler);
+
 
   // REPL を先に起動 (接続中もコマンド入力可能にする)
   replHandler.start();
@@ -88,4 +95,25 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
     log.error(`接続に失敗しました: ${err instanceof Error ? err.message : err}`);
     log.info("retry コマンドで再接続を試みることができます。");
   }
+}
+
+/** 定期要約タイマーのセットアップ。summaryInterval が null なら何もしない。 */
+function setupSummaryInterval(
+  config: AppConfig,
+  tracker: SummaryWindowTracker,
+  getReplHandler: () => ReplHandlerType | null,
+): void {
+  if (config.summaryInterval == null) return;
+
+  const intervalMs = config.summaryInterval * 60_000;
+  const timer = setInterval(() => {
+    const snapshot = tracker.getSnapshot();
+    const output = formatSummaryInterval(snapshot, config.summaryInterval!, true);
+    withReplDisplay(getReplHandler(), () => {
+      console.log(output);
+    });
+  }, intervalMs);
+
+  // プロセス終了時にタイマーが残らないようにする
+  timer.unref();
 }

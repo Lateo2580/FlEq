@@ -3,6 +3,7 @@ import * as path from "path";
 import chalk from "chalk";
 import { getConfigDir } from "../config";
 import * as log from "../logger";
+import { applyNightOverlay } from "./night-overlay";
 
 // ── 型定義 ──
 
@@ -391,7 +392,32 @@ function buildDefaultResolvedTheme(): ResolvedTheme {
 
 // ── モジュール状態 ──
 
-let currentTheme: ResolvedTheme = buildDefaultResolvedTheme();
+let baseTheme: ResolvedTheme = buildDefaultResolvedTheme();
+let nightModeEnabled = false;
+let currentTheme: ResolvedTheme = baseTheme;
+
+// ── night mode ──
+
+/** baseTheme に night overlay を適用して currentTheme を更新する */
+function rebuildActiveTheme(): void {
+  if (nightModeEnabled) {
+    currentTheme = deepFreezeTheme(applyNightOverlay(baseTheme));
+  } else {
+    currentTheme = baseTheme;
+  }
+  chalkCache.clear();
+}
+
+/** ナイトモードの ON/OFF を設定し、テーマを再構築する */
+export function setNightMode(enabled: boolean): void {
+  nightModeEnabled = enabled;
+  rebuildActiveTheme();
+}
+
+/** ナイトモードが有効かどうかを返す */
+export function isNightMode(): boolean {
+  return nightModeEnabled;
+}
 
 // ── パス解決 ──
 
@@ -412,7 +438,8 @@ export function loadThemeFromPath(themePath: string): string[] {
   chalkCache.clear();
 
   if (!fs.existsSync(themePath)) {
-    currentTheme = buildDefaultResolvedTheme();
+    baseTheme = buildDefaultResolvedTheme();
+    rebuildActiveTheme();
     return [];
   }
 
@@ -420,7 +447,8 @@ export function loadThemeFromPath(themePath: string): string[] {
     const raw = fs.readFileSync(themePath, "utf-8");
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed == null || Array.isArray(parsed)) {
-      currentTheme = buildDefaultResolvedTheme();
+      baseTheme = buildDefaultResolvedTheme();
+      rebuildActiveTheme();
       return ["theme.json の形式が不正です。デフォルトテーマを使用します。"];
     }
     const { themeFile, warnings: sanitizeWarnings } = sanitizeThemeInput(parsed as Record<string, unknown>);
@@ -428,10 +456,12 @@ export function loadThemeFromPath(themePath: string): string[] {
       palette: DEFAULT_PALETTE,
       roles: DEFAULT_ROLES,
     });
-    currentTheme = deepFreezeTheme(theme);
+    baseTheme = deepFreezeTheme(theme);
+    rebuildActiveTheme();
     return [...sanitizeWarnings, ...warnings];
   } catch (err) {
-    currentTheme = buildDefaultResolvedTheme();
+    baseTheme = buildDefaultResolvedTheme();
+    rebuildActiveTheme();
     if (err instanceof SyntaxError) {
       return ["theme.json のJSONパースに失敗しました。デフォルトテーマを使用します。"];
     }

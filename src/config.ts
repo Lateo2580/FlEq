@@ -201,6 +201,7 @@ const CONFIG_KEYS: Record<string, string> = {
   eewLog: "EEWログ記録の有効/無効 (true/false)",
   maxObservations: '観測点の最大表示件数 (1〜999 / "off" で全件表示)',
   backup: "EEW副回線の有効/無効 (true/false)",
+  nightMode: "ナイトモードの有効/無効 (true/false)",
   truncation: "省略表示の上限設定 (truncation.<key> で個別設定)",
 };
 
@@ -268,6 +269,7 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyNotifySettings(config, raw.notify);
   applyMaxObservations(config, raw.maxObservations);
   applyBooleanField(config, "backup", raw.backup);
+  applyBooleanField(config, "nightMode", raw.nightMode);
   applyTruncation(config, raw.truncation);
 
   return config;
@@ -320,7 +322,7 @@ function applyReconnectDelay(config: ConfigFile, value: unknown): void {
 
 function applyBooleanField(
   config: ConfigFile,
-  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog" | "backup",
+  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog" | "backup" | "nightMode",
   value: unknown
 ): void {
   if (typeof value === "boolean") {
@@ -584,6 +586,14 @@ export function setConfigValue(key: string, value: string): void {
         );
       }
       config.backup = value === "true";
+      break;
+    case "nightMode":
+      if (value !== "true" && value !== "false") {
+        throw new ConfigError(
+          "nightMode は true または false を指定してください。"
+        );
+      }
+      config.nightMode = value === "true";
       break;
     case "maxObservations": {
       if (value === "off") {

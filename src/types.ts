@@ -98,6 +98,10 @@ export interface AppConfig {
   backup: boolean;
   /** 省略表示の上限設定 */
   truncation: TruncationLimits;
+  /** ナイトモード */
+  nightMode: boolean;
+  /** 定期要約の間隔(分)。null = 無効 */
+  summaryInterval: number | null;
   /** フィルタ式 (複数指定で AND 結合) */
   filterExprs?: string[];
   /** テンプレート式 */
@@ -124,6 +128,8 @@ export interface ConfigFile {
   maxObservations?: number;
   backup?: boolean;
   truncation?: Partial<TruncationLimits>;
+  nightMode?: boolean;
+  summaryInterval?: number;
 }
 
 /** デフォルト設定 */
@@ -164,6 +170,8 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     maxIntChangeReason: true,
   },
   maxObservations: null,
+  nightMode: false,
+  summaryInterval: null,
   backup: false,
   truncation: {
     seismicTextLines: 15,
