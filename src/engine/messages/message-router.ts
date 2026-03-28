@@ -20,7 +20,6 @@ import { TsunamiStateHolder } from "./tsunami-state";
 import { VolcanoStateHolder } from "./volcano-state";
 import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../notification/volcano-presentation";
 import { TelegramStats, routeToCategory } from "./telegram-stats";
-import { SummaryWindowTracker } from "./summary-tracker";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
@@ -172,7 +171,6 @@ export interface MessageHandlerResult {
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
   stats: TelegramStats;
-  summaryTracker: SummaryWindowTracker;
   flushAndDisposeVolcanoBuffer: () => void;
 }
 
@@ -184,7 +182,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const tsunamiState = new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
   const stats = new TelegramStats();
-  const summaryTracker = new SummaryWindowTracker();
   const diffStore = new PresentationDiffStore();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
@@ -264,12 +261,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const rawEvent: PresentationEvent = toPresentationEvent(outcome);
     const event = diffStore.apply(rawEvent);
 
-    const displayed = shouldDisplay(event, pipeline);
-
-    // 要約トラッカーに記録 (filter 通過有無も含む)
-    summaryTracker.record(event, displayed);
-
-    if (!displayed) {
+    if (!shouldDisplay(event, pipeline)) {
       return; // 表示のみ抑制
     }
 
@@ -302,7 +294,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     tsunamiState,
     volcanoState,
     stats,
-    summaryTracker,
     flushAndDisposeVolcanoBuffer: () => vfvo53Aggregator.flushAndDispose(),
   };
 }

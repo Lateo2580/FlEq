@@ -34,8 +34,6 @@ import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { TipShuffler } from "./tip-shuffler";
 import { TEST_TABLES } from "./test-samples";
 import { TelegramStats } from "../engine/messages/telegram-stats";
-import { SummaryWindowTracker } from "../engine/messages/summary-tracker";
-import { formatSummaryInterval } from "./summary-interval-formatter";
 import { displayStatistics } from "./statistics-formatter";
 
 /** コマンドのカテゴリ */
@@ -247,9 +245,6 @@ export class ReplHandler {
   private detailProviders: DetailProvider[];
   private stats: TelegramStats;
   private pipeline: FilterTemplatePipeline | null;
-  private summaryTracker: SummaryWindowTracker | null;
-  private summaryTimerId: NodeJS.Timeout | null = null;
-  private summaryIntervalMin: number | null = null;
   private filterExpr: string | null = null;
   private filterUpdatedAt: Date | null = null;
   private focusExpr: string | null = null;
@@ -265,7 +260,6 @@ export class ReplHandler {
     statusProviders: PromptStatusProvider[] = [],
     detailProviders: DetailProvider[] = [],
     pipeline?: FilterTemplatePipeline,
-    summaryTracker?: SummaryWindowTracker,
   ) {
     this.config = config;
     this.wsManager = wsManager;
@@ -276,8 +270,6 @@ export class ReplHandler {
     this.statusProviders = statusProviders;
     this.detailProviders = detailProviders;
     this.pipeline = pipeline ?? null;
-    this.summaryTracker = summaryTracker ?? null;
-    this.summaryIntervalMin = config.summaryInterval ?? null;
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
     this.tipIntervalMs = this.config.waitTipIntervalMin * 60 * 1000;
@@ -446,17 +438,6 @@ export class ReplHandler {
           off: { description: "無効にする" },
         },
         handler: (args) => this.handleNight(args),
-      },
-      summary: {
-        description: "定期要約の表示・設定",
-        detail: "summary: 現在の設定を表示\n  summary on [N]: N分間隔で要約 (デフォルト10分)\n  summary off: 停止\n  summary now: 今すぐ要約表示",
-        category: "settings",
-        subcommands: {
-          on: { description: "定期要約を開始" },
-          off: { description: "定期要約を停止" },
-          now: { description: "今すぐ要約を表示" },
-        },
-        handler: (args) => this.handleSummary(args),
       },
       sound: {
         description: "通知音の ON/OFF 切替",
@@ -1946,59 +1927,6 @@ export class ReplHandler {
     } else {
       console.log(chalk.yellow("  on または off を指定してください。"));
     }
-  }
-
-  private handleSummary(args: string): void {
-    if (this.summaryTracker == null) {
-      console.log(chalk.yellow("  要約トラッカーが利用できません。"));
-      return;
-    }
-
-    const trimmed = args.trim();
-    const parts = trimmed.split(/\s+/);
-    const sub = parts[0]?.toLowerCase() ?? "";
-
-    if (trimmed.length === 0) {
-      // 現在の設定を表示
-      if (this.summaryIntervalMin != null) {
-        console.log(`  定期要約: ${chalk.green("ON")} (${this.summaryIntervalMin}分間隔)`);
-      } else {
-        console.log(`  定期要約: ${chalk.red("OFF")}`);
-      }
-      console.log(chalk.gray("  使い方: summary on [N] / summary off / summary now"));
-      return;
-    }
-
-    if (sub === "now") {
-      const snapshot = this.summaryTracker.getSnapshot();
-      const output = formatSummaryInterval(snapshot, 30, true);
-      console.log(output);
-      return;
-    }
-
-    if (sub === "on") {
-      const minuteStr = parts[1];
-      let minutes = 10;
-      if (minuteStr != null) {
-        const parsed = parseInt(minuteStr, 10);
-        if (Number.isFinite(parsed) && parsed > 0) {
-          minutes = parsed;
-        }
-      }
-      this.summaryIntervalMin = minutes;
-      this.config.summaryInterval = minutes;
-      console.log(`  定期要約を ${chalk.green("ON")} にしました (${minutes}分間隔)。`);
-      return;
-    }
-
-    if (sub === "off") {
-      this.summaryIntervalMin = null;
-      this.config.summaryInterval = null;
-      console.log(`  定期要約を ${chalk.red("OFF")} にしました。`);
-      return;
-    }
-
-    console.log(chalk.yellow("  使い方: summary on [N] / summary off / summary now"));
   }
 
   private handleSound(args: string): void {

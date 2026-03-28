@@ -62,11 +62,6 @@ export function buildProgram(): Command {
       "--focus <expr>",
       "条件に一致しない電文を dim 表示に落とします",
     )
-    .option("--summary-interval [minutes]", "N分ごとに受信要約を表示 (デフォルト10分)", (val: string | undefined) => {
-      if (val === undefined || val === "true") return 10;
-      const n = parseInt(val, 10);
-      return Number.isFinite(n) && n > 0 ? n : 10;
-    })
     .option("--night", "ナイトモードを有効にします")
     .option("--debug", "デバッグログを表示します", false)
     .action(async (opts: RunMonitorOptions) => {

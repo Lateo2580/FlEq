@@ -31,7 +31,6 @@ export interface RunMonitorOptions {
   filter?: string[];
   template?: string;
   focus?: string;
-  summaryInterval?: number;
   night?: boolean;
   debug: boolean;
 }
@@ -151,12 +150,6 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
       }
       process.exit(1);
     }
-  }
-
-  // summaryInterval (CLI > Config > デフォルト)
-  if (opts.summaryInterval != null) {
-    config.summaryInterval = opts.summaryInterval;
-    log.info(`定期要約: ${opts.summaryInterval}分間隔`);
   }
 
   printBanner(config);
