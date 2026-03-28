@@ -1,6 +1,7 @@
 import { WsDataMessage } from "../../types";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
-import { displayRawHeader } from "../../ui/formatter";
+import { displayRawHeader, getDisplayMode } from "../../ui/formatter";
+import { renderSummaryLine } from "../../ui/summary";
 import { displayEewInfo } from "../../ui/eew-formatter";
 import {
   displayEarthquakeInfo,
@@ -263,6 +264,11 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const templateOutput = renderTemplate(event, pipeline);
     if (templateOutput != null) {
       console.log(templateOutput);
+      return;
+    }
+
+    if (getDisplayMode() === "compact") {
+      console.log(renderSummaryLine(event));
       return;
     }
 
