@@ -71,6 +71,21 @@
         <p>実行中に設定変更・状態確認</p>
       </div>
       <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>カスタマイズ</h3>
+        <p>フィルタ・テンプレート・フォーカスモード</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗾</div>
+        <h3>ミニマップ</h3>
+        <p>ASCII 12 ブロック列島形で地域を表示</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🌙</div>
+        <h3>ナイトモード</h3>
+        <p>彩度・輝度を抑制、危険色は維持</p>
+      </div>
+      <div class="feature-card">
         <div class="feature-icon">🍓</div>
         <h3>低メモリ対応</h3>
         <p>Raspberry Pi 等の ARM デバイスでも動作</p>
@@ -82,31 +97,131 @@
   <section class="section-alt" id="screenshot">
     <div class="section-inner">
       <h2 class="section-title">出力例</h2>
-      <p class="section-label">SCREENSHOT</p>
-      <div class="terminal">
+      <p class="section-label">OUTPUT PREVIEW</p>
+      <!-- Terminal Tabs -->
+      <div class="terminal-tabs">
+        <button class="terminal-tab active" data-tab="earthquake">地震情報</button>
+        <button class="terminal-tab" data-tab="eew">緊急地震速報</button>
+        <button class="terminal-tab" data-tab="tsunami">津波情報</button>
+      </div>
+
+      <!-- Terminal Window (tabbed) -->
+      <div class="terminal terminal--tabbed">
         <div class="terminal-header">
           <span class="terminal-dot red"></span>
           <span class="terminal-dot yellow"></span>
           <span class="terminal-dot green"></span>
           <span class="terminal-title">fleq</span>
         </div>
-        <div class="terminal-body">
-          <div class="term-line dim">$ fleq</div>
-          <div class="term-line dim">FlEq v1.50.1 — Ctrl+C to exit</div>
-          <div class="term-line">&nbsp;</div>
-          <div class="term-line accent">━━━ 震源・震度に関する情報 (VXSE53) ━━━</div>
-          <div class="term-line">発生時刻: 2026年03月23日 14時30分頃</div>
-          <div class="term-line">震源地:   熊本県熊本地方</div>
-          <div class="term-line">深さ:     10km</div>
-          <div class="term-line">マグニチュード: M4.2</div>
-          <div class="term-line warn">最大震度:  4</div>
-          <div class="term-line">&nbsp;</div>
-          <div class="term-line dim">[ 各地の震度 ]</div>
-          <div class="term-line warn">震度4: 熊本市中央区, 益城町</div>
-          <div class="term-line">震度3: 熊本市東区, 宇土市, 嘉島町</div>
-          <div class="term-line dim">震度2: 熊本市西区, 合志市, 菊陽町</div>
+
+        <!-- === 地震情報 (VXSE53) — warning frame === -->
+        <div class="terminal-body terminal-pane active" id="tab-earthquake">
+          <div class="term-frame frame-warning">
+            <div class="term-section">
+              震源・震度に関する情報　<span class="t-dim">発表　[警告]</span>
+            </div>
+            <div class="term-section">
+              １日１３時４５分ころ、地震がありました。各地の震度をお知らせします。
+            </div>
+            <div class="term-section">
+              最大震度 <span class="t-yellow t-bold">5-</span><span class="t-pipe">│</span><span class="t-yellow t-bold">M5.9</span><span class="t-pipe">│</span>深さ 10km<span class="t-pipe">│</span><span class="t-bluegreen">津波なし</span>
+            </div>
+            <div class="term-section">
+              震源地：<span class="t-yellow t-bold">駿河湾</span><br>
+              発生：2009-10-01 13:45:00<br>
+              位置：N34.8 E138.5
+            </div>
+            <div class="term-section">
+              <span class="t-yellow t-bold">震度5-：</span>静岡県伊豆，静岡県中部<br>
+              <span class="t-bluegreen t-bold">震度4：</span>静岡県東部，静岡県西部，神奈川県東部，神奈川県西部，山梨県中・西部<br>
+              <span class="t-blue">震度3：</span>山梨県東部・富士五湖，埼玉県南部，千葉県南部，東京都２３区，神津島，伊豆大島，新島，長野県南部，愛知県東部，愛知県西部
+            </div>
+            <div class="term-section">
+              この地震による津波の心配はありません。
+            </div>
+            <div class="term-section">
+              <span class="t-dim">VXSE53　2009-10-01 13:50:00　気象庁</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- === 緊急地震速報 (EEW 警報) — warning frame === -->
+        <div class="terminal-body terminal-pane" id="tab-eew">
+          <div class="term-banner banner-darkred">
+            緊急地震速報（警報）　#1　豊後水道
+          </div>
+          <div class="term-frame frame-warning">
+            <div class="term-section">
+              <span class="t-dim">発表</span><span class="t-pipe">│</span>最大予測震度 <span class="t-yellow t-bold">5-</span><span class="t-pipe">│</span>長周期階級 <span class="t-sky">1</span><span class="t-pipe">│</span><span class="t-yellow t-bold">M5.8</span><span class="t-pipe">│</span>深さ 30km
+            </div>
+            <div class="term-section">
+              豊後水道で地震　四国　九州　中国で強い揺れ
+            </div>
+            <div class="term-section">
+              震源地：<span class="t-yellow t-bold">豊後水道</span><br>
+              発生：2024-04-17 23:14:48<br>
+              位置：N33.2 E132.4<br>
+              規模：<span class="t-yellow t-bold">M5.8</span><br>
+              深さ：30km
+            </div>
+            <div class="term-section">
+              <span class="t-yellow t-bold">震度5-：</span>愛媛県南予<br>
+              <span class="t-bluegreen t-bold">震度4：</span>高知県西部，大分県南部，大分県中部 <span class="t-sky">[長周期1]</span>，愛媛県中予，大分県北部，愛媛県東予，山口県東部<br>
+              <span class="t-blue">震度3：</span>広島県南西部
+            </div>
+            <div class="term-section">
+              <span class="t-vermillion">既に主要動到達と推測：</span><br>
+              <span class="t-vermillion">愛媛県南予</span>
+            </div>
+            <div class="term-section">
+              <span class="t-dim">EventID: 20240417231454</span>
+            </div>
+            <div class="term-section">
+              <span class="t-dim">VXSE43　2024-04-17 23:14:59　気象庁</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- === 津波情報 (VTSE41) — warning frame === -->
+        <div class="terminal-body terminal-pane" id="tab-tsunami">
+          <div class="term-banner banner-vermillion">
+            津波警報・津波注意報
+          </div>
+          <div class="term-frame frame-warning">
+            <div class="term-section">
+              津波警報・注意報・予報　<span class="t-dim">発表　[警告]</span>
+            </div>
+            <div class="term-section">
+              津波警報を発表しました。
+            </div>
+            <div class="term-section">
+              震源地：<span class="t-yellow t-bold">石川県能登地方</span><br>
+              発生：2024-01-01 00:00:00<br>
+              位置：北緯37.5度 東経137.3度<br>
+              規模：<span class="t-vermillion t-bold">M7.6</span>
+            </div>
+            <div class="term-section">
+              <table class="term-table">
+                <thead>
+                  <tr><th>区分</th><th>地域名</th><th>波高</th><th>到達予想</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><span class="t-vermillion t-bold">津波警報</span></td><td>石川県能登</td><td>3m</td><td>すでに津波到達と推測</td></tr>
+                  <tr><td><span class="t-orange">津波注意報</span></td><td>新潟県上中下越</td><td>1m</td><td>01日00時30分</td></tr>
+                  <tr><td><span class="t-orange">津波注意報</span></td><td>富山県</td><td>1m</td><td>01日00時20分</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="term-section">
+              <span class="t-orange">津波による被害のおそれがあります。警報が発表された沿岸部や川沿いにいる人はただちに高台や避難ビルなど安全な場所へ避難してください。</span>
+            </div>
+            <div class="term-section">
+              <span class="t-dim">VTSE41　2024-01-01 00:03:00　気象庁</span>
+            </div>
+          </div>
         </div>
       </div>
+      <p class="terminal-note">過去の電文データを元にした再現です。実際の表示と異なる場合があります。</p>
     </div>
   </section>
 
@@ -220,9 +335,9 @@
         <table class="os-table">
           <thead><tr><th>OS</th><th>備考</th></tr></thead>
           <tbody>
-            <tr><td>macOS 10.13+</td><td>メイン開発・テスト環境</td></tr>
+            <tr><td>Windows 10+</td><td>メイン開発・テスト環境（ConPTY 対応ターミナル推奨）</td></tr>
+            <tr><td>macOS 10.13+</td><td>動作確認済み</td></tr>
             <tr><td>Linux (x64 / ARM)</td><td>Raspberry Pi 等の ARM デバイスでも動作</td></tr>
-            <tr><td>Windows 10+</td><td>ConPTY 対応のターミナルを推奨</td></tr>
           </tbody>
         </table>
       </div>

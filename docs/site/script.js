@@ -41,6 +41,25 @@ document.querySelectorAll('.copy-btn').forEach(function (btn) {
   });
 });
 
+// ターミナルタブ切替
+(function () {
+  var tabs = document.querySelectorAll('.terminal-tab');
+  var panes = document.querySelectorAll('.terminal-pane');
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var target = tab.getAttribute('data-tab');
+
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      panes.forEach(function (p) { p.classList.remove('active'); });
+
+      tab.classList.add('active');
+      var pane = document.getElementById('tab-' + target);
+      if (pane) pane.classList.add('active');
+    });
+  });
+})();
+
 // スムーススクロール
 document.querySelectorAll('a[href^="#"]').forEach(function (a) {
   a.addEventListener('click', function (e) {

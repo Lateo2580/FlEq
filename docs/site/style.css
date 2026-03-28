@@ -346,7 +346,7 @@ a:hover {
 }
 
 .terminal {
-  max-width: 600px;
+  max-width: 640px;
   margin: 2rem auto 0;
   border-radius: 0.5rem;
   overflow: hidden;
@@ -393,18 +393,147 @@ a:hover {
   font-size: 0.8rem;
   color: #d4d4d4;
   line-height: 1.6;
+  overflow-x: auto;
+  min-width: 0;
 }
 
-.term-line.dim {
-  color: #666;
+/* --- CUD palette inline spans --- */
+.t-gray       { color: rgb(132, 145, 158); }
+.t-sky        { color: rgb(86, 180, 233); }
+.t-blue       { color: rgb(0, 114, 178); }
+.t-bluegreen  { color: rgb(0, 158, 115); }
+.t-yellow     { color: rgb(240, 228, 66); }
+.t-orange     { color: rgb(230, 159, 0); }
+.t-vermillion { color: rgb(213, 94, 0); }
+.t-raspberry  { color: rgb(204, 121, 167); }
+.t-darkred    { color: rgb(122, 30, 0); }
+.t-white      { color: #d4d4d4; }
+.t-bold       { font-weight: 700; }
+.t-dim        { color: rgb(132, 145, 158); }
+
+/* Background badges */
+.t-bg-darkred    { background: rgb(122, 30, 0); color: #fff; font-weight: 700; padding: 0.1em 0.4em; }
+.t-bg-vermillion { background: rgb(213, 94, 0); color: #000; font-weight: 700; padding: 0.1em 0.4em; }
+.t-bg-raspberry  { background: rgb(204, 121, 167); color: #fff; font-weight: 700; padding: 0.1em 0.4em; }
+
+/* --- Terminal frame structure (CSS border approach) --- */
+.term-banner {
+  padding: 0.5rem 0.75rem;
+  font-weight: 700;
+  min-width: 480px;
+}
+.term-banner.banner-darkred {
+  background: rgb(122, 30, 0);
+  color: #fff;
+}
+.term-banner.banner-vermillion {
+  background: rgb(213, 94, 0);
+  color: #fff;
 }
 
-.term-line.accent {
-  color: #56B4E9; /* CUD sky — 電文ヘッダ */
+/* Bordered frame wrapping sections */
+.term-frame {
+  border: 2px solid;
+  margin-top: 0.35rem;
+  min-width: 480px;
+}
+.term-frame.frame-warning  { border-color: rgb(230, 159, 0); }
+.term-frame.frame-normal   { border-color: rgb(86, 180, 233); }
+.term-frame.frame-critical { border-color: rgb(213, 94, 0); }
+
+/* Each section inside the frame */
+.term-section {
+  padding: 0.35rem 0.75rem;
+  line-height: 1.5;
+}
+.term-frame.frame-warning  .term-section { border-bottom: 2px solid rgb(230, 159, 0); }
+.term-frame.frame-normal   .term-section { border-bottom: 2px solid rgb(86, 180, 233); }
+.term-frame.frame-critical .term-section { border-bottom: 2px solid rgb(213, 94, 0); }
+.term-section:last-child { border-bottom: none !important; }
+
+/* Pipe separator in card lines */
+.t-pipe { color: rgb(132, 145, 158); margin: 0 0.15em; }
+
+/* Tsunami table */
+.term-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+}
+.term-table th {
+  text-align: left;
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  border-bottom: 1px solid #555;
+  color: #d4d4d4;
+  font-weight: 400;
+}
+.term-table td {
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  vertical-align: top;
 }
 
-.term-line.warn {
-  color: #E8A034; /* 琥珀 — 警告レベル */
+/* --- Terminal Tabs --- */
+.terminal-tabs {
+  display: flex;
+  gap: 0;
+  margin: 2rem auto 0;
+  max-width: 640px;
+}
+
+.terminal-tab {
+  flex: 1;
+  background: #2d2d2d;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.7rem;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.terminal-tab:first-child {
+  border-radius: 0.5rem 0 0 0;
+}
+
+.terminal-tab:last-child {
+  border-radius: 0 0.5rem 0 0;
+}
+
+.terminal-tab:hover {
+  color: #ccc;
+}
+
+.terminal-tab.active {
+  color: #d4d4d4;
+  background: #1e1e1e;
+  border-bottom-color: rgb(86, 180, 233);
+}
+
+.terminal-pane {
+  display: none;
+}
+
+.terminal-pane.active {
+  display: block;
+}
+
+/* Disclaimer note under terminal */
+.terminal-note {
+  max-width: 640px;
+  margin: 0.75rem auto 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* When tabs exist, remove top border-radius from terminal */
+.terminal--tabbed {
+  border-radius: 0 0 0.5rem 0.5rem;
+  margin-top: 0;
 }
 
 /* ===== Categories Section ===== */
