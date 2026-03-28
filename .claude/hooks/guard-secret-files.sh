@@ -22,11 +22,10 @@ if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) {
 NODE
 )"
 
-case "${rel_path:-}" in
-  dist|dist/*)
-    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"dist/ は生成物だ。src/ を編集し、必要なら npm run build で再生成すること。"}}'
-    ;;
-  package-lock.json)
-    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"package-lock.json は自動生成ファイルだ。npm install 等のコマンド経由で更新すること。"}}'
+basename="${rel_path##*/}"
+
+case "${basename:-}" in
+  .env|.env.*|.npmrc|*.pem|*.key|credentials|credentials.*)
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"秘密情報を含む可能性のあるファイルだ。直接編集は禁止されている。"}}'
     ;;
 esac
