@@ -7,7 +7,7 @@ import {
 import { listContracts } from "../../dmdata/rest-client";
 import { startMonitor } from "../monitor/monitor";
 import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations, setTruncation } from "../../ui/formatter";
-import { loadTheme } from "../../ui/theme";
+import { loadTheme, setNightMode } from "../../ui/theme";
 import { resolveConfig } from "../startup/config-resolver";
 import * as updateChecker from "../startup/update-checker";
 import * as log from "../../logger";
@@ -30,6 +30,8 @@ export interface RunMonitorOptions {
   mode?: string;
   filter?: string[];
   template?: string;
+  focus?: string;
+  night?: boolean;
   debug: boolean;
 }
 
@@ -89,6 +91,13 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     log.warn(w);
   }
 
+  // ナイトモード (CLI --night > Config > デフォルト)
+  const nightEnabled = opts.night ?? config.nightMode;
+  if (nightEnabled) {
+    setNightMode(true);
+    log.info("ナイトモード: ON");
+  }
+
   // formatter キャッシュ初期化
   if (config.tableWidth != null) {
     setFrameWidth(config.tableWidth);
@@ -99,7 +108,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   setTruncation(config.truncation);
 
   // Filter / Template コンパイル
-  const pipeline: FilterTemplatePipeline = { filter: null, template: null };
+  const pipeline: FilterTemplatePipeline = { filter: null, template: null, focus: null };
 
   if (opts.filter && opts.filter.length > 0) {
     try {
@@ -128,6 +137,18 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
         log.warn(`テンプレートのコンパイルに失敗しました:\n${err.message}`);
       }
       // template エラーは警告のみ — 通常表示にフォールバック
+    }
+  }
+
+  if (opts.focus) {
+    try {
+      pipeline.focus = compileFilter(opts.focus);
+      log.info(`フォーカス: ${opts.focus}`);
+    } catch (err) {
+      if (err instanceof Error) {
+        log.error(`フォーカスのコンパイルに失敗しました:\n${err.message}`);
+      }
+      process.exit(1);
     }
   }
 

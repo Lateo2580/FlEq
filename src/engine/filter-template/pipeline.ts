@@ -5,6 +5,7 @@ import type { TemplateRenderer } from "../template/types";
 export interface FilterTemplatePipeline {
   filter: FilterPredicate | null;
   template: TemplateRenderer | null;
+  focus: FilterPredicate | null;
 }
 
 /** PresentationEvent にフィルタを適用する。true = 表示、false = 非表示 */

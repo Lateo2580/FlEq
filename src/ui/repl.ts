@@ -247,6 +247,8 @@ export class ReplHandler {
   private pipeline: FilterTemplatePipeline | null;
   private filterExpr: string | null = null;
   private filterUpdatedAt: Date | null = null;
+  private focusExpr: string | null = null;
+  private focusUpdatedAt: Date | null = null;
 
   constructor(
     config: AppConfig,
@@ -407,6 +409,16 @@ export class ReplHandler {
         },
         handler: (args) => this.handleFilter(args),
       },
+      focus: {
+        description: "focus の表示・設定",
+        detail: "focus: 現在の状態表示\n  focus <expr>: 適用\n  focus off: 解除",
+        category: "settings",
+        subcommands: {
+          "<expr>": { description: "focus を適用" },
+          off: { description: "focus を解除" },
+        },
+        handler: (args) => this.handleFocus(args),
+      },
       clock: {
         description: "プロンプト時計の切替 (例: clock / clock elapsed)",
         detail: "clock: 経過時間/現在時刻をトグル切替\n  clock elapsed: 経過時間表示 (デフォルト)\n  clock now: 現在時刻表示",
@@ -416,6 +428,16 @@ export class ReplHandler {
           now: { description: "現在時刻表示" },
         },
         handler: (args) => this.handleClock(args),
+      },
+      night: {
+        description: "ナイトモードの切替",
+        detail: "night: 現在の状態表示\n  night on: ナイトモード有効\n  night off: ナイトモード無効",
+        category: "settings",
+        subcommands: {
+          on: { description: "有効にする" },
+          off: { description: "無効にする" },
+        },
+        handler: (args) => this.handleNight(args),
       },
       sound: {
         description: "通知音の ON/OFF 切替",
@@ -827,6 +849,10 @@ export class ReplHandler {
       : "";
 
     return {
+      night: {
+        current: themeModule.isNightMode() ? "ON" : "OFF",
+        options: "on / off",
+      },
       sound: {
         current: this.notifier.getSoundEnabled() ? "ON" : "OFF",
         options: "on / off",
@@ -1768,6 +1794,51 @@ export class ReplHandler {
     }
   }
 
+  private handleFocus(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      // 状態表示
+      if (this.pipeline?.focus == null) {
+        console.log(`  フォーカス: ${chalk.gray("無効")}`);
+      } else {
+        console.log(`  フォーカス: ${chalk.green("有効")}`);
+        console.log(`  式: ${this.focusExpr ?? "(CLI起動時に設定)"}`);
+        if (this.focusUpdatedAt != null) {
+          const ts = this.focusUpdatedAt.toLocaleString("ja-JP");
+          console.log(`  最終更新: ${ts}`);
+        }
+      }
+      console.log(chalk.gray("  使い方: focus <expr> / focus off"));
+      return;
+    }
+
+    if (trimmed.toLowerCase() === "off") {
+      if (this.pipeline != null) {
+        this.pipeline.focus = null;
+      }
+      this.focusExpr = null;
+      this.focusUpdatedAt = null;
+      console.log("  フォーカスを解除しました。");
+      return;
+    }
+
+    // 式として適用
+    if (this.pipeline == null) {
+      console.log(chalk.yellow("  フォーカスパイプラインが利用できません。"));
+      return;
+    }
+    try {
+      const predicate = compileFilter(trimmed);
+      this.pipeline.focus = predicate;
+      this.focusExpr = trimmed;
+      this.focusUpdatedAt = new Date();
+      console.log(chalk.green("  フォーカスを適用しました。") + chalk.gray(` — ${trimmed}`));
+    } catch (err) {
+      this.printFilterError(err);
+    }
+  }
+
   private handleClock(args: string): void {
     const trimmed = args.trim();
 
@@ -1831,6 +1902,31 @@ export class ReplHandler {
       return;
     }
     console.log(`  待機中ヒント間隔を ${min}分 に変更しました。`);
+  }
+
+  private handleNight(args: string): void {
+    const trimmed = args.trim();
+
+    if (trimmed.length === 0) {
+      const current = themeModule.isNightMode();
+      const status = current ? chalk.green("ON") : chalk.red("OFF");
+      console.log(`  ナイトモード: ${status}`);
+      console.log(chalk.gray("  使い方: night on / night off"));
+      return;
+    }
+
+    const sub = trimmed.toLowerCase();
+    if (sub === "on") {
+      themeModule.setNightMode(true);
+      this.config.nightMode = true;
+      console.log(`  ナイトモードを ${chalk.green("ON")} にしました。`);
+    } else if (sub === "off") {
+      themeModule.setNightMode(false);
+      this.config.nightMode = false;
+      console.log(`  ナイトモードを ${chalk.red("OFF")} にしました。`);
+    } else {
+      console.log(chalk.yellow("  on または off を指定してください。"));
+    }
   }
 
   private handleSound(args: string): void {

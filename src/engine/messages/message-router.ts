@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import { WsDataMessage } from "../../types";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { displayRawHeader, getDisplayMode } from "../../ui/formatter";
@@ -23,6 +24,7 @@ import { processMessage as processMsg, ProcessDeps } from "../presentation/proce
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
+import { PresentationDiffStore } from "../presentation/diff-store";
 import type { ProcessOutcome, PresentationEvent } from "../presentation/types";
 
 // ── 電文分類 (Route) ──
@@ -174,12 +176,13 @@ export interface MessageHandlerResult {
 
 /** 受信データのハンドリング */
 export function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerResult {
-  const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null };
+  const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
   const stats = new TelegramStats();
+  const diffStore = new PresentationDiffStore();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -254,11 +257,20 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // 通知は filter 非適用
     dispatchNotify(outcome, notifier);
 
-    // filter → template 適用
-    const event: PresentationEvent = toPresentationEvent(outcome);
+    // filter → diffStore → focus → template 適用
+    const rawEvent: PresentationEvent = toPresentationEvent(outcome);
+    const event = diffStore.apply(rawEvent);
 
     if (!shouldDisplay(event, pipeline)) {
       return; // 表示のみ抑制
+    }
+
+    // focus 判定: 非一致電文は dim compact 表示に落とす
+    const isFocused = pipeline.focus == null || pipeline.focus(event);
+    if (!isFocused) {
+      const dimLine = chalk.dim(renderSummaryLine(event));
+      console.log(dimLine);
+      return;
     }
 
     const templateOutput = renderTemplate(event, pipeline);

@@ -58,6 +58,11 @@ export function buildProgram(): Command {
       "--template <template>",
       "電文の1行要約テンプレートを指定します (@ でファイル読込)",
     )
+    .option(
+      "--focus <expr>",
+      "条件に一致しない電文を dim 表示に落とします",
+    )
+    .option("--night", "ナイトモードを有効にします")
     .option("--debug", "デバッグログを表示します", false)
     .action(async (opts: RunMonitorOptions) => {
       const { runMonitor } = await import("./cli-run");
