@@ -433,6 +433,34 @@ function extractLgObservationDetails(body: unknown): {
   return result;
 }
 
+// ── 共通前処理 ──
+
+/** decodeBody → parseXml → Report/Head/Body を抽出する共通前処理 */
+export function extractBaseReport(msg: WsDataMessage): {
+  report: unknown;
+  head: unknown;
+  body: unknown;
+} | null {
+  const xmlStr = decodeBody(msg);
+  const parsed = parseXml(xmlStr);
+
+  const report =
+    dig(parsed, "Report") ||
+    dig(parsed, "jmx:Report") ||
+    dig(parsed, "jmx_seis:Report");
+
+  if (!report) {
+    log.debug("Report ノードが見つかりません");
+    return null;
+  }
+
+  return {
+    report,
+    head: dig(report, "Head"),
+    body: dig(report, "Body"),
+  };
+}
+
 // ── 公開API ──
 
 /** 地震関連電文(VXSE51/52/53等)をパース */
@@ -440,22 +468,9 @@ export function parseEarthquakeTelegram(
   msg: WsDataMessage
 ): ParsedEarthquakeInfo | null {
   try {
-    const xmlStr = decodeBody(msg);
-    const parsed = parseXml(xmlStr);
-
-    // Report > Body を探す
-    const report =
-      dig(parsed, "Report") ||
-      dig(parsed, "jmx:Report") ||
-      dig(parsed, "jmx_seis:Report");
-
-    if (!report) {
-      log.debug("Report ノードが見つかりません");
-      return null;
-    }
-
-    const body = dig(report, "Body");
-    const head = dig(report, "Head");
+    const base = extractBaseReport(msg);
+    if (!base) return null;
+    const { head, body } = base;
 
     const info: ParsedEarthquakeInfo = {
       type: msg.head.type,
@@ -497,18 +512,9 @@ export function parseEewTelegram(
   msg: WsDataMessage
 ): ParsedEewInfo | null {
   try {
-    const xmlStr = decodeBody(msg);
-    const parsed = parseXml(xmlStr);
-
-    const report =
-      dig(parsed, "Report") ||
-      dig(parsed, "jmx:Report") ||
-      dig(parsed, "jmx_seis:Report");
-
-    if (!report) return null;
-
-    const head = dig(report, "Head");
-    const body = dig(report, "Body");
+    const base = extractBaseReport(msg);
+    if (!base) return null;
+    const { head, body } = base;
 
     // 仮定震源要素の検出
     const earthquake = dig(body, "Earthquake");
@@ -570,21 +576,9 @@ export function parseTsunamiTelegram(
   msg: WsDataMessage
 ): ParsedTsunamiInfo | null {
   try {
-    const xmlStr = decodeBody(msg);
-    const parsed = parseXml(xmlStr);
-
-    const report =
-      dig(parsed, "Report") ||
-      dig(parsed, "jmx:Report") ||
-      dig(parsed, "jmx_seis:Report");
-
-    if (!report) {
-      log.debug("Report ノードが見つかりません");
-      return null;
-    }
-
-    const head = dig(report, "Head");
-    const body = dig(report, "Body");
+    const base = extractBaseReport(msg);
+    if (!base) return null;
+    const { head, body } = base;
     const warningComment = dig(body, "Comments", "WarningComment");
     const warningCommentText = Array.isArray(warningComment)
       ? str(dig(warningComment[0], "Text"))
@@ -664,21 +658,9 @@ export function parseSeismicTextTelegram(
   msg: WsDataMessage
 ): ParsedSeismicTextInfo | null {
   try {
-    const xmlStr = decodeBody(msg);
-    const parsed = parseXml(xmlStr);
-
-    const report =
-      dig(parsed, "Report") ||
-      dig(parsed, "jmx:Report") ||
-      dig(parsed, "jmx_seis:Report");
-
-    if (!report) {
-      log.debug("Report ノードが見つかりません");
-      return null;
-    }
-
-    const head = dig(report, "Head");
-    const body = dig(report, "Body");
+    const base = extractBaseReport(msg);
+    if (!base) return null;
+    const { head, body } = base;
 
     const info: ParsedSeismicTextInfo = {
       type: msg.head.type,
@@ -705,21 +687,9 @@ export function parseNankaiTroughTelegram(
   msg: WsDataMessage
 ): ParsedNankaiTroughInfo | null {
   try {
-    const xmlStr = decodeBody(msg);
-    const parsed = parseXml(xmlStr);
-
-    const report =
-      dig(parsed, "Report") ||
-      dig(parsed, "jmx:Report") ||
-      dig(parsed, "jmx_seis:Report");
-
-    if (!report) {
-      log.debug("Report ノードが見つかりません");
-      return null;
-    }
-
-    const head = dig(report, "Head");
-    const body = dig(report, "Body");
+    const base = extractBaseReport(msg);
+    if (!base) return null;
+    const { head, body } = base;
 
     const info: ParsedNankaiTroughInfo = {
       type: msg.head.type,
@@ -771,21 +741,9 @@ export function parseLgObservationTelegram(
   msg: WsDataMessage
 ): ParsedLgObservationInfo | null {
   try {
-    const xmlStr = decodeBody(msg);
-    const parsed = parseXml(xmlStr);
-
-    const report =
-      dig(parsed, "Report") ||
-      dig(parsed, "jmx:Report") ||
-      dig(parsed, "jmx_seis:Report");
-
-    if (!report) {
-      log.debug("Report ノードが見つかりません");
-      return null;
-    }
-
-    const head = dig(report, "Head");
-    const body = dig(report, "Body");
+    const base = extractBaseReport(msg);
+    if (!base) return null;
+    const { head, body } = base;
 
     const info: ParsedLgObservationInfo = {
       type: msg.head.type,
