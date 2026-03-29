@@ -200,6 +200,46 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     volcanoState,
   };
 
+  /**
+   * 共通の表示パイプライン処理。
+   * filter/diffStore/summaryTracker/focus/template/compact の6ステップを一元的に実行する。
+   * @returns true なら表示済み (呼び出し元でフォールバック表示不要)。false ならフィルタで非表示。
+   */
+  function runDisplayPipeline(
+    outcome: ProcessOutcome | VolcanoBatchOutcome,
+    displayFn: () => void,
+  ): boolean {
+    const rawEvent: PresentationEvent = toPresentationEvent(outcome);
+    const event = diffStore.apply(rawEvent);
+
+    const displayed = shouldDisplay(event, pipeline);
+    summaryTracker.record(event, displayed);
+
+    if (!displayed) {
+      return false;
+    }
+
+    const isFocused = pipeline.focus == null || pipeline.focus(event);
+    if (!isFocused) {
+      console.log(chalk.dim(renderSummaryLine(event)));
+      return true;
+    }
+
+    const templateOutput = renderTemplate(event, pipeline);
+    if (templateOutput != null) {
+      console.log(templateOutput);
+      return true;
+    }
+
+    if (getDisplayMode() === "compact") {
+      console.log(renderSummaryLine(event));
+      return true;
+    }
+
+    displayFn();
+    return true;
+  }
+
   // 火山電文の WsDataMessage キャッシュ (volcanoCode → msg)
   // aggregator の emitSingle/emitBatch コールバックでは WsDataMessage が渡されないため、
   // handler で受信時にキャッシュし、emit 時に復元して PresentationEvent パイプラインに通す。
@@ -226,39 +266,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     // PresentationEvent パイプライン
     if (outcome) {
-      const rawEvent: PresentationEvent = toPresentationEvent(outcome);
-      const event = diffStore.apply(rawEvent);
-
-      const displayed = shouldDisplay(event, pipeline);
-      summaryTracker.record(event, displayed);
-
-      if (!displayed) {
-        volcanoMsgCache.delete(info.volcanoCode);
-        return;
-      }
-
-      const isFocused = pipeline.focus == null || pipeline.focus(event);
-      if (!isFocused) {
-        console.log(chalk.dim(renderSummaryLine(event)));
-        volcanoMsgCache.delete(info.volcanoCode);
-        return;
-      }
-
-      const templateOutput = renderTemplate(event, pipeline);
-      if (templateOutput != null) {
-        console.log(templateOutput);
-        volcanoMsgCache.delete(info.volcanoCode);
-        return;
-      }
-
-      if (getDisplayMode() === "compact") {
-        console.log(renderSummaryLine(event));
-        volcanoMsgCache.delete(info.volcanoCode);
-        return;
-      }
-
-      // 通常表示
-      displayVolcanoInfo(info, presentation);
+      runDisplayPipeline(outcome, () => displayVolcanoInfo(info, presentation));
     } else {
       // msg キャッシュがない場合はフォールバック表示
       displayVolcanoInfo(info, presentation);
@@ -303,39 +311,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         },
       };
 
-      const rawEvent: PresentationEvent = toPresentationEvent(batchOutcome);
-      const event = diffStore.apply(rawEvent);
-
-      const displayed = shouldDisplay(event, pipeline);
-      summaryTracker.record(event, displayed);
-
-      if (!displayed) {
-        cleanupBatchCache(batch);
-        return;
-      }
-
-      const isFocused = pipeline.focus == null || pipeline.focus(event);
-      if (!isFocused) {
-        console.log(chalk.dim(renderSummaryLine(event)));
-        cleanupBatchCache(batch);
-        return;
-      }
-
-      const templateOutput = renderTemplate(event, pipeline);
-      if (templateOutput != null) {
-        console.log(templateOutput);
-        cleanupBatchCache(batch);
-        return;
-      }
-
-      if (getDisplayMode() === "compact") {
-        console.log(renderSummaryLine(event));
-        cleanupBatchCache(batch);
-        return;
-      }
-
-      // 通常表示
-      displayVolcanoAshfallBatch(batch, presentation);
+      runDisplayPipeline(batchOutcome, () => displayVolcanoAshfallBatch(batch, presentation));
     } else {
       // msg キャッシュがない場合はフォールバック表示
       displayVolcanoAshfallBatch(batch, presentation);
@@ -394,39 +370,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // 通知は filter 非適用
     dispatchNotify(outcome, notifier);
 
-    // filter → diffStore → focus → template 適用
-    const rawEvent: PresentationEvent = toPresentationEvent(outcome);
-    const event = diffStore.apply(rawEvent);
-
-    const displayed = shouldDisplay(event, pipeline);
-
-    // 要約トラッカーに記録 (filter 通過有無も含む)
-    summaryTracker.record(event, displayed);
-
-    if (!displayed) {
-      return; // 表示のみ抑制
-    }
-
-    // focus 判定: 非一致電文は dim compact 表示に落とす
-    const isFocused = pipeline.focus == null || pipeline.focus(event);
-    if (!isFocused) {
-      const dimLine = chalk.dim(renderSummaryLine(event));
-      console.log(dimLine);
-      return;
-    }
-
-    const templateOutput = renderTemplate(event, pipeline);
-    if (templateOutput != null) {
-      console.log(templateOutput);
-      return;
-    }
-
-    if (getDisplayMode() === "compact") {
-      console.log(renderSummaryLine(event));
-      return;
-    }
-
-    dispatchDisplayOnly(outcome);
+    // filter → diffStore → focus → template → compact → 通常表示
+    runDisplayPipeline(outcome, () => dispatchDisplayOnly(outcome));
   };
 
   return {
