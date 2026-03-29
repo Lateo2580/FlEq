@@ -154,4 +154,31 @@ describe("sound-player", () => {
     // Windows では全レベルが PowerShell 経由 (exec) で再生される
     expect(mockExec).toHaveBeenCalledTimes(5);
   });
+
+  it("dispose() を呼んだ後は playSound が無視される", async () => {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    const { playSound, dispose } = await import("../../src/engine/notification/sound-player");
+    dispose();
+    playSound("critical");
+    expect(mockExec).not.toHaveBeenCalled();
+  });
+
+  it("findCustomSound の結果をキャッシュする", async () => {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    mockExistsSync.mockImplementation((p: string) => p.endsWith("critical.mp3"));
+    const { playSound, clearCustomSoundCache } = await import("../../src/engine/notification/sound-player");
+
+    // 初回: existsSync を呼んでキャッシュを作成する
+    playSound("critical");
+    mockExistsSync.mockClear();
+
+    // 2回目: キャッシュヒットのため existsSync は呼ばれない
+    playSound("critical");
+    expect(mockExistsSync).not.toHaveBeenCalled();
+
+    // キャッシュクリア後は再度 existsSync を呼ぶ
+    clearCustomSoundCache();
+    playSound("critical");
+    expect(mockExistsSync).toHaveBeenCalledTimes(1);
+  });
 });

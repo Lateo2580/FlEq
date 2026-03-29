@@ -1,4 +1,4 @@
-import { execFile, exec } from "child_process";
+import { execFile, exec, ChildProcess } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as log from "../../logger";
@@ -56,61 +56,188 @@ const LINUX_CANBERRA_EVENTS: Record<SoundLevel, string> = {
   cancel: "bell",
 };
 
+// ── findCustomSound キャッシュ ──
+
+/** findCustomSound の結果キャッシュ (null = 存在しない, undefined = 未検索) */
+const customSoundCache = new Map<SoundLevel, string | null>();
+
 /**
  * カスタム効果音ファイルのパスを返す。見つからなければ null。
- * mp3 → wav の順で探索する。
+ * mp3 → wav の順で探索する。結果はキャッシュして再利用する。
  */
 function findCustomSound(level: SoundLevel): string | null {
+  if (customSoundCache.has(level)) {
+    return customSoundCache.get(level) as string | null;
+  }
   const baseName = CUSTOM_SOUND_FILES[level];
   for (const ext of SUPPORTED_EXTENSIONS) {
     const filePath = path.join(CUSTOM_SOUNDS_DIR, baseName + ext);
     if (fs.existsSync(filePath)) {
+      customSoundCache.set(level, filePath);
       return filePath;
     }
   }
+  customSoundCache.set(level, null);
   return null;
 }
 
+/** findCustomSound のキャッシュをクリアする (テスト用) */
+export function clearCustomSoundCache(): void {
+  customSoundCache.clear();
+}
+
+// ── 有界キュー ──
+
+/** 同時再生の最大数 */
+const MAX_CONCURRENT = 1;
+/** キューの最大サイズ (超えたら古いエントリを破棄) */
+const MAX_QUEUE_SIZE = 3;
+/** 再生プロセスのタイムアウト (ms) */
+const PLAY_TIMEOUT_MS = 10_000;
+
+/** 再生中のプロセス数 */
+let activeCount = 0;
+/** 再生待ちキュー */
+const playQueue: SoundLevel[] = [];
+/** 現在再生中のプロセス (タイムアウト kill 用) */
+let activeProcess: ChildProcess | null = null;
+/** タイムアウトタイマー */
+let activeTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** dispose 済みフラグ */
+let disposed = false;
+
 /**
- * 通知音を再生する (fire-and-forget)。
- * カスタム効果音ファイルがあればそちらを優先、なければ OS システムサウンドにフォールバック。
- * 再生失敗はログに記録するのみで例外は投げない。
+ * 再生完了後にキューから次のエントリを取り出して再生する。
  */
-export function playSound(level: SoundLevel): void {
+function onPlayFinished(): void {
+  activeCount--;
+  activeProcess = null;
+  if (activeTimer != null) {
+    clearTimeout(activeTimer);
+    activeTimer = null;
+  }
+  if (disposed) return;
+  if (playQueue.length > 0) {
+    const next = playQueue.shift()!;
+    runPlay(next);
+  }
+}
+
+/**
+ * プロセスを起動して再生を実行する。
+ * タイムアウトを設定し、完了時に onPlayFinished を呼ぶ。
+ */
+function runPlay(level: SoundLevel): void {
+  activeCount++;
   try {
     const customPath = findCustomSound(level);
     const platform = process.platform;
 
     if (customPath) {
-      playCustomSound(customPath, platform);
+      activeProcess = launchCustomSound(customPath, platform, onPlayFinished);
     } else if (platform === "win32") {
-      playSystemSoundWindows(level);
+      activeProcess = launchSystemSoundWindows(level, onPlayFinished);
     } else if (platform === "darwin") {
-      playSystemSoundMacOS(level);
+      activeProcess = launchSystemSoundMacOS(level, onPlayFinished);
     } else {
-      playSystemSoundLinux(level);
+      activeProcess = launchSystemSoundLinux(level, onPlayFinished);
+    }
+
+    if (activeProcess != null) {
+      activeTimer = setTimeout(() => {
+        log.debug(`通知音の再生がタイムアウトしました (${PLAY_TIMEOUT_MS}ms)`);
+        try {
+          activeProcess?.kill();
+        } catch {
+          // ignore
+        }
+        onPlayFinished();
+      }, PLAY_TIMEOUT_MS);
     }
   } catch (err) {
     if (err instanceof Error) {
       log.debug(`通知音の再生に失敗しました: ${err.message}`);
     }
+    onPlayFinished();
+  }
+}
+
+/**
+ * 通知音を再生する (fire-and-forget)。
+ * 同時再生は MAX_CONCURRENT 件に制限し、超えた場合はキューに積む。
+ * キューが MAX_QUEUE_SIZE を超えた場合は先頭 (最古) を破棄する。
+ * カスタム効果音ファイルがあればそちらを優先、なければ OS システムサウンドにフォールバック。
+ * 再生失敗はログに記録するのみで例外は投げない。
+ */
+export function playSound(level: SoundLevel): void {
+  if (disposed) return;
+
+  if (activeCount < MAX_CONCURRENT) {
+    runPlay(level);
+  } else {
+    if (playQueue.length >= MAX_QUEUE_SIZE) {
+      const dropped = playQueue.shift();
+      log.debug(`通知音キューが上限 (${MAX_QUEUE_SIZE}) に達したため破棄しました: ${dropped}`);
+    }
+    playQueue.push(level);
+  }
+}
+
+/**
+ * 進行中の再生を停止し、キューをクリアする。
+ * アプリ終了時に呼ぶことでプロセスリークを防ぐ。
+ */
+export function dispose(): void {
+  disposed = true;
+  playQueue.length = 0;
+  if (activeTimer != null) {
+    clearTimeout(activeTimer);
+    activeTimer = null;
+  }
+  if (activeProcess != null) {
+    try {
+      activeProcess.kill();
+    } catch {
+      // ignore
+    }
+    activeProcess = null;
+  }
+  activeCount = 0;
+}
+
+/**
+ * dispose 後に再利用できるよう内部状態をリセットする (テスト用)。
+ */
+export function resetSoundPlayer(): void {
+  disposed = false;
+  activeCount = 0;
+  playQueue.length = 0;
+  activeProcess = null;
+  if (activeTimer != null) {
+    clearTimeout(activeTimer);
+    activeTimer = null;
   }
 }
 
 // ── カスタム効果音再生 ──
 
-function playCustomSound(filePath: string, platform: string): void {
+function launchCustomSound(
+  filePath: string,
+  platform: string,
+  onDone: () => void,
+): ChildProcess | null {
   if (platform === "win32") {
-    playCustomSoundWindows(filePath);
+    return launchCustomSoundWindows(filePath, onDone);
   } else if (platform === "darwin") {
-    playCustomSoundMacOS(filePath);
+    return launchCustomSoundMacOS(filePath, onDone);
   } else {
-    playCustomSoundLinux(filePath);
+    return launchCustomSoundLinux(filePath, onDone);
   }
 }
 
 /** Windows: winmm.dll mciSendString で mp3/wav を同期再生 */
-function playCustomSoundWindows(filePath: string): void {
+function launchCustomSoundWindows(filePath: string, onDone: () => void): ChildProcess | null {
   // MediaPlayer (WPF) は非同期ロードのためタイミング問題が起きやすい。
   // mciSendString は同期 (wait) で確実に再生できる。
   const escaped = filePath.replace(/'/g, "''");
@@ -120,52 +247,62 @@ function playCustomSoundWindows(filePath: string): void {
     `[Win32.Mci]::mciSendStringW('play fleqsnd wait',$null,0,[IntPtr]::Zero)|Out-Null;`,
     `[Win32.Mci]::mciSendStringW('close fleqsnd',$null,0,[IntPtr]::Zero)|Out-Null`,
   ].join(" ");
-  exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
+  const proc = exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
     if (err) {
       log.debug(`Windows カスタム通知音の再生に失敗しました: ${err.message}`);
     }
+    onDone();
   });
+  return proc as unknown as ChildProcess;
 }
 
 /** macOS: afplay で mp3/wav を再生 */
-function playCustomSoundMacOS(filePath: string): void {
-  execFile("afplay", [filePath], (err) => {
+function launchCustomSoundMacOS(filePath: string, onDone: () => void): ChildProcess | null {
+  const proc = execFile("afplay", [filePath], (err) => {
     if (err) {
       log.debug(`macOS カスタム通知音の再生に失敗しました: ${err.message}`);
     }
+    onDone();
   });
+  return proc as unknown as ChildProcess;
 }
 
 /** Linux: ffplay → paplay → aplay のフォールバック */
-function playCustomSoundLinux(filePath: string): void {
+function launchCustomSoundLinux(filePath: string, onDone: () => void): ChildProcess | null {
   const ext = path.extname(filePath).toLowerCase();
 
   if (ext === ".mp3") {
     // mp3 は ffplay で再生
-    execFile("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet", filePath], (err) => {
+    const proc = execFile("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet", filePath], (err) => {
       if (err) {
         log.debug(`Linux ffplay での再生に失敗しました: ${err.message}`);
         printBell();
       }
+      onDone();
     });
+    return proc as unknown as ChildProcess;
   } else {
     // wav は paplay → aplay のフォールバック
-    execFile("paplay", [filePath], (err) => {
+    const proc = execFile("paplay", [filePath], (err) => {
       if (err) {
         execFile("aplay", ["-q", filePath], (err2) => {
           if (err2) {
             log.debug(`Linux 通知音の再生に失敗しました: ${err2.message}`);
             printBell();
           }
+          onDone();
         });
+      } else {
+        onDone();
       }
     });
+    return proc as unknown as ChildProcess;
   }
 }
 
 // ── システムサウンドフォールバック ──
 
-function playSystemSoundWindows(level: SoundLevel): void {
+function launchSystemSoundWindows(level: SoundLevel, onDone: () => void): ChildProcess | null {
   const soundFile = WINDOWS_SOUNDS[level];
   const soundPath = path.join(
     process.env.SYSTEMROOT || "C:\\Windows",
@@ -173,37 +310,44 @@ function playSystemSoundWindows(level: SoundLevel): void {
     soundFile
   );
   const psCommand = `(New-Object System.Media.SoundPlayer '${soundPath}').PlaySync()`;
-  exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
+  const proc = exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
     if (err) {
       log.debug(`Windows 通知音の再生に失敗しました: ${err.message}`);
     }
+    onDone();
   });
+  return proc as unknown as ChildProcess;
 }
 
-function playSystemSoundMacOS(level: SoundLevel): void {
+function launchSystemSoundMacOS(level: SoundLevel, onDone: () => void): ChildProcess | null {
   const soundFile = MACOS_SOUNDS[level];
   const soundPath = `/System/Library/Sounds/${soundFile}`;
-  execFile("afplay", [soundPath], (err) => {
+  const proc = execFile("afplay", [soundPath], (err) => {
     if (err) {
       log.debug(`macOS 通知音の再生に失敗しました: ${err.message}`);
     }
+    onDone();
   });
+  return proc as unknown as ChildProcess;
 }
 
-function playSystemSoundLinux(level: SoundLevel): void {
+function launchSystemSoundLinux(level: SoundLevel, onDone: () => void): ChildProcess | null {
   const eventName = LINUX_CANBERRA_EVENTS[level];
 
   if (eventName === "bell") {
     printBell();
-    return;
+    onDone();
+    return null;
   }
 
-  execFile("canberra-gtk-play", ["-i", eventName], (err) => {
+  const proc = execFile("canberra-gtk-play", ["-i", eventName], (err) => {
     if (err) {
       log.debug(`canberra-gtk-play 失敗、bell にフォールバック: ${err.message}`);
       printBell();
     }
+    onDone();
   });
+  return proc as unknown as ChildProcess;
 }
 
 function printBell(): void {
