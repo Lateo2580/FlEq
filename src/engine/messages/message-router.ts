@@ -240,10 +240,22 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     return true;
   }
 
-  // 火山電文の WsDataMessage キャッシュ (volcanoCode → msg)
+  // 火山電文の WsDataMessage キャッシュ (volcanoCode → msg + timestamp)
   // aggregator の emitSingle/emitBatch コールバックでは WsDataMessage が渡されないため、
   // handler で受信時にキャッシュし、emit 時に復元して PresentationEvent パイプラインに通す。
-  const volcanoMsgCache = new Map<string, WsDataMessage>();
+  // TTL 付きで古いエントリを安全弁として自動削除する。
+  const VOLCANO_CACHE_TTL_MS = 10 * 60 * 1000; // 10分
+  const volcanoMsgCache = new Map<string, { msg: WsDataMessage; cachedAt: number }>();
+
+  /** volcanoMsgCache から TTL 超過エントリを削除する */
+  function pruneVolcanoMsgCache(): void {
+    const now = Date.now();
+    for (const [key, entry] of volcanoMsgCache) {
+      if (now - entry.cachedAt > VOLCANO_CACHE_TTL_MS) {
+        volcanoMsgCache.delete(key);
+      }
+    }
+  }
 
   /**
    * 火山単発電文の PresentationEvent パイプライン処理。
@@ -253,7 +265,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   function emitVolcanoSingle(info: ParsedVolcanoInfo, opts?: FlushOptions): void {
     // buildVolcanoOutcome は volcanoState.update() の前に呼ぶ
     // (trackedBefore の算出に現在の state が必要)
-    const cachedMsg = volcanoMsgCache.get(info.volcanoCode);
+    const cacheEntry = volcanoMsgCache.get(info.volcanoCode);
+    const cachedMsg = cacheEntry?.msg;
     const outcome = cachedMsg ? buildVolcanoOutcome(cachedMsg, info, volcanoState) : null;
 
     const presentation = resolveVolcanoPresentation(info, volcanoState);
@@ -272,6 +285,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       displayVolcanoInfo(info, presentation);
     }
 
+    // 処理完了後にキャッシュエントリを確実に削除
     volcanoMsgCache.delete(info.volcanoCode);
   }
 
@@ -288,7 +302,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     // バッチの代表 msg を取得 (最初の item の volcanoCode でキャッシュを参照)
     const firstItem = batch.items[0];
-    const cachedMsg = firstItem ? volcanoMsgCache.get(firstItem.volcanoCode) : undefined;
+    const cacheEntry = firstItem ? volcanoMsgCache.get(firstItem.volcanoCode) : undefined;
+    const cachedMsg = cacheEntry?.msg;
 
     if (cachedMsg) {
       const batchOutcome: VolcanoBatchOutcome = {
@@ -342,9 +357,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // emitSingle/emitBatch コールバック内で PresentationEvent パイプラインに通す。
     // volcanoMsgCache に msg をキャッシュし、emit 時に復元する。
     if (route === "volcano") {
+      pruneVolcanoMsgCache();
       const volcanoInfo = parseVolcanoTelegram(msg);
       if (volcanoInfo) {
-        volcanoMsgCache.set(volcanoInfo.volcanoCode, msg);
+        volcanoMsgCache.set(volcanoInfo.volcanoCode, { msg, cachedAt: Date.now() });
         vfvo53Aggregator.handle(volcanoInfo);
       } else {
         displayRawHeader(msg);
