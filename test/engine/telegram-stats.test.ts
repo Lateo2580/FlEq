@@ -93,6 +93,30 @@ describe("TelegramStats", () => {
     });
   });
 
+  describe("サイズ上限", () => {
+    it("eewEventIds が上限を超えたら古い方から削除される", () => {
+      // 1001 件の eventId を追加 (上限は 1000)
+      for (let i = 0; i < 1001; i++) {
+        stats.record({ headType: "VXSE43", category: "eew", eventId: `ev-${i}` });
+      }
+
+      const snap = stats.getSnapshot();
+      // 上限超過時にバッチ削除 (100件余分に削除) されるため 1000 以下になる
+      expect(snap.eewEventCount).toBeLessThanOrEqual(1000);
+      expect(snap.eewEventCount).toBeGreaterThan(0);
+    });
+
+    it("earthquakeMaxIntByEvent が上限を超えたら古い方から削除される", () => {
+      for (let i = 0; i < 1001; i++) {
+        stats.updateMaxInt(`eq-${i}`, `震度${i % 7}`, "VXSE53");
+      }
+
+      const snap = stats.getSnapshot();
+      expect(snap.earthquakeMaxIntByEvent.size).toBeLessThanOrEqual(1000);
+      expect(snap.earthquakeMaxIntByEvent.size).toBeGreaterThan(0);
+    });
+  });
+
   describe("getSnapshot()", () => {
     it("内部状態を正しく反映したスナップショットを返す", () => {
       stats.record({ headType: "VXSE53", category: "earthquake" });

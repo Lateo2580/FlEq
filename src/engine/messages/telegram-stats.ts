@@ -46,6 +46,34 @@ export interface StatsSnapshot {
   totalCount: number;
 }
 
+/** Set/Map のサイズ上限 */
+const MAX_EVENT_ENTRIES = 1000;
+
+/** 上限超過時に削除するエントリ数 (バッチ削除で頻繁な削除を回避) */
+const EVICT_BATCH_SIZE = 100;
+
+/** Set のサイズ上限を適用する。超過時は挿入順で古い方から削除する。 */
+function evictOldestFromSet(set: Set<string>, maxSize: number): void {
+  if (set.size <= maxSize) return;
+  let toRemove = set.size - maxSize + EVICT_BATCH_SIZE;
+  for (const item of set) {
+    if (toRemove <= 0) break;
+    set.delete(item);
+    toRemove--;
+  }
+}
+
+/** Map のサイズ上限を適用する。超過時は挿入順で古い方から削除する。 */
+function evictOldestFromMap<K, V>(map: Map<K, V>, maxSize: number): void {
+  if (map.size <= maxSize) return;
+  let toRemove = map.size - maxSize + EVICT_BATCH_SIZE;
+  for (const key of map.keys()) {
+    if (toRemove <= 0) break;
+    map.delete(key);
+    toRemove--;
+  }
+}
+
 /** セッション中の電文受信統計を管理する */
 export class TelegramStats {
   private readonly startTime: Date;
@@ -67,6 +95,7 @@ export class TelegramStats {
     }
     if (rec.category === "eew" && rec.eventId != null) {
       this.eewEventIds.add(rec.eventId);
+      evictOldestFromSet(this.eewEventIds, MAX_EVENT_ENTRIES);
     }
   }
 
@@ -80,6 +109,7 @@ export class TelegramStats {
     const existing = this.earthquakeMaxIntByEvent.get(eventId);
     if (existing == null || priority >= existing.priority) {
       this.earthquakeMaxIntByEvent.set(eventId, { maxInt, priority });
+      evictOldestFromMap(this.earthquakeMaxIntByEvent, MAX_EVENT_ENTRIES);
     }
   }
 
