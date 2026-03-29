@@ -54,9 +54,10 @@
 | `DisplayMode` | `"normal" \| "compact"` | 表示モード |
 | `PromptClock` | `"elapsed" \| "clock"` | プロンプト時計モード |
 | `EewLogField` | `"hypocenter" \| "originTime" \| "coordinates" \| "magnitude" \| "forecastIntensity" \| "maxLgInt" \| "forecastAreas" \| "lgIntensity" \| "isPlum" \| "hasArrived" \| "diff" \| "maxIntChangeReason"` | EEW ログ記録項目 |
-| `NotifyCategory` | `"eew" \| "earthquake" \| "tsunami" \| "seismicText" \| "nankaiTrough" \| "lgObservation"` | 通知カテゴリ |
+| `FrameLevel` | `"critical" \| "warning" \| "normal" \| "info" \| "cancel"` | フレームの優先度レベル |
+| `NotifyCategory` | `"eew" \| "earthquake" \| "tsunami" \| "seismicText" \| "nankaiTrough" \| "lgObservation" \| "volcano"` | 通知カテゴリ |
 | `NotifySettings` | `Record<NotifyCategory, boolean>` | 通知設定 (カテゴリごとの ON/OFF) |
-| `Classification` | `"telegram.earthquake" \| "eew.forecast" \| "eew.warning"` | dmdata.jp API の分類区分 |
+| `Classification` | `"telegram.earthquake" \| "eew.forecast" \| "eew.warning" \| "telegram.volcano"` | dmdata.jp API の分類区分 |
 | `WsMessage` | `WsStartMessage \| WsPingMessage \| WsPongMessage \| WsDataMessage \| WsErrorMessage` | WebSocket メッセージの判別共用体 |
 
 #### インターフェース — アプリケーション設定
@@ -85,7 +86,11 @@
 | `sound` | `boolean` | 通知音の有効/無効 |
 | `eewLog` | `boolean` | EEW ログ記録の有効/無効 |
 | `eewLogFields` | `Record<EewLogField, boolean>` | EEW ログ記録項目 |
+| `maxObservations` | `number \| null` | 観測点の最大表示件数 (`null` で全件表示) |
+| `backup` | `boolean` | EEW副回線の有効/無効 |
 | `truncation` | `TruncationLimits` | 省略表示の上限設定 (16キー: `*Lines` 系は `infoFullText=true` 時に無視) |
+| `nightMode` | `boolean` | ナイトモード |
+| `summaryInterval` | `number \| null` | 定期要約の間隔(分)。`null` で無効 |
 
 #### インターフェース — dmdata.jp API レスポンス
 
@@ -138,7 +143,7 @@
 | `DEFAULT_CONFIG` | `Omit<AppConfig, "apiKey">` | デフォルト設定値。`apiKey` 以外の全フィールドの初期値を定義 |
 
 `DEFAULT_CONFIG` の主要な初期値:
-- `classifications`: 全3区分 (`telegram.earthquake`, `eew.forecast`, `eew.warning`)
+- `classifications`: 全4区分 (`telegram.earthquake`, `eew.forecast`, `eew.warning`, `telegram.volcano`)
 - `testMode`: `"no"`
 - `appName`: `"fleq"`
 - `maxReconnectDelaySec`: `60`
@@ -146,6 +151,10 @@
 - `tableWidth`: `null` (自動)
 - `notify`: 全カテゴリ `true`
 - `eewLogFields`: 全項目 `true`
+- `maxObservations`: `null` (全件表示)
+- `backup`: `false`
+- `nightMode`: `false`
+- `summaryInterval`: `null` (無効)
 - `truncation`: 全キーにデフォルト値を設定 (各キーのデフォルトは型定義を参照)
 
 ### 内部ロジック

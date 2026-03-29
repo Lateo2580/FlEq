@@ -1,7 +1,12 @@
 # 電文タイプ別 表示リファレンス
 
 各電文タイプを受電した際のターミナル表示フォーマットの一覧です。
-表示処理は `src/ui/formatter.ts` で定義されています。
+表示処理は以下の4ファイルに分割されています:
+
+- `src/ui/formatter.ts` — 共通表示（フレーム描画・RenderBuffer・recap・表示モード制御）
+- `src/ui/eew-formatter.ts` — 緊急地震速報（EEW）の表示
+- `src/ui/earthquake-formatter.ts` — 地震・津波・テキスト系・南海トラフ・長周期地震動の表示
+- `src/ui/volcano-formatter.ts` — 火山情報の表示
 
 ---
 

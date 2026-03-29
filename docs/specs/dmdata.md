@@ -377,6 +377,10 @@ body フィールドは base64 + gzip で圧縮されている場合があるた
 
 XML 文字列を `fast-xml-parser` でパースし、JavaScript オブジェクトとして返す。
 
+#### `extractBaseReport(msg: WsDataMessage): { report: unknown; head: unknown; body: unknown } | null`
+
+`decodeBody` → `parseXml` → Report/Head/Body 抽出を行う共通前処理。各パース関数 (`parseEarthquakeTelegram`, `parseEewTelegram` 等) の冒頭で呼ばれ、XML デコードから Report ノード探索までの定型処理を一元化する。`Report` / `jmx:Report` / `jmx_seis:Report` の3パターンを試行し、見つからない場合は `null` を返す。
+
 #### `parseEarthquakeTelegram(msg: WsDataMessage): ParsedEarthquakeInfo | null`
 
 地震関連電文（VXSE51/52/53/61）をパースする。震源情報、震度観測、津波コメントを抽出する。
