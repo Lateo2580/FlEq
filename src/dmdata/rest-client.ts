@@ -7,6 +7,12 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const SOCKET_CLEANUP_MAX_RETRIES = 5;
 const SOCKET_CLEANUP_RETRY_INTERVAL_MS = 500;
 
+/** リトライ設定 */
+const RETRY_MAX_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 1_000;
+const RETRY_MAX_JITTER_MS = 500;
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+
 /** TLS ハンドシェイクを再利用するための keep-alive エージェント (遅延初期化) */
 let keepAliveAgent: https.Agent | null = null;
 function getKeepAliveAgent(): https.Agent {
@@ -21,8 +27,19 @@ function buildAuthorizationHeader(apiKey: string): string {
   return `Basic ${Buffer.from(`${apiKey}:`).toString("base64")}`;
 }
 
-/** HTTPS リクエストを Promise でラップ */
-function request(
+/** HTTP レスポンスのステータスコードを保持するエラー */
+class HttpError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+    readonly retryAfterMs: number | null,
+  ) {
+    super(message);
+  }
+}
+
+/** 単発 HTTPS リクエストを Promise でラップ */
+function requestOnce(
   method: "GET" | "POST" | "DELETE",
   url: string,
   apiKey: string,
@@ -74,9 +91,24 @@ function request(
               typeof json === "object" && json != null && "error" in json
                 ? (json as { error: { message?: string } }).error?.message || "Unknown error"
                 : data.slice(0, 200);
+
+            // Retry-After ヘッダーの解析 (429 用)
+            let retryAfterMs: number | null = null;
+            if (statusCode === 429) {
+              const retryAfter = res.headers["retry-after"];
+              if (retryAfter != null) {
+                const seconds = Number(retryAfter);
+                if (!Number.isNaN(seconds)) {
+                  retryAfterMs = seconds * 1_000;
+                }
+              }
+            }
+
             reject(
-              new Error(
-                `${method} ${parsed.pathname}: HTTP ${statusCode}: ${errMsg}`
+              new HttpError(
+                `${method} ${parsed.pathname}: HTTP ${statusCode}: ${errMsg}`,
+                statusCode,
+                retryAfterMs,
               )
             );
             return;
@@ -103,6 +135,46 @@ function request(
     }
     req.end();
   });
+}
+
+/** 指数バックオフ + ジッター付きリトライでリクエストを実行 */
+async function request(
+  method: "GET" | "POST" | "DELETE",
+  url: string,
+  apiKey: string,
+  body?: object
+): Promise<unknown> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await requestOnce(method, url, apiKey, body);
+    } catch (err) {
+      lastError = err;
+
+      // リトライ上限到達
+      if (attempt >= RETRY_MAX_ATTEMPTS) break;
+
+      // リトライ可能なエラーか判定
+      if (!(err instanceof HttpError) || !RETRYABLE_STATUS_CODES.has(err.statusCode)) {
+        break; // ネットワークエラー・タイムアウト・4xx（429以外）等はリトライしない
+      }
+
+      // バックオフ遅延の算出: 指数バックオフ + ジッター、429 の場合は Retry-After を尊重
+      const exponentialDelay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+      const jitter = Math.floor(Math.random() * RETRY_MAX_JITTER_MS);
+      const baseDelay = err.retryAfterMs != null
+        ? Math.max(err.retryAfterMs, exponentialDelay)
+        : exponentialDelay;
+      const delay = baseDelay + jitter;
+
+      log.warn(
+        `${method} ${new URL(url).pathname}: HTTP ${err.statusCode} — ${delay}ms 後にリトライします (${attempt + 1}/${RETRY_MAX_ATTEMPTS})`
+      );
+
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
 }
 
 /** 契約一覧を取得し、有効な区分を返す */

@@ -19,6 +19,9 @@ let lastMockReq: MockRequest;
 let lastMockRes: MockResponse;
 let requestCallback: ((res: MockResponse) => void) | null = null;
 let lastRequestOptions: Record<string, unknown> | null = null;
+/** https.request が呼ばれるたびに蓄積するキュー（リトライテスト用） */
+let requestCallbacks: Array<(res: MockResponse) => void> = [];
+let requestCount = 0;
 
 function createMockRequest(): MockRequest {
   const emitter = new EventEmitter() as MockRequest;
@@ -56,6 +59,8 @@ vi.mock("https", () => ({
     ) => {
       lastRequestOptions = options as Record<string, unknown>;
       requestCallback = callback;
+      requestCallbacks.push(callback);
+      requestCount++;
       lastMockReq = createMockRequest();
       return lastMockReq;
     },
@@ -97,6 +102,24 @@ function respondWith(
   lastMockRes.emit("end");
 }
 
+/** 特定の requestCallback に対してレスポンスを返す（リトライテスト用） */
+function respondToNth(
+  index: number,
+  statusCode: number,
+  body: unknown,
+  headers?: Record<string, string>
+): void {
+  const cb = requestCallbacks[index];
+  if (cb == null) throw new Error(`requestCallbacks[${index}] is not set`);
+  const res = createMockResponse(statusCode, {
+    "content-type": "application/json",
+    ...headers,
+  });
+  cb(res);
+  res.emit("data", JSON.stringify(body));
+  res.emit("end");
+}
+
 function respondWithRaw(
   statusCode: number,
   rawBody: string,
@@ -117,6 +140,8 @@ describe("REST Client", () => {
   beforeEach(() => {
     requestCallback = null;
     lastRequestOptions = null;
+    requestCallbacks = [];
+    requestCount = 0;
   });
 
   afterEach(() => {
@@ -328,6 +353,133 @@ describe("REST Client", () => {
 
       const result = await promise;
       expect(result.items).toHaveLength(1);
+    });
+  });
+
+  describe("リトライ機構", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("503 レスポンスをリトライして成功する", async () => {
+      const promise = listContracts(TEST_API_KEY);
+
+      // 1回目: 503
+      respondWith(503, { error: { message: "Service Unavailable", code: 503 } });
+
+      // リトライ待機のタイマーを進める
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      // 2回目: 成功
+      respondWith(200, {
+        responseId: "r1",
+        responseTime: "2024-01-01",
+        status: "ok",
+        items: [{ id: 1, classification: "telegram.earthquake", isValid: true }],
+      });
+
+      const result = await promise;
+      expect(result).toEqual(["telegram.earthquake"]);
+      expect(requestCount).toBe(2);
+    });
+
+    it("429 で Retry-After ヘッダーを尊重する", async () => {
+      const log = await import("../../src/logger");
+      const promise = listContracts(TEST_API_KEY);
+
+      // 1回目: 429 with Retry-After: 5
+      respondWith(429, { error: { message: "Rate Limited", code: 429 } }, {
+        "retry-after": "5",
+      });
+
+      // log.warn がリトライメッセージを出力していることを確認
+      await vi.advanceTimersByTimeAsync(100);
+      expect(log.warn).toHaveBeenCalledWith(
+        expect.stringContaining("リトライします")
+      );
+
+      // Retry-After の 5秒 + ジッターを十分カバーする時間を進める
+      await vi.advanceTimersByTimeAsync(6_000);
+
+      // 2回目: 成功
+      respondWith(200, {
+        responseId: "r1",
+        responseTime: "2024-01-01",
+        status: "ok",
+        items: [],
+      });
+
+      const result = await promise;
+      expect(result).toEqual([]);
+      expect(requestCount).toBe(2);
+    });
+
+    it("500 を最大リトライ回数まで繰り返し、最終的にリジェクトする", async () => {
+      const promise = listContracts(TEST_API_KEY);
+
+      // 1回目: 500
+      respondWith(500, { error: { message: "Internal Server Error", code: 500 } });
+
+      // リトライ1 (attempt=0, delay ≈ 1s + jitter)
+      await vi.advanceTimersByTimeAsync(2_000);
+      // 2回目: 500
+      respondWith(500, { error: { message: "Internal Server Error", code: 500 } });
+
+      // リトライ2 (attempt=1, delay ≈ 2s + jitter)
+      await vi.advanceTimersByTimeAsync(3_000);
+      // 3回目: 500
+      respondWith(500, { error: { message: "Internal Server Error", code: 500 } });
+
+      // リトライ3 (attempt=2, delay ≈ 4s + jitter)
+      await vi.advanceTimersByTimeAsync(5_000);
+      // 4回目: 500 (最後の試行)
+      respondWith(500, { error: { message: "Internal Server Error", code: 500 } });
+
+      await expect(promise).rejects.toThrow("HTTP 500");
+      expect(requestCount).toBe(4); // 初回 + 3回リトライ
+    });
+
+    it("403 (リトライ不可) は即座にリジェクトする", async () => {
+      const promise = listContracts(TEST_API_KEY);
+
+      respondWith(403, { error: { message: "Forbidden", code: 403 } });
+
+      await expect(promise).rejects.toThrow("HTTP 403");
+      expect(requestCount).toBe(1); // リトライなし
+    });
+
+    it("ネットワークエラーはリトライしない", async () => {
+      const promise = listContracts(TEST_API_KEY);
+
+      lastMockReq.emit("error", new Error("ECONNREFUSED"));
+
+      await expect(promise).rejects.toThrow("ECONNREFUSED");
+      expect(requestCount).toBe(1);
+    });
+
+    it("502 → 200 でリトライ後に成功する", async () => {
+      const promise = listSockets(TEST_API_KEY);
+
+      // 1回目: 502
+      respondWith(502, { error: { message: "Bad Gateway", code: 502 } });
+
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      // 2回目: 成功
+      respondWith(200, {
+        responseId: "r1",
+        responseTime: "2024-01-01",
+        status: "ok",
+        items: [{ id: 1, status: "open" }],
+      });
+
+      const result = await promise;
+      expect(result.items).toHaveLength(1);
+      expect(requestCount).toBe(2);
     });
   });
 });
