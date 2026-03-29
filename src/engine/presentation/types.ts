@@ -53,7 +53,6 @@ export interface EewOutcome extends ProcessOutcomeBase {
   state: {
     activeCount: number;
     colorIndex: number;
-    isDuplicate: boolean;
     isCancelled: boolean;
     diff?: EewDiff;
   };

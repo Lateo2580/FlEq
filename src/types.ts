@@ -105,10 +105,6 @@ export interface AppConfig {
   nightMode: boolean;
   /** 定期要約の間隔(分)。null = 無効 */
   summaryInterval: number | null;
-  /** フィルタ式 (複数指定で AND 結合) */
-  filterExprs?: string[];
-  /** テンプレート式 */
-  templateExpr?: string;
 }
 
 /** Configファイルの設定 (全フィールド任意) */

@@ -104,6 +104,5 @@ describe("processEew", () => {
     if (result.kind !== "ok") return;
     expect(result.outcome.state.activeCount).toBeGreaterThanOrEqual(1);
     expect(result.outcome.state.colorIndex).toBeGreaterThanOrEqual(0);
-    expect(result.outcome.state.isDuplicate).toBe(false);
   });
 });

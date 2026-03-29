@@ -53,7 +53,6 @@ export function processEew(
       state: {
         activeCount: result.activeCount,
         colorIndex: result.colorIndex,
-        isDuplicate: result.isDuplicate,
         isCancelled: result.isCancelled,
         diff: result.diff,
       },
