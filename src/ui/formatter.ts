@@ -4,6 +4,7 @@ import {
   TruncationLimits,
   DEFAULT_CONFIG,
   WsDataMessage,
+  type FrameLevel,
 } from "../types";
 import * as theme from "./theme";
 import type { RoleName } from "./theme";
@@ -216,8 +217,8 @@ export function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: numb
 
 // ── フレーム描画ユーティリティ ──
 
-/** フレームの優先度レベル */
-export type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
+// FrameLevel は src/types.ts で定義。後方互換のため re-export する。
+export type { FrameLevel } from "../types";
 
 /** フレーム文字セット (罫線のみ) */
 interface FrameChars {

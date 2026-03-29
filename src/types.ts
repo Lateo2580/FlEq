@@ -1,3 +1,6 @@
+/** フレームの優先度レベル */
+export type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
+
 /** 表示モード */
 export type DisplayMode = "normal" | "compact";
 

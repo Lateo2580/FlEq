@@ -5,7 +5,7 @@ import {
   ParsedVolcanoAshfallInfo,
 } from "../../types";
 import type { Vfvo53BatchItems } from "../messages/volcano-vfvo53-aggregator";
-import { FrameLevel } from "../../ui/formatter";
+import type { FrameLevel } from "../../types";
 import { SoundLevel } from "./sound-player";
 import { VolcanoStateHolder } from "../messages/volcano-state";
 

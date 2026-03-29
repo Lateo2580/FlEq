@@ -1,4 +1,4 @@
-import type { FrameLevel } from "../../ui/formatter";
+import type { FrameLevel } from "../../types";
 import type { SoundLevel } from "../notification/sound-player";
 import type { NotifyCategory, WsDataMessage } from "../../types";
 import type {
