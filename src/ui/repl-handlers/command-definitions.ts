@@ -172,7 +172,7 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       handler: (args) => settings.handleNight(getCtx(), args),
     },
     summary: {
-      description: "定期要約の表示・設定",
+      description: "定期要約の表示・設定 (on [分] で間隔指定可)",
       detail: "summary: 現在の設定を表示\n  summary on [N]: N分間隔で要約 (デフォルト10分)\n  summary off: 停止\n  summary now: 今すぐ要約表示",
       category: "settings",
       subcommands: {
