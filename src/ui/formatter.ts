@@ -312,30 +312,30 @@ function sanitizeForTerminal(str: string): string {
   return stripAnsi(str).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 }
 
+/** コードポイントが CJK 等の全角文字かどうかを判定する */
+function isWideChar(cp: number): boolean {
+  return (
+    (cp >= 0x1100 && cp <= 0x115F) ||   // Hangul Jamo
+    (cp >= 0x2E80 && cp <= 0x303E) ||   // CJK部首・記号
+    (cp >= 0x3041 && cp <= 0x33BF) ||   // ひらがな・カタカナ・CJK互換
+    (cp >= 0x3400 && cp <= 0x4DBF) ||   // CJK統合漢字拡張A
+    (cp >= 0x4E00 && cp <= 0xA4CF) ||   // CJK統合漢字 + Yi
+    (cp >= 0xAC00 && cp <= 0xD7AF) ||   // Hangul Syllables
+    (cp >= 0xF900 && cp <= 0xFAFF) ||   // CJK互換漢字
+    (cp >= 0xFE30 && cp <= 0xFE4F) ||   // CJK互換形
+    (cp >= 0xFF01 && cp <= 0xFF60) ||   // 全角ASCII・半角カタカナ
+    (cp >= 0xFFE0 && cp <= 0xFFE6) ||   // 全角記号
+    (cp >= 0x20000 && cp <= 0x2FA1F)    // CJK統合漢字拡張B-F
+  );
+}
+
 /** 文字列の視覚的な幅を計算（全角文字を2として数える） */
 export function visualWidth(str: string): number {
   const plain = stripAnsi(str);
   let width = 0;
   for (const ch of plain) {
     const cp = ch.codePointAt(0) ?? 0;
-    // CJK統合漢字、ひらがな、カタカナ、全角記号、全角括弧等
-    if (
-      (cp >= 0x1100 && cp <= 0x115F) ||   // Hangul Jamo
-      (cp >= 0x2E80 && cp <= 0x303E) ||   // CJK部首・記号
-      (cp >= 0x3041 && cp <= 0x33BF) ||   // ひらがな・カタカナ・CJK互換
-      (cp >= 0x3400 && cp <= 0x4DBF) ||   // CJK統合漢字拡張A
-      (cp >= 0x4E00 && cp <= 0xA4CF) ||   // CJK統合漢字 + Yi
-      (cp >= 0xAC00 && cp <= 0xD7AF) ||   // Hangul Syllables
-      (cp >= 0xF900 && cp <= 0xFAFF) ||   // CJK互換漢字
-      (cp >= 0xFE30 && cp <= 0xFE4F) ||   // CJK互換形
-      (cp >= 0xFF01 && cp <= 0xFF60) ||   // 全角ASCII・半角カタカナ
-      (cp >= 0xFFE0 && cp <= 0xFFE6) ||   // 全角記号
-      (cp >= 0x20000 && cp <= 0x2FA1F)    // CJK統合漢字拡張B-F
-    ) {
-      width += 2;
-    } else {
-      width += 1;
-    }
+    width += isWideChar(cp) ? 2 : 1;
   }
   return width;
 }
@@ -499,22 +499,7 @@ export function wrapTextLines(text: string, maxWidth: number): string[] {
 
   for (const ch of text) {
     const cp = ch.codePointAt(0) ?? 0;
-    let charWidth = 1;
-    if (
-      (cp >= 0x1100 && cp <= 0x115F) ||
-      (cp >= 0x2E80 && cp <= 0x303E) ||
-      (cp >= 0x3041 && cp <= 0x33BF) ||
-      (cp >= 0x3400 && cp <= 0x4DBF) ||
-      (cp >= 0x4E00 && cp <= 0xA4CF) ||
-      (cp >= 0xAC00 && cp <= 0xD7AF) ||
-      (cp >= 0xF900 && cp <= 0xFAFF) ||
-      (cp >= 0xFE30 && cp <= 0xFE4F) ||
-      (cp >= 0xFF01 && cp <= 0xFF60) ||
-      (cp >= 0xFFE0 && cp <= 0xFFE6) ||
-      (cp >= 0x20000 && cp <= 0x2FA1F)
-    ) {
-      charWidth = 2;
-    }
+    const charWidth = isWideChar(cp) ? 2 : 1;
 
     if (currentWidth + charWidth > maxWidth) {
       lines.push(currentLine);
