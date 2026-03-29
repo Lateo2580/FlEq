@@ -269,9 +269,10 @@ export function shouldShowMinimap(event: PresentationEvent): boolean {
       if (event.forecastAreaCount === 0 && event.areaCount === 0) return false;
       return ["critical", "warning", "normal"].includes(event.frameLevel);
     case "lgObservation": {
-      if (event.areaCount === 0) return false;
+      if (event.areaCount === 0 && event.observationCount === 0) return false;
       const rank = event.maxIntRank ?? 0;
-      return rank >= 4 || event.areaCount >= 4;
+      const count = event.observationCount > 0 ? event.observationCount : event.areaCount;
+      return rank >= 4 || count >= 4;
     }
     default:
       return false;

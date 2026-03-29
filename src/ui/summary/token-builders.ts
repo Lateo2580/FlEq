@@ -71,7 +71,8 @@ function buildEewTokens(event: PresentationEvent, model: SummaryModel): SummaryT
   }
 
   // maxInt
-  tokens.push(token("maxInt", model.maxInt ?? "震度-", 0, "never"));
+  const eewMaxInt = event.forecastMaxInt ? `震度${event.forecastMaxInt}` : (model.maxInt ?? "震度-");
+  tokens.push(token("maxInt", eewMaxInt, 0, "never"));
 
   // maxLgInt
   if (model.maxLgInt) {
@@ -177,12 +178,12 @@ function buildTsunamiTokens(event: PresentationEvent, model: SummaryModel): Summ
   tokens.push(token("bannerKind", bannerKind, 0, "never"));
 
   // topAreas
-  const parts = topAreaTokenParts(event.areaNames, 2);
+  const parts = topAreaTokenParts(event.forecastAreaNames, 2);
   if (parts) tokens.push(token("topAreas", parts.text, 1, "shorten", parts.shortText));
 
   // areaCount
-  if (event.areaCount > 0) {
-    tokens.push(token("areaCount", `(${event.areaCount}地域)`, 1, "drop"));
+  if (event.forecastAreaCount > 0) {
+    tokens.push(token("areaCount", `(${event.forecastAreaCount}地域)`, 1, "drop"));
   }
 
   // hypocenter
@@ -284,7 +285,7 @@ function buildLgObservationTokens(event: PresentationEvent, model: SummaryModel)
     tokens.push(token("maxInt", model.maxInt, 1, "shorten"));
   }
 
-  const parts = topAreaTokenParts(event.areaNames, 2);
+  const parts = topAreaTokenParts(event.observationNames, 2);
   if (parts) tokens.push(token("topAreas", parts.text, 2, "drop"));
 
   if (model.magnitude) {
