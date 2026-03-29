@@ -55,7 +55,7 @@ describe("sound-player", () => {
     vi.restoreAllMocks();
   });
 
-  it("Windows: PowerShell 経由で WAV ファイルを再生する", async () => {
+  it("Windows: PowerShell execFile 経由で WAV ファイルを再生する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
     // システムサウンドファイルが存在する環境をシミュレート
     mockExistsSync.mockImplementation((p: string) =>
@@ -63,9 +63,12 @@ describe("sound-player", () => {
     );
     const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
-    expect(mockExec).toHaveBeenCalledTimes(1);
-    const cmd = mockExec.mock.calls[0][0] as string;
-    expect(cmd).toContain("powershell");
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    expect(mockExecFile.mock.calls[0][0]).toBe("powershell");
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).toContain("-NoProfile");
+    expect(args).toContain("-Command");
+    const cmd = args[args.length - 1];
     expect(cmd).toContain("Windows Critical Stop.wav");
   });
 
@@ -76,7 +79,8 @@ describe("sound-player", () => {
     );
     const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("warning");
-    const cmd = mockExec.mock.calls[0][0] as string;
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    const cmd = args[args.length - 1];
     expect(cmd).toContain("Windows Exclamation.wav");
   });
 
@@ -122,8 +126,10 @@ describe("sound-player", () => {
     mockExistsSync.mockImplementation((p: string) => p.endsWith("critical.mp3"));
     const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
-    expect(mockExec).toHaveBeenCalledTimes(1);
-    const cmd = mockExec.mock.calls[0][0] as string;
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    expect(mockExecFile.mock.calls[0][0]).toBe("powershell");
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    const cmd = args[args.length - 1];
     expect(cmd).toContain("critical.mp3");
     expect(cmd).toContain("mciSendStringW");
     expect(cmd).not.toContain("Windows Critical Stop.wav");
@@ -161,8 +167,8 @@ describe("sound-player", () => {
     for (const level of levels) {
       expect(() => playSound(level)).not.toThrow();
     }
-    // Windows では全レベルが PowerShell 経由 (exec) で再生される
-    expect(mockExec).toHaveBeenCalledTimes(5);
+    // Windows では全レベルが PowerShell 経由 (execFile) で再生される
+    expect(mockExecFile).toHaveBeenCalledTimes(5);
   });
 
   it("dispose() を呼んだ後は playSound が無視される", async () => {
@@ -170,7 +176,7 @@ describe("sound-player", () => {
     const { playSound, dispose } = await import("../../src/engine/notification/sound-player");
     dispose();
     playSound("critical");
-    expect(mockExec).not.toHaveBeenCalled();
+    expect(mockExecFile).not.toHaveBeenCalled();
   });
 
   it("findCustomSound の結果をキャッシュする", async () => {

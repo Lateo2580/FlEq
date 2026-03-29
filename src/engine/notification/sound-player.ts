@@ -1,4 +1,4 @@
-import { execFile, exec, ChildProcess } from "child_process";
+import { execFile, ChildProcess } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as log from "../../logger";
@@ -241,20 +241,21 @@ function launchCustomSound(
 function launchCustomSoundWindows(filePath: string, onDone: () => void): ChildProcess | null {
   // MediaPlayer (WPF) は非同期ロードのためタイミング問題が起きやすい。
   // mciSendString は同期 (wait) で確実に再生できる。
+  // execFile を使い cmd.exe のダブルクォーテーション解釈を回避する。
   const escaped = filePath.replace(/'/g, "''");
   const psCommand = [
-    `Add-Type -Namespace Win32 -Name Mci -MemberDefinition '[DllImport("winmm.dll",CharSet=[System.Runtime.InteropServices.CharSet]::Unicode)]public static extern int mciSendStringW(string cmd,System.Text.StringBuilder ret,int retLen,System.IntPtr hwnd);';`,
+    `Add-Type -Namespace Win32 -Name Mci -MemberDefinition '[DllImport("winmm.dll",CharSet=CharSet.Unicode)]public static extern int mciSendStringW(string cmd,System.Text.StringBuilder ret,int retLen,System.IntPtr hwnd);';`,
     `[Win32.Mci]::mciSendStringW('open "' + '${escaped}' + '" type mpegvideo alias fleqsnd',$null,0,[IntPtr]::Zero)|Out-Null;`,
     `[Win32.Mci]::mciSendStringW('play fleqsnd wait',$null,0,[IntPtr]::Zero)|Out-Null;`,
     `[Win32.Mci]::mciSendStringW('close fleqsnd',$null,0,[IntPtr]::Zero)|Out-Null`,
   ].join(" ");
-  const proc = exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
+  const proc = execFile("powershell", ["-NoProfile", "-Command", psCommand], (err) => {
     if (err) {
       log.debug(`Windows カスタム通知音の再生に失敗しました: ${err.message}`);
     }
     onDone();
   });
-  return proc as unknown as ChildProcess;
+  return proc;
 }
 
 /** macOS: afplay で mp3/wav を再生 */
@@ -344,13 +345,13 @@ function launchSystemSoundWindows(level: SoundLevel, onDone: () => void): ChildP
     return null;
   }
   const psCommand = `(New-Object System.Media.SoundPlayer '${soundPath}').PlaySync()`;
-  const proc = exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
+  const proc = execFile("powershell", ["-NoProfile", "-Command", psCommand], (err) => {
     if (err) {
       log.debug(`Windows 通知音の再生に失敗しました: ${err.message}`);
     }
     onDone();
   });
-  return proc as unknown as ChildProcess;
+  return proc;
 }
 
 function launchSystemSoundMacOS(level: SoundLevel, onDone: () => void): ChildProcess | null {
