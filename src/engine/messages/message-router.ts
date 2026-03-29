@@ -1,33 +1,20 @@
 import chalk from "chalk";
-import type { WsDataMessage, ParsedVolcanoInfo } from "../../types";
-import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
-import { displayRawHeader, getDisplayMode } from "../../ui/formatter";
-import { renderSummaryLine } from "../../ui/summary";
-import { displayEewInfo } from "../../ui/eew-formatter";
-import {
-  displayEarthquakeInfo,
-  displayTsunamiInfo,
-  displaySeismicTextInfo,
-  displayNankaiTroughInfo,
-  displayLgObservationInfo,
-} from "../../ui/earthquake-formatter";
-import { displayVolcanoInfo, displayVolcanoAshfallBatch } from "../../ui/volcano-formatter";
-import { VolcanoVfvo53Aggregator, type FlushOptions, type Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
+import type { WsDataMessage } from "../../types";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
 import { Notifier } from "../notification/notifier";
 import { TsunamiStateHolder } from "./tsunami-state";
 import { VolcanoStateHolder } from "./volcano-state";
-import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../notification/volcano-presentation";
 import { TelegramStats, routeToCategory } from "./telegram-stats";
 import { SummaryWindowTracker } from "./summary-tracker";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
-import { buildVolcanoOutcome } from "../presentation/processors/process-volcano";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 import { PresentationDiffStore } from "../presentation/diff-store";
 import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../presentation/types";
+import { VolcanoRouteHandler } from "./volcano-route-handler";
+import type { DisplayCallbacks } from "./display-callbacks";
 
 // ── 電文分類 (Route) ──
 
@@ -84,7 +71,7 @@ function classifyMessage(classification: string, headType: string): Route {
   return "raw";
 }
 
-// ── dispatch / stats helpers ──
+// ── dispatch helpers ──
 
 /** 通知のみ実行 (filter 非適用) */
 function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): void {
@@ -107,39 +94,8 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): void {
     case "nankaiTrough":
       notifier.notifyNankaiTrough(outcome.parsed);
       break;
-    // raw, volcano: 通知なし
-  }
-}
-
-/** 表示のみ実行 (filter 適用後) */
-function dispatchDisplayOnly(outcome: ProcessOutcome): void {
-  switch (outcome.domain) {
-    case "eew":
-      displayEewInfo(outcome.parsed, {
-        activeCount: outcome.eewResult.activeCount,
-        diff: outcome.eewResult.diff,
-        colorIndex: outcome.eewResult.colorIndex,
-      });
-      break;
-    case "earthquake":
-      displayEarthquakeInfo(outcome.parsed);
-      break;
-    case "seismicText":
-      displaySeismicTextInfo(outcome.parsed);
-      break;
-    case "lgObservation":
-      displayLgObservationInfo(outcome.parsed);
-      break;
-    case "tsunami":
-      displayTsunamiInfo(outcome.parsed);
-      break;
-    case "nankaiTrough":
-      displayNankaiTroughInfo(outcome.parsed);
-      break;
-    case "raw":
-      displayRawHeader(outcome.msg);
-      break;
-    // volcano: NOT handled here — volcano goes through aggregator
+    // raw: 通知なし
+    // volcano: VolcanoRouteHandler が通知を担当
   }
 }
 
@@ -163,6 +119,7 @@ function recordStats(outcome: ProcessOutcome, stats: TelegramStats): void {
 /** createMessageHandler のオプション */
 export interface MessageHandlerOptions {
   pipeline?: FilterTemplatePipeline;
+  display?: DisplayCallbacks;
 }
 
 /** createMessageHandler の戻り値 */
@@ -180,6 +137,7 @@ export interface MessageHandlerResult {
 /** 受信データのハンドリング */
 export function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerResult {
   const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
+  const display = options?.display;
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
@@ -203,7 +161,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   /**
    * 共通の表示パイプライン処理。
    * filter/diffStore/summaryTracker/focus/template/compact の6ステップを一元的に実行する。
-   * @returns true なら表示済み (呼び出し元でフォールバック表示不要)。false ならフィルタで非表示。
+   * @returns true なら表示済み。false ならフィルタで非表示。
    */
   function runDisplayPipeline(
     outcome: ProcessOutcome | VolcanoBatchOutcome,
@@ -220,8 +178,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     const isFocused = pipeline.focus == null || pipeline.focus(event);
-    if (!isFocused) {
-      console.log(chalk.dim(renderSummaryLine(event)));
+    if (!isFocused && display) {
+      console.log(chalk.dim(display.renderSummaryLine(event)));
       return true;
     }
 
@@ -231,8 +189,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       return true;
     }
 
-    if (getDisplayMode() === "compact") {
-      console.log(renderSummaryLine(event));
+    if (display && display.getDisplayMode() === "compact") {
+      console.log(display.renderSummaryLine(event));
       return true;
     }
 
@@ -240,132 +198,26 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     return true;
   }
 
-  // 火山電文の WsDataMessage キャッシュ (volcanoCode → msg + timestamp)
-  // aggregator の emitSingle/emitBatch コールバックでは WsDataMessage が渡されないため、
-  // handler で受信時にキャッシュし、emit 時に復元して PresentationEvent パイプラインに通す。
-  // TTL 付きで古いエントリを安全弁として自動削除する。
-  const VOLCANO_CACHE_TTL_MS = 10 * 60 * 1000; // 10分
-  const volcanoMsgCache = new Map<string, { msg: WsDataMessage; cachedAt: number }>();
-
-  /** volcanoMsgCache から TTL 超過エントリを削除する */
-  function pruneVolcanoMsgCache(): void {
-    const now = Date.now();
-    for (const [key, entry] of volcanoMsgCache) {
-      if (now - entry.cachedAt > VOLCANO_CACHE_TTL_MS) {
-        volcanoMsgCache.delete(key);
-      }
-    }
-  }
-
-  /**
-   * 火山単発電文の PresentationEvent パイプライン処理。
-   * filter/template/focus/diff/summary に通して表示を制御する。
-   * 通知は filter 非適用なので先に実行する。
-   */
-  function emitVolcanoSingle(info: ParsedVolcanoInfo, opts?: FlushOptions): void {
-    // buildVolcanoOutcome は volcanoState.update() の前に呼ぶ
-    // (trackedBefore の算出に現在の state が必要)
-    const cacheEntry = volcanoMsgCache.get(info.volcanoCode);
-    const cachedMsg = cacheEntry?.msg;
-    const outcome = cachedMsg ? buildVolcanoOutcome(cachedMsg, info, volcanoState) : null;
-
-    const presentation = resolveVolcanoPresentation(info, volcanoState);
-    volcanoState.update(info);
-
-    // 通知は filter 非適用
-    if (opts?.notify !== false) {
-      notifier.notifyVolcano(info, presentation);
-    }
-
-    // PresentationEvent パイプライン
-    if (outcome) {
-      runDisplayPipeline(outcome, () => displayVolcanoInfo(info, presentation));
-    } else {
-      // msg キャッシュがない場合はフォールバック表示
-      displayVolcanoInfo(info, presentation);
-    }
-
-    // 処理完了後にキャッシュエントリを確実に削除
-    volcanoMsgCache.delete(info.volcanoCode);
-  }
-
-  /**
-   * 火山バッチ電文の PresentationEvent パイプライン処理。
-   */
-  function emitVolcanoBatch(batch: Vfvo53BatchItems, opts: FlushOptions): void {
-    const presentation = resolveVolcanoBatchPresentation(batch);
-
-    // 通知は filter 非適用
-    if (opts.notify) {
-      notifier.notifyVolcanoBatch(batch, presentation);
-    }
-
-    // バッチの代表 msg を取得 (最初の item の volcanoCode でキャッシュを参照)
-    const firstItem = batch.items[0];
-    const cacheEntry = firstItem ? volcanoMsgCache.get(firstItem.volcanoCode) : undefined;
-    const cachedMsg = cacheEntry?.msg;
-
-    if (cachedMsg) {
-      const batchOutcome: VolcanoBatchOutcome = {
-        domain: "volcano",
-        msg: cachedMsg,
-        headType: cachedMsg.head.type,
-        statsCategory: "volcano",
-        parsed: batch.items,
-        isBatch: true,
-        volcanoPresentation: presentation,
-        batchReportDateTime: batch.reportDateTime,
-        batchIsTest: batch.isTest,
-        stats: {
-          shouldRecord: false, // stats は handler レベルで既に記録済み
-        },
-        presentation: {
-          frameLevel: presentation.frameLevel,
-          soundLevel: presentation.soundLevel,
-          notifyCategory: "volcano",
-        },
-      };
-
-      runDisplayPipeline(batchOutcome, () => displayVolcanoAshfallBatch(batch, presentation));
-    } else {
-      // msg キャッシュがない場合はフォールバック表示
-      displayVolcanoAshfallBatch(batch, presentation);
-    }
-
-    cleanupBatchCache(batch);
-  }
-
-  function cleanupBatchCache(batch: Vfvo53BatchItems): void {
-    for (const item of batch.items) {
-      volcanoMsgCache.delete(item.volcanoCode);
-    }
-  }
-
-  // VFVO53 バッチ集約器
-  const vfvo53Aggregator = new VolcanoVfvo53Aggregator(emitVolcanoSingle, emitVolcanoBatch);
+  // 火山ルートハンドラ
+  const volcanoHandler = new VolcanoRouteHandler({
+    volcanoState,
+    notifier,
+    runDisplayPipeline,
+    display,
+  });
 
   const handler = (msg: WsDataMessage): void => {
     // XML電文でない場合はヘッダ情報のみ表示
     if (msg.format !== "xml" || !msg.head.xml) {
-      displayRawHeader(msg);
+      display?.displayRawHeader(msg);
       return;
     }
 
     const route = classifyMessage(msg.classification, msg.head.type);
 
-    // 火山は VFVO53 aggregator 経由の特殊パス
-    // emitSingle/emitBatch コールバック内で PresentationEvent パイプラインに通す。
-    // volcanoMsgCache に msg をキャッシュし、emit 時に復元する。
+    // 火山は VolcanoRouteHandler に委譲
     if (route === "volcano") {
-      pruneVolcanoMsgCache();
-      const volcanoInfo = parseVolcanoTelegram(msg);
-      if (volcanoInfo) {
-        volcanoMsgCache.set(volcanoInfo.volcanoCode, { msg, cachedAt: Date.now() });
-        vfvo53Aggregator.handle(volcanoInfo);
-      } else {
-        displayRawHeader(msg);
-      }
-      // 火山の統計記録 (aggregator 経由でも即座に記録)
+      volcanoHandler.handle(msg);
       stats.record({
         headType: msg.head.type,
         category: routeToCategory(route),
@@ -374,20 +226,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       return;
     }
 
-    // 火山以外: processMessage → recordStats → dispatchDisplay
+    // 火山以外: processMessage → recordStats → dispatchNotify → runDisplayPipeline
     const outcome = processMsg(msg, route, processDeps);
     if (outcome == null) {
-      // EEW 重複 → 表示・統計記録なし
       return;
     }
 
     recordStats(outcome, stats);
-
-    // 通知は filter 非適用
     dispatchNotify(outcome, notifier);
-
-    // filter → diffStore → focus → template → compact → 通常表示
-    runDisplayPipeline(outcome, () => dispatchDisplayOnly(outcome));
+    runDisplayPipeline(outcome, () => display?.displayOutcome(outcome));
   };
 
   return {
@@ -398,6 +245,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     volcanoState,
     stats,
     summaryTracker,
-    flushAndDisposeVolcanoBuffer: () => vfvo53Aggregator.flushAndDispose(),
+    flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),
   };
 }

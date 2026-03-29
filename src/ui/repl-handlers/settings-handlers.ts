@@ -14,8 +14,7 @@ import {
   getTruncation,
 } from "../formatter";
 import * as themeModule from "../theme";
-import { compileFilter } from "../../engine/filter";
-import { FilterSyntaxError, FilterTypeError, FilterFieldError } from "../../engine/filter";
+import { compileFilter, FilterSyntaxError, FilterTypeError, FilterFieldError } from "../../engine/filter";
 import { WINDOW_MINUTES } from "../../engine/messages/summary-tracker";
 import { formatSummaryInterval } from "../summary-interval-formatter";
 import type { ReplContext } from "./types";
@@ -284,13 +283,14 @@ export function handleMode(ctx: ReplContext, args: string): void {
 
 export function handleFilter(ctx: ReplContext, args: string): void {
   const trimmed = args.trim();
+  const ctrl = ctx.pipelineController;
 
   if (trimmed.length === 0) {
-    if (ctx.pipeline?.filter == null) {
+    if (ctrl?.getPipeline().filter == null) {
       console.log(`  フィルタ: ${chalk.gray("無効")}`);
     } else {
       console.log(`  フィルタ: ${chalk.green("有効")}`);
-      console.log(`  式: ${ctx.filterExpr ?? "(CLI起動時に設定)"}`);
+      console.log(`  式: ${ctrl.getFilterExpr() ?? "(CLI起動時に設定)"}`);
       if (ctx.filterUpdatedAt != null) {
         const ts = ctx.filterUpdatedAt.toLocaleString("ja-JP");
         console.log(`  最終更新: ${ts}`);
@@ -304,9 +304,7 @@ export function handleFilter(ctx: ReplContext, args: string): void {
   const subLower = sub.toLowerCase();
 
   if (subLower === "clear") {
-    if (ctx.pipeline != null) {
-      ctx.pipeline.filter = null;
-    }
+    ctrl?.clearFilter();
     ctx.filterExpr = null;
     ctx.filterUpdatedAt = null;
     console.log("  フィルタを解除しました。");
@@ -334,13 +332,12 @@ export function handleFilter(ctx: ReplContext, args: string): void {
       console.log(chalk.yellow("  式を指定してください。") + chalk.gray(" 例: filter set domain = \"eew\""));
       return;
     }
-    if (ctx.pipeline == null) {
+    if (ctrl == null) {
       console.log(chalk.yellow("  フィルタパイプラインが利用できません。"));
       return;
     }
     try {
-      const predicate = compileFilter(expr);
-      ctx.pipeline.filter = predicate;
+      ctrl.setFilter(expr);
       ctx.filterExpr = expr;
       ctx.filterUpdatedAt = new Date();
       console.log(chalk.green("  フィルタを適用しました。") + chalk.gray(` — ${expr}`));
@@ -355,13 +352,14 @@ export function handleFilter(ctx: ReplContext, args: string): void {
 
 export function handleFocus(ctx: ReplContext, args: string): void {
   const trimmed = args.trim();
+  const ctrl = ctx.pipelineController;
 
   if (trimmed.length === 0) {
-    if (ctx.pipeline?.focus == null) {
+    if (ctrl?.getPipeline().focus == null) {
       console.log(`  フォーカス: ${chalk.gray("無効")}`);
     } else {
       console.log(`  フォーカス: ${chalk.green("有効")}`);
-      console.log(`  式: ${ctx.focusExpr ?? "(CLI起動時に設定)"}`);
+      console.log(`  式: ${ctrl.getFocusExpr() ?? "(CLI起動時に設定)"}`);
       if (ctx.focusUpdatedAt != null) {
         const ts = ctx.focusUpdatedAt.toLocaleString("ja-JP");
         console.log(`  最終更新: ${ts}`);
@@ -372,22 +370,19 @@ export function handleFocus(ctx: ReplContext, args: string): void {
   }
 
   if (trimmed.toLowerCase() === "off") {
-    if (ctx.pipeline != null) {
-      ctx.pipeline.focus = null;
-    }
+    ctrl?.clearFocus();
     ctx.focusExpr = null;
     ctx.focusUpdatedAt = null;
     console.log("  フォーカスを解除しました。");
     return;
   }
 
-  if (ctx.pipeline == null) {
+  if (ctrl == null) {
     console.log(chalk.yellow("  フォーカスパイプラインが利用できません。"));
     return;
   }
   try {
-    const predicate = compileFilter(trimmed);
-    ctx.pipeline.focus = predicate;
+    ctrl.setFocus(trimmed);
     ctx.focusExpr = trimmed;
     ctx.focusUpdatedAt = new Date();
     console.log(chalk.green("  フォーカスを適用しました。") + chalk.gray(` — ${trimmed}`));

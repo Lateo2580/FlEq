@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMessageHandler } from "../../src/engine/messages/message-router";
+import { createDisplayAdapter } from "../../src/ui/display-adapter";
 import { TelegramStats } from "../../src/engine/messages/telegram-stats";
 import {
   createMockWsDataMessage,
@@ -58,6 +59,7 @@ vi.mock("fs", async () => {
 
 describe("message-router 統合テスト", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
+  const display = createDisplayAdapter();
 
   beforeEach(() => {
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -72,9 +74,14 @@ describe("message-router 統合テスト", () => {
     return consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
   }
 
+  /** display adapter 付きで createMessageHandler を呼ぶヘルパー */
+  function createHandler(opts?: Parameters<typeof createMessageHandler>[0]) {
+    return createMessageHandler({ display, ...opts });
+  }
+
   describe("EEW ルーティング", () => {
     it("VXSE43 EEW 警報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);
       handler(msg);
 
@@ -83,7 +90,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE44 EEW 予報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
       handler(msg);
 
@@ -92,7 +99,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE45 EEW 地震動予報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1);
       handler(msg);
 
@@ -101,7 +108,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE45 取消報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       // まず初報を送る
       const first = createMockWsDataMessage(FIXTURE_VXSE45_S1);
       handler(first);
@@ -116,7 +123,7 @@ describe("message-router 統合テスト", () => {
 
   describe("EEW 最終報", () => {
     it("NextAdvisory 付き電文で最終報テキストが表示される", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_FINAL);
       handler(msg);
 
@@ -125,7 +132,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("NextAdvisory 付き電文でログが '最終報' 理由で閉じられる", async () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       appendFileMock.mockClear();
 
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_FINAL);
@@ -142,7 +149,7 @@ describe("message-router 統合テスト", () => {
 
   describe("EEW 重複報スキップ", () => {
     it("同一 EventID・同一 Serial の重複報をスキップする", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
 
       const msg1 = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);
       handler(msg1);
@@ -158,7 +165,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("同一 EventID でも異なる Serial は処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
 
       const msg1 = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);
       handler(msg1);
@@ -175,7 +182,7 @@ describe("message-router 統合テスト", () => {
 
   describe("地震情報ルーティング", () => {
     it("VXSE51 震度速報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO);
       handler(msg);
 
@@ -184,7 +191,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE51 取消報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE51_CANCEL);
       handler(msg);
 
@@ -193,7 +200,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE52 震源に関する情報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE52_HYPO_1);
       handler(msg);
 
@@ -202,7 +209,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE53 震源・震度情報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
       handler(msg);
 
@@ -212,7 +219,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE61 震源要素更新を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE61_1);
       handler(msg);
 
@@ -224,7 +231,7 @@ describe("message-router 統合テスト", () => {
 
   describe("テキスト系ルーティング", () => {
     it("VXSE56 地震活動情報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1);
       handler(msg);
 
@@ -233,7 +240,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VXSE60 地震回数情報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE60_1);
       handler(msg);
 
@@ -244,7 +251,7 @@ describe("message-router 統合テスト", () => {
 
   describe("津波情報ルーティング", () => {
     it("VTSE41 津波警報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
       handler(msg);
 
@@ -253,7 +260,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VTSE41 受信で tsunamiState が更新される", () => {
-      const { handler, tsunamiState } = createMessageHandler();
+      const { handler, tsunamiState } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
       handler(msg);
 
@@ -262,7 +269,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VTSE41 取消報で tsunamiState がクリアされる", () => {
-      const { handler, tsunamiState } = createMessageHandler();
+      const { handler, tsunamiState } = createHandler();
       // まず警報
       handler(createMockWsDataMessage(FIXTURE_VTSE41_WARN));
       expect(tsunamiState.getLevel()).not.toBeNull();
@@ -273,19 +280,19 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VTSE51 では tsunamiState が更新されない", () => {
-      const { handler, tsunamiState } = createMessageHandler();
+      const { handler, tsunamiState } = createHandler();
       handler(createMockWsDataMessage(FIXTURE_VTSE51_INFO));
       expect(tsunamiState.getLevel()).toBeNull();
     });
 
     it("createMessageHandler() が tsunamiState を返す", () => {
-      const result = createMessageHandler();
+      const result = createHandler();
       expect(result.tsunamiState).toBeDefined();
       expect(result.tsunamiState.category).toBe("tsunami");
     });
 
     it("VTSE41 取消報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
       handler(msg);
 
@@ -294,7 +301,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VTSE51 津波情報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VTSE51_INFO);
       handler(msg);
 
@@ -303,7 +310,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VTSE52 沖合津波情報を処理する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VTSE52_OFFSHORE);
       handler(msg);
 
@@ -322,7 +329,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VFVO53 はバッファリングされ、即時表示されない", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
       handler(msg);
 
@@ -332,7 +339,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VFVO53 は quiet window 後に表示される", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
       handler(msg);
 
@@ -344,7 +351,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("flushAndDisposeVolcanoBuffer でバッファ内の VFVO53 が表示される", () => {
-      const { handler, flushAndDisposeVolcanoBuffer } = createMessageHandler();
+      const { handler, flushAndDisposeVolcanoBuffer } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
       handler(msg);
 
@@ -357,7 +364,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VFVO54 割り込みで VFVO53 バッファが flush され、VFVO54 も表示される", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
 
       // VFVO53 をバッファリング
       handler(createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR));
@@ -374,7 +381,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("VFVO54 割り込み時、flush された VFVO53 の通知は抑制される", () => {
-      const { handler, notifier } = createMessageHandler();
+      const { handler, notifier } = createHandler();
       const volcanoSpy = vi.spyOn(notifier, "notifyVolcano");
       const batchSpy = vi.spyOn(notifier, "notifyVolcanoBatch");
 
@@ -397,7 +404,7 @@ describe("message-router 統合テスト", () => {
 
   describe("フォールバック", () => {
     it("非 XML メッセージはヘッダ表示する", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg: WsDataMessage = {
         type: "data",
         version: "2.0",
@@ -425,7 +432,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("未知の classification の XML メッセージはフォールバック表示", () => {
-      const { handler } = createMessageHandler();
+      const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
         classification: "unknown.type",
         head: {
@@ -446,7 +453,7 @@ describe("message-router 統合テスト", () => {
 
   describe("統計記録 (TelegramStats)", () => {
     it("地震電文を統計に記録する", () => {
-      const { handler, stats } = createMessageHandler();
+      const { handler, stats } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
       handler(msg);
 
@@ -456,7 +463,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("EEW 重複報は統計に含まれない", () => {
-      const { handler, stats } = createMessageHandler();
+      const { handler, stats } = createHandler();
       const msg1 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
       const msg2 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
       handler(msg1);
@@ -467,7 +474,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("非 XML メッセージは統計に含まれない", () => {
-      const { handler, stats } = createMessageHandler();
+      const { handler, stats } = createHandler();
       const msg: WsDataMessage = {
         type: "data",
         version: "2.0",
@@ -487,7 +494,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("EEW パース失敗は統計に含まれない", () => {
-      const { handler, stats } = createMessageHandler();
+      const { handler, stats } = createHandler();
       // xml: true だが body が壊れた EEW 電文 → parseEewTelegram が null を返す
       const msg: WsDataMessage = {
         type: "data",
@@ -508,7 +515,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("非 EEW パース失敗 (フォールバック表示) は統計に含まれる", () => {
-      const { handler, stats } = createMessageHandler();
+      const { handler, stats } = createHandler();
       // xml: true だが body が壊れた地震電文 → parseEarthquakeTelegram が null → displayRawHeader
       // ただし stats.record() はルーティング時点で呼ばれるのでカウントされる
       const msg: WsDataMessage = {
@@ -531,7 +538,7 @@ describe("message-router 統合テスト", () => {
     });
 
     it("テスト電文は通常電文と同様にカウントされる", () => {
-      const { handler, stats } = createMessageHandler();
+      const { handler, stats } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
         head: { type: "VXSE53", author: "気象庁", time: new Date().toISOString(), test: true, xml: true },
       });

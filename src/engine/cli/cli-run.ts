@@ -14,7 +14,7 @@ import * as updateChecker from "../startup/update-checker";
 import * as log from "../../logger";
 import { compileFilter } from "../filter";
 import { compileTemplate } from "../template";
-import type { FilterTemplatePipeline } from "../filter-template/pipeline";
+import { PipelineController } from "../filter-template/pipeline-controller";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version: VERSION } = require("../../../package.json") as {
@@ -109,12 +109,13 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   setTruncation(config.truncation);
 
   // Filter / Template コンパイル
-  const pipeline: FilterTemplatePipeline = { filter: null, template: null, focus: null };
+  const pipelineController = new PipelineController();
 
   if (opts.filter && opts.filter.length > 0) {
     try {
-      const predicates = opts.filter.map((expr) => compileFilter(expr));
-      pipeline.filter = (event) => predicates.every((p) => p(event));
+      // 複数フィルタは括弧付きで AND 結合
+      const combined = opts.filter.map((e) => `(${e})`).join(" and ");
+      pipelineController.setFilter(combined);
       log.info(`フィルタ: ${opts.filter.join(" AND ")}`);
     } catch (err) {
       if (err instanceof Error) {
@@ -137,7 +138,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
         }
         tplSource = fs.readFileSync(filePath, "utf-8").trim();
       }
-      pipeline.template = compileTemplate(tplSource);
+      pipelineController.setTemplate(tplSource);
       log.info("テンプレート: カスタム");
     } catch (err) {
       if (err instanceof Error) {
@@ -149,7 +150,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
 
   if (opts.focus) {
     try {
-      pipeline.focus = compileFilter(opts.focus);
+      pipelineController.setFocus(opts.focus);
       log.info(`フォーカス: ${opts.focus}`);
     } catch (err) {
       if (err instanceof Error) {
@@ -172,7 +173,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
 
   printBanner(config);
   updateChecker.checkForUpdates("fleq", VERSION);
-  await startMonitor(config, pipeline);
+  await startMonitor(config, pipelineController);
 }
 
 /** ターミナルタイトルを設定する (ANSI OSC sequence) */

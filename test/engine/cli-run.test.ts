@@ -35,6 +35,7 @@ import { runMonitor } from "../../src/engine/cli/cli-run";
 import { loadConfig } from "../../src/config";
 import { listContracts } from "../../src/dmdata/rest-client";
 import { startMonitor } from "../../src/engine/monitor/monitor";
+import { PipelineController } from "../../src/engine/filter-template/pipeline-controller";
 import * as log from "../../src/logger";
 
 const mockLoadConfig = vi.mocked(loadConfig);
@@ -96,7 +97,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ apiKey: "cli-key" }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -108,7 +109,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ apiKey: "env-key" }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -119,7 +120,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ apiKey: "config-key" }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -139,7 +140,7 @@ describe("runMonitor", () => {
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
         }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -158,7 +159,7 @@ describe("runMonitor", () => {
         expect.objectContaining({
           classifications: ["eew.warning"],
         }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -176,7 +177,7 @@ describe("runMonitor", () => {
             "eew.warning",
           ],
         }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
   });
@@ -217,7 +218,7 @@ describe("runMonitor", () => {
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
         }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
   });
@@ -239,7 +240,7 @@ describe("runMonitor", () => {
         expect.objectContaining({
           classifications: ["telegram.earthquake"],
         }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -284,7 +285,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ testMode: "including" }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -301,7 +302,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ testMode: "only" }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
   });
@@ -321,7 +322,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ keepExistingConnections: true }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
 
@@ -339,7 +340,7 @@ describe("runMonitor", () => {
 
       expect(mockStartMonitor).toHaveBeenCalledWith(
         expect.objectContaining({ keepExistingConnections: false }),
-        expect.objectContaining({ filter: null, template: null })
+        expect.any(PipelineController)
       );
     });
   });

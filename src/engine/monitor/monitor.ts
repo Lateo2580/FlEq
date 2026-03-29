@@ -9,7 +9,7 @@ import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
 import * as log from "../../logger";
-import type { FilterTemplatePipeline } from "../filter-template/pipeline";
+import type { PipelineController } from "../filter-template/pipeline-controller";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -24,8 +24,13 @@ export interface SummaryTimerControl {
   showNow(): void;
 }
 
-export async function startMonitor(config: AppConfig, pipeline?: FilterTemplatePipeline): Promise<void> {
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined });
+export async function startMonitor(config: AppConfig, pipelineController?: PipelineController): Promise<void> {
+  // display adapter は遅延ロードで ui 依存を monitor 側に限定する
+  const { createDisplayAdapter } = await import("../../ui/display-adapter");
+  const display = createDisplayAdapter();
+
+  const pipeline = pipelineController?.getPipeline();
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined, display });
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
@@ -75,7 +80,7 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipeline ?? undefined, summaryTracker);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipelineController, summaryTracker);
 
   registerShutdownSignals(shutdown);
 

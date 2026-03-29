@@ -1,27 +1,11 @@
 import type { WsDataMessage, ParsedVolcanoInfo, ParsedVolcanoAlertInfo } from "../../../types";
 import type { VolcanoOutcome } from "../types";
-import { parseVolcanoTelegram } from "../../../dmdata/volcano-parser";
 import type { VolcanoStateHolder } from "../../messages/volcano-state";
 import { resolveVolcanoPresentation } from "../../notification/volcano-presentation";
 
 /**
- * 火山電文を処理し VolcanoOutcome を返す。
- * パース失敗は null。
- * VFVO53 アグリゲータとの連携はルーター側で行う。
- */
-export function processVolcano(
-  msg: WsDataMessage,
-  volcanoState: VolcanoStateHolder,
-): VolcanoOutcome | null {
-  const volcanoInfo = parseVolcanoTelegram(msg);
-  if (!volcanoInfo) return null;
-
-  return buildVolcanoOutcome(msg, volcanoInfo, volcanoState);
-}
-
-/**
  * パース済み火山情報から VolcanoOutcome を構築する。
- * aggregator コールバックからも使用する。
+ * VolcanoRouteHandler から使用される。
  */
 export function buildVolcanoOutcome(
   msg: WsDataMessage,

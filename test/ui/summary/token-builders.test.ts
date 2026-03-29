@@ -3,6 +3,8 @@ import { buildSummaryTokens } from "../../../src/ui/summary/token-builders";
 import { buildSummaryModel } from "../../../src/ui/summary/summary-model";
 import { toPresentationEvent } from "../../../src/engine/presentation/events/to-presentation-event";
 import { processMessage, ProcessDeps } from "../../../src/engine/presentation/processors/process-message";
+import { buildVolcanoOutcome } from "../../../src/engine/presentation/processors/process-volcano";
+import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { EewTracker } from "../../../src/engine/eew/eew-tracker";
 import { EewEventLogger } from "../../../src/engine/eew/eew-logger";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
@@ -60,6 +62,18 @@ function makeDeps(): ProcessDeps {
 function makeTokens(fixture: string, route: string, deps?: ProcessDeps) {
   const d = deps ?? makeDeps();
   const msg = createMockWsDataMessage(fixture);
+
+  // 火山は VolcanoRouteHandler 経由でのみ処理されるため、
+  // テストでは buildVolcanoOutcome を直接使用する
+  if (route === "volcano") {
+    const volcanoInfo = parseVolcanoTelegram(msg);
+    expect(volcanoInfo).not.toBeNull();
+    const outcome = buildVolcanoOutcome(msg, volcanoInfo!, d.volcanoState);
+    const event = toPresentationEvent(outcome);
+    const model = buildSummaryModel(event);
+    return { tokens: buildSummaryTokens(event, model), event, model };
+  }
+
   const outcome = processMessage(msg, route, d)!;
   expect(outcome).not.toBeNull();
   const event = toPresentationEvent(outcome);

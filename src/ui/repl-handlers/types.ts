@@ -4,7 +4,7 @@ import { ConnectionManager } from "../../dmdata/connection-manager";
 import { Notifier } from "../../engine/notification/notifier";
 import { EewEventLogger } from "../../engine/eew/eew-logger";
 import { StatusLine } from "../status-line";
-import type { FilterTemplatePipeline } from "../../engine/filter-template/pipeline";
+import type { PipelineController } from "../../engine/filter-template/pipeline-controller";
 import { TelegramStats } from "../../engine/messages/telegram-stats";
 import { SummaryWindowTracker } from "../../engine/messages/summary-tracker";
 import type { SummaryTimerControl } from "../../engine/monitor/monitor";
@@ -43,7 +43,7 @@ export interface ReplContext {
   stats: TelegramStats;
   statusProviders: PromptStatusProvider[];
   detailProviders: DetailProvider[];
-  pipeline: FilterTemplatePipeline | null;
+  pipelineController: PipelineController | null;
   summaryTracker: SummaryWindowTracker | null;
   summaryTimerControl: SummaryTimerControl | null;
   summaryIntervalMin: number | null;

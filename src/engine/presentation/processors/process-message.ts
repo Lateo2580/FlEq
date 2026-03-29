@@ -11,7 +11,6 @@ import { processSeismicText } from "./process-seismic-text";
 import { processLgObservation } from "./process-lg-observation";
 import { processTsunami } from "./process-tsunami";
 import { processNankaiTrough } from "./process-nankai-trough";
-import { processVolcano } from "./process-volcano";
 import { processRaw } from "./process-raw";
 
 /** processMessage に必要な依存群 */
@@ -61,9 +60,7 @@ export function processMessage(
     case "nankaiTrough": {
       return processNankaiTrough(msg) ?? processRaw(msg, category);
     }
-    case "volcano": {
-      return processVolcano(msg, deps.volcanoState) ?? processRaw(msg, category);
-    }
+    // volcano: VolcanoRouteHandler が処理する (VFVO53 バッチ集約のため線形フローでは処理不可)
     default: {
       return processRaw(msg, category);
     }

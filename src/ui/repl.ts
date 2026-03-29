@@ -6,7 +6,7 @@ import { loadConfig, saveConfig } from "../config";
 import { Notifier } from "../engine/notification/notifier";
 import { EewEventLogger } from "../engine/eew/eew-logger";
 import * as themeModule from "../ui/theme";
-import type { FilterTemplatePipeline } from "../engine/filter-template/pipeline";
+import type { PipelineController } from "../engine/filter-template/pipeline-controller";
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { StatusLine } from "./status-line";
@@ -55,7 +55,7 @@ export class ReplHandler {
   private statusProviders: PromptStatusProvider[];
   private detailProviders: DetailProvider[];
   private stats: TelegramStats;
-  private pipeline: FilterTemplatePipeline | null;
+  private pipelineController: PipelineController | null;
   private summaryTracker: SummaryWindowTracker | null;
   private summaryTimerControl: SummaryTimerControl | null = null;
   private summaryIntervalMin: number | null = null;
@@ -73,7 +73,7 @@ export class ReplHandler {
     stats: TelegramStats,
     statusProviders: PromptStatusProvider[] = [],
     detailProviders: DetailProvider[] = [],
-    pipeline?: FilterTemplatePipeline,
+    pipelineController?: PipelineController,
     summaryTracker?: SummaryWindowTracker,
   ) {
     this.config = config;
@@ -84,7 +84,7 @@ export class ReplHandler {
     this.stats = stats;
     this.statusProviders = statusProviders;
     this.detailProviders = detailProviders;
-    this.pipeline = pipeline ?? null;
+    this.pipelineController = pipelineController ?? null;
     this.summaryTracker = summaryTracker ?? null;
     this.summaryIntervalMin = config.summaryInterval ?? null;
     this.statusLine = new StatusLine();
@@ -263,7 +263,7 @@ export class ReplHandler {
       stats: this.stats,
       statusProviders: this.statusProviders,
       detailProviders: this.detailProviders,
-      pipeline: this.pipeline,
+      pipelineController: this.pipelineController,
       summaryTracker: this.summaryTracker,
       commands: this.commands,
       onQuit: this.onQuit,
@@ -314,7 +314,7 @@ export class ReplHandler {
     const parts: string[] = segments.map((s) => s.text);
 
     // フィルタ状態セグメント
-    if (this.pipeline?.filter != null) {
+    if (this.pipelineController?.getPipeline().filter != null) {
       parts.push(chalk.cyan("F:on"));
     }
 
