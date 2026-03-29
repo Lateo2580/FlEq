@@ -1,6 +1,6 @@
 # UI モジュール仕様書
 
-`src/ui/` 配下の8ファイルについて、設計・API・内部ロジックを記述する。
+`src/ui/` 配下の13ファイル・3サブディレクトリ（`minimap/`, `repl-handlers/`, `summary/`、計30ファイル）について、設計・API・内部ロジックを記述する。
 
 ---
 
@@ -175,12 +175,15 @@ WebSocket 監視中にユーザーが対話的にコマンドを入力できる 
 class ReplHandler {
   constructor(
     config: AppConfig,
-    wsManager: WebSocketManager,
+    wsManager: ConnectionManager,
     notifier: Notifier,
     eewLogger: EewEventLogger,
     onQuit: () => void | Promise<void>,
+    stats: TelegramStats,
     statusProviders?: PromptStatusProvider[],
     detailProviders?: DetailProvider[],
+    pipeline?: FilterTemplatePipeline,
+    summaryTracker?: SummaryWindowTracker,
   )
 
   start(): void
@@ -189,6 +192,7 @@ class ReplHandler {
   setConnected(connected: boolean): void
   beforeDisplayMessage(): void
   afterDisplayMessage(): void
+  setSummaryTimerControl(control: SummaryTimerControl): void
 }
 ```
 
@@ -205,7 +209,7 @@ class ReplHandler {
 
 #### StatusLine クラス
 
-プロンプト文字列を組み立てる内部クラス。以下の状態を管理する:
+プロンプト文字列を組み立てるクラス。`status-line.ts` に独立モジュールとして分離されている。以下の状態を管理する:
 
 - `pulseOn`: 1 秒ごとにトグルし、接続中は `●` / `○` の点滅でヘルスを示す
 - `connectedAt` / `lastMessageTime`: 経過時間計算用のタイムスタンプ
@@ -235,8 +239,9 @@ interface CommandEntry {
 |---|---|---|
 | `help` / `?` | info | コマンド一覧・詳細表示 |
 | `history` | info | dmdata.jp API から地震履歴を取得・テーブル表示 |
+| `stats` | info | 電文統計を表示 |
 | `colors` | info | CUD パレット・震度色・フレームレベル色の一覧表示 |
-| `detail` | info | 直近の津波情報を再表示 (`detail` / `detail tsunami`) |
+| `detail` | info | 直近の津波情報・火山警報状態を再表示 (`detail` / `detail tsunami` / `detail volcano`) |
 | `status` | status | WebSocket 接続状態・SocketID・再接続試行回数の表示 |
 | `config` | status | Config ファイルの設定一覧 |
 | `contract` | status | dmdata.jp の契約区分一覧 (API 呼び出し) |
@@ -247,7 +252,11 @@ interface CommandEntry {
 | `infotext` | settings | テキスト電文の全文/省略切替 |
 | `tipinterval` | settings | 待機中ヒント間隔の変更 (0-1440 分) |
 | `mode` | settings | 表示モード切替 (normal / compact) |
+| `filter` | settings | フィルタの表示・設定 (`filter set <expr>` / `filter clear` / `filter test <expr>`) |
+| `focus` | settings | focus の表示・設定 (`focus <expr>` / `focus off`) |
 | `clock` | settings | プロンプト時計の切替 (elapsed / now) |
+| `night` | settings | ナイトモードの切替 (`night on` / `night off`) |
+| `summary` | settings | 定期要約の表示・設定 (`summary on [N]` / `summary off` / `summary now`) |
 | `sound` | settings | 通知音の ON/OFF |
 | `theme` | settings | カラーテーマの表示・管理 (path / show / reset / reload / validate) |
 | `mute` | settings | 通知の一時ミュート (時間指定) |
@@ -255,8 +264,30 @@ interface CommandEntry {
 | `limit` | settings | 省略表示上限の確認・変更 (`limit <key> <N>` / `limit <key> default` / `limit reset`) |
 | `test` | operation | テスト機能 (`test sound [level]`: サウンドテスト、`test table [type] [番号]`: 表示形式テスト) |
 | `clear` | operation | ターミナル画面クリア |
+| `backup` | operation | EEW副回線の起動/停止 (`backup on` / `backup off`) |
 | `retry` | operation | WebSocket 手動再接続 |
 | `quit` / `exit` | operation | アプリケーション終了 |
+
+#### コマンドハンドラ構造 (repl-handlers/)
+
+コマンドハンドラは `repl-handlers/` サブディレクトリに分離されている。以下のファイルで構成される:
+
+| ファイル | 責務 |
+|---------|------|
+| `types.ts` | `CommandEntry`, `CommandCategory`, `SubcommandEntry`, `ReplContext` インターフェースの定義 |
+| `command-definitions.ts` | `buildCommandMap()` ファクトリ関数。全コマンド定義を生成する |
+| `info-handlers.ts` | 情報表示系コマンド (`help`, `history`, `stats`, `colors`, `detail`) とステータス系コマンド (`status`, `config`, `contract`, `socket`) のハンドラ。`COMMAND_ALIASES`, `CATEGORY_ALIASES`, `resolveCommand()` もここで定義 |
+| `settings-handlers.ts` | 設定変更系コマンド (`notify`, `eewlog`, `tablewidth`, `mode`, `filter`, `focus`, `night`, `summary`, `sound`, `theme`, `mute`, `fold`, `limit` 等) のハンドラ |
+| `operation-handlers.ts` | 操作系コマンド (`test`, `clear`, `backup`, `retry`, `quit`) のハンドラ |
+| `index.ts` | 型と関数の re-export |
+
+##### ReplContext インターフェース
+
+`ReplContext` は `ReplHandler` の内部状態をコマンドハンドラに公開するためのインターフェース。`config`, `wsManager`, `notifier`, `eewLogger`, `statusLine`, `stats`, `pipeline`, `summaryTracker`, `commands` 等のフィールドと、`updateConfig()`, `buildPromptString()`, `stop()`, `resetTipSchedule()` 等のヘルパーメソッドを持つ。`summaryTimerControl`, `filterExpr`, `focusExpr` 等のミュータブルフィールドは getter/setter で双方向同期される。
+
+##### buildCommandMap() ファクトリ関数
+
+`buildCommandMap(getCtx: () => ReplContext)` は全コマンド定義を `Record<string, CommandEntry>` として返すファクトリ関数。`getCtx` は遅延参照されるため、構築時点で `ReplContext` が完成している必要はない。`ReplHandler` のコンストラクタ内で呼ばれ、`this.commands` に格納される。
 
 #### コマンドディスパッチ
 
@@ -337,7 +368,7 @@ interface CommandEntry {
 
 ### 依存関係
 
-- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `DisplayMode`, `PromptClock`, `NotifyCategory`, `EewLogField`), `../dmdata/ws-client` (`WebSocketManager`), `../dmdata/rest-client` (`listEarthquakes`, `listContracts`, `listSockets`), `../config` (`loadConfig`, `saveConfig`, `printConfig`, `VALID_EEW_LOG_FIELDS`), `../engine/notification/notifier` (`Notifier`, `NOTIFY_CATEGORY_LABELS`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/notification/sound-player` (`playSound`, `isSoundLevel`, `SOUND_LEVELS`), `./formatter` (設定キャッシュ操作・ユーティリティ), `./test-samples` (`TEST_TABLES`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./waiting-tips` (`WAITING_TIPS`)
+- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `ConfigFile`, `PromptStatusProvider`, `DetailProvider`), `../dmdata/connection-manager` (`ConnectionManager`), `../config` (`loadConfig`, `saveConfig`), `../engine/notification/notifier` (`Notifier`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/filter-template/pipeline` (`FilterTemplatePipeline`), `../engine/messages/telegram-stats` (`TelegramStats`), `../engine/messages/summary-tracker` (`SummaryWindowTracker`), `../engine/monitor/monitor` (`SummaryTimerControl`), `./status-line` (`StatusLine`), `./tip-shuffler` (`TipShuffler`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./repl-handlers/types` (`CommandEntry`, `ReplContext`), `./repl-handlers/info-handlers` (`COMMAND_ALIASES`, `resolveCommand`), `./repl-handlers/command-definitions` (`buildCommandMap`)
 - **接続先**: `engine/monitor/monitor.ts` から dynamic import で生成・`start()` / `stop()` / `setConnected()` / `beforeDisplayMessage()` / `afterDisplayMessage()` が呼ばれる
 
 ### 設計ノート
