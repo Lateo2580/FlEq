@@ -272,4 +272,43 @@ describe("PresentationDiffStore", () => {
       expect(result.diff).toBeUndefined();
     });
   });
+
+  describe("remove", () => {
+    it("remove 後は初回扱いになる", () => {
+      const store = new PresentationDiffStore();
+      store.apply(makeEvent({ domain: "eew", eventId: "ev1", magnitude: "5.0" }));
+
+      store.remove("eew:ev1");
+
+      const result = store.apply(makeEvent({ domain: "eew", eventId: "ev1", magnitude: "5.4" }));
+      expect(result.diff).toBeUndefined();
+    });
+  });
+
+  describe("TTL プルーニング", () => {
+    it("TTL 超過したエントリが自動削除される", () => {
+      // TTL を 100ms に設定
+      const store = new PresentationDiffStore(100);
+      const event1 = makeEvent({ domain: "eew", eventId: "old-ev", magnitude: "5.0" });
+      store.apply(event1);
+
+      // updatedAt を過去に書き換えてプルーニングをトリガー
+      // prune は applyCount が PRUNE_INTERVAL の倍数のときに実行される
+      // 内部状態にアクセスするため、Date.now を一時的に上書き
+      const originalNow = Date.now;
+      Date.now = () => originalNow() + 200; // 200ms 後 → TTL 超過
+
+      // PRUNE_INTERVAL (50) 回 apply を呼んでプルーニングをトリガー
+      for (let i = 0; i < 49; i++) {
+        store.apply(makeEvent({ domain: "raw", type: "X", classification: "other" }));
+      }
+
+      // 50回目の apply でプルーニング発生 → old-ev は TTL 超過で削除済み
+      // この後に old-ev の新しいイベントを入れると初回扱いになるはず
+      Date.now = originalNow;
+
+      const result = store.apply(makeEvent({ domain: "eew", eventId: "old-ev", magnitude: "6.0" }));
+      expect(result.diff).toBeUndefined();
+    });
+  });
 });

@@ -6,14 +6,34 @@ export type { PresentationDiff, PresentationDiffField };
 /** PresentationEvent に diff 情報を付与した型 */
 export type PresentationEventWithDiff = PresentationEvent & { diff?: PresentationDiff };
 
+/** エントリの最終更新タイムスタンプ付き */
+interface DiffEntry {
+  event: PresentationEvent;
+  updatedAt: number;
+}
+
+/** TTL のデフォルト値 (30分) */
+const DEFAULT_TTL_MS = 30 * 60 * 1000;
+
+/** プルーニング実行間隔 (apply 呼び出し回数) */
+const PRUNE_INTERVAL = 50;
+
 /**
  * PresentationEvent の差分を検出・保持するストア。
  *
  * apply() は PresentationEvent を受け取り、同一 diffKey を持つ直前のイベントとの
  * 差分を検出して diff プロパティを付与して返す。
+ *
+ * TTL ベースの自動クリーンアップにより、長時間稼働時のメモリ蓄積を防止する。
  */
 export class PresentationDiffStore {
-  private previous = new Map<string, PresentationEvent>();
+  private previous = new Map<string, DiffEntry>();
+  private readonly ttlMs: number;
+  private applyCount = 0;
+
+  constructor(ttlMs?: number) {
+    this.ttlMs = ttlMs ?? DEFAULT_TTL_MS;
+  }
 
   /**
    * イベントを受け取り、差分を検出する。
@@ -22,19 +42,39 @@ export class PresentationDiffStore {
    * - diffKey が解決できないドメイン → diff なし (対象外)
    */
   apply(event: PresentationEvent): PresentationEventWithDiff {
+    this.applyCount++;
+    if (this.applyCount % PRUNE_INTERVAL === 0) {
+      this.prune();
+    }
+
     const diffKey = this.resolveDiffKey(event);
     if (diffKey == null) return event;
 
-    const prev = this.previous.get(diffKey);
-    const diff = prev ? this.computeDiff(prev, event) : undefined;
-    this.previous.set(diffKey, event);
+    const entry = this.previous.get(diffKey);
+    const diff = entry ? this.computeDiff(entry.event, event) : undefined;
+    this.previous.set(diffKey, { event, updatedAt: Date.now() });
 
     return diff ? { ...event, diff } : event;
+  }
+
+  /** 指定した diffKey のエントリを削除する */
+  remove(diffKey: string): void {
+    this.previous.delete(diffKey);
   }
 
   /** テスト用: ストアをクリアする */
   clear(): void {
     this.previous.clear();
+  }
+
+  /** TTL を超過した古いエントリを削除する */
+  private prune(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.previous) {
+      if (now - entry.updatedAt > this.ttlMs) {
+        this.previous.delete(key);
+      }
+    }
   }
 
   // ── diffKey 解決 ──
