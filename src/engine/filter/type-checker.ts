@@ -75,6 +75,11 @@ function validateComparison(left: ValueNode, op: CompOp, right: ValueNode, sourc
         } catch {
           throw new FilterTypeError(`正規表現が不正だ: "~" の右辺 "${right.value}" を解釈できない`);
         }
+        if (isRedosRisk(right.value)) {
+          throw new FilterTypeError(
+            `正規表現が危険だ: "${right.value}" は入れ子の量指定子を含んでおり、ReDoS の恐れがある`
+          );
+        }
       }
     }
 
@@ -101,4 +106,14 @@ function validateComparison(left: ValueNode, op: CompOp, right: ValueNode, sourc
   if (right.kind === "path") {
     validateFieldExists(right);
   }
+}
+
+/**
+ * 入れ子の量指定子パターンを簡易検出して ReDoS リスクを判定する。
+ * `(a+)+`, `(a*)*`, `(a+)*` のように、量指定子を含むグループに
+ * さらに量指定子が付くケースを検出する。
+ */
+function isRedosRisk(pattern: string): boolean {
+  // 量指定子(+, *, ?, {n,m})で終わるグループの直後に量指定子が来るパターン
+  return /(\+|\*|\?|\})\)(\+|\*|\?|\{)/.test(pattern);
 }

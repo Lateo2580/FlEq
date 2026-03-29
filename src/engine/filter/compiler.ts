@@ -82,7 +82,11 @@ function compileComparison(left: ValueNode, op: CompOp, right: ValueNode): Filte
         const re = cachedRegex ?? (() => {
           const r = getRight(event);
           if (r == null) return null;
-          return new RegExp(String(r));
+          try {
+            return new RegExp(String(r));
+          } catch {
+            return null;
+          }
         })();
         if (re == null) return false;
         return re.test(String(l));
@@ -96,7 +100,11 @@ function compileComparison(left: ValueNode, op: CompOp, right: ValueNode): Filte
         const re = cachedRegexNeg ?? (() => {
           const r = getRight(event);
           if (r == null) return null;
-          return new RegExp(String(r));
+          try {
+            return new RegExp(String(r));
+          } catch {
+            return null;
+          }
         })();
         if (re == null) return false;
         return !re.test(String(l));

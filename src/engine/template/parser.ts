@@ -7,6 +7,8 @@ import type {
 } from "./types";
 import { tokenizeTemplate } from "./tokenizer";
 
+const MAX_DEPTH = 32;
+
 export function parseTemplate(source: string): TemplateNode[] {
   const tokens = tokenizeTemplate(source);
   return new TemplateParser(tokens).parse();
@@ -14,6 +16,7 @@ export function parseTemplate(source: string): TemplateNode[] {
 
 class TemplateParser {
   private pos = 0;
+  private depth = 0;
 
   constructor(private readonly tokens: TemplateToken[]) {}
 
@@ -84,6 +87,10 @@ class TemplateParser {
     const test = this.parsePredicate(condToken.value);
     this.expect("close"); // }}
 
+    this.depth++;
+    if (this.depth > MAX_DEPTH) {
+      throw new Error(`テンプレート構文エラー: #if のネストが深すぎる (最大 ${MAX_DEPTH} 段)`);
+    }
     const body = this.parseNodes();
     let elseBody: TemplateNode[] | undefined;
 
@@ -95,9 +102,11 @@ class TemplateParser {
     if (this.pos < this.tokens.length && this.tokens[this.pos].kind === "endif") {
       this.pos++; // {{/if}}
     } else {
+      this.depth--;
       throw new Error('テンプレート構文エラー: "endif" が必要ですが見つかりません。{{/if}} で閉じてください');
     }
 
+    this.depth--;
     return { kind: "if", test, body, elseBody };
   }
 

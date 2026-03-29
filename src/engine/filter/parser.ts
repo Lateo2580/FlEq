@@ -1,8 +1,11 @@
 import type { FilterToken, FilterAST, ValueNode, CompOp } from "./types";
 import { FilterSyntaxError } from "./errors";
 
+const MAX_DEPTH = 32;
+
 class Parser {
   private pos = 0;
+  private depth = 0;
 
   constructor(
     private readonly tokens: FilterToken[],
@@ -38,7 +41,10 @@ class Parser {
   private parseUnary(): FilterAST {
     if (this.current().kind === "not") {
       this.advance();
-      return { kind: "not", operand: this.parseUnary() };
+      this.enterDepth();
+      const operand = this.parseUnary();
+      this.leaveDepth();
+      return { kind: "not", operand };
     }
     return this.parsePrimary();
   }
@@ -46,7 +52,9 @@ class Parser {
   private parsePrimary(): FilterAST {
     if (this.current().kind === "lparen") {
       this.advance();
+      this.enterDepth();
       const expr = this.parseOr();
+      this.leaveDepth();
       this.expect("rparen", "で閉じ括弧 ')' が必要");
       return expr;
     }
@@ -123,6 +131,21 @@ class Parser {
       throw new FilterSyntaxError(this.source, this.current().pos, errorMsg);
     }
     this.advance();
+  }
+
+  private enterDepth(): void {
+    this.depth++;
+    if (this.depth > MAX_DEPTH) {
+      throw new FilterSyntaxError(
+        this.source,
+        this.current().pos,
+        `でネストが深すぎる (最大 ${MAX_DEPTH} 段)`,
+      );
+    }
+  }
+
+  private leaveDepth(): void {
+    this.depth--;
   }
 }
 
