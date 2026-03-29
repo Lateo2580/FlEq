@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import type { SummaryWindowSnapshot } from "../engine/messages/summary-tracker";
+import { WINDOW_MINUTES } from "../engine/messages/summary-tracker";
 
 /** sparkline で使う8段階の文字 */
 const SPARK_CHARS = "▁▂▃▄▅▆▇█";
@@ -72,7 +73,7 @@ export function formatSummaryInterval(
   // sparkline 行
   if (sparkline) {
     const sparkStr = buildSparkline(snapshot.sparklineData);
-    parts.push(chalk.gray("受信 ") + sparkStr + chalk.gray("  (30分)"));
+    parts.push(chalk.gray("受信 ") + sparkStr + chalk.gray(`  (${WINDOW_MINUTES}分)`));
   }
 
   return parts.join("\n");

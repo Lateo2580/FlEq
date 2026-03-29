@@ -12,7 +12,7 @@ import * as log from "../../logger";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
-import type { SummaryWindowTracker } from "../messages/summary-tracker";
+import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
 
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
 
@@ -140,7 +140,7 @@ function createSummaryTimerControl(
       return timer != null;
     },
     showNow(): void {
-      showOutput(30);
+      showOutput(WINDOW_MINUTES);
     },
   };
 

@@ -20,7 +20,9 @@ export interface SummaryWindowSnapshot {
   sparklineData: number[];
 }
 
-const WINDOW_MINUTES = 30;
+/** リングバッファの窓幅(分) */
+export const WINDOW_MINUTES = 30;
+
 const MINUTE_MS = 60_000;
 
 /** 直近30分のリングバッファで受信統計を追跡する */

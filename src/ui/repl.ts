@@ -34,7 +34,7 @@ import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { TipShuffler } from "./tip-shuffler";
 import { TEST_TABLES } from "./test-samples";
 import { TelegramStats } from "../engine/messages/telegram-stats";
-import { SummaryWindowTracker } from "../engine/messages/summary-tracker";
+import { SummaryWindowTracker, WINDOW_MINUTES } from "../engine/messages/summary-tracker";
 import type { SummaryTimerControl } from "../engine/monitor/monitor";
 import { formatSummaryInterval } from "./summary-interval-formatter";
 import { displayStatistics } from "./statistics-formatter";
@@ -1980,7 +1980,7 @@ export class ReplHandler {
         this.summaryTimerControl.showNow();
       } else {
         const snapshot = this.summaryTracker.getSnapshot();
-        const output = formatSummaryInterval(snapshot, 30, true);
+        const output = formatSummaryInterval(snapshot, WINDOW_MINUTES, true);
         console.log(output);
       }
       return;

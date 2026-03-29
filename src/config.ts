@@ -202,6 +202,7 @@ const CONFIG_KEYS: Record<string, string> = {
   maxObservations: '観測点の最大表示件数 (1〜999 / "off" で全件表示)',
   backup: "EEW副回線の有効/無効 (true/false)",
   nightMode: "ナイトモードの有効/無効 (true/false)",
+  summaryInterval: "定期受信要約の間隔 (分, 1〜1440)",
   truncation: "省略表示の上限設定 (truncation.<key> で個別設定)",
 };
 
@@ -270,6 +271,7 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyMaxObservations(config, raw.maxObservations);
   applyBooleanField(config, "backup", raw.backup);
   applyBooleanField(config, "nightMode", raw.nightMode);
+  applySummaryInterval(config, raw.summaryInterval);
   applyTruncation(config, raw.truncation);
 
   return config;
@@ -362,6 +364,17 @@ function applyWaitTipInterval(config: ConfigFile, value: unknown): void {
     value <= 1440
   ) {
     config.waitTipIntervalMin = value;
+  }
+}
+
+function applySummaryInterval(config: ConfigFile, value: unknown): void {
+  if (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 1440
+  ) {
+    config.summaryInterval = value;
   }
 }
 
@@ -595,6 +608,16 @@ export function setConfigValue(key: string, value: string): void {
       }
       config.nightMode = value === "true";
       break;
+    case "summaryInterval": {
+      const si = Number(value);
+      if (isNaN(si) || !Number.isInteger(si) || si < 1 || si > 1440) {
+        throw new ConfigError(
+          "summaryInterval は 1〜1440 の整数を指定してください。"
+        );
+      }
+      config.summaryInterval = si;
+      break;
+    }
     case "maxObservations": {
       if (value === "off") {
         delete config.maxObservations;
