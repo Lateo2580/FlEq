@@ -81,9 +81,10 @@ function findCustomSound(level: SoundLevel): string | null {
   return null;
 }
 
-/** findCustomSound のキャッシュをクリアする (テスト用) */
+/** サウンドキャッシュをクリアする (テスト用) */
 export function clearCustomSoundCache(): void {
   customSoundCache.clear();
+  windowsSoundCache.clear();
 }
 
 // ── 有界キュー ──
@@ -302,13 +303,46 @@ function launchCustomSoundLinux(filePath: string, onDone: () => void): ChildProc
 
 // ── システムサウンドフォールバック ──
 
-function launchSystemSoundWindows(level: SoundLevel, onDone: () => void): ChildProcess | null {
+/** Windows システムサウンドの存在確認キャッシュ (null = 存在しない, undefined = 未検索) */
+const windowsSoundCache = new Map<SoundLevel, string | null>();
+
+/** Windows サウンドファイルの確認済みパスを返す。存在しなければ null。 */
+function findWindowsSystemSound(level: SoundLevel): string | null {
+  if (windowsSoundCache.has(level)) {
+    return windowsSoundCache.get(level) as string | null;
+  }
   const soundFile = WINDOWS_SOUNDS[level];
   const soundPath = path.join(
     process.env.SYSTEMROOT || "C:\\Windows",
     "Media",
     soundFile
   );
+  if (fs.existsSync(soundPath)) {
+    windowsSoundCache.set(level, soundPath);
+    return soundPath;
+  }
+  // フォールバック: Windows Default.wav
+  const defaultPath = path.join(
+    process.env.SYSTEMROOT || "C:\\Windows",
+    "Media",
+    "Windows Default.wav"
+  );
+  if (fs.existsSync(defaultPath)) {
+    windowsSoundCache.set(level, defaultPath);
+    return defaultPath;
+  }
+  windowsSoundCache.set(level, null);
+  return null;
+}
+
+function launchSystemSoundWindows(level: SoundLevel, onDone: () => void): ChildProcess | null {
+  const soundPath = findWindowsSystemSound(level);
+  if (soundPath == null) {
+    log.debug(`Windows 通知音が見つかりません。bell にフォールバックします: ${WINDOWS_SOUNDS[level]}`);
+    printBell();
+    onDone();
+    return null;
+  }
   const psCommand = `(New-Object System.Media.SoundPlayer '${soundPath}').PlaySync()`;
   const proc = exec(`powershell -NoProfile -Command "${psCommand}"`, (err) => {
     if (err) {

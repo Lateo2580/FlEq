@@ -16,7 +16,7 @@ export class ConfigError extends Error {
 /** 旧Configファイルのディレクトリ (マイグレーション用) */
 const OLD_CONFIG_DIR = path.join(os.homedir(), ".config", "dmdata-monitor");
 
-/** レガシーConfigディレクトリ (macOS/Windows でのマイグレーション用) */
+/** レガシーConfigディレクトリ (OS 別パス導入前の ~/.config/fleq からのマイグレーション用) */
 const LEGACY_CONFIG_DIR = path.join(os.homedir(), ".config", "fleq");
 
 /**
@@ -333,6 +333,13 @@ function applyBooleanField(
 }
 
 function applyTableWidth(config: ConfigFile, value: unknown): void {
+  if (value === "auto") {
+    log.warn(
+      'config.json の tableWidth に "auto" が指定されていますが、文字列 "auto" は無効です。' +
+      "tableWidth を削除するとターミナル幅に自動追従します。"
+    );
+    return;
+  }
   if (typeof value === "number" && value >= 40 && value <= 200) {
     config.tableWidth = value;
   }
@@ -632,6 +639,11 @@ export function setConfigValue(key: string, value: string): void {
       config.maxObservations = mo;
       break;
     }
+    case "truncation":
+      throw new ConfigError(
+        `truncation は set コマンドでは直接変更できません。truncation.<key> を指定してください。\n` +
+        `有効なサブキー: ${VALID_TRUNCATION_KEYS.join(", ")}`
+      );
   }
 
   saveConfig(config);

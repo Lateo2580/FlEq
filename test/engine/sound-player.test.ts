@@ -57,6 +57,10 @@ describe("sound-player", () => {
 
   it("Windows: PowerShell 経由で WAV ファイルを再生する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
+    // システムサウンドファイルが存在する環境をシミュレート
+    mockExistsSync.mockImplementation((p: string) =>
+      typeof p === "string" && p.includes("Media") ? true : false
+    );
     const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("critical");
     expect(mockExec).toHaveBeenCalledTimes(1);
@@ -67,6 +71,9 @@ describe("sound-player", () => {
 
   it("Windows: warning レベルで正しいサウンドファイルを使用する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
+    mockExistsSync.mockImplementation((p: string) =>
+      typeof p === "string" && p.includes("Media") ? true : false
+    );
     const { playSound } = await import("../../src/engine/notification/sound-player");
     playSound("warning");
     const cmd = mockExec.mock.calls[0][0] as string;
@@ -146,6 +153,9 @@ describe("sound-player", () => {
 
   it("全サウンドレベルに対応する", async () => {
     Object.defineProperty(process, "platform", { value: "win32" });
+    mockExistsSync.mockImplementation((p: string) =>
+      typeof p === "string" && p.includes("Media") ? true : false
+    );
     const { playSound } = await import("../../src/engine/notification/sound-player");
     const levels = ["critical", "warning", "normal", "info", "cancel"] as const;
     for (const level of levels) {

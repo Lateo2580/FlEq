@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import * as fs from "fs";
+import * as os from "os";
 import {
   AppConfig,
   Classification,
@@ -92,9 +93,8 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     log.warn(w);
   }
 
-  // ナイトモード (CLI --night > Config > デフォルト)
-  const nightEnabled = opts.night ?? config.nightMode;
-  if (nightEnabled) {
+  // ナイトモード (resolveConfig で解決済み: CLI --night > Config > デフォルト)
+  if (config.nightMode) {
     setNightMode(true);
     log.info("ナイトモード: ON");
   }
@@ -128,7 +128,13 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     try {
       let tplSource = opts.template;
       if (tplSource.startsWith("@")) {
-        const filePath = tplSource.slice(1).replace(/^~/, process.env.HOME ?? process.env.USERPROFILE ?? "");
+        const filePath = tplSource.slice(1).replace(/^~/, os.homedir());
+        const MAX_TEMPLATE_SIZE = 1024 * 1024; // 1MB
+        const stat = fs.statSync(filePath);
+        if (stat.size > MAX_TEMPLATE_SIZE) {
+          log.error(`テンプレートファイルが大きすぎます (${stat.size} bytes, 上限 ${MAX_TEMPLATE_SIZE} bytes): ${filePath}`);
+          process.exit(1);
+        }
         tplSource = fs.readFileSync(filePath, "utf-8").trim();
       }
       pipeline.template = compileTemplate(tplSource);
@@ -153,10 +159,15 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     }
   }
 
-  // summaryInterval (CLI > Config > デフォルト)
+  // summaryInterval (CLI > Config > デフォルト, 0 = 無効化)
   if (opts.summaryInterval != null) {
-    config.summaryInterval = opts.summaryInterval;
-    log.info(`定期要約: ${opts.summaryInterval}分間隔`);
+    if (opts.summaryInterval === 0) {
+      config.summaryInterval = null;
+      log.info("定期要約: 無効");
+    } else {
+      config.summaryInterval = opts.summaryInterval;
+      log.info(`定期要約: ${opts.summaryInterval}分間隔`);
+    }
   }
 
   printBanner(config);
