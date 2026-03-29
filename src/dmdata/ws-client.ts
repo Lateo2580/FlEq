@@ -106,6 +106,18 @@ export class WebSocketManager implements ConnectionManager {
     }
   }
 
+  /** close/error 共通の切断後処理 */
+  private onDisconnect(reason: string): void {
+    this.clearTimers();
+    this.ws = null;
+    this.previousSocketId = this.socketId;
+    this.socketId = null;
+    this.heartbeatDeadlineAt = null;
+    this.endpointSelector.recordDisconnected();
+    this.events.onDisconnected(reason);
+    this.scheduleReconnect();
+  }
+
   private async doConnect(seq: number): Promise<void> {
     try {
       log.info("Socket Start を実行中...");
@@ -148,14 +160,7 @@ export class WebSocketManager implements ConnectionManager {
         if (this.ws !== socket) return;
         const reasonStr = reason.toString() || `code=${code}`;
         log.warn(`WebSocket 切断: ${reasonStr}`);
-        this.clearTimers();
-        this.ws = null;
-        this.previousSocketId = this.socketId;
-        this.socketId = null;
-        this.heartbeatDeadlineAt = null;
-        this.endpointSelector.recordDisconnected();
-        this.events.onDisconnected(reasonStr);
-        this.scheduleReconnect();
+        this.onDisconnect(reasonStr);
       });
 
       socket.on("error", (err: Error) => {
@@ -167,14 +172,7 @@ export class WebSocketManager implements ConnectionManager {
         } catch {
           // close() 自体の失敗は無視
         }
-        this.clearTimers();
-        this.ws = null;
-        this.previousSocketId = this.socketId;
-        this.socketId = null;
-        this.heartbeatDeadlineAt = null;
-        this.endpointSelector.recordDisconnected();
-        this.events.onDisconnected(`error: ${err.message}`);
-        this.scheduleReconnect();
+        this.onDisconnect(`error: ${err.message}`);
       });
     } catch (err) {
       log.error(
