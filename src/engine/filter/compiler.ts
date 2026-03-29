@@ -73,20 +73,35 @@ function compileComparison(left: ValueNode, op: CompOp, right: ValueNode): Filte
         }
         return compareOrdered(l as number, op, r as number);
       };
-    case "~":
+    case "~": {
+      // 右辺が文字列リテラルならコンパイル時に RegExp をキャッシュ
+      const cachedRegex = right.kind === "string" ? new RegExp(right.value) : null;
       return (event) => {
         const l = getLeft(event);
-        const r = getRight(event);
-        if (l == null || r == null) return false;
-        return new RegExp(String(r)).test(String(l));
+        if (l == null) return false;
+        const re = cachedRegex ?? (() => {
+          const r = getRight(event);
+          if (r == null) return null;
+          return new RegExp(String(r));
+        })();
+        if (re == null) return false;
+        return re.test(String(l));
       };
-    case "!~":
+    }
+    case "!~": {
+      const cachedRegexNeg = right.kind === "string" ? new RegExp(right.value) : null;
       return (event) => {
         const l = getLeft(event);
-        const r = getRight(event);
-        if (l == null || r == null) return false;
-        return !new RegExp(String(r)).test(String(l));
+        if (l == null) return false;
+        const re = cachedRegexNeg ?? (() => {
+          const r = getRight(event);
+          if (r == null) return null;
+          return new RegExp(String(r));
+        })();
+        if (re == null) return false;
+        return !re.test(String(l));
       };
+    }
     case "in":
       return (event) => {
         const l = getLeft(event);
