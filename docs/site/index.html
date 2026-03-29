@@ -78,7 +78,7 @@
       <div class="feature-card">
         <div class="feature-icon">🗾</div>
         <h3>ミニマップ</h3>
-        <p>ASCII 12 ブロック列島形で地域を表示</p>
+        <p>ASCII 47 都道府県グリッドで震度分布を表示</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🌙</div>
@@ -238,8 +238,14 @@
           <li>震度速報</li>
           <li>震源に関する情報</li>
           <li>震源・震度に関する情報</li>
+          <li>顕著な地震の震源要素更新のお知らせ</li>
           <li>長周期地震動に関する観測情報</li>
-          <li>津波警報・注意報</li>
+          <li>地震の活動状況等に関する情報</li>
+          <li>地震回数に関する情報</li>
+          <li>地震・津波に関するお知らせ</li>
+          <li>津波警報・注意報・予報</li>
+          <li>津波情報</li>
+          <li>沖合の津波情報</li>
         </ul>
       </div>
       <div class="category-card">
@@ -260,17 +266,22 @@
         <ul>
           <li>噴火警報・予報</li>
           <li>噴火速報</li>
-          <li>降灰予報</li>
+          <li>噴火に関する火山観測報</li>
+          <li>降灰予報（定時・速報・詳細）</li>
           <li>火山の状況に関する解説情報</li>
+          <li>推定噴煙流向報</li>
+          <li>火山現象に関する海上警報</li>
+          <li>火山に関するお知らせ</li>
         </ul>
       </div>
       <div class="category-card">
         <div class="category-icon">🌊</div>
-        <h3>南海トラフ</h3>
+        <h3>南海トラフ・後発地震</h3>
         <p class="category-api">telegram.earthquake (VYSE*)</p>
         <ul>
           <li>南海トラフ地震臨時情報</li>
-          <li>南海トラフ地震関連解説情報</li>
+          <li>南海トラフ地震関連解説情報（臨時・定例）</li>
+          <li>北海道・三陸沖後発地震注意情報</li>
         </ul>
       </div>
     </div>
@@ -290,11 +301,6 @@
             <div class="step-code">
               <code>npm install -g @sayue_ltr/fleq</code>
               <button class="copy-btn" data-copy="npm install -g @sayue_ltr/fleq" aria-label="コマンドをコピー">コピー</button>
-            </div>
-            <p class="step-alt">または単発で実行:</p>
-            <div class="step-code">
-              <code>npx @sayue_ltr/fleq --help</code>
-              <button class="copy-btn" data-copy="npx @sayue_ltr/fleq --help" aria-label="コマンドをコピー">コピー</button>
             </div>
           </div>
         </div>
