@@ -21,8 +21,11 @@
 7. [長周期地震動観測情報 (VXSE62)](#長周期地震動観測情報-vxse62)
 8. [火山情報 (VFVO50/51/52/53/54/55/56/60, VFSVii, VZVO40)](#火山情報-vfvo5051525354555660-vfsvii-vzvo40)
 9. [フォールバック表示](#フォールバック表示)
-10. [色・スタイル対応表](#色スタイル対応表)
-11. [カラーテーマカスタマイズ](#カラーテーマカスタマイズ)
+10. [サマリーライン (compact 表示)](#サマリーライン-compact-表示)
+11. [ミニマップ表示](#ミニマップ表示)
+12. [ナイトモード](#ナイトモード)
+13. [色・スタイル対応表](#色スタイル対応表)
+14. [カラーテーマカスタマイズ](#カラーテーマカスタマイズ)
 
 ---
 
@@ -1057,6 +1060,116 @@
 | 発表情報 | `   {reportDateTime}  {publishingOffice}` (グレー) |
 | ヘッドライン | `   {headline}` (白、存在する場合のみ) |
 | 区切り線 | `─` × 60 (グレー) |
+
+---
+
+## サマリーライン (compact 表示)
+
+**関数**: `renderSummaryLine(event: PresentationEvent, maxWidth?: number)` (`src/ui/summary/summary-line.ts`)
+
+compact モード、focus 不一致時の dim 表示、およびユーザーテンプレート未指定時のデフォルト1行表示で使用されるトークンベースの幅適応表示。
+
+### トークン構造
+
+各電文は `SummaryToken[]` に分解される。各トークンは以下の属性を持つ:
+
+| 属性 | 型 | 説明 |
+|------|-----|------|
+| `text` | `string` | 表示テキスト (chalk 着色済み) |
+| `shortText` | `string?` | 幅不足時の短縮テキスト |
+| `priority` | `0-4` | 優先度 (0=最高、常に表示) |
+| `dropMode` | `"never" \| "shorten" \| "drop"` | 幅不足時の挙動 |
+
+### 幅適応アルゴリズム (drop/shorten)
+
+1. 全トークンの `preferredWidth` + セパレータ (`"  "`, 2文字) の合計が `maxWidth` 以下 → そのまま結合
+2. 超過時: priority 4 → 3 → 2 の順で `dropMode: "drop"` のトークンを削除
+3. まだ超過: `dropMode: "shorten"` のトークンを `shortText` に置換
+
+priority 0 のトークン (severity ラベル、主要識別子) は常に表示される。
+
+### 表示例
+
+```
+[緊急] EEW警報  #1  宮崎県南部  震度6弱  M6.8
+[情報] 震源・震度に関する情報  千葉県東方沖  M4.2  震度3  津波なし
+[取消] EEW取消  #1  豊後水道
+```
+
+---
+
+## ミニマップ表示
+
+**関数**: `renderMinimapForEvent(event: PresentationEvent)` (`src/ui/minimap/minimap-renderer.ts`)
+
+12行 x 13列の ASCII グリッドで日本全国47都道府県の震度・津波警報状態を俯瞰表示する。
+
+### グリッド仕様
+
+| 項目 | 値 |
+|------|-----|
+| 行数 | 12 (`GRID_ROWS`) |
+| 列数 | 13 (`GRID_COLS`) |
+| セル幅 | 6文字 (`"AA:xx "`) |
+| 全体幅 | 78文字 |
+
+各セルは `{都道府県2文字コード}:{震度/津波略称}` 形式。データなしの都道府県は `AA:..` (dim表示)。
+
+### 表示条件 (`shouldShowMinimap`)
+
+| 条件 | 判定 |
+|------|------|
+| ターミナル幅 | 80文字以上必須 |
+| 取消電文 | 表示しない |
+| 地震情報 | 震度ランク ≥ 4 または 観測地域 ≥ 4 |
+| EEW | 予報区域が1つ以上 |
+| 津波 | 予報区域あり かつ frameLevel が critical/warning/normal |
+| 長周期地震動 | 震度ランク ≥ 4 または 観測地域 ≥ 4 |
+| 火山・テキスト系等 | 表示しない |
+
+### 凡例
+
+グリッド左上の空白エリアに震度色と津波略称の凡例が重畳表示される:
+
+- 震度: `1` `2` `3` `4` `5-` `5+` `6-` `6+` `7` (各震度色で着色)
+- 津波: `MJ` (大津波警報、redBright) / `WN` (津波警報、red) / `AD` (注意報、yellow)
+
+### 都道府県コード
+
+47都道府県を2文字のアルファベットコード (`HK`=北海道, `AO`=青森, ..., `OK`=沖縄) でマッピング。`mapAreaToPref()` が地域名 → 都道府県コードの変換を行う。
+
+---
+
+## ナイトモード
+
+**関数**: `applyNightOverlay(theme: ResolvedTheme)` (`src/ui/night-overlay.ts`)
+
+彩度・輝度を抑制した夜間向け表示モード。全色の RGB 値を 50% に減光する。
+
+### 減光対象外ロール (6件)
+
+以下のロールは critical 級の危険色であり、夜間でも視認性を維持するため減光対象外:
+
+| ロール名 | 用途 |
+|---------|------|
+| `frameCritical` | critical フレーム罫線 |
+| `tsunamiMajor` | 大津波警報 |
+| `eewWarningBanner` | EEW 警報バナー |
+| `volcanoFlashBanner` | 噴火速報バナー |
+| `intensity6Upper` | 震度6強 |
+| `intensity7` | 震度7 |
+
+### 減光の仕組み
+
+- `dimRgb()`: 各 RGB チャンネルを `Math.round(value * 0.5)` で半減
+- パレット色とロールスタイルの両方に適用
+- 元のテーマを変更しない純粋関数 (新しい `ResolvedTheme` を返す)
+
+### 有効化方法
+
+- CLI: `fleq --night`
+- REPL: `night on` / `night off`
+- Config: `nightMode: true`
 
 ---
 

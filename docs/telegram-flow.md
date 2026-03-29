@@ -26,9 +26,10 @@ console.log → ターミナル (ANSI色付き)
 
 ### 起点: `engine/monitor/monitor.ts` — `startMonitor()`
 
-1. `createMessageHandler()` で電文ハンドラ一式を生成
-   - 内包するオブジェクト: `EewTracker`, `EewEventLogger`, `Notifier`, `TsunamiStateHolder`, `VolcanoStateHolder`
-2. `MultiConnectionManager` を生成し、3つのコールバックを登録
+1. `createDisplayAdapter()` で `DisplayCallbacks` 実装を生成
+1a. `createMessageHandler({ pipeline, display })` で電文ハンドラ一式を生成
+   - 内包するオブジェクト: `EewTracker`, `EewEventLogger`, `Notifier`, `TsunamiStateHolder`, `VolcanoStateHolder`, `VolcanoRouteHandler`
+2. `MultiConnectionManager` を生成し、3つのコールバックを登録 (primary + backup の複線接続管理)
    - `onData` — 電文受信時
    - `onConnected` — 接続確立時
    - `onDisconnected` — 切断時
@@ -99,7 +100,7 @@ onData: (msg) => {
 
 #### Step 3a: XML チェック
 
-`msg.format !== "xml"` または `msg.head.xml` がない場合は `displayRawHeader()` でヘッダのみ表示して終了。
+`msg.format !== "xml"` または `msg.head.xml` がない場合は `display.displayRawHeader()` でヘッダのみ表示して終了。
 
 #### Step 3b: ルート判定
 
@@ -120,7 +121,7 @@ onData: (msg) => {
 
 #### Step 3c: ルート別ハンドラ呼び出し
 
-`switch (route)` で対応する `handle*()` 関数へ委譲する。
+火山ルートは `VolcanoRouteHandler.handle()` に委譲する。火山以外は `processMessage()` → `recordStats()` → `dispatchNotify()` → `runDisplayPipeline()` の共通フローで処理する。表示は `DisplayCallbacks` 経由で行われ、`display.displayOutcome()` が domain に応じた display 関数を呼び出す。
 
 ---
 
@@ -198,11 +199,18 @@ Report > Body > Comments > ForecastComment > Text → 津波コメント
 - VTSE41 (津波警報・注意報) の場合のみ `TsunamiStateHolder.update()` で内部状態を更新
 - REPL プロンプトに津波警報の有無を反映するために使用される
 
-### 火山パス — `handleVolcano()`
+### 火山パス — `VolcanoRouteHandler.handle()`
 
-1. **表示/通知レベル判定**: `resolveVolcanoPresentation()` が火山の電文種別・レベル・過去の通知状態から `FrameLevel` と通知レベルを決定
-2. **表示**: `displayVolcanoInfo()` に判定結果を渡す
-3. **状態更新**: 表示後に `VolcanoStateHolder.update()` で状態更新
+`message-router.ts` は火山ルートを `VolcanoRouteHandler` に全委譲する。ハンドラ内部の処理:
+
+1. **パース**: `parseVolcanoTelegram()` でパース
+2. **キャッシュ**: メッセージを volcanoCode をキーとして一時キャッシュ（`buildVolcanoOutcome()` 用）
+3. **集約**: `VolcanoVfvo53Aggregator.handle()` に委譲
+   - VFVO53 定時（取消以外）→ バッファリング → quiet window 後にバッチ表示
+   - VFVO53 取消 → 即時表示 + バッファから除去
+   - その他 → pending バッファを通知なし flush → 単発パイプライン
+4. **通知**: `Notifier.notifyVolcano()` / `notifyVolcanoBatch()`（filter 非適用）
+5. **表示**: `runDisplayPipeline()` 経由で `DisplayCallbacks.displayVolcano()` / `displayVolcanoBatch()` を呼び出す
 
 ### その他のパス
 
@@ -212,9 +220,42 @@ Report > Body > Comments > ForecastComment > Text → 津波コメント
 
 ## Phase 6: ターミナル表示
 
+### Step 6-pre: プレゼンテーションパイプライン (`runDisplayPipeline`)
+
+火山以外の電文は `processMessage()` → `ProcessOutcome` を経由して、共通の `runDisplayPipeline()` に入る。火山電文は `VolcanoRouteHandler` 内の VFVO53 aggregator 経由で同じパイプラインに合流する。
+
+表示関数の呼び出しは `DisplayCallbacks` インターフェース経由で行われる。engine 層 (`message-router.ts`) は `ui/` を直接 import せず、`monitor.ts` が `createDisplayAdapter()` で生成した `DisplayCallbacks` 実装を注入する。
+
+```
+ProcessOutcome / VolcanoBatchOutcome
+  ↓ toPresentationEvent()
+PresentationEvent (ドメイン横断の統一イベント型)
+  ↓ PresentationDiffStore.apply()
+PresentationEvent (diff フィールド付与: 前報との差分検出)
+  ↓ shouldDisplay(event, pipeline)
+  │  filter 条件に不一致 → false → summaryTracker に記録して終了 (非表示)
+  ↓ true
+summaryTracker.record(event, displayed)
+  ↓
+focus 判定: pipeline.focus == null || pipeline.focus(event)
+  │  focus 不一致 → dim compact 表示 (chalk.dim + renderSummaryLine)
+  ↓ 一致
+template 判定: renderTemplate(event, pipeline)
+  │  template あり → テンプレート出力
+  ↓ null
+displayMode 判定: display.getDisplayMode() === "compact"
+  │  compact → display.renderSummaryLine(event)
+  ↓ normal
+displayFn() — DisplayCallbacks 経由で各 display* 関数によるフル表示
+```
+
+このパイプラインにより、filter/focus/template/compact の4つの表示制御が統一的に処理される。通知は filter 非適用のため、`runDisplayPipeline` の前に `dispatchNotify()` で実行される。
+
+### Step 6a: RenderBuffer の構築 (フル表示時)
+
 各 `display*` 関数 (`ui/eew-formatter.ts`, `ui/earthquake-formatter.ts`, `ui/volcano-formatter.ts`) は共通の構造を持つ。
 
-### Step 6a: RenderBuffer の構築
+### Step 6a-detail: RenderBuffer の構築
 
 `createRenderBuffer()` で行バッファを作成する。各行には種別マーキングが付く:
 
@@ -257,7 +298,7 @@ frameBottom(level, width)     → 色付き下枠線 ━━━━━━━
 | モード | 挙動 |
 |--------|------|
 | `normal` | フル表示 (headline, 観測地域すべて) |
-| `compact` | headline や観測地域を省略 |
+| `compact` | `runDisplayPipeline` 内で `renderSummaryLine()` による幅適応1行表示。`display*` 関数は呼ばれない |
 
 ### Step 6e: 省略 (truncation)
 
@@ -307,7 +348,9 @@ frameBottom(level, width)     → 色付き下枠線 ━━━━━━━
 | 1 | `dmdata/endpoint-selector.ts` | エンドポイント選択 |
 | 2 | `dmdata/ws-client.ts` | メッセージ受信・振り分け |
 | 3 | `engine/monitor/repl-coordinator.ts` | REPL 表示協調 |
-| 3 | `engine/messages/message-router.ts` | 電文ルーティング |
+| 3 | `engine/messages/message-router.ts` | 電文ルーティング (DisplayCallbacks 経由で表示) |
+| 3 | `engine/messages/volcano-route-handler.ts` | 火山電文の一元処理 |
+| 3 | `engine/messages/display-callbacks.ts` | engine→ui 表示インターフェース |
 | 4 | `dmdata/telegram-parser.ts` | XML デコード・パース (地震/EEW/津波等) |
 | 4 | `dmdata/volcano-parser.ts` | XML デコード・パース (火山) |
 | 5 | `engine/eew/eew-tracker.ts` | EEW 重複検出・状態管理 |
@@ -320,6 +363,13 @@ frameBottom(level, width)     → 色付き下枠線 ━━━━━━━
 | 6 | `ui/earthquake-formatter.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
 | 6 | `ui/volcano-formatter.ts` | 火山 表示 |
 | 6 | `ui/theme.ts` | テーマシステム (カラーパレット・ロール定義) |
+| 6 | `ui/summary/summary-line.ts` | compact / focus 用の幅適応1行表示 |
+| 6 | `engine/presentation/events/to-presentation-event.ts` | ProcessOutcome → PresentationEvent 変換 |
+| 6 | `engine/presentation/diff-store.ts` | 前報との差分検出 |
+| 6 | `engine/presentation/types.ts` | ProcessOutcome, PresentationEvent 等の型定義 |
+| 6 | `engine/filter-template/pipeline.ts` | shouldDisplay / renderTemplate — filter/template/focus パイプライン |
+| 6 | `engine/filter-template/pipeline-controller.ts` | PipelineController — pipeline の状態管理 |
+| 6 | `ui/display-adapter.ts` | DisplayCallbacks の実装 (engine→ui アダプター) |
 | 7 | `engine/notification/notifier.ts` | デスクトップ通知 |
 | 7 | `engine/notification/node-notifier-loader.ts` | node-notifier 遅延ロード |
 | 7 | `engine/notification/sound-player.ts` | 通知音再生 |

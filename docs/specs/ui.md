@@ -1,6 +1,6 @@
 # UI モジュール仕様書
 
-`src/ui/` 配下の13ファイル・3サブディレクトリ（`minimap/`, `repl-handlers/`, `summary/`、計30ファイル）について、設計・API・内部ロジックを記述する。
+`src/ui/` 配下のファイル・3サブディレクトリ（`minimap/`, `repl-handlers/`, `summary/`）について、設計・API・内部ロジックを記述する。
 
 ---
 
@@ -47,6 +47,9 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `wrapTextLines(text: string, maxWidth: number): string[]` | テキストを文字単位で折り返す (フレーム装飾なし) |
 | `collectHighlightSpans(line: string, rules: readonly HighlightRule[]): HighlightSpan[]` | テキスト行からキーワード強調の適用区間を収集する |
 | `highlightAndWrap(line: string, rules: readonly HighlightRule[], maxWidth: number): string[]` | キーワード強調を適用しつつ折り返し済みの行配列を返す |
+| `renderGroupedItemList(options): void` | グループ化されたアイテムリスト (震度一覧等) をフレーム内に描画する |
+| `renderSimpleNameList(options): void` | 名前リスト (津波予報区等) をフレーム内に描画する |
+| `renderFooter(buf, level, width, event): void` | フレームフッター (URI・ヘッドライン等) を描画する |
 | `formatTimestamp(isoStr: string): string` | ISO 文字列を `"YYYY-MM-DD HH:MM:SS"` に整形 |
 | `formatElapsedTime(ms: number): string` | ミリ秒を `"HH:MM:SS"` 形式に整形 |
 | `intensityColor(intensity: string): chalk.Chalk` | 震度文字列に対応する chalk スタイルを返す (テーマロール経由) |
@@ -62,15 +65,16 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 
 #### 型
 
-| 名前 | 説明 |
-|---|---|
-| `EewDisplayContext` | EEW 表示時のコンテキスト。`activeCount` (同時発生件数)、`diff?: EewDiff` (前回との差分)、`colorIndex?: number` (バナー色インデックス) |
+| 名前 | 定義場所 | 説明 |
+|---|---|---|
+| `FrameLevel` | `src/types.ts` で定義、`formatter.ts` が re-export | `"critical" \| "warning" \| "normal" \| "info" \| "cancel"` の 5 段階 |
+| `EewDisplayContext` | `src/ui/eew-formatter.ts` で定義 | EEW 表示時のコンテキスト。`activeCount` (同時発生件数)、`diff?: EewDiff` (前回との差分)、`colorIndex?: number` (バナー色インデックス) |
 
 ### 内部ロジック
 
 #### FrameLevel による表示制御
 
-`FrameLevel` は `"critical"` / `"warning"` / `"normal"` / `"info"` / `"cancel"` の 5 段階。各レベルが罫線文字セット (`FrameChars`) と色ロール (`FRAME_ROLE_MAP`) に対応する。
+`FrameLevel` は `src/types.ts` で定義され、`formatter.ts` が `export type { FrameLevel } from "../types"` で re-export する。`"critical"` / `"warning"` / `"normal"` / `"info"` / `"cancel"` の 5 段階。各レベルが罫線文字セット (`FrameChars`) と色ロール (`FRAME_ROLE_MAP`) に対応する。
 
 - `critical` / `warning`: 二重線 (`╔═╗`) を使用
 - `normal` / `info` / `cancel`: 通常線 (`┌─┐`) を使用
@@ -159,11 +163,65 @@ interface HighlightSpan {
 
 ---
 
+## display-adapter.ts
+
+### 概要
+
+engine 層の `DisplayCallbacks` インターフェースを実装する UI アダプター。すべての display 関数をここに集約し、engine→ui の逆方向依存を断つ。`monitor.ts` が `createDisplayAdapter()` で生成し、`createMessageHandler()` に `DisplayCallbacks` として注入する。
+
+### エクスポートAPI
+
+```ts
+function createDisplayAdapter(): DisplayCallbacks
+```
+
+- `createDisplayAdapter()` — `DisplayCallbacks` の実装オブジェクトを返す。
+
+### 内部ロジック
+
+`displayOutcome()` は `outcome.domain` による `switch` 分岐で各ドメインの display 関数を呼び出す:
+
+| domain | 呼び出し先 |
+|--------|-----------|
+| `eew` | `displayEewInfo(outcome.parsed, { activeCount, diff, colorIndex })` |
+| `earthquake` | `displayEarthquakeInfo(outcome.parsed)` |
+| `seismicText` | `displaySeismicTextInfo(outcome.parsed)` |
+| `lgObservation` | `displayLgObservationInfo(outcome.parsed)` |
+| `tsunami` | `displayTsunamiInfo(outcome.parsed)` |
+| `nankaiTrough` | `displayNankaiTroughInfo(outcome.parsed)` |
+| `raw` | `displayRawHeader(outcome.msg)` |
+
+火山は `VolcanoRouteHandler` が `displayVolcano()` / `displayVolcanoBatch()` を直接呼ぶため、`displayOutcome()` には火山ケースがない。
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `../engine/messages/display-callbacks` | `DisplayCallbacks` 型 |
+| `../engine/presentation/types` | `ProcessOutcome` |
+| `../types` | `WsDataMessage`, `ParsedVolcanoInfo` |
+| `../engine/notification/volcano-presentation` | `VolcanoPresentation` |
+| `../engine/messages/volcano-vfvo53-aggregator` | `Vfvo53BatchItems` |
+| `./formatter` | `displayRawHeader`, `getDisplayMode` |
+| `./summary` | `renderSummaryLine` |
+| `./eew-formatter` | `displayEewInfo` |
+| `./earthquake-formatter` | 地震・津波・テキスト・南海トラフ・長周期の表示関数 |
+| `./volcano-formatter` | `displayVolcanoInfo`, `displayVolcanoAshfallBatch` |
+
+### 設計ノート
+
+- engine 層の `message-router.ts` が `ui/` を直接 import しないようにするためのアダプター。Dependency Inversion Principle の適用。
+- `monitor.ts` が `createDisplayAdapter()` を遅延ロード (`await import(...)`) して生成するため、CLI の軽量コマンド (`config show` 等) では UI モジュールがロードされない。
+
+---
+
 ## repl.ts
 
 ### 概要
 
 WebSocket 監視中にユーザーが対話的にコマンドを入力できる REPL (Read-Eval-Print Loop) モジュール。`readline` インターフェースの管理、プロンプト表示 (接続状態・経過時間の動的更新)、コマンドのディスパッチ、待機中ヒント表示のスケジューリングを担う。
+
+コマンドハンドラは `repl-handlers/` サブディレクトリに分離されており、本ファイルは約 410 行の REPL 制御コアのみを担う (リファクタリング前は約 2500 行)。`buildContext()` で `ReplContext` を構築し、`buildCommandMap()` に遅延参照として渡す構造。
 
 設定変更系コマンド (`tablewidth`, `mode`, `notify` 等) は変更を即座に `formatter.ts` のキャッシュ・Notifier・EewEventLogger に反映し、同時に Config ファイルに永続化する。
 
@@ -182,7 +240,7 @@ class ReplHandler {
     stats: TelegramStats,
     statusProviders?: PromptStatusProvider[],
     detailProviders?: DetailProvider[],
-    pipeline?: FilterTemplatePipeline,
+    pipelineController?: PipelineController,
     summaryTracker?: SummaryWindowTracker,
   )
 
@@ -291,7 +349,7 @@ interface CommandEntry {
 
 #### コマンドディスパッチ
 
-`line` イベントで入力を空白分割し、先頭をコマンド名として `resolveCommand()` でハンドラを解決する。コマンド名の大文字小文字は区別しない (case-insensitive)。未知のコマンドにはレーベンシュタイン距離 (距離 2 以内) で typo 候補を提示する。
+`line` イベントで入力を空白分割し、先頭をコマンド名として `resolveCommand()` (`info-handlers.ts` で定義) でハンドラを解決する。コマンド名の大文字小文字は区別しない (case-insensitive)。未知のコマンドには `findSuggestion()` がレーベンシュタイン距離 (距離 2 以内) で typo 候補を提示する。`buildContext()` は `ReplHandler` の内部状態を `ReplContext` インターフェースとして公開し、各ハンドラに渡す。
 
 ##### コマンド短縮形 (エイリアス)
 
@@ -348,7 +406,7 @@ interface CommandEntry {
 3. WebSocket 接続中
 4. 最終受信から 10 秒以上経過
 
-ヒントは `WAITING_TIPS` 配列をラウンドロビンで表示する。初期インデックスはランダム。
+ヒントは `TipShuffler` (デッキベースシャッフル) から `next()` で取得する。カテゴリインターリーブにより同カテゴリ連続を回避し、デッキ消費後は自動再構築する。
 
 #### 設定変更の永続化パターン
 
@@ -384,42 +442,51 @@ interface CommandEntry {
 
 ### 概要
 
-REPL 待機中に定期表示するヒントメッセージの定義ファイル。コマンドの使い方、防災知識、ツールの仕組み、歴史的地震・津波、今後想定される地震に関するヒントを `string[]` 配列として提供する。
+REPL 待機中に定期表示するヒントメッセージの定義ファイル。コマンドの使い方、防災知識、ツールの仕組み、歴史的地震・津波、今後想定される地震に関するヒントをカテゴリ分類された構造体として提供する。
 
-ロジックは一切持たず、純粋なデータ定義のみを担う。表示制御は `repl.ts` の `maybeShowWaitingTip()` が行う。
+ロジックは一切持たず、純粋なデータ定義のみを担う。表示順序の制御は `tip-shuffler.ts` の `TipShuffler` が行う。
 
 ### エクスポートAPI
 
+#### 型
+
+| 名前 | 説明 |
+|---|---|
+| `TipCategoryId` | カテゴリ識別子のユニオン型 (`"commands-basic"` \| `"commands-advanced"` \| `"disaster-prevention"` \| `"tool-internals"` \| `"trivia"` \| `"history-japan"` \| `"history-world"` \| `"future-quakes"`) |
+| `TipCategory` | カテゴリ定義 (`{ id: TipCategoryId; tips: readonly string[] }`) |
+
+#### 定数
+
 | シグネチャ | 説明 |
 |---|---|
-| `const WAITING_TIPS: string[]` | ヒントメッセージの配列 (228 件)。各要素は `"Tip: ..."` 形式の文字列 |
+| `const TIP_CATEGORIES: readonly TipCategory[]` | 8 カテゴリ・計 247 件のヒントメッセージ。各要素は `"Tip: ..."` 形式の文字列 |
 
 ### 内部ロジック
 
-ロジックなし。配列リテラルのみ。
+ロジックなし。型定義と配列リテラルのみ。
 
-ヒントは以下のカテゴリに分類される (コメントで区切り):
+ヒントは以下の 8 カテゴリに分類される:
 
-| カテゴリ | 内容 |
+| カテゴリ ID | 内容 |
 |---|---|
-| コマンド基本 | 各 REPL コマンドの基本的な使い方 |
-| コマンド応用 | コマンドの応用テクニック・組み合わせ |
-| 防災知識 | 地震・津波発生時の行動指針、備蓄、避難 |
-| ツールの仕組み | FlEq の内部動作・電文処理の解説 |
-| 地震・津波の雑学 | 震度・マグニチュード・津波の科学的知識 |
-| 歴史的大地震・津波（日本） | 日本の歴史的地震事例 (貞観地震から能登半島地震まで) |
-| 歴史的大地震・津波（世界） | 世界の歴史的地震事例 (リスボン地震からトルコ・シリア地震まで) |
-| 今後想定される地震 | 南海トラフ地震、首都直下地震、日本海溝・千島海溝沿い地震等の想定 |
+| `commands-basic` | 各 REPL コマンドの基本的な使い方 |
+| `commands-advanced` | コマンドの応用テクニック・組み合わせ |
+| `disaster-prevention` | 地震・津波発生時の行動指針、備蓄、避難 |
+| `tool-internals` | FlEq の内部動作・電文処理の解説 |
+| `trivia` | 震度・マグニチュード・津波の科学的知識 |
+| `history-japan` | 日本の歴史的地震事例 (貞観地震から能登半島地震まで) |
+| `history-world` | 世界の歴史的地震事例 (リスボン地震からトルコ・シリア地震まで) |
+| `future-quakes` | 南海トラフ地震、首都直下地震、日本海溝・千島海溝沿い地震等の想定 |
 
 ### 依存関係
 
 - **インポート元**: なし
-- **接続先**: `ui/repl.ts` が `WAITING_TIPS` をインポートして使用
+- **接続先**: `ui/tip-shuffler.ts` が `TIP_CATEGORIES` をインポートし、カテゴリインターリーブシャッフルに使用
 
 ### 設計ノート
 
 - ロジックとデータを分離することで、ヒント文言の追加・編集が容易になっている。
-- 配列のインデックスはランダム起点でラウンドロビン表示されるため、並び順は表示順と一致しない。
+- 旧 `WAITING_TIPS: string[]` (フラット配列) から `TIP_CATEGORIES: readonly TipCategory[]` (8 カテゴリ構造) にリファクタリングされた。カテゴリ情報を活用して `TipShuffler` が同カテゴリ連続を回避するインターリーブシャッフルを行う。
 
 ---
 
@@ -681,3 +748,514 @@ function displayVolcanoAshfallBatch(
 | `./theme` | `getRoleChalk`, `RoleName` |
 | `../engine/notification/volcano-presentation` | `VolcanoPresentation` |
 | `../engine/messages/volcano-vfvo53-aggregator` | `Vfvo53BatchItems` |
+
+---
+
+## minimap/ ディレクトリ
+
+**ファイルパス**: `src/ui/minimap/` (5 ファイル、`index.ts` 含む、約 526 行)
+
+### 概要
+
+地震・津波・EEW・長周期地震動の発表時に、47 都道府県のグリッドマップ上に最大震度や津波警報レベルを色付きで表示する ASCII ミニマップ機能。ターミナル幅 80 以上で、一定の条件を満たす電文に対して表示される。
+
+### ファイル構成
+
+| ファイル | 責務 |
+|---------|------|
+| `types.ts` | 型定義 (`PrefId`, `PrefDef`, `GridPos`, `PrefPlacement`, `MinimapCell`) |
+| `grid-layout.ts` | 12×13 グリッド上の 47 都道府県配置定義 |
+| `pref-mapping.ts` | エリア名から都道府県 ID への部分文字列マッチング |
+| `minimap-renderer.ts` | ミニマップのセル構築・描画・表示条件判定 |
+| `index.ts` | 型と関数の re-export |
+
+### エクスポートAPI
+
+#### 型 (types.ts)
+
+| 名前 | 説明 |
+|---|---|
+| `PrefId` | 47 都道府県の 2 文字コード (`"HK"` \| `"AO"` \| ... \| `"OK"`) |
+| `PrefDef` | 都道府県定義 (`id: PrefId`, `name: string`, `patterns: string[]`) |
+| `GridPos` | グリッド座標 (`row: number`, `col: number`) |
+| `PrefPlacement` | 都道府県のグリッド配置 (`id`, `cells: GridPos[]`, `anchor: GridPos`) |
+| `MinimapCell` | ミニマップセル (`prefId`, `content: string`, `color?: chalk.Chalk`) |
+
+#### 定数 (grid-layout.ts)
+
+| 名前 | 説明 |
+|---|---|
+| `GRID_ROWS` | グリッド行数 (12) |
+| `GRID_COLS` | グリッド列数 (13) |
+| `PREF_PLACEMENTS: readonly PrefPlacement[]` | 47 都道府県のグリッド配置定義 |
+| `ALL_PREF_IDS: readonly PrefId[]` | 全都道府県 ID の配列 (配置順) |
+
+#### 関数 (pref-mapping.ts)
+
+| シグネチャ | 説明 |
+|---|---|
+| `mapAreaToPref(areaName: string): PrefId \| null` | エリア名 (例: `"石川県能登地方"`) から都道府県 ID へマッピング。部分文字列マッチ |
+
+#### 関数 (minimap-renderer.ts)
+
+| シグネチャ | 説明 |
+|---|---|
+| `renderMinimapForEvent(event: PresentationEvent): string[] \| null` | 公開 API。表示条件を判定し、ミニマップ行配列を返す。非表示なら `null` |
+| `shouldShowMinimap(event: PresentationEvent): boolean` | ミニマップ表示条件の判定 |
+| `buildMinimapCells(event: PresentationEvent): MinimapCell[]` | `PresentationEvent` から 47 都道府県分のセル配列を構築 |
+| `renderMinimap(cells: MinimapCell[]): string[]` | セル配列から 12 行のミニマップテキストを生成 |
+
+### 内部ロジック
+
+#### グリッドレイアウト
+
+12×13 のグリッドに日本地図を模した配置で 47 都道府県を配置する。各セルは `CELL_WIDTH = 6` 文字幅 (`"AA:xx "` 形式)。複数セルを占める都道府県 (北海道 4×2、千葉 1×2、兵庫 1×2 等) はアンカーセルにラベルを、それ以外に継続マーカー (`·····`) を表示する。
+
+グリッド左上の空き領域 (row 0-3, col 0-2) に凡例 (震度色 + 津波略称) をオーバーレイする。
+
+#### 都道府県マッピング
+
+`pref-mapping.ts` は全 47 都道府県の `PrefDef` を定義し、パターン文字列の長い順にソートした索引 (`patternIndex`) を事前構築する。長いパターン優先により、`"東京島しょ"` が `"東京"` より先にマッチする。鹿児島県は `["奄美", "鹿児島"]` の 2 パターンを持つ。
+
+#### 表示条件 (shouldShowMinimap)
+
+| ドメイン | 条件 |
+|---------|------|
+| earthquake | `areaCount > 0` かつ (`maxIntRank >= 4` または `areaCount >= 4`) |
+| eew | `forecastAreaCount > 0` |
+| tsunami | (`forecastAreaCount > 0` または `areaCount > 0`) かつ frameLevel が critical/warning/normal |
+| lgObservation | (`areaCount > 0` または `observationCount > 0`) かつ (`maxIntRank >= 4` または count >= 4) |
+
+共通条件: ターミナル幅 80 以上、取消電文は非表示。
+
+#### セル構築 (buildMinimapCells)
+
+- earthquake/lgObservation/eew: エリア名から都道府県にマッピングし、同一県内の最大震度を採用 (数値ランクで比較)
+- tsunami: エリア名から都道府県にマッピングし、最も重い津波警報種別を採用。略称: `MJ` (大津波警報)、`WN` (津波警報)、`AD` (津波注意報)
+
+### 依存関係
+
+- **インポート元**: `chalk`, `../../engine/presentation/types` (`PresentationEvent`), `../formatter` (`intensityColor`, `intensityToNumeric`)
+- **接続先**: `earthquake-formatter.ts`, `eew-formatter.ts` 等からミニマップ描画のために呼ばれる
+
+### 設計ノート
+
+- 型定義・グリッドレイアウト・マッピング・レンダリングを 4 ファイルに分離し、各責務を明確にしている。
+- `PresentationEvent` を入力とすることで、電文タイプごとの分岐を `buildMinimapCells` に集約している。
+- `patternIndex` はモジュール読み込み時に 1 回だけ構築し、以降のマッチングは O(n) の線形スキャンで行う。
+
+---
+
+## summary/ ディレクトリ
+
+**ファイルパス**: `src/ui/summary/` (6 ファイル、`index.ts` 含む、約 482 行)
+
+### 概要
+
+`PresentationEvent` から幅適応型の 1 行サマリー文字列を生成するモジュール。compact モードやレンダーバッファの recap セクションで使用される。トークンベースのアダプティブレイアウトにより、ターミナル幅に応じて情報の取捨選択と短縮を自動で行う。
+
+### ファイル構成
+
+| ファイル | 責務 |
+|---------|------|
+| `types.ts` | 型定義 (`SummaryToken`, `SummaryModel`, `SummaryPriority`) |
+| `summary-model.ts` | `PresentationEvent` → `SummaryModel` 変換 |
+| `token-builders.ts` | ドメイン別トークン構築 (8 ドメイン対応) |
+| `width-fit.ts` | トークン列の幅適応アルゴリズム |
+| `summary-line.ts` | エントリポイント (`renderSummaryLine`) |
+| `index.ts` | `renderSummaryLine` の re-export |
+
+### エクスポートAPI
+
+#### 型 (types.ts)
+
+| 名前 | 説明 |
+|---|---|
+| `SummaryPriority` | `0 \| 1 \| 2 \| 3 \| 4`。0 が最高優先 |
+| `SummaryToken` | トークン定義。`id`, `text`, `shortText?`, `priority: SummaryPriority`, `minWidth`, `preferredWidth`, `dropMode: "never" \| "shorten" \| "drop"` |
+| `SummaryModel` | サマリーモデル。`domain`, `severity`, `title?`, `location?`, `magnitude?`, `maxInt?`, `maxLgInt?`, `headline?`, `volcanoName?`, `serial?`, `areaNames?` |
+
+#### 関数
+
+| シグネチャ | ファイル | 説明 |
+|---|---|---|
+| `buildSummaryModel(event: PresentationEvent): SummaryModel` | summary-model.ts | `PresentationEvent` から `SummaryModel` を構築。`FrameLevel` → severity ラベル変換 (`critical`→`"[緊急]"`, `warning`→`"[警告]"`, `normal`→`"[情報]"`, `info`→`"[通知]"`, `cancel`→`"[取消]"`) |
+| `buildSummaryTokens(event: PresentationEvent, model: SummaryModel): SummaryToken[]` | token-builders.ts | ドメイン別にトークン列を構築するディスパッチャ |
+| `fitTokensToWidth(tokens: SummaryToken[], maxWidth: number): string` | width-fit.ts | トークン列を指定幅に収まるよう適応的に結合 |
+| `renderSummaryLine(event: PresentationEvent, maxWidth?: number): string` | summary-line.ts | 公開エントリポイント。model→tokens→fit の 3 段パイプライン |
+
+### 内部ロジック
+
+#### ドメイン別トークンビルダー (token-builders.ts)
+
+`buildSummaryTokens()` が `model.domain` で分岐し、8 つのドメイン別ビルダーを呼び出す:
+
+| ビルダー | ドメイン | 主なトークン |
+|---------|---------|-------------|
+| `buildEewTokens` | eew | severity, kind (EEW警報/予報/取消), serial, hypocenter, maxInt, magnitude, depth, forecastAreaTop |
+| `buildEarthquakeTokens` | earthquake | severity, type (VXSE51/52/53/61 別), hypocenter, magnitude, maxInt, maxLgInt, topAreas |
+| `buildTsunamiTokens` | tsunami | severity, bannerKind, topAreas, areaCount, hypocenter, magnitude |
+| `buildVolcanoTokens` | volcano | severity, type (VFVO50/52/53/51/60 別), volcanoName, alertLevel, areaCount, headline |
+| `buildSeismicTextTokens` | seismicText | severity, type, headline |
+| `buildLgObservationTokens` | lgObservation | severity, type, hypocenter, maxLgInt, maxInt, topAreas, magnitude, depth |
+| `buildNankaiTroughTokens` | nankaiTrough | severity, type, headline |
+| `buildRawTokens` | raw | severity, RAW, type, title, headline, office |
+
+ヘルパー関数:
+- `shortenHypocenter(name)`: 地方・県名の末尾パターン除去 (例: `"石川県能登地方"` → `"能登"`)
+- `topAreaTokenParts(names, limit)`: 先頭 n 件を結合し、超過分は `"ほかN"` の shortText を生成
+
+#### 幅適応アルゴリズム (width-fit.ts)
+
+1. 全トークンの `preferredWidth` 合計 + セパレータ (`"  "`, 幅 2) がターミナル幅以内 → そのまま結合
+2. 超過時: priority 4 → 3 → 2 の順で `dropMode === "drop"` のトークンを除去
+3. まだ超過: `dropMode === "shorten"` かつ `shortText` ありのトークンを短縮版に置換
+4. 結果をセパレータで結合して返す
+
+### 依存関係
+
+- **インポート元**: `../../engine/presentation/types` (`PresentationEvent`, `PresentationDomain`), `../formatter` (`FrameLevel`, `visualWidth`)
+- **接続先**: `formatter.ts` の compact モード出力、`RenderBuffer` の recap セクションで使用
+
+### 設計ノート
+
+- トークンの `priority` と `dropMode` を組み合わせた段階的劣化 (graceful degradation) により、狭い幅でも重要情報を維持する。
+- `SummaryModel` を中間表現として挟むことで、トークンビルダーが `PresentationEvent` の生データに直接依存しすぎない構造にしている。
+- `renderSummaryLine` は `index.ts` 経由でのみ re-export され、内部モジュール (`summary-model`, `token-builders`, `width-fit`) は非公開。
+
+---
+
+## repl-handlers/ ディレクトリ
+
+**ファイルパス**: `src/ui/repl-handlers/` (6 ファイル、`index.ts` 含む、約 2195 行)
+
+### 概要
+
+`repl.ts` から分離されたコマンドハンドラ群。型定義・コマンド定義ファクトリ・3 カテゴリのハンドラファイルで構成される。`ReplContext` インターフェースにより `ReplHandler` の内部状態へのアクセスを制御する。
+
+### ファイル構成
+
+| ファイル | 責務 | 行数目安 |
+|---------|------|---------|
+| `types.ts` | `CommandEntry`, `CommandCategory`, `SubcommandEntry`, `ReplContext`, `CATEGORY_LABELS` の定義 | ~70 |
+| `command-definitions.ts` | `buildCommandMap()` ファクトリ。40 以上のコマンド定義を生成 | ~290 |
+| `info-handlers.ts` | 情報・ステータス系 9 ハンドラ + `COMMAND_ALIASES` (17 件) + `CATEGORY_ALIASES` (6 件) + `resolveCommand()` | ~640 |
+| `settings-handlers.ts` | 設定変更系 16 ハンドラ | ~650 |
+| `operation-handlers.ts` | 操作系 5 ハンドラ | ~540 |
+| `index.ts` | 型・関数の re-export | ~5 |
+
+### エクスポートAPI
+
+#### 型 (types.ts)
+
+| 名前 | 説明 |
+|---|---|
+| `CommandCategory` | `"info" \| "status" \| "settings" \| "operation"` |
+| `CATEGORY_LABELS` | カテゴリ日本語ラベル (`info`→`"情報"`, `status`→`"ステータス"`, `settings`→`"設定"`, `operation`→`"操作"`) |
+| `SubcommandEntry` | サブコマンド定義 (`description`, `detail?`) |
+| `CommandEntry` | コマンド定義 (`description`, `detail?`, `category`, `subcommands?`, `handler`) |
+| `ReplContext` | コマンドハンドラが参照する REPL コンテキスト。`config`, `wsManager`, `notifier`, `eewLogger`, `statusLine`, `stats`, `pipelineController`, `summaryTracker`, `commands` 等のフィールドと `updateConfig()`, `buildPromptString()`, `stop()`, `resetTipSchedule()` のヘルパーメソッド |
+
+#### ファクトリ (command-definitions.ts)
+
+| シグネチャ | 説明 |
+|---|---|
+| `buildCommandMap(getCtx: () => ReplContext): Record<string, CommandEntry>` | 全コマンド定義を生成。`getCtx` は遅延参照 |
+
+#### 情報系 (info-handlers.ts)
+
+| シグネチャ | 説明 |
+|---|---|
+| `COMMAND_ALIASES: Record<string, string>` | 17 件のコマンド短縮形マップ |
+| `CATEGORY_ALIASES: Record<string, NotifyCategory>` | 6 件の通知カテゴリ短縮形 (`eq`, `tsu`, `st`, `nt`, `lgob` + `aon`/`aoff`) |
+| `resolveCommand(ctx: ReplContext, name: string): CommandEntry \| undefined` | コマンド名を正規化し、エイリアス解決後にハンドラを返す |
+| `getCurrentSettingValues(ctx: ReplContext): Record<string, { current, options? }>` | 各設定コマンドの現在値と設定可能な値を返す |
+| `handleHelp(ctx, args)` | help コマンド。引数なし: カテゴリ別一覧表示 (現在値・エイリアス付き)。引数あり: 個別コマンド詳細表示 |
+| `handleHistory(ctx, args)` | dmdata.jp API から地震履歴をテーブル表示 |
+| `handleStats(ctx)` | `displayStatistics()` で電文統計を表示 |
+| `handleColors()` | CUD パレット・震度色・長周期階級色・フレームレベル色の一覧表示 |
+| `handleDetail(ctx, args)` | DetailProvider 経由で津波/火山情報を再表示 |
+| `handleStatus(ctx)` | WebSocket 接続状態表示 |
+| `handleConfig()` | Config ファイルの設定一覧表示 |
+| `handleContract(ctx)` | dmdata.jp 契約区分一覧表示 (API 呼び出し) |
+| `handleSocket(ctx)` | dmdata.jp ソケット一覧表示 (API 呼び出し) |
+
+#### 設定系 (settings-handlers.ts)
+
+16 ハンドラ: `handleNotify`, `handleEewLog`, `handleTableWidth`, `handleInfoText`, `handleTipInterval`, `handleMode`, `handleFilter`, `handleFocus`, `handleClock`, `handleNight`, `handleSummary`, `handleSound`, `handleTheme`, `handleMute`, `handleFold`, `handleLimit`
+
+各ハンドラは「引数なし → 現在値表示」「引数あり → ランタイム即時反映 + Config 永続化」の共通パターンに従う。
+
+#### 操作系 (operation-handlers.ts)
+
+5 ハンドラ: `handleTest`, `handleClear`, `handleBackup`, `handleRetry`, `handleQuit`
+
+### 依存関係
+
+| ファイル | 主なインポート元 |
+|---------|----------------|
+| `types.ts` | `../../types`, `../../dmdata/connection-manager`, `../../engine/notification/notifier`, `../../engine/eew/eew-logger`, `../status-line`, `../../engine/filter-template/pipeline-controller`, `../../engine/messages/telegram-stats`, `../../engine/messages/summary-tracker`, `../../engine/monitor/monitor` |
+| `info-handlers.ts` | `../../types`, `../../dmdata/rest-client`, `../../config`, `../../engine/notification/notifier`, `../formatter`, `../theme`, `../statistics-formatter` |
+| `settings-handlers.ts` | `../../types`, `../../config`, `../formatter`, `../theme`, `../../engine/notification/notifier`, `../../engine/filter` |
+| `operation-handlers.ts` | `../test-samples`, `../../engine/notification/sound-player` |
+
+### 設計ノート
+
+- `ReplContext` インターフェースにより、ハンドラが `ReplHandler` の内部実装に直接依存しない。テスト時にモックコンテキストを渡すことが可能。
+- `buildCommandMap()` は `getCtx` を遅延参照するため、`ReplHandler` のコンストラクタ内で呼んでも循環参照にならない。
+- エイリアス解決は `resolveCommand()` に一元化され、コマンド名 → エイリアス名 → コマンドマップの 3 段階で解決する。
+
+---
+
+## night-overlay.ts
+
+**ファイルパス**: `src/ui/night-overlay.ts` (約 61 行)
+
+### 概要
+
+ナイトモード時にテーマの全色を減光する純粋関数モジュール。`ResolvedTheme` を受け取り、パレットとロールの RGB 値を 50% に減衰させた新しい `ResolvedTheme` を返す。危険色ロールは減光対象外とし、緊急情報の視認性を維持する。
+
+### エクスポートAPI
+
+| シグネチャ | 説明 |
+|---|---|
+| `applyNightOverlay(theme: ResolvedTheme): ResolvedTheme` | テーマに夜間オーバーレイを適用。元のテーマは変更しない (純粋関数) |
+| `getExemptRoles(): ReadonlySet<RoleName>` | 減光対象外のロール名一覧を返す (テスト用) |
+
+### 内部ロジック
+
+#### 減光処理
+
+`dimRgb()` が各 RGB チャンネルを `Math.round(v * 0.5)` で半減する。パレットの全 9 色とロールの全スタイル (fg/bg) に適用される。
+
+#### 減光免除ロール (EXEMPT_ROLES)
+
+以下の 6 ロールは減光対象外:
+
+| ロール | 理由 |
+|-------|------|
+| `frameCritical` | critical フレーム罫線 |
+| `tsunamiMajor` | 大津波警報 |
+| `eewWarningBanner` | EEW 警報バナー |
+| `volcanoFlashBanner` | 噴火速報バナー |
+| `intensity6Upper` | 震度 6 強 |
+| `intensity7` | 震度 7 |
+
+### 依存関係
+
+- **インポート元**: `./theme` (`ResolvedTheme`, `ResolvedStyle`, `RoleName`)
+- **接続先**: `theme.ts` の `loadTheme()` 系関数からナイトモード有効時に呼ばれる
+
+### 設計ノート
+
+- 純粋関数として実装され、副作用がない。テーマの immutable 性を維持する。
+- 免除ロールをハードコードすることで、夜間でも緊急情報が通常輝度で表示される。
+
+---
+
+## statistics-formatter.ts
+
+**ファイルパス**: `src/ui/statistics-formatter.ts` (約 247 行)
+
+### 概要
+
+電文受信統計をフレームボックス形式で表示するモジュール。REPL の `stats` コマンドから呼ばれ、カテゴリ別・電文タイプ別の受信件数をテーブル形式で出力する。
+
+### エクスポートAPI
+
+| シグネチャ | 説明 |
+|---|---|
+| `formatStatsDuration(ms: number): string` | ミリ秒を日本語の時間文字列に変換 (`"3日2時間"`, `"45分"` 等) |
+| `displayStatistics(snapshot: StatsSnapshot, now?: Date): void` | 統計をフレームボックスで標準出力に表示 |
+
+### 内部ロジック
+
+#### 表示構成
+
+`displayStatistics()` は `info` レベルのフレームボックスで統計を表示する:
+
+1. **ヘッダー行**: 開始日時、経過時間、合計件数
+2. **カテゴリセクション** (区切り線で分離): カテゴリ別件数ヘッダー + 電文タイプ行
+
+#### 6 カテゴリ
+
+| カテゴリ | ラベル |
+|---------|--------|
+| eew | EEW |
+| earthquake | 地震 |
+| tsunami | 津波 |
+| volcano | 火山 |
+| nankaiTrough | 南海トラフ |
+| other | その他 |
+
+表示順は上記の固定順。件数 0 のカテゴリは非表示。EEW カテゴリのみ `eewEventCount` (イベント数) も表示する。
+
+#### 最大震度内訳
+
+地震カテゴリに `earthquakeMaxIntByEvent` がある場合、震度別の内訳行を追加する。震度は `INTENSITY_ORDER` (`1`, `2`, ..., `7`) の順で表示。
+
+#### TYPE_LABELS
+
+27 種の電文タイプコード (`VXSE43`, `VTSE41`, `VFVO50` 等) に対応する日本語ラベル定数。
+
+### 依存関係
+
+- **インポート元**: `./formatter` (`frameTop`, `frameBottom`, `frameLine`, `frameDivider`, `visualWidth`, `FrameLevel`), `../engine/messages/telegram-stats` (`StatsSnapshot`, `StatsCategory`)
+- **接続先**: `repl-handlers/info-handlers.ts` の `handleStats()` から呼ばれる
+
+### 設計ノート
+
+- フレーム幅はコンテンツ行の最大視覚幅から動的に計算する (`calcWidth`)。
+- カウント列の幅は最大値の桁数に合わせ、右揃えで表示する。
+
+---
+
+## summary-interval-formatter.ts
+
+**ファイルパス**: `src/ui/summary-interval-formatter.ts` (約 81 行)
+
+### 概要
+
+定期要約の出力をフォーマットするモジュール。`SummaryWindowSnapshot` からドメイン別件数と sparkline を生成する。REPL の `summary now` コマンドやタイマー駆動の定期要約で使用される。
+
+### エクスポートAPI
+
+| シグネチャ | 説明 |
+|---|---|
+| `buildSparkline(data: number[]): string` | 数値配列から 8 段階文字 (▁▂▃▄▅▆▇█) の sparkline 文字列を生成 |
+| `formatSummaryInterval(snapshot: SummaryWindowSnapshot, intervalMinutes: number, sparkline: boolean): string` | 要約行をフォーマット。ドメイン別件数 + 最大震度 + sparkline |
+
+### 内部ロジック
+
+#### sparkline 生成
+
+`buildSparkline()` は数値配列の最大値に対する比率で 8 段階の Unicode ブロック文字 (`SPARK_CHARS = "▁▂▃▄▅▆▇█"`) を選択する。全て 0 の場合は `▁` の繰り返し。
+
+#### ドメインラベル
+
+8 ドメインの日本語ラベルマップ:
+
+| ドメイン | ラベル |
+|---------|--------|
+| eew | EEW |
+| earthquake | 地震 |
+| tsunami | 津波 |
+| seismicText | テキスト |
+| lgObservation | 長周期 |
+| volcano | 火山 |
+| nankaiTrough | 南海トラフ |
+| raw | その他 |
+
+#### 出力形式
+
+```
+── 10分要約 ── 地震 3件 | EEW 1件 (最大5弱)
+受信 ▁▂▃▄▁▁▃▅  (60分)
+```
+
+1 行目: ヘッダー + ドメイン別件数 (`|` 区切り) + 最大震度。2 行目 (sparkline 有効時): sparkline + ウィンドウ幅。
+
+### 依存関係
+
+- **インポート元**: `chalk`, `../engine/messages/summary-tracker` (`SummaryWindowSnapshot`, `WINDOW_MINUTES`)
+- **接続先**: `repl-handlers/settings-handlers.ts` の `handleSummary()` と `engine/monitor/monitor.ts` の要約タイマーから呼ばれる
+
+---
+
+## status-line.ts
+
+**ファイルパス**: `src/ui/status-line.ts` (約 77 行)
+
+### 概要
+
+REPL プロンプトのプレフィックス文字列を組み立てるクラス。接続状態のパルス表示、経過時間/現在時刻の切替、最終受信時刻の追跡を担う。
+
+### エクスポートAPI
+
+#### StatusLine クラス
+
+```typescript
+class StatusLine {
+  tick(): void
+  setConnected(connected: boolean): void
+  markMessageReceived(): void
+  setClockMode(mode: PromptClock): void
+  getClockMode(): PromptClock
+  buildPrefix(options?: { noSuffix?: boolean }): string
+  getLastMessageTime(): number | null
+  getElapsedBase(): number | null
+}
+```
+
+| メソッド | 説明 |
+|---|---|
+| `tick()` | パルス (`●`/`○`) をトグルする。1 秒タイマーから呼ばれる |
+| `setConnected(connected)` | 接続/切断を記録。接続時に `connectedAt` を設定 |
+| `markMessageReceived()` | 最終受信時刻を更新 |
+| `setClockMode(mode)` | 時計モードを設定 (`"elapsed"` / `"clock"`) |
+| `getClockMode()` | 現在の時計モードを返す |
+| `buildPrefix(options?)` | プロンプトプレフィックスを生成。`noSuffix: true` で `"]> "` を省略可 |
+| `getLastMessageTime()` | 最終受信時刻 (エポックミリ秒) を返す |
+| `getElapsedBase()` | 経過時間の基準時刻 (`lastMessageTime ?? connectedAt`) を返す |
+
+### 内部ロジック
+
+#### プロンプト形式
+
+- 接続中: `FlEq [● HH:MM:SS]> ` (パルス点滅)
+- 未接続: `FlEq [○ --:--:--]> `
+- `clockMode === "clock"`: 現在時刻を表示
+- `clockMode === "elapsed"`: 最終受信からの経過時間を表示 (`formatElapsedTime` 使用)
+
+### 依存関係
+
+- **インポート元**: `chalk`, `../types` (`PromptClock`), `../ui/formatter` (`formatElapsedTime`)
+- **接続先**: `repl.ts` の `ReplHandler` がインスタンスを保持し、1 秒タイマーで `tick()` を呼ぶ。`repl-handlers/types.ts` の `ReplContext` 経由でハンドラからもアクセスされる
+
+---
+
+## tip-shuffler.ts
+
+**ファイルパス**: `src/ui/tip-shuffler.ts` (約 92 行)
+
+### 概要
+
+待機中ヒントのデッキベースシャッフラ。全カテゴリの Tip をインターリーブしてデッキを構築し、同カテゴリの連続表示を回避する。デッキを使い切ったら自動で再構築する。タイミング制御は持たず、`next()` で次の Tip を返すだけの純粋な順序供給器。
+
+### エクスポートAPI
+
+#### TipShuffler クラス
+
+```typescript
+class TipShuffler {
+  constructor(rng?: () => number)
+  next(): string
+}
+```
+
+| メソッド | 説明 |
+|---|---|
+| `constructor(rng?)` | RNG を注入可能 (デフォルト: `Math.random`)。構築時にデッキを初期生成 |
+| `next()` | 次の Tip 文字列を返す。デッキが空なら自動再構築 |
+
+### 内部ロジック
+
+#### デッキ構築 (rebuildDeck)
+
+1. `TIP_CATEGORIES` の各カテゴリの tips を Fisher-Yates シャッフル
+2. カテゴリインデックス付きでフラット化
+3. `interleave()` で同カテゴリ連続を回避しつつ 1 つのデッキに統合
+
+#### インターリーブアルゴリズム
+
+カテゴリごとのキューに分割し、直前に選んだカテゴリ以外からランダムに 1 つ選択して dequeue する。1 カテゴリしか残っていない場合はそのまま流し込む。
+
+### 依存関係
+
+- **インポート元**: `./waiting-tips` (`TIP_CATEGORIES`)
+- **接続先**: `repl.ts` の `ReplHandler` がインスタンスを保持し、`maybeShowWaitingTip()` 内で `next()` を呼ぶ
+
+### 設計ノート
+
+- RNG を外部注入可能にすることで、テスト時に決定的な順序を再現できる。
+- エポック方式 (全 Tip を 1 回ずつ消費してから再構築) により、同じ Tip が短期間に重複表示されない。

@@ -206,6 +206,73 @@ Config に保存する場合:
 fleq config set nightMode true
 ```
 
+## ミニマップ (minimap)
+
+地震情報・EEW・津波情報・長周期地震動観測で、フル表示のフレーム下に日本全国の震度/津波分布を ASCII グリッドで表示します。
+
+### 表示条件
+
+- ターミナル幅 80 文字以上
+- 取消電文でないこと
+- 地震情報: 最大震度 4 以上、または観測地域 4 箇所以上
+- EEW: 予報区域が 1 つ以上
+- 津波: 予報区域あり かつ critical / warning / normal レベル
+- 長周期地震動: 最大震度 4 以上、または観測地域 4 箇所以上
+- 火山・テキスト系・南海トラフには表示されません
+
+ミニマップは compact モード時には表示されません (compact では `renderSummaryLine` による1行表示のみ)。
+
+## EEW 副回線 (backup)
+
+dmdata.jp の2本目のソケットを EEW 専用の副回線として起動し、EEW の受信冗長性を高めます。primary と backup の両方から受信した電文は `msg.id` で自動重複排除されます。
+
+### 有効化方法
+
+```bash
+# Config に保存
+fleq config set backup true
+
+# REPL で動的に操作
+fleq> backup on     # 副回線を起動
+fleq> backup off    # 副回線を停止
+fleq> backup        # 副回線の状態を表示
+```
+
+### 動作
+
+- backup 用 config は `classifications` を EEW 区分 (`eew.forecast`, `eew.warning`) のみに制限
+- `appName` は `{config.appName}-backup` (primary と区別)
+- EEW 契約がない場合は起動しない (`"no_eew_contract"`)
+- `config.backup: true` の場合、接続確立後に自動起動
+
+### 制限
+
+- dmdata.jp の同時接続上限は 2 本。副回線を起動すると枠を使い切る
+- backup の接続/切断は REPL プロンプトの接続状態表示には影響しない
+
+## フィルタの domain フィールド
+
+`--filter` の `domain` フィールドに指定可能な値:
+
+| 値 | 対象 |
+|-----|------|
+| `"earthquake"` | 地震情報 (VXSE51/52/53/61) |
+| `"eew"` | 緊急地震速報 (VXSE43/44/45) |
+| `"tsunami"` | 津波情報 (VTSE41/51/52) |
+| `"volcano"` | 火山情報 (VFVO50-56/60, VFSVii, VZVO40) |
+| `"seismicText"` | テキスト系 (VXSE56/60, VZSE40) |
+| `"lgObservation"` | 長周期地震動 (VXSE62) |
+| `"nankaiTrough"` | 南海トラフ (VYSE50/51/52/60) |
+| `"raw"` | その他 |
+
+```bash
+# 火山情報だけ表示
+fleq --filter 'domain = "volcano"'
+
+# 火山と地震以外を非表示
+fleq --filter 'domain = "volcano" or domain = "earthquake"'
+```
+
 ## 順序比較の内部ランク
 
 フィルタやフォーカスの条件式で `<`, `<=`, `>`, `>=` を使う際、以下の内部ランクで比較されます。

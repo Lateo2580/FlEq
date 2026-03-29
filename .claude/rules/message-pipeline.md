@@ -30,6 +30,18 @@ paths:
 
 **特記**: VFVO53 は単発処理ではなく `volcano-vfvo53-aggregator.ts` でバッチ集約される。
 
+## 表示パイプライン
+
+`runDisplayPipeline()` (`message-router.ts` 内) が全ルートの統一表示エントリポイント。
+
+```
+ProcessOutcome → toPresentationEvent() → PresentationDiffStore.apply()
+  → shouldDisplay() → summaryTracker.record() → focus判定
+  → renderTemplate() or renderSummaryLine() or displayFn()
+```
+
+通知は filter 非適用のため `runDisplayPipeline` の前に実行される。
+
 ## 電文→パーサ→表示 対応表
 
 | head.type | パーサ | 表示 |
