@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { DEFAULT_CONFIG, TruncationLimits } from "../../types";
+import { DEFAULT_CONFIG, TruncationLimits, NotifyCategory } from "../../types";
 import { listEarthquakes, listContracts, listSockets } from "../../dmdata/rest-client";
 import { printConfig } from "../../config";
 import { NOTIFY_CATEGORY_LABELS } from "../../engine/notification/notifier";
