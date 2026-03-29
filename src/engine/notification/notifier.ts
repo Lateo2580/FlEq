@@ -34,15 +34,30 @@ const CATEGORY_ICON_PREFIX: Record<NotifyCategory, string> = {
   volcano: "volcano",
 };
 
+/** resolveIconPath の結果キャッシュ。キー: "{category}:{level|''}" */
+const iconPathCache = new Map<string, string | undefined>();
+
+/**
+ * resolveIconPath のキャッシュをクリアする (テスト用)。
+ */
+export function clearIconPathCache(): void {
+  iconPathCache.clear();
+}
+
 /**
  * カテゴリとレベルからアイコンパスを解決する。
  * 3段フォールバック: {prefix}-{level}.png → {prefix}.png → default.png
- * いずれも見つからなければ undefined を返す。
+ * いずれも見つからなければ undefined を返す。結果はキャッシュして再利用する。
  */
 export function resolveIconPath(
   category: NotifyCategory,
   level?: SoundLevel,
 ): string | undefined {
+  const cacheKey = `${category}:${level ?? ""}`;
+  if (iconPathCache.has(cacheKey)) {
+    return iconPathCache.get(cacheKey);
+  }
+
   const prefix = CATEGORY_ICON_PREFIX[category];
   const candidates: string[] = [];
 
@@ -54,9 +69,11 @@ export function resolveIconPath(
 
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {
+      iconPathCache.set(cacheKey, candidate);
       return candidate;
     }
   }
+  iconPathCache.set(cacheKey, undefined);
   return undefined;
 }
 

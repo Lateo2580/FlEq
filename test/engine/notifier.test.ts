@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import { notifyMock } from "../setup";
 
@@ -21,10 +21,14 @@ vi.mock("../../src/logger", () => ({
   warn: vi.fn(),
 }));
 
-import { Notifier, resolveIconPath } from "../../src/engine/notification/notifier";
+import { Notifier, resolveIconPath, clearIconPathCache } from "../../src/engine/notification/notifier";
 import type { ParsedEarthquakeInfo } from "../../src/types";
 
 describe("Notifier", () => {
+  beforeEach(() => {
+    clearIconPathCache();
+  });
+
   it("uses the mocked notifier during tests", () => {
     const notifier = new Notifier();
     notifier.setSoundEnabled(false);
@@ -135,7 +139,10 @@ describe("Notifier", () => {
 });
 
 describe("resolveIconPath", () => {
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearIconPathCache();
+  });
   it("returns {prefix}-{level}.png when it exists", () => {
     const spy = vi.spyOn(fs, "existsSync").mockReturnValue(true);
     const result = resolveIconPath("tsunami", "critical");
