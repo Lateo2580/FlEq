@@ -53,6 +53,8 @@ export interface ShutdownContext {
   resetTerminalTitle: () => void;
   /** VFVO53 バッファの flush + タイマー破棄 */
   flushAndDisposeVolcanoBuffer?: () => void;
+  /** 定期要約タイマーの停止 */
+  stopSummaryTimer?: () => void;
 }
 
 /**
@@ -66,6 +68,7 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
     if (shuttingDown) return;
     shuttingDown = true;
     log.info("シャットダウン中...");
+    ctx.stopSummaryTimer?.();
     ctx.flushAndDisposeVolcanoBuffer?.();
     ctx.eewLogger.closeAll();
     try {

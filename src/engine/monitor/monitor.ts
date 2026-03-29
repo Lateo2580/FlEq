@@ -34,6 +34,7 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
   let disconnectedAt: number | null = null;
   let isFirstConnection = true;
   let replHandler: ReplHandlerType | null = null;
+  let summaryTimerControl: SummaryTimerControl | null = null;
 
   const manager = new MultiConnectionManager(config, {
     onData: (msg) => {
@@ -69,6 +70,7 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
     getReplHandler: () => replHandler,
     resetTerminalTitle,
     flushAndDisposeVolcanoBuffer,
+    stopSummaryTimer: () => summaryTimerControl?.stop(),
   });
 
   // REPL ハンドラ (遅延ロード)
@@ -78,7 +80,7 @@ export async function startMonitor(config: AppConfig, pipeline?: FilterTemplateP
   registerShutdownSignals(shutdown);
 
   // 定期要約タイマー
-  const summaryTimerControl = createSummaryTimerControl(config, summaryTracker, () => replHandler);
+  summaryTimerControl = createSummaryTimerControl(config, summaryTracker, () => replHandler);
   replHandler.setSummaryTimerControl(summaryTimerControl);
 
 
