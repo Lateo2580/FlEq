@@ -2,6 +2,102 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.51.0](https://github.com/Lateo2580/FlEq/compare/v1.50.1...v1.51.0) (2026-03-29)
+
+
+### 機能追加
+
+* **compact:** add width-adaptive summary line display (Phase 3) ([2a747ef](https://github.com/Lateo2580/FlEq/commit/2a747efc12379c72c458a2767e328a83096ed3b4))
+* **diff/focus:** add PresentationDiffStore and focus mode (Phase 4) ([00f7cb3](https://github.com/Lateo2580/FlEq/commit/00f7cb3d65558f92bd34b1bc6e0e73374fe0b5d2))
+* distribute waiting tips across categories with epoch-deck shuffler ([fd87c84](https://github.com/Lateo2580/FlEq/commit/fd87c84b99c0fb83dec47f3205f1d3a0c70213da))
+* **filter/template:** add --filter and --template with REPL support (Phase 2) ([7acad77](https://github.com/Lateo2580/FlEq/commit/7acad777e11cdb0955fba97a8c64d250db40d1d8))
+* **integration:** volcano pipeline + final fixes + documentation ([a2ffae1](https://github.com/Lateo2580/FlEq/commit/a2ffae139eb0893406a0128e04542c3ec0d7e205))
+* **minimap:** add 47-prefecture area-to-pref mapping ([1b0a58a](https://github.com/Lateo2580/FlEq/commit/1b0a58a8926097965dd19d1e559d73cd07fbe6e0))
+* **minimap:** add 47-prefecture grid layout ([eab5f1b](https://github.com/Lateo2580/FlEq/commit/eab5f1b4376bad7bb1b6a31661f3b18dada5f819))
+* **minimap:** add ASCII minimap with 12-block Japan layout (Phase 7) ([195f404](https://github.com/Lateo2580/FlEq/commit/195f404c3fd2b33a2e0aafa9396d45c035a2939b))
+* **minimap:** rewrite renderer for 47-prefecture grid layout ([70d0e95](https://github.com/Lateo2580/FlEq/commit/70d0e95d26cbccb476f73531f510a73ae334f368))
+* **night:** add night mode as theme overlay (Phase 6) ([b206b22](https://github.com/Lateo2580/FlEq/commit/b206b22000666bff18b6ed65aa29352e1bda6434))
+* **presentation:** add PresentationEvent common layer (Phase 1) ([7afdea5](https://github.com/Lateo2580/FlEq/commit/7afdea57960c192996fa10b83fd448a91f8ef87c))
+* **rest:** REST API に指数バックオフ付きリトライ機構を追加 ([3837964](https://github.com/Lateo2580/FlEq/commit/3837964545b064b7ad856d95e5bb3185dc77a586))
+* **site:** add CSS with light/dark theme and navbar/hero styles ([6213fd3](https://github.com/Lateo2580/FlEq/commit/6213fd3dcaa8314f854c31e421372d24b2113e1a))
+* **site:** add dark mode toggle, copy button, smooth scroll ([2fdde07](https://github.com/Lateo2580/FlEq/commit/2fdde0784805e70ca26b88fbfaa367d80bc42625))
+* **site:** add features section with responsive grid ([add41eb](https://github.com/Lateo2580/FlEq/commit/add41ebf6fa0db46e58a2aa40bb82eb8f0930c33))
+* **site:** add footer with links and attribution ([24e055f](https://github.com/Lateo2580/FlEq/commit/24e055faeaba03ed5c9fe92100a658586115b01a))
+* **site:** add HTML skeleton with navbar and hero section ([0de85af](https://github.com/Lateo2580/FlEq/commit/0de85afa569daf9aa9fa471e0f5bf2af9bf72fa5))
+* **site:** add install section with steps, prerequisites, and OS table ([4f2db43](https://github.com/Lateo2580/FlEq/commit/4f2db4327f4c0fdfd010eab1db699f066f7d4807))
+* **site:** add screenshot section with terminal mockup ([a65b381](https://github.com/Lateo2580/FlEq/commit/a65b381e8a4bb7f973a0a9af34c682cef89871f4))
+* **site:** add supported categories section ([af495e3](https://github.com/Lateo2580/FlEq/commit/af495e3df7010d9c8ea5321fa07b7e69163716f4))
+* **site:** finalize responsive breakpoints ([202adc2](https://github.com/Lateo2580/FlEq/commit/202adc230bc1c98c45d2c792dee0eefd7aac4eae))
+* **site:** overhaul output preview with tabbed terminal and update content ([94d5354](https://github.com/Lateo2580/FlEq/commit/94d5354bba04970886492a1a15defa68b79575a4))
+* **stats:** add telegram statistics display (Phase 0) ([9d29b82](https://github.com/Lateo2580/FlEq/commit/9d29b821014e8904bf4979c5da821898fd08a7fd))
+* **summary:** add periodic summary with sparkline (Phase 5) ([fc4879c](https://github.com/Lateo2580/FlEq/commit/fc4879c359f4ff8368a05e01490644451f2ae682))
+* **ui:** add renderGroupedItemList helper for compact area display ([06afba3](https://github.com/Lateo2580/FlEq/commit/06afba3fdb2a70fa3543c8197fab7520f2246144))
+
+
+### バグ修正
+
+* **config:** summaryInterval のバリデーションを追加し窓幅を統一 ([0fccdb8](https://github.com/Lateo2580/FlEq/commit/0fccdb838e3b2ea6b34d82adc8e0dc24b36dfdc9))
+* **diff-store:** previous Map に TTL/クリーンアップを追加しメモリ蓄積を防止 ([7b9434a](https://github.com/Lateo2580/FlEq/commit/7b9434a5c502413cd8913db5571586b7ac5edfdd))
+* **filter,template:** ReDoS 対策・実行時 try-catch・パーサ再帰深度制限を追加 ([05d9a6f](https://github.com/Lateo2580/FlEq/commit/05d9a6f545ab1df826c9a9b02aada05a32fbdd24))
+* info-handlers.ts に NotifyCategory の import を追加 ([5ab9df0](https://github.com/Lateo2580/FlEq/commit/5ab9df0d9d20e1aaae70aa8caf4d533420339f17))
+* **monitor:** シャットダウン時に要約タイマーを停止 ([24099b1](https://github.com/Lateo2580/FlEq/commit/24099b1ad024fe30204a016b2a499eb3a510b48e))
+* **router:** volcanoMsgCache に TTL を追加し残留エントリを防止 ([db4c683](https://github.com/Lateo2580/FlEq/commit/db4c683bdea28e468aedad28e3a88822da4305b4))
+* **site:** address code review findings ([28dda04](https://github.com/Lateo2580/FlEq/commit/28dda04158e898255591b2343a03bbb492c32e76))
+* **site:** fix CSS dark mode fallback for no-JS scenarios ([59e3ba1](https://github.com/Lateo2580/FlEq/commit/59e3ba1b8f69263449eed55ddade9b381d137cf8))
+* **sound:** Windows カスタム通知音が再生されないバグを修正 ([69486a8](https://github.com/Lateo2580/FlEq/commit/69486a8c4276080917ea95f2896ff3b9e8d837a8))
+* **telegram-stats:** eewEventIds/earthquakeMaxIntByEvent にサイズ上限を追加 ([7c6ff34](https://github.com/Lateo2580/FlEq/commit/7c6ff34fd7f9474bf8e912163819b6be4dd215a6))
+* **ui:** summary/minimap の PresentationEvent フィールド参照を修正 ([b85e8c1](https://github.com/Lateo2580/FlEq/commit/b85e8c1e0e0b8a9b25b2049fdd687cac70cf8b8e))
+* **ws:** 孤立ソケット防止のため doConnect に多層世代チェックを追加 ([f671708](https://github.com/Lateo2580/FlEq/commit/f67170815b0d712a78aac6d6225801dddf635162))
+* セキュリティ・互換性の修正8件 ([ad557be](https://github.com/Lateo2580/FlEq/commit/ad557bed33136e5adb9c5d8d6f0b3db94e784df9))
+
+
+### パフォーマンス改善
+
+* **filter:** 正規表現パターンをコンパイル時にキャッシュ ([545c725](https://github.com/Lateo2580/FlEq/commit/545c725ef3f13f07a2b70aaed512a1358e7fa438))
+* **notifier:** resolveIconPath の結果をキャッシュ ([6e104c9](https://github.com/Lateo2580/FlEq/commit/6e104c933c88b99a3a3a4321516f71d2a99c218f))
+* **sound:** 音声再生を有界キューで直列化しタイムアウトを追加 ([675748b](https://github.com/Lateo2580/FlEq/commit/675748ba5e3cc2eb2257c18a708840a59fa1e4ff))
+
+
+### リファクタリング
+
+* apply Claude Code best practices — rules, commands, hooks, slim CLAUDE.md ([9fda668](https://github.com/Lateo2580/FlEq/commit/9fda66837cd107797944e00cc329eabbe8b03ac7))
+* **eew:** use renderGroupedItemList for compact forecast area display ([eb6ef92](https://github.com/Lateo2580/FlEq/commit/eb6ef9234c1a9cc3a5ef6d9ca56770202288e52c))
+* FrameLevel を ui/formatter から types.ts に移動 ([beb7893](https://github.com/Lateo2580/FlEq/commit/beb789352cef9577382ec9402a024046e4d1babc))
+* **minimap:** remove old block-mapping, update exports for v2 ([b75392a](https://github.com/Lateo2580/FlEq/commit/b75392a39a6d5c2f728459a59e184350e814addb))
+* **minimap:** replace BlockId with PrefId (47 prefectures) ([118a3ad](https://github.com/Lateo2580/FlEq/commit/118a3ad952d96c3793625c9590f455c97f7af4dd))
+* **parser:** 6つのparse関数の共通前処理を extractBaseReport に集約 ([8eed90f](https://github.com/Lateo2580/FlEq/commit/8eed90fc946f85820d9ba35104f24897417ee1e8))
+* **repl:** repl.ts を大規模リファクタリング (2,500行→310行) ([abf8253](https://github.com/Lateo2580/FlEq/commit/abf825351ad2ad184ee03b3130b5d147536a6092))
+* **router:** 表示パイプラインを runDisplayPipeline に共通化 ([08b7a84](https://github.com/Lateo2580/FlEq/commit/08b7a84712f4b2834e7b8b3bf571a0b1fd4a2e4f))
+* **ui:** CJK文字幅判定の重複を isWideChar ヘルパーに統合 ([3ad362a](https://github.com/Lateo2580/FlEq/commit/3ad362a2544774593bd2007e2a16cfd765091c16))
+* **ui:** use renderGroupedItemList for compact long-period area display ([44577f6](https://github.com/Lateo2580/FlEq/commit/44577f6f7b13506ce742433f50273ceb03f0a491))
+* **volcano:** use renderSimpleNameList, remove municipality truncation ([6b9a8d6](https://github.com/Lateo2580/FlEq/commit/6b9a8d6b91d89885d3bd61b5420fba3201f8abf4))
+* **ws:** close/error ハンドラの重複処理を onDisconnect に統合 ([fc84374](https://github.com/Lateo2580/FlEq/commit/fc84374d90f0acf5d9a80423f7e522bc11694c0c))
+* アーキテクチャリファクタリング3件 (W8/W7/C2) ([724c2a0](https://github.com/Lateo2580/FlEq/commit/724c2a0b6f4a85cb570e66d4ea621a575eeb3085))
+* 未使用フィールドの削除 ([16e9e12](https://github.com/Lateo2580/FlEq/commit/16e9e1262444c6c42eb759e806af1838d2acbca9))
+
+
+### ドキュメント
+
+* add Claude Harness policy and hook configuration ([91f5b54](https://github.com/Lateo2580/FlEq/commit/91f5b54d4912d3a7a0172f7e9864137a62cd99fc))
+* add landing page design spec ([b1acb2b](https://github.com/Lateo2580/FlEq/commit/b1acb2b9ec0476b9621f17f4d64765609903a7a8))
+* add landing page implementation plan ([8afda8a](https://github.com/Lateo2580/FlEq/commit/8afda8af92ef6ba3ad712d65152b67f6895d65f4))
+* Codexレビューのフィードバックを設計・プランに反映 ([1f1c71b](https://github.com/Lateo2580/FlEq/commit/1f1c71baa56b2ea6d96cd3ee1eb03d81450e7f0c))
+* **engine:** engine.md の critical 乖離10件を修正 ([36a598e](https://github.com/Lateo2580/FlEq/commit/36a598e68ff2f57147b1179493109b0836f6fecd)), closes [#3](https://github.com/Lateo2580/FlEq/issues/3)
+* fix GitHub Pages deployment method in landing page spec ([26df90a](https://github.com/Lateo2580/FlEq/commit/26df90a804c9fb1a423164cc459a5395fc7a51fc))
+* **minimap:** add implementation plan and fix spec overlaps ([57b5414](https://github.com/Lateo2580/FlEq/commit/57b541434f45cd0519529494349657668cdc5599))
+* **minimap:** add v2 design spec for prefecture-level ASCII minimap ([20b47d0](https://github.com/Lateo2580/FlEq/commit/20b47d0a7c0835f5fb6c609df4e5ba2ea0f45b74))
+* remove hamburger menu from landing page spec ([756132a](https://github.com/Lateo2580/FlEq/commit/756132abf323a420512b3ea075dab860b146175f))
+* root.md/dmdata.md/display-reference.md の critical 乖離を修正 ([b39fbad](https://github.com/Lateo2580/FlEq/commit/b39fbad9f49951c7696f85c21c082a0eff9215b7))
+* **site:** 対応区分・機能説明を実装と同期 ([4b83a79](https://github.com/Lateo2580/FlEq/commit/4b83a7988e5d10279bae64bfe26805f0bd1cc96a))
+* **specs:** add telegram statistics feature design ([39916a4](https://github.com/Lateo2580/FlEq/commit/39916a42a549694d7a248776f90bb3650f234bbe))
+* **specs:** address Codex review feedback on telegram statistics spec ([5f22851](https://github.com/Lateo2580/FlEq/commit/5f22851500fd2c9c1e7cd19c322fd2c6f3c51b5c))
+* summary コマンドの help 一覧に間隔設定可能な旨を追記 ([e55c769](https://github.com/Lateo2580/FlEq/commit/e55c76920a3ed7d5ee72d02b4dbedfcba9e327f8))
+* **ui:** add JSDoc note about renderSimpleNameList label styling ([5e74594](https://github.com/Lateo2580/FlEq/commit/5e745943e514960f9d398e834664d045e0476a55))
+* **ui:** ui.md の critical 乖離5件を修正 ([d0e336e](https://github.com/Lateo2580/FlEq/commit/d0e336e28ea6dbbf27339a9e38f4accdab9fcb24))
+* ヘルスチェックで検出されたドキュメント乖離31件を解消 ([f428dc7](https://github.com/Lateo2580/FlEq/commit/f428dc7124add03c32d1cff723af5451e45ab952))
+* 総合ヘルスチェック実装プランを追加 ([5767864](https://github.com/Lateo2580/FlEq/commit/5767864ad7bbc75e131315a729b423994adaeb92))
+* 総合ヘルスチェック設計を追加 ([da35d32](https://github.com/Lateo2580/FlEq/commit/da35d32451c8fd9b5b9010395ba0d6039a93f01d))
+
 ## [1.50.1](https://github.com/Lateo2580/FlEq/compare/v1.50.0...v1.50.1) (2026-03-23)
 
 
