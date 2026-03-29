@@ -69,6 +69,8 @@ export class WebSocketManager implements ConnectionManager {
   /** 接続を開始する */
   async connect(): Promise<void> {
     this.shouldRun = true;
+    // 既存の再接続タイマーと CONNECTING 中のソケットを中止してから新規接続する
+    this.cancelInflight();
     const seq = ++this.connectSeq;
     await this.doConnect(seq);
   }
@@ -106,6 +108,23 @@ export class WebSocketManager implements ConnectionManager {
     }
   }
 
+  /** 再接続タイマーと CONNECTING 中のソケットを中止する */
+  private cancelInflight(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    // CONNECTING 中のソケットがあれば閉じて孤立を防止
+    if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
+      try {
+        this.ws.close();
+      } catch {
+        // close() 自体の失敗は無視
+      }
+      this.ws = null;
+    }
+  }
+
   /** close/error 共通の切断後処理 */
   private onDisconnect(reason: string): void {
     this.clearTimers();
@@ -120,12 +139,18 @@ export class WebSocketManager implements ConnectionManager {
 
   private async doConnect(seq: number): Promise<void> {
     try {
+      // REST API 呼び出し前に世代チェック — 古い再接続タイマーやシャットダウン後の呼び出しを弾く
+      if (!this.shouldRun || seq !== this.connectSeq) {
+        log.debug("接続中断(pre-API): shouldRun=false または世代不一致");
+        return;
+      }
+
       log.info("Socket Start を実行中...");
       const startRes = await prepareAndStartSocket(this.config, this.previousSocketId ?? undefined);
 
-      // close() が呼ばれていたら接続を中断
+      // REST API 完了後に再度世代チェック — API 呼び出し中に close() や新しい connect() が来た場合を検出
       if (!this.shouldRun || seq !== this.connectSeq) {
-        log.debug("接続中断: close() が呼ばれたため新しいソケットを作成しません");
+        log.debug("接続中断(post-API): close() または新しい connect() が呼ばれたため新しいソケットを作成しません");
         return;
       }
 
@@ -135,6 +160,12 @@ export class WebSocketManager implements ConnectionManager {
 
       const wsUrl = this.endpointSelector.resolveUrl(startRes.websocket.url);
       log.info(`WebSocket に接続中: ${wsUrl.replace(/ticket=.*/, "ticket=***")}`);
+
+      // WebSocket 作成前に最終チェック
+      if (!this.shouldRun || seq !== this.connectSeq) {
+        log.debug("接続中断(pre-WS): close() または新しい connect() が呼ばれたため WebSocket を作成しません");
+        return;
+      }
 
       const socket = new WebSocket(wsUrl, ["dmdata.v2"]);
       this.ws = socket;
@@ -336,6 +367,11 @@ export class WebSocketManager implements ConnectionManager {
     const currentSeq = this.connectSeq;
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
+      // タイマー発火時に世代が変わっていたら（手動 retry や close() があった）何もしない
+      if (!this.shouldRun || currentSeq !== this.connectSeq) {
+        log.debug("再接続タイマー発火をスキップ: shouldRun=false または世代不一致");
+        return;
+      }
       await this.doConnect(currentSeq);
     }, delay);
   }
