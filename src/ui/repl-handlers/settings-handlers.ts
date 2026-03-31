@@ -394,30 +394,38 @@ export function handleFocus(ctx: ReplContext, args: string): void {
 export function handleClock(ctx: ReplContext, args: string): void {
   const trimmed = args.trim();
 
+  const labels: Record<PromptClock, string> = {
+    clock: "現在時刻",
+    elapsed: "経過時間",
+    uptime: "稼働時間",
+  };
+
   if (trimmed.length === 0) {
     const current = ctx.statusLine.getClockMode();
-    const next: PromptClock = current === "elapsed" ? "clock" : "elapsed";
+    const next: PromptClock =
+      current === "elapsed" ? "clock" : current === "clock" ? "uptime" : "elapsed";
     ctx.statusLine.setClockMode(next);
     ctx.config.promptClock = next;
     ctx.updateConfig((c) => { c.promptClock = next; });
-    const label = next === "clock" ? "現在時刻" : "経過時間";
-    console.log(`  プロンプト時計を ${label} に切り替えました。`);
+    console.log(`  プロンプト時計を ${labels[next]} に切り替えました。`);
     return;
   }
 
   const clockLower = trimmed.toLowerCase();
-  if (clockLower === "elapsed") {
-    ctx.statusLine.setClockMode("elapsed");
-    ctx.config.promptClock = "elapsed";
-    ctx.updateConfig((c) => { c.promptClock = "elapsed"; });
-    console.log("  プロンプト時計を 経過時間 に変更しました。");
-  } else if (clockLower === "now") {
-    ctx.statusLine.setClockMode("clock");
-    ctx.config.promptClock = "clock";
-    ctx.updateConfig((c) => { c.promptClock = "clock"; });
-    console.log("  プロンプト時計を 現在時刻 に変更しました。");
+  const modeMap: Record<string, PromptClock> = {
+    elapsed: "elapsed",
+    now: "clock",
+    uptime: "uptime",
+  };
+
+  const mode = modeMap[clockLower];
+  if (mode) {
+    ctx.statusLine.setClockMode(mode);
+    ctx.config.promptClock = mode;
+    ctx.updateConfig((c) => { c.promptClock = mode; });
+    console.log(`  プロンプト時計を ${labels[mode]} に変更しました。`);
   } else {
-    console.log(chalk.yellow("  elapsed または now を指定してください。"));
+    console.log(chalk.yellow("  elapsed, now, uptime のいずれかを指定してください。"));
   }
 }
 

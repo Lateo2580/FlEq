@@ -203,8 +203,11 @@ export function getCurrentSettingValues(ctx: ReplContext): Record<string, { curr
       options: "normal / compact",
     },
     clock: {
-      current: statusLine.getClockMode() === "clock" ? "現在時刻" : "経過時間",
-      options: "elapsed / now",
+      current: (() => {
+        const m = statusLine.getClockMode();
+        return m === "clock" ? "現在時刻" : m === "uptime" ? "稼働時間" : "経過時間";
+      })(),
+      options: "elapsed / now / uptime",
     },
     notify: {
       current: `${onCount}/${totalCount} ON${muteInfo}`,

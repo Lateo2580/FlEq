@@ -152,12 +152,13 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       handler: (args) => settings.handleFocus(getCtx(), args),
     },
     clock: {
-      description: "プロンプト時計の切替 (例: clock / clock elapsed)",
-      detail: "clock: 経過時間/現在時刻をトグル切替\n  clock elapsed: 経過時間表示 (デフォルト)\n  clock now: 現在時刻表示",
+      description: "プロンプト時計の切替 (例: clock / clock uptime)",
+      detail: "clock: 経過時間→現在時刻→稼働時間をトグル切替\n  clock elapsed: 経過時間表示 (デフォルト)\n  clock now: 現在時刻表示\n  clock uptime: 稼働時間表示 (DDD:HH:MM:SS)",
       category: "settings",
       subcommands: {
         elapsed: { description: "経過時間表示 (デフォルト)" },
         now: { description: "現在時刻表示" },
+        uptime: { description: "稼働時間表示 (DDD:HH:MM:SS)" },
       },
       handler: (args) => settings.handleClock(getCtx(), args),
     },
