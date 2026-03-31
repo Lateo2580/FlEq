@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { PromptClock } from "../types";
-import { formatElapsedTime } from "../ui/formatter";
+import { formatElapsedTime, formatUptime } from "../ui/formatter";
 
 /** 現在時刻を HH:mm:ss 形式で返す */
 function formatCurrentTime(): string {
@@ -47,6 +47,21 @@ export class StatusLine {
    */
   buildPrefix(options?: { noSuffix?: boolean }): string {
     const suffix = options?.noSuffix ? "" : chalk.gray("]> ");
+
+    // uptime モードは接続状態に依存しない
+    if (this.clockMode === "uptime") {
+      const dot = this.connectedAt == null
+        ? chalk.gray("○")
+        : this.pulseOn ? chalk.cyan("●") : chalk.gray("○");
+      return (
+        chalk.gray("FlEq [") +
+        dot +
+        chalk.gray(" ") +
+        formatUptime(process.uptime() * 1000) +
+        suffix
+      );
+    }
+
     if (this.connectedAt == null) {
       return (
         chalk.gray("FlEq [") + chalk.gray("○ --:--:--") + suffix
