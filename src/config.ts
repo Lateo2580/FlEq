@@ -136,7 +136,7 @@ const VALID_TEST_MODES = ["no", "including", "only"] as const;
 const VALID_DISPLAY_MODES: DisplayMode[] = ["normal", "compact"];
 
 /** 有効なプロンプト時計モード */
-const VALID_PROMPT_CLOCKS: PromptClock[] = ["elapsed", "clock"];
+const VALID_PROMPT_CLOCKS: PromptClock[] = ["elapsed", "clock", "uptime"];
 
 /** 有効な EEW ログ記録項目 */
 export const VALID_EEW_LOG_FIELDS: EewLogField[] = [
@@ -195,7 +195,7 @@ const CONFIG_KEYS: Record<string, string> = {
   tableWidth: 'テーブル表示幅 (40〜200 / "auto" でターミナル幅に自動追従)',
   infoFullText: "お知らせ電文の全文表示 (true/false)",
   displayMode: '表示モード: "normal" | "compact"',
-  promptClock: 'プロンプト時計: "elapsed" (経過時間) | "clock" (現在時刻)',
+  promptClock: 'プロンプト時計: "elapsed" (経過時間) | "clock" (現在時刻) | "uptime" (稼働時間)',
   waitTipIntervalMin: "待機中ヒント表示間隔 (分, 0で無効)",
   sound: "通知音の有効/無効 (true/false)",
   eewLog: "EEWログ記録の有効/無効 (true/false)",

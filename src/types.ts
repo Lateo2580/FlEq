@@ -5,7 +5,7 @@ export type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
 export type DisplayMode = "normal" | "compact";
 
 /** プロンプト時計モード */
-export type PromptClock = "elapsed" | "clock";
+export type PromptClock = "elapsed" | "clock" | "uptime";
 
 /** EEW ログ記録項目 */
 export type EewLogField =
