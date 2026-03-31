@@ -52,7 +52,7 @@
 | 名前 | 定義 | 説明 |
 |---|---|---|
 | `DisplayMode` | `"normal" \| "compact"` | 表示モード |
-| `PromptClock` | `"elapsed" \| "clock"` | プロンプト時計モード |
+| `PromptClock` | `"elapsed" \| "clock" \| "uptime"` | プロンプト時計モード |
 | `EewLogField` | `"hypocenter" \| "originTime" \| "coordinates" \| "magnitude" \| "forecastIntensity" \| "maxLgInt" \| "forecastAreas" \| "lgIntensity" \| "isPlum" \| "hasArrived" \| "diff" \| "maxIntChangeReason"` | EEW ログ記録項目 |
 | `FrameLevel` | `"critical" \| "warning" \| "normal" \| "info" \| "cancel"` | フレームの優先度レベル |
 | `NotifyCategory` | `"eew" \| "earthquake" \| "tsunami" \| "seismicText" \| "nankaiTrough" \| "lgObservation" \| "volcano"` | 通知カテゴリ |

@@ -52,6 +52,7 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `renderFooter(buf, level, width, event): void` | フレームフッター (URI・ヘッドライン等) を描画する |
 | `formatTimestamp(isoStr: string): string` | ISO 文字列を `"YYYY-MM-DD HH:MM:SS"` に整形 |
 | `formatElapsedTime(ms: number): string` | ミリ秒を `"HH:MM:SS"` 形式に整形 |
+| `formatUptime(ms: number): string` | ミリ秒を `"DDD:HH:MM:SS"` 形式に整形 (未使用ゼロ桁は dim 表示) |
 | `intensityColor(intensity: string): chalk.Chalk` | 震度文字列に対応する chalk スタイルを返す (テーマロール経由) |
 | `lgIntensityColor(lgInt: string): chalk.Chalk` | 長周期地震動階級に対応する chalk スタイルを返す |
 
@@ -1192,7 +1193,7 @@ class StatusLine {
 | `tick()` | パルス (`●`/`○`) をトグルする。1 秒タイマーから呼ばれる |
 | `setConnected(connected)` | 接続/切断を記録。接続時に `connectedAt` を設定 |
 | `markMessageReceived()` | 最終受信時刻を更新 |
-| `setClockMode(mode)` | 時計モードを設定 (`"elapsed"` / `"clock"`) |
+| `setClockMode(mode)` | 時計モードを設定 (`"elapsed"` / `"clock"` / `"uptime"`) |
 | `getClockMode()` | 現在の時計モードを返す |
 | `buildPrefix(options?)` | プロンプトプレフィックスを生成。`noSuffix: true` で `"]> "` を省略可 |
 | `getLastMessageTime()` | 最終受信時刻 (エポックミリ秒) を返す |
@@ -1206,10 +1207,11 @@ class StatusLine {
 - 未接続: `FlEq [○ --:--:--]> `
 - `clockMode === "clock"`: 現在時刻を表示
 - `clockMode === "elapsed"`: 最終受信からの経過時間を表示 (`formatElapsedTime` 使用)
+- `clockMode === "uptime"`: プロセス起動からの稼働時間を表示 (`formatUptime` 使用、`process.uptime()` ベース)。未接続時でも表示される (接続状態非依存)
 
 ### 依存関係
 
-- **インポート元**: `chalk`, `../types` (`PromptClock`), `../ui/formatter` (`formatElapsedTime`)
+- **インポート元**: `chalk`, `../types` (`PromptClock`), `../ui/formatter` (`formatElapsedTime`, `formatUptime`)
 - **接続先**: `repl.ts` の `ReplHandler` がインスタンスを保持し、1 秒タイマーで `tick()` を呼ぶ。`repl-handlers/types.ts` の `ReplContext` 経由でハンドラからもアクセスされる
 
 ---
