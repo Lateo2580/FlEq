@@ -721,6 +721,53 @@ export function formatElapsedTime(ms: number): string {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
+/**
+ * 稼働時間を "DDD:HH:MM:SS" 形式に整形する。
+ * 未使用の上位ゼロ桁は dim (gray) 表示にして画面ヤケを軽減する。
+ * 日数が 3 桁を超える場合は桁数が増える。
+ */
+export function formatUptime(ms: number): string {
+  const safeMs = Math.max(0, ms);
+  const totalSec = Math.floor(safeMs / 1000);
+  const dd = Math.floor(totalSec / 86400);
+  const hh = Math.floor((totalSec % 86400) / 3600);
+  const mm = Math.floor((totalSec % 3600) / 60);
+  const ss = totalSec % 60;
+
+  const ddStr = String(dd).padStart(3, "0");
+  const hhStr = String(hh).padStart(2, "0");
+  const mmStr = String(mm).padStart(2, "0");
+  const ssStr = String(ss).padStart(2, "0");
+
+  const raw = `${ddStr}:${hhStr}:${mmStr}:${ssStr}`;
+
+  // セグメント境界: DDD(0-2) : HH(4-5) : MM(7-8) : SS(10-11)
+  // segStarts は dd < 1000 (3桁) の通常ケース用。
+  // dd >= 1000 では firstNonZero=0 → activeSegStart=0 で全体 white になるため問題なし。
+  const segStarts = [0, 4, 7, 10];
+
+  // 先頭から連続するゼロと区切り文字をスキャン
+  let firstNonZero = -1;
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] !== "0" && raw[i] !== ":") {
+      firstNonZero = i;
+      break;
+    }
+  }
+
+  // dim 境界: 最初の非ゼロ桁を含むセグメントの先頭
+  // 全桁ゼロの場合: SS セグメント (index 10) から通常表示
+  const activeSegStart = firstNonZero === -1
+    ? segStarts[segStarts.length - 1]
+    : segStarts.filter((s) => s <= firstNonZero).pop()!;
+
+  if (activeSegStart === 0) {
+    return chalk.white(raw);
+  }
+
+  return chalk.gray(raw.slice(0, activeSegStart)) + chalk.white(raw.slice(activeSegStart));
+}
+
 /** 区切り線 (後方互換用、新コードではフレーム関数を使用) */
 function separator(char = "─", len = 60): string {
   return chalk.gray(char.repeat(len));

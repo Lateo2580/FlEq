@@ -4,6 +4,7 @@ import {
   intensityColor,
   lgIntensityColor,
   formatElapsedTime,
+  formatUptime,
   formatTimestamp,
   wrapTextLines,
   setFrameWidth,
@@ -972,6 +973,72 @@ describe("formatElapsedTime", () => {
 
   it("負の値は 00:00:00 に丸める", () => {
     expect(formatElapsedTime(-10)).toBe("00:00:00");
+  });
+});
+
+describe("formatUptime", () => {
+  beforeEach(() => {
+    chalk.level = 0;
+  });
+
+  afterEach(() => {
+    chalk.level = 3;
+  });
+
+  it("5分32秒 → 000:00:05:32", () => {
+    const ms = (5 * 60 + 32) * 1000;
+    expect(formatUptime(ms)).toBe("000:00:05:32");
+  });
+
+  it("3日4時間5分32秒", () => {
+    const ms = ((3 * 24 + 4) * 3600 + 5 * 60 + 32) * 1000;
+    expect(formatUptime(ms)).toBe("003:04:05:32");
+  });
+
+  it("100日0時間0分0秒", () => {
+    const ms = 100 * 24 * 3600 * 1000;
+    expect(formatUptime(ms)).toBe("100:00:00:00");
+  });
+
+  it("0ミリ秒", () => {
+    expect(formatUptime(0)).toBe("000:00:00:00");
+  });
+
+  it("負の値は 000:00:00:00 に丸める", () => {
+    expect(formatUptime(-500)).toBe("000:00:00:00");
+  });
+
+  it("999日を超える値も表示できる", () => {
+    const ms = 1234 * 24 * 3600 * 1000;
+    expect(formatUptime(ms)).toBe("1234:00:00:00");
+  });
+
+  it("1時間ちょうど — HH セグメントから通常表示", () => {
+    const ms = 3600 * 1000;
+    expect(formatUptime(ms)).toBe("000:01:00:00");
+  });
+
+  it("1日ちょうど — DD セグメントから通常表示", () => {
+    const ms = 86400 * 1000;
+    expect(formatUptime(ms)).toBe("001:00:00:00");
+  });
+
+  it("1分ちょうど — MM セグメントから通常表示", () => {
+    const ms = 60 * 1000;
+    expect(formatUptime(ms)).toBe("000:00:01:00");
+  });
+
+  it("chalk 有効時、先頭ゼロ桁が dim になる", () => {
+    chalk.level = 3;
+    const ms = (5 * 60 + 32) * 1000;
+    const result = formatUptime(ms);
+    expect(result).toBe(chalk.gray("000:00:") + chalk.white("05:32"));
+  });
+
+  it("chalk 有効時、全桁ゼロでも SS は通常表示", () => {
+    chalk.level = 3;
+    const result = formatUptime(0);
+    expect(result).toBe(chalk.gray("000:00:00:") + chalk.white("00"));
   });
 });
 
