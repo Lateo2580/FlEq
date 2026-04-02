@@ -39,7 +39,7 @@ export function processMessage(
     case "eew": {
       const eewResult = processEew(msg, deps.eewTracker, deps.eewLogger);
       if (eewResult.kind === "ok") return eewResult.outcome;
-      if (eewResult.kind === "duplicate") return null; // 重複 → 表示・統計なし
+      if (eewResult.kind === "duplicate" || eewResult.kind === "suppressed") return null; // 重複・抑制 → 表示・統計なし
       // parse-failed → raw 表示するが統計には含めない（旧 router と同じ動作）
       const raw = processRaw(msg, category);
       raw.stats.shouldRecord = false;
