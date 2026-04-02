@@ -13,17 +13,25 @@ export interface EewDiff {
   hypocenterChange?: boolean;
 }
 
+/** head.type ごとのシリアル・前回情報 */
+interface EewTypeState {
+  lastSerial: number;
+  previousInfo?: ParsedEewInfo;
+}
+
 /** EEW イベントの状態 */
 interface EewEvent {
   eventId: string;
-  lastSerial: number;
-  isWarning: boolean;
+  /** head.type (VXSE43/44/45) ごとのシリアル・前回情報 */
+  byType: Map<string, EewTypeState>;
+  /** VXSE45 を一度でも受信したか */
+  hasSeen45: boolean;
+  /** 警報を一度でも発出したか (イベント単位) */
+  hasWarningIssued: boolean;
   isCancelled: boolean;
   /** 最終報を受信済みか */
   isFinalized: boolean;
   lastUpdate: Date;
-  /** 前回のパース済み EEW 情報 (差分計算用) */
-  previousInfo?: ParsedEewInfo;
   /** バナー色分け用のカラーインデックス (0始まり) */
   colorIndex: number;
 }
@@ -36,6 +44,10 @@ export interface EewUpdateResult {
   isDuplicate: boolean;
   /** キャンセル報か */
   isCancelled: boolean;
+  /** VXSE45 受信後に到着した VXSE43/44 → 表示抑制 */
+  isSuppressed: boolean;
+  /** 予報→警報の昇格が発生したか (イベント単位で初回のみ) */
+  isUpgradeToWarning: boolean;
   /** 現在アクティブなイベント数 */
   activeCount: number;
   /** 前回との差分情報 (更新時のみ) */
@@ -140,6 +152,8 @@ export class EewTracker {
         isNew: true,
         isDuplicate: false,
         isCancelled: info.infoType === "取消",
+        isSuppressed: false,
+        isUpgradeToWarning: false,
         activeCount: this.getActiveCount(),
         colorIndex: 0,
       };
@@ -148,40 +162,61 @@ export class EewTracker {
     const serialRaw = parseInt(info.serial || "", 10);
     const serial: number | null = Number.isFinite(serialRaw) ? serialRaw : null;
     const isCancelled = info.infoType === "取消";
+    const headType = info.type;
     const existing = this.events.get(eventId);
 
     if (existing) {
-      // 既知のイベント — 報数チェック
-      if (!isCancelled && serial != null && serial > 0 && serial <= existing.lastSerial) {
-        // 同じか古い報数 → 重複
+      const typeState = existing.byType.get(headType);
+
+      // 同一 type 内の重複判定
+      if (!isCancelled && serial != null && serial > 0 && typeState && serial <= typeState.lastSerial) {
         return {
           isNew: false,
           isDuplicate: true,
           isCancelled: false,
+          isSuppressed: false,
+          isUpgradeToWarning: false,
           activeCount: this.getActiveCount(),
           colorIndex: existing.colorIndex,
         };
       }
 
-      // 差分計算
-      const diff = existing.previousInfo ? computeDiff(existing.previousInfo, info) : undefined;
-      const previousInfo = existing.previousInfo;
+      // 抑制判定: VXSE45 受信済みなら VXSE43/44 は抑制
+      const isSuppressed = existing.hasSeen45 && (headType === "VXSE43" || headType === "VXSE44");
 
-      // 状態更新
-      if (serial != null) {
-        existing.lastSerial = Math.max(existing.lastSerial, serial);
+      // type 状態の更新 (抑制されても serial・lastUpdate は更新する)
+      const previousInfo = typeState?.previousInfo;
+      if (!typeState) {
+        existing.byType.set(headType, { lastSerial: serial ?? 0, previousInfo: info });
+      } else {
+        if (serial != null) {
+          typeState.lastSerial = Math.max(typeState.lastSerial, serial);
+        }
+        typeState.previousInfo = info;
       }
-      existing.isWarning = existing.isWarning || info.isWarning;
+
+      // hasSeen45 更新
+      if (headType === "VXSE45") {
+        existing.hasSeen45 = true;
+      }
+
+      // 差分計算: 同一 type 内の連続更新でのみ (初めての type では diff なし)
+      const diff = previousInfo ? computeDiff(previousInfo, info) : undefined;
+
+      // 警報昇格判定 (イベント単位)
+      const isUpgradeToWarning = !existing.hasWarningIssued && info.isWarning;
+      existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
       existing.isCancelled = isCancelled;
       existing.lastUpdate = new Date();
-      existing.previousInfo = info;
 
       return {
         isNew: false,
         isDuplicate: false,
         isCancelled,
+        isSuppressed,
+        isUpgradeToWarning,
         activeCount: this.getActiveCount(),
-        diff,
+        diff: isSuppressed ? undefined : diff,
         previousInfo,
         colorIndex: existing.colorIndex,
       };
@@ -189,14 +224,17 @@ export class EewTracker {
 
     // 新規イベント
     const colorIndex = this.nextColorIndex();
+    const byType = new Map<string, EewTypeState>();
+    byType.set(headType, { lastSerial: serial ?? 0, previousInfo: info });
+
     this.events.set(eventId, {
       eventId,
-      lastSerial: serial ?? 0,
-      isWarning: info.isWarning,
+      byType,
+      hasSeen45: headType === "VXSE45",
+      hasWarningIssued: info.isWarning,
       isCancelled,
       isFinalized: false,
       lastUpdate: new Date(),
-      previousInfo: info,
       colorIndex,
     });
 
@@ -204,6 +242,8 @@ export class EewTracker {
       isNew: true,
       isDuplicate: false,
       isCancelled,
+      isSuppressed: false,
+      isUpgradeToWarning: false,
       activeCount: this.getActiveCount(),
       colorIndex,
     };

@@ -13,6 +13,7 @@ function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
     publishingOffice: "気象庁",
     serial: "1",
     eventId: "20240417231454",
+    isAssumedHypocenter: false,
     isTest: false,
     isWarning: false,
     ...overrides,
@@ -536,6 +537,125 @@ describe("EewTracker", () => {
 
       // 両方まだアクティブ
       expect(result.activeCount).toBe(2);
+    });
+  });
+
+  describe("head.type 別シリアル管理", () => {
+    it("同一 eventId で異なる type の報は重複にならない", () => {
+      const vxse45_1 = createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-001" });
+      const vxse43_1 = createEewInfo({ type: "VXSE43", serial: "1", eventId: "ev-001", isWarning: true });
+
+      tracker.update(vxse45_1);
+      const r2 = tracker.update(vxse43_1);
+
+      expect(r2.isDuplicate).toBe(false);
+      expect(r2.isNew).toBe(false);
+    });
+
+    it("同一 type の古い serial は重複扱い", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "10", eventId: "ev-001" }));
+      const dup = tracker.update(createEewInfo({ type: "VXSE45", serial: "5", eventId: "ev-001" }));
+
+      expect(dup.isDuplicate).toBe(true);
+    });
+
+    it("異なる type のシリアルは独立して管理される", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "10", eventId: "ev-001" }));
+      const r = tracker.update(createEewInfo({ type: "VXSE44", serial: "1", eventId: "ev-001" }));
+
+      expect(r.isDuplicate).toBe(false);
+    });
+  });
+
+  describe("isSuppressed (VXSE45 受信後の VXSE43/44 抑制)", () => {
+    it("VXSE45 受信後の VXSE43 は isSuppressed=true", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-001" }));
+      const r = tracker.update(createEewInfo({ type: "VXSE43", serial: "1", eventId: "ev-001" }));
+
+      expect(r.isSuppressed).toBe(true);
+    });
+
+    it("VXSE45 受信後の VXSE44 は isSuppressed=true", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-001" }));
+      const r = tracker.update(createEewInfo({ type: "VXSE44", serial: "1", eventId: "ev-001" }));
+
+      expect(r.isSuppressed).toBe(true);
+    });
+
+    it("VXSE45 未受信なら VXSE43 は isSuppressed=false", () => {
+      tracker.update(createEewInfo({ type: "VXSE44", serial: "1", eventId: "ev-001" }));
+      const r = tracker.update(createEewInfo({ type: "VXSE43", serial: "1", eventId: "ev-001" }));
+
+      expect(r.isSuppressed).toBe(false);
+    });
+
+    it("VXSE45 受信後の VXSE45 自身は isSuppressed=false", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-001" }));
+      const r = tracker.update(createEewInfo({ type: "VXSE45", serial: "2", eventId: "ev-001" }));
+
+      expect(r.isSuppressed).toBe(false);
+    });
+
+    it("抑制時は diff が undefined になる", () => {
+      tracker.update(createEewInfo({
+        type: "VXSE45", serial: "1", eventId: "ev-001",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道", latitude: "N33.2", longitude: "E132.4",
+          depth: "40km", magnitude: "5.0",
+        },
+      }));
+      // VXSE43 の第1報 → 同一 type 内の previousInfo がないので diff なし (別の理由)
+      tracker.update(createEewInfo({
+        type: "VXSE43", serial: "1", eventId: "ev-001",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道", latitude: "N33.2", longitude: "E132.4",
+          depth: "40km", magnitude: "5.0",
+        },
+      }));
+      // VXSE43 の第2報 → 同一 type 内に previousInfo あるが抑制で diff=undefined
+      const r = tracker.update(createEewInfo({
+        type: "VXSE43", serial: "2", eventId: "ev-001",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "愛媛県南予", latitude: "N33.3", longitude: "E132.5",
+          depth: "30km", magnitude: "5.5",
+        },
+      }));
+
+      expect(r.isSuppressed).toBe(true);
+      expect(r.diff).toBeUndefined();
+    });
+  });
+
+  describe("isUpgradeToWarning (警報昇格判定)", () => {
+    it("初回警報で isUpgradeToWarning=true", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "ev-001", isWarning: false }));
+      const r = tracker.update(createEewInfo({ serial: "2", eventId: "ev-001", isWarning: true }));
+
+      expect(r.isUpgradeToWarning).toBe(true);
+    });
+
+    it("2回目以降の警報は isUpgradeToWarning=false", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "ev-001", isWarning: false }));
+      tracker.update(createEewInfo({ serial: "2", eventId: "ev-001", isWarning: true }));
+      const r = tracker.update(createEewInfo({ serial: "3", eventId: "ev-001", isWarning: true }));
+
+      expect(r.isUpgradeToWarning).toBe(false);
+    });
+
+    it("新規イベントでは isUpgradeToWarning=false", () => {
+      const r = tracker.update(createEewInfo({ serial: "1", eventId: "ev-001", isWarning: true }));
+
+      expect(r.isUpgradeToWarning).toBe(false);
+    });
+
+    it("予報のままなら isUpgradeToWarning=false", () => {
+      tracker.update(createEewInfo({ serial: "1", eventId: "ev-001", isWarning: false }));
+      const r = tracker.update(createEewInfo({ serial: "2", eventId: "ev-001", isWarning: false }));
+
+      expect(r.isUpgradeToWarning).toBe(false);
     });
   });
 });

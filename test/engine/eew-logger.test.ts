@@ -45,7 +45,10 @@ function createUpdateResult(
     isNew: true,
     isDuplicate: false,
     isCancelled: false,
+    isSuppressed: false,
+    isUpgradeToWarning: false,
     activeCount: 1,
+    colorIndex: 0,
     ...overrides,
   };
 }
