@@ -212,6 +212,24 @@ describe("parseEarthquakeTelegram", () => {
       expect(result!.earthquake!.magnitude).toBe("6.5");
     });
 
+    it("複数 Coordinate ノード (十進度+度分) から十進度を正しく抽出する", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE61_1, {
+        head: {
+          type: "VXSE61",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
+
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.earthquake).toBeDefined();
+      expect(result!.earthquake!.latitude).toBe("N34.8");
+      expect(result!.earthquake!.longitude).toBe("E138.5");
+      expect(result!.earthquake!.depth).toBe("20km");
+    });
+
     it("取消電文の InfoType=取消 を取得できる", () => {
       const msg = createMockWsDataMessage(FIXTURE_VXSE61_CANCEL, {
         head: {

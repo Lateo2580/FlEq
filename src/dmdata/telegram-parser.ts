@@ -134,11 +134,18 @@ function extractEarthquake(
   const name = str(dig(area, "Name"));
 
   // 座標パース: "+35.7+139.8-10000/" 形式
+  // VXSE61 等では jmx_eb:Coordinate が複数 (十進度 + 度分) 存在し配列になる。
+  // type="震源位置（度分）" を除外して十進度を優先選択する。
+  const rawCoord = dig(area, "jmx_eb:Coordinate") || dig(area, "Coordinate");
+  const coordNode = Array.isArray(rawCoord)
+    ? rawCoord.find(
+        (c: unknown) => str(dig(c, "@_type")) !== "震源位置（度分）"
+      ) ?? rawCoord[0]
+    : rawCoord;
   const coordStr = str(
-    dig(area, "jmx_eb:Coordinate", "#text") ||
-      dig(area, "Coordinate", "#text") ||
-      dig(area, "jmx_eb:Coordinate") ||
-      dig(area, "Coordinate")
+    coordNode != null && typeof coordNode === "object"
+      ? dig(coordNode, "#text")
+      : coordNode
   );
   const { lat, lon, depth } = parseCoordinate(coordStr);
 
