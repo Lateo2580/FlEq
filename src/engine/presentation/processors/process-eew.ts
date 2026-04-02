@@ -10,6 +10,7 @@ import * as log from "../../../logger";
 export type EewProcessResult =
   | { kind: "ok"; outcome: EewOutcome }
   | { kind: "duplicate" }
+  | { kind: "suppressed" }
   | { kind: "parse-failed" };
 
 /**
@@ -30,6 +31,13 @@ export function processEew(
   if (result.isDuplicate) {
     log.debug(`EEW 重複報スキップ: EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     return { kind: "duplicate" };
+  }
+
+  if (result.isSuppressed) {
+    log.debug(`EEW 抑制 (VXSE45優先): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
+    // ログは記録する (抑制されても記録は残す)
+    eewLogger.logReport(eewInfo, result);
+    return { kind: "suppressed" };
   }
 
   // ログ記録

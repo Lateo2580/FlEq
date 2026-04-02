@@ -6,6 +6,7 @@ import {
   createMockWsDataMessage,
   FIXTURE_VXSE43_WARNING_S1,
   FIXTURE_VXSE43_WARNING_S2,
+  FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_CANCEL,
 } from "../../../helpers/mock-message";
@@ -94,6 +95,18 @@ describe("processEew", () => {
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;
     expect(result.outcome.presentation.frameLevel).toBe("cancel");
+  });
+
+  it("VXSE45 受信済みイベントの VXSE44 は suppressed を返す", () => {
+    // First, process VXSE45
+    const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+    const result45 = processEew(msg45, eewTracker, eewLogger);
+    expect(result45.kind).toBe("ok");
+
+    // Then process VXSE44 with the same eventId
+    const msg44 = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+    const result44 = processEew(msg44, eewTracker, eewLogger);
+    expect(result44.kind).toBe("suppressed");
   });
 
   it("state フィールドが正しく設定される", () => {
