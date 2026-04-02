@@ -386,6 +386,12 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     }
   }
 
+  // EventID (同一地震の紐付け用、通常モードのみ表示)
+  if (info.eventId) {
+    buf.push(frameDivider(level, width));
+    buf.push(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
+  }
+
   // フッター
   renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
 

@@ -40,6 +40,7 @@ describe("Notifier", () => {
       reportDateTime: "2026-03-11T12:34:56+09:00",
       headline: null,
       publishingOffice: "気象庁",
+      eventId: null,
       earthquake: {
         originTime: "2026-03-11T12:34:00+09:00",
         hypocenterName: "東京都",
@@ -75,6 +76,7 @@ describe("Notifier", () => {
       reportDateTime: "2026-03-11T12:34:56+09:00",
       headline: null,
       publishingOffice: "気象庁",
+      eventId: null,
       earthquake: {
         originTime: "2026-03-11T12:34:00+09:00",
         hypocenterName: "東京都",
@@ -114,6 +116,7 @@ describe("Notifier", () => {
       reportDateTime: "2026-03-11T12:34:56+09:00",
       headline: null,
       publishingOffice: "気象庁",
+      eventId: null,
       earthquake: {
         originTime: "2026-03-11T12:34:00+09:00",
         hypocenterName: "東京都",

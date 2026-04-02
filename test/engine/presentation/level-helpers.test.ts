@@ -51,6 +51,7 @@ function earthquake(
     reportDateTime: "2024-01-01T00:00:00+09:00",
     headline: null,
     publishingOffice: "気象庁",
+    eventId: null,
     isTest: false,
     ...overrides,
   };

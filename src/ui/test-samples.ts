@@ -157,6 +157,7 @@ export const SAMPLE_EARTHQUAKE = {
   reportDateTime: "2024/01/01 00:00:00",
   headline: "１日００時００分ころ、地震がありました。",
   publishingOffice: "気象庁",
+  eventId: "20240101000000",
   earthquake: {
     originTime: "2024/01/01 00:00:00",
     hypocenterName: "石川県能登地方",
@@ -331,6 +332,7 @@ const FALLBACK_EARTHQUAKE_WARNING = {
   reportDateTime: "2024/01/02 10:00:00",
   headline: "長野県北部で震度4を観測しました。",
   publishingOffice: "気象庁",
+  eventId: null,
   earthquake: {
     originTime: "2024/01/02 09:58:00",
     hypocenterName: "長野県北部",
@@ -357,6 +359,7 @@ const FALLBACK_EARTHQUAKE_CANCEL = {
   reportDateTime: "2024/01/02 10:05:00",
   headline: "先ほどの地震情報を取り消します。",
   publishingOffice: "気象庁",
+  eventId: null,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -367,6 +370,7 @@ const FALLBACK_EARTHQUAKE_ENCHI = {
   reportDateTime: "2024/01/03 08:20:00",
   headline: "日本への津波の影響はありません。",
   publishingOffice: "気象庁",
+  eventId: null,
   earthquake: {
     originTime: "2024/01/03 08:10:00",
     hypocenterName: "台湾付近",
@@ -386,6 +390,7 @@ const FALLBACK_EARTHQUAKE_SHINDO = {
   reportDateTime: "2024/01/04 14:00:00",
   headline: "各地の震度に関する情報です。",
   publishingOffice: "気象庁",
+  eventId: null,
   intensity: {
     maxInt: "5弱",
     areas: [
@@ -404,6 +409,7 @@ const FALLBACK_EARTHQUAKE_LG = {
   reportDateTime: "2024/01/05 19:30:00",
   headline: "関東地方で長周期地震動階級4を観測しました。",
   publishingOffice: "気象庁",
+  eventId: null,
   earthquake: {
     originTime: "2024/01/05 19:27:00",
     hypocenterName: "千葉県北西部",

@@ -264,6 +264,36 @@ describe("parseEarthquakeTelegram", () => {
     });
   });
 
+  describe("eventId 抽出", () => {
+    it("VXSE52 で EventID が取得できる", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE52_HYPO_1, {
+        head: { type: "VXSE52", author: "気象庁", time: new Date().toISOString(), test: false },
+      });
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.eventId).toBe("20091001134500");
+    });
+
+    it("VXSE53 で EventID が取得できる", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
+        head: { type: "VXSE53", author: "気象庁", time: new Date().toISOString(), test: false },
+      });
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.eventId).toBeDefined();
+      expect(typeof result!.eventId).toBe("string");
+    });
+
+    it("VXSE61 で EventID が取得できる", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE61_1, {
+        head: { type: "VXSE61", author: "気象庁", time: new Date().toISOString(), test: false },
+      });
+      const result = parseEarthquakeTelegram(msg);
+      expect(result).not.toBeNull();
+      expect(result!.eventId).toBe("20090811050711");
+    });
+  });
+
   describe("VXSE53 取消報", () => {
     it("InfoType=取消 が正しく反映される", () => {
       const msg = createMockWsDataMessage(FIXTURE_VXSE53_CANCEL, {

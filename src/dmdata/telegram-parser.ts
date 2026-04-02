@@ -486,6 +486,7 @@ export function parseEarthquakeTelegram(
       reportDateTime: str(dig(head, "ReportDateTime")),
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
+      eventId: str(dig(head, "EventID")) || null,
       isTest: msg.head.test,
     };
 

@@ -478,6 +478,8 @@ export interface ParsedEarthquakeInfo {
   headline: string | null;
   /** 発表官署 */
   publishingOffice: string;
+  /** イベントID (同一地震の電文を紐付ける識別子) */
+  eventId: string | null;
   /** 震源情報 */
   earthquake?: {
     /** 発生日時 */
