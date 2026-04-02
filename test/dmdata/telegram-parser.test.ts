@@ -681,6 +681,13 @@ describe("parseEewTelegram", () => {
     });
   });
 
+  // isWarning 判定の網羅状況:
+  // - head.type === "VXSE43" → VXSE43 テストでカバー
+  // - hasWarningAreaKind (Area Kind Code 10-19) → VXSE45 S26 / VXSE44 テストでカバー
+  // - hasWarningHeadlineCode (Headline Code=31) → VXSE45 S26 が該当するが
+  //   hasWarningAreaKind の短絡評価で先に true になるため単独パスは未検証。
+  //   専用フィクスチャ (Headline Code=31 のみ、Area Kind なし) が必要
+  // - classification フォールバック → VXSE45 S1 + eew.warning テストでカバー
   describe("isWarning XML ベース判定", () => {
     it("VXSE43 は head.type から isWarning=true", () => {
       const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);

@@ -9,6 +9,7 @@ import {
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_CANCEL,
+  FIXTURE_VXSE45_FINAL,
 } from "../../../helpers/mock-message";
 
 // fs mock for EewEventLogger
@@ -117,5 +118,44 @@ describe("processEew", () => {
     if (result.kind !== "ok") return;
     expect(result.outcome.state.activeCount).toBeGreaterThanOrEqual(1);
     expect(result.outcome.state.colorIndex).toBeGreaterThanOrEqual(0);
+  });
+
+  it("抑制された取消報でも closeEvent が実行される", () => {
+    // VXSE45 を先に処理 → hasSeen45 = true
+    const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+    processEew(msg45, eewTracker, eewLogger);
+
+    const closeSpy = vi.spyOn(eewLogger, "closeEvent");
+
+    // VXSE45_CANCEL の XML (infoType=取消, eventId=20240417231454) を
+    // head.type=VXSE43 として送信 → 抑制 + 取消のライフサイクル処理
+    const msg43cancel = createMockWsDataMessage(FIXTURE_VXSE45_CANCEL, {
+      classification: "eew.warning",
+      head: { type: "VXSE43", author: "気象庁", time: new Date().toISOString(), test: false },
+    });
+    const result = processEew(msg43cancel, eewTracker, eewLogger);
+
+    expect(result.kind).toBe("suppressed");
+    expect(closeSpy).toHaveBeenCalledWith("20240417231454", "取消");
+  });
+
+  it("抑制された最終報でも closeEvent + finalizeEvent が実行される", () => {
+    // VXSE45_FINAL の eventId (20260101120000) で VXSE45 を先に処理
+    const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_FINAL);
+    processEew(msg45, eewTracker, eewLogger);
+
+    const closeSpy = vi.spyOn(eewLogger, "closeEvent");
+    const finalizeSpy = vi.spyOn(eewTracker, "finalizeEvent");
+
+    // 同じ XML (nextAdvisory 付き) を head.type=VXSE44 として送信 → 抑制 + 最終報処理
+    const msg44final = createMockWsDataMessage(FIXTURE_VXSE45_FINAL, {
+      classification: "eew.forecast",
+      head: { type: "VXSE44", author: "気象庁", time: new Date().toISOString(), test: false },
+    });
+    const result = processEew(msg44final, eewTracker, eewLogger);
+
+    expect(result.kind).toBe("suppressed");
+    expect(closeSpy).toHaveBeenCalledWith("20260101120000", "最終報");
+    expect(finalizeSpy).toHaveBeenCalledWith("20260101120000");
   });
 });
