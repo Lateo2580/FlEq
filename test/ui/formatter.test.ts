@@ -297,7 +297,7 @@ describe("displayEewInfo", () => {
     logSpy.mockRestore();
   });
 
-  it("EEW予報: 予報ヘッダーが表示される", () => {
+  it("EEW予報(VXSE44): 警報地域ありのため警報ヘッダーが表示される", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10, {
       classification: "eew.forecast",
       head: {
@@ -315,8 +315,8 @@ describe("displayEewInfo", () => {
 
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
 
-    // 予報ヘッダー
-    expect(output).toContain("緊急地震速報（予報）");
+    // VXSE44 フィクスチャは警報地域コード (10/11) を含むため isWarning=true → 警報ヘッダー
+    expect(output).toContain("緊急地震速報（警報）");
     // Serial とEventID
     expect(output).toContain("10");
     expect(output).toContain("20240417231454");
@@ -548,7 +548,7 @@ describe("displayEewInfo", () => {
     displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
 
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    expect(output).toContain("緊急地震速報（予報）");
+    expect(output).toContain("緊急地震速報（警報）");
   });
 
   it("colorIndex=1 のバナーは異なる色で表示される", () => {
@@ -581,7 +581,7 @@ describe("displayEewInfo", () => {
 
     // 両方とも緊急地震速報のテキストを含む
     const output1 = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    expect(output1).toContain("緊急地震速報（予報）");
+    expect(output1).toContain("緊急地震速報（警報）");
 
     // バナー行のANSIエスケープが異なることを確認
     expect(banner0).not.toBe(banner1);
@@ -727,6 +727,8 @@ describe("displayEewInfo", () => {
     expect(info).not.toBeNull();
     expect(info!.isAssumedHypocenter).toBe(false);
 
+    // パーサの観測ログ出力をクリアして displayEewInfo の出力だけを検査
+    logSpy.mockClear();
     displayEewInfo(info!, { activeCount: 1, colorIndex: 0 });
 
     // 通常EEWでは装飾行とテキスト行が同じバナースタイル

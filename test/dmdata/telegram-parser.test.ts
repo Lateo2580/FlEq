@@ -680,6 +680,40 @@ describe("parseEewTelegram", () => {
       expect(result!.maxIntChangeReason).toBeUndefined();
     });
   });
+
+  describe("isWarning XML ベース判定", () => {
+    it("VXSE43 は head.type から isWarning=true", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);
+      const result = parseEewTelegram(msg);
+      expect(result!.isWarning).toBe(true);
+    });
+
+    it("VXSE45 S26 (警報地域あり) は isWarning=true", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S26);
+      const result = parseEewTelegram(msg);
+      expect(result!.isWarning).toBe(true);
+    });
+
+    it("VXSE45 S1 (警報地域なし) は isWarning=false", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+      const result = parseEewTelegram(msg);
+      expect(result!.isWarning).toBe(false);
+    });
+
+    it("VXSE44 (警報地域あり) は XML から isWarning=true", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+      const result = parseEewTelegram(msg);
+      expect(result!.isWarning).toBe(true);
+    });
+
+    it("classification=eew.warning でも XML で確認できない場合はフォールバックで true", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1, {
+        classification: "eew.warning",
+      });
+      const result = parseEewTelegram(msg);
+      expect(result!.isWarning).toBe(true);
+    });
+  });
 });
 
 // ── parseSeismicTextTelegram ──

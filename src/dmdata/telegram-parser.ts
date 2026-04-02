@@ -251,6 +251,51 @@ function extractTsunami(body: unknown): ParsedEarthquakeInfo["tsunami"] | undefi
 
 // ── EEW ヘルパー ──
 
+/** Headline Information の Kind Code に警報コード (31) が含まれるか */
+function hasWarningHeadlineCode(head: unknown): boolean {
+  const headline = dig(head, "Headline");
+  const informations = dig(headline, "Information");
+  const infoList = Array.isArray(informations) ? informations : informations ? [informations] : [];
+  for (const info of infoList) {
+    const items = dig(info, "Item");
+    const itemList = Array.isArray(items) ? items : items ? [items] : [];
+    for (const item of itemList) {
+      const kinds = dig(item, "Kind");
+      const kindList = Array.isArray(kinds) ? kinds : kinds ? [kinds] : [];
+      for (const kind of kindList) {
+        const code = parseInt(str(dig(kind, "Code")), 10);
+        if (code === 31) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** 予測地域の Category Kind Code に警報コード (10-19) が含まれるか */
+function hasWarningAreaKind(body: unknown): boolean {
+  const forecast = dig(body, "Intensity", "Forecast");
+  if (!forecast) return false;
+  const prefs = dig(forecast, "Pref");
+  if (!Array.isArray(prefs)) return false;
+  for (const pref of prefs) {
+    const areas = dig(pref, "Area");
+    if (!Array.isArray(areas)) continue;
+    for (const area of areas) {
+      const categories = dig(area, "Category");
+      const catList = Array.isArray(categories) ? categories : categories ? [categories] : [];
+      for (const cat of catList) {
+        const kinds = dig(cat, "Kind");
+        const kindList = Array.isArray(kinds) ? kinds : kinds ? [kinds] : [];
+        for (const kind of kindList) {
+          const code = parseInt(str(dig(kind, "Code")), 10);
+          if (code >= 10 && code <= 19) return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 function parseMaxIntChangeReason(body: unknown): number | undefined {
   const raw = str(dig(body, "Intensity", "Forecast", "Appendix", "MaxIntChangeReason"));
   if (!raw) return undefined;
@@ -539,7 +584,7 @@ export function parseEewTelegram(
       serial: str(dig(head, "Serial")) || null,
       eventId: str(dig(head, "EventID")) || null,
       isTest: msg.head.test,
-      isWarning: msg.classification === "eew.warning",
+      isWarning: false, // 仮値 — 後で XML から判定
       isAssumedHypocenter: false,
     };
 
@@ -563,6 +608,23 @@ export function parseEewTelegram(
       (info.maxIntChangeReason === 9 || hasPlumArea);
     info.isAssumedHypocenter =
       assumedHypocenterByCondition || assumedHypocenterByFallback;
+
+    // isWarning: XML ベース判定 (classification はフォールバック)
+    info.isWarning =
+      msg.head.type === "VXSE43" ||
+      hasWarningAreaKind(body) ||
+      hasWarningHeadlineCode(head) ||
+      msg.classification === "eew.warning";
+
+    // XML と classification の食い違いを観測ログ
+    const xmlWarning = msg.head.type === "VXSE43" || hasWarningAreaKind(body) || hasWarningHeadlineCode(head);
+    const classWarning = msg.classification === "eew.warning";
+    if (xmlWarning !== classWarning) {
+      log.warn(
+        `EEW isWarning 判定不一致: XML=${xmlWarning} classification=${classWarning} ` +
+        `type=${msg.head.type} EventID=${str(dig(head, "EventID"))}`
+      );
+    }
 
     // NextAdvisory (最終報)
     const nextAdvisory = str(dig(body, "NextAdvisory"));
