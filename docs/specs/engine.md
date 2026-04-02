@@ -458,6 +458,10 @@ interface EewUpdateResult {
   isNew: boolean;
   isDuplicate: boolean;
   isCancelled: boolean;
+  /** VXSE45 受信済みイベントで VXSE43/44 が抑制されたか */
+  isSuppressed: boolean;
+  /** このイベントで初めて警報が発出されたか (非抑制の報のみ) */
+  isUpgradeToWarning: boolean;
   activeCount: number;
   diff?: EewDiff;
   previousInfo?: ParsedEewInfo;
@@ -480,7 +484,21 @@ class EewTracker {
 
 #### 重複報の判定
 
-既知の EventID に対し、受信した報数が `lastSerial` 以下であれば重複と判定する。取消報は報数に関わらず重複としない。EventID が空の場合は常に新規扱い。
+同一 EventID かつ同一 `head.type`（VXSE43/44/45）内で、受信した報数が `lastSerial` 以下であれば重複と判定する。異なる type 間ではシリアル番号は独立管理される。取消報は報数に関わらず重複としない。EventID が空の場合は常に新規扱い。
+
+#### VXSE45 優先と VXSE43/44 抑制
+
+`hasSeen45 === true`（VXSE45 を受信済み）のイベントでは、後着する VXSE43/44 の表示・通知を抑制する (`isSuppressed: true`)。ただし:
+
+- シリアル状態 (`byType` の `lastSerial`) と `lastUpdate` は抑制時も更新する（再到着の新規扱いを防止）
+- 取消報・最終報のライフサイクル処理（`closeEvent`/`finalizeEvent`）は抑制時も実行する
+- `hasWarningIssued` は非抑制の報でのみ更新する（抑制された警報で昇格フラグを消費しない）
+
+VXSE45 未受信のイベントでは VXSE43/44 を従来通り表示する（フォールバック）。
+
+#### 警報昇格判定
+
+イベント単位の `hasWarningIssued` フラグで判定する。`!isSuppressed && !hasWarningIssued && info.isWarning` の場合に `isUpgradeToWarning: true` を返す。`hasWarningIssued` は非抑制の報でのみ OR 累積で更新される。
 
 #### 差分計算 (`computeDiff`)
 
@@ -504,14 +522,23 @@ class EewTracker {
 #### 内部型
 
 ```ts
+/** head.type 別のシリアル状態 */
+interface EewTypeState {
+  lastSerial: number;
+  previousInfo?: ParsedEewInfo;
+}
+
 interface EewEvent {
   eventId: string;
-  lastSerial: number;
-  isWarning: boolean;
+  /** head.type (VXSE43/44/45) 別のシリアル・前回情報 */
+  byType: Map<string, EewTypeState>;
+  /** VXSE45 を受信済みか (true → VXSE43/44 を抑制) */
+  hasSeen45: boolean;
+  /** このイベントで警報が発出されたか (非抑制の報でのみ更新) */
+  hasWarningIssued: boolean;
   isCancelled: boolean;
   isFinalized: boolean;
   lastUpdate: Date;
-  previousInfo?: ParsedEewInfo;
   colorIndex: number;
 }
 ```
@@ -534,7 +561,8 @@ interface EewEvent {
 ### 設計ノート
 
 - `finalizeEvent()` でエントリを即座に削除しないのは、最終報の後に遅延到着した重複報を正しくスキップするため。10分後の `cleanup()` で自然消滅する。
-- `isWarning` は論理和で更新される（一度でも警報が発出されたら `true` を維持）。
+- `hasWarningIssued` は非抑制の報でのみ論理和で更新される。抑制された VXSE43 の警報で昇格フラグを消費しないことで、後続の VXSE45 警報で正しく `isUpgradeToWarning` が発火する。
+- `byType: Map<string, EewTypeState>` により、VXSE43/44/45 のシリアル番号と差分計算が type 別に独立管理される。差分は同一 type 内の連続更新でのみ計算し、type 切り替え時は diff なし。
 - `Map<string, EewEvent>` による O(1) ルックアップで、同時多発地震のシナリオでもパフォーマンスを維持する。
 
 ---
@@ -716,11 +744,11 @@ class Notifier {
 `notifyEew()` は以下のいずれかの場合のみ通知を送信する:
 
 - 第1報（`result.isNew === true`）
-- 予報から警報への切り替え（`previousInfo.isWarning === false` → `info.isWarning === true`）
+- 警報昇格（`result.isUpgradeToWarning === true`、イベント単位で非抑制の初回警報）
 - 取消報（`result.isCancelled === true`）
 - 最終報（`info.nextAdvisory != null`）
 
-続報は通知を送らず、ターミナル表示のみ行う設計。
+抑制された報（`result.isSuppressed === true`）は通知しない。続報は通知を送らず、ターミナル表示のみ行う設計。
 
 #### サウンドレベル判定
 
@@ -1794,6 +1822,7 @@ EEW 電文を処理し、パース・重複検出・ログ記録・最終報/取
 type EewProcessResult =
   | { kind: "ok"; outcome: EewOutcome }
   | { kind: "duplicate" }
+  | { kind: "suppressed" }
   | { kind: "parse-failed" };
 
 function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEventLogger): EewProcessResult
@@ -1803,10 +1832,13 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 
 1. `parseEewTelegram(msg)` でパース（失敗→`parse-failed`）
 2. `eewTracker.update(eewInfo)` で重複判定（重複→`duplicate`）
-3. `eewLogger.logReport()` でログ記録
-4. 取消報 → `eewLogger.closeEvent("取消")`
-5. 最終報 → `eewLogger.closeEvent("最終報")` + `eewTracker.finalizeEvent()`
-6. `EewOutcome` を構築して返す
+3. 抑制判定（`result.isSuppressed`→ログ記録 + 終端処理のみ実行して`suppressed`）
+4. `eewLogger.logReport()` でログ記録
+5. 取消報 → `eewLogger.closeEvent("取消")`
+6. 最終報 → `eewLogger.closeEvent("最終報")` + `eewTracker.finalizeEvent()`
+7. `EewOutcome` を構築して返す
+
+**抑制時の終端処理**: `isSuppressed` でも取消・最終報のライフサイクル処理（`closeEvent`/`finalizeEvent`）は実行する。表示・通知のみスキップする。
 
 ### 依存関係
 

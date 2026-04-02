@@ -158,6 +158,7 @@ interface HighlightSpan {
 - 色のハードコードを避け、すべて `theme.getRoleChalk()` 経由とすることで、`theme.json` によるカスタマイズを実現している。
 - 表示状態 (フレーム幅・表示モード・全文表示フラグ・観測点最大表示件数) はモジュールレベル変数でキャッシュし、各 `display*` 関数が引数なしで参照できるようにしている。これはパフォーマンスと API 簡潔性のトレードオフ。
 - `FrameLevel` を全電文タイプ共通の抽象レベルとすることで、フレーム描画コードの重複を排除している。
+- **EventID 表示**: `displayEarthquakeInfo()` は `info.eventId` が非 null の場合、フッター直前に `EventID: {eventId}` 行を `chalk.gray` で表示する。同一地震の VXSE52/53/61 を紐付ける識別子として機能する。コンパクトモードでは表示しない。
 - **レンダーバッファ**: 6つの `display*` 関数は `createRenderBuffer()` で行をバッファに蓄積し、`flushWithRecap()` で一括出力する。TTY かつ行数がターミナル高さを超える場合、フレーム下部直前に「▼ サマリー」セクション (タイトル行・カード行・ヘッドライン1行目) を再掲する。非TTY や行数が十分少ない場合はそのまま出力する。
 - **観測点折りたたみ**: `cachedMaxObservations` が非 `null` の場合、震度一覧・予測震度一覧・津波予報/観測/推定・長周期地域リストの表示件数を制限し、超過分を「... 他 XX 地点」として表示する。REPL の `fold` コマンドまたは `fleq config set maxObservations` で設定する。
 - `visualWidth()` は独自実装で Unicode コードポイント範囲を判定する。`wcwidth` 等の外部ライブラリを使わないことで依存を最小化している。

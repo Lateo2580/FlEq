@@ -142,7 +142,7 @@
 
 | 名前 | 対応電文 | 説明 |
 |---|---|---|
-| `ParsedEarthquakeInfo` | VXSE51/52/53/61 | パース済み地震情報 (震源・震度・津波コメント) |
+| `ParsedEarthquakeInfo` | VXSE51/52/53/61 | パース済み地震情報 (震源・震度・津波コメント・eventId) |
 | `ParsedEewInfo` | VXSE43/44/45 | パース済み緊急地震速報 (予測震度・警報フラグ・PLUM法判定) |
 | `ParsedTsunamiInfo` | VTSE41/51/52 | パース済み津波情報 (予報区域・観測局・推定) |
 | `ParsedSeismicTextInfo` | VXSE56/60, VZSE40 | パース済みテキスト系地震情報 |
