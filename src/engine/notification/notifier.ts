@@ -172,12 +172,13 @@ export class Notifier {
   notifyEew(info: ParsedEewInfo, result: EewUpdateResult): void {
     if (!this.settings.eew) return;
 
-    // 通知条件: 第1報 / 予報→警報切替 / 取消報 / 最終報
-    const isUpgradeToWarning =
-      result.previousInfo?.isWarning === false && info.isWarning === true;
+    // 抑制された報は通知しない
+    if (result.isSuppressed) return;
+
+    // 通知条件: 第1報 / 警報昇格 / 取消報 / 最終報
     const isFinal = info.nextAdvisory != null;
 
-    if (!result.isNew && !isUpgradeToWarning && !result.isCancelled && !isFinal) {
+    if (!result.isNew && !result.isUpgradeToWarning && !result.isCancelled && !isFinal) {
       return;
     }
 
