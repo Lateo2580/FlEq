@@ -35,8 +35,15 @@ export function processEew(
 
   if (result.isSuppressed) {
     log.debug(`EEW 抑制 (VXSE45優先): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
-    // ログは記録する (抑制されても記録は残す)
     eewLogger.logReport(eewInfo, result);
+    // 抑制されても終端処理は実行する
+    if (result.isCancelled && eewInfo.eventId) {
+      eewLogger.closeEvent(eewInfo.eventId, "取消");
+    }
+    if (eewInfo.nextAdvisory && eewInfo.eventId && !result.isCancelled) {
+      eewLogger.closeEvent(eewInfo.eventId, "最終報");
+      eewTracker.finalizeEvent(eewInfo.eventId);
+    }
     return { kind: "suppressed" };
   }
 

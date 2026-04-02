@@ -683,16 +683,16 @@ describe("EewTracker", () => {
       expect(dup.isDuplicate).toBe(true);
     });
 
-    it("VXSE45 予報 → VXSE43 警報: VXSE43 抑制、後続 VXSE45 警報で hasWarningIssued 更新済み", () => {
+    it("VXSE45 予報 → VXSE43 警報: VXSE43 抑制、後続 VXSE45 警報で昇格表示", () => {
       tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge3", isWarning: false }));
 
       const r43 = tracker.update(createEewInfo({ type: "VXSE43", serial: "1", eventId: "ev-edge3", isWarning: true }));
       expect(r43.isSuppressed).toBe(true);
 
-      // 後続 VXSE45 で警報 → hasWarningIssued は VXSE43 で既に更新済みなので isUpgradeToWarning=false
+      // 抑制された VXSE43 は hasWarningIssued を更新しないので、VXSE45 警報で昇格表示
       const r45 = tracker.update(createEewInfo({ type: "VXSE45", serial: "2", eventId: "ev-edge3", isWarning: true }));
       expect(r45.isSuppressed).toBe(false);
-      expect(r45.isUpgradeToWarning).toBe(false);
+      expect(r45.isUpgradeToWarning).toBe(true);
     });
 
     it("VXSE44 予報 → VXSE43 警報 (VXSE45 未受信): VXSE43 表示", () => {

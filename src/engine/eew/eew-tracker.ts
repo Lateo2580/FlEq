@@ -204,8 +204,10 @@ export class EewTracker {
       const diff = previousInfo ? computeDiff(previousInfo, info) : undefined;
 
       // 警報昇格判定 (イベント単位)
-      const isUpgradeToWarning = !existing.hasWarningIssued && info.isWarning;
-      existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
+      const isUpgradeToWarning = !isSuppressed && !existing.hasWarningIssued && info.isWarning;
+      if (!isSuppressed) {
+        existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
+      }
       existing.isCancelled = isCancelled;
       existing.lastUpdate = new Date();
 
