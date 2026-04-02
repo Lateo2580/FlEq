@@ -1042,6 +1042,27 @@ describe("formatUptime", () => {
     const result = formatUptime(0);
     expect(result).toBe(chalk.gray("000:00:00:") + chalk.white("00"));
   });
+
+  it("chalk 有効時、日部分の先頭ゼロが文字レベルで dim になる", () => {
+    chalk.level = 3;
+    const ms = 2 * 86400 * 1000 + (13 * 3600 + 55 * 60 + 3) * 1000;
+    const result = formatUptime(ms);
+    expect(result).toBe(chalk.gray("00") + chalk.white("2:13:55:03"));
+  });
+
+  it("chalk 有効時、日部分の先頭ゼロ1桁が dim になる (023日)", () => {
+    chalk.level = 3;
+    const ms = 23 * 86400 * 1000;
+    const result = formatUptime(ms);
+    expect(result).toBe(chalk.gray("0") + chalk.white("23:00:00:00"));
+  });
+
+  it("chalk 有効時、日部分が3桁すべて使用なら全体 white", () => {
+    chalk.level = 3;
+    const ms = 123 * 86400 * 1000;
+    const result = formatUptime(ms);
+    expect(result).toBe(chalk.white("123:00:00:00"));
+  });
 });
 
 // ── displayNankaiTroughInfo ──

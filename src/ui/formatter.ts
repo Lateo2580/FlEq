@@ -755,17 +755,24 @@ export function formatUptime(ms: number): string {
     }
   }
 
-  // dim 境界: 最初の非ゼロ桁を含むセグメントの先頭
-  // 全桁ゼロの場合: SS セグメント (index 10) から通常表示
-  const activeSegStart = firstNonZero === -1
-    ? segStarts[segStarts.length - 1]
-    : segStarts.filter((s) => s <= firstNonZero).pop()!;
+  // dim 境界を決定
+  // - 日部分 (index 0-2): 文字レベルで先頭ゼロをグレーアウト
+  // - 時刻部分 (HH/MM/SS): セグメント境界でグレーアウト
+  // - 全桁ゼロ: SS セグメントから通常表示
+  let dimEnd: number;
+  if (firstNonZero === -1) {
+    dimEnd = segStarts[segStarts.length - 1];
+  } else if (firstNonZero <= 2) {
+    dimEnd = firstNonZero;
+  } else {
+    dimEnd = segStarts.filter((s) => s <= firstNonZero).pop()!;
+  }
 
-  if (activeSegStart === 0) {
+  if (dimEnd === 0) {
     return chalk.white(raw);
   }
 
-  return chalk.gray(raw.slice(0, activeSegStart)) + chalk.white(raw.slice(activeSegStart));
+  return chalk.gray(raw.slice(0, dimEnd)) + chalk.white(raw.slice(dimEnd));
 }
 
 /** 区切り線 (後方互換用、新コードではフレーム関数を使用) */
