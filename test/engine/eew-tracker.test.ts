@@ -658,4 +658,70 @@ describe("EewTracker", () => {
       expect(r.isUpgradeToWarning).toBe(false);
     });
   });
+
+  describe("エッジケース (設計レビュー網羅)", () => {
+    it("VXSE44 #10 → VXSE45 #1: VXSE45 表示 (diffなし)、以降 VXSE44 抑制", () => {
+      const r44 = tracker.update(createEewInfo({ type: "VXSE44", serial: "10", eventId: "ev-edge1" }));
+      expect(r44.isNew).toBe(true);
+      expect(r44.isSuppressed).toBe(false);
+
+      const r45 = tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge1" }));
+      expect(r45.isSuppressed).toBe(false);
+      expect(r45.diff).toBeUndefined(); // 初めての VXSE45 → diff なし
+
+      const r44b = tracker.update(createEewInfo({ type: "VXSE44", serial: "11", eventId: "ev-edge1" }));
+      expect(r44b.isSuppressed).toBe(true);
+    });
+
+    it("VXSE45 #1 → VXSE44 #10: VXSE44 抑制 (serial 状態は更新)", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge2" }));
+      const r44 = tracker.update(createEewInfo({ type: "VXSE44", serial: "10", eventId: "ev-edge2" }));
+      expect(r44.isSuppressed).toBe(true);
+
+      // serial 状態は更新されている
+      const dup = tracker.update(createEewInfo({ type: "VXSE44", serial: "5", eventId: "ev-edge2" }));
+      expect(dup.isDuplicate).toBe(true);
+    });
+
+    it("VXSE45 予報 → VXSE43 警報: VXSE43 抑制、後続 VXSE45 警報で hasWarningIssued 更新済み", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge3", isWarning: false }));
+
+      const r43 = tracker.update(createEewInfo({ type: "VXSE43", serial: "1", eventId: "ev-edge3", isWarning: true }));
+      expect(r43.isSuppressed).toBe(true);
+
+      // 後続 VXSE45 で警報 → hasWarningIssued は VXSE43 で既に更新済みなので isUpgradeToWarning=false
+      const r45 = tracker.update(createEewInfo({ type: "VXSE45", serial: "2", eventId: "ev-edge3", isWarning: true }));
+      expect(r45.isSuppressed).toBe(false);
+      expect(r45.isUpgradeToWarning).toBe(false);
+    });
+
+    it("VXSE44 予報 → VXSE43 警報 (VXSE45 未受信): VXSE43 表示", () => {
+      tracker.update(createEewInfo({ type: "VXSE44", serial: "1", eventId: "ev-edge4", isWarning: false }));
+      const r43 = tracker.update(createEewInfo({ type: "VXSE43", serial: "1", eventId: "ev-edge4", isWarning: true }));
+
+      expect(r43.isSuppressed).toBe(false);
+      expect(r43.isUpgradeToWarning).toBe(true);
+    });
+
+    it("VXSE45 受信済み → VXSE43 取消のみ到着: 表示抑制、isCancelled は true", () => {
+      tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge5" }));
+      const r43cancel = tracker.update(createEewInfo({
+        type: "VXSE43", serial: "1", eventId: "ev-edge5", infoType: "取消", isWarning: true,
+      }));
+
+      expect(r43cancel.isSuppressed).toBe(true);
+      expect(r43cancel.isCancelled).toBe(true);
+    });
+
+    it("同一 eventId で 43/44/45 が逆順到着: 重複判定は type 別で独立", () => {
+      // VXSE43 serial=3 を先に受信
+      tracker.update(createEewInfo({ type: "VXSE43", serial: "3", eventId: "ev-edge6", isWarning: true }));
+      // VXSE44 serial=1 は独立 (VXSE43 の serial と比較しない)
+      const r44 = tracker.update(createEewInfo({ type: "VXSE44", serial: "1", eventId: "ev-edge6" }));
+      expect(r44.isDuplicate).toBe(false);
+      // VXSE45 serial=1 も独立
+      const r45 = tracker.update(createEewInfo({ type: "VXSE45", serial: "1", eventId: "ev-edge6" }));
+      expect(r45.isDuplicate).toBe(false);
+    });
+  });
 });
