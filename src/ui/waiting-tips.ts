@@ -1,3 +1,5 @@
+import { WEATHER_TIP_CATEGORIES } from "./waiting-tips-weather.js";
+
 export type TipCategoryId =
   | "commands-basic"
   | "commands-advanced"
@@ -9,14 +11,17 @@ export type TipCategoryId =
   | "future-quakes"
   | "volcano-trivia"
   | "volcano-history"
-  | "volcano-future";
+  | "volcano-future"
+  | "weather-warnings"
+  | "weather-forecasts"
+  | "weather-reports";
 
 export interface TipCategory {
   readonly id: TipCategoryId;
   readonly tips: readonly string[];
 }
 
-export const TIP_CATEGORIES: readonly TipCategory[] = [
+const BASE_TIP_CATEGORIES: readonly TipCategory[] = [
   // ── コマンド基本 ──
   {
     id: "commands-basic",
@@ -440,4 +445,9 @@ export const TIP_CATEGORIES: readonly TipCategory[] = [
       "Tip: 桜島では1914年以降も姶良カルデラ地下へのマグマ再蓄積が観測で示されています。再来の時期は断定できませんが、大正噴火級を前提に備えることが防災の基本です。",
     ],
   },
+];
+
+export const TIP_CATEGORIES: readonly TipCategory[] = [
+  ...BASE_TIP_CATEGORIES,
+  ...WEATHER_TIP_CATEGORIES,
 ];
