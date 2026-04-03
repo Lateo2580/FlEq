@@ -4,8 +4,11 @@ import {
   frameLine,
   frameDivider,
   visualWidth,
+  intensityColor,
 } from "./formatter";
 import type { FrameLevel } from "./formatter";
+import * as theme from "./theme";
+import type { RoleName } from "./theme";
 import type { StatsSnapshot, StatsCategory } from "../engine/messages/telegram-stats";
 
 // ── 定数 ──
@@ -50,6 +53,15 @@ const CATEGORY_LABELS: Record<StatsCategory, string> = {
   other: "その他",
 };
 
+const CATEGORY_ROLE: Record<StatsCategory, RoleName> = {
+  eew: "statsCategoryEew",
+  earthquake: "statsCategoryEarthquake",
+  tsunami: "statsCategoryTsunami",
+  volcano: "statsCategoryVolcano",
+  nankaiTrough: "statsCategoryNankaiTrough",
+  other: "statsCategoryOther",
+};
+
 const CATEGORY_ORDER: StatsCategory[] = [
   "eew",
   "earthquake",
@@ -62,6 +74,16 @@ const CATEGORY_ORDER: StatsCategory[] = [
 const INTENSITY_ORDER = ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
 
 const FRAME_LEVEL: FrameLevel = "info";
+
+// ── chalk ショートカット ──
+
+function muted(s: string): string {
+  return theme.getRoleChalk("statsMuted")(s);
+}
+
+function count(s: string): string {
+  return theme.getRoleChalk("statsCount")(s);
+}
 
 // ── 公開関数 ──
 
@@ -91,7 +113,7 @@ export function displayStatistics(snapshot: StatsSnapshot, now?: Date): void {
 
   if (snapshot.totalCount === 0) {
     const title = "統計";
-    const msg = "まだ電文を受信していません";
+    const msg = muted("まだ電文を受信していません");
     const width = calcWidth([title, msg]);
     console.log(frameTop(FRAME_LEVEL, width));
     console.log(frameLine(FRAME_LEVEL, title, width));
@@ -158,7 +180,7 @@ function calcWidth(contentLines: string[]): number {
   return Math.max(40, Math.min(200, maxContentWidth + 4));
 }
 
-/** 最大震度内訳行を構築する */
+/** 最大震度内訳行を構築する（色付き） */
 function buildIntBreakdownLine(earthquakeMaxIntByEvent: Map<string, string>): string {
   const intCounts = new Map<string, number>();
   for (const maxInt of earthquakeMaxIntByEvent.values()) {
@@ -166,12 +188,13 @@ function buildIntBreakdownLine(earthquakeMaxIntByEvent: Map<string, string>): st
   }
   const parts: string[] = [];
   for (const intensity of INTENSITY_ORDER) {
-    const count = intCounts.get(intensity);
-    if (count != null && count > 0) {
-      parts.push(`${intensity}:${count}`);
+    const cnt = intCounts.get(intensity);
+    if (cnt != null && cnt > 0) {
+      const intStyle = intensityColor(intensity);
+      parts.push(`${intStyle(intensity)}${muted(":")}${cnt}`);
     }
   }
-  return `  最大震度内訳  ${parts.join("  ")}`;
+  return `  ${muted("最大震度内訳")}  ${parts.join("  ")}`;
 }
 
 /** 全コンテンツ行を構築する (__DIVIDER__ はフレーム区切り線のセンチネル) */
@@ -192,11 +215,12 @@ function buildAllContentLines(
     hour: "2-digit",
     minute: "2-digit",
   });
-  lines.push(`開始: ${startStr}  経過: ${formatStatsDuration(elapsedMs)}  合計: ${snapshot.totalCount}件`);
+  lines.push(
+    `${muted("開始:")} ${startStr}  ${muted("経過:")} ${formatStatsDuration(elapsedMs)}  ${muted("合計:")} ${count(String(snapshot.totalCount))}件`,
+  );
 
   // カテゴリセクション
-  for (let i = 0; i < activeCategories.length; i++) {
-    const category = activeCategories[i];
+  for (const category of activeCategories) {
     lines.push("__DIVIDER__");
 
     // カテゴリヘッダー
@@ -206,11 +230,13 @@ function buildAllContentLines(
       0,
     );
     const catLabel = CATEGORY_LABELS[category];
+    const catStyle = theme.getRoleChalk(CATEGORY_ROLE[category]);
+
     let catHeader: string;
     if (category === "eew") {
-      catHeader = `[${catLabel}] ${categoryCount}件 / ${snapshot.eewEventCount}イベント`;
+      catHeader = `${catStyle(`[${catLabel}]`)} ${count(String(categoryCount))}件 / ${count(String(snapshot.eewEventCount))}イベント`;
     } else {
-      catHeader = `[${catLabel}] ${categoryCount}件`;
+      catHeader = `${catStyle(`[${catLabel}]`)} ${count(String(categoryCount))}件`;
     }
     lines.push(catHeader);
 
@@ -227,13 +253,13 @@ function buildAllContentLines(
     }
 
     for (const headType of types) {
-      const count = snapshot.countByType.get(headType) ?? 0;
-      if (count === 0) continue;
+      const cnt = snapshot.countByType.get(headType) ?? 0;
+      if (cnt === 0) continue;
       const label = TYPE_LABELS[headType] ?? headType;
       const typePad = " ".repeat(Math.max(0, maxTypeWidth - visualWidth(headType)));
       const labelPad = " ".repeat(Math.max(0, maxLabelWidth - visualWidth(label)));
-      const countStr = String(count).padStart(countWidth);
-      lines.push(`  ${headType}${typePad}  ${label}${labelPad}  :  ${countStr}`);
+      const countStr = String(cnt).padStart(countWidth);
+      lines.push(`  ${muted(headType)}${typePad}  ${label}${labelPad}  ${muted(":")}  ${count(countStr)}`);
     }
 
     // 地震カテゴリの場合は最大震度内訳を追加

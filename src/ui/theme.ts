@@ -200,6 +200,16 @@ export const DEFAULT_ROLES = {
   // volcano: バナー
   volcanoAlertBanner: { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
   volcanoFlashBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+
+  // stats: 統計表示
+  statsMuted: "gray" as RoleStyleDef,
+  statsCount: { fg: "sky", bold: true } as RoleStyleDef,
+  statsCategoryEew: { fg: "sky", bold: true } as RoleStyleDef,
+  statsCategoryEarthquake: { fg: "blue", bold: true } as RoleStyleDef,
+  statsCategoryTsunami: { fg: "blueGreen", bold: true } as RoleStyleDef,
+  statsCategoryVolcano: { fg: "orange", bold: true } as RoleStyleDef,
+  statsCategoryNankaiTrough: { fg: "vermillion", bold: true } as RoleStyleDef,
+  statsCategoryOther: { fg: "gray", bold: true } as RoleStyleDef,
 } as const;
 
 /** ロール名の型 */

@@ -1079,6 +1079,22 @@ function displayVolcanoAshfallBatch(
 1. **ヘッダー行**: 開始日時、経過時間、合計件数
 2. **カテゴリセクション** (区切り線で分離): カテゴリ別件数ヘッダー + 電文タイプ行
 
+#### カラーリング
+
+テーマロールを使って各パーツに色を付ける:
+
+| 要素 | ロール / 色 |
+|------|------------|
+| ラベル (`開始:` `経過:` `合計:`) | `statsMuted` (gray) |
+| 合計件数・カテゴリ件数 | `statsCount` (sky + bold) |
+| カテゴリ見出し `[EEW]` 等 | `statsCategory*` (カテゴリ固有色) |
+| headType (`VXSE43` 等) | `statsMuted` (gray) |
+| 電文ラベル | 無彩色 |
+| 区切り記号 (`:`) | `statsMuted` (gray) |
+| 最大震度内訳の震度文字 | 既存 `intensityColor()` |
+
+カテゴリ固有色: EEW=sky, 地震=blue, 津波=blueGreen, 火山=orange, 南海トラフ=vermillion, その他=gray
+
 #### 6 カテゴリ
 
 | カテゴリ | ラベル |
@@ -1102,7 +1118,7 @@ function displayVolcanoAshfallBatch(
 
 ### 依存関係
 
-- **インポート元**: `./formatter` (`frameTop`, `frameBottom`, `frameLine`, `frameDivider`, `visualWidth`, `FrameLevel`), `../engine/messages/telegram-stats` (`StatsSnapshot`, `StatsCategory`)
+- **インポート元**: `./formatter` (`frameTop`, `frameBottom`, `frameLine`, `frameDivider`, `visualWidth`, `intensityColor`, `FrameLevel`), `./theme` (`getRoleChalk`, `RoleName`), `../engine/messages/telegram-stats` (`StatsSnapshot`, `StatsCategory`)
 - **接続先**: `repl-handlers/info-handlers.ts` の `handleStats()` から呼ばれる
 
 ### 設計ノート
