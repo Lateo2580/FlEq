@@ -1,3 +1,7 @@
+import { EEW_TIP_CATEGORIES } from "./waiting-tips-eew.js";
+import { INFO_SYSTEMS_TIP_CATEGORIES } from "./waiting-tips-info-systems.js";
+import { SEISMOLOGY_TIP_CATEGORIES } from "./waiting-tips-seismology.js";
+import { TSUNAMI_TIP_CATEGORIES } from "./waiting-tips-tsunami.js";
 import { WEATHER_TIP_CATEGORIES } from "./waiting-tips-weather.js";
 
 export type TipCategoryId =
@@ -14,7 +18,15 @@ export type TipCategoryId =
   | "volcano-future"
   | "weather-warnings"
   | "weather-forecasts"
-  | "weather-reports";
+  | "weather-reports"
+  | "seismology-science"
+  | "observation-tech"
+  | "tsunami-science"
+  | "tsunami-warning"
+  | "eew-technology"
+  | "eew-global"
+  | "info-systems"
+  | "telegram-knowledge";
 
 export interface TipCategory {
   readonly id: TipCategoryId;
@@ -450,4 +462,8 @@ const BASE_TIP_CATEGORIES: readonly TipCategory[] = [
 export const TIP_CATEGORIES: readonly TipCategory[] = [
   ...BASE_TIP_CATEGORIES,
   ...WEATHER_TIP_CATEGORIES,
+  ...SEISMOLOGY_TIP_CATEGORIES,
+  ...TSUNAMI_TIP_CATEGORIES,
+  ...EEW_TIP_CATEGORIES,
+  ...INFO_SYSTEMS_TIP_CATEGORIES,
 ];
