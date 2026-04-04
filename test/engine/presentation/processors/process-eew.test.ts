@@ -98,7 +98,13 @@ describe("processEew", () => {
     expect(result.outcome.presentation.frameLevel).toBe("cancel");
   });
 
-  it("VXSE45 受信済みイベントの VXSE44 は suppressed を返す", () => {
+  it("VXSE44 は常時 suppressed を返す (VXSE45 未受信でも)", () => {
+    const msg44 = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+    const result = processEew(msg44, eewTracker, eewLogger);
+    expect(result.kind).toBe("suppressed");
+  });
+
+  it("VXSE45 受信済みイベントの VXSE44 も suppressed を返す", () => {
     // First, process VXSE45
     const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
     const result45 = processEew(msg45, eewTracker, eewLogger);

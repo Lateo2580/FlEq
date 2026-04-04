@@ -33,8 +33,11 @@ export function processEew(
     return { kind: "duplicate" };
   }
 
-  if (result.isSuppressed) {
-    log.debug(`EEW 抑制 (VXSE45優先): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
+  // VXSE44 は VXSE45 と重複するため常時抑制 (VXSE44 は配信終了予定)
+  const isSuppressed = result.isSuppressed || msg.head.type === "VXSE44";
+
+  if (isSuppressed) {
+    log.debug(`EEW 抑制 (${msg.head.type === "VXSE44" ? "VXSE44常時抑制" : "VXSE45優先"}): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     eewLogger.logReport(eewInfo, result);
     // 抑制されても終端処理は実行する
     if (result.isCancelled && eewInfo.eventId) {

@@ -89,13 +89,13 @@ describe("message-router 統合テスト", () => {
       expect(output).toContain("緊急地震速報");
     });
 
-    it("VXSE44 EEW 予報を処理する", () => {
+    it("VXSE44 EEW 予報は常時抑制される", () => {
       const { handler } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
       handler(msg);
 
       const output = getOutput();
-      expect(output).toContain("緊急地震速報");
+      expect(output).not.toContain("緊急地震速報");
     });
 
     it("VXSE45 EEW 地震動予報を処理する", () => {
