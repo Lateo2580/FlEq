@@ -55,7 +55,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       }
       log.info(chalk.green("リアルタイム受信中..."));
       if (isFirstConnection) {
-        log.info(chalk.gray("help でコマンド一覧を表示"));
+        log.info(chalk.gray("commands (短縮: cmds) でコマンド一覧を表示"));
         isFirstConnection = false;
       }
       updateReplConnectionState(replHandler, true);

@@ -307,11 +307,11 @@ export function handleCommands(ctx: ReplContext, args: string): void {
     console.log(chalk.gray(`  help <command> で各コマンドの詳細を表示`));
     console.log();
     for (const [name, entry] of matches) {
-      const sub = entry.subcommands != null ? chalk.cyan(" +") : "";
+      const sub = entry.subcommands != null ? chalk.cyan("+ ") : "  ";
       const alias = Object.entries(COMMAND_ALIASES).find(([, v]) => v === name)?.[0];
       const aliasSuffix = alias != null ? chalk.gray(` (${alias})`) : "";
       console.log(
-        chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + sub + aliasSuffix
+        chalk.white(`    ${sub}${name.padEnd(14)}`) + chalk.gray(entry.description) + aliasSuffix
       );
     }
     console.log();
@@ -339,7 +339,7 @@ export function handleCommands(ctx: ReplContext, args: string): void {
       if (displayed.has(name)) continue;
       displayed.add(name);
       const entry = ctx.commands[name];
-      const sub = entry.subcommands != null ? chalk.cyan(" +") : "";
+      const sub = entry.subcommands != null ? chalk.cyan("+ ") : "  ";
       const setting = currentValues[name];
       const valueSuffix = setting != null
         ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]")
@@ -347,12 +347,13 @@ export function handleCommands(ctx: ReplContext, args: string): void {
       const alias = Object.entries(COMMAND_ALIASES).find(([, v]) => v === name)?.[0];
       const aliasSuffix = alias != null ? chalk.gray(` (${alias})`) : "";
       console.log(
-        chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + sub + aliasSuffix + valueSuffix
+        chalk.white(`    ${sub}${name.padEnd(14)}`) + chalk.gray(entry.description) + aliasSuffix + valueSuffix
       );
     }
   }
 
   console.log();
+  console.log(chalk.cyan("  +") + chalk.gray(" = サブコマンドあり (help <command> で詳細表示)"));
   console.log(chalk.gray("  カテゴリ絞り込み: commands <category> / 検索: commands <query>"));
   console.log();
 }

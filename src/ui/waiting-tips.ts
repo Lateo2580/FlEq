@@ -38,7 +38,7 @@ const BASE_TIP_CATEGORIES: readonly TipCategory[] = [
   {
     id: "commands-basic",
     tips: [
-      "Tip: help で利用可能なコマンド一覧を表示できます。",
+      "Tip: commands (短縮: cmds) で利用可能なコマンド一覧を表示できます。",
       "Tip: status で接続状態やソケットID、再接続試行回数を確認できます。",
       "Tip: history 20 で直近20件の地震履歴を確認できます。",
       "Tip: history だけを入力すると、デフォルトの10件分の地震履歴が表示されます。",
