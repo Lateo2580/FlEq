@@ -136,6 +136,7 @@ function printColorGrid<T>(
 
 /** コマンドのエイリアス (逆引き用) */
 export const COMMAND_ALIASES: Record<string, string> = {
+  cmds: "commands",
   hist: "history",
   cols: "colors",
   det: "detail",
@@ -260,6 +261,102 @@ export function handleDetail(ctx: ReplContext, args: string): void {
   console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(" (利用可能: tsunami)"));
 }
 
+/** カテゴリ名を解決する (日本語ラベルにも対応) */
+function resolveCategory(input: string): CommandCategory | null {
+  const lower = input.toLowerCase();
+  const categories = Object.keys(CATEGORY_LABELS) as CommandCategory[];
+  const exact = categories.find((c) => c === lower);
+  if (exact != null) return exact;
+  for (const cat of categories) {
+    if (CATEGORY_LABELS[cat] === input) return cat;
+  }
+  return null;
+}
+
+export function handleCommands(ctx: ReplContext, args: string): void {
+  const trimmed = args.trim();
+
+  let filterCategory: CommandCategory | null = null;
+  let searchQuery: string | null = null;
+
+  if (trimmed.length > 0) {
+    filterCategory = resolveCategory(trimmed);
+    if (filterCategory == null) {
+      searchQuery = trimmed.toLowerCase();
+    }
+  }
+
+  // 検索モード
+  if (searchQuery != null) {
+    const query = searchQuery;
+    const matches = Object.entries(ctx.commands)
+      .filter(([name]) => name !== "?" && name !== "exit" && name !== "cmds")
+      .filter(([name, entry]) =>
+        name.toLowerCase().includes(query) ||
+        entry.description.toLowerCase().includes(query)
+      )
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (matches.length === 0) {
+      console.log(chalk.yellow(`  "${trimmed}" に一致するコマンドはありません`));
+      return;
+    }
+
+    console.log();
+    console.log(chalk.cyan.bold(`  検索結果: "${trimmed}"`));
+    console.log(chalk.gray(`  help <command> で各コマンドの詳細を表示`));
+    console.log();
+    for (const [name, entry] of matches) {
+      const sub = entry.subcommands != null ? chalk.cyan(" +") : "";
+      const alias = Object.entries(COMMAND_ALIASES).find(([, v]) => v === name)?.[0];
+      const aliasSuffix = alias != null ? chalk.gray(` (${alias})`) : "";
+      console.log(
+        chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + sub + aliasSuffix
+      );
+    }
+    console.log();
+    return;
+  }
+
+  // 一覧モード
+  const currentValues = getCurrentSettingValues(ctx);
+  const displayed = new Set<string>();
+  const categoryOrder: CommandCategory[] = ["info", "status", "settings", "operation"];
+  const categories = filterCategory != null ? [filterCategory] : categoryOrder;
+
+  console.log();
+  console.log(chalk.cyan.bold("  利用可能なコマンド:"));
+  console.log(chalk.gray(`  help <command> で各コマンドの詳細を表示`));
+
+  for (const category of categories) {
+    console.log();
+    console.log(chalk.cyan(`  [${CATEGORY_LABELS[category]}]`));
+
+    const commandNames = Object.keys(ctx.commands)
+      .filter((name) => name !== "exit" && name !== "?" && name !== "cmds" && ctx.commands[name].category === category)
+      .sort();
+    for (const name of commandNames) {
+      if (displayed.has(name)) continue;
+      displayed.add(name);
+      const entry = ctx.commands[name];
+      const sub = entry.subcommands != null ? chalk.cyan(" +") : "";
+      const setting = currentValues[name];
+      const valueSuffix = setting != null
+        ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]")
+        : "";
+      const alias = Object.entries(COMMAND_ALIASES).find(([, v]) => v === name)?.[0];
+      const aliasSuffix = alias != null ? chalk.gray(` (${alias})`) : "";
+      console.log(
+        chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + sub + aliasSuffix + valueSuffix
+      );
+    }
+  }
+
+  console.log();
+  console.log(chalk.gray("  カテゴリ絞り込み: commands <category> / 検索: commands <query>"));
+  console.log();
+}
+
 export function handleHelp(ctx: ReplContext, args: string): void {
   const trimmed = args.trim();
 
@@ -272,13 +369,15 @@ export function handleHelp(ctx: ReplContext, args: string): void {
     }
 
     if (parts.length > 1 && entry.subcommands) {
-      const sub = entry.subcommands[parts[1]];
+      const subInput = parts[1].toLowerCase();
+      const subKey = Object.keys(entry.subcommands).find((k) => k.toLowerCase() === subInput);
+      const sub = subKey != null ? entry.subcommands[subKey] : undefined;
       if (sub == null) {
         console.log(chalk.yellow(`  不明なサブコマンド: ${parts[0]} ${parts[1]}`));
         return;
       }
       console.log();
-      console.log(chalk.cyan.bold(`  ${parts[0]} ${parts[1]}`) + chalk.gray(` — ${sub.description}`));
+      console.log(chalk.cyan.bold(`  ${parts[0]} ${subKey}`) + chalk.gray(` — ${sub.description}`));
       if (sub.detail) {
         console.log();
         for (const line of sub.detail.split("\n")) {
@@ -313,52 +412,12 @@ export function handleHelp(ctx: ReplContext, args: string): void {
     return;
   }
 
-  // help — カテゴリ別一覧
+  // help — 引数なしはガイド表示
   console.log();
-  console.log(chalk.cyan.bold("  利用可能なコマンド:"));
-
-  const currentValues = getCurrentSettingValues(ctx);
-  const displayed = new Set<string>();
-  const categoryOrder: CommandCategory[] = ["info", "status", "settings", "operation"];
-
-  for (const category of categoryOrder) {
-    console.log();
-    console.log(chalk.cyan(`  [${CATEGORY_LABELS[category]}]`));
-
-    const commandNames = Object.keys(ctx.commands)
-      .filter((name) => name !== "exit" && name !== "?" && ctx.commands[name].category === category)
-      .sort();
-    for (const name of commandNames) {
-      const entry = ctx.commands[name];
-      if (displayed.has(entry.description)) continue;
-      displayed.add(entry.description);
-      const setting = currentValues[name];
-      const valueSuffix = setting != null
-        ? chalk.gray(" [") + chalk.yellow(setting.current) + chalk.gray("]") +
-          (setting.options ? chalk.gray(` (${setting.options})`) : "")
-        : "";
-      const alias = Object.entries(COMMAND_ALIASES)
-        .find(([, v]) => v === name)?.[0];
-      const aliasSuffix = alias != null ? chalk.gray(` (${alias})`) : "";
-      console.log(
-        chalk.white(`    ${name.padEnd(14)}`) + chalk.gray(entry.description) + aliasSuffix + valueSuffix
-      );
-      if (entry.subcommands) {
-        const subNames = Object.keys(entry.subcommands).sort();
-        for (let i = 0; i < subNames.length; i++) {
-          const subName = subNames[i];
-          const sub = entry.subcommands[subName];
-          const prefix = i < subNames.length - 1 ? "├─" : "└─";
-          console.log(
-            chalk.gray(`      ${prefix} `) + chalk.white(subName.padEnd(10)) + chalk.gray(sub.description)
-          );
-        }
-      }
-    }
-  }
-
+  console.log(chalk.cyan.bold("  help <command>") + chalk.gray(" — コマンドの詳細を表示"));
+  console.log(chalk.cyan.bold("  commands") + chalk.gray("       — コマンド一覧を表示"));
   console.log();
-  console.log(chalk.gray("  エイリアス: ") + chalk.white("?") + chalk.gray(" → help, ") + chalk.white("exit") + chalk.gray(" → quit (コマンド名の大文字小文字は区別しません)"));
+  console.log(chalk.gray("  例: help notify, help test table, commands settings"));
   console.log();
 }
 

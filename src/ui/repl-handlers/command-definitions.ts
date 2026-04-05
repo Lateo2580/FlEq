@@ -8,10 +8,16 @@ import * as ops from "./operation-handlers";
 export function buildCommandMap(getCtx: () => ReplContext): Record<string, CommandEntry> {
   return {
     help: {
-      description: "コマンド一覧を表示 (例: help status)",
-      detail: "引数なしで一覧表示。help <command> でコマンドの詳細を表示。",
+      description: "コマンドの詳細を表示 (例: help notify)",
+      detail: "help <command>: コマンドの詳細を表示\n  help <command> <sub>: サブコマンドの詳細を表示\n  一覧は commands コマンドで表示できます。",
       category: "info",
       handler: (args) => info.handleHelp(getCtx(), args),
+    },
+    commands: {
+      description: "コマンド一覧を表示 (例: commands settings)",
+      detail: "引数なし: 全コマンドをカテゴリ別に一覧表示\n  commands <category>: カテゴリで絞り込み (info / status / settings / operation)\n  commands <query>: 名前・説明で検索",
+      category: "info",
+      handler: (args) => info.handleCommands(getCtx(), args),
     },
     "?": {
       description: "help のエイリアス",

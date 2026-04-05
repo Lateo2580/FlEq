@@ -392,17 +392,115 @@ describe("ReplHandler", () => {
   });
 
   describe("help コマンド", () => {
-    it("コマンド一覧を表示する", () => {
+    it("引数なしでガイドを表示する", () => {
       const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();
 
       simulateLine("help");
 
       const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("help <command>");
+      expect(output).toContain("commands");
+
+      handler.stop();
+    });
+
+    it("help <command> でコマンド詳細を表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("help notify");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("notify");
+      expect(output).toContain("通知設定");
+
+      handler.stop();
+    });
+
+    it("サブコマンドの大文字小文字を正規化する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("help eewlog ON");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("on");
+      expect(output).not.toContain("不明なサブコマンド");
+
+      handler.stop();
+    });
+  });
+
+  describe("commands コマンド", () => {
+    it("引数なしで全コマンド一覧を表示する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("commands");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("利用可能なコマンド");
+      expect(output).toContain("help <command>");
       expect(output).toContain("help");
-      expect(output).toContain("history");
-      expect(output).toContain("status");
+      expect(output).toContain("notify");
       expect(output).toContain("quit");
+
+      handler.stop();
+    });
+
+    it("カテゴリ絞り込みが機能する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("commands settings");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("[設定]");
+      expect(output).toContain("notify");
+      expect(output).not.toContain("[情報]");
+      expect(output).not.toContain("[操作]");
+
+      handler.stop();
+    });
+
+    it("検索が機能する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("commands 通知");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("検索結果");
+      expect(output).toContain("notify");
+
+      handler.stop();
+    });
+
+    it("サブコマンドがあるコマンドに + マーカーが付く", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("commands");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      // notify にはサブコマンドがあるので + が出る
+      const notifyLine = consoleSpy.mock.calls
+        .map((c) => String(c[0]))
+        .find((line) => line.includes("notify") && line.includes("通知設定"));
+      expect(notifyLine).toContain("+");
+
+      handler.stop();
+    });
+
+    it("cmds エイリアスが動作する", () => {
+      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      handler.start();
+
+      simulateLine("cmds");
+
+      const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(output).toContain("利用可能なコマンド");
 
       handler.stop();
     });
@@ -605,13 +703,13 @@ describe("ReplHandler", () => {
       handler.stop();
     });
 
-    it("stats コマンドが help に表示される", () => {
+    it("stats コマンドが commands に表示される", () => {
       const handler = new ReplHandler(
         createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats(),
       );
       handler.start();
 
-      simulateLine("help");
+      simulateLine("commands");
 
       const output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
       expect(output).toContain("stats");
