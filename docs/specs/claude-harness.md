@@ -33,7 +33,7 @@ FlEq における Claude Code 制御の設計方針と実装詳細。
 | イベント | `PreToolUse` |
 | 対象ツール | `Edit`, `MultiEdit`, `Write` |
 | スクリプト | `.claude/hooks/guard-generated-files.sh` |
-| timeout | 10秒 |
+| timeout | デフォルト |
 | 判定 | `dist/` 配下または `package-lock.json` への編集を deny |
 
 **目的**: `dist/` は `npm run build` の生成物、`package-lock.json` は `npm install` の生成物であり、直接編集すると不整合が起きる。
@@ -45,15 +45,28 @@ FlEq における Claude Code 制御の設計方針と実装詳細。
 | イベント | `PreToolUse` |
 | 対象ツール | `Edit`, `MultiEdit`, `Write` |
 | スクリプト | `.claude/hooks/guard-secret-files.sh` |
-| timeout | 10秒 |
+| timeout | デフォルト |
 | 判定 | `.env*`, `.npmrc`, `*.pem`, `*.key`, `credentials*` への編集を deny |
 
 **目的**: 秘密情報を含む可能性のあるファイルへの誤書き込みを防止する。
+
+### PostToolUse: Obsidian 記録リマインド (git commit)
+
+| 項目 | 値 |
+|------|-----|
+| イベント | `PostToolUse` |
+| 対象ツール | `Bash` |
+| スクリプト | `.claude/hooks/obsidian-commit-reminder.sh` |
+| timeout | デフォルト |
+| 判定 | `git commit` 成功時に Obsidian 記録リマインドを `additionalContext` で返す |
+
+**目的**: git commit は作業の区切りを示す高シグナルイベント。Session-log 未記録なら `/wrap-up` 実行を促す。
 
 ### 不採用とした Hook
 
 | 候補 | 不採用理由 |
 |------|-----------|
+| UserPromptSubmit (終了意図検出) | スラッシュコマンド・バックグラウンドタスク通知など制御不能な入力にも発火し、hook error が頻発。自然言語からの意図推定自体が脆く、commit リマインド + `/wrap-up` コマンドで十分カバーできる (2026-04-05 廃止) |
 | PostToolUse (tsc --noEmit) | Edit のたびに数秒の待ち時間が発生し、開発体験を損なう |
 | UserPromptSubmit (TODO通知) | Skills の責務。Hook で通知すると Skill との重複が生じる |
 | Notification (ビルド失敗) | PostToolUse の結果として Claude に返す方が自然 |
@@ -76,6 +89,7 @@ FlEq における Claude Code 制御の設計方針と実装詳細。
 | `/codex-review` | `[scope]` | Codex に変更差分をレビューさせる。Claude の自己評価は渡さない |
 | `/codex-design` | `<topic>` | Codex に設計のセカンドオピニオンを求める（対話モード） |
 | `/pre-release` | なし | リリース前チェックリスト（test → build → docs同期 → review） |
+| `/wrap-up` | なし | セッション作業を Obsidian に記録して締めくくる |
 
 ## Codex 併用ルール
 
@@ -112,6 +126,9 @@ brainstorming, writing-plans, executing-plans, test-driven-development, systemat
   hooks/
     guard-generated-files.sh  # dist/ + package-lock.json 編集ガード
     guard-secret-files.sh     # 秘密ファイル編集ガード
+    obsidian-moc-update.sh    # Session-log 作成時に MOC 自動更新
+    obsidian-commit-reminder.sh    # git commit 時に Obsidian 記録リマインド
+
   rules/
     message-pipeline.md       # 電文パイプラインルール
     ui-output.md              # UI/表示ルール
@@ -120,6 +137,7 @@ brainstorming, writing-plans, executing-plans, test-driven-development, systemat
     codex-review.md           # Codex レビューコマンド
     codex-design.md           # Codex 設計相談コマンド
     pre-release.md            # リリース前チェックリスト
+    wrap-up.md                # セッション記録コマンド
 
 ~/.claude/
   settings.json           # グローバル: deny リスト, model, plugins

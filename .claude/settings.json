@@ -6,8 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-generated-files.sh\"",
-            "timeout": 10
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-generated-files.sh\""
           }
         ]
       },
@@ -16,8 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-secret-files.sh\"",
-            "timeout": 10
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-secret-files.sh\""
           }
         ]
       }
@@ -28,8 +26,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-moc-update.sh\"",
-            "timeout": 10
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-moc-update.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-commit-reminder.sh\""
           }
         ]
       }
