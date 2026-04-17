@@ -548,4 +548,71 @@ describe("message-router 統合テスト", () => {
       expect(snap.countByType.get("VXSE53")).toBe(1);
     });
   });
+
+  describe("EventFileWriter 統合", () => {
+    it("earthquake 電文で write が呼ばれる", () => {
+      const { handler, eventFileWriter } = createHandler();
+      eventFileWriter.setEnabled(true);
+      const writeSpy = vi.spyOn(eventFileWriter, "write").mockImplementation(() => {});
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+      handler(msg);
+
+      expect(writeSpy).toHaveBeenCalledTimes(1);
+      expect(writeSpy.mock.calls[0][0].domain).toBe("earthquake");
+      writeSpy.mockRestore();
+    });
+
+    it("EEW 電文で write が呼ばれる", () => {
+      const { handler, eventFileWriter } = createHandler();
+      eventFileWriter.setEnabled(true);
+      const writeSpy = vi.spyOn(eventFileWriter, "write").mockImplementation(() => {});
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+      handler(msg);
+
+      expect(writeSpy).toHaveBeenCalledTimes(1);
+      expect(writeSpy.mock.calls[0][0].domain).toBe("eew");
+      writeSpy.mockRestore();
+    });
+
+    it("tsunami 電文で write が呼ばれる", () => {
+      const { handler, eventFileWriter } = createHandler();
+      eventFileWriter.setEnabled(true);
+      const writeSpy = vi.spyOn(eventFileWriter, "write").mockImplementation(() => {});
+
+      const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
+      handler(msg);
+
+      expect(writeSpy).toHaveBeenCalledTimes(1);
+      expect(writeSpy.mock.calls[0][0].domain).toBe("tsunami");
+      writeSpy.mockRestore();
+    });
+
+    it("EEW 重複報では write が呼ばれない", () => {
+      const { handler, eventFileWriter } = createHandler();
+      eventFileWriter.setEnabled(true);
+      const writeSpy = vi.spyOn(eventFileWriter, "write").mockImplementation(() => {});
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+      handler(msg);
+      handler(msg); // 2 回目は duplicate
+
+      expect(writeSpy).toHaveBeenCalledTimes(1);
+      writeSpy.mockRestore();
+    });
+
+    it("eventFileWriter が enabled=false でも write は呼ばれる（内部で no-op）", () => {
+      const { handler, eventFileWriter } = createHandler();
+      eventFileWriter.setEnabled(false);
+      const writeSpy = vi.spyOn(eventFileWriter, "write").mockImplementation(() => {});
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+      handler(msg);
+
+      // write() はルータから常に呼ばれる。enabled チェックは writer 内部で行う。
+      expect(writeSpy).toHaveBeenCalledTimes(1);
+      writeSpy.mockRestore();
+    });
+  });
 });
