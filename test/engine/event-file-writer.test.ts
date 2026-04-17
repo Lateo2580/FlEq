@@ -98,7 +98,7 @@ describe("EventFileWriter", () => {
 
       const files = fs.readdirSync(tmpDir);
       expect(files).toHaveLength(1);
-      expect(files[0]).toMatch(/^\d{8}T\d{9}_earthquake_20260310210045_msg-abc-001\.json$/);
+      expect(files[0]).toMatch(/^\d{8}T\d{9}_earthquake_20260310210045_msg-abc-001_\d{6}\.json$/);
 
       const content = JSON.parse(fs.readFileSync(path.join(tmpDir, files[0]), "utf-8"));
       expect(content.version).toBe(1);
@@ -155,8 +155,21 @@ describe("EventFileWriter", () => {
 
       const files = fs.readdirSync(tmpDir).sort();
       expect(files).toHaveLength(2);
-      expect(files.some((f) => f.includes("_dup-1.json"))).toBe(true);
-      expect(files.some((f) => f.includes("_dup-2.json"))).toBe(true);
+      expect(files.some((f) => f.includes("_dup-1_"))).toBe(true);
+      expect(files.some((f) => f.includes("_dup-2_"))).toBe(true);
+    });
+
+    it("同一 msg.id が連続しても異なるファイル名になる（連番付与）", async () => {
+      const writer = new EventFileWriter({ outputDir: tmpDir, enabled: true });
+      writer.write(createEarthquakeOutcome({ id: "same-id" }));
+      writer.write(createEarthquakeOutcome({ id: "same-id" }));
+      writer.write(createEarthquakeOutcome({ id: "same-id" }));
+      await writer.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      expect(files).toHaveLength(3);
+      // すべて _same-id_{seq}.json パターン
+      expect(files.every((f) => /_same-id_\d{6}\.json$/.test(f))).toBe(true);
     });
 
     it("書き込み中に .tmp ファイルが残らない（アトミック書き込み）", async () => {
@@ -209,13 +222,37 @@ describe("EventFileWriter", () => {
 
       for (let i = 0; i < 6; i++) {
         writer.write(createEarthquakeOutcome({ id: `msg-${String(i).padStart(3, "0")}` }));
-        await new Promise((r) => setTimeout(r, 5));
       }
       await writer.flush();
       await writer.triggerCleanup();
 
       const files = fs.readdirSync(tmpDir);
       expect(files.length).toBeLessThanOrEqual(5);
+    });
+
+    it("高頻度書き込みでも cleanup 発動後は maxFiles を守る", async () => {
+      // maxFiles=5 で 30 件書く。cleanup は 10/20/30 回目に発動。
+      // 修正前は 10% しか消えず増え続けたが、修正後は overflow 分を確実に削除する。
+      const writer = new EventFileWriter({ outputDir: tmpDir, enabled: true, maxFiles: 5 });
+
+      for (let i = 0; i < 30; i++) {
+        writer.write(createEarthquakeOutcome({ id: `bulk-${String(i).padStart(3, "0")}` }));
+      }
+      await writer.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      // 最終 cleanup 後は maxFiles 以下
+      expect(files.length).toBeLessThanOrEqual(5);
+    });
+
+    it("maxFiles=0 は DEFAULT へフォールバックしてクリーンアップが破綻しない", async () => {
+      const writer = new EventFileWriter({ outputDir: tmpDir, enabled: true, maxFiles: 0 });
+      // 15 件書く (10 件目で cleanup 発動)。DEFAULT=1000 なので削除は走らない。
+      for (let i = 0; i < 15; i++) {
+        writer.write(createEarthquakeOutcome({ id: `m-${i}` }));
+      }
+      await writer.flush();
+      expect(fs.readdirSync(tmpDir).length).toBe(15);
     });
   });
 

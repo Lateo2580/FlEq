@@ -58,7 +58,9 @@ export class EventFileWriter {
     this.outputDir = options?.outputDir ?? DEFAULT_OUTPUT_DIR;
     this.enabled = options?.enabled ?? false;
     this.includeRaw = options?.includeRaw ?? false;
-    this.maxFiles = options?.maxFiles ?? DEFAULT_MAX_FILES;
+    // maxFiles は正整数に強制 (0 以下はデフォルトへフォールバック)
+    const requested = options?.maxFiles ?? DEFAULT_MAX_FILES;
+    this.maxFiles = requested > 0 ? requested : DEFAULT_MAX_FILES;
   }
 
   setEnabled(enabled: boolean): void { this.enabled = enabled; }
@@ -71,11 +73,15 @@ export class EventFileWriter {
   write(outcome: ProcessOutcome | VolcanoBatchOutcome): void {
     if (!this.enabled) return;
 
+    // プロセス内で単調増加する連番。同一 ms・同一 msg.id の衝突を完全に回避する。
+    this.writeCount++;
+    const seq = String(this.writeCount).padStart(6, "0");
+
     const event = toPresentationEvent(outcome);
     const eventId = sanitizeId(event.eventId ?? "unknown", 64);
     const msgId = sanitizeId(outcome.msg.id ?? "nomsg", 32);
     const timestamp = nowTimestamp();
-    const fileName = `${timestamp}_${event.domain}_${eventId}_${msgId}.json`;
+    const fileName = `${timestamp}_${event.domain}_${eventId}_${msgId}_${seq}.json`;
 
     if (!this.includeRaw) {
       event.raw = null;
@@ -91,7 +97,6 @@ export class EventFileWriter {
     const filePath = path.join(this.outputDir, fileName);
 
     this.enqueueWrite(filePath, json);
-    this.writeCount++;
 
     if (this.writeCount % CLEANUP_INTERVAL === 0) {
       this.enqueueCleanup();
@@ -150,7 +155,12 @@ export class EventFileWriter {
       const jsonFiles = files.filter((f) => f.endsWith(".json")).sort();
       if (jsonFiles.length <= this.maxFiles) return;
 
-      const deleteCount = Math.max(1, Math.ceil(this.maxFiles * 0.1));
+      // overflow 以上を必ず削除し、上限を確実に守る。
+      // さらに maxFiles の 10% をバッファとして一緒に削り、高頻度書き込みで毎回
+      // トリガしないよう余裕を持たせる。
+      const overflow = jsonFiles.length - this.maxFiles;
+      const batchSize = Math.max(1, Math.ceil(this.maxFiles * 0.1));
+      const deleteCount = Math.min(jsonFiles.length, overflow + batchSize);
       const toDelete = jsonFiles.slice(0, deleteCount);
 
       for (const file of toDelete) {
