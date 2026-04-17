@@ -83,7 +83,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipelineController, summaryTracker);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, eventFileWriter, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipelineController, summaryTracker);
 
   registerShutdownSignals(shutdown);
 

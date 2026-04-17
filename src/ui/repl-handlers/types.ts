@@ -3,6 +3,7 @@ import { AppConfig, ConfigFile, NotifyCategory, DetailProvider, PromptStatusProv
 import { ConnectionManager } from "../../dmdata/connection-manager";
 import { Notifier } from "../../engine/notification/notifier";
 import { EewEventLogger } from "../../engine/eew/eew-logger";
+import type { EventFileWriter } from "../../engine/events/event-file-writer";
 import { StatusLine } from "../status-line";
 import type { PipelineController } from "../../engine/filter-template/pipeline-controller";
 import { TelegramStats } from "../../engine/messages/telegram-stats";
@@ -39,6 +40,7 @@ export interface ReplContext {
   wsManager: ConnectionManager;
   notifier: Notifier;
   eewLogger: EewEventLogger;
+  eventFileWriter: EventFileWriter;
   statusLine: StatusLine;
   stats: TelegramStats;
   statusProviders: PromptStatusProvider[];
