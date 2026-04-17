@@ -34,6 +34,8 @@ export interface RunMonitorOptions {
   focus?: string;
   summaryInterval?: number;
   night?: boolean;
+  eventLog?: boolean;
+  eventLogRaw?: boolean;
   debug: boolean;
 }
 
@@ -45,6 +47,11 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
 
   // 設定解決 (CLI引数 → 環境変数 → Configファイル → デフォルト)
   const config: AppConfig = resolveConfig(opts);
+
+  // --event-log-raw は --event-log を暗黙的に有効化
+  if (opts.eventLogRaw && !config.eventLog) {
+    config.eventLog = true;
+  }
 
   // Banner title (契約チェック前に表示)
   console.log();
