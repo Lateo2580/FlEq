@@ -48,8 +48,11 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   // 設定解決 (CLI引数 → 環境変数 → Configファイル → デフォルト)
   const config: AppConfig = resolveConfig(opts);
 
-  // --event-log-raw は --event-log を暗黙的に有効化
-  if (opts.eventLogRaw && !config.eventLog) {
+  // --event-log-raw は --event-log を暗黙的に有効化する。
+  // ただし --no-event-log (commander が opts.eventLog=false を生成) による明示的な
+  // 無効化指示は尊重する — 運用者が意図的に止めたものを raw フラグで
+  // 静かに復活させない。
+  if (opts.eventLogRaw && opts.eventLog !== false && !config.eventLog) {
     config.eventLog = true;
   }
 
