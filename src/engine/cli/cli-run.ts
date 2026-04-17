@@ -205,6 +205,9 @@ function printBanner(config: AppConfig): void {
   if (config.displayMode !== "normal") {
     log.info(`表示モード: ${config.displayMode}`);
   }
+  if (config.eventLog) {
+    log.info(`イベントファイル出力: ON${config.eventLogRaw ? " (raw含む)" : ""}`);
+  }
   log.info("接続を開始します...");
   console.log();
 }
