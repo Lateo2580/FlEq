@@ -132,7 +132,7 @@ describe("EventFileWriter", () => {
       const files = fs.readdirSync(tmpDir);
       const content = JSON.parse(fs.readFileSync(path.join(tmpDir, files[0]), "utf-8"));
       expect(content.event.raw).not.toBeNull();
-      expect(content.event.raw.hypocenterName).toBe("茨城県南部");
+      expect(content.event.raw.earthquake.hypocenterName).toBe("茨城県南部");
     });
 
     it("eventId が null のとき unknown にフォールバック", async () => {
