@@ -78,6 +78,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     resetTerminalTitle,
     flushAndDisposeVolcanoBuffer,
     stopSummaryTimer: () => summaryTimerControl?.stop(),
+    eventFileWriter,
   });
 
   // REPL ハンドラ (遅延ロード)

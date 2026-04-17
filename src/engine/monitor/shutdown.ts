@@ -4,6 +4,7 @@ import { EewEventLogger } from "../eew/eew-logger";
 import * as log from "../../logger";
 
 import type { ReplHandler as ReplHandlerType } from "../../ui/repl";
+import type { EventFileWriter } from "../events/event-file-writer";
 
 const SOCKET_CLOSE_TIMEOUT_MS = 3000;
 
@@ -55,6 +56,8 @@ export interface ShutdownContext {
   flushAndDisposeVolcanoBuffer?: () => void;
   /** 定期要約タイマーの停止 */
   stopSummaryTimer?: () => void;
+  /** イベントファイル writer (終了前に書き込みキューを drain する) */
+  eventFileWriter?: EventFileWriter;
 }
 
 /**
@@ -75,6 +78,15 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
       await ctx.eewLogger.flush();
     } catch {
       // flush 失敗は無視
+    }
+    // イベントファイルの書き込みキューを drain
+    // (flushAndDisposeVolcanoBuffer が emit を enqueue し得るため後続で待つ)
+    if (ctx.eventFileWriter) {
+      try {
+        await ctx.eventFileWriter.flush();
+      } catch {
+        // flush 失敗は無視
+      }
     }
     const repl = ctx.getReplHandler();
     if (repl) repl.stop();
