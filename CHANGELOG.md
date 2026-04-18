@@ -2,6 +2,59 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.52.0](https://github.com/Lateo2580/FlEq/compare/v1.51.0...v1.52.0) (2026-04-18)
+
+
+### 機能追加
+
+* **cli:** add --event-log and --event-log-raw flags ([f046653](https://github.com/Lateo2580/FlEq/commit/f046653df9c42d88f0362bdeb34dc87bcdf999f3))
+* **cli:** show eventLog status in startup banner ([07d509f](https://github.com/Lateo2580/FlEq/commit/07d509fda93cfc0e4f1d83b9208e5dc0e86e9270))
+* clock コマンド・ヘルプ・status 表示を uptime 対応に ([f362927](https://github.com/Lateo2580/FlEq/commit/f362927c84515770b609628c2ced7ba0cf19004f))
+* commands コマンド新設 — help から一覧表示を分離 ([0eb81c1](https://github.com/Lateo2580/FlEq/commit/0eb81c1fe335617e6346657a0d9bf1cacca0b387))
+* **config:** add eventLog and eventLogRaw configuration ([db1f376](https://github.com/Lateo2580/FlEq/commit/db1f376648e705c61d1439f85e75fdde17a74810))
+* EEW isWarning 判定を XML ベースに移行 (classification はフォールバック) ([c2087cd](https://github.com/Lateo2580/FlEq/commit/c2087cd931a31af603cadd4eff90a0a33bac833f))
+* Event File Writer — write telegrams as individual JSON files ([0ebbd0c](https://github.com/Lateo2580/FlEq/commit/0ebbd0cb21e33d03cb97f7c6a78f996941dbfcad))
+* formatUptime 関数を追加 (DDD:HH:MM:SS, dim ゼロ桁) ([a694522](https://github.com/Lateo2580/FlEq/commit/a6945227cc1c3c1d16728356075aae4e9765301b))
+* implement EventFileWriter with atomic write ([e05e9cb](https://github.com/Lateo2580/FlEq/commit/e05e9cb66cd61e9af049b2c6e8d2beed7c1f50e8))
+* **monitor:** apply eventLog config to EventFileWriter on startup ([12c251b](https://github.com/Lateo2580/FlEq/commit/12c251b1c298d4f8f0446ec93576d8904bed091b))
+* ParsedEarthquakeInfo に eventId を追加し、地震情報表示に EventID 行を表示 ([7562377](https://github.com/Lateo2580/FlEq/commit/756237726821e2c48ceed4a58ba2ce62ce3270b8))
+* processEew に suppressed kind を追加 (VXSE45 優先時) ([e65b33e](https://github.com/Lateo2580/FlEq/commit/e65b33e6d7ab7480bd13359a7da21661b78a40a7))
+* PromptClock 型に uptime を追加 ([d7c2829](https://github.com/Lateo2580/FlEq/commit/d7c2829487b78ebf993c4188ec1054d74b8ad071))
+* **repl:** add eventlog command ([874a679](https://github.com/Lateo2580/FlEq/commit/874a679eb4b12d8bba330a205d11a117ab8de2e9))
+* StatusLine で uptime モード表示に対応 (未接続時も表示) ([55c93c7](https://github.com/Lateo2580/FlEq/commit/55c93c7733d5e31fccd5f47944e37736aaa5ec41))
+* wire EventFileWriter into message-router and VolcanoRouteHandler ([a1107e0](https://github.com/Lateo2580/FlEq/commit/a1107e00db7adbfdd81c3e377143001c7542e8ce))
+* wrap-up コマンド新設 + Codex CLI フラグ更新 + commit リマインド hook 追加 ([68dac86](https://github.com/Lateo2580/FlEq/commit/68dac861fc17e95ce1fb6ac9cb0c43bc5bc62592))
+* 警報昇格通知をイベント単位の isUpgradeToWarning に変更 ([2e338dd](https://github.com/Lateo2580/FlEq/commit/2e338dd797f4c814da8209505f2d1e2a822e951b))
+* 待機中Tipsに火山カテゴリを追加 (+78項目) ([0f619bb](https://github.com/Lateo2580/FlEq/commit/0f619bb87eb663f611ea461d2002040a0fedafe6))
+* 待機中Tipsに気象カテゴリを追加 (警報・予報・定時報) ([deda85e](https://github.com/Lateo2580/FlEq/commit/deda85e46f1b154248a919ac623c3e81ea5d1048))
+* 待機中Tipsを大幅拡充 — 新8カテゴリ+229件追加 (444→673件) ([bac458a](https://github.com/Lateo2580/FlEq/commit/bac458a556ddaa807f558fcf57cc0199b10c2a40))
+* 統計表示にテーマロールベースのカラーリングを追加 ([d816b17](https://github.com/Lateo2580/FlEq/commit/d816b1766f3b25c2cbd199ee54248df995ef3121))
+
+
+### バグ修正
+
+* **cli:** let --no-event-log override --event-log-raw ([fe5226e](https://github.com/Lateo2580/FlEq/commit/fe5226e13ccf7d3c8357c925cdff5466755a340f))
+* **event-file-writer:** prevent collision and enforce maxFiles strictly ([a7227d6](https://github.com/Lateo2580/FlEq/commit/a7227d6f6b619fcd5a5ddfbf972aa143a5c5ff63))
+* formatUptime の日部分を文字レベルで dim 表示する ([67d5c70](https://github.com/Lateo2580/FlEq/commit/67d5c700a35d48b97de2c7534392ef33109af59c))
+* **monitor:** drain EventFileWriter queue on shutdown ([6cd0fc2](https://github.com/Lateo2580/FlEq/commit/6cd0fc2836e51c43218202ea51257a18cdb8056b))
+* processMessage の EEW suppressed 結果ハンドリングを追加 ([3b5f48f](https://github.com/Lateo2580/FlEq/commit/3b5f48f72e627ee0e68372e892959c623bab174b))
+* VXSE61 の複数 Coordinate ノードから十進度を正しく抽出 ([bdcfb38](https://github.com/Lateo2580/FlEq/commit/bdcfb383f0d34694714fa81da38cee875529e424))
+* 起動メッセージをcommands案内に更新、+マーカーの位置と凡例を改善 ([f13fabd](https://github.com/Lateo2580/FlEq/commit/f13fabd7c688ef9da5b171787de51e5aa80d2c00))
+* 抑制報の hasWarningIssued 更新と終端処理を修正 (Codex レビュー指摘) ([34676ba](https://github.com/Lateo2580/FlEq/commit/34676ba8a5c0d434de387a13b7349740abaaeafb))
+
+
+### リファクタリング
+
+* codex-design スキルを対立的レビュー方式に刷新 ([6db5a6d](https://github.com/Lateo2580/FlEq/commit/6db5a6d6dd17ca8bcdf0192064458dc866f92752))
+* EewTracker を byType Map ベースに再設計 ([79a606f](https://github.com/Lateo2580/FlEq/commit/79a606fbcb80fe2b15ee5887529140ec9c311f56))
+
+
+### ドキュメント
+
+* EEW再設計に伴う仕様書同期 (5ファイル) ([a4f4b4a](https://github.com/Lateo2580/FlEq/commit/a4f4b4ad15f2c764599078884e50a427f678aa08))
+* uptime モードの Tip・仕様書を同期 ([6b77ae5](https://github.com/Lateo2580/FlEq/commit/6b77ae57298584e7978bdae40cc3c2b86e4ae084))
+* 待機中Tipsを現行機能に同期 (21件追加, 1件修正) ([078e070](https://github.com/Lateo2580/FlEq/commit/078e0708b76e2a89246dac67a2242cd3387558ea))
+
 ## [1.51.0](https://github.com/Lateo2580/FlEq/compare/v1.50.1...v1.51.0) (2026-03-29)
 
 
