@@ -20,25 +20,6 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-moc-update.sh\""
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/obsidian-commit-reminder.sh\""
-          }
-        ]
-      }
-    ]
+    "PostToolUse": []
   }
 }
