@@ -15,6 +15,7 @@ import { PresentationDiffStore } from "../presentation/diff-store";
 import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../presentation/types";
 import { VolcanoRouteHandler } from "./volcano-route-handler";
 import type { DisplayCallbacks } from "./display-callbacks";
+import { EventFileWriter } from "../events/event-file-writer";
 
 // ── 電文分類 (Route) ──
 
@@ -132,6 +133,7 @@ export interface MessageHandlerResult {
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
   flushAndDisposeVolcanoBuffer: () => void;
+  eventFileWriter: EventFileWriter;
 }
 
 /** 受信データのハンドリング */
@@ -145,6 +147,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const stats = new TelegramStats();
   const summaryTracker = new SummaryWindowTracker();
   const diffStore = new PresentationDiffStore();
+  const eventFileWriter = new EventFileWriter();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -204,6 +207,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     notifier,
     runDisplayPipeline,
     display,
+    eventFileWriter,
   });
 
   const handler = (msg: WsDataMessage): void => {
@@ -234,6 +238,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     recordStats(outcome, stats);
     dispatchNotify(outcome, notifier);
+    eventFileWriter.write(outcome);
     runDisplayPipeline(outcome, () => display?.displayOutcome(outcome));
   };
 
@@ -246,5 +251,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     stats,
     summaryTracker,
     flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),
+    eventFileWriter,
   };
 }

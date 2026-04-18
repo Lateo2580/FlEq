@@ -5,6 +5,7 @@ import { ConnectionManager } from "../dmdata/connection-manager";
 import { loadConfig, saveConfig } from "../config";
 import { Notifier } from "../engine/notification/notifier";
 import { EewEventLogger } from "../engine/eew/eew-logger";
+import type { EventFileWriter } from "../engine/events/event-file-writer";
 import * as themeModule from "../ui/theme";
 import type { PipelineController } from "../engine/filter-template/pipeline-controller";
 import * as log from "../logger";
@@ -42,6 +43,7 @@ export class ReplHandler {
   private wsManager: ConnectionManager;
   private notifier: Notifier;
   private eewLogger: EewEventLogger;
+  private eventFileWriter: EventFileWriter;
   private onQuit: () => void | Promise<void>;
   private rl: readline.Interface | null = null;
   private commands: Record<string, CommandEntry>;
@@ -69,6 +71,7 @@ export class ReplHandler {
     wsManager: ConnectionManager,
     notifier: Notifier,
     eewLogger: EewEventLogger,
+    eventFileWriter: EventFileWriter,
     onQuit: () => void | Promise<void>,
     stats: TelegramStats,
     statusProviders: PromptStatusProvider[] = [],
@@ -80,6 +83,7 @@ export class ReplHandler {
     this.wsManager = wsManager;
     this.notifier = notifier;
     this.eewLogger = eewLogger;
+    this.eventFileWriter = eventFileWriter;
     this.onQuit = onQuit;
     this.stats = stats;
     this.statusProviders = statusProviders;
@@ -259,6 +263,7 @@ export class ReplHandler {
       wsManager: this.wsManager,
       notifier: this.notifier,
       eewLogger: this.eewLogger,
+      eventFileWriter: this.eventFileWriter,
       statusLine: this.statusLine,
       stats: this.stats,
       statusProviders: this.statusProviders,

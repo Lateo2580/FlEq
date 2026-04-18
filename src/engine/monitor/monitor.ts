@@ -30,11 +30,13 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const display = createDisplayAdapter();
 
   const pipeline = pipelineController?.getPipeline();
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined, display });
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer, eventFileWriter } = createMessageHandler({ pipeline: pipeline ?? undefined, display });
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
   eewLogger.setFields(config.eewLogFields);
+  eventFileWriter.setEnabled(config.eventLog);
+  eventFileWriter.setIncludeRaw(config.eventLogRaw);
 
   let disconnectedAt: number | null = null;
   let isFirstConnection = true;
@@ -76,11 +78,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     resetTerminalTitle,
     flushAndDisposeVolcanoBuffer,
     stopSummaryTimer: () => summaryTimerControl?.stop(),
+    eventFileWriter,
   });
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipelineController, summaryTracker);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, eventFileWriter, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipelineController, summaryTracker);
 
   registerShutdownSignals(shutdown);
 
