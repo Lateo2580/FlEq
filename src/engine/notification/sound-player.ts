@@ -153,22 +153,31 @@ function onPlayFinished(): void {
 
 /**
  * プロセスを起動して再生を実行する。
- * タイムアウトを設定し、完了時に onPlayFinished を呼ぶ。
+ * タイムアウトと execFile コールバックのいずれか先に発火した側だけが
+ * 完了処理を行う (finishOnce による二重完了ガード)。
  */
 function runPlay(level: SoundLevel): void {
   activeCount++;
+  let finished = false;
+
+  const finishOnce = (): void => {
+    if (finished) return;
+    finished = true;
+    onPlayFinished();
+  };
+
   try {
     const customPath = findCustomSound(level);
     const platform = process.platform;
 
     if (customPath) {
-      activeProcess = launchCustomSound(customPath, platform, onPlayFinished);
+      activeProcess = launchCustomSound(customPath, platform, finishOnce);
     } else if (platform === "win32") {
-      activeProcess = launchSystemSoundWindows(level, onPlayFinished);
+      activeProcess = launchSystemSoundWindows(level, finishOnce);
     } else if (platform === "darwin") {
-      activeProcess = launchSystemSoundMacOS(level, onPlayFinished);
+      activeProcess = launchSystemSoundMacOS(level, finishOnce);
     } else {
-      activeProcess = launchSystemSoundLinux(level, onPlayFinished);
+      activeProcess = launchSystemSoundLinux(level, finishOnce);
     }
 
     if (activeProcess != null) {
@@ -179,14 +188,14 @@ function runPlay(level: SoundLevel): void {
         } catch {
           // ignore
         }
-        onPlayFinished();
+        finishOnce();
       }, PLAY_TIMEOUT_MS);
     }
   } catch (err) {
     if (err instanceof Error) {
       log.debug(`通知音の再生に失敗しました: ${err.message}`);
     }
-    onPlayFinished();
+    finishOnce();
   }
 }
 

@@ -13,8 +13,10 @@ const mockExistsSync = vi.fn();
 
 vi.mock("child_process", () => ({
   execFile: (...args: unknown[]) => {
-    mockExecFile(...args);
-    // コールバックがあれば呼ぶ
+    // mockImplementationOnce 等で指定された戻り値があればそれを返す
+    const result = mockExecFile(...args);
+    if (result != null) return result;
+    // デフォルト: コールバックを即呼び空オブジェクトを返す
     const cb = args[args.length - 1];
     if (typeof cb === "function") {
       (cb as (err: Error | null) => void)(null);
@@ -22,7 +24,8 @@ vi.mock("child_process", () => ({
     return {};
   },
   exec: (...args: unknown[]) => {
-    mockExec(...args);
+    const result = mockExec(...args);
+    if (result != null) return result;
     const cb = args[args.length - 1];
     if (typeof cb === "function") {
       (cb as (err: Error | null) => void)(null);
@@ -203,5 +206,38 @@ describe("sound-player", () => {
     sp._setUptimeProviderForTest(() => 12.5);
     expect(sp._nowMsForTest()).toBe(12500);
     sp._setUptimeProviderForTest(null);
+  });
+
+  it("タイムアウト発火後に execFile コールバックが走っても二重完了しない", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    // execFile のコールバックを手動制御するためキャプチャする
+    let capturedCb: ((err: Error | null) => void) | null = null;
+    const killFn = vi.fn();
+    mockExecFile.mockImplementationOnce((..._args: unknown[]) => {
+      const cb = _args[_args.length - 1];
+      if (typeof cb === "function") {
+        capturedCb = cb as (err: Error | null) => void;
+      }
+      return { kill: killFn };
+    });
+
+    vi.useFakeTimers();
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp.resetSoundPlayer();
+    sp.playSound("info");
+
+    // 10 秒経過で timeout 発火 → kill される
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(killFn).toHaveBeenCalledTimes(1);
+
+    // その後 execFile のコールバックが遅れて走る
+    capturedCb?.(new Error("killed"));
+
+    // 新しい playSound が即受け付けられる = activeCount が負数化していない
+    sp.playSound("warning");
+    expect(mockExecFile).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
+    sp.resetSoundPlayer();
   });
 });
