@@ -124,12 +124,14 @@ const PLAY_TIMEOUT_MS = 10_000;
 
 /** 再生中のプロセス数 */
 let activeCount = 0;
-/** 再生待ちキュー */
-const playQueue: SoundLevel[] = [];
+/** 再生待ちキュー (level と isRetry フラグを保持) */
+const playQueue: { level: SoundLevel; isRetry: boolean }[] = [];
 /** 現在再生中のプロセス (タイムアウト kill 用) */
 let activeProcess: ChildProcess | null = null;
 /** タイムアウトタイマー */
 let activeTimer: ReturnType<typeof setTimeout> | null = null;
+/** 起動後リトライのタイマーハンドル集合 (dispose でクリア) */
+const retryTimers = new Set<ReturnType<typeof setTimeout>>();
 
 /** dispose 済みフラグ */
 let disposed = false;
@@ -147,7 +149,7 @@ function onPlayFinished(): void {
   if (disposed) return;
   if (playQueue.length > 0) {
     const next = playQueue.shift()!;
-    runPlay(next);
+    runPlay(next.level, { isRetry: next.isRetry });
   }
 }
 
@@ -158,8 +160,25 @@ function onPlayFinished(): void {
 interface DoneHandle {
   /** 完了権を取得する。既に他経路で完了済みなら false */
   claim(): boolean;
-  /** 完了処理を行う (claim() 成功後に呼ぶ) */
-  done(): void;
+  /** 完了処理を行う (claim() 成功後に呼ぶ)。failed=true ならリトライ判定が走る */
+  done(failed?: boolean): void;
+}
+
+/**
+ * 起動ウィンドウ内で失敗した場合に、指定秒後の再試行をスケジュールする。
+ * - リトライ由来の失敗 (opts.isRetry) は再リトライしない
+ * - 起動後 STARTUP_WINDOW_MS を過ぎていればスケジュールしない
+ */
+function scheduleRetryIfNeeded(level: SoundLevel, opts?: { isRetry?: boolean }): void {
+  if (opts?.isRetry) return;
+  if (disposed) return;
+  if (nowMs() >= STARTUP_WINDOW_MS) return;
+  log.warn(`通知音を ${RETRY_DELAY_MS / 1000} 秒後に再試行します (${level})`);
+  const timer = setTimeout(() => {
+    retryTimers.delete(timer);
+    if (!disposed) playSound(level, { isRetry: true });
+  }, RETRY_DELAY_MS);
+  retryTimers.add(timer);
 }
 
 /**
@@ -167,7 +186,7 @@ interface DoneHandle {
  * タイムアウトと launch 経路のコールバックが競合した場合、先に claim() した
  * 側だけが log/bell/キュー進行を実行する (二重完了ガード)。
  */
-function runPlay(level: SoundLevel): void {
+function runPlay(level: SoundLevel, opts?: { isRetry?: boolean }): void {
   activeCount++;
   let finished = false;
 
@@ -177,7 +196,8 @@ function runPlay(level: SoundLevel): void {
       finished = true;
       return true;
     },
-    done: (): void => {
+    done: (failed?: boolean): void => {
+      if (failed === true) scheduleRetryIfNeeded(level, opts);
       onPlayFinished();
     },
   };
@@ -205,7 +225,7 @@ function runPlay(level: SoundLevel): void {
         } catch {
           // ignore
         }
-        handle.done();
+        handle.done(true);
       }, PLAY_TIMEOUT_MS);
     }
   } catch (err) {
@@ -213,7 +233,7 @@ function runPlay(level: SoundLevel): void {
     if (err instanceof Error) {
       log.warn(`通知音の再生に失敗しました: ${err.message}`);
     }
-    handle.done();
+    handle.done(true);
   }
 }
 
@@ -224,17 +244,17 @@ function runPlay(level: SoundLevel): void {
  * カスタム効果音ファイルがあればそちらを優先、なければ OS システムサウンドにフォールバック。
  * 再生失敗はログに記録するのみで例外は投げない。
  */
-export function playSound(level: SoundLevel): void {
+export function playSound(level: SoundLevel, opts?: { isRetry?: boolean }): void {
   if (disposed) return;
 
   if (activeCount < MAX_CONCURRENT) {
-    runPlay(level);
+    runPlay(level, opts);
   } else {
     if (playQueue.length >= MAX_QUEUE_SIZE) {
       const dropped = playQueue.shift();
-      log.debug(`通知音キューが上限 (${MAX_QUEUE_SIZE}) に達したため破棄しました: ${dropped}`);
+      log.debug(`通知音キューが上限 (${MAX_QUEUE_SIZE}) に達したため破棄しました: ${dropped?.level}`);
     }
-    playQueue.push(level);
+    playQueue.push({ level, isRetry: opts?.isRetry === true });
   }
 }
 
@@ -249,6 +269,10 @@ export function dispose(): void {
     clearTimeout(activeTimer);
     activeTimer = null;
   }
+  for (const timer of retryTimers) {
+    clearTimeout(timer);
+  }
+  retryTimers.clear();
   if (activeProcess != null) {
     try {
       activeProcess.kill();
@@ -272,6 +296,10 @@ export function resetSoundPlayer(): void {
     clearTimeout(activeTimer);
     activeTimer = null;
   }
+  for (const timer of retryTimers) {
+    clearTimeout(timer);
+  }
+  retryTimers.clear();
 }
 
 // ── カスタム効果音再生 ──
@@ -306,8 +334,10 @@ function launchCustomSoundWindows(filePath: string, onDone: DoneHandle): ChildPr
     if (!onDone.claim()) return;
     if (err) {
       log.warn(`Windows カスタム通知音の再生に失敗しました: ${err.message}`);
+      onDone.done(true);
+    } else {
+      onDone.done();
     }
-    onDone.done();
   });
   return proc;
 }
@@ -318,8 +348,10 @@ function launchCustomSoundMacOS(filePath: string, onDone: DoneHandle): ChildProc
     if (!onDone.claim()) return;
     if (err) {
       log.warn(`macOS カスタム通知音の再生に失敗しました: ${err.message}`);
+      onDone.done(true);
+    } else {
+      onDone.done();
     }
-    onDone.done();
   });
   return proc as unknown as ChildProcess;
 }
@@ -335,8 +367,10 @@ function launchCustomSoundLinux(filePath: string, onDone: DoneHandle): ChildProc
       if (err) {
         log.warn(`Linux ffplay での再生に失敗しました: ${err.message}`);
         printBell();
+        onDone.done(true);
+      } else {
+        onDone.done();
       }
-      onDone.done();
     });
     return proc as unknown as ChildProcess;
   } else {
@@ -348,8 +382,10 @@ function launchCustomSoundLinux(filePath: string, onDone: DoneHandle): ChildProc
           if (err2) {
             log.warn(`Linux 通知音の再生に失敗しました: ${err2.message}`);
             printBell();
+            onDone.done(true);
+          } else {
+            onDone.done();
           }
-          onDone.done();
         });
       } else {
         if (!onDone.claim()) return;
@@ -400,7 +436,7 @@ function launchSystemSoundWindows(level: SoundLevel, onDone: DoneHandle): ChildP
     if (!onDone.claim()) return null;
     log.warn(`Windows 通知音が見つかりません。bell にフォールバックします: ${WINDOWS_SOUNDS[level]}`);
     printBell();
-    onDone.done();
+    onDone.done(true);
     return null;
   }
   const psCommand = `(New-Object System.Media.SoundPlayer '${soundPath}').PlaySync()`;
@@ -408,8 +444,10 @@ function launchSystemSoundWindows(level: SoundLevel, onDone: DoneHandle): ChildP
     if (!onDone.claim()) return;
     if (err) {
       log.warn(`Windows 通知音の再生に失敗しました: ${err.message}`);
+      onDone.done(true);
+    } else {
+      onDone.done();
     }
-    onDone.done();
   });
   return proc;
 }
@@ -421,8 +459,10 @@ function launchSystemSoundMacOS(level: SoundLevel, onDone: DoneHandle): ChildPro
     if (!onDone.claim()) return;
     if (err) {
       log.warn(`macOS 通知音の再生に失敗しました: ${err.message}`);
+      onDone.done(true);
+    } else {
+      onDone.done();
     }
-    onDone.done();
   });
   return proc as unknown as ChildProcess;
 }
@@ -442,8 +482,10 @@ function launchSystemSoundLinux(level: SoundLevel, onDone: DoneHandle): ChildPro
     if (err) {
       log.warn(`canberra-gtk-play 失敗、bell にフォールバック: ${err.message}`);
       printBell();
+      onDone.done(true);
+    } else {
+      onDone.done();
     }
-    onDone.done();
   });
   return proc as unknown as ChildProcess;
 }

@@ -209,6 +209,86 @@ describe("sound-player", () => {
     sp._setUptimeProviderForTest(null);
   });
 
+  it("起動直後 (uptime<60s) の再生失敗は 20 秒後に再試行される", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    // execFile は毎回 error で呼ばれる (canberra-gtk-play が失敗する想定)
+    mockExecFile.mockImplementation((..._args: unknown[]) => {
+      const cb = _args[_args.length - 1];
+      if (typeof cb === "function") {
+        (cb as (err: Error | null) => void)(new Error("device busy"));
+      }
+      return { kill: vi.fn() };
+    });
+
+    vi.useFakeTimers();
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp._setUptimeProviderForTest(() => 5); // 5 秒経過
+    sp.resetSoundPlayer();
+
+    sp.playSound("critical");
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+
+    // 20 秒進めるとリトライが走る
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(mockExecFile).toHaveBeenCalledTimes(2);
+
+    sp._setUptimeProviderForTest(null);
+    sp.resetSoundPlayer();
+  });
+
+  it("起動後 60 秒を超えた失敗はリトライされない", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExecFile.mockImplementation((..._args: unknown[]) => {
+      const cb = _args[_args.length - 1];
+      if (typeof cb === "function") {
+        (cb as (err: Error | null) => void)(new Error("device busy"));
+      }
+      return { kill: vi.fn() };
+    });
+
+    vi.useFakeTimers();
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp._setUptimeProviderForTest(() => 90); // 起動後 90 秒経過
+    sp.resetSoundPlayer();
+
+    sp.playSound("info");
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(mockExecFile).toHaveBeenCalledTimes(1); // リトライなし
+
+    sp._setUptimeProviderForTest(null);
+    sp.resetSoundPlayer();
+  });
+
+  it("リトライ経由の失敗は再度リトライされない", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExecFile.mockImplementation((..._args: unknown[]) => {
+      const cb = _args[_args.length - 1];
+      if (typeof cb === "function") {
+        (cb as (err: Error | null) => void)(new Error("device busy"));
+      }
+      return { kill: vi.fn() };
+    });
+
+    vi.useFakeTimers();
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp._setUptimeProviderForTest(() => 5);
+    sp.resetSoundPlayer();
+
+    sp.playSound("warning");
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(mockExecFile).toHaveBeenCalledTimes(2); // 1 回目のリトライが走る
+
+    // さらに 25 秒進めても 3 回目は起きない (isRetry 経由の失敗は再リトライしない)
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(mockExecFile).toHaveBeenCalledTimes(2);
+
+    sp._setUptimeProviderForTest(null);
+    sp.resetSoundPlayer();
+  });
+
   it("タイムアウト発火後に遅延 callback が走ってもキュー進行が二重化しない", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
     // 1 回目の execFile: コールバックをキャプチャだけして実行しない (ハング再現)
