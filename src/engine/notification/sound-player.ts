@@ -497,3 +497,53 @@ function printBell(): void {
     // ignore
   }
 }
+
+// ── バックエンド健康チェック ──
+
+/** バックエンドプローブの timeout (ms) */
+const BACKEND_PROBE_TIMEOUT_MS = 2_000;
+
+/**
+ * 音声バックエンドが利用可能かを判定する。
+ * Linux: ffplay で 0.1 秒の無音サンプルを再生し、終了コードで判定する。
+ *        PATH 上に ffplay があっても音声デバイスが使えない場合は ok=false を返す。
+ * Windows / macOS: 即座に ok=true を返す (ビルトインの再生経路が常に利用可能)。
+ */
+export async function checkSoundBackend(): Promise<{
+  ok: boolean;
+  label: string;
+  reason?: string;
+}> {
+  const platform = process.platform;
+  if (platform === "win32") return { ok: true, label: "winmm" };
+  if (platform === "darwin") return { ok: true, label: "afplay" };
+
+  return await new Promise((resolve) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const proc = execFile(
+      "ffplay",
+      ["-f", "lavfi", "-i", "anullsrc=d=0.1", "-nodisp", "-autoexit", "-loglevel", "quiet"],
+      (err) => {
+        if (settled) return;
+        settled = true;
+        if (timer != null) clearTimeout(timer);
+        if (err) {
+          resolve({ ok: false, label: "ffplay", reason: err.message });
+        } else {
+          resolve({ ok: true, label: "ffplay" });
+        }
+      },
+    );
+    timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try {
+        proc?.kill();
+      } catch {
+        // ignore
+      }
+      resolve({ ok: false, label: "ffplay", reason: "probe timeout" });
+    }, BACKEND_PROBE_TIMEOUT_MS);
+  });
+}

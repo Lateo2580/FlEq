@@ -289,6 +289,62 @@ describe("sound-player", () => {
     sp.resetSoundPlayer();
   });
 
+  it("checkSoundBackend(): Linux で ffplay プローブ成功なら ok=true", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExecFile.mockImplementationOnce((..._args: unknown[]) => {
+      const cb = _args[_args.length - 1];
+      if (typeof cb === "function") {
+        (cb as (err: Error | null) => void)(null);
+      }
+      return { kill: vi.fn() };
+    });
+    const sp = await import("../../src/engine/notification/sound-player");
+    const result = await sp.checkSoundBackend();
+    expect(result.ok).toBe(true);
+    expect(result.label).toBe("ffplay");
+  });
+
+  it("checkSoundBackend(): Linux で ffplay が非 0 終了なら ok=false", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    mockExecFile.mockImplementationOnce((..._args: unknown[]) => {
+      const cb = _args[_args.length - 1];
+      if (typeof cb === "function") {
+        (cb as (err: Error | null) => void)(new Error("ENOENT"));
+      }
+      return { kill: vi.fn() };
+    });
+    const sp = await import("../../src/engine/notification/sound-player");
+    const result = await sp.checkSoundBackend();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toMatch(/ENOENT/);
+  });
+
+  it("checkSoundBackend(): プローブが 2 秒超で timeout 扱い", async () => {
+    Object.defineProperty(process, "platform", { value: "linux" });
+    const killFn = vi.fn();
+    mockExecFile.mockImplementationOnce(() => {
+      // コールバックを呼ばずハングさせる
+      return { kill: killFn };
+    });
+
+    vi.useFakeTimers();
+    const sp = await import("../../src/engine/notification/sound-player");
+    const promise = sp.checkSoundBackend();
+    await vi.advanceTimersByTimeAsync(2_000);
+    const result = await promise;
+    expect(result.ok).toBe(false);
+    expect(result.reason).toMatch(/timeout/i);
+    expect(killFn).toHaveBeenCalled();
+  });
+
+  it("checkSoundBackend(): Windows は ok=true を即返す", async () => {
+    Object.defineProperty(process, "platform", { value: "win32" });
+    const sp = await import("../../src/engine/notification/sound-player");
+    const result = await sp.checkSoundBackend();
+    expect(result.ok).toBe(true);
+    expect(result.label).toBe("winmm");
+  });
+
   it("タイムアウト発火後に遅延 callback が走ってもキュー進行が二重化しない", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
     // 1 回目の execFile: コールバックをキャプチャだけして実行しない (ハング再現)
