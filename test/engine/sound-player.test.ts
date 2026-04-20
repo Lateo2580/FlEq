@@ -55,6 +55,7 @@ describe("sound-player", () => {
 
   afterEach(() => {
     Object.defineProperty(process, "platform", { value: originalPlatform });
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -208,36 +209,40 @@ describe("sound-player", () => {
     sp._setUptimeProviderForTest(null);
   });
 
-  it("タイムアウト発火後に execFile コールバックが走っても二重完了しない", async () => {
+  it("タイムアウト発火後に遅延 callback が走ってもキュー進行が二重化しない", async () => {
     Object.defineProperty(process, "platform", { value: "linux" });
-    // execFile のコールバックを手動制御するためキャプチャする
-    let capturedCb: ((err: Error | null) => void) | null = null;
+    // 1 回目の execFile: コールバックをキャプチャだけして実行しない (ハング再現)
+    const captured: Array<(err: Error | null) => void> = [];
     const killFn = vi.fn();
     mockExecFile.mockImplementationOnce((..._args: unknown[]) => {
       const cb = _args[_args.length - 1];
-      if (typeof cb === "function") {
-        capturedCb = cb as (err: Error | null) => void;
-      }
+      if (typeof cb === "function") captured.push(cb as (err: Error | null) => void);
       return { kill: killFn };
     });
+    // 2 回目以降はデフォルトモック (cb 即呼び) が使われる
 
     vi.useFakeTimers();
     const sp = await import("../../src/engine/notification/sound-player");
     sp.resetSoundPlayer();
-    sp.playSound("info");
 
-    // 10 秒経過で timeout 発火 → kill される
+    sp.playSound("info");     // 1 枚目: キャプチャ版が動き、完了しない
+    sp.playSound("warning");  // 2 枚目: キューに入る (MAX_CONCURRENT=1)
+
+    expect(mockExecFile).toHaveBeenCalledTimes(1);
+
+    // 10 秒で timeout 発火 → kill → handle.done → キューから warning を取り出して runPlay
     await vi.advanceTimersByTimeAsync(10_000);
     expect(killFn).toHaveBeenCalledTimes(1);
+    expect(mockExecFile).toHaveBeenCalledTimes(2); // warning が実行された
 
-    // その後 execFile のコールバックが遅れて走る
-    capturedCb?.(new Error("killed"));
+    // 1 枚目の遅延コールバックを今さら呼ぶ。
+    // 旧実装 (二重完了バグあり) なら onPlayFinished が再度走り、activeCount が減って
+    // キューから余計に取り出そうとする。現実装 (DoneHandle) では claim() が false で skip。
+    captured[0]?.(new Error("killed"));
 
-    // 新しい playSound が即受け付けられる = activeCount が負数化していない
-    sp.playSound("warning");
+    // 追加の execFile 呼び出しが起きないこと
     expect(mockExecFile).toHaveBeenCalledTimes(2);
 
-    vi.useRealTimers();
     sp.resetSoundPlayer();
   });
 });

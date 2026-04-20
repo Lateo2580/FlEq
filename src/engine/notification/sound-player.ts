@@ -152,18 +152,34 @@ function onPlayFinished(): void {
 }
 
 /**
+ * 完了権ハンドル。launch 関数の error callback や timeout で先に claim() した
+ * 側だけが後続処理 (ログ・bell・キューの進行) を行う。
+ */
+interface DoneHandle {
+  /** 完了権を取得する。既に他経路で完了済みなら false */
+  claim(): boolean;
+  /** 完了処理を行う (claim() 成功後に呼ぶ) */
+  done(): void;
+}
+
+/**
  * プロセスを起動して再生を実行する。
- * タイムアウトと execFile コールバックのいずれか先に発火した側だけが
- * 完了処理を行う (finishOnce による二重完了ガード)。
+ * タイムアウトと launch 経路のコールバックが競合した場合、先に claim() した
+ * 側だけが log/bell/キュー進行を実行する (二重完了ガード)。
  */
 function runPlay(level: SoundLevel): void {
   activeCount++;
   let finished = false;
 
-  const finishOnce = (): void => {
-    if (finished) return;
-    finished = true;
-    onPlayFinished();
+  const handle: DoneHandle = {
+    claim: (): boolean => {
+      if (finished) return false;
+      finished = true;
+      return true;
+    },
+    done: (): void => {
+      onPlayFinished();
+    },
   };
 
   try {
@@ -171,31 +187,33 @@ function runPlay(level: SoundLevel): void {
     const platform = process.platform;
 
     if (customPath) {
-      activeProcess = launchCustomSound(customPath, platform, finishOnce);
+      activeProcess = launchCustomSound(customPath, platform, handle);
     } else if (platform === "win32") {
-      activeProcess = launchSystemSoundWindows(level, finishOnce);
+      activeProcess = launchSystemSoundWindows(level, handle);
     } else if (platform === "darwin") {
-      activeProcess = launchSystemSoundMacOS(level, finishOnce);
+      activeProcess = launchSystemSoundMacOS(level, handle);
     } else {
-      activeProcess = launchSystemSoundLinux(level, finishOnce);
+      activeProcess = launchSystemSoundLinux(level, handle);
     }
 
     if (activeProcess != null) {
       activeTimer = setTimeout(() => {
+        if (!handle.claim()) return;
         log.debug(`通知音の再生がタイムアウトしました (${PLAY_TIMEOUT_MS}ms)`);
         try {
           activeProcess?.kill();
         } catch {
           // ignore
         }
-        finishOnce();
+        handle.done();
       }, PLAY_TIMEOUT_MS);
     }
   } catch (err) {
+    if (!handle.claim()) return;
     if (err instanceof Error) {
       log.debug(`通知音の再生に失敗しました: ${err.message}`);
     }
-    finishOnce();
+    handle.done();
   }
 }
 
@@ -261,7 +279,7 @@ export function resetSoundPlayer(): void {
 function launchCustomSound(
   filePath: string,
   platform: string,
-  onDone: () => void,
+  onDone: DoneHandle,
 ): ChildProcess | null {
   if (platform === "win32") {
     return launchCustomSoundWindows(filePath, onDone);
@@ -273,7 +291,7 @@ function launchCustomSound(
 }
 
 /** Windows: winmm.dll mciSendString で mp3/wav を同期再生 */
-function launchCustomSoundWindows(filePath: string, onDone: () => void): ChildProcess | null {
+function launchCustomSoundWindows(filePath: string, onDone: DoneHandle): ChildProcess | null {
   // MediaPlayer (WPF) は非同期ロードのためタイミング問題が起きやすい。
   // mciSendString は同期 (wait) で確実に再生できる。
   // execFile を使い cmd.exe のダブルクォーテーション解釈を回避する。
@@ -285,37 +303,40 @@ function launchCustomSoundWindows(filePath: string, onDone: () => void): ChildPr
     `[Win32.Mci]::mciSendStringW('close fleqsnd',$null,0,[IntPtr]::Zero)|Out-Null`,
   ].join(" ");
   const proc = execFile("powershell", ["-NoProfile", "-Command", psCommand], (err) => {
+    if (!onDone.claim()) return;
     if (err) {
       log.debug(`Windows カスタム通知音の再生に失敗しました: ${err.message}`);
     }
-    onDone();
+    onDone.done();
   });
   return proc;
 }
 
 /** macOS: afplay で mp3/wav を再生 */
-function launchCustomSoundMacOS(filePath: string, onDone: () => void): ChildProcess | null {
+function launchCustomSoundMacOS(filePath: string, onDone: DoneHandle): ChildProcess | null {
   const proc = execFile("afplay", [filePath], (err) => {
+    if (!onDone.claim()) return;
     if (err) {
       log.debug(`macOS カスタム通知音の再生に失敗しました: ${err.message}`);
     }
-    onDone();
+    onDone.done();
   });
   return proc as unknown as ChildProcess;
 }
 
 /** Linux: ffplay → paplay → aplay のフォールバック */
-function launchCustomSoundLinux(filePath: string, onDone: () => void): ChildProcess | null {
+function launchCustomSoundLinux(filePath: string, onDone: DoneHandle): ChildProcess | null {
   const ext = path.extname(filePath).toLowerCase();
 
   if (ext === ".mp3") {
     // mp3 は ffplay で再生
     const proc = execFile("ffplay", ["-nodisp", "-autoexit", "-loglevel", "quiet", filePath], (err) => {
+      if (!onDone.claim()) return;
       if (err) {
         log.debug(`Linux ffplay での再生に失敗しました: ${err.message}`);
         printBell();
       }
-      onDone();
+      onDone.done();
     });
     return proc as unknown as ChildProcess;
   } else {
@@ -323,14 +344,16 @@ function launchCustomSoundLinux(filePath: string, onDone: () => void): ChildProc
     const proc = execFile("paplay", [filePath], (err) => {
       if (err) {
         execFile("aplay", ["-q", filePath], (err2) => {
+          if (!onDone.claim()) return;
           if (err2) {
             log.debug(`Linux 通知音の再生に失敗しました: ${err2.message}`);
             printBell();
           }
-          onDone();
+          onDone.done();
         });
       } else {
-        onDone();
+        if (!onDone.claim()) return;
+        onDone.done();
       }
     });
     return proc as unknown as ChildProcess;
@@ -371,51 +394,56 @@ function findWindowsSystemSound(level: SoundLevel): string | null {
   return null;
 }
 
-function launchSystemSoundWindows(level: SoundLevel, onDone: () => void): ChildProcess | null {
+function launchSystemSoundWindows(level: SoundLevel, onDone: DoneHandle): ChildProcess | null {
   const soundPath = findWindowsSystemSound(level);
   if (soundPath == null) {
+    if (!onDone.claim()) return null;
     log.debug(`Windows 通知音が見つかりません。bell にフォールバックします: ${WINDOWS_SOUNDS[level]}`);
     printBell();
-    onDone();
+    onDone.done();
     return null;
   }
   const psCommand = `(New-Object System.Media.SoundPlayer '${soundPath}').PlaySync()`;
   const proc = execFile("powershell", ["-NoProfile", "-Command", psCommand], (err) => {
+    if (!onDone.claim()) return;
     if (err) {
       log.debug(`Windows 通知音の再生に失敗しました: ${err.message}`);
     }
-    onDone();
+    onDone.done();
   });
   return proc;
 }
 
-function launchSystemSoundMacOS(level: SoundLevel, onDone: () => void): ChildProcess | null {
+function launchSystemSoundMacOS(level: SoundLevel, onDone: DoneHandle): ChildProcess | null {
   const soundFile = MACOS_SOUNDS[level];
   const soundPath = `/System/Library/Sounds/${soundFile}`;
   const proc = execFile("afplay", [soundPath], (err) => {
+    if (!onDone.claim()) return;
     if (err) {
       log.debug(`macOS 通知音の再生に失敗しました: ${err.message}`);
     }
-    onDone();
+    onDone.done();
   });
   return proc as unknown as ChildProcess;
 }
 
-function launchSystemSoundLinux(level: SoundLevel, onDone: () => void): ChildProcess | null {
+function launchSystemSoundLinux(level: SoundLevel, onDone: DoneHandle): ChildProcess | null {
   const eventName = LINUX_CANBERRA_EVENTS[level];
 
   if (eventName === "bell") {
+    if (!onDone.claim()) return null;
     printBell();
-    onDone();
+    onDone.done();
     return null;
   }
 
   const proc = execFile("canberra-gtk-play", ["-i", eventName], (err) => {
+    if (!onDone.claim()) return;
     if (err) {
       log.debug(`canberra-gtk-play 失敗、bell にフォールバック: ${err.message}`);
       printBell();
     }
-    onDone();
+    onDone.done();
   });
   return proc as unknown as ChildProcess;
 }
