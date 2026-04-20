@@ -87,6 +87,32 @@ export function clearCustomSoundCache(): void {
   windowsSoundCache.clear();
 }
 
+// ── 起動ウィンドウ用の単調時計 ──
+
+/** 起動後リトライのウィンドウ (ms) */
+const STARTUP_WINDOW_MS = 60_000;
+/** 失敗時のリトライ待機 (ms) */
+const RETRY_DELAY_MS = 20_000;
+
+/** テスト用に差し替え可能な uptime プロバイダ (秒) */
+let uptimeProvider: (() => number) | null = null;
+
+/** プロセス起動からの経過ミリ秒 (Date.now の非単調性を避ける) */
+function nowMs(): number {
+  const seconds = uptimeProvider != null ? uptimeProvider() : process.uptime();
+  return Math.floor(seconds * 1000);
+}
+
+/** テスト用: uptime プロバイダを差し替える (null で本物に戻す) */
+export function _setUptimeProviderForTest(fn: (() => number) | null): void {
+  uptimeProvider = fn;
+}
+
+/** テスト用: 現在の nowMs 値を返す */
+export function _nowMsForTest(): number {
+  return nowMs();
+}
+
 // ── 有界キュー ──
 
 /** 同時再生の最大数 */

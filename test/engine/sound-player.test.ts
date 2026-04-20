@@ -197,4 +197,11 @@ describe("sound-player", () => {
     playSound("critical");
     expect(mockExistsSync).toHaveBeenCalledTimes(1);
   });
+
+  it("_setUptimeProviderForTest で nowMs を上書きできる", async () => {
+    const sp = await import("../../src/engine/notification/sound-player");
+    sp._setUptimeProviderForTest(() => 12.5);
+    expect(sp._nowMsForTest()).toBe(12500);
+    sp._setUptimeProviderForTest(null);
+  });
 });
