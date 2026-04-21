@@ -46,8 +46,10 @@ describe("sound-player", () => {
   beforeEach(() => {
     vi.resetModules();
     originalPlatform = process.platform;
-    mockExecFile.mockClear();
-    mockExec.mockClear();
+    // mockReset で前テストの mockImplementation / mockImplementationOnce を必ずクリア
+    mockExecFile.mockReset();
+    mockExec.mockReset();
+    mockExistsSync.mockReset();
     // デフォルトではカスタム効果音なし (システムサウンドフォールバックのテスト用)
     mockExistsSync.mockReturnValue(false);
     stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockReturnValue(true);

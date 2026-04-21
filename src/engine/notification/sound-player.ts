@@ -132,6 +132,11 @@ let activeProcess: ChildProcess | null = null;
 let activeTimer: ReturnType<typeof setTimeout> | null = null;
 /** 起動後リトライのタイマーハンドル集合 (dispose でクリア) */
 const retryTimers = new Set<ReturnType<typeof setTimeout>>();
+/**
+ * 再生世代カウンタ。dispose/resetSoundPlayer で増やすことで、
+ * 旧世代の子プロセスコールバックが戻ってきても completion を拒否する。
+ */
+let runGeneration = 0;
 
 /** dispose 済みフラグ */
 let disposed = false;
@@ -167,12 +172,11 @@ interface DoneHandle {
 /**
  * 起動ウィンドウ内で失敗した場合に、指定秒後の再試行をスケジュールする。
  * - リトライ由来の失敗 (opts.isRetry) は再リトライしない
- * - 起動後 STARTUP_WINDOW_MS を過ぎていればスケジュールしない
+ * - 起動ウィンドウ判定は runPlay 開始時に捕捉済みの値を渡すこと
  */
 function scheduleRetryIfNeeded(level: SoundLevel, opts?: { isRetry?: boolean }): void {
   if (opts?.isRetry) return;
   if (disposed) return;
-  if (nowMs() >= STARTUP_WINDOW_MS) return;
   log.warn(`通知音を ${RETRY_DELAY_MS / 1000} 秒後に再試行します (${level})`);
   const timer = setTimeout(() => {
     retryTimers.delete(timer);
@@ -185,19 +189,29 @@ function scheduleRetryIfNeeded(level: SoundLevel, opts?: { isRetry?: boolean }):
  * プロセスを起動して再生を実行する。
  * タイムアウトと launch 経路のコールバックが競合した場合、先に claim() した
  * 側だけが log/bell/キュー進行を実行する (二重完了ガード)。
+ * dispose/resetSoundPlayer で runGeneration が変わると旧 runPlay の完了は拒否される。
  */
 function runPlay(level: SoundLevel, opts?: { isRetry?: boolean }): void {
   activeCount++;
   let finished = false;
+  const myGeneration = runGeneration;
+  // リトライ対象判定は runPlay 開始時の uptime で確定させる。
+  // 10 秒 timeout などで失敗確定時点でウィンドウ外でも、
+  // 起動直後に始まった再生はリトライ対象とする。
+  const startedInStartupWindow = nowMs() < STARTUP_WINDOW_MS;
 
   const handle: DoneHandle = {
     claim: (): boolean => {
       if (finished) return false;
+      // dispose/reset された旧世代の runPlay は完了処理を行わない
+      if (myGeneration !== runGeneration) return false;
       finished = true;
       return true;
     },
     done: (failed?: boolean): void => {
-      if (failed === true) scheduleRetryIfNeeded(level, opts);
+      if (failed === true && startedInStartupWindow) {
+        scheduleRetryIfNeeded(level, opts);
+      }
       onPlayFinished();
     },
   };
@@ -251,8 +265,20 @@ export function playSound(level: SoundLevel, opts?: { isRetry?: boolean }): void
     runPlay(level, opts);
   } else {
     if (playQueue.length >= MAX_QUEUE_SIZE) {
-      const dropped = playQueue.shift();
-      log.debug(`通知音キューが上限 (${MAX_QUEUE_SIZE}) に達したため破棄しました: ${dropped?.level}`);
+      // critical は警報相当のため drop 候補から除外。それ以外の最古を落とす。
+      const dropIdx = playQueue.findIndex((e) => e.level !== "critical");
+      if (dropIdx >= 0) {
+        const [dropped] = playQueue.splice(dropIdx, 1);
+        log.debug(`通知音キューが上限 (${MAX_QUEUE_SIZE}) に達したため破棄しました: ${dropped.level}`);
+      } else if (level !== "critical") {
+        // キューが critical で埋まっている → 非 critical の新規は諦める
+        log.debug(`通知音キューが critical で飽和しているため新規再生を破棄しました: ${level}`);
+        return;
+      } else {
+        // 新規も critical で、既存も全て critical → 最古の critical を落とす (従来動作)
+        const dropped = playQueue.shift();
+        log.debug(`通知音キューが上限 (${MAX_QUEUE_SIZE}) に達したため破棄しました: ${dropped?.level}`);
+      }
     }
     playQueue.push({ level, isRetry: opts?.isRetry === true });
   }
@@ -264,6 +290,8 @@ export function playSound(level: SoundLevel, opts?: { isRetry?: boolean }): void
  */
 export function dispose(): void {
   disposed = true;
+  // 世代を進めて旧 runPlay の遅延コールバックを無効化する
+  runGeneration++;
   playQueue.length = 0;
   if (activeTimer != null) {
     clearTimeout(activeTimer);
@@ -289,6 +317,8 @@ export function dispose(): void {
  */
 export function resetSoundPlayer(): void {
   disposed = false;
+  // 世代を進めて旧 runPlay の遅延コールバックを無効化する
+  runGeneration++;
   activeCount = 0;
   playQueue.length = 0;
   activeProcess = null;
@@ -529,12 +559,20 @@ export async function checkSoundBackend(): Promise<{
         settled = true;
         if (timer != null) clearTimeout(timer);
         if (err) {
-          resolve({ ok: false, label: "ffplay", reason: err.message });
+          const e = err as NodeJS.ErrnoException;
+          const reason =
+            e.code === "ENOENT"
+              ? "ffplay not found in PATH"
+              : `ffplay probe failed: ${e.message}`;
+          resolve({ ok: false, label: "ffplay", reason });
         } else {
           resolve({ ok: true, label: "ffplay" });
         }
       },
     );
+    // モック環境などで execFile のコールバックが同期的に呼ばれ settled=true に
+    // なっている場合、ここで timer を作らないようガードする。
+    if (settled) return;
     timer = setTimeout(() => {
       if (settled) return;
       settled = true;
