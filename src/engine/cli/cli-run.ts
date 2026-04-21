@@ -181,7 +181,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     }
   }
 
-  printBanner(config);
+  await printBanner(config);
   updateChecker.checkForUpdates("fleq", VERSION);
   await startMonitor(config, pipelineController);
 }
@@ -202,7 +202,7 @@ export function resetTerminalTitle(): void {
 }
 
 /** 起動バナー表示 */
-function printBanner(config: AppConfig): void {
+async function printBanner(config: AppConfig): Promise<void> {
   log.info(`受信区分: ${config.classifications.join(", ")}`);
   log.info(`テストモード: ${config.testMode}`);
   if (config.displayMode !== "normal") {
@@ -211,6 +211,24 @@ function printBanner(config: AppConfig): void {
   if (config.eventLog) {
     log.info(`イベントファイル出力: ON${config.eventLogRaw ? " (raw含む)" : ""}`);
   }
+
+  // 音声バックエンド状態 (起動バナー末尾、Linux は実再生プローブ)
+  try {
+    const { checkSoundBackend } = await import("../notification/sound-player");
+    const result = await checkSoundBackend();
+    // CUD パレット: blueGreen = RGB(0, 158, 115), vermillion = RGB(213, 94, 0)
+    const line = result.ok
+      ? chalk.rgb(0, 158, 115)(`音声: ${result.label} OK`)
+      : chalk.rgb(213, 94, 0)(
+          `音声: ${result.label} NG${result.reason ? ` (${result.reason})` : ""}`,
+        );
+    console.log(line);
+  } catch (err) {
+    if (err instanceof Error) {
+      log.warn(`音声バックエンド確認エラー: ${err.message}`);
+    }
+  }
+
   log.info("接続を開始します...");
   console.log();
 }
