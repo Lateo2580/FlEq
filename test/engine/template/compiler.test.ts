@@ -54,14 +54,16 @@ describe("compileTemplateNodes", () => {
     expect(render(makeEvent({ depth: undefined }))).toBe("震源:");
   });
 
-  it("配列のデフォルト join", () => {
+  it("配列は改行で結合される (表示専用ポリシー対応)", () => {
     const render = compile("{{forecastAreaNames}}");
-    expect(render(makeEvent({ forecastAreaNames: ["石川県能登", "新潟県"] }))).toBe("石川県能登, 新潟県");
+    expect(render(makeEvent({ forecastAreaNames: ["石川県能登", "新潟県"] }))).toBe("石川県能登\n新潟県");
   });
 
-  it("join フィルタでカスタム区切り", () => {
+  it("join フィルタは削除済み: 配列がそのまま渡され改行 join される", () => {
+    // join フィルタは未知フィルタとして扱われ、値がそのまま (=配列のまま) 通る。
+    // その後 stringify で改行 join される。
     const render = compile("{{forecastAreaNames|join:\"/\"}}");
-    expect(render(makeEvent({ forecastAreaNames: ["石川県能登", "新潟県"] }))).toBe("石川県能登/新潟県");
+    expect(render(makeEvent({ forecastAreaNames: ["石川県能登", "新潟県"] }))).toBe("石川県能登\n新潟県");
   });
 
   it("upper フィルタ", () => {

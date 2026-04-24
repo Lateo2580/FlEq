@@ -1506,7 +1506,11 @@ interface PresentationEvent {
 }
 ```
 
-50以上のフィールドを持つフラットな構造体。filter/template エンジンから全フィールドにドットパスでアクセス可能。`raw` に元のパース済みオブジェクトを保持し、テンプレートからの深いアクセスにも対応する。
+50以上のフィールドを持つフラットな構造体。`raw` に元のパース済みオブジェクトを保持する。
+
+**アクセス制限（表示専用ポリシー対応）**:
+- **filter エンジン**: 全フィールドにドットパスでアクセス可能。
+- **template エンジン**: `raw` フィールドへの参照、および配列インデックス参照 `[N]` は禁止（`src/engine/template/parser.ts` でパースエラー）。表示カスタマイズ用途は維持しつつ、生 XML データへの直接アクセスや 1 行機械可読出力での再配信足場化を防ぐ。
 
 #### 補助型
 
@@ -2434,11 +2438,17 @@ function parseTemplate(source: string): TemplateNode[]
 | `"text"` / `'text'` | 文字列リテラル（エスケープ復元付き） |
 | `-?[0-9]+(.[0-9]+)?` | 数値リテラル |
 | `true` / `false` / `null` | ブーリアン / null リテラル |
-| その他 | パス（ドット + ブラケット記法を `(string \| number)[]` に分割） |
+| その他 | パス（ドット記法を `string[]` に分割） |
 
 #### パスセグメント分割
 
-`areaItems[0].name` → `["areaItems", 0, "name"]`。ブラケット内が数値なら `number` 型。
+`foo.bar.baz` → `["foo", "bar", "baz"]`。
+
+**表示専用ポリシー（dmdata.jp 再配信ポリシー対応）による制限**:
+- ブラケット記法 `[N]` (配列インデックス参照) は禁止。検出時はパースエラー。
+- 先頭セグメントが `raw` のパス（生 XML データへの直接参照）も禁止。
+
+これらの制限により、テンプレート機構は「表示カスタマイズ」用途に限定され、機械可読 1 行出力で電文の主要要素を全て吐き出す再配信足場として転用されることを防ぐ。
 
 #### 述語のパース (`parsePredicate`)
 
@@ -2478,8 +2488,10 @@ function compileTemplateNodes(nodes: TemplateNode[]): TemplateRenderer
 #### stringify
 
 - `null` / `undefined` → `""`
-- 配列 → `join(", ")`
+- 配列 → `join("\n")` （表示専用ポリシー対応により、改行区切り。1 行に並べる機械可読出力の主経路を塞ぐ目的。完全な迂回防止は保証しない）
 - その他 → `String(value)`
+
+なお、フィルタ内部の `toString` でも同様に配列を改行区切りで文字列化する（`filters.ts`）。これにより `|upper` や `|replace` 等の文字列系フィルタを通しても配列が 1 行にならないようにしている。`replace` フィルタは引数に改行文字を含めることを禁止（改行 join を打ち消せないようにするため）。
 
 #### 述語評価
 
@@ -2501,21 +2513,22 @@ function compileTemplateNodes(nodes: TemplateNode[]): TemplateRenderer
 
 ### 概要
 
-`PresentationEvent` からドットパス + ブラケット記法で値を取得するユーティリティ。
+`PresentationEvent` からドットパスで値を取得するユーティリティ。
 
 ### エクスポートAPI
 
 ```ts
-function getFieldValue(event: PresentationEvent, segments: (string | number)[]): unknown
+function getFieldValue(event: PresentationEvent, segments: string[]): unknown
 ```
 
 `segments` 配列の各要素をキーとして順にオブジェクトを走査する。途中で `null` / `undefined` に到達したら `undefined` を返す。
 
+**表示専用ポリシー対応 (二重防御)**: 配列インデックス参照は parser 側で禁止しているが、`segments[0] === "raw"` のケースは本関数でも `undefined` を返して拒否する。parser を経由せず直接呼び出された場合の保険。
+
 ### 使用例
 
 - `["title"]` → `event.title`
-- `["raw", "xxx"]` → `event.raw.xxx`
-- `["areaItems", 0, "name"]` → `event.areaItems[0].name`
+- `["earthquake", "magnitude"]` → `event.earthquake.magnitude`
 
 ### 依存関係
 
@@ -2529,7 +2542,7 @@ function getFieldValue(event: PresentationEvent, segments: (string | number)[]):
 
 ### 概要
 
-テンプレートフィルタの実装。8つの組み込みフィルタを提供する。
+テンプレートフィルタの実装。7つの組み込みフィルタを提供する（`join` は表示専用ポリシー対応で削除済み）。
 
 ### エクスポートAPI
 
@@ -2546,7 +2559,6 @@ function applyFilter(name: string, value: unknown, args: FilterArgs): unknown
 | `default` | `(fallback)` | `null`/`""` の場合にフォールバック値を返す |
 | `truncate` | `(limit)` | 文字列を指定文字数で切り詰める |
 | `pad` | `(width)` | `padEnd()` で指定幅に右パディング |
-| `join` | `(separator?)` | 配列を結合。デフォルト区切り: `","` |
 | `date` | `(format?)` | 日付文字列をフォーマット。`"HH:mm"` (デフォルト), `"HH:mm:ss"`, `"MM/DD HH:mm"` |
 | `replace` | `(search, replacement)` | 文字列置換（`split().join()` で全置換） |
 | `upper` | — | 大文字変換 |

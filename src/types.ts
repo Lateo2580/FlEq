@@ -159,7 +159,7 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
     volcano: true,
   },
   sound: true,
-  eewLog: true,
+  eewLog: false,
   eewLogFields: {
     hypocenter: true,
     originTime: true,

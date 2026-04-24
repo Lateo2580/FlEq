@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 eew-logs/
+events/
 .DS_Store
 .claude/settings.local.json
 tmp.py

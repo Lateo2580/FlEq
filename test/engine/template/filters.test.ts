@@ -54,19 +54,13 @@ describe("applyFilter", () => {
     });
   });
 
-  // ── join ──
+  // ── join (削除済み: 表示専用ポリシー対応) ──
 
-  describe("join", () => {
-    it("配列結合", () => {
-      expect(applyFilter("join", ["a", "b", "c"], [", "])).toBe("a, b, c");
-    });
-
-    it("非配列はそのまま文字列化", () => {
-      expect(applyFilter("join", 42, [", "])).toBe("42");
-    });
-
-    it("セパレータ省略時はカンマ", () => {
-      expect(applyFilter("join", ["x", "y"], [])).toBe("x,y");
+  describe("join (削除済み)", () => {
+    it("未知のフィルタ扱い: 値をそのまま返す", () => {
+      // 表示専用ポリシー対応で join フィルタは削除された。
+      // applyFilter は未知フィルタ名を受けたら値をそのまま返す仕様。
+      expect(applyFilter("join", ["a", "b", "c"], [", "])).toEqual(["a", "b", "c"]);
     });
   });
 
@@ -80,6 +74,19 @@ describe("applyFilter", () => {
     it("複数箇所を置換", () => {
       expect(applyFilter("replace", "aXbXc", ["X", "-"])).toBe("a-b-c");
     });
+
+    it("改行文字を含む search は禁止 (表示専用ポリシー対応)", () => {
+      expect(() => applyFilter("replace", "a\nb", ["\n", "|"])).toThrow(/改行文字/);
+    });
+
+    it("改行文字を含む replacement は禁止 (表示専用ポリシー対応)", () => {
+      expect(() => applyFilter("replace", "ax", ["x", "y\n"])).toThrow(/改行文字/);
+    });
+
+    it("配列も改行で結合されたうえで置換される (1行化できない)", () => {
+      // 配列はまず \n join され、カンマは含まれないため置換は無効となる
+      expect(applyFilter("replace", ["a", "b", "c"], [",", "|"])).toBe("a\nb\nc");
+    });
   });
 
   // ── upper / lower ──
@@ -88,11 +95,19 @@ describe("applyFilter", () => {
     it("大文字変換", () => {
       expect(applyFilter("upper", "hello", [])).toBe("HELLO");
     });
+
+    it("配列は改行区切りのまま大文字化 (1行化できない)", () => {
+      expect(applyFilter("upper", ["abc", "def"], [])).toBe("ABC\nDEF");
+    });
   });
 
   describe("lower", () => {
     it("小文字変換", () => {
       expect(applyFilter("lower", "HELLO", [])).toBe("hello");
+    });
+
+    it("配列は改行区切りのまま小文字化 (1行化できない)", () => {
+      expect(applyFilter("lower", ["ABC", "DEF"], [])).toBe("abc\ndef");
     });
   });
 

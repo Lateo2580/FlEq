@@ -63,15 +63,20 @@ describe("parseTemplate", () => {
     expect(nodes.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("index access: areaItems[0].name", () => {
-    const nodes = parseTemplate("{{areaItems[0].name}}");
-    expect(nodes).toHaveLength(1);
-    if (nodes[0].kind === "interpolation") {
-      expect(nodes[0].expr).toEqual({
-        kind: "path",
-        segments: ["areaItems", 0, "name"],
-      });
-    }
+  it("配列インデックス参照は禁止 (areaItems[0].name)", () => {
+    expect(() => parseTemplate("{{areaItems[0].name}}")).toThrow(/配列インデックス参照/);
+  });
+
+  it("配列インデックス参照は禁止 (条件式内)", () => {
+    expect(() => parseTemplate("{{#if areaItems[0].name}}x{{/if}}")).toThrow(/配列インデックス参照/);
+  });
+
+  it("raw フィールド参照は禁止", () => {
+    expect(() => parseTemplate("{{raw.body}}")).toThrow(/raw フィールド参照は無効/);
+  });
+
+  it("raw 単独参照も禁止", () => {
+    expect(() => parseTemplate("{{raw}}")).toThrow(/raw フィールド参照は無効/);
   });
 
   it("replace フィルタに2引数", () => {

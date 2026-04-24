@@ -178,6 +178,7 @@
 - `keepExistingConnections`: `true`
 - `tableWidth`: `null` (自動)
 - `notify`: 全カテゴリ `true`
+- `eewLog`: `false` (永続ファイル出力は明示 opt-in。dmdata.jp 再配信ポリシーへの配慮)
 - `eewLogFields`: 全項目 `true`
 - `maxObservations`: `null` (全件表示)
 - `backup`: `false`

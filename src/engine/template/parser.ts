@@ -167,12 +167,15 @@ class TemplateParser {
 }
 
 /**
- * ドットパスおよびブラケット記法を segments 配列に分割する。
- * 例: "areaItems[0].name" → ["areaItems", 0, "name"]
- *     "foo.bar.baz"       → ["foo", "bar", "baz"]
+ * ドットパスを segments 配列に分割する。
+ * 例: "foo.bar.baz" → ["foo", "bar", "baz"]
+ *
+ * 表示専用ポリシー (dmdata.jp 再配信ポリシー対応) のため、以下を禁止する:
+ * - ブラケット記法 `[N]` (配列インデックス参照)
+ * - 先頭セグメントが `raw` のパス (生 XML データへの直接参照)
  */
-function parsePathSegments(path: string): (string | number)[] {
-  const segments: (string | number)[] = [];
+function parsePathSegments(path: string): string[] {
+  const segments: string[] = [];
   let i = 0;
 
   while (i < path.length) {
@@ -182,22 +185,21 @@ function parsePathSegments(path: string): (string | number)[] {
     }
 
     if (path[i] === "[") {
-      // ブラケットアクセス: [N]
-      i++; // [
-      const start = i;
-      while (i < path.length && path[i] !== "]") i++;
-      const inner = path.slice(start, i);
-      if (i < path.length) i++; // ]
-      // 数値ならnumber、そうでなければstring
-      const num = Number(inner);
-      segments.push(Number.isNaN(num) ? inner : num);
-      continue;
+      throw new Error(
+        `テンプレート構文エラー: 配列インデックス参照 [N] は無効です (path: "${path}")。表示専用制限により、要素を1行に並べる機械可読出力を防いでいます。`,
+      );
     }
 
     // 識別子: 次の . または [ まで
     const start = i;
     while (i < path.length && path[i] !== "." && path[i] !== "[") i++;
     segments.push(path.slice(start, i));
+  }
+
+  if (segments[0] === "raw") {
+    throw new Error(
+      `テンプレート構文エラー: raw フィールド参照は無効です (path: "${path}")。表示専用制限により、生 XML データへの直接アクセスを禁止しています。`,
+    );
   }
 
   return segments;

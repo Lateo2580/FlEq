@@ -120,6 +120,9 @@ function isTruthy(val: unknown): boolean {
 
 function stringify(value: unknown): string {
   if (value == null) return "";
-  if (Array.isArray(value)) return value.join(", ");
+  // 表示専用ポリシー対応: 配列は改行で結合する。
+  // ", " 区切りで 1 行に並べる「機械可読 1 行出力」を作れないようにし、
+  // shell pipe 連携での再配信足場化を防ぐ。
+  if (Array.isArray(value)) return value.join("\n");
   return String(value);
 }

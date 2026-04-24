@@ -28,7 +28,7 @@ export interface IfBlockNode {
 // ── Expressions ──
 
 export type TemplateExpr =
-  | { kind: "path"; segments: (string | number)[] }
+  | { kind: "path"; segments: string[] }
   | { kind: "literal"; value: string | number | boolean | null };
 
 // ── Predicates ──

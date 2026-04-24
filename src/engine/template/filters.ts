@@ -2,8 +2,16 @@
 
 type FilterArgs = (string | number | boolean | null)[];
 
+/**
+ * フィルタ内部で値を文字列化する共通関数。
+ *
+ * 表示専用ポリシー対応: 配列は改行区切りで文字列化する。
+ * `String([...])` が ","  連結するため、`|upper` や `|replace` といった
+ * 文字列系フィルタ経由で配列を 1 行機械可読出力に整形できてしまうのを防ぐ。
+ */
 function toString(value: unknown): string {
   if (value == null) return "";
+  if (Array.isArray(value)) return value.join("\n");
   return String(value);
 }
 
@@ -26,12 +34,6 @@ function filterPad(value: unknown, args: FilterArgs): string {
   const width = typeof args[0] === "number" ? args[0] : Number(args[0]);
   if (!Number.isFinite(width)) return str;
   return str.padEnd(width);
-}
-
-function filterJoin(value: unknown, args: FilterArgs): string {
-  if (!Array.isArray(value)) return toString(value);
-  const separator = args[0] != null ? String(args[0]) : ",";
-  return value.join(separator);
 }
 
 function filterDate(value: unknown, args: FilterArgs): string {
@@ -61,6 +63,13 @@ function filterReplace(value: unknown, args: FilterArgs): string {
   const str = toString(value);
   const search = args[0] != null ? String(args[0]) : "";
   const replacement = args[1] != null ? String(args[1]) : "";
+  // 表示専用ポリシー対応: search/replacement に改行文字を含めると、
+  // 配列の改行 join を 1 行化する経路（\n → "," 等の置換）を作れてしまうため禁止。
+  if (/[\r\n]/.test(search) || /[\r\n]/.test(replacement)) {
+    throw new Error(
+      "テンプレート実行エラー: replace フィルタの引数に改行文字 (\\n / \\r) を含めることはできません。表示専用制限です。",
+    );
+  }
   return str.split(search).join(replacement);
 }
 
@@ -88,8 +97,6 @@ export function applyFilter(
       return filterTruncate(value, args);
     case "pad":
       return filterPad(value, args);
-    case "join":
-      return filterJoin(value, args);
     case "date":
       return filterDate(value, args);
     case "replace":

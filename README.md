@@ -202,7 +202,7 @@ fleq config keys          # 設定可能キー一覧を表示
 | `promptClock` | プロンプト時計: `"elapsed"` (経過時間) / `"clock"` (現在時刻) |
 | `waitTipIntervalMin` | 待機中ヒント表示間隔（分、0 で無効、デフォルト: 30） |
 | `sound` | 通知音の有効/無効 (`true` / `false`) |
-| `eewLog` | EEW ログ記録の有効/無効 (`true` / `false`) |
+| `eewLog` | EEW ログ記録の有効/無効 (`true` / `false`、デフォルト: `false`。明示 opt-in） |
 | `maxObservations` | 観測点の最大表示件数 (1〜999 / `"off"` で全件表示) |
 | `backup` | EEW 副回線の有効/無効 (`true` / `false`) |
 | `nightMode` | ナイトモードの有効/無効 (`true` / `false`) |
