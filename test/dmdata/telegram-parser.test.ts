@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import zlib from "zlib";
 import {
   decodeBody,
@@ -9,6 +9,7 @@ import {
   parseNankaiTroughTelegram,
   parseLgObservationTelegram,
 } from "../../src/dmdata/telegram-parser";
+import * as log from "../../src/logger";
 import {
   createMockWsDataMessage,
   readFixture,
@@ -688,37 +689,73 @@ describe("parseEewTelegram", () => {
   //   hasWarningAreaKind の短絡評価で先に true になるため単独パスは未検証。
   //   専用フィクスチャ (Headline Code=31 のみ、Area Kind なし) が必要
   // - classification フォールバック → VXSE45 S1 + eew.warning テストでカバー
-  describe("isWarning XML ベース判定", () => {
+  //
+  // 観測ログは `classWarning && !xmlWarning` の片側のみで鳴る。
+  // 逆方向 (xmlWarning && !classWarning) は VXSE44/VXSE45 警報相当の正常パターン
+  // なのでログしない — この振る舞いも vi.spyOn(log, "warn") で検証する。
+  describe("isWarning 判定", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it("VXSE43 は head.type から isWarning=true", () => {
+      const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
       const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);
       const result = parseEewTelegram(msg);
       expect(result!.isWarning).toBe(true);
+      expect(warnSpy).not.toHaveBeenCalled();
     });
 
-    it("VXSE45 S26 (警報地域あり) は isWarning=true", () => {
+    it("VXSE45 S26 (警報地域あり) は isWarning=true かつ警告ログ出ない", () => {
+      const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_S26);
       const result = parseEewTelegram(msg);
       expect(result!.isWarning).toBe(true);
+      // xmlWarning=true, classWarning=false は正常パターンなので log.warn 呼ばれない
+      expect(warnSpy).not.toHaveBeenCalled();
     });
 
     it("VXSE45 S1 (警報地域なし) は isWarning=false", () => {
+      const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1);
       const result = parseEewTelegram(msg);
       expect(result!.isWarning).toBe(false);
+      expect(warnSpy).not.toHaveBeenCalled();
     });
 
-    it("VXSE44 (警報地域あり) は XML から isWarning=true", () => {
+    it("VXSE44 (警報地域あり) は XML から isWarning=true かつ警告ログ出ない", () => {
+      const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
       const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
       const result = parseEewTelegram(msg);
       expect(result!.isWarning).toBe(true);
+      // xmlWarning=true, classWarning=false は正常パターンなので log.warn 呼ばれない
+      expect(warnSpy).not.toHaveBeenCalled();
     });
 
-    it("classification=eew.warning でも XML で確認できない場合はフォールバックで true", () => {
+    it("classification=eew.warning でも XML で確認できない場合はフォールバックで true かつ警告ログが出る", () => {
+      const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
       const msg = createMockWsDataMessage(FIXTURE_VXSE45_S1, {
         classification: "eew.warning",
       });
       const result = parseEewTelegram(msg);
       expect(result!.isWarning).toBe(true);
+      // classWarning=true && xmlWarning=false は真の不整合なので log.warn 1回
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toContain("classification=eew.warning");
+      expect(warnSpy.mock.calls[0][0]).toContain("VXSE45");
+    });
+
+    it("VXSE43 電文で classification が eew.warning 以外の場合は警告ログが出る", () => {
+      const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
+      // 契約差分・仕様変更を想定: VXSE43 なのに eew.forecast で配信されるケース
+      const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
+        classification: "eew.forecast",
+      });
+      const result = parseEewTelegram(msg);
+      expect(result!.isWarning).toBe(true); // VXSE43 は head.type から true
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toContain("VXSE43");
+      expect(warnSpy.mock.calls[0][0]).toContain("classification=eew.forecast");
     });
   });
 });

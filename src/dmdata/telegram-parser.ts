@@ -609,20 +609,28 @@ export function parseEewTelegram(
     info.isAssumedHypocenter =
       assumedHypocenterByCondition || assumedHypocenterByFallback;
 
-    // isWarning: XML ベース判定 (classification はフォールバック)
-    info.isWarning =
+    // isWarning: XML ベース主判定 + classification を安全側フォールバック
+    // xmlWarning / classWarning を先に変数化し、判定と観測ログで同じ値を共用する。
+    const xmlWarning =
       msg.head.type === "VXSE43" ||
       hasWarningAreaKind(body) ||
-      hasWarningHeadlineCode(head) ||
-      msg.classification === "eew.warning";
-
-    // XML と classification の食い違いを観測ログ
-    const xmlWarning = msg.head.type === "VXSE43" || hasWarningAreaKind(body) || hasWarningHeadlineCode(head);
+      hasWarningHeadlineCode(head);
     const classWarning = msg.classification === "eew.warning";
-    if (xmlWarning !== classWarning) {
+    info.isWarning = xmlWarning || classWarning;
+
+    // 観測ログ (仕様不整合の検知用):
+    // (1) classification=eew.warning だが XML ベース判定で警報条件を検出できない
+    // (2) VXSE43 電文なのに classification が eew.warning ではない（契約差分・仕様変更の兆候）
+    // 逆方向の一般形 (xmlWarning && !classWarning) は VXSE44/VXSE45 警報相当の正常パターンなのでログしない。
+    if (classWarning && !xmlWarning) {
       log.warn(
-        `EEW isWarning 判定不一致: XML=${xmlWarning} classification=${classWarning} ` +
+        `EEW classification=eew.warning だが XML ベース判定で警報条件を検出できず: ` +
         `type=${msg.head.type} EventID=${str(dig(head, "EventID"))}`
+      );
+    } else if (msg.head.type === "VXSE43" && !classWarning) {
+      log.warn(
+        `EEW VXSE43 電文だが classification=${msg.classification} (eew.warning ではない): ` +
+        `EventID=${str(dig(head, "EventID"))}`
       );
     }
 
