@@ -103,10 +103,6 @@ export interface AppConfig {
   truncation: TruncationLimits;
   /** ナイトモード */
   nightMode: boolean;
-  /** イベントファイル出力の有効/無効 */
-  eventLog: boolean;
-  /** イベントファイルに raw フィールドを含めるか */
-  eventLogRaw: boolean;
   /** 定期要約の間隔(分)。null = 無効 */
   summaryInterval: number | null;
 }
@@ -132,8 +128,6 @@ export interface ConfigFile {
   backup?: boolean;
   truncation?: Partial<TruncationLimits>;
   nightMode?: boolean;
-  eventLog?: boolean;
-  eventLogRaw?: boolean;
   summaryInterval?: number;
 }
 
@@ -176,8 +170,6 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
   },
   maxObservations: null,
   nightMode: false,
-  eventLog: false,
-  eventLogRaw: false,
   summaryInterval: null,
   backup: false,
   truncation: {

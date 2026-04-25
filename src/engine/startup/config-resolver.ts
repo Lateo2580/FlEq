@@ -21,8 +21,6 @@ export interface ResolverOptions {
   closeOthers?: boolean;
   mode?: string;
   night?: boolean;
-  eventLog?: boolean;
-  eventLogRaw?: boolean;
 }
 
 /**
@@ -129,8 +127,6 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
     maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
     nightMode: opts.night ?? fileConfig.nightMode ?? DEFAULT_CONFIG.nightMode,
-    eventLog: opts.eventLog ?? fileConfig.eventLog ?? DEFAULT_CONFIG.eventLog,
-    eventLogRaw: opts.eventLogRaw ?? fileConfig.eventLogRaw ?? DEFAULT_CONFIG.eventLogRaw,
     summaryInterval: fileConfig.summaryInterval ?? DEFAULT_CONFIG.summaryInterval,
     backup: fileConfig.backup ?? DEFAULT_CONFIG.backup,
     truncation: { ...DEFAULT_CONFIG.truncation, ...fileConfig.truncation },

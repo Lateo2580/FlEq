@@ -1,4 +1,3 @@
-import * as fs from "fs";
 import chalk from "chalk";
 import { DisplayMode, PromptClock, EewLogField, TruncationLimits, DEFAULT_CONFIG } from "../../types";
 import { VALID_EEW_LOG_FIELDS, VALID_TRUNCATION_KEYS } from "../../config";
@@ -967,66 +966,4 @@ function handleThemeReset(ctx: ReplContext): void {
       rl.prompt();
     }
   );
-}
-
-export function handleEventLog(ctx: ReplContext, args: string): void {
-  const trimmed = args.trim();
-
-  const showStatus = (): void => {
-    const enabled = ctx.eventFileWriter.isEnabled();
-    const rawEnabled = ctx.eventFileWriter.isIncludeRaw();
-    const outputDir = ctx.eventFileWriter.getOutputDir();
-    const status = enabled ? chalk.green("ON") : chalk.red("OFF");
-    const rawStatus = rawEnabled ? chalk.green("ON") : chalk.red("OFF");
-    console.log();
-    console.log(chalk.cyan.bold("  イベントファイル出力:") + ` ${status}`);
-    console.log(`  raw フィールド: ${rawStatus}`);
-    console.log(`  出力先: ${outputDir}`);
-    try {
-      if (fs.existsSync(outputDir)) {
-        const files = fs.readdirSync(outputDir).filter((f) => f.endsWith(".json"));
-        console.log(`  ファイル数: ${files.length}`);
-      } else {
-        console.log(`  ファイル数: 0 (ディレクトリ未作成)`);
-      }
-    } catch {
-      console.log(`  ファイル数: 不明`);
-    }
-    console.log();
-  };
-
-  if (trimmed.length === 0 || trimmed.toLowerCase() === "status") {
-    showStatus();
-    return;
-  }
-
-  const sub = trimmed.toLowerCase();
-
-  if (sub === "on") {
-    ctx.eventFileWriter.setEnabled(true);
-    ctx.config.eventLog = true;
-    ctx.updateConfig((c) => { c.eventLog = true; });
-    console.log(`  イベントファイル出力を ${chalk.green("ON")} にしました。`);
-    return;
-  }
-
-  if (sub === "off") {
-    ctx.eventFileWriter.setEnabled(false);
-    ctx.config.eventLog = false;
-    ctx.updateConfig((c) => { c.eventLog = false; });
-    console.log(`  イベントファイル出力を ${chalk.red("OFF")} にしました。`);
-    return;
-  }
-
-  if (sub === "raw") {
-    const newState = !ctx.eventFileWriter.isIncludeRaw();
-    ctx.eventFileWriter.setIncludeRaw(newState);
-    ctx.config.eventLogRaw = newState;
-    ctx.updateConfig((c) => { c.eventLogRaw = newState; });
-    const status = newState ? chalk.green("ON") : chalk.red("OFF");
-    console.log(`  raw フィールド出力を ${status} にしました。`);
-    return;
-  }
-
-  console.log(chalk.yellow("  使い方: eventlog on/off / eventlog raw / eventlog status"));
 }

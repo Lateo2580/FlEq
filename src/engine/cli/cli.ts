@@ -69,9 +69,6 @@ export function buildProgram(): Command {
       return Number.isFinite(n) && n > 0 ? n : 10;
     })
     .option("--night", "ナイトモードを有効にします")
-    .option("--event-log", "受信電文を JSON ファイルとして出力します")
-    .option("--event-log-raw", "イベントファイルに raw データを含めます (--event-log を暗黙有効化)")
-    .option("--no-event-log", "イベントファイル出力を無効化します")
     .option("--debug", "デバッグログを表示します", false)
     .action(async (opts: RunMonitorOptions) => {
       const { runMonitor } = await import("./cli-run");

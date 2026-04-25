@@ -97,23 +97,6 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       },
       handler: (args) => settings.handleEewLog(getCtx(), args),
     },
-    eventlog: {
-      description: "イベントファイル出力の設定",
-      detail:
-        "受信した電文を JSON ファイルとして出力する機能の設定。\n" +
-        "  引数なし: 現在の設定を表示\n" +
-        "  eventlog on/off: 有効/無効を切替\n" +
-        "  eventlog raw: raw フィールドの出力をトグル\n" +
-        "  eventlog status: 設定・出力先・ファイル数を表示",
-      category: "settings",
-      subcommands: {
-        on: { description: "イベントファイル出力を有効にする" },
-        off: { description: "イベントファイル出力を無効にする" },
-        raw: { description: "raw フィールドの出力をトグル" },
-        status: { description: "設定・出力先・ファイル数を表示" },
-      },
-      handler: (args) => settings.handleEventLog(getCtx(), args),
-    },
     tablewidth: {
       description: "テーブル幅の表示・変更 (例: tablewidth 80 / tablewidth auto)",
       detail: "引数なし: 現在のテーブル幅を表示\n  tablewidth <40〜200>: テーブル幅を固定値に変更\n  tablewidth auto: ターミナル幅に自動追従 (デフォルト)\n  変更は即座に反映され、Configファイルに保存されます。",

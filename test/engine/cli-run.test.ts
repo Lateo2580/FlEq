@@ -356,38 +356,4 @@ describe("runMonitor", () => {
     });
   });
 
-  describe("eventLog フラグの優先順位", () => {
-    it("--event-log で config.eventLog=true", async () => {
-      await runMonitor({ apiKey: "key", eventLog: true, debug: false });
-      expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ eventLog: true }),
-        expect.any(PipelineController)
-      );
-    });
-
-    it("--event-log-raw は --event-log を暗黙的に有効化する", async () => {
-      await runMonitor({ apiKey: "key", eventLogRaw: true, debug: false });
-      expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ eventLog: true, eventLogRaw: true }),
-        expect.any(PipelineController)
-      );
-    });
-
-    it("--no-event-log と --event-log-raw の併用では --no-event-log が勝つ", async () => {
-      // commander は --no-event-log を eventLog: false として渡す
-      await runMonitor({ apiKey: "key", eventLog: false, eventLogRaw: true, debug: false });
-      expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ eventLog: false }),
-        expect.any(PipelineController)
-      );
-    });
-
-    it("フラグ無指定でデフォルトは config.eventLog=false", async () => {
-      await runMonitor({ apiKey: "key", debug: false });
-      expect(mockStartMonitor).toHaveBeenCalledWith(
-        expect.objectContaining({ eventLog: false, eventLogRaw: false }),
-        expect.any(PipelineController)
-      );
-    });
-  });
 });

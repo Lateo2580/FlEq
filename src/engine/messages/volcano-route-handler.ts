@@ -15,7 +15,6 @@ import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../
 import { buildVolcanoOutcome } from "../presentation/processors/process-volcano";
 import type { VolcanoBatchOutcome, ProcessOutcome } from "../presentation/types";
 import type { DisplayCallbacks } from "./display-callbacks";
-import type { EventFileWriter } from "../events/event-file-writer";
 
 // ── 型定義 ──
 
@@ -31,7 +30,6 @@ export interface VolcanoRouteHandlerDeps {
   notifier: Notifier;
   runDisplayPipeline: DisplayPipelineFn;
   display?: DisplayCallbacks;
-  eventFileWriter?: EventFileWriter;
 }
 
 // ── 定数 ──
@@ -45,7 +43,6 @@ export class VolcanoRouteHandler {
   private readonly notifier: Notifier;
   private readonly runDisplayPipeline: DisplayPipelineFn;
   private readonly display?: DisplayCallbacks;
-  private readonly eventFileWriter?: EventFileWriter;
   private readonly aggregator: VolcanoVfvo53Aggregator;
   private readonly msgCache = new Map<string, { msg: WsDataMessage; cachedAt: number }>();
 
@@ -54,7 +51,6 @@ export class VolcanoRouteHandler {
     this.notifier = deps.notifier;
     this.runDisplayPipeline = deps.runDisplayPipeline;
     this.display = deps.display;
-    this.eventFileWriter = deps.eventFileWriter;
 
     this.aggregator = new VolcanoVfvo53Aggregator(
       (info, opts) => this.emitSingle(info, opts),
@@ -97,11 +93,6 @@ export class VolcanoRouteHandler {
     // 通知は filter 非適用
     if (opts?.notify !== false) {
       this.notifier.notifyVolcano(info, presentation);
-    }
-
-    // イベントファイル出力 (filter 非適用)
-    if (outcome) {
-      this.eventFileWriter?.write(outcome);
     }
 
     // PresentationEvent パイプライン
@@ -148,8 +139,6 @@ export class VolcanoRouteHandler {
           notifyCategory: "volcano",
         },
       };
-
-      this.eventFileWriter?.write(batchOutcome);
 
       this.runDisplayPipeline(batchOutcome, () =>
         this.display?.displayVolcanoBatch(batch, presentation),
