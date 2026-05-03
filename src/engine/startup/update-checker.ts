@@ -119,8 +119,12 @@ function fetchJson(url: string, extractVersion: (data: unknown) => string | null
 
 /** npm registry から最新バージョンを取得する */
 function fetchFromNpm(packageName: string): Promise<string> {
+  // scoped package (`@scope/name`) は npm registry API 仕様で `/` を `%2F` に encode する必要がある。
+  // registry.npmjs.org は生 `/` も受け付けるが、厳密なミラー/プロキシでは弾かれうるため
+  // 明示 encode して移植性を確保する。`@` は encode 不要（仕様上どちらでも可）。
+  const encodedName = packageName.replace("/", "%2F");
   return fetchJson(
-    `https://registry.npmjs.org/${packageName}/latest`,
+    `https://registry.npmjs.org/${encodedName}/latest`,
     (data) => {
       if (
         typeof data === "object" &&
