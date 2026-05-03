@@ -30,6 +30,16 @@ export function isUpdateCheckDisabled(env = process.env): boolean {
   return ["1", "true", "yes", "on"].includes(raw.toLowerCase());
 }
 
+/**
+ * personal overlay 版のビルドかどうかを判定する。
+ * `package.json.version` に `-personal` を含むビルドは公開 npm 版と差分があり
+ * 「最新公開版にアップデートしろ」という通知は意味を持たないため、チェック自体を skip する。
+ * 詳細: docs/specs/personal-branch-overlay-pattern.md / Knowledge/Dev の同名ノート参照。
+ */
+export function isPersonalBuild(version: string): boolean {
+  return /-personal\b/i.test(version);
+}
+
 /** キャッシュを読み込む。無効ならnullを返す */
 function readCache(): UpdateCheckCache | null {
   try {
@@ -193,6 +203,11 @@ export function checkForUpdates(
     return;
   }
 
+  if (isPersonalBuild(currentVersion)) {
+    log.debug(`update check skipped: personal build (${currentVersion})`);
+    return;
+  }
+
   // キャッシュが有効なら registry にアクセスしない
   const cache = readCache();
   if (cache != null && Date.now() - cache.lastCheck < CHECK_INTERVAL_MS) {
@@ -221,8 +236,11 @@ function printUpdateNotice(
   latest: string,
   packageName: string
 ): void {
+  // GitHub Releases の tag_name は "v2.0.0" 形式なので、表示前に先頭の v を strip する
+  const currentDisplay = current.replace(/^v/, "");
+  const latestDisplay = latest.replace(/^v/, "");
   log.warn(
-    `Update available: v${current} → v${latest}  ` +
+    `Update available: v${currentDisplay} → v${latestDisplay}  ` +
       chalk.gray(`npm install -g ${packageName}@latest`)
   );
 }

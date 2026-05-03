@@ -17,8 +17,9 @@ import { compileTemplate } from "../template";
 import { PipelineController } from "../filter-template/pipeline-controller";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { version: VERSION } = require("../../../package.json") as {
+const { version: VERSION, name: PACKAGE_NAME } = require("../../../package.json") as {
   version: string;
+  name: string;
 };
 
 /** runMonitor に渡す CLI オプション */
@@ -172,7 +173,7 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   }
 
   await printBanner(config);
-  updateChecker.checkForUpdates("fleq", VERSION);
+  updateChecker.checkForUpdates(PACKAGE_NAME, VERSION);
   await startMonitor(config, pipelineController);
 }
 

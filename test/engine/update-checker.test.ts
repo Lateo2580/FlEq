@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isNewerVersion,
   isUpdateCheckDisabled,
+  isPersonalBuild,
 } from "../../src/engine/startup/update-checker";
 
 describe("isNewerVersion", () => {
@@ -61,5 +62,20 @@ describe("isUpdateCheckDisabled", () => {
   it("それ以外は false", () => {
     expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "0" })).toBe(false);
     expect(isUpdateCheckDisabled({ FLEQ_NO_UPDATE_CHECK: "false" })).toBe(false);
+  });
+});
+
+describe("isPersonalBuild", () => {
+  it("-personal suffix を含めば true", () => {
+    expect(isPersonalBuild("1.52.0-personal.1")).toBe(true);
+    expect(isPersonalBuild("2.0.0-personal.3")).toBe(true);
+    expect(isPersonalBuild("1.0.0-PERSONAL.1")).toBe(true);
+  });
+
+  it("含まなければ false", () => {
+    expect(isPersonalBuild("1.52.0")).toBe(false);
+    expect(isPersonalBuild("2.0.0")).toBe(false);
+    expect(isPersonalBuild("1.18.0-beta.1")).toBe(false);
+    expect(isPersonalBuild("")).toBe(false);
   });
 });
