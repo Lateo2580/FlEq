@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [2.0.1](https://github.com/Lateo2580/FlEq/compare/v2.0.0...v2.0.1) (2026-05-03)
+
+
+### バグ修正
+
+* **update-checker:** scoped package 名の `/` を %2F に encode する ([6f02a0e](https://github.com/Lateo2580/FlEq/commit/6f02a0e5e9536272d1c4760575f10c7c93cc10d3))
+* **update-checker:** scoped パッケージ名対応と personal build 検出 ([b4c75d8](https://github.com/Lateo2580/FlEq/commit/b4c75d8cbec707255e6e8d50a688dee415217f15))
+
 ## [2.0.0](https://github.com/Lateo2580/FlEq/compare/v1.51.0...v2.0.0) (2026-04-25)
 
 
