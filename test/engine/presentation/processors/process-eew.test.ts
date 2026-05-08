@@ -116,6 +116,43 @@ describe("processEew", () => {
     expect(result44.kind).toBe("suppressed");
   });
 
+  it("VXSE44 が先行受信されても VXSE45 は isNew=true を返す (第1報通知の発火条件を担保)", () => {
+    // 同じ EventID の VXSE44 → VXSE45 の順で受信。VXSE44 で event を登録しないので
+    // 後続 VXSE45 は isNew=true となり、Notifier.notifyEew() の第1報通知が発火する。
+    const msg44 = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+    const result44 = processEew(msg44, eewTracker, eewLogger);
+    expect(result44.kind).toBe("suppressed");
+
+    const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+    const result45 = processEew(msg45, eewTracker, eewLogger);
+    expect(result45.kind).toBe("ok");
+    if (result45.kind !== "ok") return;
+    expect(result45.outcome.eewResult.isNew).toBe(true);
+  });
+
+  it("VXSE45 受信済みイベントの VXSE44 取消報で finalizeEvent が呼ばれる (active カウントから外れる)", () => {
+    // VXSE45 を先に処理 → eewTracker に event 登録
+    const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
+    processEew(msg45, eewTracker, eewLogger);
+    expect(eewTracker.getActiveCount()).toBe(1);
+
+    const closeSpy = vi.spyOn(eewLogger, "closeEvent");
+    const finalizeSpy = vi.spyOn(eewTracker, "finalizeEvent");
+
+    // 同じ eventId の VXSE45_CANCEL XML (infoType=取消) を VXSE44 として送信。
+    // tracker.update() は呼ばれないため、closeEvent + finalizeEvent を直接実行する。
+    const msg44cancel = createMockWsDataMessage(FIXTURE_VXSE45_CANCEL, {
+      classification: "eew.forecast",
+      head: { type: "VXSE44", author: "気象庁", time: new Date().toISOString(), test: false },
+    });
+    const result = processEew(msg44cancel, eewTracker, eewLogger);
+
+    expect(result.kind).toBe("suppressed");
+    expect(closeSpy).toHaveBeenCalledWith("20240417231454", "取消");
+    expect(finalizeSpy).toHaveBeenCalledWith("20240417231454");
+    expect(eewTracker.getActiveCount()).toBe(0);
+  });
+
   it("state フィールドが正しく設定される", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1);
     const result = processEew(msg, eewTracker, eewLogger);

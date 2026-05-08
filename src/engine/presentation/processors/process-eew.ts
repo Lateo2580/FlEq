@@ -27,17 +27,35 @@ export function processEew(
   const eewInfo = parseEewTelegram(msg);
   if (!eewInfo) return { kind: "parse-failed" };
 
+  // VXSE44 は VXSE45 と重複するため常時抑制 (VXSE44 は配信終了予定)。
+  // ここで EewTracker への登録もスキップしないと、後続 VXSE45 が
+  // isNew=false になり「第1報通知（音含む）」が発火しないため、
+  // update() を呼ばずに早期 return する。終端処理は eventId を使って
+  // 直接実行する（既存イベントがなければ no-op）。
+  if (msg.head.type === "VXSE44") {
+    log.debug(`EEW 抑制 (VXSE44常時抑制): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
+    // 終端処理: tracker.update() を経由しないため、取消/最終報のいずれでも
+    // finalizeEvent() を呼び、既存イベントを active カウントから外す
+    if (eewInfo.eventId) {
+      if (eewInfo.infoType === "取消") {
+        eewLogger.closeEvent(eewInfo.eventId, "取消");
+        eewTracker.finalizeEvent(eewInfo.eventId);
+      } else if (eewInfo.nextAdvisory) {
+        eewLogger.closeEvent(eewInfo.eventId, "最終報");
+        eewTracker.finalizeEvent(eewInfo.eventId);
+      }
+    }
+    return { kind: "suppressed" };
+  }
+
   const result = eewTracker.update(eewInfo);
   if (result.isDuplicate) {
     log.debug(`EEW 重複報スキップ: EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     return { kind: "duplicate" };
   }
 
-  // VXSE44 は VXSE45 と重複するため常時抑制 (VXSE44 は配信終了予定)
-  const isSuppressed = result.isSuppressed || msg.head.type === "VXSE44";
-
-  if (isSuppressed) {
-    log.debug(`EEW 抑制 (${msg.head.type === "VXSE44" ? "VXSE44常時抑制" : "VXSE45優先"}): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
+  if (result.isSuppressed) {
+    log.debug(`EEW 抑制 (VXSE45優先): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     eewLogger.logReport(eewInfo, result);
     // 抑制されても終端処理は実行する
     if (result.isCancelled && eewInfo.eventId) {
