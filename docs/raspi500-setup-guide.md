@@ -156,7 +156,7 @@ crontab -e
 ```bash
 echo "alias fq='tmux attach -t fleq'" >> ~/.bashrc
 echo "alias fqs='tmux has-session -t fleq 2>/dev/null && echo \"FlEq: 稼働中\" || echo \"FlEq: 停止\"'" >> ~/.bashrc
-echo "alias fqr='tmux kill-session -t fleq 2>/dev/null; tmux new -s fleq \"fleq\"'" >> ~/.bashrc
+echo "alias fqr='tmux kill-session -t fleq 2>/dev/null; tmux new -s fleq \"~/bin/start-fleq.sh\"'" >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -183,7 +183,7 @@ else
   npm install
   npm run build
   tmux kill-session -t fleq 2>/dev/null
-  tmux new -s fleq 'fleq'
+  tmux new -s fleq '~/bin/start-fleq.sh'
 fi
 SCRIPT
 chmod +x ~/bin/fqu
