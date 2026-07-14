@@ -2,11 +2,13 @@
 
 dmdata.jp の地震・津波・EEW・火山電文を受信して表示する TypeScript CLI。
 
-## ビルド・実行
+@AGENTS.md
+
+ビルド・テストコマンド、コーディング規約、完了条件は `AGENTS.md`（Claude / Codex 共有）を参照。
+
+## 実行
 
 ```bash
-npm run build        # TypeScript コンパイル → dist/
-npm test             # vitest でテスト実行
 npm run dev          # ビルド + 実行
 npm run dev:lowmem   # ビルド + メモリ最適化モードで実行 (--optimize-for-size)
 npm run start:lowmem # メモリ最適化モードで実行
@@ -31,17 +33,6 @@ npm run start:lowmem # メモリ最適化モードで実行
 
 - 遅延ロード: `cli.ts → cli-run.ts / cli-init.ts`、`monitor.ts → repl.ts` は dynamic import（メモリ最適化）
 
-## テスト
-
-- テストは **vitest** (`npm test`)
-- `test/setup.ts` で node-notifier をグローバルモック済み
-
-## コーディング規約
-
-- **import**: 近傍ファイルの既存スタイルに合わせる。`logger` / `theme` 等は namespace import (`import * as log from ...`) が多い。内部 named import も広く使われている
-- **null チェック**: `== null` を使う（`=== null || === undefined` ではなく）
-- **`any` 禁止**: strict TypeScript
-
 ## Claude Harness Policy
 
 - `CLAUDE.md` は常設の制約・設計原則を置く（「憲法」）
@@ -57,17 +48,23 @@ npm run start:lowmem # メモリ最適化モードで実行
 - コードレビューはサブエージェントではなく **Codex MCP に依頼**する
 - Superpowers が生成した specs/plans は作業完了後 `C:/Users/meiri/Dev/Superpowers_Archive/` に移動し、`docs/superpowers/` を削除する
 
-## Codex 併用ルール
+## Codex 併用ルール（分担表 v1, 2026-07-14）
 
-| 変更規模 | Codex 利用 |
-|---------|-----------|
-| 小修正（typo、1-2行変更） | なし |
-| 中規模（新機能、リファクタ） | 実装後に `/codex-review` |
-| 高リスク（アーキテクチャ変更） | 実装前に `/codex-design` + 実装後に `/codex-review` |
+| 用途 | モデル |
+|---|---|
+| 日常相談・探索・コード読解 | Terra medium |
+| 中間 diff レビュー（フェーズ末含む） | Terra high |
+| 定型実装の委譲 | Luna medium/high |
+| 難しい範囲限定実装 | Sol medium/high |
+| 最終全体レビュー・セキュリティ・見解衝突 | 新規スレッドの Sol high |
 
+- **独立レビューは必ず新規 codex 呼び出し + read-only**。実装に使ったスレッドを流用しない
 - **独立性**: Claude の自己評価を Codex に見せない（盲点の多様性確保）
+- **実装委譲時は作業契約を必須とする**: 目的・完了条件・対象/非対象範囲・allowed_paths・base_oid 固定・禁止 git 操作・成果物は patch のみ（`git diff --binary --no-ext-diff`）。検証不能時は blocked 報告を認める（成功扱いにしない）
+- 委譲環境は使い捨て clone で用意し、依存準備は `npm ci --ignore-scripts` を標準とする
+- 委譲の段階導入・意味的手直し率の判定閾値は運用側メモ（memory `reference_model_division_v1`）を参照
 - **スコープ**: repo 全体ではなく diff 単位に絞る
-- **形式**: file:line 付きの構造化出力を求める
+- **形式**: file:line 付きの構造化出力・確信度を求める。スタイルのみの指摘は不要と伝える
 - **最終判断**: 人間が採否を決める
 
 ## Obsidian 記録
