@@ -1022,12 +1022,12 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 
 ### 依存関係
 
-- **インポート元**: `../../types` (`TelegramListItem`, `WsDataMessage`, `ParsedTsunamiInfo`), `../../dmdata/rest-client` (`listTelegrams`), `../../dmdata/telegram-parser` (`parseTsunamiTelegram`), `../messages/tsunami-state` (`TsunamiStateHolder`), `../../logger`
+- **インポート元**: `../../types` (`ParsedTsunamiInfo`), `../../dmdata/rest-client` (`listTelegrams`), `../../dmdata/telegram-parser` (`parseTsunamiTelegram`), `../messages/tsunami-state` (`TsunamiStateHolder`), `./telegram-adapter` (`toWsDataMessage`), `../../logger`
 - **接続先**: `engine/monitor/monitor.ts` の `startMonitor()` から WebSocket 接続前に呼ばれる
 
 ### 設計ノート
 
-- `TelegramListItem` → `WsDataMessage` 変換は `toWsDataMessage()` で行う。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
+- `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessage()` で行う (volcano-initializer と共用)。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
 - VTSE41 が取消報の場合は `tsunamiState.update()` 内部で `clear()` されるため、呼び出し側で判定する必要がない。
 - REST API 呼び出しは起動時の 1 回のみ。以降は WebSocket 経由のリアルタイム更新に任せる。
 
@@ -1037,7 +1037,7 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 
 ### 概要
 
-起動時に dmdata.jp REST API から最新の VFVO50 電文を取得し、火山警報状態 (`VolcanoStateHolder`) を復元する。WebSocket 接続が確立される前に実行され、接続前に発表済みの火山警報をプロンプトに表示できるようにする。
+起動時に dmdata.jp REST API から直近の VFVO50 電文履歴 (窓 = 100 件) を取得し、古い順に replay して火山警報状態 (`VolcanoStateHolder`) を復元する。WebSocket 接続が確立される前に実行され、接続前に発表済みの複数火山の警報をプロンプトに表示できるようにする。
 
 エラー発生時は警告ログのみ出力し、アプリケーションの起動を妨げない設計。
 
@@ -1045,22 +1045,24 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 
 #### `restoreVolcanoState(apiKey: string, volcanoState: VolcanoStateHolder): Promise<void>`
 
-最新の VFVO50 電文を `GET /v2/telegram?type=VFVO50&limit=1&formatMode=raw` で取得し、パース後に `volcanoState.update()` を呼ぶ。
+直近の VFVO50 電文を `GET /v2/telegram?type=VFVO50&limit=100&formatMode=raw` (`VOLCANO_RESTORE_WINDOW = 100`) で取得し、`head.time` 昇順の安定ソート後に 1 件ずつ `volcanoState.update()` へ replay する。解除・取消・レベル1 復帰の削除は `update()` の既存分岐が replay 中に自然に適用されるため、復元専用の状態判定ロジックは持たない。
 
-- 警報状態が復元された場合: ログ出力 (`火山警報状態を復元しました (N 件)`)
+- 個別電文の body 欠落・パース失敗: デバッグログを出して skip し、残りの replay を続行
+- 警報状態が復元された場合: ログ出力 (`火山警報状態を復元しました (N 火山 / M 電文を replay)`)
 - 警報なし（解除・平常・電文なし）の場合: デバッグログのみ
-- API エラー・パースエラー: 警告ログを出力し、例外は throw しない
+- API エラー: 警告ログを出力し、例外は throw しない
+- 既知の制約: 窓 (直近 100 件) より古い長期継続警報は復元されない (見逃し側の fail。詳細は設計文書の復元方針表を参照)
 
 内部で `TelegramListItem` を `WsDataMessage` 互換オブジェクトに変換し、既存の `parseVolcanoTelegram()` をそのまま利用する。
 
 ### 依存関係
 
-- **インポート元**: `../../types` (`TelegramListItem`, `WsDataMessage`), `../../dmdata/rest-client` (`listTelegrams`), `../../dmdata/volcano-parser` (`parseVolcanoTelegram`), `../messages/volcano-state` (`VolcanoStateHolder`), `../../logger`
+- **インポート元**: `../../dmdata/rest-client` (`listTelegrams`), `../../dmdata/volcano-parser` (`parseVolcanoTelegram`), `../messages/volcano-state` (`VolcanoStateHolder`), `./telegram-adapter` (`toWsDataMessage`), `../../logger`
 - **接続先**: `engine/monitor/monitor.ts` の `startMonitor()` から WebSocket 接続前に呼ばれる (津波状態復元の直後)
 
 ### 設計ノート
 
-- `TelegramListItem` → `WsDataMessage` 変換は `toWsDataMessage()` で行う。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
+- `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessage()` で行う (tsunami-initializer と共用)。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
 - `volcanoState.update()` は `kind === "alert"` かつ `volcanoCode` が非空の場合のみ状態を更新するため、呼び出し側でのフィルタリングは不要。
 - REST API 呼び出しは起動時の 1 回のみ。以降は WebSocket 経由のリアルタイム更新に任せる。
 
