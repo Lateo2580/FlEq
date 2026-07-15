@@ -75,6 +75,17 @@ describe("VolcanoStateHolder", () => {
       expect(state.size()).toBe(0);
     });
 
+    it("レベル1+引下げ (lower) でエントリが削除される (平常復帰)", () => {
+      state.update(createAlertInfo());
+      state.update(createAlertInfo({ alertLevel: 1, alertLevelCode: "11", action: "lower" }));
+      expect(state.size()).toBe(0);
+    });
+
+    it("レベル1+issue ではエントリが保持される (削除は continue/lower に限定)", () => {
+      state.update(createAlertInfo({ alertLevel: 1, alertLevelCode: "11", action: "issue" }));
+      expect(state.size()).toBe(1);
+    });
+
     it("レベル2+継続ではエントリが保持される", () => {
       state.update(createAlertInfo({ alertLevel: 2, alertLevelCode: "12", action: "continue" }));
       expect(state.size()).toBe(1);

@@ -69,8 +69,11 @@ export class VolcanoStateHolder
       return;
     }
 
-    // レベル1で継続 → エントリ削除 (通常状態)
-    if (alertInfo.alertLevel === 1 && alertInfo.action === "continue") {
+    // レベル1で継続または引下げ → エントリ削除 (平常復帰)
+    if (
+      alertInfo.alertLevel === 1 &&
+      (alertInfo.action === "continue" || alertInfo.action === "lower")
+    ) {
       this.entries.delete(info.volcanoCode);
       return;
     }
