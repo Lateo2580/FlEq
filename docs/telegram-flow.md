@@ -357,7 +357,7 @@ frameBottom(level, width)     → 色付き下枠線 ━━━━━━━
 | 5 | `engine/eew/eew-logger.ts` | EEW ログ記録 |
 | 5 | `engine/messages/tsunami-state.ts` | 津波警報状態管理 |
 | 5 | `engine/messages/volcano-state.ts` | 火山警報状態管理 |
-| 5 | `engine/notification/volcano-presentation.ts` | 火山表示/通知レベル判定 |
+| 5 | `engine/presentation/volcano-presentation.ts` | 火山表示/通知レベル判定 |
 | 6 | `ui/formatter.ts` | 共通表示 (フレーム描画・recap) |
 | 6 | `ui/eew-formatter.ts` | EEW 表示 |
 | 6 | `ui/earthquake-formatter.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |

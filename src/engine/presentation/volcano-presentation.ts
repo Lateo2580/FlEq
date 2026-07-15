@@ -6,7 +6,7 @@ import {
 } from "../../types";
 import type { Vfvo53BatchItems } from "../messages/volcano-vfvo53-aggregator";
 import type { FrameLevel } from "../../types";
-import { SoundLevel } from "./sound-player";
+import { SoundLevel } from "../notification/sound-player";
 import { VolcanoStateHolder } from "../messages/volcano-state";
 
 /** 表示・通知判定の結果 */

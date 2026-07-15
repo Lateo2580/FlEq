@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { displayVolcanoInfo, volcanoTypeLabel } from "../../src/ui/volcano-formatter";
-import { resolveVolcanoPresentation, VolcanoPresentation } from "../../src/engine/notification/volcano-presentation";
+import { resolveVolcanoPresentation, VolcanoPresentation } from "../../src/engine/presentation/volcano-presentation";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 import { parseVolcanoTelegram } from "../../src/dmdata/volcano-parser";
 import { setDisplayMode, setInfoFullText } from "../../src/ui/formatter";

@@ -33,7 +33,7 @@ import {
   renderSimpleNameList,
 } from "./formatter";
 import { getRoleChalk, RoleName } from "./theme";
-import { VolcanoPresentation } from "../engine/notification/volcano-presentation";
+import { VolcanoPresentation } from "../engine/presentation/volcano-presentation";
 
 // ── ヘルパー ──
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { resolveVolcanoPresentation } from "../../src/engine/notification/volcano-presentation";
+import { resolveVolcanoPresentation } from "../../src/engine/presentation/volcano-presentation";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 import {
   ParsedVolcanoAlertInfo,

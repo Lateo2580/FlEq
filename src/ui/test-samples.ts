@@ -29,7 +29,7 @@ import {
   parseLgObservationTelegram,
 } from "../dmdata/telegram-parser";
 import { parseVolcanoTelegram } from "../dmdata/volcano-parser";
-import { resolveVolcanoPresentation } from "../engine/notification/volcano-presentation";
+import { resolveVolcanoPresentation } from "../engine/presentation/volcano-presentation";
 import { VolcanoStateHolder } from "../engine/messages/volcano-state";
 
 // ── フィクスチャ読み込みヘルパー ──

@@ -6,7 +6,7 @@
 
 import type { WsDataMessage, ParsedVolcanoInfo } from "../../types";
 import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../presentation/types";
-import type { VolcanoPresentation } from "../notification/volcano-presentation";
+import type { VolcanoPresentation } from "../presentation/volcano-presentation";
 import type { Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
 
 export interface DisplayCallbacks {

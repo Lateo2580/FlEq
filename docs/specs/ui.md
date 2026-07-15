@@ -202,7 +202,7 @@ function createDisplayAdapter(): DisplayCallbacks
 | `../engine/messages/display-callbacks` | `DisplayCallbacks` 型 |
 | `../engine/presentation/types` | `ProcessOutcome` |
 | `../types` | `WsDataMessage`, `ParsedVolcanoInfo` |
-| `../engine/notification/volcano-presentation` | `VolcanoPresentation` |
+| `../engine/presentation/volcano-presentation` | `VolcanoPresentation` |
 | `../engine/messages/volcano-vfvo53-aggregator` | `Vfvo53BatchItems` |
 | `./formatter` | `displayRawHeader`, `getDisplayMode` |
 | `./summary` | `renderSummaryLine` |
@@ -748,7 +748,7 @@ function displayVolcanoAshfallBatch(
 | `../types` | `ParsedVolcanoInfo` 各種 |
 | `./formatter` | `FrameLevel`, `RenderBuffer`, フレーム描画プリミティブ, `formatTimestamp`, `wrapFrameLines` 等 |
 | `./theme` | `getRoleChalk`, `RoleName` |
-| `../engine/notification/volcano-presentation` | `VolcanoPresentation` |
+| `../engine/presentation/volcano-presentation` | `VolcanoPresentation` |
 | `../engine/messages/volcano-vfvo53-aggregator` | `Vfvo53BatchItems` |
 
 ---

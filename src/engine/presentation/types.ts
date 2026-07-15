@@ -12,7 +12,7 @@ import type {
   ParsedVolcanoAshfallInfo,
 } from "../../types";
 import type { EewDiff, EewUpdateResult } from "../eew/eew-tracker";
-import type { VolcanoPresentation } from "../notification/volcano-presentation";
+import type { VolcanoPresentation } from "./volcano-presentation";
 import type { StatsCategory } from "../messages/telegram-stats";
 
 // ── PresentationDomain ──

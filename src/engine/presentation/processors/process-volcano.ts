@@ -1,7 +1,7 @@
 import type { WsDataMessage, ParsedVolcanoInfo, ParsedVolcanoAlertInfo } from "../../../types";
 import type { VolcanoOutcome } from "../types";
 import type { VolcanoStateHolder } from "../../messages/volcano-state";
-import { resolveVolcanoPresentation } from "../../notification/volcano-presentation";
+import { resolveVolcanoPresentation } from "../volcano-presentation";
 
 /**
  * パース済み火山情報から VolcanoOutcome を構築する。

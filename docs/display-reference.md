@@ -716,7 +716,7 @@
 
 **関数**: `displayVolcanoInfo(info: ParsedVolcanoInfo, presentation: VolcanoPresentation)`
 **パーサ**: `parseVolcanoTelegram()`
-**レベル判定**: `resolveVolcanoPresentation()` (`src/engine/notification/volcano-presentation.ts`)
+**レベル判定**: `resolveVolcanoPresentation()` (`src/engine/presentation/volcano-presentation.ts`)
 
 ### 電文タイプ
 

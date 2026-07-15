@@ -12,7 +12,7 @@ import {
   ParsedVolcanoInfo,
   DEFAULT_CONFIG,
 } from "../../types";
-import { VolcanoPresentation } from "./volcano-presentation";
+import { VolcanoPresentation } from "../presentation/volcano-presentation";
 import { loadConfig, saveConfig } from "../../config";
 import { EewUpdateResult } from "../eew/eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";

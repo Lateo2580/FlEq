@@ -11,7 +11,7 @@ import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { VolcanoVfvo53Aggregator, type FlushOptions, type Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
 import { VolcanoStateHolder } from "./volcano-state";
 import { Notifier } from "../notification/notifier";
-import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../notification/volcano-presentation";
+import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../presentation/volcano-presentation";
 import { buildVolcanoOutcome } from "../presentation/processors/process-volcano";
 import type { VolcanoBatchOutcome, ProcessOutcome } from "../presentation/types";
 import type { DisplayCallbacks } from "./display-callbacks";

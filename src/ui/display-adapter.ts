@@ -6,7 +6,7 @@
 import type { DisplayCallbacks } from "../engine/messages/display-callbacks";
 import type { ProcessOutcome } from "../engine/presentation/types";
 import type { WsDataMessage, ParsedVolcanoInfo } from "../types";
-import type { VolcanoPresentation } from "../engine/notification/volcano-presentation";
+import type { VolcanoPresentation } from "../engine/presentation/volcano-presentation";
 import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggregator";
 import { displayRawHeader, getDisplayMode } from "./formatter";
 import { renderSummaryLine } from "./summary";

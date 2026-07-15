@@ -1392,7 +1392,7 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider {
 
 ---
 
-## notification/volcano-presentation.ts
+## presentation/volcano-presentation.ts
 
 ### 概要
 
@@ -1437,7 +1437,7 @@ function resolveVolcanoPresentation(
 | インポート元 | 用途 |
 |-------------|------|
 | `../../types` | `ParsedVolcanoInfo` 各種, `FrameLevel` |
-| `./sound-player` | `SoundLevel` |
+| `../notification/sound-player` | `SoundLevel` |
 | `../messages/volcano-state` | `VolcanoStateHolder` |
 
 ---
@@ -1529,7 +1529,7 @@ interface PresentationEvent {
 | `../../types` | `FrameLevel`, `NotifyCategory`, `WsDataMessage`, 各種パース済み型 |
 | `../notification/sound-player` | `SoundLevel` |
 | `../eew/eew-tracker` | `EewDiff`, `EewUpdateResult` |
-| `../notification/volcano-presentation` | `VolcanoPresentation` |
+| `./volcano-presentation` | `VolcanoPresentation` |
 | `../messages/telegram-stats` | `StatsCategory` |
 
 ### 設計ノート
@@ -2698,7 +2698,7 @@ interface DisplayCallbacks {
 |-------------|------|
 | `../../types` | `WsDataMessage`, `ParsedVolcanoInfo` |
 | `../presentation/types` | `ProcessOutcome`, `VolcanoBatchOutcome`, `PresentationEvent` |
-| `../notification/volcano-presentation` | `VolcanoPresentation` |
+| `../presentation/volcano-presentation` | `VolcanoPresentation` |
 | `./volcano-vfvo53-aggregator` | `Vfvo53BatchItems` |
 
 ### 設計ノート
@@ -2768,7 +2768,7 @@ class VolcanoRouteHandler {
 | `./volcano-vfvo53-aggregator` | `VolcanoVfvo53Aggregator`, `FlushOptions`, `Vfvo53BatchItems` |
 | `./volcano-state` | `VolcanoStateHolder` |
 | `../notification/notifier` | `Notifier` |
-| `../notification/volcano-presentation` | `resolveVolcanoPresentation`, `resolveVolcanoBatchPresentation` |
+| `../presentation/volcano-presentation` | `resolveVolcanoPresentation`, `resolveVolcanoBatchPresentation` |
 | `../presentation/processors/process-volcano` | `buildVolcanoOutcome` |
 | `../presentation/types` | `VolcanoBatchOutcome`, `ProcessOutcome` |
 | `./display-callbacks` | `DisplayCallbacks` 型 |
