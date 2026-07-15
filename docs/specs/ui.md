@@ -1180,6 +1180,32 @@ function displayVolcanoAshfallBatch(
 
 ---
 
+## terminal-title.ts
+
+**ファイルパス**: `src/ui/terminal-title.ts` (約 16 行)
+
+### 概要
+
+ターミナルタイトル操作の共通モジュール。ANSI OSC エスケープシーケンス (`ESC ]2;<title> BEL`) でタイトルを設定・リセットする。TTY でない場合は何もしない。
+
+### エクスポートAPI
+
+| シグネチャ | 説明 |
+|---|---|
+| `setTerminalTitle(title: string): void` | ターミナルタイトルを設定 (TTY 時のみ) |
+| `resetTerminalTitle(): void` | 空文字を設定してターミナルのデフォルトタイトルに戻す |
+
+### 依存関係
+
+- **インポート元**: なし (葉モジュール)
+- **接続先**: `engine/cli/cli-run.ts` (起動時の `setTerminalTitle`)、`engine/monitor/monitor.ts` → `engine/monitor/shutdown.ts` (シャットダウン時の `resetTerminalTitle`)
+
+### 設計ノート
+
+かつては cli-run.ts 内の関数で、monitor 側が cli-run から逆 import する値参照循環の原因だった。共通の葉モジュールへの分離で循環を解消している。
+
+---
+
 ## status-line.ts
 
 **ファイルパス**: `src/ui/status-line.ts` (約 77 行)

@@ -156,11 +156,9 @@ interface RunMonitorOptions {
 }
 
 async function runMonitor(opts: RunMonitorOptions): Promise<void>
-function resetTerminalTitle(): void
 ```
 
 - `runMonitor` — 設定解決・バリデーション・起動シーケンスの実行。
-- `resetTerminalTitle` — ターミナルタイトルをデフォルトにリセット（ANSI OSC シーケンス）。シャットダウン時に `monitor/shutdown.ts` から呼ばれる。
 
 ### 内部ロジック
 
@@ -202,7 +200,6 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 
 | 関数 | 説明 |
 |------|------|
-| `setTerminalTitle(title)` | ANSI OSC エスケープシーケンスでターミナルタイトルを設定（TTY 時のみ） |
 | `printBanner(config)` | 受信区分・テストモード・表示モードをログ出力 |
 
 ### 依存関係
@@ -216,6 +213,7 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 | `../monitor/monitor` | `startMonitor` |
 | `../../ui/formatter` | `setFrameWidth`, `setInfoFullText`, `setDisplayMode`, `setMaxObservations`, `setTruncation` |
 | `../../ui/theme` | `loadTheme`, `setNightMode` |
+| `../../ui/terminal-title` | `setTerminalTitle` |
 | `../startup/config-resolver` | `resolveConfig` |
 | `../startup/update-checker` | `checkForUpdates` |
 | `../filter-template/pipeline-controller` | `PipelineController` |
@@ -224,7 +222,7 @@ CLI からのカンマ区切り文字列をトークン分割し、`VALID_CLASSI
 ### 設計ノート
 
 - 契約確認の失敗は致命的エラーにしない。API が一時的に利用できないケースでも起動を試みる。
-- `resetTerminalTitle` を export しているのは、`monitor/shutdown.ts` のシャットダウン処理から呼び出すため。循環参照を回避する方向（shutdown が cli-run を import）で依存が流れている。
+- ターミナルタイトル操作（`setTerminalTitle` / `resetTerminalTitle`）は `ui/terminal-title.ts` の共通モジュールに分離されている。かつて monitor 側が cli-run から `resetTerminalTitle` を逆 import する値参照循環があったが、この分離で解消された。
 - `PipelineController` を構築して `startMonitor()` に渡す。filter/focus はエラー時 `process.exit(1)`、template はエラー時に警告のみで通常表示にフォールバックする。`compileFilter` / `compileTemplate` の直接呼び出しは不要になり、コントローラの `setFilter()` / `setTemplate()` / `setFocus()` 経由でコンパイルされる。
 
 ---
@@ -300,7 +298,7 @@ async function startMonitor(config: AppConfig, pipelineController?: PipelineCont
 | `../messages/message-router` | `createMessageHandler` |
 | `../startup/tsunami-initializer` | `restoreTsunamiState` |
 | `../startup/volcano-initializer` | `restoreVolcanoState` |
-| `../cli/cli-run` | `resetTerminalTitle` |
+| `../../ui/terminal-title` | `resetTerminalTitle` |
 | `../../ui/formatter` | `formatTimestamp` |
 | `../../ui/summary-interval-formatter` | `formatSummaryInterval` |
 | `../messages/summary-tracker` | `SummaryWindowTracker`, `WINDOW_MINUTES` |
