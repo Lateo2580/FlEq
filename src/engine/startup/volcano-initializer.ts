@@ -1,25 +1,8 @@
-import { TelegramListItem, WsDataMessage } from "../../types";
 import { listTelegrams } from "../../dmdata/rest-client";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { VolcanoStateHolder } from "../messages/volcano-state";
+import { toWsDataMessage } from "./telegram-adapter";
 import * as log from "../../logger";
-
-/** TelegramListItem を WsDataMessage 互換の形に変換する (body は呼び出し側で確認済み前提) */
-function toWsDataMessage(item: TelegramListItem, body: string): WsDataMessage {
-  return {
-    type: "data",
-    version: "2.0",
-    classification: item.classification,
-    id: item.id,
-    passing: [],
-    head: item.head,
-    xmlReport: item.xmlReport,
-    format: item.format,
-    compression: item.compression,
-    encoding: item.encoding,
-    body,
-  };
-}
 
 /**
  * 起動時に最新の VFVO50 電文を取得し、火山警報状態を復元する。

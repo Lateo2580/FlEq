@@ -1,25 +1,9 @@
-import { TelegramListItem, WsDataMessage, ParsedTsunamiInfo } from "../../types";
+import { ParsedTsunamiInfo } from "../../types";
 import { listTelegrams } from "../../dmdata/rest-client";
 import { parseTsunamiTelegram } from "../../dmdata/telegram-parser";
 import { TsunamiStateHolder } from "../messages/tsunami-state";
+import { toWsDataMessage } from "./telegram-adapter";
 import * as log from "../../logger";
-
-/** TelegramListItem を WsDataMessage 互換の形に変換する (body は呼び出し側で確認済み前提) */
-function toWsDataMessage(item: TelegramListItem, body: string): WsDataMessage {
-  return {
-    type: "data",
-    version: "2.0",
-    classification: item.classification,
-    id: item.id,
-    passing: [],
-    head: item.head,
-    xmlReport: item.xmlReport,
-    format: item.format,
-    compression: item.compression,
-    encoding: item.encoding,
-    body,
-  };
-}
 
 /**
  * 起動時に最新の VTSE41 電文を取得し、津波警報状態を復元する。
