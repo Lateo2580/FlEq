@@ -8,12 +8,11 @@ import {
 import { listContracts } from "../../dmdata/rest-client";
 import { startMonitor } from "../monitor/monitor";
 import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations, setTruncation } from "../../ui/formatter";
+import { setTerminalTitle } from "../../ui/terminal-title";
 import { loadTheme, setNightMode } from "../../ui/theme";
 import { resolveConfig } from "../startup/config-resolver";
 import * as updateChecker from "../startup/update-checker";
 import * as log from "../../logger";
-import { compileFilter } from "../filter";
-import { compileTemplate } from "../template";
 import { PipelineController } from "../filter-template/pipeline-controller";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -175,21 +174,6 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   await printBanner(config);
   updateChecker.checkForUpdates(PACKAGE_NAME, VERSION);
   await startMonitor(config, pipelineController);
-}
-
-/** ターミナルタイトルを設定する (ANSI OSC sequence) */
-function setTerminalTitle(title: string): void {
-  if (process.stdout.isTTY) {
-    process.stdout.write(`\x1b]2;${title}\x07`);
-  }
-}
-
-/** ターミナルタイトルをリセットする */
-export function resetTerminalTitle(): void {
-  if (process.stdout.isTTY) {
-    // 空文字を設定するとターミナルがデフォルトタイトルに戻る
-    process.stdout.write(`\x1b]2;\x07`);
-  }
 }
 
 /** 起動バナー表示 */

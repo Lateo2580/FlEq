@@ -4,7 +4,7 @@ import { MultiConnectionManager } from "../../dmdata/multi-connection-manager";
 import { createMessageHandler } from "../messages/message-router";
 import { restoreTsunamiState } from "../startup/tsunami-initializer";
 import { restoreVolcanoState } from "../startup/volcano-initializer";
-import { resetTerminalTitle } from "../cli/cli-run";
+import { resetTerminalTitle } from "../../ui/terminal-title";
 import { formatTimestamp } from "../../ui/formatter";
 import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
