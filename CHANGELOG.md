@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [3.0.0](https://github.com/Lateo2580/FlEq/compare/v2.0.1...v3.0.0) (2026-07-19)
+
+
+### 機能追加
+
+* **core:** 気象電文対応一式とエンジン・UI の全面拡充 ([3cc3b71](https://github.com/Lateo2580/FlEq/commit/3cc3b71e0d329aff40e0a3b73cb7ee9be007ad49))
+* **display:** 常設情報ディスプレイ (内蔵 SSE サーバ + Svelte フロントエンド) ([32891c7](https://github.com/Lateo2580/FlEq/commit/32891c727c67736ece545d6bceb6401a7c781181))
+* **studio:** Display Studio (テーマ編集・fixture プレビュー環境) ([bf3459d](https://github.com/Lateo2580/FlEq/commit/bf3459d4f11bbf645e51dea2fba08dd571fce363))
+
+
+### バグ修正
+
+* **build:** display/.npmignore を追加し display/dist の npm 同梱を実現 ([96676e1](https://github.com/Lateo2580/FlEq/commit/96676e156b386a1f88a5b2569a33a1867d99045c))
+* **eew:** VXSE44 抑制で eewTracker.update をスキップし第1報通知を発火させる ([81dca00](https://github.com/Lateo2580/FlEq/commit/81dca0086b02e9242fdcd34c7c9ddcf3ee51d07e))
+* **startup:** 火山状態復元を複数火山対応の窓 replay に変更 ([222993b](https://github.com/Lateo2580/FlEq/commit/222993b41026498a8d71a0678bc5f2f9f50a938c))
+* **volcano:** Lv1 への引下げ (lower) でも警報 entry を削除する ([0f604c0](https://github.com/Lateo2580/FlEq/commit/0f604c077ad21ed8ab98d01d1e182434d586320c))
+
+
+### リファクタリング
+
+* **cli:** 端末タイトル操作を ui/terminal-title に分離 (cli-run ↔ monitor 循環解消) ([c1dce1e](https://github.com/Lateo2580/FlEq/commit/c1dce1e02abd9ffe683c11b90de096058d7d563b))
+* **presentation:** volcano-presentation を notification から presentation 層へ移動 ([f25491b](https://github.com/Lateo2580/FlEq/commit/f25491b42bc205eaa6b7a4f4a45f9d68f47a1b71))
+* **startup:** toWsDataMessage を telegram-adapter に一本化 ([258811b](https://github.com/Lateo2580/FlEq/commit/258811b7f40a82bf7c18d3691b0b1d0d72a04f9c))
+
+
+### ドキュメント
+
+* AGENTS.md 新設 + Codex 併用ルールを分担表 v1 に更新 ([18013a1](https://github.com/Lateo2580/FlEq/commit/18013a12164e84ca483801b4f52b4721ed6e4424))
+* **raspi500:** fqr alias と fqu スクリプトを start-fleq.sh 経由起動に修正 ([074c549](https://github.com/Lateo2580/FlEq/commit/074c549d6f78514d04287f051cf254bb97274678))
+* README・仕様書・表示リファレンスを公開向けに整備 ([b1c92ae](https://github.com/Lateo2580/FlEq/commit/b1c92aeb865c0a70417ed18998e676c28b05d5ee))
+* **specs:** 火山状態復元の窓 replay 化と telegram-adapter 共有を engine.md に反映 ([d3f8681](https://github.com/Lateo2580/FlEq/commit/d3f868157d8d771b42f609ed344eb033f1e00b30))
+* **specs:** 端末タイトル分離を engine.md / ui.md に同期 ([dedfb71](https://github.com/Lateo2580/FlEq/commit/dedfb712adc01baa50144d09e9c8c486d2e6cf7a))
+
 ## [2.0.1](https://github.com/Lateo2580/FlEq/compare/v2.0.0...v2.0.1) (2026-05-03)
 
 
