@@ -1,0 +1,624 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { Socket } from "node:net";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "../../../src/engine/display/http-server";
+import { InProcessSseDisplayTransport } from "../../../src/engine/display/transport";
+import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
+import type {
+  DisplayEventDtoV1,
+  DisplayIntensityGroupV1,
+  DisplayLargeQuakeStateV1,
+  DisplayRecentQuakeV1,
+  DisplayStateSnapshotV1,
+  DisplayWeatherAlertV1,
+} from "../../../src/engine/display/types";
+
+const log = { info: (): void => {}, warn: (): void => {} };
+
+// fetch は URL 正規化 (dot-segment collapsing) を行うため、生の "/../" を含むリクエストラインが
+// サーバに届く保証がない。防御分岐に確実に到達させるため node:net で生の HTTP リクエストを送る。
+function rawGet(port: number, rawPath: string): Promise<{ status: number; body: string }> {
+  return new Promise((resolvePromise, reject) => {
+    const socket = new Socket();
+    let raw = "";
+    socket.setEncoding("utf8");
+    socket.connect(port, "127.0.0.1", () => {
+      socket.write(`GET ${rawPath} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n`);
+    });
+    socket.on("data", (chunk: string) => {
+      raw += chunk;
+    });
+    socket.on("end", () => {
+      const [head, ...bodyParts] = raw.split("\r\n\r\n");
+      const statusLine = head?.split("\r\n")[0] ?? "";
+      const match = /^HTTP\/1\.\d (\d{3})/.exec(statusLine);
+      resolvePromise({ status: match != null ? Number(match[1]) : 0, body: bodyParts.join("\r\n\r\n") });
+    });
+    socket.on("error", reject);
+  });
+}
+
+function baseSnapshot(over: Partial<DisplayStateSnapshotV1> = {}): DisplayStateSnapshotV1 {
+  return {
+    version: DISPLAY_PROTOCOL_VERSION, generatedAt: "2026-07-06T21:00:00+09:00", seq: 0,
+    activeEews: [], tsunami: null, largeQuakes: [], weatherAlerts: [], recentQuakes: [],
+    connection: { dmdata: "connected", lastReceivedAt: null, disconnectedSince: null, reason: null },
+    recentTicker: [],
+    ...over,
+  };
+}
+
+/** JSON 化後に MAX_SNAPSHOT_BYTES (256KB) を超える recentTicker を生成する */
+function hugeRecentTicker(): DisplayEventDtoV1[] {
+  const longTitle = "A".repeat(500);
+  return Array.from({ length: 1000 }, (_, i) => ({
+    version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `m${i}`, eventKey: `k${i}`, groupKey: null,
+    domain: "weather", type: "VPWW55", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
+    title: longTitle, headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal",
+    isCancellation: false, summary: { text: "t", role: "muted" }, emergency: null, recentQuake: null,
+  }));
+}
+
+/** 縮退で latestQuake.intensityGroups が capIntensityGroups で 8 地域まで切られるほど巨大な地域リスト
+ *  (単体で約 450KB、ticker 20 件縮退後もなお上限超過となるサイズを狙う) */
+function hugeIntensityGroups(): DisplayIntensityGroupV1[] {
+  return [
+    {
+      intensity: "5弱", rank: 50,
+      areas: Array.from({ length: 150 }, (_, i) => `テスト地域${i}`.repeat(500)),
+      omittedAreaCount: 0,
+    },
+  ];
+}
+
+/** 縮退で weatherAlerts[].items[].shownAreas が 6 地域まで切られるほど巨大な地域リスト (単体で約 450KB) */
+function hugeWeatherAlerts(): DisplayWeatherAlertV1[] {
+  return [
+    {
+      source: "vpww56", label: "大雨警報", role: "weatherWarning", totalAreas: 150,
+      items: [
+        {
+          kind: "大雨", displaySeverity: "warning", rank: "warning",
+          shownAreas: Array.from({ length: 150 }, (_, i) => `気象地域${i}`.repeat(500)),
+          omittedAreaCount: 0,
+        },
+      ],
+      updatedAt: "2026-07-06T21:00:00+09:00",
+    },
+  ];
+}
+
+/** SSE の最初の 1 メッセージ ("\n\n" 終端) を、複数 TCP チャンクに跨っても取りこぼさず読む */
+async function readFirstSseMessage(res: Response): Promise<{ type: string; snapshot: DisplayStateSnapshotV1 }> {
+  const reader = res.body!.getReader();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += new TextDecoder().decode(value);
+    if (buf.includes("\n\n")) break;
+  }
+  await reader.cancel();
+  const dataLine = buf.split("\n").find((l) => l.startsWith("data: "));
+  if (dataLine == null) throw new Error("data 行を受信できなかった: " + buf.slice(0, 200));
+  return JSON.parse(dataLine.slice("data: ".length)) as { type: string; snapshot: DisplayStateSnapshotV1 };
+}
+
+/** 通常サイズの recentQuakes (縮退で温存されるべき軽量な地震履歴)。件数を引数で指定する */
+function normalRecentQuakes(count: number): DisplayRecentQuakeV1[] {
+  return Array.from({ length: count }, (_, i) => ({
+    eventId: `rq${i}`, reportDateTime: "2026-07-06T21:00:00+09:00", originTime: "2026-07-06T21:00:00+09:00",
+    hypocenterName: `震源${i}`, magnitude: "M4.0", maxInt: "3", maxIntRank: 30,
+    depth: "10km", tsunamiWarning: false,
+  }));
+}
+
+/** tickerBody が巨大な recentTicker 8 件 (全件が段1 の先頭 N=8 件枠に入るため本文間引きで落ちず、
+ *  recentTicker を空にする段まで縮退が進むケース用。約 480KB) */
+function hugeBodiedTicker(): DisplayEventDtoV1[] {
+  return Array.from({ length: 8 }, (_, i) => ({
+    version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `hb${i}`, eventKey: `hbk${i}`, groupKey: null,
+    domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
+    title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
+    isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
+    tickerBody: "本".repeat(20000),
+  }));
+}
+
+/** intensityGroups が巨大な largeQuakes 1 件 (約 450KB)。この肥大源が recentQuakes より先に
+ *  刈られる (空配列化される) ことを検証するための縮退契約テスト用 */
+function hugeGroupLargeQuakes(): DisplayLargeQuakeStateV1[] {
+  return [{
+    kind: "largeQuake" as const, eventId: "lg1", originTime: "2026-07-06T21:00:00+09:00",
+    hypocenterName: "テスト沖", magnitude: "M7.0", maxInt: "6強", maxIntRank: 60,
+    intensityGroups: [{
+      intensity: "6強", rank: 60,
+      areas: Array.from({ length: 150 }, (_, i) => `震度域${i}`.repeat(500)),
+      omittedAreaCount: 0,
+    }],
+    reportDateTime: "2026-07-06T21:00:00+09:00", depth: "10km", maxLgInt: null, tsunamiWarning: false,
+    updatedAtMs: 0,
+  }];
+}
+
+/** intensityGroups を空にしても (縮退第7段) なお 256KB を超え続ける largeQuakes (全段縮退が尽きるケース用) */
+function hugeLargeQuakes(): DisplayLargeQuakeStateV1[] {
+  return Array.from({ length: 2000 }, (_, i) => ({
+    kind: "largeQuake" as const,
+    eventId: `ev${i}`,
+    originTime: "2026-07-06T21:00:00+09:00",
+    hypocenterName: `震源地${i}`.repeat(50),
+    magnitude: "M7.0",
+    maxInt: "6強",
+    maxIntRank: 60,
+    intensityGroups: [],
+    reportDateTime: "2026-07-06T21:00:00+09:00",
+    depth: "10km",
+    maxLgInt: null,
+    tsunamiWarning: false,
+    updatedAtMs: 0,
+  }));
+}
+
+describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state 配信の共通安全弁)", () => {
+  it("上限内に収まる snapshot は level 0 (縮退なし) でそのまま返す", () => {
+    const full = baseSnapshot();
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe(0);
+    expect(result!.snapshot).toBe(full);
+  });
+
+  it("巨大 recentTicker は縮退段 1〜2 で 20 件以下に切り詰められる", () => {
+    const full = baseSnapshot({ recentTicker: hugeRecentTicker() });
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.level).toBeGreaterThan(0);
+    expect(result!.snapshot.recentTicker.length).toBeLessThanOrEqual(20);
+  });
+
+  it("msgType 'state' でも同じラダーで縮退する", () => {
+    const full = baseSnapshot({ recentTicker: hugeRecentTicker() });
+    const result = degradeSnapshotToBudget(full, "state");
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.recentTicker.length).toBeLessThanOrEqual(20);
+  });
+
+  it("recentTicker が既に空でも巨大 largeQuakes で全段を尽くすと null (fail-loud)", () => {
+    const full = baseSnapshot({ largeQuakes: hugeLargeQuakes() });
+    const result = degradeSnapshotToBudget(full, "state");
+    expect(result).toBeNull();
+  });
+
+  it("本文付き recentTicker は新段 (段1) で先頭 8 件だけ tickerBody を残し件数は保つ", () => {
+    // 40 件 × 中程度の本文。full は超過するが、本文を先頭 8 件以外 null 化するだけで収まる
+    const bodied = Array.from({ length: 40 }, (_, i) => ({
+      version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `b${i}`, eventKey: `bk${i}`, groupKey: null,
+      domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
+      title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
+      isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
+      tickerBody: "本".repeat(5000),
+    }));
+    const full = baseSnapshot({ recentTicker: bodied });
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe(1);                          // 本文間引き段で収束
+    expect(result!.snapshot.recentTicker.length).toBe(40);  // 件数は削られない
+    expect(result!.snapshot.recentTicker[0]!.tickerBody).not.toBeNull();
+    expect(result!.snapshot.recentTicker[7]!.tickerBody).not.toBeNull();
+    expect(result!.snapshot.recentTicker[8]!.tickerBody).toBeNull();
+  });
+
+  it("本文間引き段では tickerEmphasis も tickerBody と一緒に落とす (本文なしの index span は無意味、backlog §3)", () => {
+    const bodied = Array.from({ length: 40 }, (_, i) => ({
+      version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `e${i}`, eventKey: `ek${i}`, groupKey: null,
+      domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
+      title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
+      isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
+      tickerBody: "970hPa " + "本".repeat(5000),
+      tickerEmphasis: [{ start: 0, end: 6 }],
+    }));
+    const full = baseSnapshot({ recentTicker: bodied });
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe(1);
+    // 先頭 8 件は本文・強調とも残る
+    expect(result!.snapshot.recentTicker[0]!.tickerBody).not.toBeNull();
+    expect(result!.snapshot.recentTicker[0]!.tickerEmphasis).not.toBeNull();
+    // 9 件目以降は本文も強調も落ちる
+    expect(result!.snapshot.recentTicker[8]!.tickerBody).toBeNull();
+    expect(result!.snapshot.recentTicker[8]!.tickerEmphasis).toBeNull();
+  });
+
+  it("肥大源 largeQuakes.intensityGroups は recentQuakes より先に空配列化される (縮退順序の設計原則)", () => {
+    // 肥大は largeQuakes.intensityGroups のみ。recentQuakes は軽量。順序が正しければ
+    // largeQuakes.intensityGroups を空にした段で収まり、recentQuakes は無傷で残る
+    const full = baseSnapshot({ largeQuakes: hugeGroupLargeQuakes(), recentQuakes: normalRecentQuakes(5) });
+    const result = degradeSnapshotToBudget(full, "state");
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.largeQuakes[0]!.intensityGroups).toEqual([]);
+    expect(result!.snapshot.recentQuakes).toHaveLength(5); // 巻き添えで刈られない
+  });
+
+  it("stats.sparklineData はどの縮退段を通っても改変されない (待機画面スパークライン保護、Fix11B)", () => {
+    const sparklineData = Array.from({ length: 30 }, (_, i) => i);
+    const stats = { sparklineData, totalReceived: 0, todayQuakeCount: 0, todayMaxInt: null, todayMaxIntRank: null };
+
+    // recentTicker を空にする段まで進むケース (旧・段5相当)
+    const tickerHeavy = baseSnapshot({
+      recentTicker: hugeBodiedTicker(), recentQuakes: normalRecentQuakes(3), stats,
+    });
+    const tickerResult = degradeSnapshotToBudget(tickerHeavy, "snapshot");
+    expect(tickerResult).not.toBeNull();
+    expect(tickerResult!.snapshot.recentTicker).toEqual([]);
+    expect(tickerResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
+
+    // largeQuakes.intensityGroups を空にする段まで進むケース (旧・段6相当)
+    const largeQuakeHeavy = baseSnapshot({
+      largeQuakes: hugeGroupLargeQuakes(), recentQuakes: normalRecentQuakes(5), stats,
+    });
+    const largeQuakeResult = degradeSnapshotToBudget(largeQuakeHeavy, "state");
+    expect(largeQuakeResult).not.toBeNull();
+    expect(largeQuakeResult!.snapshot.largeQuakes[0]!.intensityGroups).toEqual([]);
+    expect(largeQuakeResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
+
+    // recentQuakes が最終段 (空) まで進むケース (段10)
+    const heavyRecentQuakesForSparkline: DisplayRecentQuakeV1[] = Array.from({ length: 5 }, (_, i) => ({
+      eventId: `sq${i}`, reportDateTime: "2026-07-06T21:00:00+09:00", originTime: "2026-07-06T21:00:00+09:00",
+      hypocenterName: `巨大震源${i}`.repeat(20000), magnitude: "M7.0", maxInt: "5弱", maxIntRank: 50,
+      depth: "10km", tsunamiWarning: false,
+    }));
+    const recentQuakesHeavy = baseSnapshot({ recentQuakes: heavyRecentQuakesForSparkline, stats });
+    const finalResult = degradeSnapshotToBudget(recentQuakesHeavy, "state");
+    expect(finalResult).not.toBeNull();
+    expect(finalResult!.snapshot.recentQuakes).toEqual([]);
+    expect(finalResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
+  });
+
+  it("recentQuakes[].intensityGroups は件数削減より先に刈られる (各地震度 → 詳細空化 → 件数の順)", () => {
+    // 肥大は recentQuakes[].intensityGroups のみ (各地の震度)。cap-to-8 でも収まらないほど巨大にし、
+    // 詳細を空配列化する段 (段8) で収束させる。5 件のカード骨子は温存されるべき
+    const groupHeavy: DisplayRecentQuakeV1[] = Array.from({ length: 5 }, (_, i) => ({
+      eventId: `gq${i}`, reportDateTime: "2026-07-06T21:00:00+09:00", originTime: "2026-07-06T21:00:00+09:00",
+      hypocenterName: `震源${i}`, magnitude: "M5.0", maxInt: "3", maxIntRank: 3,
+      depth: "10km", tsunamiWarning: false,
+      intensityGroups: [{
+        intensity: "3", rank: 3,
+        areas: Array.from({ length: 200 }, (_, j) => `震度域${j}`.repeat(6000)),
+        omittedAreaCount: 0,
+      }],
+    }));
+    const full = baseSnapshot({ recentQuakes: groupHeavy });
+    const result = degradeSnapshotToBudget(full, "state");
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.recentQuakes).toHaveLength(5);                 // カード件数は温存される
+    for (const q of result!.snapshot.recentQuakes) {
+      expect(q.intensityGroups).toEqual([]);                              // 詳細 (各地震度) だけ諦める
+    }
+  });
+
+  it("recentQuakes は他の肥大源を刈り尽くした最後にのみ縮退される (5→3→空の順)", () => {
+    // recentQuakes 自体が巨大なケース。他の肥大源が無いので最終段 (recentQuakes 空) まで進む
+    const heavyRecentQuakes: DisplayRecentQuakeV1[] = Array.from({ length: 5 }, (_, i) => ({
+      eventId: `hq${i}`, reportDateTime: "2026-07-06T21:00:00+09:00", originTime: "2026-07-06T21:00:00+09:00",
+      hypocenterName: `巨大震源${i}`.repeat(20000), magnitude: "M7.0", maxInt: "5弱", maxIntRank: 50,
+      depth: "10km", tsunamiWarning: false,
+    }));
+    const full = baseSnapshot({ recentQuakes: heavyRecentQuakes });
+    const result = degradeSnapshotToBudget(full, "state");
+    expect(result).not.toBeNull();
+    // 肥大源が hypocenterName (intensityGroups 段では刈れない) なので、intensityGroups 刈り (段7-8)
+    // を空振りしたのち 5→3 (段9)・空 (段10) まで到達する
+    expect(result!.level).toBe(10);                      // 最終段 (recentQuakes 空) まで到達する
+    expect(result!.snapshot.recentQuakes).toEqual([]);   // 最終段で空になる
+  });
+
+  it("32KB 本文 × 8 件の最悪ケースは本文間引きで落とし切れず後続ラダー (件数削減) へ落ちる", () => {
+    // 8 件すべて先頭 8 件枠に入るため段1 では本文が残り超過継続 → recentTicker を空にする段まで進む
+    const worst = Array.from({ length: 8 }, (_, i) => ({
+      version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `w${i}`, eventKey: `wk${i}`, groupKey: null,
+      domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
+      title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
+      isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
+      tickerBody: "本".repeat(32 * 1024),
+    }));
+    const full = baseSnapshot({ recentTicker: worst });
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.level).toBeGreaterThan(1);              // 段1 では収まらない
+    expect(result!.snapshot.recentTicker.length).toBe(0);  // 後続ラダーで件数ごと落ちる
+  });
+});
+
+describe("degradeSyncedStateToBudget (tickerSynced 専用ラダー、recentTicker は絶対に削らない、レビュー R2 Important 対応)", () => {
+  it("上限内に収まる snapshot は level 0 (縮退なし) でそのまま返す", () => {
+    const full = baseSnapshot({ recentTicker: [], tickerSynced: true });
+    const result = degradeSyncedStateToBudget(full);
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe(0);
+    expect(result!.snapshot).toBe(full);
+  });
+
+  it("他フィールド (weatherAlerts) が巨大でも recentTicker はそのまま保ち、他フィールドだけ縮退する", () => {
+    const ticker = hugeRecentTicker().slice(0, 3); // 小さめの recentTicker (縮退不要な件数)
+    const full = baseSnapshot({ recentTicker: ticker, weatherAlerts: hugeWeatherAlerts(), tickerSynced: true });
+    const result = degradeSyncedStateToBudget(full);
+    expect(result).not.toBeNull();
+    expect(result!.level).toBeGreaterThan(0);
+    expect(result!.snapshot.recentTicker.length).toBe(3); // recentTicker は 1 件も削られない
+    expect(result!.snapshot.recentTicker).toEqual(ticker); // 中身も無加工
+    expect(result!.snapshot.weatherAlerts[0]?.items[0]?.shownAreas.length).toBeLessThanOrEqual(6); // 他フィールドは縮退
+  });
+
+  it("recentTicker 自体が巨大で他フィールド縮退では収まらない場合は null (呼び出し元が recentTicker を諦めるラダーへフォールバックする契約)", () => {
+    const full = baseSnapshot({ recentTicker: hugeRecentTicker(), tickerSynced: true });
+    const result = degradeSyncedStateToBudget(full);
+    expect(result).toBeNull();
+  });
+
+  it("stats.sparklineData はどの縮退段を通っても改変されない (待機画面スパークライン保護、Fix11B、PreserveTicker ラダー側)", () => {
+    const sparklineData = Array.from({ length: 30 }, (_, i) => i);
+    const stats = { sparklineData, totalReceived: 0, todayQuakeCount: 0, todayMaxInt: null, todayMaxIntRank: null };
+    // largeQuakes.intensityGroups を空にする段まで進むケース (recentTicker は絶対に削られない前提)
+    const full = baseSnapshot({
+      recentTicker: hugeRecentTicker().slice(0, 3),
+      largeQuakes: hugeGroupLargeQuakes(),
+      recentQuakes: normalRecentQuakes(5),
+      stats,
+      tickerSynced: true,
+    });
+    const result = degradeSyncedStateToBudget(full);
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.recentTicker.length).toBe(3); // recentTicker は縮退対象外 (不変)
+    expect(result!.snapshot.largeQuakes[0]!.intensityGroups).toEqual([]);
+    expect(result!.snapshot.stats?.sparklineData).toEqual(sparklineData);
+  });
+});
+
+describe("InProcessSseDisplayTransport", () => {
+  let distDir: string;
+  let transport: InProcessSseDisplayTransport | null = null;
+
+  beforeEach(() => {
+    distDir = mkdtempSync(join(tmpdir(), "fleq-display-test-"));
+    writeFileSync(join(distDir, "index.html"), "<html>hello</html>");
+  });
+
+  afterEach(async () => {
+    if (transport != null) {
+      await transport.stop();
+      transport = null;
+    }
+    rmSync(distDir, { recursive: true, force: true });
+  });
+
+  async function startTransport(
+    getSnapshot: () => DisplayStateSnapshotV1 = () => baseSnapshot(),
+  ): Promise<InProcessSseDisplayTransport> {
+    const t = new InProcessSseDisplayTransport({ host: "127.0.0.1", port: 0, distDir, getSnapshot, log });
+    await t.start();
+    transport = t;
+    return t;
+  }
+
+  it("① GET /healthz → 200 JSON {ok:true, clients:0}", async () => {
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/healthz`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, clients: 0 });
+  });
+
+  it("GET /tips は知識系 Tips のデッキを JSON で返す", async () => {
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/tips`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = (await res.json()) as { tips: string[] };
+    expect(Array.isArray(body.tips)).toBe(true);
+    expect(body.tips.length).toBeGreaterThan(0);
+    for (const tip of body.tips) {
+      expect(typeof tip).toBe("string");
+      expect(tip.startsWith("Tip: ")).toBe(false);
+    }
+  });
+
+  it("② GET / → index.html の中身", async () => {
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/`);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("<html>hello</html>");
+  });
+
+  it("③ パストラバーサル (素の ../・URL エンコード・prefix 衝突) はすべて 404", async () => {
+    const evilDir = `${distDir}-evil`;
+    mkdirSync(evilDir);
+    writeFileSync(join(evilDir, "secret.txt"), "secret");
+    const t = await startTransport();
+    const port = t.port();
+    // fetch は URL 正規化で "/../" を消してしまい防御分岐に届かないため raw socket で送る
+    const plain = await rawGet(port, "/../package.json");
+    const prefixCollision = await rawGet(port, `/../${basename(evilDir)}/secret.txt`);
+    expect(plain.status).toBe(404);
+    expect(plain.body).not.toContain("dmdata");
+    expect(prefixCollision.status).toBe(404);
+    expect(prefixCollision.body).not.toContain("secret");
+    // %2f は percent-encoding のため fetch でも正規化されず防御分岐に届く
+    const encoded = await fetch(`http://127.0.0.1:${port}/..%2fpackage.json`);
+    expect(encoded.status).toBe(404);
+  });
+
+  it("④ GET /events → text/event-stream で最初のチャンクに event: snapshot", async () => {
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+    const reader = res.body!.getReader();
+    const { value } = await reader.read();
+    const text = new TextDecoder().decode(value);
+    expect(text).toContain("event: snapshot");
+    await reader.cancel();
+  });
+
+  it("⑤ distDir に index.html が無いと start() が reject", async () => {
+    const emptyDir = mkdtempSync(join(tmpdir(), "fleq-display-empty-"));
+    const t = new InProcessSseDisplayTransport({
+      host: "127.0.0.1", port: 0, distDir: emptyDir, getSnapshot: () => baseSnapshot(), log,
+    });
+    await expect(t.start()).rejects.toThrow(/display\/dist が見つかりません/);
+    rmSync(emptyDir, { recursive: true, force: true });
+  });
+
+  it("⑥ stop() 後は接続不可", async () => {
+    const t = await startTransport();
+    const port = t.port();
+    await t.stop();
+    transport = null;
+    await expect(fetch(`http://127.0.0.1:${port}/healthz`)).rejects.toThrow();
+  });
+
+  it("⑦ 巨大 snapshot は接続時送信で recentTicker が縮退する (8 段縮退の第 1〜2 段)", async () => {
+    const t = await startTransport(() => baseSnapshot({ recentTicker: hugeRecentTicker() }));
+    const res = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const reader = res.body!.getReader();
+    const { value } = await reader.read();
+    const text = new TextDecoder().decode(value);
+    const dataLine = text.split("\n").find((l) => l.startsWith("data: "));
+    expect(dataLine).toBeDefined();
+    const payload = JSON.parse(dataLine!.slice("data: ".length)) as { snapshot: DisplayStateSnapshotV1 };
+    expect(payload.snapshot.recentTicker.length).toBeLessThanOrEqual(20);
+    expect(payload.snapshot.recentTicker.length).toBeLessThan(hugeRecentTicker().length);
+    await reader.cancel();
+  });
+
+  it("⑦-b 巨大 recentTicker + 巨大 weatherAlerts + 巨大 latestQuake.intensityGroups でも "
+    + "いずれかの縮退段が送られ、地域リストが上限内に切り詰められ omittedAreaCount が加算される", async () => {
+    const huge = hugeWeatherAlerts();
+    const hugeGroups = hugeIntensityGroups();
+    const t = await startTransport(() => baseSnapshot({
+      recentTicker: hugeRecentTicker(),
+      weatherAlerts: huge,
+      latestQuake: {
+        eventId: "ev1", headline: null, originTime: "2026-07-06T21:00:00+09:00",
+        hypocenterName: "テスト沖", depth: "10km", magnitude: "M7.0",
+        maxInt: "5弱", maxIntRank: 50, tsunamiWarning: false,
+        intensityGroups: hugeGroups, reportDateTime: "2026-07-06T21:00:00+09:00",
+        updatedAtMs: 0,
+      },
+    }));
+    const res = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const payload = await readFirstSseMessage(res);
+
+    const originalAreaCount = hugeGroups[0]!.areas.length;
+    const sentGroup = payload.snapshot.latestQuake?.intensityGroups[0];
+    expect(sentGroup).toBeDefined();
+    expect(sentGroup!.areas.length).toBeLessThanOrEqual(8);
+    expect(sentGroup!.omittedAreaCount).toBe(originalAreaCount - sentGroup!.areas.length);
+
+    const originalWeatherAreaCount = huge[0]!.items[0]!.shownAreas.length;
+    const sentItem = payload.snapshot.weatherAlerts[0]?.items[0];
+    expect(sentItem).toBeDefined();
+    expect(sentItem!.shownAreas.length).toBeLessThanOrEqual(6);
+    expect(sentItem!.omittedAreaCount).toBe(originalWeatherAreaCount - sentItem!.shownAreas.length);
+  });
+
+  it("⑦-e 震度6弱以上 (rank 7〜9) の intensityGroups は縮退時も areas を省略しない (目視ゲート第3波 Fix8)", async () => {
+    const strongGroup: DisplayIntensityGroupV1 = {
+      intensity: "6弱", rank: 7,
+      areas: Array.from({ length: 30 }, (_, i) => `強震域${i}`.repeat(500)),
+      omittedAreaCount: 0,
+    };
+    const weakGroup: DisplayIntensityGroupV1 = {
+      intensity: "5弱", rank: 5,
+      areas: Array.from({ length: 30 }, (_, i) => `弱震域${i}`.repeat(500)),
+      omittedAreaCount: 0,
+    };
+    const t = await startTransport(() => baseSnapshot({
+      recentTicker: hugeRecentTicker(),
+      latestQuake: {
+        eventId: "ev1", headline: null, originTime: "2026-07-06T21:00:00+09:00",
+        hypocenterName: "テスト沖", depth: "10km", magnitude: "M7.0",
+        maxInt: "6弱", maxIntRank: 7, tsunamiWarning: false,
+        intensityGroups: [strongGroup, weakGroup], reportDateTime: "2026-07-06T21:00:00+09:00",
+        updatedAtMs: 0,
+      },
+    }));
+    const res = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const payload = await readFirstSseMessage(res);
+
+    const groups = payload.snapshot.latestQuake?.intensityGroups ?? [];
+    const sentStrong = groups.find((g) => g.rank === 7);
+    const sentWeak = groups.find((g) => g.rank === 5);
+    expect(sentStrong).toBeDefined();
+    expect(sentStrong!.areas.length).toBe(30);
+    expect(sentStrong!.omittedAreaCount).toBe(0);
+    expect(sentWeak).toBeDefined();
+    expect(sentWeak!.areas.length).toBeLessThanOrEqual(8);
+    expect(sentWeak!.omittedAreaCount).toBeGreaterThan(0);
+  });
+
+  it("⑦-c すべての縮退段を尽くしても上限超過なら接続を切断し警告ログを出す", async () => {
+    let warnCalled = false;
+    const customLog = { info: (): void => {}, warn: (): void => { warnCalled = true; } };
+    const t = new InProcessSseDisplayTransport({
+      host: "127.0.0.1", port: 0, distDir,
+      getSnapshot: () => baseSnapshot({ largeQuakes: hugeLargeQuakes() }),
+      log: customLog,
+    });
+    await t.start();
+    transport = t;
+    let dataReceived = "";
+    try {
+      const res = await fetch(`http://127.0.0.1:${t.port()}/events`);
+      const reader = res.body!.getReader();
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        dataReceived += new TextDecoder().decode(value);
+      }
+    } catch {
+      // res.destroy() によって fetch 自体や読み取り中に接続断エラーになる場合もある (期待どおり)
+    }
+    expect(dataReceived).not.toContain("event: snapshot");
+    expect(warnCalled).toBe(true);
+  });
+
+  it("⑦-d recentTicker を空にする段でも sparklineData は改変されず、"
+    + "軽量な recentQuakes はこの段では温存される (縮退順序の設計原則、Fix11B でスパークライン保護)", async () => {
+    const sparklineData = Array.from({ length: 30 }, (_, i) => i); // 古い順: 0..29 (末尾が最新)
+    const t = await startTransport(() => baseSnapshot({
+      recentTicker: hugeBodiedTicker(),          // ~480KB。recentTicker を空にする段まで進む
+      recentQuakes: normalRecentQuakes(3),        // 軽量。この段では刈られない
+      stats: { sparklineData, totalReceived: 0, todayQuakeCount: 0, todayMaxInt: null, todayMaxIntRank: null },
+    }));
+    const res = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const payload = await readFirstSseMessage(res);
+
+    // recentTicker 空の段 (recentQuakes より前に肥大源を刈り切る段) まで進んだ証跡。
+    // sparklineData は軽量なため縮退ラダーの対象外 (Fix11B) で、30 点まるごと温存される
+    expect(payload.snapshot.recentTicker).toEqual([]);
+    expect(payload.snapshot.stats?.sparklineData).toEqual(sparklineData);
+    expect(payload.snapshot.recentQuakes).toHaveLength(3); // 軽量な地震履歴は温存される
+  });
+
+  it("distDir 直下でない拡張子ファイルも content-type 判定で配信できる", async () => {
+    writeFileSync(join(distDir, "app.js"), "console.log(1)");
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/app.js`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/javascript");
+  });
+
+  it("存在しないパスは index.html にフォールバックせず 404 (SPA ルーティング不使用)", async () => {
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/no-such-route`);
+    expect(res.status).toBe(404);
+  });
+
+  it("decodeURIComponent が throw する不正な %エンコードは 400", async () => {
+    const t = await startTransport();
+    const res = await fetch(`http://127.0.0.1:${t.port()}/%`);
+    expect(res.status).toBe(400);
+  });
+});

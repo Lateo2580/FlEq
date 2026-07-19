@@ -1,0 +1,289 @@
+/* FlEq 常設情報ディスプレイ デザイントークン。
+   色の錨は CUD 9 色 (src/ui/theme.ts DEFAULT_PALETTE と同値)。
+   FrameLevel 意味論 (critical=vermillion / warning=orange / info=gray / cancel=raspberry)
+   と矛盾させない。津波 3 レベルのみ spec §5 指定の JMA 標準 (紫/赤/黄)。
+   数値表示の規範: 値列は em/ch 固定幅 + tabular-nums + 揃え方向統一 (画面幅に対しては font-size 経由で可変)。 */
+
+/* セルフホスト可変フォント。ライセンスは同ディレクトリの OFL-*.txt (SIL Open Font License 1.1)。
+   取得元・サブセット条件は display/scripts/fonts/README.md 参照。 */
+@font-face {
+  font-family: "JetBrains Mono Var";
+  src: url("../assets/fonts/JetBrainsMono-var.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans JP Var";
+  src: url("../assets/fonts/NotoSansJP-subset-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --fg: #f2f4f6;
+  --fg-faint: #566069; /* 空状態・接続正常ドットなど「沈んでいてよい」もの */
+  --clock-fg: #eef2f6; /* 待機画面の大時計。通常 LCD 判明で OLED 焼付き制約を撤廃し白寄りへ (遠目コントラスト改善) */
+
+  /* ── CUD 9 色 ── */
+  --c-gray: #84919e;
+  --c-gray-lift: #b4c2cf; /* gray の黒背景テキスト用リフト (面には使わない)。overlay 合成でのコントラスト救済用に明度を上げた明色 (spec §6) */
+  --c-sky: #56b4e9;
+  --c-blue: #0072b2;
+  --c-blue-lift: #3193db; /* blue の黒背景テキスト用リフト (面には使わない) */
+  --c-blue-green: #009e73;
+  --c-yellow: #f0e442;
+  --c-orange: #e69f00;
+  --c-orange-lift: #ff8c00; /* orange の黒背景テキスト用リフト (面には使わない)。実機パネルで #e69f00 が注意報の黄色と区別しづらいため、テキスト role はこちらを使う */
+  --c-vermillion: #d55e00;
+  --c-vermillion-lift: #e56910; /* vermillion の黒背景テキスト用リフト (面には使わない)。int-7 の surface-highest 上コントラスト救済用に明度を上げた明色 (spec §6) */
+  --c-raspberry: #cc79a7;
+  --c-dark-red: #7a1e00; /* 面 (bg) 専用。黒背景の文字色には使わない */
+
+  /* ── JMA 標準 (津波) ── */
+  --c-tsunami-purple: #c46bde;      /* テキスト用 */
+  --c-tsunami-purple-bar: #b23ab2;  /* 色面用。旧 #a030a0 (CLI weatherBannerOfficialL5 と同値) からマゼンタ色相 (300°) を維持したまま明度を上げた明色 (spec §6 int-7/紫バー/muted 明度修正) */
+  --c-jma-red: #ff453a;             /* テキスト用リフト */
+  --c-jma-red-bar: #e60012;         /* 色面用 */
+
+  /* ── DisplayColorRole → 色 ── */
+  --role-critical: var(--c-vermillion);
+  --role-warning: var(--c-orange);
+  --role-normal: var(--fg);
+  --role-info: var(--c-gray);
+  --role-cancel: var(--c-raspberry);
+  --role-eewWarning: var(--c-vermillion);
+  --role-eewForecast: var(--c-orange);
+  --role-tsunamiMajor: var(--c-tsunami-purple);
+  --role-tsunamiWarning: var(--c-jma-red);
+  --role-tsunamiAdvisory: var(--c-yellow);
+  --role-quakeMajor: var(--c-vermillion);
+  --role-weatherEmergency: var(--c-tsunami-purple);
+  --role-weatherWarning: var(--c-orange-lift);
+  --role-weatherAdvisory: var(--c-yellow);
+  --role-connectionOk: var(--fg-faint);
+  --role-connectionStale: var(--c-orange);
+  --role-muted: var(--c-gray-lift); /* --c-gray (#84919e) の無彩色相を維持し明度のみ上げた --c-gray-lift。overlay 合成でのコントラスト救済 (spec §6)。--c-gray / --fg-faint 自体は他消費者のため変更しない */
+
+  /* ── 震度 rank (1..9 = 震度1..4, 5弱, 5強, 6弱, 6強, 7) → テキスト色。
+        CLI intensity ロールと同構造: rank8 は vermillion 面, rank9 は darkRed 面 ── */
+  --int-1: var(--c-gray);
+  --int-2: var(--c-sky);
+  --int-3: var(--c-blue-lift);
+  --int-4: var(--c-blue-green);
+  --int-5: var(--c-yellow);
+  --int-6: var(--c-orange);
+  --int-7: var(--c-vermillion-lift); /* CUD 朱 --c-vermillion (#d55e00, hue 26°) の色相を維持し明度のみ上げた --c-vermillion-lift (surface-highest 上のコントラスト救済、spec §6) */
+  --int-8-bg: var(--c-vermillion); /* 6強: 面+黒文字 */
+  --int-9-bg: var(--c-dark-red);   /* 7: 面+白文字 */
+  --int-8-on: #000; /* int-8-bg (vermillion) 面上の文字色 */
+  --int-9-on: #fff; /* int-9-bg (dark-red) 面上の文字色 */
+
+  /* ── ヘッダ標準 (M3E): 意味色 container 面 + 明るい on-container 文字 + 下端 CUD 色帯 ──
+     mock D 列 (.m3e-cud-container) で確定。EEW赤茶/気象特別警報紫の 2 ペアが視覚検証済み、
+     他は同トーン (暗さ・彩度・on 明度) を各 CUD 色相へ手動移植した値。色相=意味シグナルは
+     下端の --header-band-* (既存 CUD/JMA 色) が担保するため container の色相導出は錨に抵触しない。
+     大津波警報 (JMA) と気象特別警報 (JMA) は共に法定紫で container/帯が一致するのは意図通り
+     (両者は見出し文言 "大津波警報" / "気象特別警報" で区別する)。ただし帯トークンは、気象側が
+     津波専用名 --c-tsunami-purple-bar を借用しているように読める語彙混線を避けるため、中立 alias
+     --c-jma-purple-bar を経由する (Codex R6。既存 --c-tsunami-purple-bar プリミティブは温存)。 */
+  --c-jma-purple-bar: var(--c-tsunami-purple-bar); /* JMA 特別警報級の法定紫 (面用)。津波大津波警報と気象特別警報で共有 */
+  --header-band-width: calc(4px * var(--panel-scale, 1)); /* panel-scale 連動。emergency (scale 1.5) → 6px / 待機カード (scale 1) → 4px。同一画面内では均一、パネル拡縮には追従 */
+
+  --header-eewWarning-container: #3a1206;   --header-eewWarning-on: #ffb392;   --header-band-eewWarning: var(--c-vermillion);
+  --header-eewForecast-container: #3a2600;  --header-eewForecast-on: #ffd68a;  --header-band-eewForecast: var(--c-orange);
+  --header-quakeCritical-container: #3a1206; --header-quakeCritical-on: #ffb392; --header-band-quakeCritical: var(--c-vermillion);
+  --header-quakeWarning-container: #3a2600; --header-quakeWarning-on: #ffd68a; --header-band-quakeWarning: var(--c-orange);
+  --header-tsunamiMajor-container: #301238; --header-tsunamiMajor-on: #eabdf0; --header-band-tsunamiMajor: var(--c-jma-purple-bar);
+  --header-tsunamiWarning-container: #3a0a08; --header-tsunamiWarning-on: #ffb0a8; --header-band-tsunamiWarning: var(--c-jma-red-bar);
+  --header-tsunamiAdvisory-container: #2e2c05; --header-tsunamiAdvisory-on: #f2ea94; --header-band-tsunamiAdvisory: var(--c-yellow);
+  --header-weatherEmergency-container: #301238; --header-weatherEmergency-on: #eabdf0; --header-band-weatherEmergency: var(--c-jma-purple-bar);
+  --header-weatherWarning-container: #3a2600; --header-weatherWarning-on: #ffd68a; --header-band-weatherWarning: var(--c-orange);
+  --header-weatherAdvisory-container: #2e2c05; --header-weatherAdvisory-on: #f2ea94; --header-band-weatherAdvisory: var(--c-yellow);
+
+  /* ── タイポ ── */
+  --font-ui: "JetBrains Mono Var", "Noto Sans JP Var", "UDEV Gothic HSJPDOC", "UDEVGothic HSJPDOC", "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-num: var(--font-ui);
+
+  /* ── ウェイト scale (可変フォント wght 軸) ── */
+  --type-weight-regular: 400;
+  --type-weight-medium: 500;
+  --type-weight-semibold: 600;
+  --type-weight-bold: 700;
+  --type-weight-heavy: 800; /* tier 連動の主役数字強調用 */
+
+  /* ── role 別ウェイト (baseline / emphasized) ── */
+  --type-display-weight: var(--type-weight-regular);      --type-display-weight-emphasized: var(--type-weight-bold);
+  --type-headline-weight: var(--type-weight-medium);      --type-headline-weight-emphasized: var(--type-weight-bold);
+  --type-title-weight: var(--type-weight-medium);         --type-title-weight-emphasized: var(--type-weight-bold);
+  --type-body-weight: var(--type-weight-medium);          --type-body-weight-emphasized: var(--type-weight-semibold);
+  --type-label-weight: var(--type-weight-regular);        --type-label-weight-emphasized: var(--type-weight-semibold);
+  /* tier 連動の主役数字ウェイト。tier overlay (T8) が alert/critical で --type-weight-heavy に離散上書き */
+  --num-weight: var(--type-weight-bold);
+
+  /* ── 型スケール: 固定 px (パネル。使用側で * var(--panel-scale,1)) ── */
+  --type-display-l-size: 56px;    /* EewPanel hypocenter */
+  --type-display-m-size: 44px;    /* compact hypocenter */
+  --type-display-s-size: 34px;    /* Clock small time */
+  --type-headline-l-size: 40px;   /* TsunamiPanel level-label / EewPanel stat-value */
+  --type-headline-m-size: 32px;   /* EewPanel/QuakePanel heading, max-int */
+  --type-headline-s-size: 28px;   /* ticker/loading/compact stat-value/compact max-int */
+  --type-title-l-size: 26px;      /* QuakePanel group */
+  --type-title-m-size: 24px;      /* chip-row, coast-row */
+  --type-title-s-size: 20px;      /* warning-comment, observation-row */
+  --type-body-l-size: 19px;       /* RecentQuakes 行 (fluid ceil と一致) */
+  --type-body-m-size: 18px;       /* assumed-chip */
+  --type-body-s-size: 16px;       /* coast-kind, obs-heading, badge dot */
+  --type-label-l-size: 15px;      /* ─ */
+  --type-label-m-size: 14px;      /* stat-label */
+  --type-label-s-size: 13px;      /* Clock small date */
+  --type-label-xs-size: 12px;     /* compact stat-label ほか (spec D1: 11px 廃止、層2下限) */
+  /* 特殊: container-query / viewport 追従サイズ (単一トークン化して直値を残さない) */
+  --type-clock-hero: min(11vw, 20vh);          /* Clock 大時計 (visual gate: 圧迫感解消で一回り縮小) */
+  --type-headline-m-cq: clamp(20px, 2.4cqw, 32px); /* QuakePanel heading (container 追従) */
+
+  /* ── 型スケール: fluid clamp (待機画面) ── */
+  --type-headline-s-fluid: clamp(16px, 2.2vw, 28px); /* Ticker, Clock date */
+  --type-title-s-fluid: clamp(14px, 1.7vw, 20px);    /* TsunamiBanner header, ConnectionBadge title */
+  --type-body-l-fluid: clamp(12px, 1.6vw, 19px);     /* RecentQuakes 行 */
+  --type-body-s-fluid: clamp(12px, 1.1vw, 14px);     /* ConnectionBadge caption (spec D1: 11px 廃止、層2下限) */
+  --type-label-l-fluid: clamp(12px, 1.3vw, 15px);    /* RecentQuakes h2, TsunamiBanner counts (spec D1: 11px 廃止、層2下限) */
+  --type-label-s-fluid: clamp(12px, 1.2vw, 14px);    /* TsunamiBanner areas (spec D1: 11px 廃止、層2下限) */
+
+  /* 緊急パネル主見出し (EewPanel/TsunamiPanel/QuakePanel) の共通トークン。
+     TsunamiPanel だけ headline-l (40px) を直値で使っていたため、横並び時に見出しの
+     高さがずれていた (第4波で修正)。font-size・padding・最低高さを一本化する */
+  --panel-header-font-size: 32px;
+  --panel-header-padding-v: 14px;
+  --panel-header-padding-h: 28px;
+  --panel-header-min-h: 64px;
+
+  /* ── Expressive Instrument (M3E 翻訳) ── */
+  --radius-standby: var(--radius-l); /* 待機カード = l (16) */
+  --radius-panel: var(--radius-xl); /* 緊急ヒーロー = xl (28、contrasting shapes で 24→28 に一段大胆化) */
+  --surface-standby: var(--surface-low); /* 待機カード面 */
+  --surface-panel: var(--surface-container); /* 緊急パネル面 */
+  --surface-panel-raised: var(--surface-high); /* パネル内タイル面 */
+  --hairline: #1a2126; /* 面分離用の薄い境界線色。焼付き最小、containment を遠目に効かせる */
+  --ticker-label-pad: 0.9em; /* テロップ種別ラベル枠の右パディング (instrument surface 化) */
+  --ticker-label-bg: var(--surface-high);
+  --ticker-label-radius: var(--radius-full);
+  --ticker-label-margin: 0.7em;
+  --ticker-label-shadow: var(--elevation-1);
+
+  /* ── M3E shape scale (7 段。適用は Phase B。none は角丸なし=0 のため未トークン化) ── */
+  --radius-xs: 4px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+  /* ── M3E surface container 階層 (5 段。無彩色明度、CUD 色相の錨に抵触しない。適用は Phase B) ── */
+  --surface-lowest: #030405;
+  --surface-low: #070a0c;
+  --surface-container: #0b0f12;
+  --surface-high: #10161a;
+  --surface-highest: #171f25;
+  /* ── M3E tonal elevation (LCD 前提で解禁。ダーク向け控えめ box-shadow。適用は Phase B) ── */
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  --elevation-2: 0 3px 8px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --elevation-3: 0 10px 24px rgba(0, 0, 0, 0.66), 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  /* ── spacing scale (4px グリッド。適用は Phase B) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  /* ── M3E spring easing (display/scripts/generate-springs.mjs 生成、再生成可) ── */
+  /* GENERATED:springs:start (generate-springs.mjs --write) */
+  /* spring-spatial-default: stiffness=380 damping=0.8 wn=19.49 settle=~435ms */
+  --spring-spatial-default: linear(0, 0.0516, 0.1705, 0.3163, 0.4636, 0.598, 0.7123, 0.8044, 0.8751, 0.9271, 0.9636, 0.9877, 1.0026, 1.0108, 1.0144, 1.0151, 1.0141, 1.0122, 1.01, 1.0077, 1.0058, 1.0041, 1.0027, 1.0017, 1.001);
+  --spring-spatial-default-dur: 435ms;
+  /* spring-spatial-quick: stiffness=3600 damping=0.8 wn=60.00 settle=~142ms */
+  --spring-spatial-quick: linear(0, 0.0517, 0.1708, 0.3168, 0.4643, 0.5988, 0.713, 0.805, 0.8757, 0.9276, 0.9639, 0.9879, 1.0027, 1.0109, 1.0145, 1.0151, 1.0141, 1.0122, 1.0099, 1.0077, 1.0057, 1.004, 1.0027, 1.0017, 1.001);
+  --spring-spatial-quick-dur: 142ms;
+  /* spring-spatial-slow: stiffness=200 damping=0.8 wn=14.14 settle=~599ms */
+  --spring-spatial-slow: linear(0, 0.0516, 0.1704, 0.3162, 0.4635, 0.5979, 0.7122, 0.8043, 0.875, 0.9271, 0.9635, 0.9877, 1.0025, 1.0108, 1.0144, 1.0151, 1.0141, 1.0122, 1.01, 1.0078, 1.0058, 1.0041, 1.0028, 1.0017, 1.001);
+  --spring-spatial-slow-dur: 599ms;
+  /* spring-effects-default: stiffness=1600 damping=1 wn=40.00 settle=~231ms */
+  --spring-effects-default: linear(0, 0.0576, 0.1805, 0.3211, 0.4555, 0.5733, 0.6714, 0.7504, 0.8125, 0.8604, 0.8968, 0.9242, 0.9446, 0.9597, 0.9708, 0.979, 0.9849, 0.9892, 0.9922, 0.9945, 0.9961, 0.9972, 0.998, 0.9986, 0.999);
+  --spring-effects-default-dur: 231ms;
+  /* spring-effects-slow: stiffness=800 damping=1 wn=28.28 settle=~327ms */
+  --spring-effects-slow: linear(0, 0.0575, 0.1803, 0.3208, 0.4552, 0.573, 0.6711, 0.7502, 0.8122, 0.8602, 0.8966, 0.9241, 0.9445, 0.9596, 0.9708, 0.9789, 0.9848, 0.9891, 0.9922, 0.9944, 0.996, 0.9972, 0.998, 0.9986, 0.999);
+  --spring-effects-slow-dur: 327ms;
+  /* GENERATED:springs:end */
+  /* 退場 (opacity のみ) の共通 duration。spec §4「消失感を出さない」200ms 前後 */
+  --dur-exit: 200ms;
+  --dur-weight-swell: 200ms; /* tier 昇格時の主役ウェイト bold→heavy の連続遷移 (weight のみ、色/surface は瞬時) */
+  --ticker-row-h: 40px;
+  --ticker-rows: 2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-ui);
+  /* Noto Sans JP Var は UDEV Gothic 系より行高が高く、フォント切替後に
+     スクロールなしで収まっていた緊急パネルがあふれる要因になったため一段詰める */
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* 見出し系はさらに詰める (EewPanel/QuakePanel/TsunamiPanel/RecentQuakes/カード見出し) */
+h1,
+h2,
+h3,
+.heading,
+.level-label,
+.card-header {
+  line-height: 1.18;
+}
+
+/* 散文 (折り返して読ませる文章ブロック) は行間を戻す (spec D2)。グローバル 1.3 は
+   データ密度優先の kiosk 例外 (緊急パネル収容制約) — 散文には適用しない */
+.prose {
+  line-height: 1.5;
+}
+
+/* ── tier 連動の離散上書き (T8)。surface/色は瞬時切替 (雰囲気の連続遷移は TierOverlay の
+   opacity crossfade が担う)。weight のみ、消費側の hero 要素 (EewPanel .hypocenter/.max-int)
+   に --dur-weight-swell の transition を付けて bold→heavy をなだらかに昇らせる (wght スウェル) ── */
+main[data-tier="alert"],
+main[data-tier="critical"] {
+  --surface-panel: var(--surface-high); /* 一段持ち上げ (container→high) */
+  --surface-panel-raised: var(--surface-highest);
+}
+main[data-tier="alert"],
+main[data-tier="critical"] {
+  --num-weight: var(--type-weight-heavy);
+}
+
+/* スクリーンリーダ専用 (視覚非表示)。見出し階層の h1 供給などに使う */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
