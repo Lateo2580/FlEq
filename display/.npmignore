@@ -1,0 +1,6 @@
+# npm pack 用の ignore。display/.gitignore の `dist/` を上書きし、
+# ビルド済み display/dist を npm パッケージに同梱できるようにする
+# (root package.json の files: ["display/dist"] とセット)。
+node_modules/
+*.log
+.DS_Store
