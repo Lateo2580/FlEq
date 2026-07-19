@@ -1207,16 +1207,21 @@ export function highlightAndWrap(
 
 // ── 時刻フォーマット ──
 
-/** 絶対時刻を整形 ("YYYY-MM-DD HH:MM:SS") */
+/** 電文時刻の表示オフセット。気象庁の発表時刻は定義上 JST (+09:00) なので、
+ *  実行環境のタイムゾーンに依存せず常に JST で整形する (CI や海外ホストでもズレない) */
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/** 絶対時刻を JST 固定で整形 ("YYYY-MM-DD HH:MM:SS") */
 export function formatTimestamp(isoStr: string): string {
   const d = new Date(isoStr);
   if (isNaN(d.getTime())) return isoStr;
-  const yyyy = d.getFullYear();
-  const MM = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
+  const j = new Date(d.getTime() + JST_OFFSET_MS);
+  const yyyy = j.getUTCFullYear();
+  const MM = String(j.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(j.getUTCDate()).padStart(2, "0");
+  const hh = String(j.getUTCHours()).padStart(2, "0");
+  const mm = String(j.getUTCMinutes()).padStart(2, "0");
+  const ss = String(j.getUTCSeconds()).padStart(2, "0");
   return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
 }
 
