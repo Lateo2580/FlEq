@@ -1,0 +1,33 @@
+{
+  "name": "@sayue_ltr/fleq-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FlEq Display Studio — Phase 1a backend",
+  "type": "commonjs",
+  "scripts": {
+    "backend": "tsx backend/server.ts",
+    "frontend": "vite",
+    "studio": "concurrently -k -n backend,frontend -c blue,magenta \"npm run backend\" \"npm run frontend\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.frontend.json"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "anser": "^2.3.0",
+    "diff": "^9.0.0",
+    "hono": "^4.6.0",
+    "svelte": "^5.46.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@testing-library/svelte": "^5.3.0",
+    "@types/node": "^22.13.4",
+    "concurrently": "^9.0.0",
+    "jsdom": "^29.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.18"
+  }
+}

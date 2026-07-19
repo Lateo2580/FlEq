@@ -1,0 +1,45 @@
+:root {
+  color-scheme: dark;
+  --bg: #101216;
+  --panel: #181b21;
+  --fg: #e8e8e8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Segoe UI", "Hiragino Sans", sans-serif;
+}
+
+/* Arrows (U+2190-21FF) は Cascadia Mono に欠落しており、Firefox が CJK font
+   (HSJPDOC 等) に fallback して 2-cell 描画 → 右枠線がズレる。
+   unicode-range で arrows 範囲だけ別フォントに明示解決し、1-cell 描画を強制する。
+   - Consolas: Microsoft 純正等幅、arrows narrow グリフ期待
+   - DejaVu Sans Mono / Liberation Mono: OSS 等幅、arrows narrow グリフ期待
+   - Segoe UI Symbol は proportional なので除外（2-cell 描画になる） */
+@font-face {
+  font-family: "ArrowsNarrow";
+  src: local("Consolas"), local("DejaVu Sans Mono"), local("Liberation Mono");
+  unicode-range: U+2190-21FF;
+}
+
+/* ── ターミナルプレビュー ── */
+.terminal {
+  font-family: "ArrowsNarrow", "Cascadia Mono", Consolas, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.2;
+  background: #000;
+  color: #e8e8e8;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre;
+  margin: 0;
+}
+
+.terminal-error { color: #ff6b6b; }
+
+/* 色は anser の inline style (rgb) で出る。クラス出力 (use_classes) は
+   TrueColor が data 属性になり無着色になるため使わない (レビュー反映、実証済み) */
