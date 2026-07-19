@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>指定河川洪水予報</Title>
+    <DateTime>2019-05-27T03:00:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>○○地方気象台</EditorialOffice>
+    <PublishingOffice>○○河川事務所 ○○地方気象台 △△地方気象台</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>○○川上流氾濫警戒情報の取消</Title>
+    <ReportDateTime>2019-05-27T12:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2019-05-27T12:00:00+09:00</TargetDateTime>
+    <EventID>123456789012</EventID>
+    <InfoType>取消</InfoType>
+    <Serial>4</Serial>
+    <InfoKind>指定河川洪水予報</InfoKind>
+    <InfoKindVersion>1.1_1</InfoKindVersion>
+    <Headline>
+      <Text>○○川上流氾濫警戒情報を取り消します。</Text>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/" />
+</Report>

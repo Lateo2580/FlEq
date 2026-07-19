@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>府県気象解説情報</Title>
+<DateTime>2026-06-06T00:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>東京管区気象台</EditorialOffice>
+<PublishingOffice>東京管区気象台</PublishingOffice>
+</Control>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+</Body>
+</Report>

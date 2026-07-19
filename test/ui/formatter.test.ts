@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import chalk from "chalk";
 import {
   intensityColor,
+  intensityToNumeric,
   lgIntensityColor,
   formatElapsedTime,
   formatUptime,
   formatTimestamp,
   wrapTextLines,
+  BREAK_LOOKBACK,
+  reflowTelegramLines,
+  wrapFrameLines,
+  wrapFrameLinesColored,
   setFrameWidth,
   setMaxObservations,
   highlightAndWrap,
@@ -15,43 +20,34 @@ import {
   flushWithRecap,
   frameLine,
   frameBottom,
+  frameDivider,
+  frameDividerColored,
+  frameLineColored,
+  frameDividerLabeled,
+  frameDividerThin,
+  frameDividerLabeledThin,
   renderGroupedItemList,
   stripAnsi,
+  visualWidth,
   renderSimpleNameList,
 } from "../../src/ui/formatter";
+import { intensityToRank } from "../../src/utils/intensity";
 import { displayEewInfo } from "../../src/ui/eew-formatter";
-import {
-  displayEarthquakeInfo,
-  displayTsunamiInfo,
-  displaySeismicTextInfo,
-  displayNankaiTroughInfo,
-  displayLgObservationInfo,
-} from "../../src/ui/earthquake-formatter";
+import { displayEarthquakeInfo } from "../../src/ui/earthquake-info-formatter";
 import type { EewDiff } from "../../src/engine/eew/eew-tracker";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
-  parseTsunamiTelegram,
-  parseSeismicTextTelegram,
-  parseNankaiTroughTelegram,
-  parseLgObservationTelegram,
 } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VXSE53_ENCHI,
-  FIXTURE_VXSE56_ACTIVITY_1,
-  FIXTURE_VTSE41_WARN,
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_CANCEL,
   FIXTURE_VXSE43_WARNING_S1,
   FIXTURE_VXSE45_PLUM,
   FIXTURE_VXSE45_MIXED,
-  FIXTURE_VYSE50_ALERT,
-  FIXTURE_VYSE50_CLOSED,
-  FIXTURE_VYSE50_CANCEL,
-  FIXTURE_VYSE60_AFTERSHOCK,
-  FIXTURE_VXSE62_LGOBS,
   FIXTURE_VXSE53_DRILL_1,
 } from "../helpers/mock-message";
 
@@ -151,138 +147,6 @@ describe("lgIntensityColor", () => {
   });
 });
 
-// ── displayEarthquakeInfo (stdout キャプチャ) ──
-
-describe("displayEarthquakeInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VXSE53 遠地地震: タイトル・震源名・M7.1・津波情報が出力に含まれる", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
-      head: {
-        type: "VXSE53",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseEarthquakeTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayEarthquakeInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // 遠地地震のタイトルが含まれる
-    expect(output).toContain("震源・震度に関する情報");
-    // 震源名
-    expect(output).toContain("南太平洋");
-    // マグニチュード
-    expect(output).toContain("M7.1");
-    // 津波情報
-    expect(output).toContain("津波の心配はありません");
-  });
-
-  it("長周期地震動階級が含まれる地震情報を正しく表示する", () => {
-    const info = {
-      type: "VXSE53",
-      infoType: "発表",
-      title: "震源・震度に関する情報",
-      reportDateTime: new Date().toISOString(),
-      headline: null,
-      publishingOffice: "気象庁",
-      earthquake: {
-        originTime: new Date().toISOString(),
-        hypocenterName: "石川県能登地方",
-        latitude: "N37.5",
-        longitude: "E137.3",
-        depth: "10km",
-        magnitude: "7.6",
-      },
-      intensity: {
-        maxInt: "7",
-        maxLgInt: "4",
-        areas: [
-          { name: "石川県能登", intensity: "7", lgIntensity: "4" },
-          { name: "新潟県上越", intensity: "5強", lgIntensity: "3" },
-          { name: "富山県東部", intensity: "5弱", lgIntensity: "1" },
-          { name: "石川県加賀", intensity: "5強" },
-        ],
-      },
-      isTest: false,
-    };
-
-    displayEarthquakeInfo(info);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // カード部分に長周期階級が表示される
-    expect(output).toContain("長周期階級");
-    // 地域ごとの長周期表示
-    expect(output).toContain("[長周期4]");
-    expect(output).toContain("[長周期3]");
-    expect(output).toContain("[長周期1]");
-    // lgIntensity なしの地域には長周期表示がない
-    // (石川県加賀は 5強 で lgIntensity undefined)
-  });
-
-  it("VXSE51 震度速報: 地域名と震度が含まれる", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO, {
-      head: {
-        type: "VXSE51",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseEarthquakeTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayEarthquakeInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // 震度速報のタイトル
-    expect(output).toContain("震度速報");
-    // 地域名
-    expect(output).toContain("岩手県沿岸南部");
-    // 震度表示
-    expect(output).toContain("震度4");
-    expect(output).toContain("震度3");
-  });
-
-  it("VXSE51 震度速報: 震源未確定メッセージが表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO, {
-      head: {
-        type: "VXSE51",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseEarthquakeTelegram(msg);
-    expect(info).not.toBeNull();
-    // VXSE51 は震源情報を含まない
-    expect(info!.earthquake).toBeUndefined();
-
-    displayEarthquakeInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    expect(output).toContain("震源についてはただいま調査中です");
-  });
-});
-
 // ── displayEewInfo (stdout キャプチャ) ──
 
 describe("displayEewInfo", () => {
@@ -342,7 +206,8 @@ describe("displayEewInfo", () => {
 
     // 取消関連の表示
     expect(output).toContain("取消");
-    expect(output).toContain("取り消されました");
+    // cancelText (Body/Text 由来) を優先表示する — spec 4.1
+    expect(output).toContain("先ほどの、緊急地震速報（地震動予報）を取り消します。");
   });
 
   it("複数イベント同時: activeCount > 1 で「同時N件」表示", () => {
@@ -425,26 +290,34 @@ describe("displayEewInfo", () => {
   });
 
   it("EEW警報: 長周期地震動階級が表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
-      head: {
-        type: "VXSE43",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
+    setFrameWidth(140);
+    try {
+      const msg = createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1, {
+        head: {
+          type: "VXSE43",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+        },
+      });
 
-    const info = parseEewTelegram(msg);
-    expect(info).not.toBeNull();
+      const info = parseEewTelegram(msg);
+      expect(info).not.toBeNull();
 
-    displayEewInfo(info!);
+      displayEewInfo(info!);
 
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
+      const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
 
-    // 長周期地震動階級がカードに表示される
-    expect(output).toContain("長周期階級");
-    // 大分県中部に [長周期1] が表示される
-    expect(output).toContain("[長周期1]");
+      // 長周期地震動階級がカードに表示される
+      expect(output).toContain("長周期階級");
+      // 大分県中部の行に長周期階級1が表示される (新レイアウトではテーブルの長周期列に移動)
+      const lines = output.split("\n");
+      const oitaLine = lines.find((l) => stripAnsi(l).includes("│") && stripAnsi(l).includes("大分県中部"));
+      expect(oitaLine).toBeDefined();
+      expect(stripAnsi(oitaLine!)).toMatch(/階級1/);
+    } finally {
+      setFrameWidth(60);
+    }
   });
 
   it("PLUM法: 仮定震源要素ラベルが表示される", () => {
@@ -467,13 +340,14 @@ describe("displayEewInfo", () => {
 
     expect(output).toContain("仮定震源要素");
     expect(output).toContain("PLUM法");
-    // PLUM法地域マーカー
-    expect(output).toContain("[PLUM]");
-    // [到達] は予報区域一覧には含まれず、到達セクションに集約される
-    // 到達セクションの存在は別途確認
-    // 主要動到達と推測される地域リスト
-    expect(output).toContain("既に主要動到達と推測:");
-    expect(output).toContain("富山県東部");
+    // PLUM法地域マーカー (新レイアウトでは状態列 badge「PLUM」に移動)
+    const lines = output.split("\n");
+    const toyamaLine = lines.find((l) => stripAnsi(l).includes("│") && stripAnsi(l).includes("富山県東部"));
+    expect(toyamaLine).toBeDefined();
+    expect(stripAnsi(toyamaLine!)).toContain("到達済");
+    const ishikawaLine = lines.find((l) => stripAnsi(l).includes("│") && stripAnsi(l).includes("石川県能登"));
+    expect(ishikawaLine).toBeDefined();
+    expect(stripAnsi(ishikawaLine!)).toContain("PLUM");
     // 仮定震源要素ではM・深さを表示しない
     expect(output).not.toContain("M1.0");
     expect(output).not.toContain("規模:");
@@ -500,12 +374,15 @@ describe("displayEewInfo", () => {
     // 通常推定の震源情報が表示される (仮定震源要素ではない)
     expect(output).toContain("M6.5");
     expect(output).not.toContain("仮定震源要素");
-    // PLUM法地域マーカー
-    expect(output).toContain("[PLUM]");
-    // [到達] は予報区域一覧には含まれず、到達セクションに集約される
-    // 主要動到達と推測される地域リスト
-    expect(output).toContain("既に主要動到達と推測:");
-    expect(output).toContain("富山県西部");
+    // PLUM法地域マーカー (新レイアウトでは状態列 badge「PLUM」に移動)
+    const lines = output.split("\n");
+    const toyamaHigashiLine = lines.find((l) => stripAnsi(l).includes("│") && stripAnsi(l).includes("富山県東部"));
+    expect(toyamaHigashiLine).toBeDefined();
+    expect(stripAnsi(toyamaHigashiLine!)).toContain("PLUM");
+    // 主要動到達と推測される地域 (富山県西部) は状態列「到達済」badge に集約される
+    const toyamaNishiLine = lines.find((l) => stripAnsi(l).includes("│") && stripAnsi(l).includes("富山県西部"));
+    expect(toyamaNishiLine).toBeDefined();
+    expect(stripAnsi(toyamaNishiLine!)).toContain("到達済");
   });
 
   it("EEW差分情報: マグニチュード変化が表示される", () => {
@@ -743,7 +620,7 @@ describe("displayEewInfo", () => {
     chalk.level = origLevel;
   });
 
-  it("EEW予報区域: 同震度の地域がカンマ区切りで1行にまとまる", () => {
+  it("EEW予報区域: 一枚テーブルに全地域が展開され、同震度の地域間に階級 divider が挟まらない (Task 5)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE45_MIXED, {
       classification: "eew.forecast",
       head: {
@@ -760,137 +637,21 @@ describe("displayEewInfo", () => {
     displayEewInfo(info!);
 
     const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    const lines = output.split("\n");
+    const lines = output.split("\n").map((l) => stripAnsi(l));
 
-    // 各震度ラベルは1回だけ出現する（グループ化されている証拠）
-    const intensityLabels = lines.filter((l) => stripAnsi(l).match(/震度\d/));
-    const uniqueLabels = new Set(intensityLabels.map((l) => {
-      const m = stripAnsi(l).match(/震度[0-9+\-強弱]+:/);
-      return m ? m[0] : null;
-    }).filter(Boolean));
-    // 同じ震度ラベルが複数行に出現しない（1行にまとまっている）
-    for (const label of uniqueLabels) {
-      const count = intensityLabels.filter((l) => stripAnsi(l).includes(label!)).length;
-      expect(count).toBe(1);
+    // 予測震度 divider は 1 本のみ (階級ごとの divider は Task 5 で廃止)
+    const forecastDividers = lines.filter((l) => /^[╠├]\s*予測震度\s/.test(l));
+    expect(forecastDividers.length).toBe(1);
+
+    // MIXED fixture は震度4の地域が複数 (石川県加賀・富山県西部) あり、
+    // 一枚テーブルでは両者が階級 divider を挟まず連続して並ぶ
+    const idxKaga = lines.findIndex((l) => l.includes("石川県加賀"));
+    const idxToyama = lines.findIndex((l) => l.includes("富山県西部"));
+    expect(idxKaga).toBeGreaterThan(-1);
+    expect(idxToyama).toBeGreaterThan(idxKaga);
+    for (let i = idxKaga + 1; i < idxToyama; i++) {
+      expect(/^[╠├]/.test(lines[i])).toBe(false);
     }
-  });
-});
-
-describe("displayTsunamiInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VTSE41 の大津波警報を critical フレームで表示する", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
-      head: {
-        type: "VTSE41",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-    const info = parseTsunamiTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayTsunamiInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    expect(output).toContain("╔");
-    expect(output).toContain("岩手県");
-    expect(output).toContain("巨大");
-  });
-
-  it("幅80以上でカラム区切りテーブル表示になる", () => {
-    setFrameWidth(100);
-    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
-      head: {
-        type: "VTSE41",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-    const info = parseTsunamiTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayTsunamiInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    // テーブルヘッダーが存在する
-    expect(output).toContain("区分");
-    expect(output).toContain("地域名");
-    expect(output).toContain("波高");
-    expect(output).toContain("到達予想");
-    // セパレータが存在する
-    expect(output).toContain("─┼─");
-    // データも含まれる
-    expect(output).toContain("岩手県");
-    expect(output).toContain("巨大");
-
-    // 幅をデフォルトに戻す
-    setFrameWidth(60);
-  });
-
-  it("幅60ではカラム区切りテーブルにならない", () => {
-    setFrameWidth(60);
-    const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN, {
-      head: {
-        type: "VTSE41",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-    const info = parseTsunamiTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayTsunamiInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    // テーブルヘッダーが含まれない
-    expect(output).not.toContain("─┼─");
-    // データは含まれる
-    expect(output).toContain("岩手県");
-  });
-});
-
-describe("displaySeismicTextInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VXSE56 の本文とタイトルを表示する", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1, {
-      head: {
-        type: "VXSE56",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-    const info = parseSeismicTextTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displaySeismicTextInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    expect(output).toContain("伊豆東部");
-    expect(output).toContain("地震の活動状況等に関する情報");
   });
 });
 
@@ -949,6 +710,31 @@ describe("フレーム描画", () => {
 
     // EEW 予報は warning レベル → 二重枠
     expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
+  });
+});
+
+// ── intensityToNumeric ⇔ intensityToRank 写像一致 (spec 既知の間隙 / acceptance 14) ──
+
+describe("intensityToNumeric は intensityToRank の wrapper (写像の単一真実源)", () => {
+  const ALL_GRADES = ["1", "2", "3", "4", "5-", "5弱", "5+", "5強", "6-", "6弱", "6+", "6強", "7"];
+
+  it("全震度階級で両者が一致する", () => {
+    for (const g of ALL_GRADES) {
+      expect(intensityToNumeric(g), g).toBe(intensityToRank(g));
+    }
+  });
+
+  it("空白混じり・未知値でも一致する (未知は 0)", () => {
+    expect(intensityToNumeric("5 -")).toBe(intensityToRank("5 -"));
+    expect(intensityToNumeric("4 ")).toBe(intensityToRank("4 "));
+    expect(intensityToNumeric("震度8")).toBe(0);
+    expect(intensityToNumeric("")).toBe(0);
+  });
+
+  it("既存の期待値が変わらない (挙動不変の回帰ガード)", () => {
+    expect(intensityToNumeric("7")).toBe(9);
+    expect(intensityToNumeric("6弱")).toBe(7);
+    expect(intensityToNumeric("4")).toBe(4);
   });
 });
 
@@ -1065,180 +851,6 @@ describe("formatUptime", () => {
   });
 });
 
-// ── displayNankaiTroughInfo ──
-
-describe("displayNankaiTroughInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VYSE50 巨大地震警戒: critical フレームでバナー表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
-      head: {
-        type: "VYSE50",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // 二重枠 (critical)
-    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
-    // 状態名
-    expect(output).toContain("巨大地震警戒");
-    // 南海トラフ
-    expect(output).toContain("南海トラフ");
-  });
-
-  it("VYSE50 調査終了: info フレームで表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CLOSED, {
-      head: {
-        type: "VYSE50",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // info フレーム (┌ / └)
-    expect(output).toMatch(/[┌└│┐┘]/);
-    expect(output).toContain("調査終了");
-  });
-
-  it("VYSE50 取消: cancel フレームで表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CANCEL, {
-      head: {
-        type: "VYSE50",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    expect(output).toContain("取消");
-    expect(output).toContain("取り消します");
-  });
-
-  it("VYSE60 後発地震注意: warning フレームで表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE60_AFTERSHOCK, {
-      head: {
-        type: "VYSE60",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // warning フレーム (二重枠)
-    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
-    expect(output).toContain("三陸沖");
-  });
-});
-
-// ── displayLgObservationInfo ──
-
-describe("displayLgObservationInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VXSE62 長周期階級3: warning フレームで表示される", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
-      head: {
-        type: "VXSE62",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseLgObservationTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayLgObservationInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // warning フレーム (二重枠)
-    expect(output).toMatch(/[╔╚║╗╝╠╣═]/);
-    // 長周期階級
-    expect(output).toContain("長周期階級");
-    // 震源名
-    expect(output).toContain("岩手県沖");
-    // M6.3
-    expect(output).toContain("M6.3");
-    // 地域名
-    expect(output).toContain("宮城県北部");
-    // URI
-    expect(output).toContain("https://");
-  });
-
-  it("VXSE62: 同じ長周期階級の地域がカンマ区切りでまとまる", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE62_LGOBS, {
-      head: {
-        type: "VXSE62",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseLgObservationTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayLgObservationInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // 長周期ラベルが含まれる
-    expect(output).toContain("長周期");
-    // 地域名がカンマ区切りで表示される（1行に複数地域）
-    expect(output).toContain("宮城県北部");
-  });
-});
-
 // ── wrapTextLines ──
 
 describe("wrapTextLines", () => {
@@ -1274,6 +886,272 @@ describe("wrapTextLines", () => {
     // maxWidth=5: "ab漢"(1+1+2=4), 次に"字"追加で6>5 → 折り返し
     const result = wrapTextLines("ab漢字cd", 5);
     expect(result).toEqual(["ab漢", "字cd"]);
+  });
+});
+
+describe("wrapTextLines v2 (幅充填 + 句読点優先 + 禁則, spec §9 R3-1)", () => {
+  it("① 句読点 lookback 改行: VFVO53 headline 実文が句点直後で折れ読点を保持する (幅 56)", () => {
+    const headline =
+      "　現在、桜島は噴火警戒レベル３（入山規制）です。桜島で噴火が発生した場合には、１７日２１時から２４時までは火口から北東方向に降灰が予想されます。";
+    expect(wrapTextLines(headline, 56)).toEqual([
+      "　現在、桜島は噴火警戒レベル３（入山規制）です。",
+      "桜島で噴火が発生した場合には、１７日２１時から２４時まで",
+      "は火口から北東方向に降灰が予想されます。",
+    ]);
+  });
+
+  it("② lookback 外 (13 文字以上手前) の句読点では折らず文字改行する", () => {
+    // 、が行末から 13 文字手前 → BREAK_LOOKBACK=12 の範囲外 → 幅いっぱいの文字改行
+    const text = "あ".repeat(14) + "、" + "い".repeat(13) + "う".repeat(10);
+    const lines = wrapTextLines(text, 56);
+    expect(lines[0]).toBe("あ".repeat(14) + "、" + "い".repeat(13)); // 28 文字 = 幅 56 充填
+    expect(lines[1]).toBe("う".repeat(10));
+  });
+
+  it("③ 行頭禁則の追い出し: 「。」「ー」「っ」が行頭に来る場合は直前の文字ごと送る", () => {
+    expect(wrapTextLines("あいうえ。かき", 8)).toEqual(["あいう", "え。かき"]);
+    expect(wrapTextLines("あいうえール", 8)).toEqual(["あいう", "えール"]);
+    expect(wrapTextLines("あいうえって", 8)).toEqual(["あいう", "えって"]);
+  });
+
+  it("④ 行末禁則: 行末に残る「（」は次行へ送る", () => {
+    expect(wrapTextLines("あいう（かきく", 8)).toEqual(["あいう", "（かきく"]);
+  });
+
+  it("⑤ 追い出しガード超過: 禁則文字 5 連続では fail-open でそのまま改行 (幅保証優先)", () => {
+    // 行末 ーーーー + 次行頭 ー: 追い込みは幅超過、追い出しは 4 文字内に非禁則文字なし → fail-open
+    const lines = wrapTextLines("あいーーーーーか", 12);
+    expect(lines).toEqual(["あいーーーー", "ーか"]); // 行頭 ー を許容
+    for (const l of lines) {
+      expect(visualWidth(l)).toBeLessThanOrEqual(12); // 幅保証は破らない
+    }
+  });
+
+  it("⑥ 追い込み: 優先改行後の余白に禁則文字 run が収まるなら現在行末に取り込む", () => {
+    // 。で優先改行 → 次行頭 」 は禁則 → 行幅 14+2=16 <= 20 なので 」 を取り込む
+    expect(wrapTextLines("終わりです。」次の文章", 20)).toEqual([
+      "終わりです。」",
+      "次の文章",
+    ]);
+  });
+
+  it("⑦ 優先改行が禁則を誘発するケースは統合ルーチンで調整される (Codex blocker #2 回帰)", () => {
+    // 。で優先改行すると次行頭が 』 (禁則)。追い込みは幅超過 (あいう。』=10 > 8)、
+    // 追い出しで非禁則文字 う が次行頭に来る位置まで戻る → 「あい」+「う。』か」
+    expect(wrapTextLines("あいう。』か", 8)).toEqual(["あい", "う。』か"]);
+  });
+
+  it("⑧ 行末禁則ガード超過: 開き括弧 5 連続は巻き戻して fail-open (部分移動を残さない)", () => {
+    // （×5 を 4 文字送っても行末が （ のまま → 全て巻き戻し、候補改行点のまま折る
+    expect(wrapTextLines("あ（（（（（か", 12)).toEqual(["あ（（（（（", "か"]);
+  });
+
+  it("⑨ lossless 不変条件: 出力各行の連結 = 入力 (文字の追加・削除・置換なし)", () => {
+    // highlightAndWrap が span offset を wrapped.length で進める前提 (Codex blocker #1)。
+    // 半角カンマ後のスペースも除去しない (除去は engine wrap セル経路の責務 — W2)
+    const cases: [string, number][] = [
+      ["January, February, March", 20], // カンマ+スペースも保持される
+      ["あいう。』か", 8],
+      ["あ（（（（（か", 12],
+      ["　現在、桜島は噴火警戒レベル３（入山規制）です。桜島で噴火が発生した場合には", 30],
+    ];
+    for (const [text, w] of cases) {
+      expect(wrapTextLines(text, w).join(""), `${text} @${w}`).toBe(text);
+    }
+  });
+
+  it("⑩ 幅 sweep 20-200: 禁則文字混在の長文で全行 visualWidth <= maxWidth・lossless", () => {
+    const samples = [
+      "気象庁によると、震度５弱（推定）の揺れが観測されました。今後の情報に注意してください！「余震」への警戒も必要です…詳細は（後述）ー以上。".repeat(3),
+      "Sagami Bay, Suruga Bay, Enshu-nada, and the Kii Channel are all included, e.g. coastal areas.".repeat(2),
+    ];
+    for (const text of samples) {
+      for (let w = 20; w <= 200; w++) {
+        const lines = wrapTextLines(text, w);
+        for (const l of lines) {
+          expect(visualWidth(l), `width=${w} line=${l}`).toBeLessThanOrEqual(w);
+        }
+        expect(lines.join(""), `width=${w}`).toBe(text); // lossless は無条件で成立
+      }
+    }
+  });
+
+  it("⑪ 単一文字の幅超過例外: maxWidth 1 に全角は 1 文字/行を許す (進行保証)", () => {
+    // 不変条件の唯一の例外 (Codex major #4 で仕様化): 1 文字の visualWidth が
+    // maxWidth を超える場合、その 1 文字だけの行を許す
+    expect(wrapTextLines("漢字", 1)).toEqual(["漢", "字"]);
+  });
+
+  it("⑫ BREAK_LOOKBACK は 12 (spec §9 の確定値)", () => {
+    expect(BREAK_LOOKBACK).toBe(12);
+  });
+});
+
+// ── reflowTelegramLines ──
+
+describe("reflowTelegramLines (電文 hard-wrap の再結合, spec §8 R2-3)", () => {
+  it("旧様式 VXSE56 型: 全角 34 字固定 wrap の散文が 1 論理行に結合される", () => {
+    const lines = [
+      "　本日（１１日）昼から東伊豆奈良本（ならもと）観測点で縮みのひずみ変",
+      "化が観測され始め、本日（１１日）昼からは体に感じない小さな地震が発生",
+      "し始めました。",
+    ];
+    expect(reflowTelegramLines(lines)).toEqual([
+      "　本日（１１日）昼から東伊豆奈良本（ならもと）観測点で縮みのひずみ変化が観測され始め、本日（１１日）昼からは体に感じない小さな地震が発生し始めました。",
+    ]);
+  });
+
+  it("整形行 (行頭以外に全角スペース 2 連続) は結合されず、直後の行も結合されない", () => {
+    const lines = [
+      "時刻　　　　　　火口からの方向　　　　　降灰の距離",
+      "続きに見える散文行がここにあっても整形行へは絶対に結合しないことを確認する",
+    ];
+    expect(reflowTelegramLines(lines)).toEqual(lines);
+  });
+
+  it("行頭全角スペースの継続行 (県：市町村の桁揃え) は新しい論理行として保持される", () => {
+    const lines = [
+      "　鹿児島県：鹿児島市、鹿屋市、垂水市、曽於市、霧島市、志布志市、大崎町、東串良町、錦江町、",
+      "　　　　　肝付町",
+    ];
+    expect(reflowTelegramLines(lines)).toEqual(lines);
+  });
+
+  it("1 段落 1 行の電文 (VFVO50/VYSE 型) は不変", () => {
+    const lines = [
+      "　浅間山では、２２日の夜間に山頂で明瞭な火映が観測されました。また、２２日に入り火山性地震がやや多い状態で経過しています。",
+      "　これらのことから、今後、居住地域近くまで影響を及ぼす噴火が発生する可能性があると予想されます。",
+    ];
+    expect(reflowTelegramLines(lines)).toEqual(lines);
+  });
+
+  it("直前行が visualWidth >= 56 でも 。終端なら結合しない", () => {
+    const long = "あ".repeat(30) + "。"; // visualWidth 62
+    expect(reflowTelegramLines([long, "次の段落は独立の論理行になる"])).toEqual([
+      long,
+      "次の段落は独立の論理行になる",
+    ]);
+  });
+
+  it("空行・全角スペースのみの行は段落区切りとして保持され、直後は結合されない", () => {
+    const long = "い".repeat(30); // visualWidth 60、文末記号なし
+    expect(reflowTelegramLines([long, "", "続きの文"])).toEqual([long, "", "続きの文"]);
+    expect(reflowTelegramLines([long, "　", "続きの文"])).toEqual([long, "　", "続きの文"]);
+  });
+
+  it("visualWidth 閾値境界: 直前行 56 (全角 28 字) は結合、54 (27 字) は結合しない", () => {
+    const w28 = "う".repeat(28); // visualWidth 56
+    const w27 = "え".repeat(27); // visualWidth 54
+    expect(reflowTelegramLines([w28, "続き"])).toEqual([w28 + "続き"]);
+    expect(reflowTelegramLines([w27, "続き"])).toEqual([w27, "続き"]);
+  });
+
+  it("＜見出し＞・（注記）・番号見出しは新段落として結合されない", () => {
+    const long = "お".repeat(30); // visualWidth 60、文末記号なし
+    expect(reflowTelegramLines([long, "＜浅間山に火口周辺警報＞"])).toEqual([long, "＜浅間山に火口周辺警報＞"]);
+    expect(reflowTelegramLines([long, "（地殻変動の状況）"])).toEqual([long, "（地殻変動の状況）"]);
+    expect(reflowTelegramLines([long, "２．現状"])).toEqual([long, "２．現状"]);
+  });
+
+  it("数字跨ぎ hard-wrap (VFVO51 実データ形) は正しく結合される (Codex R2-plan R2 回帰)", () => {
+    // 44_01_01_151008_VFVO51.xml L1297-1298: 「６月１」で物理行が切れ「９日…」が続く。
+    // 数字終端でも hard-wrap は結合対象 (数字終端ガード不採用の根拠)
+    const dateSplit = [
+      "　口永良部島の火山活動は活発な状態が継続しています。新岳では、６月１",
+      "９日のごく小規模な噴火以降、噴火は観測されていませんが、火山性地震が",
+    ];
+    expect(reflowTelegramLines(dateSplit)).toEqual([
+      "　口永良部島の火山活動は活発な状態が継続しています。新岳では、６月１９日のごく小規模な噴火以降、噴火は観測されていませんが、火山性地震が",
+    ]);
+    // 同 L1346-1348: 「９６」+「ー１火口…」— 数字終端 + 「ー」開始でも結合される
+    const nameSplit = [
+      "噴煙の勢いの増加を確認しました。全磁力連続観測ではポンマチネシリ９６",
+      "ー１火口近傍の地下における熱活動の活発化の可能性を示す全磁力の変化が",
+    ];
+    expect(reflowTelegramLines(nameSplit)).toEqual([
+      "噴煙の勢いの増加を確認しました。全磁力連続観測ではポンマチネシリ９６ー１火口近傍の地下における熱活動の活発化の可能性を示す全磁力の変化が",
+    ]);
+  });
+});
+
+// ── wrapFrameLines hanging indent ──
+
+describe("wrapFrameLines hanging indent", () => {
+  it("先頭 4 スペースの長文の継続行が同じインデントで折り返される (ハード折返し)", () => {
+    const long = "    " + "あ".repeat(100); // 区切り文字なし
+    const lines = wrapFrameLines("normal", long, 80);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines.slice(1)) {
+      // フレーム装飾 (│ + スペース) の直後に 4 スペースのインデントがあること
+      expect(stripAnsi(line)).toMatch(/^│ {5}\S/); // │ + 1 + 4 = 5 spaces
+    }
+  });
+
+  it("読点入り長文 (hardWrap 経路) の継続行が先頭インデントを保持する", () => {
+    const long = "    " + "ながいぶんしょう、".repeat(20);
+    const lines = wrapFrameLines("normal", long, 80);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines.slice(1)) {
+      expect(stripAnsi(line)).toMatch(/^│ {5}\S/);
+    }
+  });
+
+  it("indent 明示指定は autoIndent より優先される", () => {
+    const long = "    " + "あ".repeat(100);
+    const lines = wrapFrameLines("normal", long, 80, 8);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines.slice(1)) {
+      // 継続行は 8 スペース (明示 indent)。autoIndent の 4 ではない
+      expect(stripAnsi(line)).toMatch(/^│ {9}\S/);
+    }
+  });
+
+  it("幅 60 でも indent 縮退ガードで本文が 20 桁未満にならない", () => {
+    // innerWidth = 56。先頭 40 スペースだと本文 16 桁 < 20 → indent を 36 に切り詰め
+    const long = " ".repeat(40) + "あ".repeat(50);
+    const lines = wrapFrameLines("normal", long, 60);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines.slice(1)) {
+      const visible = stripAnsi(line);
+      // 継続行のインデントは 36 (40 ではない) → │ + 1 + 36 = 37 spaces
+      expect(visible).toMatch(/^│ {37}\S/);
+      // 本文の有効幅 20 桁が確保される (フレーム幅は超えない)
+      expect(visualWidth(visible)).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it("先頭スペースが innerWidth を超える入力でも先頭行を含む全行が width を超えない", () => {
+    // 先頭 80 スペース > innerWidth 56。縮退ガードは継続行のみ cap していたため、
+    // 先頭行が元 lead をそのまま使うと visualWidth 85 になっていた (Codex P1)
+    const lines = wrapFrameLines("normal", " ".repeat(80) + "本文", 60);
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(visualWidth(stripAnsi(line))).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it.each([60, 80, 120])("全行が visualWidth <= width を維持する (width=%d)", (w) => {
+    const samples = [
+      "    " + "あ".repeat(120),
+      "  ▸ 概況: " + "晴れときどき曇り、".repeat(30),
+      "      " + Array.from({ length: 30 }, (_, i) => `地点${i}`).join(", "),
+      " ".repeat(40) + "天気分布は不安定、".repeat(20),
+    ];
+    for (const s of samples) {
+      for (const line of wrapFrameLines("normal", s, w)) {
+        expect(visualWidth(stripAnsi(line))).toBeLessThanOrEqual(w);
+      }
+    }
+  });
+
+  it("wrapFrameLinesColored も同じ hanging indent 経路を通る (wrapFrameLinesWith 共有)", () => {
+    const long = "    " + "あ".repeat(100);
+    const colored = wrapFrameLinesColored("normal", (s) => s, long, 80);
+    const plain = wrapFrameLines("normal", long, 80);
+    expect(colored.map((l) => stripAnsi(l))).toEqual(plain.map((l) => stripAnsi(l)));
+    for (const line of colored.slice(1)) {
+      expect(stripAnsi(line)).toMatch(/^│ {5}\S/);
+    }
   });
 });
 
@@ -1413,133 +1291,6 @@ describe("collectHighlightSpans", () => {
   });
 });
 
-// ── displaySeismicTextInfo ハイライトテスト ──
-
-describe("displaySeismicTextInfo ハイライト", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VXSE56: 「活発」にANSI色が付く", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1, {
-      head: {
-        type: "VXSE56",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-    const info = parseSeismicTextTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displaySeismicTextInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    // 本文中の「活発」にANSIエスケープが付いている
-    // warningComment ロール = orange (230, 159, 0)
-    expect(output).toContain("230");
-    expect(output).toContain("159");
-  });
-});
-
-// ── displayNankaiTroughInfo ハイライトテスト ──
-
-describe("displayNankaiTroughInfo ハイライト", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(() => {
-    chalk.level = 3;
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
-  it("VYSE50 巨大地震警戒: 「巨大地震警戒」本文にANSI色が付く", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
-      head: {
-        type: "VYSE50",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-
-    // nankaiSerialCritical = vermillion (213, 94, 0)
-    // 本文中の「巨大地震警戒」がハイライトされている
-    expect(output).toContain("巨大地震警戒");
-    // 出力にANSIエスケープが含まれている（色情報）
-    expect(output).toContain("\u001b[");
-  });
-
-  it("VYSE50 巨大地震警戒: 行動促進キーワードに色が付く", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE50_ALERT, {
-      head: {
-        type: "VYSE50",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0])).join("\n");
-    // nextAdvisory ロール = sky (86, 180, 233) が出力に含まれる
-    // (防災対応をとってください / 今後の情報に注意してください がマッチするはず)
-    expect(output).toContain("86");
-    expect(output).toContain("180");
-    expect(output).toContain("233");
-  });
-
-  it("VYSE50 調査終了: 本文が過剰に色付かない", () => {
-    const msg = createMockWsDataMessage(FIXTURE_VYSE50_CLOSED, {
-      head: {
-        type: "VYSE50",
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
-      },
-    });
-
-    const info = parseNankaiTroughTelegram(msg);
-    expect(info).not.toBeNull();
-
-    displayNankaiTroughInfo(info!);
-
-    const lines = logSpy.mock.calls.map((args) => String(args[0]));
-    // 本文行でANSIを含む行数をカウント（フレーム色を除く）
-    // 過剰着色ではないことを確認（全行にANSIが入るわけではない）
-    const bodyStartIdx = lines.findIndex((l) => l.includes("調査終了")) + 1;
-    const bodyLines = lines.slice(bodyStartIdx).filter((l) => !l.includes("╔") && !l.includes("╚") && !l.includes("╠") && !l.includes("┌") && !l.includes("└") && !l.includes("├"));
-    // 少なくとも一部の行にはANSI以外の素通し部分がある
-    const linesWithoutExtraAnsi = bodyLines.filter((l) => {
-      // フレーム色以外のANSIが含まれていない行
-      const stripped = l.replace(/\u001b\[[0-9;]*m/g, "");
-      return stripped.length > 0;
-    });
-    expect(linesWithoutExtraAnsi.length).toBeGreaterThan(0);
-  });
-});
-
 // ── バッファリング + recap テスト ──
 
 describe("バッファリング + recap", () => {
@@ -1628,43 +1379,49 @@ describe("バッファリング + recap", () => {
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).not.toContain("▼ サマリー");
   });
-});
 
-// ── 観測点折りたたみテスト ──
+  it("recap の divider と サマリー行が borderColor で着色される", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
 
-describe("観測点折りたたみ", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+    const borderColor = chalk.rgb(232, 232, 232);
+    const buf = createRenderBuffer();
+    buf.pushTitle(frameLineColored("normal", borderColor, "タイトル行", 60));
+    for (let i = 0; i < 20; i++) {
+      buf.push(frameLineColored("normal", borderColor, `行${i}`, 60));
+    }
+    buf.push(frameBottom("normal", 60));
+    buf.pushEmpty();
 
-  beforeEach(() => {
-    chalk.level = 3;
-    setFrameWidth(60);
-    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    flushWithRecap(buf, "normal", 60, borderColor);
+
+    const lines = logSpy.mock.calls.map((args) => String(args[0] ?? ""));
+    const summaryIdx = lines.findIndex((l) => l.includes("▼ サマリー"));
+    expect(summaryIdx).toBeGreaterThan(0);
+    // divider 行 + サマリー行が colored 版プリミティブと完全一致する
+    expect(lines[summaryIdx - 1]).toBe(frameDividerColored("normal", borderColor, 60));
+    expect(lines[summaryIdx]).toBe(frameLineColored("normal", borderColor, chalk.gray("▼ サマリー"), 60));
   });
 
-  afterEach(() => {
-    logSpy.mockRestore();
-    setMaxObservations(null);
-  });
+  it("borderColor 未指定時は従来どおり plain frameDivider と一致する", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
 
-  it("setMaxObservations(3) で地震情報の観測点が制限される", () => {
-    setMaxObservations(3);
-    const msg = createMockWsDataMessage(FIXTURE_VXSE53_DRILL_1);
-    const info = parseEarthquakeTelegram(msg);
-    displayEarthquakeInfo(info);
+    const buf = createRenderBuffer();
+    buf.pushTitle(frameLine("normal", "タイトル行", 60));
+    for (let i = 0; i < 20; i++) {
+      buf.push(frameLine("normal", `行${i}`, 60));
+    }
+    buf.push(frameBottom("normal", 60));
+    buf.pushEmpty();
 
-    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
-    expect(output).toContain("他");
-    expect(output).toContain("地点");
-  });
+    flushWithRecap(buf, "normal", 60);
 
-  it("setMaxObservations(null) で全件表示される", () => {
-    setMaxObservations(null);
-    const msg = createMockWsDataMessage(FIXTURE_VXSE53_DRILL_1);
-    const info = parseEarthquakeTelegram(msg);
-    displayEarthquakeInfo(info);
-
-    const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
-    expect(output).not.toContain("... 他");
+    const lines = logSpy.mock.calls.map((args) => String(args[0] ?? ""));
+    const summaryIdx = lines.findIndex((l) => l.includes("▼ サマリー"));
+    expect(summaryIdx).toBeGreaterThan(0);
+    expect(lines[summaryIdx - 1]).toBe(frameDivider("normal", 60));
+    expect(lines[summaryIdx]).toBe(frameLine("normal", chalk.gray("▼ サマリー"), 60));
   });
 });
 
@@ -1853,5 +1610,80 @@ describe("renderSimpleNameList", () => {
       buf,
     });
     expect(buf.lineCount).toBe(0);
+  });
+});
+
+describe("frameDividerLabeled (dividerLevel ベース)", () => {
+  it("dividerLevel=warning でラベル + ═ 罫線 (二重線) を返す、可視幅=width", () => {
+    const line = frameDividerLabeled("warning", "★ 警報", 80);
+    const visible = stripAnsi(line);
+    expect(visible.startsWith("╠")).toBe(true);
+    expect(visible.endsWith("╣")).toBe(true);
+    expect(visible).toContain("★ 警報");
+    expect(visualWidth(visible)).toBe(80);
+  });
+
+  it("dividerLevel=info で単線 ├─┤", () => {
+    const line = frameDividerLabeled("info", "▽ 注意報", 60);
+    const visible = stripAnsi(line);
+    expect(visible.startsWith("├")).toBe(true);
+    expect(visible.endsWith("┤")).toBe(true);
+    expect(visible).toContain("▽ 注意報");
+  });
+
+  it("dividerLevel は frame 全体の level と独立 (critical frame 内で warning divider)", () => {
+    const warnLine = frameDividerLabeled("warning", "★", 40);
+    const critLine = frameDividerLabeled("critical", "★★", 40);
+    expect(stripAnsi(warnLine).startsWith("╠")).toBe(true);
+    expect(stripAnsi(critLine).startsWith("╠")).toBe(true);
+    expect(warnLine).not.toBe(critLine);
+  });
+
+  it("ラベルが幅を超える場合、可視幅 = width で頭打ち (はみ出さない)", () => {
+    const longLabel = "★ 警報 ".repeat(20);
+    const line = frameDividerLabeled("warning", longLabel, 30);
+    expect(visualWidth(stripAnsi(line))).toBeLessThanOrEqual(30);
+  });
+});
+
+describe("frameDividerThin / frameDividerLabeledThin (細線 divider)", () => {
+  it("critical/warning は ╟─╢ (二重線フレーム内の細線)", () => {
+    chalk.level = 3;
+    const crit = stripAnsi(frameDividerThin("critical", 40));
+    const warn = stripAnsi(frameDividerThin("warning", 40));
+    expect(crit.startsWith("╟")).toBe(true);
+    expect(crit.endsWith("╢")).toBe(true);
+    expect(crit).toContain("─");
+    expect(crit).not.toContain("═");
+    expect(warn.startsWith("╟")).toBe(true);
+  });
+
+  it("normal/info/cancel は ├─┤ (元々細線と同値)", () => {
+    chalk.level = 3;
+    for (const level of ["normal", "info", "cancel"] as const) {
+      const v = stripAnsi(frameDividerThin(level, 40));
+      expect(v.startsWith("├"), level).toBe(true);
+      expect(v.endsWith("┤"), level).toBe(true);
+    }
+  });
+
+  it("labeled 版 critical は ╟ ラベル ─╢、可視幅 = width", () => {
+    chalk.level = 3;
+    const v = stripAnsi(frameDividerLabeledThin("critical", "対象市町村", 60));
+    expect(v.startsWith("╟")).toBe(true);
+    expect(v.endsWith("╢")).toBe(true);
+    expect(v).toContain("対象市町村");
+    expect(visualWidth(v)).toBe(60);
+  });
+
+  it("NO_COLOR (chalk.level=0) で幅が width と一致する", () => {
+    chalk.level = 0;
+    try {
+      expect(visualWidth(frameDividerThin("critical", 80))).toBe(80);
+      expect(visualWidth(frameDividerThin("normal", 40))).toBe(40);
+      expect(visualWidth(frameDividerLabeledThin("warning", "降灰予報", 50))).toBe(50);
+    } finally {
+      chalk.level = 3;
+    }
   });
 });

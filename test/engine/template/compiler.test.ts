@@ -59,15 +59,26 @@ describe("compileTemplateNodes", () => {
     expect(render(makeEvent({ forecastAreaNames: ["石川県能登", "新潟県"] }))).toBe("石川県能登\n新潟県");
   });
 
-  it("join フィルタは削除済み: 配列がそのまま渡され改行 join される", () => {
-    // join フィルタは未知フィルタとして扱われ、値がそのまま (=配列のまま) 通る。
-    // その後 stringify で改行 join される。
-    const render = compile("{{forecastAreaNames|join:\"/\"}}");
-    expect(render(makeEvent({ forecastAreaNames: ["石川県能登", "新潟県"] }))).toBe("石川県能登\n新潟県");
+  it("未知のフィルタはコンパイルエラーになる", () => {
+    expect(() => compile("{{forecastAreaNames|join:\"/\"}}")).toThrow(
+      /未知のフィルタ "join"/,
+    );
+  });
+
+  it("条件分岐内の未知フィルタもコンパイルエラーになる", () => {
+    expect(() => compile("{{#if isWarning}}{{title|unknown}}{{/if}}")).toThrow(
+      /未知のフィルタ "unknown"/,
+    );
   });
 
   it("upper フィルタ", () => {
     const render = compile("{{domain|upper}}");
     expect(render(makeEvent())).toBe("EEW");
+  });
+
+  it("正当な全フィルタをコンパイルできる", () => {
+    expect(() => compile(
+      "{{title|default:\"-\"|truncate:10|pad:12|date:\"HH:mm\"|replace:\"a\":\"b\"|upper|lower}}",
+    )).not.toThrow();
   });
 });

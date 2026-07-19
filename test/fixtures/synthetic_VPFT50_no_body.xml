@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+<Control>
+  <Title>熱中症警戒アラート</Title>
+  <DateTime>2024-08-10T19:45:21Z</DateTime>
+  <Status>通常</Status>
+  <EditorialOffice>熊谷地方気象台</EditorialOffice>
+  <PublishingOffice>環境省 気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+  <Title>埼玉県熱中症警戒アラート</Title>
+  <ReportDateTime>2024-08-11T05:00:00+09:00</ReportDateTime>
+  <TargetDateTime>2024-08-11T05:00:00+09:00</TargetDateTime>
+  <EventID>JPTC240001</EventID>
+  <InfoType>発表</InfoType>
+  <Serial>2</Serial>
+  <InfoKind>同一現象用平文情報</InfoKind>
+  <InfoKindVersion>1.0_0</InfoKindVersion>
+  <Headline>
+    <Text/>
+  </Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+  <Notice/>
+  <Comment>
+    <Text type="本文"/>
+  </Comment>
+</Body>
+</Report>

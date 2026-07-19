@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>気象警報・注意報時系列情報（Ｒ０６）</Title>
+<DateTime>2026-06-05T08:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>稚内地方気象台</EditorialOffice>
+<PublishingOffice>稚内地方気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>宗谷地方警戒・注意事項時系列情報</Title>
+<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-05T18:00:00+09:00</TargetDateTime>
+<EventID/>
+<InfoType>取消</InfoType>
+<Serial/>
+<InfoKind>気象警報・注意報時系列</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline><Text>これまでに発表した予想は取り消します</Text></Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+<MeteorologicalInfos type="量的予想時系列（市町村等）"></MeteorologicalInfos>
+</Body>
+</Report>

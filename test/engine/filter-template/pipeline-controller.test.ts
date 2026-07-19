@@ -43,16 +43,7 @@ describe("PipelineController", () => {
   it("setTemplate で template を設定できる", () => {
     const ctrl = new PipelineController();
     ctrl.setTemplate("{{title}}");
-    expect(ctrl.getTemplateExpr()).toBe("{{title}}");
     expect(ctrl.getPipeline().template).not.toBeNull();
-  });
-
-  it("clearTemplate で template をクリアできる", () => {
-    const ctrl = new PipelineController();
-    ctrl.setTemplate("{{title}}");
-    ctrl.clearTemplate();
-    expect(ctrl.getPipeline().template).toBeNull();
-    expect(ctrl.getTemplateExpr()).toBeNull();
   });
 
   it("不正なフィルタ式で例外を投げる", () => {
@@ -89,7 +80,6 @@ describe("PipelineController", () => {
     });
     expect(ctrl.getFilterExpr()).toBe('domain = "eew"');
     expect(ctrl.getFocusExpr()).toBe('frameLevel >= "warning"');
-    expect(ctrl.getTemplateExpr()).toBe("{{title}}");
     expect(ctrl.getPipeline().filter).not.toBeNull();
     expect(ctrl.getPipeline().focus).not.toBeNull();
     expect(ctrl.getPipeline().template).not.toBeNull();

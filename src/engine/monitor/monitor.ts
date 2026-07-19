@@ -10,6 +10,8 @@ import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
 import * as log from "../../logger";
 import type { PipelineController } from "../filter-template/pipeline-controller";
+import type { DisplayConnectionStateV1, DisplayIngestSink } from "../display/types";
+import type { DisplayRuntime } from "../display/runtime";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -28,16 +30,51 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // display adapter は遅延ロードで ui 依存を monitor 側に限定する
   const { createDisplayAdapter } = await import("../../ui/display-adapter");
   const display = createDisplayAdapter();
+  const { createDisplayController } = await import("../display/controller");
+
+  // 情報ディスプレイ: router には実体 hub ではなく遅延 sink を渡す。
+  // 正しい seed は restoreTsunamiState 後にしか読めないため、runtime は restore 後に
+  // 起動して向き先 (displayHubRef) を差し替える。dmdata 接続開始はさらに後なので取りこぼしは無い。
+  let displayHubRef: DisplayIngestSink | null = null;
+  const displaySink: DisplayIngestSink = {
+    ingest: (e) => displayHubRef?.ingest(e),
+    publishStats: (s) => displayHubRef?.publishStats?.(s),
+  };
+  let displayRuntime: DisplayRuntime | null = null;
+  // dmdata 接続状態 (onConnected/onDisconnected が更新)。display on 時の接続状態 seed に使う
+  let disconnectedAt: number | null = null;
+  let isFirstConnection = true;
 
   const pipeline = pipelineController?.getPipeline();
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined, display });
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, vpws50State, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined, display, displaySink });
+
+  /** 現在の dmdata 接続状態 (display on 時の起動直後 seed 用) */
+  function getConnectionState(): DisplayConnectionStateV1["dmdata"] {
+    if (disconnectedAt != null) return "disconnected";
+    if (isFirstConnection) return "connecting";
+    return "connected";
+  }
+
+  // 情報ディスプレイの起動/停止/状態を束ねるコントローラ。
+  // displayRuntime/displayHubRef (上記の可変変数) を単一の真実源として共有する
+  const displayController = createDisplayController({
+    config,
+    display,
+    seeds: {
+      tsunami: () => tsunamiState.getLastInfo(),
+      weather: () => vpws50State.getCurrentAreasForDisplay(),
+      landslide: () => vpww56State.getCurrentAreasForDisplay(),
+    },
+    getRuntime: () => displayRuntime,
+    setRuntime: (rt) => { displayRuntime = rt; },
+    setHubRef: (hub) => { displayHubRef = hub; },
+    getConnectionState,
+  });
 
   // EEW ログ設定を反映
   eewLogger.setEnabled(config.eewLog);
   eewLogger.setFields(config.eewLogFields);
 
-  let disconnectedAt: number | null = null;
-  let isFirstConnection = true;
   let replHandler: ReplHandlerType | null = null;
   let summaryTimerControl: SummaryTimerControl | null = null;
 
@@ -59,11 +96,13 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         isFirstConnection = false;
       }
       updateReplConnectionState(replHandler, true);
+      displayRuntime?.hub.publishConnection({ dmdata: "connected" });
     },
     onDisconnected: (reason) => {
       disconnectedAt = Date.now();
       log.warn(`切断されました: ${reason}`);
       updateReplConnectionState(replHandler, false);
+      displayRuntime?.hub.publishConnection({ dmdata: "disconnected", reason });
     },
   });
 
@@ -76,11 +115,14 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     resetTerminalTitle,
     flushAndDisposeVolcanoBuffer,
     stopSummaryTimer: () => summaryTimerControl?.stop(),
+    stopDisplayRuntime: async () => {
+      await displayController.stop();
+    },
   });
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState], pipelineController, summaryTracker);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController);
 
   registerShutdownSignals(shutdown);
 
@@ -95,6 +137,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // 起動時: 最新の津波・火山警報状態を復元 (WebSocket 接続前に実行)
   await restoreTsunamiState(config.apiKey, tsunamiState);
   await restoreVolcanoState(config.apiKey, volcanoState);
+
+  // 情報ディスプレイ runtime の起動 (restore 後・dmdata 接続開始前)
+  if (config.display) {
+    await displayController.start();
+  }
 
   // バックグラウンドで接続開始
   try {

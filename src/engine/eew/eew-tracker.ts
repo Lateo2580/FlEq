@@ -67,16 +67,19 @@ function parseDepthKm(depth: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
-/** 予測震度リストから最大震度を取得 */
-function getMaxForecastIntensity(areas: { name: string; intensity: string }[]): string | null {
+/** 予測震度リストから最大震度を取得 (To 基準・悲観側。spec 4.5)。logger 等の他モジュールとも共有 */
+export function getMaxForecastIntensity(
+  areas: { name: string; intensity: string; intensityTo?: string }[]
+): string | null {
   if (areas.length === 0) return null;
-  let maxInt = areas[0].intensity;
+  let maxInt = intensityUtils.eewPessimisticIntensity(areas[0].intensity, areas[0].intensityTo);
   let maxRank = intensityUtils.intensityToRank(maxInt);
   for (let i = 1; i < areas.length; i++) {
-    const rank = intensityUtils.intensityToRank(areas[i].intensity);
+    const candidate = intensityUtils.eewPessimisticIntensity(areas[i].intensity, areas[i].intensityTo);
+    const rank = intensityUtils.intensityToRank(candidate);
     if (rank > maxRank) {
       maxRank = rank;
-      maxInt = areas[i].intensity;
+      maxInt = candidate;
     }
   }
   return maxInt;

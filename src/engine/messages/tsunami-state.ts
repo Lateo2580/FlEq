@@ -5,51 +5,29 @@ import {
   DetailProvider,
 } from "../../types";
 import { getRoleChalk, RoleName } from "../../ui/theme";
-import { displayTsunamiInfo } from "../../ui/earthquake-formatter";
-
-/** 津波警報レベル (優先度順) */
-type TsunamiAlertLevel = "大津波警報" | "津波警報" | "津波注意報";
-
-/** レベルの優先度 (大きいほど深刻) */
-const LEVEL_PRIORITY: Record<TsunamiAlertLevel, number> = {
-  "大津波警報": 3,
-  "津波警報": 2,
-  "津波注意報": 1,
-};
+import { displayTsunamiInfo } from "../../ui/tsunami-formatter";
+import {
+  resolveTsunamiLevel,
+  type TsunamiLevelLabel,
+} from "../../utils/tsunami-kind";
 
 /** レベルに対応するテーマロール */
-const LEVEL_ROLE: Record<TsunamiAlertLevel, RoleName> = {
+const LEVEL_ROLE: Record<TsunamiLevelLabel, RoleName> = {
   "大津波警報": "tsunamiMajor",
   "津波警報": "tsunamiWarning",
   "津波注意報": "tsunamiAdvisory",
 };
 
-/** 判定対象の kind 一覧 */
-const ALERT_KINDS = new Set<string>(["大津波警報", "津波警報", "津波注意報"]);
-
-/**
- * forecast の kind 一覧から最大警報レベルを判定する。
- * 津波予報 (0.2m 以下) や kind なしの場合は null を返す。
- */
+/** 既存の display runtime 向け互換 API。判定本体は resolveTsunamiLevel に集約する。 */
 export function detectTsunamiAlertLevel(
-  kinds: string[]
-): TsunamiAlertLevel | null {
-  let maxLevel: TsunamiAlertLevel | null = null;
-  let maxPriority = 0;
-
-  for (const kind of kinds) {
-    if (ALERT_KINDS.has(kind)) {
-      const level = kind as TsunamiAlertLevel;
-      const priority = LEVEL_PRIORITY[level];
-      if (priority > maxPriority) {
-        maxPriority = priority;
-        maxLevel = level;
-      }
-    }
-  }
-
-  return maxLevel;
+  kinds: string[],
+): TsunamiLevelLabel | null {
+  return resolveTsunamiLevel(kinds)?.label ?? null;
 }
+
+export type TsunamiStateUpdateResult =
+  | { kind: "updated" }
+  | { kind: "suppressed" };
 
 /**
  * 津波情報の状態を保持し、プロンプト表示と detail コマンドを提供する。
@@ -60,38 +38,61 @@ export class TsunamiStateHolder
   readonly category = "tsunami";
   readonly emptyMessage = "現在、継続中の津波情報はありません。";
 
-  private currentLevel: TsunamiAlertLevel | null = null;
+  private currentLevel: TsunamiLevelLabel | null = null;
   private lastInfo: ParsedTsunamiInfo | null = null;
+  private reportTimeWatermark: number | null = null;
 
   /** 現在の警報レベルを返す (テスト用) */
-  getLevel(): TsunamiAlertLevel | null {
+  getLevel(): TsunamiLevelLabel | null {
     return this.currentLevel;
   }
 
-  /** VTSE41 受信時に状態を更新する */
-  update(info: ParsedTsunamiInfo): void {
-    // 取消報 → クリア
+  /** 表示ディスプレイ用: 最後に受信した津波情報 (発表中でなければ null) */
+  getLastInfo(): ParsedTsunamiInfo | null {
+    return this.lastInfo;
+  }
+
+  /** VTSE41 受信時に状態を更新する。古い報・重複報は更新せず suppressed を返す。 */
+  update(info: ParsedTsunamiInfo): TsunamiStateUpdateResult {
+    const reportTime = Date.parse(info.reportDateTime);
+    if (
+      !Number.isFinite(reportTime) ||
+      (this.reportTimeWatermark != null && reportTime <= this.reportTimeWatermark)
+    ) {
+      return { kind: "suppressed" };
+    }
+
+    // 表示状態を消した後も、古い報の復活を防ぐ tombstone として時刻を保持する。
+    this.reportTimeWatermark = reportTime;
+
+    // 取消報 → アクティブ状態のみクリア
     if (info.infoType === "取消") {
-      this.clear();
-      return;
+      this.clearActiveState();
+      return { kind: "updated" };
     }
 
     // forecast から警報レベルを検出
     const kinds = (info.forecast ?? []).map((f) => f.kind);
-    const level = detectTsunamiAlertLevel(kinds);
+    const level = resolveTsunamiLevel(kinds)?.label ?? null;
 
     if (level == null) {
-      // 警報レベルなし (津波予報のみ等) → クリア
-      this.clear();
-      return;
+      // 警報レベルなし (津波予報のみ等) → アクティブ状態のみクリア
+      this.clearActiveState();
+      return { kind: "updated" };
     }
 
     this.currentLevel = level;
     this.lastInfo = info;
+    return { kind: "updated" };
   }
 
-  /** 状態をクリアする */
+  /** holder 全体を明示的にリセットする。 */
   clear(): void {
+    this.clearActiveState();
+    this.reportTimeWatermark = null;
+  }
+
+  private clearActiveState(): void {
     this.currentLevel = null;
     this.lastInfo = null;
   }

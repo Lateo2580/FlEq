@@ -42,11 +42,13 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       handler: () => info.handleColors(),
     },
     detail: {
-      description: "直近の情報を再表示 (例: detail tsunami, detail volcano)",
-      detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示\n  detail volcano: 火山警報状態を再表示",
+      description: "直近の情報を再表示 (例: detail tsunami, detail vpws50, detail vpwp50, detail volcano)",
+      detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示\n  detail vpws50: VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示\n  detail vpwp50: VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示\n  detail volcano: 火山警報状態を再表示",
       category: "info",
       subcommands: {
         tsunami: { description: "津波情報を再表示" },
+        vpws50: { description: "VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示" },
+        vpwp50: { description: "VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示" },
         volcano: { description: "火山警報状態を再表示" },
       },
       handler: (args) => info.handleDetail(getCtx(), args),
@@ -77,7 +79,7 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
     },
     notify: {
       description: "通知設定の表示・切替 (例: notify eew on)",
-      detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation, volcano",
+      detail: "引数なし: 現在の通知設定を一覧表示\n  notify <category>: トグル切替\n  notify <category> on: 有効にする\n  notify <category> off: 無効にする\n  notify all:on / all:off: 一括操作\n  カテゴリ: eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation, volcano, weather, tornado, briefing, earlyWeather, weatherWarningTimeseries, climateInfo, weatherExplanation, heatAlert, typhoonAnalysis, typhoonProbability, floodForecast",
       category: "settings",
       subcommands: {
         "<category>": { description: "トグル切替 / on / off" },
@@ -212,6 +214,18 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       },
       handler: (args) => settings.handleTheme(getCtx(), args),
     },
+    layout: {
+      description: "表示ブロックレイアウトの表示・管理 (例: layout reload)",
+      detail: "layout: レイアウト概要を表示\n  layout path: display-layout.json のパスを表示\n  layout reset: デフォルト display-layout.json を書き出し\n  layout reload: display-layout.json を再読込\n  layout validate: display-layout.json を検証",
+      category: "settings",
+      subcommands: {
+        path: { description: "display-layout.json のパスを表示" },
+        reset: { description: "デフォルト display-layout.json を書き出し" },
+        reload: { description: "display-layout.json を再読込" },
+        validate: { description: "display-layout.json を検証" },
+      },
+      handler: (args) => settings.handleLayout(getCtx(), args),
+    },
     mute: {
       description: "通知を一時ミュート (例: mute 30m)",
       detail: "mute: 現在のミュート状態を表示\n  mute <duration>: 指定時間ミュート (例: 30m, 1h, 90s)\n  mute off: ミュート解除",
@@ -254,7 +268,7 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
         },
         table: {
           description: "表示形式テスト",
-          detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: バリエーション一覧を表示\n  test table <type> <番号>: 指定バリエーションを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation, volcano",
+          detail: "引数なし: 利用可能な電文タイプ一覧を表示\n  test table <type>: バリエーション一覧を表示\n  test table <type> <番号>: 指定バリエーションを表示\n  タイプ: earthquake, eew, tsunami, seismicText, nankaiTrough, lgObservation, volcano, weather, tornado, briefing, earlyWeather, weatherWarningTimeseries, climateInfo, weatherExplanation, heatAlert, typhoonAnalysis, typhoonProbability, floodForecast",
         },
       },
       handler: (args) => ops.handleTest(getCtx(), args),
@@ -279,6 +293,16 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       detail: "切断中の場合に手動で再接続を試みます。",
       category: "operation",
       handler: () => ops.handleRetry(getCtx()),
+    },
+    display: {
+      description: "情報ディスプレイの状態表示 / 起動 / 停止",
+      detail: "display: サーバの稼働状態・ポート・接続クライアント数を表示\n  display on: ディスプレイサーバを起動\n  display off: ディスプレイサーバを停止",
+      category: "operation",
+      subcommands: {
+        on: { description: "ディスプレイサーバを起動" },
+        off: { description: "ディスプレイサーバを停止" },
+      },
+      handler: (args) => ops.handleDisplay(getCtx(), args),
     },
     quit: {
       description: "アプリケーションを終了",

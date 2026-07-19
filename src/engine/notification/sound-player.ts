@@ -2,12 +2,13 @@ import { execFile, ChildProcess } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as log from "../../logger";
+import type { SoundLevel } from "../../types";
 
-/** 通知音レベル一覧 (型導出の信頼できる唯一のソース) */
-export const SOUND_LEVELS = ["critical", "warning", "normal", "info", "cancel"] as const;
+/** 通知音レベル一覧 (実行時の有効値リスト。型の真実源は types.ts の SoundLevel、satisfies で同期) */
+export const SOUND_LEVELS = ["critical", "warning", "normal", "info", "cancel"] as const satisfies readonly SoundLevel[];
 
-/** 通知音レベル */
-export type SoundLevel = (typeof SOUND_LEVELS)[number];
+/** 通知音レベル (types.ts 定義の再 export — 既存 import 先の互換維持) */
+export type { SoundLevel };
 
 /** 文字列が有効な SoundLevel かを判定する型ガード */
 export function isSoundLevel(value: string): value is SoundLevel {

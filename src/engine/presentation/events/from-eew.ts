@@ -1,5 +1,5 @@
-import type { EewOutcome, PresentationEvent, PresentationAreaItem } from "../types";
-import { intensityToRank } from "../../../utils/intensity";
+import type { EewOutcome, PresentationEvent, PresentationAreaItem, PresentationEewRegion } from "../types";
+import { intensityToRank, eewPessimisticIntensity } from "../../../utils/intensity";
 
 /** EewOutcome → PresentationEvent */
 export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
@@ -12,10 +12,11 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
   let forecastMaxIntRank: number | null = null;
 
   for (const area of forecastAreas) {
-    const rank = intensityToRank(area.intensity);
+    const pessimistic = eewPessimisticIntensity(area.intensity, area.intensityTo);
+    const rank = intensityToRank(pessimistic);
     if (forecastMaxIntRank == null || rank > forecastMaxIntRank) {
       forecastMaxIntRank = rank;
-      forecastMaxInt = area.intensity;
+      forecastMaxInt = pessimistic;
     }
   }
 
@@ -24,6 +25,14 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     name: a.name,
     kind: "forecast",
     maxInt: a.intensity,
+  }));
+  const eewRegions: PresentationEewRegion[] = forecastAreas.map((a) => ({
+    name: a.name,
+    intensity: a.intensity,
+    intensityTo: a.intensityTo ?? null,
+    isPlum: a.isPlum === true,
+    hasArrived: a.hasArrived === true,
+    arrivalTime: a.arrivalTime ?? null,
   }));
 
   return {
@@ -60,6 +69,7 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
 
     forecastMaxInt: forecastMaxInt,
     forecastMaxIntRank: forecastMaxIntRank,
+    maxLgInt: info.forecastIntensity?.maxLgInt ?? null,
 
     nextAdvisory: info.nextAdvisory ?? null,
 
@@ -72,6 +82,7 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     municipalityCount: 0,
     observationCount: 0,
     areaItems,
+    eewRegions,
 
     stateSnapshot: {
       kind: "eew",

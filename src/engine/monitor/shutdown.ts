@@ -55,6 +55,8 @@ export interface ShutdownContext {
   flushAndDisposeVolcanoBuffer?: () => void;
   /** 定期要約タイマーの停止 */
   stopSummaryTimer?: () => void;
+  /** 情報ディスプレイ runtime の停止 (SSE クライアント切断 + HTTP サーバ close) */
+  stopDisplayRuntime?: () => Promise<void>;
 }
 
 /**
@@ -75,6 +77,13 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
       await ctx.eewLogger.flush();
     } catch {
       // flush 失敗は無視
+    }
+    if (ctx.stopDisplayRuntime) {
+      try {
+        await ctx.stopDisplayRuntime();
+      } catch {
+        // 表示系の停止失敗はシャットダウンを妨げない
+      }
     }
     const repl = ctx.getReplHandler();
     if (repl) repl.stop();

@@ -163,6 +163,14 @@ export const CATEGORY_ALIASES: Record<string, NotifyCategory> = {
   st: "seismicText",
   nt: "nankaiTrough",
   lgob: "lgObservation",
+  wwt: "weatherWarningTimeseries",
+  // [Codex R1 I3] 早期天候情報 / 全般天候情報のエイリアスを追加 (operation-handlers
+  // の TABLE_TYPE_ALIASES と揃え、notify 切替コマンドでも短縮形が使えるように)
+  ew: "earlyWeather",
+  ci: "climateInfo",
+  we: "weatherExplanation",
+  ha: "heatAlert",
+  ta: "typhoonAnalysis",
 };
 
 /** 設定変更可能なコマンドの現在値と設定可能な値を返す */
@@ -212,7 +220,7 @@ export function getCurrentSettingValues(ctx: ReplContext): Record<string, { curr
     },
     notify: {
       current: `${onCount}/${totalCount} ON${muteInfo}`,
-      options: "eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation",
+      options: "eew, earthquake, tsunami, seismicText, nankaiTrough, lgObservation, volcano, weather, tornado, briefing, earlyWeather, weatherWarningTimeseries, climateInfo, weatherExplanation, heatAlert",
     },
     mute: {
       current: notifier.isMuted()
@@ -245,20 +253,21 @@ export function getCurrentSettingValues(ctx: ReplContext): Record<string, { curr
 
 // ── コマンドハンドラ ──
 
+const KNOWN_DETAIL_CATEGORIES = ["tsunami", "vpws50", "vpwp50", "volcano"] as const;
+
 export function handleDetail(ctx: ReplContext, args: string): void {
   const sub = args.trim().toLowerCase();
-
-  if (sub === "" || sub === "tsunami") {
-    const provider = ctx.detailProviders.find((p) => p.category === "tsunami");
+  const category = sub === "" ? "tsunami" : sub;
+  if ((KNOWN_DETAIL_CATEGORIES as readonly string[]).includes(category)) {
+    const provider = ctx.detailProviders.find((p) => p.category === category);
     if (provider == null || !provider.hasDetail()) {
-      console.log(chalk.gray("  現在、継続中の津波情報はありません。"));
+      console.log(chalk.gray(`  ${provider?.emptyMessage ?? "該当情報なし"}`));
     } else {
       provider.showDetail();
     }
     return;
   }
-
-  console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(" (利用可能: tsunami)"));
+  console.log(chalk.yellow(`  不明なサブコマンド: ${sub}`) + chalk.gray(` (利用可能: ${KNOWN_DETAIL_CATEGORIES.join(", ")})`));
 }
 
 /** カテゴリ名を解決する (日本語ラベルにも対応) */

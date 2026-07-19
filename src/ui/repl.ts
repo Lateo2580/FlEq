@@ -10,10 +10,11 @@ import type { PipelineController } from "../engine/filter-template/pipeline-cont
 import * as log from "../logger";
 import { setLogPrefixBuilder, setLogHooks } from "../logger";
 import { StatusLine } from "./status-line";
-import { TipShuffler } from "./tip-shuffler";
+import { TipShuffler } from "../tips/tip-shuffler";
 import { TelegramStats } from "../engine/messages/telegram-stats";
 import { SummaryWindowTracker } from "../engine/messages/summary-tracker";
 import type { SummaryTimerControl } from "../engine/monitor/monitor";
+import { createNoopDisplayController, type DisplayController } from "../engine/display/controller";
 import type { CommandEntry, ReplContext } from "./repl-handlers/types";
 import { COMMAND_ALIASES, resolveCommand } from "./repl-handlers/info-handlers";
 import { buildCommandMap } from "./repl-handlers/command-definitions";
@@ -59,6 +60,7 @@ export class ReplHandler {
   private summaryTracker: SummaryWindowTracker | null;
   private summaryTimerControl: SummaryTimerControl | null = null;
   private summaryIntervalMin: number | null = null;
+  private displayController: DisplayController;
   private filterExpr: string | null = null;
   private filterUpdatedAt: Date | null = null;
   private focusExpr: string | null = null;
@@ -75,6 +77,7 @@ export class ReplHandler {
     detailProviders: DetailProvider[] = [],
     pipelineController?: PipelineController,
     summaryTracker?: SummaryWindowTracker,
+    displayController?: DisplayController,
   ) {
     this.config = config;
     this.wsManager = wsManager;
@@ -86,6 +89,7 @@ export class ReplHandler {
     this.detailProviders = detailProviders;
     this.pipelineController = pipelineController ?? null;
     this.summaryTracker = summaryTracker ?? null;
+    this.displayController = displayController ?? createNoopDisplayController();
     this.summaryIntervalMin = config.summaryInterval ?? null;
     this.statusLine = new StatusLine();
     this.statusLine.setClockMode(this.config.promptClock);
@@ -265,6 +269,7 @@ export class ReplHandler {
       detailProviders: this.detailProviders,
       pipelineController: this.pipelineController,
       summaryTracker: this.summaryTracker,
+      displayController: this.displayController,
       commands: this.commands,
       onQuit: this.onQuit,
 

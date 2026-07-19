@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>水位周知河川に関する情報</Title>
+    <DateTime>2023-07-10T10:00:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>仙台管区気象台</EditorialOffice>
+    <PublishingOffice>北上川下流河川事務所 仙台管区気象台</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>善川レベル２氾濫注意報の取消</Title>
+    <ReportDateTime>2023-07-10T19:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2023-07-10T19:00:00+09:00</TargetDateTime>
+    <EventID>8201813100</EventID>
+    <InfoType>取消</InfoType>
+    <Serial>2</Serial>
+    <InfoKind>水位周知河川に関する情報</InfoKind>
+    <InfoKindVersion>1.5_0</InfoKindVersion>
+    <Headline>
+      <Text>善川レベル２氾濫注意報を取り消します。</Text>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/" />
+</Report>

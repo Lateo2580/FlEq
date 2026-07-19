@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>台風の暴風域に入る確率</Title>
+<DateTime>2021-03-19T07:54:29Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>台風の暴風域に入る確率</Title>
+<ReportDateTime>2021-03-19T16:55:00+09:00</ReportDateTime>
+<TargetDateTime>2020-09-30T15:00:00+09:00</TargetDateTime>
+<TargetDuration>PT120H</TargetDuration>
+<EventID>TC2001</EventID>
+<InfoType>取消</InfoType>
+<Serial>13</Serial>
+<InfoKind>台風の暴風域に入る確率</InfoKind>
+<InfoKindVersion>1.4_0</InfoKindVersion>
+<Headline>
+<Text/>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<MeteorologicalInfos type="台風情報"></MeteorologicalInfos>
+</Body>
+</Report>

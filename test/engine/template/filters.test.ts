@@ -54,16 +54,6 @@ describe("applyFilter", () => {
     });
   });
 
-  // ── join (削除済み: 表示専用ポリシー対応) ──
-
-  describe("join (削除済み)", () => {
-    it("未知のフィルタ扱い: 値をそのまま返す", () => {
-      // 表示専用ポリシー対応で join フィルタは削除された。
-      // applyFilter は未知フィルタ名を受けたら値をそのまま返す仕様。
-      expect(applyFilter("join", ["a", "b", "c"], [", "])).toEqual(["a", "b", "c"]);
-    });
-  });
-
   // ── replace ──
 
   describe("replace", () => {
@@ -146,13 +136,10 @@ describe("applyFilter", () => {
   // ── 未知のフィルタ ──
 
   describe("未知のフィルタ", () => {
-    it("そのまま返す", () => {
-      expect(applyFilter("nonexistent", "value", [])).toBe("value");
-    });
-
-    it("オブジェクトもそのまま返す", () => {
-      const obj = { a: 1 };
-      expect(applyFilter("unknown", obj, [])).toBe(obj);
+    it("防御的にエラーを投げる", () => {
+      expect(() => applyFilter("nonexistent", "value", [])).toThrow(
+        /未知のフィルタ "nonexistent"/,
+      );
     });
   });
 });

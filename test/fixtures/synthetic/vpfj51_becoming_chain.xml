@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+<Control>
+<Title>府県気象解説情報</Title>
+<DateTime>2026-06-06T00:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>東京管区気象台</EditorialOffice>
+<PublishingOffice>東京管区気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>テスト府県気象解説情報（Becoming連鎖）</Title>
+<ReportDateTime>2026-06-06T09:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-06T09:00:00+09:00</TargetDateTime>
+<EventID>JPTK260999</EventID>
+<InfoType>発表</InfoType>
+<Serial>1</Serial>
+<InfoKind>気象解説情報</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline>
+<Text>Becoming 連鎖テスト</Text>
+<Information type="情報タグ">
+<Item>
+<Kind><Name>情報タグ</Name><Condition>テスト</Condition></Kind>
+<Areas codeType="気象情報／府県予報区・細分区域等">
+<Area><Name>テスト地方</Name><Code>999999</Code></Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<MeteorologicalInfos type="予想">
+<TimeSeriesInfo>
+<TimeDefines>
+<TimeDefine timeId="1"><DateTime>2026-06-06T00:00:00+09:00</DateTime><Duration>P1D</Duration><Name>６日</Name></TimeDefine>
+</TimeDefines>
+<Item>
+<Kind>
+<Property>
+<Type>風の予想</Type>
+<WindDirectionPart>
+<Base>
+<jmx_eb:WindDirection refID="1" description="北東" type="風向" unit="８方位漢字">北東</jmx_eb:WindDirection>
+</Base>
+<Becoming>
+<TimeModifier>のち</TimeModifier>
+<jmx_eb:WindDirection refID="1" description="東" type="風向" unit="８方位漢字">東</jmx_eb:WindDirection>
+</Becoming>
+<Becoming>
+<TimeModifier>のち</TimeModifier>
+<jmx_eb:WindDirection refID="1" description="南" type="風向" unit="８方位漢字">南</jmx_eb:WindDirection>
+</Becoming>
+<Becoming>
+<TimeModifier>ときどき</TimeModifier>
+<Local>
+<AreaName>海上</AreaName>
+<jmx_eb:WindDirection refID="1" description="南東" type="風向" unit="８方位漢字">南東</jmx_eb:WindDirection>
+</Local>
+</Becoming>
+</WindDirectionPart>
+</Property>
+</Kind>
+<Area codeType="気象情報／府県予報区・細分区域等">
+<Name>テスト地方</Name>
+<Code>999999</Code>
+</Area>
+</Item>
+</TimeSeriesInfo>
+</MeteorologicalInfos>
+</Body>
+</Report>

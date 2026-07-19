@@ -5,6 +5,17 @@ export type StatsCategory =
   | "tsunami"
   | "volcano"
   | "nankaiTrough"
+  | "weather"
+  | "tornado"
+  | "briefing"
+  | "earlyWeather"
+  | "weatherWarningTimeseries"
+  | "climateInfo"
+  | "weatherExplanation"
+  | "heatAlert"
+  | "typhoonAnalysis"
+  | "typhoonProbability"
+  | "floodForecast"
   | "other";
 
 /** Route → StatsCategory 変換 */
@@ -17,6 +28,17 @@ export function routeToCategory(route: string): StatsCategory {
     case "tsunami": return "tsunami";
     case "volcano": return "volcano";
     case "nankaiTrough": return "nankaiTrough";
+    case "weather": return "weather";
+    case "tornado": return "tornado";
+    case "briefing": return "briefing";
+    case "earlyWeather": return "earlyWeather";
+    case "weatherWarningTimeseries": return "weatherWarningTimeseries";
+    case "climateInfo": return "climateInfo";
+    case "weatherExplanation": return "weatherExplanation";
+    case "heatAlert": return "heatAlert";
+    case "typhoonAnalysis": return "typhoonAnalysis";
+    case "typhoonProbability": return "typhoonProbability";
+    case "floodForecast": return "floodForecast";
     default: return "other";
   }
 }
@@ -74,9 +96,10 @@ function evictOldestFromMap<K, V>(map: Map<K, V>, maxSize: number): void {
   }
 }
 
-/** セッション中の電文受信統計を管理する */
+/** 本日 (JST) の電文受信統計を管理する。0 時 JST で自動リセットする (受動ロールオーバー) */
 export class TelegramStats {
-  private readonly startTime: Date;
+  private startTime: Date;
+  private dayKey: string | null = null;
   private readonly countByType = new Map<string, number>();
   private readonly categoryByType = new Map<string, StatsCategory>();
   private readonly eewEventIds = new Set<string>();
@@ -84,10 +107,12 @@ export class TelegramStats {
 
   constructor(startTime?: Date) {
     this.startTime = startTime ?? new Date();
+    this.dayKey = jstDayKey(this.startTime.getTime());
   }
 
   /** headType カウント加算。EEW の場合は eventId を Set に追加 */
-  record(rec: StatsRecord): void {
+  record(rec: StatsRecord, now?: number): void {
+    this.rolloverIfNeeded(now ?? Date.now());
     this.countByType.set(rec.headType, (this.countByType.get(rec.headType) ?? 0) + 1);
     // headType → category の対応は固定なので初回のみ登録する
     if (!this.categoryByType.has(rec.headType)) {
@@ -104,7 +129,8 @@ export class TelegramStats {
    * 認識する headType: VXSE53 (priority 3), VXSE61 (priority 2), VXSE51 (priority 1)。
    * 未知の headType は priority 0 として扱う。
    */
-  updateMaxInt(eventId: string, maxInt: string, headType: string): void {
+  updateMaxInt(eventId: string, maxInt: string, headType: string, now?: number): void {
+    this.rolloverIfNeeded(now ?? Date.now());
     const priority = MAX_INT_PRIORITY[headType] ?? 0;
     const existing = this.earthquakeMaxIntByEvent.get(eventId);
     if (existing == null || priority >= existing.priority) {
@@ -113,8 +139,17 @@ export class TelegramStats {
     }
   }
 
+  /** headType 別カウントの合計。getSnapshot() の Map コピーを避けた軽量アクセサ */
+  totalCount(now?: number): number {
+    this.rolloverIfNeeded(now ?? Date.now());
+    let total = 0;
+    for (const count of this.countByType.values()) total += count;
+    return total;
+  }
+
   /** 表示用の読み取り専用スナップショットを返す */
-  getSnapshot(): StatsSnapshot {
+  getSnapshot(now?: number): StatsSnapshot {
+    this.rolloverIfNeeded(now ?? Date.now());
     let totalCount = 0;
     for (const count of this.countByType.values()) {
       totalCount += count;
@@ -130,4 +165,24 @@ export class TelegramStats {
       totalCount,
     };
   }
+
+  /**
+   * JST 暦日が変わっていれば当日分のカウンタを初期化する。
+   * `categoryByType` (headType → category の固定マッピング) はリセットしない。
+   */
+  private rolloverIfNeeded(ts: number): void {
+    const key = jstDayKey(ts);
+    if (this.dayKey !== key) {
+      this.dayKey = key;
+      this.startTime = new Date(ts);
+      this.countByType.clear();
+      this.eewEventIds.clear();
+      this.earthquakeMaxIntByEvent.clear();
+    }
+  }
+}
+
+/** UTC ミリ秒を JST 暦日キー (YYYY-MM-DD) に変換する */
+function jstDayKey(ts: number): string {
+  return new Date(ts + 9 * 3_600_000).toISOString().slice(0, 10);
 }

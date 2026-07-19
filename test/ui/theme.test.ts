@@ -174,6 +174,21 @@ describe("resolveTheme", () => {
     expect(warnings[0]).toContain("未知のキー");
   });
 
+  it("削除済み roles キーは警告なしで無視する", () => {
+    const { warnings } = resolveTheme(
+      {
+        roles: {
+          earthquakeCriticalBanner: "darkRed",
+          earthquakeWarningBanner: "orange",
+          weatherWarningSpecialBanner: "vermillion",
+          weatherWarningWarningBanner: "orange",
+        },
+      },
+      defaults,
+    );
+    expect(warnings).toEqual([]);
+  });
+
   it("不正型 role 値 (数値) で警告 + デフォルトフォールバック", () => {
     const { theme, warnings } = resolveTheme(
       { roles: { frameCritical: 123 as unknown as string } },
@@ -424,5 +439,26 @@ describe("generateDefaultThemeJson", () => {
     expect(parsed).toHaveProperty("palette");
     expect(parsed).toHaveProperty("roles");
     expect(parsed.palette.gray).toBe("#84919E");
+  });
+});
+
+// ── 警戒レベル相当 chip ロール (Phase A T6) ──
+
+describe("weatherBanner 新ロール (Phase A T6)", () => {
+  it("officialL5/L4/L3/L2/L1 ロールが存在する", () => {
+    expect(getRoleChalk("weatherBannerOfficialL5")).toBeTypeOf("function");
+    expect(getRoleChalk("weatherBannerOfficialL4")).toBeTypeOf("function");
+    expect(getRoleChalk("weatherBannerOfficialL3")).toBeTypeOf("function");
+    expect(getRoleChalk("weatherBannerOfficialL2")).toBeTypeOf("function");
+    expect(getRoleChalk("weatherBannerOfficialL1")).toBeTypeOf("function");
+  });
+  it("nonLevelSpecial/Warning/Advisory ロールが存在する", () => {
+    expect(getRoleChalk("weatherBannerNonLevelSpecial")).toBeTypeOf("function");
+    expect(getRoleChalk("weatherBannerNonLevelWarning")).toBeTypeOf("function");
+    expect(getRoleChalk("weatherBannerNonLevelAdvisory")).toBeTypeOf("function");
+  });
+  it("出力に元テキストが含まれる", () => {
+    const r = getRoleChalk("weatherBannerOfficialL5")("test");
+    expect(r).toMatch(/test/);
   });
 });

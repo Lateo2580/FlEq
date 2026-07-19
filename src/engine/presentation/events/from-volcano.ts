@@ -3,6 +3,8 @@ import type {
   VolcanoBatchOutcome,
   PresentationEvent,
 } from "../types";
+import { joinVolcanoBatch, joinVolcanoAshfallBatch } from "./join-body-sections";
+import { volcanoAshfallToText } from "./volcano-to-text";
 
 /** VolcanoOutcome | VolcanoBatchOutcome → PresentationEvent */
 export function fromVolcanoOutcome(outcome: VolcanoOutcome | VolcanoBatchOutcome): PresentationEvent {
@@ -44,6 +46,8 @@ function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
     volcanoCode: info.volcanoCode,
     volcanoName: info.volcanoName,
     alertLevel,
+
+    bodyText: info.kind === "ashfall" ? (volcanoAshfallToText(info) ?? info.bodyText) : info.bodyText,
 
     areaNames: [],
     forecastAreaNames: [],
@@ -95,6 +99,8 @@ function fromVolcanoBatchOutcome(outcome: VolcanoBatchOutcome): PresentationEven
 
     volcanoCode,
     volcanoName,
+
+    bodyText: joinVolcanoAshfallBatch(outcome.parsed),
 
     areaNames: [],
     forecastAreaNames: [],

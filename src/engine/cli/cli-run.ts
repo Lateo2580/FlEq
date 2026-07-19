@@ -7,9 +7,10 @@ import {
 } from "../../types";
 import { listContracts } from "../../dmdata/rest-client";
 import { startMonitor } from "../monitor/monitor";
-import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations, setTruncation } from "../../ui/formatter";
+import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations, setTruncation, setWeatherWarningDisplayOptions } from "../../ui/formatter";
 import { setTerminalTitle } from "../../ui/terminal-title";
 import { loadTheme, setNightMode } from "../../ui/theme";
+import { loadDisplayLayout } from "../../ui/display-layout";
 import { resolveConfig } from "../startup/config-resolver";
 import * as updateChecker from "../startup/update-checker";
 import * as log from "../../logger";
@@ -34,6 +35,10 @@ export interface RunMonitorOptions {
   focus?: string;
   summaryInterval?: number;
   night?: boolean;
+  display?: boolean;
+  displayPort?: string;
+  displayBind?: string;
+  displayToken?: string;
   debug: boolean;
 }
 
@@ -93,6 +98,15 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     log.warn(w);
   }
 
+  // 表示レイアウト読込 (display-layout.json)
+  const layoutResult = loadDisplayLayout();
+  for (const e of layoutResult.errors) {
+    log.warn(`display-layout: ${e} (weatherCore はデフォルト設定を使用します)`);
+  }
+  for (const w of layoutResult.warnings) {
+    log.warn(`display-layout: ${w}`);
+  }
+
   // ナイトモード (resolveConfig で解決済み: CLI --night > Config > デフォルト)
   if (config.nightMode) {
     setNightMode(true);
@@ -107,6 +121,12 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
   setDisplayMode(config.displayMode);
   setMaxObservations(config.maxObservations);
   setTruncation(config.truncation);
+  setWeatherWarningDisplayOptions({
+    standardThreshold: config.weatherWarningStandardThreshold,
+    wideThreshold: config.weatherWarningWideThreshold,
+    detailMaxPerEntry: config.weatherWarningDetailMaxPerEntry,
+    detailMaxTotal: config.weatherWarningDetailMaxTotal,
+  });
 
   // Filter / Template コンパイル
   const pipelineController = new PipelineController();

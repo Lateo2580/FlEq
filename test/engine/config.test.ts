@@ -447,10 +447,16 @@ describe("Config", () => {
       const dir = (await import("path")).dirname(configPath);
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(configPath, JSON.stringify({
-        truncation: { volcanoAlertLines: 20, invalidKey: 99, volcanoTextLines: -1 },
+        truncation: {
+          volcanoAlertLines: 20,
+          floodInundationLines: 10,
+          invalidKey: 99,
+          volcanoTextLines: -1,
+        },
       }));
       const result = config.loadConfig();
       expect(result.truncation?.volcanoAlertLines).toBe(20);
+      expect(result.truncation).not.toHaveProperty("floodInundationLines");
       expect(result.truncation).not.toHaveProperty("invalidKey");
       expect(result.truncation).not.toHaveProperty("volcanoTextLines");
     });
@@ -654,6 +660,130 @@ describe("Config", () => {
       // eslint-disable-next-line no-bitwise
       const mode = stat.mode & 0o777;
       expect(mode).toBe(0o600);
+    });
+  });
+
+  describe("weatherWarning thresholds + detail guards (Phase 4-A)", () => {
+    async function importTypes() {
+      vi.resetModules();
+      return await import("../../src/types");
+    }
+
+    it("DEFAULT_CONFIG.weatherWarningStandardThreshold = 120", async () => {
+      const { DEFAULT_CONFIG } = await importTypes();
+      expect(DEFAULT_CONFIG.weatherWarningStandardThreshold).toBe(120);
+    });
+
+    it("DEFAULT_CONFIG.weatherWarningWideThreshold = 160", async () => {
+      const { DEFAULT_CONFIG } = await importTypes();
+      expect(DEFAULT_CONFIG.weatherWarningWideThreshold).toBe(160);
+    });
+
+    it("DEFAULT_CONFIG.weatherWarningDetailMaxPerEntry = 8", async () => {
+      const { DEFAULT_CONFIG } = await importTypes();
+      expect(DEFAULT_CONFIG.weatherWarningDetailMaxPerEntry).toBe(8);
+    });
+
+    it("DEFAULT_CONFIG.weatherWarningDetailMaxTotal = 60", async () => {
+      const { DEFAULT_CONFIG } = await importTypes();
+      expect(DEFAULT_CONFIG.weatherWarningDetailMaxTotal).toBe(60);
+    });
+
+    it("ユーザー設定ファイルで 4 値すべてを上書きできる", async () => {
+      const config = await importConfig();
+      const configDir = path.join(tmpDir, ".config", "fleq");
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({
+          weatherWarningStandardThreshold: 100,
+          weatherWarningWideThreshold: 180,
+          weatherWarningDetailMaxPerEntry: 10,
+          weatherWarningDetailMaxTotal: 80,
+        })
+      );
+
+      const result = config.loadConfig();
+      expect(result.weatherWarningStandardThreshold).toBe(100);
+      expect(result.weatherWarningWideThreshold).toBe(180);
+      expect(result.weatherWarningDetailMaxPerEntry).toBe(10);
+      expect(result.weatherWarningDetailMaxTotal).toBe(80);
+    });
+
+    it("整数でない / 0 以下の値は無視される (validateConfig)", async () => {
+      const config = await importConfig();
+      const configDir = path.join(tmpDir, ".config", "fleq");
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({
+          weatherWarningStandardThreshold: 0,
+          weatherWarningWideThreshold: -1,
+          weatherWarningDetailMaxPerEntry: 5.5,
+          weatherWarningDetailMaxTotal: "60",
+        })
+      );
+
+      const result = config.loadConfig();
+      expect(result.weatherWarningStandardThreshold).toBeUndefined();
+      expect(result.weatherWarningWideThreshold).toBeUndefined();
+      expect(result.weatherWarningDetailMaxPerEntry).toBeUndefined();
+      expect(result.weatherWarningDetailMaxTotal).toBeUndefined();
+    });
+
+    it("config set で 4 値を設定できる", async () => {
+      const config = await importConfig();
+      config.setConfigValue("weatherWarningStandardThreshold", "100");
+      config.setConfigValue("weatherWarningWideThreshold", "180");
+      config.setConfigValue("weatherWarningDetailMaxPerEntry", "10");
+      config.setConfigValue("weatherWarningDetailMaxTotal", "80");
+
+      const result = config.loadConfig();
+      expect(result.weatherWarningStandardThreshold).toBe(100);
+      expect(result.weatherWarningWideThreshold).toBe(180);
+      expect(result.weatherWarningDetailMaxPerEntry).toBe(10);
+      expect(result.weatherWarningDetailMaxTotal).toBe(80);
+    });
+
+    it("config set と config 読込で 1〜999 の範囲外を拒否する", async () => {
+      const config = await importConfig();
+      expect(() => config.setConfigValue("weatherWarningStandardThreshold", "0")).toThrow(config.ConfigError);
+      expect(() => config.setConfigValue("weatherWarningWideThreshold", "1000")).toThrow(config.ConfigError);
+
+      const configDir = path.join(tmpDir, ".config", "fleq");
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, "config.json"),
+        JSON.stringify({ weatherWarningDetailMaxTotal: 1000 }),
+      );
+      expect(config.loadConfig().weatherWarningDetailMaxTotal).toBeUndefined();
+    });
+  });
+});
+
+describe("DEFAULT_CONFIG.notify の既定値スナップショット", () => {
+  it("地震系を有効、気象系 11 カテゴリを無効にする", async () => {
+    const { DEFAULT_CONFIG } = await import("../../src/types");
+
+    expect(DEFAULT_CONFIG.notify).toEqual({
+      eew: true,
+      earthquake: true,
+      tsunami: true,
+      seismicText: true,
+      nankaiTrough: true,
+      lgObservation: true,
+      volcano: true,
+      weather: false,
+      tornado: false,
+      briefing: false,
+      earlyWeather: false,
+      weatherWarningTimeseries: false,
+      climateInfo: false,
+      weatherExplanation: false,
+      heatAlert: false,
+      typhoonAnalysis: false,
+      typhoonProbability: false,
+      floodForecast: false,
     });
   });
 });

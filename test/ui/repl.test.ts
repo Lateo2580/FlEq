@@ -627,8 +627,18 @@ describe("ReplHandler", () => {
   });
 
   describe("detail コマンド", () => {
+    const emptyTsunamiProvider = {
+      category: "tsunami",
+      emptyMessage: "現在、継続中の津波情報はありません。",
+      hasDetail: () => false,
+      showDetail: vi.fn(),
+    };
+
     it("情報なし時にメッセージを表示する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
+        new TelegramStats(), [], [emptyTsunamiProvider],
+      );
       handler.start();
 
       simulateLine("detail");
@@ -640,7 +650,10 @@ describe("ReplHandler", () => {
     });
 
     it("detail tsunami でも同様に動作する", () => {
-      const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
+      const handler = new ReplHandler(
+        createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(),
+        new TelegramStats(), [], [emptyTsunamiProvider],
+      );
       handler.start();
 
       simulateLine("detail tsunami");

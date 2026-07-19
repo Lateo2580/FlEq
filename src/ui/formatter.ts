@@ -8,6 +8,7 @@ import {
 } from "../types";
 import * as theme from "./theme";
 import type { RoleName } from "./theme";
+import { intensityToRank } from "../utils/intensity";
 
 // ── フレーム幅キャッシュ ──
 
@@ -82,6 +83,34 @@ export function getTruncation(): TruncationLimits {
   return cachedTruncation;
 }
 
+// ── 気象警報・注意報時系列 (VPWP50) 表示設定キャッシュ ──
+
+interface WeatherWarningDisplayOptions {
+  standardThreshold: number;
+  wideThreshold: number;
+  detailMaxPerEntry: number;
+  detailMaxTotal: number;
+}
+
+let cachedWeatherWarningDisplay: WeatherWarningDisplayOptions = {
+  standardThreshold: DEFAULT_CONFIG.weatherWarningStandardThreshold,
+  wideThreshold: DEFAULT_CONFIG.weatherWarningWideThreshold,
+  detailMaxPerEntry: DEFAULT_CONFIG.weatherWarningDetailMaxPerEntry,
+  detailMaxTotal: DEFAULT_CONFIG.weatherWarningDetailMaxTotal,
+};
+
+/** VPWP50 表示設定を外部から設定する */
+export function setWeatherWarningDisplayOptions(
+  value: WeatherWarningDisplayOptions,
+): void {
+  cachedWeatherWarningDisplay = { ...value };
+}
+
+/** VPWP50 表示設定の現在値を返す */
+export function getWeatherWarningDisplayOptions(): WeatherWarningDisplayOptions {
+  return cachedWeatherWarningDisplay;
+}
+
 // ── レンダーバッファ ──
 
 /** recap 用のマーキング付き行 */
@@ -97,6 +126,8 @@ export interface RenderBuffer {
   pushTitle(line: string): void;
   pushCard(line: string): void;
   pushHeadline(line: string): void;
+  /** テスト・検査用: 現在の text 行 (kind 区別なし) を配列で返す */
+  getLines(): string[];
   readonly lineCount: number;
   readonly lines: readonly MarkedLine[];
   readonly titleLine: string | null;
@@ -129,6 +160,7 @@ export function createRenderBuffer(): RenderBuffer {
       _lines.push({ text: line, kind: "headline" });
       _headlineLines.push(line);
     },
+    getLines() { return _lines.map((l) => l.text); },
     get lineCount() { return _lines.length; },
     get lines() { return _lines; },
     get titleLine() { return _titleLine; },
@@ -143,8 +175,17 @@ const RECAP_RESERVE_ROWS = 3;
 /**
  * バッファの内容を出力し、ターミナル高さを超える場合はフレーム下部直前に
  * サマリー (recap) を再掲する。
+ *
+ * borderColor (省略可): 罫線色の注入。colored フレームの formatter は本文罫線と
+ * 同じ色を渡すことで、recap の divider / サマリー行だけ色がまだらになるのを防ぐ。
+ * 省略時は従来どおり plain の frameDivider / frameLine で描く。
  */
-export function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: number): void {
+export function flushWithRecap(
+  buf: RenderBuffer,
+  level: FrameLevel,
+  width: number,
+  borderColor?: (s: string) => string,
+): void {
   const isTTY = process.stdout.isTTY;
   const rows = process.stdout.rows;
 
@@ -191,8 +232,13 @@ export function flushWithRecap(buf: RenderBuffer, level: FrameLevel, width: numb
   // recap セクション — 要約データがある場合のみ表示
   const hasRecapData = buf.titleLine != null || buf.cardLine != null || buf.headlineLines.length > 0;
   if (hasRecapData) {
-    console.log(frameDivider(level, width));
-    console.log(frameLine(level, chalk.gray("▼ サマリー"), width));
+    if (borderColor != null) {
+      console.log(frameDividerColored(level, borderColor, width));
+      console.log(frameLineColored(level, borderColor, chalk.gray("▼ サマリー"), width));
+    } else {
+      console.log(frameDivider(level, width));
+      console.log(frameLine(level, chalk.gray("▼ サマリー"), width));
+    }
     if (buf.titleLine != null) {
       console.log(buf.titleLine);
     }
@@ -232,6 +278,16 @@ export const FRAME_CHARS: Record<FrameLevel, FrameChars> = {
   normal:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
   info:     { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
   cancel:   { tl: "┌", tr: "┐", bl: "└", br: "┘", h: "─", v: "│", divL: "├", divR: "┤" },
+};
+
+/** frameDividerThin 用の細線文字セット (divL/h/divR のみ)。
+ * critical/warning は二重線フレーム内に細線 ╟─╢ を引く。normal/info/cancel は元々細線。 */
+const FRAME_CHARS_THIN: Record<FrameLevel, { divL: string; h: string; divR: string }> = {
+  critical: { divL: "╟", h: "─", divR: "╢" },
+  warning:  { divL: "╟", h: "─", divR: "╢" },
+  normal:   { divL: "├", h: "─", divR: "┤" },
+  info:     { divL: "├", h: "─", divR: "┤" },
+  cancel:   { divL: "├", h: "─", divR: "┤" },
 };
 
 /** フレームレベル → ロール名マッピング */
@@ -294,9 +350,166 @@ export function frameDivider(level: FrameLevel, width: number = FRAME_WIDTH): st
   return f.color(f.divL + f.h.repeat(width - 2) + f.divR);
 }
 
+/** frameDivider の細線版。外枠は太線 (═) のまま内部区切りだけ細線 (─) にする (spec §2.3)。 */
+export function frameDividerThin(level: FrameLevel, width: number = FRAME_WIDTH): string {
+  const c = FRAME_CHARS_THIN[level];
+  const color = frameColor(level);
+  return color(c.divL + c.h.repeat(width - 2) + c.divR);
+}
+
+/**
+ * フレーム divider にラベルを焼き込む変種。tier 段差を線区切りで表現する。
+ *
+ * 例: `╠ ★ 警報 ════════════════╣`
+ *
+ * 重要: `dividerLevel` は **その divider が示す tier の level** を渡す。
+ * frame 全体の level と独立にすることで、critical frame 内に warning divider や
+ * info divider を混在させても、各 divider が対応 tier の色 + 罫線スタイルで描画される。
+ *
+ * ラベルが width を超える場合、罫線部分が消失し可視幅 = width で頭打ち。
+ */
+export function frameDividerLabeled(
+  dividerLevel: FrameLevel,
+  label: string,
+  width: number = FRAME_WIDTH,
+): string {
+  const f = getFrame(dividerLevel);
+  // 利用可能な内側幅 (左右の divider 文字を除く)
+  const innerWidth = Math.max(0, width - 2);
+  // ラベルが内側幅を超える場合は文字単位で頭打ち (はみ出し防止)
+  let decorated = ` ${label} `;
+  if (visualWidth(decorated) > innerWidth) {
+    const truncated = wrapTextLines(decorated, innerWidth)[0] ?? "";
+    decorated = truncated;
+  }
+  const decoratedW = visualWidth(decorated);
+  const rest = Math.max(0, innerWidth - decoratedW);
+  const lineChars = f.h.repeat(rest);
+  return f.color(f.divL) + f.color(decorated) + f.color(lineChars) + f.color(f.divR);
+}
+
+/** frameDividerLabeled の細線版。ラベル付き内部区切りを細線 (─) で描く (spec §2.3, §3.2)。 */
+export function frameDividerLabeledThin(
+  dividerLevel: FrameLevel,
+  label: string,
+  width: number = FRAME_WIDTH,
+): string {
+  const c = FRAME_CHARS_THIN[dividerLevel];
+  const color = frameColor(dividerLevel);
+  const innerWidth = Math.max(0, width - 2);
+  let decorated = ` ${label} `;
+  if (visualWidth(decorated) > innerWidth) {
+    const truncated = wrapTextLines(decorated, innerWidth)[0] ?? "";
+    decorated = truncated;
+  }
+  const decoratedW = visualWidth(decorated);
+  const rest = Math.max(0, innerWidth - decoratedW);
+  const lineChars = c.h.repeat(rest);
+  return color(c.divL) + color(decorated) + color(lineChars) + color(c.divR);
+}
+
 export function frameBottom(level: FrameLevel, width: number = FRAME_WIDTH): string {
   const f = getFrame(level);
   return f.color(f.bl + f.h.repeat(width - 2) + f.br);
+}
+
+// ── 色注入版 frame primitive (セクション罫線色対応、Phase A) ──
+// styleLevel で罫線文字 (二重 ║ / 単線 │) を、borderColor で罫線の色を決める。
+// 内容文字列は着色しない (呼び出し側が着色する)。
+
+export function frameTopColored(
+  styleLevel: FrameLevel,
+  borderColor: (s: string) => string,
+  width: number = FRAME_WIDTH,
+): string {
+  const c = FRAME_CHARS[styleLevel];
+  return borderColor(c.tl + c.h.repeat(width - 2) + c.tr);
+}
+
+export function frameBottomColored(
+  styleLevel: FrameLevel,
+  borderColor: (s: string) => string,
+  width: number = FRAME_WIDTH,
+): string {
+  const c = FRAME_CHARS[styleLevel];
+  return borderColor(c.bl + c.h.repeat(width - 2) + c.br);
+}
+
+export function frameLineColored(
+  styleLevel: FrameLevel,
+  borderColor: (s: string) => string,
+  content: string,
+  width: number = FRAME_WIDTH,
+): string {
+  const c = FRAME_CHARS[styleLevel];
+  const safeContent = (content.includes("\n") || content.includes("\r"))
+    ? content.replace(/\r?\n/g, " ")
+    : content;
+  const visibleLen = visualWidth(safeContent);
+  const pad = Math.max(0, width - 4 - visibleLen);
+  return borderColor(c.v) + " " + safeContent + " ".repeat(pad) + " " + borderColor(c.v);
+}
+
+export function frameDividerColored(
+  styleLevel: FrameLevel,
+  borderColor: (s: string) => string,
+  width: number = FRAME_WIDTH,
+): string {
+  const c = FRAME_CHARS[styleLevel];
+  return borderColor(c.divL + c.h.repeat(width - 2) + c.divR);
+}
+
+/** ANSI スタイルを残したまま、表示幅までラベルを切り詰める。 */
+function clipAnsiLabelToVisualWidth(label: string, maxWidth: number): string {
+  if (visualWidth(label) <= maxWidth) return label;
+  if (maxWidth <= 0) return "";
+
+  const ansiPattern = /\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g;
+  let result = "";
+  let width = 0;
+  let hasSgr = false;
+  let offset = 0;
+
+  const appendText = (text: string): boolean => {
+    for (const ch of text) {
+      const charWidth = visualWidth(ch);
+      if (width + charWidth > maxWidth) return false;
+      result += ch;
+      width += charWidth;
+    }
+    return true;
+  };
+
+  for (const match of label.matchAll(ansiPattern)) {
+    if (!appendText(label.slice(offset, match.index))) {
+      return hasSgr ? result + "\x1b[0m" : result;
+    }
+    result += match[0];
+    hasSgr ||= match[0].endsWith("m");
+    offset = (match.index ?? 0) + match[0].length;
+  }
+  if (!appendText(label.slice(offset))) {
+    return hasSgr ? result + "\x1b[0m" : result;
+  }
+  return result;
+}
+
+/**
+ * セクション見出し divider。ラベルは装飾済 (chip/text 色) のものを受け取り、
+ * 残りを罫線 (╠ ═ ╣) で埋める。罫線は borderColor で塗る。
+ */
+export function frameDividerLabeledColored(
+  styleLevel: FrameLevel,
+  borderColor: (s: string) => string,
+  renderedLabel: string,
+  width: number = FRAME_WIDTH,
+): string {
+  const c = FRAME_CHARS[styleLevel];
+  const innerWidth = Math.max(0, width - 2);
+  const clippedLabel = clipAnsiLabelToVisualWidth(renderedLabel, innerWidth);
+  const labelW = visualWidth(clippedLabel);
+  const rest = Math.max(0, innerWidth - labelW);
+  return borderColor(c.divL) + clippedLabel + borderColor(c.h.repeat(rest)) + borderColor(c.divR);
 }
 
 /** ANSI / VT エスケープシーケンスを除去 (表示幅計算用 & インジェクション防止) */
@@ -347,11 +560,49 @@ export function visualPadEnd(str: string, targetWidth: number): string {
   return str + " ".repeat(padSize);
 }
 
+/** visualWidth ベースで中央寄せパディングする。内容が targetWidth 以上ならそのまま返す。 */
+export function centerPad(str: string, targetWidth: number): string {
+  const w = visualWidth(str);
+  if (w >= targetWidth) return str;
+  const total = targetWidth - w;
+  const left = Math.floor(total / 2);
+  const right = total - left;
+  return " ".repeat(left) + str + " ".repeat(right);
+}
+
+/**
+ * visualWidth が maxWidth を超える場合、末尾を切って "…" を付ける。
+ * 全角文字 (2 cells) を考慮して 1 文字ずつ削る。
+ */
+export function clipToVisualWidth(str: string, maxWidth: number): string {
+  if (maxWidth <= 0) return "";
+  if (visualWidth(str) <= maxWidth) return str;
+  const budget = maxWidth - 1; // "…" の分 (1 cell) を残す
+  let acc = "";
+  let w = 0;
+  for (const ch of str) {
+    const cw = visualWidth(ch);
+    if (w + cw > budget) break;
+    acc += ch;
+    w += cw;
+  }
+  return acc + "…";
+}
+
 /**
  * フレーム内にカラム区切りテーブルを描画する。
  * headers: ヘッダー文字列の配列 (スタイル適用前)
  * rows: 各行のセル配列 (chalk でスタイル適用済み)
  * 最後のカラムは残り幅を使い切る可変幅。
+ *
+ * borderColor (省略可): 罫線色の注入。指定時は frameLineColored で描き、
+ * 本文罫線色 (例: weather 系の WHITE_BORDER) と揃えて色割れを防ぐ。
+ * **省略時の挙動は従来と完全に同一** (frameLine の level 色) —
+ * 地震・火山等の他電文系に影響を出さないため。
+ *
+ * indent (省略可、既定 0): テーブル全行 (ヘッダ・罫線・データ行) の本文先頭に
+ * 前置するスペース数。セクション見出し (`▸`) 配下の本文と桁を揃えるために使う。
+ * 有効幅も indent 分減らすため、前置後も visualWidth が width を超えない。
  */
 export function renderFrameTable(
   level: FrameLevel,
@@ -359,9 +610,15 @@ export function renderFrameTable(
   rows: string[][],
   width: number,
   buf?: RenderBuffer,
+  borderColor?: (s: string) => string,
+  indent: number = 0,
 ): void {
   const out = buf ? (line: string) => buf.push(line) : (line: string) => console.log(line);
-  const innerWidth = width - 4;
+  const pad = " ".repeat(indent);
+  const line = borderColor
+    ? (c: string) => frameLineColored(level, borderColor, pad + c, width)
+    : (c: string) => frameLine(level, pad + c, width);
+  const innerWidth = width - 4 - indent;
   const numCols = headers.length;
   // 各カラムの最大視覚幅を計算
   const colWidths = headers.map((h, i) => {
@@ -388,16 +645,16 @@ export function renderFrameTable(
   const headerLine = headers
     .map((h, i) => visualPadEnd(chalk.bold(h), colWidths[i]))
     .join(colSep);
-  out(frameLine(level, headerLine, width));
+  out(line(headerLine));
 
   // セパレータ行
   const sepParts = colWidths.map((w) => "─".repeat(w));
-  out(frameLine(level, chalk.gray(sepParts.join("─┼─")), width));
+  out(line(chalk.gray(sepParts.join("─┼─"))));
 
   // データ行
   for (const row of rows) {
     const cells = row.map((cell, i) => visualPadEnd(cell ?? "", colWidths[i]));
-    out(frameLine(level, cells.join(colSep), width));
+    out(line(cells.join(colSep)));
   }
 }
 
@@ -414,37 +671,99 @@ export function wrapFrameLines(
   width: number,
   indent: number = 0
 ): string[] {
+  return wrapFrameLinesWith((c) => frameLine(level, c, width), content, width, indent);
+}
+
+/**
+ * wrapFrameLines の色注入版。罫線スタイルは level、罫線色は borderColor で決める
+ * (frameLineColored と同じ分担)。折り返しロジックは wrapFrameLines と共通。
+ */
+export function wrapFrameLinesColored(
+  level: FrameLevel,
+  borderColor: (s: string) => string,
+  content: string,
+  width: number,
+  indent: number = 0
+): string[] {
+  return wrapFrameLinesWith(
+    (c) => frameLineColored(level, borderColor, c, width),
+    content, width, indent,
+  );
+}
+
+/** wrap 本体 (renderLine = 1 行を frame 行に整形する関数を注入) */
+function wrapFrameLinesWith(
+  renderLine: (content: string) => string,
+  content: string,
+  width: number,
+  indent: number = 0
+): string[] {
   // 改行で段落分割し、各段落を個別に折り返す
   const paragraphs = content.replace(/\r\n?/g, "\n").split("\n");
   if (paragraphs.length > 1) {
     const out: string[] = [];
     for (const p of paragraphs) {
       if (p === "" || p.trim() === "") {
-        out.push(frameLine(level, "", width));
+        out.push(renderLine(""));
         continue;
       }
-      out.push(...wrapSingleLine(level, p, width, indent));
+      out.push(...wrapSingleLine(renderLine, p, width, indent));
     }
     return out;
   }
 
-  return wrapSingleLine(level, content, width, indent);
+  return wrapSingleLine(renderLine, content, width, indent);
 }
 
 /** 単一行（改行なし）の折り返し処理 */
 function wrapSingleLine(
-  level: FrameLevel,
+  renderLine: (content: string) => string,
   content: string,
   width: number,
   indent: number = 0
 ): string[] {
   const innerWidth = width - 4; // フレーム内の有効幅 (左右の罫線+スペース)
   if (visualWidth(content) <= innerWidth) {
-    return [frameLine(level, content, width)];
+    return [renderLine(content)];
   }
 
+  // hanging indent の自動検出: 先頭の半角スペース数を継続行のインデントに採用し、
+  // 見出し (`  ▸ 概況`) や本文インデントより左へ継続行が飛び出すのを防ぐ。
+  // indent 明示指定 (> 0) は autoIndent より優先する。全角スペースは本文と見なす。
+  const autoIndent = /^ */.exec(stripAnsi(content))?.[0].length ?? 0;
+  let effectiveIndent = indent > 0 ? indent : autoIndent;
+  // 縮退ガード: 本文の有効幅が 20 桁を下回る場合はインデントを切り詰める
+  if (innerWidth - effectiveIndent < 20) {
+    effectiveIndent = Math.max(0, innerWidth - 20);
+  }
+  const indentStr = " ".repeat(effectiveIndent);
+
+  // 文字単位ハード折り返し (hanging indent 付き)。
+  // 先頭行は元の先頭インデントを保持し、2 行目以降に indentStr を前置する。
+  // 注: ハード折り返し時は ANSI スタイルが剥がれる (既知制限)
+  const hardWrapWithIndent = (text: string): string[] => {
+    const plain = stripAnsi(text);
+    const lead = /^ */.exec(plain)?.[0] ?? "";
+    const rest = plain.slice(lead.length);
+    // 先頭行も縮退上限 (effectiveIndent) で cap する。lead が縮退ガード未満なら従来どおり
+    // firstLead === lead (通常入力は出力不変)。極端な先頭スペースでも先頭行が width を超えない
+    const firstLead = " ".repeat(Math.min(lead.length, effectiveIndent));
+    const first = wrapTextLines(rest, Math.max(1, innerWidth - firstLead.length))[0];
+    const out = [firstLead + first];
+    const remaining = rest.slice(first.length);
+    if (remaining.length > 0) {
+      for (const chunk of wrapTextLines(remaining, Math.max(1, innerWidth - effectiveIndent))) {
+        out.push(indentStr + chunk);
+      }
+    }
+    return out;
+  };
+
   // 複数の区切りパターンで分割を試行
-  const delimiters = [", ", "、", "  │  "];
+  // " / " は VPWS50 等の地域列挙区切り (Phase C: 折返しで ANSI が剥がれる問題の解消)
+  // 「、」は delimiter から除去 (spec §9 R3-2)。読点を含む長文は wrapTextLines v2 の
+  // 句読点優先改行が読点保持で引き継ぐ (v1 の読点脱落バグは経路消滅)
+  const delimiters = [", ", " | ", "  │  ", " / "];
   let parts: string[] | null = null;
   let joinStr = "";
 
@@ -459,8 +778,19 @@ function wrapSingleLine(
 
   if (parts != null && parts.length > 1) {
     const lines: string[] = [];
-    const indentStr = " ".repeat(indent);
     let currentLine = parts[0];
+
+    // 区切りで分割しても innerWidth を超える行は文字単位でハード折り返しする
+    // 注: ハード折り返し時は ANSI スタイルが剥がれる (直下の分割不能パスと同じ既知制限)
+    const emit = (text: string): void => {
+      if (visualWidth(text) <= innerWidth) {
+        lines.push(renderLine(text));
+        return;
+      }
+      for (const hard of hardWrapWithIndent(text)) {
+        lines.push(renderLine(hard));
+      }
+    };
 
     for (let i = 1; i < parts.length; i++) {
       const candidate = currentLine + joinStr + parts[i];
@@ -469,52 +799,231 @@ function wrapSingleLine(
       } else {
         // 末尾にカンマ区切りの場合はカンマを付与
         const suffix = joinStr === ", " ? "," : "";
-        lines.push(frameLine(level, currentLine + suffix, width));
+        emit(currentLine + suffix);
         currentLine = indentStr + parts[i];
       }
     }
-    lines.push(frameLine(level, currentLine, width));
+    emit(currentLine);
     return lines;
   }
 
   // 分割できない場合は文字単位でハード折り返し
-  const wrapped = wrapTextLines(stripAnsi(content), innerWidth);
-  if (wrapped.length <= 1) {
-    return [frameLine(level, content, width)];
+  const wrapped = hardWrapWithIndent(content);
+  // 折り返し不要 (内容が不変) の場合のみ元の content を返して ANSI を保つ。
+  // 先頭 lead が縮退 cap で切り詰められた場合は wrapped 側を使う (幅超過防止)
+  if (wrapped.length <= 1 && wrapped[0] === stripAnsi(content)) {
+    return [renderLine(content)];
   }
-  return wrapped.map((line) => frameLine(level, line, width));
+  return wrapped.map((line) => renderLine(line));
+}
+
+// ── 電文本文の再改行 (spec §8 R2-3) ──
+// 電文内に焼き込まれた固定幅改行 (例: 旧様式 VXSE56 の全角 34 字 wrap) を解除して
+// 段落単位の論理行に再結合し、表示幅での wrap (wrapFrameLines 等) に委ねる。
+// 保守側ヒューリスティック: 散文のみ結合し、整形行 (表風の桁揃え)・段落開始行・空行は保持する。
+
+/** 結合対象と見なす直前行の最小 visualWidth (全角 28 字相当。旧様式の 34 字 wrap を確実に拾う) */
+const REFLOW_MIN_WIDTH = 56;
+
+/** 文末記号: これらで終わる行は段落末と見なし次行を結合しない */
+const REFLOW_SENTENCE_END = /[。．！？＞」』）]$/;
+
+/** 整形行 (表風の桁揃え): 行頭のインデントを除く位置に全角スペース 2 連続以上を含む */
+function isReflowFormattedLine(line: string): boolean {
+  return /　　/.test(line.replace(/^[　 ]+/, ""));
+}
+
+/** 新段落開始行: 行頭が段落開始記号、または番号見出し (１．/ 1. 等) */
+function isReflowParagraphStart(line: string): boolean {
+  if (/^[　 ＜（【＊※●○・「]/.test(line)) return true;
+  return /^[０-９0-9]+[．.]/.test(line);
+}
+
+/** 直前の物理行に直結できるか (判定は常に元の物理行に対して行う) */
+function canReflowJoin(prevPhysical: string): boolean {
+  if (prevPhysical.trim().length === 0) return false;
+  if (isReflowFormattedLine(prevPhysical)) return false;
+  if (visualWidth(prevPhysical) < REFLOW_MIN_WIDTH) return false;
+  if (REFLOW_SENTENCE_END.test(prevPhysical.trimEnd())) return false;
+  return true;
 }
 
 /**
- * テキストを文字単位で折り返す。CJK文字は幅2として計算。
+ * 電文由来の固定幅 hard-wrap を解除して論理行に再結合する。
+ * 入力は split 済みの物理行配列 (trimEnd 済み推奨)、出力は論理行配列。
+ * 空行はそのまま保持される (段落区切り)。日本語文のため結合は区切り文字なしの直結。
+ */
+export function reflowTelegramLines(lines: string[]): string[] {
+  const out: string[] = [];
+  let prevPhysical: string | null = null;
+  for (const line of lines) {
+    if (line.trim().length === 0) {
+      out.push(line);
+      prevPhysical = line;
+      continue;
+    }
+    const startsNew =
+      isReflowFormattedLine(line) ||
+      isReflowParagraphStart(line) ||
+      prevPhysical == null ||
+      !canReflowJoin(prevPhysical);
+    if (startsNew) {
+      out.push(line);
+    } else {
+      out[out.length - 1] += line;
+    }
+    prevPhysical = line;
+  }
+  return out;
+}
+
+// ── 折り返しエンジン v2 (spec §9 R3-1: 幅充填 + 句読点優先 + 禁則処理) ──
+// 不変条件: ① lossless (出力各行の連結 = 入力。highlightAndWrap の span offset 前提)
+//           ② 幅保証 (全行 <= maxWidth。単一文字が maxWidth を超える場合のみ 1 文字/行を許す)
+
+/** 句読点優先改行の lookback 上限: 折返し点の直前 N 文字以内 (かつ行長の半分まで) に
+ * 優先改行文字があればその直後で折る */
+export const BREAK_LOOKBACK = 12;
+
+/** 優先改行文字 (読点・句点・全角/半角カンマ・ピリオド) */
+const BREAK_PRIORITY_CHARS = new Set([..."、。，．,."]);
+
+/** 行頭禁則: 行頭に来てはならない文字 (snapshot 禁則恒久テストが import するため export) */
+export const KINSOKU_LINE_START = new Set([
+  ..."、。，．）」』】〉》〕・ー〜…！？!?：；ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヵヶ",
+]);
+
+/** 行末禁則: 行末に残してはならない文字 (開き括弧。同上の理由で export) */
+export const KINSOKU_LINE_END = new Set([..."（「『【〈《〔"]);
+
+/** 禁則調整ガード: 追い込み/追い出しで動かす文字数の上限。超えたら fail-open (調整なしで改行) */
+const KINSOKU_ADJUST_MAX = 4;
+
+/** 1 文字の表示幅 (CJK は 2) */
+function charDisplayWidth(ch: string): number {
+  return isWideChar(ch.codePointAt(0) ?? 0) ? 2 : 1;
+}
+
+/**
+ * 改行点の禁則調整 (単一ルーチン — 優先改行/幅いっぱい改行のどちらの候補にも適用する)。
+ * chars[start..breakAt) を現在行とする候補 breakAt に対し:
+ * ① 行頭禁則 (次行頭 chars[breakAt] が禁則文字):
+ *    (a) 追い込み — 禁則文字の連続 run (最大 4) が maxWidth 内に収まるなら現在行末に取り込む
+ *    (b) 追い出し — 禁則でない文字が次行頭に来る位置まで現在行末の文字を送る (最大 4)
+ *    どちらも成立しなければ fail-open (候補のまま)
+ * ② 行末禁則 (行末に開き括弧が残る): 次行へ送る (最大 4)。超過が確定したら移動を
+ *    巻き戻して候補のまま fail-open (部分移動を残さない)
+ */
+function adjustBreakPoint(
+  chars: string[],
+  start: number,
+  candidate: number,
+  maxWidth: number,
+): number {
+  let breakAt = candidate;
+
+  // ① 行頭禁則
+  if (breakAt < chars.length && KINSOKU_LINE_START.has(chars[breakAt])) {
+    // (a) 追い込み: 禁則文字の連続 run (最大 4) を現在行に取り込めるか
+    let runEnd = breakAt;
+    while (
+      runEnd < chars.length &&
+      runEnd - breakAt < KINSOKU_ADJUST_MAX &&
+      KINSOKU_LINE_START.has(chars[runEnd])
+    ) {
+      runEnd++;
+    }
+    const runClosed = runEnd >= chars.length || !KINSOKU_LINE_START.has(chars[runEnd]);
+    if (runClosed && visualWidth(chars.slice(start, runEnd).join("")) <= maxWidth) {
+      breakAt = runEnd; // 追い込み成立 (優先改行後は行に余白があるため大半これで解決)
+    } else {
+      // (b) 追い出し: 禁則でない文字が次行頭に来る位置まで戻る (最大 4 文字)
+      for (let m = 1; m <= KINSOKU_ADJUST_MAX; m++) {
+        const moved = breakAt - m;
+        if (moved <= start) break; // 行が空になる手前で打ち切り → fail-open
+        if (!KINSOKU_LINE_START.has(chars[moved])) {
+          breakAt = moved;
+          break;
+        }
+      }
+      // 4 文字内に非禁則文字が無ければ breakAt = candidate のまま (fail-open)
+    }
+  }
+
+  // ② 行末禁則: 行末の開き括弧を次行へ送る (最大 4 文字、超過は巻き戻して fail-open)
+  {
+    let sendTo = breakAt;
+    while (sendTo - 1 > start && KINSOKU_LINE_END.has(chars[sendTo - 1])) {
+      sendTo--;
+      if (breakAt - sendTo > KINSOKU_ADJUST_MAX) {
+        sendTo = breakAt; // ガード超過: 巻き戻し (部分移動を残さない — Codex major #3)
+        break;
+      }
+    }
+    // ループが行頭側で止まり行末がまだ開き括弧なら不完全な調整 → 巻き戻し
+    if (sendTo < breakAt && KINSOKU_LINE_END.has(chars[sendTo - 1])) {
+      sendTo = breakAt;
+    }
+    breakAt = sendTo;
+  }
+
+  return breakAt;
+}
+
+/**
+ * テキストを表示幅で折り返す (v2)。CJK 文字は幅 2 として計算。
+ * 行を幅いっぱいまで充填し、折返し点の直前 BREAK_LOOKBACK 文字以内 (かつ行長の半分まで) に
+ * 句読点があればその直後を候補改行点とし、無ければ幅いっぱいの位置を候補とする。候補は
+ * adjustBreakPoint の禁則調整 (追い込み/追い出し/行末送り、各ガード 4 文字・超過 fail-open)
+ * を通して確定する。不変条件: lossless (出力各行の連結 = 入力、文字の追加・削除・置換なし) と
+ * 幅保証 (全行 <= maxWidth。1 文字の visualWidth が maxWidth を超える場合のみ 1 文字/行を許す)。
  * フレーム装飾は含まず、折り返し後の各行を文字列配列で返す。
  */
 export function wrapTextLines(text: string, maxWidth: number): string[] {
   if (maxWidth <= 0) return [text];
   if (visualWidth(text) <= maxWidth) return [text];
 
+  const chars = [...text];
   const lines: string[] = [];
-  let currentLine = "";
-  let currentWidth = 0;
+  let start = 0;
 
-  for (const ch of text) {
-    const cp = ch.codePointAt(0) ?? 0;
-    const charWidth = isWideChar(cp) ? 2 : 1;
-
-    if (currentWidth + charWidth > maxWidth) {
-      lines.push(currentLine);
-      currentLine = ch;
-      currentWidth = charWidth;
-    } else {
-      currentLine += ch;
-      currentWidth += charWidth;
+  while (start < chars.length) {
+    // 1) 幅いっぱいまで充填した終端 end (exclusive) を求める
+    let end = start;
+    let w = 0;
+    while (end < chars.length) {
+      const cw = charDisplayWidth(chars[end]);
+      if (w + cw > maxWidth) break;
+      w += cw;
+      end++;
     }
-  }
+    if (end >= chars.length) {
+      lines.push(chars.slice(start).join("")); // 残り全部が収まる
+      break;
+    }
+    if (end === start) {
+      // 単一文字の幅超過例外 (進行保証): この 1 文字だけの行を許す
+      lines.push(chars[start]);
+      start++;
+      continue;
+    }
 
-  if (currentLine.length > 0) {
-    lines.push(currentLine);
-  }
+    // 2) 候補改行点: lookback 範囲内 (かつ行長の半分まで) の優先改行文字の直後、無ければ end
+    let candidate = end;
+    const lookback = Math.min(BREAK_LOOKBACK, Math.floor((end - start) / 2));
+    for (let back = 0; back < lookback; back++) {
+      const idx = end - 1 - back;
+      if (BREAK_PRIORITY_CHARS.has(chars[idx])) {
+        candidate = idx + 1;
+        break;
+      }
+    }
 
+    // 3) 禁則調整 (単一ルーチン) を通して確定
+    const breakAt = adjustBreakPoint(chars, start, candidate, maxWidth);
+    lines.push(chars.slice(start, breakAt).join(""));
+    start = breakAt;
+  }
   return lines;
 }
 
@@ -837,15 +1346,13 @@ export function lgIntToNumeric(lgInt: string): number {
   return map[lgInt] ?? -1;
 }
 
-/** 震度文字列から数値優先度を返す (フレームレベル判定用) */
+/**
+ * 震度文字列から数値優先度を返す (表示ソート・比較用)。
+ * intensityToRank (utils/intensity.ts) の wrapper — 震度写像の単一真実源は
+ * INTENSITY_RANK。ここに独自 map を再定義しない (二重定義 drift の構造的防止、spec 既知の間隙)。
+ */
 export function intensityToNumeric(maxInt: string): number {
-  const norm = maxInt.replace(/\s+/g, "");
-  const map: Record<string, number> = {
-    "1": 1, "2": 2, "3": 3, "4": 4,
-    "5-": 5, "5弱": 5, "5+": 6, "5強": 6,
-    "6-": 7, "6弱": 7, "6+": 8, "6強": 8, "7": 9,
-  };
-  return map[norm] ?? 0;
+  return intensityToRank(maxInt);
 }
 
 /** マグニチュードに色を付ける (CUD対応) */
@@ -862,21 +1369,32 @@ export function colorMagnitude(magStr: string): string {
   return magColor(`M${magStr}`);
 }
 
-/** 共通フッター: type / reportDateTime / publishingOffice をテーブル最下段に表示 */
+/**
+ * 共通フッター: type / reportDateTime / publishingOffice をテーブル最下段に表示。
+ *
+ * borderColor (省略可): 罫線色の注入。指定時は frameDividerColored / frameLineColored
+ * で描き、本文罫線色 (例: VPWW の WHITE_BORDER) と揃えられる。
+ * **省略時の挙動は従来と完全に同一** (frameDivider / frameLine の level 色) —
+ * 地震・津波等の他電文系に影響を出さないため。
+ */
 export function renderFooter(
   level: FrameLevel,
   type: string,
   reportDateTime: string,
   publishingOffice: string,
   width: number,
-  buf?: RenderBuffer
+  buf?: RenderBuffer,
+  borderColor?: (s: string) => string
 ): void {
   const out = buf ? (line: string) => buf.push(line) : (line: string) => console.log(line);
-  out(frameDivider(level, width));
-  out(frameLine(level,
-    chalk.gray(`${type}  ${formatTimestamp(reportDateTime)}  ${publishingOffice}`),
-    width
-  ));
+  const footerText = chalk.gray(`${type}  ${formatTimestamp(reportDateTime)}  ${publishingOffice}`);
+  if (borderColor) {
+    out(frameDividerColored(level, borderColor, width));
+    out(frameLineColored(level, borderColor, footerText, width));
+  } else {
+    out(frameDivider(level, width));
+    out(frameLine(level, footerText, width));
+  }
 }
 
 // ── フォールバック表示 ──

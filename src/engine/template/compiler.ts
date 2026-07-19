@@ -7,15 +7,31 @@ import type {
 } from "./types";
 import type { PresentationEvent } from "../presentation/types";
 import { getFieldValue } from "./field-accessor";
-import { applyFilter } from "./filters";
+import { applyFilter, isTemplateFilterName } from "./filters";
 
 /**
  * TemplateNode[] を TemplateRenderer にコンパイルする。
  */
 export function compileTemplateNodes(nodes: TemplateNode[]): TemplateRenderer {
+  validateFilters(nodes);
   return (event: PresentationEvent): string => {
     return renderNodes(nodes, event);
   };
+}
+
+function validateFilters(nodes: TemplateNode[]): void {
+  for (const node of nodes) {
+    if (node.kind === "interpolation") {
+      for (const filter of node.filters) {
+        if (!isTemplateFilterName(filter.name)) {
+          throw new Error(`テンプレートコンパイルエラー: 未知のフィルタ "${filter.name}"`);
+        }
+      }
+    } else if (node.kind === "if") {
+      validateFilters(node.body);
+      if (node.elseBody != null) validateFilters(node.elseBody);
+    }
+  }
 }
 
 function renderNodes(nodes: TemplateNode[], event: PresentationEvent): string {

@@ -57,6 +57,7 @@ export const FILTER_FIELDS: Record<string, FilterField> = {
 
   // テキスト
   title: field("string", [], (e) => e.title),
+  controlTitle: field("string", [], (e) => e.controlTitle),
   headline: field("string", [], (e) => e.headline),
 
   // 地域集約

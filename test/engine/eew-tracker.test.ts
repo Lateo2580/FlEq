@@ -724,4 +724,38 @@ describe("EewTracker", () => {
       expect(r45.isDuplicate).toBe(false);
     });
   });
+
+  describe("To 基準一気通貫 (spec 4.5): getMaxForecastIntensity", () => {
+    function eewInfoWith(serial: string, areas: { name: string; intensity: string; intensityTo?: string }[]): ParsedEewInfo {
+      return {
+        type: "VXSE45",
+        infoType: "発表",
+        title: "緊急地震速報（地震動予報）",
+        reportDateTime: new Date().toISOString(),
+        headline: null,
+        publishingOffice: "気象庁",
+        serial,
+        eventId: "20260705000000",
+        isTest: false,
+        isWarning: false,
+        isAssumedHypocenter: false,
+        forecastIntensity: { areas },
+      };
+    }
+
+    it("previousMaxInt が悲観側 (intensityTo ?? intensity) で入る", () => {
+      const tracker = new EewTracker();
+      tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "4", intensityTo: "5-" }]));
+      const result = tracker.update(eewInfoWith("2", [{ name: "北部", intensity: "5+" }]));
+      // 前回の To 基準最大 = "5-" (From "4" ではない)
+      expect(result.diff?.previousMaxInt).toBe("5-");
+    });
+
+    it("To 基準最大が同値なら diff を出さない (From 差では発火しない)", () => {
+      const tracker = new EewTracker();
+      tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "4", intensityTo: "5-" }]));
+      const result = tracker.update(eewInfoWith("2", [{ name: "北部", intensity: "5-" }]));
+      expect(result.diff?.previousMaxInt).toBeUndefined();
+    });
+  });
 });

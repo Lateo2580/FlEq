@@ -21,6 +21,21 @@ export interface ResolverOptions {
   closeOthers?: boolean;
   mode?: string;
   night?: boolean;
+  display?: boolean;
+  displayPort?: string;
+  displayBind?: string;
+  displayToken?: string;
+}
+
+/** --display-port の文字列値を検証する。非数値・範囲外 (1〜65535 以外) は warn の上 undefined を返す */
+function resolveDisplayPort(raw: string | undefined): number | undefined {
+  if (raw == null) return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) {
+    log.warn(`無効な --display-port を無視しました: ${raw} (有効な値: 1〜65535 の整数)`);
+    return undefined;
+  }
+  return n;
 }
 
 /**
@@ -71,6 +86,13 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
       log.info(
         "火山情報の受信には telegram.volcano の追加が必要です: " +
         chalk.white("fleq config set classifications " + [...classifications, "telegram.volcano"].join(","))
+      );
+    }
+    // 気象警報・注意報用に telegram.weather が含まれていない場合、案内を表示
+    if (!classifications.includes("telegram.weather")) {
+      log.info(
+        "気象警報・注意報の受信には telegram.weather の追加が必要です: " +
+        chalk.white("fleq config set classifications " + [...classifications, "telegram.weather"].join(","))
       );
     }
   } else {
@@ -127,8 +149,26 @@ export function resolveConfig(opts: ResolverOptions): AppConfig {
     eewLogFields: { ...DEFAULT_CONFIG.eewLogFields, ...fileConfig.eewLogFields },
     maxObservations: fileConfig.maxObservations ?? DEFAULT_CONFIG.maxObservations,
     nightMode: opts.night ?? fileConfig.nightMode ?? DEFAULT_CONFIG.nightMode,
+    display: opts.display ?? fileConfig.display ?? DEFAULT_CONFIG.display,
+    displayPort: resolveDisplayPort(opts.displayPort) ?? fileConfig.displayPort ?? DEFAULT_CONFIG.displayPort,
+    displayHost: opts.displayBind ?? fileConfig.displayHost ?? DEFAULT_CONFIG.displayHost,
+    // 空文字 token は「未設定」に正規化する。"" を通すと非 loopback バインド時の自動生成を
+    // 回避して `?token=` (空) が正解になる認証弱化の抜け道になる
+    displayToken: (opts.displayToken || fileConfig.displayToken) || undefined,
     summaryInterval: fileConfig.summaryInterval ?? DEFAULT_CONFIG.summaryInterval,
     backup: fileConfig.backup ?? DEFAULT_CONFIG.backup,
     truncation: { ...DEFAULT_CONFIG.truncation, ...fileConfig.truncation },
+    weatherWarningStandardThreshold:
+      fileConfig.weatherWarningStandardThreshold ??
+      DEFAULT_CONFIG.weatherWarningStandardThreshold,
+    weatherWarningWideThreshold:
+      fileConfig.weatherWarningWideThreshold ??
+      DEFAULT_CONFIG.weatherWarningWideThreshold,
+    weatherWarningDetailMaxPerEntry:
+      fileConfig.weatherWarningDetailMaxPerEntry ??
+      DEFAULT_CONFIG.weatherWarningDetailMaxPerEntry,
+    weatherWarningDetailMaxTotal:
+      fileConfig.weatherWarningDetailMaxTotal ??
+      DEFAULT_CONFIG.weatherWarningDetailMaxTotal,
   };
 }

@@ -29,11 +29,14 @@ import {
   FIXTURE_VTSE41_CANCEL,
   FIXTURE_VTSE51_INFO,
   FIXTURE_VTSE52_OFFSHORE,
+  FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT,
   FIXTURE_VXSE43_WARNING_S1,
+  FIXTURE_VXSE43_WARNING_S3,
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_S26,
   FIXTURE_VXSE45_CANCEL,
+  FIXTURE_VXSE45_FINAL,
   FIXTURE_VXSE45_PLUM,
   FIXTURE_VXSE45_MIXED,
   FIXTURE_VZSE40_NOTICE,
@@ -880,8 +883,79 @@ describe("parseTsunamiTelegram", () => {
     expect(result!.observations).toBeDefined();
     expect(result!.observations!.length).toBeGreaterThan(0);
     expect(result!.observations!.some((obs) => obs.sensor === "ＧＰＳ波浪計")).toBe(true);
+    // Area/Name が空要素の場合 areaName は null (Phase A #4)
+    expect(result!.observations!.every((obs) => obs.areaName === null)).toBe(true);
     expect(result!.estimations).toBeDefined();
     expect(result!.estimations!.length).toBeGreaterThan(0);
+  });
+
+  it("VTSE51 津波観測情報: 観測点の areaName と maxHeightValue を予報区/実測値から抽出する (Phase A #4)", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT, {
+      head: {
+        type: "VTSE51",
+        author: "気象庁",
+        time: new Date().toISOString(),
+        test: false,
+      },
+    });
+
+    const result = parseTsunamiTelegram(msg);
+    expect(result).not.toBeNull();
+    expect(result!.observations).toBeDefined();
+    const kamaishi = result!.observations!.find((obs) => obs.name === "釜石");
+    expect(kamaishi).toMatchObject({
+      areaName: "岩手県",
+      maxHeightValue: "３．２ｍ",
+      maxHeightCondition: "重要",
+    });
+    // MaxHeight/TsunamiHeight を持たない観測点は maxHeightValue が null
+    const ofunato = result!.observations!.find((obs) => obs.name === "大船渡");
+    expect(ofunato).toMatchObject({ areaName: "岩手県", maxHeightValue: null });
+  });
+
+  describe("parseTsunamiTelegram: Forecast/Item/Station (潮位観測点)", () => {
+    it("VTSE51 の Station から観測点名・満潮時刻・到達予想を抽出する", () => {
+      const msg = createMockWsDataMessage("32-39_11_03_250206_VTSE51.xml");
+      const info = parseTsunamiTelegram(msg);
+      expect(info).not.toBeNull();
+      const iwate = info!.forecast!.find((f) => f.areaName === "岩手県");
+      expect(iwate).toBeDefined();
+      expect(iwate!.stations).toBeDefined();
+      expect(iwate!.stations!.length).toBe(4);
+      const miyako = iwate!.stations!.find((s) => s.name === "宮古");
+      expect(miyako).toBeDefined();
+      expect(miyako!.highTideDateTime).toBe("2011-03-11T19:43:00+09:00");
+      expect(miyako!.arrivalTime).toBe("2011-03-11T15:20:00+09:00");
+    });
+
+    it("Station を持たない VTSE41 では stations が undefined のまま", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
+      const info = parseTsunamiTelegram(msg);
+      expect(info).not.toBeNull();
+      expect(info!.forecast!.length).toBeGreaterThan(0);
+      for (const f of info!.forecast!) {
+        expect(f.stations).toBeUndefined();
+      }
+    });
+
+    it("Station の FirstHeight が ArrivalTime を持たず Condition のみのとき Condition にフォールバックする", () => {
+      const xml = readFixture("32-39_11_03_250206_VTSE51.xml").replace(
+        "<ArrivalTime>2011-03-11T15:20:00+09:00</ArrivalTime>",
+        "<Condition>津波到達中と推測</Condition>"
+      );
+      expect(xml).not.toBe(readFixture("32-39_11_03_250206_VTSE51.xml"));
+
+      const msg = createMockWsDataMessage("32-39_11_03_250206_VTSE51.xml");
+      msg.body = encodeXml(xml);
+
+      const info = parseTsunamiTelegram(msg);
+      expect(info).not.toBeNull();
+      const iwate = info!.forecast!.find((f) => f.areaName === "岩手県");
+      expect(iwate).toBeDefined();
+      const miyako = iwate!.stations!.find((s) => s.name === "宮古");
+      expect(miyako).toBeDefined();
+      expect(miyako!.arrivalTime).toBe("津波到達中と推測");
+    });
   });
 });
 
@@ -1192,5 +1266,66 @@ describe("parseLgObservationTelegram", () => {
     expect(result!.comment).toContain("長周期地震動階級");
     expect(result!.detailUri).toBeDefined();
     expect(result!.detailUri).toContain("https://");
+  });
+});
+
+// ── parseEewTelegram Phase 4b 拡張 ──
+
+describe("parseEewTelegram Phase 4b 拡張", () => {
+  function eewMsg(fixture: string, type: string) {
+    return createMockWsDataMessage(fixture, {
+      head: { type, author: "気象庁", time: new Date().toISOString(), test: false },
+    });
+  }
+
+  it("VXSE45: Accuracy rank を数値で保持し NumberOfMagnitudeCalculation=0 を潰さない", () => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_S1, "VXSE45"))!;
+    expect(info.accuracy).toEqual({
+      epicenterRank: 4,
+      epicenterRank2: 4,
+      depthRank: 4,
+      magnitudeRank: 2,
+      magnitudeCalcCount: 0, // `Number(raw) || null` 型の潰し禁止 (spec 4.4)
+    });
+  });
+
+  it("VXSE45: 検知時刻 (Earthquake/ArrivalTime) と LandOrSea を top-level に持つ", () => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_S1, "VXSE45"))!;
+    expect(info.arrivalTime).toBe("2024-04-17T23:14:54+09:00");
+    expect(info.landOrSea).toBe("海域");
+  });
+
+  it("VXSE43: 地域別 intensityTo (From≠To のみ) と arrivalTime を保持する", () => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE43_WARNING_S1, "VXSE43"))!;
+    const areas = info.forecastIntensity!.areas;
+    const hiroshima = areas.find((a) => a.name === "広島県南西部")!;
+    expect(hiroshima.intensity).toBe("3");
+    expect(hiroshima.intensityTo).toBe("4"); // From 3 / To 4 の実 fixture
+    expect(hiroshima.arrivalTime).toBe("2024-04-17T23:15:19+09:00");
+    const ehime = areas.find((a) => a.name === "愛媛県南予")!;
+    expect(ehime.intensityTo).toBeUndefined(); // From===To は範囲扱いしない
+    expect(ehime.hasArrived).toBe(true);
+    expect(ehime.arrivalTime).toBeUndefined(); // 到達済行に ArrivalTime は無い (実 fixture)
+  });
+
+  it("取消報 VXSE45 型 (77_01_33): Body/Text を cancelText に保持する", () => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_CANCEL, "VXSE45"))!;
+    expect(info.infoType).toBe("取消");
+    expect(info.cancelText).toBe("先ほどの、緊急地震速報（地震動予報）を取り消します。");
+  });
+
+  it("取消報 VXSE43 型 (37_01_03): Headline/Text と両持ちでも Body/Text を優先する", () => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE43_WARNING_S3, "VXSE43"))!;
+    expect(info.infoType).toBe("取消");
+    // Body/Text は「先ほどの、」prefix 付き。Headline/Text (prefix 無し) では無いことを固定
+    expect(info.cancelText).toBe("先ほどの、緊急地震速報（警報）を取り消します。");
+  });
+
+  it("要素欠落時は undefined 正規化 (77_01_30 FINAL: Accuracy/LandOrSea 無し)", () => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_FINAL, "VXSE45"))!;
+    expect(info.accuracy).toBeUndefined(); // 空オブジェクトを作らない (spec 4.4)
+    expect(info.landOrSea).toBeUndefined();
+    expect(info.cancelText).toBeUndefined(); // 発表電文に cancelText は付かない
+    expect(info.arrivalTime).toBe("2026-01-01T12:00:00+09:00");
   });
 });

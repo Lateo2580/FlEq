@@ -11,16 +11,28 @@ import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggrega
 import { displayRawHeader, getDisplayMode } from "./formatter";
 import { renderSummaryLine } from "./summary";
 import { displayEewInfo } from "./eew-formatter";
-import {
-  displayEarthquakeInfo,
-  displayTsunamiInfo,
-  displaySeismicTextInfo,
-  displayNankaiTroughInfo,
-  displayLgObservationInfo,
-} from "./earthquake-formatter";
+import { displaySeismicTextInfo } from "./seismic-text-formatter";
+import { displayNankaiTroughInfo } from "./nankai-trough-formatter";
+import { displayLgObservationInfo } from "./lg-observation-formatter";
+import { displayEarthquakeInfo } from "./earthquake-info-formatter";
+import { displayTsunamiInfo } from "./tsunami-formatter";
 import { displayVolcanoInfo, displayVolcanoAshfallBatch } from "./volcano-formatter";
+import { displayWeatherWarning } from "./weather-formatter";
+import { displayWeatherWarningCore } from "./weather-core-formatter";
+import { displayTornadoAdvisory } from "./tornado-formatter";
+import { displayWeatherBriefing } from "./briefing-formatter";
+import { displayEarlyWeatherInfo } from "./early-weather-formatter";
+import { displayWeatherWarningTimeseriesInfo } from "./weather-warning-timeseries-formatter";
+import { displayClimateInfo } from "./climate-info-formatter";
+import { displayWeatherExplanation } from "./weather-explanation-formatter";
+import { displayHeatAlertInfo } from "./heat-alert-formatter";
+import { displayTyphoonAnalysisInfo } from "./typhoon-analysis-formatter";
+import { displayTyphoonProbabilityInfo } from "./typhoon-probability-formatter";
+import { displayFloodForecastInfo } from "./flood-forecast-formatter";
 
 /** DisplayCallbacks の実装を生成する */
+const VPWW_CORE_TYPES = new Set(["VPWW55", "VPWW56", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"]);
+
 export function createDisplayAdapter(): DisplayCallbacks {
   return {
     displayOutcome(outcome: ProcessOutcome): void {
@@ -46,6 +58,44 @@ export function createDisplayAdapter(): DisplayCallbacks {
           break;
         case "nankaiTrough":
           displayNankaiTroughInfo(outcome.parsed);
+          break;
+        case "weather":
+          // VPWW55-61 は新 formatter (警戒レベル相当デザイン)、VPWS50 等は旧 formatter。
+          if (VPWW_CORE_TYPES.has(outcome.parsed.type)) {
+            displayWeatherWarningCore(outcome.parsed);
+          } else {
+            displayWeatherWarning(outcome.parsed, outcome.presentation.weatherDiff);
+          }
+          break;
+        case "tornado":
+          displayTornadoAdvisory(outcome.parsed);
+          break;
+        case "briefing":
+          displayWeatherBriefing(outcome.parsed);
+          break;
+        case "earlyWeather":
+          displayEarlyWeatherInfo(outcome.parsed);
+          break;
+        case "weatherWarningTimeseries":
+          displayWeatherWarningTimeseriesInfo(outcome.parsed);
+          break;
+        case "climateInfo":
+          displayClimateInfo(outcome.parsed);
+          break;
+        case "weatherExplanation":
+          displayWeatherExplanation(outcome.parsed);
+          break;
+        case "heatAlert":
+          displayHeatAlertInfo(outcome.parsed);
+          break;
+        case "typhoonAnalysis":
+          displayTyphoonAnalysisInfo(outcome.parsed);
+          break;
+        case "typhoonProbability":
+          displayTyphoonProbabilityInfo(outcome.parsed);
+          break;
+        case "floodForecast":
+          displayFloodForecastInfo(outcome.parsed);
           break;
         case "raw":
           displayRawHeader(outcome.msg);

@@ -14,6 +14,7 @@ import {
   getTruncation,
 } from "../formatter";
 import * as themeModule from "../theme";
+import * as displayLayout from "../display-layout";
 import { compileFilter, FilterSyntaxError, FilterTypeError, FilterFieldError } from "../../engine/filter";
 import { WINDOW_MINUTES } from "../../engine/messages/summary-tracker";
 import { formatSummaryInterval } from "../summary-interval-formatter";
@@ -56,12 +57,8 @@ const TRUNCATION_LABELS: Record<keyof TruncationLimits, string> = {
   volcanoAshfallDetailLines: "降灰詳細(VFVO55)本文",
   volcanoAshfallRegularLines: "降灰定時(VFVO53)本文",
   volcanoPreventionLines: "火山警報 防災事項",
-  ashfallAreasQuick: "降灰速報(VFVO54) 地域数",
-  ashfallAreasOther: "降灰予報 地域数",
-  ashfallPeriodsQuick: "降灰速報(VFVO54) 時間帯数",
-  ashfallPeriodsOther: "降灰予報 時間帯数",
   plumeWindSampleRows: "噴煙流向報 風向データ行数",
-  tsunamiCompactForecastAreas: "津波compact 予報地域数",
+  floodAssumptionLines: "洪水予報 氾濫想定行数",
 };
 
 /** 時間文字列をミリ秒に変換 (例: "30m" → 1800000, "1h" → 3600000, "90s" → 90000) */
@@ -142,6 +139,7 @@ export function handleNotify(ctx: ReplContext, args: string): void {
       );
     }
     console.log();
+    console.log(chalk.gray("  ※ critical (特別警報級) はカテゴリ OFF でも通知"));
     console.log(
       chalk.gray("  使い方: notify <category> [on|off] / notify all:on / notify all:off")
     );
@@ -611,9 +609,7 @@ export function handleLimit(ctx: ReplContext, args: string): void {
       "volcanoPreventionLines",
     ];
     const countKeys: (keyof TruncationLimits)[] = [
-      "ashfallAreasQuick", "ashfallAreasOther",
-      "ashfallPeriodsQuick", "ashfallPeriodsOther",
-      "plumeWindSampleRows", "tsunamiCompactForecastAreas",
+      "plumeWindSampleRows",
     ];
 
     const printGroup = (label: string, keys: (keyof TruncationLimits)[]): void => {
@@ -958,6 +954,97 @@ function handleThemeReset(ctx: ReplContext): void {
         } catch (err) {
           const msg = err instanceof Error ? err.message : "不明なエラー";
           console.log(chalk.red(`  theme.json の書き出しに失敗しました: ${msg}`));
+        }
+      } else {
+        console.log(chalk.gray("  キャンセルしました"));
+      }
+      rl.setPrompt(ctx.buildPromptString());
+      rl.prompt();
+    }
+  );
+}
+
+export function handleLayout(ctx: ReplContext, args: string): void {
+  const sub = args.trim().toLowerCase();
+
+  if (sub === "" || sub === "info") {
+    const layout = displayLayout.getWeatherCoreLayout();
+    console.log();
+    console.log(chalk.cyan.bold("  表示レイアウト (weatherCore):"));
+    console.log();
+    console.log(chalk.white("  body 順: ") + layout.body.join(" → "));
+    console.log(chalk.white("  バナー: ") + (layout.banner ? chalk.green("ON") : chalk.gray("OFF")));
+    console.log(chalk.white("  フッタ: ") + (layout.footer ? chalk.green("ON") : chalk.gray("OFF")));
+    console.log(chalk.white("  こぼれ受け詳細: ") + (layout.tableOverflowDetail ? chalk.green("ON") : chalk.gray("OFF")));
+    console.log();
+    console.log(chalk.white("  display-layout.json: ") + chalk.gray(displayLayout.getDisplayLayoutPath()));
+    console.log();
+    console.log(chalk.gray("  サブコマンド: layout path / reset / reload / validate"));
+    console.log();
+    return;
+  }
+
+  if (sub === "path") {
+    console.log(`  ${displayLayout.getDisplayLayoutPath()}`);
+    return;
+  }
+
+  if (sub === "reload") {
+    const { errors, warnings } = displayLayout.reloadDisplayLayout();
+    if (errors.length > 0) {
+      console.log(chalk.red("  display-layout.json にエラーがあります (反映せずデフォルト設定を使用中):"));
+      for (const e of errors) console.log(chalk.red(`    ${e}`));
+    } else if (warnings.length > 0) {
+      console.log(chalk.yellow("  レイアウトを再読込しました (警告あり):"));
+      for (const w of warnings) console.log(chalk.yellow(`    ${w}`));
+    } else {
+      console.log(chalk.green("  レイアウトを再読込しました"));
+    }
+    return;
+  }
+
+  if (sub === "validate") {
+    const { valid, errors, warnings } = displayLayout.validateDisplayLayoutFile();
+    if (valid && errors.length === 0 && warnings.length === 0) {
+      console.log(chalk.green("  display-layout.json に問題はありません"));
+    } else if (valid) {
+      console.log(chalk.yellow("  display-layout.json の検証結果:"));
+      for (const w of warnings) console.log(chalk.yellow(`    ${w}`));
+    } else {
+      console.log(chalk.red("  display-layout.json に問題があります:"));
+      for (const e of errors) console.log(chalk.red(`    ${e}`));
+      for (const w of warnings) console.log(chalk.yellow(`    ${w}`));
+    }
+    return;
+  }
+
+  if (sub === "reset") {
+    handleLayoutReset(ctx);
+    return;
+  }
+
+  console.log(chalk.yellow(`  不明なサブコマンド: ${args.trim()}`));
+  console.log(chalk.gray("  使い方: layout / layout path / layout reset / layout reload / layout validate"));
+}
+
+function handleLayoutReset(ctx: ReplContext): void {
+  if (!ctx.rl) return;
+  const rl = ctx.rl;
+  rl.question(
+    chalk.yellow("  デフォルトの display-layout.json を書き出しますか？ (y/N) "),
+    (answer: string) => {
+      if (answer.trim().toLowerCase() === "y") {
+        try {
+          const { errors, warnings } = displayLayout.resetDisplayLayout();
+          if (errors.length > 0) {
+            for (const e of errors) console.log(chalk.red(`  ${e}`));
+          } else {
+            console.log(chalk.green(`  display-layout.json を書き出しました: ${displayLayout.getDisplayLayoutPath()}`));
+            for (const w of warnings) console.log(chalk.yellow(`    ${w}`));
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "不明なエラー";
+          console.log(chalk.red(`  display-layout.json の書き出しに失敗しました: ${msg}`));
         }
       } else {
         console.log(chalk.gray("  キャンセルしました"));

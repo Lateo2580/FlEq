@@ -127,6 +127,7 @@ export const VALID_CLASSIFICATIONS: Classification[] = [
   "eew.forecast",
   "eew.warning",
   "telegram.volcano",
+  "telegram.weather",
 ];
 
 /** 有効なテストモード */
@@ -154,16 +155,38 @@ export const VALID_EEW_LOG_FIELDS: EewLogField[] = [
   "maxIntChangeReason",
 ];
 
-/** 有効な通知カテゴリ */
-const VALID_NOTIFY_CATEGORIES: NotifyCategory[] = [
-  "eew",
-  "earthquake",
-  "tsunami",
-  "seismicText",
-  "nankaiTrough",
-  "lgObservation",
-  "volcano",
-];
+/**
+ * 有効な通知カテゴリ。
+ *
+ * [Codex R3 W1] Record<NotifyCategory, true> で持つことで、NotifyCategory に
+ * 新しいキーが増えた瞬間 tsc がここを通せず止める (型レベルでの漏れ防止)。
+ * 以前は単なる配列で、`climateInfo` のような追加カテゴリが whitelist に
+ * 載らないまま `Notifier.persist()` → `loadConfig()` の round-trip で
+ * 静かに捨てられていた。
+ */
+const VALID_NOTIFY_CATEGORIES_TABLE: Record<NotifyCategory, true> = {
+  eew: true,
+  earthquake: true,
+  tsunami: true,
+  seismicText: true,
+  nankaiTrough: true,
+  lgObservation: true,
+  volcano: true,
+  weather: true,
+  tornado: true,
+  briefing: true,
+  earlyWeather: true,
+  weatherWarningTimeseries: true,
+  climateInfo: true,
+  weatherExplanation: true,
+  heatAlert: true,
+  typhoonAnalysis: true,
+  typhoonProbability: true,
+  floodForecast: true,
+};
+const VALID_NOTIFY_CATEGORIES = Object.keys(
+  VALID_NOTIFY_CATEGORIES_TABLE,
+) as NotifyCategory[];
 
 /** 有効な省略上限キー */
 export const VALID_TRUNCATION_KEYS: (keyof TruncationLimits)[] = [
@@ -176,18 +199,14 @@ export const VALID_TRUNCATION_KEYS: (keyof TruncationLimits)[] = [
   "volcanoAshfallDetailLines",
   "volcanoAshfallRegularLines",
   "volcanoPreventionLines",
-  "ashfallAreasQuick",
-  "ashfallAreasOther",
-  "ashfallPeriodsQuick",
-  "ashfallPeriodsOther",
   "plumeWindSampleRows",
-  "tsunamiCompactForecastAreas",
+  "floodAssumptionLines",
 ];
 
 /** 設定可能なキーと説明 */
 const CONFIG_KEYS: Record<string, string> = {
   apiKey: "dmdata.jp APIキー",
-  classifications: "受信区分 (カンマ区切り: telegram.earthquake,eew.forecast,eew.warning)",
+  classifications: "受信区分 (カンマ区切り: telegram.earthquake,eew.forecast,eew.warning,telegram.volcano,telegram.weather)",
   testMode: 'テスト電文モード: "no" | "including" | "only"',
   appName: "アプリケーション名",
   maxReconnectDelaySec: "再接続の最大待機秒数",
@@ -202,7 +221,15 @@ const CONFIG_KEYS: Record<string, string> = {
   maxObservations: '観測点の最大表示件数 (1〜999 / "off" で全件表示)',
   backup: "EEW副回線の有効/無効 (true/false)",
   nightMode: "ナイトモードの有効/無効 (true/false)",
+  display: "情報ディスプレイ (ブラウザ表示サーバ) の有効/無効 (true/false)",
+  displayPort: "情報ディスプレイのポート (1〜65535)",
+  displayHost: "情報ディスプレイのバインド先ホスト",
+  displayToken: "情報ディスプレイの非 loopback 接続用アクセストークン",
   summaryInterval: "定期受信要約の間隔 (分, 1〜1440)",
+  weatherWarningStandardThreshold: "VPWP50 standard 表示の幅閾値 (1〜999)",
+  weatherWarningWideThreshold: "VPWP50 wide 表示の幅閾値 (1〜999)",
+  weatherWarningDetailMaxPerEntry: "VPWP50 詳細の entry あたり最大行数 (1〜999)",
+  weatherWarningDetailMaxTotal: "VPWP50 詳細の全体最大行数 (1〜999)",
   truncation: "省略表示の上限設定 (truncation.<key> で個別設定)",
 };
 
@@ -271,10 +298,32 @@ function validateConfig(raw: Record<string, unknown>): ConfigFile {
   applyMaxObservations(config, raw.maxObservations);
   applyBooleanField(config, "backup", raw.backup);
   applyBooleanField(config, "nightMode", raw.nightMode);
+  applyBooleanField(config, "display", raw.display);
+  applyDisplayPort(config, raw.displayPort);
+  applyDisplayHost(config, raw.displayHost);
+  applyDisplayToken(config, raw.displayToken);
   applySummaryInterval(config, raw.summaryInterval);
   applyTruncation(config, raw.truncation);
+  applyPositiveInteger(config, "weatherWarningStandardThreshold", raw.weatherWarningStandardThreshold);
+  applyPositiveInteger(config, "weatherWarningWideThreshold", raw.weatherWarningWideThreshold);
+  applyPositiveInteger(config, "weatherWarningDetailMaxPerEntry", raw.weatherWarningDetailMaxPerEntry);
+  applyPositiveInteger(config, "weatherWarningDetailMaxTotal", raw.weatherWarningDetailMaxTotal);
 
   return config;
+}
+
+function applyPositiveInteger(
+  config: ConfigFile,
+  field:
+    | "weatherWarningStandardThreshold"
+    | "weatherWarningWideThreshold"
+    | "weatherWarningDetailMaxPerEntry"
+    | "weatherWarningDetailMaxTotal",
+  value: unknown,
+): void {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 999) {
+    config[field] = value;
+  }
 }
 
 function applyApiKey(config: ConfigFile, value: unknown): void {
@@ -324,7 +373,7 @@ function applyReconnectDelay(config: ConfigFile, value: unknown): void {
 
 function applyBooleanField(
   config: ConfigFile,
-  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog" | "backup" | "nightMode",
+  field: "keepExistingConnections" | "infoFullText" | "sound" | "eewLog" | "backup" | "nightMode" | "display",
   value: unknown
 ): void {
   if (typeof value === "boolean") {
@@ -410,6 +459,24 @@ function applyMaxObservations(config: ConfigFile, value: unknown): void {
   }
 }
 
+function applyDisplayPort(config: ConfigFile, value: unknown): void {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535) {
+    config.displayPort = value;
+  }
+}
+
+function applyDisplayHost(config: ConfigFile, value: unknown): void {
+  if (typeof value === "string" && value.length > 0) {
+    config.displayHost = value;
+  }
+}
+
+function applyDisplayToken(config: ConfigFile, value: unknown): void {
+  if (typeof value === "string" && value.length > 0) {
+    config.displayToken = value;
+  }
+}
+
 function applyTruncation(config: ConfigFile, value: unknown): void {
   if (typeof value !== "object" || value == null || Array.isArray(value)) {
     return;
@@ -417,6 +484,7 @@ function applyTruncation(config: ConfigFile, value: unknown): void {
   const raw = value as Record<string, unknown>;
   const truncation: Partial<TruncationLimits> = {};
   for (const [key, val] of Object.entries(raw)) {
+    // 削除済みの旧キーは migration 互換として黙って無視する。
     if (
       VALID_TRUNCATION_KEYS.includes(key as keyof TruncationLimits) &&
       typeof val === "number" &&
@@ -615,6 +683,40 @@ export function setConfigValue(key: string, value: string): void {
       }
       config.nightMode = value === "true";
       break;
+    case "display":
+      if (value !== "true" && value !== "false") {
+        throw new ConfigError(
+          "display は true または false を指定してください。"
+        );
+      }
+      config.display = value === "true";
+      break;
+    case "displayPort": {
+      const dp = Number(value);
+      if (isNaN(dp) || !Number.isInteger(dp) || dp < 1 || dp > 65535) {
+        throw new ConfigError(
+          "displayPort は 1〜65535 の整数を指定してください。"
+        );
+      }
+      config.displayPort = dp;
+      break;
+    }
+    case "displayHost":
+      if (value.length === 0) {
+        throw new ConfigError(
+          "displayHost は空文字にできません。"
+        );
+      }
+      config.displayHost = value;
+      break;
+    case "displayToken":
+      if (value.length === 0) {
+        throw new ConfigError(
+          "displayToken は空文字にできません。"
+        );
+      }
+      config.displayToken = value;
+      break;
     case "summaryInterval": {
       const si = Number(value);
       if (isNaN(si) || !Number.isInteger(si) || si < 1 || si > 1440) {
@@ -623,6 +725,17 @@ export function setConfigValue(key: string, value: string): void {
         );
       }
       config.summaryInterval = si;
+      break;
+    }
+    case "weatherWarningStandardThreshold":
+    case "weatherWarningWideThreshold":
+    case "weatherWarningDetailMaxPerEntry":
+    case "weatherWarningDetailMaxTotal": {
+      const num = Number(value);
+      if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 999) {
+        throw new ConfigError(`${key} は 1〜999 の整数を指定してください。`);
+      }
+      config[key] = num;
       break;
     }
     case "maxObservations": {

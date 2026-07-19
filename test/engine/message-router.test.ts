@@ -25,6 +25,14 @@ import {
   FIXTURE_VXSE45_FINAL,
   FIXTURE_VFVO53_ASH_REGULAR,
   FIXTURE_VFVO54_ASH_RAPID,
+  FIXTURE_VPZJ51_SENJOU,
+  FIXTURE_VPFJ51_KANTO,
+  FIXTURE_VPCI50_KANTO_TSUYU,
+  FIXTURE_VPFT50_SAITAMA,
+  FIXTURE_VMCJ53_OSHIO,
+  FIXTURE_VMCJ54_OSHIO,
+  FIXTURE_VMCJ55_FUKUSHINDO,
+  FIXTURE_VPTW60_2020,
 } from "../helpers/mock-message";
 import { WsDataMessage } from "../../src/types";
 import * as fs from "fs";
@@ -226,6 +234,51 @@ describe("message-router 統合テスト", () => {
       const output = getOutput();
       // VXSE61 は地震情報パスでルーティング
       expect(output.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("表示パイプライン stats 配線", () => {
+    it("record → ingest → publishStats の順で呼ばれ、publishStats の todayQuakeCount が当該イベントを反映する", () => {
+      const callOrder: string[] = [];
+      const ingest = vi.fn(() => callOrder.push("ingest"));
+      const publishStats = vi.fn(() => callOrder.push("publishStats"));
+      const { handler } = createHandler({ displaySink: { ingest, publishStats } });
+
+      const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO);
+      handler(msg);
+
+      expect(callOrder).toEqual(["ingest", "publishStats"]);
+      expect(publishStats).toHaveBeenCalledTimes(1);
+      const stats = publishStats.mock.calls[0][0];
+      expect(stats.todayQuakeCount).toBeGreaterThanOrEqual(1);
+      expect(stats.todayMaxIntRank).not.toBeNull();
+    });
+
+    it("JST 日またぎで totalReceived が todayQuakeCount と同じ暦日基準でリセットされる (Codex R: buildDisplayStats の now 一貫性)", () => {
+      vi.useFakeTimers();
+      try {
+        // JST 2025-01-01 23:59 (UTC 14:59)
+        vi.setSystemTime(new Date("2025-01-01T14:59:00Z"));
+        const publishStats = vi.fn();
+        const { handler } = createHandler({ displaySink: { ingest: vi.fn(), publishStats } });
+
+        handler(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO));
+        const beforeSnap = publishStats.mock.calls[0][0];
+        expect(beforeSnap.totalReceived).toBeGreaterThanOrEqual(1);
+        expect(beforeSnap.todayQuakeCount).toBeGreaterThanOrEqual(1);
+
+        // JST 2025-01-02 00:01 (UTC 15:01) へ進める (日またぎ)
+        vi.setSystemTime(new Date("2025-01-01T15:01:00Z"));
+        handler(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO));
+        const afterSnap = publishStats.mock.calls[publishStats.mock.calls.length - 1][0];
+
+        // 日をまたいだので、totalReceived (TelegramStats) と todayQuakeCount (DailyQuakeCounter)
+        // はどちらも当日分のみを反映し、揃って新規1件になる
+        expect(afterSnap.totalReceived).toBe(1);
+        expect(afterSnap.todayQuakeCount).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
@@ -549,4 +602,128 @@ describe("message-router 統合テスト", () => {
     });
   });
 
+  describe("気象解説情報 ルーティング", () => {
+    it("VPZJ51 を全般気象解説情報として処理する", () => {
+      const { handler } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VPZJ51_SENJOU));
+      expect(getOutput()).toContain("全般気象解説情報");
+    });
+
+    it("VPFJ51 を府県気象解説情報として処理する", () => {
+      const { handler } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VPFJ51_KANTO));
+      expect(getOutput()).toContain("府県気象解説情報");
+    });
+
+    it("VMCJ53 (telegram.weather) は weatherExplanation ルートに分類される", () => {
+      const { handler, stats } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VMCJ53_OSHIO));
+
+      // weatherExplanation ルートで処理され、raw フォールバックに落ちない
+      const snap = stats.getSnapshot();
+      expect(snap.categoryByType.get("VMCJ53")).toBe("weatherExplanation");
+      expect(getOutput()).toContain("大潮");
+    });
+
+    it("VMCJ54 (telegram.weather) は weatherExplanation ルートに分類される", () => {
+      const { handler, stats } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VMCJ54_OSHIO));
+
+      const snap = stats.getSnapshot();
+      expect(snap.categoryByType.get("VMCJ54")).toBe("weatherExplanation");
+      expect(getOutput()).toContain("大潮");
+    });
+
+    it("VMCJ55 (telegram.weather) は weatherExplanation ルートに分類される", () => {
+      const { handler, stats } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VMCJ55_FUKUSHINDO));
+
+      const snap = stats.getSnapshot();
+      expect(snap.categoryByType.get("VMCJ55")).toBe("weatherExplanation");
+      expect(getOutput()).toContain("副振動");
+    });
+  });
+
+  describe("天候情報 ルーティング", () => {
+    it("VPCI50 (telegram.weather) は climateInfo ルートに分類される", () => {
+      const { handler, stats } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VPCI50_KANTO_TSUYU));
+
+      // climateInfo ルートで処理され、統計カテゴリも climateInfo になる
+      const snap = stats.getSnapshot();
+      expect(snap.categoryByType.get("VPCI50")).toBe("climateInfo");
+      // raw フォールバックではなくパース済み表示が出る (タイトル由来の地域名)
+      expect(getOutput()).toContain("関東甲信");
+    });
+  });
+
+  describe("熱中症警戒アラート ルーティング", () => {
+    it("VPFT50 (telegram.weather) は heatAlert ルートに分類され raw に落ちない", () => {
+      const { handler, stats } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VPFT50_SAITAMA));
+
+      // heatAlert ルートで処理され、統計カテゴリも heatAlert になる
+      const snap = stats.getSnapshot();
+      expect(snap.categoryByType.get("VPFT50")).toBe("heatAlert");
+      // raw フォールバックではなくパース済み表示が出る (タイトル由来の対象府県名)
+      expect(getOutput()).toContain("埼玉県");
+    });
+  });
+
+  describe("台風解析・予報情報 ルーティング", () => {
+    it("VPTW60/61/62 (telegram.weather) は typhoonAnalysis ルートに分類される", () => {
+      const { handler, stats } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VPTW60_2020));
+
+      const snap = stats.getSnapshot();
+      expect(snap.categoryByType.get("VPTW60")).toBe("typhoonAnalysis");
+      expect(getOutput()).toContain("台風解析・予報情報");
+    });
+  });
+
+  describe("配信終了予定電文の無視", () => {
+    // 配信終了予定 + 既存表示と内容が重複するため、受信しても
+    // Ignore these telegrams across display, notification, and statistics.
+    const IGNORED_HEAD_TYPES = [
+      "VPWW53", // 特別警報/警報/注意報
+      "VPWW54", // 特別警報/警報/注意報（新しいステージに対応した防災気象情報）
+      "VPNO50", // 気象特別警報報知
+      "VPOA50", // 記録的短時間大雨情報
+      "VPZJ50", // 全般気象情報
+      "VPCJ50", // 地方気象情報
+      "VPFJ50", // 府県気象情報
+      "VMCJ50", // 全般潮位情報
+      "VMCJ51", // 地方潮位情報
+      "VMCJ52", // 府県潮位情報
+      "VXWW50", // 土砂災害警戒情報
+    ];
+
+    function makeWeatherMsg(headType: string): WsDataMessage {
+      return {
+        type: "data",
+        version: "2.0",
+        classification: "telegram.weather",
+        id: `test-ignored-${headType}`,
+        passing: [],
+        head: { type: headType, author: "気象庁", time: new Date().toISOString(), test: false, xml: true },
+        format: "xml",
+        compression: null,
+        encoding: "utf-8",
+        body: "<Report>ignored telegram body</Report>",
+      };
+    }
+
+    it.each(IGNORED_HEAD_TYPES)("%s は受信しても表示されない（フォールバックも出ない）", (headType) => {
+      const { handler } = createHandler();
+      handler(makeWeatherMsg(headType));
+      expect(getOutput()).toBe("");
+    });
+
+    it.each(IGNORED_HEAD_TYPES)("%s は統計に記録されない", (headType) => {
+      const { handler, stats } = createHandler();
+      handler(makeWeatherMsg(headType));
+      expect(stats.getSnapshot().totalCount).toBe(0);
+    });
+
+  });
 });

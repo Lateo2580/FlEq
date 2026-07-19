@@ -10,18 +10,98 @@ import {
   ParsedNankaiTroughInfo,
   ParsedLgObservationInfo,
   ParsedVolcanoInfo,
+  ParsedWeatherWarning,
+  ParsedTornadoAdvisory,
+  ParsedWeatherBriefing,
+  ParsedEarlyWeatherInfo,
+  ParsedWeatherWarningTimeseriesInfo,
+  ParsedClimateInfo,
+  ParsedWeatherExplanation,
+  ParsedHeatAlertInfo,
+  ParsedTyphoonAnalysis,
+  ParsedTyphoonProbability,
+  ParsedFloodForecastInfo,
+  TyphoonProbPeak,
   DEFAULT_CONFIG,
 } from "../../types";
 import { VolcanoPresentation } from "../presentation/volcano-presentation";
 import { loadConfig, saveConfig } from "../../config";
 import { EewUpdateResult } from "../eew/eew-tracker";
 import { playSound, SoundLevel } from "./sound-player";
+import {
+  weatherSoundLevel,
+  tornadoSoundLevel,
+  briefingSoundLevel,
+  earlyWeatherSoundLevel,
+  weatherWarningTimeseriesSoundLevel,
+  climateInfoSoundLevel,
+  weatherExplanationSoundLevel,
+  heatAlertSoundLevel,
+  typhoonAnalysisSoundLevel,
+} from "../presentation/level-helpers";
+import { extractLeadSentence } from "../../dmdata/heat-alert-parser";
 import * as nodeNotifierLoader from "./node-notifier-loader";
 import * as intensityUtils from "../../utils/intensity";
 import * as log from "../../logger";
 
 /** 通知アイコンディレクトリ */
 const ICONS_DIR = path.resolve(__dirname, "../../../assets/icons");
+
+/**
+ * R1 #9: 通知本文に「いつ・どこで」を入れるため、worst Significancy の詳細を取り出す。
+ * 最大本体 Code と一致する最初の Significancy を探し、timeWindow / peak / criteriaPeriod /
+ * 所属 Area 名を返す。
+ */
+function findWorstSignificancyDetail(
+  info: ParsedWeatherWarningTimeseriesInfo,
+): {
+  window?: import("../../types").TimeWindow;
+  peak?: import("../../types").SignificancyPeakTime;
+  criteriaPeriod?: import("../../types").SignificancyCriteriaPeriod;
+  areaName?: string;
+} | null {
+  if (info.maxKnownSignificancy == null) return null;
+  const maxCode = info.maxKnownSignificancy.code;
+  for (const area of info.areas) {
+    for (const tsNum of [1, 2, 3] as const) {
+      for (const k of area.kinds[tsNum]) {
+        const v = k.significancyWorst?.base;
+        if (v?.info.code === maxCode && v.info.known) {
+          return {
+            window: v.timeWindow,
+            peak: v.peak,
+            criteriaPeriod: v.criteriaPeriod,
+            areaName: area.name,
+          };
+        }
+        if (k.significancyWorst?.locals) {
+          for (const lv of k.significancyWorst.locals) {
+            if (lv.value.info.code === maxCode && lv.value.info.known) {
+              return {
+                window: lv.value.timeWindow,
+                peak: lv.value.peak,
+                criteriaPeriod: lv.value.criteriaPeriod,
+                areaName: lv.areaName
+                  ? `${area.name}/${lv.areaName}`
+                  : area.name,
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** 通知用の TimeWindow 短縮表記 */
+function formatTimeWindowForNotify(
+  w: import("../../types").TimeWindow,
+): string {
+  if (w.count <= 1) return w.startName;
+  if (w.contiguous) return `${w.startName}-${w.endName}(${w.count}枠)`;
+  return `${w.startName}ほか${w.count - 1}枠`;
+}
 
 /** NotifyCategory → アイコンファイル名プレフィックス */
 const CATEGORY_ICON_PREFIX: Record<NotifyCategory, string> = {
@@ -32,6 +112,21 @@ const CATEGORY_ICON_PREFIX: Record<NotifyCategory, string> = {
   nankaiTrough: "nankai-trough",
   lgObservation: "lg-observation",
   volcano: "volcano",
+  weather: "weather",
+  tornado: "tornado",
+  briefing: "briefing",
+  earlyWeather: "early-weather",
+  weatherWarningTimeseries: "weather-warning-timeseries",
+  climateInfo: "climate-info",
+  weatherExplanation: "weather-explanation",
+  heatAlert: "heat-alert",
+  typhoonAnalysis: "typhoon-analysis",
+  // 方針A: VPTW のアイコン/音資産を流用 (台風解析と同じ通知ベース)
+  typhoonProbability: "typhoon-analysis",
+  // 指定河川洪水予報 (VXKO50-89 / VXSU50-59)。気象警報級の通知のため weather プレフィックスを流用
+  // (typhoonProbability が typhoon-analysis を流用するのと同じパターン。
+  //  3段 fallback で `weather*.png` 未配置時は default.png に落ちる安全策)
+  floodForecast: "weather",
 };
 
 /** resolveIconPath の結果キャッシュ。キー: "{category}:{level|''}" */
@@ -80,6 +175,13 @@ export function resolveIconPath(
 /** 通知アプリ名 */
 const NOTIFY_APP_NAME = "FlEq";
 
+/**
+ * controlTitle が空 (空文字) のときに使う汎用フォールバック名 (VPCJ51/VPZJ51 共通)。
+ * formatter の DEFAULT_CONTROL_TITLE と意図的にファイル間独立 — 通知層と表示層は
+ * 用途が異なる (通知本文 vs フレーム内タイトル) ため、まとめての集約は別 Phase に送る。
+ */
+const DEFAULT_CONTROL_TITLE = "気象解説情報";
+
 /** 通知カテゴリと日本語ラベルの対応 */
 export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
   eew: "緊急地震速報",
@@ -89,12 +191,37 @@ export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
   nankaiTrough: "南海トラフ関連",
   lgObservation: "長周期地震動",
   volcano: "火山情報",
+  weather: "気象警報・注意報",
+  tornado: "竜巻注意情報",
+  briefing: "気象防災速報",
+  earlyWeather: "早期天候情報",
+  weatherWarningTimeseries: "気象警報・注意報時系列",
+  // VPZI50 (全般) と VPCI50 (地方) の両方を扱うカテゴリのため総称の「天候情報」
+  climateInfo: "天候情報",
+  weatherExplanation: "気象解説情報",
+  heatAlert: "熱中症警戒アラート",
+  typhoonAnalysis: "台風解析・予報情報",
+  typhoonProbability: "台風の暴風域に入る確率",
+  floodForecast: "洪水予報",
 };
+
+/** EEW 通知履歴の TTL (ms)。EewTracker のクリーンアップ閾値と揃える */
+const NOTIFIED_EEW_TTL_MS = 10 * 60 * 1000; // 10分
 
 export class Notifier {
   private settings: NotifySettings;
   private soundEnabled: boolean;
   private muteUntil: number | null = null;
+  /**
+   * EEW の eventId 別「初回通知済み」記録。eventId → 最初の通知時刻 (ms)。
+   *
+   * notifyEew() の第1報判定を EewTracker の `result.isNew` 依存から切り離す
+   * ための安全網。VXSE43/44/45 の到着順や上流の処理変更に左右されず、
+   * 「Notifier から見て初回の eventId」では必ず通知が発火する。
+   *
+   * Map の値はクリーンアップ判定用のタイムスタンプ。
+   */
+  private notifiedEewEventIds = new Map<string, number>();
 
   constructor() {
     const fileConfig = loadConfig();
@@ -170,20 +297,46 @@ export class Notifier {
   // ── 電文タイプ別通知 ──
 
   notifyEew(info: ParsedEewInfo, result: EewUpdateResult): void {
-    if (!this.settings.eew) return;
-
     // 抑制された報は通知しない
     if (result.isSuppressed) return;
 
-    // 通知条件: 第1報 / 警報昇格 / 取消報 / 最終報
+    // 重複報も通知しない (通常は processEew 上流で落ちるが、
+    // Notifier 単体の契約としても初回扱いにならないようガード)
+    if (result.isDuplicate) return;
+
+    // 古いエントリをクリーンアップ (10分超のものを削除)
+    this.cleanupNotifiedEewEventIds();
+
+    // 「Notifier から見て初回の eventId か」を判定する。
+    // EewTracker の result.isNew は上流処理 (VXSE43/44/45 の到着順や
+    // 抑制ロジック) の影響を受けやすいため、第1報通知の発火を
+    // Notifier 自身の状態で担保する安全網。eventId が無い場合は
+    // 従来通り result.isNew にフォールバックする。
+    const isFirstNotificationForEvent =
+      info.eventId != null
+        ? !this.notifiedEewEventIds.has(info.eventId)
+        : result.isNew;
+
+    // 通知条件: 第1報 (イベント単位の初回通知) / 警報昇格 / 取消報 / 最終報
     const isFinal = info.nextAdvisory != null;
 
-    if (!result.isNew && !result.isUpgradeToWarning && !result.isCancelled && !isFinal) {
+    if (
+      !isFirstNotificationForEvent &&
+      !result.isUpgradeToWarning &&
+      !result.isCancelled &&
+      !isFinal
+    ) {
       return;
     }
 
     if (result.isCancelled) {
       this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました", "eew", "cancel");
+      // 取消後は同じ eventId が再到来したときに再度「初回通知」として
+      // 鳴らせるよう、履歴から削除する (実運用上は同一 eventId の再発は
+      // ほぼ無いが、テストや再接続のシナリオでの安全網)。
+      if (info.eventId != null) {
+        this.notifiedEewEventIds.delete(info.eventId);
+      }
       return;
     }
 
@@ -200,11 +353,24 @@ export class Notifier {
       : title;
 
     this.send(title, body, "eew", soundLevel);
+
+    // 通知発火を履歴に記録 (cleanup 用のタイムスタンプを格納)
+    if (info.eventId != null) {
+      this.notifiedEewEventIds.set(info.eventId, Date.now());
+    }
+  }
+
+  /** EEW 通知履歴から TTL 超のエントリを削除する */
+  private cleanupNotifiedEewEventIds(): void {
+    const now = Date.now();
+    for (const [id, ts] of this.notifiedEewEventIds) {
+      if (now - ts > NOTIFIED_EEW_TTL_MS) {
+        this.notifiedEewEventIds.delete(id);
+      }
+    }
   }
 
   notifyEarthquake(info: ParsedEarthquakeInfo): void {
-    if (!this.settings.earthquake) return;
-
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "earthquake", "cancel");
       return;
@@ -224,8 +390,6 @@ export class Notifier {
   }
 
   notifyTsunami(info: ParsedTsunamiInfo): void {
-    if (!this.settings.tsunami) return;
-
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "tsunami", "cancel");
       return;
@@ -247,8 +411,6 @@ export class Notifier {
   }
 
   notifySeismicText(info: ParsedSeismicTextInfo): void {
-    if (!this.settings.seismicText) return;
-
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "seismicText", "cancel");
       return;
@@ -259,8 +421,6 @@ export class Notifier {
   }
 
   notifyNankaiTrough(info: ParsedNankaiTroughInfo): void {
-    if (!this.settings.nankaiTrough) return;
-
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "nankaiTrough", "cancel");
       return;
@@ -271,8 +431,6 @@ export class Notifier {
   }
 
   notifyLgObservation(info: ParsedLgObservationInfo): void {
-    if (!this.settings.lgObservation) return;
-
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "lgObservation", "cancel");
       return;
@@ -294,8 +452,6 @@ export class Notifier {
   }
 
   notifyVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void {
-    if (!this.settings.volcano) return;
-
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "volcano", "cancel");
       return;
@@ -305,8 +461,520 @@ export class Notifier {
   }
 
   notifyVolcanoBatch(batch: { items: { volcanoName: string }[] }, presentation: VolcanoPresentation): void {
-    if (!this.settings.volcano) return;
     this.send("降灰予報（定時）", presentation.summary, "volcano", presentation.soundLevel);
+  }
+
+  /**
+   * @param soundLevelOverride processWeather が unsafe 昇格等で決めた
+   *   outcome.presentation.soundLevel (Codex 最終レビュー F-3)。再計算 drift を防ぐため
+   *   呼び出し元が outcome を持つ経路では必ず渡す。取消は従来どおり cancel 直指定が優先
+   */
+  notifyWeatherWarning(info: ParsedWeatherWarning, soundLevelOverride?: SoundLevel): void {
+    if (info.infoType === "取消") {
+      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "weather", "cancel");
+      return;
+    }
+
+    // soundLevel は level-helpers の共通実装を再利用 (drift 防止、Phase C で displaySeverity ベース)。
+    // override があればそちらを優先 (unsafe の "warning" 昇格を通知音に届ける)
+    const soundLevel = soundLevelOverride ?? weatherSoundLevel(info);
+
+    const parts: string[] = [];
+    if (info.warningAreaCount > 0) {
+      parts.push(`警報 ${info.warningAreaCount}地域`);
+    }
+    if (info.advisoryAreaCount > 0) {
+      parts.push(`注意報 ${info.advisoryAreaCount}地域`);
+    }
+    if (info.headline) {
+      parts.push(info.headline);
+    }
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "weather",
+      soundLevel,
+    );
+  }
+
+  /**
+   * @param soundLevelOverride outcome.presentation.soundLevel (weather F-3 の横展開)。
+   *   再計算 drift を予防する (tornado は現状 presentation 側に昇格経路がなく
+   *   process-tornado も同じ tornadoSoundLevel で計算するため weather F-3 のような
+   *   実乖離はないが、将来の昇格追加に備えて outcome を持つ経路では必ず渡す)。
+   *   取消は cancel 直指定が優先
+   */
+  notifyTornadoAdvisory(info: ParsedTornadoAdvisory, soundLevelOverride?: SoundLevel): void {
+    if (info.infoType === "取消") {
+      this.send(`[取消] ${info.title}`, "竜巻注意情報は取り消されました", "tornado", "cancel");
+      return;
+    }
+
+    // soundLevel は level-helpers の共通実装を再利用 (drift 防止)。
+    // override があればそちらを優先 (presentation 層の昇格を通知音に届ける)
+    const soundLevel: SoundLevel = soundLevelOverride ?? tornadoSoundLevel(info);
+
+    const parts: string[] = [];
+    if (info.hasSightingAreas) {
+      parts.push("目撃情報あり");
+    } else if (info.isSightingTelegram) {
+      // フェイルセーフ: 目撃電文だが地域抽出に失敗したケース (2026-06-12 レビュー決定)
+      parts.push("目撃情報 (地域不明)");
+    }
+    if (info.activeAreaCount > 0) {
+      parts.push(`発表中 ${info.activeAreaCount}地域`);
+    }
+    if (info.validDateTime) {
+      // 有効期限を簡略表示
+      parts.push(`有効期限 ${info.validDateTime.slice(11, 16)}`);
+    }
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "tornado",
+      soundLevel,
+    );
+  }
+
+  notifyEarlyWeather(info: ParsedEarlyWeatherInfo): void {
+    if (info.infoType === "取消") {
+      this.send(
+        `[取消] ${info.title}`,
+        "早期天候情報は取り消されました",
+        "earlyWeather",
+        "cancel",
+      );
+      return;
+    }
+
+    const soundLevel = earlyWeatherSoundLevel(info);
+
+    const parts: string[] = [];
+    // 対象地域
+    if (info.targetArea) {
+      parts.push(info.targetArea.name);
+    }
+    // 期間ラベル (最初の phenomenon の periodLabel)
+    const firstWithPeriod = info.phenomena.find((p) => p.periodLabel);
+    if (firstWithPeriod?.periodLabel) {
+      parts.push(firstWithPeriod.periodLabel);
+    }
+    // 主要現象 (確率付き)
+    const phenomenonParts = info.phenomena
+      .filter((p) => p.type)
+      .map((p) => {
+        if (p.probabilityPercent != null) {
+          return `${p.type} ${p.probabilityPercent}%`;
+        }
+        return p.type;
+      });
+    if (phenomenonParts.length > 0) {
+      parts.push(phenomenonParts.join(" / "));
+    }
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "earlyWeather",
+      soundLevel,
+    );
+  }
+
+  notifyWeatherWarningTimeseries(
+    info: ParsedWeatherWarningTimeseriesInfo,
+  ): void {
+    if (info.infoType === "取消") {
+      this.send(
+        `[取消] ${info.title}`,
+        "気象警報・注意報時系列は取り消されました",
+        "weatherWarningTimeseries",
+        "cancel",
+      );
+      return;
+    }
+
+    const soundLevel = weatherWarningTimeseriesSoundLevel(info);
+
+    const parts: string[] = [];
+    // 対象地域 (TargetArea 優先)
+    if (info.targetArea) {
+      parts.push(info.targetArea.name);
+    }
+    // [R1 #9] 最大本体 (既知 Code) + worst 時刻幅 + 最大リスク地点
+    if (info.maxKnownSignificancy) {
+      const worst = findWorstSignificancyDetail(info);
+      const winTag = worst?.window
+        ? ` ${formatTimeWindowForNotify(worst.window)}`
+        : "";
+      const areaTag = worst?.areaName ? ` @${worst.areaName}` : "";
+      parts.push(
+        `最大: ${info.maxKnownSignificancy.compact}${winTag}${areaTag}`,
+      );
+    }
+    // [R1 #9] 高リスク (warning/special/未知) 時のみ PeakTime / CriteriaPeriod 短縮
+    const sev = info.maxKnownSignificancy?.severity;
+    const isHighRisk =
+      sev === "warning" || sev === "special" || info.unknownCodes.length > 0;
+    if (isHighRisk) {
+      const detail = findWorstSignificancyDetail(info);
+      if (detail?.peak) {
+        parts.push(`ピーク=${detail.peak.date}${detail.peak.term}`);
+      }
+      if (detail?.criteriaPeriod) {
+        const rank = detail.criteriaPeriod.criteriaClass.match(/レベル([0-9]+)/);
+        const r = rank ? rank[1] : "?";
+        const hhmm = detail.criteriaPeriod.time.slice(11, 16);
+        parts.push(`基準${r}:${hhmm}`);
+      }
+    }
+    // 未知 Code は別表示
+    if (info.unknownCodes.length > 0) {
+      const codes = Array.from(
+        new Set(info.unknownCodes.map((u) => `?${u.code}`)),
+      ).join(",");
+      parts.push(`未知:${codes}`);
+    }
+    // Area 件数
+    if (info.areas.length > 0) {
+      parts.push(`${info.areas.length}地域`);
+    }
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "weatherWarningTimeseries",
+      soundLevel,
+    );
+  }
+
+  notifyClimateInfo(info: ParsedClimateInfo): void {
+    if (info.infoType === "取消") {
+      // controlTitle は空文字になりうるので || を使用 (VPZI50=全般/VPCI50=地方)
+      const label = info.controlTitle || "天候情報";
+      this.send(
+        `[取消] ${info.title}`,
+        `${label}は取り消されました`,
+        "climateInfo",
+        "cancel",
+      );
+      return;
+    }
+
+    const soundLevel = climateInfoSoundLevel(info);
+
+    const parts: string[] = [];
+    if (info.targetArea) {
+      parts.push(info.targetArea.name);
+    }
+    if (info.stations.length > 0) {
+      parts.push(`観測点 ${info.stations.length}地点`);
+    }
+    if (info.headline) {
+      // 通知本文は冗長になりがちなので 1 行目だけ
+      const firstLine = info.headline.split("\n")[0];
+      parts.push(firstLine.slice(0, 80));
+    }
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "climateInfo",
+      soundLevel,
+    );
+  }
+
+  notifyWeatherExplanation(info: ParsedWeatherExplanation): void {
+    // info.controlTitle は string 型だが空文字になりうるので || を使用 (== null では空文字を拾えない)
+    const controlTitle = info.controlTitle || DEFAULT_CONTROL_TITLE;
+
+    if (info.infoType === "取消") {
+      this.send(
+        `[取消] ${info.title}`,
+        `${controlTitle}は取り消されました`,
+        "weatherExplanation",
+        "cancel",
+      );
+      return;
+    }
+
+    const soundLevel = weatherExplanationSoundLevel(info);
+
+    const parts: string[] = [];
+    if (info.targetAreas.length > 0) {
+      parts.push(info.targetAreas[0].name);
+    }
+    // 情報タグ (例: "強い冬型 大雪") を 1-2 個まで
+    const tagLabels = info.informationTags
+      .flatMap((t) => t.keywords)
+      .filter((k, i, arr) => arr.indexOf(k) === i)
+      .slice(0, 3);
+    if (tagLabels.length > 0) {
+      parts.push(tagLabels.join("・"));
+    }
+    if (info.headline) {
+      const firstLine = info.headline.split("\n")[0];
+      parts.push(firstLine.slice(0, 80));
+    }
+
+    // 観測実況の最重要 remark を 1 件だけ追加 (VPCJ51/VPZJ51 は observation=null のため挙動変化なし)
+    let remarkLine: string | null = null;
+    outer: for (const s of info.observation?.series ?? []) {
+      for (const st of s.stations) {
+        for (const m of st.measurements) {
+          const remark = m.remark;
+          if (remark == null) continue;
+          // formatter の formatStationRow と同じ value fallback (sentence が空のとき値文字列で代替)
+          const valueStr = m.values
+            .map((v) => {
+              if (v.value != null) return `${v.value}${v.unit}`;
+              return v.description || v.raw || "";
+            })
+            .filter((x) => x.length > 0)
+            .join(" ");
+          const rendered = m.sentence || valueStr;
+          remarkLine = `観測実況: ${st.stationName} ${rendered}`;
+          if (!rendered.includes(remark)) {
+            remarkLine += ` ※${remark}`;
+          }
+          break outer;
+        }
+      }
+    }
+    if (remarkLine != null) parts.push(remarkLine);
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "weatherExplanation",
+      soundLevel,
+    );
+  }
+
+  /**
+   * @param soundLevelOverride outcome.presentation.soundLevel (weather F-3 の横展開)。
+   *   再計算 drift を予防する (briefing は現状 presentation 側に昇格経路がなく
+   *   process-briefing も同じ briefingSoundLevel で計算するため weather F-3 のような
+   *   実乖離はないが、将来の昇格追加に備えて outcome を持つ経路では必ず渡す)。
+   *   取消は cancel 直指定が優先
+   */
+  notifyWeatherBriefing(info: ParsedWeatherBriefing, soundLevelOverride?: SoundLevel): void {
+    if (info.infoType === "取消") {
+      this.send(`[取消] ${info.title}`, "気象防災速報は取り消されました", "briefing", "cancel");
+      return;
+    }
+
+    // override があればそちらを優先 (presentation 層の昇格を通知音に届ける)
+    const soundLevel = soundLevelOverride ?? briefingSoundLevel(info);
+
+    const parts: string[] = [];
+    // Phase D: 代表 Condition + 残りを最大 3 件まで連結 (集合ベース化で複数 Condition が来る)
+    const conditionSummary = [
+      info.briefingCondition,
+      ...info.briefingConditions.filter((c) => c !== info.briefingCondition),
+    ]
+      .filter((c) => c !== "")
+      .slice(0, 3)
+      .join(" / ");
+    if (conditionSummary) {
+      parts.push(conditionSummary);
+    }
+    // 対象地域 (1-2 件)
+    const areaNames = info.targetAreas.slice(0, 2).map((a) => a.name);
+    if (areaNames.length > 0) {
+      parts.push(areaNames.join(", "));
+    }
+    // 観測実況: value 付き観測を優先、なければ description のある先頭を使う
+    const observations = info.observations;
+    const valueObs = observations.find(
+      (o) => o.value != null && (o.locationName || o.description),
+    );
+    const firstObs = valueObs ?? observations.find((o) => o.description);
+    if (firstObs) {
+      const loc = firstObs.locationName ? `${firstObs.locationName} ` : "";
+      const valuePart =
+        firstObs.value != null
+          ? `${firstObs.value}${firstObs.unit ?? ""}`
+          : "";
+      const desc = firstObs.description || valuePart || firstObs.observationType;
+      parts.push(`${loc}${desc}`.trim());
+    }
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "briefing",
+      soundLevel,
+    );
+  }
+
+  /**
+   * 熱中症警戒アラート (VPFT50)。
+   * @param soundLevelOverride outcome.presentation.soundLevel (再計算 drift の予防)。
+   *   outcome を持つ経路 (dispatchNotify) では必ず渡す。取消は cancel 直指定が優先
+   */
+  notifyHeatAlert(info: ParsedHeatAlertInfo, soundLevelOverride?: SoundLevel): void {
+    if (info.infoType === "取消") {
+      this.send(
+        `[取消] ${info.title}`,
+        "熱中症警戒アラートは取り消されました",
+        "heatAlert",
+        "cancel",
+      );
+      return;
+    }
+
+    // override があればそちらを優先 (presentation 層の昇格を通知音に届ける)
+    const soundLevel = soundLevelOverride ?? heatAlertSoundLevel(info);
+
+    const parts: string[] = [];
+    if (info.targetAreaName) {
+      parts.push(info.targetAreaName);
+    }
+    // Headline が空電文のため本文先頭文を通知 body に使う (80 文字まで)
+    const lead = extractLeadSentence(info.bodyText);
+    if (lead) {
+      parts.push(lead.slice(0, 80));
+    }
+
+    this.send(
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+      "heatAlert",
+      soundLevel,
+    );
+  }
+
+  /**
+   * 台風解析・予報情報 (VPTW60/61/62)。
+   * @param soundLevelOverride outcome.presentation.soundLevel (再計算 drift の予防)。
+   *   outcome を持つ経路 (dispatchNotify) では必ず渡す。取消は cancel 直指定が優先
+   */
+  notifyTyphoonAnalysis(info: ParsedTyphoonAnalysis, soundLevelOverride?: SoundLevel): void {
+    if (info.infoType === "取消") {
+      this.send(
+        `[取消] ${info.title}`,
+        "この台風情報は取り消されました",
+        "typhoonAnalysis",
+        "cancel",
+      );
+      return;
+    }
+
+    const soundLevel = soundLevelOverride ?? typhoonAnalysisSoundLevel(info);
+
+    const nameLabel = info.name?.name
+      ? `${info.name.name}${info.name.number ? ` (台風${info.name.number.slice(2)}号)` : ""}`
+      : info.name?.remark || "熱帯低気圧";
+    const location = info.frames[0]?.center.location ?? "";
+
+    this.send(
+      info.title,
+      `${nameLabel} ${location}`.trim(),
+      "typhoonAnalysis",
+      soundLevel,
+    );
+  }
+
+  /**
+   * 台風の暴風域に入る確率 (VPTA50)。
+   * @param soundLevelOverride outcome.presentation.soundLevel を必ず渡す。
+   */
+  notifyTyphoonProbability(
+    info: ParsedTyphoonProbability,
+    soundLevelOverride?: SoundLevel,
+  ): void {
+    if (info.infoType === "取消") {
+      this.send(
+        `[取消] ${info.title}`,
+        "この台風情報は取り消されました",
+        "typhoonProbability",
+        "cancel",
+      );
+      return;
+    }
+
+    const soundLevel = soundLevelOverride ?? "normal";
+    const nameLabel = info.name?.name
+      ? `${info.name.name}${info.name.number ? ` (台風${info.name.number.slice(2)}号)` : ""}`
+      : info.name?.remark || "熱帯低気圧";
+
+    // 最悪情報を求める作業用ローカル型（any を避ける）
+    interface WorstSummary {
+      value: number;
+      pref: string;
+      area: string;
+      peak: TyphoonProbPeak | null;
+    }
+    const init: WorstSummary = { value: 0, pref: "", area: "", peak: null };
+    const worst = info.regions.reduce<WorstSummary>((m, r) => {
+      const d4 = r.daily[4] ?? 0;
+      if (d4 > m.value) {
+        return { value: d4, pref: r.prefName, area: r.areaName, peak: r.peak };
+      }
+      return m;
+    }, init);
+
+    // peak 時刻を "MM/DD HH時頃" 形式に整形
+    function jstHourLabel(iso: string): string {
+      const m = iso.match(/^\d{4}-(\d{2})-(\d{2})T(\d{2})/);
+      if (!m) return "";
+      return `${m[1]}/${m[2]} ${m[3]}時頃`;
+    }
+
+    let body: string;
+    if (worst.value === 0) {
+      body = `${nameLabel} 暴風域に入る確率1%以上の地域なし`;
+    } else {
+      const peakTxt =
+        worst.peak?.kind === "value" ? jstHourLabel(worst.peak.time) : "";
+      body = `${nameLabel} 最大 ${worst.value}% (${worst.pref}/${worst.area}${
+        peakTxt ? `, ${peakTxt}` : ""
+      })`;
+    }
+
+    this.send(info.title, body, "typhoonProbability", soundLevel);
+  }
+
+  /**
+   * 指定河川洪水予報 (VXKO50-89 / VXSU50-59)。
+   * Headline-only 電文 (rawStations 空) でも fallback で body を埋める。
+   * 取消パスは cancel 直指定が優先。
+   * @param soundLevelOverride outcome.presentation.soundLevel を必ず渡す (再計算 drift 予防、weather F-3 の横展開)。
+   */
+  notifyFloodForecast(parsed: ParsedFloodForecastInfo, soundLevelOverride?: SoundLevel): void {
+    if (parsed.infoType === "取消") {
+      const cancelLabel =
+        parsed.headlines[0]?.areas[0]?.name ?? parsed.rawStations[0]?.stationName ?? "";
+      this.send(
+        `[${NOTIFY_CATEGORY_LABELS.floodForecast}取消] ${parsed.headTitle}`,
+        cancelLabel === ""
+          ? "指定河川洪水予報の発表を取り消します"
+          : `${cancelLabel} の発表を取り消します`,
+        "floodForecast",
+        "cancel",
+      );
+      return;
+    }
+
+    // Headline-only fallback (rawStations 空でも station 名相当を埋める)
+    const stationLabel =
+      parsed.rawStations[0]?.stationName ??
+      parsed.headlines[0]?.areas[0]?.name ??
+      parsed.headTitle;
+    const headline =
+      parsed.headlines.find((h) => h.scope === "河川")?.headlineText ??
+      parsed.headlines[0]?.headlineText ??
+      "";
+
+    const body = headline === "" ? stationLabel : `${stationLabel}: ${headline}`;
+
+    this.send(
+      `${NOTIFY_CATEGORY_LABELS.floodForecast} ${parsed.headTitle}`,
+      body,
+      "floodForecast",
+      soundLevelOverride ?? "warning",
+    );
   }
 
   // ── 内部メソッド ──
@@ -324,6 +992,7 @@ export class Notifier {
   }
 
   private send(title: string, message: string, category: NotifyCategory, level?: SoundLevel): void {
+    if (!this.settings[category] && level !== "critical") return;
     if (this.isMuted()) return;
     try {
       const nn = this.getNotifier();
@@ -389,13 +1058,17 @@ export class Notifier {
     if (!info.forecastIntensity?.areas || info.forecastIntensity.areas.length === 0) {
       return "不明";
     }
-    let maxLabel = info.forecastIntensity.areas[0].intensity;
+    let maxLabel = intensityUtils.eewPessimisticIntensity(
+      info.forecastIntensity.areas[0].intensity,
+      info.forecastIntensity.areas[0].intensityTo,
+    );
     let maxRank = intensityUtils.intensityToRank(maxLabel);
     for (const area of info.forecastIntensity.areas) {
-      const rank = intensityUtils.intensityToRank(area.intensity);
+      const candidate = intensityUtils.eewPessimisticIntensity(area.intensity, area.intensityTo);
+      const rank = intensityUtils.intensityToRank(candidate);
       if (rank > maxRank) {
         maxRank = rank;
-        maxLabel = area.intensity;
+        maxLabel = candidate;
       }
     }
     return maxLabel;

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>府県気象解説情報</Title>
+<DateTime>2026-06-06T00:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>東京管区気象台</EditorialOffice>
+<PublishingOffice>東京管区気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>東京都気象解説情報（取消）</Title>
+<ReportDateTime>2026-06-06T09:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-06T09:00:00+09:00</TargetDateTime>
+<EventID>JPTK260001</EventID>
+<InfoType>取消</InfoType>
+<Serial>2</Serial>
+<InfoKind>気象解説情報</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline>
+<Text>先に発表した気象解説情報を取り消します。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+</Body>
+</Report>

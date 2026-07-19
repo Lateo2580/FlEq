@@ -1,6 +1,16 @@
 import type { EarthquakeOutcome, PresentationEvent, PresentationAreaItem } from "../types";
 import { intensityToRank } from "../../../utils/intensity";
 
+/**
+ * 地震情報の津波コメント文字列から「津波」表示フラグを判定する (Phase A #2)。
+ * text が無い・空文字・空白のみ、または「心配はありません」を含む場合は false。
+ * それ以外 (津波警報・注意報等への言及) は true とみなす安全側判定。
+ */
+export function resolveEarthquakeTsunamiWarning(text: string | null | undefined): boolean {
+  if (text == null || text.trim() === "") return false;
+  return !text.includes("心配はありません");
+}
+
 /** EarthquakeOutcome → PresentationEvent */
 export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationEvent {
   const xmlReport = outcome.msg.xmlReport;
@@ -47,6 +57,8 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
 
     maxInt,
     maxIntRank,
+    maxLgInt: info.intensity?.maxLgInt ?? null,
+    tsunamiWarning: resolveEarthquakeTsunamiWarning(info.tsunami?.text),
 
     areaNames,
     forecastAreaNames: [],

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>指定河川洪水予報</Title>
+    <DateTime>2019-05-27T01:00:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>○○地方気象台</EditorialOffice>
+    <PublishingOffice>○○河川事務所 ○○地方気象台 △△地方気象台</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>○○川上流レベル３氾濫警報（継続）</Title>
+    <ReportDateTime>2019-05-27T10:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2019-05-27T10:00:00+09:00</TargetDateTime>
+    <EventID>123456789013</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>指定河川洪水予報</InfoKind>
+    <InfoKindVersion>1.1_1</InfoKindVersion>
+    <Headline>
+      <Text>【警戒レベル３相当情報［洪水］】○○川上流では、引き続き氾濫危険水位に到達する見込み</Text>
+      <Information type="指定河川洪水予報（予報区域）">
+        <Item>
+          <Kind>
+            <Name>レベル３氾濫警報</Name>
+            <Code>31</Code>
+            <Condition>洪水警報</Condition>
+          </Kind>
+          <Areas codeType="指定河川洪水予報（予報区域）">
+            <Area>
+              <Name>○○川上流</Name>
+              <Code>123456789012</Code>
+            </Area>
+          </Areas>
+        </Item>
+      </Information>
+      <Information type="指定河川洪水予報（河川）">
+        <Item>
+          <Kind>
+            <Name>レベル３氾濫警報</Name>
+            <Code>31</Code>
+            <Condition>洪水警報</Condition>
+          </Kind>
+          <Areas codeType="河川">
+            <Area>
+              <Name>○○川</Name>
+              <Code>1234567890</Code>
+            </Area>
+          </Areas>
+        </Item>
+      </Information>
+      <Information type="指定河川洪水予報（府県予報区等）">
+        <Item>
+          <Kind>
+            <Name>レベル３氾濫警報</Name>
+            <Code>31</Code>
+            <Condition>洪水警報</Condition>
+          </Kind>
+          <Areas codeType="気象情報／府県予報区・細分区域等">
+            <Area>
+              <Name>○○県</Name>
+              <Code>990000</Code>
+            </Area>
+          </Areas>
+        </Item>
+      </Information>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Notice>この電文はテストサンプルです。</Notice>
+    <Warning type="指定河川洪水予報">
+      <Item>
+        <Kind>
+          <Property>
+            <Type>主文</Type>
+            <Text>【警戒レベル３相当】○○川の○○水位観測所（○○県○○市○○）では、引き続き「氾濫危険水位」に到達する見込みです。市町村からの避難情報に十分注意してください。</Text>
+          </Property>
+        </Kind>
+        <Areas codeType="河川">
+          <Area>
+            <Name>○○川</Name>
+            <Code>1234567890</Code>
+          </Area>
+        </Areas>
+        <Stations>
+          <Station>
+            <Name>○○○水位観測所</Name>
+            <Code type="水位観測所">12345678901234567</Code>
+            <Location>○○県○○市○○</Location>
+          </Station>
+        </Stations>
+      </Item>
+    </Warning>
+    <MeteorologicalInfos type="水位・流量情報">
+      <TimeSeriesInfo>
+        <TimeDefines>
+          <TimeDefine timeId="1">
+            <DateTime>2019-05-27T10:00:00+09:00</DateTime>
+            <Name>現況</Name>
+          </TimeDefine>
+        </TimeDefines>
+        <Item>
+          <Kind>
+            <Name>水位</Name>
+            <Property>
+              <Type>水位</Type>
+              <WaterLevelPart>
+                <jmx_eb:WaterLevel type="水位" unit="m" refID="1" condition="上昇">144.80</jmx_eb:WaterLevel>
+                <jmx_eb:WaterLevel type="レベル" refID="1">3</jmx_eb:WaterLevel>
+              </WaterLevelPart>
+            </Property>
+          </Kind>
+          <Station>
+            <Name>○○○水位観測所</Name>
+            <Code type="水位観測所">12345678901234567</Code>
+            <Location>○○市○○</Location>
+          </Station>
+        </Item>
+      </TimeSeriesInfo>
+    </MeteorologicalInfos>
+    <OfficeInfo>
+      <Office type="水位関係">
+        <Name>○○河川事務所</Name>
+        <Code>00000</Code>
+        <ContactInfo>国土交通省　○○河川事務所　○○○○課　000-000-0000（内線）000</ContactInfo>
+        <URI>https://www.river.go.jp/</URI>
+      </Office>
+    </OfficeInfo>
+    <AdditionalInfo>
+      <FloodForecastAddition>
+        <HydrometricStationPart>
+          <Area codeType="水位観測所">
+            <Name>○○○水位観測所</Name>
+            <Code>12345678901234567</Code>
+            <SubCityList>○○県○○市○○地区</SubCityList>
+            <Location>○○市○○</Location>
+          </Area>
+          <ChargeSection>○○川
+左岸：○○県○○市から○○県○○市
+右岸：○○県○○市から○○県○○市</ChargeSection>
+          <Criteria>
+            <jmx_eb:WaterLevel type="レベル１水防団待機水位" unit="m" condition="有効">142.00</jmx_eb:WaterLevel>
+            <jmx_eb:WaterLevel type="レベル２氾濫注意水位" unit="m" condition="有効">142.50</jmx_eb:WaterLevel>
+            <jmx_eb:WaterLevel type="レベル３避難判断水位" unit="m" condition="有効">144.60</jmx_eb:WaterLevel>
+            <jmx_eb:WaterLevel type="レベル４氾濫危険水位" unit="m" condition="有効">144.90</jmx_eb:WaterLevel>
+            <jmx_eb:WaterLevel type="レベル４計画高水位等" unit="m" condition="有効">145.10</jmx_eb:WaterLevel>
+          </Criteria>
+        </HydrometricStationPart>
+      </FloodForecastAddition>
+    </AdditionalInfo>
+  </Body>
+</Report>

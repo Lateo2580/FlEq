@@ -48,25 +48,32 @@ export class VolcanoStateHolder
   readonly emptyMessage = "現在、継続中の火山警報はありません。";
 
   private entries = new Map<string, VolcanoAlertEntry>();
+  private reportTimeWatermarks = new Map<string, number>();
 
   /** VFVO50/VFSVii 受信時に状態を更新する */
-  update(info: ParsedVolcanoInfo): void {
+  update(info: ParsedVolcanoInfo): boolean {
     // alert 系のみ状態追跡
-    if (info.kind !== "alert") return;
+    if (info.kind !== "alert") return true;
     // volcanoCode が欠落している場合はスキップ (Map キー衝突を防ぐ)
-    if (!info.volcanoCode) return;
+    if (!info.volcanoCode) return true;
     const alertInfo = info as ParsedVolcanoAlertInfo;
+    const reportTime = Date.parse(info.reportDateTime);
+    const watermark = this.reportTimeWatermarks.get(info.volcanoCode);
+    if (!Number.isNaN(reportTime)) {
+      if (watermark != null && reportTime < watermark) return false;
+      this.reportTimeWatermarks.set(info.volcanoCode, reportTime);
+    }
 
     // 取消報 → エントリ削除
     if (info.infoType === "取消") {
       this.entries.delete(info.volcanoCode);
-      return;
+      return true;
     }
 
     // 解除 → エントリ削除
     if (alertInfo.action === "release") {
       this.entries.delete(info.volcanoCode);
-      return;
+      return true;
     }
 
     // レベル1で継続または引下げ → エントリ削除 (平常復帰)
@@ -75,7 +82,7 @@ export class VolcanoStateHolder
       (alertInfo.action === "continue" || alertInfo.action === "lower")
     ) {
       this.entries.delete(info.volcanoCode);
-      return;
+      return true;
     }
 
     this.entries.set(info.volcanoCode, {
@@ -87,6 +94,7 @@ export class VolcanoStateHolder
       reportDateTime: info.reportDateTime,
       lastInfo: alertInfo,
     });
+    return true;
   }
 
   /**
@@ -106,6 +114,7 @@ export class VolcanoStateHolder
   /** 状態をクリアする */
   clear(): void {
     this.entries.clear();
+    this.reportTimeWatermarks.clear();
   }
 
   /** エントリ数を返す (テスト用) */

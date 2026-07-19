@@ -2,6 +2,20 @@
 
 type FilterArgs = (string | number | boolean | null)[];
 
+export const TEMPLATE_FILTER_NAMES = [
+  "default",
+  "truncate",
+  "pad",
+  "date",
+  "replace",
+  "upper",
+  "lower",
+] as const;
+
+export function isTemplateFilterName(name: string): name is typeof TEMPLATE_FILTER_NAMES[number] {
+  return (TEMPLATE_FILTER_NAMES as readonly string[]).includes(name);
+}
+
 /**
  * フィルタ内部で値を文字列化する共通関数。
  *
@@ -83,7 +97,7 @@ function filterLower(value: unknown): string {
 
 /**
  * テンプレートフィルタを適用する。
- * 未知のフィルタ名の場合は値をそのまま返す。
+ * 未知のフィルタ名はコンパイル時に拒否される。
  */
 export function applyFilter(
   name: string,
@@ -106,6 +120,6 @@ export function applyFilter(
     case "lower":
       return filterLower(value);
     default:
-      return value;
+      throw new Error(`テンプレートコンパイルエラー: 未知のフィルタ "${name}"`);
   }
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>気象警報・注意報時系列情報（Ｒ０６）</Title>
+<DateTime>2026-06-05T08:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>稚内地方気象台</EditorialOffice>
+<PublishingOffice>稚内地方気象台</PublishingOffice>
+</Control>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"></Body>
+</Report>

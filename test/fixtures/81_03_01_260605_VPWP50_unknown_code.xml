@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+<Control>
+<Title>気象警報・注意報時系列情報（Ｒ０６）</Title>
+<DateTime>2026-06-05T08:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>稚内地方気象台</EditorialOffice>
+<PublishingOffice>稚内地方気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>宗谷地方警戒・注意事項時系列情報</Title>
+<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-05T18:00:00+09:00</TargetDateTime>
+<EventID/>
+<InfoType>発表</InfoType>
+<Serial/>
+<InfoKind>気象警報・注意報時系列</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline><Text></Text></Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<MeteorologicalInfos type="量的予想時系列（市町村等）">
+<TimeSeriesInfo>
+<TimeDefines>
+<TimeDefine timeId="1"><DateTime>2026-06-05T18:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>夜のはじめ頃</Name></TimeDefine>
+<TimeDefine timeId="2"><DateTime>2026-06-05T21:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>夜遅く</Name></TimeDefine>
+</TimeDefines>
+<Item>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>大雨浸水危険度</Type>
+<SignificancyPart>
+<Base>
+<Significancy refID="1" type="大雨浸水危険度"><Name>警戒レベル3相当</Name><Code>31</Code></Significancy>
+<Significancy refID="2" type="大雨浸水危険度"><Name>未知</Name><Code>99</Code></Significancy>
+</Base>
+</SignificancyPart>
+</Property>
+</Kind>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>融雪危険度</Type>
+<SignificancyPart>
+<Base>
+<Significancy refID="1" type="融雪危険度"><Name>未知</Name><Code>12</Code></Significancy>
+<Significancy refID="2" type="融雪危険度"><Name>注意報級未満</Name><Code>01</Code></Significancy>
+</Base>
+</SignificancyPart>
+</Property>
+</Kind>
+<Area><Name>稚内市</Name><Code>0121400</Code></Area>
+</Item>
+</TimeSeriesInfo>
+</MeteorologicalInfos>
+</Body>
+</Report>

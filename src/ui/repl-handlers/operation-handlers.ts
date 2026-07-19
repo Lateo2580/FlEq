@@ -14,6 +14,15 @@ const TABLE_TYPE_ALIASES: Record<string, string> = {
   nt: "nankaiTrough",
   lgob: "lgObservation",
   vc: "volcano",
+  wt: "weather",
+  tnd: "tornado",
+  brf: "briefing",
+  ew: "earlyWeather",
+  ci: "climateInfo",
+  we: "weatherExplanation",
+  ha: "heatAlert",
+  ta: "typhoonAnalysis",
+  tp: "typhoonProbability",
 };
 
 /** test table の電文タイプ名を解決する (case-insensitive + エイリアス) */
@@ -216,6 +225,36 @@ export async function handleRetry(ctx: ReplContext): Promise<void> {
   } catch (err) {
     log.error(`再接続に失敗しました: ${err instanceof Error ? err.message : err}`);
   }
+}
+
+export async function handleDisplay(ctx: ReplContext, args: string): Promise<void> {
+  const sub = args.trim().toLowerCase();
+
+  if (sub === "") {
+    const status = ctx.displayController.status();
+    if (!status.running) {
+      console.log(chalk.gray("  情報ディスプレイは停止中です"));
+      return;
+    }
+    console.log(chalk.white("  情報ディスプレイ: ") + chalk.green.bold("稼働中"));
+    console.log(chalk.white("  ポート: ") + chalk.white(String(status.port)));
+    console.log(chalk.white("  接続クライアント: ") + chalk.white(String(status.clientCount)));
+    return;
+  }
+
+  if (sub === "on") {
+    const result = await ctx.displayController.start();
+    console.log((result.ok ? chalk.green : chalk.yellow)(`  ${result.message}`));
+    return;
+  }
+
+  if (sub === "off") {
+    const result = await ctx.displayController.stop();
+    console.log((result.ok ? chalk.gray : chalk.yellow)(`  ${result.message}`));
+    return;
+  }
+
+  console.log(chalk.yellow("  使い方: display / display on / display off"));
 }
 
 export async function handleQuit(ctx: ReplContext): Promise<void> {

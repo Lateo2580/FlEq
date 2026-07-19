@@ -142,6 +142,7 @@ export const DEFAULT_ROLES = {
 
   // common
   testBadge: { bg: "raspberry", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  correctionBadge: { bg: "orange", fg: "#FFFFFF", bold: true } as RoleStyleDef,
   hypocenter: { fg: "yellow", bold: true } as RoleStyleDef,
   concurrent: "orange" as RoleStyleDef,
   nextAdvisory: "sky" as RoleStyleDef,
@@ -201,6 +202,19 @@ export const DEFAULT_ROLES = {
   volcanoAlertBanner: { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
   volcanoFlashBanner: { bg: "darkRed", fg: "#FFFFFF", bold: true } as RoleStyleDef,
 
+  // 気象警報・注意報の取消バナー
+  weatherWarningCancelBanner:  { bg: "raspberry",  fg: "#000000", bold: true } as RoleStyleDef,
+
+  // 警戒レベル相当 chip ロール (VPWW55-61、Phase A)。紫のみ名前付きパレット外のため HEX。
+  weatherBannerOfficialL5:       { bg: "#A030A0",   fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  weatherBannerOfficialL4:       { bg: "darkRed",   fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  weatherBannerOfficialL3:       { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  weatherBannerOfficialL2:       { bg: "orange",    fg: "#000000", bold: true } as RoleStyleDef,
+  weatherBannerOfficialL1:       { bg: "gray",      fg: "#FFFFFF", bold: false } as RoleStyleDef,
+  weatherBannerNonLevelSpecial:  { bg: "darkRed",   fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  weatherBannerNonLevelWarning:  { bg: "vermillion", fg: "#FFFFFF", bold: true } as RoleStyleDef,
+  weatherBannerNonLevelAdvisory: { bg: "orange",    fg: "#000000", bold: true } as RoleStyleDef,
+
   // stats: 統計表示
   statsMuted: "gray" as RoleStyleDef,
   statsCount: { fg: "sky", bold: true } as RoleStyleDef,
@@ -214,6 +228,14 @@ export const DEFAULT_ROLES = {
 
 /** ロール名の型 */
 export type RoleName = keyof typeof DEFAULT_ROLES;
+
+/** 旧 theme.json との互換のため、警告せずに無視する削除済みロール。 */
+const LEGACY_ROLE_NAMES = new Set([
+  "earthquakeCriticalBanner",
+  "earthquakeWarningBanner",
+  "weatherWarningSpecialBanner",
+  "weatherWarningWarningBanner",
+]);
 
 /** ロール名の一覧 */
 const ROLE_NAMES = Object.keys(DEFAULT_ROLES) as RoleName[];
@@ -371,7 +393,7 @@ export function resolveTheme(
   // 未知の roles キーをチェック
   if (raw.roles) {
     for (const key of Object.keys(raw.roles)) {
-      if (!ROLE_NAMES.includes(key as RoleName)) {
+      if (!ROLE_NAMES.includes(key as RoleName) && !LEGACY_ROLE_NAMES.has(key)) {
         warnings.push(`roles: 未知のキー "${key}" を無視しました`);
       }
     }

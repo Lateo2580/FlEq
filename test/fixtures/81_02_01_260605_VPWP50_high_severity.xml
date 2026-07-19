@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+<Control>
+<Title>気象警報・注意報時系列情報（Ｒ０６）</Title>
+<DateTime>2026-06-05T08:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>稚内地方気象台</EditorialOffice>
+<PublishingOffice>稚内地方気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>宗谷地方警戒・注意事項時系列情報</Title>
+<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-05T18:00:00+09:00</TargetDateTime>
+<EventID/>
+<InfoType>発表</InfoType>
+<Serial/>
+<InfoKind>気象警報・注意報時系列</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline>
+<Text>大雨警報・土砂災害警戒レベル4相当・特別警報級の予測</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<MeteorologicalInfos type="量的予想時系列（市町村等）">
+<TimeSeriesInfo>
+<TimeDefines>
+<TimeDefine timeId="1"><DateTime>2026-06-05T18:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>夜のはじめ頃</Name></TimeDefine>
+<TimeDefine timeId="2"><DateTime>2026-06-05T21:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>夜遅く</Name></TimeDefine>
+<TimeDefine timeId="3"><DateTime>2026-06-06T00:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>未明</Name></TimeDefine>
+</TimeDefines>
+<Item>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>土砂災害危険度</Type>
+<SignificancyPart>
+<Base>
+<Significancy refID="1" type="土砂災害危険度"><Name>警戒レベル4相当</Name><Code>41</Code></Significancy>
+<Significancy refID="2" type="土砂災害危険度"><Name>警戒レベル4相当</Name><Code>41</Code></Significancy>
+<Significancy refID="3" type="土砂災害危険度"><Name>警戒レベル3相当</Name><Code>31</Code></Significancy>
+<PeakTime refID="1"><Date>5日</Date><Term>夜のはじめ頃</Term></PeakTime>
+</Base>
+</SignificancyPart>
+</Property>
+</Kind>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>大雨浸水危険度</Type>
+<SignificancyPart>
+<Base>
+<Significancy refID="1" type="大雨浸水危険度"><Name>特別警報級</Name><Code>50</Code></Significancy>
+<Significancy refID="2" type="大雨浸水危険度"><Name>警報級</Name><Code>30</Code></Significancy>
+<Significancy refID="3" type="大雨浸水危険度"><Name>注意報級</Name><Code>20</Code></Significancy>
+<PeakTime refID="1"><Date>5日</Date><Term>夜のはじめ頃</Term></PeakTime>
+</Base>
+</SignificancyPart>
+</Property>
+</Kind>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>雨</Type>
+<PrecipitationPart>
+<Base>
+<jmx_eb:Precipitation refID="1" type="1時間最大雨量" unit="mm">80</jmx_eb:Precipitation>
+<jmx_eb:Precipitation refID="2" type="1時間最大雨量" unit="mm">60</jmx_eb:Precipitation>
+<jmx_eb:Precipitation refID="3" type="1時間最大雨量" unit="mm">30</jmx_eb:Precipitation>
+</Base>
+</PrecipitationPart>
+</Property>
+</Kind>
+<Area><Name>稚内市</Name><Code>0121400</Code></Area>
+</Item>
+</TimeSeriesInfo>
+</MeteorologicalInfos>
+</Body>
+</Report>

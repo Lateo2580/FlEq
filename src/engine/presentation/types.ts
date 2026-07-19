@@ -10,10 +10,24 @@ import type {
   ParsedNankaiTroughInfo,
   ParsedVolcanoInfo,
   ParsedVolcanoAshfallInfo,
+  ParsedWeatherWarning,
+  ParsedTornadoAdvisory,
+  ParsedWeatherBriefing,
+  ParsedEarlyWeatherInfo,
+  ParsedWeatherWarningTimeseriesInfo,
+  ParsedClimateInfo,
+  ParsedWeatherExplanation,
+  ParsedHeatAlertInfo,
+  ParsedTyphoonAnalysis,
+  ParsedTyphoonProbability,
+  ParsedFloodForecastInfo,
+  FloodLevel,
+  Vpws50Diff,
 } from "../../types";
 import type { EewDiff, EewUpdateResult } from "../eew/eew-tracker";
 import type { VolcanoPresentation } from "./volcano-presentation";
 import type { StatsCategory } from "../messages/telegram-stats";
+import type { FloodForecastDiff } from "../messages/flood-forecast-state";
 
 // ── PresentationDomain ──
 
@@ -25,6 +39,17 @@ export type PresentationDomain =
   | "tsunami"
   | "volcano"
   | "nankaiTrough"
+  | "weather"
+  | "tornado"
+  | "briefing"
+  | "earlyWeather"
+  | "weatherWarningTimeseries"
+  | "climateInfo"
+  | "weatherExplanation"
+  | "heatAlert"
+  | "typhoonAnalysis"
+  | "typhoonProbability"
+  | "floodForecast"
   | "raw";
 
 // ── ProcessOutcome ──
@@ -44,8 +69,23 @@ export interface ProcessOutcomeBase {
     frameLevel: FrameLevel;
     soundLevel?: SoundLevel;
     notifyCategory?: NotifyCategory;
+    /** 色専用の集約 severity (weather 系 processor のみ設定)。frameLevel が静音化で info 降格しても
+     *  テロップ色は全国集約の最大 severity を保つため、frameLevel とは別に運ぶ (summaryRole が参照)。 */
+    displaySeverity?: FrameLevel;
+    weatherDiff?: Vpws50Diff;
+    typhoonProbabilityMaxDaily5?: number | null;
+    /** true のとき dispatchNotify が通知をスキップする。
+     *  VPTA50 の連続ゼロ状態抑止に使用 (TyphoonProbabilityStateHolder 経由)。
+     *  setter: processors (Task 16-18)、reader: dispatchNotify (Task 20)。 */
+    suppressNotify?: boolean;
   };
 }
+
+/** 表示・通知・統計をまとめて抑制できる processor の共通戻り値。 */
+export type SuppressibleProcessResult<TOutcome extends ProcessOutcomeBase> =
+  | { kind: "ok"; outcome: TOutcome }
+  | { kind: "suppressed" }
+  | { kind: "parse-failed" };
 
 export interface EewOutcome extends ProcessOutcomeBase {
   domain: "eew";
@@ -114,6 +154,77 @@ export interface NankaiTroughOutcome extends ProcessOutcomeBase {
   parsed: ParsedNankaiTroughInfo;
 }
 
+export interface WeatherOutcome extends ProcessOutcomeBase {
+  domain: "weather";
+  parsed: ParsedWeatherWarning;
+}
+
+export interface TornadoOutcome extends ProcessOutcomeBase {
+  domain: "tornado";
+  parsed: ParsedTornadoAdvisory;
+}
+
+export interface BriefingOutcome extends ProcessOutcomeBase {
+  domain: "briefing";
+  parsed: ParsedWeatherBriefing;
+}
+
+export interface EarlyWeatherOutcome extends ProcessOutcomeBase {
+  domain: "earlyWeather";
+  parsed: ParsedEarlyWeatherInfo;
+}
+
+export interface WeatherWarningTimeseriesOutcome extends ProcessOutcomeBase {
+  domain: "weatherWarningTimeseries";
+  parsed: ParsedWeatherWarningTimeseriesInfo;
+}
+
+export interface ClimateInfoOutcome extends ProcessOutcomeBase {
+  domain: "climateInfo";
+  parsed: ParsedClimateInfo;
+}
+
+export interface WeatherExplanationOutcome extends ProcessOutcomeBase {
+  domain: "weatherExplanation";
+  parsed: ParsedWeatherExplanation;
+}
+
+export interface HeatAlertOutcome extends ProcessOutcomeBase {
+  domain: "heatAlert";
+  parsed: ParsedHeatAlertInfo;
+}
+
+export interface TyphoonAnalysisOutcome extends ProcessOutcomeBase {
+  domain: "typhoonAnalysis";
+  parsed: ParsedTyphoonAnalysis;
+}
+
+export interface TyphoonProbabilityOutcome extends ProcessOutcomeBase {
+  domain: "typhoonProbability";
+  parsed: ParsedTyphoonProbability;
+}
+
+/**
+ * 指定河川洪水予報 (VXKO50-89 / VXSU50-59) の Outcome。
+ * Task 4 (compile unit) では interface 宣言のみ。dispatch / state holder は
+ * Task 25b 以降で本実装。`diff` は FloodForecastStateHolder.diffAndUpdate の
+ * 結果を保持する（後段 dispatchNotify が station-level diff を通知本文化する
+ * ための情報源。shape は `FloodForecastDiff` を source of truth とする）。
+ */
+export interface FloodForecastOutcome extends ProcessOutcomeBase {
+  domain: "floodForecast";
+  parsed: ParsedFloodForecastInfo;
+  /** FloodForecastStateHolder.diffAndUpdate の結果。Task 23 で本実装に差し替え。未確定時は null */
+  diff: FloodForecastDiff | null;
+  /**
+   * resolveFloodForecastLevels で導出した最大 FloodLevel
+   * (formatter / summary tokens が rank 表示等で使う source of truth)。
+   */
+  maxLevel: FloodLevel;
+  /** FLOOD_LEVEL_RANK[maxLevel]。並び替え・しきい値比較用 */
+  maxRank: number;
+}
+
 export interface RawOutcome extends ProcessOutcomeBase {
   domain: "raw";
   parsed: null;
@@ -128,6 +239,17 @@ export type ProcessOutcome =
   | VolcanoOutcome
   | VolcanoBatchOutcome
   | NankaiTroughOutcome
+  | WeatherOutcome
+  | TornadoOutcome
+  | BriefingOutcome
+  | EarlyWeatherOutcome
+  | WeatherWarningTimeseriesOutcome
+  | ClimateInfoOutcome
+  | WeatherExplanationOutcome
+  | HeatAlertOutcome
+  | TyphoonAnalysisOutcome
+  | TyphoonProbabilityOutcome
+  | FloodForecastOutcome
   | RawOutcome;
 
 // ── PresentationEvent ──
@@ -139,6 +261,31 @@ export interface PresentationAreaItem {
   maxInt?: string;
   maxLgInt?: string;
   flags?: string[];
+  /** 津波予報区の予想波高記述 (tsunami ドメインのみ使用) */
+  maxHeightDescription?: string;
+  /** 津波予報区の第一波到達予想記述 (tsunami ドメインのみ使用) */
+  firstHeight?: string;
+}
+
+/** EEW 予測震度地域の詳細 (地域別表示用、Phase A) */
+export interface PresentationEewRegion {
+  name: string;
+  intensity: string;
+  intensityTo: string | null;
+  isPlum: boolean;
+  hasArrived: boolean;
+  arrivalTime: string | null;
+}
+
+/** 津波観測点 (沖合/沿岸観測) を予報区の警報種別と対応付けたもの (Phase A) */
+export interface PresentationTsunamiObservation {
+  areaName: string | null;
+  areaKind: string | null;
+  stationName: string;
+  arrivalTime: string | null;
+  initial: string | null;
+  maxHeightValue: string | null;
+  condition: string | null;
 }
 
 export type EventStateSnapshot =
@@ -155,6 +302,17 @@ export type ParsedTelegramUnion =
   | ParsedNankaiTroughInfo
   | ParsedVolcanoInfo
   | ParsedVolcanoAshfallInfo[]
+  | ParsedWeatherWarning
+  | ParsedTornadoAdvisory
+  | ParsedWeatherBriefing
+  | ParsedEarlyWeatherInfo
+  | ParsedWeatherWarningTimeseriesInfo
+  | ParsedClimateInfo
+  | ParsedWeatherExplanation
+  | ParsedHeatAlertInfo
+  | ParsedTyphoonAnalysis
+  | ParsedTyphoonProbability
+  | ParsedFloodForecastInfo
   | null;
 
 export interface PresentationEvent {
@@ -168,6 +326,8 @@ export interface PresentationEvent {
   // 共通メタ
   infoType: string;
   title: string;
+  /** Control.Title (電文自身の名乗り。weatherExplanation で全般/地方を出し分け) */
+  controlTitle?: string;
   headline: string | null;
   reportDateTime: string;
   publishingOffice: string;
@@ -177,6 +337,9 @@ export interface PresentationEvent {
   frameLevel: FrameLevel;
   soundLevel?: SoundLevel;
   notifyCategory?: NotifyCategory;
+  /** 色専用の集約 severity (weather 系のみ。summaryRole が frameLevel 素通しの代わりに使う)。
+   *  静音化で frameLevel が info 降格しても色は集約 severity を保つための分離フィールド。 */
+  displaySeverity?: FrameLevel | null;
 
   // 状態フラグ
   isCancellation: boolean;
@@ -225,9 +388,21 @@ export interface PresentationEvent {
 
   areaItems: PresentationAreaItem[];
 
+  // EEW 予測震度地域の詳細 (Phase A、eew ドメインのみ使用)
+  eewRegions?: PresentationEewRegion[];
+
+  // 津波観測点 (Phase A、tsunami ドメインのみ使用)
+  tsunamiObservations?: PresentationTsunamiObservation[];
+
+  // 地震の津波コメントから導出した「津波」表示フラグ (Phase A、earthquake ドメインのみ使用)
+  tsunamiWarning?: boolean;
+
   // filter 用
   tsunamiKinds?: string[];
   infoSerialCode?: string | null;
+
+  // 台風の暴風域に入る確率
+  typhoonProbabilityMaxDaily5?: number | null;
 
   // 原本
   raw: ParsedTelegramUnion;

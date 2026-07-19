@@ -119,4 +119,27 @@ describe("field getters", () => {
     const field = resolveField("tsunamiKinds")!;
     expect(field.get(event)).toEqual(["津波警報", "津波注意報"]);
   });
+
+  it("controlTitle を取得", () => {
+    const event = makeEvent({ controlTitle: "全般気象解説情報" });
+    const field = resolveField("controlTitle")!;
+    expect(field.get(event)).toBe("全般気象解説情報");
+  });
+
+  it("controlTitle が未設定のとき undefined を返す", () => {
+    const event = makeEvent(); // controlTitle なし
+    const field = resolveField("controlTitle")!;
+    expect(field.get(event)).toBeUndefined();
+  });
+});
+
+describe("controlTitle フィールド登録", () => {
+  it("resolveField('controlTitle') が null でない", () => {
+    expect(resolveField("controlTitle")).not.toBeNull();
+  });
+
+  it("controlTitle フィールドの kind が string", () => {
+    const f = resolveField("controlTitle")!;
+    expect(f.kind).toBe("string");
+  });
 });

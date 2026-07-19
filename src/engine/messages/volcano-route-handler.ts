@@ -3,7 +3,7 @@
  *
  * 火山は VFVO53 アグリゲータによるバッチ集約があるため、
  * 他ドメインの processMessage() → outcome → display の線形フローとは異なる。
- * このハンドラが火山の パース → キャッシュ → 集約 → 通知 → 表示 を担当する。
+ * このハンドラが火山の パース → 集約 → 通知 → 表示 を担当する。
  */
 
 import type { WsDataMessage, ParsedVolcanoInfo } from "../../types";
@@ -32,10 +32,6 @@ export interface VolcanoRouteHandlerDeps {
   display?: DisplayCallbacks;
 }
 
-// ── 定数 ──
-
-const VOLCANO_CACHE_TTL_MS = 10 * 60 * 1000; // 10分
-
 // ── 本体 ──
 
 export class VolcanoRouteHandler {
@@ -44,7 +40,6 @@ export class VolcanoRouteHandler {
   private readonly runDisplayPipeline: DisplayPipelineFn;
   private readonly display?: DisplayCallbacks;
   private readonly aggregator: VolcanoVfvo53Aggregator;
-  private readonly msgCache = new Map<string, { msg: WsDataMessage; cachedAt: number }>();
 
   constructor(deps: VolcanoRouteHandlerDeps) {
     this.volcanoState = deps.volcanoState;
@@ -53,7 +48,7 @@ export class VolcanoRouteHandler {
     this.display = deps.display;
 
     this.aggregator = new VolcanoVfvo53Aggregator(
-      (info, opts) => this.emitSingle(info, opts),
+      (info, opts, msg) => this.emitSingle(info, opts, msg),
       (batch, opts) => this.emitBatch(batch, opts),
     );
   }
@@ -63,13 +58,10 @@ export class VolcanoRouteHandler {
    * @returns パース成功なら ParsedVolcanoInfo (統計記録用)、失敗なら null。
    */
   handle(msg: WsDataMessage): ParsedVolcanoInfo | null {
-    this.pruneMsgCache();
-
     const volcanoInfo = parseVolcanoTelegram(msg);
     if (!volcanoInfo) return null;
 
-    this.msgCache.set(volcanoInfo.volcanoCode, { msg, cachedAt: Date.now() });
-    this.aggregator.handle(volcanoInfo);
+    this.aggregator.handle(volcanoInfo, msg);
     return volcanoInfo;
   }
 
@@ -80,15 +72,17 @@ export class VolcanoRouteHandler {
 
   // ── private: emit callbacks ──
 
-  private emitSingle(info: ParsedVolcanoInfo, opts?: FlushOptions): void {
-    const cacheEntry = this.msgCache.get(info.volcanoCode);
-    const cachedMsg = cacheEntry?.msg;
-    const outcome = cachedMsg
-      ? buildVolcanoOutcome(cachedMsg, info, this.volcanoState)
+  private emitSingle(
+    info: ParsedVolcanoInfo,
+    opts?: FlushOptions,
+    msg?: WsDataMessage,
+  ): void {
+    const outcome = msg
+      ? buildVolcanoOutcome(msg, info, this.volcanoState)
       : null;
 
     const presentation = resolveVolcanoPresentation(info, this.volcanoState);
-    this.volcanoState.update(info);
+    if (!this.volcanoState.update(info)) return;
 
     // 通知は filter 非適用
     if (opts?.notify !== false) {
@@ -105,7 +99,6 @@ export class VolcanoRouteHandler {
       this.display?.displayVolcano(info, presentation);
     }
 
-    this.msgCache.delete(info.volcanoCode);
   }
 
   private emitBatch(batch: Vfvo53BatchItems, opts: FlushOptions): void {
@@ -115,15 +108,13 @@ export class VolcanoRouteHandler {
       this.notifier.notifyVolcanoBatch(batch, presentation);
     }
 
-    const firstItem = batch.items[0];
-    const cacheEntry = firstItem ? this.msgCache.get(firstItem.volcanoCode) : undefined;
-    const cachedMsg = cacheEntry?.msg;
+    const batchMsg = batch.sources?.[0]?.msg;
 
-    if (cachedMsg) {
+    if (batchMsg) {
       const batchOutcome: VolcanoBatchOutcome = {
         domain: "volcano",
-        msg: cachedMsg,
-        headType: cachedMsg.head.type,
+        msg: batchMsg,
+        headType: batchMsg.head.type,
         statsCategory: "volcano",
         parsed: batch.items,
         isBatch: true,
@@ -147,23 +138,5 @@ export class VolcanoRouteHandler {
       this.display?.displayVolcanoBatch(batch, presentation);
     }
 
-    this.cleanupBatchCache(batch);
-  }
-
-  // ── private: cache management ──
-
-  private pruneMsgCache(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.msgCache) {
-      if (now - entry.cachedAt > VOLCANO_CACHE_TTL_MS) {
-        this.msgCache.delete(key);
-      }
-    }
-  }
-
-  private cleanupBatchCache(batch: Vfvo53BatchItems): void {
-    for (const item of batch.items) {
-      this.msgCache.delete(item.volcanoCode);
-    }
   }
 }

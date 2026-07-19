@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?><Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+    <Control>
+        <Title>全般天候情報</Title>
+        <DateTime>2024-01-10T06:43:49Z</DateTime>
+        <Status>通常</Status>
+        <EditorialOffice>気象庁本庁</EditorialOffice>
+        <PublishingOffice>気象庁</PublishingOffice>
+    </Control>
+    <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+        <Title>東日本と西日本の長期間の高温と少雨に関する全般気象情報</Title>
+        <ReportDateTime>2024-01-10T16:00:00+09:00</ReportDateTime>
+        <TargetDateTime>2024-01-10T16:00:00+09:00</TargetDateTime>
+        <ValidDateTime>2024-01-21T16:00:00+09:00</ValidDateTime>
+        <EventID>202401101600全般天候情報気象庁本庁</EventID>
+        <InfoType>発表</InfoType>
+        <Serial>1</Serial>
+        <InfoKind>天候情報</InfoKind>
+        <InfoKindVersion>1.0_0</InfoKindVersion>
+        <Headline>
+            <Text>東日本と西日本では、１１月下旬頃から気温が高く降水量の少ない状態が続いています。この状態は、今後１週間程度は続く見込みです。農作物の管理等十分に注意してください。</Text>
+        </Headline>
+    </Head>
+    <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+        <TargetArea codeType="全国・地方予報区等">
+            <Name>全国</Name>
+            <Code>010000</Code>
+        </TargetArea>
+        <MeteorologicalInfos type="天候情報">
+            <MeteorologicalInfo>
+                <DateTime significant="yyyy-mm-dd">2022-11-26T00:00:00+09:00</DateTime>
+                <Duration>P418D</Duration>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>本文</Type>
+                            <Text type="概況">東日本と西日本では１１月下旬頃から、移動性の高気圧に覆われて晴れる日が多く、気温が高く降水量の少ない状態が続いています。</Text>
+                            <Text type="今後の見通し">この状態は、今後１週間程度は続く見込みです。</Text>
+                            <Text type="防災事項">農作物の管理等に十分注意してください。</Text>
+                        </Property>
+                    </Kind>
+                    <Areas codeType="全国・地方予報区等">
+                        <Area>
+                            <Name>東日本</Name>
+                            <Code>020200</Code>
+                        </Area>
+                        <Area>
+                            <Name>西日本</Name>
+                            <Code>020300</Code>
+                        </Area>
+                    </Areas>
+                </Item>
+            </MeteorologicalInfo>
+            <MeteorologicalInfo type="気象官署及び特別地域気象観測所">
+                <DateTime significant="yyyy-mm-dd">2023-11-26T00:00:00+09:00</DateTime>
+                <Duration>P45D</Duration>
+                <Name>１１月２６日から１月９日まで</Name>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <Text type="表題">平均気温と降水量（１１月２６日から１月９日まで）（速報値）</Text>
+                        </Property>
+                    </Kind>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">9.2</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+1.6</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">19.5</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">23</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>東京</Name>
+                        <Code type="国際地点番号">47662</Code>
+                    </Station>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">8.3</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+1.2</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">61.5</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">74</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>名古屋</Name>
+                        <Code type="国際地点番号">47636</Code>
+                    </Station>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">9.2</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+0.6</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">20.5</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">26</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>大阪</Name>
+                        <Code type="国際地点番号">47772</Code>
+                    </Station>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">8.3</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+0.7</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">58.0</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">78</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>広島</Name>
+                        <Code type="国際地点番号">47765</Code>
+                    </Station>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">8.6</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+0.5</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">24.5</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">39</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>高松</Name>
+                        <Code type="国際地点番号">47891</Code>
+                    </Station>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">9.9</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+0.8</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">59.5</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">58</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>福岡</Name>
+                        <Code type="国際地点番号">47807</Code>
+                    </Station>
+                </Item>
+                <Item>
+                    <Kind>
+                        <Property>
+                            <Type>天候の状況（速報値）</Type>
+                            <ClimateValuesPart type="平均気温と平年差">
+                                <jmx_eb:Temperature type="平均気温" unit="度">11.4</jmx_eb:Temperature>
+                                <jmx_eb:Comparison type="平均気温平年差" unit="度">+0.5</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                            <ClimateValuesPart type="総降水量と平年比">
+                                <jmx_eb:Precipitation type="降水量" unit="ミリ">99.5</jmx_eb:Precipitation>
+                                <jmx_eb:Comparison type="総降水量平年比" unit="％">79</jmx_eb:Comparison>
+                            </ClimateValuesPart>
+                        </Property>
+                    </Kind>
+                    <Station>
+                        <Name>鹿児島</Name>
+                        <Code type="国際地点番号">47827</Code>
+                    </Station>
+                </Item>
+            </MeteorologicalInfo>
+        </MeteorologicalInfos>
+        <Comment>
+            <Text type="末文">今後の気象情報等に留意してください。
+観測値と平年比（平年差）は、気象庁ホームページに掲載しています。
+気象庁ホームページ　＞　各種データ・資料　＞　最新の気象データ　＞　天候の状況
+を参照ください。</Text>
+        </Comment>
+    </Body>
+</Report>

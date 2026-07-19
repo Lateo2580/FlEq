@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+<Control>
+<Title>気象警報・注意報時系列情報（Ｒ０６）</Title>
+<DateTime>2026-06-05T08:00:00Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>稚内地方気象台</EditorialOffice>
+<PublishingOffice>稚内地方気象台</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>宗谷地方警戒・注意事項時系列情報</Title>
+<ReportDateTime>2026-06-05T17:00:00+09:00</ReportDateTime>
+<TargetDateTime>2026-06-05T18:00:00+09:00</TargetDateTime>
+<EventID/>
+<InfoType>発表</InfoType>
+<Serial/>
+<InfoKind>気象警報・注意報時系列</InfoKind>
+<InfoKindVersion>1.5_0</InfoKindVersion>
+<Headline><Text>高潮以外の Local も含む (風速の Local + 視程の Local) — Local 汎用化テスト</Text></Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<MeteorologicalInfos type="量的予想時系列（市町村等）">
+<TimeSeriesInfo>
+<TimeDefines>
+<TimeDefine timeId="1"><DateTime>2026-06-05T18:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>夜のはじめ頃</Name></TimeDefine>
+<TimeDefine timeId="2"><DateTime>2026-06-05T21:00:00+09:00</DateTime><Duration>PT3H</Duration><Name>夜遅く</Name></TimeDefine>
+</TimeDefines>
+<Item>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>風</Type>
+<WindSpeedPart>
+<Base>
+<Local>
+<AreaName>陸上</AreaName>
+<jmx_eb:WindSpeed refID="1" type="最大風速" unit="m/s">15</jmx_eb:WindSpeed>
+<jmx_eb:WindSpeed refID="2" type="最大風速" unit="m/s">12</jmx_eb:WindSpeed>
+</Local>
+<Local>
+<AreaName>海上</AreaName>
+<jmx_eb:WindSpeed refID="1" type="最大風速" unit="m/s">25</jmx_eb:WindSpeed>
+<jmx_eb:WindSpeed refID="2" type="最大風速" unit="m/s">22</jmx_eb:WindSpeed>
+</Local>
+</Base>
+</WindSpeedPart>
+<WindDirectionPart>
+<Base>
+<Local>
+<AreaName>陸上</AreaName>
+<jmx_eb:WindDirection refID="1" type="風向">北北西</jmx_eb:WindDirection>
+<jmx_eb:WindDirection refID="2" type="風向">北西</jmx_eb:WindDirection>
+</Local>
+<Local>
+<AreaName>海上</AreaName>
+<jmx_eb:WindDirection refID="1" type="風向">西南西</jmx_eb:WindDirection>
+<jmx_eb:WindDirection refID="2" type="風向">西</jmx_eb:WindDirection>
+</Local>
+</Base>
+</WindDirectionPart>
+</Property>
+</Kind>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>視程</Type>
+<VisibilityPart>
+<Base>
+<Local>
+<AreaName>陸上</AreaName>
+<jmx_eb:Visibility refID="1" type="視程" unit="m">100</jmx_eb:Visibility>
+<jmx_eb:Visibility refID="2" type="視程" unit="m">500</jmx_eb:Visibility>
+</Local>
+<Local>
+<AreaName>海上</AreaName>
+<jmx_eb:Visibility refID="1" type="視程" unit="m">50</jmx_eb:Visibility>
+<jmx_eb:Visibility refID="2" type="視程" unit="m">200</jmx_eb:Visibility>
+</Local>
+</Base>
+</VisibilityPart>
+</Property>
+</Kind>
+<Kind>
+<Status>発表</Status>
+<DateTime type="発表時刻">2026-06-05T17:00:00+09:00</DateTime>
+<Property>
+<Type>湿度</Type>
+<HumidityPart>
+<Base>
+<jmx_eb:Humidity refID="1" type="最小湿度" unit="%">25</jmx_eb:Humidity>
+<jmx_eb:Humidity refID="2" type="最小湿度" unit="%">35</jmx_eb:Humidity>
+</Base>
+</HumidityPart>
+</Property>
+</Kind>
+<Area><Name>稚内市</Name><Code>0121400</Code></Area>
+</Item>
+</TimeSeriesInfo>
+</MeteorologicalInfos>
+</Body>
+</Report>

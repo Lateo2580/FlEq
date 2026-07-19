@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseVolcanoTelegram, normalizeVolcanoBodyText } from "../../src/dmdata/volcano-parser";
+import { parseVolcanoTelegram, normalizeVolcanoBodyText, parseAshDistanceKm } from "../../src/dmdata/volcano-parser";
+import { parseXml } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VFVO50_ALERT_LV3,
@@ -15,6 +16,7 @@ import {
   FIXTURE_VFVO56_FLASH_1,
   FIXTURE_VFVO60_PLUME,
   FIXTURE_VZVO40_NOTICE,
+  readFixture,
 } from "../helpers/mock-message";
 
 describe("parseVolcanoTelegram", () => {
@@ -182,6 +184,12 @@ describe("parseVolcanoTelegram", () => {
         expect(result!.ashForecasts.length).toBeGreaterThan(0);
       }
     });
+
+    it("共有 XML parser が先頭ゼロ付き Code 06 を保持する", () => {
+      const parsed = parseXml(readFixture(FIXTURE_VFVO53_ASH_REGULAR));
+
+      expect(JSON.stringify(parsed)).toContain('"Code":"06"');
+    });
   });
 
   // ── VFVO54: 降灰予報（速報） ──
@@ -321,6 +329,32 @@ describe("parseVolcanoTelegram", () => {
       if (result!.kind === "eruption" && result!.bodyText) {
         expect(result!.bodyText).not.toContain("火\u3000山");
       }
+    });
+  });
+
+  describe("降灰予報の方向・距離抽出 (Spec A §3-1)", () => {
+    it("PlumeDirection の description と Distance(km) を AshArea に取り込む", () => {
+      const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
+      const info = parseVolcanoTelegram(msg)!;
+      expect(info.kind).toBe("ashfall");
+      if (info.kind !== "ashfall") return;
+      const areas = info.ashForecasts.flatMap((f) => f.areas);
+      const ashArea = areas.find((a) => a.ashName === "降灰");
+      expect(ashArea?.plumeDirection).toBe("東（鹿屋市輝北方向）");
+      expect(ashArea?.distanceKm).toBe(100);
+      const rock = areas.find((a) => a.ashName === "小さな噴石の落下");
+      expect(rock?.distanceKm).toBe(5);
+    });
+
+    it("Distance は unit=km のときだけ採用する (m・unit欠落・非数値は null)", () => {
+      expect(parseAshDistanceKm({ "@_unit": "km", "#text": "100" })).toBe(100);
+      expect(parseAshDistanceKm({ "@_unit": "m", "#text": "100" })).toBeNull(); // km 以外
+      expect(parseAshDistanceKm({ "#text": "100" })).toBeNull();               // unit 欠落
+      expect(parseAshDistanceKm("100")).toBeNull();                            // primitive (unit なし)
+      expect(parseAshDistanceKm({ "@_unit": "km", "#text": "abc" })).toBeNull(); // 非数値
+      expect(parseAshDistanceKm(null)).toBeNull();
+      expect(parseAshDistanceKm({ "@_unit": "km", "#text": "100abc" })).toBeNull(); // parseFloat の緩さで 100 に化けない
+      expect(parseAshDistanceKm({ "@_unit": "km", "#text": "Infinity" })).toBeNull(); // 非有限値
     });
   });
 });

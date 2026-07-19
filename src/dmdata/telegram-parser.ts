@@ -4,12 +4,14 @@ import {
   WsDataMessage,
   ParsedEarthquakeInfo,
   ParsedEewInfo,
+  EewAccuracy,
   ParsedTsunamiInfo,
   ParsedSeismicTextInfo,
   ParsedNankaiTroughInfo,
   ParsedLgObservationInfo,
   LgObservationArea,
   TsunamiForecastItem,
+  TsunamiStationItem,
   TsunamiObservationStation,
   TsunamiEstimationItem,
 } from "../types";
@@ -19,6 +21,7 @@ const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   textNodeName: "#text",
+  parseTagValue: false,
   isArray: (name) => {
     // 震度観測地域、市町村等は配列として扱う
     const arrayTags = [
@@ -306,7 +309,7 @@ function parseMaxIntChangeReason(body: unknown): number | undefined {
 function extractEewForecastAreas(
   body: unknown
 ): {
-  areas: { name: string; intensity: string; lgIntensity?: string; isPlum?: boolean; hasArrived?: boolean }[];
+  areas: { name: string; intensity: string; lgIntensity?: string; isPlum?: boolean; hasArrived?: boolean; intensityTo?: string; arrivalTime?: string }[];
   maxLgInt?: string;
   hasPlumArea: boolean;
 } | undefined {
@@ -327,6 +330,8 @@ function extractEewForecastAreas(
     lgIntensity?: string;
     isPlum?: boolean;
     hasArrived?: boolean;
+    intensityTo?: string;
+    arrivalTime?: string;
   }[] = [];
   const prefs = dig(forecast, "Pref");
   if (Array.isArray(prefs)) {
@@ -346,9 +351,15 @@ function extractEewForecastAreas(
           const isPlum = isPlumAreaCondition(condition) || undefined;
           const hasArrived = hasArrivedAreaCondition(condition) || undefined;
 
+          const intensityFrom = str(dig(forecastInt, "From") || forecastInt || "");
+          const intensityTo = str(dig(forecastInt, "To"));
+          const areaArrivalTime = str(dig(area, "ArrivalTime"));
+
           areas.push({
             name: str(dig(area, "Name")),
-            intensity: str(dig(forecastInt, "From") || forecastInt || ""),
+            intensity: intensityFrom,
+            ...(intensityTo && intensityTo !== intensityFrom ? { intensityTo } : {}),
+            ...(areaArrivalTime ? { arrivalTime: areaArrivalTime } : {}),
             ...(lgInt ? { lgIntensity: lgInt } : {}),
             ...(isPlum ? { isPlum } : {}),
             ...(hasArrived ? { hasArrived } : {}),
@@ -360,6 +371,31 @@ function extractEewForecastAreas(
 
   const hasPlumArea = areas.some((a) => a.isPlum === true);
   return { areas, maxLgInt, hasPlumArea };
+}
+
+/** rank 属性・数値要素を number | null に正規化 (欠落・非数値は null。0 は有効値) */
+function eewRankNum(v: unknown): number | null {
+  const s = str(v);
+  if (!s) return null;
+  const n = Number.parseInt(s, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+/**
+ * EEW 専用: Earthquake/Hypocenter/Accuracy を抽出。
+ * 精度は rank 属性側にある (要素値は "NaN" 文字列 — 混同しない、spec 4.4)。
+ * 共有 extractEarthquake / ParsedEarthquakeInfo は触らない (実装が割れるのを防ぐ)
+ */
+function extractEewAccuracy(earthquake: unknown): EewAccuracy | undefined {
+  const accuracy = dig(earthquake, "Hypocenter", "Accuracy");
+  if (!accuracy) return undefined;
+  return {
+    epicenterRank: eewRankNum(dig(accuracy, "Epicenter", "@_rank")),
+    epicenterRank2: eewRankNum(dig(accuracy, "Epicenter", "@_rank2")),
+    depthRank: eewRankNum(dig(accuracy, "Depth", "@_rank")),
+    magnitudeRank: eewRankNum(dig(accuracy, "MagnitudeCalculation", "@_rank")),
+    magnitudeCalcCount: eewRankNum(dig(accuracy, "NumberOfMagnitudeCalculation")),
+  };
 }
 
 // ── 津波ヘルパー ──
@@ -379,6 +415,8 @@ function extractTsunamiObservations(tsunamiNode: unknown): TsunamiObservationSta
       continue;
     }
     for (const item of items) {
+      const area = first(dig(item, "Area") as unknown[]);
+      const areaName = str(dig(area, "Name")).trim() || null;
       const stationsRaw = dig(item, "Station");
       const stations = Array.isArray(stationsRaw)
         ? stationsRaw
@@ -386,12 +424,18 @@ function extractTsunamiObservations(tsunamiNode: unknown): TsunamiObservationSta
           ? [stationsRaw]
           : [];
       for (const station of stations) {
+        const maxHeightValue =
+          str(dig(station, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
+          str(dig(station, "MaxHeight", "TsunamiHeight", "@_description")) ||
+          null;
         observations.push({
+          areaName,
           name: str(dig(station, "Name")),
           sensor: str(dig(station, "Sensor")),
           arrivalTime: str(dig(station, "FirstHeight", "ArrivalTime")),
           initial: str(dig(station, "FirstHeight", "Initial")),
           maxHeightCondition: str(dig(station, "MaxHeight", "Condition")),
+          maxHeightValue,
         });
       }
     }
@@ -592,6 +636,13 @@ export function parseEewTelegram(
 
     if (earthquake) {
       info.earthquake = extractEarthquake(earthquake);
+      const arrivalTime = str(dig(earthquake, "ArrivalTime"));
+      if (arrivalTime) info.arrivalTime = arrivalTime;
+      const hypoArea = first(dig(earthquake, "Hypocenter", "Area") as unknown[]);
+      const landOrSea = str(dig(hypoArea, "LandOrSea"));
+      if (landOrSea) info.landOrSea = landOrSea;
+      const accuracy = extractEewAccuracy(earthquake);
+      if (accuracy) info.accuracy = accuracy;
     }
 
     const forecastResult = extractEewForecastAreas(body);
@@ -638,6 +689,11 @@ export function parseEewTelegram(
     const nextAdvisory = str(dig(body, "NextAdvisory"));
     if (nextAdvisory) {
       info.nextAdvisory = nextAdvisory.trim();
+    }
+
+    if (info.infoType === "取消") {
+      const cancelText = str(dig(body, "Text")).trim();
+      if (cancelText) info.cancelText = cancelText;
     }
 
     return info;
@@ -692,11 +748,32 @@ export function parseTsunamiTelegram(
         const firstHeight =
           str(dig(item, "FirstHeight", "ArrivalTime")) ||
           str(dig(item, "FirstHeight", "Condition"));
+        const stationsRaw = dig(item, "Station");
+        const stationNodes = Array.isArray(stationsRaw)
+          ? stationsRaw
+          : stationsRaw
+            ? [stationsRaw]
+            : [];
+        const stations: TsunamiStationItem[] = [];
+        for (const station of stationNodes) {
+          const stationName = str(dig(station, "Name")).trim();
+          if (!stationName) {
+            continue;
+          }
+          stations.push({
+            name: stationName,
+            highTideDateTime: str(dig(station, "HighTideDateTime")),
+            arrivalTime:
+              str(dig(station, "FirstHeight", "ArrivalTime")) ||
+              str(dig(station, "FirstHeight", "Condition")),
+          });
+        }
         forecast.push({
           areaName,
           kind: str(dig(kind, "Name")),
           maxHeightDescription,
           firstHeight,
+          ...(stations.length > 0 ? { stations } : {}),
         });
       }
       if (forecast.length > 0) {

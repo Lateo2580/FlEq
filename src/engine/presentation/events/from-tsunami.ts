@@ -1,4 +1,5 @@
 import type { TsunamiOutcome, PresentationEvent, PresentationAreaItem } from "../types";
+import { buildTsunamiObservations } from "./tsunami-observations";
 
 /** TsunamiOutcome → PresentationEvent */
 export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
@@ -11,6 +12,8 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
   const areaItems: PresentationAreaItem[] = forecastItems.map((f) => ({
     name: f.areaName,
     kind: f.kind,
+    maxHeightDescription: f.maxHeightDescription || undefined,
+    firstHeight: f.firstHeight || undefined,
   }));
 
   return {
@@ -48,6 +51,7 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     municipalityCount: 0,
     observationCount: 0,
     areaItems,
+    tsunamiObservations: buildTsunamiObservations(info),
 
     stateSnapshot: {
       kind: "tsunami",

@@ -30,7 +30,7 @@ export function buildProgram(): Command {
     )
     .option(
       "-c, --classifications <items>",
-      "受信区分を指定します（カンマ区切り: telegram.earthquake,eew.forecast,eew.warning,telegram.volcano）"
+      "受信区分を指定します（カンマ区切り: telegram.earthquake,eew.forecast,eew.warning,telegram.volcano,telegram.weather）"
     )
     .option(
       "--test <mode>",
@@ -69,6 +69,10 @@ export function buildProgram(): Command {
       return Number.isFinite(n) && n > 0 ? n : 10;
     })
     .option("--night", "ナイトモードを有効にします")
+    .option("--display", "情報ディスプレイ (ブラウザ表示サーバ) を有効化します")
+    .option("--display-port <port>", "情報ディスプレイのポート (デフォルト 7788)")
+    .option("--display-bind <host>", "情報ディスプレイのバインド先 (デフォルト 127.0.0.1)")
+    .option("--display-token <token>", "情報ディスプレイの非 loopback 接続に要求するアクセストークン (未指定で非 loopback バインド時は起動ごとに自動生成)")
     .option("--debug", "デバッグログを表示します", false)
     .action(async (opts: RunMonitorOptions) => {
       const { runMonitor } = await import("./cli-run");

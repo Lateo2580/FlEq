@@ -13,7 +13,6 @@ import type { FilterTemplatePipeline } from "./pipeline";
 export class PipelineController {
   private readonly _pipeline: FilterTemplatePipeline;
   private _filterExpr: string | null = null;
-  private _templateExpr: string | null = null;
   private _focusExpr: string | null = null;
 
   constructor() {
@@ -43,18 +42,10 @@ export class PipelineController {
 
   // --- Template ---
 
-  getTemplateExpr(): string | null { return this._templateExpr; }
-
-  /** テンプレート式をコンパイルして設定する。 */
+  /** テンプレートは CLI 起動時専用で、実行中に変更・解除しない。 */
   setTemplate(expr: string): void {
     const renderer = compileTemplate(expr);
     this._pipeline.template = renderer;
-    this._templateExpr = expr;
-  }
-
-  clearTemplate(): void {
-    this._pipeline.template = null;
-    this._templateExpr = null;
   }
 
   // --- Focus ---

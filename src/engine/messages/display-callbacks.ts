@@ -25,6 +25,6 @@ export interface DisplayCallbacks {
   /** 現在の表示モードを取得する ("normal" | "compact") */
   getDisplayMode(): string;
 
-  /** PresentationEvent を1行サマリーに変換する */
-  renderSummaryLine(event: PresentationEvent): string;
+  /** PresentationEvent を1行サマリーに変換する (maxWidth 省略時はターミナル幅) */
+  renderSummaryLine(event: PresentationEvent, maxWidth?: number): string;
 }

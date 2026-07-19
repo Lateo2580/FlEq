@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { TIP_CATEGORIES } from "../../src/ui/waiting-tips";
+import { TIP_CATEGORIES } from "../../src/tips/waiting-tips";
 
 // テスト用に固定シードの疑似RNGを生成する
 function createSeededRng(seed: number): () => number {
@@ -13,7 +13,7 @@ function createSeededRng(seed: number): () => number {
 
 // TipShuffler を動的に import（waiting-tips のモック反映のため）
 async function createShuffler(rng?: () => number) {
-  const { TipShuffler } = await import("../../src/ui/tip-shuffler");
+  const { TipShuffler } = await import("../../src/tips/tip-shuffler");
   return new TipShuffler(rng);
 }
 
@@ -126,5 +126,37 @@ describe("TipShuffler", () => {
     }
 
     expect(categorySet.size).toBe(TIP_CATEGORIES.length);
+  });
+
+  it("カテゴリフィルタ指定時は対象カテゴリの Tips だけでデッキが構築される", async () => {
+    const { TipShuffler } = await import("../../src/tips/tip-shuffler.js");
+    const { TIP_CATEGORIES } = await import("../../src/tips/waiting-tips.js");
+    const target = ["trivia", "disaster-prevention"] as const;
+    const expected = new Set(
+      TIP_CATEGORIES.filter((c) => (target as readonly string[]).includes(c.id)).flatMap((c) => [...c.tips]),
+    );
+    const shuffler = new TipShuffler(createSeededRng(42), target);
+    const epoch = shuffler.dealEpoch();
+    expect(epoch.length).toBe(expected.size);
+    for (const tip of epoch) {
+      expect(expected.has(tip)).toBe(true);
+    }
+  });
+
+  it("dealEpoch は呼ぶたびに全 Tips を1エポック分返す (重複なし)", async () => {
+    const { TipShuffler } = await import("../../src/tips/tip-shuffler.js");
+    const shuffler = new TipShuffler(createSeededRng(1));
+    const first = shuffler.dealEpoch();
+    const second = shuffler.dealEpoch();
+    expect(new Set(first).size).toBe(first.length);
+    expect(second.length).toBe(first.length);
+  });
+
+  it("カテゴリフィルタ省略時は従来どおり全カテゴリが対象", async () => {
+    const { TipShuffler } = await import("../../src/tips/tip-shuffler.js");
+    const { TIP_CATEGORIES } = await import("../../src/tips/waiting-tips.js");
+    const total = TIP_CATEGORIES.reduce((n, c) => n + c.tips.length, 0);
+    const shuffler = new TipShuffler(createSeededRng(7));
+    expect(shuffler.dealEpoch().length).toBe(total);
   });
 });

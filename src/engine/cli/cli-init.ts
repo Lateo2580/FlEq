@@ -32,6 +32,11 @@ const CLASSIFICATION_OPTIONS: ReadonlyArray<{
     label: "火山関連",
     description: "噴火警報、噴火速報、降灰予報、火山の状況に関する解説情報など",
   },
+  {
+    value: "telegram.weather",
+    label: "気象警報・注意報関連",
+    description: "大雨・暴風・大雪・高潮・波浪・その他の気象警報・注意報など",
+  },
 ];
 
 /** テストモード選択肢メタデータ */

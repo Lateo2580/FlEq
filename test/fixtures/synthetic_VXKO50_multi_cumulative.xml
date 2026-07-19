@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>指定河川洪水予報</Title>
+    <DateTime>2026-06-16T00:00:00Z</DateTime>
+    <Status>試験</Status>
+    <EditorialOffice>テスト地方気象台</EditorialOffice>
+    <PublishingOffice>テスト河川事務所</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>合成テスト</Title>
+    <ReportDateTime>2026-06-16T09:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-06-16T09:00:00+09:00</TargetDateTime>
+    <EventID>synthetic-multi-cumulative</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>指定河川洪水予報</InfoKind>
+    <InfoKindVersion>1.1_1</InfoKindVersion>
+    <Headline>
+      <Text>合成テスト用 1 流域内多窓累積 (log.debug 発火検証)</Text>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Notice>合成テスト用</Notice>
+    <MeteorologicalInfos type="雨量情報">
+      <TimeSeriesInfo>
+        <TimeDefines>
+          <TimeDefine timeId="1">
+            <DateTime>2026-06-16T03:00:00+09:00</DateTime>
+            <Duration>PT6H</Duration>
+            <Name>過去 6 時間流域平均雨量</Name>
+          </TimeDefine>
+          <TimeDefine timeId="2">
+            <DateTime>2026-06-16T09:00:00+09:00</DateTime>
+            <Duration>PT3H</Duration>
+            <Name>3 時間予測の見込み</Name>
+          </TimeDefine>
+          <TimeDefine timeId="3">
+            <DateTime>2026-06-15T09:00:00+09:00</DateTime>
+            <Duration>PT24H</Duration>
+            <Name>過去 24 時間流域平均雨量 (多窓累積 2 件目)</Name>
+          </TimeDefine>
+        </TimeDefines>
+        <Item>
+          <Kind>
+            <Property>
+              <Type>流域平均雨量</Type>
+              <PrecipitationPart>
+                <jmx_eb:Precipitation refID="1" type="流域平均雨量" unit="ミリ">30</jmx_eb:Precipitation>
+                <jmx_eb:Precipitation refID="2" type="流域平均雨量" unit="ミリ">8</jmx_eb:Precipitation>
+                <jmx_eb:Precipitation refID="3" type="流域平均雨量" unit="ミリ">55</jmx_eb:Precipitation>
+              </PrecipitationPart>
+            </Property>
+          </Kind>
+          <Area>
+            <Name>テスト流域</Name>
+          </Area>
+        </Item>
+      </TimeSeriesInfo>
+    </MeteorologicalInfos>
+  </Body>
+</Report>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_add="http://xml.kishou.go.jp/jmaxml1/addition1/">
+  <Control>
+    <Title>地方天候情報</Title>
+    <DateTime>2008-07-19T03:00:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>気象庁本庁</EditorialOffice>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>梅雨の時期に関する関東甲信地方気象情報</Title>
+    <ReportDateTime>2008-07-19T12:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2008-07-19T12:00:00+09:00</TargetDateTime>
+    <EventID>200806021330地方天候情報気象庁</EventID>
+    <InfoType>取消</InfoType>
+    <Serial>3</Serial>
+    <InfoKind>天候情報</InfoKind>
+    <InfoKindVersion>1.0_0</InfoKindVersion>
+    <Headline>
+      <Text>梅雨の時期に関する関東甲信地方気象情報を取り消します。</Text>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/" />
+</Report>

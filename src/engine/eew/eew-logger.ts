@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { ParsedEewInfo, EewLogField } from "../../types";
-import { EewDiff, EewUpdateResult } from "./eew-tracker";
+import { EewDiff, EewUpdateResult, getMaxForecastIntensity } from "./eew-tracker";
 import * as log from "../../logger";
 
 /** ログ出力のデフォルトディレクトリ */
@@ -55,8 +55,10 @@ function formatDiff(diff: EewDiff, info: ParsedEewInfo): string {
     parts.push(`${diff.previousDepth}→${info.earthquake.depth}`);
   }
   if (diff.previousMaxInt && info.forecastIntensity?.areas.length) {
-    const topInt = info.forecastIntensity.areas[0].intensity;
-    parts.push(`震度${diff.previousMaxInt}→${topInt}`);
+    const maxInt = getMaxForecastIntensity(info.forecastIntensity.areas);
+    if (maxInt) {
+      parts.push(`震度${diff.previousMaxInt}→${maxInt}`);
+    }
   }
   if (diff.hypocenterChange) parts.push("震源変更");
   return parts.length > 0 ? `  [${parts.join(", ")}]` : "";
@@ -314,8 +316,10 @@ export class EewEventLogger {
 
     if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {
       if (this.fields.forecastIntensity) {
-        const topInt = info.forecastIntensity.areas[0].intensity;
-        lines.push(`最大予測震度: ${topInt}`);
+        const maxInt = getMaxForecastIntensity(info.forecastIntensity.areas);
+        if (maxInt) {
+          lines.push(`最大予測震度: ${maxInt}`);
+        }
       }
 
       // maxLgInt (forecastIntensity が OFF なら非表示)

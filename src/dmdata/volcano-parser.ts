@@ -56,6 +56,18 @@ export function normalizeVolcanoBodyText(text: string): string {
     .trim();
 }
 
+/**
+ * 降灰予報の Distance ノードから到達距離 km を取り出す (spec §3-1)。
+ * unit="km" のときだけ数値化する。unit が km 以外・欠落・非数値・primitive はすべて null
+ * (「100m」や unit 無しの「100」を 100km と誤採用しない。最低情報量ガードの精度を守る)。
+ */
+export function parseAshDistanceKm(distNode: unknown): number | null {
+  if (str(dig(distNode, "@_unit")) !== "km") return null;
+  const text = str(dig(distNode, "#text") || distNode);
+  const n = text !== "" ? Number(text) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Report ノードを取得 */
 function findReport(parsed: Record<string, unknown>): unknown {
   return (
@@ -475,6 +487,19 @@ function parseVolcanoAshfall(
         const sizeVal = str(dig(kindObj, "Property", "Size", "#text") || dig(kindObj, "Property", "Size"));
         const thickness = sizeVal ? parseFloat(sizeVal) : null;
 
+        // 方向・距離は Kind 単位 (全 Area 共通)。名前空間 prefix 有無の両対応 (extractPlumeObservation と同流儀)。
+        const dirVal = str(
+          dig(kindObj, "Property", "jmx_eb:PlumeDirection", "@_description") ||
+          dig(kindObj, "Property", "PlumeDirection", "@_description") ||
+          dig(kindObj, "Property", "jmx_eb:PlumeDirection", "#text") ||
+          dig(kindObj, "Property", "PlumeDirection", "#text") ||
+          dig(kindObj, "Property", "jmx_eb:PlumeDirection") ||
+          dig(kindObj, "Property", "PlumeDirection")
+        );
+        const plumeDirection = dirVal !== "" ? dirVal : null;
+        // Distance は unit="km" のときだけ採用 (m・unit 欠落は null。上記ヘルパ)
+        const distanceKm = parseAshDistanceKm(dig(kindObj, "Property", "Distance"));
+
         const itemAreas = dig(item, "Areas");
         const areaList = dig(itemAreas, "Area");
         const areaArr = Array.isArray(areaList) ? areaList : areaList ? [areaList] : [];
@@ -485,6 +510,8 @@ function parseVolcanoAshfall(
             ashCode,
             ashName,
             thickness: thickness != null && !isNaN(thickness) ? thickness : null,
+            plumeDirection,
+            distanceKm,
           });
         }
       }

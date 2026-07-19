@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>指定河川洪水予報</Title>
+    <DateTime>2026-06-16T00:00:00Z</DateTime>
+    <Status>試験</Status>
+    <EditorialOffice>テスト地方気象台</EditorialOffice>
+    <PublishingOffice>テスト河川事務所</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>合成テスト</Title>
+    <ReportDateTime>2026-06-16T09:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-06-16T09:00:00+09:00</TargetDateTime>
+    <EventID>synthetic-cumulative-with-namekey</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>指定河川洪水予報</InfoKind>
+    <InfoKindVersion>1.1_1</InfoKindVersion>
+    <Headline>
+      <Text>合成テスト用 Name "3時間" 含む cumulative の誤振り分け検証</Text>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Notice>合成テスト用</Notice>
+    <MeteorologicalInfos type="雨量情報">
+      <TimeSeriesInfo>
+        <TimeDefines>
+          <TimeDefine timeId="1">
+            <DateTime>2026-06-16T09:00:00+09:00</DateTime>
+            <Name>過去3時間累積 (Duration ノード意図的に省略、Name fallback 検証用)</Name>
+          </TimeDefine>
+        </TimeDefines>
+        <Item>
+          <Kind>
+            <Property>
+              <Type>流域平均雨量</Type>
+              <PrecipitationPart>
+                <jmx_eb:Precipitation refID="1" type="流域平均雨量" unit="ミリ">25</jmx_eb:Precipitation>
+              </PrecipitationPart>
+            </Property>
+          </Kind>
+          <Area>
+            <Name>テスト流域</Name>
+          </Area>
+        </Item>
+      </TimeSeriesInfo>
+    </MeteorologicalInfos>
+  </Body>
+</Report>

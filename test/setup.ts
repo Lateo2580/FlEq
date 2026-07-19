@@ -1,4 +1,5 @@
 import { beforeEach, vi } from "vitest";
+import { resetDisplayLayoutForTest } from "../src/ui/display-layout";
 
 /**
  * notifyMock を vi.hoisted() で定義し、vi.mock ファクトリ内で参照可能にする。
@@ -32,4 +33,5 @@ export { notifyMock };
 
 beforeEach(() => {
   notifyMock.mockClear();
+  resetDisplayLayoutForTest();  // layout singleton の順序依存・外部 config 汚染を防ぐ
 });

@@ -187,6 +187,65 @@ describe("EewEventLogger", () => {
     });
   });
 
+  describe("最大震度・差分ログの To 基準統一 (Codex 最終レビュー Important 1)", () => {
+    it("最大予測震度は areas 全体の To 基準最大を採用する (先頭 area の From ではない)", async () => {
+      const info = createEewInfo({
+        serial: "1",
+        eventId: "ev-pess-1",
+        forecastIntensity: {
+          areas: [
+            { name: "先頭区域", intensity: "3" },
+            { name: "本当の最大区域", intensity: "4", intensityTo: "6-" },
+          ],
+        },
+      });
+      const result = createUpdateResult({ isNew: true });
+      logger.logReport(info, result);
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      // 先頭 area の From ("3") ではなく、To 基準の全体最大 ("6-") が出ること
+      expect(content).toContain("最大予測震度: 6-");
+      expect(content).not.toContain("最大予測震度: 3");
+    });
+
+    it("変化ログは To 基準最大同士の差分になる (先頭 area の From 生値ではない)", async () => {
+      const info1 = createEewInfo({
+        serial: "1",
+        eventId: "ev-pess-2",
+        forecastIntensity: {
+          areas: [{ name: "区域A", intensity: "4" }],
+        },
+      });
+      logger.logReport(info1, createUpdateResult({ isNew: true }));
+
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "ev-pess-2",
+        forecastIntensity: {
+          areas: [
+            { name: "先頭区域", intensity: "3" },
+            { name: "本当の最大区域", intensity: "5-", intensityTo: "6+" },
+          ],
+        },
+      });
+      // previousMaxInt は tracker が To 基準で算出した前回最大 ("4")
+      const result2 = createUpdateResult({
+        isNew: false,
+        diff: { previousMaxInt: "4" },
+      });
+      logger.logReport(info2, result2);
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      // 先頭 area の From ("3") ではなく、To 基準の全体最大 ("6+") への変化として出ること
+      expect(content).toContain("震度4→6+");
+      expect(content).not.toContain("震度4→3");
+    });
+  });
+
   describe("nextAdvisory (最終報)", () => {
     it("最終報テキストがログに含まれる", async () => {
       const info = createEewInfo({
