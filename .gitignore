@@ -2,7 +2,7 @@ node_modules/
 dist/
 .env
 eew-logs/
-events/
+/events/
 .DS_Store
 .claude/settings.local.json
 tmp.py
@@ -10,3 +10,11 @@ tmp.py
 .worktrees/
 docs/superpowers/
 docs/Superpowers_Archive/
+
+# VPWP50 detail cache 永続化先 (runtime)
+data/runtime/
+
+# 一時ファイル (Codex review prompts/outputs 等)
+tmp/
+.claude/tmp/
+.tmp-workflow-out/

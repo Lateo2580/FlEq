@@ -8,6 +8,7 @@
   },
   "files": [
     "dist",
+    "display/dist",
     "assets",
     "README.md",
     "CHANGELOG.md",
@@ -22,11 +23,16 @@
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepack": "npm run build",
+    "prepack": "npm run build && npm run display:build",
     "prepublishOnly": "npm test",
     "release": "commit-and-tag-version",
     "release:minor": "commit-and-tag-version --release-as minor",
-    "release:major": "commit-and-tag-version --release-as major"
+    "release:major": "commit-and-tag-version --release-as major",
+    "studio:backend": "npm --prefix studio run backend",
+    "studio": "npm --prefix studio run studio",
+    "display:dev": "npm --prefix display run dev",
+    "display:build": "npm --prefix display run build",
+    "display:test": "npm --prefix display run test"
   },
   "keywords": [
     "dmdata",
