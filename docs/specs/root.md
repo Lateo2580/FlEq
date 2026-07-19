@@ -82,16 +82,19 @@ UI に依存しない待機ヒントの純粋データとシャッフラー。RE
 | `VolcanoHeadType` | `"VZVO40" \| "VFVO50" \| ... \| "VFVO60"` | 火山電文の head.type リテラル |
 | `VolcanoAction` | `"issue" \| "continue" \| "raise" \| "lower" \| "release" \| "cancel"` | パーサが XML Condition から変換した正規化アクション |
 | `ParsedVolcanoInfo` | `ParsedVolcanoAlertInfo \| ParsedVolcanoEruptionInfo \| ParsedVolcanoAshfallInfo \| ParsedVolcanoTextInfo \| ParsedVolcanoPlumeInfo` | パース済み火山情報の判別共用体 (`kind` で判別) |
+| `PromptStatusRole` | 津波3 role + 火山で使用する frame 3 role | プロンプト状態専用のテーマ role union |
+| `DetailSnapshot` | tsunami / volcano / vpws50 / vpwp50 | `kind` で描画先を判別する詳細表示スナップショット |
+| `DetailKind`, `DetailSnapshotOf<K>` | `DetailSnapshot` から導出 | provider の `category` と戻り値を型で対応づける射影型 |
 
 #### インターフェース — プロンプト・詳細プロバイダ
 
 | 名前 | 説明 |
 |---|---|
-| `PromptStatusSegment` | プロンプトに表示するステータスセグメント。`text` (chalk 適用済み) と `priority` (小さいほど左側) |
+| `PromptStatusSegment` | プロンプトに表示するステータスセグメント。色付け前の `text`、専用 `role`、`priority` (小さいほど左側) |
 | `PromptStatusProvider` | `getPromptStatus(): PromptStatusSegment \| null` — プロンプトにステータスを提供する |
-| `DetailProvider` | `category`, `emptyMessage`, `hasDetail()`, `showDetail()` — `detail` コマンドの表示を提供する |
+| `DetailProvider<K>` | `category`, `emptyMessage`, `getDetail(): DetailSnapshotOf<K> \| null` — `detail` コマンドへ表示用データを提供する |
 
-`PromptStatusProvider` は `TsunamiStateHolder`, `VolcanoStateHolder` が実装し、REPL プロンプトに津波警報・火山警戒レベルを表示する。`DetailProvider` はこれらに加えて `Vpws50StateHolder`, `Vpwp50Cache` が実装し、REPL の `detail` コマンドから呼ばれる。
+`PromptStatusProvider` は `TsunamiStateHolder`, `VolcanoStateHolder` が実装し、REPL が `role` を theme に解決して津波警報・火山警戒レベルを表示する。`DetailProvider` はこれらに加えて `Vpws50StateHolder`, `Vpwp50DetailCache` が実装する。holder はスナップショットだけを返し、`ui/detail-renderers.ts` が `kind` ごとの描画を同期実行する。
 
 #### インターフェース — アプリケーション設定
 
@@ -227,7 +230,7 @@ UI に依存しない待機ヒントの純粋データとシャッフラー。RE
 - `AppConfig` と `ConfigFile` を分離することで、「完全な設定」と「部分的な設定ファイル」を型レベルで区別している。`ConfigFile` の省略可能フィールドは `DEFAULT_CONFIG` とマージされて `AppConfig` になる。
 - `WsMessage` は判別共用体 (discriminated union) として `type` フィールドでナローイングできる。
 - パース済み電文型は電文タイプごとに分割し、各パーサ関数の戻り値型として使われる。地震系の共通フィールド (`type`, `infoType`, `title`, `reportDateTime`, `headline`, `publishingOffice`, `isTest`) は全型に存在するが、基底インターフェースの継承ではなく各型で直接定義している。一方、火山系は `ParsedVolcanoBase` を `extends` で継承し、`kind` フィールドによる discriminated union を形成する設計パターンの違いがある。
-- `PromptStatusProvider` / `DetailProvider` は REPL と状態管理の結合を疎にするためのインターフェース。REPL は具象クラスではなくインターフェース経由で状態を参照するため、新しい状態管理クラスを追加しても REPL を変更する必要がない。
+- `PromptStatusProvider` / `DetailProvider` は REPL と状態管理の結合を疎にするためのインターフェース。状態管理側は chalk や formatter を参照せず raw text / role または表示スナップショットを返し、色付け・描画は UI 境界で行う。
 
 ---
 

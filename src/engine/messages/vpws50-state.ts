@@ -8,12 +8,13 @@ import type {
   Vpws50DisplayKindGroup,
   PhenomenonKey,
   DetailProvider,
+  DetailSnapshotOf,
   DisplaySeverity,
   OfficialAlertLevel,
   ResolutionSource,
 } from "../../types";
 import * as log from "../../logger";
-import { kindCodeToPhenomenonKey } from "../../ui/weather-phenomenon-key";
+import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
 import {
   resolvePhenomenonFamily,
   resolveDisplaySeverity,
@@ -223,7 +224,7 @@ function hasWarningOrHigher(snap: Snapshot | null): boolean {
   return false;
 }
 
-export class Vpws50StateHolder implements DetailProvider {
+export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   readonly category = "vpws50";
   readonly emptyMessage = "VPWS50 の最新電文を受信していません";
 
@@ -447,18 +448,10 @@ export class Vpws50StateHolder implements DetailProvider {
     return this.buildCurrentAreasForDisplay();
   }
 
-  hasDetail(): boolean {
-    return this.current != null;
-  }
-
-  showDetail(): void {
-    if (this.current == null) return;
+  getDetail(): DetailSnapshotOf<"vpws50"> | null {
     const display = this.buildCurrentAreasForDisplay();
-    if (display == null) return;
-    void import("../../ui/weather-formatter-vpws50").then((mod) => {
-      const fn = (mod as unknown as { displayVpws50FromState?: (d: Vpws50CurrentAreasForDisplay) => void }).displayVpws50FromState;
-      if (typeof fn === "function") fn(display);
-    });
+    if (display == null) return null;
+    return { kind: "vpws50", display };
   }
 
   __test_setLastSuccessfulFullDisplayAt(d: Date | null): void {

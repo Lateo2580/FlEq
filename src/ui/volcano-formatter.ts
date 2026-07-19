@@ -10,6 +10,7 @@ import {
   AshForecastPeriod,
   WindProfileEntry,
   VolcanoMunicipality,
+  VolcanoAlertEntrySnapshot,
 } from "../types";
 import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggregator";
 import {
@@ -48,6 +49,41 @@ import {
 } from "./responsive-table-engine";
 import { getRoleChalk, RoleName } from "./theme";
 import { VolcanoPresentation } from "../engine/presentation/volcano-presentation";
+
+function detailLevelRole(level: number | null): RoleName {
+  switch (level) {
+    case 5: return "frameCritical";
+    case 4: return "frameCritical";
+    case 3: return "frameWarning";
+    case 2: return "frameWarning";
+    case 1: return "frameNormal";
+    default: return "frameNormal";
+  }
+}
+
+/** REPL detail 用の継続中火山警報一覧を描画する。 */
+export function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void {
+  if (entries.length === 0) return;
+
+  console.log("");
+  console.log("  継続中の火山警報:");
+  console.log("");
+
+  const sorted = [...entries].sort(
+    (a, b) => (b.alertLevel ?? 0) - (a.alertLevel ?? 0),
+  );
+
+  for (const entry of sorted) {
+    const colorFn = getRoleChalk(detailLevelRole(entry.alertLevel));
+    const levelStr = entry.alertLevel != null
+      ? `Lv${entry.alertLevel}`
+      : entry.alertLevelCode ?? "—";
+    console.log(
+      `    ${colorFn(entry.volcanoName)}  ${colorFn(levelStr)}  ${entry.warningKind}`,
+    );
+  }
+  console.log("");
+}
 
 // ── ヘルパー ──
 

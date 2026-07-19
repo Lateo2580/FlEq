@@ -51,36 +51,31 @@ describe("Vpwp50DetailCache", () => {
     }
   });
 
-  it("初期状態は hasDetail()=false", () => {
+  it("初期状態は getDetail()=null", () => {
     const root = makeTmpRoot();
     tmpRoots.push(root);
     const cache = new Vpwp50DetailCache({ persistRoot: root });
-    expect(cache.hasDetail()).toBe(false);
+    expect(cache.getDetail()).toBeNull();
     expect(cache.category).toBe("vpwp50");
   });
 
-  it("rememberLatest 後は hasDetail()=true", () => {
+  it("rememberLatest 後は snapshot を返す", () => {
     const root = makeTmpRoot();
     tmpRoots.push(root);
     const cache = new Vpwp50DetailCache({ persistRoot: root });
     cache.rememberLatest(makeMinimalInfo() as never);
-    expect(cache.hasDetail()).toBe(true);
+    expect(cache.getDetail()).toMatchObject({
+      kind: "vpwp50",
+      detail: { targetArea: "長野県", infoType: "発表" },
+    });
   });
 
-  it("showDetail() は console.log を呼ぶ", () => {
+  it("snapshot は内部 entry の表示用フィールドだけを返す", () => {
     const root = makeTmpRoot();
     tmpRoots.push(root);
     const cache = new Vpwp50DetailCache({ persistRoot: root });
     cache.rememberLatest(makeMinimalInfo() as never);
-    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-    let called = false;
-    try {
-      cache.showDetail();
-      called = spy.mock.calls.length > 0;
-    } finally {
-      spy.mockRestore();
-    }
-    expect(called).toBe(true);
+    expect(cache.getDetail()?.detail.entries).toEqual([]);
   });
 });
 
@@ -99,13 +94,13 @@ describe("Vpwp50DetailCache 永続化", () => {
     tmpRoots.push(root);
     const cache1 = new Vpwp50DetailCache({ persistRoot: root });
     cache1.rememberLatest(makeMinimalInfo() as never);
-    expect(cache1.hasDetail()).toBe(true);
+    expect(cache1.getDetail()).not.toBeNull();
 
     const cache2 = new Vpwp50DetailCache({ persistRoot: root });
-    expect(cache2.hasDetail()).toBe(true);
+    expect(cache2.getDetail()).not.toBeNull();
   });
 
-  it("破損 JSON は無視されて hasDetail()=false (load 失敗で例外を投げない)", () => {
+  it("破損 JSON は無視されて getDetail()=null (load 失敗で例外を投げない)", () => {
     const root = makeTmpRoot();
     tmpRoots.push(root);
     const persistDir = path.join(root, "data", "runtime");
@@ -116,7 +111,7 @@ describe("Vpwp50DetailCache 永続化", () => {
       "utf8",
     );
     const cache = new Vpwp50DetailCache({ persistRoot: root });
-    expect(cache.hasDetail()).toBe(false);
+    expect(cache.getDetail()).toBeNull();
   });
 
   it("entries[].severity が無効な値の persisted JSON を破棄 (Codex R4 #1)", () => {
@@ -150,7 +145,7 @@ describe("Vpwp50DetailCache 永続化", () => {
         "utf8",
       );
       const cache = new Vpwp50DetailCache({ persistRoot: tmpRoot });
-      expect(cache.hasDetail()).toBe(false);
+      expect(cache.getDetail()).toBeNull();
     } finally {
       fs.rmSync(tmpRoot, { recursive: true, force: true });
     }
@@ -176,7 +171,7 @@ describe("Vpwp50DetailCache 永続化", () => {
       "utf8",
     );
     const cache = new Vpwp50DetailCache({ persistRoot: root });
-    expect(cache.hasDetail()).toBe(false);
+    expect(cache.getDetail()).toBeNull();
   });
 
   it("schema v1 (displaySeverity 欠落) は version ゲートで静かに破棄される — warn を出さない (Phase B)", () => {
@@ -220,7 +215,7 @@ describe("Vpwp50DetailCache 永続化", () => {
     } finally {
       spy.mockRestore();
     }
-    expect(cache.hasDetail()).toBe(false);
+    expect(cache.getDetail()).toBeNull();
     // 世代交代は沈黙 (message-router 統合テストの「無視ルートは出力なし」を壊さない)
     expect(logs.join("\n")).toBe("");
   });
@@ -266,7 +261,7 @@ describe("Vpwp50DetailCache 永続化", () => {
     } finally {
       spy.mockRestore();
     }
-    expect(cache.hasDetail()).toBe(false);
+    expect(cache.getDetail()).toBeNull();
     // 現行 version で構造が壊れているのは異常 → warn に値する
     expect(logs.join("\n")).toContain("persist structure validation 失敗");
   });

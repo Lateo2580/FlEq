@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EventEmitter } from "events";
+import chalk from "chalk";
 
 // ── モック ──
 
@@ -87,6 +88,7 @@ import { Notifier } from "../../src/engine/notification/notifier";
 import { EewEventLogger } from "../../src/engine/eew/eew-logger";
 import { AppConfig, DEFAULT_CONFIG } from "../../src/types";
 import { TelegramStats } from "../../src/engine/messages/telegram-stats";
+import * as themeModule from "../../src/ui/theme";
 
 const mockListEarthquakes = vi.mocked(listEarthquakes);
 const mockListContracts = vi.mocked(listContracts);
@@ -165,6 +167,36 @@ describe("ReplHandler", () => {
   function simulateLine(line: string): void {
     mockRl.emit("line", line);
   }
+
+  it("PromptStatus の role を REPL 境界で ANSI 色へ変換する", () => {
+    const previousLevel = chalk.level;
+    chalk.level = 3;
+    process.stdout.isTTY = true;
+    try {
+      const handler = new ReplHandler(
+        createConfig(),
+        createMockWsManager(),
+        new Notifier(),
+        new EewEventLogger(),
+        vi.fn(),
+        new TelegramStats(),
+        [{
+          getPromptStatus: () => ({
+            text: "津波警報",
+            role: "tsunamiWarning",
+            priority: 10,
+          }),
+        }],
+      );
+
+      const prompt = (handler as unknown as { buildPromptString(): string }).buildPromptString();
+      const colored = themeModule.getRoleChalk("tsunamiWarning")("津波警報");
+      expect(colored).toMatch(/\u001b\[/);
+      expect(prompt).toContain(colored);
+    } finally {
+      chalk.level = previousLevel;
+    }
+  });
 
   describe("history コマンド", () => {
     it("地震履歴を表示する", async () => {
@@ -628,10 +660,9 @@ describe("ReplHandler", () => {
 
   describe("detail コマンド", () => {
     const emptyTsunamiProvider = {
-      category: "tsunami",
+      category: "tsunami" as const,
       emptyMessage: "現在、継続中の津波情報はありません。",
-      hasDetail: () => false,
-      showDetail: vi.fn(),
+      getDetail: () => null,
     };
 
     it("情報なし時にメッセージを表示する", () => {
@@ -676,12 +707,25 @@ describe("ReplHandler", () => {
       handler.stop();
     });
 
-    it("DetailProvider がある場合に showDetail() を呼ぶ", () => {
+    it("DetailProvider がある場合に snapshot を描画する", () => {
+      const getDetail = vi.fn(() => ({
+        kind: "tsunami" as const,
+        info: {
+          type: "VTSE41",
+          infoType: "発表",
+          title: "津波警報・注意報・予報",
+          reportDateTime: "2025-01-01T00:00:00+09:00",
+          headline: null,
+          publishingOffice: "気象庁",
+          forecast: [],
+          warningComment: "",
+          isTest: false,
+        },
+      }));
       const mockProvider = {
-        category: "tsunami",
+        category: "tsunami" as const,
         emptyMessage: "情報なし",
-        hasDetail: () => true,
-        showDetail: vi.fn(),
+        getDetail,
       };
 
       const handler = new ReplHandler(
@@ -692,7 +736,7 @@ describe("ReplHandler", () => {
 
       simulateLine("detail");
 
-      expect(mockProvider.showDetail).toHaveBeenCalled();
+      expect(getDetail).toHaveBeenCalled();
 
       handler.stop();
     });

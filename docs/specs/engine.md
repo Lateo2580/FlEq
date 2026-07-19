@@ -1260,15 +1260,14 @@ function updateReplConnectionState(repl: ReplHandlerType | null, connected: bool
 ```ts
 function detectTsunamiAlertLevel(kinds: string[]): TsunamiAlertLevel | null
 
-class TsunamiStateHolder implements PromptStatusProvider, DetailProvider {
-  readonly category: string;
+class TsunamiStateHolder implements PromptStatusProvider, DetailProvider<"tsunami"> {
+  readonly category: "tsunami";
   readonly emptyMessage: string;
   getLevel(): TsunamiAlertLevel | null;
   update(info: ParsedTsunamiInfo): void;
   clear(): void;
   getPromptStatus(): PromptStatusSegment | null;
-  hasDetail(): boolean;
-  showDetail(): void;
+  getDetail(): DetailSnapshotOf<"tsunami"> | null;
 }
 ```
 
@@ -1285,15 +1284,18 @@ class TsunamiStateHolder implements PromptStatusProvider, DetailProvider {
 
 #### プロンプト表示 (`getPromptStatus`)
 
-警報レベルに応じたテーマロール (`tsunamiMajor` / `tsunamiWarning` / `tsunamiAdvisory`) で色付けされた文字列を返す。`priority: 10` で他のステータスより高優先度。
+警報レベルの raw text と専用テーマロール (`tsunamiMajor` / `tsunamiWarning` / `tsunamiAdvisory`) を返す。色付けは REPL が UI 境界で適用する。`priority: 10` で他のステータスより高優先度。
+
+#### 詳細スナップショット (`getDetail`)
+
+保持中の `ParsedTsunamiInfo` を `{ kind: "tsunami", info }` として返す。状態がなければ `null`。holder 自身は描画を行わない。
 
 ### 依存関係
 
 | インポート元 | 用途 |
 |-------------|------|
-| `../../types` | `ParsedTsunamiInfo`, `PromptStatusProvider`, `PromptStatusSegment`, `DetailProvider` |
-| `../../ui/theme` | `getRoleChalk`, `RoleName` — テーマロールによる色付け |
-| `../../ui/formatter` | `displayTsunamiInfo` — detail コマンドでの再表示 |
+| `../../types` | `ParsedTsunamiInfo`, `PromptStatusProvider`, `PromptStatusSegment`, `PromptStatusRole`, `DetailProvider`, `DetailSnapshotOf` |
+| `../../utils/tsunami-kind` | 最大警報レベルの解決 |
 
 ### 設計ノート
 
@@ -1380,8 +1382,8 @@ class VolcanoVfvo53Aggregator {
 ### エクスポートAPI
 
 ```ts
-class VolcanoStateHolder implements PromptStatusProvider, DetailProvider {
-  readonly category: string;       // "volcano"
+class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcano"> {
+  readonly category: "volcano";
   readonly emptyMessage: string;
   update(info: ParsedVolcanoInfo): void;
   isRenotification(info: ParsedVolcanoAlertInfo): boolean;
@@ -1389,8 +1391,7 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider {
   size(): number;
   getEntry(volcanoCode: string): VolcanoAlertEntry | undefined;
   getPromptStatus(): PromptStatusSegment | null;
-  hasDetail(): boolean;
-  showDetail(): void;
+  getDetail(): DetailSnapshotOf<"volcano"> | null;
 }
 ```
 
@@ -1410,14 +1411,17 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider {
 
 #### プロンプト表示 (`getPromptStatus`)
 
-全エントリから最も高い `alertLevel` のエントリを選び、テーマロールで色付けした `{火山名} Lv{N}` 文字列を返す。`priority: 20`。
+全エントリから最も高い `alertLevel` のエントリを選び、色付け前の `{火山名} Lv{N}` と `frameCritical` / `frameWarning` / `frameNormal` role を返す。色付けは REPL が適用する。`priority: 20`。
+
+#### 詳細スナップショット (`getDetail`)
+
+各エントリから火山名・警戒レベル・レベルコード・警報種別だけを射影し、`{ kind: "volcano", entries }` を返す。描画は UI formatter に委ねる。
 
 ### 依存関係
 
 | インポート元 | 用途 |
 |-------------|------|
-| `../../types` | `ParsedVolcanoInfo`, `ParsedVolcanoAlertInfo`, `PromptStatusProvider`, `DetailProvider` |
-| `../../ui/theme` | `getRoleChalk`, `RoleName` — テーマロールによる色付け |
+| `../../types` | `ParsedVolcanoInfo`, `ParsedVolcanoAlertInfo`, `PromptStatusProvider`, `PromptStatusRole`, `DetailProvider`, `DetailSnapshotOf` |
 
 ### 設計ノート
 

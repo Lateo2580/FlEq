@@ -1,7 +1,19 @@
-import { describe, it, expect } from "vitest";
-import { kindCodeToPhenomenonKey } from "../../src/ui/weather-phenomenon-key";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+
+vi.mock("../../src/logger", () => ({ warn: vi.fn() }));
+
+import * as log from "../../src/logger";
+import {
+  __phenomenonKey_internals,
+  kindCodeToPhenomenonKey,
+} from "../../src/dmdata/weather-phenomenon-key";
 
 describe("kindCodeToPhenomenonKey - 公式 Kind code 全 phenomenon family 網羅", () => {
+  beforeEach(() => {
+    vi.mocked(log.warn).mockClear();
+    __phenomenonKey_internals.warnedUnknown.clear();
+  });
+
   // spec §3.1 の全マッピング
   const CASES: Array<[string, string]> = [
     ["02", "暴風雪"], ["32", "暴風雪"],
@@ -45,5 +57,19 @@ describe("kindCodeToPhenomenonKey - 公式 Kind code 全 phenomenon family 網�
 
   it("空文字 → 'unknown_'", () => {
     expect(kindCodeToPhenomenonKey("")).toBe("unknown_");
+  });
+
+  it("同一の未知 code は 1 回だけ warn する", () => {
+    kindCodeToPhenomenonKey("warn-once-same");
+    kindCodeToPhenomenonKey("warn-once-same");
+
+    expect(log.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("異なる未知 code はそれぞれ 1 回 warn する", () => {
+    kindCodeToPhenomenonKey("warn-once-a");
+    kindCodeToPhenomenonKey("warn-once-b");
+
+    expect(log.warn).toHaveBeenCalledTimes(2);
   });
 });

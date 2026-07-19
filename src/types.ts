@@ -279,9 +279,67 @@ export const DEFAULT_CONFIG: Omit<AppConfig, "apiKey"> = {
 
 // ── プロンプトステータス ──
 
+/** PromptStatus が使用するテーマ role の専用 union */
+export type PromptStatusRole =
+  | "tsunamiMajor"
+  | "tsunamiWarning"
+  | "tsunamiAdvisory"
+  | "frameCritical"
+  | "frameWarning"
+  | "frameNormal";
+
+/** 火山警報 detail 表示に必要な射影 */
+export interface VolcanoAlertEntrySnapshot {
+  volcanoName: string;
+  alertLevel: number | null;
+  alertLevelCode: string | null;
+  warningKind: string;
+}
+
+/** VPWP50 detail の 1 時系列窓 */
+export interface Vpwp50DetailSeriesWindow {
+  series: "3h" | "24h" | "day";
+  timeRef: string;
+  window?: TimeWindow;
+  peak?: SignificancyPeakTime;
+  criteriaPeriod?: SignificancyCriteriaPeriod;
+}
+
+/** VPWP50 detail の表示対象 1 エントリ */
+export interface Vpwp50DetailEntrySnapshot {
+  severity: "special" | "warning" | "advisory" | "unknown";
+  kindLabel: string;
+  areaName: string;
+  windows: Vpwp50DetailSeriesWindow[];
+}
+
+/** VPWP50 detail 表示用スナップショット */
+export interface Vpwp50DetailSnapshot {
+  savedAt: string;
+  targetArea: string | null;
+  entries: Vpwp50DetailEntrySnapshot[];
+  unknownCodes: ParsedWeatherWarningTimeseriesInfo["unknownCodes"];
+  infoType: string;
+  frameLevel: FrameLevel;
+}
+
+/** 詳細表示用スナップショット。ドメイン別 discriminated union */
+export type DetailSnapshot =
+  | { kind: "tsunami"; info: ParsedTsunamiInfo }
+  | { kind: "volcano"; entries: VolcanoAlertEntrySnapshot[] }
+  | { kind: "vpws50"; display: Vpws50CurrentAreasForDisplay }
+  | { kind: "vpwp50"; detail: Vpwp50DetailSnapshot };
+
+export type DetailKind = DetailSnapshot["kind"];
+export type DetailSnapshotOf<K extends DetailKind> = Extract<
+  DetailSnapshot,
+  { kind: K }
+>;
+
 /** プロンプトに表示するステータスセグメント */
 export interface PromptStatusSegment {
-  text: string;       // chalk 適用済みテキスト
+  text: string;       // 色付け前の表示テキスト
+  role: PromptStatusRole;
   priority: number;   // 小さいほど左側に表示
 }
 
@@ -290,12 +348,11 @@ export interface PromptStatusProvider {
   getPromptStatus(): PromptStatusSegment | null;
 }
 
-/** detail コマンドの表示を提供する */
-export interface DetailProvider {
-  readonly category: string;       // "tsunami", "eew" 等
-  readonly emptyMessage: string;   // 情報なし時のメッセージ
-  hasDetail(): boolean;
-  showDetail(): void;
+/** detail コマンドへ表示用データを提供する */
+export interface DetailProvider<K extends DetailKind = DetailKind> {
+  readonly category: K;
+  readonly emptyMessage: string;
+  getDetail(): DetailSnapshotOf<K> | null;
 }
 
 // ── dmdata.jp API レスポンス型 ──

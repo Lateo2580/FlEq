@@ -18,7 +18,9 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `formatter.ts` | 共通ユーティリティ (フレーム描画・テキスト処理・設定キャッシュ) |
 | `eew-formatter.ts` | EEW 表示 (`displayEewInfo`) |
 | `earthquake-formatter.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
-| `volcano-formatter.ts` | 火山 表示 (`displayVolcanoInfo`) |
+| `volcano-formatter.ts` | 火山電文と火山警報 detail 表示 (`displayVolcanoInfo`, `renderVolcanoDetail`) |
+| `detail-renderers.ts` | `DetailSnapshot.kind` の網羅的 dispatch と category 別 renderer registry |
+| `vpwp50-detail-formatter.ts` | VPWP50 detail 射影の同期描画 |
 
 ### エクスポートAPI
 
@@ -111,7 +113,7 @@ Phase 4b (2026-07) で `eew-formatter.ts` を新デザイン言語化済み。�
 
 #### テーブル描画 (2 系統)
 
-**旧系統 `renderFrameTable()` / `pushFrameTable()`** (`frame-table-builder.ts`): フレーム内にカラム区切りテーブルを描画する。カラム幅はヘッダ・データの最大視覚幅から自動計算し、合計がフレーム内幅を超える場合は最終カラムを縮小する。`indent` (省略可、既定 0) を渡すとテーブル全行の本文先頭にスペースを前置し、有効幅も indent 分減らす (セクション見出し配下の本文と桁を揃える用途)。現在の利用箇所: 台風解析・台風確率・気象解説情報 (`weather-explanation-formatter.ts`)・VPWP50 の detail cache (`vpwp50-detail-cache.ts`)。**津波情報はこの系統から移行済み**（旧 `WIDE_TABLE_THRESHOLD (80)` 二分岐は廃止）。
+**旧系統 `renderFrameTable()` / `pushFrameTable()`** (`frame-table-builder.ts`): フレーム内にカラム区切りテーブルを描画する。カラム幅はヘッダ・データの最大視覚幅から自動計算し、合計がフレーム内幅を超える場合は最終カラムを縮小する。`indent` (省略可、既定 0) を渡すとテーブル全行の本文先頭にスペースを前置し、有効幅も indent 分減らす (セクション見出し配下の本文と桁を揃える用途)。現在の利用箇所: 台風解析・台風確率・気象解説情報 (`weather-explanation-formatter.ts`)・VPWP50 detail formatter (`vpwp50-detail-formatter.ts`)。**津波情報はこの系統から移行済み**（旧 `WIDE_TABLE_THRESHOLD (80)` 二分岐は廃止）。
 
 **新系統 `renderResponsiveTable()`** (`responsive-table-engine.ts`、津波/地震/EEW/火山降灰バッチが共有): 3 段階 breakpoint (`decideDisplayMode()`、`<120` / `120-159` / `160+`) に応じて `ColumnSpec<Row>[]` を formatter 側で切り替えて渡す (engine は列を自動で落とさない)。列オプション:
 - `wrap: true` — clip せず `wrapTextLines` で複数物理行に折り返し、全件そのまま表示する (ClipReport 非対象)
@@ -342,7 +344,11 @@ class ReplHandler {
 プロンプト形式: `FlEq [● HH:MM:SS | <ステータス> | ping in Ns]> `
 - 未接続時: `FlEq [○ --:--:--]> `
 - ping までの残り秒数は `wsManager.getStatus().heartbeatDeadlineAt` から算出
-- ステータスセグメント: `PromptStatusProvider` から動的に収集し、`priority` 順 (昇順) で `|` 区切り表示。津波警報発令中は `津波警報` 等がテーマロール色付きで挿入される
+- ステータスセグメント: `PromptStatusProvider` から色付け前の `text`・専用 `role`・`priority` を収集し、REPL が `getRoleChalk(role)(text)` を適用して priority 順 (昇順) に `|` 区切り表示する
+
+#### detail 描画境界
+
+`detail` ハンドラは `DetailProvider<K>.getDetail()` で型付けされたスナップショットを取得し、`detail-renderers.ts` の `renderDetail()` に渡す。renderer registry は tsunami / volcano / vpws50 / vpwp50 の4 kindを `satisfies` で拘束し、exhaustive switch で dispatch する。holder は UI を import せず、全 category の描画は `handleDetail()` の return 前に同期完了する。
 
 #### コマンドシステム
 
@@ -365,7 +371,7 @@ interface CommandEntry {
 | `history` | info | dmdata.jp API から地震履歴を取得・テーブル表示 |
 | `stats` | info | 電文統計を表示 |
 | `colors` | info | CUD パレット・震度色・フレームレベル色の一覧表示 |
-| `detail` | info | 直近の津波情報・火山警報状態を再表示 (`detail` / `detail tsunami` / `detail volcano`) |
+| `detail` | info | 直近状態を再表示 (`detail [tsunami\|volcano\|vpws50\|vpwp50]`) |
 | `status` | status | WebSocket 接続状態・SocketID・再接続試行回数の表示 |
 | `config` | status | Config ファイルの設定一覧 |
 | `contract` | status | dmdata.jp の契約区分一覧 (API 呼び出し) |
@@ -728,10 +734,13 @@ function displayVolcanoAshfallBatch(
   batch: Vfvo53BatchItems,
   presentation: VolcanoPresentation,
 ): void
+
+function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 ```
 
 - `displayVolcanoInfo` — `presentation.frameLevel` でフレームのスタイルを決定し、`info.kind` で内部レンダラを振り分ける。`infoType === "取消"` の場合は共通の取消表示を行う。
 - `displayVolcanoAshfallBatch` — VFVO53 バッチのまとめ表示。テーブル形式（幅≥80）または1火山1行リスト（狭幅）で表示する。`やや多量(72)以上` / `小さな噴石(75)` の火山は色付き強調。compact モードでは1行要約。
+- `renderVolcanoDetail` — holder が返す表示射影から、継続中の火山警報一覧を同期描画する。
 
 ### 内部ロジック
 

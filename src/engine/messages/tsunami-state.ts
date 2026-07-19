@@ -2,17 +2,17 @@ import {
   ParsedTsunamiInfo,
   PromptStatusProvider,
   PromptStatusSegment,
+  PromptStatusRole,
   DetailProvider,
+  DetailSnapshotOf,
 } from "../../types";
-import { getRoleChalk, RoleName } from "../../ui/theme";
-import { displayTsunamiInfo } from "../../ui/tsunami-formatter";
 import {
   resolveTsunamiLevel,
   type TsunamiLevelLabel,
 } from "../../utils/tsunami-kind";
 
 /** レベルに対応するテーマロール */
-const LEVEL_ROLE: Record<TsunamiLevelLabel, RoleName> = {
+const LEVEL_ROLE: Record<TsunamiLevelLabel, PromptStatusRole> = {
   "大津波警報": "tsunamiMajor",
   "津波警報": "tsunamiWarning",
   "津波注意報": "tsunamiAdvisory",
@@ -33,7 +33,7 @@ export type TsunamiStateUpdateResult =
  * 津波情報の状態を保持し、プロンプト表示と detail コマンドを提供する。
  */
 export class TsunamiStateHolder
-  implements PromptStatusProvider, DetailProvider
+  implements PromptStatusProvider, DetailProvider<"tsunami">
 {
   readonly category = "tsunami";
   readonly emptyMessage = "現在、継続中の津波情報はありません。";
@@ -103,22 +103,18 @@ export class TsunamiStateHolder
     if (this.currentLevel == null) return null;
 
     const role = LEVEL_ROLE[this.currentLevel];
-    const colorFn = getRoleChalk(role);
     return {
-      text: colorFn(this.currentLevel),
+      text: this.currentLevel,
+      role,
       priority: 10,
     };
   }
 
   // ── DetailProvider ──
 
-  hasDetail(): boolean {
-    return this.lastInfo != null;
+  getDetail(): DetailSnapshotOf<"tsunami"> | null {
+    if (this.lastInfo == null) return null;
+    return { kind: "tsunami", info: this.lastInfo };
   }
 
-  showDetail(): void {
-    if (this.lastInfo != null) {
-      displayTsunamiInfo(this.lastInfo);
-    }
-  }
 }

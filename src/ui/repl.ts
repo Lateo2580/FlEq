@@ -316,7 +316,9 @@ export class ReplHandler {
       .filter((s): s is PromptStatusSegment => s != null)
       .sort((a, b) => a.priority - b.priority);
 
-    const parts: string[] = segments.map((s) => s.text);
+    const parts: string[] = segments.map((s) =>
+      themeModule.getRoleChalk(s.role)(s.text)
+    );
 
     // フィルタ状態セグメント
     if (this.pipelineController?.getPipeline().filter != null) {

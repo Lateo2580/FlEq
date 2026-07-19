@@ -918,7 +918,7 @@ function displayVpws50Compact(
 }
 
 /**
- * Plan-R1: DetailProvider.showDetail から呼ぶ薄い表示関数。
+ * detail renderer (ui/detail-renderers.ts) から呼ぶ薄い表示関数。
  * フレーム + 現況サマリを出す (REPL `detail vpws50` 用)。
  */
 export function displayVpws50FromState(display: Vpws50CurrentAreasForDisplay): void {

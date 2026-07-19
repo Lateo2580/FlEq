@@ -15,6 +15,7 @@ import * as themeModule from "../theme";
 import { displayStatistics } from "../statistics-formatter";
 import type { ReplContext, CommandCategory } from "./types";
 import { CATEGORY_LABELS } from "./types";
+import { renderDetail } from "../detail-renderers";
 
 // ── ヘルパー (モジュール内のみ) ──
 
@@ -260,10 +261,11 @@ export function handleDetail(ctx: ReplContext, args: string): void {
   const category = sub === "" ? "tsunami" : sub;
   if ((KNOWN_DETAIL_CATEGORIES as readonly string[]).includes(category)) {
     const provider = ctx.detailProviders.find((p) => p.category === category);
-    if (provider == null || !provider.hasDetail()) {
+    const snapshot = provider?.getDetail();
+    if (snapshot == null) {
       console.log(chalk.gray(`  ${provider?.emptyMessage ?? "該当情報なし"}`));
     } else {
-      provider.showDetail();
+      renderDetail(snapshot);
     }
     return;
   }

@@ -170,29 +170,30 @@ describe("VolcanoStateHolder", () => {
       state.update(createAlertInfo({ volcanoCode: "306", volcanoName: "浅間山", alertLevel: 3 }));
       state.update(createAlertInfo({ volcanoCode: "506", volcanoName: "桜島", alertLevel: 5 }));
       const status = state.getPromptStatus();
-      expect(status).not.toBeNull();
-      // text は chalk でカラーリングされているが、桜島の名前を含むはず
-      expect(status!.text).toContain("桜島");
+      expect(status).toEqual({
+        text: "桜島 Lv5",
+        role: "frameCritical",
+        priority: 20,
+      });
     });
   });
 
-  describe("hasDetail / showDetail", () => {
-    it("エントリがない場合は false", () => {
-      expect(state.hasDetail()).toBe(false);
+  describe("getDetail", () => {
+    it("エントリがない場合は null", () => {
+      expect(state.getDetail()).toBeNull();
     });
 
-    it("エントリがある場合は true", () => {
+    it("エントリがある場合は表示用の射影を返す", () => {
       state.update(createAlertInfo());
-      expect(state.hasDetail()).toBe(true);
-    });
-
-    it("showDetail がエラーなく実行される", () => {
-      state.update(createAlertInfo({ volcanoCode: "306", volcanoName: "浅間山", alertLevel: 3 }));
-      state.update(createAlertInfo({ volcanoCode: "506", volcanoName: "桜島", alertLevel: 5 }));
-      const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-      state.showDetail();
-      expect(spy).toHaveBeenCalled();
-      spy.mockRestore();
+      expect(state.getDetail()).toEqual({
+        kind: "volcano",
+        entries: [{
+          volcanoName: "浅間山",
+          alertLevel: 3,
+          alertLevelCode: "13",
+          warningKind: "噴火警報（火口周辺）",
+        }],
+      });
     });
   });
 

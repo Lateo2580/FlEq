@@ -463,10 +463,10 @@ describe("Vpws50StateHolder.shouldRecap (R1-5/EC-8)", () => {
   });
 });
 
-describe("Vpws50StateHolder.hasDetail / showDetail (DetailProvider)", () => {
-  it("current 空なら hasDetail()=false", () => {
+describe("Vpws50StateHolder.getDetail (DetailProvider)", () => {
+  it("current 空なら null", () => {
     const state = new Vpws50StateHolder();
-    expect(state.hasDetail()).toBe(false);
+    expect(state.getDetail()).toBeNull();
   });
 
   it("emptyMessage は spec で定義した文字列", () => {
@@ -474,23 +474,13 @@ describe("Vpws50StateHolder.hasDetail / showDetail (DetailProvider)", () => {
     expect(state.emptyMessage).toBe("VPWS50 の最新電文を受信していません");
   });
 
-  it("受信済なら hasDetail()=true、showDetail() で console 出力", async () => {
+  it("受信済なら vpws50 snapshot を返す", () => {
     const state = new Vpws50StateHolder();
     state.diffAndUpdate(makeInfo([
       makeItem("茨城県", "080000", [makeKind("03", "warning")]),
     ]), "msg-1");
-    expect(state.hasDetail()).toBe(true);
-
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    let output = "";
-    try {
-      state.showDetail();
-      // dynamic import なので resolve を 200ms 待つ (vitest 内では遅め)
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      output = consoleSpy.mock.calls.map((c) => String(c[0])).join("\n");
-    } finally {
-      consoleSpy.mockRestore();
-    }
-    expect(output).toContain("茨城県");
+    const snapshot = state.getDetail();
+    expect(snapshot?.kind).toBe("vpws50");
+    expect(snapshot?.display.kinds[0].areas[0].areaName).toBe("茨城県");
   });
 });

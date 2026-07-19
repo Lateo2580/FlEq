@@ -1,27 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as log from "../../logger";
-import type { DetailProvider, ParsedWeatherWarningTimeseriesInfo } from "../../types";
-import {
-  getFrameWidth,
-  createRenderBuffer,
-  frameTop,
-  frameLine,
-  frameDivider,
-  frameBottom,
-  flushWithRecap,
-  type FrameLevel,
-} from "../../ui/formatter";
+import type {
+  DetailProvider,
+  DetailSnapshotOf,
+  FrameLevel,
+  ParsedWeatherWarningTimeseriesInfo,
+} from "../../types";
 import { weatherWarningTimeseriesFrameLevel } from "../presentation/level-helpers";
 import {
   flattenEntries,
-  partitionBySeverity,
-  formatSeriesWindows,
-  formatPeakBySeries,
-  formatCriteriaTimeBySeries,
   type WeatherSeverityEntry,
 } from "../presentation/weather-severity-pyramid";
-import { pushFrameTable } from "../../ui/frame-table-builder";
 
 const PERSIST_DIR = "data/runtime";
 const PERSIST_FILE = "vpwp50-latest.json";
@@ -46,7 +36,7 @@ const VALID_DISPLAY_SEVERITIES = [
 ] as const;
 const VALID_RESOLUTION_SOURCES = ["map", "nameFallback", "unknown"] as const;
 
-export class Vpwp50DetailCache implements DetailProvider {
+export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
   readonly category = "vpwp50";
   readonly emptyMessage = "VPWP50 (気象警報・注意報時系列情報) はまだ受信していません";
   private latest: PersistedVpwp50 | null = null;
@@ -74,73 +64,31 @@ export class Vpwp50DetailCache implements DetailProvider {
     this.saveToDisk(persisted);
   }
 
-  hasDetail(): boolean {
-    return this.latest != null;
-  }
-
-  showDetail(): void {
+  getDetail(): DetailSnapshotOf<"vpwp50"> | null {
     const data = this.latest;
-    if (data == null) return;
-    const level: FrameLevel = data.frameLevel;
-    const width = getFrameWidth();
-    const buf = createRenderBuffer();
-
-    buf.push(frameTop(level, width));
-    buf.push(
-      frameLine(
-        level,
-        `[detail] VPWP50 ${data.targetArea ?? ""} (${data.infoType})  保存 ${data.savedAt.slice(0, 19).replace("T", " ")}`,
-        width,
-      ),
-    );
-
-    const part = partitionBySeverity(data.entries);
-
-    if (part.advisory.length > 0) {
-      buf.push(frameDivider(level, width));
-      buf.push(frameLine(level, "▽ 注意報フル", width));
-      pushAdvisoryFull(buf, level, width, part.advisory);
-    }
-
-    const detailRows: string[][] = [];
-    for (const e of [...part.special, ...part.warning]) {
-      for (const w of e.windows) {
-        if (w.criteriaPeriod == null) continue;
-        detailRows.push([
-          `${e.kindLabel} @${e.areaName} (${w.series})`,
-          w.criteriaPeriod.sentence,
-          w.criteriaPeriod.duration,
-        ]);
-      }
-    }
-    if (detailRows.length > 0) {
-      buf.push(frameDivider(level, width));
-      buf.push(frameLine(level, "[基準到達詳細]", width));
-      pushFrameTable(
-        buf,
-        level,
-        width,
-        [{ header: "対象" }, { header: "Sentence" }, { header: "Duration" }],
-        detailRows,
-      );
-    }
-
-    if (data.unknownCodes.length > 0) {
-      buf.push(frameDivider(level, width));
-      buf.push(frameLine(level, "[未知コード]", width));
-      for (const u of data.unknownCodes) {
-        buf.push(
-          frameLine(
-            level,
-            `  ${u.areaName} ${u.propertyType} code=${u.code} ref=${u.timeRef} 高め扱い`,
-            width,
-          ),
-        );
-      }
-    }
-
-    buf.push(frameBottom(level, width));
-    flushWithRecap(buf, level, width);
+    if (data == null) return null;
+    return {
+      kind: "vpwp50",
+      detail: {
+        savedAt: data.savedAt,
+        targetArea: data.targetArea,
+        entries: data.entries.map((entry) => ({
+          severity: entry.severity,
+          kindLabel: entry.kindLabel,
+          areaName: entry.areaName,
+          windows: entry.windows.map((window) => ({
+            series: window.series,
+            timeRef: window.timeRef,
+            window: window.window,
+            peak: window.peak,
+            criteriaPeriod: window.criteriaPeriod,
+          })),
+        })),
+        unknownCodes: data.unknownCodes,
+        infoType: data.infoType,
+        frameLevel: data.frameLevel,
+      },
+    };
   }
 
   private loadFromDisk(): void {
@@ -207,32 +155,4 @@ function isValidPersisted(obj: unknown): obj is PersistedVpwp50 {
     }
   }
   return true;
-}
-
-function pushAdvisoryFull(
-  buf: ReturnType<typeof createRenderBuffer>,
-  level: FrameLevel,
-  width: number,
-  advisory: WeatherSeverityEntry[],
-): void {
-  const rows: (string | null)[][] = advisory.map((e) => [
-    e.kindLabel,
-    e.areaName,
-    formatSeriesWindows(e.windows),
-    formatPeakBySeries(e.windows, e.windows.length > 1),
-    formatCriteriaTimeBySeries(e.windows, e.windows.length > 1),
-  ]);
-  pushFrameTable(
-    buf,
-    level,
-    width,
-    [
-      { header: "種別" },
-      { header: "地域" },
-      { header: "時刻枠" },
-      { header: "ピーク" },
-      { header: "基準到達" },
-    ],
-    rows,
-  );
 }

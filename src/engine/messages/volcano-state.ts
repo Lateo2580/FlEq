@@ -3,10 +3,11 @@ import {
   ParsedVolcanoAlertInfo,
   PromptStatusProvider,
   PromptStatusSegment,
+  PromptStatusRole,
   DetailProvider,
+  DetailSnapshotOf,
   VolcanoAction,
 } from "../../types";
-import { getRoleChalk, RoleName } from "../../ui/theme";
 
 /** 火山警報エントリ */
 interface VolcanoAlertEntry {
@@ -20,7 +21,7 @@ interface VolcanoAlertEntry {
 }
 
 /** レベルに対応するテーマロール */
-function levelToRole(level: number | null): RoleName {
+function levelToRole(level: number | null): PromptStatusRole {
   switch (level) {
     case 5: return "frameCritical";
     case 4: return "frameCritical";
@@ -42,7 +43,7 @@ function levelToLabel(level: number | null): string {
  * 複数火山の同時追跡に対応 (volcanoCode をキーとする Map)。
  */
 export class VolcanoStateHolder
-  implements PromptStatusProvider, DetailProvider
+  implements PromptStatusProvider, DetailProvider<"volcano">
 {
   readonly category = "volcano";
   readonly emptyMessage = "現在、継続中の火山警報はありません。";
@@ -143,41 +144,27 @@ export class VolcanoStateHolder
     if (!highest) return null;
 
     const role = levelToRole(highest.alertLevel);
-    const colorFn = getRoleChalk(role);
     const label = `${highest.volcanoName}${levelToLabel(highest.alertLevel)}`;
     return {
-      text: colorFn(label),
+      text: label,
+      role,
       priority: 20,
     };
   }
 
   // ── DetailProvider ──
 
-  hasDetail(): boolean {
-    return this.entries.size > 0;
+  getDetail(): DetailSnapshotOf<"volcano"> | null {
+    if (this.entries.size === 0) return null;
+    return {
+      kind: "volcano",
+      entries: [...this.entries.values()].map((entry) => ({
+        volcanoName: entry.volcanoName,
+        alertLevel: entry.alertLevel,
+        alertLevelCode: entry.alertLevelCode,
+        warningKind: entry.lastInfo.warningKind,
+      })),
+    };
   }
 
-  showDetail(): void {
-    if (this.entries.size === 0) return;
-
-    console.log("");
-    console.log("  継続中の火山警報:");
-    console.log("");
-
-    const sorted = [...this.entries.values()].sort(
-      (a, b) => (b.alertLevel ?? 0) - (a.alertLevel ?? 0)
-    );
-
-    for (const entry of sorted) {
-      const role = levelToRole(entry.alertLevel);
-      const colorFn = getRoleChalk(role);
-      const levelStr = entry.alertLevel != null
-        ? `Lv${entry.alertLevel}`
-        : entry.alertLevelCode ?? "—";
-      console.log(
-        `    ${colorFn(entry.volcanoName)}  ${colorFn(levelStr)}  ${entry.lastInfo.warningKind}`
-      );
-    }
-    console.log("");
-  }
 }

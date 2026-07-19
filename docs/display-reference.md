@@ -1714,7 +1714,7 @@ legacy fallback (diff 無し) のリストもトークンは displaySeverity 形
 #### 関連実装
 
 - StateHolder: `src/engine/messages/vpws50-state.ts`
-- Phenomenon key 正規化: `src/ui/weather-phenomenon-key.ts`
+- Phenomenon key 正規化: `src/dmdata/weather-phenomenon-key.ts`
 - 地方クラスタ map: `src/ui/weather-area-cluster.ts`
 - Formatter: `src/ui/weather-formatter-vpws50.ts` (`displayVpws50List` 6 状態分岐)
 - REPL: `src/ui/repl-handlers/info-handlers.ts` (`handleDetail` 汎用化)

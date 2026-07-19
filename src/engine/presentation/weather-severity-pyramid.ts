@@ -188,7 +188,12 @@ function seriesOf(n: WeatherWarningTimeseriesNumber): Vpwp50Series {
 const SERIES_ORDER: Record<Vpwp50Series, number> = { "3h": 1, "24h": 2, day: 3 };
 const SERIES_LABEL: Record<Vpwp50Series, string> = { "3h": "3h", "24h": "24h", day: "日" };
 
-function formatOneWindow(w: SeriesWindow): string {
+type SeriesWindowForFormatting = Pick<
+  SeriesWindow,
+  "series" | "timeRef" | "window" | "peak" | "criteriaPeriod"
+>;
+
+function formatOneWindow(w: SeriesWindowForFormatting): string {
   if (!w.window) return `枠${w.timeRef}`;
   const tw = w.window;
   if (tw.count <= 1) return tw.startName;
@@ -196,7 +201,7 @@ function formatOneWindow(w: SeriesWindow): string {
   return `${tw.startName}ほか${tw.count - 1}枠`;
 }
 
-export function formatSeriesWindows(windows: SeriesWindow[]): string | null {
+export function formatSeriesWindows(windows: SeriesWindowForFormatting[]): string | null {
   if (windows.length === 0) return null;
   if (windows.length === 1) return formatOneWindow(windows[0]);
   return windows
@@ -205,7 +210,7 @@ export function formatSeriesWindows(windows: SeriesWindow[]): string | null {
 }
 
 export function formatPeakBySeries(
-  windows: SeriesWindow[],
+  windows: SeriesWindowForFormatting[],
   alwaysPrefix = false,
 ): string | null {
   const peaks = windows.filter((w) => w.peak != null);
@@ -226,7 +231,7 @@ export function formatPeakBySeries(
 }
 
 export function formatCriteriaTimeBySeries(
-  windows: SeriesWindow[],
+  windows: SeriesWindowForFormatting[],
   alwaysPrefix = false,
 ): string | null {
   const items = windows.filter((w) => w.criteriaPeriod != null);
@@ -250,15 +255,17 @@ export function formatCriteriaTimeBySeries(
     .join(" / ");
 }
 
-export interface SeverityPartition {
-  special: WeatherSeverityEntry[];
-  warning: WeatherSeverityEntry[];
-  advisory: WeatherSeverityEntry[];
-  unknown: WeatherSeverityEntry[];
+export interface SeverityPartition<T extends { severity: WeatherSeverity }> {
+  special: T[];
+  warning: T[];
+  advisory: T[];
+  unknown: T[];
 }
 
-export function partitionBySeverity(entries: WeatherSeverityEntry[]): SeverityPartition {
-  const part: SeverityPartition = { special: [], warning: [], advisory: [], unknown: [] };
+export function partitionBySeverity<T extends { severity: WeatherSeverity }>(
+  entries: T[],
+): SeverityPartition<T> {
+  const part: SeverityPartition<T> = { special: [], warning: [], advisory: [], unknown: [] };
   for (const e of entries) {
     part[e.severity].push(e);
   }

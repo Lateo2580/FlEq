@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { ParsedTsunamiInfo } from "../../src/types";
 
@@ -26,16 +26,10 @@ function createTsunamiInfo(
 }
 
 describe("TsunamiStateHolder", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
   let holder: TsunamiStateHolder;
 
   beforeEach(() => {
-    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     holder = new TsunamiStateHolder();
-  });
-
-  afterEach(() => {
-    consoleSpy.mockRestore();
   });
 
   describe("update", () => {
@@ -49,7 +43,7 @@ describe("TsunamiStateHolder", () => {
       holder.update(info);
 
       expect(holder.getLevel()).toBe("津波警報");
-      expect(holder.hasDetail()).toBe(true);
+      expect(holder.getDetail()).not.toBeNull();
     });
 
     it("取消報でクリアされる", () => {
@@ -72,7 +66,7 @@ describe("TsunamiStateHolder", () => {
       );
 
       expect(holder.getLevel()).toBeNull();
-      expect(holder.hasDetail()).toBe(false);
+      expect(holder.getDetail()).toBeNull();
     });
 
     it("警報レベルなし (津波予報のみ) でクリアされる", () => {
@@ -175,10 +169,11 @@ describe("TsunamiStateHolder", () => {
       );
 
       const segment = holder.getPromptStatus();
-      expect(segment).not.toBeNull();
-      expect(segment!.priority).toBe(10);
-      // テキストには chalk 適用済みの "津波警報" が含まれる (ANSI エスケープ付き)
-      expect(segment!.text).toContain("津波警報");
+      expect(segment).toEqual({
+        text: "津波警報",
+        role: "tsunamiWarning",
+        priority: 10,
+      });
     });
 
     it("非アクティブ時は null を返す", () => {
@@ -186,36 +181,20 @@ describe("TsunamiStateHolder", () => {
     });
   });
 
-  describe("hasDetail / showDetail", () => {
-    it("情報がある場合 hasDetail() は true", () => {
-      holder.update(
-        createTsunamiInfo({
-          forecast: [
-            { areaName: "岩手県", kind: "津波注意報", maxHeightDescription: "1m", firstHeight: "" },
-          ],
-        })
-      );
+  describe("getDetail", () => {
+    it("情報がある場合は kind と元情報を返す", () => {
+      const info = createTsunamiInfo({
+        forecast: [
+          { areaName: "岩手県", kind: "津波注意報", maxHeightDescription: "1m", firstHeight: "" },
+        ],
+      });
+      holder.update(info);
 
-      expect(holder.hasDetail()).toBe(true);
+      expect(holder.getDetail()).toEqual({ kind: "tsunami", info });
     });
 
-    it("情報がない場合 hasDetail() は false", () => {
-      expect(holder.hasDetail()).toBe(false);
-    });
-
-    it("showDetail() で displayTsunamiInfo が呼ばれる", () => {
-      holder.update(
-        createTsunamiInfo({
-          forecast: [
-            { areaName: "岩手県", kind: "津波注意報", maxHeightDescription: "1m", firstHeight: "" },
-          ],
-        })
-      );
-
-      holder.showDetail();
-
-      // displayTsunamiInfo が console.log を呼ぶことを確認
-      expect(consoleSpy).toHaveBeenCalled();
+    it("情報がない場合は null", () => {
+      expect(holder.getDetail()).toBeNull();
     });
   });
 
