@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-dmdata.jp の地震・津波・EEW・火山電文を受信して表示する TypeScript CLI。
+dmdata.jp の地震・津波・EEW・火山・気象電文を受信して表示する TypeScript CLI。
 
 @AGENTS.md
 
@@ -21,11 +21,14 @@ npm run start:lowmem # メモリ最適化モードで実行
 | `engine/cli/` | CLI 定義・起動ハンドラ |
 | `engine/startup/` | 設定解決・起動時初期化 (津波/火山状態復元) |
 | `engine/monitor/` | 実行中オーケストレーション・シャットダウン・REPL 協調 |
-| `engine/messages/` | 電文ルーティング・津波/火山状態管理 |
+| `engine/messages/` | 電文ルーティング・状態管理 (津波/火山/気象警報)・統計・要約追跡 |
+| `engine/presentation/` | PresentationEvent 変換・severity/frame/sound 解決・差分管理 |
 | `engine/eew/` | EEW 追跡・ログ記録 |
 | `engine/notification/` | デスクトップ通知・通知レベル判定・通知音 |
-| `dmdata/` | dmdata.jp 通信 (REST, WebSocket) とパーサ |
-| `ui/` | formatter / REPL / テーマ |
+| `engine/filter/` | フィルタ DSL (パーサ・コンパイラ・型検査) |
+| `engine/template/` | テンプレート DSL (パーサ・コンパイラ・フィルタ関数) |
+| `dmdata/` | dmdata.jp 通信 (REST, WebSocket) と全電文パーサ |
+| `ui/` | formatter・REPL・テーマ・サマリーパイプライン |
 
 新しい電文対応は原則 **parser → router → formatter → notifier → test** の順で追加する。電文ルーティング・パーサ対応表・フレームレベル判定の詳細は `.claude/rules/message-pipeline.md` を参照。
 
@@ -72,6 +75,7 @@ npm run start:lowmem # メモリ最適化モードで実行
 - セッション内で区切りがついたら（バグ修正完了、機能実装完了、調査結論など）Obsidian にセッションログを記録する
 - 些細な成果でも記録する。記録しすぎて困ることはない
 - ボルトの場所・テンプレート・運用ルールは memory の `reference_obsidian_vault.md` を参照
+- 記録時に frontmatter `relations:`（7 型）を任意付与、関連参照は Vault の `MOC-Relations.md` を入口にする（詳細: assort CLAUDE.md §関連情報の辿り方）
 
 ## リリースフロー
 

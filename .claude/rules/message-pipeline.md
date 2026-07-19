@@ -19,6 +19,7 @@ paths:
 
 `message-router.ts` が `classification` + `head.type` で振り分ける。
 
+0. （最優先・classification 非依存）`head.type` が `IGNORED_HEAD_TYPES` (VPWW53/54・VPNO50・VPOA50・VPZJ50・VPCJ50・VPFJ50・VMCJ50/51/52・VXWW50) → `ignore` ルート。handler 冒頭で早期 return し、**表示・通知・統計をすべてスキップ**（raw フォールバックも出さない）。配信終了予定 + 既存電文 (VPWW55-61/VPWS50・VPZJ51/VPCJ51/VPFJ51 等) と内容重複のため。
 1. `eew.forecast` / `eew.warning` → EEW パス (EewTracker 重複検出 + EewEventLogger)
 2. `telegram.volcano` → 火山パス (VolcanoStateHolder + VolcanoPresentation)
 3. `telegram.earthquake` + `VXSE56`/`VXSE60`/`VZSE40` → テキスト系
@@ -26,7 +27,18 @@ paths:
 5. `telegram.earthquake` + `VXSE*` → 地震情報
 6. `telegram.earthquake` + `VTSE*` → 津波情報
 7. `telegram.earthquake` + `VYSE*` → 南海トラフ
-8. それ以外 → `displayRawHeader` (フォールバック)
+8. `telegram.weather` + `VPWW55-61`/`VPWS50` → 気象警報・注意報
+9. `telegram.weather` + `VPHW50`/`VPHW51` → 竜巻注意情報
+10. `telegram.weather` + `VPBS50` → 気象防災速報 (線状降水帯/記録雨/短時間大雪)
+11. `telegram.weather` + `VPAW51` → 早期天候情報 (高温/低温/大雪/雪 の長期予報)
+12. `telegram.weather` + `VPWP50` → 気象警報・注意報時系列情報 (3 時間/24 時間/日単位 の時系列予測)
+13. `telegram.weather` + `VPZI50`/`VPCI50` → 全般/地方天候情報 (気温・降水量の平年差/比 を含む長期気候統計情報。VPCI50 は梅雨入り/明け等の seasonEvents も持つ)
+14. `telegram.weather` + `VPCJ51`/`VPZJ51`/`VPFJ51`/`VMCJ53`/`VMCJ54`/`VMCJ55` → 気象解説情報 (地方/全般/府県 — 気象台が積極的に解説する事象、大雪・高温・豪雨・線状降水帯・台風等。VMCJ53-55 は潮位版で大潮・副振動等の TidalLevelPart を持つ)
+15. `telegram.weather` + `VPFT50` → 熱中症警戒アラート (環境省・気象庁共同の暑さ指数 (ＷＢＧＴ) ベース注意喚起。Body は平文のみ)
+16. `telegram.weather` + `VPTW60`/`VPTW61`/`VPTW62` → 台風解析・予報情報 (台風の実況解析・推定・5日予報。VPTW60/61/62 は同一スキーマで 1 parser。通知は一律 normal)
+17. `telegram.weather` + `VPTA50` → 台風の暴風域に入る確率 (375地域×5日積算 + 40step時系列、府県集約・targetRows=24・連続ゼロdedup)
+18. `telegram.weather` + `VXKO50-89`/`VXSU50-59` → 指定河川洪水予報・水位周知河川 (parser は schema 分岐で同一型に正規化、formatter は VXKO full / VXSU minimal の 2 layout。state holder は EventID 単位 station digest dedup + 取消 rollback、processor は 4 ケース dedup bypass: 取消 (rollback のみ) / 訂正 / Headline-only (rawStations 空) / VXSU schema。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す。aggregateByRiver は formatter 内呼出 (engine→ui 境界遵守))
+19. それ以外 → `displayRawHeader` (フォールバック)
 
 **特記**: VFVO53 は単発処理ではなく `volcano-vfvo53-aggregator.ts` でバッチ集約される。
 
@@ -53,6 +65,23 @@ ProcessOutcome → toPresentationEvent() → PresentationDiffStore.apply()
 | VTSE41/51/52 | `parseTsunamiTelegram` | `displayTsunamiInfo` |
 | VYSE50/51/52/60 | `parseNankaiTroughTelegram` | `displayNankaiTroughInfo` |
 | VFVO50-56/60, VFSVii, VZVO40 | `parseVolcanoTelegram` | `displayVolcanoInfo` |
+| VPWW55-61, VPWS50 | `parseWeatherWarning` | `displayWeatherWarning` |
+| VPHW50, VPHW51 | `parseTornadoAdvisory` | `displayTornadoAdvisory` |
+| VPBS50 | `parseWeatherBriefing` | `displayWeatherBriefing` |
+| VPAW51 | `parseEarlyWeather` | `displayEarlyWeatherInfo` |
+| VPWP50 | `parseWeatherWarningTimeseries` | `displayWeatherWarningTimeseriesInfo` |
+| VPZI50, VPCI50 | `parseClimateInfo` | `displayClimateInfo` |
+| VPCJ51 | `parseWeatherExplanation` | `displayWeatherExplanation` |
+| VPZJ51 | `parseWeatherExplanation` | `displayWeatherExplanation` |
+| VPFJ51 | `parseWeatherExplanation` | `displayWeatherExplanation` |
+| VMCJ53 | `parseWeatherExplanation` | `displayWeatherExplanation` |
+| VMCJ54 | `parseWeatherExplanation` | `displayWeatherExplanation` |
+| VMCJ55 | `parseWeatherExplanation` | `displayWeatherExplanation` |
+| VPFT50 | `parseHeatAlert` | `displayHeatAlertInfo` |
+| VPTW60, VPTW61, VPTW62 | `parseTyphoonAnalysis` | `displayTyphoonAnalysisInfo` |
+| VPTA50 | `parseTyphoonProbability` | `displayTyphoonProbabilityInfo` |
+| VXKO50-89 | `parseFloodForecast` | `displayFloodForecastInfo` |
+| VXSU50-59 | `parseFloodForecast` (`schema: "vxsu50"`) | `displayFloodForecastInfo` (`displayVxsuMinimal`) |
 
 ## フレームレベル判定
 
@@ -73,6 +102,81 @@ ProcessOutcome → toPresentationEvent() → PresentationDiffStore.apply()
   - VFVO51 臨時=warning, 通常=info
   - VFSVii Code31/36=warning, Code33=normal
   - VFVO60=normal, VZVO40=info, 取消=cancel
+- **気象警報・注意報** (weather-parser.ts の `maxDisplaySeverity` + `weatherFrameLevel`、Phase C で displaySeverity ベース化):
+  - 取消=cancel
+  - officialL5 / officialL4 / nonLevelSpecial (特別警報・L4 危険警報・土砂災害警戒情報等)=critical
+  - officialL3 / nonLevelWarning (警報級)=warning
+  - officialL2 / nonLevelAdvisory (注意報級)=normal
+  - officialL1 / unknown / release のみ=info
+  - **Phase C 変更点 (2026-06-12)**: Code 43/48/49 (警戒レベル4相当) が warning → critical に変更 (VPWW55-61/VPWP50 と整合)
+  - **通知音 (soundLevel) は表示と独立 (2026-06-12 決定)**: `weatherSoundLevel` は parser が `computeMaxSoundLevel` で導出した `maxSoundLevel` (集合ベース: 全 Kind を `DISPLAY_SEVERITY_TO_SOUND_LEVEL` に写して最大) を引く。critical 音は特別警報級 (officialL5/nonLevelSpecial) のみ、officialL4 は表示 critical のまま音は warning (気象警報・注意報系は通知項目が多いため)。VPWW55-61/VPWS50/VPWP50 すべてに適用。**L4 と特別警報級の共存時は特別警報側 (critical) が勝つ (集合ベース判定)** — rank 1 点代表の `maxDisplaySeverity` 経由だと critical 音が潰れていた (2026-06-12 共存エッジ解消)
+- **竜巻注意情報** (tornado-parser.ts の `tornadoFrameLevel`、Phase D で parser 段の displaySeverity ベース化):
+  - 取消=cancel
+  - 目撃情報あり (VPHW51 / sightingAreas あり、または目撃電文で地域抽出に失敗したフェイルセーフ) = nonLevelSpecial → critical
+  - 通常の発表 (activeAreaCount > 0) = nonLevelWarning → warning
+  - 発表地域なし (displaySeverity=null)=info
+  - parser (`resolveTornadoSeverity`) が `displaySeverity` / `soundLevel` を 2 系統で解決し、`tornadoFrameLevel` は前者を、`tornadoSoundLevel` は後者を引く (関数名は据置)
+  - **通知音 (soundLevel) は表示と独立 (2026-06-12 決定)**: 目撃情報あり = 表示 critical / **音 warning**。critical 音 = 特別警報そのもの (officialL5 + 特別警報の名を持つ nonLevelSpecial) のみ、という原則による (竜巻目撃は nonLevelSpecial だが特別警報の名を持たないため critical 音にしない)
+- **気象防災速報** (briefing-parser.ts の `briefingFrameLevel`、Phase D で集合ベース化):
+  - 取消=cancel
+  - 線状降水帯発生 / 記録的短時間大雨 = nonLevelSpecial → critical (即時危険)
+  - 線状降水帯予想 / 短時間大雪 = nonLevelWarning → warning
+  - 対象なし (maxDisplaySeverity=null)=info
+  - **集合ベース化 (Phase D)**: parser (`extractConditions`) が全 Condition を出自 (情報タグ / fallback) つきで集合収集し (先頭 Condition 単一採用を廃止、重複は除去)、各 Condition を `resolveBriefingSeverity` で解決して evidence 化。frame は `maxDisplaySeverity` (DISPLAY_SEVERITY_RANK 最大)、音は集合ベースの `maxSoundLevel` (別系統) を引く。先頭が軽い条件 (短時間大雪) でも後続の重い条件 (記録雨) が沈まない
+  - **未分類 Condition の昇格**: 情報タグ由来で未分類の Condition は `unknownConditions` に分離され、frame / sound とも最低 warning へ昇格 (base が info/normal のときのみ昇格、critical は潰さない)。fallback 由来の未分類は info 据置
+  - **通知音 (soundLevel) は表示と独立 (2026-06-12 決定)**: 線状降水帯発生 / 記録雨 = 表示 critical / **音 warning** (特別警報の名を持たない nonLevelSpecial は critical 音にしない、上記原則)
+- **早期天候情報** (level-helpers.ts の `earlyWeatherFrameLevel`):
+  - 取消=cancel
+  - その他=normal (5〜7日後の長期予報のため一律 normal)
+  - 一律 normal は Phase D で契約テスト固定化 (2026-06-12 決定。Headline キーワード解釈による昇格は不採用)
+- **気象警報・注意報時系列情報** (level-helpers.ts の `weatherWarningTimeseriesFrameLevel`):
+  - 取消=cancel
+  - 未知 Code 含む=**最低 warning へ昇格** (見落とし防止。本体最大が info/normal のときのみ昇格し、critical/warning は潰さない — 2026-06-12 降格バグ修正: 旧実装は本体最大より先に warning を return しており、L4/L5/特別警報級 + 未知 Code の共存で critical 表示を warning に降格させていた。音側ガード・briefingFrameLevel と同型に統一)
+  - `maxDisplaySeverity` = officialL5 / officialL4 / nonLevelSpecial → critical
+    - **Phase B 変更点 (2026-06-11)**: Code 41 (警戒レベル4相当 = officialL4) が warning → critical に変更 (VPWW55-61 と整合)
+  - `maxDisplaySeverity` = officialL3 / nonLevelWarning → warning
+  - `maxDisplaySeverity` = officialL2 / nonLevelAdvisory / officialL1 → normal
+  - `maxDisplaySeverity` = null → info
+  - 旧実装 (Phase A 以前) は `maxKnownSignificancy.severity` (3 段階: special/warning/advisory) ベースだった。displaySeverity ベースへの切替えにより Code 41 の扱いが変化する
+  - **通知音 (soundLevel) は表示と独立 (2026-06-12 決定)**: `weatherWarningTimeseriesSoundLevel` は parser が集合ベースで導出した `maxSoundLevel` を引く (critical 音は officialL5/nonLevelSpecial のみ、officialL4 = Code 41 は表示 critical のまま音は warning)。**L4 と特別警報級の共存時 (例: Code 41+50) は特別警報側 (critical) が勝つ (集合ベース判定、2026-06-12 共存エッジ解消)**。未知 Code → warning 昇格ガードは「最低 warning へ昇格」として維持 (maxSoundLevel が critical ならそちらが勝つ)
+- **全般/地方天候情報 (VPZI50/VPCI50)** (level-helpers.ts の `climateInfoFrameLevel`):
+  - 取消=cancel
+  - その他=normal (1〜数ヶ月の気候統計情報のため、内容によらず一律 normal。早期天候情報と同じ方針)
+  - VPCI50 (地方天候情報。梅雨入り/明け等) も VPZI50 と同じく一律 normal
+- **気象解説情報 (VPCJ51/VPZJ51/VPFJ51 共通。(潮位) VMCJ53-55 も同方針 — 一律 normal)** (level-helpers.ts の `weatherExplanationFrameLevel`):
+  - 取消=cancel
+  - その他=normal (気象台の積極的解説、警報級ではないため一律 normal。
+    警報級判定は VPWS50/VPBS50/VPWP50 等の専門電文の責任で行う。
+    VPZJ51 の台風 Headline / VPFJ51 の「観測史上１位」でも normal 固定)
+  - 一律 normal は Phase D で契約テスト固定化 (2026-06-12 決定。Headline キーワード解釈による昇格は不採用 — 名前マッチの脆さを持ち込まないため)
+- **熱中症警戒アラート (VPFT50)** (level-helpers.ts の `resolveHeatAlertLevels` — frame/sound を pair で解決):
+  - 取消=cancel (音も cancel)
+  - 題名に「特別警戒」を含む=表示 critical / **音は warning** (環境省の特別警戒アラート級が同型電文で配信された場合のフェイルセーフ昇格。critical 音 = 特別警報そのもののみ、の原則)
+  - 通常の発表=表示 warning / 音 warning (nonLevelWarning 相当)
+  - 通知は dispatchNotify が `outcome.presentation.soundLevel` を override で渡す (weather F-3 の横展開)
+- **台風解析・予報情報 (VPTW60/61/62)** (level-helpers.ts の `resolveTyphoonAnalysisLevels` — frame/sound を pair で解決):
+  - 取消=cancel (音も cancel)
+  - その他=normal (音も normal)
+  - 定時解析・予報のため一律 normal（解説扱い）。段階化は持ち越し⑤
+- **台風の暴風域に入る確率 (VPTA50)** (level-helpers.ts の `resolveTyphoonProbabilityLevels`):
+  - 取消=cancel (音も cancel)
+  - 発表時 frame=normal 固定（気象解説情報系の規約）
+  - sound: maxDaily5>0 → normal / maxDaily5===0 (暴風域消滅) → info（静音化）
+  - 連続ゼロ抑制: 同一 EventID で前回も今回も maxDaily5===0 のとき `suppressNotify=true`（VPWS50 と同じ「ProcessDeps に注入した state holder で履歴ベース dedup」パターン。`Vpws50StateHolder` の rich diff とは別 interface、本クラスは単純 dedup のみ）
+- **指定河川洪水予報・水位周知河川 (VXKO50-89 / VXSU50-59)** (level-helpers.ts の `resolveFloodForecastLevels` — frame/sound を pair で解決):
+  - 取消=cancel (音も cancel)
+  - parser が解決した `maxLevel` から決定:
+    - Code 53 / Code 51 (氾濫発生情報 / 警戒レベル 5 相当) = critical
+    - Code 41 / Code 40 (氾濫危険情報 / 警戒レベル 4 相当) = critical (VPWW55-61 / VPWP50 と同型扱い)
+    - Code 31 / Code 30 (氾濫警戒情報 / 警戒レベル 3 相当) = warning
+    - L2 (水位周知の氾濫注意) / L1 (水位上昇) = normal
+    - その他 (Headline-only 等) = info
+  - **通知音 (soundLevel) は表示と独立**: Code 51/53 は表示 critical / **音 critical** (洪水の即時危険、特別警報相当の名を持つため。weather/briefing の「critical 音 = 特別警報そのもののみ」原則と整合)、Code 41 は表示 critical / 音 warning (警戒レベル 4 相当だが特別警報の名を持たない、weather/timeseries と同じ判断)
+  - **dedup bypass 4 ケース** (processor 側で判定、`state.diffAndUpdate` を呼ばない): 取消電文 (rollback のみ) / 訂正電文 / Headline-only (rawStations 空) / VXSU schema (`schema === "vxsu50"`)。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す (`isNewEvent: true` で初回扱い)
+  - **未知 Kind.Code 受信時**: frame=info に倒し、`logger.warn` で警告ログのみ (parser は null を返さない)
+  - **VXSU50 (水位周知河川)**: 内部 schema 分岐 (`schema === "vxsu50"`)。observed series を持たないため state holder への登録はスキップ (processor 側で early return)、formatter は `displayVxsuMinimal` の最小 layout (Headline kindName + headlineText + footer のみ)
+  - **取消後の自動再復帰**: 取消電文を受けたら `state.rollback(eventId)` でスナップショット削除 → 直後に同一 EventID の新規発表で `diffAndUpdate` が初回扱い (`isNewEvent: true`) として正しく動く
+  - 詳細: `設計メモ 2026-06-14-flood-water-level-design.md` §6 (frame/sound マッピング) / §10 (dedup) / §11 (engine→ui 境界)。Stage 14 後アーカイブ予定
 
 ## テスト
 

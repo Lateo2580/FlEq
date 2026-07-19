@@ -1,6 +1,6 @@
 # ルートモジュール仕様書
 
-本書はプロジェクトルート直下の共有モジュール群 (`src/index.ts`, `src/types.ts`, `src/config.ts`, `src/logger.ts`, `src/utils/secrets.ts`, `src/utils/intensity.ts`) の設計と仕様を記述する。
+本書はプロジェクトルート直下の共有モジュール群 (`src/index.ts`, `src/types.ts`, `src/config.ts`, `src/logger.ts`, `src/utils/secrets.ts`, `src/utils/intensity.ts`, `src/tips/`) の設計と仕様を記述する。
 
 ---
 
@@ -39,6 +39,26 @@
 
 ---
 
+## src/tips/
+
+UI に依存しない待機ヒントの純粋データとシャッフラー。REPL と engine/display の双方から参照する。
+
+### tips/waiting-tips.ts と waiting-tips-*.ts
+
+`TipCategory` / `TipCategoryId` と `TIP_CATEGORIES` を提供するヒント定義。カテゴリ別のデータは `waiting-tips-eew.ts`、`waiting-tips-info-systems.ts`、`waiting-tips-seismology.ts`、`waiting-tips-tsunami.ts`、`waiting-tips-weather.ts` に分割する。各分割ファイルは `waiting-tips.ts` の型だけに依存する。
+
+### tips/tip-shuffler.ts
+
+`TIP_CATEGORIES` をカテゴリ間で連続しないようインターリーブし、`TipShuffler` の `next()` と `dealEpoch()` で返す純粋クラス。`ui/repl.ts` と `engine/display/display-tips.ts` が直接 import する。
+
+### 依存関係
+
+| モジュール | 依存先 | 利用元 |
+|---|---|---|
+| `tips/waiting-tips.ts` | `tips/waiting-tips-*.ts` | `tips/tip-shuffler.ts`, engine/display のテスト |
+| `tips/tip-shuffler.ts` | `tips/waiting-tips.ts` | `ui/repl.ts`, `engine/display/display-tips.ts` |
+
+---
 ## src/types.ts
 
 ### 概要
@@ -55,7 +75,7 @@
 | `PromptClock` | `"elapsed" \| "clock" \| "uptime"` | プロンプト時計モード |
 | `EewLogField` | `"hypocenter" \| "originTime" \| "coordinates" \| "magnitude" \| "forecastIntensity" \| "maxLgInt" \| "forecastAreas" \| "lgIntensity" \| "isPlum" \| "hasArrived" \| "diff" \| "maxIntChangeReason"` | EEW ログ記録項目 |
 | `FrameLevel` | `"critical" \| "warning" \| "normal" \| "info" \| "cancel"` | フレームの優先度レベル |
-| `NotifyCategory` | `"eew" \| "earthquake" \| "tsunami" \| "seismicText" \| "nankaiTrough" \| "lgObservation" \| "volcano"` | 通知カテゴリ |
+| `NotifyCategory` | `"eew" \| "earthquake" \| "tsunami" \| "seismicText" \| "nankaiTrough" \| "lgObservation" \| "volcano" \| "weather" \| "tornado" \| "briefing" \| "earlyWeather" \| "weatherWarningTimeseries" \| "climateInfo" \| "weatherExplanation" \| "heatAlert"` | 通知カテゴリ（15カテゴリ） |
 | `NotifySettings` | `Record<NotifyCategory, boolean>` | 通知設定 (カテゴリごとの ON/OFF) |
 | `Classification` | `"telegram.earthquake" \| "eew.forecast" \| "eew.warning" \| "telegram.volcano"` | dmdata.jp API の分類区分 |
 | `WsMessage` | `WsStartMessage \| WsPingMessage \| WsPongMessage \| WsDataMessage \| WsErrorMessage` | WebSocket メッセージの判別共用体 |
@@ -71,7 +91,7 @@
 | `PromptStatusProvider` | `getPromptStatus(): PromptStatusSegment \| null` — プロンプトにステータスを提供する |
 | `DetailProvider` | `category`, `emptyMessage`, `hasDetail()`, `showDetail()` — `detail` コマンドの表示を提供する |
 
-`PromptStatusProvider` は `TsunamiStateHolder`, `VolcanoStateHolder`, `EewTracker` が実装し、REPL プロンプトに津波警報・火山警戒レベル・EEW 状態を表示する。`DetailProvider` は同3クラスが実装し、REPL の `detail` コマンドから呼ばれる。
+`PromptStatusProvider` は `TsunamiStateHolder`, `VolcanoStateHolder` が実装し、REPL プロンプトに津波警報・火山警戒レベルを表示する。`DetailProvider` はこれらに加えて `Vpws50StateHolder`, `Vpwp50Cache` が実装し、REPL の `detail` コマンドから呼ばれる。
 
 #### インターフェース — アプリケーション設定
 
@@ -160,6 +180,14 @@
 | `VolcanoMunicipality` | — | 対象市町村 (`name`, `code`, `kind`) |
 | `AshForecastPeriod` | — | 降灰予報の時間帯 (`startTime`, `endTime`, `areas`) |
 | `AshArea` | — | 降灰予報の地域 (`name`, `code`, `ashCode`, `ashName`, `thickness`) |
+| `ParsedWeatherWarning` | VPWW55-61, VPWS50 | パース済み気象警報・注意報 |
+| `ParsedTornadoAdvisory` | VPHW50/51 | パース済み竜巻注意情報 |
+| `ParsedWeatherBriefing` | VPBS50 | パース済み気象防災速報 |
+| `ParsedEarlyWeatherInfo` | VPAW51 | パース済み早期天候情報 |
+| `ParsedWeatherWarningTimeseriesInfo` | VPWP50 | パース済み気象警報・注意報時系列情報 |
+| `ParsedClimateInfo` | VPZI50, VPCI50 | パース済み全般/地方天候情報 (VPCI50 は梅雨入り/明け等の `seasonEvents` を持つ) |
+| `ParsedWeatherExplanation` | VPCJ51/VPZJ51/VPFJ51, VMCJ53-55 | パース済み気象解説情報 (VMCJ53-55 潮位版は `tidal` を持つ) |
+| `ParsedHeatAlertInfo` | VPFT50 | パース済み熱中症警戒アラート |
 | `WindProfileEntry` | — | 風向データ (`altitude`, `degree`, `speed`) |
 
 火山パース済み型は `ParsedVolcanoBase` (非エクスポート) を基底として `kind` フィールドで判別する継承パターンを採用している。共通フィールド: `domain` (`"volcano"`), `kind`, `type` (`VolcanoHeadType`), `infoType`, `title`, `reportDateTime`, `eventDateTime`, `headline`, `publishingOffice`, `volcanoName`, `volcanoCode`, `coordinate`, `isTest`。地震系パース型の「各型で直接定義」パターンとは異なり、`extends ParsedVolcanoBase` による明示的な継承を使用している。
@@ -177,7 +205,7 @@
 - `maxReconnectDelaySec`: `60`
 - `keepExistingConnections`: `true`
 - `tableWidth`: `null` (自動)
-- `notify`: 全カテゴリ `true`
+- `notify`: 地震・津波・EEW・火山・南海トラフ・長周期・seismicText は `true`、気象系 11 カテゴリ（weather / tornado / briefing / earlyWeather / weatherWarningTimeseries / climateInfo / weatherExplanation / heatAlert / typhoonAnalysis / typhoonProbability / floodForecast）は `false`。保存済みの `notify` 値は部分マージで既定値を上書きする
 - `eewLog`: `false` (永続ファイル出力は明示 opt-in。dmdata.jp 再配信ポリシーへの配慮)
 - `eewLogFields`: 全項目 `true`
 - `maxObservations`: `null` (全件表示)

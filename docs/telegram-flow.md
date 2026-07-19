@@ -321,6 +321,8 @@ frameBottom(level, width)     → 色付き下枠線 ━━━━━━━
 
 スクロールしなくても要点が見えるようにする仕組み。
 
+colored フレームの formatter (weather 系等) は第 4 引数 `borderColor` に本文罫線と同じ色を渡し、recap の divider / サマリー行の罫線色をフレームに揃える (色まだら防止)。省略時は plain の `frameDivider` / `frameLine` で描く。
+
 ### Step 6g: 出力
 
 最終的にすべて `console.log()` で stdout に書き出す。

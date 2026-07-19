@@ -337,6 +337,8 @@ interface MessageHandlerResult {
   notifier: Notifier;
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
+  vpws50State: Vpws50StateHolder;
+  vpwp50Cache: Vpwp50DetailCache;
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
   flushAndDisposeVolcanoBuffer: () => void;
@@ -360,6 +362,7 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
 
 #### ルーティング優先順位
 
+0. **（最優先・classification 非依存）`IGNORED_HEAD_TYPES`** (VPWW53/54, VPNO50, VPOA50, VPZJ50, VPCJ50, VPFJ50, VMCJ50-52, VXWW50) — `ignore` ルート。表示・通知・統計をすべてスキップ（配信終了予定 + 既存電文と内容重複のため）
 1. **XML 以外** — `displayRawHeader()` でヘッダのみ表示
 2. **`eew.forecast` / `eew.warning`** — EEW パス
    - `parseEewTelegram()` でパース
@@ -368,7 +371,7 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
    - `EewEventLogger.logReport()` でログ記録
    - 取消報なら `closeEvent("取消")`
    - 最終報（`nextAdvisory` あり）なら `closeEvent("最終報")` + `finalizeEvent()`
-   - `displayEewInfo()` で表示、`notifier.notifyEew()` で通知
+   - 正常な outcome は共通フローで `recordStats()` → `dispatchNotify()` → `runDisplayPipeline()` の順に処理する。通知は filter 非適用で、表示の filter 結果に影響されない
 3. **`telegram.volcano`** — `VolcanoRouteHandler.handle()` に全委譲
    - パース・キャッシュ・VFVO53 集約・通知・表示を一元管理
    - 統計記録のみ router 側で実行
@@ -383,7 +386,20 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
    - `parseTsunamiTelegram()` → `displayTsunamiInfo()` → `notifier.notifyTsunami()`
 8. **`telegram.earthquake` + `VYSE*`** — 南海トラフ関連
    - `parseNankaiTroughTelegram()` → `displayNankaiTroughInfo()` → `notifier.notifyNankaiTrough()`
-9. **それ以外** — `displayRawHeader()` フォールバック
+9. **`telegram.weather` + `VPWW55-61` / `VPWS50`** — 気象警報・注意報 (`weather` ルート)
+10. **`telegram.weather` + `VPHW50` / `VPHW51`** — 竜巻注意情報 (`tornado` ルート)
+11. **`telegram.weather` + `VPBS50`** — 気象防災速報 (`briefing` ルート)
+12. **`telegram.weather` + `VPAW51`** — 早期天候情報 (`earlyWeather` ルート)
+13. **`telegram.weather` + `VPWP50`** — 気象警報・注意報時系列情報 (`weatherWarningTimeseries` ルート)
+14. **`telegram.weather` + `VPZI50` / `VPCI50`** — 全般/地方天候情報 (`climateInfo` ルート)
+15. **`telegram.weather` + `VPCJ51` / `VPZJ51` / `VPFJ51` / `VMCJ53-55`** — 気象解説情報 (地方/全般/府県 + 潮位版) (`weatherExplanation` ルート)
+16. **`telegram.weather` + `VPFT50`** — 熱中症警戒アラート (`heatAlert` ルート)
+17. **`telegram.weather` + `VPTW60-62`** — 台風解析・予報情報 (`typhoonAnalysis` ルート)
+18. **`telegram.weather` + `VPTA50`** — 台風の暴風域に入る確率 (`typhoonProbability` ルート)
+19. **`telegram.weather` + `VXKO50-89` / `VXSU50-59`** — 指定河川洪水予報・水位周知河川 (`floodForecast` ルート)
+20. **それ以外** — `displayRawHeader()` フォールバック
+
+気象系ルート (9-19) は EEW/地震系と同じ共通フロー `processMessage()` → `recordStats()` → `dispatchNotify()` → `runDisplayPipeline()` で処理される。詳細なルーティング表とフレームレベル判定は `.claude/rules/message-pipeline.md` を参照。
 
 全パスで共通して、パース失敗時は `displayRawHeader()` にフォールバックする。
 
@@ -486,13 +502,13 @@ class EewTracker {
 
 #### VXSE45 優先と VXSE43/44 抑制
 
-`hasSeen45 === true`（VXSE45 を受信済み）のイベントでは、後着する VXSE43/44 の表示・通知を抑制する (`isSuppressed: true`)。ただし:
+`EewTracker` 単体では、`hasSeen45 === true`（VXSE45 を受信済み）のイベントに後着する VXSE43/44 を `isSuppressed: true` と判定する。ただし:
 
 - シリアル状態 (`byType` の `lastSerial`) と `lastUpdate` は抑制時も更新する（再到着の新規扱いを防止）
 - 取消報・最終報のライフサイクル処理（`closeEvent`/`finalizeEvent`）は抑制時も実行する
 - `hasWarningIssued` は非抑制の報でのみ更新する（抑制された警報で昇格フラグを消費しない）
 
-VXSE45 未受信のイベントでは VXSE43/44 を従来通り表示する（フォールバック）。
+ただし `processEew()` は VXSE44 を tracker 更新前に常時抑制する。VXSE44 は EventID の受信状況にかかわらず表示・通知・統計に進まず、取消報・最終報の場合だけ `EewEventLogger` と `EewTracker.finalizeEvent()` による終端処理を直接行う。したがって、実際の表示経路で VXSE45 未受信時にも表示されうるのは VXSE43 のみである。
 
 #### 警報昇格判定
 
@@ -554,7 +570,7 @@ interface EewEvent {
 | インポート元 | 用途 |
 |-------------|------|
 | `../../types` | `ParsedEewInfo` |
-| `../../utils/intensity` | `intensityToRank`（震度文字列の順序比較） |
+| `../../utils/intensity` | `eewPessimisticIntensity`（予測震度範囲の悲観側を選択）、`intensityToRank`（震度文字列の順序比較） |
 
 ### 設計ノート
 
@@ -682,7 +698,7 @@ M{magnitude}  深さ{depth}
 
 ### 概要
 
-デスクトップ通知と通知音の発報を管理するクラス。電文タイプ別の通知メソッドを持ち、カテゴリ別の ON/OFF・一時ミュート・通知音の有効/無効を制御する。設定変更時は自動的に Config ファイルへ永続化する。
+デスクトップ通知と通知音の発報を管理するクラス。電文タイプ別の通知メソッドを持ち、カテゴリ別の ON/OFF・一時ミュート・通知音の有効/無効を制御する。カテゴリが OFF でも soundLevel が `critical` の通知は発報するが、`cancel` は貫通対象外である。設定変更時は自動的に Config ファイルへ永続化する。
 
 ### エクスポートAPI
 
@@ -708,6 +724,14 @@ class Notifier {
   notifyLgObservation(info: ParsedLgObservationInfo): void;
   notifyVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void;
   notifyVolcanoBatch(batch: { items: { volcanoName: string }[] }, presentation: VolcanoPresentation): void;
+  notifyWeatherWarning(info: ParsedWeatherWarning, soundLevelOverride?: SoundLevel): void;
+  notifyTornadoAdvisory(info: ParsedTornadoAdvisory, soundLevelOverride?: SoundLevel): void;
+  notifyWeatherBriefing(info: ParsedWeatherBriefing, soundLevelOverride?: SoundLevel): void;
+  notifyEarlyWeather(info: ParsedEarlyWeatherInfo): void;
+  notifyWeatherWarningTimeseries(info: ParsedWeatherWarningTimeseriesInfo): void;
+  notifyClimateInfo(info: ParsedClimateInfo): void;
+  notifyWeatherExplanation(info: ParsedWeatherExplanation): void;
+  notifyHeatAlert(info: ParsedHeatAlertInfo, soundLevelOverride?: SoundLevel): void;
 }
 ```
 
@@ -715,7 +739,7 @@ class Notifier {
 
 | 定数 | 説明 |
 |------|------|
-| `NOTIFY_CATEGORY_LABELS` | 通知カテゴリ（`eew`, `earthquake`, `tsunami`, `seismicText`, `nankaiTrough`, `lgObservation`, `volcano`）と日本語ラベルの対応（7カテゴリ） |
+| `NOTIFY_CATEGORY_LABELS` | 通知カテゴリ（`eew`, `earthquake`, `tsunami`, `seismicText`, `nankaiTrough`, `lgObservation`, `volcano`, `weather`, `tornado`, `briefing`, `earlyWeather`, `weatherWarningTimeseries`, `climateInfo`, `weatherExplanation`, `heatAlert`）と日本語ラベルの対応（15カテゴリ）。`climateInfo` のラベルは VPZI50/VPCI50 共通の総称「天候情報」 |
 
 #### ミュート制御
 
@@ -741,12 +765,22 @@ class Notifier {
 
 `notifyEew()` は以下のいずれかの場合のみ通知を送信する:
 
-- 第1報（`result.isNew === true`）
+- 第1報（**eventId 単位で Notifier から見て初回の通知**。`info.eventId` が `null` の場合は `result.isNew` にフォールバック）
 - 警報昇格（`result.isUpgradeToWarning === true`、イベント単位で非抑制の初回警報）
 - 取消報（`result.isCancelled === true`）
 - 最終報（`info.nextAdvisory != null`）
 
 抑制された報（`result.isSuppressed === true`）は通知しない。続報は通知を送らず、ターミナル表示のみ行う設計。
+
+##### eventId 単位の初回通知判定
+
+第1報の判定は EewTracker の `result.isNew` ではなく、Notifier 自身が保持する `notifiedEewEventIds: Map<eventId, timestamp>` で行う。これは「上流（`processEew` / VXSE43/44/45 の到着順や抑制ロジック）の挙動変更で `isNew` が `false` になっても、第1報通知の発火を取りこぼさない」ための安全網。
+
+- 通知発火時に `eventId` を Map に記録（タイムスタンプは cleanup 用）
+- 10 分 TTL で古いエントリを cleanup（EewTracker の `CLEANUP_THRESHOLD_MS` と整合）
+- 取消通知時は `eventId` を Map から削除し、同一 `eventId` の再発に対して再度初回扱いとする
+
+なお、過去 `2f0907e` で `VXSE44` が `eewTracker.update()` を経由してしまい、続く `VXSE45` 第1報が `isNew=false` となって通知音が発火しないバグがあった（VXSE44 の早期 return で修正済）。本安全網は同種のバグへの再発防止策。
 
 #### サウンドレベル判定
 
@@ -767,13 +801,15 @@ class Notifier {
 
 #### 通知送信
 
-`send(title, message, level?)` が以下を行う:
+`send(title, message, category, level?)` が以下を行う:
 
-1. ミュート中なら即座に return
-2. `node-notifier` でデスクトップ通知を送信（`sound: false`、通知音は別途制御）
-3. `assets/icons/icon.png` が存在すればアイコンとして使用
-4. `soundEnabled` かつ `level` 指定があれば `playSound(level)` を呼び出し
-5. 通知送信エラーはデバッグログのみ
+1. `dispatchNotify` と各通知メソッドの内容由来の抑制判定後に呼ばれる
+2. カテゴリが OFF の場合は return。ただし `level === "critical"` は全カテゴリ共通で通過する（`cancel` は通過しない）
+3. ミュート中なら即座に return
+4. `node-notifier` でデスクトップ通知を送信（`sound: false`、通知音は別途制御）
+5. `assets/icons/icon.png` が存在すればアイコンとして使用
+6. `soundEnabled` かつ `level` 指定があれば `playSound(level)` を呼び出し
+7. 通知送信エラーはデバッグログのみ
 
 #### 内部メソッド
 
@@ -1390,6 +1426,129 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider {
 
 ---
 
+## messages/flood-forecast-state.ts
+
+### 概要
+
+指定河川洪水予報 (VXKO50-89) / 水位周知河川に関する情報 (VXSU50-59) の状態を保持し、station 単位の dedup と差分 reasons 抽出を行うモジュール。`EventID` をキーとして各 EventID のスナップショット (station digests / headline / mainItemCode / mainText) を Map で管理する。
+
+VXSU50 (水位周知河川) は内部スキーマで分岐し、state holder への登録はスキップする (parser が `schema === "vxsu50"` を返し、processor 側で early return)。
+
+### エクスポートAPI
+
+```ts
+interface FloodForecastDiffResult {
+  /** 差分の理由配列 (空なら通知抑制候補) */
+  reasons: string[];
+  /** 同 EventID で前回あった station が今回消えたもの (Acceptance criteria の station 削除検知用) */
+  removedStations: string[];
+  /** state holder に新規登録されたか (初回受信 → true) */
+  isNewEvent: boolean;
+}
+
+class FloodForecastStateHolder {
+  diffAndUpdate(info: ParsedFloodForecastInfo): FloodForecastDiffResult;
+  rollback(eventId: string): void;
+  clear(): void;
+  size(): number;
+}
+```
+
+### 内部ロジック
+
+#### `diffAndUpdate(info)`
+
+1. EventID で既存スナップショットを引く (なければ初回 = `isNewEvent: true`)
+2. `buildStationDigests(info.stations)` で station ごとのダイジェスト (`kindCode + headlineLevel + observedLevel + condition` 等) を生成
+3. 既存と差分比較し、station 単位の追加/変更/削除を `reasons` / `removedStations` に展開
+4. スナップショットを upsert
+
+#### `rollback(eventId)`
+
+取消電文を受信したとき、対象 EventID のスナップショットを削除する。直後に同一 EventID で新規発表が来た場合、`diffAndUpdate` で正しく初回扱い (`["new"]`) となる。
+
+#### 取消・訂正・Headline-only・新規 EventID の bypass
+
+`processFloodForecast` 側で 4 ケースを判定して `diffAndUpdate` を呼ばずに bypass する (state を書き換えずに presentation だけ出す):
+- 取消電文 (`infoType === "取消"`)
+- 訂正電文 (`infoType` に「訂正」を含む)
+- Headline-only (Body 空、Headline のみ)
+- 新規 EventID (state holder に未登録)
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `../../types` | `ParsedFloodForecastInfo`, `FloodStation`, `FloodHeadline` |
+
+### 設計ノート
+
+- `Vpws50StateHolder` の rich diff と異なり、本クラスは station digest ベースの単純 dedup のみ (rank 系の昇格判定は行わない)。
+- スナップショットは `EventID` 単位なので、複数河川の同時警報追跡にも対応可能。
+- VXSU50 (水位周知河川) は schema が異なり、observed series を持たないため state holder への登録はスキップする (現状は内部 schema 分岐で対応、Phase 2 で shared state holder への組み込み検討)。
+
+---
+
+## presentation/flood-forecast-aggregate.ts
+
+### 概要
+
+`parseFloodForecast` が返す `stations` 配列を河川単位にグループ化する純粋関数モジュール。formatter (`displayFloodForecastInfo`) から呼ばれる。
+
+engine→ui 境界遵守のため、`aggregateByRiver` は presentation event 層 (`from-flood-forecast.ts`) からは呼ばず、formatter 内で呼ぶ。
+
+### エクスポートAPI
+
+```ts
+interface RiverSection {
+  riverName: string;      // 河川名 (例: "○○川" / "○○川 (+1)")
+  riverCode: string;
+  stations: FloodStation[];
+  maxLevel: FloodLevel;   // この河川群の最大警戒レベル
+}
+
+function aggregateByRiver(stations: FloodStation[]): RiverSection[]
+```
+
+### 内部ロジック
+
+- station の `riverCode` (なければ `riverName`) をキーにグループ化
+- 同一河川の複数 station が異なる順序で来ても安定にソート (`riverCode` 昇順)
+- 各 river の `maxLevel` を `criteria` ベースで集計
+
+### 設計ノート
+
+- 純粋関数なので state を持たず、formatter 側で常に呼べる。
+- `aggregate-by-prefecture` (VPTA50) と同様、engine/presentation 配下に置く境界判断 (formatter は ui/ なので、aggregate を ui/ に置くと型循環が発生する)。
+
+---
+
+## presentation/weather-severity-pyramid.ts
+
+### 概要
+
+VPWP50 の時系列警報を表示用の severity entry に正規化する純粋モジュール。UI 依存を持たず、engine 側の detail cache と ticker、および UI formatter から利用する。
+
+### エクスポート API
+
+| API | 用途 |
+|---|---|
+| `flattenEntries(info)` | 時系列警報を `WeatherSeverityEntry[]` に平坦化 |
+| `partitionBySeverity(entries)` | special / warning / advisory / unknown に分割 |
+| `formatSeriesWindows`, `formatPeakBySeries`, `formatCriteriaTimeBySeries` | 時系列の表示文字列を生成 |
+| `summarizeAdvisoryByPhenomenon` | 注意報を現象別に集約 |
+
+### 依存関係
+
+| インポート元 | 用途 |
+|---|---|
+| `../../types` | VPWP50 入力型と表示 severity 型 |
+| `../../dmdata/weather-warning-timeseries-significancy` | 警報 code の分類 |
+| `../../dmdata/weather-warning-level` | 表示 severity の解決 |
+
+利用元は `messages/vpwp50-detail-cache.ts`、`display/ticker-sentence.ts`、`ui/weather-warning-timeseries-formatter.ts`。UI から engine/presentation を参照する方向は許容する。
+
+---
 ## presentation/volcano-presentation.ts
 
 ### 概要
@@ -1715,7 +1874,7 @@ function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent
 
 ---
 
-## presentation/events/from-*.ts (7ファイル)
+## presentation/events/from-*.ts (19ファイル)
 
 ### 概要
 
@@ -1732,6 +1891,17 @@ function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent
 | `from-seismic-text.ts` | `SeismicTextOutcome` | `bodyText` のみを展開する軽量コンバータ |
 | `from-lg-observation.ts` | `LgObservationOutcome` | `maxLgInt`, `maxLgIntRank`, 観測地域を `observationNames`/`areaItems` に展開 |
 | `from-nankai-trough.ts` | `NankaiTroughOutcome` | `infoSerialCode`, `bodyText`, `nextAdvisory` を展開 |
+| `from-weather.ts` | `WeatherOutcome` | 気象警報・注意報 (VPWW55-61/VPWS50) |
+| `from-tornado.ts` | `TornadoOutcome` | 竜巻注意情報 (VPHW50/51) |
+| `from-briefing.ts` | `BriefingOutcome` | 気象防災速報 (VPBS50) |
+| `from-early-weather.ts` | `EarlyWeatherOutcome` | 早期天候情報 (VPAW51) |
+| `from-weather-warning-timeseries.ts` | `WeatherWarningTimeseriesOutcome` | 気象警報・注意報時系列情報 (VPWP50) |
+| `from-climate-info.ts` | `ClimateInfoOutcome` | 全般/地方天候情報 (VPZI50/VPCI50)。`controlTitle` を搭載し VPZI50/VPCI50 の表示出し分けに使用 |
+| `from-weather-explanation.ts` | `WeatherExplanationOutcome` | 気象解説情報 (VPCJ51/VPZJ51/VPFJ51/VMCJ53-55) |
+| `from-heat-alert.ts` | `HeatAlertOutcome` | 熱中症警戒アラート (VPFT50) |
+| `from-typhoon-analysis.ts` | `TyphoonAnalysisOutcome` | 台風解析・予報情報 (VPTW60/61/62) |
+| `from-typhoon-probability.ts` | `TyphoonProbabilityOutcome` | 台風の暴風域に入る確率 (VPTA50) |
+| `from-flood-forecast.ts` | `FloodForecastOutcome` | 指定河川洪水予報・水位周知河川 (VXKO50-89/VXSU50-59)。Headline-only/取消の dedup bypass 4 ケース、`raw` に observed series + inundation areas を保持 |
 | `from-raw.ts` | `RawOutcome` | フォールバック用の最小変換。`parsed: null`、`isCancellation: false` 固定 |
 
 ### 共通パターン
@@ -1782,7 +1952,7 @@ function processMessage(msg: WsDataMessage, route: string, deps: ProcessDeps): P
 
 | route | 処理 | フォールバック |
 |-------|------|-------------|
-| `eew` | `processEew()` → `ok`/`duplicate`/`parse-failed` の3分岐 | duplicate→null、parse-failed→raw (shouldRecord=false) |
+| `eew` | `processEew()` → `ok`/`duplicate`/`suppressed`/`parse-failed` の4分岐 | duplicate/suppressed→null（表示・通知・統計なし）、parse-failed→raw (shouldRecord=false) |
 | `earthquake` | `processEarthquake()` | raw |
 | `seismicText` | `processSeismicText()` | raw |
 | `lgObservation` | `processLgObservation()` | raw |
@@ -1810,7 +1980,7 @@ function processMessage(msg: WsDataMessage, route: string, deps: ProcessDeps): P
 ### 設計ノート
 
 - 火山は `VolcanoRouteHandler` が一元的に処理するため、`processMessage()` には火山ケースがない。
-- EEW の重複報で `null` を返す設計は、重複報が表示にも統計にも影響しないようにするため。
+- EEW の重複報・抑制報で `null` を返す設計は、これらが表示・通知・統計に影響しないようにするため。
 
 ---
 
@@ -1835,12 +2005,13 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 ### 内部ロジック
 
 1. `parseEewTelegram(msg)` でパース（失敗→`parse-failed`）
-2. `eewTracker.update(eewInfo)` で重複判定（重複→`duplicate`）
-3. 抑制判定（`result.isSuppressed`→ログ記録 + 終端処理のみ実行して`suppressed`）
-4. `eewLogger.logReport()` でログ記録
-5. 取消報 → `eewLogger.closeEvent("取消")`
-6. 最終報 → `eewLogger.closeEvent("最終報")` + `eewTracker.finalizeEvent()`
-7. `EewOutcome` を構築して返す
+2. VXSE44 は `eewTracker.update()` の前に常時抑制して `suppressed` を返す。取消報・最終報の場合だけ、`EewEventLogger.closeEvent()` と `eewTracker.finalizeEvent()` による終端処理を直接行う
+3. VXSE44 以外は `eewTracker.update(eewInfo)` で重複判定（重複→`duplicate`）
+4. tracker による抑制（`result.isSuppressed`）ではログ記録と終端処理のみ実行して `suppressed` を返す
+5. 非抑制報は `eewLogger.logReport()` でログ記録する
+6. 取消報 → `eewLogger.closeEvent("取消")`
+7. 最終報 → `eewLogger.closeEvent("最終報")` + `eewTracker.finalizeEvent()`
+8. `EewOutcome` を構築して返す
 
 **抑制時の終端処理**: `isSuppressed` でも取消・最終報のライフサイクル処理（`closeEvent`/`finalizeEvent`）は実行する。表示・通知のみスキップする。
 
@@ -1858,7 +2029,7 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 
 ---
 
-## presentation/processors/process-earthquake.ts 〜 process-raw.ts (7ファイル)
+## presentation/processors/process-earthquake.ts 〜 process-raw.ts (18ファイル)
 
 ### 概要
 
@@ -1874,6 +2045,17 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 | `process-seismic-text.ts` | VXSE56/VXSE60/VZSE40 | statsCategory は `"earthquake"`（routeToCategory 準拠） |
 | `process-lg-observation.ts` | VXSE62 | statsCategory は `"earthquake"`（routeToCategory 準拠） |
 | `process-nankai-trough.ts` | VYSE50/51/52/60 | — |
+| `process-weather.ts` | VPWW55-61/VPWS50 | VPWS50 は `vpws50State` で差分管理。unsafe 昇格時は `presentation.soundLevel` を上書き |
+| `process-tornado.ts` | VPHW50/51 | — |
+| `process-briefing.ts` | VPBS50 | — |
+| `process-early-weather.ts` | VPAW51 | — |
+| `process-weather-warning-timeseries.ts` | VPWP50 | `vpwp50Cache` に詳細を保存（REPL `detail` 用） |
+| `process-climate-info.ts` | VPZI50/VPCI50 | frameLevel は一律 `normal`（取消は `cancel`） |
+| `process-weather-explanation.ts` | VPCJ51/VPZJ51/VPFJ51/VMCJ53-55 | frameLevel は一律 `normal`（取消は `cancel`） |
+| `process-heat-alert.ts` | VPFT50 | `resolveHeatAlertLevels` で frame/sound を pair 解決 |
+| `process-typhoon-analysis.ts` | VPTW60/61/62 | `resolveTyphoonAnalysisLevels` で frame/sound を pair 解決。frame は一律 `normal`（取消は `cancel`） |
+| `process-typhoon-probability.ts` | VPTA50 | `resolveTyphoonProbabilityLevels` で frame/sound を pair 解決。`typhoonProbabilityState` で連続ゼロ抑制 (`suppressNotify`) |
+| `process-flood-forecast.ts` | VXKO50-89/VXSU50-59 | `floodForecastState.diffAndUpdate()` で station 単位 dedup + reasons 抽出。dedup bypass 4 ケース: 取消 (`rollback` のみ) / 訂正 / Headline-only (`rawStations` 空) / VXSU schema。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す。`state.rollback()` で取消後の再復帰に備える |
 | `process-raw.ts` | フォールバック | `statsCategory` を引数で受け取り、元ルートのカテゴリを保持。frameLevel 固定 `"info"` |
 
 ### 共通パターン
@@ -2783,12 +2965,15 @@ class VolcanoRouteHandler {
 
 ### 概要
 
-セッション中の電文受信統計を管理するクラス。headType 別の受信カウント、EEW イベント数、地震イベントの代表最大震度を追跡する。REPL の `stats` コマンドや要約表示で利用される。
+本日 (JST) の電文受信統計を管理するクラス。headType 別の受信カウント、EEW イベント数、地震イベントの代表最大震度を追跡する。0 時 JST で自動的にロールオーバー (受動チェック、タイマー不使用) する。REPL の `stats` コマンドや要約表示で利用される。
 
 ### エクスポートAPI
 
 ```ts
-type StatsCategory = "eew" | "earthquake" | "tsunami" | "volcano" | "nankaiTrough" | "other";
+type StatsCategory =
+  | "eew" | "earthquake" | "tsunami" | "volcano" | "nankaiTrough"
+  | "weather" | "tornado" | "briefing" | "earlyWeather" | "weatherWarningTimeseries"
+  | "climateInfo" | "weatherExplanation" | "heatAlert" | "other";
 
 function routeToCategory(route: string): StatsCategory
 
@@ -2804,19 +2989,24 @@ interface StatsSnapshot {
 
 class TelegramStats {
   constructor(startTime?: Date);
-  record(rec: StatsRecord): void;
-  updateMaxInt(eventId: string, maxInt: string, headType: string): void;
-  getSnapshot(): StatsSnapshot;
+  record(rec: StatsRecord, now?: number): void;
+  updateMaxInt(eventId: string, maxInt: string, headType: string, now?: number): void;
+  totalCount(now?: number): number;
+  getSnapshot(now?: number): StatsSnapshot;
 }
 ```
 
-- `StatsCategory` — 6カテゴリ。`seismicText` と `lgObservation` は `"earthquake"` に集約される。
+- `StatsCategory` — 14カテゴリ。`seismicText` と `lgObservation` は `"earthquake"` に集約される。気象系 8 ルート (`weather` 〜 `heatAlert`) はルート名がそのままカテゴリになる。
 - `routeToCategory()` — ルート文字列から統計カテゴリに変換するマッピング関数。
-- `TelegramStats.record()` — headType カウント加算。EEW の場合は eventId を Set に追加。
-- `TelegramStats.updateMaxInt()` — 地震イベントの代表最大震度を更新。headType 優先度: VXSE53 (3) > VXSE61 (2) > VXSE51 (1)。同一優先度以上の報で上書きする。
-- `TelegramStats.getSnapshot()` — 表示用の読み取り専用スナップショットを返す。
+- `TelegramStats.record()` — headType カウント加算。EEW の場合は eventId を Set に追加。呼び出し冒頭でロールオーバーを判定する。
+- `TelegramStats.updateMaxInt()` — 地震イベントの代表最大震度を更新。headType 優先度: VXSE53 (3) > VXSE61 (2) > VXSE51 (1)。同一優先度以上の報で上書きする。呼び出し冒頭でロールオーバーを判定する。
+- `TelegramStats.getSnapshot()` — 表示用の読み取り専用スナップショットを返す。呼び出し冒頭でロールオーバーを判定する。
 
 ### 内部ロジック
+
+#### 日次ロールオーバー (`daily-quake-counter.ts` と同型)
+
+`dayKey` (JST 暦日キー `YYYY-MM-DD`) を保持し、`record()` / `updateMaxInt()` / `totalCount()` / `getSnapshot()` の冒頭で `rolloverIfNeeded(now)` を受動チェックする。タイマーは使わない。暦日が変わっていれば `countByType` / `eewEventIds` / `earthquakeMaxIntByEvent` をクリアし、`startTime` をロールオーバー検知時刻へ更新する。`categoryByType` (headType → category の固定マッピング) はロールオーバー対象外 (毎日再学習する必要がないため)。
 
 #### FIFO エビクション
 
@@ -2832,7 +3022,7 @@ Set/Map のサイズ上限 `MAX_EVENT_ENTRIES = 1000`。超過時はバッチ削
 
 ### 設計ノート
 
-- `clear()` メソッドは意図的に提供していない。統計はセッション全体の累計を表すため、リセットは新インスタンス生成で行う。
+- `clear()` メソッドは意図的に提供していない。リセットは日次ロールオーバー (JST 0 時) が自動で行うため、明示的な clear API は不要。
 - `StatsSnapshot` は Map のコピーを返すことで、呼び出し元が安全にイテレーションできる。
 
 ---
@@ -2901,5 +3091,5 @@ class SummaryWindowTracker {
 
 ### 設計ノート
 
-- `TelegramStats` がセッション全体の累計を管理するのに対し、`SummaryWindowTracker` は直近30分のウィンドウ統計を管理する。両者は独立して動作し、異なるユースケース（stats コマンド vs summary コマンド）に対応する。
+- `TelegramStats` が当日 (JST) の累計を管理するのに対し、`SummaryWindowTracker` は直近30分のウィンドウ統計を管理する。両者は独立して動作し、異なるユースケース（stats コマンド vs summary コマンド）に対応する。
 - `now?` パラメータはテスト用。本番では `Date.now()` が使われる。

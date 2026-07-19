@@ -31,13 +31,13 @@ dmdata.jp の公式案内（[EEW について](https://dmdata.jp/docs/eew/) ほ�
 |------|------|------|
 | **テンプレート機構を表示専用に制限** | `--template` で以下を制限: ① 配列インデックス参照 `[N]` を禁止、② 生 XML への直接参照 `raw.xxx` を禁止、③ `join` フィルタを削除、④ `stringify` とフィルタ内 `toString` を改行区切りに統一、⑤ `replace` フィルタで改行文字を引数に取ることを禁止。1 行機械可読出力の主経路を塞ぐ目的。完全な迂回防止は保証しないが、自然な抜け道を閉じる | `src/engine/template/parser.ts`, `compiler.ts`, `filters.ts` |
 | **EEW ログ永続出力を明示 opt-in 化** | `eewLog` のデフォルトを `false` に設定。利用者が config / REPL で明示的に有効化した場合のみファイル出力 | `src/types.ts` の `DEFAULT_CONFIG` |
-| **リリースブランチガード** | npm publish タグ push 時、対象 commit が `origin/main` に到達済みでなければ workflow を fail させる。個人機能ブランチからの誤公開を防ぐ | `.github/workflows/release.yml` |
+| **リリースブランチガード** | npm publish タグ push 時、対象 commit が `origin/main` に到達済みでなければ workflow を fail させる。リリース対象外 commit の誤公開を防ぐ | `.github/workflows/release.yml` |
 
 #### 段階2（実施済み）
 
 | 対策 | 概要 | 状態 |
 |------|------|------|
-| **JSON ファイル出力機能（`EventFileWriter` / `--event-log`）を公開版から除去** | 電文を構造化 JSON として永続化する機能を public repo から除去した。開発者本人の利用は personal ブランチ運用に移行 | 実施済み（refactor(policy)! コミット） |
+| **電文の構造化 JSON 永続出力機能を除去** | 電文を構造化 JSON として永続化する機能 (v2.0.0 で廃止した `--event-log` 系) は再配信の足場になり得るため公開版から除去した | 実施済み（公開版に該当コードは存在しない） |
 
 ### 利用者への注意
 
@@ -48,10 +48,6 @@ dmdata.jp の公式案内（[EEW について](https://dmdata.jp/docs/eew/) ほ�
 - 受信内容を公開ストレージ等に自動アップロードする用途
 
 これらは FlEq 自体が直接行わないが、シェルパイプ等で外部ツールに渡せば実現できてしまう。本ツールは表示専用としての利用を想定しており、上記のような二次利用の可否判断・責任は契約者側にある。利用前に [dmdata.jp 利用規約](https://dmdata.jp/terms/) と [公式ドキュメント](https://dmdata.jp/docs/) を参照すること。
-
-### 個人機能の扱い
-
-開発者本人がローカル環境で使う JSON 出力等の個人機能は、最終的に別管理（private overlay 等の非公開リポジトリ運用）で維持する方針。これは「契約者本人が自分の契約データを自分のマシン内で使う」ケース②の範疇に収まる想定。具体的な運用手順は公開リポジトリには記載しない。
 
 ---
 
@@ -635,3 +631,80 @@ VZVO40 は `Body > Text` 直下、VFVO51 は `Body > VolcanoInfoContent > Volcan
 - `telegram-parser.ts` のヘルパー (`dig`, `str`, `first`) を再利用することで、XML ノード探索のパターンを統一し、名前空間プレフィックスの有無に対応している。
 - `extractVolcanoBase` は `VolcanoInfo` の `@_type` に依存せず、`codeType === "火山名"` で Area を検索するため、異なる VolcanoInfo 構造（対象火山、海上、対象市町村等）に対して汎用的に動作する。
 - 全パース関数は try-catch で囲み、エラー時は `null` を返す。`telegram-parser.ts` と同じ設計方針。
+
+---
+
+## flood-forecast-parser.ts
+
+### 概要
+
+指定河川洪水予報 (VXKO50-89) / 水位周知河川に関する情報 (VXSU50-59) を `ParsedFloodForecastInfo` に展開する parser。`decodeBody(msg)` + `fast-xml-parser` を使う既存パターン (例: `heat-alert-parser.ts`) に揃え、`ParsedFloodForecastInfo` 構造化のみを行う (aggregate は呼ばない — engine→ui 境界遵守)。
+
+VXKO / VXSU は schema が異なるため、parser 内部で `schema: "vxko50" | "vxsu50"` フィールドに分岐させて返す。下流 (formatter / state holder) はこの schema で minimal/full 経路を選択する。
+
+### エクスポート API
+
+```ts
+function parseFloodForecast(msg: WsDataMessage): ParsedFloodForecastInfo | null
+```
+
+### 内部ロジック
+
+#### Schema 分岐
+
+`msg.head.type` の prefix で内部 schema を選択:
+
+- `VXKO50-89` → `schema: "vxko50"` (full schema: stations + observed series + criteria + inundationAreas + rainfallSummaries + floodAssumptions)
+- `VXSU50-59` → `schema: "vxsu50"` (最小 schema: headline + headTitle + publishingOffice。series (時系列) は空、観測値 `stationObservedLevel` は `"unknown"`。station メタデータは `HydrometricStationPart` から stub として保持 — Code/Name/Criteria/ChargeSection)
+
+#### 共通フィールド抽出
+
+- `eventId` ← `Head.EventID`
+- `infoType` ← `Head.InfoType` (発表 / 訂正 / 取消)
+- `headTitle` ← `Head.Title`
+- `headlines[]` ← `Head.Headline.Information[]` (各 `kindName` / `kindCode` / `headlineText` / `areas[]` を含む)
+- `publishingOffice` ← `Control.PublishingOffice`
+- `isTest` ← `msg.head.test`
+
+#### VXKO50 観測値展開
+
+`Body > MeteorologicalInfos > MeteorologicalInfo > StationInfo[]` から各観測所を:
+
+- `riverName` / `riverCode` / `stationName` / `stationCode` を抽出
+- `criteria` (L1-L4 + 各 `unit`)
+- `observedSeries[]` (TimeSeries の各窓: `relative` (現況/1H/2H...) と `value`)
+- `condition` (上昇 / 下降 / 横ばい / 不明) を矢印計算用に保持
+- `headlineLevel` / `kindCode` を Headline と station の紐付けから決定
+
+#### 浸水想定地区抽出
+
+`Body > InundationAreas > InundationArea[]` を `info.inundationAreas[]` に展開。各 area は `stationName` (関連観測所) + `areaNames[]` + `variant` (通常 / 氾濫発生情報 等) を持つ。`info.inundationAreas` 自体は formatter で件数省略しても変異させない (state holder 用)。
+
+#### 雨量予測 / 氾濫水予報
+
+- `Body > MeteorologicalInfos[type="雨量情報"] > TimeSeriesInfo[]` → `info.rainfallSummaries[]` (per-basin、流域別に展開)
+  - 全 TimeSeriesInfo を走査 (旧実装の `[0]` 単発取得は多流域 fixture で 2 件目以降を取りこぼすバグだったため `§F` で multi-TSI 走査に修正)
+  - 各 RainfallSummary は `basinName` + `cumulativeActual` (累積実況、任意長窓) + `forecastShort` (短期予測、実 fixture は PT3H 固定)
+  - `cumulativeActual.windowMinutes`: `TimeDefine.Duration` (ISO 8601、例 PT48H / PT12H40M) を primary、Name regex (`/(\d+)時間/`、NFKC normalize 済で全角数字対応) を fallback。両方失敗時は null
+  - `forecastShort.windowMinutes`: 同上で cumulative と対称に nullable (180 default invent は廃止、Codex review W3 反映)。raw 値 (null 含む) を formatter に渡し、formatter 側で `< 60` / null を防御 fallback する (W4)
+  - forecast 判定: `TimeDefine.Name` に「見込み」を含む (専一)。Duration PT3H fallback は廃止 (Codex review W1 反映 — PT3H cumulative actual を forecast に誤分類するリスクを回避)。Name に "見込み" を含まない PT3H は cumulative 側 (1 件目) として扱う
+  - VXSU 経路は `PrecipitationBasedIndexPart` から `currentBasinIndex` + `trend` を抽出 (cumulativeActual/forecastShort は null)
+  - 1 流域内に多重 cumulative / 多重 forecast が発火した場合は `log.debug` で observability hook
+  - 旧フィールド `hourlyMax` (Phase 2 死変数) はフィールド自体を削除。将来 1H 累積が必要になったら `cumulativeActual.windowMinutes=60` で表現
+- `Body > FloodAssumptions > FloodAssumption[]` → `info.floodAssumptions[]` (Code 53 のみ出現、`assumptionAreaName` + 主条件)
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `../types` | `ParsedFloodForecastInfo`, `FloodStation`, `FloodHeadline`, `FloodCriteria` 等 |
+| `./telegram-parser` | `decodeBody`, `parseXml`, `dig`, `str`, `first` |
+| `./flood-level` | `FloodLevel` 解決ヘルパー (Code → Level マッピング) |
+| `../logger` | ログ出力 |
+
+### 設計ノート
+
+- VXKO/VXSU を同一 parser に統合するのは、共通フィールド (`Head.*` / Headline / publishingOffice / isTest) が大きいため。schema 分岐は parser 末尾の `if (msg.head.type.startsWith("VXSU"))` で minimal 構築に切り替える。
+- 未知 `Kind.Code` 受信時は frame=info に倒し、`logger.warn` で警告ログのみ (parser は null を返さない)。spec §17 Acceptance criteria の「未知 Kind.Code 受信時に frame=info かつ warning log」要件。
+- aggregateByRiver は parser からは呼ばない (層境界遵守、formatter / engine/presentation 側で行う)。
+- 詳細仕様: `設計メモ 2026-06-14-flood-water-level-design.md` (Stage 14 後アーカイブ予定)。

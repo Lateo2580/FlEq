@@ -8,6 +8,8 @@ npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 
 - WebSocket によるリアルタイム受信（自動再接続・複線接続対応）
 - 地震・津波・EEW・火山情報を震度やレベルに応じた色分けで表示
+- 気象警報・注意報、竜巻・記録的短時間大雨・土砂災害・洪水・台風・熱中症など気象電文の表示に対応
+- 内蔵ブラウザ表示サーバ（`--display`）で常設モニタ向けの情報ディスプレイ画面を配信
 - 緊急地震速報の同時追跡・ログ記録・差分表記
 - デスクトップ通知・通知音（カテゴリ別 ON/OFF）
 - REPL による実行中の設定変更・状態確認
@@ -20,7 +22,6 @@ npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 - `--focus` で条件に一致しない電文を薄く（dim compact）表示
 - `--summary-interval` で N 分ごとの定期受信要約（sparkline グラフ付き）
 - `--night` ナイトモード（彩度・輝度を抑制、危険色は維持）
-- 地震/EEW/津波の地域情報を ASCII ミニマップ（12 ブロック列島形）で表示
 
 ## 出力例
 
@@ -32,7 +33,7 @@ npm パッケージ名: `@sayue_ltr/fleq` / CLI コマンド名: `fleq`
 
 FlEq を使うには、以下の準備が必要です。
 
-1. **Node.js 18 以上**をインストールする
+1. **Node.js 18 以上**をインストールする（npm パッケージとしての利用条件。リポジトリを clone して開発・テスト・display のビルドを行う場合は **Node.js 20.19 以上**が必要）
 2. [dmdata.jp](https://dmdata.jp/) でアカウントを作成する
 3. dmdata.jp の管理画面で **API キーを発行**する
 4. API キーに **`socket.start` 権限**と、受信したい区分に対応する **`telegram.get.*` 権限**を付与する
@@ -56,6 +57,7 @@ FlEq を使うには、以下の準備が必要です。
 | 緊急地震速報（予報） | `eew.forecast` | EEW 予報 |
 | 緊急地震速報（警報） | `eew.warning` | EEW 警報 |
 | 火山関連 | `telegram.volcano` | 噴火警報、噴火速報、降灰予報、火山の状況に関する解説情報等 |
+| 気象関連 | `telegram.weather` | 気象警報・注意報、竜巻注意情報、記録的短時間大雨情報、土砂災害警戒情報、指定河川洪水予報、台風解析・予報情報、熱中症警戒アラート等 |
 
 ## インストール
 
@@ -112,7 +114,7 @@ DMDATA_API_KEY=your-key-here  # ← 自分のAPIキーに置き換え
 ## よく使う起動例
 
 ```bash
-# デフォルト設定で起動（全4区分を受信）
+# デフォルト設定で起動（全5区分を受信）
 fleq
 
 # 地震・火山情報だけ受信（EEW契約なしの場合に便利）
@@ -143,7 +145,7 @@ fleq --focus 'maxInt >= "4"'
 fleq --night --summary-interval 30
 ```
 
-デフォルトの受信区分は `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano` です。
+デフォルトの受信区分は `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano,telegram.weather` です。
 契約内容によっては一部の区分を受信できない場合があります。
 
 ## CLI オプション
@@ -151,7 +153,7 @@ fleq --night --summary-interval 30
 | オプション | 説明 | デフォルト |
 |-----------|------|-----------|
 | `-k, --api-key <key>` | dmdata.jp API キー | 環境変数 `DMDATA_API_KEY` |
-| `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano` |
+| `-c, --classifications <items>` | 受信区分（カンマ区切り） | `telegram.earthquake,eew.forecast,eew.warning,telegram.volcano,telegram.weather` |
 | `--test <mode>` | テスト電文: `no` / `including` / `only` | `no` |
 | `--keep-existing` | 既存接続を維持（互換オプション。現在はデフォルト動作） | `true` |
 | `--close-others` | 同一 API キーの既存ソケットを閉じてから接続 | `false` |
@@ -161,6 +163,10 @@ fleq --night --summary-interval 30
 | `--template <tpl>` | ユーザー定義テンプレートで 1 行要約をカスタマイズ | なし |
 | `--summary-interval <min>` | N 分ごとの定期受信要約を表示（sparkline 付き） | `0`（無効） |
 | `--night` | ナイトモード（彩度・輝度を抑制、危険色は維持） | `false` |
+| `--display` | 情報ディスプレイ（ブラウザ表示サーバ）を有効化 | `false` |
+| `--display-port <port>` | 情報ディスプレイのポート | `7788` |
+| `--display-bind <host>` | 情報ディスプレイのバインド先 | `127.0.0.1` |
+| `--display-token <token>` | 非 loopback 接続用アクセストークン | 非 loopback バインド時に自動生成 |
 | `--debug` | デバッグログ表示 | `false` |
 
 ## 設定
@@ -280,13 +286,14 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
 | `filter set <expr>` | フィルタ条件を動的に設定 |
 | `filter clear` | フィルタ条件をクリア |
 | `filter test <expr>` | フィルタ式の構文チェック |
-| `focus set <expr>` | フォーカス条件を動的に設定 |
-| `focus clear` | フォーカス条件をクリア |
+| `focus <expr>` | フォーカス条件を動的に設定 |
+| `focus off` | フォーカス条件を解除 |
 | `night [on/off]` | ナイトモードの ON/OFF 切替 |
 | `mode [normal/compact]` | 表示モード切替 |
 | `clock [elapsed/now]` | プロンプト時計の切替（`now` は Config 上の `"clock"` に対応） |
 | `sound [on/off]` | 通知音の ON/OFF 切替 |
 | `theme` | カラーテーマの表示・管理（`theme path` / `theme show` / `theme reset` / `theme reload` / `theme validate`） |
+| `layout` | 表示ブロックレイアウトの表示・管理（`layout path` / `layout reset` / `layout reload` / `layout validate`） |
 | `mute [duration]` | 通知を一時ミュート（例: `mute 30m`、`mute off` で解除） |
 | `fold [N\|off]` | 観測点の表示件数制限（例: `fold 10`、`fold off` で全件表示） |
 | `limit` | 省略表示の上限設定を一覧表示 |
@@ -307,6 +314,8 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
 ## 通知
 
 `node-notifier` パッケージによるデスクトップ通知に対応しています（optional dependency）。
+気象系 11 カテゴリ（weather / tornado / briefing / earlyWeather / weatherWarningTimeseries / climateInfo / weatherExplanation / heatAlert / typhoonAnalysis / typhoonProbability / floodForecast）は新規設定では既定で OFF です。保存済みの `notify` 設定は既定値より優先されます。
+ただし soundLevel が `critical`（特別警報級）の通知は、カテゴリが OFF でも通知と通知音を出します。取消はこの対象外です。
 
 | OS | 通知バックエンド |
 |----|----------------|
@@ -323,6 +332,26 @@ Raspberry Pi での常時稼働については [Raspberry Pi 500 セットアッ
   ```
 - ヘッドレス環境（サーバー、SSH 接続のみ）では通知を表示する手段がないため、通知機能は自動的に無効になります。アプリの動作には影響しません。
 - `node-notifier` のインストールに失敗した場合でも、通知以外の機能は正常に動作します。
+
+## 情報ディスプレイ
+
+> npm パッケージにはビルド済みのフロントエンド (`display/dist`) が同梱されており、インストール後そのまま `--display` を利用できます。リポジトリを clone して使う場合のみ、`display/dist` のビルドが必要です (`npm --prefix display install && npm run display:build`、Node.js 20.19 以上)。
+
+FlEq 本体プロセスに内蔵のブラウザ表示サーバです。地震・津波・気象警報の現況を SSE でブラウザへ配信し、常設モニタでの表示画面として使えます。
+
+```bash
+# 有効化 (デフォルト: ポート 7788 / バインド先 127.0.0.1)
+fleq --display
+
+# ポート・バインド先を変更
+fleq --display --display-port 8080 --display-bind 0.0.0.0
+```
+
+Config でも設定できます（`display` / `displayPort` / `displayHost` / `displayToken`）。実行中は REPL の `display` / `display off` コマンドで状態確認・停止ができます。
+
+`127.0.0.1` 以外にバインドした場合、非 loopback からの閲覧にはアクセストークン（`displayToken`、未設定なら起動ごとに自動生成して起動ログに表示）が必須になります。
+
+Raspberry Pi でのキオスク表示・LAN 公開時の注意（Tailscale/ufw）・`display/dist` の配置手順は [情報ディスプレイセットアップガイド](docs/display-setup.md) を参照してください。
 
 ## FAQ / トラブルシューティング
 
@@ -346,6 +375,7 @@ A: `notify-send` がインストールされているか確認してください
 - [CLI 強化機能ガイド](docs/cli-features.md) — フィルタ・テンプレート・フォーカス等の詳細な使い方
 - [表示リファレンス](docs/display-reference.md) — 電文タイプ別の表示フォーマット一覧
 - [Raspberry Pi 500 セットアップガイド](docs/raspi500-setup-guide.md) — Raspberry Pi での常時稼働セットアップ
+- [情報ディスプレイセットアップガイド](docs/display-setup.md) — 常設ディスプレイ表示のセットアップ
 - [内部仕様書](docs/specs/) — アーキテクチャ・電文ルーティング・UI 仕様等の開発者向けドキュメント
 - [ソースコード](https://github.com/Lateo2580/FlEq) — ビルド・開発方法は `npm run dev` / `npm test` 等。詳細はリポジトリを参照
 

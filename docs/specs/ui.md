@@ -44,9 +44,10 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `visualWidth(str: string): number` | ANSI エスケープ除去後の視覚的幅を計算。CJK 文字は幅 2 |
 | `visualPadEnd(str: string, targetWidth: number): string` | 視覚幅を考慮したスペースパディング (`padEnd` の全角対応版) |
 | `wrapFrameLines(level: FrameLevel, content: string, width: number, indent?: number): string[]` | フレーム内でコンテンツを折り返し、frameLine 付きの文字列配列を返す |
-| `wrapTextLines(text: string, maxWidth: number): string[]` | テキストを文字単位で折り返す (フレーム装飾なし) |
+| `wrapTextLines(text: string, maxWidth: number): string[]` | テキストを幅いっぱいまで充填しつつ折り返す (フレーム装飾なし)。折返し点直前 `BREAK_LOOKBACK` (12) 字以内に読点・句点・カンマ等の優先改行文字があればそこで優先的に折り、行頭・行末禁則処理も行う。単一文字が maxWidth を超える場合のみ文字単位ハード折り返しにフォールバックする (spec §9 R3-1) |
 | `collectHighlightSpans(line: string, rules: readonly HighlightRule[]): HighlightSpan[]` | テキスト行からキーワード強調の適用区間を収集する |
 | `highlightAndWrap(line: string, rules: readonly HighlightRule[], maxWidth: number): string[]` | キーワード強調を適用しつつ折り返し済みの行配列を返す |
+| `reflowTelegramLines(lines: string[]): string[]` | 電文本文の固定幅 hard-wrap を解除して論理行に再結合する。散文のみ結合し、整形行・段落開始行・空行は保持する (spec §8 R2-3) |
 | `renderGroupedItemList(options): void` | グループ化されたアイテムリスト (震度一覧等) をフレーム内に描画する |
 | `renderSimpleNameList(options): void` | 名前リスト (津波予報区等) をフレーム内に描画する |
 | `renderFooter(buf, level, width, event): void` | フレームフッター (URI・ヘッドライン等) を描画する |
@@ -71,6 +72,8 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `FrameLevel` | `src/types.ts` で定義、`formatter.ts` が re-export | `"critical" \| "warning" \| "normal" \| "info" \| "cancel"` の 5 段階 |
 | `EewDisplayContext` | `src/ui/eew-formatter.ts` で定義 | EEW 表示時のコンテキスト。`activeCount` (同時発生件数)、`diff?: EewDiff` (前回との差分)、`colorIndex?: number` (バナー色インデックス) |
 
+Phase 4b (2026-07) で `eew-formatter.ts` を新デザイン言語化済み。詳細は下記「EEW 表示」節を参照。
+
 ### 内部ロジック
 
 #### FrameLevel による表示制御
@@ -93,26 +96,72 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 4 つのプリミティブ関数でフレームを構成する:
 - `frameTop(level, width)` — 上辺
 - `frameLine(level, content, width)` — コンテンツ行 (視覚幅でパディング)
-- `frameDivider(level, width)` — セクション区切り
+- `frameDivider(level, width)` — セクション区切り (太線)
 - `frameBottom(level, width)` — 下辺
+
+2026-07 rollout で以下が追加された:
+- `frameDividerThin(level, width)` — 細線区切り (`╟─╢`、critical/warning の二重線フレーム内でもセクション統合時は細線を使う。normal/info/cancel は元々細線)
+- `frameDividerLabeled(level, label, width)` / `frameDividerLabeledThin(level, label, width)` — ラベル付き区切り (太線/細線)。`[詳細]`・`サマリ`・`予測震度` 等のセクション見出しに使う
 
 フレーム幅は `getFrameWidth()` で決定。キャッシュ値があればそれを使い、なければ `process.stdout.columns` に追従する (下限 40、上限 200、フォールバック 60)。
 
 #### コンパクトモード
 
-`cachedDisplayMode === "compact"` の場合、各 `display*` 関数はフレーム描画をスキップし、1 行サマリー (`[レベルラベル]  電文種別  震源  規模  震度` 形式) を出力して早期 return する。
+`cachedDisplayMode === "compact"` の場合、各 `display*` 関数はフレーム描画をスキップし、1 行サマリー (`[レベルラベル]  電文種別  震源  規模  震度` 形式) を出力して早期 return する。**新デザイン言語化済みの formatter（`earthquake-info-formatter.ts` / `tsunami-formatter.ts` / `eew-formatter.ts` / `seismic-text-formatter.ts` / `nankai-trough-formatter.ts` / `lg-observation-formatter.ts`）はこの分岐を撤去済み** — full 表示のみを持ち、compact の役割は summary パイプライン (`ui/summary/`, token-builders) / Studio `compactLine` に委譲する（`.claude/rules/ui-output.md`）。
 
-#### テーブル描画
+#### テーブル描画 (2 系統)
 
-`renderFrameTable()` はフレーム内にカラム区切りテーブルを描画する。津波情報で `width >= WIDE_TABLE_THRESHOLD (80)` の場合に使用される。カラム幅はヘッダ・データの最大視覚幅から自動計算し、合計がフレーム内幅を超える場合は最終カラムを縮小する。
+**旧系統 `renderFrameTable()` / `pushFrameTable()`** (`frame-table-builder.ts`): フレーム内にカラム区切りテーブルを描画する。カラム幅はヘッダ・データの最大視覚幅から自動計算し、合計がフレーム内幅を超える場合は最終カラムを縮小する。`indent` (省略可、既定 0) を渡すとテーブル全行の本文先頭にスペースを前置し、有効幅も indent 分減らす (セクション見出し配下の本文と桁を揃える用途)。現在の利用箇所: 台風解析・台風確率・気象解説情報 (`weather-explanation-formatter.ts`)・VPWP50 の detail cache (`vpwp50-detail-cache.ts`)。**津波情報はこの系統から移行済み**（旧 `WIDE_TABLE_THRESHOLD (80)` 二分岐は廃止）。
+
+**新系統 `renderResponsiveTable()`** (`responsive-table-engine.ts`、津波/地震/EEW/火山降灰バッチが共有): 3 段階 breakpoint (`decideDisplayMode()`、`<120` / `120-159` / `160+`) に応じて `ColumnSpec<Row>[]` を formatter 側で切り替えて渡す (engine は列を自動で落とさない)。列オプション:
+- `wrap: true` — clip せず `wrapTextLines` で複数物理行に折り返し、全件そのまま表示する (ClipReport 非対象)
+- `mergeRepeated: true` — 直前行と同一 raw 値なら空白セルで描画する rowspan 風の縦方向間引き (rows がソート済みであることが前提)
+- `opts.omitHeader: true` — ヘッダ行を省略する (2 列で自明な表など)
+- 通常列は `clipToVisualWidth` でセル内 clip し、`raw !== clipped` を `ResponsiveClipReport` に記録するが、**この ClipReport は検知信号のみで `[詳細]` 復元には使わない**
+
+**`[詳細]` は hidden-only 原則** (`collectDetailForTable()` + `pushDetailBlock()`、spec §2.4): 列定義に `hidden: boolean` を持たせ、**その幅で完全に隠れた列のみ**を `[詳細]` に回収する。セル内 clip (幅は足りないが読める) は回収対象外 — 「clip されたら detail に全文回収」という旧設計は 2026-07 rollout で廃止された。件数上限超過分 (`getMaxObservations()` 等) は別途、全列を 1 entry として `[詳細]` に復元する。1 entry 最大 8 行 (`DETAIL_MAX_PER_ENTRY`) / 全体最大 60 行 (`DETAIL_MAX_TOTAL`) の行数ガードがあり、超過時は entry 単位で打ち切る。EEW のみ地域数が多いため専用の `EEW_DETAIL_HARD_CAP=200` を追加で持つ（§ EEW 表示参照）。
+
+VPWP50 (`weather-warning-timeseries-formatter.ts`) は上記いずれとも非互換点が多いため、どちらの engine にも寄せず独自の clip 検知ベース `[詳細]` 回収 (`raw !== clipped` なら mode 問わず全文回収) を維持している (`docs/display-reference.md` の VPWP50 節「採用ルール」参照)。
 
 #### 折り返し
 
-`wrapFrameLines()` はカンマ+スペース / 日本語句読点 (`、`) / パイプ区切り (`│`) を基準にソフト折り返しを試み、分割できない場合は `wrapTextLines()` による文字単位ハード折り返しにフォールバックする。
+`wrapFrameLines()` はカンマ+スペース (`, `) / パイプ区切り (` | ` / `  │  `) / スラッシュ区切り (` / `) を delimiter として区切り単位のソフト折り返しを試み、分割できない場合 (または区切りで分割してもなお幅超過の行) は `wrapTextLines()` にフォールバックする。日本語句読点 (`、`) は delimiter から除去済み (spec §9 R3-2) — 読点を含む長文は `wrapTextLines()` v2 の句読点優先改行 (`BREAK_LOOKBACK` 内での優先改行 + 禁則処理) が読点を保持したまま引き継ぐ。
 
-#### EEW バナー
+#### EEW 表示 (`src/ui/eew-formatter.ts`、Phase 4b レスポンシブ設計)
 
-EEW 表示は通常のフレームの上にバナー (3 行の背景色付きブロック) を描画する。`colorIndex` により警報用 5 色 / 予報用 5 色のパレットから色を選択し、同時発生する複数 EEW を色で識別可能にする。PLUM 法の場合はバナーの装飾行 (1 行目・3 行目) に専用スタイルを適用する。
+`displayEewInfo(info, context?)` は新デザイン言語（列優先度モデル + clamp 経路）を適用済み（2026-07 rollout）。旧 `getDisplayMode() === "compact"` 早期 return 分岐は撤去済み — **EEW の compact は summary パイプライン（`runDisplayPipeline`, `engine/messages/message-router.ts:431`）/ Studio `compactLine`（`weather-registry.ts` の EEW entry）の責務**で、formatter 内に compact 分岐を持たない。
+
+**バナー**: EEW 表示は通常のフレームの上にバナー (3 行の背景色付きブロック) を描画する。`colorIndex` により警報用 5 色 / 予報用 5 色のパレットから色を選択し、同時発生する複数 EEW を色で識別可能にする。PLUM 法の場合はバナーの装飾行 (1 行目・3 行目) に専用スタイルを適用する。この構造は Phase 4b でも無変更 (EEW の顔)。
+
+**予測震度テーブル**（本丸）: `renderResponsiveTable`（`responsive-table-engine.ts`）で描画し、`eewForecastColumns(mode, hasLg)` でモード別列セットを明示切替する（engine は列を自動で落とさないため）。
+
+| モード | 列セット |
+|---|---|
+| standard / wide | 震度 │ 地域 │ 長周期 (`hasLg` 時のみ) │ 状態 |
+| ultra-narrow (〜幅40級) | 震度 │ 地域 │ 状態（長周期列は省略、`[詳細]` へも逃がさない — 高さ削減優先、spec §8 R2-4） |
+
+- 震度列: `formatEewIntensityRange()` で範囲表記対応（From≠To は「4〜5弱」、To="over" は「4程度以上」）
+- 状態列: `eewStatusBadges()` が「到達済」/「HH:MM:SS 到達予測」/「PLUM」を優先順に併記（badge 配列、単一 enum にしない）。旧「主要動到達推測地域」独立セクションはこの列に吸収され撤去済み
+- 並び順: `buildEewForecastRows()` が **To 基準（悲観側）の震度降順**（`eewPessimisticIntensity(intensity, intensityTo)` をソートキーに）でソートする。**一枚テーブル統合（Task 5）**により、階級ごとの divider・ヘッダ繰り返しは廃止済み — `予測震度` labeled divider 1 本 + ヘッダ 1 回 + 全行（`shown`）を `renderResponsiveTable` 1 回で描画する（震度列が各行にあるため階級境の細線 divider なしでも読める）
+- 件数制限: `getMaxObservations()` を維持。超過分は詳細ブロック逃がし + 「… 他 N 地域」の可視打ち切り（fail-closed）。generic cap (`DETAIL_MAX_PER_ENTRY`/`DETAIL_MAX_TOTAL`) は 90 地域級の EEW に不足するため、**EEW 専用 `EEW_DETAIL_HARD_CAP = 200`**（`applyEewDetailCap()`）を持つ（地域名 wrap 全表示化前の LG 観測情報が持っていた同種 hard cap の考え方を踏襲したもので、LG 側は現在 wrap 全表示化に伴い cap ごと撤去済み）
+
+**To 基準一気通貫**（`src/utils/intensity.ts` の `eewPessimisticIntensity(intensity, intensityTo)`）: 最大予測震度の算出を表示/通知の 4 箇所 + 記録層 1 箇所すべて `intensityTo ?? intensity`（悲観側）基準に揃える。単一 helper を共用し算出箇所の増殖を防ぐ。なお地域別の生値（震度別グループ一覧など）は From のまま — 「最大は To、地域別生値は From」の二層設計。
+
+| # | 箇所 | 用途 |
+|---|------|------|
+| 1 | `eew-formatter.ts` (`displayEewInfo` カード行、`buildEewForecastRows`) | テーブルの並び・グループ化キー、カード行の最大予測震度 |
+| 2 | `eew-tracker.ts` の `getMaxForecastIntensity`（L71-82） | diff の `previousMaxInt` 比較値。`EewDiff` の外部契約・報数管理・colorIndex 採番は無変更 |
+| 3 | `engine/presentation/events/from-eew.ts` の `fromEewOutcome` | summary パイプラインの `forecastMaxInt` |
+| 4 | `engine/notification/notifier.ts:1097-1103` | 通知本文の最大震度算出 |
+| 5 | `engine/eew/eew-logger.ts`（差分ログ・最大予測震度の記録） | 記録層。tracker 由来の To 基準 `previousMaxInt` と混在しないよう統一（Codex 最終レビュー対応） |
+
+**震源詳細ブロック**: 震源地（diff 時「(変更)」+ `landOrSea` 併記）→ 発生時刻 + 検知時刻（`arrivalTime`、**PLUM 時は検知時刻を優先表示**し発生時刻に「(仮定)」を付記）→ 位置・規模・深さ（diff 表示）→ **精度行**（新設）の順。精度行は `buildEewAccuracyLine(accuracy)` が震央・深さ・M の rank を `EEW_EPICENTER_RANK_LABELS` / `EEW_DEPTH_RANK_LABELS` / `EEW_MAGNITUDE_RANK_LABELS`（JMA 地震火山関連 XML 電文解説資料の Accuracy 定義、formatter 側の定数）で人間可読ラベル化する。未知 rank は `eewAccuracyLabel()` が「不明(N)」で fail-open 表示（silent 欠落させない）。仮定震源要素 (PLUM) 時のグレーアウト分岐は維持しつつ、精度行・検知時刻を同ブロックに組み込む。
+
+**取消報**: バナー（取消色）+ 取消文 + EventID + footer の最短構成。取消文は `info.cancelText`（Body/Text 由来）**優先**、無ければ固定文「この地震についての緊急地震速報は取り消されました。」に fallback。
+
+**速報カード行**: `buildEewCardLine(parts, width)` が幅不足時に **priority の大きい部品から落とす**（生存優先度: 最大予測震度 > M > 深さ > 長周期。priority 0 は不落）。素の `console.log` 直書きは廃し `clampFrameContent` 経由で幅保証する。
+
+**Studio 登録**: `studio/backend/registry/weather-registry.ts` に EEW entry（`pattern: /^VXSE4[345]$/`）を追加済み。`format` は `displayEewInfo` をそのまま呼び、entry 固定の `EewDisplayContext` では発表/取消の同一 eventId+serial が衝突するため、**`eewContext?: (msg, parsed) => EewDisplayContext`** という optional context provider を追加した（`type:eventId:serial:infoType` の複合キーによる宣言的な固定値 map、`EEW_STUDIO_CONTEXTS`）。`compactLine` は独自の最大震度計算を持たず `fromEewOutcome` / summary 側の共有経路（`toPresentationEvent` → `renderSummaryLine`）を使う。VXSE44 entry は「本番 routing では常時抑制」を entry の `label` に明記（`process-eew.ts` の常時抑制ロジックは無変更）。fixture 10 件（VXSE43 警報 2 + 取消 1 / VXSE44 / VXSE45 通常・連報・取消・PLUM・混在・最終報）を登録し、`studio/backend/tests/render-parity.test.ts` の `describe("EEW render parity (formatter parity — ...)")` で本番 formatter と byte 一致を検証する（「formatter parity」であって「本番 routing parity」ではない旨をテスト名で区別）。
 
 #### 本文キーワード強調
 
@@ -132,17 +181,17 @@ interface HighlightSpan {
 }
 ```
 
-ルール定数:
+ルール定数（Phase 4a でテキスト 3 系統が個別 formatter に分離され、定数の所在も移動済み）:
 
-| 定数名 | 対象電文 | 主なパターン |
-|---|---|---|
-| `NANKAI_COMMON_RULES` | 南海トラフ全般 | 巨大地震警戒・注意、マグニチュード、調査中/終了 等 |
-| `NANKAI_VYSE52_EXTRA_RULES` | VYSE52 追加 | ゆっくりすべり、特段の変化なし |
-| `SEISMIC_TEXT_RULES` | テキスト系 | 活発、最大マグニチュード、最大震度、防災上の留意事項 |
+| 定数名 | 所在ファイル | 対象電文 | 主なパターン |
+|---|---|---|---|
+| `NANKAI_COMMON_RULES` | `nankai-trough-formatter.ts` | 南海トラフ全般 | 巨大地震警戒・注意、マグニチュード、調査中/終了 等 |
+| `NANKAI_VYSE52_EXTRA_RULES` | `nankai-trough-formatter.ts` | VYSE52 追加 | ゆっくりすべり、特段の変化なし |
+| `SEISMIC_TEXT_RULES` | `seismic-text-formatter.ts` | テキスト系 | 活発、最大マグニチュード、最大震度、防災上の留意事項 |
 
-`collectHighlightSpans()` は行内の全ルールをマッチし、重複区間を排除（同一開始位置では長いマッチ優先）した上でソート済みの `HighlightSpan[]` を返す。`highlightAndWrap()` はまず平文で折り返し、各行の文字オフセットを追跡しながらスパンの ANSI スタイルを適用する。
+`collectHighlightSpans()` と `highlightAndWrap()` は本ファイル (`formatter.ts`) にとどまる共通ユーティリティで、`seismic-text-formatter.ts` / `nankai-trough-formatter.ts` から import される。`collectHighlightSpans()` は行内の全ルールをマッチし、重複区間を排除（同一開始位置では長いマッチ優先）した上でソート済みの `HighlightSpan[]` を返す。`highlightAndWrap()` はまず平文で折り返し、各行の文字オフセットを追跡しながらスパンの ANSI スタイルを適用する。
 
-`displaySeismicTextInfo()` と `displayNankaiTroughInfo()` が本文表示時にこれらの関数を使用する。
+`displaySeismicTextInfo()` (`seismic-text-formatter.ts`) と `displayNankaiTroughInfo()` (`nankai-trough-formatter.ts`) が本文表示時にこれらの関数を使用する。
 
 #### セキュリティ
 
@@ -159,8 +208,8 @@ interface HighlightSpan {
 - 表示状態 (フレーム幅・表示モード・全文表示フラグ・観測点最大表示件数) はモジュールレベル変数でキャッシュし、各 `display*` 関数が引数なしで参照できるようにしている。これはパフォーマンスと API 簡潔性のトレードオフ。
 - `FrameLevel` を全電文タイプ共通の抽象レベルとすることで、フレーム描画コードの重複を排除している。
 - **EventID 表示**: `displayEarthquakeInfo()` は `info.eventId` が非 null の場合、フッター直前に `EventID: {eventId}` 行を `chalk.gray` で表示する。同一地震の VXSE52/53/61 を紐付ける識別子として機能する。コンパクトモードでは表示しない。
-- **レンダーバッファ**: 6つの `display*` 関数は `createRenderBuffer()` で行をバッファに蓄積し、`flushWithRecap()` で一括出力する。TTY かつ行数がターミナル高さを超える場合、フレーム下部直前に「▼ サマリー」セクション (タイトル行・カード行・ヘッドライン1行目) を再掲する。非TTY や行数が十分少ない場合はそのまま出力する。
-- **観測点折りたたみ**: `cachedMaxObservations` が非 `null` の場合、震度一覧・予測震度一覧・津波予報/観測/推定・長周期地域リストの表示件数を制限し、超過分を「... 他 XX 地点」として表示する。REPL の `fold` コマンドまたは `fleq config set maxObservations` で設定する。
+- **レンダーバッファ**: 6つの `display*` 関数は `createRenderBuffer()` で行をバッファに蓄積し、`flushWithRecap()` で一括出力する。TTY かつ行数がターミナル高さを超える場合、フレーム下部直前に「▼ サマリー」セクション (タイトル行・カード行・ヘッドライン1行目) を再掲する。非TTY や行数が十分少ない場合はそのまま出力する。`flushWithRecap()` の第 4 引数 `borderColor` (省略可) で recap の divider / サマリー行の罫線色を注入でき、colored フレームの formatter は本文罫線色を渡して色まだらを防ぐ (省略時は plain の `frameDivider` / `frameLine`)。
+- **観測点折りたたみ**: `cachedMaxObservations` が非 `null` の場合、予測震度一覧 (EEW)・津波予報/観測/推定の表示件数を制限し、超過分を「... 他 XX 地点」として表示する。REPL の `fold` コマンドまたは `fleq config set maxObservations` で設定する。**震度一覧 (地震) と長周期地域リストは 2026-07 の wrap 全表示化でこの折りたたみの対象外になった**（`getMaxObservations()` を呼ばず、常に全件表示する）。
 - `visualWidth()` は独自実装で Unicode コードポイント範囲を判定する。`wcwidth` 等の外部ライブラリを使わないことで依存を最小化している。
 
 ---
@@ -191,6 +240,17 @@ function createDisplayAdapter(): DisplayCallbacks
 | `lgObservation` | `displayLgObservationInfo(outcome.parsed)` |
 | `tsunami` | `displayTsunamiInfo(outcome.parsed)` |
 | `nankaiTrough` | `displayNankaiTroughInfo(outcome.parsed)` |
+| `weather` | `displayWeatherWarning(outcome.parsed, outcome.presentation.weatherDiff)` (旧 VPWS50 系) / VPWW55-61 は `displayWeatherWarningCore(outcome.parsed)` |
+| `tornado` | `displayTornadoAdvisory(outcome.parsed)` |
+| `briefing` | `displayWeatherBriefing(outcome.parsed)` |
+| `earlyWeather` | `displayEarlyWeatherInfo(outcome.parsed)` |
+| `weatherWarningTimeseries` | `displayWeatherWarningTimeseriesInfo(outcome.parsed)` |
+| `climateInfo` | `displayClimateInfo(outcome.parsed)` |
+| `weatherExplanation` | `displayWeatherExplanation(outcome.parsed)` |
+| `heatAlert` | `displayHeatAlertInfo(outcome.parsed)` |
+| `typhoonAnalysis` | `displayTyphoonAnalysisInfo(outcome.parsed)` |
+| `typhoonProbability` | `displayTyphoonProbabilityInfo(outcome.parsed)` |
+| `floodForecast` | `displayFloodForecastInfo(outcome.parsed)` |
 | `raw` | `displayRawHeader(outcome.msg)` |
 
 火山は `VolcanoRouteHandler` が `displayVolcano()` / `displayVolcanoBatch()` を直接呼ぶため、`displayOutcome()` には火山ケースがない。
@@ -207,7 +267,11 @@ function createDisplayAdapter(): DisplayCallbacks
 | `./formatter` | `displayRawHeader`, `getDisplayMode` |
 | `./summary` | `renderSummaryLine` |
 | `./eew-formatter` | `displayEewInfo` |
-| `./earthquake-formatter` | 地震・津波・テキスト・南海トラフ・長周期の表示関数 |
+| `./earthquake-info-formatter` | `displayEarthquakeInfo` |
+| `./tsunami-formatter` | `displayTsunamiInfo` |
+| `./seismic-text-formatter` | `displaySeismicTextInfo`（Phase 4a で個別 formatter に分離） |
+| `./nankai-trough-formatter` | `displayNankaiTroughInfo`（Phase 4a で個別 formatter に分離） |
+| `./lg-observation-formatter` | `displayLgObservationInfo`（Phase 4a で個別 formatter に分離） |
 | `./volcano-formatter` | `displayVolcanoInfo`, `displayVolcanoAshfallBatch` |
 
 ### 設計ノート
@@ -393,7 +457,7 @@ interface CommandEntry {
 
 ##### test table 電文タイプ短縮形
 
-`test table` の電文タイプ名にも同様の短縮形がある (`TABLE_TYPE_ALIASES`): `eq`, `tsu`, `st`, `nt`, `lgob`。
+`test table` の電文タイプ名にも同様の短縮形がある (`TABLE_TYPE_ALIASES`): `eq`, `tsu`, `st`, `nt`, `lgob`, `vc`, `wt`, `tnd`, `brf`, `ew`。
 
 すべてのサブコマンド引数 (`on`/`off`/`full`/`short`/`normal`/`compact`/`elapsed`/`now`/`auto` 等) も大文字小文字を区別しない。
 
@@ -428,7 +492,7 @@ interface CommandEntry {
 
 ### 依存関係
 
-- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `ConfigFile`, `PromptStatusProvider`, `DetailProvider`), `../dmdata/connection-manager` (`ConnectionManager`), `../config` (`loadConfig`, `saveConfig`), `../engine/notification/notifier` (`Notifier`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/filter-template/pipeline` (`FilterTemplatePipeline`), `../engine/messages/telegram-stats` (`TelegramStats`), `../engine/messages/summary-tracker` (`SummaryWindowTracker`), `../engine/monitor/monitor` (`SummaryTimerControl`), `./status-line` (`StatusLine`), `./tip-shuffler` (`TipShuffler`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./repl-handlers/types` (`CommandEntry`, `ReplContext`), `./repl-handlers/info-handlers` (`COMMAND_ALIASES`, `resolveCommand`), `./repl-handlers/command-definitions` (`buildCommandMap`)
+- **インポート元**: `readline`, `chalk`, `../types` (`AppConfig`, `ConfigFile`, `PromptStatusProvider`, `DetailProvider`), `../dmdata/connection-manager` (`ConnectionManager`), `../config` (`loadConfig`, `saveConfig`), `../engine/notification/notifier` (`Notifier`), `../engine/eew/eew-logger` (`EewEventLogger`), `../engine/filter-template/pipeline` (`FilterTemplatePipeline`), `../engine/messages/telegram-stats` (`TelegramStats`), `../engine/messages/summary-tracker` (`SummaryWindowTracker`), `../engine/monitor/monitor` (`SummaryTimerControl`), `./status-line` (`StatusLine`), `../tips/tip-shuffler` (`TipShuffler`), `./theme` (テーマアクセサ), `../logger` (`setLogPrefixBuilder`, `setLogHooks`), `./repl-handlers/types` (`CommandEntry`, `ReplContext`), `./repl-handlers/info-handlers` (`COMMAND_ALIASES`, `resolveCommand`), `./repl-handlers/command-definitions` (`buildCommandMap`)
 - **接続先**: `engine/monitor/monitor.ts` から dynamic import で生成・`start()` / `stop()` / `setConnected()` / `beforeDisplayMessage()` / `afterDisplayMessage()` が呼ばれる
 
 ### 設計ノート
@@ -437,58 +501,6 @@ interface CommandEntry {
 - `clearInput()` は readline 内部の `line` / `cursor` プロパティを直接書き換える。公開 API にはバッファクリア手段がないための回避策。
 - 設定変更は「即座にランタイムに反映 + Config ファイルに永続化」の 2 段階にしており、アプリ再起動なしで設定が反映される。
 - `beforeDisplayMessage()` / `afterDisplayMessage()` の対で電文表示を挟むことで、入力中テキストの消失やプロンプトの二重描画を防いでいる。
-
----
-
-## waiting-tips.ts
-
-### 概要
-
-REPL 待機中に定期表示するヒントメッセージの定義ファイル。コマンドの使い方、防災知識、ツールの仕組み、歴史的地震・津波、今後想定される地震に関するヒントをカテゴリ分類された構造体として提供する。
-
-ロジックは一切持たず、純粋なデータ定義のみを担う。表示順序の制御は `tip-shuffler.ts` の `TipShuffler` が行う。
-
-### エクスポートAPI
-
-#### 型
-
-| 名前 | 説明 |
-|---|---|
-| `TipCategoryId` | カテゴリ識別子のユニオン型 (`"commands-basic"` \| `"commands-advanced"` \| `"disaster-prevention"` \| `"tool-internals"` \| `"trivia"` \| `"history-japan"` \| `"history-world"` \| `"future-quakes"`) |
-| `TipCategory` | カテゴリ定義 (`{ id: TipCategoryId; tips: readonly string[] }`) |
-
-#### 定数
-
-| シグネチャ | 説明 |
-|---|---|
-| `const TIP_CATEGORIES: readonly TipCategory[]` | 8 カテゴリ・計 247 件のヒントメッセージ。各要素は `"Tip: ..."` 形式の文字列 |
-
-### 内部ロジック
-
-ロジックなし。型定義と配列リテラルのみ。
-
-ヒントは以下の 8 カテゴリに分類される:
-
-| カテゴリ ID | 内容 |
-|---|---|
-| `commands-basic` | 各 REPL コマンドの基本的な使い方 |
-| `commands-advanced` | コマンドの応用テクニック・組み合わせ |
-| `disaster-prevention` | 地震・津波発生時の行動指針、備蓄、避難 |
-| `tool-internals` | FlEq の内部動作・電文処理の解説 |
-| `trivia` | 震度・マグニチュード・津波の科学的知識 |
-| `history-japan` | 日本の歴史的地震事例 (貞観地震から能登半島地震まで) |
-| `history-world` | 世界の歴史的地震事例 (リスボン地震からトルコ・シリア地震まで) |
-| `future-quakes` | 南海トラフ地震、首都直下地震、日本海溝・千島海溝沿い地震等の想定 |
-
-### 依存関係
-
-- **インポート元**: なし
-- **接続先**: `ui/tip-shuffler.ts` が `TIP_CATEGORIES` をインポートし、カテゴリインターリーブシャッフルに使用
-
-### 設計ノート
-
-- ロジックとデータを分離することで、ヒント文言の追加・編集が容易になっている。
-- 旧 `WAITING_TIPS: string[]` (フラット配列) から `TIP_CATEGORIES: readonly TipCategory[]` (8 カテゴリ構造) にリファクタリングされた。カテゴリ情報を活用して `TipShuffler` が同カテゴリ連続を回避するインターリーブシャッフルを行う。
 
 ---
 
@@ -627,7 +639,7 @@ REPL 待機中に定期表示するヒントメッセージの定義ファイル
 
 ### 概要
 
-REPL の `test table` コマンド用のテストデータとディスパッチマップを定義するモジュール。6種の電文タイプそれぞれについて複数のバリエーション（通常・警報・取消・PLUM法等）を提供し、番号指定で個別のバリエーションを表示できる。テストフィクスチャ XML からの動的読み込みとハードコード済みフォールバックデータの二段構えで、フィクスチャ不在環境でも動作する。
+REPL の `test table` コマンド用のテストデータとディスパッチマップを定義するモジュール。14種の電文タイプそれぞれについて複数のバリエーション（通常・警報・取消・PLUM法等）を提供し、番号指定で個別のバリエーションを表示できる。テストフィクスチャ XML からの動的読み込みとハードコード済みフォールバックデータの二段構えで、フィクスチャ不在環境でも動作する。
 
 ### エクスポートAPI
 
@@ -660,6 +672,14 @@ REPL の `test table` コマンド用のテストデータとディスパッチ�
 | `seismicText` | 2 | 通常発表 / 取消 |
 | `nankaiTrough` | 3 | 調査中(critical) / 巨大地震注意(warning) / 調査終了(info) |
 | `lgObservation` | 3 | 階級4(critical) / 階級3(warning) / 階級2(normal) |
+| `volcano` | 9 | 噴火警報(Lv3/Lv5引上げ) / 噴火速報 / 火山観測報 / 降灰予報(速報・詳細) / 海上警報 / 推定噴煙流向報 / お知らせ |
+| `weather` | 8 | VPWW55-61 各警報 + VPWS50 集約 |
+| `tornado` | 3 | 通常発表 ×2 / 目撃情報あり(critical) |
+| `briefing` | 4 | 線状降水帯 発生/予想 / 記録的短時間大雨 / 短時間大雪 |
+| `earlyWeather` | 8 | 高温 / 低温 / 大雪 / 雪 / 複合 ×4 |
+| `climateInfo` | 3 | 全般 (VPZI50) / 地方 梅雨明け (VPCI50) / 地方 梅雨明け非発表 (VPCI50) |
+| `weatherExplanation` | 11 | 地方/全般/府県 (VPCJ51/VPZJ51/VPFJ51) ×8 + 潮位 (VMCJ53/55) ×3 |
+| `heatAlert` | 3 | 発表 / 題名昇格(critical) / 取消 |
 
 ### 内部ロジック
 
@@ -686,7 +706,7 @@ REPL の `test table` コマンド用のテストデータとディスパッチ�
 
 - フィクスチャ優先 + フォールバックの二段構えにより、開発環境ではリアルな XML データでテストし、配布環境ではハードコードデータで動作保証する。
 - 各バリエーションの `run()` は引数なしの `() => void` で統一されており、ディスパッチマップから番号で呼び出すだけの単純な設計。
-- `TEST_TABLES` のキーは REPL の `test table <type>` コマンドの引数に対応する (`earthquake`, `eew`, `tsunami`, `seismicText`, `nankaiTrough`, `lgObservation`, `volcano`)。
+- `TEST_TABLES` のキーは REPL の `test table <type>` コマンドの引数に対応する (`earthquake`, `eew`, `tsunami`, `seismicText`, `nankaiTrough`, `lgObservation`, `volcano`, `weather`, `tornado`, `briefing`, `earlyWeather`, `climateInfo`, `weatherExplanation`, `heatAlert`)。`weatherWarningTimeseries` (VPWP50) のテストテーブルは未提供（VPWP50 フェーズの持ち越し）。
 
 ---
 
@@ -968,8 +988,8 @@ function displayVolcanoAshfallBatch(
 
 | シグネチャ | 説明 |
 |---|---|
-| `COMMAND_ALIASES: Record<string, string>` | 17 件のコマンド短縮形マップ |
-| `CATEGORY_ALIASES: Record<string, NotifyCategory>` | 6 件の通知カテゴリ短縮形 (`eq`, `tsu`, `st`, `nt`, `lgob` + `aon`/`aoff`) |
+| `COMMAND_ALIASES: Record<string, string>` | 18 件のコマンド短縮形マップ |
+| `CATEGORY_ALIASES: Record<string, NotifyCategory>` | 10 件の通知カテゴリ短縮形 (`eq`, `tsu`, `st`, `nt`, `lgob`, `wwt`, `ew`, `ci`, `we`, `ha`) |
 | `resolveCommand(ctx: ReplContext, name: string): CommandEntry \| undefined` | コマンド名を正規化し、エイリアス解決後にハンドラを返す |
 | `getCurrentSettingValues(ctx: ReplContext): Record<string, { current, options? }>` | 各設定コマンドの現在値と設定可能な値を返す |
 | `handleHelp(ctx, args)` | help コマンド。引数なし: カテゴリ別一覧表示 (現在値・エイリアス付き)。引数あり: 個別コマンド詳細表示 |
@@ -1095,7 +1115,7 @@ function displayVolcanoAshfallBatch(
 
 カテゴリ固有色: EEW=sky, 地震=blue, 津波=blueGreen, 火山=orange, 南海トラフ=vermillion, その他=gray
 
-#### 6 カテゴリ
+#### 14 カテゴリ
 
 | カテゴリ | ラベル |
 |---------|--------|
@@ -1104,9 +1124,17 @@ function displayVolcanoAshfallBatch(
 | tsunami | 津波 |
 | volcano | 火山 |
 | nankaiTrough | 南海トラフ |
+| weather | 気象 |
+| tornado | 竜巻 |
+| briefing | 防災速報 |
+| earlyWeather | 早期天候 |
+| weatherWarningTimeseries | 気象時系列 |
+| climateInfo | 全般天候 |
+| weatherExplanation | 気象解説 |
+| heatAlert | 熱中症 |
 | other | その他 |
 
-表示順は上記の固定順。件数 0 のカテゴリは非表示。EEW カテゴリのみ `eewEventCount` (イベント数) も表示する。
+表示順は上記の固定順 (`CATEGORY_ORDER`)。件数 0 のカテゴリは非表示。EEW カテゴリのみ `eewEventCount` (イベント数) も表示する。気象系カテゴリの見出し色は `statsCategoryOther` を共用する。
 
 #### 最大震度内訳
 
@@ -1114,7 +1142,7 @@ function displayVolcanoAshfallBatch(
 
 #### TYPE_LABELS
 
-27 種の電文タイプコード (`VXSE43`, `VTSE41`, `VFVO50` 等) に対応する日本語ラベル定数。
+50 種の電文タイプコード (`VXSE43`, `VTSE41`, `VFVO50`, `VPWW55`, `VPFT50` 等) に対応する日本語ラベル定数。
 
 ### 依存関係
 
@@ -1259,48 +1287,224 @@ class StatusLine {
 
 ---
 
-## tip-shuffler.ts
-
-**ファイルパス**: `src/ui/tip-shuffler.ts` (約 92 行)
+## weather-formatter-vpws50.ts
 
 ### 概要
 
-待機中ヒントのデッキベースシャッフラ。全カテゴリの Tip をインターリーブしてデッキを構築し、同カテゴリの連続表示を回避する。デッキを使い切ったら自動で再構築する。タイミング制御は持たず、`next()` で次の Tip を返すだけの純粋な順序供給器。
+VPWS50 (気象警報・注意報集約定時通報) 専用のリスト表示。VPWS50 は全国の警報・注意報を 1 電文に集約する性質上、地域数が 1700 件超に達する。VPWW55-61 (単一都道府県) と同じ階層表示では 400+ 地域が省略されるため、VPWS50 専用の **府県予報区別リスト表示** を提供する。
 
-### エクスポートAPI
+Phase C (2026-06-12) で 2 系統設計 (officialAlertLevel / displaySeverity) を統合し、差分エンジンを `DISPLAY_SEVERITY_RANK` ベース化した。
 
-#### TipShuffler クラス
+### エクスポート API
 
-```typescript
-class TipShuffler {
-  constructor(rng?: () => number)
-  next(): string
-}
-```
+| 関数 / 型 | 用途 |
+|-----------|------|
+| `displayVpws50List(info, diff, level, width, buf, colors?)` | normal モード本体 (RenderBuffer に push)。`Vpws50Diff` と `Vpws50BodyBorderColors` を受け取り 6 状態分岐 |
+| `displayVpws50Compact(info, level)` | compact モード (1 行集約)。HIGH 時は `★ 危険警報 (L4)` 等の強調ラベルを末尾追記 |
+| `displayVpws50Unchanged(info)` | 変化なし compact 1 行 (フレーム外 `console.log`、`weather-formatter.ts` 早期 return から呼ぶ) |
+| `displayVpws50FromState(display)` | REPL `detail vpws50` 用。`Vpws50CurrentAreasForDisplay` を受け取り現況サマリをフレーム表示 |
+| `hasForecastZoneLayer(info)` | branch 判定 (府県予報区等レイヤー存在チェック) |
+| `aggregateVpws50ByForecastZone(info)` | 集約 (rows + releasedItems)。レガシー fallback / テストで使用 |
+| `formatDisplayToken(kind)` | `{code,name}` → `☆大雨(L3)` 形式の色付きトークン (@internal、テスト用) |
+| `buildVpws50DisplayGroups(info)` | 府県予報区等レイヤーから `Vpws50DisplayKindGroup[]` を組み立て (RANK 降順、release 除外) |
+| `vpws50BannerSeverity(info, diff)` | バナー発火判定。発火すべき `DisplaySeverity` を返す、非発火は `null` |
+| `buildVpws50BannerText(severity, info, diff, maxWidth)` | バナー本文生成 (部品優先度落とし付き幅対応) |
+| `Vpws50BodyBorderColors` | 本文罫線色の注入インターフェース (`tail` フィールド) |
 
-| メソッド | 説明 |
-|---|---|
-| `constructor(rng?)` | RNG を注入可能 (デフォルト: `Math.random`)。構築時にデッキを初期生成 |
-| `next()` | 次の Tip 文字列を返す。デッキが空なら自動再構築 |
+### 表示形式 (normal) — 6 状態分岐
 
-### 内部ロジック
+`displayVpws50List` は `Vpws50Diff.confidence` / `isCancelRollback` / `isUnchanged` / `shouldRecap` / `isFirstReport` を見て 6 状態に分岐する:
 
-#### デッキ構築 (rebuildDeck)
+| 状態 | 条件 | 内容 |
+|------|------|------|
+| unsafe | `diff.confidence === "unsafe"` | 解析不能サブ行 + 理由 |
+| cancelRollback | `diff.isCancelRollback` | 取消ロールバック + 巻き戻し後現況 |
+| unchanged-compact | `isUnchanged && !shouldRecap` | `displayVpws50Unchanged` に委譲 (1 行) |
+| unchanged-recap | `isUnchanged && shouldRecap` | 定期再掲 (60 分、rank>=75 発動) + 現況サマリ |
+| firstReport | `diff.isFirstReport` | 起動時現況サブ行 + 現況サマリ |
+| hasChanges | added/upgraded/downgraded/released > 0 | 差分セクション (★/▲/▽/▼) + 現況サマリ |
+| fallback | `diff` なし / いずれにも非該当 | レガシー全件リスト (`renderLegacyVpws50List`) |
 
-1. `TIP_CATEGORIES` の各カテゴリの tips を Fisher-Yates シャッフル
-2. カテゴリインデックス付きでフラット化
-3. `interleave()` で同カテゴリ連続を回避しつつ 1 つのデッキに統合
+**トークン形式** (`formatDisplayToken`): `{tierPrefix}{短縮名}[(LN)]`
 
-#### インターリーブアルゴリズム
+- 公式 Level 対応 (`officialAlertLevel != null`): `☆大雨(L3)` / `★★土砂災害(L5)` — L 後置注釈
+- 非対応災害 (`officialAlertLevel == null`): `◆暴風` / `△乾燥` — L 注釈なし
+- bg-chip 適用: `officialL5` / `officialL4` / `nonLevelSpecial` のみ (確定 chip 運用ルール)
+- prev 側トークン (昇降格の左側): グレー着色、tier prefix + L 注釈は維持
 
-カテゴリごとのキューに分割し、直前に選んだカテゴリ以外からランダムに 1 つ選択して dequeue する。1 カテゴリしか残っていない場合はそのまま流し込む。
+**区切り文字**: `" / "` (`wrapSingleLine` のデリミタとも一致 — 折り返しでもトークン内に ANSI 断面が生じない)
+
+**現況サマリ** (差分あり / 再掲 / 初回起動で出力):
+- ■ 現況サマリ行 (N予報区 / 特X/警Y/注Z の 3 段階カウント + `detail vpws50` ヒント)
+- displaySeverity セクション (divider chip + RANK 降順) — `renderSummarySections` が描画
+  - 警報級以上: 予報区フル名を列挙
+  - 注意報級 (`officialL2` / `nonLevelAdvisory` / `officialL1`): 地方クラスタ + N予報区 に集約
+  - unknown: `nonLevelWarning` セクション直後に挿入 (見落とし防止)
+
+**凡例** (各サマリ末尾): `★★L5/★L4/☆L3/△L2=公式警戒レベル  ◆◆=特別警報級 ◆=警報級 △=注意報級 ?=未知`
+
+**差分セクション** (hasChanges 状態):
+- `★ 今回の変化`: ▲ 新規発令 / ▲ 昇格 (prev → new) / ▽ 降格
+- `▼ 今回解除`: 解除された予報区・種別 (prevDisplaySeverity グレー)
+
+### 表示形式 (compact)
+
+- 1 行: `[警告]  VPWS50 気象警報・注意報（全国集約）  警報 N予報区 / 注意報 M予報区`
+- `SEVERITY_LABELS[level]` は既に `[警告]` 形式なので二重括弧化しない
+- `info.maxDisplaySeverity` が `BANNER_HIGH_SEVERITIES` (`officialL5/L4/nonLevelSpecial`) に含まれる場合、末尾に `DISPLAY_SEVERITY_DIVIDER_LABEL[maxDs]` を追記 (`★ 危険警報 (L4)` 等。divider 文言は 2026-06-12 目視ゲートで VPWW 形式に三電文統一)
+
+### バナー発火条件 (`vpws50BannerSeverity`)
+
+| 条件 | 戻り値 |
+|------|--------|
+| `info.infoType === "取消"` | `"release"` |
+| 初回起動 (`diff.isFirstReport`) かつ `maxDisplaySeverity` が HIGH | `maxDisplaySeverity` |
+| added/upgraded の `newDisplaySeverity` に `officialL5/L4/nonLevelSpecial` が含まれる | 最高の 1 点 |
+| 上記以外 (解除のみ / 降格のみ / L3以下のみ / diff が unsafe) | `null` (非発火) |
+
+解除のみ・降格のみは **意図的に非発火** (全国集約で頻度が高く騒音になるため — VPWW の「解除のみ → cancel バナー」とは異なる設計判断)。Codex R2 確定。
+
+### フレーム配色言語
+
+| フレーム状態 | 上辺 + タイトル (head) | 本文 + footer + 下辺 (tail) |
+|-------------|----------------------|---------------------------|
+| 本文あり | `maxDisplaySeverity` 色 | 白系 (#e8e8e8) |
+| 取消 | release 単色 | release 単色 |
+| 平常 (maxDs null) | 白系 | 白系 |
+
+`Vpws50BodyBorderColors { tail }` で tail 色が注入される。head 側の色 (`frameTopColored` 等) は `weather-formatter.ts` が直接適用するため、本インターフェースには含まない。未注入時は level 色でフォールバック (REPL detail 等の既存呼び出し互換)。
+
+### 切替判定
+
+- `head.type === "VPWS50" && hasForecastZoneLayer(info)` のみ専用パス
+- 府県予報区等レイヤー不在の VPWS50 (壊れた電文 / 想定外構造) は既存の `pickDisplayableLayer` パスへ自然 fallthrough
+- VPWW55-61 は既存の階層表示パスを維持 (専用パス対象外)
+
+### Code map (`KIND_CODE_LABELS`)
+
+R06 公式コード表ベース (`00` 解除含めて 37 Code 登録、表示対象 36)。予約領域 (`42`/`45`/`46`/`47`) と未割当 (`11`/`28`/`30`/`31`/`34`/`40`/`41`/`44`) は登録せず regex fallback で安全縮退。
+
+代表例:
+- `03` レベル3大雨警報 → `大雨`
+- `27` （上記以外の）その他の注意報 → `その他注意報`
+- `43` レベル4大雨危険警報 → `大雨`
+- `49` レベル4土砂災害危険警報 → `土砂災害`
 
 ### 依存関係
 
-- **インポート元**: `./waiting-tips` (`TIP_CATEGORIES`)
-- **接続先**: `repl.ts` の `ReplHandler` がインスタンスを保持し、`maybeShowWaitingTip()` 内で `next()` を呼ぶ
+- `chalk` (v4): 色付け + `chalk.level` での availability 判定
+- `weather-warning-level.ts`: `resolvePhenomenonFamily` / `resolveDisplaySeverity` / `DISPLAY_SEVERITY_RANK`
+- `weather-warning-level-theme.ts`: `getDisplaySeverityTierPrefix` / `getDisplaySeverityChip` / `getDisplaySeverityText` / `renderDividerChip` / `DISPLAY_SEVERITY_DIVIDER_LABEL` (theme に集約済み、VPWP50 / VPWW `dividerLabelForSeverity` は delegate。文言は VPWW Phase A 確定形に三電文統一 — 2026-06-12 レビュー決定)
+- `formatter.ts`: `visualWidth`/`wrapFrameLines`/`wrapFrameLinesColored`/`createRenderBuffer`/`frameLine`/`frameDivider`/`frameLineColored`/`frameDividerColored`/`frameDividerLabeledColored`/`clipToVisualWidth` 等を利用
+- `weather-area-cluster.ts`: `predictionRegionCodeToCluster` (注意報級の地方クラスタ集約)
+- `weather-formatter.ts`: dispatcher として VPWS50 branch を冒頭に挿入し、本ファイルの関数を呼ぶ
 
 ### 設計ノート
 
-- RNG を外部注入可能にすることで、テスト時に決定的な順序を再現できる。
-- エポック方式 (全 Tip を 1 回ずつ消費してから再構築) により、同じ Tip が短期間に重複表示されない。
+- **差分エンジンとの関係**: `Vpws50KindTransition` の `prevDisplaySeverity` / `newDisplaySeverity` 2 系統フィールドを表示が信頼する。state は in-memory、再起動で初回現況扱い (`isFirstReport = true`)。`03→43` 等の officialL4 昇格も `DISPLAY_SEVERITY_RANK` 比較で「変化あり」として正しく検出される (旧 severity 文字列比較では沈黙していた)
+- **unknown Code**: state に保持 (rank 30、`nonLevelWarning` 直後に表示)。解除時も沈黙しない
+- `__vpws50_internals` 経由のテスト専用 export は `@internal` JSDoc 標識付き (production code から import 禁止)
+- `isColorAvailable()` は `chalk.level > 0` のみで判定 (`supportsColor` を見ない) — 非TTY テスト環境で `chalk.level` を直接 set した時に動作させるため
+- 詳細仕様: `設計メモ 2026-06-04-vpws50-list-display-design.md` (Phase C 前の旧仕様、アーカイブ予定) / `設計メモ 2026-06-07-weather-warning-palette-and-vpww-design.md` (2 系統設計・L4=critical 確定、アーカイブ予定)
+
+---
+
+## flood-forecast-formatter.ts
+
+### 概要
+
+指定河川洪水予報 (VXKO50-89) / 水位周知河川に関する情報 (VXSU50-59) の表示 formatter。`displayFloodForecastInfo(info: ParsedFloodForecastInfo)` をエクスポートし、`display-adapter.ts` の `floodForecast` ケースから呼ばれる。
+
+VXSU50 は内部 schema 分岐 (`info.schema === "vxsu50"`) で最小 layout (`displayVxsuMinimal`) に飛ばす。VXKO50 は full layout (主文・観測所・浸水想定地区・雨量予測・氾濫水予報) を構築する。
+
+### エクスポート API
+
+```ts
+function displayFloodForecastInfo(info: ParsedFloodForecastInfo): void
+```
+
+### 表示構造 (VXKO50 normal layout)
+
+```
+┌──────────────────────────────────────────┐
+│ 指定河川洪水予報  発表  [情報]  ◯◯川...   │ ← infoKind + infoType + severity ラベル + headTitle
+├──────────────────────────────────────────┤
+│   ▸ ○○川 / △△川                          │ ← 主文 (areas + headlineText)
+│     【警戒レベル２相当情報［洪水］】…      │
+├──────────────────────────────────────────┤
+│   ▸ 氾濫水                                │ ← 主文直後 (floodAssumptions.length > 0 のとき、観測所より前)
+│     ...
+├ ▸ 観測所 ───────────────────────────────┤
+│   ◇ ○○川  L2                            │ ← 河川 divider
+│   ◇ ○○○水位観測所 (○○川・水位)  L2 ↗    │ ← station 行 (現況値・矢印・criteria)
+│      Criteria  L1=142  L2=142.5  ...    │
+├ ▸ 浸水想定地区 ─────────────────────────┤
+│   - ○○○水位観測所  [○○地区・…]            │ ← variant・都道府県別にグループ化して全件表示
+├ ▸ 雨量 ─────────────────────────────────┤
+│   ◇ 鬼怒川流域                            │
+│     48時間累積 220 ミリ / 3時間予測 50 ミリ
+└──────────────────────────────────────────┘
+  VXKO50  気象庁
+```
+
+雨量ラベルは `RainfallSummary.cumulativeActual.windowMinutes` / `RainfallSummary.forecastShort.windowMinutes` (Duration primary / Name fallback、Name は NFKC normalize 済) から動的に組み立てる:
+- `windowMinutes % 60 === 0` → `{N}時間累積` / `{N}時間予測`
+- 端数あり (例 PT12H40M=760) → `{H}時間{M}分累積` / `{H}時間{M}分予測`
+- `windowMinutes == null` または `< 60` → `(?時間)累積` / `(?時間)予測` (cumulative / forecast とも対称に防御 fallback、Codex review W4 反映)
+- 多流域 fixture (16_10_01 / 16_11_*) では `MeteorologicalInfos[雨量].TimeSeriesInfo` を全件走査し per-basin に流域行を生成する (§F multi-TSI 対応)
+
+
+### 表示構造 (VXSU50 最小 layout — `displayVxsuMinimal`)
+
+VXSU50 は観測値 series / inundation / 雨量予測 / 氾濫水予報の各ブロックを出さない最小描画:
+
+```
+┌──────────────────────────────────────────┐
+│ 水位周知河川に関する情報  発表  [情報]  善川 │
+├──────────────────────────────────────────┤
+│   ▸ レベル２氾濫注意報                     │ ← Headline.kindName
+│     氾濫注意水位に到達                     │ ← Headline.headlineText
+└──────────────────────────────────────────┘
+  VXSU50  気象庁
+```
+
+### ブロック関数
+
+formatter 内で以下のブロック関数を組み合わせて構築する (formatter helper パターン):
+
+| 関数 | 主条件 |
+|------|--------|
+| `buildHeadlineBlock(info)` | 主文 (`headlineText` + `areas` joined) |
+| `buildRiverStationGroupBlock(info, rivers)` | 観測所群 (河川単位グループ + criteria + 現況値 + 矢印) |
+| `buildInundationBlock(info)` | 浸水想定地区 (`info.inundationAreas.length > 0`、件数制限) |
+| `buildRainfallBlock(info)` | 雨量予測 (`info.rainfallSummaries.length > 0`) |
+| `buildFloodAssumptionBlock(info)` | 氾濫水予報 (`info.floodAssumptions.length > 0`、主文直後) |
+
+`aggregateByRiver(info.stations)` は formatter 内で呼び出し、`RiverSection[]` を取得してから観測所ブロックに渡す (engine→ui 境界遵守、`from-flood-forecast.ts` 側では呼ばない)。
+
+### 取消パス
+
+`info.infoType === "取消"` の場合、`displayCancelPath(info)` で「この洪水予報は取り消されました」だけを出す release 色のフレームに飛ばす (VXSU50 取消も同じ)。
+
+### 配色言語
+
+- 取消 = `weatherBannerOfficialL1` 系の release 色
+- VXSU/VXKO とも frame level は `resolveFloodForecastLevels` (parser が解決した `maxLevel` から決定) に従う
+
+### 依存関係
+
+| インポート元 | 用途 |
+|-------------|------|
+| `chalk` | 色付き出力 |
+| `../types` | `ParsedFloodForecastInfo`, `FloodStation`, `FloodSeriesWindow`, `FloodCriteria`, `FloodLevel` |
+| `./theme` | テーマロール |
+| `./formatter` | `FrameLevel`, `SEVERITY_LABELS`, `getFrameWidth`, `createRenderBuffer`, `flushWithRecap`, 各種 frame 描画関数 |
+| `./weather-warning-level-theme` | `getDisplaySeverityText` |
+| `../engine/presentation/flood-forecast-aggregate` | `aggregateByRiver`, `RiverSection` |
+| `../engine/presentation/level-helpers` | `resolveFloodForecastLevels` |
+
+### 設計ノート
+
+- VXKO/VXSU を 1 つの formatter で扱うのは parser が同一 `ParsedFloodForecastInfo` 型に正規化しているため。schema 分岐は `displayFloodForecastInfo` 冒頭で行う。
+- inundation は variant → 都道府県でグループ化し、comma 折り返しで `info.inundationAreas` を全件表示する。元の配列は変異させない。
+- visual gate は「通し」(snapshot 確定のみ、Display Studio で後日微調整) — `test/ui/__snapshots__/flood-forecast-formatter.test.ts.snap` に全 18 fixture の NO_COLOR 出力を固定済み (spec §18 Followup の Display Studio 連携で再評価)。

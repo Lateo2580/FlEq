@@ -112,7 +112,6 @@ fleq> filter test maxInt >= "4"
 | `default` | 値が空のときのデフォルト値 | `{{magnitude\|default:"-"}}` |
 | `truncate` | 指定文字数で切り詰め | `{{title\|truncate:20}}` |
 | `pad` | 指定幅にパディング | `{{maxInt\|pad:3}}` |
-| `join` | 配列を結合 | `{{areas\|join:", "}}` |
 | `date` | 日時フォーマット | `{{time\|date:"HH:mm"}}` |
 | `replace` | 文字列置換 | `{{text\|replace:"旧":"新"}}` |
 | `upper` | 大文字変換 | `{{code\|upper}}` |
@@ -206,22 +205,6 @@ Config に保存する場合:
 fleq config set nightMode true
 ```
 
-## ミニマップ (minimap)
-
-地震情報・EEW・津波情報・長周期地震動観測で、フル表示のフレーム下に日本全国の震度/津波分布を ASCII グリッドで表示します。
-
-### 表示条件
-
-- ターミナル幅 80 文字以上
-- 取消電文でないこと
-- 地震情報: 最大震度 4 以上、または観測地域 4 箇所以上
-- EEW: 予報区域が 1 つ以上
-- 津波: 予報区域あり かつ critical / warning / normal レベル
-- 長周期地震動: 最大震度 4 以上、または観測地域 4 箇所以上
-- 火山・テキスト系・南海トラフには表示されません
-
-ミニマップは compact モード時には表示されません (compact では `renderSummaryLine` による1行表示のみ)。
-
 ## EEW 副回線 (backup)
 
 dmdata.jp の2本目のソケットを EEW 専用の副回線として起動し、EEW の受信冗長性を高めます。primary と backup の両方から受信した電文は `msg.id` で自動重複排除されます。
@@ -263,6 +246,17 @@ fleq> backup        # 副回線の状態を表示
 | `"seismicText"` | テキスト系 (VXSE56/60, VZSE40) |
 | `"lgObservation"` | 長周期地震動 (VXSE62) |
 | `"nankaiTrough"` | 南海トラフ (VYSE50/51/52/60) |
+| `"weather"` | 気象警報・注意報 (VPWW55-61, VPWS50) |
+| `"tornado"` | 竜巻注意情報 (VPHW50/51) |
+| `"briefing"` | 気象防災速報 (VPBS50) |
+| `"earlyWeather"` | 早期天候情報 (VPAW51) |
+| `"weatherWarningTimeseries"` | 気象警報・注意報時系列情報 (VPWP50) |
+| `"climateInfo"` | 天候情報 (VPZI50, VPCI50) |
+| `"weatherExplanation"` | 気象解説情報 (VPCJ51, VPZJ51, VPFJ51, VMCJ53-55) |
+| `"heatAlert"` | 熱中症警戒アラート (VPFT50) |
+| `"typhoonAnalysis"` | 台風解析・予報情報 (VPTW60-62) |
+| `"typhoonProbability"` | 台風の暴風域に入る確率 (VPTA50) |
+| `"floodForecast"` | 指定河川洪水予報・水位周知河川 (VXKO50-89, VXSU50-59) |
 | `"raw"` | その他 |
 
 ```bash
