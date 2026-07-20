@@ -537,9 +537,6 @@ pre.terminal-mock,
 .severity-label { font-family: var(--font-mono); letter-spacing: 0.1em; }
 .severity-area { margin-left: auto; font-family: var(--font-mono); font-weight: 500; }
 
-/* ===== Terminal frame mock (実 formatter 出力の罫線再現) ===== */
-/* 罫線 (╔═╣ 等) は折り返すと box art が崩れるため、frame 抜粋だけは pre-wrap にせず
-   nowrap を維持し、はみ出しは横スクロールで逃がす (pre.terminal-mock の pre-wrap を上書き) */
 /* ===== Terminal frame mock (CSS 構造で罫線を再現・グリフ非依存) ===== */
 /* 罫線グリフ (╔═║╠╣│) はフォントごとの字幅実装揺れ (Ambiguous 幅) でクロス環境の
    桁揃えが安定しないため廃止。border: double / CSS grid / border-left で構造的に再現し、
