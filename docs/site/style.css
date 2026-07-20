@@ -708,6 +708,124 @@ pre.terminal-mock,
 
 .stage-dev-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--ink-sub); }
 
+/* ===== Features ===== */
+.features { scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem); }
+
+.features-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.feature-card {
+  background: var(--paper-well);
+  border: 1px solid var(--rule);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-tag {
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  cursor: default;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  align-self: flex-start;
+  font-weight: 500;
+}
+
+.feature-card h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 0.25rem;
+}
+
+.feature-card p {
+  font-size: 0.85rem;
+  color: var(--ink-sub);
+  line-height: 1.7;
+}
+
+@media (max-width: 768px) {
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .feature-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Categories ===== */
+.categories { scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem); }
+
+.categories-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.category-card {
+  background: var(--paper-well);
+  border: 1px solid var(--rule);
+  border-top: 1px solid var(--rule-strong);
+  padding: 1.25rem;
+}
+
+.category-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.category-icon { font-size: 1.5rem; line-height: 1; }
+
+.category-card h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.category-api {
+  font-size: 0.72rem;
+  color: var(--ink-sub);
+  margin-top: 0.25rem;
+  letter-spacing: 0.05em;
+}
+
+.category-card ul {
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--ink-sub);
+}
+
+@media (max-width: 720px) {
+  .category-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 480px) {
   .studio-preview-row { grid-template-columns: 1fr; }
 }

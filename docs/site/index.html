@@ -204,6 +204,144 @@
         <p class="stage-note">各図は実際の画面を基にした模式図です</p>
       </div>
     </section>
+
+    <section class="features" id="features" aria-labelledby="features-title">
+      <div class="features-inner">
+        <h2 class="section-title" id="features-title">主な機能</h2>
+        <p class="section-label">FEATURES</p>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="card-tag">WS</span>
+            <h3>リアルタイム受信</h3>
+            <p>WebSocket による自動再接続と複線接続に対応</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-tag">EEW</span>
+            <h3>EEW 同時追跡</h3>
+            <p>差分表記とログ記録</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-tag">WX</span>
+            <h3>気象電文</h3>
+            <p>警報、注意報、熱中症警戒アラート、洪水予報などに <span class="mono-num">v3.0.0</span> で対応</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-tag">NOTIFY</span>
+            <h3>デスクトップ通知</h3>
+            <p>カテゴリ別の通知 ON/OFF と通知音を設定</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-tag">TUNE</span>
+            <h3>カスタマイズ</h3>
+            <p><span class="mono">filter</span> で電文を絞り、<span class="mono">template</span> で表示書式を整える。夜間モード (<span class="mono">night</span>) と <span class="mono">REPL</span> で実行中も調整可能</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-tag">ARM</span>
+            <h3>低メモリ対応</h3>
+            <p>Raspberry Pi など ARM デバイスでも動作</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="categories" id="categories" aria-labelledby="categories-title">
+      <div class="categories-inner">
+        <h2 class="section-title" id="categories-title">対応区分</h2>
+        <p class="section-label">SUPPORTED CATEGORIES</p>
+        <div class="category-grid">
+          <article class="category-card">
+            <header class="category-head">
+              <div class="category-icon" aria-hidden="true">🌍</div>
+              <div>
+                <h3>地震・津波関連</h3>
+                <p class="category-api mono">telegram.earthquake</p>
+              </div>
+            </header>
+            <ul>
+              <li>震度速報</li>
+              <li>震源に関する情報</li>
+              <li>震源・震度に関する情報</li>
+              <li>顕著な地震の震源要素更新のお知らせ</li>
+              <li>長周期地震動に関する観測情報</li>
+              <li>地震の活動状況等に関する情報</li>
+              <li>地震回数に関する情報</li>
+              <li>地震・津波に関するお知らせ</li>
+              <li>津波警報・注意報・予報</li>
+              <li>津波情報</li>
+              <li>沖合の津波情報</li>
+            </ul>
+          </article>
+          <article class="category-card">
+            <header class="category-head">
+              <div class="category-icon" aria-hidden="true">⚠️</div>
+              <div>
+                <h3>緊急地震速報</h3>
+                <p class="category-api mono">eew.forecast / eew.warning</p>
+              </div>
+            </header>
+            <ul>
+              <li>EEW 予報</li>
+              <li>EEW 警報</li>
+              <li>同時追跡と差分表記</li>
+              <li>ログ記録</li>
+            </ul>
+          </article>
+          <article class="category-card">
+            <header class="category-head">
+              <div class="category-icon" aria-hidden="true">🌋</div>
+              <div>
+                <h3>火山関連</h3>
+                <p class="category-api mono">telegram.volcano</p>
+              </div>
+            </header>
+            <ul>
+              <li>噴火警報・予報</li>
+              <li>噴火速報</li>
+              <li>噴火に関する火山観測報</li>
+              <li>降灰予報（定時・速報・詳細）</li>
+              <li>火山の状況に関する解説情報</li>
+              <li>推定噴煙流向報</li>
+              <li>火山現象に関する海上警報</li>
+              <li>火山に関するお知らせ</li>
+            </ul>
+          </article>
+          <article class="category-card">
+            <header class="category-head">
+              <div class="category-icon" aria-hidden="true">🌦️</div>
+              <div>
+                <h3>気象関連</h3>
+                <p class="category-api mono">telegram.weather</p>
+              </div>
+            </header>
+            <ul>
+              <li>気象警報・注意報</li>
+              <li>竜巻注意情報</li>
+              <li>記録的短時間大雨情報</li>
+              <li>土砂災害警戒情報</li>
+              <li>指定河川洪水予報・水位周知河川</li>
+              <li>台風解析・予報情報</li>
+              <li>気象概況・天候情報・気象解説情報</li>
+              <li>早期天候情報</li>
+              <li>熱中症警戒アラート</li>
+            </ul>
+          </article>
+          <article class="category-card">
+            <header class="category-head">
+              <div class="category-icon" aria-hidden="true">🌊</div>
+              <div>
+                <h3>南海トラフ・後発地震</h3>
+                <p class="category-api mono">telegram.earthquake (VYSE*)</p>
+              </div>
+            </header>
+            <ul>
+              <li>南海トラフ地震臨時情報</li>
+              <li>南海トラフ地震関連解説情報（臨時・定例）</li>
+              <li>北海道・三陸沖後発地震注意情報</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script src="script.js"></script>
