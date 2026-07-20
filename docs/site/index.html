@@ -99,6 +99,111 @@
 
       <button type="button" class="hero-replay mono" hidden>▶ 再生</button>
     </section>
+
+    <section class="stage" id="stage" aria-labelledby="stage-title">
+      <div class="stage-inner">
+        <h2 class="stage-title section-title" id="stage-title">表示とテーマ編集</h2>
+        <p class="stage-label section-label">CLI · DISPLAY · STUDIO</p>
+        <p class="stage-lede">端末で受信する。常設ディスプレイで監視する。サンプル電文（<span class="mono">fixture</span>）でテーマを編集する。</p>
+
+        <div class="stage-main">
+          <article class="stage-card stage-mock-cli">
+            <header class="stage-mock-head">
+              <span class="mono stage-mock-tag">CLI</span>
+              <span class="stage-mock-desc">WebSocket で受信し、端末に整形して表示</span>
+            </header>
+            <div class="terminal-mock stage-mock-body">
+              <div class="output-line"><span class="mono">震源・震度に関する情報</span></div>
+              <div class="severity-line severity-warn">
+                <span class="severity-icon" aria-hidden="true">△</span>
+                <span class="severity-label">震度5弱</span>
+                <span class="severity-area">静岡県伊豆</span>
+              </div>
+              <div class="output-line"><span class="mono">M5.9 │ 深さ 10km │ 駿河湾</span></div>
+              <div class="output-line output-meta"><span class="mono-num">VXSE53  13:50</span></div>
+            </div>
+          </article>
+
+          <article class="stage-card stage-mock-display">
+            <header class="stage-mock-head">
+              <span class="mono stage-mock-tag">Display</span>
+              <span class="stage-mock-desc"><span class="mono">fleq --display</span> で常設ディスプレイ用の画面に現況を配信</span>
+            </header>
+            <div class="terminal-mock stage-mock-body stage-mock-display-body">
+              <div class="display-panel">
+                <div class="severity-line severity-warn">
+                  <span class="severity-icon" aria-hidden="true">△</span>
+                  <span class="severity-label">警報</span>
+                  <span class="severity-area">島根県 大雨</span>
+                </div>
+              </div>
+              <div class="display-panel">
+                <div class="output-line"><span class="mono">最新地震</span></div>
+                <div class="output-line"><span class="mono">震度3 千葉県北西部 M4.2</span></div>
+              </div>
+              <div class="display-panel">
+                <div class="output-line"><span class="mono">EEW 待機</span></div>
+                <div class="output-line output-meta"><span class="mono-num">接続中（副回線待機）</span></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <section class="stage-dev" aria-labelledby="stage-dev-title">
+          <h3 class="stage-dev-label" id="stage-dev-title">
+            <span class="mono">開発ツール / DEVELOPMENT TOOL</span>
+          </h3>
+          <article class="stage-card stage-mock-studio">
+            <header class="stage-mock-head">
+              <span class="mono stage-mock-tag">Studio</span>
+              <span class="stage-mock-desc">テーマを編集し、変更前後を並べて比較</span>
+            </header>
+            <div class="stage-mock-body stage-mock-studio-body">
+              <p class="studio-fixture">
+                <span class="mono-num">fixture: 15_17_01_251222_VPWW55.xml（VPWW55 島根県大雨警報・注意報）</span>
+              </p>
+              <div class="studio-palette">
+                <div class="studio-palette-line">
+                  <span class="mono">palette.vermillion:</span>
+                  <span class="mono">"#8C2400"</span>
+                  <span aria-hidden="true">→</span>
+                  <span class="mono">"#D55E00"</span>
+                </div>
+                <div class="studio-palette-role mono">
+                  role weatherBannerOfficialL3: bg=vermillion, fg=#FFFFFF (fg は palette override の対象外)
+                </div>
+              </div>
+              <div class="studio-preview-row">
+                <div class="studio-preview studio-preview-before">
+                  <p class="studio-preview-label">before (custom vermillion)</p>
+                  <div class="severity-line severity-warn">
+                    <span class="severity-icon" aria-hidden="true">△</span>
+                    <span class="severity-label">警報</span>
+                    <span class="severity-area">島根県</span>
+                  </div>
+                </div>
+                <div class="studio-preview studio-preview-after">
+                  <p class="studio-preview-label">after (default vermillion)</p>
+                  <div class="severity-line severity-warn">
+                    <span class="severity-icon" aria-hidden="true">△</span>
+                    <span class="severity-label">警報</span>
+                    <span class="severity-area">島根県</span>
+                  </div>
+                </div>
+              </div>
+              <p class="studio-save">
+                <span class="mono-num">[保存済み]</span>
+              </p>
+            </div>
+          </article>
+          <p class="stage-dev-note">
+            Studio は GitHub リポジトリを取得して起動する開発ツールです。<span class="mono">npm</span> パッケージには同梱されません。
+          </p>
+        </section>
+
+        <p class="stage-note">各図は実際の画面を基にした模式図です</p>
+      </div>
+    </section>
   </main>
 
   <script src="script.js"></script>

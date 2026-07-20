@@ -526,3 +526,188 @@ pre.terminal-mock,
 
 .output-line { padding: 0.15rem 0.5rem; }
 .output-meta { color: var(--terminal-ink-sub); font-size: 0.72rem; margin-top: 0.35rem; }
+
+/* ===== Stage (表示とテーマ編集) ===== */
+.stage {
+  background: var(--paper-sub);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem);
+}
+
+.stage-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.stage-lede {
+  font-size: 1rem;
+  color: var(--ink);
+  margin-top: 0.75rem;
+  line-height: 1.7;
+}
+
+.stage-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.stage-card {
+  border: 1px solid var(--terminal-border);
+  background: var(--terminal-bg);
+  color: var(--terminal-ink);
+  overflow: hidden;
+}
+
+.stage-mock-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--terminal-well);
+  border-bottom: 1px solid var(--terminal-border);
+}
+
+.stage-mock-tag {
+  font-size: 0.7rem;
+  color: var(--terminal-ink);
+  letter-spacing: 0.15em;
+  border: 1px solid var(--terminal-border);
+  padding: 2px 6px;
+}
+
+.stage-mock-desc {
+  font-size: 0.8rem;
+  color: var(--terminal-ink);
+  font-family: var(--font-sans-jp);
+}
+
+.stage-mock-body {
+  padding: 1rem;
+  overflow-x: auto;
+  min-height: 12rem;
+  min-width: 0;
+}
+
+.stage-mock-display-body { display: grid; gap: 0.75rem; }
+
+.display-panel {
+  padding: 0.6rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+}
+
+.stage-note { margin-top: 1rem; font-size: 0.75rem; color: var(--ink-sub); }
+
+@media (max-width: 720px) {
+  .stage-main { grid-template-columns: 1fr; }
+}
+
+.stage-dev {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.stage-dev-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-sub);
+  letter-spacing: 0.15em;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.stage-mock-studio-body {
+  min-height: 8rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.studio-fixture {
+  padding: 0.4rem 0.6rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+  font-size: 0.72rem;
+  color: var(--terminal-ink-sub);
+}
+
+.studio-palette {
+  padding: 0.5rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+  font-size: 0.75rem;
+  color: var(--terminal-ink-sub);
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.studio-preview-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.studio-preview {
+  padding: 0.5rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+}
+
+/* palette override: the role keeps white foreground while vermillion changes. */
+.studio-preview-before {
+  --severity-bg: #8C2400;
+  --severity-fg: #FFFFFF;
+}
+
+.studio-preview-after {
+  --severity-bg: #D55E00;
+  --severity-fg: #FFFFFF;
+}
+
+/* Keep the Studio severity line above the AA Large size threshold. */
+.studio-preview .severity-line {
+  font-size: 1.2rem;
+}
+
+.studio-preview .severity-area {
+  font-weight: 700;
+}
+
+.studio-palette-line {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.studio-palette-role {
+  font-size: 0.7rem;
+  color: var(--terminal-ink-sub);
+  letter-spacing: 0.05em;
+}
+
+.studio-preview-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--terminal-ink-sub);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.1em;
+}
+
+.studio-save {
+  font-size: 0.75rem;
+  color: var(--terminal-signal-cool);
+  text-align: right;
+}
+
+.stage-dev-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--ink-sub); }
+
+@media (max-width: 480px) {
+  .studio-preview-row { grid-template-columns: 1fr; }
+}
