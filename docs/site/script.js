@@ -71,15 +71,36 @@ document.documentElement.classList.add('js');
     return;
   }
 
+  // コピー成否を支援技術へ通知する共有 live region (JS 有効時のみ意味を持つため JS で生成)
+  var copyStatus = document.createElement('span');
+  copyStatus.className = 'visually-hidden';
+  copyStatus.setAttribute('role', 'status');
+  copyStatus.setAttribute('aria-live', 'polite');
+  document.body.appendChild(copyStatus);
+  function announceCopy(msg) {
+    copyStatus.textContent = '';
+    setTimeout(function () { copyStatus.textContent = msg; }, 30);
+  }
+
   btns.forEach(function (btn) {
+    // 復元値は初期ラベルに固定し、timer は 1 本に統一する
+    // (連打時に「コピー済み」自体が復元値として保存され表示が戻らなくなるのを防ぐ)
+    var originalLabel = btn.textContent;
+    var restoreTimer = null;
     btn.addEventListener('click', function () {
       var text = btn.getAttribute('data-copy');
       if (text == null) return;
       navigator.clipboard.writeText(text).then(function () {
-        var original = btn.textContent;
         btn.textContent = 'コピー済み';
-        setTimeout(function () { btn.textContent = original; }, 1500);
-      }).catch(function () { /* silent */ });
+        announceCopy('コマンドをコピーしました');
+        if (restoreTimer != null) clearTimeout(restoreTimer);
+        restoreTimer = setTimeout(function () {
+          btn.textContent = originalLabel;
+          restoreTimer = null;
+        }, 1500);
+      }).catch(function () {
+        announceCopy('コピーに失敗しました');
+      });
     });
   });
 })();
