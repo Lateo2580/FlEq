@@ -62,7 +62,7 @@
             <pre class="terminal-mock"><code class="mono"><span data-hero-src-line="title">&lt;Head&gt;
   &lt;Title&gt;島根県大雨警報・注意報&lt;/Title&gt;</span>
   &lt;Headline&gt;
-    &lt;Information type="気象警報・注意報（府県予報区等）"&gt;
+    &lt;Information type="気象警報・注意報（市町村等をまとめた地域等）"&gt;
       &lt;Item&gt;
 <span data-hero-src-line="kind">        &lt;Kind&gt;
           &lt;Name&gt;レベル３大雨警報&lt;/Name&gt;
@@ -70,8 +70,8 @@
         &lt;/Kind&gt;</span>
 <span data-hero-src-line="area">        &lt;Areas&gt;
           &lt;Area&gt;
-            &lt;Name&gt;島根県&lt;/Name&gt;
-            &lt;Code&gt;320000&lt;/Code&gt;
+            &lt;Name&gt;松江地区&lt;/Name&gt;
+            &lt;Code&gt;320011&lt;/Code&gt;
           &lt;/Area&gt;
         &lt;/Areas&gt;</span>
       &lt;/Item&gt;
@@ -81,20 +81,30 @@
           </div>
           <div class="hero-sample-pane hero-sample-out">
             <p class="hero-sample-label">FlEq の表示</p>
-            <div class="terminal-mock">
-              <div class="severity-line severity-warn" data-hero-out-line="title">
-                <span class="severity-icon" aria-hidden="true">△</span>
-                <span class="severity-label">警報</span>
-                <span class="severity-area">島根県</span>
+            <div class="hero-banner">☆ L3 大雨警報　東部　解除 1</div>
+            <div class="tframe tframe-alert">
+              <div class="tframe-row"><span data-hero-out-line="title">島根県大雨警報・注意報  発表  [警告]</span></div>
+              <div class="tframe-legend"><span class="tm-alertfg">☆ 警報 (L3)</span></div>
+              <div class="tframe-table tframe-table-3">
+                <span class="tframe-cell tframe-th">級</span>
+                <span class="tframe-cell tframe-th">種別</span>
+                <span class="tframe-cell tframe-th">地域</span>
+                <span class="tframe-cell">☆</span>
+                <span class="tframe-cell" data-hero-out-line="kind">L3 大雨警報</span>
+                <span class="tframe-cell" data-hero-out-line="area">松江地区</span>
+                <span class="tframe-cell">☆</span>
+                <span class="tframe-cell">L3 大雨警報</span>
+                <span class="tframe-cell">出雲地区</span>
+                <span class="tframe-cell">☆</span>
+                <span class="tframe-cell">L3 大雨警報</span>
+                <span class="tframe-cell">雲南地区</span>
               </div>
-              <div class="output-line" data-hero-out-line="kind">レベル3 大雨警報</div>
-              <div class="output-line output-meta" data-hero-out-line="area">
-                <span class="mono-num">島根県  VPWW55  11:19</span>
-              </div>
+              <div class="tframe-row tm-sub">～ 以下略 ～</div>
+              <div class="tframe-row tframe-div-top tm-sub">VPWW55  2024-11-02 11:19:00  松江地方気象台</div>
             </div>
           </div>
         </div>
-        <p class="hero-sample-note">過去に発表された電文をもとに再現しています</p>
+        <p class="hero-sample-note">実際に発表された電文と、それを受信した FlEq の実出力の抜粋です</p>
       </figure>
 
       <button type="button" class="hero-replay mono" hidden>▶ 再生</button>
@@ -112,15 +122,28 @@
               <span class="mono stage-mock-tag">CLI</span>
               <span class="stage-mock-desc">WebSocket で受信し、端末に整形して表示</span>
             </header>
-            <div class="terminal-mock stage-mock-body">
-              <div class="output-line"><span class="mono">震源・震度に関する情報</span></div>
-              <div class="severity-line severity-warn">
-                <span class="severity-icon" aria-hidden="true">△</span>
-                <span class="severity-label">震度5弱</span>
-                <span class="severity-area">静岡県伊豆</span>
+            <div class="stage-mock-body">
+              <div class="tframe tframe-warn">
+                <div class="tframe-row">震源・震度に関する情報  発表  [警告]</div>
+                <div class="tframe-row tframe-div-top">１日１３時４５分ころ、地震がありました。各地の震度をお知らせします。</div>
+                <div class="tframe-card tframe-div-top">
+                  <span>最大震度 <span class="tm-note">5-</span></span>
+                  <span><span class="tm-alertfg">M5.9</span></span>
+                  <span>深さ 10km</span>
+                  <span><span class="tm-cool">津波なし</span></span>
+                </div>
+                <div class="tframe-legend"><span>震度分布</span></div>
+                <div class="tframe-table tframe-table-2">
+                  <span class="tframe-cell tframe-th">震度</span>
+                  <span class="tframe-cell tframe-th">地域名</span>
+                  <span class="tframe-cell"><span class="tm-note">震度5-</span></span>
+                  <span class="tframe-cell">静岡県伊豆, 静岡県中部</span>
+                  <span class="tframe-cell"><span class="tm-cool">震度4</span></span>
+                  <span class="tframe-cell">静岡県東部, 静岡県西部, 神奈川県東部, 神奈川県西部, 山梨県中・西部</span>
+                </div>
+                <div class="tframe-row tm-sub">～ 以下略 ～</div>
+                <div class="tframe-row tframe-div-top tm-sub">VXSE53  2009-10-01 13:50:00</div>
               </div>
-              <div class="output-line"><span class="mono">M5.9 │ 深さ 10km │ 駿河湾</span></div>
-              <div class="output-line output-meta"><span class="mono-num">VXSE53  13:50</span></div>
             </div>
           </article>
 
@@ -129,21 +152,27 @@
               <span class="mono stage-mock-tag">Display</span>
               <span class="stage-mock-desc"><span class="mono">fleq --display</span> で常設ディスプレイ用の画面に現況を配信</span>
             </header>
-            <div class="terminal-mock stage-mock-body stage-mock-display-body">
-              <div class="display-panel">
-                <div class="severity-line severity-warn">
-                  <span class="severity-icon" aria-hidden="true">△</span>
-                  <span class="severity-label">警報</span>
-                  <span class="severity-area">島根県 大雨</span>
+            <div class="stage-mock-body stage-mock-display-body">
+              <div class="disp-screen">
+                <div class="disp-top">
+                  <div class="disp-card disp-card-quake">
+                    <p class="disp-card-label">最新の地震</p>
+                    <p class="disp-card-main">震度3 <span class="disp-quake-area">千葉県北西部</span></p>
+                    <p class="disp-card-meta"><span class="mono-num">M4.2</span> ・ 深さ <span class="mono-num">50km</span></p>
+                  </div>
+                  <div class="disp-card disp-card-warn">
+                    <p class="disp-warn-head">気象警報</p>
+                    <div class="disp-warn-body">
+                      <p class="disp-warn-main">大雨警報</p>
+                      <p class="disp-warn-areas">島根県 / 松江市 ほか</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div class="display-panel">
-                <div class="output-line"><span class="mono">最新地震</span></div>
-                <div class="output-line"><span class="mono">震度3 千葉県北西部 M4.2</span></div>
-              </div>
-              <div class="display-panel">
-                <div class="output-line"><span class="mono">EEW 待機</span></div>
-                <div class="output-line output-meta"><span class="mono-num">接続中（副回線待機）</span></div>
+                <div class="disp-clock">
+                  <p class="disp-clock-time">14:32<span class="disp-clock-sec">18</span></p>
+                  <p class="disp-clock-date"><span class="mono-num">2026/07/21</span> (Tue)</p>
+                </div>
+                <p class="disp-stats"><span class="mono-num">受信 1234 通</span> · 本日の地震 <span class="mono-num">3 件</span></p>
               </div>
             </div>
           </article>
@@ -170,25 +199,27 @@
                   <span class="mono">"#D55E00"</span>
                 </div>
                 <div class="studio-palette-role mono">
-                  role weatherBannerOfficialL3: bg=vermillion, fg=#FFFFFF (fg は palette override の対象外)
+                  role weatherBannerOfficialL3: bg=vermillion, fg=#FFFFFF (fg は palette override の対象外・罫線は vermillion に追従)
                 </div>
               </div>
               <div class="studio-preview-row">
                 <div class="studio-preview studio-preview-before">
                   <p class="studio-preview-label">before (custom vermillion)</p>
                   <div class="severity-line severity-warn">
-                    <span class="severity-icon" aria-hidden="true">△</span>
-                    <span class="severity-label">警報</span>
+                    <span class="severity-icon" aria-hidden="true">☆</span>
+                    <span class="severity-label">L3 大雨警報</span>
                     <span class="severity-area">島根県</span>
                   </div>
+                  <p class="studio-frame-title mono"><span class="studio-frame-border">║</span> 島根県大雨警報・注意報 <span class="studio-frame-border">║</span></p>
                 </div>
                 <div class="studio-preview studio-preview-after">
                   <p class="studio-preview-label">after (default vermillion)</p>
                   <div class="severity-line severity-warn">
-                    <span class="severity-icon" aria-hidden="true">△</span>
-                    <span class="severity-label">警報</span>
+                    <span class="severity-icon" aria-hidden="true">☆</span>
+                    <span class="severity-label">L3 大雨警報</span>
                     <span class="severity-area">島根県</span>
                   </div>
+                  <p class="studio-frame-title mono"><span class="studio-frame-border">║</span> 島根県大雨警報・注意報 <span class="studio-frame-border">║</span></p>
                 </div>
               </div>
               <p class="studio-save">
