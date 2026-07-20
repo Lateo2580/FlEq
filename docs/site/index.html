@@ -156,13 +156,15 @@
               <div class="disp-screen">
                 <div class="disp-top">
                   <div class="disp-card disp-card-quake">
-                    <p class="disp-card-label">最新の地震</p>
-                    <p class="disp-card-main">震度3 <span class="disp-quake-area">千葉県北西部</span></p>
-                    <p class="disp-card-meta"><span class="mono-num">M4.2</span> ・ 深さ <span class="mono-num">50km</span></p>
+                    <p class="disp-cardhead">地震情報</p>
+                    <div class="disp-cardbody">
+                      <p class="disp-card-main">震度3 <span class="disp-quake-area">千葉県北西部</span></p>
+                      <p class="disp-card-meta"><span class="mono-num">M4.2</span> ・ 深さ <span class="mono-num">50km</span></p>
+                    </div>
                   </div>
                   <div class="disp-card disp-card-warn">
-                    <p class="disp-warn-head">気象警報</p>
-                    <div class="disp-warn-body">
+                    <p class="disp-cardhead">気象警報</p>
+                    <div class="disp-cardbody">
                       <p class="disp-warn-main">大雨警報</p>
                       <p class="disp-warn-areas">島根県 / 松江市 ほか</p>
                     </div>
@@ -199,7 +201,7 @@
                   <span class="mono">"#D55E00"</span>
                 </div>
                 <div class="studio-palette-role mono">
-                  role weatherBannerOfficialL3: bg=vermillion, fg=#FFFFFF (fg は palette override の対象外・罫線は vermillion に追従)
+                  role weatherBannerOfficialL3: bg=vermillion, fg=#FFFFFF (fg は palette override の対象外・罫線は palette override の対象外（固定 severity 色）)
                 </div>
               </div>
               <div class="studio-preview-row">
@@ -210,7 +212,7 @@
                     <span class="severity-label">L3 大雨警報</span>
                     <span class="severity-area">島根県</span>
                   </div>
-                  <p class="studio-frame-title mono"><span class="studio-frame-border">║</span> 島根県大雨警報・注意報 <span class="studio-frame-border">║</span></p>
+                  <p class="studio-frame-title mono"><span class="studio-frame-border" aria-hidden="true">║</span> 島根県大雨警報・注意報 <span class="studio-frame-border" aria-hidden="true">║</span></p>
                 </div>
                 <div class="studio-preview studio-preview-after">
                   <p class="studio-preview-label">after (default vermillion)</p>
@@ -219,7 +221,7 @@
                     <span class="severity-label">L3 大雨警報</span>
                     <span class="severity-area">島根県</span>
                   </div>
-                  <p class="studio-frame-title mono"><span class="studio-frame-border">║</span> 島根県大雨警報・注意報 <span class="studio-frame-border">║</span></p>
+                  <p class="studio-frame-title mono"><span class="studio-frame-border" aria-hidden="true">║</span> 島根県大雨警報・注意報 <span class="studio-frame-border" aria-hidden="true">║</span></p>
                 </div>
               </div>
               <p class="studio-save">

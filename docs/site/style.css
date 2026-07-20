@@ -712,13 +712,20 @@ pre.terminal-mock,
   overflow: hidden;
 }
 
-.disp-card-quake { padding: 0.4rem 0.5rem; }
-
-.disp-card-label {
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  color: #b4c2cf;
+/* カードの看板ヘッダ帯 (実 display の D 案標準: 意味色 container 背景 + 同系明色文字 + 下端 CUD 色帯)。
+   地震情報カード・気象警報カードで共通 (実装 header-quakeWarning = #3a2600 / #ffd68a / 帯 #e69f00 4px、
+   LatestQuakeCard.svelte:191・theme.css:98) */
+.disp-cardhead {
+  background: #3a2600;
+  color: #ffd68a;
+  border-bottom: 4px solid #e69f00;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.5rem;
 }
+
+.disp-cardbody { padding: 0.4rem 0.5rem; }
 
 .disp-card-main {
   font-size: 0.88rem;
@@ -732,18 +739,6 @@ pre.terminal-mock,
   font-size: 0.62rem;
   color: #b4c2cf;
 }
-
-.disp-warn-head {
-  background: #3a2600;
-  color: #ffd68a;
-  border-bottom: 4px solid #e69f00;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  padding: 0.25rem 0.5rem;
-}
-
-.disp-warn-body { padding: 0.4rem 0.5rem; }
 
 .disp-warn-main {
   font-size: 0.85rem;
@@ -789,6 +784,15 @@ pre.terminal-mock,
   text-align: center;
   font-size: 0.65rem;
   color: #b4c2cf;
+}
+
+/* 狭幅では 16/9 固定だと内部高さが内容所要 (約 190px) を下回りクリップするため、
+   aspect-ratio を解除して内容駆動の高さに退避 (min-height は下限保証、超過時は auto で伸びる) */
+@media (max-width: 640px) {
+  .disp-screen {
+    aspect-ratio: auto;
+    min-height: 12.5rem;
+  }
 }
 
 .stage-note { margin-top: 1rem; font-size: 0.75rem; color: var(--ink-sub); }
@@ -870,14 +874,17 @@ pre.terminal-mock,
   font-weight: 700;
 }
 
-/* frame title 行: 罫線色を --severity-bg から取り、palette override が罫線にも波及する実挙動を再現 */
+/* frame title 行: 実 formatter の外枠色は getDisplaySeverityText() の固定 RGB [213,94,0] で
+   weatherBannerOfficialL3 role とは別系統。palette.vermillion を変えてもバナー背景だけが変わり、
+   罫線は固定 severity 色のまま (weather-core-formatter.ts:40 / weather-warning-level-theme.ts:44)。
+   よって罫線は --severity-bg に紐付けず固定 vermillion (--terminal-signal-alert) にする */
 .studio-frame-title {
   margin-top: 0.35rem;
   font-size: 0.72rem;
   color: var(--terminal-ink);
 }
 
-.studio-frame-border { color: var(--severity-bg); }
+.studio-frame-border { color: var(--terminal-signal-alert); }
 
 .studio-palette-line {
   display: flex;
