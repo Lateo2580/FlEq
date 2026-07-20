@@ -253,3 +253,276 @@ a:focus-visible {
   .nav-inner { padding: 0.5rem 1rem; }
   .nav-links { font-size: 0.78rem; gap: 0.6rem; }
 }
+
+/* ===== Hero ===== */
+.hero {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 3rem;
+  position: relative;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.hero-rule {
+  margin-top: 0.5rem;
+  height: 4px;
+  background: var(--rule-strong);
+  max-width: 5rem;
+}
+
+.hero-subtitle {
+  color: var(--ink);
+  margin-top: 1.5rem;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.hero-caption {
+  color: var(--ink-sub);
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.hero-install {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--paper-well);
+  padding: 0.5rem 1rem;
+  margin-top: 1.75rem;
+  border: 1px solid var(--rule-strong);
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.hero-install code {
+  font-size: 0.85rem;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  padding: 0.2rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--ink);
+  transition: color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  color: var(--action-hover);
+  border-color: var(--action);
+  box-shadow: inset 0 0 0 1px var(--action);
+}
+
+.copy-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.copy-btn:active { color: var(--action); }
+
+.copy-btn[disabled],
+.copy-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  /* pointer-events は削除: 隣接する .copy-btn-help を hover tooltip で見せるための位置を残す (native disabled + aria-disabled で click は既に抑止) */
+}
+
+/* clipboard 未対応時の説明を copy-btn の隣に別要素で出す (title 属性 + pointer-events:none 依存の tooltip 遅延を回避、Codex Plan v3 レビュー §6-1) */
+.copy-btn-help {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-sub);
+  font-style: italic;
+}
+.copy-btn-help[hidden] { display: none; }
+
+/* ===== Hero Sample ===== */
+.hero-sample {
+  margin: 2rem 0 0;
+  position: relative;
+  border: 1px solid var(--terminal-border);
+  scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem);
+}
+
+.hero-sample-meta {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--ink-sub);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-sub);
+  letter-spacing: 0.05em;
+}
+
+.hero-sample-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+
+.hero-sample-pane {
+  padding: 1rem;
+  background: var(--terminal-bg);
+  color: var(--terminal-ink);
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.hero-sample-pane + .hero-sample-pane { border-left: 1px solid var(--terminal-border); }
+
+.hero-sample-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--terminal-ink-sub);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* terminal-mock の white-space 規則を pre と div で分離 (Codex Plan v4 §B 対応、v6 でセレクタ修正) */
+.terminal-mock {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--terminal-ink);
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  white-space: normal;
+}
+
+pre.terminal-mock,
+.terminal-mock pre {
+  white-space: pre-wrap;
+}
+
+.hero-sample-note {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--ink-sub);
+  border-top: 1px solid var(--rule);
+  background: var(--paper-sub);
+}
+
+.hero-replay {
+  display: inline-block;
+  margin: 0.75rem 0 0 0;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.hero-replay:hover {
+  border-color: var(--action);
+  color: var(--action);
+  box-shadow: inset 0 0 0 1px var(--action);
+}
+
+.hero-replay:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.hero-replay[hidden] { display: none; }
+
+/* ===== Hero Animation Overlay (装飾層) ===== */
+.hero-anim-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.js.motion-ok .hero-anim-overlay.is-playing { display: block; }
+
+/* marker は「伸縮」する animation。pathLength="100" で line の実長を 100 に正規化し、
+   3 本を 0s / 0.5s / 1.0s stagger、各 0.5s ease-out で stroke-dashoffset を伸長させる。 */
+.hero-anim-marker {
+  stroke: var(--terminal-signal-note);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 100;
+  opacity: 0;
+}
+
+.hero-anim-overlay.is-playing .hero-anim-marker[data-marker-for="title"] {
+  animation: hero-marker-draw 0.5s ease-out 0s forwards;
+}
+.hero-anim-overlay.is-playing .hero-anim-marker[data-marker-for="kind"] {
+  animation: hero-marker-draw 0.5s ease-out 0.5s forwards;
+}
+.hero-anim-overlay.is-playing .hero-anim-marker[data-marker-for="area"] {
+  animation: hero-marker-draw 0.5s ease-out 1.0s forwards;
+}
+
+@keyframes hero-marker-draw {
+  0%   { opacity: 0;   stroke-dashoffset: 100; }
+  20%  { opacity: 0.9; }
+  100% { opacity: 0.9; stroke-dashoffset: 0; }
+}
+
+[data-hero-src-line].is-highlight,
+[data-hero-out-line].is-highlight {
+  box-shadow: 0 0 0 2px var(--terminal-signal-note);
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+@media (max-width: 640px) {
+  .hero-sample-panes { grid-template-columns: 1fr; }
+  .hero-sample-pane + .hero-sample-pane {
+    border-left: none;
+    border-top: 1px solid var(--terminal-border);
+  }
+  .hero-title { font-size: 2.5rem; }
+}
+
+/* ===== Severity 三系統併記 ===== */
+.severity-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+/* palette override 対応: --severity-bg / --severity-fg が親から与えられたらそちらを使い、通常時は default 値が使われる */
+.severity-warn {
+  background: var(--severity-bg, var(--band-warn-bg));
+  color: var(--severity-fg, var(--band-warn-fg));
+}
+
+.severity-alert {
+  background: var(--severity-bg, var(--band-alert-bg));
+  color: var(--severity-fg, var(--band-alert-fg));
+}
+
+.severity-critical {
+  background: var(--severity-bg, var(--band-critical-bg));
+  color: var(--severity-fg, var(--band-critical-fg));
+  outline: 1px solid var(--severity-fg, var(--band-critical-fg));
+  outline-offset: -3px;
+}
+
+.severity-icon { font-size: 1.1em; line-height: 1; }
+.severity-label { font-family: var(--font-mono); letter-spacing: 0.1em; }
+.severity-area { margin-left: auto; font-family: var(--font-mono); font-weight: 500; }
+
+.output-line { padding: 0.15rem 0.5rem; }
+.output-meta { color: var(--terminal-ink-sub); font-size: 0.72rem; margin-top: 0.35rem; }

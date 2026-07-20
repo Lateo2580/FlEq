@@ -28,7 +28,78 @@
     </div>
   </nav>
 
-  <main id="top"></main>
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 class="hero-title" id="hero-title"><span class="mono">FlEq</span></h1>
+      <div class="hero-rule" aria-hidden="true"></div>
+      <p class="hero-subtitle">
+        <span class="mono">dmdata.jp</span> から届く気象庁の防災情報 <span class="mono">XML</span> 電文を、<br>
+        端末で色分けして表示
+      </p>
+      <p class="hero-caption">
+        色、ラベル、形の三系統で警戒段階を示す。<br>
+        色覚特性に配慮した Okabe-Ito パレットを使用
+      </p>
+
+      <div class="hero-install">
+        <code class="mono">npm install -g @sayue_ltr/fleq</code>
+        <button type="button" class="copy-btn" data-copy="npm install -g @sayue_ltr/fleq" aria-label="コマンドをコピー">コピー</button>
+        <span class="copy-btn-help" hidden>クリップボード API に対応していません</span>
+      </div>
+
+      <figure class="hero-sample">
+        <figcaption class="hero-sample-meta">
+          <span class="mono-num">SAMPLE / 2024-11-02 11:19 JST · VPWW55 島根県大雨警報・注意報</span>
+        </figcaption>
+        <div class="hero-sample-panes">
+          <svg class="hero-anim-overlay" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+            <line class="hero-anim-marker" data-marker-for="title" pathLength="100" x1="0" y1="0" x2="0" y2="0"></line>
+            <line class="hero-anim-marker" data-marker-for="kind"  pathLength="100" x1="0" y1="0" x2="0" y2="0"></line>
+            <line class="hero-anim-marker" data-marker-for="area"  pathLength="100" x1="0" y1="0" x2="0" y2="0"></line>
+          </svg>
+          <div class="hero-sample-pane hero-sample-xml">
+            <p class="hero-sample-label">受信した XML（抜粋）</p>
+            <pre class="terminal-mock"><code class="mono"><span data-hero-src-line="title">&lt;Head&gt;
+  &lt;Title&gt;島根県大雨警報・注意報&lt;/Title&gt;</span>
+  &lt;Headline&gt;
+    &lt;Information type="気象警報・注意報（府県予報区等）"&gt;
+      &lt;Item&gt;
+<span data-hero-src-line="kind">        &lt;Kind&gt;
+          &lt;Name&gt;レベル３大雨警報&lt;/Name&gt;
+          &lt;Code&gt;03&lt;/Code&gt;
+        &lt;/Kind&gt;</span>
+<span data-hero-src-line="area">        &lt;Areas&gt;
+          &lt;Area&gt;
+            &lt;Name&gt;島根県&lt;/Name&gt;
+            &lt;Code&gt;320000&lt;/Code&gt;
+          &lt;/Area&gt;
+        &lt;/Areas&gt;</span>
+      &lt;/Item&gt;
+    &lt;/Information&gt;
+  &lt;/Headline&gt;
+&lt;/Head&gt;</code></pre>
+          </div>
+          <div class="hero-sample-pane hero-sample-out">
+            <p class="hero-sample-label">FlEq の表示</p>
+            <div class="terminal-mock">
+              <div class="severity-line severity-warn" data-hero-out-line="title">
+                <span class="severity-icon" aria-hidden="true">△</span>
+                <span class="severity-label">警報</span>
+                <span class="severity-area">島根県</span>
+              </div>
+              <div class="output-line" data-hero-out-line="kind">レベル3 大雨警報</div>
+              <div class="output-line output-meta" data-hero-out-line="area">
+                <span class="mono-num">島根県  VPWW55  11:19</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="hero-sample-note">過去に発表された電文をもとに再現しています</p>
+      </figure>
+
+      <button type="button" class="hero-replay mono" hidden>▶ 再生</button>
+    </section>
+  </main>
 
   <script src="script.js"></script>
 </body>
