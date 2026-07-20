@@ -1,85 +1,187 @@
 /* ===== Reset ===== */
 *,
 *::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-}
+*::after { box-sizing: border-box; margin: 0; }
 
 /* ===== Theme: Light (default) ===== */
 :root {
-  --bg: #F6F3EE;
-  --bg-secondary: #EFEBE4;
-  --text: #1a1a1a;
-  --text-secondary: #6b7280;
-  --border: #ddd8cf;
-  --card-bg: #FAF5EB;
-  --card-border: #e6dbc8;
-  --code-bg: #EDE9E2;
-  --accent: #C47A15;
-  --accent-hover: #a86510;
+  --paper: #ECE9E1;
+  --paper-sub: #E4E1D7;
+  --paper-well: #F3F0E7;
+  --ink: #17140F;
+  --ink-strong: #000000;
+  --ink-sub: #5F5A50;
+  --rule: #C4BDB0;
+  --rule-strong: #7A7368;
+  --action: #005A47;
+  --action-hover: #003527;
+  --action-visited: #4F3E7A;
+  --focus-ring: #0056A6;
+  --signal-dim: #7C8B96;
+  --signal-cool: #009E73;
+  --signal-note: #56B4E9;
+  --signal-info: #0072B2;
+  --signal-warn: #E69F00;
+  --signal-alert: #D55E00;
+  --signal-critical: #7A1E00;
+  --signal-caution: #CC79A7;
+  --band-warn-bg: #E69F00; --band-warn-fg: #000000;
+  --band-alert-bg: #D55E00; --band-alert-fg: #000000;
+  --band-critical-bg: #7A1E00; --band-critical-fg: #FFFFFF;
+  --terminal-border: #7A7368;
+  --terminal-bg: #1B1815;
+  --terminal-well: #100F0C;
+  --terminal-ink: #EAE4D6;
+  --terminal-ink-sub: #948A7A;
+  --terminal-action: #5EE8B8;
+  --terminal-action-hover: #A2F5D2;
+  --terminal-action-visited: #C4A7F0;
+  --terminal-focus-ring: #7EC3FF;
+  --terminal-signal-dim: #7C8B96;
+  --terminal-signal-cool: #009E73;
+  --terminal-signal-note: #56B4E9;
+  --terminal-signal-info: #2E8BC0;
+  --terminal-signal-warn: #E69F00;
+  --terminal-signal-alert: #D55E00;
+  --terminal-signal-critical: #FF7A4D;
+  --terminal-signal-caution: #CC79A7;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Code", Menlo, Consolas, monospace;
+  --font-sans-jp: "BIZ UDPGothic", -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif;
+  --font-display: var(--font-sans-jp);
+  --nav-height: 4rem;  /* JS が動的に更新 (Task 11) */
 }
 
-/* OS dark preference — applies when JS hasn't set data-theme yet */
+/* OS dark preference (data-theme 未設定時のみ) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #0C0E12;
-    --bg-secondary: #13161c;
-    --text: #D8DDE5;
-    --text-secondary: #7d8590;
-    --border: #252830;
-    --card-bg: #1a1814;
-    --card-border: #2e2820;
-    --code-bg: #181b22;
-    --accent: #E8A034;
-    --accent-hover: #f0b552;
+    --paper: #14120F;
+    --paper-sub: #1D1B17;
+    --paper-well: #100F0C;
+    --ink: #EAE4D6;
+    --ink-strong: #FFFFFF;
+    --ink-sub: #948A7A;
+    --rule: #3A342C;
+    --rule-strong: #6A6156;
+    --action: #5EE8B8;
+    --action-hover: #A2F5D2;
+    --action-visited: #C4A7F0;
+    --focus-ring: #7EC3FF;
+    --signal-critical: #FF7A4D;
+    --band-critical-bg: #FF7A4D;
+    --band-critical-fg: #000000;
+    --terminal-border: #70675C;
   }
 }
 
-/* ===== Theme: Explicit overrides (set by JS) ===== */
+/* Explicit theme overrides (JS 明示切替時) */
 [data-theme="light"] {
-  --bg: #F6F3EE;
-  --bg-secondary: #EFEBE4;
-  --text: #1a1a1a;
-  --text-secondary: #6b7280;
-  --border: #ddd8cf;
-  --card-bg: #FAF5EB;
-  --card-border: #e6dbc8;
-  --code-bg: #EDE9E2;
-  --accent: #C47A15;
-  --accent-hover: #a86510;
+  --paper: #ECE9E1;
+  --paper-sub: #E4E1D7;
+  --paper-well: #F3F0E7;
+  --ink: #17140F;
+  --ink-strong: #000000;
+  --ink-sub: #5F5A50;
+  --rule: #C4BDB0;
+  --rule-strong: #7A7368;
+  --action: #005A47;
+  --action-hover: #003527;
+  --action-visited: #4F3E7A;
+  --focus-ring: #0056A6;
+  --signal-critical: #7A1E00;
+  --band-critical-bg: #7A1E00;
+  --band-critical-fg: #FFFFFF;
+  --terminal-border: #7A7368;
 }
 
 [data-theme="dark"] {
-  --bg: #0C0E12;
-  --bg-secondary: #13161c;
-  --text: #D8DDE5;
-  --text-secondary: #7d8590;
-  --border: #252830;
-  --card-bg: #1a1814;
-  --card-border: #2e2820;
-  --code-bg: #181b22;
-  --accent: #E8A034;
-  --accent-hover: #f0b552;
+  --paper: #14120F;
+  --paper-sub: #1D1B17;
+  --paper-well: #100F0C;
+  --ink: #EAE4D6;
+  --ink-strong: #FFFFFF;
+  --ink-sub: #948A7A;
+  --rule: #3A342C;
+  --rule-strong: #6A6156;
+  --action: #5EE8B8;
+  --action-hover: #A2F5D2;
+  --action-visited: #C4A7F0;
+  --focus-ring: #7EC3FF;
+  --signal-critical: #FF7A4D;
+  --band-critical-bg: #FF7A4D;
+  --band-critical-fg: #000000;
+  --terminal-border: #70675C;
 }
 
 /* ===== Base ===== */
 body {
-  font-family: "JetBrains Mono", "BIZ UDGothic", monospace;
-  background: var(--bg);
-  color: var(--text);
+  font-family: var(--font-sans-jp);
+  background: var(--paper);
+  color: var(--ink);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "palt";
 }
 
 a {
-  color: var(--accent);
-  text-decoration: none;
+  color: var(--action);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
 }
 
 a:hover {
-  text-decoration: underline;
+  color: var(--action-hover);
+  text-decoration-thickness: 3px;
+}
+
+a:visited { color: var(--action-visited); }
+
+a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* .mono は font-family のみ (Display 見出しの weight 700 を保持) */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* .mono-num は tabular-nums + weight 500 の utility (電文コード・時刻・数値用) */
+.mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* スクリーンリーダー専用テキスト (copy 成否の aria-live 通知用) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 共通 section 見出し */
+.section-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-sub);
+  letter-spacing: 0.15em;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
 }
 
 /* ===== Navbar ===== */
@@ -87,8 +189,8 @@ a:hover {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
 }
 
 .nav-inner {
@@ -98,180 +200,534 @@ a:hover {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 1.5rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .nav-logo {
-  font-family: "JetBrains Mono", monospace;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 1.125rem;
-  color: var(--text);
+  color: var(--ink);
   letter-spacing: -0.5px;
+  text-decoration: none;
 }
 
-.nav-logo:hover {
-  text-decoration: none;
-  color: var(--accent);
-}
+.nav-logo:hover { text-decoration: none; color: var(--action); }
 
 .nav-links {
   display: flex;
-  gap: 1rem;
+  gap: 0.9rem;
   align-items: center;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
+  font-family: var(--font-sans-jp);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
 }
 
+/* nav-links a は base の link 規約 (1px→3px 下線) を継承 */
 .nav-links a {
-  color: var(--text-secondary);
-  transition: color 0.15s ease;
+  color: var(--ink-sub);
+  text-decoration-color: transparent;  /* 通常は透明で見せない、hover 時に色が出る */
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .nav-links a:hover {
-  color: var(--text);
-  text-decoration: none;
+  color: var(--ink);
+  text-decoration-color: currentColor;  /* hover 時に下線色を復活 (太さは base の 3px) */
 }
 
-/* ===== Theme Toggle ===== */
 .theme-toggle {
-  /* Button reset */
-  background: none;
-  border: none;
-  padding: 0.25rem;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.25rem 0.5rem;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: var(--ink-sub);
   font-size: 1rem;
   line-height: 1;
   display: flex;
   align-items: center;
-  border-radius: 0.25rem;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.theme-toggle:hover {
-  color: var(--text);
-  background: var(--bg-secondary);
-}
+.theme-toggle:hover { color: var(--ink); border-color: var(--rule-strong); }
+.theme-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-/* Icon visibility by theme */
-/* Default (no data-theme yet): show light icon, hide dark */
-:root:not([data-theme]) .icon-dark {
-  display: none;
-}
+:root:not([data-theme]) .icon-dark { display: none; }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .icon-dark {
-    display: initial;
-  }
-  :root:not([data-theme]) .icon-light {
-    display: none;
-  }
+  :root:not([data-theme]) .icon-dark { display: initial; }
+  :root:not([data-theme]) .icon-light { display: none; }
 }
 
-[data-theme="light"] .icon-dark {
-  display: none;
-}
+[data-theme="light"] .icon-dark { display: none; }
+[data-theme="dark"] .icon-light { display: none; }
 
-[data-theme="dark"] .icon-light {
-  display: none;
+@media (max-width: 480px) {
+  .nav-inner { padding: 0.5rem 1rem; }
+  .nav-links { font-size: 0.78rem; gap: 0.6rem; }
 }
 
 /* ===== Hero ===== */
 .hero {
-  text-align: center;
-  padding: 4rem 1.5rem 3rem;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3.5rem 1.5rem 3rem;
+  position: relative;
 }
 
 .hero-title {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 3rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
   letter-spacing: -1px;
   line-height: 1.1;
-  color: var(--text);
+  color: var(--ink);
+}
+
+.hero-rule {
+  margin-top: 0.5rem;
+  height: 4px;
+  background: var(--rule-strong);
+  max-width: 5rem;
 }
 
 .hero-subtitle {
-  color: var(--text-secondary);
-  margin-top: 0.5rem;
+  color: var(--ink);
+  margin-top: 1.5rem;
   font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.hero-caption {
+  color: var(--ink-sub);
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
 }
 
 .hero-install {
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
-  background: var(--code-bg);
-  border-radius: 0.5rem;
+  background: var(--paper-well);
   padding: 0.5rem 1rem;
   margin-top: 1.75rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule-strong);
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .hero-install code {
-  font-family: "JetBrains Mono", monospace;
   font-size: 0.85rem;
-  color: var(--text);
+  color: var(--ink);
+  word-break: break-all;
 }
 
 .copy-btn {
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: 0.25rem;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
   padding: 0.2rem 0.6rem;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
   cursor: pointer;
-  color: var(--text-secondary);
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  color: var(--ink);
+  transition: color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
 }
 
 .copy-btn:hover {
-  color: var(--text);
-  background: var(--bg-secondary);
-  border-color: var(--accent);
+  color: var(--action-hover);
+  border-color: var(--action);
+  box-shadow: inset 0 0 0 1px var(--action);
 }
 
-.copy-btn:active {
-  color: var(--accent);
+.copy-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.copy-btn:active { color: var(--action); }
+
+.copy-btn[disabled],
+.copy-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  /* pointer-events は削除: 隣接する .copy-btn-help を hover tooltip で見せるための位置を残す (native disabled + aria-disabled で click は既に抑止) */
 }
 
-.hero-meta {
-  font-family: "JetBrains Mono", monospace;
+/* clipboard 未対応時の説明を copy-btn の隣に別要素で出す (title 属性 + pointer-events:none 依存の tooltip 遅延を回避、Codex Plan v3 レビュー §6-1) */
+.copy-btn-help {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
-  color: var(--text-secondary);
-  margin-top: 0.5rem;
+  color: var(--ink-sub);
+  font-style: italic;
+}
+.copy-btn-help[hidden] { display: none; }
+
+/* ===== Hero Sample ===== */
+.hero-sample {
+  margin: 2rem 0 0;
+  position: relative;
+  border: 1px solid var(--terminal-border);
+  scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem);
+}
+
+.hero-sample-meta {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--ink-sub);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-sub);
   letter-spacing: 0.05em;
 }
 
-/* ===== Features Section ===== */
-.section,
-.section-alt {
-  scroll-margin-top: 4rem;
+.hero-sample-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
 }
 
-.section {
+.hero-sample-pane {
+  padding: 1rem;
+  background: var(--terminal-bg);
+  color: var(--terminal-ink);
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.hero-sample-pane + .hero-sample-pane { border-left: 1px solid var(--terminal-border); }
+
+.hero-sample-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--terminal-ink-sub);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* terminal-mock の white-space 規則を pre と div で分離 (Codex Plan v4 §B 対応、v6 でセレクタ修正) */
+.terminal-mock {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--terminal-ink);
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  white-space: normal;
+}
+
+pre.terminal-mock,
+.terminal-mock pre {
+  white-space: pre-wrap;
+}
+
+.hero-sample-note {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--ink-sub);
+  border-top: 1px solid var(--rule);
+  background: var(--paper-sub);
+}
+
+.hero-replay {
+  display: inline-block;
+  margin: 0.75rem 0 0 0;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.hero-replay:hover {
+  border-color: var(--action);
+  color: var(--action);
+  box-shadow: inset 0 0 0 1px var(--action);
+}
+
+.hero-replay:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.hero-replay[hidden] { display: none; }
+
+/* ===== Hero Animation Overlay (装飾層) ===== */
+.hero-anim-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.js.motion-ok .hero-anim-overlay.is-playing { display: block; }
+
+/* marker は「伸縮」する animation。pathLength="100" で line の実長を 100 に正規化し、
+   3 本を 0s / 0.5s / 1.0s stagger、各 0.5s ease-out で stroke-dashoffset を伸長させる。 */
+.hero-anim-marker {
+  stroke: var(--terminal-signal-note);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 100;
+  opacity: 0;
+}
+
+.hero-anim-overlay.is-playing .hero-anim-marker[data-marker-for="title"] {
+  animation: hero-marker-draw 0.5s ease-out 0s forwards;
+}
+.hero-anim-overlay.is-playing .hero-anim-marker[data-marker-for="kind"] {
+  animation: hero-marker-draw 0.5s ease-out 0.5s forwards;
+}
+.hero-anim-overlay.is-playing .hero-anim-marker[data-marker-for="area"] {
+  animation: hero-marker-draw 0.5s ease-out 1.0s forwards;
+}
+
+@keyframes hero-marker-draw {
+  0%   { opacity: 0;   stroke-dashoffset: 100; }
+  20%  { opacity: 0.9; }
+  100% { opacity: 0.9; stroke-dashoffset: 0; }
+}
+
+[data-hero-src-line].is-highlight,
+[data-hero-out-line].is-highlight {
+  box-shadow: 0 0 0 2px var(--terminal-signal-note);
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+@media (max-width: 640px) {
+  .hero-sample-panes { grid-template-columns: 1fr; }
+  .hero-sample-pane + .hero-sample-pane {
+    border-left: none;
+    border-top: 1px solid var(--terminal-border);
+  }
+  .hero-title { font-size: 2.5rem; }
+}
+
+/* ===== Severity 三系統併記 ===== */
+.severity-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+/* palette override 対応: --severity-bg / --severity-fg が親から与えられたらそちらを使い、通常時は default 値が使われる */
+.severity-warn {
+  background: var(--severity-bg, var(--band-warn-bg));
+  color: var(--severity-fg, var(--band-warn-fg));
+}
+
+.severity-alert {
+  background: var(--severity-bg, var(--band-alert-bg));
+  color: var(--severity-fg, var(--band-alert-fg));
+}
+
+.severity-critical {
+  background: var(--severity-bg, var(--band-critical-bg));
+  color: var(--severity-fg, var(--band-critical-fg));
+  outline: 1px solid var(--severity-fg, var(--band-critical-fg));
+  outline-offset: -3px;
+}
+
+.severity-icon { font-size: 1.1em; line-height: 1; }
+.severity-label { font-family: var(--font-mono); letter-spacing: 0.1em; }
+.severity-area { margin-left: auto; font-family: var(--font-mono); font-weight: 500; }
+
+.output-line { padding: 0.15rem 0.5rem; }
+.output-meta { color: var(--terminal-ink-sub); font-size: 0.72rem; margin-top: 0.35rem; }
+
+/* ===== Stage (表示とテーマ編集) ===== */
+.stage {
+  background: var(--paper-sub);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem);
+}
+
+.stage-inner {
   max-width: 960px;
   margin: 0 auto;
   padding: 3rem 1.5rem;
-  text-align: center;
 }
 
-.section-title {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
+.stage-lede {
+  font-size: 1rem;
+  color: var(--ink);
+  margin-top: 0.75rem;
+  line-height: 1.7;
 }
 
-.section-label {
-  font-family: "JetBrains Mono", monospace;
+.stage-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.stage-card {
+  border: 1px solid var(--terminal-border);
+  background: var(--terminal-bg);
+  color: var(--terminal-ink);
+  overflow: hidden;
+}
+
+.stage-mock-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--terminal-well);
+  border-bottom: 1px solid var(--terminal-border);
+}
+
+.stage-mock-tag {
   font-size: 0.7rem;
-  color: var(--accent);
+  color: var(--terminal-ink);
   letter-spacing: 0.15em;
-  margin-top: 0.25rem;
-  text-transform: uppercase;
-  opacity: 0.8;
+  border: 1px solid var(--terminal-border);
+  padding: 2px 6px;
+}
+
+.stage-mock-desc {
+  font-size: 0.8rem;
+  color: var(--terminal-ink);
+  font-family: var(--font-sans-jp);
+}
+
+.stage-mock-body {
+  padding: 1rem;
+  overflow-x: auto;
+  min-height: 12rem;
+  min-width: 0;
+}
+
+.stage-mock-display-body { display: grid; gap: 0.75rem; }
+
+.display-panel {
+  padding: 0.6rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+}
+
+.stage-note { margin-top: 1rem; font-size: 0.75rem; color: var(--ink-sub); }
+
+@media (max-width: 720px) {
+  .stage-main { grid-template-columns: 1fr; }
+}
+
+.stage-dev {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.stage-dev-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-sub);
+  letter-spacing: 0.15em;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.stage-mock-studio-body {
+  min-height: 8rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.studio-fixture {
+  padding: 0.4rem 0.6rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+  font-size: 0.72rem;
+  color: var(--terminal-ink-sub);
+}
+
+.studio-palette {
+  padding: 0.5rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+  font-size: 0.75rem;
+  color: var(--terminal-ink-sub);
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.studio-preview-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.studio-preview {
+  padding: 0.5rem;
+  background: var(--terminal-well);
+  border: 1px solid var(--terminal-border);
+}
+
+/* palette override: the role keeps white foreground while vermillion changes. */
+.studio-preview-before {
+  --severity-bg: #8C2400;
+  --severity-fg: #FFFFFF;
+}
+
+.studio-preview-after {
+  --severity-bg: #D55E00;
+  --severity-fg: #FFFFFF;
+}
+
+/* Keep the Studio severity line above the AA Large size threshold. */
+.studio-preview .severity-line {
+  font-size: 1.2rem;
+}
+
+.studio-preview .severity-area {
+  font-weight: 700;
+}
+
+.studio-palette-line {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.studio-palette-role {
+  font-size: 0.7rem;
+  color: var(--terminal-ink-sub);
+  letter-spacing: 0.05em;
+}
+
+.studio-preview-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--terminal-ink-sub);
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.1em;
+}
+
+.studio-save {
+  font-size: 0.75rem;
+  color: var(--terminal-signal-cool);
+  text-align: right;
+}
+
+.stage-dev-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--ink-sub); }
+
+/* ===== Features ===== */
+.features { scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem); }
+
+.features-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
 }
 
 .feature-grid {
@@ -282,315 +738,125 @@ a:hover {
 }
 
 .feature-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border, var(--border));
-  border-radius: 0.5rem;
+  background: var(--paper-well);
+  border: 1px solid var(--rule);
   padding: 1.5rem;
-  text-align: center;
-}
-
-.feature-icon {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.feature-card h3 {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.feature-card p {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
-}
-
-@media (max-width: 768px) {
-  .feature-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .nav-links {
-    font-size: 0.8rem;
-    gap: 0.75rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .feature-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-title {
-    font-size: 2rem;
-  }
-
-  .step-code {
-    display: flex;
-    flex-wrap: wrap;
-    word-break: break-all;
-  }
-}
-
-/* ===== Screenshot Section ===== */
-.section-alt {
-  background: var(--bg-secondary);
-}
-
-.section-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 3rem 1.5rem;
-  text-align: center;
-}
-
-.terminal {
-  max-width: 640px;
-  margin: 2rem auto 0;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  text-align: left;
-}
-
-.terminal-header {
-  background: #2d2d2d;
   display: flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-.terminal-dot {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 50%;
+.card-tag {
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0;
+  cursor: default;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  align-self: flex-start;
+  font-weight: 500;
 }
 
-.terminal-dot.red {
-  background: #ff5f57;
-}
-
-.terminal-dot.yellow {
-  background: #febc2e;
-}
-
-.terminal-dot.green {
-  background: #28c840;
-}
-
-.terminal-title {
-  font-size: 0.75rem;
-  color: #999;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.terminal-body {
-  background: #1e1e1e;
-  padding: 1rem 1.5rem;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
-  color: #d4d4d4;
-  line-height: 1.6;
-  overflow-x: auto;
-  min-width: 0;
-}
-
-/* --- CUD palette inline spans --- */
-.t-gray       { color: rgb(132, 145, 158); }
-.t-sky        { color: rgb(86, 180, 233); }
-.t-blue       { color: rgb(0, 114, 178); }
-.t-bluegreen  { color: rgb(0, 158, 115); }
-.t-yellow     { color: rgb(240, 228, 66); }
-.t-orange     { color: rgb(230, 159, 0); }
-.t-vermillion { color: rgb(213, 94, 0); }
-.t-raspberry  { color: rgb(204, 121, 167); }
-.t-darkred    { color: rgb(122, 30, 0); }
-.t-white      { color: #d4d4d4; }
-.t-bold       { font-weight: 700; }
-.t-dim        { color: rgb(132, 145, 158); }
-
-/* Background badges */
-.t-bg-darkred    { background: rgb(122, 30, 0); color: #fff; font-weight: 700; padding: 0.1em 0.4em; }
-.t-bg-vermillion { background: rgb(213, 94, 0); color: #000; font-weight: 700; padding: 0.1em 0.4em; }
-.t-bg-raspberry  { background: rgb(204, 121, 167); color: #fff; font-weight: 700; padding: 0.1em 0.4em; }
-
-/* --- Terminal frame structure (CSS border approach) --- */
-.term-banner {
-  padding: 0.5rem 0.75rem;
+.feature-card h3 {
+  font-family: var(--font-display);
+  font-size: 1rem;
   font-weight: 700;
-  min-width: 480px;
-}
-.term-banner.banner-darkred {
-  background: rgb(122, 30, 0);
-  color: #fff;
-}
-.term-banner.banner-vermillion {
-  background: rgb(213, 94, 0);
-  color: #fff;
+  color: var(--ink);
+  margin-top: 0.25rem;
 }
 
-/* Bordered frame wrapping sections */
-.term-frame {
-  border: 2px solid;
-  margin-top: 0.35rem;
-  min-width: 480px;
-}
-.term-frame.frame-warning  { border-color: rgb(230, 159, 0); }
-.term-frame.frame-normal   { border-color: rgb(86, 180, 233); }
-.term-frame.frame-critical { border-color: rgb(213, 94, 0); }
-
-/* Each section inside the frame */
-.term-section {
-  padding: 0.35rem 0.75rem;
-  line-height: 1.5;
-}
-.term-frame.frame-warning  .term-section { border-bottom: 2px solid rgb(230, 159, 0); }
-.term-frame.frame-normal   .term-section { border-bottom: 2px solid rgb(86, 180, 233); }
-.term-frame.frame-critical .term-section { border-bottom: 2px solid rgb(213, 94, 0); }
-.term-section:last-child { border-bottom: none !important; }
-
-/* Pipe separator in card lines */
-.t-pipe { color: rgb(132, 145, 158); margin: 0 0.15em; }
-
-/* Tsunami table */
-.term-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: inherit;
-  font-family: inherit;
-  color: inherit;
-}
-.term-table th {
-  text-align: left;
-  padding: 0.15rem 0.5rem 0.15rem 0;
-  border-bottom: 1px solid #555;
-  color: #d4d4d4;
-  font-weight: 400;
-}
-.term-table td {
-  padding: 0.15rem 0.5rem 0.15rem 0;
-  vertical-align: top;
+.feature-card p {
+  font-size: 0.85rem;
+  color: var(--ink-sub);
+  line-height: 1.7;
 }
 
-/* --- Terminal Tabs --- */
-.terminal-tabs {
-  display: flex;
-  gap: 0;
-  margin: 2rem auto 0;
-  max-width: 640px;
+@media (max-width: 768px) {
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-.terminal-tab {
-  flex: 1;
-  background: #2d2d2d;
-  border: none;
-  padding: 0.5rem 0.75rem;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
-  color: #888;
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
-  border-bottom: 2px solid transparent;
+@media (max-width: 480px) {
+  .feature-grid { grid-template-columns: 1fr; }
 }
 
-.terminal-tab:first-child {
-  border-radius: 0.5rem 0 0 0;
+/* ===== Categories ===== */
+.categories { scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem); }
+
+.categories-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
 }
 
-.terminal-tab:last-child {
-  border-radius: 0 0.5rem 0 0;
-}
-
-.terminal-tab:hover {
-  color: #ccc;
-}
-
-.terminal-tab.active {
-  color: #d4d4d4;
-  background: #1e1e1e;
-  border-bottom-color: rgb(86, 180, 233);
-}
-
-.terminal-pane {
-  display: none;
-}
-
-.terminal-pane.active {
-  display: block;
-}
-
-/* Disclaimer note under terminal */
-.terminal-note {
-  max-width: 640px;
-  margin: 0.75rem auto 0;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-/* When tabs exist, remove top border-radius from terminal */
-.terminal--tabbed {
-  border-radius: 0 0 0.5rem 0.5rem;
-  margin-top: 0;
-}
-
-/* ===== Categories Section ===== */
 .category-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   margin-top: 2rem;
-  text-align: left;
 }
 
 .category-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border, var(--border));
-  border-radius: 0.5rem;
-  padding: 1.5rem;
+  background: var(--paper-well);
+  border: 1px solid var(--rule);
+  border-top: 1px solid var(--rule-strong);
+  padding: 1.25rem;
 }
 
-.category-icon {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+.category-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
+
+.category-icon { font-size: 1.5rem; line-height: 1; }
 
 .category-card h3 {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .category-api {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
-  color: var(--accent);
+  font-size: 0.72rem;
+  color: var(--ink-sub);
   margin-top: 0.25rem;
-  opacity: 0.8;
+  letter-spacing: 0.05em;
 }
 
 .category-card ul {
-  margin-top: 0.75rem;
   padding-left: 1.25rem;
   font-size: 0.85rem;
   line-height: 1.8;
-  color: var(--text-secondary);
+  color: var(--ink-sub);
 }
 
-@media (max-width: 600px) {
-  .category-grid {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 720px) {
+  .category-grid { grid-template-columns: 1fr; }
 }
 
-/* ===== Install Section ===== */
-.install-steps {
-  max-width: 600px;
-  margin: 2rem auto 0;
-  text-align: left;
+@media (max-width: 480px) {
+  .studio-preview-row { grid-template-columns: 1fr; }
 }
+
+/* ===== Install ===== */
+.install {
+  background: var(--paper-sub);
+  border-top: 1px solid var(--rule-strong);
+  scroll-margin-top: calc(var(--nav-height, 4rem) + 0.5rem);
+}
+
+.install-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.install-steps { max-width: 600px; margin: 2rem auto 0; }
 
 .install-step {
   display: flex;
@@ -601,9 +867,8 @@ a:hover {
 .step-number {
   width: 2rem;
   height: 2rem;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -613,114 +878,105 @@ a:hover {
 }
 
 .step-content h3 {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .step-code {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--code-bg);
-  border-radius: 0.375rem;
-  padding: 0.375rem 0.75rem;
+  background: var(--paper-well);
+  padding: 0.4rem 0.75rem;
   margin-top: 0.5rem;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
+  border: 1px solid var(--rule);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
-.step-alt {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 0.5rem;
-}
+.step-code code { word-break: break-all; }
 
 .install-notes {
   max-width: 600px;
   margin: 2.5rem auto 0;
-  text-align: left;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--rule-strong);
 }
 
 .install-notes h3 {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
   margin-bottom: 0.5rem;
   margin-top: 1.5rem;
 }
 
-.install-notes h3:first-child {
-  margin-top: 0;
-}
+.install-notes h3:first-child { margin-top: 0; }
 
 .install-notes ul {
   padding-left: 1.25rem;
   font-size: 0.85rem;
   line-height: 1.8;
-  color: var(--text-secondary);
+  color: var(--ink);
 }
+
+.os-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
 
 .os-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
-  margin-top: 0.5rem;
+  min-width: 400px;
 }
 
-.os-table th,
-.os-table td {
+.os-table th, .os-table td {
   text-align: left;
   padding: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
-.os-table th {
-  font-weight: 600;
-  font-size: 0.8rem;
-}
+.os-table th { font-weight: 700; font-size: 0.8rem; color: var(--ink); }
 
 /* ===== Footer ===== */
 .footer {
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
+  background: var(--paper);
+  border-top: 1px solid var(--rule-strong);
   padding: 2rem 1.5rem;
   text-align: center;
 }
 
-.footer-inner {
-  max-width: 960px;
-  margin: 0 auto;
-}
+.footer-inner { max-width: 960px; margin: 0 auto; }
 
 .footer-links {
   display: flex;
   justify-content: center;
   gap: 1.5rem;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.8rem;
+  font-family: var(--font-sans-jp);
+  font-size: 0.85rem;
+  flex-wrap: wrap;
 }
 
+/* footer-links は base の 1px→3px 下線を継承 */
 .footer-links a {
-  color: var(--text-secondary);
-  text-decoration: none;
+  color: var(--ink-sub);
+  text-decoration-color: transparent;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .footer-links a:hover {
-  text-decoration: underline;
+  color: var(--action-hover);
+  text-decoration-color: currentColor;
 }
 
-.footer-license {
-  font-family: "JetBrains Mono", monospace;
+.footer-version {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--ink-sub);
   margin-top: 1rem;
+  letter-spacing: 0.05em;
 }
 
-.footer-attribution {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 0.5rem;
-}
+.footer-attribution { font-size: 0.75rem; color: var(--ink-sub); margin-top: 0.5rem; }
