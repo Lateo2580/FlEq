@@ -1,4 +1,6 @@
 import { jstDayKey } from "../../utils/jst-day-key";
+import type { Route } from "./route-catalog";
+import { ROUTE_TO_STATS_CATEGORY } from "./route-catalog";
 
 /** 統計の集約カテゴリ */
 export type StatsCategory =
@@ -20,29 +22,14 @@ export type StatsCategory =
   | "floodForecast"
   | "other";
 
-/** Route → StatsCategory 変換 */
-export function routeToCategory(route: string): StatsCategory {
-  switch (route) {
-    case "eew": return "eew";
-    case "earthquake":
-    case "seismicText":
-    case "lgObservation": return "earthquake";
-    case "tsunami": return "tsunami";
-    case "volcano": return "volcano";
-    case "nankaiTrough": return "nankaiTrough";
-    case "weather": return "weather";
-    case "tornado": return "tornado";
-    case "briefing": return "briefing";
-    case "earlyWeather": return "earlyWeather";
-    case "weatherWarningTimeseries": return "weatherWarningTimeseries";
-    case "climateInfo": return "climateInfo";
-    case "weatherExplanation": return "weatherExplanation";
-    case "heatAlert": return "heatAlert";
-    case "typhoonAnalysis": return "typhoonAnalysis";
-    case "typhoonProbability": return "typhoonProbability";
-    case "floodForecast": return "floodForecast";
-    default: return "other";
-  }
+/**
+ * Route → StatsCategory 変換。
+ * 対応表 (`ROUTE_TO_STATS_CATEGORY`) は route-catalog から導出されており、Route を
+ * 網羅していることがコンパイル時に保証される (新 Route を足すと catalog エントリの
+ * statsCategory 指定が必須になる)。
+ */
+export function routeToCategory(route: Route): StatsCategory {
+  return ROUTE_TO_STATS_CATEGORY[route];
 }
 
 /** record() の入力 */

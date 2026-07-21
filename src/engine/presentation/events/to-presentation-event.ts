@@ -18,6 +18,7 @@ import { fromTyphoonAnalysisOutcome } from "./from-typhoon-analysis";
 import { fromTyphoonProbabilityOutcome } from "./from-typhoon-probability";
 import { fromFloodForecastOutcome } from "./from-flood-forecast";
 import { fromRawOutcome } from "./from-raw";
+import { assertNever } from "../../../utils/assert-never";
 
 /** ProcessOutcome → PresentationEvent に変換する */
 export function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent {
@@ -60,5 +61,8 @@ export function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent 
       return fromFloodForecastOutcome(outcome);
     case "raw":
       return fromRawOutcome(outcome);
+    default:
+      // PresentationDomain に新メンバーが増えて case を足し忘れるとコンパイルエラー。
+      return assertNever(outcome);
   }
 }

@@ -4,9 +4,14 @@ import {
   routeToCategory,
   StatsCategory,
 } from "../../src/engine/messages/telegram-stats";
+import { ROUTE_TO_STATS_CATEGORY } from "../../src/engine/messages/route-catalog";
+import type { Route } from "../../src/engine/messages/route-catalog";
 
 describe("routeToCategory()", () => {
-  it.each<[string, StatsCategory]>([
+  // 全 Route を網羅 (Record 化に合わせて typhoonAnalysis / typhoonProbability /
+  // floodForecast、特殊ルート volcano / ignore / raw も列挙)。エントリの型を
+  // [Route, StatsCategory] にしているため、存在しない route 名を書くとコンパイルエラー。
+  const CASES: ReadonlyArray<[Route, StatsCategory]> = [
     ["eew", "eew"],
     ["earthquake", "earthquake"],
     ["seismicText", "earthquake"],
@@ -14,8 +19,6 @@ describe("routeToCategory()", () => {
     ["tsunami", "tsunami"],
     ["volcano", "volcano"],
     ["nankaiTrough", "nankaiTrough"],
-    // [Codex R4 info] weather 系ルートを table に追加し、新カテゴリ追加時の
-    // 漏れを補足できるようにする (Phase 4-B 積み残しを Phase 5 で解消)。
     ["weather", "weather"],
     ["tornado", "tornado"],
     ["briefing", "briefing"],
@@ -24,10 +27,23 @@ describe("routeToCategory()", () => {
     ["climateInfo", "climateInfo"],
     ["weatherExplanation", "weatherExplanation"],
     ["heatAlert", "heatAlert"],
+    ["typhoonAnalysis", "typhoonAnalysis"],
+    ["typhoonProbability", "typhoonProbability"],
+    ["floodForecast", "floodForecast"],
+    ["ignore", "other"],
     ["raw", "other"],
-    ["unknown", "other"],
-  ])("route %s → category %s", (route, expected) => {
+  ];
+
+  it.each(CASES)("route %s → category %s", (route, expected) => {
     expect(routeToCategory(route)).toBe(expected);
+  });
+
+  it("全 Route を網羅している (catalog に route を足したら table も追随する番兵)", () => {
+    // route-catalog が持つ全 route を CASES が漏れなく含むことを確認する。
+    // 網羅の真実源は ROUTE_TO_STATS_CATEGORY のキー集合。
+    const covered = new Set(CASES.map(([route]) => route));
+    const allRoutes = Object.keys(ROUTE_TO_STATS_CATEGORY);
+    expect([...covered].sort()).toEqual(allRoutes.sort());
   });
 });
 

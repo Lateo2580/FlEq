@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMessageHandler } from "../../src/engine/messages/message-router";
 import { createDisplayAdapter } from "../../src/ui/display-adapter";
 import { TelegramStats } from "../../src/engine/messages/telegram-stats";
+import { IGNORED_HEAD_TYPES as ROUTE_CATALOG_IGNORED_HEAD_TYPES } from "../../src/engine/messages/route-catalog";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE51_SHINDO,
@@ -684,19 +685,8 @@ describe("message-router 統合テスト", () => {
   describe("配信終了予定電文の無視", () => {
     // 配信終了予定 + 既存表示と内容が重複するため、受信しても
     // Ignore these telegrams across display, notification, and statistics.
-    const IGNORED_HEAD_TYPES = [
-      "VPWW53", // 特別警報/警報/注意報
-      "VPWW54", // 特別警報/警報/注意報（新しいステージに対応した防災気象情報）
-      "VPNO50", // 気象特別警報報知
-      "VPOA50", // 記録的短時間大雨情報
-      "VPZJ50", // 全般気象情報
-      "VPCJ50", // 地方気象情報
-      "VPFJ50", // 府県気象情報
-      "VMCJ50", // 全般潮位情報
-      "VMCJ51", // 地方潮位情報
-      "VMCJ52", // 府県潮位情報
-      "VXWW50", // 土砂災害警戒情報
-    ];
+    // ルート定義の真実源 (route-catalog) から取り込み、2 箇所同期を解消する。
+    const IGNORED_HEAD_TYPES = ROUTE_CATALOG_IGNORED_HEAD_TYPES;
 
     function makeWeatherMsg(headType: string): WsDataMessage {
       return {

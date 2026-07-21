@@ -109,7 +109,7 @@ const CATEGORY_ROLE: Record<StatsCategory, RoleName> = {
   other: "statsCategoryOther",
 };
 
-const CATEGORY_ORDER: StatsCategory[] = [
+const CATEGORY_ORDER = [
   "eew",
   "earthquake",
   "tsunami",
@@ -132,7 +132,17 @@ const CATEGORY_ORDER: StatsCategory[] = [
   // CATEGORY_ORDER に入っておらず洪水予報統計が集計表示から漏れていた。
   "floodForecast",
   "other",
-];
+] as const satisfies readonly StatsCategory[];
+
+// 網羅性検査 (コンパイル時): CATEGORY_ORDER が StatsCategory を 1 つでも欠くと
+// _NoMissingCategory がオブジェクト型になり、下の代入がコンパイルエラーになる。
+// (floodForecast / weatherWarningTimeseries の過去の追加漏れを型で塞ぐ番兵)
+type _MissingCategory = Exclude<StatsCategory, (typeof CATEGORY_ORDER)[number]>;
+type _NoMissingCategory = [_MissingCategory] extends [never]
+  ? true
+  : { readonly __error: "CATEGORY_ORDER is missing StatsCategory"; readonly missing: _MissingCategory };
+const _categoryOrderExhaustive: _NoMissingCategory = true;
+void _categoryOrderExhaustive;
 
 const INTENSITY_ORDER = ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
 

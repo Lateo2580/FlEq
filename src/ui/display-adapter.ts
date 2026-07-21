@@ -29,6 +29,7 @@ import { displayHeatAlertInfo } from "./heat-alert-formatter";
 import { displayTyphoonAnalysisInfo } from "./typhoon-analysis-formatter";
 import { displayTyphoonProbabilityInfo } from "./typhoon-probability-formatter";
 import { displayFloodForecastInfo } from "./flood-forecast-formatter";
+import { assertNever } from "../utils/assert-never";
 
 /** DisplayCallbacks の実装を生成する */
 const VPWW_CORE_TYPES = new Set(["VPWW55", "VPWW56", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"]);
@@ -100,7 +101,13 @@ export function createDisplayAdapter(): DisplayCallbacks {
         case "raw":
           displayRawHeader(outcome.msg);
           break;
-        // volcano: VolcanoRouteHandler 経由で displayVolcano/displayVolcanoBatch を直接呼ぶ
+        case "volcano":
+          // 特殊ルート: 火山は VolcanoRouteHandler 経由で displayVolcano/displayVolcanoBatch を
+          // 直接呼ぶため、displayOutcome には到達しない。網羅性のため明示的に no-op で受ける。
+          break;
+        default:
+          // PresentationDomain に新メンバーが増えて case を足し忘れるとコンパイルエラー。
+          assertNever(outcome);
       }
     },
 

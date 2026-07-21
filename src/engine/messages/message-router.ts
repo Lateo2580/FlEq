@@ -12,6 +12,9 @@ import { Vpwp50DetailCache } from "./vpwp50-detail-cache";
 import { TyphoonProbabilityStateHolder } from "./typhoon-probability-state";
 import { FloodForecastStateHolder } from "./flood-forecast-state";
 import { TelegramStats, routeToCategory } from "./telegram-stats";
+import { classifyMessage } from "./route-catalog";
+import type { Route } from "./route-catalog";
+import { assertNever } from "../../utils/assert-never";
 import { SummaryWindowTracker } from "./summary-tracker";
 import { DailyQuakeCounter } from "./daily-quake-counter";
 import type { DisplayStatsV1 } from "../display/types";
@@ -26,226 +29,11 @@ import type { DisplayCallbacks } from "./display-callbacks";
 import type { DisplayIngestSink } from "../display/types";
 
 // ── 電文分類 (Route) ──
+//
+// Route 型・分類関数 (classifyMessage)・head.type 集合・優先順位はすべて
+// `route-catalog.ts` に集約した。ここでは既存 import 互換のため Route を再 export する。
 
-/** 電文の処理ルート */
-export type Route =
-  | "eew"
-  | "seismicText"
-  | "lgObservation"
-  | "earthquake"
-  | "tsunami"
-  | "nankaiTrough"
-  | "volcano"
-  | "weather"
-  | "tornado"
-  | "briefing"
-  | "earlyWeather"
-  | "weatherWarningTimeseries"
-  | "climateInfo"
-  | "weatherExplanation"
-  | "heatAlert"
-  | "typhoonAnalysis"
-  | "typhoonProbability"
-  | "floodForecast"
-  | "ignore"
-  | "raw";
-
-/** weather ルート対象の head.type */
-const WEATHER_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPWW55", "VPWW56", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61",
-  "VPWS50",
-]);
-
-/** tornado ルート対象の head.type */
-const TORNADO_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPHW50", "VPHW51",
-]);
-
-/** briefing (気象防災速報) ルート対象の head.type */
-const BRIEFING_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPBS50",
-]);
-
-/** earlyWeather (早期天候情報) ルート対象の head.type */
-const EARLY_WEATHER_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPAW51",
-]);
-
-/** weatherWarningTimeseries (気象警報・注意報時系列情報) ルート対象の head.type */
-const WEATHER_WARNING_TIMESERIES_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPWP50",
-]);
-
-/** climateInfo (全般/地方天候情報) ルート対象の head.type */
-const CLIMATE_INFO_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPZI50",
-  "VPCI50", // 地方天候情報 (構造は VPZI50 互換 + EventDatePart)
-]);
-
-/** weatherExplanation (気象解説情報) ルート対象の head.type */
-const WEATHER_EXPLANATION_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPCJ51", // 地方気象解説情報
-  "VPZJ51", // 全般気象解説情報
-  "VPFJ51", // 府県気象解説情報
-  "VMCJ53", // 全般気象解説情報（潮位）— 大潮・副振動等
-  "VMCJ54", // 地方気象解説情報（潮位）
-  "VMCJ55", // 府県気象解説情報（潮位）
-]);
-
-/** heatAlert (熱中症警戒アラート) ルート対象の head.type */
-const HEAT_ALERT_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPFT50",
-]);
-
-/** typhoonAnalysis (台風解析・予報情報) ルート対象の head.type */
-const TYPHOON_ANALYSIS_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPTW60", "VPTW61", "VPTW62",
-]);
-
-/** typhoonProbability (台風の暴風域に入る確率) ルート対象の head.type */
-const TYPHOON_PROBABILITY_HEAD_TYPES: ReadonlySet<string> = new Set(["VPTA50"]);
-
-/**
- * 指定河川洪水予報・水位周知河川 (VXKO50-89 / VXSU50-59) ルート対象の head.type。
- * VXKO は 50 から 89、VXSU は 50 から 59 まで枠取りされている (現行配信は 50 のみだが
- * 将来の派生 type も同 routing に乗せる)。
- */
-const FLOOD_FORECAST_HEAD_TYPES: ReadonlySet<string> = new Set([
-  ...Array.from({ length: 40 }, (_, i) => `VXKO${50 + i}`),
-  ...Array.from({ length: 10 }, (_, i) => `VXSU${50 + i}`),
-]);
-
-/** 配信終了予定 + 既存表示と内容重複のため、受信しても無視する head.type */
-const IGNORED_HEAD_TYPES: ReadonlySet<string> = new Set([
-  "VPWW53", "VPWW54",            // 旧 気象警報・注意報 (VPWW55-61/VPWS50 と重複)
-  "VPNO50",                      // 気象特別警報報知
-  "VPOA50",                      // 記録的短時間大雨情報
-  "VPZJ50", "VPCJ50", "VPFJ50",  // 旧 気象情報 (VPZJ51/VPCJ51/VPFJ51 と重複)
-  "VMCJ50", "VMCJ51", "VMCJ52",  // 潮位情報
-  "VXWW50",                      // 土砂災害警戒情報
-]);
-
-/**
- * classification と head.type から処理ルートを判定する。
- * ルーティング優先順位:
- *   1. eew.forecast / eew.warning → EEW
- *   2. telegram.earthquake + VXSE56/VXSE60/VZSE40 → テキスト系
- *   3. telegram.earthquake + VXSE62 → 長周期地震動観測
- *   4. telegram.earthquake + VXSE* → 地震情報
- *   5. telegram.earthquake + VTSE* → 津波情報
- *   6. telegram.earthquake + VYSE* → 南海トラフ
- *   7. telegram.volcano → 火山情報
- *   8. telegram.weather + VPWW55-61/VPWS50 → 気象警報・注意報
- *   9. telegram.weather + VPHW50/VPHW51 → 竜巻注意情報
- *   10. telegram.weather + VPBS50 → 気象防災速報
- *   11. telegram.weather + VPAW51 → 早期天候情報
- *   12. telegram.weather + VPWP50 → 気象警報・注意報時系列情報
- *   13. telegram.weather + VPZI50/VPCI50 → 天候情報 (全般/地方)
- *   14. telegram.weather + VPCJ51/VPZJ51/VPFJ51/VMCJ53-55 → 気象解説情報 (地方/全般/府県 + 潮位版)
- *   15. telegram.weather + VPFT50 → 熱中症警戒アラート
- *   16. telegram.weather + VPTW60/VPTW61/VPTW62 → 台風解析・予報情報
- *   17. telegram.weather + VPTA50 → 台風の暴風域に入る確率
- *   18. telegram.weather + VXKO50-89/VXSU50-59 → 指定河川洪水予報・水位周知河川
- *   19. その他 → raw
- */
-function classifyMessage(classification: string, headType: string): Route {
-  if (IGNORED_HEAD_TYPES.has(headType)) {
-    return "ignore";
-  }
-
-  if (classification === "eew.forecast" || classification === "eew.warning") {
-    return "eew";
-  }
-
-  if (classification === "telegram.volcano") {
-    return "volcano";
-  }
-
-  if (classification === "telegram.earthquake") {
-    if (headType === "VXSE56" || headType === "VXSE60" || headType === "VZSE40") {
-      return "seismicText";
-    }
-    if (headType === "VXSE62") {
-      return "lgObservation";
-    }
-    if (headType.startsWith("VXSE")) {
-      return "earthquake";
-    }
-    if (headType.startsWith("VTSE")) {
-      return "tsunami";
-    }
-    if (headType.startsWith("VYSE")) {
-      return "nankaiTrough";
-    }
-  }
-
-  if (classification === "telegram.weather" && WEATHER_HEAD_TYPES.has(headType)) {
-    return "weather";
-  }
-
-  if (classification === "telegram.weather" && TORNADO_HEAD_TYPES.has(headType)) {
-    return "tornado";
-  }
-
-  if (classification === "telegram.weather" && BRIEFING_HEAD_TYPES.has(headType)) {
-    return "briefing";
-  }
-
-  if (classification === "telegram.weather" && EARLY_WEATHER_HEAD_TYPES.has(headType)) {
-    return "earlyWeather";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    WEATHER_WARNING_TIMESERIES_HEAD_TYPES.has(headType)
-  ) {
-    return "weatherWarningTimeseries";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    CLIMATE_INFO_HEAD_TYPES.has(headType)
-  ) {
-    return "climateInfo";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    WEATHER_EXPLANATION_HEAD_TYPES.has(headType)
-  ) {
-    return "weatherExplanation";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    HEAT_ALERT_HEAD_TYPES.has(headType)
-  ) {
-    return "heatAlert";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    TYPHOON_ANALYSIS_HEAD_TYPES.has(headType)
-  ) {
-    return "typhoonAnalysis";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    TYPHOON_PROBABILITY_HEAD_TYPES.has(headType)
-  ) {
-    return "typhoonProbability";
-  }
-
-  if (
-    classification === "telegram.weather" &&
-    FLOOD_FORECAST_HEAD_TYPES.has(headType)
-  ) {
-    return "floodForecast";
-  }
-
-  return "raw";
-}
+export type { Route } from "./route-catalog";
 
 // ── dispatch helpers ──
 
@@ -325,8 +113,16 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): void {
       );
       break;
     }
-    // raw: 通知なし
-    // volcano: VolcanoRouteHandler が通知を担当
+    case "raw":
+      // raw: 通知なし (フォールバック表示のみ)
+      break;
+    case "volcano":
+      // 特殊ルート: 火山は VolcanoRouteHandler が通知を担当するため dispatchNotify には到達しない。
+      // 網羅性のため明示的に no-op で受ける。
+      break;
+    default:
+      // PresentationDomain に新メンバーが増えて case を足し忘れるとコンパイルエラー。
+      assertNever(outcome);
   }
 }
 
@@ -518,13 +314,14 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
-    // 配信終了予定 + 既存表示と重複する電文は受信しても無視
-    // (表示・通知・統計をすべてスキップ)
+    // 特殊ルート ignore: 配信終了予定 + 既存表示と重複する電文は受信しても無視
+    // (表示・通知・統計をすべてスキップ)。catalog では分類のみ担い、処理はここで早期 return。
     if (route === "ignore") {
       return;
     }
 
-    // 火山は VolcanoRouteHandler に委譲
+    // 特殊ルート volcano: VFVO53 バッチ集約を伴う独立ライフサイクルのため線形 processor 表に
+    // 載せず、VolcanoRouteHandler に委譲する (catalog は分類のみ担う)。
     if (route === "volcano") {
       volcanoHandler.handle(msg);
       stats.record({
