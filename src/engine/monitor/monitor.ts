@@ -179,7 +179,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   // 起動時: 最新の津波・火山警報状態を復元 (WebSocket 接続前に実行)
   await restoreTsunamiState(config.apiKey, tsunamiState);
-  await restoreVolcanoState(config.apiKey, volcanoState);
+  const volcanoRestoreResult = await restoreVolcanoState(config.apiKey, volcanoState);
+  standbyStore.seedVolcanoAlerts(volcanoState.getSeedEntries(), volcanoRestoreResult, Date.now());
 
   // 情報ディスプレイ runtime の起動 (restore 後・dmdata 接続開始前)
   if (config.display) {

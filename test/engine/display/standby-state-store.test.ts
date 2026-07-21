@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
-import type { ParsedHeatAlertInfo } from "../../../src/types";
+import type { ParsedHeatAlertInfo, ParsedTyphoonAnalysis, ParsedVolcanoInfo } from "../../../src/types";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
@@ -126,5 +126,136 @@ describe("StandbyStateStore: heat", () => {
     store.applyEvent(heatEvent(), T0 + 1);
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onDurable).toHaveBeenCalledTimes(1);
+  });
+});
+
+function typhoonRaw(over: Record<string, unknown> = {}): ParsedTyphoonAnalysis {
+  return {
+    type: "VPTW60",
+    infoType: "issue",
+    eventId: "TC-1",
+    serial: "1",
+    name: { name: "Alpha", nameKana: "ALPHA", number: "2601", remark: null },
+    frames: [{
+      kind: "analysis",
+      typhoonClass: { category: "TS" },
+      center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 },
+      wind: { maxWindMs: 25 },
+    }],
+    ...over,
+  } as unknown as ParsedTyphoonAnalysis;
+}
+
+function typhoonEvent(over: Record<string, unknown> = {}, rawOver: Record<string, unknown> = {}): PresentationEvent {
+  const raw = typhoonRaw(rawOver);
+  return {
+    id: "typhoon-1",
+    domain: "typhoonAnalysis",
+    eventId: raw.eventId,
+    serial: raw.serial,
+    reportDateTime: "2026-07-21T05:00:00+09:00",
+    isCancellation: false,
+    raw,
+    ...over,
+  } as unknown as PresentationEvent;
+}
+
+function volcanoRaw(over: Record<string, unknown> = {}): ParsedVolcanoInfo {
+  return {
+    kind: "alert",
+    type: "VFVO50",
+    infoType: "issue",
+    volcanoCode: "V-1",
+    volcanoName: "Mount Test",
+    alertLevel: 4,
+    alertLevelCode: "4",
+    previousLevelCode: "3",
+    ...over,
+  } as unknown as ParsedVolcanoInfo;
+}
+
+function volcanoEvent(over: Record<string, unknown> = {}, rawOver: Record<string, unknown> = {}): PresentationEvent {
+  const raw = volcanoRaw(rawOver);
+  return {
+    id: "volcano-1",
+    domain: "volcano",
+    serial: "1",
+    reportDateTime: "2026-07-21T05:00:00+09:00",
+    isCancellation: false,
+    raw,
+    ...over,
+  } as unknown as PresentationEvent;
+}
+
+describe("StandbyStateStore: typhoon", () => {
+  it("receives, replaces, and aggregates typhoons by TC key", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent(), T0);
+    store.applyEvent(typhoonEvent({ id: "typhoon-1-revision", serial: "2", reportDateTime: new Date(T0 + 60_000).toISOString() }, {
+      serial: "2",
+      frames: [{ kind: "analysis", typhoonClass: { category: "TY" }, center: { location: "near land", pressureHpa: 975, moveDirection: "NE", moveSpeedKmh: 30 }, wind: { maxWindMs: 35 } }],
+    }), T0 + 60_000);
+    store.applyEvent(typhoonEvent({ id: "typhoon-2", eventId: "TC-2", serial: "1" }, { eventId: "TC-2", name: { name: "Beta", nameKana: null, number: "2602", remark: null } }), T0 + 60_000);
+
+    const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
+    expect(item?.data.typhoons).toEqual([
+      expect.objectContaining({ typhoonKey: "TC-1", pressureHpa: 975, category: "TY" }),
+      expect.objectContaining({ typhoonKey: "TC-2", name: "Beta" }),
+    ]);
+  });
+
+  it("does not extend TTL for a stale resend, expires after 24 hours, and keeps cancellation tombstones", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent(), T0);
+    store.applyEvent(typhoonEvent({ id: "typhoon-stale", reportDateTime: new Date(T0 - 60_000).toISOString(), serial: "9" }, { serial: "9" }), T0 + 60_000);
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({ expiresAt: new Date(T0 + 24 * 60 * 60_000).toISOString() }));
+    expect(store.sweep(T0 + 24 * 60 * 60_000)).toEqual({ viewChanged: true, durableChanged: true });
+
+    store.applyEvent(typhoonEvent({ id: "typhoon-new", reportDateTime: new Date(T0 + 25 * 60 * 60_000).toISOString(), serial: "10" }, { serial: "10" }), T0 + 25 * 60 * 60_000);
+    store.applyEvent(typhoonEvent({ id: "typhoon-cancel", isCancellation: true, reportDateTime: new Date(T0 + 25 * 60 * 60_000 + 60_000).toISOString(), serial: "11" }, { serial: "11", infoType: "cancel" }), T0 + 25 * 60 * 60_000 + 60_000);
+    expect(store.snapshotItems()).toEqual([]);
+    expect(store.applyEvent(typhoonEvent({ id: "typhoon-old", serial: "10" }, { serial: "10" }), T0 + 25 * 60 * 60_000 + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
+  });
+});
+
+describe("StandbyStateStore: volcano", () => {
+  it("keeps level 4 until lowered, while a level increase has a 24-hour lifetime", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(volcanoEvent(), T0);
+    expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: null })]);
+    expect(store.sweep(T0 + 48 * 60 * 60_000).viewChanged).toBe(false);
+
+    store.applyEvent(volcanoEvent({ id: "volcano-lower", serial: "2", reportDateTime: new Date(T0 + 48 * 60 * 60_000).toISOString() }, {
+      alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4",
+    }), T0 + 48 * 60 * 60_000);
+    expect(store.snapshotItems()).toEqual([]);
+
+    const raisedAt = T0 + 49 * 60 * 60_000;
+    store.applyEvent(volcanoEvent({ id: "volcano-raise", serial: "3", reportDateTime: new Date(raisedAt).toISOString() }, {
+      alertLevel: 3, alertLevelCode: "3", previousLevelCode: "2",
+    }), raisedAt);
+    expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: new Date(raisedAt + 24 * 60 * 60_000).toISOString() })]);
+    store.sweep(raisedAt + 24 * 60 * 60_000);
+    expect(store.snapshotItems()).toEqual([]);
+  });
+
+  it("keeps a flash eruption for 24 hours, ignores steady level 2, and rejects an old level 4 after lowering", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(volcanoEvent({ serial: "1" }, { alertLevel: 2, alertLevelCode: "2", previousLevelCode: "2" }), T0);
+    expect(store.snapshotItems()).toEqual([]);
+
+    const eruptionAt = T0 + 60_000;
+    store.applyEvent(volcanoEvent({ id: "flash", serial: "2", reportDateTime: new Date(eruptionAt).toISOString() }, {
+      kind: "eruption", type: "VFVO52", isFlashReport: true, phenomenonName: "flash",
+    }), eruptionAt);
+    expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: new Date(eruptionAt + 24 * 60 * 60_000).toISOString() })]);
+    store.sweep(eruptionAt + 24 * 60 * 60_000);
+    expect(store.snapshotItems()).toEqual([]);
+
+    const loweredAt = eruptionAt + 25 * 60 * 60_000;
+    store.applyEvent(volcanoEvent({ id: "level-four", serial: "3", reportDateTime: new Date(loweredAt).toISOString() }, { alertLevel: 4, alertLevelCode: "4", previousLevelCode: "2" }), loweredAt);
+    store.applyEvent(volcanoEvent({ id: "lowered", serial: "4", reportDateTime: new Date(loweredAt + 60_000).toISOString() }, { alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4" }), loweredAt + 60_000);
+    expect(store.snapshotItems()).toEqual([]);
+    expect(store.applyEvent(volcanoEvent({ id: "old-level-four", serial: "3" }, { alertLevel: 4, alertLevelCode: "4", previousLevelCode: "2" }), loweredAt + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
   });
 });

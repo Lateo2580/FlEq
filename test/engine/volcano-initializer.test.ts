@@ -212,7 +212,7 @@ describe("restoreVolcanoState", () => {
 
     await expect(
       restoreVolcanoState("test-key", volcanoState)
-    ).resolves.toBeUndefined();
+    ).resolves.toBe("failed");
     expect(volcanoState.size()).toBe(0);
   });
 });

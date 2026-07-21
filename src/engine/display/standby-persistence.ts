@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as log from "../../logger";
-import type { DisplayHeatAreaV1 } from "./protocol";
+import type { DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
 import type { PersistedSeenEntry } from "./standby-state-store";
 import type { StandbyRevision } from "./standby-registry";
 
@@ -21,8 +21,13 @@ export interface PersistedStandbyStateV1 {
   version: 1;
   savedAt: string;
   heat: PersistedHeatStateV1[];
+  typhoons: PersistedTyphoonStateV1[];
+  volcanoes: PersistedVolcanoStateV1[];
   seen: PersistedSeenEntry[];
 }
+
+export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
+export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; revision: StandbyRevision; }
 
 export class StandbyPersistence {
   constructor(private readonly persistPath: string) {}
@@ -107,6 +112,8 @@ function isPersistedStandbyState(value: unknown): value is PersistedStandbyState
     && typeof value.savedAt === "string"
     && Array.isArray(value.heat)
     && value.heat.every(isHeatState)
+    && (value.typhoons == null || Array.isArray(value.typhoons))
+    && (value.volcanoes == null || Array.isArray(value.volcanoes))
     && Array.isArray(value.seen)
     && value.seen.every(isSeenEntry);
 }

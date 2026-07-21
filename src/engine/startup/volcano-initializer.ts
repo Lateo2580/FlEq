@@ -15,13 +15,13 @@ const VOLCANO_RESTORE_WINDOW = 100;
 export async function restoreVolcanoState(
   apiKey: string,
   volcanoState: VolcanoStateHolder
-): Promise<void> {
+): Promise<"success" | "failed"> {
   try {
     const res = await listTelegrams(apiKey, "VFVO50", VOLCANO_RESTORE_WINDOW);
 
     if (res.items.length === 0) {
       log.debug("VFVO50 電文なし: 火山状態の復元をスキップ");
-      return;
+      return "success";
     }
 
     // 古い順に replay することで、窓内の解除・取消が後から正しく適用される
@@ -55,5 +55,7 @@ export async function restoreVolcanoState(
     log.warn(
       `火山状態の復元に失敗しました: ${err instanceof Error ? err.message : err}`
     );
+    return "failed";
   }
+  return "success";
 }

@@ -263,6 +263,8 @@ export interface DisplayTyphoonV1 {
   typhoonKey: string;
   name: string | null;
   nameKana: string | null;
+  /** 未命名時の補足 (例: 台風発生予想) */
+  remark: string | null;
   typhoonNumber: string | null;
   category: string | null;
   location: string | null;

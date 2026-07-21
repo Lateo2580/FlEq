@@ -5,6 +5,7 @@
     DisplayLatestQuakeStateV1,
     DisplayRecentQuakeV1,
     DisplayTsunamiLevel,
+    ActiveStandbyCardV1,
   } from "../lib/protocol";
   import { onDestroy, untrack } from "svelte";
   import { flip } from "svelte/animate";
@@ -18,6 +19,11 @@
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
   import LatestQuakeCard from "./LatestQuakeCard.svelte";
   import InstrumentRow from "./InstrumentRow.svelte";
+  import HeatAlertCard from "./HeatAlertCard.svelte";
+  import TyphoonCard from "./TyphoonCard.svelte";
+  import VolcanoCard from "./VolcanoCard.svelte";
+  import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
+  import { partitionStandbyItems, selectRightStack } from "../lib/standby-cards";
   import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
   import { measureBorderHeight } from "../lib/measure-height";
@@ -149,6 +155,13 @@
     ...(snapshot.tsunami != null ? [{ key: "tsunami", tsunami: snapshot.tsunami } as const] : []),
     ...(quakeSlot != null ? [quakeSlot] : []),
   ]);
+  const standbyPartitions = $derived(partitionStandbyItems(snapshot.standbyItems ?? []));
+  const rightStack = $derived(selectRightStack(standbyPartitions.cornerRight, 700, (item) => {
+    if (item.kind === "typhoon") return 74 + item.data.typhoons.length * 72;
+    if (item.kind === "volcano") return 44 + item.data.volcanoes.length * 48;
+    return 112;
+  }));
+  const rightOverflow = $derived([...rightStack.overflow, ...standbyPartitions.unknown]);
 
   // 時計ブロック (切断バッジ + 時刻 + 日付) の実測高さの半分 (px)。時計は .clock-row が
   // top:50% 中央配置なので、その「実下端」= 50% + 高さ/2。統計行の帯はこの実下端から始める
@@ -216,6 +229,18 @@
         <WeatherAlertCard alerts={snapshot.weatherAlerts} />
       </div>
     {/if}
+    {#each rightStack.visible as item (item.key)}
+      <div class="standby-corner" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
+        {#if item.kind === "heat"}
+          <HeatAlertCard {item} />
+        {:else if item.kind === "typhoon"}
+          <TyphoonCard {item} />
+        {:else if item.kind === "volcano"}
+          <VolcanoCard {item} />
+        {/if}
+      </div>
+    {/each}
+    <StandbyOverflowSummary items={rightOverflow} />
   </div>
   <div class="corner-left">
     {#each leftStack as item (item.key)}

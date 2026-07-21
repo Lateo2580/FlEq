@@ -128,6 +128,15 @@ export class VolcanoStateHolder
     return this.entries.get(volcanoCode);
   }
 
+  getSeedEntries(): Array<{ volcanoCode: string; volcanoName: string; alertLevel: number | null; reportDateTime: string }> {
+    return [...this.entries.values()].map((entry) => ({
+      volcanoCode: entry.volcanoCode,
+      volcanoName: entry.volcanoName,
+      alertLevel: entry.alertLevel,
+      reportDateTime: entry.reportDateTime,
+    }));
+  }
+
   // ── PromptStatusProvider ──
 
   getPromptStatus(): PromptStatusSegment | null {
