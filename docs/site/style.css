@@ -490,10 +490,28 @@ pre.terminal-mock,
   100% { opacity: 0.9; stroke-dashoffset: 0; }
 }
 
+/* 退場: 3 本すべて描画完了 + 保持ののち、.is-fading で全 marker を同時にゆっくり fade out
+   (draw の per-marker 規則より後置し同 specificity の後勝ちで上書きする) */
+.hero-anim-overlay.is-playing.is-fading .hero-anim-marker {
+  animation: hero-marker-fade 1.2s ease 0s forwards;
+}
+
+@keyframes hero-marker-fade {
+  from { opacity: 0.9; stroke-dashoffset: 0; }
+  to   { opacity: 0;   stroke-dashoffset: 0; }
+}
+
 [data-hero-src-line].is-highlight,
 [data-hero-out-line].is-highlight {
   box-shadow: 0 0 0 2px var(--terminal-signal-note);
   transition: box-shadow 0.15s ease-in-out;
+}
+
+/* 退場: fade 中は highlight 枠も marker と同じ 1.2s で透明へ (class は cleanup まで残す) */
+.hero-sample-panes.hero-fade [data-hero-src-line].is-highlight,
+.hero-sample-panes.hero-fade [data-hero-out-line].is-highlight {
+  box-shadow: 0 0 0 2px transparent;
+  transition: box-shadow 1.2s ease;
 }
 
 @media (max-width: 640px) {
@@ -537,8 +555,81 @@ pre.terminal-mock,
 .severity-label { font-family: var(--font-mono); letter-spacing: 0.1em; }
 .severity-area { margin-left: auto; font-family: var(--font-mono); font-weight: 500; }
 
-.output-line { padding: 0.15rem 0.5rem; }
-.output-meta { color: var(--terminal-ink-sub); font-size: 0.72rem; margin-top: 0.35rem; }
+/* ===== Terminal frame mock (CSS 構造で罫線を再現・グリフ非依存) ===== */
+/* 罫線グリフ (╔═║╠╣│) はフォントごとの字幅実装揺れ (Ambiguous 幅) でクロス環境の
+   桁揃えが安定しないため廃止。border: double / CSS grid / border-left で構造的に再現し、
+   フォントは通常の等幅 (--font-mono) に戻す。枠色は既存 terminal token を再利用。 */
+.tframe {
+  border: 3px double var(--tframe-color);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--terminal-ink);
+  background: transparent;
+  overflow-x: auto;
+}
+.tframe-alert { --tframe-color: var(--terminal-signal-alert); }
+.tframe-warn { --tframe-color: var(--terminal-signal-warn); }
+
+.tframe-row { padding: 0.25rem 0.7rem; }
+
+/* 区切り線 (╠══╣) = 行の border-top */
+.tframe-div-top { border-top: 3px double var(--tframe-color); }
+
+/* ラベル付き区切り (╠ 震度分布 ╣) = border-top にラベル span を重ねて線を切る (legend 風) */
+.tframe-legend {
+  position: relative;
+  border-top: 3px double var(--tframe-color);
+  margin-top: 0.55rem;
+  padding: 0 0.7rem;
+}
+.tframe-legend > span {
+  position: relative;
+  top: -0.7em;
+  display: inline-block;
+  padding: 0 0.4rem;
+  background: var(--terminal-bg);
+  color: var(--tframe-color);
+}
+
+/* 表 = CSS grid で列揃え (パディング空白を廃止) */
+.tframe-table {
+  display: grid;
+  column-gap: 1.4rem;
+  padding: 0.25rem 0.7rem;
+}
+.tframe-table-3 { grid-template-columns: max-content max-content 1fr; }
+.tframe-table-2 { grid-template-columns: max-content 1fr; }
+.tframe-cell { padding: 0.06rem 0; }
+.tframe-th { color: var(--terminal-ink-sub); }
+
+/* カード行の │ 区切り = border-left (グリフ非使用) */
+.tframe-card { display: flex; flex-wrap: wrap; padding: 0.25rem 0.7rem; }
+.tframe-card > span { padding: 0 0.7rem; }
+.tframe-card > span:first-child { padding-left: 0; }
+.tframe-card > span + span { border-left: 1px solid var(--tframe-color); }
+
+/* 本文の意味色 (実 formatter の role/直指定色に対応) */
+/* 震度5- (intensity5Lower) は実出力では yellow。terminal token 群に黄が無いため
+   frame mock 局所の literal 色とする (実測 #F0E442/#1B1815 = 13.37:1、/well = 11.95:1) */
+.tm-note { color: #F0E442; }
+.tm-cool { color: var(--terminal-signal-cool); }     /* 震度4・津波なし・blueGreen */
+.tm-alertfg { color: var(--terminal-signal-alert); } /* M5.9・L3 見出し・vermillion */
+.tm-sub { color: var(--terminal-ink-sub); }          /* 省略行・footer メタ */
+
+/* VPWW バナー: 実出力は vermillion 背景の帯。LP の band は既存慣例どおり黒文字で AA 準拠 (白文字は 3.87:1 で小文字 AA 不足のため) */
+.hero-banner {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  /* 実出力の VPWW バナーは vermillion 地 + 白 bold。白文字 (#FFF/#D55E00 = 3.87:1) は
+     Studio preview と同じ AA Large 方式 (1.2rem bold >= 18.66px) で成立させる */
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  background: var(--band-alert-bg);
+  color: #FFFFFF;
+  padding: 0.3rem 0.6rem;
+  margin-bottom: 0.5rem;
+}
 
 /* ===== Stage (表示とテーマ編集) ===== */
 .stage {
@@ -607,10 +698,116 @@ pre.terminal-mock,
 
 .stage-mock-display-body { display: grid; gap: 0.75rem; }
 
-.display-panel {
+/* Display mock: fleq --display の黒背景計器盤を再現 (色は実 display の hex を局所指定、LP token 化しない)。
+   本文テキストは黒背景に対し AA 4.5:1 以上のみ使用。#566069 は罫線・装飾のみ。 */
+.disp-screen {
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 1px solid #1a2126;
+  border-radius: 6px;
   padding: 0.6rem;
-  background: var(--terminal-well);
-  border: 1px solid var(--terminal-border);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+}
+
+.disp-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.disp-card {
+  background: #070a0c;
+  border: 1px solid #1a2126;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* カードの看板ヘッダ帯 (実 display の D 案標準: 意味色 container 背景 + 同系明色文字 + 下端 CUD 色帯)。
+   地震情報カード・気象警報カードで共通 (実装 header-quakeWarning = #3a2600 / #ffd68a / 帯 #e69f00 4px、
+   LatestQuakeCard.svelte:191・theme.css:98) */
+.disp-cardhead {
+  background: #3a2600;
+  color: #ffd68a;
+  border-bottom: 4px solid #e69f00;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.5rem;
+}
+
+.disp-cardbody { padding: 0.4rem 0.5rem; }
+
+.disp-card-main {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #eef2f6;
+}
+
+.disp-quake-area { font-weight: 400; }
+
+.disp-card-meta {
+  font-size: 0.62rem;
+  color: #b4c2cf;
+}
+
+.disp-warn-main {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffd68a;
+}
+
+.disp-warn-areas {
+  font-size: 0.62rem;
+  color: #eef2f6;
+}
+
+.disp-clock {
+  align-self: center;
+  text-align: center;
+}
+
+.disp-clock-time {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #eef2f6;
+  font-variant-numeric: tabular-nums;
+}
+
+.disp-clock-sec {
+  font-size: 0.9rem;
+  color: #b4c2cf;
+  margin-left: 0.3rem;
+  vertical-align: super;
+}
+
+.disp-clock-date {
+  font-size: 0.7rem;
+  color: #b4c2cf;
+  margin-top: 0.3rem;
+}
+
+.disp-stats {
+  border-top: 1px solid #1a2126;
+  padding-top: 0.35rem;
+  text-align: center;
+  font-size: 0.65rem;
+  color: #b4c2cf;
+}
+
+/* 狭幅では 16/9 固定だと内部高さが内容所要 (約 190px) を下回りクリップするため、
+   aspect-ratio を解除して内容駆動の高さに退避 (min-height は下限保証、超過時は auto で伸びる) */
+@media (max-width: 640px) {
+  .disp-screen {
+    aspect-ratio: auto;
+    min-height: 12.5rem;
+  }
 }
 
 .stage-note { margin-top: 1rem; font-size: 0.75rem; color: var(--ink-sub); }
@@ -691,6 +888,18 @@ pre.terminal-mock,
 .studio-preview .severity-area {
   font-weight: 700;
 }
+
+/* frame title 行: 実 formatter の外枠色は getDisplaySeverityText() の固定 RGB [213,94,0] で
+   weatherBannerOfficialL3 role とは別系統。palette.vermillion を変えてもバナー背景だけが変わり、
+   罫線は固定 severity 色のまま (weather-core-formatter.ts:40 / weather-warning-level-theme.ts:44)。
+   よって罫線は --severity-bg に紐付けず固定 vermillion (--terminal-signal-alert) にする */
+.studio-frame-title {
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--terminal-ink);
+}
+
+.studio-frame-border { color: var(--terminal-signal-alert); }
 
 .studio-palette-line {
   display: flex;

@@ -146,6 +146,18 @@ document.documentElement.classList.add('js');
     return m;
   }
 
+  function clearFadeState() {
+    overlay.classList.remove('is-fading');
+    var panes = overlay.parentNode;
+    if (panes && panes.classList) panes.classList.remove('hero-fade');
+  }
+
+  function finishPlay() {
+    overlay.classList.remove('is-playing');
+    clearFadeState();
+    clearHighlights();
+  }
+
   function updateMotion() {
     var ok = motionAvailable();
     document.documentElement.classList.toggle('motion-ok', ok);
@@ -153,8 +165,7 @@ document.documentElement.classList.add('js');
     if (!ok) {
       currentGen++;                              // 進行中の generation を無効化
       clearScheduled();
-      clearHighlights();
-      overlay.classList.remove('is-playing');
+      finishPlay();
     }
   }
 
@@ -193,11 +204,12 @@ document.documentElement.classList.add('js');
   function playOnce() {
     if (!motionAvailable()) return;
 
-    // 進行中の generation を無効化 + cleanup
+    // 進行中の generation を無効化 + cleanup (fade 中の再生 click にも対応)
     currentGen++;
     var gen = currentGen;
     clearScheduled();
     clearHighlights();
+    clearFadeState();
 
     // marker 3 本を新規作成して置換 (Codex Plan v4 §B 対応: 旧 marker は DOM から detach され、
     // 旧 animation event は event.target.parentNode !== overlay で自動的に無視される)
@@ -209,25 +221,38 @@ document.documentElement.classList.add('js');
     void overlay.offsetWidth;
     overlay.classList.add('is-playing');
 
-    // highlight タイミングは marker CSS (0s / 0.5s / 1.0s stagger、各 0.5s) と同期。総所要 1.5s。
+    // highlight は 0s / 0.5s / 1.0s stagger で順に点灯し、消灯はしない (全 3 対が揃うまで保持)。
+    // 描画完了 (1.5s) → 0.7s 保持 → 2.2s から線 + 枠を同時に 1.2s かけて fade out。総所要 約 3.4s。
     [
-      { key: 'title', on: 0,    off: 500 },
-      { key: 'kind',  on: 500,  off: 1000 },
-      { key: 'area',  on: 1000, off: 1500 }
+      { key: 'title', on: 0 },
+      { key: 'kind',  on: 500 },
+      { key: 'area',  on: 1000 }
     ].forEach(function (step) {
       scheduled.push(setTimeout(function () { highlight(gen, step.key, true); }, step.on));
-      scheduled.push(setTimeout(function () { highlight(gen, step.key, false); }, step.off));
     });
+    scheduled.push(setTimeout(function () {
+      if (gen !== currentGen) return;
+      overlay.classList.add('is-fading');
+      var panes = overlay.parentNode;
+      if (panes && panes.classList) panes.classList.add('hero-fade');
+    }, 2200));
+    // fade (1.2s) 完了後の片付け。animationend が主経路、この timer は event 消失時の保険 (冪等)
+    scheduled.push(setTimeout(function () {
+      if (gen !== currentGen) return;
+      finishPlay();
+    }, 3600));
   }
 
-  // animationend cleanup: 最後の marker (area) の animation 終了で is-playing 除去。
+  // animationend cleanup: 最後の marker (area) の fade 終了で全状態を片付ける。
+  // draw 終了 (hero-marker-draw) では何もしない = 3 本表示のまま保持し、playOnce の timer が fade を開始する。
   // event.target が overlay の現行 child でない場合 (旧 marker が既に detach 済み) は無視 = generation 判定を DOM 帰属で成立させる (Codex Plan v4 §B 対応)
   overlay.addEventListener('animationend', function (e) {
     var marker = e.target;
     if (!marker || !marker.getAttribute) return;
     if (marker.parentNode !== overlay) return;   // 旧 (detach 済み) marker からの遅延 event
     if (marker.getAttribute('data-marker-for') !== 'area') return;
-    overlay.classList.remove('is-playing');
+    if (e.animationName !== 'hero-marker-fade') return;  // draw 終了では片付けない (保持フェーズへ)
+    finishPlay();
   });
 
   updateMotion();
