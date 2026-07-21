@@ -1,17 +1,8 @@
-import { dig, str } from "./telegram-parser";
+import { dig, str, listOf, nodeText } from "./xml-shape";
 
-/** node を配列に正規化 (単一/配列/null 対応) */
-export function listOf(node: unknown): unknown[] {
-  if (node == null) return [];
-  return Array.isArray(node) ? node : [node];
-}
-
-/** 属性付き要素から #text を取り出す */
-export function nodeText(node: unknown): string {
-  if (node == null) return "";
-  if (typeof node === "object") return str(dig(node, "#text"));
-  return str(node);
-}
+// listOf / nodeText は xml-shape に集約済み。従来 timeseries-common から
+// import している各所を壊さないよう re-export する。
+export { listOf, nodeText };
 
 /** 数値文字列を number|null に (空/非数は null。"0" は 0 を返す) */
 export function toNumberOrNull(value: string): number | null {

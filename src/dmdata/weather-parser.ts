@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedWeatherWarning,
@@ -9,6 +8,7 @@ import {
 } from "../types";
 import { decodeBody, dig, str, first } from "./telegram-parser";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "./weather-warning-level";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -19,24 +19,18 @@ import * as log from "../logger";
  * Code / Area.Code を数値化されないよう文字列のまま保持するため。
  * 数値化されると severity 判定や Code 比較が壊れる。
  */
-const weatherXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    const arrayTags = [
-      "Information",
-      "Warning",
-      "Item",
-      "Kind",
-      "Areas",
-      "Area",
-      "Text",
-      "Office",
-    ];
-    return arrayTags.includes(name);
-  },
+const weatherXmlParser = createJmxXmlParser((name) => {
+  const arrayTags = [
+    "Information",
+    "Warning",
+    "Item",
+    "Kind",
+    "Areas",
+    "Area",
+    "Text",
+    "Office",
+  ];
+  return arrayTags.includes(name);
 });
 
 /** XML 文字列をパースする (weather 系専用) */

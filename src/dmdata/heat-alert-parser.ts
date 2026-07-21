@@ -1,20 +1,16 @@
-import { XMLParser } from "fast-xml-parser";
 import { WsDataMessage, ParsedHeatAlertInfo } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, nodeText } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
  * 熱中症警戒アラート (VPFT50) 用 XML パーサ。
  * Body は Notice + Comment/Text の平文のみで構造化データを持たない。
  * parseTagValue:false で数値の暗黙変換を防ぐ (系統別パーサの現行流儀)。
+ * isArray は不要 (配列化するタグを持たない)。
  */
-const heatAlertXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-});
+const heatAlertXmlParser = createJmxXmlParser();
 
 /**
  * 本文先頭文を抽出する (最初の「。」まで)。

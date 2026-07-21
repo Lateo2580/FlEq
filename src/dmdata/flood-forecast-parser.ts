@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import type {
   FloodHeadline,
   FloodInfoScope,
@@ -9,6 +8,7 @@ import type {
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 import { parseStationsAndAggregate } from "./flood-station-parser";
 import { parseInundationAreas } from "./flood-inundation-parser";
@@ -42,17 +42,11 @@ import { parseVxsuStubStations } from "./flood-vxsu-stub-parser";
  * | `flood-assumption-parser.ts` | 氾濫水予報 (`parseFloodAssumptions`) |
  * | `flood-vxsu-stub-parser.ts` | VXSU stub 観測所 (`parseVxsuStubStations`) |
  */
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    // 系列ローカル/集約で配列扱いとするタグ。
-    // Task 10 以降で Headline.Information / Warning.Item / MeteorologicalInfos など
-    // を順次集計するため、構造的に複数化しうるタグを早期に列挙する。
-    return ARRAY_TAGS.has(name);
-  },
+const xmlParser = createJmxXmlParser((name) => {
+  // 系列ローカル/集約で配列扱いとするタグ。
+  // Task 10 以降で Headline.Information / Warning.Item / MeteorologicalInfos など
+  // を順次集計するため、構造的に複数化しうるタグを早期に列挙する。
+  return ARRAY_TAGS.has(name);
 });
 
 /** kindCode 文字列を `FloodKindCode` に narrowing。未知は "unknown"。 */

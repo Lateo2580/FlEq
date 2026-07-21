@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedWeatherExplanation,
@@ -10,7 +9,8 @@ import { decodeBody, dig, str } from "./telegram-parser";
 import { extractForecast } from "./weather-explanation-forecast";
 import { extractObservation } from "./weather-explanation-observation";
 import { extractTidal } from "./weather-explanation-tidal";
-import { listOf } from "./timeseries-common";
+import { listOf, nodeText } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -22,47 +22,28 @@ import * as log from "../logger";
  *   - TimeSeriesInfo / TimeDefine / Local (VPZJ51 予想ブロック用)
  * parseTagValue:false で Area.Code の先頭ゼロを保持する。
  */
-const weatherExplanationXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    const arrayTags = [
-      "MeteorologicalInfos",
-      "MeteorologicalInfo",
-      "Item",
-      "Kind",
-      "Areas",
-      "Area",
-      "Text",
-      "Information",
-      "TimeSeriesInfo",
-      "TimeDefine",
-      "Local",
-      // VMCJ53-55 潮位用。Station は追加しない (extractObservation が単一ノード前提)
-      "Sequence",
-      "TidalLevelPart",
-    ];
-    return arrayTags.includes(name);
-  },
+const weatherExplanationXmlParser = createJmxXmlParser((name) => {
+  const arrayTags = [
+    "MeteorologicalInfos",
+    "MeteorologicalInfo",
+    "Item",
+    "Kind",
+    "Areas",
+    "Area",
+    "Text",
+    "Information",
+    "TimeSeriesInfo",
+    "TimeDefine",
+    "Local",
+    // VMCJ53-55 潮位用。Station は追加しない (extractObservation が単一ノード前提)
+    "Sequence",
+    "TidalLevelPart",
+  ];
+  return arrayTags.includes(name);
 });
 
 function parseWeatherExplanationXml(xmlStr: string): Record<string, unknown> {
   return weatherExplanationXmlParser.parse(xmlStr);
-}
-
-/**
- * 属性付き要素から文字列値を取り出す helper。
- * `<Code type="...">VALUE</Code>` 型では fast-xml-parser が
- * `{ "@_type": "...", "#text": "VALUE" }` を返すため #text を優先。
- */
-function nodeText(node: unknown): string {
-  if (node == null) return "";
-  if (typeof node === "object") {
-    return str(dig(node, "#text"));
-  }
-  return str(node);
 }
 
 /** Headline.Text を抽出 (配列対応、複数 Text の場合は改行連結) */

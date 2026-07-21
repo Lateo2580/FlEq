@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedEarlyWeatherInfo,
@@ -8,7 +7,8 @@ import {
   EarlyWeatherTrend,
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
-import { listOf } from "./timeseries-common";
+import { listOf, nodeText } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -16,40 +16,21 @@ import * as log from "../logger";
  * Information / Item / Kind / Areas / Area / Text / MeteorologicalInfo を配列化。
  * parseTagValue:false で Code/Area.Code の先頭ゼロを保持する。
  */
-const earlyWeatherXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    const arrayTags = [
-      "Information",
-      "MeteorologicalInfo",
-      "Item",
-      "Kind",
-      "Areas",
-      "Area",
-      "Text",
-    ];
-    return arrayTags.includes(name);
-  },
+const earlyWeatherXmlParser = createJmxXmlParser((name) => {
+  const arrayTags = [
+    "Information",
+    "MeteorologicalInfo",
+    "Item",
+    "Kind",
+    "Areas",
+    "Area",
+    "Text",
+  ];
+  return arrayTags.includes(name);
 });
 
 function parseEarlyWeatherXml(xmlStr: string): Record<string, unknown> {
   return earlyWeatherXmlParser.parse(xmlStr);
-}
-
-/**
- * 属性付き要素から文字列値を取り出す helper。
- * `<Code type="...">VALUE</Code>` 型では fast-xml-parser が
- * `{ "@_type": "...", "#text": "VALUE" }` を返すため #text を優先。
- */
-function nodeText(node: unknown): string {
-  if (node == null) return "";
-  if (typeof node === "object") {
-    return str(dig(node, "#text"));
-  }
-  return str(node);
 }
 
 /** 数値変換 (失敗時 null) */

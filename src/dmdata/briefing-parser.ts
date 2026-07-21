@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedWeatherBriefing,
@@ -16,7 +15,8 @@ import {
   SOUND_LEVEL_RANK,
 } from "./weather-warning-level";
 import { decodeBody, dig, str, first } from "./telegram-parser";
-import { listOf } from "./timeseries-common";
+import { listOf, nodeText } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -24,40 +24,21 @@ import * as log from "../logger";
  * MeteorologicalInfo / Item / Areas / Area / Text を必ず配列として扱う。
  * parseTagValue:false で Code/Area.Code の先頭ゼロを保持する。
  */
-const briefingXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    const arrayTags = [
-      "Information",
-      "MeteorologicalInfo",
-      "Item",
-      "Kind",
-      "Areas",
-      "Area",
-      "Text",
-    ];
-    return arrayTags.includes(name);
-  },
+const briefingXmlParser = createJmxXmlParser((name) => {
+  const arrayTags = [
+    "Information",
+    "MeteorologicalInfo",
+    "Item",
+    "Kind",
+    "Areas",
+    "Area",
+    "Text",
+  ];
+  return arrayTags.includes(name);
 });
 
 function parseBriefingXml(xmlStr: string): Record<string, unknown> {
   return briefingXmlParser.parse(xmlStr);
-}
-
-/**
- * 属性付き要素から文字列値を取り出す helper。
- * `<Code type="...">VALUE</Code>` 型の要素では fast-xml-parser が
- * `{ "@_type": "...", "#text": "VALUE" }` を返すため、#text を優先して見る。
- */
-function nodeText(node: unknown): string {
-  if (node == null) return "";
-  if (typeof node === "object") {
-    return str(dig(node, "#text"));
-  }
-  return str(node);
 }
 
 /**

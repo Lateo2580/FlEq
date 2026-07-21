@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedClimateInfo,
@@ -8,7 +7,8 @@ import {
   ClimateStationValue,
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
-import { listOf } from "./timeseries-common";
+import { listOf, nodeText } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -16,41 +16,22 @@ import * as log from "../logger";
  * MeteorologicalInfos / MeteorologicalInfo / Item / Kind / Areas / Area / Text / ClimateValuesPart を配列化。
  * parseTagValue:false で Code/Area.Code の先頭ゼロを保持する。
  */
-const climateInfoXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    const arrayTags = [
-      "MeteorologicalInfos",
-      "MeteorologicalInfo",
-      "Item",
-      "Kind",
-      "Areas",
-      "Area",
-      "Text",
-      "ClimateValuesPart",
-    ];
-    return arrayTags.includes(name);
-  },
+const climateInfoXmlParser = createJmxXmlParser((name) => {
+  const arrayTags = [
+    "MeteorologicalInfos",
+    "MeteorologicalInfo",
+    "Item",
+    "Kind",
+    "Areas",
+    "Area",
+    "Text",
+    "ClimateValuesPart",
+  ];
+  return arrayTags.includes(name);
 });
 
 function parseClimateInfoXml(xmlStr: string): Record<string, unknown> {
   return climateInfoXmlParser.parse(xmlStr);
-}
-
-/**
- * 属性付き要素から文字列値を取り出す helper。
- * `<Code type="...">VALUE</Code>` 型では fast-xml-parser が
- * `{ "@_type": "...", "#text": "VALUE" }` を返すため #text を優先。
- */
-function nodeText(node: unknown): string {
-  if (node == null) return "";
-  if (typeof node === "object") {
-    return str(dig(node, "#text"));
-  }
-  return str(node);
 }
 
 /**

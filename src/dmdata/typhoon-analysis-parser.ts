@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedTyphoonAnalysis,
@@ -12,16 +11,12 @@ import {
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, toNumberOrNull, nodeText } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
-const typhoonXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) =>
-    ["MeteorologicalInfo", "Item", "Kind", "Property", "WarningAreaPart"].includes(name),
-});
+const typhoonXmlParser = createJmxXmlParser((name) =>
+  ["MeteorologicalInfo", "Item", "Kind", "Property", "WarningAreaPart"].includes(name),
+);
 
 function findProperty(item: unknown, typeName: string): unknown {
   for (const kind of listOf(dig(item, "Kind"))) {

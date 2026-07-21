@@ -1,5 +1,4 @@
 import zlib from "zlib";
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedEarthquakeInfo,
@@ -15,34 +14,33 @@ import {
   TsunamiObservationStation,
   TsunamiEstimationItem,
 } from "../types";
+import { createJmxXmlParser, dig, str, first } from "./xml-shape";
 import * as log from "../logger";
 
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    // 震度観測地域、市町村等は配列として扱う
-    const arrayTags = [
-      "Pref",
-      "Area",
-      "City",
-      "IntensityStation",
-      "Item",
-      "Kind",
-      "Category",
-      "ForecastInt",
-      "Observation",
-      "Station",
-      "Estimation",
-      // 火山電文
-      "VolcanoInfo",
-      "AshInfo",
-      "WindAboveCraterElements",
-    ];
-    return arrayTags.includes(name);
-  },
+// 汎用ノードアクセスヘルパは xml-shape に集約済み。従来 telegram-parser から
+// import している各所を壊さないよう re-export する。
+export { dig, str, first };
+
+const xmlParser = createJmxXmlParser((name) => {
+  // 震度観測地域、市町村等は配列として扱う
+  const arrayTags = [
+    "Pref",
+    "Area",
+    "City",
+    "IntensityStation",
+    "Item",
+    "Kind",
+    "Category",
+    "ForecastInt",
+    "Observation",
+    "Station",
+    "Estimation",
+    // 火山電文
+    "VolcanoInfo",
+    "AshInfo",
+    "WindAboveCraterElements",
+  ];
+  return arrayTags.includes(name);
 });
 
 /** 展開後の最大許容サイズ (10 MB) */
@@ -76,26 +74,6 @@ export function decodeBody(msg: WsDataMessage): string {
 /** XML文字列をパースしてJSオブジェクトを返す */
 export function parseXml(xmlStr: string): Record<string, unknown> {
   return xmlParser.parse(xmlStr);
-}
-
-// ── ヘルパー: 安全なプロパティアクセス ──
-
-export function dig(obj: unknown, ...keys: string[]): unknown {
-  let current = obj;
-  for (const key of keys) {
-    if (current == null || typeof current !== "object") return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
-}
-
-export function str(val: unknown): string {
-  if (val == null) return "";
-  return String(val);
-}
-
-export function first<T>(val: T | T[]): T {
-  return Array.isArray(val) ? val[0] : val;
 }
 
 function normalizeConditionText(condition: string): string {

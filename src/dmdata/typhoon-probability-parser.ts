@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import type {
   WsDataMessage,
   ParsedTyphoonProbability,
@@ -8,6 +7,7 @@ import type {
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, nodeText, toNumberOrNull } from "./timeseries-common";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 const FALLBACK_RAW_BYTES = 5 * 1024 * 1024;
@@ -34,15 +34,10 @@ function findProperty(item: unknown, typeName: string): unknown {
   return null;
 }
 
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) =>
-    ["MeteorologicalInfo", "Item", "Kind", "Property", "TimeDefine",
-     "FiftyKtWindProbability", "TimeSeriesInfo"].includes(name),
-});
+const xmlParser = createJmxXmlParser((name) =>
+  ["MeteorologicalInfo", "Item", "Kind", "Property", "TimeDefine",
+   "FiftyKtWindProbability", "TimeSeriesInfo"].includes(name),
+);
 
 function emptyDiagnostics(): TyphoonProbParserDiagnostics {
   return {

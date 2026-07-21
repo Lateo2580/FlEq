@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import type {
   WsDataMessage,
   ParsedWeatherWarningTimeseriesInfo,
@@ -38,6 +37,7 @@ import {
   DISPLAY_SEVERITY_TO_SOUND_LEVEL,
   SOUND_LEVEL_RANK,
 } from "./weather-warning-level";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -56,14 +56,8 @@ import * as log from "../logger";
  *     WindDirection を採用 (timeRef + localName で join)。
  *   - 段階 fallback: decoded >5MB → null (raw fallback)、>3MB or Area >200 → compactOnly。
  */
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    return ARRAY_TAGS.has(name);
-  },
+const xmlParser = createJmxXmlParser((name) => {
+  return ARRAY_TAGS.has(name);
 });
 
 const ARRAY_TAGS: ReadonlySet<string> = new Set([

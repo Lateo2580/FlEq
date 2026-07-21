@@ -1,4 +1,3 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   WsDataMessage,
   ParsedTornadoAdvisory,
@@ -8,6 +7,7 @@ import {
 } from "../types";
 import { decodeBody, dig, str, first } from "./telegram-parser";
 import { resolveTornadoSeverity } from "./weather-warning-level";
+import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 /**
@@ -15,23 +15,17 @@ import * as log from "../logger";
  * Information / Warning / Item / Kind / Areas / Area / Text を配列化。
  * parseTagValue:false で Code/Area.Code の先頭ゼロを保持する。
  */
-const tornadoXmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  isArray: (name) => {
-    const arrayTags = [
-      "Information",
-      "Warning",
-      "Item",
-      "Kind",
-      "Areas",
-      "Area",
-      "Text",
-    ];
-    return arrayTags.includes(name);
-  },
+const tornadoXmlParser = createJmxXmlParser((name) => {
+  const arrayTags = [
+    "Information",
+    "Warning",
+    "Item",
+    "Kind",
+    "Areas",
+    "Area",
+    "Text",
+  ];
+  return arrayTags.includes(name);
 });
 
 /** XML 文字列をパースする (tornado 系専用) */
