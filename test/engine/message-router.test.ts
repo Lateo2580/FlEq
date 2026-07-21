@@ -726,4 +726,70 @@ describe("message-router 統合テスト", () => {
     });
 
   });
+
+  describe("routeTaps (汎用購読点)", () => {
+    /** telegram.weather の任意 head.type で最小 XML メッセージを作る */
+    function makeWeatherMsg(headType: string): WsDataMessage {
+      return {
+        type: "data",
+        version: "2.0",
+        classification: "telegram.weather",
+        id: `test-tap-${headType}`,
+        passing: [],
+        head: { type: headType, author: "気象庁", time: new Date().toISOString(), test: false, xml: true },
+        format: "xml",
+        compression: null,
+        encoding: "utf-8",
+        body: "<Report>tap telegram body</Report>",
+      };
+    }
+
+    it("分類済み電文で route と message 付きで呼ばれる", () => {
+      const tap = vi.fn();
+      const { handler } = createHandler({ routeTaps: [tap] });
+      const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO);
+      handler(msg);
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      const event = tap.mock.calls[0][0];
+      expect(event.route).toBe("earthquake");
+      expect(event.message).toBe(msg);
+    });
+
+    it("ignore 対象の電文でも tap は呼ばれる (route === 'ignore')", () => {
+      const tap = vi.fn();
+      const { handler } = createHandler({ routeTaps: [tap] });
+      // VPWW53 は IGNORED_HEAD_TYPES → ignore 早期 return するが、tap はその前に呼ばれる
+      handler(makeWeatherMsg("VPWW53"));
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      expect(tap.mock.calls[0][0].route).toBe("ignore");
+    });
+
+    it("tap 内で throw しても本体処理が正常継続する", () => {
+      const throwing = vi.fn(() => {
+        throw new Error("tap boom");
+      });
+      const following = vi.fn();
+      const { handler, stats } = createHandler({ routeTaps: [throwing, following] });
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+      handler(msg);
+
+      // 例外を投げた tap の後続 tap も呼ばれる
+      expect(throwing).toHaveBeenCalledTimes(1);
+      expect(following).toHaveBeenCalledTimes(1);
+      // 本体処理 (表示・統計) が正常継続する
+      expect(getOutput()).toContain("南太平洋");
+      expect(stats.getSnapshot().countByType.get("VXSE53")).toBe(1);
+    });
+
+    it("routeTaps 未指定なら従来と完全同一挙動 (表示・統計に影響なし)", () => {
+      const { handler, stats } = createHandler();
+      const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO);
+      handler(msg);
+
+      expect(getOutput()).toContain("震度速報");
+      expect(stats.getSnapshot().countByType.get("VXSE51")).toBe(1);
+    });
+  });
 });

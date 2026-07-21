@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import * as log from "../../logger";
 import type { WsDataMessage } from "../../types";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
@@ -27,7 +28,7 @@ import type { DisplayIngestSink } from "../display/types";
 // ── 電文分類 (Route) ──
 
 /** 電文の処理ルート */
-type Route =
+export type Route =
   | "eew"
   | "seismicText"
   | "lgObservation"
@@ -364,11 +365,28 @@ function buildDisplayStats(
 
 // ── ファクトリ ──
 
+/**
+ * 分類済みの全電文を観測できる汎用購読点。
+ *
+ * `classifyMessage()` 直後 (ignore 早期 return・火山分岐・各種 suppression より前) に
+ * 同期呼び出しされる。ignore / raw / 後段 suppressed / 火山を含む「XML かつ分類済みの
+ * 全電文」が渡る。
+ *
+ * 契約: 重い処理をここに置かない (キュー投入や軽量な記録までに留める)。tap 内の例外は
+ * 呼び出し側で握り潰され本体処理には波及しないが、その分の失敗は listener 側の責務。
+ */
+export type RoutedMessageTap = (event: {
+  route: Route;
+  message: WsDataMessage;
+}) => void;
+
 /** createMessageHandler のオプション */
 export interface MessageHandlerOptions {
   pipeline?: FilterTemplatePipeline;
   display?: DisplayCallbacks;
   displaySink?: DisplayIngestSink;
+  /** 分類済みの全電文を観測する汎用 tap (同期・軽量前提)。@see RoutedMessageTap */
+  routeTaps?: readonly RoutedMessageTap[];
 }
 
 /** createMessageHandler の戻り値 */
@@ -392,6 +410,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const display = options?.display;
   const displaySink = options?.displaySink;
+  const routeTaps = options?.routeTaps;
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
@@ -486,6 +505,18 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     const route = classifyMessage(msg.classification, msg.head.type);
+
+    // 分類済みの全電文を汎用 tap に通知 (ignore / raw / suppressed / 火山も含む)。
+    // tap の例外は本体処理へ波及させない。
+    if (routeTaps) {
+      for (const tap of routeTaps) {
+        try {
+          tap({ route, message: msg });
+        } catch (e) {
+          log.warn(`[route-tap] tap 実行で例外: ${(e as Error).message}`);
+        }
+      }
+    }
 
     // 配信終了予定 + 既存表示と重複する電文は受信しても無視
     // (表示・通知・統計をすべてスキップ)
