@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { ParsedNankaiTroughInfo } from "../types";
 import * as theme from "./theme";
 import { nankaiTroughFrameLevel } from "../engine/presentation/level-helpers";
-import { typeLabel } from "./earthquake-formatter";
+import { typeLabel } from "./telegram-type-label";
 import { pushTextBodyBlock } from "./seismic-text-formatter";
 import {
   FrameLevel,
@@ -25,7 +25,7 @@ import {
 } from "./formatter";
 import { clampFrameContent } from "./responsive-table-engine";
 
-// ── ハイライトルール (earthquake-formatter から移設、パターン変更なし — spec §2 Out of scope) ──
+// ── ハイライトルール (旧 earthquake-formatter から移設、パターン変更なし — spec §2 Out of scope) ──
 
 /** 南海トラフ共通ルール */
 const NANKAI_COMMON_RULES: readonly HighlightRule[] = [

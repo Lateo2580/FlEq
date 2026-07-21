@@ -8,7 +8,7 @@
 
 ### 概要
 
-共通表示ユーティリティモジュール。フレーム描画プリミティブ、テキスト処理、設定キャッシュ等を提供する。電文タイプ別の `display*` 関数は `eew-formatter.ts`, `earthquake-formatter.ts`, `volcano-formatter.ts` に分割されており、本ファイルには共通関数のみ残る。すべての表示を `FrameLevel` に基づく色・罫線スタイルで統一する。表示モード (`normal` / `compact`) による出力切り替え、フレーム幅のキャッシュ管理、CJK 文字を考慮した視覚幅計算も担う。
+共通表示ユーティリティモジュール。フレーム描画プリミティブ、テキスト処理、設定キャッシュ等を提供する。電文タイプ別の `display*` 関数は `eew-formatter.ts`, `telegram-type-label.ts`, `volcano-formatter.ts` に分割されており、本ファイルには共通関数のみ残る。すべての表示を `FrameLevel` に基づく色・罫線スタイルで統一する。表示モード (`normal` / `compact`) による出力切り替え、フレーム幅のキャッシュ管理、CJK 文字を考慮した視覚幅計算も担う。
 
 chalk による色付けは直接ハードコードせず、`theme.ts` のロールシステム経由で解決する設計とし、カラーカスタマイズに対応している。
 
@@ -17,7 +17,7 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 |---------|------|
 | `formatter.ts` | 共通ユーティリティ (フレーム描画・テキスト処理・設定キャッシュ) |
 | `eew-formatter.ts` | EEW 表示 (`displayEewInfo`) |
-| `earthquake-formatter.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
+| `telegram-type-label.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
 | `volcano-formatter.ts` | 火山電文と火山警報 detail 表示 (`displayVolcanoInfo`, `renderVolcanoDetail`) |
 | `detail-renderers.ts` | `DetailSnapshot.kind` の網羅的 dispatch と category 別 renderer registry |
 | `vpwp50-detail-formatter.ts` | VPWP50 detail 射影の同期描画 |
@@ -65,7 +65,7 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 |---|---|---|
 | `displayRawHeader(msg: WsDataMessage): void` | (フォールバック) | パース未対応電文のヘッダ簡易表示 |
 
-**注:** `displayEarthquakeInfo`, `displayEewInfo`, `displayTsunamiInfo` 等の電文タイプ別表示関数は、それぞれ `earthquake-formatter.ts`, `eew-formatter.ts` に分割移動済み。火山電文の `displayVolcanoInfo` は `volcano-formatter.ts` に定義。
+**注:** `displayEarthquakeInfo`, `displayEewInfo`, `displayTsunamiInfo` 等の電文タイプ別表示関数は、それぞれ `telegram-type-label.ts`, `eew-formatter.ts` に分割移動済み。火山電文の `displayVolcanoInfo` は `volcano-formatter.ts` に定義。
 
 #### 型
 
@@ -867,7 +867,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 ### 依存関係
 
 - **インポート元**: `chalk`, `../../engine/presentation/types` (`PresentationEvent`), `../formatter` (`intensityColor`, `intensityToNumeric`)
-- **接続先**: `earthquake-formatter.ts`, `eew-formatter.ts` 等からミニマップ描画のために呼ばれる
+- **接続先**: `telegram-type-label.ts`, `eew-formatter.ts` 等からミニマップ描画のために呼ばれる
 
 ### 設計ノート
 

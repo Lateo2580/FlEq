@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { ParsedLgObservationInfo, LgObservationArea } from "../types";
 import * as theme from "./theme";
 import { lgObservationFrameLevel } from "../engine/presentation/level-helpers";
-import { typeLabel } from "./earthquake-formatter";
+import { typeLabel } from "./telegram-type-label";
 import {
   FrameLevel,
   RenderBuffer,

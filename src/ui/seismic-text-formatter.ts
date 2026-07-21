@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { ParsedSeismicTextInfo } from "../types";
 import * as theme from "./theme";
 import { seismicTextFrameLevel } from "../engine/presentation/level-helpers";
-import { typeLabel } from "./earthquake-formatter";
+import { typeLabel } from "./telegram-type-label";
 import {
   FrameLevel,
   HighlightRule,
@@ -25,7 +25,7 @@ import {
 } from "./formatter";
 import { clampFrameContent, pushClampedFrameLine } from "./responsive-table-engine";
 
-// ── ハイライトルール (earthquake-formatter から移設、パターン変更なし — spec §2 Out of scope) ──
+// ── ハイライトルール (旧 earthquake-formatter から移設、パターン変更なし — spec §2 Out of scope) ──
 
 /** テキスト系ルール */
 export const SEISMIC_TEXT_RULES: readonly HighlightRule[] = [

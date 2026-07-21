@@ -15,7 +15,7 @@ function lgInfo(overrides: Partial<ParsedLgObservationInfo>): ParsedLgObservatio
 }
 
 /**
- * Phase 4a: UI コピー (earthquake-formatter.ts:125-134, lgIntToNumeric ベース) 撤去前の
+ * Phase 4a: UI コピー (旧 earthquake-formatter.ts:125-134, lgIntToNumeric ベース) 撤去前の
  * 実値域同値性の固定。canonical (Number() + NaN ガード) は実 fixture 値域 "1"-"4" と
  * 欠損・取消で UI コピーと同値 (Codex R2 確認)。
  * 非正規文字列での差異 (canonical を真実源として採用):

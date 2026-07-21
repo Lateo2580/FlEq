@@ -3,7 +3,7 @@ import { ParsedEarthquakeInfo } from "../types";
 import * as theme from "./theme";
 import { intensityToRank } from "../utils/intensity";
 import { earthquakeFrameLevel } from "../engine/presentation/level-helpers";
-import { typeLabel } from "./earthquake-formatter";
+import { typeLabel } from "./telegram-type-label";
 import {
   wrapFrameLines,
   frameDividerLabeled,
@@ -42,7 +42,7 @@ export interface IntensityRow {
   areas: { name: string; lgIntensity?: string }[];  // 生データ (行構築時の中間参照)
 }
 
-/** 震度階級の表示順 (現行 earthquake-formatter :272 の order 配列を踏襲) */
+/** 震度階級の表示順 (旧 earthquake-formatter :272 の order 配列を踏襲) */
 const INTENSITY_ORDER = ["7", "6+", "6強", "6-", "6弱", "5+", "5強", "5-", "5弱", "4", "3", "2", "1"];
 
 /** 長周期地震動階級バッジ付き地域名 (現行踏襲) */
@@ -117,7 +117,7 @@ export function intensityColumns(mode: ResponsiveDisplayMode): ColumnSpec<Intens
   return [intCol, countCol, namesCol];
 }
 
-// ── 津波短縮テキスト (earthquake-formatter :83-90 から移設、ロジック同一) ──
+// ── 津波短縮テキスト (旧 earthquake-formatter :83-90 から移設、ロジック同一) ──
 
 /** 津波情報の短縮テキスト (カード行用) */
 export function tsunamiShort(info: ParsedEarthquakeInfo): string {

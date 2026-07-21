@@ -5,7 +5,7 @@
 
 - `src/ui/formatter.ts` — 共通表示（フレーム描画・RenderBuffer・recap・表示モード制御）
 - `src/ui/eew-formatter.ts` — 緊急地震速報（EEW）の表示
-- `src/ui/earthquake-formatter.ts` — 電文タイプ名 (`typeLabel`) の共有のみ
+- `src/ui/telegram-type-label.ts` — 電文タイプ名 (`typeLabel`) の共有のみ
 - `src/ui/earthquake-info-formatter.ts` — 地震情報 (VXSE51/52/53/61) の表示
 - `src/ui/seismic-text-formatter.ts` — 地震活動テキスト情報の表示
 - `src/ui/nankai-trough-formatter.ts` — 南海トラフ関連情報の表示
@@ -135,7 +135,7 @@ VFVO53 ヘッドライン (幅 60) の例。句点直後で折り (`です。` �
 **関数**: `displayEarthquakeInfo(info: ParsedEarthquakeInfo)`（`src/ui/earthquake-info-formatter.ts`）
 **パーサ**: `parseEarthquakeTelegram()`
 
-新デザイン言語（weather/津波系で確立したレスポンシブ TUI 列優先度モデル）を適用済み（2026-07 rollout）。旧 `earthquake-formatter.ts` のローカル `earthquakeFrameLevel` / `getDisplayMode() === "compact"` 分岐（震度一覧）は撤去済み。compact 表示は summary パイプライン (token-builders) 側の責務で、この formatter は full 表示のみを持つ。
+新デザイン言語（weather/津波系で確立したレスポンシブ TUI 列優先度モデル）を適用済み（2026-07 rollout）。旧 `telegram-type-label.ts` のローカル `earthquakeFrameLevel` / `getDisplayMode() === "compact"` 分岐（震度一覧）は撤去済み。compact 表示は summary パイプライン (token-builders) 側の責務で、この formatter は full 表示のみを持つ。
 
 ### 電文タイプ
 

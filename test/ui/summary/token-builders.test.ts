@@ -179,7 +179,7 @@ describe("buildSummaryTokens", () => {
       const { tokens } = makeTokens(FIXTURE_VXSE61_1, "earthquake");
 
       const typeToken = tokens.find((t) => t.id === "type")!;
-      // 正: 顕著な地震の震源要素更新のお知らせ (earthquake-formatter typeLabel と同系)。
+      // 正: 顕著な地震の震源要素更新のお知らせ (telegram-type-label typeLabel と同系)。
       // 旧実装は「遠地地震情報」と誤表記していた (Codex R1 発見)
       expect(typeToken.text).toBe("震源要素更新");
       expect(typeToken.shortText).toBe("震源更新");

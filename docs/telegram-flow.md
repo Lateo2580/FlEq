@@ -253,7 +253,7 @@ displayFn() — DisplayCallbacks 経由で各 display* 関数によるフル表�
 
 ### Step 6a: RenderBuffer の構築 (フル表示時)
 
-各 `display*` 関数 (`ui/eew-formatter.ts`, `ui/earthquake-formatter.ts`, `ui/volcano-formatter.ts`) は共通の構造を持つ。
+各 `display*` 関数 (`ui/eew-formatter.ts`, `ui/telegram-type-label.ts`, `ui/volcano-formatter.ts`) は共通の構造を持つ。
 
 ### Step 6a-detail: RenderBuffer の構築
 
@@ -362,7 +362,7 @@ colored フレームの formatter (weather 系等) は第 4 引数 `borderColor`
 | 5 | `engine/presentation/volcano-presentation.ts` | 火山表示/通知レベル判定 |
 | 6 | `ui/formatter.ts` | 共通表示 (フレーム描画・recap) |
 | 6 | `ui/eew-formatter.ts` | EEW 表示 |
-| 6 | `ui/earthquake-formatter.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
+| 6 | `ui/telegram-type-label.ts` | 地震・津波・テキスト・南海トラフ・長周期 表示 |
 | 6 | `ui/volcano-formatter.ts` | 火山 表示 |
 | 6 | `ui/theme.ts` | テーマシステム (カラーパレット・ロール定義) |
 | 6 | `ui/summary/summary-line.ts` | compact / focus 用の幅適応1行表示 |

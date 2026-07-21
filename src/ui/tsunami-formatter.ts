@@ -23,7 +23,7 @@ import {
   renderFooter,
   reflowTelegramLines,
 } from "./formatter";
-import { typeLabel } from "./earthquake-formatter";
+import { typeLabel } from "./telegram-type-label";
 import {
   ColumnSpec,
   ResponsiveDisplayMode,
@@ -75,7 +75,7 @@ export function tsunamiSeverityChalk(severity: TsunamiSeverity): (s: string) => 
   }
 }
 
-// ── 津波専用 helper (earthquake-formatter から移設) ──
+// ── 津波専用 helper (旧 earthquake-formatter から移設) ──
 
 /** 津波電文のバナーラベルを forecast の kind から決定する */
 export function tsunamiBannerLabel(info: ParsedTsunamiInfo): string {
