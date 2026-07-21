@@ -25,11 +25,17 @@ export interface PersistedStandbyStateV1 {
   typhoons: PersistedTyphoonStateV1[];
   volcanoes: PersistedVolcanoStateV1[];
   floods?: PersistedFloodState;
+  tornado?: PersistedTornadoStateV1 | null;
+  longPeriod?: PersistedLongPeriodStateV1[];
+  nankaiTrough?: PersistedNankaiStateV1 | null;
   seen: PersistedSeenEntry[];
 }
 
 export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; revision: StandbyRevision; }
+export interface PersistedTornadoStateV1 { sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; }
+export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; }
+export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; }
 
 export class StandbyPersistence {
   constructor(private readonly persistPath: string) {}
@@ -140,6 +146,9 @@ function isPersistedStandbyState(value: unknown): value is PersistedStandbyState
     && (value.typhoons == null || Array.isArray(value.typhoons))
     && (value.volcanoes == null || Array.isArray(value.volcanoes))
     && (value.floods == null || isFloodState(value.floods))
+    && (value.tornado == null || isRecord(value.tornado))
+    && (value.longPeriod == null || Array.isArray(value.longPeriod))
+    && (value.nankaiTrough == null || isRecord(value.nankaiTrough))
     && Array.isArray(value.seen)
     && value.seen.every(isSeenEntry);
 }

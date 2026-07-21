@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import RestoredChip from "./RestoredChip.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> } = $props();
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
     const number = typhoon.typhoonNumber == null ? null : Number(typhoon.typhoonNumber.slice(2));
@@ -8,7 +9,7 @@
 </script>
 
 <section class="standby-card typhoon-card">
-  <header>台風情報</header>
+  <header>台風情報{#if item.restored}<RestoredChip />{/if}</header>
   {#each item.data.typhoons as typhoon (typhoon.typhoonKey)}
     <div class="typhoon"><strong>{title(typhoon)}</strong>{#if typhoon.name == null && typhoon.remark != null}<span>{typhoon.remark}</span>{/if}<div class="facts">{#if typhoon.location != null}<span>{typhoon.location}</span>{/if}{#if typhoon.pressureHpa != null}<span>中心気圧 {typhoon.pressureHpa}hPa</span>{/if}{#if typhoon.maxWindMs != null}<span>最大風速 {typhoon.maxWindMs}m/s</span>{/if}{#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}<span>{typhoon.moveDirection} {typhoon.moveSpeedKmh}km/h</span>{/if}</div></div>
   {/each}

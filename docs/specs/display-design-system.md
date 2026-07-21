@@ -711,4 +711,8 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | dim-mid-weatherWarning | 14 dim×通常レーン警報本文 | dim | `floor(--role-weatherWarning)` | `dim60(--surface-low)` | 8.70:1 | 4.5:1 | PASS |
 <!-- GENERATED:contrast:end -->
 
+## 5. 待機画面カード拡充
+
+HeatAlertCard、TyphoonCard、VolcanoCard、FloodCard/FloodWideCard は右上または時計上の待機カードである。NankaiBadge は時計下、竜巻と長周期地震動は既存の WeatherAlertCard / LatestQuakeCard の rider として表示する。右上の収容上限を超えたカードは StandbyOverflowSummary に集約する。RestoredChip（同期中）は永続化から復元した状態だけに付け、live 更新後は消す。critical standby は tier と夜間減光を抑止するが、emergency 画面遷移はしない。
+
 </details>

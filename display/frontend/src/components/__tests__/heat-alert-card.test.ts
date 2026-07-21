@@ -22,6 +22,6 @@ describe("HeatAlertCard", () => {
   it("marks special and restored cards", () => {
     const { container } = render(HeatAlertCard, { item: heatItem({ restored: true, severity: "critical", data: { targetDate: "2026-07-21", areas: [{ areaName: "Tokyo", isSpecial: true }] } }) });
     expect(container.querySelector(".heat-card")?.classList.contains("critical")).toBe(true);
-    expect(container.querySelector(".restored")).toBeTruthy();
+    expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
   });
 });

@@ -31,4 +31,9 @@ describe("VolcanoCard", () => {
     expect(container.querySelectorAll(".volcano")).toHaveLength(2);
     expect(container.textContent).toContain("eruption");
   });
+
+  it("marks a restored card as synchronizing", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({ restored: true }) });
+    expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
+  });
 });

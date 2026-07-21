@@ -11,11 +11,11 @@ function river(key: string, level: "L3" | "L4" | "L5" = "L3"): DisplayFloodRiver
   };
 }
 
-function floodItem(rivers: DisplayFloodRiverV1[]): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
+function floodItem(rivers: DisplayFloodRiverV1[], restored = false): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
   return {
     kind: "flood", surface: "corner-right", key: "flood:active", sourceEventIds: ["flood-1"],
     updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-21T12:00:00.000Z",
-    restored: false, severity: rivers.some((candidate) => candidate.levelRank >= 40) ? "critical" : "warning",
+    restored, severity: rivers.some((candidate) => candidate.levelRank >= 40) ? "critical" : "warning",
     data: { rivers },
   };
 }
@@ -33,5 +33,10 @@ describe("FloodCard", () => {
     warning.unmount();
     const critical = render(FloodCard, { item: floodItem([river("多摩", "L5")]) });
     expect(critical.container.querySelector(".flood-card")?.classList.contains("critical")).toBe(true);
+  });
+
+  it("marks a restored card as synchronizing", () => {
+    const { container } = render(FloodCard, { item: floodItem([river("多摩")], true) });
+    expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
   });
 });

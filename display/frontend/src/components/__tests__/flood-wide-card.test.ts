@@ -15,11 +15,11 @@ function river(index: number): DisplayFloodRiverV1 {
   };
 }
 
-function floodItem(count: number): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
+function floodItem(count: number, restored = false): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
   return {
     kind: "flood", surface: "clock-top-wide", key: "flood:active", sourceEventIds: ["flood-1"],
     updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-21T12:00:00.000Z",
-    restored: false, severity: "critical", data: { rivers: Array.from({ length: count }, (_, index) => river(index + 1)) },
+    restored, severity: "critical", data: { rivers: Array.from({ length: count }, (_, index) => river(index + 1)) },
   };
 }
 
@@ -40,5 +40,10 @@ describe("FloodWideCard", () => {
     expect(source).toContain("grid-template-columns: 1fr 1fr");
     expect(source).toContain("max-height: 30vh");
     expect(source).toContain("overflow: hidden");
+  });
+
+  it("marks a restored card as synchronizing", () => {
+    const { container } = render(FloodWideCard, { item: floodItem(4, true) });
+    expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
   });
 });

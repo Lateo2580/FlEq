@@ -217,6 +217,10 @@ export class DisplayStateStore {
     for (const eew of this.activeEews.values()) bump(eew.isWarning ? "alert" : "caution");
     for (const q of this.largeQuakes.values()) if (q.maxIntRank >= TIER_QUAKE_ALERT_RANK) bump("alert");
     if (this.latestQuake != null && (this.latestQuake.maxIntRank ?? 0) >= TIER_QUAKE_ALERT_RANK) bump("alert");
+    for (const item of this.standbyItemsProvider?.() ?? []) {
+      if (item.kind === "nankaiTrough" && item.severity === "critical") bump("caution");
+      else if (item.severity === "critical") bump("alert");
+    }
     return tier;
   }
 

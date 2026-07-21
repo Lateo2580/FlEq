@@ -18,7 +18,7 @@
   import QuakeHeadline from "./QuakeHeadline.svelte";
   import PageDots from "./PageDots.svelte";
 
-  let { quake }: { quake: DisplayLatestQuakeStateV1 } = $props();
+  let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string } | null } = $props();
 
   // 固定サマリ計器「ヘッドライン2行」(最大震度規模行 + 拡大範囲行、spec §2-b 改訂 2026-07-09)。
   // 旧・震度分布行/県別件数行は「広域」連呼が情報ゼロ・裸の数字が単位不明だったため廃止した
@@ -126,6 +126,7 @@
         <span class="time stat-value">{formatMdHm(quake.originTime ?? quake.reportDateTime)}</span>
       </div>
     </div>
+    {#if longPeriod != null}<div class="long-period-rider">長周期地震動階級 {longPeriod.maxLgInt}</div>{/if}
     {#if headline != null}
       <QuakeHeadline {headline} variant="card" />
       {#if paging}
@@ -264,6 +265,7 @@
     gap: var(--space-3);
     margin: var(--space-2) 0 6px;
   }
+  .long-period-rider { margin: 0 0 var(--space-2); padding: var(--space-1) var(--space-2); border-left: 3px solid var(--role-weatherWarning); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); }
   .stat {
     display: flex;
     flex-direction: column;

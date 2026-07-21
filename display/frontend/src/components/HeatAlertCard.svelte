@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import RestoredChip from "./RestoredChip.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "heat" }> } = $props();
   const special = $derived(item.severity === "critical" || item.data.areas.some((area) => area.isSpecial));
 </script>
 
 <section class:critical={special} class="standby-card heat-card">
-  <header>{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}{#if item.restored}<span class="restored">同期中</span>{/if}</header>
+  <header>{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}{#if item.restored}<RestoredChip />{/if}</header>
   <div class="date">{item.data.targetDate}</div>
   <div class="areas">{item.data.areas.map((area) => area.areaName).join("・")}</div>
 </section>
@@ -16,5 +17,4 @@
   .critical header { color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 16%, var(--surface-standby)); }
   .date, .areas { padding: 0 var(--space-4) var(--space-2); font-size: max(14px, var(--type-label-l-fluid)); }
   .areas { color: var(--role-muted); }
-  .restored { float: right; font-size: max(12px, var(--type-label-xs-fluid)); color: var(--role-muted); }
 </style>

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { DisplayWeatherAlertItemV1, DisplayWeatherAlertV1, DisplayWeatherRank } from "../lib/protocol";
+  import type { ActiveStandbyCardV1, DisplayWeatherAlertItemV1, DisplayWeatherAlertV1, DisplayWeatherRank } from "../lib/protocol";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
 
-  let { alerts }: { alerts: DisplayWeatherAlertV1[] } = $props();
+  let { alerts, tornado = null }: { alerts: DisplayWeatherAlertV1[]; tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null } = $props();
 
   const RANK_ORDER: Record<DisplayWeatherRank, number> = { emergency: 3, warning: 2, advisory: 1 };
 
@@ -77,13 +77,13 @@
   // を使い、県名にマッチしない地域 (離島部等) も県名見出しと同格の独立見出しにする (backlog §1)
 </script>
 
-{#if alerts.length > 0}
+{#if alerts.length > 0 || tornado != null}
   <div class="weather-card">
     <div
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
     >{headerLabel(topRole)}</div>
-    <ul>
+    {#if alerts.length > 0}<ul>
       {#each items as it (it.kind + it.rank)}
         <li class="rank-{it.rank}">
           <span class="kind">{it.kind}</span>
@@ -105,7 +105,8 @@
           {/if}
         </li>
       {/each}
-    </ul>
+    </ul>{/if}
+    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas[0] ?? "対象地域"}{tornado.data.areas.length > 1 ? " ほか" : ""}）</div>{/if}
   </div>
 {/if}
 
@@ -135,6 +136,8 @@
     padding: 6px 0;
     font-size: max(14px, var(--type-label-l-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
   }
+  .tornado-rider { border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); }
+  .tornado-rider.sighted { color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 10%, var(--surface-standby)); }
   .kind {
     font-weight: var(--type-body-weight-emphasized);
     white-space: nowrap;

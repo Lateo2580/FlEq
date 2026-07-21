@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import { layoutFloodWideRows } from "../lib/standby-cards";
+  import RestoredChip from "./RestoredChip.svelte";
 
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
   let viewportHeightPx = $state(typeof window === "undefined" ? 720 : window.innerHeight);
@@ -15,7 +16,7 @@
 </script>
 
 <section class:critical={item.severity === "critical"} class="standby-card flood-wide-card">
-  <header>河川洪水情報</header>
+  <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   <div class="river-grid">
     {#each layout.visible as river (river.riverKey)}
       <div class:critical-river={river.levelRank >= 40} class="river-row">{river.riverName}　{river.kindName}（{river.level}）</div>

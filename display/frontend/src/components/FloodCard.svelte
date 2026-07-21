@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import RestoredChip from "./RestoredChip.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
 </script>
 
 <section class:critical={item.severity === "critical"} class="standby-card flood-card">
-  <header>河川洪水情報</header>
+  <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   {#each item.data.rivers as river (river.riverKey)}
     <div class:critical-river={river.levelRank >= 40} class="river-row">{river.riverName}　{river.kindName}（{river.level}）</div>
   {/each}

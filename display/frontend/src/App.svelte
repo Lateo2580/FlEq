@@ -29,7 +29,8 @@
   // effective (実効) だけを明るい側へ倒す。収束すれば自動で減光に戻る。合成則は
   // computeEffectiveDim (Task 1 で真理値表テスト済み) を使う。
   let tickerAlertActive = $state(false);
-  const effectiveDim = $derived(computeEffectiveDim(dim.requested, tickerAlertActive));
+  const standbyAlertActive = $derived(connection.state.snapshot?.standbyItems?.some((item) => item.severity === "critical") ?? false);
+  const effectiveDim = $derived(computeEffectiveDim(dim.requested, tickerAlertActive || standbyAlertActive));
 
   $effect(() => {
     connection.start();

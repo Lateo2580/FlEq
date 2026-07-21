@@ -1,4 +1,5 @@
 import type { PresentationEvent } from "../presentation/types";
+import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedTornadoAdvisory } from "../../types";
 import type { ActiveStandbyCardV1, DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
 import type { PersistedStandbyStateV1 } from "./standby-persistence";
 import { FloodActiveReducer } from "./flood-active-reducer";
@@ -12,11 +13,18 @@ import {
   type StandbyRevision,
 } from "./standby-registry";
 import { RevisionGuard } from "./revision-guard";
+import { nankaiBadgeAction } from "./nankai-status";
+import { QUAKE_CARD_TTL_HIGH_MIN, QUAKE_CARD_TTL_LOW_MIN, QUAKE_CARD_TTL_MID_MIN } from "./constants";
+import { intensityToRank } from "../../utils/intensity";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
 
 const DAY_MS = 24 * 60 * 60_000;
+const HOUR_MS = 60 * 60_000;
+const NANKAI_TTL_MS = 7 * DAY_MS;
+const QUAKE_CARD_HIGH_RANK = intensityToRank("5弱");
+const QUAKE_CARD_MID_RANK = intensityToRank("3");
 
 interface HeatState {
   sourceEventIds: string[];
@@ -48,6 +56,33 @@ interface VolcanoState {
   restored: boolean;
 }
 
+interface TornadoState {
+  sourceEventId: string;
+  areas: string[];
+  isSighted: boolean;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+  restored: boolean;
+}
+
+interface LongPeriodState {
+  eventId: string;
+  maxLgInt: string;
+  revision: StandbyRevision;
+  hosted: boolean;
+  expiresAtMs: number;
+  restored: boolean;
+}
+
+interface NankaiState {
+  sourceEventId: string;
+  statusCode: string;
+  label: string;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+  restored: boolean;
+}
+
 export interface VolcanoSeedEntry {
   volcanoCode: string;
   volcanoName: string;
@@ -59,6 +94,9 @@ export class StandbyStateStore {
   private heatAlerts = new Map<string, HeatState>();
   private typhoons = new Map<string, TyphoonState>();
   private volcanoes = new Map<string, VolcanoState>();
+  private tornado: TornadoState | null = null;
+  private longPeriodByEvent = new Map<string, LongPeriodState>();
+  private nankaiTrough: NankaiState | null = null;
   private readonly floods = new FloodActiveReducer();
   private readonly revisionGuard = new RevisionGuard();
   private readonly changeListeners: Array<() => void> = [];
@@ -67,6 +105,9 @@ export class StandbyStateStore {
   applyEvent(event: PresentationEvent, nowMs: number): DisplayMutation {
     let mutation = NO_MUTATION;
     switch (event.domain) {
+      case "earthquake":
+        mutation = this.applyEarthquakeHost(event, nowMs);
+        break;
       case "heatAlert":
         mutation = this.applyHeat(event, nowMs);
         break;
@@ -81,11 +122,106 @@ export class StandbyStateStore {
         mutation = update == null ? NO_MUTATION : this.floods.apply(update, nowMs);
         break;
       }
+      case "tornado":
+        mutation = this.applyTornado(event, nowMs);
+        break;
+      case "lgObservation":
+        mutation = this.applyLongPeriod(event, nowMs);
+        break;
+      case "nankaiTrough":
+        mutation = this.applyNankai(event, nowMs);
+        break;
       default:
         return NO_MUTATION;
     }
     this.notify(mutation);
     return mutation;
+  }
+
+  private applyNankai(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
+    const raw = event.raw as ParsedNankaiTroughInfo;
+    const status = nankaiBadgeAction(raw.infoSerial?.code ?? null);
+    if (status.action === "ignore") return NO_MUTATION;
+    const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
+    if (!this.revisionGuard.accept("nankai:current", revision, nowMs)) return NO_MUTATION;
+    if (status.action === "deactivate" || event.isCancellation) {
+      const changed = this.nankaiTrough != null;
+      this.nankaiTrough = null;
+      return { viewChanged: changed, durableChanged: true };
+    }
+    const code = raw.infoSerial?.code;
+    if (code == null) return NO_MUTATION;
+    this.nankaiTrough = { sourceEventId: event.eventId ?? event.id, statusCode: code, label: status.label, revision, expiresAtMs: revision.reportTimeMs + NANKAI_TTL_MS, restored: false };
+    return { viewChanged: true, durableChanged: true };
+  }
+
+  private applyTornado(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
+    const raw = event.raw as ParsedTornadoAdvisory;
+    const revision = revisionOf(event.reportDateTime, event.serial ?? raw.serial, nowMs);
+    if (!this.revisionGuard.accept("tornado:current", revision, nowMs)) return NO_MUTATION;
+    if (event.isCancellation || raw.activeAreaCount === 0) {
+      const changed = this.tornado != null;
+      this.tornado = null;
+      return { viewChanged: changed, durableChanged: true };
+    }
+    const validMs = raw.validDateTime == null ? Number.NaN : Date.parse(raw.validDateTime);
+    this.tornado = {
+      sourceEventId: event.id,
+      areas: event.areaItems.map((area) => area.name),
+      isSighted: raw.hasSightingAreas,
+      revision,
+      expiresAtMs: Number.isNaN(validMs) ? revision.reportTimeMs + HOUR_MS : validMs,
+      restored: false,
+    };
+    return { viewChanged: true, durableChanged: true };
+  }
+
+  private applyLongPeriod(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (event.eventId == null || event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
+    const raw = event.raw as ParsedLgObservationInfo;
+    if (raw.maxLgInt == null) return NO_MUTATION;
+    const key = `longPeriod:${event.eventId}`;
+    const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
+    if (!this.revisionGuard.accept(key, revision, nowMs)) return NO_MUTATION;
+    if (event.isCancellation) {
+      const changed = this.longPeriodByEvent.delete(event.eventId);
+      return { viewChanged: changed, durableChanged: true };
+    }
+    const existing = this.longPeriodByEvent.get(event.eventId);
+    this.longPeriodByEvent.set(event.eventId, {
+      eventId: event.eventId,
+      maxLgInt: raw.maxLgInt,
+      revision,
+      hosted: existing?.hosted ?? false,
+      expiresAtMs: existing?.hosted === true ? existing.expiresAtMs : revision.reportTimeMs + 12 * HOUR_MS,
+      restored: false,
+    });
+    return { viewChanged: existing?.hosted === true, durableChanged: true };
+  }
+
+  private applyEarthquakeHost(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (event.isCancellation || event.eventId == null) return NO_MUTATION;
+    let changed = false;
+    for (const [eventId, state] of this.longPeriodByEvent) {
+      if (eventId !== event.eventId) {
+        this.longPeriodByEvent.delete(eventId);
+        changed ||= state.hosted;
+      }
+    }
+    const rider = this.longPeriodByEvent.get(event.eventId);
+    if (rider == null) return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
+    rider.hosted = true;
+    rider.restored = false;
+    rider.expiresAtMs = nowMs + this.quakeCardTtlMs(event.maxIntRank ?? 0);
+    return { viewChanged: true, durableChanged: true };
+  }
+
+  private quakeCardTtlMs(rank: number): number {
+    if (rank >= QUAKE_CARD_HIGH_RANK) return QUAKE_CARD_TTL_HIGH_MIN * 60_000;
+    if (rank >= QUAKE_CARD_MID_RANK) return QUAKE_CARD_TTL_MID_MIN * 60_000;
+    return QUAKE_CARD_TTL_LOW_MIN * 60_000;
   }
 
   private applyTyphoon(event: PresentationEvent, nowMs: number): DisplayMutation {
@@ -252,6 +388,23 @@ export class StandbyStateStore {
         durableChanged = true;
       }
     }
+    if (this.tornado != null && this.tornado.expiresAtMs <= nowMs) {
+      this.tornado = null;
+      viewChanged = true;
+      durableChanged = true;
+    }
+    for (const [eventId, state] of this.longPeriodByEvent) {
+      if (state.expiresAtMs <= nowMs) {
+        this.longPeriodByEvent.delete(eventId);
+        viewChanged ||= state.hosted;
+        durableChanged = true;
+      }
+    }
+    if (this.nankaiTrough != null && this.nankaiTrough.expiresAtMs <= nowMs) {
+      this.nankaiTrough = null;
+      viewChanged = true;
+      durableChanged = true;
+    }
     if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
     const floodMutation = this.floods.sweep(nowMs);
     viewChanged ||= floodMutation.viewChanged;
@@ -299,6 +452,21 @@ export class StandbyStateStore {
     }
     const flood = this.floods.snapshotCard();
     if (flood != null) items.push(flood);
+    if (this.tornado != null) items.push({
+      kind: "tornado", surface: "weather-rider", key: "tornado:current", sourceEventIds: [this.tornado.sourceEventId],
+      updatedAt: new Date(this.tornado.revision.reportTimeMs).toISOString(), expiresAt: new Date(this.tornado.expiresAtMs).toISOString(), restored: this.tornado.restored,
+      severity: this.tornado.isSighted ? "critical" : "warning", data: { areas: [...this.tornado.areas], isSighted: this.tornado.isSighted },
+    });
+    for (const state of this.longPeriodByEvent.values()) if (state.hosted) items.push({
+      kind: "longPeriod", surface: "quake-rider", key: `longPeriod:${state.eventId}`, sourceEventIds: [state.eventId],
+      updatedAt: new Date(state.revision.reportTimeMs).toISOString(), expiresAt: new Date(state.expiresAtMs).toISOString(), restored: state.restored,
+      severity: state.maxLgInt === "4" ? "critical" : "warning", data: { eventId: state.eventId, maxLgInt: state.maxLgInt },
+    });
+    if (this.nankaiTrough != null) items.push({
+      kind: "nankaiTrough", surface: "clock-below", key: "nankai:current", sourceEventIds: [this.nankaiTrough.sourceEventId],
+      updatedAt: new Date(this.nankaiTrough.revision.reportTimeMs).toISOString(), expiresAt: new Date(this.nankaiTrough.expiresAtMs).toISOString(), restored: this.nankaiTrough.restored,
+      severity: this.nankaiTrough.label.includes("警戒") ? "critical" : "warning", data: { statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label },
+    });
     return sortStandbyItems(items);
   }
 
@@ -318,6 +486,9 @@ export class StandbyStateStore {
       typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
       volcanoes: [...this.volcanoes.values()].map((state) => ({ code: state.code, name: state.name, alertLevel: state.alertLevel, alertExpiresAtMs: state.alertExpiresAtMs, latestEvent: state.latestEvent, eventExpiresAtMs: state.eventExpiresAtMs, sourceEventIds: [...state.sourceEventIds], revision: { ...state.revision } })),
       floods: this.floods.exportState(),
+      tornado: this.tornado == null ? null : { sourceEventId: this.tornado.sourceEventId, areas: [...this.tornado.areas], isSighted: this.tornado.isSighted, revision: { ...this.tornado.revision }, expiresAtMs: this.tornado.expiresAtMs },
+      longPeriod: [...this.longPeriodByEvent.values()].map((state) => ({ eventId: state.eventId, maxLgInt: state.maxLgInt, revision: { ...state.revision }, hosted: state.hosted, expiresAtMs: state.expiresAtMs })),
+      nankaiTrough: this.nankaiTrough == null ? null : { sourceEventId: this.nankaiTrough.sourceEventId, statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label, revision: { ...this.nankaiTrough.revision }, expiresAtMs: this.nankaiTrough.expiresAtMs },
       seen: this.revisionGuard.export(),
     };
   }
@@ -326,6 +497,9 @@ export class StandbyStateStore {
     this.heatAlerts.clear();
     this.typhoons.clear();
     this.volcanoes.clear();
+    this.tornado = null;
+    this.longPeriodByEvent.clear();
+    this.nankaiTrough = null;
     for (const state of data.heat) {
       if (state.targetDateEndMs <= nowMs) continue;
       this.heatAlerts.set(state.key, {
@@ -344,6 +518,9 @@ export class StandbyStateStore {
     for (const state of data.volcanoes ?? []) {
       if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) this.volcanoes.set(state.code, { ...state, sourceEventIds: [...state.sourceEventIds], revision: { ...state.revision }, restored: true });
     }
+    if (data.tornado != null && data.tornado.expiresAtMs > nowMs) this.tornado = { ...data.tornado, areas: [...data.tornado.areas], revision: { ...data.tornado.revision }, restored: true };
+    for (const state of data.longPeriod ?? []) if (state.expiresAtMs > nowMs) this.longPeriodByEvent.set(state.eventId, { ...state, revision: { ...state.revision }, restored: true });
+    if (data.nankaiTrough != null && data.nankaiTrough.expiresAtMs > nowMs) this.nankaiTrough = { ...data.nankaiTrough, revision: { ...data.nankaiTrough.revision }, restored: true };
     this.floods.restoreState(data.floods ?? { events: [], seen: [] }, nowMs);
     this.revisionGuard.restore(data.seen, nowMs);
   }

@@ -25,6 +25,7 @@
   import FloodCard from "./FloodCard.svelte";
   import FloodWideCard from "./FloodWideCard.svelte";
   import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
+  import NankaiBadge from "./NankaiBadge.svelte";
   import { partitionStandbyItems, selectRightStack } from "../lib/standby-cards";
   import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
@@ -176,6 +177,9 @@
     },
   ));
   const rightOverflow = $derived([...rightStack.overflow, ...standbyPartitions.unknown]);
+  const tornadoItem = $derived(standbyPartitions.weatherRider.find((item) => item.kind === "tornado") as Extract<ActiveStandbyCardV1, { kind: "tornado" }> | undefined ?? null);
+  const longPeriodItem = $derived(standbyPartitions.quakeRider.find((item) => item.kind === "longPeriod" && item.data.eventId === snapshot.latestQuake?.eventId) as Extract<ActiveStandbyCardV1, { kind: "longPeriod" }> | undefined ?? null);
+  const nankaiItem = $derived(standbyPartitions.clockBelow.find((item) => item.kind === "nankaiTrough") as Extract<ActiveStandbyCardV1, { kind: "nankaiTrough" }> | undefined ?? null);
 
   // 時計ブロック (切断バッジ + 時刻 + 日付) の実測高さの半分 (px)。時計は .clock-row が
   // top:50% 中央配置なので、その「実下端」= 50% + 高さ/2。統計行の帯はこの実下端から始める
@@ -250,13 +254,13 @@
     </div>
   {/each}
   <div class="corner-right">
-    {#if snapshot.weatherAlerts.length > 0}
+    {#if snapshot.weatherAlerts.length > 0 || tornadoItem != null}
       <div
         class="weather-corner"
         in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
         out:fade={{ duration: exitDur }}
       >
-        <WeatherAlertCard alerts={snapshot.weatherAlerts} />
+        <WeatherAlertCard alerts={snapshot.weatherAlerts} tornado={tornadoItem} />
       </div>
     {/if}
     {#each rightStack.visible as item (item.key)}
@@ -288,7 +292,7 @@
           <!-- 同一 key スロットの内側差し替え。replay 選択中は replay を出し LatestQuakeCard は隠す -->
           <QuakeReplayCard quake={item.replay} onClose={closeQuakeCard} />
         {:else}
-          <LatestQuakeCard quake={item.quake} />
+          <LatestQuakeCard quake={item.quake} longPeriod={longPeriodItem?.data ?? null} />
         {/if}
       </div>
     {/each}
@@ -296,6 +300,7 @@
   <div class="clock-row">
     <div class="clock-stack" use:measureBorderHeight={(h) => (clockHalfPx = h / 2)}>
       <ConnectionBadge connection={snapshot.connection} {sseConnected} />
+      {#if nankaiItem != null}<NankaiBadge item={nankaiItem} />{/if}
       <Clock {now} />
     </div>
   </div>

@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import { VOLCANO_LEVEL_LABELS } from "../lib/standby-cards";
+  import RestoredChip from "./RestoredChip.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "volcano" }> } = $props();
 </script>
 
 <section class:critical={item.severity === "critical"} class="standby-card volcano-card">
-  <header>火山情報</header>
+  <header>火山情報{#if item.restored}<RestoredChip />{/if}</header>
   {#each item.data.volcanoes as volcano (volcano.code)}
     <div class="volcano"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span>レベル{volcano.alertLevel}（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}{#if volcano.latestEvent != null}<strong>{volcano.latestEvent}</strong>{/if}</div>
   {/each}
