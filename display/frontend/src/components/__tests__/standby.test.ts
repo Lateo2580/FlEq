@@ -11,6 +11,8 @@ import type {
   DisplayStatsV1,
   DisplayTsunamiStateV1,
   DisplayWeatherAlertV1,
+  ActiveStandbyCardV1,
+  DisplayFloodRiverV1,
 } from "../../lib/protocol";
 
 function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
@@ -92,6 +94,19 @@ function recentQuake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQua
   };
 }
 
+function floodStandbyItem(surface: "corner-right" | "clock-top-wide", count: number): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
+  const rivers: DisplayFloodRiverV1[] = Array.from({ length: count }, (_, index) => ({
+    riverKey: `river-${index}`, riverName: `第${index + 1}川`, level: index === 0 ? "L4" : "L3",
+    levelRank: index === 0 ? 40 : 30, kindName: index === 0 ? "氾濫危険情報" : "氾濫警戒情報",
+    reportDateTime: "2026-07-21T00:00:00.000Z",
+  }));
+  return {
+    kind: "flood", surface, key: "flood:active", sourceEventIds: ["flood-1"],
+    updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-21T12:00:00.000Z",
+    restored: false, severity: "critical", data: { rivers },
+  };
+}
+
 const now = new Date("2026-07-06T21:00:00+09:00");
 
 // ② weatherAlerts render / ③ tsunami demoted 常駐バナー のテストは Phase B (Expressive
@@ -100,6 +115,25 @@ const now = new Date("2026-07-06T21:00:00+09:00");
 // ゼロを確認の上、デッドコードとして削除済み)。
 
 describe("StandbyScreen", () => {
+  it("renders normal and wide flood surfaces through one keyed flood slot", async () => {
+    const { container, rerender } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [floodStandbyItem("corner-right", 3)] }),
+      now, dim: false, sseConnected: true,
+    });
+    expect(container.querySelectorAll(".flood-slot")).toHaveLength(1);
+    expect(container.querySelector(".flood-slot.flood-corner .flood-card")).toBeTruthy();
+    expect(container.querySelector(".flood-wide-card")).toBeFalsy();
+
+    await rerender({
+      snapshot: baseSnapshot({ standbyItems: [floodStandbyItem("clock-top-wide", 4)] }),
+      now, dim: false, sseConnected: true,
+    });
+    await tick();
+    expect(container.querySelectorAll(".flood-slot")).toHaveLength(1);
+    expect(container.querySelector(".flood-slot.clock-top-slot .flood-wide-card")).toBeTruthy();
+    expect(container.querySelector(".flood-card")).toBeFalsy();
+  });
+
   it("recentQuakes が空のとき .quakes-card ごと非表示になる (2026-07-11 目視観察の修正)", () => {
     const { container } = render(StandbyScreen, {
       snapshot: baseSnapshot({ recentQuakes: [] }),

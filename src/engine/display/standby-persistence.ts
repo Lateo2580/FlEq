@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as log from "../../logger";
-import type { DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
-import type { PersistedSeenEntry } from "./standby-state-store";
+import type { DisplayFloodRiverV1, DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
+import type { PersistedFloodState } from "./flood-active-reducer";
+import type { PersistedSeenEntry } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
 
 const PERSIST_SCHEMA_VERSION = 1;
@@ -23,6 +24,7 @@ export interface PersistedStandbyStateV1 {
   heat: PersistedHeatStateV1[];
   typhoons: PersistedTyphoonStateV1[];
   volcanoes: PersistedVolcanoStateV1[];
+  floods?: PersistedFloodState;
   seen: PersistedSeenEntry[];
 }
 
@@ -106,6 +108,29 @@ function isSeenEntry(value: unknown): value is PersistedSeenEntry {
     && Number.isFinite(value.forgetAtMs);
 }
 
+function isFloodRiver(value: unknown): value is DisplayFloodRiverV1 {
+  if (!isRecord(value)) return false;
+  return typeof value.riverKey === "string"
+    && typeof value.riverName === "string"
+    && typeof value.level === "string"
+    && typeof value.levelRank === "number"
+    && Number.isFinite(value.levelRank)
+    && typeof value.kindName === "string"
+    && typeof value.reportDateTime === "string";
+}
+
+function isFloodState(value: unknown): value is PersistedFloodState {
+  if (!isRecord(value) || !Array.isArray(value.events) || !Array.isArray(value.seen)) return false;
+  return value.events.every((event) => isRecord(event)
+      && typeof event.eventId === "string"
+      && isRevision(event.revision)
+      && Array.isArray(event.rivers)
+      && event.rivers.every(isFloodRiver)
+      && typeof event.expiresAtMs === "number"
+      && Number.isFinite(event.expiresAtMs))
+    && value.seen.every(isSeenEntry);
+}
+
 function isPersistedStandbyState(value: unknown): value is PersistedStandbyStateV1 {
   if (!isRecord(value)) return false;
   return value.version === PERSIST_SCHEMA_VERSION
@@ -114,6 +139,7 @@ function isPersistedStandbyState(value: unknown): value is PersistedStandbyState
     && value.heat.every(isHeatState)
     && (value.typhoons == null || Array.isArray(value.typhoons))
     && (value.volcanoes == null || Array.isArray(value.volcanoes))
+    && (value.floods == null || isFloodState(value.floods))
     && Array.isArray(value.seen)
     && value.seen.every(isSeenEntry);
 }

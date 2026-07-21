@@ -47,3 +47,23 @@ export function selectRightStack(
 export const VOLCANO_LEVEL_LABELS: Record<number, string> = {
   1: "活火山であることに留意", 2: "火口周辺規制", 3: "入山規制", 4: "高齢者等避難", 5: "避難",
 };
+
+const FLOOD_WIDE_HEADER_ESTIMATE_PX = 48;
+const FLOOD_WIDE_ROW_ESTIMATE_PX = 40;
+const FLOOD_WIDE_MIN_GRID_ROWS = 2;
+
+export function layoutFloodWideRows(
+  rivers: Extract<ActiveStandbyCardV1, { kind: "flood" }>["data"]["rivers"],
+  viewportHeightPx: number,
+): { visible: typeof rivers; omittedCount: number } {
+  const maxHeightPx = Math.max(0, viewportHeightPx * 0.3);
+  const gridRows = Math.max(
+    FLOOD_WIDE_MIN_GRID_ROWS,
+    Math.floor((maxHeightPx - FLOOD_WIDE_HEADER_ESTIMATE_PX) / FLOOD_WIDE_ROW_ESTIMATE_PX),
+  );
+  const cellCapacity = gridRows * 2;
+  if (rivers.length <= cellCapacity) return { visible: rivers, omittedCount: 0 };
+  // 集約行は 2 カラムを横断するため、最終グリッド行 (2 cell 分) を先に予約する。
+  const visibleCount = Math.max(0, cellCapacity - 2);
+  return { visible: rivers.slice(0, visibleCount), omittedCount: rivers.length - visibleCount };
+}

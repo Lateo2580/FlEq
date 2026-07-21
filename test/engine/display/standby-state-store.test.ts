@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
-import type { ParsedHeatAlertInfo, ParsedTyphoonAnalysis, ParsedVolcanoInfo } from "../../../src/types";
+import type { ParsedFloodForecastInfo, ParsedHeatAlertInfo, ParsedTyphoonAnalysis, ParsedVolcanoInfo } from "../../../src/types";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
@@ -257,5 +257,34 @@ describe("StandbyStateStore: volcano", () => {
     store.applyEvent(volcanoEvent({ id: "lowered", serial: "4", reportDateTime: new Date(loweredAt + 60_000).toISOString() }, { alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4" }), loweredAt + 60_000);
     expect(store.snapshotItems()).toEqual([]);
     expect(store.applyEvent(volcanoEvent({ id: "old-level-four", serial: "3" }, { alertLevel: 4, alertLevelCode: "4", previousLevelCode: "2" }), loweredAt + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
+  });
+});
+
+describe("StandbyStateStore: flood", () => {
+  it("delegates flood events to FloodActiveReducer and exposes the aggregate card", () => {
+    const raw: ParsedFloodForecastInfo = {
+      schema: "vxko50", typeCode: "VXKO50", infoKind: "指定河川洪水予報", infoType: "発表",
+      serial: 1, eventId: "flood-event", controlTitle: "指定河川洪水予報", headTitle: "多摩川氾濫警戒情報",
+      reportDateTime: new Date(T0).toISOString(), targetDateTime: null, isTest: false, notice: null,
+      headlines: [{ scope: "河川", rawScopeLabel: "河川", kindName: "氾濫警戒情報", kindCode: "30", headlineText: "多摩川氾濫警戒情報", condition: "", areas: [{ name: "多摩川", code: "river-1" }] }],
+      rawStations: [{
+        stationName: "観測所", stationCode: "station-1", riverNames: ["多摩川"], primaryRiverCode: "river-1", primaryRiverName: "多摩川",
+        prefName: null, cityName: null, cityCode: null, location: null, measurement: "water_level", measurementUnit: "m", rawUnit: "m", series: [],
+        criteria: { L1: null, L2: null, L3: null, L4: null, L4Plan: null, unit: "m", rawUnit: "m" },
+        stationObservedLevel: "L3", headlineKindCode: "30", headlineLevel: "L3", mainItemCode: "1", mainTextHash: "hash",
+      }],
+      inundationAreas: [], rainfallSummaries: [], floodAssumptions: [], publishingOffice: "気象庁", editorialOffice: "気象庁",
+    };
+    const presentation = heatEvent({
+      id: "flood-message", domain: "floodForecast", type: "VXKO50", infoType: "発表", title: raw.headTitle,
+      reportDateTime: raw.reportDateTime, eventId: raw.eventId, serial: "1", raw,
+    });
+    const store = new StandbyStateStore();
+
+    expect(store.applyEvent(presentation, T0)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(store.snapshotItems()).toEqual([expect.objectContaining({
+      kind: "flood", key: "flood:active", surface: "corner-right",
+      data: { rivers: [expect.objectContaining({ riverKey: "river-1", riverName: "多摩川", level: "L3" })] },
+    })]);
   });
 });

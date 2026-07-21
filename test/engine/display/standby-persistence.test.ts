@@ -62,6 +62,26 @@ describe("StandbyPersistence", () => {
     writeFileSync(path, "{broken", "utf8");
     expect(new StandbyPersistence(path).load()).toBeNull();
   });
+
+  it("洪水 EventID state と seen revision を検証して永続化する", () => {
+    const path = tempPath();
+    const persisted = state({
+      floods: {
+        events: [{
+          eventId: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 12 * 60 * 60_000,
+          rivers: [{ riverKey: "river-1", riverName: "多摩川", level: "L3", levelRank: 30, kindName: "氾濫警戒情報", reportDateTime: new Date(T0).toISOString() }],
+        }],
+        seen: [{ key: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 }],
+      },
+    });
+    const persistence = new StandbyPersistence(path);
+    persistence.save(persisted);
+    expect(persistence.load()?.floods).toEqual(persisted.floods);
+
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...persisted, floods: { events: "invalid", seen: [] } }), "utf8");
+    expect(persistence.load()).toBeNull();
+  });
 });
 
 describe("StandbyStateStore persistence", () => {

@@ -22,6 +22,8 @@
   import HeatAlertCard from "./HeatAlertCard.svelte";
   import TyphoonCard from "./TyphoonCard.svelte";
   import VolcanoCard from "./VolcanoCard.svelte";
+  import FloodCard from "./FloodCard.svelte";
+  import FloodWideCard from "./FloodWideCard.svelte";
   import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
   import { partitionStandbyItems, selectRightStack } from "../lib/standby-cards";
   import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
@@ -156,11 +158,23 @@
     ...(quakeSlot != null ? [quakeSlot] : []),
   ]);
   const standbyPartitions = $derived(partitionStandbyItems(snapshot.standbyItems ?? []));
-  const rightStack = $derived(selectRightStack(standbyPartitions.cornerRight, 700, (item) => {
-    if (item.kind === "typhoon") return 74 + item.data.typhoons.length * 72;
-    if (item.kind === "volcano") return 44 + item.data.volcanoes.length * 48;
-    return 112;
-  }));
+  const floodItem = $derived(
+    standbyPartitions.cornerRight.find((item) => item.kind === "flood")
+      ?? standbyPartitions.clockTopWide.find((item) => item.kind === "flood")
+      ?? null,
+  );
+  const floodSlot = $derived(floodItem == null ? [] : [floodItem]);
+  let floodHeightPx = $state(0);
+  const floodCornerOffsetPx = $derived(floodItem?.surface === "corner-right" ? floodHeightPx + 12 : 0);
+  const rightStack = $derived(selectRightStack(
+    standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"),
+    700 - (floodItem?.surface === "corner-right" ? 112 : 0),
+    (item) => {
+      if (item.kind === "typhoon") return 74 + item.data.typhoons.length * 72;
+      if (item.kind === "volcano") return 44 + item.data.volcanoes.length * 48;
+      return 112;
+    },
+  ));
   const rightOverflow = $derived([...rightStack.overflow, ...standbyPartitions.unknown]);
 
   // 時計ブロック (切断バッジ + 時刻 + 日付) の実測高さの半分 (px)。時計は .clock-row が
@@ -218,7 +232,23 @@
   $effect(() => () => flipAnim?.cancel());
 </script>
 
-<div class="standby" class:dim>
+<div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px">
+  {#each floodSlot as item (item.key)}
+    <div
+      class="flood-slot"
+      class:flood-corner={item.surface === "corner-right"}
+      class:clock-top-slot={item.surface === "clock-top-wide"}
+      use:measureBorderHeight={(height) => (floodHeightPx = height)}
+      in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
+      out:fade={{ duration: exitDur }}
+    >
+      {#if item.surface === "clock-top-wide"}
+        <FloodWideCard {item} />
+      {:else}
+        <FloodCard {item} />
+      {/if}
+    </div>
+  {/each}
   <div class="corner-right">
     {#if snapshot.weatherAlerts.length > 0}
       <div
@@ -269,7 +299,7 @@
       <Clock {now} />
     </div>
   </div>
-  <div class="bottom-stack" style="--clock-half: {clockHalfPx}px">
+  <div class="bottom-stack">
     <div class="instrument-slot">
       <div class="instrument-row-wrap" bind:this={instrumentEl}>
         <InstrumentRow stats={snapshot.stats} />
@@ -296,13 +326,29 @@
   }
   .corner-right {
     position: absolute;
-    top: 24px;
+    top: calc(24px + var(--flood-corner-offset, 0px));
     right: 32px;
-    max-height: calc(100% - 48px);
+    max-height: calc(100% - 48px - var(--flood-corner-offset, 0px));
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: var(--space-3);
+    overflow: hidden;
+  }
+  .flood-slot {
+    z-index: 2;
+  }
+  .flood-corner {
+    position: absolute;
+    top: 24px;
+    right: 32px;
+  }
+  .clock-top-slot {
+    position: absolute;
+    left: 50%;
+    bottom: calc(50% + var(--clock-half, 0px) + var(--space-6));
+    transform: translateX(-50%);
+    max-height: min(30vh, calc(50% - var(--clock-half, 0px) - 48px));
     overflow: hidden;
   }
   .corner-left {
@@ -391,7 +437,8 @@
   /* 警報級の常駐カード (気象警報カード・津波バナー) は一般要素と同じ可読性下限で扱う。
      具体値は実機夜間検証で調整する。 */
   .standby.dim .weather-corner,
-  .standby.dim .tsunami-corner {
+  .standby.dim .tsunami-corner,
+  .standby.dim .flood-slot {
     opacity: 0.7;
   }
 </style>

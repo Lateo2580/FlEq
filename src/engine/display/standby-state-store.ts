@@ -1,59 +1,22 @@
 import type { PresentationEvent } from "../presentation/types";
 import type { ActiveStandbyCardV1, DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
 import type { PersistedStandbyStateV1 } from "./standby-persistence";
+import { FloodActiveReducer } from "./flood-active-reducer";
+import { projectFloodUpdate } from "./project-flood";
 import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdate } from "./project-standby";
 import {
-  compareRevision,
   NO_MUTATION,
   revisionOf,
   sortStandbyItems,
   type DisplayMutation,
   type StandbyRevision,
 } from "./standby-registry";
+import { RevisionGuard } from "./revision-guard";
 
-const SEEN_FORGET_MS = 24 * 60 * 60_000;
+export { RevisionGuard } from "./revision-guard";
+export type { PersistedSeenEntry } from "./revision-guard";
+
 const DAY_MS = 24 * 60 * 60_000;
-
-export interface PersistedSeenEntry {
-  key: string;
-  revision: StandbyRevision;
-  forgetAtMs: number;
-}
-
-export class RevisionGuard {
-  private seen = new Map<string, { revision: StandbyRevision; forgetAtMs: number }>();
-
-  accept(key: string, revision: StandbyRevision, nowMs: number): boolean {
-    const existing = this.seen.get(key);
-    if (existing != null && compareRevision(revision, existing.revision) <= 0) return false;
-    this.seen.set(key, { revision, forgetAtMs: nowMs + SEEN_FORGET_MS });
-    return true;
-  }
-
-  sweep(nowMs: number): boolean {
-    let changed = false;
-    for (const [key, entry] of this.seen) {
-      if (entry.forgetAtMs <= nowMs) {
-        this.seen.delete(key);
-        changed = true;
-      }
-    }
-    return changed;
-  }
-
-  export(): PersistedSeenEntry[] {
-    return [...this.seen].map(([key, entry]) => ({ key, revision: { ...entry.revision }, forgetAtMs: entry.forgetAtMs }));
-  }
-
-  restore(entries: PersistedSeenEntry[], nowMs: number): void {
-    this.seen.clear();
-    for (const entry of entries) {
-      if (entry.forgetAtMs > nowMs) {
-        this.seen.set(entry.key, { revision: { ...entry.revision }, forgetAtMs: entry.forgetAtMs });
-      }
-    }
-  }
-}
 
 interface HeatState {
   sourceEventIds: string[];
@@ -96,6 +59,7 @@ export class StandbyStateStore {
   private heatAlerts = new Map<string, HeatState>();
   private typhoons = new Map<string, TyphoonState>();
   private volcanoes = new Map<string, VolcanoState>();
+  private readonly floods = new FloodActiveReducer();
   private readonly revisionGuard = new RevisionGuard();
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
@@ -112,6 +76,11 @@ export class StandbyStateStore {
       case "volcano":
         mutation = this.applyVolcano(event, nowMs);
         break;
+      case "floodForecast": {
+        const update = projectFloodUpdate(event);
+        mutation = update == null ? NO_MUTATION : this.floods.apply(update, nowMs);
+        break;
+      }
       default:
         return NO_MUTATION;
     }
@@ -284,6 +253,9 @@ export class StandbyStateStore {
       }
     }
     if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
+    const floodMutation = this.floods.sweep(nowMs);
+    viewChanged ||= floodMutation.viewChanged;
+    durableChanged ||= floodMutation.durableChanged;
     const mutation = { viewChanged, durableChanged };
     this.notify(mutation);
     return mutation;
@@ -325,6 +297,8 @@ export class StandbyStateStore {
         data: { volcanoes: volcanoes.map((state) => ({ code: state.code, name: state.name, alertLevel: state.alertLevel, latestEvent: state.latestEvent })) },
       });
     }
+    const flood = this.floods.snapshotCard();
+    if (flood != null) items.push(flood);
     return sortStandbyItems(items);
   }
 
@@ -343,6 +317,7 @@ export class StandbyStateStore {
       })),
       typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
       volcanoes: [...this.volcanoes.values()].map((state) => ({ code: state.code, name: state.name, alertLevel: state.alertLevel, alertExpiresAtMs: state.alertExpiresAtMs, latestEvent: state.latestEvent, eventExpiresAtMs: state.eventExpiresAtMs, sourceEventIds: [...state.sourceEventIds], revision: { ...state.revision } })),
+      floods: this.floods.exportState(),
       seen: this.revisionGuard.export(),
     };
   }
@@ -369,6 +344,7 @@ export class StandbyStateStore {
     for (const state of data.volcanoes ?? []) {
       if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) this.volcanoes.set(state.code, { ...state, sourceEventIds: [...state.sourceEventIds], revision: { ...state.revision }, restored: true });
     }
+    this.floods.restoreState(data.floods ?? { events: [], seen: [] }, nowMs);
     this.revisionGuard.restore(data.seen, nowMs);
   }
 
