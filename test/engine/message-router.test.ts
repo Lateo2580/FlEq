@@ -797,4 +797,49 @@ describe("message-router 統合テスト", () => {
       expect(stats.getSnapshot().countByType.get("VXSE51")).toBe(1);
     });
   });
+
+  describe("outcomeTaps (処理済み outcome の汎用購読点)", () => {
+    it("線形ルートの outcome が渡る (domain と headType を観測できる)", () => {
+      const tap = vi.fn();
+      const { handler } = createHandler({ outcomeTaps: [tap] });
+      handler(createMockWsDataMessage(FIXTURE_VXSE53_ENCHI));
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      const outcome = tap.mock.calls[0][0];
+      expect(outcome.domain).toBe("earthquake");
+      expect(outcome.headType).toBe("VXSE53");
+    });
+
+    it("火山ルート (VolcanoRouteHandler 経由) の outcome も渡る", () => {
+      const tap = vi.fn();
+      const { handler } = createHandler({ outcomeTaps: [tap] });
+      handler(createMockWsDataMessage(FIXTURE_VFVO54_ASH_RAPID));
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      expect(tap.mock.calls[0][0].domain).toBe("volcano");
+    });
+
+    it("suppressed で outcome が生成されない電文では呼ばれない (EEW 重複報)", () => {
+      const tap = vi.fn();
+      const { handler } = createHandler({ outcomeTaps: [tap] });
+      handler(createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1));
+      expect(tap).toHaveBeenCalledTimes(1);
+
+      // 同一 EventID・同一 Serial の重複報 → processMessage が null → tap は増えない
+      handler(createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1));
+      expect(tap).toHaveBeenCalledTimes(1);
+    });
+
+    it("tap 内で throw しても本体処理 (表示・統計) が正常継続する", () => {
+      const throwing = vi.fn(() => {
+        throw new Error("outcome tap boom");
+      });
+      const { handler, stats } = createHandler({ outcomeTaps: [throwing] });
+      handler(createMockWsDataMessage(FIXTURE_VXSE53_ENCHI));
+
+      expect(throwing).toHaveBeenCalledTimes(1);
+      expect(getOutput()).toContain("南太平洋");
+      expect(stats.getSnapshot().countByType.get("VXSE53")).toBe(1);
+    });
+  });
 });

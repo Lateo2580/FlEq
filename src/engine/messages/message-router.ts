@@ -181,6 +181,20 @@ function describeTapError(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/**
+ * 処理済み outcome を観測できる汎用購読点。
+ *
+ * `runDisplayPipeline()` の入口 (shouldDisplay 判定・diff 適用より前) で同期呼び出しされる。
+ * 線形ルートの ProcessOutcome に加えて火山単発・火山バッチ (VolcanoBatchOutcome) も渡る。
+ * suppressed で null に落ちた電文は通らない (処理済み outcome が存在するもののみ)。
+ *
+ * 契約: 重い処理をここに置かない (キュー投入や軽量な記録までに留める)。tap 内の例外は
+ * 呼び出し側で握り潰され本体処理には波及しないが、その分の失敗は listener 側の責務。
+ */
+export type ProcessedOutcomeTap = (
+  outcome: ProcessOutcome | VolcanoBatchOutcome,
+) => void;
+
 /** createMessageHandler のオプション */
 export interface MessageHandlerOptions {
   pipeline?: FilterTemplatePipeline;
@@ -188,6 +202,8 @@ export interface MessageHandlerOptions {
   displaySink?: DisplayIngestSink;
   /** 分類済みの全電文を観測する汎用 tap (同期・軽量前提)。@see RoutedMessageTap */
   routeTaps?: readonly RoutedMessageTap[];
+  /** 処理済み outcome を観測する汎用 tap (同期・軽量前提)。@see ProcessedOutcomeTap */
+  outcomeTaps?: readonly ProcessedOutcomeTap[];
 }
 
 /** createMessageHandler の戻り値 */
@@ -212,6 +228,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const display = options?.display;
   const displaySink = options?.displaySink;
   const routeTaps = options?.routeTaps;
+  const outcomeTaps = options?.outcomeTaps;
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
@@ -252,6 +269,23 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     outcome: ProcessOutcome | VolcanoBatchOutcome,
     displayFn: () => void,
   ): boolean {
+    // 処理済み outcome の汎用 tap (filter 非適用: shouldDisplay の判定より前)。
+    // 線形ルート・火山単発・火山バッチの全 outcome がここを通る。例外は本体へ波及させない。
+    if (outcomeTaps) {
+      for (const tap of outcomeTaps) {
+        try {
+          const result = tap(outcome) as unknown;
+          if (result instanceof Promise) {
+            result.catch((e: unknown) => {
+              log.warn(`[outcome-tap] async tap の reject: ${describeTapError(e)}`);
+            });
+          }
+        } catch (e) {
+          log.warn(`[outcome-tap] tap 実行で例外: ${describeTapError(e)}`);
+        }
+      }
+    }
+
     const rawEvent: PresentationEvent = toPresentationEvent(outcome);
     const event = diffStore.apply(rawEvent);
 
