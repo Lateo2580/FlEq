@@ -40,7 +40,7 @@ export class FloodActiveReducer {
 
   apply(update: DisplayFloodUpdate, nowMs: number): DisplayMutation {
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(update.eventId, revision, nowMs)) return NO_MUTATION;
+    if (!this.revisionGuard.accept(update.eventId, revision, nowMs, STANDBY_CARD_REGISTRY.flood.tombstoneTtlMs)) return NO_MUTATION;
     if (update.mode === "observeOnly") return { viewChanged: false, durableChanged: true };
 
     const before = cardFingerprint(this.snapshotCard());

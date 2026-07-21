@@ -11,10 +11,10 @@ const event = (over: Record<string, unknown>): PresentationEvent => ({
   title: "情報", areaItems: [], raw: null, ...over,
 } as unknown as PresentationEvent);
 
-function heat(serial = "1", timeMs = T0): PresentationEvent {
+function heat(serial = "1", timeMs = T0, areaName = "東京都", cancellation = false): PresentationEvent {
   return event({ id: `heat-${serial}`, domain: "heatAlert", serial, reportDateTime: iso(timeMs), title: "熱中症警戒アラート", raw: {
-    type: "VPFT50", infoType: "発表", targetDateTime: iso(T0), serial, targetAreaName: "東京都",
-  } });
+    type: "VPFT50", infoType: cancellation ? "取消" : "発表", targetDateTime: iso(T0), serial, targetAreaName: areaName,
+  }, isCancellation: cancellation, publishingOffice: "環境省 気象庁" });
 }
 
 function typhoon(key = "TC-1", serial = "1", timeMs = T0): PresentationEvent {
@@ -47,22 +47,25 @@ function flood(timeMs = T0): PresentationEvent {
   } });
 }
 
-function tornado(timeMs = T0): PresentationEvent {
-  return event({ id: "tornado-1", domain: "tornado", serial: "1", reportDateTime: iso(timeMs), areaItems: [{ name: "東京都" }], raw: {
-    serial: "1", activeAreaCount: 1, hasSightingAreas: false, validDateTime: iso(timeMs + 60 * 60_000),
-  } });
+function tornado(timeMs = T0, office = "東京管区気象台", areaName = "東京都", cancellation = false): PresentationEvent {
+  return event({ id: `tornado-${office}-${timeMs}`, domain: "tornado", serial: "1", reportDateTime: iso(timeMs),
+    publishingOffice: office, areaItems: cancellation ? [] : [{ name: areaName }], isCancellation: cancellation, raw: {
+      serial: "1", publishingOffice: office, activeAreaCount: cancellation ? 0 : 1,
+      hasSightingAreas: false, validDateTime: iso(timeMs + 60 * 60_000),
+    } });
 }
 
 function nankai(timeMs = T0): PresentationEvent {
   return event({ id: "nankai-1", domain: "nankaiTrough", serial: "1", reportDateTime: iso(timeMs), raw: { infoSerial: { code: "120" } } });
 }
 
-function longPeriod(timeMs = T0): PresentationEvent {
-  return event({ id: "lg-1", domain: "lgObservation", eventId: "quake-1", serial: "1", reportDateTime: iso(timeMs), raw: { maxLgInt: "3" } });
+function longPeriod(timeMs = T0, eventId = "quake-1", maxLgInt: string | null = "3", cancellation = false): PresentationEvent {
+  return event({ id: `lg-${eventId}-${timeMs}`, domain: "lgObservation", eventId, serial: "1", reportDateTime: iso(timeMs),
+    isCancellation: cancellation, raw: { maxLgInt } });
 }
 
-function host(timeMs = T0): PresentationEvent {
-  return event({ id: "quake-1", domain: "earthquake", eventId: "quake-1", maxIntRank: 4, reportDateTime: iso(timeMs) });
+function host(timeMs = T0, eventId = "quake-1", maxIntRank = 4): PresentationEvent {
+  return event({ id: eventId, domain: "earthquake", eventId, maxIntRank, reportDateTime: iso(timeMs) });
 }
 
 describe("standby integration", () => {
@@ -122,11 +125,104 @@ describe("standby integration", () => {
     expect(expired.snapshotItems()).toEqual([]);
   });
 
-  it("6: attaches VXSE62 after its host earthquake arrives", () => {
+  it("6: hosts VXSE62 in the normal earthquake-then-VXSE62 order", () => {
     const store = new StandbyStateStore();
-    store.applyEvent(longPeriod(), T0);
-    expect(store.snapshotItems()).toEqual([]);
-    store.applyEvent(host(), T0 + 1);
+    store.applyEvent(host(), T0);
+    store.applyEvent(longPeriod(T0 + 1), T0 + 1);
     expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "longPeriod", data: { eventId: "quake-1", maxLgInt: "3" } })]);
+  });
+
+  it("6b: removes a hosted rider on a bodyless cancellation and ignores an older host", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(host(T0 + 60_000, "quake-new", 7), T0 + 60_000);
+    store.applyEvent(longPeriod(T0 + 60_001, "quake-new"), T0 + 60_001);
+    expect(store.snapshotItems()).toHaveLength(1);
+
+    expect(store.applyEvent(host(T0, "quake-old", 2), T0 + 60_002)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({ data: { eventId: "quake-new", maxLgInt: "3" } }));
+
+    store.applyEvent(longPeriod(T0 + 60_003, "quake-new", null, true), T0 + 60_003);
+    expect(store.snapshotItems()).toEqual([]);
+  });
+
+  it("6c: persists the current earthquake host pair with the rider", () => {
+    const source = new StandbyStateStore();
+    source.applyEvent(host(T0, "quake-1", 6), T0);
+    source.applyEvent(longPeriod(T0 + 1), T0 + 1);
+    const persisted = source.exportActiveState();
+    expect(persisted.quakeHost).toEqual(expect.objectContaining({ eventId: "quake-1", maxIntRank: 6 }));
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(persisted, T0 + 2);
+    expect(restored.snapshotItems()).toEqual([expect.objectContaining({ kind: "longPeriod", restored: true })]);
+  });
+
+  it("7: aggregates heat by target date and area, cancelling only the addressed area", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(heat("1", T0, "東京都"), T0);
+    store.applyEvent(heat("1", T0, "長崎県"), T0);
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({
+      kind: "heat",
+      data: { targetDate: "2026-07-21", areas: [
+        { areaName: "東京都", isSpecial: false },
+        { areaName: "長崎県", isSpecial: false },
+      ] },
+    }));
+
+    store.applyEvent(heat("2", T0 + 60_000, "東京都", true), T0 + 60_000);
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({
+      data: { targetDate: "2026-07-21", areas: [{ areaName: "長崎県", isSpecial: false }] },
+    }));
+  });
+
+  it("8: aggregates tornado advisories by publishing office and cancels only one office", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(tornado(T0, "東京管区気象台", "東京都"), T0);
+    store.applyEvent(tornado(T0, "長崎地方気象台", "長崎県"), T0);
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({
+      kind: "tornado", data: { areas: ["東京都", "長崎県"], isSighted: false },
+    }));
+
+    store.applyEvent(tornado(T0 + 60_000, "東京管区気象台", "東京都", true), T0 + 60_000);
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({
+      kind: "tornado", data: { areas: ["長崎県"], isSighted: false },
+    }));
+  });
+
+  it("9: seeds volcano alert watermarks and keeps alert/event cancellation independent", () => {
+    const store = new StandbyStateStore();
+    store.seedVolcanoAlerts([{ volcanoCode: "V-1", volcanoName: "テスト山", alertLevel: 4, reportDateTime: iso(T0 + 60_000) }], "success", T0 + 60_000);
+    expect(store.applyEvent(event({ id: "old-alert", domain: "volcano", serial: "1", reportDateTime: iso(T0), raw: {
+      kind: "alert", type: "VFVO50", infoType: "発表", volcanoCode: "V-1", volcanoName: "テスト山",
+      alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4",
+    } }), T0 + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
+
+    store.applyEvent(expiringVolcano(T0 + 120_000), T0 + 120_000);
+    store.applyEvent(event({ id: "cancel-event", domain: "volcano", serial: "2", reportDateTime: iso(T0 + 180_000), isCancellation: true, raw: {
+      kind: "eruption", type: "VFVO52", infoType: "取消", volcanoCode: "V-1", volcanoName: "テスト山",
+      isFlashReport: true, phenomenonName: "噴火速報",
+    } }), T0 + 180_000);
+    expect(store.snapshotItems()[0]).toEqual(expect.objectContaining({
+      kind: "volcano", data: { volcanoes: [expect.objectContaining({ alertLevel: 4, latestEvent: null })] },
+    }));
+
+    const eventOnly = new StandbyStateStore();
+    eventOnly.applyEvent(expiringVolcano(T0), T0);
+    eventOnly.applyEvent(event({ id: "cancel-alert", domain: "volcano", serial: "2", reportDateTime: iso(T0 + 60_000), isCancellation: true, raw: {
+      kind: "alert", type: "VFVO50", infoType: "取消", volcanoCode: "V-1", volcanoName: "テスト山",
+      alertLevel: null, alertLevelCode: null, previousLevelCode: "4",
+    } }), T0 + 60_000);
+    expect(eventOnly.snapshotItems()[0]).toEqual(expect.objectContaining({
+      kind: "volcano", data: { volcanoes: [expect.objectContaining({ alertLevel: null, latestEvent: "噴火速報" })] },
+    }));
+  });
+
+  it("10: keeps long-lived cancellation tombstones beyond 24 hours", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(nankai(T0), T0);
+    store.applyEvent(event({ id: "nankai-end", domain: "nankaiTrough", serial: "2", reportDateTime: iso(T0 + 60_000), raw: { infoSerial: { code: "190" } } }), T0 + 60_000);
+    store.sweep(T0 + 2 * 24 * 60 * 60_000);
+    expect(store.applyEvent(nankai(T0), T0 + 2 * 24 * 60 * 60_000 + 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotItems()).toEqual([]);
   });
 });

@@ -26,7 +26,7 @@
   import FloodWideCard from "./FloodWideCard.svelte";
   import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
   import NankaiBadge from "./NankaiBadge.svelte";
-  import { partitionStandbyItems, selectRightStack } from "../lib/standby-cards";
+  import { partitionStandbyItems, rightStackBudgetPx, selectRightStackWithSummary } from "../lib/standby-cards";
   import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
   import { measureBorderHeight } from "../lib/measure-height";
@@ -167,17 +167,25 @@
   const floodSlot = $derived(floodItem == null ? [] : [floodItem]);
   let floodHeightPx = $state(0);
   const floodCornerOffsetPx = $derived(floodItem?.surface === "corner-right" ? floodHeightPx + 12 : 0);
-  const rightStack = $derived(selectRightStack(
+  const tornadoItem = $derived(standbyPartitions.weatherRider.find((item) => item.kind === "tornado") as Extract<ActiveStandbyCardV1, { kind: "tornado" }> | undefined ?? null);
+  let standbyHeightPx = $state(640);
+  let weatherHeightPx = $state(0);
+  const hasWeatherCard = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
+  const measuredWeatherHeightPx = $derived(hasWeatherCard ? (weatherHeightPx > 0 ? weatherHeightPx : 280) : 0);
+  const rightBudgetPx = $derived(rightStackBudgetPx(standbyHeightPx, measuredWeatherHeightPx, floodCornerOffsetPx, 12));
+  const rightStack = $derived(selectRightStackWithSummary(
     standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"),
-    700 - (floodItem?.surface === "corner-right" ? 112 : 0),
+    rightBudgetPx,
     (item) => {
-      if (item.kind === "typhoon") return 74 + item.data.typhoons.length * 72;
-      if (item.kind === "volcano") return 44 + item.data.volcanoes.length * 48;
-      return 112;
+      if (item.kind === "heat") return 160;
+      if (item.kind === "typhoon") return 240;
+      return 240;
     },
+    32,
+    standbyPartitions.unknown.length > 0,
+    12,
   ));
   const rightOverflow = $derived([...rightStack.overflow, ...standbyPartitions.unknown]);
-  const tornadoItem = $derived(standbyPartitions.weatherRider.find((item) => item.kind === "tornado") as Extract<ActiveStandbyCardV1, { kind: "tornado" }> | undefined ?? null);
   const longPeriodItem = $derived(standbyPartitions.quakeRider.find((item) => item.kind === "longPeriod" && item.data.eventId === snapshot.latestQuake?.eventId) as Extract<ActiveStandbyCardV1, { kind: "longPeriod" }> | undefined ?? null);
   const nankaiItem = $derived(standbyPartitions.clockBelow.find((item) => item.kind === "nankaiTrough") as Extract<ActiveStandbyCardV1, { kind: "nankaiTrough" }> | undefined ?? null);
 
@@ -236,7 +244,7 @@
   $effect(() => () => flipAnim?.cancel());
 </script>
 
-<div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px">
+<div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px" use:measureBorderHeight={(height) => (standbyHeightPx = height)}>
   {#each floodSlot as item (item.key)}
     <div
       class="flood-slot"
@@ -257,6 +265,7 @@
     {#if snapshot.weatherAlerts.length > 0 || tornadoItem != null}
       <div
         class="weather-corner"
+        use:measureBorderHeight={(height) => (weatherHeightPx = height)}
         in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
         out:fade={{ duration: exitDur }}
       >
@@ -292,7 +301,7 @@
           <!-- 同一 key スロットの内側差し替え。replay 選択中は replay を出し LatestQuakeCard は隠す -->
           <QuakeReplayCard quake={item.replay} onClose={closeQuakeCard} />
         {:else}
-          <LatestQuakeCard quake={item.quake} longPeriod={longPeriodItem?.data ?? null} />
+          <LatestQuakeCard quake={item.quake} longPeriod={longPeriodItem == null ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
         {/if}
       </div>
     {/each}
@@ -300,8 +309,8 @@
   <div class="clock-row">
     <div class="clock-stack" use:measureBorderHeight={(h) => (clockHalfPx = h / 2)}>
       <ConnectionBadge connection={snapshot.connection} {sseConnected} />
-      {#if nankaiItem != null}<NankaiBadge item={nankaiItem} />{/if}
       <Clock {now} />
+      {#if nankaiItem != null}<NankaiBadge item={nankaiItem} />{/if}
     </div>
   </div>
   <div class="bottom-stack">

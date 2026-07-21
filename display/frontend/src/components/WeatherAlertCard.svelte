@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1, DisplayWeatherAlertItemV1, DisplayWeatherAlertV1, DisplayWeatherRank } from "../lib/protocol";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
+  import RestoredChip from "./RestoredChip.svelte";
 
   let { alerts, tornado = null }: { alerts: DisplayWeatherAlertV1[]; tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null } = $props();
 
@@ -106,7 +107,7 @@
         </li>
       {/each}
     </ul>{/if}
-    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas[0] ?? "対象地域"}{tornado.data.areas.length > 1 ? " ほか" : ""}）</div>{/if}
+    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas[0] ?? "対象地域"}{tornado.data.areas.length > 1 ? " ほか" : ""}）{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
   </div>
 {/if}
 
@@ -118,6 +119,9 @@
     box-shadow: var(--elevation-2);
     overflow: hidden;
     width: min(360px, 28vw);
+    max-height: min(44vh, 280px);
+    display: flex;
+    flex-direction: column;
     color: var(--fg);
   }
   .card-header {
@@ -129,6 +133,7 @@
     list-style: none;
     margin: 0;
     padding: var(--space-2) var(--space-4) var(--space-3);
+    overflow: hidden;
   }
   li {
     display: flex;

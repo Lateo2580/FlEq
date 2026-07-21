@@ -85,6 +85,15 @@ describe("LatestQuakeCard", () => {
     expect(container.querySelector(".time")?.textContent).toBe("7/8 09:00");
   });
 
+  it("restored な長周期 rider を『同期中』付きで描画する", () => {
+    const { container } = render(LatestQuakeCard, {
+      quake: latestQuake(),
+      longPeriod: { maxLgInt: "3", restored: true },
+    });
+    expect(container.querySelector(".long-period-rider")?.textContent).toContain("長周期地震動階級 3");
+    expect(container.textContent).toContain("同期中");
+  });
+
   it("intensityGroups の地域を都道府県 → 市区町村の階層で render する (第3波 Fix7)", () => {
     const quake = latestQuake({
       intensityGroups: [

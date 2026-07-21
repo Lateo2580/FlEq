@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import WeatherAlertCard from "../WeatherAlertCard.svelte";
-import type { DisplayWeatherAlertV1 } from "../../lib/protocol";
+import type { ActiveStandbyCardV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
 
 function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
   return {
@@ -22,6 +22,14 @@ function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeather
     ],
     updatedAt: "2026-07-08T09:00:00+09:00",
     ...over,
+  };
+}
+
+function restoredTornado(): Extract<ActiveStandbyCardV1, { kind: "tornado" }> {
+  return {
+    kind: "tornado", surface: "weather-rider", key: "tornado:active", sourceEventIds: ["t-1"],
+    updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-21T01:00:00.000Z",
+    restored: true, severity: "warning", data: { areas: ["東京都", "長崎県"], isSighted: false },
   };
 }
 
@@ -216,6 +224,17 @@ describe("WeatherAlertCard", () => {
   it("alerts が空なら .weather-card を render しない", () => {
     const { container } = render(WeatherAlertCard, { alerts: [] });
     expect(container.querySelector(".weather-card")).toBeFalsy();
+  });
+
+  it("restored な竜巻 rider を『同期中』付きで描画する", () => {
+    const { container } = render(WeatherAlertCard, { alerts: [], tornado: restoredTornado() });
+    expect(container.querySelector(".tornado-rider")?.textContent).toContain("竜巻注意情報");
+    expect(container.textContent).toContain("同期中");
+  });
+
+  it("右上予算と一致する WeatherAlertCard の高さ上限を持つ", () => {
+    const src = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
+    expect(src).toMatch(/\.weather-card\s*\{[^}]*max-height:\s*min\(44vh,\s*280px\);/);
   });
 
   it("複数バケツ (emergency + warning) を渡したとき、最高ランク (emergency) の item だけが描画され、下位 (warning) は省略される", () => {

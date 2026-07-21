@@ -16,7 +16,7 @@
 </section>
 
 <style>
-  .standby-card { width: min(360px, 28vw); background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: min(360px, 28vw); max-height: 240px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   header { padding: var(--space-2) var(--space-4); color: var(--role-muted); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-title-weight-emphasized); }
   .typhoon { padding: var(--space-2) var(--space-4); font-size: max(14px, var(--type-label-l-fluid)); border-top: 1px solid var(--hairline); }
   strong, .facts { display: block; } .facts { color: var(--role-muted); } .facts span + span::before { content: " / "; }

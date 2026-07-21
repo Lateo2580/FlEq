@@ -12,6 +12,12 @@ export interface StandbyPartitions {
 export function partitionStandbyItems(items: ActiveStandbyCardV1[]): StandbyPartitions {
   const result: StandbyPartitions = { cornerRight: [], clockTopWide: [], weatherRider: [], quakeRider: [], clockBelow: [], unknown: [] };
   for (const item of items) {
+    const kind = (item as { kind?: string }).kind;
+    if (kind !== "heat" && kind !== "typhoon" && kind !== "volcano" && kind !== "flood"
+      && kind !== "tornado" && kind !== "longPeriod" && kind !== "nankaiTrough") {
+      result.unknown.push(item);
+      continue;
+    }
     switch ((item as { surface?: string }).surface) {
       case "corner-right": result.cornerRight.push(item); break;
       case "clock-top-wide": result.clockTopWide.push(item); break;
@@ -22,6 +28,17 @@ export function partitionStandbyItems(items: ActiveStandbyCardV1[]): StandbyPart
     }
   }
   return result;
+}
+
+export function rightStackBudgetPx(
+  containerHeightPx: number,
+  weatherHeightPx: number,
+  floodCornerOffsetPx: number,
+  gapPx: number,
+): number {
+  const verticalInsetPx = 48;
+  const weatherGapPx = weatherHeightPx > 0 ? gapPx : 0;
+  return Math.max(0, containerHeightPx - verticalInsetPx - floodCornerOffsetPx - weatherHeightPx - weatherGapPx);
 }
 
 export function selectRightStack(
@@ -42,6 +59,38 @@ export function selectRightStack(
     }
   }
   return { visible, overflow };
+}
+
+export function selectRightStackWithSummary(
+  cornerRight: ActiveStandbyCardV1[],
+  budgetPx: number,
+  estimateHeightPx: (item: ActiveStandbyCardV1) => number,
+  summaryHeightPx: number,
+  forceSummary: boolean,
+  gapPx: number,
+): { visible: ActiveStandbyCardV1[]; overflow: ActiveStandbyCardV1[]; usedPx: number; summaryReservedPx: number } {
+  const selectWithGaps = (availablePx: number): { visible: ActiveStandbyCardV1[]; overflow: ActiveStandbyCardV1[]; usedPx: number } => {
+    let usedPx = 0;
+    const visible: ActiveStandbyCardV1[] = [];
+    const overflow: ActiveStandbyCardV1[] = [];
+    for (const item of cornerRight) {
+      const requiredPx = estimateHeightPx(item) + (visible.length > 0 ? gapPx : 0);
+      if (usedPx + requiredPx <= availablePx) {
+        visible.push(item);
+        usedPx += requiredPx;
+      } else {
+        overflow.push(item);
+      }
+    }
+    return { visible, overflow, usedPx };
+  };
+  const first = selectWithGaps(budgetPx);
+  const needsSummary = forceSummary || first.overflow.length > 0;
+  const summaryReservedPx = needsSummary ? summaryHeightPx + gapPx : 0;
+  const selected = needsSummary
+    ? selectWithGaps(Math.max(0, budgetPx - summaryReservedPx))
+    : first;
+  return { ...selected, summaryReservedPx };
 }
 
 export const VOLCANO_LEVEL_LABELS: Record<number, string> = {

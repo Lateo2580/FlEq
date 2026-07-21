@@ -32,6 +32,13 @@ function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbySta
       revision: { reportTimeMs: T0, serial: "1" },
       forgetAtMs: T0 + 24 * 60 * 60_000,
     }],
+    typhoons: [],
+    volcanoes: [],
+    floods: undefined,
+    tornado: [],
+    longPeriod: [],
+    quakeHost: null,
+    nankaiTrough: null,
     ...over,
   };
 }
@@ -47,13 +54,13 @@ describe("StandbyPersistence", () => {
     expect(persistence.load()).toEqual(state());
   });
 
-  it("version 不一致と構造不正を破棄する", () => {
+  it("version 不一致は全体を破棄し、構造不正な domain だけを空にする", () => {
     const path = tempPath();
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify({ ...state(), version: 2 }), "utf8");
     expect(new StandbyPersistence(path).load()).toBeNull();
     writeFileSync(path, JSON.stringify({ ...state(), heat: "invalid" }), "utf8");
-    expect(new StandbyPersistence(path).load()).toBeNull();
+    expect(new StandbyPersistence(path).load()).toEqual(expect.objectContaining({ heat: [], seen: state().seen }));
   });
 
   it("壊れた JSON を破棄する", () => {
@@ -80,7 +87,32 @@ describe("StandbyPersistence", () => {
 
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify({ ...persisted, floods: { events: "invalid", seen: [] } }), "utf8");
-    expect(persistence.load()).toBeNull();
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+  });
+
+  it("typhoon/volcano/tornado/longPeriod/nankai を深く検証し、壊れた domain だけを破棄して起動を続ける", () => {
+    const path = tempPath();
+    const malformed = {
+      ...state(),
+      typhoons: [{}],
+      volcanoes: [{ code: "V-1" }],
+      tornado: [{ sourceEventId: "t", publishingOffice: 42 }],
+      longPeriod: [{ eventId: "q", hosted: "yes" }],
+      nankaiTrough: { sourceEventId: "n", expiresAtMs: "later" },
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(malformed), "utf8");
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded).toEqual(expect.objectContaining({
+      heat: state().heat,
+      typhoons: [],
+      volcanoes: [],
+      tornado: [],
+      longPeriod: [],
+      nankaiTrough: null,
+    }));
+    expect(() => new StandbyStateStore().restoreActiveState(loaded!, T0 + 1)).not.toThrow();
   });
 });
 
@@ -111,7 +143,7 @@ describe("StandbyStateStore persistence", () => {
         typhoon: { typhoonKey: "TC-1", name: "Alpha", nameKana: null, remark: null, typhoonNumber: "2601", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: new Date(T0).toISOString() },
         revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 24 * 60 * 60_000,
       }],
-      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], revision: { reportTimeMs: T0, serial: "1" } }],
+      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],
     });
     const persistence = new StandbyPersistence(tempPath());
     persistence.save(persisted);
@@ -126,7 +158,7 @@ describe("StandbyStateStore persistence", () => {
 
   it("failed seed retains restored volcano state; empty success clears its alert but keeps the eruption and emits a change", () => {
     const persisted = state({
-      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], revision: { reportTimeMs: T0, serial: "1" } }],
+      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],
     });
     const store = new StandbyStateStore();
     const changed = vi.fn();

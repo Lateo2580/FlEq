@@ -1,7 +1,7 @@
 import type { StandbyRevision } from "./standby-registry";
 import { compareRevision } from "./standby-registry";
 
-const SEEN_FORGET_MS = 24 * 60 * 60_000;
+const DEFAULT_SEEN_FORGET_MS = 24 * 60 * 60_000;
 
 export interface PersistedSeenEntry {
   key: string;
@@ -12,11 +12,15 @@ export interface PersistedSeenEntry {
 export class RevisionGuard {
   private seen = new Map<string, { revision: StandbyRevision; forgetAtMs: number }>();
 
-  accept(key: string, revision: StandbyRevision, nowMs: number): boolean {
+  accept(key: string, revision: StandbyRevision, nowMs: number, retentionMs = DEFAULT_SEEN_FORGET_MS): boolean {
     const existing = this.seen.get(key);
     if (existing != null && compareRevision(revision, existing.revision) <= 0) return false;
-    this.seen.set(key, { revision, forgetAtMs: nowMs + SEEN_FORGET_MS });
+    this.seen.set(key, { revision, forgetAtMs: nowMs + retentionMs });
     return true;
+  }
+
+  replace(key: string, revision: StandbyRevision, nowMs: number, retentionMs = DEFAULT_SEEN_FORGET_MS): void {
+    this.seen.set(key, { revision: { ...revision }, forgetAtMs: nowMs + retentionMs });
   }
 
   sweep(nowMs: number): boolean {

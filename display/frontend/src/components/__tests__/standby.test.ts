@@ -115,6 +115,13 @@ const now = new Date("2026-07-06T21:00:00+09:00");
 // ゼロを確認の上、デッドコードとして削除済み)。
 
 describe("StandbyScreen", () => {
+  it("clock-below の南海トラフバッジを DOM 上も Clock の後へ置く", () => {
+    const src = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
+    const clockStack = src.slice(src.indexOf('<div class="clock-stack"'), src.indexOf('</div>', src.indexOf('<div class="clock-stack"')));
+    expect(clockStack.indexOf("<Clock {now} />")).toBeGreaterThanOrEqual(0);
+    expect(clockStack.indexOf("<NankaiBadge")).toBeGreaterThan(clockStack.indexOf("<Clock {now} />"));
+  });
+
   it("renders normal and wide flood surfaces through one keyed flood slot", async () => {
     const { container, rerender } = render(StandbyScreen, {
       snapshot: baseSnapshot({ standbyItems: [floodStandbyItem("corner-right", 3)] }),

@@ -17,8 +17,9 @@
   import { onDestroy } from "svelte";
   import QuakeHeadline from "./QuakeHeadline.svelte";
   import PageDots from "./PageDots.svelte";
+  import RestoredChip from "./RestoredChip.svelte";
 
-  let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string } | null } = $props();
+  let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
 
   // 固定サマリ計器「ヘッドライン2行」(最大震度規模行 + 拡大範囲行、spec §2-b 改訂 2026-07-09)。
   // 旧・震度分布行/県別件数行は「広域」連呼が情報ゼロ・裸の数字が単位不明だったため廃止した
@@ -126,7 +127,7 @@
         <span class="time stat-value">{formatMdHm(quake.originTime ?? quake.reportDateTime)}</span>
       </div>
     </div>
-    {#if longPeriod != null}<div class="long-period-rider">長周期地震動階級 {longPeriod.maxLgInt}</div>{/if}
+    {#if longPeriod != null}<div class="long-period-rider">長周期地震動階級 {longPeriod.maxLgInt}{#if longPeriod.restored}<RestoredChip />{/if}</div>{/if}
     {#if headline != null}
       <QuakeHeadline {headline} variant="card" />
       {#if paging}

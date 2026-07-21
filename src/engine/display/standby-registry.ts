@@ -4,19 +4,33 @@ export interface CardPolicy {
   priority: number;
   /** null = fallback TTL なし (電文解除 or 種別独自の失効のみ) */
   fallbackTtlMs: number | null;
+  /** 取消・失効後も旧報を拒否する watermark の保持期間 */
+  tombstoneTtlMs: number;
 }
 
 const HOUR = 60 * 60_000;
+const DAY = 24 * HOUR;
 
 export const STANDBY_CARD_REGISTRY = {
-  tornado: { priority: 600, fallbackTtlMs: HOUR },
-  flood: { priority: 500, fallbackTtlMs: 12 * HOUR },
-  volcano: { priority: 400, fallbackTtlMs: 24 * HOUR },
-  typhoon: { priority: 300, fallbackTtlMs: 24 * HOUR },
-  heat: { priority: 200, fallbackTtlMs: null },
-  longPeriod: { priority: 100, fallbackTtlMs: 12 * HOUR },
-  nankaiTrough: { priority: 100, fallbackTtlMs: 7 * 24 * HOUR },
+  tornado: { priority: 600, fallbackTtlMs: HOUR, tombstoneTtlMs: DAY + HOUR },
+  flood: { priority: 500, fallbackTtlMs: 12 * HOUR, tombstoneTtlMs: DAY + 12 * HOUR },
+  volcano: { priority: 400, fallbackTtlMs: DAY, tombstoneTtlMs: 2 * DAY },
+  typhoon: { priority: 300, fallbackTtlMs: DAY, tombstoneTtlMs: 2 * DAY },
+  heat: { priority: 200, fallbackTtlMs: null, tombstoneTtlMs: 2 * DAY },
+  longPeriod: { priority: 100, fallbackTtlMs: 12 * HOUR, tombstoneTtlMs: DAY + 12 * HOUR },
+  nankaiTrough: { priority: 100, fallbackTtlMs: 7 * DAY, tombstoneTtlMs: 14 * DAY },
 } satisfies Record<StandbyKind, CardPolicy>;
+
+export function tombstoneTtlForKey(key: string): number {
+  if (key.startsWith("volcano:alert:")) return 30 * DAY;
+  if (key.startsWith("volcano:event:")) return STANDBY_CARD_REGISTRY.volcano.tombstoneTtlMs;
+  if (key.startsWith("heat:")) return STANDBY_CARD_REGISTRY.heat.tombstoneTtlMs;
+  if (key.startsWith("typhoon:")) return STANDBY_CARD_REGISTRY.typhoon.tombstoneTtlMs;
+  if (key.startsWith("tornado:")) return STANDBY_CARD_REGISTRY.tornado.tombstoneTtlMs;
+  if (key.startsWith("longPeriod:")) return STANDBY_CARD_REGISTRY.longPeriod.tombstoneTtlMs;
+  if (key.startsWith("nankai:")) return STANDBY_CARD_REGISTRY.nankaiTrough.tombstoneTtlMs;
+  return DAY;
+}
 
 export interface StandbyRevision {
   reportTimeMs: number;

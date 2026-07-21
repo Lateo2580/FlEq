@@ -25,16 +25,18 @@ export interface PersistedStandbyStateV1 {
   typhoons: PersistedTyphoonStateV1[];
   volcanoes: PersistedVolcanoStateV1[];
   floods?: PersistedFloodState;
-  tornado?: PersistedTornadoStateV1 | null;
+  tornado?: PersistedTornadoStateV1[];
   longPeriod?: PersistedLongPeriodStateV1[];
+  quakeHost?: PersistedQuakeHostStateV1 | null;
   nankaiTrough?: PersistedNankaiStateV1 | null;
   seen: PersistedSeenEntry[];
 }
 
 export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
-export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; revision: StandbyRevision; }
-export interface PersistedTornadoStateV1 { sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; }
+export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; alertRevision: StandbyRevision | null; eventRevision: StandbyRevision | null; }
+export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; }
+export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; }
 
 export class StandbyPersistence {
@@ -51,11 +53,12 @@ export class StandbyPersistence {
         log.debug(`[standby-persistence] schema 世代交代 (v${String(version)} → v${PERSIST_SCHEMA_VERSION}) — 旧データ破棄`);
         return null;
       }
-      if (!isPersistedStandbyState(parsed)) {
-        log.warn("[standby-persistence] structure validation 失敗 — 破棄");
+      const sanitized = sanitizePersistedStandbyState(parsed);
+      if (sanitized == null) {
+        log.warn("[standby-persistence] top-level structure validation 失敗 — 破棄");
         return null;
       }
-      return parsed;
+      return sanitized;
     } catch (err) {
       log.warn(`[standby-persistence] load 失敗: ${err instanceof Error ? err.message : String(err)}`);
       return null;
@@ -137,18 +140,122 @@ function isFloodState(value: unknown): value is PersistedFloodState {
     && value.seen.every(isSeenEntry);
 }
 
-function isPersistedStandbyState(value: unknown): value is PersistedStandbyStateV1 {
+function isNullableString(value: unknown): value is string | null {
+  return value == null || typeof value === "string";
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value == null || typeof value === "number" && Number.isFinite(value);
+}
+
+function hasNullableString(value: Record<string, unknown>, key: string): boolean {
+  return Object.hasOwn(value, key) && isNullableString(value[key]);
+}
+
+function hasNullableFiniteNumber(value: Record<string, unknown>, key: string): boolean {
+  return Object.hasOwn(value, key) && isNullableFiniteNumber(value[key]);
+}
+
+function isTyphoon(value: unknown): value is DisplayTyphoonV1 {
   if (!isRecord(value)) return false;
-  return value.version === PERSIST_SCHEMA_VERSION
-    && typeof value.savedAt === "string"
-    && Array.isArray(value.heat)
-    && value.heat.every(isHeatState)
-    && (value.typhoons == null || Array.isArray(value.typhoons))
-    && (value.volcanoes == null || Array.isArray(value.volcanoes))
-    && (value.floods == null || isFloodState(value.floods))
-    && (value.tornado == null || isRecord(value.tornado))
-    && (value.longPeriod == null || Array.isArray(value.longPeriod))
-    && (value.nankaiTrough == null || isRecord(value.nankaiTrough))
-    && Array.isArray(value.seen)
-    && value.seen.every(isSeenEntry);
+  return typeof value.typhoonKey === "string"
+    && hasNullableString(value, "name")
+    && hasNullableString(value, "nameKana")
+    && hasNullableString(value, "remark")
+    && hasNullableString(value, "typhoonNumber")
+    && hasNullableString(value, "category")
+    && hasNullableString(value, "location")
+    && hasNullableFiniteNumber(value, "pressureHpa")
+    && hasNullableFiniteNumber(value, "maxWindMs")
+    && hasNullableString(value, "moveDirection")
+    && hasNullableFiniteNumber(value, "moveSpeedKmh")
+    && typeof value.reportDateTime === "string";
+}
+
+function isTyphoonState(value: unknown): value is PersistedTyphoonStateV1 {
+  return isRecord(value)
+    && typeof value.key === "string"
+    && typeof value.sourceEventId === "string"
+    && isTyphoon(value.typhoon)
+    && isRevision(value.revision)
+    && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+}
+
+function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
+  return isRecord(value)
+    && typeof value.code === "string"
+    && typeof value.name === "string"
+    && hasNullableFiniteNumber(value, "alertLevel")
+    && hasNullableFiniteNumber(value, "alertExpiresAtMs")
+    && hasNullableString(value, "latestEvent")
+    && hasNullableFiniteNumber(value, "eventExpiresAtMs")
+    && isStringArray(value.sourceEventIds)
+    && Object.hasOwn(value, "alertRevision") && (value.alertRevision == null || isRevision(value.alertRevision))
+    && Object.hasOwn(value, "eventRevision") && (value.eventRevision == null || isRevision(value.eventRevision));
+}
+
+function isTornadoState(value: unknown): value is PersistedTornadoStateV1 {
+  return isRecord(value)
+    && typeof value.publishingOffice === "string"
+    && typeof value.sourceEventId === "string"
+    && isStringArray(value.areas)
+    && typeof value.isSighted === "boolean"
+    && isRevision(value.revision)
+    && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+}
+
+function isLongPeriodState(value: unknown): value is PersistedLongPeriodStateV1 {
+  return isRecord(value)
+    && typeof value.eventId === "string"
+    && typeof value.maxLgInt === "string"
+    && isRevision(value.revision)
+    && typeof value.hosted === "boolean"
+    && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+}
+
+function isQuakeHostState(value: unknown): value is PersistedQuakeHostStateV1 {
+  return isRecord(value)
+    && typeof value.eventId === "string"
+    && typeof value.maxIntRank === "number" && Number.isFinite(value.maxIntRank)
+    && isRevision(value.revision)
+    && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+}
+
+function isNankaiState(value: unknown): value is PersistedNankaiStateV1 {
+  return isRecord(value)
+    && typeof value.sourceEventId === "string"
+    && typeof value.statusCode === "string"
+    && typeof value.label === "string"
+    && isRevision(value.revision)
+    && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+}
+
+function validDomainArray<T>(value: unknown, predicate: (entry: unknown) => entry is T, domain: string): T[] {
+  if (value == null) return [];
+  if (Array.isArray(value) && value.every(predicate)) return value;
+  log.warn(`[standby-persistence] ${domain} structure validation 失敗 — domain 破棄`);
+  return [];
+}
+
+function sanitizePersistedStandbyState(value: unknown): PersistedStandbyStateV1 | null {
+  if (!isRecord(value) || value.version !== PERSIST_SCHEMA_VERSION || typeof value.savedAt !== "string") return null;
+  const floods = value.floods == null ? undefined : isFloodState(value.floods) ? value.floods : undefined;
+  if (value.floods != null && floods == null) log.warn("[standby-persistence] floods structure validation 失敗 — domain 破棄");
+  const nankaiTrough = value.nankaiTrough == null || isNankaiState(value.nankaiTrough) ? value.nankaiTrough : null;
+  if (value.nankaiTrough != null && nankaiTrough == null) log.warn("[standby-persistence] nankaiTrough structure validation 失敗 — domain 破棄");
+  const quakeHost = value.quakeHost == null || isQuakeHostState(value.quakeHost) ? value.quakeHost : null;
+  if (value.quakeHost != null && quakeHost == null) log.warn("[standby-persistence] quakeHost structure validation 失敗 — domain 破棄");
+  return {
+    version: 1,
+    savedAt: value.savedAt,
+    heat: validDomainArray(value.heat, isHeatState, "heat"),
+    typhoons: validDomainArray(value.typhoons, isTyphoonState, "typhoons"),
+    volcanoes: validDomainArray(value.volcanoes, isVolcanoState, "volcanoes"),
+    floods,
+    tornado: validDomainArray(value.tornado, isTornadoState, "tornado"),
+    longPeriod: validDomainArray(value.longPeriod, isLongPeriodState, "longPeriod"),
+    quakeHost,
+    nankaiTrough,
+    seen: validDomainArray(value.seen, isSeenEntry, "seen"),
+  };
 }

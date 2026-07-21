@@ -12,7 +12,7 @@
 </section>
 
 <style>
-  .standby-card { width: min(360px, 28vw); background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: min(360px, 28vw); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   header { padding: var(--space-2) var(--space-4); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-title-weight-emphasized); color: var(--role-weatherWarning); }
   .critical header { color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 16%, var(--surface-standby)); }
   .date, .areas { padding: 0 var(--space-4) var(--space-2); font-size: max(14px, var(--type-label-l-fluid)); }
