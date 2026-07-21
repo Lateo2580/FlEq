@@ -211,6 +211,31 @@ describe("StandbyStateStore persistence", () => {
     expect(store.snapshotItems().find((item) => item.kind === "tornado")?.restored).toBe(true);
   });
 
+  it("keeps an aggregated typhoon card restored while any typhoon still comes from persistence", () => {
+    const base = {
+      key: "typhoon:TC-1", sourceEventId: "typhoon-1",
+      typhoon: { typhoonKey: "TC-1", name: "Alpha", nameKana: null, remark: null, typhoonNumber: "2601", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: new Date(T0).toISOString() },
+      revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 24 * 60 * 60_000,
+    };
+    const persisted = state({
+      typhoons: [
+        base,
+        { ...base, key: "typhoon:TC-2", sourceEventId: "typhoon-2", typhoon: { ...base.typhoon, typhoonKey: "TC-2", typhoonNumber: "2602" } },
+      ],
+    });
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persisted, T0 + 60_000);
+
+    store.applyEvent({
+      id: "typhoon-live", domain: "typhoonAnalysis", eventId: "TC-1", serial: "2", reportDateTime: new Date(T0 + 120_000).toISOString(),
+      isCancellation: false, title: "台風解析・予報情報", publishingOffice: "気象庁", areaItems: [],
+      raw: { type: "VPTW60", infoType: "発表", eventId: "TC-1", serial: "2", name: { name: "Alpha", nameKana: null, number: "2601", remark: null }, frames: [{ kind: "実況", label: "実況", validTime: new Date(T0 + 120_000).toISOString(), typhoonClass: { category: "TS", intensity: null, size: null }, center: { location: "ocean", coordinate: null, forecastCircleRadiusKm: null, moveDirection: "N", moveSpeedKmh: 20, pressureHpa: 985 }, wind: null }] },
+    } as never, T0 + 120_000);
+
+    const item = store.snapshotItems().find((i) => i.kind === "typhoon");
+    expect(item?.restored).toBe(true);
+  });
+
   it("keeps a restored volcano event marked when an authoritative alert seed arrives", () => {
     const persisted = state({
       volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],

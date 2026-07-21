@@ -1,6 +1,6 @@
 import type { PresentationEvent } from "../presentation/types";
 import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedTornadoAdvisory } from "../../types";
-import type { ActiveStandbyCardV1, DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
+import type { ActiveStandbyCardV1, DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
 import type { PersistedStandbyStateV1 } from "./standby-persistence";
 import { FloodActiveReducer } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
@@ -479,7 +479,7 @@ export class StandbyStateStore {
         sourceEventIds: states.map((state) => state.sourceEventId),
         updatedAt: new Date(Math.max(...states.map((state) => state.revision.reportTimeMs))).toISOString(),
         expiresAt: new Date(Math.max(...states.map((state) => state.expiresAtMs))).toISOString(),
-        restored: states.every((state) => state.restored), severity: "normal",
+        restored: states.some((state) => state.restored), severity: "normal",
         data: { typhoons: states.map((state) => ({ ...state.typhoon })) },
       });
     }
