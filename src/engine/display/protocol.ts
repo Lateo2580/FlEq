@@ -232,6 +232,102 @@ export interface DisplayLargeQuakeStateV1 extends DisplayLargeQuakeInputV1 {
   updatedAtMs: number;
 }
 
+// ---- standby cards (spec: 2026-07-21-standby-cards-expansion-design.md) ----
+
+export type StandbySeverity = "info" | "normal" | "warning" | "critical";
+
+export interface ActiveStandbyBaseV1 {
+  /** 種別内で安定な識別キー */
+  key: string;
+  sourceEventIds: string[];
+  /** 電文の発表時刻ベース (ISO) */
+  updatedAt: string;
+  /** 絶対時刻 (ISO)。null = 電文解除のみで消灯 */
+  expiresAt: string | null;
+  /** 永続化からの復元状態 (live 更新前)。フロントは「前回状態/同期中」を表示する */
+  restored: boolean;
+  /** tier/減光連動用 (spec §6) */
+  severity: StandbySeverity;
+}
+
+export interface DisplayVolcanoEntryV1 {
+  code: string;
+  name: string;
+  alertLevel: number | null;
+  /** 直近の変化イベント表示名 ("噴火速報" 等)。null = レベル常設のみ */
+  latestEvent: string | null;
+}
+
+export interface DisplayTyphoonV1 {
+  /** TC 番号 (VPTW/VPTA 共通キー、spec §5.2) */
+  typhoonKey: string;
+  name: string | null;
+  nameKana: string | null;
+  typhoonNumber: string | null;
+  category: string | null;
+  location: string | null;
+  pressureHpa: number | null;
+  maxWindMs: number | null;
+  moveDirection: string | null;
+  moveSpeedKmh: number | null;
+  reportDateTime: string;
+}
+
+export interface DisplayHeatAreaV1 {
+  areaName: string;
+  /** true = 特別警戒 */
+  isSpecial: boolean;
+}
+
+export interface DisplayFloodRiverV1 {
+  riverKey: string;
+  riverName: string;
+  /** "L3" | "L4" | "L5" (active は L3 以上のみ) */
+  level: string;
+  levelRank: number;
+  kindName: string;
+  reportDateTime: string;
+}
+
+export type ActiveStandbyCardV1 =
+  | (ActiveStandbyBaseV1 & {
+      kind: "volcano";
+      surface: "corner-right";
+      data: { volcanoes: DisplayVolcanoEntryV1[] };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "typhoon";
+      surface: "corner-right";
+      data: { typhoons: DisplayTyphoonV1[] };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "heat";
+      surface: "corner-right";
+      data: { targetDate: string; areas: DisplayHeatAreaV1[] };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "flood";
+      surface: "corner-right" | "clock-top-wide";
+      data: { rivers: DisplayFloodRiverV1[] };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "tornado";
+      surface: "weather-rider";
+      data: { areas: string[]; isSighted: boolean };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "longPeriod";
+      surface: "quake-rider";
+      data: { eventId: string; maxLgInt: string };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "nankaiTrough";
+      surface: "clock-below";
+      data: { statusCode: string; label: string };
+    });
+
+export type StandbyKind = ActiveStandbyCardV1["kind"];
+
 export interface DisplayStateSnapshotV1 {
   version: typeof DISPLAY_PROTOCOL_VERSION;
   generatedAt: string;
@@ -246,6 +342,8 @@ export interface DisplayStateSnapshotV1 {
   severityTier: DisplaySeverityTier;               // 追加
   connection: DisplayConnectionStateV1;
   recentTicker: DisplayEventDtoV1[];
+  /** 待機画面の発生中カード一覧 (priority 降順)。旧 snapshot には無い — 欠落は空配列扱い (前方互換) */
+  standbyItems?: ActiveStandbyCardV1[];
   /** true のときだけ recentTicker がこの state 配信の権威値 (composition 変化の一発同期、spec §3-2)。
    *  省略/false は「recentTicker は空だが変化なし、フロントは既存 ticker を据え置く」の意味 (定期 state の従来動作) */
   tickerSynced?: boolean;

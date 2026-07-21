@@ -19,12 +19,14 @@ import { InfoDisplayHub } from "./hub";
 import { DisplayStateStore } from "./state-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
 import type {
+  ActiveStandbyCardV1,
   DisplayTsunamiInputV1,
   DisplayTsunamiLevel,
   DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
   DisplayWeatherRank,
 } from "./types";
+import type { DisplayMutation } from "./standby-registry";
 
 export interface DisplayRuntime {
   hub: InfoDisplayHub;
@@ -37,6 +39,10 @@ export interface DisplaySeedSources {
   weather: () => Vpws50CurrentAreasForDisplay | undefined;
   /** VPWW56 (土砂災害警戒情報。Vpww56StateHolder.getCurrentAreasForDisplay) */
   landslide: () => Vpws50CurrentAreasForDisplay | undefined;
+  /** monitor 所有の active standby state。旧テスト/埋込利用との互換のため省略可 */
+  standbyItems?: () => ActiveStandbyCardV1[];
+  /** hub 稼働中の sweep は既存 hub タイマーへ統合する */
+  standbySweep?: (nowMs: number) => DisplayMutation;
 }
 
 // ── 変換関数 ──
@@ -195,7 +201,7 @@ export async function startDisplayRuntime(
   /** kill switch (onFatal) 発火時にも呼び出し元の runtime 参照を後始末させるための通知 */
   onStopped?: () => void,
 ): Promise<DisplayRuntime | null> {
-  const store = new DisplayStateStore();
+  const store = new DisplayStateStore(seeds.standbyItems);
   const distDir = resolveDistDir();
   const frontendBuildId = createFrontendBuildIdReader(distDir);
   const hub = new InfoDisplayHub(store, {
@@ -205,6 +211,7 @@ export async function startDisplayRuntime(
       ...weatherAlertsFromVpww56(seeds.landslide(), updatedAt),
     ],
     frontendBuildId,
+    standbySweep: seeds.standbySweep,
     // spec §4: 表示系の連続障害では hub (kill switch が stop 済み) に加えて transport も止め、
     // monitor 本体だけを継続する。registry も外して REPL コマンドから死んだ runtime を参照させない。
     // transport.stop() (server.close) の完了を待ってから参照クリア・onStopped を行うことで、

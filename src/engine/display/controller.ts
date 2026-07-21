@@ -27,6 +27,8 @@ export interface DisplayControllerDeps {
   setRuntime(rt: DisplayRuntime | null): void;
   /** router へ渡す displaySink の向き先 (displayHubRef) を更新する */
   setHubRef(hub: DisplayIngestSink | null): void;
+  /** null で display off sweep を再開、関数で停止して hub dirty 通知へ切り替える */
+  setStandbyDirty?: (fn: (() => void) | null) => void;
   /**
    * 起動直後に publish する現在の dmdata 接続状態を取得する (省略可)。
    * 取得できない/未注入の場合は state-store 初期値 ("connecting") のまま
@@ -41,16 +43,26 @@ export function createDisplayController(deps: DisplayControllerDeps): DisplayCon
         return { ok: false, message: "情報ディスプレイは既に稼働中です" };
       }
       const { startDisplayRuntime, setActiveDisplayRuntime } = await import("./runtime");
+      deps.setStandbyDirty?.(() => {});
       // onStopped: kill switch (onFatal) 経由の停止も deps 側の状態に反映し、二重管理をなくす
-      const rt = await startDisplayRuntime(deps.config, deps.display, deps.seeds, () => {
-        deps.setRuntime(null);
-        deps.setHubRef(null);
-      });
+      let rt: DisplayRuntime | null;
+      try {
+        rt = await startDisplayRuntime(deps.config, deps.display, deps.seeds, () => {
+          deps.setRuntime(null);
+          deps.setHubRef(null);
+          deps.setStandbyDirty?.(null);
+        });
+      } catch (err) {
+        deps.setStandbyDirty?.(null);
+        throw err;
+      }
       if (rt == null) {
+        deps.setStandbyDirty?.(null);
         return { ok: false, message: "情報ディスプレイの起動に失敗しました (詳細はログを確認してください)" };
       }
       deps.setRuntime(rt);
       deps.setHubRef(rt.hub);
+      deps.setStandbyDirty?.(() => rt.hub.markExternalStateDirty());
       setActiveDisplayRuntime(rt);
       // セッション途中の display on では、実際の dmdata 接続状態を起動直後に反映する
       // (取得元が無ければ state-store 初期値 "connecting" のまま = 現状維持)
@@ -76,6 +88,7 @@ export function createDisplayController(deps: DisplayControllerDeps): DisplayCon
       } finally {
         deps.setRuntime(null);
         deps.setHubRef(null);
+        deps.setStandbyDirty?.(null);
       }
       const { setActiveDisplayRuntime } = await import("./runtime");
       setActiveDisplayRuntime(null);

@@ -11,6 +11,7 @@ import {
 import {
   DISPLAY_PROTOCOL_VERSION,
   type DisplayActiveEewV1,
+  type ActiveStandbyCardV1,
   type DisplayConnectionStateV1,
   type DisplayEewInputV1,
   type DisplayEventDtoV1,
@@ -54,6 +55,8 @@ export class DisplayStateStore {
   private connection: DisplayConnectionStateV1 = {
     dmdata: "connecting", lastReceivedAt: null, disconnectedSince: null, reason: null,
   };
+
+  constructor(private readonly standbyItemsProvider?: () => ActiveStandbyCardV1[]) {}
 
   /**
    * tsunamiObservations: hub が PresentationEvent.tsunamiObservations をそのまま渡す (Phase 2)。
@@ -240,6 +243,7 @@ export class DisplayStateStore {
       severityTier: this.deriveSeverityTier(),
       connection: { ...this.connection },
       recentTicker: [],
+      standbyItems: this.standbyItemsProvider?.() ?? [],
     };
   }
 }

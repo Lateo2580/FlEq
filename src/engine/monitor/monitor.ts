@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { join } from "node:path";
 import { AppConfig } from "../../types";
 import { MultiConnectionManager } from "../../dmdata/multi-connection-manager";
 import { createMessageHandler } from "../messages/message-router";
@@ -12,6 +13,8 @@ import * as log from "../../logger";
 import type { PipelineController } from "../filter-template/pipeline-controller";
 import type { DisplayConnectionStateV1, DisplayIngestSink } from "../display/types";
 import type { DisplayRuntime } from "../display/runtime";
+import { StandbyPersistence } from "../display/standby-persistence";
+import { StandbyStateStore } from "../display/standby-state-store";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -32,12 +35,41 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const display = createDisplayAdapter();
   const { createDisplayController } = await import("../display/controller");
 
+  // standby active-state は display runtime ではなく monitor 本体が所有する。
+  const standbyStore = new StandbyStateStore();
+  const standbyPersistence = new StandbyPersistence(
+    join(process.cwd(), "data", "runtime", "display-active-state-v1.json"),
+  );
+  let standbyDirtyNotify: (() => void) | null = null;
+  standbyStore.onChange(() => standbyDirtyNotify?.());
+  standbyStore.onDurable(() => standbyPersistence.save(standbyStore.exportActiveState()));
+  const persistedStandby = standbyPersistence.load();
+  if (persistedStandby != null) standbyStore.restoreActiveState(persistedStandby, Date.now());
+  standbyStore.sweep(Date.now());
+
+  let standbySweepTimer: NodeJS.Timeout | null = null;
+  function startStandbySweep(): void {
+    if (standbySweepTimer != null) return;
+    standbySweepTimer = setInterval(() => standbyStore.sweep(Date.now()), 60_000);
+    standbySweepTimer.unref();
+  }
+  function stopStandbySweep(): void {
+    if (standbySweepTimer != null) {
+      clearInterval(standbySweepTimer);
+      standbySweepTimer = null;
+    }
+  }
+  startStandbySweep();
+
   // 情報ディスプレイ: router には実体 hub ではなく遅延 sink を渡す。
   // 正しい seed は restoreTsunamiState 後にしか読めないため、runtime は restore 後に
   // 起動して向き先 (displayHubRef) を差し替える。dmdata 接続開始はさらに後なので取りこぼしは無い。
   let displayHubRef: DisplayIngestSink | null = null;
   const displaySink: DisplayIngestSink = {
-    ingest: (e) => displayHubRef?.ingest(e),
+    ingest: (e) => {
+      standbyStore.applyEvent(e, Date.now());
+      displayHubRef?.ingest(e);
+    },
     publishStats: (s) => displayHubRef?.publishStats?.(s),
   };
   let displayRuntime: DisplayRuntime | null = null;
@@ -64,10 +96,17 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       tsunami: () => tsunamiState.getLastInfo(),
       weather: () => vpws50State.getCurrentAreasForDisplay(),
       landslide: () => vpww56State.getCurrentAreasForDisplay(),
+      standbyItems: () => standbyStore.snapshotItems(),
+      standbySweep: (nowMs) => standbyStore.sweep(nowMs),
     },
     getRuntime: () => displayRuntime,
     setRuntime: (rt) => { displayRuntime = rt; },
     setHubRef: (hub) => { displayHubRef = hub; },
+    setStandbyDirty: (fn) => {
+      standbyDirtyNotify = fn;
+      if (fn == null) startStandbySweep();
+      else stopStandbySweep();
+    },
     getConnectionState,
   });
 
@@ -117,6 +156,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     stopSummaryTimer: () => summaryTimerControl?.stop(),
     stopDisplayRuntime: async () => {
       await displayController.stop();
+    },
+    stopStandbySweep: () => {
+      stopStandbySweep();
+      standbyPersistence.save(standbyStore.exportActiveState());
     },
   });
 

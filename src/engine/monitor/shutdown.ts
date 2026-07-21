@@ -57,6 +57,8 @@ export interface ShutdownContext {
   stopSummaryTimer?: () => void;
   /** 情報ディスプレイ runtime の停止 (SSE クライアント切断 + HTTP サーバ close) */
   stopDisplayRuntime?: () => Promise<void>;
+  /** monitor 所有 standby sweep の停止 + active-state 最終保存 */
+  stopStandbySweep?: () => void;
 }
 
 /**
@@ -85,6 +87,8 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
         // 表示系の停止失敗はシャットダウンを妨げない
       }
     }
+    // controller.stop() は display off sweep を再開するため、その後で確実に停止・最終保存する。
+    ctx.stopStandbySweep?.();
     const repl = ctx.getReplHandler();
     if (repl) repl.stop();
     const socketClosePromise = closeSocketViaApi(ctx.apiKey, ctx.manager);

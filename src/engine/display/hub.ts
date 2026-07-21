@@ -20,6 +20,7 @@ import type {
   DisplayTransport,
   DisplayWeatherAlertV1,
 } from "./types";
+import type { DisplayMutation } from "./standby-registry";
 
 export interface InfoDisplayHubDeps {
   /** monitor が DisplayCallbacks.renderSummaryLine の DI で渡す (engine から ui を import しない) */
@@ -34,6 +35,8 @@ export interface InfoDisplayHubDeps {
    *  snapshot/state に載せてクライアントの自動リロードに使う。省略・null 返却は「識別子なし」
    *  (クライアントは何もしない)。呼び出しごとに dist を stat して変化時のみ再ハッシュする実装を想定 */
   frontendBuildId?: () => string | null;
+  /** monitor 所有の standby state を既存 sweep タイマーで駆動する */
+  standbySweep?: (nowMs: number) => DisplayMutation;
 }
 
 // 電文 1 件を「射影 → 状態適用 → ring buffer → transport broadcast」に束ねる中枢。
@@ -218,6 +221,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
     this.sweepTimer = setInterval(() => {
       const nowMs = this.now();
       let dirty = this.store.sweep(nowMs);
+      dirty = (this.deps.standbySweep?.(nowMs).viewChanged ?? false) || dirty;
       dirty = this.sweepTicker(nowMs) || dirty;
       // 無停止の display:build (プロセス継続で dist だけ差し替え) を電文契機に頼らず検知する。
       // publishedBuildId が昇格したときだけ dirty 化して新 buildId を state で届ける
@@ -265,6 +269,11 @@ export class InfoDisplayHub implements DisplayIngestSink {
 
   isStopped(): boolean {
     return this.stopped;
+  }
+
+  /** monitor 所有の外部 state が変化したとき、snapshot 再配信を要求する公開窓口。 */
+  markExternalStateDirty(): void {
+    this.markStateDirty();
   }
 
   private markStateDirty(): void {
