@@ -128,6 +128,9 @@ const CATEGORY_ORDER: StatsCategory[] = [
   "heatAlert",
   "typhoonAnalysis",
   "typhoonProbability",
+  // [R1 前哨] weatherWarningTimeseries と同型の追加漏れ: floodForecast が
+  // CATEGORY_ORDER に入っておらず洪水予報統計が集計表示から漏れていた。
+  "floodForecast",
   "other",
 ];
 
