@@ -52,6 +52,19 @@ import { displayEewInfo } from "../../../src/ui/eew-formatter";
 import { processEew } from "../../../src/engine/presentation/processors/process-eew";
 import { EewTracker } from "../../../src/engine/eew/eew-tracker";
 import { EewEventLogger } from "../../../src/engine/eew/eew-logger";
+// S2 parity 拡充: 津波 (VTSE) / 地震情報 (VXSE51-53/61) / 火山 (VFVO/VZVO40/VFSVii)。
+// registry の対応 entry の format / compactLine と同じ経路を direct 側でも再現する。
+import { parseTsunamiTelegram, parseEarthquakeTelegram } from "../../../src/dmdata/telegram-parser";
+import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
+import { displayTsunamiInfo } from "../../../src/ui/tsunami-formatter";
+import { displayEarthquakeInfo } from "../../../src/ui/earthquake-info-formatter";
+import { displayVolcanoInfo } from "../../../src/ui/volcano-formatter";
+import { resolveVolcanoPresentation } from "../../../src/engine/presentation/volcano-presentation";
+import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
+import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
+import { processTsunami } from "../../../src/engine/presentation/processors/process-tsunami";
+import { processEarthquake } from "../../../src/engine/presentation/processors/process-earthquake";
+import { buildVolcanoOutcome } from "../../../src/engine/presentation/processors/process-volcano";
 
 /**
  * spec §7 回帰防止: Studio 経由 render と本番 formatter 直叩きが
@@ -111,6 +124,27 @@ describe("render parity (Studio vs 本番 formatter)", () => {
     ["74_01_04_200512_VYSE50.xml", (msg: WsDataMessage) => displayNankaiTroughInfo(parseNankaiTroughTelegram(msg)!)],
     ["80_01_01_240821_VYSE60.xml", (msg: WsDataMessage) => displayNankaiTroughInfo(parseNankaiTroughTelegram(msg)!)],
     ["78_01_01_240613_VXSE62.xml", (msg: WsDataMessage) => displayLgObservationInfo(parseLgObservationTelegram(msg)!)],
+    // S2 拡充: 津波 (VTSE41 警報・注意報 / VTSE51 津波情報 / VTSE52 沖合の津波情報)
+    ["32-39_11_02_250206_VTSE41.xml", (msg: WsDataMessage) => displayTsunamiInfo(parseTsunamiTelegram(msg)!)],
+    ["32-39_11_03_250206_VTSE51.xml", (msg: WsDataMessage) => displayTsunamiInfo(parseTsunamiTelegram(msg)!)],
+    ["32-39_12_05_250206_VTSE52.xml", (msg: WsDataMessage) => displayTsunamiInfo(parseTsunamiTelegram(msg)!)],
+    // S2 拡充: 地震情報 (VXSE51 震度速報 / VXSE52 震源 / VXSE53 震源・震度 / VXSE61 震源要素更新)
+    ["32-35_07_01_100915_VXSE51.xml", (msg: WsDataMessage) => displayEarthquakeInfo(parseEarthquakeTelegram(msg)!)],
+    ["32-35_01_02_240613_VXSE52.xml", (msg: WsDataMessage) => displayEarthquakeInfo(parseEarthquakeTelegram(msg)!)],
+    ["32-35_01_03_240613_VXSE53.xml", (msg: WsDataMessage) => displayEarthquakeInfo(parseEarthquakeTelegram(msg)!)],
+    ["32-35_03_02_240613_VXSE61.xml", (msg: WsDataMessage) => displayEarthquakeInfo(parseEarthquakeTelegram(msg)!)],
+    // S2 拡充: 火山 (VFVO50-56/60 / VZVO40 / VFSVii)。registry と同じく単一 parsed を
+    // resolveVolcanoPresentation と displayVolcanoInfo に渡す (新品 VolcanoStateHolder = 初回状態)
+    ["45_01_01_200522_VFVO50.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["44_01_01_151008_VFVO51.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["43_01_01_200522_VFVO52.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["66_01_01_210517_VFVO53.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["66_01_02_210514_VFVO54.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["66_01_03_210514_VFVO55.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["67_01_01_140927_VFVO56.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["79_01_01_210527_VFVO60.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["42_02_01_071130_VZVO40.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
+    ["46_01_01_170103_VFSVii.xml", (msg: WsDataMessage) => { const p = parseVolcanoTelegram(msg)!; displayVolcanoInfo(p, resolveVolcanoPresentation(p, new VolcanoStateHolder())); }],
   ] as const)(
     "%s: width 80 noColor で byte 一致 (新 registry 経路)",
     async (fixtureId, directRender) => {
@@ -289,6 +323,23 @@ describe("compact parity (registry compactLine vs 本番 processor 経由)", () 
     ["74_01_04_200512_VYSE50.xml", (msg: WsDataMessage) => processNankaiTrough(msg)],
     ["80_01_01_240821_VYSE60.xml", (msg: WsDataMessage) => processNankaiTrough(msg)],
     ["78_01_01_240613_VXSE62.xml", (msg: WsDataMessage) => processLgObservation(msg)],
+    // S2 拡充: 津波 (processTsunami は result.kind を返すため outcome を取り出す) / 地震 / 火山。
+    // registry compactLine と同じ新品 Holder を渡し、決定性ガードとして byte 一致を固定する。
+    ["32-39_11_02_250206_VTSE41.xml", (msg: WsDataMessage) => { const r = processTsunami(msg, new TsunamiStateHolder()); return r.kind === "ok" ? r.outcome : null; }],
+    ["32-39_11_03_250206_VTSE51.xml", (msg: WsDataMessage) => { const r = processTsunami(msg, new TsunamiStateHolder()); return r.kind === "ok" ? r.outcome : null; }],
+    ["32-39_12_05_250206_VTSE52.xml", (msg: WsDataMessage) => { const r = processTsunami(msg, new TsunamiStateHolder()); return r.kind === "ok" ? r.outcome : null; }],
+    ["32-35_07_01_100915_VXSE51.xml", (msg: WsDataMessage) => processEarthquake(msg)],
+    ["32-35_01_02_240613_VXSE52.xml", (msg: WsDataMessage) => processEarthquake(msg)],
+    ["32-35_01_03_240613_VXSE53.xml", (msg: WsDataMessage) => processEarthquake(msg)],
+    ["32-35_03_02_240613_VXSE61.xml", (msg: WsDataMessage) => processEarthquake(msg)],
+    ["45_01_01_200522_VFVO50.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["44_01_01_151008_VFVO51.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["43_01_01_200522_VFVO52.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["66_01_01_210517_VFVO53.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["67_01_01_140927_VFVO56.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["79_01_01_210527_VFVO60.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["42_02_01_071130_VZVO40.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
+    ["46_01_01_170103_VFSVii.xml", (msg: WsDataMessage) => buildVolcanoOutcome(msg, parseVolcanoTelegram(msg)!, new VolcanoStateHolder())],
   ] as const)("%s: compactLine が本番 processor 経由の summary と一致", (fixtureId, processFn) => {
     const msg = loadFixture(fixtureId)!;
     const entry = findWeatherEntry(fixtureId)!;
