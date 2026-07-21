@@ -38,6 +38,11 @@ describe("routeToCategory()", () => {
     expect(routeToCategory(route)).toBe(expected);
   });
 
+  it("実行時に未知の route が紛れても旧実装同様 other へ落ちる", () => {
+    // 型上はあり得ないが、旧 string 受け実装の挙動保存を固定する
+    expect(routeToCategory("__unknown__" as Route)).toBe("other");
+  });
+
   it("全 Route を網羅している (catalog に route を足したら table も追随する番兵)", () => {
     // route-catalog が持つ全 route を CASES が漏れなく含むことを確認する。
     // 網羅の真実源は ROUTE_TO_STATS_CATEGORY のキー集合。

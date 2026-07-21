@@ -11,8 +11,11 @@ import { createJmxXmlParser } from "../../src/dmdata/xml-shape";
  * とりわけ factory が明示追加した `parseAttributeValue: false` が、
  * 従来の未指定 (既定値 false 頼み) と出力を 1 バイトも変えないことを保証する。
  *
- * `isArray` の集合は各パーサの現行定義をそのまま写経している。集合を変えると
- * ここが割れる (= パーサ側の isArray 集合が動いていないことの検証にもなる)。
+ * 検証範囲の注意: `isArray` の集合はこのテスト内に写経した固定コピーを新旧両側に
+ * 渡している。つまりここで固定しているのは「factory という生成経路が出力を変えない」
+ * ことであって、**各パーサ側の isArray 集合が将来動いても、このテストは割れない**
+ * (集合の変更はパーサの出力契約の変更として、各パーサの snapshot/formatter テストが
+ * 検出する領分)。R2 移行時の集合不変性は diff の引用タグ機械照合で別途確認済み。
  */
 
 const FIXTURES_DIR = path.resolve(__dirname, "../fixtures");

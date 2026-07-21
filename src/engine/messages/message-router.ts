@@ -176,6 +176,11 @@ export type RoutedMessageTap = (event: {
   message: WsDataMessage;
 }) => void;
 
+/** tap の throw/reject 値を安全に文字列化する (null や非 Error でも二次例外を出さない) */
+function describeTapError(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 /** createMessageHandler のオプション */
 export interface MessageHandlerOptions {
   pipeline?: FilterTemplatePipeline;
@@ -303,13 +308,20 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const route = classifyMessage(msg.classification, msg.head.type);
 
     // 分類済みの全電文を汎用 tap に通知 (ignore / raw / suppressed / 火山も含む)。
-    // tap の例外は本体処理へ波及させない。
+    // tap の例外は本体処理へ波及させない (Error 以外の throw 値でもログ側で二次例外を起こさない)。
     if (routeTaps) {
       for (const tap of routeTaps) {
         try {
-          tap({ route, message: msg });
+          const result = tap({ route, message: msg }) as unknown;
+          // 契約上 tap は同期だが、誤って async 関数が渡されたときも
+          // reject を未処理のまま漏らさない
+          if (result instanceof Promise) {
+            result.catch((e: unknown) => {
+              log.warn(`[route-tap] async tap の reject: ${describeTapError(e)}`);
+            });
+          }
         } catch (e) {
-          log.warn(`[route-tap] tap 実行で例外: ${(e as Error).message}`);
+          log.warn(`[route-tap] tap 実行で例外: ${describeTapError(e)}`);
         }
       }
     }

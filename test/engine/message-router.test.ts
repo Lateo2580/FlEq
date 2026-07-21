@@ -773,6 +773,21 @@ describe("message-router 統合テスト", () => {
       expect(stats.getSnapshot().countByType.get("VXSE53")).toBe(1);
     });
 
+    it("tap が Error 以外 (null) を throw しても本体処理が正常継続する", () => {
+      const throwingNull = vi.fn(() => {
+        // eslint 的には行儀が悪いが、listener 実装の事故を模す
+        throw null;
+      });
+      const following = vi.fn();
+      const { handler, stats } = createHandler({ routeTaps: [throwingNull, following] });
+      const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+      handler(msg);
+
+      expect(throwingNull).toHaveBeenCalledTimes(1);
+      expect(following).toHaveBeenCalledTimes(1);
+      expect(stats.getSnapshot().countByType.get("VXSE53")).toBe(1);
+    });
+
     it("routeTaps 未指定なら従来と完全同一挙動 (表示・統計に影響なし)", () => {
       const { handler, stats } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO);

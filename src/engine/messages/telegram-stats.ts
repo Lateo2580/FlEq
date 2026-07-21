@@ -29,7 +29,9 @@ export type StatsCategory =
  * statsCategory 指定が必須になる)。
  */
 export function routeToCategory(route: Route): StatsCategory {
-  return ROUTE_TO_STATS_CATEGORY[route];
+  // 型上は Route で網羅済みだが、実行時に未知の文字列が紛れた場合は
+  // 旧実装 (string 受け) と同じく "other" へ落とす
+  return ROUTE_TO_STATS_CATEGORY[route] ?? "other";
 }
 
 /** record() の入力 */
