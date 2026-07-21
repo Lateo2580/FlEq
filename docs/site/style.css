@@ -490,10 +490,28 @@ pre.terminal-mock,
   100% { opacity: 0.9; stroke-dashoffset: 0; }
 }
 
+/* 退場: 3 本すべて描画完了 + 保持ののち、.is-fading で全 marker を同時にゆっくり fade out
+   (draw の per-marker 規則より後置し同 specificity の後勝ちで上書きする) */
+.hero-anim-overlay.is-playing.is-fading .hero-anim-marker {
+  animation: hero-marker-fade 1.2s ease 0s forwards;
+}
+
+@keyframes hero-marker-fade {
+  from { opacity: 0.9; stroke-dashoffset: 0; }
+  to   { opacity: 0;   stroke-dashoffset: 0; }
+}
+
 [data-hero-src-line].is-highlight,
 [data-hero-out-line].is-highlight {
   box-shadow: 0 0 0 2px var(--terminal-signal-note);
   transition: box-shadow 0.15s ease-in-out;
+}
+
+/* 退場: fade 中は highlight 枠も marker と同じ 1.2s で透明へ (class は cleanup まで残す) */
+.hero-sample-panes.hero-fade [data-hero-src-line].is-highlight,
+.hero-sample-panes.hero-fade [data-hero-out-line].is-highlight {
+  box-shadow: 0 0 0 2px transparent;
+  transition: box-shadow 1.2s ease;
 }
 
 @media (max-width: 640px) {
