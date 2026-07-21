@@ -1,4 +1,5 @@
 import { intensityToRank } from "../../utils/intensity";
+import { jstDayKey } from "../../utils/jst-day-key";
 import type { PresentationEvent } from "../presentation/types";
 
 /** getSnapshot() の戻り値 */
@@ -62,9 +63,4 @@ export class DailyQuakeCounter {
       this.countedEventIds.clear();
     }
   }
-}
-
-/** UTC ミリ秒を JST 暦日キー (YYYY-MM-DD) に変換する */
-function jstDayKey(ts: number): string {
-  return new Date(ts + 9 * 3_600_000).toISOString().slice(0, 10);
 }
