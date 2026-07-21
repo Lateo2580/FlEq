@@ -172,4 +172,54 @@ describe("StandbyStateStore persistence", () => {
     const volcano = store.snapshotItems().find((item) => item.kind === "volcano");
     expect(volcano).toEqual(expect.objectContaining({ restored: true, data: { volcanoes: [expect.objectContaining({ alertLevel: null, latestEvent: "flash" })] } }));
   });
+
+  it("keeps an aggregated heat card restored while any area still comes from persistence", () => {
+    const persisted = state({
+      heat: [
+        ...state().heat,
+        { ...state().heat[0], key: "heat:2026-07-21:長崎県", sourceEventIds: ["heat-2"], areas: [{ areaName: "長崎県", isSpecial: false }] },
+      ],
+    });
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persisted, T0 + 60_000);
+
+    store.applyEvent({
+      id: "heat-live", domain: "heatAlert", eventId: null, serial: "2", reportDateTime: new Date(T0 + 120_000).toISOString(),
+      isCancellation: false, title: "熱中症警戒アラート", publishingOffice: "環境省 気象庁", areaItems: [],
+      raw: { type: "VPFT50", infoType: "発表", targetDateTime: new Date(T0).toISOString(), serial: "2", targetAreaName: "東京都" },
+    } as never, T0 + 120_000);
+
+    expect(store.snapshotItems().find((item) => item.kind === "heat")?.restored).toBe(true);
+  });
+
+  it("keeps an aggregated tornado card restored while any office still comes from persistence", () => {
+    const persisted = state({
+      tornado: [
+        { publishingOffice: "東京管区気象台", sourceEventId: "tornado-1", areas: ["東京都"], isSighted: false, revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000 },
+        { publishingOffice: "長崎地方気象台", sourceEventId: "tornado-2", areas: ["長崎県"], isSighted: false, revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60 * 60_000 },
+      ],
+    });
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persisted, T0 + 60_000);
+
+    store.applyEvent({
+      id: "tornado-live", domain: "tornado", eventId: null, serial: "2", reportDateTime: new Date(T0 + 120_000).toISOString(),
+      isCancellation: false, title: "竜巻注意情報", publishingOffice: "東京管区気象台", areaItems: [{ name: "東京都" }],
+      raw: { serial: "2", publishingOffice: "東京管区気象台", activeAreaCount: 1, hasSightingAreas: false, validDateTime: new Date(T0 + 60 * 60_000).toISOString() },
+    } as never, T0 + 120_000);
+
+    expect(store.snapshotItems().find((item) => item.kind === "tornado")?.restored).toBe(true);
+  });
+
+  it("keeps a restored volcano event marked when an authoritative alert seed arrives", () => {
+    const persisted = state({
+      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],
+    });
+    const store = new StandbyStateStore();
+    store.restoreActiveState(persisted, T0 + 60_000);
+
+    store.seedVolcanoAlerts([{ volcanoCode: "V-1", volcanoName: "Mount Test", alertLevel: 4, reportDateTime: new Date(T0 + 120_000).toISOString() }], "success", T0 + 120_000);
+
+    expect(store.snapshotItems().find((item) => item.kind === "volcano")?.restored).toBe(true);
+  });
 });

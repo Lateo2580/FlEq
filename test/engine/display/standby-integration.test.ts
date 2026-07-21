@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { partitionStandbyItems, selectRightStack } from "../../../display/frontend/src/lib/standby-cards";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { ParsedVolcanoAlertInfo } from "../../../src/types";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 const iso = (timeMs = T0): string => new Date(timeMs).toISOString();
@@ -66,6 +68,16 @@ function longPeriod(timeMs = T0, eventId = "quake-1", maxLgInt: string | null = 
 
 function host(timeMs = T0, eventId = "quake-1", maxIntRank = 4): PresentationEvent {
   return event({ id: eventId, domain: "earthquake", eventId, maxIntRank, reportDateTime: iso(timeMs) });
+}
+
+function volcanoAlertInfo(timeMs: number, action: ParsedVolcanoAlertInfo["action"], alertLevel: number): ParsedVolcanoAlertInfo {
+  return {
+    domain: "volcano", kind: "alert", type: "VFVO50", infoType: "発表", title: "噴火警報・予報",
+    reportDateTime: iso(timeMs), eventDateTime: null, headline: null, publishingOffice: "気象庁",
+    volcanoName: "テスト山", volcanoCode: "V-1", coordinate: null, isTest: false,
+    alertLevel, alertLevelCode: String(alertLevel), action, previousLevelCode: null,
+    warningKind: null, municipalities: [], bodyText: "", preventionText: "", isMarine: false,
+  };
 }
 
 describe("standby integration", () => {
@@ -157,6 +169,19 @@ describe("standby integration", () => {
     expect(restored.snapshotItems()).toEqual([expect.objectContaining({ kind: "longPeriod", restored: true })]);
   });
 
+  it("6d: keeps a live intensity-5-lower host and its rider when a newer intensity-2 quake arrives", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(host(T0, "quake-1", 5), T0);
+    store.applyEvent(longPeriod(T0 + 1, "quake-1"), T0 + 1);
+
+    expect(store.applyEvent(host(T0 + 60_000, "quake-2", 2), T0 + 60_000))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().quakeHost).toEqual(expect.objectContaining({ eventId: "quake-1", maxIntRank: 5 }));
+    expect(store.snapshotItems()).toEqual([
+      expect.objectContaining({ kind: "longPeriod", data: { eventId: "quake-1", maxLgInt: "3" } }),
+    ]);
+  });
+
   it("7: aggregates heat by target date and area, cancelling only the addressed area", () => {
     const store = new StandbyStateStore();
     store.applyEvent(heat("1", T0, "東京都"), T0);
@@ -215,6 +240,22 @@ describe("standby integration", () => {
     expect(eventOnly.snapshotItems()[0]).toEqual(expect.objectContaining({
       kind: "volcano", data: { volcanoes: [expect.objectContaining({ alertLevel: null, latestEvent: "噴火速報" })] },
     }));
+  });
+
+  it("9b: seeds a released volcano watermark and rejects an older delayed alert after a fresh start", () => {
+    const volcanoState = new VolcanoStateHolder();
+    volcanoState.update(volcanoAlertInfo(T0, "issue", 4));
+    volcanoState.update(volcanoAlertInfo(T0 + 60_000, "release", 1));
+    expect(volcanoState.size()).toBe(0);
+    expect(volcanoState.getWatermarks()).toEqual([{
+      volcanoCode: "V-1", volcanoName: "テスト山", reportDateTime: iso(T0 + 60_000),
+    }]);
+
+    const store = new StandbyStateStore();
+    store.seedVolcanoAlerts(volcanoState.getSeedEntries(), "success", T0 + 60_001);
+    expect(store.applyEvent(volcano(T0 + 30_000), T0 + 60_002))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotItems()).toEqual([]);
   });
 
   it("10: keeps long-lived cancellation tombstones beyond 24 hours", () => {

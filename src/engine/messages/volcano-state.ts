@@ -20,6 +20,17 @@ interface VolcanoAlertEntry {
   lastInfo: ParsedVolcanoAlertInfo;
 }
 
+export interface VolcanoReportTimeWatermark {
+  volcanoCode: string;
+  volcanoName: string;
+  reportDateTime: string;
+}
+
+export interface VolcanoSeedEntry extends VolcanoReportTimeWatermark {
+  alertLevel: number | null;
+  active: boolean;
+}
+
 /** レベルに対応するテーマロール */
 function levelToRole(level: number | null): PromptStatusRole {
   switch (level) {
@@ -49,7 +60,7 @@ export class VolcanoStateHolder
   readonly emptyMessage = "現在、継続中の火山警報はありません。";
 
   private entries = new Map<string, VolcanoAlertEntry>();
-  private reportTimeWatermarks = new Map<string, number>();
+  private reportTimeWatermarks = new Map<string, { reportTimeMs: number; volcanoName: string; reportDateTime: string }>();
 
   /** VFVO50/VFSVii 受信時に状態を更新する */
   update(info: ParsedVolcanoInfo): boolean {
@@ -61,8 +72,12 @@ export class VolcanoStateHolder
     const reportTime = Date.parse(info.reportDateTime);
     const watermark = this.reportTimeWatermarks.get(info.volcanoCode);
     if (!Number.isNaN(reportTime)) {
-      if (watermark != null && reportTime < watermark) return false;
-      this.reportTimeWatermarks.set(info.volcanoCode, reportTime);
+      if (watermark != null && reportTime < watermark.reportTimeMs) return false;
+      this.reportTimeWatermarks.set(info.volcanoCode, {
+        reportTimeMs: reportTime,
+        volcanoName: info.volcanoName,
+        reportDateTime: info.reportDateTime,
+      });
     }
 
     // 取消報 → エントリ削除
@@ -128,13 +143,27 @@ export class VolcanoStateHolder
     return this.entries.get(volcanoCode);
   }
 
-  getSeedEntries(): Array<{ volcanoCode: string; volcanoName: string; alertLevel: number | null; reportDateTime: string }> {
-    return [...this.entries.values()].map((entry) => ({
+  getWatermarks(): VolcanoReportTimeWatermark[] {
+    return [...this.reportTimeWatermarks].map(([volcanoCode, watermark]) => ({
+      volcanoCode,
+      volcanoName: watermark.volcanoName,
+      reportDateTime: watermark.reportDateTime,
+    }));
+  }
+
+  getSeedEntries(): VolcanoSeedEntry[] {
+    const active = [...this.entries.values()].map((entry) => ({
       volcanoCode: entry.volcanoCode,
       volcanoName: entry.volcanoName,
       alertLevel: entry.alertLevel,
       reportDateTime: entry.reportDateTime,
+      active: true,
     }));
+    const activeCodes = new Set(active.map((entry) => entry.volcanoCode));
+    const released = this.getWatermarks()
+      .filter((watermark) => !activeCodes.has(watermark.volcanoCode))
+      .map((watermark) => ({ ...watermark, alertLevel: null, active: false }));
+    return [...active, ...released];
   }
 
   // ── PromptStatusProvider ──

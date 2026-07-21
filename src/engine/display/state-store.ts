@@ -2,9 +2,6 @@ import {
   EEW_FINAL_HOLD_SEC,
   EEW_TTL_MIN,
   LARGE_QUAKE_HOLD_MIN,
-  QUAKE_CARD_TTL_HIGH_MIN,
-  QUAKE_CARD_TTL_LOW_MIN,
-  QUAKE_CARD_TTL_MID_MIN,
   RECENT_QUAKES_MAX,
   TSUNAMI_DEMOTE_MIN,
 } from "./constants";
@@ -28,18 +25,11 @@ import {
   type DisplayWeatherAlertV1,
 } from "./types";
 import { intensityToRank } from "../../utils/intensity";
+import { quakeCardTtlMs, shouldReplaceQuakeCard } from "./quake-card-selection";
 
 const MIN_MS = 60_000;
-const QUAKE_CARD_HIGH_RANK = intensityToRank("5弱");
-const QUAKE_CARD_MID_RANK = intensityToRank("3");
 const TIER_ORDER: Record<DisplaySeverityTier, number> = { calm: 0, caution: 1, alert: 2, critical: 3 };
 const TIER_QUAKE_ALERT_RANK = intensityToRank("5弱");
-
-function quakeCardTtlMs(rank: number): number {
-  if (rank >= QUAKE_CARD_HIGH_RANK) return QUAKE_CARD_TTL_HIGH_MIN * MIN_MS;
-  if (rank >= QUAKE_CARD_MID_RANK) return QUAKE_CARD_TTL_MID_MIN * MIN_MS;
-  return QUAKE_CARD_TTL_LOW_MIN * MIN_MS;
-}
 
 // 現在の緊急状態 (EEW/津波/大地震/気象警報/接続) を合成する表示用ストア。
 // 時刻は全メソッドで nowMs 注入 (クラス内で Date.now() を呼ばない)。
@@ -145,16 +135,12 @@ export class DisplayStateStore {
 
   private applyLatestQuake(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
     const existing = this.latestQuake;
-    // 同一 eventId の続報 (震度の下方修正含む) は常に置換する。ガードの意図は
-    // 「別の余震で押し出されない」ことであり、同じ地震の訂正報を古いまま残さない。
-    const sameEvent = existing?.eventId != null && existing.eventId === input.eventId;
-    if (existing != null && !sameEvent) {
-      const existingRank = existing.maxIntRank ?? 0;
-      const newRank = input.maxIntRank ?? 0;
-      const expired = nowMs - existing.updatedAtMs > quakeCardTtlMs(existingRank);
-      // 高ランクの生存カードは、より低ランクの新地震では置き換えない (余震で押し出されない)
-      if (!expired && newRank < existingRank) return false;
-    }
+    const current = existing == null ? null : {
+      eventId: existing.eventId,
+      maxIntRank: existing.maxIntRank,
+      expiresAtMs: existing.updatedAtMs + quakeCardTtlMs(existing.maxIntRank ?? 0),
+    };
+    if (!shouldReplaceQuakeCard(current, input, nowMs)) return false;
     this.latestQuake = { ...input, updatedAtMs: nowMs };
     return true;
   }
