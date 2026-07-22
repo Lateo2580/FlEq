@@ -172,6 +172,11 @@
   let weatherHeightPx = $state(0);
   const hasWeatherCard = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
   const measuredWeatherHeightPx = $derived(hasWeatherCard ? (weatherHeightPx > 0 ? weatherHeightPx : 280) : 0);
+  // 気象警報カードを右上の最上位に保つ (spec §4)。洪水スロットは気象カードの直下に絶対配置し、
+  // corner-right のスタック側には同じ高さのスペーサーを置いて流し込みの整合を取る
+  const weatherFloodOffsetPx = $derived(
+    floodItem?.surface === "corner-right" && hasWeatherCard ? measuredWeatherHeightPx + 12 : 0,
+  );
   const rightBudgetPx = $derived(rightStackBudgetPx(standbyHeightPx, measuredWeatherHeightPx, floodCornerOffsetPx, 12));
   const rightStack = $derived(selectRightStackWithSummary(
     standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"),
@@ -244,7 +249,7 @@
   $effect(() => () => flipAnim?.cancel());
 </script>
 
-<div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px" use:measureBorderHeight={(height) => (standbyHeightPx = height)}>
+<div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px; --weather-corner-offset: {weatherFloodOffsetPx}px" use:measureBorderHeight={(height) => (standbyHeightPx = height)}>
   {#each floodSlot as item (item.key)}
     <div
       class="flood-slot"
@@ -271,6 +276,10 @@
       >
         <WeatherAlertCard alerts={snapshot.weatherAlerts} tornado={tornadoItem} />
       </div>
+    {/if}
+    {#if floodCornerOffsetPx > 0}
+      <!-- 気象カード直下に絶対配置される洪水スロットの居場所 (flex 流し込みの整合用スペーサー) -->
+      <div class="flood-spacer" style="height: {floodHeightPx}px" aria-hidden="true"></div>
     {/if}
     {#each rightStack.visible as item (item.key)}
       <div class="standby-corner" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
@@ -340,9 +349,9 @@
   }
   .corner-right {
     position: absolute;
-    top: calc(24px + var(--flood-corner-offset, 0px));
+    top: 24px;
     right: 32px;
-    max-height: calc(100% - 48px - var(--flood-corner-offset, 0px));
+    max-height: calc(100% - 48px);
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -352,9 +361,12 @@
   .flood-slot {
     z-index: 2;
   }
+  .flood-spacer {
+    flex-shrink: 0;
+  }
   .flood-corner {
     position: absolute;
-    top: 24px;
+    top: calc(24px + var(--weather-corner-offset, 0px));
     right: 32px;
   }
   .clock-top-slot {

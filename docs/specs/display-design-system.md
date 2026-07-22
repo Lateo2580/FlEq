@@ -715,4 +715,6 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 
 HeatAlertCard、TyphoonCard、VolcanoCard、FloodCard/FloodWideCard は右上または時計上の待機カードである。NankaiBadge は時計下、竜巻と長周期地震動は既存の WeatherAlertCard / LatestQuakeCard の rider として表示する。右上の収容上限を超えたカードは StandbyOverflowSummary に集約する。RestoredChip（同期中）は永続化から復元した状態だけに付け、live 更新後は消す。critical standby は tier と夜間減光を抑止するが、emergency 画面遷移はしない。
 
+右上の積み順は 気象警報カード > 洪水 > 火山 > 台風 > 熱中症（洪水スロットは corner⇔clock-top を同一 key で移動するため絶対配置だが、気象カード高さ分のオフセット + スペーサーで気象カードの下に収める）。FloodWideCard の幅 `min(720px, 56vw)` は視聴環境の錨（24インチ FHD）では左右コーナーと衝突しない。**FHD 未満（例: 1280px 幅）では右上カード列と水平に重なり得る既知の制約**であり、FHD 未満の常用が必要になったら幅計算を「画面幅 − 左右コーナー幅」基準へ変更する。目視確認はプレビュー `#standby-active-cards` / `#standby-active-wide` を使う。
+
 </details>
