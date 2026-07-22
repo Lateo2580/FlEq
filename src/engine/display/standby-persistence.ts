@@ -123,12 +123,17 @@ function isFloodTrend(value: unknown): value is DisplayFloodStationV1["trend"] {
 
 function isFloodHydrograph(value: unknown): value is DisplayFloodHydrographV1 {
   if (!isRecord(value)) return false;
-  return Array.isArray(value.points)
-    && value.points.every((point) => isRecord(point)
-      && typeof point.dateTime === "string"
-      && isNullableFiniteNumber(point.valueM)
-      && (point.phase === "observed" || point.phase === "forecast"))
-    && isNullableFiniteNumber(value.dangerLevelM);
+  if (!Array.isArray(value.points) || value.points.length === 0) return false;
+  const pointsWellFormed = value.points.every((point, i) => isRecord(point)
+    && typeof point.dateTime === "string"
+    && isNullableFiniteNumber(point.valueM)
+    // phase 不変条件: 先頭 (i===0) は現況 observed、以降はすべて予測 forecast。
+    // 描画側は phase を読まず先頭=現況/残り=予測として扱うため、逆順の壊れた永続データは破棄する
+    && point.phase === (i === 0 ? "observed" : "forecast"));
+  if (!pointsWellFormed) return false;
+  // 有効値が 1 点も無い hydrograph は描画不能なので破棄 (project-flood.ts の生成条件と同じ)
+  if (!value.points.some((point) => isRecord(point) && point.valueM != null)) return false;
+  return isNullableFiniteNumber(value.dangerLevelM);
 }
 
 function isFloodStation(value: unknown): value is DisplayFloodStationV1 {

@@ -378,13 +378,31 @@ describe("projectFloodUpdate", () => {
     const update = projectFloodUpdate(fromFloodForecastOutcome(outcome));
     expect(update?.mode).toBe("replace");
     if (update?.mode !== "replace") return;
-    expect(update.rivers.length).toBeGreaterThan(0);
-    for (const river of update.rivers) {
-      expect(river.station).not.toBeNull();
-      expect(typeof river.station?.name).toBe("string");
-      expect(river.station?.name).not.toBe("");
-      // 全河川 L3+ なので、超過中の基準水位名が必ず付く
-      expect(river.station?.thresholdLabel).toContain("水位");
-    }
+
+    const byKey = new Map(update.rivers.map((river) => [river.riverKey, river]));
+
+    // 緑川: 現況 L4 の中甲橋 (4.62m ≥ 氾濫危険水位 4.60m) が代表。
+    // 現況 L1 の城南 (3.63m, headline 由来で L4 candidate) は代表にならず、
+    // 「氾濫危険水位 6.20m 超過」の虚偽断定を出さない。
+    const midori = byKey.get("8909100001");
+    expect(midori?.level).toBe("L4");
+    expect(midori?.station?.name).toBe("中甲橋");
+    expect(midori?.station?.levelM).toBe(4.62);
+    expect(midori?.station?.thresholdLabel).toBe("氾濫危険水位 4.60m 超過");
+
+    // 加勢川: 大六橋のみ、現況 L2 (3.67m)。river 全体は headline 由来で L4 だが、
+    // 現況が L3 未満なので thresholdLabel は null (断定を避ける)。
+    const kaseigawa = byKey.get("8909100051");
+    expect(kaseigawa?.level).toBe("L4");
+    expect(kaseigawa?.station?.name).toBe("大六橋");
+    expect(kaseigawa?.station?.levelM).toBe(3.67);
+    expect(kaseigawa?.station?.thresholdLabel).toBeNull();
+
+    // 御船川: 御船が現況 L3 (3.91m ≥ 避難判断水位 3.60m)。現況レベルと整合する断定。
+    const mifunegawa = byKey.get("8909100068");
+    expect(mifunegawa?.level).toBe("L4");
+    expect(mifunegawa?.station?.name).toBe("御船");
+    expect(mifunegawa?.station?.levelM).toBe(3.91);
+    expect(mifunegawa?.station?.thresholdLabel).toBe("避難判断水位 3.60m 超過");
   });
 });

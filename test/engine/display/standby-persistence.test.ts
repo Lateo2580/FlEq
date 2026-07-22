@@ -181,6 +181,50 @@ describe("StandbyPersistence", () => {
     expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
   });
 
+  it.each([
+    // 先頭が forecast / 途中に observed が来る逆順 (描画側は先頭=現況固定のため実測と予測を逆表示する)
+    ["phase 逆順 ([forecast, observed])", [
+      { dateTime: new Date(T0).toISOString(), valueM: 3.55, phase: "forecast" },
+      { dateTime: new Date(T0 + 3_600_000).toISOString(), valueM: 3.42, phase: "observed" },
+    ]],
+    // 2 点目以降に observed が混ざる
+    ["2 点目 observed", [
+      { dateTime: new Date(T0).toISOString(), valueM: 3.42, phase: "observed" },
+      { dateTime: new Date(T0 + 3_600_000).toISOString(), valueM: 3.55, phase: "observed" },
+    ]],
+    // points 空
+    ["空 points", []],
+    // 有効値ゼロ (全 null)
+    ["全 null 値", [
+      { dateTime: new Date(T0).toISOString(), valueM: null, phase: "observed" },
+      { dateTime: new Date(T0 + 3_600_000).toISOString(), valueM: null, phase: "forecast" },
+    ]],
+  ] as const)("壊れた hydrograph (%s) は洪水 domain を破棄する", (_label, points) => {
+    const path = tempPath();
+    const persisted = state({});
+    mkdirSync(dirname(path), { recursive: true });
+    const broken = {
+      ...persisted,
+      floods: {
+        events: [{
+          eventId: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 12 * 60 * 60_000,
+          rivers: [{
+            riverKey: "river-1", riverName: "多摩川", level: "L4", levelRank: 40, kindName: "氾濫危険情報",
+            reportDateTime: new Date(T0).toISOString(),
+            station: {
+              name: "柏田", levelM: 3.42, trend: "rising", thresholdLabel: null,
+              hydrograph: { points, dangerLevelM: null },
+            },
+          }],
+        }],
+        seen: [],
+      },
+    };
+    writeFileSync(path, JSON.stringify(broken), "utf8");
+    const persistence = new StandbyPersistence(path);
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+  });
+
   it("typhoon/volcano/tornado/longPeriod/nankai を深く検証し、壊れた domain だけを破棄して起動を続ける", () => {
     const path = tempPath();
     const malformed = {

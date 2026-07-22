@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import NumberUnit from "../NumberUnit.svelte";
@@ -21,5 +23,12 @@ describe("NumberUnit", () => {
   it("keeps composite units (m/s, km/h) in a single unit span", () => {
     const { container } = render(NumberUnit, { value: "20", unit: "km/h" });
     expect(container.querySelector(".nu-unit")?.textContent).toBe("km/h");
+  });
+
+  it("floors the unit font at 12px (A11y 層2) so small values don't sink below the legibility floor", () => {
+    // jsdom は computed font-size を CSS 変数/em で解決しないため、source で床の宣言を固定する
+    const source = readFileSync(join(__dirname, "..", "NumberUnit.svelte"), "utf8");
+    expect(source).toContain("font-size: max(12px, 0.6em)");
+    expect(source).not.toContain("font-size: 0.6em;");
   });
 });

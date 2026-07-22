@@ -8,6 +8,7 @@
 
 <style>
   .nu-value { font-variant-numeric: tabular-nums; font-weight: var(--num-weight); }
-  /* 単位はベースライン揃えのまま数値の約 60%。桁揃え/太字は数値側の役目なので継がせない */
-  .nu-unit { font-size: 0.6em; font-variant-numeric: normal; font-weight: normal; }
+  /* 単位はベースライン揃えのまま数値の約 60%。桁揃え/太字は数値側の役目なので継がせない。
+     0.6em だけだと小さい数値 (14px 級) で 8.4px まで沈み A11y 層2 の 12px 床を割るため max(12px, ...) で床を保証 */
+  .nu-unit { font-size: max(12px, 0.6em); font-variant-numeric: normal; font-weight: normal; }
 </style>

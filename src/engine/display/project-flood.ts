@@ -131,36 +131,68 @@ function stationHydrograph(station: FloodStation): DisplayFloodHydrographV1 | nu
   };
 }
 
-function projectStation(station: FloodStation, level: FloodLevel): DisplayFloodStationV1 {
+/** 代表観測所の projection。thresholdLabel は現況の観測レベル (observedLevel) 基準で断定する。
+ *  「今後 L4 到達見込み」(headline 由来) を現況の超過として表示しないため、現況が L3 未満
+ *  (全観測所 L2 以下 = headline のみで警報級) の河川では thresholdLabel を null にする
+ *  (「見込み」表現を出さず断定を避ける最小実装)。 */
+function projectStation(station: FloodStation, observedLevel: FloodLevel): DisplayFloodStationV1 {
+  const thresholdLabel = FLOOD_LEVEL_RANK[observedLevel] >= FLOOD_LEVEL_RANK.L3
+    ? stationThresholdLabel(station, observedLevel)
+    : null;
   return {
     name: station.stationName,
     levelM: stationLevelM(station),
     trend: stationTrend(station),
-    thresholdLabel: stationThresholdLabel(station, level),
+    thresholdLabel,
     hydrograph: stationHydrograph(station),
   };
 }
 
+/** 河川ごとの集約中間状態。河川全体の level (主行表示) は観測+headline の最大で保つ一方、
+ *  代表観測所は現況の観測レベル (observedRank) が最大の局を選ぶ (両者を分離)。 */
+interface RiverAccumulator {
+  riverKey: string;
+  riverName: string;
+  riverLevel: FloodLevel;
+  riverLevelRank: number;
+  observedRank: number;
+  station: FloodStation;
+}
+
 function projectRivers(raw: ParsedFloodForecastInfo, reportDateTime: string): DisplayFloodRiverV1[] {
-  const byRiver = new Map<string, DisplayFloodRiverV1>();
+  const byRiver = new Map<string, RiverAccumulator>();
   for (const station of raw.rawStations) {
-    const level = maxFloodLevel([station.stationObservedLevel, station.headlineLevel]);
-    const levelRank = FLOOD_LEVEL_RANK[level];
-    if (levelRank < FLOOD_LEVEL_RANK.L3) continue;
+    const riverLevel = maxFloodLevel([station.stationObservedLevel, station.headlineLevel]);
+    const riverLevelRank = FLOOD_LEVEL_RANK[riverLevel];
+    // 河川を表示対象に含めるかの閾値は従来どおり河川全体 level 基準 (headline 由来 L4 も残す)
+    if (riverLevelRank < FLOOD_LEVEL_RANK.L3) continue;
+    const observedRank = FLOOD_LEVEL_RANK[station.stationObservedLevel];
     const riverKey = floodRiverKey(station, raw.publishingOffice);
-    const candidate: DisplayFloodRiverV1 = {
-      riverKey,
-      riverName: riverNameFor(station),
-      level,
-      levelRank,
-      kindName: kindNameFor(station, raw, level),
-      reportDateTime,
-      station: projectStation(station, level),
-    };
     const existing = byRiver.get(riverKey);
-    if (existing == null || candidate.levelRank > existing.levelRank) byRiver.set(riverKey, candidate);
+    if (existing == null) {
+      byRiver.set(riverKey, { riverKey, riverName: riverNameFor(station), riverLevel, riverLevelRank, observedRank, station });
+      continue;
+    }
+    // 河川全体 level = 各観測所の max(観測, headline) の最大
+    if (riverLevelRank > existing.riverLevelRank) {
+      existing.riverLevel = riverLevel;
+      existing.riverLevelRank = riverLevelRank;
+    }
+    // 代表観測所 = 現況の観測レベルが最大の局 (同値は先頭を保持)
+    if (observedRank > existing.observedRank) {
+      existing.observedRank = observedRank;
+      existing.station = station;
+    }
   }
-  return [...byRiver.values()];
+  return [...byRiver.values()].map((acc) => ({
+    riverKey: acc.riverKey,
+    riverName: acc.riverName,
+    level: acc.riverLevel,
+    levelRank: acc.riverLevelRank,
+    kindName: kindNameFor(acc.station, raw, acc.riverLevel),
+    reportDateTime,
+    station: projectStation(acc.station, acc.station.stationObservedLevel),
+  }));
 }
 
 export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate | null {
