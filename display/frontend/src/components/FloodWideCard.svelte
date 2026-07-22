@@ -167,9 +167,14 @@
     margin-top: var(--space-1);
     align-items: center;
   }
-  .cell-station { grid-column: 1; grid-row: 1; }
-  /* 水位はセル内の主役数値: 一段大きく。矢印は小さめ + 傾向で色分け (上昇=赤=悪化 / 維持=muted / 下降=薄白=沈静) */
-  .cell-level { grid-column: 1; grid-row: 2; font-size: max(17px, var(--type-title-s-fluid)); align-self: center; }
+  /* 観測所名は水位の小見出し (ご主人提案 2026-07-22: 「高城」小 →「3.31m ↑」大の縦組み)。
+     fg・太字は維持しつつ一段小さく、水位に密着させる */
+  .cell-station { grid-column: 1; grid-row: 1; align-self: end; }
+  /* 水位はセル内の主役数値: title-m 級まで拡大。矢印は小さめ + 傾向で色分け (上昇=赤=悪化 / 維持=muted / 下降=薄白=沈静)。
+     font-size は後方の .cell 基本ルールに同詳細度で負けるため .cell を重ねて詳細度を上げる */
+  .cell.cell-station { font-size: max(13px, var(--type-label-s-fluid)); }
+  .cell-level { grid-column: 1; grid-row: 2; align-self: start; }
+  .cell.cell-level { font-size: max(20px, var(--type-title-m-size)); }
   .trend { font-size: 0.68em; margin-left: var(--space-1); vertical-align: 8%; }
   .trend-rising { color: var(--role-tsunamiWarning); }
   .trend-steady { color: var(--role-muted); }
