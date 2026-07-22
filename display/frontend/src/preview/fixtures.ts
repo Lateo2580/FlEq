@@ -2,6 +2,7 @@
 // 各画面パターンを再現する。protocol.ts の型に厳密準拠する (any 禁止)。
 import {
   DISPLAY_PROTOCOL_VERSION,
+  type ActiveStandbyCardV1,
   type DisplayActiveEewV1,
   type DisplayConnectionStateV1,
   type DisplayEewInputV1,
@@ -1886,4 +1887,72 @@ export const tickerLinesLongRun: DisplayEventDtoV1[] = [
     tickerSentence: "台風第5号の暴風域に入る確率が発表されています。",
     tickerBody: LONGRUN_BODY,
   }),
+];
+
+// ---- 待機画面カード拡充 (standbyItems) の目視ゲート用 ----
+
+const STANDBY_ITEM_BASE: Pick<ActiveStandbyCardV1, "sourceEventIds" | "updatedAt" | "expiresAt" | "restored"> = {
+  sourceEventIds: ["preview"],
+  updatedAt: NOW_ISO,
+  expiresAt: null,
+  restored: false,
+};
+
+/** 全種別同時 active。右上スタック (洪水3河川=通常幅・火山・台風2・熱中症) + rider 2 + 南海バッジ */
+export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
+  {
+    ...STANDBY_ITEM_BASE, kind: "flood", surface: "corner-right", key: "flood:active", severity: "critical",
+    data: { rivers: [
+      { riverKey: "8303040001", riverName: "大淀川", level: "L4", levelRank: 4, kindName: "氾濫危険情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040002", riverName: "小丸川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040003", riverName: "五ヶ瀬川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "volcano", surface: "corner-right", key: "volcano:active", severity: "critical",
+    data: { volcanoes: [
+      { code: "506", name: "桜島", alertLevel: 4, latestEvent: "噴火速報" },
+      { code: "550", name: "諏訪之瀬島", alertLevel: 3, latestEvent: null },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "typhoon", surface: "corner-right", key: "typhoon:active", severity: "normal",
+    data: { typhoons: [
+      { typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", location: "沖縄の南", pressureHpa: 940, maxWindMs: 45, moveDirection: "北北西", moveSpeedKmh: 20, reportDateTime: NOW_ISO },
+      { typhoonKey: "TC2619", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "マリアナ諸島", pressureHpa: 1002, maxWindMs: 15, moveDirection: "西", moveSpeedKmh: 15, reportDateTime: NOW_ISO },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "heat", surface: "corner-right", key: "heat:2026-07-07", severity: "warning", restored: true,
+    data: { targetDate: "2026-07-07", areas: [
+      { areaName: "宮崎県", isSpecial: false }, { areaName: "鹿児島県", isSpecial: false },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "tornado", surface: "weather-rider", key: "tornado:active", severity: "critical",
+    data: { areas: ["宮崎県南部平野部", "宮崎県北部平野部"], isSighted: true },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "longPeriod", surface: "quake-rider", key: "longPeriod:quake-latest-standby", severity: "warning",
+    data: { eventId: "quake-latest-standby", maxLgInt: "3" },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "nankaiTrough", surface: "clock-below", key: "nankai:current", severity: "critical",
+    data: { statusCode: "120", label: "巨大地震警戒" },
+  },
+];
+
+/** 洪水広域時: 5 河川で時計上ワイド表示へ移行した状態 (+ 右上は他カードのみ) */
+export const standbyItemsFloodWide: ActiveStandbyCardV1[] = [
+  {
+    ...STANDBY_ITEM_BASE, kind: "flood", surface: "clock-top-wide", key: "flood:active", severity: "critical",
+    data: { rivers: [
+      { riverKey: "8303040001", riverName: "大淀川", level: "L5", levelRank: 5, kindName: "氾濫発生情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040002", riverName: "小丸川", level: "L4", levelRank: 4, kindName: "氾濫危険情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040003", riverName: "五ヶ瀬川", level: "L4", levelRank: 4, kindName: "氾濫危険情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040004", riverName: "耳川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040005", riverName: "一ツ瀬川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
+    ] },
+  },
+  ...standbyItemsShowcase.filter((item) => item.kind !== "flood"),
 ];

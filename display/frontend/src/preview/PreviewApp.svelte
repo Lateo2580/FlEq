@@ -23,6 +23,8 @@
     weatherWarningOnlyStandbyCards,
     weatherAdvisoryOnlyStandbyCards,
     latestQuakeStandbyCards,
+    standbyItemsShowcase,
+    standbyItemsFloodWide,
     statsStandbyCards,
     stressSnapshot,
     eewStressInput,
@@ -53,6 +55,8 @@
     "standby-disconnected",
     "standby-tsunami",
     "standby-cards",
+    "standby-active-cards",
+    "standby-active-wide",
     "standby-tier-critical",
     "standby-weather-warning",
     "standby-weather-advisory",
@@ -163,6 +167,21 @@
     weatherAlerts: weatherAlertsStandbyCards,
     stats: statsStandbyCards,
   });
+  // standby-active-cards: 待機画面カード拡充 (standbyItems) の全種別同時 active。
+  // 右上スタック (洪水3河川・火山・台風2・熱中症=復元中) + 竜巻 rider + 長周期 rider + 南海バッジ
+  const activeCardsSnapshot = standbySnapshot({
+    latestQuake: latestQuakeStandbyCards,
+    weatherAlerts: weatherAlertsStandbyCards,
+    stats: statsStandbyCards,
+    standbyItems: standbyItemsShowcase,
+  });
+  // standby-active-wide: 洪水 5 河川で時計上ワイド表示へ移行した状態
+  const activeWideSnapshot = standbySnapshot({
+    latestQuake: latestQuakeStandbyCards,
+    weatherAlerts: weatherAlertsStandbyCards,
+    stats: statsStandbyCards,
+    standbyItems: standbyItemsFloodWide,
+  });
   // standby-tier-critical: 上と同内容 + severityTier critical (tier overlay の紫の空気 + 数字ウェイト800)
   const cardsTierCriticalSnapshot = standbySnapshot({
     tsunami: tsunamiBannerDemoted,
@@ -204,6 +223,10 @@
             ? tsunamiBannerSnapshot
             : scenario === "standby-cards" || scenario === "standby-dim"
               ? cardsSnapshot
+              : scenario === "standby-active-cards"
+                ? activeCardsSnapshot
+                : scenario === "standby-active-wide"
+                  ? activeWideSnapshot
               : scenario === "standby-tier-critical"
                 ? cardsTierCriticalSnapshot
                 : scenario === "standby-stress"
