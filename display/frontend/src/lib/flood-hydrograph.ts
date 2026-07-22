@@ -4,8 +4,10 @@ import type { DisplayFloodHydrographV1 } from "./protocol";
 // preserveAspectRatio="none" で描くため、座標はこの論理系でそのまま計算する。
 const VIEW_W = 132;
 const VIEW_H = 28;
-const PAD_X = 3; // 端の丸 (r3) が切れないための左右余白
-const PAD_Y = 4; // 上下余白
+// 予測点は r2.5 + stroke-width 2 で外径 3.5、現況点は r3。両者が viewBox 端で切れないよう
+// 左右・上下とも 4px (最大外径 3.5 を覆う) の内側余白を取り、点を [PAD, 132-PAD] に写す。
+const PAD_X = 4;
+const PAD_Y = 4;
 const MIN_RANGE_M = 0.5; // 平坦な系列でも潰れないための最小水位レンジ (m)
 const RANGE_MARGIN_FRAC = 0.1; // レンジ上下に足す余白 (点・危険線が端に貼り付かない)
 

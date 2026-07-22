@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import RestoredChip from "./RestoredChip.svelte";
+  import NumberUnit from "./NumberUnit.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> } = $props();
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
     const number = typhoon.typhoonNumber == null ? null : Number(typhoon.typhoonNumber.slice(2));
@@ -18,9 +19,9 @@
       {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
         <div class="meta">
-          {#if typhoon.pressureHpa != null}<div class="stat"><span class="stat-label">中心気圧</span><span class="stat-value">{typhoon.pressureHpa}hPa</span></div>{/if}
-          {#if typhoon.maxWindMs != null}<div class="stat"><span class="stat-label">最大風速</span><span class="stat-value">{typhoon.maxWindMs}m/s</span></div>{/if}
-          {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}<div class="stat"><span class="stat-label">進行</span><span class="stat-value">{typhoon.moveDirection} {typhoon.moveSpeedKmh}km/h</span></div>{/if}
+          {#if typhoon.pressureHpa != null}<div class="stat"><span class="stat-label">中心気圧</span><span class="stat-value"><NumberUnit value={String(typhoon.pressureHpa)} unit="hPa" /></span></div>{/if}
+          {#if typhoon.maxWindMs != null}<div class="stat"><span class="stat-label">最大風速</span><span class="stat-value"><NumberUnit value={String(typhoon.maxWindMs)} unit="m/s" /></span></div>{/if}
+          {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}<div class="stat"><span class="stat-label">進行</span><span class="stat-value">{typhoon.moveDirection} <NumberUnit value={String(typhoon.moveSpeedKmh)} unit="km/h" /></span></div>{/if}
         </div>
       {/if}
     </div>

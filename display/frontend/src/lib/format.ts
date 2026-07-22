@@ -76,3 +76,12 @@ export function formatDepth(depth: string | null): string {
   if (depth === "ごく浅い") return "~10km"; // "0km" だと深さゼロと断定する誤解を招くため
   return depth;
 }
+
+// 整形済みの「数値+単位」文字列 ("20km" / "~10km" 等) を、数値部と末尾単位に割る。
+// NumberUnit 表示 (数値大・単位小) 用。末尾の英字/スラッシュを単位とみなし、"~" 等の接頭記号は
+// 数値側に残す。単位が無い ("-" 等) 場合は unit を空文字にする。
+export function splitNumberUnit(text: string): { value: string; unit: string } {
+  const match = /^(.*?)([a-zA-Z/]+)$/.exec(text);
+  if (match == null) return { value: text, unit: "" };
+  return { value: match[1], unit: match[2] };
+}

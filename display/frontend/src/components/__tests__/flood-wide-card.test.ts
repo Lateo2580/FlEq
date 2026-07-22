@@ -56,6 +56,9 @@ describe("FloodWideCard", () => {
     expect(grid.querySelector(".cell-station")?.textContent).toBe("柏田");
     // 矢印は色分け用の別 span (間隔は CSS margin が担うため textContent に空白は入らない)
     expect(grid.querySelector(".cell-level")?.textContent).toBe("3.42m↑");
+    // 水位は数値大・単位小の NumberUnit で組む (値=3.42 / 単位=m を別 span に)
+    expect(grid.querySelector(".cell-level .nu-value")?.textContent).toBe("3.42");
+    expect(grid.querySelector(".cell-level .nu-unit")?.textContent).toBe("m");
     expect(grid.querySelector(".cell-level .trend.trend-rising")?.textContent).toBe("↑");
     expect(grid.querySelector(".cell-threshold")?.textContent).toBe("氾濫危険水位 3.20m 超過");
   });

@@ -24,6 +24,15 @@ describe("TyphoonCard", () => {
     expect(labels).toEqual(["中心気圧", "最大風速", "進行"]);
     expect(container.querySelector(".meta")?.textContent).toContain("990hPa");
     expect(container.querySelector(".meta")?.textContent).toContain("25m/s");
+    // 数値大・単位小の NumberUnit で組む (数値と単位を別 span に、複合単位はまとめて単位 span)
+    const stats = container.querySelectorAll(".meta .stat-value");
+    expect(stats[0].querySelector(".nu-value")?.textContent).toBe("990");
+    expect(stats[0].querySelector(".nu-unit")?.textContent).toBe("hPa");
+    expect(stats[1].querySelector(".nu-unit")?.textContent).toBe("m/s");
+    // 進行は方角テキスト + 速度の NumberUnit (方角は数値化しない)
+    expect(stats[2].textContent).toBe("N 20km/h");
+    expect(stats[2].querySelector(".nu-value")?.textContent).toBe("20");
+    expect(stats[2].querySelector(".nu-unit")?.textContent).toBe("km/h");
     // 旧 .facts (span + " / " 区切り) は消えている
     expect(container.querySelector(".facts")).toBeNull();
     expect(card?.textContent).not.toContain(" / ");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatHm, formatHms, formatMdHm, recentQuakeId } from "../format";
+import { formatHm, formatHms, formatMdHm, recentQuakeId, splitNumberUnit } from "../format";
 import type { DisplayRecentQuakeV1 } from "../protocol";
 
 function rq(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
@@ -71,5 +71,20 @@ describe("formatMdHm", () => {
     expect(formatMdHm(null)).toBe("-");
     expect(formatMdHm("")).toBe("-");
     expect(formatMdHm("invalid")).toBe("-");
+  });
+});
+
+describe("splitNumberUnit", () => {
+  it("splits a trailing unit from the numeric part", () => {
+    expect(splitNumberUnit("20km")).toEqual({ value: "20", unit: "km" });
+    expect(splitNumberUnit("920hPa")).toEqual({ value: "920", unit: "hPa" });
+  });
+
+  it("keeps a leading '~' prefix on the value side", () => {
+    expect(splitNumberUnit("~10km")).toEqual({ value: "~10", unit: "km" });
+  });
+
+  it("returns an empty unit when there is no trailing unit", () => {
+    expect(splitNumberUnit("-")).toEqual({ value: "-", unit: "" });
   });
 });

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { DisplayIntensityGroupV1, DisplayLatestQuakeStateV1 } from "../lib/protocol";
-  import { formatMdHm, formatIntShort, formatDepth } from "../lib/format";
+  import { formatMdHm, formatIntShort, formatDepth, splitNumberUnit } from "../lib/format";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -18,12 +18,17 @@
   import QuakeHeadline from "./QuakeHeadline.svelte";
   import PageDots from "./PageDots.svelte";
   import RestoredChip from "./RestoredChip.svelte";
+  import NumberUnit from "./NumberUnit.svelte";
 
   let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
 
   // 固定サマリ計器「ヘッドライン2行」(最大震度規模行 + 拡大範囲行、spec §2-b 改訂 2026-07-09)。
   // 旧・震度分布行/県別件数行は「広域」連呼が情報ゼロ・裸の数字が単位不明だったため廃止した
   const headline = $derived(quakeHeadline(quake.intensityGroups));
+
+  // 深さは「20km」の数値大・単位小で見せる (規模 M7.1 は接頭辞 M なので対象外、発生時刻も対象外)。
+  // formatDepth は "20km" / "~10km" / "-" を返すので末尾単位で割る (splitNumberUnit)。
+  const depthParts = $derived(splitNumberUnit(formatDepth(quake.depth)));
 
   // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)。
   // ≤30 のときは topGroupCompact 相当の縮退分岐は実質発火しない (最大震度グループも ≤30 になる
@@ -120,7 +125,7 @@
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>
-        <span class="depth stat-value">{formatDepth(quake.depth)}</span>
+        <span class="depth stat-value"><NumberUnit value={depthParts.value} unit={depthParts.unit} /></span>
       </div>
       <div class="stat">
         <span class="stat-label">発生</span>

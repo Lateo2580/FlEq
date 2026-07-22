@@ -4,15 +4,11 @@
   import { FLOOD_TREND_ARROW, layoutFloodWideRows } from "../lib/standby-cards";
   import { buildFloodHydrograph, type FloodHydrographGeometry } from "../lib/flood-hydrograph";
   import RestoredChip from "./RestoredChip.svelte";
+  import NumberUnit from "./NumberUnit.svelte";
 
   // ミニグラフ座標を組む。単位不一致・空系列などで hydrograph が無い/描画不能なら null (SVG を出さない)。
   function stationGraph(station: DisplayFloodStationV1): FloodHydrographGeometry | null {
     return station.hydrograph == null ? null : buildFloodHydrograph(station.hydrograph);
-  }
-
-  // 水位値 (矢印は色分けのため別 span で描く)
-  function levelValue(station: DisplayFloodStationV1): string {
-    return station.levelM == null ? "" : `${station.levelM.toFixed(2)}m`;
   }
 
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
@@ -49,7 +45,7 @@
             {/if}
             <!-- 左下: 現在水位 + 傾向矢印。levelM 欠測はこのセル自体を省略 (プレースホルダは出さない) -->
             {#if station.levelM != null}
-              <div class="cell cell-level">{levelValue(station)}{#if station.trend != null}<span class="trend trend-{station.trend}">{FLOOD_TREND_ARROW[station.trend]}</span>{/if}</div>
+              <div class="cell cell-level"><NumberUnit value={station.levelM.toFixed(2)} unit="m" />{#if station.trend != null}<span class="trend trend-{station.trend}">{FLOOD_TREND_ARROW[station.trend]}</span>{/if}</div>
             {/if}
             <!-- 右下: 水位ミニグラフ (右列いっぱいに伸ばす) -->
             {#if graph != null}

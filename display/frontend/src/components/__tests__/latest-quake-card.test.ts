@@ -81,6 +81,10 @@ describe("LatestQuakeCard", () => {
     expect(container.querySelector(".hypocenter")?.textContent).toBe("宮崎県南部平野部");
     expect(container.querySelector(".magnitude")?.textContent).toBe("M5.2");
     expect(container.querySelector(".depth")?.textContent).toBe("10km");
+    // 深さは数値大・単位小の NumberUnit (値=10 / 単位=km)。規模 M5.2 は接頭辞 M なので分割しない
+    expect(container.querySelector(".depth .nu-value")?.textContent).toBe("10");
+    expect(container.querySelector(".depth .nu-unit")?.textContent).toBe("km");
+    expect(container.querySelector(".magnitude .nu-value")).toBeNull();
     // 第3波 Fix9: 発生時刻は日付を跨いだ事象と区別できるよう M/D も表示する
     expect(container.querySelector(".time")?.textContent).toBe("7/8 09:00");
   });

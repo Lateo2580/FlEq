@@ -16,6 +16,9 @@ function hydrograph(values: (number | null)[], dangerLevelM: number | null): Dis
 // viewBox は 132 × 28、上下余白 4 → y は [4, 24] の範囲に収まる
 const Y_MIN = 4;
 const Y_MAX = 24;
+// 左右余白 4 → 端の点 (現況・予測) が丸半径+stroke を含めて切れないよう x は [4, 128] に収まる
+const X_MIN = 4;
+const X_MAX = 128;
 
 describe("buildFloodHydrograph", () => {
   it("normalizes so the danger line and every point stay inside the drawing area", () => {
@@ -30,6 +33,22 @@ describe("buildFloodHydrograph", () => {
       expect(dot.y).toBeGreaterThanOrEqual(Y_MIN);
       expect(dot.y).toBeLessThanOrEqual(Y_MAX);
     }
+  });
+
+  it("keeps the end points inside the left/right padding so the dots are not clipped", () => {
+    const geometry = buildFloodHydrograph(hydrograph([3.42, 3.50, 3.55, 3.48, 3.44], 3.20));
+    expect(geometry).not.toBeNull();
+    if (geometry == null) return;
+    // 端の点 (現況 = 先頭、最終予測点 = 末尾) を含め、全点が [X_MIN, X_MAX] に収まる
+    expect(geometry.observed!.x).toBeGreaterThanOrEqual(X_MIN);
+    expect(geometry.observed!.x).toBeLessThanOrEqual(X_MAX);
+    for (const dot of geometry.forecastDots) {
+      expect(dot.x).toBeGreaterThanOrEqual(X_MIN);
+      expect(dot.x).toBeLessThanOrEqual(X_MAX);
+    }
+    // 左端 (現況) と右端 (最終予測) がそれぞれ余白ぴったりに写る
+    expect(geometry.observed!.x).toBeCloseTo(X_MIN, 5);
+    expect(geometry.forecastDots[geometry.forecastDots.length - 1].x).toBeCloseTo(X_MAX, 5);
   });
 
   it("keeps a minimum range for a flat series so coordinates stay finite and inside", () => {
