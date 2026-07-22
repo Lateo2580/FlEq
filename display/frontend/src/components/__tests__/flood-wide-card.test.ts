@@ -35,31 +35,30 @@ describe("FloodWideCard", () => {
     expect(container.textContent).toContain("第1川　氾濫危険情報（L4）");
   });
 
-  it("caps visible cells to the taller 3-row cell estimate at a large viewport", () => {
-    // innerHeight 1400 → maxHeight 420、(420-48)/120 = 3 grid 行 → cell 容量 6。
-    // 12 河川なら最終行を集約に予約して 4 セル可視 + ほか 8 河川。
+  it("caps visible cells to the cell-height estimate at a large viewport", () => {
+    // innerHeight 1400 → maxHeight 420、(420-48)/88 = 4 grid 行 → cell 容量 8。
+    // 12 河川なら最終行を集約に予約して 6 セル可視 + ほか 6 河川。
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 1400 });
     const { container } = render(FloodWideCard, { item: floodItem(12) });
-    expect(container.querySelectorAll(".river-cell")).toHaveLength(4);
-    expect(container.querySelector(".more-rivers")?.textContent).toBe("ほか 8 河川");
+    expect(container.querySelectorAll(".river-cell")).toHaveLength(6);
+    expect(container.querySelector(".more-rivers")?.textContent).toBe("ほか 6 河川");
   });
 
-  it("lays the station out as a 2×2 label grid (観測所/水位/水位の情報/グラフ) and omits it for rivers without station data", () => {
+  it("lays the station out as a value-only 2×2 grid (観測所名/水位/しきい値/グラフ, no labels) and omits it for rivers without station data", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
     const { container } = render(FloodWideCard, { item: floodItem(4) });
     // river(1) だけ station を持つ (river 2-4 は station: null) → station-grid は 1 つ
     const grids = container.querySelectorAll(".station-grid");
     expect(grids).toHaveLength(1);
     const grid = grids[0];
-    expect(grid.querySelector(".cell-station .stat-label")?.textContent).toBe("観測所");
-    expect(grid.querySelector(".cell-station .stat-value")?.textContent).toBe("柏田");
-    expect(grid.querySelector(".cell-level .stat-label")?.textContent).toBe("水位");
-    expect(grid.querySelector(".cell-level .stat-value")?.textContent).toBe("3.42m ↑");
-    expect(grid.querySelector(".cell-threshold .stat-label")?.textContent).toBe("水位の情報");
-    expect(grid.querySelector(".cell-threshold .stat-value")?.textContent).toBe("氾濫危険水位 3.20m 超過");
+    // ラベルは撤去済み: セルは値のみ
+    expect(grid.querySelector(".stat-label")).toBeNull();
+    expect(grid.querySelector(".cell-station")?.textContent).toBe("柏田");
+    expect(grid.querySelector(".cell-level")?.textContent).toBe("3.42m ↑");
+    expect(grid.querySelector(".cell-threshold")?.textContent).toBe("氾濫危険水位 3.20m 超過");
   });
 
-  it("omits the 水位 stat (not a placeholder) when levelM is missing, keeping 観測所 and 水位の情報", () => {
+  it("omits the 水位 cell (not a placeholder) when levelM is missing, keeping 観測所名 and しきい値", () => {
     const item: Extract<ActiveStandbyCardV1, { kind: "flood" }> = {
       kind: "flood", surface: "clock-top-wide", key: "flood:active", sourceEventIds: ["flood-1"],
       updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-21T12:00:00.000Z", restored: false, severity: "warning",
@@ -72,9 +71,9 @@ describe("FloodWideCard", () => {
       ] },
     };
     const { container } = render(FloodWideCard, { item });
-    expect(container.querySelector(".cell-station .stat-value")?.textContent).toBe("山陰");
+    expect(container.querySelector(".cell-station")?.textContent).toBe("山陰");
     expect(container.querySelector(".cell-level")).toBeNull();
-    expect(container.querySelector(".cell-threshold .stat-value")?.textContent).toBe("避難判断水位超過");
+    expect(container.querySelector(".cell-threshold")?.textContent).toBe("避難判断水位超過");
     expect(container.textContent).not.toContain("--");
   });
 

@@ -43,26 +43,17 @@
           {@const station = river.station}
           {@const graph = stationGraph(station)}
           <div class="station-grid">
-            <!-- 左上: 観測所名 -->
-            <div class="stat cell-station">
-              <span class="stat-label">観測所</span>
-              <span class="stat-value">{station.name}</span>
-            </div>
-            <!-- 右上: 超過中の基準水位 (thresholdLabel)。null は列ごと省略、値はグラフ列幅で折り返す -->
+            <!-- 左上: 観測所名 (値のみ、ラベルなし) -->
+            <div class="cell cell-station">{station.name}</div>
+            <!-- 右上: 超過中の基準水位 (thresholdLabel)。null は列ごと省略、1 行 + ellipsis -->
             {#if station.thresholdLabel != null}
-              <div class="stat cell-threshold">
-                <span class="stat-label">水位の情報</span>
-                <span class="stat-value threshold-value">{station.thresholdLabel}</span>
-              </div>
+              <div class="cell cell-threshold">{station.thresholdLabel}</div>
             {/if}
-            <!-- 左下: 現在水位 + 傾向矢印。levelM 欠測はこの stat 自体を省略 -->
+            <!-- 左下: 現在水位 + 傾向矢印。levelM 欠測はこのセル自体を省略 (プレースホルダは出さない) -->
             {#if station.levelM != null}
-              <div class="stat cell-level">
-                <span class="stat-label">水位</span>
-                <span class="stat-value">{levelText(station)}</span>
-              </div>
+              <div class="cell cell-level">{levelText(station)}</div>
             {/if}
-            <!-- 右下: 水位ミニグラフ -->
+            <!-- 右下: 水位ミニグラフ (右列いっぱいに伸ばす) -->
             {#if graph != null}
               <svg class="flood-graph cell-graph" viewBox="0 0 132 28" preserveAspectRatio="none" role="img" aria-label={graph.summary}>
                 {#if graph.dangerY != null}
@@ -119,26 +110,25 @@
   .river-grid { display: grid; grid-template-columns: 1fr 1fr; }
   /* min-width: 0 — grid item の暗黙 min-width:auto を殺し、station-line の ellipsis と
      flood-graph の右端固定を右カラムでも効かせる (grid のはみ出し防止) */
-  .river-cell, .more-rivers { min-width: 0; min-height: 120px; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
+  .river-cell, .more-rivers { min-width: 0; min-height: 88px; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
   .river-cell:nth-child(even) { border-left: 1px solid var(--hairline); }
   .river-line { color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* 主行の下: 左=観測所/水位、右=水位の情報/ミニグラフ の 2×2。右列はグラフ幅 132px 基準。
+  /* 主行の下: 左=観測所/水位、右=水位の情報/ミニグラフ の 2×2。列比 左:右 = 4:6。
      grid-column/row を明示配置し、thresholdLabel や levelM の省略で他セルがずれないようにする */
   .station-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
     gap: var(--space-1) var(--space-3);
     margin-top: var(--space-1);
-    align-items: start;
+    align-items: center;
   }
   .cell-station { grid-column: 1; grid-row: 1; }
   .cell-level { grid-column: 1; grid-row: 2; }
   .cell-threshold { grid-column: 2; grid-row: 1; }
   .cell-graph { grid-column: 2; grid-row: 2; }
-  /* LatestQuakeCard / TyphoonCard の .stat パターン: muted xs ラベル + fg 値の縦組み */
-  .stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .stat-label { font-size: var(--type-label-xs-size); color: var(--role-muted); }
-  .stat-value {
+  /* 値のみのセル (ラベルなし): fg・num weight・1 行 ellipsis */
+  .cell {
+    min-width: 0;
     font-size: max(14px, var(--type-body-l-fluid));
     font-weight: var(--num-weight);
     font-variant-numeric: tabular-nums;
@@ -147,17 +137,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* 水位の情報はグラフ列幅 (132px) の中で 2 行まで折り返す (値は 1 段小さめにして収める) */
-  .threshold-value {
+  /* 水位の情報: 文字数が長い (「氾濫危険水位 3.20m 超過」=13 文字) ため一段小さく (層2=12px 床)
+     して 6fr 列に 1 行で収める。数値以外も含む説明文なので num weight は外す */
+  .cell-threshold {
     font-size: max(12px, var(--type-label-s-fluid));
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-weight: normal;
+    align-self: center;
   }
-  /* 水位ミニグラフ: 132×28 固定。実測=塗り丸/予測=白抜き丸/危険線=破線で三者を区別 */
-  .flood-graph { width: 132px; height: 28px; align-self: center; }
+  /* 水位ミニグラフ: 右列いっぱいに伸ばす (preserveAspectRatio="none" が横伸長)。高さ 28px 維持 */
+  .flood-graph { width: 100%; height: 28px; }
   .more-rivers { grid-column: 1 / -1; color: var(--role-muted); text-align: center; font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; }
   .critical-river .river-line { color: var(--role-weatherEmergency); }
 </style>

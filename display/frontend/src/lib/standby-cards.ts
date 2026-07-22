@@ -116,8 +116,8 @@ export const VOLCANO_LEVEL_LABELS: Record<number, string> = {
 };
 
 const FLOOD_WIDE_HEADER_ESTIMATE_PX = 48;
-// 主行 + 2×2 ラベルグリッド (観測所/水位/水位の情報/ミニグラフ) で約 3 行相当に育ったセルの実高目安。
-const FLOOD_WIDE_ROW_ESTIMATE_PX = 120;
+// 主行 + 2×2 グリッド (観測所/水位/水位の情報/ミニグラフ、値のみ) のセル実高目安。
+const FLOOD_WIDE_ROW_ESTIMATE_PX = 88;
 const FLOOD_WIDE_MIN_GRID_ROWS = 2;
 
 export function layoutFloodWideRows(
