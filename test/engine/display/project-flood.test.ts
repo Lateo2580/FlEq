@@ -130,8 +130,175 @@ describe("projectFloodUpdate", () => {
         levelRank: 40,
         kindName: "氾濫警戒情報",
         reportDateTime: T0_ISO,
+        station: { name: "第二", levelM: null, trend: null, thresholdLabel: "氾濫危険水位超過", hydrograph: null },
       }],
     });
+  });
+
+  it("picks the highest-level station as the river representative (ties keep the first)", () => {
+    const raw = parsed({
+      rawStations: [
+        station({ stationName: "下流", stationObservedLevel: "L3", headlineLevel: "L3" }),
+        station({ stationName: "中流", stationCode: "s2", stationObservedLevel: "L4", headlineLevel: "L3" }),
+        station({ stationName: "上流", stationCode: "s3", stationObservedLevel: "L4", headlineLevel: "L3" }),
+      ],
+    });
+    const update = projectFloodUpdate(event(raw));
+    expect(update?.mode).toBe("replace");
+    if (update?.mode !== "replace") return;
+    expect(update.rivers[0].station?.name).toBe("中流");
+  });
+
+  it.each([
+    ["rising", [3.0, 3.02], "rising"],
+    ["falling", [3.0, 2.98], "falling"],
+    ["steady within threshold", [3.0, 3.005], "steady"],
+  ] as const)("derives station trend (%s) from the nearest two series points", (_label, [now, next], expected) => {
+    const raw = parsed({
+      rawStations: [station({
+        stationObservedLevel: "L3",
+        headlineLevel: "L3",
+        series: [
+          { refId: "0", dateTime: T0_ISO, name: "現況", value: now, unit: "m", rawUnit: "m", condition: "正常", level: 3 },
+          { refId: "1", dateTime: T0_ISO, name: "1H", value: next, unit: "m", rawUnit: "m", condition: "正常", level: 3 },
+        ],
+      })],
+    });
+    const update = projectFloodUpdate(event(raw));
+    if (update?.mode !== "replace") throw new Error("expected replace");
+    expect(update.rivers[0].station?.trend).toBe(expected);
+  });
+
+  it("leaves station trend null when the series has one point or fewer", () => {
+    const oneAndZero = [
+      parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", series: [
+        { refId: "0", dateTime: T0_ISO, name: "現況", value: 3.0, unit: "m", rawUnit: "m", condition: "正常", level: 3 },
+      ] })] }),
+      parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", series: [] })] }),
+    ];
+    for (const raw of oneAndZero) {
+      const update = projectFloodUpdate(event(raw));
+      if (update?.mode !== "replace") throw new Error("expected replace");
+      expect(update.rivers[0].station?.trend).toBeNull();
+    }
+  });
+
+  it.each([
+    ["L4 exceedance", "L4", { L4: 3.2 }, "氾濫危険水位 3.20m 超過"],
+    ["L3 exceedance", "L3", { L3: 2.5 }, "避難判断水位 2.50m 超過"],
+    ["L5 uses the L4 danger threshold", "L5", { L4: 3.2 }, "氾濫危険水位 3.20m 超過"],
+    ["missing criterion falls back to the name only", "L4", { L4: null }, "氾濫危険水位超過"],
+  ] as const)("labels the exceeded threshold (%s)", (_label, observed, crit, expected) => {
+    const raw = parsed({
+      rawStations: [station({
+        stationObservedLevel: observed,
+        headlineLevel: observed,
+        criteria: { L1: null, L2: null, L3: null, L4: null, L4Plan: null, unit: "m", rawUnit: "m", ...crit },
+      })],
+    });
+    const update = projectFloodUpdate(event(raw));
+    if (update?.mode !== "replace") throw new Error("expected replace");
+    expect(update.rivers[0].station?.thresholdLabel).toBe(expected);
+  });
+
+  it("reads levelM from the current observation and nulls it when the unit is not metres or the value is missing", () => {
+    const withLevel = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", series: [
+      { refId: "0", dateTime: T0_ISO, name: "現況", value: 3.42, unit: "m", rawUnit: "m", condition: "正常", level: 3 },
+    ] })] });
+    const discharge = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", measurement: "discharge", measurementUnit: "立方メートル毎秒", rawUnit: "立方メートル毎秒", series: [
+      { refId: "0", dateTime: T0_ISO, name: "現況", value: 120, unit: "立方メートル毎秒", rawUnit: "立方メートル毎秒", condition: "正常", level: 3 },
+    ] })] });
+    const missing = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", series: [
+      { refId: "0", dateTime: T0_ISO, name: "現況", value: null, unit: "m", rawUnit: "m", condition: "欠測", level: null },
+    ] })] });
+
+    const levelOf = (raw: ParsedFloodForecastInfo): number | null => {
+      const update = projectFloodUpdate(event(raw));
+      if (update?.mode !== "replace") throw new Error("expected replace");
+      return update.rivers[0].station?.levelM ?? null;
+    };
+    expect(levelOf(withLevel)).toBe(3.42);
+    expect(levelOf(discharge)).toBeNull();
+    expect(levelOf(missing)).toBeNull();
+  });
+
+  it("projects the full series into a hydrograph (index 0 observed, rest forecast) with L4 as the danger level", () => {
+    const raw = parsed({ rawStations: [station({ stationObservedLevel: "L4", headlineLevel: "L4",
+      criteria: { L1: null, L2: null, L3: null, L4: 3.2, L4Plan: 9.9, unit: "m", rawUnit: "m" },
+      series: [
+        { refId: "1", dateTime: "2026-07-21T05:00:00+09:00", name: "現況", value: 3.42, unit: "m", rawUnit: "m", condition: "上昇", level: 4 },
+        { refId: "2", dateTime: "2026-07-21T06:00:00+09:00", name: "1H", value: 3.55, unit: "m", rawUnit: "m", condition: "上昇", level: 4 },
+        { refId: "3", dateTime: "2026-07-21T07:00:00+09:00", name: "2H", value: 3.40, unit: "m", rawUnit: "m", condition: "下降", level: 4 },
+      ] })] });
+    const update = projectFloodUpdate(event(raw));
+    if (update?.mode !== "replace") throw new Error("expected replace");
+    expect(update.rivers[0].station?.hydrograph).toEqual({
+      points: [
+        { dateTime: "2026-07-21T05:00:00+09:00", valueM: 3.42, phase: "observed" },
+        { dateTime: "2026-07-21T06:00:00+09:00", valueM: 3.55, phase: "forecast" },
+        { dateTime: "2026-07-21T07:00:00+09:00", valueM: 3.40, phase: "forecast" },
+      ],
+      dangerLevelM: 3.2,
+    });
+  });
+
+  it("nulls the hydrograph when the unit is not metres, the series is empty, or every value is missing", () => {
+    const discharge = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", measurement: "discharge", measurementUnit: "立方メートル毎秒", rawUnit: "立方メートル毎秒", series: [
+      { refId: "1", dateTime: "2026-07-21T05:00:00+09:00", name: "現況", value: 120, unit: "立方メートル毎秒", rawUnit: "立方メートル毎秒", condition: "正常", level: 3 },
+    ] })] });
+    const empty = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", series: [] })] });
+    const allMissing = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3", series: [
+      { refId: "1", dateTime: "2026-07-21T05:00:00+09:00", name: "現況", value: null, unit: "m", rawUnit: "m", condition: "欠測", level: null },
+    ] })] });
+    const hydrographOf = (raw: ParsedFloodForecastInfo): unknown => {
+      const update = projectFloodUpdate(event(raw));
+      if (update?.mode !== "replace") throw new Error("expected replace");
+      return update.rivers[0].station?.hydrograph ?? null;
+    };
+    expect(hydrographOf(discharge)).toBeNull();
+    expect(hydrographOf(empty)).toBeNull();
+    expect(hydrographOf(allMissing)).toBeNull();
+  });
+
+  it("keeps the hydrograph but nulls dangerLevelM when L4 is missing, and keeps a missing point as a null gap", () => {
+    const raw = parsed({ rawStations: [station({ stationObservedLevel: "L3", headlineLevel: "L3",
+      criteria: { L1: null, L2: null, L3: 2.5, L4: null, L4Plan: null, unit: "m", rawUnit: "m" },
+      series: [
+        { refId: "1", dateTime: "2026-07-21T05:00:00+09:00", name: "現況", value: 2.60, unit: "m", rawUnit: "m", condition: "上昇", level: 3 },
+        { refId: "2", dateTime: "2026-07-21T06:00:00+09:00", name: "1H", value: null, unit: "m", rawUnit: "m", condition: "欠測", level: null },
+        { refId: "3", dateTime: "2026-07-21T07:00:00+09:00", name: "2H", value: 2.70, unit: "m", rawUnit: "m", condition: "上昇", level: 3 },
+      ] })] });
+    const update = projectFloodUpdate(event(raw));
+    if (update?.mode !== "replace") throw new Error("expected replace");
+    const hydrograph = update.rivers[0].station?.hydrograph;
+    expect(hydrograph?.dangerLevelM).toBeNull();
+    expect(hydrograph?.points.map((point) => point.valueM)).toEqual([2.60, null, 2.70]);
+  });
+
+  it("builds a 7-point hydrograph for the representative station of a real VXKO50 fixture", () => {
+    const msg = createMockWsDataMessage("16_10_01_260312_VXKO50.xml");
+    const info = parseFloodForecast(msg);
+    expect(info).not.toBeNull();
+    if (info == null) return;
+    const outcome: FloodForecastOutcome = {
+      domain: "floodForecast",
+      msg,
+      headType: msg.head.type,
+      statsCategory: "floodForecast",
+      parsed: info,
+      diff: null,
+      maxLevel: "unknown",
+      maxRank: -1,
+      stats: { shouldRecord: true, eventId: info.eventId },
+      presentation: { frameLevel: "info" },
+    };
+    const update = projectFloodUpdate(fromFloodForecastOutcome(outcome));
+    if (update?.mode !== "replace") throw new Error("expected replace");
+    const hydrograph = update.rivers[0].station?.hydrograph;
+    expect(hydrograph?.points).toHaveLength(7);
+    expect(hydrograph?.points[0].phase).toBe("observed");
+    expect(hydrograph?.points.slice(1).every((point) => point.phase === "forecast")).toBe(true);
+    expect(hydrograph?.points.some((point) => point.valueM != null)).toBe(true);
   });
 
   it.each([
@@ -189,5 +356,35 @@ describe("projectFloodUpdate", () => {
       ? update.rivers.map((river) => `${river.riverKey}|${river.riverName}|${river.level}`)
       : [];
     expect(rivers).toEqual(expectedRivers);
+  });
+
+  it("fills representative station info when running a real VXKO50 fixture through the pipeline", () => {
+    const msg = createMockWsDataMessage("16_10_01_260312_VXKO50.xml");
+    const info = parseFloodForecast(msg);
+    expect(info).not.toBeNull();
+    if (info == null) return;
+    const outcome: FloodForecastOutcome = {
+      domain: "floodForecast",
+      msg,
+      headType: msg.head.type,
+      statsCategory: "floodForecast",
+      parsed: info,
+      diff: null,
+      maxLevel: "unknown",
+      maxRank: -1,
+      stats: { shouldRecord: true, eventId: info.eventId },
+      presentation: { frameLevel: "info" },
+    };
+    const update = projectFloodUpdate(fromFloodForecastOutcome(outcome));
+    expect(update?.mode).toBe("replace");
+    if (update?.mode !== "replace") return;
+    expect(update.rivers.length).toBeGreaterThan(0);
+    for (const river of update.rivers) {
+      expect(river.station).not.toBeNull();
+      expect(typeof river.station?.name).toBe("string");
+      expect(river.station?.name).not.toBe("");
+      // 全河川 L3+ なので、超過中の基準水位名が必ず付く
+      expect(river.station?.thresholdLabel).toContain("水位");
+    }
   });
 });

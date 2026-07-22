@@ -12,12 +12,21 @@ function typhoonItem(typhoons = [typhoon()]): Extract<ActiveStandbyCardV1, { kin
 }
 
 describe("TyphoonCard", () => {
-  it("renders number, name, and available facts", () => {
+  it("renders number, name, location, and labelled fact columns (no slash-joined facts)", () => {
     const { container } = render(TyphoonCard, { item: typhoonItem() });
-    expect(container.querySelector(".typhoon")?.textContent).toContain("5");
-    expect(container.querySelector(".typhoon")?.textContent).toContain("ALPHA");
-    expect(container.querySelector(".facts")?.textContent).toContain("990hPa");
-    expect(container.querySelector(".facts")?.textContent).toContain("25m/s");
+    const card = container.querySelector(".typhoon");
+    expect(card?.textContent).toContain("5");
+    expect(card?.textContent).toContain("ALPHA");
+    // 現在位置はラベルなし本文
+    expect(container.querySelector(".location")?.textContent).toBe("ocean");
+    // ラベル付き 3 列 (スラッシュ羅列は廃止)
+    const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
+    expect(labels).toEqual(["中心気圧", "最大風速", "進行"]);
+    expect(container.querySelector(".meta")?.textContent).toContain("990hPa");
+    expect(container.querySelector(".meta")?.textContent).toContain("25m/s");
+    // 旧 .facts (span + " / " 区切り) は消えている
+    expect(container.querySelector(".facts")).toBeNull();
+    expect(card?.textContent).not.toContain(" / ");
   });
 
   it("uses remark when a named typhoon is unavailable and renders each aggregated typhoon", () => {

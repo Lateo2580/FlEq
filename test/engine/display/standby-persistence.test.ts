@@ -90,6 +90,97 @@ describe("StandbyPersistence", () => {
     expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
   });
 
+  it("代表観測所 station 込みで round-trip し、壊れた station は洪水 domain だけ破棄する", () => {
+    const path = tempPath();
+    const persisted = state({
+      floods: {
+        events: [{
+          eventId: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 12 * 60 * 60_000,
+          rivers: [{
+            riverKey: "river-1", riverName: "多摩川", level: "L4", levelRank: 40, kindName: "氾濫危険情報",
+            reportDateTime: new Date(T0).toISOString(),
+            station: { name: "柏田", levelM: 3.42, trend: "rising", thresholdLabel: "氾濫危険水位 3.20m 超過" },
+          }],
+        }],
+        seen: [{ key: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 }],
+      },
+    });
+    const persistence = new StandbyPersistence(path);
+    persistence.save(persisted);
+    expect(persistence.load()?.floods).toEqual(persisted.floods);
+
+    // station.name が数値 (不正) → 洪水 domain のみ破棄、他 domain は生存
+    mkdirSync(dirname(path), { recursive: true });
+    const broken = {
+      ...persisted,
+      floods: {
+        events: [{
+          eventId: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 12 * 60 * 60_000,
+          rivers: [{
+            riverKey: "river-1", riverName: "多摩川", level: "L4", levelRank: 40, kindName: "氾濫危険情報",
+            reportDateTime: new Date(T0).toISOString(),
+            station: { name: 42, levelM: 3.42, trend: "rising", thresholdLabel: null },
+          }],
+        }],
+        seen: [],
+      },
+    };
+    writeFileSync(path, JSON.stringify(broken), "utf8");
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+  });
+
+  it("hydrograph 込みで round-trip し、壊れた hydrograph は洪水 domain だけ破棄する", () => {
+    const path = tempPath();
+    const persisted = state({
+      floods: {
+        events: [{
+          eventId: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 12 * 60 * 60_000,
+          rivers: [{
+            riverKey: "river-1", riverName: "多摩川", level: "L4", levelRank: 40, kindName: "氾濫危険情報",
+            reportDateTime: new Date(T0).toISOString(),
+            station: {
+              name: "柏田", levelM: 3.42, trend: "rising", thresholdLabel: "氾濫危険水位 3.20m 超過",
+              hydrograph: {
+                points: [
+                  { dateTime: new Date(T0).toISOString(), valueM: 3.42, phase: "observed" },
+                  { dateTime: new Date(T0 + 3_600_000).toISOString(), valueM: null, phase: "forecast" },
+                  { dateTime: new Date(T0 + 7_200_000).toISOString(), valueM: 3.55, phase: "forecast" },
+                ],
+                dangerLevelM: 3.2,
+              },
+            },
+          }],
+        }],
+        seen: [{ key: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 }],
+      },
+    });
+    const persistence = new StandbyPersistence(path);
+    persistence.save(persisted);
+    expect(persistence.load()?.floods).toEqual(persisted.floods);
+
+    // hydrograph.points[].phase が不正 → 洪水 domain のみ破棄、他 domain は生存
+    mkdirSync(dirname(path), { recursive: true });
+    const broken = {
+      ...persisted,
+      floods: {
+        events: [{
+          eventId: "flood-1", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 12 * 60 * 60_000,
+          rivers: [{
+            riverKey: "river-1", riverName: "多摩川", level: "L4", levelRank: 40, kindName: "氾濫危険情報",
+            reportDateTime: new Date(T0).toISOString(),
+            station: {
+              name: "柏田", levelM: 3.42, trend: "rising", thresholdLabel: null,
+              hydrograph: { points: [{ dateTime: new Date(T0).toISOString(), valueM: 3.42, phase: "bogus" }], dangerLevelM: null },
+            },
+          }],
+        }],
+        seen: [],
+      },
+    };
+    writeFileSync(path, JSON.stringify(broken), "utf8");
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+  });
+
   it("typhoon/volcano/tornado/longPeriod/nankai を深く検証し、壊れた domain だけを破棄して起動を続ける", () => {
     const path = tempPath();
     const malformed = {

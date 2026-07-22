@@ -20,14 +20,32 @@ describe("VolcanoCard", () => {
     expect(container.querySelector("strong")?.textContent).toBe("flash");
   });
 
-  it("marks critical cards and supports multiple volcanoes", () => {
+  it("段階カラー: カード内最高段階で帯 class を決める (2=黄 advisory / 3=橙 warning / 4=赤 red / 5=紫 emergency)", () => {
+    const bandFor = (alertLevel: number | null, latestEvent: string | null = null): string => {
+      const { container, unmount } = render(VolcanoCard, { item: volcanoItem({
+        data: { volcanoes: [{ code: "V-1", name: "M", alertLevel, latestEvent }] },
+      }) });
+      const card = container.querySelector(".volcano-card")!;
+      const band = ["band-advisory", "band-warning", "band-red", "band-emergency"].find((c) => card.classList.contains(c));
+      unmount();
+      return band ?? "none";
+    };
+    expect(bandFor(2)).toBe("band-advisory");
+    expect(bandFor(3)).toBe("band-warning");
+    expect(bandFor(4)).toBe("band-red");
+    expect(bandFor(5)).toBe("band-emergency");
+    // 噴火速報はレベル 4 未満でも赤へ引き上げる
+    expect(bandFor(2, "噴火速報")).toBe("band-red");
+  });
+
+  it("最高段階でカード帯を決め、複数火山を並べる (V-1 レベル4 + V-2 噴火速報 → band-red)", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem({
       data: { volcanoes: [
         { code: "V-1", name: "Mount Test", alertLevel: 4, latestEvent: null },
         { code: "V-2", name: "Mount Second", alertLevel: null, latestEvent: "eruption" },
       ] },
     }) });
-    expect(container.querySelector(".volcano-card")?.classList.contains("critical")).toBe(true);
+    expect(container.querySelector(".volcano-card")?.classList.contains("band-red")).toBe(true);
     expect(container.querySelectorAll(".volcano")).toHaveLength(2);
     expect(container.textContent).toContain("eruption");
   });

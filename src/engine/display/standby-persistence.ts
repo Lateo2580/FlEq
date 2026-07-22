@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as log from "../../logger";
-import type { DisplayFloodRiverV1, DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
+import type { DisplayFloodHydrographV1, DisplayFloodRiverV1, DisplayFloodStationV1, DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
 import type { PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
@@ -117,6 +117,29 @@ function isSeenEntry(value: unknown): value is PersistedSeenEntry {
     && Number.isFinite(value.forgetAtMs);
 }
 
+function isFloodTrend(value: unknown): value is DisplayFloodStationV1["trend"] {
+  return value == null || value === "rising" || value === "falling" || value === "steady";
+}
+
+function isFloodHydrograph(value: unknown): value is DisplayFloodHydrographV1 {
+  if (!isRecord(value)) return false;
+  return Array.isArray(value.points)
+    && value.points.every((point) => isRecord(point)
+      && typeof point.dateTime === "string"
+      && isNullableFiniteNumber(point.valueM)
+      && (point.phase === "observed" || point.phase === "forecast"))
+    && isNullableFiniteNumber(value.dangerLevelM);
+}
+
+function isFloodStation(value: unknown): value is DisplayFloodStationV1 {
+  if (!isRecord(value)) return false;
+  return typeof value.name === "string"
+    && isNullableFiniteNumber(value.levelM)
+    && isFloodTrend(value.trend)
+    && isNullableString(value.thresholdLabel)
+    && (!Object.hasOwn(value, "hydrograph") || value.hydrograph == null || isFloodHydrograph(value.hydrograph));
+}
+
 function isFloodRiver(value: unknown): value is DisplayFloodRiverV1 {
   if (!isRecord(value)) return false;
   return typeof value.riverKey === "string"
@@ -125,7 +148,8 @@ function isFloodRiver(value: unknown): value is DisplayFloodRiverV1 {
     && typeof value.levelRank === "number"
     && Number.isFinite(value.levelRank)
     && typeof value.kindName === "string"
-    && typeof value.reportDateTime === "string";
+    && typeof value.reportDateTime === "string"
+    && (!Object.hasOwn(value, "station") || value.station == null || isFloodStation(value.station));
 }
 
 function isFloodState(value: unknown): value is PersistedFloodState {

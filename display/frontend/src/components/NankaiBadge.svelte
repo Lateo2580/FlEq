@@ -9,6 +9,6 @@
 </div>
 
 <style>
-  .nankai-badge { margin-top: var(--space-2); padding: var(--space-1) var(--space-3); border: 1px solid var(--role-weatherWarning); border-radius: var(--radius-s); color: var(--role-weatherWarning); background: color-mix(in srgb, var(--role-weatherWarning) 12%, var(--surface-standby)); font-size: max(14px, var(--type-label-l-fluid)); }
+  .nankai-badge { display: inline-flex; align-items: center; margin-top: var(--space-2); padding: var(--space-1) var(--space-3); border: 1px solid var(--role-weatherWarning); border-radius: var(--radius-s); color: var(--role-weatherWarning); background: color-mix(in srgb, var(--role-weatherWarning) 12%, var(--surface-standby)); font-size: max(14px, var(--type-label-l-fluid)); }
   .critical { color: var(--role-weatherEmergency); border-color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 16%, var(--surface-standby)); }
 </style>

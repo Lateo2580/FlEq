@@ -8,6 +8,7 @@ import {
   type DisplayEewInputV1,
   type DisplayEewRegionV1,
   type DisplayEventDtoV1,
+  type DisplayFloodHydrographV1,
   type DisplayIntensityGroupV1,
   type DisplayLargeQuakeInputV1,
   type DisplayLargeQuakeStateV1,
@@ -1903,9 +1904,9 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   {
     ...STANDBY_ITEM_BASE, kind: "flood", surface: "corner-right", key: "flood:active", severity: "critical",
     data: { rivers: [
-      { riverKey: "8303040001", riverName: "大淀川", level: "L4", levelRank: 4, kindName: "氾濫危険情報", reportDateTime: NOW_ISO },
-      { riverKey: "8303040002", riverName: "小丸川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
-      { riverKey: "8303040003", riverName: "五ヶ瀬川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040001", riverName: "大淀川", level: "L4", levelRank: 40, kindName: "氾濫危険情報", reportDateTime: NOW_ISO, station: { name: "柏田", levelM: 3.42, trend: "rising", thresholdLabel: "氾濫危険水位 3.20m 超過" } },
+      { riverKey: "8303040002", riverName: "小丸川", level: "L3", levelRank: 30, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO, station: { name: "高城", levelM: 2.18, trend: "steady", thresholdLabel: "避難判断水位 2.00m 超過" } },
+      { riverKey: "8303040003", riverName: "五ヶ瀬川", level: "L3", levelRank: 30, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO, station: null },
     ] },
   },
   {
@@ -1942,16 +1943,32 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   },
 ];
 
+// 水位ミニグラフ用の現実的な 7 点系列 (現況 14:00 → 1〜6時間後、1 時間刻み)。
+// values[0] が現況 (observed)、以降が予測 (forecast)。null は欠測点。
+const FLOOD_HYDROGRAPH_HOURS = ["14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"] as const;
+function floodHydrograph(values: (number | null)[], dangerLevelM: number | null): DisplayFloodHydrographV1 {
+  return {
+    points: values.map((valueM, i) => ({
+      dateTime: `2026-07-07T${FLOOD_HYDROGRAPH_HOURS[i]}:00+09:00`,
+      valueM,
+      phase: i === 0 ? "observed" : "forecast",
+    })),
+    dangerLevelM,
+  };
+}
+
 /** 洪水広域時: 5 河川で時計上ワイド表示へ移行した状態 (+ 右上は他カードのみ) */
 export const standbyItemsFloodWide: ActiveStandbyCardV1[] = [
   {
     ...STANDBY_ITEM_BASE, kind: "flood", surface: "clock-top-wide", key: "flood:active", severity: "critical",
     data: { rivers: [
-      { riverKey: "8303040001", riverName: "大淀川", level: "L5", levelRank: 5, kindName: "氾濫発生情報", reportDateTime: NOW_ISO },
-      { riverKey: "8303040002", riverName: "小丸川", level: "L4", levelRank: 4, kindName: "氾濫危険情報", reportDateTime: NOW_ISO },
-      { riverKey: "8303040003", riverName: "五ヶ瀬川", level: "L4", levelRank: 4, kindName: "氾濫危険情報", reportDateTime: NOW_ISO },
-      { riverKey: "8303040004", riverName: "耳川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
-      { riverKey: "8303040005", riverName: "一ツ瀬川", level: "L3", levelRank: 3, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO },
+      { riverKey: "8303040001", riverName: "大淀川", level: "L5", levelRank: 50, kindName: "氾濫発生情報", reportDateTime: NOW_ISO, station: { name: "柏田", levelM: 4.05, trend: "rising", thresholdLabel: "氾濫危険水位 3.20m 超過", hydrograph: floodHydrograph([4.05, 4.12, 4.24, 4.36, 4.41, 4.33, 4.18], 3.20) } },
+      // 欠測 (null) を挟んだ系列: 予測の途中で線が切れることを目視確認する
+      { riverKey: "8303040002", riverName: "小丸川", level: "L4", levelRank: 40, kindName: "氾濫危険情報", reportDateTime: NOW_ISO, station: { name: "高城", levelM: 3.31, trend: "rising", thresholdLabel: "氾濫危険水位 3.20m 超過", hydrograph: floodHydrograph([3.31, 3.38, null, 3.55, 3.60, 3.52, 3.41], 3.20) } },
+      // dangerLevelM: null → 危険線を出さず時系列だけ描く
+      { riverKey: "8303040003", riverName: "五ヶ瀬川", level: "L4", levelRank: 40, kindName: "氾濫危険情報", reportDateTime: NOW_ISO, station: { name: "三輪", levelM: 5.60, trend: "falling", thresholdLabel: "氾濫危険水位 5.40m 超過", hydrograph: floodHydrograph([5.60, 5.45, 5.30, 5.12, 4.95, 4.80, 4.66], null) } },
+      { riverKey: "8303040004", riverName: "耳川", level: "L3", levelRank: 30, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO, station: { name: "山陰", levelM: null, trend: null, thresholdLabel: "避難判断水位超過" } },
+      { riverKey: "8303040005", riverName: "一ツ瀬川", level: "L3", levelRank: 30, kindName: "氾濫警戒情報", reportDateTime: NOW_ISO, station: null },
     ] },
   },
   ...standbyItemsShowcase.filter((item) => item.kind !== "flood"),

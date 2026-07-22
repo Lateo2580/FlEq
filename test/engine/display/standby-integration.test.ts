@@ -42,6 +42,8 @@ function flood(timeMs = T0): PresentationEvent {
   const rivers = Array.from({ length: 5 }, (_, index) => ({
     stationName: `河川${index + 1}`, stationCode: `station-${index + 1}`, riverNames: [`河川${index + 1}`], primaryRiverCode: `river-${index + 1}`, primaryRiverName: `河川${index + 1}`,
     stationObservedLevel: "L3", headlineLevel: "L3", headlineKindCode: "30",
+    measurement: "water_level", measurementUnit: "m", rawUnit: "m", series: [],
+    criteria: { L1: null, L2: null, L3: null, L4: null, L4Plan: null, unit: "m", rawUnit: "m" },
   }));
   return event({ id: "flood-1", domain: "floodForecast", eventId: "flood-1", serial: "1", reportDateTime: iso(timeMs), raw: {
     schema: "vxko50", infoType: "発表", serial: 1, eventId: "flood-1", publishingOffice: "気象庁", rawStations: rivers,

@@ -281,6 +281,34 @@ export interface DisplayHeatAreaV1 {
   isSpecial: boolean;
 }
 
+/** 水位ハイドログラフの 1 点。i===0 が現況 (observed)、以降が予測 (forecast)。
+ *  valueM が null は欠測点 (座標は保持され、前後を結ぶ線は切れる)。 */
+export interface DisplayFloodHydrographPointV1 {
+  dateTime: string;
+  valueM: number | null;
+  phase: "observed" | "forecast";
+}
+
+/** 代表観測所の水位時系列 (現況＋予測)。単位が m でない/空系列/有効値ゼロは hydrograph 自体を持たない。 */
+export interface DisplayFloodHydrographV1 {
+  points: DisplayFloodHydrographPointV1[];
+  /** criteria.L4 (氾濫危険水位)。m で得られない場合は null。thresholdLabel の基準値とは独立に持つ */
+  dangerLevelM: number | null;
+}
+
+export interface DisplayFloodStationV1 {
+  /** 代表観測所名 (河川内で最高レベルの観測所) */
+  name: string;
+  /** 現在水位 (m)。欠測は null */
+  levelM: number | null;
+  /** 直近時系列からの傾向。判定不能は null */
+  trend: "rising" | "falling" | "steady" | null;
+  /** 超過中の基準水位の説明 (例: "氾濫危険水位 3.20m 超過")。基準不明は null */
+  thresholdLabel: string | null;
+  /** 水位ミニグラフ用の時系列。描画不能 (単位不一致・空系列・有効値なし) は null/欠落 */
+  hydrograph?: DisplayFloodHydrographV1 | null;
+}
+
 export interface DisplayFloodRiverV1 {
   riverKey: string;
   riverName: string;
@@ -289,6 +317,8 @@ export interface DisplayFloodRiverV1 {
   levelRank: number;
   kindName: string;
   reportDateTime: string;
+  /** 代表観測所の水位情報。観測情報を持たない電文 (headline のみ等) は null */
+  station?: DisplayFloodStationV1 | null;
 }
 
 export type ActiveStandbyCardV1 =

@@ -319,10 +319,10 @@
     <div class="clock-stack" use:measureBorderHeight={(h) => (clockHalfPx = h / 2)}>
       <ConnectionBadge connection={snapshot.connection} {sseConnected} />
       <Clock {now} />
-      {#if nankaiItem != null}<NankaiBadge item={nankaiItem} />{/if}
     </div>
   </div>
   <div class="bottom-stack">
+    {#if nankaiItem != null}<div class="nankai-slot"><NankaiBadge item={nankaiItem} /></div>{/if}
     <div class="instrument-slot">
       <div class="instrument-row-wrap" bind:this={instrumentEl}>
         <InstrumentRow stats={snapshot.stats} />
@@ -372,9 +372,11 @@
   .clock-top-slot {
     position: absolute;
     left: 50%;
-    bottom: calc(50% + var(--clock-half, 0px) + var(--space-6));
+    top: 24px;
     transform: translateX(-50%);
-    max-height: min(30vh, calc(50% - var(--clock-half, 0px) - 48px));
+    /* 上端は左右カード (.corner-left/.corner-right) と同じ 24px。max-height は時計上端
+       (50% - 時計高さ/2) まで、さらに --space-6 のクリアランスを引いて時計と重ねない */
+    max-height: calc(50% - var(--clock-half, 0px) - 24px - var(--space-6));
     overflow: hidden;
   }
   .corner-left {
@@ -403,10 +405,10 @@
   }
   /* 下段は「時計ブロックの実下端 (50% + 時計高さ/2)」から「テロップ上端 (bottom:0)」までを
      占める帯。--clock-half は clock-stack の実測 border-box 高さの半分 (px) を JS が渡す。
-     この帯の中で .instrument-slot が余白を吸って統計行を垂直中央へ寄せることで、
-     カード無し時は帯全体の中央、カード有り時はカード上端までの中央、という「相対配置」を
-     ビューポート高さ・時計サイズに依らず成立させる (px 直値を使わない)。時計の下半分を
-     帯に含めないので統計行が日付行に重ならない。 */
+     南海バッジ・統計行・地震カードの 3 要素を justify-content: space-evenly で並べ、
+     「時計下端 → 南海バッジ → 統計 → 地震カード → テロップ上端」の 4 区間を等間隔にする。
+     要素が減っても (南海バッジ無し・カード無し) space-evenly が自然に等間隔へ再配分する。
+     時計の下半分を帯に含めないので統計行が日付行に重ならない (px 直値を使わない)。 */
   .bottom-stack {
     position: absolute;
     left: 24px;
@@ -416,14 +418,15 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-6);
+    justify-content: space-evenly;
   }
-  /* 統計行を載せるスロット。flex:1 で「カード上端 (無ければテロップ上端) までの残余」を
-     占め、その中央に統計行を置く。overflow を切らないので万一カードが帯を占めても
-     統計行がクリップされない (可読性の安全側)。 */
+  .nankai-slot {
+    flex: 0 0 auto;
+  }
+  /* 統計行を載せるスロット。space-evenly の分配対象なので自然サイズ (flex 伸長しない)。
+     overflow を切らないので統計行がクリップされない (可読性の安全側)。 */
   .instrument-slot {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: 0 0 auto;
     width: 100%;
     display: flex;
     align-items: center;

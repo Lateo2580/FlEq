@@ -115,11 +115,20 @@ const now = new Date("2026-07-06T21:00:00+09:00");
 // ゼロを確認の上、デッドコードとして削除済み)。
 
 describe("StandbyScreen", () => {
-  it("clock-below の南海トラフバッジを DOM 上も Clock の後へ置く", () => {
+  it("南海トラフバッジは中央帯 (.bottom-stack) の統計行より前に置き、時計スタックには含めない (等間隔リズム 2026-07-22)", () => {
     const src = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
+    // 時計スタックには南海バッジを含めない (時計高さ実測に混ぜない)
     const clockStack = src.slice(src.indexOf('<div class="clock-stack"'), src.indexOf('</div>', src.indexOf('<div class="clock-stack"')));
     expect(clockStack.indexOf("<Clock {now} />")).toBeGreaterThanOrEqual(0);
-    expect(clockStack.indexOf("<NankaiBadge")).toBeGreaterThan(clockStack.indexOf("<Clock {now} />"));
+    expect(clockStack.indexOf("<NankaiBadge")).toBe(-1);
+    // 南海バッジは .bottom-stack 内で統計行スロットより前 (時計下端→南海→統計→カードの順)
+    const bottomStack = src.slice(src.indexOf('<div class="bottom-stack">'), src.indexOf('<style>'));
+    const nankaiIdx = bottomStack.indexOf("<NankaiBadge");
+    const instrumentIdx = bottomStack.indexOf('class="instrument-slot"');
+    expect(nankaiIdx).toBeGreaterThanOrEqual(0);
+    expect(instrumentIdx).toBeGreaterThan(nankaiIdx);
+    // 4 区間の等間隔は space-evenly で作る
+    expect(src).toContain("justify-content: space-evenly");
   });
 
   it("renders normal and wide flood surfaces through one keyed flood slot", async () => {
