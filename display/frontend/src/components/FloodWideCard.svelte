@@ -10,11 +10,9 @@
     return station.hydrograph == null ? null : buildFloodHydrograph(station.hydrograph);
   }
 
-  // 「4.05m ↑」形式。trend 不明なら矢印を省く。
-  function levelText(station: DisplayFloodStationV1): string {
-    if (station.levelM == null) return "";
-    const arrow = station.trend == null ? "" : ` ${FLOOD_TREND_ARROW[station.trend]}`;
-    return `${station.levelM.toFixed(2)}m${arrow}`;
+  // 水位値 (矢印は色分けのため別 span で描く)
+  function levelValue(station: DisplayFloodStationV1): string {
+    return station.levelM == null ? "" : `${station.levelM.toFixed(2)}m`;
   }
 
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
@@ -51,7 +49,7 @@
             {/if}
             <!-- 左下: 現在水位 + 傾向矢印。levelM 欠測はこのセル自体を省略 (プレースホルダは出さない) -->
             {#if station.levelM != null}
-              <div class="cell cell-level">{levelText(station)}</div>
+              <div class="cell cell-level">{levelValue(station)}{#if station.trend != null}<span class="trend trend-{station.trend}">{FLOOD_TREND_ARROW[station.trend]}</span>{/if}</div>
             {/if}
             <!-- 右下: 水位ミニグラフ (右列いっぱいに伸ばす) -->
             {#if graph != null}
@@ -110,7 +108,9 @@
   .river-grid { display: grid; grid-template-columns: 1fr 1fr; }
   /* min-width: 0 — grid item の暗黙 min-width:auto を殺し、station-line の ellipsis と
      flood-graph の右端固定を右カラムでも効かせる (grid のはみ出し防止) */
-  .river-cell, .more-rivers { min-width: 0; min-height: 88px; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
+  .river-cell { min-width: 0; min-height: 88px; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
+  /* 集約行はコンパクトに (min-height を継がない — カード下部の余剰スペース防止) */
+  .more-rivers { min-width: 0; padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
   .river-cell:nth-child(even) { border-left: 1px solid var(--hairline); }
   .river-line { color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* 主行の下: 左=観測所/水位、右=水位の情報/ミニグラフ の 2×2。列比 左:右 = 4:6。
@@ -118,12 +118,17 @@
   .station-grid {
     display: grid;
     grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
-    gap: var(--space-1) var(--space-3);
+    gap: 2px var(--space-3); /* 行間を詰めてグラフ領域にゆとりを渡す */
     margin-top: var(--space-1);
     align-items: center;
   }
   .cell-station { grid-column: 1; grid-row: 1; }
-  .cell-level { grid-column: 1; grid-row: 2; }
+  /* 水位はセル内の主役数値: 一段大きく。矢印は小さめ + 傾向で色分け (上昇=赤=悪化 / 維持=muted / 下降=薄白=沈静) */
+  .cell-level { grid-column: 1; grid-row: 2; font-size: max(17px, var(--type-title-s-fluid)); align-self: center; }
+  .trend { font-size: 0.68em; margin-left: var(--space-1); vertical-align: 8%; }
+  .trend-rising { color: var(--role-tsunamiWarning); }
+  .trend-steady { color: var(--role-muted); }
+  .trend-falling { color: var(--role-connectionOk); }
   .cell-threshold { grid-column: 2; grid-row: 1; }
   .cell-graph { grid-column: 2; grid-row: 2; }
   /* 値のみのセル (ラベルなし): fg・num weight・1 行 ellipsis */
@@ -144,8 +149,8 @@
     font-weight: normal;
     align-self: center;
   }
-  /* 水位ミニグラフ: 右列いっぱいに伸ばす (preserveAspectRatio="none" が横伸長)。高さ 28px 維持 */
-  .flood-graph { width: 100%; height: 28px; }
+  /* 水位ミニグラフ: 右列いっぱい + 高さ 36px (行間を詰めた分をグラフに渡す) */
+  .flood-graph { width: 100%; height: 36px; }
   .more-rivers { grid-column: 1 / -1; color: var(--role-muted); text-align: center; font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; }
   .critical-river .river-line { color: var(--role-weatherEmergency); }
 </style>
