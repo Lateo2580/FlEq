@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { flip } from "svelte/animate";
+  import { fade } from "svelte/transition";
   import type { ActiveStandbyCardV1, DisplayFloodStationV1 } from "../lib/protocol";
   import { FLOOD_TREND_ARROW, layoutFloodWideRows } from "../lib/standby-cards";
   import { buildFloodHydrograph, type FloodHydrographGeometry } from "../lib/flood-hydrograph";
+  import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut } from "../lib/motion";
+  import { spatialScaleIn } from "../lib/transitions";
+  import { measureBorderHeight } from "../lib/measure-height";
   import RestoredChip from "./RestoredChip.svelte";
   import NumberUnit from "./NumberUnit.svelte";
 
@@ -25,13 +30,47 @@
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
   });
+
+  // prefers-reduced-motion を購読する (StandbyScreen の既存パターンを踏襲)。matchMedia 未実装環境
+  // (jsdom 等) ではスキップし通常 duration。reduced-motion では flip/in/out/高さ遷移すべて duration 0。
+  let reducedMotion = $state(
+    typeof window === "undefined" ? false : window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+  );
+  $effect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    reducedMotion = mq.matches;
+    const onChange = (e: MediaQueryListEvent): void => { reducedMotion = e.matches; };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  });
+  const flipDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
+  const enterDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
+  const exitDur = $derived(reducedMotion ? 0 : EXIT_MS); // 消失感を出さない短い fade
+
+  // カード高さの「がくん」を消すため、河川グリッドの自然高を実測して外側ラッパの明示 height に
+  // 反映し、CSS transition (height) で追う。内側は自然高のまま (grid の row 補間を起こさない) ／
+  // ラッパだけが height を持つ一方向のフロー (自然高 → 実測 → ラッパ height)。measure が来る前や
+  // ResizeObserver 未実装環境 (jsdom → 0) では height:auto に退避しクリップを避ける。
+  let gridHeightPx = $state(0);
+  const gridDurMs = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
+  const gridWrapStyle = $derived(
+    (gridHeightPx > 0 ? `height: ${gridHeightPx}px; ` : "") + `--flood-grid-dur: ${gridDurMs}ms`,
+  );
 </script>
 
 <section class="standby-card flood-wide-card band-{band}">
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
-  <div class="river-grid">
+  <div class="river-grid-wrap" style={gridWrapStyle}>
+  <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>
     {#each layout.visible as river (river.riverKey)}
-      <div class:critical-river={river.levelRank >= 40} class="river-cell">
+      <div
+        class:critical-river={river.levelRank >= 40}
+        class="river-cell"
+        animate:flip={{ duration: flipDur, easing: springSpatialOut }}
+        in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
+        out:fade={{ duration: exitDur }}
+      >
         <div class="river-line">{river.riverName}　{river.kindName}（{river.level}）</div>
         {#if river.station != null}
           {@const station = river.station}
@@ -69,8 +108,13 @@
       </div>
     {/each}
     {#if layout.omittedCount > 0}
-      <div class="more-rivers">ほか {layout.omittedCount} 河川</div>
+      <div
+        class="more-rivers"
+        in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
+        out:fade={{ duration: exitDur }}
+      >ほか {layout.omittedCount} 河川</div>
     {/if}
+  </div>
   </div>
 </section>
 
@@ -101,6 +145,11 @@
     color: var(--header-weatherEmergency-on);
     border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
   }
+  /* 河川セル増減でカード高さが「がくん」と変わらないよう、内側 grid の実測自然高を明示 height
+     として受けて CSS transition で追う箱。overflow:hidden で縮小途中のはみ出しを切る。
+     duration は JS が --flood-grid-dur で渡す (reduced-motion では 0ms)。easing は heightReveal と
+     同じ effects 系 (臨界減衰・非オーバーシュート — spatial は周囲を揺らすため高さには使わない)。 */
+  .river-grid-wrap { overflow: hidden; transition: height var(--flood-grid-dur, 0ms) var(--spring-effects-default); }
   .river-grid { display: grid; grid-template-columns: 1fr 1fr; }
   /* min-width: 0 — grid item の暗黙 min-width:auto を殺し、station-line の ellipsis と
      flood-graph の右端固定を右カラムでも効かせる (grid のはみ出し防止) */
