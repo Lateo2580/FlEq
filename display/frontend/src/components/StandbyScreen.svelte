@@ -137,7 +137,7 @@
   // は隠れる (別スロットに二重表示しない)。閉じると LatestQuakeCard に戻る。
   //
   // 重要: 地震スロットは replay/latest を跨いで同一 key "quake-slot" にする (増分レビュー)。
-  // 別 key にすると切替時に旧カードが out:fade の outro 完了 (~200ms) まで残り、新旧 2 枚が同時に
+  // 別 key にすると切替時に旧カードが outro 完了 (~200ms) まで残り、新旧 2 枚が同時に
   // corner-left へ積まれて排他占有が視覚的に破れる。同一 key なら外側の corner-item 要素は生死を
   // またがず (outro なし)、内側のコンポーネントだけ即時差し替わる。スロット全体が現れる/消えるとき
   // (地震情報が無い⇔ある) だけ従来どおり in/out する。
@@ -247,6 +247,53 @@
   });
   // unmount 時に走行中アニメを確実に停止する (ハンドルのリーク防止)
   $effect(() => () => flipAnim?.cancel());
+
+  // 洪水スロットの surface 切替 (corner-right ⇔ clock-top-wide) は同一 key のまま class と
+  // absolute 座標だけが変わるため、animate: では補間できない (animate: は keyed each の並べ替え
+  // 専用 — 時計スライドと同じ理由)。手動 FLIP で位置だけ補間する。keyframe は transform でなく
+  // 独立 CSS translate プロパティを使い、.clock-top-slot の translateX(-50%) と自動合成させる
+  // (matrix 文字列合成は base に scale/rotate が加わると dx/dy が変形するため使わない)。
+  const floodSurface = $derived(floodItem?.surface ?? null);
+  let floodSlotEl = $state<HTMLElement | null>(null);
+  let floodFlipAnim: Animation | null = null;
+  let floodFlipFirst: DOMRect | null = null;
+  let prevFloodSurface: "corner-right" | "clock-top-wide" | null = null;
+
+  $effect.pre(() => {
+    const next = floodSurface;
+    if (floodSlotEl == null || prevFloodSurface == null || next == null || next === prevFloodSurface) return;
+    // 走行中 transform を含む「見えている位置」を先に読む。先に cancel すると要素が基底位置へ
+    // 戻り、次のアニメ開始点が飛ぶ
+    floodFlipFirst = floodSlotEl.getBoundingClientRect();
+    floodFlipAnim?.cancel();
+    floodFlipAnim = null;
+  });
+  $effect(() => {
+    const next = floodSurface;
+    const el = floodSlotEl;
+    const first = floodFlipFirst;
+    floodFlipFirst = null;
+    const changed = prevFloodSurface != null && next != null && next !== prevFloodSurface;
+    prevFloodSurface = next;
+    // 初回 mount・null→surface・surface→null は in/out に任せて FLIP しない
+    if (!changed || el == null || first == null || reducedMotion) return;
+    const last = el.getBoundingClientRect();
+    const dx = first.left - last.left;
+    const dy = first.top - last.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    const anim = el.animate(
+      [{ translate: `${dx}px ${dy}px` }, { translate: "0px 0px" }],
+      { duration: SPRING_SPATIAL_DEFAULT_MS, easing: SPRING_LINEARS["spring-spatial-default"] },
+    );
+    floodFlipAnim = anim;
+    anim.onfinish = () => {
+      if (floodFlipAnim === anim) floodFlipAnim = null;
+    };
+    anim.oncancel = () => {
+      if (floodFlipAnim === anim) floodFlipAnim = null;
+    };
+  });
+  $effect(() => () => floodFlipAnim?.cancel());
 </script>
 
 <div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px; --weather-corner-offset: {weatherFloodOffsetPx}px" use:measureBorderHeight={(height) => (standbyHeightPx = height)}>
@@ -256,14 +303,15 @@
       class:flood-corner={item.surface === "corner-right"}
       class:clock-top-slot={item.surface === "clock-top-wide"}
       use:measureBorderHeight={(height) => (floodHeightPx = height)}
-      in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
-      out:fade={{ duration: exitDur }}
+      bind:this={floodSlotEl}
     >
-      {#if item.surface === "clock-top-wide"}
-        <FloodWideCard {item} />
-      {:else}
-        <FloodCard {item} />
-      {/if}
+      <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
+        {#if item.surface === "clock-top-wide"}
+          <FloodWideCard {item} />
+        {:else}
+          <FloodCard {item} />
+        {/if}
+      </div>
     </div>
   {/each}
   <div class="corner-right">
@@ -271,10 +319,8 @@
       <div
         class="weather-corner"
         use:measureBorderHeight={(height) => (weatherHeightPx = height)}
-        in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
-        out:fade={{ duration: exitDur }}
       >
-        <WeatherAlertCard alerts={snapshot.weatherAlerts} tornado={tornadoItem} />
+        <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}><WeatherAlertCard alerts={snapshot.weatherAlerts} tornado={tornadoItem} /></div>
       </div>
     {/if}
     {#if floodCornerOffsetPx > 0}
@@ -282,14 +328,16 @@
       <div class="flood-spacer" style="height: {floodHeightPx}px" aria-hidden="true"></div>
     {/if}
     {#each rightStack.visible as item (item.key)}
-      <div class="standby-corner" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
-        {#if item.kind === "heat"}
-          <HeatAlertCard {item} />
-        {:else if item.kind === "typhoon"}
-          <TyphoonCard {item} />
-        {:else if item.kind === "volcano"}
-          <VolcanoCard {item} />
-        {/if}
+      <div class="standby-corner">
+        <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
+          {#if item.kind === "heat"}
+            <HeatAlertCard {item} />
+          {:else if item.kind === "typhoon"}
+            <TyphoonCard {item} />
+          {:else if item.kind === "volcano"}
+            <VolcanoCard {item} />
+          {/if}
+        </div>
       </div>
     {/each}
     <StandbyOverflowSummary items={rightOverflow} />
@@ -301,17 +349,17 @@
         class:tsunami-corner={item.key === "tsunami"}
         class:quake-corner={item.key === "quake-slot"}
         animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-        in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
-        out:fade={{ duration: exitDur }}
       >
-        {#if item.key === "tsunami"}
-          <TsunamiStandbyBanner tsunami={item.tsunami} onReplayLevel={onTsunamiReplay} />
-        {:else if item.replay != null}
-          <!-- 同一 key スロットの内側差し替え。replay 選択中は replay を出し LatestQuakeCard は隠す -->
-          <QuakeReplayCard quake={item.replay} onClose={closeQuakeCard} />
-        {:else}
-          <LatestQuakeCard quake={item.quake} longPeriod={longPeriodItem == null ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
-        {/if}
+        <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
+          {#if item.key === "tsunami"}
+            <TsunamiStandbyBanner tsunami={item.tsunami} onReplayLevel={onTsunamiReplay} />
+          {:else if item.replay != null}
+            <!-- 同一 key スロットの内側差し替え。replay 選択中は replay を出し LatestQuakeCard は隠す -->
+            <QuakeReplayCard quake={item.replay} onClose={closeQuakeCard} />
+          {:else}
+            <LatestQuakeCard quake={item.quake} longPeriod={longPeriodItem == null ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
+          {/if}
+        </div>
       </div>
     {/each}
   </div>

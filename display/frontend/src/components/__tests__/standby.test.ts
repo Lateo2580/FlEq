@@ -150,6 +150,38 @@ describe("StandbyScreen", () => {
     expect(container.querySelector(".flood-card")).toBeFalsy();
   });
 
+  it("二層 slot: transition は .slot-motion 内枠が持ち、外枠 (dim/計測/flip 対象) は transition を持たない", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    // 4 系統すべて内枠に in/out がある (flood-slot / weather-corner / standby-corner / corner-item)
+    expect(source.match(/class="slot-motion"/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
+    // transition ディレクティブは slot-motion 内枠の行にしか現れない (外枠 4 系統のどれに
+    // 残存しても FAIL する全称検査。実装は内枠 div を 1 行で書くこと)
+    for (const line of source.split("\n").filter((l) => l.includes("in:spatialScaleIn") || l.includes("out:fade"))) {
+      expect(line).toContain('class="slot-motion"');
+    }
+    // 内枠は intro |global (画面切替時の入場演出を維持) + local outro (画面切替を遅らせない)
+    expect(source).toContain('class="slot-motion" in:spatialScaleIn|global');
+    expect(source).not.toContain("out:fade|global");
+  });
+
+  it("flood-slot の surface 切替は独立 translate プロパティの手動 FLIP で補間する (transform 合成を壊さない)", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    // FLIP 対象の外枠に bind がある
+    expect(source).toContain("bind:this={floodSlotEl}");
+    // 可視 rect → cancel → final rect の順 (先に cancel すると開始点が飛ぶ)。読取が cancel より前
+    const readIdx = source.indexOf("floodFlipFirst = floodSlotEl.getBoundingClientRect()");
+    const cancelIdx = source.indexOf("floodFlipAnim?.cancel()");
+    expect(readIdx).toBeGreaterThan(-1);
+    expect(cancelIdx).toBeGreaterThan(readIdx);
+    // ガード: 初回/null 遷移/同値/reduced-motion を除外
+    expect(source).toContain("next === prevFloodSurface");
+    expect(source).toContain("if (!changed || el == null || first == null || reducedMotion) return");
+    expect(source).toMatch(/translate: `\$\{dx\}px \$\{dy\}px`/);
+    expect(source).toContain('{ translate: "0px 0px" }');
+    // onfinish/oncancel は animation identity を確認する
+    expect(source).toContain("if (floodFlipAnim === anim) floodFlipAnim = null");
+  });
+
   it("recentQuakes が空のとき .quakes-card ごと非表示になる (2026-07-11 目視観察の修正)", () => {
     const { container } = render(StandbyScreen, {
       snapshot: baseSnapshot({ recentQuakes: [] }),
