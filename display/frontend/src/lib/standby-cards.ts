@@ -6,18 +6,6 @@ export const FLOOD_TREND_ARROW: Record<NonNullable<DisplayFloodStationV1["trend"
   steady: "→",
 };
 
-/** 洪水カード副行の文字列を組む。「柏田 3.42m ↑ 氾濫危険水位 3.20m 超過」。
- *  levelM が null のときは水位数値と傾向矢印を出さず、観測所名 + thresholdLabel のみにする。 */
-export function formatFloodStationLine(station: DisplayFloodStationV1): string {
-  if (station.levelM == null) {
-    return station.thresholdLabel == null ? station.name : `${station.name} ${station.thresholdLabel}`;
-  }
-  const parts: string[] = [station.name, `${station.levelM.toFixed(2)}m`];
-  if (station.trend != null) parts.push(FLOOD_TREND_ARROW[station.trend]);
-  if (station.thresholdLabel != null) parts.push(station.thresholdLabel);
-  return parts.join(" ");
-}
-
 export interface StandbyPartitions {
   cornerRight: ActiveStandbyCardV1[];
   clockTopWide: ActiveStandbyCardV1[];

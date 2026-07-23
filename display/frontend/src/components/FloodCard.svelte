@@ -1,12 +1,9 @@
 <script lang="ts">
-  import type { ActiveStandbyCardV1, DisplayFloodStationV1 } from "../lib/protocol";
-  import { formatFloodStationLine } from "../lib/standby-cards";
+  import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import { FLOOD_TREND_ARROW } from "../lib/standby-cards";
+  import NumberUnit from "./NumberUnit.svelte";
   import RestoredChip from "./RestoredChip.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
-
-  function stationLine(station: DisplayFloodStationV1): string {
-    return formatFloodStationLine(station);
-  }
 
   // 見出し帯の段階カラーはカード内最高レベルで決める (JMA 配色: L3 氾濫警戒=赤 / L4 氾濫危険=紫 /
   // L5 氾濫発生=黒帯白枠白リボン黄文字の専用スタイル)。severity では段階が足りないため
@@ -20,7 +17,8 @@
   {#each item.data.rivers as river (river.riverKey)}
     <div class:critical-river={river.levelRank >= 40} class="river-row">{river.riverName}　{river.kindName}（{river.level}）</div>
     {#if river.station != null}
-      <div class="station-row">{stationLine(river.station)}</div>
+      {@const station = river.station}
+      <div class="station-row"><span class="station-name">{station.name}</span>{#if station.levelM != null}{" "}<span class="station-level"><NumberUnit value={station.levelM.toFixed(2)} unit="m" /></span>{#if station.trend != null}{" "}<span class="trend trend-{station.trend}">{FLOOD_TREND_ARROW[station.trend]}</span>{/if}{/if}{#if station.thresholdLabel != null}{" "}<span class="threshold">{station.thresholdLabel}</span>{/if}</div>
     {/if}
   {/each}
 </section>
@@ -62,4 +60,8 @@
     font-size: max(12px, var(--type-label-s-fluid));
     white-space: nowrap;
   }
+  .station-level { color: var(--fg); --number-unit-affix-size: 1em; }
+  .trend-rising { color: var(--role-tsunamiWarning); }
+  .trend-steady { color: var(--role-muted); }
+  .trend-falling { color: var(--role-connectionOk); }
 </style>

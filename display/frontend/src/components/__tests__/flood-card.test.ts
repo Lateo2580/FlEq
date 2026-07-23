@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import FloodCard from "../FloodCard.svelte";
@@ -42,21 +44,48 @@ describe("FloodCard", () => {
     expect(l5.container.querySelector(".flood-card")?.classList.contains("band-emergency")).toBe(false);
   });
 
-  it("renders a station sub-row with level, trend arrow, and threshold when present", () => {
+  it("副行: 水位は NumberUnit (縮小なし・前景色) + 色分き傾向矢印で構造化される", () => {
     const { container } = render(FloodCard, { item: floodItem([
       river("大淀", "L4", { name: "柏田", levelM: 3.42, trend: "rising", thresholdLabel: "氾濫危険水位 3.20m 超過" }),
     ]) });
-    const subRows = [...container.querySelectorAll(".station-row")].map((row) => row.textContent);
-    expect(subRows).toEqual(["柏田 3.42m ↑ 氾濫危険水位 3.20m 超過"]);
+    const row = container.querySelector(".station-row");
+    expect(row?.querySelector(".station-level .nu-value")?.textContent).toBe("3.42");
+    expect(row?.querySelector(".station-level .nu-unit")?.textContent).toBe("m");
+    expect(row?.querySelector(".trend-rising")?.textContent).toBe("↑");
+    expect(row?.textContent).toBe("柏田 3.42m ↑ 氾濫危険水位 3.20m 超過");
   });
 
-  it("omits the sub-row for rivers without station data and drops the level number when levelM is null", () => {
+  it("副行: levelM 欠測は水位と矢印を出さず、観測所名 + しきい値のみ (旧 formatter の null 契約を維持)", () => {
     const { container } = render(FloodCard, { item: floodItem([
       river("五ヶ瀬", "L3", null),
       river("耳", "L3", { name: "山陰", levelM: null, trend: null, thresholdLabel: "避難判断水位超過" }),
     ]) });
-    const subRows = [...container.querySelectorAll(".station-row")].map((row) => row.textContent);
-    expect(subRows).toEqual(["山陰 避難判断水位超過"]);
+    const row = container.querySelector(".station-row");
+    expect(row?.querySelector(".station-level")).toBeNull();
+    expect(row?.querySelector(".trend-rising, .trend-steady, .trend-falling")).toBeNull();
+    expect(row?.textContent).toBe("山陰 避難判断水位超過");
+  });
+
+  it("副行: trend のみ欠測は矢印だけ省略、thresholdLabel のみ欠測はしきい値だけ省略 (null 分岐の独立性)", () => {
+    const c1 = render(FloodCard, { item: floodItem([
+      river("高城", "L3", { name: "高城", levelM: 2.18, trend: null, thresholdLabel: "避難判断水位 2.00m 超過" }),
+    ]) }).container;
+    expect(c1.querySelector(".station-row")?.textContent).toBe("高城 2.18m 避難判断水位 2.00m 超過");
+
+    const c2 = render(FloodCard, { item: floodItem([
+      river("三輪", "L3", { name: "三輪", levelM: 5.6, trend: "steady", thresholdLabel: null }),
+    ]) }).container;
+    expect(c2.querySelector(".station-row")?.textContent).toBe("三輪 5.60m →");
+    expect(c2.querySelector(".trend-steady")).toBeTruthy();
+  });
+
+  it("副行 CSS: 水位は前景色 + 縮小なし (--number-unit-affix-size: 1em)、矢印はワイド版と同じ色分け", () => {
+    const source = readFileSync(join(__dirname, "..", "FloodCard.svelte"), "utf8");
+    expect(source).toContain("--number-unit-affix-size: 1em");
+    expect(source).toMatch(/\.station-level[^}]*color: var\(--fg\)/s);
+    expect(source).toMatch(/\.trend-rising[^}]*var\(--role-tsunamiWarning\)/s);
+    expect(source).toMatch(/\.trend-steady[^}]*var\(--role-muted\)/s);
+    expect(source).toMatch(/\.trend-falling[^}]*var\(--role-connectionOk\)/s);
   });
 
   it("marks a restored card as synchronizing", () => {
