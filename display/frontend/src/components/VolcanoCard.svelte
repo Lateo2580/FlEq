@@ -2,6 +2,7 @@
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import { VOLCANO_LEVEL_LABELS } from "../lib/standby-cards";
   import RestoredChip from "./RestoredChip.svelte";
+  import NumberUnit from "./NumberUnit.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "volcano" }> } = $props();
 
   // 見出し帯の段階カラーはカード内最高段階で決める (JMA 配色: レベル2=黄 / レベル3=橙 /
@@ -19,7 +20,7 @@
 <section class="standby-card volcano-card band-{band}">
   <header>火山情報{#if item.restored}<RestoredChip />{/if}</header>
   {#each item.data.volcanoes as volcano (volcano.code)}
-    <div class="volcano"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span>レベル{volcano.alertLevel}（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}{#if volcano.latestEvent != null}<strong>{volcano.latestEvent}</strong>{/if}</div>
+    <div class="volcano"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}{#if volcano.latestEvent != null}<strong>{volcano.latestEvent}</strong>{/if}</div>
   {/each}
 </section>
 

@@ -20,6 +20,16 @@ describe("VolcanoCard", () => {
     expect(container.querySelector("strong")?.textContent).toBe("flash");
   });
 
+  it("警戒レベルは「レベル 小 + 数値 大」の NumberUnit prefix 形式で描画する", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{ code: "506", name: "桜島", alertLevel: 3, latestEvent: null }] },
+    }) });
+    expect(container.querySelector(".nu-prefix")?.textContent).toBe("レベル");
+    expect(container.querySelector(".nu-value")?.textContent).toBe("3");
+    // 括弧内ラベルは通常テキストのまま連結される
+    expect(container.textContent).toContain("レベル3（入山規制）");
+  });
+
   it("段階カラー: カード内最高段階で帯 class を決める (2=黄 advisory / 3=橙 warning / 4=赤 red / 5=紫 emergency)", () => {
     const bandFor = (alertLevel: number | null, latestEvent: string | null = null): string => {
       const { container, unmount } = render(VolcanoCard, { item: volcanoItem({
