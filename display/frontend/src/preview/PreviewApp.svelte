@@ -24,6 +24,7 @@
     weatherAdvisoryOnlyStandbyCards,
     latestQuakeStandbyCards,
     standbyItemsShowcase,
+    standbyItemsRightStackBudget,
     standbyItemsFloodWide,
     motionStandbyFloodPhases,
     statsStandbyCards,
@@ -58,6 +59,7 @@
     "standby-cards",
     "standby-active-cards",
     "standby-active-wide",
+    "standby-right-stack-budget",
     "standby-tier-critical",
     "standby-weather-warning",
     "standby-weather-advisory",
@@ -187,6 +189,14 @@
     stats: statsStandbyCards,
     standbyItems: standbyItemsFloodWide,
   });
+  // standby-right-stack-budget: 実機再現 (720p 予算 + 気象カード + volcano/typhoon/heat×2)。
+  // measurement shelf の実測選抜で全カードが visible になることを検証する (spec T3)
+  const rightStackBudgetSnapshot = standbySnapshot({
+    latestQuake: latestQuakeStandbyCards,
+    weatherAlerts: weatherAlertsStandbyCards,
+    stats: statsStandbyCards,
+    standbyItems: standbyItemsRightStackBudget,
+  });
   // standby-tier-critical: 上と同内容 + severityTier critical (tier overlay の紫の空気 + 数字ウェイト800)
   const cardsTierCriticalSnapshot = standbySnapshot({
     tsunami: tsunamiBannerDemoted,
@@ -232,6 +242,8 @@
                 ? activeCardsSnapshot
                 : scenario === "standby-active-wide"
                   ? activeWideSnapshot
+                : scenario === "standby-right-stack-budget"
+                  ? rightStackBudgetSnapshot
               : scenario === "motion-standby-flood"
                 ? standbySnapshot({ standbyItems: motionStandbyFloodPhases[motionStep % motionStandbyFloodPhases.length] })
               : scenario === "standby-tier-critical"

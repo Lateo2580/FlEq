@@ -1943,6 +1943,36 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   },
 ];
 
+/** 実機再現 (2026-07-23/24 実機不具合 5・熱中症カード欠落): 気象カードあり + volcano(warning) +
+ *  typhoon(発生予想 1 エントリのみ = 実高が見積 240px より大幅に低いカード) + heat×2。720p で
+ *  全カードが visible になることを検証する (spec standby-right-stack T3、#standby-right-stack-budget) */
+export const standbyItemsRightStackBudget: ActiveStandbyCardV1[] = [
+  {
+    ...STANDBY_ITEM_BASE, kind: "volcano", surface: "corner-right", key: "volcano:active", severity: "warning",
+    data: { volcanoes: [
+      { code: "503", name: "阿蘇山", alertLevel: 2, latestEvent: null },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "typhoon", surface: "corner-right", key: "typhoon:active", severity: "normal",
+    data: { typhoons: [
+      { typhoonKey: "TC2614", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "フィリピンの東", pressureHpa: 1000, maxWindMs: 15, moveDirection: "西北西", moveSpeedKmh: 25, reportDateTime: NOW_ISO },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "heat", surface: "corner-right", key: "heat:2026-07-24", severity: "warning",
+    data: { targetDate: "2026-07-24", areas: [
+      { areaName: "宮崎県", isSpecial: false }, { areaName: "鹿児島県", isSpecial: false },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE, kind: "heat", surface: "corner-right", key: "heat:2026-07-23", severity: "warning",
+    data: { targetDate: "2026-07-23", areas: [
+      { areaName: "沖縄県", isSpecial: false },
+    ] },
+  },
+];
+
 // 水位ミニグラフ用の現実的な 7 点系列 (現況 14:00 → 1〜6時間後、1 時間刻み)。
 // values[0] が現況 (observed)、以降が予測 (forecast)。null は欠測点。
 const FLOOD_HYDROGRAPH_HOURS = ["14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"] as const;

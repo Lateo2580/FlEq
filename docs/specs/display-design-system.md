@@ -208,7 +208,7 @@ tier（severity tier、重大度の段）は、平常から緊急までの「今
 - **QuakeReplayCard**: 待機画面の地震履歴クリックで再表示する簡易版カード（ページング無し）。LatestQuakeCard と寸法・トークンをほぼ完全共有。フォーカスリングは `outline: 2px solid var(--role-muted)`。
 - **RecentQuakes**: 待機画面の「直近の地震」一覧（最大 5 件、行クリックで Replay）。`--int-*`・`--role-muted`・`--num-weight` 依存。震度 8/9 前景は `#000`/`#fff` 直値。
 - **RollingNumber**: 数値を桁ごとに転がして更新するアニメーション部品。トークン依存が低く（色・サイズは親から継承）、動きに専念する。
-- **StandbyScreen**: 待機画面全体のレイアウト（時計中央・左上コーナー・右上・下段）。`--surface-standby`・`--space-*`・`--hairline` 依存。減光は例外的に opacity 方式で、`.standby.dim` 全体 0.35 に主要ブロック 0.7 を重ねる「寝室仕様」の全体沈降（他所の opacity 禁止規範とは用途が別）。
+- **StandbyScreen**: 待機画面全体のレイアウト（時計中央・左上コーナー・右上・下段）。`--surface-standby`・`--space-*`・`--hairline` 依存。減光は例外的に opacity 方式で、`.standby.dim` 全体 0.35 に主要ブロック 0.7 を重ねる「寝室仕様」の全体沈降（他所の opacity 禁止規範とは用途が別）。**右上スタックの選抜は実高計測ベース**（2026-07-24、measurement shelf 方式）: 全候補カードを `.measure-shelf`（inert + aria-hidden + visibility:hidden、`.corner-right` の overflow:hidden の外）に隠し描画して共有 ResizeObserver で実測し、全候補が現在版（updatedAt）で計測済みになったら選抜入力を固定見積り→実測へ一括切替する。選抜集合は severity 降順 + 配列順 tie-break（描画順は常に配列順）。カード幅の真実源は `.standby` の `--standby-card-width`（本表示と棚で共有——棚の containing block 差による折返し高ズレを防ぐ）。二層 slot 規約に従い棚には motion を載せない。
 - **Ticker**: 下部テロップ帯（2 レーン）のスケジューラ表示コンテナと緊急画面用の右端時計。`--surface-low`＋`--hairline` 上辺で「計器盤の最暗面の一段上」に敷く。
 - **TickerLane**: テロップ 1 レーンの走行描画。dim 時は文字・チップを `color-mix(--tk-c 35%, --bg)` で面と同率に沈める合成規則を持つ（`TickerLane.svelte:527-539`）。大津波警報の走行文字だけ header 反転ペアで面付き強調する。
 - **TierOverlay**: 画面全体の tier 気配レイヤ（§4）。radial-gradient を rgba 直値でグラデ発光させ、opacity crossfade で雰囲気を出す（`TierOverlay.svelte:27-35`）。
