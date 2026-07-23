@@ -219,6 +219,12 @@ function makeGroupKey(event: PresentationEvent): string | null {
   if (event.domain === "eew") return event.eventId != null ? `eew:${event.eventId}` : null;
   if (event.domain === "tsunami") return "tsunami:current";
   if (event.domain === "earthquake") return event.eventId != null ? `quake:${event.eventId}` : null;
+  if (event.domain === "volcano") {
+    if (event.eventId == null) return null;
+    return event.volcanoCode != null && event.volcanoCode !== ""
+      ? `volcano:${event.eventId}:${event.volcanoCode}`
+      : `volcano:${event.eventId}`;
+  }
   if (event.domain === "weather") {
     // VPWS50 は気象庁の全国集約単一ストリーム (集約定時通報)。常に最新 1 件へ畳む。
     if (event.type === "VPWS50") return "weather:vpws50";
@@ -232,7 +238,6 @@ function makeGroupKey(event: PresentationEvent): string | null {
   if (event.domain === "nankaiTrough") return event.eventId != null ? `nankai:${event.eventId}` : null;
   if (
     event.domain === "weatherExplanation" ||
-    event.domain === "volcano" ||
     event.domain === "climateInfo" ||
     event.domain === "typhoonAnalysis" ||
     event.domain === "typhoonProbability"
@@ -297,7 +302,9 @@ export function projectDisplayEvent(event: PresentationEvent, summaryText: strin
     version: DISPLAY_PROTOCOL_VERSION,
     seq: 0,
     id: event.id,
-    eventKey: `${event.domain}:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}`,
+    eventKey: event.domain === "volcano"
+      ? `volcano:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}:${event.volcanoCode ?? "-"}:${event.reportDateTime}`
+      : `${event.domain}:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}`,
     groupKey: makeGroupKey(event),
     domain: event.domain,
     type: event.type,

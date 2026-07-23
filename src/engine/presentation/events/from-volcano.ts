@@ -14,6 +14,46 @@ export function fromVolcanoOutcome(outcome: VolcanoOutcome | VolcanoBatchOutcome
   return fromSingleVolcanoOutcome(outcome as VolcanoOutcome);
 }
 
+/** VFVO53 バッチを display テロップ用に火山ごとの単発相当イベントへ展開する (spec T3)。
+ *  CLI 用のバッチイベント (fromVolcanoBatchOutcome) は従来どおり 1 件のまま、display 経路だけが使う。 */
+export function expandVolcanoBatchForDisplay(outcome: VolcanoBatchOutcome): PresentationEvent[] {
+  return outcome.sources.map(({ info, msg }) => {
+    const xmlReport = msg.xmlReport;
+    return {
+      id: msg.id,
+      classification: msg.classification,
+      domain: "volcano",
+      type: outcome.headType,
+      infoType: xmlReport?.head.infoType ?? "不明",
+      title: xmlReport?.head.title ?? outcome.headType,
+      headline: xmlReport?.head.headline ?? null,
+      reportDateTime: xmlReport?.head.reportDateTime ?? msg.head.time,
+      publishingOffice: xmlReport?.control.publishingOffice ?? msg.head.author,
+      isTest: msg.head.test,
+      frameLevel: outcome.presentation.frameLevel,
+      soundLevel: outcome.presentation.soundLevel,
+      notifyCategory: outcome.presentation.notifyCategory,
+      isCancellation: false,
+      eventId: xmlReport?.head.eventId ?? null,
+      serial: xmlReport?.head.serial ?? null,
+      volcanoCode: info.volcanoCode,
+      volcanoName: info.volcanoName,
+      alertLevel: null,
+      bodyText: volcanoAshfallToText(info) ?? info.bodyText,
+      areaNames: [],
+      forecastAreaNames: [],
+      municipalityNames: [],
+      observationNames: [],
+      areaCount: 0,
+      forecastAreaCount: 0,
+      municipalityCount: 0,
+      observationCount: 0,
+      areaItems: [],
+      raw: info,
+    };
+  });
+}
+
 function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
   const xmlReport = outcome.msg.xmlReport;
   const info = outcome.parsed;

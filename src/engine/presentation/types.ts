@@ -143,6 +143,7 @@ export interface VolcanoOutcome extends ProcessOutcomeBase {
 export interface VolcanoBatchOutcome extends ProcessOutcomeBase {
   domain: "volcano";
   parsed: ParsedVolcanoAshfallInfo[];
+  sources: Array<{ info: ParsedVolcanoAshfallInfo; msg: WsDataMessage }>;
   isBatch: true;
   volcanoPresentation: VolcanoPresentation;
   batchReportDateTime: string;

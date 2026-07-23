@@ -6,7 +6,8 @@
  * このハンドラが火山の パース → 集約 → 通知 → 表示 を担当する。
  */
 
-import type { WsDataMessage, ParsedVolcanoInfo } from "../../types";
+import type { WsDataMessage, ParsedVolcanoAshfallInfo, ParsedVolcanoInfo } from "../../types";
+import * as log from "../../logger";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { VolcanoVfvo53Aggregator, type FlushOptions, type Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
 import { VolcanoStateHolder } from "./volcano-state";
@@ -108,7 +109,16 @@ export class VolcanoRouteHandler {
       this.notifier.notifyVolcanoBatch(batch, presentation);
     }
 
-    const batchMsg = batch.sources?.[0]?.msg;
+    const rawSources = batch.sources ?? [];
+    const complete = rawSources.filter(
+      (source): source is { info: ParsedVolcanoAshfallInfo; msg: WsDataMessage } => source.msg != null,
+    );
+    const batchMsg = complete[0]?.msg;
+    const sources = complete.length === rawSources.length ? complete : [];
+
+    if (batchMsg && sources.length !== rawSources.length) {
+      log.warn(`VFVO53 バッチ: source msg 欠落のため表示分割を縮退 (${complete.length}/${rawSources.length})`);
+    }
 
     if (batchMsg) {
       const batchOutcome: VolcanoBatchOutcome = {
@@ -117,6 +127,7 @@ export class VolcanoRouteHandler {
         headType: batchMsg.head.type,
         statsCategory: "volcano",
         parsed: batch.items,
+        sources,
         isBatch: true,
         volcanoPresentation: presentation,
         batchReportDateTime: batch.reportDateTime,

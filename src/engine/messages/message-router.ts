@@ -20,6 +20,7 @@ import { DailyQuakeCounter } from "./daily-quake-counter";
 import type { DisplayStatsV1 } from "../display/types";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
+import { expandVolcanoBatchForDisplay } from "../presentation/events/from-volcano";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 import { PresentationDiffStore } from "../presentation/diff-store";
@@ -293,7 +294,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     summaryTracker.record(event, displayed);   // ← ingest より先 (1 イベント遅れ防止)
     dailyQuakeCounter.record(event);
     try {
-      displaySink?.ingest(event);
+      const isVolcanoBatch =
+        outcome.domain === "volcano" && "isBatch" in outcome && outcome.isBatch === true;
+      if (isVolcanoBatch && outcome.sources.length > 0) {
+        for (const volcanoEvent of expandVolcanoBatchForDisplay(outcome)) {
+          displaySink?.ingest(volcanoEvent);
+        }
+      } else {
+        displaySink?.ingest(event);
+      }
       displaySink?.publishStats?.(buildDisplayStats(summaryTracker, stats, dailyQuakeCounter));
     } catch {
       // 表示系の障害を本体に波及させない
