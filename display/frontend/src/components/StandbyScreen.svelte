@@ -393,7 +393,12 @@
     height: 100%;
     padding: var(--space-12);
     background: var(--bg);
-    transition: opacity 0.6s ease;
+    transition: opacity var(--dur-standby-dim) ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .standby {
+      transition: none;
+    }
   }
   .corner-right {
     position: absolute;

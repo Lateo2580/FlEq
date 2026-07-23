@@ -29,6 +29,17 @@ describe("theme.css の spring block は motion.generated.ts の忠実なミラ�
     expect(durMs(themeCss(), "dur-exit")).toBe(EXIT_MS);
   });
 
+  it("dim 切替 600ms は --dur-standby-dim トークンで StandbyScreen と TickerLane が共有する", () => {
+    const theme = readFileSync(join(__dirname, "..", "theme.css"), "utf8");
+    expect(theme).toContain("--dur-standby-dim: 600ms;");
+    const standby = readFileSync(join(__dirname, "..", "..", "components", "StandbyScreen.svelte"), "utf8");
+    expect(standby).toContain("transition: opacity var(--dur-standby-dim) ease");
+    expect(standby).not.toContain("transition: opacity 0.6s ease");
+    const ticker = readFileSync(join(__dirname, "..", "..", "components", "TickerLane.svelte"), "utf8");
+    expect(ticker).not.toContain("0.6s ease");
+    expect((ticker.match(/var\(--dur-standby-dim\)/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
+
   it("StandbyScreen は duration をハードコードせず motion から読む", () => {
     const src = readFileSync(join(__dirname, "..", "..", "components", "StandbyScreen.svelte"), "utf-8");
     expect(src).toContain('from "../lib/motion"');

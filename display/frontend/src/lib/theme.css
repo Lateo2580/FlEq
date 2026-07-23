@@ -223,6 +223,9 @@
   /* GENERATED:springs:end */
   /* 退場 (opacity のみ) の共通 duration。spec §4「消失感を出さない」200ms 前後 */
   --dur-exit: 200ms;
+  /* 待機画面 dim 明転/暗転の同期契約: StandbyScreen .standby と TickerLane (本文/ラベル/レーン面)
+     が同じ 600ms を共有する。値の変更は必ず両者同時 (spec 2026-07-23 T6) */
+  --dur-standby-dim: 600ms;
   --dur-weight-swell: 200ms; /* tier 昇格時の主役ウェイト bold→heavy の連続遷移 (weight のみ、色/surface は瞬時) */
   --ticker-row-h: 40px;
   --ticker-rows: 2;

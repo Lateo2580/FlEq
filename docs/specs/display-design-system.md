@@ -532,6 +532,7 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | `--spring-effects-slow` | `linear(0, 0.0575, 0.1803, 0.3208, 0.4552, 0.573, 0.6711, 0.7502, 0.8122, 0.8602, 0.8966, 0.9241, 0.9445, 0.9596, 0.9708, 0.9789, 0.9848, 0.9891, 0.9922, 0.9944, 0.996, 0.9972, 0.998, 0.9986, 0.999)` | `linear() 25 点` | spring-effects-slow: stiffness=800 damping=1 wn=28.28 settle=~327ms |
 | `--spring-effects-slow-dur` | `327ms` | `327ms` |  |
 | `--dur-exit` | `200ms` | `200ms` | 退場 (opacity のみ) の共通 duration。spec §4「消失感を出さない」200ms 前後 |
+| `--dur-standby-dim` | `600ms` | `600ms` |  |
 | `--dur-weight-swell` | `200ms` | `200ms` | tier 昇格時の主役ウェイト bold→heavy の連続遷移 (weight のみ、色/surface は瞬時) |
 | `--ticker-row-h` | `40px` | `40px` |  |
 | `--ticker-rows` | `2` | `2` |  |

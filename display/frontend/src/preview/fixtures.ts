@@ -1973,3 +1973,22 @@ export const standbyItemsFloodWide: ActiveStandbyCardV1[] = [
   },
   ...standbyItemsShowcase.filter((item) => item.kind !== "flood"),
 ];
+
+/** モーション検証: 河川数を 0→3(corner)→4(wide)→5(wide)→2(corner)→0 と循環させ、
+ * corner⇔wide 切替・セル増減・集約行の出入りを 1 周で目視できる時間駆動シナリオ用。
+ * 実運用の surface は 4 河川以上で wide (flood-active-reducer) だが、preview は境界の前後を
+ * 任意に見るための固定注入とする。 */
+export const motionStandbyFloodPhases: ActiveStandbyCardV1[][] = (() => {
+  const wide = standbyItemsFloodWide[0];
+  if (wide.kind !== "flood") throw new Error("standbyItemsFloodWide[0] must be flood");
+  const rivers = wide.data.rivers;
+  const flood = (count: number, surface: "corner-right" | "clock-top-wide"): ActiveStandbyCardV1 =>
+    ({ ...wide, surface, data: { rivers: rivers.slice(0, count) } }) as ActiveStandbyCardV1;
+  return [
+    [],
+    [flood(3, "corner-right")],
+    [flood(4, "clock-top-wide")],
+    [flood(5, "clock-top-wide")],
+    [flood(2, "corner-right")],
+  ];
+})();

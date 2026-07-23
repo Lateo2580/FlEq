@@ -25,6 +25,7 @@
     latestQuakeStandbyCards,
     standbyItemsShowcase,
     standbyItemsFloodWide,
+    motionStandbyFloodPhases,
     statsStandbyCards,
     stressSnapshot,
     eewStressInput,
@@ -71,6 +72,7 @@
     "motion-enter",
     "motion-panels",
     "motion-card-grow",
+    "motion-standby-flood",
     "ticker-roles",
     "ticker-visual",
     "ticker-conveyor",
@@ -121,13 +123,16 @@
     return () => clearInterval(id);
   });
 
-  // モーション振り付けシーン (#motion-enter / #motion-panels / #motion-card-grow) の時間駆動状態。
+  // モーション振り付けシーン (#motion-enter / #motion-panels / #motion-card-grow / #motion-standby-flood) の時間駆動状態。
   // motionStep を一定間隔で進め、各シーンの派生 (mode/panels) が step から状態を決める
   // (PreviewApp.svelte:70-75 の now 更新と同流儀、cleanup で clearInterval)。
   const MOTION_STEP_MS = 2600;
   let motionStep = $state(0);
   const isMotionScene = $derived(
-    scenario === "motion-enter" || scenario === "motion-panels" || scenario === "motion-card-grow",
+    scenario === "motion-enter" ||
+    scenario === "motion-panels" ||
+    scenario === "motion-card-grow" ||
+    scenario === "motion-standby-flood",
   );
   $effect(() => {
     if (!isMotionScene) return;
@@ -227,6 +232,8 @@
                 ? activeCardsSnapshot
                 : scenario === "standby-active-wide"
                   ? activeWideSnapshot
+              : scenario === "motion-standby-flood"
+                ? standbySnapshot({ standbyItems: motionStandbyFloodPhases[motionStep % motionStandbyFloodPhases.length] })
               : scenario === "standby-tier-critical"
                 ? cardsTierCriticalSnapshot
                 : scenario === "standby-stress"

@@ -516,16 +516,16 @@
   .ticker-line {
     color: var(--tk-c);
     /* dim on/off をゆっくり暗転/明転させ、待機画面の他要素と体感を揃える。待機画面 .standby は
-       `transition: opacity 0.6s ease` (StandbyScreen.svelte:112) なので同じ 0.6s ease に合わせる。
+       `--dur-standby-dim` (StandbyScreen.svelte) を共有し、同じ dim 同期契約に合わせる。
        opacity には**付けない** (テロップ自身の fade-in/out opacity アニメと干渉するため)。
        色ブレンドの遷移なので color / background-color / box-shadow のみを対象にする。
        background-color は大津波警報の反転面 (.role-tsunamiMajor、下) の dim 明転/暗転用。
        他 role は面が透明なので何も動かない。reduced-motion の `.ticker-line { transition: none }`
        (下) が同セレクタ・同詳細度で後勝ちに打ち消すので、この面遷移も reduced-motion で瞬時化される。 */
-    transition: color 0.6s ease, background-color 0.6s ease;
+    transition: color var(--dur-standby-dim) ease, background-color var(--dur-standby-dim) ease;
   }
   .ticker-label {
-    transition: color 0.6s ease, background-color 0.6s ease, box-shadow 0.6s ease;
+    transition: color var(--dur-standby-dim) ease, background-color var(--dur-standby-dim) ease, box-shadow var(--dur-standby-dim) ease;
   }
   /* dim: 文字・チップの減光は color-mix 35% (待機画面 dim 実効 ~0.35 と同率)。opacity は使わない */
   .ticker-lane.dim .ticker-line {
@@ -593,7 +593,7 @@
      (現行は line/label にしか transition が無い、R1-6)。opacity には付けない */
   .ticker-lane {
     background: var(--surface-low);
-    transition: background-color 0.6s ease;
+    transition: background-color var(--dur-standby-dim) ease;
   }
   /* §4-2: high 割込み走行中のレーンだけ面へ role 色を薄く混ぜる (点滅しない)。
      --tk-c はレーンルート <div> の inline style (job.role → var(--role-*)) が供給する。

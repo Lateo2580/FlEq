@@ -203,8 +203,8 @@ describe("TickerLane (受動部品)", () => {
     const m = src.match(/transition:\s*color[^;]*;/);
     expect(m).toBeTruthy();
     const decl = m![0];
-    // 待機画面 .standby (opacity 0.6s ease) と同じ体感の 0.6s ease
-    expect(decl).toContain("0.6s ease");
+    // 待機画面 .standby と共有する dim 同期契約 (--dur-standby-dim = 600ms)
+    expect(decl).toContain("var(--dur-standby-dim) ease");
     // color 系のみ。opacity には付けない (テロップ自身の fade-in/out と干渉するため)
     expect(decl).not.toContain("opacity");
     // reduced-motion では遷移を瞬時化する
@@ -505,12 +505,12 @@ describe("TickerLane (受動部品)", () => {
   it("レーン面に background transition が新設され、reduced-motion 用 lane transition:none が基底より後にある (Spec C §4-4 / R1-6)", () => {
     const src = readFileSync(join(__dirname, "..", "TickerLane.svelte"), "utf-8");
     // .ticker-lane 自体に background-color の transition を新設 (現行は line/label のみ)
-    const laneTransition = src.match(/\.ticker-lane\s*\{[^}]*transition:\s*background-color 0\.6s ease[^}]*\}/);
+    const laneTransition = src.match(/\.ticker-lane\s*\{[^}]*transition:\s*background-color var\(--dur-standby-dim\) ease[^}]*\}/);
     expect(laneTransition).toBeTruthy();
     // high tint は color-mix で面へ role 色を混ぜる (opacity 不使用)
     expect(src).toMatch(/\.ticker-lane\[data-emphasis="high"\]\s*\{[\s\S]*?color-mix\(in srgb, var\(--tk-c\)/);
     // reduced-motion の lane transition:none が基底の lane transition より後 (カスケード後勝ち)
-    const baseIdx = src.search(/\.ticker-lane\s*\{[^}]*transition:\s*background-color 0\.6s ease/);
+    const baseIdx = src.search(/\.ticker-lane\s*\{[^}]*transition:\s*background-color var\(--dur-standby-dim\) ease/);
     const rmIdx = src.search(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.ticker-lane\s*\{\s*transition:\s*none/);
     expect(rmIdx).toBeGreaterThan(-1);
     expect(rmIdx).toBeGreaterThan(baseIdx);
@@ -629,10 +629,10 @@ describe("TickerLane (受動部品)", () => {
   it("走行文字の面遷移は background-color も対象 (dim 明転/暗転)。opacity は含まない", () => {
     const src = readFileSync(join(__dirname, "..", "TickerLane.svelte"), "utf-8");
     // .ticker-line の transition 宣言 (末尾が background-color で終わり、box-shadow を含む
-     // .ticker-label とは区別される)。面遷移を足したことで dim on/off の反転面が 0.6s で明転/暗転し、
+     // .ticker-label とは区別される)。面遷移を足したことで dim on/off の反転面が --dur-standby-dim で明転/暗転し、
      // かつ color/background-color のみで opacity を対象にしない (fade-in/out アニメ非干渉)
-    expect(src).toContain("transition: color 0.6s ease, background-color 0.6s ease;");
-    expect(src).not.toContain("transition: color 0.6s ease, background-color 0.6s ease, opacity");
+    expect(src).toContain("transition: color var(--dur-standby-dim) ease, background-color var(--dur-standby-dim) ease;");
+    expect(src).not.toContain("transition: color var(--dur-standby-dim) ease, background-color var(--dur-standby-dim) ease, opacity");
   });
 
   // ── 重要語句ハイライト (backlog §3) ──
