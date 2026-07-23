@@ -6,7 +6,7 @@ import { buildTipsDeck } from "./display-tips";
 import { encodeSseGuarded } from "./sse-clients";
 import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
-import type { DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1 } from "./types";
+import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1 } from "./types";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -175,7 +175,10 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
       i < RECENT_TICKER_BODY_MAX || dto.tickerBody == null ? dto : { ...dto, tickerBody: null, tickerEmphasis: null }),
   };
   attempts.push(s);
-  s = { ...s, recentTicker: s.recentTicker.slice(0, DEGRADED_TICKER_MAX) };
+  s = {
+    ...s,
+    recentTicker: capTickerKeepingActiveEews(s.recentTicker, s.activeEews, DEGRADED_TICKER_MAX),
+  };
   attempts.push(s);
   s = {
     ...s,
@@ -199,6 +202,32 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   s = { ...s, recentQuakes: [] };
   attempts.push(s);
   return attempts;
+}
+
+/** 縮退段 2 でも active EEW の最新 DTO は保持する。 */
+function capTickerKeepingActiveEews(
+  recentTicker: DisplayEventDtoV1[],
+  activeEews: DisplayStateSnapshotV1["activeEews"],
+  max: number,
+): DisplayEventDtoV1[] {
+  const activeKeys = new Set(
+    activeEews.filter((e) => e.eventId != null).map((e) => `eew:${e.eventId}`),
+  );
+  if (activeKeys.size === 0) return recentTicker.slice(0, max);
+  const kept = new Set<DisplayEventDtoV1>();
+  const seenActive = new Set<string>();
+  for (const dto of recentTicker) {
+    if (dto.groupKey != null && activeKeys.has(dto.groupKey) && !seenActive.has(dto.groupKey)) {
+      seenActive.add(dto.groupKey);
+      kept.add(dto);
+    }
+  }
+  const limit = Math.max(max, kept.size);
+  for (const dto of recentTicker) {
+    if (kept.size >= limit) break;
+    kept.add(dto);
+  }
+  return recentTicker.filter((dto) => kept.has(dto));
 }
 
 export interface SnapshotDegradeResult {

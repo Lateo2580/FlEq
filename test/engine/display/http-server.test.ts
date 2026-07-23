@@ -163,6 +163,20 @@ function hugeLargeQuakes(): DisplayLargeQuakeStateV1[] {
 }
 
 describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state 配信の共通安全弁)", () => {
+  it("縮退段 2 は 20 件を超えても active EEW の最新 DTO を残す", () => {
+    const ticker = hugeRecentTicker().slice(0, 25).map((dto, index) =>
+      index === 21 ? { ...dto, id: "active-eew", groupKey: "eew:E1", domain: "eew" as const } : dto,
+    );
+    const full = baseSnapshot({
+      recentTicker: ticker,
+      activeEews: [{ eventId: "E1" } as never],
+      latestQuake: { ...hugeGroupLargeQuakes()[0]!, kind: "recentQuake" } as never,
+    });
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.recentTicker.some((dto) => dto.id === "active-eew")).toBe(true);
+  });
+
   it("上限内に収まる snapshot は level 0 (縮退なし) でそのまま返す", () => {
     const full = baseSnapshot();
     const result = degradeSnapshotToBudget(full, "snapshot");
