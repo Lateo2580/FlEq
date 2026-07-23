@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ActiveStandbyCardV1 } from "./protocol";
 import {
+  layoutFloodWideRows,
   partitionStandbyItems,
   rightStackBudgetPx,
   selectRightStack,
@@ -49,5 +50,39 @@ describe("standby-cards", () => {
     expect(result.overflow.map((candidate) => candidate.key)).toEqual(["typhoon"]);
     expect(result.usedPx + result.summaryReservedPx).toBeLessThanOrEqual(budget);
     expect(result.summaryReservedPx).toBe(44);
+  });
+});
+
+function riverFixture(n: number): Extract<ActiveStandbyCardV1, { kind: "flood" }>["data"]["rivers"] {
+  return Array.from({ length: n }, (_, i) => ({
+    riverKey: `830304000${i + 1}`, riverName: `河川${i + 1}`, level: "L3", levelRank: 30,
+    kindName: "氾濫警戒情報", reportDateTime: "2026-07-23T00:00:00+09:00", station: null,
+  }));
+}
+
+describe("layoutFloodWideRows (部位別予算 + タグ付き union)", () => {
+  it("720p・4 河川は 2 セル + 集約行 (ほか 2 河川) になり、行キーは名前空間つき", () => {
+    const rows = layoutFloodWideRows(riverFixture(4), 720);
+    expect(rows.map((row) => row.kind)).toEqual(["river", "river", "more"]);
+    expect(rows[0].key).toBe("river:8303040001");
+    expect(rows[2]).toMatchObject({ kind: "more", key: "meta:more", omittedCount: 2 });
+  });
+
+  it("1080p は 3〜5 河川とも全セル表示 (3 行 = 6 セル入る。現行挙動維持)", () => {
+    expect(layoutFloodWideRows(riverFixture(3), 1080).map((r) => r.kind)).toEqual(["river", "river", "river"]);
+    expect(layoutFloodWideRows(riverFixture(4), 1080).map((r) => r.kind)).toEqual(["river", "river", "river", "river"]);
+    expect(layoutFloodWideRows(riverFixture(5), 1080).map((r) => r.kind)).toEqual(["river", "river", "river", "river", "river"]);
+  });
+
+  it("720p・3 河川は 2 セル + 集約 1 (最低 2 行の強制を廃止し実予算で決める)", () => {
+    const rows = layoutFloodWideRows(riverFixture(3), 720);
+    expect(rows.map((row) => row.kind)).toEqual(["river", "river", "more"]);
+    expect(rows[2]).toMatchObject({ kind: "more", omittedCount: 1 });
+  });
+
+  it("720p・5 河川は 2 セル + 集約 3 (720p/1080p x 3/4/5 の行列を満たす)", () => {
+    const rows = layoutFloodWideRows(riverFixture(5), 720);
+    expect(rows.map((row) => row.kind)).toEqual(["river", "river", "more"]);
+    expect(rows[2]).toMatchObject({ kind: "more", omittedCount: 3 });
   });
 });

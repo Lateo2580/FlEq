@@ -1,4 +1,4 @@
-import type { ActiveStandbyCardV1, DisplayFloodStationV1 } from "./protocol";
+import type { ActiveStandbyCardV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "./protocol";
 
 export const FLOOD_TREND_ARROW: Record<NonNullable<DisplayFloodStationV1["trend"]>, string> = {
   rising: "↑",
@@ -106,20 +106,31 @@ export const VOLCANO_LEVEL_LABELS: Record<number, string> = {
 const FLOOD_WIDE_HEADER_ESTIMATE_PX = 48;
 // 主行 + 2×2 グリッド (観測所/水位/水位の情報/ミニグラフ、値のみ) のセル実高目安。
 const FLOOD_WIDE_ROW_ESTIMATE_PX = 88;
-const FLOOD_WIDE_MIN_GRID_ROWS = 2;
+// 集約行「ほか N 河川」の実高目安。1 行テキスト + padding/border。preview 実測 36.4px (2026-07-23)
+// に余裕を乗せた値。実測と乖離したら上げる方向で調整する (過小見積りが再クリップの主リスク)。
+const FLOOD_WIDE_MORE_ROW_ESTIMATE_PX = 40;
+
+/** 洪水ワイドの表示行。key は union 内で名前空間を分け、外部由来 riverKey と衝突しない。 */
+export type FloodWideRow =
+  | { kind: "river"; key: `river:${string}`; river: DisplayFloodRiverV1 }
+  | { kind: "more"; key: "meta:more"; omittedCount: number };
 
 export function layoutFloodWideRows(
-  rivers: Extract<ActiveStandbyCardV1, { kind: "flood" }>["data"]["rivers"],
+  rivers: DisplayFloodRiverV1[],
   viewportHeightPx: number,
-): { visible: typeof rivers; omittedCount: number } {
-  const maxHeightPx = Math.max(0, viewportHeightPx * 0.3);
-  const gridRows = Math.max(
-    FLOOD_WIDE_MIN_GRID_ROWS,
-    Math.floor((maxHeightPx - FLOOD_WIDE_HEADER_ESTIMATE_PX) / FLOOD_WIDE_ROW_ESTIMATE_PX),
-  );
-  const cellCapacity = gridRows * 2;
-  if (rivers.length <= cellCapacity) return { visible: rivers, omittedCount: 0 };
-  // 集約行は 2 カラムを横断するため、最終グリッド行 (2 cell 分) を先に予約する。
-  const visibleCount = Math.max(0, cellCapacity - 2);
-  return { visible: rivers.slice(0, visibleCount), omittedCount: rivers.length - visibleCount };
+): FloodWideRow[] {
+  const availablePx = Math.max(0, viewportHeightPx * 0.3 - FLOOD_WIDE_HEADER_ESTIMATE_PX);
+  const riverRow = (river: DisplayFloodRiverV1): FloodWideRow =>
+    ({ kind: "river", key: `river:${river.riverKey}`, river });
+  // 全河川が収まるなら集約なし (最低 1 行は保証。旧実装の「最低 2 行強制」は 720p 溢れの直接原因)
+  const fullRows = Math.max(1, Math.floor(availablePx / FLOOD_WIDE_ROW_ESTIMATE_PX));
+  if (rivers.length <= fullRows * 2) return rivers.map(riverRow);
+  // 収まらない場合は集約行の実高を先に差し引いてから河川行数を決める (集約行を「2 セル分」と
+  // みなす旧予約は過大で、720p の表示可能セルを不当に削っていた)
+  const rowsWithMore = Math.max(0, Math.floor((availablePx - FLOOD_WIDE_MORE_ROW_ESTIMATE_PX) / FLOOD_WIDE_ROW_ESTIMATE_PX));
+  const visibleCount = Math.min(rivers.length, rowsWithMore * 2);
+  return [
+    ...rivers.slice(0, visibleCount).map(riverRow),
+    { kind: "more", key: "meta:more", omittedCount: rivers.length - visibleCount },
+  ];
 }

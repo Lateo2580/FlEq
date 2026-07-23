@@ -94,19 +94,24 @@ describe("FloodWideCard", () => {
     // jsdom ではアニメーションの動き自体を検証できないため、ディレクティブの存在を source で固定する
     // (既存の source 検査流儀)。動き検証は全体アニメーション検証で追って行う。
     const source = readFileSync(join(__dirname, "..", "FloodWideCard.svelte"), "utf8");
-    // 河川セルの出入り + 並べ替え (flip=SPRING_SPATIAL_DEFAULT_MS / in=spatialScaleIn / out=fade EXIT_MS)
     expect(source).toContain("animate:flip={{ duration: flipDur, easing: springSpatialOut }}");
-    expect(source).toContain("in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}");
+    expect(source).toContain("in:spatialScaleIn={{ duration: enterDur, start: 0.97 }}");
+    expect(source).not.toContain("in:spatialScaleIn|global");
     expect(source).toContain("out:fade={{ duration: exitDur }}");
-    // 「ほか N 河川」行も同じ in/out に乗る (2 箇所以上: セル + more-rivers)
-    expect(source.match(/in:spatialScaleIn\|global/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
-    // カード高さは river-grid 実測 + CSS height transition で滑らかに追う
+    expect(source).toContain("{#each rows as row (row.key)}");
     expect(source).toContain("use:measureBorderHeight={(height) => (gridHeightPx = height)}");
     expect(source).toContain("transition: height var(--flood-grid-dur, 0ms) var(--spring-effects-default)");
-    // reduced-motion では flip/in/out/高さ遷移すべて duration 0 に落ちる
     expect(source).toContain("prefers-reduced-motion: reduce");
-    expect(source).toContain("reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS");
+    expect(source).toContain("reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS");
     expect(source).toContain("reducedMotion ? 0 : EXIT_MS");
+  });
+
+  it("集約行は keyed each 内の .more-rivers として描画される (ほか N 河川)", () => {
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 720 });
+    const { container } = render(FloodWideCard, { item: floodItem(4) });
+    expect(container.querySelectorAll(".river-cell")).toHaveLength(2);
+    expect(container.querySelector(".more-rivers")?.textContent).toBe("ほか 2 河川");
+    expect(container.querySelectorAll(".river-grid > *")).toHaveLength(3);
   });
 
   it("renders the hydrograph SVG with an aria-label and omits it when the station has no hydrograph", () => {

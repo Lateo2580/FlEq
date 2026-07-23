@@ -5,7 +5,7 @@
   import type { ActiveStandbyCardV1, DisplayFloodStationV1 } from "../lib/protocol";
   import { FLOOD_TREND_ARROW, layoutFloodWideRows } from "../lib/standby-cards";
   import { buildFloodHydrograph, type FloodHydrographGeometry } from "../lib/flood-hydrograph";
-  import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut } from "../lib/motion";
+  import { SPRING_EFFECTS_DEFAULT_MS, SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
   import { measureBorderHeight } from "../lib/measure-height";
   import RestoredChip from "./RestoredChip.svelte";
@@ -18,7 +18,7 @@
 
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
   let viewportHeightPx = $state(typeof window === "undefined" ? 720 : window.innerHeight);
-  const layout = $derived(layoutFloodWideRows(item.data.rivers, viewportHeightPx));
+  const rows = $derived(layoutFloodWideRows(item.data.rivers, viewportHeightPx));
 
   // 見出し帯の段階カラーはカード内最高レベルで決める (L3 氾濫警戒=赤 / L4 氾濫危険=紫 /
   // L5 氾濫発生=黒帯白枠白リボン黄文字、FloodCard と同型)
@@ -53,7 +53,8 @@
   // ラッパだけが height を持つ一方向のフロー (自然高 → 実測 → ラッパ height)。measure が来る前や
   // ResizeObserver 未実装環境 (jsdom → 0) では height:auto に退避しクリップを避ける。
   let gridHeightPx = $state(0);
-  const gridDurMs = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
+  // 高さ transition は easing と同じ effects 系 231ms。spatial 435ms の流用は fade 後も高さが動く二段階見えの一因だった。
+  const gridDurMs = $derived(reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS);
   const gridWrapStyle = $derived(
     (gridHeightPx > 0 ? `height: ${gridHeightPx}px; ` : "") + `--flood-grid-dur: ${gridDurMs}ms`,
   );
@@ -63,17 +64,19 @@
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>
-    {#each layout.visible as river (river.riverKey)}
+    {#each rows as row (row.key)}
       <div
-        class:critical-river={river.levelRank >= 40}
-        class="river-cell"
+        class:river-cell={row.kind === "river"}
+        class:more-rivers={row.kind === "more"}
+        class:critical-river={row.kind === "river" && row.river.levelRank >= 40}
         animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-        in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
+        in:spatialScaleIn={{ duration: enterDur, start: 0.97 }}
         out:fade={{ duration: exitDur }}
       >
-        <div class="river-line">{river.riverName}　{river.kindName}（{river.level}）</div>
-        {#if river.station != null}
-          {@const station = river.station}
+        {#if row.kind === "river"}
+          <div class="river-line">{row.river.riverName}　{row.river.kindName}（{row.river.level}）</div>
+          {#if row.river.station != null}
+          {@const station = row.river.station}
           {@const graph = stationGraph(station)}
           <div class="station-grid">
             <!-- 左上: 観測所名 (値のみ、ラベルなし) -->
@@ -104,16 +107,12 @@
               </svg>
             {/if}
           </div>
+          {/if}
+        {:else}
+          ほか {row.omittedCount} 河川
         {/if}
       </div>
     {/each}
-    {#if layout.omittedCount > 0}
-      <div
-        class="more-rivers"
-        in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }}
-        out:fade={{ duration: exitDur }}
-      >ほか {layout.omittedCount} 河川</div>
-    {/if}
   </div>
   </div>
 </section>
