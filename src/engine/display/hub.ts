@@ -185,7 +185,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
     const before = this.recent.length;
     this.recent = this.recent.filter((e) => {
       const priority = e.dto.tickerPriority ?? "low";
-      const expired = nowMs - e.receivedMs > tickerTtlMs(priority);
+      const expired = nowMs - e.receivedMs > tickerTtlMs(priority, e.dto.domain);
       if (!expired) return true;
       return e.dto.groupKey != null && activeKeys.has(e.dto.groupKey); // active なら残す
     });

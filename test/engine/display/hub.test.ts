@@ -184,6 +184,14 @@ describe("InfoDisplayHub: ingest / ring buffer", () => {
 });
 
 describe("sweepTicker: 優先度別 TTL (spec §3-1)", () => {
+  it("inactive EEW は 10 分超で除去する", () => {
+    const { hub } = makeHub();
+    hub.ingest(eewEvent("E1", "1"));
+    hub.ingest({ ...eewEvent("E1", "2"), isCancellation: true });
+    hub.sweepTicker(T0 + 10 * 60_000 + 1);
+    expect(hub.buildSnapshot().recentTicker).toEqual([]);
+  });
+
   it("全 TTL を超えた recent エントリを除去し true を返す", () => {
     const { hub } = makeHub();
     hub.ingest(weatherEvent("w1")); // active な警報 groupKey に該当しない一般電文

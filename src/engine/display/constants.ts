@@ -23,6 +23,9 @@ export const QUAKE_CARD_TTL_HIGH_MIN = 30;  // 震度5弱+
 export const TICKER_TTL_HIGH_MIN = 30;  // high の recentTicker 寿命 (spec §3)
 export const TICKER_TTL_MID_MIN = 120;  // mid の寿命 (EEW/津波 active は別で残す)
 export const TICKER_TTL_LOW_MIN = 180;  // low の寿命
+/** EEW の recentTicker 寿命。activeEews の EEW_TTL_MIN と同値に保つ。
+ *  inactive になった EEW テロップを長時間残さないための専用 TTL。 */
+export const TICKER_TTL_EEW_MIN = 10;
 /** tickerSync 完全同期が縮退で送れず持ち越しになったときの明示的な再試行間隔 (spec §3-5)。
  *  外部 dirty 契機が偶然来なくても pending が永久に残らないようにする。調整前提の暫定値 */
 export const TICKER_SYNC_RETRY_MS = 30_000;
