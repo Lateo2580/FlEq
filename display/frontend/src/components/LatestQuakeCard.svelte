@@ -121,7 +121,7 @@
     <div class="meta">
       <div class="stat">
         <span class="stat-label">規模</span>
-        <span class="magnitude stat-value">{quake.magnitude != null ? `M${quake.magnitude}` : ""}</span>
+        <span class="magnitude stat-value">{#if quake.magnitude != null}<NumberUnit prefix="M" value={quake.magnitude} />{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>
@@ -224,6 +224,7 @@
     padding: 2px 6px;
     border-radius: var(--radius-s);
     font-weight: var(--num-weight);
+    font-variant-numeric: tabular-nums;
     background: var(--surface-panel-raised);
   }
   .int-r0 {
@@ -282,7 +283,7 @@
     color: var(--role-muted);
   }
   .stat-value {
-    font-size: var(--type-body-l-fluid);
+    font-size: max(14px, var(--type-body-l-fluid));
     font-weight: var(--num-weight);
     font-variant-numeric: tabular-nums;
   }

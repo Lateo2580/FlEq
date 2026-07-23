@@ -79,14 +79,27 @@ describe("LatestQuakeCard", () => {
     const quake = latestQuake();
     const { container } = render(LatestQuakeCard, { quake });
     expect(container.querySelector(".hypocenter")?.textContent).toBe("宮崎県南部平野部");
+    // 規模は「M 小 + 数値 大」の NumberUnit prefix 形式 (spec 2026-07-23 数値表記統一)
+    expect(container.querySelector(".magnitude .nu-prefix")?.textContent).toBe("M");
+    expect(container.querySelector(".magnitude .nu-value")?.textContent).toBe("5.2");
     expect(container.querySelector(".magnitude")?.textContent).toBe("M5.2");
     expect(container.querySelector(".depth")?.textContent).toBe("10km");
-    // 深さは数値大・単位小の NumberUnit (値=10 / 単位=km)。規模 M5.2 は接頭辞 M なので分割しない
+    // 深さは数値大・単位小の NumberUnit (値=10 / 単位=km)
     expect(container.querySelector(".depth .nu-value")?.textContent).toBe("10");
     expect(container.querySelector(".depth .nu-unit")?.textContent).toBe("km");
-    expect(container.querySelector(".magnitude .nu-value")).toBeNull();
     // 第3波 Fix9: 発生時刻は日付を跨いだ事象と区別できるよう M/D も表示する
     expect(container.querySelector(".time")?.textContent).toBe("7/8 09:00");
+  });
+
+  it("magnitude が null なら規模欄は空のまま (NumberUnit を出さない)", () => {
+    const { container } = render(LatestQuakeCard, { quake: latestQuake({ magnitude: null }) });
+    expect(container.querySelector(".magnitude")?.textContent).toBe("");
+  });
+
+  it("stat-value は他カードと同じ px 床を持ち、int-chip は tabular-nums を持つ", () => {
+    const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf8");
+    expect(source).toContain("font-size: max(14px, var(--type-body-l-fluid))");
+    expect(source).toMatch(/\.int-chip[^}]*font-variant-numeric: tabular-nums/s);
   });
 
   it("restored な長周期 rider を『同期中』付きで描画する", () => {
