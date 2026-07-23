@@ -27,9 +27,10 @@
   import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
   import NankaiBadge from "./NankaiBadge.svelte";
   import { partitionStandbyItems, rightStackBudgetPx, selectRightStackWithSummary } from "../lib/standby-cards";
+  import { applyMeasurements, heightEstimator, pruneMeasurements, type MeasureMap } from "../lib/standby-measure";
   import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
-  import { measureBorderHeight } from "../lib/measure-height";
+  import { measureBorderHeight, borderBoxHeightOf } from "../lib/measure-height";
 
   // onTsunamiReplay: 津波チップクリックでその種別のテロップ再生を App へ委譲する (2026-07-14)。
   let { snapshot, now, dim, sseConnected, onTsunamiReplay }: {
@@ -178,14 +179,48 @@
     floodItem?.surface === "corner-right" && hasWeatherCard ? measuredWeatherHeightPx + 12 : 0,
   );
   const rightBudgetPx = $derived(rightStackBudgetPx(standbyHeightPx, measuredWeatherHeightPx, floodCornerOffsetPx, 12));
+  // ── measurement shelf (spec 2026-07-23 standby-right-stack T1): 全候補を非表示棚で常時実測し、
+  // 全候補が現在版で計測済みになったら選抜入力を見積り→実測へ一括切替する。
+  // 固定見積り (typhoon=240 等) は棚の初回計測が届くまでの暫定値 (実高 ~120px の 1 エントリ台風カードが
+  // 恒久 overflow になる実機不具合の根治)
+  const rightCandidates = $derived(standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"));
+  let cardHeights = $state<MeasureMap>(new Map());
+  const shelfMeta = new WeakMap<Element, { key: string; version: string }>();
+  // 棚全体で 1 つの Observer を共有し、callback 1 回につき immutable 一括反映 (混在誤選抜の防止)
+  const shelfObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver((entries) => {
+    const updates = entries.flatMap((entry) => {
+      const meta = shelfMeta.get(entry.target);
+      return meta == null ? [] : [{ key: meta.key, version: meta.version, height: borderBoxHeightOf(entry) }];
+    });
+    if (updates.length > 0) cardHeights = applyMeasurements(cardHeights, updates);
+  });
+  function shelfMeasure(node: HTMLElement, meta: { key: string; version: string }) {
+    shelfMeta.set(node, meta);
+    shelfObserver?.observe(node);
+    return {
+      update(next: { key: string; version: string }) {
+        shelfMeta.set(node, next);
+        // 版が変わっても高さ同一だと ResizeObserver は再発火せず、旧版の計測が残って
+        // 一括切替ゲートが成立しなくなる → re-observe で初回通知を強制する (plan レビュー R1)
+        shelfObserver?.unobserve(node);
+        shelfObserver?.observe(node);
+      },
+      destroy() {
+        shelfObserver?.unobserve(node);
+      },
+    };
+  }
+  $effect(() => {
+    // pruneMeasurements は削除なしのとき同一参照を返す契約 → 参照が変わったときだけ代入し
+    // effect の自己再実行ループを防ぐ (cardHeights は untrack で読む)
+    const pruned = pruneMeasurements(untrack(() => cardHeights), rightCandidates);
+    if (pruned !== untrack(() => cardHeights)) cardHeights = pruned;
+  });
+  const fallbackCardHeight = (item: ActiveStandbyCardV1): number => (item.kind === "heat" ? 160 : 240);
   const rightStack = $derived(selectRightStackWithSummary(
-    standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"),
+    rightCandidates,
     rightBudgetPx,
-    (item) => {
-      if (item.kind === "heat") return 160;
-      if (item.kind === "typhoon") return 240;
-      return 240;
-    },
+    heightEstimator(cardHeights, rightCandidates, fallbackCardHeight),
     32,
     standbyPartitions.unknown.length > 0,
     12,
@@ -330,17 +365,29 @@
     {#each rightStack.visible as item (item.key)}
       <div class="standby-corner">
         <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
-          {#if item.kind === "heat"}
-            <HeatAlertCard {item} />
-          {:else if item.kind === "typhoon"}
-            <TyphoonCard {item} />
-          {:else if item.kind === "volcano"}
-            <VolcanoCard {item} />
-          {/if}
+          {@render rightCard(item)}
         </div>
       </div>
     {/each}
     <StandbyOverflowSummary items={rightOverflow} />
+  </div>
+  {#snippet rightCard(item: ActiveStandbyCardV1)}
+    {#if item.kind === "heat"}
+      <HeatAlertCard {item} />
+    {:else if item.kind === "typhoon"}
+      <TyphoonCard {item} />
+    {:else if item.kind === "volcano"}
+      <VolcanoCard {item} />
+    {/if}
+  {/snippet}
+  <!-- measurement shelf (spec T1): 本表示と同幅・非表示の計測棚。overflow 中の候補も常時実測する。
+       二層 slot 規約に従い棚には motion を載せない。.corner-right の overflow:hidden の外に置く -->
+  <div class="measure-shelf" inert aria-hidden="true">
+    {#each rightCandidates as item (item.key)}
+      <div class="measure-shelf-item" use:shelfMeasure={{ key: item.key, version: item.updatedAt }}>
+        {@render rightCard(item)}
+      </div>
+    {/each}
   </div>
   <div class="corner-left">
     {#each leftStack as item (item.key)}
@@ -394,6 +441,9 @@
     padding: var(--space-12);
     background: var(--bg);
     transition: opacity var(--dur-standby-dim) ease;
+    /* corner-right カードの幅の真実源 (spec T1)。本表示と計測棚が同じ値を共有し、
+       折返し由来の実測高ズレを防ぐ。各カードの width はこの変数を参照する */
+    --standby-card-width: min(360px, 28vw);
   }
   @media (prefers-reduced-motion: reduce) {
     .standby {
@@ -410,6 +460,22 @@
     align-items: flex-end;
     gap: var(--space-3);
     overflow: hidden;
+  }
+  .standby-corner {
+    /* flex 圧縮による暗黙の高さ変動を封じる (実測選抜の前提、spec T4) */
+    flex-shrink: 0;
+  }
+  /* 計測棚 (spec T1): 本表示と同じ containing block 条件 + 同幅で、選抜前の全候補を隠し描画する */
+  .measure-shelf {
+    position: absolute;
+    top: 24px;
+    right: 32px;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .measure-shelf-item {
+    width: var(--standby-card-width);
   }
   .flood-slot {
     z-index: 2;

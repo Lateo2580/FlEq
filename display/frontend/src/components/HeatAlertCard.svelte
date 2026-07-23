@@ -13,7 +13,7 @@
 </section>
 
 <style>
-  .standby-card { width: min(360px, 28vw); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   /* 看板ヘッダ帯: 警戒=warning 橙帯 / 特別警戒=emergency 紫帯 */
   header {
     display: flex;

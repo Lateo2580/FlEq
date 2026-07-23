@@ -29,7 +29,7 @@
 </section>
 
 <style>
-  .standby-card { width: min(360px, 28vw); max-height: 240px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 240px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   /* 情報級カード: 警報帯は付けず、タイトル級 muted 見出し (直近の地震と同格) で警報とのヒエラルキーを守る */
   header {
     display: flex;

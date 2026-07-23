@@ -25,7 +25,7 @@
 </section>
 
 <style>
-  .standby-card { width: min(360px, 28vw); max-height: 240px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 240px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   /* 看板ヘッダ帯: 段階カラーは band クラスで切替 (レベル2=黄 / 3=橙 / 4・噴火速報=赤 / 5=紫) */
   header {
     display: flex;

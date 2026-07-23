@@ -823,3 +823,105 @@ describe("StandbyScreen 排他スロットの二重化防止 (通常モーショ
     expect(container.querySelector(".corner-left .quake-replay-card")).toBeFalsy();
   });
 });
+
+describe("measurement shelf (spec 2026-07-23 standby-right-stack T1/T3)", () => {
+  type ROCallback = (entries: Array<{ target: Element }>) => void;
+  let roInstances: Array<{ cb: ROCallback; observed: Element[]; observeCalls: Element[]; unobserveCalls: Element[] }>;
+
+  class StubResizeObserver {
+    cb: ROCallback;
+    rec: { cb: ROCallback; observed: Element[]; observeCalls: Element[]; unobserveCalls: Element[] };
+    constructor(cb: ROCallback) {
+      this.cb = cb;
+      this.rec = { cb, observed: [], observeCalls: [], unobserveCalls: [] };
+      roInstances.push(this.rec);
+    }
+    observe(el: Element) { this.rec.observed.push(el); this.rec.observeCalls.push(el); }
+    unobserve(el: Element) { this.rec.unobserveCalls.push(el); this.rec.observed = this.rec.observed.filter((e) => e !== el); }
+    disconnect() { this.rec.observed = []; }
+  }
+
+  const cardItem = (kind: string, key: string, updatedAt: string, severity = "normal"): ActiveStandbyCardV1 =>
+    ({
+      kind, key, surface: "corner-right", severity, updatedAt,
+      sourceEventIds: [], expiresAt: null, restored: false,
+      data: kind === "typhoon"
+        ? { typhoons: [{ typhoonKey: "TC1", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "フィリピンの東", pressureHpa: 1000, maxWindMs: 15, moveDirection: "西", moveSpeedKmh: 20, reportDateTime: "2026-07-23T19:10:00+09:00" }] }
+        : kind === "volcano"
+          ? { volcanoes: [{ code: "506", name: "桜島", alertLevel: 3, action: "入山規制", updatedAt: "2026-07-23T19:00:00+09:00" }] }
+          : { areas: [{ areaName: "埼玉県" }], targetDate: "2026-07-24", updatedAt: "2026-07-23T19:00:00+09:00" },
+    }) as unknown as ActiveStandbyCardV1;
+
+  // 高さを模擬発火する: borderBoxHeightOf は borderBoxSize 優先なので blockSize を与える
+  const fire = (rec: (typeof roInstances)[number], pairs: Array<[Element, number]>) => {
+    rec.cb(pairs.map(([target, h]) => ({ target, borderBoxSize: [{ blockSize: h, inlineSize: 360 }] })) as never);
+  };
+
+  beforeEach(() => {
+    roInstances = [];
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("(a)(b) overflow 候補も含め全候補が棚に描画され、棚は inert + aria-hidden", async () => {
+    const items = [cardItem("volcano", "volcano:active", "v1", "warning"), cardItem("typhoon", "typhoon:active", "v1"), cardItem("heat", "heat:1", "v1", "warning"), cardItem("heat", "heat:2", "v1", "warning")];
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    const shelf = container.querySelector(".measure-shelf");
+    expect(shelf).toBeTruthy();
+    expect(shelf!.getAttribute("aria-hidden")).toBe("true");
+    expect(shelf!.hasAttribute("inert")).toBe(true);
+    expect(shelf!.querySelectorAll(".measure-shelf-item")).toHaveLength(4); // 選抜結果に関わらず全候補
+  });
+
+  it("(d)(e) 実測発火で選抜が実測ベースに切り替わり、item 削除で計測も消える", async () => {
+    // jsdom は高さ 0 のため初期は全件見積り (volcano240 + typhoon240+12 + heat160+12 ×2 > budget0) →
+    // 棚経由の実測発火で全候補が現在版になった時点で実測選抜へ
+    const items = [cardItem("volcano", "volcano:active", "v1", "warning"), cardItem("typhoon", "typhoon:active", "v1")];
+    const { container, rerender } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")));
+    expect(rec).toBeTruthy();
+    const shelfItems = [...container.querySelectorAll(".measure-shelf-item")];
+    expect(shelfItems).toHaveLength(2);
+    // 実測を発火: 両カードとも 100px (見積り 240 と大きく乖離)
+    fire(rec!, shelfItems.map((el) => [el, 100] as [Element, number]));
+    await tick();
+    // standbyHeightPx は jsdom で 640 初期値 → budget = 640-48-0-0 = 592。実測 100×2+gap12 は余裕で visible
+    expect(container.querySelectorAll(".corner-right .standby-corner")).toHaveLength(2);
+    // item 削除 → 棚からも消える (Map prune は挙動としては棚 DOM 数で観測)
+    await rerender({ snapshot: baseSnapshot({ standbyItems: [items[0]] }), now, dim: false, sseConnected: true });
+    await tick();
+    expect(container.querySelectorAll(".measure-shelf-item")).toHaveLength(1);
+  });
+
+  it("(c) updatedAt 変更・高さ同一で unobserve→observe が呼ばれる (再計測強制)", async () => {
+    const items = [cardItem("typhoon", "typhoon:active", "v1")];
+    const { container, rerender } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")));
+    const before = rec!.observeCalls.length;
+    await rerender({ snapshot: baseSnapshot({ standbyItems: [cardItem("typhoon", "typhoon:active", "v2")] }), now, dim: false, sseConnected: true });
+    await tick();
+    expect(rec!.unobserveCalls.length).toBeGreaterThan(0);
+    expect(rec!.observeCalls.length).toBeGreaterThan(before);
+  });
+
+  it("(f) 棚内のカードが本表示のセレクタ数を汚さない (visible は corner-right 直下のみで数える)", async () => {
+    const items = [cardItem("typhoon", "typhoon:active", "v1")];
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    expect(container.querySelectorAll(".corner-right .standby-card").length)
+      .toBeLessThanOrEqual(container.querySelectorAll(".standby-card").length - 1); // 棚に最低 1 枚
+  });
+});
