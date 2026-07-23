@@ -263,3 +263,14 @@ describe("setSseConnected", () => {
     expect(next.lastSeq).toBe(state.lastSeq);
   });
 });
+
+  it("event: tickerSuppressed はテロップに積まず seq 系は進む", () => {
+    const withTicker = reduce(initialState(), {
+      type: "snapshot", snapshot: snapshot({ seq: 1, recentTicker: [tickerEvent({ id: "e1" })] }),
+    });
+    const suppressed = { ...tickerEvent({ id: "sup" }), seq: 2, tickerSuppressed: true };
+    const next = reduce(withTicker, { type: "event", event: suppressed });
+    expect(next.ticker.map((t) => t.id)).toEqual(["e1"]);
+    expect(next.lastEventSeq).toBe(2);
+    expect(next.seqGapDetected).toBe(false);
+  });

@@ -94,8 +94,13 @@ export class InfoDisplayHub implements DisplayIngestSink {
         this.store.seedWeatherAlerts(this.deps.weatherAlerts(dto.reportDateTime));
         stateChanged = true;
       }
-      this.recent.push({ dto, receivedMs: nowMs });
-      if (this.recent.length > RECENT_TICKER_MAX) this.recent.shift();
+      if (dto.tickerSuppressed !== true) {
+        this.recent.push({ dto, receivedMs: nowMs });
+        if (this.recent.length > RECENT_TICKER_MAX) this.recent.shift();
+      } else {
+        // 情報ゼロ電文の抑制 (spec T5-2)。broadcast は seq 整合のため通常どおり流す
+        log.warn(`display: テロップ抑制 ${dto.domain} ${dto.type} (${dto.eventKey}) — 情報ゼロ電文`);
+      }
       this.transport?.broadcast({ type: "event", event: dto });
       if (stateChanged) this.markStateDirty();
       this.consecutiveErrors = 0;

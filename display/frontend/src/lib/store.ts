@@ -100,7 +100,10 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
     case "event":
       return {
         ...state,
-        ticker: [msg.event, ...state.ticker].slice(0, TICKER_MAX),
+        // tickerSuppressed (情報ゼロ電文、spec T5-2) はテロップに積まない。seq 系は通常どおり進める
+        ticker: msg.event.tickerSuppressed === true
+          ? state.ticker
+          : [msg.event, ...state.ticker].slice(0, TICKER_MAX),
         lastSeq: Math.max(state.lastSeq, msg.event.seq),
         lastEventSeq: Math.max(state.lastEventSeq, msg.event.seq),
         seqGapDetected: state.seqGapDetected || hasEventSeqGap(state.lastEventSeq, msg.event.seq),

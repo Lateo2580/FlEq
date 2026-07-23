@@ -1,7 +1,7 @@
 import { intensityToRank } from "../../utils/intensity";
 import { normalizeTsunamiKind, resolveTsunamiLevel } from "../../utils/tsunami-kind";
 import type { PresentationAreaItem, PresentationEvent } from "../presentation/types";
-import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf } from "./ticker-sentence";
+import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningTimeseriesSentence } from "./ticker-sentence";
 import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
 import {
@@ -291,6 +291,14 @@ export function tickerPriority(event: PresentationEvent): DisplayTickerPriority 
 export function projectDisplayEvent(event: PresentationEvent, summaryText: string): DisplayEventDtoV1 {
   const tickerBody = normalizeTickerBody(event.bodyText);
   const priority = tickerPriority(event);
+  // 情報ゼロ電文のテロップ抑制 (spec T5-2)。sentence も body も組めない非取消 VPWP50 は
+  // title 単独のノイズテロップになるため流さない (「予測なし」文言は schema 差・parser 縮退でも
+  // 起こり得る entries ゼロに偽の安心を与えるため不採用 — 対立的レビュー R2 裁定)
+  const tickerSuppressed =
+    event.domain === "weatherWarningTimeseries" &&
+    !event.isCancellation &&
+    tickerBody == null &&
+    weatherWarningTimeseriesSentence(event) == null;
   // 重要語句の強調は情報系 (low) と警報級手前 (mid) の本文テロップに載せる。high は割込み意匠と
   // severity 色体系に干渉させないため非適用。ルール側で value(数値)=low 専用、transition/status=low+mid に
   // 絞るため、mid では状態変化・重要状態のみが強調される。本文が縮退等で無いときは空 (強調なし)。
@@ -322,6 +330,7 @@ export function projectDisplayEvent(event: PresentationEvent, summaryText: strin
     tickerDetail: buildTickerDetail(event),
     tickerCategory: tickerCategoryOf(event),
     tickerSubject: tickerSubjectOf(event),
+    tickerSuppressed,
     tickerSentence: buildTickerSentence(event),
     tickerPriority: priority,
     tickerBody,

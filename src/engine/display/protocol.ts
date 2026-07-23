@@ -190,6 +190,13 @@ export interface DisplayEventDtoV1 {
   tickerEmphasis?: Array<{ start: number; end: number }> | null;
   /** テロップ左端チップの件名 (台風名・火山名・対象地方等)。導出不能は null でチップは種別のみ */
   tickerSubject?: string | null;
+  /** テロップ抑制フラグ (汎用機構、spec 2026-07-23 ticker-content-lifetime T5-2)。
+   *  true のイベントはサーバが recentTicker に積まず、フロントも ticker 配列に積まない
+   *  (event broadcast 自体は seq 整合のため通常どおり流れる)。
+   *  現用途: 情報ゼロ (sentence/body とも組めない非取消) の VPWP50。
+   *  projectDisplayEvent が常に明示値をセットする。欠落 (旧 snapshot) は false 扱い
+   *  (optional は protocol 移行の安全化——本ファイルの他 ticker フィールドと同じ規約) */
+  tickerSuppressed?: boolean;
 }
 
 export interface DisplayConnectionStateV1 {

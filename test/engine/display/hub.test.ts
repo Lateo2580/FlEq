@@ -796,3 +796,24 @@ describe("InfoDisplayHub: sweep タイマー", () => {
     expect(transport.states().length).toBe(1); // 再試行タイマーが生きていれば増えるが、増えない
   });
 });
+
+describe("tickerSuppressed の ingest (spec 2026-07-23 T5-2)", () => {
+  it("抑制イベントは recentTicker に積まれず、broadcast と seq は通常どおり進む", () => {
+    const { hub, transport } = makeHub();
+    hub.ingest({
+      ...weatherEvent("sup-1"),
+      domain: "weatherWarningTimeseries",
+      type: "VPWP50",
+      bodyText: null,
+      raw: { areas: [] },
+    } as PresentationEvent);
+    hub.ingest(weatherEvent("w-after"));
+    const events = transport.events();
+    expect(events.length).toBe(2);                    // broadcast は 2 件とも流れる
+    expect(events[0].event.seq).toBe(1);
+    expect(events[1].event.seq).toBe(2);              // seq は連番 (gap なし)
+    const recent = hub.buildSnapshot().recentTicker;
+    expect(recent.length).toBe(1);                    // recentTicker には非抑制のみ
+    expect(recent[0].id).toBe("w-after");
+  });
+});

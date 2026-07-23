@@ -618,3 +618,33 @@ describe("projectDisplayEvent", () => {
     expect(projectDisplayEvent(event, "サマリ").tickerSubject).toBe("桜島");
   });
 });
+
+describe("tickerSuppressed (情報ゼロ電文の抑制、spec 2026-07-23 T5-2)", () => {
+  const vpwp50 = (over: Partial<PresentationEvent>) =>
+    baseEvent({
+      domain: "weatherWarningTimeseries", type: "VPWP50",
+      title: "鹿児島県警戒・注意事項時系列情報",
+      ...over,
+    });
+
+  it("entries ゼロ (sentence null・body null) の非取消 VPWP50 は true", () => {
+    const dto = projectDisplayEvent(vpwp50({ raw: { areas: [] } as never }), "s");
+    expect(dto.tickerSuppressed).toBe(true);
+  });
+
+  it("取消は抑制しない (取消文が出る)", () => {
+    const dto = projectDisplayEvent(vpwp50({ raw: { areas: [] } as never, isCancellation: true, infoType: "取消" }), "s");
+    expect(dto.tickerSuppressed).toBe(false);
+    expect(dto.tickerSentence).toBe("気象警報・注意報の予測情報は取り消されました。");
+  });
+
+  it("bodyText がある電文は sentence null でも抑制しない", () => {
+    const dto = projectDisplayEvent(vpwp50({ raw: { areas: [] } as never, bodyText: "本文あり" }), "s");
+    expect(dto.tickerSuppressed).toBe(false);
+  });
+
+  it("他ドメインは常に false", () => {
+    const dto = projectDisplayEvent(baseEvent({}), "s");
+    expect(dto.tickerSuppressed).toBe(false);
+  });
+});
