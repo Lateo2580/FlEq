@@ -481,3 +481,170 @@ describe("tickerSubjectOf 件名導出", () => {
     expect(tickerSubjectOf(ev({ domain: "earthquake" }))).toBeNull();
   });
 });
+
+describe("volcanoSentence (spec 2026-07-23 ticker-content-lifetime T4)", () => {
+  const volcanoEvent = (raw: object | null, over: Partial<PresentationEvent> = {}): PresentationEvent =>
+    makeEvent({
+      domain: "volcano",
+      type: "VFVO52",
+      title: "火山名　桜島　噴火に関する火山観測報",
+      volcanoName: "桜島",
+      volcanoCode: "506",
+      raw: raw as PresentationEvent["raw"],
+      ...over,
+    });
+
+  it("eruption (VFVO52 実機相当・本文空) が読み下せる一文になる", () => {
+    const s = buildTickerSentence(volcanoEvent({
+      kind: "eruption", phenomenonName: "噴火", eventDateTime: "2026-07-23T19:27:00+09:00",
+      isFlashReport: false, plumeHeight: null,
+    }));
+    expect(s).toBe("桜島で午後7時27分ごろ、噴火が発生しました。");
+    expect(s).not.toMatch(/[\n]|[　]{2}/);
+  });
+
+  it("eruption (VFVO56 噴火速報) は文頭に速報接頭辞 + 噴煙高", () => {
+    const s = buildTickerSentence(volcanoEvent({
+      kind: "eruption", phenomenonName: "噴火", eventDateTime: "2026-07-23T19:27:00+09:00",
+      isFlashReport: true, plumeHeight: 3000,
+    }, { type: "VFVO56" }));
+    expect(s).toBe("噴火速報：桜島で午後7時27分ごろ、噴火が発生しました。噴煙は火口上3000m。");
+  });
+
+  it("alert はレベルと公式ラベルの一文", () => {
+    const s = buildTickerSentence(volcanoEvent({ kind: "alert", alertLevel: 3 }, { type: "VFVO50" }));
+    expect(s).toBe("桜島の噴火警戒レベルは3（入山規制）です。");
+  });
+
+  it("alert レベル不明は警報種別で言い切る", () => {
+    const s = buildTickerSentence(volcanoEvent({ kind: "alert", alertLevel: null, warningKind: "噴火警報" }, { type: "VFVO50" }));
+    expect(s).toBe("桜島に噴火警報が発表されました。");
+  });
+
+  it("ashfall は種別announceの一文 (本文があるときは tickerBody が優先されるためここは保険)", () => {
+    const s = buildTickerSentence(volcanoEvent({ kind: "ashfall", title: "降灰予報（定時）" }, { type: "VFVO53" }));
+    expect(s).toBe("桜島の降灰予報（定時）が発表されました。");
+  });
+
+  it("text は解説情報の一文", () => {
+    const s = buildTickerSentence(volcanoEvent({ kind: "text", title: "火山の状況に関する解説情報" }, { type: "VZVO40" }));
+    expect(s).toBe("桜島の火山の状況に関する解説情報が発表されました。");
+  });
+
+  it("plume (VFVO60) は高さ・流向の存在項目だけで一文", () => {
+    const s = buildTickerSentence(volcanoEvent({
+      kind: "plume", title: "推定噴煙流向報", plumeHeight: 1500, plumeDirection: "東",
+    }, { type: "VFVO60" }));
+    expect(s).toBe("桜島の噴煙は火口上1500m、東方向へ流れる見込みです。");
+  });
+
+  it("plume 項目全欠落は announce へ", () => {
+    const s = buildTickerSentence(volcanoEvent({
+      kind: "plume", title: "推定噴煙流向報", plumeHeight: null, plumeDirection: null,
+    }, { type: "VFVO60" }));
+    expect(s).toBe("桜島の推定噴煙流向報が発表されました。");
+  });
+
+  it("不明 raw は正規化 headline を読点整形した非空一文 (生 headline を返さない)", () => {
+    const s = buildTickerSentence(volcanoEvent(null, {
+      headline: "火　　山：桜島\n日　　時：2026年07月23日19時27分(231027UTC)\n現　　象：噴火",
+    }));
+    expect(s).toBe("火山：桜島、日時：2026年07月23日19時27分(231027UTC)、現象：噴火。");
+    expect(s).not.toMatch(/[\n　]/);
+  });
+
+  it("headline も無ければ title 文", () => {
+    const s = buildTickerSentence(volcanoEvent(null, { headline: null }));
+    expect(s).toBe("火山名　桜島　噴火に関する火山観測報が発表されました。");
+  });
+
+  it("取消は共通取消文", () => {
+    const s = buildTickerSentence(volcanoEvent({ kind: "eruption" }, { isCancellation: true, title: "噴火に関する火山観測報" }));
+    expect(s).toBe("噴火に関する火山観測報は取り消されました。");
+  });
+});
+
+describe("earlyWeatherSentence (spec 2026-07-23 ticker-content-lifetime T5)", () => {
+  const phenomenon = (over: object) => ({
+    type: "かなりの高温", climateKind: "気温", climateText: null, trend: "above",
+    probabilityPercent: 30, thresholdValue: null, thresholdUnit: null,
+    areas: [], periodLabel: "７月２９日頃からの約５日間", ...over,
+  });
+  const ewEvent = (phenomena: object[], over: Partial<PresentationEvent> = {}): PresentationEvent =>
+    makeEvent({
+      domain: "earlyWeather",
+      type: "VPAW51",
+      title: "高温に関する早期天候情報（九州南部・奄美地方）",
+      headline: "九州南部・奄美地方では、７月２９日頃からかなりの高温となる可能性があります。",
+      raw: { phenomena, targetArea: { name: "九州南部・奄美地方", code: "1000" } } as PresentationEvent["raw"],
+      ...over,
+    });
+
+  it("代表現象 + 期間 + 確率の一文 (headline 単独ではない)", () => {
+    const s = buildTickerSentence(ewEvent([phenomenon({})]));
+    expect(s).toBe("九州南部・奄美地方では７月２９日頃からの約５日間、かなりの高温となる可能性があります（確率30%以上）。");
+  });
+
+  it("複数現象は probabilityPercent 降順の代表 + ほか n 件", () => {
+    const s = buildTickerSentence(ewEvent([
+      phenomenon({ type: "大雪", probabilityPercent: 20 }),
+      phenomenon({ type: "かなりの低温", probabilityPercent: 40, periodLabel: "１２月１０日頃からの約５日間" }),
+    ]));
+    expect(s).toBe("九州南部・奄美地方では１２月１０日頃からの約５日間、かなりの低温となる可能性があります（確率40%以上）。ほか1件。");
+  });
+
+  it("確率同値は配列順 tie-break", () => {
+    const s = buildTickerSentence(ewEvent([
+      phenomenon({ type: "大雪", probabilityPercent: 30 }),
+      phenomenon({ type: "低温", probabilityPercent: 30 }),
+    ]));
+    expect(s).toMatch(/^九州南部・奄美地方では.*大雪となる可能性があります/);
+  });
+
+  it("phenomena ゼロは headline フォールバック", () => {
+    const s = buildTickerSentence(ewEvent([]));
+    expect(s).toBe("九州南部・奄美地方では、７月２９日頃からかなりの高温となる可能性があります。");
+  });
+});
+
+describe("fixture スナップショット固定 (spec T4/T5 受け入れ基準)", () => {
+  it("VPAW51 fixture 8 件すべてで headline 単独ではない一文が生成される", async () => {
+    const { processEarlyWeather } = await import("../../../src/engine/presentation/processors/process-early-weather");
+    const { fromEarlyWeatherOutcome } = await import("../../../src/engine/presentation/events/from-early-weather");
+    const sentences: string[] = [];
+    for (let i = 1; i <= 8; i++) {
+      const msg = createMockWsDataMessage(`72_0${i}_01_190327_VPAW51.xml`);
+      const outcome = processEarlyWeather(msg);
+      expect(outcome, `fixture ${i} のパース`).not.toBeNull();
+      const event = fromEarlyWeatherOutcome(outcome!);
+      const s = buildTickerSentence(event);
+      expect(s.length, `fixture ${i}`).toBeGreaterThan(0);
+      const headlineOnly = (event.headline?.trim() ?? "") + "。";
+      expect(s, `fixture ${i} が headline 単独`).not.toBe(headlineOnly.replace(/。。$/, "。"));
+      sentences.push(s);
+    }
+    expect(sentences).toMatchSnapshot();
+  });
+
+  it("VFVO56 fixture 4 件すべてで読み下せる一文 (改行・連続全角空白なし)", async () => {
+    const { parseVolcanoTelegram } = await import("../../../src/dmdata/volcano-parser");
+    const sentences: string[] = [];
+    for (let i = 1; i <= 4; i++) {
+      const msg = createMockWsDataMessage(`67_01_0${i}_140927_VFVO56.xml`);
+      const info = parseVolcanoTelegram(msg);
+      expect(info, `fixture ${i} のパース`).not.toBeNull();
+      const event = makeEvent({
+        domain: "volcano", type: "VFVO56",
+        title: msg.xmlReport?.head.title ?? "噴火速報",
+        headline: info!.headline,
+        volcanoName: info!.volcanoName, volcanoCode: info!.volcanoCode,
+        raw: info as PresentationEvent["raw"],
+      });
+      const s = buildTickerSentence(event);
+      expect(s.length, `fixture ${i}`).toBeGreaterThan(0);
+      expect(s, `fixture ${i} に改行/連続全角空白`).not.toMatch(/[\n]|[　]{2}/);
+      sentences.push(s);
+    }
+    expect(sentences).toMatchSnapshot();
+  });
+});

@@ -26,7 +26,7 @@ export function expandVolcanoBatchForDisplay(outcome: VolcanoBatchOutcome): Pres
       type: outcome.headType,
       infoType: xmlReport?.head.infoType ?? "不明",
       title: xmlReport?.head.title ?? outcome.headType,
-      headline: xmlReport?.head.headline ?? null,
+      headline: info.headline ?? xmlReport?.head.headline ?? null,
       reportDateTime: xmlReport?.head.reportDateTime ?? msg.head.time,
       publishingOffice: xmlReport?.control.publishingOffice ?? msg.head.author,
       isTest: msg.head.test,
@@ -68,7 +68,7 @@ function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
 
     infoType: xmlReport?.head.infoType ?? "不明",
     title: xmlReport?.head.title ?? outcome.headType,
-    headline: xmlReport?.head.headline ?? null,
+    headline: info.headline ?? xmlReport?.head.headline ?? null,
     reportDateTime: xmlReport?.head.reportDateTime ?? outcome.msg.head.time,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
     isTest: outcome.msg.head.test,
@@ -123,7 +123,7 @@ function fromVolcanoBatchOutcome(outcome: VolcanoBatchOutcome): PresentationEven
 
     infoType: xmlReport?.head.infoType ?? "不明",
     title: xmlReport?.head.title ?? outcome.headType,
-    headline: xmlReport?.head.headline ?? null,
+    headline: firstItem?.headline ?? xmlReport?.head.headline ?? null,
     reportDateTime: outcome.batchReportDateTime,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
     isTest: outcome.batchIsTest,

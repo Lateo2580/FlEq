@@ -10,6 +10,8 @@ import type {
   ParsedTyphoonAnalysis,
   ParsedTyphoonProbability,
   ParsedFloodForecastInfo,
+  ParsedVolcanoInfo,
+  ParsedEarlyWeatherInfo,
   FloodLevel,
   TyphoonName,
 } from "../../types";
@@ -223,7 +225,7 @@ function vpwp50SentenceKind(e: WeatherSeverityEntry): string {
  * 警報級 (special/warning) を優先し、無ければ注意報級。種別名は dedup、先頭 3 件 + ほか N 件。
  * 表形式の時系列詳細 (window/peak) は固定計器・CLI 表の担当で、テロップは 1 文に留める (案A、裁定)。
  */
-function weatherWarningTimeseriesSentence(event: PresentationEvent): string | null {
+export function weatherWarningTimeseriesSentence(event: PresentationEvent): string | null {
   if (event.isCancellation) return "気象警報・注意報の予測情報は取り消されました。";
   const raw = event.raw;
   if (raw == null || typeof raw !== "object" || !("areas" in raw)) return null;
@@ -326,10 +328,119 @@ function lgObservationSentence(event: PresentationEvent): string | null {
   return `${head}${where}長周期地震動階級${maxLg}を観測。`;
 }
 
+/** 噴火警戒レベルの公式ラベル (JMA)。frontend standby-cards.ts の VOLCANO_LEVEL_LABELS と同値 */
+const VOLCANO_LEVEL_LABELS: Record<number, string> = {
+  1: "活火山であることに留意", 2: "火口周辺規制", 3: "入山規制", 4: "高齢者等避難", 5: "避難",
+};
+
+/** データ欠落時の非空フォールバック: 正規化 headline を一文整形 (改行→読点、行内空白除去)。
+ *  headline も無ければ `${title}が発表されました。` (spec T4: 生 headline を返す経路を残さない) */
+function volcanoFallbackSentence(event: PresentationEvent): string {
+  const headline = event.headline?.trim();
+  if (headline != null && headline !== "") {
+    const flattened = headline
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((line) => line.replace(/[\s　]+/g, ""))
+      .filter((line) => line !== "")
+      .join("、");
+    if (flattened !== "") return ensurePeriod(flattened);
+  }
+  return ensurePeriod(`${event.title}が発表されました`);
+}
+
+/** 火山名 + parser 由来の種別タイトル (「火山名　桜島　」接頭辞は parser 側で除去済み) の announce 文 */
+function volcanoAnnounceSentence(name: string, kindTitle: string): string {
+  return `${name}の${kindTitle}が発表されました。`;
+}
+
+/**
+ * 火山ドメインの一文 (spec 2026-07-23 ticker-content-lifetime T4)。
+ * bodyText がある電文は tickerBody が優先されるため、ここは本文空電文 (VFVO52/56/60、
+ * VolcanoActivity 欠落の実電文で実発生) の headline 生流出を塞ぐのが主務。
+ * 契約: 取消以外は必ず非空・非羅列の一文を返す (null は取消時のみ = 共通取消文へ委譲)。
+ */
+function volcanoSentence(event: PresentationEvent): string | null {
+  if (event.isCancellation) return null; // 共通の取消文に委ねる
+  const name = event.volcanoName != null && event.volcanoName !== "" ? event.volcanoName : null;
+  const raw = event.raw;
+  const info =
+    raw != null && !Array.isArray(raw) && typeof raw === "object" && "kind" in raw
+      ? (raw as ParsedVolcanoInfo)
+      : null;
+  if (info == null || name == null) return volcanoFallbackSentence(event);
+  switch (info.kind) {
+    case "eruption": {
+      const when = info.eventDateTime != null ? formatJst12h(info.eventDateTime) : null;
+      const head = info.isFlashReport ? "噴火速報：" : "";
+      const plume = info.plumeHeight != null ? `噴煙は火口上${info.plumeHeight}m。` : "";
+      const phenomenon = info.phenomenonName !== "" ? info.phenomenonName : "噴火";
+      return when != null
+        ? `${head}${name}で${when}、${phenomenon}が発生しました。${plume}`
+        : `${head}${name}で${phenomenon}が発生しました。${plume}`;
+    }
+    case "alert": {
+      if (info.alertLevel != null) {
+        const label = VOLCANO_LEVEL_LABELS[info.alertLevel];
+        return label != null
+          ? `${name}の噴火警戒レベルは${info.alertLevel}（${label}）です。`
+          : `${name}の噴火警戒レベルは${info.alertLevel}です。`;
+      }
+      return info.warningKind !== ""
+        ? `${name}に${info.warningKind}が発表されました。`
+        : volcanoAnnounceSentence(name, info.title);
+    }
+    case "ashfall":
+      // 降灰予報の詳細は tickerBody (volcanoAshfallToText) の担当。sentence は本文空時の保険
+      return volcanoAnnounceSentence(name, info.title);
+    case "text":
+      return volcanoAnnounceSentence(name, info.title);
+    case "plume": {
+      if (info.plumeHeight != null && info.plumeDirection != null) {
+        return `${name}の噴煙は火口上${info.plumeHeight}m、${info.plumeDirection}方向へ流れる見込みです。`;
+      }
+      if (info.plumeDirection != null) {
+        return `${name}の噴煙は${info.plumeDirection}方向へ流れる見込みです。`;
+      }
+      if (info.plumeHeight != null) {
+        return `${name}の噴煙は火口上${info.plumeHeight}mです。`;
+      }
+      return volcanoAnnounceSentence(name, info.title);
+    }
+    default: {
+      const _exhaustive: never = info;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * 早期天候情報 (VPAW51) の一文 (spec T5-1)。代表現象 = probabilityPercent 降順 (null は最小扱い)・
+ * 同値は配列順 tie-break (現象に公式 severity は無いため蓋然性の高いものを代表とする)。
+ * 構造欠落時のみ null → headline フォールバック (VPAW51 の headline は正常な一文)。
+ */
+function earlyWeatherSentence(event: PresentationEvent): string | null {
+  if (event.isCancellation) return null;
+  const raw = event.raw;
+  if (raw == null || typeof raw !== "object" || !("phenomena" in raw)) return null;
+  const info = raw as ParsedEarlyWeatherInfo;
+  if (info.phenomena.length === 0) return null;
+  const rep = [...info.phenomena].sort(
+    (a, b) => (b.probabilityPercent ?? -1) - (a.probabilityPercent ?? -1),
+  )[0];
+  const area = info.targetArea?.name ?? event.areaNames[0] ?? null;
+  const period = rep.periodLabel != null ? `${rep.periodLabel}、` : "";
+  const prob = rep.probabilityPercent != null ? `（確率${rep.probabilityPercent}%以上）` : "";
+  const rest = info.phenomena.length > 1 ? `ほか${info.phenomena.length - 1}件。` : "";
+  const core = `${period}${rep.type}となる可能性があります${prob}。${rest}`;
+  return area != null ? `${area}では${core}` : core;
+}
+
 /**
  * PresentationEvent → テロップの読める一文。全 19 ドメインで常に非空文字列を返す。
- * volcano / nankaiTrough 等の軽症組は headline ベース (default 分岐) に落ちる。
- * floodForecast / lgObservation は構造化データが取れない場合のみ default 分岐へフォールバック。
+ * nankaiTrough 等の軽症組は headline ベース (default 分岐) に落ちる。
+ * floodForecast / lgObservation / earlyWeather は構造化データが取れない場合のみ default 分岐へ、
+ * volcano は関数内フォールバック (volcanoFallbackSentence) で必ず一文を返す (spec T4)。
  */
 export function buildTickerSentence(event: PresentationEvent): string {
   try {
@@ -355,6 +466,12 @@ export function buildTickerSentence(event: PresentationEvent): string {
         break;
       case "lgObservation":
         sentence = lgObservationSentence(event);
+        break;
+      case "volcano":
+        sentence = volcanoSentence(event);
+        break;
+      case "earlyWeather":
+        sentence = earlyWeatherSentence(event);
         break;
       default:
         sentence = event.isCancellation
