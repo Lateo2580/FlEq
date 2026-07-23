@@ -221,9 +221,17 @@ function makeGroupKey(event: PresentationEvent): string | null {
   if (event.domain === "earthquake") return event.eventId != null ? `quake:${event.eventId}` : null;
   if (event.domain === "volcano") {
     if (event.eventId == null) return null;
-    return event.volcanoCode != null && event.volcanoCode !== ""
-      ? `volcano:${event.eventId}:${event.volcanoCode}`
-      : `volcano:${event.eventId}`;
+    // 火山コード付きの系列分割は VFVO53 (バッチ per-volcano 展開) に限定する。
+    // 他の火山電文 (VFVO56 等) は 1 電文 1 火山で eventId だけで系列が閉じるうえ、
+    // 取消電文は Body に VolcanoInfo を持たずコードを取得できない実例がある
+    // (test/fixtures/67_01_04 VFVO56 取消)。全電文にコードを付けると
+    // 「発表=volcano:id:312 / 取消=volcano:id」に分裂し取消が旧テロップを
+    // 置換できなくなる (最終レビュー Sol Important 1)。
+    // VFVO53 の取消は対象火山を必ず特定する (aggregator の removeCancelled 前提)
+    if (event.type === "VFVO53" && event.volcanoCode != null && event.volcanoCode !== "") {
+      return `volcano:${event.eventId}:${event.volcanoCode}`;
+    }
+    return `volcano:${event.eventId}`;
   }
   if (event.domain === "weather") {
     // VPWS50 は気象庁の全国集約単一ストリーム (集約定時通報)。常に最新 1 件へ畳む。

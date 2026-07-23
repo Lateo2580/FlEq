@@ -35,13 +35,25 @@ function volcanoEvent(over: Partial<PresentationEvent>): PresentationEvent {
 }
 
 describe("volcano display keys", () => {
-  it("uses the volcano code in the replacement group", () => {
+  it("uses the volcano code in the replacement group (VFVO53 のみ)", () => {
     expect(projectDisplayEvent(volcanoEvent({ volcanoCode: "506" }), "要約").groupKey)
       .toBe("volcano:volcano-event:506");
     expect(projectDisplayEvent(volcanoEvent({ volcanoCode: "503" }), "要約").groupKey)
       .toBe("volcano:volcano-event:503");
     expect(projectDisplayEvent(volcanoEvent({ volcanoCode: "" }), "要約").groupKey)
       .toBe("volcano:volcano-event");
+  });
+
+  it("VFVO53 以外はコード有無に関わらず eventId 系列 (取消のコード欠落で系列分裂させない)", () => {
+    // 実例: VFVO56 の取消は Body に VolcanoInfo が無くコードを取得できない
+    // (test/fixtures/67_01_04)。発表(コードあり)と取消(コードなし)が同じ groupKey を持つこと
+    const announce = projectDisplayEvent(
+      volcanoEvent({ type: "VFVO56", volcanoCode: "312", eventId: "20140927120000_312" }), "要約");
+    const cancel = projectDisplayEvent(
+      volcanoEvent({ type: "VFVO56", volcanoCode: "", eventId: "20140927120000_312", isCancellation: true, infoType: "取消" }), "要約");
+    expect(announce.groupKey).toBe("volcano:20140927120000_312");
+    expect(cancel.groupKey).toBe(announce.groupKey);
+    expect(cancel.eventKey).not.toBe(announce.eventKey); // 別電文としては区別される
   });
 
   it("keeps same-serial corrections distinct by volcano and report time", () => {
