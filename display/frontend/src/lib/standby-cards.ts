@@ -75,19 +75,28 @@ export function selectRightStackWithSummary(
   forceSummary: boolean,
   gapPx: number,
 ): { visible: ActiveStandbyCardV1[]; overflow: ActiveStandbyCardV1[]; usedPx: number; summaryReservedPx: number } {
+  const severityRank: Record<ActiveStandbyCardV1["severity"], number> = {
+    info: 1,
+    normal: 1,
+    warning: 2,
+    critical: 3,
+  };
+  const order = cornerRight
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => severityRank[right.item.severity] - severityRank[left.item.severity] || left.index - right.index);
+
   const selectWithGaps = (availablePx: number): { visible: ActiveStandbyCardV1[]; overflow: ActiveStandbyCardV1[]; usedPx: number } => {
     let usedPx = 0;
-    const visible: ActiveStandbyCardV1[] = [];
-    const overflow: ActiveStandbyCardV1[] = [];
-    for (const item of cornerRight) {
-      const requiredPx = estimateHeightPx(item) + (visible.length > 0 ? gapPx : 0);
+    const picked = new Set<number>();
+    for (const { item, index } of order) {
+      const requiredPx = estimateHeightPx(item) + (picked.size > 0 ? gapPx : 0);
       if (usedPx + requiredPx <= availablePx) {
-        visible.push(item);
+        picked.add(index);
         usedPx += requiredPx;
-      } else {
-        overflow.push(item);
       }
     }
+    const visible = cornerRight.filter((_, index) => picked.has(index));
+    const overflow = cornerRight.filter((_, index) => !picked.has(index));
     return { visible, overflow, usedPx };
   };
   const first = selectWithGaps(budgetPx);

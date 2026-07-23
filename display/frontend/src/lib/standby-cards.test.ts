@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ActiveStandbyCardV1 } from "./protocol";
+import type { ActiveStandbyCardV1, StandbySeverity } from "./protocol";
 import {
   layoutFloodWideRows,
   partitionStandbyItems,
@@ -8,10 +8,10 @@ import {
   selectRightStackWithSummary,
 } from "./standby-cards";
 
-function item(kind: string, surface: string, key = kind): ActiveStandbyCardV1 {
+function item(kind: string, surface: string, key = kind, severity: StandbySeverity = "warning"): ActiveStandbyCardV1 {
   return {
     kind, surface, key, sourceEventIds: [], updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: null,
-    restored: false, severity: "warning", data: {},
+    restored: false, severity, data: {},
   } as unknown as ActiveStandbyCardV1;
 }
 
@@ -50,6 +50,51 @@ describe("standby-cards", () => {
     expect(result.overflow.map((candidate) => candidate.key)).toEqual(["typhoon"]);
     expect(result.usedPx + result.summaryReservedPx).toBeLessThanOrEqual(budget);
     expect(result.summaryReservedPx).toBe(44);
+  });
+  describe("selectRightStackWithSummary severity guard", () => {
+    const h = (heights: Record<string, number>) => (candidate: ActiveStandbyCardV1) => heights[candidate.key];
+
+    it("selects warning before normal while preserving original render order", () => {
+      const cards = [
+        item("typhoon", "corner-right", "a", "normal"),
+        item("heat", "corner-right", "b", "normal"),
+        item("volcano", "corner-right", "c", "warning"),
+      ];
+      const result = selectRightStackWithSummary(cards, 468, h({ a: 200, b: 200, c: 200 }), 32, false, 12);
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["a", "c"]);
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["b"]);
+    });
+
+    it("skips an oversized warning and best-effort selects a normal card", () => {
+      const cards = [
+        item("typhoon", "corner-right", "a", "normal"),
+        item("volcano", "corner-right", "c", "warning"),
+      ];
+      const result = selectRightStackWithSummary(cards, 344, h({ a: 200, c: 500 }), 32, false, 12);
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["a"]);
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["c"]);
+    });
+
+    it("uses original array order as the tie-break for equal severity", () => {
+      const cards = [
+        item("volcano", "corner-right", "a", "normal"),
+        item("typhoon", "corner-right", "b", "normal"),
+        item("heat", "corner-right", "c", "normal"),
+      ];
+      const result = selectRightStackWithSummary(cards, 468, h({ a: 200, b: 200, c: 200 }), 32, false, 12);
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["a", "b"]);
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["c"]);
+    });
+
+    it("keeps the reserved summary within the budget after best-effort selection", () => {
+      const cards = [
+        item("typhoon", "corner-right", "a", "normal"),
+        item("volcano", "corner-right", "c", "warning"),
+      ];
+      const result = selectRightStackWithSummary(cards, 344, h({ a: 200, c: 500 }), 32, false, 12);
+      expect(result.usedPx + result.summaryReservedPx).toBeLessThanOrEqual(344);
+      expect(result.summaryReservedPx).toBe(44);
+    });
   });
 });
 
