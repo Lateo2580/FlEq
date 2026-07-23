@@ -13,11 +13,26 @@ describe("NumberUnit", () => {
     expect(container.textContent).toBe("3.31m");
   });
 
-  it("renders an empty unit span when no unit is given (e.g. missing depth)", () => {
+  it("omits empty prefix/unit spans (後方互換: 既存の value+unit 呼び出しは不変)", () => {
     const { container } = render(NumberUnit, { value: "-", unit: "" });
     expect(container.querySelector(".nu-value")?.textContent).toBe("-");
-    expect(container.querySelector(".nu-unit")?.textContent).toBe("");
+    expect(container.querySelector(".nu-prefix")).toBeNull();
+    expect(container.querySelector(".nu-unit")).toBeNull();
     expect(container.textContent).toBe("-");
+  });
+
+  it("renders a prefix span before the value (規模 M7.1 / 火山 レベル3)", () => {
+    const { container } = render(NumberUnit, { value: "7.1", prefix: "M" });
+    expect(container.querySelector(".nu-prefix")?.textContent).toBe("M");
+    expect(container.querySelector(".nu-value")?.textContent).toBe("7.1");
+    // prefix → value の順で連結され、unit 省略時は unit span を出さない
+    expect(container.textContent).toBe("M7.1");
+    expect(container.querySelector(".nu-unit")).toBeNull();
+  });
+
+  it("renders prefix and unit together in prefix → value → unit order", () => {
+    const { container } = render(NumberUnit, { value: "3.31", prefix: "水位", unit: "m" });
+    expect(container.textContent).toBe("水位3.31m");
   });
 
   it("keeps composite units (m/s, km/h) in a single unit span", () => {
@@ -28,7 +43,7 @@ describe("NumberUnit", () => {
   it("floors the unit font at 12px (A11y 層2) so small values don't sink below the legibility floor", () => {
     // jsdom は computed font-size を CSS 変数/em で解決しないため、source で床の宣言を固定する
     const source = readFileSync(join(__dirname, "..", "NumberUnit.svelte"), "utf8");
-    expect(source).toContain("font-size: max(12px, 0.6em)");
+    expect(source).toContain("font-size: max(12px, var(--number-unit-affix-size, 0.6em))");
     expect(source).not.toContain("font-size: 0.6em;");
   });
 });
