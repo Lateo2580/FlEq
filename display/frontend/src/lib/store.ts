@@ -1,4 +1,5 @@
 import type { DisplayEventDtoV1, DisplayServerMessage, DisplayStateSnapshotV1 } from "./protocol";
+import { filterStaleEews } from "./ticker-freshness";
 
 // RECENT_TICKER_MAX (src/engine/display/constants.ts) と同値。protocol.ts の SYNC 複製対象外のため
 // ここではローカル定数として複製する。
@@ -72,7 +73,7 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
       return {
         ...state,
         snapshot: msg.snapshot,
-        ticker: msg.snapshot.recentTicker.slice(0, TICKER_MAX),
+        ticker: filterStaleEews(msg.snapshot.recentTicker, msg.snapshot).slice(0, TICKER_MAX),
         lastSeq: Math.max(state.lastSeq, msg.snapshot.seq),
         lastEventSeq: msg.snapshot.seq,
         seqGapDetected: false,
@@ -90,7 +91,7 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
       return {
         ...state,
         snapshot: msg.snapshot,
-        ticker: tickerSynced ? msg.snapshot.recentTicker.slice(0, TICKER_MAX) : state.ticker,
+        ticker: tickerSynced ? filterStaleEews(msg.snapshot.recentTicker, msg.snapshot).slice(0, TICKER_MAX) : state.ticker,
         lastSeq: Math.max(state.lastSeq, msg.snapshot.seq),
         seqGapDetected: state.seqGapDetected || hasStateSeqGap(state.lastEventSeq, msg.snapshot.seq),
         tickerGeneration: tickerSynced ? state.tickerGeneration + 1 : state.tickerGeneration,

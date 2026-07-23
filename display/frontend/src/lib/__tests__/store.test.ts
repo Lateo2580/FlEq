@@ -66,6 +66,14 @@ describe("reduce", () => {
     expect(next.lastSeq).toBe(3);
   });
 
+  it("snapshot は inactive の古い EEW を ticker に再投入しない", () => {
+    const snap = snapshot({
+      generatedAt: "2026-07-06T21:00:00+09:00",
+      recentTicker: [tickerEvent({ id: "old-eew", domain: "eew", groupKey: "eew:E1", reportDateTime: "2026-07-06T20:48:00+09:00" })],
+    });
+    expect(reduce(initialState(), { type: "snapshot", snapshot: snap }).ticker).toEqual([]);
+  });
+
   it("② event 受信で ticker 先頭に積まれ 200 で丸まる (snapshot 由来と並び順が一貫)", () => {
     const snap = snapshot({ recentTicker: [tickerEvent({ id: "e2" }), tickerEvent({ id: "e1" })] });
     let state = reduce(initialState(), { type: "snapshot", snapshot: snap });
@@ -230,6 +238,17 @@ describe("reduce", () => {
       const synced = snapshot({ seq: 2, recentTicker: [], tickerSynced: true });
       const next = reduce(withTicker, { type: "state", snapshot: synced });
       expect(next.ticker).toEqual([]);
+    });
+
+    it("tickerSynced state でも inactive の古い EEW を再投入しない", () => {
+      const withTicker = reduce(initialState(), {
+        type: "snapshot", snapshot: snapshot({ seq: 1, recentTicker: [tickerEvent({ id: "e1" })] }),
+      });
+      const synced = snapshot({
+        seq: 2, generatedAt: "2026-07-06T21:00:00+09:00", tickerSynced: true,
+        recentTicker: [tickerEvent({ id: "old-eew", domain: "eew", groupKey: "eew:E1", reportDateTime: "2026-07-06T20:48:00+09:00" })],
+      });
+      expect(reduce(withTicker, { type: "state", snapshot: synced }).ticker).toEqual([]);
     });
   });
 });
