@@ -155,6 +155,21 @@ spring は spatial 3 種と effects 2 種の 5 つを用意する（`generate-sp
 「消失感を出さない」ため、位置移動を伴わずその場でそっと消す設計である。
 tier 昇格時の主役ウェイト bold→heavy の遷移は `--dur-weight-swell`（200ms、`theme.css:224`）が担い、太さだけを連続的に膨らませる（色・面は瞬時、§4）。
 
+**二層 slot（dim と transition の所有権分離、2026-07-23 モーション修正）。**
+待機画面の slot 4 系統（flood-slot / weather-corner / standby-corner / corner-item）は、外枠と内枠 `.slot-motion` の二層で組む。
+外枠が dim 減光 CSS・absolute 配置・高さ計測（measureBorderHeight）・`animate:flip` を持ち、内枠が `in:spatialScaleIn|global` と local `out:fade` を持つ。
+Svelte の intro は Web Animations として author rule より優先されるため、transition と dim opacity を同じ要素に持たせると dim 中の入場が一時的に明るくなる——所有者を分ければ両者は乗算で共存する。
+intro の `|global` は画面切替時の入場演出のために維持し、**outro には `|global` を付けない**（付けると親子二重 fade + 画面切替が全 outro 完了まで遅れる。FloodWideCard の子セルも同じ理由で local intro）。
+
+**単一要素の位置補間は手動 FLIP。**
+`animate:` は keyed each の並べ替え専用で、同一 key のまま class・座標だけが変わる要素（洪水スロットの corner ⇔ clock-top-wide、時計スライド）には反応しない。
+これらは `$effect.pre`（変更前 rect）+ `$effect`（変更後 rect）の手動 FLIP で補間する。
+keyframe は `transform` ではなく独立 CSS `translate` プロパティを使う——既存の `transform: translateX(-50%)` 等と自動合成され、matrix 文字列合成のように base の変形で dx/dy が歪む事故がない（`StandbyScreen.svelte` の洪水 FLIP を参照実装とする）。
+高速往復に備え「可視 rect 読取 → 旧アニメ cancel → final rect 読取」の順を守り（先に cancel すると開始点が飛ぶ）、`onfinish`/`oncancel` は animation identity を確認する。
+
+**dim 明転/暗転の同期契約。**
+待機画面の dim 切替は `--dur-standby-dim`（600ms、`theme.css`）を StandbyScreen `.standby` と TickerLane（本文・ラベル・レーン面）が共有する。値の変更は必ず両者同時。`prefers-reduced-motion` では両者とも即時。
+
 ## 4. Tier 機構
 
 tier（severity tier、重大度の段）は、平常から緊急までの「今どれだけ重大か」を表す離散的な段位である。
