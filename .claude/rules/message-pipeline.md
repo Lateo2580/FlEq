@@ -40,7 +40,9 @@ paths:
 18. `telegram.weather` + `VXKO50-89`/`VXSU50-59` → 指定河川洪水予報・水位周知河川 (parser は schema 分岐で同一型に正規化、formatter は VXKO full / VXSU minimal の 2 layout。state holder は EventID 単位 station digest dedup + 取消 rollback、processor は 4 ケース dedup bypass: 取消 (rollback のみ) / 訂正 / Headline-only (rawStations 空) / VXSU schema。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す。aggregateByRiver は formatter 内呼出 (engine→ui 境界遵守))
 19. それ以外 → `displayRawHeader` (フォールバック)
 
-**特記**: VFVO53 は単発処理ではなく `volcano-vfvo53-aggregator.ts` でバッチ集約される。
+**特記**: VFVO53 は単発処理ではなく `volcano-vfvo53-aggregator.ts` でバッチ集約される。CLI 表示・通知はバッチ 1 イベントのまま、**display テロップだけは投影段で火山ごとの単発相当イベントに分割**される（`expandVolcanoBatchForDisplay`、groupKey は `volcano:eventId:volcanoCode` で単発取消と系列一致。source msg 欠落時は分割せず縮退）。
+
+**特記 (テロップ抑制)**: sentence も body も組めない非取消の VPWP50 は `tickerSuppressed: true` でテロップに流れない（event broadcast 自体は seq 整合のため流れる。`project-event.ts` の判定、spec 2026-07-23 ticker-content-lifetime T5-2）。
 
 ## 表示パイプライン
 
