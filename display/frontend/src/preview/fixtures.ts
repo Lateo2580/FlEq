@@ -1961,9 +1961,13 @@ export const standbyItemsRightStackBudget: ActiveStandbyCardV1[] = [
   },
   {
     ...STANDBY_ITEM_BASE, kind: "heat", surface: "corner-right", key: "heat:2026-07-24", severity: "warning",
+    // 実機相当の全国的高温日 (2026-07-24 実測は 40 府県)。カード内マーキーの目視検証を兼ねる
     data: { targetDate: "2026-07-24", areas: [
-      { areaName: "宮崎県", isSpecial: false }, { areaName: "鹿児島県", isSpecial: false },
-    ] },
+      "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "山梨県", "長野県",
+      "岐阜県", "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県",
+      "和歌山県", "岡山県", "広島県", "山口県", "徳島県", "香川県", "愛媛県", "高知県", "福岡県",
+      "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県", "鹿児島県",
+    ].map((areaName) => ({ areaName, isSpecial: false })) },
   },
   {
     ...STANDBY_ITEM_BASE, kind: "heat", surface: "corner-right", key: "heat:2026-07-23", severity: "warning",

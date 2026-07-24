@@ -45,37 +45,34 @@ describe("HeatAlertCard", () => {
   });
 });
 
-describe("対象都道府県の縮約と禁則 (2026-07-24 実機報告対応)", () => {
+describe("対象都道府県のカード内マーキー (2026-07-25 実機報告対応: 縮約は省略側が多数になるため全数を流す)", () => {
   const manyAreas = (n: number) =>
     Array.from({ length: n }, (_, i) => ({ areaName: `県${i + 1}`, isSpecial: false }));
 
-  it("6 件以下は全列挙で「ほか」なし", () => {
+  it("40 府県でも全数がテキストに含まれ「ほか」表記を使わない", () => {
     const { container } = render(HeatAlertCard, {
-      item: heatItem({ data: { targetDate: "2026-07-24", areas: manyAreas(6) } }),
+      item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(40) } }),
     });
     const text = container.querySelector(".areas")?.textContent ?? "";
-    expect(text).toContain("県6");
+    expect(text).toContain("県1・");
+    expect(text).toContain("県40");
     expect(text).not.toContain("ほか");
   });
 
-  it("7 件以上は先頭 6 件 + ほか n 件に縮約", () => {
+  it("マーキー用の単一行構造 (marquee-text) で描画される", () => {
     const { container } = render(HeatAlertCard, {
-      item: heatItem({ data: { targetDate: "2026-07-24", areas: manyAreas(20) } }),
+      item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(40) } }),
     });
-    const text = container.querySelector(".areas")?.textContent ?? "";
-    expect(text).toContain("県6");
-    expect(text).not.toContain("県7");
-    expect(text).toContain("ほか14件");
+    const marquee = container.querySelector(".areas .marquee-text");
+    expect(marquee).toBeTruthy();
+    // jsdom は幅 0 のため needsMarquee=false (静的表示)。running クラスは付かない
+    expect(marquee!.classList.contains("running")).toBe(false);
   });
 
-  it("各都道府県名は inline-block span で名前内改行を防ぐ (禁則)", () => {
+  it("少数府県は従来どおり全列挙 (静的)", () => {
     const { container } = render(HeatAlertCard, {
-      item: heatItem({ data: { targetDate: "2026-07-24", areas: manyAreas(3) } }),
+      item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(2) } }),
     });
-    const spans = [...container.querySelectorAll(".areas .area-name")];
-    expect(spans).toHaveLength(3);
-    // 区切りの・は前の名前に接着 (行頭・の防止)。末尾要素には付かない
-    expect(spans[0].textContent).toBe("県1・");
-    expect(spans[2].textContent).toBe("県3");
+    expect(container.querySelector(".areas")?.textContent).toBe("県1・県2");
   });
 });

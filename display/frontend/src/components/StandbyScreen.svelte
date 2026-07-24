@@ -477,6 +477,12 @@
   .measure-shelf-item {
     width: var(--standby-card-width);
   }
+  /* 棚には motion を載せない規約の強制 (カード内マーキー等の子コンポーネント animation も含めて止める。
+     非表示棚で走る CPU の無駄と、計測タイミングへの干渉を防ぐ) */
+  .measure-shelf :global(*) {
+    animation: none !important;
+    transition: none !important;
+  }
   .flood-slot {
     z-index: 2;
   }
