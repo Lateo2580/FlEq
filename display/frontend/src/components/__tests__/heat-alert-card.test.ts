@@ -44,3 +44,38 @@ describe("HeatAlertCard", () => {
     expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
   });
 });
+
+describe("対象都道府県の縮約と禁則 (2026-07-24 実機報告対応)", () => {
+  const manyAreas = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ areaName: `県${i + 1}`, isSpecial: false }));
+
+  it("6 件以下は全列挙で「ほか」なし", () => {
+    const { container } = render(HeatAlertCard, {
+      item: heatItem({ data: { targetDate: "2026-07-24", areas: manyAreas(6) } }),
+    });
+    const text = container.querySelector(".areas")?.textContent ?? "";
+    expect(text).toContain("県6");
+    expect(text).not.toContain("ほか");
+  });
+
+  it("7 件以上は先頭 6 件 + ほか n 件に縮約", () => {
+    const { container } = render(HeatAlertCard, {
+      item: heatItem({ data: { targetDate: "2026-07-24", areas: manyAreas(20) } }),
+    });
+    const text = container.querySelector(".areas")?.textContent ?? "";
+    expect(text).toContain("県6");
+    expect(text).not.toContain("県7");
+    expect(text).toContain("ほか14件");
+  });
+
+  it("各都道府県名は inline-block span で名前内改行を防ぐ (禁則)", () => {
+    const { container } = render(HeatAlertCard, {
+      item: heatItem({ data: { targetDate: "2026-07-24", areas: manyAreas(3) } }),
+    });
+    const spans = [...container.querySelectorAll(".areas .area-name")];
+    expect(spans).toHaveLength(3);
+    // 区切りの・は前の名前に接着 (行頭・の防止)。末尾要素には付かない
+    expect(spans[0].textContent).toBe("県1・");
+    expect(spans[2].textContent).toBe("県3");
+  });
+});

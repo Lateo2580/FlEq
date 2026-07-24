@@ -5,11 +5,18 @@
   const special = $derived(item.severity === "critical" || item.data.areas.some((area) => area.isSpecial));
   // 見出し帯の折り返し回避: 日付は MM/DD (月日部分) に短縮する。データ形式 (targetDate) は変えない
   const shortDate = $derived(item.data.targetDate.slice(5).replaceAll("-", "/"));
+  // 対象府県の縮約 (2026-07-24 実機: 全国的な高温日は 20 府県超で 160px を溢れた)。
+  // WeatherAlertCard の地域 cap と同じ 6 件 + 「ほか n 件」(集約行の表記と統一)
+  const AREA_MAX = 6;
+  const shownAreas = $derived(item.data.areas.slice(0, AREA_MAX).map((area) => area.areaName));
+  const omittedCount = $derived(Math.max(0, item.data.areas.length - AREA_MAX));
 </script>
 
 <section class:critical={special} class="standby-card heat-card">
   <header><span class="title">{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}</span>{#if item.restored}<RestoredChip />{/if}<span class="date">{shortDate}</span></header>
-  <div class="areas">{item.data.areas.map((area) => area.areaName).join("・")}</div>
+  <div class="areas">
+    {#each shownAreas as name, i (name)}<span class="area-name">{name}{i < shownAreas.length - 1 || omittedCount > 0 ? "・" : ""}</span>{/each}{#if omittedCount > 0}<span class="area-name">ほか{omittedCount}件</span>{/if}
+  </div>
 </section>
 
 <style>
@@ -35,4 +42,7 @@
   /* 日付は見出し帯の右端に寄せる (header は flex 済み)。色は帯上の --header-*-on を継承 */
   .date { margin-left: auto; white-space: nowrap; font-size: max(12px, var(--type-label-s-fluid)); }
   .areas { padding: var(--space-2) var(--space-4); font-size: max(14px, var(--type-label-l-fluid)); color: var(--role-muted); }
+  /* 禁則: 府県名の途中で折り返さない (inline-block 単位で wrap)。区切りの・は前の名前に
+     接着済み (markup 側) なので行頭に・が来ない */
+  .area-name { display: inline-block; }
 </style>
