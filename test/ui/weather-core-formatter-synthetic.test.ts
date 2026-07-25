@@ -18,8 +18,9 @@ function makeInfo(kinds: { code: string; name: string }[]): ParsedWeatherWarning
         fullStatus: "全域" },
     ]}],
     comments: [], maxSeverity: "specialWarning",
+    maxDisplaySeverity: null, maxSoundLevel: null,
     warningAreaCount: 1, advisoryAreaCount: 0, isTest: false,
-  } as ParsedWeatherWarning;
+  };
 }
 
 describe("特別警報級 (L5 / nonLevelSpecial) 描画経路", () => {

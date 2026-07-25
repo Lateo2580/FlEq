@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { displayFloodForecastInfo } from "../../src/ui/flood-forecast-formatter";
 import { parseFloodForecast } from "../../src/dmdata/flood-forecast-parser";
 import { createMockWsDataMessage } from "../helpers/mock-message";
@@ -9,7 +9,7 @@ const stripAnsi = (s: string) =>
   s.replace(/\x1b\[[0-9;]*m/g, "");
 
 let logs: string[];
-let logSpy: ReturnType<typeof vi.spyOn>;
+let logSpy: MockInstance<typeof console.log>;
 
 beforeEach(() => {
   logs = [];

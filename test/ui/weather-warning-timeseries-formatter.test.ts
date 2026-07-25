@@ -18,7 +18,7 @@ import type {
   ParsedWeatherWarningTimeseriesInfo,
   WeatherWarningTimeseriesArea,
 } from "../../src/types";
-import { parseWeatherWarningTimeseries } from "../../src/dmdata/weather-warning-timeseries-parser";
+import { parseWeatherWarningTimeseries as parseTimeseriesRaw } from "../../src/dmdata/weather-warning-timeseries-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VPWP50_NAGANO,
@@ -40,6 +40,14 @@ import {
   getWeatherWarningDisplayOptions,
 } from "../../src/ui/formatter";
 import type { WeatherSeverityEntry, SeriesWindow } from "../../src/engine/presentation/weather-severity-pyramid";
+
+/** fixture のパース結果を非 null に絞る。パース失敗は fixture 破損なので即座に落とす
+ *  (null のまま formatter へ渡すと「何も出力されない緑」になり、検証が抜ける) */
+function parseTimeseries(msg: Parameters<typeof parseTimeseriesRaw>[0]): ParsedWeatherWarningTimeseriesInfo {
+  const info = parseTimeseriesRaw(msg);
+  if (info == null) throw new Error("VPWP50 fixture のパースに失敗した");
+  return info;
+}
 
 chalk.level = 0;
 
@@ -71,7 +79,7 @@ describe("displayWeatherWarningTimeseriesInfo (pyramid)", () => {
 
   it("長野県 fixture の normal 出力が 70 行以内に収まる", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((line: unknown) => {
       logs.push(String(line));
@@ -83,7 +91,7 @@ describe("displayWeatherWarningTimeseriesInfo (pyramid)", () => {
 
   it("長野県 fixture が △ 注意報 divider を含む (Phase B: displaySeverity 別 / 文言は 2026-06-12 VPWW 形式統一)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((line: unknown) => {
       logs.push(String(line));
@@ -96,7 +104,7 @@ describe("displayWeatherWarningTimeseriesInfo (pyramid)", () => {
 
   it("全域警報 fixture (synthetic) が ◆ 警報 + 列ヘッダを含む (Phase B: standard 以上で 6 列)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const baseInfo = parseWeatherWarningTimeseries(msg);
+    const baseInfo = parseTimeseries(msg);
     const info = createSyntheticGlobalWarningInfo(baseInfo);
     // standard モード (>=120) を強制
     setFrameWidth(140);
@@ -124,7 +132,7 @@ describe("displayWeatherWarningTimeseriesInfo (pyramid)", () => {
 describe("Codex R4 #2: 注意報サマリの幅安全", () => {
   it("6+ 種別の注意報サマリでも全描画行が visualWidth ≤ width に収まる (Codex R4 #2)", () => {
     // 8 種別の注意報を強引に注入
-    const baseInfo = parseWeatherWarningTimeseries(createMockWsDataMessage(FIXTURE_VPWP50_NAGANO));
+    const baseInfo = parseTimeseries(createMockWsDataMessage(FIXTURE_VPWP50_NAGANO));
     const types = ["大雨", "洪水", "雷", "強風", "波浪", "濃霧", "乾燥", "なだれ"];
     const synthesized = {
       ...baseInfo,
@@ -175,7 +183,7 @@ describe.each([80, 100, 120])(
       [
         "長野 fixture (実機受信)",
         () =>
-          parseWeatherWarningTimeseries(
+          parseTimeseries(
             createMockWsDataMessage(FIXTURE_VPWP50_NAGANO),
           ),
       ],
@@ -183,7 +191,7 @@ describe.each([80, 100, 120])(
         "全域警報 fixture (人工)",
         () =>
           createSyntheticGlobalWarningInfo(
-            parseWeatherWarningTimeseries(
+            parseTimeseries(
               createMockWsDataMessage(FIXTURE_VPWP50_NAGANO),
             ),
           ),
@@ -811,7 +819,7 @@ describe("幅境界テスト (Phase 4-B: 全 fixture × 全幅で全行 <= width
       it(`${fx.name} @ width=${w}: 全行 visualWidth(stripAnsi(line)) <= ${w}`, () => {
         setFrameWidth(w);
         const msg = createMockWsDataMessage(fx.ref);
-        const info = parseWeatherWarningTimeseries(msg);
+        const info = parseTimeseries(msg);
         const logs: string[] = [];
         const spy = vi
           .spyOn(console, "log")
@@ -853,7 +861,7 @@ describe("displayNormalResponsive (Phase 2-D): バナー発火 + tier 別 divide
   /** synthetic helper は maxKnownSignificancy を再計算しないので、テスト側で警報級に上書き */
   function makeWarningGlobalInfo(): ParsedWeatherWarningTimeseriesInfo {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const baseInfo = parseWeatherWarningTimeseries(msg);
+    const baseInfo = parseTimeseries(msg);
     const synth = createSyntheticGlobalWarningInfo(baseInfo);
     const sig30 = {
       code: "30",
@@ -887,7 +895,7 @@ describe("displayNormalResponsive (Phase 2-D): バナー発火 + tier 別 divide
 
   it("注意報のみ電文 (NAGANO fixture) ではバナー無し、1 行目が frame top", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs = captureDisplay(info);
     expect(stripAnsi(logs[0])).toMatch(/^[╔┌]/);
   });
@@ -929,7 +937,7 @@ describe("displayNormalResponsive (Phase 2-D): バナー発火 + tier 別 divide
   it("△ 注意報 divider が出る (NAGANO fixture / standard width)", () => {
     setFrameWidth(140);
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs = captureDisplay(info);
     clearFrameWidth();
     const all = logs.map(stripAnsi).join("\n");
@@ -939,7 +947,7 @@ describe("displayNormalResponsive (Phase 2-D): バナー発火 + tier 別 divide
   it("時刻枠列に '(N枠/Mh)' 形式が出る (NAGANO fixture, standard 以上)", () => {
     setFrameWidth(150);
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs = captureDisplay(info);
     clearFrameWidth();
     const all = logs.map(stripAnsi).join("\n");
@@ -949,7 +957,7 @@ describe("displayNormalResponsive (Phase 2-D): バナー発火 + tier 別 divide
   it("ultra-narrow (width=80) で注意報がチップ列 [phenomenon N] になる", () => {
     setFrameWidth(80);
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs = captureDisplay(info);
     clearFrameWidth();
     expect(logs.some((l) => /\[\S+\s\d+\]/.test(stripAnsi(l)))).toBe(true);
@@ -970,7 +978,7 @@ describe("Phase 2-FIX: 重大修正の回帰防止 (Codex R1)", () => {
   it("未知 Code を持つ電文で、該当 known entry の備考列に '未知:?XX' が出る (UNKNOWN_CODE fixture, wide)", () => {
     setFrameWidth(200);
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_UNKNOWN_CODE);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs = captureDisplay(info);
     clearFrameWidth();
     const all = logs.map(stripAnsi).join("\n");
@@ -983,7 +991,7 @@ describe("Phase 2-FIX: 重大修正の回帰防止 (Codex R1)", () => {
   it("注意報チップで '風' propertyType が '強風' になる (normalizeKindName 適用)", () => {
     setFrameWidth(80); // ultra-narrow でチップ表示
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs = captureDisplay(info);
     clearFrameWidth();
     const all = logs.map(stripAnsi).join("\n");
@@ -1011,7 +1019,7 @@ describe("breakpoint 切り替え (Phase 4-A)", () => {
   /** synthetic 警報 fixture を組み立てる (maxKnownSignificancy で警報判定が立つようにする) */
   function buildWarningInfo(): ParsedWeatherWarningTimeseriesInfo {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const baseInfo = parseWeatherWarningTimeseries(msg);
+    const baseInfo = parseTimeseries(msg);
     const info = createSyntheticGlobalWarningInfo(baseInfo);
     const sig30 = {
       code: "30",
@@ -1032,7 +1040,7 @@ describe("breakpoint 切り替え (Phase 4-A)", () => {
     setFrameWidth(119);
     try {
       const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-      const info = parseWeatherWarningTimeseries(msg);
+      const info = parseTimeseries(msg);
       const out = captureDisplay(info);
       // 注意報チップ [phenomenon N]
       expect(out).toMatch(/\[\S+\s\d+\]/);
@@ -1122,7 +1130,7 @@ describe("NO_COLOR golden (chalk.level = 0 で tier 読取り可能)", () => {
     it(`${c.name} (width=${c.width}) golden snapshot + tier 読取り可能`, () => {
       setFrameWidth(c.width);
       const msg = createMockWsDataMessage(c.ref);
-      const info = parseWeatherWarningTimeseries(msg);
+      const info = parseTimeseries(msg);
       const logs: string[] = [];
       // Codex I2: 引数なし console.log() (空行) を String(undefined)="undefined" 化しない
       const spy = vi.spyOn(console, "log").mockImplementation((line?: unknown) => {
@@ -1175,7 +1183,7 @@ describe("unknown 表示の安全網 (旧 severityToPrefix 検証から引き継
     // (tier prefix は級列・divider 見出し・[詳細]・バナーで読み取れる)
     setFrameWidth(200);
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_UNKNOWN_CODE);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseTimeseries(msg);
     const logs: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation((line: unknown) => {
       logs.push(String(line));

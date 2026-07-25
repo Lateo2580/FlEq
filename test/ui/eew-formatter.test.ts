@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displayEewInfo, buildEewAccuracyLine, buildEewCardLine } from "../../src/ui/eew-formatter";
 import { parseEewTelegram } from "../../src/dmdata/telegram-parser";
@@ -33,7 +33,7 @@ function eewMsg(fixture: string, type: string) {
 }
 
 describe("EEW 震源詳細ブロック (Phase 4b)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   beforeEach(() => {
     chalk.level = 3;
     setFrameWidth(140);
@@ -113,7 +113,7 @@ function syntheticEew(areas: NonNullable<ParsedEewInfo["forecastIntensity"]>["ar
 }
 
 describe("EEW 予測震度テーブル (Phase 4b)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   beforeEach(() => {
     chalk.level = 3;
     setFrameWidth(140);
@@ -276,7 +276,7 @@ describe("EEW 予測震度テーブル (Phase 4b)", () => {
 });
 
 describe("EEW 速報カード行 + compact 全廃 (Phase 4b)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   beforeEach(() => {
     chalk.level = 3;
     setFrameWidth(140);
@@ -284,7 +284,7 @@ describe("EEW 速報カード行 + compact 全廃 (Phase 4b)", () => {
   });
   afterEach(() => {
     logSpy.mockRestore();
-    setDisplayMode("full");
+    setDisplayMode("normal");
     setFrameWidth(60);
   });
   const output = () => logSpy.mock.calls.map((a) => stripAnsi(String(a[0] ?? ""))).join("\n");
@@ -369,7 +369,7 @@ describe("EEW 速報カード行 + compact 全廃 (Phase 4b)", () => {
 });
 
 describe("EEW 取消報 (Phase 4b: cancelText 優先 + fallback)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   beforeEach(() => {
     chalk.level = 3;
     setFrameWidth(140);

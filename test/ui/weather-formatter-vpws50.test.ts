@@ -265,10 +265,11 @@ describe("aggregateVpws50ByForecastZone", () => {
 
     expect(result.rows.length).toBeGreaterThan(0);
     const rankMap: Record<string, number> = { specialWarning: 4, warning: 3, advisory: 2 };
+    // maxSeverity は null を取りうる (対象 Kind なしの予報区)。null は最下位として比較する
+    const rank = (row: { maxSeverity: string | null }): number =>
+      row.maxSeverity == null ? 0 : rankMap[row.maxSeverity] ?? 0;
     for (let i = 0; i < result.rows.length - 1; i++) {
-      expect(rankMap[result.rows[i].maxSeverity]).toBeGreaterThanOrEqual(
-        rankMap[result.rows[i + 1].maxSeverity]
-      );
+      expect(rank(result.rows[i]!)).toBeGreaterThanOrEqual(rank(result.rows[i + 1]!));
     }
   });
 
@@ -296,6 +297,7 @@ describe("aggregateVpws50ByForecastZone", () => {
       }],
       comments: [],
       maxSeverity: "release",
+      maxDisplaySeverity: null, maxSoundLevel: null,
       warningAreaCount: 0,
       advisoryAreaCount: 0,
       isTest: false,
@@ -320,6 +322,7 @@ describe("aggregateVpws50ByForecastZone", () => {
       layers: [],
       comments: [],
       maxSeverity: "release",
+      maxDisplaySeverity: null, maxSoundLevel: null,
       warningAreaCount: 0,
       advisoryAreaCount: 0,
       isTest: false,
@@ -368,6 +371,7 @@ const fakeInfo: ParsedWeatherWarning = {
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
         comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       const buf = createRenderBuffer();
@@ -401,6 +405,7 @@ const fakeInfo: ParsedWeatherWarning = {
           }],
         }],
         comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       const buf = createRenderBuffer();
@@ -425,6 +430,7 @@ describe("hasForecastZoneLayer", () => {
       headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
       layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
       comments: [], maxSeverity: "release",
+      maxDisplaySeverity: null, maxSoundLevel: null,
       warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
     };
     expect(hasForecastZoneLayer(info)).toBe(true);
@@ -436,6 +442,7 @@ describe("hasForecastZoneLayer", () => {
       headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
       layers: [{ type: "気象警報・注意報（市町村等）", items: [] }],
       comments: [], maxSeverity: "release",
+      maxDisplaySeverity: null, maxSoundLevel: null,
       warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
     };
     expect(hasForecastZoneLayer(info)).toBe(false);
@@ -447,6 +454,7 @@ describe("hasForecastZoneLayer", () => {
       headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
       layers: [],
       comments: [], maxSeverity: "release",
+      maxDisplaySeverity: null, maxSoundLevel: null,
       warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
     };
     expect(hasForecastZoneLayer(info)).toBe(false);
@@ -492,6 +500,7 @@ describe("displayVpws50Compact", () => {
         type: "VPWS50", infoType: "取消", title: "", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [], comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       displayVpws50Compact(fakeInfo, "cancel");
@@ -514,6 +523,7 @@ describe("displayVpws50Compact", () => {
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
         comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       displayVpws50Compact(fakeInfo, "info");
@@ -592,6 +602,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
           items: [{ areaName: "テスト県", areaCode: "999999", kinds: [], statuses: [] }],
         }],
         comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       displayWeatherWarning(fakeInfo);
@@ -643,6 +654,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
           items: [],
         }],
         comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       displayWeatherWarning(fakeInfo);
@@ -704,6 +716,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
           }],
         }],
         comments: [], maxSeverity: "release",
+        maxDisplaySeverity: null, maxSoundLevel: null,
         warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
       };
       displayWeatherWarning(fakeInfo);
@@ -735,6 +748,7 @@ function makeFakeInfo(opts?: Partial<ParsedWeatherWarning>): ParsedWeatherWarnin
     layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
     comments: [],
     maxSeverity: "release",
+    maxDisplaySeverity: null, maxSoundLevel: null,
     warningAreaCount: 0,
     advisoryAreaCount: 0,
     isTest: false,

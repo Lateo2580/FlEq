@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displayEewInfo } from "../../src/ui/eew-formatter";
 import type { EewDiff } from "../../src/engine/eew/eew-tracker";
@@ -55,7 +55,7 @@ const CASES: { label: string; render: () => void }[] = [
 ];
 
 describe("EEW 幅 sweep: 幅 40-200 全域の frame 幅保証 (acceptance 2)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   let lines: string[] = [];
   beforeEach(() => {
     chalk.level = 3;

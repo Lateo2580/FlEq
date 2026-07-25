@@ -55,9 +55,9 @@ describe("displayTornadoAdvisory - Phase D 配色言語", () => {
     setFrameWidth(60);
     const info = parseTornadoAdvisory(createMockWsDataMessage(FIXTURE_VPHW51_SIGHTING))!;
     info.sightingAreas = [
-      { name: "とてもとてもとてもとてもとても長い目撃地域名その壱", code: "990001" },
-      { name: "とてもとてもとてもとてもとても長い目撃地域名その弐", code: "990002" },
-      { name: "とてもとてもとてもとてもとても長い目撃地域名その参", code: "990003" },
+      { name: "とてもとてもとてもとてもとても長い目撃地域名その壱", code: "990001" , status: "active" },
+      { name: "とてもとてもとてもとてもとても長い目撃地域名その弐", code: "990002" , status: "active" },
+      { name: "とてもとてもとてもとてもとても長い目撃地域名その参", code: "990003" , status: "active" },
     ];
     info.hasSightingAreas = true;
     const out = capture(() => displayTornadoAdvisory(info));

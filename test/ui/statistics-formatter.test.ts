@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import {
   formatStatsDuration,
   displayStatistics,
@@ -53,7 +53,7 @@ describe("formatStatsDuration", () => {
 // ── displayStatistics ──
 
 describe("displayStatistics", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

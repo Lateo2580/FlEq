@@ -1,14 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildSummaryModel } from "../../../src/ui/summary/summary-model";
 import { toPresentationEvent } from "../../../src/engine/presentation/events/to-presentation-event";
-import { processMessage, ProcessDeps } from "../../../src/engine/presentation/processors/process-message";
-import { EewTracker } from "../../../src/engine/eew/eew-tracker";
-import { EewEventLogger } from "../../../src/engine/eew/eew-logger";
-import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
-import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
-import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
-import { Vpwp50DetailCache } from "../../../src/engine/messages/vpwp50-detail-cache";
-import { TyphoonProbabilityStateHolder } from "../../../src/engine/messages/typhoon-probability-state";
+import { processMessage } from "../../../src/engine/presentation/processors/process-message";
+import { makeProcessDeps as makeDeps } from "../../helpers/process-deps";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE53_ENCHI,
@@ -35,18 +29,6 @@ vi.mock("fs", async () => {
 vi.mock("../../../src/engine/notification/sound-player", () => ({
   playSound: vi.fn(),
 }));
-
-function makeDeps(): ProcessDeps {
-  return {
-    eewTracker: new EewTracker(),
-    eewLogger: new EewEventLogger(),
-    tsunamiState: new TsunamiStateHolder(),
-    volcanoState: new VolcanoStateHolder(),
-    vpws50State: new Vpws50StateHolder(),
-    vpwp50Cache: new Vpwp50DetailCache(),
-    typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
-  };
-}
 
 describe("buildSummaryModel", () => {
   it("earthquake: severity, domain, location, magnitude を正しく変換する", () => {

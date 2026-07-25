@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { handleTest } from "../../../src/ui/repl-handlers/operation-handlers";
 import type { ReplContext } from "../../../src/ui/repl-handlers/types";
 
@@ -38,7 +38,7 @@ function makeCtx(): ReplContext {
 }
 
 describe("handleTest — test-samples の遅延ロード", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

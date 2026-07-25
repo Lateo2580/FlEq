@@ -377,7 +377,7 @@ describe("summarizeAdvisoryByPhenomenon", () => {
 describe("WeatherSeverityEntry.id + flattenEntries v3.2", () => {
   it("各 entry に id フィールドがある (実 fixture)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseWeatherWarningTimeseries(msg)!;
     const entries = flattenEntries(info);
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) {
@@ -442,7 +442,7 @@ describe("WeatherSeverityEntry.id + flattenEntries v3.2", () => {
 
   it("Local entry は localKey が空文字でない (実 fixture: CRITERIA_PERIOD)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_CRITERIA_PERIOD);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseWeatherWarningTimeseries(msg)!;
     const entries = flattenEntries(info);
     const localEntries = entries.filter((e) => e.areaName.includes("/"));
     expect(localEntries.length).toBeGreaterThan(0);
@@ -461,7 +461,7 @@ describe("WeatherSeverityEntry.id + flattenEntries v3.2", () => {
 
   it("SeriesWindow.tsNum が 1/2/3 のいずれか (実 fixture)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VPWP50_NAGANO);
-    const info = parseWeatherWarningTimeseries(msg);
+    const info = parseWeatherWarningTimeseries(msg)!;
     const entries = flattenEntries(info);
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) {

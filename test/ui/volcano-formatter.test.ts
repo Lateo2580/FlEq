@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
   displayVolcanoInfo,
@@ -47,7 +47,7 @@ import {
 } from "../helpers/mock-message";
 
 describe("displayVolcanoInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   let volcanoState: VolcanoStateHolder;
 
   beforeEach(() => {
@@ -128,7 +128,7 @@ describe("displayVolcanoInfo", () => {
     const msg = createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3);
     const info = parseVolcanoTelegram(msg)!;
     // infoType を取消に差し替え
-    (info as Record<string, unknown>).infoType = "取消";
+    info.infoType = "取消";
     const presentation: VolcanoPresentation = {
       frameLevel: "cancel",
       soundLevel: "cancel",
@@ -167,7 +167,7 @@ describe("displayVolcanoInfo", () => {
     const msg = createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3);
     const info = parseVolcanoTelegram(msg)!;
     // isTest を true に差し替え
-    (info as Record<string, unknown>).isTest = true;
+    info.isTest = true;
     const presentation = resolveVolcanoPresentation(info, volcanoState);
     displayVolcanoInfo(info, presentation);
     const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
@@ -177,7 +177,7 @@ describe("displayVolcanoInfo", () => {
   it("取消報に severity ラベル [取消] が含まれる", () => {
     const msg = createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3);
     const info = parseVolcanoTelegram(msg)!;
-    (info as Record<string, unknown>).infoType = "取消";
+    info.infoType = "取消";
     const presentation: VolcanoPresentation = {
       frameLevel: "cancel",
       soundLevel: "cancel",
@@ -287,9 +287,9 @@ describe("displayVolcanoInfo", () => {
     it("buildAshfallGroupRows は ashCode ごとに 1 行・重い順・地域カンマ結合", () => {
       // AshArea は code / thickness も必須 (types.ts:1465-1471) — Codex R2 指摘で literal を現物型に一致させた
       const rows = buildAshfallGroupRows([
-        { name: "A市", code: "0001", ashName: "少量", ashCode: "71", thickness: null },
-        { name: "B市", code: "0002", ashName: "多量", ashCode: "73", thickness: null },
-        { name: "C市", code: "0003", ashName: "少量", ashCode: "71", thickness: null },
+        { name: "A市", code: "0001", ashName: "少量", ashCode: "71", thickness: null , plumeDirection: null, distanceKm: null },
+        { name: "B市", code: "0002", ashName: "多量", ashCode: "73", thickness: null , plumeDirection: null, distanceKm: null },
+        { name: "C市", code: "0003", ashName: "少量", ashCode: "71", thickness: null , plumeDirection: null, distanceKm: null },
       ]);
       expect(rows.length).toBe(2);
       expect(rows[0].ashCode).toBe("73"); // 重い順
@@ -636,6 +636,8 @@ describe("displayVolcanoInfo", () => {
         ashCode: ["73", "72", "71", "70"][(offset + i) % 4],
         ashName: ["多量", "やや多量", "少量", "降灰"][(offset + i) % 4],
         thickness: null,
+        plumeDirection: null,
+        distanceKm: null,
       }));
     return {
       ...base,
@@ -914,10 +916,10 @@ describe("降灰 helper (ashfallRole / ashCode ランク / AshfallGroupRow)", ()
 
   it("buildAshfallGroupRows は ashCode ごとに集約し数値降順で row 化する (地域カンマ結合)", () => {
     const areas: AshArea[] = [
-      { name: "鹿児島市", code: "4620100", ashCode: "71", ashName: "少量", thickness: null },
-      { name: "垂水市", code: "4621400", ashCode: "73", ashName: "多量", thickness: 1 },
-      { name: "鹿屋市", code: "4620300", ashCode: "72", ashName: "やや多量", thickness: null },
-      { name: "指宿市", code: "4621000", ashCode: "71", ashName: "少量", thickness: null },
+      { name: "鹿児島市", code: "4620100", ashCode: "71", ashName: "少量", thickness: null , plumeDirection: null, distanceKm: null },
+      { name: "垂水市", code: "4621400", ashCode: "73", ashName: "多量", thickness: 1 , plumeDirection: null, distanceKm: null },
+      { name: "鹿屋市", code: "4620300", ashCode: "72", ashName: "やや多量", thickness: null , plumeDirection: null, distanceKm: null },
+      { name: "指宿市", code: "4621000", ashCode: "71", ashName: "少量", thickness: null , plumeDirection: null, distanceKm: null },
     ];
     const rows = buildAshfallGroupRows(areas);
     expect(rows.map((r) => r.ashCode)).toEqual(["73", "72", "71"]);
@@ -953,7 +955,7 @@ function makeSyntheticBatch(): Vfvo53BatchItems {
 }
 
 describe("VFVO53 バッチ表の engine 化 (行=火山)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;
@@ -1028,6 +1030,8 @@ describe("VFVO53 バッチ表の engine 化 (行=火山)", () => {
             ashCode: "73",
             ashName: "多量",
             thickness: null,
+            plumeDirection: null,
+            distanceKm: null,
           })),
         },
       ],
@@ -1088,7 +1092,7 @@ describe("VFVO53 バッチ表の engine 化 (行=火山)", () => {
       ashForecasts: [
         {
           ...base.ashForecasts[0],
-          areas: [{ name: "架空町", code: "9999999", ashCode: "73", ashName: longAshName, thickness: null }],
+          areas: [{ name: "架空町", code: "9999999", ashCode: "73", ashName: longAshName, thickness: null, plumeDirection: null, distanceKm: null }],
         },
       ],
     };

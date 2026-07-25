@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { TEST_TABLES } from "../../src/ui/test-samples";
 import { setDisplayMode } from "../../src/ui/formatter";
 
@@ -8,7 +8,7 @@ import { setDisplayMode } from "../../src/ui/formatter";
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 
 let logs: string[];
-let logSpy: ReturnType<typeof vi.spyOn>;
+let logSpy: MockInstance<typeof console.log>;
 
 beforeEach(() => {
   logs = [];

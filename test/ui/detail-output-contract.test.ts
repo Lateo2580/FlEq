@@ -119,7 +119,7 @@ function makeVpwp50Info(): ParsedWeatherWarningTimeseriesInfo {
     eventId: null,
     serial: null,
     headline: null,
-    targetArea: { name: "長野県", code: "200000", warnings: [] },
+    targetArea: { name: "長野県", code: "200000", kinds: { 1: [], 2: [], 3: [] } },
     areas: [],
     maxKnownSignificancy: null,
     maxDisplaySeverity: null,

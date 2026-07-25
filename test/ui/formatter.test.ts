@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
   intensityColor,
@@ -35,6 +35,7 @@ import { intensityToRank } from "../../src/utils/intensity";
 import { displayEewInfo } from "../../src/ui/eew-formatter";
 import { displayEarthquakeInfo } from "../../src/ui/earthquake-info-formatter";
 import type { EewDiff } from "../../src/engine/eew/eew-tracker";
+import type { ParsedEewInfo } from "../../src/types";
 import {
   parseEarthquakeTelegram,
   parseEewTelegram,
@@ -150,7 +151,7 @@ describe("lgIntensityColor", () => {
 // ── displayEewInfo (stdout キャプチャ) ──
 
 describe("displayEewInfo", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;
@@ -233,7 +234,7 @@ describe("displayEewInfo", () => {
   });
 
   it("forecastIntensity.areas の順序が異なっても最大予測震度が一致する", () => {
-    const baseInfo = {
+    const baseInfo: ParsedEewInfo = {
       type: "VXSE45",
       infoType: "発表",
       title: "緊急地震速報（地震動予報）",
@@ -244,6 +245,7 @@ describe("displayEewInfo", () => {
       eventId: "20240417231454",
       isTest: false,
       isWarning: false,
+      isAssumedHypocenter: false,
     };
 
     // areas の先頭が最大でないケース: 最大は "5強"
@@ -658,7 +660,7 @@ describe("displayEewInfo", () => {
 // ── フレーム描画テスト ──
 
 describe("フレーム描画", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;
@@ -1298,7 +1300,7 @@ describe("collectHighlightSpans", () => {
 // ── バッファリング + recap テスト ──
 
 describe("バッファリング + recap", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   let origIsTTY: boolean | undefined;
   let origRows: number | undefined;
 
@@ -1324,7 +1326,8 @@ describe("バッファリング + recap", () => {
 
     const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
     const info = parseEarthquakeTelegram(msg);
-    displayEarthquakeInfo(info);
+    expect(info).not.toBeNull();
+    displayEarthquakeInfo(info!);
 
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).not.toContain("▼ サマリー");
@@ -1336,7 +1339,8 @@ describe("バッファリング + recap", () => {
 
     const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
     const info = parseEarthquakeTelegram(msg);
-    displayEarthquakeInfo(info);
+    expect(info).not.toBeNull();
+    displayEarthquakeInfo(info!);
 
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).toContain("▼ サマリー");
@@ -1348,7 +1352,8 @@ describe("バッファリング + recap", () => {
 
     const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
     const info = parseEarthquakeTelegram(msg);
-    displayEarthquakeInfo(info);
+    expect(info).not.toBeNull();
+    displayEarthquakeInfo(info!);
 
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).not.toContain("▼ サマリー");
@@ -1360,7 +1365,8 @@ describe("バッファリング + recap", () => {
 
     const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
     const info = parseEewTelegram(msg);
-    displayEewInfo(info);
+    expect(info).not.toBeNull();
+    displayEewInfo(info!);
 
     const output = logSpy.mock.calls.map((args) => String(args[0] ?? "")).join("\n");
     expect(output).toContain("▼ サマリー");

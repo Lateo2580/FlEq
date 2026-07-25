@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
   buildIntensityRows,
@@ -153,7 +153,7 @@ const SYNTH_NOTO: ParsedEarthquakeInfo = {
 };
 
 describe("displayEarthquakeInfo (新デザイン言語)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   beforeEach(() => {
     chalk.level = 3;
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

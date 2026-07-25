@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displayNankaiTroughInfo } from "../../src/ui/nankai-trough-formatter";
 import { parseNankaiTroughTelegram } from "../../src/dmdata/telegram-parser";
@@ -13,7 +13,7 @@ import {
 } from "../helpers/mock-message";
 
 describe("displayNankaiTroughInfo (新デザイン言語)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;
@@ -84,7 +84,7 @@ describe("displayNankaiTroughInfo (新デザイン言語)", () => {
 // ── displayNankaiTroughInfo ハイライトテスト (formatter.test.ts :1277 付近から移設) ──
 
 describe("displayNankaiTroughInfo ハイライト", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;
@@ -173,7 +173,7 @@ describe("displayNankaiTroughInfo ハイライト", () => {
 });
 
 describe("南海トラフ: isTest・golden inventory (取消は既存 describe で固定済み)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;

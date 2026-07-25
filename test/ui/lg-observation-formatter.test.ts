@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
   displayLgObservationInfo,
@@ -37,7 +37,7 @@ function makeSyntheticMulti(count = 60): ParsedLgObservationInfo {
 }
 
 describe("displayLgObservationInfo (engine テーブル)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;
@@ -150,7 +150,7 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
 });
 
 describe("長周期観測: 取消・isTest・golden inventory", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;

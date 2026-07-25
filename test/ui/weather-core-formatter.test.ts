@@ -17,9 +17,10 @@ function makeInfo(overrides: Partial<ParsedWeatherWarning> = {}): ParsedWeatherW
       ]},
     ],
     comments: [], maxSeverity: "warning",
+    maxDisplaySeverity: null, maxSoundLevel: null,
     warningAreaCount: 1, advisoryAreaCount: 0, isTest: false,
     ...overrides,
-  } as ParsedWeatherWarning;
+  };
 }
 
 describe("displayWeatherWarningCore smoke", () => {

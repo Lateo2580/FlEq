@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { EventEmitter } from "events";
 import chalk from "chalk";
 
@@ -96,6 +96,9 @@ const mockListSockets = vi.mocked(listSockets);
 
 function createConfig(): AppConfig {
   return {
+    // 既定値を土台に敷き、テストが主張したい値だけ後ろで上書きする
+    // (AppConfig に項目が増えてもこのフィクスチャは追随する)
+    ...DEFAULT_CONFIG,
     apiKey: "test-api-key",
     classifications: ["telegram.earthquake"],
     testMode: "no",
@@ -115,14 +118,33 @@ function createConfig(): AppConfig {
       seismicText: true,
       nankaiTrough: true,
       lgObservation: true,
+      volcano: true,
+      weather: true,
+      tornado: true,
+      briefing: true,
+      earlyWeather: true,
+      weatherWarningTimeseries: true,
+      climateInfo: true,
+      weatherExplanation: true,
+      heatAlert: true,
+      typhoonAnalysis: true,
+      typhoonProbability: true,
+      floodForecast: true,
     },
     eewLog: true,
     eewLogFields: {
       hypocenter: true,
+      originTime: true,
+      coordinates: true,
       magnitude: true,
       forecastIntensity: true,
+      maxLgInt: true,
       forecastAreas: true,
+      lgIntensity: true,
+      isPlum: true,
+      hasArrived: true,
       diff: true,
+      maxIntChangeReason: true,
     },
     maxObservations: null,
     backup: false,
@@ -144,7 +166,7 @@ function createMockWsManager(): ConnectionManager {
 }
 
 describe("ReplHandler", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
+  let consoleSpy: MockInstance<typeof console.log>;
   let mockRl: EventEmitter & { prompt: ReturnType<typeof vi.fn>; setPrompt: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn>; line: string };
 
   beforeEach(() => {
@@ -155,7 +177,8 @@ describe("ReplHandler", () => {
       writable: true,
       configurable: true,
     });
-    mockRl = (readline.createInterface as ReturnType<typeof vi.fn>)() as typeof mockRl;
+    // mock の createInterface は引数を無視して常に同じ EventEmitter を返す (vi.mock 冒頭)
+    mockRl = readline.createInterface({ input: process.stdin }) as unknown as typeof mockRl;
     mockRl.setMaxListeners(0);
   });
 
@@ -780,7 +803,7 @@ describe("ReplHandler", () => {
     it("stop() を呼んでも process.exit が呼ばれない", () => {
       const exitSpy = vi
         .spyOn(process, "exit")
-        .mockImplementation((() => {}) as (code?: number) => never);
+        .mockImplementation((() => {}) as (code?: string | number | null) => never);
 
       const handler = new ReplHandler(createConfig(), createMockWsManager(), new Notifier(), new EewEventLogger(), vi.fn(), new TelegramStats());
       handler.start();

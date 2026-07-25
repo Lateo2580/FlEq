@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
   tsunamiSeverityOf,
@@ -52,7 +52,7 @@ describe("tsunamiSeverityChalk (severity → 色ロール)", () => {
 });
 
 describe("displayTsunamiInfo (新デザイン言語)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   beforeEach(() => {
     chalk.level = 3;
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -326,9 +326,9 @@ describe("折りたたみ detail 復元 (Codex review Important #2)", () => {
       },
     ],
     observations: [
-      { name: "神津島", sensor: "検潮所", arrivalTime: "2026-07-02T10:05:00+09:00", initial: "押し", maxHeightCondition: "０.２ｍ" },
-      { name: "八丈島", sensor: "検潮所", arrivalTime: "2026-07-02T10:10:00+09:00", initial: "引き", maxHeightCondition: "０.３ｍ" },
-      { name: "父島", sensor: "検潮所", arrivalTime: "2026-07-02T10:15:00+09:00", initial: "押し", maxHeightCondition: "０.４ｍ" },
+      { name: "神津島", sensor: "検潮所", arrivalTime: "2026-07-02T10:05:00+09:00", initial: "押し", maxHeightCondition: "０.２ｍ" , areaName: null, maxHeightValue: null },
+      { name: "八丈島", sensor: "検潮所", arrivalTime: "2026-07-02T10:10:00+09:00", initial: "引き", maxHeightCondition: "０.３ｍ" , areaName: null, maxHeightValue: null },
+      { name: "父島", sensor: "検潮所", arrivalTime: "2026-07-02T10:15:00+09:00", initial: "押し", maxHeightCondition: "０.４ｍ" , areaName: null, maxHeightValue: null },
     ],
     estimations: [
       { areaName: "小笠原諸島", maxHeightDescription: "０.５ｍ", firstHeight: "2026-07-02T10:35:00+09:00" },
@@ -467,8 +467,8 @@ describe("VTSE52 センサー列の standard 表示 (spec §8 R2-1)", () => {
     warningComment: "",
     isTest: false,
     observations: [
-      { name: "神津島", sensor: "ＧＰＳ波浪計", arrivalTime: "2026-07-02T10:05:00+09:00", initial: "押し", maxHeightCondition: "０.２ｍ" },
-      { name: "八丈島", sensor: "水圧計", arrivalTime: "2026-07-02T10:10:00+09:00", initial: "引き", maxHeightCondition: "０.３ｍ" },
+      { name: "神津島", sensor: "ＧＰＳ波浪計", arrivalTime: "2026-07-02T10:05:00+09:00", initial: "押し", maxHeightCondition: "０.２ｍ" , areaName: null, maxHeightValue: null },
+      { name: "八丈島", sensor: "水圧計", arrivalTime: "2026-07-02T10:10:00+09:00", initial: "引き", maxHeightCondition: "０.３ｍ" , areaName: null, maxHeightValue: null },
     ],
   });
 

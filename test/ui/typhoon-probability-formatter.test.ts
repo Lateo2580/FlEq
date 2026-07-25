@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displayTyphoonProbabilityInfo } from "../../src/ui/typhoon-probability-formatter";
 import { parseTyphoonProbability } from "../../src/dmdata/typhoon-probability-parser";
@@ -16,7 +16,7 @@ const BASE_XML_VPTA50 = readFileSync(
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 
 let logs: string[];
-let logSpy: ReturnType<typeof vi.spyOn>;
+let logSpy: MockInstance<typeof console.log>;
 
 beforeEach(() => {
   logs = [];

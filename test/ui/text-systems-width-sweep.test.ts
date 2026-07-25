@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displaySeismicTextInfo } from "../../src/ui/seismic-text-formatter";
 import { displayNankaiTroughInfo } from "../../src/ui/nankai-trough-formatter";
@@ -60,7 +60,7 @@ const CASES: SweepCase[] = [
 ];
 
 describe("幅 sweep: 3 系統 幅 60-200 全域の幅保証 (acceptance 3)", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   let lines: string[] = [];
 
   beforeEach(() => {

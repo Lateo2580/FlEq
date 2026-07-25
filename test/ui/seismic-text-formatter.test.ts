@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
   displaySeismicTextInfo,
@@ -17,7 +17,7 @@ import {
 
 // ── 共用 helper (displaySeismicTextInfo 系 describe 群で共有) ──
 
-let logSpy: ReturnType<typeof vi.spyOn>;
+let logSpy: MockInstance<typeof console.log>;
 
 beforeEach(() => {
   chalk.level = 3;
@@ -74,7 +74,7 @@ describe("displaySeismicTextInfo (新デザイン言語)", () => {
 // ── displaySeismicTextInfo ハイライトテスト (formatter.test.ts より移設) ──
 
 describe("displaySeismicTextInfo ハイライト", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     chalk.level = 3;

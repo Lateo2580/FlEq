@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { handleDisplay } from "../../../src/ui/repl-handlers/operation-handlers";
 import type { ReplContext } from "../../../src/ui/repl-handlers/types";
 import type { DisplayController } from "../../../src/engine/display/controller";
@@ -17,7 +17,7 @@ function mockController(overrides: Partial<DisplayController> = {}): DisplayCont
 }
 
 describe("handleDisplay", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

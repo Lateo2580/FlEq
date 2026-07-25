@@ -65,8 +65,9 @@ function makeLayeredInfo(): ParsedWeatherWarning {
         statuses: [{ kindCode: "03", status: "発表" }] }] },
     ],
     comments: [], maxSeverity: "warning",
+    maxDisplaySeverity: null, maxSoundLevel: null,
     warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
-  } as ParsedWeatherWarning;
+  };
 }
 
 describe("layer selection (status 層 / area summary 層)", () => {
@@ -125,8 +126,9 @@ function makeInfoForLevel(items: { code: string; name: string }[]): ParsedWeathe
         statuses: items.map((i) => ({ kindCode: i.code, status: "発表" })) },
     ]}],
     comments: [], maxSeverity: "warning",
+    maxDisplaySeverity: null, maxSoundLevel: null,
     warningAreaCount: 1, advisoryAreaCount: 0, isTest: false,
-  } as ParsedWeatherWarning;
+  };
 }
 
 describe("weatherCoreDisplaySeverity / weatherCoreFrameLevel", () => {
