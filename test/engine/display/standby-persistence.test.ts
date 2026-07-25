@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import fs, { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -437,5 +437,134 @@ describe("StandbyPersistence の遅延保存", () => {
     persistence.flush();
 
     expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("kept");
+  });
+});
+
+// 同期保存 (シャットダウン経路) と debounce の非同期書き込みが同じ tmp を奪い合い、
+// 古い非同期書き込みが後から rename して最終状態を巻き戻す不具合の回帰テスト。
+// 実時間には頼らず、__test_writePending() で予約分を任意のタイミングで走らせる
+describe("StandbyPersistence の書き込み順序", () => {
+  const tmpFiles = (path: string): string[] =>
+    readdirSync(dirname(path)).filter((name) => name.endsWith(".tmp"));
+
+  it("追い越された書き込みは rename しない (同期保存が後勝ちされない)", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    persistence.schedule(state({ savedAt: "old" }));
+    persistence.save(state({ savedAt: "new" }));
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("new");
+
+    await persistence.__test_writePending();
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("new");
+    expect(tmpFiles(path)).toEqual([]);
+  });
+
+  it("非同期書き込みの進行中に同期保存が割り込んでも旧内容で上書きしない", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    persistence.schedule(state({ savedAt: "old" }));
+
+    // 書き込みを開始させ、完了を待たずに同期保存を割り込ませる
+    const inFlight = persistence.__test_writePending();
+    persistence.save(state({ savedAt: "new" }));
+    await inFlight;
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("new");
+    expect(tmpFiles(path)).toEqual([]);
+  });
+
+  it("追い越された書き込みの後も次の保存が反映される (rename 済み seq が逆行しない)", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    persistence.schedule(state({ savedAt: "old" }));
+    persistence.save(state({ savedAt: "new" }));
+    await persistence.__test_writePending();
+
+    persistence.save(state({ savedAt: "newest" }));
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("newest");
+  });
+
+  it("予約が同期保存より新しい場合は通常どおり書かれる", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    persistence.save(state({ savedAt: "old" }));
+    persistence.schedule(state({ savedAt: "new" }));
+
+    await persistence.__test_writePending();
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("new");
+  });
+
+  it("同期保存と非同期書き込みは別々の tmp を使う (奪い合いを構造的に消す)", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    const syncWrite = vi.spyOn(fs, "writeFileSync");
+    const asyncWrite = vi.spyOn(fs.promises, "writeFile");
+    try {
+      persistence.schedule(state({ savedAt: "old" }));
+      persistence.save(state({ savedAt: "new" }));
+      await persistence.__test_writePending();
+
+      const syncTmp = syncWrite.mock.calls.map((call) => String(call[0]));
+      const asyncTmp = asyncWrite.mock.calls.map((call) => String(call[0]));
+      expect(syncTmp).toHaveLength(1);
+      expect(asyncTmp).toHaveLength(1);
+      expect(asyncTmp[0]).not.toBe(syncTmp[0]);
+      expect(existsSync(`${path}.tmp`)).toBe(false);
+      expect(tmpFiles(path)).toEqual([]);
+    } finally {
+      syncWrite.mockRestore();
+      asyncWrite.mockRestore();
+    }
+  });
+
+  it("同期保存より古い予約は flush で書き戻されない", () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    persistence.schedule(state({ savedAt: "old" }));
+    persistence.save(state({ savedAt: "new" }));
+
+    persistence.flush();
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("new");
+    expect(tmpFiles(path)).toEqual([]);
+  });
+
+  // seq の判定と rename の間に await があると、guard 通過後・rename 完了前に同期保存が
+  // 割り込み、古い rename が後から旧内容で上書きする。非同期 rename を使わないことで担保する
+  it("rename は同期で行う (seq 判定との間に await を挟まない)", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    const rename = vi.spyOn(fs.promises, "rename");
+    try {
+      persistence.schedule(state({ savedAt: "written" }));
+      await persistence.__test_writePending();
+
+      expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("written");
+      expect(rename).not.toHaveBeenCalled();
+    } finally {
+      rename.mockRestore();
+    }
+  });
+
+  it("load 時に自分の残留 tmp だけを掃除する (無関係な .tmp は消さない)", () => {
+    const path = tempPath();
+    const dir = dirname(path);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(`${path}.3.tmp`, "{}", "utf8");
+    writeFileSync(`${path}.8.tmp`, "{}", "utf8");
+    writeFileSync(join(dir, "other.tmp"), "keep", "utf8");
+    writeFileSync(join(dir, "weather-promotion-v1.json.tmp"), "keep", "utf8");
+    writeFileSync(join(dir, "unrelated.txt"), "keep", "utf8");
+
+    new StandbyPersistence(path).load();
+
+    expect(existsSync(`${path}.3.tmp`)).toBe(false);
+    expect(existsSync(`${path}.8.tmp`)).toBe(false);
+    expect(existsSync(join(dir, "other.tmp"))).toBe(true);
+    expect(existsSync(join(dir, "weather-promotion-v1.json.tmp"))).toBe(true);
+    expect(existsSync(join(dir, "unrelated.txt"))).toBe(true);
   });
 });

@@ -49,9 +49,13 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
   private latest: PersistedVpwp50 | null = null;
   private readonly persistPath: string;
   private readonly debounceMs: number;
-  private pending: PersistedVpwp50 | null = null;
+  private pending: { persisted: PersistedVpwp50; seq: number } | null = null;
   private timer: NodeJS.Timeout | null = null;
   private writing = false;
+  /** 内容を確定した順の通し番号。書き込み完了の順序が入れ替わっても最新が勝つようにする */
+  private seq = 0;
+  /** 実際に rename まで到達した最大 seq。これより古い書き込みは rename せずに捨てる */
+  private renamedSeq = 0;
 
   constructor(opts: { persistRoot?: string; debounceMs?: number } = {}) {
     const root = opts.persistRoot ?? process.cwd();
@@ -73,7 +77,9 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
       frameLevel: weatherWarningTimeseriesFrameLevel(info),
     };
     this.latest = persisted;
-    this.pending = persisted;
+    // seq は「内容を確定した時点」で採る。書き込み開始時に採ると、予約 → 同期保存の順で
+    // 呼ばれたとき古い内容の方が大きい seq を持ってしまい、順序保証が逆転する
+    this.pending = { persisted, seq: ++this.seq };
     this.armTimer();
   }
 
@@ -83,10 +89,16 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
    */
   flush(): void {
     this.clearTimer();
-    const persisted = this.pending;
+    const pending = this.pending;
     this.pending = null;
-    if (persisted == null) return;
-    this.saveToDisk(persisted);
+    if (pending == null) return;
+    this.saveToDisk(pending.persisted, pending.seq);
+  }
+
+  /** テスト用: 予約済みの書き込みをタイマーを待たずに実行する (実時間依存を避けるため) */
+  __test_writePending(): Promise<void> {
+    this.clearTimer();
+    return this.writePending();
   }
 
   private armTimer(): void {
@@ -108,17 +120,25 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
 
   private async writePending(): Promise<void> {
     if (this.writing) return;
-    const persisted = this.pending;
-    if (persisted == null) return;
+    const pending = this.pending;
+    if (pending == null) return;
     this.pending = null;
     this.writing = true;
+    const tmpPath = this.tmpPathFor(pending.seq);
     try {
-      const tmpPath = `${this.persistPath}.tmp`;
       await fs.promises.mkdir(path.dirname(this.persistPath), { recursive: true });
-      await fs.promises.writeFile(tmpPath, JSON.stringify(persisted), "utf8");
-      await fs.promises.rename(tmpPath, this.persistPath);
+      await fs.promises.writeFile(tmpPath, JSON.stringify(pending.persisted), "utf8");
+      // ここから rename までは await を挟まない。await で中断すると、guard 通過後・rename 完了前に
+      // 同期保存が割り込み、そのあと古い rename が完了して旧内容で上書き + renamedSeq 逆行が起きる
+      if (pending.seq < this.renamedSeq) {
+        fs.rmSync(tmpPath, { force: true });
+        return;
+      }
+      fs.renameSync(tmpPath, this.persistPath);
+      this.renamedSeq = pending.seq;
     } catch (e) {
       log.warn(`[vpwp50-cache] persist save 失敗: ${(e as Error).message}`);
+      try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
     } finally {
       this.writing = false;
       // 書き込み中に届いた更新は、終わってからもう一度だけ書く
@@ -153,7 +173,32 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
     };
   }
 
+  /**
+   * rename 前に強制終了すると seq 固有名の tmp が残る (Pi は電源断が起こりうる)。
+   * 起動時の load で同ディレクトリの残骸を掃除する。掃除の失敗は起動を妨げない。
+   */
+  private cleanStaleTmpFiles(): void {
+    try {
+      const dir = path.dirname(this.persistPath);
+      if (!fs.existsSync(dir)) return;
+      const base = path.basename(this.persistPath);
+      for (const name of fs.readdirSync(dir)) {
+        if (name.startsWith(`${base}.`) && name.endsWith(".tmp")) {
+          fs.rmSync(path.join(dir, name), { force: true });
+        }
+      }
+    } catch (e) {
+      log.debug(`[vpwp50-cache] 残留 tmp の掃除に失敗: ${(e as Error).message}`);
+    }
+  }
+
+  /** tmp 名は書き込みごとに一意にする (同期・非同期が同じ tmp を奪い合わないため) */
+  private tmpPathFor(seq: number): string {
+    return `${this.persistPath}.${seq}.tmp`;
+  }
+
   private loadFromDisk(): void {
+    this.cleanStaleTmpFiles();
     try {
       if (!fs.existsSync(this.persistPath)) return;
       const raw = fs.readFileSync(this.persistPath, "utf8");
@@ -174,14 +219,21 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
     }
   }
 
-  private saveToDisk(persisted: PersistedVpwp50): void {
+  private saveToDisk(persisted: PersistedVpwp50, seq: number): void {
+    const tmpPath = this.tmpPathFor(seq);
     try {
       fs.mkdirSync(path.dirname(this.persistPath), { recursive: true });
-      const tmpPath = `${this.persistPath}.tmp`;
       fs.writeFileSync(tmpPath, JSON.stringify(persisted), "utf8");
+      if (seq < this.renamedSeq) {
+        // 既により新しい内容が置かれている。追い越された書き込みは反映しない
+        fs.rmSync(tmpPath, { force: true });
+        return;
+      }
       fs.renameSync(tmpPath, this.persistPath);
+      this.renamedSeq = seq;
     } catch (e) {
       log.warn(`[vpwp50-cache] persist save 失敗: ${(e as Error).message}`);
+      try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
     }
   }
 }
