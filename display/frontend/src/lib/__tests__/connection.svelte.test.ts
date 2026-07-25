@@ -148,6 +148,7 @@ describe("createDisplayConnection: seq gap 検知での再同期 (2026-07-10, �
 describe("createDisplayConnection: frontendBuildId 自動リロード", () => {
   let original: typeof EventSource;
   const RELOAD_SUPPRESS_MS = 60_000; // connection.svelte.ts と同値
+  const RELOAD_GUARD_KEY = "fleq-display-reload"; // connection.svelte.ts と同値
 
   beforeEach(() => {
     FakeEventSource.instances = [];
@@ -266,6 +267,72 @@ describe("createDisplayConnection: frontendBuildId 自動リロード", () => {
     conn.stop();
     vi.advanceTimersByTime(RELOAD_SUPPRESS_MS * 3);
     expect(reload).toHaveBeenCalledTimes(1); // リトライタイマーが解除され再試行しない
+  });
+
+  it("ページロード直後 (メモリ側の記録なし) に sessionStorage のクールダウンで抑止した場合、リトライは"
+    + "残り時間で 1 度だけ張る (1ms 間隔の短周期ループにしない)", () => {
+    // 前のページ寿命で b2 への reload を記録済み。この寿命では lastReloadAtMs は null のまま
+    sessionStorage.setItem(RELOAD_GUARD_KEY, JSON.stringify({ buildId: "b2", ts: 0 }));
+    const reload = vi.fn();
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const es = connect(reload);
+    es.emit("snapshot", { type: "snapshot", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b1" }) });
+
+    vi.advanceTimersByTime(10_000);
+    setTimeoutSpy.mockClear();
+    es.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b2" }) });
+
+    // sessionStorage 側のクールダウンが効くので reload は抑止される
+    expect(reload).not.toHaveBeenCalled();
+    // 張られるタイマーは 1 本、遅延は「クールダウン満了までの残り」でなければならない
+    expect(setTimeoutSpy.mock.calls.map((c) => c[1])).toEqual([RELOAD_SUPPRESS_MS - 10_000 + 1]);
+
+    // 満了まで進めても短周期リトライが積み上がらず、満了後に 1 回だけ reload される
+    setTimeoutSpy.mockClear();
+    vi.advanceTimersByTime(RELOAD_SUPPRESS_MS);
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(setTimeoutSpy.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("sessionStorage の ts が非有限値なら記録を無視して reload する (壊れた記録で抑止し続けない)", () => {
+    // JSON の 1e999 は parse すると Infinity になる
+    sessionStorage.setItem(RELOAD_GUARD_KEY, '{"buildId":"b2","ts":1e999}');
+    const reload = vi.fn();
+    const es = connect(reload);
+    es.emit("snapshot", { type: "snapshot", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b1" }) });
+    es.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b2" }) });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("sessionStorage の ts が未来すぎる (時計の巻き戻り等) 場合も記録を無視し、抑止が居座らない", () => {
+    sessionStorage.setItem(
+      RELOAD_GUARD_KEY,
+      JSON.stringify({ buildId: "b2", ts: RELOAD_SUPPRESS_MS * 100 }),
+    );
+    const reload = vi.fn();
+    const es = connect(reload);
+    es.emit("snapshot", { type: "snapshot", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b1" }) });
+    es.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b2" }) });
+    expect(reload).toHaveBeenCalledTimes(1);
+    // 記録は現在時刻で貼り直され、以降のクールダウンは通常どおり効く
+    vi.advanceTimersByTime(RELOAD_SUPPRESS_MS / 2);
+    es.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b2" }) });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("リトライの遅延はクールダウン長を超えない (メモリ側の記録が未来でもクランプされる)", () => {
+    const reload = vi.fn();
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const es = connect(reload);
+    es.emit("snapshot", { type: "snapshot", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b1" }) });
+    es.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b2" }) }); // reload(1)
+
+    setTimeoutSpy.mockClear();
+    es.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 1, frontendBuildId: "b2" }) }); // 抑止 + 予約
+    for (const call of setTimeoutSpy.mock.calls) {
+      expect(call[1]).toBeGreaterThan(0);
+      expect(call[1]).toBeLessThanOrEqual(RELOAD_SUPPRESS_MS + 1);
+    }
   });
 });
 

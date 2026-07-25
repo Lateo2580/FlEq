@@ -114,8 +114,9 @@ export function createDisplayConnection(
 
   /** クールダウン中でなければ reload、クールダウン中なら満了後リトライを予約する。 */
   function attemptReload(id: string): void {
-    if (withinCooldown(id)) {
-      scheduleReloadRetry();
+    const expiryMs = cooldownExpiryMs(id);
+    if (expiryMs != null) {
+      scheduleReloadRetry(expiryMs);
       return;
     }
     lastReloadBuildId = id;
@@ -124,19 +125,38 @@ export function createDisplayConnection(
     reload();
   }
 
-  /** 同一 buildId への reload が直近 RELOAD_SUPPRESS_MS 以内なら true。メモリ (sessionStorage 非依存)
-   *  と sessionStorage (ページ再ロードをまたいだ抑止) の両方を見る。 */
-  function withinCooldown(id: string): boolean {
-    if (lastReloadBuildId === id && lastReloadAtMs != null && now() - lastReloadAtMs < RELOAD_SUPPRESS_MS) {
-      return true;
+  /** 同一 buildId への reload クールダウンの満了時刻 (ms)。クールダウン中でなければ null。メモリ
+   *  (sessionStorage 非依存) と sessionStorage (ページ再ロードをまたいだ抑止) の両方から求め、遅い方を採る。
+   *  真偽値ではなく満了時刻を返すのは、抑止と同時に満了後リトライを正しい残り時間で張るため。ページ
+   *  ロード直後はメモリ側の記録が無く sessionStorage 側だけがクールダウン中になるので、真偽値では残り
+   *  時間が分からず 1ms 間隔の短周期リトライループに陥る (2026-07-25 レビュー high)。 */
+  function cooldownExpiryMs(id: string): number | null {
+    const current = now();
+    let expiry: number | null = null;
+    if (lastReloadBuildId === id && lastReloadAtMs != null && current - lastReloadAtMs < RELOAD_SUPPRESS_MS) {
+      expiry = Math.min(lastReloadAtMs, current) + RELOAD_SUPPRESS_MS;
     }
+    const storedTs = storedReloadTs(id, current);
+    if (storedTs != null && current - storedTs < RELOAD_SUPPRESS_MS) {
+      const storedExpiry = storedTs + RELOAD_SUPPRESS_MS;
+      if (expiry == null || storedExpiry > expiry) expiry = storedExpiry;
+    }
+    return expiry;
+  }
+
+  /** sessionStorage に記録された同一 buildId の最終 reload 時刻。別 buildId・非数値・非有限値・現在より
+   *  未来の時刻 (壊れた記録や時計の巻き戻り) は null にして抑止に使わない。これで満了時刻は必ず
+   *  「現在 + RELOAD_SUPPRESS_MS」以内に収まり、リトライ待ちがクールダウン長を超えない。 */
+  function storedReloadTs(id: string, current: number): number | null {
     try {
       const raw = sessionStorage.getItem(RELOAD_GUARD_KEY);
-      if (raw == null) return false;
+      if (raw == null) return null;
       const prev = JSON.parse(raw) as { buildId?: string; ts?: number };
-      return prev.buildId === id && typeof prev.ts === "number" && now() - prev.ts < RELOAD_SUPPRESS_MS;
+      if (prev.buildId !== id) return null;
+      if (typeof prev.ts !== "number" || !Number.isFinite(prev.ts) || prev.ts > current) return null;
+      return prev.ts;
     } catch {
-      return false; // sessionStorage 不可 (private mode 等) はメモリ側だけで抑止
+      return null; // sessionStorage 不可 (private mode 等) はメモリ側だけで抑止
     }
   }
 
@@ -150,10 +170,9 @@ export function createDisplayConnection(
 
   /** クールダウンで抑止した reload を満了後に再評価する。満了時点で最新観測 buildId が baseline と
    *  まだ異なれば reload を再試行する (サーバが新版で安定したのに画面が旧版のまま残るのを防ぐ)。 */
-  function scheduleReloadRetry(): void {
+  function scheduleReloadRetry(expiryMs: number): void {
     if (reloadRetryTimer != null) return;
-    const elapsed = lastReloadAtMs == null ? RELOAD_SUPPRESS_MS : now() - lastReloadAtMs;
-    const delay = Math.max(0, RELOAD_SUPPRESS_MS - elapsed) + 1; // クールダウン境界を確実に越える
+    const delay = Math.max(0, expiryMs - now()) + 1; // クールダウン境界を確実に越える
     reloadRetryTimer = setTimeout(() => {
       reloadRetryTimer = null;
       if (baselineBuildId != null && latestObservedBuildId != null && latestObservedBuildId !== baselineBuildId) {
