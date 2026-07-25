@@ -1,0 +1,50 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install (engine)
+        run: npm ci --ignore-scripts
+
+      - name: Install (display)
+        run: npm ci --ignore-scripts --prefix display
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck (src + test)
+        run: npm run typecheck:test
+
+      - name: Typecheck (display)
+        run: npm run typecheck --prefix display
+
+      - name: Test (engine)
+        run: npm test
+
+      # 実行順をシャッフルして走らせる。デフォルト順では緑なのに順序を変えると
+      # 落ちるテストが実在した (2026-07-25)。永続化・共有状態・module スコープの
+      # 変数を触ったときに露出するので、CI では常に通す
+      - name: Test (engine, shuffled order)
+        run: npm run test:shuffle
+
+      - name: Test (display)
+        run: npm test --prefix display
