@@ -1525,7 +1525,9 @@ class FloodForecastStateHolder {
 
 VPWW56 (土砂災害警戒情報) の発表中エリアを保持する state holder。`Vpws50StateHolder` と異なり rich diff / history は持たず、present/absent のみを扱う。
 
-VPWW56 は府県予報区ごとに別の地方気象台が発表するため、view は**発表官署 (`publishingOffice`) 単位で保持し、参照時に union して返す**。全体 1 view 置換にすると別官署の続報が既存官署の警報を消してしまうため、この単位を採る。単調性ガード (report identity の watermark) も官署ごとに独立させる。
+view は **`(head.type, publishingOffice)` の複合キー単位で保持し、参照時に union して返す**。全体 1 view 置換にすると別ストリームの続報が既存の警報を消してしまうため、この単位を採る。単調性ガード (report identity の watermark) と dormant 掃除も同じ複合キー単位で独立させる。
+
+キーが 2 要素なのは理由が別々にある。VPWW56 は府県予報区ごとに**別の地方気象台が発表する**ので官署が要り、同一官署が**複数カテゴリ (土砂・大雨・高潮…) を出しうる**ので type が要る。粒度は `project-event.ts` のテロップ groupKey `weather:${type}:${publishingOffice}` と一致する。
 
 ### エクスポートAPI
 
@@ -1534,42 +1536,44 @@ type Vpww56StateUpdateResult =
   | { kind: "updated" }
   | { kind: "suppressed" };
 
-/** view を失った官署エントリを保持し続ける猶予 (6 時間) */
+/** view を失ったストリームを保持し続ける猶予 (6 時間) */
 const VPWW56_DORMANT_RETENTION_MS: number;
-/** view を持たない官署エントリの上限 (128) */
-const VPWW56_MAX_DORMANT_OFFICES: number;
+/** view を持たないストリームの上限 (128) */
+const VPWW56_MAX_DORMANT_STREAMS: number;
 
 class Vpww56StateHolder {
   update(info: ParsedWeatherWarning, identity?: WeatherReportIdentity): Vpww56StateUpdateResult;
-  /** 全発表官署の現況を union した単一 view。発表中の地域が無ければ undefined */
+  /** 全ストリームの現況を union した単一 view。発表中の地域が無ければ undefined */
   getCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined;
-  /** 保持中の官署エントリ数 (猶予中のものを含む)。掃除の検証・診断用 */
-  trackedOfficeCount(): number;
+  /** 保持中のストリーム数 (猶予中のものを含む)。掃除の検証・診断用 */
+  trackedStreamCount(): number;
 }
 ```
 
 ### 内部ロジック
 
-#### 官署キー
+#### ストリームキー
 
-`ParsedWeatherWarning.publishingOffice` をそのままキーに使う。parser は envelope (`xmlReport.control.publishingOffice`) を XML 本体の `Control.PublishingOffice` より優先する。`project-event.ts` のテロップ groupKey `weather:${type}:${publishingOffice}` と同じ値を見ており、粒度が一致する。
+`streamKey(info)` が `` `${info.type}|${info.publishingOffice}` `` を組む。`head.type` は英数字のみで `|` を含まないため、官署名側に何が入ってもキーは一意に決まる。
+
+`info.type` は `msg.head.type`、`info.publishingOffice` は envelope (`xmlReport.control.publishingOffice`) を XML 本体の `Control.PublishingOffice` より優先して採った値。
 
 #### `update(info, identity)`
 
-- **取消**: 該当官署のエントリが無い、または identity が当該官署の current report と一致しなければ `suppressed`。一致すれば**その官署の view だけ**を undefined にする。watermark は残し、遅着した古い報を弾き続ける
-- **発表**: 当該官署の watermark より新しい identity のときだけ受理する (初回は `reportDateTime` が parse 可能なことが条件)。受理したら view を組み直し、current identity と watermark を進める
-- 発表中 Kind がゼロになった続報 (解除 Kind のみ) は `buildView` が undefined を返すため、取消と同じくその官署の view が空になる
+- **取消**: 該当ストリームのエントリが無い、または identity が当該ストリームの current report と一致しなければ `suppressed`。一致すれば**そのストリームの view だけ**を undefined にする。watermark は残し、遅着した古い報を弾き続ける
+- **発表**: 当該ストリームの watermark より新しい identity のときだけ受理する (初回は `reportDateTime` が parse 可能なことが条件)。受理したら view を組み直し、current identity と watermark を進める
+- 発表中 Kind がゼロになった続報 (解除 Kind のみ) は `buildView` が undefined を返すため、取消と同じくそのストリームの view が空になる
 
 #### union
 
-view を持つ官署を走査し、kindCode でグループを併合する。`totalAreas` は全官署横断の areaCode 集合サイズ。府県予報区は官署ごとに排他だが、越境発表が来ても地域を二重に並べないよう areaCode で dedup する。kinds は displaySeverity 降順、同 rank では kindCode 昇順で並べ、官署をまたいでも順序を決定的にする。union 結果はキャッシュし `update()` で無効化する。
+view を持つストリームを走査し、kindCode でグループを併合する。`totalAreas` は全ストリーム横断の areaCode 集合サイズ。府県予報区は官署ごとに排他だが、越境発表が来ても地域を二重に並べないよう areaCode で dedup する。kinds は displaySeverity 降順、同 rank では kindCode 昇順で並べ、ストリームをまたいでも順序を決定的にする。union 結果はキャッシュし `update()` で無効化する。
 
 #### dormant エントリの掃除
 
 view を失ったエントリだけを 2 段で掃除する。基準時刻は壁時計ではなく**受理済み報の最新 `reportDateTime` (ストリーム時計)** を使う。
 
 1. watermark がストリーム時計から `VPWW56_DORMANT_RETENTION_MS` 以上遅れたエントリを削除
-2. 生き残った dormant が `VPWW56_MAX_DORMANT_OFFICES` を超えたら watermark の古い順に破棄
+2. 生き残った dormant が `VPWW56_MAX_DORMANT_STREAMS` を超えたら watermark の古い順に破棄
 
 view を持つエントリは経過時間によらず掃除しない (発表中の警報を落とさない)。
 
@@ -1585,7 +1589,7 @@ view を持つエントリは経過時間によらず掃除しない (発表中�
 
 - 出力形は `Vpws50StateHolder.buildCurrentAreasForDisplay` と同じ (`Vpws50CurrentAreasForDisplay`)。`specialAreas` / `warningAreas` / `advisoryAreas` は気象カードで未使用のため 0 を置く (rank は `displaySeverity` 由来、VPWW56 は土砂災害単一種別で 3 段カウントの意味が薄い)。
 - VPWS50 は本 holder に入らない。`processWeather` が `msg.head.type === "VPWW56"` で門番しており、全国集約の VPWS50 は `Vpws50StateHolder` (rich diff 持ち) の担当。「全国集約は 1 本に畳む / 府県気象台は官署別」の非対称は、この 2 つの holder の役割分担そのもの。
-- **キーは官署名のみ**なので、将来 VPWW55/57-61 を同じ holder に相乗りさせると同一官署の複数カテゴリが互いを上書きする。その際はキーを `(head.type, publishingOffice)` に揃えること。
+- **複合キーは将来への備えで、現状の挙動は変わらない**。`processWeather` の門番があるため holder に入るのは VPWW56 だけで、キーの第 1 要素は常に同じ。契約はテストで固定してある。将来 VPWW55/57-61 を気象カード経路に載せるには**門番を外す判断が別途要る** — どのカテゴリを気象カードに載せるかという表示の設計判断なので、holder 側が対応済みでも自動的に相乗りできるわけではない。
 - ストリーム時計は受理された報でしか進まないため、電文が長時間途絶えると dormant エントリは残る。上限 128 で頭打ちになるので漏出はしないが、時間経過だけで必ず消えるわけではない。
 
 ---
