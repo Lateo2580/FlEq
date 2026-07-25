@@ -308,9 +308,22 @@ export class DisplayStateStore {
   /** demoted は null へ投影する (フロントに期限計算をさせない) */
   private weatherPromotionForWire(): DisplayWeatherPromotionV1 {
     return {
-      vpws50: promotionEntry(this.promotions.get("vpws50")),
-      vpww56: promotionEntry(this.promotions.get("vpww56")),
+      vpws50: this.promotionEntryForWire("vpws50"),
+      vpww56: this.promotionEntryForWire("vpww56"),
     };
+  }
+
+  /**
+   * live な weatherAlerts に当該 source があれば、そちらが権威なので控え (restoredItems) は載せない。
+   * 控えを載せるのは「昇格しているのにカードが空」の窓 (再起動直後・display on 直後) だけ。
+   * 定常運転では snapshot に同じ内容を二重に積まないので、バイト上限にも効かない。
+   */
+  private promotionEntryForWire(source: DisplayWeatherSourceV1): DisplayWeatherPromotionEntryV1 | null {
+    const entry = promotionEntry(this.promotions.get(source));
+    if (entry == null) return null;
+    if (this.weatherAlerts.some((a) => a.source === source)) return entry;
+    const items = this.promotions.get(source)?.items ?? [];
+    return items.length === 0 ? entry : { ...entry, restoredItems: items };
   }
 
   /** night-dim 用。demoted 後も警報解除 (record 削除) まで true */

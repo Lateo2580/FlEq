@@ -8,6 +8,7 @@
 import * as log from "../../logger";
 import { displayWeatherPromotionLevel, isDisplayWeatherSeverity } from "./protocol";
 import type {
+  DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
   DisplayWeatherPromotionLevelV1,
   DisplayWeatherSourceV1,
@@ -22,6 +23,12 @@ export interface WeatherPromotionClassification {
   level: DisplayWeatherPromotionLevelV1;
   /** 昇格対象 item の集合を表す安定キー。変化したら generation を更新する */
   signature: string;
+  /**
+   * 昇格の根拠になった item そのもの (L4/L5 相当のみ)。record と一緒に永続化して、
+   * 再起動直後に live な view がまだ空でも主役パネルが中身を持てるようにする。
+   * L3 以下は主役パネルに出ないので載せない (保存サイズの削減)。
+   */
+  items: DisplayWeatherAlertItemV1[];
 }
 
 /**
@@ -33,6 +40,7 @@ export function classifyWeatherPromotion(
 ): WeatherPromotionClassification | null {
   let level: DisplayWeatherPromotionLevelV1 | null = null;
   const members: string[] = [];
+  const items: DisplayWeatherAlertItemV1[] = [];
   for (const alert of alerts) {
     for (const item of alert.items) {
       if (!isDisplayWeatherSeverity(item.displaySeverity)) {
@@ -48,6 +56,7 @@ export function classifyWeatherPromotion(
       const itemLevel = displayWeatherPromotionLevel(item.displaySeverity);
       if (itemLevel == null) continue;
       if (level == null || itemLevel > level) level = itemLevel;
+      items.push(item);
       const prefix = `${itemLevel}|${item.displaySeverity}|${item.kind}`;
       if (item.shownAreas.length === 0) members.push(prefix);
       else for (const area of item.shownAreas) members.push(`${prefix}|${area}`);
@@ -55,7 +64,7 @@ export function classifyWeatherPromotion(
   }
   if (level == null) return null;
   members.sort();
-  return { level, signature: members.join("\n") };
+  return { level, signature: members.join("\n"), items };
 }
 
 /** テスト用: 値ごと 1 回の warn 抑制状態をリセットする */

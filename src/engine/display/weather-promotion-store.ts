@@ -13,6 +13,7 @@ import {
   WEATHER_PROMOTION_DEMOTE_MIN,
 } from "./constants";
 import type {
+  DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
   DisplayWeatherPromotionLevelV1,
   DisplayWeatherSourceV1,
@@ -25,6 +26,11 @@ const MIN_MS = 60_000;
  * 気象警報の昇格状態 (source 別)。demoted は主役パネルからの降格だけを意味し、
  * 警報自体は継続しているので tier 維持のため level を保持する (level: null を持たせない)。
  * signature は「昇格対象 item の集合」で、変化時に generation を更新する判定に使う。
+ *
+ * items は昇格の根拠になった item の控え (view スナップショット)。**record の中に持つ**ことで
+ * record を捨てる操作がそのままスナップショットの破棄になり、「片方だけ生き残る」状態を
+ * 型の上で作れなくしている (24 時間足切り・savedAt 未来・promotedAtMs 未来・破損・version
+ * 不一致のいずれでも、record が消えれば控えも一緒に消える)。
  */
 export type WeatherPromotionRecord =
   | {
@@ -33,12 +39,14 @@ export type WeatherPromotionRecord =
       promotedAtMs: number;
       generation: number;
       signature: string;
+      items: DisplayWeatherAlertItemV1[];
     }
   | {
       state: "demoted";
       level: DisplayWeatherPromotionLevelV1;
       generation: number;
       signature: string;
+      items: DisplayWeatherAlertItemV1[];
     };
 
 /** 永続化・復元の受け渡し形 (シリアライズ可能な素直な構造)。wire プロトコルには載らない */
@@ -96,6 +104,8 @@ export class WeatherPromotionStore {
       promotedAtMs: nowMs,
       generation,
       signature: next.signature,
+      // 受理のたびに最新の view で上書きする = 控えが現況から遅れない
+      items: next.items,
     };
     this.notifyDurable();
     return true;
@@ -112,7 +122,8 @@ export class WeatherPromotionStore {
       if (rec == null || rec.state !== "active") continue;
       if (nowMs - rec.promotedAtMs <= WEATHER_PROMOTION_DEMOTE_MIN * MIN_MS) continue;
       this.records[source] = {
-        state: "demoted", level: rec.level, generation: rec.generation, signature: rec.signature,
+        state: "demoted", level: rec.level, generation: rec.generation,
+        signature: rec.signature, items: rec.items,
       };
       changed = true;
     }
@@ -197,7 +208,10 @@ function reviveRecord(
     return null;
   }
   if (elapsed > WEATHER_PROMOTION_DEMOTE_MIN * MIN_MS) {
-    return { state: "demoted", level: record.level, generation: record.generation, signature: record.signature };
+    return {
+      state: "demoted", level: record.level, generation: record.generation,
+      signature: record.signature, items: record.items,
+    };
   }
   return record;
 }

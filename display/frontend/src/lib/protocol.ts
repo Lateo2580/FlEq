@@ -278,6 +278,14 @@ export interface DisplayWeatherPromotionEntryV1 {
   level: DisplayWeatherPromotionLevelV1;
   promotedAt: string;
   generation: number;
+  /**
+   * 昇格の根拠になった item の控え。**live な weatherAlerts に当該 source が無いときだけ載る**
+   * (再起動直後・`display on` 直後の、まだ電文を受けていない窓)。
+   * 気象カードの view は起動時に復元されないため、この控えが無いと「昇格しているのに
+   * 主役パネルに出す中身が無い」状態になる。現況そのものではなく空表示を防ぐための控えで、
+   * 当該 source の電文を 1 通でも受理すれば weatherAlerts が権威になり、この欄は消える。
+   */
+  restoredItems?: DisplayWeatherAlertItemV1[];
 }
 
 /** source 別の昇格状態。demoted (画面都合の降格) は null に投影されるため、

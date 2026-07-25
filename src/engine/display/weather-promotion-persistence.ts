@@ -14,17 +14,20 @@ import {
   WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS,
   WEATHER_PROMOTION_MAX_RESTORE_AGE_MS,
 } from "./constants";
-import type { DisplayWeatherSourceV1 } from "./types";
+import type { DisplayWeatherAlertItemV1, DisplayWeatherSourceV1 } from "./types";
 import { WEATHER_PROMOTION_SOURCES } from "./weather-promotion";
 import type { WeatherPromotionPersistedV1, WeatherPromotionRecord } from "./weather-promotion-store";
 
-const PERSIST_SCHEMA_VERSION = 1;
+// v2: record に items (昇格根拠の view スナップショット) を追加。
+// v1 のデータは items を持たず「昇格しているのに中身が無い」状態になるため復元しない
+// (既存の version 不一致経路で debug ログ 1 行を出して破棄される)。
+const PERSIST_SCHEMA_VERSION = 2;
 
 /** standby-persistence と同じ debounce 窓。失うのは強制電源断の直前この秒数ぶん */
 const SAVE_DEBOUNCE_MS = 3000;
 
 export interface PersistedWeatherPromotionV1 extends WeatherPromotionPersistedV1 {
-  version: 1;
+  version: typeof PERSIST_SCHEMA_VERSION;
   savedAt: string;
 }
 
@@ -269,10 +272,36 @@ function sanitizeRecord(value: unknown): WeatherPromotionRecord | null | undefin
   if (typeof generation !== "number" || !Number.isSafeInteger(generation) || generation < 0) return undefined;
   // signature が欠けると復元後の「同内容の続報」判定が効かず generation が無駄に進む
   if (typeof signature !== "string") return undefined;
-  if (state === "demoted") return { state, level, generation, signature };
+  // items (view スナップショット) は record の一部。壊れていれば record ごと捨てる —
+  // 「昇格しているのに中身が無い」状態を復元しないため
+  const items = sanitizeItems(value.items);
+  if (items === undefined) return undefined;
+  // 昇格 record は必ず L4/L5 相当の item を伴う (classifier が空で level を返すことはない)。
+  // 空で保存されているのは破損なので record ごと捨てる — 復元しても「昇格しているのに
+  // 中身が無い」状態を作るだけで、この機能が塞ごうとしている穴そのものになる
+  if (items.length === 0) return undefined;
+  if (state === "demoted") return { state, level, generation, signature, items };
   const promotedAtMs = value.promotedAtMs;
   // 有限なだけでは足りない: 1e20 のような値は Date 範囲外で、後段の日時整形が RangeError になる
   if (typeof promotedAtMs !== "number" || !Number.isFinite(promotedAtMs)) return undefined;
   if (Math.abs(promotedAtMs) > MAX_TIME_VALUE) return undefined;
-  return { state, level, promotedAtMs, generation, signature };
+  return { state, level, promotedAtMs, generation, signature, items };
+}
+
+/** undefined = 不正 (record ごと破棄) */
+function sanitizeItems(value: unknown): DisplayWeatherAlertItemV1[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items: DisplayWeatherAlertItemV1[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) return undefined;
+    const { kind, displaySeverity, rank, shownAreas, omittedAreaCount } = raw;
+    if (typeof kind !== "string" || typeof displaySeverity !== "string") return undefined;
+    if (rank !== "emergency" && rank !== "warning" && rank !== "advisory") return undefined;
+    if (!Array.isArray(shownAreas) || shownAreas.some((a) => typeof a !== "string")) return undefined;
+    if (typeof omittedAreaCount !== "number" || !Number.isSafeInteger(omittedAreaCount) || omittedAreaCount < 0) {
+      return undefined;
+    }
+    items.push({ kind, displaySeverity, rank, shownAreas: shownAreas as string[], omittedAreaCount });
+  }
+  return items;
 }

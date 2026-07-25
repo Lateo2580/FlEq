@@ -34,6 +34,14 @@ function alertsOf(source: "vpws50" | "vpww56", severity: string, areas: string[]
   ];
 }
 
+const SNAPSHOT_ITEM = {
+  kind: "L5 大雨特別警報",
+  displaySeverity: "officialL5",
+  rank: "emergency" as const,
+  shownAreas: ["東京都"],
+  omittedAreaCount: 0,
+};
+
 function activeRecord(over: Partial<Extract<WeatherPromotionRecord, { state: "active" }>> = {}) {
   return {
     state: "active" as const,
@@ -41,6 +49,7 @@ function activeRecord(over: Partial<Extract<WeatherPromotionRecord, { state: "ac
     promotedAtMs: T0,
     generation: 3,
     signature: "sig-a",
+    items: [SNAPSHOT_ITEM],
     ...over,
   };
 }
@@ -121,11 +130,11 @@ describe("WeatherPromotionStore.restore (残り時間だけ復元する)", () =>
 
   it("demoted record は demoted のまま復元され、level と generation を保つ", () => {
     const store = restored(
-      { vpww56: { state: "demoted", level: 4, generation: 7, signature: "s" } },
+      { vpww56: { state: "demoted", level: 4, generation: 7, signature: "s", items: [SNAPSHOT_ITEM] } },
       T0,
     );
     const rec = store.get("vpww56");
-    expect(rec).toEqual({ state: "demoted", level: 4, generation: 7, signature: "s" });
+    expect(rec).toEqual({ state: "demoted", level: 4, generation: 7, signature: "s", items: [SNAPSHOT_ITEM] });
   });
 
   it("watermark は保存値と record の generation の大きい方を採る", () => {
@@ -156,7 +165,7 @@ describe("WeatherPromotionStore.restore (残り時間だけ復元する)", () =>
   it("復元した demoted は tier と weatherL5Active を保つ", () => {
     const promotions = new WeatherPromotionStore();
     promotions.restore(
-      { records: { vpws50: { state: "demoted", level: 5, generation: 1, signature: "s" }, vpww56: null }, generations: { vpws50: 1, vpww56: 0 } },
+      { records: { vpws50: { state: "demoted", level: 5, generation: 1, signature: "s", items: [SNAPSHOT_ITEM] }, vpww56: null }, generations: { vpws50: 1, vpww56: 0 } },
       T0,
     );
     const store = new DisplayStateStore(undefined, promotions);
@@ -205,7 +214,7 @@ describe("WeatherPromotionPersistence", () => {
     p.save({ records: { vpws50: null, vpww56: null }, generations: { vpws50: 0, vpww56: 0 } }, T0);
     const raw = JSON.parse(readFileSync(file, "utf8"));
     expect(raw.savedAt).toBe(new Date(T0).toISOString());
-    expect(raw.version).toBe(1);
+    expect(raw.version).toBe(2);
   });
 
   it("records が全 null の状態も書き込む (解除済みの昇格が再起動で復活しない)", () => {
@@ -240,7 +249,7 @@ describe("WeatherPromotionPersistence", () => {
   it("savedAt 欠落は null", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
     try {
-      write({ version: 1, records: {}, generations: {} });
+      write({ version: 2, records: {}, generations: {} });
       expect(new WeatherPromotionPersistence(file).load(T0)).toBeNull();
     } finally {
       warn.mockRestore();
@@ -258,17 +267,17 @@ describe("WeatherPromotionPersistence", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
     try {
       write({
-        version: 1,
+        version: 2,
         savedAt: new Date(T0).toISOString(),
         records: {
-          vpws50: { state: "active", level: 99, generation: 1, signature: "s", promotedAtMs: T0 }, // level 不正
-          vpww56: { state: "demoted", level: 4, generation: 2, signature: "s" },
+          vpws50: { state: "active", level: 99, generation: 1, signature: "s", promotedAtMs: T0, items: [SNAPSHOT_ITEM] }, // level 不正
+          vpww56: { state: "demoted", level: 4, generation: 2, signature: "s", items: [SNAPSHOT_ITEM] },
         },
         generations: { vpws50: 5, vpww56: 2 },
       });
       const loaded = new WeatherPromotionPersistence(file).load(T0);
       expect(loaded?.records.vpws50).toBeNull();
-      expect(loaded?.records.vpww56).toEqual({ state: "demoted", level: 4, generation: 2, signature: "s" });
+      expect(loaded?.records.vpww56).toEqual({ state: "demoted", level: 4, generation: 2, signature: "s", items: [SNAPSHOT_ITEM] });
       // 壊れた側の watermark は保存値を維持する (generation の再利用を防ぐ)
       expect(loaded?.generations.vpws50).toBe(5);
       expect(warn).toHaveBeenCalled();
@@ -281,9 +290,9 @@ describe("WeatherPromotionPersistence", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
     try {
       write({
-        version: 1,
+        version: 2,
         savedAt: new Date(T0).toISOString(),
-        records: { vpws50: { state: "active", level: 5, generation: 1, promotedAtMs: T0 }, vpww56: null },
+        records: { vpws50: { state: "active", level: 5, generation: 1, promotedAtMs: T0, items: [SNAPSHOT_ITEM] }, vpww56: null },
         generations: { vpws50: 1, vpww56: 0 },
       });
       expect(new WeatherPromotionPersistence(file).load(T0)?.records.vpws50).toBeNull();
@@ -320,9 +329,9 @@ describe("WeatherPromotionPersistence", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
     try {
       write({
-        version: 1,
+        version: 2,
         savedAt: new Date(T0).toISOString(),
-        records: { vpws50: { state: "active", level: 5, generation: 1, signature: "s", promotedAtMs: 1e20 }, vpww56: null },
+        records: { vpws50: { state: "active", level: 5, generation: 1, signature: "s", promotedAtMs: 1e20, items: [SNAPSHOT_ITEM] }, vpww56: null },
         generations: { vpws50: 1, vpww56: 0 },
       });
       const loaded = new WeatherPromotionPersistence(file).load(T0);
@@ -330,7 +339,7 @@ describe("WeatherPromotionPersistence", () => {
       // 万一 sanitize を抜けても restore で落ちないこと
       const store = new WeatherPromotionStore();
       expect(() => store.restore(
-        { records: { vpws50: { state: "active", level: 5, generation: 1, signature: "s", promotedAtMs: 1e20 }, vpww56: null }, generations: { vpws50: 1, vpww56: 0 } },
+        { records: { vpws50: { state: "active", level: 5, generation: 1, signature: "s", promotedAtMs: 1e20, items: [SNAPSHOT_ITEM] }, vpww56: null }, generations: { vpws50: 1, vpww56: 0 } },
         T0,
       )).not.toThrow();
     } finally {
@@ -342,7 +351,7 @@ describe("WeatherPromotionPersistence", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
     try {
       const p = new WeatherPromotionPersistence(file);
-      p.save({ records: { vpws50: { state: "demoted", level: 5, generation: 4, signature: "s" }, vpww56: null }, generations: { vpws50: 4, vpww56: 0 } }, T0);
+      p.save({ records: { vpws50: { state: "demoted", level: 5, generation: 4, signature: "s", items: [SNAPSHOT_ITEM] }, vpww56: null }, generations: { vpws50: 4, vpww56: 0 } }, T0);
       // 現在時刻が保存時刻より前 = savedAt が未来
       const loaded = p.load(T0 - 60 * MIN);
       expect(loaded).not.toBeNull();
@@ -363,9 +372,9 @@ describe("WeatherPromotionPersistence", () => {
     const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
     try {
       write({
-        version: 1,
+        version: 2,
         savedAt: new Date(T0).toISOString(),
-        records: { vpws50: { state: "demoted", level: 5, generation: 1e308, signature: "s" }, vpww56: null },
+        records: { vpws50: { state: "demoted", level: 5, generation: 1e308, signature: "s", items: [SNAPSHOT_ITEM] }, vpww56: null },
         generations: { vpws50: 1e308, vpww56: 0 },
       });
       const loaded = new WeatherPromotionPersistence(file).load(T0);
@@ -539,5 +548,192 @@ describe("monitor 所有ストアの共有", () => {
     a.applyWeatherSource("vpws50", alertsOf("vpws50", "officialL5", ["東京都"]), T0);
     expect(a.snapshot(1, T0).weatherPromotion?.vpws50).not.toBeNull();
     expect(b.snapshot(1, T0).weatherPromotion?.vpws50).toBeNull();
+  });
+});
+
+// ── 昇格時 view スナップショット (Phase 2 の穴を塞ぐ) ──
+
+describe("昇格時の view スナップショット", () => {
+  const L5 = alertsOf("vpws50", "officialL5", ["東京都"]);
+  const L3 = alertsOf("vpws50", "officialL3", ["東京都"]);
+
+  it("昇格の根拠になった item が record に載る (L3 以下は載せない)", () => {
+    const store = new WeatherPromotionStore();
+    store.apply("vpws50", [
+      ...alertsOf("vpws50", "officialL5", ["東京都"]),
+      ...alertsOf("vpws50", "officialL3", ["千葉県"]),
+    ], T0);
+    const items = store.get("vpws50")?.items ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0]?.displaySeverity).toBe("officialL5");
+  });
+
+  it("再起動後: weatherAlerts が空でも snapshot に控えが載る", () => {
+    const promotions = new WeatherPromotionStore();
+    promotions.apply("vpws50", L5, T0);
+    const persisted = JSON.parse(JSON.stringify(promotions.export()));
+
+    const restoredStore = new WeatherPromotionStore();
+    restoredStore.restore(persisted, T0 + MIN);
+    const store = new DisplayStateStore(undefined, restoredStore);
+    // 起動直後は holder が空なので weatherAlerts は seed されない
+    const entry = store.snapshot(1, T0 + MIN).weatherPromotion?.vpws50;
+    expect(entry?.level).toBe(5);
+    expect(entry?.restoredItems).toHaveLength(1);
+    expect(entry?.restoredItems?.[0]?.displaySeverity).toBe("officialL5");
+  });
+
+  it("実データ (weatherAlerts) が来たら控えは載らない", () => {
+    const promotions = new WeatherPromotionStore();
+    promotions.apply("vpws50", L5, T0);
+    const store = new DisplayStateStore(undefined, promotions);
+    store.seedWeatherAlerts(L5);
+    const entry = store.snapshot(1, T0).weatherPromotion?.vpws50;
+    expect(entry?.level).toBe(5);
+    expect(entry?.restoredItems).toBeUndefined();
+  });
+
+  it("他 source の weatherAlerts があっても、当該 source が無ければ控えを載せる", () => {
+    const promotions = new WeatherPromotionStore();
+    promotions.apply("vpws50", L5, T0);
+    const store = new DisplayStateStore(undefined, promotions);
+    store.seedWeatherAlerts(alertsOf("vpww56", "officialL5", ["島根県"]));
+    expect(store.snapshot(1, T0).weatherPromotion?.vpws50?.restoredItems).toHaveLength(1);
+  });
+
+  it("スナップショットからは昇格が発生しない (控えは昇格の根拠にならない)", () => {
+    const store = new WeatherPromotionStore();
+    store.apply("vpws50", L5, T0);
+    // 解除を受理すれば、控えを持っていた record ごと消える
+    store.apply("vpws50", L3, T0 + MIN);
+    expect(store.get("vpws50")).toBeNull();
+    // resume は控えを見て昇格を作り直したりしない
+    expect(store.resume(T0 + 2 * MIN)).toBe(false);
+    expect(store.get("vpws50")).toBeNull();
+  });
+
+  it("confirmed update のたびに控えが最新へ入れ替わる", () => {
+    const store = new WeatherPromotionStore();
+    store.apply("vpws50", L5, T0);
+    store.apply("vpws50", alertsOf("vpws50", "officialL5", ["東京都", "千葉県"]), T0 + MIN);
+    expect(store.get("vpws50")?.items[0]?.shownAreas).toEqual(["東京都", "千葉県"]);
+  });
+
+  it("降格しても控えは保たれる (record と一緒に生きる)", () => {
+    const store = new WeatherPromotionStore();
+    store.apply("vpws50", L5, T0);
+    store.sweepDemote(T0 + DEMOTE_MS + 5_000);
+    expect(store.get("vpws50")?.items).toHaveLength(1);
+  });
+
+  it("WeatherAlertCard 用の weatherAlerts は控えで汚染されない", () => {
+    const promotions = new WeatherPromotionStore();
+    promotions.apply("vpws50", L5, T0);
+    const store = new DisplayStateStore(undefined, promotions);
+    // 復元しただけの状態では気象カードは空のまま (従来動作)
+    expect(store.snapshot(1, T0).weatherAlerts).toEqual([]);
+  });
+});
+
+// ── record 破棄条件では控えも必ず消える (生死を共にする) ──
+
+describe("record を破棄する全条件で控えも消える", () => {
+  let dir2: string;
+  let file2: string;
+  beforeEach(() => {
+    dir2 = mkdtempSync(join(tmpdir(), "fleq-promotion-colife-"));
+    file2 = join(dir2, "weather-promotion-v1.json");
+  });
+  afterEach(() => rmSync(dir2, { recursive: true, force: true }));
+
+  function writeFile2(content: unknown): void {
+    writeFileSync(file2, typeof content === "string" ? content : JSON.stringify(content), "utf8");
+  }
+
+  function saved(records: unknown, savedAtMs = T0): void {
+    writeFile2({ version: 2, savedAt: new Date(savedAtMs).toISOString(), records, generations: { vpws50: 3, vpww56: 0 } });
+  }
+
+  /** 復元後に控えが残っていないことを snapshot 経由で確認する */
+  function restoredEntry(nowMs: number) {
+    const loaded = new WeatherPromotionPersistence(file2).load(nowMs);
+    const promotions = new WeatherPromotionStore();
+    if (loaded != null) promotions.restore(loaded, nowMs);
+    const store = new DisplayStateStore(undefined, promotions);
+    return { entry: store.snapshot(1, nowMs).weatherPromotion?.vpws50, record: promotions.get("vpws50") };
+  }
+
+  it("24 時間足切り", () => {
+    saved({ vpws50: activeRecord(), vpww56: null });
+    const r = restoredEntry(T0 + WEATHER_PROMOTION_MAX_RESTORE_AGE_MS + MIN);
+    expect(r.record).toBeNull();
+    expect(r.entry).toBeNull();
+  });
+
+  it("savedAt が未来", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
+    try {
+      saved({ vpws50: activeRecord(), vpww56: null });
+      const r = restoredEntry(T0 - 60 * MIN);
+      expect(r.record).toBeNull();
+      expect(r.entry).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("promotedAtMs が未来", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
+    try {
+      saved({ vpws50: activeRecord({ promotedAtMs: T0 + 60 * MIN }), vpww56: null });
+      const r = restoredEntry(T0);
+      expect(r.record).toBeNull();
+      expect(r.entry).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("version 不一致", () => {
+    writeFile2({ version: 1, savedAt: new Date(T0).toISOString(), records: { vpws50: activeRecord(), vpww56: null }, generations: { vpws50: 3, vpww56: 0 } });
+    const r = restoredEntry(T0);
+    expect(r.record).toBeNull();
+    expect(r.entry).toBeNull();
+  });
+
+  it("破損 (JSON として壊れている)", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
+    try {
+      writeFile2("{ broken");
+      const r = restoredEntry(T0);
+      expect(r.record).toBeNull();
+      expect(r.entry).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("items が壊れている record は record ごと捨てる", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
+    try {
+      saved({ vpws50: { ...activeRecord(), items: [{ kind: 1 }] }, vpww56: null });
+      const r = restoredEntry(T0);
+      expect(r.record).toBeNull();
+      expect(r.entry).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("items が空の record は record ごと捨てる (中身の無い昇格を復元しない)", () => {
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => {});
+    try {
+      saved({ vpws50: { ...activeRecord(), items: [] }, vpww56: null });
+      const r = restoredEntry(T0);
+      expect(r.record).toBeNull();
+      expect(r.entry).toBeNull();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
