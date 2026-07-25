@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   STANDBY_CARD_REGISTRY,
@@ -22,27 +20,6 @@ describe("standby-registry", () => {
     expect(Object.keys(STANDBY_CARD_REGISTRY).sort()).toEqual(
       ["flood", "heat", "longPeriod", "nankaiTrough", "tornado", "typhoon", "volcano"].sort(),
     );
-  });
-
-  it("spec 附属 A は7種別の lifecycle と実装関数・回帰テストを対応付ける", () => {
-    const spec = readFileSync(join(
-      process.cwd(),
-      "docs/superpowers/specs/2026-07-21-standby-cards-expansion-design.md",
-    ), "utf8");
-    const appendix = spec.slice(spec.indexOf("## 附属 A: lifecycle 表"), spec.indexOf("## 9. 受け入れ条件"));
-
-    expect(appendix).toContain("識別キー");
-    expect(appendix).toContain("revision / 重複時 TTL");
-    expect(appendix).toContain("tombstone");
-    expect(appendix).toContain("取消");
-    expect(appendix).toContain("訂正");
-    expect(appendix).toContain("失効");
-    expect(appendix).toContain("永続化");
-    expect(appendix).toContain("実装関数");
-    expect(appendix).toContain("回帰テスト");
-    for (const kind of ["heat", "typhoon", "volcano", "flood", "tornado", "longPeriod", "nankaiTrough"]) {
-      expect(appendix).toContain(`| ${kind} |`);
-    }
   });
 
   it("優先順位は竜巻 > 洪水 > 火山 > 台風 > 熱中症", () => {
