@@ -959,10 +959,9 @@ export function displayFloodForecastInfo(info: ParsedFloodForecastInfo): void {
     displayCancelPath(info);
     return;
   }
-  const rivers = aggregateByRiver(info.rawStations);
   if (info.schema === "vxsu50") {
     displayVxsuMinimal(info);
     return;
   }
-  displayVxkoNormal(info, rivers);
+  displayVxkoNormal(info, aggregateByRiver(info.rawStations));
 }

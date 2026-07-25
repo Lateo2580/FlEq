@@ -177,6 +177,25 @@ describe("displayFloodForecastInfo — VXSU 最小 layout (91_01_01) (Task 20d)"
     expect(out).toContain("気象庁");
   });
 
+  it("schema=vxsu50 では河川集約 (aggregateByRiver) を実行しない", () => {
+    const info = parseFloodForecast(
+      createMockWsDataMessage("91_01_01_241031_VXSU50.xml"),
+    )!;
+    let rawStationsReads = 0;
+    const probed = new Proxy(info, {
+      get(target, prop, receiver) {
+        if (prop === "rawStations") rawStationsReads++;
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    displayFloodForecastInfo(probed);
+    // VXSU パスで rawStations を読むのは resolveFloodForecastLevels の
+    // level 判定だけ。dispatch 前に aggregateByRiver を呼ぶと 2 回になる。
+    expect(rawStationsReads).toBe(1);
+    // 出力は集約の有無で不変
+    expect(plainOutput()).toContain("水位周知河川に関する情報");
+  });
+
   it("synthetic_VXSU50_cancel: 取消パスを通る (displayCancelPath)", () => {
     const info = parseFloodForecast(
       createMockWsDataMessage("synthetic_VXSU50_cancel.xml"),
