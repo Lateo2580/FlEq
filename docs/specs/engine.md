@@ -3243,6 +3243,7 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - **`demoted` は wire 上 null へ投影する** (`weatherPromotionForWire()`)。フロントは期限計算を一切せず「null でなければ主役パネル」とだけ解釈する。昇格状態の権威は engine 側にある
 - `weatherL5Active` は night-dim 用。パネル降格後も警報解除まで true (`isWeatherL5Active()`)
 - `deriveSeverityTier()` は demoted を含む record の `level` から L5 = `critical` / L4 = `alert` を採る。**降格後も解除まで tier を維持する** (津波の demote と同方針)
+- `restoredItems?` は昇格根拠の控え。**live な `weatherAlerts` に当該 source が無く、かつ控えが空でないときだけ**載る (`promotionEntryForWire()`)。当該 source の電文を 1 通受理すれば `weatherAlerts` が権威になり、控えは wire から消える。詳細は「昇格根拠の控え」節
 
 ### テロップ保護
 
@@ -3291,7 +3292,20 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - **破損・version 不一致・`savedAt` 不正は破棄して起動を続ける** (warn/debug のみ)。検証は **source 単位**で、片方が壊れてももう片方は生かす。`signature` 欠落の record は破棄する — 欠けると復元後の「同内容の続報」判定が効かず generation が無駄に進むため
 - **保存から `WEATHER_PROMOTION_MAX_RESTORE_AGE_MS` (24 時間) 以上経ったデータは丸ごと破棄する**。気象警報の view 自体は起動時に復元されない (`src/engine/startup/` にあるのは津波・火山の REST replay だけで、`Vpws50StateHolder` / `Vpww56StateHolder` は空から始まる) ため、`demoted` record は電文が届くまで tier と `weatherL5Active` を保持し続ける。継続中の警報なら VPWS50 の定期再掲ですぐ上書きされるので、「1 日確認が取れないものは主張しない」を上限に据える
 
-**既知の制約**: 上記のとおり気象カードの view は起動時に復元されないため、`active` を復元した直後は `weatherPromotion` が非 null なのに `weatherAlerts` が空という窓が生じる (最初の VPWS50/VPWW56 受信まで)。主役パネルの描画 (Phase 2) はこの状態を考慮する必要がある。
+### 昇格根拠の控え (view スナップショット)
+
+気象カードの view は起動時に復元されないため、`active` を復元した直後は `weatherPromotion` が非 null なのに `weatherAlerts` が空、という窓ができる (最初の VPWS50/VPWW56 受信まで)。主役パネルの中身は `weatherAlerts` から組むので、そのままでは「昇格しているのに描く中身が無い」状態になる。
+
+これを塞ぐため、**昇格の根拠になった item を record 自身が控えとして持つ**。
+
+- 控えは `WeatherPromotionRecord` の discriminated union の**中**に置く (`items`)。トップレベルの別フィールドにしないのは、**record を捨てる操作がそのまま控えの破棄になる**ようにするため。「record は消えたのに控えだけ残る」を型の上で書けなくしている
+- 保存するのは **L4/L5 相当の item だけ**。L3 以下は主役パネルに出ないので控える意味がない (classifier が `displayWeatherPromotionLevel()` で非 null を返した item だけを集める)
+- 受理のたびに最新の view で上書きする。控えが現況から遅れない
+- 空の `items` は**破損として record ごと破棄する**。復元しても「昇格しているのに中身が無い」状態を作るだけなので、残す価値がない
+
+**wire には `DisplayWeatherPromotionEntryV1.restoredItems?` として載る。ただし live な `weatherAlerts` に当該 source が無いときだけ**。当該 source の電文を 1 通でも受理すれば `weatherAlerts` が権威になり、控えは wire から消える (`promotionEntryForWire()`)。
+
+**`weatherAlerts` には一切 seed しない。** 控えを `weatherAlerts` に流し込めばフロントは何も変えずに済むが、そうすると**再起動直後に待機画面の気象カードが前回の警報で点灯する** — 従来は空だった場所に表示が出るので、`WeatherAlertCard` の挙動変更になってしまう。控えはあくまで主役パネルの空表示を防ぐためのもので、現況そのものではない。この不変条件はテストで固定してある。
 
 ### 受理経路 (どこで `apply` を呼ぶか)
 
@@ -3322,9 +3336,11 @@ display は表示の都合であって「電文を受理した」という事実
 ### エクスポートAPI
 
 ```ts
+// items = 昇格の根拠になった item の控え (L4/L5 相当のみ)。union の中に置くことで
+// record を捨てる操作がそのまま控えの破棄になる (「片方だけ生き残る」を型で書けなくする)
 type WeatherPromotionRecord =
-  | { state: "active";  level: 4 | 5; promotedAtMs: number; generation: number; signature: string }
-  | { state: "demoted"; level: 4 | 5;                       generation: number; signature: string };
+  | { state: "active";  level: 4 | 5; promotedAtMs: number; generation: number; signature: string; items: DisplayWeatherAlertItemV1[] }
+  | { state: "demoted"; level: 4 | 5;                       generation: number; signature: string; items: DisplayWeatherAlertItemV1[] };
 
 /** 永続化・復元の受け渡し形 (シリアライズ可能な素直な構造)。wire プロトコルには載らない */
 interface WeatherPromotionPersistedV1 {
@@ -3390,7 +3406,9 @@ class WeatherPromotionStore {
 
 ### 概要
 
-昇格 lifecycle をローカル JSON (`data/runtime/weather-promotion-v1.json`、gitignore 済み) へ保存・復元する。作法は `display/standby-persistence.ts` に揃えてある — debounce 予約 → tmp write + rename、終了時は `dispose()` → `save()` で書き切る。ただし standby と違って**同期保存と非同期保存が混在する**ため、順序保証のための seq guard を持つ (後述)。
+昇格 lifecycle をローカル JSON (`data/runtime/weather-promotion-v1.json`、gitignore 済み) へ保存・復元する。作法は `display/standby-persistence.ts` に揃えてある — debounce 予約 → tmp write + rename、終了時は `dispose()` → `save()` で書き切る。
+
+**同期保存と非同期保存が混在する**ため、順序保証のための seq guard を持つ (後述)。同じ構造を持つ永続化層が他に 2 つあり、いずれも同じ方式に揃えてある (「同じ方式を適用した他の永続化層」節)。
 
 津波・火山のような dmdata REST replay は使えない。`promotedAtMs` は engine の受理時刻、`generation` は engine 内部のカウンタで、**どちらも電文からは再構成できない**ため、ローカルスナップショット以外に選択肢がない。
 
@@ -3414,6 +3432,8 @@ class WeatherPromotionPersistence {
   flush(): void;
   /** 予約を捨てる (ディスク上の内容は触らない) */
   dispose(): void;
+  /** テスト用: 予約済みの書き込みを debounce を待たずに実行する (テストを実時間に依存させない) */
+  __test_writePending(): Promise<void>;
 }
 ```
 
@@ -3437,7 +3457,7 @@ class WeatherPromotionPersistence {
 
 1. ファイルが存在しない → `null`
 2. top-level が object でない → `null`
-3. `version` が `PERSIST_SCHEMA_VERSION` (1) と不一致 → `null` (schema 世代交代として debug ログのみ)
+3. `version` が `PERSIST_SCHEMA_VERSION` (**2**) と不一致 → `null` (schema 世代交代として debug ログのみ)。v1 は record が `items` (昇格根拠の控え) を持たず、復元すると「昇格しているのに中身が無い」状態になるため読まずに捨てる
 4. `savedAt` が parse 不能 → `null`
 5. `nowMs - savedAt` が `WEATHER_PROMOTION_MAX_RESTORE_AGE_MS` (24 時間) 超 → `null`
 6. `savedAt - nowMs` が `WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS` 超 (**保存時刻が未来**) → **record だけ破棄し `generations` は返す**
@@ -3454,7 +3474,28 @@ class WeatherPromotionPersistence {
 
 `sanitizePersisted()` は **source 単位**で検証し、片方が壊れていてももう片方は生かす (standby persistence の domain 単位破棄と同じ考え方)。`sanitizeRecord()` は `null` (記録なし = 正常) と `undefined` (不正データ = この source を破棄) を区別する。`state` / `level` / `generation` / `signature` のいずれかが不正なら破棄し、`active` はさらに `promotedAtMs` の有限性と Date 可搬範囲を要求する。
 
+`items` (昇格根拠の控え) は record の一部として検証する。**壊れていても空でも record ごと破棄する** — 控えだけを落として record を残すと「昇格しているのに中身が無い」状態が復活してしまい、`items` を union の中に置いた意味が消えるため。
+
 `generation` は `Number.isFinite` ではなく **`Number.isSafeInteger`** で検証する。safe integer を超えた値は `++` しても増えず、generation の更新が止まってしまうため。`generations` は record の `generation` を下回らないよう補正する (復元後の generation 逆行防止)。
+
+### 同じ方式を適用した他の永続化層
+
+上記の書き込み順序の設計 (seq guard・seq 固有 tmp・guard と `rename` の同期実行・`load()` での残骸掃除) は、**同じ構造を持つ次の 2 つにも同一の方式で適用してある**。
+
+| ファイル | 保存対象 |
+|---------|---------|
+| `display/standby-persistence.ts` | standby active-state |
+| `messages/vpwp50-detail-cache.ts` | VPWP50 詳細 cache の latest |
+
+**なぜ必要だったか**: どちらも「debounce した非同期保存」と「終了時の同期保存」が**同じ固定 `.tmp` を共有**していて、`dispose()` は進行中の非同期書き込みを待たない。そのため古い非同期書き込みが新しい同期保存の**後に** rename し、**正常終了時の最終状態が直前の非同期書き込みに巻き戻る**。standby は再起動時に復元される状態なので、巻き戻ると次回起動の表示に影響する。**同期と非同期が同じ tmp を使う形は再生産しないこと。**
+
+3 つの実装で違うのは、順序保証そのものではなく各層の元の API 形だけ。
+
+- `standby-persistence.ts` は `save()` が public (シャットダウン経路が直接呼ぶ) なので、同期保存の入口が `save()` と `flush()` の 2 つある
+- `vpwp50-detail-cache.ts` は同期保存の入口が `flush()` だけで、`save()` 相当は private (`saveToDisk`)
+- `weather-promotion-persistence.ts` は `savedAt` を呼び出し側の `nowMs` から作るため、`schedule` / `save` が `nowMs` を受け取る
+
+いずれも `__test_writePending()` を持つ。debounce タイマーの発火を実時間で待つとテストが時間依存になるため、予約済みの書き込みをタイマー抜きで実行する窓口をテスト用に開けてある。
 
 ### 依存関係
 
