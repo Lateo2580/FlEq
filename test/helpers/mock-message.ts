@@ -486,10 +486,14 @@ export function encodeXml(xml: string): string {
 /**
  * フィクスチャXMLから WsDataMessage を構築する。
  * overrides で任意のフィールドを上書き可能。
+ * opts.publishingOffice は envelope (xmlReport.control) 側の発表官署を差し替える。
+ * parser は envelope を XML 本体の Control.PublishingOffice より優先するため、
+ * 官署別ストリームを扱うテストはここを変える (既定は本庁 "気象庁")。
  */
 export function createMockWsDataMessage(
   fixtureName: string,
-  overrides?: Partial<WsDataMessage>
+  overrides?: Partial<WsDataMessage>,
+  opts: { publishingOffice?: string } = {},
 ): WsDataMessage {
   const xml = readFixture(fixtureName);
   const body = encodeXml(xml);
@@ -526,7 +530,7 @@ export function createMockWsDataMessage(
         dateTime: new Date().toISOString(),
         status: "通常",
         editorialOffice: "気象庁本庁",
-        publishingOffice: "気象庁",
+        publishingOffice: opts.publishingOffice ?? "気象庁",
       },
       head: {
         title: "テスト電文",
@@ -557,7 +561,7 @@ export function createMockWsDataMessage(
 export function createMockWsDataMessageFromXml(
   xml: string,
   type: string,
-  overrides: { test?: boolean } = {},
+  overrides: { test?: boolean; publishingOffice?: string } = {},
 ): WsDataMessage {
   const body = encodeXml(xml);
   const classification = type === "VXSE43"
@@ -589,7 +593,7 @@ export function createMockWsDataMessageFromXml(
         dateTime: new Date().toISOString(),
         status: "通常",
         editorialOffice: "気象庁本庁",
-        publishingOffice: "気象庁",
+        publishingOffice: overrides.publishingOffice ?? "気象庁",
       },
       head: {
         title: "テスト電文",
