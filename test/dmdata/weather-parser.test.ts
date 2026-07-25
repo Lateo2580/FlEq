@@ -306,9 +306,8 @@ describe("maxDisplaySeverity (Phase C)", () => {
           {
             areaName: "テスト地域",
             areaCode: "010000",
-            kinds: [{ code: "00", name: "解除" }],
+            kinds: [{ code: "00", name: "解除", severity: "release" as const }],
             statuses: [],
-            changeStatus: null,
           },
         ],
       },

@@ -13,6 +13,8 @@ interface MockRequest extends EventEmitter {
   end: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
   setTimeout: (ms: number, cb: () => void) => void;
+  /** テストから setTimeout のコールバックを発火させる窓口 */
+  _triggerTimeout: () => void;
 }
 
 let lastMockReq: MockRequest;
@@ -35,7 +37,7 @@ function createMockRequest(): MockRequest {
     timeoutCb = cb;
   };
   // expose timeout trigger for tests
-  (emitter as Record<string, unknown>)._triggerTimeout = () => {
+  emitter._triggerTimeout = () => {
     if (timeoutCb) timeoutCb();
   };
   return emitter;
@@ -230,7 +232,7 @@ describe("REST Client", () => {
       const promise = listContracts(TEST_API_KEY);
 
       // タイムアウトをトリガー
-      (lastMockReq as unknown as Record<string, () => void>)._triggerTimeout();
+      lastMockReq._triggerTimeout();
 
       await expect(promise).rejects.toThrow("Request timeout (15s)");
     });
@@ -275,6 +277,8 @@ describe("REST Client", () => {
     it("正常に WebSocket URL を取得する", async () => {
       const config: AppConfig = {
         apiKey: TEST_API_KEY,
+        // 既定値を土台に敷き、以降の明示値で上書きする (AppConfig にフィールドが増えても壊れない)
+        ...DEFAULT_CONFIG,
         classifications: ["telegram.earthquake"],
         testMode: "no",
         appName: "test",
@@ -285,10 +289,10 @@ describe("REST Client", () => {
         displayMode: "normal",
         promptClock: "elapsed",
         waitTipIntervalMin: 30,
-        notify: { eew: true, earthquake: true, tsunami: true, seismicText: true, nankaiTrough: true, lgObservation: true },
+        notify: { ...DEFAULT_CONFIG.notify },
         sound: true,
         eewLog: true,
-        eewLogFields: { hypocenter: true, magnitude: true, forecastIntensity: true, forecastAreas: true, diff: true },
+        eewLogFields: { ...DEFAULT_CONFIG.eewLogFields },
         maxObservations: null,
         backup: false,
         truncation: { ...DEFAULT_CONFIG.truncation },

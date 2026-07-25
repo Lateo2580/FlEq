@@ -28,6 +28,8 @@ import * as log from "../../src/logger";
 function createConfig(overrides?: Partial<AppConfig>): AppConfig {
   return {
     apiKey: "test-key",
+    // 既定値を土台に敷き、以降の明示値で上書きする (AppConfig にフィールドが増えても壊れない)
+    ...DEFAULT_CONFIG,
     classifications: ["telegram.earthquake", "eew.forecast", "eew.warning"],
     testMode: "no",
     appName: "fleq",
@@ -38,14 +40,7 @@ function createConfig(overrides?: Partial<AppConfig>): AppConfig {
     displayMode: "normal",
     promptClock: "elapsed",
     waitTipIntervalMin: 30,
-    notify: {
-      eew: true,
-      earthquake: true,
-      tsunami: true,
-      seismicText: true,
-      nankaiTrough: true,
-      lgObservation: true,
-    },
+    notify: { ...DEFAULT_CONFIG.notify },
     sound: true,
     eewLog: true,
     eewLogFields: {

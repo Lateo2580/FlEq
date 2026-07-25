@@ -82,6 +82,8 @@ const mockPrepare = vi.mocked(prepareAndStartSocket);
 function createConfig(overrides?: Partial<AppConfig>): AppConfig {
   return {
     apiKey: "test-api-key",
+    // 既定値を土台に敷き、以降の明示値で上書きする (AppConfig にフィールドが増えても壊れない)
+    ...DEFAULT_CONFIG,
     classifications: ["telegram.earthquake"],
     testMode: "no",
     appName: "test-app",
@@ -92,10 +94,10 @@ function createConfig(overrides?: Partial<AppConfig>): AppConfig {
     displayMode: "normal",
     promptClock: "elapsed",
     waitTipIntervalMin: 30,
-    notify: { eew: true, earthquake: true, tsunami: true, seismicText: true, nankaiTrough: true, lgObservation: true },
+    notify: { ...DEFAULT_CONFIG.notify },
     sound: true,
     eewLog: true,
-    eewLogFields: { hypocenter: true, magnitude: true, forecastIntensity: true, forecastAreas: true, diff: true },
+    eewLogFields: { ...DEFAULT_CONFIG.eewLogFields },
     truncation: { ...DEFAULT_CONFIG.truncation },
     ...overrides,
   };

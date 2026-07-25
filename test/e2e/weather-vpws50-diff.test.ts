@@ -10,6 +10,7 @@ import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 import { Vpwp50DetailCache } from "../../src/engine/messages/vpwp50-detail-cache";
 import { TyphoonProbabilityStateHolder } from "../../src/engine/messages/typhoon-probability-state";
+import { FloodForecastStateHolder } from "../../src/engine/messages/flood-forecast-state";
 import {
   createMockWsDataMessage,
   FIXTURE_VPWS50_AGGREGATE,
@@ -296,6 +297,7 @@ function fakeDeps(state: Vpws50StateHolder): ProcessDeps {
     vpww56State: new Vpww56StateHolder(),
     vpwp50Cache: new Vpwp50DetailCache({ persistRoot: tmpRoot }),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
+    floodForecastState: new FloodForecastStateHolder(),
   };
 }
 
