@@ -207,10 +207,28 @@ function mergeBodyWarningStatuses(body: unknown, layers: WeatherAreaLayer[]): vo
     ? [warningRaw]
     : [];
 
+  // type / areaCode の索引を先に作る。全国電文 (VPWS50) では layer.items が
+  // 2000 件規模になり、Warning ごとの線形探索が二次的に効くため。
+  // find と同じ「最初の一致を採る」意味論を保つため、登録済みキーは上書きしない。
+  const layerByType = new Map<string, WeatherAreaLayer>();
+  const areaIndexByLayer = new Map<WeatherAreaLayer, Map<string, WeatherItem>>();
+  for (const layer of layers) {
+    if (!layerByType.has(layer.type)) layerByType.set(layer.type, layer);
+    if (!areaIndexByLayer.has(layer)) {
+      const areaIndex = new Map<string, WeatherItem>();
+      for (const item of layer.items) {
+        if (!areaIndex.has(item.areaCode)) areaIndex.set(item.areaCode, item);
+      }
+      areaIndexByLayer.set(layer, areaIndex);
+    }
+  }
+
   for (const warning of warningList) {
     const type = str(dig(warning, "@_type"));
-    const layer = layers.find((l) => l.type === type);
+    const layer = layerByType.get(type);
     if (!layer) continue;
+    const areaIndex = areaIndexByLayer.get(layer);
+    if (areaIndex == null) continue;
 
     const itemsRaw = dig(warning, "Item");
     const itemList: unknown[] = Array.isArray(itemsRaw)
@@ -233,7 +251,7 @@ function mergeBodyWarningStatuses(body: unknown, layers: WeatherAreaLayer[]): vo
         : [];
 
       // layer + areaCode で既存 Item を引き、なければ 1 つだけ作って追加
-      let targetItem = layer.items.find((i) => i.areaCode === areaCode);
+      let targetItem = areaIndex.get(areaCode);
       let isNewItem = false;
       if (!targetItem) {
         targetItem = {
@@ -282,6 +300,7 @@ function mergeBodyWarningStatuses(body: unknown, layers: WeatherAreaLayer[]): vo
       // 新規 Item でかつ意味のある Kind が一つも入らなかった場合は追加しない
       if (isNewItem && pushedAnyMeaningful) {
         layer.items.push(targetItem);
+        areaIndex.set(areaCode, targetItem);
       }
     }
   }
