@@ -55,8 +55,13 @@ export function processFloodForecast(
     if (!diff.hasChange) {
       suppressNotify = true;
     }
+  } else {
+    // 訂正 / Headline-only / VXSU は dedup bypass (suppressNotify=false 据置)。
+    // ただし EventID は活動中なので履歴の TTL だけ延ばす。これを怠ると、
+    // dedup 対象外の続報が長く続いた出水で履歴が期限切れになり、
+    // 内容が変わっていないのに全観測点が "new" に戻る。
+    deps.floodForecastState.touch(info.eventId);
   }
-  // 訂正 / Headline-only / VXSU は dedup bypass (suppressNotify=false 据置)
 
   return {
     domain: "floodForecast",

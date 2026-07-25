@@ -237,3 +237,78 @@ describe("buildStationDigests", () => {
     expect(buildStationDigests(info)).toEqual([]);
   });
 });
+
+describe("FloodForecastStateHolder の履歴保持期間", () => {
+  const T0 = Date.parse("2026-07-25T00:00:00+09:00");
+  const HOUR = 60 * 60_000;
+
+  it("最終更新から 36 時間を過ぎた EventID は忘れ、同じ digest でも 'new' に戻る", () => {
+    const h = new FloodForecastStateHolder();
+    h.diffAndUpdate("e1", [mkDigest({})], null, T0);
+
+    const d = h.diffAndUpdate("e1", [mkDigest({})], null, T0 + 36 * HOUR + 60_000);
+
+    expect(d.changedStations[0]?.reasons).toEqual(["new"]);
+  });
+
+  it("36 時間以内なら記憶を保ち、同じ digest は dedup される", () => {
+    const h = new FloodForecastStateHolder();
+    h.diffAndUpdate("e1", [mkDigest({})], null, T0);
+
+    const d = h.diffAndUpdate("e1", [mkDigest({})], null, T0 + 35 * HOUR);
+
+    expect(d.hasChange).toBe(false);
+  });
+
+  it("別 EventID の電文が届いたとき、期限切れの EventID も掃除される", () => {
+    const h = new FloodForecastStateHolder();
+    h.diffAndUpdate("old", [mkDigest({})], null, T0);
+
+    // 別 EventID の受信で掃除が走る
+    h.diffAndUpdate("new-event", [mkDigest({})], null, T0 + 40 * HOUR);
+    // 掃除されていれば old は忘れられている
+    const d = h.diffAndUpdate("old", [mkDigest({})], null, T0 + 40 * HOUR);
+
+    expect(d.changedStations[0]?.reasons).toEqual(["new"]);
+  });
+
+  it("通常報のたびに最終更新時刻が延び、活動中の EventID は忘れられない", () => {
+    const h = new FloodForecastStateHolder();
+    h.diffAndUpdate("e1", [mkDigest({})], null, T0);
+    // 20 時間ごとに続報。累計 40 時間経つが、都度更新されるので生存する
+    h.diffAndUpdate("e1", [mkDigest({ condition: "上昇" })], null, T0 + 20 * HOUR);
+
+    const d = h.diffAndUpdate("e1", [mkDigest({ condition: "上昇" })], null, T0 + 40 * HOUR);
+
+    expect(d.hasChange).toBe(false);
+  });
+
+  it("ちょうど 36 時間では保持する (削除は超過してから)", () => {
+    const h = new FloodForecastStateHolder();
+    h.diffAndUpdate("e1", [mkDigest({})], null, T0);
+
+    const d = h.diffAndUpdate("e1", [mkDigest({})], null, T0 + 36 * HOUR);
+
+    expect(d.hasChange).toBe(false);
+  });
+
+  it("dedup 対象外の続報 (touch) でも最終更新時刻が延びる", () => {
+    const h = new FloodForecastStateHolder();
+    h.diffAndUpdate("e1", [mkDigest({})], null, T0);
+    // 訂正 / Headline-only は diffAndUpdate を通らないが、EventID は活動中
+    h.touch("e1", T0 + 20 * HOUR);
+
+    const d = h.diffAndUpdate("e1", [mkDigest({})], null, T0 + 40 * HOUR);
+
+    expect(d.hasChange).toBe(false);
+  });
+
+  it("touch は未知の EventID を作らない (履歴に乗るのは通常報だけ)", () => {
+    const h = new FloodForecastStateHolder();
+    h.touch("unknown", T0);
+
+    const d = h.diffAndUpdate("unknown", [mkDigest({})], null, T0 + 60_000);
+
+    expect(d.changedStations[0]?.reasons).toEqual(["new"]);
+  });
+});

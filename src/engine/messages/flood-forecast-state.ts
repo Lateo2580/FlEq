@@ -62,24 +62,49 @@ export function buildStationDigests(info: ParsedFloodForecastInfo): StationDiges
   }));
 }
 
+/** EventID ごとの履歴。lastSeenMs は最終更新時刻 (TTL 判定に使う) */
+interface EventHistory {
+  lastSeenMs: number;
+  stations: Map<string, DedupValue>;
+}
+
+/**
+ * EventID 履歴の保持期間。最終更新からこれを過ぎた EventID は次の受信時に掃除する。
+ * display 側の洪水 tombstoneTtlMs (DAY + 12h) と揃えた。
+ */
+const HISTORY_TTL_MS = 36 * 60 * 60_000;
+
 /**
  * 同一 EventID で前回の観測点状態を覚えて station 単位 dedup する state holder。
  * Vpws50StateHolder / TyphoonProbabilityStateHolder と同思想 (in-memory, restart=全 reset)。
  *
- * key 設計: `${eventId}|${stationCode}` で、異なる EventID は完全独立。
- * 取消 (rollback) は同一 eventId の全 station entry を削除する。
+ * 構造: EventID → { lastSeenMs, stations } の二段。異なる EventID は完全独立で、
+ * removed 判定も該当 EventID の観測点だけを走査する。
+ * 取消 (rollback) は同一 eventId のエントリごと削除する。
+ *
+ * 保持期間: 洪水は出水ごとに EventID が変わり、取消電文が来ないまま収束することがある。
+ * TTL がないと履歴が単調増加し、各報の removed 判定も履歴総数に比例して重くなるため、
+ * 電文を受けるたびに期限切れ EventID を掃除する。
+ *
+ * TTL の延長は diffAndUpdate だけでなく touch でも行う。dedup を通さない続報
+ * (訂正 / Headline-only) が続く間も EventID は活動中であり、これを数えないと
+ * 長い出水の途中で履歴を落として全観測点を "new" に戻してしまう。
  *
  * 空 eventId ("") は履歴に乗せない (誤った dedup を避ける)。hasChange=true を返すが
  * changedStations は空のため、呼び出し側は通知だけ行って station 個別 diff は使わない。
  */
 export class FloodForecastStateHolder {
-  private last: Map<string, DedupValue> = new Map();
+  private events: Map<string, EventHistory> = new Map();
 
   diffAndUpdate(
     eventId: string,
     digests: StationDigest[],
     receivedAt: string | null,
+    nowMs: number = Date.now(),
   ): FloodForecastDiff {
+    // 空 eventId でも保持量の保証は効かせたいので、早期 return より先に掃除する
+    this.sweepExpired(nowMs);
+
     if (eventId === "") {
       // EventID 不明の発表は履歴に乗せない (TyphoonProbabilityStateHolder と同じ方針)
       return { hasChange: true, changedStations: [], removedStations: [] };
@@ -88,9 +113,15 @@ export class FloodForecastStateHolder {
     const changed: FloodForecastDiff["changedStations"] = [];
     const incomingCodes = new Set(digests.map((d) => d.stationCode));
 
+    let history = this.events.get(eventId);
+    if (history == null) {
+      history = { lastSeenMs: nowMs, stations: new Map() };
+      this.events.set(eventId, history);
+    }
+    history.lastSeenMs = nowMs;
+
     for (const d of digests) {
-      const key = `${eventId}|${d.stationCode}`;
-      const prev = this.last.get(key);
+      const prev = history.stations.get(d.stationCode);
       const reasons: FloodForecastDiff["changedStations"][number]["reasons"] = [];
       if (prev == null) {
         reasons.push("new");
@@ -107,18 +138,15 @@ export class FloodForecastStateHolder {
       if (reasons.length > 0) {
         changed.push({ stationCode: d.stationCode, reasons });
       }
-      this.last.set(key, { ...d, receivedAt });
+      history.stations.set(d.stationCode, { ...d, receivedAt });
     }
 
     // 前回あって今回 incoming に含まれない station code を removedStations に
     const removed: string[] = [];
-    const prefix = `${eventId}|`;
-    for (const key of Array.from(this.last.keys())) {
-      if (!key.startsWith(prefix)) continue;
-      const stationCode = key.slice(prefix.length);
+    for (const stationCode of Array.from(history.stations.keys())) {
       if (!incomingCodes.has(stationCode)) {
         removed.push(stationCode);
-        this.last.delete(key);
+        history.stations.delete(stationCode);
       }
     }
 
@@ -129,12 +157,30 @@ export class FloodForecastStateHolder {
     };
   }
 
-  /** 取消 (info.infoType==="取消") 時に呼ぶ。同一 eventId の全 station entry を削除する */
+  /**
+   * dedup を通さない続報 (訂正 / Headline-only / VXSU) を受けたときに呼ぶ。
+   * 既知 EventID の最終更新時刻だけを延ばし、履歴のない EventID は新規作成しない
+   * (station 情報を持たない電文から dedup 履歴は組み立てられないため)。
+   */
+  touch(eventId: string, nowMs: number = Date.now()): void {
+    this.sweepExpired(nowMs);
+    if (eventId === "") return;
+    const history = this.events.get(eventId);
+    if (history != null) history.lastSeenMs = nowMs;
+  }
+
+  /** 取消 (info.infoType==="取消") 時に呼ぶ。同一 eventId の履歴ごと削除する */
   rollback(eventId: string): void {
     if (eventId === "") return;
-    const prefix = `${eventId}|`;
-    for (const key of Array.from(this.last.keys())) {
-      if (key.startsWith(prefix)) this.last.delete(key);
+    this.events.delete(eventId);
+  }
+
+  /** 最終更新から HISTORY_TTL_MS を過ぎた EventID を捨てる */
+  private sweepExpired(nowMs: number): void {
+    for (const [eventId, history] of Array.from(this.events)) {
+      if (nowMs - history.lastSeenMs > HISTORY_TTL_MS) {
+        this.events.delete(eventId);
+      }
     }
   }
 }
