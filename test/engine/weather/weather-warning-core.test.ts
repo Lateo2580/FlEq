@@ -20,7 +20,9 @@ function info(layers: WeatherAreaLayer[]): ParsedWeatherWarning {
     type: "VPWW55", infoType: "発表", title: "t", reportDateTime: "2026-07-10T00:00:00+09:00",
     headline: null, publishingOffice: "気象庁", editorialOffice: "気象庁", controlTitle: "t",
     layers, comments: [], maxSeverity: "warning",
-  } as ParsedWeatherWarning;
+    maxDisplaySeverity: null, maxSoundLevel: null,
+    warningAreaCount: 0, advisoryAreaCount: 0, isTest: false,
+  };
 }
 
 describe("flattenEntries: 解除プレースホルダ (Head=Name解除/Code00, Body=元Kind+LastKind) の復元", () => {

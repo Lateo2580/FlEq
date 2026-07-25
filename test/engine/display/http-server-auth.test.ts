@@ -5,18 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createDisplayRequestListener, isLoopbackAddress } from "../../../src/engine/display/http-server";
 import { SseClients } from "../../../src/engine/display/sse-clients";
-import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
 import type { DisplayStateSnapshotV1 } from "../../../src/engine/display/types";
+import { displaySnapshot } from "../../helpers/display-fixtures";
 
 const log = { info: (): void => {}, warn: (): void => {} };
 
 function snapshot(): DisplayStateSnapshotV1 {
-  return {
-    version: DISPLAY_PROTOCOL_VERSION, generatedAt: "2026-07-19T12:00:00+09:00", seq: 0,
-    activeEews: [], tsunami: null, largeQuakes: [], weatherAlerts: [], recentQuakes: [],
-    connection: { dmdata: "connected", lastReceivedAt: null, disconnectedSince: null, reason: null },
-    recentTicker: [],
-  };
+  return displaySnapshot({ generatedAt: "2026-07-19T12:00:00+09:00" });
 }
 
 interface FakeResponse {

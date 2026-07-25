@@ -4,14 +4,15 @@ import { buildVolcanoOutcome } from "../../../../src/engine/presentation/process
 import { parseVolcanoTelegram } from "../../../../src/dmdata/volcano-parser";
 import { VolcanoStateHolder } from "../../../../src/engine/messages/volcano-state";
 import { createMockWsDataMessage, FIXTURE_VFVO53_ASH_REGULAR, FIXTURE_VFVO54_ASH_RAPID } from "../../../helpers/mock-message";
-import type { ParsedVolcanoAshfallInfo, VolcanoBatchOutcome } from "../../../../src/engine/presentation/types";
+import type { VolcanoBatchOutcome } from "../../../../src/engine/presentation/types";
+import type { ParsedVolcanoAshfallInfo } from "../../../../src/types";
 import { volcanoAshfallToText } from "../../../../src/engine/presentation/events/volcano-to-text";
 
 vi.mock("../../../../src/engine/notification/sound-player", () => ({ playSound: vi.fn() }));
 
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
-    kind: "ashfall", type: "VFVO53", subKind: "scheduled", infoType: "発表", title: "降灰予報",
+    domain: "volcano", kind: "ashfall", type: "VFVO53", subKind: "scheduled", infoType: "発表", title: "降灰予報",
     reportDateTime: "2026-07-10T12:00:00+09:00", eventDateTime: null, headline: null,
     publishingOffice: "気象庁", volcanoName: "桜島", volcanoCode: "506", coordinate: null,
     isTest: false, craterName: null, ashForecasts: [], plumeHeight: null, plumeDirection: null,
@@ -32,12 +33,14 @@ describe("from-volcano 本文配線", () => {
 
   it("降灰バッチは全火山ぶんの本文を fromVolcanoOutcome まで通して連結する (別火山・同一本文も両方残る)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VFVO53_ASH_REGULAR);
+    const parsed = [
+      ashfall({ volcanoName: "桜島", volcanoCode: "506", bodyText: "多量の降灰に注意。" }),
+      ashfall({ volcanoName: "阿蘇山", volcanoCode: "503", bodyText: "多量の降灰に注意。" }),
+    ];
     const outcome: VolcanoBatchOutcome = {
       domain: "volcano", msg, headType: msg.head.type, statsCategory: "volcano",
-      parsed: [
-        ashfall({ volcanoName: "桜島", volcanoCode: "506", bodyText: "多量の降灰に注意。" }),
-        ashfall({ volcanoName: "阿蘇山", volcanoCode: "503", bodyText: "多量の降灰に注意。" }),
-      ],
+      parsed,
+      sources: parsed.map((info) => ({ info, msg })),
       isBatch: true,
       volcanoPresentation: { frameLevel: "normal", soundLevel: "normal", summary: "降灰予報" },
       batchReportDateTime: "2026-07-10T12:00:00+09:00", batchIsTest: false,

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import {
   VolcanoVfvo53Aggregator,
   Vfvo53BatchItems,
@@ -9,6 +9,10 @@ import type {
   ParsedVolcanoInfo,
   ParsedVolcanoEruptionInfo,
 } from "../../src/types";
+import type { WsDataMessage } from "../../src/types";
+
+type VolcanoEmitSingle = (info: ParsedVolcanoInfo, opts?: FlushOptions, msg?: WsDataMessage) => void;
+type VolcanoEmitBatch = (batch: Vfvo53BatchItems, opts: FlushOptions) => void;
 
 // ── ヘルパー ──
 
@@ -34,7 +38,7 @@ function createVfvo53(overrides: Partial<ParsedVolcanoAshfallInfo> = {}): Parsed
         startTime: "2025-03-21T09:00:00+09:00",
         endTime: "2025-03-21T12:00:00+09:00",
         areas: [
-          { name: "鹿児島市", code: "4620100", ashCode: "71", ashName: "少量の降灰", thickness: null },
+          { name: "鹿児島市", code: "4620100", ashCode: "71", ashName: "少量の降灰", thickness: null, plumeDirection: null, distanceKm: null },
         ],
       },
     ],
@@ -85,8 +89,8 @@ function createVfvo52(overrides: Partial<ParsedVolcanoEruptionInfo> = {}): Parse
 // ── テスト ──
 
 describe("VolcanoVfvo53Aggregator", () => {
-  let emitSingle: ReturnType<typeof vi.fn>;
-  let emitBatch: ReturnType<typeof vi.fn>;
+  let emitSingle: Mock<VolcanoEmitSingle>;
+  let emitBatch: Mock<VolcanoEmitBatch>;
   let aggregator: VolcanoVfvo53Aggregator;
 
   beforeEach(() => {

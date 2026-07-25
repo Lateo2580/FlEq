@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { fromFloodForecastOutcome } from "../../../../src/engine/presentation/events/from-flood-forecast";
 import type { FloodForecastOutcome } from "../../../../src/engine/presentation/types";
 import type { WsDataMessage, ParsedFloodForecastInfo, FloodStation, FloodHeadline, FloodKindCode } from "../../../../src/types";
+import { FLOOD_LEVEL_RANK } from "../../../../src/dmdata/flood-level";
 
 function mkHeadline(opts: Partial<FloodHeadline> & { kindCode: FloodKindCode }): FloodHeadline {
   return {
@@ -42,15 +43,16 @@ function mkStation(opts: { stationName: string; stationCode: string; headlineLev
 function mkMsg(): WsDataMessage {
   return {
     type: "data",
+    version: "2.0",
     id: "msg-1",
     classification: "telegram.weather",
-    head: { type: "VXKO50", author: "JMA", time: "2019-05-09T20:40:00+09:00", designation: null, test: false, xml: 1 },
+    head: { type: "VXKO50", author: "JMA", time: "2019-05-09T20:40:00+09:00", designation: null, test: false, xml: true },
     passing: [],
     format: "xml",
     compression: null,
     encoding: "utf-8",
     body: "",
-  } as WsDataMessage;
+  };
 }
 
 function mkParsed(overrides: Partial<ParsedFloodForecastInfo> = {}): ParsedFloodForecastInfo {
@@ -76,6 +78,9 @@ function mkOutcome(parsed: ParsedFloodForecastInfo, presOverrides: Partial<Flood
     statsCategory: "floodForecast",
     parsed,
     diff: null,
+    // 変換関数は maxLevel / maxRank を読まないため、headline と整合する固定値で埋める
+    maxLevel: "L3",
+    maxRank: FLOOD_LEVEL_RANK.L3,
     stats: { shouldRecord: true, eventId: parsed.eventId },
     presentation: {
       frameLevel: "warning",

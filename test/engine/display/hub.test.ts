@@ -19,7 +19,12 @@ import type { PresentationEvent, PresentationTsunamiObservation } from "../../..
 import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
 import { weatherAlertsFromVpws50 } from "../../../src/engine/display/runtime";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
-import type { ParsedWeatherWarning, WeatherItem, WeatherKind } from "../../../src/types";
+import type {
+  ParsedWeatherWarning,
+  ParsedWeatherWarningTimeseriesInfo,
+  WeatherItem,
+  WeatherKind,
+} from "../../../src/types";
 
 const T0 = Date.parse("2026-07-06T21:00:00+09:00");
 
@@ -87,6 +92,17 @@ function baseEvent(over: Partial<PresentationEvent>): PresentationEvent {
 /** 状態を動かさない電文 (weather 系。applyEvent は false を返す) */
 function weatherEvent(id: string): PresentationEvent {
   return baseEvent({ id });
+}
+
+/** areas はあるが entries が 1 件も無い VPWP50 の parsed 本体 (テロップ抑制の対象形) */
+function emptyTimeseriesRaw(): ParsedWeatherWarningTimeseriesInfo {
+  return {
+    type: "VPWP50", infoType: "発表", title: "気象警報・注意報（予測）", controlTitle: "気象警報・注意報",
+    reportDateTime: "2026-07-06T21:00:00+09:00", publishingOffice: "気象庁", editorialOffice: "気象庁",
+    eventId: null, serial: null, headline: null, targetArea: null, areas: [],
+    maxKnownSignificancy: null, maxDisplaySeverity: null, maxSoundLevel: null,
+    maxDisplayRankSignificancy: null, unknownCodes: [], fallback: "none", isTest: false,
+  };
 }
 
 /** 状態を動かす電文 (EEW。applyEvent が true を返す) */
@@ -805,7 +821,8 @@ describe("tickerSuppressed の ingest (spec 2026-07-23 T5-2)", () => {
       domain: "weatherWarningTimeseries",
       type: "VPWP50",
       bodyText: null,
-      raw: { areas: [] },
+      // areas を持つが entries ゼロ (parser 縮退・schema 差で起こり得る形) の VPWP50
+      raw: emptyTimeseriesRaw(),
     } as PresentationEvent);
     hub.ingest(weatherEvent("w-after"));
     const events = transport.events();

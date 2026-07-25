@@ -39,10 +39,12 @@ function quakeDto(over: Partial<{ eventId: string; maxInt: string; maxIntRank: n
     emergency: {
       kind: "largeQuake", eventId: o.eventId, originTime: null, hypocenterName: "X",
       magnitude: "6.0", maxInt: o.maxInt, maxIntRank: 6, intensityGroups: [], reportDateTime: o.reportDateTime,
+      depth: null, maxLgInt: null, tsunamiWarning: false,
     },
     recentQuake: {
       eventId: o.eventId, reportDateTime: o.reportDateTime, originTime: null,
       hypocenterName: "X", magnitude: "6.0", maxInt: o.maxInt, maxIntRank: 6,
+      depth: null, tsunamiWarning: false,
     },
     latestQuake: {
       eventId: o.eventId, headline: null, originTime: null, hypocenterName: "X",
@@ -64,6 +66,7 @@ function largeQuakeOnlyDto(over: Partial<{ eventId: string; maxInt: string; maxI
     emergency: {
       kind: "largeQuake", eventId: o.eventId, originTime: null, hypocenterName: "X",
       magnitude: "6.0", maxInt: o.maxInt, maxIntRank: o.maxIntRank, intensityGroups: [], reportDateTime: o.reportDateTime,
+      depth: null, maxLgInt: null, tsunamiWarning: false,
     },
     recentQuake: null,
     latestQuake: null,
@@ -102,11 +105,14 @@ function tsunamiDto(over: Partial<{ type: string; hasEmergency: boolean; level: 
     emergency: o.hasEmergency
       ? {
           kind: "tsunami", level: o.level, levelLabel: labels[o.level],
-          coasts: [{ name: "千葉県九十九里・外房", kind: labels[o.level] }],
+          coasts: [{ name: "千葉県九十九里・外房", kind: labels[o.level], maxHeight: null, firstHeight: null }],
+          warningComment: null, observations: [],
           reportDateTime: o.reportDateTime,
         }
       : null,
     recentQuake: null,
+    latestQuake: null,
+    tickerDetail: null,
   };
 }
 
@@ -346,7 +352,8 @@ describe("DisplayStateStore: 津波", () => {
     const store = new DisplayStateStore();
     store.seedTsunami({
       kind: "tsunami", level: "advisory", levelLabel: "津波注意報",
-      coasts: [{ name: "伊豆諸島", kind: "津波注意報" }],
+      coasts: [{ name: "伊豆諸島", kind: "津波注意報", maxHeight: null, firstHeight: null }],
+      warningComment: null, observations: [],
       reportDateTime: "2026-07-06T20:30:00+09:00",
     }, T0);
     const snap = store.snapshot(1, T0);

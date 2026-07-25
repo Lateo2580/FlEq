@@ -7,6 +7,7 @@ import { VolcanoStateHolder } from "../../../../src/engine/messages/volcano-stat
 import { Vpws50StateHolder } from "../../../../src/engine/messages/vpws50-state";
 import { Vpww56StateHolder } from "../../../../src/engine/messages/vpww56-state";
 import { Vpwp50DetailCache } from "../../../../src/engine/messages/vpwp50-detail-cache";
+import { FloodForecastStateHolder } from "../../../../src/engine/messages/flood-forecast-state";
 import { TyphoonProbabilityStateHolder } from "../../../../src/engine/messages/typhoon-probability-state";
 import {
   createMockWsDataMessage,
@@ -49,6 +50,7 @@ function makeDeps(): ProcessDeps {
     vpww56State: new Vpww56StateHolder(),
     vpwp50Cache: new Vpwp50DetailCache(),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
+    floodForecastState: new FloodForecastStateHolder(),
   };
 }
 
@@ -187,12 +189,12 @@ describe("processMessage", () => {
     expect(outcome!.presentation.notifyCategory).toBe("heatAlert");
   });
 
-  it("unknown ルート → RawOutcome", () => {
+  it("raw ルート (カタログのフォールバック) → RawOutcome", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI, {
       classification: "unknown",
       head: { type: "ZZZZ99", author: "テスト", time: new Date().toISOString(), test: false, xml: true },
     });
-    const outcome = processMessage(msg, "unknown", makeDeps());
+    const outcome = processMessage(msg, "raw", makeDeps());
     expect(outcome).not.toBeNull();
     expect(outcome!.domain).toBe("raw");
     expect(outcome!.statsCategory).toBe("other");

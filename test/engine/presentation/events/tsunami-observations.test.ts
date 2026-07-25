@@ -10,6 +10,8 @@ function baseInfo(over: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
     reportDateTime: "2026-07-07T14:32:00+09:00",
     headline: null,
     publishingOffice: "気象庁",
+    warningComment: "",
+    isTest: false,
     ...over,
   };
 }

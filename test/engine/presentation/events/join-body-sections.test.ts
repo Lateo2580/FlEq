@@ -20,6 +20,7 @@ function bodyText(over: Partial<ClimateBodyText>): ClimateBodyText {
 
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
+    domain: "volcano",
     kind: "ashfall",
     type: "VFVO53",
     subKind: "scheduled",

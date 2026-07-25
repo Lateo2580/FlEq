@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { createMessageHandler } from "../../src/engine/messages/message-router";
 import { createDisplayAdapter } from "../../src/ui/display-adapter";
 import { TelegramStats } from "../../src/engine/messages/telegram-stats";
@@ -36,6 +36,7 @@ import {
   FIXTURE_VPTW60_2020,
 } from "../helpers/mock-message";
 import { WsDataMessage } from "../../src/types";
+import type { DisplayStatsV1 } from "../../src/engine/display/types";
 import * as fs from "fs";
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
@@ -67,7 +68,7 @@ vi.mock("fs", async () => {
 });
 
 describe("message-router 統合テスト", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
+  let consoleSpy: MockInstance<typeof console.log>;
   const display = createDisplayAdapter();
 
   beforeEach(() => {
@@ -242,7 +243,9 @@ describe("message-router 統合テスト", () => {
     it("record → ingest → publishStats の順で呼ばれ、publishStats の todayQuakeCount が当該イベントを反映する", () => {
       const callOrder: string[] = [];
       const ingest = vi.fn(() => callOrder.push("ingest"));
-      const publishStats = vi.fn(() => callOrder.push("publishStats"));
+      const publishStats = vi.fn((_stats: DisplayStatsV1) => {
+        callOrder.push("publishStats");
+      });
       const { handler } = createHandler({ displaySink: { ingest, publishStats } });
 
       const msg = createMockWsDataMessage(FIXTURE_VXSE51_SHINDO);
@@ -250,7 +253,7 @@ describe("message-router 統合テスト", () => {
 
       expect(callOrder).toEqual(["ingest", "publishStats"]);
       expect(publishStats).toHaveBeenCalledTimes(1);
-      const stats = publishStats.mock.calls[0][0];
+      const stats = publishStats.mock.calls[0]![0];
       expect(stats.todayQuakeCount).toBeGreaterThanOrEqual(1);
       expect(stats.todayMaxIntRank).not.toBeNull();
     });

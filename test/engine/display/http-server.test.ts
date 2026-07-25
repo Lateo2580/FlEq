@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "../../../src/engine/display/http-server";
 import { InProcessSseDisplayTransport } from "../../../src/engine/display/transport";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
+import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
 import type {
   DisplayEventDtoV1,
   DisplayIntensityGroupV1,
@@ -40,25 +41,14 @@ function rawGet(port: number, rawPath: string): Promise<{ status: number; body: 
   });
 }
 
-function baseSnapshot(over: Partial<DisplayStateSnapshotV1> = {}): DisplayStateSnapshotV1 {
-  return {
-    version: DISPLAY_PROTOCOL_VERSION, generatedAt: "2026-07-06T21:00:00+09:00", seq: 0,
-    activeEews: [], tsunami: null, largeQuakes: [], weatherAlerts: [], recentQuakes: [],
-    connection: { dmdata: "connected", lastReceivedAt: null, disconnectedSince: null, reason: null },
-    recentTicker: [],
-    ...over,
-  };
-}
+const baseSnapshot = displaySnapshot;
 
 /** JSON 化後に MAX_SNAPSHOT_BYTES (256KB) を超える recentTicker を生成する */
 function hugeRecentTicker(): DisplayEventDtoV1[] {
   const longTitle = "A".repeat(500);
-  return Array.from({ length: 1000 }, (_, i) => ({
-    version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `m${i}`, eventKey: `k${i}`, groupKey: null,
-    domain: "weather", type: "VPWW55", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
-    title: longTitle, headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal",
-    isCancellation: false, summary: { text: "t", role: "muted" }, emergency: null, recentQuake: null,
-  }));
+  return Array.from({ length: 1000 }, (_, i) =>
+    displayEventDto({ seq: i, id: `m${i}`, eventKey: `k${i}`, title: longTitle }),
+  );
 }
 
 /** 縮退で latestQuake.intensityGroups が capIntensityGroups で 8 地域まで切られるほど巨大な地域リスト
@@ -118,13 +108,12 @@ function normalRecentQuakes(count: number): DisplayRecentQuakeV1[] {
 /** tickerBody が巨大な recentTicker 8 件 (全件が段1 の先頭 N=8 件枠に入るため本文間引きで落ちず、
  *  recentTicker を空にする段まで縮退が進むケース用。約 480KB) */
 function hugeBodiedTicker(): DisplayEventDtoV1[] {
-  return Array.from({ length: 8 }, (_, i) => ({
-    version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `hb${i}`, eventKey: `hbk${i}`, groupKey: null,
-    domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
-    title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
-    isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
-    tickerBody: "本".repeat(20000),
-  }));
+  return Array.from({ length: 8 }, (_, i) =>
+    displayEventDto({
+      seq: i, id: `hb${i}`, eventKey: `hbk${i}`, domain: "weatherExplanation", type: "VPZJ51",
+      title: "解説", tickerBody: "本".repeat(20000),
+    }),
+  );
 }
 
 /** intensityGroups が巨大な largeQuakes 1 件 (約 450KB)。この肥大源が recentQuakes より先に
@@ -208,13 +197,12 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
 
   it("本文付き recentTicker は新段 (段1) で先頭 8 件だけ tickerBody を残し件数は保つ", () => {
     // 40 件 × 中程度の本文。full は超過するが、本文を先頭 8 件以外 null 化するだけで収まる
-    const bodied = Array.from({ length: 40 }, (_, i) => ({
-      version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `b${i}`, eventKey: `bk${i}`, groupKey: null,
-      domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
-      title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
-      isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
-      tickerBody: "本".repeat(5000),
-    }));
+    const bodied = Array.from({ length: 40 }, (_, i) =>
+      displayEventDto({
+        seq: i, id: `b${i}`, eventKey: `bk${i}`, domain: "weatherExplanation", type: "VPZJ51",
+        title: "解説", tickerBody: "本".repeat(5000),
+      }),
+    );
     const full = baseSnapshot({ recentTicker: bodied });
     const result = degradeSnapshotToBudget(full, "snapshot");
     expect(result).not.toBeNull();
@@ -226,14 +214,13 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
   });
 
   it("本文間引き段では tickerEmphasis も tickerBody と一緒に落とす (本文なしの index span は無意味、backlog §3)", () => {
-    const bodied = Array.from({ length: 40 }, (_, i) => ({
-      version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `e${i}`, eventKey: `ek${i}`, groupKey: null,
-      domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
-      title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
-      isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
-      tickerBody: "970hPa " + "本".repeat(5000),
-      tickerEmphasis: [{ start: 0, end: 6 }],
-    }));
+    const bodied = Array.from({ length: 40 }, (_, i) =>
+      displayEventDto({
+        seq: i, id: `e${i}`, eventKey: `ek${i}`, domain: "weatherExplanation", type: "VPZJ51",
+        title: "解説", tickerBody: "970hPa " + "本".repeat(5000),
+        tickerEmphasis: [{ start: 0, end: 6 }],
+      }),
+    );
     const full = baseSnapshot({ recentTicker: bodied });
     const result = degradeSnapshotToBudget(full, "snapshot");
     expect(result).not.toBeNull();
@@ -331,13 +318,12 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
 
   it("32KB 本文 × 8 件の最悪ケースは本文間引きで落とし切れず後続ラダー (件数削減) へ落ちる", () => {
     // 8 件すべて先頭 8 件枠に入るため段1 では本文が残り超過継続 → recentTicker を空にする段まで進む
-    const worst = Array.from({ length: 8 }, (_, i) => ({
-      version: DISPLAY_PROTOCOL_VERSION, seq: i, id: `w${i}`, eventKey: `wk${i}`, groupKey: null,
-      domain: "weatherExplanation", type: "VPZJ51", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
-      title: "解説", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal" as const,
-      isCancellation: false, summary: { text: "t", role: "muted" as const }, emergency: null, recentQuake: null,
-      tickerBody: "本".repeat(32 * 1024),
-    }));
+    const worst = Array.from({ length: 8 }, (_, i) =>
+      displayEventDto({
+        seq: i, id: `w${i}`, eventKey: `wk${i}`, domain: "weatherExplanation", type: "VPZJ51",
+        title: "解説", tickerBody: "本".repeat(32 * 1024),
+      }),
+    );
     const full = baseSnapshot({ recentTicker: worst });
     const result = degradeSnapshotToBudget(full, "snapshot");
     expect(result).not.toBeNull();

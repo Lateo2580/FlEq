@@ -10,6 +10,7 @@ function period(over: Partial<AshForecastPeriod>): AshForecastPeriod {
 }
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
+    domain: "volcano",
     kind: "ashfall", type: "VFVO53", subKind: "scheduled", infoType: "発表", title: "降灰予報",
     reportDateTime: "2021-05-17T14:00:00+09:00", eventDateTime: null, headline: null,
     publishingOffice: "気象庁", volcanoName: "桜島", volcanoCode: "506", coordinate: null,

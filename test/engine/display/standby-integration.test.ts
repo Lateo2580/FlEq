@@ -72,13 +72,18 @@ function host(timeMs = T0, eventId = "quake-1", maxIntRank = 4): PresentationEve
   return event({ id: eventId, domain: "earthquake", eventId, maxIntRank, reportDateTime: iso(timeMs) });
 }
 
-function volcanoAlertInfo(timeMs: number, action: ParsedVolcanoAlertInfo["action"], alertLevel: number): ParsedVolcanoAlertInfo {
+function volcanoAlertInfo(
+  timeMs: number,
+  action: ParsedVolcanoAlertInfo["action"],
+  alertLevel: ParsedVolcanoAlertInfo["alertLevel"],
+): ParsedVolcanoAlertInfo {
   return {
     domain: "volcano", kind: "alert", type: "VFVO50", infoType: "発表", title: "噴火警報・予報",
     reportDateTime: iso(timeMs), eventDateTime: null, headline: null, publishingOffice: "気象庁",
     volcanoName: "テスト山", volcanoCode: "V-1", coordinate: null, isTest: false,
     alertLevel, alertLevelCode: String(alertLevel), action, previousLevelCode: null,
-    warningKind: null, municipalities: [], bodyText: "", preventionText: "", isMarine: false,
+    warningKind: "", municipalities: [], marineAreas: [], marineWarningKind: null,
+    marineAlertLevelCode: null, bodyText: "", preventionText: "", isMarine: false,
   };
 }
 

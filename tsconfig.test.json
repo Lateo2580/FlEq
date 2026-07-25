@@ -14,11 +14,16 @@
 // | 段 | 範囲                | 着手時の件数 | 状態 |
 // |----|--------------------|------------|------|
 // | 1  | test/dmdata, test/e2e |  8 件      | 済 (2026-07-25) |
-// | 2  | test/engine           | 46 件      | 未   |
+// | 2  | test/engine           | 46 件      | 済 (2026-07-26) |
 // | 3  | test/ui               | 197 件     | 未   |
 //
 // 件数は 2026-07-25 時点の実測。内訳は暗黙 any (48%) と、部分オブジェクトを
 // fixture として渡したことによる形状エラー (47%)。
+//
+// 第 2 段で分かったこと: 形状エラーの実体は「fixture が protocol / Parsed*Info の
+// フィールド追加に追いついていない」だけで、実バグはゼロだった。display protocol の
+// fixture は test/helpers/display-fixtures.ts のビルダーへ寄せてある — DTO/snapshot に
+// 必須フィールドが増えても、既定値を 1 箇所足せば全テストが追随する。
 //
 // ## 次の段へ広げる手順
 //
@@ -39,7 +44,8 @@
   "include": [
     "src/**/*",
     "test/dmdata/**/*",
-    "test/e2e/**/*"
+    "test/e2e/**/*",
+    "test/engine/**/*"
   ],
   "exclude": ["node_modules", "dist"]
 }

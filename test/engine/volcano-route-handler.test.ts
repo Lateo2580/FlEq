@@ -89,7 +89,7 @@ function createFlashReport(): ParsedVolcanoEruptionInfo {
 function createAlert(
   reportDateTime: string,
   action: ParsedVolcanoAlertInfo["action"],
-  alertLevel: number,
+  alertLevel: ParsedVolcanoAlertInfo["alertLevel"],
 ): ParsedVolcanoAlertInfo {
   return {
     domain: "volcano",
@@ -106,11 +106,14 @@ function createAlert(
     coordinate: "+31.58+130.66/",
     isTest: false,
     alertLevel,
-    alertLevelCode: String(10 + alertLevel),
+    alertLevelCode: String(10 + (alertLevel ?? 0)),
     action,
     previousLevelCode: null,
     warningKind: action === "release" ? "噴火予報" : "噴火警報",
     municipalities: [],
+    marineAreas: [],
+    marineWarningKind: null,
+    marineAlertLevelCode: null,
     bodyText: "",
     preventionText: "",
     isMarine: false,

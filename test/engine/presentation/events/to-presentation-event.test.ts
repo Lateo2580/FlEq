@@ -6,7 +6,9 @@ import { EewEventLogger } from "../../../../src/engine/eew/eew-logger";
 import { TsunamiStateHolder } from "../../../../src/engine/messages/tsunami-state";
 import { VolcanoStateHolder } from "../../../../src/engine/messages/volcano-state";
 import { Vpws50StateHolder } from "../../../../src/engine/messages/vpws50-state";
+import { Vpww56StateHolder } from "../../../../src/engine/messages/vpww56-state";
 import { Vpwp50DetailCache } from "../../../../src/engine/messages/vpwp50-detail-cache";
+import { FloodForecastStateHolder } from "../../../../src/engine/messages/flood-forecast-state";
 import { TyphoonProbabilityStateHolder } from "../../../../src/engine/messages/typhoon-probability-state";
 import {
   createMockWsDataMessage,
@@ -41,8 +43,10 @@ function makeDeps(): ProcessDeps {
     tsunamiState: new TsunamiStateHolder(),
     volcanoState: new VolcanoStateHolder(),
     vpws50State: new Vpws50StateHolder(),
+    vpww56State: new Vpww56StateHolder(),
     vpwp50Cache: new Vpwp50DetailCache(),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
+    floodForecastState: new FloodForecastStateHolder(),
   };
 }
 

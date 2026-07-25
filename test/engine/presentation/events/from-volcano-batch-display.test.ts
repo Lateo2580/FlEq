@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { expandVolcanoBatchForDisplay } from "../../../../src/engine/presentation/events/from-volcano";
-import type { ParsedVolcanoAshfallInfo, VolcanoBatchOutcome } from "../../../../src/engine/presentation/types";
+import type { VolcanoBatchOutcome } from "../../../../src/engine/presentation/types";
+import type { ParsedVolcanoAshfallInfo } from "../../../../src/types";
 import type { WsDataMessage } from "../../../../src/types";
 import { createMockWsDataMessage, FIXTURE_VFVO53_ASH_REGULAR } from "../../../helpers/mock-message";
 
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
+    domain: "volcano",
     kind: "ashfall",
     type: "VFVO53",
     subKind: "scheduled",

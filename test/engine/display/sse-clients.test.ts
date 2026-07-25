@@ -7,12 +7,12 @@ import {
   MAX_WRITABLE_LENGTH,
 } from "../../../src/engine/display/constants";
 import { encodeSseGuarded, SseClients } from "../../../src/engine/display/sse-clients";
-import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
 import type {
   DisplayEventDtoV1,
   DisplayServerMessage,
   DisplayStateSnapshotV1,
 } from "../../../src/engine/display/types";
+import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
 
 interface FakeRes {
   write: Mock;
@@ -45,26 +45,15 @@ function trigger(fake: FakeRes, mockFn: "on" | "once", event: string): void {
   (call![1] as () => void)();
 }
 
-function eventMsg(seq: number, over: Partial<DisplayEventDtoV1> = {}): DisplayServerMessage {
-  const dto: DisplayEventDtoV1 = {
-    version: DISPLAY_PROTOCOL_VERSION, seq, id: `m${seq}`, eventKey: `k${seq}`, groupKey: null,
-    domain: "weather", type: "VPWW55", infoType: "発表", reportDateTime: "2026-07-06T21:00:00+09:00",
-    title: "t", headline: null, publishingOffice: "気象庁", isTest: false, frameLevel: "normal",
-    isCancellation: false, summary: { text: "t", role: "muted" }, emergency: null, recentQuake: null,
-    ...over,
-  };
-  return { type: "event", event: dto };
+function eventDto(seq: number, over: Partial<DisplayEventDtoV1> = {}): DisplayEventDtoV1 {
+  return displayEventDto({ seq, id: `m${seq}`, eventKey: `k${seq}`, title: "t", ...over });
 }
 
-function baseSnapshot(over: Partial<DisplayStateSnapshotV1> = {}): DisplayStateSnapshotV1 {
-  return {
-    version: DISPLAY_PROTOCOL_VERSION, generatedAt: "2026-07-06T21:00:00+09:00", seq: 0,
-    activeEews: [], tsunami: null, largeQuakes: [], weatherAlerts: [], recentQuakes: [],
-    connection: { dmdata: "connected", lastReceivedAt: null, disconnectedSince: null, reason: null },
-    recentTicker: [],
-    ...over,
-  };
+function eventMsg(seq: number, over: Partial<DisplayEventDtoV1> = {}): DisplayServerMessage {
+  return { type: "event", event: eventDto(seq, over) };
 }
+
+const baseSnapshot = displaySnapshot;
 
 function snapshotMsg(over: Partial<DisplayStateSnapshotV1> = {}): DisplayServerMessage {
   return { type: "snapshot", snapshot: baseSnapshot(over) };
@@ -73,7 +62,7 @@ function snapshotMsg(over: Partial<DisplayStateSnapshotV1> = {}): DisplayServerM
 /** JSON 化後に MAX_SNAPSHOT_BYTES (256KB) を超える recentTicker を生成する */
 function hugeRecentTicker(): DisplayEventDtoV1[] {
   const longTitle = "A".repeat(500);
-  return Array.from({ length: 1000 }, (_, i) => eventMsg(i, { title: longTitle }).event as DisplayEventDtoV1);
+  return Array.from({ length: 1000 }, (_, i) => eventDto(i, { title: longTitle }));
 }
 
 describe("SseClients", () => {
