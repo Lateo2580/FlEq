@@ -121,7 +121,7 @@ Phase 4b (2026-07) で `eew-formatter.ts` を新デザイン言語化済み。�
 - `opts.omitHeader: true` — ヘッダ行を省略する (2 列で自明な表など)
 - 通常列は `clipToVisualWidth` でセル内 clip し、`raw !== clipped` を `ResponsiveClipReport` に記録するが、**この ClipReport は検知信号のみで `[詳細]` 復元には使わない**
 
-**`[詳細]` は hidden-only 原則** (`collectDetailForTable()` + `pushDetailBlock()`、spec §2.4): 列定義に `hidden: boolean` を持たせ、**その幅で完全に隠れた列のみ**を `[詳細]` に回収する。セル内 clip (幅は足りないが読める) は回収対象外 — 「clip されたら detail に全文回収」という旧設計は 2026-07 rollout で廃止された。件数上限超過分 (`getMaxObservations()` 等) は別途、全列を 1 entry として `[詳細]` に復元する。1 entry 最大 8 行 (`DETAIL_MAX_PER_ENTRY`) / 全体最大 60 行 (`DETAIL_MAX_TOTAL`) の行数ガードがあり、超過時は entry 単位で打ち切る。EEW のみ地域数が多いため専用の `EEW_DETAIL_HARD_CAP=200` を追加で持つ（§ EEW 表示参照）。
+**`[詳細]` は hidden-only 原則** (`collectDetailForTable()` + `pushDetailBlock()`、spec §2.4): 列定義に `hidden: boolean` を持たせ、**その幅で完全に隠れた列のみ**を `[詳細]` に回収する。セル内 clip (幅は足りないが読める) は回収対象外 — 「clip されたら detail に全文回収」という旧設計は 2026-07 rollout で廃止された。件数上限超過分 (`getMaxObservations()` 等) は別途、全列を 1 entry として `[詳細]` に復元する。1 entry 最大 8 行 (`DETAIL_MAX_PER_ENTRY`) / 全体最大 60 行 (`DETAIL_MAX_TOTAL`) の行数ガードがあり、超過時は entry 単位で打ち切る。**ただし EEW は例外**: 件数上限超過分を `[詳細]` に復元せず震度別の集約行 1 本に畳む方式へ 2026-07-25 に変更（旧 `EEW_DETAIL_HARD_CAP=200` は撤去、§ EEW 表示参照）。
 
 VPWP50 (`weather-warning-timeseries-formatter.ts`) は上記いずれとも非互換点が多いため、どちらの engine にも寄せず独自の clip 検知ベース `[詳細]` 回収 (`raw !== clipped` なら mode 問わず全文回収) を維持している (`docs/display-reference.md` の VPWP50 節「採用ルール」参照)。
 
@@ -145,7 +145,7 @@ VPWP50 (`weather-warning-timeseries-formatter.ts`) は上記いずれとも非�
 - 震度列: `formatEewIntensityRange()` で範囲表記対応（From≠To は「4〜5弱」、To="over" は「4程度以上」）
 - 状態列: `eewStatusBadges()` が「到達済」/「HH:MM:SS 到達予測」/「PLUM」を優先順に併記（badge 配列、単一 enum にしない）。旧「主要動到達推測地域」独立セクションはこの列に吸収され撤去済み
 - 並び順: `buildEewForecastRows()` が **To 基準（悲観側）の震度降順**（`eewPessimisticIntensity(intensity, intensityTo)` をソートキーに）でソートする。**一枚テーブル統合（Task 5）**により、階級ごとの divider・ヘッダ繰り返しは廃止済み — `予測震度` labeled divider 1 本 + ヘッダ 1 回 + 全行（`shown`）を `renderResponsiveTable` 1 回で描画する（震度列が各行にあるため階級境の細線 divider なしでも読める）
-- 件数制限: `getMaxObservations()` を維持。超過分は詳細ブロック逃がし + 「… 他 N 地域」の可視打ち切り（fail-closed）。generic cap (`DETAIL_MAX_PER_ENTRY`/`DETAIL_MAX_TOTAL`) は 90 地域級の EEW に不足するため、**EEW 専用 `EEW_DETAIL_HARD_CAP = 200`**（`applyEewDetailCap()`）を持つ（地域名 wrap 全表示化前の LG 観測情報が持っていた同種 hard cap の考え方を踏襲したもので、LG 側は現在 wrap 全表示化に伴い cap ごと撤去済み）
+- 件数制限: `getMaxObservations()` を維持。超過分は**震度別の集約行 1 本**（`… 他 N 地域 (震度6弱: 28 / 震度5強: 38 …)`。`summarizeHiddenEewRows()` の Map 1 走査、悲観側震度の強い順、`intensityColor()` 着色、` / ` を折返し点に `wrapFrameLines` で畳む）に畳む。旧方式（`[詳細]` ブロックへの全列回収 + `EEW_DETAIL_HARD_CAP = 200`）は 2026-07-25 に撤去 — fold が総出力を逆に増やす逆膨張（190 地域・fold=10 で約 590 行）の解消のため。全地域の内訳は EEW ログ（`eew-logger`、既定 ON）で復元可能
 
 **To 基準一気通貫**（`src/utils/intensity.ts` の `eewPessimisticIntensity(intensity, intensityTo)`）: 最大予測震度の算出を表示/通知の 4 箇所 + 記録層 1 箇所すべて `intensityTo ?? intensity`（悲観側）基準に揃える。単一 helper を共用し算出箇所の増殖を防ぐ。なお地域別の生値（震度別グループ一覧など）は From のまま — 「最大は To、地域別生値は From」の二層設計。
 
@@ -1019,7 +1019,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 
 #### 操作系 (operation-handlers.ts)
 
-5 ハンドラ: `handleTest`, `handleClear`, `handleBackup`, `handleRetry`, `handleQuit`
+6 ハンドラ: `handleTest`, `handleClear`, `handleBackup`, `handleRetry`, `handleDisplay`, `handleQuit`
 
 ### 依存関係
 
@@ -1028,7 +1028,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 | `types.ts` | `../../types`, `../../dmdata/connection-manager`, `../../engine/notification/notifier`, `../../engine/eew/eew-logger`, `../status-line`, `../../engine/filter-template/pipeline-controller`, `../../engine/messages/telegram-stats`, `../../engine/messages/summary-tracker`, `../../engine/monitor/monitor` |
 | `info-handlers.ts` | `../../types`, `../../dmdata/rest-client`, `../../config`, `../../engine/notification/notifier`, `../formatter`, `../theme`, `../statistics-formatter` |
 | `settings-handlers.ts` | `../../types`, `../../config`, `../formatter`, `../theme`, `../../engine/notification/notifier`, `../../engine/filter` |
-| `operation-handlers.ts` | `../test-samples`, `../../engine/notification/sound-player` |
+| `operation-handlers.ts` | `../../engine/notification/sound-player`（`../test-samples` は `test table` 実行時の動的 import — 起動時には評価されない、型のみ `import type`） |
 
 ### 設計ノート
 
