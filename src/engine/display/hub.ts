@@ -92,6 +92,8 @@ export class InfoDisplayHub implements DisplayIngestSink {
       let stateChanged = this.store.applyEvent(dto, nowMs, event.tsunamiObservations ?? null);
       if (dto.type === "VPWS50" || dto.type === "VPWW56") {
         this.store.seedWeatherAlerts(this.deps.weatherAlerts(dto.reportDateTime));
+        // 昇格状態は monitor 側 (displaySink) が電文受理の時点で更新済み。display の on/off に
+        // 関わらず時計を進めるため、hub では更新しない (二重適用の防止も兼ねる)
         stateChanged = true;
       }
       if (dto.tickerSuppressed !== true) {
@@ -187,12 +189,17 @@ export class InfoDisplayHub implements DisplayIngestSink {
    */
   sweepTicker(nowMs: number): boolean {
     const activeKeys = this.store.activeAlertKeys();
+    // 官署別に分かれる groupKey (VPWW56) は完全一致で列挙できないため接頭辞でも照合する。
+    // 既存キー (eew: / tsunami:current / weather:vpws50) の完全一致セマンティクスは変えない
+    const activePrefixes = [...this.store.activeAlertKeyPrefixes()];
     const before = this.recent.length;
     this.recent = this.recent.filter((e) => {
       const priority = e.dto.tickerPriority ?? "low";
       const expired = nowMs - e.receivedMs > tickerTtlMs(priority, e.dto.domain);
       if (!expired) return true;
-      return e.dto.groupKey != null && activeKeys.has(e.dto.groupKey); // active なら残す
+      const key = e.dto.groupKey;
+      if (key == null) return false;
+      return activeKeys.has(key) || activePrefixes.some((p) => key.startsWith(p)); // active なら残す
     });
     const changed = this.recent.length !== before;
     if (changed) this.tickerSyncPending = true;

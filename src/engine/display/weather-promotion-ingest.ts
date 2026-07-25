@@ -1,0 +1,40 @@
+/**
+ * 気象電文の受理から昇格状態を更新する。
+ *
+ * monitor の displaySink (display の on/off に関わらず必ず通る経路) から呼ぶ。
+ * hub 側では更新しない —— display は表示の都合であって受理の事実とは無関係なので、
+ * hub に置くと `display off` の間だけ昇格・続報・解除がすべて失われる。
+ * 更新経路をこの 1 か所に一本化することで二重適用も防いでいる。
+ */
+
+import type { PresentationEvent } from "../presentation/types";
+import type { Vpws50CurrentAreasForDisplay } from "../../types";
+import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
+import type { WeatherPromotionStore } from "./weather-promotion-store";
+
+export interface WeatherPromotionViewSources {
+  /** VPWS50 (Vpws50StateHolder.getCurrentAreasForDisplay) */
+  vpws50: () => Vpws50CurrentAreasForDisplay | undefined;
+  /** VPWW56 (Vpww56StateHolder.getCurrentAreasForDisplay) */
+  vpww56: () => Vpws50CurrentAreasForDisplay | undefined;
+}
+
+/**
+ * 気象電文 (VPWS50 / VPWW56) の confirmed な受理で昇格状態を更新する。
+ * 対象外の電文・unsafe 報 (state を更新しないまま outcome が通った報) は何もしない。
+ * nowMs は engine 受理時刻 —— 電文の updatedAt / reportDateTime は判定に使わない。
+ */
+export function applyWeatherPromotionOnIngest(
+  store: WeatherPromotionStore,
+  views: WeatherPromotionViewSources,
+  event: PresentationEvent,
+  nowMs: number,
+): boolean {
+  if (event.type !== "VPWS50" && event.type !== "VPWW56") return false;
+  if (event.weatherConfidence === "unsafe") return false;
+  const source = event.type === "VPWS50" ? "vpws50" : "vpww56";
+  const alerts = source === "vpws50"
+    ? weatherAlertsFromVpws50(views.vpws50(), event.reportDateTime)
+    : weatherAlertsFromVpww56(views.vpww56(), event.reportDateTime);
+  return store.apply(source, alerts, nowMs);
+}

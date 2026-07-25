@@ -17,6 +17,8 @@ import { DISPLAY_SUMMARY_WIDTH } from "./constants";
 import { createFrontendBuildIdReader } from "./frontend-build-id";
 import { InfoDisplayHub } from "./hub";
 import { DisplayStateStore } from "./state-store";
+import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
+import { WeatherPromotionStore } from "./weather-promotion-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
 import type {
   ActiveStandbyCardV1,
@@ -41,11 +43,21 @@ export interface DisplaySeedSources {
   landslide: () => Vpws50CurrentAreasForDisplay | undefined;
   /** monitor 所有の active standby state。旧テスト/埋込利用との互換のため省略可 */
   standbyItems?: () => ActiveStandbyCardV1[];
+  /**
+   * monitor 所有の気象警報 昇格 lifecycle。display runtime は起動ごとに作り直されるため、
+   * ここで注入しないと `display off` → `on` で昇格の時計が途切れる。省略時は runtime 内に
+   * 閉じた新規ストアになる (旧テスト/埋込利用との互換)。
+   */
+  weatherPromotions?: () => WeatherPromotionStore;
   /** hub 稼働中の sweep は既存 hub タイマーへ統合する */
   standbySweep?: (nowMs: number) => DisplayMutation;
 }
 
 // ── 変換関数 ──
+
+// 気象カード view の変換は weather-alert-view.ts へ移設 (monitor からも使うため)。
+// 既存の import 経路を保つためここから re-export する
+export { weatherAlertsFromVpws50, weatherAlertsFromVpww56 };
 
 /**
  * ParsedTsunamiInfo (TsunamiStateHolder.getLastInfo) を起動時 seed 用の入力に変換する。
@@ -78,112 +90,6 @@ export function tsunamiSeedFromParsed(info: ParsedTsunamiInfo): DisplayTsunamiIn
   };
 }
 
-/** displaySeverity → 気象カードの rank (意味ベース、frame level とは別軸)。
- * officialL5/nonLevelSpecial=emergency, officialL4/officialL3/nonLevelWarning=warning,
- * それ以外 (officialL2/nonLevelAdvisory/officialL1/unknown)=advisory */
-function weatherRankOf(displaySeverity: DisplaySeverity): DisplayWeatherRank {
-  if (displaySeverity === "officialL5" || displaySeverity === "nonLevelSpecial") return "emergency";
-  if (
-    displaySeverity === "officialL4" ||
-    displaySeverity === "officialL3" ||
-    displaySeverity === "nonLevelWarning"
-  ) {
-    return "warning";
-  }
-  return "advisory";
-}
-
-const WEATHER_RANK_BUCKETS: Array<{
-  rank: DisplayWeatherRank;
-  label: string;
-  role: "weatherEmergency" | "weatherWarning" | "weatherAdvisory";
-}> = [
-  { rank: "emergency", label: "気象特別警報", role: "weatherEmergency" },
-  { rank: "warning", label: "気象警報", role: "weatherWarning" },
-  { rank: "advisory", label: "気象注意報", role: "weatherAdvisory" },
-];
-
-/**
- * Vpws50CurrentAreasForDisplay を表示プロトコルの weatherAlerts に変換する。
- * displaySeverity から意味ベースで rank (emergency/warning/advisory) を導出し、警報・特別警報の 2 バケツに分ける。
- * advisory rank は気象カードに載せない (注意報はティッカーのみに任せる)。空バケツは含めない。
- * updatedAt は呼び出し側が供給する (hub: dto.reportDateTime / seed 時: 起動時刻 ISO)。
- */
-export function weatherAlertsFromVpws50(
-  view: Vpws50CurrentAreasForDisplay | undefined,
-  updatedAt: string,
-): DisplayWeatherAlertV1[] {
-  if (view == null) return [];
-  const itemsByRank: Record<DisplayWeatherRank, DisplayWeatherAlertItemV1[]> = {
-    emergency: [],
-    warning: [],
-    advisory: [],
-  };
-  const areasByRank: Record<DisplayWeatherRank, Set<string>> = {
-    emergency: new Set(),
-    warning: new Set(),
-    advisory: new Set(),
-  };
-  for (const group of view.kinds) {
-    if (group.displaySeverity === "release") continue;
-    const rank = weatherRankOf(group.displaySeverity);
-    if (rank === "advisory") continue;
-    const item: DisplayWeatherAlertItemV1 = {
-      kind: formatLevelLabel(group.officialAlertLevel, group.kindName),
-      displaySeverity: group.displaySeverity,
-      rank,
-      shownAreas: group.areas.map((a) => a.areaName),
-      omittedAreaCount: 0,
-    };
-    itemsByRank[rank].push(item);
-    for (const a of group.areas) areasByRank[rank].add(a.areaCode);
-  }
-  const alerts: DisplayWeatherAlertV1[] = [];
-  for (const bucket of WEATHER_RANK_BUCKETS) {
-    const items = itemsByRank[bucket.rank];
-    if (items.length === 0) continue;
-    alerts.push({
-      source: "vpws50",
-      label: bucket.label,
-      role: bucket.role,
-      totalAreas: areasByRank[bucket.rank].size,
-      items,
-      updatedAt,
-    });
-  }
-  return alerts;
-}
-
-/**
- * VPWW56 (土砂災害警戒情報) の現況を気象カード用に変換する。
- * rank は weatherAlertsFromVpws50 と同じ displaySeverity 由来 (weatherRankOf 共有)。
- * 現実の土砂災害警戒情報は警報級だが、displaySeverity が advisory 級に落ちるデータは
- * weatherAlertsFromVpws50 と同様に除外する (advisory を気象カードに載せない契約を守る)。
- */
-export function weatherAlertsFromVpww56(
-  view: Vpws50CurrentAreasForDisplay | undefined,
-  updatedAt: string,
-): DisplayWeatherAlertV1[] {
-  if (view == null || view.kinds.length === 0) return [];
-  const items: DisplayWeatherAlertItemV1[] = view.kinds
-    .filter((g) => g.displaySeverity !== "release" && weatherRankOf(g.displaySeverity) !== "advisory")
-    .map((g) => ({
-      kind: formatLevelLabel(g.officialAlertLevel, g.kindName),
-      displaySeverity: g.displaySeverity,
-      rank: weatherRankOf(g.displaySeverity),
-      shownAreas: g.areas.map((a) => a.areaName),
-      omittedAreaCount: 0,
-    }));
-  if (items.length === 0) return [];
-  const rankOrder: Record<DisplayWeatherRank, number> = { emergency: 3, warning: 2, advisory: 1 };
-  const top = items.reduce(
-    (best, it) => (rankOrder[it.rank] > rankOrder[best] ? it.rank : best),
-    "advisory" as DisplayWeatherRank,
-  );
-  const role = top === "emergency" ? "weatherEmergency" : top === "warning" ? "weatherWarning" : "weatherAdvisory";
-  return [{ source: "vpww56", label: "土砂災害警戒情報", role, totalAreas: view.totalAreas, items, updatedAt }];
-}
-
 // ── 組み立て ──
 
 function resolveDistDir(): string {
@@ -201,7 +107,7 @@ export async function startDisplayRuntime(
   /** kill switch (onFatal) 発火時にも呼び出し元の runtime 参照を後始末させるための通知 */
   onStopped?: () => void,
 ): Promise<DisplayRuntime | null> {
-  const store = new DisplayStateStore(seeds.standbyItems);
+  const store = new DisplayStateStore(seeds.standbyItems, seeds.weatherPromotions?.());
   const distDir = resolveDistDir();
   const frontendBuildId = createFrontendBuildIdReader(distDir);
   const hub = new InfoDisplayHub(store, {
@@ -257,11 +163,16 @@ export async function startDisplayRuntime(
     if (seed != null) store.seedTsunami(seed, nowMs);
   }
   const nowIso = new Date(nowMs).toISOString();
-  const weatherSeed = [
-    ...weatherAlertsFromVpws50(seeds.weather(), nowIso),
-    ...weatherAlertsFromVpww56(seeds.landslide(), nowIso),
-  ];
+  const vpws50View = seeds.weather();
+  const vpww56View = seeds.landslide();
+  const vpws50Alerts = weatherAlertsFromVpws50(vpws50View, nowIso);
+  const vpww56Alerts = weatherAlertsFromVpww56(vpww56View, nowIso);
+  const weatherSeed = [...vpws50Alerts, ...vpww56Alerts];
   if (weatherSeed.length > 0) store.seedWeatherAlerts(weatherSeed);
+  // display off 中は降格 sweep (hub の 5 秒タイマー) が止まるため、`display on` の時点で
+  // 経過判定を通して、経過済みの昇格が初回 sweep まで見えてしまう窓を塞ぐ。
+  // 受信更新自体は monitor 側で display の on/off に関わらず行われている
+  store.resumeWeatherPromotions(nowMs);
 
   try {
     await transport.start();

@@ -61,6 +61,8 @@ export interface ShutdownContext {
   stopStandbySweep?: () => void;
   /** VPWP50 詳細 cache の予約済み保存を書き切る */
   flushDetailCaches?: () => void;
+  /** 気象警報 昇格 lifecycle の最終保存 */
+  flushWeatherPromotion?: () => void;
 }
 
 /**
@@ -92,6 +94,7 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
     // controller.stop() は display off sweep を再開するため、その後で確実に停止・最終保存する。
     ctx.stopStandbySweep?.();
     ctx.flushDetailCaches?.();
+    ctx.flushWeatherPromotion?.();
     const repl = ctx.getReplHandler();
     if (repl) repl.stop();
     const socketClosePromise = closeSocketViaApi(ctx.apiKey, ctx.manager);

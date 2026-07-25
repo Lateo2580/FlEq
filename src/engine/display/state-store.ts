@@ -23,13 +23,31 @@ import {
   type DisplayTsunamiObservationV1,
   type DisplayTsunamiStateV1,
   type DisplayWeatherAlertV1,
+  type DisplayWeatherPromotionEntryV1,
+  type DisplayWeatherPromotionV1,
+  type DisplayWeatherSourceV1,
 } from "./types";
 import { intensityToRank } from "../../utils/intensity";
 import { quakeCardTtlMs, shouldReplaceQuakeCard } from "./quake-card-selection";
+import { WEATHER_PROMOTION_SOURCES } from "./weather-promotion";
+import {
+  WeatherPromotionStore,
+  type WeatherPromotionPersistedV1,
+  type WeatherPromotionRecord,
+} from "./weather-promotion-store";
 
 const MIN_MS = 60_000;
 const TIER_ORDER: Record<DisplaySeverityTier, number> = { calm: 0, caution: 1, alert: 2, critical: 3 };
 const TIER_QUAKE_ALERT_RANK = intensityToRank("5弱");
+
+function promotionEntry(record: WeatherPromotionRecord | null): DisplayWeatherPromotionEntryV1 | null {
+  if (record == null || record.state !== "active") return null;
+  return {
+    level: record.level,
+    promotedAt: new Date(record.promotedAtMs).toISOString(),
+    generation: record.generation,
+  };
+}
 
 // 現在の緊急状態 (EEW/津波/大地震/気象警報/接続) を合成する表示用ストア。
 // 時刻は全メソッドで nowMs 注入 (クラス内で Date.now() を呼ばない)。
@@ -45,8 +63,16 @@ export class DisplayStateStore {
   private connection: DisplayConnectionStateV1 = {
     dmdata: "connecting", lastReceivedAt: null, disconnectedSince: null, reason: null,
   };
+  /** 気象警報の昇格 lifecycle。monitor 所有のストアを注入して display off/on をまたいで
+   *  時計を維持する (未注入時はこのストア専用のインスタンスを持つ = 旧テスト互換) */
+  private readonly promotions: WeatherPromotionStore;
 
-  constructor(private readonly standbyItemsProvider?: () => ActiveStandbyCardV1[]) {}
+  constructor(
+    private readonly standbyItemsProvider?: () => ActiveStandbyCardV1[],
+    promotions?: WeatherPromotionStore,
+  ) {
+    this.promotions = promotions ?? new WeatherPromotionStore();
+  }
 
   /**
    * tsunamiObservations: hub が PresentationEvent.tsunamiObservations をそのまま渡す (Phase 2)。
@@ -159,6 +185,8 @@ export class DisplayStateStore {
       this.tsunami = { ...this.tsunami, demoted: true };
       changed = true;
     }
+    // 気象警報の昇格は「30 分 + 最大 5 秒」で降格する
+    changed = this.promotions.sweepDemote(nowMs) || changed;
     if (this.latestQuake != null &&
         nowMs - this.latestQuake.updatedAtMs > quakeCardTtlMs(this.latestQuake.maxIntRank ?? 0)) {
       this.latestQuake = null;
@@ -187,6 +215,40 @@ export class DisplayStateStore {
     this.weatherAlerts = [...alerts];
   }
 
+  /**
+   * 1 source 分の気象カード view から昇格状態を更新する。source は完全に独立で、
+   * 呼ばれなかった source の record には一切触れない。
+   * nowMs は engine 受理時刻 — 電文の updatedAt / reportDateTime は判定に使わない。
+   *
+   * **production の受理経路はここではない**。実際の更新は monitor の displaySink
+   * (`weather-promotion-ingest.ts`) が行う。現在の呼び出し元はテストのみで、lifecycle を
+   * 直接回す窓口として意図的に残している。
+   * **hub からは呼ばないこと** — hub 経由にすると `display off` の間だけ新規昇格・続報・
+   * 解除がすべて失われる (受理の事実は display の on/off と無関係)。
+   */
+  applyWeatherSource(
+    source: DisplayWeatherSourceV1,
+    view: DisplayWeatherAlertV1[],
+    nowMs: number,
+  ): boolean {
+    return this.promotions.apply(source, view, nowMs);
+  }
+
+  /** 永続化用の lifecycle 一式 (promotedAtMs / state / generation / watermark)。 */
+  exportWeatherPromotions(): WeatherPromotionPersistedV1 {
+    return this.promotions.export();
+  }
+
+  /** 起動時復元の入口。経過済み・未来時刻の判定は WeatherPromotionStore が行う */
+  restoreWeatherPromotions(state: WeatherPromotionPersistedV1, nowMs: number): void {
+    this.promotions.restore(state, nowMs);
+  }
+
+  /** display runtime 起動時の経過判定 (`display off` 中に降格 sweep が止まっていた分を反映) */
+  resumeWeatherPromotions(nowMs: number): boolean {
+    return this.promotions.resume(nowMs);
+  }
+
   /** hub が publishStats 経路で現在値を流し込む。snapshot に載せるだけ (dirty 判定は hub 側) */
   setStats(stats: DisplayStatsV1): void {
     this.stats = stats;
@@ -199,6 +261,12 @@ export class DisplayStateStore {
       if (this.tsunami.level === "majorWarning") bump("critical");
       else if (this.tsunami.level === "warning") bump("alert");
       else bump("caution");
+    }
+    // 昇格中の気象警報は L5 相当 = critical / L4 相当 = alert。津波の demote と同方針で、
+    // パネル降格 (demoted) 後も警報解除 (record 削除) まで tier を維持する
+    for (const source of WEATHER_PROMOTION_SOURCES) {
+      const rec = this.promotions.get(source);
+      if (rec != null) bump(rec.level === 5 ? "critical" : "alert");
     }
     for (const eew of this.activeEews.values()) bump(eew.isWarning ? "alert" : "caution");
     for (const q of this.largeQuakes.values()) if (q.maxIntRank >= TIER_QUAKE_ALERT_RANK) bump("alert");
@@ -215,7 +283,39 @@ export class DisplayStateStore {
     const keys = new Set<string>();
     for (const id of this.activeEews.keys()) keys.add(`eew:${id}`);
     if (this.tsunami != null) keys.add("tsunami:current");
+    // 主役パネルに出ている間だけ気象テロップを保護する。demoted を含めると降格後も
+    // 気象テロップが TTL を無視して残り続けるため active のみ。
+    // VPWS50 のテロップ groupKey は "weather:vpws50" (project-event.ts) と完全一致する。
+    // VPWW56 は官署別 groupKey のためここでは列挙できず、activeAlertKeyPrefixes 側で扱う
+    if (this.promotions.get("vpws50")?.state === "active") keys.add("weather:vpws50");
     return keys;
+  }
+
+  /**
+   * 完全一致では表せない active な groupKey の接頭辞集合。
+   * VPWW56 のテロップ groupKey は `weather:VPWW56:${publishingOffice}` と官署別に分かれる
+   * (project-event.ts) 一方、昇格状態は Vpww56StateHolder が全官署を union した view に対して
+   * 1 つだけ持つため、保護すべきキーを列挙できない。昇格中は VPWW56 のテロップをまとめて
+   * 保護する (union が L4/L5 相当を含む間だけ。既に解除された官署のテロップも巻き込むが、
+   * recentTicker は受信済み電文の履歴であって現況表示ではないため保護側に倒す)。
+   */
+  activeAlertKeyPrefixes(): Set<string> {
+    const prefixes = new Set<string>();
+    if (this.promotions.get("vpww56")?.state === "active") prefixes.add("weather:VPWW56:");
+    return prefixes;
+  }
+
+  /** demoted は null へ投影する (フロントに期限計算をさせない) */
+  private weatherPromotionForWire(): DisplayWeatherPromotionV1 {
+    return {
+      vpws50: promotionEntry(this.promotions.get("vpws50")),
+      vpww56: promotionEntry(this.promotions.get("vpww56")),
+    };
+  }
+
+  /** night-dim 用。demoted 後も警報解除 (record 削除) まで true */
+  private isWeatherL5Active(): boolean {
+    return WEATHER_PROMOTION_SOURCES.some((s) => this.promotions.get(s)?.level === 5);
   }
 
   snapshot(seq: number, nowMs: number): DisplayStateSnapshotV1 {
@@ -227,6 +327,8 @@ export class DisplayStateStore {
       tsunami: this.tsunami,
       largeQuakes: [...this.largeQuakes.values()],
       weatherAlerts: [...this.weatherAlerts],
+      weatherPromotion: this.weatherPromotionForWire(),
+      weatherL5Active: this.isWeatherL5Active(),
       recentQuakes: [...this.recentQuakes],
       latestQuake: this.latestQuake,
       stats: this.stats,

@@ -51,6 +51,8 @@ export function fromWeatherOutcome(outcome: WeatherOutcome): PresentationEvent {
     soundLevel: outcome.presentation.soundLevel,
     notifyCategory: outcome.presentation.notifyCategory,
     displaySeverity: outcome.presentation.displaySeverity ?? null,
+    // weatherDiff を持たない経路 (VPWW55-61 / state holder 未注入) は confirmed 扱い
+    weatherConfidence: outcome.presentation.weatherDiff?.confidence ?? "confirmed",
 
     isCancellation: info.infoType === "取消",
     isWarning:

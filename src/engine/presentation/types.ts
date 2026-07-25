@@ -341,6 +341,9 @@ export interface PresentationEvent {
   /** 色専用の集約 severity (weather 系のみ。summaryRole が frameLevel 素通しの代わりに使う)。
    *  静音化で frameLevel が info 降格しても色は集約 severity を保つための分離フィールド。 */
   displaySeverity?: FrameLevel | null;
+  /** VPWS50 state 更新の確度 (weather 系のみ)。unsafe = state を更新しないまま outcome が
+   *  通った報。display の昇格判定はこの報を再昇格契機にしない。欠落は confirmed 扱い。 */
+  weatherConfidence?: Vpws50Diff["confidence"];
 
   // 状態フラグ
   isCancellation: boolean;

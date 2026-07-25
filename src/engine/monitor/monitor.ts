@@ -15,6 +15,9 @@ import type { DisplayConnectionStateV1, DisplayIngestSink } from "../display/typ
 import type { DisplayRuntime } from "../display/runtime";
 import { StandbyPersistence } from "../display/standby-persistence";
 import { StandbyStateStore } from "../display/standby-state-store";
+import { WeatherPromotionPersistence } from "../display/weather-promotion-persistence";
+import { WeatherPromotionStore } from "../display/weather-promotion-store";
+import { createDisplaySink } from "./display-sink";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -49,6 +52,25 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   if (persistedStandby != null) standbyStore.restoreActiveState(persistedStandby, Date.now());
   standbyStore.sweep(Date.now());
 
+  // 気象警報の昇格 lifecycle も monitor 所有にする。display runtime は `display off` → `on` で
+  // 作り直されるが、昇格の時計は電文を受理してからの壁時計経過なので途切れさせない。
+  const weatherPromotionStore = new WeatherPromotionStore();
+  const weatherPromotionPersistence = new WeatherPromotionPersistence(
+    join(process.cwd(), "data", "runtime", "weather-promotion-v1.json"),
+  );
+  // 受信コールスタック・5 秒 sweep 上で同期 I/O を走らせない。実書き込みは debounce 後に非同期で行い、
+  // 終了時は flushWeatherPromotion で書き切る。全 source が null (全解除) の状態も必ず書く
+  weatherPromotionStore.onDurable(
+    () => weatherPromotionPersistence.schedule(weatherPromotionStore.export(), Date.now()),
+  );
+  // 復元は load の try/catch の外なので、想定外の値が来ても起動を妨げないよう二重に守る
+  try {
+    const persistedPromotion = weatherPromotionPersistence.load(Date.now());
+    if (persistedPromotion != null) weatherPromotionStore.restore(persistedPromotion, Date.now());
+  } catch (err) {
+    log.warn(`気象警報の昇格状態の復元に失敗しました: ${err instanceof Error ? err.message : err} (本体は継続します)`);
+  }
+
   let standbySweepTimer: NodeJS.Timeout | null = null;
   function startStandbySweep(): void {
     if (standbySweepTimer != null) return;
@@ -67,11 +89,17 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // 正しい seed は restoreTsunamiState 後にしか読めないため、runtime は restore 後に
   // 起動して向き先 (displayHubRef) を差し替える。dmdata 接続開始はさらに後なので取りこぼしは無い。
   let displayHubRef: DisplayIngestSink | null = null;
-  const displaySink: DisplayIngestSink = {
-    ingest: (e) => {
-      standbyStore.applyEvent(e, Date.now());
-      displayHubRef?.ingest(e);
+  const baseDisplaySink = createDisplaySink({
+    standby: standbyStore,
+    promotions: weatherPromotionStore,
+    weatherViews: {
+      vpws50: () => vpws50State.getCurrentAreasForDisplay(),
+      vpww56: () => vpww56State.getCurrentAreasForDisplay(),
     },
+    getHub: () => displayHubRef,
+  });
+  const displaySink: DisplayIngestSink = {
+    ingest: (e) => baseDisplaySink.ingest(e),
     publishStats: (s) => displayHubRef?.publishStats?.(s),
   };
   let displayRuntime: DisplayRuntime | null = null;
@@ -99,6 +127,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       weather: () => vpws50State.getCurrentAreasForDisplay(),
       landslide: () => vpww56State.getCurrentAreasForDisplay(),
       standbyItems: () => standbyStore.snapshotItems(),
+      weatherPromotions: () => weatherPromotionStore,
       standbySweep: (nowMs) => standbyStore.sweep(nowMs),
     },
     getRuntime: () => displayRuntime,
@@ -167,6 +196,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       standbyPersistence.save(standbyStore.exportActiveState());
     },
     flushDetailCaches: () => vpwp50Cache.flush(),
+    flushWeatherPromotion: () => {
+      // 予約済み (debounce 待ち) より export() の方が常に新しいので、予約は捨てて現在状態を保存する
+      weatherPromotionPersistence.dispose();
+      weatherPromotionPersistence.save(weatherPromotionStore.export(), Date.now());
+    },
   });
 
   // REPL ハンドラ (遅延ロード)

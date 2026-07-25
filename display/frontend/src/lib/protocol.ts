@@ -228,6 +228,65 @@ export interface DisplayWeatherAlertV1 {
   updatedAt: string;
 }
 
+/** 気象警報の source。時計・世代・昇格判定はこの単位で完全に独立する */
+export type DisplayWeatherSourceV1 = DisplayWeatherAlertV1["source"];
+
+/** 昇格判定に使う displaySeverity の閉じた語彙 (src/types.ts の DisplaySeverity と同値)。
+ *  DisplayWeatherAlertItemV1.displaySeverity は前方互換のため wire 上 string のまま持ち、
+ *  昇格判定に使う直前だけこの union へ絞り込む (未知値は昇格に使わない)。 */
+export type DisplayWeatherSeverityV1 =
+  | "officialL5"
+  | "officialL4"
+  | "officialL3"
+  | "officialL2"
+  | "officialL1"
+  | "nonLevelSpecial"
+  | "nonLevelWarning"
+  | "nonLevelAdvisory"
+  | "unknown"
+  | "release";
+
+/** 主役パネルへ昇格する警戒レベル相当。L5 相当 = officialL5 ∪ nonLevelSpecial、L4 相当 = officialL4 */
+export type DisplayWeatherPromotionLevelV1 = 4 | 5;
+
+/** 網羅 Record にすることで DisplayWeatherSeverityV1 の追加が compile error になる */
+const WEATHER_PROMOTION_LEVEL: Record<DisplayWeatherSeverityV1, DisplayWeatherPromotionLevelV1 | null> = {
+  officialL5: 5,
+  nonLevelSpecial: 5,
+  officialL4: 4,
+  officialL3: null,
+  nonLevelWarning: null,
+  officialL2: null,
+  nonLevelAdvisory: null,
+  officialL1: null,
+  unknown: null,
+  release: null,
+};
+
+export function isDisplayWeatherSeverity(value: string): value is DisplayWeatherSeverityV1 {
+  return Object.prototype.hasOwnProperty.call(WEATHER_PROMOTION_LEVEL, value);
+}
+
+/** null = 昇格対象外。engine / frontend で同一の判定を使う */
+export function displayWeatherPromotionLevel(
+  severity: DisplayWeatherSeverityV1,
+): DisplayWeatherPromotionLevelV1 | null {
+  return WEATHER_PROMOTION_LEVEL[severity];
+}
+
+export interface DisplayWeatherPromotionEntryV1 {
+  level: DisplayWeatherPromotionLevelV1;
+  promotedAt: string;
+  generation: number;
+}
+
+/** source 別の昇格状態。demoted (画面都合の降格) は null に投影されるため、
+ *  フロントは期限計算を一切せず「null でなければ主役パネル」とだけ解釈する */
+export interface DisplayWeatherPromotionV1 {
+  vpws50: DisplayWeatherPromotionEntryV1 | null;
+  vpww56: DisplayWeatherPromotionEntryV1 | null;
+}
+
 export interface DisplayActiveEewV1 extends DisplayEewInputV1 {
   updatedAtMs: number;
 }
@@ -377,6 +436,12 @@ export interface DisplayStateSnapshotV1 {
   tsunami: DisplayTsunamiStateV1 | null;
   largeQuakes: DisplayLargeQuakeStateV1[];
   weatherAlerts: DisplayWeatherAlertV1[];
+  /** 主役パネルへの昇格状態 (権威は engine)。欠落 (旧サーバ) は両 source null 扱い。
+   *  各 alert 内ではなくトップレベルに置く — VPWS50 は rank 別に同 source の alert が複数あるため */
+  weatherPromotion?: DisplayWeatherPromotionV1;
+  /** L5 相当 (officialL5 ∪ nonLevelSpecial) の気象警報が発表中か (night-dim 用)。
+   *  パネル降格 (demoted) 後も警報解除まで true。欠落は false 扱い */
+  weatherL5Active?: boolean;
   recentQuakes: DisplayRecentQuakeV1[];
   latestQuake: DisplayLatestQuakeStateV1 | null;   // 追加
   stats: DisplayStatsV1 | null;                    // 追加
