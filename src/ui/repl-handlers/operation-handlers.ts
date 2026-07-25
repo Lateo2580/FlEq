@@ -1,7 +1,7 @@
 import readline from "readline";
 import chalk from "chalk";
 import { playSound, isSoundLevel, SOUND_LEVELS } from "../../engine/notification/sound-player";
-import { TEST_TABLES } from "../test-samples";
+import type { TestTableEntry } from "../test-samples";
 import * as log from "../../logger";
 import type { ReplContext } from "./types";
 import { hasBackupSupport } from "./info-handlers";
@@ -26,9 +26,12 @@ const TABLE_TYPE_ALIASES: Record<string, string> = {
 };
 
 /** test table の電文タイプ名を解決する (case-insensitive + エイリアス) */
-function resolveTestTableType(input: string): string | null {
+function resolveTestTableType(
+  tables: Record<string, TestTableEntry>,
+  input: string,
+): string | null {
   const lower = input.toLowerCase();
-  for (const key of Object.keys(TEST_TABLES)) {
+  for (const key of Object.keys(tables)) {
     if (key.toLowerCase() === lower) return key;
   }
   return TABLE_TYPE_ALIASES[lower] ?? null;
@@ -36,7 +39,7 @@ function resolveTestTableType(input: string): string | null {
 
 // ── コマンドハンドラ ──
 
-export function handleTest(ctx: ReplContext, args: string): void {
+export async function handleTest(ctx: ReplContext, args: string): Promise<void> {
   const parts = args.trim().split(/\s+/).filter(Boolean);
   const sub = parts[0] ?? "";
 
@@ -62,7 +65,7 @@ export function handleTest(ctx: ReplContext, args: string): void {
   }
 
   if (subLower === "table" || subLower === "tbl") {
-    handleTestTable(parts.slice(1).join(" "));
+    await handleTestTable(parts.slice(1).join(" "));
     return;
   }
 
@@ -94,10 +97,13 @@ function handleTestSound(args: string): void {
   playSound(level);
 }
 
-function handleTestTable(args: string): void {
+async function handleTestTable(args: string): Promise<void> {
   const parts = args.trim().split(/\s+/).filter(Boolean);
   const type = parts[0] ?? "";
   const variantArg = parts[1];
+
+  // 約 1,500 行のサンプル定義を REPL 起動時に常駐させないため、実行時に読み込む
+  const { TEST_TABLES } = await import("../test-samples");
 
   if (type === "") {
     console.log();
@@ -123,7 +129,7 @@ function handleTestTable(args: string): void {
     return;
   }
 
-  const resolvedType = resolveTestTableType(type);
+  const resolvedType = resolveTestTableType(TEST_TABLES, type);
   const entry = resolvedType != null ? TEST_TABLES[resolvedType] : undefined;
   if (entry == null) {
     console.log(chalk.yellow(`  不明な電文タイプ: ${type}`));
