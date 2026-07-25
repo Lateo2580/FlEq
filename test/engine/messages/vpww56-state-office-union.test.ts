@@ -9,7 +9,7 @@ import { parseWeatherWarning } from "../../../src/dmdata/weather-parser";
 import {
   Vpww56StateHolder,
   VPWW56_DORMANT_RETENTION_MS,
-  VPWW56_MAX_DORMANT_OFFICES,
+  VPWW56_MAX_DORMANT_STREAMS,
 } from "../../../src/engine/messages/vpww56-state";
 import type { ParsedWeatherWarning, WeatherKind, WeatherItem } from "../../../src/types";
 import type { WeatherReportIdentity } from "../../../src/engine/messages/vpws50-state";
@@ -200,17 +200,17 @@ describe("Vpww56StateHolder 官署単位 union", () => {
     const holder = new Vpww56StateHolder();
     holder.update(report(WAKKANAI, T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1"));
     holder.update(report(WAKKANAI, T1, [], { infoType: "取消" }), id(T1, "1"));
-    expect(holder.trackedOfficeCount()).toBe(1);
+    expect(holder.trackedStreamCount()).toBe(1);
 
     // retention window 内の他官署電文では掃除されない
     const withinWindow = new Date(Date.parse(T1) + VPWW56_DORMANT_RETENTION_MS - 1000).toISOString();
     holder.update(report(ASAHIKAWA, withinWindow, [item("012000", "上川地方", [L4_LANDSLIDE])]), id(withinWindow, "1"));
-    expect(holder.trackedOfficeCount()).toBe(2);
+    expect(holder.trackedStreamCount()).toBe(2);
 
     // window を越えた電文で稚内の dormant エントリが消える
     const pastWindow = new Date(Date.parse(T1) + VPWW56_DORMANT_RETENTION_MS + 1000).toISOString();
     holder.update(report(ASAHIKAWA, pastWindow, [item("012000", "上川地方", [L4_LANDSLIDE])]), id(pastWindow, "2"));
-    expect(holder.trackedOfficeCount()).toBe(1);
+    expect(holder.trackedStreamCount()).toBe(1);
     expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
   });
 
@@ -221,13 +221,13 @@ describe("Vpww56StateHolder 官署単位 union", () => {
     const pastWindow = new Date(Date.parse(T1) + VPWW56_DORMANT_RETENTION_MS * 3).toISOString();
     holder.update(report(ASAHIKAWA, pastWindow, [item("012000", "上川地方", [L4_LANDSLIDE])]), id(pastWindow, "1"));
 
-    expect(holder.trackedOfficeCount()).toBe(2);
+    expect(holder.trackedStreamCount()).toBe(2);
     expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
   });
 
   it("dormant 官署が上限を超えたら古い順に捨て、エントリが無限に溜まらない", () => {
     const holder = new Vpww56StateHolder();
-    const total = VPWW56_MAX_DORMANT_OFFICES + 20;
+    const total = VPWW56_MAX_DORMANT_STREAMS + 20;
     for (let i = 0; i < total; i++) {
       // 全て同一 window 内 (retention では消えない) の別官署 → 発表直後に取消
       const at = new Date(Date.parse(T1) + i * 1000).toISOString();
@@ -235,7 +235,7 @@ describe("Vpww56StateHolder 官署単位 union", () => {
       holder.update(report(office, at, [item(`0${i}0000`, `area-${i}`, [L4_LANDSLIDE])]), id(at, "1"));
       holder.update(report(office, at, [], { infoType: "取消" }), id(at, "1"));
     }
-    expect(holder.trackedOfficeCount()).toBe(VPWW56_MAX_DORMANT_OFFICES);
+    expect(holder.trackedStreamCount()).toBe(VPWW56_MAX_DORMANT_STREAMS);
     expect(holder.getCurrentAreasForDisplay()).toBeUndefined();
   });
 
@@ -248,6 +248,97 @@ describe("Vpww56StateHolder 官署単位 union", () => {
     // 空官署でも単調性ガードは効く
     expect(holder.update(report("", T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1")))
       .toEqual({ kind: "suppressed" });
+  });
+});
+
+/**
+ * ストリームの単位は (head.type, publishingOffice) の複合キー。
+ * 現状 holder に入ってくるのは VPWW56 だけ (processWeather が門番している) なので
+ * 実運用の挙動は変わらないが、将来 VPWW55/57-61 を相乗りさせたときに
+ * 「同一官署の別カテゴリが互いを上書きする」事故を起こさないための契約をここで固定する。
+ * 粒度は project-event.ts のテロップ groupKey `weather:${type}:${publishingOffice}` と一致する。
+ */
+describe("Vpww56StateHolder 複合キー (type, publishingOffice)", () => {
+  const LANDSLIDE = "VPWW56";
+  const HEAVY_RAIN = "VPWW61";
+
+  it("同一官署でも type が違えば別ストリームとして共存する", () => {
+    const holder = new Vpww56StateHolder();
+    holder.update(report(WAKKANAI, T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1"));
+    holder.update(
+      report(WAKKANAI, T1, [item("011100", "宗谷北部", [L4_LANDSLIDE])], { type: HEAVY_RAIN }),
+      id(T1, "1"),
+    );
+
+    expect(holder.trackedStreamCount()).toBe(2);
+    const view = holder.getCurrentAreasForDisplay();
+    expect(view?.totalAreas).toBe(2);
+    expect(view?.kinds[0].areas.map((a) => a.areaCode).sort()).toEqual(["011000", "011100"]);
+  });
+
+  it("同一官署・同一 type の続報は従来どおり置換される", () => {
+    const holder = new Vpww56StateHolder();
+    holder.update(report(WAKKANAI, T1, [
+      item("011000", "宗谷地方", [L4_LANDSLIDE]),
+      item("011100", "宗谷北部", [L4_LANDSLIDE]),
+    ]), id(T1, "1"));
+    holder.update(report(WAKKANAI, T2, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T2, "2"));
+
+    expect(holder.trackedStreamCount()).toBe(1);
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
+  });
+
+  it("単調性ガードは (type, 官署) ごとに独立する", () => {
+    const holder = new Vpww56StateHolder();
+    // 同一官署の VPWW61 が先に T3 まで進んでも、VPWW56 の T1→T2 は受理される
+    expect(holder.update(
+      report(WAKKANAI, T3, [item("011100", "宗谷北部", [L4_LANDSLIDE])], { type: HEAVY_RAIN }),
+      id(T3, "1"),
+    )).toEqual({ kind: "updated" });
+    expect(holder.update(report(WAKKANAI, T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1")))
+      .toEqual({ kind: "updated" });
+    expect(holder.update(report(WAKKANAI, T2, [item("011000", "宗谷地方", [L3_LANDSLIDE])]), id(T2, "2")))
+      .toEqual({ kind: "updated" });
+    // 自ストリームの古い報だけは棄却される
+    expect(holder.update(report(WAKKANAI, T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1")))
+      .toEqual({ kind: "suppressed" });
+  });
+
+  it("取消は同一 type のストリームだけを落とし、同一官署の別 type は残る", () => {
+    const holder = new Vpww56StateHolder();
+    holder.update(report(WAKKANAI, T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1"));
+    holder.update(
+      report(WAKKANAI, T1, [item("011100", "宗谷北部", [L4_LANDSLIDE])], { type: HEAVY_RAIN }),
+      id(T1, "1"),
+    );
+
+    expect(holder.update(report(WAKKANAI, T1, [], { infoType: "取消", type: LANDSLIDE }), id(T1, "1")))
+      .toEqual({ kind: "updated" });
+
+    const view = holder.getCurrentAreasForDisplay();
+    expect(view?.totalAreas).toBe(1);
+    expect(view?.kinds[0].areas).toEqual([{ areaName: "宗谷北部", areaCode: "011100" }]);
+  });
+
+  it("掃除は複合キー単位で成立する (同一官署の別 type を巻き込まない)", () => {
+    const holder = new Vpww56StateHolder();
+    holder.update(report(WAKKANAI, T1, [item("011000", "宗谷地方", [L4_LANDSLIDE])]), id(T1, "1"));
+    holder.update(report(WAKKANAI, T1, [], { infoType: "取消" }), id(T1, "1"));
+    holder.update(
+      report(WAKKANAI, T1, [item("011100", "宗谷北部", [L4_LANDSLIDE])], { type: HEAVY_RAIN }),
+      id(T1, "1"),
+    );
+    expect(holder.trackedStreamCount()).toBe(2);
+
+    // retention を越えた電文で VPWW56 側の dormant だけが消える
+    const pastWindow = new Date(Date.parse(T1) + VPWW56_DORMANT_RETENTION_MS + 1000).toISOString();
+    holder.update(
+      report(ASAHIKAWA, pastWindow, [item("012000", "上川地方", [L4_LANDSLIDE])]),
+      id(pastWindow, "1"),
+    );
+
+    expect(holder.trackedStreamCount()).toBe(2);
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
   });
 });
 
@@ -287,7 +378,7 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
     const holder = new Vpww56StateHolder();
     holder.update(wakkanai, id(T1, "1"));
     holder.update(asahikawa, id(T1, "1"));
-    expect(holder.trackedOfficeCount()).toBe(2);
+    expect(holder.trackedStreamCount()).toBe(2);
   });
 
   it("別官署の発表が既存官署の view を消さず、両方の地域が union される", () => {
@@ -326,6 +417,16 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
     // 稚内自身の古い報だけは棄却される
     expect(holder.update(parseAsOffice(WAKKANAI, T1), id(T1, "1"))).toEqual({ kind: "suppressed" });
 
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+  });
+
+  it("将来 VPWW61 が相乗りしても、同一官署の別カテゴリを上書きしない", () => {
+    const holder = new Vpww56StateHolder();
+    holder.update(parseAsOffice(WAKKANAI, T1), id(T1, "1"));
+    const heavyRain: ParsedWeatherWarning = { ...parseAsOtherArea(WAKKANAI, T2), type: "VPWW61" };
+    holder.update(heavyRain, id(T2, "1"));
+
+    expect(holder.trackedStreamCount()).toBe(2);
     expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
   });
 
