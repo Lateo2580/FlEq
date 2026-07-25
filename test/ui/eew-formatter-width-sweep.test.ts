@@ -85,17 +85,21 @@ describe("EEW 幅 sweep: 幅 40-200 全域の frame 幅保証 (acceptance 2)", (
     });
   }
 
-  it("synthetic-220区域-hardcap: 表示上限省略で detail が hard cap を超えると「他 N 地域省略」が描画される (fail-closed の可視打ち切り)", () => {
-    // hidden-only 化 (spec §2.4) 後、[詳細] は「幅で隠れた列」のみ回収するため、旧来の
-    // 「幅 40 で列 clip が最大化 → 全行が detail 化」という hard cap 誘発経路は無くなった。
-    // fail-closed の実体は maxObservations による表示上限省略 (省略行は 1 行 1 DetailItem を
-    // 無条件生成) に移る。maxObs=0 で 220 行すべてを省略 detail 化 → EEW_DETAIL_HARD_CAP(200)
-    // 超過で 20 件が打ち切られ「他 20 地域省略」が可視化されることを検証する。
-    setFrameWidth(40);
-    setMaxObservations(0);
-    lines = [];
-    displayEewInfo(eewSynthetic(220));
-    const plain = lines.map((l) => stripAnsi(l));
-    expect(plain.some((l) => l.includes("他 20 地域省略"))).toBe(true);
+  it("synthetic-220区域-fold: 表示上限超過は震度別集約行になり、幅 40-200 で溢れない", () => {
+    // 旧実装は隠れ地域を 1 件 1 DetailItem に展開していたため、fold するほど総行数が
+    // 増える逆転が起きていた。集約行は震度の種類数までしか伸びないので、折返しても
+    // 数行に収まる。幅全域で罫線が溢れないことを併せて固定する。
+    setMaxObservations(10);
+    for (let w = 40; w <= 200; w++) {
+      setFrameWidth(w);
+      lines = [];
+      displayEewInfo(eewSynthetic(220));
+      const plain = lines.map((l) => stripAnsi(l));
+      for (const line of plain) {
+        expect(visualWidth(line), `width=${w} line="${line.slice(0, 40)}"`).toBeLessThanOrEqual(w);
+      }
+      expect(plain.some((l) => l.includes("… 他 210 地域"))).toBe(true);
+      expect(plain.some((l) => l.includes("表示上限で省略"))).toBe(false);
+    }
   });
 });

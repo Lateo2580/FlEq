@@ -4,7 +4,6 @@ import type { EewDiff } from "../engine/eew/eew-tracker";
 import * as theme from "./theme";
 import {
   FrameLevel,
-  RenderBuffer,
   getFrameWidth,
   getMaxObservations,
   frameTop,
@@ -29,7 +28,6 @@ import {
 import {
   ColumnSpec,
   ResponsiveDisplayMode,
-  DetailItem,
   decideDisplayMode,
   renderResponsiveTable,
   clampFrameContent,
@@ -269,44 +267,40 @@ export function eewForecastColumns(mode: ResponsiveDisplayMode, hasLg: boolean):
   return hasLg ? [intCol, areaCol, lgCol, statusCol] : [intCol, areaCol, statusCol];
 }
 
-// ── EEW 専用 詳細ブロック (generic DETAIL_MAX_TOTAL=60 は 90 地域級に不足 — spec 4.3。
-//    Phase 4a LG_DETAIL_HARD_CAP=160 と同型の fail-closed) ──
+// ── 表示上限で隠れた地域の震度別集約 (spec 4.3) ──
+// 隠れた地域を 1 件 1 詳細に展開すると、全国規模 (予報細分区域 ~190) では省略したはずの
+// 情報が見出し + 本文数行で戻ってきて、fold するほど総出力が増える逆転が起きる。
+// 隠れ分は震度別の件数だけに畳み、行数を震度の種類数 (最大 9) 以内に抑える。
 
-/** 実測最大 fixture 43 地域 (77_01_26) / 全国 EEW 予報細分区域 ~190 (Task 0 実測で確定) */
-export const EEW_DETAIL_HARD_CAP = 200;
-
-export interface EewDetailCapResult {
-  items: DetailItem[];
-  omitted: number;
+/** 隠れ地域 1 震度分の内訳 (sortKey = 悲観側震度の生値。表記・色の決定キー) */
+export interface EewHiddenIntensityGroup {
+  sortKey: string;
+  count: number;
 }
 
-export function applyEewDetailCap(items: DetailItem[]): EewDetailCapResult {
-  if (items.length <= EEW_DETAIL_HARD_CAP) return { items, omitted: 0 };
-  return {
-    items: items.slice(0, EEW_DETAIL_HARD_CAP),
-    omitted: items.length - EEW_DETAIL_HARD_CAP,
-  };
+/**
+ * 隠れ地域を悲観側震度で集計する。rows は既に震度降順なので Map の挿入順が
+ * そのまま強い順になり、再ソートも地域ごとの文字列生成も要らない (1 走査)。
+ */
+export function summarizeHiddenEewRows(rows: EewForecastRow[]): EewHiddenIntensityGroup[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    counts.set(r.sortKey, (counts.get(r.sortKey) ?? 0) + 1);
+  }
+  return Array.from(counts, ([sortKey, count]) => ({ sortKey, count }));
 }
 
-export function pushEewDetailBlock(
-  buf: RenderBuffer,
-  level: FrameLevel,
-  width: number,
-  items: DetailItem[],
-): void {
-  if (items.length === 0) return;
-  const capped = applyEewDetailCap(items);
-  buf.push(frameDividerLabeled(level, "[詳細]", width));
-  for (const d of capped.items) {
-    for (const l of wrapFrameLines(level, chalk.white(d.head), width, 2)) buf.push(l);
-    for (const line of d.body) {
-      for (const l of wrapFrameLines(level, chalk.gray(line), width, 6)) buf.push(l);
-    }
-  }
-  if (capped.omitted > 0) {
-    // fail-closed: 落ちる情報には必ず可視の打ち切り表示 (spec 4.3)
-    buf.push(frameDividerLabeled(level, `[詳細] (… 他 ${capped.omitted} 地域省略)`, width));
-  }
+/**
+ * 集約行「… 他 210 地域 (震度6強: 44 / 震度5弱: 82 …)」。
+ * 内訳の区切りは素の " / " にする — wrapFrameLines が折返し点に使う区切り文字であり、
+ * ANSI を挟むと分割で色コードが分断されるため。
+ */
+export function buildEewHiddenSummaryLine(rows: EewForecastRow[]): string {
+  const breakdown = summarizeHiddenEewRows(rows)
+    .map((g) =>
+      intensityColor(g.sortKey)(`震度${formatEewIntensityLabel(g.sortKey)}`) + chalk.gray(`: ${g.count}`))
+    .join(" / ");
+  return chalk.gray(`… 他 ${rows.length} 地域 (`) + breakdown + chalk.gray(")");
 }
 
 /**
@@ -545,37 +539,23 @@ export function displayEewInfo(
     const maxObs = getMaxObservations();
     const allRows = buildEewForecastRows(info.forecastIntensity.areas);
     const shown = maxObs != null ? allRows.slice(0, maxObs) : allRows;
-    const hiddenCount = allRows.length - shown.length;
+    const hidden = allRows.slice(shown.length);
     const hasLg = shown.some((r) => r.lgIntensity != null && lgIntToNumeric(r.lgIntensity) >= 1);
-    const details: DetailItem[] = [];
 
     // 予測震度テーブルを一枚に統合 (spec §3.4)。階級ごとの divider・ヘッダ繰り返し・
     // 階級境の細線 divider は入れない (震度列が各行にあるので読める — レビュー指定)。
-    // ultra-narrow の長周期列は [詳細] にも逃がさず省略する (spec §8 R2-4 —
-    // 高さ削減優先、裁定の意図的な情報削減)。details は表示上限超過分専用。
+    // ultra-narrow の長周期列は省略のみで別ブロックへは逃がさない (spec §8 R2-4 —
+    // 高さ削減優先、裁定の意図的な情報削減)。
     buf.push(frameDividerLabeled(level, "予測震度", width));
     renderResponsiveTable(buf, level, width, eewForecastColumns(mode, hasLg), shown);
 
-    if (hiddenCount > 0) {
-      buf.push(frameLine(level, chalk.gray(`… 他 ${hiddenCount} 地域 (詳細参照)`), width));
-      // hidden 行も 1 地域 1 DetailItem (hard cap が entry 数に正しく効く +
-      // 長周期・状態を含む全列を復元可能にする — fail-closed の実体)
-      for (const r of allRows.slice(shown.length)) {
-        const body: string[] = [
-          `    震度: ${formatEewIntensityRange(r)}`,
-          `    地域: ${r.name}`,
-        ];
-        if (r.lgIntensity != null && lgIntToNumeric(r.lgIntensity) >= 1) {
-          body.push(`    長周期: 階級${r.lgIntensity}`);
-        }
-        const badges = eewStatusBadges(r);
-        if (badges.length > 0) {
-          body.push(`    状態: ${badges.join(" ")}`);
-        }
-        details.push({ head: `【震度${formatEewIntensityRange(r)}】${r.name} (表示上限で省略)`, body });
+    if (hidden.length > 0) {
+      // 隠れ分は震度別の件数だけを出す (地域ごとの展開はしない — 続報バーストで
+      // 出力量が膨らむ逆転を避ける)
+      for (const l of wrapFrameLines(level, buildEewHiddenSummaryLine(hidden), width, 2)) {
+        buf.push(l);
       }
     }
-    pushEewDetailBlock(buf, level, width, details);
   }
 
   // 最終報

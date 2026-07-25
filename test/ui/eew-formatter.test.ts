@@ -11,8 +11,8 @@ import {
   eewForecastColumns,
   formatEewIntensityRange,
   eewStatusBadges,
-  applyEewDetailCap,
-  EEW_DETAIL_HARD_CAP,
+  summarizeHiddenEewRows,
+  buildEewHiddenSummaryLine,
 } from "../../src/ui/eew-formatter";
 import {
   createMockWsDataMessage,
@@ -189,14 +189,56 @@ describe("EEW 予測震度テーブル (Phase 4b)", () => {
     expect(headerLine).not.toContain("長周期");
   });
 
-  it("件数制限: getMaxObservations 超過分は明示打ち切り + 詳細逃がし (fail-closed)", () => {
+  it("件数制限: getMaxObservations 超過分は震度別集約行に畳む (1 地域 1 詳細に展開しない)", () => {
     setMaxObservations(2);
     const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_S26, "VXSE45"))!;
     displayEewInfo(info, { activeCount: 1, colorIndex: 0 });
-    expect(output()).toMatch(/… 他 \d+ 地域/); // 全角三点リーダーに統一 (ASCII "..." は使わない)
-    // hidden 行は 1 地域 1 entry で詳細に全列復元される
-    expect(output()).toContain("(表示上限で省略)");
-    expect(output()).toContain("状態:");
+    const out = output();
+    expect(out).toMatch(/… 他 \d+ 地域/);    // 全角三点リーダーに統一 (ASCII "..." は使わない)
+    expect(out).toMatch(/震度\S+: \d+/);      // 震度別内訳が出る
+    expect(out).not.toContain("(表示上限で省略)"); // 隠れ地域の詳細展開は廃止
+    expect(out).not.toContain("[詳細]");
+  });
+
+  it("summarizeHiddenEewRows: 悲観側震度で集計し強い順に返す", () => {
+    const rows = buildEewForecastRows([
+      { name: "あ", intensity: "4" },
+      { name: "い", intensity: "3" },
+      { name: "う", intensity: "4" },
+      { name: "え", intensity: "5-" },
+      { name: "お", intensity: "4", intensityTo: "5+" }, // 悲観側 5強
+      { name: "か", intensity: "3" },
+    ]);
+    expect(summarizeHiddenEewRows(rows)).toEqual([
+      { sortKey: "5+", count: 1 },
+      { sortKey: "5-", count: 1 },
+      { sortKey: "4", count: 2 },
+      { sortKey: "3", count: 2 },
+    ]);
+  });
+
+  it("buildEewHiddenSummaryLine: 総地域数 + 震度別内訳 (既存の震度表記)", () => {
+    const rows = buildEewForecastRows([
+      { name: "あ", intensity: "5-" },
+      { name: "い", intensity: "4" },
+      { name: "う", intensity: "4" },
+    ]);
+    expect(stripAnsi(buildEewHiddenSummaryLine(rows))).toBe("… 他 3 地域 (震度5弱: 1 / 震度4: 2)");
+  });
+
+  it("fold が総出力を増やさない: 190 地域で maxObs=10 の出力は全件表示より短い", () => {
+    const areas = Array.from({ length: 190 }, (_, i) => ({
+      name: `合成区域${String(i).padStart(3, "0")}`,
+      intensity: ["3", "4", "5-"][i % 3],
+    }));
+    displayEewInfo(syntheticEew(areas));
+    const fullLines = output().split("\n").length;
+    logSpy.mockClear();
+    setMaxObservations(10);
+    displayEewInfo(syntheticEew(areas));
+    const foldedLines = output().split("\n").length;
+    expect(foldedLines).toBeLessThan(fullLines);
+    expect(foldedLines).toBeLessThan(40); // 表 10 行 + 集約 1〜数行に収まる
   });
 
   it("eewForecastColumns(ultra-narrow): minWidth 合計 + separator が幅 40 の内幅 36 に収まる", () => {
@@ -231,12 +273,6 @@ describe("EEW 予測震度テーブル (Phase 4b)", () => {
     expect(formatEewIntensityRange({ intensity: "6-" })).toBe("6弱");
   });
 
-  it("applyEewDetailCap: hard cap 超過は fail-closed で omitted を返す", () => {
-    const items = Array.from({ length: EEW_DETAIL_HARD_CAP + 3 }, (_, i) => ({ head: `h${i}`, body: ["    x"] }));
-    const capped = applyEewDetailCap(items);
-    expect(capped.items.length).toBe(EEW_DETAIL_HARD_CAP);
-    expect(capped.omitted).toBe(3);
-  });
 });
 
 describe("EEW 速報カード行 + compact 全廃 (Phase 4b)", () => {
