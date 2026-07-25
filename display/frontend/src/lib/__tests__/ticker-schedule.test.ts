@@ -22,6 +22,9 @@ import {
   hasNonTipActivity,
   hasAlertActivity,
   hasActiveReplay,
+  isRevisionBadgeVisible,
+  nextRevisionBadgeDeadline,
+  REVISION_BADGE_MS,
   type TickerJob,
   type SchedulerState,
   type LaneState,
@@ -1265,5 +1268,43 @@ describe("津波 replay (kind=replay) の純関数サポート", () => {
   it("hasNonTipActivity: replay ジョブは非 tip として活動扱い (走行中は tip を止める根拠になる)", () => {
     expect(hasNonTipActivity(stateWith({ lanes: [runningLane(replay({ key: "r1" })), idleLane()] }))).toBe(true);
     expect(hasNonTipActivity(stateWith({ queue: [replay({ key: "r2" })] }))).toBe(true);
+  });
+});
+
+describe("続報バッジの TTL (毎秒 interval を廃した one-shot 化の土台)", () => {
+  it("isRevisionBadgeVisible: revisionAt から REVISION_BADGE_MS 未満なら真、境界ちょうどで偽", () => {
+    const j = job({ key: "a", revisionAt: 1000 });
+    expect(isRevisionBadgeVisible(j, 1000)).toBe(true);
+    expect(isRevisionBadgeVisible(j, 1000 + REVISION_BADGE_MS - 1)).toBe(true);
+    expect(isRevisionBadgeVisible(j, 1000 + REVISION_BADGE_MS)).toBe(false);
+    expect(isRevisionBadgeVisible(job({ key: "b" }), 1000)).toBe(false); // revisionAt=null
+    expect(isRevisionBadgeVisible(null, 1000)).toBe(false);
+  });
+
+  it("nextRevisionBadgeDeadline: バッジ対象が無ければ null (= timer を張らない)", () => {
+    expect(nextRevisionBadgeDeadline(stateWith({}), 1000)).toBeNull();
+    // 走行中でも revisionAt が無ければ対象外
+    expect(nextRevisionBadgeDeadline(stateWith({ lanes: [runningLane(job({ key: "a" })), idleLane()] }), 1000)).toBeNull();
+    // queue / deferred の job は表示されていないので対象外 (バッジは lane.current だけが出す)
+    expect(nextRevisionBadgeDeadline(stateWith({ queue: [job({ key: "q", revisionAt: 1000 })] }), 1000)).toBeNull();
+  });
+
+  it("nextRevisionBadgeDeadline: 表示中レーンのうち最も近い失効時刻を返す", () => {
+    const s = stateWith({
+      lanes: [
+        runningLane(job({ key: "late", revisionAt: 5_000 })),
+        runningLane(job({ key: "early", revisionAt: 1_000 })),
+      ],
+    });
+    expect(nextRevisionBadgeDeadline(s, 2_000)).toBe(1_000 + REVISION_BADGE_MS);
+  });
+
+  it("nextRevisionBadgeDeadline: 失効済みの期限は返さない (0ms 張り直しループを作らない)", () => {
+    const s = stateWith({ lanes: [runningLane(job({ key: "expired", revisionAt: 1_000 })), idleLane()] });
+    // 期限ちょうど・それ以降は「もう偽になっている」ので起こす必要がない
+    expect(nextRevisionBadgeDeadline(s, 1_000 + REVISION_BADGE_MS)).toBeNull();
+    expect(nextRevisionBadgeDeadline(s, 1_000 + REVISION_BADGE_MS + 1)).toBeNull();
+    // 期限直前ならまだ返す
+    expect(nextRevisionBadgeDeadline(s, 1_000 + REVISION_BADGE_MS - 1)).toBe(1_000 + REVISION_BADGE_MS);
   });
 });

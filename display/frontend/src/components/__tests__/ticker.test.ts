@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ticker from "../Ticker.svelte";
 import { LANES } from "../../lib/ticker-lanes";
-import { CYCLE_MIN_INTERVAL_MS } from "../../lib/ticker-schedule";
+import { CYCLE_MIN_INTERVAL_MS, REVISION_BADGE_MS } from "../../lib/ticker-schedule";
 import { tickerEvent } from "../../lib/__tests__/fixtures";
 
 describe("Ticker (親スケジューラ)", () => {
@@ -276,6 +276,97 @@ describe("Ticker (親スケジューラ)", () => {
     await rerender({ lines: [wx], tickerGeneration: 0, onActivityChange });
     await tick();
     expect(onActivityChange).toHaveBeenLastCalledWith(true);
+  });
+});
+
+// 続報バッジ TTL の one-shot 化 (D4)。旧実装は毎秒 setInterval で badgeNow を進めていたため、
+// バッジが 1 件も無い平常時にも 1 日 86,400 回起床していた。バッジは真→偽へ一度変わるだけなので、
+// 「表示中レーンの最も近い失効時刻」1 本にだけ setTimeout を張る方式へ移した。
+describe("Ticker 続報バッジのタイマー", () => {
+  const chip = { tickerCategory: "地震情報", tickerBody: null, tickerPriority: "low" as const };
+  const SETTLE_MS = 500; // チップ transition スタブを流し切るための小さな経過
+
+  /** 続報を昇格させ、バッジが出ている状態まで進める (最終 run 完走時の coalescedRevision 昇格経路)。 */
+  async function renderWithBadge() {
+    const first = tickerEvent({
+      ...chip, id: "q1", eventKey: "k-q1", groupKey: "g-q", tickerSentence: "第1報の本文です。",
+    });
+    const second = tickerEvent({
+      ...chip, id: "q2", eventKey: "k-q2", groupKey: "g-q", tickerSentence: "第2報の本文です。",
+    });
+    const view = render(Ticker, { lines: [first], tickerGeneration: 0 });
+    await tick();
+    // 同 groupKey・同格の続報 → coalescedRevision へ畳まれる (lines は新しい順)
+    await view.rerender({ lines: [second, first], tickerGeneration: 0 });
+    await tick();
+    // 走行中の第1報を完走させると、畳まれていた続報が revisionAt=now で昇格する
+    view.container.querySelector(".ticker-line")!
+      .dispatchEvent(Object.assign(new Event("animationend"), { animationName: "ticker-scroll" }));
+    await tick();
+    expect(view.container.querySelector(".ticker-label-revision")?.textContent).toBe("続報");
+    // チップ差替えの transition スタブ (test-setup の Element.animate → 0ms setTimeout) を流し切り、
+    // 残るタイマーをバッジ用の 1 本だけにする。TTL は絶対時刻で張るので、この分の経過は下の
+    // 「失効まで残り 1 秒」判定に効く (SETTLE_MS を引いた上で境界を跨がせる)
+    vi.advanceTimersByTime(SETTLE_MS);
+    await tick();
+    return view;
+  }
+
+  it("バッジ対象が無い間はタイマーを 1 本も張らない (平常時の毎秒起床をゼロにする)", async () => {
+    vi.useFakeTimers();
+    try {
+      render(Ticker, { lines: [], tickerGeneration: 0 });
+      await tick();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("バッジ表示中は失効時刻への one-shot が 1 本だけ張られる", async () => {
+    vi.useFakeTimers();
+    try {
+      await renderWithBadge();
+      expect(vi.getTimerCount()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("REVISION_BADGE_MS 経過でバッジが消える (直前までは出たまま)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = await renderWithBadge();
+
+      vi.advanceTimersByTime(REVISION_BADGE_MS - SETTLE_MS - 1_000);
+      await tick();
+      expect(container.querySelector(".ticker-label-revision")).toBeTruthy();
+
+      vi.advanceTimersByTime(1_000);
+      await tick();
+      expect(container.querySelector(".ticker-label-revision")).toBeNull();
+      expect(vi.getTimerCount()).toBe(0); // 失効後は張り直さない
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("コンポーネント破棄でバッジタイマーが解放される", async () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = await renderWithBadge();
+      expect(vi.getTimerCount()).toBe(1);
+      unmount();
+      await tick();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("回帰防止: バッジ用の常設 interval を持たない (ソース契約)", () => {
+    const src = readFileSync(join(__dirname, "..", "Ticker.svelte"), "utf-8");
+    expect(src).not.toMatch(/setInterval/);
   });
 });
 

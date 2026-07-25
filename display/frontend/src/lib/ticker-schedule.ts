@@ -254,6 +254,32 @@ export function hasActiveReplay(s: SchedulerState, groupKey: string): boolean {
   return someSchedulerJob(s, (job) => job.kind === "replay" && job.groupKey === groupKey);
 }
 
+/**
+ * 続報バッジ (§5-2) の表示可否。revisionAt から REVISION_BADGE_MS 未満なら表示する。
+ * 判定式を親 (Ticker) の template から関数へ寄せ、下の期限計算と同じ境界 (`< MS`) を共有する。
+ */
+export function isRevisionBadgeVisible(job: TickerJob | null, now: number): boolean {
+  return job != null && job.revisionAt != null && now - job.revisionAt < REVISION_BADGE_MS;
+}
+
+/**
+ * 表示中 (lane.current) の続報バッジが失効する時刻のうち、now より後で最も近いもの。無ければ null。
+ * バッジは「真 → 偽」へ一度変わるだけなので、Ticker はこの 1 点にだけ one-shot timer を張る
+ * (毎秒 interval を廃止、バッジ対象ゼロの平常時はタイマーを張らない)。
+ * now 以前に失効済みの期限は返さない (既に isRevisionBadgeVisible が偽になっているため)。
+ */
+export function nextRevisionBadgeDeadline(s: SchedulerState, now: number): number | null {
+  let earliest: number | null = null;
+  for (const lane of s.lanes) {
+    const revisionAt = lane.current?.revisionAt;
+    if (revisionAt == null) continue;
+    const deadline = revisionAt + REVISION_BADGE_MS;
+    if (deadline <= now) continue;
+    if (earliest == null || deadline < earliest) earliest = deadline;
+  }
+  return earliest;
+}
+
 /** queue から最優先 (priority 降順 → seq 昇順) の index を返す。key が excluded の候補は飛ばす。 */
 function bestQueueIndexExcluding(queue: TickerJob[], excluded: Set<string>): number {
   let best = -1;

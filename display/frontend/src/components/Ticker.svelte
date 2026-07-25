@@ -17,7 +17,8 @@
     hasNonTipActivity,
     hasAlertActivity,
     hasActiveReplay,
-    REVISION_BADGE_MS,
+    isRevisionBadgeVisible,
+    nextRevisionBadgeDeadline,
     type SchedulerState,
     type DisplayTickerDtoV1,
   } from "../lib/ticker-schedule";
@@ -82,11 +83,18 @@
   let lastGeneration = -1;
   let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // 続報バッジ TTL 判定用の reactive clock (1s 刻み)。now prop は待機画面で null のため内部で持つ
+  // 続報バッジ TTL 判定用の時刻。now prop は待機画面で null のため内部で持つ。
+  // 毎秒 interval ではなく **失効時刻への one-shot timer** で進める: バッジは REVISION_BADGE_MS 経過の
+  // 一点で真→偽へ変わるだけなので、その 1 点以外の再評価は捨ててよい (常設 kiosk で 1 日 86,400 回の
+  // 無駄起床を消す)。表示中レーンの期限のうち最も近い 1 本にだけ timer を張り、発火で badgeNow を進める
+  // → この effect が再走して次の期限を張り直す。バッジ対象が無ければ timer は 1 本も張らない。
+  // 依存は scheduler の lane.current.revisionAt と badgeNow (どちらが動いても期限を計算し直す)。
   let badgeNow = $state(Date.now());
   $effect(() => {
-    const id = setInterval(() => { badgeNow = Date.now(); }, 1000);
-    return () => clearInterval(id);
+    const deadline = nextRevisionBadgeDeadline(scheduler, badgeNow);
+    if (deadline == null) return;
+    const id = setTimeout(() => { badgeNow = Date.now(); }, Math.max(0, deadline - Date.now()));
+    return () => clearTimeout(id);
   });
 
   function catalogFromLines(ls: DisplayTickerDtoV1[]): SchedulerState["catalog"] {
@@ -249,7 +257,7 @@
           generation={lane.generation}
           phase={lane.phase}
           {dim}
-          showRevisionBadge={lane.current != null && lane.current.revisionAt != null && badgeNow - lane.current.revisionAt < REVISION_BADGE_MS}
+          showRevisionBadge={isRevisionBadgeVisible(lane.current, badgeNow)}
           emphasis={lane.phase === "running" && lane.current?.priority === "high" ? "high" : null}
           onScrollEnd={(g) => handleScrollEnd(i, g)}
           onFadeEnd={(g) => handleFadeEnd(i, g)}
