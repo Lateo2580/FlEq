@@ -95,6 +95,8 @@ describe("Vpwp50DetailCache 永続化", () => {
     const cache1 = new Vpwp50DetailCache({ persistRoot: root });
     cache1.rememberLatest(makeMinimalInfo() as never);
     expect(cache1.getDetail()).not.toBeNull();
+    // ディスクへの書き込みは debounce されるため、終了時と同じ経路で書き切ってから読む
+    cache1.flush();
 
     const cache2 = new Vpwp50DetailCache({ persistRoot: root });
     expect(cache2.getDetail()).not.toBeNull();
@@ -294,5 +296,64 @@ describe("detail vpwp50 統合", () => {
     );
     spy.mockRestore();
     expect(logs.join("\n")).toContain("長野県");
+  });
+});
+
+describe("Vpwp50DetailCache の遅延保存", () => {
+  const tmpRoots: string[] = [];
+  const persistedPath = (root: string): string =>
+    path.join(root, "data", "runtime", "vpwp50-latest.json");
+
+  afterEach(() => {
+    while (tmpRoots.length > 0) {
+      const r = tmpRoots.pop();
+      if (r != null) cleanupTmpRoot(r);
+    }
+  });
+
+  it("rememberLatest 直後はメモリにだけ載り、ディスクへは書かない", () => {
+    const root = makeTmpRoot();
+    tmpRoots.push(root);
+    const cache = new Vpwp50DetailCache({ persistRoot: root, debounceMs: 10_000 });
+
+    cache.rememberLatest(makeMinimalInfo() as never);
+
+    expect(cache.getDetail()).not.toBeNull();
+    expect(fs.existsSync(persistedPath(root))).toBe(false);
+  });
+
+  it("debounce 経過後にディスクへ書かれる", async () => {
+    const root = makeTmpRoot();
+    tmpRoots.push(root);
+    const cache = new Vpwp50DetailCache({ persistRoot: root, debounceMs: 10 });
+
+    cache.rememberLatest(makeMinimalInfo() as never);
+
+    await vi.waitFor(() => expect(fs.existsSync(persistedPath(root))).toBe(true), { timeout: 3000 });
+    const written = JSON.parse(fs.readFileSync(persistedPath(root), "utf8"));
+    expect(written.targetArea).toBe("長野県");
+  });
+
+  it("flush は予約済みの内容を即座に書き切る", () => {
+    const root = makeTmpRoot();
+    tmpRoots.push(root);
+    const cache = new Vpwp50DetailCache({ persistRoot: root, debounceMs: 10_000 });
+
+    cache.rememberLatest(makeMinimalInfo() as never);
+    cache.flush();
+
+    expect(JSON.parse(fs.readFileSync(persistedPath(root), "utf8")).targetArea).toBe("長野県");
+  });
+
+  it("次回起動時に debounce 保存した内容を読み戻せる", async () => {
+    const root = makeTmpRoot();
+    tmpRoots.push(root);
+    const cache = new Vpwp50DetailCache({ persistRoot: root, debounceMs: 10 });
+    cache.rememberLatest(makeMinimalInfo() as never);
+    await vi.waitFor(() => expect(fs.existsSync(persistedPath(root))).toBe(true), { timeout: 3000 });
+
+    const restored = new Vpwp50DetailCache({ persistRoot: root });
+
+    expect(restored.getDetail()?.detail.targetArea).toBe("長野県");
   });
 });

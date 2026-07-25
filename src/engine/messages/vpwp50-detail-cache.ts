@@ -36,15 +36,27 @@ const VALID_DISPLAY_SEVERITIES = [
 ] as const;
 const VALID_RESOLUTION_SOURCES = ["map", "nameFallback", "unknown"] as const;
 
+/**
+ * rememberLatest() が実際にディスクへ書くまでの遅延。
+ * VPWP50 は 2 MB 級で、パース直後の同期保存が受信スレッドを止めていた。
+ * メモリ上の latest は即時更新されるため、REPL の detail 表示は遅延しない。
+ */
+const SAVE_DEBOUNCE_MS = 3000;
+
 export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
   readonly category = "vpwp50";
   readonly emptyMessage = "VPWP50 (気象警報・注意報時系列情報) はまだ受信していません";
   private latest: PersistedVpwp50 | null = null;
   private readonly persistPath: string;
+  private readonly debounceMs: number;
+  private pending: PersistedVpwp50 | null = null;
+  private timer: NodeJS.Timeout | null = null;
+  private writing = false;
 
-  constructor(opts: { persistRoot?: string } = {}) {
+  constructor(opts: { persistRoot?: string; debounceMs?: number } = {}) {
     const root = opts.persistRoot ?? process.cwd();
     this.persistPath = path.join(root, PERSIST_DIR, PERSIST_FILE);
+    this.debounceMs = opts.debounceMs ?? SAVE_DEBOUNCE_MS;
     this.loadFromDisk();
   }
 
@@ -61,7 +73,57 @@ export class Vpwp50DetailCache implements DetailProvider<"vpwp50"> {
       frameLevel: weatherWarningTimeseriesFrameLevel(info),
     };
     this.latest = persisted;
+    this.pending = persisted;
+    this.armTimer();
+  }
+
+  /**
+   * 予約済みの内容を同期で書き切る。シャットダウン経路から呼ぶ。
+   * 予約がなければ何もしない。
+   */
+  flush(): void {
+    this.clearTimer();
+    const persisted = this.pending;
+    this.pending = null;
+    if (persisted == null) return;
     this.saveToDisk(persisted);
+  }
+
+  private armTimer(): void {
+    if (this.timer != null) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void this.writePending();
+    }, this.debounceMs);
+    // 保存予約だけでプロセスを生かし続けない (書き切りは flush の責務)
+    this.timer.unref?.();
+  }
+
+  private clearTimer(): void {
+    if (this.timer != null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+  }
+
+  private async writePending(): Promise<void> {
+    if (this.writing) return;
+    const persisted = this.pending;
+    if (persisted == null) return;
+    this.pending = null;
+    this.writing = true;
+    try {
+      const tmpPath = `${this.persistPath}.tmp`;
+      await fs.promises.mkdir(path.dirname(this.persistPath), { recursive: true });
+      await fs.promises.writeFile(tmpPath, JSON.stringify(persisted), "utf8");
+      await fs.promises.rename(tmpPath, this.persistPath);
+    } catch (e) {
+      log.warn(`[vpwp50-cache] persist save 失敗: ${(e as Error).message}`);
+    } finally {
+      this.writing = false;
+      // 書き込み中に届いた更新は、終わってからもう一度だけ書く
+      if (this.pending != null) this.armTimer();
+    }
   }
 
   getDetail(): DetailSnapshotOf<"vpwp50"> | null {

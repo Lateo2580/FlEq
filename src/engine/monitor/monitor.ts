@@ -42,7 +42,9 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   );
   let standbyDirtyNotify: (() => void) | null = null;
   standbyStore.onChange(() => standbyDirtyNotify?.());
-  standbyStore.onDurable(() => standbyPersistence.save(standbyStore.exportActiveState()));
+  // 受信コールスタック上で同期 I/O を走らせない。実書き込みは debounce 後に非同期で行い、
+  // 終了時は stopStandbySweep -> flush() で書き切る
+  standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
   const persistedStandby = standbyPersistence.load();
   if (persistedStandby != null) standbyStore.restoreActiveState(persistedStandby, Date.now());
   standbyStore.sweep(Date.now());
@@ -159,8 +161,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
     stopStandbySweep: () => {
       stopStandbySweep();
+      // 予約済み (debounce 待ち) より exportActiveState() の方が常に新しいので、
+      // 予約は捨てて現在状態を同期保存する
+      standbyPersistence.dispose();
       standbyPersistence.save(standbyStore.exportActiveState());
     },
+    flushDetailCaches: () => vpwp50Cache.flush(),
   });
 
   // REPL ハンドラ (遅延ロード)

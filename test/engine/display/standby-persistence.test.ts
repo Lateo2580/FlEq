@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -381,5 +381,61 @@ describe("StandbyStateStore persistence", () => {
     store.seedVolcanoAlerts([{ volcanoCode: "V-1", volcanoName: "Mount Test", alertLevel: 4, reportDateTime: new Date(T0 + 120_000).toISOString() }], "success", T0 + 120_000);
 
     expect(store.snapshotItems().find((item) => item.kind === "volcano")?.restored).toBe(true);
+  });
+});
+
+describe("StandbyPersistence の遅延保存", () => {
+  it("schedule しただけでは書かない (同期 I/O を受信経路から外す)", () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+
+    persistence.schedule(state());
+
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("debounce 経過後に書かれ、内容は最後に schedule した状態になる", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10);
+
+    persistence.schedule(state({ savedAt: "first" }));
+    persistence.schedule(state({ savedAt: "second" }));
+    persistence.schedule(state({ savedAt: "latest" }));
+
+    await vi.waitFor(() => expect(existsSync(path)).toBe(true), { timeout: 3000 });
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("latest");
+  });
+
+  it("flush は予約済みの状態を即座に書き切る (終了時の取りこぼし防止)", () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+
+    persistence.schedule(state({ savedAt: "pending" }));
+    persistence.flush();
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("pending");
+  });
+
+  it("flush 後は予約が消え、残ったタイマーが発火しても書き直さない", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10);
+
+    persistence.schedule(state());
+    persistence.flush();
+    rmSync(path);
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    expect(existsSync(path)).toBe(false);
+  });
+
+  it("予約がないときの flush は既存ファイルを壊さない", () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 10_000);
+    persistence.schedule(state({ savedAt: "kept" }));
+    persistence.flush();
+
+    persistence.flush();
+
+    expect(JSON.parse(readFileSync(path, "utf8")).savedAt).toBe("kept");
   });
 });

@@ -39,8 +39,22 @@ export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string;
 export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; }
 
+/**
+ * schedule() が実際に書き込むまでの遅延。
+ * 電文が連続する場面で同期 I/O を毎報走らせず、最新状態だけを 1 回書くための窓。
+ * 失うのは強制電源断の直前この秒数ぶんで、正常終了時は flush() が書き切る。
+ */
+const SAVE_DEBOUNCE_MS = 3000;
+
 export class StandbyPersistence {
-  constructor(private readonly persistPath: string) {}
+  private pending: PersistedStandbyStateV1 | null = null;
+  private timer: NodeJS.Timeout | null = null;
+  private writing = false;
+
+  constructor(
+    private readonly persistPath: string,
+    private readonly debounceMs: number = SAVE_DEBOUNCE_MS,
+  ) {}
 
   load(): PersistedStandbyStateV1 | null {
     try {
@@ -73,6 +87,70 @@ export class StandbyPersistence {
       fs.renameSync(tmpPath, this.persistPath);
     } catch (err) {
       log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * 最新状態の保存を予約する。debounceMs 後に 1 回だけ非同期で書く。
+   * 予約中に再度呼ばれた場合は最新状態で上書きし、書き込み回数は増やさない。
+   */
+  schedule(state: PersistedStandbyStateV1): void {
+    this.pending = state;
+    this.armTimer();
+  }
+
+  /**
+   * 予約済みの状態を同期で書き切る。シャットダウン経路から呼ぶ。
+   * 予約がなければ何もしない (既存ファイルを空書きしない)。
+   */
+  flush(): void {
+    this.clearTimer();
+    const state = this.pending;
+    this.pending = null;
+    if (state == null) return;
+    this.save(state);
+  }
+
+  /** 予約を捨てる (テスト・再初期化用。ディスク上の内容は触らない) */
+  dispose(): void {
+    this.clearTimer();
+    this.pending = null;
+  }
+
+  private armTimer(): void {
+    if (this.timer != null) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      void this.writePending();
+    }, this.debounceMs);
+    // 保存予約だけでプロセスを生かし続けない (書き切りは flush の責務)
+    this.timer.unref?.();
+  }
+
+  private clearTimer(): void {
+    if (this.timer != null) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+  }
+
+  private async writePending(): Promise<void> {
+    if (this.writing) return;
+    const state = this.pending;
+    if (state == null) return;
+    this.pending = null;
+    this.writing = true;
+    try {
+      const tmpPath = `${this.persistPath}.tmp`;
+      await fs.promises.mkdir(path.dirname(this.persistPath), { recursive: true });
+      await fs.promises.writeFile(tmpPath, JSON.stringify(state), "utf8");
+      await fs.promises.rename(tmpPath, this.persistPath);
+    } catch (err) {
+      log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      this.writing = false;
+      // 書き込み中に届いた更新は、終わってからもう一度だけ書く
+      if (this.pending != null) this.armTimer();
     }
   }
 }
