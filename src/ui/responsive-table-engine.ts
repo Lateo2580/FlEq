@@ -178,14 +178,14 @@ export function collectDetailForTable<Row>(
   columns: { header: string; value: (row: Row) => string; hidden: boolean }[],
   details: DetailItem[],
 ): void {
+  const hiddenColumns = columns.filter((col) => col.hidden);
+  if (hiddenColumns.length === 0) return;
   rows.forEach((row) => {
     const body: string[] = [];
-    for (const col of columns) {
+    for (const col of hiddenColumns) {
       const v = col.value(row);
       if (!v) continue;
-      if (col.hidden) {
-        body.push(`    ${col.header}: ${v}`);
-      }
+      body.push(`    ${col.header}: ${v}`);
     }
     if (body.length > 0) {
       details.push({ head: head(row), body });

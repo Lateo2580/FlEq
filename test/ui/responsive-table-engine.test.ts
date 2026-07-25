@@ -243,6 +243,38 @@ describe("collectDetailForTable (hidden-only, spec §2.4)", () => {
     expect(body).not.toContain("地域名:");
   });
 
+  it("hidden 列が 1 つも無ければ value() を一度も評価しない", () => {
+    const details: DetailItem[] = [];
+    let valueCalls = 0;
+    collectDetailForTable(
+      [{ area: "A", time: "10:00" }, { area: "B", time: "11:00" }],
+      (r) => r.area,
+      [
+        { header: "地域名", value: (r) => { valueCalls++; return r.area; }, hidden: false },
+        { header: "満潮時刻", value: (r) => { valueCalls++; return r.time; }, hidden: false },
+      ],
+      details,
+    );
+    expect(valueCalls).toBe(0);
+    expect(details.length).toBe(0);
+  });
+
+  it("hidden 列がある場合、非 hidden 列の value() は評価しない", () => {
+    const details: DetailItem[] = [];
+    let visibleCalls = 0;
+    collectDetailForTable(
+      [{ area: "A", time: "10:00" }],
+      (r) => r.area,
+      [
+        { header: "地域名", value: (r) => { visibleCalls++; return r.area; }, hidden: false },
+        { header: "満潮時刻", value: (r) => r.time, hidden: true },
+      ],
+      details,
+    );
+    expect(visibleCalls).toBe(0);
+    expect(details[0].body.join("\n")).toContain("満潮時刻: 10:00");
+  });
+
   it("hidden 列が全て空値なら detail entry を作らない", () => {
     const details: DetailItem[] = [];
     collectDetailForTable(
