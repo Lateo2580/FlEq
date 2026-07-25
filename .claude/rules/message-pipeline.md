@@ -44,6 +44,8 @@ paths:
 
 **特記 (テロップ抑制)**: sentence も body も組めない非取消の VPWP50 は `tickerSuppressed: true` でテロップに流れない（event broadcast 自体は seq 整合のため流れる。`project-event.ts` の判定、spec 2026-07-23 ticker-content-lifetime T5-2）。
 
+**特記 (VPWW56 の state 保持単位)**: `Vpww56StateHolder` は view を**発表官署 (`publishingOffice`) 単位で保持し、参照時に union して返す**。VPWW56 は府県予報区ごとに別の地方気象台が発表するため、全体 1 view 置換にすると別官署の続報が既存官署の警報を消してしまう。単調性ガード (report identity watermark) も官署ごとに独立で、他官署が新しい報を出しても自官署の続報は古い扱いにならない。`getCurrentAreasForDisplay()` は union 済みの単一 view を返すので呼び出し側の形は変わらない。粒度は `project-event.ts` のテロップ groupKey `weather:${type}:${publishingOffice}` と一致する（VPWS50 だけは全国集約の単一ストリームとして `weather:vpws50` へ畳まれる別扱い。VPWS50 は `Vpws50StateHolder` の担当で本 holder には入らない）。**現状 holder のキーは官署名のみ**なので、将来 VPWW55/57-61 を同じ holder に相乗りさせるときは同一官署の複数カテゴリが衝突する。その際はキーを `(head.type, publishingOffice)` に揃えること。
+
 ## 表示パイプライン
 
 `runDisplayPipeline()` (`message-router.ts` 内) が全ルートの統一表示エントリポイント。
