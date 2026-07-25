@@ -11,6 +11,8 @@ dmdata.jp の地震・津波・EEW・火山・気象電文を受信して表示�
 
 - `npm run build` — TypeScript コンパイル → dist/
 - `npm test` — vitest でテスト実行（test/setup.ts で node-notifier をグローバルモック済み）
+- `npm run test:shuffle` — ファイル・it の実行順をシャッフルして実行。**永続化・共有状態・module スコープの変数を触ったときは必ず通す**。2026-07-25 に、デフォルト順では緑なのに順序を変えると落ちるテストが実在した（`vi.hoisted()` の一方向カウンタをファイル内の複数 it が共有していた）。「テストが緑」と「テストが常に緑」は別物
+- `npm run typecheck:test` — `test/` 配下の型検査（段階導入中。範囲と次段の手順は `tsconfig.test.json` 冒頭コメント）
 
 ## コーディング規約
 

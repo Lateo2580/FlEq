@@ -23,6 +23,7 @@
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:shuffle": "vitest run --sequence.shuffle",
     "typecheck:test": "tsc -p tsconfig.test.json",
     "prepack": "npm run build && npm run display:build",
     "prepublishOnly": "npm test",
