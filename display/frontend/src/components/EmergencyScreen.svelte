@@ -6,6 +6,12 @@
   import EewPanel from "./EewPanel.svelte";
   import TsunamiPanel from "./TsunamiPanel.svelte";
   import QuakePanel from "./QuakePanel.svelte";
+  import WeatherEmergencyPanel from "./WeatherEmergencyPanel.svelte";
+
+  // snippet 末尾の網羅ガード (spec C §3)。到達したら kind の追加漏れなので描画せず投げる
+  function assertNever(value: never): never {
+    throw new Error(`未処理の緊急パネル kind: ${JSON.stringify(value)}`);
+  }
 
   // 時計は第 3 波でテロップ (Ticker) 右端に移設したため、このコンポーネントは now を持たない
   let { panels }: { panels: EmergencyPanelModel[] } = $props();
@@ -173,12 +179,18 @@
 </script>
 
 {#snippet panelBody(p: EmergencyPanelModel, compact: boolean, settling: boolean)}
+  <!-- 全 kind を明示分岐する (フォールスルー撲滅、spec C §3)。else へ落とすと新 kind が黙って
+       QuakePanel で描画されるため、末尾は assertNever で型と実行時の両方から塞ぐ -->
   {#if p.input.kind === "eew"}
     <EewPanel input={p.input} {compact} />
   {:else if p.input.kind === "tsunami"}
     <TsunamiPanel input={p.input} {compact} layoutSettling={settling} />
-  {:else}
+  {:else if p.input.kind === "largeQuake"}
     <QuakePanel input={p.input} {compact} layoutSettling={settling} />
+  {:else if p.input.kind === "weather"}
+    <WeatherEmergencyPanel input={p.input} {compact} layoutSettling={settling} />
+  {:else}
+    {assertNever(p.input)}
   {/if}
 {/snippet}
 

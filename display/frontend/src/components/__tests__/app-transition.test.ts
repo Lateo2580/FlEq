@@ -29,6 +29,24 @@ describe("App クロスフェード中の入力所有権 (指摘1 → レビュ�
   });
 });
 
+// Spec C §4: night-dim は engine 算出の weatherL5Active を直接使う。severityTier === "critical" の
+// 流用は禁止 (大津波警報など他要因が混入する)。パネル降格後も警報解除まで true なので、フロントは
+// 期限計算をしない。App は EventSource を開くため jsdom で render できず、配線をソース契約で固定する
+describe("App night-dim の気象 L5 サスペンド (spec C §4)", () => {
+  // 判定そのものは computeSnapshotAlertActive の真理値表テスト (dim-interaction.test.ts) が
+  // 状態値で固定する。ここは App がその純関数へ snapshot を渡して合成していることだけを見る
+  it("snapshot の掲載判定を computeSnapshotAlertActive に委ね、テロップ走行と OR で合成する", () => {
+    expect(src).toMatch(/computeSnapshotAlertActive\(connection\.state\.snapshot\)/);
+    expect(src).toMatch(
+      /computeEffectiveDim\(\s*dim\.requested,\s*tickerAlertActive \|\| snapshotAlertActive,?\s*\)/,
+    );
+  });
+
+  it("severityTier を減光判定に流用していない (dim は weatherL5Active のみ)", () => {
+    expect(src).not.toMatch(/computeEffectiveDim\([^)]*severityTier/);
+  });
+});
+
 describe("App emergency 遷移での overlay 明示クローズ (指摘5)", () => {
   it("StandbyScreen を bind:this で参照し、mode が standby を離れたら closeQuakeCard を呼ぶ", () => {
     expect(src).toContain("bind:this={standbyRef}");

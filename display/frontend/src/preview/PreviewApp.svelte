@@ -47,6 +47,8 @@
     tickerLinesCycleSparse,
     tickerLinesLongRun,
     tickerLine,
+    weatherEmergencyInput,
+    weatherSyncingInput,
   } from "./fixtures";
   import { createTipsFeeder } from "../lib/tips-feeder.svelte";
 
@@ -71,6 +73,9 @@
     "emergency-3",
     "emergency-stress",
     "emergency-nankai",
+    "emergency-weather",
+    "emergency-weather-mix",
+    "emergency-weather-syncing",
     "motion-enter",
     "motion-panels",
     "motion-card-grow",
@@ -221,6 +226,9 @@
       scenario === "emergency-3" ||
       scenario === "emergency-stress" ||
       scenario === "emergency-nankai" ||
+      scenario === "emergency-weather" ||
+      scenario === "emergency-weather-mix" ||
+      scenario === "emergency-weather-syncing" ||
       scenario === "motion-panels" ||
       scenario === "motion-card-grow" ||
       motionEnterEmergency
@@ -288,6 +296,20 @@
         { key: "eew:nankai", input: eewNankaiInput },
         { key: "quake:nankai", input: largeQuakeNankaiInput },
       ];
+    }
+    // Spec C Phase 2 の気象主役パネル。単独 (主役スロット) / 併発 (右列 compact) / 中身待ちの 3 場面
+    if (scenario === "emergency-weather") {
+      return [{ key: "weather:current", input: weatherEmergencyInput }];
+    }
+    if (scenario === "emergency-weather-mix") {
+      return [
+        { key: "tsunami:weathermix", input: tsunamiWarningInput },
+        { key: "weather:current", input: weatherEmergencyInput },
+        { key: "eew:weathermix", input: eewForecastInput },
+      ];
+    }
+    if (scenario === "emergency-weather-syncing") {
+      return [{ key: "weather:current", input: weatherSyncingInput }];
     }
     if (scenario === "motion-enter") {
       // 待機↔緊急の往復。緊急側は初期パネル群 (パネル外枠は opacity を触らず frame-1 可視、

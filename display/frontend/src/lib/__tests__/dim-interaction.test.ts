@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeEffectiveDim, shouldToggleDimOnClick, shouldToggleDimOnKey } from "../dim-interaction";
+import {
+  computeEffectiveDim,
+  computeSnapshotAlertActive,
+  shouldToggleDimOnClick,
+  shouldToggleDimOnKey,
+} from "../dim-interaction";
 
 function el(html: string): Element {
   const root = document.createElement("div");
@@ -63,5 +68,40 @@ describe("computeEffectiveDim (spec D5 合成則の真理値表)", () => {
     [false, false, false],
   ])("requested=%s alertActive=%s → %s", (requested, alertActive, expected) => {
     expect(computeEffectiveDim(requested, alertActive)).toBe(expected);
+  });
+});
+
+// spec C §4: 減光の気象条件は engine 算出の weatherL5Active だけを見る。パネル降格 (demoted =
+// weatherPromotion が wire 上 null) 後も警報解除まで解除を維持し、L4 相当では解除しない
+describe("computeSnapshotAlertActive (spec D5 + spec C §4)", () => {
+  it("snapshot 未受信 (null) は掲載なし", () => {
+    expect(computeSnapshotAlertActive(null)).toBe(false);
+    expect(computeSnapshotAlertActive(undefined)).toBe(false);
+  });
+
+  it("weatherL5Active / standbyItems とも欠落 (旧サーバ) は false 扱い", () => {
+    expect(computeSnapshotAlertActive({})).toBe(false);
+  });
+
+  it("気象 L5 発表中は掲載あり", () => {
+    expect(computeSnapshotAlertActive({ weatherL5Active: true })).toBe(true);
+  });
+
+  it("パネル降格後 (weatherPromotion 全 null) でも weatherL5Active が true なら掲載を維持する", () => {
+    // 降格は wire 上 weatherPromotion=null で表現される。減光判定はそれを見ずに L5 フラグだけを見る
+    expect(
+      computeSnapshotAlertActive({ weatherL5Active: true, standbyItems: [] }),
+    ).toBe(true);
+  });
+
+  it("L4 相当だけ (weatherL5Active=false) では掲載扱いにしない (テロップ通過時の一時解除に任せる)", () => {
+    expect(computeSnapshotAlertActive({ weatherL5Active: false })).toBe(false);
+  });
+
+  it("待機カードの critical は従来どおり掲載あり、それ以外の severity は掲載なし", () => {
+    expect(computeSnapshotAlertActive({ standbyItems: [{ severity: "critical" }] })).toBe(true);
+    expect(
+      computeSnapshotAlertActive({ standbyItems: [{ severity: "warning" }, { severity: "info" }] }),
+    ).toBe(false);
   });
 });

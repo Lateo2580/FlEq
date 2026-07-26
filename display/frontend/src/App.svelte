@@ -16,7 +16,12 @@
   import type { DisplayTsunamiLevel } from "./lib/protocol";
   import type { DisplayTickerDtoV1 } from "./lib/ticker-schedule";
   import { untrack } from "svelte";
-  import { computeEffectiveDim, shouldToggleDimOnClick, shouldToggleDimOnKey } from "./lib/dim-interaction";
+  import {
+    computeEffectiveDim,
+    computeSnapshotAlertActive,
+    shouldToggleDimOnClick,
+    shouldToggleDimOnKey,
+  } from "./lib/dim-interaction";
 
   const RELOAD_STORAGE_KEY = "fleq-display-last-reload";
   const RELOAD_CHECK_INTERVAL_MS = 60_000;
@@ -29,8 +34,12 @@
   // effective (実効) だけを明るい側へ倒す。収束すれば自動で減光に戻る。合成則は
   // computeEffectiveDim (Task 1 で真理値表テスト済み) を使う。
   let tickerAlertActive = $state(false);
-  const standbyAlertActive = $derived(connection.state.snapshot?.standbyItems?.some((item) => item.severity === "critical") ?? false);
-  const effectiveDim = $derived(computeEffectiveDim(dim.requested, tickerAlertActive || standbyAlertActive));
+  // snapshot 由来の掲載判定 (待機カード critical + 気象 L5 相当) は純関数へ切り出して真理値表で
+  // 固定してある (dim-interaction.ts の computeSnapshotAlertActive、spec D5 + spec C §4)
+  const snapshotAlertActive = $derived(computeSnapshotAlertActive(connection.state.snapshot));
+  const effectiveDim = $derived(
+    computeEffectiveDim(dim.requested, tickerAlertActive || snapshotAlertActive),
+  );
 
   $effect(() => {
     connection.start();

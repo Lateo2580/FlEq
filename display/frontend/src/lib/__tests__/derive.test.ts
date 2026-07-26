@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { deriveEmergencyPanels, deriveMode, deriveTickerLines } from "../derive";
-import type { DisplayActiveEewV1, DisplayLargeQuakeStateV1, DisplayTsunamiStateV1 } from "../protocol";
+import type {
+  DisplayActiveEewV1,
+  DisplayLargeQuakeStateV1,
+  DisplayStateSnapshotV1,
+  DisplayTsunamiStateV1,
+  DisplayWeatherAlertV1,
+} from "../protocol";
 import type { DisplayClientState } from "../store";
 import { baseState, tickerEvent } from "./fixtures";
 import { assignLanes, enqueueJob, toTickerJob, type LaneState, type SchedulerState } from "../ticker-schedule";
@@ -52,6 +58,31 @@ function largeQuakeFixture(over: Partial<DisplayLargeQuakeStateV1> = {}): Displa
     maxInt: "5強", maxIntRank: 6, intensityGroups: [], reportDateTime: "t", updatedAtMs: 0,
     depth: null, maxLgInt: null, tsunamiWarning: false,
     ...over,
+  };
+}
+
+function weatherAlertFixture(
+  source: "vpws50" | "vpww56",
+  kind: string,
+  displaySeverity: string,
+): DisplayWeatherAlertV1 {
+  return {
+    source,
+    label: "気象警報",
+    role: displaySeverity === "officialL5" ? "weatherEmergency" : "weatherWarning",
+    totalAreas: 1,
+    items: [{ kind, displaySeverity, rank: "emergency", shownAreas: ["東京都"], omittedAreaCount: 0 }],
+    updatedAt: "2026-07-25T10:00:00+09:00",
+  };
+}
+
+/** vpws50 だけを level 相当で昇格させた snapshot 断片 */
+function weatherPromotion(level: 4 | 5): Partial<DisplayStateSnapshotV1> {
+  return {
+    weatherPromotion: { vpws50: { level, promotedAt: "2026-07-25T10:00:00+09:00", generation: 1 }, vpww56: null },
+    weatherAlerts: [
+      weatherAlertFixture("vpws50", level === 5 ? "L5 大雨特別警報" : "L4 洪水警報", level === 5 ? "officialL5" : "officialL4"),
+    ],
   };
 }
 
@@ -131,6 +162,66 @@ describe("deriveEmergencyPanels", () => {
       tsunami: tsunamiFixture({ demoted: true }),
     });
     expect(deriveEmergencyPanels(state)).toEqual([]);
+  });
+
+  // ── Spec C Phase 2: 気象警報の主役化 ──
+
+  it("気象 L5/L4 は 気象 L5 > 気象 L4 の 1 枚に畳まれ、EEW 警報 > 気象 > EEW 予報 の序列に入る", () => {
+    const state = baseState({
+      tsunami: tsunamiFixture({ level: "advisory", levelLabel: "津波注意報", demoted: false }),
+      activeEews: [
+        eewFixture({ eventId: "E1", isWarning: true }),
+        eewFixture({ eventId: "E2", isWarning: false }),
+      ],
+      largeQuakes: [largeQuakeFixture({ eventId: "Q1" })],
+      ...weatherPromotion(5),
+    });
+    const keys = deriveEmergencyPanels(state).map((p) => p.key);
+    expect(keys).toEqual(["tsunami:current", "eew:E1", "weather:current", "eew:E2", "quake:Q1"]);
+  });
+
+  it("気象 L4 は EEW 警報より後・EEW 予報より前 (L5 と L4 で順位が変わる)", () => {
+    const state = baseState({
+      activeEews: [eewFixture({ eventId: "E2", isWarning: false })],
+      ...weatherPromotion(4),
+    });
+    expect(deriveEmergencyPanels(state).map((p) => p.key)).toEqual(["weather:current", "eew:E2"]);
+  });
+
+  it("気象パネルは source が増減しても key 固定 (weather:current) で 1 枚のまま", () => {
+    const one = baseState(weatherPromotion(5));
+    const both = baseState({
+      weatherPromotion: {
+        vpws50: { level: 5, promotedAt: "t", generation: 1 },
+        vpww56: { level: 4, promotedAt: "t", generation: 1 },
+      },
+      weatherAlerts: [
+        weatherAlertFixture("vpws50", "L5 大雨特別警報", "officialL5"),
+        weatherAlertFixture("vpww56", "L4 洪水警報", "officialL4"),
+      ],
+    });
+    expect(deriveEmergencyPanels(one).map((p) => p.key)).toEqual(["weather:current"]);
+    expect(deriveEmergencyPanels(both).map((p) => p.key)).toEqual(["weather:current"]);
+  });
+
+  it("weatherPromotion が両 source null (demoted 含む) なら気象パネルは出ない = standby", () => {
+    const state = baseState({
+      weatherPromotion: { vpws50: null, vpww56: null },
+      weatherAlerts: [weatherAlertFixture("vpws50", "L5 大雨特別警報", "officialL5")],
+    });
+    expect(deriveEmergencyPanels(state)).toEqual([]);
+    expect(deriveMode(state)).toBe("standby");
+  });
+
+  it("weatherPromotion 欠落 (旧サーバ) は null 扱いで従来どおり standby", () => {
+    const state = baseState({
+      weatherAlerts: [weatherAlertFixture("vpws50", "L5 大雨特別警報", "officialL5")],
+    });
+    expect(deriveMode(state)).toBe("standby");
+  });
+
+  it("気象昇格だけでも emergency になる", () => {
+    expect(deriveMode(baseState(weatherPromotion(5)))).toBe("emergency");
   });
 });
 

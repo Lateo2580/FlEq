@@ -31,3 +31,24 @@ export function shouldToggleDimOnKey(
 export function computeEffectiveDim(requested: boolean, alertActive: boolean): boolean {
   return requested && !alertActive;
 }
+
+/**
+ * snapshot 由来の「警報掲載中」判定 (spec D5 + spec C §4)。テロップ走行中フラグは Ticker からの
+ * push 通知なので App が別に足す。
+ *
+ * 気象は **engine 算出の `weatherL5Active` だけ**を見る。パネル降格 (demoted → wire 上 null) 後も
+ * 警報解除まで true なので、`weatherPromotion` が全 null でも減光サスペンドは続く。
+ * `severityTier === "critical"` の流用は禁止 (大津波警報など他要因が混入する)。L4 相当は
+ * `weatherL5Active` に含まれず、テロップ通過時の一時解除だけに任せる。
+ * 欠落 (旧サーバ) は false 扱い。
+ */
+export function computeSnapshotAlertActive(
+  snapshot: {
+    standbyItems?: Array<{ severity: string }>;
+    weatherL5Active?: boolean;
+  } | null | undefined,
+): boolean {
+  if (snapshot == null) return false;
+  const standbyCritical = snapshot.standbyItems?.some((item) => item.severity === "critical") ?? false;
+  return standbyCritical || (snapshot.weatherL5Active ?? false);
+}

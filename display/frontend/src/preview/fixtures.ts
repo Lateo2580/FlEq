@@ -1,5 +1,6 @@
 // デザイン目視ゲート用フィクスチャ。SSE 接続を使わず、現実的な日本語コンテンツで
 // 各画面パターンを再現する。protocol.ts の型に厳密準拠する (any 禁止)。
+import type { WeatherEmergencyInputV1 } from "../lib/weather-panel";
 import {
   DISPLAY_PROTOCOL_VERSION,
   type ActiveStandbyCardV1,
@@ -2026,3 +2027,54 @@ export const motionStandbyFloodPhases: ActiveStandbyCardV1[][] = (() => {
     [flood(2, "corner-right")],
   ];
 })();
+
+// ── Spec C Phase 2: 気象警報の主役パネル (preview 目視用) ──
+// 実運用の合成は buildWeatherEmergencyInput が snapshot から作るが、preview は見た目の確認が
+// 目的なので合成後の入力を直接置く。L5 4 種別 + L4 3 種別 + 地域多め (縮退表示の確認込み)
+export const weatherEmergencyInput: WeatherEmergencyInputV1 = {
+  kind: "weather",
+  level: 5,
+  generation: "vpws50:3|vpww56:1",
+  truncated: true,
+  restored: false,
+  items: [
+    {
+      key: "vpws50:0:L5 大雨特別警報", source: "vpws50", kind: "L5 大雨特別警報", level: 5,
+      shownAreas: ["高知県", "徳島県", "愛媛県", "香川県", "岡山県", "広島県"], omittedAreaCount: 4,
+    },
+    {
+      key: "vpws50:1:L5 土砂災害警戒情報", source: "vpws50", kind: "L5 土砂災害警戒情報", level: 5,
+      shownAreas: ["高知県", "徳島県"], omittedAreaCount: 0,
+    },
+    {
+      key: "vpww56:0:暴風特別警報", source: "vpww56", kind: "暴風特別警報", level: 5,
+      shownAreas: ["宮崎県", "鹿児島県"], omittedAreaCount: 1,
+    },
+    {
+      key: "vpww56:1:波浪特別警報", source: "vpww56", kind: "波浪特別警報", level: 5,
+      shownAreas: ["沖縄本島地方", "宮古島地方", "八重山地方"], omittedAreaCount: 0,
+    },
+    {
+      key: "vpws50:2:L4 洪水警報", source: "vpws50", kind: "L4 洪水警報", level: 4,
+      shownAreas: ["愛知県", "静岡県"], omittedAreaCount: 3,
+    },
+    {
+      key: "vpws50:3:L4 高潮警報", source: "vpws50", kind: "L4 高潮警報", level: 4,
+      shownAreas: ["三重県"], omittedAreaCount: 0,
+    },
+    {
+      key: "vpww56:2:L4 土砂災害警戒情報", source: "vpww56", kind: "L4 土砂災害警戒情報", level: 4,
+      shownAreas: ["和歌山県"], omittedAreaCount: 0,
+    },
+  ],
+};
+
+/** 復元直後など、engine は昇格中だがフロントがまだ item を組めていない窓 (同期中表示の確認用) */
+export const weatherSyncingInput: WeatherEmergencyInputV1 = {
+  kind: "weather",
+  level: 5,
+  generation: "vpws50:1",
+  truncated: false,
+  restored: true,
+  items: [],
+};
