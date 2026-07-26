@@ -193,8 +193,8 @@ tier（severity tier、重大度の段）は、平常から緊急までの「今
 
 ## 5. コンポーネントカタログ
 
-`display/frontend/src/components/` の 19 コンポーネントを役割・主要トークン依存・特記の順に挙げる。
-緊急パネル系（EewPanel / QuakePanel / TsunamiPanel / QuakeHeadline の panel variant）は `--panel-scale` 連動を持ち、待機画面系カードは持たない。
+`display/frontend/src/components/` の 21 コンポーネントを役割・主要トークン依存・特記の順に挙げる。
+緊急パネル系（EewPanel / QuakePanel / TsunamiPanel / WeatherEmergencyPanel / QuakeHeadline の panel variant）は `--panel-scale` 連動を持ち、待機画面系カードは持たない。
 
 - **Clock**: 待機画面の大時計（時刻＋日付）と緊急画面の小時計の 2 バリアント。`--type-clock-hero`・`--clock-fg`・`--font-num` 依存。小時計の時刻はあえて `--fg`（`--clock-fg` の非減光トーンを避ける）。
 - **ConnectionBadge**: SSE / dmdata 切断時のみ時計上に出す警告バッジ。`--role-connectionStale`・`--role-muted` 依存。意味色 1 つで全体を統一する role 依存の典型。
@@ -214,7 +214,9 @@ tier（severity tier、重大度の段）は、平常から緊急までの「今
 - **TierOverlay**: 画面全体の tier 気配レイヤ（§4）。radial-gradient を rgba 直値でグラデ発光させ、opacity crossfade で雰囲気を出す（`TierOverlay.svelte:27-35`）。
 - **TsunamiPanel**: 緊急画面の津波パネル（予報区リスト／観測実況・種別別背景面）。`--header-tsunami*-*`・`--role-tsunami*` に依存し、背景トーンは `color-mix(role色 15%, --bg)` で合成する。CSS 変数名を JS で組み立て inline style へ注入する。
 - **TsunamiStandbyBanner**: 待機画面左上の津波バナー（種別別マーキー巡回＋チップ再生）。`--surface-standby`・`--radius-full` 依存。dim は opacity 重ね掛け事故を避け `color-mix(chipBg 35%, --surface-standby)` へ切替。
+- **UpdatedStamp**: カード見出し右端の「最終更新時刻」（気象警報／台風情報／火山情報／津波情報バナーで共有）。表記は常に月日込み（`formatMdHm`）— 数時間〜数日更新が空く種別があり、`HH:MM` だけだと古い電文が今日の更新に見えるため、桁数より曖昧さの排除を採る。色は `color: inherit` で見出し帯の on 色を継承し、独自トークンを持たない（コントラスト監査の対象ペアを増やさない）。
 - **WeatherAlertCard**: 待機画面右上の気象警報／特別警報カード（最高ランクのみ表示）。`--header-weather*-*`・`--role-weather*` 依存。意味色は JS 注入でなく CSS クラスセレクタで完結する。
+- **WeatherEmergencyPanel**: 緊急画面の気象警報パネル（警戒レベル 4・5 相当の主役化、Spec C）。**面（surface + 影）を持つのは詳細一覧（「どこ」）だけ**で、「何が」はパネル地の上のヒーロー（`警戒レベル N` + 一段小さい `相当`）、「どうする」は `--role-weather*` の縦レール（`border-inline-start`）を持つ行動レール、副セクションは `--hairline` の区切り線のみ。**compact スロットだけ**はレベルと行動文を `警戒レベル N 相当 — <行動文>` の 1 行に束ねて縦を節約する（ゆとりのある主役スロットでは分離したまま）——同格タイルを 4 枚並べると重要度が横並びになり、EEW / 津波 / 地震の「主役＋計器＋リスト」構成に対して平板に見えるため（実機目視 2026-07-26）。詳細行は「区分 ｜ 地域」の 2 列グリッドで、地域側に `--hairline` の縦罫を引く（**遠見・夜間減光では font-weight 差が最初に消える**ので、太さだけの分離は成立しない）。警報名はパネル内でのみ `L5 ` 接頭辞を落として揃える（レベルは見出しの「警戒レベル N 相当」が担う。`formatLevelLabel` 自体は変更せず、待機カード・テロップ・CLI は接頭辞つきのまま）。1 行に並べる地域名の件数は領域の実測幅と文字サイズから算出する（固定件数だと、ゆとりがあるのに省略／狭いのに詰め込む、の両方が起きる）。「何が（警戒レベル N 相当＋警報名）／どこ（種別ごとの地域＋ほか N 地域）／どうする（固定の行動文＋補助行）」の 3 固定領域で、L5 昇格中に併存する L4 相当は同パネル内の副セクションへ回す。色 role は `--header-weather{Emergency,Warning}-*`・`--role-weather*` を **WeatherAlertCard と共有**し、新規トークンを持たない（ただし監査ペアは増える——実際に消費する面との組合せを §8b に追加した）。**critical tier（L5 発表中・大津波警報併発など）では主要な文字を `--fg` へ退避する**：`TierOverlay` の全画面フィルム（最大 α=0.34）が文字にも背景にも掛かり、合成後は意味色が AA を割るため（weatherEmergency 3.21〜3.66:1 / weatherWarning 3.90〜4.44:1、`--fg` なら 6.85〜7.81:1）。意味色は看板ヘッダ帯と行動レール（非テキスト、閾値 3:1）に残す。この「使わない組合せ」も監査表に載せ、退避を外したら FAIL として気づけるようにしてある。source（vpws50 / vpww56）間で同種別を統合せず地域数も合算しない点だけが待機カードと異なる契約（跨 source 統合は待機カード側の従来どおり）。「どこ」領域は QuakePanel / TsunamiPanel と同じ `createPageCycler` + `PageDots` の自動ページ送りで、領域高と代表行を実測して 1 ページの行数を決める（実測不能時は fallback 行数）。**画面に収まらない情報を黙って切らない**ことを設計の錨とし、上限で落ちた情報は必ず件数で可視化する（1 行の地域名は engine 縮退ぶんと合算して「ほか N 地域」、副セクションに載らない種別と「何が」の警報名は「ほか N 種別」）。ページ送りを持たない固定領域（「何が」「どうする」「副セクション」）は内容駆動で伸ばさず有界にする。ただし**区分一覧（警報名）は上限を掛けず、折り返して全種別を載せる**——上限 + 「ほか N 種別」で畳むと、狭い枠で**最上級レベルに何が出ているかが件数へ丸められ**、最優先の情報を最初に削ることになる（実機目視 2026-07-26）。表示の優先順位は **レベル + 行動文 ＞ 区分一覧 ＞ 地域** で、ヒーローは `flex: 0 0 auto` で縮まず、高さが足りないときは**ページ送りを持つ地域カード側が縮む**（ページ送りの待ちを地域だけに閉じ込め、「何が起きていて何をするか」は常に一目で読める）。補助行「自治体が発令する避難指示とは別の防災気象情報です」は行動レール内に置き、主役スロットのみに出す（compact では主情報へ高さを回す）。**副セクション（L5 昇格中の L4 相当）は幅によらず地域名を持たない種別の要約**にする（件数の上限は高さの上限にならないため——地域行は折返しで高さが青天井になり、ページ送りのない領域では溢れが黙って切られる。L4 の地域が要る場面は主レベルの「どこ」が担う）。省略の告知は**行末の件数だけ**に一本化する（領域下端の固定文「表示は一部です」は主語が無く「ページの一部」と誤読されたため廃止。実機目視 2026-07-26）。ページャは詳細一覧の見出し行（`対象地域・区分` と同じ行）に置き、省略の告知とは場所を分ける。副セクションの上限は distinct な種別数で数える（source 違いの同一種別を 2 種別と数えない）。
 
 ## 6. アクセシビリティ
 
@@ -620,38 +622,55 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | int9 | 3 震度rank面 | base | `--int-9-on` | `--int-9-bg` | 10.43:1 | 4.5:1 | PASS |
 | role-critical-on---bg | 4 role文字色 | base | `--role-critical` | `--bg` | 5.43:1 | 4.5:1 | PASS |
 | role-critical-on---surface-high | 4 role文字色 | base | `--role-critical` | `--surface-high` | 4.71:1 | 4.5:1 | PASS |
+| role-critical-on---surface-panel | 4 role文字色 | base | `--role-critical` | `--surface-panel` | 4.98:1 | 4.5:1 | PASS |
 | role-warning-on---bg | 4 role文字色 | base | `--role-warning` | `--bg` | 9.32:1 | 4.5:1 | PASS |
 | role-warning-on---surface-high | 4 role文字色 | base | `--role-warning` | `--surface-high` | 8.10:1 | 4.5:1 | PASS |
+| role-warning-on---surface-panel | 4 role文字色 | base | `--role-warning` | `--surface-panel` | 8.54:1 | 4.5:1 | PASS |
 | role-normal-on---bg | 4 role文字色 | base | `--role-normal` | `--bg` | 19.05:1 | 4.5:1 | PASS |
 | role-normal-on---surface-high | 4 role文字色 | base | `--role-normal` | `--surface-high` | 16.54:1 | 4.5:1 | PASS |
+| role-normal-on---surface-panel | 4 role文字色 | base | `--role-normal` | `--surface-panel` | 17.45:1 | 4.5:1 | PASS |
 | role-info-on---bg | 4 role文字色 | base | `--role-info` | `--bg` | 6.52:1 | 4.5:1 | PASS |
 | role-info-on---surface-high | 4 role文字色 | base | `--role-info` | `--surface-high` | 5.67:1 | 4.5:1 | PASS |
+| role-info-on---surface-panel | 4 role文字色 | base | `--role-info` | `--surface-panel` | 5.98:1 | 4.5:1 | PASS |
 | role-cancel-on---bg | 4 role文字色 | base | `--role-cancel` | `--bg` | 6.86:1 | 4.5:1 | PASS |
 | role-cancel-on---surface-high | 4 role文字色 | base | `--role-cancel` | `--surface-high` | 5.96:1 | 4.5:1 | PASS |
+| role-cancel-on---surface-panel | 4 role文字色 | base | `--role-cancel` | `--surface-panel` | 6.29:1 | 4.5:1 | PASS |
 | role-eewWarning-on---bg | 4 role文字色 | base | `--role-eewWarning` | `--bg` | 5.43:1 | 4.5:1 | PASS |
 | role-eewWarning-on---surface-high | 4 role文字色 | base | `--role-eewWarning` | `--surface-high` | 4.71:1 | 4.5:1 | PASS |
+| role-eewWarning-on---surface-panel | 4 role文字色 | base | `--role-eewWarning` | `--surface-panel` | 4.98:1 | 4.5:1 | PASS |
 | role-eewForecast-on---bg | 4 role文字色 | base | `--role-eewForecast` | `--bg` | 9.32:1 | 4.5:1 | PASS |
 | role-eewForecast-on---surface-high | 4 role文字色 | base | `--role-eewForecast` | `--surface-high` | 8.10:1 | 4.5:1 | PASS |
+| role-eewForecast-on---surface-panel | 4 role文字色 | base | `--role-eewForecast` | `--surface-panel` | 8.54:1 | 4.5:1 | PASS |
 | role-tsunamiMajor-on---bg | 4 role文字色 | base | `--role-tsunamiMajor` | `--bg` | 6.51:1 | 4.5:1 | PASS |
 | role-tsunamiMajor-on---surface-high | 4 role文字色 | base | `--role-tsunamiMajor` | `--surface-high` | 5.65:1 | 4.5:1 | PASS |
+| role-tsunamiMajor-on---surface-panel | 4 role文字色 | base | `--role-tsunamiMajor` | `--surface-panel` | 5.96:1 | 4.5:1 | PASS |
 | role-tsunamiWarning-on---bg | 4 role文字色 | base | `--role-tsunamiWarning` | `--bg` | 6.16:1 | 4.5:1 | PASS |
 | role-tsunamiWarning-on---surface-high | 4 role文字色 | base | `--role-tsunamiWarning` | `--surface-high` | 5.35:1 | 4.5:1 | PASS |
+| role-tsunamiWarning-on---surface-panel | 4 role文字色 | base | `--role-tsunamiWarning` | `--surface-panel` | 5.65:1 | 4.5:1 | PASS |
 | role-tsunamiAdvisory-on---bg | 4 role文字色 | base | `--role-tsunamiAdvisory` | `--bg` | 15.88:1 | 4.5:1 | PASS |
 | role-tsunamiAdvisory-on---surface-high | 4 role文字色 | base | `--role-tsunamiAdvisory` | `--surface-high` | 13.79:1 | 4.5:1 | PASS |
+| role-tsunamiAdvisory-on---surface-panel | 4 role文字色 | base | `--role-tsunamiAdvisory` | `--surface-panel` | 14.55:1 | 4.5:1 | PASS |
 | role-quakeMajor-on---bg | 4 role文字色 | base | `--role-quakeMajor` | `--bg` | 5.43:1 | 4.5:1 | PASS |
 | role-quakeMajor-on---surface-high | 4 role文字色 | base | `--role-quakeMajor` | `--surface-high` | 4.71:1 | 4.5:1 | PASS |
+| role-quakeMajor-on---surface-panel | 4 role文字色 | base | `--role-quakeMajor` | `--surface-panel` | 4.98:1 | 4.5:1 | PASS |
 | role-weatherEmergency-on---bg | 4 role文字色 | base | `--role-weatherEmergency` | `--bg` | 6.51:1 | 4.5:1 | PASS |
 | role-weatherEmergency-on---surface-high | 4 role文字色 | base | `--role-weatherEmergency` | `--surface-high` | 5.65:1 | 4.5:1 | PASS |
+| role-weatherEmergency-on---surface-panel | 4 role文字色 | base | `--role-weatherEmergency` | `--surface-panel` | 5.96:1 | 4.5:1 | PASS |
 | role-weatherWarning-on---bg | 4 role文字色 | base | `--role-weatherWarning` | `--bg` | 9.00:1 | 4.5:1 | PASS |
 | role-weatherWarning-on---surface-high | 4 role文字色 | base | `--role-weatherWarning` | `--surface-high` | 7.82:1 | 4.5:1 | PASS |
+| role-weatherWarning-on---surface-panel | 4 role文字色 | base | `--role-weatherWarning` | `--surface-panel` | 8.25:1 | 4.5:1 | PASS |
 | role-weatherAdvisory-on---bg | 4 role文字色 | base | `--role-weatherAdvisory` | `--bg` | 15.88:1 | 4.5:1 | PASS |
 | role-weatherAdvisory-on---surface-high | 4 role文字色 | base | `--role-weatherAdvisory` | `--surface-high` | 13.79:1 | 4.5:1 | PASS |
+| role-weatherAdvisory-on---surface-panel | 4 role文字色 | base | `--role-weatherAdvisory` | `--surface-panel` | 14.55:1 | 4.5:1 | PASS |
 | role-connectionOk-on---bg | 4 role文字色 | base | `--role-connectionOk` | `--bg` | 3.27:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
 | role-connectionOk-on---surface-high | 4 role文字色 | base | `--role-connectionOk` | `--surface-high` | 2.84:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
+| role-connectionOk-on---surface-panel | 4 role文字色 | base | `--role-connectionOk` | `--surface-panel` | 3.00:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
 | role-connectionStale-on---bg | 4 role文字色 | base | `--role-connectionStale` | `--bg` | 9.32:1 | 4.5:1 | PASS |
 | role-connectionStale-on---surface-high | 4 role文字色 | base | `--role-connectionStale` | `--surface-high` | 8.10:1 | 4.5:1 | PASS |
+| role-connectionStale-on---surface-panel | 4 role文字色 | base | `--role-connectionStale` | `--surface-panel` | 8.54:1 | 4.5:1 | PASS |
 | role-muted-on---bg | 4 role文字色 | base | `--role-muted` | `--bg` | 11.56:1 | 4.5:1 | PASS |
 | role-muted-on---surface-high | 4 role文字色 | base | `--role-muted` | `--surface-high` | 10.04:1 | 4.5:1 | PASS |
+| role-muted-on---surface-panel | 4 role文字色 | base | `--role-muted` | `--surface-panel` | 10.59:1 | 4.5:1 | PASS |
 | hdr-eewWarning | 5 ヘッダ3層 | base | `--header-eewWarning-on` | `--header-eewWarning-container` | 9.55:1 | 4.5:1 | PASS |
 | hdr-eewForecast | 5 ヘッダ3層 | base | `--header-eewForecast-on` | `--header-eewForecast-container` | 10.46:1 | 4.5:1 | PASS |
 | hdr-quakeCritical | 5 ヘッダ3層 | base | `--header-quakeCritical-on` | `--header-quakeCritical-container` | 9.55:1 | 4.5:1 | PASS |
@@ -700,8 +719,16 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | dim-chip-weatherAdvisory | 9 dim×tickerチップ | dim | `dim35(--header-weatherAdvisory-on)` | `dim35(--header-weatherAdvisory-container)` | 2.41:1 | 4.5:1 | 許容 (注意報級は夜間減光を優先 (警報級は spec D5 の可読性フロア + 自動サスペンドで救済済み)) |
 | overlay---fg-on---surface-high | 10 critical overlay合成 | tier-overlay | `film(--fg)` | `film(--surface-high)` | 7.40:1 | 4.5:1 | PASS |
 | overlay---fg-on---surface-highest | 10 critical overlay合成 | tier-overlay | `film(--fg)` | `film(--surface-highest)` | 6.85:1 | 4.5:1 | PASS |
+| overlay---fg-on---surface-panel | 10 critical overlay合成 | tier-overlay | `film(--fg)` | `film(--surface-panel)` | 7.81:1 | 4.5:1 | PASS |
 | overlay---role-muted-on---surface-high | 10 critical overlay合成 | tier-overlay | `film(--role-muted)` | `film(--surface-high)` | 4.99:1 | 4.5:1 | PASS |
 | overlay---role-muted-on---surface-highest | 10 critical overlay合成 | tier-overlay | `film(--role-muted)` | `film(--surface-highest)` | 4.62:1 | 4.5:1 | PASS |
+| overlay---role-muted-on---surface-panel | 10 critical overlay合成 | tier-overlay | `film(--role-muted)` | `film(--surface-panel)` | 5.27:1 | 4.5:1 | PASS |
+| overlay-role-weatherEmergency-on---surface-high | 10 critical overlay合成 | tier-overlay | `film(--role-weatherEmergency)` | `film(--surface-high)` | 3.46:1 | 4.5:1 | 許容 (critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)) |
+| overlay-role-weatherEmergency-on---surface-highest | 10 critical overlay合成 | tier-overlay | `film(--role-weatherEmergency)` | `film(--surface-highest)` | 3.21:1 | 4.5:1 | 許容 (critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)) |
+| overlay-role-weatherEmergency-on---surface-panel | 10 critical overlay合成 | tier-overlay | `film(--role-weatherEmergency)` | `film(--surface-panel)` | 3.66:1 | 4.5:1 | 許容 (critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)) |
+| overlay-role-weatherWarning-on---surface-high | 10 critical overlay合成 | tier-overlay | `film(--role-weatherWarning)` | `film(--surface-high)` | 4.21:1 | 4.5:1 | 許容 (critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)) |
+| overlay-role-weatherWarning-on---surface-highest | 10 critical overlay合成 | tier-overlay | `film(--role-weatherWarning)` | `film(--surface-highest)` | 3.90:1 | 4.5:1 | 許容 (critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)) |
+| overlay-role-weatherWarning-on---surface-panel | 10 critical overlay合成 | tier-overlay | `film(--role-weatherWarning)` | `film(--surface-panel)` | 4.44:1 | 4.5:1 | 許容 (critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)) |
 | overlay-hdr-eewWarning | 10 critical overlay合成 | tier-overlay | `film(--header-eewWarning-on)` | `film(--header-eewWarning-container)` | 4.73:1 | 4.5:1 | PASS |
 | overlay-hdr-eewForecast | 10 critical overlay合成 | tier-overlay | `film(--header-eewForecast-on)` | `film(--header-eewForecast-container)` | 5.11:1 | 4.5:1 | PASS |
 | overlay-hdr-quakeCritical | 10 critical overlay合成 | tier-overlay | `film(--header-quakeCritical-on)` | `film(--header-quakeCritical-container)` | 4.73:1 | 4.5:1 | PASS |

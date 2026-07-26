@@ -58,19 +58,25 @@ describe("evaluatePairs", () => {
       "1 基本文字色": 3,
       "2 震度rank文字": 42,
       "3 震度rank面": 2,
-      "4 role文字色": 34,
+      // 17 role × 3 面 (--bg / --surface-high / --surface-panel)。--surface-panel は
+      // WeatherEmergencyPanel が「面を持つのは詳細一覧だけ」構成になり (2026-07-26)、
+      // role 色をパネル地へ直接置くようになったため監査対象に加えた
+      "4 role文字色": 51,
       "5 ヘッダ3層": 10,
       "6 ヘッダband": 20,
       "7 JMA文字色": 2,
       "8 tier上書き後": 4,
       "9 dim×tickerチップ": 10,
-      "10 critical overlay合成": 14,
+      // --fg / --role-muted × 3 面 (6) + ヘッダ 10 role (10) + 気象 role × 3 面 (6)。
+      // 気象 role のペアは「critical 中は --fg へ退避するので描かれない」組合せを表に残すもの
+      // (許容リスト critical-overlay-weather-role-not-used-as-text、2026-07-26)
+      "10 critical overlay合成": 22,
       "11 dim×high lane": 10,
       "12 津波ページ二段mix": 6,
       "13 opacity経路": 1,
       "14 dim×通常レーン警報本文": 7,
     });
-    expect(pairs.length).toBe(165);
+    expect(pairs.length).toBe(190);
   });
   it("カテゴリ 11 (dim×high lane) は tsunamiMajor を列挙しない (実ペアは cat9)", () => {
     expect(find("dim-high-tsunamiMajor")).toBeUndefined();

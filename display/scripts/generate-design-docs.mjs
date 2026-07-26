@@ -267,9 +267,13 @@ export function evaluatePairs(map) {
   // 3 震度 rank 面
   out.push(makePair("int8", "3 震度rank面", "base", c("--int-8-on"), c("--int-8-bg"), "normal"));
   out.push(makePair("int9", "3 震度rank面", "base", c("--int-9-on"), c("--int-9-bg"), "normal"));
-  // 4 role 文字色 × (bg + surface-high)
+  // 4 role 文字色 × (bg + surface-high + surface-panel)
+  // --surface-panel は緊急パネルの地。WeatherEmergencyPanel が「面を持つのは詳細一覧だけ」構成へ
+  // 変わり (2026-07-26)、role 色と --role-muted をパネル地の上へ直接置くようになったため監査対象に
+  // 加えた。現値では --surface-panel が --surface-container / tier で --surface-high を指すので
+  // 実質は既存ペアの再掲だが、独立色へ変えたときの回帰をここで拾う
   for (const r of ROLE_TEXT) {
-    for (const s of ["--bg", "--surface-high"]) out.push(makePair(`role-${r}-on-${s}`, "4 role文字色", "base", c(`--role-${r}`), c(s), "normal"));
+    for (const s of ["--bg", "--surface-high", "--surface-panel"]) out.push(makePair(`role-${r}-on-${s}`, "4 role文字色", "base", c(`--role-${r}`), c(s), "normal"));
   }
   // 5 ヘッダ 3 層 (全 10 ペア)
   for (const r of HEADER_ROLES) out.push(makePair(`hdr-${r}`, "5 ヘッダ3層", "base", c(`--header-${r}-on`), c(`--header-${r}-container`), "normal"));
@@ -304,10 +308,22 @@ export function evaluatePairs(map) {
   const film = (name) => compositeOver(OVERLAY_CRITICAL, 0.34, color(name));
   const overlayNote = "TierOverlay.svelte:33-35 critical 全画面フィルム。縁の最大α=0.34 で保守側 (中心0.1)";
   for (const fg of ["--fg", "--role-muted"]) {
-    for (const s of ["--surface-high", "--surface-highest"]) {
+    for (const s of ["--surface-high", "--surface-highest", "--surface-panel"]) {
       out.push(makePair(`overlay-${fg}-on-${s}`, "10 critical overlay合成", "tier-overlay",
         { label: `film(${fg})`, color: film(fg) },
         { label: `film(${s})`, color: film(s) }, "normal", overlayNote));
+    }
+  }
+  // 気象の意味色をパネル面の**文字**に使う組合せ。critical フィルム下では AA を割るため
+  // WeatherEmergencyPanel は critical tier で主要文字を --fg へ退避する (2026-07-26)。
+  // 「使わないから監査しない」ではなく表に残し、許容リストで理由を明示する — UI 側の退避を
+  // 外したときに、ここが FAIL として気づける状態を保つため
+  for (const r of ["weatherEmergency", "weatherWarning"]) {
+    for (const s of ["--surface-high", "--surface-highest", "--surface-panel"]) {
+      out.push(makePair(`overlay-role-${r}-on-${s}`, "10 critical overlay合成", "tier-overlay",
+        { label: `film(--role-${r})`, color: film(`--role-${r}`) },
+        { label: `film(${s})`, color: film(s) }, "normal",
+        "critical 中は WeatherEmergencyPanel が主要文字を --fg へ退避する (意味色は帯とレールに残す)"));
     }
   }
   for (const r of HEADER_ROLES) {
@@ -377,10 +393,32 @@ export const ALLOWLIST = [
     pair_ids: [
       "base---fg-faint",
       "role-connectionOk-on---bg", "role-connectionOk-on---surface-high",
+      "role-connectionOk-on---surface-panel",
     ],
     reason: "意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)",
     applies_when: "*",
-    last_verified_input_hash: "54b7286f3233",
+    // 2026-07-26 再審査: cat4 の面に --surface-panel を追加したことで対象ペアが 1 件増えた
+    // (role-connectionOk-on---surface-panel = 3.00:1)。性質は既存の 2 件 (3.27:1 / 2.84:1) と同じ
+    // 「沈んでいてよい」接続正常ドットで、判断は変わらないため許容を継続して hash を更新した
+    last_verified_input_hash: "97141e14f894",
+  },
+  {
+    id: "critical-overlay-weather-role-not-used-as-text",
+    // critical フィルム下で気象の意味色を**文字**に使うと AA を割る (3.21〜4.44:1)。
+    // WeatherEmergencyPanel は critical tier で主要文字を --fg へ退避する (6.85〜7.81:1) ので
+    // この組合せは実際には描かれない。「使わないから監査しない」ではなく表に残し、UI 側の
+    // 退避を外したら FAIL として気づける状態にしておく (2026-07-26 追加)
+    pair_ids: [
+      "overlay-role-weatherEmergency-on---surface-high",
+      "overlay-role-weatherEmergency-on---surface-highest",
+      "overlay-role-weatherEmergency-on---surface-panel",
+      "overlay-role-weatherWarning-on---surface-high",
+      "overlay-role-weatherWarning-on---surface-highest",
+      "overlay-role-weatherWarning-on---surface-panel",
+    ],
+    reason: "critical 中はパネルが主要文字を --fg へ退避するため、この組合せは文字として描かれない (意味色は帯とレールの非テキストに残る)",
+    applies_when: "state=tier-overlay",
+    last_verified_input_hash: "81629ec83250",
   },
   {
     id: "night-dim-advisory-only",
