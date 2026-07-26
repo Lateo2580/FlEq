@@ -333,7 +333,7 @@ describe("StandbyScreen", () => {
       sseConnected: true,
     });
     expect(container.querySelector(".tsunami-corner")).toBeTruthy();
-    expect(container.querySelector(".banner-header")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+    expect(container.querySelector(".banner-title")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
       "津波警報 発令中",
     );
   });

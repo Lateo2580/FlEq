@@ -2,6 +2,7 @@
   import type { ActiveStandbyCardV1, DisplayWeatherAlertItemV1, DisplayWeatherAlertV1, DisplayWeatherRank } from "../lib/protocol";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
   import RestoredChip from "./RestoredChip.svelte";
+  import UpdatedStamp from "./UpdatedStamp.svelte";
 
   let { alerts, tornado = null }: { alerts: DisplayWeatherAlertV1[]; tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null } = $props();
 
@@ -15,6 +16,24 @@
 
   const topRole = $derived(
     [...alerts].sort((a, b) => rankOfRole(b.role) - rankOfRole(a.role))[0]?.role ?? "weatherWarning",
+  );
+
+  // 最終更新時刻 (ご主人要望 2026-07-26)。VPWS50 / VPWW56 は独立に届くので、カードが束ねている
+  // alert のうち最も新しい updatedAt を採る (このカードは複数 source をまとめて 1 枚で見せるため、
+  // 「このカードの中身がいつの情報か」の答えは最新の受理時刻になる)。空配列は null
+  // **文字列比較にしない**: ISO 文字列はオフセット表記が違うと辞書順と時系列順が一致しない。
+  // 起動 seed は `toISOString()` の `Z`、live 更新は電文の reportDateTime (`+09:00`) をそのまま
+  // 運ぶので、実際に混在しうる ("2026-07-08T00:05:00.000Z" は "2026-07-08T09:00:00+09:00" より
+  // 5 分新しいが、辞書順では後者が勝つ)。時刻として解釈してから比べる
+  const instantOf = (iso: string): number => {
+    const ms = Date.parse(iso);
+    return Number.isFinite(ms) ? ms : Number.NEGATIVE_INFINITY;
+  };
+  const latestUpdatedAt = $derived(
+    alerts.reduce<string | null>(
+      (latest, a) => (latest == null || instantOf(a.updatedAt) > instantOf(latest) ? a.updatedAt : latest),
+      null,
+    ),
   );
 
   function headerLabel(role: string): string {
@@ -83,7 +102,7 @@
     <div
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
-    >{headerLabel(topRole)}</div>
+    >{headerLabel(topRole)}<UpdatedStamp iso={latestUpdatedAt} /></div>
     {#if alerts.length > 0}<ul>
       {#each items as it (it.kind + it.rank)}
         <li class="rank-{it.rank}">
@@ -125,6 +144,9 @@
     color: var(--fg);
   }
   .card-header {
+    /* 最終更新時刻を右端へ寄せるため flex 行にする (他カードの header と同じ文法) */
+    display: flex;
+    align-items: center;
     font-size: var(--type-title-s-fluid);
     font-weight: var(--type-title-weight-emphasized);
     padding: var(--space-2) var(--space-4);

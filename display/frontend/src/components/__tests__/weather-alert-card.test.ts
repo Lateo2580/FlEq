@@ -50,7 +50,9 @@ describe("WeatherAlertCard", () => {
     });
     const { container } = render(WeatherAlertCard, { alerts: [alert] });
     const header = container.querySelector(".card-header");
-    expect(header?.textContent?.trim()).toBe("気象特別警報");
+    // 見出しラベルの後ろに最終更新時刻 (UpdatedStamp) が並ぶため、ラベルは前方一致で見る
+    expect(header?.textContent?.trim().startsWith("気象特別警報")).toBe(true);
+    expect(header?.querySelector(".updated-stamp")?.textContent).toContain("更新");
     expect(header?.getAttribute("style")).toContain("var(--header-weatherEmergency-container)");
   });
 

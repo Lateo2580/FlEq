@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import RestoredChip from "./RestoredChip.svelte";
+  import UpdatedStamp from "./UpdatedStamp.svelte";
   import NumberUnit from "./NumberUnit.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> } = $props();
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
@@ -10,7 +11,7 @@
 </script>
 
 <section class="standby-card typhoon-card">
-  <header>台風情報{#if item.restored}<RestoredChip />{/if}</header>
+  <header>台風情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
   {#each item.data.typhoons as typhoon (typhoon.typhoonKey)}
     <!-- 未命名 (発生予想等) は総称の「台風」を出さず remark を主行に昇格させる (2 行の冗長回避) -->
     <div class="typhoon">

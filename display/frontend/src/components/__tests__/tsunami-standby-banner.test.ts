@@ -27,7 +27,7 @@ function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunami
 describe("TsunamiStandbyBanner", () => {
   it("単一レベルのみなら「等」を付けずに見出しを出す", () => {
     const { container } = render(TsunamiStandbyBanner, { tsunami: tsunamiState() });
-    const header = container.querySelector(".banner-header");
+    const header = container.querySelector(".banner-title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("津波警報 発令中");
   });
 
@@ -51,7 +51,7 @@ describe("TsunamiStandbyBanner", () => {
       ],
     });
     const { container } = render(TsunamiStandbyBanner, { tsunami });
-    const header = container.querySelector(".banner-header");
+    const header = container.querySelector(".banner-title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("大津波警報等 発令中");
   });
 
@@ -93,7 +93,7 @@ describe("TsunamiStandbyBanner", () => {
     });
     const { container } = render(TsunamiStandbyBanner, { tsunami });
     expect(container.querySelector(".banner-counts")).toBeFalsy();
-    const header = container.querySelector(".banner-header");
+    const header = container.querySelector(".banner-title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("津波注意報 発令中");
   });
 
@@ -105,7 +105,7 @@ describe("TsunamiStandbyBanner", () => {
       ],
     });
     const { container } = render(TsunamiStandbyBanner, { tsunami });
-    const header = container.querySelector(".banner-header");
+    const header = container.querySelector(".banner-title");
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("大津波警報 発令中");
     const items = Array.from(container.querySelectorAll(".count-chip")).map((el) => el.textContent);
     expect(items).toEqual(["大津波 1"]);

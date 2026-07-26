@@ -14,6 +14,7 @@
     joinMarqueeSegments,
     nextSegmentIndex,
   } from "../lib/tsunami-marquee-sequence";
+  import UpdatedStamp from "./UpdatedStamp.svelte";
 
   // onReplayLevel: チップクリックでその種別のテロップ再生を要求する (2026-07-14)。省略時は非対話。
   let { tsunami, onReplayLevel }: {
@@ -153,7 +154,7 @@
     class="banner-header"
     style="background: {headerContainerVar(highest)}; color: {headerOnVar(highest)}; border-bottom: var(--header-band-width) solid {headerBandVar(highest)}"
   >
-    {highestLabel(highest)}{#if hasMultipleLevels}<span class="etc">等</span>{/if} 発令中
+    <span class="banner-title">{highestLabel(highest)}{#if hasMultipleLevels}<span class="etc">等</span>{/if} 発令中</span><UpdatedStamp iso={tsunami.reportDateTime} />
   </div>
   {#if summaries.length > 0}
     <div class="banner-counts">
@@ -199,6 +200,9 @@
     color: var(--fg);
   }
   .banner-header {
+    /* 最終更新時刻を右端へ寄せるため flex 行にする (カード header と同じ文法) */
+    display: flex;
+    align-items: center;
     font-size: var(--type-title-s-fluid);
     font-weight: var(--type-title-weight-emphasized);
     padding: 8px 16px;
