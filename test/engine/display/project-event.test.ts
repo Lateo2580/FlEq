@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildTickerDetail, normalizeDepth, projectDisplayEvent, tickerPriority } from "../../../src/engine/display/project-event";
+import {
+  buildTickerDetail,
+  groupIntensityAreas,
+  normalizeDepth,
+  projectDisplayEvent,
+  tickerPriority,
+} from "../../../src/engine/display/project-event";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 
 describe("normalizeDepth", () => {
@@ -22,6 +28,20 @@ describe("normalizeDepth", () => {
 
   it("数値のみの文字列は km を補う (防御的正規化)", () => {
     expect(normalizeDepth("10")).toBe("10km");
+  });
+});
+
+describe("groupIntensityAreas", () => {
+  it("震度文字列の空白を除去して同じグループへまとめる", () => {
+    expect(groupIntensityAreas([
+      { name: "熊本県熊本地方", maxInt: "6強" },
+      { name: "熊本県阿蘇地方", maxInt: "6強 " },
+    ])).toEqual([{
+      intensity: "6強",
+      rank: 8,
+      areas: ["熊本県熊本地方", "熊本県阿蘇地方"],
+      omittedAreaCount: 0,
+    }]);
   });
 });
 
@@ -122,6 +142,28 @@ describe("buildTickerDetail", () => {
       }),
     );
     expect(detail).toBe("岩手県、宮城県");
+  });
+
+  it.each(["", " "])("空の maxInt (%j) は無視して地域名だけを列挙する", (maxInt) => {
+    const detail = buildTickerDetail(
+      baseEvent({
+        domain: "earthquake",
+        headline: null,
+        areaItems: [{ name: "熊本県熊本地方", maxInt }],
+      }),
+    );
+    expect(detail).toBe("熊本県熊本地方");
+  });
+
+  it("空白のみの maxInt は無視して kind グループへ進む", () => {
+    const detail = buildTickerDetail(
+      baseEvent({
+        domain: "weather",
+        headline: null,
+        areaItems: [{ name: "山鹿市", maxInt: " ", kind: "大雨警報" }],
+      }),
+    );
+    expect(detail).toBe("大雨警報: 山鹿市");
   });
 
   it("headline のみでも詳細文になる (areaItems 空)", () => {
@@ -246,6 +288,7 @@ describe("projectDisplayEvent", () => {
     expect(dto.emergency).toMatchObject({ kind: "eew", eventId: "E1", serial: "3", isWarning: true, colorIndex: 2 });
     expect(dto.groupKey).toBe("eew:E1");
     expect(dto.summary.role).toBe("eewWarning");
+    expect(dto.tickerSuppressed).toBe(true);
   });
 
   it("津波警報を emergency(tsunami) に射影する", () => {
@@ -646,5 +689,13 @@ describe("tickerSuppressed (情報ゼロ電文の抑制、spec 2026-07-23 T5-2)"
   it("他ドメインは常に false", () => {
     const dto = projectDisplayEvent(baseEvent({}), "s");
     expect(dto.tickerSuppressed).toBe(false);
+  });
+
+  it("EEW は取消を含め常にテロップから除外する", () => {
+    const dto = projectDisplayEvent(
+      baseEvent({ domain: "eew", type: "VXSE45", isCancellation: true, infoType: "取消" }),
+      "s",
+    );
+    expect(dto.tickerSuppressed).toBe(true);
   });
 });

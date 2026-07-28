@@ -200,14 +200,6 @@ describe("InfoDisplayHub: ingest / ring buffer", () => {
 });
 
 describe("sweepTicker: 優先度別 TTL (spec §3-1)", () => {
-  it("inactive EEW は 10 分超で除去する", () => {
-    const { hub } = makeHub();
-    hub.ingest(eewEvent("E1", "1"));
-    hub.ingest({ ...eewEvent("E1", "2"), isCancellation: true });
-    hub.sweepTicker(T0 + 10 * 60_000 + 1);
-    expect(hub.buildSnapshot().recentTicker).toEqual([]);
-  });
-
   it("全 TTL を超えた recent エントリを除去し true を返す", () => {
     const { hub } = makeHub();
     hub.ingest(weatherEvent("w1")); // active な警報 groupKey に該当しない一般電文
@@ -215,13 +207,6 @@ describe("sweepTicker: 優先度別 TTL (spec §3-1)", () => {
     const removed = hub.sweepTicker(T0 + 3 * 60 * 60_000 + 60_000);
     expect(removed).toBe(true);
     expect(hub.buildSnapshot().recentTicker.length).toBe(0);
-  });
-
-  it("active EEW に対応するエントリは TTL 超過でも残す", () => {
-    const { hub } = makeHub();
-    hub.ingest(eewEvent("E1", "1")); // activeEews に E1 → activeAlertKeys に eew:E1、groupKey も eew:E1
-    hub.sweepTicker(T0 + 3 * 60 * 60_000 + 60_000);
-    expect(hub.buildSnapshot().recentTicker.some((d) => d.groupKey === "eew:E1")).toBe(true);
   });
 
   it("TTL 内は除去しない", () => {
@@ -341,8 +326,8 @@ describe("InfoDisplayHub: 定期 state の recentTicker (SSE バイト上限対�
     expect(transport.states().length).toBe(1);
     expect(transport.states()[0].snapshot.recentTicker).toEqual([]);
     expect(transport.states()[0].snapshot.tickerSynced).toBeUndefined();
-    // buildSnapshot() (接続時 snapshot 用) は従来どおりフル
-    expect(hub.buildSnapshot().recentTicker.length).toBeGreaterThan(0);
+    // EEW は engine でテロップ抑制済みのため、接続時 snapshot にも積まれない
+    expect(hub.buildSnapshot().recentTicker).toEqual([]);
   });
 
   it("startTimers の定期 sweep が recentTicker の構成を変えたら次の state 配信に recentTicker + tickerSynced:true が一発同梱される (spec §3-2、レビュー Important 対応)", () => {

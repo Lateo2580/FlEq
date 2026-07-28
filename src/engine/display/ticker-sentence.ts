@@ -23,6 +23,7 @@ import { resolveTsunamiLevel, normalizeTsunamiKind } from "../../utils/tsunami-k
 import { flattenEntries, type WeatherSeverityEntry } from "../presentation/weather-severity-pyramid";
 import { normalizeKindName, KIND_NAME_MAP } from "../../dmdata/weather-warning-timeseries-significancy";
 import { DISPLAY_SEVERITY_RANK } from "../../dmdata/weather-warning-level";
+import { groupIntensityAreas } from "./intensity-groups";
 
 const CATEGORY_LABELS: Record<string, string> = {
   eew: "緊急地震速報",
@@ -126,24 +127,52 @@ function formatJst12h(iso: string): string | null {
 }
 
 function topIntensityAreas(items: PresentationAreaItem[]): { intensity: string; names: string[] } | null {
-  const withInt = items.filter((i) => i.maxInt != null);
-  if (withInt.length === 0) return null;
-  // areaItems は未ソートで届き得る (既存 groupIntensityAreas がソートを担っている) ため、
-  // rank で真の最大震度を求める
-  let top = withInt[0].maxInt as string;
-  for (const i of withInt) {
-    if (intensityToRank(i.maxInt as string) > intensityToRank(top)) top = i.maxInt as string;
+  const top = groupIntensityAreas(items)[0];
+  return top != null ? { intensity: top.intensity, names: top.areas } : null;
+}
+
+const EARTHQUAKE_FALLBACK_MAX_LENGTH = 180;
+const EARTHQUAKE_AREA_SUMMARY_MAX_LENGTH = 120;
+const EARTHQUAKE_AREA_NAME_MAX_LENGTH = 16;
+
+function ellipsize(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  if (maxLength <= 1) return "…".slice(0, maxLength);
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+function earthquakeAreaSummary(items: PresentationAreaItem[]): string | null {
+  const groups = groupIntensityAreas(items);
+  if (groups.length === 0) return null;
+  const parts: string[] = [];
+  let consumed = 0;
+  for (const group of groups) {
+    const listed = group.areas
+      .slice(0, 2)
+      .map((name) => ellipsize(name.trim(), EARTHQUAKE_AREA_NAME_MAX_LENGTH))
+      .join("・");
+    const omitted = group.areas.length - 2;
+    const part = `震度${group.intensity} ${listed}${omitted > 0 ? ` ほか${omitted}地域` : ""}`;
+    const candidate = [...parts, part].join("／");
+    const remaining = groups.length - consumed - 1;
+    const folded = remaining > 0 ? `${candidate}／ほか${remaining}震度` : candidate;
+    if (folded.length > EARTHQUAKE_AREA_SUMMARY_MAX_LENGTH && parts.length > 0) break;
+    parts.push(ellipsize(part, EARTHQUAKE_AREA_SUMMARY_MAX_LENGTH));
+    consumed += 1;
   }
-  return { intensity: top, names: withInt.filter((i) => i.maxInt === top).map((i) => i.name) };
+  const remaining = groups.length - consumed;
+  const suffix = remaining > 0 ? `／ほか${remaining}震度` : "";
+  return ellipsize(`${parts.join("／")}${suffix}`, EARTHQUAKE_AREA_SUMMARY_MAX_LENGTH);
 }
 
 function earthquakeSentence(event: PresentationEvent): string | null {
   if (event.isCancellation) return "先ほどの地震情報は取り消されました。";
-  if (event.hypocenterName == null) return null;
+  const hypocenterName = event.hypocenterName?.trim();
+  if (hypocenterName == null || hypocenterName === "") return null;
   const time = event.originTime != null ? formatJst12h(event.originTime) : null;
   const head = time != null ? `${time}、` : "";
   const mag = event.magnitude != null ? `マグニチュード${event.magnitude}の地震` : "地震";
-  let sentence = `${head}${event.hypocenterName}を震源とする${mag}がありました。`;
+  let sentence = `${head}${hypocenterName}を震源とする${mag}がありました。`;
   const top = topIntensityAreas(event.areaItems);
   if (top != null && top.names.length > 0) {
     const listed = top.names.slice(0, 2).join("・");
@@ -451,6 +480,15 @@ export function buildTickerSentence(event: PresentationEvent): string {
         break;
       case "earthquake":
         sentence = earthquakeSentence(event);
+        if (sentence == null && !event.isCancellation) {
+          const areas = earthquakeAreaSummary(event.areaItems);
+          if (areas != null) {
+            const prefix = event.headline?.trim() || event.title.trim();
+            if (prefix === "") return areas;
+            const prefixBudget = EARTHQUAKE_FALLBACK_MAX_LENGTH - areas.length - 1;
+            return `${ellipsize(ensurePeriod(prefix), prefixBudget)} ${areas}`;
+          }
+        }
         break;
       case "eew":
         sentence = eewSentence(event);

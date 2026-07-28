@@ -258,36 +258,9 @@ describe("deriveEmergencyPanels", () => {
 });
 
 describe("deriveTickerLines", () => {
-  it("⑧ 緊急パネル表示中の groupKey の行を除外する", () => {
-    const state: DisplayClientState = baseState({
-      activeEews: [eewFixture({ eventId: "E1", serial: "1", isWarning: true })],
-      tsunami: tsunamiFixture(),
-      ticker: [
-        tickerEvent({ id: "a", groupKey: "eew:E1" }),
-        tickerEvent({ id: "b", groupKey: "tsunami" }),
-        tickerEvent({ id: "c", groupKey: null }),
-      ],
-    });
-    const lines = deriveTickerLines(state);
-    expect(lines.map((e) => e.id)).toEqual(["b", "c"]);
-  });
-
-  it("代表 high (active EEW と同 groupKey) は除外せずテロップへ届ける (Critical 1)", () => {
-    const state: DisplayClientState = baseState({
-      activeEews: [eewFixture({ eventId: "E1", serial: "1", isWarning: true })],
-      ticker: [
-        tickerEvent({ id: "hi", groupKey: "eew:E1", tickerPriority: "high" }),
-        tickerEvent({ id: "lo", groupKey: "weatherExplanation:W1", tickerPriority: "low" }),
-      ],
-    });
-    const lines = deriveTickerLines(state);
-    expect(lines.map((e) => e.id)).toContain("hi"); // high は active groupKey でも残る
-  });
-
   it("届いた high が実際に low レーンを fading で割込む (derive→scheduler 統合)", () => {
     const state: DisplayClientState = baseState({
-      activeEews: [eewFixture({ eventId: "E1", isWarning: true })],
-      ticker: [tickerEvent({ id: "hi", eventKey: "eew:E1:1", groupKey: "eew:E1", tickerPriority: "high", tickerSentence: "緊急地震速報" })],
+      ticker: [tickerEvent({ id: "hi", eventKey: "quake:Q1:1", groupKey: "quake:Q1", tickerPriority: "high", tickerSentence: "地震情報" })],
     });
     const hiLine = deriveTickerLines(state).find((e) => e.id === "hi")!;
     // 両レーン low 走行中に high を投入 → assignLanes で片方が fading

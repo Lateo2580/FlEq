@@ -4,14 +4,18 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "../../../src/engine/display/http-server";
+import { InfoDisplayHub } from "../../../src/engine/display/hub";
+import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { InProcessSseDisplayTransport } from "../../../src/engine/display/transport";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
+import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
 import type {
   DisplayEventDtoV1,
   DisplayIntensityGroupV1,
   DisplayLargeQuakeStateV1,
   DisplayRecentQuakeV1,
+  DisplayServerMessage,
   DisplayStateSnapshotV1,
   DisplayWeatherAlertV1,
 } from "../../../src/engine/display/types";
@@ -42,6 +46,41 @@ function rawGet(port: number, rawPath: string): Promise<{ status: number; body: 
 }
 
 const baseSnapshot = displaySnapshot;
+
+function eewPresentationEvent(): PresentationEvent {
+  return {
+    id: "eew-E1-1",
+    classification: "eew.warning",
+    domain: "eew",
+    type: "VXSE45",
+    infoType: "発表",
+    title: "緊急地震速報（警報）",
+    headline: null,
+    reportDateTime: "2026-07-06T21:00:00+09:00",
+    publishingOffice: "気象庁",
+    isTest: false,
+    frameLevel: "critical",
+    isCancellation: false,
+    areaNames: [],
+    forecastAreaNames: [],
+    municipalityNames: [],
+    observationNames: [],
+    areaCount: 0,
+    forecastAreaCount: 0,
+    municipalityCount: 0,
+    observationCount: 0,
+    areaItems: [],
+    raw: null,
+    eventId: "E1",
+    serial: "1",
+    isWarning: true,
+    isFinal: false,
+    hypocenterName: "能登半島沖",
+    forecastMaxInt: "5強",
+    forecastMaxIntRank: 6,
+    magnitude: "6.5",
+  } as PresentationEvent;
+}
 
 /** JSON 化後に MAX_SNAPSHOT_BYTES (256KB) を超える recentTicker を生成する */
 function hugeRecentTicker(): DisplayEventDtoV1[] {
@@ -80,9 +119,10 @@ function hugeWeatherAlerts(): DisplayWeatherAlertV1[] {
   ];
 }
 
-/** SSE の最初の 1 メッセージ ("\n\n" 終端) を、複数 TCP チャンクに跨っても取りこぼさず読む */
-async function readFirstSseMessage(res: Response): Promise<{ type: string; snapshot: DisplayStateSnapshotV1 }> {
-  const reader = res.body!.getReader();
+/** SSE の次の 1 メッセージ ("\n\n" 終端) を、複数 TCP チャンクに跨っても取りこぼさず読む */
+async function readNextSseMessage(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<DisplayServerMessage> {
   let buf = "";
   for (;;) {
     const { value, done } = await reader.read();
@@ -90,10 +130,18 @@ async function readFirstSseMessage(res: Response): Promise<{ type: string; snaps
     buf += new TextDecoder().decode(value);
     if (buf.includes("\n\n")) break;
   }
-  await reader.cancel();
   const dataLine = buf.split("\n").find((l) => l.startsWith("data: "));
   if (dataLine == null) throw new Error("data 行を受信できなかった: " + buf.slice(0, 200));
-  return JSON.parse(dataLine.slice("data: ".length)) as { type: string; snapshot: DisplayStateSnapshotV1 };
+  return JSON.parse(dataLine.slice("data: ".length)) as DisplayServerMessage;
+}
+
+/** SSE の最初の snapshot を読み、接続を閉じる。 */
+async function readFirstSseMessage(res: Response): Promise<{ type: "snapshot"; snapshot: DisplayStateSnapshotV1 }> {
+  const reader = res.body!.getReader();
+  const message = await readNextSseMessage(reader);
+  await reader.cancel();
+  if (message.type !== "snapshot") throw new Error(`snapshot ではない初期メッセージ: ${message.type}`);
+  return message;
 }
 
 /** 通常サイズの recentQuakes (縮退で温存されるべき軽量な地震履歴)。件数を引数で指定する */
@@ -506,6 +554,36 @@ describe("InProcessSseDisplayTransport", () => {
     await reconnectedReader.read();
     expect(clientCounts.at(-1)).toBe(1);
     await reconnectedReader.cancel();
+  });
+
+  it("EEW は hub→SSE event と再接続 snapshot のどちらでもテロップに積まれない", async () => {
+    const store = new DisplayStateStore();
+    const hub = new InfoDisplayHub(store, {
+      summarize: () => "EEW要約",
+      weatherAlerts: () => [],
+      now: () => Date.parse("2026-07-06T21:00:00+09:00"),
+    });
+    const t = await startTransport(() => hub.buildSnapshot());
+    hub.attachTransport(t);
+
+    const live = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const liveReader = live.body!.getReader();
+    expect((await readNextSseMessage(liveReader)).type).toBe("snapshot");
+
+    hub.ingest(eewPresentationEvent());
+    const eventMessage = await readNextSseMessage(liveReader);
+    expect(eventMessage.type).toBe("event");
+    if (eventMessage.type !== "event") throw new Error("EEW event が SSE 配信されなかった");
+    expect(eventMessage.event.tickerSuppressed).toBe(true);
+    await liveReader.cancel();
+
+    const reconnected = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const snapshotMessage = await readFirstSseMessage(reconnected);
+    expect(snapshotMessage.snapshot.recentTicker).toEqual([]);
+    expect(snapshotMessage.snapshot.activeEews).toEqual(
+      expect.arrayContaining([expect.objectContaining({ eventId: "E1" })]),
+    );
+    hub.stop();
   });
 
   it("⑤ distDir に index.html が無いと start() が reject", async () => {

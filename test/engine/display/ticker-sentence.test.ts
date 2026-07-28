@@ -129,6 +129,122 @@ describe("buildTickerSentence", () => {
     );
   });
 
+  it("地震: 震源不明時は headline に震度別の地域要約を続ける", () => {
+    const event = makeEvent({
+      headline: "震度3以上の地域をお知らせします。",
+      hypocenterName: null,
+      areaItems: [
+        { name: "熊本県熊本地方", maxInt: "7" },
+        { name: "熊本県阿蘇地方", maxInt: "6強" },
+        { name: "熊本県天草・芦北地方", maxInt: "6強" },
+        { name: "熊本県球磨地方", maxInt: "6強" },
+        { name: "熊本県宇城八代地方", maxInt: "6強" },
+        { name: "熊本県玉名・山鹿地方", maxInt: "5強" },
+      ],
+    });
+    expect(buildTickerSentence(event)).toBe(
+      "震度3以上の地域をお知らせします。 震度7 熊本県熊本地方／震度6強 熊本県阿蘇地方・熊本県天草・芦北地方 ほか2地域／震度5強 熊本県玉名・山鹿地方",
+    );
+  });
+
+  it("地震: 空文字の震源名も震源不明として地域要約へ進む", () => {
+    const event = makeEvent({
+      headline: "震度3以上の地域をお知らせします。",
+      hypocenterName: "",
+      areaItems: [{ name: "熊本県熊本地方", maxInt: "7" }],
+    });
+    expect(buildTickerSentence(event)).toBe(
+      "震度3以上の地域をお知らせします。 震度7 熊本県熊本地方",
+    );
+  });
+
+  it("地震: 空白のみの震源名も震源不明として扱う", () => {
+    const event = makeEvent({
+      headline: "震度3以上の地域をお知らせします。",
+      hypocenterName: "   ",
+      areaItems: [{ name: "熊本県熊本地方", maxInt: "7" }],
+    });
+    expect(buildTickerSentence(event)).toBe(
+      "震度3以上の地域をお知らせします。 震度7 熊本県熊本地方",
+    );
+  });
+
+  it("地震: 空白違いの震度を統合して省略地域数を数える", () => {
+    const event = makeEvent({
+      headline: "震度3以上の地域をお知らせします。",
+      hypocenterName: "",
+      areaItems: [
+        { name: "熊本県熊本地方", maxInt: "6強" },
+        { name: "熊本県阿蘇地方", maxInt: "6強 " },
+        { name: "熊本県天草・芦北地方", maxInt: "6強" },
+        { name: "熊本県球磨地方", maxInt: "6強 " },
+      ],
+    });
+    expect(buildTickerSentence(event)).toBe(
+      "震度3以上の地域をお知らせします。 震度6強 熊本県熊本地方・熊本県阿蘇地方 ほか2地域",
+    );
+  });
+
+  it("地震: headline が空なら title を地域要約の前置に使う", () => {
+    const event = makeEvent({
+      title: "震度速報",
+      headline: "  ",
+      hypocenterName: "",
+      areaItems: [{ name: "熊本県熊本地方", maxInt: "4" }],
+    });
+    expect(buildTickerSentence(event)).toBe("震度速報。 震度4 熊本県熊本地方");
+  });
+
+  it("地震: headline と title が空なら地域要約単独を返す", () => {
+    const event = makeEvent({
+      title: "",
+      headline: "",
+      hypocenterName: "",
+      areaItems: [{ name: "熊本県熊本地方", maxInt: "4" }],
+    });
+    expect(buildTickerSentence(event)).toBe("震度4 熊本県熊本地方");
+  });
+
+  it("地震: 震源なし・空 headline・空 areas は title 単文へ戻る", () => {
+    const event = makeEvent({
+      title: "震度速報",
+      headline: "",
+      hypocenterName: "",
+      areaItems: [],
+    });
+    expect(buildTickerSentence(event)).toBe("震度速報。");
+  });
+
+  it("地震: 全 areaItems の maxInt 欠落時は headline 単文へ戻る", () => {
+    const event = makeEvent({
+      title: "震度速報",
+      headline: "震度3以上の地域をお知らせします。",
+      hypocenterName: "",
+      areaItems: [
+        { name: "熊本県熊本地方", maxInt: null },
+        { name: "熊本県阿蘇地方" },
+      ],
+    });
+    expect(buildTickerSentence(event)).toBe("震度3以上の地域をお知らせします。");
+  });
+
+  it("地震: 長い headline・地域名・多震度でもフォールバックは 180 文字以内", () => {
+    const intensities = ["7", "6強", "6弱", "5強", "5弱", "4", "3", "2", "1"];
+    const event = makeEvent({
+      headline: "非常に長い地震情報の見出しです。".repeat(20),
+      hypocenterName: "",
+      areaItems: intensities.flatMap((maxInt, groupIndex) =>
+        Array.from({ length: 4 }, (_, areaIndex) => ({
+          name: `非常に長い地域名称${groupIndex}-${areaIndex}`.repeat(3),
+          maxInt,
+        })),
+      ),
+    });
+    const sentence = buildTickerSentence(event);
+    expect(sentence.length).toBeLessThanOrEqual(180);
+    expect(sentence).toMatch(/ほか\d+震度/);
+  });
+
   it("地震: 00:05 は午前0時5分ごろ (NHK 式 12 時間制)", () => {
     const event = makeEvent({
       originTime: "2026-07-08T00:05:00+09:00",

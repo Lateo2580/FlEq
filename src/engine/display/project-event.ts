@@ -1,6 +1,7 @@
 import { intensityToRank } from "../../utils/intensity";
 import { normalizeTsunamiKind, resolveTsunamiLevel } from "../../utils/tsunami-kind";
 import type { PresentationAreaItem, PresentationEvent } from "../presentation/types";
+import { groupIntensityAreas } from "./intensity-groups";
 import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningTimeseriesSentence } from "./ticker-sentence";
 import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
@@ -9,7 +10,6 @@ import {
   type DisplayColorRole,
   type DisplayEmergencyInputV1,
   type DisplayEventDtoV1,
-  type DisplayIntensityGroupV1,
   type DisplayLatestQuakeInputV1,
   type DisplayRecentQuakeV1,
   type DisplayTickerPriority,
@@ -52,23 +52,7 @@ function pickAlertCoasts(
   }));
 }
 
-export function groupIntensityAreas(items: PresentationAreaItem[]): DisplayIntensityGroupV1[] {
-  const byIntensity = new Map<string, string[]>();
-  for (const item of items) {
-    if (item.maxInt == null) continue;
-    const areas = byIntensity.get(item.maxInt) ?? [];
-    areas.push(item.name);
-    byIntensity.set(item.maxInt, areas);
-  }
-  return [...byIntensity.entries()]
-    .map(([intensity, areas]) => ({
-      intensity,
-      rank: intensityToRank(intensity),
-      areas,
-      omittedAreaCount: 0,
-    }))
-    .sort((a, b) => b.rank - a.rank);
-}
+export { groupIntensityAreas } from "./intensity-groups";
 
 function projectEmergency(event: PresentationEvent): DisplayEmergencyInputV1 | null {
   if (event.domain === "eew") {
@@ -180,8 +164,8 @@ const AREA_SEPARATOR = "、";
  */
 function formatAreaGroups(items: PresentationAreaItem[]): string | null {
   if (items.length === 0) return null;
-  if (items.some((i) => i.maxInt != null)) {
-    const groups = groupIntensityAreas(items);
+  const groups = groupIntensityAreas(items);
+  if (groups.length > 0) {
     return groups.map((g) => `震度${g.intensity}: ${g.areas.join(AREA_SEPARATOR)}`).join(GROUP_SEPARATOR);
   }
   if (items.some((i) => i.kind != null)) {
@@ -303,10 +287,13 @@ export function projectDisplayEvent(event: PresentationEvent, summaryText: strin
   // title 単独のノイズテロップになるため流さない (「予測なし」文言は schema 差・parser 縮退でも
   // 起こり得る entries ゼロに偽の安心を与えるため不採用 — 対立的レビュー R2 裁定)
   const tickerSuppressed =
-    event.domain === "weatherWarningTimeseries" &&
-    !event.isCancellation &&
-    tickerBody == null &&
-    weatherWarningTimeseriesSentence(event) == null;
+    event.domain === "eew" ||
+    (
+      event.domain === "weatherWarningTimeseries" &&
+      !event.isCancellation &&
+      tickerBody == null &&
+      weatherWarningTimeseriesSentence(event) == null
+    );
   // 重要語句の強調は情報系 (low) と警報級手前 (mid) の本文テロップに載せる。high は割込み意匠と
   // severity 色体系に干渉させないため非適用。ルール側で value(数値)=low 専用、transition/status=low+mid に
   // 絞るため、mid では状態変化・重要状態のみが強調される。本文が縮退等で無いときは空 (強調なし)。
