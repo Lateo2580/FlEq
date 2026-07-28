@@ -15,7 +15,6 @@ export const STATE_DEBOUNCE_MS = 500;
 export const EEW_TTL_MIN = 10;
 export const EEW_FINAL_HOLD_SEC = 120;
 export const LARGE_QUAKE_HOLD_MIN = 10;
-export const TSUNAMI_DEMOTE_MIN = 10;
 /**
  * 気象警報 (L4/L5 相当) の主役パネル保持時間。**見られた時間の合計 3 分**で降格する
  * (降格判定は SWEEP_INTERVAL_MS 駆動なので最大 5 秒遅れる、spec 追補 C7)。

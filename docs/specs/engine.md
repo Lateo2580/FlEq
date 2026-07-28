@@ -3276,7 +3276,7 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - snapshot トップレベルに `weatherPromotion?` と `weatherL5Active?` を置く。各 alert 内ではなくトップレベルなのは、VPWS50 が rank 別に同 source の alert を複数持つため
 - **`demoted` は wire 上 null へ投影する** (`weatherPromotionForWire()`)。フロントは期限計算を一切せず「null でなければ主役パネル」とだけ解釈する。昇格状態の権威は engine 側にある
 - `weatherL5Active` は night-dim 用。パネル降格後も警報解除まで true (`isWeatherL5Active()`)
-- `deriveSeverityTier()` は demoted を含む record の `level` から L5 = `critical` / L4 = `alert` を採る。**降格後も解除まで tier を維持する** (津波の demote と同方針)
+- `deriveSeverityTier()` は demoted を含む record の `level` から L5 = `critical` / L4 = `alert` を採る。**降格後も解除まで tier を維持する**
 - `trigger?` / `addedAreas?` / `activationKey?` を entry に載せる。`activationKey` は**点灯イベントの通し番号**（`activationSeq`、new / update でだけ増える source またぎの watermark）で、**フロントはこれが変わったら再点灯演出を発火する** — パネルの key は固定・wire も更新中ずっと非 null なので、これが無いと内容更新で画面が動かない
 - snapshot 縮退（`capWeatherAreas`）は**追加地域を優先して残す**。素朴に先頭 N 件で切ると、追加地域が後方にあったときに真っ先に消えてハイライトが空振りする
 - `restoredItems?` は昇格根拠の控え。**live な `weatherAlerts` に当該 source が無く、かつ控えが空でないときだけ**載る (`promotionEntryForWire()`)。当該 source の電文を 1 通受理すれば `weatherAlerts` が権威になり、控えは wire から消える。詳細は「昇格根拠の控え」節

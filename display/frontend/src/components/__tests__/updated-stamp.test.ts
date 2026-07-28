@@ -49,7 +49,7 @@ function tsunamiState(reportDateTime: string): DisplayTsunamiStateV1 {
   return {
     kind: "tsunami", level: "warning", levelLabel: "津波警報",
     coasts: [{ name: "岩手県", kind: "warning", maxHeight: null, firstHeight: null }],
-    warningComment: null, observations: [], reportDateTime, demoted: false, updatedAtMs: 0,
+    warningComment: null, observations: [], reportDateTime, updatedAtMs: 0,
   };
 }
 

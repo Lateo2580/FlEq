@@ -115,6 +115,24 @@ function weatherInput(over: Partial<WeatherEmergencyInputV1> = {}): WeatherEmerg
 }
 
 describe("EmergencyScreen", () => {
+  it("4 カード同時では左主役と右 3 段の DOM スロットを順に持つ", () => {
+    const { container } = render(EmergencyScreen, {
+      panels: [
+        panel("tsunami:current", tsunamiInput()),
+        panel("eew:E1", eewInput()),
+        panel("quake:Q1", quakeInput()),
+        panel("weather:current", weatherInput()),
+      ],
+    });
+    const slots = [...container.querySelectorAll<HTMLElement>(".panel-slot")];
+    expect(slots.map((slot) => slot.dataset.testid))
+      .toEqual(["tsunami:current", "eew:E1", "quake:Q1", "weather:current"]);
+    expect(slots[0].classList.contains("is-main")).toBe(true);
+    expect(slots.slice(1).map((slot) => slot.getAttribute("style")))
+      .toEqual(["grid-column: 3; grid-row: 1;", "grid-column: 3; grid-row: 3;", "grid-column: 3; grid-row: 5;"]);
+    expect(slots[2].textContent).toContain("09:58 発生");
+  });
+
   it("④ EewPanel が 震央/推定最大震度/M/続報番号 を render する", () => {
     const { container } = render(EmergencyScreen, { panels: [panel("eew:1", eewInput())] });
     expect(screen.getByText("浦河沖")).toBeTruthy();
@@ -479,7 +497,7 @@ describe("EmergencyScreen", () => {
       };
       // jsdom は CSS を解決しないので実効フォントサイズも与える (地域件数の算出に要る)
       const origComputed = window.getComputedStyle;
-      window.getComputedStyle = ((el: Element) =>
+      window.getComputedStyle = (() =>
         ({ fontSize: "20px", getPropertyValue: () => "" }) as unknown as CSSStyleDeclaration) as typeof window.getComputedStyle;
       try {
         const items = Array.from({ length: 4 }, (_, i) =>

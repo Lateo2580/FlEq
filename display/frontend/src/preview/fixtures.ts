@@ -457,14 +457,13 @@ const tsunamiMajorInput: DisplayTsunamiInputV1 = {
   reportDateTime: NOW_ISO,
 };
 
-export const tsunamiAdvisoryDemoted: DisplayTsunamiStateV1 = {
+export const tsunamiAdvisory: DisplayTsunamiStateV1 = {
   ...tsunamiAdvisoryInput,
-  demoted: true,
   updatedAtMs: NOW_MS,
 };
 
 // standby-tsunami シナリオ用: 待機画面の津波継続バナーが「複数レベル混在 + 多地域 + 観測あり」を
-// 一望できるよう、大津波警報/津波警報/津波注意報が別地域に混在した demoted 状態を用意する (Phase 2)
+// 一望できるよう、大津波警報/津波警報/津波注意報が別地域に混在した状態を用意する (Phase 2)
 const tsunamiBannerCoasts: DisplayTsunamiInputV1["coasts"] = [
   { name: "宮崎県", kind: "大津波警報", maxHeight: "10m超", firstHeight: "既に到達と推測" },
   { name: "高知県", kind: "大津波警報", maxHeight: "10m超", firstHeight: "既に到達と推測" },
@@ -478,7 +477,7 @@ const tsunamiBannerCoasts: DisplayTsunamiInputV1["coasts"] = [
   { name: "大東島地方", kind: "津波注意報", maxHeight: "1m", firstHeight: "07日16時10分頃" },
 ];
 
-export const tsunamiBannerDemoted: DisplayTsunamiStateV1 = {
+export const tsunamiBanner: DisplayTsunamiStateV1 = {
   kind: "tsunami",
   level: "majorWarning",
   levelLabel: "大津波警報",
@@ -486,17 +485,14 @@ export const tsunamiBannerDemoted: DisplayTsunamiStateV1 = {
   warningComment: "巨大津波のおそれ。直ちに高台等安全な場所へ避難してください",
   observations: tsunamiMajorObservations,
   reportDateTime: NOW_ISO,
-  demoted: true,
   updatedAtMs: NOW_MS,
 };
 export const tsunamiWarning: DisplayTsunamiStateV1 = {
   ...tsunamiWarningInput,
-  demoted: false,
   updatedAtMs: NOW_MS,
 };
 export const tsunamiMajor: DisplayTsunamiStateV1 = {
   ...tsunamiMajorInput,
-  demoted: false,
   updatedAtMs: NOW_MS,
 };
 
@@ -1166,7 +1162,7 @@ const tsunamiStressInput: DisplayTsunamiInputV1 = {
   reportDateTime: STRESS_NOW_ISO,
 };
 
-export const tsunamiStress: DisplayTsunamiStateV1 = { ...tsunamiStressInput, demoted: false, updatedAtMs: STRESS_NOW_MS };
+export const tsunamiStress: DisplayTsunamiStateV1 = { ...tsunamiStressInput, updatedAtMs: STRESS_NOW_MS };
 export { eewStressInput, tsunamiStressInput, largeQuakeStressInput };
 
 // #emergency-stress / #standby-stress 用のテロップ (長文文章体、種別ラベル付き)
@@ -1545,7 +1541,7 @@ const tsunamiNankaiInput: DisplayTsunamiInputV1 = {
   reportDateTime: NANKAI_NOW_ISO,
 };
 
-export const tsunamiNankai: DisplayTsunamiStateV1 = { ...tsunamiNankaiInput, demoted: false, updatedAtMs: NANKAI_NOW_MS };
+export const tsunamiNankai: DisplayTsunamiStateV1 = { ...tsunamiNankaiInput, updatedAtMs: NANKAI_NOW_MS };
 export { eewNankaiInput, tsunamiNankaiInput, largeQuakeNankaiInput };
 
 // #emergency-nankai / #standby-nankai 用のテロップ (長文文章体、種別ラベル付き)

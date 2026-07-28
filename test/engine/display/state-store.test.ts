@@ -247,34 +247,29 @@ describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
 });
 
 describe("DisplayStateStore: 津波", () => {
-  it("津波 DTO で tsunami state が立つ (demoted=false)", () => {
+  it("津波 DTO で tsunami state が立つ", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(tsunamiDto({ level: "majorWarning" }), T0)).toBe(true);
     const snap = store.snapshot(1, T0);
     expect(snap.tsunami).toMatchObject({
-      level: "majorWarning", levelLabel: "大津波警報", demoted: false, updatedAtMs: T0,
+      level: "majorWarning", levelLabel: "大津波警報", updatedAtMs: T0,
     });
   });
 
-  it("TSUNAMI_DEMOTE_MIN 経過で sweep が demoted=true にする", () => {
+  it("津波は時間経過だけでは sweep で消えない", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
-    expect(store.sweep(T0 + 9 * MIN)).toBe(false);
-    expect(store.snapshot(1, T0 + 9 * MIN).tsunami?.demoted).toBe(false);
-    expect(store.sweep(T0 + 11 * MIN)).toBe(true);
-    expect(store.snapshot(2, T0 + 11 * MIN).tsunami?.demoted).toBe(true);
-    // demote 済みの再 sweep は変化なし
-    expect(store.sweep(T0 + 12 * MIN)).toBe(false);
+    expect(store.sweep(T0 + 11 * MIN)).toBe(false);
+    expect(store.snapshot(1, T0 + 11 * MIN).tsunami).toMatchObject({ level: "warning", updatedAtMs: T0 });
   });
 
-  it("demoted 後に続報 DTO が来ると demoted=false に戻る (再遷移)", () => {
+  it("継続中の津波は続報 DTO で更新される", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
-    expect(store.sweep(T0 + 11 * MIN)).toBe(true);
     const rdt = "2026-07-06T21:15:00+09:00";
     expect(store.applyEvent(tsunamiDto({ reportDateTime: rdt }), T0 + 15 * MIN)).toBe(true);
     const snap = store.snapshot(1, T0 + 15 * MIN);
-    expect(snap.tsunami).toMatchObject({ demoted: false, updatedAtMs: T0 + 15 * MIN, reportDateTime: rdt });
+    expect(snap.tsunami).toMatchObject({ updatedAtMs: T0 + 15 * MIN, reportDateTime: rdt });
   });
 
   it("VTSE41 の取消/全解除 DTO (emergency null) で tsunami が消える", () => {
@@ -292,10 +287,10 @@ describe("DisplayStateStore: 津波", () => {
     // 発表中に VTSE51 (津波情報) を流しても state 維持
     expect(store.applyEvent(tsunamiDto({ type: "VTSE51", hasEmergency: false }), T0 + 5 * MIN)).toBe(false);
     const snap = store.snapshot(1, T0 + 5 * MIN);
-    expect(snap.tsunami).toMatchObject({ level: "warning", demoted: false, updatedAtMs: T0 });
+    expect(snap.tsunami).toMatchObject({ level: "warning", updatedAtMs: T0 });
   });
 
-  it("VTSE51 の観測到着で observations だけ更新される (level/coasts/levelLabel/demoted は VTSE41 のまま)", () => {
+  it("VTSE51 の観測到着で observations だけ更新される (level/coasts/levelLabel は VTSE41 のまま)", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(tsunamiDto({ level: "warning" }), T0)).toBe(true);
     const obs: DisplayTsunamiObservationV1[] = [
@@ -307,7 +302,7 @@ describe("DisplayStateStore: 津波", () => {
     expect(store.applyEvent(tsunamiDto({ type: "VTSE51", hasEmergency: false }), T0 + 5 * MIN, obs)).toBe(true);
     const snap = store.snapshot(1, T0 + 5 * MIN);
     expect(snap.tsunami).toMatchObject({
-      level: "warning", levelLabel: "津波警報", demoted: false, updatedAtMs: T0,
+      level: "warning", levelLabel: "津波警報", updatedAtMs: T0,
     });
     expect(snap.tsunami?.observations).toEqual(obs);
   });
@@ -357,10 +352,9 @@ describe("DisplayStateStore: 津波", () => {
       reportDateTime: "2026-07-06T20:30:00+09:00",
     }, T0);
     const snap = store.snapshot(1, T0);
-    expect(snap.tsunami).toMatchObject({ level: "advisory", demoted: false, updatedAtMs: T0 });
-    // 復元後も sweep の降格が効く
-    expect(store.sweep(T0 + 11 * MIN)).toBe(true);
-    expect(store.snapshot(2, T0 + 11 * MIN).tsunami?.demoted).toBe(true);
+    expect(snap.tsunami).toMatchObject({ level: "advisory", updatedAtMs: T0 });
+    expect(store.sweep(T0 + 11 * MIN)).toBe(false);
+    expect(store.snapshot(2, T0 + 11 * MIN).tsunami?.level).toBe("advisory");
   });
 });
 
@@ -497,11 +491,11 @@ describe("DisplayStateStore: severityTier", () => {
     expect(store.snapshot(1, T0).severityTier).toBe("critical");
   });
 
-  it("demote (画面都合の降格) は tier に影響しない: 大津波警報が demoted=true になっても critical のまま (公式レベルにのみ従う)", () => {
+  it("大津波警報は時間が経過しても critical のまま (公式レベルにのみ従う)", () => {
     const store = new DisplayStateStore();
     store.applyEvent(tsunamiDto({ level: "majorWarning" }), T0);
-    expect(store.sweep(T0 + 11 * MIN)).toBe(true);
-    expect(store.snapshot(1, T0 + 11 * MIN).tsunami?.demoted).toBe(true);
+    expect(store.sweep(T0 + 11 * MIN)).toBe(false);
+    expect(store.snapshot(1, T0 + 11 * MIN).tsunami?.level).toBe("majorWarning");
     expect(store.snapshot(2, T0 + 11 * MIN).severityTier).toBe("critical");
   });
 

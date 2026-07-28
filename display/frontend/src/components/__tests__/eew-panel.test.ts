@@ -42,6 +42,18 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(container.querySelector('.stat-value [data-value="09:17:18"]')).toBeTruthy();
   });
 
+  it("長周期が明示値 0 のときは長周期タイルを表示しない", () => {
+    const { container } = render(EewPanel, { input: eewInput({ maxLgInt: "0" }) });
+    expect(container.querySelector(".stat-label")?.textContent).not.toBe("長周期");
+    expect(screen.queryByText("長周期")).toBeNull();
+  });
+
+  it("長周期が 1 以上のときは長周期タイルを表示する", () => {
+    const { container } = render(EewPanel, { input: eewInput({ maxLgInt: "1" }) });
+    expect(screen.getByText("長周期")).toBeTruthy();
+    expect(container.querySelector('.stat-value [data-value="1"]')).toBeTruthy();
+  });
+
   it("震度別の県数集約行: 単一バケツのみなら最大震度の県数だけ出す (以上行なし)", () => {
     const regions = [region("宮崎県", { intensity: "6弱" }), region("大分県", { intensity: "6弱" })];
     const { container } = render(EewPanel, { input: eewInput({ regions }) });

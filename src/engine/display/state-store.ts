@@ -3,7 +3,6 @@ import {
   EEW_TTL_MIN,
   LARGE_QUAKE_HOLD_MIN,
   RECENT_QUAKES_MAX,
-  TSUNAMI_DEMOTE_MIN,
 } from "./constants";
 import {
   DISPLAY_PROTOCOL_VERSION,
@@ -150,9 +149,9 @@ export class DisplayStateStore {
     nowMs: number,
     observations: DisplayTsunamiObservationV1[] | undefined,
   ): boolean {
-    // VTSE51/52 (津波情報・沖合観測): レベル・coasts・demoted の真実源にはしない (旧仕様のまま)。
+    // VTSE51/52 (津波情報・沖合観測): レベル・coasts の真実源にはしない (旧仕様のまま)。
     // 稼働中の津波 state がある場合に限り observations 欄だけを更新する。state が無ければ
-    // 観測データ単独で state を新規作成しない。updatedAtMs (demote タイマー) にも触れない。
+    // 観測データ単独で state を新規作成しない。updatedAtMs にも触れない。
     if (dto.type === "VTSE51" || dto.type === "VTSE52") {
       if (this.tsunami == null) return false;
       if (observations == null || observations.length === 0) return false;
@@ -163,7 +162,7 @@ export class DisplayStateStore {
     // 本体の TsunamiStateHolder.update() が VTSE41 限定 (process-tsunami.ts) なのと整合させる
     if (dto.type !== "VTSE41") return false;
     if (dto.emergency?.kind === "tsunami") {
-      this.tsunami = { ...dto.emergency, demoted: false, updatedAtMs: nowMs };
+      this.tsunami = { ...dto.emergency, updatedAtMs: nowMs };
       return true;
     }
     // VTSE41 で emergency が組めない = 取消 or 全解除
@@ -202,10 +201,6 @@ export class DisplayStateStore {
     for (const [id, q] of this.largeQuakes) {
       if (nowMs - q.updatedAtMs > LARGE_QUAKE_HOLD_MIN * MIN_MS) { this.largeQuakes.delete(id); changed = true; }
     }
-    if (this.tsunami != null && !this.tsunami.demoted && nowMs - this.tsunami.updatedAtMs > TSUNAMI_DEMOTE_MIN * MIN_MS) {
-      this.tsunami = { ...this.tsunami, demoted: true };
-      changed = true;
-    }
     // SSE 無客中は気象点灯の時計だけを止める。他 domain の lifecycle は従来どおり進める
     if (sweepWeatherPromotions) {
       changed = this.promotions.sweepDemote(nowMs) || changed;
@@ -231,7 +226,7 @@ export class DisplayStateStore {
   }
 
   seedTsunami(input: DisplayTsunamiInputV1, nowMs: number): void {
-    this.tsunami = { ...input, demoted: false, updatedAtMs: nowMs };
+    this.tsunami = { ...input, updatedAtMs: nowMs };
   }
 
   seedWeatherAlerts(alerts: DisplayWeatherAlertV1[]): void {
@@ -301,7 +296,7 @@ export class DisplayStateStore {
       else if (this.tsunami.level === "warning") bump("alert");
       else bump("caution");
     }
-    // 昇格中の気象警報は L5 相当 = critical / L4 相当 = alert。津波の demote と同方針で、
+    // 昇格中の気象警報は L5 相当 = critical / L4 相当 = alert。画面上の降格後も、
     // パネル降格 (demoted) 後も警報解除 (record 削除) まで tier を維持する
     for (const source of WEATHER_PROMOTION_SOURCES) {
       const rec = this.promotions.get(source);

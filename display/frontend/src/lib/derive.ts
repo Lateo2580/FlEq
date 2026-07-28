@@ -1,5 +1,9 @@
 import type { DisplayClientState } from "./store";
-import type { DisplayEmergencyInputV1, DisplayEventDtoV1 } from "./protocol";
+import type {
+  DisplayEmergencyInputV1,
+  DisplayEventDtoV1,
+  DisplayTsunamiStateV1,
+} from "./protocol";
 import { buildWeatherEmergencyInput, type WeatherEmergencyInputV1 } from "./weather-panel";
 
 export type ScreenMode = "standby" | "emergency";
@@ -12,13 +16,16 @@ export interface EmergencyPanelModel {
   input: EmergencyPanelInputV1;
 }
 
+/** 旧 server が送るフィールドの読み取り専用互換。現行 wire 型には含めない。 */
+type LegacyTsunamiCompat = DisplayTsunamiStateV1 & { demoted?: boolean };
+
 /** switch の網羅を型で強制する (kind 追加時に compile error にする) */
 function assertNever(value: never): never {
   throw new Error(`未処理の緊急パネル kind: ${JSON.stringify(value)}`);
 }
 
 // 優先順位 (spec C §3、ユーザー決定 2026-07-25):
-//   大津波警報 > 津波警報 > 津波注意報 > EEW 警報 > 気象 L5 > 気象 L4 > EEW 予報 > largeQuake
+//   大津波警報 > 津波警報 > 津波注意報 > EEW 警報 > EEW 予報 > largeQuake > 気象 (L5/L4)
 // 津波カードは情報量が最も多く警報が長時間継続するため、存在時は必ず主役スロット (左列) に固定する
 // — 右列 compact に入る事態そのものを無くす (ユーザー決定 2026-07-13)。この一般化により
 // 「EEW 警報 + 津波注意報」の共存でも津波が主役になる (EEW 警報が右 compact)。
@@ -31,11 +38,12 @@ function priorityOf(e: EmergencyPanelInputV1): number {
       if (e.level === "warning") return 1;
       return 2; // advisory
     case "eew":
-      return e.isWarning ? 3 : 6;
+      return e.isWarning ? 3 : 4;
     case "weather":
-      return e.level === 5 ? 4 : 5;
+      // 緊急画面では気象カードを常に右下（末尾）へ置く。L5/L4 の差はカード内で表す。
+      return 6;
     case "largeQuake":
-      return 7;
+      return 5;
     default:
       return assertNever(e);
   }
@@ -45,8 +53,9 @@ export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelMode
   const snap = s.snapshot;
   if (snap == null) return [];
   const panels: EmergencyPanelModel[] = [];
-  if (snap.tsunami != null && !snap.tsunami.demoted) {
-    panels.push({ key: "tsunami:current", input: snap.tsunami });
+  const tsunami = snap.tsunami as LegacyTsunamiCompat | null;
+  if (tsunami != null && tsunami.demoted !== true) {
+    panels.push({ key: "tsunami:current", input: tsunami });
   }
   // 気象警報の昇格は engine が権威 (weatherPromotion)。パネルは source 横断で全体 1 枚、key は
   // 固定 (`weather:current`) にして再昇格でも再マウントさせない (spec C §3)

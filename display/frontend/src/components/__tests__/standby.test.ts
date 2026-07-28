@@ -73,7 +73,6 @@ function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunami
     warningComment: null,
     observations: [],
     reportDateTime: "2026-07-06T21:00:00+09:00",
-    demoted: true,
     updatedAtMs: 0,
     ...over,
   };
@@ -109,7 +108,7 @@ function floodStandbyItem(surface: "corner-right" | "clock-top-wide", count: num
 
 const now = new Date("2026-07-06T21:00:00+09:00");
 
-// ② weatherAlerts render / ③ tsunami demoted 常駐バナー のテストは Phase B (Expressive
+// ② weatherAlerts render / ③ tsunami 常駐バナー のテストは Phase B (Expressive
 // Instrument 再構成) で ActiveAlerts ブロックを StandbyScreen から削除したため撤去した。
 // weatherAlerts・tsunami バナーはもう待機画面に出ない (ActiveAlerts.svelte は非テスト参照
 // ゼロを確認の上、デッドコードとして削除済み)。

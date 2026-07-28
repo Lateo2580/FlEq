@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { DisplayLargeQuakeInputV1 } from "../lib/protocol";
-  import { formatMdHm, formatIntShort } from "../lib/format";
+  import { formatHm, formatMdHm, formatIntShort } from "../lib/format";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -31,6 +31,7 @@
   }: { input: DisplayLargeQuakeInputV1; compact?: boolean; layoutSettling?: boolean } = $props();
 
   const hasChips = $derived(input.tsunamiWarning || input.originTime != null);
+  const originTimeLabel = $derived(input.originTime == null ? "-" : compact ? formatHm(input.originTime) : formatMdHm(input.originTime));
 
   // 生成時キー snapshot (spec §0-d / §2-c 最終改稿 1): 初期に存在する個別要素を素の const で
   // 捕まえる。行全体の bool ではなく要素ごとのキーで持つ (初期に origin チップだけ在り後から
@@ -163,7 +164,7 @@
                 in:revealScaleIn={{
                   reveal: !initialElementKeys.has("chip:origin") && !cycler.reducedMotion,
                   duration: SPRING_SPATIAL_DEFAULT_MS,
-                }}>{formatMdHm(input.originTime)} 発生</span
+                }}>{originTimeLabel} 発生</span
               >
             {/if}
           </div>
@@ -569,6 +570,9 @@
     background: var(--surface-panel);
   }
   .quake-panel.compact .stat-value {
+    font-size: var(--type-body-m-size);
+  }
+  .quake-panel.compact .origin-time {
     font-size: var(--type-body-m-size);
   }
   .quake-panel.compact .stat-label {

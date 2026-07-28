@@ -18,7 +18,7 @@
     tsunamiMajorInput,
     tsunamiWarningInput,
     largeQuakeInput,
-    tsunamiBannerDemoted,
+    tsunamiBanner,
     weatherAlertsStandbyCards,
     weatherWarningOnlyStandbyCards,
     weatherAdvisoryOnlyStandbyCards,
@@ -170,11 +170,11 @@
 
   const quietSnapshot = standbySnapshot();
   const richSnapshot = standbySnapshot({ recentQuakes: recentQuakesRich });
-  const tsunamiBannerSnapshot = standbySnapshot({ tsunami: tsunamiBannerDemoted });
+  const tsunamiBannerSnapshot = standbySnapshot({ tsunami: tsunamiBanner });
   // standby-cards: 気象警報カード + 地震情報カード (headline・地区別震度2グループ・津波マーク) + 計器列 +
   // 津波継続バナーを同時に出し、左上の縦スタック (津波→地震) を確認できるようにする
   const cardsSnapshot = standbySnapshot({
-    tsunami: tsunamiBannerDemoted,
+    tsunami: tsunamiBanner,
     latestQuake: latestQuakeStandbyCards,
     weatherAlerts: weatherAlertsStandbyCards,
     stats: statsStandbyCards,
@@ -204,7 +204,7 @@
   });
   // standby-tier-critical: 上と同内容 + severityTier critical (tier overlay の紫の空気 + 数字ウェイト800)
   const cardsTierCriticalSnapshot = standbySnapshot({
-    tsunami: tsunamiBannerDemoted,
+    tsunami: tsunamiBanner,
     latestQuake: latestQuakeStandbyCards,
     weatherAlerts: weatherAlertsStandbyCards,
     stats: statsStandbyCards,

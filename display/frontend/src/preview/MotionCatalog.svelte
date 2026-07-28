@@ -23,7 +23,7 @@
     standbySnapshot,
     recentQuakes,
     recentQuakesRich,
-    tsunamiBannerDemoted,
+    tsunamiBanner,
     latestQuakeStandbyCards,
     weatherAlertsStandbyCards,
     statsStandbyCards,
@@ -170,7 +170,7 @@
   let stbHasRecent = $state(true); // 地震カード有⇄無 = 統計行 FLIP の唯一の入力
   const standbyDemoSnapshot = $derived(
     standbySnapshot({
-      tsunami: stbTsunami ? tsunamiBannerDemoted : null,
+      tsunami: stbTsunami ? tsunamiBanner : null,
       latestQuake: stbQuake ? latestQuakeStandbyCards : null,
       weatherAlerts: stbWeather ? weatherAlertsStandbyCards : [],
       stats: statsStandbyCards,

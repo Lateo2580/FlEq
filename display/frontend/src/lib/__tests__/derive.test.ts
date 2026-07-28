@@ -47,7 +47,7 @@ function eewFixture(over: Partial<DisplayActiveEewV1> = {}): DisplayActiveEewV1 
 function tsunamiFixture(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunamiStateV1 {
   return {
     kind: "tsunami", level: "warning", levelLabel: "津波警報", coasts: [], reportDateTime: "t",
-    warningComment: null, observations: [], demoted: false, updatedAtMs: 0,
+    warningComment: null, observations: [], updatedAtMs: 0,
     ...over,
   };
 }
@@ -92,11 +92,8 @@ describe("deriveMode", () => {
     expect(deriveMode(state)).toBe("emergency");
   });
 
-  it("⑥ tsunami が demoted のみなら standby", () => {
-    const state = baseState({
-      tsunami: tsunamiFixture({ demoted: true }),
-    });
-    expect(deriveMode(state)).toBe("standby");
+  it("⑥ 継続中の tsunami のみなら emergency", () => {
+    expect(deriveMode(baseState({ tsunami: tsunamiFixture() }))).toBe("emergency");
   });
 
   it("snapshot が null なら standby", () => {
@@ -107,9 +104,22 @@ describe("deriveMode", () => {
 });
 
 describe("deriveEmergencyPanels", () => {
+  it("legacy server の demoted tsunami は主役パネルから除外する", () => {
+    const legacyTsunami = {
+      ...tsunamiFixture(),
+      demoted: true,
+    } as DisplayTsunamiStateV1 & { demoted: true };
+    expect(deriveEmergencyPanels(baseState({ tsunami: legacyTsunami }))).toEqual([]);
+  });
+
+  it("demoted が欠落した tsunami は主役パネルに表示する", () => {
+    expect(deriveEmergencyPanels(baseState({ tsunami: tsunamiFixture() })).map((p) => p.key))
+      .toEqual(["tsunami:current"]);
+  });
+
   it("⑦ 優先順位: 津波 (大津波>津波警報>注意報) > EEW (警報>予報) > largeQuake の順に並ぶ (津波は常に主役)", () => {
     const state = baseState({
-      tsunami: tsunamiFixture({ demoted: false }),
+      tsunami: tsunamiFixture(),
       activeEews: [
         eewFixture({ eventId: "E1", serial: "1", isWarning: true }),
         eewFixture({ eventId: "E2", serial: "1", isWarning: false }),
@@ -118,7 +128,7 @@ describe("deriveEmergencyPanels", () => {
     });
     // 大津波警報は snapshot.tsunami を上書きして別ケースで検証する (同時に 1 つしか持てないため)
     const majorState = baseState({
-      tsunami: tsunamiFixture({ level: "majorWarning", levelLabel: "大津波警報", demoted: false }),
+      tsunami: tsunamiFixture({ level: "majorWarning", levelLabel: "大津波警報" }),
       activeEews: state.snapshot!.activeEews,
       largeQuakes: state.snapshot!.largeQuakes,
     });
@@ -134,7 +144,7 @@ describe("deriveEmergencyPanels", () => {
   // EEW) が共存しても、津波が主役 (左列)・EEW 警報が右 compact になる。旧序列では EEW 警報が先頭だった。
   it("津波注意報 + EEW警報 の共存でも津波が先頭 (主役) になる", () => {
     const state = baseState({
-      tsunami: tsunamiFixture({ level: "advisory", levelLabel: "津波注意報", demoted: false }),
+      tsunami: tsunamiFixture({ level: "advisory", levelLabel: "津波注意報" }),
       activeEews: [eewFixture({ eventId: "E1", serial: "1", isWarning: true })],
     });
     const keys = deriveEmergencyPanels(state).map((p) => p.key);
@@ -157,18 +167,11 @@ describe("deriveEmergencyPanels", () => {
     expect(new Set(keys).size).toBe(keys.length); // Svelte keyed each の重複 key クラッシュ予防
   });
 
-  it("demoted な津波はパネルに含まれない", () => {
-    const state = baseState({
-      tsunami: tsunamiFixture({ demoted: true }),
-    });
-    expect(deriveEmergencyPanels(state)).toEqual([]);
-  });
-
   // ── Spec C Phase 2: 気象警報の主役化 ──
 
-  it("気象 L5/L4 は 気象 L5 > 気象 L4 の 1 枚に畳まれ、EEW 警報 > 気象 > EEW 予報 の序列に入る", () => {
+  it("気象 L5/L4 は 1 枚に畳まれ、他の緊急カードの末尾に置かれる", () => {
     const state = baseState({
-      tsunami: tsunamiFixture({ level: "advisory", levelLabel: "津波注意報", demoted: false }),
+      tsunami: tsunamiFixture({ level: "advisory", levelLabel: "津波注意報" }),
       activeEews: [
         eewFixture({ eventId: "E1", isWarning: true }),
         eewFixture({ eventId: "E2", isWarning: false }),
@@ -177,15 +180,26 @@ describe("deriveEmergencyPanels", () => {
       ...weatherPromotion(5),
     });
     const keys = deriveEmergencyPanels(state).map((p) => p.key);
-    expect(keys).toEqual(["tsunami:current", "eew:E1", "weather:current", "eew:E2", "quake:Q1"]);
+    expect(keys).toEqual(["tsunami:current", "eew:E1", "eew:E2", "quake:Q1", "weather:current"]);
   });
 
-  it("気象 L4 は EEW 警報より後・EEW 予報より前 (L5 と L4 で順位が変わる)", () => {
+  it("気象 L4 も EEW 予報より後に置く", () => {
     const state = baseState({
       activeEews: [eewFixture({ eventId: "E2", isWarning: false })],
       ...weatherPromotion(4),
     });
-    expect(deriveEmergencyPanels(state).map((p) => p.key)).toEqual(["weather:current", "eew:E2"]);
+    expect(deriveEmergencyPanels(state).map((p) => p.key)).toEqual(["eew:E2", "weather:current"]);
+  });
+
+  it("津波・EEW・気象・震度カードが同時でも気象を末尾に置く", () => {
+    const state = baseState({
+      tsunami: tsunamiFixture(),
+      activeEews: [eewFixture({ eventId: "E1" })],
+      largeQuakes: [largeQuakeFixture({ eventId: "Q1" })],
+      ...weatherPromotion(5),
+    });
+    expect(deriveEmergencyPanels(state).map((p) => p.key))
+      .toEqual(["tsunami:current", "eew:E1", "quake:Q1", "weather:current"]);
   });
 
   it("気象パネルは source が増減しても key 固定 (weather:current) で 1 枚のまま", () => {
@@ -202,6 +216,24 @@ describe("deriveEmergencyPanels", () => {
     });
     expect(deriveEmergencyPanels(one).map((p) => p.key)).toEqual(["weather:current"]);
     expect(deriveEmergencyPanels(both).map((p) => p.key)).toEqual(["weather:current"]);
+  });
+
+  it("複数 EEW・複数震度カードと L5/L4 併存時も weather:current が末尾", () => {
+    const state = baseState({
+      activeEews: [eewFixture({ eventId: "E1" }), eewFixture({ eventId: "E2", isWarning: false })],
+      largeQuakes: [largeQuakeFixture({ eventId: "Q1" }), largeQuakeFixture({ eventId: "Q2" })],
+      weatherPromotion: {
+        vpws50: { level: 5, promotedAt: "t", generation: 1 },
+        vpww56: { level: 4, promotedAt: "t", generation: 1 },
+      },
+      weatherAlerts: [
+        weatherAlertFixture("vpws50", "L5 大雨特別警報", "officialL5"),
+        weatherAlertFixture("vpww56", "L4 洪水警報", "officialL4"),
+      ],
+    });
+
+    expect(deriveEmergencyPanels(state).map((p) => p.key))
+      .toEqual(["eew:E1", "eew:E2", "quake:Q1", "quake:Q2", "weather:current"]);
   });
 
   it("weatherPromotion が両 source null (demoted 含む) なら気象パネルは出ない = standby", () => {
@@ -226,10 +258,10 @@ describe("deriveEmergencyPanels", () => {
 });
 
 describe("deriveTickerLines", () => {
-  it("⑧ 緊急パネル表示中の groupKey の行を除外し、demoted 津波の行は除外しない", () => {
+  it("⑧ 緊急パネル表示中の groupKey の行を除外する", () => {
     const state: DisplayClientState = baseState({
       activeEews: [eewFixture({ eventId: "E1", serial: "1", isWarning: true })],
-      tsunami: tsunamiFixture({ demoted: true }),
+      tsunami: tsunamiFixture(),
       ticker: [
         tickerEvent({ id: "a", groupKey: "eew:E1" }),
         tickerEvent({ id: "b", groupKey: "tsunami" }),

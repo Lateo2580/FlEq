@@ -18,7 +18,6 @@ function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunami
     warningComment: null,
     observations: [],
     reportDateTime: "2026-07-07T14:32:00+09:00",
-    demoted: true,
     updatedAtMs: 0,
     ...over,
   };

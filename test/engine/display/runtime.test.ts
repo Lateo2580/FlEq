@@ -449,7 +449,7 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
     const snap = runtime!.hub.buildSnapshot();
     expect(snap.tsunami).not.toBeNull();
     expect(snap.tsunami!.levelLabel).toBe("津波警報");
-    expect(snap.tsunami!.demoted).toBe(false);
+    expect(snap.tsunami!.level).toBe("warning");
 
     const res = await fetch(`http://127.0.0.1:${runtime!.transport.port()}/healthz`);
     expect(res.status).toBe(200);

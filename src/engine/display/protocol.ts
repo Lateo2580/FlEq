@@ -336,7 +336,6 @@ export interface DisplayActiveEewV1 extends DisplayEewInputV1 {
 }
 
 export interface DisplayTsunamiStateV1 extends DisplayTsunamiInputV1 {
-  demoted: boolean;
   updatedAtMs: number;
 }
 

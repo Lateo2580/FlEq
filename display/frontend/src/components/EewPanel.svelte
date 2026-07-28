@@ -103,7 +103,7 @@
           <span class="stat-value"><RollingNumber value={input.depth} /></span>
         </div>
       {/if}
-      {#if input.maxLgInt != null}
+      {#if input.maxLgInt != null && input.maxLgInt !== "0"}
         <div class="tile stat-tile">
           <span class="stat-label">長周期</span>
           <span class="stat-value lg"><RollingNumber value={input.maxLgInt} /></span>
