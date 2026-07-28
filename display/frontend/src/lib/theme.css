@@ -23,6 +23,12 @@
   color-scheme: dark;
 
   --bg: #000000;
+  /* ご主人裁定で差し替え: background tone preview placeholder。コンポーネントへ生色は置かない。 */
+  --background-tone-calm-preview: #000000;
+  --background-tone-caution-preview: color-mix(in srgb, var(--c-yellow) 2%, #000000);
+  --background-tone-alert-preview: color-mix(in srgb, var(--c-orange) 2%, #000000);
+  --background-tone-critical-preview: color-mix(in srgb, var(--c-vermillion) 2%, #000000);
+  --background-tone-quakeExtreme-preview: color-mix(in srgb, var(--c-dark-red) 2%, #000000);
   --fg: #f2f4f6;
   --fg-faint: #566069; /* 空状態・接続正常ドットなど「沈んでいてよい」もの */
   --clock-fg: #eef2f6; /* 待機画面の大時計。通常 LCD 判明で OLED 焼付き制約を撤廃し白寄りへ (遠目コントラスト改善) */
@@ -229,6 +235,17 @@
   --dur-weight-swell: 200ms; /* tier 昇格時の主役ウェイト bold→heavy の連続遷移 (weight のみ、色/surface は瞬時) */
   --ticker-row-h: 40px;
   --ticker-rows: 2;
+}
+
+/* engine 権威の backgroundTone。待機・緊急の共通背面だけを差し替え、カード token は保持する。 */
+main[data-background-tone="calm"] { --background-tone: var(--background-tone-calm-preview); }
+main[data-background-tone="caution"] { --background-tone: var(--background-tone-caution-preview); }
+main[data-background-tone="alert"] { --background-tone: var(--background-tone-alert-preview); }
+main[data-background-tone="critical"] { --background-tone: var(--background-tone-critical-preview); }
+main[data-background-tone="quakeExtreme"] { --background-tone: var(--background-tone-quakeExtreme-preview); }
+
+main[data-background-tone] {
+  --bg: var(--background-tone);
 }
 
 * {

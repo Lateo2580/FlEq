@@ -5,6 +5,7 @@ import {
   normalizeDepth,
   projectDisplayEvent,
   tickerPriority,
+  tickerSurface,
 } from "../../../src/engine/display/project-event";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 
@@ -258,6 +259,24 @@ describe("tickerPriority (§2-1 境界値)", () => {
   it("長周期地震動 LgInt4 (critical) = high / LgInt3 (warning) = mid (lgObservation は frameLevel 分岐)", () => {
     expect(tickerPriority(baseEvent({ domain: "lgObservation", frameLevel: "critical" }))).toBe("high");
     expect(tickerPriority(baseEvent({ domain: "lgObservation", frameLevel: "warning" }))).toBe("mid");
+  });
+});
+
+describe("tickerSurface (engine 権威)", () => {
+  it("大津波・気象 L5 相当・震度 7 だけが solid になる", () => {
+    expect(tickerSurface(baseEvent({ domain: "tsunami", tsunamiKinds: ["大津波警報"] }))).toBe("solid");
+    expect(tickerSurface(baseEvent({
+      domain: "weather",
+      raw: { maxDisplaySeverity: "officialL5" } as never,
+    }))).toBe("solid");
+    expect(tickerSurface(baseEvent({ domain: "earthquake", maxIntRank: 9 }))).toBe("solid");
+  });
+
+  it("津波警報・L4・震度 6 強・取消は none になる", () => {
+    expect(tickerSurface(baseEvent({ domain: "tsunami", tsunamiKinds: ["津波警報"] }))).toBe("none");
+    expect(tickerSurface(baseEvent({ domain: "weather", raw: { maxDisplaySeverity: "officialL4" } as never }))).toBe("none");
+    expect(tickerSurface(baseEvent({ domain: "earthquake", maxIntRank: 8 }))).toBe("none");
+    expect(tickerSurface(baseEvent({ domain: "earthquake", maxIntRank: 9, isCancellation: true }))).toBe("none");
   });
 });
 

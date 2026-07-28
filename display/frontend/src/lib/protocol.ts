@@ -118,6 +118,17 @@ export interface DisplayStatsV1 {
 /** 画面全体の緊張度 tier (server 導出)。描画は §4 別プラン */
 export type DisplaySeverityTier = "calm" | "caution" | "alert" | "critical";
 
+/** 背景の緊張度。判定と保持は engine が一元的に所有する。 */
+export type DisplayBackgroundTone =
+  | "calm"
+  | "caution"
+  | "alert"
+  | "critical"
+  | "quakeExtreme";
+
+/** テロップ本文に不透明な色面を敷くか。 */
+export type DisplayTickerSurface = "none" | "solid";
+
 export interface DisplayLargeQuakeInputV1 {
   kind: "largeQuake";
   eventId: string | null;
@@ -166,6 +177,8 @@ export interface DisplayEventDtoV1 {
   type: string;
   infoType: string;
   reportDateTime: string;
+  /** 系列内の続報順序。欠落時は reportDateTime のみで比較する。 */
+  serial?: string | null;
   title: string;
   headline: string | null;
   publishingOffice: string;
@@ -199,6 +212,8 @@ export interface DisplayEventDtoV1 {
    *  projectDisplayEvent が常に明示値をセットする。欠落 (旧 snapshot) は false 扱い
    *  (optional は protocol 移行の安全化——本ファイルの他 ticker フィールドと同じ規約) */
   tickerSuppressed?: boolean;
+  /** テロップ面の engine 権威値。欠落・未知値は frontend で none に縮退する。 */
+  tickerSurface?: DisplayTickerSurface;
 }
 
 export interface DisplayConnectionStateV1 {
@@ -491,6 +506,8 @@ export interface DisplayStateSnapshotV1 {
   latestQuake: DisplayLatestQuakeStateV1 | null;   // 追加
   stats: DisplayStatsV1 | null;                    // 追加
   severityTier: DisplaySeverityTier;               // 追加
+  /** 背景トーンの engine 権威値。旧 server の欠落は frontend で calm に縮退する。 */
+  backgroundTone?: DisplayBackgroundTone;
   connection: DisplayConnectionStateV1;
   recentTicker: DisplayEventDtoV1[];
   /** 待機画面の発生中カード一覧 (priority 降順)。旧 snapshot には無い — 欠落は空配列扱い (前方互換) */

@@ -48,6 +48,12 @@ paths:
 
 ## 表示パイプライン
 
+### 背景トーン / テロップ面の wire 経路
+
+`PresentationEvent → projectDisplayEvent() → DisplayEventDtoV1.tickerSurface → toTickerJob() → TickerLane`。solid の可否は `projectDisplayEvent()` が大津波・気象 L5 相当・震度 7・取消を判定し、frontend は role から再推測しない。
+
+`PresentationEvent → monitor 所有 QuakeExtremeStore → DisplayStateStore.snapshot().backgroundTone → App[data-background-tone]`。震度 7 は `originTime` から 12 時間保持し、下方修正・同系列取消で解除する。monitor の JSON 永続化を通るため display off/on とプロセス再起動をまたぐ。
+
 `runDisplayPipeline()` (`message-router.ts` 内) が全ルートの統一表示エントリポイント。
 
 ```

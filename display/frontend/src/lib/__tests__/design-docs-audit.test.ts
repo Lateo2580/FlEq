@@ -85,8 +85,9 @@ describe("evaluatePairs", () => {
       // 面は詳細一覧 (--surface-panel-raised / tier で --surface-highest) と
       // 副セクション (--surface-panel / tier で --surface-high) の実在する組合せだけ
       "15 気象パネル装飾": 18,
+      "16 背景トーン": 160,
     });
-    expect(pairs.length).toBe(208);
+    expect(pairs.length).toBe(368);
   });
   it("カテゴリ 11 (dim×high lane) は tsunamiMajor を列挙しない (実ペアは cat9)", () => {
     expect(find("dim-high-tsunamiMajor")).toBeUndefined();

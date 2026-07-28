@@ -4,6 +4,7 @@ import {
   createTipsFeeder,
   TIP_FETCH_RETRY_MS,
   TIP_FETCH_TIMEOUT_MS,
+  type DisplayTipDeckItem,
   type TipContext,
 } from "../tips-feeder.svelte";
 import { createTestSignal } from "../page-cycler.svelte";
@@ -29,9 +30,10 @@ describe("createTipsFeeder", () => {
     try {
       const context = createTestSignal<TipContext>("standby");
       let standbyResolve: ((tips: Array<{ id: string; text: string; hazards: [] }>) => void) | null = null;
-      const fetchTips = vi.fn((requested: TipContext) => requested === "standby"
-        ? new Promise<Array<{ id: string; text: string; hazards: [] }>>((resolve) => { standbyResolve = resolve; })
-        : Promise.resolve([{ id: "emergency-1", text: "防災情報", hazards: ["eew"] }]),
+      const fetchTips = vi.fn<(requested: TipContext) => Promise<DisplayTipDeckItem[]>>(
+        (requested) => requested === "standby"
+          ? new Promise<DisplayTipDeckItem[]>((resolve) => { standbyResolve = resolve; })
+          : Promise.resolve([{ id: "emergency-1", text: "防災情報", hazards: ["eew"] }]),
       );
       const feeder = createTipsFeeder({ context: () => context.value, fetchTips });
       flushSync();

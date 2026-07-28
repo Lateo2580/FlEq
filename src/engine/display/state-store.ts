@@ -9,6 +9,7 @@ import {
   type DisplayActiveEewV1,
   type ActiveStandbyCardV1,
   type DisplayConnectionStateV1,
+  type DisplayBackgroundTone,
   type DisplayEewInputV1,
   type DisplayEventDtoV1,
   type DisplayLargeQuakeStateV1,
@@ -36,6 +37,7 @@ import {
   type WeatherPromotionPersistedV1,
   type WeatherPromotionRecord,
 } from "./weather-promotion-store";
+import { QuakeExtremeStore } from "./quake-extreme-store";
 
 const MIN_MS = 60_000;
 const TIER_ORDER: Record<DisplaySeverityTier, number> = { calm: 0, caution: 1, alert: 2, critical: 3 };
@@ -86,12 +88,16 @@ export class DisplayStateStore {
   /** 気象警報の昇格 lifecycle。monitor 所有のストアを注入して display off/on をまたいで
    *  時計を維持する (未注入時はこのストア専用のインスタンスを持つ = 旧テスト互換) */
   private readonly promotions: WeatherPromotionStore;
+  /** 震度 7 の 12 時間保持。monitor 注入時は display on/off・再起動の外で生きる。 */
+  private readonly quakeExtreme: QuakeExtremeStore;
 
   constructor(
     private readonly standbyItemsProvider?: () => ActiveStandbyCardV1[],
     promotions?: WeatherPromotionStore,
+    quakeExtreme?: QuakeExtremeStore,
   ) {
     this.promotions = promotions ?? new WeatherPromotionStore();
+    this.quakeExtreme = quakeExtreme ?? new QuakeExtremeStore();
   }
 
   /**
@@ -105,7 +111,7 @@ export class DisplayStateStore {
     nowMs: number,
     tsunamiObservations?: DisplayTsunamiObservationV1[] | null,
   ): boolean {
-    let changed = false;
+    let changed = this.quakeExtreme.applyDto(dto, nowMs);
     if (dto.emergency?.kind === "eew") {
       changed = this.applyEew(dto.emergency, nowMs) || changed;
     }
@@ -200,6 +206,7 @@ export class DisplayStateStore {
     if (sweepWeatherPromotions) {
       changed = this.promotions.sweepDemote(nowMs) || changed;
     }
+    changed = this.quakeExtreme.sweep(nowMs) || changed;
     if (this.latestQuake != null &&
         nowMs - this.latestQuake.updatedAtMs > quakeCardTtlMs(this.latestQuake.maxIntRank ?? 0)) {
       this.latestQuake = null;
@@ -307,6 +314,16 @@ export class DisplayStateStore {
     return tier;
   }
 
+  private deriveBackgroundTone(nowMs: number): DisplayBackgroundTone {
+    if (this.quakeExtreme.hasActive(nowMs)) return "quakeExtreme";
+    switch (this.deriveSeverityTier()) {
+      case "critical": return "critical";
+      case "alert": return "alert";
+      case "caution": return "caution";
+      case "calm": return "calm";
+    }
+  }
+
   /** 現在 active な警報の groupKey 集合 (spec §3-2、初期スコープ = EEW/津波)。 */
   activeAlertKeys(): Set<string> {
     const keys = new Set<string>();
@@ -377,6 +394,7 @@ export class DisplayStateStore {
       latestQuake: this.latestQuake,
       stats: this.stats,
       severityTier: this.deriveSeverityTier(),
+      backgroundTone: this.deriveBackgroundTone(nowMs),
       connection: { ...this.connection },
       recentTicker: [],
       standbyItems: this.standbyItemsProvider?.() ?? [],

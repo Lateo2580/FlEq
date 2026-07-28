@@ -57,6 +57,7 @@ function job(over: Partial<TickerJob> & { key: string }): TickerJob {
     deferKind: over.deferKind ?? null,
     revisionAt: over.revisionAt ?? null,
     isCancellation: over.isCancellation ?? false,
+    surface: over.surface ?? "none",
     ...(over.replayGeneration != null ? { replayGeneration: over.replayGeneration } : {}),
   };
 }

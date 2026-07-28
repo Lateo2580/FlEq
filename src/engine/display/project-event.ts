@@ -13,6 +13,7 @@ import {
   type DisplayLatestQuakeInputV1,
   type DisplayRecentQuakeV1,
   type DisplayTickerPriority,
+  type DisplayTickerSurface,
 } from "./types";
 
 /**
@@ -29,6 +30,7 @@ export function normalizeDepth(depth: string | null | undefined): string | null 
 }
 
 const LARGE_QUAKE_MIN_RANK = intensityToRank("5弱");
+const QUAKE_EXTREME_RANK = intensityToRank("7");
 
 // eslint-disable-next-line no-control-regex
 const ANSI_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
@@ -280,6 +282,31 @@ export function tickerPriority(event: PresentationEvent): DisplayTickerPriority 
   return "low"; // info/normal/cancel と解説系全般
 }
 
+/**
+ * テロップ面の判定は engine の保持する一次情報だけで行う。
+ * frontend の role / domain 推測を禁止し、取消は必ず面なしへ落とす。
+ */
+export function tickerSurface(event: PresentationEvent): DisplayTickerSurface {
+  if (event.isCancellation) return "none";
+  if (event.domain === "tsunami") {
+    return resolveTsunamiLevel(event.tsunamiKinds ?? [])?.level === "majorWarning" ? "solid" : "none";
+  }
+  if (event.domain === "weather") {
+    // PresentationEvent の色用 displaySeverity は FrameLevel へ集約済みで L4 と L5 を区別できない。
+    // event.raw の ParsedWeatherWarning.maxDisplaySeverity は project 層が持つ engine 側の一次値であり、
+    // ここだけで L5 相当を判定できる。
+    const severity = weatherDisplaySeverity(event.raw);
+    return severity === "officialL5" || severity === "nonLevelSpecial" ? "solid" : "none";
+  }
+  if (event.domain === "earthquake") return (event.maxIntRank ?? 0) >= QUAKE_EXTREME_RANK ? "solid" : "none";
+  return "none";
+}
+
+function weatherDisplaySeverity(raw: PresentationEvent["raw"]): unknown {
+  if (typeof raw !== "object" || raw == null || !("maxDisplaySeverity" in raw)) return null;
+  return raw.maxDisplaySeverity;
+}
+
 export function projectDisplayEvent(event: PresentationEvent, summaryText: string): DisplayEventDtoV1 {
   const tickerBody = normalizeTickerBody(event.bodyText);
   const priority = tickerPriority(event);
@@ -313,6 +340,7 @@ export function projectDisplayEvent(event: PresentationEvent, summaryText: strin
     type: event.type,
     infoType: event.infoType,
     reportDateTime: event.reportDateTime,
+    serial: event.serial ?? null,
     title: event.title,
     headline: event.headline,
     publishingOffice: event.publishingOffice,
@@ -326,6 +354,7 @@ export function projectDisplayEvent(event: PresentationEvent, summaryText: strin
     tickerCategory: tickerCategoryOf(event),
     tickerSubject: tickerSubjectOf(event),
     tickerSuppressed,
+    tickerSurface: tickerSurface(event),
     tickerSentence: buildTickerSentence(event),
     tickerPriority: priority,
     tickerBody,

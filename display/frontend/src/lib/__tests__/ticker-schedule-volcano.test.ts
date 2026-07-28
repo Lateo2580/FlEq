@@ -21,6 +21,9 @@ function job(key: string, groupKey: string): TickerJob {
     deferKind: null,
     revisionAt: null,
     isCancellation: false,
+    tipPolicy: null,
+    tipHazards: [],
+    surface: "none",
   };
 }
 

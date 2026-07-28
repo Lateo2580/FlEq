@@ -19,6 +19,7 @@ import { InfoDisplayHub } from "./hub";
 import { DisplayStateStore } from "./state-store";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { WeatherPromotionStore } from "./weather-promotion-store";
+import { QuakeExtremeStore } from "./quake-extreme-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
 import type {
   ActiveStandbyCardV1,
@@ -49,6 +50,8 @@ export interface DisplaySeedSources {
    * 閉じた新規ストアになる (旧テスト/埋込利用との互換)。
    */
   weatherPromotions?: () => WeatherPromotionStore;
+  /** monitor 所有の震度 7 専用保持時計。display off/on をまたいで維持する。 */
+  quakeExtreme?: () => QuakeExtremeStore;
   /** hub 稼働中の sweep は既存 hub タイマーへ統合する */
   standbySweep?: (nowMs: number) => DisplayMutation;
 }
@@ -107,7 +110,7 @@ export async function startDisplayRuntime(
   /** kill switch (onFatal) 発火時にも呼び出し元の runtime 参照を後始末させるための通知 */
   onStopped?: () => void,
 ): Promise<DisplayRuntime | null> {
-  const store = new DisplayStateStore(seeds.standbyItems, seeds.weatherPromotions?.());
+  const store = new DisplayStateStore(seeds.standbyItems, seeds.weatherPromotions?.(), seeds.quakeExtreme?.());
   const distDir = resolveDistDir();
   const frontendBuildId = createFrontendBuildIdReader(distDir);
   const hub = new InfoDisplayHub(store, {

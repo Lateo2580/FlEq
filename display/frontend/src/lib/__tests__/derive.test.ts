@@ -18,7 +18,7 @@ function runningLowLane(key: string): LaneState {
       key, groupKey: null, seq: 1, kind: "event", priority: "low", role: "info", category: null, subject: null,
       segments: ["低優先本文"], segmentEmphasis: [[]], runs: [{ startSegmentIndex: 0, endSegmentIndexExclusive: 1 }], runIndex: 0,
       segmentIndex: 0, retryCount: 0, deferUntil: null, deferKind: null,
-      revisionAt: null, isCancellation: false,
+      revisionAt: null, isCancellation: false, tipPolicy: null, tipHazards: [], surface: "none",
     },
     replacement: null, coalescedRevision: null,
     currentStartedAt: 0, highSliceStartedAt: null, revisionFirstQueuedAt: null, revisionDebounceUntil: null,
@@ -30,7 +30,8 @@ function stateWith(over: Partial<SchedulerState>): SchedulerState {
   return {
     lanes: over.lanes ?? [], queue: over.queue ?? [], deferred: over.deferred ?? [],
     quietSince: over.quietSince ?? null, cyclePos: over.cyclePos ?? 0, catalog: over.catalog ?? [],
-    lastShownAt: over.lastShownAt ?? {},
+    lastShownAt: over.lastShownAt ?? {}, emergencyCompanion: { sessionId: "none", enabled: false, hazards: [] },
+    companionShown: 0, companionLastShownAt: null,
   };
 }
 

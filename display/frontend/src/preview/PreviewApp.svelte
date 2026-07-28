@@ -49,6 +49,7 @@
     tickerLine,
     weatherEmergencyInput,
     weatherSyncingInput,
+    backgroundTonePreviewFixtures,
   } from "./fixtures";
   import { createTipsFeeder } from "../lib/tips-feeder.svelte";
 
@@ -89,6 +90,7 @@
     "ticker-cycle",
     "ticker-longrun",
     "ticker-tips",
+    "tone-matrix",
     "motion-catalog",
   ] as const;
   type Scenario = (typeof SCENARIOS)[number];
@@ -543,8 +545,34 @@
 {/if}
 {#if scenario === "motion-catalog"}
   <MotionCatalog />
+{:else if scenario === "tone-matrix"}
+  <section class="tone-matrix" aria-label="背景トーン目視ゲート">
+    <h1>背景トーン目視ゲート</h1>
+    <p>5 tone × dim 有無 × critical overlay 有無。ご主人裁定で色を差し替える前の実レンダー一覧。</p>
+    <div class="tone-matrix-grid">
+      {#each backgroundTonePreviewFixtures as tone}
+        {#each [false, true] as cellDim}
+          {#each [false, true] as criticalOverlay}
+            <main
+              class:dim={cellDim}
+              class:critical-overlay={criticalOverlay}
+              class="tone-matrix-cell"
+              data-background-tone={tone}
+            >
+              <div class="tone-matrix-label">{tone} · {cellDim ? "dim" : "normal"} · {criticalOverlay ? "critical overlay" : "overlay none"}</div>
+              <div class="tone-matrix-content">
+                <span>通常前景</span> /
+                <span class="tone-matrix-role">role-weatherWarning 前景</span>
+              </div>
+              <div class="tone-matrix-solid">solid ticker · 大津波警報</div>
+            </main>
+          {/each}
+        {/each}
+      {/each}
+    </div>
+  </section>
 {:else}
-<main data-tier={snapshot.severityTier}>
+<main class="preview-screen" data-tier={snapshot.severityTier} data-background-tone={snapshot.backgroundTone ?? "calm"}>
   <div class="screen-area">
     {#if mode === "standby"}
       <div
@@ -581,7 +609,7 @@
 {/if}
 
 <style>
-  main {
+  .preview-screen {
     /* テロップ高さは theme.css の --ticker-row-h / --ticker-rows が真実源 (App.svelte と同値) */
     position: relative;
     width: 100vw;
@@ -624,6 +652,48 @@
     gap: 8px;
     padding: 6px 10px;
     background: rgba(0, 0, 0, 0.65);
+  }
+  .tone-matrix {
+    min-height: 100vh;
+    padding: 2rem;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  .tone-matrix h1 { margin: 0 0 0.4rem; font-size: 1.4rem; }
+  .tone-matrix p { margin: 0 0 1.25rem; color: var(--role-muted); }
+  .tone-matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.75rem;
+  }
+  .tone-matrix-cell {
+    position: relative;
+    min-height: 8rem;
+    overflow: hidden;
+    padding: 0.8rem;
+    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+  }
+  .tone-matrix-cell.dim { color: color-mix(in srgb, var(--fg) 35%, var(--bg)); }
+  .tone-matrix-cell.critical-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background: radial-gradient(120% 120% at 50% 50%, rgba(160, 48, 160, 0.1) 40%, rgba(160, 48, 160, 0.34) 100%);
+  }
+  .tone-matrix-label, .tone-matrix-content, .tone-matrix-solid { position: relative; z-index: 1; }
+  .tone-matrix-label { color: var(--role-muted); font-size: 0.8rem; }
+  .tone-matrix-content { margin-top: 1.5rem; }
+  .tone-matrix-role { color: var(--role-weatherWarning); }
+  .tone-matrix-solid {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: var(--radius-s);
+    background: var(--header-tsunamiMajor-container);
+    color: var(--header-tsunamiMajor-on);
   }
   .preview-nav a {
     font-size: 12px;

@@ -5,7 +5,7 @@
   import { fade } from "svelte/transition";
   import type { TickerJob } from "../lib/ticker-schedule";
   import { pageCharsForWidth, pageSplit, readTranslateX, lastPassedBookmark, splitEmphasis, type EmphasisSpan } from "../lib/ticker-segment";
-  import { resolveChipTokens } from "../lib/ticker-chip";
+  import { resolveChipTokens, resolveSurfaceTokens } from "../lib/ticker-chip";
   import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
   import { isAlertRole } from "../lib/alert-roles";
 
@@ -72,6 +72,9 @@
   const shownChip = $derived(job != null ? currentChip : lingerChip);
   // チップの container/on を role から解決 (Spec C §3-4)。CSS が var(--chip-*) を消費する
   const chipTokens = $derived(shownChip != null ? resolveChipTokens(shownChip.role) : null);
+  const surfaceTokens = $derived(
+    job != null && job.surface === "solid" ? resolveSurfaceTokens(job.role) : null,
+  );
   // チップの入替キー。role/種別/件名のいずれかが変わったら {#key} が旧チップを outro、新チップを intro
   // させ、割込み・入替を cross-fade で切替える (出現/消滅は #if の in/out が担う)。目視レビュー
   // フィードバック (2026-07-11「出現・消滅・切替もフェード」)。既存のページ切替 (TsunamiPanel) と同文法。
@@ -322,10 +325,11 @@
           class="ticker-line role-{job.role}"
           class:fading={phase === "fading"}
           class:reduced={reducedMotion}
+          class:solid={job.surface === "solid"}
           data-generation={generation}
           data-priority={job.priority}
           data-alert={isAlertRole(job.role) ? "" : undefined}
-          style="--scroll-dur: {durationS}s; --ticker-shift: {shiftPx}px;"
+          style={`--scroll-dur: ${durationS}s; --ticker-shift: ${shiftPx}px;${surfaceTokens != null ? ` --ticker-surface-container: ${surfaceTokens.container}; --ticker-surface-on: ${surfaceTokens.on};` : ""}`}
           onanimationend={onAnimEnd}
         >
           {#if reducedMotion}
@@ -540,16 +544,11 @@
     color: color-mix(in srgb, var(--chip-on) 35%, var(--bg));
     box-shadow: none;
   }
-  /* 大津波警報の走行文字だけ「JMA 津波紫の面 + 明色文字」で反転強調する (実機目視フィードバック
-     2026-07-11「大津波警報と気象特別警報のテロップ文字色が似ている」)。両者は --role-tsunamiMajor /
-     --role-weatherEmergency が共に法定紫 (--c-tsunami-purple) で走行文字色が一致するため、大津波警報側
-     だけ header 反転ペア (container 面 + on 文字) を走行テキストに敷いて「面の有無」で差別化する。色は
-     既存トークンのみ、点滅させない。セレクタは .role-tsunamiMajor に限定なので他 role へ影響しない。
-     面は position:absolute の .ticker-line が shrink-to-fit で走行テキスト幅に一致するため、テキストに
-     追従する矩形になる (padding 少量で文字が縁に密着しないようにする)。 */
-  .ticker-line.role-tsunamiMajor {
-    background: var(--header-tsunamiMajor-container);
-    color: var(--header-tsunamiMajor-on);
+  /* engine が surface=solid と明示した本文だけに role 由来の container/on 面を敷く。
+     tsunamiMajor は resolveChipTokens により既存 header token を使うので、従来の紫面を保つ。 */
+  .ticker-line.solid {
+    background: var(--ticker-surface-container);
+    color: var(--ticker-surface-on);
     padding: 0 0.3em;
     border-radius: var(--radius-s);
   }
@@ -557,9 +556,9 @@
      基底 dim (.ticker-lane.dim .ticker-line) は --tk-c を混ぜるが、反転表示は header ペアを使うので
      こちらで混ぜ直す。詳細度 (0,3,0) が基底 dim (0,2,0) に勝つため面・文字とも確実に上書きされる。
      high tint (レーン面) との共存: これは走行文字自身の面なのでレーン面 tint と別レイヤに乗る。 */
-  .ticker-lane.dim .ticker-line.role-tsunamiMajor {
-    background: color-mix(in srgb, var(--header-tsunamiMajor-container) 35%, var(--bg));
-    color: color-mix(in srgb, var(--header-tsunamiMajor-on) 35%, var(--bg));
+  .ticker-lane.dim .ticker-line.solid {
+    background: color-mix(in srgb, var(--ticker-surface-container) 35%, var(--bg));
+    color: color-mix(in srgb, var(--ticker-surface-on) 35%, var(--bg));
   }
   /* spec D5 可読性フロア: 警報級 (意味重大度) の走行本文・チップは dim の 35% 混色から除外して
      素の色を保つ。「夜でも警報は光る」の基底ガード。判定は data-alert (lib/alert-roles.ts が真実源)。
@@ -574,9 +573,9 @@
     background: var(--chip-container);
     color: var(--chip-on);
   }
-  .ticker-lane.dim .ticker-line.role-tsunamiMajor[data-alert] {
-    background: var(--header-tsunamiMajor-container);
-    color: var(--header-tsunamiMajor-on);
+  .ticker-lane.dim .ticker-line.solid[data-alert] {
+    background: var(--ticker-surface-container);
+    color: var(--ticker-surface-on);
   }
   /* reduced-motion は dim も瞬時に切替える (既存の reduced-motion 方針に従う)。**基底 transition 規則
      より後**に置くこと: 同一詳細度なのでソース順で後勝ち。前に置くと基底 0.6s に上書きされて効かない */

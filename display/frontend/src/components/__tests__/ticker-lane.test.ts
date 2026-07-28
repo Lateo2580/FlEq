@@ -16,7 +16,7 @@ function job(over: Partial<TickerJob> = {}): TickerJob {
     segmentEmphasis: over.segmentEmphasis ?? segments.map(() => []),
     runs: over.runs ?? [{ startSegmentIndex: 0, endSegmentIndexExclusive: segments.length }],
     runIndex: 0, segmentIndex: 0, retryCount: 0, deferUntil: null, deferKind: null,
-    revisionAt: null, isCancellation: false,
+    revisionAt: null, isCancellation: false, tipPolicy: null, tipHazards: [], surface: "none",
     ...over,
   };
 }
@@ -68,6 +68,14 @@ describe("TickerLane (受動部品)", () => {
       onScrollEnd: noop, onFadeEnd: noop, onBookmarkCapture: noopBookmark,
     });
     expect(container.querySelector(".role-eewWarning")).toBeTruthy();
+  });
+
+  it("engine が指定した solid だけが本文面を持つ", () => {
+    const solid = renderLane({ job: job({ role: "weatherEmergency", surface: "solid" }) });
+    expect(solid.container.querySelector(".ticker-line.solid")).not.toBeNull();
+    solid.unmount();
+    const plain = renderLane({ job: job({ role: "weatherEmergency", surface: "none" }) });
+    expect(plain.container.querySelector(".ticker-line.solid")).toBeNull();
   });
 
   it("③ job が null は何も描かない (両レーン空欄、emptyLabel 撤去、spec §4-2)", () => {
@@ -602,27 +610,23 @@ describe("TickerLane (受動部品)", () => {
     expect(src).toMatch(/\.ticker-label-revision\s*\{[\s\S]*?color:\s*var\(--chip-on-rendered\)/);
   });
 
-  // ── 大津波警報テロップの走行文字 反転強調 (実機目視フィードバック 2026-07-11) ──
-  it("大津波警報の走行文字は header 反転ペア (container 面 + on 文字) で面を敷く", () => {
+  // ── engine 権威の solid テロップ面 ──
+  it("solid テロップは role 解決済みの container/on ペアで面を敷く", () => {
     const src = readFileSync(join(__dirname, "..", "TickerLane.svelte"), "utf-8");
-    // 走行文字 (.ticker-line) の tsunamiMajor だけ container 面 + on 文字を敷く (既存トークンのみ)
-    expect(src).toMatch(
-      /\.ticker-line\.role-tsunamiMajor\s*\{[\s\S]*?background:\s*var\(--header-tsunamiMajor-container\)/,
-    );
-    expect(src).toMatch(
-      /\.ticker-line\.role-tsunamiMajor\s*\{[\s\S]*?color:\s*var\(--header-tsunamiMajor-on\)/,
-    );
+    expect(src).toMatch(/class:solid=\{job\.surface === "solid"\}/);
+    expect(src).toMatch(/\.ticker-line\.solid\s*\{[\s\S]*?background:\s*var\(--ticker-surface-container\)/);
+    expect(src).toMatch(/\.ticker-line\.solid\s*\{[\s\S]*?color:\s*var\(--ticker-surface-on\)/);
     // 面が走行テキストに追従する矩形になるよう少量 padding + 角丸 (直値色は増やさない)
-    expect(src).toMatch(/\.ticker-line\.role-tsunamiMajor\s*\{[\s\S]*?padding:/);
+    expect(src).toMatch(/\.ticker-line\.solid\s*\{[\s\S]*?padding:/);
   });
 
-  it("大津波警報の dim は面・文字とも header ペアを color-mix 35% で沈め、opacity を使わない (§10)", () => {
+  it("solid テロップの dim は面・文字とも color-mix 35% で沈め、警報級 floor は戻す (§10)", () => {
     const src = readFileSync(join(__dirname, "..", "TickerLane.svelte"), "utf-8");
-    const m = src.match(/\.ticker-lane\.dim\s*\.ticker-line\.role-tsunamiMajor\s*\{[^}]*\}/);
+    const m = src.match(/\.ticker-lane\.dim\s*\.ticker-line\.solid\s*\{[^}]*\}/);
     expect(m).toBeTruthy();
     const decl = m![0];
-    expect(decl).toMatch(/background:\s*color-mix\(in srgb, var\(--header-tsunamiMajor-container\) 35%, var\(--bg\)\)/);
-    expect(decl).toMatch(/color:\s*color-mix\(in srgb, var\(--header-tsunamiMajor-on\) 35%, var\(--bg\)\)/);
+    expect(decl).toMatch(/background:\s*color-mix\(in srgb, var\(--ticker-surface-container\) 35%, var\(--bg\)\)/);
+    expect(decl).toMatch(/color:\s*color-mix\(in srgb, var\(--ticker-surface-on\) 35%, var\(--bg\)\)/);
     expect(decl).not.toContain("opacity");
   });
 

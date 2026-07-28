@@ -550,6 +550,7 @@ export function tickerLine(args: {
   tickerSentence?: string | null;
   tickerBody?: string | null;
   tickerPriority?: DisplayEventDtoV1["tickerPriority"];
+  tickerSurface?: DisplayEventDtoV1["tickerSurface"];
   groupKey?: string | null;
 }): DisplayEventDtoV1 {
   return {
@@ -577,6 +578,7 @@ export function tickerLine(args: {
     tickerSentence: args.tickerSentence ?? null,
     tickerBody: args.tickerBody ?? null,
     tickerPriority: args.tickerPriority ?? null,
+    tickerSurface: args.tickerSurface ?? "none",
   };
 }
 
@@ -820,6 +822,11 @@ export function standbySnapshot(over: Partial<DisplayStateSnapshotV1> = {}): Dis
     ...over,
   };
 }
+
+/** backgroundTone の実レンダー一覧用。各セルは本番と同じ snapshot 属性経路を使う。 */
+export const backgroundTonePreviewFixtures = [
+  "calm", "caution", "alert", "critical", "quakeExtreme",
+] as const satisfies readonly NonNullable<DisplayStateSnapshotV1["backgroundTone"]>[];
 
 // ============================================================================
 // 長文テロップ目視シナリオ (#standby-longbody)

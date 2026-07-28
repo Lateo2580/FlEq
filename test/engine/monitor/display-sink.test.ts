@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
+import { QuakeExtremeStore } from "../../../src/engine/display/quake-extreme-store";
 import type { DisplayIngestSink } from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type { Vpws50CurrentAreasForDisplay } from "../../../src/types";
@@ -91,6 +92,27 @@ describe("createDisplaySink (monitor の実配線)", () => {
     h.sink.ingest(weatherEvent({ type: "VPWS50" }));
     expect(h.promotions.get("vpws50")?.level).toBe(4);
     expect(hubCalls).toBe(1);
+  });
+
+  it("monitor 側で quakeExtreme が変わると hub の snapshot 再配信を要求する", () => {
+    const promotions = new WeatherPromotionStore();
+    const quakeExtreme = new QuakeExtremeStore();
+    let dirtyCalls = 0;
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined },
+      promotions,
+      quakeExtreme,
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => undefined, markExternalStateDirty: () => { dirtyCalls += 1; } }),
+      now: () => T0,
+    });
+    sink.ingest({
+      ...weatherEvent({ domain: "earthquake", type: "VXSE53" }),
+      eventId: "Q1",
+      originTime: new Date(T0).toISOString(),
+      maxIntRank: 9,
+    });
+    expect(dirtyCalls).toBe(1);
   });
 
   // spec 追補 2 (2026-07-26): 点灯契機は「新規発表」と「内容変化」だけ。

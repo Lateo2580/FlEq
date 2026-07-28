@@ -17,6 +17,7 @@
   import type { DisplayTsunamiLevel } from "./lib/protocol";
   import type { DisplayTickerDtoV1 } from "./lib/ticker-schedule";
   import { untrack } from "svelte";
+  import { normalizeBackgroundTone } from "./lib/display-contract";
   import {
     computeEffectiveDim,
     computeSnapshotAlertActive,
@@ -51,6 +52,8 @@
   const mode = $derived(deriveMode(connection.state));
   const tickerLines = $derived(deriveTickerLines(connection.state));
   const severityTier = $derived(connection.state.snapshot?.severityTier ?? "calm");
+  // 旧 server・未知 wire 値は、演出を足さない calm に明示的に縮退する。
+  const backgroundTone = $derived(normalizeBackgroundTone(connection.state.snapshot?.backgroundTone));
 
   // テロップ待機中 Tips (フィラー排他化 v2, 2026-07-14): 待機モードかつ電文が 1 件も走行/待機して
   // いないときだけ供給する。電文の走行/待機は Ticker が hasNonTipActivity で判定し onActivityChange
@@ -164,7 +167,7 @@
   onkeydown={(e) => { if (shouldToggleDimOnKey(e)) dim.toggle(); }}
 />
 
-<main data-tier={severityTier} data-mode={mode}>
+<main data-tier={severityTier} data-mode={mode} data-background-tone={backgroundTone}>
   <h1 class="visually-hidden">FlEq 防災情報ディスプレイ</h1>
   <div class="screen-area">
     {#if connection.state.snapshot == null}

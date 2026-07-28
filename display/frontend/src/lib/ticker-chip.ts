@@ -70,3 +70,18 @@ export function resolveChipTokens(role: DisplayColorRole): ChipTokens {
       };
   }
 }
+
+/**
+ * engine 指定の solid テロップ面。未知 role は中立面と通常前景に縮退する。
+ * resolveChipTokens の exhaustive 性はそのまま残し、JSON 境界だけをここで防御する。
+ */
+export function resolveSurfaceTokens(role: string): ChipTokens {
+  const knownRoles: readonly DisplayColorRole[] = [
+    "critical", "warning", "normal", "info", "cancel",
+    "eewWarning", "eewForecast", "tsunamiMajor", "tsunamiWarning", "tsunamiAdvisory",
+    "quakeMajor", "weatherEmergency", "weatherWarning", "weatherAdvisory",
+    "connectionOk", "connectionStale", "muted",
+  ];
+  if (knownRoles.includes(role as DisplayColorRole)) return resolveChipTokens(role as DisplayColorRole);
+  return { container: "var(--surface-high)", on: "var(--fg)" };
+}

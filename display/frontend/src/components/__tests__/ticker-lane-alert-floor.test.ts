@@ -19,7 +19,7 @@ function job(over: Partial<TickerJob> = {}): TickerJob {
     segmentEmphasis: over.segmentEmphasis ?? segments.map(() => []),
     runs: over.runs ?? [{ startSegmentIndex: 0, endSegmentIndexExclusive: segments.length }],
     runIndex: 0, segmentIndex: 0, retryCount: 0, deferUntil: null, deferKind: null,
-    revisionAt: null, isCancellation: false,
+    revisionAt: null, isCancellation: false, tipPolicy: null, tipHazards: [], surface: "none",
     ...over,
   };
 }
@@ -93,10 +93,10 @@ describe("TickerLane 可読性フロア (spec D5, data-alert)", () => {
 
   it("大津波警報の反転面は dim でも data-alert フロアで専用規則が素の色へ戻る", () => {
     const src = readFileSync(join(__dirname, "..", "TickerLane.svelte"), "utf-8");
-    const m = src.match(/\.ticker-lane\.dim \.ticker-line\.role-tsunamiMajor\[data-alert\]\s*\{[^}]*\}/);
+    const m = src.match(/\.ticker-lane\.dim \.ticker-line\.solid\[data-alert\]\s*\{[^}]*\}/);
     expect(m).toBeTruthy();
     const decl = m![0];
-    expect(decl).toMatch(/background:\s*var\(--header-tsunamiMajor-container\)/);
-    expect(decl).toMatch(/color:\s*var\(--header-tsunamiMajor-on\)/);
+    expect(decl).toMatch(/background:\s*var\(--ticker-surface-container\)/);
+    expect(decl).toMatch(/color:\s*var\(--ticker-surface-on\)/);
   });
 });

@@ -16,12 +16,15 @@ import {
   type WeatherPromotionViewSources,
 } from "../display/weather-promotion-ingest";
 import type { WeatherPromotionStore } from "../display/weather-promotion-store";
+import type { QuakeExtremeStore } from "../display/quake-extreme-store";
 
 export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
   standby: { applyEvent(event: PresentationEvent, nowMs: number): unknown };
   /** monitor 所有の昇格 lifecycle */
   promotions: WeatherPromotionStore;
+  /** 震度 7 の 12 時間保持。display off 中も電文受理と同時に更新する。 */
+  quakeExtreme?: QuakeExtremeStore;
   /** 昇格判定に使う現況 view (state holder) */
   weatherViews: WeatherPromotionViewSources;
   /** 現在の display hub (未起動なら null) */
@@ -37,7 +40,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       const nowMs = now();
       deps.standby.applyEvent(event, nowMs);
       applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
-      deps.getHub()?.ingest(event);
+      const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;
+      const hub = deps.getHub();
+      // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
+      // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
+      if (quakeExtremeChanged) hub?.markExternalStateDirty?.();
+      hub?.ingest(event);
     },
   };
 }

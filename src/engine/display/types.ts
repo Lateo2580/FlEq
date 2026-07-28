@@ -20,5 +20,7 @@ export interface DisplayTransport {
 
 export interface DisplayIngestSink {
   ingest(event: PresentationEvent): void;
+  /** monitor 所有の表示状態が変化したとき、snapshot の再配信を要求する。 */
+  markExternalStateDirty?(): void;
   publishStats?(stats: DisplayStatsV1): void;
 }

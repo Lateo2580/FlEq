@@ -260,6 +260,42 @@ export function evaluatePairs(map) {
   for (const fg of ["--fg", "--fg-faint", "--clock-fg"]) {
     out.push(makePair(`base-${fg}`, "1 基本文字色", "base", c(fg), c("--bg"), "normal"));
   }
+  // 16 engine 権威の背景トーン。通常前景・role 前景・header on を全 tone 上で監査し、
+  // critical TierOverlay は前景と背景の両方へ既存と同じ film 合成を掛ける。
+  const backgroundTones = ["calm", "caution", "alert", "critical", "quakeExtreme"];
+  // App 直下で tone 背景に載り得る全 role 前景に加え、solid ticker が resolveChipTokens から
+  // 選ぶ header on / cancel・neutral role / connectionOk 専用 on を網羅する。
+  const toneForegrounds = [
+    { token: "--fg", thresholdKind: "normal" },
+    ...ROLE_TEXT.map((role) => ({
+      token: `--role-${role}`,
+      // connectionOk は文字ではなく、意図的に沈めた接続状態ドット。
+      thresholdKind: role === "connectionOk" ? "nontext" : "normal",
+    })),
+    ...HEADER_ROLES.map((role) => ({ token: `--header-${role}-on`, thresholdKind: "normal" })),
+    { token: "--c-gray", thresholdKind: "normal" }, // solid connectionOk の実 on 色
+  ];
+  // critical film との組合せは category 10 が実表示経路別に監査する。ここでは category 16 の
+  // 既存契約 (--fg / role-normal / 大津波 solid on) を全 tone で維持する。
+  const toneOverlayForegrounds = ["--fg", "--role-normal", "--header-tsunamiMajor-on"];
+  const OVERLAY_CRITICAL = { r: 160, g: 48, b: 160, a: 1 };
+  for (const tone of backgroundTones) {
+    const toneName = `--background-tone-${tone}-preview`;
+    const toneColor = color(toneName);
+    for (const { token: foreground, thresholdKind } of toneForegrounds) {
+      out.push(makePair(
+        `tone-${tone}-${foreground}`, "16 背景トーン", "background-tone",
+        c(foreground), { label: toneName, color: toneColor }, thresholdKind,
+        "App.svelte data-background-tone。通常前景・role 前景・header on の実表示組合せ",
+      ));
+    }
+    for (const foreground of toneOverlayForegrounds) out.push(makePair(
+      `tone-overlay-${tone}-${foreground}`, "16 背景トーン", "background-tone+critical",
+      { label: `film(${foreground})`, color: compositeOver(OVERLAY_CRITICAL, 0.34, color(foreground)) },
+      { label: `film(${toneName})`, color: compositeOver(OVERLAY_CRITICAL, 0.34, toneColor) }, "normal",
+      "TierOverlay critical は前景・背景の双方へ合成する。role 別 overlay は category 10 で実経路を監査",
+    ));
+  }
   // 2 震度 rank 文字色 × (bg + surface 5 段)
   for (const fg of INT_TEXT) {
     for (const s of SURFACES) out.push(makePair(`int-${fg}-on-${s}`, "2 震度rank文字", "base", c(fg), c(s), "normal"));
@@ -304,7 +340,6 @@ export function evaluatePairs(map) {
   // 10 critical tier overlay 合成 (全画面フィルム。前景・背景の両方に source-over)
   // TierOverlay は position:fixed;inset:0 の全画面フィルムなので文字も背景も覆う。
   // 縁の最大 alpha=0.34 で保守側評価 (中心は 0.1)。前景・背景の両方に film を掛けてから比を取る。
-  const OVERLAY_CRITICAL = { r: 160, g: 48, b: 160, a: 1 };
   const film = (name) => compositeOver(OVERLAY_CRITICAL, 0.34, color(name));
   const overlayNote = "TierOverlay.svelte:33-35 critical 全画面フィルム。縁の最大α=0.34 で保守側 (中心0.1)";
   for (const fg of ["--fg", "--role-muted"]) {

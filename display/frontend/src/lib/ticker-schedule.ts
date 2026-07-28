@@ -1,7 +1,8 @@
 // テロップ全体スケジューラの純関数コア (spec §4)。割込み・退避・再試行・保留・巡回・競合の
 // 状態遷移を副作用なしで計算する。setTimeout / DOM / animationName 読取は Ticker.svelte 側の
 // 薄い副作用層に置き、ここは state を受け取り次 state (と次に張る timer 時刻 wakeAt) を返す。
-import type { DisplayColorRole, DisplayEventDtoV1, DisplayTickerPriority } from "./protocol";
+import type { DisplayColorRole, DisplayEventDtoV1, DisplayTickerPriority, DisplayTickerSurface } from "./protocol";
+import { normalizeTickerSurface } from "./display-contract";
 import { mapEmphasisToSegments, segmentTickerBody, splitRuns, type EmphasisSpan, type TickerRun } from "./ticker-segment";
 import { isAlertRole } from "./alert-roles";
 import type { EmergencyCompanionControl, EmergencyHazard } from "./emergency-tips-policy";
@@ -70,6 +71,8 @@ export interface TickerJob {
   deferKind: "quiet" | "long" | null; // quiet=静穏依存の可変期限 / long=5分固定
   revisionAt: number | null; // 続報が実表示へ昇格した時刻。Spec C バッジ発火 (§5-2)
   isCancellation: boolean; // 取消判定。二段制御の即時フェード条件 (§5-1)
+  /** engine 権威の面契約。scheduler は判定も書換も行わない。 */
+  surface: DisplayTickerSurface;
   replayGeneration?: number; // replay ジョブの投入時点の津波 snapshot 世代 (世代不一致 purge 用、非 replay は未設定)
 }
 
@@ -149,6 +152,7 @@ export function toTickerJob(dto: DisplayTickerDtoV1, fallbackSeq: number): Ticke
     deferKind: null,
     revisionAt: null,
     isCancellation: dto.isCancellation,
+    surface: normalizeTickerSurface(dto.tickerSurface),
     ...(dto.replayGeneration != null ? { replayGeneration: dto.replayGeneration } : {}),
   };
 }

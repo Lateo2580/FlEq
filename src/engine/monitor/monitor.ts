@@ -17,6 +17,8 @@ import { StandbyPersistence } from "../display/standby-persistence";
 import { StandbyStateStore } from "../display/standby-state-store";
 import { WeatherPromotionPersistence } from "../display/weather-promotion-persistence";
 import { WeatherPromotionStore } from "../display/weather-promotion-store";
+import { QuakeExtremePersistence } from "../display/quake-extreme-persistence";
+import { QuakeExtremeStore } from "../display/quake-extreme-store";
 import { createDisplaySink } from "./display-sink";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
@@ -71,10 +73,35 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     log.warn(`気象警報の昇格状態の復元に失敗しました: ${err instanceof Error ? err.message : err} (本体は継続します)`);
   }
 
+  // 震度 7 の背景保持は、表示用 largeQuake/latestQuake の TTL から独立した originTime 基準の 12 時間時計。
+  // monitor 所有にして display off/on とプロセス再起動をまたいで維持する。
+  const quakeExtremeStore = new QuakeExtremeStore();
+  const quakeExtremePersistence = new QuakeExtremePersistence(
+    join(process.cwd(), "data", "runtime", "quake-extreme-v1.json"),
+  );
+  quakeExtremeStore.onDurable(
+    (durability) => {
+      const state = quakeExtremeStore.export();
+      const nowMs = Date.now();
+      if (durability === "immediate") quakeExtremePersistence.saveImmediate(state, nowMs);
+      else quakeExtremePersistence.schedule(state, nowMs);
+    },
+  );
+  try {
+    const persistedQuakeExtreme = quakeExtremePersistence.load(Date.now());
+    if (persistedQuakeExtreme != null) quakeExtremeStore.restore(persistedQuakeExtreme, Date.now());
+  } catch (err) {
+    log.warn(`震度 7 背景保持の復元に失敗しました: ${err instanceof Error ? err.message : err} (本体は継続します)`);
+  }
+
   let standbySweepTimer: NodeJS.Timeout | null = null;
   function startStandbySweep(): void {
     if (standbySweepTimer != null) return;
-    standbySweepTimer = setInterval(() => standbyStore.sweep(Date.now()), 60_000);
+    standbySweepTimer = setInterval(() => {
+      const nowMs = Date.now();
+      standbyStore.sweep(nowMs);
+      quakeExtremeStore.sweep(nowMs);
+    }, 60_000);
     standbySweepTimer.unref();
   }
   function stopStandbySweep(): void {
@@ -92,6 +119,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const baseDisplaySink = createDisplaySink({
     standby: standbyStore,
     promotions: weatherPromotionStore,
+    quakeExtreme: quakeExtremeStore,
     weatherViews: {
       vpws50: () => vpws50State.getCurrentAreasForDisplay(),
       vpww56: () => vpww56State.getCurrentAreasForDisplay(),
@@ -128,6 +156,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       landslide: () => vpww56State.getCurrentAreasForDisplay(),
       standbyItems: () => standbyStore.snapshotItems(),
       weatherPromotions: () => weatherPromotionStore,
+      quakeExtreme: () => quakeExtremeStore,
       standbySweep: (nowMs) => standbyStore.sweep(nowMs),
     },
     getRuntime: () => displayRuntime,
@@ -200,6 +229,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       // 予約済み (debounce 待ち) より export() の方が常に新しいので、予約は捨てて現在状態を保存する
       weatherPromotionPersistence.dispose();
       weatherPromotionPersistence.save(weatherPromotionStore.export(), Date.now());
+    },
+    flushQuakeExtreme: () => {
+      quakeExtremePersistence.dispose();
+      quakeExtremePersistence.save(quakeExtremeStore.export(), Date.now());
     },
   });
 

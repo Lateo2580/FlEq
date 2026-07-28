@@ -3637,6 +3637,18 @@ VPWS50 は rank ごとのバケツ (気象特別警報 / 気象警報 / 気象�
 
 ---
 
+## display/quake-extreme-store.ts
+
+`QuakeExtremeStore` は背景トーン専用の震度 7 保持時計である。`DisplayStateStore` の `largeQuakes` / `latestQuake` の表示 TTL とは独立し、地震の `originTime` から 12 時間だけ `backgroundTone: "quakeExtreme"` を導出する。
+
+- 同一 `groupKey` の続報で震度 7 未満へ下方修正された時点、または同系列の取消で直ちに削除する。キー無し取消は別地震を消さない。
+- `EventID + 電文種別` ごとに `reportDateTime` と `serial` の単調な revision guard を持つ。VXSE52/VXSE53 の別系列を干渉させず、active record は EventID 単位で各電文種別の震度 7 状態を束ねる。
+- 下方修正・取消より古い遅延続報で再点灯しないよう、active record が消えた後も tombstone を永続化する。下方修正・取消は debounce を待たず同期保存する。
+- tombstone の壁時計 `forgetAtMs` は永続化・起動時復元にだけ使い、稼働中は active record と同じく単調時計の deadline で 12 時間後に sweep する。
+- monitor が store と `quake-extreme-v1.json` を所有する。`display off/on` とプロセス再起動をまたぎ、起動時は 12 時間以内の `originTime` だけを復元する。
+- 起動時だけ壁時計で残り時間を算出し、同一プロセス内では `performance.now()` 基準の deadline を使う。稼働中の壁時計補正は失効・延長へ影響しない。
+- snapshot では quakeExtreme を最優先し、その後は既存 `severityTier` を calm/caution/alert/critical に写像する。severityTier 自体は変更しない。
+
 ## display/weather-promotion-ingest.ts
 
 ### 概要
