@@ -151,6 +151,9 @@ export async function startDisplayRuntime(
     distDir,
     getSnapshot: () => hub.buildSnapshot(),
     log: { info: (msg) => log.info(msg), warn: (msg) => log.warn(msg) },
+    onClientCountChange: (count) => {
+      hub.onSseClientCountChange(count);
+    },
     token: displayToken,
   });
   hub.attachTransport(transport);
@@ -169,11 +172,6 @@ export async function startDisplayRuntime(
   const vpww56Alerts = weatherAlertsFromVpww56(vpww56View, nowIso);
   const weatherSeed = [...vpws50Alerts, ...vpww56Alerts];
   if (weatherSeed.length > 0) store.seedWeatherAlerts(weatherSeed);
-  // display off 中は降格 sweep (hub の 5 秒タイマー) が止まるため、`display on` の時点で
-  // 経過判定を通して、経過済みの昇格が初回 sweep まで見えてしまう窓を塞ぐ。
-  // 受信更新自体は monitor 側で display の on/off に関わらず行われている
-  store.resumeWeatherPromotions(nowMs);
-
   try {
     await transport.start();
   } catch (err) {
@@ -183,6 +181,13 @@ export async function startDisplayRuntime(
     );
     return null;
   }
+  // 起動失敗では lifecycle に触れない。HTTP/SSE が実際に開始できた時点だけを display on とし、
+  // off 中に残った active な点灯へここから表示時間を与える (spec 追補 C6)。
+  const displayOnAtMs = Date.now();
+  store.resumeWeatherPromotions(displayOnAtMs);
+  // display on のフルリセットとは別に、runtime 稼働中の SSE 無客区間は保持時計から除外する。
+  // transport.start() とこの同期区間の間に await は無いため、初期人数との競合は起きない
+  hub.startSseClientTracking(transport.clientCount(), displayOnAtMs);
   hub.startTimers();
   if (displayToken != null) {
     log.info(`情報ディスプレイ: http://${config.displayHost}:${transport.port()}/?token=${encodeURIComponent(displayToken)}`);

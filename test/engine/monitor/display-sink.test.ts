@@ -93,14 +93,27 @@ describe("createDisplaySink (monitor の実配線)", () => {
     expect(hubCalls).toBe(1);
   });
 
-  it("display off 中の続報でも時計が進む (sink 経由の実配線)", () => {
+  // spec 追補 2 (2026-07-26): 点灯契機は「新規発表」と「内容変化」だけ。
+  // 同内容の定時再掲で時計が進むと、警報が続く限り主役パネルが出っぱなしになる
+  it("display off 中でも内容変化なら時計が進む (sink 経由の実配線)", () => {
     const h = harness();
     h.setVpws50(view("officialL5", ["東京都"]));
     h.sink.ingest(weatherEvent({ type: "VPWS50" }));
-    h.setNow(T0 + 20 * MIN);
+    h.setNow(T0 + 2 * MIN);
+    h.setVpws50(view("officialL5", ["東京都", "千葉県"])); // 地域追加 = 内容変化
     h.sink.ingest(weatherEvent({ type: "VPWS50" }));
     const rec = h.promotions.get("vpws50");
-    expect(rec?.state === "active" ? rec.promotedAtMs : null).toBe(T0 + 20 * MIN);
+    expect(rec?.state === "active" ? rec.promotedAtMs : null).toBe(T0 + 2 * MIN);
+  });
+
+  it("display off 中の同内容再掲では時計が進まない (sink 経由の実配線)", () => {
+    const h = harness();
+    h.setVpws50(view("officialL5", ["東京都"]));
+    h.sink.ingest(weatherEvent({ type: "VPWS50" }));
+    h.setNow(T0 + 2 * MIN);
+    h.sink.ingest(weatherEvent({ type: "VPWS50" })); // 同内容
+    const rec = h.promotions.get("vpws50");
+    expect(rec?.state === "active" ? rec.promotedAtMs : null).toBe(T0);
   });
 
   it("VPWW56 は vpww56 側だけを更新する", () => {

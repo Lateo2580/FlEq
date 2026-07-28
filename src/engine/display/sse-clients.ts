@@ -38,9 +38,14 @@ interface ClientEntry {
 export class SseClients {
   private readonly clients = new Map<ServerResponse, ClientEntry>();
   private readonly now: () => number;
+  private readonly onCountChange: ((count: number) => void) | null;
 
-  constructor(now: () => number = Date.now) {
+  constructor(
+    now: () => number = Date.now,
+    onCountChange: ((count: number) => void) | null = null,
+  ) {
     this.now = now;
+    this.onCountChange = onCountChange;
   }
 
   /** 上限超過なら false (呼び出し元が 503 等を返す) */
@@ -49,16 +54,17 @@ export class SseClients {
     const entry: ClientEntry = { res, blockedSinceMs: null };
     this.clients.set(res, entry);
     res.once("close", () => {
-      this.clients.delete(res);
+      this.removeClient(res);
     });
     // 'error' (ECONNRESET 等) はリスナー無しだとプロセスを abort させる (monitor 同居のため致命的)。
     // 'close' への伝播前に破壊済み res へ write する窓を塞ぐため、ここでも即座に除去する。
     res.on("error", () => {
-      this.clients.delete(res);
+      this.removeClient(res);
     });
     res.on("drain", () => {
       entry.blockedSinceMs = null;
     });
+    this.onCountChange?.(this.clients.size);
     return true;
   }
 
@@ -112,7 +118,9 @@ export class SseClients {
     for (const entry of this.clients.values()) {
       entry.res.destroy();
     }
+    if (this.clients.size === 0) return;
     this.clients.clear();
+    this.onCountChange?.(0);
   }
 
   /** 戻り値: この chunk が socket buffer に届いたか (true=書込/バッファ済で client は受け取る、
@@ -146,7 +154,13 @@ export class SseClients {
 
   /** destroy() は 'close'/'error' 発火まで非同期の窓がある。その窓で map に残らないよう同期削除する */
   private destroyClient(entry: ClientEntry): void {
+    this.removeClient(entry.res);
     entry.res.destroy();
-    this.clients.delete(entry.res);
+  }
+
+  /** close / error / backpressure destroy が重なっても人数変更を一度だけ通知する。 */
+  private removeClient(res: ServerResponse): void {
+    if (!this.clients.delete(res)) return;
+    this.onCountChange?.(this.clients.size);
   }
 }

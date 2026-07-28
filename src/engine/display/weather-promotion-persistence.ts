@@ -15,8 +15,13 @@ import {
   WEATHER_PROMOTION_MAX_RESTORE_AGE_MS,
 } from "./constants";
 import type { DisplayWeatherAlertItemV1, DisplayWeatherSourceV1 } from "./types";
-import { WEATHER_PROMOTION_SOURCES } from "./weather-promotion";
-import type { WeatherPromotionPersistedV1, WeatherPromotionRecord } from "./weather-promotion-store";
+import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
+import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
+import type {
+  WeatherPromotionPersistedV1,
+  WeatherPromotionRecord,
+  WeatherPromotionTrigger,
+} from "./weather-promotion-store";
 
 // v2: record に items (昇格根拠の view スナップショット) を追加。
 // v1 のデータは items を持たず「昇格しているのに中身が無い」状態になるため復元しない
@@ -59,22 +64,30 @@ export class WeatherPromotionPersistence {
       const parsed: unknown = JSON.parse(fs.readFileSync(this.persistPath, "utf8"));
       if (!isRecord(parsed)) {
         log.warn("[weather-promotion-persistence] top-level structure validation 失敗 — 破棄");
-        return null;
+        return discardedWithoutMaterial();
       }
       if (parsed.version !== PERSIST_SCHEMA_VERSION) {
         log.debug(
           `[weather-promotion-persistence] schema 世代交代 (v${String(parsed.version)} → v${PERSIST_SCHEMA_VERSION}) — 旧データ破棄`,
         );
-        return null;
+        return discardedWithoutMaterial();
       }
       const savedAtMs = typeof parsed.savedAt === "string" ? Date.parse(parsed.savedAt) : Number.NaN;
       if (!Number.isFinite(savedAtMs)) {
         log.warn("[weather-promotion-persistence] savedAt が不正 — 破棄");
-        return null;
+        return discardedWithoutMaterial();
       }
       if (nowMs - savedAtMs > WEATHER_PROMOTION_MAX_RESTORE_AGE_MS) {
         log.debug(`[weather-promotion-persistence] 保存から時間が経ちすぎているため破棄 (savedAt=${String(parsed.savedAt)})`);
-        return null;
+        // 古すぎる lifecycle は捨てるが、**内容 (signature) は読めている**。継続中の警報を
+        // 次の受理で「新規発表」と偽らないよう tombstone だけ残す (spec 追補 C5)
+        const aged = sanitizePersisted(parsed);
+        return {
+          records: { vpws50: null, vpww56: null },
+          generations: aged.generations,
+          activationSeq: aged.activationSeq,
+          uncertainSources: tombstonesOf(aged),
+        };
       }
       // savedAt 自体が未来 = 時計が信用できない。この状態では record の古さを判定できず、
       // demoted record が tier と weatherL5Active を無期限に固定しうるので record を捨てる
@@ -83,13 +96,20 @@ export class WeatherPromotionPersistence {
       if (savedAtMs - nowMs > WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS) {
         log.warn(`[weather-promotion-persistence] 保存時刻が未来のため record を破棄 (savedAt=${String(parsed.savedAt)})`);
         // record は捨てるが watermark は時刻と無関係なので残す。
-        // 捨てると次の昇格が generation 1 に戻り「generation を再利用しない」契約が壊れる
-        return { records: { vpws50: null, vpww56: null }, generations: sanitized.generations };
+        // 捨てると次の昇格が generation 1 に戻り「generation を再利用しない」契約が壊れる。
+        // **signature は tombstone として残す** — 時計が信用できないだけで内容は読めているので、
+        // 次の受理が同内容なら点灯しない (spec 追補 C5)
+        return {
+          records: { vpws50: null, vpww56: null },
+          generations: sanitized.generations,
+          activationSeq: sanitized.activationSeq,
+          uncertainSources: tombstonesOf(sanitized),
+        };
       }
       return sanitized;
     } catch (err) {
       log.warn(`[weather-promotion-persistence] load 失敗: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
+      return discardedWithoutMaterial();
     }
   }
 
@@ -126,11 +146,13 @@ export class WeatherPromotionPersistence {
 
   /** savedAt は呼び出し側の nowMs から作る (ストア/永続化層で Date.now() を呼ばない) */
   private envelope(state: WeatherPromotionPersistedV1, nowMs: number): PersistedWeatherPromotionV1 {
+    // **フィールドを列挙せず spread する**。`WeatherPromotionPersistedV1` の新フィールドは
+    // optional で入るため、列挙式だと書き忘れても型検査を通り抜ける
+    // (activationSeq / uncertainSources が実際に落ちていた、Codex レビュー 3 巡目 2026-07-27)
     return {
+      ...state,
       version: PERSIST_SCHEMA_VERSION,
       savedAt: new Date(nowMs).toISOString(),
-      records: state.records,
-      generations: state.generations,
     };
   }
 
@@ -233,6 +255,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * 保存ファイルはあったが中身を一切使えなかった場合の戻り値 (spec 追補 C5)。
+ *
+ * `null` (= ファイル自体が無い / 初回起動) と**区別する**のが要点。null を返すと store は
+ * 「記録なし = 本当の新規」と解釈し、継続中の警報に「新規発表」バッジを出してしまう。
+ * 比較材料が無いので tombstone の値は null = バッジを出さない。
+ */
+function discardedWithoutMaterial(): WeatherPromotionPersistedV1 {
+  return {
+    records: { vpws50: null, vpww56: null },
+    generations: { vpws50: 0, vpww56: 0 },
+    uncertainSources: Object.fromEntries(WEATHER_PROMOTION_SOURCES.map((s) => [s, null])),
+  };
+}
+
+/** lifecycle を捨てるが内容は読めているときの tombstone (source → signature)。 */
+function tombstonesOf(
+  state: WeatherPromotionPersistedV1,
+): Partial<Record<DisplayWeatherSourceV1, string | null>> {
+  const out: Partial<Record<DisplayWeatherSourceV1, string | null>> = { ...state.uncertainSources };
+  for (const source of WEATHER_PROMOTION_SOURCES) {
+    const record = state.records[source];
+    if (record != null) out[source] = record.signature;
+  }
+  return out;
+}
+
 /** source 単位で検証する。片方が壊れていても、もう片方は生かす */
 function sanitizePersisted(parsed: Record<string, unknown>): WeatherPromotionPersistedV1 {
   const rawRecords = isRecord(parsed.records) ? parsed.records : {};
@@ -241,10 +290,15 @@ function sanitizePersisted(parsed: Record<string, unknown>): WeatherPromotionPer
     vpws50: null, vpww56: null,
   };
   const generations: Record<DisplayWeatherSourceV1, number> = { vpws50: 0, vpww56: 0 };
+  // 「壊れていたので捨てた」source。**正常に record が無かった場合と区別して store へ渡す** —
+  // 区別しないと、継続中の警報を次の受理で「新規発表」と偽る (Codex レビュー 2026-07-27)
+  const uncertainSources: Partial<Record<DisplayWeatherSourceV1, string | null>> = {};
   for (const source of WEATHER_PROMOTION_SOURCES) {
     const record = sanitizeRecord(rawRecords[source]);
     if (record === undefined) {
       log.warn(`[weather-promotion-persistence] ${source} の record が不正 — この source だけ破棄`);
+      // 壊れた record からは signature も信用できない → 比較材料なし (バッジを出さない)
+      uncertainSources[source] = null;
     } else {
       records[source] = record;
     }
@@ -259,7 +313,55 @@ function sanitizePersisted(parsed: Record<string, unknown>): WeatherPromotionPer
       generations[source] = restored.generation;
     }
   }
-  return { records, generations };
+  const rawSeq = parsed.activationSeq;
+  const activationSeq =
+    typeof rawSeq === "number" && Number.isSafeInteger(rawSeq) && rawSeq >= 0 ? rawSeq : 0;
+  const rawUnseenSinceMs = parsed.unseenSinceMs;
+  const unseenSinceMs =
+    typeof rawUnseenSinceMs === "number"
+    && Number.isFinite(rawUnseenSinceMs)
+    && Math.abs(rawUnseenSinceMs) <= MAX_TIME_VALUE
+      ? rawUnseenSinceMs
+      : null;
+  // 保存時点で立っていた印も引き継ぐ (次の受理まで維持される)。
+  // 値は tombstone の signature、文字列でなければ「材料なし」に倒す
+  const savedUncertain = sanitizeUncertainSources(parsed.uncertainSources);
+  return {
+    records,
+    generations,
+    unseenSinceMs,
+    activationSeq,
+    // この load で壊れていた source が優先 (今回の観測の方が新しい)
+    uncertainSources: { ...savedUncertain, ...uncertainSources },
+  };
+}
+
+/**
+ * 保存済みの印 (`uncertainSources`) の復元。**旧形式の配列も受ける**。
+ *
+ * この印は追補の実装途中で `DisplayWeatherSourceV1[]`（signature を持たない「捨てた source の
+ * 一覧」）だった。schema version は 2 のまま signature 付き object へ変えたので、**旧形式で
+ * 書かれたファイルは version 検査を通過してしまう**。配列を無視すると印が丸ごと落ち、
+ * 継続中の警報が再起動後の初回受理で「新規発表」として点く (spec 追補 C5 が塞ぐはずの穴)。
+ * 配列には比較材料 (signature) が無いので `null` = バッジを出さない、へ移行する。
+ */
+function sanitizeUncertainSources(
+  value: unknown,
+): Partial<Record<DisplayWeatherSourceV1, string | null>> {
+  const out: Partial<Record<DisplayWeatherSourceV1, string | null>> = {};
+  if (Array.isArray(value)) {
+    for (const source of WEATHER_PROMOTION_SOURCES) {
+      if (value.includes(source)) out[source] = null;
+    }
+    return out;
+  }
+  if (!isRecord(value)) return out;
+  for (const source of WEATHER_PROMOTION_SOURCES) {
+    if (!(source in value)) continue;
+    const signature = value[source];
+    out[source] = typeof signature === "string" ? signature : null;
+  }
+  return out;
 }
 
 /** null = 記録なし (正常) / undefined = 不正データ (この source を破棄) */
@@ -280,12 +382,77 @@ function sanitizeRecord(value: unknown): WeatherPromotionRecord | null | undefin
   // 空で保存されているのは破損なので record ごと捨てる — 復元しても「昇格しているのに
   // 中身が無い」状態を作るだけで、この機能が塞ごうとしている穴そのものになる
   if (items.length === 0) return undefined;
-  if (state === "demoted") return { state, level, generation, signature, items };
+  // 装飾 (members / trigger / addedAreas) は**壊れていても record は捨てない** (spec 追補 C4)。
+  // 装飾は「なぜ光っているか」の説明であって昇格の根拠ではないので、失っても record を生かし、
+  // バッジとハイライトだけを落とす (装飾なし = trigger の判定材料が無い state)
+  const decor = sanitizeDecoration(value);
+  if (state === "demoted") return { state, level, generation, signature, items, ...decor };
   const promotedAtMs = value.promotedAtMs;
   // 有限なだけでは足りない: 1e20 のような値は Date 範囲外で、後段の日時整形が RangeError になる
   if (typeof promotedAtMs !== "number" || !Number.isFinite(promotedAtMs)) return undefined;
   if (Math.abs(promotedAtMs) > MAX_TIME_VALUE) return undefined;
-  return { state, level, promotedAtMs, generation, signature, items };
+  return { state, level, promotedAtMs, generation, signature, items, ...decor };
+}
+
+/**
+ * 装飾 (安定キー集合・trigger・追加地域) の復元。**壊れていれば装飾だけを落とす** (C4)。
+ * `trigger` を失った record は「装飾なし」として復元され、次の受理で嘘の「新規発表」を
+ * 出さないよう store 側が update に倒す (C5)。
+ */
+function sanitizeDecoration(value: Record<string, unknown>): {
+  members: WeatherPromotionMemberV1[];
+  trigger: WeatherPromotionTrigger | null;
+  addedAreas: WeatherPromotionMemberV1[];
+  activationSeq: number;
+} {
+  const members = sanitizeMembers(value.members);
+  const addedAreasRaw = sanitizeMembers(value.addedAreas);
+  // 追加地域は members の部分集合でなければ信用しない (別物を指していれば装飾ごと捨てる)
+  const memberKeys = new Set((members ?? []).map((m) => `${m.kindCode}|${m.areaCode}`));
+  const addedAreas =
+    addedAreasRaw == null || members == null
+      ? undefined
+      : addedAreasRaw.every((m) => memberKeys.has(`${m.kindCode}|${m.areaCode}`))
+        ? addedAreasRaw
+        : undefined;
+  const rawTrigger = value.trigger;
+  // **補正しない**。旧データ・壊れた装飾は null にしてバッジを出さない
+  const trigger: WeatherPromotionTrigger | null =
+    rawTrigger === "new" || rawTrigger === "update" ? rawTrigger : null;
+  // members が復元できないと追加地域の差分が取れない。次の受理を「全部が追加」と誤判定
+  // しないよう、その場合は addedAreas も落とす
+  const rawSeq = value.activationSeq;
+  const activationSeq =
+    typeof rawSeq === "number" && Number.isSafeInteger(rawSeq) && rawSeq >= 0 ? rawSeq : 0;
+  // 1 つでも壊れていたら装飾ごと落とす (record 自体は生かす)
+  if (members == null || members.length === 0 || addedAreas == null) {
+    return { members: [], trigger: null, addedAreas: [], activationSeq };
+  }
+  return { members, trigger, addedAreas, activationSeq };
+}
+
+/**
+ * member 集合の復元。**all-or-nothing** で検証する (Codex 再レビュー 2026-07-27)。
+ * 要素単位で読み飛ばすと、部分的に欠けた集合が「前回の全量」として扱われ、
+ * 次の更新で実際には増えていない地域まで「追加」としてハイライトされる。
+ * `phenomenonKey` は保存値を信用せず `kindCode` から再生成する (保存後にマップが育っても追従する)。
+ */
+function sanitizeMembers(value: unknown): WeatherPromotionMemberV1[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: WeatherPromotionMemberV1[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) return undefined;
+    const { level, severity, kindCode, areaCode, kind, areaName } = raw;
+    if (level !== 4 && level !== 5) return undefined;
+    if (typeof severity !== "string" || typeof kindCode !== "string") return undefined;
+    if (typeof areaCode !== "string" || typeof kind !== "string" || typeof areaName !== "string") return undefined;
+    out.push({
+      level, severity, kindCode,
+      phenomenonKey: kindCodeToPhenomenonKey(kindCode),
+      areaCode, kind, areaName,
+    });
+  }
+  return out;
 }
 
 /** undefined = 不正 (record ごと破棄) */
@@ -294,14 +461,21 @@ function sanitizeItems(value: unknown): DisplayWeatherAlertItemV1[] | undefined 
   const items: DisplayWeatherAlertItemV1[] = [];
   for (const raw of value) {
     if (!isRecord(raw)) return undefined;
-    const { kind, displaySeverity, rank, shownAreas, omittedAreaCount } = raw;
+    const { kind, phenomenonKey, displaySeverity, rank, shownAreas, omittedAreaCount } = raw;
     if (typeof kind !== "string" || typeof displaySeverity !== "string") return undefined;
     if (rank !== "emergency" && rank !== "warning" && rank !== "advisory") return undefined;
     if (!Array.isArray(shownAreas) || shownAreas.some((a) => typeof a !== "string")) return undefined;
     if (typeof omittedAreaCount !== "number" || !Number.isSafeInteger(omittedAreaCount) || omittedAreaCount < 0) {
       return undefined;
     }
-    items.push({ kind, displaySeverity, rank, shownAreas: shownAreas as string[], omittedAreaCount });
+    items.push({
+      kind,
+      ...(typeof phenomenonKey === "string" ? { phenomenonKey } : {}),
+      displaySeverity,
+      rank,
+      shownAreas: shownAreas as string[],
+      omittedAreaCount,
+    });
   }
   return items;
 }

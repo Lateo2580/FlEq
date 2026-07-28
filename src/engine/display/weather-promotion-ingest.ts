@@ -33,8 +33,7 @@ export function applyWeatherPromotionOnIngest(
   if (event.type !== "VPWS50" && event.type !== "VPWW56") return false;
   if (event.weatherConfidence === "unsafe") return false;
   const source = event.type === "VPWS50" ? "vpws50" : "vpww56";
-  const alerts = source === "vpws50"
-    ? weatherAlertsFromVpws50(views.vpws50(), event.reportDateTime)
-    : weatherAlertsFromVpww56(views.vpww56(), event.reportDateTime);
-  return store.apply(source, alerts, nowMs);
+  // **holder view をそのまま渡す** (spec 追補 C2)。表示用 view へ射影すると kindCode / areaCode が
+  // 落ちて、L4→L5 の悪化で同じ地域が「追加された地域」に化ける
+  return store.apply(source, source === "vpws50" ? views.vpws50() : views.vpww56(), nowMs);
 }

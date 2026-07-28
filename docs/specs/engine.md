@@ -3214,19 +3214,44 @@ class SummaryWindowTracker {
 ```ts
 const WEATHER_PROMOTION_SOURCES: readonly DisplayWeatherSourceV1[]; // ["vpws50", "vpww56"]
 
-interface WeatherPromotionClassification {
-  level: DisplayWeatherPromotionLevelV1;  // 4 | 5
-  /** 昇格対象 item の集合を表す安定キー。変化したら generation を更新する */
-  signature: string;
+/** 昇格対象 1 件 (現象 × 地域)。判定は安定キー、表示名は wire へ射影するときだけ使う */
+interface WeatherPromotionMemberV1 {
+  level: DisplayWeatherPromotionLevelV1;
+  severity: string;
+  kindCode: string;      // 電文の生コード (永続化して phenomenonKey を再生成する材料)
+  phenomenonKey: string; // 正規化した現象キー。**判定はすべてこちら**
+  areaCode: string;
+  kind: string;          // 表示用
+  areaName: string;      // 表示用
 }
 
-/** null = 昇格対象なし (L3 以下のみ) */
-function classifyWeatherPromotion(alerts: DisplayWeatherAlertV1[]): WeatherPromotionClassification | null;
+interface WeatherPromotionClassification {
+  level: DisplayWeatherPromotionLevelV1;  // 4 | 5
+  /** 昇格対象の集合を表す安定キー。変化したら generation を更新する */
+  signature: string;
+  /** 控え (再起動直後に live view が空でも主役パネルが中身を持てるようにする) */
+  items: DisplayWeatherAlertItemV1[];
+  members: WeatherPromotionMemberV1[];
+}
+
+/** 内容変化の判定キー: `severity | phenomenonKey | areaCode` */
+function signatureMemberOf(m: WeatherPromotionMemberV1): string;
+/** 地域追加の判定キー: `phenomenonKey | areaCode` (レベル変化を追加と数えない) */
+function areaMemberOf(m: WeatherPromotionMemberV1): string;
+
+/**
+ * null = 昇格対象なし (L3 以下のみ)。
+ * **入力は表示用 view ではなく holder view** — 表示用へ射影すると kindCode / areaCode が落ちる
+ */
+function classifyWeatherPromotion(
+  view: Vpws50CurrentAreasForDisplay | undefined,
+  source: DisplayWeatherSourceV1,
+): WeatherPromotionClassification | null;
 ```
 
 ### 内部ロジック
 
-全 alert の全 item を走査し、`displayWeatherPromotionLevel()` が非 null を返した item だけを集める。最大値が `level`、`{level}|{displaySeverity}|{kind}|{areaName}` を並べてソートしたものが `signature` になる。未知の `displaySeverity` は昇格判定から除外し、`log.warn` だけ出す (見落としを黙って昇格させない)。
+holder view の全 kind を走査し、`displayWeatherPromotionLevel()` が非 null を返した kind だけを集める。最大値が `level`、`signatureMemberOf()` を重複除去して並べソートしたものが `signature` になる。未知の `displaySeverity` は昇格判定から除外し、`log.warn` だけ出す (見落としを黙って昇格させない。同じ値の warn は 1 回だけ)。
 
 ### 昇格 lifecycle (`display/weather-promotion-store.ts` 側)
 
@@ -3236,9 +3261,14 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - **source は完全に独立**。時計・世代・判定のいずれも共有しない。カードは両 source をまとめて再射影するが、昇格の時計を動かすのは受信した source だけ
 - **昇格時計は engine 受理時の `nowMs`**。電文の `updatedAt` / `reportDateTime` は判定に使わない
 - **confirmed な更新でのみ昇格する**。VPWS50 の unsafe 報 (layer 不在等で state を更新しないまま outcome が通る報) は再昇格契機にしない
-- **降格は 30 分**（`WEATHER_PROMOTION_DEMOTE_MIN`）。`SWEEP_INTERVAL_MS` (5 秒) 駆動なので契約は「30 分 + 最大 5 秒」。sweep は `active → demoted` の遷移だけを行う
+- **降格は可視時間の合計 3 分**（`WEATHER_PROMOTION_DEMOTE_MIN`、2026-07-27 に 30 分から短縮）。SSE クライアントが 1 件以上いる間だけ保持時計を進め、`SWEEP_INTERVAL_MS` (5 秒) 駆動なので降格判定は最大 5 秒遅れる。sweep は `active → demoted` の遷移だけを行う。稼働中に壁時計が巻き戻って経過が負になった場合は、`promotedAtMs` をその sweep 時刻へ測り直す（時計が元の時刻へ追いつくまで active が残留するのを防ぐ）
+- **点灯するのは「新規発表」と「内容変化」だけ**。同内容の定時再掲では `promotedAtMs` を据え置き、控え (`items` / `members`) だけを最新へ寄せる（`apply()` は `false` を返し wire の再点灯を起こさない）。VPWS50 は定時通報が来るので、ここで時計を進めると保持時間が延び続け「警報が続く限り出っぱなし」になる（実機観測 2026-07-26）。控えの実値が変わったときだけ durable 通知を出す（定時通報ごとのディスク書き込みを避ける）
+- **判定は安定キー**で行う。`classifyWeatherPromotion` の入力は**表示用 view ではなく holder view**（`Vpws50CurrentAreasForDisplay`）で、内容変化は `severity | phenomenonKey | areaCode`、地域追加は `phenomenonKey | areaCode`（**レベル変化を地域追加と数えない**）。どちらも `kindCodeToPhenomenonKey` で正規化したキーを使う — **気象庁の kindCode はレベルごとに別コード**（大雨は L4=43 / L5=33）なので、生コードで判定すると同じ地域が「追加」に化けたり、内容不変なのに再点灯したりする。表示ラベル（`L4 大雨警報` 形式）も同じ理由で使わない。レベルの悪化は `severity` が拾う。signature の member は整列前に重複除去する
+- **新規 / 更新の区別**を record が持ち（`trigger`）、更新では**追加された地域**（`addedAreas`）も持つ。どちらも record と一緒に永続化し、復元で壊れていれば**装飾だけを落として record は生かす**。record ごと捨てた source には印（`uncertainSources`: source → 捨てる前の `signature`、比較材料が無ければ `null`）を付ける。次の受理は、signature が一致すれば**点灯しない**、変化していれば点灯するが `trigger` は `null`（**バッジを出さない** — 継続中の警報を「新規発表」と偽らず、断言できない「更新」も名乗らない）
+- **点灯キーはパネル全体の watermark**（`weatherPromotion.activationKey`）。source の降格・解除では動かず、record とは独立に永続化する（最後に点いた source が解除済みでも番号が巻き戻らない）
+- **`display on` は残っている `active` の時計を無条件に測り直す**（`resume`）。runtime 起動時の `resume` は `transport.start()` 成功後にだけ行い、起動失敗では lifecycle も durable 通知も動かさない。`resume` 自身は経過判定を行わず、再起動時の古い点灯を落とす責務は先に走る `restore()` が持つ。一方、runtime 稼働中の SSE 無客期間はフルリセットせず、0→1 で無客区間ぶんだけ時計をシフトする（下記）
 - **解除 (当該 source の L4/L5 相当 item が消える) は record 削除 = 即終了**。demote を経由しない
-- **generation watermark は record 削除後も source 別に保持**する。500ms debounce 内の「解除 → 再発表」で同じ generation に戻さないため。内容が同じ続報は generation 据置で 30 分だけ再開し、変化 (L4→L5・地域追加・L5→L4) は watermark から新しい generation を採る
+- **generation watermark は record 削除後も source 別に保持**する。500ms debounce 内の「解除 → 再発表」で同じ generation に戻さないため。**内容が同じ続報では点灯し直さない**（generation も時計も据置）。変化 (L4→L5・地域追加・L5→L4) だけが watermark から新しい generation を採って再点灯する
 - **generation は signature の増減方向を問わず更新する**（確定事項）。上位遷移だけでなく **L5 地域の削減など縮退方向でも上がる**。判定は「signature が前回と一致するか」の一点で、方向を見ない。Phase 2 で generation を再アニメーションの契機に使う場合、縮退でも再アニメーションが起きることを前提にすること
 
 ### wire への投影
@@ -3247,6 +3277,8 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - **`demoted` は wire 上 null へ投影する** (`weatherPromotionForWire()`)。フロントは期限計算を一切せず「null でなければ主役パネル」とだけ解釈する。昇格状態の権威は engine 側にある
 - `weatherL5Active` は night-dim 用。パネル降格後も警報解除まで true (`isWeatherL5Active()`)
 - `deriveSeverityTier()` は demoted を含む record の `level` から L5 = `critical` / L4 = `alert` を採る。**降格後も解除まで tier を維持する** (津波の demote と同方針)
+- `trigger?` / `addedAreas?` / `activationKey?` を entry に載せる。`activationKey` は**点灯イベントの通し番号**（`activationSeq`、new / update でだけ増える source またぎの watermark）で、**フロントはこれが変わったら再点灯演出を発火する** — パネルの key は固定・wire も更新中ずっと非 null なので、これが無いと内容更新で画面が動かない
+- snapshot 縮退（`capWeatherAreas`）は**追加地域を優先して残す**。素朴に先頭 N 件で切ると、追加地域が後方にあったときに真っ先に消えてハイライトが空振りする
 - `restoredItems?` は昇格根拠の控え。**live な `weatherAlerts` に当該 source が無く、かつ控えが空でないときだけ**載る (`promotionEntryForWire()`)。当該 source の電文を 1 通受理すれば `weatherAlerts` が権威になり、控えは wire から消える。詳細は「昇格根拠の控え」節
 
 ### テロップ保護
@@ -3287,14 +3319,14 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 
 **残り時間だけを復元する** (再起動による延命を作らない)。判定は初回 sweep ではなく復元時に一度で行う — sweep 任せだと最大 5 秒ぶん active が見え、その間に接続したクライアントの初期 snapshot に載るため。
 
-- 既に 30 分経過済みの `active` → `demoted` として格納する。**record は消さない** (警報自体は継続しうるので `level` が tier と `weatherL5Active` に効き続ける)
-- `promotedAtMs` が許容誤差を超えて未来 → **record を破棄する** (`demoted` にもしない)。RTC を持たない Pi では NTP 同期前に保存時刻が未来になりうるが、そのとき「30 分経ったか」も「まだ有効か」も判定できない。`demoted` で残すと主役パネルだけ消えて `critical` tier と `weatherL5Active` が無期限に固定される最悪の縮退になるため、判定不能なら捨てる。警報が継続していれば VPWS50 の定期再掲ですぐ再昇格する。許容誤差は sweep 1 周期 (`WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS` = `SWEEP_INTERVAL_MS`) で、これ以内のズレは通常運転と区別できないため未来扱いしない
-- **`savedAt` 自体が未来のファイルは record だけ破棄し、`generations` (watermark) は復元する**。`promotedAtMs` を持たない `demoted` record は record 単位の未来判定では守れないため、record の破棄はファイル層 (`load`) で行う。一方 watermark は時刻と無関係なので残す — ファイルごと捨てると次の昇格が `generation` 1 に戻り、「generation を再利用しない」契約が壊れる
+- 既に保持時間 (3 分) を過ぎた `active` → `demoted` として格納する。**record は消さない** (警報自体は継続しうるので `level` が tier と `weatherL5Active` に効き続ける)
+- `promotedAtMs` が許容誤差を超えて未来 → **record を破棄する** (`demoted` にもしない)。RTC を持たない Pi では NTP 同期前に保存時刻が未来になりうるが、そのとき「保持時間を過ぎたか」も「まだ有効か」も判定できない。`demoted` で残すと主役パネルだけ消えて `critical` tier と `weatherL5Active` が無期限に固定される最悪の縮退になるため、判定不能なら捨てる。警報が継続していれば VPWS50 の定期再掲ですぐ再昇格する。許容誤差は sweep 1 周期 (`WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS` = `SWEEP_INTERVAL_MS`) で、これ以内のズレは通常運転と区別できないため未来扱いしない
+- **`savedAt` 自体が未来のファイルは record だけ破棄し、`generations` (watermark) と `activationSeq`、そして `signature` の tombstone は復元する**。`promotedAtMs` を持たない `demoted` record は record 単位の未来判定では守れないため、record の破棄はファイル層 (`load`) で行う。一方 watermark は時刻と無関係なので残す — ファイルごと捨てると次の昇格が `generation` 1 に戻り、「generation を再利用しない」契約が壊れる
 - `promotedAtMs` は有限であることに加え **Date が扱える範囲 (絶対値 8.64e15) であること**を検証する。有限でも範囲外の値 (`1e20` 等) は日時整形で `RangeError` になり、restore は load の try/catch の外にあるため起動ごと落ちる。monitor 側の restore 呼び出しも try/catch で二重に守る
 - それ以外の `active` は `promotedAtMs` を据え置く (残り時間が減った状態で復元される)
 - `generation` は必ず維持する。watermark は保存 watermark と**保存値 record** の `generation` の大きい方を採る (復元後の record ではない) ので、上記の未来判定で record を破棄しても generation は逆行しない
-- **破損・version 不一致・`savedAt` 不正は破棄して起動を続ける** (warn/debug のみ)。検証は **source 単位**で、片方が壊れてももう片方は生かす。`signature` 欠落の record は破棄する — 欠けると復元後の「同内容の続報」判定が効かず generation が無駄に進むため
-- **保存から `WEATHER_PROMOTION_MAX_RESTORE_AGE_MS` (24 時間) 以上経ったデータは丸ごと破棄する**。気象警報の view 自体は起動時に復元されない (`src/engine/startup/` にあるのは津波・火山の REST replay だけで、`Vpws50StateHolder` / `Vpww56StateHolder` は空から始まる) ため、`demoted` record は電文が届くまで tier と `weatherL5Active` を保持し続ける。継続中の警報なら VPWS50 の定期再掲ですぐ上書きされるので、「1 日確認が取れないものは主張しない」を上限に据える
+- **破損・version 不一致・`savedAt` 不正は破棄して起動を続ける** (warn/debug のみ)。ただし**捨てた事実は印として store へ渡す** — 黙って捨てると継続中の警報が「新規発表」として点く。検証は **source 単位**で、片方が壊れてももう片方は生かす。`signature` 欠落の record は破棄する — 欠けると復元後の「同内容の続報」判定が効かず generation が無駄に進むため
+- **保存から `WEATHER_PROMOTION_MAX_RESTORE_AGE_MS` (24 時間) 以上経ったデータは lifecycle を破棄する** (`signature` の tombstone は残す)。気象警報の view 自体は起動時に復元されない (`src/engine/startup/` にあるのは津波・火山の REST replay だけで、`Vpws50StateHolder` / `Vpww56StateHolder` は空から始まる) ため、`demoted` record は電文が届くまで tier と `weatherL5Active` を保持し続ける。継続中の警報なら VPWS50 の定期再掲ですぐ上書きされるので、「1 日確認が取れないものは主張しない」を上限に据える
 
 ### 昇格根拠の控え (view スナップショット)
 
@@ -3307,7 +3339,7 @@ classifier は判定だけを行い、状態遷移は別モジュールの `Weat
 - 受理のたびに最新の view で上書きする。控えが現況から遅れない
 - 空の `items` は**破損として record ごと破棄する**。復元しても「昇格しているのに中身が無い」状態を作るだけなので、残す価値がない
 
-**wire には `DisplayWeatherPromotionEntryV1.restoredItems?` として載る。ただし live な `weatherAlerts` に当該 source が無いときだけ**。当該 source の電文を 1 通でも受理すれば `weatherAlerts` が権威になり、控えは wire から消える (`promotionEntryForWire()`)。
+**wire には `DisplayWeatherPromotionEntryV1.restoredItems?` として載る。ただし live な `weatherAlerts` に当該 source が無いときだけ**。各 item は通常の `weatherAlerts` と同じ optional `phenomenonKey` を持ち、フロントの跨 source 行統合に使う。新しい live item と `phenomenonKey` を持たない旧 envelope の控えが混在する場合、フロントは `severity | kind` を別名として照合し、対応する安定キー候補が一意なときだけ `severity | phenomenonKey` の行へ統合する（複数候補なら誤結合を避けて分ける）。当該 source の電文を 1 通でも受理すれば `weatherAlerts` が権威になり、控えは wire から消える (`promotionEntryForWire()`)。
 
 **`weatherAlerts` には一切 seed しない。** 控えを `weatherAlerts` に流し込めばフロントは何も変えずに済むが、そうすると**再起動直後に待機画面の気象カードが前回の警報で点灯する** — 従来は空だった場所に表示が出るので、`WeatherAlertCard` の挙動変更になってしまう。控えはあくまで主役パネルの空表示を防ぐためのもので、現況そのものではない。この不変条件はテストで固定してある。
 
@@ -3319,11 +3351,21 @@ display は表示の都合であって「電文を受理した」という事実
 
 `DisplayStateStore.applyWeatherSource()` は `WeatherPromotionStore.apply()` への委譲として残っているが、**production からの呼び出し元は無く**、現在はテストが lifecycle を直接回すための窓口になっている。
 
-### display on 時の再開 (`resume`)
+### display on の再開と SSE 無客中の時計停止
 
-降格 sweep は hub の 5 秒タイマー駆動なので `display off` 中は止まる。そのため `display on` の直後、既に 30 分を過ぎた `active` が初回 sweep まで最大 5 秒そのまま見えてしまう。runtime の起動時 seed で `resumeWeatherPromotions()` を通し、この窓を塞ぐ。
+保持契約は「点灯が**見られていた時間の合計が 3 分**」。`display off` と、runtime は動いているが SSE クライアントが 0 件の状態は別の規則で扱う。
 
-**やるのは経過判定だけ** (`restore` と同じ `reviveRecord()` を共有する)。受信更新は上記のとおり display の on/off に関わらず `displaySink` が行うので、off 中の新規昇格・続報・解除は `resume` に来る時点で反映済み。したがって view と record を突き合わせる reconcile は不要で、**`resume` は view を一切参照しない**。
+- **display off → on（config 切替・再起動 seed）**: runtime 起動で `transport.start()` が成功した後に `resumeWeatherPromotions()` を通し、すべての `active` をその時刻へフルリセットする。起動失敗では測り直さず、durable 通知も出さない
+- **SSE 1→0**: その時点をまだ閲覧中として `sweepDemote(nowMs)` を一度実行し、可視時間を締めてから無客状態へ入る。hub はプロセス内の測定用に単調時刻を、store は永続化用に壁時計の `unseenSinceMs` を記録する。marker の変更は durable 通知を出す
+- **SSE クライアント 0 件**: 気象点灯だけは 5 秒 sweep の降格対象から外す。他 domain の sweep は止めない。起動直後から 0 件のまま新しい点灯が発生した場合も同じで、その record の `promotedAtMs` は無客開始時刻へ正規化する
+- **SSE 0→1**: 初期 snapshot を組む前に、hub が単調クロック差分を無客時間として store へ渡し、各 `active` の `promotedAtMs` をシフトする。壁時計が無客中に進んだり戻ったりしても切断前の消費済み可視時間を保つため、store は単調差分に壁時計の rebase 差分も加える。シフト直後に `sweepDemote(nowMs)` を一度実行し、期限超過の `active` を初期 snapshot に載せない。marker の解除とシフトは durable 通知を出す
+- **SSE 1→2 以上、2→1 など**: 無客区間ではないので時計を動かさない
+
+この分離により、3 分を超える切断でも残り時間から再開し、短い切断・再接続を繰り返しても可視時間の合計が 3 分に達すれば降格する。0→1 でフルリセットしないため、接続フラップによる無期限延命は起きない。どちらの時計操作でも点灯イベントの通し番号 `activationSeq` は増やさない。
+
+`unseenSinceMs` は永続 envelope に保存する。無客中に再起動した場合、`restore()` は経過判定の前に各 `active` を `max(0, restoreNowMs - unseenSinceMs)` だけシフトし、復元後も `unseenSinceMs = restoreNowMs` として無客状態を継続する。旧 envelope のようにフィールドが欠落している場合は従来どおり停止時間を補正しない。その後、runtime 起動時の `resume`（display off → on のフルリセット）が生存中の `active` に適用される。
+
+プロセス内の無客時間は `performance.now()` の単調差分で測るため、壁時計の巻き戻り・進みでは可視時間を失わない。プロセスを跨ぐ単調時計は存在しないため、restore 経路だけは壁時計差分を使い、`restoreNowMs < unseenSinceMs` の場合は負値を 0 に clamp する。この時計巻き戻り時の縮退は許容する。
 
 結果として「view から昇格させない」原則 (昇格の根拠は confirmed な電文の受理であり、起動時 seed は受理ではない) も自動的に守られる。
 
@@ -3335,7 +3377,7 @@ display は表示の都合であって「電文を受理した」という事実
 
 気象警報の昇格 lifecycle を持つ状態機械。`DisplayStateStore` ではなく **monitor が所有する** (`monitor/monitor.ts` の「monitor が所有する display 状態」節を参照)。時刻は全メソッドで `nowMs` 注入で、クラス内で `Date.now()` を呼ばない。
 
-遷移の契約 (source 独立・confirmed のみ・30 分 + 最大 5 秒の降格・解除は即削除・generation watermark) は `display/weather-promotion.ts` 節の「昇格 lifecycle」に記述する。本節は API と、そこに書ききれない復元判定の内部ロジックを扱う。
+遷移の契約 (source 独立・confirmed のみ・可視時間の合計 3 分 + 最大 5 秒の降格・同内容再掲では点灯しない・解除は即削除・generation watermark) は `display/weather-promotion.ts` 節の「昇格 lifecycle」に記述する。本節は API と、そこに書ききれない復元判定の内部ロジックを扱う。
 
 ### エクスポートAPI
 
@@ -3343,50 +3385,69 @@ display は表示の都合であって「電文を受理した」という事実
 // items = 昇格の根拠になった item の控え (L4/L5 相当のみ)。union の中に置くことで
 // record を捨てる操作がそのまま控えの破棄になる (「片方だけ生き残る」を型で書けなくする)
 type WeatherPromotionRecord =
-  | { state: "active";  level: 4 | 5; promotedAtMs: number; generation: number; signature: string; items: DisplayWeatherAlertItemV1[] }
-  | { state: "demoted"; level: 4 | 5;                       generation: number; signature: string; items: DisplayWeatherAlertItemV1[] };
+  | ({ state: "active";  level: 4 | 5; promotedAtMs: number; generation: number; signature: string; items: DisplayWeatherAlertItemV1[] } & WeatherPromotionDecoration)
+  | ({ state: "demoted"; level: 4 | 5;                       generation: number; signature: string; items: DisplayWeatherAlertItemV1[] } & WeatherPromotionDecoration);
+
+interface WeatherPromotionDecoration {
+  members: WeatherPromotionMemberV1[];
+  trigger: "new" | "update" | null;
+  addedAreas: WeatherPromotionMemberV1[];
+  activationSeq: number;
+}
 
 /** 永続化・復元の受け渡し形 (シリアライズ可能な素直な構造)。wire プロトコルには載らない */
 interface WeatherPromotionPersistedV1 {
   records: Record<DisplayWeatherSourceV1, WeatherPromotionRecord | null>;
   /** record 削除後も保持する source 別 generation watermark */
   generations: Record<DisplayWeatherSourceV1, number>;
+  /** SSE 無客区間の壁時計始点。欠落は旧 envelope */
+  unseenSinceMs?: number | null;
+  /** パネル全体の点灯イベント watermark */
+  activationSeq?: number;
+  /** record を捨てた source と、読めていた signature (比較材料なしは null) */
+  uncertainSources?: Partial<Record<DisplayWeatherSourceV1, string | null>>;
 }
 
 class WeatherPromotionStore {
   /** 永続化が必要な変化 (昇格・再開・降格・解除) の通知先。null で解除 */
   onDurable(listener: (() => void) | null): void;
   get(source: DisplayWeatherSourceV1): WeatherPromotionRecord | null;
-  /** 1 source 分の気象カード view から昇格状態を更新する。confirmed な更新でだけ呼ぶ */
-  apply(source: DisplayWeatherSourceV1, view: DisplayWeatherAlertV1[], nowMs: number): boolean;
+  /** 1 source 分の holder view から昇格状態を更新する。confirmed な更新でだけ呼ぶ */
+  apply(source: DisplayWeatherSourceV1, view: Vpws50CurrentAreasForDisplay | undefined, nowMs: number): boolean;
   /** active → demoted の遷移だけを行う (record 削除は解除受理の責務) */
   sweepDemote(nowMs: number): boolean;
   export(): WeatherPromotionPersistedV1;
   restore(state: WeatherPromotionPersistedV1, nowMs: number): void;
-  /** display on 時の経過判定だけを行う。view は参照しない */
+  /** display on 時に active の時計をフルリセットする。経過判定・view 参照はしない */
   resume(nowMs: number): boolean;
+  /** SSE 無客区間の壁時計始点を永続 marker に記録する */
+  beginUnseenPeriod(nowMs: number): boolean;
+  /** 現在の無客 marker を解除する */
+  clearUnseenPeriod(): boolean;
+  /** 単調クロックで測った無客時間を反映し、marker を解除する */
+  endUnseenPeriod(unseenDurationMs: number, nowMs: number): boolean;
 }
 ```
 
-`apply` / `sweepDemote` / `resume` の戻り値は「state snapshot の再配信が必要な変化があったか」。いずれも変化したときだけ `onDurable` を通知する。
+各更新メソッドの戻り値は lifecycle が変化したかを表す。`apply` / `sweepDemote` / `resume` は wire state の変化、`beginUnseenPeriod` / `clearUnseenPeriod` / `endUnseenPeriod` は永続 marker または時計の変化を含む。いずれも変化したときだけ `onDurable` を通知する。
 
 ### 内部ロジック
 
-#### 経過判定 (`restore` / `resume` 共有)
+#### 経過判定 (`restore` 専用)
 
-`active` record は経過時間で 3 通りに分かれる。判定を初回 sweep に任せず復元・再開の時点で一度行う理由は `display/weather-promotion.ts` 節の「再起動復元」「display on 時の再開」を参照。
+`active` record は復元時の経過時間で 3 通りに分かれる。判定を初回 sweep に任せず `restore()` で行う理由は `display/weather-promotion.ts` 節の「再起動復元」を参照。
 
-両者は `reviveRecord()` を共有する。上から順に判定する (条件は互いに排他)。
+persisted `unseenSinceMs` がある場合、`restore()` は無客区間を `active` の `promotedAtMs` へ先に加えてから `reviveRecord()` を呼ぶ。`reviveRecord()` は上から順に判定する（条件は互いに排他）。フィールド欠落時はシフトせず旧 envelope の意味論を保つ。`resume()` と SSE 無客区間の操作はこの関数を共有せず、残っている `active` の時計だけを動かす。
 
 | 条件 | 結果 |
 |------|------|
 | 経過が `-WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS` 未満 (`promotedAtMs` が未来) | **`null` = record 破棄** + `log.warn` |
-| 経過が 30 分超 | `demoted` として格納 (record は消さない) |
+| 経過が保持時間 (3 分) 超 | `demoted` として格納 (record は消さない) |
 | それ以外 | `promotedAtMs` を据え置く (残り時間が減った状態) |
 
 `demoted` record は経過判定を通さずそのまま格納する (`promotedAtMs` を持たないため)。
 
-1 行目で `demoted` に落とさず破棄するのは、時計が信用できない状態では「30 分経ったか」も「まだ有効か」も判定できないため。`demoted` で残すと主役パネルだけ消えて `critical` tier と `weatherL5Active` が無期限に固定される最悪の縮退になる。警報が継続していれば次の定期再掲で再昇格する。
+1 行目で `demoted` に落とさず破棄するのは、時計が信用できない状態では「保持時間を過ぎたか」も「まだ有効か」も判定できないため。`demoted` で残すと主役パネルだけ消えて `critical` tier と `weatherL5Active` が無期限に固定される最悪の縮退になる。警報が継続していれば次の定期再掲で再昇格する。
 
 **watermark は破棄された場合も維持する** — `restore()` は復元後の record ではなく**保存値**の `generation` と保存 watermark の大きい方を採るので、record を捨てても generation は逆行しない。
 
@@ -3420,13 +3481,19 @@ class WeatherPromotionStore {
 
 ```ts
 interface PersistedWeatherPromotionV1 extends WeatherPromotionPersistedV1 {
-  version: 1;
+  version: 2;
   savedAt: string;
 }
 
+// WeatherPromotionPersistedV1 (= ディスクに載る本体)
+//   records:          source 別の lifecycle (null = 記録なし)
+//   generations:      source 別 generation watermark (record 削除後も保持)
+//   activationSeq?:   パネル全体の点灯 watermark (record の外。巻き戻り防止)
+//   uncertainSources?: 捨てた source → 捨てる前の signature (null = 比較材料なし)
+
 class WeatherPromotionPersistence {
   constructor(persistPath: string, debounceMs?: number);  // 既定 3000ms
-  /** version 不一致・破損・欠落・古すぎるデータは null。起動は妨げない */
+  /** null は「ファイルが無い (初回起動)」だけ。読めなかった場合は印つきの空状態を返す */
   load(nowMs: number): WeatherPromotionPersistedV1 | null;
   /** debounceMs 後に 1 回だけ非同期で書く。最新状態で上書きし書き込み回数は増やさない */
   schedule(state: WeatherPromotionPersistedV1, nowMs: number): void;
@@ -3459,16 +3526,21 @@ class WeatherPromotionPersistence {
 
 上から順に判定する (warn / debug ログのみで、いずれの場合も起動は妨げない)。
 
-1. ファイルが存在しない → `null`
-2. top-level が object でない → `null`
-3. `version` が `PERSIST_SCHEMA_VERSION` (**2**) と不一致 → `null` (schema 世代交代として debug ログのみ)。v1 は record が `items` (昇格根拠の控え) を持たず、復元すると「昇格しているのに中身が無い」状態になるため読まずに捨てる
-4. `savedAt` が parse 不能 → `null`
-5. `nowMs - savedAt` が `WEATHER_PROMOTION_MAX_RESTORE_AGE_MS` (24 時間) 超 → `null`
-6. `savedAt - nowMs` が `WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS` 超 (**保存時刻が未来**) → **record だけ破棄し `generations` は返す**
+**`null` を返すのは 1 だけ**。`null` は store にとって「記録なし = 本当の新規発表」を意味するので、*読めなかった*場合に返すと継続中の警報へ「新規発表」バッジを出してしまう。中身を使えなかった場合は **records を空にしたうえで印 (`uncertainSources`) を立てて返す**。
+
+1. ファイルが存在しない (初回起動) → `null`
+2. top-level が object でない → 材料なしの印 (両 source が `null`)
+3. `version` が `PERSIST_SCHEMA_VERSION` (**2**) と不一致 → 材料なしの印 (schema 世代交代として debug ログのみ)。v1 は record が `items` (昇格根拠の控え) を持たず、復元すると「昇格しているのに中身が無い」状態になるため読まずに捨てる
+4. `savedAt` が parse 不能 → 材料なしの印
+5. `nowMs - savedAt` が `WEATHER_PROMOTION_MAX_RESTORE_AGE_MS` (24 時間) 超 → **lifecycle は捨て、`signature` を tombstone に残す**（内容は読めているので「同内容の再掲なら点灯しない」を守れる）
+6. `savedAt - nowMs` が `WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS` 超 (**保存時刻が未来**) → 5 と同じ (record 破棄 + tombstone、`generations` と `activationSeq` は返す)
+7. JSON パース失敗などの例外 → 材料なしの印
 
 6 が record 単位ではなくファイル単位なのは、`savedAt` 自体が未来なら時計が信用できず record の古さを判定できないため。特に `demoted` は `promotedAtMs` を持たないので record 単位の未来判定では守れず、放置すると tier と `weatherL5Active` を無期限に固定しうる。
 
 一方で **`generations` (watermark) は時刻と無関係なので必ず残す**。ここでファイルごと捨てると次の昇格が `generation` 1 に戻り、「generation を再利用しない」契約が壊れる。
+
+`uncertainSources` は現行の object 形に加え、同じ schema version 2 の初期実装が書いた旧 `string[]` 形も読む。既知 source 名だけを `{ [source]: null }` へ移行し、比較用 signature は無いものとして扱う。未知 source・非文字列要素は無視する。
 
 #### tmp 残骸の掃除
 
@@ -3524,7 +3596,7 @@ class WeatherPromotionPersistence {
 
 ### 概要
 
-state holder の現況 view (`Vpws50CurrentAreasForDisplay`) を表示プロトコルの `weatherAlerts` へ変換する。VPWS50 / VPWW56 の 2 系統ぶん。
+state holder の現況 view (`Vpws50CurrentAreasForDisplay`) を表示プロトコルの `weatherAlerts` へ変換する。VPWS50 / VPWW56 の 2 系統ぶん。各 item には `kindCodeToPhenomenonKey()` で正規化した optional `phenomenonKey` を載せ、フロントは同じ `displaySeverity × phenomenonKey` の行を source をまたいで統合する（旧サーバの欠落時は表示名へ縮退）。
 
 **`runtime.ts` から切り出してある**のは、monitor が display runtime の有無に関わらず昇格判定用の view を組む必要があるため。`runtime.ts` を import すると transport (HTTP サーバ) まで巻き込んで遅延ロード設計を壊すので、変換だけをこの軽量モジュールに置く。`runtime.ts` は既存の import 経路を保つため両関数を re-export する。
 
@@ -3555,6 +3627,7 @@ VPWS50 は rank ごとのバケツ (気象特別警報 / 気象警報 / 気象�
 | インポート元 | 用途 |
 |-------------|------|
 | `../../types` | `DisplaySeverity`, `Vpws50CurrentAreasForDisplay` |
+| `../../dmdata/weather-phenomenon-key` | `kindCodeToPhenomenonKey` |
 | `../../dmdata/weather-warning-level` | `formatLevelLabel` |
 | `./types` | `DisplayWeatherAlertV1`, `DisplayWeatherAlertItemV1`, `DisplayWeatherRank` |
 
@@ -3594,7 +3667,7 @@ view は関数で受け取る (呼び出し時点の最新を読むため)。戻
 
 1. `event.type` が `VPWS50` / `VPWW56` のいずれでもなければ何もせず `false`
 2. `event.weatherConfidence === "unsafe"` (state を更新しないまま outcome が通った報) なら `false`
-3. 対応する source の view を `weather-alert-view.ts` で `weatherAlerts` に変換し、`store.apply(source, alerts, nowMs)` を呼ぶ
+3. 対応する source の holder view をそのまま `store.apply(source, view, nowMs)` へ渡す。表示用 `weatherAlerts` へ射影すると `kindCode` / `areaCode` が落ち、安定キー判定ができなくなるため
 
 `nowMs` は engine の受理時刻。電文の `updatedAt` / `reportDateTime` は判定に使わない。
 
@@ -3604,7 +3677,6 @@ view は関数で受け取る (呼び出し時点の最新を読むため)。戻
 |-------------|------|
 | `../presentation/types` | `PresentationEvent` (type import) |
 | `../../types` | `Vpws50CurrentAreasForDisplay` (type import) |
-| `./weather-alert-view` | `weatherAlertsFromVpws50`, `weatherAlertsFromVpww56` |
 | `./weather-promotion-store` | `WeatherPromotionStore` (type import) |
 
 ### 設計ノート

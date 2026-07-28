@@ -12,6 +12,8 @@ export interface DisplayServerOptions {
   distDir: string;
   getSnapshot: () => DisplayStateSnapshotV1;
   log: { info(msg: string): void; warn(msg: string): void };
+  /** SSE クライアント数が変わった直後に呼ぶ。0→1 は初期 snapshot を組む前に通知される */
+  onClientCountChange?: (count: number) => void;
   /** 非 loopback 接続に要求するアクセストークン。null = 認証なし (loopback バインド時のみ許容) */
   token?: string | null;
 }
@@ -24,12 +26,23 @@ export function isLoopbackHost(host: string): boolean {
 // InfoDisplayHub から見た DisplayTransport 実装。node:http サーバ (SSE + static 配信) と
 // SseClients (backpressure ガード) を束ねて起動/停止のライフサイクルを持つ。
 export class InProcessSseDisplayTransport implements DisplayTransport {
-  private readonly clients = new SseClients();
+  private readonly clients: SseClients;
   private server: Server | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private boundPort = 0;
 
-  constructor(private readonly opts: DisplayServerOptions) {}
+  constructor(private readonly opts: DisplayServerOptions) {
+    this.clients = new SseClients(Date.now, (count) => {
+      try {
+        this.opts.onClientCountChange?.(count);
+      } catch (err) {
+        // 人数追跡の副作用に失敗しても SSE 自体は維持し、monitor 本体へ例外を漏らさない
+        this.opts.log.warn(
+          `display server: SSE クライアント数の反映に失敗しました: ${err instanceof Error ? err.message : err}`,
+        );
+      }
+    });
+  }
 
   async start(): Promise<void> {
     if (!existsSync(join(this.opts.distDir, "index.html"))) {

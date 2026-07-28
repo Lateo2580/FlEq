@@ -269,6 +269,21 @@ describe("SseClients", () => {
     expect(clients.count()).toBe(0);
   });
 
+  it("人数変更を add と除去で一度ずつ通知し、close/error の重複発火では二重通知しない", () => {
+    const counts: number[] = [];
+    const clients = new SseClients(Date.now, (count) => counts.push(count));
+    const res1 = makeFakeRes();
+    const res2 = makeFakeRes();
+
+    clients.add(asRes(res1));
+    clients.add(asRes(res2));
+    trigger(res1, "on", "error");
+    trigger(res1, "once", "close");
+    trigger(res2, "once", "close");
+
+    expect(counts).toEqual([1, 2, 1, 0]);
+  });
+
   it("heartbeat が全クライアントに名前付き ping イベントを backpressure 経路で書き込む", () => {
     const clients = new SseClients();
     const res = makeFakeRes();

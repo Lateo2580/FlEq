@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "../../../src/engine/display/http-server";
 import { InProcessSseDisplayTransport } from "../../../src/engine/display/transport";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
@@ -459,6 +459,53 @@ describe("InProcessSseDisplayTransport", () => {
     const text = new TextDecoder().decode(value);
     expect(text).toContain("event: snapshot");
     await reader.cancel();
+  });
+
+  it("SSE クライアント数の増減を通知し、0→1 は初期 snapshot より先に届く", async () => {
+    const clientCounts: number[] = [];
+    let countSeenBySnapshot: number | null = null;
+    const t = new InProcessSseDisplayTransport({
+      host: "127.0.0.1",
+      port: 0,
+      distDir,
+      getSnapshot: () => {
+        countSeenBySnapshot = clientCounts.at(-1) ?? null;
+        return baseSnapshot();
+      },
+      log,
+      onClientCountChange: (count) => {
+        clientCounts.push(count);
+      },
+    });
+    await t.start();
+    transport = t;
+    const url = `http://127.0.0.1:${t.port()}/events`;
+
+    const first = await fetch(url);
+    const firstReader = first.body!.getReader();
+    await firstReader.read();
+    expect(clientCounts).toEqual([1]);
+    expect(countSeenBySnapshot).toBe(1);
+
+    const second = await fetch(url);
+    const secondReader = second.body!.getReader();
+    await secondReader.read();
+    expect(clientCounts).toEqual([1, 2]);
+
+    await firstReader.cancel();
+    await secondReader.cancel();
+    await vi.waitFor(async () => {
+      const health = await fetch(`http://127.0.0.1:${t.port()}/healthz`);
+      const body = (await health.json()) as { clients: number };
+      expect(body.clients).toBe(0);
+    });
+    expect(clientCounts.at(-1)).toBe(0);
+
+    const reconnected = await fetch(url);
+    const reconnectedReader = reconnected.body!.getReader();
+    await reconnectedReader.read();
+    expect(clientCounts.at(-1)).toBe(1);
+    await reconnectedReader.cancel();
   });
 
   it("⑤ distDir に index.html が無いと start() が reject", async () => {

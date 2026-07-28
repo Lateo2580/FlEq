@@ -6,7 +6,7 @@ import { buildTipsDeck } from "./display-tips";
 import { encodeSseGuarded } from "./sse-clients";
 import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
-import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1 } from "./types";
+import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -127,18 +127,50 @@ function capRecentQuakeGroups(quakes: DisplayRecentQuakeV1[], max: number): Disp
     : q));
 }
 
-/** weatherAlerts[].items[].shownAreas を max まで切り、切った分を omittedAreaCount に加算する */
-function capWeatherAreas(alerts: DisplayWeatherAlertV1[], max: number): DisplayWeatherAlertV1[] {
-  return alerts.map((alert) => ({
-    ...alert,
-    items: alert.items.map((item) => (item.shownAreas.length > max
-      ? {
-        ...item,
-        shownAreas: item.shownAreas.slice(0, max),
-        omittedAreaCount: item.omittedAreaCount + (item.shownAreas.length - max),
-      }
-      : item)),
-  }));
+/**
+ * weatherAlerts[].items[].shownAreas を max まで切り、切った分を omittedAreaCount に加算する。
+ *
+ * **この点灯で追加された地域は優先して残す** (spec 追補 C3)。素朴に先頭 N 件で切ると、
+ * 追加地域が後方にあったときに真っ先に消えて画面のハイライトが空振りする — 大量発表で
+ * 縮退が起きるときこそ「どこが増えたか」を見たいので、そこを守る。
+ * 残す順序は「追加地域 → 元の並び」で、元の並び自体は保つ (読み手の見え方を変えない)。
+ */
+function capWeatherAreas(
+  alerts: DisplayWeatherAlertV1[],
+  max: number,
+  promotion?: DisplayWeatherPromotionV1,
+): DisplayWeatherAlertV1[] {
+  return alerts.map((alert) => {
+    const added = addedAreaSetOf(promotion?.[alert.source]);
+    return {
+      ...alert,
+      items: alert.items.map((item) => {
+        if (item.shownAreas.length <= max) return item;
+        const priority = added.get(item.kind);
+        const kept = priority == null
+          ? item.shownAreas.slice(0, max)
+          : [
+            ...item.shownAreas.filter((a) => priority.has(a)),
+            ...item.shownAreas.filter((a) => !priority.has(a)),
+          ].slice(0, max);
+        // 元の並び順で描くため、選抜後に出現順へ戻す
+        const keptSet = new Set(kept);
+        const shownAreas = item.shownAreas.filter((a) => keptSet.has(a));
+        return {
+          ...item,
+          shownAreas,
+          omittedAreaCount: item.omittedAreaCount + (item.shownAreas.length - shownAreas.length),
+        };
+      }),
+    };
+  });
+}
+
+/** 昇格 entry の addedAreas を「種別 → 地域名の集合」へ */
+function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  for (const a of entry?.addedAreas ?? []) map.set(a.kind, new Set(a.areas));
+  return map;
 }
 
 // snapshot は field 別予算で縮退する (軽い縮退から順に累積)。
@@ -187,7 +219,7 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
       : s.latestQuake,
   };
   attempts.push(s);
-  s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX) };
+  s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
   attempts.push(s);
   s = { ...s, recentTicker: [] };
   attempts.push(s);
@@ -271,7 +303,7 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
       : s.latestQuake,
   };
   attempts.push(s);
-  s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX) };
+  s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
   attempts.push(s);
   // 肥大源 largeQuakes.intensityGroups を recentQuakes より先に刈る (段順序の設計原則)
   s = { ...s, largeQuakes: s.largeQuakes.map((q) => ({ ...q, intensityGroups: [] })) };

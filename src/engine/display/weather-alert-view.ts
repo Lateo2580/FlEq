@@ -8,6 +8,7 @@
  */
 
 import type { DisplaySeverity, Vpws50CurrentAreasForDisplay } from "../../types";
+import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
 import { formatLevelLabel } from "../../dmdata/weather-warning-level";
 import type {
   DisplayWeatherAlertItemV1,
@@ -67,6 +68,7 @@ export function weatherAlertsFromVpws50(
     if (rank === "advisory") continue;
     const item: DisplayWeatherAlertItemV1 = {
       kind: formatLevelLabel(group.officialAlertLevel, group.kindName),
+      phenomenonKey: kindCodeToPhenomenonKey(group.kindCode),
       displaySeverity: group.displaySeverity,
       rank,
       shownAreas: group.areas.map((a) => a.areaName),
@@ -106,6 +108,7 @@ export function weatherAlertsFromVpww56(
     .filter((g) => g.displaySeverity !== "release" && weatherRankOf(g.displaySeverity) !== "advisory")
     .map((g) => ({
       kind: formatLevelLabel(g.officialAlertLevel, g.kindName),
+      phenomenonKey: kindCodeToPhenomenonKey(g.kindCode),
       displaySeverity: g.displaySeverity,
       rank: weatherRankOf(g.displaySeverity),
       shownAreas: g.areas.map((a) => a.areaName),

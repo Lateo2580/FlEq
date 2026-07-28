@@ -16,9 +16,16 @@ export const EEW_TTL_MIN = 10;
 export const EEW_FINAL_HOLD_SEC = 120;
 export const LARGE_QUAKE_HOLD_MIN = 10;
 export const TSUNAMI_DEMOTE_MIN = 10;
-/** 気象警報 (L4/L5 相当) の主役パネル保持時間。SWEEP_INTERVAL_MS 駆動のため
- *  実際の降格は「30 分 + 最大 5 秒」で起きる (契約)。 */
-export const WEATHER_PROMOTION_DEMOTE_MIN = 30;
+/**
+ * 気象警報 (L4/L5 相当) の主役パネル保持時間。**見られた時間の合計 3 分**で降格する
+ * (降格判定は SWEEP_INTERVAL_MS 駆動なので最大 5 秒遅れる、spec 追補 C7)。
+ *
+ * 30 分から短縮した (2026-07-26 実機観測)。**画面の切り替え自体が視線を引く**ので、
+ * 出しっぱなしにするとその力が死ぬ。警報の継続そのものは待機画面の気象カードが持ち、
+ * 主役パネルは「新規発表・更新発表を知らせる装置」として短く使う。
+ * 同内容の定時再掲では点灯し直さない (weather-promotion-store.ts の apply)。
+ */
+export const WEATHER_PROMOTION_DEMOTE_MIN = 3;
 /** 復元時に「保存時刻が未来」と判定する許容誤差。RTC を持たない Pi は NTP 同期前に時刻がずれる。
  *  sweep 1 周期 (SWEEP_INTERVAL_MS) 以内のズレは通常運転と区別できないため未来扱いしない。 */
 export const WEATHER_PROMOTION_CLOCK_SKEW_TOLERANCE_MS = SWEEP_INTERVAL_MS;

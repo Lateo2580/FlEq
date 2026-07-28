@@ -22,14 +22,16 @@ import {
   type DisplayTsunamiInputV1,
   type DisplayTsunamiObservationV1,
   type DisplayTsunamiStateV1,
+  type DisplayWeatherAddedAreasV1,
   type DisplayWeatherAlertV1,
   type DisplayWeatherPromotionEntryV1,
   type DisplayWeatherPromotionV1,
   type DisplayWeatherSourceV1,
 } from "./types";
+import type { Vpws50CurrentAreasForDisplay } from "../../types";
 import { intensityToRank } from "../../utils/intensity";
 import { quakeCardTtlMs, shouldReplaceQuakeCard } from "./quake-card-selection";
-import { WEATHER_PROMOTION_SOURCES } from "./weather-promotion";
+import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import {
   WeatherPromotionStore,
   type WeatherPromotionPersistedV1,
@@ -42,11 +44,30 @@ const TIER_QUAKE_ALERT_RANK = intensityToRank("5弱");
 
 function promotionEntry(record: WeatherPromotionRecord | null): DisplayWeatherPromotionEntryV1 | null {
   if (record == null || record.state !== "active") return null;
+  const promotedAt = new Date(record.promotedAtMs).toISOString();
   return {
     level: record.level,
-    promotedAt: new Date(record.promotedAtMs).toISOString(),
+    promotedAt,
     generation: record.generation,
+    trigger: record.trigger ?? undefined,
+    // 安定キーで求めた追加地域を、wire では表示名 (種別 → 地域名) へ畳んで載せる
+    addedAreas: addedAreasForWire(record.addedAreas),
+    // 点灯の同一性キー。**点灯イベントの通し番号だけ**を使う (Codex レビュー 2026-07-27) —
+    // promotedAt を混ぜると display on の測り直しで再点灯し、generation だけだと
+    // 「解除 → 同内容で再発表」を取り逃す
+    activationKey: `${record.activationSeq}`,
   };
+}
+
+/** 追加地域 (安定キー付き member) を wire 形へ。同一種別の地域はまとめ、出現順を保つ */
+function addedAreasForWire(added: readonly WeatherPromotionMemberV1[]): DisplayWeatherAddedAreasV1[] {
+  const byKind = new Map<string, DisplayWeatherAddedAreasV1>();
+  for (const m of added) {
+    const entry = byKind.get(m.kind);
+    if (entry == null) byKind.set(m.kind, { kind: m.kind, areas: [m.areaName] });
+    else if (!entry.areas.includes(m.areaName)) entry.areas.push(m.areaName);
+  }
+  return [...byKind.values()];
 }
 
 // 現在の緊急状態 (EEW/津波/大地震/気象警報/接続) を合成する表示用ストア。
@@ -171,7 +192,7 @@ export class DisplayStateStore {
     return true;
   }
 
-  sweep(nowMs: number): boolean {
+  sweep(nowMs: number, sweepWeatherPromotions = true): boolean {
     let changed = false;
     for (const [id, eew] of this.activeEews) {
       const ttlHit = nowMs - eew.updatedAtMs > EEW_TTL_MIN * MIN_MS;
@@ -185,8 +206,10 @@ export class DisplayStateStore {
       this.tsunami = { ...this.tsunami, demoted: true };
       changed = true;
     }
-    // 気象警報の昇格は「30 分 + 最大 5 秒」で降格する
-    changed = this.promotions.sweepDemote(nowMs) || changed;
+    // SSE 無客中は気象点灯の時計だけを止める。他 domain の lifecycle は従来どおり進める
+    if (sweepWeatherPromotions) {
+      changed = this.promotions.sweepDemote(nowMs) || changed;
+    }
     if (this.latestQuake != null &&
         nowMs - this.latestQuake.updatedAtMs > quakeCardTtlMs(this.latestQuake.maxIntRank ?? 0)) {
       this.latestQuake = null;
@@ -228,7 +251,7 @@ export class DisplayStateStore {
    */
   applyWeatherSource(
     source: DisplayWeatherSourceV1,
-    view: DisplayWeatherAlertV1[],
+    view: Vpws50CurrentAreasForDisplay | undefined,
     nowMs: number,
   ): boolean {
     return this.promotions.apply(source, view, nowMs);
@@ -247,6 +270,22 @@ export class DisplayStateStore {
   /** display runtime 起動時の経過判定 (`display off` 中に降格 sweep が止まっていた分を反映) */
   resumeWeatherPromotions(nowMs: number): boolean {
     return this.promotions.resume(nowMs);
+  }
+
+  sweepWeatherPromotions(nowMs: number): boolean {
+    return this.promotions.sweepDemote(nowMs);
+  }
+
+  beginWeatherPromotionUnseenPeriod(nowMs: number): boolean {
+    return this.promotions.beginUnseenPeriod(nowMs);
+  }
+
+  clearWeatherPromotionUnseenPeriod(): boolean {
+    return this.promotions.clearUnseenPeriod();
+  }
+
+  endWeatherPromotionUnseenPeriod(unseenDurationMs: number, nowMs: number): boolean {
+    return this.promotions.endUnseenPeriod(unseenDurationMs, nowMs);
   }
 
   /** hub が publishStats 経路で現在値を流し込む。snapshot に載せるだけ (dirty 判定は hub 側) */
@@ -310,6 +349,8 @@ export class DisplayStateStore {
     return {
       vpws50: this.promotionEntryForWire("vpws50"),
       vpww56: this.promotionEntryForWire("vpww56"),
+      // パネル全体の点灯キー。**source の降格・解除では動かない** watermark
+      activationKey: `${this.promotions.activationWatermark()}`,
     };
   }
 

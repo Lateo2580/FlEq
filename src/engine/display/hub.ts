@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import * as log from "../../logger";
 import type { PresentationEvent } from "../presentation/types";
 import {
@@ -29,6 +30,8 @@ export interface InfoDisplayHubDeps {
   weatherAlerts: (updatedAt: string) => DisplayWeatherAlertV1[];
   /** テスト注入用。省略時 Date.now */
   now?: () => number;
+  /** SSE 無客区間の測定用単調クロック。省略時 performance.now */
+  monotonicNow?: () => number;
   /** kill switch 発火時の通知 */
   onFatal?: (reason: string) => void;
   /** フロント資産のビルド識別子 (display/dist/index.html 内容ハッシュ) を返す getter。
@@ -67,13 +70,19 @@ export class InfoDisplayHub implements DisplayIngestSink {
   private pendingBuildId: string | null = null;
   /** publishedBuildId を一度でも観測で初期化したか (初回観測は即採用し、以降の変化のみ 2 回確認)。 */
   private buildIdSeeded = false;
+  /** runtime 起動後に SSE 人数の初期値を受け取ったか。単体利用では従来どおり時計を進める。 */
+  private sseClientTrackingStarted = false;
+  /** SSE クライアントが 0 件になった単調時刻。null は 1 件以上いて保持時計が進行中。 */
+  private unseenSinceMonotonicMs: number | null = null;
   private readonly now: () => number;
+  private readonly monotonicNow: () => number;
 
   constructor(
     private readonly store: DisplayStateStore,
     private readonly deps: InfoDisplayHubDeps,
   ) {
     this.now = deps.now ?? Date.now;
+    this.monotonicNow = deps.monotonicNow ?? (() => performance.now());
   }
 
   attachTransport(t: DisplayTransport): void {
@@ -141,6 +150,43 @@ export class InfoDisplayHub implements DisplayIngestSink {
     snap.recentTicker = this.recent.map((e) => e.dto).reverse();
     this.stampFrontendBuildId(snap);
     return snap;
+  }
+
+  /** transport 起動成功後、現在の SSE 人数を基準に無客時計の追跡を始める。 */
+  startSseClientTracking(clientCount: number, nowMs: number = this.now()): void {
+    if (this.stopped) return;
+    this.sseClientTrackingStarted = true;
+    if (clientCount === 0) {
+      this.unseenSinceMonotonicMs = this.monotonicNow();
+      this.store.beginWeatherPromotionUnseenPeriod(nowMs);
+    } else {
+      this.unseenSinceMonotonicMs = null;
+      this.store.clearWeatherPromotionUnseenPeriod();
+    }
+  }
+
+  /**
+   * transport から SSE 人数変更を受ける。1→0 で締め sweep 後に時計を止め、0→1 では
+   * 単調クロックで測った無客区間だけを反映して再度 sweep する。追加接続では何もしない。
+   */
+  onSseClientCountChange(clientCount: number): void {
+    if (this.stopped || !this.sseClientTrackingStarted) return;
+    const nowMs = this.now();
+    if (clientCount === 0) {
+      if (this.unseenSinceMonotonicMs != null) return;
+      // 1→0 の瞬間は直前まで閲覧中だった。次の定期 sweep を待たず、可視時間をここで締める
+      this.store.sweepWeatherPromotions(nowMs);
+      this.unseenSinceMonotonicMs = this.monotonicNow();
+      this.store.beginWeatherPromotionUnseenPeriod(nowMs);
+      return;
+    }
+    const unseenSinceMonotonicMs = this.unseenSinceMonotonicMs;
+    if (unseenSinceMonotonicMs == null) return;
+    this.unseenSinceMonotonicMs = null;
+    const unseenDurationMs = Math.max(0, this.monotonicNow() - unseenSinceMonotonicMs);
+    this.store.endWeatherPromotionUnseenPeriod(unseenDurationMs, nowMs);
+    // シフト直後にも判定し、再接続 client の初期 snapshot に期限超過 active を載せない
+    this.store.sweepWeatherPromotions(nowMs);
   }
 
   /** 安定 buildId (publishedBuildId) を snapshot に刻む。null (getter 無し・dist 未解決) のときは
@@ -232,7 +278,10 @@ export class InfoDisplayHub implements DisplayIngestSink {
     this.observeFrontendBuildId();
     this.sweepTimer = setInterval(() => {
       const nowMs = this.now();
-      let dirty = this.store.sweep(nowMs);
+      // SSE 無客中は気象点灯の保持時計だけを停止する。他 domain の sweep は継続する
+      const sweepWeatherPromotions =
+        !this.sseClientTrackingStarted || this.unseenSinceMonotonicMs == null;
+      let dirty = this.store.sweep(nowMs, sweepWeatherPromotions);
       dirty = (this.deps.standbySweep?.(nowMs).viewChanged ?? false) || dirty;
       dirty = this.sweepTicker(nowMs) || dirty;
       // 無停止の display:build (プロセス継続で dist だけ差し替え) を電文契機に頼らず検知する。

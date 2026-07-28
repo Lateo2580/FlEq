@@ -12,6 +12,7 @@ import {
   type DisplayRuntime,
 } from "../../../src/engine/display/runtime";
 import { KILL_SWITCH_ERRORS } from "../../../src/engine/display/constants";
+import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
@@ -54,6 +55,20 @@ function mockDisplay(): DisplayCallbacks {
 
 function testConfig(): AppConfig {
   return { ...DEFAULT_CONFIG, apiKey: "test", display: true, displayPort: 0 };
+}
+
+function activePromotionView(): Vpws50CurrentAreasForDisplay {
+  return {
+    totalAreas: 1, specialAreas: 1, warningAreas: 0, advisoryAreas: 0,
+    kinds: [{
+      kindCode: "33",
+      kindShortName: "大雨",
+      kindName: "大雨特別警報",
+      displaySeverity: "officialL5",
+      officialAlertLevel: 5,
+      areas: [{ areaName: "東京都", areaCode: "130000" }],
+    }],
+  };
 }
 
 describe("tsunamiSeedFromParsed", () => {
@@ -179,6 +194,7 @@ describe("weatherAlertsFromVpws50", () => {
       items: [
         {
           kind: "L3 大雨警報",
+          phenomenonKey: "大雨",
           displaySeverity: "officialL3",
           rank: "warning",
           shownAreas: ["能登北部"],
@@ -252,6 +268,7 @@ describe("weatherAlertsFromVpws50", () => {
       items: [
         {
           kind: "大雨特別警報",
+          phenomenonKey: "大雨",
           displaySeverity: "nonLevelSpecial",
           rank: "emergency",
           shownAreas: ["能登北部"],
@@ -268,6 +285,7 @@ describe("weatherAlertsFromVpws50", () => {
       items: [
         {
           kind: "L4 土砂災害危険警報",
+          phenomenonKey: "土砂災害",
           displaySeverity: "officialL4",
           rank: "warning",
           shownAreas: ["能登南部"],
@@ -317,6 +335,7 @@ describe("weatherAlertsFromVpww56", () => {
         items: [
           {
             kind: "L5 土砂災害特別警報",
+            phenomenonKey: "土砂災害",
             displaySeverity: "officialL5",
             rank: "emergency",
             shownAreas: ["宗谷地方"],
@@ -523,14 +542,24 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
 
   it("dist 欠落時は warn + null で本体は継続する", async () => {
     process.env.FLEQ_DISPLAY_DIST = join(tmpdir(), "fleq-display-runtime-test-not-exist");
+    const promotions = new WeatherPromotionStore();
+    const promotedAtMs = Date.parse("2026-07-27T12:00:00+09:00");
+    promotions.apply("vpws50", activePromotionView(), promotedAtMs);
+    const onDurable = vi.fn();
+    promotions.onDurable(onDurable);
 
     const rt = await startDisplayRuntime(testConfig(), mockDisplay(), {
       tsunami: () => null,
       weather: () => undefined,
       landslide: () => undefined,
+      weatherPromotions: () => promotions,
     });
 
     expect(rt).toBeNull();
+    const record = promotions.get("vpws50");
+    expect(record?.state === "active" ? record.promotedAtMs : null).toBe(promotedAtMs);
+    expect(promotions.export().unseenSinceMs).toBeNull();
+    expect(onDurable).not.toHaveBeenCalled();
   });
 });
 
