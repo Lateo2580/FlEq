@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
-import type { ParsedFloodForecastInfo, ParsedHeatAlertInfo, ParsedTyphoonAnalysis, ParsedVolcanoInfo } from "../../../src/types";
+import type {
+  ParsedFloodForecastInfo,
+  ParsedHeatAlertInfo,
+  ParsedLgObservationInfo,
+  ParsedTyphoonAnalysis,
+  ParsedVolcanoInfo,
+} from "../../../src/types";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
@@ -70,12 +76,25 @@ function quakeHostEvent(eventId: string, maxIntRank: number, timeMs: number): Pr
 }
 
 function longPeriodEvent(eventId: string, timeMs: number): PresentationEvent {
+  const reportDateTime = new Date(timeMs).toISOString();
+  const raw: ParsedLgObservationInfo = {
+    type: "VXSE62",
+    infoType: "発表",
+    title: "長周期地震動に関する観測情報",
+    reportDateTime,
+    headline: null,
+    publishingOffice: "気象庁",
+    maxLgInt: "3",
+    areas: [],
+    isTest: false,
+  };
   return heatEvent({
     id: `long-period-${eventId}-${timeMs}`,
     domain: "lgObservation",
+    type: raw.type,
     eventId,
-    reportDateTime: new Date(timeMs).toISOString(),
-    raw: { maxLgInt: "3" },
+    reportDateTime,
+    raw,
   });
 }
 

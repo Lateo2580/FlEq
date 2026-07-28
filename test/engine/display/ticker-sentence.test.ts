@@ -221,7 +221,7 @@ describe("buildTickerSentence", () => {
       headline: "震度3以上の地域をお知らせします。",
       hypocenterName: "",
       areaItems: [
-        { name: "熊本県熊本地方", maxInt: null },
+        { name: "熊本県熊本地方", maxInt: undefined },
         { name: "熊本県阿蘇地方" },
       ],
     });
