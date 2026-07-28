@@ -74,17 +74,17 @@ function largeQuakeOnlyDto(over: Partial<{ eventId: string; maxInt: string; maxI
   } as DisplayEventDtoV1;
 }
 
-function latestQuakeOnlyDto(over: Partial<{ eventId: string; maxInt: string; maxIntRank: number | null; reportDateTime: string }>): DisplayEventDtoV1 {
-  const o = { eventId: "Q1", maxInt: "5弱", maxIntRank: 5, reportDateTime: "2026-07-06T21:00:00+09:00", ...over };
+function latestQuakeOnlyDto(over: Partial<{ eventId: string | null; maxInt: string; maxIntRank: number | null; reportDateTime: string; isCancellation: boolean }>): DisplayEventDtoV1 {
+  const o = { eventId: "Q1", maxInt: "5弱", maxIntRank: 5, reportDateTime: "2026-07-06T21:00:00+09:00", isCancellation: false, ...over };
   return {
     version: 1, seq: 0, id: `m-${o.eventId}-${o.reportDateTime}`, eventKey: `quake:${o.eventId}:${o.reportDateTime}`,
     groupKey: `quake:${o.eventId}`, domain: "earthquake", type: "VXSE53", infoType: "発表",
     reportDateTime: o.reportDateTime, title: "震源・震度情報", headline: null,
-    publishingOffice: "気象庁", isTest: false, frameLevel: "warning", isCancellation: false,
+    publishingOffice: "気象庁", isTest: false, frameLevel: "warning", isCancellation: o.isCancellation,
     summary: { text: "t", role: "quakeMajor" },
     emergency: null,
     recentQuake: null,
-    latestQuake: {
+    latestQuake: o.isCancellation ? null : {
       eventId: o.eventId, headline: null, originTime: null, hypocenterName: "X",
       depth: null, magnitude: "6.0", maxInt: o.maxInt, maxIntRank: o.maxIntRank,
       tsunamiWarning: false, intensityGroups: [], reportDateTime: o.reportDateTime,
@@ -366,9 +366,7 @@ describe("DisplayStateStore: latestQuake", () => {
     expect(snap.latestQuake?.maxInt).toBe("4");
   });
 
-  it("震度5弱カードの 20 分後に震度2 の新地震が来ても置き換わらない", () => {
-    // quakeDto は largeQuake/recentQuake も同梱するため applyEvent 全体の戻り値は
-    // それらの変化で true になり得る。latestQuake 単体の非置換は snapshot で確認する。
+  it("震度5弱カードの TTL 中でも震度2 の別地震で最新カードを置換する", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(quakeDto({ eventId: "Q1", maxInt: "5弱", maxIntRank: 5 }), T0)).toBe(true);
     store.applyEvent(
@@ -376,8 +374,17 @@ describe("DisplayStateStore: latestQuake", () => {
       T0 + 20 * MIN,
     );
     const snap = store.snapshot(1, T0 + 20 * MIN);
-    expect(snap.latestQuake?.maxInt).toBe("5弱");
-    expect(snap.latestQuake?.eventId).toBe("Q1");
+    expect(snap.latestQuake?.maxInt).toBe("2");
+    expect(snap.latestQuake?.eventId).toBe("Q2");
+  });
+
+  it("eventId=null は別イベントとして latestQuake を置換する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(latestQuakeOnlyDto({ eventId: "Q1", maxInt: "5弱", maxIntRank: 5 }), T0)).toBe(true);
+    expect(store.applyEvent(latestQuakeOnlyDto({
+      eventId: null, maxInt: "2", maxIntRank: 2, reportDateTime: "2026-07-06T21:01:00+09:00",
+    }), T0 + MIN)).toBe(true);
+    expect(store.snapshot(1, T0 + MIN).latestQuake).toMatchObject({ eventId: null, maxInt: "2" });
   });
 
   it("震度5弱カードの 31 分後 sweep で latestQuake が消える", () => {
@@ -394,9 +401,9 @@ describe("DisplayStateStore: latestQuake", () => {
     expect(store.snapshot(1, T0 + 6 * MIN).latestQuake?.maxInt).toBe("3");
   });
 
-  it("同ランク以上の新地震は TTL 残存中でも常に置換する", () => {
+  it("弱い地震の後に強い別地震が到着すると最新カードを置換する", () => {
     const store = new DisplayStateStore();
-    expect(store.applyEvent(quakeDto({ eventId: "Q1", maxInt: "5弱", maxIntRank: 5 }), T0)).toBe(true);
+    expect(store.applyEvent(quakeDto({ eventId: "Q1", maxInt: "2", maxIntRank: 2 }), T0)).toBe(true);
     const changed = store.applyEvent(
       quakeDto({ eventId: "Q2", maxInt: "5弱", maxIntRank: 5, reportDateTime: "2026-07-06T21:10:00+09:00" }),
       T0 + 10 * MIN,
@@ -404,6 +411,7 @@ describe("DisplayStateStore: latestQuake", () => {
     expect(changed).toBe(true);
     const snap = store.snapshot(1, T0 + 10 * MIN);
     expect(snap.latestQuake?.eventId).toBe("Q2");
+    expect(snap.latestQuake?.maxInt).toBe("5弱");
   });
 
   it("同一 eventId の続報は震度が下方修正されても常に置換する (I-1)", () => {
@@ -445,6 +453,24 @@ describe("DisplayStateStore: latestQuake", () => {
     expect(store.snapshot(1, T0 + 4 * MIN).latestQuake?.maxInt).toBe("1");
     expect(store.sweep(T0 + 6 * MIN)).toBe(true);
     expect(store.snapshot(2, T0 + 6 * MIN).latestQuake).toBeNull();
+  });
+
+  it("低ランクカードは TTL 境界では残り、境界を越えると sweep で失効する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(quakeDto({ maxInt: "2", maxIntRank: 2 }), T0)).toBe(true);
+    expect(store.sweep(T0 + 5 * MIN)).toBe(false);
+    expect(store.snapshot(1, T0 + 5 * MIN).latestQuake?.eventId).toBe("Q1");
+    expect(store.sweep(T0 + 5 * MIN + 1)).toBe(true);
+    expect(store.snapshot(2, T0 + 5 * MIN + 1).latestQuake).toBeNull();
+  });
+
+  it("取消電文は保持中の latestQuake を置換しない", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(latestQuakeOnlyDto({ eventId: "Q1" }), T0)).toBe(true);
+    expect(store.applyEvent(latestQuakeOnlyDto({
+      eventId: "Q1", isCancellation: true, reportDateTime: "2026-07-06T21:01:00+09:00",
+    }), T0 + MIN)).toBe(false);
+    expect(store.snapshot(1, T0 + MIN).latestQuake?.eventId).toBe("Q1");
   });
 });
 

@@ -15,7 +15,7 @@ import {
 } from "./standby-registry";
 import { RevisionGuard } from "./revision-guard";
 import { nankaiBadgeAction } from "./nankai-status";
-import { quakeCardTtlMs, shouldReplaceQuakeCard } from "./quake-card-selection";
+import { quakeCardTtlMs, shouldReplaceQuakeHost } from "./quake-card-selection";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -219,7 +219,7 @@ export class StandbyStateStore {
     if (event.isCancellation || event.eventId == null) return NO_MUTATION;
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
     const candidate = { eventId: event.eventId, maxIntRank: event.maxIntRank };
-    if (!shouldReplaceQuakeCard(this.quakeHost, candidate, nowMs)) return NO_MUTATION;
+    if (!shouldReplaceQuakeHost(this.quakeHost, candidate, nowMs)) return NO_MUTATION;
     const expiresAtMs = nowMs + quakeCardTtlMs(event.maxIntRank ?? 0);
     this.quakeHost = { ...candidate, maxIntRank: candidate.maxIntRank ?? 0, revision, expiresAtMs };
     let changed = false;

@@ -58,6 +58,27 @@ function heatEvent(over: Partial<PresentationEvent> = {}, rawOver: Partial<Parse
   };
 }
 
+function quakeHostEvent(eventId: string, maxIntRank: number, timeMs: number): PresentationEvent {
+  return heatEvent({
+    id: `quake-${eventId}-${timeMs}`,
+    domain: "earthquake",
+    eventId,
+    maxIntRank,
+    reportDateTime: new Date(timeMs).toISOString(),
+    raw: null,
+  });
+}
+
+function longPeriodEvent(eventId: string, timeMs: number): PresentationEvent {
+  return heatEvent({
+    id: `long-period-${eventId}-${timeMs}`,
+    domain: "lgObservation",
+    eventId,
+    reportDateTime: new Date(timeMs).toISOString(),
+    raw: { maxLgInt: "3" },
+  });
+}
+
 describe("RevisionGuard", () => {
   it("新しい revision だけを受理し、tombstone を期限まで保持する", () => {
     const guard = new RevisionGuard();
@@ -66,6 +87,21 @@ describe("RevisionGuard", () => {
     expect(guard.accept("heat:2026-07-21", { reportTimeMs: T0 - 1, serial: "9" }, T0 + 1)).toBe(false);
     expect(guard.sweep(T0 + 24 * 60 * 60_000 - 1)).toBe(false);
     expect(guard.sweep(T0 + 24 * 60 * 60_000)).toBe(true);
+  });
+});
+
+describe("StandbyStateStore: earthquake host", () => {
+  it("TTL 中の強い quakeHost と rider を弱い別地震で置換しない", () => {
+    const store = new StandbyStateStore();
+    expect(store.applyEvent(quakeHostEvent("Q1", 5, T0), T0).durableChanged).toBe(true);
+    expect(store.applyEvent(longPeriodEvent("Q1", T0 + 1), T0 + 1).viewChanged).toBe(true);
+
+    expect(store.applyEvent(quakeHostEvent("Q2", 2, T0 + 60_000), T0 + 60_000))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().quakeHost).toMatchObject({ eventId: "Q1", maxIntRank: 5 });
+    expect(store.snapshotItems()).toEqual([
+      expect.objectContaining({ kind: "longPeriod", data: { eventId: "Q1", maxLgInt: "3" } }),
+    ]);
   });
 });
 

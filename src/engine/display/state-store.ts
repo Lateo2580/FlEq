@@ -29,7 +29,7 @@ import {
 } from "./types";
 import type { Vpws50CurrentAreasForDisplay } from "../../types";
 import { intensityToRank } from "../../utils/intensity";
-import { quakeCardTtlMs, shouldReplaceQuakeCard } from "./quake-card-selection";
+import { quakeCardTtlMs, shouldReplaceLatestQuake } from "./quake-card-selection";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import {
   WeatherPromotionStore,
@@ -181,12 +181,7 @@ export class DisplayStateStore {
 
   private applyLatestQuake(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
     const existing = this.latestQuake;
-    const current = existing == null ? null : {
-      eventId: existing.eventId,
-      maxIntRank: existing.maxIntRank,
-      expiresAtMs: existing.updatedAtMs + quakeCardTtlMs(existing.maxIntRank ?? 0),
-    };
-    if (!shouldReplaceQuakeCard(current, input, nowMs)) return false;
+    if (!shouldReplaceLatestQuake(existing, input)) return false;
     this.latestQuake = { ...input, updatedAtMs: nowMs };
     return true;
   }

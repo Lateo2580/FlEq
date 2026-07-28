@@ -10,7 +10,7 @@ interface QuakeCardCandidate {
   maxIntRank: number | null | undefined;
 }
 
-interface CurrentQuakeCard extends QuakeCardCandidate {
+interface CurrentQuakeHost extends QuakeCardCandidate {
   expiresAtMs: number;
 }
 
@@ -20,8 +20,18 @@ export function quakeCardTtlMs(rank: number): number {
   return QUAKE_CARD_TTL_LOW_MIN * MIN_MS;
 }
 
-export function shouldReplaceQuakeCard(
-  current: CurrentQuakeCard | null,
+export function shouldReplaceLatestQuake(
+  current: QuakeCardCandidate | null,
+  candidate: QuakeCardCandidate,
+): boolean {
+  if (current == null) return true;
+  if (current.eventId != null && current.eventId === candidate.eventId) return true;
+  // 別地震は常に最新を表示する。強い地震は緊急画面の保持と履歴カードで担保する。
+  return true;
+}
+
+export function shouldReplaceQuakeHost(
+  current: CurrentQuakeHost | null,
   candidate: QuakeCardCandidate,
   nowMs: number,
 ): boolean {
