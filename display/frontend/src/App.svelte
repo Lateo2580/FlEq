@@ -12,6 +12,7 @@
   import { emergencyEnter } from "./lib/transitions";
   import { SPRING_SPATIAL_QUICK_MS, SPRING_EFFECTS_SLOW_MS, EXIT_MS } from "./lib/motion";
   import { createTipsFeeder } from "./lib/tips-feeder.svelte";
+  import { deriveEmergencyCompanionControl } from "./lib/emergency-tips-policy";
   import { buildTsunamiReplayDto } from "./lib/tsunami-replay";
   import type { DisplayTsunamiLevel } from "./lib/protocol";
   import type { DisplayTickerDtoV1 } from "./lib/ticker-schedule";
@@ -58,14 +59,32 @@
   // スケジューラ側にも同じ排他ガードがあり (割当時に hasNonTipActivity なら tip を載せない)、二重防御。
   let hasNonTipActivity = $state(false);
   const tipsFeeder = createTipsFeeder({
-    eligible: () => mode === "standby",
+    context: () => mode,
     blocked: () => hasNonTipActivity,
   });
   $effect(() => () => tipsFeeder.destroy());
-  // 電文 lines を必ず先に置く (順序安定が initial queue の low seq に効く)。待機モード以外は tips を混ぜない
+  // 電文 lines を必ず先に置く (同 priority では実電文が先)。context に合う Tip だけを混ぜる。
   const displayTickerLines = $derived(
-    mode === "standby" ? [...tickerLines, ...tipsFeeder.lines] : tickerLines,
+    [...tickerLines, ...tipsFeeder.lines],
   );
+
+  // emergency session は mode 遷移でのみ進める。パネル更新では shown 上限/cooldown をリセットしない。
+  let emergencySession = $state(0);
+  let previousMode: typeof mode | null = null;
+  $effect(() => {
+    const current = mode;
+    untrack(() => {
+      if (current === "emergency" && previousMode !== "emergency") emergencySession += 1;
+      previousMode = current;
+    });
+  });
+  const emergencyCompanionControl = $derived.by(() => {
+    const base = deriveEmergencyCompanionControl(connection.state.snapshot);
+    return {
+      ...base,
+      sessionId: mode === "emergency" ? `emergency-${emergencySession}` : "standby",
+    };
+  });
 
   // 津波チップ再生 (2026-07-14): チップクリックでその種別のテロップを Ticker へ再放送する。
   // Ticker が状態機械の所有者なので App に queue を持たず、bind:this の enqueueReplay 経由で投入する。
@@ -189,6 +208,7 @@
       onJobComplete={(key) => tipsFeeder.notifyComplete(key)}
       onActivityChange={(active) => { hasNonTipActivity = active; }}
       onAlertActivityChange={(active) => { tickerAlertActive = active; }}
+      {emergencyCompanionControl}
     />
   </div>
   <TierOverlay tier={severityTier} />

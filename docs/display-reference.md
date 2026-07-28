@@ -2789,15 +2789,19 @@ priority 0 のトークン (severity ラベル、主要識別子) は常に表�
 - **割込み優先度 (`ticker-schedule.ts` `assignLanes`)**: 走行中テロップへの即時割込みは **high ランクの候補のみ** 許可する。mid はキューで待ち、走行中の文が流し終わって (scroll 完了 → レーン idle) 次割当されるのを待ってから入る。キュー内の取り出し順は「ランク高い順 → 同ランク到着順 (seq 昇順)」の FIFO。これは気象注意報 (low) の一斉着信時に警報 (mid) が次々割込んで注意報が読めないまま消える (2 回目以降 5 分保留で実質消失する) 問題への対処 (2026-07-13)。ただし同一 `groupKey` の続報 (取消・優先度上昇) は「別テロップの割込み」ではなく「同じ話の更新」なので、`mustReplaceImmediately` により従来どおり即差し替える。
 - **フォールバック**: `tickerSentence` が欠落する場合 (新フロント + 旧サーバの移行期など)、`TickerLane.displayText()` が `summary.text + " ▪ " + tickerDetail` の従来連結表示にフォールバックする。サーバ側でも文章化に失敗した場合は `headline` ベースの最小一文 (`fallbackTickerText`) に落ちる (旧来の summary 連結 + 地域羅列のダンプ表示には戻さない)
 
-### 待機中の Tips 表示
+### Tips / 緊急時の防災情報テロップ
 
 電文由来のテロップが 0 件かつ待機モード (緊急パネルなし) のとき、CLI の待機中 Tips のうち知識系カテゴリのみ (`commands-basic` / `commands-advanced` / `tool-internals` を除外) がテロップに流れる (`display/frontend/src/lib/tips-feeder.svelte.ts`)。
 
 - **連続供給**: 条件成立で即1本流し、以降は Ticker の走行完了通知 (`onIdle` → `notifyIdle()`) を受けてすぐ次の1本に差し替える (2026-07-12 改訂、間欠タイマーは廃止)。帯が空白で待つ時間はない
 - **見た目**: 文頭の `Tip: ` prefix は除去され、チップ (左端ラベル) は「豆知識」・中立色 (role `info`)・priority `low`
-- **供給元**: サーバの `GET /tips` (シャッフル済みデッキ、`src/engine/display/display-tips.ts`)。取得失敗時は従来どおり空白帯のまま (電文表示に影響しない)
+- **供給元**: サーバの `GET /tips?context=standby|emergency` (シャッフル済みデッキ、`src/engine/display/display-tips.ts`)。省略時は standby、未知 context は 400。取得結果は `no-store` で返す。
 - **電文優先**: 電文テロップが現れたら以後の Tips 供給は止まり、走行中の Tip は既存スケジューラが走り切らせる
 - **目視確認**: `preview.html#ticker-tips` シナリオ、または MotionCatalog テロップタブの「Tip を投入」ボタン
+
+緊急 context の `emergency-guidance` は、確認済みの防災情報 10 件だけを別デッキで配る。各本文はサーバ側で id・出典・確認日・失効日・許容 hazard を管理し、ブラウザへは id/text/hazards のみ渡す。
+
+緊急 companion は lane 1 専用で lane 0 へ fallback しない。同 priority では実電文を先に取り、critical tier・未知 tier/hazard では既定で無効にする。さらに emergency session ごとの最大 1 回と 120 秒 cooldown を満たす場合だけ出せる。feeder は context 世代、AbortController、timeout で旧 context の取得結果を破棄する。
 
 ---
 

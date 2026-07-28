@@ -4,6 +4,7 @@
 import type { DisplayColorRole, DisplayEventDtoV1, DisplayTickerPriority } from "./protocol";
 import { mapEmphasisToSegments, segmentTickerBody, splitRuns, type EmphasisSpan, type TickerRun } from "./ticker-segment";
 import { isAlertRole } from "./alert-roles";
+import type { EmergencyCompanionControl, EmergencyHazard } from "./emergency-tips-policy";
 
 export type TickerPriority = DisplayTickerPriority;
 
@@ -13,6 +14,7 @@ export type TickerPriority = DisplayTickerPriority;
 //   "tip"    = 待機中 Tips (フィラー)。排他割当・emergency purge の対象
 //   "replay" = 津波 replay 等のフロント合成再放送 (後続タスクで配線。ここでは型のみ定義)
 export type TickerJobKind = "event" | "tip" | "replay";
+export type TipPolicy = "idle-only" | "emergency-companion";
 
 /**
  * フロントが Ticker へ渡す DTO。サーバ電文 (DisplayEventDtoV1) に、フロント合成ジョブの
@@ -21,6 +23,8 @@ export type TickerJobKind = "event" | "tip" | "replay";
  */
 export interface DisplayTickerDtoV1 extends DisplayEventDtoV1 {
   kind?: TickerJobKind;
+  tipPolicy?: TipPolicy;
+  tipHazards?: readonly EmergencyHazard[];
   /**
    * replay ジョブの投入時点の津波 snapshot 世代 (2026-07-14 津波チップ再生)。津波 state が
    * 更新/解除で世代不一致になったら未開始 replay を purge・走行中 replay を停止する判定に使う。
@@ -50,6 +54,8 @@ export interface TickerJob {
   groupKey: string | null; // 同一イベント続報の版管理
   seq: number; // 到着順 (同優先度の安定ソート用)
   kind: TickerJobKind; // 出自種別 (排他割当・purge 判定の唯一の真実源、key prefix 判定は廃止)
+  tipPolicy: TipPolicy | null;
+  tipHazards: readonly EmergencyHazard[];
   priority: TickerPriority;
   role: DisplayColorRole;
   category: string | null;
@@ -66,6 +72,10 @@ export interface TickerJob {
   isCancellation: boolean; // 取消判定。二段制御の即時フェード条件 (§5-1)
   replayGeneration?: number; // replay ジョブの投入時点の津波 snapshot 世代 (世代不一致 purge 用、非 replay は未設定)
 }
+
+export const EMERGENCY_COMPANION_COOLDOWN_MS = 120_000;
+export const EMERGENCY_COMPANION_SESSION_MAX = 1;
+const DISABLED_COMPANION: EmergencyCompanionControl = { sessionId: "none", enabled: false, hazards: [] };
 
 export type LanePhase = "idle" | "running" | "fading";
 
@@ -90,6 +100,9 @@ export interface SchedulerState {
   cyclePos: number; // low 巡回の位置
   catalog: TickerJob[]; // low 巡回の供給元 (groupKey 畳み込み済み)
   lastShownAt: Record<string, number>; // key ごとの最終走行開始時刻 (巡回間隔判定、§4)
+  emergencyCompanion: EmergencyCompanionControl;
+  companionShown: number;
+  companionLastShownAt: number | null;
 }
 
 // ─── 生成 ──────────────────────────────────────────────
@@ -120,6 +133,8 @@ export function toTickerJob(dto: DisplayTickerDtoV1, fallbackSeq: number): Ticke
     groupKey: dto.groupKey,
     seq: dto.seq !== 0 ? dto.seq : fallbackSeq,
     kind: dto.kind ?? "event",
+    tipPolicy: dto.tipPolicy ?? null,
+    tipHazards: dto.tipHazards ?? [],
     priority: dto.tickerPriority ?? "low",
     role: dto.summary.role,
     category: dto.tickerCategory ?? null,
@@ -182,6 +197,9 @@ export function createSchedulerState(catalog: TickerJob[], generationSeed = 0): 
     cyclePos: 0,
     catalog: folded,
     lastShownAt: {},
+    emergencyCompanion: DISABLED_COMPANION,
+    companionShown: 0,
+    companionLastShownAt: null,
   };
 }
 
@@ -196,6 +214,9 @@ function cloneState(s: SchedulerState): SchedulerState {
     cyclePos: s.cyclePos,
     catalog: s.catalog,
     lastShownAt: { ...s.lastShownAt },
+    emergencyCompanion: s.emergencyCompanion,
+    companionShown: s.companionShown,
+    companionLastShownAt: s.companionLastShownAt,
   };
 }
 
@@ -288,9 +309,57 @@ function bestQueueIndexExcluding(queue: TickerJob[], excluded: Set<string>): num
     if (excluded.has(a.key)) continue;
     if (best < 0) { best = i; continue; }
     const b = queue[best]!;
-    if (PRI[a.priority] > PRI[b.priority] || (PRI[a.priority] === PRI[b.priority] && a.seq < b.seq)) best = i;
+    const aCompanion = isEmergencyCompanion(a);
+    const bCompanion = isEmergencyCompanion(b);
+    if (
+      PRI[a.priority] > PRI[b.priority]
+      || (PRI[a.priority] === PRI[b.priority] && bCompanion && !aCompanion)
+      || (PRI[a.priority] === PRI[b.priority] && aCompanion === bCompanion && a.seq < b.seq)
+    ) best = i;
   }
   return best;
+}
+
+function isEmergencyCompanion(job: TickerJob): boolean {
+  return job.kind === "tip" && job.tipPolicy === "emergency-companion";
+}
+
+function companionMayRun(s: SchedulerState, job: TickerJob, now: number): boolean {
+  if (!companionAllowedByControl(s, job)) return false;
+  if (s.companionShown >= EMERGENCY_COMPANION_SESSION_MAX) return false;
+  if (s.companionLastShownAt != null && now - s.companionLastShownAt < EMERGENCY_COMPANION_COOLDOWN_MS) return false;
+  return true;
+}
+
+function companionAllowedByControl(s: SchedulerState, job: TickerJob): boolean {
+  if (!isEmergencyCompanion(job) || !s.emergencyCompanion.enabled) return false;
+  const hazards = job.tipHazards;
+  return hazards.length > 0
+    && hazards.every((hazard) => hazard === "eew" || hazard === "tsunami" || hazard === "earthquake" || hazard === "weather")
+    && hazards.some((hazard) => s.emergencyCompanion.hazards.includes(hazard));
+}
+
+function markCompanionShown(s: SchedulerState, job: TickerJob, now: number): void {
+  if (!isEmergencyCompanion(job)) return;
+  s.companionShown += 1;
+  s.companionLastShownAt = now;
+}
+
+/** App が mode/session の唯一所有者として渡す companion 制御値を同期する。 */
+export function setEmergencyCompanionControl(
+  state: SchedulerState,
+  control: EmergencyCompanionControl,
+  now: number,
+): SchedulerState {
+  const s = cloneState(state);
+  if (s.emergencyCompanion.sessionId !== control.sessionId) {
+    s.companionShown = 0;
+    s.companionLastShownAt = null;
+  }
+  s.emergencyCompanion = control;
+  // session 上限/cooldown は「新規割当」の gate。ここで走行中 companion まで消すと、無関係な
+  // snapshot 更新で表示を途中停止してしまう。control 自体が unsafe になったときだけ即 purge する。
+  return purgeJobs(s, (job) => isEmergencyCompanion(job) && !companionAllowedByControl(s, job), now);
 }
 
 /** scheduler が保持中 (lane/queue/deferred) の全 job key。known 刈り込みの活性集合に使う。 */
@@ -394,10 +463,11 @@ export function assignLanes(state: SchedulerState, now: number): { state: Schedu
     const qi = bestQueueIndexExcluding(s.queue, stuck);
     if (qi < 0) break; // 残り候補は全て目的レーンへ載せられない → 待つ
     const cand = s.queue[qi]!;
-    // tip 排他 (2026-07-14): 電文 (非 tip) がどこかに居る間は tip をレーンへ載せない。
-    // 走行中の tip は対象外 (ここは queue からの新規割当のみ) なので完走を妨げない。
-    if (cand.kind === "tip" && hasNonTipActivity(s)) { stuck.add(cand.key); continue; }
-    const targetLane = cand.priority === "low" ? preferLowLane(s) : LANE_HIGH;
+    // standby Tip は従来どおり電文排他。companion は安全 control を満たす場合だけ lane1 で共存する。
+    if (isEmergencyCompanion(cand) && !companionMayRun(s, cand, now)) { stuck.add(cand.key); continue; }
+    if (cand.kind === "tip" && !isEmergencyCompanion(cand) && hasNonTipActivity(s)) { stuck.add(cand.key); continue; }
+    // companion は lane 1 専用。preferLowLane の lane0 fallback を絶対に通さない。
+    const targetLane = isEmergencyCompanion(cand) ? 1 : cand.priority === "low" ? preferLowLane(s) : LANE_HIGH;
     const lane = s.lanes[targetLane];
     if (lane == null) { stuck.add(cand.key); continue; }
 
@@ -410,6 +480,7 @@ export function assignLanes(state: SchedulerState, now: number): { state: Schedu
       if (cand.priority === "high") lane.highSliceStartedAt = now; // 別 high 交代量子の起点
       lane.generation += 1;
       s.lastShownAt[cand.key] = now;
+      markCompanionShown(s, cand, now);
       continue;
     }
     // idle でない → 割込み判定。走行中テロップへの即時割込みは **high 候補のみ** 許可する (§7-1)。
@@ -442,8 +513,12 @@ export function assignLanes(state: SchedulerState, now: number): { state: Schedu
         // 直近に流したものは CYCLE_MIN_INTERVAL_MS 未満の再登場を避ける (§4)
         const tooSoon = now - (s.lastShownAt[cand.key] ?? Number.NEGATIVE_INFINITY) < CYCLE_MIN_INTERVAL_MS;
         // tip 排他 (2026-07-14): 電文が居る間は巡回補充でも tip を載せない (queue ガードと対)
-        const tipBlocked = cand.kind === "tip" && hasNonTipActivity(s);
-        if (cand.priority !== "low" || excluded.has(cand.key) || tooSoon || tipBlocked) continue;
+        const companion = isEmergencyCompanion(cand);
+        const tipBlocked = cand.kind === "tip" && !companion && hasNonTipActivity(s);
+        if (
+          cand.priority !== "low" || excluded.has(cand.key) || tooSoon || tipBlocked
+          || (companion && (li !== 1 || !companionMayRun(s, cand, now)))
+        ) continue;
         picked = cand;
         s.cyclePos = idx + 1;
         break;
@@ -456,6 +531,7 @@ export function assignLanes(state: SchedulerState, now: number): { state: Schedu
       lane.currentStartedAt = now; // 新 current の最短表示起点 (§5-1)
       lane.generation += 1;
       s.lastShownAt[picked.key] = now;
+      markCompanionShown(s, picked, now);
     }
   }
 

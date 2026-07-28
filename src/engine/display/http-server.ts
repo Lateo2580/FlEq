@@ -3,6 +3,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 import { buildTipsDeck } from "./display-tips";
+import type { TipContext } from "../../tips/waiting-tips";
 import { encodeSseGuarded } from "./sse-clients";
 import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
@@ -59,10 +60,11 @@ export function createDisplayRequestListener(
   deps: DisplayRequestHandlerDeps,
 ): (req: IncomingMessage, res: ServerResponse) => void {
   return (req, res) => {
-    const pathname = (req.url ?? "/").split("?")[0] || "/";
+    const requestUrl = new URL(req.url ?? "/", "http://localhost");
+    const pathname = requestUrl.pathname;
     const token = deps.token;
     if (token != null && isTokenProtectedPath(pathname) && !isLoopbackAddress(req.socket.remoteAddress)) {
-      const given = new URL(req.url ?? "/", "http://localhost").searchParams.get("token");
+      const given = requestUrl.searchParams.get("token");
       if (given == null || !tokenMatches(given, token)) {
         res.writeHead(401, { "content-type": "text/plain; charset=utf-8" });
         res.end("display server: アクセストークンが必要です (URL に ?token=<displayToken> を付けてください)");
@@ -78,8 +80,13 @@ export function createDisplayRequestListener(
       return;
     }
     if (pathname === "/tips") {
+      const rawContext = requestUrl.searchParams.get("context") ?? "standby";
+      if (rawContext !== "standby" && rawContext !== "emergency") {
+        respondJson(res, 400, { error: "context must be standby or emergency" }, { "cache-control": "no-store" });
+        return;
+      }
       // 常設 kiosk のブラウザ/中間キャッシュに古いデッキを固定させない (毎接続で最新の抽選を返す)
-      respondJson(res, 200, { tips: buildTipsDeck() }, { "cache-control": "no-store" });
+      respondJson(res, 200, { tips: buildTipsDeck(rawContext as TipContext) }, { "cache-control": "no-store" });
       return;
     }
     serveStatic(pathname, res, deps.distDir);

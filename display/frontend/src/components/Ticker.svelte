@@ -19,9 +19,11 @@
     hasActiveReplay,
     isRevisionBadgeVisible,
     nextRevisionBadgeDeadline,
+    setEmergencyCompanionControl,
     type SchedulerState,
     type DisplayTickerDtoV1,
   } from "../lib/ticker-schedule";
+  import type { EmergencyCompanionControl } from "../lib/emergency-tips-policy";
   import TickerLane from "./TickerLane.svelte";
 
   // 親 Ticker が全体スケジューラを持ち、2 レーンへ優先度で割り当てる (spec §4-2)。固定ハッシュ分配は廃止。
@@ -50,6 +52,7 @@
     onJobComplete,
     onActivityChange,
     onAlertActivityChange,
+    emergencyCompanionControl = { sessionId: "none", enabled: false, hazards: [] },
   }: {
     lines: DisplayTickerDtoV1[];
     now?: Date | null;
@@ -59,6 +62,7 @@
     onJobComplete?: (eventKey: string) => void;
     onActivityChange?: (active: boolean) => void;
     onAlertActivityChange?: (active: boolean) => void;
+    emergencyCompanionControl?: EmergencyCompanionControl;
   } = $props();
 
   /**
@@ -82,6 +86,18 @@
   let knownKeys = new Set<string>();
   let lastGeneration = -1;
   let wakeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // mode/session の制御は App が所有し、Ticker は scheduler の安全 state にだけ反映する。
+  $effect(() => {
+    const control = emergencyCompanionControl;
+    untrack(() => {
+      const next = setEmergencyCompanionControl(scheduler, control, Date.now());
+      if (next !== scheduler) {
+        scheduler = next;
+        runTick();
+      }
+    });
+  });
 
   // 続報バッジ TTL 判定用の時刻。now prop は待機画面で null のため内部で持つ。
   // 毎秒 interval ではなく **失効時刻への one-shot timer** で進める: バッジは REVISION_BADGE_MS 経過の

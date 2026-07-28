@@ -25,6 +25,8 @@ import {
   isRevisionBadgeVisible,
   nextRevisionBadgeDeadline,
   REVISION_BADGE_MS,
+  EMERGENCY_COMPANION_COOLDOWN_MS,
+  setEmergencyCompanionControl,
   type TickerJob,
   type SchedulerState,
   type LaneState,
@@ -39,6 +41,8 @@ function job(over: Partial<TickerJob> & { key: string }): TickerJob {
     groupKey: over.groupKey ?? null,
     seq: over.seq ?? 0,
     kind: over.kind ?? "event",
+    tipPolicy: over.tipPolicy ?? null,
+    tipHazards: over.tipHazards ?? [],
     priority: over.priority ?? "low",
     role: over.role ?? "info",
     category: over.category ?? null,
@@ -82,6 +86,9 @@ function stateWith(over: Partial<SchedulerState>): SchedulerState {
     cyclePos: over.cyclePos ?? 0,
     catalog: over.catalog ?? [],
     lastShownAt: over.lastShownAt ?? {},
+    emergencyCompanion: over.emergencyCompanion ?? { sessionId: "none", enabled: false, hazards: [] },
+    companionShown: over.companionShown ?? 0,
+    companionLastShownAt: over.companionLastShownAt ?? null,
   };
 }
 
@@ -178,6 +185,60 @@ describe("assignLanes: 割当と優先度", () => {
     expect(state.lanes[0].replacement?.key).toBe("hi");
     expect(state.lanes[0].current?.key).toBe("mid"); // lane0 の mid が退場対象
     expect(state.lanes[1].current?.key).toBe("low"); // 下段の low は不変
+  });
+});
+
+describe("emergency companion safety contract", () => {
+  const control = { sessionId: "s1", enabled: true, hazards: ["eew"] as const };
+  const companion = (key: string, seq = 1) => job({
+    key,
+    kind: "tip",
+    tipPolicy: "emergency-companion",
+    tipHazards: ["eew"],
+    priority: "low",
+    seq,
+  });
+
+  it("companion は lane 1 専用で lane 0 へ fallback しない", () => {
+    const s = setEmergencyCompanionControl(
+      stateWith({ lanes: [idleLane(), runningLane(job({ key: "low", priority: "low" }))], queue: [companion("c")] }),
+      control,
+      0,
+    );
+    const out = assignLanes(s, 0).state;
+    expect(out.lanes[0].current).toBeNull();
+    expect(out.queue[0]?.key).toBe("c");
+  });
+
+  it("同 priority の実電文を companion より先に lane 1 へ入れる", () => {
+    const event = job({ key: "event", priority: "low", seq: 9 });
+    const s = setEmergencyCompanionControl(stateWith({ queue: [companion("c", 1), event] }), control, 0);
+    const out = assignLanes(s, 0).state;
+    expect(out.lanes[1].current?.key).toBe("event");
+  });
+
+  it("session 上限に達した companion は再表示しない", () => {
+    const s = setEmergencyCompanionControl(stateWith({ queue: [companion("c")] }), control, 0);
+    const first = assignLanes(s, 0).state;
+    expect(first.companionShown).toBe(1);
+    const second = enqueueJob(first, companion("c2"), EMERGENCY_COMPANION_COOLDOWN_MS + 1);
+    const out = assignLanes(second, EMERGENCY_COMPANION_COOLDOWN_MS + 1).state;
+    expect(out.queue.some((entry) => entry.key === "c2")).toBe(true);
+  });
+
+  it("session 上限未到達でも cooldown 中は待ち、期限到来後だけ割り当てる", () => {
+    const withinCooldown = stateWith({
+      queue: [companion("c")],
+      emergencyCompanion: control,
+      companionShown: 0,
+      companionLastShownAt: 1_000,
+    });
+    const blocked = assignLanes(withinCooldown, 1_000 + EMERGENCY_COMPANION_COOLDOWN_MS - 1).state;
+    expect(blocked.lanes[1].current).toBeNull();
+    expect(blocked.queue.some((entry) => entry.key === "c")).toBe(true);
+
+    const released = assignLanes(withinCooldown, 1_000 + EMERGENCY_COMPANION_COOLDOWN_MS).state;
+    expect(released.lanes[1].current?.key).toBe("c");
   });
 });
 

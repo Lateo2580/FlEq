@@ -110,7 +110,7 @@
 
   // ticker-tips シナリオ: 電文テロップ空 + 本物 feeder (Ticker の onJobComplete で連続供給、実時間で確認)
   const tipsFeeder = createTipsFeeder({
-    eligible: () => scenario === "ticker-tips",
+    context: () => scenario === "ticker-tips" ? "standby" : "emergency",
     fetchTips: async () => PREVIEW_TIPS,
   });
   $effect(() => () => tipsFeeder.destroy());

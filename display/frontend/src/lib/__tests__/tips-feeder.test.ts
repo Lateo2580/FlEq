@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { flushSync } from "svelte";
-import { createTipsFeeder, TIP_FETCH_RETRY_MS } from "../tips-feeder.svelte";
+import {
+  createTipsFeeder,
+  TIP_FETCH_RETRY_MS,
+  TIP_FETCH_TIMEOUT_MS,
+  type TipContext,
+} from "../tips-feeder.svelte";
 import { createTestSignal } from "../page-cycler.svelte";
 
 const TIPS = ["豆知識1", "豆知識2", "豆知識3"];
@@ -19,6 +24,30 @@ function setup(tips: string[] = TIPS) {
 }
 
 describe("createTipsFeeder", () => {
+  it("context 切替では旧 deck を消し、emergency DTO に companion policy を付ける", async () => {
+    vi.useFakeTimers();
+    try {
+      const context = createTestSignal<TipContext>("standby");
+      let standbyResolve: ((tips: Array<{ id: string; text: string; hazards: [] }>) => void) | null = null;
+      const fetchTips = vi.fn((requested: TipContext) => requested === "standby"
+        ? new Promise<Array<{ id: string; text: string; hazards: [] }>>((resolve) => { standbyResolve = resolve; })
+        : Promise.resolve([{ id: "emergency-1", text: "防災情報", hazards: ["eew"] }]),
+      );
+      const feeder = createTipsFeeder({ context: () => context.value, fetchTips });
+      flushSync();
+      context.value = "emergency";
+      flushSync();
+      standbyResolve!([{ id: "old", text: "旧文脈", hazards: [] }]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(feeder.lines[0]?.summary.text).toBe("防災情報");
+      expect(feeder.lines[0]?.tipPolicy).toBe("emergency-companion");
+      expect(feeder.lines[0]?.tickerCategory).toBe("防災情報");
+      feeder.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("eligible になったら fetch して即 1 本流す", async () => {
     vi.useFakeTimers();
     try {
@@ -290,6 +319,39 @@ describe("createTipsFeeder", () => {
       await vi.advanceTimersByTimeAsync(0); // 再試行 fetch の microtask
       expect(fetchTips).toHaveBeenCalledTimes(2);
       expect(feeder.lines.length).toBe(1);
+      feeder.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("emergency fetch の timeout abort は TIP_FETCH_RETRY_MS 後に再試行して回復する", async () => {
+    vi.useFakeTimers();
+    try {
+      let attempt = 0;
+      const fetchTips = vi.fn((_context: TipContext, signal: AbortSignal) => {
+        attempt += 1;
+        if (attempt === 1) {
+          return new Promise<Array<{ id: string; text: string; hazards: ["eew"] }>>((_resolve, reject) => {
+            signal.addEventListener("abort", () => reject(new DOMException("timed out", "AbortError")), { once: true });
+          });
+        }
+        return Promise.resolve([{ id: "recovered", text: "回復後の防災情報", hazards: ["eew"] as ["eew"] }]);
+      });
+      const feeder = createTipsFeeder({ context: () => "emergency", fetchTips });
+      flushSync();
+      expect(fetchTips).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(TIP_FETCH_TIMEOUT_MS);
+      expect(feeder.lines).toEqual([]);
+      await vi.advanceTimersByTimeAsync(TIP_FETCH_RETRY_MS - 1);
+      expect(fetchTips).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchTips).toHaveBeenCalledTimes(2);
+      expect(feeder.lines[0]?.summary.text).toBe("回復後の防災情報");
+      expect(feeder.lines[0]?.tipPolicy).toBe("emergency-companion");
       feeder.destroy();
     } finally {
       vi.useRealTimers();

@@ -30,11 +30,31 @@ export type TipCategoryId =
   | "eew-global"
   | "info-systems"
   | "telegram-knowledge"
-  | "disaster-systems-history";
+  | "disaster-systems-history"
+  | "emergency-guidance";
+
+/** Tips を配る表示文脈。省略された既存カテゴリは standby 専用として扱う。 */
+export type TipContext = "standby" | "emergency";
+
+/** 緊急画面へ出せる、防災情報の本文メタデータ。本文はご主人確認後に別タスクで投入する。 */
+export interface EmergencyTip {
+  readonly id: string;
+  readonly text: string;
+  readonly source: string | null;
+  readonly reviewedAt: string;
+  readonly expiresAt: string;
+  readonly hazards: readonly EmergencyHazard[];
+}
+
+export type EmergencyHazard = "eew" | "tsunami" | "earthquake" | "weather";
+
+export type TipContent = string | EmergencyTip;
 
 export interface TipCategory {
   readonly id: TipCategoryId;
-  readonly tips: readonly string[];
+  /** 省略時は standby 専用。既存 2,317 件にはタグを付けない。 */
+  readonly contexts?: readonly TipContext[];
+  readonly tips: readonly TipContent[];
 }
 
 const BASE_TIP_CATEGORIES: readonly TipCategory[] = [
@@ -1099,4 +1119,91 @@ export const TIP_CATEGORIES: readonly TipCategory[] = [
   ...TSUNAMI_TIP_CATEGORIES,
   ...EEW_TIP_CATEGORIES,
   ...INFO_SYSTEMS_TIP_CATEGORIES,
+  // ご主人承認済みの防災情報。unrestricted は既知 4 hazard を明示列挙する。
+  {
+    id: "emergency-guidance",
+    contexts: ["standby", "emergency"],
+    tips: [
+      {
+        id: "emergency-guidance-01",
+        text: "Tip: 災害用伝言ダイヤル（171）では、被災地の方の電話番号を使って伝言を録音・再生します。",
+        source: "https://www.ntt-east.co.jp/saigai/voice171/",
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-02",
+        text: "Tip: 避難を急ぐときは、ブレーカーやガスの始末より、すぐに避難を優先してください。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-03",
+        text: "Tip: 避難時は、ブロック塀や自動販売機、ガラスから離れて移動してください。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-04",
+        text: "Tip: 停電時は、画面を暗くし低電力モードにすると、スマートフォンの電池を長持ちさせられます。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-05",
+        text: "Tip: 断水に備え、浴槽などにためた水は、飲まずに生活用水として使えます。",
+        source: "https://www.city.higashiosaka.lg.jp/0000023450.html",
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-06",
+        text: "Tip: 余震に備え、靴とライトを寝る場所のそばに置くと、夜間に避難しやすくなります。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-07",
+        text: "Tip: 公衆電話の場所と使い方を平時に確認しておくと、災害時の連絡に備えられます。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-08",
+        text: "Tip: 避難時は荷物を取りに戻らず、避難情報と周囲の状況に従って移動してください。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-09",
+        text: "Tip: 車での避難は渋滞や緊急車両の妨げになるおそれがあります。避難は自治体の案内に従い、原則徒歩で行いましょう。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["eew", "tsunami", "earthquake", "weather"],
+      },
+      {
+        id: "emergency-guidance-10",
+        text: "Tip: 津波警報等を見聞きしたら、海岸や川から離れ、より高い場所へ避難してください。",
+        source: null,
+        reviewedAt: "2026-07-29",
+        expiresAt: "2027-07-29",
+        hazards: ["tsunami"],
+      },
+    ],
+  },
 ];

@@ -23,7 +23,9 @@ const TOTAL_TIPS = TIP_CATEGORIES.reduce((sum, c) => sum + c.tips.length, 0);
 /** Tip文字列からカテゴリインデックスを逆引きする */
 function getCategoryIndex(tip: string): number {
   for (let i = 0; i < TIP_CATEGORIES.length; i++) {
-    if (TIP_CATEGORIES[i].tips.includes(tip)) return i;
+    if (TIP_CATEGORIES[i].tips.some((content) =>
+      (typeof content === "string" ? content : content.text) === tip,
+    )) return i;
   }
   return -1;
 }
@@ -125,7 +127,7 @@ describe("TipShuffler", () => {
       categorySet.add(getCategoryIndex(tip));
     }
 
-    expect(categorySet.size).toBe(TIP_CATEGORIES.length);
+    expect(categorySet.size).toBe(TIP_CATEGORIES.filter((category) => category.tips.length > 0).length);
   });
 
   it("カテゴリフィルタ指定時は対象カテゴリの Tips だけでデッキが構築される", async () => {

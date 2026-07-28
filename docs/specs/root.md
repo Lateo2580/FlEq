@@ -49,7 +49,7 @@ UI に依存しない待機ヒントの純粋データとシャッフラー。RE
 
 ### tips/tip-shuffler.ts
 
-`TIP_CATEGORIES` をカテゴリ間で連続しないようインターリーブし、`TipShuffler` の `next()` と `dealEpoch()` で返す純粋クラス。`ui/repl.ts` と `engine/display/display-tips.ts` が直接 import する。
+`TIP_CATEGORIES` をカテゴリ間で連続しないようインターリーブし、`TipShuffler` の `next()` と `dealEpoch()` で返す純粋クラス。`ui/repl.ts` と `engine/display/display-tips.ts` が直接 import する。display は `dealEpochEntries()` で id と緊急用 metadata を落とさず受け取るが、REPL の文字列 API は維持する。
 
 ### 依存関係
 
@@ -57,6 +57,8 @@ UI に依存しない待機ヒントの純粋データとシャッフラー。RE
 |---|---|---|
 | `tips/waiting-tips.ts` | `tips/waiting-tips-*.ts` | `tips/tip-shuffler.ts`, engine/display のテスト |
 | `tips/tip-shuffler.ts` | `tips/waiting-tips.ts` | `ui/repl.ts`, `engine/display/display-tips.ts` |
+
+`GET /tips` は `context=standby|emergency` を受け、display 専用 deck を返す。省略時は standby、未知値は 400。`emergency-guidance` は専用カテゴリで、承認済み 10 件を metadata 付きで管理する。
 
 ---
 ## src/types.ts

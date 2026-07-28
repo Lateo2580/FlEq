@@ -464,13 +464,26 @@ describe("InProcessSseDisplayTransport", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
     expect(res.headers.get("cache-control")).toBe("no-store");
-    const body = (await res.json()) as { tips: string[] };
+    const body = (await res.json()) as { tips: Array<{ id: string; text: string; hazards: string[] }> };
     expect(Array.isArray(body.tips)).toBe(true);
     expect(body.tips.length).toBeGreaterThan(0);
     for (const tip of body.tips) {
-      expect(typeof tip).toBe("string");
-      expect(tip.startsWith("Tip: ")).toBe(false);
+      expect(typeof tip.id).toBe("string");
+      expect(typeof tip.text).toBe("string");
+      expect(tip.text.startsWith("Tip: ")).toBe(false);
+      expect(Array.isArray(tip.hazards)).toBe(true);
     }
+  });
+
+  it("GET /tips の context は standby/emergency だけを受け、未知値は 400", async () => {
+    const t = await startTransport();
+    const emergency = await fetch(`http://127.0.0.1:${t.port()}/tips?context=emergency`);
+    expect(emergency.status).toBe(200);
+    const body = (await emergency.json()) as { tips: Array<{ id: string }> };
+    expect(body.tips).toHaveLength(10);
+    expect(new Set(body.tips.map((tip) => tip.id)).size).toBe(10);
+    const invalid = await fetch(`http://127.0.0.1:${t.port()}/tips?context=invalid`);
+    expect(invalid.status).toBe(400);
   });
 
   it("② GET / → index.html の中身", async () => {
