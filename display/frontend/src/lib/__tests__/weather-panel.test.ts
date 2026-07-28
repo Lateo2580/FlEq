@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  acceptsMeasurement,
   buildWeatherEmergencyInput,
   capRowAreas,
   paginateWeatherRows,
+  selectPagedItems,
   selectSubKinds,
   stripLevelPrefix,
   weatherPageCapacity,
@@ -121,22 +123,55 @@ describe("buildWeatherEmergencyInput", () => {
     expect(buildWeatherEmergencyInput(snap)?.items.map((i) => i.kind)).toEqual(["L5 大雨特別警報"]);
   });
 
-  it("source 間で同じ kind でも統合せず、地域数も合算しない (非合算契約は新パネル限定)", () => {
+  it("phenomenonKey が両方にあるとき、source 間で同じ現象を 1 行に統合する", () => {
     const snap = baseSnapshot({
-      weatherPromotion: { vpws50: entry(), vpww56: entry({ generation: 2 }) },
+      weatherPromotion: {
+        vpws50: entry({ activationKey: "1" }),
+        vpww56: entry({
+          generation: 2,
+          activationKey: "2",
+          trigger: "update",
+          addedAreas: [{ kind: "L4 土砂災害危険警報", areas: ["千葉県"] }],
+        }),
+        activationKey: "2",
+      },
       weatherAlerts: [
-        alert("vpws50", [item({ kind: "L5 大雨特別警報", shownAreas: ["東京都"], omittedAreaCount: 2 })]),
-        alert("vpww56", [item({ kind: "L5 大雨特別警報", shownAreas: ["千葉県"], omittedAreaCount: 3 })]),
+        alert("vpws50", [
+          item({
+            kind: "L4 土砂災害危険警報",
+            phenomenonKey: "土砂災害",
+            displaySeverity: "officialL4",
+            shownAreas: ["東京都", "長野県"],
+            omittedAreaCount: 2,
+          }),
+        ]),
+        alert("vpww56", [
+          item({
+            kind: "L4 土砂災害危険警報",
+            phenomenonKey: "土砂災害",
+            displaySeverity: "officialL4",
+            shownAreas: ["長野県", "千葉県"],
+            omittedAreaCount: 3,
+          }),
+        ]),
       ],
     });
-    const items = buildWeatherEmergencyInput(snap)?.items ?? [];
-    expect(items.length).toBe(2);
-    expect(items.map((i) => i.source)).toEqual(["vpws50", "vpww56"]);
-    expect(items.map((i) => i.omittedAreaCount)).toEqual([2, 3]);
-    expect(new Set(items.map((i) => i.key)).size).toBe(2);
+    const input = buildWeatherEmergencyInput(snap);
+    expect(input?.items).toEqual([
+      {
+        key: "officialL4|土砂災害",
+        source: "vpws50",
+        kind: "L4 土砂災害危険警報",
+        level: 4,
+        shownAreas: ["東京都", "長野県", "千葉県"],
+        omittedAreaCount: 5,
+        addedAreas: ["千葉県"],
+      },
+    ]);
+    expect(input?.firstPageRowKey).toBe("officialL4|土砂災害");
   });
 
-  it("同 source 内で同じ kind が rank 別 alert に分かれていても key が衝突しない", () => {
+  it("phenomenonKey が両方にないとき、表示名で同じ行へ統合する", () => {
     const snap = baseSnapshot({
       weatherPromotion: { vpws50: entry(), vpww56: null },
       weatherAlerts: [
@@ -145,8 +180,48 @@ describe("buildWeatherEmergencyInput", () => {
       ],
     });
     const items = buildWeatherEmergencyInput(snap)?.items ?? [];
-    expect(items.length).toBe(2);
-    expect(new Set(items.map((i) => i.key)).size).toBe(2);
+    expect(items).toHaveLength(1);
+    expect(items[0].key).toBe("officialL5|L5 大雨特別警報");
+    expect(items[0].shownAreas).toEqual(["東京都", "千葉県"]);
+  });
+
+  it("phenomenonKey の有無が混在しても、表示名 alias で安定キーの行へ統合する", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry(),
+        vpww56: entry({
+          restoredItems: [
+            item({
+              kind: "L5 大雨特別警報",
+              shownAreas: ["千葉県"],
+            }),
+          ],
+        }),
+      },
+      weatherAlerts: [
+        alert("vpws50", [
+          item({
+            kind: "L5 大雨特別警報",
+            phenomenonKey: "大雨",
+            shownAreas: ["東京都"],
+          }),
+        ]),
+      ],
+    });
+
+    const input = buildWeatherEmergencyInput(snap);
+    expect(input?.items).toEqual([
+      {
+        key: "officialL5|大雨",
+        source: "vpws50",
+        kind: "L5 大雨特別警報",
+        level: 5,
+        shownAreas: ["東京都", "千葉県"],
+        omittedAreaCount: 0,
+        addedAreas: [],
+      },
+    ]);
+    expect(input?.restored).toBe(true);
   });
 
   it("items は L5 → L4 の順に並ぶ (source 順は昇格 source の並び順)", () => {
@@ -258,6 +333,7 @@ function panelItem(over: Partial<WeatherPanelItemV1> = {}): WeatherPanelItemV1 {
     level: 5,
     shownAreas: ["東京都", "千葉県", "埼玉県"],
     omittedAreaCount: 0,
+    addedAreas: [],
     ...over,
   };
 }
@@ -420,5 +496,317 @@ describe("stripLevelPrefix", () => {
 
   it("名前の途中の L 数字は落とさない", () => {
     expect(stripLevelPrefix("記録的短時間大雨情報 L5 相当")).toBe("記録的短時間大雨情報 L5 相当");
+  });
+});
+
+// ── spec 追補 (2026-07-26/27): trigger / addedAreas / activationKey の合成 ──
+
+describe("buildWeatherEmergencyInput (点灯規則の追補)", () => {
+  it("trigger は entry から、activationKey はパネル全体の値から受け取る", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({ trigger: "update", activationKey: "3" }),
+        vpww56: null,
+        activationKey: "3",
+      },
+      weatherAlerts: [alert("vpws50", [item({ kind: "L5 大雨特別警報" })])],
+    });
+    const input = buildWeatherEmergencyInput(snap);
+    expect(input?.trigger).toBe("update");
+    expect(input?.activationKey).toBe("3");
+  });
+
+  it("trigger 欠落 (旧サーバ) は null (バッジを出さない)", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: { vpws50: entry(), vpww56: null },
+      weatherAlerts: [alert("vpws50", [item({ kind: "L5 大雨特別警報" })])],
+    });
+    expect(buildWeatherEmergencyInput(snap)?.trigger).toBeNull();
+  });
+
+  it("追加地域は点灯を起こした source だけから統合行へ載る", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({
+          activationKey: "9",
+          trigger: "update",
+          addedAreas: [{ kind: "L5 大雨特別警報", areas: ["千葉県"] }],
+        }),
+        vpww56: entry({ generation: 2, activationKey: "8" }), // vpww56 側に追加地域は無い
+        activationKey: "9",
+      },
+      weatherAlerts: [
+        alert("vpws50", [item({ kind: "L5 大雨特別警報", shownAreas: ["東京都", "千葉県"] })]),
+        // 別 source 側にも同名地域があるが、装飾の供給元にはしない
+        alert("vpww56", [item({ kind: "L5 大雨特別警報", shownAreas: ["千葉県"] })]),
+      ],
+    });
+    const items = buildWeatherEmergencyInput(snap)?.items ?? [];
+    expect(items).toHaveLength(1);
+    expect(items[0].addedAreas).toEqual(["千葉県"]);
+  });
+
+  it("複数 source が点いていたら最新の点灯を trigger に採る", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({ activationKey: "1", trigger: "new" }),
+        vpww56: entry({ activationKey: "2", trigger: "update", generation: 2 }),
+        activationKey: "2", // engine の watermark = 最後に点いた vpww56 の番号
+      },
+      weatherAlerts: [
+        alert("vpws50", [item({ kind: "L5 大雨特別警報" })]),
+        alert("vpww56", [item({ kind: "L5 暴風特別警報" })]),
+      ],
+    });
+    expect(buildWeatherEmergencyInput(snap)?.trigger).toBe("update");
+  });
+
+  // Codex レビュー 4 巡目 Important: 「点灯を起こした source」以外の装飾を寄せ集めると、
+  // 前の点灯のハイライトとバッジが次の点灯へ持ち越される
+  it("装飾を出すのは今回の点灯を起こした source だけ (前の点灯のハイライトを持ち越さない)", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        // 前に点いた vpws50。追加地域を持ったまま active で残っている
+        vpws50: entry({
+          activationKey: "4",
+          trigger: "update",
+          addedAreas: [{ kind: "L5 大雨特別警報", areas: ["千葉県"] }],
+        }),
+        // 後から点いた vpww56 が現在の点灯 (watermark と一致する)
+        vpww56: entry({ activationKey: "5", trigger: "new", generation: 2 }),
+        activationKey: "5",
+      },
+      weatherAlerts: [
+        alert("vpws50", [item({ kind: "L5 大雨特別警報", shownAreas: ["東京都", "千葉県"] })]),
+        alert("vpww56", [item({ kind: "L5 暴風特別警報", shownAreas: ["高知県"] })]),
+      ],
+    });
+    const input = buildWeatherEmergencyInput(snap);
+    expect(input?.trigger).toBe("new"); // 古い "update" が残らない
+    expect(input?.items.find((i) => i.source === "vpws50")?.addedAreas).toEqual([]);
+    expect(input?.firstPageRowKey).toBeNull();
+  });
+
+  it("点灯を起こした source が降格したら装飾は消える (古いバッジが復活しない)", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({
+          activationKey: "4",
+          trigger: "update",
+          addedAreas: [{ kind: "L5 大雨特別警報", areas: ["千葉県"] }],
+        }),
+        vpww56: null, // watermark を持っていた側が降格 = wire 上 null
+        activationKey: "5",
+      },
+      weatherAlerts: [
+        alert("vpws50", [item({ kind: "L5 大雨特別警報", shownAreas: ["東京都", "千葉県"] })]),
+      ],
+    });
+    const input = buildWeatherEmergencyInput(snap);
+    expect(input?.trigger).toBeNull();
+    expect(input?.items[0].addedAreas).toEqual([]);
+  });
+
+  it("行キーは出現位置を使わない (種別が増えても既存行のキーがずれない)", () => {
+    const before = baseSnapshot({
+      weatherPromotion: { vpws50: entry(), vpww56: null },
+      weatherAlerts: [alert("vpws50", [item({ kind: "L5 大雨特別警報" })])],
+    });
+    const after = baseSnapshot({
+      weatherPromotion: { vpws50: entry(), vpww56: null },
+      weatherAlerts: [
+        alert("vpws50", [
+          item({ kind: "L5 暴風特別警報" }), // 先頭に別種別が増える
+          item({ kind: "L5 大雨特別警報" }),
+        ]),
+      ],
+    });
+    const keyOf = (snap: Parameters<typeof buildWeatherEmergencyInput>[0]) =>
+      buildWeatherEmergencyInput(snap)?.items.find((i) => i.kind === "L5 大雨特別警報")?.key;
+    expect(keyOf(after)).toBe(keyOf(before));
+  });
+
+  it("追加地域を含む行のキーを firstPageRowKey に載せる (最初のページに出すため)", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({
+          activationKey: "3",
+          trigger: "update",
+          addedAreas: [{ kind: "L5 暴風特別警報", areas: ["高知県"] }],
+        }),
+        vpww56: null,
+        activationKey: "3",
+      },
+      weatherAlerts: [
+        alert("vpws50", [
+          item({ kind: "L5 大雨特別警報", shownAreas: ["東京都"] }),
+          item({ kind: "L5 暴風特別警報", shownAreas: ["高知県"] }),
+        ]),
+      ],
+    });
+    const input = buildWeatherEmergencyInput(snap);
+    expect(input?.firstPageRowKey).toBe("officialL5|L5 暴風特別警報");
+  });
+});
+
+// ── Codex レビュー 2026-07-27: 追加地域が画面から消える経路を塞ぐ ──
+
+describe("追加地域の保護", () => {
+  it("行の地域上限を超えても、追加地域は落とさず残す (compact でも)", () => {
+    const areas = Array.from({ length: 20 }, (_, i) => `地域${i}`);
+    const row = capRowAreas(
+      panelItem({ shownAreas: areas, addedAreas: ["地域19"], omittedAreaCount: 0 }),
+      3,
+    );
+    expect(row.areas).toContain("地域19"); // 末尾にある追加地域が残る
+    expect(row.areas).toHaveLength(3);
+    // 並び順は元のまま (読み手の見え方を変えない)
+    expect(row.areas).toEqual([...row.areas].sort((a, b) => areas.indexOf(a) - areas.indexOf(b)));
+    expect(row.hiddenAreaCount).toBe(17);
+  });
+
+  it("追加地域が無ければ従来どおり先頭から詰める", () => {
+    const areas = ["A", "B", "C", "D"];
+    const row = capRowAreas(panelItem({ shownAreas: areas, addedAreas: [] }), 2);
+    expect(row.areas).toEqual(["A", "B"]);
+  });
+
+  // ご主人決定 2026-07-27: 「L5 継続中に L4 の地域が増えた」で更新点灯するのに、下位レベルが
+  // 種別名 + 件数へ畳まれていると**どこが増えたのかが一度も読めない**。追加を含む下位行だけを
+  // 例外として地域名つきでページ送り列に参加させ、firstPageRowKey もその行を指せるようにする
+  // (旧テストは「下位の追加行は指さない」を正解として固定していた。ここで反転する)
+  it("追加を含む下位レベルの行はページ送り列に載り、firstPageRowKey も指せる", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({
+          activationKey: "6",
+          trigger: "update",
+          addedAreas: [{ kind: "L4 洪水警報", areas: ["千葉県"] }],
+        }),
+        vpww56: null,
+        activationKey: "6",
+      },
+      weatherAlerts: [
+        alert("vpws50", [
+          item({ kind: "L5 大雨特別警報", displaySeverity: "officialL5", shownAreas: ["東京都"] }),
+          // 追加地域を持つのは下位レベルの方
+          item({ kind: "L4 洪水警報", displaySeverity: "officialL4", shownAreas: ["千葉県"] }),
+        ]),
+      ],
+    });
+    const input = buildWeatherEmergencyInput(snap);
+    const subRow = input?.items.find((i) => i.level === 4);
+    expect(subRow?.addedAreas).toEqual(["千葉県"]);
+    // ページ送り列に載る = 指し先が見つかる
+    const paged = selectPagedItems(input?.items ?? [], 5);
+    expect(paged.map((i) => i.key)).toContain(subRow?.key);
+    expect(input?.firstPageRowKey).toBe(subRow?.key);
+  });
+
+  it("主レベルにも追加があれば、そちらを優先して最初のページに出す", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({
+          activationKey: "7",
+          trigger: "update",
+          addedAreas: [
+            { kind: "L5 大雨特別警報", areas: ["東京都"] },
+            { kind: "L4 洪水警報", areas: ["千葉県"] },
+          ],
+        }),
+        vpww56: null,
+        activationKey: "7",
+      },
+      weatherAlerts: [
+        alert("vpws50", [
+          item({ kind: "L5 大雨特別警報", displaySeverity: "officialL5", shownAreas: ["東京都"] }),
+          item({ kind: "L4 洪水警報", displaySeverity: "officialL4", shownAreas: ["千葉県"] }),
+        ]),
+      ],
+    });
+    expect(buildWeatherEmergencyInput(snap)?.firstPageRowKey).toBe(
+      "officialL5|L5 大雨特別警報",
+    );
+  });
+});
+
+// ご主人決定 2026-07-27: 例外は「追加が起きた行」だけ。追加を含まない下位行は従来どおり
+// 副セクションの要約 (種別名 + 件数) に残す
+describe("selectPagedItems", () => {
+  const main = panelItem({ key: "m", level: 5, addedAreas: [] });
+  const subPlain = panelItem({ key: "s0", level: 4, addedAreas: [] });
+  const subAdded = panelItem({ key: "s1", level: 4, addedAreas: ["千葉県"] });
+
+  it("主レベルの行はすべて載せる (追加の有無によらない)", () => {
+    expect(selectPagedItems([main, subPlain], 5).map((i) => i.key)).toEqual(["m"]);
+  });
+
+  it("下位レベルは追加を含む行だけを載せる", () => {
+    expect(selectPagedItems([main, subPlain, subAdded], 5).map((i) => i.key)).toEqual(["m", "s1"]);
+  });
+
+  it("主レベルが 4 のときは下位レベルが存在しない (全行が載る)", () => {
+    const only4 = panelItem({ key: "a", level: 4, addedAreas: [] });
+    expect(selectPagedItems([only4], 4).map((i) => i.key)).toEqual(["a"]);
+  });
+});
+
+// Codex レビュー 4 巡目 Important: crossfade 中は旧・新の DOM が共存し、pointer-events では
+// ResizeObserver が止まらない。旧レイアウトの高さが最後に届くとページ容量に残る
+describe("acceptsMeasurement", () => {
+  it("現行の点灯キーと一致する DOM の測定だけを受理する", () => {
+    expect(acceptsMeasurement("a2", "a2", false)).toBe(true);
+    expect(acceptsMeasurement("a1", "a2", false)).toBe(false); // 退場中の旧 DOM
+  });
+
+  it("レイアウト整定中は一致していても受理しない (過渡値を確定値へ昇格させない)", () => {
+    expect(acceptsMeasurement("a2", "a2", true)).toBe(false);
+  });
+});
+
+// Codex レビュー 2026-07-27: 片方の source が降格しただけで再点灯しない。
+// 再点灯の契機は **engine が採番するパネル全体の watermark** で、source 別キーの
+// 最大値ではない (最後に点いた source が降格すると値が巻き戻るため)
+describe("activationKey の安定性", () => {
+  const twoSources = (over: { vpww56?: boolean; panelKey?: string } = {}) =>
+    baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({ activationKey: "5", trigger: "new" }),
+        vpww56: over.vpww56 === false ? null : entry({ activationKey: "7", trigger: "update", generation: 2 }),
+        activationKey: over.panelKey ?? "7",
+      },
+      weatherAlerts: [
+        alert("vpws50", [item({ kind: "L5 大雨特別警報" })]),
+        ...(over.vpww56 === false ? [] : [alert("vpww56", [item({ kind: "L5 暴風特別警報" })])]),
+      ],
+    });
+
+  it("パネル全体の activationKey をそのまま使う (source 別キーを連結・比較しない)", () => {
+    expect(buildWeatherEmergencyInput(twoSources())?.activationKey).toBe("7");
+  });
+
+  it("片方の source が降格して消えても、点灯キーは変わらない (再点灯しない)", () => {
+    const both = buildWeatherEmergencyInput(twoSources());
+    // vpww56 が降格 = wire 上 null。engine の watermark は動かないので同じ値が来る
+    const afterDemote = buildWeatherEmergencyInput(twoSources({ vpww56: false, panelKey: "7" }));
+    expect(afterDemote?.activationKey).toBe(both?.activationKey);
+  });
+
+  it("新しい点灯があったときだけキーが変わる", () => {
+    const before = buildWeatherEmergencyInput(twoSources({ panelKey: "7" }));
+    const after = buildWeatherEmergencyInput(twoSources({ panelKey: "8" }));
+    expect(after?.activationKey).not.toBe(before?.activationKey);
+  });
+
+  it("バッジは最後に点いた source のものを出す (点灯順で決める)", () => {
+    expect(buildWeatherEmergencyInput(twoSources())?.trigger).toBe("update");
+  });
+
+  it("パネル全体キーが欠落 (旧サーバ) なら空文字 = 演出なし", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: { vpws50: entry(), vpww56: null },
+      weatherAlerts: [alert("vpws50", [item({ kind: "L5 大雨特別警報" })])],
+    });
+    expect(buildWeatherEmergencyInput(snap)?.activationKey).toBe("");
   });
 });

@@ -7,15 +7,18 @@ import {
   type DisplayWeatherSourceV1,
 } from "./protocol";
 
-/** 主役パネルへ載せる 1 行 (source × kind)。source 間の統合・地域数合算はしない (spec §3) */
+/** 主役パネルへ載せる 1 行。同じ severity × 現象は source をまたいで統合する (spec §3) */
 export interface WeatherPanelItemV1 {
-  /** Svelte keyed each 用の安定キー。source + 出現位置 + kind で一意 */
+  /** Svelte keyed each 用の安定キー。**種別が増減しても既存行のキーがずれない**よう
+   *  severity + 安定現象キーで作る (source・出現位置は使わない、spec 追補 C12) */
   key: string;
   source: DisplayWeatherSourceV1;
   kind: string;
   level: DisplayWeatherPromotionLevelV1;
   shownAreas: string[];
   omittedAreaCount: number;
+  /** この点灯で追加された地域 (この行のぶん)。フロントは下線で強調する */
+  addedAreas: string[];
 }
 
 /**
@@ -35,6 +38,14 @@ export interface WeatherEmergencyInputV1 {
   truncated: boolean;
   /** 1 source でも控え (restoredItems) 由来なら true。live 更新前であることを表示する */
   restored: boolean;
+  /** この点灯が新規発表か更新発表か。null = 判定材料が無い (旧サーバ・装飾を失った復元) */
+  trigger: "new" | "update" | null;
+  /** 点灯の同一性キー。**変わったら再点灯演出を発火する** (spec 追補 C1)。
+   *  パネルの key は固定・wire も更新中ずっと非 null なので、これが無いと内容更新で
+   *  パネルがマウントされたままになり「切り替えが視線を引く」効果が出ない */
+  activationKey: string;
+  /** 追加地域を含む行が最初のページに来るよう、その行のキーを持つ (spec 追補 C11) */
+  firstPageRowKey: string | null;
 }
 
 const SOURCES: readonly DisplayWeatherSourceV1[] = ["vpws50", "vpww56"];
@@ -126,7 +137,19 @@ export interface WeatherPanelRowV1 extends WeatherPanelItemV1 {
  */
 export function capRowAreas(item: WeatherPanelItemV1, maxAreas: number): WeatherPanelRowV1 {
   const limit = maxAreas > 0 ? maxAreas : 1;
-  const areas = item.shownAreas.slice(0, limit);
+  // **この点灯で追加された地域は優先して残す** (Codex レビュー 2026-07-27)。素朴な先頭
+  // slice だと、狭い枠 (compact は 6 件) で追加地域が後方にあると真っ先に落ちて
+  // ハイライトが空振りする。engine 側の縮退保護と同じ考え方をフロントの上限にも掛ける
+  const added = new Set(item.addedAreas);
+  const kept = added.size === 0
+    ? item.shownAreas.slice(0, limit)
+    : [
+      ...item.shownAreas.filter((a) => added.has(a)),
+      ...item.shownAreas.filter((a) => !added.has(a)),
+    ].slice(0, limit);
+  // 残す集合が決まったら、描画は元の並び順に戻す (読み手の見え方を変えない)
+  const keptSet = new Set(kept);
+  const areas = item.shownAreas.filter((a) => keptSet.has(a));
   const droppedByUi = Math.max(0, item.shownAreas.length - areas.length);
   return { ...item, areas, hiddenAreaCount: item.omittedAreaCount + droppedByUi };
 }
@@ -194,15 +217,41 @@ export function buildWeatherEmergencyInput(
   if (promotion == null) return null;
 
   const items: WeatherPanelItemV1[] = [];
+  const itemsByPhenomenon = new Map<string, WeatherPanelItemV1>();
+  const candidates: Array<{
+    source: DisplayWeatherSourceV1;
+    item: DisplayWeatherAlertItemV1;
+    level: DisplayWeatherPromotionLevelV1;
+    addedAreas: string[];
+  }> = [];
   const generations: string[] = [];
   const promotedLevels: DisplayWeatherPromotionLevelV1[] = [];
   let restored = false;
+
+  // パネル全体の点灯キー (engine の watermark)。欠落 (旧サーバ) は演出も装飾も出さない
+  const panelActivationKey = promotion.activationKey ?? "";
+  // **装飾 (バッジ・追加地域ハイライト) を出せるのは、今回の点灯を起こした source だけ**。
+  // engine は source ごとに点灯通し番号 (`entry.activationKey`) を振り、パネル全体の watermark は
+  // 最後の点灯の番号になるので、両者が一致する entry が「いま光っている理由」そのもの。
+  // 全 source から寄せ集めると、(a) 後から別 source が点いたときに古い追加地域が強調され続け、
+  // (b) 最新 source が降格しただけで古いバッジが復活する (Codex レビュー 4 巡目 2026-07-27)
+  const decorSource =
+    panelActivationKey === ""
+      ? null
+      : (SOURCES.find((s) => promotion[s]?.activationKey === panelActivationKey) ?? null);
+  let trigger: "new" | "update" | null = null;
 
   for (const source of SOURCES) {
     const entry = promotion[source];
     if (entry == null) continue; // demoted は wire 上 null。期限計算はしない
     generations.push(`${source}:${entry.generation}`);
     promotedLevels.push(entry.level);
+    // バッジは点灯を起こした source のものだけを出す (spec 追補 C10)。
+    // **再点灯の契機はここでは決めない** — パネル全体の activationKey (engine の watermark) を使う。
+    // source 別キーの最大値を採ると、最後に点いた source が降格しただけで値が巻き戻って
+    // 再点灯してしまう (Codex レビュー 2026-07-27)
+    const decorated = source === decorSource;
+    if (decorated) trigger = entry.trigger ?? null;
 
     const liveAlerts = snapshot.weatherAlerts.filter((a) => a.source === source);
     const sourceItems =
@@ -210,19 +259,65 @@ export function buildWeatherEmergencyInput(
         ? liveAlerts.flatMap((a) => a.items)
         : (entry.restoredItems ?? []);
     if (liveAlerts.length === 0 && sourceItems.length > 0) restored = true;
+    // 追加地域は種別ごとに届く。**source を含めて照合する** — 別 source の同名地域を
+    // 取り違えないため (spec 追補 C10)。今回の点灯を起こしていない source の追加地域は
+    // 前の点灯の残りなので載せない (持ち越し防止)
+    const addedByKind = new Map<string, Set<string>>();
+    if (decorated) {
+      for (const a of entry.addedAreas ?? []) addedByKind.set(a.kind, new Set(a.areas));
+    }
 
-    sourceItems.forEach((item, index) => {
+    for (const item of sourceItems) {
       const level = promotionLevelOf(item);
-      if (level == null) return;
-      items.push({
-        key: `${source}:${index}:${item.kind}`,
-        source,
-        kind: item.kind,
-        level,
-        shownAreas: item.shownAreas,
-        omittedAreaCount: item.omittedAreaCount,
-      });
-    });
+      if (level == null) continue;
+      const added = addedByKind.get(item.kind);
+      const addedAreas = added == null ? [] : item.shownAreas.filter((a) => added.has(a));
+      candidates.push({ source, item, level, addedAreas });
+    }
+  }
+
+  // phenomenonKey の有無が混在しても同じ現象を統合するため、先に表示名 alias ごとの
+  // 安定キー候補を集める。候補が 1 つだけなら旧 item もそのキーへ寄せる。複数候補がある
+  // 曖昧な alias は無理に統合せず、別現象の誤結合を避ける
+  const phenomenonKeysByKind = new Map<string, Set<string>>();
+  for (const { item } of candidates) {
+    if (item.phenomenonKey == null) continue;
+    const kindKey = `${item.displaySeverity}|${item.kind}`;
+    const keys = phenomenonKeysByKind.get(kindKey) ?? new Set<string>();
+    keys.add(`${item.displaySeverity}|${item.phenomenonKey}`);
+    phenomenonKeysByKind.set(kindKey, keys);
+  }
+
+  for (const { source, item, level, addedAreas } of candidates) {
+    const kindKey = `${item.displaySeverity}|${item.kind}`;
+    const aliasKeys = phenomenonKeysByKind.get(kindKey);
+    const rowKey = item.phenomenonKey != null
+      ? `${item.displaySeverity}|${item.phenomenonKey}`
+      : aliasKeys?.size === 1
+        ? [...aliasKeys][0]!
+        : kindKey;
+    const existing = itemsByPhenomenon.get(rowKey);
+    if (existing != null) {
+      for (const area of item.shownAreas) {
+        if (!existing.shownAreas.includes(area)) existing.shownAreas.push(area);
+      }
+      for (const area of addedAreas) {
+        if (!existing.addedAreas.includes(area)) existing.addedAreas.push(area);
+      }
+      existing.omittedAreaCount += item.omittedAreaCount;
+      continue;
+    }
+    const row: WeatherPanelItemV1 = {
+      key: rowKey,
+      source,
+      kind: item.kind,
+      level,
+      shownAreas: [...item.shownAreas],
+      omittedAreaCount: item.omittedAreaCount,
+      addedAreas,
+    };
+    itemsByPhenomenon.set(rowKey, row);
+    items.push(row);
   }
 
   // 昇格中の source が 1 つも無ければパネルを出さない。**逆に、非 null source があるなら
@@ -232,14 +327,58 @@ export function buildWeatherEmergencyInput(
   if (promotedLevels.length === 0) return null;
 
   items.sort((a, b) => b.level - a.level); // 安定ソート: 同レベルは source 順 → 出現順のまま
+  const panelLevel = Math.max(...promotedLevels) as DisplayWeatherPromotionLevelV1;
   return {
     kind: "weather",
     // 主レベルは **engine の昇格レベル**を採る (item 側から推定しない)。中身がまだ組めていない
     // 状態でも「警戒レベル N 相当」を正しく出せる
-    level: Math.max(...promotedLevels) as DisplayWeatherPromotionLevelV1,
+    level: panelLevel,
     generation: generations.join("|"),
     items,
     truncated: items.some((i) => i.omittedAreaCount > 0),
     restored,
+    trigger,
+    // パネル全体の点灯キー。**engine の watermark をそのまま使う** (欠落なら演出なしの固定値)
+    activationKey: panelActivationKey,
+    // 追加地域を含む行を最初のページへ (spec 追補 C11)。主レベルの行を優先し、無ければ
+    // 下位レベルの追加行を指す — 下位でも**追加を含む行はページ送り列に載る**ので
+    // (`selectPagedItems`)、指し先が見つからない空振りにはならない (ご主人決定 2026-07-27)
+    firstPageRowKey:
+      items.find((i) => i.level === panelLevel && i.addedAreas.length > 0)?.key
+      ?? items.find((i) => i.addedAreas.length > 0)?.key
+      ?? null,
   };
+}
+
+/**
+ * ページ送り列 (「どこ」領域) に載せる行を選ぶ。
+ *
+ * 主レベルの行はすべて + **下位レベルのうち「この点灯で地域が増えた行」だけ** (ご主人決定
+ * 2026-07-27)。「L5 継続中に L4 の地域が増えた」で更新点灯するのに、下位レベルが種別名 +
+ * 件数へ畳まれていると**どこが増えたのかが一度も読めない**。追加が起きた行だけを例外として
+ * 地域名つきで巡回に参加させ、追加を含まない下位行は従来どおり副セクションの要約に残す
+ * (「compact では名前列を出さない」既決定はそのまま生きている)。
+ */
+export function selectPagedItems(
+  items: readonly WeatherPanelItemV1[],
+  panelLevel: DisplayWeatherPromotionLevelV1,
+): WeatherPanelItemV1[] {
+  return items.filter((i) => i.level === panelLevel || i.addedAreas.length > 0);
+}
+
+/**
+ * この測定を受理してよいか (spec 追補 C1 の再点灯演出に伴う汚染防止)。
+ *
+ * crossfade 中は旧・新の DOM が同じ grid セルに共存し、**`pointer-events: none` では
+ * ResizeObserver は止まらない**。退場中の旧レイアウトの高さが最後に届くと、それが現行ページの
+ * 容量計算に残って行数を誤る。測定 callback は DOM が作られた時点の点灯キー (`token`) を持ち、
+ * 現在の `activationKey` と一致する DOM の測定だけを受理する。
+ * レイアウト整定中 (`layoutSettling`) の過渡値を採らない従来の条件もここに畳む。
+ */
+export function acceptsMeasurement(
+  token: string,
+  activationKey: string,
+  layoutSettling: boolean,
+): boolean {
+  return !layoutSettling && token === activationKey;
 }

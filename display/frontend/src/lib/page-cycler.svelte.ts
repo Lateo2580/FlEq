@@ -27,7 +27,7 @@ export interface PageCycler {
    *  範囲外 (0 未満・total 以上) の index は無視する。自動巡回タイマーは打ち切らず、
    *  ジャンプ先のページから静止時間 (PAGE_HOLD_MS) を再スタートする — index の値が
    *  ジャンプ前と同じ (現在ページのドットを再クリック) でも必ず再スタートする */
-  jumpTo(index: number): void;
+  jumpTo(index: number, options?: { immediate?: boolean }): void;
   destroy(): void;
 }
 
@@ -130,11 +130,17 @@ export function createPageCycler(opts: {
     get reducedMotion() {
       return reducedMotion;
     },
-    jumpTo(targetIndex: number): void {
+    /**
+     * 指定ページへ跳ぶ。
+     *
+     * `immediate` はイベントハンドラ (ドットクリック) 用の同期フラッシュ。
+     * **`$effect` の中から呼ぶときは必ず false**。Svelte は effect 内の `flushSync()` を許さない。
+     */
+    jumpTo(targetIndex: number, options?: { immediate?: boolean }): void {
       if (!(targetIndex >= 0) || !(targetIndex < total)) return; // 範囲外は無視 (NaN もここで弾かれる)
       index = targetIndex;
       jumpEpoch += 1;
-      flushSync(); // ドットクリック (イベントハンドラ内、$effect の外) からの呼び出しを即時反映する
+      if (options?.immediate !== false) flushSync();
     },
     destroy(): void {
       destroyRoot();

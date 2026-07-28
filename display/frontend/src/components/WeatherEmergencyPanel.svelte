@@ -4,8 +4,10 @@
     WEATHER_ROW_AREA_MAX,
     WEATHER_ROW_AREA_MAX_COMPACT,
     WEATHER_SUB_KIND_MAX,
+    acceptsMeasurement,
     capRowAreas,
     paginateWeatherRows,
+    selectPagedItems,
     selectSubKinds,
     stripLevelPrefix,
     weatherPageCapacity,
@@ -36,24 +38,40 @@
   // 色 role は既存の weatherEmergency / weatherWarning を再利用する (新規トークンを作らない、spec §3)
   const role = $derived(input.level === 5 ? "weatherEmergency" : "weatherWarning");
   const headingLabel = $derived(input.level === 5 ? "気象特別警報" : "気象警報");
+  // 新規発表 / 更新発表のバッジ (spec 追補 3)。判定材料が無いときは出さない —
+  // 嘘の「新規」を出すより無表示を採る (C5)
+  const triggerLabel = $derived(
+    input.trigger === "new" ? "新規発表" : input.trigger === "update" ? "更新発表" : null,
+  );
 
-  // 主レベルの行 (「何が」「どこ」の対象)。L5 昇格中の L4 行は副セクションへ回す。
-  // 種別名は L 接頭辞を落とす (ユーザー指摘 2026-07-26): 主レベルは「警戒レベル N 相当」で一度
-  // 示しているので行ごとの L は情報を足さず、レベル対応/非対応の混在だけが目に付く
+  // 主レベルの行 (「何が」の対象)。種別名は L 接頭辞を落とす (ユーザー指摘 2026-07-26):
+  // 主レベルは「警戒レベル N 相当」で一度示しているので行ごとの L は情報を足さず、
+  // レベル対応/非対応の混在だけが目に付く
   const mainItems = $derived(
     input.items
       .filter((it) => it.level === input.level)
       .map((it) => ({ ...it, kind: stripLevelPrefix(it.kind) })),
   );
+  // ページ送り列に載せる行 = 主レベルの全行 + **追加を含む下位レベルの行** (ご主人決定
+  // 2026-07-27)。下位レベルの行はレベル印 (行頭の「L4」) を添えて出す — 種別名だけでは
+  // 主レベルの行と見分けが付かず、L 接頭辞の有無は電文のラベル次第で当てにならない
+  const pagedItems = $derived(
+    selectPagedItems(input.items, input.level).map((it) => ({
+      ...it,
+      kind: stripLevelPrefix(it.kind),
+    })),
+  );
+  // 副セクション (種別名 + 件数の要約) は下位レベルの**全行**を持つ。追加を含む行がページ送り
+  // 列にも出ることとは両立する — 要約は「何が出ているか」を常時見せ、ページ送り列は「どこが
+  // 増えたか」を見せる。巡回で別ページを表示中でも種別の一覧が消えない
   const subItems = $derived(
     input.items
       .filter((it) => it.level !== input.level)
       .map((it) => ({ ...it, kind: stripLevelPrefix(it.kind) })),
   );
 
-  // 区分 (警報名) の一覧。source 間で同名でも統合しない契約 (spec §3) は「どこ」の行の話で、
-  // この一覧は重複を畳む。
-  //
+  // 区分 (警報名) の一覧。「どこ」の行は同一現象を跨 source で統合済みだが、表示ラベル違いにも
+  // 備えて、この一覧でも重複を畳む。
   // **上限を掛けず、折り返して全種別を載せる** (ユーザー決定 2026-07-26)。以前は上限 + 「ほか N
   // 種別」で畳んでいたが、狭い枠では**最上級レベルに何が出ているかが件数へ丸められた**。
   // 表示の優先順位は「レベル + 行動文 ＞ 区分一覧 ＞ 地域」で、高さが足りないときは
@@ -72,12 +90,21 @@
   // 1 行に並べる地域名の件数は**領域の実測幅**から決める (固定件数だと、ゆとりがあるのに
   // 省略してしまう / 狭いのに詰め込む、の両方が起きる)。未実測のうちは fallback
   const areaMax = $derived(weatherRowAreaMax(whereBodyWidth, whereFontSize, compact));
-  const mainRows = $derived(mainItems.map((it) => capRowAreas(it, areaMax)));
+  const mainRows = $derived(pagedItems.map((it) => capRowAreas(it, areaMax)));
   // 副セクションは **地域名を持たない要約** (ユーザー決定 2026-07-26)。種別名だけを上限まで
   // 並べ、残りは「ほか N 種別」で明示する。地域行を並べると折返しで高さが青天井になり、
   // ページ送りを持たない固定領域では溢れが黙って切られる (Codex R5)。上限は distinct な種別数
   const subSelection = $derived(selectSubKinds(subItems, WEATHER_SUB_KIND_MAX));
   const subKinds = $derived(subSelection.kinds);
+  // 副セクションは地域を描かないので、そこに追加地域が来ても見えない (Codex レビュー
+  // 2026-07-27)。**種別名に印を付けて件数で知らせる** — 地域一覧は主レベルが担うという
+  // 構造は保ったまま、「この下位レベルでも増えた」ことだけは落とさない
+  const subAddedKinds = $derived(
+    new Set(subItems.filter((it) => it.addedAreas.length > 0).map((it) => it.kind)),
+  );
+  const subAddedCount = $derived(
+    subItems.reduce((n, it) => n + it.addedAreas.length, 0),
+  );
   /** 副セクションに載らなかった種別数。黙って消さず件数で明示する */
   const hiddenSubKindCount = $derived(subSelection.hiddenKindCount);
 
@@ -100,49 +127,73 @@
   // 地域件数の可変化に使う実測 (幅と実効フォントサイズ)。高さと同じく未実測は null
   let whereBodyWidth = $state<number | null>(null);
   let whereFontSize = $state<number | null>(null);
-  const rowNodes = new Set<HTMLElement>();
+  // 実測に使う DOM は **作られた時点の点灯キー (token) と一緒に**持つ (spec 追補 C1 の
+  // 再点灯 crossfade 対策)。退場中の旧 DOM も ResizeObserver を鳴らし続けるので
+  // (`pointer-events: none` では止まらない)、token が現行 activationKey と一致するものだけを
+  // 受理する。action は `update` を実装しない = パラメータは**生成時の値で固定**される
+  const rowNodes = new Map<HTMLElement, string>();
   // 地域列 (.areas) の実幅を測るための登録。行全体の幅を使うと区分列・gap・縦罫ぶんを
   // 数え込んで件数を過大評価する (Codex R6)
-  const areaNodes = new Set<HTMLElement>();
-  function registerRow(node: HTMLElement) {
-    rowNodes.add(node);
+  const areaNodes = new Map<HTMLElement, string>();
+  function registerRow(node: HTMLElement, token: string) {
+    rowNodes.set(node, token);
     return {
       destroy(): void {
         rowNodes.delete(node);
       },
     };
   }
-  function registerAreas(node: HTMLElement) {
-    areaNodes.add(node);
+  function registerAreas(node: HTMLElement, token: string) {
+    areaNodes.set(node, token);
     return {
       destroy(): void {
         areaNodes.delete(node);
       },
     };
   }
-  const applyWhereArea = (px: number): void => {
-    if (!layoutSettling) whereAreaHeight = px;
-  };
-  const applyRowHeight = (px: number): void => {
-    if (layoutSettling) return;
-    if (maxRowHeight == null || px > maxRowHeight) maxRowHeight = px;
-  };
+  /** 現行の点灯に属する DOM だけを返す (退場中の旧 DOM は除く) */
+  function liveNodes(nodes: Map<HTMLElement, string>): HTMLElement[] {
+    const key = input.activationKey;
+    return [...nodes].filter(([, token]) => token === key).map(([node]) => node);
+  }
+  /** ResizeObserver 未対応環境 (jsdom) では destroy を持たない handle が返る */
+  type MeasureHandle = { destroy?: () => void };
+  function measureWhereArea(node: HTMLElement, token: string) {
+    const handle: MeasureHandle = measureHeight(node, (px) => {
+      if (acceptsMeasurement(token, input.activationKey, layoutSettling)) whereAreaHeight = px;
+    });
+    // 生成時に固定した token を `update` で上書きさせないため、destroy だけを返す
+    return { destroy: () => handle.destroy?.() };
+  }
+  function measureRow(node: HTMLElement, token: string) {
+    const handle: MeasureHandle = measureBorderHeight(node, (px) => {
+      if (!acceptsMeasurement(token, input.activationKey, layoutSettling)) return;
+      if (maxRowHeight == null || px > maxRowHeight) maxRowHeight = px;
+    });
+    return { destroy: () => handle.destroy?.() };
+  }
+  function observeWhereArea(node: HTMLElement, token: string) {
+    const handle: MeasureHandle = observeResize(node, () => {
+      if (acceptsMeasurement(token, input.activationKey, layoutSettling)) remeasureWidth();
+    });
+    return { destroy: () => handle.destroy?.() };
+  }
   /** 地域件数の可変化に使う「地域列の幅」と文字サイズを実測する。取れない環境 (jsdom) では未実測 */
   function remeasureWidth(): void {
     if (whereBodyEl == null || layoutSettling) return;
     // 測るのは .areas 列そのもの。まだ行が無いときだけ領域全幅で代用する (初回描画の暫定値)
-    const areaEl = areaNodes.values().next().value;
+    const areaEl = liveNodes(areaNodes)[0];
     const width = (areaEl ?? whereBodyEl).getBoundingClientRect().width;
     if (width > 0) whereBodyWidth = width;
     // 文字サイズは行から採る (行は --panel-scale 連動なので where-body の値とは違う)
-    const sample = areaEl ?? rowNodes.values().next().value ?? whereBodyEl;
+    const sample = areaEl ?? liveNodes(rowNodes)[0] ?? whereBodyEl;
     const fontSize = Number.parseFloat(getComputedStyle(sample).fontSize);
     if (Number.isFinite(fontSize) && fontSize > 0) whereFontSize = fontSize;
   }
   /** 最終 DOM から実測し直す。0 しか取れない環境 (jsdom) では null を返して未実測へ戻す */
   function remeasureRows(): number | null {
     let max: number | null = null;
-    for (const node of rowNodes) {
+    for (const node of liveNodes(rowNodes)) {
       const h = node.getBoundingClientRect().height;
       if (h > 0 && (max == null || h > max)) max = h;
     }
@@ -155,7 +206,11 @@
   // areaMax も契機に含める (Codex R6): 行高の観測は最大値の片方向なので、狭幅 → 広幅で
   // 折返しが解けても maxRowHeight が下がらず、余分なページが残り続ける。1 行に並ぶ地域数が
   // 変わったら DOM 更新後に測り直して、現在のレイアウトの値へ置き換える
-  const measureKey = $derived(`${input.generation}|${input.level}|${compact}|${areaMax}`);
+  // activationKey も契機に含める: 再点灯では `{#key}` ブロックごと DOM が作り直されるので、
+  // 前の点灯で観測した行高 (単調増加) をそのまま持ち越すと容量を過小評価したまま固定される
+  const measureKey = $derived(
+    `${input.generation}|${input.level}|${compact}|${areaMax}|${input.activationKey}`,
+  );
   let wasSettling = false;
   let lastMeasureKey: string | undefined;
   $effect(() => {
@@ -188,10 +243,51 @@
   });
   onDestroy(() => cycler.destroy());
   const currentPage = $derived(pages[cycler.index] ?? pages[0] ?? []);
+
+  // 追加地域を含む行のページから見せる (spec 追補 C11)。10 秒周期の巡回を待たせると、
+  // ハイライトを出す意味が薄れる。契機は再点灯 (activationKey) のときだけ
+  // 再点灯演出は prefers-reduced-motion で止める。**バッジとハイライトは残す** (情報は落とさない)
+  const reducedMotion = $derived(cycler.reducedMotion);
+  let lastJumpedActivation: string | undefined;
+  $effect(() => {
+    const key = input.activationKey;
+    const rowKey = input.firstPageRowKey;
+    const pageList = pages;
+    // **実測が終わるまで activation を消費しない**。fallback 容量で組んだ仮のページ割りで
+    // 消費すると、実測後に対象行が別ページへ移っても跳び直せない
+    // (Codex レビュー 3 巡目 2026-07-27)
+    const measured =
+      whereAreaHeight != null
+      && maxRowHeight != null
+      && whereBodyWidth != null
+      && whereFontSize != null;
+    untrack(() => {
+      if (!measured || key === lastJumpedActivation) return;
+      lastJumpedActivation = key;
+      if (rowKey == null) return;
+      const index = pageList.findIndex((page) => page.some((row) => row.key === rowKey));
+      // $effect の中なので flushSync は使わない (Svelte が effect 内の同期フラッシュを許さない)
+      if (index > 0) cycler.jumpTo(index, { immediate: false });
+    });
+  });
 </script>
 
+<!-- 再点灯演出 (spec 追補 C1): 外側の panel key は固定のまま、activationKey が変わったら
+     **中身だけ**を差し替えて短い fade-in を掛ける (旧内容は outro を持たないので重ねない
+     片方向フェード。地図的な位置が変わらない差し替えなので、重ねるより素直に出す)。
+     外側 key に混ぜるとレイアウト補間と実測状態が壊れるので、演出は必ずこの内側でやる -->
 <div class="weather-panel role-{role} level-{input.level}" class:compact>
-  <div class="heading">{headingLabel}</div>
+  <div class="activation-stack">
+  {#key input.activationKey}
+  <div
+    class="activation"
+    in:fade={{ duration: reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS, easing: springEffectsOut }}
+    out:fade={{ duration: reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS, easing: springEffectsOut }}
+  >
+  <div class="heading">
+    <span class="heading-text">{headingLabel}</span>
+    {#if triggerLabel != null}<span class="trigger-badge">{triggerLabel}</span>{/if}
+  </div>
   <div class="tiles">
     <!-- 何が + どうする: レベルと行動文を 1 行に束ねたヒーロー。続けて区分を全種別ぶん並べる
          (ユーザー決定 2026-07-26。ページ送りの待ちを地域だけに閉じ込め、
@@ -230,7 +326,15 @@
           <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
         {/if}
       </div>
-      <div class="where-body" bind:this={whereBodyEl} use:observeResize={remeasureWidth} use:measureHeight={applyWhereArea}>
+      <!-- 実測系の action には**この DOM が作られた時点の点灯キー**を渡す (action は update を
+           持たないので生成時の値で固定される)。crossfade で退場中の旧 DOM が鳴らす測定は
+           token 不一致で弾かれ、現行ページの容量計算を汚さない -->
+      <div
+        class="where-body"
+        bind:this={whereBodyEl}
+        use:observeWhereArea={input.activationKey}
+        use:measureWhereArea={input.activationKey}
+      >
         {#key cycler.index}
           <div
             class="page-fade"
@@ -245,10 +349,22 @@
               <div class="syncing">対象地域を同期中です</div>
             {/if}
             {#each currentPage as row (row.key)}
-              <div class="where-row" use:registerRow use:measureBorderHeight={applyRowHeight}>
-                <span class="kind">{row.kind}</span>
-                <span class="areas" use:registerAreas>
-                  {#each row.areas as area (area)}<span class="area-name">{area}</span>{/each}
+              <div
+                class="where-row"
+                class:sub-level-row={row.level !== input.level}
+                use:registerRow={input.activationKey}
+                use:measureRow={input.activationKey}
+              >
+                <!-- 下位レベルの行 (追加が起きた行だけがここに来る) はレベル印を添える。
+                     種別名だけでは主レベルの行と見分けが付かない -->
+                <span class="kind"
+                  >{#if row.level !== input.level}<span class="row-level">L{row.level}</span>{/if}{row.kind}</span
+                >
+                <span class="areas" use:registerAreas={input.activationKey}>
+                  {#each row.areas as area (area)}<span
+                      class="area-name"
+                      class:added={row.addedAreas.includes(area)}>{area}</span
+                    >{/each}
                   {#if row.hiddenAreaCount > 0}<span class="omitted">ほか{row.hiddenAreaCount}地域</span>{/if}
                 </span>
               </div>
@@ -267,10 +383,16 @@
           <span class="sub-action">{actionOf(4)}</span>
         </div>
         <div class="sub-kinds">
-          {#each subKinds as kind (kind)}<span class="kind">{kind}</span>{/each}{#if hiddenSubKindCount > 0}<span class="sub-omitted">ほか{hiddenSubKindCount}種別</span>{/if}
+          {#each subKinds as kind (kind)}<span
+              class="kind"
+              class:added={subAddedKinds.has(kind)}>{kind}</span
+            >{/each}{#if subAddedCount > 0}<span class="sub-added">＋{subAddedCount}地域</span>{/if}{#if hiddenSubKindCount > 0}<span class="sub-omitted">ほか{hiddenSubKindCount}種別</span>{/if}
         </div>
       </div>
     {/if}
+  </div>
+  </div>
+  {/key}
   </div>
 </div>
 
@@ -286,6 +408,40 @@
     border-radius: var(--radius-panel);
     box-shadow: var(--elevation-3);
     overflow: hidden;
+  }
+  /* 再点灯演出 (spec 追補 C1) の器。旧内容と新内容を**同じ grid セルに重ねて** crossfade する。
+     `display: contents` だと描画ボックスを持たず opacity が子へ効かない
+     (fade を書いても何も起きていなかった、Codex レビュー 3 巡目 2026-07-27) */
+  .activation-stack {
+    display: grid;
+    grid-template: 1fr / 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+  .activation {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  /* 退場中の旧内容は見えるだけでよい。**pointer-events では ResizeObserver は止まらない**ので、
+     実測を弾くのは CSS ではなく token ガード (acceptsMeasurement) の役目 */
+  .activation:not(:last-child) {
+    pointer-events: none;
+  }
+  /* 新規/更新バッジ。見出し帯の on 色を継承し、輪郭だけで存在を示す
+     (帯の container/on ペアは監査済み。独自の文字色・面を作らない) */
+  .trigger-badge {
+    margin-inline-start: auto;
+    padding: 0 var(--space-2);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-s);
+    font-size: max(12px, var(--type-label-l-size));
+    font-weight: var(--type-body-weight-emphasized);
+    white-space: nowrap;
+  }
+  .heading-text {
+    white-space: nowrap;
   }
   /* 主見出しは 3 パネル共通トークンで高さを揃える (--panel-header-*、第4波) */
   .heading {
@@ -430,6 +586,15 @@
     color: var(--role-muted);
     font-size: var(--type-label-m-size);
   }
+  /* 副セクションで増えた種別・件数。地域一覧は主レベルが担うので、ここは印と件数だけ */
+  .sub-kinds .kind.added {
+    text-decoration: underline solid var(--role-weatherWarning) 3px;
+    text-underline-offset: 4px;
+  }
+  .sub-added {
+    color: var(--role-muted);
+    font-size: var(--type-label-m-size);
+  }
   /* 中身待ちの明示 (engine は昇格中、フロントはまだ item を組めていない) */
   .syncing {
     color: var(--role-muted);
@@ -461,6 +626,18 @@
   .role-weatherEmergency .where-row .kind {
     color: var(--role-weatherEmergency);
   }
+  /* 下位レベルの行 (追加が起きた行だけがページ送り列へ来る、ご主人決定 2026-07-27) は
+     主レベルの意味色を借りない — L5 パネルの中の L4 行が特別警報の色で出ると読み違える */
+  .role-weatherEmergency .where-row.sub-level-row .kind {
+    color: var(--role-weatherWarning);
+  }
+  /* 行頭のレベル印。色に依らず読める文字の印 (「L4」) で主レベルの行と区別する */
+  .row-level {
+    font-size: 0.78em;
+    font-weight: var(--type-body-weight-emphasized);
+    color: var(--role-muted);
+    margin-inline-end: 0.35em;
+  }
   /* 地域名は個別 span (nowrap) にし、折返しは名前と名前の間だけで起こす (第3波 Fix14 と同じ作法) */
   .areas {
     display: flex;
@@ -472,6 +649,20 @@
   }
   .area-name {
     white-space: nowrap;
+  }
+  /* この点灯で追加された地域 (spec 追補 4)。**文字色を触らない** — critical overlay 下で
+     意味色が AA を割ることが実測で分かっているため (2026-07-26)。下線は非テキスト扱い
+     (閾値 3:1) で、色に依存しない手掛かり (「＋」) も併記して色覚差にも耐える */
+  .area-name.added {
+    text-decoration: underline solid var(--role-weatherWarning) 3px;
+    text-underline-offset: 4px;
+  }
+  .role-weatherEmergency .area-name.added {
+    text-decoration-color: var(--role-weatherEmergency);
+  }
+  .area-name.added::before {
+    content: "＋";
+    color: var(--role-muted);
   }
   .omitted {
     white-space: nowrap;

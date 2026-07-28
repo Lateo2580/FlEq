@@ -2037,34 +2037,40 @@ export const weatherEmergencyInput: WeatherEmergencyInputV1 = {
   generation: "vpws50:3|vpww56:1",
   truncated: true,
   restored: false,
+  trigger: "update",
+  activationKey: "vpws50:3|2026-07-26T12:21:02.699Z",
+  firstPageRowKey: "vpww56:nonLevelSpecial:暴風特別警報",
   items: [
     {
       key: "vpws50:0:L5 大雨特別警報", source: "vpws50", kind: "L5 大雨特別警報", level: 5,
-      shownAreas: ["高知県", "徳島県", "愛媛県", "香川県", "岡山県", "広島県"], omittedAreaCount: 4,
+      shownAreas: ["高知県", "徳島県", "愛媛県", "香川県", "岡山県", "広島県"], omittedAreaCount: 4, addedAreas: [],
     },
     {
       key: "vpws50:1:L5 土砂災害警戒情報", source: "vpws50", kind: "L5 土砂災害警戒情報", level: 5,
-      shownAreas: ["高知県", "徳島県"], omittedAreaCount: 0,
+      shownAreas: ["高知県", "徳島県"], omittedAreaCount: 0, addedAreas: [],
     },
     {
-      key: "vpww56:0:暴風特別警報", source: "vpww56", kind: "暴風特別警報", level: 5,
-      shownAreas: ["宮崎県", "鹿児島県"], omittedAreaCount: 1,
+      key: "vpww56:nonLevelSpecial:暴風特別警報", source: "vpww56", kind: "暴風特別警報", level: 5,
+      // 更新発表で増えた地域 (下線でハイライトされる)
+      shownAreas: ["宮崎県", "鹿児島県"], omittedAreaCount: 1, addedAreas: ["鹿児島県"],
     },
     {
       key: "vpww56:1:波浪特別警報", source: "vpww56", kind: "波浪特別警報", level: 5,
-      shownAreas: ["沖縄本島地方", "宮古島地方", "八重山地方"], omittedAreaCount: 0,
+      shownAreas: ["沖縄本島地方", "宮古島地方", "八重山地方"], omittedAreaCount: 0, addedAreas: [],
     },
     {
       key: "vpws50:2:L4 洪水警報", source: "vpws50", kind: "L4 洪水警報", level: 4,
-      shownAreas: ["愛知県", "静岡県"], omittedAreaCount: 3,
+      // L5 継続中に L4 側で地域が増えた形。**追加を含む下位行だけ**が地域名つきで
+      // ページ送り列に出る (ご主人決定 2026-07-27)。追加を含まない下位 2 行は副セクションの要約のまま
+      shownAreas: ["愛知県", "静岡県"], omittedAreaCount: 3, addedAreas: ["静岡県"],
     },
     {
       key: "vpws50:3:L4 高潮警報", source: "vpws50", kind: "L4 高潮警報", level: 4,
-      shownAreas: ["三重県"], omittedAreaCount: 0,
+      shownAreas: ["三重県"], omittedAreaCount: 0, addedAreas: [],
     },
     {
       key: "vpww56:2:L4 土砂災害警戒情報", source: "vpww56", kind: "L4 土砂災害警戒情報", level: 4,
-      shownAreas: ["和歌山県"], omittedAreaCount: 0,
+      shownAreas: ["和歌山県"], omittedAreaCount: 0, addedAreas: [],
     },
   ],
 };
@@ -2076,5 +2082,8 @@ export const weatherSyncingInput: WeatherEmergencyInputV1 = {
   generation: "vpws50:1",
   truncated: false,
   restored: true,
+  trigger: "new",
+  activationKey: "vpws50:1",
+  firstPageRowKey: null,
   items: [],
 };

@@ -331,6 +331,35 @@ export function evaluatePairs(map) {
       { label: `film(--header-${r}-on)`, color: film(`--header-${r}-on`) },
       { label: `film(--header-${r}-container)`, color: film(`--header-${r}-container`) }, "normal", overlayNote));
   }
+  // 15 気象パネルの装飾 (バッジ輪郭・追加地域の下線)。**非テキスト 3:1** で評価する。
+  // バッジは見出し帯の on 色を継承した輪郭 (border: currentColor) なので、帯の container を
+  // 背景にとる。下線は role 色で、パネル面 (通常) と critical フィルム合成後の両方を見る。
+  // 「使わない」前提に頼らず表へ載せる — UI 側が意味色を文字に流用したら FAIL で気づける (C9)
+  for (const r of ["weatherEmergency", "weatherWarning"]) {
+    out.push(makePair(
+      `weather-badge-${r}`, "15 気象パネル装飾", "base",
+      { label: `--header-${r}-on (輪郭)`, color: color(`--header-${r}-on`) },
+      c(`--header-${r}-container`), "nontext",
+      "WeatherEmergencyPanel .trigger-badge は帯の on 色を継承した輪郭",
+    ));
+    // 下線が載る面は 2 か所: 詳細一覧 (--surface-panel-raised、tier で --surface-highest) と、
+    // 副セクションの種別名 (パネル地 --surface-panel、tier で --surface-high)。
+    // **実描画の組合せだけ**を評価する (Codex レビュー 2026-07-27)
+    for (const s2 of ["--surface-panel-raised", "--surface-highest", "--surface-panel", "--surface-high"]) {
+      out.push(makePair(
+        `weather-added-underline-${r}-on${s2}`, "15 気象パネル装飾", "base",
+        c(`--role-${r}`), c(s2), "nontext",
+        "WeatherEmergencyPanel .area-name.added の下線 (文字色は --fg のまま)",
+      ));
+      out.push(makePair(
+        `weather-added-underline-${r}-on${s2}-overlay`, "15 気象パネル装飾", "tier-overlay",
+        { label: `film(--role-${r})`, color: film(`--role-${r}`) },
+        { label: `film(${s2})`, color: film(s2) }, "nontext",
+        "critical フィルム合成後の下線 (α=0.34 の保守側評価)。L4 の下線 × critical 併発も含む",
+      ));
+    }
+  }
+
   // 11 dim × high emphasis lane (12% tint → dim 60% の二段)
   // tsunamiMajor は除外: 大津波警報の走行文字は TickerLane.svelte:547-560 の専用規則で
   // dim 時も header container/on ペア (文字自身の不透明面) で on/container 両色を上書きするため、

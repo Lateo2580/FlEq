@@ -75,8 +75,18 @@ describe("evaluatePairs", () => {
       "12 津波ページ二段mix": 6,
       "13 opacity経路": 1,
       "14 dim×通常レーン警報本文": 7,
+      // 気象パネルの装飾 (spec 追補 C9、2026-07-27): role 2 種 × (バッジ輪郭 / 下線 /
+      // critical 合成後の下線)。「使わない」前提に頼らず、UI が意味色を文字へ流用したら
+      // FAIL で気づけるよう表に載せている
+      // role 2 種 × (バッジ輪郭 + 下線 × 実描画面 2 種 × 通常/critical 合成)。
+      // 面は **--surface-panel-raised / --surface-highest** = 実際に下線が載る面
+      // (tier 置換込み)。--surface-panel を見ていた初版は実在しない組合せだった
+      // role 2 種 × (バッジ輪郭 + 下線 × 実描画面 4 種 × 通常/critical 合成)。
+      // 面は詳細一覧 (--surface-panel-raised / tier で --surface-highest) と
+      // 副セクション (--surface-panel / tier で --surface-high) の実在する組合せだけ
+      "15 気象パネル装飾": 18,
     });
-    expect(pairs.length).toBe(190);
+    expect(pairs.length).toBe(208);
   });
   it("カテゴリ 11 (dim×high lane) は tsunamiMajor を列挙しない (実ペアは cat9)", () => {
     expect(find("dim-high-tsunamiMajor")).toBeUndefined();

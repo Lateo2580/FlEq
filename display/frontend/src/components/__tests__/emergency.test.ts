@@ -94,6 +94,7 @@ function weatherItem(
     level: 5,
     shownAreas: ["東京都", "千葉県"],
     omittedAreaCount: 0,
+    addedAreas: [],
     ...over,
   };
 }
@@ -106,6 +107,9 @@ function weatherInput(over: Partial<WeatherEmergencyInputV1> = {}): WeatherEmerg
     items: [weatherItem({ key: "vpws50:0:L5 大雨特別警報", kind: "L5 大雨特別警報" })],
     truncated: false,
     restored: false,
+    trigger: null,
+    activationKey: "a1",
+    firstPageRowKey: null,
     ...over,
   };
 }
@@ -505,6 +509,110 @@ describe("EmergencyScreen", () => {
           (globalThis as { ResizeObserver?: unknown }).ResizeObserver = origRO;
         }
       }
+    });
+
+    // ── spec 追補 (2026-07-26/27): 新規/更新バッジ・追加地域ハイライト・再点灯 ──
+
+    it("新規発表・更新発表をバッジで出し、判定材料が無ければ出さない", () => {
+      const cases: Array<[("new" | "update" | null), string | null]> = [
+        ["new", "新規発表"],
+        ["update", "更新発表"],
+        [null, null],
+      ];
+      for (const [trigger, label] of cases) {
+        const { container, unmount } = render(EmergencyScreen, {
+          panels: [panel("weather:current", weatherInput({ trigger }))],
+        });
+        expect(container.querySelector(".heading .trigger-badge")?.textContent ?? null).toBe(label);
+        unmount();
+      }
+    });
+
+    it("追加された地域だけに下線ハイライトが付く", () => {
+      const { container } = render(EmergencyScreen, {
+        panels: [
+          panel(
+            "weather:current",
+            weatherInput({
+              items: [
+                weatherItem({
+                  key: "k",
+                  kind: "L5 大雨特別警報",
+                  shownAreas: ["東京都", "千葉県"],
+                  addedAreas: ["千葉県"],
+                }),
+              ],
+            }),
+          ),
+        ],
+      });
+      const areas = Array.from(container.querySelectorAll(".tile-where .area-name"));
+      expect(areas.map((el) => el.textContent)).toEqual(["東京都", "千葉県"]);
+      expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
+    });
+
+    // ご主人決定 2026-07-27: 「L5 継続中に L4 の地域が増えた」で更新点灯するのに、下位レベルが
+    // 種別名 + 件数へ畳まれているとどこが増えたのか一度も読めない。追加が起きた下位行だけを
+    // 例外として地域名つきでページ送り列に出す
+    it("追加を含む下位レベルの行だけ、地域名つきでページ送り列に出る", () => {
+      const { container } = render(EmergencyScreen, {
+        panels: [
+          panel(
+            "weather:current",
+            weatherInput({
+              items: [
+                weatherItem({ key: "m", kind: "L5 大雨特別警報", shownAreas: ["東京都"] }),
+                weatherItem({
+                  key: "s-added",
+                  kind: "L4 洪水警報",
+                  level: 4,
+                  shownAreas: ["千葉県", "茨城県"],
+                  addedAreas: ["茨城県"],
+                }),
+                // 追加を含まない下位行は従来どおり要約のまま (地域名を出さない)
+                weatherItem({ key: "s-plain", kind: "L4 高潮警報", level: 4, shownAreas: ["静岡県"] }),
+              ],
+            }),
+          ),
+        ],
+      });
+      const rows = Array.from(container.querySelectorAll(".tile-where .where-row"));
+      expect(rows.map((r) => r.querySelector(".kind")?.textContent)).toEqual([
+        "大雨特別警報",
+        "L4洪水警報",
+      ]);
+      // 下位レベルの行はレベル印を持ち、主レベルの意味色を借りない
+      const subRow = rows[1];
+      expect(subRow.classList.contains("sub-level-row")).toBe(true);
+      expect(subRow.querySelector(".row-level")?.textContent).toBe("L4");
+      // 追加された地域だけに下線が付く
+      const areas = Array.from(subRow.querySelectorAll(".area-name"));
+      expect(areas.map((el) => el.textContent)).toEqual(["千葉県", "茨城県"]);
+      expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
+      // 副セクションの要約は下位レベルの全種別を持ったまま (巡回で別ページでも種別は読める)
+      const sub = container.querySelector(".tile-sub")!;
+      expect(Array.from(sub.querySelectorAll(".sub-kinds .kind")).map((el) => el.textContent)).toEqual([
+        "洪水警報",
+        "高潮警報",
+      ]);
+    });
+
+    it("ハイライトは文字色を触らず、下線と色以外の手掛かりを併用する (critical overlay 耐性)", () => {
+      const src = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+      const rule = src.match(/\.area-name\.added\s*\{[^}]*\}/)?.[0] ?? "";
+      expect(rule).toContain("text-decoration");
+      expect(rule).not.toMatch(/(^|[^-])color:/); // 文字色は触らない
+      expect(src).toMatch(/\.area-name\.added::before\s*\{[^}]*content:/); // 色に依存しない手掛かり
+    });
+
+    // spec 追補 C1: パネル key は固定なので、これが無いと内容更新で画面が動かない
+    it("activationKey が変わると中身が差し替わる (再点灯演出の契機)", () => {
+      const src = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+      expect(src).toContain("{#key input.activationKey}");
+      // 外側 key に混ぜない (レイアウト補間と実測状態を壊さない)
+      const derive = readFileSync(join(__dirname, "..", "..", "lib", "derive.ts"), "utf-8");
+      expect(derive).toContain('key: "weather:current"');
+      expect(derive).not.toMatch(/key: `weather:current[^`]*\$\{/);
     });
 
     it("EmergencyScreen は気象パネルにもレイアウト整定フラグを渡す", () => {

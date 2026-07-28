@@ -213,6 +213,8 @@ export type DisplayWeatherRank = "emergency" | "warning" | "advisory";
 
 export interface DisplayWeatherAlertItemV1 {
   kind: string;             // formatLevelLabel 形式のカード表記 (例 "L3 大雨警報" / "暴風警報")
+  /** 表示ラベルや警戒レベルが変わっても同じ現象を指す安定キー。欠落は旧サーバ互換 */
+  phenomenonKey?: string;
   displaySeverity: string;  // DisplaySeverity 値 (import-free のため string)
   rank: DisplayWeatherRank;
   shownAreas: string[];     // 縮退で切り詰められる。ほか N 地域は omittedAreaCount で表現
@@ -286,6 +288,35 @@ export interface DisplayWeatherPromotionEntryV1 {
    * 当該 source の電文を 1 通でも受理すれば weatherAlerts が権威になり、この欄は消える。
    */
   restoredItems?: DisplayWeatherAlertItemV1[];
+  /**
+   * この点灯が新規発表 (`new`) か更新発表 (`update`) か。フロントはバッジに使う。
+   * 欠落 (旧サーバ・装飾を失った復元) はバッジを出さない — 判定材料が無いときに
+   * 嘘の「新規」を出すより無表示を採る (spec 追補 C5)。
+   */
+  trigger?: DisplayWeatherPromotionTriggerV1;
+  /**
+   * この点灯で**追加された**地域 (種別ごと)。フロントは「どこ」の該当地域を下線で強調する。
+   * 新規発表では載らない (全部が新規なので全面ハイライトは意味を失う)。
+   * 判定は engine 側の安定キー (現象コード × 地域コード) で行い、ここへは表示名で載せる —
+   * 表示ラベルで判定すると L4→L5 の悪化で同じ地域が「追加」に化ける (spec 追補 C2)。
+   */
+  addedAreas?: DisplayWeatherAddedAreasV1[];
+  /**
+   * 点灯の同一性キー。**値が変わったらフロントは再点灯演出を発火する** (spec 追補 C1)。
+   * パネルの key は `weather:current` 固定・wire も更新中ずっと非 null なので、これが無いと
+   * 内容更新でパネルがマウントされたままになり「切り替えが視線を引く」効果が出ない。
+   * 外側の key に generation を混ぜるとレイアウト補間と実測状態が壊れるため、内部演出用に分ける。
+   */
+  activationKey?: string;
+}
+
+/** 点灯の契機。新規発表と更新発表を区別してバッジに出す (spec 追補 3) */
+export type DisplayWeatherPromotionTriggerV1 = "new" | "update";
+
+/** 追加された地域 (種別単位)。`kind` は表示ラベル、`areas` は地域名 */
+export interface DisplayWeatherAddedAreasV1 {
+  kind: string;
+  areas: string[];
 }
 
 /** source 別の昇格状態。demoted (画面都合の降格) は null に投影されるため、
@@ -293,6 +324,13 @@ export interface DisplayWeatherPromotionEntryV1 {
 export interface DisplayWeatherPromotionV1 {
   vpws50: DisplayWeatherPromotionEntryV1 | null;
   vpww56: DisplayWeatherPromotionEntryV1 | null;
+  /**
+   * **パネル全体の点灯キー**。new / update のときだけ変わり、source の降格・解除では動かない。
+   * フロントはこれだけを再点灯演出の契機にする — source 別キーの最大値を採ると、
+   * 最後に点いた source が降格しただけで値が巻き戻り、再点灯してしまう
+   * (Codex レビュー 2026-07-27)。欠落 (旧サーバ) は演出なし
+   */
+  activationKey?: string;
 }
 
 export interface DisplayActiveEewV1 extends DisplayEewInputV1 {
