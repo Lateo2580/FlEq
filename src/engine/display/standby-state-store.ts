@@ -16,6 +16,7 @@ import {
 import { RevisionGuard } from "./revision-guard";
 import { nankaiBadgeAction } from "./nankai-status";
 import { quakeCardTtlMs, shouldReplaceQuakeHost } from "./quake-card-selection";
+import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "./tornado-group-key";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -148,6 +149,11 @@ export class StandbyStateStore {
     return mutation;
   }
 
+  /** standby state と寿命を共有する ticker の active groupKey。 */
+  activeTickerGroupKeys(): Set<string> {
+    return new Set([...this.tornadoByOffice.keys()].map(tornadoTickerGroupKey));
+  }
+
   private applyNankai(event: PresentationEvent, nowMs: number): DisplayMutation {
     if (event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
     const raw = event.raw as ParsedNankaiTroughInfo;
@@ -169,8 +175,8 @@ export class StandbyStateStore {
   private applyTornado(event: PresentationEvent, nowMs: number): DisplayMutation {
     if (event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
     const raw = event.raw as ParsedTornadoAdvisory;
-    const publishingOffice = event.publishingOffice || "不明官署";
-    const stateKey = `tornado:${publishingOffice}`;
+    const publishingOffice = normalizeTornadoPublishingOffice(event.publishingOffice);
+    const stateKey = tornadoTickerGroupKey(publishingOffice);
     const revision = revisionOf(event.reportDateTime, event.serial ?? raw.serial, nowMs);
     if (!this.revisionGuard.accept(stateKey, revision, nowMs, tombstoneTtlForKey(stateKey))) return NO_MUTATION;
     if (event.isCancellation || raw.activeAreaCount === 0) {

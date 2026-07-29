@@ -40,6 +40,8 @@ export interface InfoDisplayHubDeps {
   frontendBuildId?: () => string | null;
   /** monitor 所有の standby state を既存 sweep タイマーで駆動する */
   standbySweep?: (nowMs: number) => DisplayMutation;
+  /** standby state と寿命を共有する ticker の active groupKey */
+  standbyTickerGroupKeys?: () => ReadonlySet<string>;
 }
 
 // 電文 1 件を「射影 → 状態適用 → ring buffer → transport broadcast」に束ねる中枢。
@@ -227,7 +229,8 @@ export class InfoDisplayHub implements DisplayIngestSink {
   }
 
   /**
-   * 優先度別 TTL で recentTicker を追い出す。EEW/津波 active な groupKey は残す (spec §3-1)。
+   * 優先度別 TTL で recentTicker を追い出す。EEW/津波など active な groupKey は残す。
+   * tornado は standby state と同じ官署別 groupKey を参照し、有効期限切れと同時に追い出す。
    * 構成が変わったら tickerSyncPending を立て、次の state 配信に recentTicker を一発同梱させる
    * (spec §3-2)。定期 state は通常 recentTicker を運ばないため、これがないと接続中クライアントに
    * sweep 結果が届かず、特に「サーバは active 保持、フロントは時間切れで刈る」という逆向きの
@@ -235,15 +238,19 @@ export class InfoDisplayHub implements DisplayIngestSink {
    */
   sweepTicker(nowMs: number): boolean {
     const activeKeys = this.store.activeAlertKeys();
+    const standbyKeys = this.deps.standbyTickerGroupKeys?.();
     // 官署別に分かれる groupKey (VPWW56) は完全一致で列挙できないため接頭辞でも照合する。
     // 既存キー (eew: / tsunami:current / weather:vpws50) の完全一致セマンティクスは変えない
     const activePrefixes = [...this.store.activeAlertKeyPrefixes()];
     const before = this.recent.length;
     this.recent = this.recent.filter((e) => {
+      const key = e.dto.groupKey;
+      if (e.dto.domain === "tornado" && standbyKeys != null) {
+        return key != null && standbyKeys.has(key);
+      }
       const priority = e.dto.tickerPriority ?? "low";
       const expired = nowMs - e.receivedMs > tickerTtlMs(priority, e.dto.domain);
       if (!expired) return true;
-      const key = e.dto.groupKey;
       if (key == null) return false;
       return activeKeys.has(key) || activePrefixes.some((p) => key.startsWith(p)); // active なら残す
     });

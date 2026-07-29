@@ -60,6 +60,8 @@ export interface DisplaySeedSources {
   stats?: () => DisplayStatsV1;
   /** hub 稼働中の sweep は既存 hub タイマーへ統合する */
   standbySweep?: (nowMs: number) => DisplayMutation;
+  /** standby state と寿命を共有する ticker の active groupKey */
+  standbyTickerGroupKeys?: () => ReadonlySet<string>;
 }
 
 // ── 変換関数 ──
@@ -132,6 +134,7 @@ export async function startDisplayRuntime(
     ],
     frontendBuildId,
     standbySweep: seeds.standbySweep,
+    standbyTickerGroupKeys: seeds.standbyTickerGroupKeys,
     // spec §4: 表示系の連続障害では hub (kill switch が stop 済み) に加えて transport も止め、
     // monitor 本体だけを継続する。registry も外して REPL コマンドから死んだ runtime を参照させない。
     // transport.stop() (server.close) の完了を待ってから参照クリア・onStopped を行うことで、

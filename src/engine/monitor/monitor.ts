@@ -207,6 +207,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       recentQuakes: () => dailyQuakeCounter.getRecentQuakes(),
       stats: () => buildDisplayStats(),
       standbySweep: (nowMs) => standbyStore.sweep(nowMs),
+      standbyTickerGroupKeys: () => standbyStore.activeTickerGroupKeys(),
     },
     getRuntime: () => displayRuntime,
     setRuntime: (rt) => { displayRuntime = rt; },

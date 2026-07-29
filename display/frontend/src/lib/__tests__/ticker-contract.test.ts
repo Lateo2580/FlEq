@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toTickerJob, enqueueJob, assignLanes, createSchedulerState } from "../ticker-schedule";
+import { toTickerJob, enqueueJob, assignLanes, createSchedulerState, resetScheduler } from "../ticker-schedule";
 import { tickerEvent } from "./fixtures";
 
 describe("A/B/C 横断契約 (spec §10)", () => {
@@ -22,5 +22,22 @@ describe("A/B/C 横断契約 (spec §10)", () => {
     // 昇格した版に revisionAt が立つ (buffer 内は null だった)
     const promoted = lane?.replacement ?? lane?.current;
     expect(promoted?.revisionAt).not.toBeNull();
+  });
+
+  it("空官署を既定名へ正規化した竜巻注意情報も groupKey で最新版へ置換する", () => {
+    const groupKey = "tornado:不明官署";
+    const oldDto = tickerEvent({
+      id: "tornado-1", seq: 1, eventKey: "tornado:old", groupKey, domain: "tornado",
+      tickerDetail: "竜巻注意情報: 千代田区",
+    });
+    const newDto = tickerEvent({
+      id: "tornado-2", seq: 2, eventKey: "tornado:new", groupKey, domain: "tornado",
+      tickerDetail: "竜巻注意情報: 千代田区、港区",
+    });
+
+    const scheduler = resetScheduler([toTickerJob(newDto, 2), toTickerJob(oldDto, 1)]);
+    expect(scheduler.catalog).toHaveLength(1);
+    expect(scheduler.catalog[0].key).toBe("tornado:new");
+    expect(scheduler.catalog[0].segments.join("")).toContain("港区");
   });
 });

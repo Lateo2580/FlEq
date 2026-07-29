@@ -5,6 +5,7 @@ import { groupIntensityAreas } from "./intensity-groups";
 import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningTimeseriesSentence } from "./ticker-sentence";
 import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
+import { tornadoTickerGroupKey } from "./tornado-group-key";
 import {
   DISPLAY_PROTOCOL_VERSION,
   type DisplayColorRole,
@@ -206,6 +207,7 @@ function makeGroupKey(event: PresentationEvent): string | null {
   if (event.domain === "eew") return event.eventId != null ? `eew:${event.eventId}` : null;
   if (event.domain === "tsunami") return "tsunami:current";
   if (event.domain === "earthquake") return event.eventId != null ? `quake:${event.eventId}` : null;
+  if (event.domain === "tornado") return tornadoTickerGroupKey(event.publishingOffice);
   if (event.domain === "volcano") {
     if (event.eventId == null) return null;
     // 火山コード付きの系列分割は VFVO53 (バッチ per-volcano 展開) に限定する。

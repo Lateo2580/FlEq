@@ -10,6 +10,7 @@ import {
   FIXTURE_VPHW51_SIGHTING,
   encodeXml,
 } from "../helpers/mock-message";
+import { projectDisplayEvent } from "../../src/engine/display/project-event";
 
 describe("selectPreferredTornadoLayer", () => {
   it("空配列なら undefined", () => {
@@ -162,6 +163,28 @@ describe("Phase D: 2 系統フィールド", () => {
 // ── route / process / event の配線スモーク ──
 
 describe("tornado route integration smoke", () => {
+  it("優先粒度の全対象地域だけを tickerDetail へ上限なく列挙し、官署単位の groupKey を付ける", async () => {
+    const { processTornado } = await import(
+      "../../src/engine/presentation/processors/process-tornado"
+    );
+    const { fromTornadoOutcome } = await import(
+      "../../src/engine/presentation/events/from-tornado"
+    );
+    const outcome = processTornado(createMockWsDataMessage(FIXTURE_VPHW50_TOKYO));
+    expect(outcome).not.toBeNull();
+
+    const preferred = selectPreferredTornadoLayer(outcome!.parsed.layers);
+    expect(preferred).toBeDefined();
+    const event = fromTornadoOutcome(outcome!);
+    const preferredNames = preferred!.areas.map((area) => area.name);
+    expect(preferredNames.length).toBeGreaterThan(0);
+    expect(event.areaItems.map((area) => area.name)).toEqual(preferredNames);
+
+    const dto = projectDisplayEvent(event, "竜巻注意情報");
+    expect(dto.groupKey).toBe(`tornado:${event.publishingOffice}`);
+    for (const name of preferredNames) expect(dto.tickerDetail).toContain(name);
+  });
+
   it("VPHW51 が processTornado → fromTornadoOutcome を通って critical frame になる", async () => {
     const { processTornado } = await import(
       "../../src/engine/presentation/processors/process-tornado"
