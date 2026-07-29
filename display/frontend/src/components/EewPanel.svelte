@@ -1,13 +1,17 @@
 <script lang="ts">
   import type { DisplayEewInputV1, DisplayEewRegionV1 } from "../lib/protocol";
   import { formatHms, formatIntShort, intensityRank } from "../lib/format";
-  import { eewRegionFontTier, eewPrefListFontTier, eewRegionListColumnCount } from "../lib/eew-region-tiers";
-  import { EEW_STATIC_LIST_MAX } from "../lib/instrument-layout";
-  import { countByPrefecture, shortPrefName } from "../lib/prefecture-group";
+  import { eewRegionFontTier, eewRegionListColumnCount, paginateEewRegions } from "../lib/eew-region-tiers";
+  import { EEW_STATIC_LIST_MAX, rowCapacity } from "../lib/instrument-layout";
+  import { countByPrefecture } from "../lib/prefecture-group";
+  import { createPageCycler } from "../lib/page-cycler.svelte";
+  import { measureBorderHeight, measureHeight } from "../lib/measure-height";
+  import { onDestroy } from "svelte";
+  import PageDots from "./PageDots.svelte";
   import RollingNumber from "./RollingNumber.svelte";
 
   // compact: main-stack の非 main スロットで regions を密度 tier に応じて縮小表示する
-  let { input, compact = false }: { input: DisplayEewInputV1; compact?: boolean } = $props();
+  let { input, compact = false, settling = false, emphasized = false }: { input: DisplayEewInputV1; compact?: boolean; settling?: boolean; emphasized?: boolean } = $props();
 
   const role = $derived(input.isWarning ? "eewWarning" : "eewForecast");
   const tier = $derived(eewRegionFontTier(input.regions.length, compact));
@@ -41,20 +45,12 @@
     return countByPrefecture(regions.map((r) => r.name)).filter((c) => c.pref != null).length;
   }
 
-  // regions の地域名を県に抽象化した distinct 県名一覧 (地域出現順、pref!=null のみ)
-  function prefectureNames(regions: DisplayEewRegionV1[]): string[] {
-    return countByPrefecture(regions.map((r) => r.name))
-      .filter((c): c is { pref: string; count: number } => c.pref != null)
-      .map((c) => c.pref);
-  }
-
-  // 震度5弱以上 (intensityRank >= 5) の region の都道府県短縮名 distinct フラットリスト。
-  // 閾値超 (>10 地域) のときに出す (spec §2-a 2026-07-09 改訂: 震度別の行分けはせず 1 本化)
-  const INTENSITY_5_LOWER_RANK = 5;
-
   const buckets = $derived(bucketByIntensity(input.regions));
   const topBucket = $derived<IntensityBucket | null>(buckets[0] ?? null);
   const secondBucket = $derived<IntensityBucket | null>(buckets[1] ?? null);
+  const regionMeasureSample = $derived(
+    input.regions.reduce((longest, region) => region.name.length > longest.length ? region.name : longest, "測"),
+  );
   const topPrefCount = $derived(topBucket != null ? prefectureCount(topBucket.regions) : 0);
   // 「6強以上」等の累積県数: rank が secondBucket.rank 以上 (= topBucket + secondBucket、
   // buckets は rank 降順ソート済みなので先頭 2 バケツ) をまとめた distinct 県数。
@@ -62,25 +58,44 @@
   // は topBucket を内包した累積読みのため、19 > 8 になる)
   const cumulativePrefCount = $derived(prefectureCount(buckets.slice(0, 2).flatMap((b) => b.regions)));
   const plumCount = $derived(input.regions.filter((r) => r.isPlum).length);
+  let regionAreaHeight = $state(0);
+  let regionLineHeight = $state(0);
+  let pendingRegionAreaHeight: number | null = null;
+  let pendingRegionLineHeight: number | null = null;
+  const regionBudget = $derived(rowCapacity(regionAreaHeight, regionLineHeight, EEW_STATIC_LIST_MAX));
+  const regionPages = $derived(paginateEewRegions(input.regions, regionBudget));
   const showStaticList = $derived(input.regions.length > 0 && input.regions.length <= EEW_STATIC_LIST_MAX);
+  const showRegionPages = $derived(input.regions.length > EEW_STATIC_LIST_MAX && regionPages.length > 0);
+  const regionResetKey = $derived(`${input.eventId ?? ""}:${input.serial ?? ""}:${input.regions.length}`);
+  const regionCycler = createPageCycler({ pageCount: () => regionPages.length, resetKey: () => regionResetKey });
+  onDestroy(() => regionCycler.destroy());
+  const currentRegionPage = $derived(regionPages[regionCycler.index] ?? regionPages[0] ?? null);
+  function measureRegionArea(height: number): void {
+    if (settling) pendingRegionAreaHeight = height;
+    else regionAreaHeight = height;
+  }
+  function measureRegionLine(height: number): void {
+    if (settling) pendingRegionLineHeight = height;
+    else regionLineHeight = height;
+  }
+  $effect(() => {
+    if (settling) return;
+    if (pendingRegionAreaHeight != null) {
+      regionAreaHeight = pendingRegionAreaHeight;
+      pendingRegionAreaHeight = null;
+    }
+    if (pendingRegionLineHeight != null) {
+      regionLineHeight = pendingRegionLineHeight;
+      pendingRegionLineHeight = null;
+    }
+  });
   // T8⑥ (preview 目視レビュー): 列数は行数 (震度バケツ数、buckets.length = .region-row の件数)
   // 駆動の明示制御にする。旧 v4 の column-width 自動分割は少ない行数でも横幅次第で2列に
   // 割れてしまっていた (eew-region-tiers.ts の v5 コメント参照)
   const regionListColumnCount = $derived(eewRegionListColumnCount(buckets.length));
-  // 震度5弱以上 region の都道府県短縮名 distinct フラットリスト (地域出現順)
-  const prefectureFlatList = $derived(
-    prefectureNames(input.regions.filter((r) => (intensityRank(r.intensity) ?? 0) >= INTENSITY_5_LOWER_RANK)).map(
-      shortPrefName,
-    ),
-  );
-  // 閾値超かつ5弱以上が1件以上あるときだけ出す (0件なら計器のみで打ち切る)
-  const showPrefectureList = $derived(input.regions.length > EEW_STATIC_LIST_MAX && prefectureFlatList.length > 0);
-  // フラット県名リストの文字サイズは県数駆動 (少数ほど大きく、上限あり)。panel-scale に追従させる
-  const prefListTier = $derived(eewPrefListFontTier(prefectureFlatList.length));
-  const prefListNamesStyle = $derived(`font-size: calc(${prefListTier.fontSizePx}px * var(--panel-scale, 1));`);
 </script>
 
-<div class="eew-panel role-{role}" class:compact>
+<div class="eew-panel role-{role}" class:compact class:emphasized>
   <div class="heading">
     <span class="heading-text">緊急地震速報 {input.isWarning ? "(警報)" : "(予報)"}</span><span class="serial">第{input.serial ?? "-"}報{input.isFinal ? "・最終" : ""}</span>
   </div>
@@ -116,10 +131,12 @@
            中で 6 文字は幅が突出し折返しやすいと判断し、4 文字の「最終更新」に短縮した
            (compact モードは flex:0 0 auto の横並びチップなので長さの影響は小さいが、
            非 compact ヒーロー表示側の等分割を優先して判断) -->
-      <div class="tile stat-tile">
-        <span class="stat-label">最終更新</span>
-        <span class="stat-value"><RollingNumber value={formatHms(input.reportDateTime)} /></span>
-      </div>
+      {#if input.originTime != null}
+        <div class="tile stat-tile">
+          <span class="stat-label">発生時刻</span>
+          <span class="stat-value"><RollingNumber value={formatHms(input.originTime)} /></span>
+        </div>
+      {/if}
     </div>
     {#if topBucket != null}
       <div class="tile agg-tile">
@@ -150,11 +167,17 @@
           {/each}
         </div>
       </div>
-    {:else if showPrefectureList}
-      <div class="tile tile-regions">
-        <div class="pref-flat-list">
-          <span class="pref-flat-label">震度5弱以上</span>
-          <span class="pref-flat-names" style={prefListNamesStyle}>{prefectureFlatList.join(" ")}</span>
+    {:else if showRegionPages && currentRegionPage != null}
+      <div class="tile tile-regions region-pages">
+        <div class="region-page-header"><span>予測地域</span><PageDots total={regionCycler.total} current={regionCycler.index} onJump={(i) => regionCycler.jumpTo(i)} /></div>
+        <div class="region-page-body" use:measureHeight={measureRegionArea}>
+          <div class="region-row region-line-ruler" aria-hidden="true" use:measureBorderHeight={measureRegionLine}>
+            <span class="region-intensity">震度{topBucket?.intensity ?? "-"}</span>
+            <span class="region-names">{regionMeasureSample}</span>
+          </div>
+          {#each currentRegionPage.sections as section (section.intensity)}
+            <div class="region-row"><span class="region-intensity int-r{section.rank}">震度{section.intensity}</span><span class="region-names">{section.regions.map((r) => r.name).join(" ")}</span></div>
+          {/each}
         </div>
       </div>
     {/if}
@@ -163,7 +186,7 @@
 
 <style>
   .eew-panel {
-    container-type: inline-size;
+    container-type: size;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -191,6 +214,10 @@
     background: var(--header-eewWarning-container);
     color: var(--header-eewWarning-on);
     border-bottom: var(--header-band-width) solid var(--header-band-eewWarning);
+  }
+  .eew-panel.emphasized .heading {
+    filter: brightness(0.82);
+    font-weight: var(--type-title-weight-emphasized);
   }
   .serial {
     margin-left: var(--space-5);
@@ -291,6 +318,15 @@
     overflow: hidden;
     padding: var(--space-4) var(--space-5);
   }
+  .region-pages { display: flex; flex-direction: column; gap: var(--space-2); }
+  .region-page-header { display: flex; align-items: center; justify-content: space-between; color: var(--role-muted); font-size: var(--type-label-m-size); }
+  .region-page-body { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+  .region-line-ruler {
+    position: absolute;
+    inset: 0 0 auto;
+    visibility: hidden;
+    pointer-events: none;
+  }
   .region-list {
     width: 100%;
     line-height: 1.2;
@@ -317,7 +353,7 @@
     gap: var(--space-3);
     font-size: inherit;
     break-inside: avoid;
-    margin-bottom: var(--space-1);
+    padding-bottom: var(--space-1);
   }
   .region-intensity {
     flex: 0 0 auto;
@@ -335,24 +371,6 @@
     columns: unset;
     column-rule: none;
   }
-  /* 震度5弱以上の都道府県フラットリスト (>10 地域、spec §2-a 2026-07-09 改訂)。震度別の行分けは
-     せず 1 本化し、行頭に分類ラベルを小さく添える (原則3: 任意の瞬間が単独で読める) */
-  .pref-flat-list {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-3);
-    line-height: 1.4;
-  }
-  .pref-flat-label {
-    flex: 0 0 auto;
-    font-size: var(--type-label-m-size);
-    color: var(--role-muted);
-  }
-  .pref-flat-names {
-    overflow-wrap: anywhere;
-  }
-
   /* compact (main-stack 非 main スロット): ヒーロー部を凝縮しリスト領域にカード高を渡す
      (第3波 Fix20)。震央名は display-m(44px) → headline-m(32px) へ2段降格し、推定最大震度と
      近接2行にする。M/深さ/長周期の stat タイルは箱型をやめ、既存チップ文法 (radius-full +

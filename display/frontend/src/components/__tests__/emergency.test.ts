@@ -37,6 +37,7 @@ function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
     magnitude: "6.1",
     colorIndex: null,
     reportDateTime: "2026-07-07T10:00:00+09:00",
+    originTime: null,
     isAssumedHypocenter: false,
     depth: "30km",
     maxLgInt: null,
@@ -1442,6 +1443,22 @@ describe("EmergencyScreen", () => {
 
   // 詳細ページング (T5a: spec §3/§4)
   describe("QuakePanel: 詳細ページング", () => {
+    it("本文 budget 20 満杯でも最初の section 見出しを含めて 2 ページに割る", () => {
+      const areas = Array.from({ length: 20 }, (_, i) => `高知県市町村${i}`);
+      const { container } = render(EmergencyScreen, {
+        panels: [
+          panel(
+            "quake:1",
+            quakeInput({
+              intensityGroups: [{ intensity: "7", rank: 9, areas, omittedAreaCount: 11 }],
+            }),
+          ),
+        ],
+      });
+
+      expectCurrentDot(container.querySelector(".tile-page-detail"), 1, 2);
+    });
+
     it("静的リスト (totalEffective<=30) では .tile-groups の全件を静的表示し、ページャは出さない", () => {
       const { container } = render(EmergencyScreen, {
         panels: [
@@ -1523,7 +1540,7 @@ describe("EmergencyScreen", () => {
       const page = container.querySelector(".tile-page-detail");
       expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
       expect(page?.querySelector(".page-count")?.textContent).toBe("10県153市町村");
-      expectCurrentDot(page, 1, 10);
+      expectCurrentDot(page, 1, 11);
     });
 
     it("1県がバジェット超なら続きラベルを付けてページをまたぐ (大県分断)", () => {
@@ -1561,11 +1578,11 @@ describe("EmergencyScreen", () => {
             ),
           ],
         });
-        expectCurrentDot(container, 1, 3);
+        expectCurrentDot(container, 1, 4);
 
         vi.advanceTimersByTime(PAGE_HOLD_MS * 2);
         settleFade();
-        expectCurrentDot(container, 3, 3);
+        expectCurrentDot(container, 3, 4);
 
         // 下降 (rank 7→5、同一 eventId): リセットしない
         await rerender({
@@ -1581,7 +1598,7 @@ describe("EmergencyScreen", () => {
           ],
         });
         settleFade();
-        expectCurrentDot(container, 3, 3);
+        expectCurrentDot(container, 3, 4);
 
         // 同値 (rank 5→5): リセットしない
         await rerender({
@@ -1597,7 +1614,7 @@ describe("EmergencyScreen", () => {
           ],
         });
         settleFade();
-        expectCurrentDot(container, 3, 3);
+        expectCurrentDot(container, 3, 4);
 
         // 上昇 (rank 5→9、同一 eventId): 先頭ページに戻る
         await rerender({
@@ -1613,7 +1630,7 @@ describe("EmergencyScreen", () => {
           ],
         });
         settleFade();
-        expectCurrentDot(container, 1, 3);
+        expectCurrentDot(container, 1, 4);
       } finally {
         vi.useRealTimers();
       }
@@ -1646,7 +1663,7 @@ describe("EmergencyScreen", () => {
       const source = readFileSync(join(__dirname, "..", "QuakePanel.svelte"), "utf-8");
       expect(source).toContain("cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET)");
       expect(source).toContain("use:measureHeight={applyPageBodyArea}");
-      expect(source).toContain("paginateAreas(input.intensityGroups, cityBudget)");
+      expect(source).toContain("paginateAreas(input.intensityGroups, cityBudget, { allowCrossIntensity: true })");
     });
 
     it("ページ切替は {#key cycler.index} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {

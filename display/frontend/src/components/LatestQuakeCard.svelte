@@ -54,7 +54,7 @@
   // T8① でドットインジケータ (PageDots) に撤去済み。ドット列のグループ境界 gap 機能は
   // preview 目視レビューで「間隔が不揃いに見える」と不評だったため T8⑤ で撤去し、pageGroupMeta
   // ベースの境界計算も不要になった (削除済み)
-  const pages = $derived(paging ? paginateAreas(quake.intensityGroups, cityBudget) : []);
+  const pages = $derived(paging ? paginateAreas(quake.intensityGroups, cityBudget, { allowCrossIntensity: true }) : []);
 
   // 別イベント (eventId 変化) か、同一イベントの続報で severityTier (地震は最大震度 rank) が
   // 「上昇」したときにページを先頭に戻す。下降・同値ではリセットしない (spec §3、Codex R
@@ -148,22 +148,22 @@
               >
                 <div class="page-header">
                   <span class="page-title">観測震度 詳細</span>
-                  <span class="g-int int-r{currentPage.rank}">震度{currentPage.intensity}</span>
-                  <span class="page-count">{currentPage.prefectureCount}県{currentPage.cityCount}市町村</span>
                   <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
                 </div>
                 <ul class="page-body" use:measureHeight={(h) => (pageBodyAreaHeight = h)}>
                   <li class="line-ruler" aria-hidden="true" use:measureHeight={(h) => (pageBodyLineHeight = h)}
                     >測</li
                   >
-                  {#each currentPage.prefGroups as pg (pg.pref ?? "その他")}
-                    <li class="pref-group">
-                      <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
-                      {#if pg.cities.length > 0}
-                        <span class="cities">
-                          {#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}
-                        </span>
-                      {/if}
+                  {#each currentPage.sections as section (section.intensity)}
+                    <li class="page-section">
+                      <span class="g-int int-r{section.rank}">震度{section.intensity}</span>
+                      <span class="page-count">{section.prefectureCount}県{section.cityCount}市町村</span>
+                      {#each section.prefGroups as pg (pg.pref ?? "その他")}
+                        <div class="pref-group">
+                          <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
+                          {#if pg.cities.length > 0}<span class="cities">{#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}</span>{/if}
+                        </div>
+                      {/each}
                     </li>
                   {/each}
                 </ul>

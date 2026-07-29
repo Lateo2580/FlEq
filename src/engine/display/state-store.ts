@@ -30,6 +30,7 @@ import {
 } from "./types";
 import type { Vpws50CurrentAreasForDisplay } from "../../types";
 import { intensityToRank } from "../../utils/intensity";
+import { jstDayKey } from "../../utils/jst-day-key";
 import { quakeCardTtlMs, shouldReplaceLatestQuake } from "./quake-card-selection";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import {
@@ -124,7 +125,7 @@ export class DisplayStateStore {
       changed = true;
     }
     if (dto.recentQuake != null) {
-      changed = this.applyRecentQuake(dto.recentQuake) || changed;
+      changed = this.applyRecentQuake(dto.recentQuake, nowMs) || changed;
     }
     if (dto.latestQuake != null) {
       changed = this.applyLatestQuake(dto.latestQuake, nowMs) || changed;
@@ -176,7 +177,9 @@ export class DisplayStateStore {
     return false;
   }
 
-  private applyRecentQuake(q: DisplayRecentQuakeV1): boolean {
+  private applyRecentQuake(q: DisplayRecentQuakeV1, nowMs: number): boolean {
+    // 「今日」は暦日 JST。時刻が壊れている電文は表示を捏造せず除外する。
+    if (quakeDayKey(q) !== jstDayKey(nowMs)) return false;
     if (q.eventId != null) {
       this.recentQuakes = this.recentQuakes.filter((r) => r.eventId !== q.eventId);
     }
@@ -205,6 +208,12 @@ export class DisplayStateStore {
     // SSE 無客中は気象点灯の時計だけを止める。他 domain の lifecycle は従来どおり進める
     if (sweepWeatherPromotions) {
       changed = this.promotions.sweepDemote(nowMs) || changed;
+    }
+    const today = jstDayKey(nowMs);
+    const currentRecent = this.recentQuakes.filter((q) => quakeDayKey(q) === today);
+    if (currentRecent.length !== this.recentQuakes.length) {
+      this.recentQuakes = currentRecent;
+      changed = true;
     }
     changed = this.quakeExtreme.sweep(nowMs) || changed;
     if (this.latestQuake != null &&
@@ -400,6 +409,13 @@ export class DisplayStateStore {
       standbyItems: this.standbyItemsProvider?.() ?? [],
     };
   }
+}
+
+/** originTime を優先し、欠落時だけ reportDateTime を使う。無効な ISO は null。 */
+export function quakeDayKey(q: DisplayRecentQuakeV1): string | null {
+  const value = q.originTime ?? q.reportDateTime;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? null : jstDayKey(ms);
 }
 
 function compareSerial(a: string | null, b: string | null): number {

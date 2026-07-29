@@ -62,6 +62,7 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     isAssumedHypocenter: info.isAssumedHypocenter,
 
     hypocenterName: info.earthquake?.hypocenterName ?? null,
+    originTime: info.earthquake?.originTime ?? null,
     latitude: info.earthquake?.latitude ?? null,
     longitude: info.earthquake?.longitude ?? null,
     depth: info.earthquake?.depth ?? null,

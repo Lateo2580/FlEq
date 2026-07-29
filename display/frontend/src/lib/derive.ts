@@ -24,6 +24,14 @@ function assertNever(value: never): never {
   throw new Error(`未処理の緊急パネル kind: ${JSON.stringify(value)}`);
 }
 
+function comparableMagnitude(value: string | null): number {
+  if (value == null) return Number.NEGATIVE_INFINITY;
+  const normalized = value.trim();
+  if (normalized.length === 0) return Number.NEGATIVE_INFINITY;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
 // 優先順位 (spec C §3、ユーザー決定 2026-07-25):
 //   大津波警報 > 津波警報 > 津波注意報 > EEW 警報 > EEW 予報 > largeQuake > 気象 (L5/L4)
 // 津波カードは情報量が最も多く警報が長時間継続するため、存在時は必ず主役スロット (左列) に固定する
@@ -49,6 +57,25 @@ function priorityOf(e: EmergencyPanelInputV1): number {
   }
 }
 
+/**
+ * 緊急パネルの安定順。EEW 同士だけは強い予測を先頭にし、同値なら M、発生時刻、eventId で決める。
+ * 種別をまたぐ優先順位は従来どおり priorityOf が権威である。
+ */
+export function compareEmergencyPanels(a: EmergencyPanelModel, b: EmergencyPanelModel): number {
+  const priority = priorityOf(a.input) - priorityOf(b.input);
+  if (priority !== 0) return priority;
+  if (a.input.kind !== "eew" || b.input.kind !== "eew") return a.key.localeCompare(b.key);
+
+  const rank = (b.input.forecastMaxIntRank ?? -1) - (a.input.forecastMaxIntRank ?? -1);
+  if (rank !== 0) return rank;
+  const aMagnitude = comparableMagnitude(a.input.magnitude);
+  const bMagnitude = comparableMagnitude(b.input.magnitude);
+  if (aMagnitude !== bMagnitude) return bMagnitude > aMagnitude ? 1 : -1;
+  const time = (a.input.originTime ?? "").localeCompare(b.input.originTime ?? "");
+  if (time !== 0) return time;
+  return (a.input.eventId ?? "").localeCompare(b.input.eventId ?? "");
+}
+
 export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelModel[] {
   const snap = s.snapshot;
   if (snap == null) return [];
@@ -70,7 +97,7 @@ export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelMode
   snap.largeQuakes.forEach((q, i) => {
     panels.push({ key: `quake:${q.eventId ?? `idx${i}`}`, input: q });
   });
-  return panels.sort((a, b) => priorityOf(a.input) - priorityOf(b.input));
+  return panels.sort(compareEmergencyPanels);
 }
 
 export function deriveMode(s: DisplayClientState): ScreenMode {

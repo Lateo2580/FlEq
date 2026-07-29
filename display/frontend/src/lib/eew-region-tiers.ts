@@ -22,6 +22,26 @@ export interface EewRegionFontTier {
   fontSizePx: number;
 }
 
+export interface EewRegionPage {
+  sections: Array<{ intensity: string; rank: number; regions: DisplayEewRegionV1[] }>;
+}
+
+import type { DisplayEewRegionV1 } from "./protocol";
+import { intensityRank } from "./format";
+
+/** 強度ごとの意味を保ったまま、地域数バジェットで EEW ページを作る。 */
+export function paginateEewRegions(regions: DisplayEewRegionV1[], budget: number): EewRegionPage[] {
+  const buckets = new Map<string, DisplayEewRegionV1[]>();
+  for (const region of regions) buckets.set(region.intensity, [...(buckets.get(region.intensity) ?? []), region]);
+  const pages: EewRegionPage[] = [];
+  for (const [intensity, items] of [...buckets].sort((a, b) => (intensityRank(b[0]) ?? 0) - (intensityRank(a[0]) ?? 0))) {
+    for (let start = 0; start < items.length; start += budget) {
+      pages.push({ sections: [{ intensity, rank: intensityRank(intensity) ?? 0, regions: items.slice(start, start + budget) }] });
+    }
+  }
+  return pages;
+}
+
 // compact: main-stack の非 main スロット (kiosk はスクロール不可、縦幅が乏しい)。
 // 非 compact: full (1枚) / main-stack の主役スロット (縦横とも余裕がある)。
 export function eewRegionFontTier(count: number, compact: boolean): EewRegionFontTier {
@@ -41,23 +61,7 @@ export function eewRegionFontTier(count: number, compact: boolean): EewRegionFon
   return { fontSizePx: 16 };
 }
 
-// 旧: compact は kiosk でスクロールできないため、理論上限を超える件数は打ち切って
-// 「ほか N 地域」で逃がす安全弁だった。第3波 Fix19 でこの cap は撤廃され、その後「固定サマリ
-// 計器 + ページング」転換 (T4/T5) で region リストの自動スクロール自体も撤去された。現在は
-// 閾値以下 (EEW_STATIC_LIST_MAX) のときだけ全件を静的表示し、閾値超は震度5弱以上の都道府県
-// フラットリストへ切り替える (EewPanel.svelte、spec §2-a)。
-
-// EEW フラット県名リスト (spec §2-a、閾値超 (>10 地域) のときの震度5弱以上の都道府県フラット
-// リスト) の件数 → フォントサイズ判定。eewRegionFontTier と同じ件数駆動 tier の流儀。
-// 対象は都道府県 (最大 47 distinct) なので region リストより件数レンジが狭く、少数ほど大きく
-// 読める上限を持たせつつ (1 県などで見出し級まで肥大しないよう上限あり)、多数側は現行の
-// region リスト下限 (16px) と揃える。閾値・段数は preview 目視で調整する前提の暫定値
-export function eewPrefListFontTier(count: number): EewRegionFontTier {
-  // 2026-07-09 preview 目視レビュー: 拡大にもう少し寛容に、と 1 段ずつ引き上げ (24/19/16 → 32/24/19)
-  if (count <= 8) return { fontSizePx: 32 }; // 上限: headline-m 級 (1 県でもこれ以上は肥大させない)
-  if (count <= 20) return { fontSizePx: 24 }; // 中間: title-m 級
-  return { fontSizePx: 19 }; // 下限: body-l 級 (47 都道府県全部でも読める)
-}
+// 閾値以下 (EEW_STATIC_LIST_MAX) は全件を静的表示し、閾値超は強度別ページャへ切り替える。
 
 // EEW 静的リスト (.region-list) の 2 列分割閾値 (T8⑥)。行数 = 震度バケツ数 (EewPanel.svelte の
 // buckets.length、.region-row 1 行 = 1 バケツ)。preview 調整前提の暫定値

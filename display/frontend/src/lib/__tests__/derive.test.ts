@@ -39,7 +39,7 @@ function eewFixture(over: Partial<DisplayActiveEewV1> = {}): DisplayActiveEewV1 
   return {
     kind: "eew", eventId: "E1", serial: "1", isWarning: true, isFinal: false, isCancellation: false,
     hypocenterName: null, forecastMaxInt: null, forecastMaxIntRank: null, magnitude: null,
-    colorIndex: null, reportDateTime: "t", updatedAtMs: 0,
+    colorIndex: null, reportDateTime: "t", originTime: null, updatedAtMs: 0,
     isAssumedHypocenter: false, depth: null, maxLgInt: null, regions: [],
     ...over,
   };
@@ -166,6 +166,49 @@ describe("deriveEmergencyPanels", () => {
     const keys = deriveEmergencyPanels(state).map((p) => p.key);
     expect(keys.length).toBe(4);
     expect(new Set(keys).size).toBe(keys.length); // Svelte keyed each の重複 key クラッシュ予防
+  });
+
+  it("同種の複数 EEW は予測最大震度、M、発生時刻、eventId の順で安定整列する", () => {
+    const state = baseState({
+      activeEews: [
+        eewFixture({ eventId: "E-late", forecastMaxIntRank: 6, magnitude: "6.0", originTime: "2026-07-29T10:01:00+09:00" }),
+        eewFixture({ eventId: "E-strong", forecastMaxIntRank: 7, magnitude: "5.0", originTime: "2026-07-29T10:02:00+09:00" }),
+        eewFixture({ eventId: "E-magnitude", forecastMaxIntRank: 6, magnitude: "7.0", originTime: "2026-07-29T10:03:00+09:00" }),
+      ],
+    });
+    expect(deriveEmergencyPanels(state).map((panel) => panel.key)).toEqual(["eew:E-strong", "eew:E-magnitude", "eew:E-late"]);
+  });
+
+  it("非数値 magnitude は最劣後とし、同値なら後続 tie-break へ進む", () => {
+    const state = baseState({
+      activeEews: [
+        eewFixture({ eventId: "E-invalid-late", forecastMaxIntRank: 6, magnitude: "不明", originTime: "2026-07-29T10:02:00+09:00" }),
+        eewFixture({ eventId: "E-valid", forecastMaxIntRank: 6, magnitude: "6.0", originTime: "2026-07-29T10:03:00+09:00" }),
+        eewFixture({ eventId: "E-invalid-early", forecastMaxIntRank: 6, magnitude: "-", originTime: "2026-07-29T10:01:00+09:00" }),
+      ],
+    });
+
+    expect(deriveEmergencyPanels(state).map((panel) => panel.key)).toEqual([
+      "eew:E-valid",
+      "eew:E-invalid-early",
+      "eew:E-invalid-late",
+    ]);
+  });
+
+  it("空・空白だけの magnitude は M0 ではなく最劣後として扱う", () => {
+    const state = baseState({
+      activeEews: [
+        eewFixture({ eventId: "E-whitespace", forecastMaxIntRank: 6, magnitude: "   ", originTime: "2026-07-29T10:02:00+09:00" }),
+        eewFixture({ eventId: "E-zero", forecastMaxIntRank: 6, magnitude: "0", originTime: "2026-07-29T10:03:00+09:00" }),
+        eewFixture({ eventId: "E-empty", forecastMaxIntRank: 6, magnitude: "", originTime: "2026-07-29T10:01:00+09:00" }),
+      ],
+    });
+
+    expect(deriveEmergencyPanels(state).map((panel) => panel.key)).toEqual([
+      "eew:E-zero",
+      "eew:E-empty",
+      "eew:E-whitespace",
+    ]);
   });
 
   // ── Spec C Phase 2: 気象警報の主役化 ──

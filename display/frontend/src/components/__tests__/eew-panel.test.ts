@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/svelte";
+import { flushSync } from "svelte";
 import EewPanel from "../EewPanel.svelte";
 import type { DisplayEewInputV1, DisplayEewRegionV1 } from "../../lib/protocol";
+import { expectCurrentDot } from "./page-dots-test-utils";
 
 function region(name: string, over: Partial<DisplayEewRegionV1> = {}): DisplayEewRegionV1 {
   return { name, intensity: "4", intensityTo: null, isPlum: false, hasArrived: false, arrivalTime: null, ...over };
@@ -23,6 +25,7 @@ function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
     magnitude: "6.1",
     colorIndex: null,
     reportDateTime: "2026-07-07T10:00:00+09:00",
+    originTime: null,
     isAssumedHypocenter: false,
     depth: "30km",
     maxLgInt: null,
@@ -32,13 +35,9 @@ function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
 }
 
 describe("EewPanel 固定サマリ計器 (T4a)", () => {
-  // T8④ (preview 目視指摘): 値は reportDateTime (当該報の受信時刻) であり「次の続報」
-  // ではないため、ラベルを「続報」から「最終更新」に変更した (「最終更新時刻」はタイル幅の
-  // 等分割で兄弟ラベル (M/深さ/長周期、1〜3文字) より突出するため4文字に短縮、詳細は
-  // EewPanel.svelte のコメント参照)
-  it("受信時刻を formatHms で「最終更新」stat タイルとして表示する", () => {
-    const { container } = render(EewPanel, { input: eewInput({ reportDateTime: "2026-07-07T09:17:18+09:00" }) });
-    expect(screen.getByText("最終更新")).toBeTruthy();
+  it("originTime があるときだけ発生時刻を表示する", () => {
+    const { container } = render(EewPanel, { input: eewInput({ originTime: "2026-07-07T09:17:18+09:00" }) });
+    expect(screen.getByText("発生時刻")).toBeTruthy();
     expect(container.querySelector('.stat-value [data-value="09:17:18"]')).toBeTruthy();
   });
 
@@ -149,97 +148,93 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(source).not.toMatch(/\.region-list\s*\{[^}]*column-rule: 1px solid var\(--hairline\);/);
   });
 
-  it("N=11 (境界超): 震度5弱以上の都道府県フラットリストを 1 本で render する。震度別の行分けはしない (spec §2-a 2026-07-09 改訂)", () => {
-    const regions = [
-      region("高知県高知市", { intensity: "7" }),
-      region("高知県室戸市", { intensity: "7" }), // 同一県の別市区町村 → 短縮名は 1 回だけに集約
-      region("徳島県徳島市", { intensity: "7" }),
-      region("愛知県名古屋市", { intensity: "7" }),
-      region("静岡県静岡市", { intensity: "7" }),
-      region("三重県津市", { intensity: "7" }),
-      region("和歌山県和歌山市", { intensity: "7" }),
-      region("宮崎県宮崎市", { intensity: "7" }),
-      region("大分県大分市", { intensity: "7" }),
-      region("大阪府大阪市", { intensity: "6強" }),
-      region("兵庫県神戸市", { intensity: "6強" }),
-    ];
+  it("N=11 を超える地域は強度セクションを保ったページ表示へ移る", () => {
+    const regions = [...Array.from({ length: 10 }, (_, i) => region(`地域${i}`, { intensity: "7" })), region("地域11", { intensity: "6強" })];
     const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    // 震度別の行分け (region-row) はしない (旧仕様の撤去確認)
-    expect(container.querySelector(".region-row")).toBeFalsy();
-    // 分類ラベルを行頭に添える
-    expect(container.querySelector(".pref-flat-label")?.textContent).toBe("震度5弱以上");
-    const names = (container.querySelector(".pref-flat-names")?.textContent ?? "").split(" ").filter(Boolean);
-    expect(names).toEqual(["高知", "徳島", "愛知", "静岡", "三重", "和歌山", "宮崎", "大分", "大阪", "兵庫"]); // 短縮名・地域出現順
-    expect(names.filter((n) => n === "高知").length).toBe(1); // 同一県は重複しない
-  });
-
-  it("短縮名変換: 都/府/県 サフィックスを除去し、北海道はそのまま残す", () => {
-    const regions = [
-      region("東京都新宿区", { intensity: "6強" }),
-      region("大阪府大阪市", { intensity: "6強" }),
-      region("京都府京都市", { intensity: "6強" }),
-      region("北海道札幌市", { intensity: "6強" }),
-      region("静岡県静岡市", { intensity: "6強" }),
-      ...Array.from({ length: 6 }, (_, i) => region(`地域${i}`, { intensity: "4" })),
-    ];
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const names = (container.querySelector(".pref-flat-names")?.textContent ?? "").split(" ").filter(Boolean);
-    expect(names).toEqual(["東京", "大阪", "京都", "北海道", "静岡"]);
-  });
-
-  it("震度5弱未満の region は都道府県フラットリストに出ない", () => {
-    const regions = [
-      region("静岡県静岡市", { intensity: "6強" }),
-      ...Array.from({ length: 10 }, (_, i) => region(`愛知県愛知市${i}`, { intensity: "4" })), // 5弱未満 (震度4)
-    ];
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const names = (container.querySelector(".pref-flat-names")?.textContent ?? "").split(" ").filter(Boolean);
-    expect(names).toEqual(["静岡"]); // 震度4の愛知県は含まない
-  });
-
-  it("N=45 でも地域名 (市区町村) は出さず、都道府県フラットリストへ抽象化する (重複県は畳む)", () => {
-    const prefs = ["北海道", "青森県", "岩手県", "宮城県", "秋田県"];
-    const regions = Array.from({ length: 45 }, (_, i) =>
-      region(`${prefs[i % prefs.length]}${i}市`, { intensity: i < 30 ? "5弱" : "4" }),
-    );
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const names = (container.querySelector(".pref-flat-names")?.textContent ?? "").split(" ").filter(Boolean);
-    expect(names.length).toBe(5); // 5 県への重複除去 (震度4 は5弱未満なので混在しない)
-    expect(screen.queryByText(/北海道0市/)).toBeFalsy(); // 地域名 (市区町村) 自体は出ない
-  });
-
-  it("閾値超でも震度5弱以上が0件なら都道府県フラットリストを出さず、計器のみで打ち切る", () => {
-    const regions = Array.from({ length: 11 }, (_, i) => region(`地域${i}`, { intensity: "4" })); // 全件5弱未満
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    expect(container.querySelector(".tile-regions")).toBeFalsy();
+    expect(container.querySelector(".region-pages")).toBeTruthy();
+    expect(container.querySelector(".region-page-header")?.textContent).toContain("予測地域");
+    expect(container.querySelector(".region-row")?.textContent).toContain("震度7");
     expect(container.querySelector(".pref-flat-list")).toBeFalsy();
-    expect(container.querySelector(".agg-tile")).toBeTruthy(); // 計器は生存
   });
 
-  it("フラット県名リストの文字サイズは県数駆動: 少数 (8県以下) は上限サイズ 32px", () => {
-    const regions = [
-      region("高知県", { intensity: "7" }),
-      region("徳島県", { intensity: "7" }),
-      region("愛知県", { intensity: "7" }),
-      ...Array.from({ length: 8 }, (_, i) => region(`地域${i}`, { intensity: "4" })), // 計 11 件で >10 を満たす
-    ];
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const names = container.querySelector(".pref-flat-names") as HTMLElement | null;
-    expect(names).toBeTruthy();
-    expect(names!.getAttribute("style")).toContain("font-size: calc(32px * var(--panel-scale, 1));");
+  it("整定中の実測値を保留し、解除後は fallback 10 から実測容量へ更新する", async () => {
+    const originalResizeObserver = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+    class EewResizeObserver {
+      constructor(private callback: (entries: unknown[]) => void) {}
+      observe(element: Element): void {
+        const height = element.classList.contains("region-page-body")
+          ? 100
+          : element.classList.contains("region-line-ruler")
+            ? 20
+            : 0;
+        this.callback([{ contentRect: { height }, borderBoxSize: [{ blockSize: height }], target: element }]);
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = EewResizeObserver;
+
+    try {
+      const regions = Array.from({ length: 11 }, (_, i) => region(`地域${i}`, { intensity: "7" }));
+      const { container, rerender } = render(EewPanel, { input: eewInput({ regions }), settling: true });
+      flushSync();
+      expectCurrentDot(container.querySelector(".region-pages"), 1, 2);
+
+      await rerender({ input: eewInput({ regions }), settling: false });
+      flushSync();
+      expectCurrentDot(container.querySelector(".region-pages"), 1, 3);
+    } finally {
+      if (originalResizeObserver === undefined) {
+        delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+      } else {
+        (globalThis as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
+      }
+    }
   });
 
-  it("フラット県名リストの文字サイズは県数駆動: 多数 (21県以上) は下限サイズ 19px に段階縮小する", () => {
-    const prefs = [
-      "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
-      "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
-      "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
-    ]; // 21 県 distinct
-    const regions = prefs.map((p) => region(`${p}某市`, { intensity: "6強" }));
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const names = container.querySelector(".pref-flat-names") as HTMLElement | null;
-    expect(names).toBeTruthy();
-    expect(names!.getAttribute("style")).toContain("font-size: calc(19px * var(--panel-scale, 1));");
+  it("長い地域名で代表行が折り返す場合は、その実行高を使って安全側にページを割る", () => {
+    const originalResizeObserver = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+    const longName = "非常に長い地域名".repeat(8);
+    class WrappingResizeObserver {
+      constructor(private callback: (entries: unknown[]) => void) {}
+      observe(element: Element): void {
+        const height = element.classList.contains("region-page-body")
+          ? 100
+          : element.classList.contains("region-line-ruler") && element.textContent?.includes(longName)
+            ? 40
+            : 20;
+        this.callback([{ contentRect: { height }, borderBoxSize: [{ blockSize: height }], target: element }]);
+      }
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = WrappingResizeObserver;
+
+    try {
+      const regions = [
+        region(longName, { intensity: "7" }),
+        ...Array.from({ length: 10 }, (_, i) => region(`地域${i}`, { intensity: "7" })),
+      ];
+      const { container } = render(EewPanel, { input: eewInput({ regions }) });
+      flushSync();
+
+      expect(container.querySelector(".region-line-ruler")?.classList.contains("region-row")).toBe(true);
+      // 100px / 折返し行 40px = 2 地域/頁。1行 20px と誤認すると 3 頁になる。
+      expectCurrentDot(container.querySelector(".region-pages"), 1, 6);
+    } finally {
+      if (originalResizeObserver === undefined) {
+        delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+      } else {
+        (globalThis as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
+      }
+    }
+  });
+
+  it("pager 移行前の都道府県フラットリスト経路を残さない", () => {
+    const source = readFileSync(join(__dirname, "..", "EewPanel.svelte"), "utf-8");
+    expect(source).not.toContain("eewPrefListFontTier");
+    expect(source).not.toContain("prefectureFlatList");
+    expect(source).not.toContain("pref-flat");
   });
 
   it("到達時刻情報 (arrivalLabel/region-arrival) を全廃している", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AVG_CITIES_PER_LINE,
+  DETAIL_SECTION_HEADER_WEIGHT,
   EEW_STATIC_LIST_MAX,
   PAGE_CITY_BUDGET,
   STATIC_LIST_MAX,
@@ -344,12 +345,13 @@ describe("paginateAreas", () => {
     expect(pages[0].prefGroups).toHaveLength(1);
     expect(pages[0].prefGroups[0].pref).toBe("高知県");
     expect(pages[0].prefGroups[0].continuation).toBe(false);
-    expect(pages[0].prefGroups[0].cities).toHaveLength(PAGE_CITY_BUDGET);
+    const contentCapacity = PAGE_CITY_BUDGET - DETAIL_SECTION_HEADER_WEIGHT;
+    expect(pages[0].prefGroups[0].cities).toHaveLength(contentCapacity);
 
     expect(pages[1].prefGroups).toHaveLength(1);
     expect(pages[1].prefGroups[0].pref).toBe("高知県");
     expect(pages[1].prefGroups[0].continuation).toBe(true);
-    expect(pages[1].prefGroups[0].cities).toHaveLength(31 - PAGE_CITY_BUDGET);
+    expect(pages[1].prefGroups[0].cities).toHaveLength(31 - contentCapacity);
 
     // グループ全体のメタ (県数・市町村数) はどのページでも群全体の値のまま
     for (const page of pages) {
@@ -365,11 +367,11 @@ describe("paginateAreas", () => {
       ...Array.from({ length: 5 }, (_, i) => `愛媛県市町村${i}`),
     ]);
     const pages = paginateAreas([g]);
-    // 高知(10)+徳島(10)=20 はバジェットぴったりで1ページに同居、愛媛(5)は次ページ
+    // 本文容量は見出しを除く16。高知(10)で1ページ、徳島(10)+愛媛(5)で次ページ。
     expect(pages).toHaveLength(2);
-    expect(pages[0].prefGroups.map((pg) => pg.pref)).toEqual(["高知県", "徳島県"]);
+    expect(pages[0].prefGroups.map((pg) => pg.pref)).toEqual(["高知県"]);
     expect(pages[0].prefGroups.every((pg) => !pg.continuation)).toBe(true);
-    expect(pages[1].prefGroups.map((pg) => pg.pref)).toEqual(["愛媛県"]);
+    expect(pages[1].prefGroups.map((pg) => pg.pref)).toEqual(["徳島県", "愛媛県"]);
   });
 
   it("10 県 153 市町村は各県 15〜18 件でバジェット (20) の半分を超えるため、県ごとに1ページとなる (10ページ)", () => {
@@ -389,19 +391,19 @@ describe("paginateAreas", () => {
     const g = group("7", 9, areas);
     const pages = paginateAreas([g]);
 
-    expect(pages).toHaveLength(10);
-    for (const page of pages) {
+    expect(pages).toHaveLength(11);
+    for (const [index, page] of pages.entries()) {
       expect(page.intensity).toBe("7");
       expect(page.rank).toBe(9);
       expect(page.prefectureCount).toBe(10);
       expect(page.cityCount).toBe(153);
-      // 各県 (15〜18件) は単独でバジェット (20) 以内のため分断されない
+      // 最後の18件だけ本文容量16を超えるため2ページ目が continuation になる
       expect(page.prefGroups).toHaveLength(1);
-      expect(page.prefGroups[0].continuation).toBe(false);
+      expect(page.prefGroups[0].continuation).toBe(index === pages.length - 1);
     }
     // 全ページの県バケツを合算すると 10 県ぶんに一致する
     const totalPrefBuckets = pages.reduce((sum, p) => sum + p.prefGroups.length, 0);
-    expect(totalPrefBuckets).toBe(10);
+    expect(totalPrefBuckets).toBe(11);
   });
 
   it("震度グループをまたぐときはページ境界を切る", () => {
@@ -413,6 +415,37 @@ describe("paginateAreas", () => {
     expect(pages[1].intensity).toBe("6強");
     // g6 のページに g7 の県は混在しない
     expect(pages[1].prefGroups).toEqual([{ pref: "宮城県", cities: ["仙台市"], continuation: false }]);
+  });
+
+  it("QuakePanel/LatestQuakeCard 共通モデルは最初の section 見出しもページ予算に含める", () => {
+    const contentCapacity = 20 - DETAIL_SECTION_HEADER_WEIGHT;
+    const exact = paginateAreas([group("7", 9, areasOfLength(contentCapacity))], 20);
+    const budgetFull = paginateAreas([group("7", 9, areasOfLength(20))], 20);
+
+    expect(exact).toHaveLength(1);
+    expect(exact[0].prefGroups[0].cities).toHaveLength(contentCapacity);
+    expect(budgetFull).toHaveLength(2);
+    expect(budgetFull.map((page) => page.prefGroups[0].cities.length)).toEqual([contentCapacity, 4]);
+  });
+
+  it("震度横断併合は反復見出し 1 行分もページ予算に含める", () => {
+    const high = group("7", 9, areasOfLength(9, "高"));
+    const lower = group("6強", 8, areasOfLength(8, "低"));
+    const pages = paginateAreas([high, lower], 20, { allowCrossIntensity: true });
+
+    // 地域だけなら 9 + 8 <= 20 だが、2 section 目の見出し 1 行 (=4) を足すと overflow する。
+    expect(pages).toHaveLength(2);
+    expect(pages.map((page) => page.sections.map((section) => section.intensity))).toEqual([["7"], ["6強"]]);
+  });
+
+  it("反復見出し込みで予算ちょうどなら震度横断併合する", () => {
+    const high = group("7", 9, areasOfLength(9, "高"));
+    const lower = group("6強", 8, areasOfLength(3, "低"));
+    const pages = paginateAreas([high, lower], 20, { allowCrossIntensity: true });
+
+    // 9 + 3 地域 + 2 section 分の見出し (4 * 2) = 20。
+    expect(pages).toHaveLength(1);
+    expect(pages[0].sections.map((section) => section.intensity)).toEqual(["7", "6強"]);
   });
 
   it("areas が空のグループはページを生成しない", () => {

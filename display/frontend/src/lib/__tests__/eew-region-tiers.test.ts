@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   EEW_REGION_LIST_TWO_COLUMN_MIN_ROWS,
-  eewPrefListFontTier,
   eewRegionFontTier,
   eewRegionListColumnCount,
 } from "../eew-region-tiers";
@@ -27,27 +26,6 @@ describe("eewRegionFontTier compact (spec D1: 層1 14px 床)", () => {
     expect(eewRegionFontTier(24, false).fontSizePx).toBe(20);
     expect(eewRegionFontTier(40, false).fontSizePx).toBe(18);
     expect(eewRegionFontTier(41, false).fontSizePx).toBe(16);
-  });
-});
-
-describe("eewPrefListFontTier", () => {
-  it("8 県以下は上限サイズ (32px、1 県でもこれ以上肥大しない)", () => {
-    expect(eewPrefListFontTier(1).fontSizePx).toBe(32);
-    expect(eewPrefListFontTier(8).fontSizePx).toBe(32);
-  });
-
-  it("9〜20 県は中間サイズ (24px)", () => {
-    expect(eewPrefListFontTier(9).fontSizePx).toBe(24);
-    expect(eewPrefListFontTier(20).fontSizePx).toBe(24);
-  });
-
-  it("21 県以上は下限サイズ (19px)", () => {
-    expect(eewPrefListFontTier(21).fontSizePx).toBe(19);
-    expect(eewPrefListFontTier(47).fontSizePx).toBe(19); // 全 47 都道府県でも下限で頭打ち
-  });
-
-  it("0 県 (呼び出し側で非表示にする想定だが、関数自体は上限サイズを返す)", () => {
-    expect(eewPrefListFontTier(0).fontSizePx).toBe(32);
   });
 });
 

@@ -16,6 +16,9 @@
   // 時計は第 3 波でテロップ (Ticker) 右端に移設したため、このコンポーネントは now を持たない
   let { panels }: { panels: EmergencyPanelModel[] } = $props();
 
+  // 同時 EEW では並び替え先頭だけを視覚強調する。主役/副役という文言は表示しない。
+  const emphasizedEewKey = $derived(panels.find((p) => p.input.kind === "eew")?.key ?? null);
+
   const layout = $derived(layoutPanels(panels.length));
 
   // 補間のため右列は常に固定段数 (STACK_ROW_SLOTS) の track を保持する (0fr / 実 fr のトグル +
@@ -182,7 +185,7 @@
   <!-- 全 kind を明示分岐する (フォールスルー撲滅、spec C §3)。else へ落とすと新 kind が黙って
        QuakePanel で描画されるため、末尾は assertNever で型と実行時の両方から塞ぐ -->
   {#if p.input.kind === "eew"}
-    <EewPanel input={p.input} {compact} />
+    <EewPanel input={p.input} {compact} {settling} emphasized={p.key === emphasizedEewKey} />
   {:else if p.input.kind === "tsunami"}
     <TsunamiPanel input={p.input} {compact} layoutSettling={settling} />
   {:else if p.input.kind === "largeQuake"}

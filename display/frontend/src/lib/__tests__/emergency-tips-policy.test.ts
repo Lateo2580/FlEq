@@ -8,7 +8,7 @@ describe("deriveEmergencyCompanionControl", () => {
       activeEews: [{
         kind: "eew", eventId: "E1", serial: null, isWarning: true, isFinal: false, isCancellation: false,
         hypocenterName: null, forecastMaxInt: null, forecastMaxIntRank: null, magnitude: null, colorIndex: null,
-        reportDateTime: "2026-07-29T00:00:00+09:00", isAssumedHypocenter: false, depth: null, maxLgInt: null,
+        reportDateTime: "2026-07-29T00:00:00+09:00", originTime: null, isAssumedHypocenter: false, depth: null, maxLgInt: null,
         regions: [], updatedAtMs: 1,
       }],
       severityTier: "alert",

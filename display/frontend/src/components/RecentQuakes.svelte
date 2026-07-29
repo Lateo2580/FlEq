@@ -31,7 +31,7 @@
 </script>
 
 <div class="recent-quakes">
-  <h2>直近の地震</h2>
+  <h2>今日あった地震</h2>
   <ul>
     {#each shown as q, i (renderKey(q, i))}
       <li>

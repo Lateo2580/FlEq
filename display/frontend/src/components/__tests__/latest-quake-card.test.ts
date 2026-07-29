@@ -235,7 +235,7 @@ describe("LatestQuakeCard", () => {
     expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
     expect(page?.querySelector(".page-count")?.textContent).toBe("2県58市町村");
     // 高知(31)・愛知(27) ともバジェット(20)超のため各県が2ページに分断され、震度7グループ内で計4ページ
-    // + 震度6強グループ (山梨県1件) がページ境界を挟んでもう1ページ → T8① のドットは全ページ (5) を表す
+    // 最終の半端ページは次の震度セクションを同居させるため、全4ページになる
     expectCurrentDot(page, 1, 5);
     expect(page?.querySelector(".pref-name")?.textContent).toBe("高知県");
   });
@@ -353,6 +353,16 @@ describe("LatestQuakeCard", () => {
 
   // 詳細ページング (T5a: spec §3/§4、市町村数バジェット制 review-T5a-2 FIX-A)
   describe("詳細ページング", () => {
+    it("本文 budget 20 満杯でも最初の section 見出しを含めて 2 ページに割る", () => {
+      const areas = Array.from({ length: 20 }, (_, i) => `高知県市町村${i}`);
+      const quake = latestQuake({
+        intensityGroups: [{ intensity: "7", rank: 9, areas, omittedAreaCount: 11 }],
+      });
+      const { container } = render(LatestQuakeCard, { quake });
+
+      expectCurrentDot(container.querySelector(".page-detail"), 1, 2);
+    });
+
     it("10県153市町村は各県 15〜18件でバジェット(20)の半分を超えるため県ごとに1ページ、計10ページに割れる", () => {
       const perPref = Math.floor(153 / 10);
       const areas = tenPrefAreas(perPref);
@@ -366,7 +376,7 @@ describe("LatestQuakeCard", () => {
       expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
       expect(page?.querySelector(".g-int")?.textContent).toContain("震度7");
       expect(page?.querySelector(".page-count")?.textContent).toBe("10県153市町村");
-      expectCurrentDot(page, 1, 10);
+      expectCurrentDot(page, 1, 11);
     });
 
     // 大県分断 (review-T5a-2 FIX-A): 1県がバジェット超のときページをまたいで分割し、
@@ -470,7 +480,7 @@ describe("LatestQuakeCard", () => {
       const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
       expect(source).toContain("cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET)");
       expect(source).toContain('use:measureHeight={(h) => (pageBodyAreaHeight = h)}');
-      expect(source).toContain("paginateAreas(quake.intensityGroups, cityBudget)");
+      expect(source).toContain("paginateAreas(quake.intensityGroups, cityBudget, { allowCrossIntensity: true })");
     });
 
     it("ページ切替は {#key cycler.index} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {

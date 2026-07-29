@@ -43,6 +43,7 @@ describe("fromEewOutcome", () => {
     expect(event.raw).toBe(outcome.parsed);
     expect(event.stateSnapshot?.kind).toBe("eew");
     expect(event.isCancellation).toBe(false);
+    expect(event.originTime).toBe(outcome.parsed.earthquake?.originTime ?? null);
   });
 });
 

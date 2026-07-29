@@ -71,6 +71,7 @@ function projectEmergency(event: PresentationEvent): DisplayEmergencyInputV1 | n
       magnitude: event.magnitude ?? null,
       colorIndex: event.stateSnapshot?.kind === "eew" ? event.stateSnapshot.colorIndex : null,
       reportDateTime: event.reportDateTime,
+      originTime: event.originTime ?? null,
       isAssumedHypocenter: event.isAssumedHypocenter === true,
       depth: normalizeDepth(event.depth),
       maxLgInt: event.maxLgInt ?? null,

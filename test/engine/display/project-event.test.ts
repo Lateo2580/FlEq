@@ -296,7 +296,7 @@ describe("projectDisplayEvent", () => {
   it("EEW を emergency(eew) に射影し colorIndex は stateSnapshot から取る", () => {
     const dto = projectDisplayEvent(
       baseEvent({
-        domain: "eew", type: "VXSE45", eventId: "E1", serial: "3",
+        domain: "eew", type: "VXSE45", eventId: "E1", serial: "3", originTime: "2026-07-29T10:00:00+09:00",
         isWarning: true, isFinal: false, hypocenterName: "能登半島沖",
         forecastMaxInt: "5強", forecastMaxIntRank: 6, magnitude: "6.5",
         frameLevel: "critical",
@@ -304,7 +304,7 @@ describe("projectDisplayEvent", () => {
       }),
       "EEW要約",
     );
-    expect(dto.emergency).toMatchObject({ kind: "eew", eventId: "E1", serial: "3", isWarning: true, colorIndex: 2 });
+    expect(dto.emergency).toMatchObject({ kind: "eew", eventId: "E1", serial: "3", isWarning: true, colorIndex: 2, originTime: "2026-07-29T10:00:00+09:00" });
     expect(dto.groupKey).toBe("eew:E1");
     expect(dto.summary.role).toBe("eewWarning");
     expect(dto.tickerSuppressed).toBe(true);

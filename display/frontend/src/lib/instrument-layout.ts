@@ -198,7 +198,7 @@ export interface DetailPrefGroup extends PrefGroup {
 
 /** 詳細ページング 1 ページ分。ページ番号 (N/M) は呼び出し側で配列の index/length から導出する
  *  (page-cycler の pageCount() getter と二重管理しないため、ここでは埋め込まない) */
-export interface DetailPage {
+export interface DetailPageSection {
   intensity: string;
   rank: number;
   /** このページが属する震度グループの県数 (pref != null の distinct 数、グループ全体) */
@@ -208,6 +208,25 @@ export interface DetailPage {
   /** このページに割り当てられた都道府県ブロック (合計 PAGE_CITY_BUDGET 件以内、県分断時は例外) */
   prefGroups: DetailPrefGroup[];
 }
+
+/** 詳細ページ。sections はページ内の震度別セクションで、既定では常に 1 件である。 */
+export interface DetailPage {
+  sections: DetailPageSection[];
+  /** 旧呼び出し元互換。新規実装は sections を読む。 */
+  intensity: string;
+  rank: number;
+  prefectureCount: number;
+  cityCount: number;
+  prefGroups: DetailPrefGroup[];
+}
+
+export interface PaginateAreasOptions {
+  allowCrossIntensity?: boolean;
+  widowOrphanMinFillRatio?: number;
+}
+
+export const WIDOW_ORPHAN_MIN_FILL_RATIO = 0.5;
+export const DETAIL_SECTION_HEADER_WEIGHT = AVG_CITIES_PER_LINE;
 
 /** 都道府県 1 ブロックがページ内で占める「重み」。cities が空 (地域名が県名そのもの) でも
  *  1 行分の高さは占めるため、重みの下限を 1 にする */
@@ -224,8 +243,11 @@ function prefWeight(pg: PrefGroup): number {
 export function paginateAreas(
   groups: DisplayIntensityGroupV1[],
   budget: number = PAGE_CITY_BUDGET,
+  options: PaginateAreasOptions = {},
 ): DetailPage[] {
-  const pages: DetailPage[] = [];
+  // page-body 内では最初の section にも見出しが付くため、地域へ使える予算から常に 1 行分を引く。
+  const sectionContentBudget = Math.max(1, budget - DETAIL_SECTION_HEADER_WEIGHT);
+  const sections: DetailPageSection[] = [];
   for (const group of groups) {
     const prefGroups = groupByPrefecture(group.areas);
     if (prefGroups.length === 0) continue;
@@ -233,26 +255,26 @@ export function paginateAreas(
     const cityCount = effectiveAreaCount(group);
 
     const pushPage = (bucket: DetailPrefGroup[]): void => {
-      pages.push({ intensity: group.intensity, rank: group.rank, prefectureCount, cityCount, prefGroups: bucket });
+      sections.push({ intensity: group.intensity, rank: group.rank, prefectureCount, cityCount, prefGroups: bucket });
     };
 
     let bucket: DetailPrefGroup[] = [];
     let bucketWeight = 0;
     for (const pg of prefGroups) {
       const weight = prefWeight(pg);
-      if (weight > budget) {
+      if (weight > sectionContentBudget) {
         // 単独県がバジェット超: それまでのバケツを確定してから、この県だけでページをまたいで分割する
         if (bucket.length > 0) {
           pushPage(bucket);
           bucket = [];
           bucketWeight = 0;
         }
-        for (let i = 0; i < pg.cities.length; i += budget) {
-          pushPage([{ pref: pg.pref, cities: pg.cities.slice(i, i + budget), continuation: i > 0 }]);
+        for (let i = 0; i < pg.cities.length; i += sectionContentBudget) {
+          pushPage([{ pref: pg.pref, cities: pg.cities.slice(i, i + sectionContentBudget), continuation: i > 0 }]);
         }
         continue;
       }
-      if (bucketWeight + weight > budget && bucket.length > 0) {
+      if (bucketWeight + weight > sectionContentBudget && bucket.length > 0) {
         pushPage(bucket);
         bucket = [];
         bucketWeight = 0;
@@ -261,6 +283,30 @@ export function paginateAreas(
       bucketWeight += weight;
     }
     if (bucket.length > 0) pushPage(bucket);
+  }
+  const asPage = (pageSections: DetailPageSection[]): DetailPage => {
+    const first = pageSections[0]!;
+    return { sections: pageSections, ...first };
+  };
+  if (options.allowCrossIntensity !== true) return sections.map((section) => asPage([section]));
+
+  const minFill = options.widowOrphanMinFillRatio ?? WIDOW_ORPHAN_MIN_FILL_RATIO;
+  const pages: DetailPage[] = [];
+  for (const section of sections) {
+    const previous = pages.at(-1);
+    const previousSection = previous?.sections[0];
+    const previousWeight = previousSection?.prefGroups.reduce((sum, pg) => sum + prefWeight(pg), 0) ?? 0;
+    const sectionWeight = section.prefGroups.reduce((sum, pg) => sum + prefWeight(pg), 0);
+    // 異なる震度だけを同居させる。前ページが半分未満の widow でも、予算を超えない限り
+    // 次の強度を添えて孤立を避ける。既に複数 section のページは読みやすさ優先で閉じる。
+    if (previous != null && previousSection != null && previous.sections.length === 1
+      && previousSection.intensity !== section.intensity
+      && previousWeight + sectionWeight + (2 * DETAIL_SECTION_HEADER_WEIGHT) <= budget
+      && previousWeight / budget < minFill) {
+      previous.sections.push(section);
+    } else {
+      pages.push(asPage([section]));
+    }
   }
   return pages;
 }

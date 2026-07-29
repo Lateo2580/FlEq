@@ -244,6 +244,14 @@ describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
     expect(snap.recentQuakes.length).toBe(5);
     expect(snap.recentQuakes.map((q) => q.eventId)).toEqual(["Q6", "Q5", "Q4", "Q3", "Q2"]);
   });
+
+  it("JST 日付が変わる sweep で前日分だけを recentQuakes から除く", () => {
+    const store = new DisplayStateStore();
+    const beforeMidnight = Date.parse("2026-07-06T23:59:00+09:00");
+    expect(store.applyEvent(quakeDto({ reportDateTime: "2026-07-06T23:59:00+09:00" }), beforeMidnight)).toBe(true);
+    expect(store.sweep(Date.parse("2026-07-07T00:00:01+09:00"))).toBe(true);
+    expect(store.snapshot(1, Date.parse("2026-07-07T00:00:01+09:00")).recentQuakes).toEqual([]);
+  });
 });
 
 describe("DisplayStateStore: 津波", () => {

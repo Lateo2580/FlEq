@@ -45,6 +45,7 @@ export interface DisplayEewInputV1 {
   magnitude: string | null;
   colorIndex: number | null;
   reportDateTime: string;
+  originTime: string | null;
   isAssumedHypocenter: boolean;
   depth: string | null;
   maxLgInt: string | null;
