@@ -176,12 +176,14 @@ keyframe は `transform` ではなく独立 CSS `translate` プロパティを�
 
 `backgroundTone` は engine が snapshot に明示する画面背面の契約で、`calm` / `caution` / `alert` / `critical` / `quakeExtreme` を持つ。frontend は再判定せず `data-background-tone` として適用する。欠落・未知値は `calm`、イベントの `tickerSurface` の欠落・未知値は `none` に縮退する。
 
-`quakeExtreme` は震度 7 の `originTime` から 12 時間だけ保持する専用時計による。largeQuake / latestQuake の表示 TTL、TierOverlay、night dim とは別責務である。トーン値は `--background-tone-*-preview` に閉じており、ご主人裁定で差し替える。
+`quakeExtreme` persists for 12 hours from an intensity-7 `originTime`, independently of the largeQuake/latestQuake display TTL, TierOverlay, and night dim. The production values are confined to the canonical `--background-tone-*` tokens.
 
 `tickerSurface: "solid"` は engine が指定したイベントだけに role の container/on token 面を敷く。大津波警報は既存の `--header-tsunamiMajor-container/on` を使い、L5 相当と震度 7 も同じ経路で描画する。dim は面と文字を混色し、警報級 floor は既存規則を維持する。`#tone-matrix` preview は 5 tone × dim × critical overlay の目視ゲートである。
 
 tier（severity tier、重大度の段）は、平常から緊急までの「今どれだけ重大か」を表す離散的な段位である。
 これを 2 系統の別々な仕組みで表現し、役割を分ける。
+
+LCD-confirmed production values (2026-07-29) are `calm: #000000`, `caution: #131300`, `alert: #1A0400`, `critical: #1A001A`, and `quakeExtreme: #1D0010`. They are the canonical `--background-tone-*` tokens, derived from target relative luminance: 0.006 for caution and 0.003 for alert, critical, and quakeExtreme. The anchors are the Cabinet Office R2.5.29 published palette (#F2E700 / #FF2800 / #AA00AA) and the JMA Color Design Guideline H24.5 intensity-7 color (#B40068).
 
 **離散上書き（`main[data-tier]` 駆動）。**
 `main` 要素の `data-tier` 属性（alert / critical など）に応じて、CSS が特定トークンを離散的に差し替える（`theme.css:257-268`）。
@@ -308,11 +310,11 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | トークン | 定義 | 実値 | 説明 |
 | --- | --- | --- | --- |
 | `--bg` | `#000000` | `#000000` |  |
-| `--background-tone-calm-preview` | `#000000` | `#000000` | ご主人裁定で差し替え: background tone preview placeholder。コンポーネントへ生色は置かない。 |
-| `--background-tone-caution-preview` | `color-mix(in srgb, var(--c-yellow) 2%, #000000)` | `color-mix(in srgb, #f0e442 2%, #000000)` |  |
-| `--background-tone-alert-preview` | `color-mix(in srgb, var(--c-orange) 2%, #000000)` | `color-mix(in srgb, #e69f00 2%, #000000)` |  |
-| `--background-tone-critical-preview` | `color-mix(in srgb, var(--c-vermillion) 2%, #000000)` | `color-mix(in srgb, #d55e00 2%, #000000)` |  |
-| `--background-tone-quakeExtreme-preview` | `color-mix(in srgb, var(--c-dark-red) 2%, #000000)` | `color-mix(in srgb, #7a1e00 2%, #000000)` |  |
+| `--background-tone-calm` | `#000000` | `#000000` | LCD confirmed 2026-07-29. |
+| `--background-tone-caution` | `#131300` | `#131300` | Cabinet Office R2.5.29 palette; anchor #F2E700; target relative luminance 0.006; decided 2026-07-29. |
+| `--background-tone-alert` | `#1A0400` | `#1A0400` | Cabinet Office R2.5.29 palette; anchor #FF2800; target relative luminance 0.003; decided 2026-07-29. |
+| `--background-tone-critical` | `#1A001A` | `#1A001A` | Cabinet Office R2.5.29 palette; Level 4 anchor #AA00AA; target relative luminance 0.003; decided 2026-07-29. |
+| `--background-tone-quakeExtreme` | `#1D0010` | `#1D0010` | JMA Color Design Guideline H24.5; intensity 7 anchor #B40068; target relative luminance 0.003; decided 2026-07-29. |
 | `--fg` | `#f2f4f6` | `#f2f4f6` |  |
 | `--fg-faint` | `#566069` | `#566069` | 空状態・接続正常ドットなど「沈んでいてよい」もの |
 | `--clock-fg` | `#eef2f6` | `#eef2f6` | 待機画面の大時計。通常 LCD 判明で OLED 焼付き制約を撤廃し白寄りへ (遠目コントラスト改善) |
@@ -362,7 +364,7 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | `--role-weatherEmergency` | `var(--c-tsunami-purple)` | `#c46bde` |  |
 | `--role-weatherWarning` | `var(--c-orange-lift)` | `#ff8c00` |  |
 | `--role-weatherAdvisory` | `var(--c-yellow)` | `#f0e442` |  |
-| `--role-connectionOk` | `var(--fg-faint)` | `#566069` |  |
+| `--role-connectionOk` | `#59636c` | `#59636c` | #566069 から RGB 各 +3。色相を保ち、caution tone 上で 3.05:1 を確保 (2026-07-29)。 |
 | `--role-connectionStale` | `var(--c-orange)` | `#e69f00` |  |
 | `--role-muted` | `var(--c-gray-lift)` | `#b4c2cf` | --c-gray (#84919e) の無彩色相を維持し明度のみ上げた --c-gray-lift。overlay 合成でのコントラスト救済 (spec §6)。--c-gray / --fg-faint 自体は他消費者のため変更しない |
 | `--int-1` | `var(--c-gray)` | `#84919e` |  |
@@ -589,166 +591,166 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | base---fg | 1 基本文字色 | base | `--fg` | `--bg` | 19.05:1 | 4.5:1 | PASS |
 | base---fg-faint | 1 基本文字色 | base | `--fg-faint` | `--bg` | 3.27:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
 | base---clock-fg | 1 基本文字色 | base | `--clock-fg` | `--bg` | 18.67:1 | 4.5:1 | PASS |
-| tone-calm---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-calm-preview` | 19.05:1 | 4.5:1 | PASS |
-| tone-calm---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-calm-preview` | 5.43:1 | 4.5:1 | PASS |
-| tone-calm---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-calm-preview` | 9.32:1 | 4.5:1 | PASS |
-| tone-calm---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-calm-preview` | 19.05:1 | 4.5:1 | PASS |
-| tone-calm---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-calm-preview` | 6.52:1 | 4.5:1 | PASS |
-| tone-calm---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-calm-preview` | 6.86:1 | 4.5:1 | PASS |
-| tone-calm---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-calm-preview` | 5.43:1 | 4.5:1 | PASS |
-| tone-calm---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-calm-preview` | 9.32:1 | 4.5:1 | PASS |
-| tone-calm---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-calm-preview` | 6.51:1 | 4.5:1 | PASS |
-| tone-calm---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-calm-preview` | 6.16:1 | 4.5:1 | PASS |
-| tone-calm---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-calm-preview` | 15.88:1 | 4.5:1 | PASS |
-| tone-calm---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-calm-preview` | 5.43:1 | 4.5:1 | PASS |
-| tone-calm---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-calm-preview` | 6.51:1 | 4.5:1 | PASS |
-| tone-calm---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-calm-preview` | 9.00:1 | 4.5:1 | PASS |
-| tone-calm---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-calm-preview` | 15.88:1 | 4.5:1 | PASS |
-| tone-calm---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-calm-preview` | 3.27:1 | 3:1 | PASS |
-| tone-calm---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-calm-preview` | 9.32:1 | 4.5:1 | PASS |
-| tone-calm---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-calm-preview` | 11.56:1 | 4.5:1 | PASS |
-| tone-calm---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-calm-preview` | 12.12:1 | 4.5:1 | PASS |
-| tone-calm---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-calm-preview` | 15.24:1 | 4.5:1 | PASS |
-| tone-calm---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-calm-preview` | 12.12:1 | 4.5:1 | PASS |
-| tone-calm---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-calm-preview` | 15.24:1 | 4.5:1 | PASS |
-| tone-calm---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-calm-preview` | 13.04:1 | 4.5:1 | PASS |
-| tone-calm---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-calm-preview` | 12.03:1 | 4.5:1 | PASS |
-| tone-calm---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-calm-preview` | 16.97:1 | 4.5:1 | PASS |
-| tone-calm---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-calm-preview` | 13.04:1 | 4.5:1 | PASS |
-| tone-calm---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-calm-preview` | 15.24:1 | 4.5:1 | PASS |
-| tone-calm---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-calm-preview` | 16.97:1 | 4.5:1 | PASS |
-| tone-calm---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-calm-preview` | 6.52:1 | 4.5:1 | PASS |
-| tone-overlay-calm---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-calm-preview)` | 8.67:1 | 4.5:1 | PASS |
-| tone-overlay-calm---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-calm-preview)` | 8.67:1 | 4.5:1 | PASS |
-| tone-overlay-calm---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-calm-preview)` | 6.58:1 | 4.5:1 | PASS |
-| tone-caution---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-caution-preview` | 18.55:1 | 4.5:1 | PASS |
-| tone-caution---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-caution-preview` | 5.29:1 | 4.5:1 | PASS |
-| tone-caution---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-caution-preview` | 9.08:1 | 4.5:1 | PASS |
-| tone-caution---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-caution-preview` | 18.55:1 | 4.5:1 | PASS |
-| tone-caution---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-caution-preview` | 6.36:1 | 4.5:1 | PASS |
-| tone-caution---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-caution-preview` | 6.68:1 | 4.5:1 | PASS |
-| tone-caution---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-caution-preview` | 5.29:1 | 4.5:1 | PASS |
-| tone-caution---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-caution-preview` | 9.08:1 | 4.5:1 | PASS |
-| tone-caution---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-caution-preview` | 6.34:1 | 4.5:1 | PASS |
-| tone-caution---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-caution-preview` | 6.00:1 | 4.5:1 | PASS |
-| tone-caution---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-caution-preview` | 15.47:1 | 4.5:1 | PASS |
-| tone-caution---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-caution-preview` | 5.29:1 | 4.5:1 | PASS |
-| tone-caution---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-caution-preview` | 6.34:1 | 4.5:1 | PASS |
-| tone-caution---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-caution-preview` | 8.77:1 | 4.5:1 | PASS |
-| tone-caution---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-caution-preview` | 15.47:1 | 4.5:1 | PASS |
-| tone-caution---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-caution-preview` | 3.19:1 | 3:1 | PASS |
-| tone-caution---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-caution-preview` | 9.08:1 | 4.5:1 | PASS |
-| tone-caution---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-caution-preview` | 11.26:1 | 4.5:1 | PASS |
-| tone-caution---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-caution-preview` | 11.80:1 | 4.5:1 | PASS |
-| tone-caution---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-caution-preview` | 14.84:1 | 4.5:1 | PASS |
-| tone-caution---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-caution-preview` | 11.80:1 | 4.5:1 | PASS |
-| tone-caution---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-caution-preview` | 14.84:1 | 4.5:1 | PASS |
-| tone-caution---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-caution-preview` | 12.70:1 | 4.5:1 | PASS |
-| tone-caution---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-caution-preview` | 11.72:1 | 4.5:1 | PASS |
-| tone-caution---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-caution-preview` | 16.53:1 | 4.5:1 | PASS |
-| tone-caution---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-caution-preview` | 12.70:1 | 4.5:1 | PASS |
-| tone-caution---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-caution-preview` | 14.84:1 | 4.5:1 | PASS |
-| tone-caution---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-caution-preview` | 16.53:1 | 4.5:1 | PASS |
-| tone-caution---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-caution-preview` | 6.36:1 | 4.5:1 | PASS |
-| tone-overlay-caution---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-caution-preview)` | 8.42:1 | 4.5:1 | PASS |
-| tone-overlay-caution---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-caution-preview)` | 8.42:1 | 4.5:1 | PASS |
-| tone-overlay-caution---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-caution-preview)` | 6.38:1 | 4.5:1 | PASS |
-| tone-alert---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-alert-preview` | 18.68:1 | 4.5:1 | PASS |
-| tone-alert---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-alert-preview` | 5.33:1 | 4.5:1 | PASS |
-| tone-alert---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-alert-preview` | 9.14:1 | 4.5:1 | PASS |
-| tone-alert---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-alert-preview` | 18.68:1 | 4.5:1 | PASS |
-| tone-alert---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-alert-preview` | 6.40:1 | 4.5:1 | PASS |
-| tone-alert---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-alert-preview` | 6.73:1 | 4.5:1 | PASS |
-| tone-alert---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-alert-preview` | 5.33:1 | 4.5:1 | PASS |
-| tone-alert---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-alert-preview` | 9.14:1 | 4.5:1 | PASS |
-| tone-alert---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-alert-preview` | 6.38:1 | 4.5:1 | PASS |
-| tone-alert---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-alert-preview` | 6.04:1 | 4.5:1 | PASS |
-| tone-alert---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-alert-preview` | 15.57:1 | 4.5:1 | PASS |
-| tone-alert---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-alert-preview` | 5.33:1 | 4.5:1 | PASS |
-| tone-alert---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-alert-preview` | 6.38:1 | 4.5:1 | PASS |
-| tone-alert---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-alert-preview` | 8.83:1 | 4.5:1 | PASS |
-| tone-alert---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-alert-preview` | 15.57:1 | 4.5:1 | PASS |
-| tone-alert---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-alert-preview` | 3.21:1 | 3:1 | PASS |
-| tone-alert---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-alert-preview` | 9.14:1 | 4.5:1 | PASS |
-| tone-alert---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-alert-preview` | 11.33:1 | 4.5:1 | PASS |
-| tone-alert---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-alert-preview` | 11.88:1 | 4.5:1 | PASS |
-| tone-alert---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-alert-preview` | 14.94:1 | 4.5:1 | PASS |
-| tone-alert---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-alert-preview` | 11.88:1 | 4.5:1 | PASS |
-| tone-alert---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-alert-preview` | 14.94:1 | 4.5:1 | PASS |
-| tone-alert---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-alert-preview` | 12.78:1 | 4.5:1 | PASS |
-| tone-alert---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-alert-preview` | 11.79:1 | 4.5:1 | PASS |
-| tone-alert---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-alert-preview` | 16.64:1 | 4.5:1 | PASS |
-| tone-alert---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-alert-preview` | 12.78:1 | 4.5:1 | PASS |
-| tone-alert---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-alert-preview` | 14.94:1 | 4.5:1 | PASS |
-| tone-alert---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-alert-preview` | 16.64:1 | 4.5:1 | PASS |
-| tone-alert---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-alert-preview` | 6.40:1 | 4.5:1 | PASS |
-| tone-overlay-alert---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-alert-preview)` | 8.47:1 | 4.5:1 | PASS |
-| tone-overlay-alert---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-alert-preview)` | 8.47:1 | 4.5:1 | PASS |
-| tone-overlay-alert---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-alert-preview)` | 6.42:1 | 4.5:1 | PASS |
-| tone-critical---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-critical-preview` | 18.79:1 | 4.5:1 | PASS |
-| tone-critical---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-critical-preview` | 5.36:1 | 4.5:1 | PASS |
-| tone-critical---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-critical-preview` | 9.20:1 | 4.5:1 | PASS |
-| tone-critical---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-critical-preview` | 18.79:1 | 4.5:1 | PASS |
-| tone-critical---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-critical-preview` | 6.44:1 | 4.5:1 | PASS |
-| tone-critical---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-critical-preview` | 6.77:1 | 4.5:1 | PASS |
-| tone-critical---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-critical-preview` | 5.36:1 | 4.5:1 | PASS |
-| tone-critical---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-critical-preview` | 9.20:1 | 4.5:1 | PASS |
-| tone-critical---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-critical-preview` | 6.42:1 | 4.5:1 | PASS |
-| tone-critical---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-critical-preview` | 6.08:1 | 4.5:1 | PASS |
-| tone-critical---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-critical-preview` | 15.67:1 | 4.5:1 | PASS |
-| tone-critical---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-critical-preview` | 5.36:1 | 4.5:1 | PASS |
-| tone-critical---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-critical-preview` | 6.42:1 | 4.5:1 | PASS |
-| tone-critical---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-critical-preview` | 8.88:1 | 4.5:1 | PASS |
-| tone-critical---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-critical-preview` | 15.67:1 | 4.5:1 | PASS |
-| tone-critical---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-critical-preview` | 3.23:1 | 3:1 | PASS |
-| tone-critical---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-critical-preview` | 9.20:1 | 4.5:1 | PASS |
-| tone-critical---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-critical-preview` | 11.40:1 | 4.5:1 | PASS |
-| tone-critical---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-critical-preview` | 11.95:1 | 4.5:1 | PASS |
-| tone-critical---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-critical-preview` | 15.03:1 | 4.5:1 | PASS |
-| tone-critical---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-critical-preview` | 11.95:1 | 4.5:1 | PASS |
-| tone-critical---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-critical-preview` | 15.03:1 | 4.5:1 | PASS |
-| tone-critical---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-critical-preview` | 12.86:1 | 4.5:1 | PASS |
-| tone-critical---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-critical-preview` | 11.87:1 | 4.5:1 | PASS |
-| tone-critical---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-critical-preview` | 16.74:1 | 4.5:1 | PASS |
-| tone-critical---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-critical-preview` | 12.86:1 | 4.5:1 | PASS |
-| tone-critical---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-critical-preview` | 15.03:1 | 4.5:1 | PASS |
-| tone-critical---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-critical-preview` | 16.74:1 | 4.5:1 | PASS |
-| tone-critical---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-critical-preview` | 6.44:1 | 4.5:1 | PASS |
-| tone-overlay-critical---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-critical-preview)` | 8.51:1 | 4.5:1 | PASS |
-| tone-overlay-critical---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-critical-preview)` | 8.51:1 | 4.5:1 | PASS |
-| tone-overlay-critical---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-critical-preview)` | 6.46:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-quakeExtreme-preview` | 18.94:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-quakeExtreme-preview` | 5.40:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-quakeExtreme-preview` | 9.27:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-quakeExtreme-preview` | 18.94:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-quakeExtreme-preview` | 6.49:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-quakeExtreme-preview` | 6.82:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-quakeExtreme-preview` | 5.40:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-quakeExtreme-preview` | 9.27:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-quakeExtreme-preview` | 6.47:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-quakeExtreme-preview` | 6.13:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-quakeExtreme-preview` | 15.79:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-quakeExtreme-preview` | 5.40:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-quakeExtreme-preview` | 6.47:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-quakeExtreme-preview` | 8.95:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-quakeExtreme-preview` | 15.79:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-quakeExtreme-preview` | 3.25:1 | 3:1 | PASS |
-| tone-quakeExtreme---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-quakeExtreme-preview` | 9.27:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-quakeExtreme-preview` | 11.49:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-quakeExtreme-preview` | 12.05:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-quakeExtreme-preview` | 15.15:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-quakeExtreme-preview` | 12.05:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-quakeExtreme-preview` | 15.15:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-quakeExtreme-preview` | 12.96:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-quakeExtreme-preview` | 11.96:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-quakeExtreme-preview` | 16.88:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-quakeExtreme-preview` | 12.96:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-quakeExtreme-preview` | 15.15:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-quakeExtreme-preview` | 16.88:1 | 4.5:1 | PASS |
-| tone-quakeExtreme---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-quakeExtreme-preview` | 6.49:1 | 4.5:1 | PASS |
-| tone-overlay-quakeExtreme---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-quakeExtreme-preview)` | 8.60:1 | 4.5:1 | PASS |
-| tone-overlay-quakeExtreme---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-quakeExtreme-preview)` | 8.60:1 | 4.5:1 | PASS |
-| tone-overlay-quakeExtreme---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-quakeExtreme-preview)` | 6.52:1 | 4.5:1 | PASS |
+| tone-calm---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-calm` | 19.05:1 | 4.5:1 | PASS |
+| tone-calm---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-calm` | 5.43:1 | 4.5:1 | PASS |
+| tone-calm---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-calm` | 9.32:1 | 4.5:1 | PASS |
+| tone-calm---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-calm` | 19.05:1 | 4.5:1 | PASS |
+| tone-calm---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-calm` | 6.52:1 | 4.5:1 | PASS |
+| tone-calm---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-calm` | 6.86:1 | 4.5:1 | PASS |
+| tone-calm---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-calm` | 5.43:1 | 4.5:1 | PASS |
+| tone-calm---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-calm` | 9.32:1 | 4.5:1 | PASS |
+| tone-calm---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-calm` | 6.51:1 | 4.5:1 | PASS |
+| tone-calm---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-calm` | 6.16:1 | 4.5:1 | PASS |
+| tone-calm---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-calm` | 15.88:1 | 4.5:1 | PASS |
+| tone-calm---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-calm` | 5.43:1 | 4.5:1 | PASS |
+| tone-calm---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-calm` | 6.51:1 | 4.5:1 | PASS |
+| tone-calm---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-calm` | 9.00:1 | 4.5:1 | PASS |
+| tone-calm---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-calm` | 15.88:1 | 4.5:1 | PASS |
+| tone-calm---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-calm` | 3.43:1 | 3:1 | PASS |
+| tone-calm---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-calm` | 9.32:1 | 4.5:1 | PASS |
+| tone-calm---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-calm` | 11.56:1 | 4.5:1 | PASS |
+| tone-calm---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-calm` | 12.12:1 | 4.5:1 | PASS |
+| tone-calm---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-calm` | 15.24:1 | 4.5:1 | PASS |
+| tone-calm---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-calm` | 12.12:1 | 4.5:1 | PASS |
+| tone-calm---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-calm` | 15.24:1 | 4.5:1 | PASS |
+| tone-calm---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-calm` | 13.04:1 | 4.5:1 | PASS |
+| tone-calm---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-calm` | 12.03:1 | 4.5:1 | PASS |
+| tone-calm---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-calm` | 16.97:1 | 4.5:1 | PASS |
+| tone-calm---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-calm` | 13.04:1 | 4.5:1 | PASS |
+| tone-calm---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-calm` | 15.24:1 | 4.5:1 | PASS |
+| tone-calm---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-calm` | 16.97:1 | 4.5:1 | PASS |
+| tone-calm---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-calm` | 6.52:1 | 4.5:1 | PASS |
+| tone-overlay-calm---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-calm)` | 8.67:1 | 4.5:1 | PASS |
+| tone-overlay-calm---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-calm)` | 8.67:1 | 4.5:1 | PASS |
+| tone-overlay-calm---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-calm)` | 6.58:1 | 4.5:1 | PASS |
+| tone-caution---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-caution` | 16.99:1 | 4.5:1 | PASS |
+| tone-caution---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-caution` | 4.84:1 | 4.5:1 | PASS |
+| tone-caution---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-caution` | 8.32:1 | 4.5:1 | PASS |
+| tone-caution---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-caution` | 16.99:1 | 4.5:1 | PASS |
+| tone-caution---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-caution` | 5.82:1 | 4.5:1 | PASS |
+| tone-caution---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-caution` | 6.12:1 | 4.5:1 | PASS |
+| tone-caution---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-caution` | 4.84:1 | 4.5:1 | PASS |
+| tone-caution---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-caution` | 8.32:1 | 4.5:1 | PASS |
+| tone-caution---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-caution` | 5.80:1 | 4.5:1 | PASS |
+| tone-caution---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-caution` | 5.50:1 | 4.5:1 | PASS |
+| tone-caution---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-caution` | 14.17:1 | 4.5:1 | PASS |
+| tone-caution---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-caution` | 4.84:1 | 4.5:1 | PASS |
+| tone-caution---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-caution` | 5.80:1 | 4.5:1 | PASS |
+| tone-caution---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-caution` | 8.03:1 | 4.5:1 | PASS |
+| tone-caution---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-caution` | 14.17:1 | 4.5:1 | PASS |
+| tone-caution---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-caution` | 3.06:1 | 3:1 | PASS |
+| tone-caution---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-caution` | 8.32:1 | 4.5:1 | PASS |
+| tone-caution---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-caution` | 10.31:1 | 4.5:1 | PASS |
+| tone-caution---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-caution` | 10.81:1 | 4.5:1 | PASS |
+| tone-caution---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-caution` | 13.59:1 | 4.5:1 | PASS |
+| tone-caution---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-caution` | 10.81:1 | 4.5:1 | PASS |
+| tone-caution---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-caution` | 13.59:1 | 4.5:1 | PASS |
+| tone-caution---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-caution` | 11.63:1 | 4.5:1 | PASS |
+| tone-caution---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-caution` | 10.73:1 | 4.5:1 | PASS |
+| tone-caution---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-caution` | 15.14:1 | 4.5:1 | PASS |
+| tone-caution---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-caution` | 11.63:1 | 4.5:1 | PASS |
+| tone-caution---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-caution` | 13.59:1 | 4.5:1 | PASS |
+| tone-caution---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-caution` | 15.14:1 | 4.5:1 | PASS |
+| tone-caution---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-caution` | 5.82:1 | 4.5:1 | PASS |
+| tone-overlay-caution---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-caution)` | 7.62:1 | 4.5:1 | PASS |
+| tone-overlay-caution---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-caution)` | 7.62:1 | 4.5:1 | PASS |
+| tone-overlay-caution---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-caution)` | 5.78:1 | 4.5:1 | PASS |
+| tone-alert---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-alert` | 17.95:1 | 4.5:1 | PASS |
+| tone-alert---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-alert` | 5.12:1 | 4.5:1 | PASS |
+| tone-alert---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-alert` | 8.79:1 | 4.5:1 | PASS |
+| tone-alert---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-alert` | 17.95:1 | 4.5:1 | PASS |
+| tone-alert---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-alert` | 6.15:1 | 4.5:1 | PASS |
+| tone-alert---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-alert` | 6.46:1 | 4.5:1 | PASS |
+| tone-alert---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-alert` | 5.12:1 | 4.5:1 | PASS |
+| tone-alert---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-alert` | 8.79:1 | 4.5:1 | PASS |
+| tone-alert---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-alert` | 6.13:1 | 4.5:1 | PASS |
+| tone-alert---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-alert` | 5.81:1 | 4.5:1 | PASS |
+| tone-alert---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-alert` | 14.96:1 | 4.5:1 | PASS |
+| tone-alert---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-alert` | 5.12:1 | 4.5:1 | PASS |
+| tone-alert---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-alert` | 6.13:1 | 4.5:1 | PASS |
+| tone-alert---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-alert` | 8.48:1 | 4.5:1 | PASS |
+| tone-alert---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-alert` | 14.96:1 | 4.5:1 | PASS |
+| tone-alert---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-alert` | 3.23:1 | 3:1 | PASS |
+| tone-alert---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-alert` | 8.79:1 | 4.5:1 | PASS |
+| tone-alert---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-alert` | 10.89:1 | 4.5:1 | PASS |
+| tone-alert---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-alert` | 11.42:1 | 4.5:1 | PASS |
+| tone-alert---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-alert` | 14.36:1 | 4.5:1 | PASS |
+| tone-alert---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-alert` | 11.42:1 | 4.5:1 | PASS |
+| tone-alert---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-alert` | 14.36:1 | 4.5:1 | PASS |
+| tone-alert---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-alert` | 12.28:1 | 4.5:1 | PASS |
+| tone-alert---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-alert` | 11.33:1 | 4.5:1 | PASS |
+| tone-alert---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-alert` | 15.99:1 | 4.5:1 | PASS |
+| tone-alert---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-alert` | 12.28:1 | 4.5:1 | PASS |
+| tone-alert---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-alert` | 14.36:1 | 4.5:1 | PASS |
+| tone-alert---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-alert` | 15.99:1 | 4.5:1 | PASS |
+| tone-alert---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-alert` | 6.15:1 | 4.5:1 | PASS |
+| tone-overlay-alert---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-alert)` | 7.88:1 | 4.5:1 | PASS |
+| tone-overlay-alert---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-alert)` | 7.88:1 | 4.5:1 | PASS |
+| tone-overlay-alert---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-alert)` | 5.97:1 | 4.5:1 | PASS |
+| tone-critical---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-critical` | 17.99:1 | 4.5:1 | PASS |
+| tone-critical---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-critical` | 5.13:1 | 4.5:1 | PASS |
+| tone-critical---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-critical` | 8.81:1 | 4.5:1 | PASS |
+| tone-critical---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-critical` | 17.99:1 | 4.5:1 | PASS |
+| tone-critical---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-critical` | 6.16:1 | 4.5:1 | PASS |
+| tone-critical---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-critical` | 6.48:1 | 4.5:1 | PASS |
+| tone-critical---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-critical` | 5.13:1 | 4.5:1 | PASS |
+| tone-critical---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-critical` | 8.81:1 | 4.5:1 | PASS |
+| tone-critical---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-critical` | 6.14:1 | 4.5:1 | PASS |
+| tone-critical---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-critical` | 5.82:1 | 4.5:1 | PASS |
+| tone-critical---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-critical` | 15.00:1 | 4.5:1 | PASS |
+| tone-critical---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-critical` | 5.13:1 | 4.5:1 | PASS |
+| tone-critical---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-critical` | 6.14:1 | 4.5:1 | PASS |
+| tone-critical---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-critical` | 8.50:1 | 4.5:1 | PASS |
+| tone-critical---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-critical` | 15.00:1 | 4.5:1 | PASS |
+| tone-critical---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-critical` | 3.24:1 | 3:1 | PASS |
+| tone-critical---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-critical` | 8.81:1 | 4.5:1 | PASS |
+| tone-critical---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-critical` | 10.92:1 | 4.5:1 | PASS |
+| tone-critical---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-critical` | 11.44:1 | 4.5:1 | PASS |
+| tone-critical---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-critical` | 14.39:1 | 4.5:1 | PASS |
+| tone-critical---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-critical` | 11.44:1 | 4.5:1 | PASS |
+| tone-critical---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-critical` | 14.39:1 | 4.5:1 | PASS |
+| tone-critical---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-critical` | 12.31:1 | 4.5:1 | PASS |
+| tone-critical---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-critical` | 11.36:1 | 4.5:1 | PASS |
+| tone-critical---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-critical` | 16.03:1 | 4.5:1 | PASS |
+| tone-critical---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-critical` | 12.31:1 | 4.5:1 | PASS |
+| tone-critical---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-critical` | 14.39:1 | 4.5:1 | PASS |
+| tone-critical---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-critical` | 16.03:1 | 4.5:1 | PASS |
+| tone-critical---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-critical` | 6.16:1 | 4.5:1 | PASS |
+| tone-overlay-critical---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-critical)` | 7.76:1 | 4.5:1 | PASS |
+| tone-overlay-critical---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-critical)` | 7.76:1 | 4.5:1 | PASS |
+| tone-overlay-critical---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-critical)` | 5.89:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---fg | 16 背景トーン | background-tone | `--fg` | `--background-tone-quakeExtreme` | 17.97:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-critical | 16 背景トーン | background-tone | `--role-critical` | `--background-tone-quakeExtreme` | 5.12:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-warning | 16 背景トーン | background-tone | `--role-warning` | `--background-tone-quakeExtreme` | 8.80:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-normal | 16 背景トーン | background-tone | `--role-normal` | `--background-tone-quakeExtreme` | 17.97:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-info | 16 背景トーン | background-tone | `--role-info` | `--background-tone-quakeExtreme` | 6.16:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-cancel | 16 背景トーン | background-tone | `--role-cancel` | `--background-tone-quakeExtreme` | 6.47:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-eewWarning | 16 背景トーン | background-tone | `--role-eewWarning` | `--background-tone-quakeExtreme` | 5.12:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-eewForecast | 16 背景トーン | background-tone | `--role-eewForecast` | `--background-tone-quakeExtreme` | 8.80:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-tsunamiMajor | 16 背景トーン | background-tone | `--role-tsunamiMajor` | `--background-tone-quakeExtreme` | 6.14:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-tsunamiWarning | 16 背景トーン | background-tone | `--role-tsunamiWarning` | `--background-tone-quakeExtreme` | 5.82:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-tsunamiAdvisory | 16 背景トーン | background-tone | `--role-tsunamiAdvisory` | `--background-tone-quakeExtreme` | 14.99:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-quakeMajor | 16 背景トーン | background-tone | `--role-quakeMajor` | `--background-tone-quakeExtreme` | 5.12:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-weatherEmergency | 16 背景トーン | background-tone | `--role-weatherEmergency` | `--background-tone-quakeExtreme` | 6.14:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-weatherWarning | 16 背景トーン | background-tone | `--role-weatherWarning` | `--background-tone-quakeExtreme` | 8.50:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-weatherAdvisory | 16 背景トーン | background-tone | `--role-weatherAdvisory` | `--background-tone-quakeExtreme` | 14.99:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-connectionOk | 16 背景トーン | background-tone | `--role-connectionOk` | `--background-tone-quakeExtreme` | 3.23:1 | 3:1 | PASS |
+| tone-quakeExtreme---role-connectionStale | 16 背景トーン | background-tone | `--role-connectionStale` | `--background-tone-quakeExtreme` | 8.80:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---role-muted | 16 背景トーン | background-tone | `--role-muted` | `--background-tone-quakeExtreme` | 10.91:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-eewWarning-on | 16 背景トーン | background-tone | `--header-eewWarning-on` | `--background-tone-quakeExtreme` | 11.43:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-eewForecast-on | 16 背景トーン | background-tone | `--header-eewForecast-on` | `--background-tone-quakeExtreme` | 14.38:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-quakeCritical-on | 16 背景トーン | background-tone | `--header-quakeCritical-on` | `--background-tone-quakeExtreme` | 11.43:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-quakeWarning-on | 16 背景トーン | background-tone | `--header-quakeWarning-on` | `--background-tone-quakeExtreme` | 14.38:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-tsunamiMajor-on | 16 背景トーン | background-tone | `--header-tsunamiMajor-on` | `--background-tone-quakeExtreme` | 12.30:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-tsunamiWarning-on | 16 背景トーン | background-tone | `--header-tsunamiWarning-on` | `--background-tone-quakeExtreme` | 11.35:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-tsunamiAdvisory-on | 16 背景トーン | background-tone | `--header-tsunamiAdvisory-on` | `--background-tone-quakeExtreme` | 16.02:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-weatherEmergency-on | 16 背景トーン | background-tone | `--header-weatherEmergency-on` | `--background-tone-quakeExtreme` | 12.30:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-weatherWarning-on | 16 背景トーン | background-tone | `--header-weatherWarning-on` | `--background-tone-quakeExtreme` | 14.38:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---header-weatherAdvisory-on | 16 背景トーン | background-tone | `--header-weatherAdvisory-on` | `--background-tone-quakeExtreme` | 16.02:1 | 4.5:1 | PASS |
+| tone-quakeExtreme---c-gray | 16 背景トーン | background-tone | `--c-gray` | `--background-tone-quakeExtreme` | 6.16:1 | 4.5:1 | PASS |
+| tone-overlay-quakeExtreme---fg | 16 背景トーン | background-tone+critical | `film(--fg)` | `film(--background-tone-quakeExtreme)` | 7.76:1 | 4.5:1 | PASS |
+| tone-overlay-quakeExtreme---role-normal | 16 背景トーン | background-tone+critical | `film(--role-normal)` | `film(--background-tone-quakeExtreme)` | 7.76:1 | 4.5:1 | PASS |
+| tone-overlay-quakeExtreme---header-tsunamiMajor-on | 16 背景トーン | background-tone+critical | `film(--header-tsunamiMajor-on)` | `film(--background-tone-quakeExtreme)` | 5.89:1 | 4.5:1 | PASS |
 | int---int-1-on---bg | 2 震度rank文字 | base | `--int-1` | `--bg` | 6.52:1 | 4.5:1 | PASS |
 | int---int-1-on---surface-lowest | 2 震度rank文字 | base | `--int-1` | `--surface-lowest` | 6.38:1 | 4.5:1 | PASS |
 | int---int-1-on---surface-low | 2 震度rank文字 | base | `--int-1` | `--surface-low` | 6.17:1 | 4.5:1 | PASS |
@@ -835,9 +837,9 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | role-weatherAdvisory-on---bg | 4 role文字色 | base | `--role-weatherAdvisory` | `--bg` | 15.88:1 | 4.5:1 | PASS |
 | role-weatherAdvisory-on---surface-high | 4 role文字色 | base | `--role-weatherAdvisory` | `--surface-high` | 13.79:1 | 4.5:1 | PASS |
 | role-weatherAdvisory-on---surface-panel | 4 role文字色 | base | `--role-weatherAdvisory` | `--surface-panel` | 14.55:1 | 4.5:1 | PASS |
-| role-connectionOk-on---bg | 4 role文字色 | base | `--role-connectionOk` | `--bg` | 3.27:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
-| role-connectionOk-on---surface-high | 4 role文字色 | base | `--role-connectionOk` | `--surface-high` | 2.84:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
-| role-connectionOk-on---surface-panel | 4 role文字色 | base | `--role-connectionOk` | `--surface-panel` | 3.00:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
+| role-connectionOk-on---bg | 4 role文字色 | base | `--role-connectionOk` | `--bg` | 3.43:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
+| role-connectionOk-on---surface-high | 4 role文字色 | base | `--role-connectionOk` | `--surface-high` | 2.97:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
+| role-connectionOk-on---surface-panel | 4 role文字色 | base | `--role-connectionOk` | `--surface-panel` | 3.14:1 | 4.5:1 | 許容 (意図的低プロミネンス (theme.css「沈んでいてよい」: 接続正常ドット/空状態)) |
 | role-connectionStale-on---bg | 4 role文字色 | base | `--role-connectionStale` | `--bg` | 9.32:1 | 4.5:1 | PASS |
 | role-connectionStale-on---surface-high | 4 role文字色 | base | `--role-connectionStale` | `--surface-high` | 8.10:1 | 4.5:1 | PASS |
 | role-connectionStale-on---surface-panel | 4 role文字色 | base | `--role-connectionStale` | `--surface-panel` | 8.54:1 | 4.5:1 | PASS |

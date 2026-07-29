@@ -19,6 +19,19 @@ function headerRoleOf(tokens: { on: string }): string {
 const css = readFileSync(join(__dirname, "..", "theme.css"), "utf-8");
 const map = buildTokenMap(parseTokens(css));
 
+describe("background tone production tokens", () => {
+  it("uses the LCD-confirmed canonical colors without preview aliases", () => {
+    expect([...map.entries()].filter(([name]) => name.includes("background-tone"))).toEqual([
+      ["--background-tone-calm", "#000000"],
+      ["--background-tone-caution", "#131300"],
+      ["--background-tone-alert", "#1A0400"],
+      ["--background-tone-critical", "#1A001A"],
+      ["--background-tone-quakeExtreme", "#1D0010"],
+    ]);
+    expect(css).not.toMatch(/--background-tone-[\w-]+-preview/);
+  });
+});
+
 describe("evaluatePairs", () => {
   const pairs = evaluatePairs(map);
   const find = (id: string) => pairs.find((p) => p.id === id)!;

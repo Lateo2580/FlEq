@@ -280,7 +280,7 @@ export function evaluatePairs(map) {
   const toneOverlayForegrounds = ["--fg", "--role-normal", "--header-tsunamiMajor-on"];
   const OVERLAY_CRITICAL = { r: 160, g: 48, b: 160, a: 1 };
   for (const tone of backgroundTones) {
-    const toneName = `--background-tone-${tone}-preview`;
+    const toneName = `--background-tone-${tone}`;
     const toneColor = color(toneName);
     for (const { token: foreground, thresholdKind } of toneForegrounds) {
       out.push(makePair(
@@ -464,7 +464,8 @@ export const ALLOWLIST = [
     // 2026-07-26 再審査: cat4 の面に --surface-panel を追加したことで対象ペアが 1 件増えた
     // (role-connectionOk-on---surface-panel = 3.00:1)。性質は既存の 2 件 (3.27:1 / 2.84:1) と同じ
     // 「沈んでいてよい」接続正常ドットで、判断は変わらないため許容を継続して hash を更新した
-    last_verified_input_hash: "97141e14f894",
+    // 2026-07-29: --role-connectionOk を #59636c へ最小リフト。既存の低プロミネンス許容を再検証。
+    last_verified_input_hash: "6c83ab4bc2dd",
   },
   {
     id: "critical-overlay-weather-role-not-used-as-text",

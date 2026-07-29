@@ -23,12 +23,12 @@
   color-scheme: dark;
 
   --bg: #000000;
-  /* ご主人裁定で差し替え: background tone preview placeholder。コンポーネントへ生色は置かない。 */
-  --background-tone-calm-preview: #000000;
-  --background-tone-caution-preview: color-mix(in srgb, var(--c-yellow) 2%, #000000);
-  --background-tone-alert-preview: color-mix(in srgb, var(--c-orange) 2%, #000000);
-  --background-tone-critical-preview: color-mix(in srgb, var(--c-vermillion) 2%, #000000);
-  --background-tone-quakeExtreme-preview: color-mix(in srgb, var(--c-dark-red) 2%, #000000);
+  /* LCD-confirmed production background tones. */
+  --background-tone-calm: #000000; /* LCD confirmed 2026-07-29. */
+  --background-tone-caution: #131300; /* Cabinet Office R2.5.29 palette; anchor #F2E700; target relative luminance 0.006; decided 2026-07-29. */
+  --background-tone-alert: #1A0400; /* Cabinet Office R2.5.29 palette; anchor #FF2800; target relative luminance 0.003; decided 2026-07-29. */
+  --background-tone-critical: #1A001A; /* Cabinet Office R2.5.29 palette; Level 4 anchor #AA00AA; target relative luminance 0.003; decided 2026-07-29. */
+  --background-tone-quakeExtreme: #1D0010; /* JMA Color Design Guideline H24.5; intensity 7 anchor #B40068; target relative luminance 0.003; decided 2026-07-29. */
   --fg: #f2f4f6;
   --fg-faint: #566069; /* 空状態・接続正常ドットなど「沈んでいてよい」もの */
   --clock-fg: #eef2f6; /* 待機画面の大時計。通常 LCD 判明で OLED 焼付き制約を撤廃し白寄りへ (遠目コントラスト改善) */
@@ -69,7 +69,7 @@
   --role-weatherEmergency: var(--c-tsunami-purple);
   --role-weatherWarning: var(--c-orange-lift);
   --role-weatherAdvisory: var(--c-yellow);
-  --role-connectionOk: var(--fg-faint);
+  --role-connectionOk: #59636c; /* #566069 から RGB 各 +3。色相を保ち、caution tone 上で 3.05:1 を確保 (2026-07-29)。 */
   --role-connectionStale: var(--c-orange);
   --role-muted: var(--c-gray-lift); /* --c-gray (#84919e) の無彩色相を維持し明度のみ上げた --c-gray-lift。overlay 合成でのコントラスト救済 (spec §6)。--c-gray / --fg-faint 自体は他消費者のため変更しない */
 
@@ -238,11 +238,11 @@
 }
 
 /* engine 権威の backgroundTone。待機・緊急の共通背面だけを差し替え、カード token は保持する。 */
-main[data-background-tone="calm"] { --background-tone: var(--background-tone-calm-preview); }
-main[data-background-tone="caution"] { --background-tone: var(--background-tone-caution-preview); }
-main[data-background-tone="alert"] { --background-tone: var(--background-tone-alert-preview); }
-main[data-background-tone="critical"] { --background-tone: var(--background-tone-critical-preview); }
-main[data-background-tone="quakeExtreme"] { --background-tone: var(--background-tone-quakeExtreme-preview); }
+main[data-background-tone="calm"] { --background-tone: var(--background-tone-calm); }
+main[data-background-tone="caution"] { --background-tone: var(--background-tone-caution); }
+main[data-background-tone="alert"] { --background-tone: var(--background-tone-alert); }
+main[data-background-tone="critical"] { --background-tone: var(--background-tone-critical); }
+main[data-background-tone="quakeExtreme"] { --background-tone: var(--background-tone-quakeExtreme); }
 
 main[data-background-tone] {
   --bg: var(--background-tone);
