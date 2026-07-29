@@ -1,8 +1,8 @@
-// 「固定サマリ計器 + ページング」転換 (spec: 設計メモ 2026-07-09-summary-instrument-paging.md §4)
-// の閾値純関数群。震度別グループの件数から「静的リスト ⇔ 県別件数縮退 ⇔ 詳細ページング」の
-// 3 段切替を決める。latest-quake-card-layout.ts の TOP_GROUP_COMPACT_AREA_THRESHOLD と
+// 観測震度詳細のページング用純関数群。震度別グループの件数から
+// 「静的リスト ⇔ 詳細ページング」の切替を決める。
+// latest-quake-card-layout.ts の TOP_GROUP_COMPACT_AREA_THRESHOLD と
 // 意味論を揃え (30 件)、判定の実効件数 (effectiveAreaCount) をここで一元化する。
-import { countByPrefecture, groupByPrefecture, type PrefGroup } from "./prefecture-group";
+import { groupByPrefecture, type PrefGroup } from "./prefecture-group";
 import type { DisplayIntensityGroupV1 } from "./protocol";
 
 // 静的小リストで全件表示できる合計件数の上限。超えたら詳細ページングへ降ろす
@@ -143,53 +143,6 @@ export function shouldPageDetails(totalEffective: number): boolean {
   return totalEffective > STATIC_LIST_MAX;
 }
 
-// 固定サマリ計器 (最大震度規模行 / 拡大範囲行) の共有ロジック。QuakePanel と LatestQuakeCard の
-// 両方が同じ計器行を出すため、ここへ一元化する (spec §2-b 改訂 2026-07-09、review-T5a-3)。
-// 旧・震度分布行 (distributionValue) と県別件数行 (topPrefCountsSorted) は「広域」連呼が
-// 情報ゼロ・裸の数字が単位不明だったため廃止し、ヘッドライン2行 (最大震度規模 + 拡大範囲) に
-// 統合した。県別の内訳は詳細ページ (paginateAreas) が証跡として担う
-
-/** 地域配列中の distinct な都道府県数 (「その他」を除く) */
-export function prefectureCountOf(areas: string[]): number {
-  return countByPrefecture(areas).filter((c) => c.pref != null).length;
-}
-
-/** ヘッドライン2行の集約値。EEW の cumulativePrefCount (EewPanel.svelte) と同じ累積意味論:
- *  拡大範囲行は「2番目のランク以上」= 最大震度グループを含む先頭2グループの distinct 県数 */
-export interface QuakeHeadline {
-  topIntensity: string;
-  topRank: number;
-  topPrefectureCount: number;
-  topCityCount: number;
-  /** 拡大範囲行。グループが1つだけ (2番目が無い) なら null (非表示) */
-  expanded: { intensity: string; prefectureCount: number } | null;
-}
-
-/** intensityGroups は rank 降順ソート済み (先頭=最大震度) が protocol 前提。空なら null。
- *  T7 preview 実測で見つかった回帰の修正: areas が県プレフィックス無しの市名だけ (「宮崎市」
- *  「日南市」等、spec §2-b の静的リスト例そのもの) だと prefectureCountOf が 0 を返す。
- *  拡大範囲行は「2番目のランク以上」に**新たに広がった県が無い**ことを意味するため、
- *  1 グループのみのとき (second == null) と同じ「拡大なし」= 非表示に統一する
- *  (grouped areas がゼロ件でも topPrefectureCount=0 自体は QuakeHeadline.svelte 側で
- *  「N県」部分を省いて表示するため、こちらは null 化せず 0 のまま返す) */
-export function quakeHeadline(groups: DisplayIntensityGroupV1[]): QuakeHeadline | null {
-  const top = groups[0];
-  if (top == null) return null;
-  const second = groups[1] ?? null;
-  const expandedPrefectureCount =
-    second != null ? prefectureCountOf([...top.areas, ...second.areas]) : 0;
-  return {
-    topIntensity: top.intensity,
-    topRank: top.rank,
-    topPrefectureCount: prefectureCountOf(top.areas),
-    topCityCount: effectiveAreaCount(top),
-    expanded:
-      second != null && expandedPrefectureCount > 0
-        ? { intensity: second.intensity, prefectureCount: expandedPrefectureCount }
-        : null,
-  };
-}
-
 /** ページ本文に置く都道府県ブロック。1 県が PAGE_CITY_BUDGET を超えてページをまたぐときは
  *  分割後の各ブロックに continuation を立て、2 ブロック目以降を「県名（続き）」で表示する */
 export interface DetailPrefGroup extends PrefGroup {
@@ -201,10 +154,6 @@ export interface DetailPrefGroup extends PrefGroup {
 export interface DetailPageSection {
   intensity: string;
   rank: number;
-  /** このページが属する震度グループの県数 (pref != null の distinct 数、グループ全体) */
-  prefectureCount: number;
-  /** このページが属する震度グループの市町村数 (effectiveAreaCount、グループ全体) */
-  cityCount: number;
   /** このページに割り当てられた都道府県ブロック (合計 PAGE_CITY_BUDGET 件以内、県分断時は例外) */
   prefGroups: DetailPrefGroup[];
 }
@@ -215,8 +164,6 @@ export interface DetailPage {
   /** 旧呼び出し元互換。新規実装は sections を読む。 */
   intensity: string;
   rank: number;
-  prefectureCount: number;
-  cityCount: number;
   prefGroups: DetailPrefGroup[];
 }
 
@@ -251,11 +198,8 @@ export function paginateAreas(
   for (const group of groups) {
     const prefGroups = groupByPrefecture(group.areas);
     if (prefGroups.length === 0) continue;
-    const prefectureCount = countByPrefecture(group.areas).filter((c) => c.pref != null).length;
-    const cityCount = effectiveAreaCount(group);
-
     const pushPage = (bucket: DetailPrefGroup[]): void => {
-      sections.push({ intensity: group.intensity, rank: group.rank, prefectureCount, cityCount, prefGroups: bucket });
+      sections.push({ intensity: group.intensity, rank: group.rank, prefGroups: bucket });
     };
 
     let bucket: DetailPrefGroup[] = [];

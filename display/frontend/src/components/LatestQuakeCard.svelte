@@ -7,7 +7,6 @@
     cityBudgetFromArea,
     effectiveAreaCount,
     paginateAreas,
-    quakeHeadline,
     shouldPageDetails,
   } from "../lib/instrument-layout";
   import { createPageCycler } from "../lib/page-cycler.svelte";
@@ -15,16 +14,11 @@
   import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
   import { fade } from "svelte/transition";
   import { onDestroy } from "svelte";
-  import QuakeHeadline from "./QuakeHeadline.svelte";
   import PageDots from "./PageDots.svelte";
   import RestoredChip from "./RestoredChip.svelte";
   import NumberUnit from "./NumberUnit.svelte";
 
   let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
-
-  // 固定サマリ計器「ヘッドライン2行」(最大震度規模行 + 拡大範囲行、spec §2-b 改訂 2026-07-09)。
-  // 旧・震度分布行/県別件数行は「広域」連呼が情報ゼロ・裸の数字が単位不明だったため廃止した
-  const headline = $derived(quakeHeadline(quake.intensityGroups));
 
   // 深さは「20km」の数値大・単位小で見せる (規模 M7.1 は接頭辞 M なので対象外、発生時刻も対象外)。
   // formatDepth は "20km" / "~10km" / "-" を返すので末尾単位で割る (splitNumberUnit)。
@@ -133,8 +127,7 @@
       </div>
     </div>
     {#if longPeriod != null}<div class="long-period-rider">長周期地震動階級 {longPeriod.maxLgInt}{#if longPeriod.restored}<RestoredChip />{/if}</div>{/if}
-    {#if headline != null}
-      <QuakeHeadline {headline} variant="card" />
+    {#if quake.intensityGroups.length > 0}
       {#if paging}
         {#if currentPage != null}
           <div class="page-detail">
@@ -157,7 +150,6 @@
                   {#each currentPage.sections as section (section.intensity)}
                     <li class="page-section">
                       <span class="g-int int-r{section.rank}">震度{section.intensity}</span>
-                      <span class="page-count">{section.prefectureCount}県{section.cityCount}市町村</span>
                       {#each section.prefGroups as pg (pg.pref ?? "その他")}
                         <div class="pref-group">
                           <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
@@ -287,8 +279,6 @@
     font-weight: var(--num-weight);
     font-variant-numeric: tabular-nums;
   }
-  /* 固定サマリ計器: ヘッドライン2行 (最大震度規模行 + 拡大範囲行) は QuakeHeadline.svelte へ
-     共有化した (T6。variant="card" で固定 fluid token・拡大範囲行 body 級を指定) */
   /* 静的リスト (paging=false、spec §4 決定表の totalEffective<=30) — 自動スクロールは撤去し、
      全グループを1本の静的リストで並べる (原則5「動くものは読めたら補足まで」) */
   .groups {
@@ -377,9 +367,6 @@
   .page-title {
     font-weight: var(--type-body-weight-emphasized);
     color: var(--role-muted);
-  }
-  .page-count {
-    font-variant-numeric: tabular-nums;
   }
   .page-body {
     position: relative;

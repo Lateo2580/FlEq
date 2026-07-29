@@ -210,7 +210,6 @@ describe("LatestQuakeCard", () => {
   });
 
   // 南海トラフ級 (震度7 単体で 153市町村) では totalEffective>30 のため詳細ページングへ降りる。
-  // 固定サマリ計器 (instrument-pref-counts) は縮退した県別件数のまま常時表示を維持する
   it("totalEffective が閾値超なら .groups は render されず詳細ページング (.page-detail) に置き換わる", () => {
     const bigAreas = [
       ...Array.from({ length: 31 }, (_, i) => `高知県市町村${i}`),
@@ -226,14 +225,11 @@ describe("LatestQuakeCard", () => {
 
     expect(container.querySelector(".groups")).toBeFalsy();
 
-    // 固定サマリ計器のヘッドライン (最大震度規模行) は paging 有無に関わらず常時表示
-    const topRow = container.querySelector(".instrument-top");
-    expect(topRow?.querySelector(".instrument-value")?.textContent).toBe("2県58市町村");
-
     // 詳細ページ (先頭ページは最大震度グループ、市町村数バジェットで分割される)
     const page = container.querySelector(".page-detail");
     expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
-    expect(page?.querySelector(".page-count")?.textContent).toBe("2県58市町村");
+    expect(page?.querySelector(".page-count")).toBeFalsy();
+    expect(container.querySelector(".instruments")).toBeFalsy();
     // 高知(31)・愛知(27) ともバジェット(20)超のため各県が2ページに分断され、震度7グループ内で計4ページ
     // 最終の半端ページは次の震度セクションを同居させるため、全4ページになる
     expectCurrentDot(page, 1, 5);
@@ -253,102 +249,6 @@ describe("LatestQuakeCard", () => {
     const src = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
     expect(src).toMatch(/\.city-name\s*\{[\s\S]*?white-space:\s*nowrap;[\s\S]*?\}/);
     expect(src).not.toContain('pg.cities.join("・")');
-  });
-
-  // 固定サマリ計器: ヘッドライン2行 (spec §2-b 改訂 2026-07-09、review-T5a-3)。
-  // 旧・震度分布行 (dist-item/「広域」連呼) と県別件数行 (pref-count) は廃止された
-  describe("固定サマリ計器: ヘッドライン2行", () => {
-    it("最大震度規模行に県数・市町村数を render する", () => {
-      const quake = latestQuake({
-        intensityGroups: [
-          { intensity: "6強", rank: 8, areas: ["高知県高知市", "愛知県名古屋市"], omittedAreaCount: 0 },
-          { intensity: "6弱", rank: 7, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 },
-        ],
-      });
-      const { container } = render(LatestQuakeCard, { quake });
-      const top = container.querySelector(".instrument-top");
-      // v3 で震度表記が「6強」→「6+」に統一されている (formatIntShort)
-      expect(top?.querySelector(".int-chip")?.textContent).toContain("6+");
-      expect(top?.querySelector(".instrument-value")?.textContent).toBe("2県2市町村");
-    });
-
-    it("市町村数は omittedAreaCount を加算する", () => {
-      const quake = latestQuake({
-        intensityGroups: [
-          { intensity: "6強", rank: 8, areas: ["高知県高知市", "愛知県名古屋市"], omittedAreaCount: 3 },
-        ],
-      });
-      const { container } = render(LatestQuakeCard, { quake });
-      const value = container.querySelector(".instrument-top .instrument-value");
-      expect(value?.textContent).toBe("2県5市町村");
-    });
-
-    it("グループが1つだけなら拡大範囲行は render されない", () => {
-      const quake = latestQuake({
-        intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 }],
-      });
-      const { container } = render(LatestQuakeCard, { quake });
-      expect(container.querySelector(".instrument-expanded")).toBeFalsy();
-    });
-
-    it("拡大範囲行は2番目のランクラベルと累積 (最大震度含む) distinct 県数を render する", () => {
-      const quake = latestQuake({
-        intensityGroups: [
-          { intensity: "7", rank: 9, areas: ["宮城県栗原市"], omittedAreaCount: 0 },
-          {
-            intensity: "6強", rank: 8,
-            areas: Array.from({ length: 19 }, (_, i) => `福島県市町村${i}`),
-            omittedAreaCount: 0,
-          },
-        ],
-      });
-      const { container } = render(LatestQuakeCard, { quake });
-      const expanded = container.querySelector(".instrument-expanded");
-      expect(expanded?.querySelector(".instrument-label")?.textContent).toBe("6強以上");
-      expect(expanded?.querySelector(".instrument-value")?.textContent).toBe("2県に拡大");
-    });
-
-    it("19件と31件 (縮退閾値の内外) でヘッドラインの意味は変わらない (縮退・ページングと無関係)", () => {
-      const quakeSmall = latestQuake({
-        intensityGroups: [
-          { intensity: "7", rank: 9, areas: ["宮城県栗原市"], omittedAreaCount: 0 },
-          {
-            intensity: "6強", rank: 8,
-            areas: Array.from({ length: 19 }, (_, i) => `福島県市町村${i}`),
-            omittedAreaCount: 0,
-          },
-        ],
-      });
-      const quakeBig = latestQuake({
-        intensityGroups: [
-          { intensity: "7", rank: 9, areas: ["宮城県栗原市"], omittedAreaCount: 0 },
-          {
-            intensity: "6強", rank: 8,
-            areas: Array.from({ length: 31 }, (_, i) => `福島県市町村${i}`),
-            omittedAreaCount: 0,
-          },
-        ],
-      });
-      const small = render(LatestQuakeCard, { quake: quakeSmall }).container;
-      const big = render(LatestQuakeCard, { quake: quakeBig }).container;
-      expect(small.querySelector(".instrument-expanded .instrument-value")?.textContent).toBe("2県に拡大");
-      expect(big.querySelector(".instrument-expanded .instrument-value")?.textContent).toBe("2県に拡大");
-    });
-
-    it("最大震度グループが153件でも規模行は数値のまま出す", () => {
-      const quake = latestQuake({
-        intensityGroups: [
-          {
-            intensity: "7", rank: 9,
-            areas: Array.from({ length: 153 }, (_, i) => `高知県市町村${i}`),
-            omittedAreaCount: 0,
-          },
-        ],
-      });
-      const { container } = render(LatestQuakeCard, { quake });
-      const value = container.querySelector(".instrument-top .instrument-value");
-      expect(value?.textContent).toBe("1県153市町村");
-    });
   });
 
   // 詳細ページング (T5a: spec §3/§4、市町村数バジェット制 review-T5a-2 FIX-A)
@@ -375,7 +275,7 @@ describe("LatestQuakeCard", () => {
       const page = container.querySelector(".page-detail");
       expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
       expect(page?.querySelector(".g-int")?.textContent).toContain("震度7");
-      expect(page?.querySelector(".page-count")?.textContent).toBe("10県153市町村");
+      expect(page?.querySelector(".page-count")).toBeFalsy();
       expectCurrentDot(page, 1, 11);
     });
 

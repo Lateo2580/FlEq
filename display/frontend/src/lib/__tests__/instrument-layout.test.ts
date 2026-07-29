@@ -9,7 +9,6 @@ import {
   effectiveAreaCount,
   isStackedLayout,
   paginateAreas,
-  quakeHeadline,
   rowCapacity,
   sectionAvailableHeight,
   shouldPageDetails,
@@ -184,92 +183,6 @@ describe("shouldPageDetails", () => {
   });
 });
 
-// ヘッドライン2行 (最大震度規模行 + 拡大範囲行、spec §2-b 改訂 2026-07-09、review-T5a-3)。
-// 旧・分布行 (shouldAbstractLowerGroup 駆動の distributionValue) はここで廃止された
-describe("quakeHeadline", () => {
-  it("空配列なら null", () => {
-    expect(quakeHeadline([])).toBeNull();
-  });
-
-  it("グループが1つだけなら拡大範囲行 (expanded) は null (非表示)", () => {
-    const g = group("7", 9, ["高知県高知市", "高知県室戸市"]);
-    const headline = quakeHeadline([g]);
-    expect(headline).toEqual({
-      topIntensity: "7",
-      topRank: 9,
-      topPrefectureCount: 1,
-      topCityCount: 2,
-      expanded: null,
-    });
-  });
-
-  it("2 グループ以上なら拡大範囲行が2番目のランクラベルと累積県数 (最大震度を含む) で出る", () => {
-    // 3.11 級モック: 震度7=1県 (宮城), 6強=1県 (福島) → 累積は宮城+福島の2県
-    const g7 = group("7", 9, ["宮城県栗原市"]);
-    const g6 = group("6強", 8, ["福島県白河市"]);
-    const headline = quakeHeadline([g7, g6]);
-    expect(headline?.topIntensity).toBe("7");
-    expect(headline?.topPrefectureCount).toBe(1);
-    expect(headline?.topCityCount).toBe(1);
-    expect(headline?.expanded).toEqual({ intensity: "6強", prefectureCount: 2 });
-  });
-
-  it("累積は最大震度グループを含む (ハンドオフ §2-a モック 震度7:8県 6強以上:19県 と同じ意味論)", () => {
-    // 高知 (震度7) と 徳島 (6強) が重複せず、累積は 2 県 (高知+徳島) になることを確認
-    const g7 = group("7", 9, Array.from({ length: 8 }, (_, i) => `高知県市町村${i}`));
-    const g6 = group("6強", 8, Array.from({ length: 11 }, (_, i) => `徳島県市町村${i}`));
-    const headline = quakeHeadline([g7, g6]);
-    expect(headline?.topPrefectureCount).toBe(1);
-    // 累積 (2県) > 最大震度単独 (1県) — 「以上」の累積読みであることを明示
-    expect(headline?.expanded?.prefectureCount).toBe(2);
-  });
-
-  it("3番目以降のグループは拡大範囲行の累積に含めない (先頭2グループのみ)", () => {
-    const g7 = group("7", 9, ["高知県高知市"]);
-    const g6 = group("6強", 8, ["徳島県徳島市"]);
-    const g5 = group("6弱", 7, ["愛媛県松山市"]);
-    const headline = quakeHeadline([g7, g6, g5]);
-    // 6強以上の累積は高知+徳島の2県のみ (愛媛は含まない)
-    expect(headline?.expanded).toEqual({ intensity: "6強", prefectureCount: 2 });
-  });
-
-  it("19件 (3.11 の6強相当) と31件 (縮退閾値超) の境界で行の意味は変わらない (縮退と無関係)", () => {
-    const g7 = group("7", 9, ["宮城県栗原市"]);
-    const g6a = group("6強", 8, areasOfLength(19, "福島県市町村"));
-    const g6b = group("6強", 8, areasOfLength(31, "福島県市町村"));
-    const headlineA = quakeHeadline([g7, g6a]);
-    const headlineB = quakeHeadline([g7, g6b]);
-    // どちらも県は福島1件のみなので累積は同じ2県 (宮城+福島)。市町村数の多寡は影響しない
-    expect(headlineA?.expanded?.prefectureCount).toBe(2);
-    expect(headlineB?.expanded?.prefectureCount).toBe(2);
-  });
-
-  // T7 preview 実測で見つかった回帰 (#standby-cards): areas が県プレフィックス無しの市名だけ
-  // (spec §2-b の静的リスト例そのもの、「宮崎市」「日南市」等) だと prefectureCountOf が 0 を
-  // 返し、拡大範囲行が「0県に拡大」という意味不明な表示になっていた。1 グループのみのときと
-  // 同じ「拡大なし」= null 扱いに統一する
-  it("最大震度グループが県プレフィックス無し (pref:null) のみだと topPrefectureCount は 0 (表示側で「N県」を省く判断に使う)", () => {
-    const g = group("6弱", 7, ["宮崎市", "日南市"]);
-    const headline = quakeHeadline([g]);
-    expect(headline?.topPrefectureCount).toBe(0);
-    expect(headline?.topCityCount).toBe(2);
-  });
-
-  it("2番目以降を含めても累積県数が 0 (両グループとも pref:null) なら拡大範囲行は null (非表示、1グループのみと同じ扱い)", () => {
-    const g6 = group("6弱", 7, ["宮崎市", "日南市"]);
-    const g5 = group("5強", 6, ["都城市", "延岡市"]);
-    const headline = quakeHeadline([g6, g5]);
-    expect(headline?.expanded).toBeNull();
-  });
-
-  it("最大震度グループが pref:null でも、2番目のグループに県プレフィックスがあれば拡大範囲行は通常どおり出る (県あり/なし混在)", () => {
-    const g6 = group("6弱", 7, ["宮崎市", "日南市"]);
-    const g5 = group("5強", 6, ["高知県高知市"]);
-    const headline = quakeHeadline([g6, g5]);
-    expect(headline?.expanded).toEqual({ intensity: "5強", prefectureCount: 1 });
-  });
-});
-
 describe("shouldCompactTopGroup (effectiveAreaCount 化後の既存挙動維持)", () => {
   it("null なら false", () => {
     expect(shouldCompactTopGroup(null)).toBe(false);
@@ -326,8 +239,6 @@ describe("paginateAreas", () => {
     expect(pages).toHaveLength(1);
     expect(pages[0].intensity).toBe("5弱");
     expect(pages[0].rank).toBe(5);
-    expect(pages[0].prefectureCount).toBe(1);
-    expect(pages[0].cityCount).toBe(2);
     expect(pages[0].prefGroups).toEqual([
       { pref: "宮崎県", cities: ["宮崎市", "都城市"], continuation: false },
     ]);
@@ -353,11 +264,6 @@ describe("paginateAreas", () => {
     expect(pages[1].prefGroups[0].continuation).toBe(true);
     expect(pages[1].prefGroups[0].cities).toHaveLength(31 - contentCapacity);
 
-    // グループ全体のメタ (県数・市町村数) はどのページでも群全体の値のまま
-    for (const page of pages) {
-      expect(page.prefectureCount).toBe(1);
-      expect(page.cityCount).toBe(31);
-    }
   });
 
   it("複数県がバジェット内に収まるときは分断せず同一ページに詰める (通常ケース)", () => {
@@ -395,8 +301,6 @@ describe("paginateAreas", () => {
     for (const [index, page] of pages.entries()) {
       expect(page.intensity).toBe("7");
       expect(page.rank).toBe(9);
-      expect(page.prefectureCount).toBe(10);
-      expect(page.cityCount).toBe(153);
       // 最後の18件だけ本文容量16を超えるため2ページ目が continuation になる
       expect(page.prefGroups).toHaveLength(1);
       expect(page.prefGroups[0].continuation).toBe(index === pages.length - 1);
@@ -453,12 +357,10 @@ describe("paginateAreas", () => {
     expect(paginateAreas([g])).toEqual([]);
   });
 
-  it("「その他」(pref:null) バケツはページ容量にはカウントされるが prefectureCount には含まれない", () => {
+  it("「その他」(pref:null) バケツもページ容量にカウントして同じページへ収める", () => {
     const g = group("5弱", 5, ["宮崎県宮崎市", "宗谷地方"]);
     const pages = paginateAreas([g]);
     expect(pages).toHaveLength(1);
-    // 県は宮崎のみ (「宗谷地方」は pref:null の「その他」扱いで県数に含めない)
-    expect(pages[0].prefectureCount).toBe(1);
     // バジェット内 (2件<=PAGE_CITY_BUDGET) なので「その他」バケツも同一ページに収まる
     expect(pages[0].prefGroups).toEqual([
       { pref: "宮崎県", cities: ["宮崎市"], continuation: false },

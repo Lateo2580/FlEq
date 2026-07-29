@@ -7,7 +7,6 @@
     cityBudgetFromArea,
     effectiveAreaCount,
     paginateAreas,
-    quakeHeadline,
     shouldPageDetails,
   } from "../lib/instrument-layout";
   import { createPageCycler } from "../lib/page-cycler.svelte";
@@ -16,7 +15,6 @@
   import { revealScaleIn, heightReveal } from "../lib/transitions";
   import { fade } from "svelte/transition";
   import { onDestroy } from "svelte";
-  import QuakeHeadline from "./QuakeHeadline.svelte";
   import PageDots from "./PageDots.svelte";
 
   // compact: main-stack の非 main スロット (EewPanel と同じ縮小パターンを適用し、
@@ -48,10 +46,6 @@
   // 2 つ目のチップが増えるケースは行の高さが変わらないので個別チップの scale のみ、spec §2-c)
   const chipRowInitiallyAbsent =
     !initialElementKeys.has("chip:tsunami") && !initialElementKeys.has("chip:origin");
-
-  // 固定サマリ計器「ヘッドライン2行」(最大震度規模行 + 拡大範囲行、spec §2-b 改訂 2026-07-09)。
-  // 旧・震度分布行/県別件数行は「広域」連呼が情報ゼロ・裸の数字が単位不明だったため廃止した
-  const headline = $derived(quakeHeadline(input.intensityGroups));
 
   // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)
   const totalEffective = $derived(
@@ -200,7 +194,6 @@
         </div>
       {/if}
     </div>
-    <QuakeHeadline {headline} variant="panel" {compact} />
     {#if paging}
       {#if currentPage != null}
         <div class="tile tile-page-detail">
@@ -223,7 +216,6 @@
                 {#each currentPage.sections as section (section.intensity)}
                   <div class="page-section">
                     <span class="int-chip int-r{section.rank}">{formatIntShort(section.intensity)}</span>
-                    <span class="page-count">{section.prefectureCount}県{section.cityCount}市町村</span>
                     {#each section.prefGroups as pg (pg.pref ?? "その他")}
                       <div class="pref-group">
                         <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
@@ -384,8 +376,6 @@
   .stat-value.lg {
     color: var(--c-orange);
   }
-  /* 固定サマリ計器: ヘッドライン2行 (最大震度規模行 + 拡大範囲行) は QuakeHeadline.svelte へ
-     共有化した (T6。variant="panel" で panel-scale 追従・拡大範囲行 title 級を指定) */
   .tile-groups {
     flex: 1;
     min-height: 0;
@@ -402,7 +392,7 @@
   .groups::-webkit-scrollbar {
     display: none;
   }
-  /* 詳細ページング (spec §3): 各ページに見出し・件数・ページ番号を固定枠で常時表示する
+  /* 詳細ページング (spec §3): 各ページに見出し・ページ位置を固定枠で常時表示する
      (原則3「任意の瞬間が単独で読める」)。ページ切替は旧ページ・新ページを重ねたクロスフェード
      (T5c、spec §3 再々改訂「チカチカする短いディップは撤回、重ねる」)。{#key cycler.index} で
      再マウントされる .page-fade は position:absolute で親 (.tile-page-detail、position:relative +
@@ -441,9 +431,6 @@
   .page-title {
     font-weight: var(--type-body-weight-emphasized);
     color: var(--role-muted);
-  }
-  .page-count {
-    font-variant-numeric: tabular-nums;
   }
   .page-body {
     position: relative;

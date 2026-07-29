@@ -1306,141 +1306,6 @@ describe("EmergencyScreen", () => {
     expect(eew).not.toContain("vertical-ping-pong-scroll");
   });
 
-  // 固定サマリ計器: ヘッドライン2行 (spec §2-b 改訂 2026-07-09、review-T5a-3、T4b から改修)。
-  // 旧・震度分布行 (dist-item/「広域」連呼) と県別件数行 (pref-count) は廃止された
-  describe("QuakePanel: 固定サマリ計器 (ヘッドライン2行)", () => {
-    it("最大震度規模行に各グループの県数・市町村数を render する", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [
-                { intensity: "6強", rank: 8, areas: ["高知県高知市", "愛知県名古屋市"], omittedAreaCount: 0 },
-                { intensity: "6弱", rank: 7, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 },
-              ],
-            }),
-          ),
-        ],
-      });
-      const top = container.querySelector(".instrument-top");
-      // v3 で震度表記が「6強」→「6+」に統一されている (formatIntShort)
-      expect(top?.querySelector(".int-chip")?.textContent).toContain("6+");
-      expect(top?.querySelector(".instrument-value")?.textContent).toBe("2県2市町村");
-    });
-
-    it("グループが1つだけなら拡大範囲行は render されない", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [{ intensity: "6強", rank: 8, areas: ["高知県高知市"], omittedAreaCount: 0 }],
-            }),
-          ),
-        ],
-      });
-      expect(container.querySelector(".instrument-expanded")).toBeFalsy();
-    });
-
-    // T7 preview 実測の回帰修正 (#standby-cards): areas が県プレフィックス無しの市名だけ
-    // (spec §2-b の静的リスト例そのもの「宮崎市」「日南市」) だと県数が 0 になり、
-    // 「0県2市町村」「0県に拡大」という意味不明な表示になっていた
-    it("県プレフィックス無しの areas だけのときは規模行が「N県」を省いて市町村数だけ render する", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [{ intensity: "6弱", rank: 7, areas: ["宮崎市", "日南市"], omittedAreaCount: 0 }],
-            }),
-          ),
-        ],
-      });
-      const value = container.querySelector(".instrument-top .instrument-value");
-      expect(value?.textContent).toBe("2市町村");
-    });
-
-    it("両グループとも県プレフィックス無しで累積県数が 0 のときは拡大範囲行が render されない (1グループのみと同じ扱い)", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [
-                { intensity: "6弱", rank: 7, areas: ["宮崎市", "日南市"], omittedAreaCount: 0 },
-                { intensity: "5強", rank: 6, areas: ["都城市", "延岡市"], omittedAreaCount: 3 },
-              ],
-            }),
-          ),
-        ],
-      });
-      expect(container.querySelector(".instrument-expanded")).toBeFalsy();
-    });
-
-    it("最大震度グループが県プレフィックス無しでも2番目のグループに県があれば拡大範囲行は通常どおり render する (県あり/なし混在)", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [
-                { intensity: "6弱", rank: 7, areas: ["宮崎市", "日南市"], omittedAreaCount: 0 },
-                { intensity: "5強", rank: 6, areas: ["高知県高知市"], omittedAreaCount: 0 },
-              ],
-            }),
-          ),
-        ],
-      });
-      const expanded = container.querySelector(".instrument-expanded");
-      expect(expanded?.querySelector(".instrument-value")?.textContent).toBe("1県に拡大");
-    });
-
-    it("拡大範囲行は2番目のランクラベルと累積 (最大震度含む) distinct 県数を render する", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [
-                { intensity: "7", rank: 9, areas: ["宮城県栗原市"], omittedAreaCount: 0 },
-                {
-                  intensity: "6強", rank: 8,
-                  areas: Array.from({ length: 19 }, (_, i) => `福島県市町村${i}`),
-                  omittedAreaCount: 0,
-                },
-              ],
-            }),
-          ),
-        ],
-      });
-      const expanded = container.querySelector(".instrument-expanded");
-      expect(expanded?.querySelector(".instrument-label")?.textContent).toBe("6強以上");
-      expect(expanded?.querySelector(".instrument-value")?.textContent).toBe("2県に拡大");
-    });
-
-    it("最大震度グループが153件でも規模行は数値のまま出す (縮退・ページングと無関係)", () => {
-      const { container } = render(EmergencyScreen, {
-        panels: [
-          panel(
-            "quake:1",
-            quakeInput({
-              intensityGroups: [
-                {
-                  intensity: "7", rank: 9,
-                  areas: Array.from({ length: 153 }, (_, i) => `高知県市町村${i}`),
-                  omittedAreaCount: 0,
-                },
-              ],
-            }),
-          ),
-        ],
-      });
-      const value = container.querySelector(".instrument-top .instrument-value");
-      expect(value?.textContent).toBe("1県153市町村");
-    });
-  });
-
   // 詳細ページング (T5a: spec §3/§4)
   describe("QuakePanel: 詳細ページング", () => {
     it("本文 budget 20 満杯でも最初の section 見出しを含めて 2 ページに割る", () => {
@@ -1539,7 +1404,8 @@ describe("EmergencyScreen", () => {
       expect(container.querySelector(".tile-groups")).toBeFalsy();
       const page = container.querySelector(".tile-page-detail");
       expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
-      expect(page?.querySelector(".page-count")?.textContent).toBe("10県153市町村");
+      expect(page?.querySelector(".page-count")).toBeFalsy();
+      expect(container.querySelector(".instruments")).toBeFalsy();
       expectCurrentDot(page, 1, 11);
     });
 
