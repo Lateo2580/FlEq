@@ -70,6 +70,8 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | 
       remark: raw.name?.remark ?? null,
       typhoonNumber: raw.name?.number ?? null,
       category: frame.typhoonClass.category,
+      intensityClass: frame.typhoonClass.intensity,
+      sizeClass: frame.typhoonClass.size,
       location: frame.center.location,
       pressureHpa: frame.center.pressureHpa,
       maxWindMs: frame.wind?.maxWindMs ?? null,

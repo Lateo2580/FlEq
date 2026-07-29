@@ -243,6 +243,15 @@ function volcanoEvent(over: Record<string, unknown> = {}, rawOver: Record<string
 }
 
 describe("StandbyStateStore: typhoon", () => {
+  it("projects parser intensity and size classes into the display card protocol", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({}, {
+      frames: [{ kind: "analysis", typhoonClass: { category: "TS", intensity: "非常に強い", size: "超大型" }, center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 25 } }],
+    }), T0);
+    const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
+    expect(item?.data.typhoons[0]).toMatchObject({ intensityClass: "非常に強い", sizeClass: "超大型" });
+  });
+
   it("receives, replaces, and aggregates typhoons by TC key", () => {
     const store = new StandbyStateStore();
     store.applyEvent(typhoonEvent(), T0);

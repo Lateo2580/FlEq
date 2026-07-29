@@ -1,9 +1,11 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import { typhoonHeaderTone } from "../lib/typhoon-header-tone";
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
   import NumberUnit from "./NumberUnit.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> } = $props();
+  const headerTone = $derived(typhoonHeaderTone(item.data.typhoons));
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
     const number = typhoon.typhoonNumber == null ? null : Number(typhoon.typhoonNumber.slice(2));
     return number == null || Number.isNaN(number) ? "台風" : `台風 ${number} 号${typhoon.nameKana == null ? "" : `（${typhoon.nameKana}）`}`;
@@ -11,7 +13,7 @@
 </script>
 
 <section class="standby-card typhoon-card">
-  <header>台風情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
+  <header class:advisory={headerTone === "advisory"} class:warning={headerTone === "warning"} class:emergency={headerTone === "emergency"}>台風情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
   {#each item.data.typhoons as typhoon (typhoon.typhoonKey)}
     <!-- 未命名 (発生予想等) は総称の「台風」を出さず remark を主行に昇格させる (2 行の冗長回避) -->
     <div class="typhoon">
@@ -39,6 +41,21 @@
     color: var(--role-muted);
     font-size: var(--type-title-s-fluid);
     font-weight: var(--type-title-weight-emphasized);
+  }
+  .advisory {
+    background: var(--header-weatherAdvisory-container);
+    color: var(--header-weatherAdvisory-on);
+    border-bottom: var(--header-band-width) solid var(--header-band-weatherAdvisory);
+  }
+  .warning {
+    background: var(--header-weatherWarning-container);
+    color: var(--header-weatherWarning-on);
+    border-bottom: var(--header-band-width) solid var(--header-band-weatherWarning);
+  }
+  .emergency {
+    background: var(--header-weatherEmergency-container);
+    color: var(--header-weatherEmergency-on);
+    border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
   }
   .typhoon { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
   .typhoon strong { display: block; font-size: max(14px, var(--type-label-l-fluid)); }

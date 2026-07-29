@@ -394,6 +394,10 @@ export interface DisplayTyphoonV1 {
   remark: string | null;
   typhoonNumber: string | null;
   category: string | null;
+  /** 強さ階級。旧い保存状態との互換のため省略可。 */
+  intensityClass?: string | null;
+  /** 大きさ階級。旧い保存状態との互換のため省略可。 */
+  sizeClass?: string | null;
   location: string | null;
   pressureHpa: number | null;
   maxWindMs: number | null;

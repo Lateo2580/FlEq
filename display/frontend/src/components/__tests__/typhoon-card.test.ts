@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import TyphoonCard from "../TyphoonCard.svelte";
 import type { ActiveStandbyCardV1, DisplayTyphoonV1 } from "../../lib/protocol";
+import { typhoonHeaderTone } from "../../lib/typhoon-header-tone";
 
 function typhoon(over: Partial<DisplayTyphoonV1> = {}): DisplayTyphoonV1 {
   return { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-07-21T00:00:00.000Z", ...over };
@@ -12,6 +13,26 @@ function typhoonItem(typhoons = [typhoon()]): Extract<ActiveStandbyCardV1, { kin
 }
 
 describe("TyphoonCard", () => {
+  it("selects emergency across multiple typhoons regardless of order", () => {
+    const advisory = typhoon({ intensityClass: "強い" });
+    const emergency = typhoon({ typhoonKey: "TC-2", intensityClass: "猛烈な" });
+    expect(typhoonHeaderTone([advisory, emergency])).toBe("emergency");
+    expect(typhoonHeaderTone([emergency, advisory])).toBe("emergency");
+  });
+
+  it("uses the existing weather header tones for intensity and size classes", () => {
+    const headerClass = (over: Partial<DisplayTyphoonV1>): DOMTokenList | undefined =>
+      render(TyphoonCard, { item: typhoonItem([typhoon(over)]) }).container.querySelector("header")?.classList;
+
+    expect(headerClass({ intensityClass: "強い" })?.contains("advisory")).toBe(true);
+    expect(headerClass({ sizeClass: "大型" })?.contains("advisory")).toBe(true);
+    expect(headerClass({ intensityClass: "非常に強い" })?.contains("warning")).toBe(true);
+    expect(headerClass({ sizeClass: "超大型" })?.contains("warning")).toBe(true);
+    expect(headerClass({ intensityClass: "猛烈な" })?.contains("emergency")).toBe(true);
+    expect(headerClass({ intensityClass: "強い", sizeClass: "超大型" })?.contains("warning")).toBe(true);
+    expect(headerClass({})?.contains("advisory")).toBe(false);
+  });
+
   it("renders number, name, location, and labelled fact columns (no slash-joined facts)", () => {
     const { container } = render(TyphoonCard, { item: typhoonItem() });
     const card = container.querySelector(".typhoon");
