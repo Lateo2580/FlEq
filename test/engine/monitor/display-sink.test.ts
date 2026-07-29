@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
 import { QuakeExtremeStore } from "../../../src/engine/display/quake-extreme-store";
+import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-counter";
 import type { DisplayIngestSink } from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type { Vpws50CurrentAreasForDisplay } from "../../../src/types";
@@ -111,6 +112,42 @@ describe("createDisplaySink (monitor の実配線)", () => {
       eventId: "Q1",
       originTime: new Date(T0).toISOString(),
       maxIntRank: 9,
+    });
+    expect(dirtyCalls).toBe(1);
+  });
+
+  it("display off 中も地震履歴を monitor 所有の日次状態へ記録する", () => {
+    const dailyQuakes = new DailyQuakeCounter(T0);
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined },
+      promotions: new WeatherPromotionStore(),
+      dailyQuakes,
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => null,
+      now: () => T0,
+    });
+    sink.ingest({
+      ...weatherEvent({ domain: "earthquake", type: "VXSE53" }),
+      eventId: "Q1", maxInt: "4", maxIntRank: 4,
+      originTime: new Date(T0).toISOString(), hypocenterName: "東京湾",
+    });
+    expect(dailyQuakes.getRecentQuakes(T0)).toMatchObject([{ eventId: "Q1", maxInt: "4" }]);
+  });
+
+  it("monitor 所有の地震履歴が変わると hub の state 再配信を要求する", () => {
+    let dirtyCalls = 0;
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined },
+      promotions: new WeatherPromotionStore(),
+      dailyQuakes: new DailyQuakeCounter(T0),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => undefined, markExternalStateDirty: () => { dirtyCalls += 1; } }),
+      now: () => T0,
+    });
+    sink.ingest({
+      ...weatherEvent({ domain: "earthquake", type: "VXSE53" }),
+      eventId: "Q1", maxInt: "4", maxIntRank: 4,
+      originTime: new Date(T0).toISOString(), hypocenterName: "東京湾",
     });
     expect(dirtyCalls).toBe(1);
   });

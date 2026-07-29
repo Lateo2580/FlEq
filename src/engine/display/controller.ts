@@ -8,7 +8,7 @@
 
 import type { AppConfig } from "../../types";
 import type { DisplayCallbacks } from "../messages/display-callbacks";
-import type { DisplayConnectionStateV1, DisplayIngestSink } from "./types";
+import type { DisplayConnectionStateV1, DisplayIngestSink, DisplayStatsV1 } from "./types";
 import type { DisplayRuntime, DisplaySeedSources } from "./runtime";
 
 export interface DisplayController {
@@ -34,6 +34,8 @@ export interface DisplayControllerDeps {
    * 取得できない/未注入の場合は state-store 初期値 ("connecting") のまま
    */
   getConnectionState?(): DisplayConnectionStateV1["dmdata"];
+  /** runtime 開始直後に明示 publish する stats。 */
+  getInitialStats?(): DisplayStatsV1;
 }
 
 export function createDisplayController(deps: DisplayControllerDeps): DisplayController {
@@ -70,6 +72,8 @@ export function createDisplayController(deps: DisplayControllerDeps): DisplayCon
       if (connState != null) {
         rt.hub.publishConnection({ dmdata: connState });
       }
+      const initialStats = deps.getInitialStats?.();
+      if (initialStats != null) rt.hub.publishStats(initialStats);
       return { ok: true, message: `情報ディスプレイを起動しました (ポート ${rt.transport.port()})` };
     },
 

@@ -96,6 +96,7 @@ export class DisplayStateStore {
     private readonly standbyItemsProvider?: () => ActiveStandbyCardV1[],
     promotions?: WeatherPromotionStore,
     quakeExtreme?: QuakeExtremeStore,
+    private readonly recentQuakesProvider?: () => DisplayRecentQuakeV1[],
   ) {
     this.promotions = promotions ?? new WeatherPromotionStore();
     this.quakeExtreme = quakeExtreme ?? new QuakeExtremeStore();
@@ -124,7 +125,7 @@ export class DisplayStateStore {
       this.largeQuakes.set(key, { ...dto.emergency, updatedAtMs: nowMs });
       changed = true;
     }
-    if (dto.recentQuake != null) {
+    if (dto.recentQuake != null && this.recentQuakesProvider == null) {
       changed = this.applyRecentQuake(dto.recentQuake, nowMs) || changed;
     }
     if (dto.latestQuake != null) {
@@ -209,11 +210,13 @@ export class DisplayStateStore {
     if (sweepWeatherPromotions) {
       changed = this.promotions.sweepDemote(nowMs) || changed;
     }
-    const today = jstDayKey(nowMs);
-    const currentRecent = this.recentQuakes.filter((q) => quakeDayKey(q) === today);
-    if (currentRecent.length !== this.recentQuakes.length) {
-      this.recentQuakes = currentRecent;
-      changed = true;
+    if (this.recentQuakesProvider == null) {
+      const today = jstDayKey(nowMs);
+      const currentRecent = this.recentQuakes.filter((q) => quakeDayKey(q) === today);
+      if (currentRecent.length !== this.recentQuakes.length) {
+        this.recentQuakes = currentRecent;
+        changed = true;
+      }
     }
     changed = this.quakeExtreme.sweep(nowMs) || changed;
     if (this.latestQuake != null &&
@@ -399,7 +402,7 @@ export class DisplayStateStore {
       weatherAlerts: [...this.weatherAlerts],
       weatherPromotion: this.weatherPromotionForWire(),
       weatherL5Active: this.isWeatherL5Active(),
-      recentQuakes: [...this.recentQuakes],
+      recentQuakes: this.recentQuakesProvider?.() ?? [...this.recentQuakes],
       latestQuake: this.latestQuake,
       stats: this.stats,
       severityTier: this.deriveSeverityTier(),

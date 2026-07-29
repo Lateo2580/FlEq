@@ -30,7 +30,7 @@ function testConfig(): AppConfig {
 
 function fakeRuntime(port = 12345, clientCount = 2): DisplayRuntime {
   return {
-    hub: { id: "hub", publishConnection: vi.fn() } as unknown as DisplayRuntime["hub"],
+    hub: { id: "hub", publishConnection: vi.fn(), publishStats: vi.fn() } as unknown as DisplayRuntime["hub"],
     transport: {
       port: () => port,
       clientCount: () => clientCount,
@@ -128,6 +128,20 @@ describe("createDisplayController", () => {
       await controller.start();
 
       expect(rt.hub.publishConnection).not.toHaveBeenCalled();
+    });
+
+    it("復元済み stats を runtime 接続直後に明示 publish する", async () => {
+      const rt = fakeRuntime();
+      mockStartDisplayRuntime.mockResolvedValue(rt);
+      const { deps } = makeDeps();
+      deps.getInitialStats = () => ({ sparklineData: [], totalReceived: 0, todayQuakeCount: 2, todayMaxInt: "4", todayMaxIntRank: 4 });
+
+      await createDisplayController(deps).start();
+
+      expect(rt.hub.publishStats).toHaveBeenCalledWith(expect.objectContaining({ todayQuakeCount: 2, todayMaxInt: "4" }));
+      expect((deps.setHubRef as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]).toBeLessThan(
+        (rt.hub.publishStats as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!,
+      );
     });
 
     it("kill switch (onStopped) が発火すると deps の runtime/hub が null に戻る", async () => {

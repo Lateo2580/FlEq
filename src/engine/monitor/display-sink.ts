@@ -17,6 +17,8 @@ import {
 } from "../display/weather-promotion-ingest";
 import type { WeatherPromotionStore } from "../display/weather-promotion-store";
 import type { QuakeExtremeStore } from "../display/quake-extreme-store";
+import { projectRecentQuake } from "../display/project-event";
+import type { DailyQuakeCounter } from "../messages/daily-quake-counter";
 
 export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
@@ -25,6 +27,8 @@ export interface DisplaySinkDeps {
   promotions: WeatherPromotionStore;
   /** 震度 7 の 12 時間保持。display off 中も電文受理と同時に更新する。 */
   quakeExtreme?: QuakeExtremeStore;
+  /** 当日地震履歴。display off 中も更新し、runtime 起動時の seed に使う。 */
+  dailyQuakes?: DailyQuakeCounter;
   /** 昇格判定に使う現況 view (state holder) */
   weatherViews: WeatherPromotionViewSources;
   /** 現在の display hub (未起動なら null) */
@@ -41,10 +45,11 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       deps.standby.applyEvent(event, nowMs);
       applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;
+      const dailyQuakeChanged = deps.dailyQuakes?.recordRecentQuake(projectRecentQuake(event), nowMs) ?? false;
       const hub = deps.getHub();
       // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
       // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
-      if (quakeExtremeChanged) hub?.markExternalStateDirty?.();
+      if (quakeExtremeChanged || dailyQuakeChanged) hub?.markExternalStateDirty?.();
       hub?.ingest(event);
     },
   };

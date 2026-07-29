@@ -65,6 +65,8 @@ export interface ShutdownContext {
   flushWeatherPromotion?: () => void;
   /** 震度 7 専用保持時計の最終保存 */
   flushQuakeExtreme?: () => void;
+  /** 当日地震カウンタ・履歴の最終保存 */
+  flushDailyQuake?: () => void;
 }
 
 /**
@@ -98,6 +100,7 @@ export function createShutdownHandler(ctx: ShutdownContext): () => Promise<void>
     ctx.flushDetailCaches?.();
     ctx.flushWeatherPromotion?.();
     ctx.flushQuakeExtreme?.();
+    ctx.flushDailyQuake?.();
     const repl = ctx.getReplHandler();
     if (repl) repl.stop();
     const socketClosePromise = closeSocketViaApi(ctx.apiKey, ctx.manager);

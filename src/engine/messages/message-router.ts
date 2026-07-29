@@ -205,6 +205,8 @@ export interface MessageHandlerOptions {
   routeTaps?: readonly RoutedMessageTap[];
   /** 処理済み outcome を観測する汎用 tap (同期・軽量前提)。@see ProcessedOutcomeTap */
   outcomeTaps?: readonly ProcessedOutcomeTap[];
+  /** monitor 所有の日次地震状態。未指定時は従来どおり handler 専用の instance を作る。 */
+  dailyQuakeCounter?: DailyQuakeCounter;
 }
 
 /** createMessageHandler の戻り値 */
@@ -220,6 +222,8 @@ export interface MessageHandlerResult {
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
   dailyQuakeCounter: DailyQuakeCounter;
+  /** 起動直後と display on 時に明示 publish する stats snapshot。 */
+  buildDisplayStats: (now?: number) => DisplayStatsV1;
   flushAndDisposeVolcanoBuffer: () => void;
 }
 
@@ -241,7 +245,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const floodForecastState = new FloodForecastStateHolder();
   const stats = new TelegramStats();
   const summaryTracker = new SummaryWindowTracker();
-  const dailyQuakeCounter = new DailyQuakeCounter();
+  const dailyQuakeCounter = options?.dailyQuakeCounter ?? new DailyQuakeCounter();
   const diffStore = new PresentationDiffStore();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
@@ -410,6 +414,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     stats,
     summaryTracker,
     dailyQuakeCounter,
+    buildDisplayStats: (now?: number) => buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, now),
     flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),
   };
 }

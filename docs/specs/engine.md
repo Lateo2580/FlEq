@@ -3132,6 +3132,20 @@ Set/Map のサイズ上限 `MAX_EVENT_ENTRIES = 1000`。超過時はバッチ削
 
 ---
 
+## messages/daily-quake-counter.ts / daily-quake-persistence.ts
+
+`DailyQuakeCounter` は当日 (JST) の地震件数・最大震度に加え、待機画面の `recentQuakes` 表示 DTO（新しい順、最大 5 件）を monitor 所有の一状態として持つ。件数は `eventId` 単位で数え、同じ eventId の続報は最大震度だけを更新する。`eventId: null` は受信ごとに 1 件とする。
+
+- 保存先は gitignore 済みの `data/runtime/daily-quake-v1.json`。envelope は `version: 1`、`savedAt`、`state`（`dayKey` / `count` / `maxInt` / `maxIntRank` / `countedEventIds` / `recentQuakes`）であり、カウンタと履歴を別ファイルに分離しない。
+- `DailyQuakePersistence` は 3 秒 debounce の後、`*.tmp` へ書いて rename する。終了時は `dispose()` → `save()` で予約より新しい現在状態を同期書き込みする。
+- `load(nowMs)` は envelope・version・全 DTO 構造・日時を検証する。JSON 破損、未知 version、未来 `savedAt` / 履歴日時は warn して全状態を捨て、本体は空状態で継続する。
+- 起動時の restore は `dayKey === jstDayKey(nowMs)` の同日データだけを受理する。前日データは空の当日状態にする。履歴は originTime（欠落時は reportDateTime）の JST 日付が当日であるものだけを載せるので、深夜到着の前日続報は履歴外だがカウンタには残る。
+- monitor の独立した 60 秒 sweep と受信経路の両方で日替わりを検知する。日替わり時はカウンタ・履歴を空にして debounce を待たず同期保存する。
+- `createDisplaySink()` は display off 中も `projectRecentQuake()` をこの状態へ記録する。display runtime は `recentQuakes` provider を seed として受け取るため、off/on と再起動をまたいでも履歴を復元する。
+- runtime 起動時は `buildDisplayStats()` を state seed に入れ、controller が `publishStats()` も明示的に呼ぶ。これにより復元直後の `todayQuakeCount` / `todayMaxInt` が、次の電文を待たず snapshot と state 配信に現れる。
+
+---
+
 ## messages/summary-tracker.ts
 
 ### 概要

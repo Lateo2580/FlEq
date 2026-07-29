@@ -19,6 +19,8 @@ import { WeatherPromotionPersistence } from "../display/weather-promotion-persis
 import { WeatherPromotionStore } from "../display/weather-promotion-store";
 import { QuakeExtremePersistence } from "../display/quake-extreme-persistence";
 import { QuakeExtremeStore } from "../display/quake-extreme-store";
+import { DailyQuakeCounter } from "../messages/daily-quake-counter";
+import { DailyQuakePersistence } from "../messages/daily-quake-persistence";
 import { createDisplaySink } from "./display-sink";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
@@ -73,6 +75,28 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     log.warn(`気象警報の昇格状態の復元に失敗しました: ${err instanceof Error ? err.message : err} (本体は継続します)`);
   }
 
+  // 当日地震カウンタと待機画面の履歴は monitor が所有する。display off/on や再起動で失わせず、
+  // 1 ファイルにまとめて原子的に保存するため、両方を DailyQuakeCounter に閉じる。
+  const dailyQuakeCounter = new DailyQuakeCounter();
+  const dailyQuakePersistence = new DailyQuakePersistence(
+    join(process.cwd(), "data", "runtime", "daily-quake-v1.json"),
+  );
+  try {
+    const persistedDailyQuake = dailyQuakePersistence.load(Date.now());
+    if (persistedDailyQuake != null) dailyQuakeCounter.restore(persistedDailyQuake, Date.now());
+  } catch (err) {
+    log.warn(`当日地震状態の復元に失敗しました: ${err instanceof Error ? err.message : err} (本体は継続します)`);
+  }
+  dailyQuakeCounter.onChange((change) => {
+    const nowMs = Date.now();
+    if (change === "rollover") {
+      dailyQuakePersistence.dispose();
+      dailyQuakePersistence.save(dailyQuakeCounter.export(), nowMs);
+    } else {
+      dailyQuakePersistence.schedule(dailyQuakeCounter.export(), nowMs);
+    }
+  });
+
   // 震度 7 の背景保持は、表示用 largeQuake/latestQuake の TTL から独立した originTime 基準の 12 時間時計。
   // monitor 所有にして display off/on とプロセス再起動をまたいで維持する。
   const quakeExtremeStore = new QuakeExtremeStore();
@@ -112,6 +136,23 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   }
   startStandbySweep();
 
+  // display runtime の有無とは独立して 0 時 JST を越えた空状態を保存する。
+  // runtime 稼働中は standby sweep が hub へ移るため、ここを兼用すると日替わりが保存されない。
+  let dailyQuakeSweepTimer: NodeJS.Timeout | null = setInterval(() => {
+    const nowMs = Date.now();
+    if (dailyQuakeCounter.sweep(nowMs)) {
+      dailyQuakePersistence.dispose();
+      dailyQuakePersistence.save(dailyQuakeCounter.export(), nowMs);
+      displayHubRef?.markExternalStateDirty?.();
+    }
+  }, 60_000);
+  dailyQuakeSweepTimer.unref();
+  function stopDailyQuakeSweep(): void {
+    if (dailyQuakeSweepTimer == null) return;
+    clearInterval(dailyQuakeSweepTimer);
+    dailyQuakeSweepTimer = null;
+  }
+
   // 情報ディスプレイ: router には実体 hub ではなく遅延 sink を渡す。
   // 正しい seed は restoreTsunamiState 後にしか読めないため、runtime は restore 後に
   // 起動して向き先 (displayHubRef) を差し替える。dmdata 接続開始はさらに後なので取りこぼしは無い。
@@ -120,6 +161,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     standby: standbyStore,
     promotions: weatherPromotionStore,
     quakeExtreme: quakeExtremeStore,
+    dailyQuakes: dailyQuakeCounter,
     weatherViews: {
       vpws50: () => vpws50State.getCurrentAreasForDisplay(),
       vpww56: () => vpww56State.getCurrentAreasForDisplay(),
@@ -136,7 +178,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let isFirstConnection = true;
 
   const pipeline = pipelineController?.getPipeline();
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, vpws50State, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer } = createMessageHandler({ pipeline: pipeline ?? undefined, display, displaySink });
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, vpws50State, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
+    pipeline: pipeline ?? undefined,
+    display,
+    displaySink,
+    dailyQuakeCounter,
+  });
 
   /** 現在の dmdata 接続状態 (display on 時の起動直後 seed 用) */
   function getConnectionState(): DisplayConnectionStateV1["dmdata"] {
@@ -157,6 +204,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       standbyItems: () => standbyStore.snapshotItems(),
       weatherPromotions: () => weatherPromotionStore,
       quakeExtreme: () => quakeExtremeStore,
+      recentQuakes: () => dailyQuakeCounter.getRecentQuakes(),
+      stats: () => buildDisplayStats(),
       standbySweep: (nowMs) => standbyStore.sweep(nowMs),
     },
     getRuntime: () => displayRuntime,
@@ -168,6 +217,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       else stopStandbySweep();
     },
     getConnectionState,
+    getInitialStats: () => buildDisplayStats(),
   });
 
   // EEW ログ設定を反映
@@ -233,6 +283,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     flushQuakeExtreme: () => {
       quakeExtremePersistence.dispose();
       quakeExtremePersistence.save(quakeExtremeStore.export(), Date.now());
+    },
+    flushDailyQuake: () => {
+      stopDailyQuakeSweep();
+      dailyQuakePersistence.dispose();
+      dailyQuakePersistence.save(dailyQuakeCounter.export(), Date.now());
     },
   });
 

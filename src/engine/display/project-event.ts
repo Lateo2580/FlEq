@@ -119,7 +119,7 @@ function projectEmergency(event: PresentationEvent): DisplayEmergencyInputV1 | n
   return null;
 }
 
-function projectRecentQuake(event: PresentationEvent): DisplayRecentQuakeV1 | null {
+export function projectRecentQuake(event: PresentationEvent): DisplayRecentQuakeV1 | null {
   if (event.domain !== "earthquake" || event.isCancellation) return null;
   if (event.maxInt == null && event.hypocenterName == null) return null;
   return {

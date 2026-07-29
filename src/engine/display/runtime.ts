@@ -23,11 +23,13 @@ import { QuakeExtremeStore } from "./quake-extreme-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
 import type {
   ActiveStandbyCardV1,
+  DisplayRecentQuakeV1,
   DisplayTsunamiInputV1,
   DisplayTsunamiLevel,
   DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
   DisplayWeatherRank,
+  DisplayStatsV1,
 } from "./types";
 import type { DisplayMutation } from "./standby-registry";
 
@@ -52,6 +54,10 @@ export interface DisplaySeedSources {
   weatherPromotions?: () => WeatherPromotionStore;
   /** monitor 所有の震度 7 専用保持時計。display off/on をまたいで維持する。 */
   quakeExtreme?: () => QuakeExtremeStore;
+  /** monitor 所有の当日地震履歴。display off/on・再起動をまたぐ。 */
+  recentQuakes?: () => DisplayRecentQuakeV1[];
+  /** 起動直後 snapshot に載せる当日統計。 */
+  stats?: () => DisplayStatsV1;
   /** hub 稼働中の sweep は既存 hub タイマーへ統合する */
   standbySweep?: (nowMs: number) => DisplayMutation;
 }
@@ -110,7 +116,12 @@ export async function startDisplayRuntime(
   /** kill switch (onFatal) 発火時にも呼び出し元の runtime 参照を後始末させるための通知 */
   onStopped?: () => void,
 ): Promise<DisplayRuntime | null> {
-  const store = new DisplayStateStore(seeds.standbyItems, seeds.weatherPromotions?.(), seeds.quakeExtreme?.());
+  const store = new DisplayStateStore(
+    seeds.standbyItems,
+    seeds.weatherPromotions?.(),
+    seeds.quakeExtreme?.(),
+    seeds.recentQuakes,
+  );
   const distDir = resolveDistDir();
   const frontendBuildId = createFrontendBuildIdReader(distDir);
   const hub = new InfoDisplayHub(store, {
@@ -163,6 +174,8 @@ export async function startDisplayRuntime(
 
   // 起動時 seed: 津波は restore 済み state から、気象警報は現況 (通常は未受信で空)
   const nowMs = Date.now();
+  const initialStats = seeds.stats?.();
+  if (initialStats != null) store.setStats(initialStats);
   const tsunamiInfo = seeds.tsunami();
   if (tsunamiInfo != null) {
     const seed = tsunamiSeedFromParsed(tsunamiInfo);
