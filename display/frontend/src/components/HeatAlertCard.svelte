@@ -1,10 +1,19 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import { relativeJstDayLabel } from "../lib/jst-day-key";
   import RestoredChip from "./RestoredChip.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "heat" }> } = $props();
   const special = $derived(item.severity === "critical" || item.data.areas.some((area) => area.isSpecial));
+  let nowMs = $state(Date.now());
+  $effect(() => {
+    const id = setInterval(() => {
+      nowMs = Date.now();
+    }, 60_000);
+    return () => clearInterval(id);
+  });
   // 見出し帯の折り返し回避: 日付は MM/DD (月日部分) に短縮する。データ形式 (targetDate) は変えない
   const shortDate = $derived(item.data.targetDate.slice(5).replaceAll("-", "/"));
+  const targetDateLabel = $derived(relativeJstDayLabel(item.data.targetDate, nowMs) ?? shortDate);
   // 対象府県は全数を 1 行で流す (2026-07-25 実機報告: 全国的な高温日は 40 府県級で、
   // 「先頭 6 件 + ほか n 件」縮約では省略側が多数になり本末転倒だった)。
   // TsunamiStandbyBanner のカード内マーキーと同じ速度規範 (全角 3 文字/秒・最低 18 秒)。
@@ -52,7 +61,7 @@
 </script>
 
 <section class:critical={special} class="standby-card heat-card">
-  <header><span class="title">{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}</span>{#if item.restored}<RestoredChip />{/if}<span class="date">{shortDate}</span></header>
+  <header><span class="title">{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}</span>{#if item.restored}<RestoredChip />{/if}<span class="date">{targetDateLabel}</span></header>
   <div class="areas" bind:this={areasEl}>
     {#if reducedMotion}
       <span class="areas-static">{areaText}</span>

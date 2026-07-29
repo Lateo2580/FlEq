@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
+import { tick } from "svelte";
 import HeatAlertCard from "../HeatAlertCard.svelte";
 import type { ActiveStandbyCardV1 } from "../../lib/protocol";
 
@@ -14,6 +15,22 @@ function heatItem(over: Partial<Extract<ActiveStandbyCardV1, { kind: "heat" }>> 
 }
 
 describe("HeatAlertCard", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("updates an already-rendered card from あす to きょう across JST midnight", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime("2026-07-21T14:59:59Z");
+    const { container, unmount } = render(HeatAlertCard, {
+      item: heatItem({ data: { targetDate: "2026-07-22", areas: [] } }),
+    });
+    expect(container.querySelector("header .date")?.textContent).toBe("あす");
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    await tick();
+    expect(container.querySelector("header .date")?.textContent).toBe("きょう");
+    unmount();
+  });
+
   it("renders target date (MM/DD short slash format, in header) and all areas", () => {
     const { container } = render(HeatAlertCard, { item: heatItem({ data: { targetDate: "2026-07-22", areas: [{ areaName: "Tokyo", isSpecial: false }, { areaName: "Osaka", isSpecial: false }] } }) });
     // 日付は MM/DD (07/22) 形式で見出し帯 (header) の中に出る (データ形式 targetDate は変えない)
