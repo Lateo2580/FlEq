@@ -468,6 +468,9 @@
     return () => { clearTimeout(t1); clearTimeout(t2); };
   });
 
+  let interruptLines = $state<DisplayEventDtoV1[]>(tickerLinesInterruptBase);
+  let revisionLines = $state<DisplayEventDtoV1[]>([tickerRevisionV1]);
+
   // #emergency-stress / #standby-stress / #emergency-nankai / #standby-nankai では
   // 長文テロップのストレス用データに差し替える
   const tickerFeed = $derived(
@@ -502,7 +505,6 @@
   // 通過し終えたタイミングで割込ませ、栞復帰 (頭からでなく途中再開) を目視で区別できるようにする。
   // tickerGeneration は据え置きのまま lines へ追加するので、Ticker.svelte 側は「新着 enqueue」
   // 経路 (実運用の割込みと同じ経路) を通る (fixtures.ts の tickerLinesInterruptBase コメント参照)。
-  let interruptLines = $state<DisplayEventDtoV1[]>(tickerLinesInterruptBase);
   $effect(() => {
     if (scenario !== "ticker-interrupt") return;
     interruptLines = tickerLinesInterruptBase;
@@ -514,7 +516,6 @@
 
   // #ticker-revision: 同一 groupKey の続報を t=0 / +1000ms / +2000ms で 3 版投入する
   // (lines は新しい順につき新版を先頭へ unshift)。
-  let revisionLines = $state<DisplayEventDtoV1[]>([tickerRevisionV1]);
   $effect(() => {
     if (scenario !== "ticker-revision") return;
     revisionLines = [tickerRevisionV1];

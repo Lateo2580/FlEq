@@ -1,3 +1,6 @@
+<script lang="ts">
+</script>
+
 <span class="restored-chip">同期中</span>
 
 <style>

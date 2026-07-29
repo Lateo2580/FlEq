@@ -89,6 +89,9 @@
   // weatherPageCapacity の「未実測 = fallback (WEATHER_PAGE_ROW_CAPACITY)」経路に落ちる。
   // 1 行に並べる地域名の件数は**領域の実測幅**から決める (固定件数だと、ゆとりがあるのに
   // 省略してしまう / 狭いのに詰め込む、の両方が起きる)。未実測のうちは fallback
+  // 地域件数の可変化に使う実測 (幅と実効フォントサイズ)。高さと同じく未実測は null
+  let whereBodyWidth = $state<number | null>(null);
+  let whereFontSize = $state<number | null>(null);
   const areaMax = $derived(weatherRowAreaMax(whereBodyWidth, whereFontSize, compact));
   const mainRows = $derived(pagedItems.map((it) => capRowAreas(it, areaMax)));
   // 副セクションは **地域名を持たない要約** (ユーザー決定 2026-07-26)。種別名だけを上限まで
@@ -123,10 +126,7 @@
   // 膨らんだ行高が最終レイアウトへ residue として残り、以後ずっと余分にページを割る (Codex R4)。
   // 整定が解けた時点で最終 DOM から測り直す — ResizeObserver は「サイズが変わらなければ鳴らない」
   // ので、次の通知を待つ設計にすると整定後に一度も更新されない経路ができる。
-  let whereBodyEl: HTMLElement | null = null;
-  // 地域件数の可変化に使う実測 (幅と実効フォントサイズ)。高さと同じく未実測は null
-  let whereBodyWidth = $state<number | null>(null);
-  let whereFontSize = $state<number | null>(null);
+  let whereBodyEl = $state<HTMLElement | null>(null);
   // 実測に使う DOM は **作られた時点の点灯キー (token) と一緒に**持つ (spec 追補 C1 の
   // 再点灯 crossfade 対策)。退場中の旧 DOM も ResizeObserver を鳴らし続けるので
   // (`pointer-events: none` では止まらない)、token が現行 activationKey と一致するものだけを

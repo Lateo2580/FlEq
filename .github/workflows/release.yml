@@ -34,6 +34,9 @@ jobs:
 
       - run: npm --prefix display ci
 
+      - name: Typecheck (display)
+        run: npm run typecheck --prefix display
+
       - run: npm test
 
       - run: npm run build

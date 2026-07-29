@@ -212,8 +212,12 @@
     if (fadeCapturedGen === generation) return;
     fadeCapturedGen = generation;
     const tx = readTranslateX(lineEl);
-    if (tx != null) lineEl.style.transform = `translate(${tx}px, -50%)`;
-    const measured = tx != null ? lastPassedBookmark(bookmarkHolder.els, tx, scrollEl.clientWidth, segmentIndex) : null;
+    if (tx == null) {
+      onBookmarkCapture(generation, segmentIndex, false);
+      return;
+    }
+    lineEl.style.transform = `translate(${tx}px, -50%)`;
+    const measured = lastPassedBookmark(bookmarkHolder.els, tx, scrollEl.clientWidth, segmentIndex);
     if (measured == null) {
       onBookmarkCapture(generation, segmentIndex, false);
       return;
