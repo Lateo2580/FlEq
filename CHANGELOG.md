@@ -2,6 +2,121 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [3.1.0](https://github.com/Lateo2580/FlEq/compare/v3.0.0...v3.1.0) (2026-07-29)
+
+
+### 機能追加
+
+* **display:** dim transition を共有トークン化し洪水モーション検証シナリオを追加 ([94ab388](https://github.com/Lateo2580/FlEq/commit/94ab3887821a040544f7ee0ec75b83a6ac1ad170))
+* **display:** NumberUnit に prefix 対応と添え字サイズ変数を追加 ([927882a](https://github.com/Lateo2580/FlEq/commit/927882a6f39f7e00134a7d81dd77b5b3757f1b40))
+* **display:** overflow 集約行を 32px 固定化し実機再現 preview シナリオを追加 ([120ad45](https://github.com/Lateo2580/FlEq/commit/120ad450435f238fe0d00a5e48f12ad8d938306b))
+* **display:** preview に standbyItems の目視シナリオ 2 種を追加 ([ca825c1](https://github.com/Lateo2580/FlEq/commit/ca825c1bf92a3b9d51d9379b5056b8f83f4b316b))
+* **display:** コントラスト監査に panel 面のペアを追加し、仕様を同期する ([406da97](https://github.com/Lateo2580/FlEq/commit/406da97753ad559cf39f06fc8fc33dce4e38ed90))
+* **display:** 右スタックに measurement shelf を配線し実高選抜へ切替 ([209ba60](https://github.com/Lateo2580/FlEq/commit/209ba604559a9245ae5c3247cb7abdf1d178ad73))
+* **display:** 右スタック実高計測ストアを追加 (一括切替ゲート + ヒステリシス) ([3193c48](https://github.com/Lateo2580/FlEq/commit/3193c4862b78709c941755b154148c8445b85f17))
+* **display:** 右スタック選抜に severity 下限ガードを導入 ([1870009](https://github.com/Lateo2580/FlEq/commit/1870009d6ed07ddb33c5b5d1f5706e9608259858))
+* **display:** 火山・早期天候テロップに専用文言を追加し headline 生流出を解消 ([9f29ef0](https://github.com/Lateo2580/FlEq/commit/9f29ef0fae472a91b3b1d717ffb6323c32124296))
+* **display:** 火山警戒レベルを NumberUnit prefix 形式に統一 ([8880206](https://github.com/Lateo2580/FlEq/commit/8880206f5e7d6046c0a7305d7e2b4c3375755b3d))
+* **display:** 気象・台風・火山・津波カードの見出しに最終更新時刻を表示する ([437dae1](https://github.com/Lateo2580/FlEq/commit/437dae19d53b2de36c7d5fcc0b21a2de75ad3c71))
+* **display:** 気象警報を緊急画面の主役パネルへ昇格させる (Spec C Phase 2) ([7824926](https://github.com/Lateo2580/FlEq/commit/7824926dda4619e0f0a4aed62f77135085921882))
+* **display:** 規模表示を NumberUnit prefix 形式に統一 ([b27cae5](https://github.com/Lateo2580/FlEq/commit/b27cae595b4eb1c927fa25414c0b8b3c17ea6b95))
+* **display:** 緊急カードを流動レイアウト化し「今日あった地震」を追加する ([df179e2](https://github.com/Lateo2580/FlEq/commit/df179e2a5801772c5b3cfb5430bc476a56ecfd50))
+* **display:** 緊急画面に防災情報テロップを追加する ([fc8449a](https://github.com/Lateo2580/FlEq/commit/fc8449ae99a0466307c11fd0eb539f47d4742caa))
+* **display:** 警戒レベル4/5相当の気象警報の昇格状態を engine に追加 ([d3b6563](https://github.com/Lateo2580/FlEq/commit/d3b6563374fd0a60bdf61ab2e0d785fab77fba80))
+* **display:** 洪水 corner カードの水位表記を構造化 (サイズ据置き) ([322b008](https://github.com/Lateo2580/FlEq/commit/322b008e8560464aea7f5108b154ffc3ae1c4e31))
+* **display:** 洪水カード (projection 三分類・FloodActiveReducer・通常/中央ワイド表示) を追加 ([48aac42](https://github.com/Lateo2580/FlEq/commit/48aac42e0e29e4da5e8aac20a3d78bf6760e19ce))
+* **display:** 洪水カードの水位表示とデザイン反復ラウンドをまとめて反映 ([113344d](https://github.com/Lateo2580/FlEq/commit/113344d2868a2d2e5ac6463fd966289c7a39a722))
+* **display:** 洪水セルの観測所名を小見出し化し水位を主役数値に拡大 ([bf1edd5](https://github.com/Lateo2580/FlEq/commit/bf1edd574874d8cab17588313a49e275f7b800a2))
+* **display:** 洪水ワイドカードの増減アニメーション ([e490232](https://github.com/Lateo2580/FlEq/commit/e490232776b558050b12d238f0665b5acb0a8301))
+* **display:** 洪水ワイドセルの微調整 (水位拡大・矢印色分け・グラフ拡張・集約行圧縮) ([4fbc149](https://github.com/Lateo2580/FlEq/commit/4fbc14994cf16b9bb6d24162318681f6919d1f08))
+* **display:** 洪水ワイドセルを 2×2 ラベルグリッドに再構成 (ご主人レイアウト案) ([cc1002a](https://github.com/Lateo2580/FlEq/commit/cc1002a9d3c2b6688405bc30ff91c28e8f29d7d3))
+* **display:** 洪水ワイドセルを低背化 (ラベル削除・左右 4:6・グラフ全幅) ([276618d](https://github.com/Lateo2580/FlEq/commit/276618dea814a29d8949fe1e179298999a1e79b1))
+* **display:** 昇格の根拠になった view を record に内包して永続化する ([b1915a3](https://github.com/Lateo2580/FlEq/commit/b1915a35190bcab4fcb5203aee900a6ff4f17b21))
+* **display:** 情報ゼロの VPWP50 テロップを tickerSuppressed で抑制 ([c966c6c](https://github.com/Lateo2580/FlEq/commit/c966c6cc7642f88541b1041c1cf4bf09f38f1049))
+* **display:** 数値+単位タイポグラフィ (NumberUnit) とグラフ端切れ修正 ([baea096](https://github.com/Lateo2580/FlEq/commit/baea096a14a32d11d7e62225ab8ba02fab86885d))
+* **display:** 待機画面カード基盤 (protocol/registry/StandbyStateStore/永続化/monitor 配線) ([a54a1fd](https://github.com/Lateo2580/FlEq/commit/a54a1fd9f874fe9e2e5b1e06af6e709050426682))
+* **display:** 点灯規則を仕上げる (engine) — resume/restore 責務分離と SSE 可視時間契約 ([a43c209](https://github.com/Lateo2580/FlEq/commit/a43c209f85869cb759e027713e46b12b26fb52c1))
+* **display:** 点灯規則を仕上げる (frontend) — 跨 source 行統合・装飾スコープ・実測ガード ([76976fe](https://github.com/Lateo2580/FlEq/commit/76976fe1b9b41e8e471f35940df5d906c921105c))
+* **display:** 南海トラフバッジ・竜巻/長周期 rider・減光連動・統合テストを追加 ([607b5dc](https://github.com/Lateo2580/FlEq/commit/607b5dc0b944b4b46c4fa8f0f2c9c9996a1a37ed))
+* **display:** 熱中症・台風・火山カードと右上スタック/overflow 要約を追加 ([94625ad](https://github.com/Lateo2580/FlEq/commit/94625ad2c90218f81aa377ee0b1869e162dedd8c))
+* **display:** 熱中症カードの対象府県をカード内マーキーで全数表示 ([485c00c](https://github.com/Lateo2580/FlEq/commit/485c00c46cb7e3bfa2d0213a21de2d8631e6f50e))
+* **display:** 背景トーンを表示契約化する (backgroundTone / tickerSurface) ([9635537](https://github.com/Lateo2580/FlEq/commit/9635537fc5c155d85a13e2754e91875119de4116))
+* **messages:** message-router に汎用 routed-message tap を追加 (R1 手順 1) ([14c528e](https://github.com/Lateo2580/FlEq/commit/14c528edd0f52c8013adeb764793034b0a62c1b3))
+* **messages:** runDisplayPipeline 入口に処理済み outcome の汎用 tap を追加 ([bc1c6be](https://github.com/Lateo2580/FlEq/commit/bc1c6beec4f903f8cd3a3a0371f3823125b20ae1))
+* **site:** Features + Categories ([6054ab2](https://github.com/Lateo2580/FlEq/commit/6054ab2ffa30cd4824c96d9dabe3a71cdd116675))
+* **site:** hero DOM + CSS + animation overlay ([98318f2](https://github.com/Lateo2580/FlEq/commit/98318f25047fb051e0ec51c8684034e2bcefd604))
+* **site:** hero アニメの退場を「全表示 → 保持 → 同時フェード」に変更 (ご主人要望) ([77402ea](https://github.com/Lateo2580/FlEq/commit/77402ea7f3abbbc88363f8f309ddf5d4a64ed8b7))
+* **site:** Install + Footer ([79e1a75](https://github.com/Lateo2580/FlEq/commit/79e1a75c45e8580cc74d52889a7f8a6eb3c1fa5b))
+* **site:** script.js の 5 IIFE (nav-height / theme / copy / hero animation / smooth scroll) ([9db761d](https://github.com/Lateo2580/FlEq/commit/9db761dbe3120ed89fedd7e209c74797cbc8bb5e))
+* **site:** ランディングページ v3.0.0 全面刷新 (観測所の紙記録 design language) ([b21306d](https://github.com/Lateo2580/FlEq/commit/b21306d793dd41a975b2803ad9cd68ad5f48df29))
+* **site:** 表示とテーマ編集セクション (CLI + Display + Studio) ([c18426f](https://github.com/Lateo2580/FlEq/commit/c18426f012fd0e6fb8a0b5b6c8fde4213fae537c))
+
+
+### バグ修正
+
+* **display:** EEW テロップ履歴に専用 TTL 10 分を導入 ([9ae46f0](https://github.com/Lateo2580/FlEq/commit/9ae46f0327cc0364f3ececf0c26330c31c42062d))
+* **display:** push 前最終レビュー 3 件を修正 (現況/予測の断定分離ほか) ([fad1a5c](https://github.com/Lateo2580/FlEq/commit/fad1a5c18a8d02c48629b20dfd22ebfd66e8a767))
+* **display:** reload クールダウンの短周期リトライループを解消 ([30dc67e](https://github.com/Lateo2580/FlEq/commit/30dc67e74865f9546d1a9e0ba37863b2a7d892a3))
+* **display:** snapshot 縮退時も active EEW テロップを固定保持 ([e758607](https://github.com/Lateo2580/FlEq/commit/e758607cf87e4368d21cc08408dadda7315ebc9d))
+* **display:** standby と VPWP50 の永続化で tmp 競合を解消する ([984bd09](https://github.com/Lateo2580/FlEq/commit/984bd09612fdfd7a79b7176ddabede2df903a101))
+* **display:** VFVO53 バッチを火山ごとのテロップに分割し取消系列を火山単位化 ([75497c1](https://github.com/Lateo2580/FlEq/commit/75497c1b791e268e01c2e2ddcce7231fa1410de3))
+* **display:** テストのタイムゾーンを Asia/Tokyo に固定する ([300a956](https://github.com/Lateo2580/FlEq/commit/300a95643194e3d4b248c0bbda9b7e268e3abd0d))
+* **display:** テロップの EEW 除外と震源不明地震の地域要約 ([0bd9174](https://github.com/Lateo2580/FlEq/commit/0bd91745e4ec3e6cd7eacc8e5f15c2ca4286fbc8))
+* **display:** 右上の積み順を spec §4 どおり気象警報カード最上位に修正 ([200e716](https://github.com/Lateo2580/FlEq/commit/200e716ab3912cd84d36aef2839e5acf8df14a36))
+* **display:** 火山 groupKey のコード付加を VFVO53 に限定し取消の系列分裂を解消 ([b700ded](https://github.com/Lateo2580/FlEq/commit/b700deda6d40bfa9a810ab76fba1b90f0338e436))
+* **display:** 熊本震度7 実機観測の緊急画面修正 第1弾 ([38514dd](https://github.com/Lateo2580/FlEq/commit/38514ddf2f65c9e2b27f64cd4959950ed7edf2f6))
+* **display:** 洪水ワイドの行予算を部位別化し 720p クリップと二重 intro を解消 ([5e0966a](https://github.com/Lateo2580/FlEq/commit/5e0966a25135bdb2d792696ad296243c54845560))
+* **display:** 再レビュー残 3 件を修正 (host 選択共有化・解除済み watermark・restored 意味論) ([6ced748](https://github.com/Lateo2580/FlEq/commit/6ced7481a66325e57d98caaa2e491a76f667f4cb))
+* **display:** 再接続 snapshot からの古い EEW テロップ再投入を鮮度フィルタで遮断 ([98856da](https://github.com/Lateo2580/FlEq/commit/98856daa5fd3b540dc546832a85ad95a8e92df3e))
+* **display:** 最終レビュー指摘 10 件を修正 (長周期 host 対・地域別キー・seed watermark ほか) ([8912f6e](https://github.com/Lateo2580/FlEq/commit/8912f6e32192c5b88a154a30b344e2ac9b4f64f3))
+* **display:** 待機 slot を二層化し dim×intro 競合を解消、洪水 surface 切替に手動 FLIP ([33b2fe1](https://github.com/Lateo2580/FlEq/commit/33b2fe1a5029ed14da6fb2f95e5ea0724badcfce))
+* **display:** 待機主カードを常に最新の地震へ更新する ([dfbf4ba](https://github.com/Lateo2580/FlEq/commit/dfbf4baecaadad66f5c4d2a1027a6d8423e77c5a))
+* **display:** 台風集約カードの restored を some 集約に統一 ([5a0122c](https://github.com/Lateo2580/FlEq/commit/5a0122cc8f3a3cbc53f25450ff6d2dfbd48f71a0))
+* **display:** 熱中症カードの対象府県を 6 件 + ほか n 件に縮約し名前内改行を禁則 ([4c51f58](https://github.com/Lateo2580/FlEq/commit/4c51f5889b23deda6251aa1c6b79f9f1bb28b5ac))
+* **messages:** Sol 最終レビュー指摘 3 件を反映 ([2d3e4a8](https://github.com/Lateo2580/FlEq/commit/2d3e4a8e7d66d73d2fe1629e152c47c59a1be072))
+* **messages:** VPWW56 の state を発表官署単位で保持し union して返す ([dc043c7](https://github.com/Lateo2580/FlEq/commit/dc043c773a1a477696a343130af53b33ba422e28))
+* **messages:** 洪水 state holder の EventID 履歴に TTL を入れ二段構造化 ([720df8b](https://github.com/Lateo2580/FlEq/commit/720df8bbb6b81d4d1ae7094f87f7683b8ac840e3))
+* **site:** 4 mock を実出力・実画面に忠実化 (誤認防止) ([2e2c1ac](https://github.com/Lateo2580/FlEq/commit/2e2c1ac2dbf7e11c42bb138f21d15f51291d4be6))
+* **site:** copy button の連打復元と支援技術通知 (Codex 最終レビュー反映) ([fdc2506](https://github.com/Lateo2580/FlEq/commit/fdc25065f517866050ee76caed63747465a9c50f))
+* **site:** Display mock の地震区域名を 5 文字に (390px 幅での改行解消、ご主人指摘) ([e6e093c](https://github.com/Lateo2580/FlEq/commit/e6e093cd6702b6fa2d818e53c681f1d79374bbc8))
+* **site:** LP mock を実出力・実画面に忠実化 + アニメ改善 + 欧文 mono 統一 ([213b173](https://github.com/Lateo2580/FlEq/commit/213b1732784415b0fda237525dc8f4d0a67fed17))
+* **site:** mock レビュー 4 点反映 (Studio 罫線は palette 非追従・Display 狭幅退避・地震情報ヘッダ帯・aria-hidden) ([e271e50](https://github.com/Lateo2580/FlEq/commit/e271e5054ff64aee2bda447651496c8b4979fb0d))
+* **test:** test-samples 遅延ロードテストの実行順依存を解消 ([fe9923d](https://github.com/Lateo2580/FlEq/commit/fe9923db921cff2d584afcf1e06021e1ec6f9b6c))
+* **ui:** 統計の表示順 CATEGORY_ORDER に floodForecast を追加 ([9ef4202](https://github.com/Lateo2580/FlEq/commit/9ef4202b2b5edc56d3708694b5db211693daab20))
+
+
+### パフォーマンス改善
+
+* **display:** standby / VPWP50 cache の永続化を debounce + 非同期化 ([b233fc9](https://github.com/Lateo2580/FlEq/commit/b233fc96810e2e73988860eb71fd7c2b1f0d9344))
+* **display:** 続報バッジの毎秒 interval を期限 one-shot に変更 ([d227f36](https://github.com/Lateo2580/FlEq/commit/d227f3607a5adbab5019c19a8d1243b3e8783898))
+* **repl:** test-samples を test コマンド実行時の遅延ロードに変更 ([a65f4fa](https://github.com/Lateo2580/FlEq/commit/a65f4faa339a1a8323ba2f8b950f359b382cd61e))
+* **ui:** EEW fold の隠れ地域展開を震度別集約行に変更 ([254d8ef](https://github.com/Lateo2580/FlEq/commit/254d8ef66fe745371085c3d3c6b40796e3ffaf39))
+* **ui:** VXSU50 表示で使わない河川集約を除去 ([2b39b70](https://github.com/Lateo2580/FlEq/commit/2b39b70dc962234451e7fe43a6e71679a4413194))
+* **ui:** 表の詳細回収を hidden 列のみの評価に変更 ([ecc4e74](https://github.com/Lateo2580/FlEq/commit/ecc4e743f59ceb915aecaaa9b4ed4057c5e036cb))
+* **weather:** VPWS50 の Body マージを索引化し二次探索を解消 ([e793042](https://github.com/Lateo2580/FlEq/commit/e7930423e16f15b3bb69f6c27c564046909ee7a4))
+
+
+### リファクタリング
+
+* **dmdata:** XMLParser 生成と抽出ヘルパを xml-shape に集約 (R2) ([88a93a8](https://github.com/Lateo2580/FlEq/commit/88a93a8b3a2371e09d5dbb6b8ec97292b6e5d181))
+* **engine:** state holder から detail 描画を分離 (DetailSnapshot 方式) ([8c543bd](https://github.com/Lateo2580/FlEq/commit/8c543bde24d8b16531896f305a9bf6ab403855e6))
+* **messages:** jstDayKey の重複定義を共有 util に集約 (R4) ([343f6a1](https://github.com/Lateo2580/FlEq/commit/343f6a1204071a1e4df3f097ead8b6832c023991))
+* **messages:** routing を route catalog + 型付き processor 表に集約 (R1) ([9c7e398](https://github.com/Lateo2580/FlEq/commit/9c7e398d79e37f6ea8376694eac9359e3a2c8ed6))
+* **messages:** VPWW56 holder のキーを (head.type, publishingOffice) に ([7755da7](https://github.com/Lateo2580/FlEq/commit/7755da77089f91202e029296a2abd0ffa4984e0c))
+* **site:** tokens v5 + base + nav skeleton ([27863b0](https://github.com/Lateo2580/FlEq/commit/27863b042072856b9c7ac4707a3d57533bca3b1f)), closes [#1B1815](https://github.com/Lateo2580/FlEq/issues/1B1815)
+* **ui:** earthquake-formatter を telegram-type-label に改名 ([4521173](https://github.com/Lateo2580/FlEq/commit/45211736a21d169ed12167c9eb3f6330cc9d80b2))
+
+
+### ドキュメント
+
+* **display:** NumberUnit 数値+添え字の設計方針を明文化 ([429aa81](https://github.com/Lateo2580/FlEq/commit/429aa81ae0c5d7173799659a9b87416648f4c6be))
+* **display:** VFVO53 表示分割とテロップ抑制の仕様を message-pipeline に同期 ([33d4911](https://github.com/Lateo2580/FlEq/commit/33d4911e9200bbee7a8ab30c70215fd0c12a9c0e))
+* **display:** 二層 slot・手動 FLIP・dim 同期契約のモーション規約を明文化 ([b9c6c26](https://github.com/Lateo2580/FlEq/commit/b9c6c26f3e49a9a9d602b6d1a46eb2301dde0040))
+* **specs:** VPWW56 holder の複合キー化に合わせて仕様を同期 ([4184127](https://github.com/Lateo2580/FlEq/commit/41841272b65a5960b28ecaa260a0656f97bd40fb))
+* **specs:** 気象警報の昇格と VPWW56 官署 union の仕様を同期 ([d33cc62](https://github.com/Lateo2580/FlEq/commit/d33cc62205dc437f8be4ef6d76b9636b5ab6989a))
+* **specs:** 昇格根拠の控えと tmp 競合修正の仕様を同期 ([3765df5](https://github.com/Lateo2580/FlEq/commit/3765df55d6caeadd2ba948e647a0c2d736667a0a))
+* **specs:** 性能修正 6 件の仕様同期 ([8e530ad](https://github.com/Lateo2580/FlEq/commit/8e530adcc4f74b971a4e35c36e1b244eedb7941c))
+
 ## [3.0.0](https://github.com/Lateo2580/FlEq/compare/v2.0.1...v3.0.0) (2026-07-19)
 
 
