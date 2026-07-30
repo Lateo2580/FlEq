@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { deriveEmergencyPanels, deriveMode, deriveTickerLines } from "../derive";
+import {
+  deriveEmergencyPanels,
+  deriveMode,
+  deriveQuakeMapHostEvent,
+  deriveTickerLines,
+} from "../derive";
 import type {
   DisplayActiveEewV1,
   DisplayLargeQuakeStateV1,
@@ -123,6 +128,60 @@ describe("deriveMode", () => {
     expect(deriveMode({
       snapshot: null, ticker: [], sseConnected: false, lastSeq: 0, lastEventSeq: 0, seqGapDetected: false, tickerGeneration: 0,
     })).toBe("standby");
+  });
+
+  it("期限内の震度3〜4 host は quakeMap、期限切れ後は standby", () => {
+    const map = quakeMapFixture({ eventKey: "earthquake:Q3", maxInt: "4", maxIntRank: 4 });
+    const state = baseState({
+      mapLayers: {
+        quake: {
+          events: [map],
+          nonEmergencyHost: { eventKey: map.eventKey, expiresAtMs: 1_300_000 },
+        },
+      },
+    });
+    expect(deriveMode(state, 1_000_000)).toBe("quakeMap");
+    expect(deriveQuakeMapHostEvent(state, 1_000_000)).toBe(map);
+    expect(deriveMode(state, 1_300_000)).toBe("standby");
+  });
+
+  it("emergency が期限内 quakeMap host より優先し、終了後は期限内なら復帰する", () => {
+    const map = quakeMapFixture({ maxInt: "4", maxIntRank: 4 });
+    const mapLayers = {
+      quake: {
+        events: [map],
+        nonEmergencyHost: { eventKey: map.eventKey, expiresAtMs: 1_300_000 },
+      },
+    };
+    expect(deriveMode(baseState({ mapLayers, activeEews: [eewFixture()] }), 1_000_000))
+      .toBe("emergency");
+    expect(deriveMode(baseState({ mapLayers }), 1_100_000)).toBe("quakeMap");
+  });
+
+  it("別地震への host 置換は対応 event だけを画面に選ぶ", () => {
+    const first = quakeMapFixture({ eventKey: "earthquake:A" });
+    const second = quakeMapFixture({ eventKey: "earthquake:B" });
+    const state = baseState({
+      mapLayers: {
+        quake: {
+          events: [first, second],
+          nonEmergencyHost: { eventKey: second.eventKey, expiresAtMs: 1_300_000 },
+        },
+      },
+    });
+    expect(deriveQuakeMapHostEvent(state, 1_000_000)).toBe(second);
+  });
+
+  it("host の event が欠落している snapshot は空画面にせず standby へ縮退する", () => {
+    const state = baseState({
+      mapLayers: {
+        quake: {
+          events: [],
+          nonEmergencyHost: { eventKey: "earthquake:missing", expiresAtMs: 1_300_000 },
+        },
+      },
+    });
+    expect(deriveMode(state, 1_000_000)).toBe("standby");
   });
 });
 

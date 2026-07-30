@@ -12,6 +12,11 @@ describe("shouldReload", () => {
     expect(shouldReload(null, now, "emergency")).toBe(false);
   });
 
+  it("quakeMap は地震情報の表示中なので日次 reload を保留する", () => {
+    const now = new Date(2026, 6, 7, 4, 30, 0);
+    expect(shouldReload(null, now, "quakeMap")).toBe(false);
+  });
+
   it("③ 同日リロード済みなら false", () => {
     const now = new Date(2026, 6, 7, 4, 30, 0);
     const lastReloadIso = new Date(2026, 6, 7, 4, 5, 0).toISOString();

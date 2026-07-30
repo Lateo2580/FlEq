@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  NON_EMERGENCY_HOST_SEVERITY_RELEASED,
-  DisplayStateStore,
-} from "../../../src/engine/display/state-store";
+import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import type {
   DisplayEventDtoV1,
   DisplayQuakeMapCommandV1,
@@ -113,7 +110,7 @@ function apply(
 }
 
 describe("DisplayStateStore quake map lifecycle", () => {
-  it("震度3〜4を5分 host として保持し、release gate 中は severity に寄与しない", () => {
+  it("震度3〜4を5分 host として保持し、severity/background に caution として寄与する", () => {
     const store = new DisplayStateStore();
     const command = upsert("earthquake:A", 4);
     expect(apply(store, command, 4)).toBe(true);
@@ -123,15 +120,49 @@ describe("DisplayStateStore quake map lifecycle", () => {
       events: [expect.objectContaining({ eventKey: "earthquake:A", localAreas: [{ code: "440", rank: 4 }] })],
       nonEmergencyHost: { eventKey: "earthquake:A", expiresAtMs: T0 + 5 * MINUTE },
     });
-    expect(NON_EMERGENCY_HOST_SEVERITY_RELEASED).toBe(false);
-    expect(snapshot.severityTier).toBe("calm");
-    expect(snapshot.backgroundTone).toBe("calm");
+    expect(snapshot.severityTier).toBe("caution");
+    expect(snapshot.backgroundTone).toBe("caution");
+
+    const expiredBeforeSweep = store.snapshot(0, T0 + 5 * MINUTE);
+    expect(expiredBeforeSweep.mapLayers?.quake?.nonEmergencyHost).not.toBeNull();
+    expect(expiredBeforeSweep.severityTier).toBe("calm");
+    expect(expiredBeforeSweep.backgroundTone).toBe("calm");
 
     expect(store.sweep(T0 + 5 * MINUTE)).toBe(true);
     expect(store.snapshot(0, T0 + 5 * MINUTE).mapLayers?.quake).toEqual({
       events: [],
       nonEmergencyHost: null,
     });
+  });
+
+  it("quakeExtreme 背景は期限内 host の caution より常に優先される", () => {
+    const store = new DisplayStateStore();
+    apply(store, upsert("earthquake:A", 4), 4);
+    const reportDateTime = new Date(T0 + 1).toISOString();
+    store.applyEvent(displayEventDto({
+      domain: "earthquake",
+      type: "VXSE53",
+      groupKey: "quake:EXTREME",
+      reportDateTime,
+      latestQuake: {
+        eventId: "EXTREME",
+        headline: null,
+        originTime: reportDateTime,
+        hypocenterName: "test extreme",
+        depth: "10km",
+        magnitude: "7.0",
+        maxInt: "7",
+        maxIntRank: 9,
+        tsunamiWarning: false,
+        intensityGroups: [],
+        reportDateTime,
+      },
+    }), T0 + 1);
+
+    const snapshot = store.snapshot(0, T0 + 1);
+    expect(snapshot.mapLayers?.quake?.nonEmergencyHost?.eventKey).toBe("earthquake:A");
+    expect(snapshot.severityTier).toBe("alert");
+    expect(snapshot.backgroundTone).toBe("quakeExtreme");
   });
 
   it("同一 event の続報は全置換し、旧 revision と同 revision を拒否する", () => {
@@ -277,6 +308,8 @@ describe("DisplayStateStore quake map lifecycle", () => {
       .toBe("earthquake:A");
     expect(other.snapshot(0, T0 + MINUTE).mapLayers?.quake?.events.map((event) => event.eventKey))
       .toEqual(["earthquake:B", "earthquake:A"]);
+    expect(other.snapshot(0, T0 + MINUTE).severityTier).toBe("alert");
+    expect(other.snapshot(0, T0 + MINUTE).backgroundTone).toBe("alert");
   });
 
   it("5弱以上→3〜4の訂正は旧 largeQuake を固定し、新 host は emergency 終了後も期限内なら残る", () => {

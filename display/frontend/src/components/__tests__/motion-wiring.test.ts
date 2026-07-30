@@ -70,16 +70,22 @@ describe("duration 直値を撒かない (spec §5): 時間は motion トーク�
   });
 });
 
-describe("App.svelte と PreviewApp.svelte の screen-layer + z-index + data-kind が一致 (spec §6)", () => {
-  it("両者とも待機/緊急を screen-layer で重ね、緊急 z-index:2 > 待機 z-index:1 で stacking を明示する", () => {
-    for (const s of [app, preview]) {
-      expect(s).toMatch(/data-kind="emergency"/);
-      expect(s).toMatch(/data-kind="standby"/);
-      expect(s).toMatch(/\.screen-layer\[data-kind="emergency"\]\s*\{\s*z-index:\s*2;/);
-      expect(s).toMatch(/\.screen-layer\[data-kind="standby"\]\s*\{\s*z-index:\s*1;/);
-      // 緊急入りは transform のみの emergencyEnter、緊急出/待機戻りは opacity クロスフェード
-      expect(s).toContain("in:emergencyEnter");
-    }
+describe("App.svelte と PreviewApp.svelte の screen-layer stacking (spec §6 / quakeMap §7.4)", () => {
+  it("本番は緊急3 > 地震図2 > 待機1、preview は緊急2 > 待機1を明示する", () => {
+    expect(app).toMatch(/data-kind="emergency"/);
+    expect(app).toMatch(/data-kind="quakeMap"/);
+    expect(app).toMatch(/data-kind="standby"/);
+    expect(app).toMatch(/\.screen-layer\[data-kind="emergency"\]\s*\{\s*z-index:\s*3;/);
+    expect(app).toMatch(/\.screen-layer\[data-kind="quakeMap"\]\s*\{\s*z-index:\s*2;/);
+    expect(app).toMatch(/\.screen-layer\[data-kind="standby"\]\s*\{\s*z-index:\s*1;/);
+
+    expect(preview).toMatch(/data-kind="emergency"/);
+    expect(preview).toMatch(/data-kind="standby"/);
+    expect(preview).toMatch(/\.screen-layer\[data-kind="emergency"\]\s*\{\s*z-index:\s*2;/);
+    expect(preview).toMatch(/\.screen-layer\[data-kind="standby"\]\s*\{\s*z-index:\s*1;/);
+    // 緊急入りは transform のみの emergencyEnter
+    expect(app).toContain("in:emergencyEnter");
+    expect(preview).toContain("in:emergencyEnter");
   });
 });
 

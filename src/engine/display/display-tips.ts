@@ -20,7 +20,22 @@ export const EXCLUDED_TIP_CATEGORY_IDS: readonly TipCategoryId[] = [
   "tool-internals",
 ];
 
+/** quakeMap は地震画面を占有するため、待機中の全分野ではなく地震・津波・防災だけを流す。 */
+export const QUAKE_MAP_TIP_CATEGORY_IDS: readonly TipCategoryId[] = [
+  "disaster-prevention",
+  "history-japan",
+  "history-world",
+  "future-quakes",
+  "seismology-science",
+  "observation-tech",
+  "geology-japan",
+  "tsunami-science",
+  "tsunami-warning",
+  "emergency-guidance",
+];
+
 function displayCategoryIds(context: TipContext): TipCategoryId[] {
+  if (context === "quakeMap") return [...QUAKE_MAP_TIP_CATEGORY_IDS];
   return TIP_CATEGORIES
     .filter((category) => !EXCLUDED_TIP_CATEGORY_IDS.includes(category.id))
     .filter((category) => (category.contexts ?? ["standby"]).includes(context))

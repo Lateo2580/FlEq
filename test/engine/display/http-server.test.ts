@@ -560,8 +560,12 @@ describe("InProcessSseDisplayTransport", () => {
     }
   });
 
-  it("GET /tips の context は standby/emergency だけを受け、未知値は 400", async () => {
+  it("GET /tips の context は standby/quakeMap/emergency を受け、未知値は 400", async () => {
     const t = await startTransport();
+    const quakeMap = await fetch(`http://127.0.0.1:${t.port()}/tips?context=quakeMap`);
+    expect(quakeMap.status).toBe(200);
+    const quakeMapBody = (await quakeMap.json()) as { tips: Array<{ id: string }> };
+    expect(quakeMapBody.tips.length).toBeGreaterThan(0);
     const emergency = await fetch(`http://127.0.0.1:${t.port()}/tips?context=emergency`);
     expect(emergency.status).toBe(200);
     const body = (await emergency.json()) as { tips: Array<{ id: string }> };
@@ -569,6 +573,9 @@ describe("InProcessSseDisplayTransport", () => {
     expect(new Set(body.tips.map((tip) => tip.id)).size).toBe(10);
     const invalid = await fetch(`http://127.0.0.1:${t.port()}/tips?context=invalid`);
     expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toEqual({
+      error: "context must be standby, quakeMap, or emergency",
+    });
   });
 
   it("② GET / → index.html の中身", async () => {

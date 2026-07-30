@@ -50,9 +50,6 @@ const TIER_ORDER: Record<DisplaySeverityTier, number> = { calm: 0, caution: 1, a
 const TIER_QUAKE_ALERT_RANK = intensityToRank("5弱");
 const QUAKE_MAP_HOST_MIN_RANK = intensityToRank("3");
 
-/** Phase 4B の三値 screen mode と同時投入するまで severity/background へ配線しない。 */
-export const NON_EMERGENCY_HOST_SEVERITY_RELEASED: boolean = false;
-
 interface QuakeMapMutationResult {
   accepted: boolean;
   changed: boolean;
@@ -453,7 +450,7 @@ export class DisplayStateStore {
     this.stats = stats;
   }
 
-  private deriveSeverityTier(): DisplaySeverityTier {
+  private deriveSeverityTier(nowMs: number): DisplaySeverityTier {
     let tier: DisplaySeverityTier = "calm";
     const bump = (t: DisplaySeverityTier): void => { if (TIER_ORDER[t] > TIER_ORDER[tier]) tier = t; };
     if (this.tsunami != null) {
@@ -470,7 +467,7 @@ export class DisplayStateStore {
     for (const eew of this.activeEews.values()) bump(eew.isWarning ? "alert" : "caution");
     for (const q of this.largeQuakes.values()) if (q.maxIntRank >= TIER_QUAKE_ALERT_RANK) bump("alert");
     if (this.latestQuake != null && (this.latestQuake.maxIntRank ?? 0) >= TIER_QUAKE_ALERT_RANK) bump("alert");
-    if (NON_EMERGENCY_HOST_SEVERITY_RELEASED && this.quakeMapHost != null) bump("caution");
+    if (this.quakeMapHost != null && nowMs < this.quakeMapHost.expiresAtMs) bump("caution");
     for (const item of this.standbyItemsProvider?.() ?? []) {
       if (item.kind === "nankaiTrough" && item.severity === "critical") bump("caution");
       else if (item.severity === "critical") bump("alert");
@@ -480,7 +477,7 @@ export class DisplayStateStore {
 
   private deriveBackgroundTone(nowMs: number): DisplayBackgroundTone {
     if (this.quakeExtreme.hasActive(nowMs)) return "quakeExtreme";
-    switch (this.deriveSeverityTier()) {
+    switch (this.deriveSeverityTier(nowMs)) {
       case "critical": return "critical";
       case "alert": return "alert";
       case "caution": return "caution";
@@ -557,7 +554,7 @@ export class DisplayStateStore {
       recentQuakes: this.recentQuakesProvider?.() ?? [...this.recentQuakes],
       latestQuake: this.latestQuake,
       stats: this.stats,
-      severityTier: this.deriveSeverityTier(),
+      severityTier: this.deriveSeverityTier(nowMs),
       backgroundTone: this.deriveBackgroundTone(nowMs),
       connection: { ...this.connection },
       recentTicker: [],

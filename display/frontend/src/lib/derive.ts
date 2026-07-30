@@ -8,7 +8,7 @@ import type {
 } from "./protocol";
 import { buildWeatherEmergencyInput, type WeatherEmergencyInputV1 } from "./weather-panel";
 
-export type ScreenMode = "standby" | "emergency";
+export type ScreenMode = "standby" | "quakeMap" | "emergency";
 
 /** 緊急パネルの入力。wire 由来の 3 種 + フロント合成の気象パネル (weather-panel.ts) */
 export type EmergencyPanelInputV1 = DisplayEmergencyInputV1 | WeatherEmergencyInputV1;
@@ -126,8 +126,19 @@ export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelMode
   return panels.sort(compareEmergencyPanels);
 }
 
-export function deriveMode(s: DisplayClientState): ScreenMode {
-  return deriveEmergencyPanels(s).length > 0 ? "emergency" : "standby";
+export function deriveQuakeMapHostEvent(
+  s: DisplayClientState,
+  nowMs: number,
+): DisplayQuakeMapEventV1 | undefined {
+  const quake = s.snapshot?.mapLayers?.quake;
+  const host = quake?.nonEmergencyHost;
+  if (host == null || nowMs >= host.expiresAtMs) return undefined;
+  return quake?.events.find((event) => event.eventKey === host.eventKey);
+}
+
+export function deriveMode(s: DisplayClientState, nowMs: number = Date.now()): ScreenMode {
+  if (deriveEmergencyPanels(s).length > 0) return "emergency";
+  return deriveQuakeMapHostEvent(s, nowMs) == null ? "standby" : "quakeMap";
 }
 
 export function deriveTickerLines(s: DisplayClientState): DisplayEventDtoV1[] {

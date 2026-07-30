@@ -34,7 +34,7 @@ export type TipCategoryId =
   | "emergency-guidance";
 
 /** Tips を配る表示文脈。省略された既存カテゴリは standby 専用として扱う。 */
-export type TipContext = "standby" | "emergency";
+export type TipContext = "standby" | "quakeMap" | "emergency";
 
 /** 緊急画面へ出せる、防災情報の本文メタデータ。本文はご主人確認後に別タスクで投入する。 */
 export interface EmergencyTip {

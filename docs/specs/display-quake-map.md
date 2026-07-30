@@ -804,7 +804,7 @@ quakeMap（5分）
     └─ 期限到達 → standby
 ```
 
-ユーザー操作による早期終了の具体的 UI は実装 Phase で確定してよい。ただし、自動5分保持を基本動作とし、早期終了機能を追加しても engine の地図 state や他クライアントを破壊しない設計にする。
+Phase 4B ではユーザー操作による早期終了 UI を設けず、自動5分保持だけを実装する。将来、早期終了機能を追加する場合も engine の地図 state や他クライアントを破壊しない設計にする。
 
 ### 7.5 tips context
 
@@ -812,7 +812,14 @@ quakeMap（5分）
 
 tips feeder には三値 mode を明示的に渡し、`quakeMap` が偶然 `standby` として扱われないようにする。
 
-tips context は server まで `"standby" | "quakeMap" | "emergency"` の三値として渡す。`quakeMap` を `standby` へフォールバックさせず、`waiting-tips.ts`、`display-tips.ts`、`http-server.ts` が同じ三値を扱う。`quakeMap` 中に表示する tips の集合、抑止条件、再開条件は Phase 4B で明文化するが、日次 reload、pointer ownership、ローカル期限到達による再描画を含むテストを先に追加し、暗黙の default 分岐にはしない。
+tips context は server まで `"standby" | "quakeMap" | "emergency"` の三値として渡す。`quakeMap` を `standby` へフォールバックさせず、`waiting-tips.ts`、`display-tips.ts`、`http-server.ts` が同じ三値を扱う。
+
+`quakeMap` の tips は次の契約とする。
+
+- 地震・津波・防災に関係するカテゴリだけを明示 allowlist で選ぶ。待機用カテゴリの追加を暗黙に取り込まない。
+- `standby` と同じ `idle-only` とし、実電文が走行・待機中は新しい tip を供給しない。走行中の tip は即時削除せず完走させる。
+- 実電文がなくなれば同じ `quakeMap` context で供給を再開する。context 切替時は旧 deck・表示行・取得中 request を破棄し、新 context を取得する。
+- 日次4時 reload は情報画面の表示中には行わず、`standby` 復帰後の判定に任せる。
 
 ### 7.6 画面遷移
 

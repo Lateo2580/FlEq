@@ -2,10 +2,16 @@
   import { createDisplayConnection } from "./lib/connection.svelte";
   import { createClock } from "./lib/clock.svelte";
   import { createDimStore } from "./lib/dim.svelte";
-  import { deriveEmergencyPanels, deriveMode, deriveTickerLines } from "./lib/derive";
+  import {
+    deriveEmergencyPanels,
+    deriveMode,
+    deriveQuakeMapHostEvent,
+    deriveTickerLines,
+  } from "./lib/derive";
   import { shouldReload } from "./lib/reload";
   import StandbyScreen from "./components/StandbyScreen.svelte";
   import EmergencyScreen from "./components/EmergencyScreen.svelte";
+  import QuakeMapScreen from "./components/QuakeMapScreen.svelte";
   import Ticker from "./components/Ticker.svelte";
   import TierOverlay from "./components/TierOverlay.svelte";
   import { fade } from "svelte/transition";
@@ -49,14 +55,17 @@
   });
   $effect(() => () => clock.stop());
 
-  const mode = $derived(deriveMode(connection.state));
+  const mode = $derived(deriveMode(connection.state, clock.now.getTime()));
+  const quakeMapEvent = $derived(
+    deriveQuakeMapHostEvent(connection.state, clock.now.getTime()),
+  );
   const tickerLines = $derived(deriveTickerLines(connection.state));
   const severityTier = $derived(connection.state.snapshot?.severityTier ?? "calm");
   // 旧 server・未知 wire 値は、演出を足さない calm に明示的に縮退する。
   const backgroundTone = $derived(normalizeBackgroundTone(connection.state.snapshot?.backgroundTone));
 
-  // テロップ待機中 Tips (フィラー排他化 v2, 2026-07-14): 待機モードかつ電文が 1 件も走行/待機して
-  // いないときだけ供給する。電文の走行/待機は Ticker が hasNonTipActivity で判定し onActivityChange
+  // テロップ Tips (フィラー排他化 v2, 2026-07-14): standby / quakeMap では電文が 1 件も走行/待機して
+  // いないときだけ供給し、emergency は companion policy に従う。電文の走行/待機は Ticker が hasNonTipActivity で判定し onActivityChange
   // で push 通知する (getter pull では Svelte 5 runes の $effect が再走しないため)。走行中の tip は電文
   // 到着で中断せず完走し (blocked=true でも lines は保持)、完了通知でのみ帯を空にする (供給と取消の分離)。
   // スケジューラ側にも同じ排他ガードがあり (割当時に hasNonTipActivity なら tip を載せない)、二重防御。
@@ -85,7 +94,7 @@
     const base = deriveEmergencyCompanionControl(connection.state.snapshot);
     return {
       ...base,
-      sessionId: mode === "emergency" ? `emergency-${emergencySession}` : "standby",
+      sessionId: mode === "emergency" ? `emergency-${emergencySession}` : mode,
     };
   });
 
@@ -188,6 +197,15 @@
           onTsunamiReplay={replayTsunami}
         />
       </div>
+    {:else if mode === "quakeMap" && quakeMapEvent != null}
+      <div
+        class="screen-layer"
+        data-kind="quakeMap"
+        in:fade={{ duration: calmDur }}
+        out:fade={{ duration: calmDur }}
+      >
+        <QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} />
+      </div>
     {:else}
       <div
         class="screen-layer"
@@ -233,7 +251,7 @@
     right: 0;
     bottom: calc(var(--ticker-row-h) * var(--ticker-rows));
   }
-  /* 待機層・緊急層を同一領域に重ねる (空白を経由しないクロスフェード)。stacking は DOM 順
+  /* 待機層・地震図層・緊急層を同一領域に重ねる (空白を経由しないクロスフェード)。stacking は DOM 順
      任せにせず z-index で明示 (緊急が最上面、spec §2-a)。frame-1 可視の主保証は緊急層の
      in:emergencyEnter が opacity を触らないこと (transitions.ts)。 */
   .screen-layer {
@@ -241,6 +259,9 @@
     inset: 0;
   }
   .screen-layer[data-kind="emergency"] {
+    z-index: 3;
+  }
+  .screen-layer[data-kind="quakeMap"] {
     z-index: 2;
   }
   .screen-layer[data-kind="standby"] {
@@ -251,8 +272,12 @@
      緊急モード中の緊急層は対話要素 (PageDots・各パネルのスクロール領域) を持つので auto を維持し、
      待機へ抜ける最中に残存する緊急層だけを無効化する (常時 none は緊急画面の操作を殺すため不可)。
      減光トグルは <svelte:window onclick> が担うので、非活性層を無効化しても減光は従来どおり動く。 */
+  main[data-mode="standby"] .screen-layer[data-kind="quakeMap"],
   main[data-mode="standby"] .screen-layer[data-kind="emergency"],
-  main[data-mode="emergency"] .screen-layer[data-kind="standby"] {
+  main[data-mode="quakeMap"] .screen-layer[data-kind="standby"],
+  main[data-mode="quakeMap"] .screen-layer[data-kind="emergency"],
+  main[data-mode="emergency"] .screen-layer[data-kind="standby"],
+  main[data-mode="emergency"] .screen-layer[data-kind="quakeMap"] {
     pointer-events: none;
   }
   .ticker-frame {

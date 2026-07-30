@@ -1,7 +1,7 @@
 // テロップ待機中 Tips の走行完了駆動フィーダ (spec: 設計メモ 2026-07-12-ticker-tips-design.md §4,
 // 2026-07-13 フィラー化: tips を電文 low と合成 catalog に混ぜ、Ticker の job 完走通知
-// (onJobComplete → notifyComplete) で次の 1 本へ差し替える連続供給)。「待機モード」の間だけ、
-// サーバ (GET /tips) から取得した知識系 Tips を 1 本ずつ合成 DTO として供給する。lines は常に 0 or 1
+// (onJobComplete → notifyComplete) で次の 1 本へ差し替える連続供給)。standby / quakeMap / emergency の
+// 明示 context ごとに、サーバ (GET /tips) から取得した Tips を 1 本ずつ合成 DTO として供給する。lines は常に 0 or 1
 // 要素で、差し替えごとに eventKey が変わるため Ticker.svelte の新着 enqueue 経路に乗る。合成 catalog では
 // tips は low job として ticker-schedule の巡回補充・ラウンドロビンに乗り、電文 (high/mid) が優先される。
 //
@@ -18,7 +18,7 @@ import { flushSync, untrack } from "svelte";
 import { DISPLAY_PROTOCOL_VERSION } from "./protocol";
 import type { DisplayTickerDtoV1, TipPolicy } from "./ticker-schedule";
 
-export type TipContext = "standby" | "emergency";
+export type TipContext = "standby" | "quakeMap" | "emergency";
 export type EmergencyHazard = "eew" | "tsunami" | "earthquake" | "weather";
 export interface DisplayTipDeckItem {
   id: string;
@@ -62,7 +62,9 @@ async function defaultFetchTips(context: TipContext, signal: AbortSignal): Promi
 
 function tipToDto(item: DisplayTipDeckItem, context: TipContext, n: number): DisplayTickerDtoV1 {
   const emergency = context === "emergency";
+  const quakeMap = context === "quakeMap";
   const policy: TipPolicy = emergency ? "emergency-companion" : "idle-only";
+  const label = emergency ? "防災情報" : quakeMap ? "地震の備え" : "豆知識";
   return {
     version: DISPLAY_PROTOCOL_VERSION,
     seq: 0, // hub 採番なし → Ticker 側の fallbackSeq (toTickerJob 第2引数) が使われる
@@ -74,7 +76,7 @@ function tipToDto(item: DisplayTipDeckItem, context: TipContext, n: number): Dis
     type: "tip",
     infoType: "発表",
     reportDateTime: new Date().toISOString(),
-    title: emergency ? "防災情報" : "豆知識",
+    title: label,
     headline: null,
     publishingOffice: "FlEq",
     isTest: false,
@@ -85,7 +87,7 @@ function tipToDto(item: DisplayTipDeckItem, context: TipContext, n: number): Dis
     recentQuake: null,
     latestQuake: null,
     tickerDetail: null,
-    tickerCategory: emergency ? "防災情報" : "豆知識",
+    tickerCategory: label,
     tickerSentence: item.text,
     tickerPriority: "low",
     tipPolicy: policy,
@@ -118,7 +120,7 @@ export function createTipsFeeder(opts: {
     };
   const isBlocked = opts.blocked ?? ((): boolean => false);
   const legacyInactive = (): boolean => opts.context == null && opts.eligible?.() !== true;
-  // standby は電文排他、emergency companion は実電文と共存する。
+  // standby / quakeMap は電文排他、emergency companion は実電文と共存する。
   const canSupply = (context: TipContext): boolean =>
     !destroyed && !legacyInactive() && (context === "emergency" || !isBlocked());
   let lines = $state<DisplayTickerDtoV1[]>([]);
@@ -238,8 +240,8 @@ export function createTipsFeeder(opts: {
           activeController = null;
           fetchingGeneration = null;
         }
-        if (context === "standby" && blocked) {
-          // 待機中だが電文が走行/待機中 → 新規供給は止めるが、走行中の tip は **消さない**
+        if (context !== "emergency" && blocked) {
+          // 待機・地震図画面で電文が走行/待機中 → 新規供給は止めるが、走行中の tip は **消さない**
           // (lines から外すと Ticker の props purge で即時空白化する)。完走は notifyComplete が止める
           clearRetryTimer();
           return;

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildTipsDeck, EXCLUDED_TIP_CATEGORY_IDS } from "../../../src/engine/display/display-tips.js";
+import {
+  buildTipsDeck,
+  EXCLUDED_TIP_CATEGORY_IDS,
+  QUAKE_MAP_TIP_CATEGORY_IDS,
+} from "../../../src/engine/display/display-tips.js";
 import { TIP_CATEGORIES } from "../../../src/tips/waiting-tips.js";
 
 function textOf(tip: (typeof TIP_CATEGORIES)[number]["tips"][number]): string {
@@ -100,5 +104,19 @@ describe("buildTipsDeck", () => {
     );
     expect(deck.every((tip) => !tip.text.startsWith("Tip: "))).toBe(true);
     expect(deck.find((tip) => tip.id === "emergency-guidance-10")?.hazards).toEqual(["tsunami"]);
+  });
+
+  it("quakeMap deck は地震・津波・防災カテゴリだけを過不足なく含む", () => {
+    const expected = new Set(
+      TIP_CATEGORIES
+        .filter((category) => QUAKE_MAP_TIP_CATEGORY_IDS.includes(category.id))
+        .flatMap((category) => category.tips.map(textOf)),
+    );
+    const deck = buildTipsDeck("quakeMap", createSeededRng(42));
+    expect(deck.length).toBe(expected.size);
+    expect(deck.length).toBeGreaterThan(0);
+    for (const tip of deck) {
+      expect(expected.has(tip.text)).toBe(true);
+    }
   });
 });

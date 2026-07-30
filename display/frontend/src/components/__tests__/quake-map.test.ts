@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { flushSync } from "svelte";
 import QuakeMap from "../QuakeMap.svelte";
 import QuakePanel from "../QuakePanel.svelte";
+import QuakeMapScreen from "../QuakeMapScreen.svelte";
 import type {
   DisplayLargeQuakeInputV1,
   DisplayQuakeMapEventV1,
@@ -268,5 +269,93 @@ describe("QuakePanel map integration", () => {
     expect(container.querySelector(".max-int")?.textContent).toContain("最大震度5-");
     expect(container.querySelector(".tile-groups .pref-name")?.textContent).toBe("静岡県");
     expect(container.querySelector(".tile-groups .city-name")?.textContent).toBe("東部");
+  });
+});
+
+describe("QuakeMapScreen", () => {
+  it("全国図と文字一覧を並置し、緊急画面の header/hero/motion を使わない", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => response(asset())));
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({ maxInt: "4", maxIntRank: 4 }),
+      dim: true,
+    });
+    await waitFor(() => expect(container.querySelector(".quake-map-svg")).toBeTruthy());
+
+    expect(container.querySelector(".content")).toBeTruthy();
+    expect(container.querySelector(".map-pane")).toBeTruthy();
+    expect(container.querySelector(".quake-map-screen")?.classList.contains("dim")).toBe(true);
+    expect(container.querySelector(".list-pane .pref-name")?.textContent).toBe("静岡県");
+    expect(container.querySelector(".list-pane .cities")?.textContent).toContain("東部");
+    expect(container.querySelector(".heading")).toBeNull();
+    expect(container.querySelector(".hero")).toBeNull();
+    expect(container.querySelector("[data-motion-reveal]")).toBeNull();
+
+    const source = readFileSync(join(__dirname, "..", "QuakeMapScreen.svelte"), "utf8");
+    expect(source).not.toContain("StandbyScreen");
+    expect(source).not.toContain("EmergencyScreen");
+    expect(source).not.toContain("position: fixed");
+  });
+
+  it("asset 取得失敗でも概要と文字一覧を維持する", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => response({}, 503)));
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({ maxInt: "4", maxIntRank: 4 }),
+    });
+    await waitFor(() => expect(container.querySelector(".quake-map-fallback")).toBeTruthy());
+    expect(container.querySelector(".maximum")?.textContent).toContain("最大震度 4");
+    expect(container.querySelector(".list-pane .pref-name")?.textContent).toBe("静岡県");
+    expect(container.querySelector(".list-pane .cities")?.textContent).toContain("東部");
+  });
+
+  it("地図を併設したまま文字一覧を全ページ巡回する", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn(async () => response(asset())));
+    const areas = Array.from({ length: 35 }, (_, index) => `高知県市町村${index}`);
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({
+        maxInt: "4",
+        maxIntRank: 4,
+        intensityGroups: [{ intensity: "4", rank: 4, areas, omittedAreaCount: 0 }],
+      }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    flushSync();
+
+    expect(container.querySelector(".quake-map-svg")).toBeTruthy();
+    expectCurrentDot(container.querySelector(".list-pane"), 1, 3);
+    vi.advanceTimersByTime(PAGE_HOLD_MS);
+    flushSync();
+    vi.advanceTimersByTime(1_000);
+    flushSync();
+    expectCurrentDot(container.querySelector(".list-pane"), 2, 3);
+    expect(container.querySelector(".quake-map-svg")).toBeTruthy();
+  });
+
+  it("reduced-motion 下も全国図と文字一覧を描画し、ページ fade を 0ms にする", async () => {
+    vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    } as unknown as MediaQueryList)));
+    vi.stubGlobal("fetch", vi.fn(async () => response(asset())));
+    const areas = Array.from({ length: 35 }, (_, index) => `高知県市町村${index}`);
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({
+        maxInt: "4",
+        maxIntRank: 4,
+        intensityGroups: [{ intensity: "4", rank: 4, areas, omittedAreaCount: 0 }],
+      }),
+    });
+    await waitFor(() => expect(container.querySelector(".quake-map-svg")).toBeTruthy());
+    expect(container.querySelector(".list-pane")).toBeTruthy();
+
+    const source = readFileSync(join(__dirname, "..", "QuakeMapScreen.svelte"), "utf8");
+    expect(source).toContain("cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS");
+    expect(source).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
   });
 });

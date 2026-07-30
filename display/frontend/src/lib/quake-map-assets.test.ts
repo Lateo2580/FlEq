@@ -123,11 +123,13 @@ describe("quake-map generated assets", () => {
       ["AreaInformationCity_quake", "4630400"],
     ] as const) {
       const asset = assets.get(dataset)?.asset;
-      const inset = asset?.insets.find(({ id }) => id === "okinawa");
       expect(asset).toBeDefined();
+      if (asset == null) throw new Error(`${dataset} asset is missing`);
+      const inset = asset.insets.find(({ id }) => id === "okinawa");
       expect(inset).toBeDefined();
-      const [x, y, width, height] = inset?.frame ?? [];
-      const coordinates = pathCoordinates(asset?.pathsByCode[code] ?? "");
+      if (inset == null) throw new Error(`${dataset} Okinawa inset is missing`);
+      const [x, y, width, height] = inset.frame;
+      const coordinates = pathCoordinates(asset.pathsByCode[code] ?? "");
       expect(coordinates.length).toBeGreaterThan(0);
       expect(coordinates.every(([pathX, pathY]) => (
         pathX >= x && pathX <= x + width && pathY >= y && pathY <= y + height

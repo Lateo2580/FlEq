@@ -81,8 +81,8 @@ export function createDisplayRequestListener(
     }
     if (pathname === "/tips") {
       const rawContext = requestUrl.searchParams.get("context") ?? "standby";
-      if (rawContext !== "standby" && rawContext !== "emergency") {
-        respondJson(res, 400, { error: "context must be standby or emergency" }, { "cache-control": "no-store" });
+      if (rawContext !== "standby" && rawContext !== "quakeMap" && rawContext !== "emergency") {
+        respondJson(res, 400, { error: "context must be standby, quakeMap, or emergency" }, { "cache-control": "no-store" });
         return;
       }
       // 常設 kiosk のブラウザ/中間キャッシュに古いデッキを固定させない (毎接続で最新の抽選を返す)

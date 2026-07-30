@@ -50,6 +50,44 @@ describe("createTipsFeeder", () => {
     }
   });
 
+  it("quakeMap context は専用 deck を idle-only で取得し、実電文中は供給を止める", async () => {
+    vi.useFakeTimers();
+    try {
+      const context = createTestSignal<TipContext>("standby");
+      const blocked = createTestSignal(false);
+      const fetchTips = vi.fn(async (requested: TipContext) => [{
+        id: `${requested}-1`,
+        text: requested === "quakeMap" ? "地震への備え" : "待機中の豆知識",
+        hazards: [] as const,
+      }]);
+      const feeder = createTipsFeeder({
+        context: () => context.value,
+        blocked: () => blocked.value,
+        fetchTips,
+      });
+      flushSync();
+      await vi.advanceTimersByTimeAsync(0);
+
+      context.value = "quakeMap";
+      blocked.value = true;
+      flushSync();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(feeder.lines).toEqual([]);
+
+      blocked.value = false;
+      flushSync();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchTips).toHaveBeenLastCalledWith("quakeMap", expect.any(AbortSignal));
+      expect(feeder.lines[0]?.summary.text).toBe("地震への備え");
+      expect(feeder.lines[0]?.title).toBe("地震の備え");
+      expect(feeder.lines[0]?.tickerCategory).toBe("地震の備え");
+      expect(feeder.lines[0]?.tipPolicy).toBe("idle-only");
+      feeder.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("eligible になったら fetch して即 1 本流す", async () => {
     vi.useFakeTimers();
     try {
