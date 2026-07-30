@@ -2,6 +2,8 @@ import type { DisplayClientState } from "./store";
 import type {
   DisplayEmergencyInputV1,
   DisplayEventDtoV1,
+  DisplayLargeQuakeInputV1,
+  DisplayQuakeMapEventV1,
   DisplayTsunamiStateV1,
 } from "./protocol";
 import { buildWeatherEmergencyInput, type WeatherEmergencyInputV1 } from "./weather-panel";
@@ -14,6 +16,7 @@ export type EmergencyPanelInputV1 = DisplayEmergencyInputV1 | WeatherEmergencyIn
 export interface EmergencyPanelModel {
   key: string;
   input: EmergencyPanelInputV1;
+  quakeMap?: DisplayQuakeMapEventV1;
 }
 
 /** 旧 server が送るフィールドの読み取り専用互換。現行 wire 型には含めない。 */
@@ -30,6 +33,24 @@ function comparableMagnitude(value: string | null): number {
   if (normalized.length === 0) return Number.NEGATIVE_INFINITY;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+function matchingQuakeMap(
+  quake: DisplayLargeQuakeInputV1,
+  events: DisplayQuakeMapEventV1[],
+): DisplayQuakeMapEventV1 | undefined {
+  if (
+    quake.mapEventKey == null
+    || quake.mapSourceType == null
+    || quake.mapRevision == null
+  ) {
+    return undefined;
+  }
+  return events.find((event) =>
+    event.eventKey === quake.mapEventKey
+    && event.sourceType === quake.mapSourceType
+    && event.revision.reportTimeMs === quake.mapRevision?.reportTimeMs
+    && event.revision.serial === quake.mapRevision?.serial);
 }
 
 // 優先順位 (spec C §3、ユーザー決定 2026-07-25):
@@ -95,7 +116,12 @@ export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelMode
     panels.push({ key: `eew:${eew.eventId ?? `idx${i}`}`, input: eew });
   });
   snap.largeQuakes.forEach((q, i) => {
-    panels.push({ key: `quake:${q.eventId ?? `idx${i}`}`, input: q });
+    const quakeMap = matchingQuakeMap(q, snap.mapLayers?.quake?.events ?? []);
+    panels.push({
+      key: `quake:${q.eventId ?? `idx${i}`}`,
+      input: q,
+      ...(quakeMap == null ? {} : { quakeMap }),
+    });
   });
   return panels.sort(compareEmergencyPanels);
 }

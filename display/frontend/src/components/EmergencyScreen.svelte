@@ -189,7 +189,7 @@
   {:else if p.input.kind === "tsunami"}
     <TsunamiPanel input={p.input} {compact} layoutSettling={settling} />
   {:else if p.input.kind === "largeQuake"}
-    <QuakePanel input={p.input} {compact} layoutSettling={settling} />
+    <QuakePanel input={p.input} mapEvent={p.quakeMap ?? null} {compact} layoutSettling={settling} />
   {:else if p.input.kind === "weather"}
     <WeatherEmergencyPanel input={p.input} {compact} layoutSettling={settling} />
   {:else}

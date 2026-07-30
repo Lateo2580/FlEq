@@ -3,6 +3,7 @@ import { deriveEmergencyPanels, deriveMode, deriveTickerLines } from "../derive"
 import type {
   DisplayActiveEewV1,
   DisplayLargeQuakeStateV1,
+  DisplayQuakeMapEventV1,
   DisplayStateSnapshotV1,
   DisplayTsunamiStateV1,
   DisplayWeatherAlertV1,
@@ -62,6 +63,27 @@ function largeQuakeFixture(over: Partial<DisplayLargeQuakeStateV1> = {}): Displa
   };
 }
 
+function quakeMapFixture(over: Partial<DisplayQuakeMapEventV1> = {}): DisplayQuakeMapEventV1 {
+  return {
+    eventKey: "earthquake:Q1",
+    eventId: "Q1",
+    sourceType: "VXSE53",
+    revision: { reportTimeMs: 100, serial: "2" },
+    reportDateTime: "t",
+    originTime: null,
+    hypocenterName: null,
+    depth: null,
+    magnitude: null,
+    maxInt: "5強",
+    maxIntRank: 6,
+    tsunamiWarning: false,
+    intensityGroups: [],
+    localAreas: [{ code: "440", rank: 6 }],
+    updatedAtMs: 100,
+    ...over,
+  };
+}
+
 function weatherAlertFixture(
   source: "vpws50" | "vpww56",
   kind: string,
@@ -105,6 +127,53 @@ describe("deriveMode", () => {
 });
 
 describe("deriveEmergencyPanels", () => {
+  it("largeQuake と map event を eventKey/sourceType/revision 完全一致で結合する", () => {
+    const revision = { reportTimeMs: 100, serial: "2" };
+    const quake = largeQuakeFixture({
+      eventId: "Q1",
+      mapEventKey: "earthquake:Q1",
+      mapSourceType: "VXSE53",
+      mapRevision: revision,
+    });
+    const map = quakeMapFixture({ revision });
+    const [panel] = deriveEmergencyPanels(baseState({
+      largeQuakes: [quake],
+      mapLayers: { quake: { events: [map], nonEmergencyHost: null } },
+    }));
+    expect(panel?.quakeMap).toBe(map);
+    expect(panel?.quakeMap?.localAreas).toEqual([{ code: "440", rank: 6 }]);
+  });
+
+  it.each([
+    ["eventKey", quakeMapFixture({ eventKey: "earthquake:other" })],
+    ["sourceType", quakeMapFixture({ sourceType: "VXSE51" })],
+    ["reportTimeMs", quakeMapFixture({ revision: { reportTimeMs: 101, serial: "2" } })],
+    ["serial", quakeMapFixture({ revision: { reportTimeMs: 100, serial: "3" } })],
+  ])("%s 不一致では地図を結合しない", (_label, map) => {
+    const quake = largeQuakeFixture({
+      mapEventKey: "earthquake:Q1",
+      mapSourceType: "VXSE53",
+      mapRevision: { reportTimeMs: 100, serial: "2" },
+    });
+    const [panel] = deriveEmergencyPanels(baseState({
+      largeQuakes: [quake],
+      mapLayers: { quake: { events: [map], nonEmergencyHost: null } },
+    }));
+    expect(panel?.quakeMap).toBeUndefined();
+    expect(panel?.input).toBe(quake);
+  });
+
+  it("mapLayers 欠落でも既存 largeQuake パネルを維持する", () => {
+    const quake = largeQuakeFixture({
+      mapEventKey: "earthquake:Q1",
+      mapSourceType: "VXSE53",
+      mapRevision: { reportTimeMs: 100, serial: "2" },
+    });
+    const [panel] = deriveEmergencyPanels(baseState({ largeQuakes: [quake] }));
+    expect(panel?.input).toBe(quake);
+    expect(panel?.quakeMap).toBeUndefined();
+  });
+
   it("legacy server の demoted tsunami は主役パネルから除外する", () => {
     const legacyTsunami = {
       ...tsunamiFixture(),

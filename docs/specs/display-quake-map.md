@@ -616,7 +616,7 @@ active 表示一式を保持した snapshot が `MAX_SNAPSHOT_BYTES = 256 KiB` �
 
 Vite は `display/frontend` を root とし、`base: "./"` を使用している（`display/vite.config.ts:7-8`）。地図アセットは `display/frontend/public/maps/quake/` に置き、build 時にそのまま配布物へ含める。
 
-初期ロードでは地図 JSON を取得しない。震度3以上の地図表示が初めて必要になった時点で、全国図だけを遅延 fetch する。
+frontend 起動時に idle タイミングで全国図 JSON を prefetch し、schema 検証・パース済みの結果をメモリに保持する。地震情報の受信時はこのキャッシュを使い、体感遅延をほぼゼロにする。prefetch が通信失敗または schema 不正で失敗した場合は、地図表示が必要になった時点で全国図を通常 fetch し直す。それも失敗した場合は §6.7 の非地図縮退を維持する。
 
 URL は相対 base に対応する形で解決する。
 
@@ -624,14 +624,14 @@ URL は相対 base に対応する形で解決する。
 new URL("maps/quake/area-forecast-local-e.v1.json", document.baseURI)
 ```
 
-ロード結果と進行中 Promise は frontend 内でキャッシュし、画面切替のたびに再取得しない。
+ロード結果と進行中 Promise は frontend 内で module cache に保持し、画面切替のたびに再取得しない。prefetch 失敗後の表示時 fallback を除き、同じ失敗を無制限に再試行しない。
 
 初期実装では次を禁止する。
 
 - `area-information-city-quake.v1.json` の fetch
 - 同アセットの静的 import
-- preload / prefetch
-- service worker 等による先読み
+- 市町村 asset の preload / prefetch
+- service worker 等による全国図以外の先読み
 
 ### 6.2 コンポーネント構成
 
@@ -957,7 +957,8 @@ state、期限、共有状態を変更するため、実装時は通常テスト
 - 震度5弱以上で従来どおり `EmergencyScreen/QuakePanel` が表示される。
 - emergency 中に `QuakeMapScreen` が同時表示されない。
 - emergency 終了時の復帰・非復帰が期限どおりである。
-- 全国図 asset が初回必要時だけ fetch される。
+- 全国図 asset が frontend 起動時の idle タイミングで prefetch され、パース済み module cache から初回表示できる。
+- prefetch 失敗時は表示時 fetch を一度 fallback し、失敗後も文字表示へ縮退できる。
 - 市町村等 asset が fetch、import、prefetch されない。
 - code→rank→fill が正しい。
 - 未観測 code は neutral になる。
@@ -1069,7 +1070,7 @@ Phase 6 で Raspberry Pi 上の代表画面サイズを使い、初回 mount、�
 - 震度5弱以上の従来 emergency 経路が維持される。
 - 主パネルで地図と文字一覧が同時表示される。
 - compact パネルが破綻しない。
-- 全国図だけが遅延 fetch される。
+- 全国図だけが起動時 idle prefetch され、失敗時は表示時 fetch に fallback する。
 - 市町村等 asset は fetch されない。
 
 ### Phase 4B: 震度3～4の専用表示面
@@ -1252,11 +1253,11 @@ Phase 5 着手前に決定する。
 
 ### U7: Raspberry Pi 性能閾値
 
-**未決**
+**暫定目標決定 — 2026-07-30**
 
-初回描画時間、更新時間、許容 frame drop、メモリ増加量の合否閾値は未決とする。
+「情報が入ってから体感遅延ほぼゼロで描画」を暫定目標とする。全国図 asset は起動時 idle prefetch とパース済みメモリ保持を行い、初回表示は数百 ms 級、続報による塗り更新は 1 frame 級を目標とする。
 
-Phase 6 で実機条件とともに決定する。初期 spec では測定項目だけを固定する。
+厳密な合否閾値、許容 frame drop、メモリ増加量は Phase 6 で Raspberry Pi の実機条件とともに決定する。上記は Phase 4 の実装方針を固定する暫定値であり、Phase 6 の実測で見直してよい。
 
 ### U8: 震度3～4の表示面と lifecycle
 

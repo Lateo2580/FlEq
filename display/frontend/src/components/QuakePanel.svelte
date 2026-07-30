@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { DisplayLargeQuakeInputV1 } from "../lib/protocol";
+  import type { DisplayLargeQuakeInputV1, DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatHm, formatMdHm, formatIntShort } from "../lib/format";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
@@ -16,6 +16,7 @@
   import { fade } from "svelte/transition";
   import { onDestroy } from "svelte";
   import PageDots from "./PageDots.svelte";
+  import QuakeMap from "./QuakeMap.svelte";
 
   // compact: main-stack の非 main スロット (EewPanel と同じ縮小パターンを適用し、
   // emergency-3 等で tile-main + tile-stats + 震度別グループが縦に収まりきらず
@@ -24,9 +25,15 @@
   // true が渡る。遷移中は本文領域の実測が過渡値になり再ページングが暴れるため、測定反映を保留する (spec §4)。
   let {
     input,
+    mapEvent = null,
     compact = false,
     layoutSettling = false,
-  }: { input: DisplayLargeQuakeInputV1; compact?: boolean; layoutSettling?: boolean } = $props();
+  }: {
+    input: DisplayLargeQuakeInputV1;
+    mapEvent?: DisplayQuakeMapEventV1 | null;
+    compact?: boolean;
+    layoutSettling?: boolean;
+  } = $props();
 
   const hasChips = $derived(input.tsunamiWarning || input.originTime != null);
   const originTimeLabel = $derived(input.originTime == null ? "-" : compact ? formatHm(input.originTime) : formatMdHm(input.originTime));
@@ -121,6 +128,7 @@
   // 空でない前提でしか true にならない) ため、範囲外 fallback は pages[0] へ (null 経由の
   // 1 フレーム空表示を避ける)
   const currentPage = $derived(pages[cycler.index] ?? pages[0] ?? null);
+  const showMap = $derived(!compact && mapEvent != null);
 </script>
 
 <div class="quake-panel role-quakeMajor" class:compact>
@@ -194,69 +202,78 @@
         </div>
       {/if}
     </div>
-    {#if paging}
-      {#if currentPage != null}
-        <div class="tile tile-page-detail">
-          {#key cycler.index}
-            <div
-              class="page-fade"
-              transition:fade={{
-                duration: cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS,
-                easing: springEffectsOut,
-              }}
-            >
-              <div class="page-header">
-                <span class="page-title">観測震度 詳細</span>
-                <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
-              </div>
-              <div class="page-body" use:measureHeight={applyPageBodyArea}>
-                <span class="line-ruler" aria-hidden="true" use:measureHeight={applyPageBodyLine}
-                  >測</span
+    <div class="quake-detail" class:with-map={showMap}>
+      {#if showMap && mapEvent != null}
+        <div class="map-slot">
+          <QuakeMap event={mapEvent} />
+        </div>
+      {/if}
+      <div class="detail-text">
+        {#if paging}
+          {#if currentPage != null}
+            <div class="tile tile-page-detail">
+              {#key cycler.index}
+                <div
+                  class="page-fade"
+                  transition:fade={{
+                    duration: cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS,
+                    easing: springEffectsOut,
+                  }}
                 >
-                {#each currentPage.sections as section (section.intensity)}
-                  <div class="page-section">
-                    <span class="int-chip int-r{section.rank}">{formatIntShort(section.intensity)}</span>
-                    {#each section.prefGroups as pg (pg.pref ?? "その他")}
-                      <div class="pref-group">
-                        <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
-                        {#if pg.cities.length > 0}<span class="cities">{#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}</span>{/if}
+                  <div class="page-header">
+                    <span class="page-title">観測震度 詳細</span>
+                    <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
+                  </div>
+                  <div class="page-body" use:measureHeight={applyPageBodyArea}>
+                    <span class="line-ruler" aria-hidden="true" use:measureHeight={applyPageBodyLine}
+                      >測</span
+                    >
+                    {#each currentPage.sections as section (section.intensity)}
+                      <div class="page-section">
+                        <span class="int-chip int-r{section.rank}">{formatIntShort(section.intensity)}</span>
+                        {#each section.prefGroups as pg (pg.pref ?? "その他")}
+                          <div class="pref-group">
+                            <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
+                            {#if pg.cities.length > 0}<span class="cities">{#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}</span>{/if}
+                          </div>
+                        {/each}
                       </div>
                     {/each}
                   </div>
-                {/each}
-              </div>
+                </div>
+              {/key}
             </div>
-          {/key}
-        </div>
-      {/if}
-    {:else if input.intensityGroups.length > 0}
-      <div class="tile tile-groups">
-        <div class="groups">
-          {#each input.intensityGroups as g (g.intensity)}
-            <div class="group">
-              <span class="int-chip int-r{g.rank}">{formatIntShort(g.intensity)}</span>
-              <div class="group-pref-groups">
-                <!-- T7 回帰修正: 静的リストは spec §2-b の例 (「震度6強 宮崎市 日南市」) どおり
-                     県プレフィックス無しの area (pref:null) はラベル無しで市名だけ出す。
-                     ページング側 (currentPage.prefGroups、上の分岐) は「その他」ラベルを維持する
-                     (原則3のラベル明示はページ側にだけ意味がある、レビュー指示) -->
-                {#each groupByPrefecture(g.areas) as pg (pg.pref ?? "その他")}
-                  <div class="pref-group">
-                    {#if pg.pref != null}<span class="pref-name">{pg.pref}</span>{/if}
-                    {#if pg.cities.length > 0}
-                      <span class="cities">
-                        {#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}
-                      </span>
-                    {/if}
+          {/if}
+        {:else if input.intensityGroups.length > 0}
+          <div class="tile tile-groups">
+            <div class="groups">
+              {#each input.intensityGroups as g (g.intensity)}
+                <div class="group">
+                  <span class="int-chip int-r{g.rank}">{formatIntShort(g.intensity)}</span>
+                  <div class="group-pref-groups">
+                    <!-- T7 回帰修正: 静的リストは spec §2-b の例 (「震度6強 宮崎市 日南市」) どおり
+                         県プレフィックス無しの area (pref:null) はラベル無しで市名だけ出す。
+                         ページング側 (currentPage.prefGroups、上の分岐) は「その他」ラベルを維持する
+                         (原則3のラベル明示はページ側にだけ意味がある、レビュー指示) -->
+                    {#each groupByPrefecture(g.areas) as pg (pg.pref ?? "その他")}
+                      <div class="pref-group">
+                        {#if pg.pref != null}<span class="pref-name">{pg.pref}</span>{/if}
+                        {#if pg.cities.length > 0}
+                          <span class="cities">
+                            {#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}
+                          </span>
+                        {/if}
+                      </div>
+                    {/each}
+                    {#if g.omittedAreaCount > 0}<span class="group-omitted">ほか{g.omittedAreaCount}地域</span>{/if}
                   </div>
-                {/each}
-                {#if g.omittedAreaCount > 0}<span class="group-omitted">ほか{g.omittedAreaCount}地域</span>{/if}
-              </div>
+                </div>
+              {/each}
             </div>
-          {/each}
-        </div>
+          </div>
+        {/if}
       </div>
-    {/if}
+    </div>
   </div>
 </div>
 
@@ -380,6 +397,27 @@
     flex: 1;
     min-height: 0;
     padding: var(--space-4) var(--space-5);
+  }
+  .quake-detail {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .quake-detail.with-map {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
+    gap: var(--space-3);
+  }
+  .map-slot,
+  .detail-text {
+    min-width: 0;
+    min-height: 0;
+  }
+  .detail-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
   }
   .groups {
     height: 100%;
