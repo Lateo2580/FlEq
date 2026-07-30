@@ -9,7 +9,7 @@ import {
   TICKER_SYNC_RETRY_MS,
 } from "./constants";
 import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "./http-server";
-import { projectDisplayEvent } from "./project-event";
+import { projectDisplayEvent, projectQuakeMapCommand } from "./project-event";
 import type { DisplayStateStore } from "./state-store";
 import { tickerTtlMs } from "./ticker-ttl";
 import type {
@@ -95,12 +95,18 @@ export class InfoDisplayHub implements DisplayIngestSink {
     if (this.stopped) return;
     try {
       const nowMs = this.now();
-      const dto = projectDisplayEvent(event, this.deps.summarize(event));
+      const quakeMapCommand = projectQuakeMapCommand(event, nowMs);
+      const dto = projectDisplayEvent(event, this.deps.summarize(event), quakeMapCommand);
       dto.seq = ++this.seq;
       this.store.setConnection({ lastReceivedAt: new Date(nowMs).toISOString() }, nowMs);
       // event.tsunamiObservations は DTO の emergency には (VTSE51/52 で level が組めないと) 載らないため、
       // PresentationEvent から直接渡す (protocol 型は変えない server-internal な橋渡し)
-      let stateChanged = this.store.applyEvent(dto, nowMs, event.tsunamiObservations ?? null);
+      let stateChanged = this.store.applyEvent(
+        dto,
+        nowMs,
+        event.tsunamiObservations ?? null,
+        quakeMapCommand,
+      );
       if (dto.type === "VPWS50" || dto.type === "VPWW56") {
         this.store.seedWeatherAlerts(this.deps.weatherAlerts(dto.reportDateTime));
         // 昇格状態は monitor 側 (displaySink) が電文受理の時点で更新済み。display の on/off に

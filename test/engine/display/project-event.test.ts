@@ -4,6 +4,7 @@ import {
   groupIntensityAreas,
   normalizeDepth,
   projectDisplayEvent,
+  projectQuakeMapCommand,
   tickerPriority,
   tickerSurface,
 } from "../../../src/engine/display/project-event";
@@ -29,6 +30,104 @@ describe("normalizeDepth", () => {
 
   it("数値のみの文字列は km を補う (防御的正規化)", () => {
     expect(normalizeDepth("10")).toBe("10km");
+  });
+});
+
+describe("projectQuakeMapCommand", () => {
+  const nowMs = Date.parse("2026-07-30T12:00:00+09:00");
+  const intensity = {
+    localAreas: [{ name: "local", code: "440", maxInt: "5-", maxIntRank: 5 }],
+    municipalities: [{ name: "city", code: "2230600", maxInt: "5-", maxIntRank: 5 }],
+  };
+
+  it("earthquake の code/rank を internal upsert にだけ載せる", () => {
+    const event = baseEvent({
+      eventId: "E1",
+      serial: "2",
+      maxInt: "5-",
+      maxIntRank: 5,
+      quakeIntensity: intensity,
+      areaItems: [{ name: "local", code: "440", maxInt: "5-" }],
+    });
+    const command = projectQuakeMapCommand(event, nowMs);
+    expect(command).toEqual(expect.objectContaining({
+      kind: "upsert",
+      sourceType: "VXSE53",
+      revision: { reportTimeMs: Date.parse(event.reportDateTime), serial: "2" },
+      event: expect.objectContaining({
+        eventKey: "earthquake:E1",
+        localAreas: [{ code: "440", rank: 5 }],
+      }),
+    }));
+    const dto = projectDisplayEvent(event, "summary", command);
+    expect(JSON.stringify(dto)).not.toContain('"code":"440"');
+    expect(dto.emergency).toEqual(expect.objectContaining({
+      mapEventKey: "earthquake:E1",
+      mapSourceType: "VXSE53",
+      mapRevision: command?.revision,
+    }));
+  });
+
+  it("取消は remove、quakeIntensity 無しは無更新、明示的な震度2訂正は remove", () => {
+    expect(projectQuakeMapCommand(baseEvent({
+      eventId: "E1", serial: "2", isCancellation: true,
+    }), nowMs)).toEqual(expect.objectContaining({
+      kind: "remove", eventKey: "earthquake:E1", reason: "cancelled",
+    }));
+    expect(projectQuakeMapCommand(baseEvent({
+      eventId: "E1", serial: "2", maxInt: "4", maxIntRank: 4,
+    }), nowMs)).toBeNull();
+    expect(projectQuakeMapCommand(baseEvent({
+      eventId: "E1",
+      serial: "3",
+      maxInt: "2",
+      maxIntRank: 2,
+      quakeIntensity: {
+        localAreas: [{ name: "local", code: "440", maxInt: "2", maxIntRank: 2 }],
+        municipalities: [],
+      },
+    }), nowMs)).toEqual(expect.objectContaining({
+      kind: "remove", eventKey: "earthquake:E1", reason: "belowThreshold",
+    }));
+  });
+
+  it("EventID 欠落は同一受信時刻でも一意な単発 key にし、取消とは結合しない", () => {
+    const event = baseEvent({
+      eventId: null,
+      maxInt: "4",
+      maxIntRank: 4,
+      quakeIntensity: {
+        localAreas: [{ name: "local", code: "440", maxInt: "4", maxIntRank: 4 }],
+        municipalities: [],
+      },
+    });
+    const first = projectQuakeMapCommand(event, nowMs);
+    const second = projectQuakeMapCommand(event, nowMs);
+    expect(first?.kind === "upsert" ? first.event.eventKey : null)
+      .not.toBe(second?.kind === "upsert" ? second.event.eventKey : null);
+    expect(projectQuakeMapCommand({ ...event, isCancellation: true }, nowMs)).toBeNull();
+    expect(projectQuakeMapCommand({ ...event, eventId: "", isCancellation: true }, nowMs)).toBeNull();
+  });
+
+  it("無効・未来の reportDateTime は受信時刻へ fallback する", () => {
+    for (const reportDateTime of ["invalid", "2099-01-01T00:00:00+09:00"]) {
+      const command = projectQuakeMapCommand(baseEvent({
+        eventId: "E1",
+        serial: "1",
+        reportDateTime,
+        maxInt: "4",
+        maxIntRank: 4,
+        quakeIntensity: {
+          localAreas: [{ name: "local", code: "440", maxInt: "4", maxIntRank: 4 }],
+          municipalities: [],
+        },
+      }), nowMs);
+      expect(command?.revision.reportTimeMs).toBe(nowMs);
+    }
+  });
+
+  it("earthquake 以外は対象外", () => {
+    expect(projectQuakeMapCommand(baseEvent({ domain: "weather" }), nowMs)).toBeNull();
   });
 });
 

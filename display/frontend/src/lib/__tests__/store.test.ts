@@ -61,7 +61,10 @@ describe("reduce", () => {
       recentTicker: [tickerEvent({ id: "e3" }), tickerEvent({ id: "e2" }), tickerEvent({ id: "e1" })],
     });
     const next = reduce(initialState(), { type: "snapshot", snapshot: snap });
-    expect(next.snapshot).toBe(snap);
+    expect(next.snapshot).toEqual({
+      ...snap,
+      mapLayers: { quake: { events: [], nonEmergencyHost: null } },
+    });
     expect(next.ticker.map((e) => e.id)).toEqual(["e3", "e2", "e1"]);
     expect(next.lastSeq).toBe(3);
   });
@@ -193,7 +196,10 @@ describe("reduce", () => {
       snapshot: snapshot({ seq: 3, recentTicker: [tickerEvent({ id: "e1" })] }),
     });
     const next = reduce(withTicker, { type: "state", snapshot: snap });
-    expect(next.snapshot).toBe(snap);
+    expect(next.snapshot).toEqual({
+      ...snap,
+      mapLayers: { quake: { events: [], nonEmergencyHost: null } },
+    });
     expect(next.ticker).toBe(withTicker.ticker); // 参照そのまま = 据え置き
     expect(next.ticker.map((e) => e.id)).toEqual(["e1"]);
     expect(next.lastSeq).toBe(7);
@@ -256,3 +262,40 @@ describe("setSseConnected", () => {
     expect(next.lastEventSeq).toBe(2);
     expect(next.seqGapDetected).toBe(false);
   });
+
+describe("mapLayers protocol compatibility", () => {
+  it("旧 snapshot/state の mapLayers 欠落を空レイヤーとして扱う", () => {
+    let state = reduce(initialState(), { type: "snapshot", snapshot: snapshot({ seq: 1 }) });
+    expect(state.snapshot?.mapLayers?.quake).toEqual({ events: [], nonEmergencyHost: null });
+    state = reduce(state, { type: "state", snapshot: snapshot({ seq: 2 }) });
+    expect(state.snapshot?.mapLayers?.quake).toEqual({ events: [], nonEmergencyHost: null });
+  });
+
+  it("snapshot/state が持つ quake layer をそのまま置換する", () => {
+    const quake = {
+      events: [{
+        eventKey: "earthquake:E1",
+        eventId: "E1",
+        sourceType: "VXSE53",
+        revision: { reportTimeMs: 1, serial: "1" },
+        reportDateTime: "2026-07-30T12:00:00+09:00",
+        originTime: null,
+        hypocenterName: null,
+        depth: null,
+        magnitude: null,
+        maxInt: "4",
+        maxIntRank: 4,
+        tsunamiWarning: false,
+        intensityGroups: [],
+        localAreas: [{ code: "440", rank: 4 }],
+        updatedAtMs: 1,
+      }],
+      nonEmergencyHost: { eventKey: "earthquake:E1", expiresAtMs: 2 },
+    };
+    const state = reduce(initialState(), {
+      type: "snapshot",
+      snapshot: snapshot({ mapLayers: { quake } }),
+    });
+    expect(state.snapshot?.mapLayers?.quake).toEqual(quake);
+  });
+});

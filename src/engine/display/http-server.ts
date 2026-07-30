@@ -134,6 +134,32 @@ function capRecentQuakeGroups(quakes: DisplayRecentQuakeV1[], max: number): Disp
     : q));
 }
 
+/** host / largeQuake から参照されない地図 event だけを event 単位で落とす。
+ * active な文字情報と、その文字情報に完全一致する地図は縮退対象にしない。 */
+function dropUnreferencedQuakeMapEvents(
+  snapshot: DisplayStateSnapshotV1,
+): DisplayStateSnapshotV1 {
+  const quake = snapshot.mapLayers?.quake;
+  if (quake == null || quake.events.length === 0) return snapshot;
+  const hostEventKey = quake.nonEmergencyHost?.eventKey;
+  const events = quake.events.filter((event) =>
+    event.eventKey === hostEventKey
+    || snapshot.largeQuakes.some((large) =>
+      large.mapEventKey === event.eventKey
+      && large.mapSourceType === event.sourceType
+      && large.mapRevision?.reportTimeMs === event.revision.reportTimeMs
+      && large.mapRevision.serial === event.revision.serial),
+  );
+  if (events.length === quake.events.length) return snapshot;
+  return {
+    ...snapshot,
+    mapLayers: {
+      ...snapshot.mapLayers,
+      quake: { ...quake, events },
+    },
+  };
+}
+
 /**
  * weatherAlerts[].items[].shownAreas を max まで切り、切った分を omittedAreaCount に加算する。
  *
@@ -183,13 +209,13 @@ function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined
 // snapshot は field 別予算で縮退する (軽い縮退から順に累積)。
 // 順序の設計原則 (2026-07-11): 待機画面の地震履歴 recentQuakes は「軽量なのに巻き添えで先に
 // 消える」ことを避けるため最後に回す。肥大源 (recentTicker 本文/件数・weatherAlerts 地域・
-// largeQuakes.intensityGroups) を先に刈り尽くしてから recentQuakes に手を付ける。
+// 未参照の地図 event) を先に刈り尽くしてから recentQuakes に手を付ける。
 // 1. recentTicker の tickerBody を先頭 N 件 (最新) 以外 null 化 (本文間引き。件数は削らない)
 // 2. recentTicker full → 20
 // 3. latestQuake.intensityGroups[] 各震度 max 8 地域 + omittedAreaCount (震度6弱以上は cap 対象外)
 // 4. weatherAlerts[].items[].shownAreas 各種別 max 6 地域 + omittedAreaCount
 // 5. recentTicker 0 (recentQuakes はまだ触らない)
-// 6. largeQuakes[].intensityGroups を空配列化 (緊急パネル側に表示があるため standby snapshot では可)
+// 6. active host / largeQuake から参照されない地図 event を event 単位で除外
 // 7. recentQuakes[].intensityGroups を各震度 max 8 地域に刈る (件数は削らず各地震度の地域列だけ間引く)
 // 8. recentQuakes[].intensityGroups を空配列化 (履歴カードの各地震度を諦める。件数・骨子情報は残す)
 // 9. recentQuakes 5 → 3 (肥大源を刈り尽くした後の最終手前。カード自体を減らす)
@@ -202,7 +228,7 @@ function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined
 //
 // 設計原則 (2026-07-17 Fix11B): stats.sparklineData は数百バイトしかない軽量フィールドであり、
 // 待機画面インストゥルメントの表示に必須のため、このラダーでは一切間引かない・空にしない。
-// (recentTicker 本文・weatherAlerts 地域・largeQuakes.intensityGroups など重い肥大源のみを刈る。)
+// (recentTicker 本文・weatherAlerts 地域・未参照の地図 event など重い肥大源のみを刈る。)
 function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapshotV1[] {
   const attempts: DisplayStateSnapshotV1[] = [full];
   let s = full;
@@ -230,7 +256,7 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   attempts.push(s);
   s = { ...s, recentTicker: [] };
   attempts.push(s);
-  s = { ...s, largeQuakes: s.largeQuakes.map((q) => ({ ...q, intensityGroups: [] })) };
+  s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
   s = { ...s, recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX) };
   attempts.push(s);
@@ -312,8 +338,8 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
   attempts.push(s);
   s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
   attempts.push(s);
-  // 肥大源 largeQuakes.intensityGroups を recentQuakes より先に刈る (段順序の設計原則)
-  s = { ...s, largeQuakes: s.largeQuakes.map((q) => ({ ...q, intensityGroups: [] })) };
+  // active な文字・地図を保護し、未参照地図だけを原子的に落とす
+  s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
   // recentQuakes[].intensityGroups も件数削減より先に刈る (標準ラダーと同じ段順序の設計原則)
   s = { ...s, recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX) };

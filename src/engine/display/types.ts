@@ -1,6 +1,26 @@
 export * from "./protocol";
 import type { PresentationEvent } from "../presentation/types";
-import type { DisplayServerMessage, DisplayStatsV1 } from "./protocol";
+import type {
+  DisplayQuakeIntensityMapEventV1,
+  DisplayServerMessage,
+  DisplayStatsV1,
+} from "./protocol";
+import type { StandbyRevision } from "./standby-registry";
+
+export type DisplayQuakeMapCommandV1 =
+  | {
+      kind: "upsert";
+      event: Omit<DisplayQuakeIntensityMapEventV1, "sourceType" | "revision">;
+      sourceType: string;
+      revision: StandbyRevision;
+    }
+  | {
+      kind: "remove";
+      eventKey: string;
+      sourceType: string;
+      reason: "cancelled" | "belowThreshold";
+      revision: StandbyRevision;
+    };
 
 /** broadcast 1 回の配送結果。authoritative sync (tickerSynced) が全 client に届いたかを判定する */
 export interface DisplayBroadcastResult {

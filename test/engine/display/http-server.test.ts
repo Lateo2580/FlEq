@@ -14,6 +14,7 @@ import type {
   DisplayEventDtoV1,
   DisplayIntensityGroupV1,
   DisplayLargeQuakeStateV1,
+  DisplayQuakeIntensityMapEventV1,
   DisplayRecentQuakeV1,
   DisplayServerMessage,
   DisplayStateSnapshotV1,
@@ -199,6 +200,30 @@ function hugeLargeQuakes(): DisplayLargeQuakeStateV1[] {
   }));
 }
 
+function mapEvent(
+  eventKey: string,
+  over: Partial<DisplayQuakeIntensityMapEventV1> = {},
+): DisplayQuakeIntensityMapEventV1 {
+  return {
+    eventKey,
+    eventId: eventKey,
+    sourceType: "VXSE53",
+    revision: { reportTimeMs: 1, serial: "1" },
+    reportDateTime: "2026-07-06T21:00:00+09:00",
+    originTime: null,
+    hypocenterName: "test",
+    depth: "10km",
+    magnitude: "5.0",
+    maxInt: "4",
+    maxIntRank: 4,
+    tsunamiWarning: false,
+    intensityGroups: [],
+    localAreas: [{ code: "440", rank: 4 }],
+    updatedAtMs: 1,
+    ...over,
+  };
+}
+
 describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state 配信の共通安全弁)", () => {
   it("縮退段 2 は 20 件を超えても active EEW の最新 DTO を残す", () => {
     const ticker = hugeRecentTicker().slice(0, 25).map((dto, index) =>
@@ -281,14 +306,77 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
     expect(result!.snapshot.recentTicker[8]!.tickerEmphasis).toBeNull();
   });
 
-  it("肥大源 largeQuakes.intensityGroups は recentQuakes より先に空配列化される (縮退順序の設計原則)", () => {
-    // 肥大は largeQuakes.intensityGroups のみ。recentQuakes は軽量。順序が正しければ
-    // largeQuakes.intensityGroups を空にした段で収まり、recentQuakes は無傷で残る
+  it("active largeQuake の文字情報は縮退せず、単独で上限超過なら fail-loud", () => {
     const full = baseSnapshot({ largeQuakes: hugeGroupLargeQuakes(), recentQuakes: normalRecentQuakes(5) });
     const result = degradeSnapshotToBudget(full, "state");
+    expect(result).toBeNull();
+    expect(full.largeQuakes[0]!.intensityGroups).toEqual(hugeGroupLargeQuakes()[0]!.intensityGroups);
+  });
+
+  it("未参照の地図 event だけを原子的に落とし、active host の地図は保護する", () => {
+    const active = mapEvent("earthquake:active");
+    const stale = mapEvent("earthquake:stale", {
+      localAreas: Array.from({ length: 30_000 }, (_, i) => ({
+        code: `stale-${i}-${"x".repeat(20)}`,
+        rank: 4,
+      })),
+    });
+    const full = baseSnapshot({
+      mapLayers: {
+        quake: {
+          events: [active, stale],
+          nonEmergencyHost: { eventKey: active.eventKey, expiresAtMs: 10 },
+        },
+      },
+    });
+    const result = degradeSnapshotToBudget(full, "snapshot");
     expect(result).not.toBeNull();
-    expect(result!.snapshot.largeQuakes[0]!.intensityGroups).toEqual([]);
-    expect(result!.snapshot.recentQuakes).toHaveLength(5); // 巻き添えで刈られない
+    expect(result!.level).toBeGreaterThan(0);
+    expect(result!.snapshot.mapLayers?.quake?.events).toEqual([active]);
+  });
+
+  it("active largeQuake と revision 一致する地図を未参照地図の巻き添えにしない", () => {
+    const active = mapEvent("earthquake:large");
+    const stale = mapEvent("earthquake:stale", {
+      localAreas: Array.from({ length: 30_000 }, (_, i) => ({
+        code: `stale-${i}-${"x".repeat(20)}`,
+        rank: 4,
+      })),
+    });
+    const large = {
+      ...hugeGroupLargeQuakes()[0]!,
+      intensityGroups: [],
+      mapEventKey: active.eventKey,
+      mapSourceType: active.sourceType,
+      mapRevision: active.revision,
+    };
+    const full = baseSnapshot({
+      largeQuakes: [large],
+      mapLayers: { quake: { events: [stale, active], nonEmergencyHost: null } },
+    });
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.largeQuakes).toEqual([large]);
+    expect(result!.snapshot.mapLayers?.quake?.events).toEqual([active]);
+  });
+
+  it("active host の地図が単独で上限超過なら部分切捨てせず fail-loud", () => {
+    const active = mapEvent("earthquake:active", {
+      localAreas: Array.from({ length: 30_000 }, (_, i) => ({
+        code: `active-${i}-${"x".repeat(20)}`,
+        rank: 4,
+      })),
+    });
+    const full = baseSnapshot({
+      mapLayers: {
+        quake: {
+          events: [active],
+          nonEmergencyHost: { eventKey: active.eventKey, expiresAtMs: 10 },
+        },
+      },
+    });
+    expect(degradeSnapshotToBudget(full, "snapshot")).toBeNull();
+    expect(full.mapLayers?.quake?.events[0]?.localAreas).toHaveLength(30_000);
   });
 
   it("stats.sparklineData はどの縮退段を通っても改変されない (待機画面スパークライン保護、Fix11B)", () => {
@@ -304,14 +392,12 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
     expect(tickerResult!.snapshot.recentTicker).toEqual([]);
     expect(tickerResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
 
-    // largeQuakes.intensityGroups を空にする段まで進むケース (旧・段6相当)
-    const largeQuakeHeavy = baseSnapshot({
-      largeQuakes: hugeGroupLargeQuakes(), recentQuakes: normalRecentQuakes(5), stats,
-    });
-    const largeQuakeResult = degradeSnapshotToBudget(largeQuakeHeavy, "state");
-    expect(largeQuakeResult).not.toBeNull();
-    expect(largeQuakeResult!.snapshot.largeQuakes[0]!.intensityGroups).toEqual([]);
-    expect(largeQuakeResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
+    // weatherAlerts を縮退する段でも維持する
+    const weatherHeavy = baseSnapshot({ weatherAlerts: hugeWeatherAlerts(), stats });
+    const weatherResult = degradeSnapshotToBudget(weatherHeavy, "state");
+    expect(weatherResult).not.toBeNull();
+    expect(weatherResult!.snapshot.weatherAlerts[0]!.items[0]!.shownAreas.length).toBeLessThanOrEqual(6);
+    expect(weatherResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
 
     // recentQuakes が最終段 (空) まで進むケース (段10)
     const heavyRecentQuakesForSparkline: DisplayRecentQuakeV1[] = Array.from({ length: 5 }, (_, i) => ({
@@ -409,18 +495,17 @@ describe("degradeSyncedStateToBudget (tickerSynced 専用ラダー、recentTicke
   it("stats.sparklineData はどの縮退段を通っても改変されない (待機画面スパークライン保護、Fix11B、PreserveTicker ラダー側)", () => {
     const sparklineData = Array.from({ length: 30 }, (_, i) => i);
     const stats = { sparklineData, totalReceived: 0, todayQuakeCount: 0, todayMaxInt: null, todayMaxIntRank: null };
-    // largeQuakes.intensityGroups を空にする段まで進むケース (recentTicker は絶対に削られない前提)
+    // weatherAlerts を縮退する段でも recentTicker と stats は変えない
     const full = baseSnapshot({
       recentTicker: hugeRecentTicker().slice(0, 3),
-      largeQuakes: hugeGroupLargeQuakes(),
-      recentQuakes: normalRecentQuakes(5),
+      weatherAlerts: hugeWeatherAlerts(),
       stats,
       tickerSynced: true,
     });
     const result = degradeSyncedStateToBudget(full);
     expect(result).not.toBeNull();
     expect(result!.snapshot.recentTicker.length).toBe(3); // recentTicker は縮退対象外 (不変)
-    expect(result!.snapshot.largeQuakes[0]!.intensityGroups).toEqual([]);
+    expect(result!.snapshot.weatherAlerts[0]!.items[0]!.shownAreas.length).toBeLessThanOrEqual(6);
     expect(result!.snapshot.stats?.sparklineData).toEqual(sparklineData);
   });
 });
@@ -567,6 +652,38 @@ describe("InProcessSseDisplayTransport", () => {
     await reconnectedReader.read();
     expect(clientCounts.at(-1)).toBe(1);
     await reconnectedReader.cancel();
+  });
+
+  it("切断中に更新された mapLayers を再接続時の初期 snapshot 一発で復元する", async () => {
+    const active = mapEvent("earthquake:reconnect");
+    let current = baseSnapshot();
+    let snapshotCalls = 0;
+    const t = await startTransport(() => {
+      snapshotCalls += 1;
+      return current;
+    });
+    const url = `http://127.0.0.1:${t.port()}/events`;
+
+    const first = await fetch(url);
+    const initial = await readFirstSseMessage(first);
+    expect(initial.snapshot.mapLayers).toBeUndefined();
+
+    current = baseSnapshot({
+      mapLayers: {
+        quake: {
+          events: [active],
+          nonEmergencyHost: { eventKey: active.eventKey, expiresAtMs: 10_000 },
+        },
+      },
+    });
+
+    const reconnected = await fetch(url);
+    const restored = await readFirstSseMessage(reconnected);
+    expect(snapshotCalls).toBe(2);
+    expect(restored.snapshot.mapLayers?.quake).toEqual({
+      events: [active],
+      nonEmergencyHost: { eventKey: active.eventKey, expiresAtMs: 10_000 },
+    });
   });
 
   it("EEW は hub→SSE event と再接続 snapshot のどちらでもテロップに積まれない", async () => {

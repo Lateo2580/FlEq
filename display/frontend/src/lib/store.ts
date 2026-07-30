@@ -5,6 +5,18 @@ import { filterStaleEews } from "./ticker-freshness";
 // ここではローカル定数として複製する。
 const TICKER_MAX = 200;
 
+/** protocol v1 の旧 snapshot は mapLayers を持たない。consumer では空 state として扱う。 */
+function withMapLayerDefaults(snapshot: DisplayStateSnapshotV1): DisplayStateSnapshotV1 {
+  if (snapshot.mapLayers?.quake != null) return snapshot;
+  return {
+    ...snapshot,
+    mapLayers: {
+      ...snapshot.mapLayers,
+      quake: { events: [], nonEmergencyHost: null },
+    },
+  };
+}
+
 export interface DisplayClientState {
   snapshot: DisplayStateSnapshotV1 | null;
   ticker: DisplayEventDtoV1[]; // 新しい順、TICKER_MAX で丸める
@@ -65,21 +77,23 @@ function hasStateSeqGap(lastEventSeq: number, stateSeq: number): boolean {
 
 export function reduce(state: DisplayClientState, msg: DisplayServerMessage): DisplayClientState {
   switch (msg.type) {
-    case "snapshot":
+    case "snapshot": {
       // 接続時 snapshot のみ recentTicker で ticker を初期化する。ticker を全再構築するので
       // それまでの gap は解消済み扱いにし、snapshot.seq を新しい baseline として採用する。
       // lastEventSeq は Math.max ではなく代入でリセットする: hub 再起動で seq が巻き戻ると
       // (プロセス内カウンタのため実経路)、max では古い高水位が残り以後の gap を検知できなくなる
+      const snapshot = withMapLayerDefaults(msg.snapshot);
       return {
         ...state,
-        snapshot: msg.snapshot,
-        ticker: filterStaleEews(msg.snapshot.recentTicker, msg.snapshot).slice(0, TICKER_MAX),
-        lastSeq: Math.max(state.lastSeq, msg.snapshot.seq),
-        lastEventSeq: msg.snapshot.seq,
+        snapshot,
+        ticker: filterStaleEews(snapshot.recentTicker, snapshot).slice(0, TICKER_MAX),
+        lastSeq: Math.max(state.lastSeq, snapshot.seq),
+        lastEventSeq: snapshot.seq,
         seqGapDetected: false,
         // ticker 全差し替えなので generation を進める (スケジューラ reset の契機、§6)
         tickerGeneration: state.tickerGeneration + 1,
       };
+    }
     case "state": {
       // 定期 state は通常 recentTicker を送らない (hub 側でペイロード肥大を避けるため空にする)。
       // ticker は event メッセージの積み上げで既に維持されているので据え置く。lastEventSeq は
@@ -88,12 +102,13 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
       // 一発同期 (spec §3-2)。この場合は recentTicker (空配列もあり得る = 全滅) を権威値として
       // 丸ごと差し替え、tickerGeneration を進めてスケジューラを再構築させる (snapshot 受信と同じ扱い)
       const tickerSynced = msg.snapshot.tickerSynced === true;
+      const snapshot = withMapLayerDefaults(msg.snapshot);
       return {
         ...state,
-        snapshot: msg.snapshot,
-        ticker: tickerSynced ? filterStaleEews(msg.snapshot.recentTicker, msg.snapshot).slice(0, TICKER_MAX) : state.ticker,
-        lastSeq: Math.max(state.lastSeq, msg.snapshot.seq),
-        seqGapDetected: state.seqGapDetected || hasStateSeqGap(state.lastEventSeq, msg.snapshot.seq),
+        snapshot,
+        ticker: tickerSynced ? filterStaleEews(snapshot.recentTicker, snapshot).slice(0, TICKER_MAX) : state.ticker,
+        lastSeq: Math.max(state.lastSeq, snapshot.seq),
+        seqGapDetected: state.seqGapDetected || hasStateSeqGap(state.lastEventSeq, snapshot.seq),
         tickerGeneration: tickerSynced ? state.tickerGeneration + 1 : state.tickerGeneration,
       };
     }

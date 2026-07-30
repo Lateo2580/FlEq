@@ -88,6 +88,52 @@ export interface DisplayIntensityGroupV1 {
   omittedAreaCount: number;   // 追加 (必須)
 }
 
+/** 震度地図の区域値。Phase 1〜4 は一次細分区域だけを wire に載せる。 */
+export interface DisplayIntensityMapValueV1 {
+  code: string;
+  rank: number;
+}
+
+/** standby-registry の StandbyRevision と同じ wire 表現。 */
+export interface DisplayStandbyRevisionV1 {
+  reportTimeMs: number;
+  serial: string | null;
+}
+
+export interface DisplayQuakeIntensityMapEventV1 {
+  eventKey: string;
+  eventId: string | null;
+  sourceType: string;
+  revision: DisplayStandbyRevisionV1;
+  reportDateTime: string;
+  originTime: string | null;
+  hypocenterName: string | null;
+  depth: string | null;
+  magnitude: string | null;
+  maxInt: string;
+  maxIntRank: number;
+  tsunamiWarning: boolean;
+  intensityGroups: DisplayIntensityGroupV1[];
+  localAreas: DisplayIntensityMapValueV1[];
+  updatedAtMs: number;
+}
+
+export interface DisplayQuakeIntensityMapV1 {
+  events: DisplayQuakeIntensityMapEventV1[];
+  nonEmergencyHost: {
+    eventKey: string;
+    expiresAtMs: number;
+  } | null;
+}
+
+/** spec §5.2 の名称との互換 alias。 */
+export type DisplayQuakeMapEventV1 = DisplayQuakeIntensityMapEventV1;
+export type DisplayQuakeMapStateV1 = DisplayQuakeIntensityMapV1;
+
+export interface DisplayMapLayersV1 {
+  quake?: DisplayQuakeIntensityMapV1;
+}
+
 /** 地震情報カードの射影入力 (project-event が生成、store が updatedAtMs を付す) */
 export interface DisplayLatestQuakeInputV1 {
   eventId: string | null;
@@ -143,6 +189,10 @@ export interface DisplayLargeQuakeInputV1 {
   depth: string | null;
   maxLgInt: string | null;
   tsunamiWarning: boolean;
+  /** 対応地図を参照する三点組。三つ揃わない場合は文字表示だけに縮退する。 */
+  mapEventKey?: string;
+  mapSourceType?: string;
+  mapRevision?: DisplayStandbyRevisionV1;
 }
 
 export type DisplayEmergencyInputV1 =
@@ -523,6 +573,8 @@ export interface DisplayStateSnapshotV1 {
   recentTicker: DisplayEventDtoV1[];
   /** 待機画面の発生中カード一覧 (priority 降順)。旧 snapshot には無い — 欠落は空配列扱い (前方互換) */
   standbyItems?: ActiveStandbyCardV1[];
+  /** runtime 限定の地図状態。旧 server の欠落は空レイヤーとして扱う。 */
+  mapLayers?: DisplayMapLayersV1;
   /** true のときだけ recentTicker がこの state 配信の権威値 (composition 変化の一発同期、spec §3-2)。
    *  省略/false は「recentTicker は空だが変化なし、フロントは既存 ticker を据え置く」の意味 (定期 state の従来動作) */
   tickerSynced?: boolean;

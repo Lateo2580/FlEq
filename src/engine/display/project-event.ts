@@ -6,6 +6,7 @@ import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningT
 import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
+import { revisionOf } from "./standby-registry";
 import {
   DISPLAY_PROTOCOL_VERSION,
   type DisplayColorRole,
@@ -15,6 +16,7 @@ import {
   type DisplayRecentQuakeV1,
   type DisplayTickerPriority,
   type DisplayTickerSurface,
+  type DisplayQuakeMapCommandV1,
 } from "./types";
 
 /**
@@ -31,13 +33,68 @@ export function normalizeDepth(depth: string | null | undefined): string | null 
 }
 
 const LARGE_QUAKE_MIN_RANK = intensityToRank("5弱");
+const QUAKE_MAP_MIN_RANK = intensityToRank("3");
 const QUAKE_EXTREME_RANK = intensityToRank("7");
+let quakeMapSingleEventSequence = 0;
 
 // eslint-disable-next-line no-control-regex
 const ANSI_PATTERN = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 
 function stripAnsi(s: string): string {
   return s.replace(ANSI_PATTERN, "");
+}
+
+function quakeMapEventKey(event: PresentationEvent, nowMs: number): string | null {
+  if (event.eventId != null && event.eventId.trim() !== "") return `earthquake:${event.eventId}`;
+  if (event.isCancellation) return null;
+  quakeMapSingleEventSequence += 1;
+  return `earthquake:single:${event.id}:${nowMs}:${quakeMapSingleEventSequence}`;
+}
+
+/** public event DTO へ code 列を載せず、hub→state store の内部 bridge 用 command を作る。 */
+export function projectQuakeMapCommand(
+  event: PresentationEvent,
+  nowMs: number,
+): DisplayQuakeMapCommandV1 | null {
+  if (event.domain !== "earthquake") return null;
+  const eventKey = quakeMapEventKey(event, nowMs);
+  if (eventKey == null) return null;
+  const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
+  const sourceType = event.type;
+  if (event.isCancellation) {
+    return { kind: "remove", eventKey, sourceType, reason: "cancelled", revision };
+  }
+  if (event.quakeIntensity == null) return null;
+  const maxIntRank = event.maxIntRank ?? 0;
+  if (maxIntRank > 0 && maxIntRank < QUAKE_MAP_MIN_RANK) {
+    return { kind: "remove", eventKey, sourceType, reason: "belowThreshold", revision };
+  }
+  if (event.maxInt == null || maxIntRank < QUAKE_MAP_MIN_RANK) {
+    return null;
+  }
+  return {
+    kind: "upsert",
+    sourceType,
+    revision,
+    event: {
+      eventKey,
+      eventId: event.eventId != null && event.eventId.trim() !== "" ? event.eventId : null,
+      reportDateTime: event.reportDateTime,
+      originTime: event.originTime ?? null,
+      hypocenterName: event.hypocenterName ?? null,
+      depth: normalizeDepth(event.depth),
+      magnitude: event.magnitude ?? null,
+      maxInt: event.maxInt,
+      maxIntRank,
+      tsunamiWarning: event.tsunamiWarning === true,
+      intensityGroups: groupIntensityAreas(event.areaItems),
+      localAreas: event.quakeIntensity.localAreas.map((area) => ({
+        code: area.code,
+        rank: area.maxIntRank,
+      })),
+      updatedAtMs: nowMs,
+    },
+  };
 }
 
 /** 警報・注意報の対象沿岸のみ抽出 (津波予報 (0.2m 以下) の沿岸を一覧に混ぜない)。全滅時は全件へフォールバック */
@@ -57,7 +114,10 @@ function pickAlertCoasts(
 
 export { groupIntensityAreas } from "./intensity-groups";
 
-function projectEmergency(event: PresentationEvent): DisplayEmergencyInputV1 | null {
+function projectEmergency(
+  event: PresentationEvent,
+  quakeMapCommand: DisplayQuakeMapCommandV1 | null,
+): DisplayEmergencyInputV1 | null {
   if (event.domain === "eew") {
     return {
       kind: "eew",
@@ -115,6 +175,13 @@ function projectEmergency(event: PresentationEvent): DisplayEmergencyInputV1 | n
       depth: normalizeDepth(event.depth),
       maxLgInt: event.maxLgInt ?? null,
       tsunamiWarning: event.tsunamiWarning === true,
+      ...(quakeMapCommand?.kind === "upsert"
+        ? {
+            mapEventKey: quakeMapCommand.event.eventKey,
+            mapSourceType: quakeMapCommand.sourceType,
+            mapRevision: quakeMapCommand.revision,
+          }
+        : {}),
     };
   }
   return null;
@@ -310,7 +377,11 @@ function weatherDisplaySeverity(raw: PresentationEvent["raw"]): unknown {
   return raw.maxDisplaySeverity;
 }
 
-export function projectDisplayEvent(event: PresentationEvent, summaryText: string): DisplayEventDtoV1 {
+export function projectDisplayEvent(
+  event: PresentationEvent,
+  summaryText: string,
+  quakeMapCommand: DisplayQuakeMapCommandV1 | null = null,
+): DisplayEventDtoV1 {
   const tickerBody = normalizeTickerBody(event.bodyText);
   const priority = tickerPriority(event);
   // 情報ゼロ電文のテロップ抑制 (spec T5-2)。sentence も body も組めない非取消 VPWP50 は
@@ -351,7 +422,7 @@ export function projectDisplayEvent(event: PresentationEvent, summaryText: strin
     frameLevel: event.frameLevel,
     isCancellation: event.isCancellation,
     summary: { text: stripAnsi(summaryText), role: summaryRole(event) },
-    emergency: projectEmergency(event),
+    emergency: projectEmergency(event, quakeMapCommand),
     recentQuake: projectRecentQuake(event),
     tickerDetail: buildTickerDetail(event),
     tickerCategory: tickerCategoryOf(event),

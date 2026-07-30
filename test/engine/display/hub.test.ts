@@ -115,6 +115,25 @@ function eewEvent(eventId: string, serial: string): PresentationEvent {
   });
 }
 
+function quakeMapEvent(eventId: string, serial: string): PresentationEvent {
+  return baseEvent({
+    id: `quake-${eventId}-${serial}`,
+    classification: "telegram.earthquake",
+    domain: "earthquake",
+    type: "VXSE53",
+    eventId,
+    serial,
+    frameLevel: "info",
+    maxInt: "4",
+    maxIntRank: 4,
+    quakeIntensity: {
+      localAreas: [{ name: "local", code: "440", maxInt: "4", maxIntRank: 4 }],
+      municipalities: [],
+    },
+    areaItems: [{ name: "local", code: "440", maxInt: "4" }],
+  });
+}
+
 function vpws50Event(reportDateTime: string): PresentationEvent {
   return baseEvent({ id: `vpws50-${reportDateTime}`, type: "VPWS50", reportDateTime });
 }
@@ -218,6 +237,21 @@ describe("sweepTicker: 優先度別 TTL (spec §3-1)", () => {
 });
 
 describe("InfoDisplayHub: state debounce", () => {
+  it("quake map は event DTO を肥大化させず、snapshot と debounced state の両方へ載る", () => {
+    vi.useFakeTimers();
+    const { hub, transport } = makeHub();
+    hub.ingest(quakeMapEvent("Q1", "1"));
+    expect(JSON.stringify(transport.events()[0]?.event)).not.toContain('"code":"440"');
+    expect(hub.buildSnapshot().mapLayers?.quake?.events[0]).toEqual(
+      expect.objectContaining({ eventKey: "earthquake:Q1", localAreas: [{ code: "440", rank: 4 }] }),
+    );
+
+    vi.advanceTimersByTime(STATE_DEBOUNCE_MS);
+    expect(transport.states()[0]?.snapshot.mapLayers?.quake?.events[0]).toEqual(
+      expect.objectContaining({ eventKey: "earthquake:Q1", localAreas: [{ code: "440", rank: 4 }] }),
+    );
+  });
+
   it("③ state 変化イベントの後、debounce 経過で {type:'state'} が 1 回だけ飛ぶ", () => {
     vi.useFakeTimers();
     const { hub, transport } = makeHub();

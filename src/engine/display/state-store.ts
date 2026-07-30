@@ -13,6 +13,8 @@ import {
   type DisplayEewInputV1,
   type DisplayEventDtoV1,
   type DisplayLargeQuakeStateV1,
+  type DisplayQuakeIntensityMapEventV1,
+  type DisplayQuakeMapCommandV1,
   type DisplayLatestQuakeInputV1,
   type DisplayLatestQuakeStateV1,
   type DisplayRecentQuakeV1,
@@ -39,10 +41,26 @@ import {
   type WeatherPromotionRecord,
 } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
+import { RevisionGuard } from "./revision-guard";
+import type { StandbyRevision } from "./standby-registry";
 
 const MIN_MS = 60_000;
+const NON_EMERGENCY_HOST_TTL_MS = 5 * MIN_MS;
 const TIER_ORDER: Record<DisplaySeverityTier, number> = { calm: 0, caution: 1, alert: 2, critical: 3 };
 const TIER_QUAKE_ALERT_RANK = intensityToRank("5弱");
+const QUAKE_MAP_HOST_MIN_RANK = intensityToRank("3");
+
+/** Phase 4B の三値 screen mode と同時投入するまで severity/background へ配線しない。 */
+export const NON_EMERGENCY_HOST_SEVERITY_RELEASED: boolean = false;
+
+interface QuakeMapMutationResult {
+  accepted: boolean;
+  changed: boolean;
+}
+
+function sameRevision(a: StandbyRevision | undefined, b: StandbyRevision | undefined): boolean {
+  return a != null && b != null && a.reportTimeMs === b.reportTimeMs && a.serial === b.serial;
+}
 
 function promotionEntry(record: WeatherPromotionRecord | null): DisplayWeatherPromotionEntryV1 | null {
   if (record == null || record.state !== "active") return null;
@@ -79,6 +97,11 @@ export class DisplayStateStore {
   private activeEews = new Map<string, DisplayActiveEewV1>();
   private tsunami: DisplayTsunamiStateV1 | null = null;
   private largeQuakes = new Map<string, DisplayLargeQuakeStateV1>();
+  /** EventID 系列 × source type の最新 contribution。wire へは eventKey ごとの有効一件だけを出す。 */
+  private quakeMapContributions =
+    new Map<string, Map<string, DisplayQuakeIntensityMapEventV1>>();
+  private quakeMapHost: { eventKey: string; expiresAtMs: number } | null = null;
+  private readonly quakeMapRevisionGuard = new RevisionGuard();
   private recentQuakes: DisplayRecentQuakeV1[] = [];
   private latestQuake: DisplayLatestQuakeStateV1 | null = null;
   private stats: DisplayStatsV1 | null = null;
@@ -113,17 +136,35 @@ export class DisplayStateStore {
     dto: DisplayEventDtoV1,
     nowMs: number,
     tsunamiObservations?: DisplayTsunamiObservationV1[] | null,
+    quakeMapCommand?: DisplayQuakeMapCommandV1 | null,
   ): boolean {
     let changed = this.quakeExtreme.applyDto(dto, nowMs);
+    const quakeMapMutation = quakeMapCommand == null
+      ? { accepted: true, changed: false }
+      : this.applyQuakeMapCommand(quakeMapCommand, nowMs);
+    changed = quakeMapMutation.changed || changed;
     if (dto.emergency?.kind === "eew") {
       changed = this.applyEew(dto.emergency, nowMs) || changed;
     }
     if (dto.domain === "tsunami") {
       changed = this.applyTsunami(dto, nowMs, tsunamiObservations ?? undefined) || changed;
     }
-    if (dto.emergency?.kind === "largeQuake") {
+    if (dto.emergency?.kind === "largeQuake" && quakeMapMutation.accepted) {
       const key = dto.emergency.eventId ?? dto.id;
-      this.largeQuakes.set(key, { ...dto.emergency, updatedAtMs: nowMs });
+      const existing = this.largeQuakes.get(key);
+      const preservedMapReference =
+        quakeMapCommand == null && existing?.mapEventKey != null
+          ? {
+              mapEventKey: existing.mapEventKey,
+              mapSourceType: existing.mapSourceType,
+              mapRevision: existing.mapRevision,
+            }
+          : {};
+      this.largeQuakes.set(key, {
+        ...dto.emergency,
+        ...preservedMapReference,
+        updatedAtMs: nowMs,
+      });
       changed = true;
     }
     if (dto.recentQuake != null && this.recentQuakesProvider == null) {
@@ -131,6 +172,105 @@ export class DisplayStateStore {
     }
     if (dto.latestQuake != null) {
       changed = this.applyLatestQuake(dto.latestQuake, nowMs) || changed;
+    }
+    changed = this.pruneUnreferencedQuakeMapEvents() || changed;
+    return changed;
+  }
+
+  private applyQuakeMapCommand(
+    command: DisplayQuakeMapCommandV1,
+    nowMs: number,
+  ): QuakeMapMutationResult {
+    const eventKey = command.kind === "upsert" ? command.event.eventKey : command.eventKey;
+    const guardKey = `${eventKey}:${command.sourceType}`;
+    if (!this.quakeMapRevisionGuard.accept(guardKey, command.revision, nowMs)) {
+      return { accepted: false, changed: false };
+    }
+
+    const previousEffective = this.effectiveQuakeMapEvent(eventKey);
+    let changed = false;
+    if (command.kind === "upsert") {
+      const bySource = this.quakeMapContributions.get(eventKey) ?? new Map();
+      bySource.set(command.sourceType, {
+        ...command.event,
+        sourceType: command.sourceType,
+        revision: { ...command.revision },
+      });
+      this.quakeMapContributions.set(eventKey, bySource);
+      changed = true;
+    } else {
+      const bySource = this.quakeMapContributions.get(eventKey);
+      if (bySource?.delete(command.sourceType) === true) changed = true;
+      if (bySource?.size === 0) this.quakeMapContributions.delete(eventKey);
+    }
+
+    const effective = this.effectiveQuakeMapEvent(eventKey);
+    const effectiveChanged =
+      previousEffective?.sourceType !== effective?.sourceType
+      || !sameRevision(previousEffective?.revision, effective?.revision);
+    if (
+      effectiveChanged
+      && effective != null
+      && effective.maxIntRank >= QUAKE_MAP_HOST_MIN_RANK
+      && effective.maxIntRank < TIER_QUAKE_ALERT_RANK
+    ) {
+      const nextHost = { eventKey, expiresAtMs: nowMs + NON_EMERGENCY_HOST_TTL_MS };
+      if (
+        this.quakeMapHost?.eventKey !== nextHost.eventKey
+        || this.quakeMapHost.expiresAtMs !== nextHost.expiresAtMs
+      ) {
+        this.quakeMapHost = nextHost;
+        changed = true;
+      }
+    } else if (this.quakeMapHost?.eventKey === eventKey) {
+      if (
+        effective == null
+        || effective.maxIntRank < QUAKE_MAP_HOST_MIN_RANK
+        || effective.maxIntRank >= TIER_QUAKE_ALERT_RANK
+      ) {
+        this.quakeMapHost = null;
+        changed = true;
+      }
+    }
+    return { accepted: true, changed };
+  }
+
+  private effectiveQuakeMapEvent(eventKey: string): DisplayQuakeIntensityMapEventV1 | null {
+    const contributions = [...(this.quakeMapContributions.get(eventKey)?.values() ?? [])];
+    contributions.sort((a, b) => {
+      if (a.revision.reportTimeMs !== b.revision.reportTimeMs) {
+        return b.revision.reportTimeMs - a.revision.reportTimeMs;
+      }
+      return a.sourceType.localeCompare(b.sourceType);
+    });
+    return contributions[0] ?? null;
+  }
+
+  private effectiveQuakeMapEvents(): DisplayQuakeIntensityMapEventV1[] {
+    const events: DisplayQuakeIntensityMapEventV1[] = [];
+    for (const eventKey of this.quakeMapContributions.keys()) {
+      const effective = this.effectiveQuakeMapEvent(eventKey);
+      if (effective != null) events.push(effective);
+    }
+    return events.sort((a, b) =>
+      b.updatedAtMs - a.updatedAtMs || a.eventKey.localeCompare(b.eventKey));
+  }
+
+  private largeQuakeReferencesMapEvent(event: DisplayQuakeIntensityMapEventV1): boolean {
+    return [...this.largeQuakes.values()].some((quake) =>
+      quake.mapEventKey === event.eventKey
+      && quake.mapSourceType === event.sourceType
+      && sameRevision(quake.mapRevision, event.revision));
+  }
+
+  private pruneUnreferencedQuakeMapEvents(): boolean {
+    let changed = false;
+    for (const eventKey of [...this.quakeMapContributions.keys()]) {
+      if (this.quakeMapHost?.eventKey === eventKey) continue;
+      const effective = this.effectiveQuakeMapEvent(eventKey);
+      if (effective != null && this.largeQuakeReferencesMapEvent(effective)) continue;
+      this.quakeMapContributions.delete(eventKey);
+      changed = true;
     }
     return changed;
   }
@@ -207,6 +347,11 @@ export class DisplayStateStore {
     for (const [id, q] of this.largeQuakes) {
       if (nowMs - q.updatedAtMs > LARGE_QUAKE_HOLD_MIN * MIN_MS) { this.largeQuakes.delete(id); changed = true; }
     }
+    if (this.quakeMapHost != null && nowMs >= this.quakeMapHost.expiresAtMs) {
+      this.quakeMapHost = null;
+      changed = true;
+    }
+    this.quakeMapRevisionGuard.sweep(nowMs);
     // SSE 無客中は気象点灯の時計だけを止める。他 domain の lifecycle は従来どおり進める
     if (sweepWeatherPromotions) {
       changed = this.promotions.sweepDemote(nowMs) || changed;
@@ -225,6 +370,7 @@ export class DisplayStateStore {
       this.latestQuake = null;
       changed = true;
     }
+    changed = this.pruneUnreferencedQuakeMapEvents() || changed;
     return changed;
   }
 
@@ -324,6 +470,7 @@ export class DisplayStateStore {
     for (const eew of this.activeEews.values()) bump(eew.isWarning ? "alert" : "caution");
     for (const q of this.largeQuakes.values()) if (q.maxIntRank >= TIER_QUAKE_ALERT_RANK) bump("alert");
     if (this.latestQuake != null && (this.latestQuake.maxIntRank ?? 0) >= TIER_QUAKE_ALERT_RANK) bump("alert");
+    if (NON_EMERGENCY_HOST_SEVERITY_RELEASED && this.quakeMapHost != null) bump("caution");
     for (const item of this.standbyItemsProvider?.() ?? []) {
       if (item.kind === "nankaiTrough" && item.severity === "critical") bump("caution");
       else if (item.severity === "critical") bump("alert");
@@ -415,6 +562,12 @@ export class DisplayStateStore {
       connection: { ...this.connection },
       recentTicker: [],
       standbyItems: this.standbyItemsProvider?.() ?? [],
+      mapLayers: {
+        quake: {
+          events: this.effectiveQuakeMapEvents(),
+          nonEmergencyHost: this.quakeMapHost == null ? null : { ...this.quakeMapHost },
+        },
+      },
     };
   }
 }
