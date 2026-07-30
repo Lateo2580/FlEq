@@ -36,9 +36,15 @@
     ),
   );
 
-  function headerLabel(role: string): string {
+  function headerLabel(role: string, alertsForHeader: DisplayWeatherAlertV1[]): string {
     if (role === "weatherEmergency") return "気象特別警報";
-    if (role === "weatherWarning") return "気象警報";
+    if (role === "weatherWarning") {
+      return alertsForHeader.some((alert) =>
+        alert.items.some((item) => item.displaySeverity === "officialL4")
+      )
+        ? "気象危険警報"
+        : "気象警報";
+    }
     return "気象注意報";
   }
 
@@ -102,7 +108,7 @@
     <div
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
-    >{headerLabel(topRole)}<UpdatedStamp iso={latestUpdatedAt} /></div>
+    >{headerLabel(topRole, alerts)}<UpdatedStamp iso={latestUpdatedAt} /></div>
     {#if alerts.length > 0}<ul>
       {#each items as it (it.kind + it.rank)}
         <li class="rank-{it.rank}">

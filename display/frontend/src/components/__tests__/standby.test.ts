@@ -372,6 +372,108 @@ describe("StandbyScreen", () => {
     expect(container.querySelector(".weather-corner")?.textContent).toContain("気象特別警報");
   });
 
+  it("VPWW56 の officialL4 は wire label を変えず待機カード見出しを「気象危険警報」へ昇格する", () => {
+    const alert = weatherAlert({
+      source: "vpww56",
+      label: "土砂災害警戒情報",
+      role: "weatherWarning",
+      items: [{
+        kind: "L4 土砂災害危険警報",
+        displaySeverity: "officialL4",
+        rank: "warning",
+        shownAreas: ["東京都"],
+        omittedAreaCount: 0,
+      }],
+    });
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ weatherAlerts: [alert] }),
+      now,
+      dim: false,
+      sseConnected: true,
+    });
+
+    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象危険警報");
+  });
+
+  it("officialL4 と officialL5 の併発では「気象特別警報」が勝つ", () => {
+    const l4 = weatherAlert({
+      source: "vpww56",
+      label: "土砂災害警戒情報",
+      role: "weatherWarning",
+      items: [{
+        kind: "L4 土砂災害危険警報",
+        displaySeverity: "officialL4",
+        rank: "warning",
+        shownAreas: ["東京都"],
+        omittedAreaCount: 0,
+      }],
+    });
+    const l5 = weatherAlert({
+      source: "vpws50",
+      label: "気象特別警報",
+      role: "weatherEmergency",
+      items: [{
+        kind: "L5 大雨特別警報",
+        displaySeverity: "officialL5",
+        rank: "emergency",
+        shownAreas: ["千葉県"],
+        omittedAreaCount: 0,
+      }],
+    });
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ weatherAlerts: [l4, l5] }),
+      now,
+      dim: false,
+      sseConnected: true,
+    });
+
+    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象特別警報");
+    expect(container.querySelector(".weather-corner .card-header")?.textContent).not.toContain("気象危険警報");
+  });
+
+  it("L4 を含まない続報へ更新されると見出しを「気象警報」へ戻す", async () => {
+    const l4 = weatherAlert({
+      source: "vpww56",
+      label: "土砂災害警戒情報",
+      role: "weatherWarning",
+      items: [{
+        kind: "L4 土砂災害危険警報",
+        displaySeverity: "officialL4",
+        rank: "warning",
+        shownAreas: ["東京都"],
+        omittedAreaCount: 0,
+      }],
+    });
+    const l3 = weatherAlert({
+      source: "vpws50",
+      label: "気象警報",
+      role: "weatherWarning",
+      items: [{
+        kind: "L3 大雨警報",
+        displaySeverity: "officialL3",
+        rank: "warning",
+        shownAreas: ["東京都"],
+        omittedAreaCount: 0,
+      }],
+    });
+    const { container, rerender } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ weatherAlerts: [l4] }),
+      now,
+      dim: false,
+      sseConnected: true,
+    });
+    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象危険警報");
+
+    await rerender({
+      snapshot: baseSnapshot({ weatherAlerts: [l3] }),
+      now,
+      dim: false,
+      sseConnected: true,
+    });
+    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象警報");
+    expect(container.querySelector(".weather-corner .card-header")?.textContent).not.toContain("気象危険警報");
+  });
+
   it("latestQuake を積むと .quake-corner 配下に震源名が render される (Task 13)", () => {
     const { container } = render(StandbyScreen, {
       snapshot: baseSnapshot({ latestQuake: latestQuakeState({ hypocenterName: "日向灘" }) }),

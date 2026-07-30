@@ -360,6 +360,7 @@ function isTyphoon(value: unknown): value is DisplayTyphoonV1 {
     && hasNullableFiniteNumber(value, "pressureHpa")
     && (!Object.hasOwn(value, "pressureDeltaHpa") || isNullableFiniteNumber(value.pressureDeltaHpa))
     && hasNullableFiniteNumber(value, "maxWindMs")
+    && (!Object.hasOwn(value, "maxGustMs") || isNullableFiniteNumber(value.maxGustMs))
     && (!Object.hasOwn(value, "maxWindDeltaMs") || isNullableFiniteNumber(value.maxWindDeltaMs))
     && (!Object.hasOwn(value, "intensityTrend")
       || value.intensityTrend == null

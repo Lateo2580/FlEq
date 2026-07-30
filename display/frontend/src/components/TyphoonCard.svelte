@@ -28,7 +28,7 @@
     <div class="typhoon">
       <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
       {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
-      {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
+      {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || typhoon.maxGustMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
         <div class="meta">
           {#if typhoon.pressureHpa != null}
@@ -41,6 +41,12 @@
             <div class="stat">
               <span class="stat-label">最大風速</span>
               <span class="stat-value"><RollingNumber value={String(typhoon.maxWindMs)} /><span class="stat-unit">m/s</span></span>
+            </div>
+          {/if}
+          {#if typhoon.maxGustMs != null}
+            <div class="stat">
+              <span class="stat-label">最大瞬間風速</span>
+              <span class="stat-value"><RollingNumber value={String(typhoon.maxGustMs)} /><span class="stat-unit">m/s</span></span>
             </div>
           {/if}
           {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}<div class="stat"><span class="stat-label">進行</span><span class="stat-value">{typhoon.moveDirection} <NumberUnit value={String(typhoon.moveSpeedKmh)} unit="km/h" /></span></div>{/if}
@@ -89,7 +95,7 @@
   .typhoon strong { display: block; font-size: max(14px, var(--type-label-l-fluid)); }
   /* 現在位置: ラベルなしの muted 本文 (層2) */
   .location { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
-  /* ラベル付き 3 列 (LatestQuakeCard .meta と同構造・同トークン): ラベル muted 層2 / 値 fg 層1 */
+  /* ラベル付き数値列 (LatestQuakeCard .meta と同構造・同トークン): ラベル muted 層2 / 値 fg 層1 */
   .meta { display: flex; gap: var(--space-3); margin-top: var(--space-1); }
   .stat { display: flex; flex-direction: column; gap: 2px; }
   .stat-label { font-size: var(--type-label-xs-size); color: var(--role-muted); }

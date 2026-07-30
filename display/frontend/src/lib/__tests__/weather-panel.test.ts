@@ -87,6 +87,26 @@ describe("buildWeatherEmergencyInput", () => {
     expect(buildWeatherEmergencyInput(snap)?.level).toBe(4);
   });
 
+  it("点灯元 source の updatedAt を緊急パネル入力へ渡す", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: {
+        vpws50: entry({ activationKey: "a1" }),
+        vpww56: entry({ activationKey: "a2" }),
+        activationKey: "a2",
+      },
+      weatherAlerts: [
+        alert("vpws50", [item({ kind: "L5 大雨特別警報" })], {
+          updatedAt: "2026-07-25T10:00:00+09:00",
+        }),
+        alert("vpww56", [item({ kind: "L4 土砂災害警戒情報", displaySeverity: "officialL4" })], {
+          updatedAt: "2026-07-25T10:05:00+09:00",
+        }),
+      ],
+    });
+
+    expect(buildWeatherEmergencyInput(snap)?.updatedAt).toBe("2026-07-25T10:05:00+09:00");
+  });
+
   it("nonLevelSpecial は L5 相当として扱う", () => {
     const snap = baseSnapshot({
       weatherPromotion: { vpws50: entry(), vpww56: null },

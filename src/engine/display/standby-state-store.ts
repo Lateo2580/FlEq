@@ -646,6 +646,7 @@ export class StandbyStateStore {
           typhoon: {
             ...state.typhoon,
             pressureDeltaHpa: state.typhoon.pressureDeltaHpa ?? null,
+            maxGustMs: state.typhoon.maxGustMs ?? null,
             maxWindDeltaMs: state.typhoon.maxWindDeltaMs ?? null,
             intensityTrend: state.typhoon.intensityTrend ?? null,
           },

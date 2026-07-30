@@ -109,6 +109,7 @@ function weatherInput(over: Partial<WeatherEmergencyInputV1> = {}): WeatherEmerg
     truncated: false,
     restored: false,
     trigger: null,
+    updatedAt: "2026-07-25T10:00:00+09:00",
     activationKey: "a1",
     firstPageRowKey: null,
     ...over,
@@ -532,7 +533,7 @@ describe("EmergencyScreen", () => {
 
     // ── spec 追補 (2026-07-26/27): 新規/更新バッジ・追加地域ハイライト・再点灯 ──
 
-    it("新規発表・更新発表をバッジで出し、判定材料が無ければ出さない", () => {
+    it("新規発表・更新発表を見出し直後に出し、右端には source の更新時刻を出す", () => {
       const cases: Array<[("new" | "update" | null), string | null]> = [
         ["new", "新規発表"],
         ["update", "更新発表"],
@@ -542,7 +543,13 @@ describe("EmergencyScreen", () => {
         const { container, unmount } = render(EmergencyScreen, {
           panels: [panel("weather:current", weatherInput({ trigger }))],
         });
-        expect(container.querySelector(".heading .trigger-badge")?.textContent ?? null).toBe(label);
+        expect(container.querySelector(".heading-title .trigger-badge")?.textContent ?? null).toBe(label);
+        expect(container.querySelector(".heading > .updated-stamp")?.textContent).toBe("更新 7/25 10:00");
+        const headingTitle = container.querySelector(".heading-title");
+        expect(headingTitle?.firstElementChild?.classList.contains("heading-text")).toBe(true);
+        expect(headingTitle?.lastElementChild?.classList.contains(
+          label == null ? "heading-text" : "trigger-badge",
+        )).toBe(true);
         unmount();
       }
     });

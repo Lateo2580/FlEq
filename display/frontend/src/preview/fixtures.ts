@@ -1927,7 +1927,7 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   {
     ...STANDBY_ITEM_BASE, kind: "typhoon", surface: "corner-right", key: "typhoon:active", severity: "normal",
     data: { typhoons: [
-      { typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", location: "沖縄の南", pressureHpa: 940, maxWindMs: 45, moveDirection: "北北西", moveSpeedKmh: 20, reportDateTime: NOW_ISO },
+      { typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", location: "沖縄の南", pressureHpa: 940, maxWindMs: 45, maxGustMs: 65, moveDirection: "北北西", moveSpeedKmh: 20, reportDateTime: NOW_ISO },
       { typhoonKey: "TC2619", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "マリアナ諸島", pressureHpa: 1002, maxWindMs: 15, moveDirection: "西", moveSpeedKmh: 15, reportDateTime: NOW_ISO },
     ] },
   },
@@ -2045,6 +2045,7 @@ export const weatherEmergencyInput: WeatherEmergencyInputV1 = {
   truncated: true,
   restored: false,
   trigger: "update",
+  updatedAt: "2026-07-26T12:21:02.699Z",
   activationKey: "vpws50:3|2026-07-26T12:21:02.699Z",
   firstPageRowKey: "vpww56:nonLevelSpecial:暴風特別警報",
   items: [
@@ -2090,6 +2091,7 @@ export const weatherSyncingInput: WeatherEmergencyInputV1 = {
   truncated: false,
   restored: true,
   trigger: "new",
+  updatedAt: "2026-07-26T12:21:02.699Z",
   activationKey: "vpws50:1",
   firstPageRowKey: null,
   items: [],

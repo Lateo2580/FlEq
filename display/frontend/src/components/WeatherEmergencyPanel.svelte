@@ -21,6 +21,7 @@
   import { onDestroy, untrack } from "svelte";
   import PageDots from "./PageDots.svelte";
   import RestoredChip from "./RestoredChip.svelte";
+  import UpdatedStamp from "./UpdatedStamp.svelte";
 
   // compact: main-stack の非 main スロット (狭い右列) から true が渡る。3 固定領域の構成は変えず、
   // type と padding を一段圧縮する (EewPanel / TsunamiPanel と同じ作法)。
@@ -285,8 +286,11 @@
     out:fade={{ duration: reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS, easing: springEffectsOut }}
   >
   <div class="heading">
-    <span class="heading-text">{headingLabel}</span>
-    {#if triggerLabel != null}<span class="trigger-badge">{triggerLabel}</span>{/if}
+    <span class="heading-title">
+      <span class="heading-text">{headingLabel}</span>
+      {#if triggerLabel != null}<span class="trigger-badge">{triggerLabel}</span>{/if}
+    </span>
+    <UpdatedStamp iso={input.updatedAt} />
   </div>
   <div class="tiles">
     <!-- 何が + どうする: レベルと行動文を 1 行に束ねたヒーロー。続けて区分を全種別ぶん並べる
@@ -432,7 +436,6 @@
   /* 新規/更新バッジ。見出し帯の on 色を継承し、輪郭だけで存在を示す
      (帯の container/on ペアは監査済み。独自の文字色・面を作らない) */
   .trigger-badge {
-    margin-inline-start: auto;
     padding: 0 var(--space-2);
     border: 1px solid currentColor;
     border-radius: var(--radius-s);
@@ -442,6 +445,12 @@
   }
   .heading-text {
     white-space: nowrap;
+  }
+  .heading-title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
   }
   /* 主見出しは 3 パネル共通トークンで高さを揃える (--panel-header-*、第4波) */
   .heading {

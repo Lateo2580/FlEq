@@ -526,7 +526,7 @@ describe("StandbyStateStore persistence", () => {
         typhoon: {
           typhoonKey: "TC-1", name: "Alpha", nameKana: null, remark: null, typhoonNumber: "2601",
           category: "TS", location: "ocean", pressureHpa: 990, pressureDeltaHpa: -5,
-          maxWindMs: 25, maxWindDeltaMs: 3, intensityTrend: "developing",
+          maxWindMs: 25, maxGustMs: 35, maxWindDeltaMs: 3, intensityTrend: "developing",
           moveDirection: "N", moveSpeedKmh: 20, reportDateTime: new Date(T0).toISOString(),
         },
         revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 24 * 60 * 60_000,
@@ -543,7 +543,8 @@ describe("StandbyStateStore persistence", () => {
     expect(store.snapshotItems().map((item) => item.kind).sort()).toEqual(["heat", "typhoon", "volcano"]);
     expect(store.snapshotItems().every((item) => item.restored)).toBe(true);
     expect(store.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
-      pressureDeltaHpa: -5, maxWindDeltaMs: 3, intensityTrend: "developing",
+      pressureDeltaHpa: -5, maxWindMs: 25, maxGustMs: 35,
+      maxWindDeltaMs: 3, intensityTrend: "developing",
     });
 
     store.applyEvent({
@@ -594,7 +595,7 @@ describe("StandbyStateStore persistence", () => {
     const restored = new StandbyStateStore();
     restored.restoreActiveState(loaded!, T0 + 60_000);
     expect(restored.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
-      pressureDeltaHpa: null, maxWindDeltaMs: null, intensityTrend: null,
+      pressureDeltaHpa: null, maxGustMs: null, maxWindDeltaMs: null, intensityTrend: null,
     });
   });
 

@@ -75,6 +75,7 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | 
       location: frame.center.location,
       pressureHpa: frame.center.pressureHpa,
       maxWindMs: frame.wind?.maxWindMs ?? null,
+      maxGustMs: frame.wind?.maxGustMs ?? null,
       moveDirection: frame.center.moveDirection,
       moveSpeedKmh: frame.center.moveSpeedKmh,
       reportDateTime: event.reportDateTime,

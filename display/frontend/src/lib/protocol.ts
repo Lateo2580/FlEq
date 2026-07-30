@@ -455,6 +455,8 @@ export interface DisplayTyphoonV1 {
   /** 直前の同一台風との差。負数は気圧低下。旧永続化データでは省略される。 */
   pressureDeltaHpa?: number | null;
   maxWindMs: number | null;
+  /** 最大瞬間風速。旧永続化データとの互換のため省略可。 */
+  maxGustMs?: number | null;
   /** 直前の同一台風との差。正数は風速増加。旧永続化データでは省略される。 */
   maxWindDeltaMs?: number | null;
   /** 気圧・最大風速の両差分が算出できる場合だけ設定する。 */

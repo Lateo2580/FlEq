@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { parseTyphoonAnalysis } from "../../../src/dmdata/typhoon-analysis-parser";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type {
@@ -8,6 +9,10 @@ import type {
   ParsedTyphoonAnalysis,
   ParsedVolcanoInfo,
 } from "../../../src/types";
+import {
+  createMockWsDataMessage,
+  FIXTURE_VPTW60_2020,
+} from "../../helpers/mock-message";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
@@ -255,6 +260,19 @@ describe("StandbyStateStore: typhoon", () => {
     }), T0);
     const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
     expect(item?.data.typhoons[0]).toMatchObject({ intensityClass: "非常に強い", sizeClass: "超大型" });
+  });
+
+  it("VPTW60 fixture の GustSpeed を最大瞬間風速として display protocol へ射影する", () => {
+    const raw = parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW60_2020));
+    expect(raw?.frames[0]?.wind?.maxGustMs).toBe(23);
+
+    const store = new StandbyStateStore();
+    store.applyEvent(
+      typhoonEvent({}, raw as unknown as Record<string, unknown>),
+      T0,
+    );
+
+    expect(currentTyphoon(store, raw!.eventId!)).toMatchObject({ maxWindMs: 15, maxGustMs: 23 });
   });
 
   it("receives, replaces, and aggregates typhoons by TC key", () => {

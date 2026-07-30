@@ -40,6 +40,8 @@ export interface WeatherEmergencyInputV1 {
   restored: boolean;
   /** この点灯が新規発表か更新発表か。null = 判定材料が無い (旧サーバ・装飾を失った復元) */
   trigger: "new" | "update" | null;
+  /** 今回の点灯元 source の更新時刻。装飾元を特定できない旧状態では最新 source を採る */
+  updatedAt: string | null;
   /** 点灯の同一性キー。**変わったら再点灯演出を発火する** (spec 追補 C1)。
    *  パネルの key は固定・wire も更新中ずっと非 null なので、これが無いと内容更新で
    *  パネルがマウントされたままになり「切り替えが視線を引く」効果が出ない */
@@ -227,6 +229,7 @@ export function buildWeatherEmergencyInput(
   const generations: string[] = [];
   const promotedLevels: DisplayWeatherPromotionLevelV1[] = [];
   let restored = false;
+  let updatedAt: string | null = null;
 
   // パネル全体の点灯キー (engine の watermark)。欠落 (旧サーバ) は演出も装飾も出さない
   const panelActivationKey = promotion.activationKey ?? "";
@@ -254,6 +257,14 @@ export function buildWeatherEmergencyInput(
     if (decorated) trigger = entry.trigger ?? null;
 
     const liveAlerts = snapshot.weatherAlerts.filter((a) => a.source === source);
+    const sourceUpdatedAt = liveAlerts[0]?.updatedAt ?? entry.promotedAt;
+    if (
+      decorated
+      || (decorSource == null
+        && (updatedAt == null || Date.parse(sourceUpdatedAt) > Date.parse(updatedAt)))
+    ) {
+      updatedAt = sourceUpdatedAt;
+    }
     const sourceItems =
       liveAlerts.length > 0
         ? liveAlerts.flatMap((a) => a.items)
@@ -338,6 +349,7 @@ export function buildWeatherEmergencyInput(
     truncated: items.some((i) => i.omittedAreaCount > 0),
     restored,
     trigger,
+    updatedAt,
     // パネル全体の点灯キー。**engine の watermark をそのまま使う** (欠落なら演出なしの固定値)
     activationKey: panelActivationKey,
     // 追加地域を含む行を最初のページへ (spec 追補 C11)。主レベルの行を優先し、無ければ

@@ -5,7 +5,7 @@ import type { ActiveStandbyCardV1, DisplayTyphoonV1 } from "../../lib/protocol";
 import { typhoonHeaderTone } from "../../lib/typhoon-header-tone";
 
 function typhoon(over: Partial<DisplayTyphoonV1> = {}): DisplayTyphoonV1 {
-  return { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-07-21T00:00:00.000Z", ...over };
+  return { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, maxGustMs: 35, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-07-21T00:00:00.000Z", ...over };
 }
 
 function typhoonItem(typhoons = [typhoon()]): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
@@ -40,23 +40,43 @@ describe("TyphoonCard", () => {
     expect(card?.textContent).toContain("ALPHA");
     // 現在位置はラベルなし本文
     expect(container.querySelector(".location")?.textContent).toBe("ocean");
-    // ラベル付き 3 列 (スラッシュ羅列は廃止)
+    // 最大瞬間風速は最大風速の隣に置き、差分は追加しない
     const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
-    expect(labels).toEqual(["中心気圧", "最大風速", "進行"]);
-    // 気圧・風速の数値本体は RollingNumber、進行速度は NumberUnit で組む
+    expect(labels).toEqual(["中心気圧", "最大風速", "最大瞬間風速", "進行"]);
+    // 気圧・風速・瞬間風速の数値本体は RollingNumber、進行速度は NumberUnit で組む
     const stats = container.querySelectorAll(".meta .stat-value");
     expect(stats[0].querySelector('[data-value="990"]')).toBeTruthy();
     expect(stats[0].querySelector(".stat-unit")?.textContent).toBe("hPa");
     expect(stats[1].querySelector('[data-value="25"]')).toBeTruthy();
     expect(stats[1].querySelector(".stat-unit")?.textContent).toBe("m/s");
+    expect(stats[2].querySelector('[data-value="35"]')).toBeTruthy();
+    expect(stats[2].querySelector(".stat-unit")?.textContent).toBe("m/s");
     // 進行は方角テキスト + 速度の NumberUnit (方角は数値化しない)
-    expect(stats[2].textContent).toBe("N 20km/h");
-    expect(stats[2].querySelector(".nu-value")?.textContent).toBe("20");
-    expect(stats[2].querySelector(".nu-unit")?.textContent).toBe("km/h");
+    expect(stats[3].textContent).toBe("N 20km/h");
+    expect(stats[3].querySelector(".nu-value")?.textContent).toBe("20");
+    expect(stats[3].querySelector(".nu-unit")?.textContent).toBe("km/h");
+    expect(container.querySelector(".gust-delta")).toBeNull();
     // 旧 .facts (span + " / " 区切り) は消えている
     expect(container.querySelector(".facts")).toBeNull();
     expect(card?.textContent).not.toContain(" / ");
   });
+
+  it.each([undefined, null] as const)(
+    "最大瞬間風速が %s なら列・空欄・NaN を出さない",
+    (maxGustMs) => {
+      const { container } = render(TyphoonCard, {
+        item: typhoonItem([typhoon({ maxGustMs })]),
+      });
+      const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
+      expect(labels).toEqual(["中心気圧", "最大風速", "進行"]);
+      expect(container.textContent).not.toContain("最大瞬間風速");
+      expect(container.textContent).not.toContain("NaN");
+      expect(
+        Array.from(container.querySelectorAll(".meta .stat-value"))
+          .every((el) => (el.textContent ?? "").trim() !== ""),
+      ).toBe(true);
+    },
+  );
 
   it("気圧・風速の変化と総合 trend を muted 補助行に表示する", () => {
     const { container } = render(TyphoonCard, {
