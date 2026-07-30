@@ -358,7 +358,14 @@ function isTyphoon(value: unknown): value is DisplayTyphoonV1 {
     && hasNullableString(value, "category")
     && hasNullableString(value, "location")
     && hasNullableFiniteNumber(value, "pressureHpa")
+    && (!Object.hasOwn(value, "pressureDeltaHpa") || isNullableFiniteNumber(value.pressureDeltaHpa))
     && hasNullableFiniteNumber(value, "maxWindMs")
+    && (!Object.hasOwn(value, "maxWindDeltaMs") || isNullableFiniteNumber(value.maxWindDeltaMs))
+    && (!Object.hasOwn(value, "intensityTrend")
+      || value.intensityTrend == null
+      || value.intensityTrend === "developing"
+      || value.intensityTrend === "weakening"
+      || value.intensityTrend === "steady")
     && hasNullableString(value, "moveDirection")
     && hasNullableFiniteNumber(value, "moveSpeedKmh")
     && typeof value.reportDateTime === "string";

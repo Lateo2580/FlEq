@@ -4,11 +4,20 @@
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
   import NumberUnit from "./NumberUnit.svelte";
+  import RollingNumber from "./RollingNumber.svelte";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> } = $props();
   const headerTone = $derived(typhoonHeaderTone(item.data.typhoons));
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
     const number = typhoon.typhoonNumber == null ? null : Number(typhoon.typhoonNumber.slice(2));
     return number == null || Number.isNaN(number) ? "台風" : `台風 ${number} 号${typhoon.nameKana == null ? "" : `（${typhoon.nameKana}）`}`;
+  }
+  function deltaArrow(delta: number): string {
+    return delta < 0 ? "↓" : delta > 0 ? "↑" : "→";
+  }
+  function trendLabel(trend: "developing" | "weakening" | "steady"): string {
+    if (trend === "developing") return "発達傾向";
+    if (trend === "weakening") return "衰弱傾向";
+    return "横ばい";
   }
 </script>
 
@@ -22,17 +31,36 @@
       {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
         <div class="meta">
-          {#if typhoon.pressureHpa != null}<div class="stat"><span class="stat-label">中心気圧</span><span class="stat-value"><NumberUnit value={String(typhoon.pressureHpa)} unit="hPa" /></span></div>{/if}
-          {#if typhoon.maxWindMs != null}<div class="stat"><span class="stat-label">最大風速</span><span class="stat-value"><NumberUnit value={String(typhoon.maxWindMs)} unit="m/s" /></span></div>{/if}
+          {#if typhoon.pressureHpa != null}
+            <div class="stat">
+              <span class="stat-label">中心気圧</span>
+              <span class="stat-value"><RollingNumber value={String(typhoon.pressureHpa)} /><span class="stat-unit">hPa</span></span>
+            </div>
+          {/if}
+          {#if typhoon.maxWindMs != null}
+            <div class="stat">
+              <span class="stat-label">最大風速</span>
+              <span class="stat-value"><RollingNumber value={String(typhoon.maxWindMs)} /><span class="stat-unit">m/s</span></span>
+            </div>
+          {/if}
           {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}<div class="stat"><span class="stat-label">進行</span><span class="stat-value">{typhoon.moveDirection} <NumberUnit value={String(typhoon.moveSpeedKmh)} unit="km/h" /></span></div>{/if}
         </div>
+        {#if typhoon.pressureDeltaHpa != null || typhoon.maxWindDeltaMs != null}
+          <div class="change-summary">
+            {#if typhoon.pressureDeltaHpa != null}<span class="change-item pressure-delta">{deltaArrow(typhoon.pressureDeltaHpa)} {Math.abs(typhoon.pressureDeltaHpa)} hPa</span>{/if}
+            {#if typhoon.maxWindDeltaMs != null}<span class="change-item wind-delta">{deltaArrow(typhoon.maxWindDeltaMs)} {Math.abs(typhoon.maxWindDeltaMs)} m/s</span>{/if}
+            {#if typhoon.intensityTrend != null && typhoon.pressureDeltaHpa != null && typhoon.maxWindDeltaMs != null}
+              <span class="change-item trend-label">{trendLabel(typhoon.intensityTrend)}</span>
+            {/if}
+          </div>
+        {/if}
       {/if}
     </div>
   {/each}
 </section>
 
 <style>
-  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 240px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
   /* 情報級カード: 警報帯は付けず、タイトル級 muted 見出し (直近の地震と同格) で警報とのヒエラルキーを守る */
   header {
     display: flex;
@@ -66,4 +94,14 @@
   .stat { display: flex; flex-direction: column; gap: 2px; }
   .stat-label { font-size: var(--type-label-xs-size); color: var(--role-muted); }
   .stat-value { font-size: max(14px, var(--type-body-l-fluid)); font-weight: var(--num-weight); font-variant-numeric: tabular-nums; color: var(--fg); }
+  .stat-unit { margin-left: 1px; font-size: max(12px, 0.6em); font-weight: normal; }
+  .change-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px var(--space-3);
+    margin-top: 2px;
+    color: var(--role-muted);
+    font-size: var(--type-label-xs-size);
+    font-variant-numeric: tabular-nums;
+  }
 </style>

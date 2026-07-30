@@ -292,9 +292,17 @@ export class StandbyStateStore {
     if (update.isCancellation) {
       return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
     }
+    const previous = this.typhoons.get(update.typhoonKey)?.typhoon;
+    const pressureDeltaHpa = numericDelta(update.typhoon.pressureHpa, previous?.pressureHpa);
+    const maxWindDeltaMs = numericDelta(update.typhoon.maxWindMs, previous?.maxWindMs);
     this.typhoons.set(update.typhoonKey, {
       sourceEventId: update.sourceEventId,
-      typhoon: update.typhoon,
+      typhoon: {
+        ...update.typhoon,
+        pressureDeltaHpa,
+        maxWindDeltaMs,
+        intensityTrend: typhoonIntensityTrend(pressureDeltaHpa, maxWindDeltaMs),
+      },
       revision,
       expiresAtMs: revision.reportTimeMs + DAY_MS,
       restored: false,
@@ -632,7 +640,20 @@ export class StandbyStateStore {
       });
     }
     for (const state of data.typhoons ?? []) {
-      if (state.expiresAtMs > nowMs) this.typhoons.set(state.typhoon.typhoonKey, { sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs, restored: true });
+      if (state.expiresAtMs > nowMs) {
+        this.typhoons.set(state.typhoon.typhoonKey, {
+          sourceEventId: state.sourceEventId,
+          typhoon: {
+            ...state.typhoon,
+            pressureDeltaHpa: state.typhoon.pressureDeltaHpa ?? null,
+            maxWindDeltaMs: state.typhoon.maxWindDeltaMs ?? null,
+            intensityTrend: state.typhoon.intensityTrend ?? null,
+          },
+          revision: { ...state.revision },
+          expiresAtMs: state.expiresAtMs,
+          restored: true,
+        });
+      }
     }
     for (const state of data.volcanoes ?? []) {
       if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) this.volcanoes.set(state.code, { ...state, sourceEventIds: [...state.sourceEventIds], alertRevision: state.alertRevision == null ? null : { ...state.alertRevision }, eventRevision: state.eventRevision == null ? null : { ...state.eventRevision }, alertRestored: state.alertRevision != null, eventRestored: state.eventRevision != null });
@@ -678,4 +699,18 @@ function copyWeatherAlert(alert: DisplayWeatherAlertV1): DisplayWeatherAlertV1 {
     ...alert,
     items: alert.items.map((item) => ({ ...item, shownAreas: [...item.shownAreas] })),
   };
+}
+
+function numericDelta(current: number | null, previous: number | null | undefined): number | null {
+  return current == null || previous == null ? null : current - previous;
+}
+
+function typhoonIntensityTrend(
+  pressureDeltaHpa: number | null,
+  maxWindDeltaMs: number | null,
+): DisplayTyphoonV1["intensityTrend"] {
+  if (pressureDeltaHpa == null || maxWindDeltaMs == null) return null;
+  if (pressureDeltaHpa < 0 || maxWindDeltaMs > 0) return "developing";
+  if (pressureDeltaHpa > 0 || maxWindDeltaMs < 0) return "weakening";
+  return "steady";
 }

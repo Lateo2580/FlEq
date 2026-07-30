@@ -43,13 +43,12 @@ describe("TyphoonCard", () => {
     // ラベル付き 3 列 (スラッシュ羅列は廃止)
     const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
     expect(labels).toEqual(["中心気圧", "最大風速", "進行"]);
-    expect(container.querySelector(".meta")?.textContent).toContain("990hPa");
-    expect(container.querySelector(".meta")?.textContent).toContain("25m/s");
-    // 数値大・単位小の NumberUnit で組む (数値と単位を別 span に、複合単位はまとめて単位 span)
+    // 気圧・風速の数値本体は RollingNumber、進行速度は NumberUnit で組む
     const stats = container.querySelectorAll(".meta .stat-value");
-    expect(stats[0].querySelector(".nu-value")?.textContent).toBe("990");
-    expect(stats[0].querySelector(".nu-unit")?.textContent).toBe("hPa");
-    expect(stats[1].querySelector(".nu-unit")?.textContent).toBe("m/s");
+    expect(stats[0].querySelector('[data-value="990"]')).toBeTruthy();
+    expect(stats[0].querySelector(".stat-unit")?.textContent).toBe("hPa");
+    expect(stats[1].querySelector('[data-value="25"]')).toBeTruthy();
+    expect(stats[1].querySelector(".stat-unit")?.textContent).toBe("m/s");
     // 進行は方角テキスト + 速度の NumberUnit (方角は数値化しない)
     expect(stats[2].textContent).toBe("N 20km/h");
     expect(stats[2].querySelector(".nu-value")?.textContent).toBe("20");
@@ -57,6 +56,71 @@ describe("TyphoonCard", () => {
     // 旧 .facts (span + " / " 区切り) は消えている
     expect(container.querySelector(".facts")).toBeNull();
     expect(card?.textContent).not.toContain(" / ");
+  });
+
+  it("気圧・風速の変化と総合 trend を muted 補助行に表示する", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([typhoon({
+        pressureHpa: 980,
+        pressureDeltaHpa: -10,
+        maxWindMs: 30,
+        maxWindDeltaMs: 5,
+        intensityTrend: "developing",
+      })]),
+    });
+
+    expect(container.querySelector(".pressure-delta")?.textContent).toBe("↓ 10 hPa");
+    expect(container.querySelector(".wind-delta")?.textContent).toBe("↑ 5 m/s");
+    expect(container.querySelector(".trend-label")?.textContent).toBe("発達傾向");
+    expect(container.querySelector(".change-summary")?.querySelectorAll(".change-item")).toHaveLength(3);
+    expect(container.querySelector('[data-value="980"]')).toBeTruthy();
+    expect(container.querySelector('[data-value="30"]')).toBeTruthy();
+  });
+
+  it("片側差分が欠損していると総合 trend ラベルを表示しない", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([typhoon({
+        pressureDeltaHpa: -5,
+        maxWindDeltaMs: null,
+        intensityTrend: "developing",
+      })]),
+    });
+
+    expect(container.querySelector(".pressure-delta")?.textContent).toBe("↓ 5 hPa");
+    expect(container.querySelector(".change-summary")?.querySelectorAll(".change-item")).toHaveLength(1);
+    expect(container.querySelector(".trend-label")).toBeNull();
+  });
+
+  it("集約時も各台風の差分と trend を台風ごとに 1 補助行へ束ねる", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([
+        typhoon({
+          pressureDeltaHpa: -10,
+          maxWindDeltaMs: 5,
+          intensityTrend: "developing",
+        }),
+        typhoon({
+          typhoonKey: "TC-2",
+          typhoonNumber: "2606",
+          pressureDeltaHpa: 8,
+          maxWindDeltaMs: -4,
+          intensityTrend: "weakening",
+        }),
+      ]),
+    });
+
+    const typhoons = container.querySelectorAll(".typhoon");
+    expect(typhoons).toHaveLength(2);
+    expect(typhoons[0].querySelectorAll(".change-summary")).toHaveLength(1);
+    expect(typhoons[0].querySelectorAll(".change-item")).toHaveLength(3);
+    expect(typhoons[0].querySelector(".change-summary")?.textContent).toContain("↓ 10 hPa");
+    expect(typhoons[0].querySelector(".change-summary")?.textContent).toContain("↑ 5 m/s");
+    expect(typhoons[0].querySelector(".change-summary")?.textContent).toContain("発達傾向");
+    expect(typhoons[1].querySelectorAll(".change-summary")).toHaveLength(1);
+    expect(typhoons[1].querySelectorAll(".change-item")).toHaveLength(3);
+    expect(typhoons[1].querySelector(".change-summary")?.textContent).toContain("↑ 8 hPa");
+    expect(typhoons[1].querySelector(".change-summary")?.textContent).toContain("↓ 4 m/s");
+    expect(typhoons[1].querySelector(".change-summary")?.textContent).toContain("衰弱傾向");
   });
 
   it("uses remark when a named typhoon is unavailable and renders each aggregated typhoon", () => {

@@ -402,7 +402,13 @@ export interface DisplayTyphoonV1 {
   sizeClass?: string | null;
   location: string | null;
   pressureHpa: number | null;
+  /** 直前の同一台風との差。負数は気圧低下。旧永続化データでは省略される。 */
+  pressureDeltaHpa?: number | null;
   maxWindMs: number | null;
+  /** 直前の同一台風との差。正数は風速増加。旧永続化データでは省略される。 */
+  maxWindDeltaMs?: number | null;
+  /** 気圧・最大風速の両差分が算出できる場合だけ設定する。 */
+  intensityTrend?: "developing" | "weakening" | "steady" | null;
   moveDirection: string | null;
   moveSpeedKmh: number | null;
   reportDateTime: string;

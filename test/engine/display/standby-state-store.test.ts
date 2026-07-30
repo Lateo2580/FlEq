@@ -243,6 +243,11 @@ function volcanoEvent(over: Record<string, unknown> = {}, rawOver: Record<string
 }
 
 describe("StandbyStateStore: typhoon", () => {
+  function currentTyphoon(store: StandbyStateStore, key = "TC-1") {
+    const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
+    return item?.data.typhoons.find((typhoon) => typhoon.typhoonKey === key);
+  }
+
   it("projects parser intensity and size classes into the display card protocol", () => {
     const store = new StandbyStateStore();
     store.applyEvent(typhoonEvent({}, {
@@ -263,9 +268,130 @@ describe("StandbyStateStore: typhoon", () => {
 
     const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
     expect(item?.data.typhoons).toEqual([
-      expect.objectContaining({ typhoonKey: "TC-1", pressureHpa: 975, category: "TY" }),
-      expect.objectContaining({ typhoonKey: "TC-2", name: "Beta" }),
+      expect.objectContaining({
+        typhoonKey: "TC-1", pressureHpa: 975, category: "TY",
+        pressureDeltaHpa: -15, maxWindDeltaMs: 10, intensityTrend: "developing",
+      }),
+      expect.objectContaining({
+        typhoonKey: "TC-2", name: "Beta",
+        pressureDeltaHpa: null, maxWindDeltaMs: null, intensityTrend: null,
+      }),
     ]);
+  });
+
+  it("初報は差分なしで、更新ごとに発達・衰弱・横ばいを算出する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent(), T0);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: null, maxWindDeltaMs: null, intensityTrend: null,
+    });
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-developing", serial: "2", reportDateTime: new Date(T0 + 60_000).toISOString() },
+      {
+        serial: "2",
+        frames: [{ kind: "analysis", typhoonClass: { category: "TY" }, center: { location: "ocean", pressureHpa: 975, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 35 } }],
+      },
+    ), T0 + 60_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: -15, maxWindDeltaMs: 10, intensityTrend: "developing",
+    });
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-weakening", serial: "3", reportDateTime: new Date(T0 + 120_000).toISOString() },
+      {
+        serial: "3",
+        frames: [{ kind: "analysis", typhoonClass: { category: "TS" }, center: { location: "ocean", pressureHpa: 980, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 30 } }],
+      },
+    ), T0 + 120_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: 5, maxWindDeltaMs: -5, intensityTrend: "weakening",
+    });
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-steady", serial: "4", reportDateTime: new Date(T0 + 180_000).toISOString() },
+      {
+        serial: "4",
+        frames: [{ kind: "analysis", typhoonClass: { category: "TS" }, center: { location: "ocean", pressureHpa: 980, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 30 } }],
+      },
+    ), T0 + 180_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: 0, maxWindDeltaMs: 0, intensityTrend: "steady",
+    });
+  });
+
+  it("どちらかの比較値が欠損なら該当差分と総合 trend を null にする", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({}, {
+      frames: [{ kind: "analysis", typhoonClass: { category: "TS" }, center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 }, wind: null }],
+    }), T0);
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-wind-appears", serial: "2", reportDateTime: new Date(T0 + 60_000).toISOString() },
+      {
+        serial: "2",
+        frames: [{ kind: "analysis", typhoonClass: { category: "TS" }, center: { location: "ocean", pressureHpa: 985, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 25 } }],
+      },
+    ), T0 + 60_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: -5, maxWindDeltaMs: null, intensityTrend: null,
+    });
+  });
+
+  it("取消後・期限切れ後の再登場は前回値なしとして扱う", () => {
+    const cancelled = new StandbyStateStore();
+    cancelled.applyEvent(typhoonEvent(), T0);
+    cancelled.applyEvent(typhoonEvent(
+      { id: "typhoon-cancel", isCancellation: true, serial: "2", reportDateTime: new Date(T0 + 60_000).toISOString() },
+      { serial: "2", infoType: "cancel" },
+    ), T0 + 60_000);
+    cancelled.applyEvent(typhoonEvent(
+      { id: "typhoon-reappears", serial: "3", reportDateTime: new Date(T0 + 120_000).toISOString() },
+      {
+        serial: "3",
+        frames: [{ kind: "analysis", typhoonClass: { category: "TY" }, center: { location: "ocean", pressureHpa: 970, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 40 } }],
+      },
+    ), T0 + 120_000);
+    expect(currentTyphoon(cancelled)).toMatchObject({
+      pressureDeltaHpa: null, maxWindDeltaMs: null, intensityTrend: null,
+    });
+
+    const expired = new StandbyStateStore();
+    expired.applyEvent(typhoonEvent(), T0);
+    expired.sweep(T0 + 24 * 60 * 60_000);
+    expired.applyEvent(typhoonEvent(
+      { id: "typhoon-after-expiry", serial: "2", reportDateTime: new Date(T0 + 25 * 60 * 60_000).toISOString() },
+      { serial: "2" },
+    ), T0 + 25 * 60 * 60_000);
+    expect(currentTyphoon(expired)).toMatchObject({
+      pressureDeltaHpa: null, maxWindDeltaMs: null, intensityTrend: null,
+    });
+  });
+
+  it("複数台風の差分履歴を typhoonKey ごとに独立して保持する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent(), T0);
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-2", eventId: "TC-2", serial: "1" },
+      {
+        eventId: "TC-2",
+        name: { name: "Beta", nameKana: null, number: "2602", remark: null },
+        frames: [{ kind: "analysis", typhoonClass: { category: "TS" }, center: { location: "sea", pressureHpa: 1000, moveDirection: "W", moveSpeedKmh: 15 }, wind: { maxWindMs: 20 } }],
+      },
+    ), T0);
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-1-next", serial: "2", reportDateTime: new Date(T0 + 60_000).toISOString() },
+      {
+        serial: "2",
+        frames: [{ kind: "analysis", typhoonClass: { category: "TY" }, center: { location: "ocean", pressureHpa: 980, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 30 } }],
+      },
+    ), T0 + 60_000);
+
+    expect(currentTyphoon(store, "TC-1")).toMatchObject({
+      pressureDeltaHpa: -10, maxWindDeltaMs: 5, intensityTrend: "developing",
+    });
+    expect(currentTyphoon(store, "TC-2")).toMatchObject({
+      pressureDeltaHpa: null, maxWindDeltaMs: null, intensityTrend: null,
+    });
   });
 
   it("does not extend TTL for a stale resend, expires after 24 hours, and keeps cancellation tombstones", () => {
