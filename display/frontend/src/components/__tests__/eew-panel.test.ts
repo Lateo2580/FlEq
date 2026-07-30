@@ -53,42 +53,27 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(container.querySelector('.stat-value [data-value="1"]')).toBeTruthy();
   });
 
-  it("震度別の県数集約行: 単一バケツのみなら最大震度の県数だけ出す (以上行なし)", () => {
-    const regions = [region("宮崎県", { intensity: "6弱" }), region("大分県", { intensity: "6弱" })];
-    const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const items = container.querySelectorAll(".agg-item");
-    expect(items.length).toBe(1);
-    expect(items[0].textContent).toContain("震度6弱:");
-    expect(items[0].querySelector('[data-value="2"]')).toBeTruthy();
-  });
-
-  it("震度別の県数集約行: 複数バケツで最大震度県数 + 次ランク以上の累積県数 (top を含む) を出す", () => {
-    // ハンドオフ §2-a モック「震度7: 8県  6強以上: 19県」は 6強以上に震度7分を内包した累積読み
-    // (19 > 8)。3 番目以下のバケツ (5弱=香川) はこの行の集計に含まない
+  it("震度別の地域数は出さず、震度チップと地域名リストは維持する", () => {
     const regions = [
       region("高知県", { intensity: "7" }),
       region("徳島県", { intensity: "7" }),
       region("愛媛県", { intensity: "6強" }),
-      region("香川県", { intensity: "5弱" }),
     ];
     const { container } = render(EewPanel, { input: eewInput({ regions }) });
-    const items = container.querySelectorAll(".agg-item");
-    expect(items.length).toBe(2);
-    expect(items[0].textContent).toContain("震度7:");
-    expect(items[0].querySelector('[data-value="2"]')).toBeTruthy(); // top: 高知/徳島 = 2県
-    expect(items[1].textContent).toContain("6強以上:");
-    // 累積: 高知/徳島/愛媛 = 3県 (香川=5弱は3番目のバケツなので含まない)
-    expect(items[1].querySelector('[data-value="3"]')).toBeTruthy();
+    expect(container.querySelector(".agg-tile")).toBeFalsy();
+    expect(container.textContent).not.toContain("2県");
+    expect(screen.getByText("高知県 徳島県")).toBeTruthy();
+    expect(container.querySelector(".region-intensity")?.textContent).toContain("震度7");
   });
 
-  it("PLUM を含む region があれば集約行末に件数付きで出す。なければ出さない", () => {
+  it("PLUM を含む region があれば件数なしの標識を出す。なければ空区画を残さない", () => {
     const withPlum = [region("宮崎県", { isPlum: true }), region("大分県", { isPlum: false })];
     const { container: withContainer } = render(EewPanel, { input: eewInput({ regions: withPlum }) });
-    expect(withContainer.querySelector(".agg-plum")?.textContent).toContain("PLUM含む 1地域");
+    expect(withContainer.querySelector(".agg-plum")?.textContent).toBe("PLUM含む");
 
     const withoutPlum = [region("宮崎県"), region("大分県")];
     const { container: withoutContainer } = render(EewPanel, { input: eewInput({ regions: withoutPlum }) });
-    expect(withoutContainer.querySelector(".agg-plum")).toBeFalsy();
+    expect(withoutContainer.querySelector(".agg-tile")).toBeFalsy();
   });
 
   it("regions が空なら集約行自体を出さない", () => {

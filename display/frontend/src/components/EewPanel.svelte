@@ -3,7 +3,6 @@
   import { formatHms, formatIntShort, intensityRank } from "../lib/format";
   import { eewRegionFontTier, eewRegionListColumnCount, paginateEewRegions } from "../lib/eew-region-tiers";
   import { EEW_STATIC_LIST_MAX, rowCapacity } from "../lib/instrument-layout";
-  import { countByPrefecture } from "../lib/prefecture-group";
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import { measureBorderHeight, measureHeight } from "../lib/measure-height";
   import { onDestroy } from "svelte";
@@ -25,7 +24,7 @@
   }
 
   // regions を予測震度 (intensity 下限の完全一致) でバケツ化し、震度ランク降順に並べる
-  // (固定サマリ計器の震度別県数集約行 + 静的小リストの震度別グルーピングで共用する)
+  // (静的小リストの震度別グルーピングで使う)
   function bucketByIntensity(regions: DisplayEewRegionV1[]): IntensityBucket[] {
     const order: string[] = [];
     const buckets = new Map<string, DisplayEewRegionV1[]>();
@@ -41,23 +40,12 @@
       .sort((a, b) => b.rank - a.rank);
   }
 
-  function prefectureCount(regions: DisplayEewRegionV1[]): number {
-    return countByPrefecture(regions.map((r) => r.name)).filter((c) => c.pref != null).length;
-  }
-
   const buckets = $derived(bucketByIntensity(input.regions));
   const topBucket = $derived<IntensityBucket | null>(buckets[0] ?? null);
-  const secondBucket = $derived<IntensityBucket | null>(buckets[1] ?? null);
   const regionMeasureSample = $derived(
     input.regions.reduce((longest, region) => region.name.length > longest.length ? region.name : longest, "測"),
   );
-  const topPrefCount = $derived(topBucket != null ? prefectureCount(topBucket.regions) : 0);
-  // 「6強以上」等の累積県数: rank が secondBucket.rank 以上 (= topBucket + secondBucket、
-  // buckets は rank 降順ソート済みなので先頭 2 バケツ) をまとめた distinct 県数。
-  // 3 番目以降の下位バケツはこの行に含めない (ハンドオフ §2-a モック「震度7:8県 6強以上:19県」
-  // は topBucket を内包した累積読みのため、19 > 8 になる)
-  const cumulativePrefCount = $derived(prefectureCount(buckets.slice(0, 2).flatMap((b) => b.regions)));
-  const plumCount = $derived(input.regions.filter((r) => r.isPlum).length);
+  const hasPlum = $derived(input.regions.some((r) => r.isPlum));
   let regionAreaHeight = $state(0);
   let regionLineHeight = $state(0);
   let pendingRegionAreaHeight: number | null = null;
@@ -138,15 +126,9 @@
         </div>
       {/if}
     </div>
-    {#if topBucket != null}
+    {#if hasPlum}
       <div class="tile agg-tile">
-        <span class="agg-item">震度{topBucket.intensity}: <RollingNumber value={String(topPrefCount)} />県</span>
-        {#if secondBucket != null}
-          <span class="agg-item">{secondBucket.intensity}以上: <RollingNumber value={String(cumulativePrefCount)} />県</span>
-        {/if}
-        {#if plumCount > 0}
-          <span class="agg-item agg-plum">PLUM含む {plumCount}地域</span>
-        {/if}
+        <span class="agg-plum">PLUM含む</span>
       </div>
     {/if}
     {#if showStaticList}
@@ -305,9 +287,6 @@
     gap: var(--space-1) var(--space-5);
     padding: var(--space-3) var(--space-5);
     font-size: calc(var(--type-body-l-size) * var(--panel-scale, 1));
-  }
-  .agg-item {
-    font-variant-numeric: tabular-nums;
   }
   .agg-plum {
     color: var(--c-raspberry);
