@@ -245,7 +245,12 @@ describe("standby integration", () => {
       alertLevel: null, alertLevelCode: null, previousLevelCode: "4",
     } }), T0 + 60_000);
     expect(eventOnly.snapshotItems()[0]).toEqual(expect.objectContaining({
-      kind: "volcano", data: { volcanoes: [expect.objectContaining({ alertLevel: null, latestEvent: "噴火速報" })] },
+      kind: "volcano", data: {
+        volcanoes: [expect.objectContaining({
+          alertLevel: null,
+          latestEvent: expect.objectContaining({ label: "噴火速報" }),
+        })],
+      },
     }));
   });
 

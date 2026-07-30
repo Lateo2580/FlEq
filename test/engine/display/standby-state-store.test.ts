@@ -445,35 +445,189 @@ describe("StandbyStateStore: volcano", () => {
 
     const eruptionStore = new StandbyStateStore();
     eruptionStore.applyEvent(volcanoEvent({}, {
-      kind: "eruption", type: "VFVO56", isFlashReport: true, phenomenonName: "噴火速報",
+      kind: "eruption", type: "VFVO56", isFlashReport: true, phenomenonName: "噴火",
+      craterName: "山頂火口", eventDateTime: "2026-07-21T04:58:00+09:00",
+      plumeHeight: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
     }), T0);
     expect(eruptionStore.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
       warningKind: null,
       targetKinds: [],
+      latestEvent: {
+        label: "噴火速報",
+        craterName: "山頂火口",
+        eventDateTime: "2026-07-21T04:58:00+09:00",
+        plumeHeightM: 2500,
+        plumeHeightUnknown: false,
+        plumeDirection: "南東",
+      },
     });
   });
 
-  it("keeps level 4 until lowered, while a level increase has a 24-hour lifetime", () => {
+  it("レベル3以下も保持するが単独ではカード化せず、噴火イベント時に併記する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(volcanoEvent({}, {
+      alertLevel: 3, alertLevelCode: "3", previousLevelCode: "2",
+      warningKind: "噴火警報（火口周辺）",
+      municipalities: [
+        { name: "テスト市", code: "0000000", kind: "入山規制" },
+        { name: "テスト町", code: "0000001", kind: "火口周辺規制" },
+      ],
+    }), T0);
+    expect(store.snapshotItems()).toEqual([]);
+
+    const eruptionAt = T0 + 60_000;
+    store.applyEvent(volcanoEvent({
+      id: "eruption",
+      serial: "1",
+      reportDateTime: new Date(eruptionAt).toISOString(),
+    }, {
+      kind: "eruption", type: "VFVO56", isFlashReport: false, phenomenonName: "噴火",
+    }), eruptionAt);
+    expect(store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      alertLevel: 3,
+      warningKind: "噴火警報（火口周辺）",
+      targetKinds: ["入山規制", "火口周辺規制"],
+      latestEvent: expect.objectContaining({ label: "噴火" }),
+    });
+  });
+
+  it("警報未受信の噴火はレベルなしで表示し、解除 action で保持レベルを消す", () => {
+    const eventOnly = new StandbyStateStore();
+    eventOnly.applyEvent(volcanoEvent({}, {
+      kind: "eruption", type: "VFVO56", isFlashReport: false, phenomenonName: "噴火",
+    }), T0);
+    expect(eventOnly.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      alertLevel: null,
+      warningKind: null,
+      targetKinds: [],
+    });
+
+    const store = new StandbyStateStore();
+    store.applyEvent(volcanoEvent({}, {
+      alertLevel: 3, alertLevelCode: "3", previousLevelCode: "2",
+      warningKind: "噴火警報（火口周辺）",
+      municipalities: [{ name: "テスト市", code: "0000000", kind: "入山規制" }],
+    }), T0);
+    store.applyEvent(volcanoEvent({
+      id: "eruption",
+      serial: "1",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+    }, {
+      kind: "eruption", type: "VFVO56", isFlashReport: false, phenomenonName: "噴火",
+    }), T0 + 60_000);
+    store.applyEvent(volcanoEvent({
+      id: "release",
+      serial: "2",
+      reportDateTime: new Date(T0 + 120_000).toISOString(),
+    }, {
+      alertLevel: null, alertLevelCode: null, previousLevelCode: "3",
+      action: "release", warningKind: "噴火予報",
+    }), T0 + 120_000);
+    expect(store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      alertLevel: null,
+      warningKind: null,
+      targetKinds: [],
+      latestEvent: expect.objectContaining({ label: "噴火" }),
+    });
+  });
+
+  it("レベル引下げは新レベルへ更新し、古い revision を拒否する", () => {
     const store = new StandbyStateStore();
     store.applyEvent(volcanoEvent(), T0);
     expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: null })]);
     expect(store.sweep(T0 + 48 * 60 * 60_000).viewChanged).toBe(false);
 
-    store.applyEvent(volcanoEvent({ id: "volcano-lower", serial: "2", reportDateTime: new Date(T0 + 48 * 60 * 60_000).toISOString() }, {
-      alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4",
-    }), T0 + 48 * 60 * 60_000);
+    const loweredAt = T0 + 48 * 60 * 60_000;
+    store.applyEvent(volcanoEvent({
+      id: "volcano-lower",
+      serial: "2",
+      reportDateTime: new Date(loweredAt).toISOString(),
+    }, {
+      alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4", action: "lower",
+    }), loweredAt);
+    expect(store.snapshotItems()).toEqual([]);
+    expect(store.exportActiveState().volcanoes[0]).toMatchObject({ alertLevel: 2, alertExpiresAtMs: null });
+    expect(store.applyEvent(volcanoEvent({
+      id: "old-level-four",
+      serial: "1",
+    }, {
+      alertLevel: 4, alertLevelCode: "4", previousLevelCode: "3",
+    }), loweredAt + 1)).toEqual({ viewChanged: false, durableChanged: false });
+  });
+
+  it("複数火山の低レベル警報と噴火イベントを code ごとに独立保持する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(volcanoEvent({}, {
+      volcanoCode: "V-1", volcanoName: "Mount One",
+      alertLevel: 3, alertLevelCode: "3", previousLevelCode: "2",
+    }), T0);
+    store.applyEvent(volcanoEvent({ id: "alert-v2" }, {
+      volcanoCode: "V-2", volcanoName: "Mount Two",
+      alertLevel: 2, alertLevelCode: "2", previousLevelCode: "1",
+    }), T0);
     expect(store.snapshotItems()).toEqual([]);
 
-    const raisedAt = T0 + 49 * 60 * 60_000;
-    store.applyEvent(volcanoEvent({ id: "volcano-raise", serial: "3", reportDateTime: new Date(raisedAt).toISOString() }, {
-      alertLevel: 3, alertLevelCode: "3", previousLevelCode: "2",
-    }), raisedAt);
-    expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: new Date(raisedAt + 24 * 60 * 60_000).toISOString() })]);
-    store.sweep(raisedAt + 24 * 60 * 60_000);
+    store.applyEvent(volcanoEvent({
+      id: "eruption-v1",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+    }, {
+      kind: "eruption", type: "VFVO56",
+      volcanoCode: "V-1", volcanoName: "Mount One",
+      isFlashReport: false, phenomenonName: "噴火",
+    }), T0 + 60_000);
+    store.applyEvent(volcanoEvent({
+      id: "eruption-v2",
+      reportDateTime: new Date(T0 + 120_000).toISOString(),
+    }, {
+      kind: "eruption", type: "VFVO52",
+      volcanoCode: "V-2", volcanoName: "Mount Two",
+      isFlashReport: true, phenomenonName: "噴火",
+    }), T0 + 120_000);
+
+    const volcanoes = store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes;
+    expect(volcanoes).toEqual([
+      expect.objectContaining({
+        code: "V-1", alertLevel: 3,
+        latestEvent: expect.objectContaining({ label: "噴火" }),
+      }),
+      expect.objectContaining({
+        code: "V-2", alertLevel: 2,
+        latestEvent: expect.objectContaining({ label: "噴火速報" }),
+      }),
+    ]);
+  });
+
+  it("cancel action 後は古い警報 revision で巻き戻らない", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(volcanoEvent({}, {
+      action: "issue",
+      alertLevel: 4, alertLevelCode: "4", previousLevelCode: "3",
+    }), T0);
+    expect(store.snapshotItems()).toHaveLength(1);
+
+    const cancelledAt = T0 + 60_000;
+    store.applyEvent(volcanoEvent({
+      id: "cancel",
+      serial: "2",
+      reportDateTime: new Date(cancelledAt).toISOString(),
+    }, {
+      action: "cancel",
+      alertLevel: null, alertLevelCode: null, previousLevelCode: "4",
+    }), cancelledAt);
+    expect(store.snapshotItems()).toEqual([]);
+    expect(store.exportActiveState().volcanoes).toEqual([]);
+
+    expect(store.applyEvent(volcanoEvent({
+      id: "stale-alert",
+      serial: "1",
+    }, {
+      action: "issue",
+      alertLevel: 4, alertLevelCode: "4", previousLevelCode: "3",
+    }), cancelledAt + 1)).toEqual({ viewChanged: false, durableChanged: false });
     expect(store.snapshotItems()).toEqual([]);
   });
 
-  it("keeps a flash eruption for 24 hours, ignores steady level 2, and rejects an old level 4 after lowering", () => {
+  it("keeps a flash eruption for 24 hours and keeps a steady level 2 hidden", () => {
     const store = new StandbyStateStore();
     store.applyEvent(volcanoEvent({ serial: "1" }, { alertLevel: 2, alertLevelCode: "2", previousLevelCode: "2" }), T0);
     expect(store.snapshotItems()).toEqual([]);
@@ -481,16 +635,20 @@ describe("StandbyStateStore: volcano", () => {
     const eruptionAt = T0 + 60_000;
     store.applyEvent(volcanoEvent({ id: "flash", serial: "2", reportDateTime: new Date(eruptionAt).toISOString() }, {
       kind: "eruption", type: "VFVO52", isFlashReport: true, phenomenonName: "flash",
+      craterName: null, eventDateTime: new Date(eruptionAt - 30_000).toISOString(),
+      plumeHeight: null, plumeHeightUnknown: true, plumeDirection: null,
     }), eruptionAt);
     expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: new Date(eruptionAt + 24 * 60 * 60_000).toISOString() })]);
+    const eruptionCard = store.snapshotItems().find((item) => item.kind === "volcano");
+    expect(eruptionCard?.data.volcanoes[0]?.latestEvent).toMatchObject({
+      label: "噴火速報",
+      eventDateTime: new Date(eruptionAt - 30_000).toISOString(),
+      plumeHeightM: null,
+      plumeHeightUnknown: true,
+    });
     store.sweep(eruptionAt + 24 * 60 * 60_000);
     expect(store.snapshotItems()).toEqual([]);
-
-    const loweredAt = eruptionAt + 25 * 60 * 60_000;
-    store.applyEvent(volcanoEvent({ id: "level-four", serial: "3", reportDateTime: new Date(loweredAt).toISOString() }, { alertLevel: 4, alertLevelCode: "4", previousLevelCode: "2" }), loweredAt);
-    store.applyEvent(volcanoEvent({ id: "lowered", serial: "4", reportDateTime: new Date(loweredAt + 60_000).toISOString() }, { alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4" }), loweredAt + 60_000);
-    expect(store.snapshotItems()).toEqual([]);
-    expect(store.applyEvent(volcanoEvent({ id: "old-level-four", serial: "3" }, { alertLevel: 4, alertLevelCode: "4", previousLevelCode: "2" }), loweredAt + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().volcanoes[0]).toMatchObject({ alertLevel: 2, alertExpiresAtMs: null });
   });
 });
 

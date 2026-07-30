@@ -7,6 +7,7 @@ import type {
   DisplayFloodStationV1,
   DisplayHeatAreaV1,
   DisplayTyphoonV1,
+  DisplayVolcanoEventV1,
   DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
   DisplayWeatherSourceV1,
@@ -43,7 +44,20 @@ export interface PersistedStandbyStateV1 {
 }
 
 export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
-export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; warningKind?: string | null; targetKinds?: string[]; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; alertRevision: StandbyRevision | null; eventRevision: StandbyRevision | null; }
+export interface PersistedVolcanoStateV1 {
+  code: string;
+  name: string;
+  alertLevel: number | null;
+  warningKind?: string | null;
+  targetKinds?: string[];
+  alertExpiresAtMs: number | null;
+  /** string は構造化前の v1 保存状態との互換専用。新規保存は DisplayVolcanoEventV1。 */
+  latestEvent?: DisplayVolcanoEventV1 | string | null;
+  eventExpiresAtMs: number | null;
+  sourceEventIds: string[];
+  alertRevision: StandbyRevision | null;
+  eventRevision: StandbyRevision | null;
+}
 export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; }
 export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
@@ -389,11 +403,24 @@ function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
     && (!Object.hasOwn(value, "warningKind") || hasNullableString(value, "warningKind"))
     && (!Object.hasOwn(value, "targetKinds") || isStringArray(value.targetKinds))
     && hasNullableFiniteNumber(value, "alertExpiresAtMs")
-    && hasNullableString(value, "latestEvent")
+    && (!Object.hasOwn(value, "latestEvent")
+      || value.latestEvent == null
+      || typeof value.latestEvent === "string"
+      || isVolcanoEvent(value.latestEvent))
     && hasNullableFiniteNumber(value, "eventExpiresAtMs")
     && isStringArray(value.sourceEventIds)
     && Object.hasOwn(value, "alertRevision") && (value.alertRevision == null || isRevision(value.alertRevision))
     && Object.hasOwn(value, "eventRevision") && (value.eventRevision == null || isRevision(value.eventRevision));
+}
+
+function isVolcanoEvent(value: unknown): value is DisplayVolcanoEventV1 {
+  return isRecord(value)
+    && typeof value.label === "string"
+    && hasNullableString(value, "craterName")
+    && hasNullableString(value, "eventDateTime")
+    && hasNullableFiniteNumber(value, "plumeHeightM")
+    && typeof value.plumeHeightUnknown === "boolean"
+    && hasNullableString(value, "plumeDirection");
 }
 
 function isTornadoState(value: unknown): value is PersistedTornadoStateV1 {

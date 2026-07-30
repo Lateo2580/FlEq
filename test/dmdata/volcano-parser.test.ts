@@ -16,6 +16,7 @@ import {
   FIXTURE_VFVO56_FLASH_1,
   FIXTURE_VFVO60_PLUME,
   FIXTURE_VZVO40_NOTICE,
+  createMockWsDataMessageFromXml,
   readFixture,
 } from "../helpers/mock-message";
 
@@ -90,8 +91,26 @@ describe("parseVolcanoTelegram", () => {
         expect(result!.phenomenonCode).toBe("52");
         expect(result!.phenomenonName).toContain("噴火");
         expect(result!.isFlashReport).toBe(false);
+        expect(result!.eventDateTime).toBe("2020-05-22T14:45:00+09:00");
+        expect(result!.craterName).toBeNull();
         // 噴煙高度不明のケース
         expect(result!.plumeHeightUnknown).toBe(true);
+        expect(result!.plumeHeight).toBeNull();
+        expect(result!.plumeDirection).toBeNull();
+      }
+    });
+
+    it("ColorPlume があっても高度ノードがなければ欠損として扱う", () => {
+      const xml = readFixture(FIXTURE_VFVO52_ERUPTION_1)
+        .replace(/<jmx_eb:PlumeHeightAboveCrater\b[^>]*\/>/, "");
+      expect(xml).toContain("<ColorPlume>");
+      expect(xml).not.toContain("<jmx_eb:PlumeHeightAboveCrater");
+
+      const result = parseVolcanoTelegram(createMockWsDataMessageFromXml(xml, "VFVO52"));
+      expect(result?.kind).toBe("eruption");
+      if (result?.kind === "eruption") {
+        expect(result.plumeHeight).toBeNull();
+        expect(result.plumeHeightUnknown).toBe(false);
       }
     });
   });
@@ -112,6 +131,7 @@ describe("parseVolcanoTelegram", () => {
       if (result!.kind === "eruption") {
         expect(result!.isFlashReport).toBe(true);
         expect(result!.phenomenonCode).toBe("52");
+        expect(result!.eventDateTime).toBe("2014-09-27T11:53:00+09:00");
       }
     });
   });

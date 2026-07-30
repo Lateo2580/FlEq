@@ -90,12 +90,6 @@ export interface VolcanoUpdate {
   serial: string | null;
   kind: "alert" | "eruption";
   isCancellation: boolean;
-  isLevelIncrease: boolean;
-}
-
-function levelOf(code: string | null): number {
-  const match = code?.match(/[1-5]/);
-  return match == null ? 0 : Number(match[0]);
 }
 
 export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | null {
@@ -119,13 +113,21 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | 
       alertLevel,
       warningKind,
       targetKinds,
-      latestEvent: raw.kind === "eruption" ? (raw.isFlashReport ? "噴火速報" : raw.phenomenonName) : null,
+      latestEvent: raw.kind === "eruption" ? {
+        label: raw.isFlashReport ? "噴火速報" : raw.phenomenonName.trim() || "噴火",
+        craterName: raw.craterName ?? null,
+        eventDateTime: raw.eventDateTime ?? null,
+        plumeHeightM: raw.plumeHeight ?? null,
+        plumeHeightUnknown: raw.plumeHeightUnknown === true,
+        plumeDirection: raw.plumeDirection ?? null,
+      } : null,
     },
     sourceEventId: event.id,
     reportDateTime: event.reportDateTime,
     serial: event.serial ?? null,
     kind: raw.kind,
-    isCancellation: event.isCancellation || raw.infoType === "取消",
-    isLevelIncrease: raw.kind === "alert" && levelOf(raw.alertLevelCode) > levelOf(raw.previousLevelCode),
+    isCancellation: event.isCancellation
+      || raw.infoType === "取消"
+      || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel"),
   };
 }

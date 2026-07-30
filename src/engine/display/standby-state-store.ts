@@ -4,10 +4,15 @@ import type {
   ActiveStandbyCardV1,
   DisplayHeatAreaV1,
   DisplayTyphoonV1,
+  DisplayVolcanoEventV1,
   DisplayWeatherAlertV1,
   DisplayWeatherSourceV1,
 } from "./protocol";
-import type { PersistedStandbyStateV1, PersistedWeatherAlertStateV1 } from "./standby-persistence";
+import type {
+  PersistedStandbyStateV1,
+  PersistedVolcanoStateV1,
+  PersistedWeatherAlertStateV1,
+} from "./standby-persistence";
 import { FloodActiveReducer } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
 import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdate } from "./project-standby";
@@ -56,7 +61,7 @@ interface VolcanoState {
   warningKind: string | null;
   targetKinds: string[];
   alertExpiresAtMs: number | null;
-  latestEvent: string | null;
+  latestEvent: DisplayVolcanoEventV1 | null;
   eventExpiresAtMs: number | null;
   sourceEventIds: string[];
   alertRevision: StandbyRevision | null;
@@ -348,23 +353,14 @@ export class StandbyStateStore {
         state.alertLevel = update.volcano.alertLevel;
         state.warningKind = update.volcano.warningKind ?? null;
         state.targetKinds = [...(update.volcano.targetKinds ?? [])];
-        state.alertExpiresAtMs = update.volcano.alertLevel != null && update.volcano.alertLevel >= 4 ? null : nowMs;
-      }
-      if (!update.isCancellation && update.isLevelIncrease) {
-        const eventKey = `volcano:event:${update.volcano.code}`;
-        if (this.revisionGuard.accept(eventKey, revision, nowMs, tombstoneTtlForKey(eventKey))) {
-          state.eventRestored = false;
-          state.latestEvent = null;
-          state.eventExpiresAtMs = update.volcano.alertLevel != null && update.volcano.alertLevel >= 4
-            ? null
-            : revision.reportTimeMs + DAY_MS;
-          state.eventRevision = revision;
-        }
+        // レベル3以下も次の解除まで現況として保持する。カード化は snapshot 側で
+        // レベル4以上または噴火イベントありに限定する。
+        state.alertExpiresAtMs = null;
       }
     } else {
       state.eventRestored = false;
       state.eventRevision = revision;
-      state.latestEvent = update.isCancellation ? null : update.volcano.latestEvent;
+      state.latestEvent = update.isCancellation ? null : copyVolcanoEvent(update.volcano.latestEvent);
       state.eventExpiresAtMs = update.isCancellation ? null : revision.reportTimeMs + DAY_MS;
     }
     if (state.alertExpiresAtMs != null && (state.eventExpiresAtMs == null || state.eventExpiresAtMs <= nowMs)) {
@@ -383,7 +379,8 @@ export class StandbyStateStore {
       if (!keys.has(key)) {
         const alertKey = `volcano:alert:${key}`;
         this.revisionGuard.replace(alertKey, { reportTimeMs: nowMs, serial: null }, nowMs, tombstoneTtlForKey(alertKey));
-        const alertWasVisible = state.alertLevel != null && state.alertLevel >= 4;
+        const alertWasVisible = state.alertLevel != null && state.alertLevel >= 4
+          || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs;
         state.alertLevel = null;
         state.warningKind = null;
         state.targetKinds = [];
@@ -421,7 +418,7 @@ export class StandbyStateStore {
       };
       state.name = entry.volcanoName;
       state.alertLevel = entry.alertLevel;
-      state.alertExpiresAtMs = entry.alertLevel != null && entry.alertLevel >= 4 ? null : nowMs;
+      state.alertExpiresAtMs = null;
       state.alertRevision = revision;
       state.alertRestored = false;
       if (state.alertExpiresAtMs != null && (state.eventExpiresAtMs == null || state.eventExpiresAtMs <= nowMs)) {
@@ -558,7 +555,9 @@ export class StandbyStateStore {
     }
     const volcanoes = [...this.volcanoes.values()].filter((state) => state.alertLevel != null && state.alertLevel >= 4 || state.eventExpiresAtMs != null);
     if (volcanoes.length > 0) {
-      const critical = volcanoes.some((state) => (state.alertLevel ?? 0) >= 4 || state.latestEvent === "噴火速報");
+      const critical = volcanoes.some((state) =>
+        (state.alertLevel ?? 0) >= 4 || state.latestEvent?.label === "噴火速報"
+      );
       const latest = Math.max(...volcanoes.flatMap((state) => [state.alertRevision?.reportTimeMs, state.eventRevision?.reportTimeMs].filter((value): value is number => value != null)));
       const expires = volcanoes.map((state) => state.eventExpiresAtMs).filter((value): value is number => value != null);
       items.push({
@@ -569,7 +568,14 @@ export class StandbyStateStore {
           state.alertLevel != null && state.alertLevel >= 4 && state.alertRestored
           || state.eventExpiresAtMs != null && state.eventRestored
         ), severity: critical ? "critical" : "warning",
-        data: { volcanoes: volcanoes.map((state) => ({ code: state.code, name: state.name, alertLevel: state.alertLevel, warningKind: state.warningKind, targetKinds: [...state.targetKinds], latestEvent: state.latestEvent })) },
+        data: { volcanoes: volcanoes.map((state) => ({
+          code: state.code,
+          name: state.name,
+          alertLevel: state.alertLevel,
+          warningKind: state.warningKind,
+          targetKinds: [...state.targetKinds],
+          latestEvent: copyVolcanoEvent(state.latestEvent),
+        })) },
       });
     }
     const flood = this.floods.snapshotCard();
@@ -614,7 +620,19 @@ export class StandbyStateStore {
         revision: { ...state.revision },
       })),
       typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
-      volcanoes: [...this.volcanoes.values()].map((state) => ({ code: state.code, name: state.name, alertLevel: state.alertLevel, warningKind: state.warningKind, targetKinds: [...state.targetKinds], alertExpiresAtMs: state.alertExpiresAtMs, latestEvent: state.latestEvent, eventExpiresAtMs: state.eventExpiresAtMs, sourceEventIds: [...state.sourceEventIds], alertRevision: state.alertRevision == null ? null : { ...state.alertRevision }, eventRevision: state.eventRevision == null ? null : { ...state.eventRevision } })),
+      volcanoes: [...this.volcanoes.values()].map((state) => ({
+        code: state.code,
+        name: state.name,
+        alertLevel: state.alertLevel,
+        warningKind: state.warningKind,
+        targetKinds: [...state.targetKinds],
+        alertExpiresAtMs: state.alertExpiresAtMs,
+        latestEvent: copyVolcanoEvent(state.latestEvent),
+        eventExpiresAtMs: state.eventExpiresAtMs,
+        sourceEventIds: [...state.sourceEventIds],
+        alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
+        eventRevision: state.eventRevision == null ? null : { ...state.eventRevision },
+      })),
       floods: this.floods.exportState(),
       weatherAlerts: [...this.weatherAlerts.values()].map((state) => ({
         source: state.source,
@@ -669,7 +687,19 @@ export class StandbyStateStore {
       }
     }
     for (const state of data.volcanoes ?? []) {
-      if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) this.volcanoes.set(state.code, { ...state, warningKind: state.warningKind ?? null, targetKinds: [...(state.targetKinds ?? [])], sourceEventIds: [...state.sourceEventIds], alertRevision: state.alertRevision == null ? null : { ...state.alertRevision }, eventRevision: state.eventRevision == null ? null : { ...state.eventRevision }, alertRestored: state.alertRevision != null, eventRestored: state.eventRevision != null });
+      if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) {
+        this.volcanoes.set(state.code, {
+          ...state,
+          warningKind: state.warningKind ?? null,
+          targetKinds: [...(state.targetKinds ?? [])],
+          latestEvent: restoreVolcanoEvent(state.latestEvent),
+          sourceEventIds: [...state.sourceEventIds],
+          alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
+          eventRevision: state.eventRevision == null ? null : { ...state.eventRevision },
+          alertRestored: state.alertRevision != null,
+          eventRestored: state.eventRevision != null,
+        });
+      }
     }
     for (const state of data.tornado ?? []) if (state.expiresAtMs > nowMs) this.tornadoByOffice.set(state.publishingOffice, { ...state, areas: [...state.areas], revision: { ...state.revision }, restored: true });
     if (data.quakeHost != null && data.quakeHost.expiresAtMs > nowMs) this.quakeHost = { ...data.quakeHost, revision: { ...data.quakeHost.revision } };
@@ -711,6 +741,27 @@ function copyWeatherAlert(alert: DisplayWeatherAlertV1): DisplayWeatherAlertV1 {
   return {
     ...alert,
     items: alert.items.map((item) => ({ ...item, shownAreas: [...item.shownAreas] })),
+  };
+}
+
+function copyVolcanoEvent(
+  event: DisplayVolcanoEventV1 | null | undefined,
+): DisplayVolcanoEventV1 | null {
+  return event == null ? null : { ...event };
+}
+
+function restoreVolcanoEvent(
+  event: PersistedVolcanoStateV1["latestEvent"],
+): DisplayVolcanoEventV1 | null {
+  if (event == null) return null;
+  if (typeof event !== "string") return { ...event };
+  return {
+    label: event,
+    craterName: null,
+    eventDateTime: null,
+    plumeHeightM: null,
+    plumeHeightUnknown: false,
+    plumeDirection: null,
   };
 }
 

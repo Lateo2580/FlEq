@@ -193,18 +193,20 @@ function extractPlumeObservation(body: unknown): {
     const heightNode =
       dig(colorPlume, "jmx_eb:PlumeHeightAboveCrater") ||
       dig(colorPlume, "PlumeHeightAboveCrater");
-    const heightVal = typeof heightNode === "object"
-      ? str(dig(heightNode, "#text"))
-      : str(heightNode);
-    const heightCondition = typeof heightNode === "object"
-      ? str(dig(heightNode, "@_condition"))
-      : "";
+    if (heightNode != null) {
+      const heightVal = typeof heightNode === "object"
+        ? str(dig(heightNode, "#text"))
+        : str(heightNode);
+      const heightCondition = typeof heightNode === "object"
+        ? str(dig(heightNode, "@_condition"))
+        : "";
 
-    if (heightCondition === "不明" || heightVal === "" || heightVal === "不明") {
-      plumeHeightUnknown = true;
-    } else {
-      const parsed = parseInt(heightVal, 10);
-      if (!isNaN(parsed)) plumeHeight = parsed;
+      if (heightCondition === "不明" || heightVal === "不明") {
+        plumeHeightUnknown = true;
+      } else {
+        const parsed = parseInt(heightVal, 10);
+        if (!isNaN(parsed)) plumeHeight = parsed;
+      }
     }
 
     // 流向

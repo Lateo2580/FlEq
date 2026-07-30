@@ -1920,7 +1920,14 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   {
     ...STANDBY_ITEM_BASE, kind: "volcano", surface: "corner-right", key: "volcano:active", severity: "critical",
     data: { volcanoes: [
-      { code: "506", name: "桜島", alertLevel: 4, latestEvent: "噴火速報" },
+      {
+        code: "506", name: "桜島", alertLevel: 4,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制"],
+        latestEvent: {
+          label: "噴火速報", craterName: "南岳山頂火口", eventDateTime: NOW_ISO,
+          plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
+        },
+      },
       { code: "550", name: "諏訪之瀬島", alertLevel: 3, latestEvent: null },
     ] },
   },

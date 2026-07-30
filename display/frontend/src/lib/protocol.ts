@@ -437,8 +437,20 @@ export interface DisplayVolcanoEntryV1 {
   warningKind?: string | null;
   /** 対象市町村に付随する警戒区分。電文順のユニーク列。旧永続化データとの互換のため省略可。 */
   targetKinds?: string[];
-  /** 直近の変化イベント表示名 ("噴火速報" 等)。null = レベル常設のみ */
-  latestEvent: string | null;
+  /** 直近の噴火観測。旧 protocol snapshot との互換のため省略可。 */
+  latestEvent?: DisplayVolcanoEventV1 | null;
+}
+
+export interface DisplayVolcanoEventV1 {
+  /** 表示名 ("噴火速報"、"噴火" 等) */
+  label: string;
+  craterName: string | null;
+  eventDateTime: string | null;
+  /** 火口上の噴煙高度。単位 m */
+  plumeHeightM: number | null;
+  /** 高度不明が明示された場合 true。単なる欠損と区別する */
+  plumeHeightUnknown: boolean;
+  plumeDirection: string | null;
 }
 
 export interface DisplayTyphoonV1 {

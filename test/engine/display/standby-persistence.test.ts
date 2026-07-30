@@ -519,7 +519,7 @@ describe("StandbyStateStore persistence", () => {
     expect(store.exportActiveState().seen).toEqual([]);
   });
 
-  it("typhoon and volcano states survive an atomic persistence round trip", () => {
+  it("typhoon と level 3 + 噴火イベントの volcano state が実ファイル round-trip する", () => {
     const persisted = state({
       typhoons: [{
         key: "typhoon:TC-1", sourceEventId: "typhoon-1",
@@ -531,7 +531,18 @@ describe("StandbyStateStore persistence", () => {
         },
         revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 24 * 60 * 60_000,
       }],
-      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制", "避難準備"], alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],
+      volcanoes: [{
+        code: "V-1", name: "Mount Test", alertLevel: 3,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制", "避難準備"],
+        alertExpiresAtMs: null,
+        latestEvent: {
+          label: "噴火", craterName: "山頂火口", eventDateTime: new Date(T0 - 60_000).toISOString(),
+          plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
+        },
+        eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"],
+        alertRevision: { reportTimeMs: T0, serial: "1" },
+        eventRevision: { reportTimeMs: T0, serial: "1" },
+      }],
     });
     const persistence = new StandbyPersistence(tempPath());
     persistence.save(persisted);
@@ -547,8 +558,14 @@ describe("StandbyStateStore persistence", () => {
       maxWindDeltaMs: 3, intensityTrend: "developing",
     });
     expect(store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      alertLevel: 3,
       warningKind: "噴火警報（火口周辺）",
       targetKinds: ["入山規制", "避難準備"],
+      latestEvent: {
+        label: "噴火", craterName: "山頂火口",
+        eventDateTime: new Date(T0 - 60_000).toISOString(),
+        plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
+      },
     });
 
     store.applyEvent({
@@ -577,13 +594,78 @@ describe("StandbyStateStore persistence", () => {
     });
   });
 
-  it("警報意味 field のない旧 volcano 永続化ファイルを読み、null として復元する", () => {
+  it("非表示の level 3 警報を実ファイル復元し、後着した噴火イベントへ併記する", () => {
+    const beforeRestart = new StandbyStateStore();
+    beforeRestart.applyEvent({
+      id: "volcano-alert-1",
+      domain: "volcano",
+      serial: "1",
+      reportDateTime: new Date(T0).toISOString(),
+      isCancellation: false,
+      raw: {
+        kind: "alert", type: "VFVO50", infoType: "発表", action: "issue",
+        volcanoCode: "V-1", volcanoName: "Mount Test",
+        alertLevel: 3, alertLevelCode: "3", previousLevelCode: "2",
+        warningKind: "噴火警報（火口周辺）",
+        municipalities: [{ name: "テスト市", code: "0000000", kind: "入山規制" }],
+      },
+    } as never, T0);
+    expect(beforeRestart.snapshotItems()).toEqual([]);
+
+    const persistence = new StandbyPersistence(tempPath());
+    persistence.save(beforeRestart.exportActiveState());
+    const afterRestart = new StandbyStateStore();
+    afterRestart.restoreActiveState(persistence.load()!, T0 + 30_000);
+    expect(afterRestart.snapshotItems()).toEqual([]);
+
+    afterRestart.applyEvent({
+      id: "volcano-eruption-1",
+      domain: "volcano",
+      serial: "1",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+      isCancellation: false,
+      raw: {
+        kind: "eruption", type: "VFVO56", infoType: "発表",
+        volcanoCode: "V-1", volcanoName: "Mount Test",
+        phenomenonName: "噴火", isFlashReport: false,
+      },
+    } as never, T0 + 60_000);
+    expect(afterRestart.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      alertLevel: 3,
+      warningKind: "噴火警報（火口周辺）",
+      targetKinds: ["入山規制"],
+      latestEvent: expect.objectContaining({ label: "噴火" }),
+    });
+  });
+
+  it("壊れた構造化噴火イベントは volcano domain ごと破棄する", () => {
+    const path = tempPath();
+    const malformed = {
+      ...state(),
+      volcanoes: [{
+        code: "V-1", name: "Mount Test", alertLevel: null, alertExpiresAtMs: T0,
+        latestEvent: {
+          label: "噴火", craterName: "山頂火口", eventDateTime: new Date(T0).toISOString(),
+          plumeHeightM: 2500, plumeHeightUnknown: "yes", plumeDirection: "南東",
+        },
+        eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"],
+        alertRevision: null, eventRevision: { reportTimeMs: T0, serial: "1" },
+      }],
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(malformed), "utf8");
+
+    expect(new StandbyPersistence(path).load()).toEqual(expect.objectContaining({ volcanoes: [] }));
+  });
+
+  it("構造化イベント・警報意味 field のない旧 volcano 保存状態を互換復元する", () => {
     const path = tempPath();
     const legacy = state({
       volcanoes: [{
         code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null,
-        latestEvent: null, eventExpiresAtMs: null, sourceEventIds: ["volcano-1"],
-        alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: null,
+        latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"],
+        alertRevision: { reportTimeMs: T0, serial: "1" },
+        eventRevision: { reportTimeMs: T0, serial: "1" },
       }],
     });
     new StandbyPersistence(path).save(legacy);
@@ -596,6 +678,10 @@ describe("StandbyStateStore persistence", () => {
     expect(restored.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
       warningKind: null,
       targetKinds: [],
+      latestEvent: {
+        label: "flash", craterName: null, eventDateTime: null,
+        plumeHeightM: null, plumeHeightUnknown: false, plumeDirection: null,
+      },
     });
   });
 
@@ -639,7 +725,13 @@ describe("StandbyStateStore persistence", () => {
     expect(store.seedVolcanoAlerts([], "success", T0 + 60_000)).toEqual({ viewChanged: true, durableChanged: true });
     expect(changed).toHaveBeenCalledTimes(1);
     const volcano = store.snapshotItems().find((item) => item.kind === "volcano");
-    expect(volcano).toEqual(expect.objectContaining({ restored: true, data: { volcanoes: [expect.objectContaining({ alertLevel: null, latestEvent: "flash" })] } }));
+    expect(volcano).toEqual(expect.objectContaining({
+      restored: true,
+      data: { volcanoes: [expect.objectContaining({
+        alertLevel: null,
+        latestEvent: expect.objectContaining({ label: "flash" }),
+      })] },
+    }));
   });
 
   it("keeps an aggregated heat card restored while any area still comes from persistence", () => {
