@@ -433,6 +433,10 @@ export interface DisplayVolcanoEntryV1 {
   code: string;
   name: string;
   alertLevel: number | null;
+  /** 噴火警報種別。旧永続化データとの互換のため省略可。 */
+  warningKind?: string | null;
+  /** 対象市町村に付随する警戒区分。電文順のユニーク列。旧永続化データとの互換のため省略可。 */
+  targetKinds?: string[];
   /** 直近の変化イベント表示名 ("噴火速報" 等)。null = レベル常設のみ */
   latestEvent: string | null;
 }

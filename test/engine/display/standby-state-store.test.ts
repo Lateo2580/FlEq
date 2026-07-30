@@ -427,6 +427,32 @@ describe("StandbyStateStore: typhoon", () => {
 });
 
 describe("StandbyStateStore: volcano", () => {
+  it("projects unique target kinds in telegram order while eruption-only information leaves them absent", () => {
+    const alertStore = new StandbyStateStore();
+    alertStore.applyEvent(volcanoEvent({}, {
+      warningKind: "噴火警報（火口周辺）",
+      municipalities: [
+        { name: "テスト市", code: "0000000", kind: "入山規制" },
+        { name: "テスト町", code: "0000001", kind: "避難準備" },
+        { name: "テスト村", code: "0000002", kind: "入山規制" },
+        { name: "テスト区", code: "0000003", kind: "避難" },
+      ],
+    }), T0);
+    expect(alertStore.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      warningKind: "噴火警報（火口周辺）",
+      targetKinds: ["入山規制", "避難準備", "避難"],
+    });
+
+    const eruptionStore = new StandbyStateStore();
+    eruptionStore.applyEvent(volcanoEvent({}, {
+      kind: "eruption", type: "VFVO56", isFlashReport: true, phenomenonName: "噴火速報",
+    }), T0);
+    expect(eruptionStore.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      warningKind: null,
+      targetKinds: [],
+    });
+  });
+
   it("keeps level 4 until lowered, while a level increase has a 24-hour lifetime", () => {
     const store = new StandbyStateStore();
     store.applyEvent(volcanoEvent(), T0);

@@ -43,7 +43,7 @@ export interface PersistedStandbyStateV1 {
 }
 
 export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
-export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; alertRevision: StandbyRevision | null; eventRevision: StandbyRevision | null; }
+export interface PersistedVolcanoStateV1 { code: string; name: string; alertLevel: number | null; warningKind?: string | null; targetKinds?: string[]; alertExpiresAtMs: number | null; latestEvent: string | null; eventExpiresAtMs: number | null; sourceEventIds: string[]; alertRevision: StandbyRevision | null; eventRevision: StandbyRevision | null; }
 export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; }
 export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
@@ -386,6 +386,8 @@ function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
     && typeof value.code === "string"
     && typeof value.name === "string"
     && hasNullableFiniteNumber(value, "alertLevel")
+    && (!Object.hasOwn(value, "warningKind") || hasNullableString(value, "warningKind"))
+    && (!Object.hasOwn(value, "targetKinds") || isStringArray(value.targetKinds))
     && hasNullableFiniteNumber(value, "alertExpiresAtMs")
     && hasNullableString(value, "latestEvent")
     && hasNullableFiniteNumber(value, "eventExpiresAtMs")

@@ -16,12 +16,28 @@
         : maxAlertLevel >= 3 ? "warning"
           : "advisory",
   );
+
+  function alertMeaning(volcano: Extract<ActiveStandbyCardV1, { kind: "volcano" }>["data"]["volcanoes"][number]): string | null {
+    const targetKinds = (volcano.targetKinds ?? [])
+      .map((kind) => kind.trim())
+      .filter((kind, index, all) => kind !== "" && all.indexOf(kind) === index);
+    const visibleKinds = targetKinds.slice(0, 2);
+    if (targetKinds.length > visibleKinds.length) visibleKinds.push(`ほか${targetKinds.length - visibleKinds.length}種`);
+    const parts = [volcano.warningKind?.trim() ?? "", visibleKinds.join("・")]
+      .filter((part) => part !== "");
+    return parts.length === 0 ? null : parts.join(" / ");
+  }
 </script>
 
 <section class="standby-card volcano-card band-{band}">
   <header>火山情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
   {#each item.data.volcanoes as volcano (volcano.code)}
-    <div class="volcano"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}{#if volcano.latestEvent != null}<strong>{volcano.latestEvent}</strong>{/if}</div>
+    {@const meaning = alertMeaning(volcano)}
+    <div class="volcano">
+      <div class="volcano-main"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}</div>
+      {#if meaning != null}<div class="alert-meaning">{meaning}</div>{/if}
+      {#if volcano.latestEvent != null}<strong>{volcano.latestEvent}</strong>{/if}
+    </div>
   {/each}
 </section>
 
@@ -60,5 +76,8 @@
   .band-warning strong { color: var(--role-weatherWarning); }
   .band-red strong { color: var(--role-tsunamiWarning); }
   .band-emergency strong { color: var(--role-weatherEmergency); }
-  .volcano { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); font-size: max(14px, var(--type-label-l-fluid)); } .volcano span + span::before { content: "　"; } strong { display: block; }
+  .volcano { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); font-size: max(14px, var(--type-label-l-fluid)); }
+  .volcano-main span + span::before { content: "　"; }
+  .alert-meaning { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
+  strong { display: block; }
 </style>

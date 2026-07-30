@@ -104,11 +104,21 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | 
   if (raw.kind !== "alert" && raw.kind !== "eruption") return null;
   if (raw.volcanoCode === "") return null;
   const alertLevel = raw.kind === "alert" ? raw.alertLevel : null;
+  const warningKind = raw.kind === "alert" ? raw.warningKind?.trim() || null : null;
+  const targetKinds = raw.kind === "alert"
+    ? (raw.municipalities ?? []).reduce<string[]>((kinds, municipality) => {
+      const kind = municipality.kind.trim();
+      if (kind !== "" && !kinds.includes(kind)) kinds.push(kind);
+      return kinds;
+    }, [])
+    : [];
   return {
     volcano: {
       code: raw.volcanoCode,
       name: raw.volcanoName,
       alertLevel,
+      warningKind,
+      targetKinds,
       latestEvent: raw.kind === "eruption" ? (raw.isFlashReport ? "噴火速報" : raw.phenomenonName) : null,
     },
     sourceEventId: event.id,

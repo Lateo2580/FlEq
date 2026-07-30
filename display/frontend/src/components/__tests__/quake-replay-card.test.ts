@@ -34,6 +34,12 @@ describe("QuakeReplayCard", () => {
     expect(screen.getByText("津波")).toBeTruthy();
   });
 
+  it("ごく浅い震源を距離へ置換しない", () => {
+    const { container } = render(QuakeReplayCard, { quake: quake({ depth: "ごく浅い" }) });
+    expect(container.querySelector(".stat:nth-child(2) .stat-value")?.textContent).toBe("ごく浅い");
+    expect(container.textContent).not.toContain("~10km");
+  });
+
   it("カードクリックで onClose を呼ぶ", () => {
     const onClose = vi.fn();
     const { container } = render(QuakeReplayCard, { quake: quake(), onClose });

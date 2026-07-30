@@ -30,6 +30,53 @@ describe("VolcanoCard", () => {
     expect(container.textContent).toContain("レベル3（入山規制）");
   });
 
+  it("単一の対象区分を主行の下に muted 補助行で表示する", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: 4,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制"], latestEvent: null,
+      }] },
+    }) });
+    const meaning = container.querySelector(".alert-meaning");
+    expect(meaning?.textContent).toBe("噴火警報（火口周辺） / 入山規制");
+    expect(meaning?.previousElementSibling?.classList.contains("volcano-main")).toBe(true);
+  });
+
+  it("2 種の対象区分を電文順に列挙する", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: 4,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制", "避難準備"], latestEvent: null,
+      }] },
+    }) });
+    expect(container.querySelector(".alert-meaning")?.textContent)
+      .toBe("噴火警報（火口周辺） / 入山規制・避難準備");
+  });
+
+  it("3 種以上の対象区分は先頭 2 種と「ほか N 種」に縮約する", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: 4,
+        warningKind: "噴火警報（火口周辺）",
+        targetKinds: ["入山規制", "避難準備", "避難", "高齢者等避難"],
+        latestEvent: null,
+      }] },
+    }) });
+    expect(container.querySelector(".alert-meaning")?.textContent)
+      .toBe("噴火警報（火口周辺） / 入山規制・避難準備・ほか2種");
+  });
+
+  it("噴火速報のみで警報意味が欠損する場合は補助行を残さない", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: null,
+        warningKind: null, targetKinds: [], latestEvent: "噴火速報",
+      }] },
+    }) });
+    expect(container.querySelector(".alert-meaning")).toBeNull();
+    expect(container.querySelector(".volcano")?.textContent).toContain("噴火速報");
+  });
+
   it("段階カラー: カード内最高段階で帯 class を決める (2=黄 advisory / 3=橙 warning / 4=赤 red / 5=紫 emergency)", () => {
     const bandFor = (alertLevel: number | null, latestEvent: string | null = null): string => {
       const { container, unmount } = render(VolcanoCard, { item: volcanoItem({

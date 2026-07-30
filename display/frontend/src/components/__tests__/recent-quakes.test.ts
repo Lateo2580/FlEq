@@ -32,6 +32,12 @@ describe("RecentQuakes keyed-each 重複耐性", () => {
 });
 
 describe("RecentQuakes 発生日付表示", () => {
+  it("ごく浅い震源を距離へ置換しない", () => {
+    const { container } = render(RecentQuakes, { quakes: [quake({ depth: "ごく浅い" })] });
+    expect(container.querySelector(".depth")?.textContent).toBe("ごく浅い");
+    expect(container.textContent).not.toContain("~10km");
+  });
+
   it("各行の時刻列に formatMdHm 表記 (M/D HH:MM) で発生日付を前置する", () => {
     const quakes = [quake({ originTime: "2026-03-11T14:46:00+09:00", hypocenterName: "三陸沖" })];
     render(RecentQuakes, { quakes });

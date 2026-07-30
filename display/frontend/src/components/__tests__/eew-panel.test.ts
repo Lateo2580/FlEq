@@ -35,6 +35,12 @@ function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
 }
 
 describe("EewPanel 固定サマリ計器 (T4a)", () => {
+  it("ごく浅い震源を非数値テキストとしてそのまま描画する", () => {
+    const { container } = render(EewPanel, { input: eewInput({ depth: "ごく浅い" }) });
+    expect(container.querySelector('.stat-value [data-value="ごく浅い"]')?.textContent).toBe("ごく浅い");
+    expect(container.textContent).not.toContain("~10km");
+  });
+
   it("originTime があるときだけ発生時刻を表示する", () => {
     const { container } = render(EewPanel, { input: eewInput({ originTime: "2026-07-07T09:17:18+09:00" }) });
     expect(screen.getByText("発生時刻")).toBeTruthy();

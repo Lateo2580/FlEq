@@ -96,6 +96,13 @@ describe("LatestQuakeCard", () => {
     expect(container.querySelector(".magnitude")?.textContent).toBe("");
   });
 
+  it("ごく浅い震源は距離へ置換せず、数値用 NumberUnit ではなく通常テキストで描画する", () => {
+    const { container } = render(LatestQuakeCard, { quake: latestQuake({ depth: "ごく浅い" }) });
+    expect(container.querySelector(".depth")?.textContent).toBe("ごく浅い");
+    expect(container.querySelector(".depth .nu-value")).toBeNull();
+    expect(container.textContent).not.toContain("~10km");
+  });
+
   it("stat-value は他カードと同じ px 床を持ち、int-chip は tabular-nums を持つ", () => {
     const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf8");
     expect(source).toContain("font-size: max(14px, var(--type-body-l-fluid))");

@@ -117,6 +117,16 @@ function weatherInput(over: Partial<WeatherEmergencyInputV1> = {}): WeatherEmerg
 }
 
 describe("EmergencyScreen", () => {
+  it("地震パネルの「ごく浅い」を距離へ置換しない", () => {
+    const { container } = render(EmergencyScreen, {
+      panels: [panel("quake:Q1", quakeInput({ depth: "ごく浅い" }))],
+    });
+    const depthLabel = [...container.querySelectorAll(".stat-label")]
+      .find((label) => label.textContent === "深さ");
+    expect(depthLabel?.nextElementSibling?.textContent).toBe("ごく浅い");
+    expect(container.textContent).not.toContain("~10km");
+  });
+
   it("4 カード同時では左主役と右 3 段の DOM スロットを順に持つ", () => {
     const { container } = render(EmergencyScreen, {
       panels: [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatHm, formatHms, formatMdHm, recentQuakeId, splitNumberUnit } from "../format";
+import { formatDepth, formatHm, formatHms, formatMdHm, recentQuakeId, splitNumberUnit } from "../format";
 import type { DisplayRecentQuakeV1 } from "../protocol";
 
 function rq(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
@@ -71,6 +71,18 @@ describe("formatMdHm", () => {
     expect(formatMdHm(null)).toBe("-");
     expect(formatMdHm("")).toBe("-");
     expect(formatMdHm("invalid")).toBe("-");
+  });
+});
+
+describe("formatDepth", () => {
+  it("気象庁の「ごく浅い」を距離へ置換せずそのまま返す", () => {
+    expect(formatDepth("ごく浅い")).toBe("ごく浅い");
+  });
+
+  it("数値深さと欠損時の従来表記を維持する", () => {
+    expect(formatDepth("20km")).toBe("20km");
+    expect(formatDepth(null)).toBe("-");
+    expect(formatDepth("")).toBe("-");
   });
 });
 

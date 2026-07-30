@@ -531,7 +531,7 @@ describe("StandbyStateStore persistence", () => {
         },
         revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 24 * 60 * 60_000,
       }],
-      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],
+      volcanoes: [{ code: "V-1", name: "Mount Test", alertLevel: 4, warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制", "避難準備"], alertExpiresAtMs: null, latestEvent: "flash", eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"], alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: { reportTimeMs: T0, serial: "1" } }],
     });
     const persistence = new StandbyPersistence(tempPath());
     persistence.save(persisted);
@@ -545,6 +545,10 @@ describe("StandbyStateStore persistence", () => {
     expect(store.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
       pressureDeltaHpa: -5, maxWindMs: 25, maxGustMs: 35,
       maxWindDeltaMs: 3, intensityTrend: "developing",
+    });
+    expect(store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      warningKind: "噴火警報（火口周辺）",
+      targetKinds: ["入山規制", "避難準備"],
     });
 
     store.applyEvent({
@@ -570,6 +574,28 @@ describe("StandbyStateStore persistence", () => {
     } as never, T0 + 120_000);
     expect(store.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
       pressureDeltaHpa: -5, maxWindDeltaMs: 5, intensityTrend: "developing",
+    });
+  });
+
+  it("警報意味 field のない旧 volcano 永続化ファイルを読み、null として復元する", () => {
+    const path = tempPath();
+    const legacy = state({
+      volcanoes: [{
+        code: "V-1", name: "Mount Test", alertLevel: 4, alertExpiresAtMs: null,
+        latestEvent: null, eventExpiresAtMs: null, sourceEventIds: ["volcano-1"],
+        alertRevision: { reportTimeMs: T0, serial: "1" }, eventRevision: null,
+      }],
+    });
+    new StandbyPersistence(path).save(legacy);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.volcanoes[0]).not.toHaveProperty("warningKind");
+    expect(loaded?.volcanoes[0]).not.toHaveProperty("targetKinds");
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded!, T0 + 60_000);
+    expect(restored.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+      warningKind: null,
+      targetKinds: [],
     });
   });
 

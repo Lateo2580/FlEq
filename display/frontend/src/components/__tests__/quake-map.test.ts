@@ -273,6 +273,15 @@ describe("QuakePanel map integration", () => {
 });
 
 describe("QuakeMapScreen", () => {
+  it("非緊急全国図の「ごく浅い」を距離へ置換しない", () => {
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({ depth: "ごく浅い" }),
+    });
+    const depthTerm = [...container.querySelectorAll("dt")].find((term) => term.textContent === "深さ");
+    expect(depthTerm?.nextElementSibling?.textContent).toBe("ごく浅い");
+    expect(container.textContent).not.toContain("~10km");
+  });
+
   it("全国図と文字一覧を並置し、緊急画面の header/hero/motion を使わない", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response(asset())));
     const { container } = render(QuakeMapScreen, {

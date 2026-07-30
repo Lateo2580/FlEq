@@ -20,9 +20,9 @@
 
   let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
 
-  // 深さは「20km」の数値大・単位小で見せる (規模 M7.1 は接頭辞 M なので対象外、発生時刻も対象外)。
-  // formatDepth は "20km" / "~10km" / "-" を返すので末尾単位で割る (splitNumberUnit)。
-  const depthParts = $derived(splitNumberUnit(formatDepth(quake.depth)));
+  // 数値深さは「20km」の数値大・単位小で見せる。「ごく浅い」は数値ではないため通常テキスト。
+  const formattedDepth = $derived(formatDepth(quake.depth));
+  const depthParts = $derived(splitNumberUnit(formattedDepth));
 
   // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)。
   // ≤30 のときは topGroupCompact 相当の縮退分岐は実質発火しない (最大震度グループも ≤30 になる
@@ -119,7 +119,7 @@
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>
-        <span class="depth stat-value"><NumberUnit value={depthParts.value} unit={depthParts.unit} /></span>
+        <span class="depth stat-value">{#if formattedDepth === "ごく浅い"}{formattedDepth}{:else}<NumberUnit value={depthParts.value} unit={depthParts.unit} />{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">発生</span>
