@@ -34,22 +34,30 @@
           {#if typhoon.pressureHpa != null}
             <div class="stat">
               <span class="stat-label">中心気圧</span>
-              <span class="stat-value"><RollingNumber value={String(typhoon.pressureHpa)} /><span class="stat-unit">hPa</span></span>
+              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(typhoon.pressureHpa)} /><span class="stat-unit">hPa</span></span></span>
             </div>
           {/if}
           {#if typhoon.maxWindMs != null}
             <div class="stat">
               <span class="stat-label">最大風速</span>
-              <span class="stat-value"><RollingNumber value={String(typhoon.maxWindMs)} /><span class="stat-unit">m/s</span></span>
+              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(typhoon.maxWindMs)} /><span class="stat-unit">m/s</span></span></span>
             </div>
           {/if}
           {#if typhoon.maxGustMs != null}
             <div class="stat">
-              <span class="stat-label">最大瞬間風速</span>
-              <span class="stat-value"><RollingNumber value={String(typhoon.maxGustMs)} /><span class="stat-unit">m/s</span></span>
+              <span class="stat-label">最大瞬間</span>
+              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(typhoon.maxGustMs)} /><span class="stat-unit">m/s</span></span></span>
             </div>
           {/if}
-          {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}<div class="stat"><span class="stat-label">進行</span><span class="stat-value">{typhoon.moveDirection} <NumberUnit value={String(typhoon.moveSpeedKmh)} unit="km/h" /></span></div>{/if}
+          {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}
+            <div class="stat">
+              <span class="stat-label">進行</span>
+              <span class="stat-value">
+                <span class="stat-token direction-token">{typhoon.moveDirection}</span>
+                <span class="stat-token speed-token"><NumberUnit value={String(typhoon.moveSpeedKmh)} unit="km/h" /></span>
+              </span>
+            </div>
+          {/if}
         </div>
         {#if typhoon.pressureDeltaHpa != null || typhoon.maxWindDeltaMs != null}
           <div class="change-summary">
@@ -95,11 +103,28 @@
   .typhoon strong { display: block; font-size: max(14px, var(--type-label-l-fluid)); }
   /* 現在位置: ラベルなしの muted 本文 (層2) */
   .location { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
-  /* ラベル付き数値列 (LatestQuakeCard .meta と同構造・同トークン): ラベル muted 層2 / 値 fg 層1 */
-  .meta { display: flex; gap: var(--space-3); margin-top: var(--space-1); }
-  .stat { display: flex; flex-direction: column; gap: 2px; }
-  .stat-label { font-size: var(--type-label-xs-size); color: var(--role-muted); }
-  .stat-value { font-size: max(14px, var(--type-body-l-fluid)); font-weight: var(--num-weight); font-variant-numeric: tabular-nums; color: var(--fg); }
+  /* 通常幅は VolcanoCard と同じ 2×2。各列に 9rem を確保できない幅では自動的に 1 列へ落とし、
+     minmax(0, ...) のように内容幅を無視して親の overflow:hidden へ押し込まない。 */
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    gap: var(--space-1) var(--space-3);
+    margin-top: var(--space-1);
+  }
+  .stat { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+  .stat-label { display: inline-block; align-self: flex-start; white-space: nowrap; font-size: var(--type-label-xs-size); color: var(--role-muted); }
+  /* 値行はトークン間だけ wrap する。数値+単位、方位語は各 .stat-token 内で分断しない。 */
+  .stat-value {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-1);
+    min-width: 0;
+    font-size: max(14px, var(--type-body-l-fluid));
+    font-weight: var(--num-weight);
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+  }
+  .stat-token { display: inline-block; white-space: nowrap; }
   .stat-unit { margin-left: 1px; font-size: max(12px, 0.6em); font-weight: normal; }
   .change-summary {
     display: flex;
@@ -110,4 +135,5 @@
     font-size: var(--type-label-xs-size);
     font-variant-numeric: tabular-nums;
   }
+  .change-item { white-space: nowrap; }
 </style>

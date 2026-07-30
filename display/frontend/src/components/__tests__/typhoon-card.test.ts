@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import TyphoonCard from "../TyphoonCard.svelte";
@@ -40,9 +42,9 @@ describe("TyphoonCard", () => {
     expect(card?.textContent).toContain("ALPHA");
     // 現在位置はラベルなし本文
     expect(container.querySelector(".location")?.textContent).toBe("ocean");
-    // 最大瞬間風速は最大風速の隣に置き、差分は追加しない
+    // 最大瞬間風速は「最大瞬間」に短縮して最大風速の隣に置き、差分は追加しない
     const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
-    expect(labels).toEqual(["中心気圧", "最大風速", "最大瞬間風速", "進行"]);
+    expect(labels).toEqual(["中心気圧", "最大風速", "最大瞬間", "進行"]);
     // 気圧・風速・瞬間風速の数値本体は RollingNumber、進行速度は NumberUnit で組む
     const stats = container.querySelectorAll(".meta .stat-value");
     expect(stats[0].querySelector('[data-value="990"]')).toBeTruthy();
@@ -51,8 +53,8 @@ describe("TyphoonCard", () => {
     expect(stats[1].querySelector(".stat-unit")?.textContent).toBe("m/s");
     expect(stats[2].querySelector('[data-value="35"]')).toBeTruthy();
     expect(stats[2].querySelector(".stat-unit")?.textContent).toBe("m/s");
-    // 進行は方角テキスト + 速度の NumberUnit (方角は数値化しない)
-    expect(stats[3].textContent).toBe("N 20km/h");
+    // 進行は方角語と速度を別の原子トークンにし、方角は数値化しない
+    expect(Array.from(stats[3].querySelectorAll(".stat-token")).map((el) => el.textContent)).toEqual(["N", "20km/h"]);
     expect(stats[3].querySelector(".nu-value")?.textContent).toBe("20");
     expect(stats[3].querySelector(".nu-unit")?.textContent).toBe("km/h");
     expect(container.querySelector(".gust-delta")).toBeNull();
@@ -61,15 +63,56 @@ describe("TyphoonCard", () => {
     expect(card?.textContent).not.toContain(" / ");
   });
 
+  it("stat を原子トークンに分け、トークン内は nowrap・トークン間は折り返し可能にする", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([typhoon({
+        moveDirection: "北北西",
+        pressureDeltaHpa: -10,
+        maxWindDeltaMs: 5,
+        intensityTrend: "developing",
+      })]),
+    });
+    const meta = container.querySelector(".meta");
+    const stats = Array.from(meta?.children ?? []);
+    expect(stats).toHaveLength(4);
+    expect(stats.every((stat) =>
+      stat.classList.contains("stat")
+      && stat.querySelectorAll(":scope > .stat-label").length === 1
+      && stat.querySelectorAll(":scope > .stat-value").length === 1
+      && stat.querySelector("br") == null
+    )).toBe(true);
+    const tokens = Array.from(container.querySelectorAll(".stat-token"));
+    expect(tokens).toHaveLength(5);
+    expect(tokens[0].querySelector('[data-value="990"]')).toBeTruthy();
+    expect(tokens[0].querySelector(".stat-unit")?.textContent).toBe("hPa");
+    expect(tokens[1].querySelector('[data-value="25"]')).toBeTruthy();
+    expect(tokens[1].querySelector(".stat-unit")?.textContent).toBe("m/s");
+    expect(tokens[2].querySelector('[data-value="35"]')).toBeTruthy();
+    expect(tokens[2].querySelector(".stat-unit")?.textContent).toBe("m/s");
+    expect(tokens.slice(3).map((token) => token.textContent)).toEqual(["北北西", "20km/h"]);
+    expect(meta?.querySelector(".stat-value .direction-token + .speed-token")).toBeTruthy();
+
+    const changes = Array.from(container.querySelectorAll(".change-summary > .change-item"));
+    expect(changes).toHaveLength(3);
+    expect(changes.every((change) => change.querySelector("br") == null)).toBe(true);
+
+    const source = readFileSync(join(__dirname, "..", "TyphoonCard.svelte"), "utf8");
+    expect(source).toMatch(/\.meta\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*9rem\),\s*1fr\)\)/s);
+    expect(source).toMatch(/\.stat-label\s*\{[^}]*display:\s*inline-block;[^}]*white-space:\s*nowrap;/s);
+    expect(source).toMatch(/\.stat-value\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/s);
+    expect(source).toMatch(/\.stat-token\s*\{[^}]*display:\s*inline-block;[^}]*white-space:\s*nowrap;/s);
+    expect(source).toMatch(/\.change-item\s*\{\s*white-space:\s*nowrap;\s*\}/s);
+  });
+
   it.each([undefined, null] as const)(
-    "最大瞬間風速が %s なら列・空欄・NaN を出さない",
+    "最大瞬間風速が %s なら最大瞬間列・空欄・NaN を出さない",
     (maxGustMs) => {
       const { container } = render(TyphoonCard, {
         item: typhoonItem([typhoon({ maxGustMs })]),
       });
       const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
       expect(labels).toEqual(["中心気圧", "最大風速", "進行"]);
-      expect(container.textContent).not.toContain("最大瞬間風速");
+      expect(container.textContent).not.toContain("最大瞬間");
       expect(container.textContent).not.toContain("NaN");
       expect(
         Array.from(container.querySelectorAll(".meta .stat-value"))
