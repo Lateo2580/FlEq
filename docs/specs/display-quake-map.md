@@ -1,6 +1,6 @@
 # 震度マップ（地図レイヤー a）仕様
 
-> 状態: **Reviewed Draft（Codex 最終レビュー前）**  
+> 状態: **Reviewed（Sol レビュー 2 巡反映）**
 > 更新日: 2026-07-30  
 > 対象: FlEq 常設情報ディスプレイ  
 > 実装対象: レイヤー a「震度市町村塗り」の初期段階
@@ -103,7 +103,7 @@ frontend は両者をコードで結合し、既存の SVG `<path>` の `fill` �
 
 現在の VXSE パーサは `Pref → Area` を走査して地域名と最大震度を抽出しているが、`Area.Code` と配下の `City` を保存していない（`src/dmdata/telegram-parser.ts:183-216`）。
 
-`ParsedEarthquakeInfo.intensity.areas` にも地域名、震度、長周期地震動階級しか定義されていない（`src/types.ts:649-657`）。
+`ParsedEarthquakeInfo.intensity.areas` にも地域名、震度、長周期地震動階級しか定義されていない（`src/types.ts:642-649`）。
 
 Presentation への変換でも `areaItems` には地域名と最大震度しか渡されていない（`src/engine/presentation/events/from-earthquake.ts:22-27`）。一方、`PresentationAreaItem` 自体には既に任意の `code` が存在する（`src/engine/presentation/types.ts:259-265`）。
 
@@ -145,6 +145,8 @@ frontend の現行 `ScreenMode` は `standby | emergency` の二値であり、�
 座標系は JGD2011 とする。
 
 区域コード属性は電文 `Area.Code` と同体系のものを使用する。変換スクリプトの設定には、採用した Shapefile 名、コード属性名、取得元URL、取得日、入力ファイルのハッシュを記録する。
+
+元 archive は repository や GitHub Release asset へ複製保存しない。取得元URLが消失した場合は同一入力からの再生成不能を受容し、その時点ではコミット済みの変換済み JSON を表示・配布上の真実源とする。`source.lock.json` と manifest の URL・取得日・入力ハッシュは、再取得可能性を保証するものではなく provenance の記録である。別の正規配布元から同一ハッシュの archive を取得できた場合だけ、同一入力として再生成してよい。
 
 ### 3.2 リポジトリ内の配置
 
@@ -194,7 +196,9 @@ Shapefile
 
 `mapshaper` と `d3-geo` は `display/package.json` の固定された開発依存として管理し、実装時には `display/package-lock.json` も同期する。実行時に任意の最新版を取得する方式にはしない。
 
-出力はコード昇順とし、同じ入力と設定から byte-identical な JSON が生成されることを目標とする。
+全国図・市町村等図の双方に、versioned な共通 projection/inset config（`projectionInsetsVersion` を含む）を適用する。共通の地理点と bounds は、両アセットで同一座標へ投影されなければならない。
+
+出力は正規化 JSON（コード順・属性順を固定）とし、座標丸め桁を config で固定する。再現性の受入基準は、正規化後 JSON の期待 SHA-256 ハッシュまで固定し、再実行で byte-identical な JSON が生成されることとする。
 
 ### 3.4 出力スキーマ
 
@@ -203,6 +207,7 @@ Shapefile
 ```ts
 interface ProjectedMapAssetV1 {
   schemaVersion: 1;
+  projectionInsetsVersion: string;
   dataset: "AreaForecastLocalE" | "AreaInformationCity_quake";
   codeType: string;
   viewBox: [number, number, number, number];
@@ -214,9 +219,27 @@ interface ProjectedMapAssetV1 {
     labelPosition: [number, number];
   }>;
 }
+
+interface QuakeMapManifestV1 {
+  schemaVersion: 1;
+  projectionInsetsVersion: string;
+  sourceArchive: {
+    url: string;
+    retrievedAt: string;
+    sha256: string;
+    archived: false;
+  };
+  assets: Array<{
+    dataset: "AreaForecastLocalE" | "AreaInformationCity_quake";
+    file: string;
+    sha256: string;
+  }>;
+}
 ```
 
 `pathsByCode` の値は投影済み SVG path の `d` 文字列とする。MultiPolygon は同一コードの複数 subpath を一つの `d` にまとめる。
+
+`projectionInsetsVersion` は asset 本体と manifest の双方で必須とし、値が不一致なら loader・検証スクリプトは失敗させる。欠落を既定値で補完しない。
 
 runtime は座標変換、投影、inset 移動を行わない。
 
@@ -245,6 +268,8 @@ runtime は座標変換、投影、inset 移動を行わない。
 - inset 対象が本図と重複描画されていない。
 - representative VXSE fixture の `Area.Code` が `AreaForecastLocalE` に存在する。
 - representative VXSE fixture の `City.Code` が `AreaInformationCity_quake` に存在する。
+
+Phase 1 の fixture code 照合は、手動抽出してレビュー済みの golden code 一覧を入力にする。parser 実装前に XML 用の別抽出器を新設して、その出力を照合の根拠にしてはならない。
 
 既知の廃止・統合コードなどを例外扱いする場合は、コード、理由、確認日を allowlist に明記する。地名による暗黙の救済は行わない。
 
@@ -277,6 +302,8 @@ runtime は座標変換、投影、inset 移動を行わない。
 6. feature 数、コード数、ファイルサイズ、inset 設定の差分を確認する。
 7. manifest とライセンス文書を更新する。
 8. 変換済み JSON と関連ファイルだけをコミットする。
+
+取得元URLが消失し、入力ハッシュが一致する archive を正規配布元から再取得できない場合は、更新・再生成を行わない。コミット済み JSON を真実源として維持し、再生成不能であることを既知リスクとして manifest とライセンス文書へ追記する。
 
 ## 4. VXSE parser と Presentation
 
@@ -411,7 +438,7 @@ interface DisplayMapLayersV1 {
 
 ### 5.2 震度地図 state
 
-複数の緊急地震が同時に保持されても `QuakePanel` と地図値を対応づけられるよう、地図 event には安定した `eventKey` を持たせる。
+複数の緊急地震が同時に保持されても `QuakePanel` と地図値を対応づけられるよう、EventID がある地図 event には安定した `eventKey` を持たせる。EventID がない電文は更新・取消を結合できない単発として扱い、続報結合用の安定複合キーを発明しない。単発 event は受理ごとに新規扱いとし、後続電文で既存 host・地図値を更新または削除しない。
 
 ```ts
 interface DisplayQuakeMapStateV1 {
@@ -425,6 +452,8 @@ interface DisplayQuakeMapStateV1 {
 interface DisplayQuakeMapEventV1 {
   eventKey: string;
   eventId: string | null;
+  sourceType: string;
+  revision: StandbyRevision;
   reportDateTime: string;
   originTime: string | null;
   hypocenterName: string | null;
@@ -444,13 +473,51 @@ interface DisplayQuakeMapEventV1 {
 
 Phase 1～4 の wire には全国図で使用する `localAreas` だけを載せる。市町村等のコードと震度は parser・Presentation・fixture 照合まで通すが、municipality wire の追加は Phase 5 で snapshot サイズ設計とともに行う。
 
-`eventKey` は `eventId` を優先し、欠落時は既存 DTO ID から生成する。`largeQuakes` 側にも対応する optional `mapEventKey` を追加し、null `eventId` を配列 index で結合しない。
+`eventKey` は EventID から得る。EventID 欠落の単発 event に必要な表示用キーは受理ごとに生成してよいが、更新・取消の結合根拠にしてはならない。`largeQuakes` 側にも対応する optional `mapEventKey` を追加し、null `eventId` や配列 index で event を結合しない。
+
+`largeQuakes` が地図を参照する場合は、`mapEventKey` に加えて optional な `mapSourceType` と `mapRevision: StandbyRevision` を保持し、文字一覧を生成した source contribution を固定する。地図 event の有効 contribution にも同じ `sourceType` と revision を wire へ載せる。
 
 ### 5.3 public event DTO に載せない
 
 地図のコード列は `DisplayEventDtoV1` へ追加しない。
 
-`InfoDisplayHub.ingest()` で `PresentationEvent.mapLayers.quake` を state store へ直接渡す。これは、現在 `tsunamiObservations` を Presentation から state store へ渡している server-internal bridge（`src/engine/display/hub.ts:94-118`）と同じ責務分離とする。
+`InfoDisplayHub.ingest()` は `PresentationEvent.mapLayers.quake` を、次の server-internal command として state store へ直接渡す。これは、現在 `tsunamiObservations` を Presentation から state store へ渡している server-internal bridge（`src/engine/display/hub.ts:94-118`）と同じ責務分離とする。
+
+```ts
+type DisplayQuakeMapCommandV1 =
+  | {
+      kind: "upsert";
+      event: Omit<DisplayQuakeMapEventV1, "sourceType" | "revision">;
+      sourceType: string;
+      revision: StandbyRevision;
+    }
+  | {
+      kind: "remove";
+      eventKey: string;
+      sourceType: string;
+      reason: "cancelled" | "belowThreshold";
+      revision: StandbyRevision;
+    };
+```
+
+revision は独自の通し番号を新設せず、既存共通型を用いる（`src/engine/display/standby-registry.ts:35-54`）。
+
+```ts
+interface StandbyRevision {
+  reportTimeMs: number;
+  serial: string | null;
+}
+```
+
+- `revisionOf(reportDateTime, serial, nowMs)` 相当で生成する。`reportDateTime` が不正、または `nowMs + 15分` より未来なら `reportTimeMs = nowMs` とする。
+- まず `reportTimeMs` を比較する。異なる場合は大きい方が新しい。
+- 同一 `reportTimeMs` で両方の serial が存在する場合、双方が数値化可能なら数値比較し、それ以外は文字列比較する。
+- 同一 `reportTimeMs` で片方でも serial が欠落する場合は同一 revision と扱う。先に受理された command を維持し、後着を新しいものとして上書きしない。
+- `RevisionGuard.accept()` と同じく、比較結果が同値または古い command を拒否する。
+
+guard key は既存地震 guard の慣行に合わせて `${eventKey}:${sourceType}` とする（`src/engine/display/quake-extreme-store.ts:149-153`）。異種 VXSE は別系列であり、serial を相互比較せず、一方の取消・閾値未満訂正で他方の source contribution を削除しない。state store は source type ごとの最新 contribution を保持し、有効表示には `reportTimeMs` が最大の contribution を選ぶ。同時刻なら `sourceType` の昇順を決定的 tie-break とする。この選択は表示導出だけの規則であり、異種 VXSE を同一 revision 系列へ統合しない。
+
+`remove` は取消または震度3未満への訂正を明示し、対象 `eventKey`、`sourceType`、`StandbyRevision` を必ず持つ。EventID がないため結合不能な電文からは既存 event に対する `remove` を生成しない。state store は guard key ごとに最後に受理した revision（削除後も tombstone を含む）を保持し、同値または古い `upsert`・`remove` を拒否して状態を巻き戻さない。source contribution がすべてなくなった時点で event を除去する。
 
 これにより次を満たす。
 
@@ -463,19 +530,28 @@ Phase 1～4 の wire には全国図で使用する `localAreas` だけを載せ
 
 最大震度3～4の `nonEmergencyHost` は engine が期限を管理する。
 
-- 初回受理: `expiresAtMs = now + 5分`
-- 同一 `eventKey` の続報: 内容を更新し、期限を受理時刻から5分後へ延長
-- 別の表示対象地震: host を新しい地震へ置換し、期限を新たに5分後へ設定
-- 最大震度1～2の地震: 現在の host を置換しない
-- 同一地震の取消または震度3未満への訂正: host と対応する地図値を除去
-- 期限到達: host を除去
-- emergency 表示中: 期限の時計を停止しない
-- emergency 終了時: host が残り、期限内なら `quakeMap` へ復帰
-- emergency 終了時に期限切れ: `standby` へ戻る
+同一 guard key で受理済み revision より古い、または同値の command は、下表の前に revision guard で拒否する。表中の「同一」は EventID 由来の同一 `eventKey` に限る。EventID 欠落の単発は「別」として扱う。異種 VXSE は source contribution ごとに表を適用し、その後に §5.3 の決定的規則で有効表示を導出する。
+
+| 対象との関係 | 新しい command の最大 rank | 処理 |
+|---|---:|---|
+| 同一地震 | 1～2 | `remove(reason: "belowThreshold")` と同じく当該 source contribution を除去し、残る contribution から再導出する。表示対象 contribution がなければ host と対応地図値を除去する。 |
+| 同一地震 | 3～4 | 地図値を upsert し、host を更新して `expiresAtMs = now + 5分` とする。 |
+| 同一地震 | 5弱以上 | host を解除し、既存 `largeQuakes` 経路へ一本化する。3→5弱以上の昇格もこれに従う。 |
+| 同一地震、直前が5弱以上 | 3～4 | 新 revision の host を生成する。既存 `largeQuakes` の10分 lifecycle は変更しない（`src/engine/display/state-store.ts:207` 準拠）。既存 largeQuake は受理時の `mapSourceType`・`mapRevision` を維持し、新しい3～4地図とは結合しない。largeQuake が残る間は emergency が優先し、終了後に host が期限内なら復帰する。 |
+| 別地震 | 1～2 | 現在の host を置換しない。 |
+| 別地震 | 3～4 | host を新しい地震へ置換し、期限を新たに5分後へ設定する。 |
+| 別地震 | 5弱以上 | `largeQuakes` を更新して emergency へ遷移する。既存 host は保持し、時計を進め続け、emergency 終了後に期限内なら復帰する。 |
+| 同一地震 | 取消 | `remove(reason: "cancelled")` で当該 source contribution を除去し、残る contribution から再導出する。表示対象 contribution がなければ host と対応地図値を除去する。 |
+| 別地震 | 取消 | 現在の host を置換・削除しない。対象 eventKey が存在するときだけその event を除去する。 |
+| 任意 | 古い／同値 revision | revision guard で拒否する。遅延到着で host、地図値、期限を巻き戻さない。 |
+
+期限到達時は host を除去する。emergency 表示中も期限の時計を停止しない。emergency 終了時は host が残り、期限内なら `quakeMap` へ復帰し、期限切れなら `standby` へ戻る。
 
 frontend も `expiresAtMs` を確認し、engine の sweep 間隔を理由に期限切れ画面を延長しない。
 
 震度5弱以上の地図値は既存 `largeQuakes` と同じ lifecycle で保持する。U8 の5分制限によって、既存の `LARGE_QUAKE_HOLD_MIN = 10` を短縮しない。
+
+5弱以上→3～4の下方訂正では、既存 largeQuake の文字情報を10分 lifecycle の間は更新しない方式を採る。`QuakePanel` は `mapEventKey`、`mapSourceType`、`mapRevision` の三つがすべて一致する地図だけを表示する。新 revision への upsert 後に旧 revision の地図が残っていない場合、既存 largeQuake は文字一覧だけを表示し、新しい3～4地図を同一パネルへ流用しない。これにより、同一パネル内で文字と地図の revision 不一致を起こさない。largeQuake 終了後、期限内の新 host へ復帰した時点で、新 revision の文字と地図を `QuakeMapScreen` に表示する。
 
 不要になった地図 event は、対応する `largeQuake` と `nonEmergencyHost` のどちらからも参照されなくなった時点で除去する。
 
@@ -483,15 +559,15 @@ frontend も `expiresAtMs` を確認し、engine の sweep 間隔を理由に期
 
 震度3～4の `quakeMap` 表示中は次の扱いとする。
 
-- `severityTier`: 最大 `caution`
-- `backgroundTone`: `caution`
+- `nonEmergencyHost` の severity への寄与: `caution`
+- `backgroundTone`: host だけが背景要因である場合は `caution`
 - 緊急パネル: 発火させない
 - frame level: 地図表示を理由に昇格させない
 - ticker priority: 地図表示を理由に昇格させない
 - sound: 地図表示を理由に追加・昇格させない
 - alert/critical 専用の減光解除条件: 発火させない
 
-現行 `deriveSeverityTier()` は震度5弱以上だけを地震由来の `alert` にしている（`src/engine/display/state-store.ts:315-331`）。震度3～4の active `nonEmergencyHost` を `caution` として反映する。
+現行 `deriveSeverityTier()` は震度5弱以上だけを地震由来の `alert` にしている（`src/engine/display/state-store.ts:310-333`）。震度3～4の active `nonEmergencyHost` を `caution` として合成する。ただし、`latestQuake` の `alert`（30分）や `quakeExtreme`（12時間）など既存のより高い集約値を `nonEmergencyHost` が降格させてはならない。
 
 震度5弱以上は従来どおり `alert` 以上とする。
 
@@ -509,6 +585,12 @@ protocol 型は必ず次の両方を同一変更で更新する。
 実電文相当の最大ケースを使い、`MAX_SNAPSHOT_BYTES = 256 KiB` 内に収まることをテストする。
 
 Phase 1～4 では市町村値を wire に載せない。細分区域値については、地図の正確性を損なう無言の末尾切り捨てを禁止する。上限超過時は実装を完了扱いにせず、表現形式または保持 event 数を再設計する。
+
+`src/engine/display/http-server.ts` の snapshot 縮退ラダーは map-aware に改訂する。ここでいう文字一覧は、緊急パネルでは `largeQuakes[].intensityGroups`、非緊急 host では `mapLayers.quake.events[].intensityGroups` を指す。対応する地図値は後者の `localAreas` である。
+
+active な `nonEmergencyHost` が参照する map event、及び active な `largeQuakes[]` とその `mapEventKey`・`mapSourceType`・`mapRevision` に一致する map event は、文字一覧・地図値とも縮退対象外とする。U3 の同時表示契約を snapshot サイズ都合で破らない。縮退可能なのは active 表示から参照されない event 単位だけであり、その場合も `intensityGroups` と `localAreas` を片側だけ残さず、event 全体を原子的に除外する。
+
+active 表示一式を保持した snapshot が `MAX_SNAPSHOT_BYTES = 256 KiB` を超える場合は fail-loud とし、文字または地図を黙って落とした snapshot を送信しない。snapshot 生成を明示的なサイズ超過エラーとして失敗させ、診断ログとテストで検出可能にする。縮退順、active 判定、revision 一致判定、event 単位の原子性、fail-loud は `http-server` の縮退テストで固定する。
 
 ### 5.8 standby persistence
 
@@ -616,7 +698,7 @@ QuakePanel
 - 地図更新で現在ページを不必要にリセットしない。
 - 文字一覧は省略しない。
 - compact な副パネルとして表示される `QuakePanel` では地図を省略し、既存の文字表示を優先できる。
-- 地図値が当該 `largeQuake.mapEventKey` と一致しない場合は文字表示だけへ縮退する。
+- 地図値の `eventKey`、`sourceType`、`revision` が当該 largeQuake の `mapEventKey`、`mapSourceType`、`mapRevision` と完全一致しない場合は、文字表示だけへ縮退する。異なる revision の地図を流用しない。
 
 ### 6.6 震度3～4の `QuakeMapScreen`
 
@@ -704,8 +786,8 @@ function deriveMode(state, nowMs): ScreenMode {
     ↓
 quakeMap（5分）
     ├─ 同一地震の続報 → 内容更新・5分へ延長
-    ├─ 別の震度3以上の地震 → 新しい地震へ置換
-    ├─ emergency 発生 → emergency へ割込み
+    ├─ 別地震の震度3～4 → 新しい地震へ置換
+    ├─ 別地震の震度5弱以上／他の emergency 発生 → emergency へ割込み（host は保持）
     │                     └─ 時計は進行を継続
     │                         ├─ 期限内に終了 → quakeMap へ復帰
     │                         └─ 期限後に終了 → standby
@@ -720,7 +802,7 @@ quakeMap（5分）
 
 tips feeder には三値 mode を明示的に渡し、`quakeMap` が偶然 `standby` として扱われないようにする。
 
-`quakeMap` 中に表示する tips の集合、抑止条件、再開条件の詳細は Phase 4B で確定してよい。実装前に明示的な policy とテストを追加し、暗黙の default 分岐にはしない。
+tips context は server まで `"standby" | "quakeMap" | "emergency"` の三値として渡す。`quakeMap` を `standby` へフォールバックさせず、`waiting-tips.ts`、`display-tips.ts`、`http-server.ts` が同じ三値を扱う。`quakeMap` 中に表示する tips の集合、抑止条件、再開条件は Phase 4B で明文化するが、日次 reload、pointer ownership、ローカル期限到達による再描画を含むテストを先に追加し、暗黙の default 分岐にはしない。
 
 ### 7.6 画面遷移
 
@@ -804,6 +886,10 @@ Raspberry Pi 実機では次を測定するが、Phase 1～4 の着手条件に�
 ### 9.3 projection・asset
 
 - 同じ入力から同じ JSON が生成される。
+- 全国図・市町村等図に同一 versioned projection/inset config が適用される。
+- `projectionInsetsVersion` が両 asset 本体と manifest の必須 field として存在し、欠落・不一致で失敗する。
+- 共通地理点と bounds が両アセットで同一座標へ投影される。
+- 正規化 JSON、座標丸め桁、期待 SHA-256 ハッシュが固定される。
 - 全 code が文字列で一意である。
 - path が空でない。
 - `viewBox` 内に path と inset が収まる。
@@ -818,20 +904,30 @@ Raspberry Pi 実機では次を測定するが、Phase 1～4 の着手条件に�
 
 - engine/frontend の protocol sync test が通る。
 - `mapLayers` 欠落を旧 server 互換として扱う。
-- snapshot JSON round-trip で code、rank、eventKey、期限を保持する。
-- 最大想定データが256 KiB以内に収まる。
+- snapshot JSON round-trip で code、rank、eventKey、`sourceType`、`StandbyRevision`、期限を保持する。
+- 最大想定データが256 KiB以内に収まる。active 一式だけで超過する fixture は、欠落 snapshot を返さず明示的に失敗する。
 - public event DTO に地図コード列が含まれない。
+- snapshot 縮退で active host の `mapLayers.quake.events[].intensityGroups/localAreas` と、active largeQuake の `largeQuakes[].intensityGroups` 及び revision 一致する map event が保持される。
+- inactive event は event 単位で原子的に縮退し、active 一式だけで256 KiBを超える場合は fail-loud になる。
 
 ### 9.5 state-store
 
 - 最大震度1～2では `nonEmergencyHost` を作らない。
-- 最大震度3・4では host を作り、severity が caution になる。
+- 最大震度3・4では host を作り、severity への寄与が `caution` になり、既存のより高い tier を降格させない。
 - 最大震度5弱以上は既存 `largeQuakes` 経路を維持する。
 - 3～4では `deriveEmergencyPanels()` が空のままである。
 - 同一地震の続報で期限が5分へ延長される。
-- 別の表示対象地震で host が置換される。
+- 別地震の震度3～4でだけ host が置換される。
 - 最大震度1～2の別地震では host が置換されない。
+- 別地震の震度5弱以上では emergency が割込み、host は置換せず期限内復帰候補として保持される。
 - 取消・対象外への訂正で同一 host が消える。
+- `remove` が eventKey、sourceType、取消／閾値未満の理由、`StandbyRevision` を持つ。
+- 古い／同値 revision の upsert・remove を拒否し、削除後の遅延 upsert も tombstone で復活しない。
+- `revisionOf()` 相当の不正時刻・15分超の未来時刻補正、数値／文字列 serial 比較、serial 欠落時の同値判定を既存共通規則どおり検証する。
+- guard key が `${eventKey}:${sourceType}` であり、異種 VXSE を別系列として保持し、同時刻の有効表示を sourceType 昇順で決定できる。
+- 3→5弱以上で host を解除して `largeQuakes` 経路へ一本化する。
+- 5弱以上→3～4の下方訂正で既存 largeQuake の10分 lifecycle を短縮せず、新 revision の host を生成し、旧 largeQuake の map revision を更新しない。
+- EventID 欠落の受理は単発扱いで、後続の更新・取消と結合しない。
 - 5分経過で host が消える。
 - emergency 中も期限が進む。
 - emergency 終了時、期限内なら host が復帰候補になる。
@@ -857,11 +953,13 @@ state、期限、共有状態を変更するため、実装時は通常テスト
 - 地図と文字一覧が同時表示される。
 - 既存の文字一覧ページングが維持される。
 - compact `QuakePanel` は地図なしで正常表示できる。
+- `QuakePanel` は eventKey・sourceType・revision のいずれかが不一致なら地図を省略し、旧文字と新地図を同一パネルに表示しない。
 - asset 取得中も文字情報が表示される。
 - asset 取得失敗時も文字一覧が利用できる。
 - inset の枠とラベルが描画される。
 - accessible name、凡例、reduced motion を確認する。
-- `quakeMap` tips context が明示的に処理される。
+- `quakeMap` tips context が server まで三値で明示的に処理される。
+- tips の日次 reload、pointer ownership、ローカル期限到達時の再描画が三値 mode を保つ。
 
 ### 9.7 実機検証
 
@@ -897,11 +995,12 @@ Phase 6 で Raspberry Pi 上の代表画面サイズを使い、初回 mount、�
 - `AreaForecastLocalE` と `AreaInformationCity_quake` を変換する。
 - 全国図と市町村等の inset を焼き込む。
 - manifest、NOTICE、ライセンス文書を追加する。
-- VXSE fixture と両 asset の code を照合する。
+- 手動抽出・レビュー済みの golden code 一覧と両 asset の code を照合する。parser 実装前に別 XML 抽出器は作らない。
 
 完了条件:
 
-- 両アセットが決定的に再生成できる。
+- 入力 archive を取得できる場合、両アセットが決定的に再生成できる。
+- 入力 archive が消失した場合、コミット済み JSON を真実源として維持し、再生成不能リスクが manifest とライセンス文書に記録される。
 - representative Area/City code が境界 asset と一致する。
 - allowlist 以外のコード不一致がない。
 - 全国図と市町村等のファイルサイズが記録される。
@@ -930,14 +1029,17 @@ Phase 6 で Raspberry Pi 上の代表画面サイズを使い、初回 mount、�
 - protocol 両側を同期する。
 - hub の server-internal bridge を追加する。
 - map event と `nonEmergencyHost` を管理する。
-- 5分期限と severity caution を実装する。
+- 5分期限と `nonEmergencyHost` の severity `caution` 寄与を実装する。
 - emergency 割込み中も期限を進める。
+- snapshot 縮退を map-aware にし、文字一覧と地図値を原子的に縮退させる。
+
+`nonEmergencyHost` の severity 寄与は、Phase 4B の frontend 三値 mode と tips context が完了するまで release gate する。Phase 3 の当該 backend 変更と Phase 4B は、少なくともこの gate を満たす単位で原子的に投入する。
 
 完了条件:
 
 - protocol-sync が通る。
 - state lifecycle テストが通る。
-- snapshot が256 KiB以内に収まる。
+- snapshot が256 KiB以内に収まるか、active 一式だけで超過する場合に fail-loud になる。
 - standby persistence が変化しない。
 - `npm run test:shuffle` が通る。
 
@@ -965,15 +1067,16 @@ Phase 6 で Raspberry Pi 上の代表画面サイズを使い、初回 mount、�
 - `ScreenMode` を三値化する。
 - `QuakeMapScreen` を追加する。
 - `emergency > quakeMap > standby` を実装する。
-- 同一地震延長、別地震置換、緊急割込み、期限内復帰を実装する。
-- tips context と早期終了 UI の詳細を確定する。
+- 同一地震延長、別地震3～4による置換、別地震5弱以上による host 保持の緊急割込み、期限内復帰を実装する。
+- tips context を server まで三値化し、日次 reload・pointer ownership・ローカル期限再描画を検証する。
+- 早期終了 UI の詳細を確定する。
 
 完了条件:
 
 - 震度3～4が緊急パネルを発火せず、専用面に出る。
 - 表示保持が5分である。
 - 続報、置換、割込み、復帰のテストが通る。
-- severity は caution を上限とする。
+- `nonEmergencyHost` の severity 寄与は `caution` とし、既存のより高い集約値を降格させない。
 - frame、ticker priority、sound を新たに昇格させない。
 - 地図失敗時にも専用面で文字一覧が読める。
 
@@ -1022,6 +1125,9 @@ engine/parser:
 - `src/engine/display/hub.ts`
 - `src/engine/display/state-store.ts`
 - `src/engine/display/constants.ts`
+- `src/engine/display/http-server.ts`
+- `src/engine/display/display-tips.ts`
+- `src/tips/waiting-tips.ts`
 
 frontend:
 
@@ -1050,6 +1156,8 @@ frontend:
 - `test/engine/display/protocol-sync.test.ts`
 - `test/engine/display/state-store.test.ts`
 - `test/engine/display/hub.test.ts`
+- `test/engine/display/http-server.test.ts`
+- `test/engine/display/display-tips.test.ts`
 - map build/code 照合テスト（新規）
 - frontend derive/store/component テスト（新規・既存追記）
 
@@ -1086,7 +1194,7 @@ Phase 1～4B 全体は中～大規模の変更となる。
 
 最大震度3以上で地図を表示する。
 
-- 震度3～4: 非緊急 `quakeMap` 面、severity は最大 caution
+- 震度3～4: 非緊急 `quakeMap` 面、`nonEmergencyHost` の severity 寄与は `caution`
 - 震度5弱以上: 既存 emergency/`QuakePanel`
 
 震度3～4を理由に frame、ticker priority、sound、緊急パネルを昇格させない。
@@ -1159,8 +1267,9 @@ emergency > quakeMap > standby
 付帯規則:
 
 - 同一地震の続報で内容を更新し、期限を5分へ延長する。
-- 別の表示対象地震で現在の地震を置換する。
-- emergency は即時割込みする。
+- 別地震の震度3～4でのみ現在の host を置換する。
+- 別地震の震度5弱以上は emergency として即時割込みし、現在の host は保持する。
+- その他の emergency も即時割込みする。
 - emergency 中も期限の時計を進める。
 - emergency 終了時、期限内なら `quakeMap` へ復帰する。
 - emergency 終了時、期限切れなら `standby` へ戻る。
@@ -1174,22 +1283,23 @@ emergency > quakeMap > standby
 - 境界結合に地域コードだけを使用している。
 - VXSE の `Area.Code` が parser→Presentation→snapshot まで失われない。
 - `City.Code` が parser→Presentation まで通り、市町村 asset と fixture の照合が完了している。
-- 全国図と市町村等の変換済み asset を再現可能に生成できる。
+- 入力 archive を取得できる場合、全国図と市町村等の変換済み asset を再現可能に生成できる。上流消失時はコミット済み JSON を真実源とするリスクが明記されている。
 - 全国図に build-time inset が反映されている。
 - ライセンス・出典・加工内容が記録されている。
 - `DisplayStateSnapshotV1.mapLayers` が engine/frontend で同期している。
 - 地図値が public event DTO に入っていない。
-- snapshot が256 KiB以内である。
+- snapshot が256 KiB以内であり、active 一式だけで超過する場合は黙って縮退せず fail-loud になる。
 - 震度1～2では地図面を自動表示しない。
 - 震度3～4では `quakeMap` を表示する。
 - 震度5弱以上では既存 `QuakePanel` 経路を維持する。
 - mode の優先順位が `emergency > quakeMap > standby` である。
 - 震度3～4の表示保持が5分である。
 - 同一地震の続報で期限が延長される。
-- 別の表示対象地震で置換される。
+- 別地震の震度3～4でのみ host が置換される。
+- 別地震の震度5弱以上では host を保持したまま emergency が割込み、期限内なら終了後に復帰する。
 - emergency 割込み中も期限が進む。
 - emergency 終了時、期限内だけ `quakeMap` へ復帰する。
-- 震度3～4の severity が caution を上限とする。
+- 震度3～4の `nonEmergencyHost` の severity 寄与が `caution` であり、既存のより高い集約値を降格させない。
 - 震度3～4を理由に frame、ticker priority、sound が昇格しない。
 - 緊急主パネルおよび専用面で地図と文字一覧を同時表示する。
 - 既存の地域別震度ページングを維持する。
