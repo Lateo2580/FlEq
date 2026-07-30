@@ -19,10 +19,21 @@ import type { WeatherPromotionStore } from "../display/weather-promotion-store";
 import type { QuakeExtremeStore } from "../display/quake-extreme-store";
 import { projectRecentQuake } from "../display/project-event";
 import type { DailyQuakeCounter } from "../messages/daily-quake-counter";
+import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../display/weather-alert-view";
+import type { DisplayWeatherAlertV1, DisplayWeatherSourceV1 } from "../display/types";
 
 export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
-  standby: { applyEvent(event: PresentationEvent, nowMs: number): unknown };
+  standby: {
+    applyEvent(event: PresentationEvent, nowMs: number): unknown;
+    applyWeatherAlerts?(
+      source: DisplayWeatherSourceV1,
+      alerts: DisplayWeatherAlertV1[],
+      reportDateTime: string,
+      serial: string | null,
+      nowMs: number,
+    ): unknown;
+  };
   /** monitor 所有の昇格 lifecycle */
   promotions: WeatherPromotionStore;
   /** 震度 7 の 12 時間保持。display off 中も電文受理と同時に更新する。 */
@@ -43,6 +54,23 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
     ingest: (event) => {
       const nowMs = now();
       deps.standby.applyEvent(event, nowMs);
+      if (event.type === "VPWS50") {
+        deps.standby.applyWeatherAlerts?.(
+          "vpws50",
+          weatherAlertsFromVpws50(deps.weatherViews.vpws50(), event.reportDateTime),
+          event.reportDateTime,
+          event.serial ?? null,
+          nowMs,
+        );
+      } else if (event.type === "VPWW56") {
+        deps.standby.applyWeatherAlerts?.(
+          "vpww56",
+          weatherAlertsFromVpww56(deps.weatherViews.vpww56(), event.reportDateTime),
+          event.reportDateTime,
+          event.serial ?? null,
+          nowMs,
+        );
+      }
       applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;
       const dailyQuakeChanged = deps.dailyQuakes?.recordRecentQuake(projectRecentQuake(event), nowMs) ?? false;

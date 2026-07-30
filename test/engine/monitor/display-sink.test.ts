@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
 import { QuakeExtremeStore } from "../../../src/engine/display/quake-extreme-store";
@@ -93,6 +93,28 @@ describe("createDisplaySink (monitor の実配線)", () => {
     h.sink.ingest(weatherEvent({ type: "VPWS50" }));
     expect(h.promotions.get("vpws50")?.level).toBe(4);
     expect(hubCalls).toBe(1);
+  });
+
+  it("hub が無くても気象警報カード現況を monitor 所有 store へ渡す", () => {
+    const applyWeatherAlerts = vi.fn();
+    const current = view("officialL3", ["東京都"]);
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, applyWeatherAlerts },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => current, vpww56: () => undefined },
+      getHub: () => null,
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({ type: "VPWS50" }));
+
+    expect(applyWeatherAlerts).toHaveBeenCalledWith(
+      "vpws50",
+      [expect.objectContaining({ source: "vpws50", label: "気象警報" })],
+      "2026-07-25T21:00:00+09:00",
+      null,
+      T0,
+    );
   });
 
   it("monitor 側で quakeExtreme が変わると hub の snapshot 再配信を要求する", () => {

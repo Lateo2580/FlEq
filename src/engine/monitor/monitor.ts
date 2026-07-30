@@ -202,6 +202,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       weather: () => vpws50State.getCurrentAreasForDisplay(),
       landslide: () => vpww56State.getCurrentAreasForDisplay(),
       standbyItems: () => standbyStore.snapshotItems(),
+      weatherAlerts: () => standbyStore.snapshotWeatherAlerts(),
       weatherPromotions: () => weatherPromotionStore,
       quakeExtreme: () => quakeExtremeStore,
       recentQuakes: () => dailyQuakeCounter.getRecentQuakes(),

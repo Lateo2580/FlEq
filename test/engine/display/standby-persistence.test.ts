@@ -4,6 +4,12 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StandbyPersistence, type PersistedStandbyStateV1 } from "../../../src/engine/display/standby-persistence";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
+import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
+import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
+import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
+import type { FloodForecastOutcome } from "../../../src/engine/presentation/types";
+import { createMockWsDataMessage } from "../../helpers/mock-message";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 const roots: string[] = [];
@@ -35,6 +41,7 @@ function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbySta
     typhoons: [],
     volcanoes: [],
     floods: undefined,
+    weatherAlerts: [],
     tornado: [],
     longPeriod: [],
     quakeHost: null,
@@ -88,6 +95,90 @@ describe("StandbyPersistence", () => {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify({ ...persisted, floods: { events: "invalid", seen: [] } }), "utf8");
     expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+  });
+
+  it("一部の洪水 EventID が壊れていても、有効な EventID とカードを復元する", () => {
+    const path = tempPath();
+    const validEvent = {
+      eventId: "flood-valid",
+      revision: { reportTimeMs: T0, serial: "1" },
+      expiresAtMs: T0 + 12 * 60 * 60_000,
+      rivers: [{
+        riverKey: "river-1", riverName: "多摩川", level: "L4", levelRank: 40,
+        kindName: "氾濫危険情報", reportDateTime: new Date(T0).toISOString(),
+      }],
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      ...state(),
+      floods: {
+        events: [validEvent, { eventId: "broken", rivers: "invalid" }],
+        seen: [
+          { key: "flood-valid", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 },
+          { key: "broken", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 },
+          { key: "cancelled-only", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 },
+        ],
+      },
+    }), "utf8");
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.floods?.events).toEqual([validEvent]);
+    expect(loaded?.floods?.seen.map((entry) => entry.key)).toEqual(["flood-valid", "cancelled-only"]);
+    const reducer = new FloodActiveReducer();
+    reducer.restoreState(loaded!.floods!, T0 + 60_000);
+    expect(reducer.apply({
+      mode: "replace",
+      eventId: "broken",
+      reportDateTime: new Date(T0).toISOString(),
+      serial: "1",
+      rivers: [{
+        riverKey: "river-2", riverName: "利根川", level: "L3", levelRank: 30,
+        kindName: "氾濫警戒情報", reportDateTime: new Date(T0).toISOString(),
+      }],
+    }, T0 + 60_000)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(reducer.snapshotCard()?.sourceEventIds).toContain("broken");
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded!, T0 + 60_000);
+    expect(restored.snapshotItems().find((item) => item.kind === "flood"))
+      .toEqual(expect.objectContaining({ restored: true }));
+  });
+
+  it("active event が全て壊れても、無関係な cancellation tombstone を保全して古い再送を拒否する", () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      ...state(),
+      floods: {
+        events: [{ eventId: "broken", rivers: "invalid" }],
+        seen: [
+          { key: "broken", revision: { reportTimeMs: T0, serial: "1" }, forgetAtMs: T0 + 24 * 60 * 60_000 },
+          { key: "cancelled-only", revision: { reportTimeMs: T0, serial: "2" }, forgetAtMs: T0 + 24 * 60 * 60_000 },
+        ],
+      },
+    }), "utf8");
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.floods).toEqual({
+      events: [],
+      seen: [{
+        key: "cancelled-only",
+        revision: { reportTimeMs: T0, serial: "2" },
+        forgetAtMs: T0 + 24 * 60 * 60_000,
+      }],
+    });
+    const reducer = new FloodActiveReducer();
+    reducer.restoreState(loaded!.floods!, T0 + 60_000);
+    expect(reducer.apply({
+      mode: "replace",
+      eventId: "cancelled-only",
+      reportDateTime: new Date(T0).toISOString(),
+      serial: "1",
+      rivers: [{
+        riverKey: "river-old", riverName: "古い川", level: "L4", levelRank: 40,
+        kindName: "氾濫危険情報", reportDateTime: new Date(T0).toISOString(),
+      }],
+    }, T0 + 60_000)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(reducer.snapshotCard()).toBeNull();
   });
 
   it("代表観測所 station 込みで round-trip し、壊れた station は洪水 domain だけ破棄する", () => {
@@ -252,6 +343,163 @@ describe("StandbyPersistence", () => {
 });
 
 describe("StandbyStateStore persistence", () => {
+  function weatherAlert(source: "vpws50" | "vpww56", updatedAt = new Date(T0).toISOString()) {
+    return {
+      source,
+      label: source === "vpws50" ? "気象警報" : "土砂災害警戒情報",
+      role: "weatherWarning" as const,
+      totalAreas: 1,
+      items: [{
+        kind: source === "vpws50" ? "L3 大雨警報" : "L4 土砂災害警戒情報",
+        phenomenonKey: source === "vpws50" ? "rain" : "landslide",
+        displaySeverity: source === "vpws50" ? "officialL3" : "officialL4",
+        rank: "warning" as const,
+        shownAreas: ["東京都"],
+        omittedAreaCount: 0,
+      }],
+      updatedAt,
+    };
+  }
+
+  it("気象警報を実ファイルへ書き、新しい store でカード現況を復元する", () => {
+    const path = tempPath();
+    const alert = weatherAlert("vpws50");
+    const live = new StandbyStateStore();
+    live.applyWeatherAlerts("vpws50", [alert], alert.updatedAt, "1", T0);
+    new StandbyPersistence(path).save(live.exportActiveState());
+
+    const loaded = new StandbyPersistence(path).load();
+    const restarted = new StandbyStateStore();
+    restarted.restoreActiveState(loaded!, T0 + 60_000);
+
+    expect(restarted.snapshotWeatherAlerts()).toEqual([alert]);
+    const display = new DisplayStateStore(
+      () => restarted.snapshotItems(),
+      undefined,
+      undefined,
+      undefined,
+      () => restarted.snapshotWeatherAlerts(),
+    );
+    expect(display.snapshot(1, T0 + 60_000).weatherAlerts).toEqual([alert]);
+    expect(restarted.exportActiveState().weatherAlerts).toEqual([
+      expect.objectContaining({ source: "vpws50", alerts: [alert] }),
+    ]);
+  });
+
+  it("weatherAlerts の壊れた source だけを破棄し、正常な別 source を復元する", () => {
+    const path = tempPath();
+    const vpww56 = weatherAlert("vpww56");
+    const persisted = state({
+      weatherAlerts: [{
+        source: "vpww56",
+        alerts: [vpww56],
+        revision: { reportTimeMs: T0, serial: "1" },
+        expiresAtMs: T0 + 24 * 60 * 60_000,
+      }],
+    });
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      ...persisted,
+      weatherAlerts: [
+        { source: "vpws50", alerts: "broken", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 1 },
+        ...persisted.weatherAlerts!,
+      ],
+    }), "utf8");
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.weatherAlerts).toEqual(persisted.weatherAlerts);
+    const restarted = new StandbyStateStore();
+    restarted.restoreActiveState(loaded!, T0 + 60_000);
+    expect(restarted.snapshotWeatherAlerts()).toEqual([vpww56]);
+  });
+
+  it("weatherAlerts フィールドのない旧ファイルを空の現況として復元する", () => {
+    const path = tempPath();
+    const legacy = state();
+    delete legacy.weatherAlerts;
+    new StandbyPersistence(path).save(legacy);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.weatherAlerts).toEqual([]);
+    const restarted = new StandbyStateStore();
+    restarted.restoreActiveState(loaded!, T0 + 60_000);
+    expect(restarted.snapshotWeatherAlerts()).toEqual([]);
+  });
+
+  it("期限切れの weatherAlerts は新しい store へ復元しない", () => {
+    const path = tempPath();
+    const alert = weatherAlert("vpws50");
+    new StandbyPersistence(path).save(state({
+      weatherAlerts: [{
+        source: "vpws50",
+        alerts: [alert],
+        revision: { reportTimeMs: T0, serial: "1" },
+        expiresAtMs: T0 + 60_000,
+      }],
+    }));
+
+    const loaded = new StandbyPersistence(path).load();
+    const restarted = new StandbyStateStore();
+    restarted.restoreActiveState(loaded!, T0 + 60_000);
+    expect(restarted.snapshotWeatherAlerts()).toEqual([]);
+    expect(restarted.exportActiveState().weatherAlerts).toEqual([]);
+  });
+
+  it("解除で alerts が空になった現況は、再起動後もカードを復元しない", () => {
+    const path = tempPath();
+    const alert = weatherAlert("vpws50");
+    const live = new StandbyStateStore();
+    live.applyWeatherAlerts("vpws50", [alert], alert.updatedAt, "1", T0);
+    live.applyWeatherAlerts("vpws50", [], new Date(T0 + 60_000).toISOString(), "2", T0 + 60_000);
+    new StandbyPersistence(path).save(live.exportActiveState());
+
+    const loaded = new StandbyPersistence(path).load();
+    const restarted = new StandbyStateStore();
+    restarted.restoreActiveState(loaded!, T0 + 120_000);
+    expect(restarted.snapshotWeatherAlerts()).toEqual([]);
+    expect(restarted.exportActiveState().weatherAlerts).toEqual([]);
+  });
+
+  it("実 VXKO50 を store に適用して実ファイルへ書き、新しい store で河川カードを復元する", () => {
+    const msg = createMockWsDataMessage("16_10_01_260312_VXKO50.xml");
+    const parsed = parseFloodForecast(msg);
+    expect(parsed).not.toBeNull();
+    if (parsed == null) return;
+    const outcome: FloodForecastOutcome = {
+      domain: "floodForecast",
+      msg,
+      headType: msg.head.type,
+      statsCategory: "floodForecast",
+      parsed,
+      diff: null,
+      maxLevel: "unknown",
+      maxRank: -1,
+      stats: { shouldRecord: true, eventId: parsed.eventId },
+      presentation: { frameLevel: "info" },
+    };
+    const event = {
+      ...fromFloodForecastOutcome(outcome),
+      reportDateTime: new Date(T0).toISOString(),
+    };
+    const live = new StandbyStateStore();
+    live.applyEvent(event, T0);
+    expect(live.snapshotItems().find((item) => item.kind === "flood")).toBeDefined();
+
+    const path = tempPath();
+    new StandbyPersistence(path).save(live.exportActiveState());
+    const loaded = new StandbyPersistence(path).load();
+    const restarted = new StandbyStateStore();
+    restarted.restoreActiveState(loaded!, T0 + 60_000);
+
+    const flood = restarted.snapshotItems().find((item) => item.kind === "flood");
+    expect(flood).toEqual(expect.objectContaining({
+      restored: true,
+      data: { rivers: expect.arrayContaining([
+        expect.objectContaining({ riverName: "緑川", level: "L4" }),
+      ]) },
+    }));
+  });
+
   it("未失効 state を restored=true で復元し export できる", () => {
     const store = new StandbyStateStore();
     store.restoreActiveState(state(), T0 + 60_000);

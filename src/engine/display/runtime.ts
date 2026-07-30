@@ -56,6 +56,8 @@ export interface DisplaySeedSources {
   quakeExtreme?: () => QuakeExtremeStore;
   /** monitor 所有の当日地震履歴。display off/on・再起動をまたぐ。 */
   recentQuakes?: () => DisplayRecentQuakeV1[];
+  /** monitor 所有の、再起動をまたぐ気象警報カード現況。 */
+  weatherAlerts?: () => DisplayWeatherAlertV1[];
   /** 起動直後 snapshot に載せる当日統計。 */
   stats?: () => DisplayStatsV1;
   /** hub 稼働中の sweep は既存 hub タイマーへ統合する */
@@ -123,6 +125,7 @@ export async function startDisplayRuntime(
     seeds.weatherPromotions?.(),
     seeds.quakeExtreme?.(),
     seeds.recentQuakes,
+    seeds.weatherAlerts,
   );
   const distDir = resolveDistDir();
   const frontendBuildId = createFrontendBuildIdReader(distDir);

@@ -1,7 +1,13 @@
 import type { PresentationEvent } from "../presentation/types";
 import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedTornadoAdvisory } from "../../types";
-import type { ActiveStandbyCardV1, DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
-import type { PersistedStandbyStateV1 } from "./standby-persistence";
+import type {
+  ActiveStandbyCardV1,
+  DisplayHeatAreaV1,
+  DisplayTyphoonV1,
+  DisplayWeatherAlertV1,
+  DisplayWeatherSourceV1,
+} from "./protocol";
+import type { PersistedStandbyStateV1, PersistedWeatherAlertStateV1 } from "./standby-persistence";
 import { FloodActiveReducer } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
 import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdate } from "./project-standby";
@@ -108,6 +114,7 @@ export class StandbyStateStore {
   private longPeriodByEvent = new Map<string, LongPeriodState>();
   private quakeHost: QuakeHostState | null = null;
   private nankaiTrough: NankaiState | null = null;
+  private weatherAlerts = new Map<DisplayWeatherSourceV1, PersistedWeatherAlertStateV1>();
   private readonly floods = new FloodActiveReducer();
   private readonly revisionGuard = new RevisionGuard();
   private readonly changeListeners: Array<() => void> = [];
@@ -152,6 +159,39 @@ export class StandbyStateStore {
   /** standby state と寿命を共有する ticker の active groupKey。 */
   activeTickerGroupKeys(): Set<string> {
     return new Set([...this.tornadoByOffice.keys()].map(tornadoTickerGroupKey));
+  }
+
+  applyWeatherAlerts(
+    source: DisplayWeatherSourceV1,
+    alerts: DisplayWeatherAlertV1[],
+    reportDateTime: string,
+    serial: string | null,
+    nowMs: number,
+  ): DisplayMutation {
+    const key = `weather:${source}`;
+    const revision = revisionOf(reportDateTime, serial, nowMs);
+    if (!this.revisionGuard.accept(key, revision, nowMs, DAY_MS)) return NO_MUTATION;
+    const before = JSON.stringify(this.weatherAlerts.get(source)?.alerts ?? []);
+    if (alerts.length === 0) {
+      this.weatherAlerts.delete(source);
+    } else {
+      this.weatherAlerts.set(source, {
+        source,
+        alerts: alerts.map(copyWeatherAlert),
+        revision,
+        expiresAtMs: revision.reportTimeMs + DAY_MS,
+      });
+    }
+    const mutation = {
+      viewChanged: before !== JSON.stringify(alerts),
+      durableChanged: true,
+    };
+    this.notify(mutation);
+    return mutation;
+  }
+
+  snapshotWeatherAlerts(): DisplayWeatherAlertV1[] {
+    return [...this.weatherAlerts.values()].flatMap((state) => state.alerts.map(copyWeatherAlert));
   }
 
   private applyNankai(event: PresentationEvent, nowMs: number): DisplayMutation {
@@ -452,6 +492,13 @@ export class StandbyStateStore {
       viewChanged = true;
       durableChanged = true;
     }
+    for (const [source, state] of this.weatherAlerts) {
+      if (state.expiresAtMs <= nowMs) {
+        this.weatherAlerts.delete(source);
+        viewChanged = true;
+        durableChanged = true;
+      }
+    }
     if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
     const floodMutation = this.floods.sweep(nowMs);
     viewChanged ||= floodMutation.viewChanged;
@@ -549,6 +596,12 @@ export class StandbyStateStore {
       typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
       volcanoes: [...this.volcanoes.values()].map((state) => ({ code: state.code, name: state.name, alertLevel: state.alertLevel, alertExpiresAtMs: state.alertExpiresAtMs, latestEvent: state.latestEvent, eventExpiresAtMs: state.eventExpiresAtMs, sourceEventIds: [...state.sourceEventIds], alertRevision: state.alertRevision == null ? null : { ...state.alertRevision }, eventRevision: state.eventRevision == null ? null : { ...state.eventRevision } })),
       floods: this.floods.exportState(),
+      weatherAlerts: [...this.weatherAlerts.values()].map((state) => ({
+        source: state.source,
+        alerts: state.alerts.map(copyWeatherAlert),
+        revision: { ...state.revision },
+        expiresAtMs: state.expiresAtMs,
+      })),
       tornado: [...this.tornadoByOffice.values()].map((state) => ({ publishingOffice: state.publishingOffice, sourceEventId: state.sourceEventId, areas: [...state.areas], isSighted: state.isSighted, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
       longPeriod: [...this.longPeriodByEvent.values()].map((state) => ({ eventId: state.eventId, maxLgInt: state.maxLgInt, revision: { ...state.revision }, hosted: state.hosted, expiresAtMs: state.expiresAtMs })),
       quakeHost: this.quakeHost == null ? null : { ...this.quakeHost, revision: { ...this.quakeHost.revision } },
@@ -565,6 +618,7 @@ export class StandbyStateStore {
     this.longPeriodByEvent.clear();
     this.quakeHost = null;
     this.nankaiTrough = null;
+    this.weatherAlerts.clear();
     for (const state of data.heat) {
       if (state.targetDateEndMs <= nowMs) continue;
       this.heatAlerts.set(state.key, {
@@ -592,6 +646,15 @@ export class StandbyStateStore {
       restored: true,
     });
     if (data.nankaiTrough != null && data.nankaiTrough.expiresAtMs > nowMs) this.nankaiTrough = { ...data.nankaiTrough, revision: { ...data.nankaiTrough.revision }, restored: true };
+    for (const state of data.weatherAlerts ?? []) {
+      if (state.expiresAtMs <= nowMs) continue;
+      this.weatherAlerts.set(state.source, {
+        source: state.source,
+        alerts: state.alerts.map(copyWeatherAlert),
+        revision: { ...state.revision },
+        expiresAtMs: state.expiresAtMs,
+      });
+    }
     this.floods.restoreState(data.floods ?? { events: [], seen: [] }, nowMs);
     this.revisionGuard.restore(data.seen, nowMs);
   }
@@ -608,4 +671,11 @@ export class StandbyStateStore {
     if (mutation.viewChanged) for (const cb of this.changeListeners) cb();
     if (mutation.durableChanged) for (const cb of this.durableListeners) cb();
   }
+}
+
+function copyWeatherAlert(alert: DisplayWeatherAlertV1): DisplayWeatherAlertV1 {
+  return {
+    ...alert,
+    items: alert.items.map((item) => ({ ...item, shownAreas: [...item.shownAreas] })),
+  };
 }

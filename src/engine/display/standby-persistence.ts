@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import * as log from "../../logger";
-import type { DisplayFloodHydrographV1, DisplayFloodRiverV1, DisplayFloodStationV1, DisplayHeatAreaV1, DisplayTyphoonV1 } from "./protocol";
+import type {
+  DisplayFloodHydrographV1,
+  DisplayFloodRiverV1,
+  DisplayFloodStationV1,
+  DisplayHeatAreaV1,
+  DisplayTyphoonV1,
+  DisplayWeatherAlertItemV1,
+  DisplayWeatherAlertV1,
+  DisplayWeatherSourceV1,
+} from "./protocol";
 import type { PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
@@ -25,6 +34,7 @@ export interface PersistedStandbyStateV1 {
   typhoons: PersistedTyphoonStateV1[];
   volcanoes: PersistedVolcanoStateV1[];
   floods?: PersistedFloodState;
+  weatherAlerts?: PersistedWeatherAlertStateV1[];
   tornado?: PersistedTornadoStateV1[];
   longPeriod?: PersistedLongPeriodStateV1[];
   quakeHost?: PersistedQuakeHostStateV1 | null;
@@ -38,6 +48,7 @@ export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEvent
 export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; }
 export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; }
+export interface PersistedWeatherAlertStateV1 { source: DisplayWeatherSourceV1; alerts: DisplayWeatherAlertV1[]; revision: StandbyRevision; expiresAtMs: number; }
 
 /**
  * schedule() が実際に書き込むまでの遅延。
@@ -291,16 +302,34 @@ function isFloodRiver(value: unknown): value is DisplayFloodRiverV1 {
     && (!Object.hasOwn(value, "station") || value.station == null || isFloodStation(value.station));
 }
 
-function isFloodState(value: unknown): value is PersistedFloodState {
-  if (!isRecord(value) || !Array.isArray(value.events) || !Array.isArray(value.seen)) return false;
-  return value.events.every((event) => isRecord(event)
-      && typeof event.eventId === "string"
-      && isRevision(event.revision)
-      && Array.isArray(event.rivers)
-      && event.rivers.every(isFloodRiver)
-      && typeof event.expiresAtMs === "number"
-      && Number.isFinite(event.expiresAtMs))
-    && value.seen.every(isSeenEntry);
+function isFloodEvent(value: unknown): value is PersistedFloodState["events"][number] {
+  return isRecord(value)
+    && typeof value.eventId === "string"
+    && isRevision(value.revision)
+    && Array.isArray(value.rivers)
+    && value.rivers.every(isFloodRiver)
+    && typeof value.expiresAtMs === "number"
+    && Number.isFinite(value.expiresAtMs);
+}
+
+function sanitizeFloodState(value: unknown): PersistedFloodState | undefined {
+  if (!isRecord(value) || !Array.isArray(value.events) || !Array.isArray(value.seen)) return undefined;
+  const events = value.events.filter(isFloodEvent);
+  const validEventIds = new Set(events.map((event) => event.eventId));
+  const discardedEventIds = new Set<string>();
+  for (const event of value.events) {
+    if (isRecord(event) && typeof event.eventId === "string" && !validEventIds.has(event.eventId)) {
+      discardedEventIds.add(event.eventId);
+    }
+  }
+  const seen = value.seen.filter(
+    (entry): entry is PersistedSeenEntry => isSeenEntry(entry) && !discardedEventIds.has(entry.key),
+  );
+  if (value.events.length > 0 && events.length === 0 && seen.length === 0) return undefined;
+  if (events.length !== value.events.length || seen.length !== value.seen.length) {
+    log.warn("[standby-persistence] floods の壊れた EventID/seen entry だけを破棄");
+  }
+  return { events, seen };
 }
 
 function isNullableString(value: unknown): value is string | null {
@@ -393,6 +422,56 @@ function isNankaiState(value: unknown): value is PersistedNankaiStateV1 {
     && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
 }
 
+function isWeatherAlertItem(value: unknown): value is DisplayWeatherAlertItemV1 {
+  return isRecord(value)
+    && typeof value.kind === "string"
+    && (!Object.hasOwn(value, "phenomenonKey") || typeof value.phenomenonKey === "string")
+    && typeof value.displaySeverity === "string"
+    && (value.rank === "emergency" || value.rank === "warning" || value.rank === "advisory")
+    && isStringArray(value.shownAreas)
+    && typeof value.omittedAreaCount === "number"
+    && Number.isSafeInteger(value.omittedAreaCount)
+    && value.omittedAreaCount >= 0;
+}
+
+function isWeatherAlert(value: unknown): value is DisplayWeatherAlertV1 {
+  return isRecord(value)
+    && (value.source === "vpws50" || value.source === "vpww56")
+    && typeof value.label === "string"
+    && (value.role === "weatherEmergency" || value.role === "weatherWarning" || value.role === "weatherAdvisory")
+    && typeof value.totalAreas === "number"
+    && Number.isSafeInteger(value.totalAreas)
+    && value.totalAreas >= 0
+    && Array.isArray(value.items)
+    && value.items.every(isWeatherAlertItem)
+    && typeof value.updatedAt === "string"
+    && Number.isFinite(Date.parse(value.updatedAt));
+}
+
+function isWeatherAlertState(value: unknown): value is PersistedWeatherAlertStateV1 {
+  return isRecord(value)
+    && (value.source === "vpws50" || value.source === "vpww56")
+    && Array.isArray(value.alerts)
+    && value.alerts.length > 0
+    && value.alerts.every((alert) => isWeatherAlert(alert) && alert.source === value.source)
+    && isRevision(value.revision)
+    && typeof value.expiresAtMs === "number"
+    && Number.isFinite(value.expiresAtMs);
+}
+
+function sanitizeWeatherAlertStates(value: unknown): PersistedWeatherAlertStateV1[] {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    log.warn("[standby-persistence] weatherAlerts structure validation 失敗 — domain 破棄");
+    return [];
+  }
+  const states = value.filter(isWeatherAlertState);
+  if (states.length !== value.length) {
+    log.warn("[standby-persistence] weatherAlerts の壊れた source だけを破棄");
+  }
+  return states;
+}
+
 function validDomainArray<T>(value: unknown, predicate: (entry: unknown) => entry is T, domain: string): T[] {
   if (value == null) return [];
   if (Array.isArray(value) && value.every(predicate)) return value;
@@ -402,7 +481,7 @@ function validDomainArray<T>(value: unknown, predicate: (entry: unknown) => entr
 
 function sanitizePersistedStandbyState(value: unknown): PersistedStandbyStateV1 | null {
   if (!isRecord(value) || value.version !== PERSIST_SCHEMA_VERSION || typeof value.savedAt !== "string") return null;
-  const floods = value.floods == null ? undefined : isFloodState(value.floods) ? value.floods : undefined;
+  const floods = value.floods == null ? undefined : sanitizeFloodState(value.floods);
   if (value.floods != null && floods == null) log.warn("[standby-persistence] floods structure validation 失敗 — domain 破棄");
   const nankaiTrough = value.nankaiTrough == null || isNankaiState(value.nankaiTrough) ? value.nankaiTrough : null;
   if (value.nankaiTrough != null && nankaiTrough == null) log.warn("[standby-persistence] nankaiTrough structure validation 失敗 — domain 破棄");
@@ -415,6 +494,7 @@ function sanitizePersistedStandbyState(value: unknown): PersistedStandbyStateV1 
     typhoons: validDomainArray(value.typhoons, isTyphoonState, "typhoons"),
     volcanoes: validDomainArray(value.volcanoes, isVolcanoState, "volcanoes"),
     floods,
+    weatherAlerts: sanitizeWeatherAlertStates(value.weatherAlerts),
     tornado: validDomainArray(value.tornado, isTornadoState, "tornado"),
     longPeriod: validDomainArray(value.longPeriod, isLongPeriodState, "longPeriod"),
     quakeHost,

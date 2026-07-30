@@ -97,6 +97,7 @@ export class DisplayStateStore {
     promotions?: WeatherPromotionStore,
     quakeExtreme?: QuakeExtremeStore,
     private readonly recentQuakesProvider?: () => DisplayRecentQuakeV1[],
+    private readonly weatherAlertsProvider?: () => DisplayWeatherAlertV1[],
   ) {
     this.promotions = promotions ?? new WeatherPromotionStore();
     this.quakeExtreme = quakeExtreme ?? new QuakeExtremeStore();
@@ -281,6 +282,10 @@ export class DisplayStateStore {
     return this.promotions.resume(nowMs);
   }
 
+  private currentWeatherAlerts(): DisplayWeatherAlertV1[] {
+    return this.weatherAlertsProvider?.() ?? this.weatherAlerts;
+  }
+
   sweepWeatherPromotions(nowMs: number): boolean {
     return this.promotions.sweepDemote(nowMs);
   }
@@ -381,7 +386,7 @@ export class DisplayStateStore {
   private promotionEntryForWire(source: DisplayWeatherSourceV1): DisplayWeatherPromotionEntryV1 | null {
     const entry = promotionEntry(this.promotions.get(source));
     if (entry == null) return null;
-    if (this.weatherAlerts.some((a) => a.source === source)) return entry;
+    if (this.currentWeatherAlerts().some((a) => a.source === source)) return entry;
     const items = this.promotions.get(source)?.items ?? [];
     return items.length === 0 ? entry : { ...entry, restoredItems: items };
   }
@@ -399,7 +404,7 @@ export class DisplayStateStore {
       activeEews: [...this.activeEews.values()],
       tsunami: this.tsunami,
       largeQuakes: [...this.largeQuakes.values()],
-      weatherAlerts: [...this.weatherAlerts],
+      weatherAlerts: [...this.currentWeatherAlerts()],
       weatherPromotion: this.weatherPromotionForWire(),
       weatherL5Active: this.isWeatherL5Active(),
       recentQuakes: this.recentQuakesProvider?.() ?? [...this.recentQuakes],
