@@ -17,11 +17,13 @@ export function buildTsunamiObservations(info: ParsedTsunamiInfo): PresentationT
     return {
       areaName: o.areaName,
       areaKind: rawKind != null ? normalizeTsunamiKind(rawKind) : null,
+      ...(o.stationCode != null ? { stationCode: o.stationCode } : {}),
       stationName: o.name,
       arrivalTime: o.arrivalTime || null,
       initial: o.initial || null,
       maxHeightValue: o.maxHeightValue,
       condition: o.maxHeightCondition || null,
+      ...(o.maxHeightValueCondition ? { heightCondition: o.maxHeightValueCondition } : {}),
     };
   });
 }

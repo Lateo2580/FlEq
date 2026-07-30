@@ -1040,12 +1040,43 @@ describe("parseTsunamiTelegram", () => {
     const kamaishi = result!.observations!.find((obs) => obs.name === "釜石");
     expect(kamaishi).toMatchObject({
       areaName: "岩手県",
+      stationCode: "21003",
       maxHeightValue: "３．２ｍ",
       maxHeightCondition: "重要",
+      maxHeightValueCondition: "上昇中",
     });
     // MaxHeight/TsunamiHeight を持たない観測点は maxHeightValue が null
     const ofunato = result!.observations!.find((obs) => obs.name === "大船渡");
-    expect(ofunato).toMatchObject({ areaName: "岩手県", maxHeightValue: null });
+    expect(ofunato).toMatchObject({
+      areaName: "岩手県",
+      maxHeightValue: null,
+      maxHeightValueCondition: "",
+    });
+  });
+
+  it("TsunamiHeight の実測値は parser で trim して保持する", () => {
+    const source = readFixture(FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT);
+    const xml = source.replace('description="３．２ｍ"', 'description=" ３．２ｍ "');
+    expect(xml).not.toBe(source);
+
+    const result = parseTsunamiTelegram(
+      createMockWsDataMessageFromXml(xml, "VTSE51"),
+    );
+    expect(result?.observations?.find((obs) => obs.name === "釜石")?.maxHeightValue)
+      .toBe("３．２ｍ");
+  });
+
+  it("VTSE52 実 fixture でも TsunamiHeight の実測値と condition を抽出する", () => {
+    const result = parseTsunamiTelegram(
+      createMockWsDataMessage("61_11_02_250206_VTSE52.xml"),
+    );
+    const station = result?.observations?.find((obs) => obs.name === "岩手沖９０ｋｍＡ");
+    expect(station).toMatchObject({
+      stationCode: "21050",
+      maxHeightValue: "０．５ｍ",
+      maxHeightCondition: "重要",
+      maxHeightValueCondition: "上昇中",
+    });
   });
 
   describe("parseTsunamiTelegram: Forecast/Item/Station (潮位観測点)", () => {

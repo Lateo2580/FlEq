@@ -46,7 +46,7 @@ import {
 } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
 import { RevisionGuard } from "./revision-guard";
-import type { StandbyRevision } from "./standby-registry";
+import { compareRevision, revisionOf, type StandbyRevision } from "./standby-registry";
 
 const MIN_MS = 60_000;
 const NON_EMERGENCY_HOST_TTL_MS = 5 * MIN_MS;
@@ -61,6 +61,19 @@ interface QuakeMapMutationResult {
 
 function sameRevision(a: StandbyRevision | undefined, b: StandbyRevision | undefined): boolean {
   return a != null && b != null && a.reportTimeMs === b.reportTimeMs && a.serial === b.serial;
+}
+
+function tsunamiObservationNameKey(observation: DisplayTsunamiObservationV1): string {
+  return `name:${JSON.stringify([
+    observation.areaName ?? "",
+    observation.stationName,
+  ])}`;
+}
+
+function tsunamiObservationStationKey(observation: DisplayTsunamiObservationV1): string {
+  const stationCode = observation.stationCode?.trim();
+  if (stationCode) return `code:${stationCode}`;
+  return tsunamiObservationNameKey(observation);
 }
 
 function promotionEntry(record: WeatherPromotionRecord | null): DisplayWeatherPromotionEntryV1 | null {
@@ -97,6 +110,8 @@ function addedAreasForWire(added: readonly WeatherPromotionMemberV1[]): DisplayW
 export class DisplayStateStore {
   private activeEews = new Map<string, DisplayActiveEewV1>();
   private tsunami: DisplayTsunamiStateV1 | null = null;
+  private tsunamiObservationRevisions = new Map<string, StandbyRevision>();
+  private latestTsunamiObservationRevisions = new Map<string, StandbyRevision>();
   private largeQuakes = new Map<string, DisplayLargeQuakeStateV1>();
   /** EventID 系列 × source type の最新 contribution。wire へは eventKey ごとの有効一件だけを出す。 */
   private quakeMapContributions =
@@ -311,18 +326,86 @@ export class DisplayStateStore {
     if (dto.type === "VTSE51" || dto.type === "VTSE52") {
       if (this.tsunami == null) return false;
       if (observations == null || observations.length === 0) return false;
-      this.tsunami = { ...this.tsunami, observations };
+      const revision = revisionOf(dto.reportDateTime, dto.serial ?? null, nowMs);
+      const latestRevision = this.latestTsunamiObservationRevisions.get(dto.type);
+      if (
+        latestRevision != null
+        && compareRevision(revision, latestRevision) < 0
+      ) {
+        return false;
+      }
+      const isCorrection = dto.infoType === "訂正";
+      const merged = [...this.tsunami.observations];
+      let changed = false;
+      for (const observation of observations) {
+        const stationKey = tsunamiObservationStationKey(observation);
+        const revisionKey = `${dto.type}:${stationKey}`;
+        const hasStationCode = Boolean(observation.stationCode?.trim());
+        const legacyStationKey = hasStationCode
+          ? tsunamiObservationNameKey(observation)
+          : null;
+        const legacyRevisionKey = legacyStationKey == null
+          ? null
+          : `${dto.type}:${legacyStationKey}`;
+        const stationRevision = this.tsunamiObservationRevisions.get(revisionKey);
+        const legacyRevision = legacyRevisionKey == null
+          ? undefined
+          : this.tsunamiObservationRevisions.get(legacyRevisionKey);
+        const previousRevision = stationRevision == null
+          || (legacyRevision != null && compareRevision(legacyRevision, stationRevision) > 0)
+          ? legacyRevision
+          : stationRevision;
+        if (previousRevision != null) {
+          const comparison = compareRevision(revision, previousRevision);
+          if (comparison < 0 || (comparison === 0 && !isCorrection)) continue;
+        }
+        const existingIndex = merged.findIndex(
+          (candidate) => tsunamiObservationStationKey(candidate) === stationKey,
+        );
+        const legacyIndex = legacyStationKey == null
+          ? -1
+          : merged.findIndex(
+            (candidate) => !candidate.stationCode?.trim()
+              && tsunamiObservationNameKey(candidate) === legacyStationKey,
+          );
+        if (existingIndex >= 0) merged[existingIndex] = observation;
+        else if (legacyIndex >= 0) merged[legacyIndex] = observation;
+        else merged.push(observation);
+        if (existingIndex >= 0 && legacyIndex >= 0 && existingIndex !== legacyIndex) {
+          merged.splice(legacyIndex, 1);
+        }
+        if (legacyRevisionKey != null && legacyRevisionKey !== revisionKey) {
+          this.tsunamiObservationRevisions.delete(legacyRevisionKey);
+        }
+        this.tsunamiObservationRevisions.set(revisionKey, revision);
+        changed = true;
+      }
+      if (!changed) return false;
+      if (
+        latestRevision == null
+        || compareRevision(revision, latestRevision) > 0
+      ) {
+        this.latestTsunamiObservationRevisions.set(dto.type, revision);
+      }
+      this.tsunami = { ...this.tsunami, observations: merged };
       return true;
     }
     // 津波状態の真実源は VTSE41 (津波警報・注意報・予報) のみ。
     // 本体の TsunamiStateHolder.update() が VTSE41 限定 (process-tsunami.ts) なのと整合させる
     if (dto.type !== "VTSE41") return false;
     if (dto.emergency?.kind === "tsunami") {
+      this.tsunamiObservationRevisions.clear();
+      this.latestTsunamiObservationRevisions.clear();
       this.tsunami = { ...dto.emergency, updatedAtMs: nowMs };
       return true;
     }
     // VTSE41 で emergency が組めない = 取消 or 全解除
-    if (this.tsunami != null) { this.tsunami = null; return true; }
+    if (this.tsunami != null) {
+      this.tsunamiObservationRevisions.clear();
+      this.latestTsunamiObservationRevisions.clear();
+      this.tsunami = null;
+      return true;
+    }
     return false;
   }
 
@@ -398,6 +481,8 @@ export class DisplayStateStore {
   }
 
   seedTsunami(input: DisplayTsunamiInputV1, nowMs: number): void {
+    this.tsunamiObservationRevisions.clear();
+    this.latestTsunamiObservationRevisions.clear();
     this.tsunami = { ...input, updatedAtMs: nowMs };
   }
 

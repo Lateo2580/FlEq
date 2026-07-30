@@ -25,7 +25,9 @@ describe("buildTsunamiObservations", () => {
       observations: [
         {
           areaName: "岩手県", name: "釜石", sensor: "検潮所",
-          arrivalTime: "", initial: "押し", maxHeightCondition: "重要", maxHeightValue: "３．２ｍ",
+          stationCode: "21003", arrivalTime: "", initial: "押し",
+          maxHeightCondition: "重要", maxHeightValue: "３．２ｍ",
+          maxHeightValueCondition: "上昇中",
         },
       ],
     });
@@ -33,7 +35,8 @@ describe("buildTsunamiObservations", () => {
     expect(observations).toEqual([
       {
         areaName: "岩手県", areaKind: "大津波警報", stationName: "釜石",
-        arrivalTime: null, initial: "押し", maxHeightValue: "３．２ｍ", condition: "重要",
+        stationCode: "21003", arrivalTime: null, initial: "押し",
+        maxHeightValue: "３．２ｍ", condition: "重要", heightCondition: "上昇中",
       },
     ]);
   });

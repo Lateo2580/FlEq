@@ -427,18 +427,22 @@ function extractTsunamiObservations(tsunamiNode: unknown): TsunamiObservationSta
           ? [stationsRaw]
           : [];
       for (const station of stations) {
+        const tsunamiHeight =
+          dig(station, "MaxHeight", "jmx_eb:TsunamiHeight") ||
+          dig(station, "MaxHeight", "TsunamiHeight");
         const maxHeightValue =
-          str(dig(station, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
-          str(dig(station, "MaxHeight", "TsunamiHeight", "@_description")) ||
+          str(dig(tsunamiHeight, "@_description")).trim() ||
           null;
         observations.push({
           areaName,
+          stationCode: str(dig(station, "Code")).trim() || null,
           name: str(dig(station, "Name")),
           sensor: str(dig(station, "Sensor")),
           arrivalTime: str(dig(station, "FirstHeight", "ArrivalTime")),
           initial: str(dig(station, "FirstHeight", "Initial")),
           maxHeightCondition: str(dig(station, "MaxHeight", "Condition")),
           maxHeightValue,
+          maxHeightValueCondition: str(dig(tsunamiHeight, "@_condition")),
         });
       }
     }

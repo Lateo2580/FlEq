@@ -55,11 +55,13 @@ export type DisplayTsunamiLevel = "majorWarning" | "warning" | "advisory";
 export interface DisplayTsunamiObservationV1 {
   areaName: string | null;   // 属する予報区名 (対応が取れない場合 null)
   areaKind: string | null;   // その予報区の現在の警報種別 (フロントのレベル別フィルタ用)
+  stationCode?: string | null;    // 観測点コード (旧 snapshot は欠落)
   stationName: string;
   arrivalTime: string | null;
   initial: string | null;         // 第一波の状況
   maxHeightValue: string | null;  // 最大波の高さ (パーサにあれば)
   condition: string | null;       // 最大波の状況 (maxHeightCondition)
+  heightCondition?: string | null; // TsunamiHeight@condition (例: 上昇中)
 }
 
 export interface DisplayTsunamiInputV1 {

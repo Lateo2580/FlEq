@@ -766,6 +766,8 @@ export interface TsunamiForecastItem {
 export interface TsunamiObservationStation {
   /** 属する津波予報区名 (Observation/Item/Area/Name。取れない・空要素の場合 null) */
   areaName: string | null;
+  /** 観測点コード。旧経路・欠落電文では null/undefined */
+  stationCode?: string | null;
   name: string;
   sensor: string;
   arrivalTime: string;
@@ -773,6 +775,8 @@ export interface TsunamiObservationStation {
   maxHeightCondition: string;
   /** 最大波の高さ記述 (MaxHeight/jmx_eb:TsunamiHeight@_description。無ければ null) */
   maxHeightValue: string | null;
+  /** TsunamiHeight@condition (例: 上昇中)。要素/属性が無ければ空文字列 */
+  maxHeightValueCondition?: string;
 }
 
 /** 沖合津波推定情報 */

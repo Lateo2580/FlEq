@@ -223,6 +223,17 @@ function tideStationColumns(mode: ResponsiveDisplayMode): ColumnSpec<TsunamiTide
   return [areaCol, stationCol, arrivalCol, highTideCol];
 }
 
+function formatObservedMaxHeight(row: TsunamiObservationStation): string {
+  const value = row.maxHeightValue ?? "";
+  const conditions = [row.maxHeightCondition, row.maxHeightValueCondition ?? ""]
+    .map((condition) => condition.trim())
+    .filter((condition, index, all) => condition !== "" && all.indexOf(condition) === index);
+  if (value !== "") {
+    return conditions.length > 0 ? `${value}（${conditions.join("・")}）` : value;
+  }
+  return conditions.join("・") || "―";
+}
+
 function observationColumns(mode: ResponsiveDisplayMode): ColumnSpec<TsunamiObservationStation>[] {
   const nameCol: ColumnSpec<TsunamiObservationStation> = {
     header: "観測点", minWidth: 8, maxWidth: 20, cell: (r) => r.name,
@@ -230,8 +241,12 @@ function observationColumns(mode: ResponsiveDisplayMode): ColumnSpec<TsunamiObse
   };
   const maxCol: ColumnSpec<TsunamiObservationStation> = {
     header: "最大波高", minWidth: 8, maxWidth: 24,
-    cell: (r) => r.maxHeightCondition || "―",
-    colorize: (r, padded) => (r.maxHeightCondition ? chalk.white(padded) : chalk.gray(padded)),
+    cell: formatObservedMaxHeight,
+    colorize: (r, padded) => (
+      r.maxHeightValue || r.maxHeightCondition || r.maxHeightValueCondition
+        ? chalk.white(padded)
+        : chalk.gray(padded)
+    ),
   };
   const initialCol: ColumnSpec<TsunamiObservationStation> = {
     header: "初動", minWidth: 6, maxWidth: 16,

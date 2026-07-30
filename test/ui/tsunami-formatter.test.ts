@@ -260,6 +260,18 @@ function captureDisplay(info: ParsedTsunamiInfo): string {
   }
 }
 
+it.each([
+  ["32-39_11_10_250206_VTSE51.xml", "３．２ｍ（重要・上昇中）"],
+  ["61_11_02_250206_VTSE52.xml", "０．５ｍ（重要・上昇中）"],
+])("実 fixture %s の実測値と Condition/TsunamiHeight@condition を最大波高欄へ併記する", (fixture, expected) => {
+  setFrameWidth(140);
+  const info = parseTsunamiTelegram(
+    createMockWsDataMessage(fixture),
+  )!;
+  const plain = stripAnsi(captureDisplay(info));
+  expect(plain).toContain(expected);
+});
+
 const LONG_AREA = "非常に長い架空の津波予報区名でセル幅を必ず超過させる検証用文字列";
 const LONG_HEIGHT = "１０ｍを大きく超える巨大な津波が長時間継続するおそれ";
 const syntheticLongInfo = (): ParsedTsunamiInfo => ({

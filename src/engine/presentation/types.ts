@@ -295,11 +295,13 @@ export interface PresentationEewRegion {
 export interface PresentationTsunamiObservation {
   areaName: string | null;
   areaKind: string | null;
+  stationCode?: string | null;
   stationName: string;
   arrivalTime: string | null;
   initial: string | null;
   maxHeightValue: string | null;
   condition: string | null;
+  heightCondition?: string | null;
 }
 
 export type EventStateSnapshot =

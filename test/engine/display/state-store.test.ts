@@ -93,13 +93,29 @@ function latestQuakeOnlyDto(over: Partial<{ eventId: string | null; maxInt: stri
   } as DisplayEventDtoV1;
 }
 
-function tsunamiDto(over: Partial<{ type: string; hasEmergency: boolean; level: DisplayTsunamiLevel; reportDateTime: string }>): DisplayEventDtoV1 {
-  const o = { type: "VTSE41", hasEmergency: true, level: "warning" as DisplayTsunamiLevel, reportDateTime: "2026-07-06T21:00:00+09:00", ...over };
+function tsunamiDto(over: Partial<{
+  type: string;
+  hasEmergency: boolean;
+  level: DisplayTsunamiLevel;
+  reportDateTime: string;
+  serial: string | null;
+  infoType: string;
+}>): DisplayEventDtoV1 {
+  const o = {
+    type: "VTSE41",
+    hasEmergency: true,
+    level: "warning" as DisplayTsunamiLevel,
+    reportDateTime: "2026-07-06T21:00:00+09:00",
+    serial: null,
+    infoType: "発表",
+    ...over,
+  };
   const labels: Record<DisplayTsunamiLevel, string> = { majorWarning: "大津波警報", warning: "津波警報", advisory: "津波注意報" };
   return {
     version: 1, seq: 0, id: `t-${o.type}-${o.reportDateTime}`, eventKey: `tsunami:${o.type}:${o.reportDateTime}`,
-    groupKey: "tsunami", domain: "tsunami", type: o.type, infoType: "発表",
+    groupKey: "tsunami", domain: "tsunami", type: o.type, infoType: o.infoType,
     reportDateTime: o.reportDateTime, title: "津波警報・注意報・予報", headline: null,
+    serial: o.serial,
     publishingOffice: "気象庁", isTest: false, frameLevel: "critical", isCancellation: false,
     summary: { text: "t", role: "tsunamiWarning" },
     emergency: o.hasEmergency
@@ -349,6 +365,199 @@ describe("DisplayStateStore: 津波", () => {
     expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
     expect(store.applyEvent(tsunamiDto({ type: "VTSE51", hasEmergency: false }), T0 + 1 * MIN)).toBe(false);
     expect(store.applyEvent(tsunamiDto({ type: "VTSE51", hasEmergency: false }), T0 + 2 * MIN, [])).toBe(false);
+  });
+
+  it("VTSE51/52 は観測点コード単位で新 revision を merge し、部分報と遅延旧報で既存観測を失わない", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
+    const station = (
+      stationCode: string,
+      stationName: string,
+      maxHeightValue: string,
+    ): DisplayTsunamiObservationV1 => ({
+      areaName: "岩手県",
+      areaKind: "津波警報",
+      stationCode,
+      stationName,
+      arrivalTime: null,
+      initial: null,
+      maxHeightValue,
+      condition: "重要",
+    });
+
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:05:00+09:00",
+        serial: "1",
+      }),
+      T0 + 5 * MIN,
+      [station("21001", "宮古", "1.0m"), station("21002", "大船渡", "1.2m")],
+    )).toBe(true);
+
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:10:00+09:00",
+        serial: "2",
+      }),
+      T0 + 10 * MIN,
+      [station("21001", "宮古（更新名）", "2.0m")],
+    )).toBe(true);
+    expect(store.snapshot(1, T0 + 10 * MIN).tsunami?.observations).toEqual([
+      station("21001", "宮古（更新名）", "2.0m"),
+      station("21002", "大船渡", "1.2m"),
+    ]);
+
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:04:00+09:00",
+        serial: "0",
+      }),
+      T0 + 11 * MIN,
+      [station("21001", "宮古（旧報）", "0.5m"), station("99999", "旧報だけの点", "9.9m")],
+    )).toBe(false);
+    expect(store.snapshot(2, T0 + 11 * MIN).tsunami?.observations).toEqual([
+      station("21001", "宮古（更新名）", "2.0m"),
+      station("21002", "大船渡", "1.2m"),
+    ]);
+  });
+
+  it("Code なしの観測点へ Code 付き続報が来たら fallback 行を key 昇格して置換する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
+    const legacy: DisplayTsunamiObservationV1 = {
+      areaName: "岩手県",
+      areaKind: "津波警報",
+      stationCode: null,
+      stationName: "宮古",
+      arrivalTime: null,
+      initial: null,
+      maxHeightValue: "１．０ｍ",
+      condition: "重要",
+    };
+    const coded = {
+      ...legacy,
+      stationCode: "21001",
+      maxHeightValue: "１．２ｍ",
+    };
+
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:05:00+09:00",
+        serial: "1",
+      }),
+      T0 + 5 * MIN,
+      [legacy],
+    )).toBe(true);
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:10:00+09:00",
+        serial: "2",
+      }),
+      T0 + 10 * MIN,
+      [coded],
+    )).toBe(true);
+
+    expect(store.snapshot(1, T0 + 10 * MIN).tsunami?.observations).toEqual([coded]);
+  });
+
+  it("旧 snapshot の Code なし観測点も Code 付き続報で二重化しない", () => {
+    const store = new DisplayStateStore();
+    const legacy: DisplayTsunamiObservationV1 = {
+      areaName: "岩手県",
+      areaKind: "津波警報",
+      stationCode: null,
+      stationName: "宮古",
+      arrivalTime: null,
+      initial: null,
+      maxHeightValue: "１．０ｍ",
+      condition: "重要",
+    };
+    const coded = {
+      ...legacy,
+      stationCode: "21001",
+      maxHeightValue: "１．２ｍ",
+    };
+    store.seedTsunami({
+      kind: "tsunami",
+      level: "warning",
+      levelLabel: "津波警報",
+      coasts: [],
+      warningComment: null,
+      observations: [legacy],
+      reportDateTime: "2026-07-06T21:00:00+09:00",
+    }, T0);
+
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:10:00+09:00",
+        serial: "2",
+      }),
+      T0 + 10 * MIN,
+      [coded],
+    )).toBe(true);
+
+    expect(store.snapshot(1, T0 + 10 * MIN).tsunami?.observations).toEqual([coded]);
+  });
+
+  it("VTSE51 と VTSE52 は独立した revision 系列として、報告時刻が前後しても別観測点を保持する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
+    const coastal: DisplayTsunamiObservationV1 = {
+      areaName: "岩手県",
+      areaKind: "津波警報",
+      stationCode: "21003",
+      stationName: "釜石",
+      arrivalTime: null,
+      initial: null,
+      maxHeightValue: "３．２ｍ",
+      condition: "重要",
+    };
+    const offshore: DisplayTsunamiObservationV1 = {
+      areaName: null,
+      areaKind: null,
+      stationCode: "21050",
+      stationName: "岩手沖９０ｋｍＡ",
+      arrivalTime: null,
+      initial: null,
+      maxHeightValue: "０．５ｍ",
+      condition: "重要",
+    };
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE51",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:10:00+09:00",
+        serial: "3",
+      }),
+      T0 + 10 * MIN,
+      [coastal],
+    )).toBe(true);
+    expect(store.applyEvent(
+      tsunamiDto({
+        type: "VTSE52",
+        hasEmergency: false,
+        reportDateTime: "2026-07-06T21:05:00+09:00",
+        serial: "2",
+      }),
+      T0 + 11 * MIN,
+      [offshore],
+    )).toBe(true);
+    expect(store.snapshot(1, T0 + 11 * MIN).tsunami?.observations).toEqual([
+      coastal,
+      offshore,
+    ]);
   });
 
   it("seedTsunami で起動時復元できる", () => {

@@ -13,9 +13,25 @@ describe("bucketTsunamiHeight", () => {
     expect(bucketTsunamiHeight([{ maxHeight: null }])).toEqual([{ label: "不明", count: 1 }]);
   });
 
+  it("定性値と NFKC 後の全角実値を安全側の順位で分類し、表示ラベルは原文を保つ", () => {
+    expect(bucketTsunamiHeight([
+      { maxHeight: "巨大" },
+      { maxHeight: "高い" },
+      { maxHeight: "１０ｍ超" },
+      { maxHeight: "３．２ｍ" },
+      { maxHeight: "０．２ｍ未満" },
+    ])).toEqual([
+      { label: "巨大", count: 1 },
+      { label: "１０ｍ超", count: 1 },
+      { label: "３．２ｍ", count: 1 },
+      { label: "高い", count: 1 },
+      { label: "０．２ｍ未満", count: 1 },
+    ]);
+  });
+
   it("パース不能な文字列は不明バケツへ安全側フォールバック", () => {
-    expect(bucketTsunamiHeight([{ maxHeight: "巨大" }, { maxHeight: "10m未満" }])).toEqual([
-      { label: "不明", count: 2 },
+    expect(bucketTsunamiHeight([{ maxHeight: "非常に高い" }])).toEqual([
+      { label: "不明", count: 1 },
     ]);
   });
 
@@ -185,6 +201,26 @@ describe("maxTsunamiObservation", () => {
       { stationName: "後", maxHeightValue: "5.0m" },
     ]);
     expect(result?.stationName).toBe("先");
+  });
+
+  it("全角・未満・超を NFKC 後に比較し、原文を代表値として保つ", () => {
+    const result = maxTsunamiObservation([
+      { stationName: "小", maxHeightValue: "０．２ｍ未満" },
+      { stationName: "中", maxHeightValue: "３．２ｍ" },
+      { stationName: "大", maxHeightValue: "１０ｍ超" },
+    ]);
+    expect(result).toEqual({ stationName: "大", label: "１０ｍ超" });
+  });
+
+  it("定性値は巨大=大津波相当、高い=警報相当として安全側で比較する", () => {
+    expect(maxTsunamiObservation([
+      { stationName: "数値", maxHeightValue: "10m" },
+      { stationName: "定性", maxHeightValue: "巨大" },
+    ])).toEqual({ stationName: "定性", label: "巨大" });
+    expect(maxTsunamiObservation([
+      { stationName: "注意報", maxHeightValue: "1m" },
+      { stationName: "警報", maxHeightValue: "高い" },
+    ])).toEqual({ stationName: "警報", label: "高い" });
   });
 });
 

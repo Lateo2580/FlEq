@@ -143,6 +143,13 @@
     return o.areaKind === "津波注意報";
   }
 
+  function observationCondition(o: DisplayTsunamiObservationV1): string {
+    const condition = o.condition?.trim() ?? "";
+    const heightCondition = o.heightCondition?.trim() ?? "";
+    if (heightCondition === "" || heightCondition === condition) return condition;
+    return `${condition}（${heightCondition}）`;
+  }
+
   const visibleObsRows = $derived(obsRows.filter((r) => observationVisible(r.row)));
   const visibleObservations = $derived(visibleObsRows.map((r) => r.row));
 
@@ -449,7 +456,7 @@
     <span class="obs-time">{formatHm(o.arrivalTime)}</span>
     <span class="obs-initial">{o.initial ?? ""}</span>
     <span class="obs-max-value">{o.maxHeightValue ?? "-"}</span>
-    <span class="obs-condition">{o.condition ?? ""}</span>
+    <span class="obs-condition">{observationCondition(o)}</span>
   </div>
 {/snippet}
 

@@ -13,19 +13,29 @@ const UNKNOWN_HEIGHT_LABEL = "不明";
 
 interface ParsedHeight {
   readonly value: number;
-  readonly over: boolean;
+  readonly qualifierRank: number;
 }
 
-// "10m超" / "10m" / "0.5m" 等の先頭数値を取り出す。単位・接尾辞込みで完全一致しない文字列
-// (自由記述の想定外パターン) は不明バケツへ回すため null を返す
+function normalizedHeight(raw: string): string {
+  return raw.normalize("NFKC").trim();
+}
+
+// 全角を NFKC 正規化してから "10m超" / "0.2m未満" / "3.2m" 等を読む。
+// 定性値は、巨大を大津波相当の最上位、高いを津波警報相当 (3m より安全側) として比較する。
+// 表示ラベルには正規化前の原文を使う。
 function parseHeight(raw: string): ParsedHeight | null {
-  const m = /^([0-9]+(?:\.[0-9]+)?)m(超)?$/.exec(raw);
+  const normalized = normalizedHeight(raw);
+  if (normalized === "巨大") return { value: Number.POSITIVE_INFINITY, qualifierRank: 0 };
+  if (normalized === "高い") return { value: 3, qualifierRank: 3 };
+  const m = /^([0-9]+(?:\.[0-9]+)?)m(超|以上|未満)?$/.exec(normalized);
   if (m == null) return null;
-  return { value: Number(m[1]), over: m[2] != null };
+  const qualifierRank = m[2] === "超" ? 2 : m[2] === "以上" ? 1 : m[2] === "未満" ? -1 : 0;
+  return { value: Number(m[1]), qualifierRank };
 }
 
 /** coasts[].maxHeight の distinct 値ごとに件数集計する。JMA 階級への正規化はしない
- *  (実値そのものをラベルにする)。先頭数値のパース結果で降順ソートし、同数値は "超" を上位に置く。
+ *  (実値そのものをラベルにする)。NFKC 後の数値で降順ソートし、同数値は超・以上を上位、
+ *  未満を下位に置く。定性値の「巨大」「高い」は安全側の警報階級で配置する。
  *  パース不能な値・null は末尾の「不明」バケツへ安全側フォールバックで合流させる */
 export function bucketTsunamiHeight(
   coasts: ReadonlyArray<{ maxHeight: string | null }>,
@@ -48,7 +58,9 @@ export function bucketTsunamiHeight(
   }));
   parsed.sort((a, b) => {
     if (a.parsed.value !== b.parsed.value) return b.parsed.value - a.parsed.value;
-    if (a.parsed.over !== b.parsed.over) return a.parsed.over ? -1 : 1;
+    if (a.parsed.qualifierRank !== b.parsed.qualifierRank) {
+      return b.parsed.qualifierRank - a.parsed.qualifierRank;
+    }
     return 0;
   });
 
@@ -145,27 +157,28 @@ export interface TsunamiMaxObservation {
   readonly label: string; // 元の maxHeightValue 文字列そのまま (パース結果の丸め値ではなく実値を出す)
 }
 
-// "8.5m以上" / "4.0m" 等の先頭数値を取り出す。coasts の "10m超" と語尾が異なる (観測実況は
-// 観測機器の計測上限超過を「以上」で表す) ため、bucketTsunamiHeight の parseHeight とは別に持つ
-function parseObservedHeight(raw: string): number | null {
-  const m = /^([0-9]+(?:\.[0-9]+)?)m(以上)?$/.exec(raw);
-  return m == null ? null : Number(m[1]);
-}
-
 /** 観測実況 (observations) の中から最大波高の観測点を 1 つ選ぶ。maxHeightValue は自由文字列
  *  (protocol.ts DisplayTsunamiObservationV1 コメント参照) でパース不能・null が混在しうるため、
- *  パースできた値だけを比較し数値最大を返す。全件パース不能・空配列なら null (安全側で「最大観測」
+ *  NFKC 後にパースできた数値・定性値だけを安全側の順位で比較する。全件パース不能・空配列なら
+ *  null (安全側で「最大観測」
  *  行ごと非表示にする判断は呼び出し側)。同値の場合は先に現れた観測点を優先する */
 export function maxTsunamiObservation(
   observations: ReadonlyArray<{ stationName: string; maxHeightValue: string | null }>,
 ): TsunamiMaxObservation | null {
-  let best: { value: number; stationName: string; label: string } | null = null;
+  let best: { parsed: ParsedHeight; stationName: string; label: string } | null = null;
   for (const o of observations) {
     if (o.maxHeightValue == null) continue;
-    const value = parseObservedHeight(o.maxHeightValue);
-    if (value == null) continue;
-    if (best == null || value > best.value) {
-      best = { value, stationName: o.stationName, label: o.maxHeightValue };
+    const parsed = parseHeight(o.maxHeightValue);
+    if (parsed == null) continue;
+    if (
+      best == null
+      || parsed.value > best.parsed.value
+      || (
+        parsed.value === best.parsed.value
+        && parsed.qualifierRank > best.parsed.qualifierRank
+      )
+    ) {
+      best = { parsed, stationName: o.stationName, label: o.maxHeightValue };
     }
   }
   return best != null ? { stationName: best.stationName, label: best.label } : null;

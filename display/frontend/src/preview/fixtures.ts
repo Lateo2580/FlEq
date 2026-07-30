@@ -1094,8 +1094,7 @@ const tsunamiStressObservations: DisplayTsunamiObservationV1[] = [
     arrivalTime: "2011-03-11T17:30:00+09:00", initial: "押し", maxHeightValue: "1.5m", condition: "上昇中",
   },
   {
-    // 「未満」表記はパース不能値として bucketTsunamiHeight/maxTsunamiObservation の
-    // 安全側フォールバック経路 (不明バケツ/最大値計算から除外) を実データで踏む
+    // 「未満」表記も maxTsunamiObservation が NFKC 後の上限値として比較し、原文表示を保つ
     areaName: "静岡県", areaKind: "津波警報", stationName: "焼津",
     arrivalTime: "2011-03-11T17:40:00+09:00", initial: "押し", maxHeightValue: "1m未満", condition: "上昇中",
   },

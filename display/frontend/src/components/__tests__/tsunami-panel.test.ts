@@ -67,6 +67,17 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
     expect(screen.getAllByText("石巻").length).toBe(2);
   });
 
+  it("最大波高の一般 condition と TsunamiHeight condition を観測行へ併記する", () => {
+    const observations = [observation({
+      maxHeightValue: "３．２ｍ",
+      condition: "重要",
+      heightCondition: "上昇中",
+    })];
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
+    expect(container.querySelector(".obs-max-value")?.textContent).toBe("３．２ｍ");
+    expect(container.querySelector(".obs-condition")?.textContent).toBe("重要（上昇中）");
+  });
+
   // Codex R4: compact (副役スロット) の配線。compact prop を分割代入し、class:compact と
   // .tsunami-panel.compact の圧縮スタイルを持つ。狭い右列に津波パネルが full のまま入る不具合の修正。
   it("compact prop で class:compact が付き、compact 圧縮スタイルを持つ (Codex R4)", () => {
@@ -149,15 +160,15 @@ describe("TsunamiPanel 固定サマリ計器 (spec §2-c)", () => {
     expect(headlines[1].querySelector(".headline-count")?.textContent).toBe("1予報区");
   });
 
-  it("全区パース不能の縮退時は「予想最大 不明」がそのまま先頭バケツとして出る", () => {
+  it("定性値「巨大」を最上位にし、パース不能値だけを不明へ縮退する", () => {
     const coasts = [
       { name: "A", kind: "warning", maxHeight: "巨大", firstHeight: "不明瞭" },
       { name: "B", kind: "warning", maxHeight: "測定不能", firstHeight: "検討中" },
     ];
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
     const headlines = container.querySelectorAll(".instrument-headline");
-    expect(headlines[0].querySelector(".headline-value")?.textContent).toBe("不明");
-    expect(headlines[0].querySelector(".headline-count")?.textContent).toBe("2予報区");
+    expect(headlines[0].querySelector(".headline-value")?.textContent).toBe("巨大");
+    expect(headlines[0].querySelector(".headline-count")?.textContent).toBe("1予報区");
     expect(headlines[1].querySelector(".headline-value")?.textContent).toBe("到達時期不明");
     expect(headlines[1].querySelector(".headline-count")?.textContent).toBe("2予報区");
   });
