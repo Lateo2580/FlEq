@@ -1,4 +1,4 @@
-import { FLOOD_LEVEL_RANK, maxFloodLevel } from "../../dmdata/flood-level";
+import { FLOOD_LEVEL_RANK, floodKindCodeToLevel, maxFloodLevel } from "../../dmdata/flood-level";
 import type { FloodCriteria, FloodHeadline, FloodLevel, FloodStation, ParsedFloodForecastInfo } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
 import type { DisplayFloodHydrographV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "./protocol";
@@ -195,6 +195,45 @@ function projectRivers(raw: ParsedFloodForecastInfo, reportDateTime: string): Di
   }));
 }
 
+function relevantHeadlineRivers(raw: ParsedFloodForecastInfo, reportDateTime: string): {
+  understood: boolean;
+  release: boolean;
+  rivers: DisplayFloodRiverV1[];
+} {
+  const byRiver = new Map<string, DisplayFloodRiverV1>();
+  let understood = false;
+  let release = false;
+  for (const headline of raw.headlines) {
+    if (headline.scope !== "河川" && headline.scope !== "発表区間") continue;
+    const level = floodKindCodeToLevel(headline.kindCode);
+    if (level === "unknown" || headline.areas.length === 0) continue;
+    understood = true;
+    if (level === "release") {
+      release = true;
+      continue;
+    }
+    const levelRank = FLOOD_LEVEL_RANK[level];
+    if (levelRank < FLOOD_LEVEL_RANK.L3) continue;
+    for (const area of headline.areas) {
+      const riverName = normalizeRiverName(area.name);
+      if (riverName === "") continue;
+      const riverKey = area.code !== "" ? area.code : `name:${riverName}`;
+      const candidate: DisplayFloodRiverV1 = {
+        riverKey,
+        riverName,
+        level,
+        levelRank,
+        kindName: headline.kindName || FLOOD_LEVEL_NAMES[level],
+        reportDateTime,
+        station: null,
+      };
+      const current = byRiver.get(riverKey);
+      if (current == null || candidate.levelRank > current.levelRank) byRiver.set(riverKey, candidate);
+    }
+  }
+  return { understood, release, rivers: [...byRiver.values()] };
+}
+
 export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate | null {
   if (event.domain !== "floodForecast" || event.raw == null || Array.isArray(event.raw)) return null;
   const raw = event.raw as ParsedFloodForecastInfo;
@@ -214,6 +253,36 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
     };
   }
   if (raw.rawStations.length === 0) {
+    const headline = relevantHeadlineRivers(raw, reportDateTime);
+    if (headline.rivers.length > 0) {
+      return {
+        mode: "replace",
+        eventId,
+        reportDateTime,
+        serial,
+        ...(isCorrection ? { isCorrection: true } : {}),
+        rivers: headline.rivers,
+      };
+    }
+    if (headline.release) {
+      return {
+        mode: "cancel",
+        eventId,
+        reportDateTime,
+        serial,
+        ...(isCorrection ? { isCorrection: true } : {}),
+      };
+    }
+    if (headline.understood) {
+      return {
+        mode: "replace",
+        eventId,
+        reportDateTime,
+        serial,
+        ...(isCorrection ? { isCorrection: true } : {}),
+        rivers: [],
+      };
+    }
     return {
       mode: "observeOnly",
       eventId,

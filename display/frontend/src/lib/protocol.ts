@@ -439,8 +439,17 @@ export interface DisplayVolcanoEntryV1 {
   warningKind?: string | null;
   /** 対象市町村に付随する警戒区分。電文順のユニーク列。旧永続化データとの互換のため省略可。 */
   targetKinds?: string[];
+  /** 数値レベル運用外の警報区分。旧 snapshot との互換のため省略可。 */
+  alertClass?: DisplayVolcanoAlertClassV1 | null;
   /** 直近の噴火観測。旧 protocol snapshot との互換のため省略可。 */
   latestEvent?: DisplayVolcanoEventV1 | null;
+}
+
+export interface DisplayVolcanoAlertClassV1 {
+  code: string;
+  name: string;
+  severity: "warning" | "info";
+  isActive: boolean;
 }
 
 export interface DisplayVolcanoEventV1 {

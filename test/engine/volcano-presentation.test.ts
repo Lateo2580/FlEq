@@ -35,6 +35,7 @@ function createAlert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVol
     type: "VFVO50",
     alertLevel: 3,
     alertLevelCode: "13",
+    alertClass: null,
     action: "raise",
     previousLevelCode: null,
     warningKind: "噴火警報（火口周辺）",
@@ -88,6 +89,7 @@ function createText(overrides: Partial<ParsedVolcanoTextInfo> = {}): ParsedVolca
     type: "VFVO51",
     alertLevel: null,
     alertLevelCode: null,
+    alertClasses: [],
     isExtraordinary: false,
     bodyText: "",
     nextAdvisory: null,
@@ -289,6 +291,36 @@ describe("resolveVolcanoPresentation", () => {
   // ── テキスト系 ──
 
   describe("テキスト系", () => {
+    it.each(["22", "23", "31", "36"])(
+      "VFVO51 active warning 区分 Code %s は warning 音",
+      (code) => {
+        const info = createText({
+          alertClasses: [{
+            volcanoCode: "506",
+            volcanoName: "桜島",
+            alertClass: { code, name: "警報区分", severity: "warning", isActive: true },
+          }],
+        });
+        const p = resolveVolcanoPresentation(info, volcanoState);
+        expect(p.soundLevel).toBe("warning");
+      },
+    );
+
+    it.each(["21", "35"])(
+      "VFVO51 info 区分 Code %s は info 音のまま",
+      (code) => {
+        const info = createText({
+          alertClasses: [{
+            volcanoCode: "506",
+            volcanoName: "桜島",
+            alertClass: { code, name: "予報区分", severity: "info", isActive: true },
+          }],
+        });
+        const p = resolveVolcanoPresentation(info, volcanoState);
+        expect(p.soundLevel).toBe("info");
+      },
+    );
+
     it("VFVO51 臨時 → warning / normal", () => {
       const info = createText({ isExtraordinary: true });
       const p = resolveVolcanoPresentation(info, volcanoState);

@@ -31,6 +31,7 @@ function alert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVolcanoAl
     isTest: false,
     alertLevel: 3,
     alertLevelCode: "13",
+    alertClass: null,
     action: "raise",
     previousLevelCode: "12",
     warningKind: "噴火警報（火口周辺）",

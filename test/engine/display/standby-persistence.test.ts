@@ -7,9 +7,14 @@ import { StandbyStateStore } from "../../../src/engine/display/standby-state-sto
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
+import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
 import type { FloodForecastOutcome } from "../../../src/engine/presentation/types";
-import { createMockWsDataMessage } from "../../helpers/mock-message";
+import {
+  createMockWsDataMessage,
+  FIXTURE_VFVO56_FLASH_1,
+  FIXTURE_VFVO56_FLASH_4,
+} from "../../helpers/mock-message";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 const roots: string[] = [];
@@ -533,12 +538,14 @@ describe("StandbyStateStore persistence", () => {
       }],
       volcanoes: [{
         code: "V-1", name: "Mount Test", alertLevel: 3,
+        alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
         warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制", "避難準備"],
         alertExpiresAtMs: null,
         latestEvent: {
           label: "噴火", craterName: "山頂火口", eventDateTime: new Date(T0 - 60_000).toISOString(),
           plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
         },
+        latestEventId: "eruption-event-1",
         eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"],
         alertRevision: { reportTimeMs: T0, serial: "1" },
         eventRevision: { reportTimeMs: T0, serial: "1" },
@@ -559,6 +566,7 @@ describe("StandbyStateStore persistence", () => {
     });
     expect(store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
       alertLevel: 3,
+      alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
       warningKind: "噴火警報（火口周辺）",
       targetKinds: ["入山規制", "避難準備"],
       latestEvent: {
@@ -592,6 +600,45 @@ describe("StandbyStateStore persistence", () => {
     expect(store.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
       pressureDeltaHpa: -5, maxWindDeltaMs: 5, intensityTrend: "developing",
     });
+  });
+
+  it("latestEventId のない旧形式 VFVO56 state を実ファイル復元し、単一候補なら空コード取消を適用する", () => {
+    const issueMsg = createMockWsDataMessage(FIXTURE_VFVO56_FLASH_1);
+    const cancelMsg = createMockWsDataMessage(FIXTURE_VFVO56_FLASH_4);
+    const issueRaw = parseVolcanoTelegram(issueMsg)!;
+    const cancelRaw = parseVolcanoTelegram(cancelMsg)!;
+    const issueAt = Date.parse(issueRaw.reportDateTime);
+    const cancelAt = Date.parse(cancelRaw.reportDateTime);
+    const eventId = "20140927120000_312";
+    const event = (id: string, raw: typeof issueRaw, msg: typeof issueMsg) => ({
+      id,
+      domain: "volcano",
+      eventId,
+      serial: msg.xmlReport?.head.serial ?? null,
+      reportDateTime: raw.reportDateTime,
+      infoType: raw.infoType,
+      isCancellation: raw.infoType === "取消",
+      raw,
+    }) as never;
+
+    const beforeRestart = new StandbyStateStore();
+    beforeRestart.applyEvent(event("issue", issueRaw, issueMsg), issueAt);
+    const path = tempPath();
+    const active = beforeRestart.exportActiveState();
+    const { latestEventId: _legacyMissing, ...legacyVolcano } = active.volcanoes[0];
+    new StandbyPersistence(path).save({ ...active, volcanoes: [legacyVolcano] });
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.volcanoes[0]).not.toHaveProperty("latestEventId");
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, cancelAt);
+    expect(restored.exportActiveState().volcanoes[0]?.latestEventId).toBeNull();
+
+    restored.applyEvent(event("cancel", cancelRaw, cancelMsg), cancelAt);
+    new StandbyPersistence(path).save(restored.exportActiveState());
+    const afterRestart = new StandbyStateStore();
+    afterRestart.restoreActiveState(new StandbyPersistence(path).load()!, cancelAt + 1);
+    expect(afterRestart.snapshotItems()).toEqual([]);
+    expect(afterRestart.exportActiveState().volcanoes).toEqual([]);
   });
 
   it("非表示の level 3 警報を実ファイル復元し、後着した噴火イベントへ併記する", () => {
@@ -673,6 +720,8 @@ describe("StandbyStateStore persistence", () => {
     const loaded = new StandbyPersistence(path).load();
     expect(loaded?.volcanoes[0]).not.toHaveProperty("warningKind");
     expect(loaded?.volcanoes[0]).not.toHaveProperty("targetKinds");
+    expect(loaded?.volcanoes[0]).not.toHaveProperty("alertClass");
+    expect(loaded?.volcanoes[0]).not.toHaveProperty("latestEventId");
     const restored = new StandbyStateStore();
     restored.restoreActiveState(loaded!, T0 + 60_000);
     expect(restored.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({

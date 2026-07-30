@@ -1,0 +1,1702 @@
+diff --git a/display/frontend/src/components/TyphoonCard.svelte b/display/frontend/src/components/TyphoonCard.svelte
+index 11168cb8..707eab00 100644
+--- a/display/frontend/src/components/TyphoonCard.svelte
++++ b/display/frontend/src/components/TyphoonCard.svelte
+@@ -27,6 +27,7 @@
+     <!-- 未命名 (発生予想等) は総称の「台風」を出さず remark を主行に昇格させる (2 行の冗長回避) -->
+     <div class="typhoon">
+       <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
++      {#if typhoon.name != null && typhoon.remark != null}<div class="remark">{typhoon.remark}</div>{/if}
+       {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
+       {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || typhoon.maxGustMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
+         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
+@@ -102,7 +103,7 @@
+   .typhoon { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
+   .typhoon strong { display: block; font-size: max(14px, var(--type-label-l-fluid)); }
+   /* 現在位置: ラベルなしの muted 本文 (層2) */
+-  .location { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
++  .location, .remark { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
+   /* 通常幅は VolcanoCard と同じ 2×2。各列に 9rem を確保できない幅では自動的に 1 列へ落とし、
+      minmax(0, ...) のように内容幅を無視して親の overflow:hidden へ押し込まない。 */
+   .meta {
+diff --git a/display/frontend/src/components/VolcanoCard.svelte b/display/frontend/src/components/VolcanoCard.svelte
+index 184cdd4c..e2713c00 100644
+--- a/display/frontend/src/components/VolcanoCard.svelte
++++ b/display/frontend/src/components/VolcanoCard.svelte
+@@ -11,10 +11,13 @@
+   // レベル4 または噴火速報=赤 / レベル5=紫)。severity では段階が足りないため data から導出する
+   const maxAlertLevel = $derived(item.data.volcanoes.reduce((max, v) => Math.max(max, v.alertLevel ?? 0), 0));
+   const hasEruptionFlash = $derived(item.data.volcanoes.some((v) => v.latestEvent?.label === "噴火速報"));
++  const hasWarningClass = $derived(item.data.volcanoes.some((v) =>
++    v.alertClass?.isActive === true && v.alertClass.severity === "warning",
++  ));
+   const band = $derived(
+     maxAlertLevel >= 5 ? "emergency"
+       : maxAlertLevel >= 4 || hasEruptionFlash ? "red"
+-        : maxAlertLevel >= 3 ? "warning"
++        : maxAlertLevel >= 3 || hasWarningClass ? "warning"
+           : "advisory",
+   );
+ 
+@@ -24,7 +27,9 @@
+       .filter((kind, index, all) => kind !== "" && all.indexOf(kind) === index);
+     const visibleKinds = targetKinds.slice(0, 2);
+     if (targetKinds.length > visibleKinds.length) visibleKinds.push(`ほか${targetKinds.length - visibleKinds.length}種`);
+-    const parts = [volcano.warningKind?.trim() ?? "", visibleKinds.join("・")]
++    const warningKind = volcano.warningKind?.trim() ?? "";
++    const alertClassName = volcano.alertClass?.isActive === true ? volcano.alertClass.name.trim() : "";
++    const parts = [warningKind === alertClassName ? "" : warningKind, visibleKinds.join("・")]
+       .filter((part) => part !== "");
+     return parts.length === 0 ? null : parts.join(" / ");
+   }
+@@ -45,7 +50,14 @@
+   {#each item.data.volcanoes as volcano (volcano.code)}
+     {@const meaning = alertMeaning(volcano)}
+     <div class="volcano">
+-      <div class="volcano-main"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}</div>
++      <div class="volcano-main">
++        <span>{volcano.name}</span>
++        {#if volcano.alertLevel != null}
++          <span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>
++        {:else if volcano.alertClass?.isActive}
++          <span>{volcano.alertClass.name}</span>
++        {/if}
++      </div>
+       {#if meaning != null}<div class="alert-meaning">{meaning}</div>{/if}
+       {#if volcano.latestEvent != null}
+         <strong>{volcano.latestEvent.label}</strong>
+diff --git a/display/frontend/src/components/__tests__/typhoon-card.test.ts b/display/frontend/src/components/__tests__/typhoon-card.test.ts
+index 5406733c..e0e2b2f3 100644
+--- a/display/frontend/src/components/__tests__/typhoon-card.test.ts
++++ b/display/frontend/src/components/__tests__/typhoon-card.test.ts
+@@ -193,6 +193,14 @@ describe("TyphoonCard", () => {
+     expect(container.textContent).toContain("BETA");
+   });
+ 
++  it("命名済み台風でも Remark を見出し下の補助行に残す", () => {
++    const { container } = render(TyphoonCard, {
++      item: typhoonItem([typhoon({ name: "ALPHA", remark: "台風消滅（温帯低気圧化）" })]),
++    });
++    expect(container.querySelector("strong")?.textContent).toContain("ALPHA");
++    expect(container.querySelector(".remark")?.textContent).toBe("台風消滅（温帯低気圧化）");
++  });
++
+   it("marks a restored card as synchronizing", () => {
+     const { container } = render(TyphoonCard, { item: { ...typhoonItem(), restored: true } });
+     expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
+diff --git a/display/frontend/src/components/__tests__/volcano-card.test.ts b/display/frontend/src/components/__tests__/volcano-card.test.ts
+index 4959ed0f..14415900 100644
+--- a/display/frontend/src/components/__tests__/volcano-card.test.ts
++++ b/display/frontend/src/components/__tests__/volcano-card.test.ts
+@@ -73,6 +73,21 @@ describe("VolcanoCard", () => {
+     expect(meaning?.previousElementSibling?.classList.contains("volcano-main")).toBe(true);
+   });
+ 
++  it("数値レベル運用外の警報区分をレベル行へ表示する", () => {
++    const { container } = render(VolcanoCard, { item: volcanoItem({
++      data: { volcanoes: [{
++        code: "329",
++        name: "硫黄島",
++        alertLevel: null,
++        alertClass: { code: "22", name: "火口周辺危険", severity: "warning", isActive: true },
++        latestEvent: null,
++      }] },
++    }) });
++    expect(container.querySelector(".volcano-main")?.textContent).toContain("硫黄島");
++    expect(container.querySelector(".volcano-main")?.textContent).toContain("火口周辺危険");
++    expect(container.querySelector(".volcano-card")?.classList.contains("band-warning")).toBe(true);
++  });
++
+   it("2 種の対象区分を電文順に列挙する", () => {
+     const { container } = render(VolcanoCard, { item: volcanoItem({
+       data: { volcanoes: [{
+diff --git a/display/frontend/src/lib/protocol.ts b/display/frontend/src/lib/protocol.ts
+index 7e9233e0..43029286 100644
+--- a/display/frontend/src/lib/protocol.ts
++++ b/display/frontend/src/lib/protocol.ts
+@@ -439,10 +439,19 @@ export interface DisplayVolcanoEntryV1 {
+   warningKind?: string | null;
+   /** 対象市町村に付随する警戒区分。電文順のユニーク列。旧永続化データとの互換のため省略可。 */
+   targetKinds?: string[];
++  /** 数値レベル運用外の警報区分。旧 snapshot との互換のため省略可。 */
++  alertClass?: DisplayVolcanoAlertClassV1 | null;
+   /** 直近の噴火観測。旧 protocol snapshot との互換のため省略可。 */
+   latestEvent?: DisplayVolcanoEventV1 | null;
+ }
+ 
++export interface DisplayVolcanoAlertClassV1 {
++  code: string;
++  name: string;
++  severity: "warning" | "info";
++  isActive: boolean;
++}
++
+ export interface DisplayVolcanoEventV1 {
+   /** 表示名 ("噴火速報"、"噴火" 等) */
+   label: string;
+diff --git a/src/dmdata/typhoon-analysis-parser.ts b/src/dmdata/typhoon-analysis-parser.ts
+index e0d39483..b90320cb 100644
+--- a/src/dmdata/typhoon-analysis-parser.ts
++++ b/src/dmdata/typhoon-analysis-parser.ts
+@@ -8,6 +8,7 @@ import {
+   TyphoonWind,
+   TyphoonWindArea,
+   TyphoonWindAxis,
++  TyphoonLifecycle,
+ } from "../types";
+ import { decodeBody, dig, str } from "./telegram-parser";
+ import { listOf, toNumberOrNull, nodeText } from "./timeseries-common";
+@@ -122,6 +123,20 @@ function parseFrame(info: unknown): TyphoonFrame {
+   return { kind, label, validTime: nodeText(dt), typhoonClass, center, wind };
+ }
+ 
++function typhoonLifecycle(name: TyphoonName | null, frames: TyphoonFrame[]): TyphoonLifecycle {
++  const remark = name?.remark?.trim() ?? "";
++  if (/台風発生の可能性が小さくなった|台風発生予想.*(?:終了|中止|取りやめ)/u.test(remark)) {
++    return "formationCancelled";
++  }
++  const current = frames.find((frame) => frame.kind === "実況") ?? frames[0];
++  const category = current?.typhoonClass.category ?? "";
++  if (category.includes("温帯低気圧") || category === "LOW" || /台風消滅|温帯低気圧化/u.test(remark)) {
++    return "transitionedToLow";
++  }
++  if (remark.includes("台風発生予想")) return "forming";
++  return "active";
++}
++
+ export function parseTyphoonAnalysis(
+   msg: WsDataMessage,
+ ): ParsedTyphoonAnalysis | null {
+@@ -177,6 +192,7 @@ export function parseTyphoonAnalysis(
+       headline: str(dig(dig(head, "Headline"), "Text")) || null,
+       name,
+       frames,
++      lifecycle: typhoonLifecycle(name, frames),
+       isTest: msg.head.test,
+     };
+   } catch (err) {
+diff --git a/src/dmdata/volcano-parser.ts b/src/dmdata/volcano-parser.ts
+index 6077bfcc..a422be89 100644
+--- a/src/dmdata/volcano-parser.ts
++++ b/src/dmdata/volcano-parser.ts
+@@ -12,6 +12,8 @@ import {
+   AshForecastPeriod,
+   AshArea,
+   WindProfileEntry,
++  VolcanoAlertClass,
++  VolcanoAlertClassEntry,
+ } from "../types";
+ import { decodeBody, parseXml, dig, str, first } from "./telegram-parser";
+ import * as log from "../logger";
+@@ -98,12 +100,49 @@ function conditionToAction(condition: string, infoType: string): VolcanoAction {
+   return "issue";
+ }
+ 
++const NON_NUMERIC_ALERT_SEVERITY: Readonly<Record<string, VolcanoAlertClass["severity"]>> = {
++  "21": "info",
++  "22": "warning",
++  "23": "warning",
++  "31": "warning",
++  "35": "info",
++  "36": "warning",
++};
++
++function volcanoAlertClass(
++  code: string,
++  name: string,
++  condition: string,
++  infoType: string,
++): VolcanoAlertClass | null {
++  const severity = NON_NUMERIC_ALERT_SEVERITY[code];
++  if (severity == null || name === "") return null;
++  const action = conditionToAction(condition, infoType);
++  return {
++    code,
++    name,
++    severity,
++    isActive: action !== "release" && action !== "cancel",
++  };
++}
++
++function preferVolcanoAlertClass(
++  current: VolcanoAlertClass | null,
++  candidate: VolcanoAlertClass | null,
++): VolcanoAlertClass | null {
++  if (candidate == null) return current;
++  if (current == null) return candidate;
++  if (candidate.isActive !== current.isActive) return candidate.isActive ? candidate : current;
++  if (candidate.severity !== current.severity) return candidate.severity === "warning" ? candidate : current;
++  return current;
++}
++
+ /** 火山名の VolcanoInfo (type="...（対象火山）") から火山情報を抽出 */
+ function extractVolcanoBase(
+   report: unknown,
+   headType: VolcanoHeadType,
+   msg: WsDataMessage,
+-): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "marineAreas" | "marineWarningKind" | "marineAlertLevelCode" | "bodyText" | "preventionText" | "isMarine"> {
++): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "marineAreas" | "marineWarningKind" | "marineAlertLevelCode" | "alertClass" | "bodyText" | "preventionText" | "isMarine"> {
+   const head = dig(report, "Head");
+   const body = dig(report, "Body");
+ 
+@@ -382,6 +421,21 @@ function parseVolcanoAlert(
+   const content = dig(body, "VolcanoInfoContent");
+   const bodyText = normalizeVolcanoBodyText(str(dig(content, "VolcanoActivity")));
+   const preventionText = str(dig(content, "VolcanoPrevention"));
++  let alertClass = volcanoAlertClass(
++    alertLevelCode ?? "",
++    warningKind,
++    condition,
++    base.infoType,
++  );
++  alertClass = preferVolcanoAlertClass(
++    alertClass,
++    volcanoAlertClass(
++      marineAlertLevelCode ?? "",
++      marineWarningKind ?? "",
++      condition,
++      base.infoType,
++    ),
++  );
+ 
+   return {
+     ...base,
+@@ -396,6 +450,7 @@ function parseVolcanoAlert(
+     marineAreas,
+     marineWarningKind,
+     marineAlertLevelCode,
++    alertClass,
+     bodyText,
+     preventionText,
+     isMarine,
+@@ -566,6 +621,7 @@ function parseVolcanoText(
+ 
+   // レベル情報 (VFVO51 のみ)
+   let alertLevelCode: string | null = null;
++  const alertClasses: VolcanoAlertClassEntry[] = [];
+   if (headType === "VFVO51") {
+     const headInfo = dig(head, "Headline", "Information");
+     const headInfoList = Array.isArray(headInfo) ? headInfo : headInfo ? [headInfo] : [];
+@@ -580,11 +636,26 @@ function parseVolcanoText(
+           const kind = dig(item, "Kind");
+           const kindObj = Array.isArray(kind) ? kind[0] : kind;
+           const code = str(dig(kindObj, "Code"));
++          const name = str(dig(kindObj, "Name"));
++          const condition = str(dig(kindObj, "Condition"));
+           if (code && levelCodeToNumber(code) != null) {
+             if (!alertLevelCode || Number(code) > Number(alertLevelCode)) {
+               alertLevelCode = code;
+             }
+           }
++          const alertClass = volcanoAlertClass(code, name, condition, base.infoType);
++          if (alertClass != null) {
++            const areas = dig(item, "Areas", "Area");
++            for (const area of Array.isArray(areas) ? areas : areas ? [areas] : []) {
++              const volcanoCode = str(dig(area, "Code"));
++              if (volcanoCode === "") continue;
++              alertClasses.push({
++                volcanoCode,
++                volcanoName: str(dig(area, "Name")),
++                alertClass: { ...alertClass },
++              });
++            }
++          }
+         }
+       }
+     }
+@@ -605,6 +676,7 @@ function parseVolcanoText(
+     type: headType,
+     alertLevel,
+     alertLevelCode,
++    alertClasses,
+     isExtraordinary,
+     bodyText,
+     nextAdvisory: nextAdvisory ? nextAdvisory.trim() : null,
+diff --git a/src/engine/display/project-flood.ts b/src/engine/display/project-flood.ts
+index acc0a8c1..c4e00577 100644
+--- a/src/engine/display/project-flood.ts
++++ b/src/engine/display/project-flood.ts
+@@ -1,4 +1,4 @@
+-import { FLOOD_LEVEL_RANK, maxFloodLevel } from "../../dmdata/flood-level";
++import { FLOOD_LEVEL_RANK, floodKindCodeToLevel, maxFloodLevel } from "../../dmdata/flood-level";
+ import type { FloodCriteria, FloodHeadline, FloodLevel, FloodStation, ParsedFloodForecastInfo } from "../../types";
+ import type { PresentationEvent } from "../presentation/types";
+ import type { DisplayFloodHydrographV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "./protocol";
+@@ -195,6 +195,45 @@ function projectRivers(raw: ParsedFloodForecastInfo, reportDateTime: string): Di
+   }));
+ }
+ 
++function relevantHeadlineRivers(raw: ParsedFloodForecastInfo, reportDateTime: string): {
++  understood: boolean;
++  release: boolean;
++  rivers: DisplayFloodRiverV1[];
++} {
++  const byRiver = new Map<string, DisplayFloodRiverV1>();
++  let understood = false;
++  let release = false;
++  for (const headline of raw.headlines) {
++    if (headline.scope !== "河川" && headline.scope !== "発表区間") continue;
++    const level = floodKindCodeToLevel(headline.kindCode);
++    if (level === "unknown" || headline.areas.length === 0) continue;
++    understood = true;
++    if (level === "release") {
++      release = true;
++      continue;
++    }
++    const levelRank = FLOOD_LEVEL_RANK[level];
++    if (levelRank < FLOOD_LEVEL_RANK.L3) continue;
++    for (const area of headline.areas) {
++      const riverName = normalizeRiverName(area.name);
++      if (riverName === "") continue;
++      const riverKey = area.code !== "" ? area.code : `name:${riverName}`;
++      const candidate: DisplayFloodRiverV1 = {
++        riverKey,
++        riverName,
++        level,
++        levelRank,
++        kindName: headline.kindName || FLOOD_LEVEL_NAMES[level],
++        reportDateTime,
++        station: null,
++      };
++      const current = byRiver.get(riverKey);
++      if (current == null || candidate.levelRank > current.levelRank) byRiver.set(riverKey, candidate);
++    }
++  }
++  return { understood, release, rivers: [...byRiver.values()] };
++}
++
+ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate | null {
+   if (event.domain !== "floodForecast" || event.raw == null || Array.isArray(event.raw)) return null;
+   const raw = event.raw as ParsedFloodForecastInfo;
+@@ -214,6 +253,36 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
+     };
+   }
+   if (raw.rawStations.length === 0) {
++    const headline = relevantHeadlineRivers(raw, reportDateTime);
++    if (headline.rivers.length > 0) {
++      return {
++        mode: "replace",
++        eventId,
++        reportDateTime,
++        serial,
++        ...(isCorrection ? { isCorrection: true } : {}),
++        rivers: headline.rivers,
++      };
++    }
++    if (headline.release) {
++      return {
++        mode: "cancel",
++        eventId,
++        reportDateTime,
++        serial,
++        ...(isCorrection ? { isCorrection: true } : {}),
++      };
++    }
++    if (headline.understood) {
++      return {
++        mode: "replace",
++        eventId,
++        reportDateTime,
++        serial,
++        ...(isCorrection ? { isCorrection: true } : {}),
++        rivers: [],
++      };
++    }
+     return {
+       mode: "observeOnly",
+       eventId,
+diff --git a/src/engine/display/project-standby.ts b/src/engine/display/project-standby.ts
+index fdff74b5..620b0aff 100644
+--- a/src/engine/display/project-standby.ts
++++ b/src/engine/display/project-standby.ts
+@@ -65,7 +65,10 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate |
+     sourceEventId: event.id,
+     reportDateTime: event.reportDateTime,
+     serial: event.serial ?? raw.serial,
+-    isCancellation: event.isCancellation || raw.infoType === "取消",
++    isCancellation: event.isCancellation
++      || raw.infoType === "取消"
++      || raw.lifecycle === "transitionedToLow"
++      || raw.lifecycle === "formationCancelled",
+     isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
+     typhoon: {
+       typhoonKey,
+@@ -89,6 +92,7 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate |
+ 
+ export interface VolcanoUpdate {
+   volcano: DisplayVolcanoEntryV1;
++  eventId: string | null;
+   sourceEventId: string;
+   reportDateTime: string;
+   serial: string | null;
+@@ -97,11 +101,34 @@ export interface VolcanoUpdate {
+   isCorrection: boolean;
+ }
+ 
+-export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | null {
+-  if (event.domain !== "volcano" || event.raw == null || Array.isArray(event.raw)) return null;
++export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[] {
++  if (event.domain !== "volcano" || event.raw == null || Array.isArray(event.raw)) return [];
+   const raw = event.raw as ParsedVolcanoInfo;
+-  if (raw.kind !== "alert" && raw.kind !== "eruption") return null;
+-  if (raw.volcanoCode === "") return null;
++  if (raw.kind === "text") {
++    return raw.alertClasses.map((entry) => ({
++      volcano: {
++        code: entry.volcanoCode,
++        name: entry.volcanoName,
++        alertLevel: null,
++        warningKind: null,
++        targetKinds: [],
++        alertClass: { ...entry.alertClass },
++        latestEvent: null,
++      },
++      eventId: event.eventId ?? null,
++      sourceEventId: event.id,
++      reportDateTime: event.reportDateTime,
++      serial: event.serial ?? null,
++      kind: "alert",
++      isCancellation: !entry.alertClass.isActive,
++      isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
++    }));
++  }
++  if (raw.kind !== "alert" && raw.kind !== "eruption") return [];
++  const isCancellation = event.isCancellation
++    || raw.infoType === "取消"
++    || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel");
++  if (raw.volcanoCode === "" && !(raw.kind === "eruption" && isCancellation && event.eventId != null)) return [];
+   const alertLevel = raw.kind === "alert" ? raw.alertLevel : null;
+   const warningKind = raw.kind === "alert" ? raw.warningKind?.trim() || null : null;
+   const targetKinds = raw.kind === "alert"
+@@ -111,13 +138,14 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate |
+       return kinds;
+     }, [])
+     : [];
+-  return {
++  return [{
+     volcano: {
+       code: raw.volcanoCode,
+       name: raw.volcanoName,
+       alertLevel,
+       warningKind,
+       targetKinds,
++      alertClass: raw.kind === "alert" ? raw.alertClass : null,
+       latestEvent: raw.kind === "eruption" ? {
+         label: raw.isFlashReport ? "噴火速報" : raw.phenomenonName.trim() || "噴火",
+         craterName: raw.craterName ?? null,
+@@ -127,13 +155,12 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate |
+         plumeDirection: raw.plumeDirection ?? null,
+       } : null,
+     },
++    eventId: event.eventId ?? null,
+     sourceEventId: event.id,
+     reportDateTime: event.reportDateTime,
+     serial: event.serial ?? null,
+     kind: raw.kind,
+-    isCancellation: event.isCancellation
+-      || raw.infoType === "取消"
+-      || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel"),
++    isCancellation,
+     isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
+-  };
++  }];
+ }
+diff --git a/src/engine/display/protocol.ts b/src/engine/display/protocol.ts
+index 6727c60b..0a663c05 100644
+--- a/src/engine/display/protocol.ts
++++ b/src/engine/display/protocol.ts
+@@ -437,10 +437,19 @@ export interface DisplayVolcanoEntryV1 {
+   warningKind?: string | null;
+   /** 対象市町村に付随する警戒区分。電文順のユニーク列。旧永続化データとの互換のため省略可。 */
+   targetKinds?: string[];
++  /** 数値レベル運用外の警報区分。旧 snapshot との互換のため省略可。 */
++  alertClass?: DisplayVolcanoAlertClassV1 | null;
+   /** 直近の噴火観測。旧 protocol snapshot との互換のため省略可。 */
+   latestEvent?: DisplayVolcanoEventV1 | null;
+ }
+ 
++export interface DisplayVolcanoAlertClassV1 {
++  code: string;
++  name: string;
++  severity: "warning" | "info";
++  isActive: boolean;
++}
++
+ export interface DisplayVolcanoEventV1 {
+   /** 表示名 ("噴火速報"、"噴火" 等) */
+   label: string;
+diff --git a/src/engine/display/standby-persistence.ts b/src/engine/display/standby-persistence.ts
+index ede94c83..43935cbe 100644
+--- a/src/engine/display/standby-persistence.ts
++++ b/src/engine/display/standby-persistence.ts
+@@ -7,6 +7,7 @@ import type {
+   DisplayFloodStationV1,
+   DisplayHeatAreaV1,
+   DisplayTyphoonV1,
++  DisplayVolcanoAlertClassV1,
+   DisplayVolcanoEventV1,
+   DisplayWeatherAlertItemV1,
+   DisplayWeatherAlertV1,
+@@ -48,11 +49,14 @@ export interface PersistedVolcanoStateV1 {
+   code: string;
+   name: string;
+   alertLevel: number | null;
++  alertClass?: DisplayVolcanoAlertClassV1 | null;
+   warningKind?: string | null;
+   targetKinds?: string[];
+   alertExpiresAtMs: number | null;
+   /** string は構造化前の v1 保存状態との互換専用。新規保存は DisplayVolcanoEventV1。 */
+   latestEvent?: DisplayVolcanoEventV1 | string | null;
++  /** 空コードの取消を EventID で直近噴火へ結び直すための逆引き。 */
++  latestEventId?: string | null;
+   eventExpiresAtMs: number | null;
+   sourceEventIds: string[];
+   alertRevision: StandbyRevision | null;
+@@ -400,6 +404,9 @@ function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
+     && typeof value.code === "string"
+     && typeof value.name === "string"
+     && hasNullableFiniteNumber(value, "alertLevel")
++    && (!Object.hasOwn(value, "alertClass")
++      || value.alertClass == null
++      || isVolcanoAlertClass(value.alertClass))
+     && (!Object.hasOwn(value, "warningKind") || hasNullableString(value, "warningKind"))
+     && (!Object.hasOwn(value, "targetKinds") || isStringArray(value.targetKinds))
+     && hasNullableFiniteNumber(value, "alertExpiresAtMs")
+@@ -407,12 +414,21 @@ function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
+       || value.latestEvent == null
+       || typeof value.latestEvent === "string"
+       || isVolcanoEvent(value.latestEvent))
++    && (!Object.hasOwn(value, "latestEventId") || hasNullableString(value, "latestEventId"))
+     && hasNullableFiniteNumber(value, "eventExpiresAtMs")
+     && isStringArray(value.sourceEventIds)
+     && Object.hasOwn(value, "alertRevision") && (value.alertRevision == null || isRevision(value.alertRevision))
+     && Object.hasOwn(value, "eventRevision") && (value.eventRevision == null || isRevision(value.eventRevision));
+ }
+ 
++function isVolcanoAlertClass(value: unknown): value is DisplayVolcanoAlertClassV1 {
++  return isRecord(value)
++    && typeof value.code === "string"
++    && typeof value.name === "string"
++    && (value.severity === "warning" || value.severity === "info")
++    && typeof value.isActive === "boolean";
++}
++
+ function isVolcanoEvent(value: unknown): value is DisplayVolcanoEventV1 {
+   return isRecord(value)
+     && typeof value.label === "string"
+diff --git a/src/engine/display/standby-state-store.ts b/src/engine/display/standby-state-store.ts
+index d6a6354e..59f81df8 100644
+--- a/src/engine/display/standby-state-store.ts
++++ b/src/engine/display/standby-state-store.ts
+@@ -1,9 +1,11 @@
+ import type { PresentationEvent } from "../presentation/types";
+ import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedTornadoAdvisory } from "../../types";
++import * as log from "../../logger";
+ import type {
+   ActiveStandbyCardV1,
+   DisplayHeatAreaV1,
+   DisplayTyphoonV1,
++  DisplayVolcanoAlertClassV1,
+   DisplayVolcanoEventV1,
+   DisplayWeatherAlertV1,
+   DisplayWeatherSourceV1,
+@@ -15,7 +17,7 @@ import type {
+ } from "./standby-persistence";
+ import { FloodActiveReducer } from "./flood-active-reducer";
+ import { projectFloodUpdate } from "./project-flood";
+-import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdate } from "./project-standby";
++import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdates, type VolcanoUpdate } from "./project-standby";
+ import {
+   NO_MUTATION,
+   revisionOf,
+@@ -58,10 +60,12 @@ interface VolcanoState {
+   code: string;
+   name: string;
+   alertLevel: number | null;
++  alertClass: DisplayVolcanoAlertClassV1 | null;
+   warningKind: string | null;
+   targetKinds: string[];
+   alertExpiresAtMs: number | null;
+   latestEvent: DisplayVolcanoEventV1 | null;
++  latestEventId: string | null;
+   eventExpiresAtMs: number | null;
+   sourceEventIds: string[];
+   alertRevision: StandbyRevision | null;
+@@ -109,6 +113,9 @@ export interface VolcanoSeedEntry {
+   volcanoCode: string;
+   volcanoName: string;
+   alertLevel: number | null;
++  alertClass?: DisplayVolcanoAlertClassV1 | null;
++  warningKind?: string | null;
++  targetKinds?: string[];
+   reportDateTime: string;
+   active?: boolean;
+ }
+@@ -296,7 +303,13 @@ export class StandbyStateStore {
+     if (update == null) return NO_MUTATION;
+     const key = `typhoon:${update.typhoonKey}`;
+     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
+-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
++    if (!this.revisionGuard.accept(
++      key,
++      revision,
++      nowMs,
++      tombstoneTtlForKey(key),
++      update.isCorrection || update.isCancellation,
++    )) return NO_MUTATION;
+     if (update.isCancellation) {
+       return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
+     }
+@@ -319,20 +332,64 @@ export class StandbyStateStore {
+   }
+ 
+   private applyVolcano(event: PresentationEvent, nowMs: number): DisplayMutation {
+-    const update = projectVolcanoUpdate(event);
+-    if (update == null) return NO_MUTATION;
+-    const key = `volcano:${update.kind === "alert" ? "alert" : "event"}:${update.volcano.code}`;
++    const updates = projectVolcanoUpdates(event);
++    let mutation = NO_MUTATION;
++    for (const update of updates) {
++      const next = this.applyVolcanoUpdate(update, nowMs);
++      mutation = {
++        viewChanged: mutation.viewChanged || next.viewChanged,
++        durableChanged: mutation.durableChanged || next.durableChanged,
++      };
++    }
++    return mutation;
++  }
++
++  private applyVolcanoUpdate(update: VolcanoUpdate, nowMs: number): DisplayMutation {
++    let volcanoCode = update.volcano.code;
++    if (update.kind === "eruption" && update.isCancellation && volcanoCode === "" && update.eventId != null) {
++      const exactCandidates = [...this.volcanoes.values()]
++        .filter((candidate) => candidate.latestEventId === update.eventId);
++      if (exactCandidates.length === 1) {
++        volcanoCode = exactCandidates[0].code;
++      } else if (exactCandidates.length > 1) {
++        log.warn(`[display] VFVO56 取消の EventID が複数火山に一致したため削除を保留しました (eventId=${update.eventId})`);
++      } else {
++        // latestEventId 導入前の保存状態は sourceEventIds が dmdata message ID のため
++        // XML EventID を安全に補完できない。噴火イベントが一意な場合だけ移行 fallback を許す。
++        const legacyCandidates = [...this.volcanoes.values()]
++          .filter((candidate) => candidate.latestEventId == null && candidate.latestEvent != null);
++        if (legacyCandidates.length === 1) {
++          volcanoCode = legacyCandidates[0].code;
++        } else if (legacyCandidates.length > 1) {
++          log.warn(`[display] 旧形式の噴火 state が複数あるため空コード VFVO56 取消を適用しません (eventId=${update.eventId})`);
++        }
++      }
++    }
++    const revisionIdentity = update.kind === "eruption" && update.eventId != null
++      ? update.eventId
++      : volcanoCode;
++    if (revisionIdentity === "") return NO_MUTATION;
++    const key = `volcano:${update.kind === "alert" ? "alert" : "event"}:${revisionIdentity}`;
+     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
+-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
+-    const previous = this.volcanoes.get(update.volcano.code);
++    if (!this.revisionGuard.accept(
++      key,
++      revision,
++      nowMs,
++      tombstoneTtlForKey(key),
++      update.isCorrection || update.isCancellation,
++    )) return NO_MUTATION;
++    if (volcanoCode === "") return { viewChanged: false, durableChanged: true };
++    const previous = this.volcanoes.get(volcanoCode);
+     const state: VolcanoState = previous ?? {
+-      code: update.volcano.code,
++      code: volcanoCode,
+       name: update.volcano.name,
+       alertLevel: null,
++      alertClass: null,
+       warningKind: null,
+       targetKinds: [],
+       alertExpiresAtMs: null,
+       latestEvent: null,
++      latestEventId: null,
+       eventExpiresAtMs: null,
+       sourceEventIds: [],
+       alertRevision: null,
+@@ -340,18 +397,20 @@ export class StandbyStateStore {
+       alertRestored: false,
+       eventRestored: false,
+     };
+-    state.name = update.volcano.name;
++    if (update.volcano.name !== "") state.name = update.volcano.name;
+     if (!state.sourceEventIds.includes(update.sourceEventId)) state.sourceEventIds.push(update.sourceEventId);
+     if (update.kind === "alert") {
+       state.alertRestored = false;
+       state.alertRevision = revision;
+       if (update.isCancellation) {
+         state.alertLevel = null;
++        state.alertClass = null;
+         state.warningKind = null;
+         state.targetKinds = [];
+         state.alertExpiresAtMs = nowMs;
+       } else {
+         state.alertLevel = update.volcano.alertLevel;
++        state.alertClass = update.volcano.alertClass == null ? null : { ...update.volcano.alertClass };
+         state.warningKind = update.volcano.warningKind ?? null;
+         state.targetKinds = [...(update.volcano.targetKinds ?? [])];
+         // レベル3以下も次の解除まで現況として保持する。カード化は snapshot 側で
+@@ -362,9 +421,11 @@ export class StandbyStateStore {
+       state.eventRestored = false;
+       state.eventRevision = revision;
+       state.latestEvent = update.isCancellation ? null : copyVolcanoEvent(update.volcano.latestEvent);
++      state.latestEventId = update.isCancellation ? null : update.eventId;
+       state.eventExpiresAtMs = update.isCancellation ? null : revision.reportTimeMs + DAY_MS;
+     }
+-    if (state.alertExpiresAtMs != null && (state.eventExpiresAtMs == null || state.eventExpiresAtMs <= nowMs)) {
++    const hasActiveAlert = state.alertLevel != null || state.alertClass?.isActive === true;
++    if (!hasActiveAlert && (state.eventExpiresAtMs == null || state.eventExpiresAtMs <= nowMs)) {
+       this.volcanoes.delete(state.code);
+     } else {
+       this.volcanoes.set(state.code, state);
+@@ -383,6 +444,7 @@ export class StandbyStateStore {
+         const alertWasVisible = state.alertLevel != null && state.alertLevel >= 4
+           || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs;
+         state.alertLevel = null;
++        state.alertClass = null;
+         state.warningKind = null;
+         state.targetKinds = [];
+         state.alertExpiresAtMs = nowMs;
+@@ -406,10 +468,12 @@ export class StandbyStateStore {
+         code: entry.volcanoCode,
+         name: entry.volcanoName,
+         alertLevel: null,
++        alertClass: null,
+         warningKind: null,
+         targetKinds: [],
+         alertExpiresAtMs: null,
+         latestEvent: null,
++        latestEventId: null,
+         eventExpiresAtMs: null,
+         sourceEventIds: [],
+         alertRevision: revision,
+@@ -419,6 +483,9 @@ export class StandbyStateStore {
+       };
+       state.name = entry.volcanoName;
+       state.alertLevel = entry.alertLevel;
++      state.alertClass = entry.alertClass == null ? null : { ...entry.alertClass };
++      state.warningKind = entry.warningKind ?? null;
++      state.targetKinds = [...(entry.targetKinds ?? [])];
+       state.alertExpiresAtMs = null;
+       state.alertRevision = revision;
+       state.alertRestored = false;
+@@ -478,10 +545,13 @@ export class StandbyStateStore {
+       if (state.eventExpiresAtMs != null && state.eventExpiresAtMs <= nowMs) {
+         state.eventExpiresAtMs = null;
+         state.latestEvent = null;
++        state.latestEventId = null;
+         viewChanged = true;
+         durableChanged = true;
+       }
+-      if (state.alertExpiresAtMs != null && state.alertExpiresAtMs <= nowMs && state.eventExpiresAtMs == null) {
++      const hasActiveAlert = state.alertLevel != null || state.alertClass?.isActive === true;
++      if ((!hasActiveAlert || state.alertExpiresAtMs != null && state.alertExpiresAtMs <= nowMs)
++        && state.eventExpiresAtMs == null) {
+         this.volcanoes.delete(key);
+         viewChanged = true;
+         durableChanged = true;
+@@ -554,7 +624,11 @@ export class StandbyStateStore {
+         data: { typhoons: states.map((state) => ({ ...state.typhoon })) },
+       });
+     }
+-    const volcanoes = [...this.volcanoes.values()].filter((state) => state.alertLevel != null && state.alertLevel >= 4 || state.eventExpiresAtMs != null);
++    const volcanoes = [...this.volcanoes.values()].filter((state) =>
++      state.alertLevel != null && state.alertLevel >= 4
++      || state.alertClass?.isActive === true && state.alertClass.severity === "warning"
++      || state.eventExpiresAtMs != null
++    );
+     if (volcanoes.length > 0) {
+       const critical = volcanoes.some((state) =>
+         (state.alertLevel ?? 0) >= 4 || state.latestEvent?.label === "噴火速報"
+@@ -573,6 +647,7 @@ export class StandbyStateStore {
+           code: state.code,
+           name: state.name,
+           alertLevel: state.alertLevel,
++          alertClass: state.alertClass == null ? null : { ...state.alertClass },
+           warningKind: state.warningKind,
+           targetKinds: [...state.targetKinds],
+           latestEvent: copyVolcanoEvent(state.latestEvent),
+@@ -625,10 +700,12 @@ export class StandbyStateStore {
+         code: state.code,
+         name: state.name,
+         alertLevel: state.alertLevel,
++        alertClass: state.alertClass == null ? null : { ...state.alertClass },
+         warningKind: state.warningKind,
+         targetKinds: [...state.targetKinds],
+         alertExpiresAtMs: state.alertExpiresAtMs,
+         latestEvent: copyVolcanoEvent(state.latestEvent),
++        latestEventId: state.latestEventId,
+         eventExpiresAtMs: state.eventExpiresAtMs,
+         sourceEventIds: [...state.sourceEventIds],
+         alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
+@@ -691,9 +768,11 @@ export class StandbyStateStore {
+       if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) {
+         this.volcanoes.set(state.code, {
+           ...state,
++          alertClass: state.alertClass == null ? null : { ...state.alertClass },
+           warningKind: state.warningKind ?? null,
+           targetKinds: [...(state.targetKinds ?? [])],
+           latestEvent: restoreVolcanoEvent(state.latestEvent),
++          latestEventId: state.latestEventId ?? null,
+           sourceEventIds: [...state.sourceEventIds],
+           alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
+           eventRevision: state.eventRevision == null ? null : { ...state.eventRevision },
+diff --git a/src/engine/messages/volcano-state.ts b/src/engine/messages/volcano-state.ts
+index cff18bd9..aca93d42 100644
+--- a/src/engine/messages/volcano-state.ts
++++ b/src/engine/messages/volcano-state.ts
+@@ -28,6 +28,9 @@ export interface VolcanoReportTimeWatermark {
+ 
+ export interface VolcanoSeedEntry extends VolcanoReportTimeWatermark {
+   alertLevel: number | null;
++  alertClass: ParsedVolcanoAlertInfo["alertClass"];
++  warningKind: string;
++  targetKinds: string[];
+   active: boolean;
+ }
+ 
+@@ -156,13 +159,23 @@ export class VolcanoStateHolder
+       volcanoCode: entry.volcanoCode,
+       volcanoName: entry.volcanoName,
+       alertLevel: entry.alertLevel,
++      alertClass: entry.lastInfo.alertClass,
++      warningKind: entry.lastInfo.warningKind,
++      targetKinds: entry.lastInfo.municipalities.map((municipality) => municipality.kind),
+       reportDateTime: entry.reportDateTime,
+       active: true,
+     }));
+     const activeCodes = new Set(active.map((entry) => entry.volcanoCode));
+     const released = this.getWatermarks()
+       .filter((watermark) => !activeCodes.has(watermark.volcanoCode))
+-      .map((watermark) => ({ ...watermark, alertLevel: null, active: false }));
++      .map((watermark) => ({
++        ...watermark,
++        alertLevel: null,
++        alertClass: null,
++        warningKind: "",
++        targetKinds: [],
++        active: false,
++      }));
+     return [...active, ...released];
+   }
+ 
+diff --git a/src/engine/presentation/volcano-presentation.ts b/src/engine/presentation/volcano-presentation.ts
+index 7df3fecb..344bfe19 100644
+--- a/src/engine/presentation/volcano-presentation.ts
++++ b/src/engine/presentation/volcano-presentation.ts
+@@ -140,6 +140,16 @@ function resolveText(info: ParsedVolcanoInfo): VolcanoPresentation {
+   }
+ 
+   const summary = info.headline ?? info.title;
++  const hasActiveWarningClass = info.alertClasses.some((entry) =>
++    entry.alertClass.isActive && entry.alertClass.severity === "warning"
++  );
++  if (hasActiveWarningClass) {
++    return {
++      frameLevel: info.isExtraordinary ? "warning" : "info",
++      soundLevel: "warning",
++      summary,
++    };
++  }
+ 
+   // VFVO51 臨時
+   if (info.isExtraordinary) {
+diff --git a/src/types.ts b/src/types.ts
+index 7ab1188a..b5c130f6 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -1525,6 +1525,23 @@ export type VolcanoHeadType =
+ /** 正規化されたアクション（パーサが XML の Condition 等から変換） */
+ export type VolcanoAction = "issue" | "continue" | "raise" | "lower" | "release" | "cancel";
+ 
++export type VolcanoAlertClassSeverity = "warning" | "info";
++
++/** 数値の噴火警戒レベルを持たない警報・予報区分。 */
++export interface VolcanoAlertClass {
++  code: string;
++  name: string;
++  severity: VolcanoAlertClassSeverity;
++  isActive: boolean;
++}
++
++/** VFVO51 の一覧電文から火山単位に展開した非数値警報区分。 */
++export interface VolcanoAlertClassEntry {
++  volcanoCode: string;
++  volcanoName: string;
++  alertClass: VolcanoAlertClass;
++}
++
+ /** 対象市町村 */
+ export interface VolcanoMunicipality {
+   name: string;
+@@ -1587,6 +1604,7 @@ export interface ParsedVolcanoAlertInfo extends ParsedVolcanoBase {
+   marineAreas: VolcanoMunicipality[];
+   marineWarningKind: string | null;
+   marineAlertLevelCode: string | null;
++  alertClass: VolcanoAlertClass | null;
+   bodyText: string;
+   preventionText: string;
+   isMarine: boolean;
+@@ -1624,6 +1642,7 @@ export interface ParsedVolcanoTextInfo extends ParsedVolcanoBase {
+   type: "VZVO40" | "VFVO51";
+   alertLevel: 1 | 2 | 3 | 4 | 5 | null;
+   alertLevelCode: string | null;
++  alertClasses: VolcanoAlertClassEntry[];
+   isExtraordinary: boolean;
+   bodyText: string;
+   nextAdvisory: string | null;
+@@ -2055,9 +2074,16 @@ export interface ParsedTyphoonAnalysis {
+   headline: string | null;
+   name: TyphoonName | null;  // 呼称（実況の TyphoonNamePart。Area.Name は generic 固定で不使用）
+   frames: TyphoonFrame[];    // 実況 + 推定 + 予報（文書順）
++  lifecycle: TyphoonLifecycle;
+   isTest: boolean;
+ }
+ 
++export type TyphoonLifecycle =
++  | "active"
++  | "forming"
++  | "transitionedToLow"
++  | "formationCancelled";
++
+ export interface TyphoonName {
+   name: string | null;       // 英名 "TALIM"
+   nameKana: string | null;   // "タリム"
+diff --git a/test/dmdata/typhoon-analysis-parser.test.ts b/test/dmdata/typhoon-analysis-parser.test.ts
+index 427b42bd..bd126600 100644
+--- a/test/dmdata/typhoon-analysis-parser.test.ts
++++ b/test/dmdata/typhoon-analysis-parser.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, it, expect } from "vitest";
+-import { createMockWsDataMessage } from "../helpers/mock-message";
++import { createMockWsDataMessage, createMockWsDataMessageFromXml, readFixture } from "../helpers/mock-message";
+ import {
+   FIXTURE_VPTW60_2020,
+   FIXTURE_VPTW60_2017,
+@@ -27,6 +27,7 @@ describe("parseTyphoonAnalysis", () => {
+     expect(f12.center.forecastCircleRadiusKm).toBe(110);
+     expect(f12.center.coordinate).toBeNull();
+     expect(f12.typhoonClass.category).toBe("台風(TS)");
++    expect(info!.lifecycle).toBe("forming");
+   });
+ 
+   it("2017形式: 14コマ、命名済(TALIM)、推定コマは確定座標", () => {
+@@ -39,6 +40,7 @@ describe("parseTyphoonAnalysis", () => {
+     expect(estimate.center.forecastCircleRadiusKm).toBeNull();
+     expect(estimate.typhoonClass.intensity).toBe("非常に強い");
+     expect(estimate.wind!.stormArea?.axes[0].radiusKm).toBe(150);
++    expect(info!.lifecycle).toBe("active");
+   });
+ 
+   it("VPTW61: 実況のみ1コマ", () => {
+@@ -46,10 +48,19 @@ describe("parseTyphoonAnalysis", () => {
+     expect(info!.type).toBe("VPTW61");
+     expect(info!.frames).toHaveLength(1);
+     expect(info!.frames[0].kind).toBe("実況");
++    expect(info!.lifecycle).toBe("formationCancelled");
+   });
+ 
+   it("取消", () => {
+     const info = parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW60_CANCEL));
+     expect(info!.infoType).toBe("取消");
+   });
++
++  it("実況が温帯低気圧へ遷移した報を終了 lifecycle にする", () => {
++    const xml = readFixture(FIXTURE_VPTW60_2020)
++      .replace("<Remark>台風発生予想</Remark>", "<Remark>台風消滅（温帯低気圧化）</Remark>")
++      .replace("熱帯低気圧(TD)", "温帯低気圧(LOW)");
++    const info = parseTyphoonAnalysis(createMockWsDataMessageFromXml(xml, "VPTW60"));
++    expect(info?.lifecycle).toBe("transitionedToLow");
++  });
+ });
+diff --git a/test/dmdata/volcano-parser.test.ts b/test/dmdata/volcano-parser.test.ts
+index b930a83a..b8ec4577 100644
+--- a/test/dmdata/volcano-parser.test.ts
++++ b/test/dmdata/volcano-parser.test.ts
+@@ -14,6 +14,7 @@ import {
+   FIXTURE_VFVO54_ASH_RAPID,
+   FIXTURE_VFVO55_ASH_DETAIL,
+   FIXTURE_VFVO56_FLASH_1,
++  FIXTURE_VFVO56_FLASH_4,
+   FIXTURE_VFVO60_PLUME,
+   FIXTURE_VZVO40_NOTICE,
+   createMockWsDataMessageFromXml,
+@@ -134,6 +135,15 @@ describe("parseVolcanoTelegram", () => {
+         expect(result!.eventDateTime).toBe("2014-09-27T11:53:00+09:00");
+       }
+     });
++
++    it("実在取消は火山コード欠落のまま EventID 系列で識別できる", () => {
++      const result = parseVolcanoTelegram(createMockWsDataMessage(FIXTURE_VFVO56_FLASH_4));
++      expect(result).toMatchObject({
++        kind: "eruption",
++        infoType: "取消",
++        volcanoCode: "",
++      });
++    });
+   });
+ 
+   // ── VFSVii: 火山海上警報 ──
+@@ -150,6 +160,11 @@ describe("parseVolcanoTelegram", () => {
+ 
+       if (result!.kind === "alert") {
+         expect(result!.isMarine).toBe(true);
++        expect(result!.alertClass).toMatchObject({
++          code: "36",
++          severity: "warning",
++          isActive: true,
++        });
+       }
+     });
+   });
+@@ -183,6 +198,23 @@ describe("parseVolcanoTelegram", () => {
+       if (result!.kind === "text") {
+         // 月例一覧は Headline > Information 構造が異なり alertLevel が取れない場合がある
+         expect(result!.bodyText).toBeTruthy();
++        expect(result!.alertClasses).toEqual(expect.arrayContaining([
++          expect.objectContaining({
++            volcanoCode: "326",
++            alertClass: expect.objectContaining({ code: "23", severity: "warning", isActive: true }),
++          }),
++          expect.objectContaining({
++            volcanoCode: "329",
++            alertClass: expect.objectContaining({ code: "22", severity: "warning", isActive: true }),
++          }),
++          expect.objectContaining({
++            volcanoCode: "331",
++            alertClass: expect.objectContaining({ code: "36", severity: "warning", isActive: true }),
++          }),
++          expect.objectContaining({
++            alertClass: expect.objectContaining({ code: "21", severity: "info", isActive: true }),
++          }),
++        ]));
+       }
+     });
+   });
+diff --git a/test/engine/display/project-flood.test.ts b/test/engine/display/project-flood.test.ts
+index 30b2a6c3..070a6e6e 100644
+--- a/test/engine/display/project-flood.test.ts
++++ b/test/engine/display/project-flood.test.ts
+@@ -302,8 +302,9 @@ describe("projectFloodUpdate", () => {
+   });
+ 
+   it.each([
+-    ["headline-only", parsed({ rawStations: [] }), "observeOnly"],
+-    ["structured-data-free correction", parsed({ infoType: "訂正", rawStations: [] }), "observeOnly"],
++    ["headline-only", parsed({ rawStations: [] }), "replace"],
++    ["headline-only correction", parsed({ infoType: "訂正", rawStations: [] }), "replace"],
++    ["unparseable structured-data-free report", parsed({ headlines: [], rawStations: [] }), "observeOnly"],
+     ["cancellation", parsed({ infoType: "取消", rawStations: [] }), "cancel"],
+   ] as const)("classifies %s as %s", (_label, raw, expectedMode) => {
+     expect(projectFloodUpdate(event(raw))).toEqual(expect.objectContaining({ mode: expectedMode }));
+@@ -319,7 +320,7 @@ describe("projectFloodUpdate", () => {
+     ["16_02_02_220728_VXKO50.xml", "replace", ["8909040001|六角川|L3"]],
+     ["16_03_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L3", "9876543210|△△川|L3"]],
+     ["16_04_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L5", "9876543210|△△川|L5"]],
+-    ["16_05_01_210630_VXKO50.xml", "observeOnly", []],
++    ["16_05_01_210630_VXKO50.xml", "replace", ["1234567890|○○川|L3", "9876543210|△△川|L3"]],
+     ["16_06_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L4", "9876543210|△△川|L4"]],
+     ["16_07_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L4", "9876543210|△△川|L4"]],
+     ["16_10_01_260312_VXKO50.xml", "replace", ["8909100001|緑川|L4", "8909100051|加勢川|L4", "8909100068|御船川|L4"]],
+@@ -358,6 +359,16 @@ describe("projectFloodUpdate", () => {
+     expect(rivers).toEqual(expectedRivers);
+   });
+ 
++  it("projects a Headline-only release as an explicit cancellation", () => {
++    const msg = createMockWsDataMessage("16_14_01_251222_VXKO50.xml");
++    const info = parseFloodForecast(msg)!;
++    const raw = { ...info, rawStations: [] };
++    expect(projectFloodUpdate(event(raw))).toEqual(expect.objectContaining({
++      mode: "cancel",
++      eventId: info.eventId,
++    }));
++  });
++
+   it("fills representative station info when running a real VXKO50 fixture through the pipeline", () => {
+     const msg = createMockWsDataMessage("16_10_01_260312_VXKO50.xml");
+     const info = parseFloodForecast(msg);
+diff --git a/test/engine/display/standby-integration.test.ts b/test/engine/display/standby-integration.test.ts
+index 0d232126..12c726a4 100644
+--- a/test/engine/display/standby-integration.test.ts
++++ b/test/engine/display/standby-integration.test.ts
+@@ -23,6 +23,7 @@ function typhoon(key = "TC-1", serial = "1", timeMs = T0): PresentationEvent {
+   return event({ id: `${key}-${serial}`, domain: "typhoonAnalysis", eventId: key, serial, reportDateTime: iso(timeMs), raw: {
+     eventId: key, serial, infoType: "発表", name: { name: "Alpha", nameKana: "ALPHA", number: "2601", remark: null },
+     frames: [{ kind: "実況", typhoonClass: { category: "TS" }, center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 25 } }],
++    lifecycle: "active",
+   } });
+ }
+ 
+@@ -82,6 +83,7 @@ function volcanoAlertInfo(
+     reportDateTime: iso(timeMs), eventDateTime: null, headline: null, publishingOffice: "気象庁",
+     volcanoName: "テスト山", volcanoCode: "V-1", coordinate: null, isTest: false,
+     alertLevel, alertLevelCode: String(alertLevel), action, previousLevelCode: null,
++    alertClass: null,
+     warningKind: "", municipalities: [], marineAreas: [], marineWarningKind: null,
+     marineAlertLevelCode: null, bodyText: "", preventionText: "", isMarine: false,
+   };
+@@ -270,6 +272,32 @@ describe("standby integration", () => {
+     expect(store.snapshotItems()).toEqual([]);
+   });
+ 
++  it("9c: carries a non-numeric warning class through the authoritative startup seed", () => {
++    const volcanoState = new VolcanoStateHolder();
++    const info = volcanoAlertInfo(T0, "issue", null);
++    info.alertClass = { code: "23", name: "入山危険", severity: "warning", isActive: true };
++    info.warningKind = "噴火警報（火口周辺）";
++    info.municipalities = [{ name: "テスト市", code: "001", kind: "入山規制" }];
++    volcanoState.update(info);
++
++    const store = new StandbyStateStore();
++    store.seedVolcanoAlerts(volcanoState.getSeedEntries(), "success", T0);
++
++    expect(store.snapshotItems()).toEqual([
++      expect.objectContaining({
++        kind: "volcano",
++        data: {
++          volcanoes: [expect.objectContaining({
++            alertLevel: null,
++            alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
++            warningKind: "噴火警報（火口周辺）",
++            targetKinds: ["入山規制"],
++          })],
++        },
++      }),
++    ]);
++  });
++
+   it("10: keeps long-lived cancellation tombstones beyond 24 hours", () => {
+     const store = new StandbyStateStore();
+     store.applyEvent(nankai(T0), T0);
+diff --git a/test/engine/display/standby-persistence.test.ts b/test/engine/display/standby-persistence.test.ts
+index fa3ae510..4bfced44 100644
+--- a/test/engine/display/standby-persistence.test.ts
++++ b/test/engine/display/standby-persistence.test.ts
+@@ -7,9 +7,14 @@ import { StandbyStateStore } from "../../../src/engine/display/standby-state-sto
+ import { DisplayStateStore } from "../../../src/engine/display/state-store";
+ import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
+ import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
++import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
+ import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
+ import type { FloodForecastOutcome } from "../../../src/engine/presentation/types";
+-import { createMockWsDataMessage } from "../../helpers/mock-message";
++import {
++  createMockWsDataMessage,
++  FIXTURE_VFVO56_FLASH_1,
++  FIXTURE_VFVO56_FLASH_4,
++} from "../../helpers/mock-message";
+ 
+ const T0 = Date.parse("2026-07-21T05:00:00+09:00");
+ const roots: string[] = [];
+@@ -533,12 +538,14 @@ describe("StandbyStateStore persistence", () => {
+       }],
+       volcanoes: [{
+         code: "V-1", name: "Mount Test", alertLevel: 3,
++        alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
+         warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制", "避難準備"],
+         alertExpiresAtMs: null,
+         latestEvent: {
+           label: "噴火", craterName: "山頂火口", eventDateTime: new Date(T0 - 60_000).toISOString(),
+           plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
+         },
++        latestEventId: "eruption-event-1",
+         eventExpiresAtMs: T0 + 24 * 60 * 60_000, sourceEventIds: ["volcano-1"],
+         alertRevision: { reportTimeMs: T0, serial: "1" },
+         eventRevision: { reportTimeMs: T0, serial: "1" },
+@@ -559,6 +566,7 @@ describe("StandbyStateStore persistence", () => {
+     });
+     expect(store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+       alertLevel: 3,
++      alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
+       warningKind: "噴火警報（火口周辺）",
+       targetKinds: ["入山規制", "避難準備"],
+       latestEvent: {
+@@ -594,6 +602,45 @@ describe("StandbyStateStore persistence", () => {
+     });
+   });
+ 
++  it("latestEventId のない旧形式 VFVO56 state を実ファイル復元し、単一候補なら空コード取消を適用する", () => {
++    const issueMsg = createMockWsDataMessage(FIXTURE_VFVO56_FLASH_1);
++    const cancelMsg = createMockWsDataMessage(FIXTURE_VFVO56_FLASH_4);
++    const issueRaw = parseVolcanoTelegram(issueMsg)!;
++    const cancelRaw = parseVolcanoTelegram(cancelMsg)!;
++    const issueAt = Date.parse(issueRaw.reportDateTime);
++    const cancelAt = Date.parse(cancelRaw.reportDateTime);
++    const eventId = "20140927120000_312";
++    const event = (id: string, raw: typeof issueRaw, msg: typeof issueMsg) => ({
++      id,
++      domain: "volcano",
++      eventId,
++      serial: msg.xmlReport?.head.serial ?? null,
++      reportDateTime: raw.reportDateTime,
++      infoType: raw.infoType,
++      isCancellation: raw.infoType === "取消",
++      raw,
++    }) as never;
++
++    const beforeRestart = new StandbyStateStore();
++    beforeRestart.applyEvent(event("issue", issueRaw, issueMsg), issueAt);
++    const path = tempPath();
++    const active = beforeRestart.exportActiveState();
++    const { latestEventId: _legacyMissing, ...legacyVolcano } = active.volcanoes[0];
++    new StandbyPersistence(path).save({ ...active, volcanoes: [legacyVolcano] });
++    const loaded = new StandbyPersistence(path).load()!;
++    expect(loaded.volcanoes[0]).not.toHaveProperty("latestEventId");
++    const restored = new StandbyStateStore();
++    restored.restoreActiveState(loaded, cancelAt);
++    expect(restored.exportActiveState().volcanoes[0]?.latestEventId).toBeNull();
++
++    restored.applyEvent(event("cancel", cancelRaw, cancelMsg), cancelAt);
++    new StandbyPersistence(path).save(restored.exportActiveState());
++    const afterRestart = new StandbyStateStore();
++    afterRestart.restoreActiveState(new StandbyPersistence(path).load()!, cancelAt + 1);
++    expect(afterRestart.snapshotItems()).toEqual([]);
++    expect(afterRestart.exportActiveState().volcanoes).toEqual([]);
++  });
++
+   it("非表示の level 3 警報を実ファイル復元し、後着した噴火イベントへ併記する", () => {
+     const beforeRestart = new StandbyStateStore();
+     beforeRestart.applyEvent({
+@@ -673,6 +720,8 @@ describe("StandbyStateStore persistence", () => {
+     const loaded = new StandbyPersistence(path).load();
+     expect(loaded?.volcanoes[0]).not.toHaveProperty("warningKind");
+     expect(loaded?.volcanoes[0]).not.toHaveProperty("targetKinds");
++    expect(loaded?.volcanoes[0]).not.toHaveProperty("alertClass");
++    expect(loaded?.volcanoes[0]).not.toHaveProperty("latestEventId");
+     const restored = new StandbyStateStore();
+     restored.restoreActiveState(loaded!, T0 + 60_000);
+     expect(restored.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes[0]).toMatchObject({
+diff --git a/test/engine/display/standby-state-store.test.ts b/test/engine/display/standby-state-store.test.ts
+index 388035a0..0d0f2d6d 100644
+--- a/test/engine/display/standby-state-store.test.ts
++++ b/test/engine/display/standby-state-store.test.ts
+@@ -1,5 +1,8 @@
+ import { describe, expect, it, vi } from "vitest";
+ import { parseTyphoonAnalysis } from "../../../src/dmdata/typhoon-analysis-parser";
++import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
++import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
++import * as log from "../../../src/logger";
+ import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
+ import type { PresentationEvent } from "../../../src/engine/presentation/types";
+ import type {
+@@ -11,7 +14,13 @@ import type {
+ } from "../../../src/types";
+ import {
+   createMockWsDataMessage,
++  FIXTURE_VFVO51_EXTRA,
++  FIXTURE_VFVO56_FLASH_1,
++  FIXTURE_VFVO56_FLASH_4,
+   FIXTURE_VPTW60_2020,
++  FIXTURE_VPTW61,
++  FIXTURE_VXKO50_16_05_01,
++  FIXTURE_VXKO50_16_14_01,
+ } from "../../helpers/mock-message";
+ 
+ const T0 = Date.parse("2026-07-21T05:00:00+09:00");
+@@ -210,6 +219,7 @@ function typhoonRaw(over: Record<string, unknown> = {}): ParsedTyphoonAnalysis {
+       center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 },
+       wind: { maxWindMs: 25 },
+     }],
++    lifecycle: "active",
+     ...over,
+   } as unknown as ParsedTyphoonAnalysis;
+ }
+@@ -255,6 +265,26 @@ function volcanoEvent(over: Record<string, unknown> = {}, rawOver: Record<string
+   } as unknown as PresentationEvent;
+ }
+ 
++function parsedVolcanoEvent(
++  fixture: string,
++  over: Record<string, unknown> = {},
++): PresentationEvent {
++  const msg = createMockWsDataMessage(fixture);
++  const raw = parseVolcanoTelegram(msg);
++  if (raw == null) throw new Error(`${fixture} did not parse`);
++  return {
++    id: fixture,
++    domain: "volcano",
++    eventId: msg.xmlReport?.head?.eventId ?? null,
++    serial: msg.xmlReport?.head?.serial ?? null,
++    reportDateTime: raw.reportDateTime,
++    infoType: raw.infoType,
++    isCancellation: raw.infoType === "取消",
++    raw,
++    ...over,
++  } as unknown as PresentationEvent;
++}
++
+ describe("StandbyStateStore: typhoon", () => {
+   function currentTyphoon(store: StandbyStateStore, key = "TC-1") {
+     const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
+@@ -468,9 +498,121 @@ describe("StandbyStateStore: typhoon", () => {
+     expect(store.snapshotItems()).toEqual([]);
+     expect(store.applyEvent(typhoonEvent({ id: "typhoon-old", serial: "10" }, { serial: "10" }), T0 + 25 * 60 * 60_000 + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
+   });
++
++  it("発生予想終了を tombstone として削除し、遅延旧報で復活させない", () => {
++    const ended = parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW61))!;
++    const reportMs = Date.parse(ended.reportDateTime);
++    const store = new StandbyStateStore();
++    store.applyEvent(typhoonEvent({
++      id: "forming",
++      eventId: ended.eventId,
++      serial: "0",
++      reportDateTime: new Date(reportMs - 60_000).toISOString(),
++    }, { ...ended, serial: "0", lifecycle: "forming" }), reportMs - 60_000);
++    expect(store.snapshotItems()).toHaveLength(1);
++
++    store.applyEvent(typhoonEvent({
++      id: "formation-ended",
++      eventId: ended.eventId,
++      serial: ended.serial,
++      reportDateTime: ended.reportDateTime,
++    }, ended as unknown as Record<string, unknown>), reportMs);
++    expect(store.snapshotItems()).toEqual([]);
++
++    expect(store.applyEvent(typhoonEvent({
++      id: "stale-forming",
++      eventId: ended.eventId,
++      serial: "0",
++      reportDateTime: new Date(reportMs - 60_000).toISOString(),
++    }, { ...ended, serial: "0", lifecycle: "forming" }), reportMs + 1)).toEqual({
++      viewChanged: false,
++      durableChanged: false,
++    });
++  });
+ });
+ 
+ describe("StandbyStateStore: volcano", () => {
++  it("空コードの VFVO56 取消を EventID で噴火へ結び、復元後もカードを復活させない", () => {
++    const issue = parsedVolcanoEvent(FIXTURE_VFVO56_FLASH_1, { eventId: "20140927120000_312" });
++    const cancel = parsedVolcanoEvent(FIXTURE_VFVO56_FLASH_4, { eventId: "20140927120000_312" });
++    expect(issue.eventId).toBe("20140927120000_312");
++    expect(cancel.eventId).toBe(issue.eventId);
++    const issueMs = Date.parse(issue.reportDateTime);
++    const cancelMs = Date.parse(cancel.reportDateTime);
++    const beforeRestart = new StandbyStateStore();
++    beforeRestart.applyEvent(issue, issueMs);
++    expect(beforeRestart.snapshotItems()).toHaveLength(1);
++    expect(beforeRestart.exportActiveState().volcanoes[0]?.latestEventId).toBe(issue.eventId);
++
++    const restored = new StandbyStateStore();
++    restored.restoreActiveState(beforeRestart.exportActiveState(), cancelMs);
++    restored.applyEvent(cancel, cancelMs);
++    expect(restored.snapshotItems()).toEqual([]);
++
++    const afterRestart = new StandbyStateStore();
++    afterRestart.restoreActiveState(restored.exportActiveState(), cancelMs + 1);
++    expect(afterRestart.snapshotItems()).toEqual([]);
++    expect(afterRestart.applyEvent(issue, cancelMs + 2)).toEqual({
++      viewChanged: false,
++      durableChanged: false,
++    });
++    expect(afterRestart.snapshotItems()).toEqual([]);
++  });
++
++  it("旧形式の噴火イベント候補が複数なら空コード取消を適用せず警告する", () => {
++    const seeded = new StandbyStateStore();
++    seeded.applyEvent(volcanoEvent({ eventId: "eruption-a" }, {
++      kind: "eruption", type: "VFVO56", volcanoCode: "V-1", volcanoName: "Mount One",
++      isFlashReport: true, phenomenonName: "噴火",
++    }), T0);
++    seeded.applyEvent(volcanoEvent({
++      id: "volcano-2",
++      eventId: "eruption-b",
++      reportDateTime: new Date(T0 + 60_000).toISOString(),
++    }, {
++      kind: "eruption", type: "VFVO56", volcanoCode: "V-2", volcanoName: "Mount Two",
++      isFlashReport: true, phenomenonName: "噴火",
++    }), T0 + 60_000);
++    const active = seeded.exportActiveState();
++    const legacy = {
++      ...active,
++      volcanoes: active.volcanoes.map(({ latestEventId: _missing, ...state }) => state),
++    };
++    const restored = new StandbyStateStore();
++    restored.restoreActiveState(legacy, T0 + 120_000);
++    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
++
++    restored.applyEvent(volcanoEvent({
++      id: "empty-code-cancel",
++      eventId: "eruption-cancel",
++      serial: "2",
++      reportDateTime: new Date(T0 + 180_000).toISOString(),
++      isCancellation: true,
++    }, {
++      kind: "eruption", type: "VFVO56", infoType: "取消",
++      volcanoCode: "", volcanoName: "", isFlashReport: true, phenomenonName: "噴火速報",
++    }), T0 + 180_000);
++
++    expect(restored.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes)
++      .toHaveLength(2);
++    expect(warn).toHaveBeenCalledWith(expect.stringContaining("旧形式の噴火 state が複数"));
++    warn.mockRestore();
++  });
++
++  it("VFVO51 の非数値警報を火山ごとに保持し、warning 区分だけをカード化する", () => {
++    const event = parsedVolcanoEvent(FIXTURE_VFVO51_EXTRA);
++    const store = new StandbyStateStore();
++    store.applyEvent(event, Date.parse(event.reportDateTime));
++    const volcanoes = store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes ?? [];
++    expect(volcanoes).toEqual(expect.arrayContaining([
++      expect.objectContaining({ code: "326", alertClass: expect.objectContaining({ code: "23", severity: "warning" }) }),
++      expect.objectContaining({ code: "329", alertClass: expect.objectContaining({ code: "22", severity: "warning" }) }),
++      expect.objectContaining({ code: "331", alertClass: expect.objectContaining({ code: "36", severity: "warning" }) }),
++    ]));
++    expect(volcanoes.some((volcano) => volcano.alertClass?.code === "21")).toBe(false);
++    expect(store.exportActiveState().volcanoes.some((volcano) => volcano.alertClass?.code === "21")).toBe(true);
++  });
++
+   it("projects unique target kinds in telegram order while eruption-only information leaves them absent", () => {
+     const alertStore = new StandbyStateStore();
+     alertStore.applyEvent(volcanoEvent({}, {
+@@ -697,6 +839,47 @@ describe("StandbyStateStore: volcano", () => {
+ });
+ 
+ describe("StandbyStateStore: flood", () => {
++  it("実在 Headline-only 発表をカード化し、Headline-only 解除で削除する", () => {
++    const issued = parseFloodForecast(createMockWsDataMessage(FIXTURE_VXKO50_16_05_01))!;
++    const releaseFixture = parseFloodForecast(createMockWsDataMessage(FIXTURE_VXKO50_16_14_01))!;
++    const issueEvent = heatEvent({
++      id: "headline-only-issue",
++      domain: "floodForecast",
++      eventId: issued.eventId,
++      serial: String(issued.serial),
++      reportDateTime: issued.reportDateTime,
++      infoType: issued.infoType,
++      raw: issued,
++    });
++    const release = {
++      ...releaseFixture,
++      eventId: issued.eventId,
++      serial: issued.serial + 1,
++      rawStations: [],
++    };
++    const releaseEvent = heatEvent({
++      id: "headline-only-release",
++      domain: "floodForecast",
++      eventId: release.eventId,
++      serial: String(release.serial),
++      reportDateTime: release.reportDateTime,
++      infoType: release.infoType,
++      raw: release,
++    });
++    const store = new StandbyStateStore();
++    store.applyEvent(issueEvent, Date.parse(issued.reportDateTime));
++    expect(store.snapshotItems().find((item) => item.kind === "flood")).toMatchObject({
++      data: {
++        rivers: expect.arrayContaining([
++          expect.objectContaining({ riverKey: "1234567890", level: "L3", station: null }),
++          expect.objectContaining({ riverKey: "9876543210", level: "L3", station: null }),
++        ]),
++      },
++    });
++    store.applyEvent(releaseEvent, Date.parse(release.reportDateTime));
++    expect(store.snapshotItems().find((item) => item.kind === "flood")).toBeUndefined();
++  });
++
+   it("delegates flood events to FloodActiveReducer and exposes the aggregate card", () => {
+     const raw: ParsedFloodForecastInfo = {
+       schema: "vxko50", typeCode: "VXKO50", infoKind: "指定河川洪水予報", infoType: "発表",
+diff --git a/test/engine/messages/volcano-state-edgecase.test.ts b/test/engine/messages/volcano-state-edgecase.test.ts
+index 5694ef51..01dc56a8 100644
+--- a/test/engine/messages/volcano-state-edgecase.test.ts
++++ b/test/engine/messages/volcano-state-edgecase.test.ts
+@@ -31,6 +31,7 @@ function alert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVolcanoAl
+     isTest: false,
+     alertLevel: 3,
+     alertLevelCode: "13",
++    alertClass: null,
+     action: "raise",
+     previousLevelCode: "12",
+     warningKind: "噴火警報（火口周辺）",
+diff --git a/test/engine/presentation/events/typhoon-to-text.test.ts b/test/engine/presentation/events/typhoon-to-text.test.ts
+index 79f5757e..2908da1f 100644
+--- a/test/engine/presentation/events/typhoon-to-text.test.ts
++++ b/test/engine/presentation/events/typhoon-to-text.test.ts
+@@ -48,7 +48,7 @@ function syntheticAnalysis(frame: Partial<TyphoonFrame>): ParsedTyphoonAnalysis
+     reportDateTime: "2017-09-13T09:00:00+09:00", publishingOffice: "気象庁",
+     eventId: "TC1718", serial: "1", headline: null,
+     name: { name: "TALIM", nameKana: "タリム", number: "1718", remark: null },
+-    frames: [base], isTest: false,
++    frames: [base], lifecycle: "active", isTest: false,
+   };
+ }
+ 
+diff --git a/test/engine/volcano-initializer.test.ts b/test/engine/volcano-initializer.test.ts
+index 5a68efcf..ed8afbd0 100644
+--- a/test/engine/volcano-initializer.test.ts
++++ b/test/engine/volcano-initializer.test.ts
+@@ -82,6 +82,7 @@ function createVolcanoAlert(
+     isTest: false,
+     alertLevel: 3,
+     alertLevelCode: "31",
++    alertClass: null,
+     action: "issue",
+     previousLevelCode: null,
+     warningKind: "噴火警報",
+diff --git a/test/engine/volcano-presentation.test.ts b/test/engine/volcano-presentation.test.ts
+index 507af1ad..8dda7623 100644
+--- a/test/engine/volcano-presentation.test.ts
++++ b/test/engine/volcano-presentation.test.ts
+@@ -35,6 +35,7 @@ function createAlert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVol
+     type: "VFVO50",
+     alertLevel: 3,
+     alertLevelCode: "13",
++    alertClass: null,
+     action: "raise",
+     previousLevelCode: null,
+     warningKind: "噴火警報（火口周辺）",
+@@ -88,6 +89,7 @@ function createText(overrides: Partial<ParsedVolcanoTextInfo> = {}): ParsedVolca
+     type: "VFVO51",
+     alertLevel: null,
+     alertLevelCode: null,
++    alertClasses: [],
+     isExtraordinary: false,
+     bodyText: "",
+     nextAdvisory: null,
+@@ -289,6 +291,36 @@ describe("resolveVolcanoPresentation", () => {
+   // ── テキスト系 ──
+ 
+   describe("テキスト系", () => {
++    it.each(["22", "23", "31", "36"])(
++      "VFVO51 active warning 区分 Code %s は warning 音",
++      (code) => {
++        const info = createText({
++          alertClasses: [{
++            volcanoCode: "506",
++            volcanoName: "桜島",
++            alertClass: { code, name: "警報区分", severity: "warning", isActive: true },
++          }],
++        });
++        const p = resolveVolcanoPresentation(info, volcanoState);
++        expect(p.soundLevel).toBe("warning");
++      },
++    );
++
++    it.each(["21", "35"])(
++      "VFVO51 info 区分 Code %s は info 音のまま",
++      (code) => {
++        const info = createText({
++          alertClasses: [{
++            volcanoCode: "506",
++            volcanoName: "桜島",
++            alertClass: { code, name: "予報区分", severity: "info", isActive: true },
++          }],
++        });
++        const p = resolveVolcanoPresentation(info, volcanoState);
++        expect(p.soundLevel).toBe("info");
++      },
++    );
++
+     it("VFVO51 臨時 → warning / normal", () => {
+       const info = createText({ isExtraordinary: true });
+       const p = resolveVolcanoPresentation(info, volcanoState);
+diff --git a/test/engine/volcano-route-handler.test.ts b/test/engine/volcano-route-handler.test.ts
+index 4bae8231..669de73a 100644
+--- a/test/engine/volcano-route-handler.test.ts
++++ b/test/engine/volcano-route-handler.test.ts
+@@ -4,6 +4,7 @@ import type {
+   ParsedVolcanoAshfallInfo,
+   ParsedVolcanoEruptionInfo,
+   ParsedVolcanoInfo,
++  ParsedVolcanoTextInfo,
+   WsDataMessage,
+ } from "../../src/types";
+ import type { ProcessOutcome, VolcanoBatchOutcome } from "../../src/engine/presentation/types";
+@@ -107,6 +108,7 @@ function createAlert(
+     isTest: false,
+     alertLevel,
+     alertLevelCode: String(10 + (alertLevel ?? 0)),
++    alertClass: null,
+     action,
+     previousLevelCode: null,
+     warningKind: action === "release" ? "噴火予報" : "噴火警報",
+@@ -120,6 +122,39 @@ function createAlert(
+   };
+ }
+ 
++function createWarningClassText(code: "22" | "23"): ParsedVolcanoTextInfo {
++  return {
++    domain: "volcano",
++    kind: "text",
++    type: "VFVO51",
++    infoType: "発表",
++    title: "噴火警報・予報",
++    reportDateTime: "2025-01-01T09:00:00+09:00",
++    eventDateTime: null,
++    headline: "火山の状況に関する解説情報",
++    publishingOffice: "気象庁",
++    volcanoName: "",
++    volcanoCode: "",
++    coordinate: null,
++    isTest: false,
++    alertLevel: null,
++    alertLevelCode: null,
++    alertClasses: [{
++      volcanoCode: "506",
++      volcanoName: "桜島",
++      alertClass: {
++        code,
++        name: code === "22" ? "火口周辺危険" : "入山危険",
++        severity: "warning",
++        isActive: true,
++      },
++    }],
++    isExtraordinary: false,
++    bodyText: "",
++    nextAdvisory: null,
++  };
++}
++
+ describe("VolcanoRouteHandler", () => {
+   const parseMock = vi.mocked(parseVolcanoTelegram);
+   let state: VolcanoStateHolder;
+@@ -192,4 +227,19 @@ describe("VolcanoRouteHandler", () => {
+     expect(notifyVolcano).toHaveBeenCalledTimes(2);
+     expect(displayVolcano).toHaveBeenCalledTimes(2);
+   });
++
++  it.each(["22", "23"] as const)(
++    "VFVO51 Code %s の warning 音を notifyVolcano まで渡す",
++    (code) => {
++      const info = createWarningClassText(code);
++      parseMock.mockReturnValueOnce(info);
++
++      handler.handle(createMessage(`vfvo51-${code}`, "VFVO51"));
++
++      expect(notifyVolcano).toHaveBeenCalledWith(
++        info,
++        expect.objectContaining({ soundLevel: "warning" }),
++      );
++    },
++  );
+ });
+diff --git a/test/engine/volcano-state.test.ts b/test/engine/volcano-state.test.ts
+index 4ed321ef..2087f0bd 100644
+--- a/test/engine/volcano-state.test.ts
++++ b/test/engine/volcano-state.test.ts
+@@ -20,6 +20,7 @@ function createAlertInfo(overrides: Partial<ParsedVolcanoAlertInfo> = {}): Parse
+     isTest: false,
+     alertLevel: 3,
+     alertLevelCode: "13",
++    alertClass: null,
+     action: "raise",
+     previousLevelCode: "12",
+     warningKind: "噴火警報（火口周辺）",
+diff --git a/test/ui/detail-output-contract.test.ts b/test/ui/detail-output-contract.test.ts
+index 5ebb425e..6795393a 100644
+--- a/test/ui/detail-output-contract.test.ts
++++ b/test/ui/detail-output-contract.test.ts
+@@ -65,6 +65,7 @@ function makeVolcanoInfo(): ParsedVolcanoAlertInfo {
+     isTest: false,
+     alertLevel: 3,
+     alertLevelCode: "33",
++    alertClass: null,
+     action: "raise",
+     previousLevelCode: "22",
+     warningKind: "噴火警報（入山規制）",

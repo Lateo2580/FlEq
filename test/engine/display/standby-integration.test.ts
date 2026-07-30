@@ -23,6 +23,7 @@ function typhoon(key = "TC-1", serial = "1", timeMs = T0): PresentationEvent {
   return event({ id: `${key}-${serial}`, domain: "typhoonAnalysis", eventId: key, serial, reportDateTime: iso(timeMs), raw: {
     eventId: key, serial, infoType: "発表", name: { name: "Alpha", nameKana: "ALPHA", number: "2601", remark: null },
     frames: [{ kind: "実況", typhoonClass: { category: "TS" }, center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 25 } }],
+    lifecycle: "active",
   } });
 }
 
@@ -82,6 +83,7 @@ function volcanoAlertInfo(
     reportDateTime: iso(timeMs), eventDateTime: null, headline: null, publishingOffice: "気象庁",
     volcanoName: "テスト山", volcanoCode: "V-1", coordinate: null, isTest: false,
     alertLevel, alertLevelCode: String(alertLevel), action, previousLevelCode: null,
+    alertClass: null,
     warningKind: "", municipalities: [], marineAreas: [], marineWarningKind: null,
     marineAlertLevelCode: null, bodyText: "", preventionText: "", isMarine: false,
   };
@@ -268,6 +270,32 @@ describe("standby integration", () => {
     expect(store.applyEvent(volcano(T0 + 30_000), T0 + 60_002))
       .toEqual({ viewChanged: false, durableChanged: false });
     expect(store.snapshotItems()).toEqual([]);
+  });
+
+  it("9c: carries a non-numeric warning class through the authoritative startup seed", () => {
+    const volcanoState = new VolcanoStateHolder();
+    const info = volcanoAlertInfo(T0, "issue", null);
+    info.alertClass = { code: "23", name: "入山危険", severity: "warning", isActive: true };
+    info.warningKind = "噴火警報（火口周辺）";
+    info.municipalities = [{ name: "テスト市", code: "001", kind: "入山規制" }];
+    volcanoState.update(info);
+
+    const store = new StandbyStateStore();
+    store.seedVolcanoAlerts(volcanoState.getSeedEntries(), "success", T0);
+
+    expect(store.snapshotItems()).toEqual([
+      expect.objectContaining({
+        kind: "volcano",
+        data: {
+          volcanoes: [expect.objectContaining({
+            alertLevel: null,
+            alertClass: { code: "23", name: "入山危険", severity: "warning", isActive: true },
+            warningKind: "噴火警報（火口周辺）",
+            targetKinds: ["入山規制"],
+          })],
+        },
+      }),
+    ]);
   });
 
   it("10: keeps long-lived cancellation tombstones beyond 24 hours", () => {

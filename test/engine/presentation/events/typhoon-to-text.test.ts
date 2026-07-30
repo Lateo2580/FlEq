@@ -48,7 +48,7 @@ function syntheticAnalysis(frame: Partial<TyphoonFrame>): ParsedTyphoonAnalysis 
     reportDateTime: "2017-09-13T09:00:00+09:00", publishingOffice: "気象庁",
     eventId: "TC1718", serial: "1", headline: null,
     name: { name: "TALIM", nameKana: "タリム", number: "1718", remark: null },
-    frames: [base], isTest: false,
+    frames: [base], lifecycle: "active", isTest: false,
   };
 }
 

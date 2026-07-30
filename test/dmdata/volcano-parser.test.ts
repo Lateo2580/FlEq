@@ -14,6 +14,7 @@ import {
   FIXTURE_VFVO54_ASH_RAPID,
   FIXTURE_VFVO55_ASH_DETAIL,
   FIXTURE_VFVO56_FLASH_1,
+  FIXTURE_VFVO56_FLASH_4,
   FIXTURE_VFVO60_PLUME,
   FIXTURE_VZVO40_NOTICE,
   createMockWsDataMessageFromXml,
@@ -134,6 +135,15 @@ describe("parseVolcanoTelegram", () => {
         expect(result!.eventDateTime).toBe("2014-09-27T11:53:00+09:00");
       }
     });
+
+    it("実在取消は火山コード欠落のまま EventID 系列で識別できる", () => {
+      const result = parseVolcanoTelegram(createMockWsDataMessage(FIXTURE_VFVO56_FLASH_4));
+      expect(result).toMatchObject({
+        kind: "eruption",
+        infoType: "取消",
+        volcanoCode: "",
+      });
+    });
   });
 
   // ── VFSVii: 火山海上警報 ──
@@ -150,6 +160,11 @@ describe("parseVolcanoTelegram", () => {
 
       if (result!.kind === "alert") {
         expect(result!.isMarine).toBe(true);
+        expect(result!.alertClass).toMatchObject({
+          code: "36",
+          severity: "warning",
+          isActive: true,
+        });
       }
     });
   });
@@ -183,6 +198,23 @@ describe("parseVolcanoTelegram", () => {
       if (result!.kind === "text") {
         // 月例一覧は Headline > Information 構造が異なり alertLevel が取れない場合がある
         expect(result!.bodyText).toBeTruthy();
+        expect(result!.alertClasses).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            volcanoCode: "326",
+            alertClass: expect.objectContaining({ code: "23", severity: "warning", isActive: true }),
+          }),
+          expect.objectContaining({
+            volcanoCode: "329",
+            alertClass: expect.objectContaining({ code: "22", severity: "warning", isActive: true }),
+          }),
+          expect.objectContaining({
+            volcanoCode: "331",
+            alertClass: expect.objectContaining({ code: "36", severity: "warning", isActive: true }),
+          }),
+          expect.objectContaining({
+            alertClass: expect.objectContaining({ code: "21", severity: "info", isActive: true }),
+          }),
+        ]));
       }
     });
   });

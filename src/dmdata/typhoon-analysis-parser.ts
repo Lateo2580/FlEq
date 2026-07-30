@@ -8,6 +8,7 @@ import {
   TyphoonWind,
   TyphoonWindArea,
   TyphoonWindAxis,
+  TyphoonLifecycle,
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, toNumberOrNull, nodeText } from "./timeseries-common";
@@ -122,6 +123,20 @@ function parseFrame(info: unknown): TyphoonFrame {
   return { kind, label, validTime: nodeText(dt), typhoonClass, center, wind };
 }
 
+function typhoonLifecycle(name: TyphoonName | null, frames: TyphoonFrame[]): TyphoonLifecycle {
+  const remark = name?.remark?.trim() ?? "";
+  if (/台風発生の可能性が小さくなった|台風発生予想.*(?:終了|中止|取りやめ)/u.test(remark)) {
+    return "formationCancelled";
+  }
+  const current = frames.find((frame) => frame.kind === "実況") ?? frames[0];
+  const category = current?.typhoonClass.category ?? "";
+  if (category.includes("温帯低気圧") || category === "LOW" || /台風消滅|温帯低気圧化/u.test(remark)) {
+    return "transitionedToLow";
+  }
+  if (remark.includes("台風発生予想")) return "forming";
+  return "active";
+}
+
 export function parseTyphoonAnalysis(
   msg: WsDataMessage,
 ): ParsedTyphoonAnalysis | null {
@@ -177,6 +192,7 @@ export function parseTyphoonAnalysis(
       headline: str(dig(dig(head, "Headline"), "Text")) || null,
       name,
       frames,
+      lifecycle: typhoonLifecycle(name, frames),
       isTest: msg.head.test,
     };
   } catch (err) {

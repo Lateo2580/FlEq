@@ -27,6 +27,7 @@
     <!-- 未命名 (発生予想等) は総称の「台風」を出さず remark を主行に昇格させる (2 行の冗長回避) -->
     <div class="typhoon">
       <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
+      {#if typhoon.name != null && typhoon.remark != null}<div class="remark">{typhoon.remark}</div>{/if}
       {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
       {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || typhoon.maxGustMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
@@ -102,7 +103,7 @@
   .typhoon { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
   .typhoon strong { display: block; font-size: max(14px, var(--type-label-l-fluid)); }
   /* 現在位置: ラベルなしの muted 本文 (層2) */
-  .location { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
+  .location, .remark { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
   /* 通常幅は VolcanoCard と同じ 2×2。各列に 9rem を確保できない幅では自動的に 1 列へ落とし、
      minmax(0, ...) のように内容幅を無視して親の overflow:hidden へ押し込まない。 */
   .meta {

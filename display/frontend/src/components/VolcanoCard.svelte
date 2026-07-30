@@ -11,10 +11,13 @@
   // レベル4 または噴火速報=赤 / レベル5=紫)。severity では段階が足りないため data から導出する
   const maxAlertLevel = $derived(item.data.volcanoes.reduce((max, v) => Math.max(max, v.alertLevel ?? 0), 0));
   const hasEruptionFlash = $derived(item.data.volcanoes.some((v) => v.latestEvent?.label === "噴火速報"));
+  const hasWarningClass = $derived(item.data.volcanoes.some((v) =>
+    v.alertClass?.isActive === true && v.alertClass.severity === "warning",
+  ));
   const band = $derived(
     maxAlertLevel >= 5 ? "emergency"
       : maxAlertLevel >= 4 || hasEruptionFlash ? "red"
-        : maxAlertLevel >= 3 ? "warning"
+        : maxAlertLevel >= 3 || hasWarningClass ? "warning"
           : "advisory",
   );
 
@@ -24,7 +27,9 @@
       .filter((kind, index, all) => kind !== "" && all.indexOf(kind) === index);
     const visibleKinds = targetKinds.slice(0, 2);
     if (targetKinds.length > visibleKinds.length) visibleKinds.push(`ほか${targetKinds.length - visibleKinds.length}種`);
-    const parts = [volcano.warningKind?.trim() ?? "", visibleKinds.join("・")]
+    const warningKind = volcano.warningKind?.trim() ?? "";
+    const alertClassName = volcano.alertClass?.isActive === true ? volcano.alertClass.name.trim() : "";
+    const parts = [warningKind === alertClassName ? "" : warningKind, visibleKinds.join("・")]
       .filter((part) => part !== "");
     return parts.length === 0 ? null : parts.join(" / ");
   }
@@ -45,7 +50,14 @@
   {#each item.data.volcanoes as volcano (volcano.code)}
     {@const meaning = alertMeaning(volcano)}
     <div class="volcano">
-      <div class="volcano-main"><span>{volcano.name}</span>{#if volcano.alertLevel != null}<span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>{/if}</div>
+      <div class="volcano-main">
+        <span>{volcano.name}</span>
+        {#if volcano.alertLevel != null}
+          <span><NumberUnit prefix="レベル" value={String(volcano.alertLevel)} />（{VOLCANO_LEVEL_LABELS[volcano.alertLevel]}）</span>
+        {:else if volcano.alertClass?.isActive}
+          <span>{volcano.alertClass.name}</span>
+        {/if}
+      </div>
       {#if meaning != null}<div class="alert-meaning">{meaning}</div>{/if}
       {#if volcano.latestEvent != null}
         <strong>{volcano.latestEvent.label}</strong>

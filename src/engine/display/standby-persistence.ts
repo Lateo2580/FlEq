@@ -7,6 +7,7 @@ import type {
   DisplayFloodStationV1,
   DisplayHeatAreaV1,
   DisplayTyphoonV1,
+  DisplayVolcanoAlertClassV1,
   DisplayVolcanoEventV1,
   DisplayWeatherAlertItemV1,
   DisplayWeatherAlertV1,
@@ -48,11 +49,14 @@ export interface PersistedVolcanoStateV1 {
   code: string;
   name: string;
   alertLevel: number | null;
+  alertClass?: DisplayVolcanoAlertClassV1 | null;
   warningKind?: string | null;
   targetKinds?: string[];
   alertExpiresAtMs: number | null;
   /** string は構造化前の v1 保存状態との互換専用。新規保存は DisplayVolcanoEventV1。 */
   latestEvent?: DisplayVolcanoEventV1 | string | null;
+  /** 空コードの取消を EventID で直近噴火へ結び直すための逆引き。 */
+  latestEventId?: string | null;
   eventExpiresAtMs: number | null;
   sourceEventIds: string[];
   alertRevision: StandbyRevision | null;
@@ -400,6 +404,9 @@ function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
     && typeof value.code === "string"
     && typeof value.name === "string"
     && hasNullableFiniteNumber(value, "alertLevel")
+    && (!Object.hasOwn(value, "alertClass")
+      || value.alertClass == null
+      || isVolcanoAlertClass(value.alertClass))
     && (!Object.hasOwn(value, "warningKind") || hasNullableString(value, "warningKind"))
     && (!Object.hasOwn(value, "targetKinds") || isStringArray(value.targetKinds))
     && hasNullableFiniteNumber(value, "alertExpiresAtMs")
@@ -407,10 +414,19 @@ function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
       || value.latestEvent == null
       || typeof value.latestEvent === "string"
       || isVolcanoEvent(value.latestEvent))
+    && (!Object.hasOwn(value, "latestEventId") || hasNullableString(value, "latestEventId"))
     && hasNullableFiniteNumber(value, "eventExpiresAtMs")
     && isStringArray(value.sourceEventIds)
     && Object.hasOwn(value, "alertRevision") && (value.alertRevision == null || isRevision(value.alertRevision))
     && Object.hasOwn(value, "eventRevision") && (value.eventRevision == null || isRevision(value.eventRevision));
+}
+
+function isVolcanoAlertClass(value: unknown): value is DisplayVolcanoAlertClassV1 {
+  return isRecord(value)
+    && typeof value.code === "string"
+    && typeof value.name === "string"
+    && (value.severity === "warning" || value.severity === "info")
+    && typeof value.isActive === "boolean";
 }
 
 function isVolcanoEvent(value: unknown): value is DisplayVolcanoEventV1 {

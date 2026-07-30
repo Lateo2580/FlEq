@@ -28,6 +28,9 @@ export interface VolcanoReportTimeWatermark {
 
 export interface VolcanoSeedEntry extends VolcanoReportTimeWatermark {
   alertLevel: number | null;
+  alertClass: ParsedVolcanoAlertInfo["alertClass"];
+  warningKind: string;
+  targetKinds: string[];
   active: boolean;
 }
 
@@ -156,13 +159,23 @@ export class VolcanoStateHolder
       volcanoCode: entry.volcanoCode,
       volcanoName: entry.volcanoName,
       alertLevel: entry.alertLevel,
+      alertClass: entry.lastInfo.alertClass,
+      warningKind: entry.lastInfo.warningKind,
+      targetKinds: entry.lastInfo.municipalities.map((municipality) => municipality.kind),
       reportDateTime: entry.reportDateTime,
       active: true,
     }));
     const activeCodes = new Set(active.map((entry) => entry.volcanoCode));
     const released = this.getWatermarks()
       .filter((watermark) => !activeCodes.has(watermark.volcanoCode))
-      .map((watermark) => ({ ...watermark, alertLevel: null, active: false }));
+      .map((watermark) => ({
+        ...watermark,
+        alertLevel: null,
+        alertClass: null,
+        warningKind: "",
+        targetKinds: [],
+        active: false,
+      }));
     return [...active, ...released];
   }
 

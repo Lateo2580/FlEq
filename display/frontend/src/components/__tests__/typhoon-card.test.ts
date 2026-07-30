@@ -193,6 +193,14 @@ describe("TyphoonCard", () => {
     expect(container.textContent).toContain("BETA");
   });
 
+  it("命名済み台風でも Remark を見出し下の補助行に残す", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([typhoon({ name: "ALPHA", remark: "台風消滅（温帯低気圧化）" })]),
+    });
+    expect(container.querySelector("strong")?.textContent).toContain("ALPHA");
+    expect(container.querySelector(".remark")?.textContent).toBe("台風消滅（温帯低気圧化）");
+  });
+
   it("marks a restored card as synchronizing", () => {
     const { container } = render(TyphoonCard, { item: { ...typhoonItem(), restored: true } });
     expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");

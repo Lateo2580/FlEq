@@ -1,9 +1,11 @@
 import type { PresentationEvent } from "../presentation/types";
 import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedTornadoAdvisory } from "../../types";
+import * as log from "../../logger";
 import type {
   ActiveStandbyCardV1,
   DisplayHeatAreaV1,
   DisplayTyphoonV1,
+  DisplayVolcanoAlertClassV1,
   DisplayVolcanoEventV1,
   DisplayWeatherAlertV1,
   DisplayWeatherSourceV1,
@@ -15,7 +17,7 @@ import type {
 } from "./standby-persistence";
 import { FloodActiveReducer } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
-import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdate } from "./project-standby";
+import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdates, type VolcanoUpdate } from "./project-standby";
 import {
   NO_MUTATION,
   revisionOf,
@@ -58,10 +60,12 @@ interface VolcanoState {
   code: string;
   name: string;
   alertLevel: number | null;
+  alertClass: DisplayVolcanoAlertClassV1 | null;
   warningKind: string | null;
   targetKinds: string[];
   alertExpiresAtMs: number | null;
   latestEvent: DisplayVolcanoEventV1 | null;
+  latestEventId: string | null;
   eventExpiresAtMs: number | null;
   sourceEventIds: string[];
   alertRevision: StandbyRevision | null;
@@ -109,6 +113,9 @@ export interface VolcanoSeedEntry {
   volcanoCode: string;
   volcanoName: string;
   alertLevel: number | null;
+  alertClass?: DisplayVolcanoAlertClassV1 | null;
+  warningKind?: string | null;
+  targetKinds?: string[];
   reportDateTime: string;
   active?: boolean;
 }
@@ -296,7 +303,13 @@ export class StandbyStateStore {
     if (update == null) return NO_MUTATION;
     const key = `typhoon:${update.typhoonKey}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
+    if (!this.revisionGuard.accept(
+      key,
+      revision,
+      nowMs,
+      tombstoneTtlForKey(key),
+      update.isCorrection || update.isCancellation,
+    )) return NO_MUTATION;
     if (update.isCancellation) {
       return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
     }
@@ -319,20 +332,64 @@ export class StandbyStateStore {
   }
 
   private applyVolcano(event: PresentationEvent, nowMs: number): DisplayMutation {
-    const update = projectVolcanoUpdate(event);
-    if (update == null) return NO_MUTATION;
-    const key = `volcano:${update.kind === "alert" ? "alert" : "event"}:${update.volcano.code}`;
+    const updates = projectVolcanoUpdates(event);
+    let mutation = NO_MUTATION;
+    for (const update of updates) {
+      const next = this.applyVolcanoUpdate(update, nowMs);
+      mutation = {
+        viewChanged: mutation.viewChanged || next.viewChanged,
+        durableChanged: mutation.durableChanged || next.durableChanged,
+      };
+    }
+    return mutation;
+  }
+
+  private applyVolcanoUpdate(update: VolcanoUpdate, nowMs: number): DisplayMutation {
+    let volcanoCode = update.volcano.code;
+    if (update.kind === "eruption" && update.isCancellation && volcanoCode === "" && update.eventId != null) {
+      const exactCandidates = [...this.volcanoes.values()]
+        .filter((candidate) => candidate.latestEventId === update.eventId);
+      if (exactCandidates.length === 1) {
+        volcanoCode = exactCandidates[0].code;
+      } else if (exactCandidates.length > 1) {
+        log.warn(`[display] VFVO56 取消の EventID が複数火山に一致したため削除を保留しました (eventId=${update.eventId})`);
+      } else {
+        // latestEventId 導入前の保存状態は sourceEventIds が dmdata message ID のため
+        // XML EventID を安全に補完できない。噴火イベントが一意な場合だけ移行 fallback を許す。
+        const legacyCandidates = [...this.volcanoes.values()]
+          .filter((candidate) => candidate.latestEventId == null && candidate.latestEvent != null);
+        if (legacyCandidates.length === 1) {
+          volcanoCode = legacyCandidates[0].code;
+        } else if (legacyCandidates.length > 1) {
+          log.warn(`[display] 旧形式の噴火 state が複数あるため空コード VFVO56 取消を適用しません (eventId=${update.eventId})`);
+        }
+      }
+    }
+    const revisionIdentity = update.kind === "eruption" && update.eventId != null
+      ? update.eventId
+      : volcanoCode;
+    if (revisionIdentity === "") return NO_MUTATION;
+    const key = `volcano:${update.kind === "alert" ? "alert" : "event"}:${revisionIdentity}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
-    const previous = this.volcanoes.get(update.volcano.code);
+    if (!this.revisionGuard.accept(
+      key,
+      revision,
+      nowMs,
+      tombstoneTtlForKey(key),
+      update.isCorrection || update.isCancellation,
+    )) return NO_MUTATION;
+    if (volcanoCode === "") return { viewChanged: false, durableChanged: true };
+    const previous = this.volcanoes.get(volcanoCode);
     const state: VolcanoState = previous ?? {
-      code: update.volcano.code,
+      code: volcanoCode,
       name: update.volcano.name,
       alertLevel: null,
+      alertClass: null,
       warningKind: null,
       targetKinds: [],
       alertExpiresAtMs: null,
       latestEvent: null,
+      latestEventId: null,
       eventExpiresAtMs: null,
       sourceEventIds: [],
       alertRevision: null,
@@ -340,18 +397,20 @@ export class StandbyStateStore {
       alertRestored: false,
       eventRestored: false,
     };
-    state.name = update.volcano.name;
+    if (update.volcano.name !== "") state.name = update.volcano.name;
     if (!state.sourceEventIds.includes(update.sourceEventId)) state.sourceEventIds.push(update.sourceEventId);
     if (update.kind === "alert") {
       state.alertRestored = false;
       state.alertRevision = revision;
       if (update.isCancellation) {
         state.alertLevel = null;
+        state.alertClass = null;
         state.warningKind = null;
         state.targetKinds = [];
         state.alertExpiresAtMs = nowMs;
       } else {
         state.alertLevel = update.volcano.alertLevel;
+        state.alertClass = update.volcano.alertClass == null ? null : { ...update.volcano.alertClass };
         state.warningKind = update.volcano.warningKind ?? null;
         state.targetKinds = [...(update.volcano.targetKinds ?? [])];
         // レベル3以下も次の解除まで現況として保持する。カード化は snapshot 側で
@@ -362,9 +421,11 @@ export class StandbyStateStore {
       state.eventRestored = false;
       state.eventRevision = revision;
       state.latestEvent = update.isCancellation ? null : copyVolcanoEvent(update.volcano.latestEvent);
+      state.latestEventId = update.isCancellation ? null : update.eventId;
       state.eventExpiresAtMs = update.isCancellation ? null : revision.reportTimeMs + DAY_MS;
     }
-    if (state.alertExpiresAtMs != null && (state.eventExpiresAtMs == null || state.eventExpiresAtMs <= nowMs)) {
+    const hasActiveAlert = state.alertLevel != null || state.alertClass?.isActive === true;
+    if (!hasActiveAlert && (state.eventExpiresAtMs == null || state.eventExpiresAtMs <= nowMs)) {
       this.volcanoes.delete(state.code);
     } else {
       this.volcanoes.set(state.code, state);
@@ -383,6 +444,7 @@ export class StandbyStateStore {
         const alertWasVisible = state.alertLevel != null && state.alertLevel >= 4
           || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs;
         state.alertLevel = null;
+        state.alertClass = null;
         state.warningKind = null;
         state.targetKinds = [];
         state.alertExpiresAtMs = nowMs;
@@ -406,10 +468,12 @@ export class StandbyStateStore {
         code: entry.volcanoCode,
         name: entry.volcanoName,
         alertLevel: null,
+        alertClass: null,
         warningKind: null,
         targetKinds: [],
         alertExpiresAtMs: null,
         latestEvent: null,
+        latestEventId: null,
         eventExpiresAtMs: null,
         sourceEventIds: [],
         alertRevision: revision,
@@ -419,6 +483,9 @@ export class StandbyStateStore {
       };
       state.name = entry.volcanoName;
       state.alertLevel = entry.alertLevel;
+      state.alertClass = entry.alertClass == null ? null : { ...entry.alertClass };
+      state.warningKind = entry.warningKind ?? null;
+      state.targetKinds = [...(entry.targetKinds ?? [])];
       state.alertExpiresAtMs = null;
       state.alertRevision = revision;
       state.alertRestored = false;
@@ -478,10 +545,13 @@ export class StandbyStateStore {
       if (state.eventExpiresAtMs != null && state.eventExpiresAtMs <= nowMs) {
         state.eventExpiresAtMs = null;
         state.latestEvent = null;
+        state.latestEventId = null;
         viewChanged = true;
         durableChanged = true;
       }
-      if (state.alertExpiresAtMs != null && state.alertExpiresAtMs <= nowMs && state.eventExpiresAtMs == null) {
+      const hasActiveAlert = state.alertLevel != null || state.alertClass?.isActive === true;
+      if ((!hasActiveAlert || state.alertExpiresAtMs != null && state.alertExpiresAtMs <= nowMs)
+        && state.eventExpiresAtMs == null) {
         this.volcanoes.delete(key);
         viewChanged = true;
         durableChanged = true;
@@ -554,7 +624,11 @@ export class StandbyStateStore {
         data: { typhoons: states.map((state) => ({ ...state.typhoon })) },
       });
     }
-    const volcanoes = [...this.volcanoes.values()].filter((state) => state.alertLevel != null && state.alertLevel >= 4 || state.eventExpiresAtMs != null);
+    const volcanoes = [...this.volcanoes.values()].filter((state) =>
+      state.alertLevel != null && state.alertLevel >= 4
+      || state.alertClass?.isActive === true && state.alertClass.severity === "warning"
+      || state.eventExpiresAtMs != null
+    );
     if (volcanoes.length > 0) {
       const critical = volcanoes.some((state) =>
         (state.alertLevel ?? 0) >= 4 || state.latestEvent?.label === "噴火速報"
@@ -573,6 +647,7 @@ export class StandbyStateStore {
           code: state.code,
           name: state.name,
           alertLevel: state.alertLevel,
+          alertClass: state.alertClass == null ? null : { ...state.alertClass },
           warningKind: state.warningKind,
           targetKinds: [...state.targetKinds],
           latestEvent: copyVolcanoEvent(state.latestEvent),
@@ -625,10 +700,12 @@ export class StandbyStateStore {
         code: state.code,
         name: state.name,
         alertLevel: state.alertLevel,
+        alertClass: state.alertClass == null ? null : { ...state.alertClass },
         warningKind: state.warningKind,
         targetKinds: [...state.targetKinds],
         alertExpiresAtMs: state.alertExpiresAtMs,
         latestEvent: copyVolcanoEvent(state.latestEvent),
+        latestEventId: state.latestEventId,
         eventExpiresAtMs: state.eventExpiresAtMs,
         sourceEventIds: [...state.sourceEventIds],
         alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
@@ -691,9 +768,11 @@ export class StandbyStateStore {
       if (state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs) {
         this.volcanoes.set(state.code, {
           ...state,
+          alertClass: state.alertClass == null ? null : { ...state.alertClass },
           warningKind: state.warningKind ?? null,
           targetKinds: [...(state.targetKinds ?? [])],
           latestEvent: restoreVolcanoEvent(state.latestEvent),
+          latestEventId: state.latestEventId ?? null,
           sourceEventIds: [...state.sourceEventIds],
           alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
           eventRevision: state.eventRevision == null ? null : { ...state.eventRevision },

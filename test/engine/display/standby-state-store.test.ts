@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseTyphoonAnalysis } from "../../../src/dmdata/typhoon-analysis-parser";
+import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
+import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
+import * as log from "../../../src/logger";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type {
@@ -11,7 +14,13 @@ import type {
 } from "../../../src/types";
 import {
   createMockWsDataMessage,
+  FIXTURE_VFVO51_EXTRA,
+  FIXTURE_VFVO56_FLASH_1,
+  FIXTURE_VFVO56_FLASH_4,
   FIXTURE_VPTW60_2020,
+  FIXTURE_VPTW61,
+  FIXTURE_VXKO50_16_05_01,
+  FIXTURE_VXKO50_16_14_01,
 } from "../../helpers/mock-message";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
@@ -210,6 +219,7 @@ function typhoonRaw(over: Record<string, unknown> = {}): ParsedTyphoonAnalysis {
       center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 },
       wind: { maxWindMs: 25 },
     }],
+    lifecycle: "active",
     ...over,
   } as unknown as ParsedTyphoonAnalysis;
 }
@@ -250,6 +260,26 @@ function volcanoEvent(over: Record<string, unknown> = {}, rawOver: Record<string
     serial: "1",
     reportDateTime: "2026-07-21T05:00:00+09:00",
     isCancellation: false,
+    raw,
+    ...over,
+  } as unknown as PresentationEvent;
+}
+
+function parsedVolcanoEvent(
+  fixture: string,
+  over: Record<string, unknown> = {},
+): PresentationEvent {
+  const msg = createMockWsDataMessage(fixture);
+  const raw = parseVolcanoTelegram(msg);
+  if (raw == null) throw new Error(`${fixture} did not parse`);
+  return {
+    id: fixture,
+    domain: "volcano",
+    eventId: msg.xmlReport?.head?.eventId ?? null,
+    serial: msg.xmlReport?.head?.serial ?? null,
+    reportDateTime: raw.reportDateTime,
+    infoType: raw.infoType,
+    isCancellation: raw.infoType === "取消",
     raw,
     ...over,
   } as unknown as PresentationEvent;
@@ -468,9 +498,121 @@ describe("StandbyStateStore: typhoon", () => {
     expect(store.snapshotItems()).toEqual([]);
     expect(store.applyEvent(typhoonEvent({ id: "typhoon-old", serial: "10" }, { serial: "10" }), T0 + 25 * 60 * 60_000 + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
   });
+
+  it("発生予想終了を tombstone として削除し、遅延旧報で復活させない", () => {
+    const ended = parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW61))!;
+    const reportMs = Date.parse(ended.reportDateTime);
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({
+      id: "forming",
+      eventId: ended.eventId,
+      serial: "0",
+      reportDateTime: new Date(reportMs - 60_000).toISOString(),
+    }, { ...ended, serial: "0", lifecycle: "forming" }), reportMs - 60_000);
+    expect(store.snapshotItems()).toHaveLength(1);
+
+    store.applyEvent(typhoonEvent({
+      id: "formation-ended",
+      eventId: ended.eventId,
+      serial: ended.serial,
+      reportDateTime: ended.reportDateTime,
+    }, ended as unknown as Record<string, unknown>), reportMs);
+    expect(store.snapshotItems()).toEqual([]);
+
+    expect(store.applyEvent(typhoonEvent({
+      id: "stale-forming",
+      eventId: ended.eventId,
+      serial: "0",
+      reportDateTime: new Date(reportMs - 60_000).toISOString(),
+    }, { ...ended, serial: "0", lifecycle: "forming" }), reportMs + 1)).toEqual({
+      viewChanged: false,
+      durableChanged: false,
+    });
+  });
 });
 
 describe("StandbyStateStore: volcano", () => {
+  it("空コードの VFVO56 取消を EventID で噴火へ結び、復元後もカードを復活させない", () => {
+    const issue = parsedVolcanoEvent(FIXTURE_VFVO56_FLASH_1, { eventId: "20140927120000_312" });
+    const cancel = parsedVolcanoEvent(FIXTURE_VFVO56_FLASH_4, { eventId: "20140927120000_312" });
+    expect(issue.eventId).toBe("20140927120000_312");
+    expect(cancel.eventId).toBe(issue.eventId);
+    const issueMs = Date.parse(issue.reportDateTime);
+    const cancelMs = Date.parse(cancel.reportDateTime);
+    const beforeRestart = new StandbyStateStore();
+    beforeRestart.applyEvent(issue, issueMs);
+    expect(beforeRestart.snapshotItems()).toHaveLength(1);
+    expect(beforeRestart.exportActiveState().volcanoes[0]?.latestEventId).toBe(issue.eventId);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(beforeRestart.exportActiveState(), cancelMs);
+    restored.applyEvent(cancel, cancelMs);
+    expect(restored.snapshotItems()).toEqual([]);
+
+    const afterRestart = new StandbyStateStore();
+    afterRestart.restoreActiveState(restored.exportActiveState(), cancelMs + 1);
+    expect(afterRestart.snapshotItems()).toEqual([]);
+    expect(afterRestart.applyEvent(issue, cancelMs + 2)).toEqual({
+      viewChanged: false,
+      durableChanged: false,
+    });
+    expect(afterRestart.snapshotItems()).toEqual([]);
+  });
+
+  it("旧形式の噴火イベント候補が複数なら空コード取消を適用せず警告する", () => {
+    const seeded = new StandbyStateStore();
+    seeded.applyEvent(volcanoEvent({ eventId: "eruption-a" }, {
+      kind: "eruption", type: "VFVO56", volcanoCode: "V-1", volcanoName: "Mount One",
+      isFlashReport: true, phenomenonName: "噴火",
+    }), T0);
+    seeded.applyEvent(volcanoEvent({
+      id: "volcano-2",
+      eventId: "eruption-b",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+    }, {
+      kind: "eruption", type: "VFVO56", volcanoCode: "V-2", volcanoName: "Mount Two",
+      isFlashReport: true, phenomenonName: "噴火",
+    }), T0 + 60_000);
+    const active = seeded.exportActiveState();
+    const legacy = {
+      ...active,
+      volcanoes: active.volcanoes.map(({ latestEventId: _missing, ...state }) => state),
+    };
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(legacy, T0 + 120_000);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    restored.applyEvent(volcanoEvent({
+      id: "empty-code-cancel",
+      eventId: "eruption-cancel",
+      serial: "2",
+      reportDateTime: new Date(T0 + 180_000).toISOString(),
+      isCancellation: true,
+    }, {
+      kind: "eruption", type: "VFVO56", infoType: "取消",
+      volcanoCode: "", volcanoName: "", isFlashReport: true, phenomenonName: "噴火速報",
+    }), T0 + 180_000);
+
+    expect(restored.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes)
+      .toHaveLength(2);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("旧形式の噴火 state が複数"));
+    warn.mockRestore();
+  });
+
+  it("VFVO51 の非数値警報を火山ごとに保持し、warning 区分だけをカード化する", () => {
+    const event = parsedVolcanoEvent(FIXTURE_VFVO51_EXTRA);
+    const store = new StandbyStateStore();
+    store.applyEvent(event, Date.parse(event.reportDateTime));
+    const volcanoes = store.snapshotItems().find((item) => item.kind === "volcano")?.data.volcanoes ?? [];
+    expect(volcanoes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "326", alertClass: expect.objectContaining({ code: "23", severity: "warning" }) }),
+      expect.objectContaining({ code: "329", alertClass: expect.objectContaining({ code: "22", severity: "warning" }) }),
+      expect.objectContaining({ code: "331", alertClass: expect.objectContaining({ code: "36", severity: "warning" }) }),
+    ]));
+    expect(volcanoes.some((volcano) => volcano.alertClass?.code === "21")).toBe(false);
+    expect(store.exportActiveState().volcanoes.some((volcano) => volcano.alertClass?.code === "21")).toBe(true);
+  });
+
   it("projects unique target kinds in telegram order while eruption-only information leaves them absent", () => {
     const alertStore = new StandbyStateStore();
     alertStore.applyEvent(volcanoEvent({}, {
@@ -697,6 +839,47 @@ describe("StandbyStateStore: volcano", () => {
 });
 
 describe("StandbyStateStore: flood", () => {
+  it("実在 Headline-only 発表をカード化し、Headline-only 解除で削除する", () => {
+    const issued = parseFloodForecast(createMockWsDataMessage(FIXTURE_VXKO50_16_05_01))!;
+    const releaseFixture = parseFloodForecast(createMockWsDataMessage(FIXTURE_VXKO50_16_14_01))!;
+    const issueEvent = heatEvent({
+      id: "headline-only-issue",
+      domain: "floodForecast",
+      eventId: issued.eventId,
+      serial: String(issued.serial),
+      reportDateTime: issued.reportDateTime,
+      infoType: issued.infoType,
+      raw: issued,
+    });
+    const release = {
+      ...releaseFixture,
+      eventId: issued.eventId,
+      serial: issued.serial + 1,
+      rawStations: [],
+    };
+    const releaseEvent = heatEvent({
+      id: "headline-only-release",
+      domain: "floodForecast",
+      eventId: release.eventId,
+      serial: String(release.serial),
+      reportDateTime: release.reportDateTime,
+      infoType: release.infoType,
+      raw: release,
+    });
+    const store = new StandbyStateStore();
+    store.applyEvent(issueEvent, Date.parse(issued.reportDateTime));
+    expect(store.snapshotItems().find((item) => item.kind === "flood")).toMatchObject({
+      data: {
+        rivers: expect.arrayContaining([
+          expect.objectContaining({ riverKey: "1234567890", level: "L3", station: null }),
+          expect.objectContaining({ riverKey: "9876543210", level: "L3", station: null }),
+        ]),
+      },
+    });
+    store.applyEvent(releaseEvent, Date.parse(release.reportDateTime));
+    expect(store.snapshotItems().find((item) => item.kind === "flood")).toBeUndefined();
+  });
+
   it("delegates flood events to FloodActiveReducer and exposes the aggregate card", () => {
     const raw: ParsedFloodForecastInfo = {
       schema: "vxko50", typeCode: "VXKO50", infoKind: "指定河川洪水予報", infoType: "発表",

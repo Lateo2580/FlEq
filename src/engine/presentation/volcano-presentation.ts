@@ -140,6 +140,16 @@ function resolveText(info: ParsedVolcanoInfo): VolcanoPresentation {
   }
 
   const summary = info.headline ?? info.title;
+  const hasActiveWarningClass = info.alertClasses.some((entry) =>
+    entry.alertClass.isActive && entry.alertClass.severity === "warning"
+  );
+  if (hasActiveWarningClass) {
+    return {
+      frameLevel: info.isExtraordinary ? "warning" : "info",
+      soundLevel: "warning",
+      summary,
+    };
+  }
 
   // VFVO51 臨時
   if (info.isExtraordinary) {

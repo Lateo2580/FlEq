@@ -4,6 +4,7 @@ import type {
   ParsedVolcanoAshfallInfo,
   ParsedVolcanoEruptionInfo,
   ParsedVolcanoInfo,
+  ParsedVolcanoTextInfo,
   WsDataMessage,
 } from "../../src/types";
 import type { ProcessOutcome, VolcanoBatchOutcome } from "../../src/engine/presentation/types";
@@ -107,6 +108,7 @@ function createAlert(
     isTest: false,
     alertLevel,
     alertLevelCode: String(10 + (alertLevel ?? 0)),
+    alertClass: null,
     action,
     previousLevelCode: null,
     warningKind: action === "release" ? "噴火予報" : "噴火警報",
@@ -117,6 +119,39 @@ function createAlert(
     bodyText: "",
     preventionText: "",
     isMarine: false,
+  };
+}
+
+function createWarningClassText(code: "22" | "23"): ParsedVolcanoTextInfo {
+  return {
+    domain: "volcano",
+    kind: "text",
+    type: "VFVO51",
+    infoType: "発表",
+    title: "噴火警報・予報",
+    reportDateTime: "2025-01-01T09:00:00+09:00",
+    eventDateTime: null,
+    headline: "火山の状況に関する解説情報",
+    publishingOffice: "気象庁",
+    volcanoName: "",
+    volcanoCode: "",
+    coordinate: null,
+    isTest: false,
+    alertLevel: null,
+    alertLevelCode: null,
+    alertClasses: [{
+      volcanoCode: "506",
+      volcanoName: "桜島",
+      alertClass: {
+        code,
+        name: code === "22" ? "火口周辺危険" : "入山危険",
+        severity: "warning",
+        isActive: true,
+      },
+    }],
+    isExtraordinary: false,
+    bodyText: "",
+    nextAdvisory: null,
   };
 }
 
@@ -192,4 +227,19 @@ describe("VolcanoRouteHandler", () => {
     expect(notifyVolcano).toHaveBeenCalledTimes(2);
     expect(displayVolcano).toHaveBeenCalledTimes(2);
   });
+
+  it.each(["22", "23"] as const)(
+    "VFVO51 Code %s の warning 音を notifyVolcano まで渡す",
+    (code) => {
+      const info = createWarningClassText(code);
+      parseMock.mockReturnValueOnce(info);
+
+      handler.handle(createMessage(`vfvo51-${code}`, "VFVO51"));
+
+      expect(notifyVolcano).toHaveBeenCalledWith(
+        info,
+        expect.objectContaining({ soundLevel: "warning" }),
+      );
+    },
+  );
 });

@@ -73,6 +73,21 @@ describe("VolcanoCard", () => {
     expect(meaning?.previousElementSibling?.classList.contains("volcano-main")).toBe(true);
   });
 
+  it("数値レベル運用外の警報区分をレベル行へ表示する", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "329",
+        name: "硫黄島",
+        alertLevel: null,
+        alertClass: { code: "22", name: "火口周辺危険", severity: "warning", isActive: true },
+        latestEvent: null,
+      }] },
+    }) });
+    expect(container.querySelector(".volcano-main")?.textContent).toContain("硫黄島");
+    expect(container.querySelector(".volcano-main")?.textContent).toContain("火口周辺危険");
+    expect(container.querySelector(".volcano-card")?.classList.contains("band-warning")).toBe(true);
+  });
+
   it("2 種の対象区分を電文順に列挙する", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem({
       data: { volcanoes: [{

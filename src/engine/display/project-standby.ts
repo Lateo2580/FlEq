@@ -65,7 +65,10 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | 
     sourceEventId: event.id,
     reportDateTime: event.reportDateTime,
     serial: event.serial ?? raw.serial,
-    isCancellation: event.isCancellation || raw.infoType === "取消",
+    isCancellation: event.isCancellation
+      || raw.infoType === "取消"
+      || raw.lifecycle === "transitionedToLow"
+      || raw.lifecycle === "formationCancelled",
     isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
     typhoon: {
       typhoonKey,
@@ -89,6 +92,7 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | 
 
 export interface VolcanoUpdate {
   volcano: DisplayVolcanoEntryV1;
+  eventId: string | null;
   sourceEventId: string;
   reportDateTime: string;
   serial: string | null;
@@ -97,11 +101,34 @@ export interface VolcanoUpdate {
   isCorrection: boolean;
 }
 
-export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | null {
-  if (event.domain !== "volcano" || event.raw == null || Array.isArray(event.raw)) return null;
+export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[] {
+  if (event.domain !== "volcano" || event.raw == null || Array.isArray(event.raw)) return [];
   const raw = event.raw as ParsedVolcanoInfo;
-  if (raw.kind !== "alert" && raw.kind !== "eruption") return null;
-  if (raw.volcanoCode === "") return null;
+  if (raw.kind === "text") {
+    return raw.alertClasses.map((entry) => ({
+      volcano: {
+        code: entry.volcanoCode,
+        name: entry.volcanoName,
+        alertLevel: null,
+        warningKind: null,
+        targetKinds: [],
+        alertClass: { ...entry.alertClass },
+        latestEvent: null,
+      },
+      eventId: event.eventId ?? null,
+      sourceEventId: event.id,
+      reportDateTime: event.reportDateTime,
+      serial: event.serial ?? null,
+      kind: "alert",
+      isCancellation: !entry.alertClass.isActive,
+      isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
+    }));
+  }
+  if (raw.kind !== "alert" && raw.kind !== "eruption") return [];
+  const isCancellation = event.isCancellation
+    || raw.infoType === "取消"
+    || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel");
+  if (raw.volcanoCode === "" && !(raw.kind === "eruption" && isCancellation && event.eventId != null)) return [];
   const alertLevel = raw.kind === "alert" ? raw.alertLevel : null;
   const warningKind = raw.kind === "alert" ? raw.warningKind?.trim() || null : null;
   const targetKinds = raw.kind === "alert"
@@ -111,13 +138,14 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | 
       return kinds;
     }, [])
     : [];
-  return {
+  return [{
     volcano: {
       code: raw.volcanoCode,
       name: raw.volcanoName,
       alertLevel,
       warningKind,
       targetKinds,
+      alertClass: raw.kind === "alert" ? raw.alertClass : null,
       latestEvent: raw.kind === "eruption" ? {
         label: raw.isFlashReport ? "噴火速報" : raw.phenomenonName.trim() || "噴火",
         craterName: raw.craterName ?? null,
@@ -127,13 +155,12 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | 
         plumeDirection: raw.plumeDirection ?? null,
       } : null,
     },
+    eventId: event.eventId ?? null,
     sourceEventId: event.id,
     reportDateTime: event.reportDateTime,
     serial: event.serial ?? null,
     kind: raw.kind,
-    isCancellation: event.isCancellation
-      || raw.infoType === "取消"
-      || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel"),
+    isCancellation,
     isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
-  };
+  }];
 }

@@ -1525,6 +1525,23 @@ export type VolcanoHeadType =
 /** 正規化されたアクション（パーサが XML の Condition 等から変換） */
 export type VolcanoAction = "issue" | "continue" | "raise" | "lower" | "release" | "cancel";
 
+export type VolcanoAlertClassSeverity = "warning" | "info";
+
+/** 数値の噴火警戒レベルを持たない警報・予報区分。 */
+export interface VolcanoAlertClass {
+  code: string;
+  name: string;
+  severity: VolcanoAlertClassSeverity;
+  isActive: boolean;
+}
+
+/** VFVO51 の一覧電文から火山単位に展開した非数値警報区分。 */
+export interface VolcanoAlertClassEntry {
+  volcanoCode: string;
+  volcanoName: string;
+  alertClass: VolcanoAlertClass;
+}
+
 /** 対象市町村 */
 export interface VolcanoMunicipality {
   name: string;
@@ -1587,6 +1604,7 @@ export interface ParsedVolcanoAlertInfo extends ParsedVolcanoBase {
   marineAreas: VolcanoMunicipality[];
   marineWarningKind: string | null;
   marineAlertLevelCode: string | null;
+  alertClass: VolcanoAlertClass | null;
   bodyText: string;
   preventionText: string;
   isMarine: boolean;
@@ -1624,6 +1642,7 @@ export interface ParsedVolcanoTextInfo extends ParsedVolcanoBase {
   type: "VZVO40" | "VFVO51";
   alertLevel: 1 | 2 | 3 | 4 | 5 | null;
   alertLevelCode: string | null;
+  alertClasses: VolcanoAlertClassEntry[];
   isExtraordinary: boolean;
   bodyText: string;
   nextAdvisory: string | null;
@@ -2055,8 +2074,15 @@ export interface ParsedTyphoonAnalysis {
   headline: string | null;
   name: TyphoonName | null;  // 呼称（実況の TyphoonNamePart。Area.Name は generic 固定で不使用）
   frames: TyphoonFrame[];    // 実況 + 推定 + 予報（文書順）
+  lifecycle: TyphoonLifecycle;
   isTest: boolean;
 }
+
+export type TyphoonLifecycle =
+  | "active"
+  | "forming"
+  | "transitionedToLow"
+  | "formationCancelled";
 
 export interface TyphoonName {
   name: string | null;       // 英名 "TALIM"

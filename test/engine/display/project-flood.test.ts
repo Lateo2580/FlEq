@@ -302,8 +302,9 @@ describe("projectFloodUpdate", () => {
   });
 
   it.each([
-    ["headline-only", parsed({ rawStations: [] }), "observeOnly"],
-    ["structured-data-free correction", parsed({ infoType: "訂正", rawStations: [] }), "observeOnly"],
+    ["headline-only", parsed({ rawStations: [] }), "replace"],
+    ["headline-only correction", parsed({ infoType: "訂正", rawStations: [] }), "replace"],
+    ["unparseable structured-data-free report", parsed({ headlines: [], rawStations: [] }), "observeOnly"],
     ["cancellation", parsed({ infoType: "取消", rawStations: [] }), "cancel"],
   ] as const)("classifies %s as %s", (_label, raw, expectedMode) => {
     expect(projectFloodUpdate(event(raw))).toEqual(expect.objectContaining({ mode: expectedMode }));
@@ -319,7 +320,7 @@ describe("projectFloodUpdate", () => {
     ["16_02_02_220728_VXKO50.xml", "replace", ["8909040001|六角川|L3"]],
     ["16_03_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L3", "9876543210|△△川|L3"]],
     ["16_04_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L5", "9876543210|△△川|L5"]],
-    ["16_05_01_210630_VXKO50.xml", "observeOnly", []],
+    ["16_05_01_210630_VXKO50.xml", "replace", ["1234567890|○○川|L3", "9876543210|△△川|L3"]],
     ["16_06_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L4", "9876543210|△△川|L4"]],
     ["16_07_01_220728_VXKO50.xml", "replace", ["1234567890|○○川|L4", "9876543210|△△川|L4"]],
     ["16_10_01_260312_VXKO50.xml", "replace", ["8909100001|緑川|L4", "8909100051|加勢川|L4", "8909100068|御船川|L4"]],
@@ -356,6 +357,16 @@ describe("projectFloodUpdate", () => {
       ? update.rivers.map((river) => `${river.riverKey}|${river.riverName}|${river.level}`)
       : [];
     expect(rivers).toEqual(expectedRivers);
+  });
+
+  it("projects a Headline-only release as an explicit cancellation", () => {
+    const msg = createMockWsDataMessage("16_14_01_251222_VXKO50.xml");
+    const info = parseFloodForecast(msg)!;
+    const raw = { ...info, rawStations: [] };
+    expect(projectFloodUpdate(event(raw))).toEqual(expect.objectContaining({
+      mode: "cancel",
+      eventId: info.eventId,
+    }));
   });
 
   it("fills representative station info when running a real VXKO50 fixture through the pipeline", () => {

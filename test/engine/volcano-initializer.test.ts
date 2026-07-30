@@ -82,6 +82,7 @@ function createVolcanoAlert(
     isTest: false,
     alertLevel: 3,
     alertLevelCode: "31",
+    alertClass: null,
     action: "issue",
     previousLevelCode: null,
     warningKind: "噴火警報",

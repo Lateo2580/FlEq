@@ -65,6 +65,7 @@ function makeVolcanoInfo(): ParsedVolcanoAlertInfo {
     isTest: false,
     alertLevel: 3,
     alertLevelCode: "33",
+    alertClass: null,
     action: "raise",
     previousLevelCode: "22",
     warningKind: "噴火警報（入山規制）",

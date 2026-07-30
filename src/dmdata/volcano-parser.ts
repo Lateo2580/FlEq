@@ -12,6 +12,8 @@ import {
   AshForecastPeriod,
   AshArea,
   WindProfileEntry,
+  VolcanoAlertClass,
+  VolcanoAlertClassEntry,
 } from "../types";
 import { decodeBody, parseXml, dig, str, first } from "./telegram-parser";
 import * as log from "../logger";
@@ -98,12 +100,49 @@ function conditionToAction(condition: string, infoType: string): VolcanoAction {
   return "issue";
 }
 
+const NON_NUMERIC_ALERT_SEVERITY: Readonly<Record<string, VolcanoAlertClass["severity"]>> = {
+  "21": "info",
+  "22": "warning",
+  "23": "warning",
+  "31": "warning",
+  "35": "info",
+  "36": "warning",
+};
+
+function volcanoAlertClass(
+  code: string,
+  name: string,
+  condition: string,
+  infoType: string,
+): VolcanoAlertClass | null {
+  const severity = NON_NUMERIC_ALERT_SEVERITY[code];
+  if (severity == null || name === "") return null;
+  const action = conditionToAction(condition, infoType);
+  return {
+    code,
+    name,
+    severity,
+    isActive: action !== "release" && action !== "cancel",
+  };
+}
+
+function preferVolcanoAlertClass(
+  current: VolcanoAlertClass | null,
+  candidate: VolcanoAlertClass | null,
+): VolcanoAlertClass | null {
+  if (candidate == null) return current;
+  if (current == null) return candidate;
+  if (candidate.isActive !== current.isActive) return candidate.isActive ? candidate : current;
+  if (candidate.severity !== current.severity) return candidate.severity === "warning" ? candidate : current;
+  return current;
+}
+
 /** 火山名の VolcanoInfo (type="...（対象火山）") から火山情報を抽出 */
 function extractVolcanoBase(
   report: unknown,
   headType: VolcanoHeadType,
   msg: WsDataMessage,
-): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "marineAreas" | "marineWarningKind" | "marineAlertLevelCode" | "bodyText" | "preventionText" | "isMarine"> {
+): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "marineAreas" | "marineWarningKind" | "marineAlertLevelCode" | "alertClass" | "bodyText" | "preventionText" | "isMarine"> {
   const head = dig(report, "Head");
   const body = dig(report, "Body");
 
@@ -382,6 +421,21 @@ function parseVolcanoAlert(
   const content = dig(body, "VolcanoInfoContent");
   const bodyText = normalizeVolcanoBodyText(str(dig(content, "VolcanoActivity")));
   const preventionText = str(dig(content, "VolcanoPrevention"));
+  let alertClass = volcanoAlertClass(
+    alertLevelCode ?? "",
+    warningKind,
+    condition,
+    base.infoType,
+  );
+  alertClass = preferVolcanoAlertClass(
+    alertClass,
+    volcanoAlertClass(
+      marineAlertLevelCode ?? "",
+      marineWarningKind ?? "",
+      condition,
+      base.infoType,
+    ),
+  );
 
   return {
     ...base,
@@ -396,6 +450,7 @@ function parseVolcanoAlert(
     marineAreas,
     marineWarningKind,
     marineAlertLevelCode,
+    alertClass,
     bodyText,
     preventionText,
     isMarine,
@@ -566,6 +621,7 @@ function parseVolcanoText(
 
   // レベル情報 (VFVO51 のみ)
   let alertLevelCode: string | null = null;
+  const alertClasses: VolcanoAlertClassEntry[] = [];
   if (headType === "VFVO51") {
     const headInfo = dig(head, "Headline", "Information");
     const headInfoList = Array.isArray(headInfo) ? headInfo : headInfo ? [headInfo] : [];
@@ -580,9 +636,24 @@ function parseVolcanoText(
           const kind = dig(item, "Kind");
           const kindObj = Array.isArray(kind) ? kind[0] : kind;
           const code = str(dig(kindObj, "Code"));
+          const name = str(dig(kindObj, "Name"));
+          const condition = str(dig(kindObj, "Condition"));
           if (code && levelCodeToNumber(code) != null) {
             if (!alertLevelCode || Number(code) > Number(alertLevelCode)) {
               alertLevelCode = code;
+            }
+          }
+          const alertClass = volcanoAlertClass(code, name, condition, base.infoType);
+          if (alertClass != null) {
+            const areas = dig(item, "Areas", "Area");
+            for (const area of Array.isArray(areas) ? areas : areas ? [areas] : []) {
+              const volcanoCode = str(dig(area, "Code"));
+              if (volcanoCode === "") continue;
+              alertClasses.push({
+                volcanoCode,
+                volcanoName: str(dig(area, "Name")),
+                alertClass: { ...alertClass },
+              });
             }
           }
         }
@@ -605,6 +676,7 @@ function parseVolcanoText(
     type: headType,
     alertLevel,
     alertLevelCode,
+    alertClasses,
     isExtraordinary,
     bodyText,
     nextAdvisory: nextAdvisory ? nextAdvisory.trim() : null,
