@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [3.2.0](https://github.com/Lateo2580/FlEq/compare/v3.1.0...v3.2.0) (2026-07-30)
+
+
+### 機能追加
+
+* **display:** EEW パネルの震度別地域数の集約表示を削除する ([ed26604](https://github.com/Lateo2580/FlEq/commit/ed26604317c58c6b47a61a2cc0c02eb025026068))
+* **display:** L4 危険警報の見出し昇格・更新バッジ移動・台風の最大瞬間風速を追加する ([aebb220](https://github.com/Lateo2580/FlEq/commit/aebb22005b52ccba51e73ce6777126942e84bba1))
+* **display:** 火山カードに警報種別の補助行を追加し深さを「ごく浅い」表記にする ([2bfe72d](https://github.com/Lateo2580/FlEq/commit/2bfe72d9ba967bb69635d4c2abe49549569fd8a7))
+* **display:** 火山カードに噴火観測の数値ブロックと警戒レベル併記を追加する ([8e87682](https://github.com/Lateo2580/FlEq/commit/8e876828486e452a84077e8f178f15e2bc0e78b6))
+* **display:** 震度マップ Phase 1 境界アセットパイプラインを実装する ([9b4a4bd](https://github.com/Lateo2580/FlEq/commit/9b4a4bd30159e59261fd4a75f6c8c80b0eeb227d))
+* **display:** 震度マップ Phase 2 として VXSE の地域コードを Presentation まで通す ([147fafd](https://github.com/Lateo2580/FlEq/commit/147fafd4769590d8b138ff54fda2c90c0108be7c))
+* **display:** 震度マップ Phase 3 として mapLayers の wire と状態管理を実装する ([fd09249](https://github.com/Lateo2580/FlEq/commit/fd09249632e47c4ed635d5f6441c3364764b9646))
+* **display:** 震度マップ Phase 4A として全国図を QuakePanel に統合する ([0bda651](https://github.com/Lateo2580/FlEq/commit/0bda651eb0d194abfdff25cef89dec8efae6e311))
+* **display:** 震度マップ Phase 4B として震度3〜4の専用非緊急画面を追加する ([9fe3874](https://github.com/Lateo2580/FlEq/commit/9fe38748b4906e6960b2dd653b20424308034055))
+* **display:** 台風カードに気圧・最大風速の変化と発達/衰弱傾向を表示する ([4ee669d](https://github.com/Lateo2580/FlEq/commit/4ee669dab1e80ced2550694627e2ee36891fe22c))
+* **display:** 台風カードの見出しを強さ・大きさ階級の意味色にする ([6ed62fc](https://github.com/Lateo2580/FlEq/commit/6ed62fc90be42189fc71e6cc3aab8fdd18e97404))
+* **display:** 地震カードの市区町村数カウント表示を削除する ([1785ee9](https://github.com/Lateo2580/FlEq/commit/1785ee970cf247c040a289715892ff64ac8a9b5f))
+* **display:** 地震履歴と当日カウンタを永続化し再起動を跨いで復元する ([6b1c185](https://github.com/Lateo2580/FlEq/commit/6b1c185dc1017a47b593279620f95dc1a0f041d5))
+* **display:** 熱中症警戒アラートカードの日付を「きょう」「あす」相対表記にする ([f127306](https://github.com/Lateo2580/FlEq/commit/f127306fbf54392f2b6835d5610b6d7f7c2ef1d3))
+* **display:** 背景トーンの本番色を公的定義色アンカーで確定する ([05e4c72](https://github.com/Lateo2580/FlEq/commit/05e4c72fd9077c66c597f91a0c8271bfc68c5354)), closes [#131300](https://github.com/Lateo2580/FlEq/issues/131300) [#1A0400](https://github.com/Lateo2580/FlEq/issues/1A0400) [#1A001](https://github.com/Lateo2580/FlEq/issues/1A001) [#1D0010](https://github.com/Lateo2580/FlEq/issues/1D0010) [#566069](https://github.com/Lateo2580/FlEq/issues/566069) [#59636](https://github.com/Lateo2580/FlEq/issues/59636)
+* **display:** 竜巻注意情報のテロップに優先粒度の全対象地域を流す ([f7cf536](https://github.com/Lateo2580/FlEq/commit/f7cf536911f3e9fcb3ac756b05acf8ad3d453cba))
+
+
+### バグ修正
+
+* **display:** 監査 High 対応 (A) — M不明表現・EEW範囲・津波予報音・訂正反映を修正する ([013718b](https://github.com/Lateo2580/FlEq/commit/013718b350497c3229af2a6869942752a78961d1))
+* **display:** 監査 High 対応 (B) — 津波の実測値表示と観測状態管理を修正する ([4672984](https://github.com/Lateo2580/FlEq/commit/467298467e5716eab4beacda3967f74e7000b6cb))
+* **display:** 監査 High 対応 (C) — 取消・終了電文の残留カードを解消する ([c76f357](https://github.com/Lateo2580/FlEq/commit/c76f3578ebb4fbdd20ef5d824ac99a90ce9ab012))
+* **display:** 再起動時に気象警報カードと河川水位カードが復元されない問題を修正する ([47d7c8b](https://github.com/Lateo2580/FlEq/commit/47d7c8b79d333945f5965534b37848f1b30e5b54))
+* **display:** 台風カードの stat 列を 2×2 グリッド化し狭幅の折り返しを制御する ([81cbbf9](https://github.com/Lateo2580/FlEq/commit/81cbbf99cb2fc79cb1054f275ac9b5f869ddc7c6))
+* **display:** 同一地震の震度なし続報で観測済み震度が「-」に退行する問題を修正する ([8ae54aa](https://github.com/Lateo2580/FlEq/commit/8ae54aa7d988bd9e904618e8df922c2a5f5d1a52))
+
+
+### ドキュメント
+
+* **specs:** 震度マップ (地図レイヤー a) 仕様のドラフトを追加する ([894a0a4](https://github.com/Lateo2580/FlEq/commit/894a0a489d91ee9068f019c3b1e2ba4587da342e))
+* **specs:** 震度マップ仕様に Sol レビュー 2 巡の指摘を反映し実装可とする ([10ceaed](https://github.com/Lateo2580/FlEq/commit/10ceaede956016920822c80b5cd87205d660db94))
+
 ## [3.1.0](https://github.com/Lateo2580/FlEq/compare/v3.0.0...v3.1.0) (2026-07-29)
 
 
