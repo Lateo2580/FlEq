@@ -142,11 +142,12 @@ const SYNTH_NOTO: ParsedEarthquakeInfo = {
     maxInt: "7",
     maxLgInt: "4",
     areas: [
-      { name: "石川県能登", intensity: "7", lgIntensity: "4" },
-      { name: "新潟県上越", intensity: "5強", lgIntensity: "3" },
-      { name: "石川県加賀", intensity: "5強" },
-      { name: "富山県東部", intensity: "5弱", lgIntensity: "1" },
+      { name: "石川県能登", code: null, intensity: "7", lgIntensity: "4" },
+      { name: "新潟県上越", code: null, intensity: "5強", lgIntensity: "3" },
+      { name: "石川県加賀", code: null, intensity: "5強" },
+      { name: "富山県東部", code: null, intensity: "5弱", lgIntensity: "1" },
     ],
+    municipalities: [],
   },
   tsunami: { text: "日本海沿岸では津波警報を発表中です。" },
   isTest: false,
@@ -205,6 +206,37 @@ describe("displayEarthquakeInfo (新デザイン言語)", () => {
     expect(out).toContain("N37.5 E137.3");
     expect(out).toContain("EventID: 20240101161009");
     expect(out).toContain("VXSE53");
+  });
+
+  it("重複codeを含んでもCLI formatterは文字表示用areasの順序・件数を維持する", () => {
+    setFrameWidth(140);
+    const legacyAreas = [
+      { name: "細分・旧", code: null, intensity: "3" },
+      { name: "細分・新A", code: null, intensity: "4" },
+      { name: "細分・新B", code: null, intensity: "4" },
+    ];
+    const codedAreas = legacyAreas.map((area) => ({ ...area, code: "440" }));
+    const legacyOutput = stripAnsi(renderInfo({
+      ...SYNTH_NOTO,
+      intensity: {
+        maxInt: "4",
+        areas: legacyAreas,
+        municipalities: [],
+      },
+    }));
+    logSpy.mockClear();
+    const codedOutput = stripAnsi(renderInfo({
+      ...SYNTH_NOTO,
+      intensity: {
+        maxInt: "4",
+        areas: codedAreas,
+        municipalities: [],
+      },
+    }));
+
+    expect(codedOutput).toBe(legacyOutput);
+    expect(codedOutput).toContain("細分・旧");
+    expect(codedOutput).toContain("細分・新A, 細分・新B");
   });
 
   it("VXSE51 (最大震度4): バナーなしで震度分布と調査中フォールバックが出る", () => {
@@ -338,7 +370,12 @@ function makeMegaQuake(areaCount: number): ParsedEarthquakeInfo {
       depth: "20km",
       magnitude: "8.2",
     },
-    intensity: { maxInt: "6強", maxLgInt: "3", areas },
+    intensity: {
+      maxInt: "6強",
+      maxLgInt: "3",
+      areas: areas.map((area) => ({ ...area, code: null })),
+      municipalities: [],
+    },
     isTest: false,
   };
 }
@@ -348,9 +385,10 @@ const LONG_NAME_INFO: ParsedEarthquakeInfo = {
   intensity: {
     maxInt: "5強",
     areas: [
-      { name: "非常に長い架空の細分区域名でセル幅を必ず超過させる検証用文字列", intensity: "5強", lgIntensity: "2" },
-      { name: "短い区", intensity: "4" },
+      { name: "非常に長い架空の細分区域名でセル幅を必ず超過させる検証用文字列", code: null, intensity: "5強", lgIntensity: "2" },
+      { name: "短い区", code: null, intensity: "4" },
     ],
+    municipalities: [],
   },
 };
 

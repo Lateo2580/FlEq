@@ -314,21 +314,27 @@ Phase 1 の fixture code 照合は、手動抽出してレビュー済みの gol
 ```ts
 interface ParsedQuakeArea {
   name: string;
-  code: string;
+  code: string | null;
   intensity: string;
   lgIntensity?: string;
-  cities: ParsedQuakeCity[];
 }
 
-interface ParsedQuakeCity {
+interface ParsedQuakeMunicipality {
   name: string;
-  code: string;
+  code: string | null;
   intensity: string;
   lgIntensity?: string;
+}
+
+interface ParsedEarthquakeIntensity {
+  maxInt: string;
+  maxLgInt?: string;
+  areas: ParsedQuakeArea[];
+  municipalities: ParsedQuakeMunicipality[];
 }
 ```
 
-既存の地域名・震度利用箇所を壊さないよう、`areas` 自体は細分区域の配列として維持する。`cities` は各 `Area` の配下として追加する。
+既存の地域名・震度利用箇所を壊さないよう、`areas` 自体は細分区域の配列として維持する。`City` は `municipalities` へフラットに格納し、一次細分区域と市町村等を混在させない。コード欠落 item は文字表示のため `code: null` で保持する。
 
 ### 4.2 XML 走査
 
@@ -353,10 +359,10 @@ Intensity
 要件は次のとおりとする。
 
 - `Area.Code` と `City.Code` を文字列のまま保存する。
-- `City` がない場合は空配列にする。
+- `City` がない場合は `municipalities: []` とする。
 - 未知・欠落コードの item を地名から補完しない。
 - コード欠落 item は文字一覧には残せるが、地図値には含めない。
-- 同一コードが複数回出現した場合は、同一電文内の最大震度 rank を採用する。
+- parser の `areas` / `municipalities` は同一コードが複数回出現しても元の順序・件数を維持する。地図候補への射影時に同一電文内の最大震度 rank を採用し、異震度の重複を diagnostic log に記録する。
 - 取消報では新しい地図値を生成しない。
 
 ### 4.3 PresentationEvent
@@ -375,27 +381,31 @@ Intensity
 市町村等については `municipalityNames` と `municipalityCount` を正しく設定するとともに、地図用の構造化データを Presentation へ通す。
 
 ```ts
-interface PresentationQuakeMapLayer {
+interface PresentationQuakeIntensity {
   localAreas: Array<{
+    name: string;
     code: string;
     maxInt: string;
     maxIntRank: number;
+    maxLgInt?: string;
   }>;
   municipalities: Array<{
+    name: string;
     code: string;
     maxInt: string;
     maxIntRank: number;
+    maxLgInt?: string;
   }>;
 }
 ```
 
-`PresentationEvent` には将来のレイヤー追加を妨げない任意フィールドを設ける。
+Phase 2 の `PresentationEvent` には parser と Phase 3 projector の境界となる任意の中間表現を設ける。
 
 ```ts
-mapLayers?: {
-  quake?: PresentationQuakeMapLayer;
-};
+quakeIntensity?: PresentationQuakeIntensity;
 ```
+
+`quakeIntensity.localAreas` / `municipalities` は `code != null` の item だけを含み、`code` の型は `string` とする。同一コードはここで最大震度 rank の一件へ集約する。`DisplayStateSnapshotV1.mapLayers` は Phase 3 で `quakeIntensity` から生成し、Phase 2 では protocol へ追加しない。
 
 既存の `areaNames`、`areaItems`、`intensityGroups` は文字表示用として維持する。地図対応のために既存一覧の粒度や並びを変更しない。
 
@@ -865,23 +875,25 @@ Raspberry Pi 実機では次を測定するが、Phase 1～4 の着手条件に�
 
 ### 9.1 parser
 
-- VXSE53 fixture から `Area.Code` を取得できる。
-- `City.Code` と市町村最大震度を取得できる。
+- VXSE53 fixture から `intensity.areas[].code` を取得できる。
+- `intensity.municipalities[]` に `City.Code` と市町村最大震度を取得できる。
 - 先頭ゼロを保持する。
 - Area/City が1件または複数でも同じ結果になる。
-- City 欠落を空配列として扱う。
-- Code 欠落で地名補完しない。
-- 同一コード重複時に最大 rank を採用する。
+- City 欠落を `intensity.municipalities: []` として扱う。
+- Code 欠落 item を地名補完せず、文字表示用配列へ `code: null` で残す。
+- 同一コード重複時も parser の文字表示用配列は元の順序・件数を維持する。
 - 取消報から active 地図値を生成しない。
 - 既存の地域名・最大震度テストを壊さない。
 
 ### 9.2 Presentation
 
 - `areaItems[].code` に細分区域コードが通る。
-- `mapLayers.quake.localAreas` に code と rank が通る。
-- municipality code が Presentation まで保持される。
+- `quakeIntensity.localAreas` に code と rank が通る。
+- `quakeIntensity.municipalities` に municipality code と rank が通る。
+- `quakeIntensity` から code 欠落 item が除外される。
+- `quakeIntensity` では同一コードが最大 rank の一件へ集約され、異震度重複の diagnostic log が出る。
 - `municipalityNames/count` が実データと一致する。
-- 既存 `intensityGroups` の表示順と内容が維持される。
+- 重複 code を含めても既存 `areaNames`、`areaItems`、`intensityGroups`、CLI formatter、ticker の表示順と内容が維持される。
 
 ### 9.3 projection・asset
 

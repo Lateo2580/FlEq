@@ -13,8 +13,10 @@ import {
   TsunamiStationItem,
   TsunamiObservationStation,
   TsunamiEstimationItem,
+  ParsedEarthquakeIntensityArea,
+  ParsedEarthquakeIntensityMunicipality,
 } from "../types";
-import { createJmxXmlParser, dig, str, first } from "./xml-shape";
+import { createJmxXmlParser, dig, str, first, listOf } from "./xml-shape";
 import * as log from "../logger";
 
 // 汎用ノードアクセスヘルパは xml-shape に集約済み。従来 telegram-parser から
@@ -180,7 +182,12 @@ function parseCoordinate(coord: string): {
   };
 }
 
-/** 震度観測地域を抽出 */
+function optionalCode(node: unknown): string | null {
+  const code = str(dig(node, "Code")).trim();
+  return code === "" ? null : code;
+}
+
+/** 震度観測地域を Observation/Pref/Area/City から抽出 */
 function extractIntensity(
   body: unknown
 ): ParsedEarthquakeInfo["intensity"] | undefined {
@@ -189,31 +196,41 @@ function extractIntensity(
 
   const rawObservation = dig(intensity, "Observation");
   if (!rawObservation) return undefined;
-  const observation = first(rawObservation as unknown[]);
+  const observation = first(listOf(rawObservation));
 
   const maxInt = str(dig(observation, "MaxInt"));
   const maxLgIntRaw = str(dig(observation, "MaxLgInt"));
   const maxLgInt = maxLgIntRaw || undefined;
 
-  const areas: { name: string; intensity: string; lgIntensity?: string }[] = [];
-  const prefs = dig(observation, "Pref");
-  if (Array.isArray(prefs)) {
-    for (const pref of prefs) {
-      const prefAreas = dig(pref, "Area");
-      if (Array.isArray(prefAreas)) {
-        for (const area of prefAreas) {
-          const lgInt = str(dig(area, "MaxLgInt"));
-          areas.push({
-            name: str(dig(area, "Name")),
-            intensity: str(dig(area, "MaxInt")),
-            ...(lgInt ? { lgIntensity: lgInt } : {}),
-          });
-        }
+  const areas: ParsedEarthquakeIntensityArea[] = [];
+  const municipalities: ParsedEarthquakeIntensityMunicipality[] = [];
+  for (const pref of listOf(dig(observation, "Pref"))) {
+    for (const area of listOf(dig(pref, "Area"))) {
+      const lgInt = str(dig(area, "MaxLgInt"));
+      areas.push({
+        name: str(dig(area, "Name")),
+        code: optionalCode(area),
+        intensity: str(dig(area, "MaxInt")),
+        ...(lgInt ? { lgIntensity: lgInt } : {}),
+      });
+      for (const city of listOf(dig(area, "City"))) {
+        const cityLgInt = str(dig(city, "MaxLgInt"));
+        municipalities.push({
+          name: str(dig(city, "Name")),
+          code: optionalCode(city),
+          intensity: str(dig(city, "MaxInt")),
+          ...(cityLgInt ? { lgIntensity: cityLgInt } : {}),
+        });
       }
     }
   }
 
-  return { maxInt, ...(maxLgInt ? { maxLgInt } : {}), areas };
+  return {
+    maxInt,
+    ...(maxLgInt ? { maxLgInt } : {}),
+    areas,
+    municipalities,
+  };
 }
 
 /** 津波情報を抽出 */

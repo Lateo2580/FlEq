@@ -91,7 +91,8 @@ describe("Notifier", () => {
       },
       intensity: {
         maxInt: "3",
-        areas: [{ name: "東京都", intensity: "3" }],
+        areas: [{ name: "東京都", code: null, intensity: "3" }],
+        municipalities: [],
       },
       isTest: false,
     };
@@ -127,7 +128,8 @@ describe("Notifier", () => {
       },
       intensity: {
         maxInt: "3",
-        areas: [{ name: "東京都", intensity: "3" }],
+        areas: [{ name: "東京都", code: null, intensity: "3" }],
+        municipalities: [],
       },
       isTest: false,
     };
@@ -167,7 +169,8 @@ describe("Notifier", () => {
       },
       intensity: {
         maxInt: "3",
-        areas: [{ name: "東京都", intensity: "3" }],
+        areas: [{ name: "東京都", code: null, intensity: "3" }],
+        municipalities: [],
       },
       isTest: false,
     };

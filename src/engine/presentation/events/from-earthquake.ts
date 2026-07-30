@@ -1,5 +1,55 @@
-import type { EarthquakeOutcome, PresentationEvent, PresentationAreaItem } from "../types";
+import type {
+  EarthquakeOutcome,
+  PresentationEvent,
+  PresentationAreaItem,
+  PresentationQuakeIntensityItem,
+} from "../types";
 import { intensityToRank } from "../../../utils/intensity";
+import * as log from "../../../logger";
+
+interface QuakeIntensitySourceItem {
+  name: string;
+  code: string | null;
+  intensity: string;
+  lgIntensity?: string;
+}
+
+function aggregateQuakeIntensity(
+  items: QuakeIntensitySourceItem[],
+  level: "Area" | "City",
+): PresentationQuakeIntensityItem[] {
+  const result: PresentationQuakeIntensityItem[] = [];
+  const indexByCode = new Map<string, number>();
+  for (const item of items) {
+    if (item.code == null) continue;
+    const candidate: PresentationQuakeIntensityItem = {
+      name: item.name,
+      code: item.code,
+      maxInt: item.intensity,
+      maxIntRank: intensityToRank(item.intensity),
+      ...(item.lgIntensity != null ? { maxLgInt: item.lgIntensity } : {}),
+    };
+    const existingIndex = indexByCode.get(item.code);
+    if (existingIndex == null) {
+      indexByCode.set(item.code, result.length);
+      result.push(candidate);
+      continue;
+    }
+    const existing = result[existingIndex];
+    if (existing.maxInt.replace(/\s+/g, "") === item.intensity.replace(/\s+/g, "")) {
+      continue;
+    }
+    log.warn(
+      `VXSE ${level}.Code 重複: code=${item.code} `
+      + `intensity=${JSON.stringify(existing.maxInt)}/${JSON.stringify(item.intensity)} `
+      + `— 最大震度rankを採用`,
+    );
+    if (candidate.maxIntRank > existing.maxIntRank) {
+      result[existingIndex] = candidate;
+    }
+  }
+  return result;
+}
 
 /**
  * 地震情報の津波コメント文字列から「津波」表示フラグを判定する (Phase A #2)。
@@ -20,11 +70,24 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
   const maxIntRank = maxInt != null ? intensityToRank(maxInt) : null;
 
   const areas = info.intensity?.areas ?? [];
+  const municipalities = info.intensity?.municipalities ?? [];
   const areaNames = areas.map((a) => a.name);
+  const municipalityNames = municipalities.map((municipality) => municipality.name);
   const areaItems: PresentationAreaItem[] = areas.map((a) => ({
     name: a.name,
+    ...(a.code != null ? { code: a.code } : {}),
     maxInt: a.intensity,
+    ...(a.lgIntensity != null ? { maxLgInt: a.lgIntensity } : {}),
   }));
+  const quakeIntensity =
+    info.infoType !== "取消"
+    && info.intensity != null
+    && intensityToRank(info.intensity.maxInt) >= 3
+    ? {
+        localAreas: aggregateQuakeIntensity(areas, "Area"),
+        municipalities: aggregateQuakeIntensity(municipalities, "City"),
+      }
+    : undefined;
 
   return {
     id: outcome.msg.id,
@@ -62,13 +125,14 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
 
     areaNames,
     forecastAreaNames: [],
-    municipalityNames: [],
+    municipalityNames,
     observationNames: [],
     areaCount: areaNames.length,
     forecastAreaCount: 0,
-    municipalityCount: 0,
+    municipalityCount: municipalityNames.length,
     observationCount: 0,
     areaItems,
+    ...(quakeIntensity != null ? { quakeIntensity } : {}),
 
     raw: outcome.parsed,
   };

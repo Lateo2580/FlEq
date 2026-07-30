@@ -608,6 +608,29 @@ export interface TelegramListResponse {
 
 // ── パース済み地震情報型 ──
 
+export interface ParsedEarthquakeIntensityArea {
+  name: string;
+  code: string | null;
+  intensity: string;
+  lgIntensity?: string;
+}
+
+export interface ParsedEarthquakeIntensityMunicipality {
+  name: string;
+  code: string | null;
+  intensity: string;
+  lgIntensity?: string;
+}
+
+export interface ParsedEarthquakeIntensity {
+  maxInt: string;
+  maxLgInt?: string;
+  /** 一次細分区域。文字表示用に code 欠落 item も保持する */
+  areas: ParsedEarthquakeIntensityArea[];
+  /** Area 直下の City。IntensityStation は含めない */
+  municipalities: ParsedEarthquakeIntensityMunicipality[];
+}
+
 export interface ParsedEarthquakeInfo {
   /** 電文タイプ */
   type: string;
@@ -639,14 +662,7 @@ export interface ParsedEarthquakeInfo {
     magnitude: string;
   };
   /** 震度情報 */
-  intensity?: {
-    /** 最大震度 */
-    maxInt: string;
-    /** 最大長周期地震動階級 */
-    maxLgInt?: string;
-    /** 各地の震度 (地域名 → 震度) */
-    areas: { name: string; intensity: string; lgIntensity?: string }[];
-  };
+  intensity?: ParsedEarthquakeIntensity;
   /** 津波情報 */
   tsunami?: {
     /** 津波予報コメント */

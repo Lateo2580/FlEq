@@ -1,7 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fromEarthquakeOutcome, resolveEarthquakeTsunamiWarning } from "../../../../src/engine/presentation/events/from-earthquake";
 import { processEarthquake } from "../../../../src/engine/presentation/processors/process-earthquake";
-import { createMockWsDataMessage, FIXTURE_VXSE53_ENCHI } from "../../../helpers/mock-message";
+import { projectRecentQuake } from "../../../../src/engine/display/project-event";
+import { buildTickerSentence } from "../../../../src/engine/display/ticker-sentence";
+import * as log from "../../../../src/logger";
+import {
+  createMockWsDataMessage,
+  FIXTURE_VXSE53_DRILL_1,
+  FIXTURE_VXSE53_ENCHI,
+} from "../../../helpers/mock-message";
 import type { EarthquakeOutcome } from "../../../../src/engine/presentation/types";
 
 describe("resolveEarthquakeTsunamiWarning", () => {
@@ -40,6 +47,14 @@ describe("fromEarthquakeOutcome", () => {
     return outcome;
   }
 
+  function outcomeFromDrillFixture(): EarthquakeOutcome {
+    const outcome = processEarthquake(
+      createMockWsDataMessage(FIXTURE_VXSE53_DRILL_1),
+    );
+    if (outcome == null) throw new Error("processEarthquake が null を返した");
+    return outcome;
+  }
+
   it("tsunami.text が「心配はありません」を含む実 fixture では tsunamiWarning=false になる", () => {
     const event = fromEarthquakeOutcome(outcomeFromFixture());
     expect(event.tsunamiWarning).toBe(false);
@@ -60,9 +75,167 @@ describe("fromEarthquakeOutcome", () => {
       ...outcome,
       parsed: {
         ...outcome.parsed,
-        intensity: { ...(outcome.parsed.intensity ?? { maxInt: "3", areas: [] }), maxLgInt: "3" },
+        intensity: {
+          ...(outcome.parsed.intensity ?? { maxInt: "3", areas: [], municipalities: [] }),
+          maxLgInt: "3",
+        },
       },
     });
     expect(event.maxLgInt).toBe("3");
+  });
+
+  it("一次細分・市町村codeとrankをquakeIntensityへ通し、既存areaItemsは一次細分のまま維持する", () => {
+    const outcome = outcomeFromDrillFixture();
+    const event = fromEarthquakeOutcome(outcome);
+
+    expect(event.areaItems).toContainEqual(
+      expect.objectContaining({ name: "静岡県伊豆", code: "440", maxInt: "5-" }),
+    );
+    expect(event.quakeIntensity?.localAreas).toContainEqual({
+      name: "静岡県伊豆",
+      code: "440",
+      maxInt: "5-",
+      maxIntRank: 5,
+    });
+    expect(event.quakeIntensity?.municipalities).toContainEqual({
+      name: "西伊豆町",
+      code: "2230600",
+      maxInt: "5-",
+      maxIntRank: 5,
+    });
+    expect(event.areaItems.some(({ code }) => code === "2230600")).toBe(false);
+    expect(event.municipalityNames).toEqual(
+      outcome.parsed.intensity?.municipalities.map(({ name }) => name),
+    );
+    expect(event.municipalityCount).toBe(event.municipalityNames.length);
+  });
+
+  it("code欠落itemを文字一覧に残してquakeIntensityから除外し、取消では生成しない", () => {
+    const outcome = outcomeFromDrillFixture();
+    const intensity = {
+      maxInt: "4",
+      areas: [{ name: "codeなし細分", code: null, intensity: "4" }],
+      municipalities: [{ name: "codeなし市町村", code: null, intensity: "3" }],
+    };
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: { ...outcome.parsed, intensity },
+    });
+    expect(event.areaNames).toEqual(["codeなし細分"]);
+    expect(event.areaItems).toEqual([{ name: "codeなし細分", maxInt: "4" }]);
+    expect(event.quakeIntensity?.localAreas).toEqual([]);
+    expect(event.quakeIntensity?.municipalities).toEqual([]);
+
+    const cancelled = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: { ...outcome.parsed, infoType: "取消", intensity },
+    });
+    expect(cancelled.quakeIntensity).toBeUndefined();
+  });
+
+  it("最大震度2以下は文字一覧を維持しつつ地図候補を生成しない", () => {
+    const outcome = outcomeFromDrillFixture();
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: {
+        ...outcome.parsed,
+        intensity: {
+          maxInt: "2",
+          areas: [{ name: "細分", code: "001", intensity: "2" }],
+          municipalities: [{ name: "市町村", code: "0010001", intensity: "2" }],
+        },
+      },
+    });
+    expect(event.areaNames).toEqual(["細分"]);
+    expect(event.municipalityNames).toEqual(["市町村"]);
+    expect(event.quakeIntensity).toBeUndefined();
+  });
+
+  it("重複codeは文字出力を維持し、quakeIntensityだけ最大rankへ集約する", () => {
+    const warnSpy = vi.spyOn(log, "warn").mockImplementation(() => {});
+    const outcome = outcomeFromDrillFixture();
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: {
+        ...outcome.parsed,
+        earthquake: {
+          ...outcome.parsed.earthquake!,
+          hypocenterName: "重複試験震源",
+        },
+        intensity: {
+          maxInt: "4",
+          areas: [
+            { name: "細分・旧", code: "440", intensity: "3" },
+            { name: "細分・新A", code: "440", intensity: "4" },
+            { name: "細分・新B", code: "440", intensity: "4" },
+            { name: "codeなし細分", code: null, intensity: "4" },
+          ],
+          municipalities: [
+            { name: "市町村・旧", code: "2230600", intensity: "3" },
+            { name: "市町村・新", code: "2230600", intensity: "4" },
+          ],
+        },
+      },
+    });
+
+    expect(event.areaNames).toEqual([
+      "細分・旧",
+      "細分・新A",
+      "細分・新B",
+      "codeなし細分",
+    ]);
+    expect(event.areaItems).toEqual([
+      { name: "細分・旧", code: "440", maxInt: "3" },
+      { name: "細分・新A", code: "440", maxInt: "4" },
+      { name: "細分・新B", code: "440", maxInt: "4" },
+      { name: "codeなし細分", maxInt: "4" },
+    ]);
+    expect(projectRecentQuake(event)?.intensityGroups).toEqual([
+      {
+        intensity: "4",
+        rank: 4,
+        areas: ["細分・新A", "細分・新B", "codeなし細分"],
+        omittedAreaCount: 0,
+      },
+      { intensity: "3", rank: 3, areas: ["細分・旧"], omittedAreaCount: 0 },
+    ]);
+    expect(buildTickerSentence(event)).toContain(
+      "細分・新A・細分・新Bなどで最大震度4",
+    );
+    expect(event.quakeIntensity?.localAreas).toEqual([
+      { name: "細分・新A", code: "440", maxInt: "4", maxIntRank: 4 },
+    ]);
+    expect(event.quakeIntensity?.municipalities).toEqual([
+      { name: "市町村・新", code: "2230600", maxInt: "4", maxIntRank: 4 },
+    ]);
+    expect(warnSpy.mock.calls.map(([message]) => message)).toEqual([
+      expect.stringContaining("Area.Code 重複"),
+      expect.stringContaining("City.Code 重複"),
+    ]);
+    warnSpy.mockRestore();
+  });
+
+  it("code追加後もareaNames・intensityGroupsの粒度と並びを変えない", () => {
+    const outcome = outcomeFromDrillFixture();
+    const intensity = {
+      maxInt: "4",
+      areas: [
+        { name: "細分A", code: "001", intensity: "4" },
+        { name: "細分B", code: "002", intensity: "3" },
+        { name: "細分C", code: null, intensity: "4" },
+      ],
+      municipalities: [
+        { name: "市町村A", code: "0010001", intensity: "4" },
+      ],
+    };
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: { ...outcome.parsed, intensity },
+    });
+    expect(event.areaNames).toEqual(["細分A", "細分B", "細分C"]);
+    expect(projectRecentQuake(event)?.intensityGroups).toEqual([
+      { intensity: "4", rank: 4, areas: ["細分A", "細分C"], omittedAreaCount: 0 },
+      { intensity: "3", rank: 3, areas: ["細分B"], omittedAreaCount: 0 },
+    ]);
   });
 });

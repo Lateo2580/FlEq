@@ -268,6 +268,19 @@ export interface PresentationAreaItem {
   firstHeight?: string;
 }
 
+export interface PresentationQuakeIntensityItem {
+  name: string;
+  code: string;
+  maxInt: string;
+  maxIntRank: number;
+  maxLgInt?: string;
+}
+
+export interface PresentationQuakeIntensity {
+  localAreas: PresentationQuakeIntensityItem[];
+  municipalities: PresentationQuakeIntensityItem[];
+}
+
 /** EEW 予測震度地域の詳細 (地域別表示用、Phase A) */
 export interface PresentationEewRegion {
   name: string;
@@ -391,6 +404,9 @@ export interface PresentationEvent {
   observationCount: number;
 
   areaItems: PresentationAreaItem[];
+
+  // code欠落除外・重複集約済みの地震中間表現。Phase 3でmap stateへ射影する
+  quakeIntensity?: PresentationQuakeIntensity;
 
   // EEW 予測震度地域の詳細 (Phase A、eew ドメインのみ使用)
   eewRegions?: PresentationEewRegion[];

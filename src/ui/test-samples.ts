@@ -315,15 +315,16 @@ export const SAMPLE_EARTHQUAKE = {
   intensity: {
     maxInt: "7",
     areas: [
-      { name: "石川県能登", intensity: "7" },
-      { name: "新潟県上越", intensity: "6強" },
-      { name: "新潟県中越", intensity: "6弱" },
-      { name: "富山県東部", intensity: "5強" },
-      { name: "富山県西部", intensity: "5弱" },
-      { name: "石川県加賀", intensity: "5弱" },
-      { name: "福井県嶺北", intensity: "4" },
-      { name: "長野県北部", intensity: "4" },
+      { name: "石川県能登", code: null, intensity: "7" },
+      { name: "新潟県上越", code: null, intensity: "6強" },
+      { name: "新潟県中越", code: null, intensity: "6弱" },
+      { name: "富山県東部", code: null, intensity: "5強" },
+      { name: "富山県西部", code: null, intensity: "5弱" },
+      { name: "石川県加賀", code: null, intensity: "5弱" },
+      { name: "福井県嶺北", code: null, intensity: "4" },
+      { name: "長野県北部", code: null, intensity: "4" },
     ],
+    municipalities: [],
   },
   tsunami: {
     text: "この地震により、日本の沿岸では若干の海面変動があるかもしれませんが、被害の心配はありません。",
@@ -490,9 +491,10 @@ const FALLBACK_EARTHQUAKE_WARNING = {
   intensity: {
     maxInt: "4",
     areas: [
-      { name: "長野県北部", intensity: "4" },
-      { name: "長野県中部", intensity: "3" },
+      { name: "長野県北部", code: null, intensity: "4" },
+      { name: "長野県中部", code: null, intensity: "3" },
     ],
+    municipalities: [],
   },
   tsunami: { text: "この地震による津波の心配はありません。" },
   isTest: true,
@@ -540,10 +542,11 @@ const FALLBACK_EARTHQUAKE_SHINDO = {
   intensity: {
     maxInt: "5弱",
     areas: [
-      { name: "石川県能登", intensity: "5弱" },
-      { name: "富山県東部", intensity: "4" },
-      { name: "新潟県上越", intensity: "4" },
+      { name: "石川県能登", code: null, intensity: "5弱" },
+      { name: "富山県東部", code: null, intensity: "4" },
+      { name: "新潟県上越", code: null, intensity: "4" },
     ],
+    municipalities: [],
   },
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
@@ -568,10 +571,11 @@ const FALLBACK_EARTHQUAKE_LG = {
     maxInt: "5強",
     maxLgInt: "4",
     areas: [
-      { name: "東京都23区", intensity: "5強", lgIntensity: "4" },
-      { name: "千葉県北西部", intensity: "5弱", lgIntensity: "3" },
-      { name: "神奈川県東部", intensity: "4", lgIntensity: "3" },
+      { name: "東京都23区", code: null, intensity: "5強", lgIntensity: "4" },
+      { name: "千葉県北西部", code: null, intensity: "5弱", lgIntensity: "3" },
+      { name: "神奈川県東部", code: null, intensity: "4", lgIntensity: "3" },
     ],
+    municipalities: [],
   },
   tsunami: { text: "この地震による津波の心配はありません。" },
   isTest: true,

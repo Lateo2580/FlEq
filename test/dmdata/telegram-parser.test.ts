@@ -12,6 +12,7 @@ import {
 import * as log from "../../src/logger";
 import {
   createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
   readFixture,
   encodeXml,
   FIXTURE_VXSE51_SHINDO,
@@ -51,6 +52,27 @@ import {
   FIXTURE_VXSE62_LGOBS,
   FIXTURE_VYSE60_AFTERSHOCK,
 } from "../helpers/mock-message";
+
+function syntheticQuakeXml(observation: string, infoType = "発表"): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Report>
+  <Head>
+    <Title>震源・震度に関する情報</Title>
+    <ReportDateTime>2026-07-30T12:00:00+09:00</ReportDateTime>
+    <EventID>synthetic-quake</EventID>
+    <InfoType>${infoType}</InfoType>
+    <Headline>
+      <Text>表示用ヘッドライン</Text>
+      <Information><Item><Areas>
+        <Area><Name>Headlineだけの地域</Name><Code>999</Code></Area>
+      </Areas></Item></Information>
+    </Headline>
+  </Head>
+  <Body>
+    <Intensity><Observation>${observation}</Observation></Intensity>
+  </Body>
+</Report>`;
+}
 
 // ── decodeBody ──
 
@@ -173,6 +195,107 @@ describe("parseEarthquakeTelegram", () => {
       // 震度情報
       expect(result!.intensity).toBeDefined();
       expect(result!.intensity!.areas.length).toBeGreaterThan(0);
+    });
+
+    it("Observation の Area.Code=440 / City.Code=2230600 を粒度別に抽出する", () => {
+      const result = parseEarthquakeTelegram(
+        createMockWsDataMessage(FIXTURE_VXSE53_DRILL_1),
+      );
+      expect(result?.intensity?.areas).toContainEqual(
+        expect.objectContaining({ name: "静岡県伊豆", code: "440", intensity: "5-" }),
+      );
+      expect(result?.intensity?.municipalities).toContainEqual(
+        expect.objectContaining({ name: "西伊豆町", code: "2230600", intensity: "5-" }),
+      );
+
+      const localCodes = result?.intensity?.areas.map(({ code }) => code) ?? [];
+      const municipalityCodes =
+        result?.intensity?.municipalities.map(({ code }) => code) ?? [];
+      expect(localCodes).not.toContain("2230600");
+      expect(municipalityCodes).not.toContain("440");
+      expect(municipalityCodes).not.toContain("2230630");
+    });
+  });
+
+  describe("区域code付き震度", () => {
+    it("VXSE51 の Area.Code を抽出し、City 欠落は空配列にする", () => {
+      const result = parseEarthquakeTelegram(
+        createMockWsDataMessage(FIXTURE_VXSE51_SHINDO),
+      );
+      expect(result?.intensity?.areas.length).toBeGreaterThan(0);
+      expect(result?.intensity?.areas.every(({ code }) => typeof code === "string")).toBe(true);
+      expect(result?.intensity?.municipalities).toEqual([]);
+    });
+
+    it("singleton Area/City、先頭ゼロ、IntensityStation 非混入を固定する", () => {
+      const xml = syntheticQuakeXml(`
+        <MaxInt>4</MaxInt>
+        <Pref><Name>県</Name><Code>00</Code><MaxInt>4</MaxInt>
+          <Area><Name>細分</Name><Code>040</Code><MaxInt>4</MaxInt>
+            <City><Name>市町村</Name><Code>0012345</Code><MaxInt>3</MaxInt>
+              <IntensityStation><Name>観測点</Name><Code>0099999</Code><Int>4</Int></IntensityStation>
+            </City>
+          </Area>
+        </Pref>`);
+      const result = parseEarthquakeTelegram(
+        createMockWsDataMessageFromXml(xml, "VXSE53"),
+      );
+      expect(result?.intensity?.areas).toEqual([
+        { name: "細分", code: "040", intensity: "4" },
+      ]);
+      expect(result?.intensity?.municipalities).toEqual([
+        { name: "市町村", code: "0012345", intensity: "3" },
+      ]);
+      expect(result?.intensity?.areas.some(({ code }) => code === "999")).toBe(false);
+      expect(result?.intensity?.municipalities.some(({ code }) => code === "0099999")).toBe(false);
+    });
+
+    it("Code 欠落itemを地名補完せず null のまま文字表示用配列に残す", () => {
+      const xml = syntheticQuakeXml(`
+        <MaxInt>3</MaxInt>
+        <Pref><Name>県</Name><MaxInt>3</MaxInt>
+          <Area><Name>codeなし細分</Name><MaxInt>3</MaxInt>
+            <City><Name>codeなし市町村</Name><MaxInt>2</MaxInt></City>
+          </Area>
+        </Pref>`);
+      const result = parseEarthquakeTelegram(
+        createMockWsDataMessageFromXml(xml, "VXSE53"),
+      );
+      expect(result?.intensity?.areas).toEqual([
+        { name: "codeなし細分", code: null, intensity: "3" },
+      ]);
+      expect(result?.intensity?.municipalities).toEqual([
+        { name: "codeなし市町村", code: null, intensity: "2" },
+      ]);
+    });
+
+    it("重複codeでも文字表示用配列の順序・件数を維持する", () => {
+      const xml = syntheticQuakeXml(`
+        <MaxInt>5-</MaxInt>
+        <Pref><Name>県</Name><MaxInt>5-</MaxInt>
+          <Area><Name>細分・旧</Name><Code>440</Code><MaxInt>3</MaxInt>
+            <City><Name>市町村・旧</Name><Code>2230600</Code><MaxInt>3</MaxInt></City>
+          </Area>
+          <Area><Name>細分・新</Name><Code>440</Code><MaxInt>4</MaxInt>
+            <City><Name>市町村・新</Name><Code>2230600</Code><MaxInt>5-</MaxInt></City>
+          </Area>
+          <Area><Name>細分・同震度</Name><Code>440</Code><MaxInt>4</MaxInt>
+            <City><Name>市町村・同震度</Name><Code>2230600</Code><MaxInt>5-</MaxInt></City>
+          </Area>
+        </Pref>`);
+      const result = parseEarthquakeTelegram(
+        createMockWsDataMessageFromXml(xml, "VXSE53"),
+      );
+      expect(result?.intensity?.areas).toEqual([
+        { name: "細分・旧", code: "440", intensity: "3" },
+        { name: "細分・新", code: "440", intensity: "4" },
+        { name: "細分・同震度", code: "440", intensity: "4" },
+      ]);
+      expect(result?.intensity?.municipalities).toEqual([
+        { name: "市町村・旧", code: "2230600", intensity: "3" },
+        { name: "市町村・新", code: "2230600", intensity: "5-" },
+        { name: "市町村・同震度", code: "2230600", intensity: "5-" },
+      ]);
     });
   });
 

@@ -208,7 +208,7 @@ describe("earthquakeFrameLevel", () => {
   it("returns critical for intensity 6弱 (rank 7)", () => {
     expect(
       earthquakeFrameLevel(
-        earthquake({ intensity: { maxInt: "6弱", areas: [] } }),
+        earthquake({ intensity: { maxInt: "6弱", areas: [], municipalities: [] } }),
       ),
     ).toBe("critical");
   });
@@ -216,7 +216,7 @@ describe("earthquakeFrameLevel", () => {
   it("returns critical for intensity 7 (rank 9)", () => {
     expect(
       earthquakeFrameLevel(
-        earthquake({ intensity: { maxInt: "7", areas: [] } }),
+        earthquake({ intensity: { maxInt: "7", areas: [], municipalities: [] } }),
       ),
     ).toBe("critical");
   });
@@ -224,7 +224,7 @@ describe("earthquakeFrameLevel", () => {
   it("returns warning for intensity 4 (rank 4)", () => {
     expect(
       earthquakeFrameLevel(
-        earthquake({ intensity: { maxInt: "4", areas: [] } }),
+        earthquake({ intensity: { maxInt: "4", areas: [], municipalities: [] } }),
       ),
     ).toBe("warning");
   });
@@ -232,7 +232,7 @@ describe("earthquakeFrameLevel", () => {
   it("returns warning for intensity 5弱 (rank 5)", () => {
     expect(
       earthquakeFrameLevel(
-        earthquake({ intensity: { maxInt: "5弱", areas: [] } }),
+        earthquake({ intensity: { maxInt: "5弱", areas: [], municipalities: [] } }),
       ),
     ).toBe("warning");
   });
@@ -240,7 +240,7 @@ describe("earthquakeFrameLevel", () => {
   it("returns normal for intensity 3 (rank 3)", () => {
     expect(
       earthquakeFrameLevel(
-        earthquake({ intensity: { maxInt: "3", areas: [] } }),
+        earthquake({ intensity: { maxInt: "3", areas: [], municipalities: [] } }),
       ),
     ).toBe("normal");
   });
@@ -515,7 +515,7 @@ describe("earthquakeSoundLevel", () => {
   it("returns warning for intensity rank >= 4", () => {
     expect(
       earthquakeSoundLevel(
-        earthquake({ intensity: { maxInt: "4", areas: [] } }),
+        earthquake({ intensity: { maxInt: "4", areas: [], municipalities: [] } }),
       ),
     ).toBe("warning");
   });
@@ -523,7 +523,7 @@ describe("earthquakeSoundLevel", () => {
   it("returns warning for intensity 5強 (rank 6)", () => {
     expect(
       earthquakeSoundLevel(
-        earthquake({ intensity: { maxInt: "5強", areas: [] } }),
+        earthquake({ intensity: { maxInt: "5強", areas: [], municipalities: [] } }),
       ),
     ).toBe("warning");
   });
@@ -531,7 +531,7 @@ describe("earthquakeSoundLevel", () => {
   it("returns normal for intensity rank < 4", () => {
     expect(
       earthquakeSoundLevel(
-        earthquake({ intensity: { maxInt: "3", areas: [] } }),
+        earthquake({ intensity: { maxInt: "3", areas: [], municipalities: [] } }),
       ),
     ).toBe("normal");
   });
