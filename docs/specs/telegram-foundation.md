@@ -1,9 +1,9 @@
 # 電文基盤共通化仕様 — 特殊値・TelegramMeta・Revision・試験判定・条件付き抑止
 
-> 状態: **Reviewed Draft（Sol レビュー前）**  
-> 更新日: 2026-07-31  
-> 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化  
-> 参照基準: HEAD `c76f3578ebb4fbdd20ef5d824ac99a90ce9ab012`  
+> 状態: **Reviewed（Sol レビュー反映済み）**
+> 更新日: 2026-07-31
+> 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化
+> 参照基準: HEAD `f634e410` 時点のコードで再確認
 > 前提: 修正弾 A〜C で個別 High は対処済みとし、本仕様は構造的根因の共通化を扱う
 
 ## 1. 目的・スコープ
@@ -140,7 +140,7 @@ export interface SpecialValue<T> {
 |---|---|---:|---:|---|
 | `value` | 正確な通常値 | 非 null | 非 null | 原則なし |
 | `missing` | 要素・属性そのものが存在しない | `null` | `null` | なし |
-| `empty` | 要素は存在するが空、または空白のみ | `""` または元の空白文字列 | `null` | なし |
+| `empty` | 要素は存在するが空、または空白のみ | self-closing／長さ 0 は `""`、空白のみは元の空白文字列をそのまま保持 | `null` | なし |
 | `unknown` | 「不明」「観測できず」「未入電」など、値が不明と明示される | 元文字列 | `null` | 原則なし |
 | `qualitative` | 「巨大」「高い」「ごく浅い」「5弱以上未入電」など、定性的意味がある | 元文字列 | `null` | 意味が定まる場合のみ設定 |
 | `range` | 上限、下限、区間で表現される | 元文字列 | `null` | 一方または双方を設定 |
@@ -152,6 +152,7 @@ export interface SpecialValue<T> {
 - `range` は `lowerBound`、`upperBound` の少なくとも一方を持つ。
 - `qualitative` は bounds を持たなくてもよい。
 - `missing` と `empty` を相互変換しない。
+- `empty.raw` は round-trip の全境界で完全一致させる。空白のみの raw を `""` へ trim せず、self-closing と空白のみを同一化しない。
 - `raw` を trim、NFKC、数値文字列化した結果で上書きしない。
 - XML entity の decode は行うが、異体字を別字へ変換しない。
 - `condition` と `description` は、存在しない場合 `null`、明示空の場合 `""` を維持する。
@@ -197,6 +198,20 @@ export interface SpecialValue<T> {
 
 単位は型 alias またはフィールド名で固定し、同じ `number` を異なる単位のまま比較しない。
 
+特殊語と本文／`Condition` の優先順位は domain ごとに次で固定する。既知の特殊語を generic な文字列判定だけで分類しない。
+
+| domain value | 語・出現箇所 | presence | 本文と `Condition` が矛盾した場合 |
+|---|---|---|---|
+| TsunamiHeight | `観測中`（本文または `Condition`） | `qualitative` | 数値本文があれば数値を `value` とし、`観測中` は進行状況として `condition` に保持する。数値がなければ `qualitative` を正とする |
+| PlumeHeight | `雲中`（本文または `Condition`） | `qualitative` | 観測阻害の意味を持つ `Condition` を正とし、矛盾する数値本文は値として採用せず raw と診断へ残す |
+| PlumeHeight | `観測できず`（本文または `Condition`） | `unknown` | `Condition` を正とし、矛盾する数値本文は採用しない |
+| Pressure | `解析不能`（本文または `Condition`） | `unknown` | `Condition` を正とし、矛盾する数値本文は採用しない |
+| Intensity | `未入電` | `unknown` | 既知の `Condition` を正とし、数値 rank へ変換しない |
+| Intensity | `5弱以上未入電` | `qualitative` | 既知の `Condition` を正とし、`lowerBound:"5-"` を設定する |
+
+- 数値本文を採用する例外は、上表の TsunamiHeight のように特殊語が値の無効化ではなく進行状況を表すと明記した場合だけとする。
+- 未知の `Condition` と valid な本文が矛盾する場合は本文を `value` として保持し、未知 `Condition` も失わず `unmappedSpecialValue`／`specialValueConflict` を記録する。未知語から値の無効化を推定しない。
+
 ### 3.6 Intensity の安全側評価
 
 `intensityToRank()` のような数値だけを返す API とは別に、unknown を保持できる評価型を導入する。
@@ -234,7 +249,7 @@ export type IntensitySafetyRank =
 | テロップ | 短縮した通常値 | 省略 | 省略 | `不明` | `巨大`、`5弱以上未入電`、`X以上` |
 | カード | 数値＋単位 | `—` | `空欄` | `不明` badge | qualifier badge 付き |
 | 地図 | 通常色 | 非描画 | neutral 色＋`∅` badge | unknown 色＋`?` badge | safety rank 色＋記号 badge |
-| 永続化 | 全フィールド保存 | `raw:null` | `raw:""` | raw・condition 保存 | raw・bounds 保存 |
+| 永続化 | 全フィールド保存 | `raw:null` | 元 raw を空白も含め完全保存（長さ0／self-closing のみ `raw:""`） | raw・condition 保存 | raw・bounds 保存 |
 
 共通規約として、通知やテロップで qualifier を削って通常値のように表示してはならない。
 
@@ -275,7 +290,7 @@ export type IntensitySafetyRank =
 - partial update 型電文では、domain policy が未掲載フィールドを維持する。
 - `missing` を「前回値維持」と解釈するか「値なし」と解釈するかは、telegram type ごとの update policy に明記する。
 - `empty` を自動的に削除命令と解釈しない。
-- 永続状態の解除は `InfoType` と cancellation policy で判断する。
+- 永続状態の解除は、§5.5 の A: `InfoType=取消`、B: lifecycle terminal、C: active state deactivation を registry で評価し、解決済み trigger と cancellation policy で判断する。
 
 ## 4. 共通 TelegramMeta 契約
 
@@ -353,10 +368,12 @@ domain が serial 欠落を許す場合でも、`valid` を true に偽装しな
 - ISO 8601 の完全一致と実在日時を検証する。
 - timezone を必須とする。
 - 不正値、欠落、明示空の `epochMs` は `null` とする。
+- 未来方向の許容 skew は `FUTURE_REPORT_DATETIME_SKEW_MS = 15 * 60_000` とする。`receivedAtMs` より15分以内の未来日時は clock skew として valid のまま扱う。
+- 15分を超える未来日時は `valid:false`、`epochMs:null` とし、理由 `futureSkewExceeded`、raw 値、差分 ms を監査ログと `futureDateDiagnosed` 統計へ記録する。
 - 不正値を `Date.now()`、受信時刻、ファイル時刻へ昇格させない。
-- 不正日時の電文は現在状態を置換、解除、巻き戻しできない。
+- 不正日時および許容 skew 超過の未来日時は fail-closed とし、現在状態を置換、解除、巻き戻しできない。
 - `receivedAtMs` はログ、TTL、相関待機時間にだけ使う。
-- invalid ReportDateTime の電文は CLI と診断テロップにだけ transient 表示する。
+- invalid ReportDateTime／`futureSkewExceeded` の電文は CLI と診断テロップにだけ transient 表示する。
 - 通常テロップ、カード、地図、active state、OS 通知、通知音へは流さない。
 - 診断テロップには type、EventID、raw ReportDateTime、受信時刻、および「日時不正」を明示する。
 - 診断表示は durable active state として永続化しない。監査ログと統計は保存してよい。
@@ -375,15 +392,79 @@ export interface TelegramRevision {
 }
 ```
 
-標準の状態キーは次とする。
+状態 identity は revision identity と分離する。標準形は次とする。
 
 ```text
-domain + revisionFamily + EventID
+domain + revisionFamily + stateSubjectKey
 ```
 
 `revisionFamily` の既定値は `type.value` とする。
 
 異なる head.type が同じイベント状態を更新する場合は、domain registry で type family を明示する。暗黙に type を無視してはならない。
+
+registry は revisionFamily ごとに少なくとも次を持つ。
+
+```ts
+export type RevisionFamilyPolicy<TParsed, TItem = never> = {
+  domain: string;
+  revisionFamily: string;
+  headTypes: readonly string[];
+  comparator: "reportDateTimeThenSerial" | "serialOnly";
+  extractStateSubjectKey: (
+    meta: TelegramMeta,
+    parsed: TParsed,
+  ) => string | readonly string[] | null;
+  extractCancellationTarget: (
+    meta: TelegramMeta,
+    parsed: TParsed,
+  ) => readonly string[] | null;
+  cancellationPolicy: CancellationPolicy;
+  terminalPredicate: (meta: TelegramMeta, parsed: TParsed) => boolean;
+  deactivationPredicate: (meta: TelegramMeta, parsed: TParsed) => boolean;
+} & (
+  | {
+      fragmentMerge: false;
+      extractItems?: never;
+      itemSubjectKey?: never;
+      itemFingerprint?: never;
+      fingerprintVersion?: never;
+      fragmentEvidence?: never;
+    }
+  | {
+      fragmentMerge: true;
+      extractItems: (parsed: TParsed) => readonly TItem[];
+      itemSubjectKey: (
+        meta: TelegramMeta,
+        item: TItem,
+      ) => string | null;
+      itemFingerprint: (item: TItem) => string;
+      fingerprintVersion: string;
+      fragmentEvidence: {
+        corpusFixtures: readonly string[];
+        regressionTests: readonly string[];
+        rationale: string;
+      };
+    }
+);
+```
+
+- `stateSubjectKey` は EventID を必須とはしない。EventID、火山コード、発表官署、weather source、対象日、地域コード、観測点コードなど、実際に state holder が分離している粒度を registry が組み立てる。
+- authoritative なコードだけで完全な subject key を抽出できる domain は、EventID 欠落時もその key で更新できる。EventID を名称や受信時刻で補完しない。
+- subject key が不完全で `null` となった電文は fail-open 表示してよいが、durable state、watermark、tombstone を変更しない。
+- `extractCancellationTarget` は解除対象の完全な subject key の集合を返す。部分キーしか得られない取消は、一致が一意に証明できる既存 subject だけへ適用し、revisionFamily 全体の一括解除へ拡張しない。
+- VFVO51 の複数火山一覧は火山コードごとに一件へ展開し、各 entry を独立した `stateSubjectKey` として gate に通す。EventID が欠落しても火山コードが valid なら更新できる。
+- VFVO51 の `alertClass.isActive === false` は、その entry の火山コードに対応する alert subject だけを解除する。同じ火山の eruption event や、同じ電文に含まれる別火山を解除しない。
+- 旧 `domain + revisionFamily + EventID` state は、Phase 3B の reader が domain 固有情報から subject key を再構成できる場合だけ新 key へ移す。再構成不能または複数候補になる entry は表示復元専用とし、取消対象・watermark には採用しない。
+
+`fragmentMerge:true` は型上も registry 上も allowlist 制とする。
+
+- `extractItems`、`itemSubjectKey`、`itemFingerprint`、`fingerprintVersion`、`fragmentEvidence` の五つが揃わない family は起動時検証を失敗させる。
+- `itemSubjectKey` は item の authoritative なコードから安定生成し、配列位置、表示名、受信時刻を使用しない。key が `null` の item は fail-open 表示してよいが durable merge しない。
+- `itemFingerprint` は subject key を除く全 semantic field、`SpecialValue.raw`、presence、condition、description、bounds を順序固定の canonical form から生成する。transport ID、telegram 内の item 順、受信時刻を含めない。fingerprint algorithm／version は `fingerprintVersion` として registry entry に固定し、移行なしに変更しない。
+- 有効化には、同一 revision の分割・補完があり得ることを示す repo corpus、item key の一意性、merge／訂正／取消規則、到着順を反転した regression test を `fragmentEvidence` に列挙する。
+- 現在の allowlist は `tsunamiObservation:VTSE51` と `tsunamiObservation:VTSE52` だけとし、両者の revision 系列は独立させる。根拠は repo fixture `32-39_11_10_250206_VTSE51.xml` と `61_11_01_250206_VTSE52.xml` が観測点コードを持つ反復 item 構造を示し、`test/engine/display/state-store.test.ts` の VTSE51／52 観測点コード単位 merge baseline が部分報・遅延旧報の保持規則を固定していることとする。
+- 上記 corpus は station-scoped identity の実在根拠であり、同一 revision 分割到着そのものは synthetic regression で補う。この限界を `fragmentEvidence.rationale` に明記する。
+- allowlist の追加は、型を `true` にするだけでは認めない。本節の corpus／test 根拠を伴う仕様変更と registry validation の更新を必須とする。
 
 ### 5.2 比較規約
 
@@ -397,20 +478,30 @@ export type RevisionRelation =
   | "unordered";
 ```
 
-比較順序は次のとおりとする。
+既定 comparator `reportDateTimeThenSerial` の比較順序は次のとおりとする。
 
-1. EventID と revisionFamily が同じか確認する。
+1. domain、revisionFamily、抽出済み stateSubjectKey が同じか確認する。EventID を identity に含める family では、registry が stateSubjectKey の一部として比較する。
 2. 両方の ReportDateTime が valid なら時刻を比較する。
 3. ReportDateTime が同じ場合、両 serial が valid なら numeric を比較する。
 4. 必要な要素が不正または片側だけ欠落している場合は `unordered` とする。
 5. 非数値 serial の辞書順比較をしない。
 6. `unordered` を `equal` とみなさない。
 
+EEW（VXSE43／44／45）は現行 `EewTracker` の serial 主順序を正とし、revisionFamily registry で `comparator:"serialOnly"` を必須 override とする。
+
+1. 同一 EventID、同一 head.type 内で、両 serial が valid なら numeric serial を先に比較する。
+2. numeric serial が同じなら ReportDateTime の前後にかかわらず `equal` とする。EEW comparator は日時を tie-breaker に使用しない。
+3. serial が小さい電文は ReportDateTime が新しくても `older`、serial が大きい電文は ReportDateTime が古くても `newer` とする。
+4. serial 不正・欠落は `unordered` とし、ReportDateTime だけで EEW state を置換しない。
+5. §4.4 の ReportDateTime validation は comparator 前に適用するが、valid な日時同士の大小は EEW revision relation に影響させない。
+
+registry に未登録の comparator override を暗黙に推定しない。
+
 ### 5.3 InfoType ごとの判断
 
 | InfoType | newer | equal | older | unordered |
 |---|---|---|---|---|
-| 発表 | accept | duplicate | stale | invalidRevision |
+| 発表 | accept | duplicate、ただし `fragmentMerge` family は `mergeFragment` | stale | invalidRevision |
 | 訂正 | accept | replaceCorrection | stale | invalidRevision |
 | 取消 | domain policy を適用 | domain policy を適用 | stale | invalidRevision |
 | 不正・欠落 | invalidMeta | invalidMeta | invalidMeta | invalidMeta |
@@ -428,12 +519,25 @@ export type RevisionRelation =
 - 地図
 - 永続状態
 
+`fragmentMerge:true` の revisionFamily は、通常報の relation が `equal` でも telegram 全体を duplicate として捨てず、parsed item を item gate へ渡す。
+
+- transport ID duplicate は従来どおり item gate 前に拒否する。
+- item gate は観測点コードなどの `itemSubjectKey` と item fingerprint を使用する。
+- 同じ item の完全な再送は拒否し、同一 revision の未見 item、分割報、補完報は merge する。
+- whole-message の semantic duplicate は、未見 item が一件もないことを item gate で確認した後にだけ確定する。
+- 津波 VTSE51／52 の station merge を初期適用とし、同一 revision で別観測点が分割到着した場合は両方を保持する。同一観測点の明示訂正は `InfoType=訂正` の規則で置換する。
+
 ### 5.4 訂正通知
 
-2026-07-31 の決定により、訂正は共通 gate で受理されるたびに通知する。
+2026-07-31 の決定により、訂正は共通 gate で受理され、かつ経路固有の通知適格性 filter を通過するたびに通知する。
+
+- U2 は unmatched legacy 経路の通知適格性 filter であり、U5 より先に評価する。
+- unmatched legacy の訂正は、コードから高 Severity が確定した場合だけ通知適格とする。適格な high 訂正にだけ U5 の `訂正` 明示、一回通知、重複排除を適用する。
+- high 未満、severity unknown、コード欠落、ambiguous の unmatched legacy 訂正は state／表示へ反映しても通知しない。
+- legacy 以外は、既存 domain の通常通知対象外という明示規則がない限り、受理済み訂正へ U5 を適用する。
 
 - 通知タイトルまたは本文へ `訂正` を明示する。
-- presentation 上の実質差分がなくても、受理された訂正は通知する。
+- presentation 上の実質差分がなくても、通知適格な受理済み訂正は通知する。
 - 同一 messageId の transport 再送は受理前に除外するため通知しない。
 - 同一 semantic payload の再送も受理前に除外するため通知しない。
 - stale、invalidRevision、invalidMeta の訂正は受理されず、通知しない。
@@ -452,6 +556,29 @@ export type CancellationPolicy =
   | "clearCurrent"
   | "markCancelled";
 ```
+
+取消／終端／非活性化の trigger は `InfoType === "取消"` だけに限定しない。registry は次の A〜C の成立有無を収集し、単一 trigger へ解決する。
+
+- A. 明示取消: `meta.infoType.value === "取消"`。`extractCancellationTarget` が返した subject に `cancellationPolicy` を適用する。
+- B. lifecycle 終端: `terminalPredicate(meta, parsed) === true`。台風の `transitionedToLow`／`formationCancelled` など、現象が terminal state へ移った subject に policy を適用する。
+- C. active state の非活性化: `deactivationPredicate(meta, parsed) === true`。火山 `alertClass.isActive === false`、`action === "release"`／`"cancel"`、噴火警戒レベル1への引下げなどを alert subject の解除として扱う。
+
+優先順位は `A > B > C` とする。
+
+```ts
+const resolvedTrigger =
+  explicitCancellation ? "explicitCancellation"
+  : terminal ? "terminal"
+  : deactivation ? "deactivation"
+  : null;
+```
+
+- A が成立した場合、parser が同じ入力から `action:"cancel"` を生成して C も成立していても A だけを適用する。現行 `volcano-parser.ts` の `InfoType=取消 → action=cancel` がこの実例である。
+- A が不成立で B と C が同時成立した場合は、lifecycle 全体の終端を表す B を適用し、C の部分解除を別処理として重ねない。
+- 成立した raw predicate の集合は診断用に記録してよいが、state mutation、`cancelApplied`／関連 stats、presentation、通知、永続化は `resolvedTrigger` から一度だけ実行する。
+- `extractCancellationTarget` の返却値は重複排除した subject key 集合へ正規化し、同一 telegram／revision／subject key に対する policy 適用を exactly-once とする。
+- 同一 subject の二重 clear、二重 tombstone、二重 stats、A/B/C ごとの二重通知を禁止する。複数の異なる subject を含む batch は各 subject を一度ずつ mutation し、通知は domain の単一 batch 規則に従う。
+- A〜C のいずれでも対象 key の抽出と revision 判定を先に行う。target 不一致、stale、unordered は current state を変更しない。C は非活性になった state class だけを解除し、同じ subject の別 class の履歴や event を巻き添えにしない。
 
 #### restorePrevious
 
@@ -484,14 +611,14 @@ export type CancellationPolicy =
 | seismicText | 主に transient event と取消文 | `markCancelled` |
 | lgObservation | 主に transient event と取消文 | `markCancelled` |
 | tsunami | active level／lastInfo を clear、watermark 維持 | `clearCurrent` |
-| volcano alert | 火山コード単位で active alert を削除 | `clearCurrent` |
+| volcano alert | 火山コード単位で active alert を削除。VFVO51 `isActive:false`、release／cancel、Lv1 引下げも非活性化 | `clearCurrent` |
 | volcano eruption event | EventID／火山単位で最新イベントを削除 | `clearCurrent` |
 | VPWS50 | current と履歴を持ち、取消対象一致時に rollback | `restorePrevious` |
 | VPWW56 | stream の current view を消し、watermark を維持 | `clearCurrent` |
 | floodForecast | EventID 単位の履歴を削除 | `clearCurrent` |
 | tornado | 発表官署／EventID 単位の active state を削除 | `clearCurrent` |
 | heatAlert | 対象日・地域単位の active state を削除 | `clearCurrent` |
-| typhoonAnalysis | 台風キー単位の active state を削除 | `clearCurrent` |
+| typhoonAnalysis | 台風キー単位の active state を削除。`transitionedToLow`／`formationCancelled` も終端 | `clearCurrent` |
 | typhoonProbability | EventID／対象時刻単位の active cache を削除 | `clearCurrent` |
 | nankaiTrough | current active state を削除 | `clearCurrent` |
 | weatherWarningTimeseries | source／地域単位の active state を削除 | `clearCurrent` |
@@ -503,7 +630,8 @@ export type CancellationPolicy =
 
 同じ Presentation domain 内で policy が異なる場合があるため、registry のキーを domain だけにしてはならない。
 
-新しい revisionFamily を追加したとき cancellation policy が未登録なら、コンパイルまたは起動時検証を失敗させる。暗黙の既定 policy は置かない。
+新しい revisionFamily を追加したとき cancellation policy、subject extractor、cancellation target extractor、terminal predicate、deactivation predicate のいずれかが未登録なら、コンパイルまたは起動時検証を失敗させる。暗黙の既定 policy／predicate は置かない。
+終端／非活性化を持たない family も predicate を省略せず、常に `false` を返す実装を明示登録する。
 
 ### 5.7 共通重複排除
 
@@ -515,6 +643,7 @@ transport validation
   → transport ID dedup
   → parser
   → revision decision
+  → item gate / semantic dedup
   → cancellation policy / state mutation
   → presentation diff
   → stats
@@ -530,11 +659,13 @@ transport validation
    - `messageId` が同じ電文
    - primary／backup の重複
 2. Semantic duplicate
-   - EventID、revisionFamily、ReportDateTime、serial、InfoType、payload fingerprint が同じ電文
+   - stateSubjectKey、revisionFamily、ReportDateTime、serial、InfoType、payload fingerprint が同じ電文
+
+`fragmentMerge:true` の family では、2 の判定を item gate 後へ遅延する。equal revision を telegram 単位で先に捨ててはならない。
 
 通知は両方の重複排除を通過した後にだけ実行する。
 
-訂正は、重複排除を通過して共通 gate が受理した場合、実質差分の有無にかかわらず訂正通知を一回発行する。
+訂正は、重複排除を通過して共通 gate が受理され、§5.4 の通知適格性 filter を通過した場合、実質差分の有無にかかわらず訂正通知を一回発行する。
 
 受信統計と採用統計を分ける。
 
@@ -547,6 +678,7 @@ transport validation
 - `invalidMeta`
 - `invalidRevision`
 - `invalidDateDiagnosed`
+- `futureDateDiagnosed`
 - `cancelApplied`
 - `cancelTargetMismatch`
 - `presented`
@@ -649,12 +781,26 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 - exact value と uncertainty の見た目は同一にしない。
 - unknown の存在によって既存 emergency host を降格させない。
 
+### 7.4 quake-observation-merge
+
+現行 `quake-observation-merge` の baseline を共通 state 更新後も維持する。
+
+- 同一の非空 EventID について、VXSE51 で取得済みの観測震度があり、後続 VXSE52／VXSE61 の震度要素が構造的に `missing` の場合だけ、既存 `maxInt`、`maxIntRank`、`intensityGroups` を保持する。
+- 震源名、発生時刻、Magnitude、Depth などの震源諸元は後続 VXSE52／VXSE61 の値を採用する。
+- `unknown`、`empty`、`qualitative` は `missing` とみなさない。電文が明示した状態として置換し、前回の観測値を自動維持しない。
+- `InfoType=訂正` で震度要素が明示された場合は、通常の訂正規約に従って置換する。取消は観測値保持を行わず、cancellation policy に従う。
+- EventID 欠落または不一致では観測値を別電文へ持ち越さない。
+- latest quake、recent quake、daily counter、永続化 restore 後で同じ helper／同じ意味規則を使用する。
+
 ## 8. EEW 同一 serial 訂正
 
 ### 8.1 revision
 
 EEW の重複判定を `serial <= lastSerial` だけで行わない。
 
+EEW revisionFamily は §5.2 の `serialOnly` comparator override を使用する。これは現行 `EewTracker` の serial 主順序を正規化する契約であり、共通既定の日時主順序へ戻したり、同一 serial を日時で newer／older に分けたりしてはならない。
+
+- 同一 type、同一 serial: ReportDateTime にかかわらず revision relation は `equal`
 - 同一 type、同一 serial、通常報: duplicate
 - 同一 type、同一 serial、InfoType=訂正: replaceCorrection
 - 小さい serial の訂正: stale
@@ -798,6 +944,10 @@ export interface LegacyCounterpartRule {
 const LEGACY_SOURCE_HOLDBACK_MS = 60_000;
 const LEGACY_CORRELATION_WINDOW_BEFORE_MS = 5 * 60_000;
 const LEGACY_CORRELATION_WINDOW_AFTER_MS = 5 * 60_000;
+const LEGACY_CORRELATION_RETENTION_MS =
+  LEGACY_SOURCE_HOLDBACK_MS
+  + LEGACY_CORRELATION_WINDOW_BEFORE_MS
+  + LEGACY_CORRELATION_WINDOW_AFTER_MS; // 11分
 ```
 
 - source 先着時は最大60秒待機する。
@@ -807,6 +957,7 @@ const LEGACY_CORRELATION_WINDOW_AFTER_MS = 5 * 60_000;
 - override は fixture／コーパス根拠、最大値、理由を registry に明記する。
 - runtime 設定による任意変更は初期実装に含めない。
 - Holdback 中も受信統計を記録し、表示・通知統計は判定確定後に記録する。
+- source／counterpart の相関 record は source 受信から11分保持する。表示 state 自体の TTL は既存 domain 規則を使い、Holdback や遅着で延長しない。
 
 ### 11.4 一致条件
 
@@ -829,6 +980,9 @@ const LEGACY_CORRELATION_WINDOW_AFTER_MS = 5 * 60_000;
 - source が先着した場合は60秒だけ待つ。
 - Holdback 内に counterpart が来れば source を抑止する。
 - timeout すれば source を表示する。
+- timeout 後も11分の相関保持期間内に valid な counterpart が遅着した場合、表示中の source を atomically counterpart の canonical 表示へ切り替え、source は active surface から除く。source は監査ログにだけ残す。
+- 遅着による切替では source の通知を撤回せず、合成取消も通知しない。counterpart 自体の通知は共通 dedup gate に従う。
+- 相関保持期間を過ぎた遅着は既存 source 表示を遡及変更せず、新しい unmatched 入力として扱う。
 - restart で cache が失われた場合は fail-open とする。
 - 相関 cache を永続化しない。
 
@@ -858,6 +1012,7 @@ raw XML 全文は通知・テロップ・カードへ直接流さない。
 
 2026-07-31 の決定により、unmatched legacy 電文は高 Severity の場合だけ通知する。
 
+- この高 Severity 判定は U5 より先に適用する通知適格性 filter である。訂正であっても filter を迂回しない。
 - CLI、テロップ、カードによる fail-open 表示は Severity にかかわらず行う。
 - OS 通知と通知音は `isHighSeverity === true` の場合だけ発行する。
 - high 判定は type 名やタイトル文字列ではなく、抽出した現象コード、Kind コード、警報レベルを domain resolver へ渡して行う。
@@ -867,6 +1022,7 @@ raw XML 全文は通知・テロップ・カードへ直接流さない。
 - 通知には `対応電文未確認` または同等の qualifier を明示する。
 - counterpart が Holdback 内に到着して source が抑止された場合、source 側通知は行わない。
 - timeout 後に通知済みとなった source へ counterpart が遅着しても、通知を撤回したり取消通知を合成したりしない。
+- 高 Severity が確定した受理済み訂正だけ、通知へ `訂正` と `対応電文未確認` の双方を明示する。high 未満／unknown／ambiguous の訂正は表示だけ更新する。
 - counterpart 自体の通常通知は共通 dedup gate に従う。
 
 高 Severity の具体的なコード集合は type 別 registry として実装し、未知コードを high と推定しない。
@@ -886,12 +1042,16 @@ type ごとに次を記録する。
 - `legacyCancellationMismatch`
 - `legacyCounterpartArrivedFirst`
 - `legacySourceArrivedFirst`
+- `legacyLateCounterpartReconciled`
+- `legacyLateCounterpartExpired`
 
 ## 12. 永続化・protocol
 
 ### 12.1 schema version
 
 `SpecialValue` と `TelegramMeta` を永続化する state は version を上げる。
+
+schema 移行は Phase 7 まで待たず、最初の durable domain を共通 registry へ移す Phase 3B で開始する。Phase 3B の最初の変更単位に reader、dual-write、watermark 採否を含め、これらがない domain migration を完了扱いにしない。
 
 旧 state の読込 adapter は次の規約とする。
 
@@ -900,7 +1060,17 @@ type ごとに次を記録する。
 - 旧空文字は `presence:"empty"` とする。
 - 旧 state の不正 ReportDateTime を migration 時刻や now へ置き換えない。
 - 旧 revision が比較不能な state は表示復元できても、newer telegram を拒否する watermark には使用しない。
+- 現行 `revisionOf` が invalid／15分超の未来 ReportDateTime を `nowMs` へ昇格して生成した旧 `reportTimeMs` は trusted provenance を持たない。移行 reader は元の valid ReportDateTime を別 field から証明できない限り、その revision を watermark／tombstone／取消対象照合へ採用しない。
+- 旧 state の subject key を §5.1 の粒度へ一意に再構成できない場合、表示 snapshot の復元だけを許可し、mutation gate の seen entry へ dual-write しない。
 - migration 後の最初の valid telegram で正規状態へ置換する。
+
+Phase 3B の互換期間は次の write 規約とする。
+
+- reader は旧 schema と新 schema の双方を読む。
+- write は新 schema を正として必ず出力し、rollback に必要な期間だけ旧 schema も dual-write する。
+- 新旧が矛盾した場合は新 schema を正とし、`persistenceMigrationConflict` を記録する。
+- trusted な新 watermark と untrusted な旧 revision を比較して旧側を優先しない。
+- dual-write の終了は、全 durable domain の reader fixture、restart、取消、遅延報、round-trip test が通った後の Phase 7 cleanup とする。
 
 ### 12.2 protocol
 
@@ -926,6 +1096,7 @@ engine と frontend に同じ wire 型を持たせる。
 - repo fixture と WeatherCW から、特殊値、InfoType、Status、serial、ReportDateTime の characterization matrix を作る。
 - VPOA50、VPNO50、VXWW50 の counterpart 候補は、両側の実在が確認できたものだけ記録する。
 - 現在の cancellation behavior を domain／type family ごとに snapshot test 化する。
+- fragment merge allowlist を VTSE51／52 の津波観測だけに固定し、fixture／regression test／根拠と限界を manifest 化する。
 - 修正弾 A〜C の挙動を baseline として固定する。
 
 完了条件:
@@ -933,6 +1104,7 @@ engine と frontend に同じ wire 型を持たせる。
 - five-state special value matrix が対象 domain ごとに存在する。
 - cancellation registry の全 Presentation domain／state holder が列挙されている。
 - counterpart 未確認を「重複確認済み」と扱う規則がない。
+- allowlist 外の revisionFamily が fragment merge を有効化できない。
 - Holdback 60秒、相関窓前後5分が test constant として固定されている。
 - invalid ReportDateTime の診断表示方針が fixture expectation に反映されている。
 - 訂正通知、高 Severity 限定通知、地図 badge の acceptance criteria が固定されている。
@@ -1006,21 +1178,29 @@ engine と frontend に同じ wire 型を持たせる。
 
 内容:
 
+- 最初の durable domain 移行と同時に persistence schema を上げ、旧／新 reader、dual-write、新 watermark の採否規則を導入する。
+- 旧 `revisionOf` の `nowMs` 昇格値は untrusted として watermark／tombstone に採用しない。
+- `extractStateSubjectKey`／`extractCancellationTarget` を domain ごとに実装し、EventID だけでは足りない state 粒度を固定する。
 - VPWS50 を `restorePrevious` の基準実装とする。
 - tsunami、volcano、VPWW56、floodForecast を `clearCurrent` へ移行する。
 - transient domain を `markCancelled` へ移行する。
 - active standby domain を一つずつ registry へ移行する。
 - 各 domain の旧 revision guard を、移行完了後にだけ削除する。
-- 各 domain の受理済み訂正へ共通訂正通知規約を適用する。
+- 各 domain の通知適格な受理済み訂正へ共通訂正通知規約を適用する。
 
 完了条件:
 
 - 全 revisionFamily に明示 policy がある。
+- 全 durable revisionFamily に comparator、subject extractor、cancellation target、terminal predicate、deactivation predicate がある。
+- 旧 schema fixture を reader が読み、新 schema と旧 schema の dual-write／restart round-trip が通る。
+- untrusted な旧 `nowMs` revision が valid な新報を stale 扱いしない。
+- VFVO51 の複数火山、EventID 欠落、部分キー取消が対象外 state を変更しない。
+- A／B／C が同時成立しても優先順位 `A > B > C` で一つに解決され、同一 subject へ policy、stats、通知、永続化が一回だけ適用される。
 - 取消対象不一致が current state を変更しない。
 - clear 後の遅延電文で状態が復活しない。
 - restorePrevious が一つ前の完全 snapshot だけを復元する。
 - invalid ReportDateTime／serial が current state を変更しない。
-- 全 domain で受理済み訂正が `訂正` を明示して一回だけ通知される。
+- 全 domain で通知適格な受理済み訂正が `訂正` を明示して一回だけ通知される。
 - domain 固有の既存 lifecycle と表示期限に回帰がない。
 - 既存機能の回帰が 0 件である。
 
@@ -1034,6 +1214,7 @@ engine と frontend に同じ wire 型を持たせる。
 - `未入電` と `5弱以上未入電` を分離する。
 - EEW、地震カード、通知、テロップ、地図を同じ rank helper へ移行する。
 - 色と記号バッジを実装する。
+- `quake-observation-merge` の「同一 EventID かつ後続の震度が missing の場合だけ VXSE51 観測値を VXSE52／61 へ保持する」契約を `SpecialValue` 上へ移植する。
 
 完了条件:
 
@@ -1043,6 +1224,7 @@ engine と frontend に同じ wire 型を持たせる。
 - unknown が unknown 色＋`?` badge になる。
 - empty が neutral 色＋`∅` badge になる。
 - qualifier が通知、テロップ、カードで失われない。
+- `unknown`／`empty`／`qualitative`／取消が missing と誤認され、旧観測震度を保持しない。
 - unknown 地域が「震度なし」として地図表示されない。
 - badge の意味が凡例、tooltip、アクセシビリティラベルに反映される。
 - 通常震度の既存色、音、通知閾値に回帰がない。
@@ -1077,6 +1259,7 @@ engine と frontend に同じ wire 型を持たせる。
 - 不明、ごく浅い、巨大、範囲を保持する。
 - diff と通知判定を canonical value／bounds へ移行する。
 - 旧 string field は adapter で生成する。
+- VXSE51→VXSE52／61 の merge で観測震度だけを missing 時に保持し、Magnitude／Depth／震源名／発生時刻は後続報を採用する。
 
 完了条件:
 
@@ -1084,6 +1267,7 @@ engine と frontend に同じ wire 型を持たせる。
 - 不明が NaN、0、空文字にならない。
 - ごく浅いが 0km へ変換されない。
 - diff が raw 表記揺れだけで発火しない。
+- latest／recent／daily counter／persistence restore 後で quake-observation-merge の結果が一致する。
 - 受理済み訂正が実質差分の有無にかかわらず訂正通知される。
 - 既存機能の回帰が 0 件である。
 
@@ -1149,6 +1333,7 @@ engine と frontend に同じ wire 型を持たせる。
 - counterpart registry と短期相関 cache を追加する。
 - source 先着時の60秒 Holdback と timeout 表示を実装する。
 - ReportDateTime 前後5分の相関窓を実装する。
+- 相関 record を source 受信から11分保持し、timeout 後の遅着 counterpart で source 表示を canonical counterpart 表示へ切り替える。
 - unmatched／ambiguous stats を追加する。
 - unmatched high Severity だけに通知を許可する。
 
@@ -1158,6 +1343,7 @@ engine と frontend に同じ wire 型を持たせる。
 - 片系だけの場合は60秒後に表示される。
 - 時間窓外、コード不一致、候補複数は fail-open になる。
 - 到着順が逆でも結果が一致する。
+- timeout 後でも相関保持期間内なら、counterpart→source と source→timeout→counterpart の最終 active 表示が一致する。
 - restart 後は fail-open になる。
 - high Severity の unmatched は qualifier 付きで一回通知される。
 - high 未満、severity unknown、ambiguous は表示されるが通知されない。
@@ -1169,9 +1355,9 @@ engine と frontend に同じ wire 型を持たせる。
 
 内容:
 
-- display protocol と persistence schema を正式版へ上げる。
-- 旧 scalar field の read adapter を維持したまま、新形式を write する。
-- 十分な移行期間後に旧 field と domain 固有 revision comparator を削除する。
+- display protocol を正式版へ上げ、Phase 3B から運用している persistence 新 schema を正式化する。
+- Phase 3B の migration telemetry と互換 fixture を確認した後、旧 schema の dual-write を停止する。旧 read adapter は定めた互換期間だけ維持する。
+- 十分な移行期間後に旧 scalar field と、registry に移管済みの domain 固有 revision comparator を削除する。EEW の serial 主 comparator override は registry 契約として残す。
 - `str()` の禁止範囲を lint、review checklist または型で固定する。
 - architecture docs を最終状態へ更新する。
 
@@ -1220,6 +1406,9 @@ domain ごとに最低限次を parameterized test 化する。
 - 区間
 - 未知の condition
 - condition と本文の矛盾
+- empty raw の `""`／半角空白／全角空白の byte-for-byte round-trip
+- `観測中` は TsunamiHeight の qualitative、`雲中` は PlumeHeight の qualitative、`解析不能` は Pressure の unknown
+- domain 表で定めた本文／Condition の優先順位
 - description のみ
 - 異体字を含む表示名
 - 不正な単位
@@ -1243,18 +1432,30 @@ domain ごとに最低限次を parameterized test 化する。
 - 非数値 serial
 - 先頭ゼロ serial
 - invalid ReportDateTime
-- 未来日時
+- 許容未来日時（15分ちょうどを含む）
+- 許容 skew を1ms超える未来日時
 - 同一 EventID・異なる type family
 - 異なる EventID・同一 serial
 - primary／backup 同一 messageId
 - 異なる messageId・同一 semantic payload
+- EEW serial=2／日時が古い報 → serial=1／日時が新しい報（後者は stale）
+- EEW serial=1／日時が新しい報 → serial=2／日時が古い報（後者は newer）
+- EEW 同一 serial／日時だけ新しい報（relation は `equal`、通常報は duplicate）
+- EEW 同一 serial／日時だけ古い訂正（relation は `equal`、訂正は replaceCorrection）
+- 日時主 comparator の family で上記と同じ入力（EEW と逆の日時主結果）
+- `fragmentMerge:true` の同一 revision で、VTSE51 または VTSE52 の各 family 内に別 station fragment が分割到着
+- 同一 revision／同一 station item の完全再送
+- 同一 revision／同一 station の明示訂正
+- allowlist 外の family が `fragmentMerge:true` なら registry validation が失敗する
+- `fragmentMerge:true` で `extractItems`／`itemSubjectKey`／`itemFingerprint`／`fingerprintVersion`／`fragmentEvidence` の一つでも欠ければ型検査または起動時検証が失敗する
+- item 配列順と transport metadata の違いでは fingerprint が変わらず、raw／presence／condition／bounds の違いでは fingerprint が変わる
 
 各ケースで state mutation 回数、presentation 回数、notification 回数、stats を検証する。
 
 訂正については次を追加する。
 
-- 実質差分ありの受理済み訂正が一回通知される。
-- 実質差分なしの受理済み訂正も一回通知される。
+- 実質差分ありの通知適格な受理済み訂正が一回通知される。
+- 実質差分なしの通知適格な受理済み訂正も一回通知される。
 - 通知に `訂正` が明示される。
 - 同一 messageId の訂正再送は再通知されない。
 - 同一 semantic payload の訂正再送は再通知されない。
@@ -1269,12 +1470,30 @@ invalid ReportDateTime については次を追加する。
 - 通常テロップ、カード、地図へ表示されない。
 - OS 通知と通知音が発生しない。
 - `invalidDateDiagnosed` が一回記録される。
+- 15分以内の未来日時は valid のまま処理される。
+- 15分超の未来日時は current state と watermark を変更せず、`futureDateDiagnosed` が一回記録される。
+- 15分超の未来日時が `nowMs` に昇格されない。
+
+quake-observation-merge の baseline は次を追加する。
+
+- VXSE51 の観測震度 → 同一 EventID の震度 missing VXSE52／61: 観測震度だけ保持し、震源諸元は後報へ更新する。
+- 後報が `unknown`、`empty`、`qualitative` の各場合: 観測震度を保持しない。
+- 訂正で震度が明示された場合: 訂正値へ置換する。
+- 取消、EventID 欠落、EventID 不一致: 観測震度を持ち越さない。
+- persistence restore 前後、latest、recent、daily counter で結果が一致する。
 
 ### 14.4 cancellation policy
 
 - `restorePrevious`: 二世代以上の履歴、対象不一致、history なし
 - `clearCurrent`: tombstone、遅延報、部分キー取消
 - `markCancelled`: active count、final state、再送、遅延報
+- A: `InfoType=取消`、B: typhoon `transitionedToLow`／`formationCancelled`、C: volcano `isActive:false`／release／cancel／Lv1 引下げ
+- 火山 `InfoType=取消` が `action=cancel` も生成する A＋C 同時成立で、A だけが resolve される
+- A＋B＋C、B＋C の synthetic case で優先順位が `A > B > C` になる
+- 同時成立時も同一 subject の clear、tombstone、`cancelApplied`、presentation、通知、persistence write が各一回だけになる
+- VFVO51 一電文内の複数火山を独立更新し、一件の非活性化が別火山へ波及しない
+- EventID 欠落でも valid な火山コード subject は更新でき、名称だけ／部分キーだけの取消は全件解除しない
+- volcano alert の非活性化が同じ火山の eruption event を消さない
 - persistence restore 後の取消
 - 同一 revision 訂正後の取消
 - type family をまたぐ明示的 cancellation
@@ -1319,6 +1538,8 @@ invalid ReportDateTime については次を追加する。
 - source 先着
 - 60秒以内の counterpart 到着
 - 60秒 timeout
+- timeout 後、11分の相関保持期間内の counterpart 遅着
+- 11分の相関保持期間を超えた counterpart 遅着
 - ReportDateTime 差が前後5分以内
 - ReportDateTime 差が前後5分を超える
 - EventID 一致
@@ -1343,6 +1564,9 @@ invalid ReportDateTime については次を追加する。
 - ambiguous は表示するが通知しない。
 - counterpart 確認済み source は通知しない。
 - timeout 後に通知した source へ counterpart が遅着しても、二重通知や合成取消を発生させない。
+- counterpart→source と source→timeout→counterpart で、保持期間内の最終 active 表示が counterpart canonical 表示に一致する。
+- timeout 後の切替でも source の表示 TTL が延長されない。
+- unmatched high の訂正だけが `訂正` と「対応電文未確認」を併記して一回通知され、high 未満／unknown／ambiguous の訂正は通知されない。
 
 ### 14.8 コーパス
 
@@ -1447,8 +1671,11 @@ invalid ReportDateTime については次を追加する。
 - source Holdback: 60秒
 - correlation window before: 5分
 - correlation window after: 5分
+- correlation record retention: source 受信から11分
 - runtime 任意設定: 初期実装では提供しない
 - type 別 override: 実電文の到着差を根拠として必要な場合だけ許可する
+- timeout 後に保持期間内の counterpart が遅着した場合、source の active 表示を counterpart canonical 表示へ切り替える。通知は撤回せず、表示 TTL も延長しない。
+- 同じ pair が保持期間内に揃う限り、到着順にかかわらず最終 active 表示を一致させる。
 
 ### U2: unmatched legacy 電文の通知
 
@@ -1456,11 +1683,13 @@ invalid ReportDateTime については次を追加する。
 
 高 Severity の unmatched legacy 電文だけ通知する。
 
+- U2 は legacy 経路の通知適格性 filter であり、U5 より先に評価する。
 - Severity にかかわらず fail-open 表示は行う。
 - high Severity がコードから確定した場合だけ OS 通知と通知音を許可する。
 - high 未満、unknown、コード欠落、ambiguous は通知しない。
 - high 判定に名称 fallback を使用しない。
 - 通知には「対応電文未確認」を明示する。
+- 訂正でも high が確定した場合だけ通知し、その通知に U5 の `訂正` 明示規則を適用する。
 
 ### U3: invalid ReportDateTime 電文の可視化
 
@@ -1470,6 +1699,7 @@ CLI と診断テロップにだけ表示し、通知しない。
 
 - current state を変更しない。
 - ReportDateTime を now へ変換しない。
+- 未来方向の許容 skew は15分とし、超過時は `futureSkewExceeded` として同じ fail-closed／診断表示規則を適用する。
 - 通常テロップ、カード、地図へ出さない。
 - OS 通知と通知音を発行しない。
 - durable active state として永続化しない。
@@ -1495,9 +1725,10 @@ badge の意味を凡例、tooltip、テキスト、アクセシビリティラ�
 
 **決定済み — 2026-07-31**
 
-訂正は、共通 gate が受理するたびに `訂正` を明示して通知する。
+訂正は、共通 gate が受理され、経路固有の通知適格性 filter を通過するたびに `訂正` を明示して通知する。
 
 - presentation 上の実質差分がなくても通知する。
+- unmatched legacy は U2 を先に適用し、high が確定した訂正だけ通知する。
 - transport duplicate と semantic duplicate は受理前に除外し、再通知しない。
 - stale、invalidRevision、invalidMeta は通知しない。
 - 訂正を新規イベントまたは第1報として扱わない。
@@ -1512,16 +1743,27 @@ badge の意味を凡例、tooltip、テキスト、アクセシビリティラ�
 - unknown が数値0、低 rank、now、解除へ変換されない。
 - 全 parser と PresentationEvent が共通 `TelegramMeta` と `deriveIsTest` を使用する。
 - 同一 revision 訂正が置換され、通常の同一 revision は重複排除される。
-- 受理済み訂正が実質差分の有無にかかわらず `訂正` を明示して一回通知される。
+- EEW は serial だけで revision relation を決め、同一 serial は ReportDateTime にかかわらず `equal` になる。
+- fragment merge family の通常 equal revision は item gate へ渡り、未見の分割／補完 item が保持される。
+- fragment merge は VTSE51／52 津波観測 allowlist と型で制限され、item key／fingerprint／corpus 根拠が欠けた family は有効化できない。
+- 通知適格な受理済み訂正が実質差分の有無にかかわらず `訂正` を明示して一回通知される。
 - cancellation policy が全 revisionFamily で明示されている。
+- state identity と取消対象が EventID だけに依存せず、domain 固有 subject key の粒度で分離されている。
+- InfoType 取消、lifecycle terminal、active state deactivation の三 trigger が registry で明示されている。
+- A／B／C の同時成立は `A > B > C` で一つに解決され、同一 subject の mutation、stats、通知、永続化が二重にならない。
 - invalid ReportDateTime と不正 serial が active state を変更しない。
+- 15分超の未来 ReportDateTime が `nowMs` へ昇格されず、active state と watermark を変更しない。
 - invalid ReportDateTime が CLI／診断テロップだけに表示され、通知されない。
 - 通知前に transport／semantic の共通重複排除が完了する。
 - VXSE44 は配送確認なしに抑止されない。
 - VPOA50、VPNO50、VXWW50 は counterpart 未確認時に60秒 Holdback 後、fail-open 表示される。
+- timeout 後11分以内の counterpart 遅着で canonical 表示へ切り替わり、到着順によらず最終 active 表示が一致する。
 - unmatched legacy はコードから high Severity が確定した場合だけ通知される。
 - 津波予報区と Kind がコードを一次キーにする。
 - `未入電` と `5弱以上未入電` が異なる safety semantics を持つ。
 - 地図の特殊値が色と記号バッジの双方で識別できる。
 - protocol と永続化で raw、presence、condition、description、bounds が round-trip する。
+- empty の元 raw が空白を含め byte-for-byte round-trip する。
+- 最初の durable domain 移行時点から新旧 persistence reader／dual-write が動作し、旧 `nowMs` 昇格 revision を watermark に採用しない。
+- VXSE51→VXSE52／61 で missing のときだけ観測震度を保持し、明示 unknown／empty／qualitative／取消と区別する。
 - 全 Phase で既存機能の回帰が 0 件である。
