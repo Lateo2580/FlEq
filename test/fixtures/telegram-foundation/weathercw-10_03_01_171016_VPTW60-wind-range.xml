@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WeatherCW 10_03_01_171016_VPTW60.xml から Phase 0 characterization に必要な
+  WindSpeed ノードをそのまま抽出した固定 evidence。
+  原本 SHA-256: 91ea5acb655f8f8255e2de54935882232cf5fe4f29cac846fc0559d67be96b1f
+-->
+<Evidence xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+  <jmx_eb:WindSpeed description="風速５０ノット以上" condition="以上" unit="ノット" type="風速">50</jmx_eb:WindSpeed>
+</Evidence>

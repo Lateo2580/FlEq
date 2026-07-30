@@ -960,7 +960,7 @@ describe("parseTsunamiTelegram", () => {
     expect(result!.forecast![0].maxHeightDescription).toBe("巨大");
   });
 
-  it("Magnitude の不明 condition と巨大地震 description を構造化し NaN を値に残さない", () => {
+  it("Magnitude の raw NaN・不明 condition・巨大地震 description を保持し legacy magnitude は空にする", () => {
     const result = parseTsunamiTelegram(createMockWsDataMessage(FIXTURE_VTSE41_WARN));
     expect(result?.earthquake).toMatchObject({
       magnitude: "",
