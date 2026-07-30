@@ -1,5 +1,6 @@
 import type { EewOutcome, PresentationEvent, PresentationAreaItem, PresentationEewRegion } from "../types";
 import { intensityToRank, eewPessimisticIntensity } from "../../../utils/intensity";
+import { magnitudeForPresentation } from "../../../utils/magnitude";
 
 /** EewOutcome → PresentationEvent */
 export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
@@ -66,7 +67,7 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     latitude: info.earthquake?.latitude ?? null,
     longitude: info.earthquake?.longitude ?? null,
     depth: info.earthquake?.depth ?? null,
-    magnitude: info.earthquake?.magnitude ?? null,
+    magnitude: magnitudeForPresentation(info.earthquake),
 
     forecastMaxInt: forecastMaxInt,
     forecastMaxIntRank: forecastMaxIntRank,

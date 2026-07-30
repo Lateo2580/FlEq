@@ -32,6 +32,7 @@ export interface DisplaySinkDeps {
       reportDateTime: string,
       serial: string | null,
       nowMs: number,
+      isCorrection?: boolean,
     ): unknown;
   };
   /** monitor 所有の昇格 lifecycle */
@@ -55,20 +56,24 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       const nowMs = now();
       deps.standby.applyEvent(event, nowMs);
       if (event.type === "VPWS50") {
-        deps.standby.applyWeatherAlerts?.(
+        const applyWeatherAlerts = deps.standby.applyWeatherAlerts;
+        applyWeatherAlerts?.(
           "vpws50",
           weatherAlertsFromVpws50(deps.weatherViews.vpws50(), event.reportDateTime),
           event.reportDateTime,
           event.serial ?? null,
           nowMs,
+          ...(event.infoType === "訂正" ? [true] as const : []),
         );
       } else if (event.type === "VPWW56") {
-        deps.standby.applyWeatherAlerts?.(
+        const applyWeatherAlerts = deps.standby.applyWeatherAlerts;
+        applyWeatherAlerts?.(
           "vpww56",
           weatherAlertsFromVpww56(deps.weatherViews.vpww56(), event.reportDateTime),
           event.reportDateTime,
           event.serial ?? null,
           nowMs,
+          ...(event.infoType === "訂正" ? [true] as const : []),
         );
       }
       applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);

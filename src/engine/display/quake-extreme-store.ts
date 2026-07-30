@@ -35,6 +35,7 @@ type QuakeExtremeInput = {
   reportDateTime: string;
   serial: string | null;
   type: string;
+  isCorrection: boolean;
 };
 
 export type QuakeExtremeDurability = "debounced" | "immediate";
@@ -74,6 +75,7 @@ export class QuakeExtremeStore {
       reportDateTime: event.reportDateTime,
       serial: event.serial ?? null,
       type: event.type,
+      isCorrection: event.infoType === "訂正",
     }, nowMs);
   }
 
@@ -91,6 +93,7 @@ export class QuakeExtremeStore {
       reportDateTime: dto.reportDateTime,
       serial: dto.serial ?? null,
       type: dto.type,
+      isCorrection: dto.infoType === "訂正",
     }, nowMs);
   }
 
@@ -150,7 +153,13 @@ export class QuakeExtremeStore {
     if (input.domain !== "earthquake" || input.groupKey == null) return false;
     const revision = revisionOf(input.reportDateTime, input.serial, nowMs);
     const revisionKey = `${input.groupKey}:${input.type}`;
-    if (!this.revisionGuard.accept(revisionKey, revision, nowMs, QUAKE_EXTREME_HOLD_MS)) return false;
+    if (!this.revisionGuard.accept(
+      revisionKey,
+      revision,
+      nowMs,
+      QUAKE_EXTREME_HOLD_MS,
+      input.isCorrection,
+    )) return false;
 
     let changed = false;
     if (input.isCancellation) {

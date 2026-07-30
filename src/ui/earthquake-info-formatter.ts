@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { ParsedEarthquakeInfo } from "../types";
 import * as theme from "./theme";
 import { intensityToRank } from "../utils/intensity";
+import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
 import { earthquakeFrameLevel } from "../engine/presentation/level-helpers";
 import { typeLabel } from "./telegram-type-label";
 import {
@@ -175,8 +176,12 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     const lc = lgIntensityColor(info.intensity.maxLgInt);
     cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.intensity.maxLgInt));
   }
-  if (info.earthquake?.magnitude) {
-    cardParts.push(colorMagnitude(info.earthquake.magnitude));
+  if (info.earthquake) {
+    cardParts.push(
+      isNumericMagnitude(info.earthquake.magnitude)
+        ? colorMagnitude(info.earthquake.magnitude)
+        : chalk.white(formatMagnitudeLabel(info.earthquake)),
+    );
   }
   if (info.earthquake?.depth) {
     cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));

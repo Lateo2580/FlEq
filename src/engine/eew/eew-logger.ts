@@ -3,6 +3,7 @@ import * as path from "path";
 import { ParsedEewInfo, EewLogField } from "../../types";
 import { EewDiff, EewUpdateResult, getMaxForecastIntensity } from "./eew-tracker";
 import * as log from "../../logger";
+import { formatMagnitudeLabel } from "../../utils/magnitude";
 
 /** ログ出力のデフォルトディレクトリ */
 const DEFAULT_LOG_DIR = path.join(process.cwd(), "eew-logs");
@@ -298,7 +299,7 @@ export class EewEventLogger {
         }
       } else {
         if (this.fields.magnitude) {
-          lines.push(`M${eq.magnitude}  深さ${eq.depth}`);
+          lines.push(`${formatMagnitudeLabel(eq)}  深さ${eq.depth}`);
         }
         if (this.fields.diff && diff) {
           const diffStr = formatDiff(diff, info);

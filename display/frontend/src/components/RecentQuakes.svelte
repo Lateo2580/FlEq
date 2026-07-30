@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DisplayRecentQuakeV1 } from "../lib/protocol";
   import { formatMdHm, formatIntShort, formatDepth, recentQuakeId } from "../lib/format";
+  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
 
   // 呼び出し元 (StandbyScreen) が quakes.length === 0 のときはカードごと非表示にするため、
   // ここでは常に 1 件以上ある前提で render する (履歴なし placeholder は撤去)
@@ -40,7 +41,7 @@
           <span class="hypocenter">{q.hypocenterName ?? "不明"}</span>
           {#if q.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
           <span class="stats">
-            <span class="magnitude">{q.magnitude != null ? `M${q.magnitude}` : ""}</span>
+            <span class="magnitude" class:magnitude-description={!isNumericMagnitude(q.magnitude)}>{q.magnitude != null ? formatMagnitudeLabel(q.magnitude) : ""}</span>
             <span class="depth">{formatDepth(q.depth)}</span>
             <span class="time">{formatMdHm(q.originTime ?? q.reportDateTime)}</span>
           </span>
@@ -139,6 +140,9 @@
     color: var(--role-muted);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+  }
+  .magnitude-description {
+    width: auto;
   }
   .depth {
     width: 4.5em;

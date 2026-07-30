@@ -72,6 +72,30 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(container.querySelector(".region-intensity")?.textContent).toContain("震度7");
   });
 
+  it("予測震度範囲を表示し、上限側 rank で色 bucket を分類する", () => {
+    const { container } = render(EewPanel, {
+      input: eewInput({
+        regions: [
+          region("宮城県", { intensity: "3", intensityTo: "4" }),
+          region("福島県", { intensity: "5弱", intensityTo: "over" }),
+        ],
+      }),
+    });
+    const labels = [...container.querySelectorAll(".region-intensity")];
+    expect(labels.map((label) => label.textContent)).toEqual(["震度5弱程度以上", "震度3〜4"]);
+    expect(labels[0].classList.contains("int-r5")).toBe(true);
+    expect(labels[1].classList.contains("int-r4")).toBe(true);
+  });
+
+  it("不明・巨大地震の magnitude 表示は M を重ねず description を維持する", () => {
+    const { container } = render(EewPanel, {
+      input: eewInput({ magnitude: "M8 を超える巨大地震" }),
+    });
+    expect(container.textContent).toContain("M8 を超える巨大地震");
+    expect(container.textContent).not.toContain("MM8");
+    expect(container.textContent).not.toContain("NaN");
+  });
+
   it("PLUM を含む region があれば件数なしの標識を出す。なければ空区画を残さない", () => {
     const withPlum = [region("宮崎県", { isPlum: true }), region("大分県", { isPlum: false })];
     const { container: withContainer } = render(EewPanel, { input: eewInput({ regions: withPlum }) });

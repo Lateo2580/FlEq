@@ -23,7 +23,7 @@ vi.mock("../../src/logger", () => ({
 
 import { Notifier, resolveIconPath, clearIconPathCache } from "../../src/engine/notification/notifier";
 import { loadConfig } from "../../src/config";
-import type { ParsedEarthquakeInfo, ParsedEewInfo, ParsedTornadoAdvisory, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning } from "../../src/types";
+import type { ParsedEarthquakeInfo, ParsedEewInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning } from "../../src/types";
 import type { EewUpdateResult } from "../../src/engine/eew/eew-tracker";
 import { playSound } from "../../src/engine/notification/sound-player";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
@@ -100,6 +100,38 @@ describe("Notifier", () => {
     notifier.notifyEarthquake(info);
 
     expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("巨大地震 description を通知本文へ出し MNaN を出さない", () => {
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(false);
+    notifier.notifyEarthquake({
+      type: "VXSE52",
+      infoType: "発表",
+      title: "震源に関する情報",
+      reportDateTime: "2026-03-11T12:34:56+09:00",
+      headline: null,
+      publishingOffice: "気象庁",
+      eventId: "E1",
+      earthquake: {
+        originTime: "2026-03-11T12:34:00+09:00",
+        hypocenterName: "日本海溝付近",
+        latitude: "35.0",
+        longitude: "139.0",
+        depth: "10km",
+        magnitude: "",
+        magnitudeInfo: {
+          value: "NaN",
+          condition: "不明",
+          description: "Ｍ８を超える巨大地震",
+        },
+      },
+      isTest: false,
+    });
+
+    const message = (notifyMock.mock.calls[0][0] as { message: string }).message;
+    expect(message).toContain("M8 を超える巨大地震");
+    expect(message).not.toContain("NaN");
   });
 
   it("passes category-specific icon to node-notifier", () => {
@@ -181,6 +213,38 @@ describe("Notifier", () => {
     expect(callArg).not.toHaveProperty("icon");
 
     spy.mockRestore();
+  });
+
+  it.each([
+    ["津波予報（若干の海面変動）", "warning"],
+    ["津波注意報", "critical"],
+    ["津波警報", "critical"],
+    ["大津波警報", "critical"],
+  ] as const)("notifyTsunami は %s を %s 音で通知する", (kind, expectedLevel) => {
+    const notifier = new Notifier();
+    const info: ParsedTsunamiInfo = {
+      type: "VTSE41",
+      infoType: "発表",
+      title: "津波警報・注意報・予報",
+      reportDateTime: "2026-07-30T12:00:00+09:00",
+      headline: null,
+      publishingOffice: "気象庁",
+      forecast: [{
+        areaName: "三陸沿岸",
+        kind,
+        maxHeightDescription: "",
+        firstHeight: "",
+      }],
+      warningComment: "",
+      isTest: false,
+    };
+    const playSoundMock = vi.mocked(playSound);
+    playSoundMock.mockClear();
+
+    notifier.notifyTsunami(info);
+
+    expect(playSoundMock).toHaveBeenCalledOnce();
+    expect(playSoundMock).toHaveBeenCalledWith(expectedLevel);
   });
 });
 

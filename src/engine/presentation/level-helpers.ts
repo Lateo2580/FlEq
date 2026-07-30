@@ -125,6 +125,7 @@ export function tsunamiSoundLevel(info: ParsedTsunamiInfo): SoundLevel {
   if (info.infoType === "取消") return "cancel";
   if (!info.forecast || info.forecast.length === 0) return "normal";
   const kinds = info.forecast.map((f) => f.kind);
+  if (kinds.every((k) => k.includes("津波予報"))) return "warning";
   if (kinds.some((k) => k.includes("津波") && !k.includes("解除")))
     return "critical";
   if (kinds.some((k) => k.includes("解除"))) return "warning";

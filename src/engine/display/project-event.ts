@@ -61,13 +61,14 @@ export function projectQuakeMapCommand(
   if (eventKey == null) return null;
   const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
   const sourceType = event.type;
+  const isCorrection = event.infoType === "訂正";
   if (event.isCancellation) {
-    return { kind: "remove", eventKey, sourceType, reason: "cancelled", revision };
+    return { kind: "remove", eventKey, sourceType, reason: "cancelled", revision, isCorrection };
   }
   if (event.quakeIntensity == null) return null;
   const maxIntRank = event.maxIntRank ?? 0;
   if (maxIntRank > 0 && maxIntRank < QUAKE_MAP_MIN_RANK) {
-    return { kind: "remove", eventKey, sourceType, reason: "belowThreshold", revision };
+    return { kind: "remove", eventKey, sourceType, reason: "belowThreshold", revision, isCorrection };
   }
   if (event.maxInt == null || maxIntRank < QUAKE_MAP_MIN_RANK) {
     return null;
@@ -76,6 +77,7 @@ export function projectQuakeMapCommand(
     kind: "upsert",
     sourceType,
     revision,
+    isCorrection,
     event: {
       eventKey,
       eventId: event.eventId != null && event.eventId.trim() !== "" ? event.eventId : null,
@@ -342,7 +344,7 @@ export function tickerPriority(event: PresentationEvent): DisplayTickerPriority 
   if (event.domain === "tsunami") {
     const level = resolveTsunamiLevel(event.tsunamiKinds ?? [])?.level;
     if (level === "majorWarning" || level === "warning") return "high";
-    return "mid"; // advisory
+    return "mid"; // 津波注意報・津波予報（若干の海面変動）は advisory 相当
   }
   if (event.domain === "earthquake") {
     return (event.maxIntRank ?? 0) >= LARGE_QUAKE_MIN_RANK ? "high" : "mid"; // 5弱+ = high

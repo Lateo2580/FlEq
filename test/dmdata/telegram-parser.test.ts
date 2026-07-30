@@ -960,6 +960,18 @@ describe("parseTsunamiTelegram", () => {
     expect(result!.forecast![0].maxHeightDescription).toBe("巨大");
   });
 
+  it("Magnitude の不明 condition と巨大地震 description を構造化し NaN を値に残さない", () => {
+    const result = parseTsunamiTelegram(createMockWsDataMessage(FIXTURE_VTSE41_WARN));
+    expect(result?.earthquake).toMatchObject({
+      magnitude: "",
+      magnitudeInfo: {
+        value: "NaN",
+        condition: "不明",
+        description: "Ｍ８を超える巨大地震",
+      },
+    });
+  });
+
   it("VTSE41 取消電文の InfoType=取消 を取得できる", () => {
     const msg = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL, {
       head: {

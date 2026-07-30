@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { ParsedLgObservationInfo, LgObservationArea } from "../types";
 import * as theme from "./theme";
 import { lgObservationFrameLevel } from "../engine/presentation/level-helpers";
+import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
 import { typeLabel } from "./telegram-type-label";
 import {
   FrameLevel,
@@ -131,8 +132,12 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     const ic = intensityColor(info.maxInt);
     cardParts.push(chalk.white("最大震度 ") + ic.bold(info.maxInt));
   }
-  if (info.earthquake?.magnitude) {
-    cardParts.push(colorMagnitude(info.earthquake.magnitude));
+  if (info.earthquake) {
+    cardParts.push(
+      isNumericMagnitude(info.earthquake.magnitude)
+        ? colorMagnitude(info.earthquake.magnitude)
+        : chalk.white(formatMagnitudeLabel(info.earthquake)),
+    );
   }
   if (info.earthquake?.depth) {
     cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));

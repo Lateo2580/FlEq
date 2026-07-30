@@ -316,10 +316,14 @@ describe("tickerPriority (§2-1 境界値)", () => {
     expect(tickerPriority(baseEvent({ domain: "eew", isWarning: false }))).toBe("mid");
   });
 
-  it("大津波警報・津波警報 = high / 津波注意報 = mid", () => {
+  it("大津波警報・津波警報 = high / 津波注意報・津波予報 = mid", () => {
     expect(tickerPriority(baseEvent({ domain: "tsunami", tsunamiKinds: ["大津波警報"] }))).toBe("high");
     expect(tickerPriority(baseEvent({ domain: "tsunami", tsunamiKinds: ["津波警報"] }))).toBe("high");
     expect(tickerPriority(baseEvent({ domain: "tsunami", tsunamiKinds: ["津波注意報"] }))).toBe("mid");
+    expect(tickerPriority(baseEvent({
+      domain: "tsunami",
+      tsunamiKinds: ["津波予報（若干の海面変動）"],
+    }))).toBe("mid");
   });
 
   it("震度5弱以上 = high / 震度4以下 = mid", () => {

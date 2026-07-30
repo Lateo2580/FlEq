@@ -77,6 +77,31 @@ describe("displayTsunamiInfo (新デザイン言語)", () => {
     expect(stripAnsi(out)).toContain("[緊急]");
   });
 
+  it("巨大地震の description を優先し MNaN を表示しない", () => {
+    setFrameWidth(100);
+    const out = stripAnsi(render(FIXTURE_VTSE41_WARN));
+    expect(out).toContain("M8 を超える巨大地震");
+    expect(out).not.toContain("MNaN");
+    expect(out).not.toContain("マグニチュードNaN");
+  });
+
+  it.each(["NaN", "計算中"])("直接投入された非数値 magnitude %s は M不明へ縮退する", (magnitude) => {
+    setFrameWidth(100);
+    const info = parseTsunamiTelegram(createMockWsDataMessage(FIXTURE_VTSE41_WARN))!;
+    expect(info.earthquake).toBeDefined();
+    const out = stripAnsi(captureDisplay({
+      ...info,
+      earthquake: {
+        ...info.earthquake!,
+        magnitude,
+        magnitudeInfo: undefined,
+      },
+    }));
+    expect(out).toContain("M不明");
+    expect(out).not.toContain("MNaN");
+    expect(out).not.toContain(`M${magnitude}`);
+  });
+
   it("ultra-narrow (幅 100) では forecast は 3 列 (到達予想は詳細へ)", () => {
     setFrameWidth(100);
     const out = stripAnsi(render(FIXTURE_VTSE41_WARN));

@@ -577,6 +577,21 @@ describe("tsunamiSoundLevel", () => {
     ).toBe("critical");
   });
 
+  it("津波予報（若干の海面変動）は advisory 相当の warning 音へ降格する", () => {
+    expect(
+      tsunamiSoundLevel(
+        tsunami({
+          forecast: [{
+            areaName: "三陸沿岸",
+            kind: "津波予報（若干の海面変動）",
+            maxHeightDescription: "0.2m未満",
+            firstHeight: "",
+          }],
+        }),
+      ),
+    ).toBe("warning");
+  });
+
   it("returns warning when forecast has 解除", () => {
     expect(
       tsunamiSoundLevel(

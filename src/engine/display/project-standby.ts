@@ -11,6 +11,7 @@ export interface HeatUpdate {
   areas: DisplayHeatAreaV1[];
   isSpecial: boolean;
   isCancellation: boolean;
+  isCorrection: boolean;
 }
 
 const JST_OFFSET_MS = 9 * 60 * 60_000;
@@ -38,6 +39,7 @@ export function projectHeatUpdate(event: PresentationEvent, nowMs: number): Heat
     areas: areaName == null ? [] : [{ areaName, isSpecial }],
     isSpecial,
     isCancellation: event.isCancellation,
+    isCorrection: event.infoType === "訂正",
   };
 }
 
@@ -48,6 +50,7 @@ export interface TyphoonUpdate {
   serial: string | null;
   typhoon: DisplayTyphoonV1;
   isCancellation: boolean;
+  isCorrection: boolean;
 }
 
 export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | null {
@@ -63,6 +66,7 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | 
     reportDateTime: event.reportDateTime,
     serial: event.serial ?? raw.serial,
     isCancellation: event.isCancellation || raw.infoType === "取消",
+    isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
     typhoon: {
       typhoonKey,
       name: raw.name?.name ?? null,
@@ -90,6 +94,7 @@ export interface VolcanoUpdate {
   serial: string | null;
   kind: "alert" | "eruption";
   isCancellation: boolean;
+  isCorrection: boolean;
 }
 
 export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | null {
@@ -129,5 +134,6 @@ export function projectVolcanoUpdate(event: PresentationEvent): VolcanoUpdate | 
     isCancellation: event.isCancellation
       || raw.infoType === "取消"
       || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel"),
+    isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
   };
 }

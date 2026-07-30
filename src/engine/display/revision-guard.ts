@@ -26,9 +26,18 @@ export class RevisionGuard {
     this.monotonicNow = deps.monotonicNow ?? null;
   }
 
-  accept(key: string, revision: StandbyRevision, nowMs: number, retentionMs = DEFAULT_SEEN_FORGET_MS): boolean {
+  accept(
+    key: string,
+    revision: StandbyRevision,
+    nowMs: number,
+    retentionMs = DEFAULT_SEEN_FORGET_MS,
+    allowEqual = false,
+  ): boolean {
     const existing = this.seen.get(key);
-    if (existing != null && compareRevision(revision, existing.revision) <= 0) return false;
+    if (existing != null) {
+      const compared = compareRevision(revision, existing.revision);
+      if (compared < 0 || compared === 0 && !allowEqual) return false;
+    }
     this.seen.set(key, {
       revision,
       forgetAtMs: nowMs + retentionMs,

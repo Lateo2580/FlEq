@@ -208,6 +208,17 @@ describe("displayEarthquakeInfo (新デザイン言語)", () => {
     expect(out).toContain("VXSE53");
   });
 
+  it.each(["NaN", "計算中"])("非数値 magnitude %s は M不明へ縮退し MNaN を出さない", (magnitude) => {
+    setFrameWidth(140);
+    const out = stripAnsi(renderInfo({
+      ...SYNTH_NOTO,
+      earthquake: { ...SYNTH_NOTO.earthquake!, magnitude },
+    }));
+    expect(out).toContain("M不明");
+    expect(out).not.toContain("MNaN");
+    expect(out).not.toContain(`M${magnitude}`);
+  });
+
   it("重複codeを含んでもCLI formatterは文字表示用areasの順序・件数を維持する", () => {
     setFrameWidth(140);
     const legacyAreas = [

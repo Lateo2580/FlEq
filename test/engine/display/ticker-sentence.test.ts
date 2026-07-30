@@ -112,6 +112,27 @@ describe("buildTickerSentence", () => {
     );
   });
 
+  it("地震・EEW: 巨大地震 description を優先し NaN を出さない", () => {
+    const magnitude = "M8 を超える巨大地震";
+    expect(buildTickerSentence(makeEvent({
+      domain: "earthquake",
+      hypocenterName: "日本海溝付近",
+      magnitude,
+    }))).toContain(`${magnitude}の地震`);
+    expect(buildTickerSentence(makeEvent({
+      domain: "eew",
+      hypocenterName: "日本海溝付近",
+      magnitude,
+      isWarning: true,
+    }))).toContain(`${magnitude}の地震`);
+    expect(buildTickerSentence(makeEvent({ hypocenterName: "日本海溝付近", magnitude }))).not.toContain("NaN");
+    expect(buildTickerSentence(makeEvent({
+      domain: "earthquake",
+      hypocenterName: "日本海溝付近",
+      magnitude: "NaN",
+    }))).toContain("M不明の地震");
+  });
+
   it("地震: 最大震度グループが 3 地域以上なら「など」", () => {
     const event = makeEvent({
       originTime: "2026-07-08T09:05:00+09:00",

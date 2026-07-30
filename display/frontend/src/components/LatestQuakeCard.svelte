@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DisplayIntensityGroupV1, DisplayLatestQuakeStateV1 } from "../lib/protocol";
   import { formatMdHm, formatIntShort, formatDepth, splitNumberUnit } from "../lib/format";
+  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -115,7 +116,7 @@
     <div class="meta">
       <div class="stat">
         <span class="stat-label">規模</span>
-        <span class="magnitude stat-value">{#if quake.magnitude != null}<NumberUnit prefix="M" value={quake.magnitude} />{/if}</span>
+        <span class="magnitude stat-value">{#if quake.magnitude != null}{#if isNumericMagnitude(quake.magnitude)}<NumberUnit prefix="M" value={quake.magnitude} />{:else}{formatMagnitudeLabel(quake.magnitude)}{/if}{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>

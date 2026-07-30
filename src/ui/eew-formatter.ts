@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { EewAccuracy, ParsedEewInfo } from "../types";
 import type { EewDiff } from "../engine/eew/eew-tracker";
+import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
 import * as theme from "./theme";
 import {
   FrameLevel,
@@ -412,8 +413,13 @@ export function displayEewInfo(
         cardParts.push({ text: chalk.white("長周期階級 ") + lgIntensityColor(maxLgInt).bold(maxLgInt), priority: 3 });
       }
     }
-    if (info.earthquake?.magnitude && !info.isAssumedHypocenter) {
-      cardParts.push({ text: colorMagnitude(info.earthquake.magnitude), priority: 1 });
+    if (info.earthquake && !info.isAssumedHypocenter) {
+      cardParts.push({
+        text: isNumericMagnitude(info.earthquake.magnitude)
+          ? colorMagnitude(info.earthquake.magnitude)
+          : chalk.white(formatMagnitudeLabel(info.earthquake)),
+        priority: 1,
+      });
     }
     if (info.earthquake?.depth && !info.isAssumedHypocenter) {
       cardParts.push({ text: chalk.white("深さ ") + chalk.white(info.earthquake.depth), priority: 2 });
@@ -489,12 +495,20 @@ export function displayEewInfo(
         pushClampedFrameLine(buf, level, width, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`));
       }
     }
-    if (eq.magnitude && !info.isAssumedHypocenter) {
+    if (!info.isAssumedHypocenter) {
       let magLine: string;
-      if (diff?.previousMagnitude) {
+      if (
+        isNumericMagnitude(eq.magnitude)
+        && diff?.previousMagnitude != null
+        && isNumericMagnitude(diff.previousMagnitude)
+      ) {
         magLine = chalk.white("規模: ") + chalk.gray(`M${diff.previousMagnitude}`) + chalk.white(" → ") + chalk.bold(colorMagnitude(eq.magnitude));
       } else {
-        magLine = chalk.white("規模: ") + colorMagnitude(eq.magnitude);
+        magLine = chalk.white("規模: ") + (
+          isNumericMagnitude(eq.magnitude)
+            ? colorMagnitude(eq.magnitude)
+            : chalk.white(formatMagnitudeLabel(eq))
+        );
       }
       pushClampedFrameLine(buf, level, width, magLine);
     }
@@ -580,4 +594,3 @@ export function displayEewInfo(
 
   flushWithRecap(buf, level, width);
 }
-

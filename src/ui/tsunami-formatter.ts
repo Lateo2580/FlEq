@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { ParsedTsunamiInfo, TsunamiForecastItem, TsunamiObservationStation, TsunamiEstimationItem } from "../types";
 import * as theme from "./theme";
 import { tsunamiFrameLevel } from "../engine/presentation/level-helpers";
+import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
 import {
   FrameLevel,
   RenderBuffer,
@@ -371,9 +372,16 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
     if (eq.latitude && eq.longitude) {
       pushClampedFrameLine(buf, level, width, chalk.white("位置: ") + chalk.white(`${eq.latitude} ${eq.longitude}`));
     }
-    if (eq.magnitude && !isNaN(parseFloat(eq.magnitude))) {
-      pushClampedFrameLine(buf, level, width, chalk.white("規模: ") + colorMagnitude(eq.magnitude));
-    }
+    pushClampedFrameLine(
+      buf,
+      level,
+      width,
+      chalk.white("規模: ") + (
+        isNumericMagnitude(eq.magnitude)
+          ? colorMagnitude(eq.magnitude)
+          : chalk.white(formatMagnitudeLabel(eq))
+      ),
+    );
   }
 
   // ── forecast (予報区) ──

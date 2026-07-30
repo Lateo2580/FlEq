@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DisplayLargeQuakeInputV1, DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatHm, formatMdHm, formatIntShort } from "../lib/format";
+  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -175,8 +176,8 @@
     </div>
     <div class="tile-stats">
       <div class="tile stat-tile">
-        <span class="stat-label">M</span>
-        <span class="stat-value">{input.magnitude ?? "不明"}</span>
+        <span class="stat-label">{isNumericMagnitude(input.magnitude) ? "M" : "規模"}</span>
+        <span class="stat-value">{input.magnitude != null ? (isNumericMagnitude(input.magnitude) ? input.magnitude : formatMagnitudeLabel(input.magnitude)) : "M不明"}</span>
       </div>
       {#if input.depth != null}
         <div class="tile stat-tile">

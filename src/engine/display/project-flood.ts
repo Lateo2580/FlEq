@@ -4,9 +4,9 @@ import type { PresentationEvent } from "../presentation/types";
 import type { DisplayFloodHydrographV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "./protocol";
 
 export type DisplayFloodUpdate =
-  | { mode: "replace"; eventId: string; reportDateTime: string; serial: string | null; rivers: DisplayFloodRiverV1[] }
-  | { mode: "cancel"; eventId: string; reportDateTime: string; serial: string | null }
-  | { mode: "observeOnly"; eventId: string; reportDateTime: string; serial: string | null };
+  | { mode: "replace"; eventId: string; reportDateTime: string; serial: string | null; isCorrection?: boolean; rivers: DisplayFloodRiverV1[] }
+  | { mode: "cancel"; eventId: string; reportDateTime: string; serial: string | null; isCorrection?: boolean }
+  | { mode: "observeOnly"; eventId: string; reportDateTime: string; serial: string | null; isCorrection?: boolean };
 
 const FLOOD_LEVEL_NAMES: Record<FloodLevel, string> = {
   L1: "水位上昇情報",
@@ -203,17 +203,31 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
   if (eventId === "") return null;
   const reportDateTime = event.reportDateTime;
   const serial = event.serial ?? String(raw.serial);
+  const isCorrection = event.infoType === "訂正" || raw.infoType === "訂正";
   if (event.isCancellation || raw.infoType === "取消") {
-    return { mode: "cancel", eventId, reportDateTime, serial };
+    return {
+      mode: "cancel",
+      eventId,
+      reportDateTime,
+      serial,
+      ...(isCorrection ? { isCorrection: true } : {}),
+    };
   }
   if (raw.rawStations.length === 0) {
-    return { mode: "observeOnly", eventId, reportDateTime, serial };
+    return {
+      mode: "observeOnly",
+      eventId,
+      reportDateTime,
+      serial,
+      ...(isCorrection ? { isCorrection: true } : {}),
+    };
   }
   return {
     mode: "replace",
     eventId,
     reportDateTime,
     serial,
+    ...(isCorrection ? { isCorrection: true } : {}),
     rivers: projectRivers(raw, reportDateTime),
   };
 }

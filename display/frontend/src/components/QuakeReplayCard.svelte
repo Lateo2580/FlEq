@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { DisplayRecentQuakeV1 } from "../lib/protocol";
   import { formatMdHm, formatIntShort, formatDepth } from "../lib/format";
+  import { formatMagnitudeLabel } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import { compactIntensityGroups } from "../lib/compact-intensity";
 
@@ -32,7 +33,7 @@
     <div class="meta">
       <div class="stat">
         <span class="stat-label">規模</span>
-        <span class="stat-value">{quake.magnitude != null ? `M${quake.magnitude}` : "-"}</span>
+        <span class="stat-value">{quake.magnitude != null ? formatMagnitudeLabel(quake.magnitude) : "-"}</span>
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>

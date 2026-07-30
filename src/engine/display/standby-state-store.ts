@@ -174,10 +174,11 @@ export class StandbyStateStore {
     reportDateTime: string,
     serial: string | null,
     nowMs: number,
+    isCorrection = false,
   ): DisplayMutation {
     const key = `weather:${source}`;
     const revision = revisionOf(reportDateTime, serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, DAY_MS)) return NO_MUTATION;
+    if (!this.revisionGuard.accept(key, revision, nowMs, DAY_MS, isCorrection)) return NO_MUTATION;
     const before = JSON.stringify(this.weatherAlerts.get(source)?.alerts ?? []);
     if (alerts.length === 0) {
       this.weatherAlerts.delete(source);
@@ -207,7 +208,7 @@ export class StandbyStateStore {
     const status = nankaiBadgeAction(raw.infoSerial?.code ?? null);
     if (status.action === "ignore") return NO_MUTATION;
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
-    if (!this.revisionGuard.accept("nankai:current", revision, nowMs, tombstoneTtlForKey("nankai:current"))) return NO_MUTATION;
+    if (!this.revisionGuard.accept("nankai:current", revision, nowMs, tombstoneTtlForKey("nankai:current"), event.infoType === "訂正")) return NO_MUTATION;
     if (status.action === "deactivate" || event.isCancellation) {
       const changed = this.nankaiTrough != null;
       this.nankaiTrough = null;
@@ -225,7 +226,7 @@ export class StandbyStateStore {
     const publishingOffice = normalizeTornadoPublishingOffice(event.publishingOffice);
     const stateKey = tornadoTickerGroupKey(publishingOffice);
     const revision = revisionOf(event.reportDateTime, event.serial ?? raw.serial, nowMs);
-    if (!this.revisionGuard.accept(stateKey, revision, nowMs, tombstoneTtlForKey(stateKey))) return NO_MUTATION;
+    if (!this.revisionGuard.accept(stateKey, revision, nowMs, tombstoneTtlForKey(stateKey), event.infoType === "訂正")) return NO_MUTATION;
     if (event.isCancellation || raw.activeAreaCount === 0) {
       return { viewChanged: this.tornadoByOffice.delete(publishingOffice), durableChanged: true };
     }
@@ -247,7 +248,7 @@ export class StandbyStateStore {
     const raw = event.raw as ParsedLgObservationInfo;
     const key = `longPeriod:${event.eventId}`;
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key))) return NO_MUTATION;
+    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), event.infoType === "訂正")) return NO_MUTATION;
     if (event.isCancellation) {
       const changed = this.longPeriodByEvent.delete(event.eventId);
       return { viewChanged: changed, durableChanged: true };
@@ -295,7 +296,7 @@ export class StandbyStateStore {
     if (update == null) return NO_MUTATION;
     const key = `typhoon:${update.typhoonKey}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key))) return NO_MUTATION;
+    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
     if (update.isCancellation) {
       return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
     }
@@ -322,7 +323,7 @@ export class StandbyStateStore {
     if (update == null) return NO_MUTATION;
     const key = `volcano:${update.kind === "alert" ? "alert" : "event"}:${update.volcano.code}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key))) return NO_MUTATION;
+    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
     const previous = this.volcanoes.get(update.volcano.code);
     const state: VolcanoState = previous ?? {
       code: update.volcano.code,
@@ -440,7 +441,7 @@ export class StandbyStateStore {
     if (areaName == null) return NO_MUTATION;
     const key = `heat:${update.targetDate}:${areaName}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key))) return NO_MUTATION;
+    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
     if (update.isCancellation) {
       return { viewChanged: this.heatAlerts.delete(key), durableChanged: true };
     }

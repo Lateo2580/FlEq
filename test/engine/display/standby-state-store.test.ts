@@ -112,6 +112,14 @@ describe("RevisionGuard", () => {
     expect(guard.sweep(T0 + 24 * 60 * 60_000 - 1)).toBe(false);
     expect(guard.sweep(T0 + 24 * 60 * 60_000)).toBe(true);
   });
+
+  it("訂正だけは同一 revision の置換を許可し、通常の重複は拒否する", () => {
+    const guard = new RevisionGuard();
+    const revision = { reportTimeMs: T0, serial: "1" };
+    expect(guard.accept("typhoon:TC-1", revision, T0)).toBe(true);
+    expect(guard.accept("typhoon:TC-1", revision, T0 + 1)).toBe(false);
+    expect(guard.accept("typhoon:TC-1", revision, T0 + 2, undefined, true)).toBe(true);
+  });
 });
 
 describe("StandbyStateStore: earthquake host", () => {
@@ -252,6 +260,42 @@ describe("StandbyStateStore: typhoon", () => {
     const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
     return item?.data.typhoons.find((typhoon) => typhoon.typhoonKey === key);
   }
+
+  it("同一時刻・同一 serial の VPTW60 訂正は置換し、非訂正の重複は拒否する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({ infoType: "発表" }), T0);
+    expect(currentTyphoon(store)?.pressureHpa).toBe(990);
+
+    const corrected = store.applyEvent(typhoonEvent(
+      { id: "typhoon-correction", infoType: "訂正" },
+      {
+        infoType: "訂正",
+        frames: [{
+          kind: "analysis",
+          typhoonClass: { category: "TY" },
+          center: { location: "ocean", pressureHpa: 970, moveDirection: "N", moveSpeedKmh: 20 },
+          wind: { maxWindMs: 35 },
+        }],
+      },
+    ), T0 + 1);
+    expect(corrected).toEqual({ viewChanged: true, durableChanged: true });
+    expect(currentTyphoon(store)?.pressureHpa).toBe(970);
+
+    const duplicate = store.applyEvent(typhoonEvent(
+      { id: "typhoon-duplicate", infoType: "発表" },
+      {
+        infoType: "発表",
+        frames: [{
+          kind: "analysis",
+          typhoonClass: { category: "TY" },
+          center: { location: "ocean", pressureHpa: 950, moveDirection: "N", moveSpeedKmh: 20 },
+          wind: { maxWindMs: 45 },
+        }],
+      },
+    ), T0 + 2);
+    expect(duplicate).toEqual({ viewChanged: false, durableChanged: false });
+    expect(currentTyphoon(store)?.pressureHpa).toBe(970);
+  });
 
   it("projects parser intensity and size classes into the display card protocol", () => {
     const store = new StandbyStateStore();

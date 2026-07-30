@@ -1,5 +1,6 @@
 import type { PresentationEvent } from "./types";
 import type { PresentationDiff, PresentationDiffField } from "./diff-types";
+import { formatPresentationMagnitude } from "../../utils/magnitude";
 
 export type { PresentationDiff, PresentationDiffField };
 
@@ -134,7 +135,10 @@ export class PresentationDiffStore {
         significance: "major",
       });
       if (prev.magnitude != null && curr.magnitude != null) {
-        summary.push(`M${prev.magnitude}→${curr.magnitude}`);
+        const current = Number.isFinite(Number(curr.magnitude))
+          ? curr.magnitude
+          : formatPresentationMagnitude(curr.magnitude);
+        summary.push(`${formatPresentationMagnitude(prev.magnitude)}→${current}`);
       }
     }
 

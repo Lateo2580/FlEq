@@ -29,14 +29,35 @@ export interface EewRegionPage {
 import type { DisplayEewRegionV1 } from "./protocol";
 import { intensityRank } from "./format";
 
+export function eewIntensityRangeLabel(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">): string {
+  const from = region.intensity;
+  if (region.intensityTo == null || region.intensityTo === region.intensity) return from;
+  if (region.intensityTo === "over") return `${from}程度以上`;
+  return `${from}〜${region.intensityTo}`;
+}
+
+export function eewIntensityRangeRank(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">): number {
+  const fromRank = intensityRank(region.intensity) ?? 0;
+  const toRank = region.intensityTo != null ? intensityRank(region.intensityTo) ?? 0 : 0;
+  return Math.max(fromRank, toRank);
+}
+
+function rangeKey(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">): string {
+  return `${region.intensity}\u0000${region.intensityTo ?? ""}`;
+}
+
 /** 強度ごとの意味を保ったまま、地域数バジェットで EEW ページを作る。 */
 export function paginateEewRegions(regions: DisplayEewRegionV1[], budget: number): EewRegionPage[] {
   const buckets = new Map<string, DisplayEewRegionV1[]>();
-  for (const region of regions) buckets.set(region.intensity, [...(buckets.get(region.intensity) ?? []), region]);
+  for (const region of regions) {
+    const key = rangeKey(region);
+    buckets.set(key, [...(buckets.get(key) ?? []), region]);
+  }
   const pages: EewRegionPage[] = [];
-  for (const [intensity, items] of [...buckets].sort((a, b) => (intensityRank(b[0]) ?? 0) - (intensityRank(a[0]) ?? 0))) {
+  for (const [, items] of [...buckets].sort((a, b) => eewIntensityRangeRank(b[1][0]) - eewIntensityRangeRank(a[1][0]))) {
+    const intensity = eewIntensityRangeLabel(items[0]);
     for (let start = 0; start < items.length; start += budget) {
-      pages.push({ sections: [{ intensity, rank: intensityRank(intensity) ?? 0, regions: items.slice(start, start + budget) }] });
+      pages.push({ sections: [{ intensity, rank: eewIntensityRangeRank(items[0]), regions: items.slice(start, start + budget) }] });
     }
   }
   return pages;

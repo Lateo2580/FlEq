@@ -97,6 +97,19 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
     expect(plain).not.toMatch(/他 \d+ 地点/);
   });
 
+  it.each(["NaN", "計算中"])("非数値 magnitude %s は M不明へ縮退し MNaN を出さない", (magnitude) => {
+    setFrameWidth(140);
+    const info = parseFixture();
+    expect(info.earthquake).toBeDefined();
+    const output = stripAnsi(render({
+      ...info,
+      earthquake: { ...info.earthquake!, magnitude, magnitudeInfo: undefined },
+    }));
+    expect(output).toContain("M不明");
+    expect(output).not.toContain("MNaN");
+    expect(output).not.toContain(`M${magnitude}`);
+  });
+
   it("synthetic 60 地域: 幅 60 でも全地域名が本体のどこかに名前として現れ、全行が幅保証", () => {
     setFrameWidth(60);
     const info = makeSyntheticMulti(60);

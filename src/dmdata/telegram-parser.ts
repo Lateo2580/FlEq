@@ -132,17 +132,20 @@ function extractEarthquake(
   );
   const { lat, lon, depth } = parseCoordinate(coordStr);
 
+  const magnitudeNode =
+    dig(earthquake, "jmx_eb:Magnitude")
+    || dig(earthquake, "Magnitude");
   const magRaw = str(
-    dig(earthquake, "jmx_eb:Magnitude", "#text") ||
-      dig(earthquake, "Magnitude", "#text") ||
-      dig(earthquake, "jmx_eb:Magnitude") ||
-      dig(earthquake, "Magnitude") ||
-      ""
+    magnitudeNode != null && typeof magnitudeNode === "object"
+      ? dig(magnitudeNode, "#text")
+      : magnitudeNode
   );
+  const magnitudeCondition = str(dig(magnitudeNode, "@_condition")).trim();
+  const magnitudeDescription = str(dig(magnitudeNode, "@_description")).trim();
   // "4" → "4.0" のように小数点第1位を保証する
   const mag = magRaw && !isNaN(parseFloat(magRaw))
     ? parseFloat(magRaw).toFixed(1)
-    : magRaw;
+    : "";
 
   return {
     originTime,
@@ -151,6 +154,11 @@ function extractEarthquake(
     longitude: lon,
     depth,
     magnitude: mag,
+    magnitudeInfo: {
+      value: magRaw,
+      condition: magnitudeCondition || null,
+      description: magnitudeDescription || null,
+    },
   };
 }
 

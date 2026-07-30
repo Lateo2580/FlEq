@@ -1,10 +1,17 @@
 <script lang="ts">
   import type { DisplayEewInputV1, DisplayEewRegionV1 } from "../lib/protocol";
-  import { formatHms, formatIntShort, intensityRank } from "../lib/format";
-  import { eewRegionFontTier, eewRegionListColumnCount, paginateEewRegions } from "../lib/eew-region-tiers";
+  import { formatHms, formatIntShort } from "../lib/format";
+  import {
+    eewIntensityRangeLabel,
+    eewIntensityRangeRank,
+    eewRegionFontTier,
+    eewRegionListColumnCount,
+    paginateEewRegions,
+  } from "../lib/eew-region-tiers";
   import { EEW_STATIC_LIST_MAX, rowCapacity } from "../lib/instrument-layout";
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import { measureBorderHeight, measureHeight } from "../lib/measure-height";
+  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
   import { onDestroy } from "svelte";
   import PageDots from "./PageDots.svelte";
   import RollingNumber from "./RollingNumber.svelte";
@@ -18,6 +25,7 @@
   const regionListStyle = $derived(`font-size: ${tier.fontSizePx}px;`);
 
   interface IntensityBucket {
+    key: string;
     intensity: string;
     rank: number;
     regions: DisplayEewRegionV1[];
@@ -29,14 +37,23 @@
     const order: string[] = [];
     const buckets = new Map<string, DisplayEewRegionV1[]>();
     for (const r of regions) {
-      if (!buckets.has(r.intensity)) {
-        buckets.set(r.intensity, []);
-        order.push(r.intensity);
+      const key = `${r.intensity}\u0000${r.intensityTo ?? ""}`;
+      if (!buckets.has(key)) {
+        buckets.set(key, []);
+        order.push(key);
       }
-      buckets.get(r.intensity)!.push(r);
+      buckets.get(key)!.push(r);
     }
     return order
-      .map((intensity) => ({ intensity, rank: intensityRank(intensity) ?? 0, regions: buckets.get(intensity)! }))
+      .map((key) => {
+        const bucketRegions = buckets.get(key)!;
+        return {
+          key,
+          intensity: eewIntensityRangeLabel(bucketRegions[0]),
+          rank: eewIntensityRangeRank(bucketRegions[0]),
+          regions: bucketRegions,
+        };
+      })
       .sort((a, b) => b.rank - a.rank);
   }
 
@@ -97,8 +114,14 @@
     </div>
     <div class="tile-stats">
       <div class="tile stat-tile">
-        <span class="stat-label">M</span>
-        <span class="stat-value"><RollingNumber value={input.magnitude ?? "不明"} /></span>
+        <span class="stat-label">{isNumericMagnitude(input.magnitude) ? "M" : "規模"}</span>
+        <span class="stat-value">
+          {#if isNumericMagnitude(input.magnitude)}
+            <RollingNumber value={input.magnitude ?? ""} />
+          {:else}
+            {formatMagnitudeLabel(input.magnitude)}
+          {/if}
+        </span>
       </div>
       {#if input.depth != null}
         <div class="tile stat-tile">
@@ -141,7 +164,7 @@
           class:two-column={regionListColumnCount === 2}
           style={regionListStyle}
         >
-          {#each buckets as b (b.intensity)}
+          {#each buckets as b (b.key)}
             <div class="region-row">
               <span class="region-intensity int-r{b.rank}">震度{b.intensity}</span>
               <span class="region-names">{b.regions.map((r) => r.name).join(" ")}</span>

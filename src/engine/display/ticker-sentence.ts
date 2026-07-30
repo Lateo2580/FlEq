@@ -19,6 +19,7 @@ import { FLOOD_LEVEL_RANK } from "../../types";
 import { analyzeWeatherTickerFacts, buildWeatherTickerSentence } from "./weather-ticker-facts";
 import { prefectureOf, formatPrefectureList, LIST_SEPARATOR, MAX_LISTED } from "./prefecture-format";
 import { intensityToRank } from "../../utils/intensity";
+import { formatPresentationMagnitude } from "../../utils/magnitude";
 import { resolveTsunamiLevel, normalizeTsunamiKind } from "../../utils/tsunami-kind";
 import { flattenEntries, type WeatherSeverityEntry } from "../presentation/weather-severity-pyramid";
 import { normalizeKindName, KIND_NAME_MAP } from "../../dmdata/weather-warning-timeseries-significancy";
@@ -171,7 +172,11 @@ function earthquakeSentence(event: PresentationEvent): string | null {
   if (hypocenterName == null || hypocenterName === "") return null;
   const time = event.originTime != null ? formatJst12h(event.originTime) : null;
   const head = time != null ? `${time}、` : "";
-  const mag = event.magnitude != null ? `マグニチュード${event.magnitude}の地震` : "地震";
+  const mag = event.magnitude != null
+    ? Number.isFinite(Number(event.magnitude))
+      ? `マグニチュード${event.magnitude}の地震`
+      : `${formatPresentationMagnitude(event.magnitude)}の地震`
+    : "地震";
   let sentence = `${head}${hypocenterName}を震源とする${mag}がありました。`;
   const top = topIntensityAreas(event.areaItems);
   if (top != null && top.names.length > 0) {
@@ -189,7 +194,7 @@ function eewSentence(event: PresentationEvent): string | null {
   if (event.hypocenterName == null) return null;
   const label = event.isWarning === true ? "緊急地震速報" : "緊急地震速報(予報)";
   const serial = event.serial != null ? ` #${event.serial}` : "";
-  const mag = event.magnitude != null ? `M${event.magnitude}の地震` : "地震";
+  const mag = event.magnitude != null ? `${formatPresentationMagnitude(event.magnitude)}の地震` : "地震";
   const parts = [`${label}${serial}: ${event.hypocenterName}で${mag}`];
   if (event.forecastMaxInt != null) parts.push(`予想最大震度${event.forecastMaxInt}`);
   if (event.isWarning === true) parts.push("強い揺れに警戒");

@@ -70,6 +70,18 @@ describe("EEW 震源詳細ブロック (Phase 4b)", () => {
     expect(output()).not.toContain("精度:");
   });
 
+  it.each(["NaN", "計算中"])("非数値 magnitude %s は M不明へ縮退し MNaN を出さない", (magnitude) => {
+    const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_S1, "VXSE45"))!;
+    expect(info.earthquake).toBeDefined();
+    displayEewInfo({
+      ...info,
+      earthquake: { ...info.earthquake!, magnitude, magnitudeInfo: undefined },
+    }, { activeCount: 1, colorIndex: 0 });
+    expect(output()).toContain("M不明");
+    expect(output()).not.toContain("MNaN");
+    expect(output()).not.toContain(`M${magnitude}`);
+  });
+
   it("PLUM (77_02_01) の精度行に仮定震源要素相当のラベルが出る", () => {
     const info = parseEewTelegram(eewMsg(FIXTURE_VXSE45_PLUM, "VXSE45"))!;
     displayEewInfo(info, { activeCount: 1, colorIndex: 0 });

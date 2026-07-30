@@ -96,6 +96,23 @@ describe("LatestQuakeCard", () => {
     expect(container.querySelector(".magnitude")?.textContent).toBe("");
   });
 
+  it("巨大地震 description は M を重ねず通常テキストで描画する", () => {
+    const { container } = render(LatestQuakeCard, {
+      quake: latestQuake({ magnitude: "M8 を超える巨大地震" }),
+    });
+    expect(container.querySelector(".magnitude")?.textContent).toBe("M8 を超える巨大地震");
+    expect(container.querySelector(".magnitude .nu-value")).toBeNull();
+    expect(container.textContent).not.toContain("NaN");
+  });
+
+  it("旧保存状態の NaN も M不明へ縮退する", () => {
+    const { container } = render(LatestQuakeCard, {
+      quake: latestQuake({ magnitude: "NaN" }),
+    });
+    expect(container.querySelector(".magnitude")?.textContent).toBe("M不明");
+    expect(container.textContent).not.toContain("NaN");
+  });
+
   it("ごく浅い震源は距離へ置換せず、数値用 NumberUnit ではなく通常テキストで描画する", () => {
     const { container } = render(LatestQuakeCard, { quake: latestQuake({ depth: "ごく浅い" }) });
     expect(container.querySelector(".depth")?.textContent).toBe("ごく浅い");

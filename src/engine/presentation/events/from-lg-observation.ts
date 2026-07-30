@@ -1,5 +1,6 @@
 import type { LgObservationOutcome, PresentationEvent, PresentationAreaItem } from "../types";
 import { intensityToRank } from "../../../utils/intensity";
+import { magnitudeForPresentation } from "../../../utils/magnitude";
 
 /** LgObservationOutcome → PresentationEvent */
 export function fromLgObservationOutcome(outcome: LgObservationOutcome): PresentationEvent {
@@ -47,7 +48,7 @@ export function fromLgObservationOutcome(outcome: LgObservationOutcome): Present
     latitude: info.earthquake?.latitude ?? null,
     longitude: info.earthquake?.longitude ?? null,
     depth: info.earthquake?.depth ?? null,
-    magnitude: info.earthquake?.magnitude ?? null,
+    magnitude: magnitudeForPresentation(info.earthquake),
 
     maxInt,
     maxIntRank,

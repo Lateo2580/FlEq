@@ -184,7 +184,13 @@ export class DisplayStateStore {
   ): QuakeMapMutationResult {
     const eventKey = command.kind === "upsert" ? command.event.eventKey : command.eventKey;
     const guardKey = `${eventKey}:${command.sourceType}`;
-    if (!this.quakeMapRevisionGuard.accept(guardKey, command.revision, nowMs)) {
+    if (!this.quakeMapRevisionGuard.accept(
+      guardKey,
+      command.revision,
+      nowMs,
+      undefined,
+      command.isCorrection === true,
+    )) {
       return { accepted: false, changed: false };
     }
 

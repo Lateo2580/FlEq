@@ -13,6 +13,7 @@ export type DisplayQuakeMapCommandV1 =
       event: Omit<DisplayQuakeIntensityMapEventV1, "sourceType" | "revision">;
       sourceType: string;
       revision: StandbyRevision;
+      isCorrection?: boolean;
     }
   | {
       kind: "remove";
@@ -20,6 +21,7 @@ export type DisplayQuakeMapCommandV1 =
       sourceType: string;
       reason: "cancelled" | "belowThreshold";
       revision: StandbyRevision;
+      isCorrection?: boolean;
     };
 
 /** broadcast 1 回の配送結果。authoritative sync (tickerSynced) が全 client に届いたかを判定する */

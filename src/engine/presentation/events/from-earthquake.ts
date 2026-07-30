@@ -5,6 +5,7 @@ import type {
   PresentationQuakeIntensityItem,
 } from "../types";
 import { intensityToRank } from "../../../utils/intensity";
+import { magnitudeForPresentation } from "../../../utils/magnitude";
 import * as log from "../../../logger";
 
 interface QuakeIntensitySourceItem {
@@ -116,7 +117,7 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
     latitude: info.earthquake?.latitude ?? null,
     longitude: info.earthquake?.longitude ?? null,
     depth: info.earthquake?.depth ?? null,
-    magnitude: info.earthquake?.magnitude ?? null,
+    magnitude: magnitudeForPresentation(info.earthquake),
 
     maxInt,
     maxIntRank,

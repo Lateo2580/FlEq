@@ -27,6 +27,7 @@ import {
 import { VolcanoPresentation } from "../presentation/volcano-presentation";
 import { loadConfig, saveConfig } from "../../config";
 import { EewUpdateResult } from "../eew/eew-tracker";
+import { formatMagnitudeLabel } from "../../utils/magnitude";
 import { playSound, SoundLevel } from "./sound-player";
 import {
   weatherSoundLevel,
@@ -38,6 +39,7 @@ import {
   weatherExplanationSoundLevel,
   heatAlertSoundLevel,
   typhoonAnalysisSoundLevel,
+  tsunamiSoundLevel,
 } from "../presentation/level-helpers";
 import { extractLeadSentence } from "../../dmdata/heat-alert-parser";
 import * as nodeNotifierLoader from "./node-notifier-loader";
@@ -349,7 +351,7 @@ export class Notifier {
       ? this.findMaxForecastInt(info)
       : "不明";
     const body = info.earthquake
-      ? `${info.earthquake.hypocenterName} / M${info.earthquake.magnitude} / 最大予測震度${maxInt}`
+      ? `${info.earthquake.hypocenterName} / ${formatMagnitudeLabel(info.earthquake)} / 最大予測震度${maxInt}`
       : title;
 
     this.send(title, body, "eew", soundLevel);
@@ -381,7 +383,7 @@ export class Notifier {
     const parts: string[] = [];
     if (info.earthquake) {
       parts.push(info.earthquake.hypocenterName);
-      parts.push(`M${info.earthquake.magnitude}`);
+      parts.push(formatMagnitudeLabel(info.earthquake));
     }
     if (info.intensity) {
       parts.push(`最大震度${info.intensity.maxInt}`);
@@ -395,7 +397,7 @@ export class Notifier {
       return;
     }
 
-    const soundLevel = this.tsunamiSoundLevel(info);
+    const soundLevel = tsunamiSoundLevel(info);
 
     const parts: string[] = [];
     if (info.forecast && info.forecast.length > 0) {
@@ -1019,17 +1021,6 @@ export class Notifier {
   private earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
     if (!info.intensity) return "normal";
     if (intensityUtils.intensityToRank(info.intensity.maxInt) >= 4) return "warning";
-    return "normal";
-  }
-
-  /** 津波情報のサウンドレベルを判定 */
-  private tsunamiSoundLevel(info: ParsedTsunamiInfo): SoundLevel {
-    if (!info.forecast || info.forecast.length === 0) return "normal";
-    const kinds = info.forecast.map((f) => f.kind);
-    // 注意報・警報・大津波警報のいずれかが含まれていれば critical
-    if (kinds.some((k) => k.includes("津波") && !k.includes("解除"))) return "critical";
-    // 解除のみの場合は warning
-    if (kinds.some((k) => k.includes("解除"))) return "warning";
     return "normal";
   }
 

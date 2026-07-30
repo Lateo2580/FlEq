@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import type { DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatIntShort, formatMdHm } from "../lib/format";
+  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -50,7 +51,7 @@
     <dl class="facts">
       <div><dt>発生</dt><dd>{formatMdHm(event.originTime ?? event.reportDateTime)}</dd></div>
       <div><dt>震源</dt><dd>{event.hypocenterName ?? "調査中"}</dd></div>
-      <div><dt>M</dt><dd>{event.magnitude ?? "-"}</dd></div>
+      <div><dt>{isNumericMagnitude(event.magnitude) ? "M" : "規模"}</dt><dd>{event.magnitude != null ? (isNumericMagnitude(event.magnitude) ? event.magnitude : formatMagnitudeLabel(event.magnitude)) : "-"}</dd></div>
       <div><dt>深さ</dt><dd>{event.depth ?? "-"}</dd></div>
       {#if event.tsunamiWarning}<div class="tsunami"><dt>津波</dt><dd>津波情報あり</dd></div>{/if}
     </dl>

@@ -631,6 +631,29 @@ export interface ParsedEarthquakeIntensity {
   municipalities: ParsedEarthquakeIntensityMunicipality[];
 }
 
+export interface ParsedMagnitudeInfo {
+  value: string;
+  condition: string | null;
+  description: string | null;
+}
+
+export interface ParsedEarthquakeHypocenter {
+  /** 発生日時 */
+  originTime: string;
+  /** 震源地名称 */
+  hypocenterName: string;
+  /** 緯度 */
+  latitude: string;
+  /** 経度 */
+  longitude: string;
+  /** 深さ */
+  depth: string;
+  /** 数値マグニチュード。数値でない場合は空文字 */
+  magnitude: string;
+  /** Magnitude 要素の値・condition・description */
+  magnitudeInfo?: ParsedMagnitudeInfo;
+}
+
 export interface ParsedEarthquakeInfo {
   /** 電文タイプ */
   type: string;
@@ -647,20 +670,7 @@ export interface ParsedEarthquakeInfo {
   /** イベントID (同一地震の電文を紐付ける識別子) */
   eventId: string | null;
   /** 震源情報 */
-  earthquake?: {
-    /** 発生日時 */
-    originTime: string;
-    /** 震源地名称 */
-    hypocenterName: string;
-    /** 緯度 */
-    latitude: string;
-    /** 経度 */
-    longitude: string;
-    /** 深さ */
-    depth: string;
-    /** マグニチュード */
-    magnitude: string;
-  };
+  earthquake?: ParsedEarthquakeHypocenter;
   /** 震度情報 */
   intensity?: ParsedEarthquakeIntensity;
   /** 津波情報 */
@@ -697,14 +707,7 @@ export interface ParsedEewInfo {
   /** EEW 報数 */
   serial: string | null;
   eventId: string | null;
-  earthquake?: {
-    originTime: string;
-    hypocenterName: string;
-    latitude: string;
-    longitude: string;
-    depth: string;
-    magnitude: string;
-  };
+  earthquake?: ParsedEarthquakeHypocenter;
   /** 仮定震源要素かどうか (PLUM法のみで通常震源推定不可) */
   isAssumedHypocenter: boolean;
   /** Appendix: 最大予測震度変化理由コード */
@@ -790,14 +793,7 @@ export interface ParsedTsunamiInfo {
   forecast?: TsunamiForecastItem[];
   observations?: TsunamiObservationStation[];
   estimations?: TsunamiEstimationItem[];
-  earthquake?: {
-    originTime: string;
-    hypocenterName: string;
-    latitude: string;
-    longitude: string;
-    depth: string;
-    magnitude: string;
-  };
+  earthquake?: ParsedEarthquakeHypocenter;
   warningComment: string;
   isTest: boolean;
 }
@@ -849,14 +845,7 @@ export interface ParsedLgObservationInfo {
   reportDateTime: string;
   headline: string | null;
   publishingOffice: string;
-  earthquake?: {
-    originTime: string;
-    hypocenterName: string;
-    latitude: string;
-    longitude: string;
-    depth: string;
-    magnitude: string;
-  };
+  earthquake?: ParsedEarthquakeHypocenter;
   /** 最大震度 */
   maxInt?: string;
   /** 最大長周期地震動階級 */
