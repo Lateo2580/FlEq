@@ -134,6 +134,28 @@ function quakeMapEvent(eventId: string, serial: string): PresentationEvent {
   });
 }
 
+function quakeSequenceEvent(
+  type: "VXSE51" | "VXSE52" | "VXSE53" | "VXSE61",
+  reportDateTime: string,
+  over: Partial<PresentationEvent> = {},
+): PresentationEvent {
+  return baseEvent({
+    id: `${type}-${reportDateTime}`,
+    classification: "telegram.earthquake",
+    domain: "earthquake",
+    type,
+    eventId: "Q-followup",
+    serial: type === "VXSE51" ? "1" : "2",
+    reportDateTime,
+    originTime: "2026-07-06T20:59:00+09:00",
+    hypocenterName: "初期震源",
+    magnitude: "4.8",
+    depth: "10km",
+    frameLevel: "info",
+    ...over,
+  });
+}
+
 function vpws50Event(reportDateTime: string): PresentationEvent {
   return baseEvent({ id: `vpws50-${reportDateTime}`, type: "VPWS50", reportDateTime });
 }
@@ -237,6 +259,166 @@ describe("sweepTicker: 優先度別 TTL (spec §3-1)", () => {
 });
 
 describe("InfoDisplayHub: state debounce", () => {
+  it.each(["VXSE52", "VXSE61"] as const)(
+    "VXSE51→%s は最新・履歴の観測震度と地図を保持し、震源諸元だけ更新する",
+    (followupType) => {
+      const { hub } = makeHub();
+      hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+        maxInt: "4",
+        maxIntRank: 4,
+        areaItems: [{ name: "茨城県北部", code: "440", maxInt: "4" }],
+        quakeIntensity: {
+          localAreas: [{ name: "茨城県北部", code: "440", maxInt: "4", maxIntRank: 4 }],
+          municipalities: [],
+        },
+      }));
+      hub.ingest(quakeSequenceEvent(followupType, "2026-07-06T21:01:00+09:00", {
+        hypocenterName: "更新震源",
+        magnitude: "5.2",
+        depth: "20km",
+        areaItems: [],
+      }));
+
+      const snapshot = hub.buildSnapshot();
+      expect(snapshot.latestQuake).toMatchObject({
+        eventId: "Q-followup",
+        maxInt: "4",
+        maxIntRank: 4,
+        hypocenterName: "更新震源",
+        magnitude: "5.2",
+        depth: "20km",
+        reportDateTime: "2026-07-06T21:01:00+09:00",
+        intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
+      });
+      expect(snapshot.recentQuakes).toEqual([
+        expect.objectContaining({
+          eventId: "Q-followup",
+          maxInt: "4",
+          maxIntRank: 4,
+          hypocenterName: "更新震源",
+          magnitude: "5.2",
+          depth: "20km",
+          intensityGroups: [expect.objectContaining({ intensity: "4", areas: ["茨城県北部"] })],
+        }),
+      ]);
+      expect(snapshot.mapLayers?.quake?.events).toEqual([
+        expect.objectContaining({
+          eventKey: "earthquake:Q-followup",
+          localAreas: [{ code: "440", rank: 4 }],
+        }),
+      ]);
+    },
+  );
+
+  it("VXSE52→VXSE51 の逆順では後着した観測震度・地域別震度・地図を採用する", () => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:00:00+09:00", {
+      hypocenterName: "先行震源",
+      areaItems: [],
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:01:00+09:00", {
+      maxInt: "4",
+      maxIntRank: 4,
+      areaItems: [{ name: "茨城県北部", code: "440", maxInt: "4" }],
+      quakeIntensity: {
+        localAreas: [{ name: "茨城県北部", code: "440", maxInt: "4", maxIntRank: 4 }],
+        municipalities: [],
+      },
+    }));
+
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot.latestQuake).toMatchObject({
+      maxInt: "4",
+      maxIntRank: 4,
+      intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
+    });
+    expect(snapshot.recentQuakes[0]).toMatchObject({
+      maxInt: "4",
+      maxIntRank: 4,
+      intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
+    });
+    expect(snapshot.mapLayers?.quake?.events[0]).toMatchObject({
+      eventKey: "earthquake:Q-followup",
+      localAreas: [{ code: "440", rank: 4 }],
+    });
+  });
+
+  it("空白差のある EventID は別地震として扱い、観測済み震度を引き継がない", () => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      eventId: "Q-followup",
+      maxInt: "4",
+      maxIntRank: 4,
+      areaItems: [{ name: "茨城県北部", code: "440", maxInt: "4" }],
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+      eventId: " Q-followup ",
+      hypocenterName: "別震源",
+      maxInt: null,
+      maxIntRank: null,
+      areaItems: [],
+    }));
+
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot.latestQuake).toMatchObject({
+      eventId: " Q-followup ",
+      hypocenterName: "別震源",
+      maxInt: null,
+      maxIntRank: null,
+      intensityGroups: [],
+    });
+    expect(snapshot.recentQuakes).toEqual([
+      expect.objectContaining({
+        eventId: " Q-followup ",
+        maxInt: null,
+        maxIntRank: null,
+        intensityGroups: [],
+      }),
+      expect.objectContaining({
+        eventId: "Q-followup",
+        maxInt: "4",
+        maxIntRank: 4,
+      }),
+    ]);
+  });
+
+  it("VXSE51→VXSE53 は後続の観測震度・地域別震度で全置換する", () => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      maxInt: "4",
+      maxIntRank: 4,
+      areaItems: [{ name: "茨城県北部", code: "440", maxInt: "4" }],
+      quakeIntensity: {
+        localAreas: [{ name: "茨城県北部", code: "440", maxInt: "4", maxIntRank: 4 }],
+        municipalities: [],
+      },
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE53", "2026-07-06T21:01:00+09:00", {
+      maxInt: "5弱",
+      maxIntRank: 5,
+      areaItems: [{ name: "茨城県南部", code: "441", maxInt: "5弱" }],
+      quakeIntensity: {
+        localAreas: [{ name: "茨城県南部", code: "441", maxInt: "5弱", maxIntRank: 5 }],
+        municipalities: [],
+      },
+    }));
+
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot.latestQuake).toMatchObject({
+      maxInt: "5弱",
+      maxIntRank: 5,
+      intensityGroups: [{ intensity: "5弱", areas: ["茨城県南部"] }],
+    });
+    expect(snapshot.recentQuakes[0]).toMatchObject({
+      maxInt: "5弱",
+      maxIntRank: 5,
+      intensityGroups: [{ intensity: "5弱", areas: ["茨城県南部"] }],
+    });
+    expect(snapshot.mapLayers?.quake?.events[0]).toMatchObject({
+      localAreas: [{ code: "441", rank: 5 }],
+    });
+  });
+
   it("quake map は event DTO を肥大化させず、snapshot と debounced state の両方へ載る", () => {
     vi.useFakeTimers();
     const { hub, transport } = makeHub();

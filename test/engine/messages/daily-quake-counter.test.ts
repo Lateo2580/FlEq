@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-counter";
+import type { DisplayRecentQuakeV1 } from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 
 function makeEvent(overrides: Partial<PresentationEvent> = {}): PresentationEvent {
@@ -25,7 +26,94 @@ function makeEvent(overrides: Partial<PresentationEvent> = {}): PresentationEven
 // 2026-07-08T12:00:00+09:00 (JST) を UTC ミリ秒に変換
 const NOON_JST_JUL8 = Date.parse("2026-07-08T12:00:00+09:00");
 
+function recentQuake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
+  return {
+    eventId: "event-1",
+    reportDateTime: "2026-07-08T12:00:00+09:00",
+    originTime: "2026-07-08T11:59:00+09:00",
+    hypocenterName: "初期震源",
+    magnitude: "4.8",
+    maxInt: "4",
+    maxIntRank: 4,
+    depth: "10km",
+    tsunamiWarning: false,
+    intensityGroups: [{
+      intensity: "4", rank: 4, areas: ["茨城県北部"], omittedAreaCount: 0,
+    }],
+    ...over,
+  };
+}
+
 describe("DailyQuakeCounter", () => {
+  it.each(["VXSE52", "VXSE61"])(
+    "VXSE51→%s 相当の同一EventID履歴は震度を保持し、震源諸元を更新する",
+    () => {
+      const counter = new DailyQuakeCounter(NOON_JST_JUL8);
+      counter.recordRecentQuake(recentQuake(), NOON_JST_JUL8);
+      counter.recordRecentQuake(recentQuake({
+        reportDateTime: "2026-07-08T12:01:00+09:00",
+        hypocenterName: "更新震源",
+        magnitude: "5.2",
+        depth: "20km",
+        maxInt: null,
+        maxIntRank: null,
+        intensityGroups: [],
+      }), NOON_JST_JUL8 + 60_000);
+
+      expect(counter.getRecentQuakes(NOON_JST_JUL8 + 60_000)).toEqual([
+        expect.objectContaining({
+          eventId: "event-1",
+          reportDateTime: "2026-07-08T12:01:00+09:00",
+          hypocenterName: "更新震源",
+          magnitude: "5.2",
+          depth: "20km",
+          maxInt: "4",
+          maxIntRank: 4,
+          intensityGroups: [expect.objectContaining({
+            intensity: "4", areas: ["茨城県北部"],
+          })],
+        }),
+      ]);
+    },
+  );
+
+  it("VXSE52→VXSE51 相当の逆順では後着した観測震度を採用する", () => {
+    const counter = new DailyQuakeCounter(NOON_JST_JUL8);
+    counter.recordRecentQuake(recentQuake({
+      maxInt: null,
+      maxIntRank: null,
+      intensityGroups: [],
+    }), NOON_JST_JUL8);
+    counter.recordRecentQuake(recentQuake({
+      reportDateTime: "2026-07-08T12:01:00+09:00",
+    }), NOON_JST_JUL8 + 60_000);
+
+    expect(counter.getRecentQuakes(NOON_JST_JUL8 + 60_000)[0]).toMatchObject({
+      maxInt: "4",
+      maxIntRank: 4,
+      intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
+    });
+  });
+
+  it("VXSE51→VXSE53 相当のフル観測更新では後続の震度・地域別震度で全置換する", () => {
+    const counter = new DailyQuakeCounter(NOON_JST_JUL8);
+    counter.recordRecentQuake(recentQuake(), NOON_JST_JUL8);
+    counter.recordRecentQuake(recentQuake({
+      reportDateTime: "2026-07-08T12:01:00+09:00",
+      maxInt: "5弱",
+      maxIntRank: 5,
+      intensityGroups: [{
+        intensity: "5弱", rank: 5, areas: ["茨城県南部"], omittedAreaCount: 0,
+      }],
+    }), NOON_JST_JUL8 + 60_000);
+
+    expect(counter.getRecentQuakes(NOON_JST_JUL8 + 60_000)[0]).toMatchObject({
+      maxInt: "5弱",
+      maxIntRank: 5,
+      intensityGroups: [{ intensity: "5弱", areas: ["茨城県南部"] }],
+    });
+  });
+
   it("別 eventId の地震 2 件を数え、maxInt は大きい方を採用する", () => {
     const counter = new DailyQuakeCounter();
     counter.record(makeEvent({ eventId: "event-1", maxInt: "3" }), NOON_JST_JUL8);

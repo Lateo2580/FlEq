@@ -56,6 +56,43 @@ describe("DailyQuakePersistence", () => {
     expect(restored.getRecentQuakes(T0 + 20).map((q) => q.eventId)).toEqual(["Q5", "Q4", "Q3", "Q2", "Q1"]);
   });
 
+  it("観測済み震度を restore 後の震度なし続報でも保持し、実ファイル round-trip する", () => {
+    const file = filePath();
+    const source = new DailyQuakeCounter(T0);
+    source.recordRecentQuake({
+      eventId: "Q1", reportDateTime: new Date(T0).toISOString(),
+      originTime: new Date(T0).toISOString(), hypocenterName: "初期震源",
+      magnitude: "4.8", maxInt: "4", maxIntRank: 4, depth: "10km",
+      tsunamiWarning: false,
+      intensityGroups: [{ intensity: "4", rank: 4, areas: ["茨城県北部"], omittedAreaCount: 0 }],
+    }, T0);
+
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(source.export(), T0 + 1);
+    const loadedObserved = persistence.load(T0 + 2);
+    const restoredObserved = new DailyQuakeCounter(T0 + 2);
+    expect(loadedObserved == null ? false : restoredObserved.restore(loadedObserved, T0 + 2)).toBe(true);
+    restoredObserved.recordRecentQuake({
+      eventId: "Q1", reportDateTime: new Date(T0 + 60_000).toISOString(),
+      originTime: new Date(T0).toISOString(), hypocenterName: "更新震源",
+      magnitude: "5.2", maxInt: null, maxIntRank: null, depth: "20km",
+      tsunamiWarning: false, intensityGroups: [],
+    }, T0 + 60_000);
+
+    persistence.save(restoredObserved.export(), T0 + 60_001);
+    const loaded = persistence.load(T0 + 60_002);
+    const restored = new DailyQuakeCounter(T0 + 60_002);
+    expect(loaded == null ? false : restored.restore(loaded, T0 + 60_002)).toBe(true);
+    expect(restored.getRecentQuakes(T0 + 60_002)[0]).toMatchObject({
+      hypocenterName: "更新震源",
+      magnitude: "5.2",
+      depth: "20km",
+      maxInt: "4",
+      maxIntRank: 4,
+      intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
+    });
+  });
+
   it("JST 00:00 sweep は空の当日状態にし、前日ファイルは restore しない", () => {
     const file = filePath();
     const before = Date.parse("2026-07-29T23:59:00+09:00");

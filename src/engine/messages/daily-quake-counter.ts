@@ -3,6 +3,7 @@ import { jstDayKey } from "../../utils/jst-day-key";
 import { RECENT_QUAKES_MAX } from "../display/constants";
 import type { DisplayRecentQuakeV1 } from "../display/types";
 import type { PresentationEvent } from "../presentation/types";
+import { mergeRecentQuakeObservation } from "../display/quake-observation-merge";
 
 /** getSnapshot() の戻り値 */
 export interface DailyQuakeSnapshot {
@@ -78,10 +79,14 @@ export class DailyQuakeCounter {
       if (rolledOver) this.notify("rollover");
       return rolledOver;
     }
+    const existing = quake.eventId == null
+      ? null
+      : this.recentQuakes.find((candidate) => candidate.eventId === quake.eventId);
+    const merged = mergeRecentQuakeObservation(existing, quake);
     if (quake.eventId != null) {
       this.recentQuakes = this.recentQuakes.filter((existing) => existing.eventId !== quake.eventId);
     }
-    this.recentQuakes.unshift(quake);
+    this.recentQuakes.unshift(merged);
     if (this.recentQuakes.length > RECENT_QUAKES_MAX) this.recentQuakes.length = RECENT_QUAKES_MAX;
     this.notify(rolledOver ? "rollover" : "update");
     return true;

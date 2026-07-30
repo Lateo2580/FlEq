@@ -34,6 +34,10 @@ import type { Vpws50CurrentAreasForDisplay } from "../../types";
 import { intensityToRank } from "../../utils/intensity";
 import { jstDayKey } from "../../utils/jst-day-key";
 import { quakeCardTtlMs, shouldReplaceLatestQuake } from "./quake-card-selection";
+import {
+  mergeLatestQuakeObservation,
+  mergeRecentQuakeObservation,
+} from "./quake-observation-merge";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import {
   WeatherPromotionStore,
@@ -319,10 +323,14 @@ export class DisplayStateStore {
   private applyRecentQuake(q: DisplayRecentQuakeV1, nowMs: number): boolean {
     // 「今日」は暦日 JST。時刻が壊れている電文は表示を捏造せず除外する。
     if (quakeDayKey(q) !== jstDayKey(nowMs)) return false;
+    const existing = q.eventId == null
+      ? null
+      : this.recentQuakes.find((candidate) => candidate.eventId === q.eventId);
+    const merged = mergeRecentQuakeObservation(existing, q);
     if (q.eventId != null) {
       this.recentQuakes = this.recentQuakes.filter((r) => r.eventId !== q.eventId);
     }
-    this.recentQuakes.unshift(q);
+    this.recentQuakes.unshift(merged);
     if (this.recentQuakes.length > RECENT_QUAKES_MAX) this.recentQuakes.length = RECENT_QUAKES_MAX;
     return true;
   }
@@ -330,7 +338,7 @@ export class DisplayStateStore {
   private applyLatestQuake(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
     const existing = this.latestQuake;
     if (!shouldReplaceLatestQuake(existing, input)) return false;
-    this.latestQuake = { ...input, updatedAtMs: nowMs };
+    this.latestQuake = { ...mergeLatestQuakeObservation(existing, input), updatedAtMs: nowMs };
     return true;
   }
 
