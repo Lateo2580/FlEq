@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "projectionInsetsVersion": "jma-quake-projection-insets-v1",
+  "viewBox": [0, 0, 1000, 800],
+  "pathDigits": 2,
+  "mainProjection": {
+    "type": "conicConformal",
+    "parallels": [30, 40],
+    "rotate": [-137, 0, 0],
+    "center": [0, 36],
+    "scale": 1800,
+    "translate": [500, 320]
+  },
+  "insets": [
+    {
+      "id": "okinawa",
+      "label": "沖縄・先島",
+      "geographicBounds": [122, 20, 136, 30],
+      "frame": [40, 600, 360, 170],
+      "labelPosition": [52, 632],
+      "projection": {
+        "type": "mercator",
+        "center": [128, 25],
+        "scale": 850,
+        "translate": [220, 690]
+      }
+    },
+    {
+      "id": "ogasawara",
+      "label": "小笠原等",
+      "geographicBounds": [136, 20, 155, 30],
+      "frame": [600, 600, 360, 170],
+      "labelPosition": [612, 632],
+      "projection": {
+        "type": "mercator",
+        "center": [145, 25],
+        "scale": 760,
+        "translate": [780, 690]
+      }
+    }
+  ],
+  "referencePoints": [
+    [141.35, 43.06],
+    [139.69, 35.68],
+    [130.42, 33.59],
+    [127.68, 26.21],
+    [142.19, 27.09]
+  ]
+}

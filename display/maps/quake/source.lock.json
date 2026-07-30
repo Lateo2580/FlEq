@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "retrievedAt": "2026-07-30",
+  "sourcePageUrl": "https://www.data.jma.go.jp/developer/gis.html",
+  "projection": {
+    "name": "JGD2011",
+    "epsg": 6668,
+    "archivePrjPolicy": "absent",
+    "note": "The supplied JMA archives contain .shp/.shx/.dbf but no .prj. The build validates that absence, this locked CRS declaration, and geographic longitude/latitude bounds before projection."
+  },
+  "inputs": [
+    {
+      "dataset": "AreaForecastLocalE",
+      "archive": "20240520_AreaForecastLocalE_GIS.zip",
+      "url": "https://www.data.jma.go.jp/developer/gis/20240520_AreaForecastLocalE_GIS.zip",
+      "sha256": "92f3c9a51fc0681970672e3e77cb81d9d7885822e55b6ca6aefcb4ea6d20705f",
+      "shapefileBaseName": "地震情報／細分区域",
+      "codeField": "code",
+      "codePattern": "^[0-9]{3}$",
+      "expectedCodeCount": 188,
+      "sizeBudgetBytes": 1200000,
+      "projectionTargetChecks": [
+        { "code": "774", "target": "okinawa" }
+      ],
+      "crsControlPoints": [
+        { "code": "135", "coordinate": [142.1333414, 44.9021575], "tolerance": 0.00000005 },
+        { "code": "350", "coordinate": [139.5627858, 35.7615952], "tolerance": 0.00000005 },
+        { "code": "774", "coordinate": [129.2012958, 29.1590364], "tolerance": 0.00000005 }
+      ],
+      "emptyCodeFeatureAllowlist": {
+        "confirmedAt": "2026-07-30",
+        "reason": "The source contains named polygons that have no JMA earthquake Area.Code and therefore cannot participate in code-based rendering.",
+        "names": [
+          "色丹島",
+          "国後島",
+          "択捉島",
+          "鷹島(甑島南方)",
+          "津倉瀬(宇治群島北東方）",
+          "うるま市・金武町境界部地先の埋立地"
+        ]
+      }
+    },
+    {
+      "dataset": "AreaInformationCity_quake",
+      "archive": "20241128_AreaInformationCity_quake_GIS.zip",
+      "url": "https://www.data.jma.go.jp/developer/gis/20241128_AreaInformationCity_quake_GIS.zip",
+      "sha256": "56188bee85d4865f9d6da16e3c535a94bb9c93d0729d490e0121015de804ac65",
+      "shapefileBaseName": "市町村等（地震津波関係）",
+      "codeField": "regioncode",
+      "codePattern": "^[0-9]{7}$",
+      "expectedCodeCount": 1892,
+      "sizeBudgetBytes": 3000000,
+      "projectionTargetChecks": [
+        { "code": "4630400", "target": "okinawa" }
+      ],
+      "crsControlPoints": [
+        { "code": "0110100", "coordinate": [141.3552008, 43.0685867], "tolerance": 0.00000005 },
+        { "code": "1310100", "coordinate": [139.7314994, 35.6814953], "tolerance": 0.00000005 },
+        { "code": "4630400", "coordinate": [129.5953297, 29.4770761], "tolerance": 0.00000005 }
+      ],
+      "emptyCodeFeatureAllowlist": {
+        "confirmedAt": "2026-07-30",
+        "reason": "The source contains named islands, river/harbor areas and boundary reclamation polygons that have no JMA City.Code and therefore cannot participate in code-based rendering.",
+        "names": [
+          "色丹島",
+          "国後島",
+          "択捉島",
+          "市川市・船橋市境界地先の土地",
+          "鳥島",
+          "ベヨネース列岩",
+          "須美寿島",
+          "孀婦岩",
+          "荒川河口部",
+          "名古屋港口埋立地",
+          "鰹島",
+          "羽島",
+          "鷹島(甑島南方)",
+          "津倉瀬(宇治群島北東方)",
+          "うるま市・金武町境界部地先の埋立地",
+          "中央防波堤外側廃棄物処理場(中潮橋南側）"
+        ]
+      }
+    }
+  ]
+}

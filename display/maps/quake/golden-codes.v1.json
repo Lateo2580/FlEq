@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "basis": "Manually transcribed from test/fixtures/32-35_04_04_240613_VXSE53.xml; no XML extraction code is used.",
+  "localAreas": [
+    { "code": "762", "name": "宮崎県南部平野部", "fixtureLine": 250 },
+    { "code": "763", "name": "宮崎県南部山沿い", "fixtureLine": 281 },
+    { "code": "770", "name": "鹿児島県薩摩", "fixtureLine": 153 },
+    { "code": "771", "name": "鹿児島県大隅", "fixtureLine": 96 },
+    { "code": "774", "name": "鹿児島県十島村", "fixtureLine": 231 },
+    { "code": "775", "name": "鹿児島県甑島", "fixtureLine": 236 },
+    { "code": "776", "name": "鹿児島県種子島", "fixtureLine": 136 },
+    { "code": "777", "name": "鹿児島県屋久島", "fixtureLine": 222 },
+    { "code": "778", "name": "鹿児島県奄美北部", "fixtureLine": 242 }
+  ],
+  "municipalities": [
+    { "code": "4520100", "name": "宮崎市", "fixtureLine": 251 },
+    { "code": "4520200", "name": "都城市", "fixtureLine": 282 },
+    { "code": "4620100", "name": "鹿児島市", "fixtureLine": 154 },
+    { "code": "4620300", "name": "鹿屋市", "fixtureLine": 97 },
+    { "code": "4621300", "name": "西之表市", "fixtureLine": 137 },
+    { "code": "4621502", "name": "薩摩川内市甑島", "fixtureLine": 237 },
+    { "code": "4622200", "name": "奄美市", "fixtureLine": 243 },
+    { "code": "4630300", "name": "三島村", "fixtureLine": 142 },
+    { "code": "4630400", "name": "鹿児島十島村", "fixtureLine": 232 },
+    { "code": "4646800", "name": "大崎町", "fixtureLine": 104 },
+    { "code": "4649200", "name": "肝付町", "fixtureLine": 107 },
+    { "code": "4650100", "name": "中種子町", "fixtureLine": 145 },
+    { "code": "4650200", "name": "南種子町", "fixtureLine": 148 },
+    { "code": "4650500", "name": "屋久島町", "fixtureLine": 223 }
+  ]
+}

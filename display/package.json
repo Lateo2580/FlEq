@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "maps:quake:build": "node scripts/build-quake-map-assets.mjs --write",
+    "maps:quake:check": "node scripts/build-quake-map-assets.mjs --check",
     "docs:design": "node scripts/generate-design-docs.mjs --write",
     "docs:design:check": "node scripts/generate-design-docs.mjs --check"
   },
@@ -17,7 +19,9 @@
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@testing-library/svelte": "^5.3.0",
     "@types/node": "^22.13.4",
+    "d3-geo": "^3.1.1",
     "jsdom": "^29.0.0",
+    "mapshaper": "^0.7.49",
     "svelte": "^5.46.0",
     "svelte-check": "^4.7.4",
     "typescript": "^5.7.3",

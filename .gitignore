@@ -18,3 +18,7 @@ data/runtime/
 tmp/
 .claude/tmp/
 .tmp-workflow-out/
+
+# JMA quake-map source archives and transient conversion workspace
+display/maps/source/
+display/maps/.cache/
