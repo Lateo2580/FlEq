@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,6 +27,7 @@ const tempRoots: string[] = [];
 
 function heatEvent(): PresentationEvent {
   const raw: ParsedHeatAlertInfo = {
+    meta: testTelegramMeta(false),
     type: "VPFT50", infoType: "発表", title: "東京都熱中症警戒アラート", controlTitle: "熱中症警戒アラート",
     reportDateTime: "2026-07-21T05:00:00+09:00", targetDateTime: "2026-07-21T05:00:00+09:00",
     headline: null, publishingOffice: "環境省 気象庁", editorialOffice: "環境省 気象庁", eventId: null,
@@ -48,6 +50,7 @@ function tornadoEvent(
   areas: string[] = ["千代田区", "港区"],
 ): PresentationEvent {
   const raw: ParsedTornadoAdvisory = {
+    meta: testTelegramMeta(false),
     type: "VPHW50", infoType: "発表", title: "東京都竜巻注意情報", controlTitle: "竜巻注意情報",
     reportDateTime: new Date(reportTimeMs).toISOString(), validDateTime, headline: "東京都に竜巻注意情報",
     publishingOffice, editorialOffice: "気象庁", serial,

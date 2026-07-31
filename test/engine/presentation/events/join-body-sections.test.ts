@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import {
   joinSections,
@@ -20,6 +21,7 @@ function bodyText(over: Partial<ClimateBodyText>): ClimateBodyText {
 
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "ashfall",
     type: "VFVO53",

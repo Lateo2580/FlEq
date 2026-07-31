@@ -8,6 +8,7 @@ import type {
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, nodeText, toNumberOrNull } from "./timeseries-common";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 const FALLBACK_RAW_BYTES = 5 * 1024 * 1024;
@@ -53,6 +54,7 @@ export function parseTyphoonProbability(
   msg: WsDataMessage,
 ): ParsedTyphoonProbability | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const decodedBytes = Buffer.byteLength(xmlStr, "utf-8");
 
@@ -79,13 +81,11 @@ export function parseTyphoonProbability(
     const reportDateTime = str(dig(head, "ReportDateTime")) || null;
     const baseTime = str(dig(head, "TargetDateTime")) || null;
     const publishingOffice = str(dig(control, "PublishingOffice")) || null;
-    const isTest = str(dig(control, "Status")) === "試験";
-
     const base: ParsedTyphoonProbability = {
       type, infoType, title, controlTitle,
       name: null, baseTime, reportDateTime, publishingOffice,
       timeDefines: [], regions: [],
-      eventId, serial, isTest,
+      eventId, serial, meta, isTest: meta.isTest,
       fallback: "none",
       parserDiagnostics: emptyDiagnostics(),
     };

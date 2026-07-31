@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
 import type { ParsedTsunamiInfo } from "../../../src/types";
@@ -16,6 +17,7 @@ import type { ParsedTsunamiInfo } from "../../../src/types";
 
 function tsunami(overrides: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
     title: "津波警報・注意報・予報",

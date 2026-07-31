@@ -12,6 +12,7 @@ import {
 } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, toNumberOrNull, nodeText } from "./timeseries-common";
+import { requireTelegramMeta } from "./telegram-ingress";
 import { createJmxXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
@@ -141,6 +142,7 @@ export function parseTyphoonAnalysis(
   msg: WsDataMessage,
 ): ParsedTyphoonAnalysis | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = typhoonXmlParser.parse(xmlStr) as Record<string, unknown>;
     const report =
@@ -193,7 +195,8 @@ export function parseTyphoonAnalysis(
       name,
       frames,
       lifecycle: typhoonLifecycle(name, frames),
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

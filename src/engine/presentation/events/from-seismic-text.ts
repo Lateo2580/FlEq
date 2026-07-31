@@ -1,4 +1,5 @@
 import type { SeismicTextOutcome, PresentationEvent } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 
 /** SeismicTextOutcome → PresentationEvent */
 export function fromSeismicTextOutcome(outcome: SeismicTextOutcome): PresentationEvent {
@@ -16,7 +17,7 @@ export function fromSeismicTextOutcome(outcome: SeismicTextOutcome): Presentatio
     headline: xmlReport?.head.headline ?? null,
     reportDateTime: xmlReport?.head.reportDateTime ?? outcome.msg.head.time,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

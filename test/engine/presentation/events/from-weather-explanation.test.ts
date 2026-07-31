@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { fromWeatherExplanationOutcome } from "../../../../src/engine/presentation/events/from-weather-explanation";
 import { processWeatherExplanation } from "../../../../src/engine/presentation/processors/process-weather-explanation";
@@ -18,6 +19,7 @@ function makeOutcomeWithAreas(
   areas: { name: string; code: string }[],
 ): WeatherExplanationOutcome {
   const baseParsed: ParsedWeatherExplanation = {
+    meta: testTelegramMeta(false),
     type: "VPZJ51",
     infoType: "発表",
     title: "全般気象解説情報（テスト）",

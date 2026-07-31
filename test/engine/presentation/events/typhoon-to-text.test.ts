@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import {
   typhoonAnalysisToText,
@@ -43,6 +44,7 @@ function syntheticAnalysis(frame: Partial<TyphoonFrame>): ParsedTyphoonAnalysis 
     ...frame,
   };
   return {
+    meta: testTelegramMeta(false),
     type: "VPTW60", infoType: "発表", title: "台風解析", controlTitle: "台風解析・予報情報",
     infoKind: "台風解析・予報情報（５日予報）", infoKindVersion: "1.0_2",
     reportDateTime: "2017-09-13T09:00:00+09:00", publishingOffice: "気象庁",

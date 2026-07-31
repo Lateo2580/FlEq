@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest";
 import {
   VolcanoVfvo53Aggregator,
@@ -18,6 +19,7 @@ type VolcanoEmitBatch = (batch: Vfvo53BatchItems, opts: FlushOptions) => void;
 
 function createVfvo53(overrides: Partial<ParsedVolcanoAshfallInfo> = {}): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "ashfall",
     type: "VFVO53",
@@ -61,6 +63,7 @@ function createVfvo54(overrides: Partial<ParsedVolcanoAshfallInfo> = {}): Parsed
 
 function createVfvo52(overrides: Partial<ParsedVolcanoEruptionInfo> = {}): ParsedVolcanoEruptionInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "eruption",
     type: "VFVO52",

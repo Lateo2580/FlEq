@@ -73,6 +73,19 @@ describe("displayFloodForecastInfo — 全 18 fixture NO_COLOR snapshot (Task 21
   }
 });
 
+describe("displayFloodForecastInfo — 全 fixture の枠幅", () => {
+  for (const f of ALL_FIXTURES_SMOKE) {
+    it(`${f} は全行が frame width 60 以内`, () => {
+      const info = parseFloodForecast(createMockWsDataMessage(f))!;
+      displayFloodForecastInfo(info);
+      const overlongLines = plainOutput()
+        .split("\n")
+        .filter((line) => visualWidth(line) > 60);
+      expect(overlongLines).toEqual([]);
+    });
+  }
+});
+
 describe("displayFloodForecastInfo — 取消パス (synthetic_VXKO50_cancel)", () => {
   it("取消電文では『この洪水予報は取り消されました』を出力", () => {
     const info = parseFloodForecast(
@@ -91,7 +104,7 @@ describe("displayFloodForecastInfo — 取消パス (synthetic_VXKO50_cancel)", 
     displayFloodForecastInfo(info);
     const out = plainOutput();
     expect(out).toContain("VXKO50");
-    expect(out).toContain("気象庁");
+    expect(out).toContain(info.publishingOffice);
   });
 });
 
@@ -106,13 +119,13 @@ describe("displayFloodForecastInfo — VXKO normal 基本枠 (16_02_01)", () => 
     expect(out).toContain("発表");
   });
 
-  it("テスト電文のときは『テスト電文』バッジが付く", () => {
+  it("Status=通常なら Notice にテスト文言があってもテスト電文扱いしない", () => {
     const info = parseFloodForecast(
       createMockWsDataMessage("16_02_01_220728_VXKO50.xml"),
     )!;
-    expect(info.isTest).toBe(true);
+    expect(info.isTest).toBe(false);
     displayFloodForecastInfo(info);
-    expect(plainOutput()).toContain("テスト電文");
+    expect(plainOutput()).not.toContain("テスト電文");
   });
 
   it("フッタに type と publishingOffice", () => {
@@ -122,7 +135,7 @@ describe("displayFloodForecastInfo — VXKO normal 基本枠 (16_02_01)", () => 
     displayFloodForecastInfo(info);
     const out = plainOutput();
     expect(out).toContain("VXKO50");
-    expect(out).toContain("気象庁");
+    expect(out).toContain(info.publishingOffice);
   });
 });
 
@@ -174,7 +187,7 @@ describe("displayFloodForecastInfo — VXSU 最小 layout (91_01_01) (Task 20d)"
     displayFloodForecastInfo(info);
     const out = plainOutput();
     expect(out).toContain("VXSU50");
-    expect(out).toContain("気象庁");
+    expect(out).toContain(info.publishingOffice);
   });
 
   it("schema=vxsu50 では河川集約 (aggregateByRiver) を実行しない", () => {

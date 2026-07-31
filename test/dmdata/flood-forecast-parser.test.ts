@@ -15,14 +15,13 @@ describe("parseFloodForecast — Control/Head basic", () => {
     expect(info!.eventId).toBe("830303020300"); // Appendix A
     expect(info!.controlTitle).toBe("指定河川洪水予報");
     expect(info!.headTitle).toBe("○○川上流氾濫注意情報");
-    expect(info!.isTest).toBe(true); // <Notice>テストサンプル</Notice>
+    // Phase 2 契約: Notice の自由文は試験判定に使わない。
+    expect(info!.isTest).toBe(false);
     expect(info!.notice).toContain("テストサンプル");
     expect(info!.targetDateTime).toBe("2019-05-09T20:40:00+09:00");
     expect(info!.reportDateTime).toBe("2019-05-09T20:40:00+09:00");
-    // mock-message が xmlReport.control.publishingOffice="気象庁" を返すため、
-    // 既存 heat-alert-parser と同型の `xmlReport.control.publishingOffice || str(...)` 経路で
-    // mock 値が優先される (実電文では xmlReport から正しい値が来る)。
-    expect(info!.publishingOffice).toBe("気象庁");
+    // Phase 2 の fixture helper は実 XML の Control metadata をそのまま返す。
+    expect(info!.publishingOffice).toBe("○○河川事務所 ○○地方気象台 △△地方気象台");
     expect(info!.editorialOffice).toBe("○○地方気象台");
   });
   it("extracts for 91_01_01 (VXSU)", () => {

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, expect, it } from "vitest";
 import { partitionStandbyItems, selectRightStack } from "../../../display/frontend/src/lib/standby-cards";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
@@ -79,6 +80,7 @@ function volcanoAlertInfo(
   alertLevel: ParsedVolcanoAlertInfo["alertLevel"],
 ): ParsedVolcanoAlertInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano", kind: "alert", type: "VFVO50", infoType: "発表", title: "噴火警報・予報",
     reportDateTime: iso(timeMs), eventDateTime: null, headline: null, publishingOffice: "気象庁",
     volcanoName: "テスト山", volcanoCode: "V-1", coordinate: null, isTest: false,

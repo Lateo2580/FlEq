@@ -3,6 +3,7 @@ import {
   FUTURE_REPORT_DATETIME_SKEW_MS,
   compareTelegramRevisions,
   createTelegramMeta,
+  deriveIsTest,
   parseStrictInfoType,
   parseStrictReportDateTime,
   parseStrictText,
@@ -38,6 +39,23 @@ function comparable(
 }
 
 describe("TelegramMeta", () => {
+  it.each([
+    [false, "通常", false],
+    [true, "通常", true],
+    [false, "訓練", true],
+    [false, "試験", true],
+    [true, "訓練", true],
+    [null, "訓練", true],
+    [null, "試験", true],
+    [null, "通常", false],
+    [false, "未知", false],
+  ] as const)(
+    "deriveIsTest(head.test=%s, Status=%s) → %s",
+    (headTest, controlStatus, expected) => {
+      expect(deriveIsTest({ headTest, controlStatus })).toBe(expected);
+    },
+  );
+
   it("strict text は raw を完全保存し、利用値だけを trim する", () => {
     expect(parseStrictText(" event-1 ")).toEqual({
       raw: " event-1 ",

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { fromFloodForecastOutcome } from "../../../../src/engine/presentation/events/from-flood-forecast";
 import type { FloodForecastOutcome } from "../../../../src/engine/presentation/types";
@@ -57,6 +58,7 @@ function mkMsg(): WsDataMessage {
 
 function mkParsed(overrides: Partial<ParsedFloodForecastInfo> = {}): ParsedFloodForecastInfo {
   return {
+    meta: testTelegramMeta(false),
     schema: "vxko50", typeCode: "VXKO50",
     infoKind: "指定河川洪水予報", infoType: "発表",
     serial: 1, eventId: "e1",

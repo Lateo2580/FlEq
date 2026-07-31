@@ -1,4 +1,5 @@
 import type { WeatherOutcome, PresentationEvent, PresentationAreaItem } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 import { selectPreferredWeatherLayer } from "../../../dmdata/weather-parser";
 
 /** WeatherOutcome → PresentationEvent */
@@ -45,7 +46,7 @@ export function fromWeatherOutcome(outcome: WeatherOutcome): PresentationEvent {
     headline: info.headline,
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
     publishingOffice: xmlReport?.control.publishingOffice ?? info.publishingOffice,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

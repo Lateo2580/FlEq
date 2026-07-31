@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 // 実 fixture に出現しない特別警報級 Code (L5 / nonLevelSpecial) の描画経路を
 // in-memory ParsedWeatherWarning で検証する (合成 XML は壊れやすいため避ける)。
 // Code 解決自体は test/dmdata/weather-warning-level.test.ts で網羅済み。
@@ -8,6 +9,7 @@ import type { ParsedWeatherWarning } from "../../src/types";
 
 function makeInfo(kinds: { code: string; name: string }[]): ParsedWeatherWarning {
   return {
+    meta: testTelegramMeta(false),
     type: "VPWW55", infoType: "発表", title: "千葉県気象警報・注意報",
     reportDateTime: "2026-06-08T03:00:00+09:00", headline: null,
     publishingOffice: "気象庁", editorialOffice: "気象庁", controlTitle: "気象警報・注意報",

@@ -19,10 +19,23 @@ import type {
   ParsedHeatAlertInfo,
   ParsedTyphoonAnalysis,
   ParsedTyphoonProbability,
+  TelegramMeta,
   WsDataMessage,
 } from "../types";
 import { displayEewInfo } from "./eew-formatter";
 import { displaySeismicTextInfo } from "./seismic-text-formatter";
+
+const SAMPLE_TELEGRAM_META: TelegramMeta = {
+  messageId: "preview-sample",
+  eventId: { raw: null, value: null, valid: false },
+  type: { raw: "preview", value: "preview", valid: true },
+  reportDateTime: { raw: null, epochMs: null, valid: false },
+  serial: { raw: null, numeric: null, valid: false },
+  infoType: { raw: "発表", value: "発表", valid: true },
+  receivedAtMs: 0,
+  status: "試験",
+  isTest: true,
+};
 import { displayNankaiTroughInfo } from "./nankai-trough-formatter";
 import { displayLgObservationInfo } from "./lg-observation-formatter";
 import { displayEarthquakeInfo } from "./earthquake-info-formatter";
@@ -57,6 +70,9 @@ import { parseHeatAlert } from "../dmdata/heat-alert-parser";
 import { parseTyphoonAnalysis } from "../dmdata/typhoon-analysis-parser";
 import { parseTyphoonProbability } from "../dmdata/typhoon-probability-parser";
 import { parseFloodForecast } from "../dmdata/flood-forecast-parser";
+import { parseTelegramEnvelopeXml } from "../dmdata/telegram-envelope";
+import { normalizeTelegramMessage } from "../dmdata/telegram-ingress";
+import { deriveIsTest } from "../dmdata/telegram-meta";
 import type { ParsedFloodForecastInfo } from "../types";
 import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../engine/presentation/volcano-presentation";
 import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggregator";
@@ -78,6 +94,10 @@ function resolveFixturesDir(): string {
   return path.resolve(__dirname, "../../test/fixtures");
 }
 
+function nullableXmlText(value: string): string | null {
+  return value === "" ? null : value;
+}
+
 /** フィクスチャXMLを読み込み WsDataMessage を構築する */
 function loadFixture(filename: string): WsDataMessage | null {
   try {
@@ -95,6 +115,7 @@ function loadFixture(filename: string): WsDataMessage | null {
       /(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+|VPWW\d+|VPWS\d+|VPHW\d+|VPBS\d+|VPAW\d+|VPZI\d+|VPCI\d+|VPCJ\d+|VPZJ\d+|VPFJ\d+|VMCJ\d+|VPWP\d+|VPFT\d+|VPTW\d+|VPTA\d+|VXKO\d+|VXSU\d+)/
     );
     const type = typeMatch ? typeMatch[1] : "VXSE53";
+    const { control, head } = parseTelegramEnvelopeXml(xml);
     const classification =
       type === "VXSE43"
         ? "eew.warning"
@@ -122,7 +143,7 @@ function loadFixture(filename: string): WsDataMessage | null {
               ? "telegram.weather"
               : "telegram.earthquake";
 
-    return {
+    return normalizeTelegramMessage({
       type: "data",
       version: "2.0",
       classification,
@@ -130,36 +151,39 @@ function loadFixture(filename: string): WsDataMessage | null {
       passing: [{ name: "test", time: new Date().toISOString() }],
       head: {
         type,
-        author: "気象庁",
-        time: new Date().toISOString(),
-        test: false,
+        author: control.publishingOffice,
+        time: control.dateTime,
+        test: deriveIsTest({
+          headTest: null,
+          controlStatus: control.status,
+        }),
         xml: true,
       },
       xmlReport: {
         control: {
-          title: "テスト電文",
-          dateTime: new Date().toISOString(),
-          status: "通常",
-          editorialOffice: "気象庁本庁",
-          publishingOffice: "気象庁",
+          title: control.title,
+          dateTime: control.dateTime,
+          status: control.status,
+          editorialOffice: control.editorialOffice,
+          publishingOffice: control.publishingOffice,
         },
         head: {
-          title: "テスト電文",
-          reportDateTime: new Date().toISOString(),
-          targetDateTime: new Date().toISOString(),
-          eventId: null,
-          serial: null,
-          infoType: "発表",
-          infoKind: "テスト",
-          infoKindVersion: "1.0_0",
-          headline: null,
+          title: head.title,
+          reportDateTime: head.reportDateTime,
+          targetDateTime: head.targetDateTime,
+          eventId: nullableXmlText(head.eventId),
+          serial: nullableXmlText(head.serial),
+          infoType: head.infoType,
+          infoKind: head.infoKind,
+          infoKindVersion: head.infoKindVersion,
+          headline: nullableXmlText(head.headline),
         },
       },
       format: "xml",
       compression: "gzip",
       encoding: "base64",
       body,
-    };
+    }).message;
   } catch {
     return null;
   }
@@ -329,6 +353,7 @@ export const SAMPLE_EARTHQUAKE = {
   tsunami: {
     text: "この地震により、日本の沿岸では若干の海面変動があるかもしれませんが、被害の心配はありません。",
   },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -361,6 +386,7 @@ export const SAMPLE_EEW = {
       { name: "新潟県中越", intensity: "3" },
     ],
   },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
   isWarning: false,
 } satisfies ParsedEewInfo;
@@ -403,6 +429,7 @@ export const SAMPLE_TSUNAMI = {
   },
   warningComment:
     "津波による被害のおそれがあります。警報が発表された沿岸部や川沿いにいる人はただちに高台や避難ビルなど安全な場所へ避難してください。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedTsunamiInfo;
 
@@ -419,6 +446,7 @@ export const SAMPLE_SEISMIC_TEXT = {
     "＊＊　概要　＊＊\n" +
     "１日16時10分頃、石川県能登地方を震源とするマグニチュード7.6の地震が発生し、石川県志賀町で震度７を観測しました。\n" +
     "この地震について、緊急地震速報（警報）を発表しています。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedSeismicTextInfo;
 
@@ -439,6 +467,7 @@ export const SAMPLE_NANKAI_TROUGH = {
     "この地震と南海トラフ地震との関連性について調査を開始します。\n" +
     "今後の情報に注意してください。",
   nextAdvisory: "続報は２時間後を目途に発表します。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedNankaiTroughInfo;
 
@@ -467,6 +496,7 @@ export const SAMPLE_LG_OBSERVATION = {
     { name: "富山県東部", maxInt: "5強", maxLgInt: "2" },
     { name: "富山県西部", maxInt: "5弱", maxLgInt: "1" },
   ],
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedLgObservationInfo;
 
@@ -497,6 +527,7 @@ const FALLBACK_EARTHQUAKE_WARNING = {
     municipalities: [],
   },
   tsunami: { text: "この地震による津波の心配はありません。" },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -508,6 +539,7 @@ const FALLBACK_EARTHQUAKE_CANCEL = {
   headline: "先ほどの地震情報を取り消します。",
   publishingOffice: "気象庁",
   eventId: null,
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -528,6 +560,7 @@ const FALLBACK_EARTHQUAKE_ENCHI = {
     magnitude: "6.9",
   },
   tsunami: { text: "日本への津波の影響はありません。" },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -548,6 +581,7 @@ const FALLBACK_EARTHQUAKE_SHINDO = {
     ],
     municipalities: [],
   },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -578,6 +612,7 @@ const FALLBACK_EARTHQUAKE_LG = {
     municipalities: [],
   },
   tsunami: { text: "この地震による津波の心配はありません。" },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedEarthquakeInfo;
 
@@ -606,6 +641,7 @@ const FALLBACK_EEW_WARNING = {
     ],
     maxLgInt: "3",
   },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
   isWarning: true,
 } satisfies ParsedEewInfo;
@@ -628,6 +664,7 @@ const FALLBACK_EEW_CANCEL = {
     magnitude: "6.5",
   },
   isAssumedHypocenter: false,
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
   isWarning: false,
 } satisfies ParsedEewInfo;
@@ -657,6 +694,7 @@ const FALLBACK_EEW_PLUM = {
       { name: "富山県東部", intensity: "5弱", isPlum: true, hasArrived: true },
     ],
   },
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
   isWarning: false,
 } satisfies ParsedEewInfo;
@@ -686,6 +724,7 @@ const FALLBACK_EEW_FINAL = {
     ],
   },
   nextAdvisory: "この情報をもって、緊急地震速報を終了します。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
   isWarning: false,
 } satisfies ParsedEewInfo;
@@ -714,6 +753,7 @@ const FALLBACK_TSUNAMI_MAJOR = {
     magnitude: "8.4",
   },
   warningComment: "海岸や川沿いから直ちに避難してください。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedTsunamiInfo;
 
@@ -741,6 +781,7 @@ const FALLBACK_TSUNAMI_ADVISORY = {
     magnitude: "6.8",
   },
   warningComment: "海の中では速い流れに注意してください。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedTsunamiInfo;
 
@@ -752,6 +793,7 @@ const FALLBACK_TSUNAMI_CANCEL = {
   headline: "津波警報等を解除しました。",
   publishingOffice: "気象庁",
   warningComment: "現在、津波の心配はありません。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedTsunamiInfo;
 
@@ -790,6 +832,7 @@ const FALLBACK_TSUNAMI_OBS = {
     magnitude: "7.7",
   },
   warningComment: "今後さらに高い津波が到達するおそれがあります。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedTsunamiInfo;
 
@@ -821,6 +864,7 @@ const FALLBACK_TSUNAMI_OFFSHORE = {
     },
   ],
   warningComment: "沿岸では引き続き警戒してください。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedTsunamiInfo;
 
@@ -832,6 +876,7 @@ const FALLBACK_SEISMIC_TEXT_CANCEL = {
   headline: "先ほどの情報を取り消します。",
   publishingOffice: "気象庁",
   bodyText: "先ほど発表した地震回数に関する情報は取り消します。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedSeismicTextInfo;
 
@@ -846,6 +891,7 @@ const FALLBACK_NANKAI_CAUTION = {
   bodyText:
     "南海トラフ沿いで規模の大きな地震が発生しました。\n今後の地震活動に注意してください。",
   nextAdvisory: "今後の情報に注意してください。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedNankaiTroughInfo;
 
@@ -859,6 +905,7 @@ const FALLBACK_NANKAI_CLOSED = {
   infoSerial: { name: "調査終了", code: "190" },
   bodyText:
     "今回の地震について調査した結果、特段の防災対応をとるべき状況ではありません。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedNankaiTroughInfo;
 
@@ -885,6 +932,7 @@ const FALLBACK_LG_OBS_3 = {
     { name: "神奈川県東部", maxInt: "4", maxLgInt: "2" },
   ],
   comment: "高層ビルでは大きな揺れを感じることがあります。",
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedLgObservationInfo;
 
@@ -910,6 +958,7 @@ const FALLBACK_LG_OBS_2 = {
     { name: "大阪府北部", maxInt: "3", maxLgInt: "2" },
     { name: "兵庫県南東部", maxInt: "3", maxLgInt: "1" },
   ],
+  meta: SAMPLE_TELEGRAM_META,
   isTest: true,
 } satisfies ParsedLgObservationInfo;
 

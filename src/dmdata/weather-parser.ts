@@ -9,6 +9,7 @@ import {
 import { decodeBody, dig, str, first } from "./telegram-parser";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "./weather-warning-level";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 /**
@@ -398,6 +399,7 @@ function summarizeSeverity(layers: WeatherAreaLayer[]): {
  */
 export function parseWeatherWarning(msg: WsDataMessage): ParsedWeatherWarning | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = parseWeatherXml(xmlStr);
 
@@ -456,7 +458,8 @@ export function parseWeatherWarning(msg: WsDataMessage): ParsedWeatherWarning | 
       maxSoundLevel: computeMaxSoundLevel(layers),
       warningAreaCount: summary.warningAreaCount,
       advisoryAreaCount: summary.advisoryAreaCount,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

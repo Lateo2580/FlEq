@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import {
   analyzeWeatherTickerFacts,
@@ -13,6 +14,7 @@ import {
 
 function makeInfo(overrides: Partial<ParsedWeatherWarning>): ParsedWeatherWarning {
   return {
+    meta: testTelegramMeta(false),
     type: "VPWS50",
     infoType: "発表",
     title: "気象警報・注意報（全国）",

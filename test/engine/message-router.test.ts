@@ -747,6 +747,7 @@ describe("message-router 統合テスト", () => {
       const event = tap.mock.calls[0][0];
       expect(event.route).toBe("earthquake");
       expect(event.message).toBe(msg);
+      expect(event.message.meta).toBe(msg.meta);
     });
 
     it("ignore 対象の電文でも tap は呼ばれる (route === 'ignore')", () => {

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import {
   __vpws50_internals,
@@ -275,6 +276,7 @@ describe("aggregateVpws50ByForecastZone", () => {
 
   it("解除は statuses[].lastKindName から抽出 (人工 fixture)", () => {
     const fakeInfo: ParsedWeatherWarning = {
+      meta: testTelegramMeta(false),
       type: "VPWS50",
       infoType: "発表",
       title: "テスト",
@@ -311,6 +313,7 @@ describe("aggregateVpws50ByForecastZone", () => {
 
   it("府県予報区等レイヤー不在: 空結果", () => {
     const fakeInfo: ParsedWeatherWarning = {
+      meta: testTelegramMeta(false),
       type: "VPWS50",
       infoType: "発表",
       title: "テスト",
@@ -367,6 +370,7 @@ const msg = createMockWsDataMessage(FIXTURE_VPWS50_AGGREGATE);
     chalkRef.level = 0;
     try {
 const fakeInfo: ParsedWeatherWarning = {
+  meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "発表", title: "", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
@@ -391,6 +395,7 @@ const fakeInfo: ParsedWeatherWarning = {
     chalkRef.level = 0;
     try {
 const fakeInfo: ParsedWeatherWarning = {
+  meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "発表", title: "", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{
@@ -426,6 +431,7 @@ describe("hasForecastZoneLayer", () => {
 
   it("府県予報区等レイヤーあり: true", () => {
     const info: ParsedWeatherWarning = {
+      meta: testTelegramMeta(false),
       type: "VPWS50", infoType: "発表", title: "", reportDateTime: "",
       headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
       layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
@@ -438,6 +444,7 @@ describe("hasForecastZoneLayer", () => {
 
   it("府県予報区等レイヤーなし (他レイヤーのみ): false", () => {
     const info: ParsedWeatherWarning = {
+      meta: testTelegramMeta(false),
       type: "VPWS50", infoType: "発表", title: "", reportDateTime: "",
       headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
       layers: [{ type: "気象警報・注意報（市町村等）", items: [] }],
@@ -450,6 +457,7 @@ describe("hasForecastZoneLayer", () => {
 
   it("layers 空: false", () => {
     const info: ParsedWeatherWarning = {
+      meta: testTelegramMeta(false),
       type: "VPWS50", infoType: "発表", title: "", reportDateTime: "",
       headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
       layers: [],
@@ -497,6 +505,7 @@ describe("displayVpws50Compact", () => {
     console.log = (msg: unknown) => logs.push(String(msg));
     try {
       const fakeInfo: ParsedWeatherWarning = {
+        meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "取消", title: "", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [], comments: [], maxSeverity: "release",
@@ -519,6 +528,7 @@ describe("displayVpws50Compact", () => {
     console.log = (msg: unknown) => logs.push(String(msg));
     try {
       const fakeInfo: ParsedWeatherWarning = {
+        meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "発表", title: "", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{ type: "気象警報・注意報（府県予報区等）", items: [] }],
@@ -595,6 +605,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
     console.log = (msg: unknown) => logs.push(String(msg));
     try {
       const fakeInfo: ParsedWeatherWarning = {
+        meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "取消", title: "テスト取消", reportDateTime: "2025-01-01T00:00:00",
         headline: null, publishingOffice: "気象庁", editorialOffice: "気象庁", controlTitle: "",
         layers: [{
@@ -647,6 +658,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
     try {
       // VPWS50 だが府県予報区等レイヤーが無い人工 fixture (壊れた電文相当)
       const fakeInfo: ParsedWeatherWarning = {
+        meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "発表", title: "テスト", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{
@@ -703,6 +715,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
     console.log = (msg: unknown) => logs.push(String(msg));
     try {
       const fakeInfo: ParsedWeatherWarning = {
+        meta: testTelegramMeta(false),
         type: "VPWS50", infoType: "発表", title: "テスト", reportDateTime: "",
         headline: null, publishingOffice: "", editorialOffice: "", controlTitle: "",
         layers: [{
@@ -737,6 +750,7 @@ describe("displayWeatherWarning - VPWS50 統合", () => {
 /** 6 状態テスト用の共通ファクトリ: ParsedWeatherWarning と diff を組み合わせる */
 function makeFakeInfo(opts?: Partial<ParsedWeatherWarning>): ParsedWeatherWarning {
   const base: ParsedWeatherWarning = {
+    meta: testTelegramMeta(false),
     type: "VPWS50",
     infoType: "発表",
     title: "気象警報・注意報",

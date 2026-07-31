@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displayEewInfo, buildEewAccuracyLine, buildEewCardLine } from "../../src/ui/eew-formatter";
@@ -109,6 +110,7 @@ describe("buildEewAccuracyLine", () => {
 
 function syntheticEew(areas: NonNullable<ParsedEewInfo["forecastIntensity"]>["areas"]): ParsedEewInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE45",
     infoType: "発表",
     title: "緊急地震速報（地震動予報）",
@@ -408,6 +410,7 @@ describe("EEW 取消報 (Phase 4b: cancelText 優先 + fallback)", () => {
 
   it("cancelText 無し (synthetic): 固定文 fallback", () => {
     const info: ParsedEewInfo = {
+      meta: testTelegramMeta(false),
       type: "VXSE45", infoType: "取消", title: "緊急地震速報（地震動予報）",
       reportDateTime: new Date().toISOString(), headline: null, publishingOffice: "気象庁",
       serial: "5", eventId: "20260705000000", isTest: false, isWarning: false, isAssumedHypocenter: false,

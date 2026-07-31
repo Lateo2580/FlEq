@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import {
   weatherFrameLevel,
@@ -87,6 +88,7 @@ import type {
 
 function eew(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE44",
     infoType: "発表",
     title: "緊急地震速報",
@@ -106,6 +108,7 @@ function earthquake(
   overrides: Partial<ParsedEarthquakeInfo> = {},
 ): ParsedEarthquakeInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE53",
     infoType: "発表",
     title: "震源・震度情報",
@@ -122,6 +125,7 @@ function tsunami(
   overrides: Partial<ParsedTsunamiInfo> = {},
 ): ParsedTsunamiInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
     title: "津波警報・注意報・予報",
@@ -138,6 +142,7 @@ function seismicText(
   overrides: Partial<ParsedSeismicTextInfo> = {},
 ): ParsedSeismicTextInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE56",
     infoType: "発表",
     title: "地震の活動状況等に関する情報",
@@ -154,6 +159,7 @@ function nankaiTrough(
   overrides: Partial<ParsedNankaiTroughInfo> = {},
 ): ParsedNankaiTroughInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VYSE50",
     infoType: "発表",
     title: "南海トラフ地震臨時情報",
@@ -170,6 +176,7 @@ function lgObservation(
   overrides: Partial<ParsedLgObservationInfo> = {},
 ): ParsedLgObservationInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE62",
     infoType: "発表",
     title: "長周期地震動に関する観測情報",
@@ -455,6 +462,7 @@ function weatherExplanationStub(
   overrides: Partial<ParsedWeatherExplanation> = {},
 ): ParsedWeatherExplanation {
   return {
+    meta: testTelegramMeta(false),
     type: "VPCJ51",
     infoType: "発表",
     title: "地方気象解説情報",
@@ -688,6 +696,7 @@ describe("weather 系 7 sound level: 取消は cancel に統一されている",
     overrides: Partial<ParsedWeatherWarning> = {},
   ): ParsedWeatherWarning {
     return {
+      meta: testTelegramMeta(false),
       type: "VPWW55",
       infoType: "発表",
       title: "気象警報・注意報",
@@ -708,6 +717,7 @@ describe("weather 系 7 sound level: 取消は cancel に統一されている",
     overrides: Partial<ParsedTornadoAdvisory> = {},
   ): ParsedTornadoAdvisory {
     return {
+      meta: testTelegramMeta(false),
       type: "VPHW50",
       infoType: "発表",
       title: "竜巻注意情報",
@@ -733,6 +743,7 @@ describe("weather 系 7 sound level: 取消は cancel に統一されている",
     overrides: Partial<ParsedWeatherBriefing> = {},
   ): ParsedWeatherBriefing {
     return {
+      meta: testTelegramMeta(false),
       type: "VPBS50",
       infoType: "発表",
       title: "気象防災速報",
@@ -759,6 +770,7 @@ describe("weather 系 7 sound level: 取消は cancel に統一されている",
     overrides: Partial<ParsedEarlyWeatherInfo> = {},
   ): ParsedEarlyWeatherInfo {
     return {
+      meta: testTelegramMeta(false),
       type: "VPAW51",
       infoType: "発表",
       title: "早期天候情報",
@@ -785,6 +797,7 @@ describe("weather 系 7 sound level: 取消は cancel に統一されている",
     overrides: Partial<ParsedClimateInfo> = {},
   ): ParsedClimateInfo {
     return {
+      meta: testTelegramMeta(false),
       type: "VPZI50",
       infoType: "発表",
       title: "全般天候情報",
@@ -811,6 +824,7 @@ describe("weather 系 7 sound level: 取消は cancel に統一されている",
     overrides: Partial<ParsedWeatherWarningTimeseriesInfo> = {},
   ): ParsedWeatherWarningTimeseriesInfo {
     return {
+      meta: testTelegramMeta(false),
       type: "VPWP50",
       infoType: "発表",
       title: "気象警報・注意報時系列情報",
@@ -1060,6 +1074,7 @@ describe("weatherFrameLevel / weatherSoundLevel 表テスト (Phase C)", () => {
     maxSoundLevel?: SoundLevel | null;
   }): ParsedWeatherWarning {
     return {
+      meta: testTelegramMeta(false),
       type: "VPWW55",
       infoType: over.infoType,
       title: "気象警報・注意報",

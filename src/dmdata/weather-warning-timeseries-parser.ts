@@ -38,6 +38,7 @@ import {
   SOUND_LEVEL_RANK,
 } from "./weather-warning-level";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 /**
@@ -851,6 +852,7 @@ export function parseWeatherWarningTimeseries(
   msg: WsDataMessage,
 ): ParsedWeatherWarningTimeseriesInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const decodedBytes = Buffer.byteLength(xmlStr, "utf8");
 
@@ -913,7 +915,8 @@ export function parseWeatherWarningTimeseries(
         maxDisplayRankSignificancy: null,
         unknownCodes: [],
         fallback: "none",
-        isTest: msg.head.test,
+        meta,
+        isTest: meta.isTest,
       };
     }
 
@@ -949,7 +952,8 @@ export function parseWeatherWarningTimeseries(
       maxDisplayRankSignificancy,
       unknownCodes,
       fallback,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

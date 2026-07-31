@@ -1,4 +1,3 @@
-import zlib from "zlib";
 import {
   WsDataMessage,
   ParsedEarthquakeInfo,
@@ -17,6 +16,8 @@ import {
   ParsedEarthquakeIntensityMunicipality,
 } from "../types";
 import { createJmxXmlParser, dig, str, first, listOf } from "./xml-shape";
+import { decodeTelegramBody } from "./telegram-body";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 // 汎用ノードアクセスヘルパは xml-shape に集約済み。従来 telegram-parser から
@@ -45,32 +46,9 @@ const xmlParser = createJmxXmlParser((name) => {
   return arrayTags.includes(name);
 });
 
-/** 展開後の最大許容サイズ (10 MB) */
-const MAX_DECOMPRESSED_BYTES = 10 * 1024 * 1024;
-
 /** body フィールドをデコードしてXML文字列を返す */
 export function decodeBody(msg: WsDataMessage): string {
-  let buf: Buffer;
-
-  if (msg.encoding === "base64") {
-    buf = Buffer.from(msg.body, "base64");
-  } else {
-    buf = Buffer.from(msg.body, "utf-8");
-  }
-
-  if (msg.compression === "gzip") {
-    buf = zlib.gunzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_BYTES });
-  } else if (msg.compression === "zip") {
-    buf = zlib.unzipSync(buf, { maxOutputLength: MAX_DECOMPRESSED_BYTES });
-  }
-
-  if (buf.length > MAX_DECOMPRESSED_BYTES) {
-    throw new Error(
-      `展開後のサイズが上限を超えています: ${buf.length} bytes (上限: ${MAX_DECOMPRESSED_BYTES} bytes)`
-    );
-  }
-
-  return buf.toString("utf-8");
+  return decodeTelegramBody(msg);
 }
 
 /** XML文字列をパースしてJSオブジェクトを返す */
@@ -571,6 +549,7 @@ export function parseEarthquakeTelegram(
   msg: WsDataMessage
 ): ParsedEarthquakeInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
     const { head, body } = base;
@@ -583,7 +562,8 @@ export function parseEarthquakeTelegram(
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
       eventId: str(dig(head, "EventID")) || null,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
 
     // 震源
@@ -616,6 +596,7 @@ export function parseEewTelegram(
   msg: WsDataMessage
 ): ParsedEewInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
     const { head, body } = base;
@@ -634,7 +615,8 @@ export function parseEewTelegram(
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
       serial: str(dig(head, "Serial")) || null,
       eventId: str(dig(head, "EventID")) || null,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
       isWarning: false, // 仮値 — 後で XML から判定
       isAssumedHypocenter: false,
     };
@@ -717,6 +699,7 @@ export function parseTsunamiTelegram(
   msg: WsDataMessage
 ): ParsedTsunamiInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
     const { head, body } = base;
@@ -733,7 +716,8 @@ export function parseTsunamiTelegram(
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
       warningComment: warningCommentText,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
 
     const tsunami = dig(body, "Tsunami");
@@ -820,6 +804,7 @@ export function parseSeismicTextTelegram(
   msg: WsDataMessage
 ): ParsedSeismicTextInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
     const { head, body } = base;
@@ -832,7 +817,8 @@ export function parseSeismicTextTelegram(
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
       bodyText: str(dig(body, "Text")),
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
 
     return info;
@@ -849,6 +835,7 @@ export function parseNankaiTroughTelegram(
   msg: WsDataMessage
 ): ParsedNankaiTroughInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
     const { head, body } = base;
@@ -861,7 +848,8 @@ export function parseNankaiTroughTelegram(
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
       bodyText: "",
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
 
     // EarthquakeInfo がある場合 (通常の発表電文)
@@ -903,6 +891,7 @@ export function parseLgObservationTelegram(
   msg: WsDataMessage
 ): ParsedLgObservationInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
     const { head, body } = base;
@@ -915,7 +904,8 @@ export function parseLgObservationTelegram(
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
       areas: [],
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
 
     // 震源

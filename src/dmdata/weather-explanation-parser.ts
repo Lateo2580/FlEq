@@ -11,6 +11,7 @@ import { extractObservation } from "./weather-explanation-observation";
 import { extractTidal } from "./weather-explanation-tidal";
 import { listOf, nodeText } from "./timeseries-common";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 /**
@@ -241,6 +242,7 @@ export function parseWeatherExplanation(
   msg: WsDataMessage,
 ): ParsedWeatherExplanation | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = parseWeatherExplanationXml(xmlStr);
 
@@ -304,7 +306,8 @@ export function parseWeatherExplanation(
       forecast: extractForecast(body),
       observation: extractObservation(body),
       tidal: extractTidal(body),
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

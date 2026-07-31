@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -31,6 +32,7 @@ function makeTmpRoot(): string {
 
 function makeTsunamiInfo(): ParsedTsunamiInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
     title: "津波警報・注意報・予報",
@@ -50,6 +52,7 @@ function makeTsunamiInfo(): ParsedTsunamiInfo {
 
 function makeVolcanoInfo(): ParsedVolcanoAlertInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "alert",
     type: "VFVO50",
@@ -89,6 +92,7 @@ function makeVpws50Info(): ParsedWeatherWarning {
   };
   const layers = [{ type: "気象警報・注意報（府県予報区等）", items: [item] }];
   return {
+    meta: testTelegramMeta(false),
     type: "VPWS50",
     infoType: "発表",
     title: "気象警報・注意報",
@@ -110,6 +114,7 @@ function makeVpws50Info(): ParsedWeatherWarning {
 
 function makeVpwp50Info(): ParsedWeatherWarningTimeseriesInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VPWP50",
     infoType: "発表",
     title: "気象警報・注意報時系列情報",

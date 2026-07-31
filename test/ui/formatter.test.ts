@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
@@ -235,6 +236,7 @@ describe("displayEewInfo", () => {
 
   it("forecastIntensity.areas の順序が異なっても最大予測震度が一致する", () => {
     const baseInfo: ParsedEewInfo = {
+      meta: testTelegramMeta(false),
       type: "VXSE45",
       infoType: "発表",
       title: "緊急地震速報（地震動予報）",

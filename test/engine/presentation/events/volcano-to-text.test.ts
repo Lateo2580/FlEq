@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { volcanoAshfallToText } from "../../../../src/engine/presentation/events/volcano-to-text";
 import type { AshArea, AshForecastPeriod, ParsedVolcanoAshfallInfo } from "../../../../src/types";
@@ -10,6 +11,7 @@ function period(over: Partial<AshForecastPeriod>): AshForecastPeriod {
 }
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "ashfall", type: "VFVO53", subKind: "scheduled", infoType: "発表", title: "降灰予報",
     reportDateTime: "2021-05-17T14:00:00+09:00", eventDateTime: null, headline: null,

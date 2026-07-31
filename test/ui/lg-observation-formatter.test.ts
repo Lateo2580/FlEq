@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
@@ -151,6 +152,7 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
   it("欠損 optional (earthquake/maxInt/maxLgInt/comment/detailUri なし) は行ごと省略され表示が壊れない", () => {
     const base = parseFixture();
     const minimal: ParsedLgObservationInfo = {
+      meta: testTelegramMeta(false),
       type: base.type, infoType: base.infoType, title: base.title,
       reportDateTime: base.reportDateTime, headline: null,
       publishingOffice: base.publishingOffice, areas: [], isTest: false,

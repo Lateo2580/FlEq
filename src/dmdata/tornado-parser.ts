@@ -8,6 +8,7 @@ import {
 import { decodeBody, dig, str, first } from "./telegram-parser";
 import { resolveTornadoSeverity } from "./weather-warning-level";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 /**
@@ -249,6 +250,7 @@ function summarizeAreas(layers: TornadoAreaLayer[]): number {
  */
 export function parseTornadoAdvisory(msg: WsDataMessage): ParsedTornadoAdvisory | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = parseTornadoXml(xmlStr);
 
@@ -311,7 +313,8 @@ export function parseTornadoAdvisory(msg: WsDataMessage): ParsedTornadoAdvisory 
       activeAreaCount,
       displaySeverity: resolved.displaySeverity,
       soundLevel: resolved.soundLevel,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

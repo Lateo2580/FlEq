@@ -25,13 +25,26 @@ const HEARTBEAT_TIMEOUT_MS = 90_000;
 const RECONNECT_JITTER_MS = 1_000;
 
 /** 受信オブジェクトが WsDataMessage の必須フィールドを持つか確認 */
-function isWsDataMessage(parsed: unknown): parsed is WsDataMessage {
+export function isWsDataMessage(parsed: unknown): parsed is WsDataMessage {
   if (typeof parsed !== "object" || parsed == null) return false;
   const msg = parsed as Record<string, unknown>;
   if (typeof msg["id"] !== "string") return false;
   if (typeof msg["head"] !== "object" || msg["head"] == null) return false;
   const head = msg["head"] as Record<string, unknown>;
-  return typeof head["type"] === "string";
+  if (typeof head["type"] !== "string" || typeof head["test"] !== "boolean") {
+    return false;
+  }
+  const xmlReport = msg["xmlReport"];
+  if (xmlReport != null) {
+    if (typeof xmlReport !== "object" || Array.isArray(xmlReport)) return false;
+    const control = (xmlReport as Record<string, unknown>)["control"];
+    if (control != null) {
+      if (typeof control !== "object" || Array.isArray(control)) return false;
+      const status = (control as Record<string, unknown>)["status"];
+      if (status != null && typeof status !== "string") return false;
+    }
+  }
+  return true;
 }
 
 function isWsStartMessage(parsed: unknown): parsed is WsStartMessage {

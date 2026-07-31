@@ -3,6 +3,9 @@ import path from "path";
 import zlib from "zlib";
 import { WsDataMessage } from "../../src/types";
 import type { ParsedWeatherWarningTimeseriesInfo } from "../../src/types";
+import { normalizeTelegramMessage } from "../../src/dmdata/telegram-ingress";
+import { deriveIsTest } from "../../src/dmdata/telegram-meta";
+import { parseTelegramEnvelopeXml } from "../../src/dmdata/telegram-envelope";
 
 /** フィクスチャディレクトリのパス */
 const FIXTURES_DIR = path.resolve(__dirname, "../fixtures");
@@ -483,12 +486,56 @@ export function encodeXml(xml: string): string {
   return compressed.toString("base64");
 }
 
+function nullableXmlText(text: string): string | null {
+  return text === "" ? null : text;
+}
+
+function fixtureEnvelope(xml: string, type: string): Pick<
+  WsDataMessage,
+  "head" | "xmlReport"
+> {
+  const { control, head } = parseTelegramEnvelopeXml(xml);
+  const status = control.status;
+  const publishingOffice = control.publishingOffice;
+  const controlDateTime = control.dateTime;
+  return {
+    head: {
+      type,
+      author: publishingOffice,
+      time: controlDateTime,
+      test: deriveIsTest({ headTest: null, controlStatus: status }),
+      xml: true,
+    },
+    xmlReport: {
+      control: {
+        title: control.title,
+        dateTime: controlDateTime,
+        status,
+        editorialOffice: control.editorialOffice,
+        publishingOffice,
+      },
+      head: {
+        title: head.title,
+        reportDateTime: head.reportDateTime,
+        targetDateTime: head.targetDateTime,
+        eventId: nullableXmlText(head.eventId),
+        serial: nullableXmlText(head.serial),
+        infoType: head.infoType,
+        infoKind: head.infoKind,
+        infoKindVersion: head.infoKindVersion,
+        headline: nullableXmlText(head.headline),
+      },
+    },
+  };
+}
+
 /**
  * フィクスチャXMLから WsDataMessage を構築する。
  * overrides で任意のフィールドを上書き可能。
  * opts.publishingOffice は envelope (xmlReport.control) 側の発表官署を差し替える。
  * parser は envelope を XML 本体の Control.PublishingOffice より優先するため、
- * 官署別ストリームを扱うテストはここを変える (既定は本庁 "気象庁")。
+ * 官署別ストリームを明示的に検証するテストだけがここを変える。
+ * 既定の Control／Head metadata は実 XML から構成する。
  */
 export function createMockWsDataMessage(
   fixtureName: string,
@@ -510,6 +557,7 @@ export function createMockWsDataMessage(
         : (type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
           ? "telegram.weather"
           : "telegram.earthquake";
+  const envelope = fixtureEnvelope(xml, type);
 
   const base: WsDataMessage = {
     type: "data",
@@ -517,40 +565,24 @@ export function createMockWsDataMessage(
     classification,
     id: "test-id-001",
     passing: [{ name: "test", time: new Date().toISOString() }],
-    head: {
-      type,
-      author: "気象庁",
-      time: new Date().toISOString(),
-      test: false,
-      xml: true,
-    },
-    xmlReport: {
-      control: {
-        title: "テスト電文",
-        dateTime: new Date().toISOString(),
-        status: "通常",
-        editorialOffice: "気象庁本庁",
-        publishingOffice: opts.publishingOffice ?? "気象庁",
-      },
-      head: {
-        title: "テスト電文",
-        reportDateTime: new Date().toISOString(),
-        targetDateTime: new Date().toISOString(),
-        eventId: null,
-        serial: null,
-        infoType: "発表",
-        infoKind: "テスト",
-        infoKindVersion: "1.0_0",
-        headline: null,
-      },
-    },
+    head: envelope.head,
+    xmlReport: envelope.xmlReport == null
+      ? undefined
+      : {
+          ...envelope.xmlReport,
+          control: {
+            ...envelope.xmlReport.control,
+            publishingOffice:
+              opts.publishingOffice ?? envelope.xmlReport.control.publishingOffice,
+          },
+        },
     format: "xml",
     compression: "gzip",
     encoding: "base64",
     body,
   };
 
-  return { ...base, ...overrides } as WsDataMessage;
+  return normalizeTelegramMessage({ ...base, ...overrides } as WsDataMessage).message;
 }
 
 /**
@@ -573,45 +605,34 @@ export function createMockWsDataMessageFromXml(
         : (type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
           ? "telegram.weather"
           : "telegram.earthquake";
+  const envelope = fixtureEnvelope(xml, type);
 
-  return {
+  const message: WsDataMessage = {
     type: "data",
     version: "2.0",
     classification,
     id: "test-id-001",
     passing: [{ name: "test", time: new Date().toISOString() }],
     head: {
-      type,
-      author: "気象庁",
-      time: new Date().toISOString(),
-      test: overrides.test ?? false,
-      xml: true,
+      ...envelope.head,
+      test: overrides.test ?? envelope.head.test,
     },
-    xmlReport: {
-      control: {
-        title: "テスト電文",
-        dateTime: new Date().toISOString(),
-        status: "通常",
-        editorialOffice: "気象庁本庁",
-        publishingOffice: overrides.publishingOffice ?? "気象庁",
-      },
-      head: {
-        title: "テスト電文",
-        reportDateTime: new Date().toISOString(),
-        targetDateTime: new Date().toISOString(),
-        eventId: null,
-        serial: null,
-        infoType: "発表",
-        infoKind: "テスト",
-        infoKindVersion: "1.0_0",
-        headline: null,
-      },
-    },
+    xmlReport: envelope.xmlReport == null
+      ? undefined
+      : {
+          ...envelope.xmlReport,
+          control: {
+            ...envelope.xmlReport.control,
+            publishingOffice:
+              overrides.publishingOffice ?? envelope.xmlReport.control.publishingOffice,
+          },
+        },
     format: "xml",
     compression: "gzip",
     encoding: "base64",
     body,
   };
+  return normalizeTelegramMessage(message).message;
 }
 
 /**

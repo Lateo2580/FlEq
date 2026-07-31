@@ -2,6 +2,7 @@ import type {
   TyphoonProbabilityOutcome,
   PresentationEvent,
 } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 import { aggregateByPrefecture } from "../typhoon-probability-aggregate";
 import { typhoonProbabilityToText } from "./typhoon-to-text";
 
@@ -37,7 +38,7 @@ export function fromTyphoonProbabilityOutcome(
     reportDateTime: xmlReport?.head.reportDateTime ?? (info.reportDateTime ?? ""),
     publishingOffice:
       xmlReport?.control.publishingOffice ?? (info.publishingOffice ?? ""),
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

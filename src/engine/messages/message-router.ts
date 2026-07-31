@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import * as log from "../../logger";
 import type { WsDataMessage } from "../../types";
+import { normalizeTelegramMessage } from "../../dmdata/telegram-ingress";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
 import { Notifier } from "../notification/notifier";
@@ -345,7 +346,13 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     display,
   });
 
-  const handler = (msg: WsDataMessage): void => {
+  const handler = (incoming: WsDataMessage): void => {
+    const normalized = normalizeTelegramMessage(incoming);
+    const msg = normalized.message;
+    if (normalized.diagnostics.testMetadataMismatch) {
+      stats.recordTestMetadataMismatch();
+    }
+
     // XML電文でない場合はヘッダ情報のみ表示
     if (msg.format !== "xml" || !msg.head.xml) {
       display?.displayRawHeader(msg);

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, expect, it, vi } from "vitest";
 import type { ParsedVolcanoAshfallInfo, WsDataMessage } from "../../src/types";
 import type { VolcanoBatchOutcome } from "../../src/engine/presentation/types";
@@ -7,6 +8,7 @@ import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 
 function info(volcanoCode: string, volcanoName: string): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano", kind: "ashfall", type: "VFVO53", subKind: "scheduled",
     infoType: "定時", title: "降灰予報", reportDateTime: "2026-07-10T12:00:00+09:00",
     eventDateTime: null, headline: null, publishingOffice: "気象庁", volcanoName, volcanoCode,

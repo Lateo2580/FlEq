@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
@@ -34,6 +35,7 @@ function makeItem(
 function makeInfo(items: WeatherItem[]): ParsedWeatherWarning {
   const layers = [{ type: "気象警報・注意報（府県予報区等）", items }];
   return {
+    meta: testTelegramMeta(false),
     type: "VPWS50",
     infoType: "発表",
     title: "気象警報・注意報",

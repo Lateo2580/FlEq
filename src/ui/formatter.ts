@@ -1379,8 +1379,8 @@ export function colorMagnitude(magStr: string): string {
  *
  * borderColor (省略可): 罫線色の注入。指定時は frameDividerColored / frameLineColored
  * で描き、本文罫線色 (例: VPWW の WHITE_BORDER) と揃えられる。
- * **省略時の挙動は従来と完全に同一** (frameDivider / frameLine の level 色) —
- * 地震・津波等の他電文系に影響を出さないため。
+ * 1 行に収まらない場合は、発表時刻と発表官署の境界で折り返す。
+ * 官署名自体が長い場合も表示幅で折り返し、情報を省略せず枠内に収める。
  */
 export function renderFooter(
   level: FrameLevel,
@@ -1392,13 +1392,28 @@ export function renderFooter(
   borderColor?: (s: string) => string
 ): void {
   const out = buf ? (line: string) => buf.push(line) : (line: string) => console.log(line);
-  const footerText = chalk.gray(`${type}  ${formatTimestamp(reportDateTime)}  ${publishingOffice}`);
+  const innerWidth = Math.max(1, width - 4);
+  const stamp = `${type}  ${formatTimestamp(reportDateTime)}`;
+  const combined = publishingOffice === "" ? stamp : `${stamp}  ${publishingOffice}`;
+  const footerLines = visualWidth(combined) <= innerWidth
+    ? [combined]
+    : [
+        ...wrapTextLines(stamp, innerWidth),
+        ...(publishingOffice === ""
+          ? []
+          : wrapTextLines(publishingOffice, Math.max(1, innerWidth - 2))
+              .map((line) => `  ${line}`)),
+      ];
   if (borderColor) {
     out(frameDividerColored(level, borderColor, width));
-    out(frameLineColored(level, borderColor, footerText, width));
+    for (const line of footerLines) {
+      out(frameLineColored(level, borderColor, chalk.gray(line), width));
+    }
   } else {
     out(frameDivider(level, width));
-    out(frameLine(level, footerText, width));
+    for (const line of footerLines) {
+      out(frameLine(level, chalk.gray(line), width));
+    }
   }
 }
 

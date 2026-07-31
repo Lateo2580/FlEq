@@ -16,6 +16,7 @@ import {
   VolcanoAlertClassEntry,
 } from "../types";
 import { decodeBody, parseXml, dig, str, first } from "./telegram-parser";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 // ── 共通ヘルパー ──
@@ -143,6 +144,7 @@ function extractVolcanoBase(
   headType: VolcanoHeadType,
   msg: WsDataMessage,
 ): Omit<ParsedVolcanoAlertInfo, "kind" | "type" | "alertLevel" | "alertLevelCode" | "action" | "previousLevelCode" | "warningKind" | "municipalities" | "marineAreas" | "marineWarningKind" | "marineAlertLevelCode" | "alertClass" | "bodyText" | "preventionText" | "isMarine"> {
+  const meta = requireTelegramMeta(msg);
   const head = dig(report, "Head");
   const body = dig(report, "Body");
 
@@ -209,7 +211,8 @@ function extractVolcanoBase(
     volcanoName,
     volcanoCode,
     coordinate,
-    isTest: msg.head.test,
+    meta,
+    isTest: meta.isTest,
   };
 }
 

@@ -44,6 +44,17 @@ describe("TEST_TABLES — typhoonProbability (loadFixture VPTA50 type 推定)", 
   });
 });
 
+describe("TEST_TABLES — fixture envelope", () => {
+  it("洪水 fixture の実 XML にある発表官署を表示へ渡す", () => {
+    TEST_TABLES["floodForecast"].variants[0].run();
+    const joined = stripAnsi(logs.join("\n"));
+
+    expect(joined).toContain("○○河川事務所");
+    expect(joined).toContain("○○地方気象台");
+    expect(joined).toContain("△△地方気象台");
+  });
+});
+
 describe("TEST_TABLES compact summary 経路", () => {
   it.each([
     "weather",

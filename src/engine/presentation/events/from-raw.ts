@@ -1,8 +1,10 @@
 import type { RawOutcome, PresentationEvent } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 
 /** RawOutcome → PresentationEvent (フォールバック用の最小変換) */
 export function fromRawOutcome(outcome: RawOutcome): PresentationEvent {
   const xmlReport = outcome.msg.xmlReport;
+  const meta = presentationTelegramMeta(outcome.msg);
   return {
     id: outcome.msg.id,
     classification: outcome.msg.classification,
@@ -14,7 +16,7 @@ export function fromRawOutcome(outcome: RawOutcome): PresentationEvent {
     headline: xmlReport?.head.headline ?? null,
     reportDateTime: xmlReport?.head.reportDateTime ?? outcome.msg.head.time,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
-    isTest: outcome.msg.head.test,
+    isTest: meta.isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

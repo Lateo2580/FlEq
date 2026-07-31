@@ -9,6 +9,7 @@ import {
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, nodeText } from "./timeseries-common";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 /**
@@ -276,6 +277,7 @@ export function parseEarlyWeather(
   msg: WsDataMessage,
 ): ParsedEarlyWeatherInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = parseEarlyWeatherXml(xmlStr);
 
@@ -327,7 +329,8 @@ export function parseEarlyWeather(
       targetArea,
       phenomena,
       bodyTexts,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

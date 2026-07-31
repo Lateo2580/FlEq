@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
@@ -9,6 +10,7 @@ import { ParsedEewInfo } from "../../src/types";
 /** テスト用の ParsedEewInfo を生成する */
 function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE45",
     infoType: "発表",
     title: "緊急地震速報（地震動予報）",

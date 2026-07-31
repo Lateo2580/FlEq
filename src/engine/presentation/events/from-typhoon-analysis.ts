@@ -2,6 +2,7 @@ import type {
   TyphoonAnalysisOutcome,
   PresentationEvent,
 } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 import { typhoonAnalysisToText } from "./typhoon-to-text";
 
 /** TyphoonAnalysisOutcome → PresentationEvent */
@@ -24,7 +25,7 @@ export function fromTyphoonAnalysisOutcome(
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
     publishingOffice:
       xmlReport?.control.publishingOffice ?? info.publishingOffice,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

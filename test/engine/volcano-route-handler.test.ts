@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ParsedVolcanoAlertInfo,
@@ -39,6 +40,7 @@ function createMessage(id: string, headType: string): WsDataMessage {
 
 function createVfvo53(): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "ashfall",
     type: "VFVO53",
@@ -63,6 +65,7 @@ function createVfvo53(): ParsedVolcanoAshfallInfo {
 
 function createFlashReport(): ParsedVolcanoEruptionInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "eruption",
     type: "VFVO56",
@@ -93,6 +96,7 @@ function createAlert(
   alertLevel: ParsedVolcanoAlertInfo["alertLevel"],
 ): ParsedVolcanoAlertInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "alert",
     type: "VFVO50",
@@ -124,6 +128,7 @@ function createAlert(
 
 function createWarningClassText(code: "22" | "23"): ParsedVolcanoTextInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "text",
     type: "VFVO51",

@@ -3,6 +3,7 @@ import type {
   VolcanoBatchOutcome,
   PresentationEvent,
 } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 import { joinVolcanoBatch, joinVolcanoAshfallBatch } from "./join-body-sections";
 import { volcanoAshfallToText } from "./volcano-to-text";
 
@@ -29,7 +30,7 @@ export function expandVolcanoBatchForDisplay(outcome: VolcanoBatchOutcome): Pres
       headline: info.headline ?? xmlReport?.head.headline ?? null,
       reportDateTime: xmlReport?.head.reportDateTime ?? msg.head.time,
       publishingOffice: xmlReport?.control.publishingOffice ?? msg.head.author,
-      isTest: msg.head.test,
+      isTest: presentationTelegramMeta(msg).isTest,
       frameLevel: outcome.presentation.frameLevel,
       soundLevel: outcome.presentation.soundLevel,
       notifyCategory: outcome.presentation.notifyCategory,
@@ -71,7 +72,7 @@ function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
     headline: info.headline ?? xmlReport?.head.headline ?? null,
     reportDateTime: xmlReport?.head.reportDateTime ?? outcome.msg.head.time,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,
@@ -126,7 +127,7 @@ function fromVolcanoBatchOutcome(outcome: VolcanoBatchOutcome): PresentationEven
     headline: firstItem?.headline ?? xmlReport?.head.headline ?? null,
     reportDateTime: outcome.batchReportDateTime,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
-    isTest: outcome.batchIsTest,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

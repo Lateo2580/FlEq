@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach, afterEach, vi , type MockInstance } from "vitest";
 import chalk from "chalk";
 import {
@@ -275,6 +276,7 @@ it.each([
 const LONG_AREA = "非常に長い架空の津波予報区名でセル幅を必ず超過させる検証用文字列";
 const LONG_HEIGHT = "１０ｍを大きく超える巨大な津波が長時間継続するおそれ";
 const syntheticLongInfo = (): ParsedTsunamiInfo => ({
+  meta: testTelegramMeta(false),
   type: "VTSE41",
   infoType: "発表",
   title: "津波警報・注意報・予報",
@@ -341,6 +343,7 @@ describe("折りたたみ detail 復元 (Codex review Important #2)", () => {
   afterEach(() => { setFrameWidth(60); setMaxObservations(null); });
 
   const manyStationInfo = (): ParsedTsunamiInfo => ({
+    meta: testTelegramMeta(false),
     type: "VTSE51",
     infoType: "発表",
     title: "津波情報",
@@ -495,6 +498,7 @@ describe("VTSE52 センサー列の standard 表示 (spec §8 R2-1)", () => {
   afterEach(() => { setFrameWidth(60); });
 
   const obsInfo = (): ParsedTsunamiInfo => ({
+    meta: testTelegramMeta(false),
     type: "VTSE52",
     infoType: "発表",
     title: "沖合の津波観測に関する情報",

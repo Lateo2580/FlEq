@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import { EventEmitter } from "events";
 import chalk from "chalk";
+import { testTelegramMeta } from "../helpers/telegram-meta";
 
 // ── モック ──
 
@@ -734,6 +735,7 @@ describe("ReplHandler", () => {
       const getDetail = vi.fn(() => ({
         kind: "tsunami" as const,
         info: {
+          meta: testTelegramMeta(false),
           type: "VTSE41",
           infoType: "発表",
           title: "津波警報・注意報・予報",

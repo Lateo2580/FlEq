@@ -572,6 +572,8 @@ export interface WsDataMessage {
   compression: "gzip" | "zip" | null;
   encoding: "base64" | "utf-8" | null;
   body: string;
+  /** ingress normalizer が生成する共通 metadata。transport raw では未生成。 */
+  meta?: TelegramMeta;
 }
 
 export interface WsErrorMessage {
@@ -759,6 +761,7 @@ export interface ParsedEarthquakeInfo {
     text: string;
   };
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -818,6 +821,7 @@ export interface ParsedEewInfo {
       arrivalTime?: string;
     }[];
   };
+  meta: TelegramMeta;
   isTest: boolean;
   /** 警報かどうか */
   isWarning: boolean;
@@ -879,6 +883,7 @@ export interface ParsedTsunamiInfo {
   estimations?: TsunamiEstimationItem[];
   earthquake?: ParsedEarthquakeHypocenter;
   warningComment: string;
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -891,6 +896,7 @@ export interface ParsedSeismicTextInfo {
   headline: string | null;
   publishingOffice: string;
   bodyText: string;
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -911,6 +917,7 @@ export interface ParsedNankaiTroughInfo {
   bodyText: string;
   /** 次回情報予告 */
   nextAdvisory?: string;
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -942,6 +949,7 @@ export interface ParsedLgObservationInfo {
   comment?: string;
   /** 詳細情報URI */
   detailUri?: string;
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -1024,6 +1032,7 @@ export interface ParsedWeatherWarning {
   /** 注意報を持つ地域数 (集計用) */
   advisoryAreaCount: number;
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -1160,6 +1169,7 @@ export interface ParsedTornadoAdvisory {
   /** Phase D: 通知音 (表示と独立。目撃でも warning — 2026-06-12 レビュー決定) */
   soundLevel: SoundLevel | null;
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -1256,6 +1266,7 @@ export interface ParsedWeatherBriefing {
   /** 観測実況 / 予測の中身 (Body.MeteorologicalInfos > MeteorologicalInfo > Item) */
   observations: WeatherObservation[];
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -1342,6 +1353,7 @@ export interface ParsedEarlyWeatherInfo {
   /** 補足本文 (Property.Type=本文 の Text) */
   bodyTexts: EarlyWeatherBodyText[];
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -1592,6 +1604,7 @@ export interface ParsedWeatherWarningTimeseriesInfo {
   /** 段階 fallback 判定 (none: 通常、compactOnly: section truncation、raw: 全 parse 諦め) */
   fallback: WeatherWarningTimeseriesFallback;
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -1668,6 +1681,7 @@ interface ParsedVolcanoBase {
   volcanoName: string;
   volcanoCode: string;
   coordinate: string | null;
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -2061,6 +2075,7 @@ export interface ParsedWeatherExplanation {
   /** 潮位 TidalLevelPart (VMCJ53-55 のみ非 null)。VPCJ51/VPZJ51/VPFJ51 は null */
   tidal: WeatherExplanationTidal | null;
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -2101,6 +2116,7 @@ export interface ParsedClimateInfo {
   /** Body.Comment の末文 */
   comment: string | null;
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -2135,6 +2151,7 @@ export interface ParsedHeatAlertInfo {
   /** Body.Comment.Text (本文平文) */
   bodyText: string | null;
   /** テスト電文かどうか */
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -2155,6 +2172,7 @@ export interface ParsedTyphoonAnalysis {
   name: TyphoonName | null;  // 呼称（実況の TyphoonNamePart。Area.Name は generic 固定で不使用）
   frames: TyphoonFrame[];    // 実況 + 推定 + 予報（文書順）
   lifecycle: TyphoonLifecycle;
+  meta: TelegramMeta;
   isTest: boolean;
 }
 
@@ -2259,6 +2277,7 @@ export interface ParsedTyphoonProbability {
   regions: TyphoonProbRegion[];
   eventId: string | null;
   serial: string | null;
+  meta: TelegramMeta;
   isTest: boolean;
   fallback: TyphoonProbabilityFallback;
   parserDiagnostics: TyphoonProbParserDiagnostics;
@@ -2293,6 +2312,7 @@ export interface ParsedFloodForecastInfo {
   headTitle: string;
   reportDateTime: string;
   targetDateTime: string | null;
+  meta: TelegramMeta;
   isTest: boolean;
   notice: string | null;
   headlines: FloodHeadline[];

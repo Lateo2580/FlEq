@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, expect, it } from "vitest";
 import { maxFloodLevel } from "../../../src/dmdata/flood-level";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
@@ -36,6 +37,7 @@ function station(overrides: Partial<FloodStation> = {}): FloodStation {
 
 function parsed(overrides: Partial<ParsedFloodForecastInfo> = {}): ParsedFloodForecastInfo {
   return {
+    meta: testTelegramMeta(false),
     schema: "vxko50",
     typeCode: "VXKO50",
     infoKind: "指定河川洪水予報",

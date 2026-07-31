@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi } from "vitest";
 import chalk from "chalk";
 import {
@@ -336,6 +337,7 @@ describe("drawWeatherWarningBanner (3 行色面 + clip)", () => {
 describe("buildWeatherWarningBannerText (severity ベース M1 + 部品優先度落とし)", () => {
   function mockInfo(overrides: Partial<ParsedWeatherWarningTimeseriesInfo>): ParsedWeatherWarningTimeseriesInfo {
     return {
+      meta: testTelegramMeta(false),
       type: "VPWP50", infoType: "発表", title: "", controlTitle: "",
       reportDateTime: "", publishingOffice: "", editorialOffice: "",
       eventId: null, serial: null, headline: null,

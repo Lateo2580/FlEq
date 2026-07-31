@@ -3,6 +3,7 @@ import { restoreTsunamiState } from "../../src/engine/startup/tsunami-initialize
 import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import * as restClient from "../../src/dmdata/rest-client";
 import { TelegramListItem, TelegramListResponse } from "../../src/types";
+import { testTelegramMeta } from "../helpers/telegram-meta";
 
 // sound-player をモック
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -68,6 +69,7 @@ describe("restoreTsunamiState", () => {
     const item = createTelegramItem();
     mockListTelegrams.mockResolvedValue(createResponse([item]));
     mockParseTsunami.mockReturnValue({
+      meta: testTelegramMeta(false),
       type: "VTSE41",
       infoType: "発表",
       title: "津波警報・注意報・予報",
@@ -92,6 +94,7 @@ describe("restoreTsunamiState", () => {
     const item = createTelegramItem();
     mockListTelegrams.mockResolvedValue(createResponse([item]));
     mockParseTsunami.mockReturnValue({
+      meta: testTelegramMeta(false),
       type: "VTSE41",
       infoType: "取消",
       title: "津波警報・注意報・予報",

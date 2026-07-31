@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach, afterEach , type MockInstance } from "vitest";
 import chalk from "chalk";
 import { displayTyphoonProbabilityInfo } from "../../src/ui/typhoon-probability-formatter";
@@ -190,6 +191,7 @@ describe("displayTyphoonProbabilityInfo — 二次細分overflow対策", () => {
       }));
 
       const info: ParsedTyphoonProbability = {
+        meta: testTelegramMeta(false),
         type: "VPTA50",
         infoType: "発表",
         title: "台風の暴風域に入る確率",
@@ -246,6 +248,7 @@ function buildSyntheticInfo(
     peak: { kind: "allZero" } as TyphoonProbPeak,
   }));
   return {
+    meta: testTelegramMeta(false),
     type: "VPTA50",
     infoType: "発表",
     title: "台風の暴風域に入る確率",

@@ -3,6 +3,7 @@ import type {
   PresentationEvent,
   PresentationAreaItem,
 } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 
 /** WeatherWarningTimeseriesOutcome → PresentationEvent */
 export function fromWeatherWarningTimeseriesOutcome(
@@ -44,7 +45,7 @@ export function fromWeatherWarningTimeseriesOutcome(
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
     publishingOffice:
       xmlReport?.control.publishingOffice ?? info.publishingOffice,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

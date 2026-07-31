@@ -3,6 +3,7 @@ import type {
   PresentationEvent,
 } from "../types";
 import type { PresentationAreaItem } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 
 /**
  * FloodForecastOutcome → PresentationEvent 本実装 (§17.1 field-by-field 規約)。
@@ -57,7 +58,7 @@ export function fromFloodForecastOutcome(
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
     publishingOffice:
       xmlReport?.control.publishingOffice ?? info.publishingOffice,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

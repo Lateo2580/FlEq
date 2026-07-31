@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EewTracker } from "../../src/engine/eew/eew-tracker";
 import { ParsedEewInfo } from "../../src/types";
@@ -5,6 +6,7 @@ import { ParsedEewInfo } from "../../src/types";
 /** テスト用の ParsedEewInfo を生成する */
 function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE45",
     infoType: "発表",
     title: "緊急地震速報（地震動予報）",
@@ -728,6 +730,7 @@ describe("EewTracker", () => {
   describe("To 基準一気通貫 (spec 4.5): getMaxForecastIntensity", () => {
     function eewInfoWith(serial: string, areas: { name: string; intensity: string; intensityTo?: string }[]): ParsedEewInfo {
       return {
+        meta: testTelegramMeta(false),
         type: "VXSE45",
         infoType: "発表",
         title: "緊急地震速報（地震動予報）",

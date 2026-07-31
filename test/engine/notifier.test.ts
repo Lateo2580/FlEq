@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import { notifyMock } from "../setup";
@@ -74,6 +75,7 @@ describe("Notifier", () => {
     notifier.setSoundEnabled(false);
 
     const info: ParsedEarthquakeInfo = {
+      meta: testTelegramMeta(false),
       type: "VXSE",
       infoType: "発表",
       title: "震源・震度情報",
@@ -106,6 +108,7 @@ describe("Notifier", () => {
     const notifier = new Notifier();
     notifier.setSoundEnabled(false);
     notifier.notifyEarthquake({
+      meta: testTelegramMeta(false),
       type: "VXSE52",
       infoType: "発表",
       title: "震源に関する情報",
@@ -143,6 +146,7 @@ describe("Notifier", () => {
     notifier.setSoundEnabled(false);
 
     const info: ParsedEarthquakeInfo = {
+      meta: testTelegramMeta(false),
       type: "VXSE",
       infoType: "発表",
       title: "震源・震度情報",
@@ -184,6 +188,7 @@ describe("Notifier", () => {
     notifier.setSoundEnabled(false);
 
     const info: ParsedEarthquakeInfo = {
+      meta: testTelegramMeta(false),
       type: "VXSE",
       infoType: "発表",
       title: "震源・震度情報",
@@ -223,6 +228,7 @@ describe("Notifier", () => {
   ] as const)("notifyTsunami は %s を %s 音で通知する", (kind, expectedLevel) => {
     const notifier = new Notifier();
     const info: ParsedTsunamiInfo = {
+      meta: testTelegramMeta(false),
       type: "VTSE41",
       infoType: "発表",
       title: "津波警報・注意報・予報",
@@ -254,6 +260,7 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
   /** ParsedEewInfo の最小スタブ */
   function makeEewInfo(opts: Partial<ParsedEewInfo> & { eventId: string | null }): ParsedEewInfo {
     return {
+      meta: testTelegramMeta(false),
       type: "VXSE45",
       infoType: "発表",
       title: "緊急地震速報（予報）",
@@ -526,6 +533,7 @@ describe("Notifier.notifyWeatherWarning (soundLevel override, Codex 最終レビ
   /** ParsedWeatherWarning の最小スタブ (maxDisplaySeverity=null → weatherSoundLevel は "info") */
   function makeWeatherInfo(opts?: Partial<ParsedWeatherWarning>): ParsedWeatherWarning {
     return {
+      meta: testTelegramMeta(false),
       type: "VPWS50",
       infoType: "発表",
       title: "気象警報・注意報（全国集約）",
@@ -675,6 +683,7 @@ describe("Notifier.notifyTornadoAdvisory (soundLevelOverride, weather F-3 横展
   /** ParsedTornadoAdvisory の最小スタブ (soundLevel=null → tornadoSoundLevel は "info") */
   function makeTornadoInfo(opts?: Partial<ParsedTornadoAdvisory>): ParsedTornadoAdvisory {
     return {
+      meta: testTelegramMeta(false),
       type: "VPHW51",
       infoType: "発表",
       title: "東京都竜巻注意情報",
@@ -754,6 +763,7 @@ describe("Notifier.notifyWeatherBriefing (soundLevelOverride + summary, weather 
   /** ParsedWeatherBriefing の最小スタブ (maxSoundLevel=null + unknown なし → briefingSoundLevel は "info") */
   function makeBriefingInfo(opts?: Partial<ParsedWeatherBriefing>): ParsedWeatherBriefing {
     return {
+      meta: testTelegramMeta(false),
       type: "VPBS50",
       infoType: "発表",
       title: "千葉県気象防災速報",
@@ -844,6 +854,7 @@ describe("Notifier.notifyWeatherExplanation (controlTitle 由来通知)", () => 
     opts: Partial<ParsedWeatherExplanation> & { controlTitle: string },
   ): ParsedWeatherExplanation {
     return {
+      meta: testTelegramMeta(false),
       type: "VPCJ51",
       infoType: "発表",
       title: `${opts.controlTitle}（テスト）`,

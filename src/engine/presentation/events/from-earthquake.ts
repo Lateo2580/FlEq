@@ -4,6 +4,7 @@ import type {
   PresentationAreaItem,
   PresentationQuakeIntensityItem,
 } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 import { intensityToRank } from "../../../utils/intensity";
 import { magnitudeForPresentation } from "../../../utils/magnitude";
 import * as log from "../../../logger";
@@ -101,7 +102,7 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
     headline: xmlReport?.head.headline ?? null,
     reportDateTime: xmlReport?.head.reportDateTime ?? outcome.msg.head.time,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

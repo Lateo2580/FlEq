@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { displayWeatherWarningCore } from "../../src/ui/weather-core-formatter";
 import { setFrameWidth } from "../../src/ui/formatter";
@@ -5,6 +6,7 @@ import type { ParsedWeatherWarning } from "../../src/types";
 
 function makeInfo(overrides: Partial<ParsedWeatherWarning> = {}): ParsedWeatherWarning {
   return {
+    meta: testTelegramMeta(false),
     type: "VPWW55", infoType: "発表", title: "千葉県大雨警報・注意報",
     reportDateTime: "2026-06-07T17:00:00+09:00", headline: null,
     publishingOffice: "気象庁", editorialOffice: "気象庁", controlTitle: "気象警報・注意報",

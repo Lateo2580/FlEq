@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { flattenEntries, summarizeTransitions, weatherCoreDisplaySeverity, weatherCoreFrameLevel } from "../../../src/engine/weather/weather-warning-core";
 import type { ParsedWeatherWarning, WeatherAreaLayer } from "../../../src/types";
@@ -17,6 +18,7 @@ function layer(type: string, items: WeatherAreaLayer["items"]): WeatherAreaLayer
 
 function info(layers: WeatherAreaLayer[]): ParsedWeatherWarning {
   return {
+    meta: testTelegramMeta(false),
     type: "VPWW55", infoType: "発表", title: "t", reportDateTime: "2026-07-10T00:00:00+09:00",
     headline: null, publishingOffice: "気象庁", editorialOffice: "気象庁", controlTitle: "t",
     layers, comments: [], maxSeverity: "warning",

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect, vi } from "vitest";
 import { fromVolcanoOutcome } from "../../../../src/engine/presentation/events/from-volcano";
 import { buildVolcanoOutcome } from "../../../../src/engine/presentation/processors/process-volcano";
@@ -12,6 +13,7 @@ vi.mock("../../../../src/engine/notification/sound-player", () => ({ playSound: 
 
 function ashfall(over: Partial<ParsedVolcanoAshfallInfo>): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano", kind: "ashfall", type: "VFVO53", subKind: "scheduled", infoType: "発表", title: "降灰予報",
     reportDateTime: "2026-07-10T12:00:00+09:00", eventDateTime: null, headline: null,
     publishingOffice: "気象庁", volcanoName: "桜島", volcanoCode: "506", coordinate: null,

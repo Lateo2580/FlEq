@@ -182,7 +182,12 @@ describe("WebSocketManager", () => {
         id: "test-id-0001234567890",
         version: "2.0",
         classification: "telegram.earthquake",
-        head: { type: "VXSE53", author: "test", time: "2024-01-01" },
+        head: {
+          type: "VXSE53",
+          author: "test",
+          time: "2024-01-01",
+          test: false,
+        },
         passing: [],
         format: "xml",
         compression: null,

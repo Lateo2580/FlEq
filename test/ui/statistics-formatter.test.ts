@@ -21,6 +21,7 @@ function makeSnapshot(overrides: Partial<StatsSnapshot> = {}): StatsSnapshot {
     eewEventCount: 0,
     earthquakeMaxIntByEvent: new Map(),
     totalCount: 0,
+    testMetadataMismatch: 0,
     ...overrides,
   };
 }

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach } from "vitest";
 import { resolveVolcanoPresentation } from "../../src/engine/presentation/volcano-presentation";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
@@ -30,6 +31,7 @@ function createBase(overrides: Record<string, unknown> = {}) {
 
 function createAlert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVolcanoAlertInfo {
   return {
+    meta: testTelegramMeta(false),
     ...createBase(),
     kind: "alert",
     type: "VFVO50",
@@ -52,6 +54,7 @@ function createAlert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVol
 
 function createEruption(overrides: Partial<ParsedVolcanoEruptionInfo> = {}): ParsedVolcanoEruptionInfo {
   return {
+    meta: testTelegramMeta(false),
     ...createBase(),
     kind: "eruption",
     type: "VFVO52",
@@ -69,6 +72,7 @@ function createEruption(overrides: Partial<ParsedVolcanoEruptionInfo> = {}): Par
 
 function createAshfall(overrides: Partial<ParsedVolcanoAshfallInfo> = {}): ParsedVolcanoAshfallInfo {
   return {
+    meta: testTelegramMeta(false),
     ...createBase(),
     kind: "ashfall",
     type: "VFVO54",
@@ -84,6 +88,7 @@ function createAshfall(overrides: Partial<ParsedVolcanoAshfallInfo> = {}): Parse
 
 function createText(overrides: Partial<ParsedVolcanoTextInfo> = {}): ParsedVolcanoTextInfo {
   return {
+    meta: testTelegramMeta(false),
     ...createBase(),
     kind: "text",
     type: "VFVO51",
@@ -99,6 +104,7 @@ function createText(overrides: Partial<ParsedVolcanoTextInfo> = {}): ParsedVolca
 
 function createPlume(overrides: Partial<ParsedVolcanoPlumeInfo> = {}): ParsedVolcanoPlumeInfo {
   return {
+    meta: testTelegramMeta(false),
     ...createBase(),
     kind: "plume",
     type: "VFVO60",

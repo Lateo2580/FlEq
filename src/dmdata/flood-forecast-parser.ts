@@ -9,6 +9,7 @@ import type {
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf } from "./timeseries-common";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 import { parseStationsAndAggregate } from "./flood-station-parser";
 import { parseInundationAreas } from "./flood-inundation-parser";
@@ -186,6 +187,7 @@ export function parseFloodForecast(
   msg: WsDataMessage,
 ): ParsedFloodForecastInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = xmlParser.parse(xmlStr) as Record<string, unknown>;
 
@@ -227,14 +229,8 @@ export function parseFloodForecast(
     const targetDateTimeRaw = str(dig(head, "TargetDateTime"));
     const targetDateTime = targetDateTimeRaw === "" ? null : targetDateTimeRaw;
 
-    const statusValue = str(dig(control, "Status"));
     const noticeRaw = str(dig(body, "Notice"));
     const notice = noticeRaw === "" ? null : noticeRaw;
-    // isTest: msg.head.test を優先しつつ、Status="試験" または Notice にテストサンプル文言を含む場合も真。
-    const isTest =
-      msg.head.test === true ||
-      statusValue === "試験" ||
-      (notice != null && notice.includes("テストサンプル"));
 
     const publishingOffice =
       msg.xmlReport?.control?.publishingOffice ||
@@ -261,7 +257,8 @@ export function parseFloodForecast(
       headTitle,
       reportDateTime,
       targetDateTime,
-      isTest,
+      meta,
+      isTest: meta.isTest,
       notice,
       headlines,
       rawStations,

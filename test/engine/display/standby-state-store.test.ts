@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, expect, it, vi } from "vitest";
 import { parseTyphoonAnalysis } from "../../../src/dmdata/typhoon-analysis-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
@@ -27,6 +28,7 @@ const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
 function heatRaw(over: Partial<ParsedHeatAlertInfo> = {}): ParsedHeatAlertInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VPFT50",
     infoType: "発表",
     title: "東京都熱中症警戒アラート",
@@ -92,6 +94,7 @@ function quakeHostEvent(eventId: string, maxIntRank: number, timeMs: number): Pr
 function longPeriodEvent(eventId: string, timeMs: number): PresentationEvent {
   const reportDateTime = new Date(timeMs).toISOString();
   const raw: ParsedLgObservationInfo = {
+    meta: testTelegramMeta(false),
     type: "VXSE62",
     infoType: "発表",
     title: "長周期地震動に関する観測情報",
@@ -882,6 +885,7 @@ describe("StandbyStateStore: flood", () => {
 
   it("delegates flood events to FloodActiveReducer and exposes the aggregate card", () => {
     const raw: ParsedFloodForecastInfo = {
+      meta: testTelegramMeta(false),
       schema: "vxko50", typeCode: "VXKO50", infoKind: "指定河川洪水予報", infoType: "発表",
       serial: 1, eventId: "flood-event", controlTitle: "指定河川洪水予報", headTitle: "多摩川氾濫警戒情報",
       reportDateTime: new Date(T0).toISOString(), targetDateTime: null, isTest: false, notice: null,

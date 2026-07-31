@@ -2,6 +2,7 @@ import { WsDataMessage, ParsedHeatAlertInfo } from "../types";
 import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, nodeText } from "./timeseries-common";
 import { createJmxXmlParser } from "./xml-shape";
+import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
 /**
@@ -74,6 +75,7 @@ function extractBodyText(body: unknown): string | null {
  */
 export function parseHeatAlert(msg: WsDataMessage): ParsedHeatAlertInfo | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = heatAlertXmlParser.parse(xmlStr) as Record<string, unknown>;
 
@@ -119,7 +121,8 @@ export function parseHeatAlert(msg: WsDataMessage): ParsedHeatAlertInfo | null {
       targetAreaName: extractTargetAreaName(title),
       notice: noticeText === "" ? null : noticeText,
       bodyText: extractBodyText(body),
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(`parseHeatAlert: ${err instanceof Error ? err.message : err}`);

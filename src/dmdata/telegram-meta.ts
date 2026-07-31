@@ -32,6 +32,16 @@ export type TelegramRevisionComparator =
   | "reportDateTimeThenSerial"
   | "serialOnly";
 
+export function deriveIsTest(input: {
+  headTest: boolean | null;
+  controlStatus: string | null;
+}): boolean {
+  const status = input.controlStatus?.trim();
+  return input.headTest === true
+    || status === "訓練"
+    || status === "試験";
+}
+
 export function parseStrictText(raw: string | null): StrictTextMeta {
   if (raw == null) return { raw: null, value: null, valid: false };
   const value = raw.trim();

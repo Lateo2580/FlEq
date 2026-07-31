@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   KILL_SWITCH_ERRORS,
@@ -40,6 +41,7 @@ function warnItem(areaName: string, areaCode: string, kinds: WeatherKind[]): Wea
 function vpws50Info(items: WeatherItem[]): ParsedWeatherWarning {
   const layers = [{ type: "気象警報・注意報（府県予報区等）", items }];
   return {
+    meta: testTelegramMeta(false),
     type: "VPWS50", infoType: "発表", title: "気象警報・注意報",
     reportDateTime: "2026-07-06T20:50:00+09:00", headline: null,
     publishingOffice: "気象庁", editorialOffice: "気象庁", controlTitle: "気象警報・注意報",
@@ -97,6 +99,7 @@ function weatherEvent(id: string): PresentationEvent {
 /** areas はあるが entries が 1 件も無い VPWP50 の parsed 本体 (テロップ抑制の対象形) */
 function emptyTimeseriesRaw(): ParsedWeatherWarningTimeseriesInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VPWP50", infoType: "発表", title: "気象警報・注意報（予測）", controlTitle: "気象警報・注意報",
     reportDateTime: "2026-07-06T21:00:00+09:00", publishingOffice: "気象庁", editorialOffice: "気象庁",
     eventId: null, serial: null, headline: null, targetArea: null, areas: [],

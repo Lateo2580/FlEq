@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import chalk from "chalk";
 import { displayEarthquakeInfo } from "../../src/ui/earthquake-info-formatter";
@@ -13,6 +14,7 @@ import type { ParsedEarthquakeInfo } from "../../src/types";
 
 // VXSE53 大地震 (critical) — 実 fixture に critical VXSE53 が無いため固定タイムスタンプの synthetic
 const SYNTH_NOTO: ParsedEarthquakeInfo = {
+  meta: testTelegramMeta(false),
   type: "VXSE53",
   infoType: "発表",
   title: "震源・震度に関する情報",

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,6 +26,7 @@ import {
 
 function tsunamiInfo(over: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
     title: "津波警報・注意報・予報a",

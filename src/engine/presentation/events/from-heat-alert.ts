@@ -3,6 +3,7 @@ import type {
   PresentationEvent,
   PresentationAreaItem,
 } from "../types";
+import { presentationTelegramMeta } from "./presentation-meta";
 // extractLeadSentence は parser (heat-alert-parser.ts) に残す判断:
 // presentation 層 (本ファイルの表示 headline 合成) と notification 層
 // (notifier の通知 body 合成) の両方から使う共通ロジックのため、
@@ -39,7 +40,7 @@ export function fromHeatAlertOutcome(
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
     publishingOffice:
       xmlReport?.control.publishingOffice ?? info.publishingOffice,
-    isTest: outcome.msg.head.test,
+    isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,

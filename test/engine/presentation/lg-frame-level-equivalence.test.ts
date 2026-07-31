@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import {
   lgObservationFrameLevel,
@@ -8,6 +9,7 @@ import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedSeismicText
 
 function lgInfo(overrides: Partial<ParsedLgObservationInfo>): ParsedLgObservationInfo {
   return {
+    meta: testTelegramMeta(false),
     type: "VXSE62", infoType: "発表", title: "長周期地震動に関する観測情報",
     reportDateTime: "2024-06-13T00:00:00+09:00", headline: null,
     publishingOffice: "気象庁", areas: [], isTest: false, ...overrides,
@@ -37,6 +39,7 @@ describe("lgObservationFrameLevel 実値域同値性 (UI コピー撤去の前�
 describe("nankaiTroughFrameLevel / seismicTextFrameLevel (UI 側判定撤去の前提固定)", () => {
   function nankai(code: string | null, infoType = "発表"): ParsedNankaiTroughInfo {
     return {
+      meta: testTelegramMeta(false),
       type: "VYSE50", infoType, title: "南海トラフ地震臨時情報",
       reportDateTime: "2024-08-08T00:00:00+09:00", headline: null,
       publishingOffice: "気象庁", bodyText: "", isTest: false,
@@ -55,6 +58,7 @@ describe("nankaiTroughFrameLevel / seismicTextFrameLevel (UI 側判定撤去の�
   });
   it("地震テキスト: 取消=cancel / その他=info", () => {
     const st = (infoType: string): ParsedSeismicTextInfo => ({
+      meta: testTelegramMeta(false),
       type: "VXSE56", infoType, title: "t", reportDateTime: "2024-01-01T00:00:00+09:00",
       headline: null, publishingOffice: "気象庁", bodyText: "", isTest: false,
     });

@@ -1,3 +1,4 @@
+import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 import { ParsedVolcanoAlertInfo } from "../../src/types";
@@ -5,6 +6,7 @@ import { ParsedVolcanoAlertInfo } from "../../src/types";
 /** テスト用のアラート情報を生成するヘルパー */
 function createAlertInfo(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVolcanoAlertInfo {
   return {
+    meta: testTelegramMeta(false),
     domain: "volcano",
     kind: "alert",
     type: "VFVO50",

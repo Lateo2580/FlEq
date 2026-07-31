@@ -14,6 +14,7 @@ import {
   DISPLAY_SEVERITY_RANK,
   SOUND_LEVEL_RANK,
 } from "./weather-warning-level";
+import { requireTelegramMeta } from "./telegram-ingress";
 import { decodeBody, dig, str, first } from "./telegram-parser";
 import { listOf, nodeText } from "./timeseries-common";
 import { createJmxXmlParser } from "./xml-shape";
@@ -355,6 +356,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
  */
 export function parseWeatherBriefing(msg: WsDataMessage): ParsedWeatherBriefing | null {
   try {
+    const meta = requireTelegramMeta(msg);
     const xmlStr = decodeBody(msg);
     const parsed = parseBriefingXml(xmlStr);
 
@@ -458,7 +460,8 @@ export function parseWeatherBriefing(msg: WsDataMessage): ParsedWeatherBriefing 
         .map((e) => e.condition),
       targetAreas,
       observations,
-      isTest: msg.head.test,
+      meta,
+      isTest: meta.isTest,
     };
   } catch (err) {
     log.error(

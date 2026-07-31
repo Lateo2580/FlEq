@@ -57,6 +57,8 @@ export interface StatsSnapshot {
   /** eventId → 代表最大震度 */
   earthquakeMaxIntByEvent: Map<string, string>;
   totalCount: number;
+  /** envelope / raw XML の試験 metadata 不一致件数 */
+  testMetadataMismatch: number;
 }
 
 /** Set/Map のサイズ上限 */
@@ -95,6 +97,7 @@ export class TelegramStats {
   private readonly categoryByType = new Map<string, StatsCategory>();
   private readonly eewEventIds = new Set<string>();
   private readonly earthquakeMaxIntByEvent = new Map<string, { maxInt: string; priority: number }>();
+  private testMetadataMismatch = 0;
 
   constructor(startTime?: Date) {
     this.startTime = startTime ?? new Date();
@@ -113,6 +116,11 @@ export class TelegramStats {
       this.eewEventIds.add(rec.eventId);
       evictOldestFromSet(this.eewEventIds, MAX_EVENT_ENTRIES);
     }
+  }
+
+  recordTestMetadataMismatch(now?: number): void {
+    this.rolloverIfNeeded(now ?? Date.now());
+    this.testMetadataMismatch++;
   }
 
   /**
@@ -154,6 +162,7 @@ export class TelegramStats {
         [...this.earthquakeMaxIntByEvent.entries()].map(([k, v]) => [k, v.maxInt]),
       ),
       totalCount,
+      testMetadataMismatch: this.testMetadataMismatch,
     };
   }
 
@@ -169,6 +178,7 @@ export class TelegramStats {
       this.countByType.clear();
       this.eewEventIds.clear();
       this.earthquakeMaxIntByEvent.clear();
+      this.testMetadataMismatch = 0;
     }
   }
 }
