@@ -33,10 +33,18 @@ export function processEew(
   // update() を呼ばずに早期 return する。終端処理は eventId を使って
   // 直接実行する（既存イベントがなければ no-op）。
   if (msg.head.type === "VXSE44") {
+    const revisionDecision = eewTracker.acceptSuppressed(eewInfo);
+    if (!revisionDecision.accepted) {
+      log.debug(
+        `EEW revision gate 拒否 (VXSE44): EventID=${eewInfo.eventId} 第${eewInfo.serial}報 reason=${revisionDecision.kind}`,
+      );
+      return { kind: "duplicate" };
+    }
     log.debug(`EEW 抑制 (VXSE44常時抑制): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     // 終端処理: tracker.update() を経由しないため、取消/最終報のいずれでも
     // finalizeEvent() を呼び、既存イベントを active カウントから外す
     if (eewInfo.eventId) {
+      eewTracker.replaceLifecycle(eewInfo, revisionDecision);
       if (eewInfo.infoType === "取消") {
         eewLogger.closeEvent(eewInfo.eventId, "取消");
         eewTracker.finalizeEvent(eewInfo.eventId);

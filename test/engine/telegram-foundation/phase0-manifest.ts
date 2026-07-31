@@ -748,10 +748,14 @@ interface CancellationMutationEvidence {
 export const CANCELLATION_MUTATION_EVIDENCE = [
   {
     domain: "eew", family: "eew", owner: "EewTracker",
-    behavior: "取消を event の terminal flag として保持",
+    behavior: "取消を event の terminal flag と成立元 family/revision として保持",
     sources: [{
       sourceFile: "src/engine/eew/eew-tracker.ts",
-      needles: ['const isCancelled = info.infoType === "取消";', "existing.isCancelled = isCancelled;"],
+      needles: [
+        'const isCancelled = info.infoType === "取消";',
+        "event.isCancelled = isCancelled;",
+        "event.terminalOwner = {",
+      ],
     }],
   },
   {

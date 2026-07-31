@@ -9,6 +9,8 @@ import {
 import * as theme from "./theme";
 import type { RoleName } from "./theme";
 import { intensityToRank } from "../utils/intensity";
+import type { TelegramDateDiagnostic } from "../engine/messages/telegram-diagnostic";
+import { telegramDateDiagnosticText } from "../engine/messages/telegram-diagnostic";
 
 // ── フレーム幅キャッシュ ──
 
@@ -1436,5 +1438,16 @@ export function displayRawHeader(msg: WsDataMessage): void {
       console.log(chalk.white(`   ${sanitizeForTerminal(r.head.headline)}`));
     }
   }
+  console.log(separator());
+}
+
+/** state へ入れない電文日時エラーを CLI にだけ明示する。 */
+export function displayTelegramDiagnostic(
+  diagnostic: TelegramDateDiagnostic,
+): void {
+  console.log();
+  console.log(separator());
+  console.log(theme.getRoleChalk("rawHeaderLabel")("電文日時診断"));
+  console.log(chalk.yellow(`   ${telegramDateDiagnosticText(diagnostic)}`));
   console.log(separator());
 }

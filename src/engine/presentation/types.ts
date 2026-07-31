@@ -338,6 +338,8 @@ export interface PresentationEvent {
   domain: PresentationDomain;
   type: string;
   subType?: string;
+  /** 通常 event と状態を共有しない診断テロップの種別 */
+  diagnosticKind?: "invalidReportDateTime" | "futureSkewExceeded";
 
   // 共通メタ
   infoType: string;

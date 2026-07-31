@@ -49,6 +49,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function tickerCategoryOf(event: PresentationEvent): string {
+  if (event.diagnosticKind != null) return "診断";
   if (event.domain === "weather" && event.type === "VPWS50") return "気象警報・注意報（全国集約）";
   return CATEGORY_LABELS[event.domain] ?? "気象庁情報";
 }

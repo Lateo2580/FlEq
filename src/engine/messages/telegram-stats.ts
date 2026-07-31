@@ -59,6 +59,47 @@ export interface StatsSnapshot {
   totalCount: number;
   /** envelope / raw XML の試験 metadata 不一致件数 */
   testMetadataMismatch: number;
+  /** 共通電文基盤の受信・採用判定カウンタ */
+  foundation: Readonly<Record<TelegramFoundationMetric, number>>;
+}
+
+export type TelegramFoundationMetric =
+  | "received"
+  | "transportDuplicate"
+  | "semanticDuplicate"
+  | "correctionReplaced"
+  | "correctionNotified"
+  | "stale"
+  | "invalidMeta"
+  | "invalidRevision"
+  | "invalidDateDiagnosed"
+  | "futureDateDiagnosed"
+  | "cancelApplied"
+  | "cancelTargetMismatch"
+  | "presented"
+  | "notified";
+
+const FOUNDATION_METRICS: readonly TelegramFoundationMetric[] = [
+  "received",
+  "transportDuplicate",
+  "semanticDuplicate",
+  "correctionReplaced",
+  "correctionNotified",
+  "stale",
+  "invalidMeta",
+  "invalidRevision",
+  "invalidDateDiagnosed",
+  "futureDateDiagnosed",
+  "cancelApplied",
+  "cancelTargetMismatch",
+  "presented",
+  "notified",
+];
+
+function emptyFoundationStats(): Record<TelegramFoundationMetric, number> {
+  return Object.fromEntries(
+    FOUNDATION_METRICS.map((metric) => [metric, 0]),
+  ) as Record<TelegramFoundationMetric, number>;
 }
 
 /** Set/Map のサイズ上限 */
@@ -98,6 +139,7 @@ export class TelegramStats {
   private readonly eewEventIds = new Set<string>();
   private readonly earthquakeMaxIntByEvent = new Map<string, { maxInt: string; priority: number }>();
   private testMetadataMismatch = 0;
+  private foundation = emptyFoundationStats();
 
   constructor(startTime?: Date) {
     this.startTime = startTime ?? new Date();
@@ -121,6 +163,14 @@ export class TelegramStats {
   recordTestMetadataMismatch(now?: number): void {
     this.rolloverIfNeeded(now ?? Date.now());
     this.testMetadataMismatch++;
+  }
+
+  recordFoundation(
+    metric: TelegramFoundationMetric,
+    now?: number,
+  ): void {
+    this.rolloverIfNeeded(now ?? Date.now());
+    this.foundation[metric]++;
   }
 
   /**
@@ -163,6 +213,7 @@ export class TelegramStats {
       ),
       totalCount,
       testMetadataMismatch: this.testMetadataMismatch,
+      foundation: { ...this.foundation },
     };
   }
 
@@ -179,6 +230,7 @@ export class TelegramStats {
       this.eewEventIds.clear();
       this.earthquakeMaxIntByEvent.clear();
       this.testMetadataMismatch = 0;
+      this.foundation = emptyFoundationStats();
     }
   }
 }

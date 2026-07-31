@@ -8,7 +8,11 @@ import type { ProcessOutcome } from "../engine/presentation/types";
 import type { WsDataMessage, ParsedVolcanoInfo } from "../types";
 import type { VolcanoPresentation } from "../engine/presentation/volcano-presentation";
 import type { Vfvo53BatchItems } from "../engine/messages/volcano-vfvo53-aggregator";
-import { displayRawHeader, getDisplayMode } from "./formatter";
+import {
+  displayRawHeader,
+  displayTelegramDiagnostic,
+  getDisplayMode,
+} from "./formatter";
 import { renderSummaryLine } from "./summary";
 import { displayEewInfo } from "./eew-formatter";
 import { displaySeismicTextInfo } from "./seismic-text-formatter";
@@ -114,6 +118,8 @@ export function createDisplayAdapter(): DisplayCallbacks {
     displayRawHeader(msg: WsDataMessage): void {
       displayRawHeader(msg);
     },
+
+    displayTelegramDiagnostic,
 
     displayVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void {
       displayVolcanoInfo(info, presentation);

@@ -368,6 +368,38 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     expect(playSoundMock).toHaveBeenCalledTimes(3);
   });
 
+  it("受理済み訂正は実質差分がなくても訂正を明示して一回通知する", () => {
+    const notifier = new Notifier();
+    const info = makeEewInfo({ eventId: "EVT-CORRECTION" });
+    notifier.notifyEew(info, makeResult({ isNew: true }));
+    notifyMock.mockClear();
+    playSoundMock.mockClear();
+
+    notifier.notifyEew(
+      { ...info, infoType: "訂正" },
+      makeResult({ isCorrection: true }),
+    );
+
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    expect(notifyMock.mock.calls[0][0].title).toContain("訂正");
+    expect(notifyMock.mock.calls[0][0].message).toContain("訂正");
+    expect(playSoundMock).toHaveBeenCalledWith("warning");
+  });
+
+  it("semantic duplicate と判定済みの訂正は通知しない", () => {
+    const notifier = new Notifier();
+    notifier.notifyEew(
+      makeEewInfo({
+        eventId: "EVT-CORRECTION-DUP",
+        infoType: "訂正",
+      }),
+      makeResult({ isCorrection: true, isDuplicate: true }),
+    );
+
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(playSoundMock).not.toHaveBeenCalled();
+  });
+
   it("result.isSuppressed=true は何もしない (eventId も記録しない)", () => {
     const notifier = new Notifier();
     const info = makeEewInfo({ eventId: "EVT-G" });

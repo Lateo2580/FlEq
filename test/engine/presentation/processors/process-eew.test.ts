@@ -4,12 +4,14 @@ import { EewTracker } from "../../../../src/engine/eew/eew-tracker";
 import { EewEventLogger } from "../../../../src/engine/eew/eew-logger";
 import {
   createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
   FIXTURE_VXSE43_WARNING_S1,
   FIXTURE_VXSE43_WARNING_S2,
   FIXTURE_VXSE44_S10,
   FIXTURE_VXSE45_S1,
   FIXTURE_VXSE45_CANCEL,
   FIXTURE_VXSE45_FINAL,
+  readFixture,
 } from "../../../helpers/mock-message";
 
 // fs mock for EewEventLogger
@@ -102,6 +104,18 @@ describe("processEew", () => {
     const msg44 = createMockWsDataMessage(FIXTURE_VXSE44_S10);
     const result = processEew(msg44, eewTracker, eewLogger);
     expect(result.kind).toBe("suppressed");
+  });
+
+  it("VXSE44 も共通 revision gate を通り、同一報の再送は duplicate", () => {
+    const first = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+    const repeated = {
+      ...createMockWsDataMessage(FIXTURE_VXSE44_S10),
+      id: "vxse44-backup",
+      meta: undefined,
+    };
+
+    expect(processEew(first, eewTracker, eewLogger).kind).toBe("suppressed");
+    expect(processEew(repeated, eewTracker, eewLogger).kind).toBe("duplicate");
   });
 
   it("VXSE45 受信済みイベントの VXSE44 も suppressed を返す", () => {
@@ -200,5 +214,115 @@ describe("processEew", () => {
     expect(result.kind).toBe("suppressed");
     expect(closeSpy).toHaveBeenCalledWith("20260101120000", "最終報");
     expect(finalizeSpy).toHaveBeenCalledWith("20260101120000");
+  });
+
+  it("VXSE44 最終報後の同一 serial 非最終訂正で active に戻る", () => {
+    const finalXml = readFixture(FIXTURE_VXSE45_FINAL);
+    const nonFinalXml = finalXml.replace(
+      /<NextAdvisory>[^<]*<\/NextAdvisory>/,
+      "",
+    );
+    const correctionXml = nonFinalXml.replace(
+      "<InfoType>発表</InfoType>",
+      "<InfoType>訂正</InfoType>",
+    );
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(nonFinalXml, "VXSE45"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("ok");
+    expect(eewTracker.getActiveCount()).toBe(1);
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(finalXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("suppressed");
+    expect(eewTracker.getActiveCount()).toBe(0);
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(correctionXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("suppressed");
+    expect(eewTracker.getActiveCount()).toBe(1);
+  });
+
+  it("VXSE45 最終報後の初見 VXSE44 通常報では final を解除しない", () => {
+    const finalXml = readFixture(FIXTURE_VXSE45_FINAL);
+    const delayedNormalXml = finalXml.replace(
+      /<NextAdvisory>[^<]*<\/NextAdvisory>/,
+      "",
+    );
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(finalXml, "VXSE45"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("ok");
+    expect(eewTracker.getActiveCount()).toBe(0);
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(delayedNormalXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("suppressed");
+    expect(eewTracker.getActiveCount()).toBe(0);
+  });
+
+  it("VXSE45 取消後の初見 VXSE44 通常報では cancel を解除しない", () => {
+    const normalXml = readFixture(FIXTURE_VXSE45_S1);
+    const cancelXml = readFixture(FIXTURE_VXSE45_CANCEL);
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(normalXml, "VXSE45"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("ok");
+    expect(processEew(
+      createMockWsDataMessageFromXml(cancelXml, "VXSE45"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("ok");
+    expect(eewTracker.getActiveCount()).toBe(0);
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(normalXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("suppressed");
+    expect(eewTracker.getActiveCount()).toBe(0);
+  });
+
+  it("VXSE44 terminal 後の大 serial 非最終続報は同一 family として active に戻す", () => {
+    const finalXml = readFixture(FIXTURE_VXSE45_FINAL);
+    const nonFinalXml = finalXml.replace(
+      /<NextAdvisory>[^<]*<\/NextAdvisory>/,
+      "",
+    );
+    const newerXml = nonFinalXml.replace(
+      /<Serial>[^<]*<\/Serial>/,
+      "<Serial>99</Serial>",
+    );
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(nonFinalXml, "VXSE45"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("ok");
+    expect(processEew(
+      createMockWsDataMessageFromXml(finalXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("suppressed");
+    expect(eewTracker.getActiveCount()).toBe(0);
+
+    expect(processEew(
+      createMockWsDataMessageFromXml(newerXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    ).kind).toBe("suppressed");
+    expect(eewTracker.getActiveCount()).toBe(1);
   });
 });

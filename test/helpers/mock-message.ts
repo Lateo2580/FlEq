@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import zlib from "zlib";
+import { createHash } from "crypto";
 import { WsDataMessage } from "../../src/types";
 import type { ParsedWeatherWarningTimeseriesInfo } from "../../src/types";
 import { normalizeTelegramMessage } from "../../src/dmdata/telegram-ingress";
@@ -563,7 +564,7 @@ export function createMockWsDataMessage(
     type: "data",
     version: "2.0",
     classification,
-    id: "test-id-001",
+    id: `fixture:${fixtureName}`,
     passing: [{ name: "test", time: new Date().toISOString() }],
     head: envelope.head,
     xmlReport: envelope.xmlReport == null
@@ -611,7 +612,7 @@ export function createMockWsDataMessageFromXml(
     type: "data",
     version: "2.0",
     classification,
-    id: "test-id-001",
+    id: `xml:${createHash("sha256").update(xml).digest("hex").slice(0, 16)}`,
     passing: [{ name: "test", time: new Date().toISOString() }],
     head: {
       ...envelope.head,

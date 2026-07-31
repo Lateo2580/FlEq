@@ -32,6 +32,10 @@ export type TelegramRevisionComparator =
   | "reportDateTimeThenSerial"
   | "serialOnly";
 
+export type TelegramDateDiagnosticReason =
+  | "invalidReportDateTime"
+  | "futureSkewExceeded";
+
 export function deriveIsTest(input: {
   headTest: boolean | null;
   controlStatus: string | null;
@@ -118,6 +122,32 @@ export function parseStrictReportDateTime(
     return { raw, epochMs: null, valid: false };
   }
   return { raw, epochMs, valid: true };
+}
+
+export function telegramDateDiagnosticReason(
+  meta: TelegramMeta,
+): TelegramDateDiagnosticReason | null {
+  if (meta.reportDateTime.valid) return null;
+  const raw = meta.reportDateTime.raw;
+  if (raw == null) return "invalidReportDateTime";
+  const epochMs = parseIsoEpoch(raw);
+  if (
+    epochMs != null
+    && Number.isFinite(meta.receivedAtMs)
+    && epochMs > meta.receivedAtMs + FUTURE_REPORT_DATETIME_SKEW_MS
+  ) {
+    return "futureSkewExceeded";
+  }
+  return "invalidReportDateTime";
+}
+
+export function telegramDateFutureSkewMs(meta: TelegramMeta): number | null {
+  const raw = meta.reportDateTime.raw;
+  if (raw == null || !Number.isFinite(meta.receivedAtMs)) return null;
+  const epochMs = parseIsoEpoch(raw);
+  if (epochMs == null) return null;
+  const skewMs = epochMs - meta.receivedAtMs;
+  return skewMs > FUTURE_REPORT_DATETIME_SKEW_MS ? skewMs : null;
 }
 
 export function createTelegramMeta(input: TelegramMetaInput): TelegramMeta {

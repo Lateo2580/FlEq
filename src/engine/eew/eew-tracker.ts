@@ -1,5 +1,13 @@
-import { ParsedEewInfo } from "../../types";
+import type { ParsedEewInfo, TelegramRevision } from "../../types";
+import { telegramRevision } from "../../dmdata/telegram-meta";
 import * as intensityUtils from "../../utils/intensity";
+import {
+  semanticPayloadFingerprint,
+  TelegramRevisionGate,
+  type TelegramRevisionDecision,
+  type TelegramRevisionDecisionKind,
+} from "../messages/telegram-revision-gate";
+import { eewRevisionFamilyPolicy } from "../messages/revision-family-registry";
 
 /** EEW 更新時の差分情報 */
 export interface EewDiff {
@@ -15,8 +23,12 @@ export interface EewDiff {
 
 /** head.type ごとのシリアル・前回情報 */
 interface EewTypeState {
-  lastSerial: number;
   previousInfo?: ParsedEewInfo;
+}
+
+interface EewTerminalOwner {
+  revisionFamily: string;
+  revision: TelegramRevision;
 }
 
 /** EEW イベントの状態 */
@@ -31,6 +43,8 @@ interface EewEvent {
   isCancelled: boolean;
   /** 最終報を受信済みか */
   isFinalized: boolean;
+  /** cancel/final を成立させた family と revision */
+  terminalOwner: EewTerminalOwner | null;
   lastUpdate: Date;
   /** バナー色分け用のカラーインデックス (0始まり) */
   colorIndex: number;
@@ -42,6 +56,10 @@ export interface EewUpdateResult {
   isNew: boolean;
   /** 重複報か（既に同じ報数以上を受信済み） */
   isDuplicate: boolean;
+  /** 共通 revision gate が訂正として受理したか */
+  isCorrection?: boolean;
+  /** 共通 revision gate の判定 */
+  revisionDecision?: TelegramRevisionDecisionKind;
   /** キャンセル報か */
   isCancelled: boolean;
   /** VXSE45 受信後に到着した VXSE43/44 → 表示抑制 */
@@ -60,6 +78,12 @@ export interface EewUpdateResult {
 
 /** 古いイベントを自動削除するまでの時間 (ミリ秒) */
 const CLEANUP_THRESHOLD_MS = 10 * 60 * 1000; // 10分
+let eewSingleEventSequence = 0;
+
+function nextEewSingleSubjectKey(headType: string): string {
+  eewSingleEventSequence += 1;
+  return `eew:single:${headType}:${eewSingleEventSequence}`;
+}
 
 /** 深さ文字列から数値(km)を抽出 */
 function parseDepthKm(depth: string): number | null {
@@ -138,9 +162,17 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
 export class EewTracker {
   private events = new Map<string, EewEvent>();
   private readonly onCleanup?: (eventId: string) => void;
+  private readonly onRevisionDecision?: (
+    decision: TelegramRevisionDecision,
+  ) => void;
+  private readonly revisionGate = new TelegramRevisionGate();
 
-  constructor(options?: { onCleanup?: (eventId: string) => void }) {
+  constructor(options?: {
+    onCleanup?: (eventId: string) => void;
+    onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  }) {
     this.onCleanup = options?.onCleanup;
+    this.onRevisionDecision = options?.onRevisionDecision;
   }
 
   /** EEW 情報を受け取り、状態を更新して結果を返す */
@@ -149,12 +181,37 @@ export class EewTracker {
     this.cleanup();
 
     const eventId = info.eventId || "";
-    if (!eventId) {
-      // EventID がない場合は常に新規扱い
+    const transientSubjectKey = eventId === ""
+      ? nextEewSingleSubjectKey(info.type)
+      : null;
+    const revisionDecision = this.decideRevision(
+      info,
+      eventId,
+      transientSubjectKey,
+    );
+    if (!revisionDecision.accepted) {
+      const current = eventId === "" ? undefined : this.events.get(eventId);
       return {
-        isNew: true,
+        isNew: false,
+        isDuplicate: true,
+        isCancelled: current?.isCancelled ?? false,
+        isSuppressed: false,
+        isUpgradeToWarning: false,
+        activeCount: this.getActiveCount(),
+        colorIndex: current?.colorIndex ?? 0,
+        revisionDecision: revisionDecision.kind,
+      };
+    }
+
+    const isCancelled = info.infoType === "取消";
+    const headType = info.type;
+    if (revisionDecision.kind === "acceptTransient") {
+      return {
+        isNew: !revisionDecision.isCorrection,
         isDuplicate: false,
-        isCancelled: info.infoType === "取消",
+        isCorrection: revisionDecision.isCorrection,
+        revisionDecision: revisionDecision.kind,
+        isCancelled,
         isSuppressed: false,
         isUpgradeToWarning: false,
         activeCount: this.getActiveCount(),
@@ -162,27 +219,10 @@ export class EewTracker {
       };
     }
 
-    const serialRaw = parseInt(info.serial || "", 10);
-    const serial: number | null = Number.isFinite(serialRaw) ? serialRaw : null;
-    const isCancelled = info.infoType === "取消";
-    const headType = info.type;
     const existing = this.events.get(eventId);
 
     if (existing) {
       const typeState = existing.byType.get(headType);
-
-      // 同一 type 内の重複判定
-      if (!isCancelled && serial != null && serial > 0 && typeState && serial <= typeState.lastSerial) {
-        return {
-          isNew: false,
-          isDuplicate: true,
-          isCancelled: false,
-          isSuppressed: false,
-          isUpgradeToWarning: false,
-          activeCount: this.getActiveCount(),
-          colorIndex: existing.colorIndex,
-        };
-      }
 
       // 抑制判定: VXSE45 受信済みなら VXSE43/44 は抑制
       const isSuppressed = existing.hasSeen45 && (headType === "VXSE43" || headType === "VXSE44");
@@ -190,11 +230,8 @@ export class EewTracker {
       // type 状態の更新 (抑制されても serial・lastUpdate は更新する)
       const previousInfo = typeState?.previousInfo;
       if (!typeState) {
-        existing.byType.set(headType, { lastSerial: serial ?? 0, previousInfo: info });
+        existing.byType.set(headType, { previousInfo: info });
       } else {
-        if (serial != null) {
-          typeState.lastSerial = Math.max(typeState.lastSerial, serial);
-        }
         typeState.previousInfo = info;
       }
 
@@ -211,12 +248,14 @@ export class EewTracker {
       if (!isSuppressed) {
         existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
       }
-      existing.isCancelled = isCancelled;
+      this.applyAcceptedLifecycle(existing, info, revisionDecision);
       existing.lastUpdate = new Date();
 
       return {
         isNew: false,
         isDuplicate: false,
+        isCorrection: revisionDecision.isCorrection,
+        revisionDecision: revisionDecision.kind,
         isCancelled,
         isSuppressed,
         isUpgradeToWarning,
@@ -230,28 +269,119 @@ export class EewTracker {
     // 新規イベント
     const colorIndex = this.nextColorIndex();
     const byType = new Map<string, EewTypeState>();
-    byType.set(headType, { lastSerial: serial ?? 0, previousInfo: info });
+    byType.set(headType, { previousInfo: info });
 
+    const isFinalized = !isCancelled && revisionDecision.isTerminal;
     this.events.set(eventId, {
       eventId,
       byType,
       hasSeen45: headType === "VXSE45",
       hasWarningIssued: info.isWarning,
       isCancelled,
-      isFinalized: false,
+      isFinalized,
+      terminalOwner: isCancelled || isFinalized
+        ? {
+            revisionFamily: headType,
+            revision: telegramRevision(info.meta),
+          }
+        : null,
       lastUpdate: new Date(),
       colorIndex,
     });
 
     return {
-      isNew: true,
+      isNew: !revisionDecision.isCorrection,
       isDuplicate: false,
+      isCorrection: revisionDecision.isCorrection,
+      revisionDecision: revisionDecision.kind,
       isCancelled,
       isSuppressed: false,
       isUpgradeToWarning: false,
       activeCount: this.getActiveCount(),
       colorIndex,
     };
+  }
+
+  /** 常時表示抑制する VXSE44 でも共通 revision gate だけは通す。 */
+  acceptSuppressed(info: ParsedEewInfo): TelegramRevisionDecision {
+    this.cleanup();
+    const eventId = info.eventId || "";
+    return this.decideRevision(
+      info,
+      eventId,
+      eventId === "" ? nextEewSingleSubjectKey(info.type) : null,
+    );
+  }
+
+  private decideRevision(
+    info: ParsedEewInfo,
+    eventId: string,
+    transientSubjectKey: string | null,
+  ): TelegramRevisionDecision {
+    const policy = eewRevisionFamilyPolicy(info.type);
+    if (policy == null) {
+      const decision: TelegramRevisionDecision = {
+        kind: "invalidMeta",
+        relation: null,
+        accepted: false,
+        isCorrection: false,
+        isTerminal: false,
+      };
+      this.onRevisionDecision?.(decision);
+      return decision;
+    }
+    const extractedSubject = policy.extractStateSubjectKey(info.meta, info);
+    const stateSubjectKey =
+      typeof extractedSubject === "string" ? extractedSubject : null;
+    const normalizedSubjectKey =
+      stateSubjectKey != null && stateSubjectKey === eventId
+        ? stateSubjectKey
+        : null;
+    if (
+      info.meta.infoType.value === "取消"
+      && normalizedSubjectKey != null
+    ) {
+      const targets = policy.extractCancellationTarget(info.meta, info);
+      if (
+        targets == null
+        || targets.length !== 1
+        || targets[0] !== stateSubjectKey
+      ) {
+        const decision: TelegramRevisionDecision = {
+          kind: "cancelTargetMismatch",
+          relation: null,
+          accepted: false,
+          isCorrection: false,
+          isTerminal: false,
+        };
+        this.onRevisionDecision?.(decision);
+        return decision;
+      }
+    }
+    const revisionDecision = this.revisionGate.decide({
+      domain: policy.domain,
+      revisionFamily: policy.revisionFamily,
+      stateSubjectKey: normalizedSubjectKey,
+      transientSubjectKey,
+      meta: info.meta,
+      comparator: policy.comparator,
+      cancellationPolicy: policy.cancellationPolicy,
+      terminal: policy.terminalPredicate(info.meta, info),
+      payloadFingerprint: semanticPayloadFingerprint({
+        ...info,
+        meta: undefined,
+        forecastIntensity: info.forecastIntensity == null
+          ? undefined
+          : {
+              ...info.forecastIntensity,
+              areas: [...info.forecastIntensity.areas].sort((a, b) =>
+                a.name.localeCompare(b.name)
+              ),
+            },
+      }),
+    });
+    this.onRevisionDecision?.(revisionDecision);
+    return revisionDecision;
   }
 
   /**
@@ -264,6 +394,53 @@ export class EewTracker {
     if (ev) {
       ev.isFinalized = true;
     }
+  }
+
+  /**
+   * gate 受理済みの抑制 type から event 単位 lifecycle を更新する。
+   * terminal の解除は、それを成立させた family 自身の訂正・新しい続報に限る。
+   */
+  replaceLifecycle(
+    info: ParsedEewInfo,
+    decision: TelegramRevisionDecision,
+  ): boolean {
+    const eventId = info.eventId || "";
+    const ev = this.events.get(eventId);
+    if (ev == null) return false;
+    const replaced = this.applyAcceptedLifecycle(ev, info, decision);
+    ev.lastUpdate = new Date();
+    return replaced;
+  }
+
+  private applyAcceptedLifecycle(
+    event: EewEvent,
+    info: ParsedEewInfo,
+    decision: TelegramRevisionDecision,
+  ): boolean {
+    const isCancelled = info.infoType === "取消";
+    const isFinalized = !isCancelled && decision.isTerminal;
+    if (isCancelled || isFinalized) {
+      event.isCancelled = isCancelled;
+      event.isFinalized = isFinalized;
+      event.terminalOwner = {
+        revisionFamily: info.type,
+        revision: telegramRevision(info.meta),
+      };
+      return true;
+    }
+
+    if (event.isCancelled || event.isFinalized) {
+      const owner = event.terminalOwner;
+      const sameFamilyReplacement =
+        owner?.revisionFamily === info.type
+        && (decision.isCorrection || decision.relation === "newer");
+      if (!sameFamilyReplacement) return false;
+    }
+
+    event.isCancelled = false;
+    event.isFinalized = false;
+    event.terminalOwner = null;
+    return true;
   }
 
   /** 未使用の最小カラーインデックスを返す */
@@ -296,7 +473,13 @@ export class EewTracker {
       }
     }
     for (const id of expired) {
+      const event = this.events.get(id);
       this.events.delete(id);
+      if (event != null) {
+        for (const headType of event.byType.keys()) {
+          this.revisionGate.clear("eew", headType, id);
+        }
+      }
       this.onCleanup?.(id);
     }
   }

@@ -309,7 +309,7 @@ export class DisplayStateStore {
     if (existing != null) {
       const cmp = compareSerial(input.serial, existing.serial);
       if (cmp < 0) return false; // 古い報は final でも無視 (遅延到着の最終報が新しい続報を巻き戻さない)
-      if (cmp === 0 && !input.isFinal) return false; // 同報の再送
+      if (cmp === 0 && !input.isFinal && input.isCorrection !== true) return false; // 同報の再送
     }
     this.activeEews.set(eventId, { ...input, updatedAtMs: nowMs });
     return true;

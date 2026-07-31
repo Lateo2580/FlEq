@@ -8,6 +8,7 @@ import type { WsDataMessage, ParsedVolcanoInfo } from "../../types";
 import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../presentation/types";
 import type { VolcanoPresentation } from "../presentation/volcano-presentation";
 import type { Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
+import type { TelegramDateDiagnostic } from "./telegram-diagnostic";
 
 export interface DisplayCallbacks {
   /** ProcessOutcome に基づいてドメイン別の表示を行う (火山以外) */
@@ -15,6 +16,11 @@ export interface DisplayCallbacks {
 
   /** XML でない電文のヘッダのみ表示 */
   displayRawHeader(msg: WsDataMessage): void;
+
+  /** state を更新しない電文日時診断の CLI 表示 */
+  displayTelegramDiagnostic?(
+    diagnostic: TelegramDateDiagnostic,
+  ): void;
 
   /** 火山単発電文の表示 */
   displayVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void;

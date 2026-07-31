@@ -37,6 +37,7 @@ export interface DisplayEewInputV1 {
   isWarning: boolean;
   isFinal: boolean;
   isCancellation: boolean;
+  isCorrection?: boolean;
   hypocenterName: string | null;
   forecastMaxInt: string | null;
   forecastMaxIntRank: number | null;

@@ -1,7 +1,11 @@
 import chalk from "chalk";
 import * as log from "../../logger";
 import type { WsDataMessage } from "../../types";
-import { normalizeTelegramMessage } from "../../dmdata/telegram-ingress";
+import {
+  normalizeTelegramMessage,
+  requireTelegramMeta,
+} from "../../dmdata/telegram-ingress";
+import { telegramDateDiagnosticReason } from "../../dmdata/telegram-meta";
 import { EewTracker } from "../eew/eew-tracker";
 import { EewEventLogger } from "../eew/eew-logger";
 import { Notifier } from "../notification/notifier";
@@ -29,6 +33,11 @@ import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../
 import { VolcanoRouteHandler } from "./volcano-route-handler";
 import type { DisplayCallbacks } from "./display-callbacks";
 import type { DisplayIngestSink } from "../display/types";
+import { TelegramTransportDeduplicator } from "./telegram-transport-dedup";
+import {
+  dateDiagnosticPresentationEvent,
+  telegramDateDiagnostic,
+} from "./telegram-diagnostic";
 
 // ── 電文分類 (Route) ──
 //
@@ -214,6 +223,7 @@ export interface MessageHandlerOptions {
 export interface MessageHandlerResult {
   handler: (msg: WsDataMessage) => void;
   eewLogger: EewEventLogger;
+  eewTracker: EewTracker;
   notifier: Notifier;
   tsunamiState: TsunamiStateHolder;
   volcanoState: VolcanoStateHolder;
@@ -248,9 +258,38 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const summaryTracker = new SummaryWindowTracker();
   const dailyQuakeCounter = options?.dailyQuakeCounter ?? new DailyQuakeCounter();
   const diffStore = new PresentationDiffStore();
+  const transportDedup = new TelegramTransportDeduplicator();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
+    },
+    onRevisionDecision: (decision) => {
+      switch (decision.kind) {
+        case "replaceCorrection":
+          stats.recordFoundation("correctionReplaced");
+          break;
+        case "markCancelled":
+          stats.recordFoundation("cancelApplied");
+          break;
+        case "duplicate":
+        case "semanticDuplicate":
+          stats.recordFoundation("semanticDuplicate");
+          break;
+        case "stale":
+          stats.recordFoundation("stale");
+          break;
+        case "invalidMeta":
+          stats.recordFoundation("invalidMeta");
+          break;
+        case "invalidRevision":
+          stats.recordFoundation("invalidRevision");
+          break;
+        case "cancelTargetMismatch":
+          stats.recordFoundation("cancelTargetMismatch");
+          break;
+        default:
+          break;
+      }
     },
   });
 
@@ -380,6 +419,38 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
+    if (route === "eew") {
+      const meta = requireTelegramMeta(msg);
+      stats.recordFoundation("received", meta.receivedAtMs);
+      if (!transportDedup.accept(meta.messageId, meta.receivedAtMs)) {
+        stats.recordFoundation("transportDuplicate", meta.receivedAtMs);
+        return;
+      }
+      const dateReason = telegramDateDiagnosticReason(meta);
+      if (dateReason != null) {
+        const diagnostic = telegramDateDiagnostic(msg, meta, dateReason);
+        stats.recordFoundation(
+          dateReason === "futureSkewExceeded"
+            ? "futureDateDiagnosed"
+            : "invalidDateDiagnosed",
+          meta.receivedAtMs,
+        );
+        log.warn(
+          `[telegram-date] ${diagnostic.type} EventID=${diagnostic.eventId ?? "(none)"} ReportDateTime=${diagnostic.reportDateTimeRaw ?? "(missing)"} receivedAt=${diagnostic.receivedAtIso} futureSkewMs=${diagnostic.futureSkewMs ?? "(n/a)"} reason=${diagnostic.kind}`,
+        );
+        display?.displayTelegramDiagnostic?.(diagnostic);
+        try {
+          displaySink?.ingest(dateDiagnosticPresentationEvent(msg, diagnostic));
+          displaySink?.publishStats?.(
+            buildDisplayStats(summaryTracker, stats, dailyQuakeCounter),
+          );
+        } catch {
+          // 診断表示の配送障害を受信本体へ波及させない。
+        }
+        return;
+      }
+    }
+
     // 特殊ルート ignore: 配信終了予定 + 既存表示と重複する電文は受信しても無視
     // (表示・通知・統計をすべてスキップ)。catalog では分類のみ担い、処理はここで早期 return。
     if (route === "ignore") {
@@ -406,12 +477,23 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     recordStats(outcome, stats);
     dispatchNotify(outcome, notifier);
-    runDisplayPipeline(outcome, () => display?.displayOutcome(outcome));
+    if (outcome.domain === "eew" && outcome.eewResult.isCorrection === true) {
+      stats.recordFoundation("correctionNotified");
+      stats.recordFoundation("notified");
+    }
+    const presented = runDisplayPipeline(
+      outcome,
+      () => display?.displayOutcome(outcome),
+    );
+    if (outcome.domain === "eew" && presented) {
+      stats.recordFoundation("presented");
+    }
   };
 
   return {
     handler,
     eewLogger,
+    eewTracker,
     notifier,
     tsunamiState,
     volcanoState,

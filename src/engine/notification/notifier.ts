@@ -321,11 +321,13 @@ export class Notifier {
 
     // 通知条件: 第1報 (イベント単位の初回通知) / 警報昇格 / 取消報 / 最終報
     const isFinal = info.nextAdvisory != null;
+    const isCorrection = result.isCorrection === true;
 
     if (
       !isFirstNotificationForEvent &&
       !result.isUpgradeToWarning &&
       !result.isCancelled &&
+      !isCorrection &&
       !isFinal
     ) {
       return;
@@ -344,9 +346,10 @@ export class Notifier {
 
     const soundLevel: SoundLevel = info.isWarning ? "critical" : "warning";
 
-    const title = info.isWarning
+    const baseTitle = info.isWarning
       ? "緊急地震速報（警報）"
       : "緊急地震速報（予報）";
+    const title = isCorrection ? `[訂正] ${baseTitle}` : baseTitle;
     const maxInt = info.forecastIntensity?.areas?.[0]
       ? this.findMaxForecastInt(info)
       : "不明";
@@ -354,7 +357,12 @@ export class Notifier {
       ? `${info.earthquake.hypocenterName} / ${formatMagnitudeLabel(info.earthquake)} / 最大予測震度${maxInt}`
       : title;
 
-    this.send(title, body, "eew", soundLevel);
+    this.send(
+      title,
+      isCorrection ? `訂正: ${body}` : body,
+      "eew",
+      soundLevel,
+    );
 
     // 通知発火を履歴に記録 (cleanup 用のタイムスタンプを格納)
     if (info.eventId != null) {

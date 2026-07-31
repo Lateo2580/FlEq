@@ -1,12 +1,11 @@
-import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EewTracker } from "../../src/engine/eew/eew-tracker";
 import { ParsedEewInfo } from "../../src/types";
+import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
 
 /** テスト用の ParsedEewInfo を生成する */
 function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
-  return {
-    meta: testTelegramMeta(false),
+  const base = {
     type: "VXSE45",
     infoType: "発表",
     title: "緊急地震速報（地震動予報）",
@@ -19,6 +18,20 @@ function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
     isTest: false,
     isWarning: false,
     ...overrides,
+  };
+  return {
+    ...base,
+    meta: overrides.meta ?? createTelegramMeta({
+      messageId: `synthetic-${base.eventId ?? "none"}-${base.serial ?? "none"}-${base.infoType}`,
+      eventId: base.eventId,
+      type: base.type,
+      reportDateTime: base.reportDateTime,
+      serial: base.serial,
+      infoType: base.infoType,
+      receivedAtMs: Date.parse(base.reportDateTime) + 60_000,
+      status: base.isTest ? "試験" : "通常",
+      isTest: base.isTest,
+    }),
   };
 }
 
@@ -40,13 +53,76 @@ describe("EewTracker", () => {
       expect(result.activeCount).toBe(1);
     });
 
-    it("EventID が空の場合は常に新規扱い", () => {
-      const info = createEewInfo({ serial: "1", eventId: "" });
-      const r1 = tracker.update(info);
-      const r2 = tracker.update(info);
+    it("EventID が空でも同一 semantic payload の再送を拒否する", () => {
+      const first = createEewInfo({ serial: "1", eventId: "" });
+      const replay = {
+        ...first,
+        meta: { ...first.meta, messageId: "single-replay" },
+      };
 
-      expect(r1.isNew).toBe(true);
-      expect(r2.isNew).toBe(true);
+      expect(tracker.update(first)).toMatchObject({
+        isNew: true,
+        isDuplicate: false,
+        revisionDecision: "acceptTransient",
+      });
+      expect(tracker.update(replay)).toMatchObject({
+        isNew: false,
+        isDuplicate: true,
+        revisionDecision: "semanticDuplicate",
+      });
+      expect(tracker.getActiveCount()).toBe(0);
+    });
+
+    it("EventID が空の異なる payload は続報結合せず個別に受理する", () => {
+      const first = createEewInfo({
+        serial: "1",
+        eventId: "",
+        headline: "単発1",
+      });
+      const second = createEewInfo({
+        serial: "1",
+        eventId: "",
+        headline: "単発2",
+      });
+
+      expect(tracker.update(first).isNew).toBe(true);
+      expect(tracker.update(second).isNew).toBe(true);
+      expect(tracker.getActiveCount()).toBe(0);
+    });
+
+    it("EventID が空の訂正も訂正扱いとし、同 payload の再送を拒否する", () => {
+      const correction = createEewInfo({
+        serial: "2",
+        eventId: "",
+        infoType: "訂正",
+      });
+      const replay = {
+        ...correction,
+        meta: { ...correction.meta, messageId: "single-correction-replay" },
+      };
+
+      expect(tracker.update(correction)).toMatchObject({
+        isNew: false,
+        isCorrection: true,
+        revisionDecision: "acceptTransient",
+      });
+      expect(tracker.update(replay)).toMatchObject({
+        isDuplicate: true,
+        revisionDecision: "semanticDuplicate",
+      });
+    });
+
+    it("EventID が空でも不正 serial は拒否する", () => {
+      const result = tracker.update(createEewInfo({
+        serial: "invalid",
+        eventId: "",
+      }));
+
+      expect(result).toMatchObject({
+        isNew: false,
+        isDuplicate: true,
+        revisionDecision: "invalidRevision",
+      });
     });
   });
 
@@ -86,6 +162,126 @@ describe("EewTracker", () => {
       );
 
       expect(result.isDuplicate).toBe(true);
+    });
+  });
+
+  describe("共通 revision gate", () => {
+    it("同一 serial の訂正で state を置換し、次報の比較元にする", () => {
+      tracker.update(createEewInfo({
+        eventId: "event-correction",
+        serial: "2",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "旧震源",
+          latitude: "35.0",
+          longitude: "139.0",
+          depth: "10km",
+          magnitude: "5.0",
+        },
+      }));
+      const corrected = tracker.update(createEewInfo({
+        eventId: "event-correction",
+        serial: "2",
+        infoType: "訂正",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "訂正震源",
+          latitude: "35.0",
+          longitude: "139.0",
+          depth: "20km",
+          magnitude: "5.5",
+        },
+      }));
+      const next = tracker.update(createEewInfo({
+        eventId: "event-correction",
+        serial: "3",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "続報震源",
+          latitude: "35.0",
+          longitude: "139.0",
+          depth: "30km",
+          magnitude: "6.0",
+        },
+      }));
+
+      expect(corrected).toMatchObject({
+        isNew: false,
+        isDuplicate: false,
+        isCorrection: true,
+        revisionDecision: "replaceCorrection",
+      });
+      expect(next.previousInfo?.earthquake?.hypocenterName).toBe("訂正震源");
+      expect(next.diff?.previousMagnitude).toBe("5.5");
+    });
+
+    it("実質差分なしの同一 serial 訂正も一回だけ受理する", () => {
+      const normal = createEewInfo({
+        eventId: "event-no-diff",
+        serial: "4",
+      });
+      tracker.update(normal);
+      const correction = createEewInfo({
+        ...normal,
+        infoType: "訂正",
+        meta: undefined,
+      });
+
+      const first = tracker.update(correction);
+      const repeated = tracker.update(correction);
+
+      expect(first.isCorrection).toBe(true);
+      expect(first.diff).toBeUndefined();
+      expect(repeated).toMatchObject({
+        isDuplicate: true,
+        revisionDecision: "semanticDuplicate",
+      });
+    });
+
+    it("小さい serial の訂正は state を巻き戻さない", () => {
+      tracker.update(createEewInfo({
+        eventId: "event-stale",
+        serial: "5",
+        headline: "current",
+      }));
+      const stale = tracker.update(createEewInfo({
+        eventId: "event-stale",
+        serial: "4",
+        infoType: "訂正",
+        headline: "stale",
+      }));
+      const next = tracker.update(createEewInfo({
+        eventId: "event-stale",
+        serial: "6",
+      }));
+
+      expect(stale).toMatchObject({
+        isDuplicate: true,
+        revisionDecision: "stale",
+      });
+      expect(next.previousInfo?.headline).toBe("current");
+    });
+
+    it("取消後の遅延旧報を拒否して markCancelled を維持する", () => {
+      tracker.update(createEewInfo({
+        eventId: "event-cancelled",
+        serial: "3",
+      }));
+      const cancelled = tracker.update(createEewInfo({
+        eventId: "event-cancelled",
+        serial: "4",
+        infoType: "取消",
+      }));
+      const stale = tracker.update(createEewInfo({
+        eventId: "event-cancelled",
+        serial: "3",
+      }));
+
+      expect(cancelled.revisionDecision).toBe("markCancelled");
+      expect(cancelled.activeCount).toBe(0);
+      expect(stale.isDuplicate).toBe(true);
+      expect(stale.isCancelled).toBe(true);
+      expect(tracker.getActiveCount()).toBe(0);
     });
   });
 
@@ -499,6 +695,68 @@ describe("EewTracker", () => {
     it("存在しない eventId を finalize してもエラーにならない", () => {
       expect(() => tracker.finalizeEvent("nonexistent")).not.toThrow();
     });
+
+    it("同一 serial 訂正で final 状態を非最終へ置換する", () => {
+      const final = tracker.update(createEewInfo({
+        eventId: "event-final-correction",
+        serial: "5",
+        nextAdvisory: "これで最終報です",
+      }));
+      expect(final.activeCount).toBe(0);
+
+      const corrected = tracker.update(createEewInfo({
+        eventId: "event-final-correction",
+        serial: "5",
+        infoType: "訂正",
+        nextAdvisory: undefined,
+      }));
+      expect(corrected).toMatchObject({
+        isCorrection: true,
+        revisionDecision: "replaceCorrection",
+        activeCount: 1,
+      });
+    });
+
+    it("最終報後の大きい serial 非最終続報で active に戻る", () => {
+      tracker.update(createEewInfo({
+        eventId: "event-final-newer",
+        serial: "5",
+        nextAdvisory: "これで最終報です",
+      }));
+
+      const newer = tracker.update(createEewInfo({
+        eventId: "event-final-newer",
+        serial: "6",
+        nextAdvisory: undefined,
+      }));
+      expect(newer).toMatchObject({
+        isDuplicate: false,
+        activeCount: 1,
+      });
+    });
+
+    it("同一 serial 訂正で cancel 状態も非取消へ置換する", () => {
+      tracker.update(createEewInfo({
+        eventId: "event-cancel-correction",
+        serial: "1",
+      }));
+      expect(tracker.update(createEewInfo({
+        eventId: "event-cancel-correction",
+        serial: "2",
+        infoType: "取消",
+      })).activeCount).toBe(0);
+
+      const corrected = tracker.update(createEewInfo({
+        eventId: "event-cancel-correction",
+        serial: "2",
+        infoType: "訂正",
+      }));
+      expect(corrected).toMatchObject({
+        isCancelled: false,
+        isCorrection: true,
+        activeCount: 1,
+      });
+    });
   });
 
   describe("自動クリーンアップ", () => {
@@ -729,21 +987,12 @@ describe("EewTracker", () => {
 
   describe("To 基準一気通貫 (spec 4.5): getMaxForecastIntensity", () => {
     function eewInfoWith(serial: string, areas: { name: string; intensity: string; intensityTo?: string }[]): ParsedEewInfo {
-      return {
-        meta: testTelegramMeta(false),
-        type: "VXSE45",
-        infoType: "発表",
-        title: "緊急地震速報（地震動予報）",
+      return createEewInfo({
         reportDateTime: new Date().toISOString(),
-        headline: null,
-        publishingOffice: "気象庁",
         serial,
         eventId: "20260705000000",
-        isTest: false,
-        isWarning: false,
-        isAssumedHypocenter: false,
         forecastIntensity: { areas },
-      };
+      });
     }
 
     it("previousMaxInt が悲観側 (intensityTo ?? intensity) で入る", () => {

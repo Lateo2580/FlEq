@@ -128,6 +128,7 @@ function projectEmergency(
       isWarning: event.isWarning === true,
       isFinal: event.isFinal === true,
       isCancellation: event.isCancellation,
+      isCorrection: event.infoType === "訂正",
       hypocenterName: event.hypocenterName ?? null,
       forecastMaxInt: event.forecastMaxInt ?? null,
       forecastMaxIntRank: event.forecastMaxIntRank ?? null,

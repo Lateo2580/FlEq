@@ -11,8 +11,8 @@ import type {
 const MIN = 60_000;
 const T0 = Date.parse("2026-07-06T21:00:00+09:00");
 
-function eewDto(over: Partial<{ eventId: string; serial: string; isFinal: boolean; isCancellation: boolean; isWarning: boolean }>): DisplayEventDtoV1 {
-  const o = { eventId: "E1", serial: "1", isFinal: false, isCancellation: false, isWarning: true, ...over };
+function eewDto(over: Partial<{ eventId: string; serial: string; isFinal: boolean; isCancellation: boolean; isWarning: boolean; isCorrection: boolean; hypocenterName: string }>): DisplayEventDtoV1 {
+  const o = { eventId: "E1", serial: "1", isFinal: false, isCancellation: false, isWarning: true, isCorrection: false, hypocenterName: "X", ...over };
   return {
     version: 1, seq: 0, id: `m-${o.eventId}-${o.serial}`, eventKey: `eew:${o.eventId}:${o.serial}`,
     groupKey: `eew:${o.eventId}`, domain: "eew", type: "VXSE45", infoType: "発表",
@@ -21,7 +21,7 @@ function eewDto(over: Partial<{ eventId: string; serial: string; isFinal: boolea
     summary: { text: "t", role: "eewWarning" },
     emergency: {
       kind: "eew", eventId: o.eventId, serial: o.serial, isWarning: o.isWarning, isFinal: o.isFinal,
-      isCancellation: o.isCancellation, hypocenterName: "X", forecastMaxInt: "5強",
+      isCancellation: o.isCancellation, isCorrection: o.isCorrection, hypocenterName: o.hypocenterName, forecastMaxInt: "5強",
       forecastMaxIntRank: 6, magnitude: "6.0", colorIndex: 0, reportDateTime: "2026-07-06T21:00:00+09:00",
     },
     recentQuake: null,
@@ -160,6 +160,25 @@ describe("DisplayStateStore: EEW", () => {
     snap = store.snapshot(2, T0 + 2_000);
     expect(snap.activeEews.length).toBe(1);
     expect(snap.activeEews[0]).toMatchObject({ serial: "3", isFinal: true });
+  });
+
+  it("同一 serial の訂正は state を置換する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(eewDto({
+      serial: "3",
+      hypocenterName: "訂正前",
+    }), T0)).toBe(true);
+    expect(store.applyEvent(eewDto({
+      serial: "3",
+      isCorrection: true,
+      hypocenterName: "訂正後",
+    }), T0 + 1_000)).toBe(true);
+
+    expect(store.snapshot(1, T0 + 1_000).activeEews[0]).toMatchObject({
+      serial: "3",
+      isCorrection: true,
+      hypocenterName: "訂正後",
+    });
   });
 
   it("別 eventId は並存する (複数 EEW)", () => {
