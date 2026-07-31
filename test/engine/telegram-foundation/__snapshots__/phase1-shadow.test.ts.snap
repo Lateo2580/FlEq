@@ -1,0 +1,373 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`telegram foundation Phase 1 shadow > Phase 0 evidence を shadow parse し、同じ fixture の実 runtime parser 返却値と比較する 1`] = `
+[
+  {
+    "domain": "Magnitude",
+    "fixture": "32-39_11_02_250206_VTSE41.xml",
+    "legacy": {
+      "comparison": "preserved",
+      "reason": "当該 fixture の raw・condition・description を magnitudeInfo が保持し、unknown/qualitative の根拠を再構成できる",
+      "route": "parseTsunamiTelegram().earthquake",
+      "value": {
+        "displayMagnitude": "",
+        "magnitudeInfo": {
+          "condition": "不明",
+          "description": "Ｍ８を超える巨大地震",
+          "value": "NaN",
+        },
+      },
+    },
+    "selector": "Earthquake/Magnitude[@condition=不明]",
+    "shadow": {
+      "condition": "不明",
+      "description": "Ｍ８を超える巨大地震",
+      "presence": "qualitative",
+      "raw": "NaN",
+      "value": null,
+    },
+  },
+  {
+    "domain": "Magnitude",
+    "fixture": "32-39_11_02_250206_VTSE41.xml",
+    "legacy": {
+      "comparison": "preserved",
+      "reason": "当該 fixture の raw・condition・description を magnitudeInfo が保持し、unknown/qualitative の根拠を再構成できる",
+      "route": "parseTsunamiTelegram().earthquake",
+      "value": {
+        "displayMagnitude": "",
+        "magnitudeInfo": {
+          "condition": "不明",
+          "description": "Ｍ８を超える巨大地震",
+          "value": "NaN",
+        },
+      },
+    },
+    "selector": "Earthquake/Magnitude[@condition=不明]",
+    "shadow": {
+      "condition": "不明",
+      "description": "Ｍ８を超える巨大地震",
+      "presence": "qualitative",
+      "raw": "NaN",
+      "value": null,
+    },
+  },
+  {
+    "domain": "Depth",
+    "fixture": "36_01_10_240613_VXSE44.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "本文を読まず rank=4 だけを返すため、unknown の NaN・通常数値・empty が同じ返却値へ潰れる",
+      "route": "parseEewTelegram().accuracy.depthRank",
+      "value": {
+        "depthRank": 4,
+      },
+    },
+    "selector": "Earthquake/Hypocenter/Accuracy/Depth",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "presence": "unknown",
+      "raw": "NaN",
+      "value": null,
+    },
+  },
+  {
+    "domain": "Intensity",
+    "fixture": "32-35_01_02_240613_VXSE52.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "当該 fixture の missing は undefined になるが、Body/Intensity の self-closing empty も同じ undefined に潰れる",
+      "route": "parseEarthquakeTelegram().intensity",
+      "value": null,
+    },
+    "selector": "Body/Intensity",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "presence": "missing",
+      "raw": null,
+      "value": null,
+    },
+  },
+  {
+    "domain": "Intensity",
+    "fixture": "36_01_10_240613_VXSE44.xml",
+    "legacy": {
+      "comparison": "partially-preserved",
+      "reason": "当該 fixture の From=3・To=4 は保持するが、condition・description を運ばず完全な SpecialValue 構造ではない",
+      "route": "parseEewTelegram().forecastIntensity.areas[福岡県福岡]",
+      "value": {
+        "arrivalTime": "2024-04-17T23:15:35+09:00",
+        "intensity": "3",
+        "intensityTo": "4",
+        "name": "福岡県福岡",
+      },
+    },
+    "selector": "Intensity/Forecast/Pref/Area[Code=710]/ForecastInt",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "lowerBound": "3",
+      "presence": "range",
+      "raw": "",
+      "upperBound": "4",
+      "value": null,
+    },
+  },
+  {
+    "domain": "TsunamiHeight",
+    "fixture": "32-39_11_10_250206_VTSE51.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "欠落を null/空属性へ潰し、self-closing empty と区別できない",
+      "route": "parseTsunamiTelegram().observations[stationCode=20102]",
+      "value": {
+        "maxHeightValue": null,
+        "maxHeightValueCondition": "",
+      },
+    },
+    "selector": "Observation/Item/Area/Station[Code=20102]/MaxHeight/TsunamiHeight",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "presence": "missing",
+      "raw": null,
+      "value": null,
+    },
+  },
+  {
+    "domain": "TsunamiHeight",
+    "fixture": "32-39_11_03_250206_VTSE51.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "condition=不明を失い description=巨大だけを返すため、observed unknown が qualitative と同じ返却値へ潰れる",
+      "route": "parseTsunamiTelegram().forecast[maxHeightDescription=巨大]",
+      "value": {
+        "maxHeightDescription": "巨大",
+      },
+    },
+    "selector": "TsunamiHeight[@condition=不明][@description=巨大]",
+    "shadow": {
+      "condition": "不明",
+      "description": "巨大",
+      "presence": "qualitative",
+      "raw": "NaN",
+      "value": null,
+    },
+  },
+  {
+    "domain": "TsunamiHeight",
+    "fixture": "32-39_11_03_250206_VTSE51.xml",
+    "legacy": {
+      "comparison": "partially-preserved",
+      "reason": "observed qualitative の表示用「巨大」は区別して残るが、raw=NaN と condition=不明は失われる",
+      "route": "parseTsunamiTelegram().forecast[maxHeightDescription=巨大]",
+      "value": {
+        "maxHeightDescription": "巨大",
+      },
+    },
+    "selector": "TsunamiHeight[@condition=不明][@description=巨大]",
+    "shadow": {
+      "condition": "不明",
+      "description": "巨大",
+      "presence": "qualitative",
+      "raw": "NaN",
+      "value": null,
+    },
+  },
+  {
+    "domain": "TsunamiHeight",
+    "fixture": "32-39_11_11_250206_VTSE41.xml",
+    "legacy": {
+      "comparison": "partially-preserved",
+      "reason": "表示文は保持するが lowerBound=10 の構造は持たない",
+      "route": "parseTsunamiTelegram().forecast[maxHeightDescription=１０ｍ超]",
+      "value": {
+        "maxHeightDescription": "１０ｍ超",
+      },
+    },
+    "selector": "TsunamiHeight[@description=１０ｍ超]",
+    "shadow": {
+      "condition": null,
+      "description": "１０ｍ超",
+      "lowerBound": 10,
+      "presence": "range",
+      "raw": "10",
+      "upperBound": null,
+      "value": null,
+    },
+  },
+  {
+    "domain": "LgInt",
+    "fixture": "36_01_10_240613_VXSE44.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "当該 fixture の missing は undefined になるが、ForecastLgInt の self-closing empty も同じ undefined に潰れる",
+      "route": "parseEewTelegram().forecastIntensity.maxLgInt",
+      "value": {
+        "maxLgInt": null,
+      },
+    },
+    "selector": "Body/Intensity/Forecast/ForecastLgInt",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "presence": "missing",
+      "raw": null,
+      "value": null,
+    },
+  },
+  {
+    "domain": "LgInt",
+    "fixture": "37_01_02_240613_VXSE43.xml",
+    "legacy": {
+      "comparison": "partially-preserved",
+      "reason": "From=To=2 の値は保持するが明示 range 構造は失われる",
+      "route": "parseEewTelegram().forecastIntensity.maxLgInt",
+      "value": {
+        "maxLgInt": "2",
+      },
+    },
+    "selector": "Body/Intensity/Forecast/ForecastLgInt",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "lowerBound": "2",
+      "presence": "range",
+      "raw": "",
+      "upperBound": "2",
+      "value": null,
+    },
+  },
+  {
+    "domain": "WindSpeed",
+    "fixture": "83_02_02_250630_VPZJ51.xml",
+    "legacy": {
+      "comparison": "preserved",
+      "reason": "raw empty・condition・description・unit・value null を既存 DTO が保持済み",
+      "route": "parseWeatherExplanation().forecast.metrics.values",
+      "value": {
+        "condition": "値なし",
+        "description": null,
+        "raw": "",
+        "subType": "最大風速",
+        "timeName": "２９日",
+        "timeRef": "1",
+        "unit": "m/s",
+        "value": null,
+      },
+    },
+    "selector": "WindSpeed[@condition=値なし][@type=最大風速]",
+    "shadow": {
+      "condition": "値なし",
+      "description": null,
+      "presence": "empty",
+      "raw": "",
+      "value": null,
+    },
+  },
+  {
+    "domain": "WindSpeed",
+    "fixture": "10_05_01_200826_VPTW60.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "condition=なしを失い、raw 0 を通常の数値0として返す",
+      "route": "parseTyphoonAnalysis().frames[予報 120時間後].wind.maxWindMs",
+      "value": {
+        "maxWindMs": 0,
+      },
+    },
+    "selector": "WindSpeed[@condition=なし][@type=最大風速][@description=最大風速０メートル]",
+    "shadow": {
+      "condition": "なし",
+      "description": "最大風速０メートル",
+      "presence": "qualitative",
+      "raw": "0",
+      "value": null,
+    },
+  },
+  {
+    "domain": "WindSpeed",
+    "fixture": "telegram-foundation/weathercw-10_03_01_171016_VPTW60-wind-range.xml",
+    "legacy": {
+      "comparison": "unproven",
+      "reason": "Phase 0 fixture は selector 証拠だけの抜粋で完全な Report ではなく runtime parser 比較不能",
+      "route": "parseTyphoonAnalysis()",
+      "value": null,
+    },
+    "selector": "Evidence/WindSpeed[@condition=以上][@unit=ノット]",
+    "shadow": {
+      "condition": "以上",
+      "description": "風速５０ノット以上",
+      "lowerBound": 50,
+      "presence": "range",
+      "raw": "50",
+      "upperBound": null,
+      "value": null,
+    },
+  },
+  {
+    "domain": "MovementSpeed",
+    "fixture": "10_04_03_170913_VPTW60.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "condition=ゆっくり と description を失い null に縮約する",
+      "route": "parseTyphoonAnalysis().frames[予報 6時間後].center.moveSpeedKmh",
+      "value": {
+        "moveSpeedKmh": null,
+      },
+    },
+    "selector": "CenterPart/Speed[@condition=ゆっくり]",
+    "shadow": {
+      "condition": "ゆっくり",
+      "description": "ゆっくり",
+      "presence": "qualitative",
+      "raw": "",
+      "value": null,
+    },
+  },
+  {
+    "domain": "PlumeHeight",
+    "fixture": "67_01_01_140927_VFVO56.xml",
+    "legacy": {
+      "comparison": "collapsed",
+      "reason": "欠落を null/false に縮約し、明示 empty と区別できない",
+      "route": "parseVolcanoTelegram().plumeHeight/plumeHeightUnknown",
+      "value": {
+        "plumeHeight": null,
+        "plumeHeightUnknown": false,
+      },
+    },
+    "selector": "ColorPlume/PlumeHeightAboveCrater",
+    "shadow": {
+      "condition": null,
+      "description": null,
+      "presence": "missing",
+      "raw": null,
+      "value": null,
+    },
+  },
+  {
+    "domain": "PlumeHeight",
+    "fixture": "43_01_01_200522_VFVO52.xml",
+    "legacy": {
+      "comparison": "partially-preserved",
+      "reason": "unknown の意味は boolean に残るが raw・condition・description は失われる",
+      "route": "parseVolcanoTelegram().plumeHeight/plumeHeightUnknown",
+      "value": {
+        "plumeHeight": null,
+        "plumeHeightUnknown": true,
+      },
+    },
+    "selector": "PlumeHeightAboveCrater[@condition=不明]",
+    "shadow": {
+      "condition": "不明",
+      "description": "不明",
+      "presence": "unknown",
+      "raw": "",
+      "value": null,
+    },
+  },
+]
+`;

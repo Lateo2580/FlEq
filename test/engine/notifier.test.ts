@@ -460,6 +460,11 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
 });
 
 describe("resolveIconPath", () => {
+  // 他の describe が通知経路経由でキャッシュを埋めることがあるため、前後両方で clear する
+  // (afterEach だけだと実行順によって前段の解決結果が残る)
+  beforeEach(() => {
+    clearIconPathCache();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     clearIconPathCache();

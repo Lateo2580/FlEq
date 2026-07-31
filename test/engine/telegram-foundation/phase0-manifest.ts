@@ -67,7 +67,7 @@ export type SpecialValueDomain =
   | "MovementSpeed"
   | "PlumeHeight";
 
-interface CorpusEvidence {
+export interface CorpusEvidence {
   source: "repo" | "weathercw" | "synthetic";
   fixture: string;
   selector: string;
@@ -84,7 +84,7 @@ interface CorpusEvidence {
   upstreamSha256?: string;
 }
 
-interface SpecialValueCell {
+export interface SpecialValueCell {
   expectedPresence: FiveStatePresence;
   evidence: readonly CorpusEvidence[];
 }

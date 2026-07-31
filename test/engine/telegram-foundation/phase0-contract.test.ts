@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { XMLParser } from "fast-xml-parser";
 import { describe, expect, it } from "vitest";
 import { parseTsunamiTelegram } from "../../../src/dmdata/telegram-parser";
 import type { PresentationDomain } from "../../../src/engine/presentation/types";
@@ -9,6 +8,13 @@ import {
   createMockWsDataMessage,
   FIXTURE_VTSE41_WARN,
 } from "../../helpers/mock-message";
+import {
+  createXmlEvidenceParser,
+  directXmlChildren,
+  selectXml,
+  xmlAttribute,
+  xmlText,
+} from "../../helpers/xml-selector";
 import {
   CANCELLATION_CHARACTERIZATION,
   CANCELLATION_MUTATION_EVIDENCE,
@@ -29,105 +35,7 @@ import {
   type SpecialValueDomain,
 } from "./phase0-manifest";
 
-type XmlRecord = Record<string, unknown>;
-
-const xmlParser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-  textNodeName: "#text",
-  parseTagValue: false,
-  trimValues: false,
-});
-
-function isXmlRecord(value: unknown): value is XmlRecord {
-  return typeof value === "object" && value != null && !Array.isArray(value);
-}
-
-function localName(name: string): string {
-  return name.includes(":") ? name.slice(name.lastIndexOf(":") + 1) : name;
-}
-
-function asValues(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [value];
-}
-
-function directChildren(node: unknown, name: string): unknown[] {
-  if (!isXmlRecord(node)) return [];
-  return Object.entries(node)
-    .filter(([key]) => !key.startsWith("@_") && key !== "#text" && localName(key) === name)
-    .flatMap(([, value]) => asValues(value));
-}
-
-function descendants(node: unknown, name: string): unknown[] {
-  if (!isXmlRecord(node) && !Array.isArray(node)) return [];
-  const values = Array.isArray(node) ? node : Object.values(node);
-  const found: unknown[] = [];
-  if (isXmlRecord(node)) {
-    for (const [key, value] of Object.entries(node)) {
-      if (!key.startsWith("@_") && key !== "#text" && localName(key) === name) {
-        found.push(...asValues(value));
-      }
-    }
-  }
-  for (const value of values) {
-    for (const child of asValues(value)) {
-      if (isXmlRecord(child) || Array.isArray(child)) found.push(...descendants(child, name));
-    }
-  }
-  return found;
-}
-
-function xmlText(node: unknown): string | undefined {
-  if (typeof node === "string" || typeof node === "number") return String(node).trim();
-  if (!isXmlRecord(node)) return undefined;
-  const text = node["#text"];
-  return typeof text === "string" || typeof text === "number" ? String(text).trim() : undefined;
-}
-
-function xmlAttribute(node: unknown, name: string): string | undefined {
-  if (!isXmlRecord(node)) return undefined;
-  const value = node[`@_${name}`];
-  return typeof value === "string" || typeof value === "number" ? String(value).trim() : undefined;
-}
-
-function parseSelectorSegment(segment: string): {
-  name: string;
-  predicates: Array<{ attribute: boolean; name: string; value: string }>;
-} {
-  const name = segment.slice(0, segment.indexOf("[") < 0 ? segment.length : segment.indexOf("["));
-  const predicates: Array<{ attribute: boolean; name: string; value: string }> = [];
-  const pattern = /\[(@?)([^=\]]+)=([^\]]*)\]/g;
-  for (const match of segment.matchAll(pattern)) {
-    predicates.push({ attribute: match[1] === "@", name: match[2], value: match[3] });
-  }
-  return { name, predicates };
-}
-
-function matchesPredicates(
-  node: unknown,
-  predicates: Array<{ attribute: boolean; name: string; value: string }>,
-): boolean {
-  return predicates.every((predicate) => {
-    const actual = predicate.attribute
-      ? xmlAttribute(node, predicate.name)
-      : directChildren(node, predicate.name).map(xmlText).find((value) => value != null);
-    return actual === predicate.value;
-  });
-}
-
-function selectXml(root: unknown, selector: string): unknown | null {
-  const segments = selector.split("/").map(parseSelectorSegment);
-  const first = segments[0];
-  if (first == null) return null;
-  let current = descendants(root, first.name)
-    .filter((node) => matchesPredicates(node, first.predicates));
-  for (const segment of segments.slice(1)) {
-    current = current
-      .flatMap((node) => directChildren(node, segment.name))
-      .filter((node) => matchesPredicates(node, segment.predicates));
-  }
-  return current[0] ?? null;
-}
+const xmlParser = createXmlEvidenceParser();
 
 function classifyXmlEvidence(node: unknown | null): FiveStatePresence[] {
   if (node == null) return ["missing"];
@@ -135,8 +43,8 @@ function classifyXmlEvidence(node: unknown | null): FiveStatePresence[] {
   const raw = xmlText(node);
   const condition = xmlAttribute(node, "condition") ?? "";
   const description = xmlAttribute(node, "description") ?? "";
-  const from = directChildren(node, "From").map(xmlText).find((value) => value != null);
-  const to = directChildren(node, "To").map(xmlText).find((value) => value != null);
+  const from = directXmlChildren(node, "From").map(xmlText).find((value) => value != null);
+  const to = directXmlChildren(node, "To").map(xmlText).find((value) => value != null);
   if (raw == null && from == null && to == null) states.push("empty");
   if (raw?.toLowerCase() === "nan" || condition.includes("不明") || condition.includes("不詳")) {
     states.push("unknown");
@@ -337,7 +245,7 @@ describe("telegram foundation Phase 0 contract", () => {
           }
           const expectedChildren = "children" in expected! ? expected!.children : {};
           for (const [name, value] of Object.entries(expectedChildren ?? {})) {
-            const actual = directChildren(selected, name).map(xmlText).find((item) => item != null);
+            const actual = directXmlChildren(selected, name).map(xmlText).find((item) => item != null);
             expect(actual, `${evidence.selector}/${name}`).toBe(value);
           }
           const classified = classifyXmlEvidence(selected);

@@ -42,6 +42,25 @@ export function createJmxXmlParser(isArray?: IsArrayPredicate): XMLParser {
   });
 }
 
+/**
+ * SpecialValue の shadow 抽出用 parser。
+ *
+ * 既存 parser の返却値を変えないため `createJmxXmlParser` とは分離し、
+ * 空白のみの本文を byte-for-byte で保持する `trimValues:false` を追加する。
+ * Phase 1 では shadow test だけが使用し、既存 parser には配線しない。
+ */
+export function createJmxShadowXmlParser(isArray?: IsArrayPredicate): XMLParser {
+  return new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_",
+    textNodeName: "#text",
+    parseTagValue: false,
+    parseAttributeValue: false,
+    trimValues: false,
+    ...(isArray ? { isArray } : {}),
+  });
+}
+
 // ── 汎用ノードアクセスヘルパ ──
 
 /** キー列を順にたどって安全にプロパティアクセスする (欠落時 undefined) */

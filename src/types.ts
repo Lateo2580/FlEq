@@ -10,6 +10,86 @@ export type FrameLevel = "critical" | "warning" | "normal" | "info" | "cancel";
  */
 export type SoundLevel = "critical" | "warning" | "normal" | "info" | "cancel";
 
+// ── 電文基盤共通型 ──
+
+export type SpecialValuePresence =
+  | "value"
+  | "missing"
+  | "empty"
+  | "unknown"
+  | "qualitative"
+  | "range";
+
+export interface SpecialValue<T> {
+  raw: string | null;
+  value: T | null;
+  condition: string | null;
+  description: string | null;
+  presence: SpecialValuePresence;
+  lowerBound?: T | null;
+  upperBound?: T | null;
+}
+
+export interface StrictTextMeta {
+  raw: string | null;
+  value: string | null;
+  valid: boolean;
+}
+
+export interface StrictDateTimeMeta {
+  raw: string | null;
+  epochMs: number | null;
+  valid: boolean;
+}
+
+export interface TelegramSerial {
+  raw: string | null;
+  numeric: number | null;
+  valid: boolean;
+}
+
+export type TelegramInfoTypeValue =
+  | "発表"
+  | "訂正"
+  | "取消";
+
+export interface StrictInfoTypeMeta {
+  raw: string | null;
+  value: TelegramInfoTypeValue | null;
+  valid: boolean;
+}
+
+export interface TelegramMeta {
+  messageId: string;
+  eventId: StrictTextMeta;
+  type: StrictTextMeta;
+  reportDateTime: StrictDateTimeMeta;
+  serial: TelegramSerial;
+  infoType: StrictInfoTypeMeta;
+  receivedAtMs: number;
+  status: string | null;
+  isTest: boolean;
+}
+
+export interface TelegramRevision {
+  eventId: StrictTextMeta;
+  type: StrictTextMeta;
+  reportDateTime: StrictDateTimeMeta;
+  serial: TelegramSerial;
+  infoType: StrictInfoTypeMeta;
+}
+
+export interface TelegramRevisionComparisonInput {
+  revision: TelegramRevision;
+  stateSubjectKey: string | null;
+}
+
+export type RevisionRelation =
+  | "newer"
+  | "equal"
+  | "older"
+  | "unordered";
+
 // ── 気象警報・注意報の 2 系統表示重大度 (VPWW55-61 / VPWP50 共通) ──
 // 型定義はここ (import ゼロの leaf) に置き、weather-warning-level.ts から再 export する。
 // (DISPLAY_SEVERITY_TO_FRAME_LEVEL が FrameLevel と DisplaySeverity を同一モジュールで

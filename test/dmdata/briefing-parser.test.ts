@@ -247,7 +247,9 @@ describe("briefing route integration smoke", () => {
     expect(event.isWarning).toBe(true);
   });
 
-  it("createMessageHandler 経由で VPBS50 が weather→briefing ルートに乗る", async () => {
+  // message-router の dynamic import が engine 全体のモジュールグラフを引くため、
+  // 並列実行時は既定 5 秒に収まらないことがある (単体では 1 秒未満)
+  it("createMessageHandler 経由で VPBS50 が weather→briefing ルートに乗る", { timeout: 30_000 }, async () => {
     const { createMessageHandler } = await import(
       "../../src/engine/messages/message-router"
     );
