@@ -47,6 +47,7 @@ export interface ProcessDeps {
   revisionGate: TelegramRevisionGate;
   onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 

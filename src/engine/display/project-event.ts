@@ -6,6 +6,7 @@ import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningT
 import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
+import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
 import { revisionOf } from "./standby-registry";
 import {
   DISPLAY_PROTOCOL_VERSION,
@@ -299,7 +300,7 @@ function makeGroupKey(event: PresentationEvent): string | null {
     // 気象台の高潮)。(type, publishingOffice) 単位で系列を 1 本化し、同一府県・同一カテゴリの続報を
     // 最新版へ置換する。異なる府県・異なるカテゴリは別キーとして共存させる。publishingOffice は
     // from-weather で常に非 null。
-    return `weather:${event.type}:${event.publishingOffice}`;
+    return weatherOfficeStreamKey(event.type, event.publishingOffice);
   }
   // 解説系・南海トラフ・台風の続報版管理 (spec §4-5)。eventId が無ければ版管理せず null。
   if (event.domain === "nankaiTrough") return event.eventId != null ? `nankai:${event.eventId}` : null;

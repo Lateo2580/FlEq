@@ -1523,59 +1523,47 @@ class FloodForecastStateHolder {
 
 ### 概要
 
-VPWW56 (土砂災害警戒情報) の発表中エリアを保持する state holder。`Vpws50StateHolder` と異なり rich diff / history は持たず、present/absent のみを扱う。
+VPWW56 (土砂災害警戒情報) の、共通 revision gate で受理済みとなった active view を保持する state holder。rich diff / history / revision watermark / cancellation tombstone は持たず、active view の mutation と複数官署の union だけを担う。
 
-view は **`(head.type, publishingOffice)` の複合キー単位で保持し、参照時に union して返す**。全体 1 view 置換にすると別ストリームの続報が既存の警報を消してしまうため、この単位を採る。単調性ガード (report identity の watermark) と dormant 掃除も同じ複合キー単位で独立させる。
+保持粒度は **`(head.type, publishingOffice)` の複合 subject** `weather:${type}:${publishingOffice}`。VPWW56 は府県予報区ごとに別の地方気象台が発表し、同一官署が複数カテゴリを出しうるため両方が必要になる。subject とテロップ groupKey は `weatherOfficeStreamKey()` で同じ trim・欠落判定を使う。
 
-キーが 2 要素なのは理由が別々にある。VPWW56 は府県予報区ごとに**別の地方気象台が発表する**ので官署が要り、同一官署が**複数カテゴリ (土砂・大雨・高潮…) を出しうる**ので type が要る。粒度は `project-event.ts` のテロップ groupKey `weather:${type}:${publishingOffice}` と一致する。
+revision 比較、訂正、`clearCurrent`、6 時間の取消 tombstone、128 subject の上限は `TelegramRevisionGate` と `VPWW56_REVISION_FAMILY_POLICY` が所有する。官署欠落で subject を確定できない電文は fail-open の ticker 表示だけを許し、holder・standby・promotion・通知を変更しない。
 
 ### エクスポートAPI
 
 ```ts
-type Vpww56StateUpdateResult =
-  | { kind: "updated" }
-  | { kind: "suppressed" };
+const VPWW56_MAX_SUBJECTS = 128;
+const VPWW56_TOMBSTONE_RETENTION_MS = 6 * 60 * 60 * 1000;
 
-/** view を失ったストリームを保持し続ける猶予 (6 時間) */
-const VPWW56_DORMANT_RETENTION_MS: number;
-/** view を持たないストリームの上限 (128) */
-const VPWW56_MAX_DORMANT_STREAMS: number;
+function vpww56StateSubjectKey(type: string, publishingOffice: string): string | null;
+function vpww56HasActiveAreas(info: ParsedWeatherWarning): boolean;
 
 class Vpww56StateHolder {
-  update(info: ParsedWeatherWarning, identity?: WeatherReportIdentity): Vpww56StateUpdateResult;
-  /** 全ストリームの現況を union した単一 view。発表中の地域が無ければ undefined */
+  applyAccepted(info: ParsedWeatherWarning, subjectKey: string): void;
+  clearSubject(subjectKey: string): void;
+  update(info: ParsedWeatherWarning, legacyIdentity?: unknown): { kind: "updated" };
   getCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined;
-  /** 保持中のストリーム数 (猶予中のものを含む)。掃除の検証・診断用 */
   trackedStreamCount(): number;
+  activeSubjectKeys(): string[];
+  retainActiveSubjects(subjectKeys: readonly string[]): void;
+  exportPersistedState(): PersistedVpww56StateV2;
+  restorePersistedState(state: PersistedVpww56StateV2): void;
 }
 ```
 
 ### 内部ロジック
 
-#### ストリームキー
-
-`streamKey(info)` が `` `${info.type}|${info.publishingOffice}` `` を組む。`head.type` は英数字のみで `|` を含まないため、官署名側に何が入ってもキーは一意に決まる。
-
-`info.type` は `msg.head.type`、`info.publishingOffice` は envelope (`xmlReport.control.publishingOffice`) を XML 本体の `Control.PublishingOffice` より優先して採った値。
-
-#### `update(info, identity)`
-
-- **取消**: 該当ストリームのエントリが無い、または identity が当該ストリームの current report と一致しなければ `suppressed`。一致すれば**そのストリームの view だけ**を undefined にする。watermark は残し、遅着した古い報を弾き続ける
-- **発表**: 当該ストリームの watermark より新しい identity のときだけ受理する (初回は `reportDateTime` が parse 可能なことが条件)。受理したら view を組み直し、current identity と watermark を進める
-- 発表中 Kind がゼロになった続報 (解除 Kind のみ) は `buildView` が undefined を返すため、取消と同じくそのストリームの view が空になる
+- `processWeather` が common gate の accepted decision を得た後だけ `applyAccepted()` / `clearSubject()` を呼ぶ。
+- `applyAccepted()` は「府県予報区等」layer から release 以外の Kind を view 化する。active Kind が無ければ当該 subject を clear する。
+- `retainActiveSubjects()` は gate が保持する active subject 集合と holder を同期する。
+- Map は受理順に delete→set し、128 件超過時の退場順を gate と一致させる。
+- `update()` は holder 単体利用向けの互換入口であり、revision 判定は行わない。
 
 #### union
 
-view を持つストリームを走査し、kindCode でグループを併合する。`totalAreas` は全ストリーム横断の areaCode 集合サイズ。府県予報区は官署ごとに排他だが、越境発表が来ても地域を二重に並べないよう areaCode で dedup する。kinds は displaySeverity 降順、同 rank では kindCode 昇順で並べ、ストリームをまたいでも順序を決定的にする。union 結果はキャッシュし `update()` で無効化する。
+view を持つストリームを走査し、kindCode でグループを併合する。`totalAreas` は全ストリーム横断の areaCode 集合サイズ。府県予報区は官署ごとに排他だが、越境発表が来ても地域を二重に並べないよう areaCode で dedup する。kinds は displaySeverity 降順、同 rank では kindCode 昇順で並べ、ストリームをまたいでも順序を決定的にする。union 結果はキャッシュし、accepted mutation / clear / restore で無効化する。
 
-#### dormant エントリの掃除
-
-view を失ったエントリだけを 2 段で掃除する。基準時刻は壁時計ではなく**受理済み報の最新 `reportDateTime` (ストリーム時計)** を使う。
-
-1. watermark がストリーム時計から `VPWW56_DORMANT_RETENTION_MS` 以上遅れたエントリを削除
-2. 生き残った dormant が `VPWW56_MAX_DORMANT_STREAMS` を超えたら watermark の古い順に破棄
-
-view を持つエントリは経過時間によらず掃除しない (発表中の警報を落とさない)。
+standby の union `updatedAt` / expiry と起動時復元時刻は、gate 内の active subject 群で最新の ReportDateTime から導出する。別官署の遅着報自身の時刻で union 全体を巻き戻さない。
 
 ### 依存関係
 
@@ -1583,14 +1571,16 @@ view を持つエントリは経過時間によらず掃除しない (発表中�
 |-------------|------|
 | `../../types` | `ParsedWeatherWarning`, `Vpws50CurrentAreasForDisplay`, `Vpws50DisplayKindGroup` |
 | `../../dmdata/weather-warning-level` | `resolvePhenomenonFamily`, `resolveDisplaySeverity`, `DISPLAY_SEVERITY_RANK` |
-| `./vpws50-state` | `compareWeatherReportIdentity`, `weatherReportIdentityEquals`, `shortKindName`, `WeatherReportIdentity` |
+| `./vpws50-state` | `shortKindName` |
+| `./weather-stream-key` | subject / ticker groupKey の共通正規化 |
+| `./telegram-revision-gate` | revision watermark / cancellation tombstone / subject 上限 |
 
 ### 設計ノート
 
 - 出力形は `Vpws50StateHolder.buildCurrentAreasForDisplay` と同じ (`Vpws50CurrentAreasForDisplay`)。`specialAreas` / `warningAreas` / `advisoryAreas` は気象カードで未使用のため 0 を置く (rank は `displaySeverity` 由来、VPWW56 は土砂災害単一種別で 3 段カウントの意味が薄い)。
 - VPWS50 は本 holder に入らない。`processWeather` が `msg.head.type === "VPWW56"` で門番しており、全国集約の VPWS50 は `Vpws50StateHolder` (rich diff 持ち) の担当。「全国集約は 1 本に畳む / 府県気象台は官署別」の非対称は、この 2 つの holder の役割分担そのもの。
-- **複合キーは将来への備えで、現状の挙動は変わらない**。`processWeather` の門番があるため holder に入るのは VPWW56 だけで、キーの第 1 要素は常に同じ。契約はテストで固定してある。将来 VPWW55/57-61 を気象カード経路に載せるには**門番を外す判断が別途要る** — どのカテゴリを気象カードに載せるかという表示の設計判断なので、holder 側が対応済みでも自動的に相乗りできるわけではない。
-- ストリーム時計は受理された報でしか進まないため、電文が長時間途絶えると dormant エントリは残る。上限 128 で頭打ちになるので漏出はしないが、時間経過だけで必ず消えるわけではない。
+- v2 foundation は active view と同じ subject の gate entry を一緒に保存する。旧 v1 union は官署別 provenance を再構成できないため non-authoritative として表示だけを復元し、watermark には採用しない。
+- 6 時間経過後の遅延報復活は、旧 dormant policy を引き継いだ有限 tombstone 方針として受容する。
 
 ---
 

@@ -24,8 +24,9 @@ import { DailyQuakePersistence } from "../messages/daily-quake-persistence";
 import { Vpws50StateHolder } from "../messages/vpws50-state";
 import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
 import { TsunamiStateHolder } from "../messages/tsunami-state";
-import { weatherAlertsFromVpws50 } from "../display/weather-alert-view";
+import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../display/weather-alert-view";
 import { createDisplaySink } from "./display-sink";
+import { Vpww56StateHolder } from "../messages/vpww56-state";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -49,9 +50,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // standby active-state は display runtime ではなく monitor 本体が所有する。
   const standbyStore = new StandbyStateStore();
   const vpws50State = new Vpws50StateHolder();
+  const vpww56State = new Vpww56StateHolder();
   const tsunamiState = new TsunamiStateHolder();
   const revisionGate = new TelegramRevisionGate();
   let vpws50FoundationAuthoritative = true;
+  let vpww56FoundationAuthoritative = true;
   const standbyPersistence = new StandbyPersistence(
     join(process.cwd(), "data", "runtime", "display-active-state-v1.json"),
     undefined,
@@ -61,6 +64,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         state: vpws50State.exportPersistedState(),
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
           entry.domain === "weather" && entry.revisionFamily === "VPWS50"),
+      },
+      vpww56: {
+        authoritative: vpww56FoundationAuthoritative,
+        state: vpww56State.exportPersistedState(),
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "weather" && entry.revisionFamily === "VPWW56"),
       },
       tsunami: {
         active: tsunamiState.getPersistedActive(),
@@ -84,6 +93,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     vpws50FoundationAuthoritative = persistedVpws50.authoritative;
     if (persistedVpws50.state != null) vpws50State.restorePersistedState(persistedVpws50.state);
     revisionGate.restoreDurableEntries(persistedVpws50.gateEntries);
+    const persistedVpww56 = persistedStandby.telegramFoundation.vpww56;
+    vpww56FoundationAuthoritative = persistedVpww56.authoritative;
+    if (persistedVpww56.state != null) vpww56State.restorePersistedState(persistedVpww56.state);
+    revisionGate.restoreDurableEntries(persistedVpww56.gateEntries);
     const persistedTsunami = persistedStandby.telegramFoundation.tsunami;
     tsunamiState.restorePersistedState(
       persistedTsunami.active ?? null,
@@ -96,6 +109,15 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         weatherAlertsFromVpws50(vpws50State.getCurrentAreasForDisplay(), identity?.reportDateTime ?? ""),
         identity?.reportDateTime ?? null,
         identity?.serial ?? null,
+      );
+    }
+    if (persistedVpww56.authoritative) {
+      const activeRevision = revisionGate.latestActiveRevisionFamilyRevision("weather", "VPWW56");
+      const reportDateTime = activeRevision?.reportDateTime ?? null;
+      standbyStore.restoreCanonicalVpww56Alerts(
+        weatherAlertsFromVpww56(vpww56State.getCurrentAreasForDisplay(), reportDateTime ?? ""),
+        reportDateTime,
+        activeRevision?.serial ?? null,
       );
     }
   }
@@ -227,16 +249,22 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const persistAcceptedTsunamiRevision = () => {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   };
-  const { handler: routeMessage, eewLogger, notifier, volcanoState, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
+  const { handler: routeMessage, eewLogger, notifier, volcanoState, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
     pipeline: pipeline ?? undefined,
     display,
     displaySink,
     dailyQuakeCounter,
     vpws50State,
+    vpww56State,
     tsunamiState,
     revisionGate,
     onVpws50RevisionDecision: (decision) => {
       if (decision.accepted) vpws50FoundationAuthoritative = true;
+    },
+    onVpww56RevisionDecision: (decision) => {
+      if (!decision.accepted) return;
+      vpww56FoundationAuthoritative = true;
+      standbyPersistence.schedule(standbyStore.exportActiveState());
     },
     onTsunamiRevisionDecision: persistAcceptedTsunamiRevision,
   });

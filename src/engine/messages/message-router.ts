@@ -71,6 +71,12 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       notifier.notifyNankaiTrough(outcome.parsed);
       return true;
     case "weather": {
+      // 官署欠落などで authoritative subject を確定できなかった VPWW56 は
+      // ticker 表示だけへ流し、OS 通知・通知音・notified 統計には数えない。
+      if (
+        outcome.headType === "VPWW56"
+        && outcome.presentation.weatherStateMutationAccepted !== true
+      ) return false;
       const diff = outcome.presentation.weatherDiff;
       // 変化なし (再掲対象でなければ) は通知を抑制 (spec §4.3)
       const acceptedVpws50Correction = outcome.headType === "VPWS50"
@@ -222,11 +228,14 @@ export interface MessageHandlerOptions {
   dailyQuakeCounter?: DailyQuakeCounter;
   /** monitor が永続状態を復元するときに同一 instance を注入する。 */
   vpws50State?: Vpws50StateHolder;
+  vpww56State?: Vpww56StateHolder;
   tsunamiState?: TsunamiStateHolder;
   /** durable revision watermark の復元用。 */
   revisionGate?: TelegramRevisionGate;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** VPWW56 stream/gate の commit 完了を persistence owner へ伝える。 */
+  onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** tsunami gate/item state の commit 完了を persistence owner へ伝える。 */
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
@@ -262,7 +271,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const tsunamiState = options?.tsunamiState ?? new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
   const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
-  const vpww56State = new Vpww56StateHolder();
+  const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
   const vpwp50Cache = new Vpwp50DetailCache();
   const typhoonProbabilityState = new TyphoonProbabilityStateHolder();
   const floodForecastState = new FloodForecastStateHolder();
@@ -335,6 +344,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     revisionGate,
     onRevisionDecision: recordRevisionDecision,
     onVpws50RevisionDecision: options?.onVpws50RevisionDecision,
+    onVpww56RevisionDecision: options?.onVpww56RevisionDecision,
     onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
   };
 
@@ -453,7 +463,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     const usesFoundationGate = route === "eew" || route === "tsunami"
-      || route === "weather" && msg.head.type === "VPWS50";
+      || route === "weather" && (msg.head.type === "VPWS50" || msg.head.type === "VPWW56");
     if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
       stats.recordFoundation("received", meta.receivedAtMs);
@@ -518,14 +528,17 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     if (acceptedCorrection) {
       stats.recordFoundation("correctionNotified");
     }
-    if ((outcome.domain === "eew" || outcome.domain === "tsunami" || outcome.domain === "weather" && outcome.headType === "VPWS50") && notified) {
+    const foundationTracked = outcome.domain === "eew"
+      || outcome.domain === "tsunami"
+      || outcome.domain === "weather" && (outcome.headType === "VPWS50" || outcome.headType === "VPWW56");
+    if (foundationTracked && notified) {
       stats.recordFoundation("notified");
     }
     const presented = runDisplayPipeline(
       outcome,
       () => display?.displayOutcome(outcome),
     );
-    if ((outcome.domain === "eew" || outcome.domain === "tsunami" || outcome.domain === "weather" && outcome.headType === "VPWS50") && presented) {
+    if (foundationTracked && presented) {
       stats.recordFoundation("presented");
     }
   };

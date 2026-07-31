@@ -117,6 +117,7 @@ function buildVpws50Msg(
     serial?: string | null;
     infoType?: string;
     type?: "VPWS50" | "VPWW56";
+    publishingOffice?: string;
   } = {},
 ): WsDataMessage {
   const reportDateTime = opts.reportDateTime ?? "2026-06-12T15:00:00+09:00";
@@ -133,7 +134,7 @@ function buildVpws50Msg(
         DateTime: "2026-06-12T06:00:00Z",
         Status: "通常",
         EditorialOffice: "気象庁本庁",
-        PublishingOffice: "気象庁",
+        PublishingOffice: opts.publishingOffice ?? "気象庁",
       },
       Head: {
         "@_xmlns": "http://xml.kishou.go.jp/jmaxml1/informationBasis1/",
@@ -194,7 +195,7 @@ function buildVpws50Msg(
         dateTime: "2026-06-12T06:00:00Z",
         status: "通常",
         editorialOffice: "気象庁本庁",
-        publishingOffice: "気象庁",
+        publishingOffice: opts.publishingOffice ?? "気象庁",
       },
       head: {
         title: "警戒・注意事項集約定時通報",
@@ -450,6 +451,103 @@ describe("processWeather - VPWS50/VPWW56 単調性抑制", () => {
       serial: "1",
     }), deps)).toEqual({ kind: "suppressed" });
     expect(deps.vpww56State.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
+  });
+
+  it("VPWW56: 官署ごとの revision は独立し、別官署の続報を巻き込まない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const wakkanai = (reportDateTime: string, serial: string) => buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "稚内地方気象台", reportDateTime, serial,
+    });
+    const asahikawa = (reportDateTime: string, serial: string) => buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "旭川地方気象台", reportDateTime, serial,
+    });
+    expect(processWeather(asahikawa("2026-07-19T11:00:00+09:00", "3"), deps).kind).toBe("ok");
+    expect(processWeather(wakkanai("2026-07-19T09:00:00+09:00", "1"), deps).kind).toBe("ok");
+    expect(processWeather(wakkanai("2026-07-19T10:00:00+09:00", "2"), deps).kind).toBe("ok");
+    expect(processWeather(wakkanai("2026-07-19T09:00:00+09:00", "1"), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpww56State.trackedStreamCount()).toBe(2);
+  });
+
+  it("VPWW56: 一官署の取消だけを clear し、重複取消と遅延旧報で復活しない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const report = (office: string, reportDateTime: string, serial: string, infoType = "発表") =>
+      buildVpws50Msg(landslideKinds, {
+        type: "VPWW56", publishingOffice: office, reportDateTime, serial, infoType,
+      });
+    const t1 = "2026-07-19T09:00:00+09:00";
+    const t2 = "2026-07-19T10:00:00+09:00";
+    expect(processWeather(report("稚内地方気象台", t1, "1"), deps).kind).toBe("ok");
+    expect(processWeather(report("旭川地方気象台", t1, "1"), deps).kind).toBe("ok");
+    const cancel = report("稚内地方気象台", t2, "2", "取消");
+    expect(processWeather(cancel, deps).kind).toBe("ok");
+    expect(deps.vpww56State.activeSubjectKeys()).toEqual(["weather:VPWW56:旭川地方気象台"]);
+    expect(processWeather(cancel, deps)).toEqual({ kind: "suppressed" });
+    expect(processWeather(report("稚内地方気象台", t1, "1"), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpww56State.activeSubjectKeys()).toEqual(["weather:VPWW56:旭川地方気象台"]);
+  });
+
+  it("VPWW56: 同一 revision 訂正を一回だけ置換し、訂正印を返す", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const reportDateTime = "2026-07-19T10:00:00+09:00";
+    const announced = buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "稚内地方気象台", reportDateTime, serial: "2",
+    });
+    const correction = buildVpws50Msg([{ code: "09", name: "レベル３土砂災害警戒警報" }], {
+      type: "VPWW56", publishingOffice: "稚内地方気象台", reportDateTime, serial: "2", infoType: "訂正",
+    });
+    expect(processWeather(announced, deps).kind).toBe("ok");
+    const corrected = requireWeatherOutcome(processWeather(correction, deps));
+    expect(corrected.presentation.acceptedCorrection).toBe(true);
+    expect(deps.vpww56State.getCurrentAreasForDisplay()?.kinds[0].kindCode).toBe("09");
+    expect(processWeather(correction, deps)).toEqual({ kind: "suppressed" });
+  });
+
+  it("VPWW56: 解除 Kind のみの続報は stream clear として latch する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const reportDateTime = "2026-07-19T10:00:00+09:00";
+    expect(processWeather(buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "稚内地方気象台", reportDateTime, serial: "1",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([{ code: "00", name: "解除" }], {
+      type: "VPWW56", publishingOffice: "稚内地方気象台",
+      reportDateTime: "2026-07-19T11:00:00+09:00", serial: "2",
+    }), deps).kind).toBe("ok");
+    expect(deps.vpww56State.getCurrentAreasForDisplay()).toBeUndefined();
+  });
+
+  it("VPWW56: invalid Serial は current/watermark を変更しない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "稚内地方気象台",
+      reportDateTime: "2026-07-19T10:00:00+09:00", serial: "1",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([{ code: "09", name: "レベル３土砂災害警戒警報" }], {
+      type: "VPWW56", publishingOffice: "稚内地方気象台",
+      reportDateTime: "2026-07-19T11:00:00+09:00", serial: "2A",
+    }), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpww56State.getCurrentAreasForDisplay()?.kinds[0].kindCode).toBe("49");
+    expect(processWeather(buildVpws50Msg([{ code: "09", name: "レベル３土砂災害警戒警報" }], {
+      type: "VPWW56", publishingOffice: "稚内地方気象台",
+      reportDateTime: "2026-07-19T11:00:00+09:00", serial: "2",
+    }), deps).kind).toBe("ok");
+  });
+
+  it("VPWW56: 官署欠落の取消は既存 stream を変更しない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "稚内地方気象台",
+      reportDateTime: "2026-07-19T10:00:00+09:00", serial: "1",
+    }), deps).kind).toBe("ok");
+    // 不完全 subject は fail-open 表示だけを許し、durable state/gate は変更しない。
+    const failOpen = processWeather(buildVpws50Msg(landslideKinds, {
+      type: "VPWW56", publishingOffice: "",
+      reportDateTime: "2026-07-19T11:00:00+09:00", serial: "2", infoType: "取消",
+    }), deps);
+    expect(failOpen.kind).toBe("ok");
+    if (failOpen.kind === "ok") {
+      expect(failOpen.outcome.presentation.weatherStateMutationAccepted).toBe(false);
+    }
+    expect(deps.vpww56State.activeSubjectKeys()).toEqual(["weather:VPWW56:稚内地方気象台"]);
   });
 });
 

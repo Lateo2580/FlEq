@@ -414,6 +414,7 @@ function weatherEvent(over: Partial<PresentationEvent>): PresentationEvent {
     type: "VPWS50", infoType: "発表", title: "気象警報・注意報", headline: null,
     reportDateTime: "2026-07-25T21:00:00+09:00", publishingOffice: "気象庁",
     isTest: false, frameLevel: "critical", isCancellation: false,
+    weatherStateMutationAccepted: true,
     areaNames: [], forecastAreaNames: [], municipalityNames: [], observationNames: [],
     areaCount: 0, forecastAreaCount: 0, municipalityCount: 0, observationCount: 0,
     areaItems: [], raw: null,
@@ -787,6 +788,17 @@ describe("applyWeatherPromotionOnIngest (display off 中も昇格が動く)", ()
     applyWeatherPromotionOnIngest(store, views([], L5_TOKYO), weatherEvent({ type: "VPWW56" }), T0);
     expect(store.get("vpww56")?.level).toBe(5);
     expect(store.get("vpws50")).toBeNull();
+  });
+
+  it("VPWW56 fail-open event は promotion を更新しない", () => {
+    const store = new WeatherPromotionStore();
+    expect(applyWeatherPromotionOnIngest(
+      store,
+      views([], L5_TOKYO),
+      weatherEvent({ type: "VPWW56", weatherStateMutationAccepted: false }),
+      T0,
+    )).toBe(false);
+    expect(store.get("vpww56")).toBeNull();
   });
 });
 

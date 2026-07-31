@@ -716,7 +716,7 @@ export const STATE_HOLDER_CHARACTERIZATION = [
   { owner: "VolcanoVfvo53Aggregator", sourceFile: "src/engine/messages/volcano-vfvo53-aggregator.ts", domains: ["volcano"], cancellationRole: "VFVO53 batch window; transient aggregation only" },
   { owner: "Vpwp50DetailCache", sourceFile: "src/engine/messages/vpwp50-detail-cache.ts", domains: ["weatherWarningTimeseries"], cancellationRole: "source detail cache" },
   { owner: "Vpws50StateHolder", sourceFile: "src/engine/messages/vpws50-state.ts", domains: ["weather"], cancellationRole: "current/previous snapshots for restorePrevious" },
-  { owner: "Vpww56StateHolder", sourceFile: "src/engine/messages/vpww56-state.ts", domains: ["weather"], cancellationRole: "stream current view and watermark" },
+  { owner: "Vpww56StateHolder", sourceFile: "src/engine/messages/vpww56-state.ts", domains: ["weather"], cancellationRole: "accepted stream current view; watermark is owned by TelegramRevisionGate" },
   { owner: "WeatherPromotionStore", sourceFile: "src/engine/display/weather-promotion-store.ts", domains: ["weather"], cancellationRole: "promoted emergency weather lifecycle" },
 ] as const;
 
@@ -904,8 +904,8 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     domain: "weather", family: "VPWW56", owner: "Vpww56StateHolder",
     behavior: "取消対象一致時に stream view を clear",
     sources: [{
-      sourceFile: "src/engine/messages/vpww56-state.ts",
-      needles: ['if (info.infoType === "取消") {', "entry.view = undefined;", "entry.currentIdentity = null;"],
+      sourceFile: "src/engine/presentation/processors/process-weather.ts",
+      needles: ['decision.kind === "clearCurrent"', "clearSubject(subject)"],
     }],
   },
   {

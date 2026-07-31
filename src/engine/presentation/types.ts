@@ -76,6 +76,10 @@ export interface ProcessOutcomeBase {
     weatherDiff?: Vpws50Diff;
     /** 共通 revision gate で commit 済みの訂正だけを通知統計へ載せる。 */
     acceptedCorrection?: boolean;
+    /** weather の durable holder/gate mutation が authoritative に commit 済みか。 */
+    weatherStateMutationAccepted?: boolean;
+    /** 複数 subject の union を永続化するときに使う正規 revision。active が空なら null。 */
+    weatherStateRevision?: { reportDateTime: string; serial: string | null } | null;
     typhoonProbabilityMaxDaily5?: number | null;
     /** true のとき dispatchNotify が通知をスキップする。
      *  VPTA50 の連続ゼロ状態抑止に使用 (TyphoonProbabilityStateHolder 経由)。
@@ -369,6 +373,10 @@ export interface PresentationEvent {
   /** VPWS50 state 更新の確度 (weather 系のみ)。unsafe = state を更新しないまま outcome が
    *  通った報。display の昇格判定はこの報を再昇格契機にしない。欠落は confirmed 扱い。 */
   weatherConfidence?: Vpws50Diff["confidence"];
+  /** fail-open 表示と durable weather mutation を後段で分離する内部フラグ。 */
+  weatherStateMutationAccepted?: boolean;
+  /** active weather subject 群から導出した union 用正規 revision。 */
+  weatherStateRevision?: { reportDateTime: string; serial: string | null } | null;
 
   // 状態フラグ
   isCancellation: boolean;

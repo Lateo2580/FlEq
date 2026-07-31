@@ -5,10 +5,8 @@ import { weatherFrameLevel, weatherSoundLevel } from "../level-helpers";
 import type { ProcessDeps } from "./process-message";
 import * as log from "../../../logger";
 import type { WeatherReportIdentity } from "../../messages/vpws50-state";
-import { VPWS50_REVISION_FAMILY_POLICY } from "../../messages/revision-family-registry";
+import { weatherRevisionFamilyPolicy } from "../../messages/revision-family-registry";
 import { semanticPayloadFingerprint } from "../../messages/telegram-revision-gate";
-
-const VPWS50_TYPES = new Set(["VPWS50"]);
 
 /** processWeather の戻り値。抑制とパース失敗を呼び出し側で区別する。 */
 export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
@@ -23,12 +21,13 @@ export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
  *   - isUnchanged かつ !shouldRecap: frameLevel/soundLevel = "info" (静音化)
  *   - その他: 通常の severity ベース判定 (weatherFrameLevel / weatherSoundLevel)
  *
- * VPWW56 (土砂災害警戒情報) も deps.vpww56State の単調性ガードを通す
+ * VPWW56 (土砂災害警戒情報) も共通 revision gate を通し、受理済み mutation だけを
+ * deps.vpww56State に適用する
  * (正常報の frame/sound には影響しない)。
  */
 export function processWeather(
   msg: WsDataMessage,
-  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision" | "onVpws50RevisionDecision">,
+  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision" | "onVpws50RevisionDecision" | "onVpww56RevisionDecision">,
 ): WeatherProcessResult {
   const info = parseWeatherWarning(msg);
   if (!info) return { kind: "parse-failed" };
@@ -40,6 +39,8 @@ export function processWeather(
 
   let weatherDiff: WeatherOutcome["presentation"]["weatherDiff"] = undefined;
   let acceptedCorrection = false;
+  let weatherStateMutationAccepted = false;
+  let weatherStateRevision: WeatherOutcome["presentation"]["weatherStateRevision"] = null;
   // 色専用の集約 severity。frameLevel は静音化 (isUnchanged → info 降格) や unsafe 昇格で
   // 変動するが、テロップ色は「現在の全国集約の最大 severity」で安定させたいので、この降格・
   // 昇格の巻き添えを受けない値を別に保持して下流 (from-weather → summaryRole) へ運ぶ。
@@ -47,14 +48,20 @@ export function processWeather(
   let frameLevel = displaySeverity;
   let soundLevel = weatherSoundLevel(info);
 
-  if (VPWS50_TYPES.has(msg.head.type) && deps?.vpws50State != null) {
+  const policy = weatherRevisionFamilyPolicy(msg.head.type);
+  const stateSubjectKey = policy?.extractStateSubjectKey(info.meta, info);
+  const subject = typeof stateSubjectKey === "string" ? stateSubjectKey : null;
+  if (
+    policy != null
+    && subject != null
+    && deps?.revisionGate != null
+    && (msg.head.type !== "VPWS50" || deps.vpws50State != null)
+    && (msg.head.type !== "VPWW56" || deps.vpww56State != null)
+  ) {
     const messageId = msg.xmlReport?.head.eventId
                    ?? msg.xmlReport?.head.reportDateTime
                    ?? "";
 
-    const policy = VPWS50_REVISION_FAMILY_POLICY;
-    const stateSubjectKey = policy.extractStateSubjectKey(info.meta, info);
-    const subject = typeof stateSubjectKey === "string" ? stateSubjectKey : null;
     const cancellationTargets = info.meta.infoType.value === "取消"
       ? policy.extractCancellationTarget(info.meta, info)
       : null;
@@ -77,7 +84,7 @@ export function processWeather(
       durable: policy.durable,
       tombstoneRetentionMs: policy.tombstoneRetentionMs,
       maxSubjects: policy.maxSubjects,
-      retainForFamilyCapacity: true,
+      retainForFamilyCapacity: msg.head.type === "VPWS50",
       allowMissingSerial: policy.allowMissingSerial,
       // transport metadata と受信時刻は semantic payload に含めない。
       payloadFingerprint: semanticPayloadFingerprint(semanticWeatherPayload),
@@ -85,11 +92,12 @@ export function processWeather(
     const evaluation = deps.revisionGate.evaluate(gateInput);
     if (!evaluation.accepted) {
       deps.onRevisionDecision?.(evaluation);
-      deps.onVpws50RevisionDecision?.(evaluation);
+      if (msg.head.type === "VPWS50") deps.onVpws50RevisionDecision?.(evaluation);
+      if (msg.head.type === "VPWW56") deps.onVpww56RevisionDecision?.(evaluation);
       return { kind: "suppressed" };
     }
 
-    if (!cancellationTriggered) {
+    if (msg.head.type === "VPWS50" && deps.vpws50State != null && !cancellationTriggered) {
       const unsafe = deps.vpws50State.previewUnsafe(info);
       if (unsafe != null) {
         weatherDiff = unsafe;
@@ -111,6 +119,8 @@ export function processWeather(
               weatherDiff,
               displaySeverity,
               acceptedCorrection: false,
+              weatherStateMutationAccepted: false,
+              weatherStateRevision: null,
             },
           },
         };
@@ -119,42 +129,53 @@ export function processWeather(
 
     const decision = deps.revisionGate.decide(gateInput);
     deps.onRevisionDecision?.(decision);
-    deps.onVpws50RevisionDecision?.(decision);
-    if (!decision.accepted) return { kind: "suppressed" };
+    if (msg.head.type === "VPWS50") deps.onVpws50RevisionDecision?.(decision);
+    if (!decision.accepted) {
+      if (msg.head.type === "VPWW56") deps.onVpww56RevisionDecision?.(decision);
+      return { kind: "suppressed" };
+    }
     acceptedCorrection = decision.isCorrection;
 
-    if (decision.kind === "restorePrevious") {
-      weatherDiff = deps.vpws50State.restorePrevious();
-      frameLevel = "cancel";
-      soundLevel = "cancel";
-    } else {
-      const updateDiff = deps.vpws50State.diffAndUpdate(info, messageId, identity, {
-        replaceCurrentRevision: decision.kind === "replaceCorrection" && decision.relation === "equal",
-      });
-      if (updateDiff == null) return { kind: "suppressed" };
-      weatherDiff = updateDiff;
+    if (msg.head.type === "VPWS50" && deps.vpws50State != null) {
+      if (decision.kind === "restorePrevious") {
+        weatherDiff = deps.vpws50State.restorePrevious();
+        frameLevel = "cancel";
+        soundLevel = "cancel";
+      } else {
+        const updateDiff = deps.vpws50State.diffAndUpdate(info, messageId, identity, {
+          replaceCurrentRevision: decision.kind === "replaceCorrection" && decision.relation === "equal",
+        });
+        if (updateDiff == null) return { kind: "suppressed" };
+        weatherDiff = updateDiff;
 
-      if (weatherDiff.confidence === "unsafe") {
-        frameLevel = "warning";
-        soundLevel = "warning";
-      } else if (weatherDiff.isUnchanged && !weatherDiff.shouldRecap) {
-        frameLevel = "info";
-        soundLevel = "info";
-      }
+        if (weatherDiff.confidence === "unsafe") {
+          frameLevel = "warning";
+          soundLevel = "warning";
+        } else if (weatherDiff.isUnchanged && !weatherDiff.shouldRecap) {
+          frameLevel = "info";
+          soundLevel = "info";
+        }
 
-      // R2-8 debug log: 警報以上で変化なし時に周辺情報変化を観測 (将来 P2-8 判断材料)
-      if (weatherDiff.isUnchanged && weatherDiff.confidence === "confirmed") {
-        const warningAreas = info.warningAreaCount ?? 0;
-        if (warningAreas > 0) {
-          log.debug(`[vpws50] unchanged but ${warningAreas} warning areas exist (reportDateTime=${info.reportDateTime})`);
+        if (weatherDiff.isUnchanged && weatherDiff.confidence === "confirmed") {
+          const warningAreas = info.warningAreaCount ?? 0;
+          if (warningAreas > 0) {
+            log.debug(`[vpws50] unchanged but ${warningAreas} warning areas exist (reportDateTime=${info.reportDateTime})`);
+          }
         }
       }
+    } else if (msg.head.type === "VPWW56") {
+      if (decision.kind === "clearCurrent") deps.vpww56State!.clearSubject(subject);
+      else deps.vpww56State!.applyAccepted(info, subject);
+      deps.vpww56State!.retainActiveSubjects(
+        deps.revisionGate.activeRevisionFamilySubjects(policy.domain, policy.revisionFamily),
+      );
+      weatherStateMutationAccepted = true;
+      weatherStateRevision = deps.revisionGate.latestActiveRevisionFamilyRevision(
+        policy.domain,
+        policy.revisionFamily,
+      );
+      deps.onVpww56RevisionDecision?.(decision);
     }
-  }
-
-  if (msg.head.type === "VPWW56" && deps?.vpww56State != null) {
-    const updateResult = deps.vpww56State.update(info, identity);
-    if (updateResult.kind === "suppressed") return { kind: "suppressed" };
   }
 
   return {
@@ -176,6 +197,8 @@ export function processWeather(
         weatherDiff,
         displaySeverity,
         acceptedCorrection,
+        weatherStateMutationAccepted,
+        weatherStateRevision,
       },
     },
   };

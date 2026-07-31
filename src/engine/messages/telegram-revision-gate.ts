@@ -541,6 +541,39 @@ export class TelegramRevisionGate {
     }
   }
 
+  /** holder の active set を family compaction 後の watermark と同期するための参照。 */
+  activeRevisionFamilySubjects(domain: string, revisionFamily: string): string[] {
+    const prefix = `${domain}:${revisionFamily}:`;
+    return [...this.states]
+      .filter(([key, state]) => key.startsWith(prefix) && !state.cancelled)
+      .map(([key]) => key.slice(prefix.length));
+  }
+
+  /** active subject 群から union view 用の正規 revision（最新 ReportDateTime）を返す。 */
+  latestActiveRevisionFamilyRevision(
+    domain: string,
+    revisionFamily: string,
+  ): { reportDateTime: string; serial: string | null } | null {
+    const prefix = `${domain}:${revisionFamily}:`;
+    const latest = [...this.states]
+      .filter(([key, state]) =>
+        key.startsWith(prefix)
+        && !state.cancelled
+        && state.comparison.revision.reportDateTime.valid
+        && state.comparison.revision.reportDateTime.epochMs != null
+        && state.comparison.revision.reportDateTime.raw != null)
+      .sort(([, left], [, right]) => {
+        const timeOrder = right.comparison.revision.reportDateTime.epochMs!
+          - left.comparison.revision.reportDateTime.epochMs!;
+        return timeOrder !== 0 ? timeOrder : right.acceptedAtMs - left.acceptedAtMs;
+      })[0]?.[1];
+    if (latest == null) return null;
+    return {
+      reportDateTime: latest.comparison.revision.reportDateTime.raw!,
+      serial: latest.comparison.revision.serial.raw,
+    };
+  }
+
   exportDurableEntries(): PersistedTelegramRevisionGateEntryV2[] {
     this.sweep(Date.now());
     const result: PersistedTelegramRevisionGateEntryV2[] = [];

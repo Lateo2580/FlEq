@@ -35,6 +35,7 @@ function weatherEvent(over: Partial<PresentationEvent>): PresentationEvent {
     type: "VPWS50", infoType: "発表", title: "気象警報・注意報", headline: null,
     reportDateTime: "2026-07-25T21:00:00+09:00", publishingOffice: "気象庁",
     isTest: false, frameLevel: "critical", isCancellation: false,
+    weatherStateMutationAccepted: true,
     areaNames: [], forecastAreaNames: [], municipalityNames: [], observationNames: [],
     areaCount: 0, forecastAreaCount: 0, municipalityCount: 0, observationCount: 0,
     areaItems: [], raw: null,
@@ -232,6 +233,56 @@ describe("createDisplaySink (monitor の実配線)", () => {
     h.sink.ingest(weatherEvent({ type: "VPWW56" }));
     expect(h.promotions.get("vpww56")?.level).toBe(5);
     expect(h.promotions.get("vpws50")).toBeNull();
+  });
+
+  it("VPWW56 fail-open event は durable weather state と promotion を更新せず hub へは渡す", () => {
+    const applyWeatherAlerts = vi.fn();
+    const hubIngest = vi.fn();
+    const promotions = new WeatherPromotionStore();
+    const sink = createDisplaySink({
+      standby: { applyEvent: vi.fn(), applyWeatherAlerts },
+      promotions,
+      weatherViews: { vpws50: () => undefined, vpww56: () => view("officialL4", ["島根県"]) },
+      getHub: () => ({ ingest: hubIngest }),
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({
+      type: "VPWW56",
+      publishingOffice: "",
+      weatherStateMutationAccepted: false,
+    }));
+
+    expect(applyWeatherAlerts).not.toHaveBeenCalled();
+    expect(promotions.get("vpww56")).toBeNull();
+    expect(hubIngest).toHaveBeenCalledTimes(1);
+  });
+
+  it("VPWW56 union は event 自身でなく active subject 群の正規 revision を使う", () => {
+    const applyWeatherAlerts = vi.fn();
+    const activeReportDateTime = "2026-07-25T21:00:00+09:00";
+    const sink = createDisplaySink({
+      standby: { applyEvent: vi.fn(), applyWeatherAlerts },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => view("officialL4", ["島根県"]) },
+      getHub: () => null,
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({
+      type: "VPWW56",
+      reportDateTime: "2026-07-23T21:00:00+09:00",
+      serial: "1",
+      weatherStateRevision: { reportDateTime: activeReportDateTime, serial: "9" },
+    }));
+
+    expect(applyWeatherAlerts).toHaveBeenCalledWith(
+      "vpww56",
+      [expect.objectContaining({ updatedAt: activeReportDateTime })],
+      activeReportDateTime,
+      "9",
+      T0,
+    );
   });
 
   it("unsafe 報では昇格の時計が動かない", () => {

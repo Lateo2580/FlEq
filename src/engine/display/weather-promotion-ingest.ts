@@ -32,6 +32,7 @@ export function applyWeatherPromotionOnIngest(
 ): boolean {
   if (event.type !== "VPWS50" && event.type !== "VPWW56") return false;
   if (event.weatherConfidence === "unsafe") return false;
+  if (event.type === "VPWW56" && event.weatherStateMutationAccepted !== true) return false;
   const source = event.type === "VPWS50" ? "vpws50" : "vpww56";
   // **holder view をそのまま渡す** (spec 追補 C2)。表示用 view へ射影すると kindCode / areaCode が
   // 落ちて、L4→L5 の悪化で同じ地域が「追加された地域」に化ける

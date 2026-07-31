@@ -59,11 +59,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       const nowMs = now();
       deps.standby.applyEvent(event, nowMs);
       const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
+      const authoritativeVpww56 = event.type !== "VPWW56"
+        || event.weatherStateMutationAccepted === true;
       if (event.type === "VPWS50" && !unsafeVpws50) {
-        const applyWeatherAlerts = deps.standby.applyWeatherAlerts;
         const activeIdentity = event.infoType === "取消" ? deps.vpws50Identity?.() : null;
         const activeReportDateTime = activeIdentity?.reportDateTime ?? event.reportDateTime;
-        applyWeatherAlerts?.(
+        deps.standby.applyWeatherAlerts?.(
           "vpws50",
           weatherAlertsFromVpws50(deps.weatherViews.vpws50(), activeReportDateTime),
           activeReportDateTime,
@@ -71,18 +72,19 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
           nowMs,
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
-      } else if (event.type === "VPWW56") {
-        const applyWeatherAlerts = deps.standby.applyWeatherAlerts;
-        applyWeatherAlerts?.(
+      } else if (event.type === "VPWW56" && authoritativeVpww56) {
+        const activeRevision = event.weatherStateRevision;
+        const activeReportDateTime = activeRevision?.reportDateTime ?? event.reportDateTime;
+        deps.standby.applyWeatherAlerts?.(
           "vpww56",
-          weatherAlertsFromVpww56(deps.weatherViews.vpww56(), event.reportDateTime),
-          event.reportDateTime,
-          event.serial ?? null,
+          weatherAlertsFromVpww56(deps.weatherViews.vpww56(), activeReportDateTime),
+          activeReportDateTime,
+          activeRevision?.serial ?? event.serial ?? null,
           nowMs,
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
       }
-      if (!unsafeVpws50) {
+      if (!unsafeVpws50 && authoritativeVpww56) {
         applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
       }
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;

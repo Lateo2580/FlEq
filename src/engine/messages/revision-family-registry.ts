@@ -13,6 +13,12 @@ import {
 } from "./telegram-revision-gate";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "./tsunami-state";
+import {
+  VPWW56_MAX_SUBJECTS,
+  VPWW56_TOMBSTONE_RETENTION_MS,
+  vpww56HasActiveAreas,
+  vpww56StateSubjectKey,
+} from "./vpww56-state";
 
 interface RevisionFamilyPolicyBase<TParsed> {
   domain: string;
@@ -180,6 +186,35 @@ export const VPWS50_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWa
   fragmentMerge: false,
 };
 
+export const VPWW56_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWarning> = {
+  domain: "weather",
+  revisionFamily: "VPWW56",
+  headTypes: ["VPWW56"],
+  comparator: "reportDateTimeThenSerial",
+  // state holder / ticker と同じ官署×type stream。EventID は state 粒度に含めない。
+  extractStateSubjectKey: (meta, parsed) =>
+    meta.type.valid && meta.type.value === "VPWW56"
+      ? vpww56StateSubjectKey(meta.type.value, parsed.publishingOffice)
+      : null,
+  extractCancellationTarget: (meta, parsed) => {
+    const subject = meta.type.valid && meta.type.value === "VPWW56"
+      ? vpww56StateSubjectKey(meta.type.value, parsed.publishingOffice)
+      : null;
+    return subject == null ? null : [subject];
+  },
+  cancellationPolicy: "clearCurrent",
+  terminalPredicate: () => false,
+  // 解除 Kind のみの通常続報も、その官署 stream の clear として扱う。
+  deactivationPredicate: (_meta, parsed) => !vpww56HasActiveAreas(parsed),
+  durable: true,
+  // 旧 holder の dormant watermark と同じ 6 時間。可変 subject の無期限化はしない。
+  tombstoneRetentionMs: VPWW56_TOMBSTONE_RETENTION_MS,
+  maxSubjects: VPWW56_MAX_SUBJECTS,
+  // VPWW56 の実 fixture は Serial 空を許す。
+  allowMissingSerial: true,
+  fragmentMerge: false,
+};
+
 export const TSUNAMI_REVISION_FAMILY_POLICIES = {
   VTSE41: {
     domain: "tsunami",
@@ -291,6 +326,7 @@ export const EEW_REVISION_FAMILY_POLICIES = {
 export const ALL_REVISION_FAMILY_POLICIES = [
   ...Object.values(EEW_REVISION_FAMILY_POLICIES),
   VPWS50_REVISION_FAMILY_POLICY,
+  VPWW56_REVISION_FAMILY_POLICY,
   ...Object.values(TSUNAMI_REVISION_FAMILY_POLICIES),
 ] as const;
 
@@ -314,4 +350,12 @@ export function tsunamiRevisionFamilyPolicy(
         headType as keyof typeof TSUNAMI_REVISION_FAMILY_POLICIES
       ]
     : null;
+}
+
+export function weatherRevisionFamilyPolicy(
+  headType: string,
+): RevisionFamilyPolicy<ParsedWeatherWarning> | null {
+  if (headType === "VPWS50") return VPWS50_REVISION_FAMILY_POLICY;
+  if (headType === "VPWW56") return VPWW56_REVISION_FAMILY_POLICY;
+  return null;
 }

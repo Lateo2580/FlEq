@@ -4,104 +4,82 @@ import type {
   Vpws50DisplayKindGroup,
 } from "../../types";
 import { resolvePhenomenonFamily, resolveDisplaySeverity, DISPLAY_SEVERITY_RANK } from "../../dmdata/weather-warning-level";
-import * as log from "../../logger";
-import {
-  compareWeatherReportIdentity,
-  shortKindName,
-  weatherReportIdentityEquals,
-  type WeatherReportIdentity,
-} from "./vpws50-state";
-
-export type Vpww56StateUpdateResult =
-  | { kind: "updated" }
-  | { kind: "suppressed" };
-
-/** view を失ったストリームを保持し続ける猶予。基準は壁時計ではなく受理済み報の最新 reportDateTime */
-export const VPWW56_DORMANT_RETENTION_MS = 6 * 60 * 60 * 1000;
-
-/** view を持たないストリームの上限。超過分は watermark の古い順に捨てる */
-export const VPWW56_MAX_DORMANT_STREAMS = 128;
-
-/** 1 ストリームぶんの現況。view が undefined の間も watermark は残し、遅着した古い報を弾き続ける */
-interface StreamEntry {
-  view: Vpws50CurrentAreasForDisplay | undefined;
-  currentIdentity: WeatherReportIdentity | null;
-  identityWatermark: WeatherReportIdentity;
-}
+import { shortKindName } from "./vpws50-state";
+import { weatherOfficeStreamKey } from "./weather-stream-key";
 
 /**
- * ストリームキー。`head.type` と発表官署の複合。`head.type` は英数字のみで "|" を含まないため、
- * 官署名側に何が入ってもキーは一意に決まる。
+ * 官署×type stream の上限。旧 holder が dormant watermark に課していた 128 件を、
+ * common gate と active holder の双方へ適用する。実運用の発表官署数を十分上回りつつ、
+ * 可変 subject が永続領域を無制限に占有しないための機械的な境界でもある。
  */
-function streamKey(info: ParsedWeatherWarning): string {
-  return `${info.type}|${info.publishingOffice}`;
+export const VPWW56_MAX_SUBJECTS = 128;
+
+/** 旧 holder の dormant watermark と同じ取消 tombstone 保持期間。 */
+export const VPWW56_TOMBSTONE_RETENTION_MS = 6 * 60 * 60 * 1000;
+
+export interface PersistedVpww56StreamV2 {
+  subjectKey: string;
+  view: Vpws50CurrentAreasForDisplay;
+}
+
+export interface PersistedVpww56StateV2 {
+  streams: PersistedVpww56StreamV2[];
+}
+
+/** project-event の ticker group と同じ `(type, publishingOffice)` 粒度。 */
+export function vpww56StateSubjectKey(
+  type: string,
+  publishingOffice: string,
+): string | null {
+  return weatherOfficeStreamKey(type, publishingOffice);
+}
+
+/** release 以外の発表中 Kind が一つでもあるか。registry の deactivation 判定と共有する。 */
+export function vpww56HasActiveAreas(info: ParsedWeatherWarning): boolean {
+  return buildView(info) != null;
 }
 
 /**
- * VPWW56 (土砂災害警戒情報) の発表中エリアを保持する state holder。
- * Vpws50StateHolder と異なり rich diff / history は持たない (present/absent のみ)。
- *
- * view は **(head.type, 発表官署) の複合キー単位**で持ち、参照時に union して返す。
- * VPWW56 は府県予報区ごとに別の地方気象台が発表するので官署単位が要り、さらに同一官署が
- * 複数カテゴリ (土砂・大雨・高潮…) を出しうるので type も要る。単調性ガード
- * (identity watermark) と dormant 掃除も同じ複合キー単位で独立させる。
- * 粒度は project-event.ts のテロップ groupKey `weather:${type}:${publishingOffice}` と一致する。
- *
- * 現状 processWeather が `head.type === "VPWW56"` で門番しているため実際に入ってくるのは
- * VPWW56 だけだが、将来 VPWW55/57-61 を相乗りさせても互いを上書きしない形にしてある。
+ * VPWW56 の受理済み active view を `(head.type, publishingOffice)` 単位で保持する。
+ * revision watermark／取消 tombstone は TelegramRevisionGate が唯一の所有者であり、
+ * この holder は gate 通過後の mutation と表示 union だけを担う。
  */
 export class Vpww56StateHolder {
-  private readonly streams = new Map<string, StreamEntry>();
+  private readonly streams = new Map<string, Vpws50CurrentAreasForDisplay>();
   private unionCache: Vpws50CurrentAreasForDisplay | undefined;
   private unionCacheValid = false;
-  /** 受理した報の最新 reportDateTime (dormant 掃除の基準時刻) */
-  private streamNowMs = Number.NEGATIVE_INFINITY;
 
-  update(
-    info: ParsedWeatherWarning,
-    identity: WeatherReportIdentity = { reportDateTime: info.reportDateTime, serial: null },
-  ): Vpww56StateUpdateResult {
-    const key = streamKey(info);
-    const entry = this.streams.get(key);
-
-    if (info.infoType === "取消") {
-      if (entry == null || !matchesCurrentReport(entry, identity)) {
-        log.warn(
-          `[vpww56-state] cancellation target does not match current report - ignored ` +
-          `(stream=${key}, reportDateTime=${identity.reportDateTime}, serial=${identity.serial ?? ""})`,
-        );
-        return { kind: "suppressed" };
-      }
-      entry.view = undefined;
-      entry.currentIdentity = null;
-      this.unionCacheValid = false;
-      this.sweepDormant();
-      return { kind: "updated" };
-    }
-
-    if (!canAdvanceTo(entry, identity)) {
-      log.debug(
-        `[vpww56-state] stale or duplicate report suppressed ` +
-        `(stream=${key}, reportDateTime=${identity.reportDateTime}, serial=${identity.serial ?? ""})`,
-      );
-      return { kind: "suppressed" };
-    }
-
+  applyAccepted(info: ParsedWeatherWarning, subjectKey: string): void {
     const view = buildView(info);
-    if (entry == null) {
-      this.streams.set(key, { view, currentIdentity: identity, identityWatermark: identity });
-    } else {
-      entry.view = view;
-      entry.currentIdentity = identity;
-      entry.identityWatermark = identity;
+    if (view == null) {
+      this.clearSubject(subjectKey);
+      return;
+    }
+    // common gate と同じ最終受理順にする。上限超過時の退場対象も一致する。
+    this.streams.delete(subjectKey);
+    this.streams.set(subjectKey, view);
+    while (this.streams.size > VPWW56_MAX_SUBJECTS) {
+      const oldest = this.streams.keys().next().value as string | undefined;
+      if (oldest == null) break;
+      this.streams.delete(oldest);
     }
     this.unionCacheValid = false;
-    this.advanceStreamClock(identity);
-    this.sweepDormant();
+  }
+
+  clearSubject(subjectKey: string): void {
+    if (this.streams.delete(subjectKey)) this.unionCacheValid = false;
+  }
+
+  /** holder 単体利用の互換入口。revision 判定は行わず、受理済み mutation として適用する。 */
+  update(info: ParsedWeatherWarning, _legacyIdentity?: unknown): { kind: "updated" } {
+    const subjectKey = vpww56StateSubjectKey(info.type, info.publishingOffice);
+    if (subjectKey != null) {
+      if (info.infoType === "取消") this.clearSubject(subjectKey);
+      else this.applyAccepted(info, subjectKey);
+    }
     return { kind: "updated" };
   }
 
-  /** 全ストリームの現況を union した 1 view。発表中の地域が 1 つも無ければ undefined */
   getCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined {
     if (!this.unionCacheValid) {
       this.unionCache = this.buildUnion();
@@ -110,18 +88,50 @@ export class Vpww56StateHolder {
     return this.unionCache;
   }
 
-  /** 保持中のストリーム数 (view を失った猶予中のものを含む)。掃除の検証・診断用 */
   trackedStreamCount(): number {
     return this.streams.size;
+  }
+
+  activeSubjectKeys(): string[] {
+    return [...this.streams.keys()];
+  }
+
+  retainActiveSubjects(subjectKeys: readonly string[]): void {
+    const retained = new Set(subjectKeys);
+    let changed = false;
+    for (const subjectKey of this.streams.keys()) {
+      if (!retained.has(subjectKey)) {
+        this.streams.delete(subjectKey);
+        changed = true;
+      }
+    }
+    if (changed) this.unionCacheValid = false;
+  }
+
+  exportPersistedState(): PersistedVpww56StateV2 {
+    return {
+      streams: [...this.streams].map(([subjectKey, view]) => ({
+        subjectKey,
+        view: structuredClone(view),
+      })),
+    };
+  }
+
+  restorePersistedState(state: PersistedVpww56StateV2): void {
+    this.streams.clear();
+    for (const stream of state.streams.slice(-VPWW56_MAX_SUBJECTS)) {
+      this.streams.set(stream.subjectKey, structuredClone(stream.view));
+    }
+    this.unionCache = undefined;
+    this.unionCacheValid = false;
   }
 
   private buildUnion(): Vpws50CurrentAreasForDisplay | undefined {
     const allAreas = new Set<string>();
     const byKindCode = new Map<string, Vpws50DisplayKindGroup>();
     const seenAreas = new Map<string, Set<string>>();
-    for (const entry of this.streams.values()) {
-      if (entry.view == null) continue;
-      for (const group of entry.view.kinds) {
+    for (const view of this.streams.values()) {
+      for (const group of view.kinds) {
         let merged = byKindCode.get(group.kindCode);
         let seen = seenAreas.get(group.kindCode);
         if (merged == null || seen == null) {
@@ -132,7 +142,6 @@ export class Vpww56StateHolder {
         }
         for (const area of group.areas) {
           allAreas.add(area.areaCode);
-          // 府県予報区は官署ごとに排他だが、越境発表が来ても地域を二重に並べない
           if (seen.has(area.areaCode)) continue;
           seen.add(area.areaCode);
           merged.areas.push(area);
@@ -141,51 +150,8 @@ export class Vpww56StateHolder {
     }
     if (allAreas.size === 0) return undefined;
     const kinds = [...byKindCode.values()].sort(compareKindGroup);
-    // specialAreas/warningAreas/advisoryAreas は気象カードでは未使用 (rank は displaySeverity 由来)。
-    // 型を満たすため 0 を置く (VPWW56 は土砂災害単一種別で 3 段カウントの意味が薄い)
     return { totalAreas: allAreas.size, specialAreas: 0, warningAreas: 0, advisoryAreas: 0, kinds };
   }
-
-  private advanceStreamClock(identity: WeatherReportIdentity): void {
-    const ms = Date.parse(identity.reportDateTime);
-    if (Number.isFinite(ms) && ms > this.streamNowMs) this.streamNowMs = ms;
-  }
-
-  private sweepDormant(): void {
-    const dormant: { key: string; atMs: number }[] = [];
-    for (const [key, entry] of this.streams) {
-      if (entry.view != null) continue;
-      dormant.push({ key, atMs: Date.parse(entry.identityWatermark.reportDateTime) });
-    }
-    if (dormant.length === 0) return;
-
-    const retained: { key: string; atMs: number }[] = [];
-    for (const candidate of dormant) {
-      if (Number.isFinite(this.streamNowMs) && this.streamNowMs - candidate.atMs > VPWW56_DORMANT_RETENTION_MS) {
-        this.streams.delete(candidate.key);
-      } else {
-        retained.push(candidate);
-      }
-    }
-    if (retained.length <= VPWW56_MAX_DORMANT_STREAMS) return;
-
-    retained.sort((a, b) => a.atMs - b.atMs);
-    for (const stale of retained.slice(0, retained.length - VPWW56_MAX_DORMANT_STREAMS)) {
-      this.streams.delete(stale.key);
-    }
-  }
-}
-
-function canAdvanceTo(entry: StreamEntry | undefined, identity: WeatherReportIdentity): boolean {
-  if (entry == null) return Number.isFinite(Date.parse(identity.reportDateTime));
-  const comparison = compareWeatherReportIdentity(identity, entry.identityWatermark);
-  return comparison != null && comparison > 0;
-}
-
-function matchesCurrentReport(entry: StreamEntry, identity: WeatherReportIdentity): boolean {
-  if (entry.currentIdentity == null) return false;
-  return weatherReportIdentityEquals(identity, entry.currentIdentity) &&
-    weatherReportIdentityEquals(identity, entry.identityWatermark);
 }
 
 /** displaySeverity 降順、同 rank は kindCode 昇順。官署をまたいでも並びを決定的にする */
@@ -196,37 +162,39 @@ function compareKindGroup(a: Vpws50DisplayKindGroup, b: Vpws50DisplayKindGroup):
   return a.kindCode < b.kindCode ? -1 : 1;
 }
 
-/** 「府県予報区等」layer から発表中 Kind (release 除外) を集約する。出力形は Vpws50StateHolder.buildCurrentAreasForDisplay と同じ */
+/** 「府県予報区等」layer から発表中 Kind (release 除外) を集約する。 */
 function buildView(info: ParsedWeatherWarning): Vpws50CurrentAreasForDisplay | undefined {
-  const layer = info.layers.find((l) => l.type.includes("府県予報区等"));
+  const layer = info.layers.find((item) => item.type.includes("府県予報区等"));
   if (layer == null) return undefined;
   const allAreas = new Set<string>();
   const byKindCode = new Map<string, Vpws50DisplayKindGroup>();
   for (const item of layer.items) {
-    for (const k of item.kinds) {
-      const family = resolvePhenomenonFamily(k.code, k.name);
-      const resolved = resolveDisplaySeverity(k.code, k.name, family);
-      if (resolved.displaySeverity === "release") continue;
-      if (k.severity === "release") continue;
+    for (const kind of item.kinds) {
+      const family = resolvePhenomenonFamily(kind.code, kind.name);
+      const resolved = resolveDisplaySeverity(kind.code, kind.name, family);
+      if (resolved.displaySeverity === "release" || kind.severity === "release") continue;
       allAreas.add(item.areaCode);
-      let group = byKindCode.get(k.code);
+      let group = byKindCode.get(kind.code);
       if (group == null) {
         group = {
-          kindCode: k.code,
-          kindShortName: shortKindName(k.name),
-          kindName: k.name,
+          kindCode: kind.code,
+          kindShortName: shortKindName(kind.name),
+          kindName: kind.name,
           displaySeverity: resolved.displaySeverity,
           officialAlertLevel: resolved.officialAlertLevel,
           areas: [],
         };
-        byKindCode.set(k.code, group);
+        byKindCode.set(kind.code, group);
       }
       group.areas.push({ areaName: item.areaName, areaCode: item.areaCode });
     }
   }
   if (allAreas.size === 0) return undefined;
-  const kinds = [...byKindCode.values()].sort(compareKindGroup);
-  // specialAreas/warningAreas/advisoryAreas は気象カードでは未使用 (rank は displaySeverity 由来)。
-  // 型を満たすため 0 を置く (VPWW56 は土砂災害単一種別で 3 段カウントの意味が薄い)
-  return { totalAreas: allAreas.size, specialAreas: 0, warningAreas: 0, advisoryAreas: 0, kinds };
+  return {
+    totalAreas: allAreas.size,
+    specialAreas: 0,
+    warningAreas: 0,
+    advisoryAreas: 0,
+    kinds: [...byKindCode.values()].sort(compareKindGroup),
+  };
 }

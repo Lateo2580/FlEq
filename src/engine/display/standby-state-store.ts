@@ -186,8 +186,13 @@ export class StandbyStateStore {
   ): DisplayMutation {
     const key = `weather:${source}`;
     const revision = revisionOf(reportDateTime, serial, nowMs);
-    // VPWS50 は Phase 3B で共通 TelegramRevisionGate へ移行済み。ここで二重判定しない。
-    if (source !== "vpws50" && !this.revisionGuard.accept(key, revision, nowMs, DAY_MS, isCorrection)) return NO_MUTATION;
+    // VPWS50 / VPWW56 は Phase 3B で共通 TelegramRevisionGate へ移行済み。
+    // VPWW56 は官署別 stream のため、source 全体の revision で二重判定すると office union を壊す。
+    if (
+      source !== "vpws50"
+      && source !== "vpww56"
+      && !this.revisionGuard.accept(key, revision, nowMs, DAY_MS, isCorrection)
+    ) return NO_MUTATION;
     const before = JSON.stringify(this.weatherAlerts.get(source)?.alerts ?? []);
     if (alerts.length === 0) {
       this.weatherAlerts.delete(source);
@@ -223,6 +228,24 @@ export class StandbyStateStore {
     if (!Number.isFinite(reportTimeMs)) return;
     this.weatherAlerts.set("vpws50", {
       source: "vpws50",
+      alerts: alerts.map(copyWeatherAlert),
+      revision: { reportTimeMs, serial },
+      expiresAtMs: reportTimeMs + DAY_MS,
+    });
+  }
+
+  /** v2 foundation の正規 VPWW56 union から起動時 view を再構築する。通知は発火しない。 */
+  restoreCanonicalVpww56Alerts(
+    alerts: DisplayWeatherAlertV1[],
+    reportDateTime: string | null,
+    serial: string | null,
+  ): void {
+    this.weatherAlerts.delete("vpww56");
+    if (alerts.length === 0 || reportDateTime == null) return;
+    const reportTimeMs = Date.parse(reportDateTime);
+    if (!Number.isFinite(reportTimeMs)) return;
+    this.weatherAlerts.set("vpww56", {
+      source: "vpww56",
       alerts: alerts.map(copyWeatherAlert),
       revision: { reportTimeMs, serial },
       expiresAtMs: reportTimeMs + DAY_MS,

@@ -45,7 +45,8 @@ export function fromWeatherOutcome(outcome: WeatherOutcome): PresentationEvent {
     title: xmlReport?.head.title ?? info.title,
     headline: info.headline,
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
-    publishingOffice: xmlReport?.control.publishingOffice ?? info.publishingOffice,
+    // parser が envelope の空文字を XML 本文へ fallback 済み。subject と同じ確定値を使う。
+    publishingOffice: info.publishingOffice,
     isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
@@ -54,6 +55,8 @@ export function fromWeatherOutcome(outcome: WeatherOutcome): PresentationEvent {
     displaySeverity: outcome.presentation.displaySeverity ?? null,
     // weatherDiff を持たない経路 (VPWW55-61 / state holder 未注入) は confirmed 扱い
     weatherConfidence: outcome.presentation.weatherDiff?.confidence ?? "confirmed",
+    weatherStateMutationAccepted: outcome.presentation.weatherStateMutationAccepted,
+    weatherStateRevision: outcome.presentation.weatherStateRevision,
 
     isCancellation: info.infoType === "取消",
     isWarning:

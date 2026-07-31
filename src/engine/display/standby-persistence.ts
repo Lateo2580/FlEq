@@ -22,6 +22,7 @@ import type {
   StrictTextMeta,
   TelegramMeta,
   TsunamiObservationStation,
+  Vpws50CurrentAreasForDisplay,
 } from "../../types";
 import {
   createTelegramMeta,
@@ -45,10 +46,12 @@ import {
 } from "../messages/telegram-revision-gate";
 import {
   TSUNAMI_REVISION_FAMILY_POLICIES,
+  VPWW56_REVISION_FAMILY_POLICY,
   VPWS50_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
-import { weatherAlertsFromVpws50 } from "./weather-alert-view";
+import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
+import { Vpww56StateHolder, type PersistedVpww56StateV2 } from "../messages/vpww56-state";
 
 const PERSIST_SCHEMA_VERSION = 2;
 
@@ -84,6 +87,12 @@ export interface PersistedTelegramFoundationV2 {
     state: PersistedVpws50StateV2 | null;
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
+  vpww56: {
+    /** false は v1 の union 表示だけを復元した状態で、subject watermark には採用しない。 */
+    authoritative: boolean;
+    state: PersistedVpww56StateV2 | null;
+    gateEntries: PersistedTelegramRevisionGateEntryV2[];
+  };
   tsunami: {
     /** 旧 v2 では欠落。欠落時は active なしとして REST から安全に補完する。 */
     active?: ParsedTsunamiInfo | null;
@@ -94,9 +103,10 @@ export interface PersistedTelegramFoundationV2 {
 
 export type PersistedTelegramFoundationInputV2 = Omit<
   PersistedTelegramFoundationV2,
-  "tsunami"
+  "tsunami" | "vpww56"
 > & {
   tsunami?: PersistedTelegramFoundationV2["tsunami"];
+  vpww56?: PersistedTelegramFoundationV2["vpww56"];
 };
 
 /**
@@ -179,7 +189,7 @@ export class StandbyPersistence {
       const standaloneConflict = standaloneV1.state == null
         || JSON.stringify(this.toV1(v2.state)) !== JSON.stringify(this.toV1(standaloneV1.state));
       if (v2.migrationConflict || standaloneV1.migrationConflict || standaloneConflict) {
-        this.recordMigrationConflict("VPWS50 persistence sources conflict; canonical v2 is authoritative");
+        this.recordMigrationConflict("telegram foundation persistence sources conflict; canonical v2 is authoritative");
       }
       return v2.state;
     }
@@ -187,7 +197,7 @@ export class StandbyPersistence {
     // 現行 writer は旧 reader 用の version:1 と新 schema を別ファイルへ dual-write する。
     const fallback = this.readPath(this.persistPath, true);
     if (fallback.migrationConflict) {
-      this.recordMigrationConflict("VPWS50 envelope fields differ; new schema is authoritative");
+      this.recordMigrationConflict("telegram foundation envelope fields differ; new schema is authoritative");
     }
     return fallback.state;
   }
@@ -242,11 +252,15 @@ export class StandbyPersistence {
     const tsunami = normalizeTsunamiFoundationForWrite(
       foundation.tsunami ?? emptyTsunamiFoundation(),
     );
+    const vpww56 = normalizeVpww56FoundationForWrite(
+      foundation.vpww56 ?? emptyVpww56Foundation(),
+    );
     return {
       ...state,
       version: 2,
       telegramFoundation: structuredClone({
         ...foundation,
+        vpww56,
         tsunami,
       }),
     };
@@ -274,7 +288,7 @@ export class StandbyPersistence {
         state: sanitized,
         migrationConflict: sanitized != null
           && version === PERSIST_SCHEMA_VERSION
-          && hasVpws50MigrationConflict(parsed, sanitized),
+          && hasFoundationMigrationConflict(parsed, sanitized),
       };
     } catch (err) {
       log.warn(`[standby-persistence] load 失敗 (${path.basename(filePath)}): ${err instanceof Error ? err.message : String(err)}`);
@@ -718,9 +732,15 @@ function emptyVpws50Foundation(): PersistedTelegramFoundationV2["vpws50"] {
   return { authoritative: true, state: null, gateEntries: [] };
 }
 
+function emptyVpww56Foundation(): PersistedTelegramFoundationV2["vpww56"] {
+  // field 欠落・v1 adapter・domain salvage は官署別 subject を再構成できないため非 authoritative。
+  return { authoritative: false, state: null, gateEntries: [] };
+}
+
 function emptyTelegramFoundation(): PersistedTelegramFoundationV2 {
   return {
     vpws50: emptyVpws50Foundation(),
+    vpww56: emptyVpww56Foundation(),
     tsunami: emptyTsunamiFoundation(),
   };
 }
@@ -1204,12 +1224,133 @@ function sanitizeVpws50Foundation(
   };
 }
 
+function isVpww56SubjectKey(value: unknown): value is string {
+  return typeof value === "string" && value.startsWith("weather:VPWW56:")
+    && value.length > "weather:VPWW56:".length;
+}
+
+function isVpww56View(value: unknown): value is Vpws50CurrentAreasForDisplay {
+  if (!isRecord(value)) return false;
+  if (
+    !Number.isSafeInteger(value.totalAreas) || (value.totalAreas as number) < 0
+    || !Number.isSafeInteger(value.specialAreas) || (value.specialAreas as number) < 0
+    || !Number.isSafeInteger(value.warningAreas) || (value.warningAreas as number) < 0
+    || !Number.isSafeInteger(value.advisoryAreas) || (value.advisoryAreas as number) < 0
+    || !Array.isArray(value.kinds)
+  ) return false;
+  return value.kinds.every((group) =>
+    isRecord(group)
+    && typeof group.kindCode === "string"
+    && typeof group.kindShortName === "string"
+    && typeof group.kindName === "string"
+    && typeof group.displaySeverity === "string"
+    && [
+      "officialL5", "officialL4", "officialL3", "officialL2", "officialL1",
+      "nonLevelSpecial", "nonLevelWarning", "nonLevelAdvisory", "release", "unknown",
+    ].includes(group.displaySeverity)
+    && (group.officialAlertLevel == null
+      || group.officialAlertLevel === 1 || group.officialAlertLevel === 2
+      || group.officialAlertLevel === 3 || group.officialAlertLevel === 4
+      || group.officialAlertLevel === 5)
+    && Array.isArray(group.areas)
+    && group.areas.every((area) =>
+      isRecord(area) && typeof area.areaName === "string" && typeof area.areaCode === "string"),
+  );
+}
+
+function normalizeVpww56FoundationForWrite(
+  value: PersistedTelegramFoundationV2["vpww56"],
+): PersistedTelegramFoundationV2["vpww56"] {
+  if (!value.authoritative) return { authoritative: false, state: null, gateEntries: [] };
+  const gateEntries = value.gateEntries
+    .filter((entry) => entry.domain === "weather"
+      && entry.revisionFamily === "VPWW56"
+      && isVpww56SubjectKey(entry.stateSubjectKey))
+    .slice(-VPWW56_REVISION_FAMILY_POLICY.maxSubjects!)
+    .map((entry) => ({
+      ...structuredClone(entry),
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    }));
+  const activeSubjects = new Set(
+    gateEntries.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey),
+  );
+  const streams = (value.state?.streams ?? [])
+    .filter((stream) => activeSubjects.has(stream.subjectKey))
+    .slice(-VPWW56_REVISION_FAMILY_POLICY.maxSubjects!)
+    .map((stream) => structuredClone(stream));
+  const retainedSubjects = new Set(streams.map((stream) => stream.subjectKey));
+  return {
+    authoritative: true,
+    state: streams.length === 0 ? null : { streams },
+    gateEntries: gateEntries.filter((entry) => entry.cancelled || retainedSubjects.has(entry.stateSubjectKey)),
+  };
+}
+
+function sanitizeVpww56Foundation(
+  value: unknown,
+): PersistedTelegramFoundationV2["vpww56"] | null {
+  if (!isRecord(value) || typeof value.authoritative !== "boolean" || !Array.isArray(value.gateEntries)) {
+    return null;
+  }
+  if (!value.gateEntries.every((entry) =>
+    isGateEntry(entry)
+    && entry.domain === "weather"
+    && entry.revisionFamily === "VPWW56"
+    && isVpww56SubjectKey(entry.stateSubjectKey),
+  )) return null;
+  const entries = (value.gateEntries as PersistedTelegramRevisionGateEntryV2[]).map((entry) => ({
+    ...structuredClone(entry),
+    semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    // 導入前 v2 に field が無い場合は VPWW56 の 6 時間 policy へ補完する。
+    tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
+      ? VPWW56_REVISION_FAMILY_POLICY.tombstoneRetentionMs
+      : entry.tombstoneRetentionMs,
+  }));
+  if (entries.length > VPWW56_REVISION_FAMILY_POLICY.maxSubjects!) return null;
+  const gateSubjects = new Set(entries.map((entry) => entry.stateSubjectKey));
+  if (gateSubjects.size !== entries.length) return null;
+  if (!value.authoritative) {
+    return value.state == null && entries.length === 0
+      ? { authoritative: false, state: null, gateEntries: [] }
+      : null;
+  }
+  if (value.state == null) {
+    return entries.some((entry) => !entry.cancelled)
+      ? null
+      : { authoritative: true, state: null, gateEntries: entries };
+  }
+  if (!isRecord(value.state) || !Array.isArray(value.state.streams)) return null;
+  if (value.state.streams.length > VPWW56_REVISION_FAMILY_POLICY.maxSubjects!) return null;
+  if (!value.state.streams.every((stream) =>
+    isRecord(stream) && isVpww56SubjectKey(stream.subjectKey) && isVpww56View(stream.view),
+  )) return null;
+  const streams = (value.state.streams as PersistedVpww56StateV2["streams"]).map((stream) =>
+    structuredClone(stream));
+  const streamSubjects = new Set(streams.map((stream) => stream.subjectKey));
+  if (streamSubjects.size !== streams.length) return null;
+  const activeGateSubjects = new Set(
+    entries.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey),
+  );
+  if (
+    streamSubjects.size !== activeGateSubjects.size
+    || [...streamSubjects].some((subject) => !activeGateSubjects.has(subject))
+  ) return null;
+  return { authoritative: true, state: { streams }, gateEntries: entries };
+}
+
 function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | null {
   if (!isRecord(value)) return null;
   const validatedVpws50 = sanitizeVpws50Foundation(value.vpws50);
   const vpws50 = validatedVpws50 ?? emptyVpws50Foundation();
   if (validatedVpws50 == null) {
     log.warn("[standby-persistence] VPWS50 foundation structure validation 失敗 — domain 破棄");
+  }
+  const validatedVpww56 = value.vpww56 == null
+    ? emptyVpww56Foundation()
+    : sanitizeVpww56Foundation(value.vpww56);
+  const vpww56 = validatedVpww56 ?? emptyVpww56Foundation();
+  if (validatedVpww56 == null) {
+    log.warn("[standby-persistence] VPWW56 foundation structure validation 失敗 — domain 破棄");
   }
   const validatedTsunami = value.tsunami == null
     ? emptyTsunamiFoundation()
@@ -1218,7 +1359,7 @@ function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | nul
   if (validatedTsunami == null) {
     log.warn("[standby-persistence] tsunami foundation structure validation 失敗 — domain 破棄");
   }
-  return { vpws50, tsunami };
+  return { vpws50, vpww56, tsunami };
 }
 
 function baseV1FromRecord(value: Record<string, unknown>): PersistedStandbyStateV1 | null {
@@ -1281,6 +1422,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
     version: 2,
     telegramFoundation: {
       vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(base) },
+      vpww56: { authoritative: false, state: null, gateEntries: [] },
       tsunami: emptyTsunamiFoundation(),
     },
   };
@@ -1308,4 +1450,42 @@ function hasVpws50MigrationConflict(raw: unknown, state: PersistedStandbyStateV2
     current.identity.reportDateTime,
   );
   return JSON.stringify(projected) !== JSON.stringify(legacy.alerts);
+}
+
+function hasVpww56MigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
+  const foundation = state.telegramFoundation.vpww56;
+  if (!foundation.authoritative || !isRecord(raw)) return false;
+  const rawHasLegacyField = Object.hasOwn(raw, "weatherAlerts");
+  const legacy = state.weatherAlerts?.find((entry) => entry.source === "vpww56");
+  const legacyHasPayload = legacy != null && legacy.alerts.length > 0;
+  const current = foundation.state;
+  if (current == null || current.streams.length === 0) return legacyHasPayload;
+  if (!rawHasLegacyField || legacy == null) return true;
+
+  const holder = new Vpww56StateHolder();
+  holder.restorePersistedState(current);
+  const canonical = weatherAlertsFromVpww56(holder.getCurrentAreasForDisplay(), "");
+  const stripUpdatedAt = (alerts: DisplayWeatherAlertV1[]) =>
+    alerts.map(({ updatedAt: _updatedAt, ...alert }) => alert);
+  if (JSON.stringify(stripUpdatedAt(canonical)) !== JSON.stringify(stripUpdatedAt(legacy.alerts))) {
+    return true;
+  }
+
+  const latestActive = [...foundation.gateEntries]
+    .filter((entry) =>
+      !entry.cancelled
+      && entry.comparison.revision.reportDateTime.valid
+      && entry.comparison.revision.reportDateTime.epochMs != null)
+    .sort((left, right) => {
+      const timeOrder = right.comparison.revision.reportDateTime.epochMs!
+        - left.comparison.revision.reportDateTime.epochMs!;
+      return timeOrder !== 0 ? timeOrder : right.acceptedAtMs - left.acceptedAtMs;
+    })[0];
+  if (latestActive == null) return true;
+  return legacy.revision.reportTimeMs !== latestActive.comparison.revision.reportDateTime.epochMs
+    || legacy.revision.serial !== latestActive.comparison.revision.serial.raw;
+}
+
+function hasFoundationMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
+  return hasVpws50MigrationConflict(raw, state) || hasVpww56MigrationConflict(raw, state);
 }
