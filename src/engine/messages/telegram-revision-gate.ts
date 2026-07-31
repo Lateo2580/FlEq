@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type {
   RevisionRelation,
   TelegramMeta,
@@ -45,6 +46,11 @@ export interface TelegramRevisionGateInput {
   comparator: TelegramRevisionComparator;
   cancellationPolicy: CancellationPolicy;
   terminal: boolean;
+  deactivation?: boolean;
+  cancellationTargetMatches?: boolean;
+  durable?: boolean;
+  tombstoneRetentionMs?: number | null;
+  allowMissingSerial?: boolean;
   payloadFingerprint: string;
 }
 
@@ -53,10 +59,25 @@ interface AcceptedRevisionState {
   semanticKeys: Set<string>;
   cancelled: boolean;
   acceptedAtMs: number;
+  durable: boolean;
+  tombstoneRetentionMs: number | null;
+}
+
+export interface PersistedTelegramRevisionGateEntryV2 {
+  domain: string;
+  revisionFamily: string;
+  stateSubjectKey: string;
+  comparison: TelegramRevisionComparisonInput;
+  semanticKeys: string[];
+  cancelled: boolean;
+  acceptedAtMs: number;
+  tombstoneRetentionMs?: number | null;
 }
 
 const REVISION_GATE_RETENTION_MS = 11 * 60_000;
-const REVISION_GATE_MAX_ENTRIES = 4096;
+const DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS = 7 * 24 * 60 * 60_000;
+export const TELEGRAM_REVISION_MAX_ENTRIES = 4096;
+export const TELEGRAM_REVISION_MAX_SEMANTIC_KEYS = 32;
 
 function reject(
   kind: Exclude<
@@ -87,15 +108,88 @@ function acceptedKind(
   | "markCancelled"
   | "restorePrevious"
   | "clearCurrent" {
-  if (input.meta.infoType.value === "訂正") return "replaceCorrection";
-  if (input.meta.infoType.value === "取消" || input.terminal) {
+  if (input.meta.infoType.value === "取消" || input.terminal || input.deactivation === true) {
     return input.cancellationPolicy;
   }
+  if (input.meta.infoType.value === "訂正") return "replaceCorrection";
   return "accept";
+}
+
+function tombstoneRetentionMs(input: TelegramRevisionGateInput): number | null {
+  const configured = input.tombstoneRetentionMs;
+  if (configured === null) return null;
+  return configured != null && Number.isFinite(configured) && configured > 0
+    ? configured
+    : DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS;
+}
+
+function rememberSemanticKey(state: AcceptedRevisionState, key: string): void {
+  if (state.semanticKeys.has(key)) return;
+  while (state.semanticKeys.size >= TELEGRAM_REVISION_MAX_SEMANTIC_KEYS) {
+    const oldest = state.semanticKeys.values().next().value as string | undefined;
+    if (oldest == null) break;
+    state.semanticKeys.delete(oldest);
+  }
+  state.semanticKeys.add(key);
+}
+
+function digestText(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function compactSemanticKey(key: string): string {
+  const separator = key.indexOf(":");
+  const prefix = separator < 0 ? "legacy" : key.slice(0, separator);
+  const payload = separator < 0 ? key : key.slice(separator + 1);
+  return /^(?:発表|訂正|取消)$/.test(prefix) && /^[0-9a-f]{64}$/.test(payload)
+    ? key
+    : `${prefix}:${digestText(payload)}`;
+}
+
+/** pre-digest v2 も固定長へ移行し、直近の bounded history だけを保持する。 */
+export function compactPersistedSemanticKeys(keys: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const newestFirst: string[] = [];
+  for (let index = keys.length - 1; index >= 0; index--) {
+    const compacted = compactSemanticKey(keys[index]);
+    if (seen.has(compacted)) continue;
+    seen.add(compacted);
+    newestFirst.push(compacted);
+    if (newestFirst.length >= TELEGRAM_REVISION_MAX_SEMANTIC_KEYS) break;
+  }
+  return newestFirst.reverse();
 }
 
 function semanticKey(input: TelegramRevisionGateInput): string {
   return `${input.meta.infoType.value}:${input.payloadFingerprint}`;
+}
+
+function serialIsMissing(input: TelegramRevisionComparisonInput): boolean {
+  const raw = input.revision.serial.raw;
+  return raw == null || raw === "";
+}
+
+function compareWithSerialPolicy(
+  incoming: TelegramRevisionComparisonInput,
+  current: TelegramRevisionComparisonInput,
+  input: TelegramRevisionGateInput,
+): RevisionRelation {
+  const relation = compareTelegramRevisions(incoming, current, input.comparator);
+  if (relation !== "unordered" || input.allowMissingSerial !== true) return relation;
+
+  // VPWS50 は Serial 省略を許すが、valid=true の数値へ偽装しない。同一日時で
+  // 両側とも省略された場合だけ domain policy として equal とし、片側省略は比較不能にする。
+  const incomingDate = incoming.revision.reportDateTime;
+  const currentDate = current.revision.reportDateTime;
+  if (
+    input.comparator !== "reportDateTimeThenSerial"
+    || !incomingDate.valid
+    || !currentDate.valid
+    || incomingDate.epochMs == null
+    || currentDate.epochMs == null
+    || incomingDate.epochMs !== currentDate.epochMs
+  ) return relation;
+  return serialIsMissing(incoming) && serialIsMissing(current) ? "equal" : "unordered";
 }
 
 /**
@@ -110,8 +204,24 @@ export class TelegramRevisionGate {
   >();
   private readonly transientSemanticKeys = new Map<string, string>();
 
+  /**
+   * Revision decision を副作用なしで評価する。
+   * parser 固有の安全性検査を通過するまで watermark を確定してはならない経路で使う。
+   */
+  evaluate(input: TelegramRevisionGateInput): TelegramRevisionDecision {
+    return this.decideInternal(input, false);
+  }
+
+  /** Revision decision を確定し、watermark / tombstone を更新する。 */
   decide(input: TelegramRevisionGateInput): TelegramRevisionDecision {
-    this.sweep(input.meta.receivedAtMs);
+    return this.decideInternal(input, true);
+  }
+
+  private decideInternal(
+    input: TelegramRevisionGateInput,
+    commit: boolean,
+  ): TelegramRevisionDecision {
+    if (commit) this.sweep(input.meta.receivedAtMs);
     const infoType = input.meta.infoType;
     if (!infoType.valid || infoType.value == null) {
       return reject("invalidMeta", null);
@@ -121,8 +231,10 @@ export class TelegramRevisionGate {
       || input.meta.type.value == null
       || !input.meta.reportDateTime.valid
       || input.meta.reportDateTime.epochMs == null
-      || !input.meta.serial.valid
-      || input.meta.serial.numeric == null
+      || (!input.meta.serial.valid && !(
+        input.allowMissingSerial === true
+        && (input.meta.serial.raw == null || input.meta.serial.raw === "")
+      ))
     ) {
       return reject("invalidRevision", "unordered");
     }
@@ -130,8 +242,6 @@ export class TelegramRevisionGate {
     if (
       input.stateSubjectKey == null
       || input.stateSubjectKey === ""
-      || !input.meta.eventId.valid
-      || input.meta.eventId.value == null
     ) {
       if (
         input.transientSubjectKey == null
@@ -147,20 +257,34 @@ export class TelegramRevisionGate {
         input.meta.infoType.raw,
         input.payloadFingerprint,
       ].join(":");
-      if (this.transientSemanticKeys.has(transientSemanticKey)) {
+      const duplicateSubject = this.transientSemanticKeys.get(transientSemanticKey);
+      const duplicateState = duplicateSubject == null
+        ? null
+        : this.transientStates.get(duplicateSubject) ?? null;
+      if (
+        duplicateState != null
+        && input.meta.receivedAtMs - duplicateState.acceptedAtMs <= REVISION_GATE_RETENTION_MS
+      ) {
         return reject("semanticDuplicate", "equal");
       }
-      if (this.transientStates.has(input.transientSubjectKey)) {
+      const transientState = this.transientStates.get(input.transientSubjectKey);
+      if (
+        transientState != null
+        && input.meta.receivedAtMs - transientState.acceptedAtMs <= REVISION_GATE_RETENTION_MS
+      ) {
         return reject("invalidMeta", null);
       }
-      this.transientStates.set(input.transientSubjectKey, {
-        semanticKey: transientSemanticKey,
-        acceptedAtMs: input.meta.receivedAtMs,
-      });
-      this.transientSemanticKeys.set(
-        transientSemanticKey,
-        input.transientSubjectKey,
-      );
+      if (commit) {
+        this.transientStates.set(input.transientSubjectKey, {
+          semanticKey: transientSemanticKey,
+          acceptedAtMs: input.meta.receivedAtMs,
+        });
+        this.transientSemanticKeys.set(
+          transientSemanticKey,
+          input.transientSubjectKey,
+        );
+        this.sweep(input.meta.receivedAtMs);
+      }
       return {
         kind: "acceptTransient",
         relation: null,
@@ -171,71 +295,120 @@ export class TelegramRevisionGate {
     }
 
     const key = `${input.domain}:${input.revisionFamily}:${input.stateSubjectKey}`;
+    const rawRevision = telegramRevision(input.meta);
     const incomingComparison: TelegramRevisionComparisonInput = {
-      revision: telegramRevision(input.meta),
+      // comparator の identity 欄を registry identity へ束縛する。EventID を identity に
+      // 含める family は subject extractor 側で組み込むため、EventID 欠落を一律拒否しない。
+      revision: {
+        ...rawRevision,
+        serial: rawRevision.serial,
+        eventId: { raw: input.stateSubjectKey, value: input.stateSubjectKey, valid: true },
+        type: { raw: input.revisionFamily, value: input.revisionFamily, valid: true },
+      },
       stateSubjectKey: input.stateSubjectKey,
     };
-    const existing = this.states.get(key);
+    const stored = this.states.get(key);
+    const existing = stored != null
+      && (stored.durable || input.meta.receivedAtMs - stored.acceptedAtMs <= REVISION_GATE_RETENTION_MS)
+      ? stored
+      : undefined;
     const nextSemanticKey = semanticKey(input);
 
+    const cancellationTriggered = infoType.value === "取消"
+      || input.terminal
+      || input.deactivation === true;
+    if (cancellationTriggered && input.cancellationTargetMatches === false) {
+      return reject("cancelTargetMismatch", null);
+    }
+
     if (existing == null) {
+      if (cancellationTriggered && input.cancellationPolicy === "restorePrevious") {
+        return reject("cancelTargetMismatch", null);
+      }
       const kind = acceptedKind(input);
-      this.states.set(key, {
-        comparison: incomingComparison,
-        semanticKeys: new Set([nextSemanticKey]),
-        cancelled: input.terminal || kind === "markCancelled",
-        acceptedAtMs: input.meta.receivedAtMs,
-      });
+      if (commit) {
+        this.states.set(key, {
+          comparison: incomingComparison,
+          semanticKeys: new Set([nextSemanticKey]),
+          cancelled: cancellationTriggered,
+          acceptedAtMs: input.meta.receivedAtMs,
+          durable: input.durable === true,
+          tombstoneRetentionMs: tombstoneRetentionMs(input),
+        });
+        this.sweep(input.meta.receivedAtMs);
+      }
       return {
         kind,
         relation: "newer",
         accepted: true,
-        isCorrection: kind === "replaceCorrection",
+        isCorrection: infoType.value === "訂正",
         isTerminal: input.terminal,
       };
     }
 
-    const relation = compareTelegramRevisions(
-      incomingComparison,
-      existing.comparison,
-      input.comparator,
-    );
+    const relation = compareWithSerialPolicy(incomingComparison, existing.comparison, input);
     if (relation === "older") return reject("stale", relation);
     if (relation === "unordered") return reject("invalidRevision", relation);
+    if (
+      cancellationTriggered
+      && input.cancellationPolicy === "restorePrevious"
+      && relation !== "equal"
+    ) {
+      return reject("cancelTargetMismatch", relation);
+    }
 
     if (relation === "equal") {
       if (infoType.value === "発表") return reject("duplicate", relation);
+      // restorePrevious の tombstone は同一 revision の遅延訂正でも解除しない。
+      // genuinely newer な続報だけが次の state を開始できる。
+      if (
+        input.cancellationPolicy === "restorePrevious"
+        && existing.cancelled
+        && !cancellationTriggered
+      ) {
+        return reject("stale", relation);
+      }
+      if (cancellationTriggered && existing.cancelled) {
+        return reject("semanticDuplicate", relation);
+      }
       if (existing.semanticKeys.has(nextSemanticKey)) {
         return reject("semanticDuplicate", relation);
       }
-      if (infoType.value === "取消" && existing.cancelled) {
-        return reject("semanticDuplicate", relation);
-      }
       const kind = acceptedKind(input);
-      existing.semanticKeys.add(nextSemanticKey);
-      existing.cancelled = input.terminal || kind === "markCancelled";
-      existing.acceptedAtMs = input.meta.receivedAtMs;
+      if (commit) {
+        rememberSemanticKey(existing, nextSemanticKey);
+        existing.cancelled = cancellationTriggered;
+        existing.acceptedAtMs = input.meta.receivedAtMs;
+        existing.durable ||= input.durable === true;
+        existing.tombstoneRetentionMs = tombstoneRetentionMs(input);
+        this.sweep(input.meta.receivedAtMs);
+      }
       return {
         kind,
         relation,
         accepted: true,
-        isCorrection: kind === "replaceCorrection",
+        isCorrection: infoType.value === "訂正",
         isTerminal: input.terminal,
       };
     }
 
     const kind = acceptedKind(input);
-    this.states.set(key, {
-      comparison: incomingComparison,
-      semanticKeys: new Set([nextSemanticKey]),
-      cancelled: input.terminal || kind === "markCancelled",
-      acceptedAtMs: input.meta.receivedAtMs,
-    });
+    if (commit) {
+      this.states.set(key, {
+        comparison: incomingComparison,
+        semanticKeys: new Set([nextSemanticKey]),
+        cancelled: cancellationTriggered,
+        acceptedAtMs: input.meta.receivedAtMs,
+        durable: input.durable === true,
+        tombstoneRetentionMs: tombstoneRetentionMs(input),
+      });
+      this.sweep(input.meta.receivedAtMs);
+    }
     return {
       kind,
       relation,
       accepted: true,
-      isCorrection: kind === "replaceCorrection",
+      isCorrection: infoType.value === "訂正",
       isTerminal: input.terminal,
     };
   }
@@ -244,9 +417,52 @@ export class TelegramRevisionGate {
     this.states.delete(`${domain}:${revisionFamily}:${stateSubjectKey}`);
   }
 
+  exportDurableEntries(): PersistedTelegramRevisionGateEntryV2[] {
+    this.sweep(Date.now());
+    const result: PersistedTelegramRevisionGateEntryV2[] = [];
+    for (const [key, state] of this.states) {
+      if (!state.durable) continue;
+      const [domain, revisionFamily, ...subjectParts] = key.split(":");
+      result.push({
+        domain,
+        revisionFamily,
+        stateSubjectKey: subjectParts.join(":"),
+        comparison: structuredClone(state.comparison),
+        semanticKeys: [...state.semanticKeys],
+        cancelled: state.cancelled,
+        acceptedAtMs: state.acceptedAtMs,
+        tombstoneRetentionMs: state.tombstoneRetentionMs,
+      });
+    }
+    return result;
+  }
+
+  restoreDurableEntries(entries: readonly PersistedTelegramRevisionGateEntryV2[]): void {
+    for (const entry of entries) {
+      const key = `${entry.domain}:${entry.revisionFamily}:${entry.stateSubjectKey}`;
+      this.states.set(key, {
+        comparison: structuredClone(entry.comparison),
+        semanticKeys: new Set(compactPersistedSemanticKeys(entry.semanticKeys)),
+        cancelled: entry.cancelled,
+        acceptedAtMs: entry.acceptedAtMs,
+        durable: true,
+        tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
+          ? DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS
+          : entry.tombstoneRetentionMs,
+      });
+    }
+    this.sweep(Date.now());
+  }
+
   private sweep(nowMs: number): void {
     for (const [key, state] of this.states) {
-      if (nowMs - state.acceptedAtMs > REVISION_GATE_RETENTION_MS) {
+      const expiredTransient = !state.durable
+        && nowMs - state.acceptedAtMs > REVISION_GATE_RETENTION_MS;
+      const expiredTombstone = state.durable
+        && state.cancelled
+        && state.tombstoneRetentionMs != null
+        && nowMs - state.acceptedAtMs > state.tombstoneRetentionMs;
+      if (expiredTransient || expiredTombstone) {
         this.states.delete(key);
       }
     }
@@ -256,12 +472,13 @@ export class TelegramRevisionGate {
         this.transientSemanticKeys.delete(state.semanticKey);
       }
     }
-    while (this.states.size > REVISION_GATE_MAX_ENTRIES) {
-      const oldest = this.states.keys().next().value as string | undefined;
+    while (this.states.size > TELEGRAM_REVISION_MAX_ENTRIES) {
+      const oldest = [...this.states]
+        .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0]?.[0];
       if (oldest == null) break;
       this.states.delete(oldest);
     }
-    while (this.transientStates.size > REVISION_GATE_MAX_ENTRIES) {
+    while (this.transientStates.size > TELEGRAM_REVISION_MAX_ENTRIES) {
       const oldest = this.transientStates.keys().next().value as
         | string
         | undefined;
@@ -287,5 +504,6 @@ function canonicalize(value: unknown): unknown {
 }
 
 export function semanticPayloadFingerprint(value: unknown): string {
-  return JSON.stringify(canonicalize(value));
+  const serialized = JSON.stringify(canonicalize(value)) ?? "undefined";
+  return digestText(serialized);
 }

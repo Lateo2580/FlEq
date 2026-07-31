@@ -73,6 +73,8 @@ export interface ProcessOutcomeBase {
      *  テロップ色は全国集約の最大 severity を保つため、frameLevel とは別に運ぶ (summaryRole が参照)。 */
     displaySeverity?: FrameLevel;
     weatherDiff?: Vpws50Diff;
+    /** 共通 revision gate で commit 済みの訂正だけを通知統計へ載せる。 */
+    acceptedCorrection?: boolean;
     typhoonProbabilityMaxDaily5?: number | null;
     /** true のとき dispatchNotify が通知をスキップする。
      *  VPTA50 の連続ゼロ状態抑止に使用 (TyphoonProbabilityStateHolder 経由)。

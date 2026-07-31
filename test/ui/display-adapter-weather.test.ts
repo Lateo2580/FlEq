@@ -3,6 +3,7 @@ import * as core from "../../src/ui/weather-core-formatter";
 import * as legacy from "../../src/ui/weather-formatter";
 import { processWeather } from "../../src/engine/presentation/processors/process-weather";
 import { Vpws50StateHolder } from "../../src/engine/messages/vpws50-state";
+import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
 import { createMockWsDataMessage } from "../helpers/mock-message";
 import { createDisplayAdapter } from "../../src/ui/display-adapter";
 
@@ -25,7 +26,10 @@ describe("display-adapter weather 分岐 (Phase A T29)", () => {
     const legacySpy = vi.spyOn(legacy, "displayWeatherWarning").mockImplementation(() => {});
     const result = processWeather(
       createMockWsDataMessage("15_18_01_250630_VPWS50.xml"),
-      { vpws50State: new Vpws50StateHolder() } as never,
+      {
+        vpws50State: new Vpws50StateHolder(),
+        revisionGate: new TelegramRevisionGate(),
+      } as never,
     );
     expect(result.kind).toBe("ok");
     if (result.kind !== "ok") return;

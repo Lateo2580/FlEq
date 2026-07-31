@@ -13,6 +13,7 @@ import { Vpww56StateHolder } from "../../src/engine/messages/vpww56-state";
 import { Vpwp50DetailCache } from "../../src/engine/messages/vpwp50-detail-cache";
 import { TyphoonProbabilityStateHolder } from "../../src/engine/messages/typhoon-probability-state";
 import { FloodForecastStateHolder } from "../../src/engine/messages/flood-forecast-state";
+import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
 import type { ProcessDeps } from "../../src/engine/presentation/processors/process-message";
 
 /** 各 state holder を新品で用意した ProcessDeps。呼び出しごとに独立した state になる */
@@ -28,5 +29,6 @@ export function makeProcessDeps(over: Partial<ProcessDeps> = {}): ProcessDeps {
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
     floodForecastState: new FloodForecastStateHolder(),
     ...over,
+    revisionGate: over.revisionGate ?? new TelegramRevisionGate(),
   };
 }

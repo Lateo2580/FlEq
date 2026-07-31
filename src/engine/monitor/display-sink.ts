@@ -21,6 +21,7 @@ import { projectRecentQuake } from "../display/project-event";
 import type { DailyQuakeCounter } from "../messages/daily-quake-counter";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../display/weather-alert-view";
 import type { DisplayWeatherAlertV1, DisplayWeatherSourceV1 } from "../display/types";
+import type { WeatherReportIdentity } from "../messages/vpws50-state";
 
 export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
@@ -43,6 +44,8 @@ export interface DisplaySinkDeps {
   dailyQuakes?: DailyQuakeCounter;
   /** 昇格判定に使う現況 view (state holder) */
   weatherViews: WeatherPromotionViewSources;
+  /** restorePrevious 後の active snapshot revision を legacy dual-write に使う。 */
+  vpws50Identity?: () => WeatherReportIdentity | null;
   /** 現在の display hub (未起動なら null) */
   getHub: () => DisplayIngestSink | null;
   /** テスト注入用。省略時 Date.now */
@@ -55,13 +58,16 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
     ingest: (event) => {
       const nowMs = now();
       deps.standby.applyEvent(event, nowMs);
-      if (event.type === "VPWS50") {
+      const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
+      if (event.type === "VPWS50" && !unsafeVpws50) {
         const applyWeatherAlerts = deps.standby.applyWeatherAlerts;
+        const activeIdentity = event.infoType === "取消" ? deps.vpws50Identity?.() : null;
+        const activeReportDateTime = activeIdentity?.reportDateTime ?? event.reportDateTime;
         applyWeatherAlerts?.(
           "vpws50",
-          weatherAlertsFromVpws50(deps.weatherViews.vpws50(), event.reportDateTime),
-          event.reportDateTime,
-          event.serial ?? null,
+          weatherAlertsFromVpws50(deps.weatherViews.vpws50(), activeReportDateTime),
+          activeReportDateTime,
+          activeIdentity?.serial ?? event.serial ?? null,
           nowMs,
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
@@ -76,7 +82,9 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
           ...(event.infoType === "訂正" ? [true] as const : []),
         );
       }
-      applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
+      if (!unsafeVpws50) {
+        applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
+      }
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;
       const dailyQuakeChanged = deps.dailyQuakes?.recordRecentQuake(projectRecentQuake(event), nowMs) ?? false;
       const hub = deps.getHub();

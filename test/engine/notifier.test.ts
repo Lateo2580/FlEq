@@ -709,6 +709,15 @@ describe("Notifier.notifyWeatherWarning (soundLevel override, Codex 最終レビ
 
     expect(playSound).toHaveBeenCalledWith("cancel");
   });
+
+  it("受理済み訂正は通知タイトルと本文の両方に訂正を明示する", () => {
+    const notifier = new Notifier();
+    notifier.notifyWeatherWarning(makeWeatherInfo({ infoType: "訂正" }), "warning");
+    expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: expect.stringContaining("[訂正]"),
+      message: expect.stringContaining("訂正:"),
+    }));
+  });
 });
 
 describe("Notifier.notifyTornadoAdvisory (soundLevelOverride, weather F-3 横展開)", () => {

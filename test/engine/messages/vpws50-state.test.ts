@@ -281,11 +281,11 @@ describe("Vpws50StateHolder.rollback (history 深さ 8, R1-6/R2-3)", () => {
   });
 });
 
-describe("Vpws50StateHolder report identity watermark", () => {
+describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が担当)", () => {
   const firstIdentity = identity("2026-06-05T15:00:00+09:00", "1");
   const secondIdentity = identity("2026-06-05T15:30:00+09:00", "2");
 
-  it("重複取消と順不同取消は無視し、直前報を一度だけ復元する", () => {
+  it("一つ前の完全 snapshot だけを復元する", () => {
     const state = new Vpws50StateHolder();
     state.diffAndUpdate(makeInfo([
       makeItem("神奈川県", "140000", [makeKind("03", "warning")]),
@@ -295,37 +295,34 @@ describe("Vpws50StateHolder report identity watermark", () => {
       makeItem("千葉県", "120000", [makeKind("10", "advisory")]),
     ]), "msg-2", secondIdentity);
 
-    expect(state.rollback(secondIdentity)?.isCancelRollback).toBe(true);
+    expect(state.restorePrevious().isCancelRollback).toBe(true);
     expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
-    expect(state.rollback(secondIdentity)).toBeNull();
-    expect(state.rollback(firstIdentity)).toBeNull();
-    expect(state.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
+    expect(state.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("140000");
   });
 
-  it("取消後に古い発表が後着しても警報を復活させない", () => {
+  it("history がなければ current を空にする", () => {
     const state = new Vpws50StateHolder();
     state.diffAndUpdate(makeInfo([
       makeItem("神奈川県", "140000", [makeKind("03", "warning")]),
     ]), "msg-2", secondIdentity);
 
-    expect(state.rollback(secondIdentity)?.isFirstReport).toBe(true);
-    expect(state.diffAndUpdate(makeInfo([
-      makeItem("神奈川県", "140000", [makeKind("03", "warning")]),
-    ]), "msg-1", firstIdentity)).toBeNull();
+    expect(state.restorePrevious().isFirstReport).toBe(true);
     expect(state.getCurrentAreasForDisplay()).toBeUndefined();
   });
 
-  it("同時刻では Serial が小さい後着報を棄却する", () => {
+  it("永続化 round-trip 後も current と history を完全復元する", () => {
     const state = new Vpws50StateHolder();
-    const sameTime = "2026-06-05T15:30:00+09:00";
     state.diffAndUpdate(makeInfo([
       makeItem("神奈川県", "140000", [makeKind("03", "warning")]),
-    ]), "serial-2", identity(sameTime, "2"));
-
-    expect(state.diffAndUpdate(makeInfo([
+    ]), "msg-1", firstIdentity);
+    state.diffAndUpdate(makeInfo([
       makeItem("千葉県", "120000", [makeKind("10", "advisory")]),
-    ]), "serial-1", identity(sameTime, "1"))).toBeNull();
-    expect(state.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("140000");
+    ]), "msg-2", secondIdentity);
+    const restored = new Vpws50StateHolder();
+    restored.restorePersistedState(state.exportPersistedState());
+    expect(restored.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("120000");
+    restored.restorePrevious();
+    expect(restored.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("140000");
   });
 });
 

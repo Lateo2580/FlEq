@@ -38,6 +38,7 @@ import {
   dateDiagnosticPresentationEvent,
   telegramDateDiagnostic,
 } from "./telegram-diagnostic";
+import { TelegramRevisionGate, type TelegramRevisionDecision } from "./telegram-revision-gate";
 
 // ── 電文分類 (Route) ──
 //
@@ -49,88 +50,90 @@ export type { Route } from "./route-catalog";
 // ── dispatch helpers ──
 
 /** 通知のみ実行 (filter 非適用) */
-function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): void {
+function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
   switch (outcome.domain) {
     case "eew":
       notifier.notifyEew(outcome.parsed, outcome.eewResult);
-      break;
+      return true;
     case "earthquake":
       notifier.notifyEarthquake(outcome.parsed);
-      break;
+      return true;
     case "seismicText":
       notifier.notifySeismicText(outcome.parsed);
-      break;
+      return true;
     case "lgObservation":
       notifier.notifyLgObservation(outcome.parsed);
-      break;
+      return true;
     case "tsunami":
       notifier.notifyTsunami(outcome.parsed);
-      break;
+      return true;
     case "nankaiTrough":
       notifier.notifyNankaiTrough(outcome.parsed);
-      break;
+      return true;
     case "weather": {
       const diff = outcome.presentation.weatherDiff;
       // 変化なし (再掲対象でなければ) は通知を抑制 (spec §4.3)
-      if (diff?.isUnchanged && !diff.shouldRecap) {
-        break;
+      const acceptedVpws50Correction = outcome.headType === "VPWS50"
+        && outcome.parsed.infoType === "訂正";
+      if (diff?.isUnchanged && !diff.shouldRecap && !acceptedVpws50Correction) {
+        return false;
       }
       // Codex 最終レビュー F-3: processWeather の unsafe 昇格 (soundLevel="warning") を
       // notifier 内の weatherSoundLevel 再計算で潰さないよう presentation.soundLevel を渡す
       notifier.notifyWeatherWarning(outcome.parsed, outcome.presentation.soundLevel);
-      break;
+      return true;
     }
     case "tornado":
       // weather F-3 の横展開: notifier 内再計算との drift を防ぐ
       notifier.notifyTornadoAdvisory(outcome.parsed, outcome.presentation.soundLevel);
-      break;
+      return true;
     case "briefing":
       // weather F-3 の横展開: notifier 内再計算との drift を防ぐ
       notifier.notifyWeatherBriefing(outcome.parsed, outcome.presentation.soundLevel);
-      break;
+      return true;
     case "earlyWeather":
       notifier.notifyEarlyWeather(outcome.parsed);
-      break;
+      return true;
     case "weatherWarningTimeseries":
       notifier.notifyWeatherWarningTimeseries(outcome.parsed);
-      break;
+      return true;
     case "climateInfo":
       notifier.notifyClimateInfo(outcome.parsed);
-      break;
+      return true;
     case "weatherExplanation":
       notifier.notifyWeatherExplanation(outcome.parsed);
-      break;
+      return true;
     case "heatAlert":
       // 再計算 drift 予防: presentation.soundLevel を第 2 引数で渡す (weather F-3 の横展開)
       notifier.notifyHeatAlert(outcome.parsed, outcome.presentation.soundLevel);
-      break;
+      return true;
     case "typhoonAnalysis":
       notifier.notifyTyphoonAnalysis(outcome.parsed, outcome.presentation.soundLevel);
-      break;
+      return true;
     case "typhoonProbability": {
-      if (outcome.presentation.suppressNotify) break;
+      if (outcome.presentation.suppressNotify) return false;
       notifier.notifyTyphoonProbability(
         outcome.parsed,
         outcome.presentation.soundLevel,
       );
-      break;
+      return true;
     }
     case "floodForecast": {
       // suppressNotify=true (VXKO 通常発表で station 内容変化なし) は通知を抑制
-      if (outcome.presentation.suppressNotify) break;
+      if (outcome.presentation.suppressNotify) return false;
       notifier.notifyFloodForecast(
         outcome.parsed,
         outcome.presentation.soundLevel,
       );
-      break;
+      return true;
     }
     case "raw":
       // raw: 通知なし (フォールバック表示のみ)
-      break;
+      return false;
     case "volcano":
       // 特殊ルート: 火山は VolcanoRouteHandler が通知を担当するため dispatchNotify には到達しない。
       // 網羅性のため明示的に no-op で受ける。
-      break;
+      return false;
     default:
       // PresentationDomain に新メンバーが増えて case を足し忘れるとコンパイルエラー。
       assertNever(outcome);
@@ -217,6 +220,12 @@ export interface MessageHandlerOptions {
   outcomeTaps?: readonly ProcessedOutcomeTap[];
   /** monitor 所有の日次地震状態。未指定時は従来どおり handler 専用の instance を作る。 */
   dailyQuakeCounter?: DailyQuakeCounter;
+  /** monitor が永続状態を復元するときに同一 instance を注入する。 */
+  vpws50State?: Vpws50StateHolder;
+  /** durable revision watermark の復元用。 */
+  revisionGate?: TelegramRevisionGate;
+  /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
+  onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /** createMessageHandler の戻り値 */
@@ -249,7 +258,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const notifier = new Notifier();
   const tsunamiState = new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
-  const vpws50State = new Vpws50StateHolder();
+  const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
   const vpww56State = new Vpww56StateHolder();
   const vpwp50Cache = new Vpwp50DetailCache();
   const typhoonProbabilityState = new TyphoonProbabilityStateHolder();
@@ -259,6 +268,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const dailyQuakeCounter = options?.dailyQuakeCounter ?? new DailyQuakeCounter();
   const diffStore = new PresentationDiffStore();
   const transportDedup = new TelegramTransportDeduplicator();
+  const revisionGate = options?.revisionGate ?? new TelegramRevisionGate();
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -293,6 +303,23 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     },
   });
 
+  const recordRevisionDecision = (decision: TelegramRevisionDecision): void => {
+    switch (decision.kind) {
+      case "replaceCorrection": stats.recordFoundation("correctionReplaced"); break;
+      case "markCancelled":
+      case "restorePrevious":
+      case "clearCurrent": stats.recordFoundation("cancelApplied"); break;
+      case "duplicate":
+      case "semanticDuplicate": stats.recordFoundation("semanticDuplicate"); break;
+      case "stale": stats.recordFoundation("stale"); break;
+      case "invalidMeta": stats.recordFoundation("invalidMeta"); break;
+      case "invalidRevision": stats.recordFoundation("invalidRevision"); break;
+      case "cancelTargetMismatch": stats.recordFoundation("cancelTargetMismatch"); break;
+      default: break;
+    }
+    options?.onVpws50RevisionDecision?.(decision);
+  };
+
   const processDeps: ProcessDeps = {
     eewTracker,
     eewLogger,
@@ -303,6 +330,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     vpwp50Cache,
     typhoonProbabilityState,
     floodForecastState,
+    revisionGate,
+    onRevisionDecision: recordRevisionDecision,
   };
 
   /**
@@ -419,7 +448,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
-    if (route === "eew") {
+    const usesFoundationGate = route === "eew"
+      || route === "weather" && msg.head.type === "VPWS50";
+    if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
       stats.recordFoundation("received", meta.receivedAtMs);
       if (!transportDedup.accept(meta.messageId, meta.receivedAtMs)) {
@@ -476,16 +507,23 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     recordStats(outcome, stats);
-    dispatchNotify(outcome, notifier);
-    if (outcome.domain === "eew" && outcome.eewResult.isCorrection === true) {
+    const notified = dispatchNotify(outcome, notifier);
+    const acceptedCorrection = outcome.domain === "eew"
+      ? outcome.eewResult.isCorrection === true
+      : outcome.domain === "weather"
+        && outcome.headType === "VPWS50"
+        && outcome.presentation.acceptedCorrection === true;
+    if (acceptedCorrection) {
       stats.recordFoundation("correctionNotified");
+    }
+    if ((outcome.domain === "eew" || outcome.domain === "weather" && outcome.headType === "VPWS50") && notified) {
       stats.recordFoundation("notified");
     }
     const presented = runDisplayPipeline(
       outcome,
       () => display?.displayOutcome(outcome),
     );
-    if (outcome.domain === "eew" && presented) {
+    if ((outcome.domain === "eew" || outcome.domain === "weather" && outcome.headType === "VPWS50") && presented) {
       stats.recordFoundation("presented");
     }
   };

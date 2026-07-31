@@ -5,6 +5,8 @@ import { weatherFrameLevel, weatherSoundLevel } from "../level-helpers";
 import type { ProcessDeps } from "./process-message";
 import * as log from "../../../logger";
 import type { WeatherReportIdentity } from "../../messages/vpws50-state";
+import { VPWS50_REVISION_FAMILY_POLICY } from "../../messages/revision-family-registry";
+import { semanticPayloadFingerprint } from "../../messages/telegram-revision-gate";
 
 const VPWS50_TYPES = new Set(["VPWS50"]);
 
@@ -26,7 +28,7 @@ export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
  */
 export function processWeather(
   msg: WsDataMessage,
-  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State">,
+  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision">,
 ): WeatherProcessResult {
   const info = parseWeatherWarning(msg);
   if (!info) return { kind: "parse-failed" };
@@ -37,6 +39,7 @@ export function processWeather(
   };
 
   let weatherDiff: WeatherOutcome["presentation"]["weatherDiff"] = undefined;
+  let acceptedCorrection = false;
   // 色専用の集約 severity。frameLevel は静音化 (isUnchanged → info 降格) や unsafe 昇格で
   // 変動するが、テロップ色は「現在の全国集約の最大 severity」で安定させたいので、この降格・
   // 昇格の巻き添えを受けない値を別に保持して下流 (from-weather → summaryRole) へ運ぶ。
@@ -49,14 +52,81 @@ export function processWeather(
                    ?? msg.xmlReport?.head.reportDateTime
                    ?? "";
 
-    if (info.infoType === "取消") {
-      const rollbackDiff = deps.vpws50State.rollback(identity);
-      if (rollbackDiff == null) return { kind: "suppressed" };
-      weatherDiff = rollbackDiff;
+    const policy = VPWS50_REVISION_FAMILY_POLICY;
+    const stateSubjectKey = policy.extractStateSubjectKey(info.meta, info);
+    const subject = typeof stateSubjectKey === "string" ? stateSubjectKey : null;
+    const cancellationTargets = info.meta.infoType.value === "取消"
+      ? policy.extractCancellationTarget(info.meta, info)
+      : null;
+    const cancellationTriggered = info.meta.infoType.value === "取消"
+      || policy.terminalPredicate(info.meta, info)
+      || policy.deactivationPredicate(info.meta, info);
+    const { meta: _meta, isTest: _isTest, ...semanticWeatherPayload } = info;
+    const gateInput = {
+      domain: policy.domain,
+      revisionFamily: policy.revisionFamily,
+      stateSubjectKey: subject,
+      meta: info.meta,
+      comparator: policy.comparator,
+      cancellationPolicy: policy.cancellationPolicy,
+      terminal: policy.terminalPredicate(info.meta, info),
+      deactivation: policy.deactivationPredicate(info.meta, info),
+      cancellationTargetMatches: cancellationTargets == null || subject == null
+        ? info.meta.infoType.value !== "取消"
+        : cancellationTargets.includes(subject),
+      durable: policy.durable,
+      tombstoneRetentionMs: policy.tombstoneRetentionMs,
+      allowMissingSerial: policy.allowMissingSerial,
+      // transport metadata と受信時刻は semantic payload に含めない。
+      payloadFingerprint: semanticPayloadFingerprint(semanticWeatherPayload),
+    } as const;
+    const evaluation = deps.revisionGate.evaluate(gateInput);
+    if (!evaluation.accepted) {
+      deps.onRevisionDecision?.(evaluation);
+      return { kind: "suppressed" };
+    }
+
+    if (!cancellationTriggered) {
+      const unsafe = deps.vpws50State.previewUnsafe(info);
+      if (unsafe != null) {
+        weatherDiff = unsafe;
+        frameLevel = "warning";
+        soundLevel = "warning";
+        return {
+          kind: "ok",
+          outcome: {
+            domain: "weather",
+            msg,
+            headType: msg.head.type,
+            statsCategory: "weather",
+            parsed: info,
+            stats: { shouldRecord: true, eventId: msg.xmlReport?.head.eventId ?? null },
+            presentation: {
+              frameLevel,
+              soundLevel,
+              notifyCategory: "weather",
+              weatherDiff,
+              displaySeverity,
+              acceptedCorrection: false,
+            },
+          },
+        };
+      }
+    }
+
+    const decision = deps.revisionGate.decide(gateInput);
+    deps.onRevisionDecision?.(decision);
+    if (!decision.accepted) return { kind: "suppressed" };
+    acceptedCorrection = decision.isCorrection;
+
+    if (decision.kind === "restorePrevious") {
+      weatherDiff = deps.vpws50State.restorePrevious();
       frameLevel = "cancel";
       soundLevel = "cancel";
     } else {
-      const updateDiff = deps.vpws50State.diffAndUpdate(info, messageId, identity);
+      const updateDiff = deps.vpws50State.diffAndUpdate(info, messageId, identity, {
+        replaceCurrentRevision: decision.kind === "replaceCorrection" && decision.relation === "equal",
+      });
       if (updateDiff == null) return { kind: "suppressed" };
       weatherDiff = updateDiff;
 
@@ -101,6 +171,7 @@ export function processWeather(
         notifyCategory: "weather",
         weatherDiff,
         displaySeverity,
+        acceptedCorrection,
       },
     },
   };

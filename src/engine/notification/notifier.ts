@@ -499,9 +499,13 @@ export class Notifier {
     if (info.headline) {
       parts.push(info.headline);
     }
+    // Phase 3B unit 1: 共通 gate へ移行済みの VPWS50 だけを訂正通知規約へ載せる。
+    const isCorrection = info.type === "VPWS50" && info.infoType === "訂正";
     this.send(
-      info.title,
-      parts.length > 0 ? parts.join(" / ") : info.title,
+      isCorrection ? `[訂正] ${info.title}` : info.title,
+      isCorrection
+        ? `訂正: ${parts.length > 0 ? parts.join(" / ") : info.title}`
+        : parts.length > 0 ? parts.join(" / ") : info.title,
       "weather",
       soundLevel,
     );

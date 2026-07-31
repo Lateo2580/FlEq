@@ -117,6 +117,35 @@ describe("createDisplaySink (monitor の実配線)", () => {
     );
   });
 
+  it("VPWS50 取消 rollback は active identity をカード updatedAt と revision の両方へ使う", () => {
+    const applyWeatherAlerts = vi.fn();
+    const activeReportDateTime = "2026-07-25T20:00:00+09:00";
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, applyWeatherAlerts },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => view("officialL3", ["東京都"]), vpww56: () => undefined },
+      vpws50Identity: () => ({ reportDateTime: activeReportDateTime, serial: "1" }),
+      getHub: () => null,
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({
+      type: "VPWS50",
+      infoType: "取消",
+      isCancellation: true,
+      reportDateTime: "2026-07-25T21:00:00+09:00",
+      serial: "2",
+    }));
+
+    expect(applyWeatherAlerts).toHaveBeenCalledWith(
+      "vpws50",
+      [expect.objectContaining({ updatedAt: activeReportDateTime })],
+      activeReportDateTime,
+      "1",
+      T0,
+    );
+  });
+
   it("monitor 側で quakeExtreme が変わると hub の snapshot 再配信を要求する", () => {
     const promotions = new WeatherPromotionStore();
     const quakeExtreme = new QuakeExtremeStore();
@@ -213,6 +242,28 @@ describe("createDisplaySink (monitor の実配線)", () => {
     h.sink.ingest(weatherEvent({ type: "VPWS50", weatherConfidence: "unsafe" }));
     const rec = h.promotions.get("vpws50");
     expect(rec?.state === "active" ? rec.promotedAtMs : null).toBe(T0);
+  });
+
+  it("unsafe VPWS50 は legacy weatherAlerts の revision も更新しない", () => {
+    const applyWeatherAlerts = vi.fn();
+    const hubIngest = vi.fn();
+    const sink = createDisplaySink({
+      standby: { applyEvent: vi.fn(), applyWeatherAlerts },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => view("officialL3", ["東京都"]), vpww56: () => undefined },
+      getHub: () => ({ ingest: hubIngest }),
+      now: () => T0,
+    });
+
+    sink.ingest(weatherEvent({
+      type: "VPWS50",
+      reportDateTime: "2026-07-25T22:00:00+09:00",
+      serial: "9",
+      weatherConfidence: "unsafe",
+    }));
+
+    expect(applyWeatherAlerts).not.toHaveBeenCalled();
+    expect(hubIngest).toHaveBeenCalledTimes(1);
   });
 
   it("standby state も hub の有無に関わらず更新される", () => {

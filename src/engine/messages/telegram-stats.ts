@@ -76,6 +76,7 @@ export type TelegramFoundationMetric =
   | "futureDateDiagnosed"
   | "cancelApplied"
   | "cancelTargetMismatch"
+  | "persistenceMigrationConflict"
   | "presented"
   | "notified";
 
@@ -92,6 +93,7 @@ const FOUNDATION_METRICS: readonly TelegramFoundationMetric[] = [
   "futureDateDiagnosed",
   "cancelApplied",
   "cancelTargetMismatch",
+  "persistenceMigrationConflict",
   "presented",
   "notified",
 ];

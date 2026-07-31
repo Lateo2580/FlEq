@@ -14,6 +14,7 @@ import { VolcanoStateHolder } from "../../../../src/engine/messages/volcano-stat
 import { Vpwp50DetailCache } from "../../../../src/engine/messages/vpwp50-detail-cache";
 import { FloodForecastStateHolder } from "../../../../src/engine/messages/flood-forecast-state";
 import { TyphoonProbabilityStateHolder } from "../../../../src/engine/messages/typhoon-probability-state";
+import { TelegramRevisionGate } from "../../../../src/engine/messages/telegram-revision-gate";
 import { weatherCoreFrameLevel } from "../../../../src/ui/weather-core-entry";
 import {
   createMockWsDataMessage,
@@ -51,6 +52,7 @@ function fakeDeps(state: Vpws50StateHolder): ProcessDeps {
     vpwp50Cache: new Vpwp50DetailCache({ persistRoot: tmpRoot }),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
     floodForecastState: new FloodForecastStateHolder(),
+    revisionGate: new TelegramRevisionGate(),
   };
 }
 
@@ -80,8 +82,9 @@ describe("processWeather - VPWS50 差分連携", () => {
   it("同一 identity の重複電文は suppressed", () => {
     const state = new Vpws50StateHolder();
     const msg = createMockWsDataMessage(FIXTURE_VPWS50_AGGREGATE);
-    processWeather(msg, fakeDeps(state));
-    expect(processWeather(msg, fakeDeps(state))).toEqual({ kind: "suppressed" });
+    const deps = fakeDeps(state);
+    processWeather(msg, deps);
+    expect(processWeather(msg, deps)).toEqual({ kind: "suppressed" });
     // 大容量 VPWS50 fixture を 2 回 parse するため、並列負荷下で default 5s を超えうる
   }, 20000);
 
@@ -215,6 +218,13 @@ function buildVpws50Msg(
 describe("processWeather - VPWS50/VPWW56 単調性抑制", () => {
   const warningKinds = [{ code: "03", name: "大雨警報" }];
   const landslideKinds = [{ code: "49", name: "レベル４土砂災害危険警報" }];
+  const manyWarningKinds = [
+    { code: "03", name: "大雨警報" },
+    { code: "04", name: "洪水警報" },
+    { code: "05", name: "暴風警報" },
+    { code: "06", name: "暴風雪警報" },
+    { code: "07", name: "大雪警報" },
+  ];
 
   it("VPWS50: 取消後の重複取消と古い発表を suppressed にする", () => {
     const deps = fakeDeps(new Vpws50StateHolder());
@@ -241,6 +251,13 @@ describe("processWeather - VPWS50/VPWW56 単調性抑制", () => {
     expect(cancelOutcome.presentation.frameLevel).toBe("cancel");
     expect(deps.vpws50State.getCurrentAreasForDisplay()).toBeUndefined();
     expect(processWeather(cancellation, deps)).toEqual({ kind: "suppressed" });
+    const differentCancellationPayload = buildVpws50Msg([{ code: "04", name: "洪水警報" }], {
+      id: "vpws-cancel-different-payload",
+      reportDateTime: currentTime,
+      serial: "2",
+      infoType: "取消",
+    });
+    expect(processWeather(differentCancellationPayload, deps)).toEqual({ kind: "suppressed" });
     expect(processWeather(oldWarning, deps)).toEqual({ kind: "suppressed" });
     expect(deps.vpws50State.getCurrentAreasForDisplay()).toBeUndefined();
   });
@@ -270,6 +287,112 @@ describe("processWeather - VPWS50/VPWW56 単調性抑制", () => {
     });
     expect(processWeather(lowerSerial, deps)).toEqual({ kind: "suppressed" });
     expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0].kindCode).toBe("03");
+  });
+
+  it("VPWS50: 同一 revision の訂正を一度だけ受理し、通常報の同一 revision は拒否する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const reportDateTime = "2026-07-19T10:00:00+09:00";
+    const announced = buildVpws50Msg(warningKinds, {
+      id: "vpws-announced", reportDateTime, serial: "2",
+    });
+    const corrected = buildVpws50Msg([{ code: "10", name: "大雨注意報" }], {
+      id: "vpws-corrected", reportDateTime, serial: "2", infoType: "訂正",
+    });
+    expect(processWeather(announced, deps).kind).toBe("ok");
+    expect(processWeather(announced, deps)).toEqual({ kind: "suppressed" });
+    const correction = requireWeatherOutcome(processWeather(corrected, deps));
+    expect(correction.parsed.infoType).toBe("訂正");
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0].kindCode).toBe("10");
+    expect(processWeather(corrected, deps)).toEqual({ kind: "suppressed" });
+  });
+
+  it("VPWS50: 取消済み revision の遅延訂正で snapshot を復活させない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const t1 = "2026-07-19T09:00:00+09:00";
+    const t2 = "2026-07-19T10:00:00+09:00";
+    expect(processWeather(buildVpws50Msg([{ code: "03", name: "大雨警報" }], {
+      id: "vpws-a", reportDateTime: t1, serial: "1",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([{ code: "04", name: "洪水警報" }], {
+      id: "vpws-b", reportDateTime: t2, serial: "2",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([{ code: "04", name: "洪水警報" }], {
+      id: "vpws-b-cancel", reportDateTime: t2, serial: "2", infoType: "取消",
+    }), deps).kind).toBe("ok");
+
+    expect(processWeather(buildVpws50Msg([{ code: "10", name: "大雨注意報" }], {
+      id: "vpws-b-late-correction", reportDateTime: t2, serial: "2", infoType: "訂正",
+    }), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds[0]).toMatchObject({
+      kindCode: "03",
+    });
+  });
+
+  it("VPWS50: unsafe 報は watermark を消費せず、同一 revision の正常再送を受理する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(buildVpws50Msg(manyWarningKinds, {
+      id: "vpws-safe-base", reportDateTime: "2026-07-19T09:00:00+09:00", serial: "1",
+    }), deps).kind).toBe("ok");
+    const unsafe = requireWeatherOutcome(processWeather(buildVpws50Msg([manyWarningKinds[0]], {
+      id: "vpws-unsafe", reportDateTime: "2026-07-19T10:00:00+09:00", serial: "2",
+    }), deps));
+    expect(unsafe.presentation.weatherDiff).toMatchObject({
+      confidence: "unsafe", unsafeReason: "abnormal_release_rate",
+    });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(5);
+
+    const recovered = requireWeatherOutcome(processWeather(buildVpws50Msg(manyWarningKinds.slice(0, 2), {
+      id: "vpws-safe-retry", reportDateTime: "2026-07-19T10:00:00+09:00", serial: "2",
+    }), deps));
+    expect(recovered.presentation.weatherDiff?.confidence).toBe("confirmed");
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(2);
+  });
+
+  it("VPWS50: stale な unsafe 報は表示・通知候補へ進めない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(buildVpws50Msg(manyWarningKinds, {
+      id: "vpws-current", reportDateTime: "2026-07-19T10:00:00+09:00", serial: "2",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([manyWarningKinds[0]], {
+      id: "vpws-stale-unsafe", reportDateTime: "2026-07-19T09:00:00+09:00", serial: "1",
+    }), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(5);
+  });
+
+  it("VPWS50: invalid Serial の unsafe 報は表示・通知候補へ進めない", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    expect(processWeather(buildVpws50Msg(manyWarningKinds, {
+      id: "vpws-current", reportDateTime: "2026-07-19T10:00:00+09:00", serial: "2",
+    }), deps).kind).toBe("ok");
+    expect(processWeather(buildVpws50Msg([manyWarningKinds[0]], {
+      id: "vpws-invalid-unsafe", reportDateTime: "2026-07-19T11:00:00+09:00", serial: "2A",
+    }), deps)).toEqual({ kind: "suppressed" });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(5);
+  });
+
+  it("VPWS50: unsafe 訂正は gate を commit せず、同一 revision の安全な訂正を受理する", () => {
+    const deps = fakeDeps(new Vpws50StateHolder());
+    const reportDateTime = "2026-07-19T10:00:00+09:00";
+    expect(processWeather(buildVpws50Msg(manyWarningKinds, {
+      id: "vpws-base", reportDateTime, serial: "2",
+    }), deps).kind).toBe("ok");
+    const unsafe = requireWeatherOutcome(processWeather(buildVpws50Msg([manyWarningKinds[0]], {
+      id: "vpws-unsafe-correction", reportDateTime, serial: "2", infoType: "訂正",
+    }), deps));
+    expect(unsafe.presentation).toMatchObject({
+      acceptedCorrection: false,
+      weatherDiff: { confidence: "unsafe" },
+    });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(5);
+
+    const recovered = requireWeatherOutcome(processWeather(buildVpws50Msg(manyWarningKinds.slice(0, 2), {
+      id: "vpws-safe-correction", reportDateTime, serial: "2", infoType: "訂正",
+    }), deps));
+    expect(recovered.presentation).toMatchObject({
+      acceptedCorrection: true,
+      weatherDiff: { confidence: "confirmed" },
+    });
+    expect(deps.vpws50State.getCurrentAreasForDisplay()?.kinds).toHaveLength(2);
   });
 
   it("VPWW56: 取消後の重複取消と古い発表を suppressed にする", () => {

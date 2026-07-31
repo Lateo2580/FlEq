@@ -9,6 +9,7 @@ import type { Vpww56StateHolder } from "../../messages/vpww56-state";
 import type { Vpwp50DetailCache } from "../../messages/vpwp50-detail-cache";
 import type { TyphoonProbabilityStateHolder } from "../../messages/typhoon-probability-state";
 import type { FloodForecastStateHolder } from "../../messages/flood-forecast-state";
+import type { TelegramRevisionGate, TelegramRevisionDecision } from "../../messages/telegram-revision-gate";
 import type { StatsCategory } from "../../messages/telegram-stats";
 import { routeToCategory } from "../../messages/telegram-stats";
 import type { Route, LinearRoute } from "../../messages/route-catalog";
@@ -43,6 +44,8 @@ export interface ProcessDeps {
   typhoonProbabilityState: TyphoonProbabilityStateHolder;
   /** 指定河川洪水予報 (VXKO50-89 / VXSU50-59) の差分検出 state holder (Task 25b で dispatch を追加) */
   floodForecastState: FloodForecastStateHolder;
+  revisionGate: TelegramRevisionGate;
+  onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /**

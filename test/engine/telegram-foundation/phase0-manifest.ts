@@ -865,12 +865,16 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     behavior: "取消対象一致時に previous snapshot へ rollback",
     sources: [
       {
+        sourceFile: "src/engine/messages/revision-family-registry.ts",
+        needles: ["VPWS50_REVISION_FAMILY_POLICY", 'cancellationPolicy: "restorePrevious"'],
+      },
+      {
         sourceFile: "src/engine/presentation/processors/process-weather.ts",
-        needles: ['if (info.infoType === "取消") {', "deps.vpws50State.rollback(identity)"],
+        needles: ['decision.kind === "restorePrevious"', "deps.vpws50State.restorePrevious()"],
       },
       {
         sourceFile: "src/engine/messages/vpws50-state.ts",
-        needles: ["rollback(target: string | WeatherReportIdentity)", "this.current = last.snapshot;"],
+        needles: ["restorePrevious(): Vpws50Diff", "this.current = last.snapshot;"],
       },
     ],
   },

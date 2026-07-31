@@ -40,6 +40,60 @@ interface Snapshot {
   areas: Map<string, { areaName: string; kinds: AreaSnapshot }>;
 }
 
+export interface PersistedVpws50KindV2 {
+  phenomenonKey: PhenomenonKey;
+  kindCode: string;
+  kindName: string;
+  severity: WeatherSeverity;
+  displaySeverity: DisplaySeverity;
+  officialAlertLevel: OfficialAlertLevel | null;
+  resolutionSource: ResolutionSource;
+}
+
+export interface PersistedVpws50SnapshotV2 {
+  areas: Array<{
+    areaCode: string;
+    areaName: string;
+    kinds: PersistedVpws50KindV2[];
+  }>;
+}
+
+export interface PersistedVpws50StateV2 {
+  current: {
+    messageId: string;
+    identity: WeatherReportIdentity;
+    snapshot: PersistedVpws50SnapshotV2;
+  } | null;
+  history: Array<{
+    messageId: string;
+    identity: WeatherReportIdentity | null;
+    snapshot: PersistedVpws50SnapshotV2;
+  }>;
+  lastSuccessfulFullDisplayAt: string | null;
+}
+
+function serializeSnapshot(snapshot: Snapshot): PersistedVpws50SnapshotV2 {
+  return {
+    areas: [...snapshot.areas].map(([areaCode, area]) => ({
+      areaCode,
+      areaName: area.areaName,
+      kinds: [...area.kinds.values()].map((kind) => ({ ...kind })),
+    })),
+  };
+}
+
+function restoreSnapshot(snapshot: PersistedVpws50SnapshotV2): Snapshot {
+  return {
+    areas: new Map(snapshot.areas.map((area) => [
+      area.areaCode,
+      {
+        areaName: area.areaName,
+        kinds: new Map(area.kinds.map((kind) => [kind.phenomenonKey, { ...kind }])),
+      },
+    ])),
+  };
+}
+
 /** 気象警報系電文の単調性・取消対象を識別する Head identity。 */
 export interface WeatherReportIdentity {
   reportDateTime: string;
@@ -231,7 +285,6 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   private current: Snapshot | null = null;
   private currentMessageId: string | null = null;
   private currentIdentity: WeatherReportIdentity | null = null;
-  private identityWatermark: WeatherReportIdentity | null = null;
   private history: Array<{
     messageId: string;
     identity: WeatherReportIdentity | null;
@@ -244,46 +297,18 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     info: ParsedWeatherWarning,
     messageId: string,
     identity: WeatherReportIdentity,
+    options?: { replaceCurrentRevision?: boolean },
   ): Vpws50Diff | null;
   diffAndUpdate(
     info: ParsedWeatherWarning,
     messageId: string,
     identity?: WeatherReportIdentity,
+    options?: { replaceCurrentRevision?: boolean },
   ): Vpws50Diff | null {
-    if (identity != null && !this.canAdvanceTo(identity)) {
-      log.debug(
-        `[vpws50-state] stale or duplicate report suppressed ` +
-        `(reportDateTime=${identity.reportDateTime}, serial=${identity.serial ?? ""}, messageId=${messageId})`,
-      );
-      return null;
-    }
-
     const newSnap = infoToSnapshot(info);
-
-    if (newSnap == null) {
-      return this.buildUnsafeDiff("layer_missing");
-    }
-
-    const prevCount = countAreaKeys(this.current);
-    // 80% 以上消失は abnormal だが、prevCount<2 では single release が 100% に
-    // 化けるため誤検出を避けて閾値判定をスキップ。
-    if (prevCount >= 2 && this.current != null) {
-      let actualReleased = 0;
-      for (const [areaCode, prevArea] of this.current.areas) {
-        const currArea = newSnap.areas.get(areaCode);
-        for (const phKey of prevArea.kinds.keys()) {
-          if (currArea == null || !currArea.kinds.has(phKey)) actualReleased++;
-        }
-      }
-      // 全種別解除 (残 0) は正当な一斉解除として通常経路に流す (レビュー決定 2026-07-11:
-      // 台風通過後などの全解除でカードを確実に消すため)。残る発表中種別が 1 つでもある
-      // 80% 以上 100% 未満の部分大量解除だけ異常電文防御の対象に残す。全解除の切り分けは
-      // actualReleased/prevCount === 1.0 の浮動小数比較でなく「残 0 か」の整数判定で行う。
-      const remaining = countAreaKeys(newSnap);
-      if (remaining > 0 && actualReleased / prevCount >= ABNORMAL_RELEASE_THRESHOLD) {
-        return this.buildUnsafeDiff("abnormal_release_rate");
-      }
-    }
+    const unsafeReason = this.unsafeReasonFor(newSnap);
+    if (unsafeReason != null) return this.buildUnsafeDiff(unsafeReason);
+    if (newSnap == null) return this.buildUnsafeDiff("layer_missing");
 
     const isFirstReport = this.current == null;
     const diffParts = isFirstReport
@@ -303,7 +328,7 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       return Date.now() - this.lastSuccessfulFullDisplayAt.getTime() >= RECAP_INTERVAL_MS;
     })();
 
-    if (this.current != null) {
+    if (this.current != null && options?.replaceCurrentRevision !== true) {
       this.history.push({
         messageId: this.currentMessageId ?? "",
         identity: this.currentIdentity,
@@ -314,7 +339,6 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     this.current = newSnap;
     this.currentMessageId = messageId;
     this.currentIdentity = identity ?? null;
-    if (identity != null) this.identityWatermark = identity;
 
     if (!isUnchanged || shouldRecap || isFirstReport) {
       this.lastSuccessfulFullDisplayAt = new Date();
@@ -328,6 +352,32 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
       confidence: "confirmed",
       ...diffParts,
     };
+  }
+
+  /** revision gate を確定する前に、state を変更せず安全性だけを判定する。 */
+  previewUnsafe(info: ParsedWeatherWarning): Vpws50Diff | null {
+    const reason = this.unsafeReasonFor(infoToSnapshot(info));
+    return reason == null ? null : this.buildUnsafeDiff(reason);
+  }
+
+  private unsafeReasonFor(newSnap: Snapshot | null): "layer_missing" | "abnormal_release_rate" | null {
+    if (newSnap == null) return "layer_missing";
+    const prevCount = countAreaKeys(this.current);
+    // 80% 以上消失は abnormal だが、prevCount<2 では single release が 100% に
+    // 化けるため誤検出を避けて閾値判定をスキップ。
+    if (prevCount < 2 || this.current == null) return null;
+    let actualReleased = 0;
+    for (const [areaCode, prevArea] of this.current.areas) {
+      const currArea = newSnap.areas.get(areaCode);
+      for (const phKey of prevArea.kinds.keys()) {
+        if (currArea == null || !currArea.kinds.has(phKey)) actualReleased++;
+      }
+    }
+    // 全解除は正当な一斉解除。発表中種別が残る部分大量解除だけを防御する。
+    const remaining = countAreaKeys(newSnap);
+    return remaining > 0 && actualReleased / prevCount >= ABNORMAL_RELEASE_THRESHOLD
+      ? "abnormal_release_rate"
+      : null;
   }
 
   rollback(target: string | WeatherReportIdentity): Vpws50Diff | null {
@@ -368,23 +418,69 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     };
   }
 
-  private canAdvanceTo(identity: WeatherReportIdentity): boolean {
-    if (this.identityWatermark == null) {
-      return Number.isFinite(Date.parse(identity.reportDateTime));
-    }
-    const comparison = compareWeatherReportIdentity(identity, this.identityWatermark);
-    return comparison != null && comparison > 0;
-  }
-
   private matchesCurrentReport(target: string | WeatherReportIdentity): boolean {
     if (typeof target === "string") {
       return this.current != null && target === this.currentMessageId;
     }
-    if (this.current == null || this.currentIdentity == null || this.identityWatermark == null) {
+    if (this.current == null || this.currentIdentity == null) {
       return false;
     }
-    return weatherReportIdentityEquals(target, this.currentIdentity) &&
-      weatherReportIdentityEquals(target, this.identityWatermark);
+    return weatherReportIdentityEquals(target, this.currentIdentity);
+  }
+
+  /** 共通 revision gate が対象一致を確認した後に、一つ前の完全 snapshot へ戻す。 */
+  restorePrevious(): Vpws50Diff {
+    const last = this.history.pop();
+    if (last == null) {
+      this.current = null;
+      this.currentMessageId = null;
+      this.currentIdentity = null;
+      return {
+        isFirstReport: true, isUnchanged: false, isCancelRollback: true,
+        shouldRecap: false, confidence: "confirmed",
+        added: [], upgraded: [], downgraded: [], released: [],
+      };
+    }
+    this.current = last.snapshot;
+    this.currentMessageId = last.messageId;
+    this.currentIdentity = last.identity;
+    this.lastSuccessfulFullDisplayAt = new Date();
+    return {
+      isFirstReport: false, isUnchanged: false, isCancelRollback: true,
+      shouldRecap: false, confidence: "confirmed",
+      added: [], upgraded: [], downgraded: [], released: [],
+      currentAreasForDisplay: this.buildCurrentAreasForDisplay(),
+    };
+  }
+
+  exportPersistedState(): PersistedVpws50StateV2 {
+    return {
+      current: this.current == null || this.currentIdentity == null ? null : {
+        messageId: this.currentMessageId ?? "",
+        identity: { ...this.currentIdentity },
+        snapshot: serializeSnapshot(this.current),
+      },
+      history: this.history.map((entry) => ({
+        messageId: entry.messageId,
+        identity: entry.identity == null ? null : { ...entry.identity },
+        snapshot: serializeSnapshot(entry.snapshot),
+      })),
+      lastSuccessfulFullDisplayAt: this.lastSuccessfulFullDisplayAt?.toISOString() ?? null,
+    };
+  }
+
+  restorePersistedState(state: PersistedVpws50StateV2): void {
+    this.current = state.current == null ? null : restoreSnapshot(state.current.snapshot);
+    this.currentMessageId = state.current?.messageId ?? null;
+    this.currentIdentity = state.current == null ? null : { ...state.current.identity };
+    this.history = state.history.slice(-HISTORY_DEPTH).map((entry) => ({
+      messageId: entry.messageId,
+      identity: entry.identity == null ? null : { ...entry.identity },
+      snapshot: restoreSnapshot(entry.snapshot),
+    }));
+    this.lastSuccessfulFullDisplayAt = state.lastSuccessfulFullDisplayAt == null
+      ? null
+      : new Date(state.lastSuccessfulFullDisplayAt);
   }
 
   private buildCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined {
@@ -446,6 +542,10 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   /** 表示ディスプレイ用: 現在発表中の警報・注意報の集約ビュー (未受信なら undefined) */
   getCurrentAreasForDisplay(): Vpws50CurrentAreasForDisplay | undefined {
     return this.buildCurrentAreasForDisplay();
+  }
+
+  getCurrentIdentity(): WeatherReportIdentity | null {
+    return this.currentIdentity == null ? null : { ...this.currentIdentity };
   }
 
   getDetail(): DetailSnapshotOf<"vpws50"> | null {

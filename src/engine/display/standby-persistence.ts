@@ -16,8 +16,26 @@ import type {
 import type { PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
+import type { StrictTextMeta } from "../../types";
+import {
+  FUTURE_REPORT_DATETIME_SKEW_MS,
+  parseStrictReportDateTime,
+  parseTelegramSerial,
+} from "../../dmdata/telegram-meta";
+import {
+  Vpws50StateHolder,
+  type PersistedVpws50StateV2,
+  type WeatherReportIdentity,
+} from "../messages/vpws50-state";
+import {
+  compactPersistedSemanticKeys,
+  TELEGRAM_REVISION_MAX_ENTRIES,
+  type PersistedTelegramRevisionGateEntryV2,
+} from "../messages/telegram-revision-gate";
+import { VPWS50_REVISION_FAMILY_POLICY } from "../messages/revision-family-registry";
+import { weatherAlertsFromVpws50 } from "./weather-alert-view";
 
-const PERSIST_SCHEMA_VERSION = 1;
+const PERSIST_SCHEMA_VERSION = 2;
 
 export interface PersistedHeatStateV1 {
   key: string;
@@ -42,6 +60,32 @@ export interface PersistedStandbyStateV1 {
   quakeHost?: PersistedQuakeHostStateV1 | null;
   nankaiTrough?: PersistedNankaiStateV1 | null;
   seen: PersistedSeenEntry[];
+}
+
+export interface PersistedTelegramFoundationV2 {
+  vpws50: {
+    /** false は v1 adapter 由来で、表示 snapshot は旧 field を正とする。 */
+    authoritative: boolean;
+    state: PersistedVpws50StateV2 | null;
+    gateEntries: PersistedTelegramRevisionGateEntryV2[];
+  };
+}
+
+/**
+ * v2 は新しい foundation state を正とし、v1 fields を rollback 互換として同じ
+ * envelope に dual-write する。
+ */
+export interface PersistedStandbyStateV2 extends Omit<PersistedStandbyStateV1, "version"> {
+  version: 2;
+  telegramFoundation: PersistedTelegramFoundationV2;
+}
+
+export type PersistedStandbyState = PersistedStandbyStateV1 | PersistedStandbyStateV2;
+
+export function standbyPersistenceV2Path(legacyPath: string): string {
+  return legacyPath.endsWith("-v1.json")
+    ? `${legacyPath.slice(0, -"-v1.json".length)}-v2.json`
+    : `${legacyPath}.v2`;
 }
 
 export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
@@ -75,56 +119,63 @@ export interface PersistedWeatherAlertStateV1 { source: DisplayWeatherSourceV1; 
  */
 const SAVE_DEBOUNCE_MS = 3000;
 
+interface PersistedReadResult {
+  state: PersistedStandbyStateV2 | null;
+  migrationConflict: boolean;
+}
+
 export class StandbyPersistence {
-  private pending: { state: PersistedStandbyStateV1; seq: number } | null = null;
+  private pending: { state: PersistedStandbyStateV2; seq: number } | null = null;
   private timer: NodeJS.Timeout | null = null;
   private writing = false;
   /** 内容を確定した順の通し番号。書き込み完了の順序が入れ替わっても最新が勝つようにする */
   private seq = 0;
   /** 実際に rename まで到達した最大 seq。これより古い書き込みは rename せずに捨てる */
   private renamedSeq = 0;
+  private migrationConflictCount = 0;
 
   constructor(
     private readonly persistPath: string,
     private readonly debounceMs: number = SAVE_DEBOUNCE_MS,
+    private readonly foundationProvider: (() => PersistedTelegramFoundationV2) | null = null,
   ) {}
 
-  load(): PersistedStandbyStateV1 | null {
+  load(): PersistedStandbyStateV2 | null {
     this.cleanStaleTmpFiles();
-    try {
-      if (!fs.existsSync(this.persistPath)) return null;
-      const parsed: unknown = JSON.parse(fs.readFileSync(this.persistPath, "utf8"));
-      const version = parsed != null && typeof parsed === "object"
-        ? (parsed as Record<string, unknown>).version
-        : undefined;
-      if (version !== PERSIST_SCHEMA_VERSION) {
-        log.debug(`[standby-persistence] schema 世代交代 (v${String(version)} → v${PERSIST_SCHEMA_VERSION}) — 旧データ破棄`);
-        return null;
+    const v2Path = standbyPersistenceV2Path(this.persistPath);
+    const v2 = this.readPath(v2Path, false);
+    if (v2.state != null) {
+      // rollback 用 standalone v1 も必ず検査する。v2 を正として採用する方針は変えず、
+      // rename 間の停止・旧 binary 運用・v1 欠損を telemetry へ出す。
+      const standaloneV1 = this.readPath(this.persistPath, true);
+      const standaloneConflict = standaloneV1.state == null
+        || JSON.stringify(this.toV1(v2.state)) !== JSON.stringify(this.toV1(standaloneV1.state));
+      if (v2.migrationConflict || standaloneV1.migrationConflict || standaloneConflict) {
+        this.recordMigrationConflict("VPWS50 persistence sources conflict; canonical v2 is authoritative");
       }
-      const sanitized = sanitizePersistedStandbyState(parsed);
-      if (sanitized == null) {
-        log.warn("[standby-persistence] top-level structure validation 失敗 — 破棄");
-        return null;
-      }
-      return sanitized;
-    } catch (err) {
-      log.warn(`[standby-persistence] load 失敗: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
+      return v2.state;
     }
+    // Phase 3B 導入途中に同じ path へ書かれた v2 も読み取れるようにしつつ、
+    // 現行 writer は旧 reader 用の version:1 と新 schema を別ファイルへ dual-write する。
+    const fallback = this.readPath(this.persistPath, true);
+    if (fallback.migrationConflict) {
+      this.recordMigrationConflict("VPWS50 envelope fields differ; new schema is authoritative");
+    }
+    return fallback.state;
   }
 
-  save(state: PersistedStandbyStateV1): void {
-    this.writeSync(state, ++this.seq);
+  save(state: PersistedStandbyState): void {
+    this.writeSync(this.toV2(state), ++this.seq);
   }
 
   /**
    * 最新状態の保存を予約する。debounceMs 後に 1 回だけ非同期で書く。
    * 予約中に再度呼ばれた場合は最新状態で上書きし、書き込み回数は増やさない。
    */
-  schedule(state: PersistedStandbyStateV1): void {
+  schedule(state: PersistedStandbyState): void {
     // seq は「内容を確定した時点」で採る。書き込み開始時に採ると、予約 → 同期保存の順で
     // 呼ばれたとき古い内容の方が大きい seq を持ってしまい、順序保証が逆転する
-    this.pending = { state, seq: ++this.seq };
+    this.pending = { state: this.toV2(state), seq: ++this.seq };
     this.armTimer();
   }
 
@@ -146,6 +197,57 @@ export class StandbyPersistence {
     this.pending = null;
   }
 
+  takeMigrationConflictCount(): number {
+    const count = this.migrationConflictCount;
+    this.migrationConflictCount = 0;
+    return count;
+  }
+
+  private recordMigrationConflict(detail: string): void {
+    this.migrationConflictCount++;
+    log.warn(`[standby-persistence] persistenceMigrationConflict: ${detail}`);
+  }
+
+  private toV2(state: PersistedStandbyState): PersistedStandbyStateV2 {
+    const foundation = this.foundationProvider?.()
+      ?? (state.version === 2 ? state.telegramFoundation : emptyTelegramFoundation());
+    return {
+      ...state,
+      version: 2,
+      telegramFoundation: structuredClone(foundation),
+    };
+  }
+
+  private toV1(state: PersistedStandbyStateV2): PersistedStandbyStateV1 {
+    const { telegramFoundation: _foundation, version: _version, ...legacy } = state;
+    return { ...legacy, version: 1 };
+  }
+
+  private readPath(filePath: string, allowV1: boolean): PersistedReadResult {
+    if (!fs.existsSync(filePath)) return { state: null, migrationConflict: false };
+    try {
+      const parsed: unknown = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      const version = isRecord(parsed) ? parsed.version : undefined;
+      const sanitized = version === PERSIST_SCHEMA_VERSION
+        ? sanitizePersistedStandbyStateV2(parsed)
+        : allowV1 && version === 1
+          ? migratePersistedStandbyStateV1(parsed)
+          : null;
+      if (sanitized == null) {
+        log.warn(`[standby-persistence] top-level structure validation 失敗 — 破棄 (${path.basename(filePath)})`);
+      }
+      return {
+        state: sanitized,
+        migrationConflict: sanitized != null
+          && version === PERSIST_SCHEMA_VERSION
+          && hasVpws50MigrationConflict(parsed, sanitized),
+      };
+    } catch (err) {
+      log.warn(`[standby-persistence] load 失敗 (${path.basename(filePath)}): ${err instanceof Error ? err.message : String(err)}`);
+      return { state: null, migrationConflict: false };
+    }
+  }
+
   /**
    * rename 前に強制終了すると seq 固有名の tmp が残る (Pi は電源断が起こりうる)。
    * 起動時の load で同ディレクトリの残骸を掃除する。掃除の失敗は起動を妨げない。
@@ -154,9 +256,9 @@ export class StandbyPersistence {
     try {
       const dir = path.dirname(this.persistPath);
       if (!fs.existsSync(dir)) return;
-      const base = path.basename(this.persistPath);
+      const bases = [this.persistPath, standbyPersistenceV2Path(this.persistPath)].map((item) => path.basename(item));
       for (const name of fs.readdirSync(dir)) {
-        if (name.startsWith(`${base}.`) && name.endsWith(".tmp")) {
+        if (bases.some((base) => name.startsWith(`${base}.`) && name.endsWith(".tmp"))) {
           fs.rmSync(path.join(dir, name), { force: true });
         }
       }
@@ -166,25 +268,32 @@ export class StandbyPersistence {
   }
 
   /** tmp 名は書き込みごとに一意にする (同期・非同期が同じ tmp を奪い合わないため) */
-  private tmpPathFor(seq: number): string {
-    return `${this.persistPath}.${seq}.tmp`;
+  private tmpPathFor(filePath: string, seq: number): string {
+    return `${filePath}.${seq}.tmp`;
   }
 
-  private writeSync(state: PersistedStandbyStateV1, seq: number): void {
-    const tmpPath = this.tmpPathFor(seq);
+  private writeSync(state: PersistedStandbyStateV2, seq: number): void {
+    const v2Path = standbyPersistenceV2Path(this.persistPath);
+    const v2TmpPath = this.tmpPathFor(v2Path, seq);
+    const v1TmpPath = this.tmpPathFor(this.persistPath, seq);
     try {
       fs.mkdirSync(path.dirname(this.persistPath), { recursive: true });
-      fs.writeFileSync(tmpPath, JSON.stringify(state), "utf8");
+      fs.writeFileSync(v2TmpPath, JSON.stringify(state), "utf8");
+      fs.writeFileSync(v1TmpPath, JSON.stringify(this.toV1(state)), "utf8");
       if (seq < this.renamedSeq) {
         // 既により新しい内容が置かれている。追い越された書き込みは反映しない
-        fs.rmSync(tmpPath, { force: true });
+        fs.rmSync(v2TmpPath, { force: true });
+        fs.rmSync(v1TmpPath, { force: true });
         return;
       }
-      fs.renameSync(tmpPath, this.persistPath);
+      fs.renameSync(v2TmpPath, v2Path);
+      fs.renameSync(v1TmpPath, this.persistPath);
       this.renamedSeq = seq;
     } catch (err) {
       log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
-      try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
+      for (const tmpPath of [v2TmpPath, v1TmpPath]) {
+        try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
+      }
     }
   }
 
@@ -217,21 +326,28 @@ export class StandbyPersistence {
     if (pending == null) return;
     this.pending = null;
     this.writing = true;
-    const tmpPath = this.tmpPathFor(pending.seq);
+    const v2Path = standbyPersistenceV2Path(this.persistPath);
+    const v2TmpPath = this.tmpPathFor(v2Path, pending.seq);
+    const v1TmpPath = this.tmpPathFor(this.persistPath, pending.seq);
     try {
       await fs.promises.mkdir(path.dirname(this.persistPath), { recursive: true });
-      await fs.promises.writeFile(tmpPath, JSON.stringify(pending.state), "utf8");
+      await fs.promises.writeFile(v2TmpPath, JSON.stringify(pending.state), "utf8");
+      await fs.promises.writeFile(v1TmpPath, JSON.stringify(this.toV1(pending.state)), "utf8");
       // ここから rename までは await を挟まない。await で中断すると、guard 通過後・rename 完了前に
       // 同期保存が割り込み、そのあと古い rename が完了して旧内容で上書き + renamedSeq 逆行が起きる
       if (pending.seq < this.renamedSeq) {
-        fs.rmSync(tmpPath, { force: true });
+        fs.rmSync(v2TmpPath, { force: true });
+        fs.rmSync(v1TmpPath, { force: true });
         return;
       }
-      fs.renameSync(tmpPath, this.persistPath);
+      fs.renameSync(v2TmpPath, v2Path);
+      fs.renameSync(v1TmpPath, this.persistPath);
       this.renamedSeq = pending.seq;
     } catch (err) {
       log.warn(`[standby-persistence] save 失敗: ${err instanceof Error ? err.message : String(err)}`);
-      try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
+      for (const tmpPath of [v2TmpPath, v1TmpPath]) {
+        try { fs.rmSync(tmpPath, { force: true }); } catch { /* 後始末の失敗は無視 */ }
+      }
     } finally {
       this.writing = false;
       // 書き込み中に届いた更新は、終わってからもう一度だけ書く
@@ -532,8 +648,8 @@ function validDomainArray<T>(value: unknown, predicate: (entry: unknown) => entr
   return [];
 }
 
-function sanitizePersistedStandbyState(value: unknown): PersistedStandbyStateV1 | null {
-  if (!isRecord(value) || value.version !== PERSIST_SCHEMA_VERSION || typeof value.savedAt !== "string") return null;
+function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV1 | null {
+  if (!isRecord(value) || value.version !== 1 || typeof value.savedAt !== "string") return null;
   const floods = value.floods == null ? undefined : sanitizeFloodState(value.floods);
   if (value.floods != null && floods == null) log.warn("[standby-persistence] floods structure validation 失敗 — domain 破棄");
   const nankaiTrough = value.nankaiTrough == null || isNankaiState(value.nankaiTrough) ? value.nankaiTrough : null;
@@ -554,4 +670,304 @@ function sanitizePersistedStandbyState(value: unknown): PersistedStandbyStateV1 
     nankaiTrough,
     seen: validDomainArray(value.seen, isSeenEntry, "seen"),
   };
+}
+
+function emptyTelegramFoundation(): PersistedTelegramFoundationV2 {
+  return { vpws50: { authoritative: true, state: null, gateEntries: [] } };
+}
+
+function isWeatherIdentity(value: unknown, receivedAtMs = Number.MAX_SAFE_INTEGER): boolean {
+  if (!isRecord(value) || typeof value.reportDateTime !== "string") return false;
+  if (!parseStrictReportDateTime(value.reportDateTime, receivedAtMs).valid) return false;
+  if (value.serial == null || value.serial === "") return true;
+  return typeof value.serial === "string" && parseTelegramSerial(value.serial).valid;
+}
+
+function isVpws50Kind(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value.phenomenonKey === "string"
+    && typeof value.kindCode === "string"
+    && typeof value.kindName === "string"
+    && (value.severity === "specialWarning" || value.severity === "warning" || value.severity === "advisory" || value.severity === "release" || value.severity === "unknown")
+    && (value.displaySeverity === "release" || value.displaySeverity === "officialL2"
+      || value.displaySeverity === "officialL3" || value.displaySeverity === "officialL4"
+      || value.displaySeverity === "officialL5" || value.displaySeverity === "nonLevelWarning"
+      || value.displaySeverity === "nonLevelSpecial" || value.displaySeverity === "unknown")
+    && (value.officialAlertLevel == null || value.officialAlertLevel === 1 || value.officialAlertLevel === 2
+      || value.officialAlertLevel === 3 || value.officialAlertLevel === 4 || value.officialAlertLevel === 5)
+    && (value.resolutionSource === "map" || value.resolutionSource === "nameFallback" || value.resolutionSource === "unknown");
+}
+
+function isVpws50Snapshot(value: unknown): boolean {
+  return isRecord(value) && Array.isArray(value.areas) && value.areas.every((area) =>
+    isRecord(area)
+    && typeof area.areaCode === "string"
+    && typeof area.areaName === "string"
+    && Array.isArray(area.kinds)
+    && area.kinds.every(isVpws50Kind),
+  );
+}
+
+function isVpws50State(value: unknown): value is PersistedVpws50StateV2 {
+  if (!isRecord(value) || !Array.isArray(value.history)) return false;
+  const isEntry = (entry: unknown, identityRequired: boolean): boolean =>
+    isRecord(entry)
+    && typeof entry.messageId === "string"
+    && (identityRequired ? isWeatherIdentity(entry.identity) : entry.identity == null || isWeatherIdentity(entry.identity))
+    && isVpws50Snapshot(entry.snapshot);
+  return (value.current == null || isEntry(value.current, true))
+    && value.history.every((entry) => isEntry(entry, false))
+    && (value.lastSuccessfulFullDisplayAt == null
+      || typeof value.lastSuccessfulFullDisplayAt === "string" && Number.isFinite(Date.parse(value.lastSuccessfulFullDisplayAt)));
+}
+
+function isEmptyVpws50State(value: PersistedVpws50StateV2): boolean {
+  return value.current == null
+    && value.history.length === 0
+    && value.lastSuccessfulFullDisplayAt == null;
+}
+
+function isStrictText(value: unknown): value is StrictTextMeta {
+  return isRecord(value)
+    && (value.raw == null || typeof value.raw === "string")
+    && (value.value == null || typeof value.value === "string")
+    && typeof value.valid === "boolean";
+}
+
+function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntryV2 {
+  if (!isRecord(value) || !isRecord(value.comparison) || !isRecord(value.comparison.revision)) return false;
+  const revision = value.comparison.revision;
+  if (typeof value.acceptedAtMs !== "number" || !Number.isFinite(value.acceptedAtMs)) return false;
+  if (!isRecord(revision.reportDateTime) || typeof revision.reportDateTime.raw !== "string") return false;
+  const strictDate = parseStrictReportDateTime(revision.reportDateTime.raw, value.acceptedAtMs);
+  if (!strictDate.valid || strictDate.epochMs == null) return false;
+  if (revision.reportDateTime.epochMs !== strictDate.epochMs || revision.reportDateTime.valid !== true) return false;
+  if (!isRecord(revision.serial) || !(revision.serial.raw == null || typeof revision.serial.raw === "string")) return false;
+  const serialRaw = revision.serial.raw ?? null;
+  const parsedSerial = parseTelegramSerial(serialRaw);
+  const serialMissing = serialRaw == null || serialRaw === "";
+  if (serialMissing) {
+    if (revision.serial.numeric != null || revision.serial.valid !== false) return false;
+  } else if (
+    !parsedSerial.valid
+    || revision.serial.valid !== true
+    || revision.serial.numeric !== parsedSerial.numeric
+  ) return false;
+  const eventId = revision.eventId;
+  const type = revision.type;
+  if (
+    !isStrictText(eventId)
+    || !isStrictText(type)
+    || eventId.valid !== true
+    || type.valid !== true
+  ) return false;
+  return typeof value.domain === "string"
+    && typeof value.revisionFamily === "string"
+    && typeof value.stateSubjectKey === "string"
+    && value.comparison.stateSubjectKey === value.stateSubjectKey
+    && isRecord(revision.infoType)
+    && (revision.infoType.raw == null || typeof revision.infoType.raw === "string")
+    && (revision.infoType.value === "発表" || revision.infoType.value === "訂正" || revision.infoType.value === "取消")
+    && revision.infoType.valid === true
+    && isStringArray(value.semanticKeys)
+    && value.semanticKeys.length <= TELEGRAM_REVISION_MAX_ENTRIES
+    && value.semanticKeys.every((key) => key.length <= 1_048_576)
+    && typeof value.cancelled === "boolean"
+    && (value.tombstoneRetentionMs == null
+      || typeof value.tombstoneRetentionMs === "number"
+      && Number.isFinite(value.tombstoneRetentionMs)
+      && value.tombstoneRetentionMs > 0)
+    && eventId.value === value.stateSubjectKey
+    && type.value === value.revisionFamily;
+}
+
+function compareWeatherIdentity(
+  incoming: WeatherReportIdentity,
+  current: WeatherReportIdentity,
+): "newer" | "equal" | "older" | "unordered" {
+  const incomingMs = Date.parse(incoming.reportDateTime);
+  const currentMs = Date.parse(current.reportDateTime);
+  if (!Number.isFinite(incomingMs) || !Number.isFinite(currentMs)) return "unordered";
+  if (incomingMs !== currentMs) return incomingMs > currentMs ? "newer" : "older";
+  const incomingMissing = incoming.serial == null || incoming.serial === "";
+  const currentMissing = current.serial == null || current.serial === "";
+  if (incomingMissing || currentMissing) {
+    return incomingMissing && currentMissing ? "equal" : "unordered";
+  }
+  const incomingSerial = parseTelegramSerial(incoming.serial);
+  const currentSerial = parseTelegramSerial(current.serial);
+  if (
+    !incomingSerial.valid
+    || !currentSerial.valid
+    || incomingSerial.numeric == null
+    || currentSerial.numeric == null
+  ) return "unordered";
+  if (incomingSerial.numeric === currentSerial.numeric) return "equal";
+  return incomingSerial.numeric > currentSerial.numeric ? "newer" : "older";
+}
+
+function gateWeatherIdentity(entry: PersistedTelegramRevisionGateEntryV2): WeatherReportIdentity {
+  return {
+    reportDateTime: entry.comparison.revision.reportDateTime.raw ?? "",
+    serial: entry.comparison.revision.serial.raw ?? null,
+  };
+}
+
+function vpws50FoundationIsConsistent(
+  authoritative: boolean,
+  state: PersistedVpws50StateV2 | null,
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): boolean {
+  if (entries.length > 1) return false;
+  // v1 adapter は表示 snapshot と trusted legacy watermark のみを運び、holder は正にしない。
+  if (!authoritative) return state == null;
+  if (state == null) return entries.length === 0;
+  if (isEmptyVpws50State(state)) return entries.length === 0;
+  if (entries.length !== 1) return false;
+
+  const gateEntry = entries[0];
+  if (state.current == null) {
+    return gateEntry.cancelled && state.history.length === 0;
+  }
+
+  const historyIdentities = state.history.map((item) => item.identity);
+  if (historyIdentities.some((identity) => identity == null)) return false;
+  const ordered = [
+    ...(historyIdentities as WeatherReportIdentity[]),
+    state.current.identity,
+  ];
+  for (let index = 1; index < ordered.length; index++) {
+    if (compareWeatherIdentity(ordered[index - 1], ordered[index]) !== "older") return false;
+  }
+
+  const currentToGate = compareWeatherIdentity(state.current.identity, gateWeatherIdentity(gateEntry));
+  return gateEntry.cancelled ? currentToGate === "older" : currentToGate === "equal";
+}
+
+function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | null {
+  if (!isRecord(value) || !isRecord(value.vpws50) || typeof value.vpws50.authoritative !== "boolean") return null;
+  const state = value.vpws50.state;
+  const entries = value.vpws50.gateEntries;
+  if ((state != null && !isVpws50State(state)) || !Array.isArray(entries) || !entries.every((entry) =>
+    isGateEntry(entry)
+    && entry.domain === "weather"
+    && entry.revisionFamily === "VPWS50"
+    && entry.stateSubjectKey === "weather:vpws50",
+  )) return null;
+  const validatedState = state as PersistedVpws50StateV2 | null;
+  const validatedEntries = entries as PersistedTelegramRevisionGateEntryV2[];
+  if (!vpws50FoundationIsConsistent(value.vpws50.authoritative, validatedState, validatedEntries)) return null;
+  const compactedEntries = validatedEntries.map((entry) => ({
+    ...structuredClone(entry),
+    semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    // tombstoneRetentionMs 導入前の v2 は domain policy を欠く。
+    // VPWS50 は固定 1 subject なので、取消 latch を期限なく保持する現行 policy へ移行する。
+    tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
+      ? VPWS50_REVISION_FAMILY_POLICY.tombstoneRetentionMs
+      : entry.tombstoneRetentionMs,
+  }));
+  if (state != null) {
+    if (entries.length === 0 && !isEmptyVpws50State(state)) return null;
+    const receivedAtMs = Math.max(...entries.map((entry) => entry.acceptedAtMs));
+    const identities = [
+      state.current?.identity,
+      ...state.history.map((entry) => entry.identity),
+    ].filter((identity) => identity != null);
+    if (!identities.every((identity) => isWeatherIdentity(identity, receivedAtMs))) return null;
+  }
+  return {
+    vpws50: {
+      authoritative: value.vpws50.authoritative,
+      state: state == null ? null : structuredClone(state),
+      gateEntries: compactedEntries,
+    },
+  };
+}
+
+function baseV1FromRecord(value: Record<string, unknown>): PersistedStandbyStateV1 | null {
+  return sanitizePersistedStandbyStateV1({ ...value, version: 1 });
+}
+
+function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
+  if (!isRecord(value) || value.version !== 2) return null;
+  const base = baseV1FromRecord(value);
+  const telegramFoundation = sanitizeFoundation(value.telegramFoundation);
+  if (base == null || telegramFoundation == null) return null;
+  return { ...base, version: 2, telegramFoundation };
+}
+
+function migratedVpws50GateEntries(base: PersistedStandbyStateV1): PersistedTelegramRevisionGateEntryV2[] {
+  const state = base.weatherAlerts?.find((entry) => entry.source === "vpws50");
+  if (state == null || state.alerts.length === 0) return [];
+  const reportDateTimes = new Set(state.alerts.map((alert) => alert.updatedAt));
+  if (reportDateTimes.size !== 1) return [];
+  const reportDateTime = [...reportDateTimes][0];
+  const epochMs = Date.parse(reportDateTime);
+  const savedAtMs = Date.parse(base.savedAt);
+  if (!Number.isFinite(epochMs) || !Number.isFinite(savedAtMs) || epochMs !== state.revision.reportTimeMs) return [];
+  if (epochMs > savedAtMs + FUTURE_REPORT_DATETIME_SKEW_MS) return [];
+  const serialRaw = state.revision.serial;
+  const serialMissing = serialRaw == null || serialRaw === "";
+  const serialNumeric = !serialMissing && serialRaw != null && /^\d+$/.test(serialRaw)
+    ? Number(serialRaw)
+    : null;
+  if (!serialMissing && (!Number.isSafeInteger(serialNumeric) || serialNumeric == null)) return [];
+  return [{
+    domain: "weather",
+    revisionFamily: "VPWS50",
+    stateSubjectKey: "weather:vpws50",
+    comparison: {
+      stateSubjectKey: "weather:vpws50",
+      revision: {
+        eventId: { raw: "weather:vpws50", value: "weather:vpws50", valid: true },
+        type: { raw: "VPWS50", value: "VPWS50", valid: true },
+        reportDateTime: { raw: reportDateTime, epochMs, valid: true },
+        serial: {
+          raw: serialRaw,
+          numeric: serialMissing ? null : serialNumeric,
+          valid: !serialMissing && serialNumeric != null,
+        },
+        infoType: { raw: "発表", value: "発表", valid: true },
+      },
+    },
+    semanticKeys: [],
+    cancelled: false,
+    acceptedAtMs: Number.isFinite(savedAtMs) ? savedAtMs : epochMs,
+  }];
+}
+
+function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2 | null {
+  const base = sanitizePersistedStandbyStateV1(value);
+  if (base == null) return null;
+  return {
+    ...base,
+    version: 2,
+    telegramFoundation: {
+      vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(base) },
+    },
+  };
+}
+
+function hasVpws50MigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
+  const foundation = state.telegramFoundation.vpws50;
+  if (!foundation.authoritative || !isRecord(raw)) return false;
+  const rawHasLegacyField = Object.hasOwn(raw, "weatherAlerts");
+  const legacy = state.weatherAlerts?.find((entry) => entry.source === "vpws50");
+  const current = foundation.state?.current ?? null;
+  const legacyHasPayload = legacy != null && legacy.alerts.length > 0;
+  if (current == null) return legacyHasPayload;
+  if (!rawHasLegacyField || legacy == null) return true;
+
+  if (
+    legacy.revision.reportTimeMs !== Date.parse(current.identity.reportDateTime)
+    || legacy.revision.serial !== current.identity.serial
+  ) return true;
+
+  const holder = new Vpws50StateHolder();
+  holder.restorePersistedState(foundation.state!);
+  const projected = weatherAlertsFromVpws50(
+    holder.getCurrentAreasForDisplay(),
+    current.identity.reportDateTime,
+  );
+  return JSON.stringify(projected) !== JSON.stringify(legacy.alerts);
 }

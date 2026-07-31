@@ -11,6 +11,7 @@ import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
 import { Vpwp50DetailCache } from "../../src/engine/messages/vpwp50-detail-cache";
 import { TyphoonProbabilityStateHolder } from "../../src/engine/messages/typhoon-probability-state";
 import { FloodForecastStateHolder } from "../../src/engine/messages/flood-forecast-state";
+import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
 import {
   createMockWsDataMessage,
   FIXTURE_VPWS50_AGGREGATE,
@@ -298,6 +299,7 @@ function fakeDeps(state: Vpws50StateHolder): ProcessDeps {
     vpwp50Cache: new Vpwp50DetailCache({ persistRoot: tmpRoot }),
     typhoonProbabilityState: new TyphoonProbabilityStateHolder(),
     floodForecastState: new FloodForecastStateHolder(),
+    revisionGate: new TelegramRevisionGate(),
   };
 }
 

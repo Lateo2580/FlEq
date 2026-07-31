@@ -11,6 +11,7 @@ import type {
   DisplayWeatherSourceV1,
 } from "./protocol";
 import type {
+  PersistedStandbyState,
   PersistedStandbyStateV1,
   PersistedVolcanoStateV1,
   PersistedWeatherAlertStateV1,
@@ -185,7 +186,8 @@ export class StandbyStateStore {
   ): DisplayMutation {
     const key = `weather:${source}`;
     const revision = revisionOf(reportDateTime, serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, DAY_MS, isCorrection)) return NO_MUTATION;
+    // VPWS50 は Phase 3B で共通 TelegramRevisionGate へ移行済み。ここで二重判定しない。
+    if (source !== "vpws50" && !this.revisionGuard.accept(key, revision, nowMs, DAY_MS, isCorrection)) return NO_MUTATION;
     const before = JSON.stringify(this.weatherAlerts.get(source)?.alerts ?? []);
     if (alerts.length === 0) {
       this.weatherAlerts.delete(source);
@@ -207,6 +209,24 @@ export class StandbyStateStore {
 
   snapshotWeatherAlerts(): DisplayWeatherAlertV1[] {
     return [...this.weatherAlerts.values()].flatMap((state) => state.alerts.map(copyWeatherAlert));
+  }
+
+  /** v2 foundation の正規 VPWS50 snapshot から起動時 view を再構築する。通知は発火しない。 */
+  restoreCanonicalVpws50Alerts(
+    alerts: DisplayWeatherAlertV1[],
+    reportDateTime: string | null,
+    serial: string | null,
+  ): void {
+    this.weatherAlerts.delete("vpws50");
+    if (alerts.length === 0 || reportDateTime == null) return;
+    const reportTimeMs = Date.parse(reportDateTime);
+    if (!Number.isFinite(reportTimeMs)) return;
+    this.weatherAlerts.set("vpws50", {
+      source: "vpws50",
+      alerts: alerts.map(copyWeatherAlert),
+      revision: { reportTimeMs, serial },
+      expiresAtMs: reportTimeMs + DAY_MS,
+    });
   }
 
   private applyNankai(event: PresentationEvent, nowMs: number): DisplayMutation {
@@ -726,7 +746,7 @@ export class StandbyStateStore {
     };
   }
 
-  restoreActiveState(data: PersistedStandbyStateV1, nowMs: number): void {
+  restoreActiveState(data: PersistedStandbyState, nowMs: number): void {
     this.heatAlerts.clear();
     this.typhoons.clear();
     this.volcanoes.clear();

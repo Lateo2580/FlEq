@@ -21,6 +21,9 @@ import { QuakeExtremePersistence } from "../display/quake-extreme-persistence";
 import { QuakeExtremeStore } from "../display/quake-extreme-store";
 import { DailyQuakeCounter } from "../messages/daily-quake-counter";
 import { DailyQuakePersistence } from "../messages/daily-quake-persistence";
+import { Vpws50StateHolder } from "../messages/vpws50-state";
+import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
+import { weatherAlertsFromVpws50 } from "../display/weather-alert-view";
 import { createDisplaySink } from "./display-sink";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
@@ -44,8 +47,20 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   // standby active-state は display runtime ではなく monitor 本体が所有する。
   const standbyStore = new StandbyStateStore();
+  const vpws50State = new Vpws50StateHolder();
+  const revisionGate = new TelegramRevisionGate();
+  let vpws50FoundationAuthoritative = true;
   const standbyPersistence = new StandbyPersistence(
     join(process.cwd(), "data", "runtime", "display-active-state-v1.json"),
+    undefined,
+    () => ({
+      vpws50: {
+        authoritative: vpws50FoundationAuthoritative,
+        state: vpws50State.exportPersistedState(),
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "weather" && entry.revisionFamily === "VPWS50"),
+      },
+    }),
   );
   let standbyDirtyNotify: (() => void) | null = null;
   standbyStore.onChange(() => standbyDirtyNotify?.());
@@ -53,7 +68,21 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // 終了時は stopStandbySweep -> flush() で書き切る
   standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
   const persistedStandby = standbyPersistence.load();
-  if (persistedStandby != null) standbyStore.restoreActiveState(persistedStandby, Date.now());
+  if (persistedStandby != null) {
+    standbyStore.restoreActiveState(persistedStandby, Date.now());
+    const persistedVpws50 = persistedStandby.telegramFoundation.vpws50;
+    vpws50FoundationAuthoritative = persistedVpws50.authoritative;
+    if (persistedVpws50.state != null) vpws50State.restorePersistedState(persistedVpws50.state);
+    revisionGate.restoreDurableEntries(persistedVpws50.gateEntries);
+    if (persistedVpws50.authoritative) {
+      const identity = vpws50State.getCurrentIdentity();
+      standbyStore.restoreCanonicalVpws50Alerts(
+        weatherAlertsFromVpws50(vpws50State.getCurrentAreasForDisplay(), identity?.reportDateTime ?? ""),
+        identity?.reportDateTime ?? null,
+        identity?.serial ?? null,
+      );
+    }
+  }
   standbyStore.sweep(Date.now());
 
   // 気象警報の昇格 lifecycle も monitor 所有にする。display runtime は `display off` → `on` で
@@ -166,6 +195,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       vpws50: () => vpws50State.getCurrentAreasForDisplay(),
       vpww56: () => vpww56State.getCurrentAreasForDisplay(),
     },
+    vpws50Identity: () => vpws50State.getCurrentIdentity(),
     getHub: () => displayHubRef,
   });
   const displaySink: DisplayIngestSink = {
@@ -178,12 +208,20 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let isFirstConnection = true;
 
   const pipeline = pipelineController?.getPipeline();
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, vpws50State, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
+  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
     pipeline: pipeline ?? undefined,
     display,
     displaySink,
     dailyQuakeCounter,
+    vpws50State,
+    revisionGate,
+    onVpws50RevisionDecision: (decision) => {
+      if (decision.accepted) vpws50FoundationAuthoritative = true;
+    },
   });
+  for (let i = 0; i < standbyPersistence.takeMigrationConflictCount(); i++) {
+    stats.recordFoundation("persistenceMigrationConflict");
+  }
 
   /** 現在の dmdata 接続状態 (display on 時の起動直後 seed 用) */
   function getConnectionState(): DisplayConnectionStateV1["dmdata"] {

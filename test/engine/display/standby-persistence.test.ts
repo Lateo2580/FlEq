@@ -2,7 +2,11 @@ import fs, { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSy
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StandbyPersistence, type PersistedStandbyStateV1 } from "../../../src/engine/display/standby-persistence";
+import {
+  StandbyPersistence,
+  standbyPersistenceV2Path,
+  type PersistedStandbyStateV1,
+} from "../../../src/engine/display/standby-persistence";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
@@ -63,7 +67,13 @@ describe("StandbyPersistence", () => {
   it("atomic save と load が往復する", () => {
     const persistence = new StandbyPersistence(tempPath());
     persistence.save(state());
-    expect(persistence.load()).toEqual(state());
+    expect(persistence.load()).toEqual(expect.objectContaining({
+      ...state(),
+      version: 2,
+      telegramFoundation: {
+        vpws50: { authoritative: true, state: null, gateEntries: [] },
+      },
+    }));
   });
 
   it("version 不一致は全体を破棄し、構造不正な domain だけを空にする", () => {
@@ -98,7 +108,9 @@ describe("StandbyPersistence", () => {
     expect(persistence.load()?.floods).toEqual(persisted.floods);
 
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, JSON.stringify({ ...persisted, floods: { events: "invalid", seen: [] } }), "utf8");
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify({
+      ...persistence.load(), floods: { events: "invalid", seen: [] },
+    }), "utf8");
     expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
   });
 
@@ -221,7 +233,7 @@ describe("StandbyPersistence", () => {
         seen: [],
       },
     };
-    writeFileSync(path, JSON.stringify(broken), "utf8");
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify({ ...persistence.load(), ...broken, version: 2 }), "utf8");
     expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
   });
 
@@ -273,7 +285,7 @@ describe("StandbyPersistence", () => {
         seen: [],
       },
     };
-    writeFileSync(path, JSON.stringify(broken), "utf8");
+    writeFileSync(standbyPersistenceV2Path(path), JSON.stringify({ ...persistence.load(), ...broken, version: 2 }), "utf8");
     expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
   });
 
@@ -554,7 +566,13 @@ describe("StandbyStateStore persistence", () => {
     const persistence = new StandbyPersistence(tempPath());
     persistence.save(persisted);
     const loaded = persistence.load();
-    expect(loaded).toEqual(persisted);
+    expect(loaded).toEqual(expect.objectContaining({
+      ...persisted,
+      version: 2,
+      telegramFoundation: {
+        vpws50: { authoritative: true, state: null, gateEntries: [] },
+      },
+    }));
 
     const store = new StandbyStateStore();
     store.restoreActiveState(loaded!, T0 + 60_000);
@@ -984,9 +1002,9 @@ describe("StandbyPersistence の書き込み順序", () => {
 
       const syncTmp = syncWrite.mock.calls.map((call) => String(call[0]));
       const asyncTmp = asyncWrite.mock.calls.map((call) => String(call[0]));
-      expect(syncTmp).toHaveLength(1);
-      expect(asyncTmp).toHaveLength(1);
-      expect(asyncTmp[0]).not.toBe(syncTmp[0]);
+      expect(syncTmp).toHaveLength(2);
+      expect(asyncTmp).toHaveLength(2);
+      expect(new Set([...syncTmp, ...asyncTmp]).size).toBe(4);
       expect(existsSync(`${path}.tmp`)).toBe(false);
       expect(tmpFiles(path)).toEqual([]);
     } finally {

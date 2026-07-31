@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
 import {
+  semanticPayloadFingerprint,
+  TELEGRAM_REVISION_MAX_ENTRIES,
+  TELEGRAM_REVISION_MAX_SEMANTIC_KEYS,
   TelegramRevisionGate,
 } from "../../../src/engine/messages/telegram-revision-gate";
 import { TelegramTransportDeduplicator } from "../../../src/engine/messages/telegram-transport-dedup";
@@ -216,5 +219,159 @@ describe("Phase 3A EEW revision gate", () => {
       accepted: true,
       isTerminal: true,
     });
+  });
+
+  it.each([
+    ["terminal", "markCancelled", true, false],
+    ["deactivation", "clearCurrent", false, true],
+  ] as const)("訂正と %s trigger が同時成立しても policy mutation と訂正属性を両立する", (
+    _label,
+    cancellationPolicy,
+    terminal,
+    deactivation,
+  ) => {
+    const gate = new TelegramRevisionGate();
+    gate.decide({
+      domain: "synthetic",
+      revisionFamily: "TEST",
+      stateSubjectKey: "subject",
+      meta: meta({ messageId: `normal-${_label}`, serial: "1" }),
+      comparator: "serialOnly",
+      cancellationPolicy,
+      terminal: false,
+      deactivation: false,
+      payloadFingerprint: semanticPayloadFingerprint({ _label, state: "active" }),
+    });
+    const result = gate.decide({
+      domain: "synthetic",
+      revisionFamily: "TEST",
+      stateSubjectKey: "subject",
+      meta: meta({ messageId: `correction-${_label}`, serial: "1", infoType: "訂正" }),
+      comparator: "serialOnly",
+      cancellationPolicy,
+      terminal,
+      deactivation,
+      payloadFingerprint: semanticPayloadFingerprint({ _label, state: "terminal" }),
+    });
+    expect(result).toMatchObject({
+      kind: cancellationPolicy,
+      accepted: true,
+      isCorrection: true,
+      isTerminal: terminal,
+    });
+  });
+
+  it("semantic payload は canonical JSON の固定長 digest にする", () => {
+    const first = semanticPayloadFingerprint({ secret: "payload-body", a: 1, b: 2 });
+    const reordered = semanticPayloadFingerprint({ b: 2, a: 1, secret: "payload-body" });
+    expect(first).toBe(reordered);
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+    expect(first).not.toContain("payload-body");
+  });
+
+  it("同一 revision の semantic key 履歴を固定上限へ圧縮する", () => {
+    const gate = new TelegramRevisionGate();
+    const base = {
+      domain: "weather",
+      revisionFamily: "VPWS50",
+      stateSubjectKey: "weather:vpws50",
+      comparator: "reportDateTimeThenSerial" as const,
+      cancellationPolicy: "restorePrevious" as const,
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: 60_000,
+    };
+    gate.decide({
+      ...base,
+      meta: meta({ messageId: "base", serial: "1" }),
+      payloadFingerprint: semanticPayloadFingerprint({ revision: 0 }),
+    });
+    for (let index = 1; index <= TELEGRAM_REVISION_MAX_SEMANTIC_KEYS * 2; index++) {
+      expect(gate.decide({
+        ...base,
+        meta: meta({ messageId: `correction-${index}`, serial: "1", infoType: "訂正" }),
+        payloadFingerprint: semanticPayloadFingerprint({ revision: index }),
+      }).accepted).toBe(true);
+    }
+    const [entry] = gate.exportDurableEntries();
+    expect(entry.semanticKeys).toHaveLength(TELEGRAM_REVISION_MAX_SEMANTIC_KEYS);
+    expect(entry.semanticKeys.every((key) => key.length <= 68)).toBe(true);
+  });
+
+  it("durable entry を全体上限へ圧縮し、domain 指定期間後の tombstone を除去する", () => {
+    const gate = new TelegramRevisionGate();
+    for (let index = 0; index <= TELEGRAM_REVISION_MAX_ENTRIES; index++) {
+      gate.decide({
+        domain: "synthetic",
+        revisionFamily: "DURABLE",
+        stateSubjectKey: `subject-${index}`,
+        meta: createTelegramMeta({
+          messageId: `durable-${index}`,
+          eventId: `subject-${index}`,
+          type: "DURABLE",
+          reportDateTime: "2026-07-31T12:00:00+09:00",
+          serial: "1",
+          infoType: "発表",
+          receivedAtMs: RECEIVED_AT + index,
+          status: "通常",
+          isTest: false,
+        }),
+        comparator: "reportDateTimeThenSerial",
+        cancellationPolicy: "clearCurrent",
+        terminal: false,
+        durable: true,
+        tombstoneRetentionMs: 100,
+        payloadFingerprint: semanticPayloadFingerprint({ index }),
+      });
+    }
+    expect(gate.exportDurableEntries()).toHaveLength(TELEGRAM_REVISION_MAX_ENTRIES);
+
+    const tombstoneSubject = "tombstone";
+    gate.decide({
+      domain: "synthetic",
+      revisionFamily: "DURABLE",
+      stateSubjectKey: tombstoneSubject,
+      meta: createTelegramMeta({
+        messageId: "tombstone",
+        eventId: tombstoneSubject,
+        type: "DURABLE",
+        reportDateTime: "2026-07-31T12:00:00+09:00",
+        serial: "1",
+        infoType: "取消",
+        receivedAtMs: RECEIVED_AT + 10_000,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial",
+      cancellationPolicy: "clearCurrent",
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: 100,
+      payloadFingerprint: semanticPayloadFingerprint({ cancelled: true }),
+    });
+    gate.decide({
+      domain: "synthetic",
+      revisionFamily: "DURABLE",
+      stateSubjectKey: "sweep-trigger",
+      meta: createTelegramMeta({
+        messageId: "sweep-trigger",
+        eventId: "sweep-trigger",
+        type: "DURABLE",
+        reportDateTime: "2026-07-31T12:01:00+09:00",
+        serial: "1",
+        infoType: "発表",
+        receivedAtMs: RECEIVED_AT + 10_101,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial",
+      cancellationPolicy: "clearCurrent",
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: 100,
+      payloadFingerprint: semanticPayloadFingerprint({ sweep: true }),
+    });
+    expect(gate.exportDurableEntries().some((entry) => entry.stateSubjectKey === tombstoneSubject))
+      .toBe(false);
   });
 });
