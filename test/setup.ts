@@ -29,6 +29,19 @@ vi.mock("../src/engine/notification/node-notifier-loader", () => ({
   setNodeNotifierOverride: vi.fn(),
 }));
 
+/**
+ * playSound をグローバルにモックし、通知経路を素通しするテスト
+ * (router → dispatchNotify → Notifier) が実行環境で実際に音を再生する
+ * パスを遮断する (2026-07-31: sound-player を個別モックしない新規テストが
+ * npm test 中に critical.mp3 を実再生した事故の恒久対策)。
+ * playSound 以外の export (SOUND_LEVELS 等) は実装のまま残す。
+ * sound-player 自身の unit test は vi.unmock で本物に戻す。
+ */
+vi.mock("../src/engine/notification/sound-player", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/engine/notification/sound-player")>();
+  return { ...actual, playSound: vi.fn() };
+});
+
 export { notifyMock };
 
 beforeEach(() => {

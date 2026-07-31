@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// setup.ts のグローバル playSound モックを外し、本物の sound-player を検証する
+// (実音は下の child_process モックで遮断される)
+vi.unmock("../../src/engine/notification/sound-player");
+
 vi.mock("../../src/logger", () => ({
   info: vi.fn(),
   warn: vi.fn(),
