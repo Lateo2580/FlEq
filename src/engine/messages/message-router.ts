@@ -222,10 +222,13 @@ export interface MessageHandlerOptions {
   dailyQuakeCounter?: DailyQuakeCounter;
   /** monitor が永続状態を復元するときに同一 instance を注入する。 */
   vpws50State?: Vpws50StateHolder;
+  tsunamiState?: TsunamiStateHolder;
   /** durable revision watermark の復元用。 */
   revisionGate?: TelegramRevisionGate;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** tsunami gate/item state の commit 完了を persistence owner へ伝える。 */
+  onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /** createMessageHandler の戻り値 */
@@ -256,7 +259,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const outcomeTaps = options?.outcomeTaps;
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
-  const tsunamiState = new TsunamiStateHolder();
+  const tsunamiState = options?.tsunamiState ?? new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
   const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
   const vpww56State = new Vpww56StateHolder();
@@ -317,7 +320,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       case "cancelTargetMismatch": stats.recordFoundation("cancelTargetMismatch"); break;
       default: break;
     }
-    options?.onVpws50RevisionDecision?.(decision);
   };
 
   const processDeps: ProcessDeps = {
@@ -332,6 +334,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     floodForecastState,
     revisionGate,
     onRevisionDecision: recordRevisionDecision,
+    onVpws50RevisionDecision: options?.onVpws50RevisionDecision,
+    onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
   };
 
   /**
@@ -448,7 +452,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
-    const usesFoundationGate = route === "eew"
+    const usesFoundationGate = route === "eew" || route === "tsunami"
       || route === "weather" && msg.head.type === "VPWS50";
     if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
@@ -510,20 +514,18 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const notified = dispatchNotify(outcome, notifier);
     const acceptedCorrection = outcome.domain === "eew"
       ? outcome.eewResult.isCorrection === true
-      : outcome.domain === "weather"
-        && outcome.headType === "VPWS50"
-        && outcome.presentation.acceptedCorrection === true;
+      : outcome.presentation.acceptedCorrection === true;
     if (acceptedCorrection) {
       stats.recordFoundation("correctionNotified");
     }
-    if ((outcome.domain === "eew" || outcome.domain === "weather" && outcome.headType === "VPWS50") && notified) {
+    if ((outcome.domain === "eew" || outcome.domain === "tsunami" || outcome.domain === "weather" && outcome.headType === "VPWS50") && notified) {
       stats.recordFoundation("notified");
     }
     const presented = runDisplayPipeline(
       outcome,
       () => display?.displayOutcome(outcome),
     );
-    if ((outcome.domain === "eew" || outcome.domain === "weather" && outcome.headType === "VPWS50") && presented) {
+    if ((outcome.domain === "eew" || outcome.domain === "tsunami" || outcome.domain === "weather" && outcome.headType === "VPWS50") && presented) {
       stats.recordFoundation("presented");
     }
   };

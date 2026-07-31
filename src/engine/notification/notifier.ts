@@ -417,7 +417,10 @@ export class Notifier {
     if (info.headline) {
       parts.push(info.headline);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, "tsunami", soundLevel);
+    const correction = info.infoType === "訂正";
+    const title = correction ? `[訂正] ${info.title}` : info.title;
+    const body = parts.length > 0 ? parts.join(" / ") : info.title;
+    this.send(title, correction ? `訂正: ${body}` : body, "tsunami", soundLevel);
   }
 
   notifySeismicText(info: ParsedSeismicTextInfo): void {

@@ -5,6 +5,8 @@ import { TelegramStats } from "../../src/engine/messages/telegram-stats";
 import { IGNORED_HEAD_TYPES as ROUTE_CATALOG_IGNORED_HEAD_TYPES } from "../../src/engine/messages/route-catalog";
 import {
   createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
+  readFixture,
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VXSE51_CANCEL,
   FIXTURE_VXSE53_ENCHI,
@@ -35,6 +37,7 @@ import {
   FIXTURE_VMCJ55_FUKUSHINDO,
   FIXTURE_VPTW60_2020,
 } from "../helpers/mock-message";
+import { notifyMock } from "../setup";
 import { WsDataMessage } from "../../src/types";
 import type { DisplayStatsV1 } from "../../src/engine/display/types";
 import * as fs from "fs";
@@ -373,6 +376,31 @@ describe("message-router 統合テスト", () => {
 
       const output = getOutput();
       expect(output.length).toBeGreaterThan(0);
+    });
+
+    it("同一 revision の津波訂正を一度だけ通知し foundation stats に記録する", () => {
+      const { handler, stats } = createHandler();
+      const source = readFixture(FIXTURE_VTSE41_WARN);
+      const correctionXml = source
+        .replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")
+        .replace("津波警報を発表しました", "津波警報を訂正しました");
+      expect(correctionXml).not.toBe(source);
+
+      handler(createMockWsDataMessage(FIXTURE_VTSE41_WARN));
+      handler(createMockWsDataMessageFromXml(correctionXml, "VTSE41"));
+      handler(createMockWsDataMessageFromXml(correctionXml, "VTSE41"));
+
+      expect(notifyMock).toHaveBeenCalledTimes(2);
+      const correction = notifyMock.mock.calls[1][0] as { title: string; message: string };
+      expect(correction.title).toContain("訂正");
+      expect(correction.message).toContain("訂正:");
+      expect(stats.getSnapshot().foundation).toMatchObject({
+        correctionReplaced: 1,
+        correctionNotified: 1,
+        notified: 2,
+        presented: 2,
+        transportDuplicate: 1,
+      });
     });
   });
 

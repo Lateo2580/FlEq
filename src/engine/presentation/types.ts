@@ -7,6 +7,7 @@ import type {
   ParsedSeismicTextInfo,
   ParsedLgObservationInfo,
   ParsedTsunamiInfo,
+  TsunamiObservationStation,
   ParsedNankaiTroughInfo,
   ParsedVolcanoInfo,
   ParsedVolcanoAshfallInfo,
@@ -128,6 +129,11 @@ export interface TsunamiOutcome extends ProcessOutcomeBase {
     levelBefore: string | null;
     levelAfter: string | null;
     changed: boolean;
+    /** VTSE41 表示時に、先着して holder に保留されていた VTSE51/52 観測を合流する。 */
+    presentationObservationGroups?: {
+      VTSE51: TsunamiObservationStation[];
+      VTSE52: TsunamiObservationStation[];
+    };
   };
 }
 
@@ -419,6 +425,11 @@ export interface PresentationEvent {
 
   // 津波観測点 (Phase A、tsunami ドメインのみ使用)
   tsunamiObservations?: PresentationTsunamiObservation[];
+  /** display server 内部で family 別 clear を維持するための非 wire bridge。 */
+  tsunamiObservationGroups?: {
+    VTSE51: PresentationTsunamiObservation[];
+    VTSE52: PresentationTsunamiObservation[];
+  };
 
   // 地震の津波コメントから導出した「津波」表示フラグ (Phase A、earthquake ドメインのみ使用)
   tsunamiWarning?: boolean;

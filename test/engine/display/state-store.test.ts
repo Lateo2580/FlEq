@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
+import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../../../src/engine/messages/tsunami-state";
 import type {
   DisplayEventDtoV1,
   DisplayTsunamiLevel,
@@ -377,6 +378,94 @@ describe("DisplayStateStore: 津波", () => {
     expect(store.snapshot(1, T0).tsunami).toBeNull();
     expect(store.applyEvent(tsunamiDto({ type: "VTSE52", hasEmergency: false }), T0, obs)).toBe(false);
     expect(store.snapshot(2, T0).tsunami).toBeNull();
+    expect(store.applyEvent(tsunamiDto({}), T0 + MIN)).toBe(true);
+    expect(store.snapshot(3, T0 + MIN).tsunami?.observations).toEqual([...obs, ...obs]);
+  });
+
+  it("VTSE51 取消は同 family の観測を clear し、取消後の新部分報へ旧 station を混ぜない", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
+    const station = (stationCode: string, stationName: string): DisplayTsunamiObservationV1 => ({
+      areaName: "岩手県", areaKind: "津波警報", stationCode, stationName,
+      arrivalTime: null, initial: null, maxHeightValue: "1.0m", condition: "観測中",
+    });
+    const oldA = station("21001", "旧 A");
+    const oldB = station("21002", "旧 B");
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false }),
+      T0 + MIN,
+      [oldA, oldB],
+    )).toBe(true);
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false, infoType: "取消" }),
+      T0 + 2 * MIN,
+    )).toBe(true);
+    expect(store.snapshot(1, T0 + 2 * MIN).tsunami?.observations).toEqual([]);
+    const newB = { ...oldB, stationName: "新 B", maxHeightValue: "1.5m" };
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false, reportDateTime: "2026-07-06T21:03:00+09:00" }),
+      T0 + 3 * MIN,
+      [newB],
+    )).toBe(true);
+    expect(store.snapshot(2, T0 + 3 * MIN).tsunami?.observations).toEqual([newB]);
+  });
+
+  it("VTSE51 の表示観測配列を family 上限に収める", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
+    const observations = Array.from(
+      { length: TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY + 2 },
+      (_, index): DisplayTsunamiObservationV1 => ({
+        areaName: "岩手県", areaKind: "津波警報",
+        stationCode: String(100000 + index), stationName: `station-${index}`,
+        arrivalTime: null, initial: null, maxHeightValue: "1.0m", condition: "観測中",
+      }),
+    );
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false }),
+      T0 + MIN,
+      observations,
+    )).toBe(true);
+    const retained = store.snapshot(1, T0 + MIN).tsunami?.observations ?? [];
+    expect(retained).toHaveLength(TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY);
+    expect(retained[0].stationCode).toBe("100002");
+  });
+
+  it("VTSE51 の既存観測更新を最新側へ移し、次の追加では最終更新が古い点を退場させる", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
+    const observations = Array.from(
+      { length: TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY },
+      (_, index): DisplayTsunamiObservationV1 => ({
+        areaName: "岩手県", areaKind: "津波警報",
+        stationCode: String(100000 + index), stationName: `station-${index}`,
+        arrivalTime: null, initial: null, maxHeightValue: "1.0m", condition: "観測中",
+      }),
+    );
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false }),
+      T0 + MIN,
+      observations,
+    )).toBe(true);
+
+    const updatedFirst = { ...observations[0], maxHeightValue: "2.0m" };
+    const newcomer: DisplayTsunamiObservationV1 = {
+      areaName: "岩手県", areaKind: "津波警報",
+      stationCode: "999999", stationName: "new-station",
+      arrivalTime: null, initial: null, maxHeightValue: "1.5m", condition: "観測中",
+    };
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false }),
+      T0 + 2 * MIN,
+      [updatedFirst, newcomer],
+    )).toBe(true);
+
+    const retained = store.snapshot(1, T0 + 2 * MIN).tsunami?.observations ?? [];
+    expect(retained).toHaveLength(TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY);
+    expect(retained.some((item) => item.stationCode === "100000")).toBe(true);
+    expect(retained.some((item) => item.stationCode === "100001")).toBe(false);
+    expect(retained.at(-2)).toMatchObject({ stationCode: "100000", maxHeightValue: "2.0m" });
+    expect(retained.at(-1)).toMatchObject({ stationCode: "999999" });
   });
 
   it("VTSE51/52 で observations が空配列/未指定なら merge は no-op (false を返す)", () => {
@@ -386,7 +475,7 @@ describe("DisplayStateStore: 津波", () => {
     expect(store.applyEvent(tsunamiDto({ type: "VTSE51", hasEmergency: false }), T0 + 2 * MIN, [])).toBe(false);
   });
 
-  it("VTSE51/52 は観測点コード単位で新 revision を merge し、部分報と遅延旧報で既存観測を失わない", () => {
+  it("gate 受理済みの VTSE51/52 item を観測点コード単位で merge し、部分報でも既存観測を失わない", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
     const station = (
@@ -426,24 +515,10 @@ describe("DisplayStateStore: 津波", () => {
       [station("21001", "宮古（更新名）", "2.0m")],
     )).toBe(true);
     expect(store.snapshot(1, T0 + 10 * MIN).tsunami?.observations).toEqual([
-      station("21001", "宮古（更新名）", "2.0m"),
       station("21002", "大船渡", "1.2m"),
+      station("21001", "宮古（更新名）", "2.0m"),
     ]);
 
-    expect(store.applyEvent(
-      tsunamiDto({
-        type: "VTSE51",
-        hasEmergency: false,
-        reportDateTime: "2026-07-06T21:04:00+09:00",
-        serial: "0",
-      }),
-      T0 + 11 * MIN,
-      [station("21001", "宮古（旧報）", "0.5m"), station("99999", "旧報だけの点", "9.9m")],
-    )).toBe(false);
-    expect(store.snapshot(2, T0 + 11 * MIN).tsunami?.observations).toEqual([
-      station("21001", "宮古（更新名）", "2.0m"),
-      station("21002", "大船渡", "1.2m"),
-    ]);
   });
 
   it("Code なしの観測点へ Code 付き続報が来たら fallback 行を key 昇格して置換する", () => {

@@ -34,7 +34,7 @@ describe("TsunamiStateHolder", () => {
     holder = new TsunamiStateHolder();
   });
 
-  describe("update", () => {
+  describe("accepted mutation", () => {
     it("津波警報で更新される", () => {
       const info = createTsunamiInfo({
         forecast: [
@@ -42,7 +42,7 @@ describe("TsunamiStateHolder", () => {
         ],
       });
 
-      holder.update(info);
+      holder.applyAccepted(info);
 
       expect(holder.getLevel()).toBe("津波警報");
       expect(holder.getDetail()).not.toBeNull();
@@ -50,7 +50,7 @@ describe("TsunamiStateHolder", () => {
 
     it("取消報でクリアされる", () => {
       // まず警報を設定
-      holder.update(
+      holder.applyAccepted(
         createTsunamiInfo({
           forecast: [
             { areaName: "岩手県", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "到達中と推測" },
@@ -59,13 +59,7 @@ describe("TsunamiStateHolder", () => {
       );
       expect(holder.getLevel()).toBe("津波警報");
 
-      // 取消報
-      holder.update(
-        createTsunamiInfo({
-          infoType: "取消",
-          reportDateTime: "2025-01-01T00:01:00+09:00",
-        }),
-      );
+      holder.clearActive();
 
       expect(holder.getLevel()).toBeNull();
       expect(holder.getDetail()).toBeNull();
@@ -73,7 +67,7 @@ describe("TsunamiStateHolder", () => {
 
     it("警報レベルなし (津波予報のみ) でクリアされる", () => {
       // まず警報を設定
-      holder.update(
+      holder.applyAccepted(
         createTsunamiInfo({
           forecast: [
             { areaName: "岩手県", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "到達中と推測" },
@@ -82,7 +76,7 @@ describe("TsunamiStateHolder", () => {
       );
 
       // 津波予報のみに変更
-      holder.update(
+      holder.applyAccepted(
         createTsunamiInfo({
           reportDateTime: "2025-01-01T00:01:00+09:00",
           forecast: [
@@ -95,7 +89,7 @@ describe("TsunamiStateHolder", () => {
     });
 
     it("レベル変更に追従する (津波警報 → 大津波警報)", () => {
-      holder.update(
+      holder.applyAccepted(
         createTsunamiInfo({
           forecast: [
             { areaName: "岩手県", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "到達中と推測" },
@@ -104,7 +98,7 @@ describe("TsunamiStateHolder", () => {
       );
       expect(holder.getLevel()).toBe("津波警報");
 
-      holder.update(
+      holder.applyAccepted(
         createTsunamiInfo({
           reportDateTime: "2025-01-01T00:01:00+09:00",
           forecast: [
@@ -116,53 +110,11 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getLevel()).toBe("大津波警報");
     });
 
-    it("発表→取消→古い発表の後着で取消状態と tombstone を維持する", () => {
-      const warning = createTsunamiInfo({
-        reportDateTime: "2025-01-01T00:00:00+09:00",
-        forecast: [
-          { areaName: "岩手県", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "到達中と推測" },
-        ],
-      });
-      const cancellation = createTsunamiInfo({
-        infoType: "取消",
-        reportDateTime: "2025-01-01T00:02:00+09:00",
-      });
-      const staleWarning = createTsunamiInfo({
-        reportDateTime: "2025-01-01T00:01:00+09:00",
-        forecast: [
-          { areaName: "岩手県", kind: "大津波警報", maxHeightDescription: "10m超", firstHeight: "到達中と推測" },
-        ],
-      });
-
-      expect(holder.update(warning).kind).toBe("updated");
-      expect(holder.update(cancellation).kind).toBe("updated");
-      expect(holder.update(staleWarning).kind).toBe("suppressed");
-      expect(holder.getLevel()).toBeNull();
-      expect(holder.getLastInfo()).toBeNull();
-    });
-
-    it("同じ reportDateTime の重複報を棄却して状態を変更しない", () => {
-      const first = createTsunamiInfo({
-        forecast: [
-          { areaName: "岩手県", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "到達中と推測" },
-        ],
-      });
-      const duplicate = createTsunamiInfo({
-        forecast: [
-          { areaName: "岩手県", kind: "津波注意報", maxHeightDescription: "1m", firstHeight: "" },
-        ],
-      });
-
-      expect(holder.update(first).kind).toBe("updated");
-      expect(holder.update(duplicate).kind).toBe("suppressed");
-      expect(holder.getLevel()).toBe("津波警報");
-      expect(holder.getLastInfo()).toBe(first);
-    });
   });
 
   describe("getPromptStatus", () => {
     it("アクティブ時はセグメントを返す", () => {
-      holder.update(
+      holder.applyAccepted(
         createTsunamiInfo({
           forecast: [
             { areaName: "岩手県", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "到達中と推測" },
@@ -190,7 +142,7 @@ describe("TsunamiStateHolder", () => {
           { areaName: "岩手県", kind: "津波注意報", maxHeightDescription: "1m", firstHeight: "" },
         ],
       });
-      holder.update(info);
+      holder.applyAccepted(info);
 
       expect(holder.getDetail()).toEqual({ kind: "tsunami", info });
     });

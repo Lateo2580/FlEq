@@ -28,7 +28,7 @@ export type WeatherProcessResult = SuppressibleProcessResult<WeatherOutcome>;
  */
 export function processWeather(
   msg: WsDataMessage,
-  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision">,
+  deps?: Pick<ProcessDeps, "vpws50State" | "vpww56State" | "revisionGate" | "onRevisionDecision" | "onVpws50RevisionDecision">,
 ): WeatherProcessResult {
   const info = parseWeatherWarning(msg);
   if (!info) return { kind: "parse-failed" };
@@ -76,6 +76,8 @@ export function processWeather(
         : cancellationTargets.includes(subject),
       durable: policy.durable,
       tombstoneRetentionMs: policy.tombstoneRetentionMs,
+      maxSubjects: policy.maxSubjects,
+      retainForFamilyCapacity: true,
       allowMissingSerial: policy.allowMissingSerial,
       // transport metadata と受信時刻は semantic payload に含めない。
       payloadFingerprint: semanticPayloadFingerprint(semanticWeatherPayload),
@@ -83,6 +85,7 @@ export function processWeather(
     const evaluation = deps.revisionGate.evaluate(gateInput);
     if (!evaluation.accepted) {
       deps.onRevisionDecision?.(evaluation);
+      deps.onVpws50RevisionDecision?.(evaluation);
       return { kind: "suppressed" };
     }
 
@@ -116,6 +119,7 @@ export function processWeather(
 
     const decision = deps.revisionGate.decide(gateInput);
     deps.onRevisionDecision?.(decision);
+    deps.onVpws50RevisionDecision?.(decision);
     if (!decision.accepted) return { kind: "suppressed" };
     acceptedCorrection = decision.isCorrection;
 

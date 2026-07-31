@@ -171,7 +171,7 @@ describe("detail output contract before holder/UI separation", () => {
 
   it("tsunami", async () => {
     const holder = new TsunamiStateHolder();
-    holder.update(makeTsunamiInfo());
+    holder.applyAccepted(makeTsunamiInfo());
     expect(holder.getDetail()?.kind).toBe(holder.category);
     expect(await captureDetail(holder, "tsunami")).toMatchSnapshot();
   });

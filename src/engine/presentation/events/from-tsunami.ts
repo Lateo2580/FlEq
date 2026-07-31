@@ -16,6 +16,18 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     maxHeightDescription: f.maxHeightDescription || undefined,
     firstHeight: f.firstHeight || undefined,
   }));
+  const presentationGroups = outcome.state.presentationObservationGroups == null
+    ? null
+    : {
+        VTSE51: buildTsunamiObservations({
+          ...info,
+          observations: outcome.state.presentationObservationGroups.VTSE51,
+        }),
+        VTSE52: buildTsunamiObservations({
+          ...info,
+          observations: outcome.state.presentationObservationGroups.VTSE52,
+        }),
+      };
 
   return {
     id: outcome.msg.id,
@@ -52,7 +64,10 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     municipalityCount: 0,
     observationCount: 0,
     areaItems,
-    tsunamiObservations: buildTsunamiObservations(info),
+    tsunamiObservations: presentationGroups == null
+      ? buildTsunamiObservations(info)
+      : [...presentationGroups.VTSE51, ...presentationGroups.VTSE52],
+    ...(presentationGroups == null ? {} : { tsunamiObservationGroups: presentationGroups }),
 
     stateSnapshot: {
       kind: "tsunami",

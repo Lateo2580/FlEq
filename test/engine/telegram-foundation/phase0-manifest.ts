@@ -710,7 +710,7 @@ export const STATE_HOLDER_CHARACTERIZATION = [
   { owner: "PresentationDiffStore", sourceFile: "src/engine/presentation/diff-store.ts", domains: ["*"], cancellationRole: "presentation diff baseline; no durable cancellation ownership" },
   { owner: "QuakeExtremeStore", sourceFile: "src/engine/display/quake-extreme-store.ts", domains: ["earthquake"], cancellationRole: "extreme background lifecycle" },
   { owner: "StandbyStateStore", sourceFile: "src/engine/display/standby-state-store.ts", domains: ["earthquake", "lgObservation", "volcano", "nankaiTrough", "weather", "tornado", "heatAlert", "typhoonAnalysis", "floodForecast"], cancellationRole: "standby active card state and tombstones" },
-  { owner: "TsunamiStateHolder", sourceFile: "src/engine/messages/tsunami-state.ts", domains: ["tsunami"], cancellationRole: "active level and watermark" },
+  { owner: "TsunamiStateHolder", sourceFile: "src/engine/messages/tsunami-state.ts", domains: ["tsunami"], cancellationRole: "accepted active level; watermark is owned by TelegramRevisionGate" },
   { owner: "TyphoonProbabilityStateHolder", sourceFile: "src/engine/messages/typhoon-probability-state.ts", domains: ["typhoonProbability"], cancellationRole: "EventID probability cache" },
   { owner: "VolcanoStateHolder", sourceFile: "src/engine/messages/volcano-state.ts", domains: ["volcano"], cancellationRole: "volcano alert revision state" },
   { owner: "VolcanoVfvo53Aggregator", sourceFile: "src/engine/messages/volcano-vfvo53-aggregator.ts", domains: ["volcano"], cancellationRole: "VFVO53 batch window; transient aggregation only" },
@@ -798,15 +798,21 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
   },
   {
     domain: "tsunami", family: "tsunami", owner: "TsunamiStateHolder",
-    behavior: "active level と lastInfo を clear して watermark を維持",
-    sources: [{
-      sourceFile: "src/engine/messages/tsunami-state.ts",
-      needles: ['if (info.infoType === "取消") {', "this.clearActiveState();"],
-    }],
+    behavior: "共通 clearCurrent decision で active level と lastInfo を clear し、watermark は registry に維持",
+    sources: [
+      {
+        sourceFile: "src/engine/presentation/processors/process-tsunami.ts",
+        needles: ['decision.kind === "clearCurrent"', "deps.tsunamiState.clearActive();"],
+      },
+      {
+        sourceFile: "src/engine/messages/tsunami-state.ts",
+        needles: ["clearActive(): void {", "this.clearActiveState();"],
+      },
+    ],
   },
   {
     domain: "tsunami", family: "tsunami", owner: "DisplayStateStore",
-    behavior: "VTSE41 取消で display tsunami と観測 revision を clear",
+    behavior: "VTSE41 取消で display tsunami を clear",
     sources: [{
       sourceFile: "src/engine/display/state-store.ts",
       needles: ['if (dto.type !== "VTSE41") return false;', "this.tsunami = null;"],
@@ -1020,13 +1026,13 @@ export const FRAGMENT_MERGE_ALLOWLIST = {
   "tsunamiObservation:VTSE51": {
     headType: "VTSE51",
     extractItems: "ParsedTsunamiInfo.observations",
-    itemSubjectKey: "stationCode; code 欠落時だけ areaName+stationName legacy fallback",
+    itemSubjectKey: "stationCode; code 欠落 item は fail-open 表示のみで durable merge しない",
     itemFingerprint: "stationCode を除く観測値・condition・areaName・stationName の canonical JSON",
     fingerprintVersion: "tsunami-observation-v1",
     fragmentEvidence: {
       corpusFixtures: ["32-39_11_10_250206_VTSE51.xml"],
       regressionTests: [
-        "test/engine/display/state-store.test.ts::VTSE51/52 は観測点コード単位で新 revision を merge し、部分報と遅延旧報で既存観測を失わない",
+        "test/engine/telegram-foundation/phase3b-tsunami.test.ts::VTSE51 の同一 revision 分割 item を順序に依存せず保持対象へ通す",
       ],
       rationale: "反復 Station と観測点 Code の実在、および部分報・遅延旧報 baseline がある",
       limits: "corpus は station identity の根拠のみ。同一 revision の分割到着は Phase 3 の synthetic regression で補う",
@@ -1035,13 +1041,13 @@ export const FRAGMENT_MERGE_ALLOWLIST = {
   "tsunamiObservation:VTSE52": {
     headType: "VTSE52",
     extractItems: "ParsedTsunamiInfo.observations",
-    itemSubjectKey: "stationCode; code 欠落時だけ areaName+stationName legacy fallback",
+    itemSubjectKey: "stationCode; code 欠落 item は fail-open 表示のみで durable merge しない",
     itemFingerprint: "stationCode を除く観測値・condition・areaName・stationName の canonical JSON",
     fingerprintVersion: "tsunami-observation-v1",
     fragmentEvidence: {
       corpusFixtures: ["61_11_01_250206_VTSE52.xml"],
       regressionTests: [
-        "test/engine/display/state-store.test.ts::VTSE51 と VTSE52 は独立した revision 系列として、報告時刻が前後しても別観測点を保持する",
+        "test/engine/telegram-foundation/phase3b-tsunami.test.ts::VTSE51 と VTSE52 は独立 family で、allowlist evidence を持つ",
       ],
       rationale: "反復 Station と観測点 Code の実在、および VTSE51/52 独立系列 baseline がある",
       limits: "corpus は station identity の根拠のみ。同一 revision の分割到着は Phase 3 の synthetic regression で補う",
@@ -1127,12 +1133,13 @@ export const REPAIR_A_TO_C_BASELINES = [
   {
     repair: "B",
     behavior: "VTSE51/52 観測点 merge が部分報と遅延旧報を失わない",
-    testFile: "test/engine/display/state-store.test.ts",
+    testFile: "test/engine/telegram-foundation/phase3b-tsunami.test.ts",
     expectedAssertions: [
-      'station("21001", "宮古（更新名）", "2.0m")',
-      'station("21002", "大船渡", "1.2m")',
-      'station("99999", "旧報だけの点", "9.9m")',
-      ')).toBe(false);',
+      'expect(first.kind).toBe("ok");',
+      'expect(second.kind).toBe("ok");',
+      'toEqual(["21001", "21002"]);',
+      'messageId: "delayed-observation"',
+      'toEqual({ kind: "suppressed" });',
     ],
   },
   {

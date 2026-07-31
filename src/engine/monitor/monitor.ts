@@ -23,6 +23,7 @@ import { DailyQuakeCounter } from "../messages/daily-quake-counter";
 import { DailyQuakePersistence } from "../messages/daily-quake-persistence";
 import { Vpws50StateHolder } from "../messages/vpws50-state";
 import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
+import { TsunamiStateHolder } from "../messages/tsunami-state";
 import { weatherAlertsFromVpws50 } from "../display/weather-alert-view";
 import { createDisplaySink } from "./display-sink";
 
@@ -48,6 +49,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // standby active-state は display runtime ではなく monitor 本体が所有する。
   const standbyStore = new StandbyStateStore();
   const vpws50State = new Vpws50StateHolder();
+  const tsunamiState = new TsunamiStateHolder();
   const revisionGate = new TelegramRevisionGate();
   let vpws50FoundationAuthoritative = true;
   const standbyPersistence = new StandbyPersistence(
@@ -59,6 +61,14 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         state: vpws50State.exportPersistedState(),
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
           entry.domain === "weather" && entry.revisionFamily === "VPWS50"),
+      },
+      tsunami: {
+        active: tsunamiState.getPersistedActive(),
+        observations: tsunamiState.getObservationGroups(),
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          (entry.domain === "tsunami" && entry.revisionFamily === "VTSE41")
+          || (entry.domain === "tsunamiObservation"
+            && (entry.revisionFamily === "VTSE51" || entry.revisionFamily === "VTSE52"))),
       },
     }),
   );
@@ -74,6 +84,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     vpws50FoundationAuthoritative = persistedVpws50.authoritative;
     if (persistedVpws50.state != null) vpws50State.restorePersistedState(persistedVpws50.state);
     revisionGate.restoreDurableEntries(persistedVpws50.gateEntries);
+    const persistedTsunami = persistedStandby.telegramFoundation.tsunami;
+    tsunamiState.restorePersistedState(
+      persistedTsunami.active ?? null,
+      persistedTsunami.observations,
+    );
+    revisionGate.restoreDurableEntries(persistedTsunami.gateEntries);
     if (persistedVpws50.authoritative) {
       const identity = vpws50State.getCurrentIdentity();
       standbyStore.restoreCanonicalVpws50Alerts(
@@ -208,16 +224,21 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let isFirstConnection = true;
 
   const pipeline = pipelineController?.getPipeline();
-  const { handler: routeMessage, eewLogger, notifier, tsunamiState, volcanoState, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
+  const persistAcceptedTsunamiRevision = () => {
+    standbyPersistence.schedule(standbyStore.exportActiveState());
+  };
+  const { handler: routeMessage, eewLogger, notifier, volcanoState, vpww56State, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
     pipeline: pipeline ?? undefined,
     display,
     displaySink,
     dailyQuakeCounter,
     vpws50State,
+    tsunamiState,
     revisionGate,
     onVpws50RevisionDecision: (decision) => {
       if (decision.accepted) vpws50FoundationAuthoritative = true;
     },
+    onTsunamiRevisionDecision: persistAcceptedTsunamiRevision,
   });
   for (let i = 0; i < standbyPersistence.takeMigrationConflictCount(); i++) {
     stats.recordFoundation("persistenceMigrationConflict");
@@ -237,6 +258,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     display,
     seeds: {
       tsunami: () => tsunamiState.getLastInfo(),
+      tsunamiObservations: () => tsunamiState.getObservationGroups(),
       weather: () => vpws50State.getCurrentAreasForDisplay(),
       landslide: () => vpww56State.getCurrentAreasForDisplay(),
       standbyItems: () => standbyStore.snapshotItems(),
@@ -346,7 +368,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   replHandler.start();
 
   // 起動時: 最新の津波・火山警報状態を復元 (WebSocket 接続前に実行)
-  await restoreTsunamiState(config.apiKey, tsunamiState);
+  await restoreTsunamiState(
+    config.apiKey,
+    tsunamiState,
+    revisionGate,
+    persistAcceptedTsunamiRevision,
+  );
   const volcanoRestoreResult = await restoreVolcanoState(config.apiKey, volcanoState);
   standbyStore.seedVolcanoAlerts(volcanoState.getSeedEntries(), volcanoRestoreResult, Date.now());
 

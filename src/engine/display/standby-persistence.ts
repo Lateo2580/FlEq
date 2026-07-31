@@ -16,8 +16,15 @@ import type {
 import type { PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
-import type { StrictTextMeta } from "../../types";
+import type {
+  ParsedEarthquakeHypocenter,
+  ParsedTsunamiInfo,
+  StrictTextMeta,
+  TelegramMeta,
+  TsunamiObservationStation,
+} from "../../types";
 import {
+  createTelegramMeta,
   FUTURE_REPORT_DATETIME_SKEW_MS,
   parseStrictReportDateTime,
   parseTelegramSerial,
@@ -28,12 +35,20 @@ import {
   type WeatherReportIdentity,
 } from "../messages/vpws50-state";
 import {
+  TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY,
+  type TsunamiObservationGroups,
+} from "../messages/tsunami-state";
+import {
   compactPersistedSemanticKeys,
   TELEGRAM_REVISION_MAX_ENTRIES,
   type PersistedTelegramRevisionGateEntryV2,
 } from "../messages/telegram-revision-gate";
-import { VPWS50_REVISION_FAMILY_POLICY } from "../messages/revision-family-registry";
+import {
+  TSUNAMI_REVISION_FAMILY_POLICIES,
+  VPWS50_REVISION_FAMILY_POLICY,
+} from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50 } from "./weather-alert-view";
+import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
 
 const PERSIST_SCHEMA_VERSION = 2;
 
@@ -69,7 +84,20 @@ export interface PersistedTelegramFoundationV2 {
     state: PersistedVpws50StateV2 | null;
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
+  tsunami: {
+    /** 旧 v2 では欠落。欠落時は active なしとして REST から安全に補完する。 */
+    active?: ParsedTsunamiInfo | null;
+    observations: TsunamiObservationGroups;
+    gateEntries: PersistedTelegramRevisionGateEntryV2[];
+  };
 }
+
+export type PersistedTelegramFoundationInputV2 = Omit<
+  PersistedTelegramFoundationV2,
+  "tsunami"
+> & {
+  tsunami?: PersistedTelegramFoundationV2["tsunami"];
+};
 
 /**
  * v2 は新しい foundation state を正とし、v1 fields を rollback 互換として同じ
@@ -137,7 +165,7 @@ export class StandbyPersistence {
   constructor(
     private readonly persistPath: string,
     private readonly debounceMs: number = SAVE_DEBOUNCE_MS,
-    private readonly foundationProvider: (() => PersistedTelegramFoundationV2) | null = null,
+    private readonly foundationProvider: (() => PersistedTelegramFoundationInputV2) | null = null,
   ) {}
 
   load(): PersistedStandbyStateV2 | null {
@@ -211,10 +239,16 @@ export class StandbyPersistence {
   private toV2(state: PersistedStandbyState): PersistedStandbyStateV2 {
     const foundation = this.foundationProvider?.()
       ?? (state.version === 2 ? state.telegramFoundation : emptyTelegramFoundation());
+    const tsunami = normalizeTsunamiFoundationForWrite(
+      foundation.tsunami ?? emptyTsunamiFoundation(),
+    );
     return {
       ...state,
       version: 2,
-      telegramFoundation: structuredClone(foundation),
+      telegramFoundation: structuredClone({
+        ...foundation,
+        tsunami,
+      }),
     };
   }
 
@@ -672,8 +706,23 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
   };
 }
 
+function emptyTsunamiFoundation(): PersistedTelegramFoundationV2["tsunami"] {
+  return {
+    active: null,
+    observations: { VTSE51: [], VTSE52: [] },
+    gateEntries: [],
+  };
+}
+
+function emptyVpws50Foundation(): PersistedTelegramFoundationV2["vpws50"] {
+  return { authoritative: true, state: null, gateEntries: [] };
+}
+
 function emptyTelegramFoundation(): PersistedTelegramFoundationV2 {
-  return { vpws50: { authoritative: true, state: null, gateEntries: [] } };
+  return {
+    vpws50: emptyVpws50Foundation(),
+    tsunami: emptyTsunamiFoundation(),
+  };
 }
 
 function isWeatherIdentity(value: unknown, receivedAtMs = Number.MAX_SAFE_INTEGER): boolean {
@@ -781,6 +830,277 @@ function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntr
     && type.value === value.revisionFamily;
 }
 
+function isTsunamiObservation(value: unknown): value is TsunamiObservationStation {
+  return isRecord(value)
+    && (value.areaName == null || typeof value.areaName === "string")
+    && typeof value.stationCode === "string"
+    && value.stationCode.trim() !== ""
+    && typeof value.name === "string"
+    && typeof value.sensor === "string"
+    && typeof value.arrivalTime === "string"
+    && typeof value.initial === "string"
+    && typeof value.maxHeightCondition === "string"
+    && (value.maxHeightValue == null || typeof value.maxHeightValue === "string")
+    && (value.maxHeightValueCondition == null || typeof value.maxHeightValueCondition === "string");
+}
+
+function isPersistedTelegramMeta(value: unknown): value is TelegramMeta {
+  if (
+    !isRecord(value)
+    || typeof value.messageId !== "string"
+    || !(value.status == null || typeof value.status === "string")
+    || typeof value.isTest !== "boolean"
+    || typeof value.receivedAtMs !== "number"
+    || !Number.isFinite(value.receivedAtMs)
+    || !isRecord(value.eventId)
+    || !isRecord(value.type)
+    || !isRecord(value.reportDateTime)
+    || !isRecord(value.serial)
+    || !isRecord(value.infoType)
+  ) return false;
+  const rebuilt = createTelegramMeta({
+    messageId: value.messageId,
+    eventId: typeof value.eventId.raw === "string" ? value.eventId.raw : null,
+    type: typeof value.type.raw === "string" ? value.type.raw : null,
+    reportDateTime: typeof value.reportDateTime.raw === "string"
+      ? value.reportDateTime.raw
+      : null,
+    serial: typeof value.serial.raw === "string" ? value.serial.raw : null,
+    infoType: typeof value.infoType.raw === "string" ? value.infoType.raw : null,
+    receivedAtMs: value.receivedAtMs,
+    status: value.status ?? null,
+    isTest: value.isTest,
+  });
+  return JSON.stringify(rebuilt.eventId) === JSON.stringify(value.eventId)
+    && JSON.stringify(rebuilt.type) === JSON.stringify(value.type)
+    && JSON.stringify(rebuilt.reportDateTime) === JSON.stringify(value.reportDateTime)
+    && JSON.stringify(rebuilt.serial) === JSON.stringify(value.serial)
+    && JSON.stringify(rebuilt.infoType) === JSON.stringify(value.infoType);
+}
+
+function isPersistedTsunamiEarthquake(value: unknown): value is ParsedEarthquakeHypocenter {
+  if (!isRecord(value)) return false;
+  if (
+    typeof value.originTime !== "string"
+    || typeof value.hypocenterName !== "string"
+    || typeof value.latitude !== "string"
+    || typeof value.longitude !== "string"
+    || typeof value.depth !== "string"
+    || typeof value.magnitude !== "string"
+  ) return false;
+  return value.magnitudeInfo == null || (
+    isRecord(value.magnitudeInfo)
+    && typeof value.magnitudeInfo.value === "string"
+    && (value.magnitudeInfo.condition == null || typeof value.magnitudeInfo.condition === "string")
+    && (value.magnitudeInfo.description == null || typeof value.magnitudeInfo.description === "string")
+  );
+}
+
+function isPersistedTsunamiActive(value: unknown): value is ParsedTsunamiInfo {
+  if (
+    !isRecord(value)
+    || value.type !== "VTSE41"
+    || typeof value.infoType !== "string"
+    || typeof value.title !== "string"
+    || typeof value.reportDateTime !== "string"
+    || !(value.headline == null || typeof value.headline === "string")
+    || typeof value.publishingOffice !== "string"
+    || typeof value.warningComment !== "string"
+    || typeof value.isTest !== "boolean"
+    || !isPersistedTelegramMeta(value.meta)
+  ) return false;
+  if (
+    value.meta.type.value !== "VTSE41"
+    || value.meta.reportDateTime.raw !== value.reportDateTime
+    || value.meta.infoType.value !== value.infoType
+    || value.meta.isTest !== value.isTest
+  ) return false;
+  if (!Array.isArray(value.forecast) || !value.forecast.every((item) =>
+    isRecord(item)
+    && typeof item.areaName === "string"
+    && typeof item.kind === "string"
+    && typeof item.maxHeightDescription === "string"
+    && typeof item.firstHeight === "string"
+    && (item.stations == null || Array.isArray(item.stations) && item.stations.every((station) =>
+      isRecord(station)
+      && typeof station.name === "string"
+      && typeof station.highTideDateTime === "string"
+      && typeof station.arrivalTime === "string"))
+  )) return false;
+  if (resolveTsunamiLevel(value.forecast.map((item) => item.kind)) == null) return false;
+  if (value.observations != null && (!Array.isArray(value.observations) || !value.observations.every((item) =>
+    isRecord(item)
+    && (item.areaName == null || typeof item.areaName === "string")
+    && (item.stationCode == null || typeof item.stationCode === "string")
+    && typeof item.name === "string"
+    && typeof item.sensor === "string"
+    && typeof item.arrivalTime === "string"
+    && typeof item.initial === "string"
+    && typeof item.maxHeightCondition === "string"
+    && (item.maxHeightValue == null || typeof item.maxHeightValue === "string")
+    && (item.maxHeightValueCondition == null || typeof item.maxHeightValueCondition === "string")
+  ))) return false;
+  if (value.estimations != null && (!Array.isArray(value.estimations) || !value.estimations.every((item) =>
+    isRecord(item)
+    && typeof item.areaName === "string"
+    && typeof item.maxHeightDescription === "string"
+    && typeof item.firstHeight === "string"
+  ))) return false;
+  return value.earthquake == null || isPersistedTsunamiEarthquake(value.earthquake);
+}
+
+function tsunamiActiveMatchesGate(
+  active: ParsedTsunamiInfo,
+  gateEntry: PersistedTelegramRevisionGateEntryV2,
+): boolean {
+  const revision = gateEntry.comparison.revision;
+  return gateEntry.domain === "tsunami"
+    && gateEntry.revisionFamily === "VTSE41"
+    && gateEntry.stateSubjectKey === "tsunami:current"
+    && revision.reportDateTime.raw === active.meta.reportDateTime.raw
+    && revision.serial.raw === active.meta.serial.raw
+    && revision.infoType.value === active.meta.infoType.value;
+}
+
+/**
+ * gate の global compaction と holder 更新の境界でも自己整合した envelope だけを書く。
+ * whole watermark が失われた family は state と item watermark をまとめて落とし、
+ * orphan 観測が v2 全体を壊さないようにする。
+ */
+function normalizeTsunamiFoundationForWrite(
+  value: PersistedTelegramFoundationV2["tsunami"],
+): PersistedTelegramFoundationV2["tsunami"] {
+  const observations: TsunamiObservationGroups = { VTSE51: [], VTSE52: [] };
+  const gateEntries: PersistedTelegramRevisionGateEntryV2[] = [];
+  const vtse41Entries = value.gateEntries.filter(
+    (entry) => entry.domain === "tsunami"
+      && entry.revisionFamily === "VTSE41"
+      && entry.stateSubjectKey === "tsunami:current",
+  );
+  if (vtse41Entries.length === 1) {
+    gateEntries.push({
+      ...structuredClone(vtse41Entries[0]),
+      semanticKeys: compactPersistedSemanticKeys(vtse41Entries[0].semanticKeys),
+    });
+  }
+  const active = vtse41Entries.length === 1
+    && !vtse41Entries[0].cancelled
+    && value.active != null
+    && tsunamiActiveMatchesGate(value.active, vtse41Entries[0])
+    ? structuredClone(value.active)
+    : null;
+  for (const family of ["VTSE51", "VTSE52"] as const) {
+    const familyEntries = value.gateEntries.filter(
+      (entry) => entry.domain === "tsunamiObservation" && entry.revisionFamily === family,
+    );
+    const wholeSubject = `tsunami:observations:${family}`;
+    const wholeEntries = familyEntries.filter((entry) => entry.stateSubjectKey === wholeSubject);
+    if (wholeEntries.length !== 1) continue;
+    gateEntries.push(...familyEntries.map((entry) => ({
+      ...structuredClone(entry),
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    })));
+    if (wholeEntries[0].cancelled) continue;
+    const activeCodes = new Set(familyEntries.flatMap((entry) =>
+      entry.stateSubjectKey !== wholeSubject && !entry.cancelled
+        ? [entry.stateSubjectKey]
+        : []));
+    observations[family] = value.observations[family]
+      .filter((item) => {
+        const code = item.stationCode?.trim();
+        return code != null && code !== "" && activeCodes.has(code);
+      })
+      .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY)
+      .map((item) => structuredClone(item));
+  }
+  return { active, observations, gateEntries };
+}
+
+function sanitizeTsunamiFoundation(
+  value: unknown,
+): PersistedTelegramFoundationV2["tsunami"] | null {
+  if (!isRecord(value) || !isRecord(value.observations) || !Array.isArray(value.gateEntries)) {
+    return null;
+  }
+  const active = value.active == null
+    ? null
+    : isPersistedTsunamiActive(value.active)
+      ? value.active
+      : undefined;
+  if (active === undefined) return null;
+  const rawGroups = value.observations;
+  if (
+    !Array.isArray(rawGroups.VTSE51)
+    || !rawGroups.VTSE51.every(isTsunamiObservation)
+    || !Array.isArray(rawGroups.VTSE52)
+    || !rawGroups.VTSE52.every(isTsunamiObservation)
+  ) return null;
+  const entries = value.gateEntries;
+  if (!entries.every((entry) => {
+    if (!isGateEntry(entry)) return false;
+    if (entry.domain === "tsunami") {
+      return entry.revisionFamily === "VTSE41"
+        && entry.stateSubjectKey === "tsunami:current";
+    }
+    if (entry.domain !== "tsunamiObservation") return false;
+    if (entry.revisionFamily !== "VTSE51" && entry.revisionFamily !== "VTSE52") return false;
+    const wholeSubject = `tsunami:observations:${entry.revisionFamily}`;
+    return entry.stateSubjectKey === wholeSubject || /^\d+$/.test(entry.stateSubjectKey);
+  })) return null;
+
+  const uniqueGateKeys = new Set(
+    entries.map((entry) => `${entry.domain}:${entry.revisionFamily}:${entry.stateSubjectKey}`),
+  );
+  if (uniqueGateKeys.size !== entries.length) return null;
+
+  const vtse41Entries = entries.filter((entry) => entry.domain === "tsunami");
+  if (vtse41Entries.length > 1) return null;
+  if (
+    active != null
+    && (
+      vtse41Entries.length !== 1
+      || vtse41Entries[0].cancelled
+      || !tsunamiActiveMatchesGate(active, vtse41Entries[0] as PersistedTelegramRevisionGateEntryV2)
+    )
+  ) return null;
+
+  const groups = {
+    VTSE51: (structuredClone(rawGroups.VTSE51) as TsunamiObservationStation[])
+      .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+    VTSE52: (structuredClone(rawGroups.VTSE52) as TsunamiObservationStation[])
+      .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+  };
+  for (const family of ["VTSE51", "VTSE52"] as const) {
+    const familyEntries = entries.filter((entry) => entry.revisionFamily === family);
+    const wholeSubject = `tsunami:observations:${family}`;
+    const wholeEntries = familyEntries.filter((entry) => entry.stateSubjectKey === wholeSubject);
+    if ((familyEntries.length > 0 || groups[family].length > 0) && wholeEntries.length !== 1) {
+      return null;
+    }
+    if (wholeEntries[0]?.cancelled === true && groups[family].length > 0) return null;
+    const codes = groups[family].map((item) => item.stationCode!.trim());
+    if (new Set(codes).size !== codes.length) return null;
+    if (codes.some((code) => !familyEntries.some(
+      (entry) => entry.stateSubjectKey === code && !entry.cancelled,
+    ))) return null;
+  }
+
+  return {
+    active: active == null ? null : structuredClone(active),
+    observations: groups,
+    gateEntries: (entries as PersistedTelegramRevisionGateEntryV2[]).map((entry) => ({
+      ...structuredClone(entry),
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+      // 旧 v2 の欠落値は各 family の無期限 tombstone policy へ移行する。
+      tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
+        ? entry.domain === "tsunami"
+          ? TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.tombstoneRetentionMs
+          : TSUNAMI_REVISION_FAMILY_POLICIES[entry.revisionFamily as "VTSE51" | "VTSE52"].tombstoneRetentionMs
+        : entry.tombstoneRetentionMs,
+    })),
+  };
+}
+
 function compareWeatherIdentity(
   incoming: WeatherReportIdentity,
   current: WeatherReportIdentity,
@@ -844,10 +1164,12 @@ function vpws50FoundationIsConsistent(
   return gateEntry.cancelled ? currentToGate === "older" : currentToGate === "equal";
 }
 
-function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | null {
-  if (!isRecord(value) || !isRecord(value.vpws50) || typeof value.vpws50.authoritative !== "boolean") return null;
-  const state = value.vpws50.state;
-  const entries = value.vpws50.gateEntries;
+function sanitizeVpws50Foundation(
+  value: unknown,
+): PersistedTelegramFoundationV2["vpws50"] | null {
+  if (!isRecord(value) || typeof value.authoritative !== "boolean") return null;
+  const state = value.state;
+  const entries = value.gateEntries;
   if ((state != null && !isVpws50State(state)) || !Array.isArray(entries) || !entries.every((entry) =>
     isGateEntry(entry)
     && entry.domain === "weather"
@@ -856,7 +1178,7 @@ function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | nul
   )) return null;
   const validatedState = state as PersistedVpws50StateV2 | null;
   const validatedEntries = entries as PersistedTelegramRevisionGateEntryV2[];
-  if (!vpws50FoundationIsConsistent(value.vpws50.authoritative, validatedState, validatedEntries)) return null;
+  if (!vpws50FoundationIsConsistent(value.authoritative, validatedState, validatedEntries)) return null;
   const compactedEntries = validatedEntries.map((entry) => ({
     ...structuredClone(entry),
     semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
@@ -876,12 +1198,27 @@ function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | nul
     if (!identities.every((identity) => isWeatherIdentity(identity, receivedAtMs))) return null;
   }
   return {
-    vpws50: {
-      authoritative: value.vpws50.authoritative,
-      state: state == null ? null : structuredClone(state),
-      gateEntries: compactedEntries,
-    },
+    authoritative: value.authoritative,
+    state: state == null ? null : structuredClone(state),
+    gateEntries: compactedEntries,
   };
+}
+
+function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | null {
+  if (!isRecord(value)) return null;
+  const validatedVpws50 = sanitizeVpws50Foundation(value.vpws50);
+  const vpws50 = validatedVpws50 ?? emptyVpws50Foundation();
+  if (validatedVpws50 == null) {
+    log.warn("[standby-persistence] VPWS50 foundation structure validation 失敗 — domain 破棄");
+  }
+  const validatedTsunami = value.tsunami == null
+    ? emptyTsunamiFoundation()
+    : sanitizeTsunamiFoundation(value.tsunami);
+  const tsunami = validatedTsunami ?? emptyTsunamiFoundation();
+  if (validatedTsunami == null) {
+    log.warn("[standby-persistence] tsunami foundation structure validation 失敗 — domain 破棄");
+  }
+  return { vpws50, tsunami };
 }
 
 function baseV1FromRecord(value: Record<string, unknown>): PersistedStandbyStateV1 | null {
@@ -944,6 +1281,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
     version: 2,
     telegramFoundation: {
       vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(base) },
+      tsunami: emptyTsunamiFoundation(),
     },
   };
 }

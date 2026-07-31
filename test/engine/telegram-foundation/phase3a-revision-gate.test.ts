@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
 import {
   semanticPayloadFingerprint,
@@ -126,6 +126,42 @@ describe("Phase 3A EEW revision gate", () => {
       isCorrection: true,
     });
     expect(repeated.kind).toBe("semanticDuplicate");
+  });
+
+  it("同一 revision 訂正で durable comparison と現況 semantic payload を更新する", () => {
+    const gate = new TelegramRevisionGate();
+    const input = (infoType: "発表" | "訂正", payload: string, messageId: string) => ({
+      domain: "tsunami",
+      revisionFamily: "VTSE41",
+      stateSubjectKey: "tsunami:current",
+      meta: createTelegramMeta({
+        messageId,
+        eventId: "tsunami-event",
+        type: "VTSE41",
+        reportDateTime: "2026-07-31T12:00:00+09:00",
+        serial: null,
+        infoType,
+        receivedAtMs: RECEIVED_AT,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial" as const,
+      cancellationPolicy: "clearCurrent" as const,
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: null,
+      allowMissingSerial: true,
+      payloadFingerprint: semanticPayloadFingerprint(payload),
+    });
+    const normal = input("発表", "津波警報", "normal");
+    const correction = input("訂正", "大津波警報", "correction");
+    expect(gate.decide(normal).accepted).toBe(true);
+    expect(gate.decide(correction).kind).toBe("replaceCorrection");
+
+    const persisted = gate.exportDurableEntries()[0];
+    expect(persisted?.comparison.revision.infoType.value).toBe("訂正");
+    expect(gate.matchesCurrentAcceptedPayload(correction)).toBe(true);
+    expect(gate.matchesCurrentAcceptedPayload(normal)).toBe(false);
   });
 
   it("小さい serial の訂正は stale、大きい serial は受理する", () => {
@@ -373,5 +409,136 @@ describe("Phase 3A EEW revision gate", () => {
     });
     expect(gate.exportDurableEntries().some((entry) => entry.stateSubjectKey === tombstoneSubject))
       .toBe(false);
+  });
+
+  it("無期限 cancellation tombstone を global entry 上限の eviction から保護する", () => {
+    const gate = new TelegramRevisionGate();
+    const protectedSubject = "protected-tombstone";
+    expect(gate.decide({
+      domain: "synthetic",
+      revisionFamily: "INDEFINITE",
+      stateSubjectKey: protectedSubject,
+      meta: createTelegramMeta({
+        messageId: "protected-tombstone",
+        eventId: protectedSubject,
+        type: "INDEFINITE",
+        reportDateTime: "2026-07-31T12:00:00+09:00",
+        serial: "1",
+        infoType: "取消",
+        receivedAtMs: RECEIVED_AT,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial",
+      cancellationPolicy: "clearCurrent",
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: null,
+      payloadFingerprint: semanticPayloadFingerprint({ cancelled: true }),
+    }).accepted).toBe(true);
+
+    for (let index = 0; index < TELEGRAM_REVISION_MAX_ENTRIES; index++) {
+      gate.decide({
+        domain: "synthetic",
+        revisionFamily: "EVICTABLE",
+        stateSubjectKey: `subject-${index}`,
+        meta: createTelegramMeta({
+          messageId: `evictable-${index}`,
+          eventId: `subject-${index}`,
+          type: "EVICTABLE",
+          reportDateTime: "2026-07-31T12:01:00+09:00",
+          serial: "1",
+          infoType: "発表",
+          receivedAtMs: RECEIVED_AT + index + 1,
+          status: "通常",
+          isTest: false,
+        }),
+        comparator: "reportDateTimeThenSerial",
+        cancellationPolicy: "clearCurrent",
+        terminal: false,
+        durable: true,
+        tombstoneRetentionMs: 60_000,
+        payloadFingerprint: semanticPayloadFingerprint({ index }),
+      });
+    }
+
+    const entries = gate.exportDurableEntries();
+    expect(entries).toHaveLength(TELEGRAM_REVISION_MAX_ENTRIES);
+    expect(entries).toContainEqual(expect.objectContaining({
+      stateSubjectKey: protectedSubject,
+      cancelled: true,
+      tombstoneRetentionMs: null,
+    }));
+    expect(entries.some((entry) => entry.stateSubjectKey === "subject-0")).toBe(false);
+  });
+
+  it("family maxSubjects 超過時に最古の非取消 entry を退場させる", () => {
+    const gate = new TelegramRevisionGate();
+    for (let index = 0; index < 3; index++) {
+      expect(gate.decide({
+        domain: "synthetic",
+        revisionFamily: "BOUNDED",
+        stateSubjectKey: `bounded-${index}`,
+        meta: createTelegramMeta({
+          messageId: `bounded-${index}`,
+          eventId: `bounded-${index}`,
+          type: "BOUNDED",
+          reportDateTime: `2026-07-31T12:0${index}:00+09:00`,
+          serial: "1",
+          infoType: "発表",
+          receivedAtMs: RECEIVED_AT + index,
+          status: "通常",
+          isTest: false,
+        }),
+        comparator: "reportDateTimeThenSerial",
+        cancellationPolicy: "clearCurrent",
+        terminal: false,
+        durable: true,
+        tombstoneRetentionMs: null,
+        maxSubjects: 2,
+        payloadFingerprint: semanticPayloadFingerprint({ index }),
+      }).accepted).toBe(true);
+    }
+
+    const entries = gate.exportDurableEntries();
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.stateSubjectKey).sort())
+      .toEqual(["bounded-1", "bounded-2"]);
+  });
+
+  it("無期限 tombstone だけで family 上限を超えた場合は保護したまま設計エラーを通知する", () => {
+    const capacityError = vi.fn();
+    const gate = new TelegramRevisionGate(capacityError);
+    for (let index = 0; index < 2; index++) {
+      expect(gate.decide({
+        domain: "synthetic",
+        revisionFamily: "BROKEN-INDEFINITE",
+        stateSubjectKey: `tombstone-${index}`,
+        meta: createTelegramMeta({
+          messageId: `tombstone-${index}`,
+          eventId: `tombstone-${index}`,
+          type: "BROKEN-INDEFINITE",
+          reportDateTime: `2026-07-31T12:0${index}:00+09:00`,
+          serial: "1",
+          infoType: "取消",
+          receivedAtMs: RECEIVED_AT + index,
+          status: "通常",
+          isTest: false,
+        }),
+        comparator: "reportDateTimeThenSerial",
+        cancellationPolicy: "clearCurrent",
+        terminal: false,
+        durable: true,
+        tombstoneRetentionMs: null,
+        maxSubjects: 1,
+        payloadFingerprint: semanticPayloadFingerprint({ index }),
+      }).accepted).toBe(true);
+    }
+
+    expect(gate.exportDurableEntries()).toHaveLength(2);
+    expect(capacityError).toHaveBeenCalledTimes(1);
+    expect(capacityError).toHaveBeenCalledWith(expect.stringContaining(
+      "indefinite tombstones exceed maxSubjects: synthetic:BROKEN-INDEFINITE (2/1)",
+    ));
   });
 });

@@ -27,7 +27,7 @@ describe("TsunamiStateHolder.getLastInfo", () => {
     expect(new TsunamiStateHolder().getLastInfo()).toBeNull();
   });
 
-  it("update 後は lastInfo を返し、clear で null に戻る", () => {
+  it("applyAccepted 後は lastInfo を返し、clear で null に戻る", () => {
     const holder = new TsunamiStateHolder();
     const info = createTsunamiInfo({
       forecast: [
@@ -39,7 +39,7 @@ describe("TsunamiStateHolder.getLastInfo", () => {
         },
       ],
     });
-    holder.update(info);
+    holder.applyAccepted(info);
     expect(holder.getLastInfo()).not.toBeNull();
     holder.clear();
     expect(holder.getLastInfo()).toBeNull();

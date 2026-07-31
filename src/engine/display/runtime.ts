@@ -7,10 +7,10 @@
 
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
-import type { AppConfig, DisplaySeverity, ParsedTsunamiInfo, Vpws50CurrentAreasForDisplay } from "../../types";
+import type { AppConfig, DisplaySeverity, ParsedTsunamiInfo, TsunamiObservationStation, Vpws50CurrentAreasForDisplay } from "../../types";
 import * as log from "../../logger";
 import type { DisplayCallbacks } from "../messages/display-callbacks";
-import { detectTsunamiAlertLevel } from "../messages/tsunami-state";
+import { detectTsunamiAlertLevel, type TsunamiObservationGroups } from "../messages/tsunami-state";
 import { formatLevelLabel } from "../../dmdata/weather-warning-level";
 import { buildTsunamiObservations } from "../presentation/events/tsunami-observations";
 import { DISPLAY_SUMMARY_WIDTH } from "./constants";
@@ -41,6 +41,8 @@ export interface DisplayRuntime {
 
 export interface DisplaySeedSources {
   tsunami: () => ParsedTsunamiInfo | null;
+  /** monitor 所有の VTSE51/52 観測 state。display off/on をまたいで seed する。 */
+  tsunamiObservations?: () => TsunamiObservationGroups;
   weather: () => Vpws50CurrentAreasForDisplay | undefined;
   /** VPWW56 (土砂災害警戒情報。Vpww56StateHolder.getCurrentAreasForDisplay) */
   landslide: () => Vpws50CurrentAreasForDisplay | undefined;
@@ -76,7 +78,10 @@ export { weatherAlertsFromVpws50, weatherAlertsFromVpww56 };
  * ParsedTsunamiInfo (TsunamiStateHolder.getLastInfo) を起動時 seed 用の入力に変換する。
  * 取消報・警報レベルなし (津波予報のみ等) は null。
  */
-export function tsunamiSeedFromParsed(info: ParsedTsunamiInfo): DisplayTsunamiInputV1 | null {
+export function tsunamiSeedFromParsed(
+  info: ParsedTsunamiInfo,
+  observations: readonly TsunamiObservationStation[] = info.observations ?? [],
+): DisplayTsunamiInputV1 | null {
   if (info.infoType === "取消") return null;
   const forecast = info.forecast ?? [];
   const label = detectTsunamiAlertLevel(forecast.map((f) => f.kind));
@@ -98,7 +103,7 @@ export function tsunamiSeedFromParsed(info: ParsedTsunamiInfo): DisplayTsunamiIn
     levelLabel: label,
     coasts,
     warningComment: info.warningComment || null,
-    observations: buildTsunamiObservations(info),
+    observations: buildTsunamiObservations({ ...info, observations: [...observations] }),
     reportDateTime: info.reportDateTime,
   };
 }
@@ -184,8 +189,17 @@ export async function startDisplayRuntime(
   if (initialStats != null) store.setStats(initialStats);
   const tsunamiInfo = seeds.tsunami();
   if (tsunamiInfo != null) {
-    const seed = tsunamiSeedFromParsed(tsunamiInfo);
-    if (seed != null) store.seedTsunami(seed, nowMs);
+    const groups = seeds.tsunamiObservations?.();
+    const seed = tsunamiSeedFromParsed(
+      tsunamiInfo,
+      groups == null ? undefined : [...groups.VTSE51, ...groups.VTSE52],
+    );
+    if (seed != null) {
+      store.seedTsunami(seed, nowMs, groups == null ? undefined : {
+        VTSE51: buildTsunamiObservations({ ...tsunamiInfo, observations: groups.VTSE51 }),
+        VTSE52: buildTsunamiObservations({ ...tsunamiInfo, observations: groups.VTSE52 }),
+      });
+    }
   }
   const nowIso = new Date(nowMs).toISOString();
   const vpws50View = seeds.weather();

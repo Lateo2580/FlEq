@@ -46,7 +46,8 @@ import {
 } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
 import { RevisionGuard } from "./revision-guard";
-import { compareRevision, revisionOf, type StandbyRevision } from "./standby-registry";
+import type { StandbyRevision } from "./standby-registry";
+import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../messages/tsunami-state";
 
 const MIN_MS = 60_000;
 const NON_EMERGENCY_HOST_TTL_MS = 5 * MIN_MS;
@@ -57,6 +58,11 @@ const QUAKE_MAP_HOST_MIN_RANK = intensityToRank("3");
 interface QuakeMapMutationResult {
   accepted: boolean;
   changed: boolean;
+}
+
+export interface DisplayTsunamiObservationGroups {
+  VTSE51: DisplayTsunamiObservationV1[];
+  VTSE52: DisplayTsunamiObservationV1[];
 }
 
 function sameRevision(a: StandbyRevision | undefined, b: StandbyRevision | undefined): boolean {
@@ -74,6 +80,30 @@ function tsunamiObservationStationKey(observation: DisplayTsunamiObservationV1):
   const stationCode = observation.stationCode?.trim();
   if (stationCode) return `code:${stationCode}`;
   return tsunamiObservationNameKey(observation);
+}
+
+function mergeTsunamiObservationGroup(
+  current: readonly DisplayTsunamiObservationV1[],
+  incoming: readonly DisplayTsunamiObservationV1[],
+): DisplayTsunamiObservationV1[] {
+  const merged = [...current];
+  for (const observation of incoming) {
+    const stationKey = tsunamiObservationStationKey(observation);
+    const legacyStationKey = observation.stationCode?.trim()
+      ? tsunamiObservationNameKey(observation)
+      : null;
+    for (let index = merged.length - 1; index >= 0; index -= 1) {
+      const candidate = merged[index];
+      const sameStation = tsunamiObservationStationKey(candidate) === stationKey;
+      const sameLegacyStation = legacyStationKey != null
+        && !candidate.stationCode?.trim()
+        && tsunamiObservationNameKey(candidate) === legacyStationKey;
+      if (sameStation || sameLegacyStation) merged.splice(index, 1);
+    }
+    // holder と同じく、更新された観測点を末尾（最終更新が新しい側）へ移す。
+    merged.push(observation);
+  }
+  return merged.slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY);
 }
 
 function promotionEntry(record: WeatherPromotionRecord | null): DisplayWeatherPromotionEntryV1 | null {
@@ -110,8 +140,10 @@ function addedAreasForWire(added: readonly WeatherPromotionMemberV1[]): DisplayW
 export class DisplayStateStore {
   private activeEews = new Map<string, DisplayActiveEewV1>();
   private tsunami: DisplayTsunamiStateV1 | null = null;
-  private tsunamiObservationRevisions = new Map<string, StandbyRevision>();
-  private latestTsunamiObservationRevisions = new Map<string, StandbyRevision>();
+  private tsunamiObservationGroups: DisplayTsunamiObservationGroups = {
+    VTSE51: [],
+    VTSE52: [],
+  };
   private largeQuakes = new Map<string, DisplayLargeQuakeStateV1>();
   /** EventID 系列 × source type の最新 contribution。wire へは eventKey ごとの有効一件だけを出す。 */
   private quakeMapContributions =
@@ -153,6 +185,7 @@ export class DisplayStateStore {
     nowMs: number,
     tsunamiObservations?: DisplayTsunamiObservationV1[] | null,
     quakeMapCommand?: DisplayQuakeMapCommandV1 | null,
+    tsunamiObservationGroups?: DisplayTsunamiObservationGroups | null,
   ): boolean {
     let changed = this.quakeExtreme.applyDto(dto, nowMs);
     const quakeMapMutation = quakeMapCommand == null
@@ -163,7 +196,12 @@ export class DisplayStateStore {
       changed = this.applyEew(dto.emergency, nowMs) || changed;
     }
     if (dto.domain === "tsunami") {
-      changed = this.applyTsunami(dto, nowMs, tsunamiObservations ?? undefined) || changed;
+      changed = this.applyTsunami(
+        dto,
+        nowMs,
+        tsunamiObservations ?? undefined,
+        tsunamiObservationGroups ?? undefined,
+      ) || changed;
     }
     if (dto.emergency?.kind === "largeQuake" && quakeMapMutation.accepted) {
       const key = dto.emergency.eventId ?? dto.id;
@@ -319,94 +357,84 @@ export class DisplayStateStore {
     dto: DisplayEventDtoV1,
     nowMs: number,
     observations: DisplayTsunamiObservationV1[] | undefined,
+    observationGroups: DisplayTsunamiObservationGroups | undefined,
   ): boolean {
     // VTSE51/52 (津波情報・沖合観測): レベル・coasts の真実源にはしない (旧仕様のまま)。
-    // 稼働中の津波 state がある場合に限り observations 欄だけを更新する。state が無ければ
-    // 観測データ単独で state を新規作成しない。updatedAtMs にも触れない。
+    // 観測 family は警報より先に来ても保持するが、観測単独では表示 state を新規作成せず
+    // updatedAtMs にも触れない。VTSE41 受理時に保持済み観測を合流する。
     if (dto.type === "VTSE51" || dto.type === "VTSE52") {
-      if (this.tsunami == null) return false;
-      if (observations == null || observations.length === 0) return false;
-      const revision = revisionOf(dto.reportDateTime, dto.serial ?? null, nowMs);
-      const latestRevision = this.latestTsunamiObservationRevisions.get(dto.type);
-      if (
-        latestRevision != null
-        && compareRevision(revision, latestRevision) < 0
-      ) {
+      if (dto.infoType === "取消") {
+        const changed = this.tsunamiObservationGroups[dto.type].length > 0;
+        this.tsunamiObservationGroups[dto.type] = [];
+        if (this.tsunami != null && changed) {
+          this.tsunami = {
+            ...this.tsunami,
+            observations: this.allTsunamiObservations(),
+          };
+          return true;
+        }
         return false;
       }
-      const isCorrection = dto.infoType === "訂正";
-      const merged = [...this.tsunami.observations];
-      let changed = false;
-      for (const observation of observations) {
-        const stationKey = tsunamiObservationStationKey(observation);
-        const revisionKey = `${dto.type}:${stationKey}`;
-        const hasStationCode = Boolean(observation.stationCode?.trim());
-        const legacyStationKey = hasStationCode
-          ? tsunamiObservationNameKey(observation)
-          : null;
-        const legacyRevisionKey = legacyStationKey == null
-          ? null
-          : `${dto.type}:${legacyStationKey}`;
-        const stationRevision = this.tsunamiObservationRevisions.get(revisionKey);
-        const legacyRevision = legacyRevisionKey == null
-          ? undefined
-          : this.tsunamiObservationRevisions.get(legacyRevisionKey);
-        const previousRevision = stationRevision == null
-          || (legacyRevision != null && compareRevision(legacyRevision, stationRevision) > 0)
-          ? legacyRevision
-          : stationRevision;
-        if (previousRevision != null) {
-          const comparison = compareRevision(revision, previousRevision);
-          if (comparison < 0 || (comparison === 0 && !isCorrection)) continue;
-        }
-        const existingIndex = merged.findIndex(
-          (candidate) => tsunamiObservationStationKey(candidate) === stationKey,
-        );
-        const legacyIndex = legacyStationKey == null
-          ? -1
-          : merged.findIndex(
-            (candidate) => !candidate.stationCode?.trim()
-              && tsunamiObservationNameKey(candidate) === legacyStationKey,
-          );
-        if (existingIndex >= 0) merged[existingIndex] = observation;
-        else if (legacyIndex >= 0) merged[legacyIndex] = observation;
-        else merged.push(observation);
-        if (existingIndex >= 0 && legacyIndex >= 0 && existingIndex !== legacyIndex) {
-          merged.splice(legacyIndex, 1);
-        }
-        if (legacyRevisionKey != null && legacyRevisionKey !== revisionKey) {
-          this.tsunamiObservationRevisions.delete(legacyRevisionKey);
-        }
-        this.tsunamiObservationRevisions.set(revisionKey, revision);
-        changed = true;
-      }
-      if (!changed) return false;
-      if (
-        latestRevision == null
-        || compareRevision(revision, latestRevision) > 0
-      ) {
-        this.latestTsunamiObservationRevisions.set(dto.type, revision);
-      }
-      this.tsunami = { ...this.tsunami, observations: merged };
+      if (observations == null || observations.length === 0) return false;
+      const merged = mergeTsunamiObservationGroup(
+        this.tsunamiObservationGroups[dto.type],
+        observations,
+      );
+      this.tsunamiObservationGroups[dto.type] = merged;
+      if (this.tsunami == null) return false;
+      this.tsunami = { ...this.tsunami, observations: this.allTsunamiObservations() };
       return true;
     }
     // 津波状態の真実源は VTSE41 (津波警報・注意報・予報) のみ。
-    // 本体の TsunamiStateHolder.update() が VTSE41 限定 (process-tsunami.ts) なのと整合させる
+    // 本体の TsunamiStateHolder mutation が VTSE41 限定 (process-tsunami.ts) なのと整合させる
     if (dto.type !== "VTSE41") return false;
     if (dto.emergency?.kind === "tsunami") {
-      this.tsunamiObservationRevisions.clear();
-      this.latestTsunamiObservationRevisions.clear();
-      this.tsunami = { ...dto.emergency, updatedAtMs: nowMs };
+      if (observationGroups != null) {
+        const pendingWithoutCode = {
+          VTSE51: this.tsunamiObservationGroups.VTSE51.filter(
+            (observation) => !observation.stationCode?.trim(),
+          ),
+          VTSE52: this.tsunamiObservationGroups.VTSE52.filter(
+            (observation) => !observation.stationCode?.trim(),
+          ),
+        };
+        this.tsunamiObservationGroups = {
+          VTSE51: mergeTsunamiObservationGroup(
+            pendingWithoutCode.VTSE51,
+            structuredClone(observationGroups.VTSE51),
+          ),
+          VTSE52: mergeTsunamiObservationGroup(
+            pendingWithoutCode.VTSE52,
+            structuredClone(observationGroups.VTSE52),
+          ),
+        };
+      }
+      this.tsunami = {
+        ...dto.emergency,
+        observations: this.allTsunamiObservations(),
+        updatedAtMs: nowMs,
+      };
       return true;
     }
     // VTSE41 で emergency が組めない = 取消 or 全解除
     if (this.tsunami != null) {
-      this.tsunamiObservationRevisions.clear();
-      this.latestTsunamiObservationRevisions.clear();
       this.tsunami = null;
+      this.clearTsunamiObservations();
       return true;
     }
+    this.clearTsunamiObservations();
     return false;
+  }
+
+  private allTsunamiObservations(): DisplayTsunamiObservationV1[] {
+    return [
+      ...this.tsunamiObservationGroups.VTSE51,
+      ...this.tsunamiObservationGroups.VTSE52,
+    ];
+  }
+
+  private clearTsunamiObservations(): void {
+    this.tsunamiObservationGroups = { VTSE51: [], VTSE52: [] };
   }
 
   private applyRecentQuake(q: DisplayRecentQuakeV1, nowMs: number): boolean {
@@ -480,10 +508,27 @@ export class DisplayStateStore {
     this.connection = next;
   }
 
-  seedTsunami(input: DisplayTsunamiInputV1, nowMs: number): void {
-    this.tsunamiObservationRevisions.clear();
-    this.latestTsunamiObservationRevisions.clear();
-    this.tsunami = { ...input, updatedAtMs: nowMs };
+  seedTsunami(
+    input: DisplayTsunamiInputV1,
+    nowMs: number,
+    observationGroups?: DisplayTsunamiObservationGroups,
+  ): void {
+    this.tsunamiObservationGroups = observationGroups == null
+      ? {
+          VTSE51: input.observations.slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+          VTSE52: [],
+        }
+      : {
+          VTSE51: structuredClone(observationGroups.VTSE51)
+            .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+          VTSE52: structuredClone(observationGroups.VTSE52)
+            .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+        };
+    this.tsunami = {
+      ...input,
+      observations: this.allTsunamiObservations(),
+      updatedAtMs: nowMs,
+    };
   }
 
   seedWeatherAlerts(alerts: DisplayWeatherAlertV1[]): void {

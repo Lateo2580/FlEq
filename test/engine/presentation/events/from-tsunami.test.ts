@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { fromTsunamiOutcome } from "../../../../src/engine/presentation/events/from-tsunami";
 import { processTsunami } from "../../../../src/engine/presentation/processors/process-tsunami";
-import { TsunamiStateHolder } from "../../../../src/engine/messages/tsunami-state";
+import { makeProcessDeps } from "../../../helpers/process-deps";
 import {
   createMockWsDataMessage,
   FIXTURE_VTSE51_INFO,
@@ -13,7 +13,7 @@ describe("fromTsunamiOutcome", () => {
     const msg = createMockWsDataMessage(FIXTURE_VTSE51_INFO, {
       head: { type: "VTSE51", author: "気象庁", time: new Date().toISOString(), test: false },
     });
-    const result = processTsunami(msg, new TsunamiStateHolder());
+    const result = processTsunami(msg, makeProcessDeps());
     if (result.kind !== "ok") throw new Error(`processTsunami が ${result.kind} を返した`);
     const event = fromTsunamiOutcome(result.outcome);
 
@@ -25,7 +25,7 @@ describe("fromTsunamiOutcome", () => {
     const msg = createMockWsDataMessage(FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT, {
       head: { type: "VTSE51", author: "気象庁", time: new Date().toISOString(), test: false },
     });
-    const result = processTsunami(msg, new TsunamiStateHolder());
+    const result = processTsunami(msg, makeProcessDeps());
     if (result.kind !== "ok") throw new Error(`processTsunami が ${result.kind} を返した`);
     const event = fromTsunamiOutcome(result.outcome);
 

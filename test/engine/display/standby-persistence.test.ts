@@ -72,6 +72,7 @@ describe("StandbyPersistence", () => {
       version: 2,
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
+        tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
       },
     }));
   });
@@ -571,6 +572,7 @@ describe("StandbyStateStore persistence", () => {
       version: 2,
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
+        tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
       },
     }));
 

@@ -31,11 +31,6 @@ export const LEGACY_INVALID_DATE_NOW_PATHS = {
       statePath:
         "weather/nankai/tornado/long-period/quake host/typhoon/volcano seed/heat standby revisions",
     },
-    {
-      sourceFile: "src/engine/display/state-store.ts",
-      callCount: 1,
-      statePath: "tsunami observation revision",
-    },
   ],
 } as const;
 

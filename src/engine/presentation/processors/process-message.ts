@@ -46,6 +46,8 @@ export interface ProcessDeps {
   floodForecastState: FloodForecastStateHolder;
   revisionGate: TelegramRevisionGate;
   onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /**
@@ -78,7 +80,7 @@ const PROCESSOR_TABLE = {
   seismicText: (msg, _deps, cat) => processSeismicText(msg) ?? processRaw(msg, cat),
   lgObservation: (msg, _deps, cat) => processLgObservation(msg) ?? processRaw(msg, cat),
   tsunami: (msg, deps, cat) => {
-    const tsunamiResult = processTsunami(msg, deps.tsunamiState);
+    const tsunamiResult = processTsunami(msg, deps);
     if (tsunamiResult.kind === "ok") return tsunamiResult.outcome;
     if (tsunamiResult.kind === "suppressed") return null; // 古い報・重複報 → 表示・通知・統計なし
     return processRaw(msg, cat);

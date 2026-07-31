@@ -1,7 +1,8 @@
 import { ParsedTsunamiInfo } from "../../types";
 import { listTelegrams } from "../../dmdata/rest-client";
-import { parseTsunamiTelegram } from "../../dmdata/telegram-parser";
 import { TsunamiStateHolder } from "../messages/tsunami-state";
+import { TelegramRevisionGate } from "../messages/telegram-revision-gate";
+import { processTsunami } from "../presentation/processors/process-tsunami";
 import { toWsDataMessage } from "./telegram-adapter";
 import * as log from "../../logger";
 
@@ -11,7 +12,9 @@ import * as log from "../../logger";
  */
 export async function restoreTsunamiState(
   apiKey: string,
-  tsunamiState: TsunamiStateHolder
+  tsunamiState: TsunamiStateHolder,
+  revisionGate: TelegramRevisionGate,
+  onAcceptedRevision?: () => void,
 ): Promise<ParsedTsunamiInfo | null> {
   try {
     const res = await listTelegrams(apiKey, "VTSE41", 1);
@@ -29,14 +32,23 @@ export async function restoreTsunamiState(
     }
 
     const msg = toWsDataMessage(item, item.body);
-    const info = parseTsunamiTelegram(msg);
-
-    if (info == null) {
+    const hadPersistedActive = tsunamiState.getLastInfo() != null;
+    const result = processTsunami(msg, {
+      tsunamiState,
+      revisionGate,
+      onTsunamiRevisionDecision: onAcceptedRevision,
+      restoreStateOnDuplicate: true,
+    });
+    if (result.kind !== "ok") {
+      if (result.kind === "suppressed" && tsunamiState.getLastInfo() != null) {
+        if (!hadPersistedActive) onAcceptedRevision?.();
+        log.info(`津波警報状態を復元しました: ${tsunamiState.getLevel()}`);
+        return tsunamiState.getLastInfo();
+      }
       log.debug("VTSE41 電文のパースに失敗: 津波状態の復元をスキップ");
       return null;
     }
-
-    tsunamiState.update(info);
+    const info = result.outcome.parsed;
 
     // 状態が実際にセットされた場合のみログ出力
     if (tsunamiState.getLevel() != null) {

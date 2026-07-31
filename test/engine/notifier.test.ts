@@ -252,6 +252,29 @@ describe("Notifier", () => {
     expect(playSoundMock).toHaveBeenCalledOnce();
     expect(playSoundMock).toHaveBeenCalledWith(expectedLevel);
   });
+
+  it("notifyTsunami は受理済み訂正を title/body の両方で明示する", () => {
+    const notifier = new Notifier();
+    const info: ParsedTsunamiInfo = {
+      meta: testTelegramMeta(false),
+      type: "VTSE41",
+      infoType: "訂正",
+      title: "津波警報・注意報・予報",
+      reportDateTime: "2026-07-30T12:00:00+09:00",
+      headline: "津波警報を更新しました。",
+      publishingOffice: "気象庁",
+      forecast: [],
+      warningComment: "",
+      isTest: false,
+    };
+
+    notifier.notifyTsunami(info);
+
+    expect(notifyMock).toHaveBeenCalledOnce();
+    const notification = notifyMock.mock.calls[0][0] as { title: string; message: string };
+    expect(notification.title).toBe("[訂正] 津波警報・注意報・予報");
+    expect(notification.message).toContain("訂正:");
+  });
 });
 
 describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", () => {

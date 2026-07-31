@@ -367,6 +367,8 @@ export class EewTracker {
       comparator: policy.comparator,
       cancellationPolicy: policy.cancellationPolicy,
       terminal: policy.terminalPredicate(info.meta, info),
+      maxSubjects: policy.maxSubjects,
+      retainForFamilyCapacity: true,
       payloadFingerprint: semanticPayloadFingerprint({
         ...info,
         meta: undefined,

@@ -436,13 +436,24 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
 
   it("TsunamiStateHolder の警報状態が buildSnapshot().tsunami に seed され /healthz が 200 を返す", async () => {
     const holder = new TsunamiStateHolder();
-    holder.update(tsunamiInfo());
+    holder.applyAcceptedObservations("VTSE51", [{
+      areaName: "岩手県",
+      stationCode: "21001",
+      name: "宮古",
+      sensor: "検潮所",
+      arrivalTime: "2026-07-06T21:10:00+09:00",
+      initial: "押し",
+      maxHeightCondition: "観測中",
+      maxHeightValue: "1.0m",
+    }]);
+    holder.applyAccepted(tsunamiInfo());
     distDir = mkdtempSync(join(tmpdir(), "fleq-display-"));
     writeFileSync(join(distDir, "index.html"), "<html>ok</html>");
     process.env.FLEQ_DISPLAY_DIST = distDir;
 
     runtime = await startDisplayRuntime(testConfig(), mockDisplay(), {
       tsunami: () => holder.getLastInfo(),
+      tsunamiObservations: () => holder.getObservationGroups(),
       weather: () => undefined,
       landslide: () => undefined,
     });
@@ -452,6 +463,9 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
     expect(snap.tsunami).not.toBeNull();
     expect(snap.tsunami!.levelLabel).toBe("津波警報");
     expect(snap.tsunami!.level).toBe("warning");
+    expect(snap.tsunami!.observations).toEqual([
+      expect.objectContaining({ stationCode: "21001", stationName: "宮古" }),
+    ]);
 
     const res = await fetch(`http://127.0.0.1:${runtime!.transport.port()}/healthz`);
     expect(res.status).toBe(200);

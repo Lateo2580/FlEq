@@ -502,9 +502,10 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     mutate(expected);
     fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(expected), "utf8");
     const loaded = new StandbyPersistence(file).load();
-    expect(loaded?.telegramFoundation.vpws50).toMatchObject({
-      authoritative: false,
+    expect(loaded?.telegramFoundation.vpws50).toEqual({
+      authoritative: true,
       state: null,
+      gateEntries: [],
     });
   });
 
@@ -537,7 +538,11 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     const { file, expected } = persistedFoundationFixture();
     mutate(expected);
     fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(expected), "utf8");
-    expect(new StandbyPersistence(file).load()?.telegramFoundation.vpws50.authoritative).toBe(false);
+    expect(new StandbyPersistence(file).load()?.telegramFoundation.vpws50).toEqual({
+      authoritative: true,
+      state: null,
+      gateEntries: [],
+    });
   });
 
   it.each([
