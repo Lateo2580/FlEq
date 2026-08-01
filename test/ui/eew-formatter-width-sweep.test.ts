@@ -72,6 +72,8 @@ describe("EEW 幅 sweep: 幅 40-200 全域の frame 幅保証 (acceptance 2)", (
   });
 
   for (const c of CASES) {
+    // 幅 161 通り × 全行検査の重い sweep。単独では数秒だが、フルスイート並列時に
+    // 既定 5 秒を超えるフレークが実在した (2026-08-01 に 3 回) ため明示 timeout を持つ
     it(`${c.label}: 幅 40-200 で全出力行 visualWidth <= width`, () => {
       for (let w = 40; w <= 200; w++) {
         setFrameWidth(w);
@@ -82,7 +84,7 @@ describe("EEW 幅 sweep: 幅 40-200 全域の frame 幅保証 (acceptance 2)", (
           expect(vw, `${c.label} width=${w} line="${stripAnsi(line).slice(0, 40)}"`).toBeLessThanOrEqual(w);
         }
       }
-    });
+    }, 30_000);
   }
 
   it("synthetic-220区域-fold: 表示上限超過は震度別集約行になり、幅 40-200 で溢れない", () => {

@@ -76,6 +76,7 @@ describe("StandbyPersistence", () => {
         tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
         volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
         floodForecast: { authoritative: false, active: [], gateEntries: [] },
+        standbyDomains: { gateEntries: [] },
       },
     }));
   });
@@ -583,6 +584,7 @@ describe("StandbyStateStore persistence", () => {
         tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
         volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
         floodForecast: { authoritative: false, active: [], gateEntries: [] },
+        standbyDomains: { gateEntries: [] },
       },
     }));
 

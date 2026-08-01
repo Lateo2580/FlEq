@@ -25,7 +25,6 @@ import {
   compareRevision,
   revisionOf,
   sortStandbyItems,
-  tombstoneTtlForKey,
   type DisplayMutation,
   type StandbyRevision,
 } from "./standby-registry";
@@ -56,6 +55,7 @@ interface HeatState {
   areas: DisplayHeatAreaV1[];
   isSpecial: boolean;
   revision: StandbyRevision;
+  appliedSemanticKey?: string;
   restored: boolean;
 }
 
@@ -63,6 +63,7 @@ interface TyphoonState {
   sourceEventId: string;
   typhoon: DisplayTyphoonV1;
   revision: StandbyRevision;
+  appliedSemanticKey?: string;
   expiresAtMs: number;
   restored: boolean;
 }
@@ -91,6 +92,7 @@ interface TornadoState {
   areas: string[];
   isSighted: boolean;
   revision: StandbyRevision;
+  appliedSemanticKey?: string;
   expiresAtMs: number;
   restored: boolean;
 }
@@ -106,6 +108,7 @@ interface LongPeriodState {
   eventId: string;
   maxLgInt: string;
   revision: StandbyRevision;
+  appliedSemanticKey?: string;
   hosted: boolean;
   expiresAtMs: number;
   restored: boolean;
@@ -116,6 +119,7 @@ interface NankaiState {
   statusCode: string;
   label: string;
   revision: StandbyRevision;
+  appliedSemanticKey?: string;
   expiresAtMs: number;
   restored: boolean;
 }
@@ -145,11 +149,17 @@ export class StandbyStateStore {
   private readonly floods = new FloodActiveReducer();
   /** v1 / pre-flood-v2 由来で、まだ共通 gate の正規報を受けていない表示 EventID。 */
   private readonly legacyFloodEventIds = new Set<string>();
+  /** v1 migration survivors are not pruned until each subject receives a foundation-gated report. */
+  private readonly managedStandbySubjects = new Map<string, Set<string>>();
   private readonly revisionGuard = new RevisionGuard();
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
 
   applyEvent(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (
+      ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation"].includes(event.domain)
+      && event.standbyStateMutationAccepted === false
+    ) return NO_MUTATION;
     let mutation = NO_MUTATION;
     switch (event.domain) {
       case "earthquake":
@@ -191,8 +201,45 @@ export class StandbyStateStore {
       default:
         return NO_MUTATION;
     }
+    if (event.standbyStateMutationAccepted === true && event.standbyStateSubject != null) {
+      const managed = this.managedStandbySubjects.get(event.domain) ?? new Set<string>();
+      managed.add(event.standbyStateSubject);
+      this.managedStandbySubjects.set(event.domain, managed);
+      mutation = combineMutations(
+        mutation,
+        this.retainManagedStandbySubjects(event.domain, event.standbyActiveSubjects ?? []),
+      );
+    }
     this.notify(mutation);
     return mutation;
+  }
+
+  private retainManagedStandbySubjects(
+    domain: string,
+    activeSubjects: readonly string[],
+  ): DisplayMutation {
+    const active = new Set(activeSubjects);
+    let changed = false;
+    const managed = this.managedStandbySubjects.get(domain);
+    if (managed == null) return NO_MUTATION;
+    for (const subject of [...managed]) {
+      if (active.has(subject)) continue;
+      managed.delete(subject);
+      if (subject.startsWith("tornado:")) {
+        changed = this.tornadoByOffice.delete(subject.slice("tornado:".length)) || changed;
+      } else if (subject.startsWith("heat:")) {
+        changed = this.heatAlerts.delete(subject) || changed;
+      } else if (subject.startsWith("typhoon:")) {
+        changed = this.typhoons.delete(subject.slice("typhoon:".length)) || changed;
+      } else if (subject === "nankai:current") {
+        changed ||= this.nankaiTrough != null;
+        this.nankaiTrough = null;
+      } else if (subject.startsWith("longPeriod:")) {
+        changed = this.longPeriodByEvent.delete(subject.slice("longPeriod:".length)) || changed;
+      }
+    }
+    if (managed.size === 0) this.managedStandbySubjects.delete(domain);
+    return { viewChanged: changed, durableChanged: changed };
   }
 
   /** standby state と寿命を共有する ticker の active groupKey。 */
@@ -265,6 +312,7 @@ export class StandbyStateStore {
   ): void {
     this.floods.restoreState({ events, seen: [] }, nowMs);
     this.legacyFloodEventIds.clear();
+    this.managedStandbySubjects.clear();
     const active = new Set(this.floods.activeEventIds());
     for (const eventId of legacyEventIds) {
       if (active.has(eventId)) this.legacyFloodEventIds.add(eventId);
@@ -317,7 +365,7 @@ export class StandbyStateStore {
     const status = nankaiBadgeAction(raw.infoSerial?.code ?? null);
     if (status.action === "ignore") return NO_MUTATION;
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
-    if (!this.revisionGuard.accept("nankai:current", revision, nowMs, tombstoneTtlForKey("nankai:current"), event.infoType === "訂正")) return NO_MUTATION;
+    if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept("nankai:current", revision, nowMs, 30 * DAY_MS, event.infoType === "訂正")) return NO_MUTATION;
     if (status.action === "deactivate" || event.isCancellation) {
       const changed = this.nankaiTrough != null;
       this.nankaiTrough = null;
@@ -325,7 +373,7 @@ export class StandbyStateStore {
     }
     const code = raw.infoSerial?.code;
     if (code == null) return NO_MUTATION;
-    this.nankaiTrough = { sourceEventId: event.eventId ?? event.id, statusCode: code, label: status.label, revision, expiresAtMs: revision.reportTimeMs + NANKAI_TTL_MS, restored: false };
+    this.nankaiTrough = { sourceEventId: event.eventId ?? event.id, statusCode: code, label: status.label, revision, appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined, expiresAtMs: revision.reportTimeMs + NANKAI_TTL_MS, restored: false };
     return { viewChanged: true, durableChanged: true };
   }
 
@@ -333,9 +381,9 @@ export class StandbyStateStore {
     if (event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
     const raw = event.raw as ParsedTornadoAdvisory;
     const publishingOffice = normalizeTornadoPublishingOffice(event.publishingOffice);
-    const stateKey = tornadoTickerGroupKey(publishingOffice);
     const revision = revisionOf(event.reportDateTime, event.serial ?? raw.serial, nowMs);
-    if (!this.revisionGuard.accept(stateKey, revision, nowMs, tombstoneTtlForKey(stateKey), event.infoType === "訂正")) return NO_MUTATION;
+    const stateKey = tornadoTickerGroupKey(publishingOffice);
+    if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept(stateKey, revision, nowMs, DAY_MS, event.infoType === "訂正")) return NO_MUTATION;
     if (event.isCancellation || raw.activeAreaCount === 0) {
       return { viewChanged: this.tornadoByOffice.delete(publishingOffice), durableChanged: true };
     }
@@ -346,6 +394,7 @@ export class StandbyStateStore {
       areas: event.areaItems.map((area) => area.name),
       isSighted: raw.hasSightingAreas,
       revision,
+      appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined,
       expiresAtMs: Number.isNaN(validMs) ? revision.reportTimeMs + HOUR_MS : validMs,
       restored: false,
     });
@@ -355,9 +404,9 @@ export class StandbyStateStore {
   private applyLongPeriod(event: PresentationEvent, nowMs: number): DisplayMutation {
     if (event.eventId == null || event.raw == null || Array.isArray(event.raw)) return NO_MUTATION;
     const raw = event.raw as ParsedLgObservationInfo;
-    const key = `longPeriod:${event.eventId}`;
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), event.infoType === "訂正")) return NO_MUTATION;
+    const key = `longPeriod:${event.eventId}`;
+    if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept(key, revision, nowMs, DAY_MS, event.infoType === "訂正")) return NO_MUTATION;
     if (event.isCancellation) {
       const changed = this.longPeriodByEvent.delete(event.eventId);
       return { viewChanged: changed, durableChanged: true };
@@ -371,6 +420,7 @@ export class StandbyStateStore {
       eventId: event.eventId,
       maxLgInt: raw.maxLgInt,
       revision,
+      appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined,
       hosted: host != null,
       expiresAtMs: host?.expiresAtMs ?? (existing?.hosted === true ? existing.expiresAtMs : revision.reportTimeMs + 12 * HOUR_MS),
       restored: false,
@@ -403,15 +453,9 @@ export class StandbyStateStore {
   private applyTyphoon(event: PresentationEvent, nowMs: number): DisplayMutation {
     const update = projectTyphoonUpdate(event);
     if (update == null) return NO_MUTATION;
-    const key = `typhoon:${update.typhoonKey}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(
-      key,
-      revision,
-      nowMs,
-      tombstoneTtlForKey(key),
-      update.isCorrection || update.isCancellation,
-    )) return NO_MUTATION;
+    const key = `typhoon:${update.typhoonKey}`;
+    if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept(key, revision, nowMs, 7 * DAY_MS, update.isCorrection || update.isCancellation)) return NO_MUTATION;
     if (update.isCancellation) {
       return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
     }
@@ -427,6 +471,7 @@ export class StandbyStateStore {
         intensityTrend: typhoonIntensityTrend(pressureDeltaHpa, maxWindDeltaMs),
       },
       revision,
+      appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined,
       expiresAtMs: revision.reportTimeMs + DAY_MS,
       restored: false,
     });
@@ -732,7 +777,7 @@ export class StandbyStateStore {
     if (areaName == null) return NO_MUTATION;
     const key = `heat:${update.targetDate}:${areaName}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(key, revision, nowMs, tombstoneTtlForKey(key), update.isCorrection)) return NO_MUTATION;
+    if (event.standbyStateMutationAccepted == null && !this.revisionGuard.accept(key, revision, nowMs, 3 * DAY_MS, update.isCorrection)) return NO_MUTATION;
     if (update.isCancellation) {
       return { viewChanged: this.heatAlerts.delete(key), durableChanged: true };
     }
@@ -743,6 +788,7 @@ export class StandbyStateStore {
       areas: update.areas,
       isSpecial: update.isSpecial,
       revision,
+      appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined,
       restored: false,
     });
     return { viewChanged: true, durableChanged: true };
@@ -919,8 +965,9 @@ export class StandbyStateStore {
         areas: state.areas.map((area) => ({ ...area })),
         isSpecial: state.isSpecial,
         revision: { ...state.revision },
+        appliedSemanticKey: state.appliedSemanticKey,
       })),
-      typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
+      typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
       volcanoes: [...this.volcanoes.values()].map((state) => ({
         code: state.code,
         name: state.name,
@@ -943,10 +990,10 @@ export class StandbyStateStore {
         revision: { ...state.revision },
         expiresAtMs: state.expiresAtMs,
       })),
-      tornado: [...this.tornadoByOffice.values()].map((state) => ({ publishingOffice: state.publishingOffice, sourceEventId: state.sourceEventId, areas: [...state.areas], isSighted: state.isSighted, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs })),
-      longPeriod: [...this.longPeriodByEvent.values()].map((state) => ({ eventId: state.eventId, maxLgInt: state.maxLgInt, revision: { ...state.revision }, hosted: state.hosted, expiresAtMs: state.expiresAtMs })),
+      tornado: [...this.tornadoByOffice.values()].map((state) => ({ publishingOffice: state.publishingOffice, sourceEventId: state.sourceEventId, areas: [...state.areas], isSighted: state.isSighted, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
+      longPeriod: [...this.longPeriodByEvent.values()].map((state) => ({ eventId: state.eventId, maxLgInt: state.maxLgInt, revision: { ...state.revision }, hosted: state.hosted, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
       quakeHost: this.quakeHost == null ? null : { ...this.quakeHost, revision: { ...this.quakeHost.revision } },
-      nankaiTrough: this.nankaiTrough == null ? null : { sourceEventId: this.nankaiTrough.sourceEventId, statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label, revision: { ...this.nankaiTrough.revision }, expiresAtMs: this.nankaiTrough.expiresAtMs },
+      nankaiTrough: this.nankaiTrough == null ? null : { sourceEventId: this.nankaiTrough.sourceEventId, statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label, revision: { ...this.nankaiTrough.revision }, expiresAtMs: this.nankaiTrough.expiresAtMs, appliedSemanticKey: this.nankaiTrough.appliedSemanticKey },
       seen: this.revisionGuard.export(),
     };
   }
@@ -972,6 +1019,7 @@ export class StandbyStateStore {
         areas: state.areas.map((area) => ({ ...area })),
         isSpecial: state.isSpecial,
         revision: { ...state.revision },
+        appliedSemanticKey: state.appliedSemanticKey,
         restored: true,
       });
     }
@@ -987,6 +1035,7 @@ export class StandbyStateStore {
             intensityTrend: state.typhoon.intensityTrend ?? null,
           },
           revision: { ...state.revision },
+          appliedSemanticKey: state.appliedSemanticKey,
           expiresAtMs: state.expiresAtMs,
           restored: true,
         });

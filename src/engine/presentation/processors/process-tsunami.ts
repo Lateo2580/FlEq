@@ -142,9 +142,10 @@ export function processTsunami(
       deps.onRevisionDecision?.({
         kind: "semanticDuplicate",
         relation: "equal",
-        accepted: false,
-        isCorrection: false,
-        isTerminal: false,
+          accepted: false,
+          isCorrection: false,
+          isTerminal: false,
+          resolvedTrigger: null,
       });
       return { kind: "suppressed" };
     }

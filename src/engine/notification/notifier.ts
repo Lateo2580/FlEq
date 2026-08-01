@@ -210,6 +210,16 @@ export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
 /** EEW 通知履歴の TTL (ms)。EewTracker のクリーンアップ閾値と揃える */
 const NOTIFIED_EEW_TTL_MS = 10 * 60 * 1000; // 10分
 
+function correctionNotification(
+  infoType: string,
+  title: string,
+  body: string,
+): { title: string; body: string } {
+  return infoType === "訂正"
+    ? { title: `[訂正] ${title}`, body: `訂正: ${body}` }
+    : { title, body };
+}
+
 export class Notifier {
   private settings: NotifySettings;
   private soundEnabled: boolean;
@@ -396,7 +406,12 @@ export class Notifier {
     if (info.intensity) {
       parts.push(`最大震度${info.intensity.maxInt}`);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : (info.headline ?? info.title), "earthquake", soundLevel);
+    const notification = correctionNotification(
+      info.infoType,
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : (info.headline ?? info.title),
+    );
+    this.send(notification.title, notification.body, "earthquake", soundLevel);
   }
 
   notifyTsunami(info: ParsedTsunamiInfo): void {
@@ -429,18 +444,34 @@ export class Notifier {
       return;
     }
 
-    const body = info.headline ?? info.bodyText.slice(0, 80);
-    this.send(info.title, body, "seismicText", "info");
+    const notification = correctionNotification(
+      info.infoType,
+      info.title,
+      info.headline ?? info.bodyText.slice(0, 80),
+    );
+    this.send(notification.title, notification.body, "seismicText", "info");
   }
 
-  notifyNankaiTrough(info: ParsedNankaiTroughInfo): void {
+  notifyNankaiTrough(
+    info: ParsedNankaiTroughInfo,
+    soundLevelOverride?: SoundLevel,
+  ): void {
     if (info.infoType === "取消") {
       this.send(`[取消] ${info.title}`, "この情報は取り消されました", "nankaiTrough", "cancel");
       return;
     }
 
-    const body = info.headline ?? info.bodyText.slice(0, 80);
-    this.send(info.title, body, "nankaiTrough", "warning");
+    const notification = correctionNotification(
+      info.infoType,
+      info.title,
+      info.headline ?? info.bodyText.slice(0, 80),
+    );
+    this.send(
+      notification.title,
+      notification.body,
+      "nankaiTrough",
+      soundLevelOverride ?? "warning",
+    );
   }
 
   notifyLgObservation(info: ParsedLgObservationInfo): void {
@@ -461,7 +492,12 @@ export class Notifier {
     if (info.maxInt) {
       parts.push(`最大震度${info.maxInt}`);
     }
-    this.send(info.title, parts.length > 0 ? parts.join(" / ") : info.title, "lgObservation", soundLevel);
+    const notification = correctionNotification(
+      info.infoType,
+      info.title,
+      parts.length > 0 ? parts.join(" / ") : info.title,
+    );
+    this.send(notification.title, notification.body, "lgObservation", soundLevel);
   }
 
   notifyVolcano(info: ParsedVolcanoInfo, presentation: VolcanoPresentation): void {
@@ -479,8 +515,17 @@ export class Notifier {
     );
   }
 
-  notifyVolcanoBatch(batch: { items: { volcanoName: string }[] }, presentation: VolcanoPresentation): void {
-    this.send("降灰予報（定時）", presentation.summary, "volcano", presentation.soundLevel);
+  notifyVolcanoBatch(
+    batch: { items: { volcanoName: string }[] },
+    presentation: VolcanoPresentation,
+    isCorrection = false,
+  ): void {
+    this.send(
+      isCorrection ? "[訂正] 降灰予報（定時）" : "降灰予報（定時）",
+      isCorrection ? `訂正: ${presentation.summary}` : presentation.summary,
+      "volcano",
+      presentation.soundLevel,
+    );
   }
 
   /**
@@ -508,8 +553,7 @@ export class Notifier {
     if (info.headline) {
       parts.push(info.headline);
     }
-    // Phase 3B unit 1: 共通 gate へ移行済みの VPWS50 だけを訂正通知規約へ載せる。
-    const isCorrection = info.type === "VPWS50" && info.infoType === "訂正";
+    const isCorrection = info.infoType === "訂正";
     this.send(
       isCorrection ? `[訂正] ${info.title}` : info.title,
       isCorrection
@@ -552,9 +596,14 @@ export class Notifier {
       parts.push(`有効期限 ${info.validDateTime.slice(11, 16)}`);
     }
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
+    );
+    this.send(
+      notification.title,
+      notification.body,
       "tornado",
       soundLevel,
     );
@@ -596,12 +645,12 @@ export class Notifier {
       parts.push(phenomenonParts.join(" / "));
     }
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
-      "earlyWeather",
-      soundLevel,
     );
+    this.send(notification.title, notification.body, "earlyWeather", soundLevel);
   }
 
   notifyWeatherWarningTimeseries(
@@ -663,9 +712,14 @@ export class Notifier {
       parts.push(`${info.areas.length}地域`);
     }
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
+    );
+    this.send(
+      notification.title,
+      notification.body,
       "weatherWarningTimeseries",
       soundLevel,
     );
@@ -699,12 +753,12 @@ export class Notifier {
       parts.push(firstLine.slice(0, 80));
     }
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
-      "climateInfo",
-      soundLevel,
     );
+    this.send(notification.title, notification.body, "climateInfo", soundLevel);
   }
 
   notifyWeatherExplanation(info: ParsedWeatherExplanation): void {
@@ -766,12 +820,12 @@ export class Notifier {
     }
     if (remarkLine != null) parts.push(remarkLine);
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
-      "weatherExplanation",
-      soundLevel,
     );
+    this.send(notification.title, notification.body, "weatherExplanation", soundLevel);
   }
 
   /**
@@ -823,12 +877,12 @@ export class Notifier {
       parts.push(`${loc}${desc}`.trim());
     }
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
-      "briefing",
-      soundLevel,
     );
+    this.send(notification.title, notification.body, "briefing", soundLevel);
   }
 
   /**
@@ -860,9 +914,14 @@ export class Notifier {
       parts.push(lead.slice(0, 80));
     }
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       parts.length > 0 ? parts.join(" / ") : info.title,
+    );
+    this.send(
+      notification.title,
+      notification.body,
       "heatAlert",
       soundLevel,
     );
@@ -891,9 +950,14 @@ export class Notifier {
       : info.name?.remark || "熱帯低気圧";
     const location = info.frames[0]?.center.location ?? "";
 
-    this.send(
+    const notification = correctionNotification(
+      info.infoType,
       info.title,
       `${nameLabel} ${location}`.trim(),
+    );
+    this.send(
+      notification.title,
+      notification.body,
       "typhoonAnalysis",
       soundLevel,
     );
@@ -956,7 +1020,8 @@ export class Notifier {
       })`;
     }
 
-    this.send(info.title, body, "typhoonProbability", soundLevel);
+    const notification = correctionNotification(info.infoType, info.title, body);
+    this.send(notification.title, notification.body, "typhoonProbability", soundLevel);
   }
 
   /**

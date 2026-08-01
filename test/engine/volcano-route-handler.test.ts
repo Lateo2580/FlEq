@@ -204,6 +204,11 @@ describe("VolcanoRouteHandler", () => {
     });
   });
 
+  it("reports parse failure separately from semantic suppression", () => {
+    parseMock.mockReturnValueOnce(null);
+    expect(handler.handle(createMessage("parse-failure", "VFVO54"))).toEqual({ kind: "parseFailed" });
+  });
+
   it("keeps each source message across a same-volcano interrupt flush", () => {
     const bufferedMsg = createMessage("vfvo53-message", "VFVO53");
     const interruptMsg = createMessage("vfvo56-message", "VFVO56");

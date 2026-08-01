@@ -49,6 +49,11 @@ import {
   VPWW56_REVISION_FAMILY_POLICY,
   VPWS50_REVISION_FAMILY_POLICY,
   FLOOD_FORECAST_REVISION_FAMILY_POLICY,
+  HEAT_ALERT_REVISION_FAMILY_POLICY,
+  LG_OBSERVATION_REVISION_FAMILY_POLICY,
+  NANKAI_REVISION_FAMILY_POLICY,
+  TORNADO_REVISION_FAMILY_POLICY,
+  TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
@@ -69,6 +74,7 @@ export interface PersistedHeatStateV1 {
   areas: DisplayHeatAreaV1[];
   isSpecial: boolean;
   revision: StandbyRevision;
+  appliedSemanticKey?: string;
 }
 
 export interface PersistedStandbyStateV1 {
@@ -120,16 +126,20 @@ export interface PersistedTelegramFoundationV2 {
     legacyEventIds?: string[];
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
+  standbyDomains: {
+    gateEntries: PersistedTelegramRevisionGateEntryV2[];
+  };
 }
 
 export type PersistedTelegramFoundationInputV2 = Omit<
   PersistedTelegramFoundationV2,
-  "tsunami" | "vpww56" | "volcano" | "floodForecast"
+  "tsunami" | "vpww56" | "volcano" | "floodForecast" | "standbyDomains"
 > & {
   tsunami?: PersistedTelegramFoundationV2["tsunami"];
   vpww56?: PersistedTelegramFoundationV2["vpww56"];
   volcano?: PersistedTelegramFoundationV2["volcano"];
   floodForecast?: PersistedTelegramFoundationV2["floodForecast"];
+  standbyDomains?: PersistedTelegramFoundationV2["standbyDomains"];
 };
 
 /**
@@ -205,6 +215,35 @@ function floodLegacySeenEntries(
   });
 }
 
+const STANDBY_FOUNDATION_POLICIES = [
+  TORNADO_REVISION_FAMILY_POLICY,
+  HEAT_ALERT_REVISION_FAMILY_POLICY,
+  TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
+  NANKAI_REVISION_FAMILY_POLICY,
+  LG_OBSERVATION_REVISION_FAMILY_POLICY,
+] as const;
+
+function standbyFoundationPolicy(entry: PersistedTelegramRevisionGateEntryV2) {
+  return STANDBY_FOUNDATION_POLICIES.find((policy) =>
+    policy.domain === entry.domain && policy.revisionFamily === entry.revisionFamily);
+}
+
+function standbyLegacySeenEntries(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedSeenEntry[] {
+  return entries.flatMap((entry) => {
+    const policy = standbyFoundationPolicy(entry);
+    const reportTimeMs = entry.comparison.revision.reportDateTime.epochMs;
+    const retentionMs = entry.tombstoneRetentionMs ?? policy?.tombstoneRetentionMs;
+    if (policy == null || reportTimeMs == null || retentionMs == null) return [];
+    return [{
+      key: entry.legacyRevisionKey?.trim() || entry.stateSubjectKey,
+      revision: { reportTimeMs, serial: entry.comparison.revision.serial.raw },
+      forgetAtMs: entry.acceptedAtMs + retentionMs + 1,
+    }];
+  });
+}
+
 function mergeLegacySeenEntries(
   existing: readonly PersistedSeenEntry[],
   added: readonly PersistedSeenEntry[],
@@ -218,7 +257,7 @@ function mergeLegacySeenEntries(
   return [...merged.values()];
 }
 
-export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; }
+export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; appliedSemanticKey?: string; }
 export interface PersistedVolcanoStateV1 {
   code: string;
   name: string;
@@ -236,10 +275,10 @@ export interface PersistedVolcanoStateV1 {
   alertRevision: StandbyRevision | null;
   eventRevision: StandbyRevision | null;
 }
-export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; }
-export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; }
+export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; appliedSemanticKey?: string; }
+export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; appliedSemanticKey?: string; }
 export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
-export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; }
+export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; appliedSemanticKey?: string; }
 export interface PersistedWeatherAlertStateV1 { source: DisplayWeatherSourceV1; alerts: DisplayWeatherAlertV1[]; revision: StandbyRevision; expiresAtMs: number; }
 
 /**
@@ -353,14 +392,22 @@ export class StandbyPersistence {
     const floodForecast = normalizeFloodFoundationForWrite(
       foundation.floodForecast ?? emptyFloodFoundation(),
     );
+    const standbyDomains = normalizeStandbyDomainsFoundationForWrite(
+      foundation.standbyDomains ?? emptyStandbyDomainsFoundation(),
+    );
+    const projectionState = salvageStandbyDomainProjections(
+      { ...state, version: 1 },
+      standbyDomains,
+    );
     const seen = mergeLegacySeenEntries(
-      state.seen,
+      projectionState.seen,
       volcanoLegacySeenEntries(volcano.gateEntries, volcano.state),
     );
+    const rollbackSeen = mergeLegacySeenEntries(seen, standbyLegacySeenEntries(standbyDomains.gateEntries));
     return {
-      ...state,
+      ...projectionState,
       version: 2,
-      seen,
+      seen: rollbackSeen,
       floods: floodForecast.authoritative
         ? {
             events: structuredClone(floodForecast.active),
@@ -373,6 +420,7 @@ export class StandbyPersistence {
         tsunami,
         volcano,
         floodForecast,
+        standbyDomains,
       }),
     };
   }
@@ -383,11 +431,14 @@ export class StandbyPersistence {
       ...legacy,
       version: 1,
       seen: mergeLegacySeenEntries(
-        legacy.seen,
-        volcanoLegacySeenEntries(
-          state.telegramFoundation.volcano.gateEntries,
-          state.telegramFoundation.volcano.state,
+        mergeLegacySeenEntries(
+          legacy.seen,
+          volcanoLegacySeenEntries(
+            state.telegramFoundation.volcano.gateEntries,
+            state.telegramFoundation.volcano.state,
+          ),
         ),
+        standbyLegacySeenEntries(state.telegramFoundation.standbyDomains.gateEntries),
       ),
       floods: state.telegramFoundation.floodForecast.authoritative
         ? {
@@ -873,7 +924,75 @@ function emptyTelegramFoundation(): PersistedTelegramFoundationV2 {
     tsunami: emptyTsunamiFoundation(),
     volcano: emptyVolcanoFoundation(),
     floodForecast: emptyFloodFoundation(),
+    standbyDomains: emptyStandbyDomainsFoundation(),
   };
+}
+
+function emptyStandbyDomainsFoundation(): PersistedTelegramFoundationV2["standbyDomains"] {
+  return { gateEntries: [] };
+}
+
+function standbySubjectMatchesPolicy(
+  entry: PersistedTelegramRevisionGateEntryV2,
+): boolean {
+  if (entry.domain === "tornado" && entry.revisionFamily === "tornado") {
+    return entry.stateSubjectKey.startsWith("tornado:");
+  }
+  if (entry.domain === "heatAlert" && entry.revisionFamily === "VPFT50") {
+    return entry.stateSubjectKey.startsWith("heat:");
+  }
+  if (entry.domain === "typhoonAnalysis" && entry.revisionFamily === "typhoonAnalysis") {
+    return entry.stateSubjectKey.startsWith("typhoon:");
+  }
+  if (entry.domain === "nankaiTrough" && entry.revisionFamily === "nankaiTrough") {
+    return entry.stateSubjectKey === "nankai:current";
+  }
+  if (entry.domain === "lgObservation" && entry.revisionFamily === "VXSE62") {
+    return entry.stateSubjectKey.startsWith("longPeriod:");
+  }
+  return false;
+}
+
+function normalizeStandbyDomainsFoundationForWrite(
+  value: PersistedTelegramFoundationV2["standbyDomains"],
+): PersistedTelegramFoundationV2["standbyDomains"] {
+  const perFamily = new Map<string, PersistedTelegramRevisionGateEntryV2[]>();
+  for (const entry of value.gateEntries) {
+    const policy = standbyFoundationPolicy(entry);
+    if (policy == null || !standbySubjectMatchesPolicy(entry)) continue;
+    const key = `${entry.domain}:${entry.revisionFamily}`;
+    const entries = perFamily.get(key) ?? [];
+    entries.push({
+      ...structuredClone(entry),
+      tombstoneRetentionMs: entry.tombstoneRetentionMs ?? policy.tombstoneRetentionMs,
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    });
+    perFamily.set(key, entries);
+  }
+  return {
+    gateEntries: [...perFamily.values()].flatMap((entries) => {
+      const policy = standbyFoundationPolicy(entries[0]);
+      return entries.slice(-(policy?.maxSubjects ?? TELEGRAM_REVISION_MAX_ENTRIES));
+    }),
+  };
+}
+
+function sanitizeStandbyDomainsFoundation(
+  value: unknown,
+): PersistedTelegramFoundationV2["standbyDomains"] | null {
+  if (!isRecord(value) || !Array.isArray(value.gateEntries)) return null;
+  const gateEntries = value.gateEntries.flatMap((candidate) => {
+    if (!isGateEntry(candidate)) return [];
+    const entry = candidate as PersistedTelegramRevisionGateEntryV2;
+    const policy = standbyFoundationPolicy(entry);
+    if (policy == null || !standbySubjectMatchesPolicy(entry)) return [];
+    return [{
+      ...structuredClone(entry),
+      tombstoneRetentionMs: entry.tombstoneRetentionMs ?? policy.tombstoneRetentionMs,
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    }];
+  });
+  return normalizeStandbyDomainsFoundationForWrite({ gateEntries });
 }
 
 function emptyVolcanoFoundation(): PersistedTelegramFoundationV2["volcano"] {
@@ -1844,11 +1963,66 @@ function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | nul
   if (validatedFlood == null) {
     log.warn("[standby-persistence] flood foundation structure validation failed; salvaging other domains");
   }
-  return { vpws50, vpww56, tsunami, volcano, floodForecast };
+  const validatedStandbyDomains = value.standbyDomains == null
+    ? emptyStandbyDomainsFoundation()
+    : sanitizeStandbyDomainsFoundation(value.standbyDomains);
+  const standbyDomains = validatedStandbyDomains ?? emptyStandbyDomainsFoundation();
+  if (validatedStandbyDomains == null) {
+    log.warn("[standby-persistence] standby domain foundation structure validation failed; domain watermarks discarded");
+  }
+  return { vpws50, vpww56, tsunami, volcano, floodForecast, standbyDomains };
 }
 
 function baseV1FromRecord(value: Record<string, unknown>): PersistedStandbyStateV1 | null {
   return sanitizePersistedStandbyStateV1({ ...value, version: 1 });
+}
+
+function standbyProjectionMatchesGate(
+  revision: StandbyRevision,
+  appliedSemanticKey: string | undefined,
+  gate: PersistedTelegramRevisionGateEntryV2 | undefined,
+): boolean {
+  if (gate == null || gate.cancelled) return false;
+  // tokenless projection is legacy only when no authoritative gate exists.
+  // Once a gate exists, an application token is required to prove that the
+  // projection was produced after that exact accepted payload.
+  if (appliedSemanticKey == null) return false;
+  return gate.comparison.revision.reportDateTime.epochMs === revision.reportTimeMs
+    && gate.comparison.revision.serial.raw === revision.serial
+    && gate.semanticKeys.at(-1) === appliedSemanticKey;
+}
+
+function salvageStandbyDomainProjections(
+  base: PersistedStandbyStateV1,
+  foundation: PersistedTelegramFoundationV2["standbyDomains"],
+): PersistedStandbyStateV1 {
+  const gates = new Map(foundation.gateEntries.map((entry) => [entry.stateSubjectKey, entry]));
+  const keep = (subject: string, revision: StandbyRevision, semanticKey?: string) => {
+    const gate = gates.get(subject);
+    return gate == null
+      ? semanticKey == null
+      : standbyProjectionMatchesGate(revision, semanticKey, gate);
+  };
+  return {
+    ...base,
+    heat: base.heat.filter((state) => keep(state.key, state.revision, state.appliedSemanticKey)),
+    typhoons: base.typhoons.filter((state) => keep(`typhoon:${state.key}`, state.revision, state.appliedSemanticKey)),
+    tornado: base.tornado?.filter((state) => keep(
+      `tornado:${state.publishingOffice}`,
+      state.revision,
+      state.appliedSemanticKey,
+    )),
+    longPeriod: base.longPeriod?.filter((state) => keep(
+      `longPeriod:${state.eventId}`,
+      state.revision,
+      state.appliedSemanticKey,
+    )),
+    nankaiTrough: base.nankaiTrough != null && keep(
+      "nankai:current",
+      base.nankaiTrough.revision,
+      base.nankaiTrough.appliedSemanticKey,
+    ) ? base.nankaiTrough : null,
+  };
 }
 
 function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
@@ -1856,7 +2030,8 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
   const base = baseV1FromRecord(value);
   const telegramFoundation = sanitizeFoundation(value.telegramFoundation);
   if (base == null || telegramFoundation == null) return null;
-  return { ...base, version: 2, telegramFoundation };
+  const salvaged = salvageStandbyDomainProjections(base, telegramFoundation.standbyDomains);
+  return { ...salvaged, version: 2, telegramFoundation };
 }
 
 function migratedVpws50GateEntries(base: PersistedStandbyStateV1): PersistedTelegramRevisionGateEntryV2[] {
@@ -1911,6 +2086,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
       tsunami: emptyTsunamiFoundation(),
       volcano: emptyVolcanoFoundation(),
       floodForecast: emptyFloodFoundation(),
+      standbyDomains: emptyStandbyDomainsFoundation(),
     },
   };
 }
@@ -2034,9 +2210,19 @@ function hasFloodMigrationConflict(raw: unknown, state: PersistedStandbyStateV2)
   return JSON.stringify(canonicalSeen) !== JSON.stringify(legacySeen);
 }
 
+function hasStandbyDomainsMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
+  if (!isRecord(raw)) return false;
+  const projected = standbyLegacySeenEntries(state.telegramFoundation.standbyDomains.gateEntries);
+  if (projected.length === 0) return false;
+  if (!Object.hasOwn(raw, "seen")) return true;
+  const legacyByKey = new Map(state.seen.map((entry) => [entry.key, entry]));
+  return projected.some((entry) => JSON.stringify(legacyByKey.get(entry.key)) !== JSON.stringify(entry));
+}
+
 function hasFoundationMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
   return hasVpws50MigrationConflict(raw, state)
     || hasVpww56MigrationConflict(raw, state)
     || hasVolcanoMigrationConflict(raw, state)
-    || hasFloodMigrationConflict(raw, state);
+    || hasFloodMigrationConflict(raw, state)
+    || hasStandbyDomainsMigrationConflict(raw, state);
 }

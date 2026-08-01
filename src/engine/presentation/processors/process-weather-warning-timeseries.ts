@@ -11,20 +11,16 @@ import {
  * 気象警報・注意報時系列情報 (VPWP50) を処理し
  * WeatherWarningTimeseriesOutcome を返す。パース失敗時は null。
  *
- * パース成功直後に deps.vpwp50Cache.rememberLatest(info) を呼び、最新電文を
- * cache する。表示抑制 (filter / compact) や取消電文でも cache は更新される。
+ * router 経路では共通 revision gate 受理後に process-message が cache を更新する。
+ * 直接利用で deps を渡した場合だけ、互換経路としてここで更新する。
  */
 export function processWeatherWarningTimeseries(
   msg: WsDataMessage,
-  deps?: ProcessDeps,
+  deps?: Pick<ProcessDeps, "vpwp50Cache">,
 ): WeatherWarningTimeseriesOutcome | null {
   const info = parseWeatherWarningTimeseries(msg);
   if (!info) return null;
-
-  // parse できた info を最新として記憶 (display/filter とは独立に detail を提供)
-  if (deps?.vpwp50Cache != null) {
-    deps.vpwp50Cache.rememberLatest(info);
-  }
+  deps?.vpwp50Cache.rememberLatest(info);
 
   return {
     domain: "weatherWarningTimeseries",

@@ -16,6 +16,11 @@ export type CancellationPolicy =
   | "clearCurrent"
   | "markCancelled";
 
+export type CancellationTrigger =
+  | "explicitCancellation"
+  | "terminal"
+  | "deactivation";
+
 export type TelegramRevisionDecisionKind =
   | "accept"
   | "acceptTransient"
@@ -29,7 +34,8 @@ export type TelegramRevisionDecisionKind =
   | "stale"
   | "invalidMeta"
   | "invalidRevision"
-  | "cancelTargetMismatch";
+  | "cancelTargetMismatch"
+  | "capacityExceeded";
 
 export interface TelegramRevisionDecision {
   kind: TelegramRevisionDecisionKind;
@@ -37,6 +43,7 @@ export interface TelegramRevisionDecision {
   accepted: boolean;
   isCorrection: boolean;
   isTerminal: boolean;
+  resolvedTrigger: CancellationTrigger | null;
 }
 
 export interface TelegramRevisionGateInput {
@@ -51,8 +58,9 @@ export interface TelegramRevisionGateInput {
   deactivation?: boolean;
   cancellationTargetMatches?: boolean;
   durable?: boolean;
+  /** durable tombstone / non-durable runtime watermark の family 保持期間。 */
   tombstoneRetentionMs?: number | null;
-  /** registry が保証する family 全体の subject 上限。null/省略は非永続 family 用。 */
+  /** registry が保証する family 全体の subject 上限。全 policy で必須。 */
   maxSubjects?: number | null;
   /** family 上限 compaction で保持する canonical/whole subject。 */
   retainForFamilyCapacity?: boolean;
@@ -93,7 +101,7 @@ export interface PersistedTelegramRevisionGateEntryV2 {
 
 const REVISION_GATE_RETENTION_MS = 11 * 60_000;
 const DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS = 7 * 24 * 60 * 60_000;
-export const TELEGRAM_REVISION_MAX_ENTRIES = 4096;
+export const TELEGRAM_REVISION_MAX_ENTRIES = 16_384;
 export const TELEGRAM_REVISION_MAX_SEMANTIC_KEYS = 32;
 
 function reject(
@@ -115,18 +123,29 @@ function reject(
     accepted: false,
     isCorrection: false,
     isTerminal: false,
+    resolvedTrigger: null,
   };
+}
+
+function resolveCancellationTrigger(
+  input: TelegramRevisionGateInput,
+): CancellationTrigger | null {
+  if (input.meta.infoType.value === "取消") return "explicitCancellation";
+  if (input.terminal) return "terminal";
+  if (input.deactivation === true) return "deactivation";
+  return null;
 }
 
 function acceptedKind(
   input: TelegramRevisionGateInput,
+  resolvedTrigger: CancellationTrigger | null,
 ):
   | "accept"
   | "replaceCorrection"
   | "markCancelled"
   | "restorePrevious"
   | "clearCurrent" {
-  if (input.meta.infoType.value === "取消" || input.terminal || input.deactivation === true) {
+  if (resolvedTrigger != null) {
     return input.cancellationPolicy;
   }
   if (input.meta.infoType.value === "訂正") return "replaceCorrection";
@@ -138,7 +157,13 @@ function tombstoneRetentionMs(input: TelegramRevisionGateInput): number | null {
   if (configured === null) return null;
   return configured != null && Number.isFinite(configured) && configured > 0
     ? configured
-    : DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS;
+    : input.durable === true
+      ? DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS
+      : null;
+}
+
+function runtimeRetentionMs(state: AcceptedRevisionState): number {
+  return state.tombstoneRetentionMs ?? REVISION_GATE_RETENTION_MS;
 }
 
 function rememberSemanticKey(state: AcceptedRevisionState, key: string): void {
@@ -221,7 +246,13 @@ export class TelegramRevisionGate {
   private readonly warnedFamilyCapacity = new Set<string>();
   private readonly transientStates = new Map<
     string,
-    { semanticKey: string; acceptedAtMs: number }
+    {
+      semanticKey: string;
+      acceptedAtMs: number;
+      domain: string;
+      revisionFamily: string;
+      retentionMs: number;
+    }
   >();
   private readonly transientSemanticKeys = new Map<string, string>();
 
@@ -282,32 +313,57 @@ export class TelegramRevisionGate {
         input.meta.infoType.raw,
         input.payloadFingerprint,
       ].join(":");
+      const transientStateKey = `${input.domain}:${input.revisionFamily}:${input.transientSubjectKey}`;
+      const retentionMs = input.tombstoneRetentionMs != null
+        && Number.isFinite(input.tombstoneRetentionMs)
+        && input.tombstoneRetentionMs > 0
+        ? input.tombstoneRetentionMs
+        : REVISION_GATE_RETENTION_MS;
       const duplicateSubject = this.transientSemanticKeys.get(transientSemanticKey);
       const duplicateState = duplicateSubject == null
         ? null
         : this.transientStates.get(duplicateSubject) ?? null;
       if (
         duplicateState != null
-        && input.meta.receivedAtMs - duplicateState.acceptedAtMs <= REVISION_GATE_RETENTION_MS
+        && input.meta.receivedAtMs - duplicateState.acceptedAtMs <= duplicateState.retentionMs
       ) {
         return reject("semanticDuplicate", "equal");
       }
-      const transientState = this.transientStates.get(input.transientSubjectKey);
+      const transientState = this.transientStates.get(transientStateKey);
       if (
         transientState != null
-        && input.meta.receivedAtMs - transientState.acceptedAtMs <= REVISION_GATE_RETENTION_MS
+        && input.meta.receivedAtMs - transientState.acceptedAtMs <= transientState.retentionMs
       ) {
         return reject("invalidMeta", null);
       }
+      if (!this.canAcceptNewSubject(
+        input.domain,
+        input.revisionFamily,
+        input.maxSubjects,
+        input.meta.receivedAtMs,
+      )) {
+        if (commit) this.warnCapacityRejected(input.domain, input.revisionFamily, input.maxSubjects);
+        return reject("capacityExceeded", null);
+      }
       if (commit) {
-        this.transientStates.set(input.transientSubjectKey, {
+        this.makeRoomForNewSubject(
+          input.domain,
+          input.revisionFamily,
+          input.maxSubjects,
+          input.meta.receivedAtMs,
+        );
+        this.transientStates.set(transientStateKey, {
           semanticKey: transientSemanticKey,
           acceptedAtMs: input.meta.receivedAtMs,
+          domain: input.domain,
+          revisionFamily: input.revisionFamily,
+          retentionMs,
         });
         this.transientSemanticKeys.set(
           transientSemanticKey,
-          input.transientSubjectKey,
+          transientStateKey,
         );
+        this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
         this.sweep(input.meta.receivedAtMs);
       }
       return {
@@ -316,6 +372,7 @@ export class TelegramRevisionGate {
         accepted: true,
         isCorrection: infoType.value === "訂正",
         isTerminal: input.terminal,
+        resolvedTrigger: resolveCancellationTrigger(input),
       };
     }
 
@@ -334,14 +391,13 @@ export class TelegramRevisionGate {
     };
     const stored = this.states.get(key);
     const existing = stored != null
-      && (stored.durable || input.meta.receivedAtMs - stored.acceptedAtMs <= REVISION_GATE_RETENTION_MS)
+      && (stored.durable || input.meta.receivedAtMs - stored.acceptedAtMs <= runtimeRetentionMs(stored))
       ? stored
       : undefined;
     const nextSemanticKey = telegramRevisionSemanticKey(input);
 
-    const cancellationTriggered = infoType.value === "取消"
-      || input.terminal
-      || input.deactivation === true;
+    const resolvedTrigger = resolveCancellationTrigger(input);
+    const cancellationTriggered = resolvedTrigger != null;
     if (cancellationTriggered && input.cancellationTargetMatches === false) {
       return reject("cancelTargetMismatch", null);
     }
@@ -350,8 +406,23 @@ export class TelegramRevisionGate {
       if (cancellationTriggered && input.cancellationPolicy === "restorePrevious") {
         return reject("cancelTargetMismatch", null);
       }
-      const kind = acceptedKind(input);
+      if (!this.canAcceptNewSubject(
+        input.domain,
+        input.revisionFamily,
+        input.maxSubjects,
+        input.meta.receivedAtMs,
+      )) {
+        if (commit) this.warnCapacityRejected(input.domain, input.revisionFamily, input.maxSubjects);
+        return reject("capacityExceeded", null);
+      }
+      const kind = acceptedKind(input, resolvedTrigger);
       if (commit) {
+        this.makeRoomForNewSubject(
+          input.domain,
+          input.revisionFamily,
+          input.maxSubjects,
+          input.meta.receivedAtMs,
+        );
         this.states.set(key, {
           comparison: incomingComparison,
           semanticKeys: new Set([nextSemanticKey]),
@@ -372,6 +443,7 @@ export class TelegramRevisionGate {
         accepted: true,
         isCorrection: infoType.value === "訂正",
         isTerminal: input.terminal,
+        resolvedTrigger,
       };
     }
 
@@ -420,6 +492,7 @@ export class TelegramRevisionGate {
           accepted: true,
           isCorrection: false,
           isTerminal: input.terminal,
+          resolvedTrigger,
         };
       }
       // restorePrevious の tombstone は同一 revision の遅延訂正でも解除しない。
@@ -437,7 +510,7 @@ export class TelegramRevisionGate {
       if (existing.semanticKeys.has(nextSemanticKey)) {
         return reject("semanticDuplicate", relation);
       }
-      const kind = acceptedKind(input);
+      const kind = acceptedKind(input, resolvedTrigger);
       if (commit) {
         rememberSemanticKey(existing, nextSemanticKey);
         // 同一 revision の訂正・取消でも、永続化する現況 identity は
@@ -462,10 +535,11 @@ export class TelegramRevisionGate {
         accepted: true,
         isCorrection: infoType.value === "訂正",
         isTerminal: input.terminal,
+        resolvedTrigger,
       };
     }
 
-    const kind = acceptedKind(input);
+    const kind = acceptedKind(input, resolvedTrigger);
     if (commit) {
       // Map#set は既存 key の挿入順を変えないため、holder の delete→set と揃える。
       this.states.delete(key);
@@ -489,6 +563,7 @@ export class TelegramRevisionGate {
       accepted: true,
       isCorrection: infoType.value === "訂正",
       isTerminal: input.terminal,
+      resolvedTrigger,
     };
   }
 
@@ -504,7 +579,7 @@ export class TelegramRevisionGate {
       existing == null
       || existing.cancelled
       || (!existing.durable
-        && input.meta.receivedAtMs - existing.acceptedAtMs > REVISION_GATE_RETENTION_MS)
+        && input.meta.receivedAtMs - existing.acceptedAtMs > runtimeRetentionMs(existing))
     ) return false;
     const keys = [...existing.semanticKeys];
     return keys[keys.length - 1] === telegramRevisionSemanticKey(input);
@@ -515,12 +590,111 @@ export class TelegramRevisionGate {
     this.states.set(key, state);
   }
 
-  private enforceFamilyLimit(
+  private canAcceptNewSubject(
     domain: string,
     revisionFamily: string,
     maxSubjects: number | null | undefined,
+    nowMs: number,
+  ): boolean {
+    if (maxSubjects == null) {
+      return this.liveEntryCount(nowMs) < TELEGRAM_REVISION_MAX_ENTRIES;
+    }
+    this.validateFamilyLimit(domain, revisionFamily, maxSubjects);
+    const regular = this.liveFamilyEntries(domain, revisionFamily, nowMs);
+    const transient = this.liveTransientFamilyEntries(domain, revisionFamily, nowMs);
+    if (regular.length + transient.length < maxSubjects) {
+      return this.liveEntryCount(nowMs) < TELEGRAM_REVISION_MAX_ENTRIES;
+    }
+    return transient.length > 0 || regular.some(([, state]) => this.isFamilyEvictable(state));
+  }
+
+  private makeRoomForNewSubject(
+    domain: string,
+    revisionFamily: string,
+    maxSubjects: number | null | undefined,
+    nowMs: number,
   ): void {
     if (maxSubjects == null) return;
+    this.validateFamilyLimit(domain, revisionFamily, maxSubjects);
+    while (
+      this.liveFamilyEntries(domain, revisionFamily, nowMs).length
+      + this.liveTransientFamilyEntries(domain, revisionFamily, nowMs).length
+      >= maxSubjects
+    ) {
+      const oldestTransient = this.liveTransientFamilyEntries(domain, revisionFamily, nowMs)
+        .sort(([, left], [, right]) => left.acceptedAtMs - right.acceptedAtMs)[0];
+      if (oldestTransient != null) {
+        this.deleteTransientState(oldestTransient[0], oldestTransient[1]);
+        continue;
+      }
+      const oldestEvictable = this.liveFamilyEntries(domain, revisionFamily, nowMs)
+        .filter(([, state]) => this.isFamilyEvictable(state))
+        .sort(([, left], [, right]) => left.acceptedAtMs - right.acceptedAtMs)[0];
+      if (oldestEvictable == null) {
+        throw new Error(
+          `telegram revision family capacity admission invariant violated: ${domain}:${revisionFamily}`,
+        );
+      }
+      this.states.delete(oldestEvictable[0]);
+    }
+  }
+
+  private liveEntryCount(nowMs: number): number {
+    const regular = [...this.states.values()].filter((state) => this.isStateLive(state, nowMs)).length;
+    const transient = [...this.transientStates.values()].filter(
+      (state) => nowMs - state.acceptedAtMs <= state.retentionMs,
+    ).length;
+    return regular + transient;
+  }
+
+  private liveFamilyEntries(
+    domain: string,
+    revisionFamily: string,
+    nowMs: number,
+  ): [string, AcceptedRevisionState][] {
+    const prefix = `${domain}:${revisionFamily}:`;
+    return [...this.states].filter(([key, state]) =>
+      key.startsWith(prefix) && this.isStateLive(state, nowMs));
+  }
+
+  private liveTransientFamilyEntries(
+    domain: string,
+    revisionFamily: string,
+    nowMs: number,
+  ): [string, {
+    semanticKey: string;
+    acceptedAtMs: number;
+    domain: string;
+    revisionFamily: string;
+    retentionMs: number;
+  }][] {
+    return [...this.transientStates].filter(([, state]) =>
+      state.domain === domain
+      && state.revisionFamily === revisionFamily
+      && nowMs - state.acceptedAtMs <= state.retentionMs);
+  }
+
+  private isStateLive(state: AcceptedRevisionState, nowMs: number): boolean {
+    if (!state.durable) return nowMs - state.acceptedAtMs <= runtimeRetentionMs(state);
+    return !(
+      state.cancelled
+      && state.tombstoneRetentionMs != null
+      && nowMs - state.acceptedAtMs > state.tombstoneRetentionMs
+    );
+  }
+
+  private isFamilyEvictable(state: AcceptedRevisionState): boolean {
+    return !(
+      state.retainForFamilyCapacity
+      || state.durable && state.cancelled && state.tombstoneRetentionMs === null
+    );
+  }
+
+  private validateFamilyLimit(
+    domain: string,
+    revisionFamily: string,
+    maxSubjects: number,
+  ): void {
     if (
       !Number.isSafeInteger(maxSubjects)
       || maxSubjects <= 0
@@ -528,30 +702,64 @@ export class TelegramRevisionGate {
     ) {
       throw new Error(`invalid family maxSubjects: ${domain}:${revisionFamily}:${maxSubjects}`);
     }
+  }
+
+  private warnCapacityRejected(
+    domain: string,
+    revisionFamily: string,
+    maxSubjects: number | null | undefined,
+  ): void {
+    const warningKey = `${domain}:${revisionFamily}`;
+    if (this.warnedFamilyCapacity.has(warningKey)) return;
+    this.warnedFamilyCapacity.add(warningKey);
+    this.onCapacityError(
+      `[telegram-revision-gate] rejected new subject at hard family capacity: ${warningKey} (${maxSubjects ?? "global"})`,
+    );
+  }
+
+  private enforceFamilyLimit(
+    domain: string,
+    revisionFamily: string,
+    maxSubjects: number | null | undefined,
+  ): void {
+    if (maxSubjects == null) return;
+    this.validateFamilyLimit(domain, revisionFamily, maxSubjects);
     const prefix = `${domain}:${revisionFamily}:`;
     const familyEntries = () => [...this.states].filter(([key]) => key.startsWith(prefix));
-    while (familyEntries().length > maxSubjects) {
+    const transientFamilyEntries = () => [...this.transientStates].filter(
+      ([, state]) => state.domain === domain && state.revisionFamily === revisionFamily,
+    );
+    const familySize = () => familyEntries().length + transientFamilyEntries().length;
+    while (familySize() > maxSubjects) {
+      const oldestTransient = transientFamilyEntries()
+        .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0];
+      if (oldestTransient != null) {
+        this.deleteTransientState(oldestTransient[0], oldestTransient[1]);
+        continue;
+      }
       const oldestEvictable = familyEntries()
-        .filter(([, state]) => !(
-          state.retainForFamilyCapacity
-          || state.durable
-            && state.cancelled
-            && state.tombstoneRetentionMs === null
-        ))
+        .filter(([, state]) => this.isFamilyEvictable(state))
         .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0]?.[0];
       if (oldestEvictable == null) {
-        const warningKey = `${domain}:${revisionFamily}`;
-        if (!this.warnedFamilyCapacity.has(warningKey)) {
-          this.warnedFamilyCapacity.add(warningKey);
-          this.onCapacityError(
-            `[telegram-revision-gate] indefinite tombstones exceed maxSubjects: ${warningKey} (${familyEntries().length}/${maxSubjects})`,
-          );
-        }
-        return;
+        throw new Error(
+          `telegram revision family capacity invariant violated: ${domain}:${revisionFamily}`,
+        );
       }
       this.states.delete(oldestEvictable);
     }
-    this.warnedFamilyCapacity.delete(`${domain}:${revisionFamily}`);
+    if (familySize() < maxSubjects) {
+      this.warnedFamilyCapacity.delete(`${domain}:${revisionFamily}`);
+    }
+  }
+
+  private deleteTransientState(
+    key: string,
+    state: { semanticKey: string },
+  ): void {
+    this.transientStates.delete(key);
+    if (this.transientSemanticKeys.get(state.semanticKey) === key) {
+      this.transientSemanticKeys.delete(state.semanticKey);
+    }
   }
 
   clear(domain: string, revisionFamily: string, stateSubjectKey: string): void {
@@ -686,6 +894,13 @@ export class TelegramRevisionGate {
   restoreDurableEntries(entries: readonly PersistedTelegramRevisionGateEntryV2[]): void {
     for (const entry of entries) {
       const key = `${entry.domain}:${entry.revisionFamily}:${entry.stateSubjectKey}`;
+      if (
+        !this.states.has(key)
+        && this.states.size + this.transientStates.size >= TELEGRAM_REVISION_MAX_ENTRIES
+      ) {
+        this.warnCapacityRejected("restore", "durable", TELEGRAM_REVISION_MAX_ENTRIES);
+        continue;
+      }
       this.states.set(key, {
         comparison: structuredClone(entry.comparison),
         semanticKeys: new Set(compactPersistedSemanticKeys(entry.semanticKeys)),
@@ -707,7 +922,7 @@ export class TelegramRevisionGate {
   private sweep(nowMs: number): void {
     for (const [key, state] of this.states) {
       const expiredTransient = !state.durable
-        && nowMs - state.acceptedAtMs > REVISION_GATE_RETENTION_MS;
+        && nowMs - state.acceptedAtMs > runtimeRetentionMs(state);
       const expiredTombstone = state.durable
         && state.cancelled
         && state.tombstoneRetentionMs != null
@@ -717,31 +932,8 @@ export class TelegramRevisionGate {
       }
     }
     for (const [subjectKey, state] of this.transientStates) {
-      if (nowMs - state.acceptedAtMs > REVISION_GATE_RETENTION_MS) {
-        this.transientStates.delete(subjectKey);
-        this.transientSemanticKeys.delete(state.semanticKey);
-      }
-    }
-    while (this.states.size > TELEGRAM_REVISION_MAX_ENTRIES) {
-      const oldest = [...this.states]
-        .filter(([, state]) => !(
-          state.durable
-          && state.cancelled
-          && state.tombstoneRetentionMs === null
-        ))
-        .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0]?.[0];
-      if (oldest == null) break;
-      this.states.delete(oldest);
-    }
-    while (this.transientStates.size > TELEGRAM_REVISION_MAX_ENTRIES) {
-      const oldest = this.transientStates.keys().next().value as
-        | string
-        | undefined;
-      if (oldest == null) break;
-      const state = this.transientStates.get(oldest);
-      this.transientStates.delete(oldest);
-      if (state != null) {
-        this.transientSemanticKeys.delete(state.semanticKey);
+      if (nowMs - state.acceptedAtMs > state.retentionMs) {
+        this.deleteTransientState(subjectKey, state);
       }
     }
   }

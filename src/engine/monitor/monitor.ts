@@ -108,6 +108,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
           entry.domain === "floodForecast" && entry.revisionFamily === "floodForecast"),
       },
+      standbyDomains: {
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation"]
+            .includes(entry.domain)),
+      },
     }),
   );
   let standbyDirtyNotify: (() => void) | null = null;
@@ -170,6 +175,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         persistedFlood.legacyEventIds ?? [],
       );
     }
+    revisionGate.restoreDurableEntries(persistedStandby.telegramFoundation.standbyDomains.gateEntries);
     if (persistedVpws50.authoritative) {
       const identity = vpws50State.getCurrentIdentity();
       standbyStore.restoreCanonicalVpws50Alerts(
@@ -363,6 +369,9 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       if (!decision.accepted) return;
       floodFoundationAuthoritative = true;
       standbyPersistence.schedule(standbyStore.exportActiveState());
+    },
+    onStandbyRevisionDecision: (decision) => {
+      if (decision.accepted) standbyPersistence.schedule(standbyStore.exportActiveState());
     },
   });
   for (let i = 0; i < standbyPersistence.takeMigrationConflictCount(); i++) {

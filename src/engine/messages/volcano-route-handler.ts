@@ -55,6 +55,12 @@ export interface VolcanoRouteHandlerDeps {
   onFoundationPresented?: () => void;
 }
 
+export type VolcanoRouteHandleResult =
+  | { kind: "accepted"; parsed: ParsedVolcanoInfo }
+  | { kind: "parseFailed" }
+  | { kind: "policyMissing" }
+  | { kind: "suppressed" };
+
 // ── 本体 ──
 
 export class VolcanoRouteHandler {
@@ -69,6 +75,14 @@ export class VolcanoRouteHandler {
   private readonly onFoundationPresented?: () => void;
   private readonly aggregator: VolcanoVfvo53Aggregator;
   private lastImmediateAccepted: boolean | null = null;
+  private readonly preAggregatedFoundation = new Map<string, {
+    suppressed: false;
+    authoritative: true;
+    acceptedCorrection: boolean;
+    acceptedSubjects: string[];
+    activeAlertSubjects: string[];
+    activeEruptionSubjects: string[];
+  }>();
 
   constructor(deps: VolcanoRouteHandlerDeps) {
     this.volcanoState = deps.volcanoState;
@@ -89,15 +103,32 @@ export class VolcanoRouteHandler {
 
   /**
    * 火山電文を処理する。
-   * @returns パース成功なら ParsedVolcanoInfo (統計記録用)、失敗なら null。
+   * parse failure / policy 欠落 / semantic suppression を区別して返す。
    */
-  handle(msg: WsDataMessage): ParsedVolcanoInfo | null {
+  handle(msg: WsDataMessage): VolcanoRouteHandleResult {
     const volcanoInfo = parseVolcanoTelegram(msg);
-    if (!volcanoInfo) return null;
+    if (!volcanoInfo) return { kind: "parseFailed" };
+
+    const policy = volcanoRevisionFamilyPolicy(msg.head.type);
+    if (policy == null) return { kind: "policyMissing" };
+    if (
+      policy.revisionFamily === "volcanoAshfall" || policy.revisionFamily === "volcanoTransient"
+    ) {
+      const foundation = this.applyPreAggregateFoundation(volcanoInfo, msg, policy);
+      if (foundation == null) return { kind: "suppressed" };
+      this.preAggregatedFoundation.set(msg.id, foundation);
+      while (this.preAggregatedFoundation.size > 256) {
+        const oldest = this.preAggregatedFoundation.keys().next().value as string | undefined;
+        if (oldest == null) break;
+        this.preAggregatedFoundation.delete(oldest);
+      }
+    }
 
     this.lastImmediateAccepted = null;
     this.aggregator.handle(volcanoInfo, msg);
-    return this.lastImmediateAccepted === false ? null : volcanoInfo;
+    return this.lastImmediateAccepted === false
+      ? { kind: "suppressed" }
+      : { kind: "accepted", parsed: volcanoInfo };
   }
 
   /** 保留中の火山バッファを flush してリソースを破棄する */
@@ -117,7 +148,9 @@ export class VolcanoRouteHandler {
       : null;
     const presentation = outcome?.volcanoPresentation
       ?? resolveVolcanoPresentation(info, this.volcanoState);
-    const foundation = msg == null ? null : this.applyFoundation(info, msg);
+    const preAggregated = msg == null ? null : this.preAggregatedFoundation.get(msg.id) ?? null;
+    if (msg != null) this.preAggregatedFoundation.delete(msg.id);
+    const foundation = preAggregated ?? (msg == null ? null : this.applyFoundation(info, msg));
     if (foundation?.suppressed === true) {
       this.lastImmediateAccepted = false;
       return;
@@ -351,6 +384,66 @@ export class VolcanoRouteHandler {
     };
   }
 
+  private applyPreAggregateFoundation(
+    info: ParsedVolcanoInfo,
+    msg: WsDataMessage,
+    policy: NonNullable<ReturnType<typeof volcanoRevisionFamilyPolicy>>,
+  ): {
+    suppressed: false;
+    authoritative: true;
+    acceptedCorrection: boolean;
+    acceptedSubjects: string[];
+    activeAlertSubjects: string[];
+    activeEruptionSubjects: string[];
+  } | null {
+    if (this.revisionGate == null) return {
+      suppressed: false,
+      authoritative: true,
+      acceptedCorrection: info.infoType === "訂正",
+      acceptedSubjects: [],
+      activeAlertSubjects: [],
+      activeEruptionSubjects: [],
+    };
+    const extracted = policy.extractStateSubjectKey(info.meta, info);
+    const subjects = extracted == null
+      ? []
+      : [...new Set(typeof extracted === "string" ? [extracted] : extracted)];
+    const subject = subjects.length === 1 ? subjects[0] : null;
+    const targets = policy.extractCancellationTarget(info.meta, info);
+    const { meta: _meta, isTest: _isTest, ...payload } = info;
+    const decision = this.revisionGate.decide({
+      domain: policy.domain,
+      revisionFamily: policy.revisionFamily,
+      stateSubjectKey: subject,
+      transientSubjectKey: subject == null ? `volcano:${policy.revisionFamily}:${msg.id}` : null,
+      meta: info.meta,
+      comparator: policy.comparator,
+      cancellationPolicy: policy.cancellationPolicy,
+      terminal: policy.terminalPredicate(info.meta, info),
+      deactivation: policy.deactivationPredicate(info.meta, info),
+      cancellationTargetMatches: targets == null || subject == null
+        ? info.meta.infoType.value !== "取消" || subject == null
+        : targets.includes(subject),
+      durable: policy.durable,
+      tombstoneRetentionMs: policy.tombstoneRetentionMs,
+      maxSubjects: policy.maxSubjects,
+      allowMissingSerial: policy.allowMissingSerial,
+      payloadFingerprint: semanticPayloadFingerprint(payload),
+      legacyRevisionKey: subject,
+    });
+    this.onRevisionDecision?.(decision);
+    if (!decision.accepted) return null;
+    this.onVolcanoRevisionDecision?.(decision);
+    return {
+      suppressed: false,
+      authoritative: true,
+      acceptedCorrection: decision.isCorrection,
+      acceptedSubjects: subject == null ? [] : [subject],
+      activeAlertSubjects: this.revisionGate.activeRevisionFamilySubjects("volcano", "volcanoAlert"),
+      activeEruptionSubjects: this.revisionGate.activeRevisionFamilySubjects("volcano", "volcanoEruption"),
+    };
+  }
+
   private retainFoundationSubjects(): void {
     const alerts = this.revisionGate?.activeRevisionFamilySubjects("volcano", "volcanoAlert") ?? [];
     const eruptions = this.revisionGate?.activeRevisionFamilySubjects("volcano", "volcanoEruption") ?? [];
@@ -359,9 +452,17 @@ export class VolcanoRouteHandler {
 
   private emitBatch(batch: Vfvo53BatchItems, opts: FlushOptions): void {
     const presentation = resolveVolcanoBatchPresentation(batch);
+    const acceptedCorrection = (batch.sources ?? []).some((source) => {
+      const messageId = source.msg?.id;
+      if (messageId == null) return false;
+      const foundation = this.preAggregatedFoundation.get(messageId);
+      this.preAggregatedFoundation.delete(messageId);
+      return foundation?.acceptedCorrection === true;
+    });
 
     if (opts.notify) {
-      this.notifier.notifyVolcanoBatch(batch, presentation);
+      this.notifier.notifyVolcanoBatch(batch, presentation, acceptedCorrection);
+      this.onFoundationNotified?.(acceptedCorrection);
     }
 
     const rawSources = batch.sources ?? [];
@@ -394,12 +495,15 @@ export class VolcanoRouteHandler {
           frameLevel: presentation.frameLevel,
           soundLevel: presentation.soundLevel,
           notifyCategory: "volcano",
+          acceptedCorrection,
+          foundationMutationAccepted: true,
         },
       };
 
-      this.runDisplayPipeline(batchOutcome, () =>
+      const presented = this.runDisplayPipeline(batchOutcome, () =>
         this.display?.displayVolcanoBatch(batch, presentation),
       );
+      if (presented) this.onFoundationPresented?.();
     } else {
       this.display?.displayVolcanoBatch(batch, presentation);
     }

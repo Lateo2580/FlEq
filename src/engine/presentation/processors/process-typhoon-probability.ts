@@ -20,20 +20,15 @@ export function processTyphoonProbability(
 
   let { frameLevel, soundLevel, maxDaily5 } = resolveTyphoonProbabilityLevels(info);
   let suppressNotify = false;
-
-  if (info.infoType !== "取消" && deps?.typhoonProbabilityState != null) {
-    const eventId = info.eventId ?? "";
-    const diff = deps.typhoonProbabilityState.diffAndUpdate(
-      eventId,
-      maxDaily5,
-      info.reportDateTime,
-    );
-    if (diff.isUnchangedZero && !diff.shouldRecap) {
-      soundLevel = "info";
-      suppressNotify = true;
+  if (deps?.typhoonProbabilityState != null) {
+    if (info.infoType === "取消") deps.typhoonProbabilityState.rollback(info.eventId ?? "");
+    else {
+      const diff = deps.typhoonProbabilityState.diffAndUpdate(info.eventId ?? "", maxDaily5, info.reportDateTime);
+      if (diff.isUnchangedZero && !diff.shouldRecap) {
+        soundLevel = "info";
+        suppressNotify = true;
+      }
     }
-  } else if (info.infoType === "取消" && deps?.typhoonProbabilityState != null) {
-    deps.typhoonProbabilityState.rollback(info.eventId ?? "");
   }
 
   return {

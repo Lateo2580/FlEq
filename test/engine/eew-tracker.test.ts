@@ -327,6 +327,34 @@ describe("EewTracker", () => {
       expect(r3.activeCount).toBe(3);
     });
 
+    it("大量の EventID を受信しても tracker と revision family を 512 件に制限する", () => {
+      const onCleanup = vi.fn();
+      const boundedTracker = new EewTracker({ onCleanup });
+
+      for (let index = 0; index < 513; index++) {
+        const eventId = `capacity-${index.toString().padStart(4, "0")}`;
+        const result = boundedTracker.update(createEewInfo({
+          eventId,
+          meta: createTelegramMeta({
+            messageId: `capacity-${index}`,
+            eventId,
+            type: "VXSE45",
+            reportDateTime: "2026-08-01T12:00:00+09:00",
+            serial: "1",
+            infoType: "発表",
+            receivedAtMs: Date.parse("2026-08-01T12:00:01+09:00"),
+            status: "通常",
+            isTest: false,
+          }),
+        }));
+        expect(result.revisionDecision).toBe("accept");
+      }
+
+      expect(boundedTracker.getActiveCount()).toBe(512);
+      expect(onCleanup).toHaveBeenCalledTimes(1);
+      expect(onCleanup).toHaveBeenCalledWith("capacity-0000");
+    });
+
     it("取消されたイベントは activeCount に含まれない", () => {
       tracker.update(createEewInfo({ serial: "1", eventId: "event-001" }));
       tracker.update(createEewInfo({ serial: "1", eventId: "event-002" }));

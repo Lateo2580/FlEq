@@ -165,7 +165,11 @@ describe("Phase 3B volcano foundation", () => {
     expect(volcanoRevisionFamilyPolicy("VFSVii")?.revisionFamily).toBe("volcanoAlert");
     expect(volcanoRevisionFamilyPolicy("VFVO52")?.revisionFamily).toBe("volcanoEruption");
     expect(volcanoRevisionFamilyPolicy("VFVO56")?.revisionFamily).toBe("volcanoEruption");
-    expect(volcanoRevisionFamilyPolicy("VFVO53")).toBeNull();
+    expect(volcanoRevisionFamilyPolicy("VFVO53")).toMatchObject({
+      revisionFamily: "volcanoAshfall",
+      cancellationPolicy: "markCancelled",
+      durable: false,
+    });
   });
 
   it("VFVO51 を火山コードごとに展開し EventID 欠落でも部分解除を他火山へ波及させない", () => {
@@ -344,7 +348,7 @@ describe("Phase 3B volcano foundation", () => {
     const h = createHarness();
     h.handler.handle(message("level-four", "VFVO50", issued.reportDateTime));
     h.handler.handle(message("level-two", "VFVO50", lowered.reportDateTime));
-    expect(h.handler.handle(message("delayed-level-four", "VFVO50", issued.reportDateTime))).toBeNull();
+    expect(h.handler.handle(message("delayed-level-four", "VFVO50", issued.reportDateTime))).toMatchObject({ kind: "suppressed" });
     expect(h.holder.getEntry("506")?.alertLevel).toBe(2);
     expect(h.decisions.at(-1)).toBe("stale");
   });
@@ -353,7 +357,7 @@ describe("Phase 3B volcano foundation", () => {
     const invalid = alert("invalid-serial", "506", new Date(T0).toISOString(), "X");
     currentParsed.set("invalid-serial", invalid);
     const h = createHarness();
-    expect(h.handler.handle(message("invalid-serial", "VFVO50", invalid.reportDateTime))).toBeNull();
+    expect(h.handler.handle(message("invalid-serial", "VFVO50", invalid.reportDateTime))).toMatchObject({ kind: "suppressed" });
     expect(h.holder.size()).toBe(0);
     expect(h.standby.exportActiveState().volcanoes).toEqual([]);
     expect(h.notifyVolcano).not.toHaveBeenCalled();
@@ -411,7 +415,7 @@ describe("Phase 3B volcano foundation", () => {
     );
     currentParsed.set("late", { ...issue, meta: { ...issue.meta, messageId: "late" } });
     const restarted = createHarness({ gate, holder, standby });
-    expect(restarted.handler.handle(message("late", "VFVO50", issue.reportDateTime))).toBeNull();
+    expect(restarted.handler.handle(message("late", "VFVO50", issue.reportDateTime))).toMatchObject({ kind: "suppressed" });
     expect(restarted.holder.getEntry("506")).toBeUndefined();
     expect(restarted.standby.exportActiveState().volcanoes).toEqual([]);
   });
@@ -488,9 +492,9 @@ describe("Phase 3B volcano foundation", () => {
     h.handler.handle(message("ttl-issue", "VFVO56", issue.reportDateTime));
     h.handler.handle(message("ttl-cancel", "VFVO56", cancel.reportDateTime));
 
-    expect(h.handler.handle(message("ttl-delayed", "VFVO56", issue.reportDateTime))).toBeNull();
+    expect(h.handler.handle(message("ttl-delayed", "VFVO56", issue.reportDateTime))).toMatchObject({ kind: "suppressed" });
     h.handler.handle(message("ttl-sweep-trigger", "VFVO50", sweepTrigger.reportDateTime));
-    expect(h.handler.handle(message("ttl-after-retention", "VFVO56", issue.reportDateTime))).not.toBeNull();
+    expect(h.handler.handle(message("ttl-after-retention", "VFVO56", issue.reportDateTime))).toMatchObject({ kind: "accepted" });
     expect(h.holder.resolveEruptionCancellation("ttl-event")).toBe("506");
   });
 
@@ -583,7 +587,7 @@ describe("Phase 3B volcano foundation", () => {
     currentParsed.set("unkeyed-text", unkeyed);
     const h = createHarness();
 
-    expect(h.handler.handle(message("unkeyed-text", "VFVO51", unkeyed.reportDateTime))).not.toBeNull();
+    expect(h.handler.handle(message("unkeyed-text", "VFVO51", unkeyed.reportDateTime))).toMatchObject({ kind: "accepted" });
     expect(h.outcomes.at(-1)?.presentation.volcanoStateMutationAccepted).toBe(false);
     expect(h.notifyVolcano).not.toHaveBeenCalled();
     expect(h.persisted).not.toHaveBeenCalled();
@@ -695,7 +699,7 @@ describe("Phase 3B volcano foundation", () => {
 
     expect(restarted.handler.handle(
       message("unrelated-cancel", "VFVO56", unrelatedCancel.reportDateTime),
-    )).not.toBeNull();
+    )).toMatchObject({ kind: "accepted" });
     expect(restarted.outcomes.at(-1)?.presentation.volcanoStateMutationAccepted).toBe(false);
     expect(restarted.notifyVolcano).not.toHaveBeenCalled();
     expect(restarted.holder.exportPersistedState().eruptions)
@@ -753,7 +757,7 @@ describe("Phase 3B volcano foundation", () => {
     currentParsed.set("collision-cancel", collidingCancel);
     expect(restarted.handler.handle(
       message("collision-cancel", "VFVO56", collidingCancel.reportDateTime),
-    )).not.toBeNull();
+    )).toMatchObject({ kind: "accepted" });
 
     expect(restarted.outcomes.at(-1)?.presentation.volcanoStateMutationAccepted).toBe(false);
     expect(restarted.notifyVolcano).not.toHaveBeenCalled();
@@ -853,7 +857,7 @@ describe("Phase 3B volcano foundation", () => {
     const notificationCount = h.notifyVolcano.mock.calls.length;
     const persistenceCount = h.persisted.mock.calls.length;
 
-    expect(h.handler.handle(message("replay-cancel-2", "VFVO56", replay.reportDateTime))).toBeNull();
+    expect(h.handler.handle(message("replay-cancel-2", "VFVO56", replay.reportDateTime))).toMatchObject({ kind: "suppressed" });
     expect(h.decisions.at(-1)).toBe("semanticDuplicate");
     expect(h.outcomes).toHaveLength(outcomeCount);
     expect(h.notifyVolcano).toHaveBeenCalledTimes(notificationCount);
@@ -871,7 +875,7 @@ describe("Phase 3B volcano foundation", () => {
       "replay-cancel-after-restart",
       "VFVO56",
       afterRestart.reportDateTime,
-    ))).toBeNull();
+    ))).toMatchObject({ kind: "suppressed" });
     expect(restarted.decisions).toEqual(["semanticDuplicate"]);
     expect(restarted.outcomes).toEqual([]);
     expect(restarted.notifyVolcano).not.toHaveBeenCalled();

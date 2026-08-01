@@ -39,6 +39,7 @@ import {
   telegramDateDiagnostic,
 } from "./telegram-diagnostic";
 import { TelegramRevisionGate, type TelegramRevisionDecision } from "./telegram-revision-gate";
+import { routeHasExplicitRevisionFamilyPolicy } from "./revision-family-registry";
 
 // ── 電文分類 (Route) ──
 //
@@ -51,6 +52,12 @@ export type { Route } from "./route-catalog";
 
 /** 通知のみ実行 (filter 非適用) */
 function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
+  if (outcome.presentation.foundationMutationAccepted === false) return false;
+  if (
+    ["tornado", "heatAlert", "typhoonAnalysis", "typhoonProbability", "nankaiTrough",
+      "weatherWarningTimeseries", "lgObservation"].includes(outcome.domain)
+    && outcome.presentation.standbyStateMutationAccepted === false
+  ) return false;
   switch (outcome.domain) {
     case "eew":
       notifier.notifyEew(outcome.parsed, outcome.eewResult);
@@ -68,7 +75,7 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       notifier.notifyTsunami(outcome.parsed);
       return true;
     case "nankaiTrough":
-      notifier.notifyNankaiTrough(outcome.parsed);
+      notifier.notifyNankaiTrough(outcome.parsed, outcome.presentation.soundLevel);
       return true;
     case "weather": {
       // 官署欠落などで authoritative subject を確定できなかった VPWW56 は
@@ -244,6 +251,8 @@ export interface MessageHandlerOptions {
   /** volcano gate/holder の commit 完了を persistence owner へ伝える。 */
   onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** tornado/heat/typhoon/nankai/VPWP/VXSE62 common gate commit. */
+  onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /** createMessageHandler の戻り値 */
@@ -354,6 +363,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onVpww56RevisionDecision: options?.onVpww56RevisionDecision,
     onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
     onFloodRevisionDecision: options?.onFloodRevisionDecision,
+    onStandbyRevisionDecision: options?.onStandbyRevisionDecision,
   };
 
   /**
@@ -478,9 +488,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
-    const usesFoundationGate = route === "eew" || route === "tsunami" || route === "volcano"
-      || route === "floodForecast"
-      || route === "weather" && (msg.head.type === "VPWS50" || msg.head.type === "VPWW56");
+    // Phase 3B 完了後は ignore 以外の全 XML route が明示 policy を持つ。
+    // parser 失敗も raw family へ落ちるため、transport dedup と日時診断は parse 前に共通適用する。
+    const usesFoundationGate = route !== "ignore";
     if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
       stats.recordFoundation("received", meta.receivedAtMs);
@@ -488,7 +498,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         stats.recordFoundation("transportDuplicate", meta.receivedAtMs);
         return;
       }
-      const dateReason = telegramDateDiagnosticReason(meta);
+      // Envelope 自体を取得できない malformed XML は既存の raw fallback へ残す。
+      // ReportDateTime を読めた電文だけを日時診断へ分離する。
+      const dateReason = msg.xmlReport == null ? null : telegramDateDiagnosticReason(meta);
       if (dateReason != null) {
         const diagnostic = telegramDateDiagnostic(msg, meta, dateReason);
         stats.recordFoundation(
@@ -513,6 +525,14 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
+    let processingRoute = route;
+    if (route !== "ignore" && !routeHasExplicitRevisionFamilyPolicy(route, msg.head.type)) {
+      log.warn(
+        `[telegram-foundation] explicit revision policy missing: route=${route} type=${msg.head.type}; raw fallback`,
+      );
+      processingRoute = "raw";
+    }
+
     // 特殊ルート ignore: 配信終了予定 + 既存表示と重複する電文は受信しても無視
     // (表示・通知・統計をすべてスキップ)。catalog では分類のみ担い、処理はここで早期 return。
     if (route === "ignore") {
@@ -521,20 +541,24 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     // 特殊ルート volcano: VFVO53 バッチ集約を伴う独立ライフサイクルのため線形 processor 表に
     // 載せず、VolcanoRouteHandler に委譲する (catalog は分類のみ担う)。
-    if (route === "volcano") {
-      const parsed = volcanoHandler.handle(msg);
-      if (parsed != null) {
+    let outcome: ProcessOutcome | null;
+    if (processingRoute === "volcano") {
+      const result = volcanoHandler.handle(msg);
+      if (result.kind === "accepted") {
         stats.record({
           headType: msg.head.type,
-          category: routeToCategory(route),
+          category: routeToCategory(processingRoute),
           eventId: msg.xmlReport?.head.eventId ?? null,
         });
+        return;
       }
-      return;
+      if (result.kind === "suppressed") return;
+      outcome = processMsg(msg, "raw", processDeps);
+    } else {
+      // 火山以外: processMessage → recordStats → dispatchNotify → runDisplayPipeline
+      outcome = processMsg(msg, processingRoute, processDeps);
     }
 
-    // 火山以外: processMessage → recordStats → dispatchNotify → runDisplayPipeline
-    const outcome = processMsg(msg, route, processDeps);
     if (outcome == null) {
       return;
     }
@@ -547,10 +571,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     if (acceptedCorrection && notified) {
       stats.recordFoundation("correctionNotified");
     }
-    const foundationTracked = outcome.domain === "eew"
-      || outcome.domain === "tsunami"
-      || outcome.domain === "floodForecast"
-      || outcome.domain === "weather" && (outcome.headType === "VPWS50" || outcome.headType === "VPWW56");
+    const foundationTracked = usesFoundationGate;
     if (foundationTracked && notified) {
       stats.recordFoundation("notified");
     }

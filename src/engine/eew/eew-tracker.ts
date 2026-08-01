@@ -78,6 +78,7 @@ export interface EewUpdateResult {
 
 /** 古いイベントを自動削除するまでの時間 (ミリ秒) */
 const CLEANUP_THRESHOLD_MS = 10 * 60 * 1000; // 10分
+const MAX_TRACKED_EEW_EVENTS = 512;
 let eewSingleEventSequence = 0;
 
 function nextEewSingleSubjectKey(headType: string): string {
@@ -288,6 +289,7 @@ export class EewTracker {
       lastUpdate: new Date(),
       colorIndex,
     });
+    this.enforceEventLimit();
 
     return {
       isNew: !revisionDecision.isCorrection,
@@ -323,9 +325,10 @@ export class EewTracker {
       const decision: TelegramRevisionDecision = {
         kind: "invalidMeta",
         relation: null,
-        accepted: false,
-        isCorrection: false,
-        isTerminal: false,
+            accepted: false,
+            isCorrection: false,
+            isTerminal: false,
+            resolvedTrigger: null,
       };
       this.onRevisionDecision?.(decision);
       return decision;
@@ -350,9 +353,10 @@ export class EewTracker {
         const decision: TelegramRevisionDecision = {
           kind: "cancelTargetMismatch",
           relation: null,
-          accepted: false,
-          isCorrection: false,
-          isTerminal: false,
+              accepted: false,
+              isCorrection: false,
+              isTerminal: false,
+              resolvedTrigger: null,
         };
         this.onRevisionDecision?.(decision);
         return decision;
@@ -368,7 +372,6 @@ export class EewTracker {
       cancellationPolicy: policy.cancellationPolicy,
       terminal: policy.terminalPredicate(info.meta, info),
       maxSubjects: policy.maxSubjects,
-      retainForFamilyCapacity: true,
       payloadFingerprint: semanticPayloadFingerprint({
         ...info,
         meta: undefined,
@@ -481,6 +484,21 @@ export class EewTracker {
         for (const headType of event.byType.keys()) {
           this.revisionGate.clear("eew", headType, id);
         }
+      }
+      this.onCleanup?.(id);
+    }
+  }
+
+  private enforceEventLimit(): void {
+    while (this.events.size > MAX_TRACKED_EEW_EVENTS) {
+      const oldest = [...this.events]
+        .sort(([, left], [, right]) =>
+          left.lastUpdate.getTime() - right.lastUpdate.getTime())[0];
+      if (oldest == null) return;
+      const [id, event] = oldest;
+      this.events.delete(id);
+      for (const headType of event.byType.keys()) {
+        this.revisionGate.clear("eew", headType, id);
       }
       this.onCleanup?.(id);
     }

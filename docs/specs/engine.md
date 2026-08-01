@@ -2999,7 +2999,17 @@ interface DisplayCallbacks {
 
 ## messages/volcano-route-handler.ts
 
-VFVO50/VFVO51/VFSVii と VFVO52/VFVO56 は、通知・Presentation・standby 投影より前に共通 revision gate を通る。subject は alert/eruption を分けた火山コード単位で、VFVO51 は複数火山 entry を独立評価する。明示取消 A、terminal B、非活性 C は共通 resolver の `A > B > C` に従い、同一 subject の mutation・stats・永続化 callback は一回だけ発火する。subject を確定できない入力は表示/ticker だけの fail-open とし、`volcanoStateMutationAccepted=false` により通知・standby・promotion・永続化を抑止する。VFVO53 は従来どおり transient batch aggregator が担当する。
+VFVO50/VFVO51/VFSVii と VFVO52/VFVO56 は、通知・Presentation・standby 投影より前に共通 revision gate を通る。subject は alert/eruption を分けた火山コード単位で、VFVO51 は複数火山 entry を独立評価する。明示取消 A、terminal B、非活性 C は共通 resolver の `A > B > C` に従い、同一 subject の mutation・stats・永続化 callback は一回だけ発火する。subject を確定できない入力は表示/ticker だけの fail-open とし、`volcanoStateMutationAccepted=false` により通知・standby・promotion・永続化を抑止する。VFVO53 は非 durable `markCancelled` gate を通過後、従来どおり transient batch aggregator が担当する。
+
+Phase 3B の standby domain（tornado / heatAlert / typhoonAnalysis / typhoonProbability / nankaiTrough / weatherWarningTimeseries / lgObservation）も、通知と durable projection より前に共通 revision gate を通る。subject は順に官署 stream、対象 JST 日×地域、台風 EventID、確率 cache の台風 EventID、固定 singleton、官署×対象 scope、地震 EventID である。subject を確定できない報は `standbyStateMutationAccepted=false` の表示/ticker 限定 fail-open となり、通知・standby state・detail/dedup cache を変更しない。既存 standby active state を持つ tornado / heat / typhoon analysis / nankai / long-period は gate watermark を v2 foundation に保存し、rollback 用 v1 `seen` も dual-write する。VPTA50 の連続ゼロ cache と VPWP50 detail cache はそれぞれ従来の安全側メモリ履歴・専用ファイルを所有するため、共通 gate 自体は非 durable とする。
+
+Phase 3B の transient domain（earthquake / seismicText / briefing / earlyWeather / VPWW55-61 except 56 / climateInfo / weatherExplanation / raw）は、全て `markCancelled` policy を明示する。earthquake は VXSE51/52/53/61 共通の EventID subject とし、震度なし続報を gate 後も presentation へ渡すことで `quake-observation-merge`、当日履歴、quake extreme の既存契約を維持する。他 family は type＋EventID で分離する。EventID 欠落は単発 transient subject と semantic fingerprint だけで再送を抑止し、受信時刻による擬似結合は行わない。各非 durable family は runtime retention と `maxSubjects` を宣言し、router は ignore 以外の全 XML route へ transport dedup・日時診断を一度だけ適用する。parser 失敗は raw policy へ落ち、metadata 自体を取得できない legacy direct-call だけは watermark なしの raw 表示へ fail-open する。
+
+共通 revision gate の容量は family partition で管理する。全 policy は有限の `maxSubjects` を宣言し、registry 起動時検証で合計を `TELEGRAM_REVISION_MAX_ENTRIES` 以下に固定する。family 内 compaction だけを許し、他 domain の流量による watermark／有限 tombstone の退場は行わない。family が canonical subject や無期限 tombstone だけで満杯になり退場不能な場合は、新規 subject を `capacityExceeded` で fail-closed に拒否し、既存保護 entry と総メモリの hard bound を維持する。EEW tracker は 512 event、津波観測 holder は family ごとに 1,024 station とし、対応する gate partition と同じ上限で管理する。subject 欠落の transient entry も宣言 TTL と family 上限を共有する。取消判定は `resolvedTrigger` に A（明示取消）> B（terminal）> C（deactivation）の優先順で一つだけ記録し、policy mutation と stats を一回だけ適用する。
+
+`route-catalog.ts` の各 entry は意味処理対象の `foundationHeadTypes` を持ち、`ALL_REVISION_FAMILY_POLICIES` との網羅性テストで未登録 type を検出する。classification/prefix の broad matcher は実行時にも route domain と head.type の明示 policy を検証し、未登録 type は警告して raw policy へ落とす。火山の既存 batch 系も例外にせず、VFVO53-55 は type＋火山コードの `volcanoAshfall`、VZVO40/VFVO60 は type＋EventID の `volcanoTransient` policy を通過後に既存 aggregator / presentation へ渡す。`VolcanoRouteHandler.handle()` は `accepted` / `parseFailed` / `policyMissing` / `suppressed` を区別し、router は parse/policy failure のみ raw 表示へ戻して semantic suppression を再表示しない。
+
+非 durable の VPTA50 / nankai information / VPWP50 も process lifetime 中は各 policy の宣言期間（7日 / 30日 / 36時間）watermark を保持し、11分の共通 transient 期限へ縮退させない。
 
 ### 概要
 

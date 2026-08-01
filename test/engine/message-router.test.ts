@@ -616,6 +616,69 @@ describe("message-router 統合テスト", () => {
       const output = getOutput();
       expect(output.length).toBeGreaterThan(0);
     });
+
+    it("既知 volcano type の parse failure だけを raw fallback へ渡す", () => {
+      const tap = vi.fn();
+      const { handler } = createHandler({ outcomeTaps: [tap] });
+      const msg: WsDataMessage = {
+        type: "data",
+        version: "2.0",
+        classification: "telegram.volcano",
+        id: "volcano-parse-failure",
+        passing: [],
+        head: {
+          type: "VFVO54",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+          xml: true,
+        },
+        format: "xml",
+        compression: null,
+        encoding: "utf-8",
+        body: "not-valid-volcano-xml",
+      };
+
+      handler(msg);
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      expect(tap.mock.calls[0][0]).toMatchObject({ domain: "raw", headType: "VFVO54" });
+      expect(getOutput().length).toBeGreaterThan(0);
+    });
+
+    it("broad volcano route の未登録 head.type は警告後 raw fallback へ渡す", () => {
+      const tap = vi.fn();
+      const { handler, stats } = createHandler({ outcomeTaps: [tap] });
+      const msg = createMockWsDataMessage(FIXTURE_VFVO54_ASH_RAPID, {
+        head: {
+          type: "VFVO99",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+          xml: true,
+        },
+      });
+
+      handler(msg);
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      expect(tap.mock.calls[0][0]).toMatchObject({ domain: "raw", headType: "VFVO99" });
+      expect(stats.getSnapshot().categoryByType.get("VFVO99")).toBe("other");
+      expect(getOutput().length).toBeGreaterThan(0);
+    });
+
+    it("volcano semantic duplicate は raw fallback として再表示しない", () => {
+      const tap = vi.fn();
+      const { handler, stats } = createHandler({ outcomeTaps: [tap] });
+      const xml = readFixture(FIXTURE_VFVO54_ASH_RAPID);
+
+      handler(createMockWsDataMessageFromXml(xml, "VFVO54"));
+      handler(createMockWsDataMessageFromXml(`${xml}\n`, "VFVO54"));
+
+      expect(tap).toHaveBeenCalledTimes(1);
+      expect(tap.mock.calls[0][0]).toMatchObject({ domain: "volcano", headType: "VFVO54" });
+      expect(stats.getSnapshot().foundation.semanticDuplicate).toBeGreaterThanOrEqual(1);
+    });
   });
 
   describe("統計記録 (TelegramStats)", () => {

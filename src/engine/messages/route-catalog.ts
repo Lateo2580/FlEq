@@ -54,6 +54,8 @@ interface RouteCatalogEntry {
   readonly route: string;
   readonly statsCategory: StatsCategory;
   readonly matcher: RouteMatcher;
+  /** 共通 revision registry の網羅性検査に使う、parser が意味処理する head.type。 */
+  readonly foundationHeadTypes: readonly string[];
 }
 
 /** weather 警報・注意報 (VPWW55-61 / VPWS50) */
@@ -109,25 +111,29 @@ export const IGNORED_HEAD_TYPES = [
  * exact 集合 (seismicText / lgObservation) を prefix (earthquake=VXSE*) より**前**に
  * 置くことで、VXSE56/60/62 が earthquake に吸われる前に拾われる。旧実装と同順。
  */
-const ROUTE_CATALOG = [
+export const ROUTE_CATALOG = [
   {
     route: "ignore",
     statsCategory: "other",
+    foundationHeadTypes: [],
     matcher: { kind: "headTypeSet", classification: null, headTypes: IGNORED_HEAD_TYPES },
   },
   {
     route: "eew",
     statsCategory: "eew",
+    foundationHeadTypes: ["VXSE43", "VXSE44", "VXSE45"],
     matcher: { kind: "classification", classifications: ["eew.forecast", "eew.warning"] },
   },
   {
     route: "volcano",
     statsCategory: "volcano",
+    foundationHeadTypes: ["VFVO50", "VFVO51", "VFSVii", "VFVO52", "VFVO53", "VFVO54", "VFVO55", "VFVO56", "VFVO60", "VZVO40"],
     matcher: { kind: "classification", classifications: ["telegram.volcano"] },
   },
   {
     route: "seismicText",
     statsCategory: "earthquake",
+    foundationHeadTypes: ["VXSE56", "VXSE60", "VZSE40"],
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.earthquake",
@@ -137,6 +143,7 @@ const ROUTE_CATALOG = [
   {
     route: "lgObservation",
     statsCategory: "earthquake",
+    foundationHeadTypes: ["VXSE62"],
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.earthquake",
@@ -146,26 +153,31 @@ const ROUTE_CATALOG = [
   {
     route: "earthquake",
     statsCategory: "earthquake",
+    foundationHeadTypes: ["VXSE51", "VXSE52", "VXSE53", "VXSE61"],
     matcher: { kind: "headTypePrefix", classification: "telegram.earthquake", prefixes: ["VXSE"] },
   },
   {
     route: "tsunami",
     statsCategory: "tsunami",
+    foundationHeadTypes: ["VTSE41", "VTSE51", "VTSE52"],
     matcher: { kind: "headTypePrefix", classification: "telegram.earthquake", prefixes: ["VTSE"] },
   },
   {
     route: "nankaiTrough",
     statsCategory: "nankaiTrough",
+    foundationHeadTypes: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"],
     matcher: { kind: "headTypePrefix", classification: "telegram.earthquake", prefixes: ["VYSE"] },
   },
   {
     route: "weather",
     statsCategory: "weather",
+    foundationHeadTypes: WEATHER_HEAD_TYPES,
     matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: WEATHER_HEAD_TYPES },
   },
   {
     route: "tornado",
     statsCategory: "tornado",
+    foundationHeadTypes: ["VPHW50", "VPHW51"],
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.weather",
@@ -175,21 +187,25 @@ const ROUTE_CATALOG = [
   {
     route: "briefing",
     statsCategory: "briefing",
+    foundationHeadTypes: ["VPBS50"],
     matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: ["VPBS50"] },
   },
   {
     route: "earlyWeather",
     statsCategory: "earlyWeather",
+    foundationHeadTypes: ["VPAW51"],
     matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: ["VPAW51"] },
   },
   {
     route: "weatherWarningTimeseries",
     statsCategory: "weatherWarningTimeseries",
+    foundationHeadTypes: ["VPWP50"],
     matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: ["VPWP50"] },
   },
   {
     route: "climateInfo",
     statsCategory: "climateInfo",
+    foundationHeadTypes: ["VPZI50", "VPCI50"],
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.weather",
@@ -199,6 +215,7 @@ const ROUTE_CATALOG = [
   {
     route: "weatherExplanation",
     statsCategory: "weatherExplanation",
+    foundationHeadTypes: WEATHER_EXPLANATION_HEAD_TYPES,
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.weather",
@@ -208,11 +225,13 @@ const ROUTE_CATALOG = [
   {
     route: "heatAlert",
     statsCategory: "heatAlert",
+    foundationHeadTypes: ["VPFT50"],
     matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: ["VPFT50"] },
   },
   {
     route: "typhoonAnalysis",
     statsCategory: "typhoonAnalysis",
+    foundationHeadTypes: ["VPTW60", "VPTW61", "VPTW62"],
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.weather",
@@ -222,11 +241,13 @@ const ROUTE_CATALOG = [
   {
     route: "typhoonProbability",
     statsCategory: "typhoonProbability",
+    foundationHeadTypes: ["VPTA50"],
     matcher: { kind: "headTypeSet", classification: "telegram.weather", headTypes: ["VPTA50"] },
   },
   {
     route: "floodForecast",
     statsCategory: "floodForecast",
+    foundationHeadTypes: FLOOD_FORECAST_HEAD_TYPES,
     matcher: {
       kind: "headTypeSet",
       classification: "telegram.weather",
@@ -236,6 +257,7 @@ const ROUTE_CATALOG = [
   {
     route: "raw",
     statsCategory: "other",
+    foundationHeadTypes: ["*"],
     matcher: { kind: "always" },
   },
 ] as const satisfies readonly RouteCatalogEntry[];

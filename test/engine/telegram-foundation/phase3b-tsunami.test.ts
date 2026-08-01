@@ -669,6 +669,65 @@ describe("Phase 3B tsunami common registry", () => {
     expect(entries.some((entry) => entry.stateSubjectKey === "100001")).toBe(false);
   });
 
+  it("VTSE51 の保護対象だけで 1,025 件に達した場合は新規観測を fail-closed にする", () => {
+    const capacityError = vi.fn();
+    const gate = new TelegramRevisionGate(capacityError);
+    const policy = TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51;
+    const decide = (
+      subject: string,
+      infoType: "発表" | "取消",
+      retain: boolean,
+      at = T1,
+      serial = "1",
+    ) =>
+      gate.decide({
+        domain: policy.domain,
+        revisionFamily: policy.revisionFamily,
+        stateSubjectKey: subject,
+        meta: createTelegramMeta({
+          messageId: `${subject}:${infoType}:${serial}`,
+          eventId: "tsunami-capacity",
+          type: "VTSE51",
+          reportDateTime: at,
+          serial,
+          infoType,
+          receivedAtMs: Date.parse(at),
+          status: "通常",
+          isTest: false,
+        }),
+        comparator: policy.comparator,
+        cancellationPolicy: policy.cancellationPolicy,
+        terminal: false,
+        cancellationTargetMatches: true,
+        durable: policy.durable,
+        tombstoneRetentionMs: policy.tombstoneRetentionMs,
+        maxSubjects: policy.maxSubjects,
+        retainForFamilyCapacity: retain,
+        fragmentMerge: policy.fragmentMerge,
+        payloadFingerprint: `${subject}:${infoType}:${serial}`,
+      });
+
+    expect(decide("tsunami:observations:VTSE51", "発表", true).accepted).toBe(true);
+    for (let index = 0; index < TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY; index++) {
+      expect(decide(`cancelled-${index}`, "取消", false).accepted).toBe(true);
+    }
+
+    expect(decide("new-station", "発表", false).kind).toBe("capacityExceeded");
+    expect(capacityError).toHaveBeenCalledOnce();
+    expect(decide("tsunami:observations:VTSE51", "発表", true, T2, "2").kind)
+      .toBe("accept");
+    expect(decide("new-station-2", "発表", false, T2, "2").kind)
+      .toBe("capacityExceeded");
+    expect(decide("tsunami:observations:VTSE51", "発表", true, T3, "3").kind)
+      .toBe("accept");
+    expect(decide("new-station-3", "発表", false, T3, "3").kind)
+      .toBe("capacityExceeded");
+    expect(capacityError).toHaveBeenCalledOnce();
+    expect(gate.exportDurableEntries().filter((entry) =>
+      entry.domain === "tsunamiObservation" && entry.revisionFamily === "VTSE51"))
+      .toHaveLength(TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY + 1);
+  });
+
   it("上限到達後の逆順一括更新でも holder と item gate の退場対象を一致させる", () => {
     const shared = deps();
     const initial = Array.from(
@@ -876,5 +935,17 @@ describe("Phase 3B tsunami common registry", () => {
       .filter((policy) => policy.fragmentMerge)
       .map((policy) => policy.fragmentAllowlistKey)
       .sort()).toEqual([...FRAGMENT_MERGE_ALLOWLIST_KEYS].sort());
+  });
+});
+
+describe("revision family capacity budget", () => {
+  it("budgets every registered family within the partitioned gate capacity", () => {
+    expect(ALL_REVISION_FAMILY_POLICIES.every((policy) => policy.maxSubjects != null)).toBe(true);
+    const total = ALL_REVISION_FAMILY_POLICIES.reduce(
+      (sum, policy) => sum + (policy.maxSubjects ?? 0),
+      0,
+    );
+    expect(total).toBeLessThanOrEqual(TELEGRAM_REVISION_MAX_ENTRIES);
+    expect(() => validateRevisionFamilyPolicies(ALL_REVISION_FAMILY_POLICIES)).not.toThrow();
   });
 });

@@ -612,14 +612,19 @@ export const CANCELLATION_CHARACTERIZATION = {
       targetPolicy: "clearCurrent", stateOwners: ["VolcanoStateHolder", "StandbyStateStore"],
     },
     {
-      family: "volcanoEruption", headTypes: ["VFVO52", "VFVO54", "VFVO55", "VFVO56", "VFVO60"],
+      family: "volcanoEruption", headTypes: ["VFVO52", "VFVO56"],
       currentBehavior: "EventID／火山コードで最新噴火 event を削除",
       targetPolicy: "clearCurrent", stateOwners: ["VolcanoStateHolder", "StandbyStateStore"],
     },
     {
-      family: "volcanoAshfall", headTypes: ["VFVO53"],
-      currentBehavior: "集約待ち buffer と火山コード別の最新 event を削除",
-      targetPolicy: "clearCurrent", stateOwners: ["VolcanoVfvo53Aggregator", "StandbyStateStore"],
+      family: "volcanoAshfall", headTypes: ["VFVO53", "VFVO54", "VFVO55"],
+      currentBehavior: "durable current を持たず transient aggregation／表示に留める",
+      targetPolicy: "markCancelled", stateOwners: ["VolcanoVfvo53Aggregator"],
+    },
+    {
+      family: "volcanoTransient", headTypes: ["VZVO40", "VFVO60"],
+      currentBehavior: "durable current を持たない transient 表示",
+      targetPolicy: "markCancelled", stateOwners: [],
     },
   ],
   nankaiTrough: [{
@@ -661,8 +666,8 @@ export const CANCELLATION_CHARACTERIZATION = {
   }],
   weatherWarningTimeseries: [{
     family: "weatherWarningTimeseries", headTypes: ["VPWP50"],
-    currentBehavior: "取消電文も最新 detail snapshot として cache する",
-    targetPolicy: "markCancelled", stateOwners: ["Vpwp50DetailCache"],
+    currentBehavior: "共通 gate で受理した取消電文も最新 detail snapshot として cache する",
+    targetPolicy: "clearCurrent", stateOwners: ["Vpwp50DetailCache"],
   }],
   climateInfo: [{
     family: "climateInfo", headTypes: ["VPZI50", "VPCI50"],
@@ -870,14 +875,6 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     }],
   },
   {
-    domain: "volcano", family: "volcanoAshfall", owner: "StandbyStateStore",
-    behavior: "VFVO53 の最新 event を火山コード単位で削除",
-    sources: [{
-      sourceFile: "src/engine/display/standby-state-store.ts",
-      needles: ["state.latestEvent = update.isCancellation ? null", "state.latestEventId = update.isCancellation ? null"],
-    }],
-  },
-  {
     domain: "nankaiTrough", family: "nankaiTrough", owner: "StandbyStateStore",
     behavior: "current active state を null にする",
     sources: [{
@@ -953,11 +950,11 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
   },
   {
     domain: "weatherWarningTimeseries", family: "weatherWarningTimeseries", owner: "Vpwp50DetailCache",
-    behavior: "取消も最新 detail snapshot として置換",
+    behavior: "共通 gate 受理後に取消も最新 detail snapshot として置換",
     sources: [
       {
-        sourceFile: "src/engine/presentation/processors/process-weather-warning-timeseries.ts",
-        needles: ["取消電文でも cache は更新される", "deps.vpwp50Cache.rememberLatest(info);"],
+        sourceFile: "src/engine/presentation/processors/process-message.ts",
+        needles: ["standbyStateMutationAccepted === true", "deps.vpwp50Cache.rememberLatest(outcome.parsed);"],
       },
       {
         sourceFile: "src/engine/messages/vpwp50-detail-cache.ts",

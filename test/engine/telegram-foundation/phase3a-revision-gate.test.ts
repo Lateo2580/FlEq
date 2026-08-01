@@ -263,13 +263,14 @@ describe("Phase 3A EEW revision gate", () => {
   });
 
   it.each([
-    ["terminal", "markCancelled", true, false],
-    ["deactivation", "clearCurrent", false, true],
+    ["terminal", "markCancelled", true, false, "terminal"],
+    ["deactivation", "clearCurrent", false, true, "deactivation"],
   ] as const)("訂正と %s trigger が同時成立しても policy mutation と訂正属性を両立する", (
     _label,
     cancellationPolicy,
     terminal,
     deactivation,
+    resolvedTrigger,
   ) => {
     const gate = new TelegramRevisionGate();
     gate.decide({
@@ -299,6 +300,7 @@ describe("Phase 3A EEW revision gate", () => {
       accepted: true,
       isCorrection: true,
       isTerminal: terminal,
+      resolvedTrigger,
     });
   });
 
@@ -341,7 +343,8 @@ describe("Phase 3A EEW revision gate", () => {
 
   it("durable entry を全体上限へ圧縮し、domain 指定期間後の tombstone を除去する", () => {
     const gate = new TelegramRevisionGate();
-    for (let index = 0; index <= TELEGRAM_REVISION_MAX_ENTRIES; index++) {
+    const familyLimit = 64;
+    for (let index = 0; index <= familyLimit; index++) {
       gate.decide({
         domain: "synthetic",
         revisionFamily: "DURABLE",
@@ -362,10 +365,11 @@ describe("Phase 3A EEW revision gate", () => {
         terminal: false,
         durable: true,
         tombstoneRetentionMs: 100,
+        maxSubjects: familyLimit,
         payloadFingerprint: semanticPayloadFingerprint({ index }),
       });
     }
-    expect(gate.exportDurableEntries()).toHaveLength(TELEGRAM_REVISION_MAX_ENTRIES);
+    expect(gate.exportDurableEntries()).toHaveLength(familyLimit);
 
     const tombstoneSubject = "tombstone";
     gate.decide({
@@ -418,15 +422,15 @@ describe("Phase 3A EEW revision gate", () => {
 
   it("無期限 cancellation tombstone を global entry 上限の eviction から保護する", () => {
     const gate = new TelegramRevisionGate();
-    const protectedSubject = "protected-tombstone";
+    const protectedSubject = "heat-tombstone";
     expect(gate.decide({
-      domain: "synthetic",
-      revisionFamily: "INDEFINITE",
+      domain: "heatAlert",
+      revisionFamily: "VPFT50",
       stateSubjectKey: protectedSubject,
       meta: createTelegramMeta({
         messageId: "protected-tombstone",
         eventId: protectedSubject,
-        type: "INDEFINITE",
+        type: "VPFT50",
         reportDateTime: "2026-07-31T12:00:00+09:00",
         serial: "1",
         infoType: "取消",
@@ -438,19 +442,20 @@ describe("Phase 3A EEW revision gate", () => {
       cancellationPolicy: "clearCurrent",
       terminal: false,
       durable: true,
-      tombstoneRetentionMs: null,
+      tombstoneRetentionMs: 3 * 24 * 60 * 60_000,
+      maxSubjects: 1,
       payloadFingerprint: semanticPayloadFingerprint({ cancelled: true }),
     }).accepted).toBe(true);
 
-    for (let index = 0; index < TELEGRAM_REVISION_MAX_ENTRIES; index++) {
+    for (let index = 0; index < 3; index++) {
       gate.decide({
-        domain: "synthetic",
-        revisionFamily: "EVICTABLE",
+        domain: "raw",
+        revisionFamily: "raw",
         stateSubjectKey: `subject-${index}`,
         meta: createTelegramMeta({
           messageId: `evictable-${index}`,
           eventId: `subject-${index}`,
-          type: "EVICTABLE",
+          type: "RAW",
           reportDateTime: "2026-07-31T12:01:00+09:00",
           serial: "1",
           infoType: "発表",
@@ -461,20 +466,44 @@ describe("Phase 3A EEW revision gate", () => {
         comparator: "reportDateTimeThenSerial",
         cancellationPolicy: "clearCurrent",
         terminal: false,
-        durable: true,
-        tombstoneRetentionMs: 60_000,
+        durable: false,
+        tombstoneRetentionMs: 24 * 60 * 60_000,
+        maxSubjects: 2,
         payloadFingerprint: semanticPayloadFingerprint({ index }),
       });
     }
 
     const entries = gate.exportDurableEntries();
-    expect(entries).toHaveLength(TELEGRAM_REVISION_MAX_ENTRIES);
+    expect(entries).toHaveLength(1);
     expect(entries).toContainEqual(expect.objectContaining({
       stateSubjectKey: protectedSubject,
       cancelled: true,
-      tombstoneRetentionMs: null,
+      tombstoneRetentionMs: 3 * 24 * 60 * 60_000,
     }));
-    expect(entries.some((entry) => entry.stateSubjectKey === "subject-0")).toBe(false);
+
+    expect(gate.decide({
+      domain: "heatAlert",
+      revisionFamily: "VPFT50",
+      stateSubjectKey: protectedSubject,
+      meta: createTelegramMeta({
+        messageId: "delayed-heat",
+        eventId: protectedSubject,
+        type: "VPFT50",
+        reportDateTime: "2026-07-31T12:00:00+09:00",
+        serial: "1",
+        infoType: "発表",
+        receivedAtMs: RECEIVED_AT + 20_000,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial",
+      cancellationPolicy: "clearCurrent",
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: 3 * 24 * 60 * 60_000,
+      maxSubjects: 1,
+      payloadFingerprint: semanticPayloadFingerprint({ delayed: true }),
+    }).kind).toBe("stale");
   });
 
   it("family maxSubjects 超過時に最古の非取消 entry を退場させる", () => {
@@ -514,8 +543,9 @@ describe("Phase 3A EEW revision gate", () => {
   it("無期限 tombstone だけで family 上限を超えた場合は保護したまま設計エラーを通知する", () => {
     const capacityError = vi.fn();
     const gate = new TelegramRevisionGate(capacityError);
+    const decisions = [];
     for (let index = 0; index < 2; index++) {
-      expect(gate.decide({
+      decisions.push(gate.decide({
         domain: "synthetic",
         revisionFamily: "BROKEN-INDEFINITE",
         stateSubjectKey: `tombstone-${index}`,
@@ -537,13 +567,17 @@ describe("Phase 3A EEW revision gate", () => {
         tombstoneRetentionMs: null,
         maxSubjects: 1,
         payloadFingerprint: semanticPayloadFingerprint({ index }),
-      }).accepted).toBe(true);
+      }));
     }
 
-    expect(gate.exportDurableEntries()).toHaveLength(2);
+    expect(decisions.map((decision) => decision.kind)).toEqual([
+      "clearCurrent",
+      "capacityExceeded",
+    ]);
+    expect(gate.exportDurableEntries()).toHaveLength(1);
     expect(capacityError).toHaveBeenCalledTimes(1);
     expect(capacityError).toHaveBeenCalledWith(expect.stringContaining(
-      "indefinite tombstones exceed maxSubjects: synthetic:BROKEN-INDEFINITE (2/1)",
+      "rejected new subject at hard family capacity: synthetic:BROKEN-INDEFINITE (1)",
     ));
   });
 });
@@ -623,5 +657,75 @@ describe("Phase 3B clearCurrent cancellation latch", () => {
       durable: true,
     })).toMatchObject({ kind: "replaceCorrection", accepted: true });
     expect(gate.exportDurableEntries()[0]?.cancelled).toBe(false);
+  });
+});
+
+describe("Phase 3B trigger and transient capacity contracts", () => {
+  it.each([
+    ["取消", true, true, "explicitCancellation"],
+    ["発表", true, true, "terminal"],
+    ["発表", false, true, "deactivation"],
+  ] as const)("resolves A > B > C once", (
+    infoType,
+    terminal,
+    deactivation,
+    resolvedTrigger,
+  ) => {
+    const gate = new TelegramRevisionGate();
+    const result = gate.decide({
+      domain: "synthetic",
+      revisionFamily: "TRIGGERS",
+      stateSubjectKey: "subject",
+      meta: meta({ messageId: `trigger-${resolvedTrigger}`, serial: "1", infoType }),
+      comparator: "serialOnly",
+      cancellationPolicy: "clearCurrent",
+      terminal,
+      deactivation,
+      maxSubjects: 1,
+      payloadFingerprint: semanticPayloadFingerprint({ resolvedTrigger }),
+    });
+    expect(result).toMatchObject({
+      kind: "clearCurrent",
+      accepted: true,
+      resolvedTrigger,
+    });
+  });
+
+  it("uses the family retention and family capacity for missing EventID", () => {
+    const gate = new TelegramRevisionGate();
+    const input = (id: string, receivedAtMs: number) => ({
+      domain: "climateInfo",
+      revisionFamily: "climateInfo",
+      stateSubjectKey: null,
+      transientSubjectKey: `climate:single:${id}`,
+      meta: createTelegramMeta({
+        messageId: id,
+        eventId: null,
+        type: "VPZI50",
+        reportDateTime: "2026-07-31T12:00:00+09:00",
+        serial: "1",
+        infoType: "発表",
+        receivedAtMs,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: "reportDateTimeThenSerial" as const,
+      cancellationPolicy: "markCancelled" as const,
+      terminal: false,
+      durable: false,
+      tombstoneRetentionMs: 30 * 24 * 60 * 60_000,
+      maxSubjects: 2,
+      payloadFingerprint: semanticPayloadFingerprint({ payload: id }),
+    });
+
+    expect(gate.decide(input("first", RECEIVED_AT)).accepted).toBe(true);
+    expect(gate.decide({
+      ...input("retry", RECEIVED_AT + 12 * 60_000),
+      payloadFingerprint: semanticPayloadFingerprint({ payload: "first" }),
+    }).kind).toBe("semanticDuplicate");
+
+    expect(gate.decide(input("second", RECEIVED_AT + 13 * 60_000)).accepted).toBe(true);
+    expect(gate.decide(input("third", RECEIVED_AT + 14 * 60_000)).accepted).toBe(true);
+    expect(gate.decide(input("first", RECEIVED_AT + 15 * 60_000)).accepted).toBe(true);
   });
 });

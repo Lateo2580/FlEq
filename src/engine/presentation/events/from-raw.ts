@@ -22,7 +22,7 @@ export function fromRawOutcome(outcome: RawOutcome): PresentationEvent {
     soundLevel: outcome.presentation.soundLevel,
     notifyCategory: outcome.presentation.notifyCategory,
 
-    isCancellation: false,
+    isCancellation: meta.infoType.value === "取消",
 
     eventId: xmlReport?.head.eventId ?? null,
     serial: xmlReport?.head.serial ?? null,

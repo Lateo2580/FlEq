@@ -30,6 +30,10 @@ import { playSound } from "../../src/engine/notification/sound-player";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
 import { parseClimateInfo } from "../../src/dmdata/climate-info-parser";
 import { parseHeatAlert } from "../../src/dmdata/heat-alert-parser";
+import { parseEarthquakeTelegram, parseNankaiTroughTelegram, parseSeismicTextTelegram } from "../../src/dmdata/telegram-parser";
+import { parseWeatherBriefing } from "../../src/dmdata/briefing-parser";
+import { parseEarlyWeather } from "../../src/dmdata/early-weather-parser";
+import { parseWeatherWarning } from "../../src/dmdata/weather-parser";
 import {
   createMockWsDataMessage,
   FIXTURE_VPZI50_HOT_DRY,
@@ -38,6 +42,13 @@ import {
   FIXTURE_VPFT50_CANCEL,
   FIXTURE_VPFT50_NO_BODY,
   FIXTURE_VPFT50_TITLE_ESCALATION,
+  FIXTURE_VXSE51_SHINDO,
+  FIXTURE_VXSE56_ACTIVITY_1,
+  FIXTURE_VPBS50_LINEAR_OBSERVED,
+  FIXTURE_VPAW51_HIGH_TEMP,
+  FIXTURE_VPCJ51_KANTO_SNOW,
+  FIXTURE_VPWW55_OAME,
+  FIXTURE_VYSE50_ALERT,
 } from "../helpers/mock-message";
 
 const enabledNotifySettings = {
@@ -821,6 +832,16 @@ describe("Notifier.notifyTornadoAdvisory (soundLevelOverride, weather F-3 横展
     expect(callArg.message).toContain("目撃情報 (地域不明)");
     expect(callArg.message).not.toContain("目撃情報あり");
   });
+
+  it("訂正は title と body の両方へ明示する", () => {
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(false);
+    notifier.notifyTornadoAdvisory(makeTornadoInfo({ infoType: "訂正" }));
+    expect(notifyMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: expect.stringContaining("[訂正]"),
+      message: expect.stringContaining("訂正:"),
+    }));
+  });
 });
 
 describe("Notifier.notifyWeatherBriefing (soundLevelOverride + summary, weather F-3 横展開)", () => {
@@ -1263,5 +1284,47 @@ describe("Notifier.notifyHeatAlert (VPFT50)", () => {
     expect(notifyMock).toHaveBeenCalledTimes(1);
     const callArg = notifyMock.mock.calls[0][0] as { title: string; message: string };
     expect(callArg.message).toBe(info.title);
+  });
+
+  it("transient domain の訂正通知はタイトルと本文へ訂正を明示する", () => {
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(false);
+    const cases = [
+      () => notifier.notifyEarthquake({ ...parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!, infoType: "訂正" }),
+      () => notifier.notifySeismicText({ ...parseSeismicTextTelegram(createMockWsDataMessage(FIXTURE_VXSE56_ACTIVITY_1))!, infoType: "訂正" }),
+      () => notifier.notifyWeatherBriefing({ ...parseWeatherBriefing(createMockWsDataMessage(FIXTURE_VPBS50_LINEAR_OBSERVED))!, infoType: "訂正" }),
+      () => notifier.notifyEarlyWeather({ ...parseEarlyWeather(createMockWsDataMessage(FIXTURE_VPAW51_HIGH_TEMP))!, infoType: "訂正" }),
+      () => notifier.notifyClimateInfo({ ...parseClimateInfo(createMockWsDataMessage(FIXTURE_VPZI50_HOT_DRY))!, infoType: "訂正" }),
+      () => notifier.notifyWeatherExplanation({ ...parseWeatherExplanation(createMockWsDataMessage(FIXTURE_VPCJ51_KANTO_SNOW))!, infoType: "訂正" }),
+      () => notifier.notifyWeatherWarning({ ...parseWeatherWarning(createMockWsDataMessage(FIXTURE_VPWW55_OAME))!, infoType: "訂正" }),
+    ];
+    for (const notify of cases) {
+      notifyMock.mockClear();
+      notify();
+      expect(notifyMock).toHaveBeenCalledTimes(1);
+      const call = notifyMock.mock.calls[0][0] as { title: string; message: string };
+      expect(call.title).toContain("訂正");
+      expect(call.message).toContain("訂正");
+    }
+  });
+});
+
+describe("Nankai critical notification override", () => {
+  beforeEach(() => {
+    notifyMock.mockClear();
+    vi.mocked(playSound).mockClear();
+    vi.mocked(loadConfig).mockReturnValue({});
+  });
+
+  it("notifies and sounds for Code120 even when its category is off", () => {
+    const info = parseNankaiTroughTelegram(createMockWsDataMessage(FIXTURE_VYSE50_ALERT));
+    expect(info?.infoSerial?.code).toBe("120");
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(true);
+
+    notifier.notifyNankaiTrough(info!, "critical");
+
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    expect(playSound).toHaveBeenCalledWith("critical");
   });
 });

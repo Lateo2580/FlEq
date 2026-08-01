@@ -1,10 +1,23 @@
 import type {
   ParsedEewInfo,
+  ParsedEarthquakeInfo,
+  ParsedSeismicTextInfo,
+  ParsedWeatherBriefing,
+  ParsedEarlyWeatherInfo,
+  ParsedClimateInfo,
+  ParsedWeatherExplanation,
   ParsedFloodForecastInfo,
+  ParsedHeatAlertInfo,
+  ParsedLgObservationInfo,
+  ParsedNankaiTroughInfo,
+  ParsedTornadoAdvisory,
   ParsedTsunamiInfo,
+  ParsedTyphoonAnalysis,
+  ParsedTyphoonProbability,
   ParsedVolcanoInfo,
   ParsedVolcanoTextInfo,
   ParsedWeatherWarning,
+  ParsedWeatherWarningTimeseriesInfo,
   TelegramMeta,
   TsunamiObservationStation,
   VolcanoAlertStateEntry,
@@ -24,6 +37,10 @@ import {
   vpww56StateSubjectKey,
 } from "./vpww56-state";
 import { FLOOD_LEVEL_RANK, floodKindCodeToLevel, maxFloodLevel } from "../../dmdata/flood-level";
+import { jstDayKey } from "../../utils/jst-day-key";
+import { nankaiBadgeAction } from "../display/nankai-status";
+import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "../display/tornado-group-key";
+import type { Route } from "./route-catalog";
 
 interface RevisionFamilyPolicyBase<TParsed> {
   domain: string;
@@ -102,13 +119,306 @@ function eewPolicy(headType: "VXSE43" | "VXSE44" | "VXSE45"):
       meta.infoType.value === "取消" || parsed.nextAdvisory != null,
     durable: false,
     tombstoneRetentionMs: null,
-    maxSubjects: null,
+    maxSubjects: 512,
     fragmentMerge: false,
   };
 }
 
 const VPWS50_SUBJECT = "weather:vpws50";
 const TSUNAMI_CURRENT_SUBJECT = "tsunami:current";
+const NANKAI_CURRENT_SUBJECT = "nankai:current";
+const STANDBY_DOMAIN_RETENTION_MS = 36 * 60 * 60_000;
+const HEAT_RETENTION_MS = 3 * 24 * 60 * 60_000;
+const NANKAI_RETENTION_MS = 30 * 24 * 60 * 60_000;
+const TRANSIENT_DAY_MS = 24 * 60 * 60_000;
+
+function nonBlank(value: string | null | undefined): string | null {
+  const normalized = value?.trim() ?? "";
+  return normalized === "" ? null : normalized;
+}
+
+function eventSubject(meta: TelegramMeta, prefix: string, includeType = true): string | null {
+  const eventId = meta.eventId.valid ? nonBlank(meta.eventId.value) : null;
+  const headType = meta.type.valid ? nonBlank(meta.type.value) : null;
+  if (eventId == null || includeType && headType == null) return null;
+  return includeType ? `${prefix}:${headType}:${eventId}` : `${prefix}:${eventId}`;
+}
+
+function transientEventPolicy<TParsed>(options: {
+  domain: string;
+  revisionFamily: string;
+  headTypes: readonly string[];
+  prefix: string;
+  retentionMs: number;
+  maxSubjects: number;
+  includeType?: boolean;
+}): RevisionFamilyPolicy<TParsed> {
+  const subject = (meta: TelegramMeta): string | null =>
+    eventSubject(meta, options.prefix, options.includeType !== false);
+  return {
+    domain: options.domain,
+    revisionFamily: options.revisionFamily,
+    headTypes: options.headTypes,
+    comparator: "reportDateTimeThenSerial",
+    extractStateSubjectKey: (meta) => subject(meta),
+    extractCancellationTarget: (meta) => {
+      const target = subject(meta);
+      return target == null ? null : [target];
+    },
+    cancellationPolicy: "markCancelled",
+    terminalPredicate: () => false,
+    deactivationPredicate: () => false,
+    durable: false,
+    tombstoneRetentionMs: options.retentionMs,
+    maxSubjects: options.maxSubjects,
+    allowMissingSerial: true,
+    fragmentMerge: false,
+  };
+}
+
+export const EARTHQUAKE_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedEarthquakeInfo>({
+  domain: "earthquake",
+  revisionFamily: "earthquake",
+  headTypes: ["VXSE51", "VXSE52", "VXSE53", "VXSE61"],
+  prefix: "earthquake",
+  includeType: false,
+  retentionMs: TRANSIENT_DAY_MS,
+  maxSubjects: 512,
+});
+
+export const SEISMIC_TEXT_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedSeismicTextInfo>({
+  domain: "seismicText",
+  revisionFamily: "seismicText",
+  headTypes: ["VXSE56", "VXSE60", "VZSE40"],
+  prefix: "seismicText",
+  retentionMs: 36 * 60 * 60_000,
+  maxSubjects: 256,
+});
+
+export const BRIEFING_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedWeatherBriefing>({
+  domain: "briefing",
+  revisionFamily: "briefing",
+  headTypes: ["VPBS50"],
+  prefix: "briefing",
+  retentionMs: 36 * 60 * 60_000,
+  maxSubjects: 128,
+});
+
+export const EARLY_WEATHER_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedEarlyWeatherInfo>({
+  domain: "earlyWeather",
+  revisionFamily: "earlyWeather",
+  headTypes: ["VPAW51"],
+  prefix: "earlyWeather",
+  retentionMs: 7 * TRANSIENT_DAY_MS,
+  maxSubjects: 128,
+});
+
+export const CLIMATE_INFO_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedClimateInfo>({
+  domain: "climateInfo",
+  revisionFamily: "climateInfo",
+  headTypes: ["VPZI50", "VPCI50"],
+  prefix: "climateInfo",
+  retentionMs: 30 * TRANSIENT_DAY_MS,
+  maxSubjects: 128,
+});
+
+export const WEATHER_EXPLANATION_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedWeatherExplanation>({
+  domain: "weatherExplanation",
+  revisionFamily: "weatherExplanation",
+  headTypes: ["VPCJ51", "VPZJ51", "VPFJ51", "VMCJ53", "VMCJ54", "VMCJ55"],
+  prefix: "weatherExplanation",
+  retentionMs: 36 * 60 * 60_000,
+  maxSubjects: 256,
+});
+
+export const TRANSIENT_WEATHER_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedWeatherWarning>({
+  domain: "weather",
+  revisionFamily: "VPWW55-61-except56",
+  headTypes: ["VPWW55", "VPWW57", "VPWW58", "VPWW59", "VPWW60", "VPWW61"],
+  prefix: "weatherTransient",
+  retentionMs: 36 * 60 * 60_000,
+  maxSubjects: 128,
+});
+
+export const RAW_REVISION_FAMILY_POLICY = transientEventPolicy<unknown>({
+  domain: "raw",
+  revisionFamily: "raw",
+  headTypes: ["*"],
+  prefix: "raw",
+  retentionMs: 11 * 60_000,
+  maxSubjects: 512,
+});
+
+export const VOLCANO_ASHFALL_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
+  domain: "volcano",
+  revisionFamily: "volcanoAshfall",
+  headTypes: ["VFVO53", "VFVO54", "VFVO55"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (meta, parsed) => {
+    const code = nonBlank(parsed.volcanoCode);
+    const type = meta.type.valid ? nonBlank(meta.type.value) : null;
+    return code == null || type == null ? null : `volcano:ashfall:${type}:${code}`;
+  },
+  extractCancellationTarget: (meta, parsed) => {
+    const code = nonBlank(parsed.volcanoCode);
+    const type = meta.type.valid ? nonBlank(meta.type.value) : null;
+    return code == null || type == null ? null : [`volcano:ashfall:${type}:${code}`];
+  },
+  cancellationPolicy: "markCancelled",
+  terminalPredicate: () => false,
+  deactivationPredicate: () => false,
+  durable: false,
+  tombstoneRetentionMs: 36 * 60 * 60_000,
+  maxSubjects: 128,
+  allowMissingSerial: true,
+  fragmentMerge: false,
+};
+
+export const VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY = transientEventPolicy<ParsedVolcanoInfo>({
+  domain: "volcano",
+  revisionFamily: "volcanoTransient",
+  headTypes: ["VZVO40", "VFVO60"],
+  prefix: "volcanoTransient",
+  retentionMs: 36 * 60 * 60_000,
+  maxSubjects: 128,
+});
+
+export function tornadoStateSubjectKey(parsed: ParsedTornadoAdvisory): string {
+  return tornadoTickerGroupKey(normalizeTornadoPublishingOffice(parsed.publishingOffice));
+}
+
+export function heatAlertStateSubjectKey(parsed: ParsedHeatAlertInfo): string | null {
+  const area = nonBlank(parsed.targetAreaName);
+  const targetMs = Date.parse(parsed.targetDateTime ?? parsed.reportDateTime);
+  if (area == null || !Number.isFinite(targetMs)) return null;
+  return `heat:${jstDayKey(targetMs)}:${area}`;
+}
+
+export function typhoonAnalysisStateSubjectKey(parsed: ParsedTyphoonAnalysis): string | null {
+  const key = nonBlank(parsed.eventId);
+  return key == null ? null : `typhoon:${key}`;
+}
+
+export function typhoonProbabilityStateSubjectKey(parsed: ParsedTyphoonProbability): string | null {
+  const eventId = nonBlank(parsed.eventId);
+  return eventId == null ? null : `typhoonProbability:${eventId}`;
+}
+
+export function weatherTimeseriesStateSubjectKey(
+  parsed: ParsedWeatherWarningTimeseriesInfo,
+): string | null {
+  const office = nonBlank(parsed.publishingOffice);
+  const areaCode = nonBlank(parsed.targetArea?.code);
+  const areaName = nonBlank(parsed.targetArea?.name);
+  const area = areaCode == null ? (areaName == null ? "scope:all" : `name:${areaName}`) : `code:${areaCode}`;
+  return office == null ? null : `weatherTimeseries:${office}:${area}`;
+}
+
+export function longPeriodStateSubjectKey(meta: TelegramMeta): string | null {
+  const eventId = meta.eventId.valid ? nonBlank(meta.eventId.value) : null;
+  return eventId == null ? null : `longPeriod:${eventId}`;
+}
+
+export const TORNADO_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedTornadoAdvisory> = {
+  domain: "tornado", revisionFamily: "tornado", headTypes: ["VPHW50", "VPHW51"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => tornadoStateSubjectKey(parsed),
+  extractCancellationTarget: (_meta, parsed) => [tornadoStateSubjectKey(parsed)],
+  cancellationPolicy: "clearCurrent", terminalPredicate: () => false,
+  deactivationPredicate: (_meta, parsed) => parsed.activeAreaCount === 0,
+  durable: true, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 128,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const HEAT_ALERT_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedHeatAlertInfo> = {
+  domain: "heatAlert", revisionFamily: "VPFT50", headTypes: ["VPFT50"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => heatAlertStateSubjectKey(parsed),
+  extractCancellationTarget: (_meta, parsed) => {
+    const key = heatAlertStateSubjectKey(parsed); return key == null ? null : [key];
+  },
+  cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
+  durable: true, tombstoneRetentionMs: HEAT_RETENTION_MS, maxSubjects: 256,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedTyphoonAnalysis> = {
+  domain: "typhoonAnalysis", revisionFamily: "typhoonAnalysis", headTypes: ["VPTW60", "VPTW61", "VPTW62"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => typhoonAnalysisStateSubjectKey(parsed),
+  extractCancellationTarget: (_meta, parsed) => {
+    const key = typhoonAnalysisStateSubjectKey(parsed); return key == null ? null : [key];
+  },
+  cancellationPolicy: "clearCurrent",
+  terminalPredicate: (_meta, parsed) => parsed.lifecycle === "transitionedToLow" || parsed.lifecycle === "formationCancelled",
+  deactivationPredicate: () => false,
+  durable: true, tombstoneRetentionMs: 7 * 24 * 60 * 60_000, maxSubjects: 64,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedTyphoonProbability> = {
+  domain: "typhoonProbability", revisionFamily: "VPTA50", headTypes: ["VPTA50"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => typhoonProbabilityStateSubjectKey(parsed),
+  extractCancellationTarget: (_meta, parsed) => {
+    const key = typhoonProbabilityStateSubjectKey(parsed); return key == null ? null : [key];
+  },
+  cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
+  durable: false, tombstoneRetentionMs: 7 * 24 * 60 * 60_000, maxSubjects: 256,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const NANKAI_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedNankaiTroughInfo> = {
+  domain: "nankaiTrough", revisionFamily: "nankaiTrough", headTypes: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"],
+  comparator: "reportDateTimeThenSerial", extractStateSubjectKey: () => NANKAI_CURRENT_SUBJECT,
+  extractCancellationTarget: () => [NANKAI_CURRENT_SUBJECT], cancellationPolicy: "clearCurrent",
+  terminalPredicate: () => false,
+  deactivationPredicate: (_meta, parsed) => nankaiBadgeAction(parsed.infoSerial?.code ?? null).action === "deactivate",
+  durable: true, tombstoneRetentionMs: NANKAI_RETENTION_MS, maxSubjects: 1,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const NANKAI_INFORMATION_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedNankaiTroughInfo> = {
+  domain: "nankaiTrough", revisionFamily: "nankaiInformation", headTypes: ["VYSE50", "VYSE51", "VYSE52", "VYSE60"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (meta) => {
+    const type = meta.type.valid ? nonBlank(meta.type.value) : null;
+    const eventId = meta.eventId.valid ? nonBlank(meta.eventId.value) : null;
+    return type == null || eventId == null ? null : `nankai:information:${type}:${eventId}`;
+  },
+  extractCancellationTarget: (meta) => {
+    const type = meta.type.valid ? nonBlank(meta.type.value) : null;
+    const eventId = meta.eventId.valid ? nonBlank(meta.eventId.value) : null;
+    return type == null || eventId == null ? null : [`nankai:information:${type}:${eventId}`];
+  },
+  cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
+  durable: false, tombstoneRetentionMs: NANKAI_RETENTION_MS, maxSubjects: 256,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const WEATHER_TIMESERIES_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedWeatherWarningTimeseriesInfo> = {
+  domain: "weatherWarningTimeseries", revisionFamily: "VPWP50", headTypes: ["VPWP50"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => weatherTimeseriesStateSubjectKey(parsed),
+  extractCancellationTarget: (_meta, parsed) => {
+    const key = weatherTimeseriesStateSubjectKey(parsed); return key == null ? null : [key];
+  },
+  cancellationPolicy: "clearCurrent", terminalPredicate: () => false, deactivationPredicate: () => false,
+  durable: false, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 512,
+  allowMissingSerial: true, fragmentMerge: false,
+};
+
+export const LG_OBSERVATION_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedLgObservationInfo> = {
+  domain: "lgObservation", revisionFamily: "VXSE62", headTypes: ["VXSE62"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (meta) => longPeriodStateSubjectKey(meta),
+  extractCancellationTarget: (meta) => {
+    const key = longPeriodStateSubjectKey(meta); return key == null ? null : [key];
+  },
+  cancellationPolicy: "markCancelled", terminalPredicate: () => false, deactivationPredicate: () => false,
+  durable: true, tombstoneRetentionMs: STANDBY_DOMAIN_RETENTION_MS, maxSubjects: 256,
+  allowMissingSerial: true, fragmentMerge: false,
+};
 export const FLOOD_FORECAST_MAX_SUBJECTS = 512;
 export const FLOOD_FORECAST_RETENTION_MS = 36 * 60 * 60_000;
 export const FLOOD_FORECAST_HEAD_TYPES = [
@@ -450,21 +760,19 @@ export function validateRevisionFamilyPolicy(
 ): void {
   const key = `${policy.domain}:${policy.revisionFamily}`;
   if (
-    policy.maxSubjects != null
-    && (
-      !Number.isSafeInteger(policy.maxSubjects)
-      || policy.maxSubjects <= 0
-      || policy.maxSubjects > TELEGRAM_REVISION_MAX_ENTRIES
-    )
-  ) {
-    throw new Error(`revision family maxSubjects is invalid: ${key}`);
-  }
-  if (
     policy.durable === true
     && policy.tombstoneRetentionMs === null
     && policy.maxSubjects == null
   ) {
     throw new Error(`indefinite durable family requires bounded maxSubjects: ${key}`);
+  }
+  if (
+    policy.maxSubjects == null
+    || !Number.isSafeInteger(policy.maxSubjects)
+    || policy.maxSubjects <= 0
+    || policy.maxSubjects > TELEGRAM_REVISION_MAX_ENTRIES
+  ) {
+    throw new Error(`revision family maxSubjects is invalid: ${key}`);
   }
   if (!policy.fragmentMerge) return;
   if (policy.fragmentAllowlistKey !== key || !FRAGMENT_MERGE_ALLOWLIST.has(key)) {
@@ -489,8 +797,10 @@ export function validateRevisionFamilyPolicies(
   policies: readonly RevisionFamilyPolicyValidationShape[],
 ): void {
   let indefiniteDurableSubjectBudget = 0;
+  let totalSubjectBudget = 0;
   for (const policy of policies) {
     validateRevisionFamilyPolicy(policy);
+    totalSubjectBudget += policy.maxSubjects ?? 0;
     if (policy.durable === true && policy.tombstoneRetentionMs === null) {
       indefiniteDurableSubjectBudget += policy.maxSubjects ?? 0;
     }
@@ -498,6 +808,11 @@ export function validateRevisionFamilyPolicies(
   if (indefiniteDurableSubjectBudget > TELEGRAM_REVISION_MAX_ENTRIES) {
     throw new Error(
       `indefinite durable family maxSubjects total exceeds gate capacity: ${indefiniteDurableSubjectBudget}/${TELEGRAM_REVISION_MAX_ENTRIES}`,
+    );
+  }
+  if (totalSubjectBudget > TELEGRAM_REVISION_MAX_ENTRIES) {
+    throw new Error(
+      `revision family maxSubjects total exceeds gate capacity: ${totalSubjectBudget}/${TELEGRAM_REVISION_MAX_ENTRIES}`,
     );
   }
 }
@@ -515,10 +830,48 @@ export const ALL_REVISION_FAMILY_POLICIES = [
   ...Object.values(TSUNAMI_REVISION_FAMILY_POLICIES),
   VOLCANO_ALERT_REVISION_FAMILY_POLICY,
   VOLCANO_ERUPTION_REVISION_FAMILY_POLICY,
+  VOLCANO_ASHFALL_REVISION_FAMILY_POLICY,
+  VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY,
   FLOOD_FORECAST_REVISION_FAMILY_POLICY,
+  TORNADO_REVISION_FAMILY_POLICY,
+  HEAT_ALERT_REVISION_FAMILY_POLICY,
+  TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
+  TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
+  NANKAI_REVISION_FAMILY_POLICY,
+  NANKAI_INFORMATION_REVISION_FAMILY_POLICY,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
+  LG_OBSERVATION_REVISION_FAMILY_POLICY,
+  EARTHQUAKE_REVISION_FAMILY_POLICY,
+  SEISMIC_TEXT_REVISION_FAMILY_POLICY,
+  BRIEFING_REVISION_FAMILY_POLICY,
+  EARLY_WEATHER_REVISION_FAMILY_POLICY,
+  CLIMATE_INFO_REVISION_FAMILY_POLICY,
+  WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
+  TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
+  RAW_REVISION_FAMILY_POLICY,
 ] as const;
 
 validateRevisionFamilyPolicies(ALL_REVISION_FAMILY_POLICIES);
+
+/**
+ * Broad route matcher で到達した head.type が、その route 固有の明示 policy を持つかを検証する。
+ * raw の `*` は未知型の fallback 専用であり、他 route の網羅根拠には数えない。
+ */
+export function routeHasExplicitRevisionFamilyPolicy(route: Route, headType: string): boolean {
+  switch (route) {
+    case "raw": return true;
+    case "ignore": return false;
+    case "eew": return eewRevisionFamilyPolicy(headType) != null;
+    case "tsunami": return tsunamiRevisionFamilyPolicy(headType) != null;
+    case "volcano": return volcanoRevisionFamilyPolicy(headType) != null;
+    case "weather": return weatherRevisionFamilyPolicy(headType) != null;
+    case "floodForecast": return floodForecastRevisionFamilyPolicy(headType) != null;
+    default:
+      return ALL_REVISION_FAMILY_POLICIES.some(
+        (policy) => policy.domain === route && policy.headTypes.includes(headType),
+      );
+  }
+}
 
 export function eewRevisionFamilyPolicy(
   headType: string,
@@ -545,6 +898,9 @@ export function weatherRevisionFamilyPolicy(
 ): RevisionFamilyPolicy<ParsedWeatherWarning> | null {
   if (headType === "VPWS50") return VPWS50_REVISION_FAMILY_POLICY;
   if (headType === "VPWW56") return VPWW56_REVISION_FAMILY_POLICY;
+  if (TRANSIENT_WEATHER_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
+    return TRANSIENT_WEATHER_REVISION_FAMILY_POLICY;
+  }
   return null;
 }
 
@@ -556,6 +912,12 @@ export function volcanoRevisionFamilyPolicy(
   }
   if (VOLCANO_ERUPTION_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
     return VOLCANO_ERUPTION_REVISION_FAMILY_POLICY;
+  }
+  if (VOLCANO_ASHFALL_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
+    return VOLCANO_ASHFALL_REVISION_FAMILY_POLICY;
+  }
+  if (VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
+    return VOLCANO_TRANSIENT_REVISION_FAMILY_POLICY;
   }
   return null;
 }

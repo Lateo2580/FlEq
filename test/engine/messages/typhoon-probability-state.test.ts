@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { TyphoonProbabilityStateHolder } from "../../../src/engine/messages/typhoon-probability-state";
+import {
+  TYPHOON_PROBABILITY_MAX_EVENTS,
+  TyphoonProbabilityStateHolder,
+} from "../../../src/engine/messages/typhoon-probability-state";
 
 describe("TyphoonProbabilityStateHolder", () => {
   it("初回発表は isUnchangedZero=false", () => {
@@ -50,5 +53,16 @@ describe("TyphoonProbabilityStateHolder", () => {
     h.diffAndUpdate("", 0, "t1");
     const d = h.diffAndUpdate("", 0, "t2");
     expect(d.isUnchangedZero).toBe(false);
+  });
+
+  it("keeps the most recently updated EventID when enforcing the shared subject bound", () => {
+    const h = new TyphoonProbabilityStateHolder();
+    for (let index = 0; index < TYPHOON_PROBABILITY_MAX_EVENTS; index++) {
+      h.diffAndUpdate(`event-${index}`, 0, `t${index}`);
+    }
+    expect(h.diffAndUpdate("event-0", 0, "latest").isUnchangedZero).toBe(true);
+    h.diffAndUpdate(`event-${TYPHOON_PROBABILITY_MAX_EVENTS}`, 0, "new");
+    expect(h.diffAndUpdate("event-0", 0, "still-retained").isUnchangedZero).toBe(true);
+    expect(h.diffAndUpdate("event-1", 0, "evicted").isUnchangedZero).toBe(false);
   });
 });

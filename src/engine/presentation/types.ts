@@ -76,6 +76,8 @@ export interface ProcessOutcomeBase {
     weatherDiff?: Vpws50Diff;
     /** 共通 revision gate で commit 済みの訂正だけを通知統計へ載せる。 */
     acceptedCorrection?: boolean;
+    /** transient family の共通 gate が authoritative に受理した報。 */
+    foundationMutationAccepted?: boolean;
     /** weather の durable holder/gate mutation が authoritative に commit 済みか。 */
     weatherStateMutationAccepted?: boolean;
     /** 複数 subject の union を永続化するときに使う正規 revision。active が空なら null。 */
@@ -92,6 +94,11 @@ export interface ProcessOutcomeBase {
     floodActiveEventIds?: string[];
     /** Accepted semantic envelope whose flood projection path is about to run. */
     floodAppliedSemanticKey?: string;
+    /** Phase 3B standby family gate result. false is display/ticker-only fail-open. */
+    standbyStateMutationAccepted?: boolean;
+    standbyStateSubject?: string | null;
+    standbyActiveSubjects?: string[];
+    standbyAppliedSemanticKey?: string | null;
     typhoonProbabilityMaxDaily5?: number | null;
     /** true のとき dispatchNotify が通知をスキップする。
      *  VPTA50 の連続ゼロ状態抑止に使用 (TyphoonProbabilityStateHolder 経由)。
@@ -399,6 +406,11 @@ export interface PresentationEvent {
   floodStateMutationAccepted?: boolean;
   floodActiveEventIds?: string[];
   floodAppliedSemanticKey?: string;
+  standbyStateMutationAccepted?: boolean;
+  standbyStateSubject?: string | null;
+  standbyActiveSubjects?: string[];
+  standbyAppliedSemanticKey?: string | null;
+  foundationMutationAccepted?: boolean;
 
   // 状態フラグ
   isCancellation: boolean;

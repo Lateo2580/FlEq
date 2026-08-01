@@ -31,6 +31,29 @@ import { processTyphoonAnalysis } from "./process-typhoon-analysis";
 import { processTyphoonProbability } from "./process-typhoon-probability";
 import { processFloodForecast } from "./process-flood-forecast";
 import { processRaw } from "./process-raw";
+import {
+  HEAT_ALERT_REVISION_FAMILY_POLICY,
+  LG_OBSERVATION_REVISION_FAMILY_POLICY,
+  NANKAI_INFORMATION_REVISION_FAMILY_POLICY,
+  NANKAI_REVISION_FAMILY_POLICY,
+  TORNADO_REVISION_FAMILY_POLICY,
+  TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY,
+  TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY,
+  WEATHER_TIMESERIES_REVISION_FAMILY_POLICY,
+  EARTHQUAKE_REVISION_FAMILY_POLICY,
+  SEISMIC_TEXT_REVISION_FAMILY_POLICY,
+  BRIEFING_REVISION_FAMILY_POLICY,
+  EARLY_WEATHER_REVISION_FAMILY_POLICY,
+  CLIMATE_INFO_REVISION_FAMILY_POLICY,
+  WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
+  TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
+  RAW_REVISION_FAMILY_POLICY,
+  type RevisionFamilyPolicy,
+} from "../../messages/revision-family-registry";
+import { processStandbyFoundation, standbyFoundationPresentation } from "./process-standby-foundation";
+import type { ProcessOutcomeBase } from "../types";
+import { nankaiBadgeAction } from "../../display/nankai-status";
+import { gateRawOutcome, gateTransientOutcome } from "./process-transient-foundation";
 
 /** processMessage に必要な依存群 */
 export interface ProcessDeps {
@@ -50,6 +73,7 @@ export interface ProcessDeps {
   onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /**
@@ -68,6 +92,20 @@ type ProcessorAdapter = (
   fallbackCategory: StatsCategory,
 ) => ProcessOutcome | null;
 
+function gateStandbyOutcome<
+  TParsed extends { meta: import("../../../types").TelegramMeta },
+  TOutcome extends ProcessOutcomeBase & { parsed: TParsed },
+>(
+  outcome: TOutcome,
+  policy: RevisionFamilyPolicy<TParsed>,
+  deps: ProcessDeps,
+): TOutcome | null {
+  const result = processStandbyFoundation(outcome.msg, outcome.parsed, policy, deps);
+  if (result.kind === "suppressed") return null;
+  Object.assign(outcome.presentation, standbyFoundationPresentation(result));
+  return outcome;
+}
+
 const PROCESSOR_TABLE = {
   eew: (msg, deps, cat) => {
     const eewResult = processEew(msg, deps.eewTracker, deps.eewLogger);
@@ -78,32 +116,110 @@ const PROCESSOR_TABLE = {
     raw.stats.shouldRecord = false;
     return raw;
   },
-  earthquake: (msg, _deps, cat) => processEarthquake(msg) ?? processRaw(msg, cat),
-  seismicText: (msg, _deps, cat) => processSeismicText(msg) ?? processRaw(msg, cat),
-  lgObservation: (msg, _deps, cat) => processLgObservation(msg) ?? processRaw(msg, cat),
+  earthquake: (msg, deps, cat) => {
+    const outcome = processEarthquake(msg);
+    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, EARTHQUAKE_REVISION_FAMILY_POLICY, deps);
+  },
+  seismicText: (msg, deps, cat) => {
+    const outcome = processSeismicText(msg);
+    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, SEISMIC_TEXT_REVISION_FAMILY_POLICY, deps);
+  },
+  lgObservation: (msg, deps, cat) => {
+    const outcome = processLgObservation(msg);
+    return outcome == null ? processRaw(msg, cat) : gateStandbyOutcome(outcome, LG_OBSERVATION_REVISION_FAMILY_POLICY, deps);
+  },
   tsunami: (msg, deps, cat) => {
     const tsunamiResult = processTsunami(msg, deps);
     if (tsunamiResult.kind === "ok") return tsunamiResult.outcome;
     if (tsunamiResult.kind === "suppressed") return null; // 古い報・重複報 → 表示・通知・統計なし
     return processRaw(msg, cat);
   },
-  nankaiTrough: (msg, _deps, cat) => processNankaiTrough(msg) ?? processRaw(msg, cat),
+  nankaiTrough: (msg, deps, cat) => {
+    const outcome = processNankaiTrough(msg);
+    if (outcome == null) return processRaw(msg, cat);
+    const action = nankaiBadgeAction(outcome.parsed.infoSerial?.code ?? null).action;
+    const gated = gateStandbyOutcome(
+      outcome,
+      action === "ignore" ? NANKAI_INFORMATION_REVISION_FAMILY_POLICY : NANKAI_REVISION_FAMILY_POLICY,
+      deps,
+    );
+    if (gated != null && action === "ignore") {
+      // Informational reports are gated for exactly-once notification only; they do not own standby projection state.
+      gated.presentation.standbyStateSubject = null;
+      gated.presentation.standbyActiveSubjects = undefined;
+      gated.presentation.standbyAppliedSemanticKey = null;
+    }
+    return gated;
+  },
   weather: (msg, deps, cat) => {
     const weatherResult = processWeather(msg, deps);
-    if (weatherResult.kind === "ok") return weatherResult.outcome;
+    if (weatherResult.kind === "ok") {
+      return TRANSIENT_WEATHER_REVISION_FAMILY_POLICY.headTypes.includes(msg.head.type)
+        ? gateTransientOutcome(weatherResult.outcome, TRANSIENT_WEATHER_REVISION_FAMILY_POLICY, deps)
+        : weatherResult.outcome;
+    }
     if (weatherResult.kind === "suppressed") return null; // 古い報・重複報・対象不一致取消 → 全出力なし
     return processRaw(msg, cat);
   },
-  tornado: (msg, _deps, cat) => processTornado(msg) ?? processRaw(msg, cat),
-  briefing: (msg, _deps, cat) => processBriefing(msg) ?? processRaw(msg, cat),
-  earlyWeather: (msg, _deps, cat) => processEarlyWeather(msg) ?? processRaw(msg, cat),
-  weatherWarningTimeseries: (msg, deps, cat) =>
-    processWeatherWarningTimeseries(msg, deps) ?? processRaw(msg, cat),
-  climateInfo: (msg, _deps, cat) => processClimateInfo(msg) ?? processRaw(msg, cat),
-  weatherExplanation: (msg, _deps, cat) => processWeatherExplanation(msg) ?? processRaw(msg, cat),
-  heatAlert: (msg, _deps, cat) => processHeatAlert(msg) ?? processRaw(msg, cat),
-  typhoonAnalysis: (msg, _deps, cat) => processTyphoonAnalysis(msg) ?? processRaw(msg, cat),
-  typhoonProbability: (msg, deps, cat) => processTyphoonProbability(msg, deps) ?? processRaw(msg, cat),
+  tornado: (msg, deps, cat) => {
+    const outcome = processTornado(msg);
+    return outcome == null ? processRaw(msg, cat) : gateStandbyOutcome(outcome, TORNADO_REVISION_FAMILY_POLICY, deps);
+  },
+  briefing: (msg, deps, cat) => {
+    const outcome = processBriefing(msg);
+    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, BRIEFING_REVISION_FAMILY_POLICY, deps);
+  },
+  earlyWeather: (msg, deps, cat) => {
+    const outcome = processEarlyWeather(msg);
+    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, EARLY_WEATHER_REVISION_FAMILY_POLICY, deps);
+  },
+  weatherWarningTimeseries: (msg, deps, cat) => {
+    const outcome = processWeatherWarningTimeseries(msg);
+    if (outcome == null) return processRaw(msg, cat);
+    const gated = gateStandbyOutcome(outcome, WEATHER_TIMESERIES_REVISION_FAMILY_POLICY, deps);
+    if (gated?.presentation.standbyStateMutationAccepted === true) deps.vpwp50Cache.rememberLatest(outcome.parsed);
+    return gated;
+  },
+  climateInfo: (msg, deps, cat) => {
+    const outcome = processClimateInfo(msg);
+    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, CLIMATE_INFO_REVISION_FAMILY_POLICY, deps);
+  },
+  weatherExplanation: (msg, deps, cat) => {
+    const outcome = processWeatherExplanation(msg);
+    return outcome == null ? processRaw(msg, cat) : gateTransientOutcome(outcome, WEATHER_EXPLANATION_REVISION_FAMILY_POLICY, deps);
+  },
+  heatAlert: (msg, deps, cat) => {
+    const outcome = processHeatAlert(msg);
+    return outcome == null ? processRaw(msg, cat) : gateStandbyOutcome(outcome, HEAT_ALERT_REVISION_FAMILY_POLICY, deps);
+  },
+  typhoonAnalysis: (msg, deps, cat) => {
+    const outcome = processTyphoonAnalysis(msg);
+    return outcome == null ? processRaw(msg, cat) : gateStandbyOutcome(outcome, TYPHOON_ANALYSIS_REVISION_FAMILY_POLICY, deps);
+  },
+  typhoonProbability: (msg, deps, cat) => {
+    const outcome = processTyphoonProbability(msg);
+    if (outcome == null) return processRaw(msg, cat);
+    const gated = gateStandbyOutcome(outcome, TYPHOON_PROBABILITY_REVISION_FAMILY_POLICY, deps);
+    if (gated?.presentation.standbyStateMutationAccepted === true) {
+      if (outcome.parsed.infoType === "取消") deps.typhoonProbabilityState.rollback(outcome.parsed.eventId ?? "");
+      else {
+        const diff = deps.typhoonProbabilityState.diffAndUpdate(
+          outcome.parsed.eventId ?? "",
+          outcome.presentation.typhoonProbabilityMaxDaily5 ?? 0,
+          outcome.parsed.reportDateTime,
+        );
+        if (diff.isUnchangedZero && !diff.shouldRecap) {
+          outcome.presentation.soundLevel = "info";
+          outcome.presentation.suppressNotify = true;
+        }
+      }
+      deps.typhoonProbabilityState.retainEventIds(
+        gated.presentation.standbyActiveSubjects?.map((subject) =>
+          subject.slice("typhoonProbability:".length)) ?? [],
+      );
+    }
+    return gated;
+  },
   floodForecast: (msg, deps, cat) => {
     const result = processFloodForecast(msg, deps);
     if (result.kind === "ok") return result.outcome;
@@ -138,7 +254,10 @@ export function processMessage(
   const adapter = lookupAdapter(route);
   if (adapter == null) {
     // raw フォールバック (volcano / ignore は上記のとおり到達しない)
-    return processRaw(msg, category);
+    return gateRawOutcome(processRaw(msg, category), RAW_REVISION_FAMILY_POLICY, deps);
   }
-  return adapter(msg, deps, category);
+  const outcome = adapter(msg, deps, category);
+  return outcome?.domain === "raw"
+    ? gateRawOutcome(outcome, RAW_REVISION_FAMILY_POLICY, deps)
+    : outcome;
 }
