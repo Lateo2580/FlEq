@@ -2,16 +2,24 @@ import fs from "node:fs";
 import path from "node:path";
 import * as log from "../../logger";
 import { intensityToRank } from "../../utils/intensity";
+import type { JmaIntensity, SpecialValue, SpecialValueDiagnostic } from "../../types";
 import type { DisplayIntensityGroupV1, DisplayRecentQuakeV1 } from "../display/types";
+import {
+  hasResolvedQuakeCancellation,
+  quakeObservationMetaOf,
+  withQuakeObservationMeta,
+  type QuakeObservationMeta,
+} from "../display/quake-observation-merge";
 import type { DailyQuakePersistedV1 } from "./daily-quake-counter";
 
-const PERSIST_SCHEMA_VERSION = 1;
+const PERSIST_SCHEMA_VERSION = 2;
+const LEGACY_PERSIST_SCHEMA_VERSION = 1;
 const SAVE_DEBOUNCE_MS = 3000;
 
-interface PersistedDailyQuakeV1 {
+interface PersistedDailyQuakeV2 {
   version: typeof PERSIST_SCHEMA_VERSION;
   savedAt: string;
-  state: DailyQuakePersistedV1;
+  state: unknown;
 }
 
 /** 当日地震カウンタと履歴を一つの原子的 JSON として保存する。 */
@@ -27,11 +35,13 @@ export class DailyQuakePersistence {
       if (!fs.existsSync(this.persistPath)) return null;
       const parsed: unknown = JSON.parse(fs.readFileSync(this.persistPath, "utf8"));
       if (!isRecord(parsed)) return this.invalid("top-level structure validation 失敗");
-      if (parsed.version !== PERSIST_SCHEMA_VERSION) return this.invalid(`unknown version: ${String(parsed.version)}`);
+      if (parsed.version !== PERSIST_SCHEMA_VERSION && parsed.version !== LEGACY_PERSIST_SCHEMA_VERSION) {
+        return this.invalid(`unknown version: ${String(parsed.version)}`);
+      }
       if (typeof parsed.savedAt !== "string") return this.invalid("savedAt が不正");
       const savedAtMs = Date.parse(parsed.savedAt);
       if (!Number.isFinite(savedAtMs) || savedAtMs > nowMs) return this.invalid("savedAt が不正または未来");
-      const state = parseState(parsed.state, nowMs);
+      const state = parseState(parsed.state, nowMs, parsed.version);
       if (state == null) return this.invalid("state structure validation 失敗");
       return state;
     } catch (err) {
@@ -56,10 +66,10 @@ export class DailyQuakePersistence {
   }
 
   save(state: DailyQuakePersistedV1, nowMs: number): void {
-    const data: PersistedDailyQuakeV1 = {
+    const data: PersistedDailyQuakeV2 = {
       version: PERSIST_SCHEMA_VERSION,
       savedAt: new Date(nowMs).toISOString(),
-      state,
+      state: serializeState(state),
     };
     const tmpPath = `${this.persistPath}.tmp`;
     try {
@@ -84,7 +94,21 @@ export class DailyQuakePersistence {
   }
 }
 
-function parseState(value: unknown, nowMs: number): DailyQuakePersistedV1 | null {
+function serializeState(state: DailyQuakePersistedV1): unknown {
+  return {
+    ...state,
+    recentQuakes: state.recentQuakes.map((quake) => ({
+      ...quake,
+      observation: quakeObservationMetaOf(quake) ?? legacyObservationMeta(quake),
+    })),
+  };
+}
+
+function parseState(
+  value: unknown,
+  nowMs: number,
+  version: typeof PERSIST_SCHEMA_VERSION | typeof LEGACY_PERSIST_SCHEMA_VERSION,
+): DailyQuakePersistedV1 | null {
   if (!isRecord(value) || typeof value.dayKey !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.dayKey) ||
       !isNonNegativeSafeInteger(value.count) || (value.maxInt != null && typeof value.maxInt !== "string") ||
       !isNonNegativeSafeInteger(value.maxIntRank) || !Array.isArray(value.countedEventIds) ||
@@ -101,19 +125,25 @@ function parseState(value: unknown, nowMs: number): DailyQuakePersistedV1 | null
     const rank = intensityToRank(value.maxInt);
     if (value.count === 0 || rank <= 0 || value.maxIntRank !== rank) return null;
   }
-  const recentQuakes = value.recentQuakes.map((quake) => parseRecentQuake(quake, nowMs));
-  if (recentQuakes.some((quake) => quake == null)) return null;
+  // recent entry は EventID 単位で salvage し、一件の破損で同日 counter 全体を捨てない。
+  const recentQuakes = value.recentQuakes
+    .map((quake) => parseRecentQuake(quake, nowMs, version))
+    .filter((quake): quake is DisplayRecentQuakeV1 => quake != null);
   return {
     dayKey: value.dayKey,
     count: value.count,
     maxInt: value.maxInt ?? null,
     maxIntRank: value.maxIntRank,
     countedEventIds,
-    recentQuakes: recentQuakes as DisplayRecentQuakeV1[],
+    recentQuakes,
   };
 }
 
-function parseRecentQuake(value: unknown, nowMs: number): DisplayRecentQuakeV1 | null {
+function parseRecentQuake(
+  value: unknown,
+  nowMs: number,
+  version: typeof PERSIST_SCHEMA_VERSION | typeof LEGACY_PERSIST_SCHEMA_VERSION,
+): DisplayRecentQuakeV1 | null {
   if (!isRecord(value) || !isNullableString(value.eventId) || typeof value.reportDateTime !== "string" ||
       !isNullableString(value.originTime) || !isNullableString(value.hypocenterName) ||
       !isNullableString(value.magnitude) || !isNullableString(value.maxInt) ||
@@ -123,7 +153,7 @@ function parseRecentQuake(value: unknown, nowMs: number): DisplayRecentQuakeV1 |
   if (!times.every((time) => Number.isFinite(Date.parse(time)) && Date.parse(time) <= nowMs)) return null;
   const intensityGroups = value.intensityGroups == null ? undefined : parseIntensityGroups(value.intensityGroups);
   if (value.intensityGroups != null && intensityGroups == null) return null;
-  return {
+  let quake: DisplayRecentQuakeV1 = {
     eventId: value.eventId as string | null,
     reportDateTime: value.reportDateTime,
     originTime: value.originTime as string | null,
@@ -135,6 +165,246 @@ function parseRecentQuake(value: unknown, nowMs: number): DisplayRecentQuakeV1 |
     tsunamiWarning: value.tsunamiWarning,
     intensityGroups: intensityGroups ?? undefined,
   };
+  const observation = version === PERSIST_SCHEMA_VERSION
+    ? parseObservationMeta(value.observation)
+    : legacyObservationMeta(quake);
+  if (
+    version === LEGACY_PERSIST_SCHEMA_VERSION
+    && observation != null
+    && observation.maxIntValue.presence !== "value"
+  ) {
+    quake = { ...quake, maxInt: null, maxIntRank: null };
+  }
+  return observation == null || !observationMatchesScalar(quake, observation)
+    ? null
+    : withQuakeObservationMeta(quake, observation);
+}
+
+const CANONICAL_INTENSITIES = new Set<JmaIntensity>([
+  "0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7",
+]);
+
+function canonicalIntensity(value: string): JmaIntensity | null {
+  const normalized = value.replace(/\s+/g, "");
+  const canonical = ({
+    "5弱": "5-", "5強": "5+", "6弱": "6-", "6強": "6+",
+  } as const)[normalized as "5弱" | "5強" | "6弱" | "6強"] ?? normalized;
+  return CANONICAL_INTENSITIES.has(canonical as JmaIntensity)
+    ? canonical as JmaIntensity
+    : null;
+}
+
+function legacyObservationMeta(quake: DisplayRecentQuakeV1): QuakeObservationMeta {
+  const canonical = quake.maxInt == null ? null : canonicalIntensity(quake.maxInt);
+  const maxIntValue: SpecialValue<JmaIntensity> = quake.maxInt == null
+    ? {
+        raw: null,
+        value: null,
+        condition: null,
+        description: null,
+        presence: "unknown",
+        diagnostics: ["legacyNullUnknown"],
+      }
+    : canonical != null
+      ? {
+          raw: quake.maxInt,
+          value: canonical,
+          condition: null,
+          description: null,
+          presence: "value",
+        }
+      : {
+          raw: quake.maxInt,
+          value: null,
+          condition: null,
+          description: null,
+          presence: quake.maxInt.trim() === "" ? "empty" : "unknown",
+        };
+  return {
+    sourceType: null,
+    observationSourceType: null,
+    infoType: null,
+    resolvedTrigger: null,
+    cancellationPolicy: null,
+    intensityStructureMissing: false,
+    maxIntValue,
+  };
+}
+
+function parseObservationMeta(value: unknown): QuakeObservationMeta | null {
+  if (
+    !isRecord(value)
+    || !Object.hasOwn(value, "sourceType")
+    || !Object.hasOwn(value, "observationSourceType")
+    || !Object.hasOwn(value, "infoType")
+    || !Object.hasOwn(value, "resolvedTrigger")
+    || !Object.hasOwn(value, "cancellationPolicy")
+    || !Object.hasOwn(value, "intensityStructureMissing")
+    || !Object.hasOwn(value, "maxIntValue")
+    || !isNullableNonEmptyString(value.sourceType)
+    || !isNullableNonEmptyString(value.observationSourceType)
+    || !isNullableString(value.infoType)
+    || !isNullableCancellationTrigger(value.resolvedTrigger)
+    || !isNullableCancellationPolicy(value.cancellationPolicy)
+    || typeof value.intensityStructureMissing !== "boolean"
+    || value.resolvedTrigger != null && value.cancellationPolicy == null
+  ) return null;
+  const maxIntValue = parseIntensitySpecialValue(value.maxIntValue);
+  if (maxIntValue == null) return null;
+  return {
+    sourceType: value.sourceType,
+    observationSourceType: value.observationSourceType,
+    infoType: value.infoType as string | null,
+    resolvedTrigger: value.resolvedTrigger,
+    cancellationPolicy: value.cancellationPolicy,
+    intensityStructureMissing: value.intensityStructureMissing,
+    maxIntValue,
+  };
+}
+
+function parseIntensitySpecialValue(value: unknown): SpecialValue<JmaIntensity> | null {
+  if (
+    !isRecord(value)
+    || !Object.hasOwn(value, "raw")
+    || !Object.hasOwn(value, "value")
+    || !Object.hasOwn(value, "condition")
+    || !Object.hasOwn(value, "description")
+    || !Object.hasOwn(value, "presence")
+    || !isNullableString(value.raw)
+    || !isNullableIntensity(value.value)
+    || !isNullableString(value.condition)
+    || !isNullableString(value.description)
+    || !["value", "missing", "empty", "unknown", "qualitative", "range"].includes(
+      typeof value.presence === "string" ? value.presence : "",
+    )
+  ) return null;
+  if (Object.hasOwn(value, "lowerBound") && !isNullableIntensity(value.lowerBound)) return null;
+  if (Object.hasOwn(value, "upperBound") && !isNullableIntensity(value.upperBound)) return null;
+  if (Object.hasOwn(value, "rawLowerBound") && !isNullableString(value.rawLowerBound)) return null;
+  if (Object.hasOwn(value, "rawUpperBound") && !isNullableString(value.rawUpperBound)) return null;
+  const diagnostics = value.diagnostics == null ? undefined : parseDiagnostics(value.diagnostics);
+  if (value.diagnostics != null && diagnostics == null) return null;
+  const parsed: SpecialValue<JmaIntensity> = {
+    raw: value.raw as string | null,
+    value: value.value as JmaIntensity | null,
+    condition: value.condition as string | null,
+    description: value.description as string | null,
+    presence: value.presence as SpecialValue<JmaIntensity>["presence"],
+    ...(Object.hasOwn(value, "lowerBound")
+      ? { lowerBound: value.lowerBound as JmaIntensity | null }
+      : {}),
+    ...(Object.hasOwn(value, "upperBound")
+      ? { upperBound: value.upperBound as JmaIntensity | null }
+      : {}),
+    ...(Object.hasOwn(value, "rawLowerBound")
+      ? { rawLowerBound: value.rawLowerBound as string | null }
+      : {}),
+    ...(Object.hasOwn(value, "rawUpperBound")
+      ? { rawUpperBound: value.rawUpperBound as string | null }
+      : {}),
+    ...(diagnostics == null ? {} : { diagnostics }),
+  };
+  return isValidIntensitySpecialValue(parsed) ? parsed : null;
+}
+
+function parseDiagnostics(value: unknown): SpecialValueDiagnostic[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((item): item is SpecialValueDiagnostic =>
+    item === "unmappedSpecialValue"
+    || item === "specialValueConflict"
+    || item === "legacyNullUnknown")) return null;
+  return [...value];
+}
+
+function isValidIntensitySpecialValue(value: SpecialValue<JmaIntensity>): boolean {
+  const hasLower = Object.hasOwn(value, "lowerBound");
+  const hasUpper = Object.hasOwn(value, "upperBound");
+  const hasCanonicalBounds = hasLower || hasUpper;
+  const hasRawLower = Object.hasOwn(value, "rawLowerBound");
+  const hasRawUpper = Object.hasOwn(value, "rawUpperBound");
+  if (hasRawLower !== hasRawUpper) return false;
+  if (value.presence === "value" ? value.value == null : value.value != null) return false;
+  if (value.presence === "missing") {
+    return value.raw == null
+      && value.condition == null
+      && value.description == null
+      && !hasCanonicalBounds
+      && !hasRawLower;
+  }
+  if (value.presence === "value") return value.raw != null && !hasCanonicalBounds;
+  if (value.presence === "empty") {
+    return value.raw != null && value.raw.trim() === "" && !hasCanonicalBounds && !hasRawLower;
+  }
+  if (value.presence === "range") {
+    return value.raw != null
+      && (hasLower && value.lowerBound != null || hasUpper && value.upperBound != null);
+  }
+  if (value.presence === "qualitative") return value.raw != null;
+  const legacyNull = value.diagnostics?.includes("legacyNullUnknown") === true;
+  return (value.raw != null || legacyNull) && !hasCanonicalBounds;
+}
+
+function observationMatchesScalar(
+  quake: DisplayRecentQuakeV1,
+  observation: QuakeObservationMeta,
+): boolean {
+  const specialValue = observation.maxIntValue;
+  if (specialValue.presence === "value") {
+    const exactValue = specialValue.value;
+    if (
+      exactValue == null
+      || quake.maxInt == null
+      || quake.maxIntRank == null
+      || canonicalIntensity(quake.maxInt) !== exactValue
+      || intensityToRank(exactValue) !== quake.maxIntRank
+    ) return false;
+  } else if (quake.maxInt != null || quake.maxIntRank != null) {
+    return false;
+  }
+  if (!isValidObservationProvenance(observation)) return false;
+  if (observation.intensityStructureMissing) {
+    return specialValue.presence === "missing"
+      && observation.sourceType != null
+      && observation.observationSourceType === observation.sourceType;
+  }
+  if (observation.sourceType == null) {
+    // v1 migration の provenance 不明値。判別不能な missing は生成しない。
+    return observation.observationSourceType == null && specialValue.presence !== "missing";
+  }
+  return true;
+}
+
+function isValidObservationProvenance(observation: QuakeObservationMeta): boolean {
+  const current = observation.sourceType;
+  const observed = observation.observationSourceType;
+  if (current == null || observed == null) return current == null && observed == null;
+  if (hasResolvedQuakeCancellation(observation)) {
+    return !observation.intensityStructureMissing
+      && observation.maxIntValue.presence !== "missing";
+  }
+  if (current === observed) return true;
+  return (current === "VXSE52" || current === "VXSE61")
+    && observed === "VXSE51"
+    && !observation.intensityStructureMissing
+    && observation.maxIntValue.presence === "value";
+}
+
+function isNullableCancellationTrigger(value: unknown): value is QuakeObservationMeta["resolvedTrigger"] {
+  return value == null
+    || value === "explicitCancellation"
+    || value === "terminal"
+    || value === "deactivation";
+}
+
+function isNullableCancellationPolicy(value: unknown): value is QuakeObservationMeta["cancellationPolicy"] {
+  return value == null
+    || value === "restorePrevious"
+    || value === "clearCurrent"
+    || value === "markCancelled";
+}
+
+function isNullableIntensity(value: unknown): value is JmaIntensity | null {
+  return value == null || (typeof value === "string" && CANONICAL_INTENSITIES.has(value as JmaIntensity));
 }
 
 function parseIntensityGroups(value: unknown): DisplayIntensityGroupV1[] | null {
@@ -163,4 +433,8 @@ function isNullableSafeInteger(value: unknown): value is number | null {
 
 function isNullableString(value: unknown): value is string | null {
   return value == null || typeof value === "string";
+}
+
+function isNullableNonEmptyString(value: unknown): value is string | null {
+  return value == null || (typeof value === "string" && value.trim() !== "");
 }

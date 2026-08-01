@@ -5,9 +5,50 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-counter";
 import { DailyQuakePersistence } from "../../../src/engine/messages/daily-quake-persistence";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { JmaIntensity, SpecialValue } from "../../../src/types";
+import { projectRecentQuake } from "../../../src/engine/display/project-event";
+import { quakeObservationMetaOf } from "../../../src/engine/display/quake-observation-merge";
 
 const T0 = Date.parse("2026-07-29T12:00:00+09:00");
 const dirs: string[] = [];
+
+interface PersistedTestSpecialValue {
+  raw: string | null;
+  value: JmaIntensity | null;
+  condition: string | null;
+  description: string | null;
+  presence: SpecialValue<JmaIntensity>["presence"];
+  lowerBound?: JmaIntensity | null;
+}
+
+interface PersistedTestRecent {
+  eventId: string | null;
+  maxInt: string | null;
+  maxIntRank: number | null;
+  observation: {
+    sourceType: string | null;
+    observationSourceType: string | null;
+    intensityStructureMissing: boolean;
+    maxIntValue: PersistedTestSpecialValue;
+  };
+}
+
+interface PersistedTestFile {
+  state: { recentQuakes: PersistedTestRecent[] };
+}
+
+function specialRecord(
+  presence: SpecialValue<JmaIntensity>["presence"],
+  raw: string | null,
+): PersistedTestSpecialValue {
+  return {
+    raw,
+    value: null,
+    condition: null,
+    description: null,
+    presence,
+  };
+}
 
 function filePath(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-daily-quake-"));
@@ -20,24 +61,36 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+function intensityValue(maxInt: string | null | undefined): SpecialValue<JmaIntensity> {
+  if (maxInt == null) {
+    return { raw: null, value: null, condition: null, description: null, presence: "missing" };
+  }
+  const canonical = ({
+    "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+    "5弱": "5-", "5強": "5+", "6弱": "6-", "6強": "6+", "7": "7",
+  } as const)[maxInt as "0" | "1" | "2" | "3" | "4" | "5弱" | "5強" | "6弱" | "6強" | "7"];
+  return canonical == null
+    ? { raw: maxInt, value: null, condition: null, description: null, presence: "unknown" }
+    : { raw: maxInt, value: canonical, condition: null, description: null, presence: "value" };
+}
+
 function event(overrides: Partial<PresentationEvent> = {}): PresentationEvent {
-  return {
+  const result = {
     id: "id", classification: "telegram.earthquake", domain: "earthquake", type: "VXSE51",
     infoType: "発表", title: "震源・震度に関する情報", headline: null,
     reportDateTime: new Date(T0).toISOString(), publishingOffice: "気象庁", isTest: false,
     frameLevel: "warning", isCancellation: false, eventId: "Q1", maxInt: "4",
+    maxIntRank: 4,
     originTime: new Date(T0).toISOString(), hypocenterName: "東京湾", magnitude: "4.0", depth: "30km",
     tsunamiWarning: false, areaItems: [], ...overrides,
   } as PresentationEvent;
+  result.maxIntValue ??= intensityValue(result.maxInt);
+  return result;
 }
 
 function addQuake(counter: DailyQuakeCounter, e = event(), nowMs = T0): void {
   counter.record(e, nowMs);
-  counter.recordRecentQuake({
-    eventId: e.eventId ?? null, reportDateTime: e.reportDateTime, originTime: e.originTime ?? null,
-    hypocenterName: e.hypocenterName ?? null, magnitude: e.magnitude ?? null, maxInt: e.maxInt ?? null,
-    maxIntRank: 4, depth: e.depth ?? null, tsunamiWarning: false, intensityGroups: [],
-  }, nowMs);
+  counter.recordRecentQuake(projectRecentQuake(e), nowMs);
 }
 
 describe("DailyQuakePersistence", () => {
@@ -59,25 +112,44 @@ describe("DailyQuakePersistence", () => {
   it("観測済み震度を restore 後の震度なし続報でも保持し、実ファイル round-trip する", () => {
     const file = filePath();
     const source = new DailyQuakeCounter(T0);
-    source.recordRecentQuake({
-      eventId: "Q1", reportDateTime: new Date(T0).toISOString(),
-      originTime: new Date(T0).toISOString(), hypocenterName: "初期震源",
-      magnitude: "4.8", maxInt: "4", maxIntRank: 4, depth: "10km",
-      tsunamiWarning: false,
-      intensityGroups: [{ intensity: "4", rank: 4, areas: ["茨城県北部"], omittedAreaCount: 0 }],
-    }, T0);
+    const observed = event({
+      type: "VXSE51",
+      eventId: "Q1",
+      reportDateTime: new Date(T0).toISOString(),
+      originTime: new Date(T0).toISOString(),
+      hypocenterName: "初期震源",
+      magnitude: "4.8",
+      maxInt: "4",
+      maxIntValue: intensityValue("4"),
+      maxIntRank: 4,
+      depth: "10km",
+      areaItems: [{ name: "茨城県北部", maxInt: "4", maxIntValue: intensityValue("4") }],
+    });
+    source.recordRecentQuake(projectRecentQuake(observed), T0);
 
     const persistence = new DailyQuakePersistence(file);
     persistence.save(source.export(), T0 + 1);
     const loadedObserved = persistence.load(T0 + 2);
     const restoredObserved = new DailyQuakeCounter(T0 + 2);
     expect(loadedObserved == null ? false : restoredObserved.restore(loadedObserved, T0 + 2)).toBe(true);
-    restoredObserved.recordRecentQuake({
-      eventId: "Q1", reportDateTime: new Date(T0 + 60_000).toISOString(),
-      originTime: new Date(T0).toISOString(), hypocenterName: "更新震源",
-      magnitude: "5.2", maxInt: null, maxIntRank: null, depth: "20km",
-      tsunamiWarning: false, intensityGroups: [],
-    }, T0 + 60_000);
+    const followup = projectRecentQuake(event({
+      type: "VXSE52",
+      eventId: "Q1",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+      originTime: new Date(T0).toISOString(),
+      hypocenterName: "更新震源",
+      magnitude: "5.2",
+      maxInt: null,
+      maxIntValue: intensityValue(null),
+      maxIntRank: null,
+      depth: "20km",
+      areaItems: [],
+    }));
+    source.recordRecentQuake(followup, T0 + 60_000);
+    restoredObserved.recordRecentQuake(followup, T0 + 60_000);
+    expect(restoredObserved.getRecentQuakes(T0 + 60_000)).toEqual(
+      source.getRecentQuakes(T0 + 60_000),
+    );
 
     persistence.save(restoredObserved.export(), T0 + 60_001);
     const loaded = persistence.load(T0 + 60_002);
@@ -91,6 +163,289 @@ describe("DailyQuakePersistence", () => {
       maxIntRank: 4,
       intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
     });
+    expect(quakeObservationMetaOf(restored.getRecentQuakes(T0 + 60_002)[0]!)).toMatchObject({
+      sourceType: "VXSE52",
+      observationSourceType: "VXSE51",
+      maxIntValue: { presence: "value", value: "4", raw: "4" },
+    });
+  });
+
+  it("SpecialValue の presence/bounds/raw/condition/description を v2 で対称に保存する", () => {
+    const file = filePath();
+    const qualitative: SpecialValue<JmaIntensity> = {
+      raw: " 5弱以上未入電 ",
+      value: null,
+      condition: "5弱以上未入電",
+      description: "震度5弱以上の地域は未入電",
+      presence: "qualitative",
+      lowerBound: "5-",
+      upperBound: null,
+      rawLowerBound: "５－",
+      rawUpperBound: "over",
+      diagnostics: ["specialValueConflict"],
+    };
+    const counter = new DailyQuakeCounter(T0);
+    counter.recordRecentQuake(projectRecentQuake(event({
+      type: "VXSE51",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: qualitative,
+    })), T0);
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+    const loaded = persistence.load(T0 + 2);
+    expect(loaded).not.toBeNull();
+    expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)!.maxIntValue).toEqual(qualitative);
+  });
+
+  it("persists cancelled observation provenance and blocks post-restart structural-missing preservation", () => {
+    const file = filePath();
+    const source = new DailyQuakeCounter(T0);
+    source.recordRecentQuake(projectRecentQuake(event({
+      type: "VXSE51",
+      eventId: "Q1",
+      maxInt: "4",
+      maxIntRank: 4,
+      maxIntValue: intensityValue("4"),
+    })), T0);
+    source.recordRecentQuake(projectRecentQuake(event({
+      type: "VXSE52",
+      eventId: "Q1",
+      infoType: "取消",
+      isCancellation: true,
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
+      reportDateTime: new Date(T0 + 2 * 60_000).toISOString(),
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: intensityValue(null),
+      areaItems: [],
+    })), T0 + 2 * 60_000);
+
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(source.export(), T0 + 2 * 60_000 + 1);
+    const loaded = persistence.load(T0 + 2 * 60_000 + 2);
+    const restored = new DailyQuakeCounter(T0 + 2 * 60_000 + 2);
+    expect(loaded == null ? false : restored.restore(loaded, T0 + 2 * 60_000 + 2)).toBe(true);
+    expect(quakeObservationMetaOf(restored.getRecentQuakes(T0 + 2 * 60_000 + 2)[0]!))
+      .toMatchObject({
+        sourceType: "VXSE52",
+        observationSourceType: "VXSE51",
+        resolvedTrigger: "explicitCancellation",
+        maxIntValue: { presence: "value", value: "4" },
+      });
+
+    restored.recordRecentQuake(projectRecentQuake(event({
+      type: "VXSE61",
+      eventId: "Q1",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: intensityValue(null),
+      areaItems: [],
+    })), T0 + 3 * 60_000);
+    const afterDelayed = restored.getRecentQuakes(T0 + 3 * 60_000)[0]!;
+    expect(afterDelayed).toMatchObject({ maxInt: null, maxIntRank: null, intensityGroups: [] });
+    expect(quakeObservationMetaOf(afterDelayed)?.maxIntValue.presence).toBe("missing");
+  });
+
+  it.each([
+    ["unknown", {
+      raw: "不明",
+      value: null,
+      condition: "不明",
+      description: null,
+      presence: "unknown",
+    }],
+    ["empty", {
+      raw: " ",
+      value: null,
+      condition: null,
+      description: null,
+      presence: "empty",
+    }],
+    ["qualitative", {
+      raw: "5弱以上未入電",
+      value: null,
+      condition: "5弱以上未入電",
+      description: "震度5弱以上の地域は未入電",
+      presence: "qualitative",
+      lowerBound: "5-",
+    }],
+  ] satisfies ReadonlyArray<readonly [string, SpecialValue<JmaIntensity>]>)
+  ("round-trips a cancelled %s observation through v2 persistence", (_label, nonExact) => {
+    const file = filePath();
+    const source = new DailyQuakeCounter(T0);
+    source.recordRecentQuake(projectRecentQuake(event({
+      type: "VXSE51",
+      eventId: "Q1",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: nonExact,
+    })), T0);
+    source.recordRecentQuake(projectRecentQuake(event({
+      type: "VXSE52",
+      eventId: "Q1",
+      infoType: "取消",
+      isCancellation: true,
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
+      reportDateTime: new Date(T0 + 60_000).toISOString(),
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: intensityValue(null),
+      areaItems: [],
+    })), T0 + 60_000);
+
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(source.export(), T0 + 60_001);
+    const loaded = persistence.load(T0 + 60_002);
+    const restored = new DailyQuakeCounter(T0 + 60_002);
+    expect(loaded == null ? false : restored.restore(loaded, T0 + 60_002)).toBe(true);
+
+    const terminal = restored.getRecentQuakes(T0 + 60_002)[0]!;
+    expect(terminal).toMatchObject({ maxInt: null, maxIntRank: null });
+    expect(quakeObservationMetaOf(terminal)).toMatchObject({
+      sourceType: "VXSE52",
+      observationSourceType: "VXSE51",
+      resolvedTrigger: "explicitCancellation",
+      maxIntValue: nonExact,
+    });
+  });
+
+  it("旧 v1 persistence は表示値を復元しつつ source provenance 不明として移行する", () => {
+    const file = filePath();
+    const counter = new DailyQuakeCounter(T0);
+    addQuake(counter);
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1,
+      savedAt: new Date(T0 + 1).toISOString(),
+      state: counter.export(),
+    }), "utf8");
+    const loaded = new DailyQuakePersistence(file).load(T0 + 2);
+    expect(loaded?.recentQuakes[0]).toMatchObject({ maxInt: "4", maxIntRank: 4 });
+    expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)).toMatchObject({
+      sourceType: null,
+      observationSourceType: null,
+      maxIntValue: { presence: "value", value: "4" },
+    });
+  });
+
+  it("旧 v1 の判別不能な maxInt:null は migration reason 付き unknown へ移行する", () => {
+    const file = filePath();
+    const counter = new DailyQuakeCounter(T0);
+    addQuake(counter);
+    const state = counter.export();
+    state.recentQuakes[0] = {
+      ...state.recentQuakes[0]!,
+      maxInt: null,
+      maxIntRank: null,
+      intensityGroups: [],
+    };
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1,
+      savedAt: new Date(T0 + 1).toISOString(),
+      state,
+    }), "utf8");
+    const loaded = new DailyQuakePersistence(file).load(T0 + 2);
+    expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)).toMatchObject({
+      sourceType: null,
+      observationSourceType: null,
+      intensityStructureMissing: false,
+      maxIntValue: {
+        raw: null,
+        value: null,
+        presence: "unknown",
+        diagnostics: ["legacyNullUnknown"],
+      },
+    });
+  });
+
+  it("migrates legacy empty scalar to null while preserving raw empty through v2 round-trip", () => {
+    const file = filePath();
+    const counter = new DailyQuakeCounter(T0);
+    addQuake(counter);
+    const state = counter.export();
+    state.recentQuakes[0] = {
+      ...state.recentQuakes[0]!,
+      maxInt: "",
+      maxIntRank: 0,
+      intensityGroups: [],
+    };
+    fs.writeFileSync(file, JSON.stringify({
+      version: 1,
+      savedAt: new Date(T0 + 1).toISOString(),
+      state,
+    }), "utf8");
+
+    const persistence = new DailyQuakePersistence(file);
+    const migrated = persistence.load(T0 + 2);
+    expect(migrated?.recentQuakes[0]).toMatchObject({ maxInt: null, maxIntRank: null });
+    expect(quakeObservationMetaOf(migrated!.recentQuakes[0]!)?.maxIntValue).toMatchObject({
+      raw: "",
+      value: null,
+      presence: "empty",
+    });
+
+    persistence.save(migrated!, T0 + 3);
+    const roundTripped = persistence.load(T0 + 4);
+    expect(roundTripped?.recentQuakes[0]).toMatchObject({ maxInt: null, maxIntRank: null });
+    expect(quakeObservationMetaOf(roundTripped!.recentQuakes[0]!)?.maxIntValue).toMatchObject({
+      raw: "",
+      value: null,
+      presence: "empty",
+    });
+  });
+
+  it.each([
+    ["scalar と SpecialValue の不一致", (entry: PersistedTestRecent) => {
+      entry.maxInt = "5弱";
+      entry.maxIntRank = 5;
+    }],
+    ["provenance と構造的 missing の不一致", (entry: PersistedTestRecent) => {
+      entry.observation.intensityStructureMissing = true;
+    }],
+    ["生成不能な current/observation provenance", (entry: PersistedTestRecent) => {
+      entry.observation.sourceType = "VXSE53";
+      entry.observation.observationSourceType = "VXSE51";
+    }],
+    ["明示構造なのに observation provenance が null", (entry: PersistedTestRecent) => {
+      entry.maxInt = null;
+      entry.maxIntRank = null;
+      entry.observation.sourceType = "VXSE52";
+      entry.observation.observationSourceType = null;
+      entry.observation.intensityStructureMissing = false;
+      entry.observation.maxIntValue = specialRecord("missing", null);
+    }],
+    ["bounds のない range", (entry: PersistedTestRecent) => {
+      entry.maxInt = null;
+      entry.maxIntRank = null;
+      entry.observation.maxIntValue = specialRecord("range", "4");
+    }],
+    ["raw:null の value", (entry: PersistedTestRecent) => {
+      entry.observation.maxIntValue.raw = null;
+    }],
+    ["raw:null の empty", (entry: PersistedTestRecent) => {
+      entry.maxInt = null;
+      entry.maxIntRank = null;
+      entry.observation.maxIntValue = specialRecord("empty", null);
+    }],
+    ["value に canonical bounds", (entry: PersistedTestRecent) => {
+      entry.observation.maxIntValue.lowerBound = "4";
+    }],
+  ] as const)("破損 v2 entry (%s) だけを fail-closed にして別 EventID を salvage する", (_label, corrupt) => {
+    const file = filePath();
+    const counter = new DailyQuakeCounter(T0);
+    addQuake(counter, event({ eventId: "Q1" }), T0);
+    addQuake(counter, event({ eventId: "Q2", reportDateTime: new Date(T0 + 1).toISOString() }), T0 + 1);
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 2);
+    const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedTestFile;
+    const broken = persisted.state.recentQuakes.find((entry) => entry.eventId === "Q1")!;
+    corrupt(broken);
+    fs.writeFileSync(file, JSON.stringify(persisted), "utf8");
+    const loaded = persistence.load(T0 + 3);
+    expect(loaded?.recentQuakes.map((entry) => entry.eventId)).toEqual(["Q2"]);
   });
 
   it("JST 00:00 sweep は空の当日状態にし、前日ファイルは restore しない", () => {
@@ -116,12 +471,12 @@ describe("DailyQuakePersistence", () => {
     const late = event({ eventId: "Q1", originTime: "2026-07-29T23:58:00+09:00", reportDateTime: new Date(now).toISOString() });
     counter.record(late, now);
     counter.recordRecentQuake({ eventId: "Q1", reportDateTime: late.reportDateTime, originTime: late.originTime ?? null, hypocenterName: null, magnitude: null, maxInt: "4", maxIntRank: 4, depth: null, tsunamiWarning: false }, now);
-    counter.record({ ...late, maxInt: "5弱" }, now + 1);
+    counter.record({ ...late, maxInt: "5弱", maxIntValue: intensityValue("5弱") }, now + 1);
     expect(counter.getSnapshot(now + 1)).toMatchObject({ todayQuakeCount: 1, todayMaxInt: "5弱" });
     expect(counter.getRecentQuakes(now + 1)).toEqual([]);
   });
 
-  it("破損・未知 version・未来日時は warn して空開始へ縮退する", () => {
+  it("envelope 破損は空開始、未来日時の recent entry は event 単位 salvage する", () => {
     const file = filePath();
     const persistence = new DailyQuakePersistence(file);
     const warn = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -136,7 +491,10 @@ describe("DailyQuakePersistence", () => {
     const futureState = counter.export();
     futureState.recentQuakes[0] = { ...futureState.recentQuakes[0]!, originTime: new Date(T0 + 1).toISOString() };
     fs.writeFileSync(file, JSON.stringify({ version: 1, savedAt: new Date(T0).toISOString(), state: futureState }), "utf8");
-    expect(persistence.load(T0)).toBeNull();
+    expect(persistence.load(T0)).toMatchObject({
+      count: 1,
+      recentQuakes: [],
+    });
     expect(warn).toHaveBeenCalled();
   });
 

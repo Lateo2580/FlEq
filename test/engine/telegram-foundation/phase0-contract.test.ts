@@ -350,6 +350,7 @@ describe("telegram foundation Phase 0 contract", () => {
       expect(listedOwners.has(evidence.owner), `${evidence.domain}/${evidence.family}/${evidence.owner}`)
         .toBe(true);
       expect(evidence.behavior).not.toBe("");
+      if ("evidenceMode" in evidence && evidence.evidenceMode === "historicalBaseline") continue;
       for (const source of evidence.sources) {
         const implementation = readFileSync(resolve(source.sourceFile), "utf8");
         for (const needle of source.needles) {

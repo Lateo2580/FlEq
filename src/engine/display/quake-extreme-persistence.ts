@@ -28,12 +28,34 @@ export class QuakeExtremePersistence {
       const records = parsed.records.filter(isRecord).flatMap((record): QuakeExtremeRecordV1[] => {
         const groupKey = record.groupKey;
         const originTime = record.originTime;
+        const reportDateTime = record.reportDateTime;
+        const hypocenterName = record.hypocenterName;
+        const magnitude = record.magnitude;
+        const depth = record.depth;
         const sourceTypes = nonEmptyStrings(record.sourceTypes);
+        const observationSourceType = record.observationSourceType;
         if (typeof groupKey !== "string" || groupKey === "" || typeof originTime !== "string" ||
-            sourceTypes == null) return [];
+            reportDateTime !== undefined &&
+              (typeof reportDateTime !== "string" || !Number.isFinite(Date.parse(reportDateTime))) ||
+            !isOptionalNullableString(hypocenterName) ||
+            !isOptionalNullableString(magnitude) ||
+            !isOptionalNullableString(depth) ||
+            sourceTypes == null ||
+            observationSourceType != null &&
+              (typeof observationSourceType !== "string" || observationSourceType === "" ||
+                !sourceTypes.includes(observationSourceType))) return [];
         const originMs = Date.parse(originTime);
         if (!Number.isFinite(originMs) || originMs > nowMs) return [];
-        return [{ groupKey, originTime, sourceTypes: [...new Set(sourceTypes)] }];
+        return [{
+          groupKey,
+          originTime,
+          ...(reportDateTime === undefined ? {} : { reportDateTime }),
+          ...(hypocenterName === undefined ? {} : { hypocenterName }),
+          ...(magnitude === undefined ? {} : { magnitude }),
+          ...(depth === undefined ? {} : { depth }),
+          sourceTypes: [...new Set(sourceTypes)],
+          ...(observationSourceType == null ? {} : { observationSourceType }),
+        }];
       });
       const seen = Array.isArray(parsed.seen)
         ? parsed.seen.filter(isRecord).flatMap((entry): PersistedSeenEntry[] => {
@@ -112,4 +134,8 @@ function nonEmptyStrings(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length === 0 ||
       !value.every((item): item is string => typeof item === "string" && item !== "")) return null;
   return value;
+}
+
+function isOptionalNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || value == null || typeof value === "string";
 }

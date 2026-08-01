@@ -3,7 +3,11 @@ import { jstDayKey } from "../../utils/jst-day-key";
 import { RECENT_QUAKES_MAX } from "../display/constants";
 import type { DisplayRecentQuakeV1 } from "../display/types";
 import type { PresentationEvent } from "../presentation/types";
-import { mergeRecentQuakeObservation } from "../display/quake-observation-merge";
+import {
+  hasResolvedQuakeCancellation,
+  mergeRecentQuakeObservation,
+  quakeObservationMetaOf,
+} from "../display/quake-observation-merge";
 
 /** getSnapshot() の戻り値 */
 export interface DailyQuakeSnapshot {
@@ -46,11 +50,14 @@ export class DailyQuakeCounter {
     this.onChangeListener = listener;
   }
 
-  /** 地震イベントを記録する。地震以外・取消・maxInt 欠落は無視する */
+  /** 地震イベントを記録する。統計へ採用する最大震度は exact value だけとする。 */
   record(event: PresentationEvent, now?: number): void {
     const ts = now ?? Date.now();
     const rolledOver = this.rolloverIfNeeded(ts);
-    if (event.domain !== "earthquake" || event.isCancellation || event.maxInt == null) {
+    const exactMaxInt = event.maxIntValue?.presence === "value"
+      ? event.maxInt ?? event.maxIntValue.value
+      : null;
+    if (event.domain !== "earthquake" || event.isCancellation || exactMaxInt == null) {
       if (rolledOver) this.notify("rollover");
       return;
     }
@@ -63,10 +70,10 @@ export class DailyQuakeCounter {
       this.count += 1;
     }
 
-    const rank = intensityToRank(event.maxInt);
+    const rank = intensityToRank(exactMaxInt);
     if (rank > this.maxIntRank) {
       this.maxIntRank = rank;
-      this.maxInt = event.maxInt;
+      this.maxInt = exactMaxInt;
     }
     this.notify(rolledOver ? "rollover" : "update");
   }
@@ -82,6 +89,12 @@ export class DailyQuakeCounter {
     const existing = quake.eventId == null
       ? null
       : this.recentQuakes.find((candidate) => candidate.eventId === quake.eventId);
+    const observationMeta = quakeObservationMetaOf(quake);
+    if (observationMeta != null && hasResolvedQuakeCancellation(observationMeta) && existing == null) {
+      // earthquake は markCancelled。取消済み active state は外すが、日次履歴 record は保持する。
+      if (rolledOver) this.notify("rollover");
+      return rolledOver;
+    }
     const merged = mergeRecentQuakeObservation(existing, quake);
     if (quake.eventId != null) {
       this.recentQuakes = this.recentQuakes.filter((existing) => existing.eventId !== quake.eventId);

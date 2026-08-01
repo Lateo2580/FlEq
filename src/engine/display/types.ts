@@ -7,6 +7,18 @@ import type {
 } from "./protocol";
 import type { StandbyRevision } from "./standby-registry";
 
+export type DisplayQuakeMapEventUpdateV1 = Pick<
+  DisplayQuakeIntensityMapEventV1,
+  | "eventId"
+  | "reportDateTime"
+  | "originTime"
+  | "hypocenterName"
+  | "depth"
+  | "magnitude"
+  | "tsunamiWarning"
+  | "updatedAtMs"
+>;
+
 export type DisplayQuakeMapCommandV1 =
   | {
       kind: "upsert";
@@ -19,9 +31,10 @@ export type DisplayQuakeMapCommandV1 =
       kind: "remove";
       eventKey: string;
       sourceType: string;
-      reason: "cancelled" | "belowThreshold";
+      reason: "cancelled" | "belowThreshold" | "nonExact" | "structuralMissing";
       revision: StandbyRevision;
       isCorrection?: boolean;
+      eventUpdate?: DisplayQuakeMapEventUpdateV1;
     };
 
 /** broadcast 1 回の配送結果。authoritative sync (tickerSynced) が全 client に届いたかを判定する */

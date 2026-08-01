@@ -775,7 +775,7 @@ describe("DisplayStateStore: latestQuake", () => {
     expect(store.snapshot(2, T0 + 5 * MIN + 1).latestQuake).toBeNull();
   });
 
-  it("取消電文は保持中の latestQuake を置換しない", () => {
+  it("内部 bridge のない legacy 取消 DTO は対象 EventID を証明できず latestQuake を変更しない", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(latestQuakeOnlyDto({ eventId: "Q1" }), T0)).toBe(true);
     expect(store.applyEvent(latestQuakeOnlyDto({

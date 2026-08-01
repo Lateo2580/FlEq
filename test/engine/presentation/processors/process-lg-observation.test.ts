@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { processLgObservation } from "../../../../src/engine/presentation/processors/process-lg-observation";
+import { fromLgObservationOutcome } from "../../../../src/engine/presentation/events/from-lg-observation";
 import {
   createMockWsDataMessage,
   FIXTURE_VXSE62_LGOBS,
@@ -37,6 +38,16 @@ describe("processLgObservation", () => {
 
     expect(outcome).not.toBeNull();
     expect(outcome!.presentation.soundLevel).toBeDefined();
+  });
+
+  it("Intensity/LgInt の SpecialValue を presentation event と areaItems へ保持する", () => {
+    const outcome = processLgObservation(createMockWsDataMessage(FIXTURE_VXSE62_LGOBS));
+    expect(outcome).not.toBeNull();
+    const event = fromLgObservationOutcome(outcome!);
+    expect(event.maxIntValue).toEqual(outcome!.parsed.maxIntValue);
+    expect(event.maxLgIntValue).toEqual(outcome!.parsed.maxLgIntValue);
+    expect(event.areaItems[0]?.maxIntValue).toEqual(outcome!.parsed.areas[0]?.maxIntValue);
+    expect(event.areaItems[0]?.maxLgIntValue).toEqual(outcome!.parsed.areas[0]?.maxLgIntValue);
   });
 
   it("パース失敗 → null", () => {

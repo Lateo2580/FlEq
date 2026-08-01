@@ -24,11 +24,18 @@ import type {
   ParsedFloodForecastInfo,
   FloodLevel,
   Vpws50Diff,
+  JmaIntensity,
+  JmaLgIntensity,
+  SpecialValue,
 } from "../../types";
 import type { EewDiff, EewUpdateResult } from "../eew/eew-tracker";
 import type { VolcanoPresentation } from "./volcano-presentation";
 import type { StatsCategory } from "../messages/telegram-stats";
 import type { FloodForecastDiff } from "../messages/flood-forecast-state";
+import type {
+  CancellationPolicy,
+  CancellationTrigger,
+} from "../messages/telegram-revision-gate";
 
 // ── PresentationDomain ──
 
@@ -78,6 +85,10 @@ export interface ProcessOutcomeBase {
     acceptedCorrection?: boolean;
     /** transient family の共通 gate が authoritative に受理した報。 */
     foundationMutationAccepted?: boolean;
+    /** 共通 gate が一意に解決した cancellation trigger。raw InfoType の再判定には使わない。 */
+    foundationResolvedTrigger?: CancellationTrigger | null;
+    /** resolvedTrigger に適用された registry policy。 */
+    foundationCancellationPolicy?: CancellationPolicy;
     /** weather の durable holder/gate mutation が authoritative に commit 済みか。 */
     weatherStateMutationAccepted?: boolean;
     /** 複数 subject の union を永続化するときに使う正規 revision。active が空なら null。 */
@@ -290,7 +301,9 @@ export interface PresentationAreaItem {
   name: string;
   code?: string;
   kind?: string;
+  maxIntValue?: SpecialValue<JmaIntensity>;
   maxInt?: string;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
   maxLgInt?: string;
   flags?: string[];
   /** 津波予報区の予想波高記述 (tsunami ドメインのみ使用) */
@@ -302,14 +315,30 @@ export interface PresentationAreaItem {
 export interface PresentationQuakeIntensityItem {
   name: string;
   code: string;
+  /** 新 parser/presentation 経路では設定。旧 scalar adapter の手組み入力では省略可。 */
+  maxIntValue?: SpecialValue<JmaIntensity>;
   maxInt: string;
   maxIntRank: number;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
   maxLgInt?: string;
 }
 
 export interface PresentationQuakeIntensity {
   localAreas: PresentationQuakeIntensityItem[];
   municipalities: PresentationQuakeIntensityItem[];
+}
+
+/** exact 発火閾値とは独立して、Area/City が明示した SpecialValue を保持する。 */
+export interface PresentationQuakeIntensityValueItem {
+  name: string;
+  code: string | null;
+  maxIntValue: SpecialValue<JmaIntensity>;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
+}
+
+export interface PresentationQuakeIntensityValues {
+  localAreas: PresentationQuakeIntensityValueItem[];
+  municipalities: PresentationQuakeIntensityValueItem[];
 }
 
 /** EEW 予測震度地域の詳細 (地域別表示用、Phase A) */
@@ -411,6 +440,8 @@ export interface PresentationEvent {
   standbyActiveSubjects?: string[];
   standbyAppliedSemanticKey?: string | null;
   foundationMutationAccepted?: boolean;
+  foundationResolvedTrigger?: CancellationTrigger | null;
+  foundationCancellationPolicy?: CancellationPolicy;
 
   // 状態フラグ
   isCancellation: boolean;
@@ -434,8 +465,10 @@ export interface PresentationEvent {
   magnitude?: string | null;
 
   // 強度
+  maxIntValue?: SpecialValue<JmaIntensity>;
   maxInt?: string | null;
   maxIntRank?: number | null;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
   maxLgInt?: string | null;
   maxLgIntRank?: number | null;
   forecastMaxInt?: string | null;
@@ -461,6 +494,8 @@ export interface PresentationEvent {
 
   // code欠落除外・重複集約済みの地震中間表現。Phase 3でmap stateへ射影する
   quakeIntensity?: PresentationQuakeIntensity;
+  /** 非 exact を含む震度構造。地図発火は後続単位、missing 判定には本単位から使用する。 */
+  quakeIntensityValues?: PresentationQuakeIntensityValues;
 
   // EEW 予測震度地域の詳細 (Phase A、eew ドメインのみ使用)
   eewRegions?: PresentationEewRegion[];

@@ -313,6 +313,199 @@ describe("InfoDisplayHub: state debounce", () => {
     },
   );
 
+  it.each([
+    ["VXSE51", true],
+    ["VXSE53", false],
+  ] as const)(
+    "%s exact 震度7→VXSE52 structural missing は §7.4 provenance に全 projection を揃える",
+    (initialType, preserved) => {
+      const { hub } = makeHub();
+      hub.ingest(quakeSequenceEvent(initialType, "2026-07-06T21:00:00+09:00", {
+        maxInt: "7",
+        maxIntRank: 9,
+        maxIntValue: { raw: "7", value: "7", condition: null, description: null, presence: "value" },
+        areaItems: [{ name: "地域A", code: "440", maxInt: "7" }],
+        quakeIntensity: {
+          localAreas: [{ name: "地域A", code: "440", maxInt: "7", maxIntRank: 9 }],
+          municipalities: [],
+        },
+      }));
+      hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+        maxInt: null,
+        maxIntRank: null,
+        maxIntValue: { raw: null, value: null, condition: null, description: null, presence: "missing" },
+        areaItems: [],
+      }));
+
+      const snapshot = hub.buildSnapshot();
+      expect(snapshot.latestQuake?.maxInt).toBe(preserved ? "7" : null);
+      expect(snapshot.recentQuakes[0]?.maxInt).toBe(preserved ? "7" : null);
+      expect(snapshot.mapLayers?.quake?.events ?? []).toHaveLength(preserved ? 1 : 0);
+      expect(snapshot.largeQuakes).toHaveLength(preserved ? 1 : 0);
+      expect(snapshot.severityTier).toBe(preserved ? "alert" : "calm");
+      expect(snapshot.backgroundTone).toBe(preserved ? "quakeExtreme" : "calm");
+    },
+  );
+
+  it.each([
+    ["unknown", { raw: "", value: null, condition: "未入電", description: null, presence: "unknown" }],
+    ["empty", { raw: "", value: null, condition: null, description: null, presence: "empty" }],
+    ["qualitative", {
+      raw: "", value: null, condition: "5弱以上未入電", description: null,
+      presence: "qualitative", lowerBound: "5-",
+    }],
+  ] as const)("VXSE51→VXSE52 の明示 %s は最新・履歴の旧観測震度を保持しない", (
+    _label,
+    maxIntValue,
+  ) => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      maxInt: "4",
+      maxIntRank: 4,
+      maxIntValue: { raw: "4", value: "4", condition: null, description: null, presence: "value" },
+      areaItems: [{ name: "茨城県北部", maxInt: "4" }],
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue,
+      areaItems: [],
+    }));
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot.latestQuake).toMatchObject({ maxInt: null, maxIntRank: null, intensityGroups: [] });
+    expect(snapshot.recentQuakes[0]).toMatchObject({ maxInt: null, maxIntRank: null, intensityGroups: [] });
+  });
+
+  it("同一 EventID の markCancelled は latest を解除し recent 履歴を保持する", () => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      maxInt: "4",
+      maxIntRank: 4,
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+      infoType: "取消",
+      isCancellation: true,
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
+      maxInt: null,
+      maxIntRank: null,
+      areaItems: [],
+    }));
+    expect(hub.buildSnapshot()).toMatchObject({
+      latestQuake: null,
+      recentQuakes: [expect.objectContaining({ eventId: "Q-followup", maxInt: "4" })],
+    });
+  });
+
+  it.each(["unknown", "empty", "qualitative"] as const)(
+    "震度7初報後の明示 %s 続報は map/largeQuakes/severity/震度7背景の旧状態を残さない",
+    (presence) => {
+      const { hub } = makeHub();
+      hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+        maxInt: "7",
+        maxIntRank: 9,
+        maxIntValue: { raw: "7", value: "7", condition: null, description: null, presence: "value" },
+        areaItems: [{ name: "地域A", code: "440", maxInt: "7" }],
+        quakeIntensity: {
+          localAreas: [{ name: "地域A", code: "440", maxInt: "7", maxIntRank: 9 }],
+          municipalities: [],
+        },
+      }));
+      expect(hub.buildSnapshot()).toMatchObject({
+        severityTier: "alert",
+        backgroundTone: "quakeExtreme",
+        largeQuakes: [expect.objectContaining({ eventId: "Q-followup", maxInt: "7" })],
+      });
+      const raw = presence === "unknown" ? "未入電" : "";
+      hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+        maxInt: null,
+        maxIntRank: null,
+        maxIntValue: {
+          raw,
+          value: null,
+          condition: presence === "unknown" ? "未入電" : null,
+          description: null,
+          presence,
+          ...(presence === "qualitative" ? { lowerBound: "5-" as const } : {}),
+        },
+        areaItems: [],
+      }));
+      expect(hub.buildSnapshot()).toMatchObject({
+        severityTier: "calm",
+        backgroundTone: "calm",
+        largeQuakes: [],
+        latestQuake: expect.objectContaining({ maxInt: null, intensityGroups: [] }),
+      });
+      expect(hub.buildSnapshot().mapLayers?.quake?.events ?? []).toEqual([]);
+    },
+  );
+
+  it("全体 MaxInt missing でも City に明示 unknown があれば VXSE51 intensityGroups を保持しない", () => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      maxInt: "4",
+      maxIntRank: 4,
+      maxIntValue: { raw: "4", value: "4", condition: null, description: null, presence: "value" },
+      areaItems: [{ name: "地域A", maxInt: "4" }],
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: { raw: null, value: null, condition: null, description: null, presence: "missing" },
+      areaItems: [],
+      quakeIntensityValues: {
+        localAreas: [],
+        municipalities: [{
+          name: "市A",
+          code: "0123456",
+          maxIntValue: {
+            raw: "未入電",
+            value: null,
+            condition: "未入電",
+            description: null,
+            presence: "unknown",
+          },
+        }],
+      },
+    }));
+    expect(hub.buildSnapshot()).toMatchObject({
+      latestQuake: expect.objectContaining({ maxInt: null, intensityGroups: [] }),
+      recentQuakes: [expect.objectContaining({ maxInt: null, intensityGroups: [] })],
+    });
+  });
+
+  it("震度7初報後の registry 受理済み取消は全 type contribution と active 表示を解除する", () => {
+    const { hub } = makeHub();
+    hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
+      maxInt: "7",
+      maxIntRank: 9,
+      maxIntValue: { raw: "7", value: "7", condition: null, description: null, presence: "value" },
+      areaItems: [{ name: "地域A", code: "440", maxInt: "7" }],
+      quakeIntensity: {
+        localAreas: [{ name: "地域A", code: "440", maxInt: "7", maxIntRank: 9 }],
+        municipalities: [],
+      },
+    }));
+    hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:01:00+09:00", {
+      infoType: "取消",
+      isCancellation: true,
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
+      maxInt: null,
+      maxIntRank: null,
+      areaItems: [],
+    }));
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot).toMatchObject({
+      severityTier: "calm",
+      backgroundTone: "calm",
+      largeQuakes: [],
+      latestQuake: null,
+      recentQuakes: [expect.objectContaining({ eventId: "Q-followup", maxInt: "7" })],
+    });
+    expect(snapshot.mapLayers?.quake?.events ?? []).toEqual([]);
+  });
+
   it("VXSE52→VXSE51 の逆順では後着した観測震度・地域別震度・地図を採用する", () => {
     const { hub } = makeHub();
     hub.ingest(quakeSequenceEvent("VXSE52", "2026-07-06T21:00:00+09:00", {

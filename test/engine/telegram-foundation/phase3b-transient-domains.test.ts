@@ -131,6 +131,26 @@ describe("Phase 3B transient domain registry", () => {
     });
   });
 
+  it("earthquake cancellation の resolvedTrigger/policy を PresentationEvent まで一度だけ渡す", () => {
+    const cancellationXml = readFixture(FIXTURE_VXSE51_SHINDO)
+      .replace(/<InfoType>[^<]*<\/InfoType>/, "<InfoType>取消</InfoType>");
+    const outcome = processMessage(
+      createMockWsDataMessageFromXml(cancellationXml, "VXSE51"),
+      "earthquake",
+      makeProcessDeps(),
+    );
+    expect(outcome?.presentation).toMatchObject({
+      foundationMutationAccepted: true,
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
+    });
+    if (outcome == null) return;
+    expect(toPresentationEvent(outcome)).toMatchObject({
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
+    });
+  });
+
   it("does not join EventID-less reports and only suppresses an exact semantic replay", () => {
     const xml = readFixture(FIXTURE_VPZI50_HOT_DRY)
       .replace(/<EventID>[^<]*<\/EventID>/, "<EventID />");

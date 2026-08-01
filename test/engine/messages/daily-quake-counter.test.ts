@@ -2,9 +2,29 @@ import { describe, expect, it } from "vitest";
 import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-counter";
 import type { DisplayRecentQuakeV1 } from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { JmaIntensity, SpecialValue } from "../../../src/types";
+import {
+  quakeObservationMetaOf,
+  withQuakeObservationMeta,
+  type QuakeObservationMeta,
+} from "../../../src/engine/display/quake-observation-merge";
+
+function intensityValue(maxInt: string | null | undefined): SpecialValue<JmaIntensity> {
+  if (maxInt == null) {
+    return { raw: null, value: null, condition: null, description: null, presence: "missing" };
+  }
+  const value = ({
+    "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+    "5弱": "5-", "5強": "5+", "6弱": "6-", "6強": "6+", "7": "7",
+  } as const)[maxInt as "0" | "1" | "2" | "3" | "4" | "5弱" | "5強" | "6弱" | "6強" | "7"];
+  if (value != null) {
+    return { raw: maxInt, value, condition: null, description: null, presence: "value" };
+  }
+  return { raw: maxInt, value: null, condition: null, description: null, presence: "unknown" };
+}
 
 function makeEvent(overrides: Partial<PresentationEvent> = {}): PresentationEvent {
-  return {
+  const event = {
     id: "id-1",
     classification: "telegram.earthquake",
     domain: "earthquake",
@@ -21,13 +41,18 @@ function makeEvent(overrides: Partial<PresentationEvent> = {}): PresentationEven
     maxInt: "3",
     ...overrides,
   } as PresentationEvent;
+  event.maxIntValue ??= intensityValue(event.maxInt);
+  return event;
 }
 
 // 2026-07-08T12:00:00+09:00 (JST) を UTC ミリ秒に変換
 const NOON_JST_JUL8 = Date.parse("2026-07-08T12:00:00+09:00");
 
-function recentQuake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
-  return {
+function recentQuake(
+  over: Partial<DisplayRecentQuakeV1> = {},
+  meta: Partial<QuakeObservationMeta> = {},
+): DisplayRecentQuakeV1 {
+  const quake = {
     eventId: "event-1",
     reportDateTime: "2026-07-08T12:00:00+09:00",
     originTime: "2026-07-08T11:59:00+09:00",
@@ -42,12 +67,24 @@ function recentQuake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQua
     }],
     ...over,
   };
+  const maxIntValue = meta.maxIntValue ?? intensityValue(quake.maxInt);
+  const sourceType = meta.sourceType ?? "VXSE51";
+  return withQuakeObservationMeta(quake, {
+    sourceType,
+    observationSourceType: maxIntValue.presence === "missing" ? null : sourceType,
+    infoType: "発表",
+    resolvedTrigger: null,
+    cancellationPolicy: "markCancelled",
+    intensityStructureMissing: maxIntValue.presence === "missing",
+    ...meta,
+    maxIntValue,
+  });
 }
 
 describe("DailyQuakeCounter", () => {
   it.each(["VXSE52", "VXSE61"])(
     "VXSE51→%s 相当の同一EventID履歴は震度を保持し、震源諸元を更新する",
-    () => {
+    (followupType) => {
       const counter = new DailyQuakeCounter(NOON_JST_JUL8);
       counter.recordRecentQuake(recentQuake(), NOON_JST_JUL8);
       counter.recordRecentQuake(recentQuake({
@@ -58,6 +95,9 @@ describe("DailyQuakeCounter", () => {
         maxInt: null,
         maxIntRank: null,
         intensityGroups: [],
+      }, {
+        sourceType: followupType,
+        maxIntValue: intensityValue(null),
       }), NOON_JST_JUL8 + 60_000);
 
       expect(counter.getRecentQuakes(NOON_JST_JUL8 + 60_000)).toEqual([
@@ -83,6 +123,9 @@ describe("DailyQuakeCounter", () => {
       maxInt: null,
       maxIntRank: null,
       intensityGroups: [],
+    }, {
+      sourceType: "VXSE52",
+      maxIntValue: intensityValue(null),
     }), NOON_JST_JUL8);
     counter.recordRecentQuake(recentQuake({
       reportDateTime: "2026-07-08T12:01:00+09:00",
@@ -105,6 +148,9 @@ describe("DailyQuakeCounter", () => {
       intensityGroups: [{
         intensity: "5弱", rank: 5, areas: ["茨城県南部"], omittedAreaCount: 0,
       }],
+    }, {
+      sourceType: "VXSE53",
+      maxIntValue: intensityValue("5弱"),
     }), NOON_JST_JUL8 + 60_000);
 
     expect(counter.getRecentQuakes(NOON_JST_JUL8 + 60_000)[0]).toMatchObject({
@@ -151,6 +197,55 @@ describe("DailyQuakeCounter", () => {
 
     const snapshot = counter.getSnapshot(NOON_JST_JUL8);
     expect(snapshot.todayQuakeCount).toBe(0);
+  });
+
+  it("5弱以上未入電など exact でない震度は日次統計へ採用しない", () => {
+    const counter = new DailyQuakeCounter(NOON_JST_JUL8);
+    counter.record(makeEvent({
+      maxInt: null,
+      maxIntValue: {
+        raw: "",
+        value: null,
+        condition: "5弱以上未入電",
+        description: null,
+        presence: "qualitative",
+        lowerBound: "5-",
+      },
+    }), NOON_JST_JUL8);
+    expect(counter.getSnapshot(NOON_JST_JUL8)).toEqual({
+      todayQuakeCount: 0,
+      todayMaxInt: null,
+      todayMaxIntRank: null,
+    });
+  });
+
+  it("markCancelled projection は同一 EventID の recent 履歴 record を保持する", () => {
+    const counter = new DailyQuakeCounter(NOON_JST_JUL8);
+    counter.recordRecentQuake(recentQuake(), NOON_JST_JUL8);
+    counter.recordRecentQuake(recentQuake({
+      reportDateTime: "2026-07-08T12:01:00+09:00",
+      maxInt: null,
+      maxIntRank: null,
+      intensityGroups: [],
+    }, {
+      sourceType: "VXSE52",
+      observationSourceType: null,
+      infoType: "取消",
+      resolvedTrigger: "explicitCancellation",
+      cancellationPolicy: "markCancelled",
+      maxIntValue: intensityValue(null),
+    }), NOON_JST_JUL8 + 60_000);
+    const recent = counter.getRecentQuakes(NOON_JST_JUL8 + 60_000);
+    expect(recent).toEqual([
+      expect.objectContaining({ eventId: "event-1", maxInt: "4", maxIntRank: 4 }),
+    ]);
+    expect(quakeObservationMetaOf(recent[0]!)).toMatchObject({
+      sourceType: "VXSE52",
+      observationSourceType: "VXSE51",
+      resolvedTrigger: "explicitCancellation",
+      cancellationPolicy: "markCancelled",
+      maxIntValue: { presence: "value", value: "4" },
+    });
   });
 
   it("eventId が null の地震は 1 件として計上する", () => {

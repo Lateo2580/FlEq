@@ -84,6 +84,8 @@ export function gateTransientOutcome<
   if (result.kind === "suppressed") return null;
   outcome.presentation.foundationMutationAccepted = true;
   outcome.presentation.acceptedCorrection = result.acceptedCorrection;
+  outcome.presentation.foundationResolvedTrigger = result.decision.resolvedTrigger;
+  outcome.presentation.foundationCancellationPolicy = policy.cancellationPolicy;
   return outcome;
 }
 
@@ -110,5 +112,7 @@ export function gateRawOutcome<TOutcome extends ProcessOutcomeBase & { parsed: n
   }
   outcome.presentation.foundationMutationAccepted = true;
   outcome.presentation.acceptedCorrection = result.acceptedCorrection;
+  outcome.presentation.foundationResolvedTrigger = result.decision.resolvedTrigger;
+  outcome.presentation.foundationCancellationPolicy = policy.cancellationPolicy;
   return outcome;
 }

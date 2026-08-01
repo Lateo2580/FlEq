@@ -22,7 +22,9 @@ export type SpecialValuePresence =
 
 export type SpecialValueDiagnostic =
   | "unmappedSpecialValue"
-  | "specialValueConflict";
+  | "specialValueConflict"
+  /** 旧 schema の null が missing/unknown のどちらか判別不能だったことを示す。 */
+  | "legacyNullUnknown";
 
 export interface SpecialValue<T> {
   raw: string | null;

@@ -33,16 +33,22 @@ export class RevisionGuard {
     retentionMs = DEFAULT_SEEN_FORGET_MS,
     allowEqual = false,
   ): boolean {
-    const existing = this.seen.get(key);
-    if (existing != null) {
-      const compared = compareRevision(revision, existing.revision);
-      if (compared < 0 || compared === 0 && !allowEqual) return false;
-    }
+    if (!this.allows(key, revision, allowEqual)) return false;
     this.seen.set(key, {
       revision,
       forgetAtMs: nowMs + retentionMs,
       expiresAtMonotonicMs: this.monotonicNow == null ? null : this.monotonicNow() + retentionMs,
     });
+    return true;
+  }
+
+  /** watermark を更新せず、指定 revision が受理可能かだけを判定する。 */
+  allows(key: string, revision: StandbyRevision, allowEqual = false): boolean {
+    const existing = this.seen.get(key);
+    if (existing != null) {
+      const compared = compareRevision(revision, existing.revision);
+      if (compared < 0 || compared === 0 && !allowEqual) return false;
+    }
     return true;
   }
 

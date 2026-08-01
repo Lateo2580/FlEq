@@ -84,6 +84,43 @@ describe("fromEarthquakeOutcome", () => {
     expect(event.maxLgInt).toBe("3");
   });
 
+  it("最大震度と長周期階級の SpecialValue を PresentationEvent へ保持する", () => {
+    const outcome = outcomeFromDrillFixture();
+    const event = fromEarthquakeOutcome(outcome);
+    expect(event.maxIntValue).toEqual(outcome.parsed.intensity?.maxIntValue);
+    expect(event.maxIntValue).toMatchObject({ presence: "value" });
+    expect(event.areaItems[0]?.maxIntValue).toMatchObject({ presence: "value" });
+  });
+
+  it("Area/City の非 exact SpecialValue を発火用 quakeIntensity と独立して保持する", () => {
+    const outcome = outcomeFromDrillFixture();
+    const unknown = {
+      raw: "未入電",
+      value: null,
+      condition: "未入電",
+      description: "観測値未入電",
+      presence: "unknown" as const,
+    };
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: {
+        ...outcome.parsed,
+        intensity: {
+          ...outcome.parsed.intensity!,
+          areas: [{ name: "地域A", code: "440", intensity: "", intensityValue: unknown }],
+          municipalities: [{ name: "市A", code: "4400001", intensity: "", intensityValue: unknown }],
+        },
+      },
+    });
+
+    expect(event.quakeIntensityValues).toEqual({
+      localAreas: [{ name: "地域A", code: "440", maxIntValue: unknown }],
+      municipalities: [{ name: "市A", code: "4400001", maxIntValue: unknown }],
+    });
+    expect(event.quakeIntensity?.localAreas).toEqual([]);
+    expect(event.quakeIntensity?.municipalities).toEqual([]);
+  });
+
   it("一次細分・市町村codeとrankをquakeIntensityへ通し、既存areaItemsは一次細分のまま維持する", () => {
     const outcome = outcomeFromDrillFixture();
     const event = fromEarthquakeOutcome(outcome);
@@ -91,18 +128,20 @@ describe("fromEarthquakeOutcome", () => {
     expect(event.areaItems).toContainEqual(
       expect.objectContaining({ name: "静岡県伊豆", code: "440", maxInt: "5-" }),
     );
-    expect(event.quakeIntensity?.localAreas).toContainEqual({
+    expect(event.quakeIntensity?.localAreas).toContainEqual(expect.objectContaining({
       name: "静岡県伊豆",
       code: "440",
       maxInt: "5-",
       maxIntRank: 5,
-    });
-    expect(event.quakeIntensity?.municipalities).toContainEqual({
+      maxIntValue: expect.objectContaining({ presence: "value", value: "5-" }),
+    }));
+    expect(event.quakeIntensity?.municipalities).toContainEqual(expect.objectContaining({
       name: "西伊豆町",
       code: "2230600",
       maxInt: "5-",
       maxIntRank: 5,
-    });
+      maxIntValue: expect.objectContaining({ presence: "value", value: "5-" }),
+    }));
     expect(event.areaItems.some(({ code }) => code === "2230600")).toBe(false);
     expect(event.municipalityNames).toEqual(
       outcome.parsed.intensity?.municipalities.map(({ name }) => name),
@@ -122,7 +161,13 @@ describe("fromEarthquakeOutcome", () => {
       parsed: { ...outcome.parsed, intensity },
     });
     expect(event.areaNames).toEqual(["codeなし細分"]);
-    expect(event.areaItems).toEqual([{ name: "codeなし細分", maxInt: "4" }]);
+    expect(event.areaItems).toEqual([
+      expect.objectContaining({
+        name: "codeなし細分",
+        maxInt: "4",
+        maxIntValue: expect.objectContaining({ presence: "value", value: "4" }),
+      }),
+    ]);
     expect(event.quakeIntensity?.localAreas).toEqual([]);
     expect(event.quakeIntensity?.municipalities).toEqual([]);
 
@@ -185,10 +230,10 @@ describe("fromEarthquakeOutcome", () => {
       "codeなし細分",
     ]);
     expect(event.areaItems).toEqual([
-      { name: "細分・旧", code: "440", maxInt: "3" },
-      { name: "細分・新A", code: "440", maxInt: "4" },
-      { name: "細分・新B", code: "440", maxInt: "4" },
-      { name: "codeなし細分", maxInt: "4" },
+      expect.objectContaining({ name: "細分・旧", code: "440", maxInt: "3" }),
+      expect.objectContaining({ name: "細分・新A", code: "440", maxInt: "4" }),
+      expect.objectContaining({ name: "細分・新B", code: "440", maxInt: "4" }),
+      expect.objectContaining({ name: "codeなし細分", maxInt: "4" }),
     ]);
     expect(projectRecentQuake(event)?.intensityGroups).toEqual([
       {
@@ -203,10 +248,10 @@ describe("fromEarthquakeOutcome", () => {
       "細分・新A・細分・新Bなどで最大震度4",
     );
     expect(event.quakeIntensity?.localAreas).toEqual([
-      { name: "細分・新A", code: "440", maxInt: "4", maxIntRank: 4 },
+      expect.objectContaining({ name: "細分・新A", code: "440", maxInt: "4", maxIntRank: 4 }),
     ]);
     expect(event.quakeIntensity?.municipalities).toEqual([
-      { name: "市町村・新", code: "2230600", maxInt: "4", maxIntRank: 4 },
+      expect.objectContaining({ name: "市町村・新", code: "2230600", maxInt: "4", maxIntRank: 4 }),
     ]);
     expect(warnSpy.mock.calls.map(([message]) => message)).toEqual([
       expect.stringContaining("Area.Code 重複"),

@@ -1,25 +1,92 @@
 import type { LgObservationOutcome, PresentationEvent, PresentationAreaItem } from "../types";
+import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../types";
 import { presentationTelegramMeta } from "./presentation-meta";
 import { intensityToRank } from "../../../utils/intensity";
 import { magnitudeForPresentation } from "../../../utils/magnitude";
+
+function missingSpecialValue<T>(): SpecialValue<T> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+  };
+}
+
+function legacyIntensityValue(value: string | undefined): SpecialValue<JmaIntensity> {
+  if (value === undefined) return missingSpecialValue();
+  const normalized = value.replace(/\s+/g, "");
+  if (/^(?:0|1|2|3|4|5-|5\+|6-|6\+|7)$/.test(normalized)) {
+    return {
+      raw: value,
+      value: normalized as JmaIntensity,
+      condition: null,
+      description: null,
+      presence: "value",
+    };
+  }
+  return {
+    raw: value,
+    value: null,
+    condition: null,
+    description: null,
+    presence: value.trim() === "" ? "empty" : "qualitative",
+  };
+}
+
+function legacyLgIntensityValue(value: string | undefined): SpecialValue<JmaLgIntensity> {
+  if (value === undefined) return missingSpecialValue();
+  const normalized = value.replace(/\s+/g, "");
+  if (/^(?:0|1|2|3|4)$/.test(normalized)) {
+    return {
+      raw: value,
+      value: normalized as JmaLgIntensity,
+      condition: null,
+      description: null,
+      presence: "value",
+    };
+  }
+  return {
+    raw: value,
+    value: null,
+    condition: null,
+    description: null,
+    presence: value.trim() === "" ? "empty" : "qualitative",
+  };
+}
+
+function exactSpecialScalar<T extends string>(value: SpecialValue<T>): T | null {
+  return value.presence === "value" ? value.value : null;
+}
 
 /** LgObservationOutcome → PresentationEvent */
 export function fromLgObservationOutcome(outcome: LgObservationOutcome): PresentationEvent {
   const xmlReport = outcome.msg.xmlReport;
   const info = outcome.parsed;
 
-  const maxLgInt = info.maxLgInt ?? null;
+  const maxLgIntValue = info.maxLgIntValue ?? legacyLgIntensityValue(info.maxLgInt);
+  const maxLgInt = exactSpecialScalar(maxLgIntValue);
   const maxLgIntRank = maxLgInt != null ? Number(maxLgInt) || null : null;
 
   const observations = info.areas ?? [];
   const observationNames = observations.map((o) => o.name);
-  const areaItems: PresentationAreaItem[] = observations.map((o) => ({
-    name: o.name,
-    maxInt: o.maxInt,
-    maxLgInt: o.maxLgInt,
-  }));
+  const areaItems: PresentationAreaItem[] = observations.map((o) => {
+    const areaMaxIntValue = o.maxIntValue ?? legacyIntensityValue(o.maxInt);
+    const areaMaxLgIntValue = o.maxLgIntValue ?? legacyLgIntensityValue(o.maxLgInt);
+    const areaMaxInt = exactSpecialScalar(areaMaxIntValue);
+    const areaMaxLgInt = exactSpecialScalar(areaMaxLgIntValue);
+    return {
+      name: o.name,
+      maxIntValue: areaMaxIntValue,
+      ...(areaMaxInt != null ? { maxInt: areaMaxInt } : {}),
+      maxLgIntValue: areaMaxLgIntValue,
+      ...(areaMaxLgInt != null ? { maxLgInt: areaMaxLgInt } : {}),
+    };
+  });
 
-  const maxInt = info.maxInt ?? null;
+  const maxIntValue = info.maxIntValue ?? legacyIntensityValue(info.maxInt);
+  const maxInt = exactSpecialScalar(maxIntValue);
   const maxIntRank = maxInt != null ? intensityToRank(maxInt) : null;
 
   return {
@@ -51,8 +118,10 @@ export function fromLgObservationOutcome(outcome: LgObservationOutcome): Present
     depth: info.earthquake?.depth ?? null,
     magnitude: magnitudeForPresentation(info.earthquake),
 
+    maxIntValue,
     maxInt,
     maxIntRank,
+    maxLgIntValue,
     maxLgInt,
     maxLgIntRank,
 

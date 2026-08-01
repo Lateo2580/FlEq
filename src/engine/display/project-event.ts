@@ -1,5 +1,6 @@
 import { intensityToRank } from "../../utils/intensity";
 import { normalizeTsunamiKind, resolveTsunamiLevel } from "../../utils/tsunami-kind";
+import type { JmaIntensity, SpecialValue } from "../../types";
 import type { PresentationAreaItem, PresentationEvent } from "../presentation/types";
 import { groupIntensityAreas } from "./intensity-groups";
 import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningTimeseriesSentence } from "./ticker-sentence";
@@ -8,6 +9,13 @@ import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
 import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
 import { revisionOf } from "./standby-registry";
+import {
+  attachQuakeObservationBridge,
+  isQuakeIntensityStructureMissing,
+  type LatestQuakeObservationProjection,
+  type RecentQuakeObservationProjection,
+  withQuakeObservationMeta,
+} from "./quake-observation-merge";
 import {
   DISPLAY_PROTOCOL_VERSION,
   type DisplayColorRole,
@@ -63,16 +71,43 @@ export function projectQuakeMapCommand(
   const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
   const sourceType = event.type;
   const isCorrection = event.infoType === "訂正";
-  if (event.isCancellation) {
+  const resolvedCancellation =
+    event.foundationResolvedTrigger != null
+    && event.foundationCancellationPolicy != null;
+  if (resolvedCancellation) {
     return { kind: "remove", eventKey, sourceType, reason: "cancelled", revision, isCorrection };
   }
-  if (event.quakeIntensity == null) return null;
+  const maxIntValue = presentationMaxIntValue(event);
+  const intensityStructureMissing = isQuakeIntensityStructureMissing(event, maxIntValue);
+  if (!intensityStructureMissing && maxIntValue.presence !== "value") {
+    return { kind: "remove", eventKey, sourceType, reason: "nonExact", revision, isCorrection };
+  }
   const maxIntRank = event.maxIntRank ?? 0;
   if (maxIntRank > 0 && maxIntRank < QUAKE_MAP_MIN_RANK) {
     return { kind: "remove", eventKey, sourceType, reason: "belowThreshold", revision, isCorrection };
   }
-  if (event.maxInt == null || maxIntRank < QUAKE_MAP_MIN_RANK) {
-    return null;
+  if (maxIntValue.presence === "missing" && intensityStructureMissing) {
+    return {
+      kind: "remove",
+      eventKey,
+      sourceType,
+      reason: "structuralMissing",
+      revision,
+      isCorrection,
+      eventUpdate: {
+        eventId: event.eventId != null && event.eventId.trim() !== "" ? event.eventId : null,
+        reportDateTime: event.reportDateTime,
+        originTime: event.originTime ?? null,
+        hypocenterName: event.hypocenterName ?? null,
+        depth: normalizeDepth(event.depth),
+        magnitude: event.magnitude ?? null,
+        tsunamiWarning: event.tsunamiWarning === true,
+        updatedAtMs: nowMs,
+      },
+    };
+  }
+  if (event.maxInt == null || maxIntRank < QUAKE_MAP_MIN_RANK || event.quakeIntensity == null) {
+    return { kind: "remove", eventKey, sourceType, reason: "nonExact", revision, isCorrection };
   }
   return {
     kind: "upsert",
@@ -191,10 +226,65 @@ function projectEmergency(
   return null;
 }
 
-export function projectRecentQuake(event: PresentationEvent): DisplayRecentQuakeV1 | null {
-  if (event.domain !== "earthquake" || event.isCancellation) return null;
-  if (event.maxInt == null && event.hypocenterName == null) return null;
+const canonicalIntensityValues = {
+  "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+  "5-": "5-", "5弱": "5-", "5+": "5+", "5強": "5+",
+  "6-": "6-", "6弱": "6-", "6+": "6+", "6強": "6+", "7": "7",
+} as const satisfies Record<string, JmaIntensity>;
+
+function presentationMaxIntValue(event: PresentationEvent): SpecialValue<JmaIntensity> {
+  if (event.maxIntValue != null) return event.maxIntValue;
+  if (event.maxInt == null) {
+    return {
+      raw: null,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "missing",
+    };
+  }
+  const raw = event.maxInt;
+  const normalized = raw.replace(/\s+/g, "");
+  const canonical = canonicalIntensityValues[normalized as keyof typeof canonicalIntensityValues];
+  if (canonical != null) {
+    return {
+      raw,
+      value: canonical,
+      condition: null,
+      description: null,
+      presence: "value",
+    };
+  }
   return {
+    raw,
+    value: null,
+    condition: null,
+    description: null,
+    presence: raw.trim() === "" ? "empty" : "unknown",
+  };
+}
+
+function quakeObservationMeta(event: PresentationEvent) {
+  const maxIntValue = presentationMaxIntValue(event);
+  const intensityStructureMissing = isQuakeIntensityStructureMissing(event, maxIntValue);
+  return {
+    sourceType: event.type,
+    observationSourceType: event.type,
+    infoType: event.infoType,
+    resolvedTrigger: event.foundationResolvedTrigger ?? null,
+    cancellationPolicy: event.foundationCancellationPolicy ?? null,
+    intensityStructureMissing,
+    maxIntValue,
+  };
+}
+
+export function projectRecentQuake(event: PresentationEvent): RecentQuakeObservationProjection | null {
+  if (event.domain !== "earthquake") return null;
+  const meta = quakeObservationMeta(event);
+  if (!event.isCancellation && meta.maxIntValue.presence === "missing" && event.hypocenterName == null) {
+    return null;
+  }
+  return withQuakeObservationMeta({
     eventId: event.eventId ?? null,
     reportDateTime: event.reportDateTime,
     originTime: event.originTime ?? null,
@@ -205,13 +295,16 @@ export function projectRecentQuake(event: PresentationEvent): DisplayRecentQuake
     depth: normalizeDepth(event.depth),
     tsunamiWarning: event.tsunamiWarning === true,
     intensityGroups: groupIntensityAreas(event.areaItems),
-  };
+  }, meta);
 }
 
-function projectLatestQuake(event: PresentationEvent): DisplayLatestQuakeInputV1 | null {
-  if (event.domain !== "earthquake" || event.isCancellation) return null;
-  if (event.maxInt == null && event.hypocenterName == null) return null;
-  return {
+function projectLatestQuake(event: PresentationEvent): LatestQuakeObservationProjection | null {
+  if (event.domain !== "earthquake") return null;
+  const meta = quakeObservationMeta(event);
+  if (!event.isCancellation && meta.maxIntValue.presence === "missing" && event.hypocenterName == null) {
+    return null;
+  }
+  return withQuakeObservationMeta({
     eventId: event.eventId ?? null,
     headline: event.headline,
     originTime: event.originTime ?? null,
@@ -223,7 +316,7 @@ function projectLatestQuake(event: PresentationEvent): DisplayLatestQuakeInputV1
     tsunamiWarning: event.tsunamiWarning === true,
     intensityGroups: groupIntensityAreas(event.areaItems),
     reportDateTime: event.reportDateTime,
-  };
+  }, meta);
 }
 
 /** 地域列挙のグループ区切り (「震度4: A、B」のような複数グループを繋ぐ) */
@@ -406,7 +499,9 @@ export function projectDisplayEvent(
     (priority === "low" || priority === "mid") && tickerBody != null
       ? extractTickerEmphasis(tickerBody, priority)
       : [];
-  return {
+  const recentQuakeObservation = projectRecentQuake(event);
+  const latestQuakeObservation = projectLatestQuake(event);
+  const dto: DisplayEventDtoV1 = {
     version: DISPLAY_PROTOCOL_VERSION,
     seq: 0,
     id: event.id,
@@ -427,7 +522,7 @@ export function projectDisplayEvent(
     isCancellation: event.isCancellation,
     summary: { text: stripAnsi(summaryText), role: summaryRole(event) },
     emergency: projectEmergency(event, quakeMapCommand),
-    recentQuake: projectRecentQuake(event),
+    recentQuake: event.isCancellation ? null : recentQuakeObservation,
     tickerDetail: buildTickerDetail(event),
     tickerCategory: tickerCategoryOf(event),
     tickerSubject: tickerSubjectOf(event),
@@ -437,6 +532,11 @@ export function projectDisplayEvent(
     tickerPriority: priority,
     tickerBody,
     tickerEmphasis: emphasis.length > 0 ? emphasis : null,
-    latestQuake: projectLatestQuake(event),
+    latestQuake: event.isCancellation ? null : latestQuakeObservation,
   };
+  attachQuakeObservationBridge(dto, {
+    recent: recentQuakeObservation,
+    latest: latestQuakeObservation,
+  });
+  return dto;
 }

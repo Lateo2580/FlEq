@@ -4,6 +4,7 @@ import type {
   PresentationAreaItem,
   PresentationQuakeIntensityItem,
 } from "../types";
+import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../types";
 import { presentationTelegramMeta } from "./presentation-meta";
 import { intensityToRank } from "../../../utils/intensity";
 import { magnitudeForPresentation } from "../../../utils/magnitude";
@@ -12,8 +13,74 @@ import * as log from "../../../logger";
 interface QuakeIntensitySourceItem {
   name: string;
   code: string | null;
+  intensityValue?: SpecialValue<JmaIntensity>;
   intensity: string;
+  lgIntensityValue?: SpecialValue<JmaLgIntensity>;
   lgIntensity?: string;
+}
+
+function missingSpecialValue<T>(): SpecialValue<T> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+  };
+}
+
+function legacyIntensityValue(
+  scalar: string | undefined,
+  carrierPresent: boolean,
+): SpecialValue<JmaIntensity> {
+  if (!carrierPresent) return missingSpecialValue();
+  const raw = scalar ?? "";
+  const normalized = raw.replace(/\s+/g, "");
+  if (/^(?:0|1|2|3|4|5-|5\+|6-|6\+|7)$/.test(normalized)) {
+    return {
+      raw,
+      value: normalized as JmaIntensity,
+      condition: null,
+      description: null,
+      presence: "value",
+    };
+  }
+  return {
+    raw,
+    value: null,
+    condition: null,
+    description: null,
+    presence: raw.trim() === "" ? "empty" : "qualitative",
+  };
+}
+
+function legacyLgIntensityValue(
+  scalar: string | undefined,
+  carrierPresent: boolean,
+): SpecialValue<JmaLgIntensity> {
+  if (!carrierPresent) return missingSpecialValue();
+  const raw = scalar ?? "";
+  const normalized = raw.replace(/\s+/g, "");
+  if (/^(?:0|1|2|3|4)$/.test(normalized)) {
+    return {
+      raw,
+      value: normalized as JmaLgIntensity,
+      condition: null,
+      description: null,
+      presence: "value",
+    };
+  }
+  return {
+    raw,
+    value: null,
+    condition: null,
+    description: null,
+    presence: raw.trim() === "" ? "empty" : "qualitative",
+  };
+}
+
+function exactSpecialScalar<T extends string>(value: SpecialValue<T>): T | null {
+  return value.presence === "value" ? value.value : null;
 }
 
 function aggregateQuakeIntensity(
@@ -24,12 +91,20 @@ function aggregateQuakeIntensity(
   const indexByCode = new Map<string, number>();
   for (const item of items) {
     if (item.code == null) continue;
+    const maxIntValue = item.intensityValue ?? legacyIntensityValue(item.intensity, true);
+    const maxInt = exactSpecialScalar(maxIntValue);
+    if (maxInt == null) continue;
+    const maxLgIntValue = item.lgIntensityValue
+      ?? legacyLgIntensityValue(item.lgIntensity, item.lgIntensity != null);
+    const maxLgInt = exactSpecialScalar(maxLgIntValue);
     const candidate: PresentationQuakeIntensityItem = {
       name: item.name,
       code: item.code,
-      maxInt: item.intensity,
-      maxIntRank: intensityToRank(item.intensity),
-      ...(item.lgIntensity != null ? { maxLgInt: item.lgIntensity } : {}),
+      maxIntValue,
+      maxInt,
+      maxIntRank: intensityToRank(maxInt),
+      ...(maxLgIntValue.presence === "missing" ? {} : { maxLgIntValue }),
+      ...(maxLgInt != null ? { maxLgInt } : {}),
     };
     const existingIndex = indexByCode.get(item.code);
     if (existingIndex == null) {
@@ -38,12 +113,12 @@ function aggregateQuakeIntensity(
       continue;
     }
     const existing = result[existingIndex];
-    if (existing.maxInt.replace(/\s+/g, "") === item.intensity.replace(/\s+/g, "")) {
+    if (existing.maxInt.replace(/\s+/g, "") === maxInt.replace(/\s+/g, "")) {
       continue;
     }
     log.warn(
       `VXSE ${level}.Code 重複: code=${item.code} `
-      + `intensity=${JSON.stringify(existing.maxInt)}/${JSON.stringify(item.intensity)} `
+      + `intensity=${JSON.stringify(existing.maxInt)}/${JSON.stringify(maxInt)} `
       + `— 最大震度rankを採用`,
     );
     if (candidate.maxIntRank > existing.maxIntRank) {
@@ -68,23 +143,62 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
   const xmlReport = outcome.msg.xmlReport;
   const info = outcome.parsed;
 
-  const maxInt = info.intensity?.maxInt ?? null;
+  const maxIntValue = info.intensity?.maxIntValue
+    ?? legacyIntensityValue(info.intensity?.maxInt, info.intensity?.maxInt !== undefined);
+  const maxInt = exactSpecialScalar(maxIntValue);
   const maxIntRank = maxInt != null ? intensityToRank(maxInt) : null;
+  const maxLgIntValue = info.intensity?.maxLgIntValue
+    ?? legacyLgIntensityValue(info.intensity?.maxLgInt, info.intensity?.maxLgInt !== undefined);
+  const maxLgInt = exactSpecialScalar(maxLgIntValue);
 
   const areas = info.intensity?.areas ?? [];
   const municipalities = info.intensity?.municipalities ?? [];
   const areaNames = areas.map((a) => a.name);
   const municipalityNames = municipalities.map((municipality) => municipality.name);
-  const areaItems: PresentationAreaItem[] = areas.map((a) => ({
-    name: a.name,
-    ...(a.code != null ? { code: a.code } : {}),
-    maxInt: a.intensity,
-    ...(a.lgIntensity != null ? { maxLgInt: a.lgIntensity } : {}),
-  }));
+  const areaItems: PresentationAreaItem[] = areas.map((a) => {
+    const areaMaxIntValue = a.intensityValue ?? legacyIntensityValue(a.intensity, true);
+    const areaMaxInt = exactSpecialScalar(areaMaxIntValue);
+    const areaMaxLgIntValue = a.lgIntensityValue
+      ?? legacyLgIntensityValue(a.lgIntensity, a.lgIntensity != null);
+    const areaMaxLgInt = exactSpecialScalar(areaMaxLgIntValue);
+    return {
+      name: a.name,
+      ...(a.code != null ? { code: a.code } : {}),
+      maxIntValue: areaMaxIntValue,
+      ...(areaMaxInt != null ? { maxInt: areaMaxInt } : {}),
+      ...(areaMaxLgIntValue.presence === "missing" ? {} : { maxLgIntValue: areaMaxLgIntValue }),
+      ...(areaMaxLgInt != null ? { maxLgInt: areaMaxLgInt } : {}),
+    };
+  });
+  const quakeIntensityValues = info.intensity == null
+    ? undefined
+    : {
+        localAreas: areas.map((area) => {
+          const maxLgIntValue = area.lgIntensityValue
+            ?? legacyLgIntensityValue(area.lgIntensity, area.lgIntensity != null);
+          return {
+            name: area.name,
+            code: area.code,
+            maxIntValue: area.intensityValue ?? legacyIntensityValue(area.intensity, true),
+            ...(maxLgIntValue.presence === "missing" ? {} : { maxLgIntValue }),
+          };
+        }),
+        municipalities: municipalities.map((municipality) => {
+          const maxLgIntValue = municipality.lgIntensityValue
+            ?? legacyLgIntensityValue(municipality.lgIntensity, municipality.lgIntensity != null);
+          return {
+            name: municipality.name,
+            code: municipality.code,
+            maxIntValue: municipality.intensityValue
+              ?? legacyIntensityValue(municipality.intensity, true),
+            ...(maxLgIntValue.presence === "missing" ? {} : { maxLgIntValue }),
+          };
+        }),
+      };
   const quakeIntensity =
     info.infoType !== "取消"
     && info.intensity != null
-    && intensityToRank(info.intensity.maxInt) >= 3
+    && (maxIntRank ?? -1) >= 3
     ? {
         localAreas: aggregateQuakeIntensity(areas, "Area"),
         municipalities: aggregateQuakeIntensity(municipalities, "City"),
@@ -120,9 +234,11 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
     depth: info.earthquake?.depth ?? null,
     magnitude: magnitudeForPresentation(info.earthquake),
 
+    maxIntValue,
     maxInt,
     maxIntRank,
-    maxLgInt: info.intensity?.maxLgInt ?? null,
+    maxLgIntValue,
+    maxLgInt,
     tsunamiWarning: resolveEarthquakeTsunamiWarning(info.tsunami?.text),
 
     areaNames,
@@ -135,6 +251,7 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
     observationCount: 0,
     areaItems,
     ...(quakeIntensity != null ? { quakeIntensity } : {}),
+    ...(quakeIntensityValues != null ? { quakeIntensityValues } : {}),
 
     raw: outcome.parsed,
   };

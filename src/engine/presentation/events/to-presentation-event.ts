@@ -74,5 +74,7 @@ export function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent 
   event.standbyActiveSubjects = outcome.presentation.standbyActiveSubjects;
   event.standbyAppliedSemanticKey = outcome.presentation.standbyAppliedSemanticKey;
   event.foundationMutationAccepted = outcome.presentation.foundationMutationAccepted;
+  event.foundationResolvedTrigger = outcome.presentation.foundationResolvedTrigger;
+  event.foundationCancellationPolicy = outcome.presentation.foundationCancellationPolicy;
   return event;
 }

@@ -1,9 +1,17 @@
 import { performance } from "node:perf_hooks";
 import { intensityToRank } from "../../utils/intensity";
+import type { JmaIntensity, SpecialValuePresence } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
 import type { DisplayEventDtoV1 } from "./types";
 import { RevisionGuard, type PersistedSeenEntry } from "./revision-guard";
-import { revisionOf } from "./standby-registry";
+import { compareRevision, revisionOf } from "./standby-registry";
+import {
+  hasResolvedQuakeCancellation,
+  isQuakeIntensityStructureMissing,
+  quakeObservationBridgeOf,
+  quakeObservationMetaOf,
+  shouldPreserveVxse51Observation,
+} from "./quake-observation-merge";
 
 export const QUAKE_EXTREME_HOLD_MS = 12 * 60 * 60 * 1000;
 const QUAKE_EXTREME_RANK = intensityToRank("7");
@@ -11,8 +19,14 @@ const QUAKE_EXTREME_RANK = intensityToRank("7");
 export interface QuakeExtremeRecordV1 {
   groupKey: string;
   originTime: string;
+  reportDateTime?: string;
+  hypocenterName?: string | null;
+  magnitude?: string | null;
+  depth?: string | null;
   /** この EventID を震度 7 と報じている電文種別。revision 系列と同じ粒度。 */
   sourceTypes: string[];
+  /** 新規保存では常に保持。旧 v1 は単一 sourceTypes の場合だけ安全に推定する。 */
+  observationSourceType?: string;
 }
 
 /** wire とは別の、monitor 所有の永続化用状態。 */
@@ -22,16 +36,22 @@ export interface QuakeExtremePersistedV1 {
   seen?: PersistedSeenEntry[];
 }
 
-interface ActiveQuakeExtremeRecord extends QuakeExtremeRecordV1 {
+interface ActiveQuakeExtremeRecord extends Omit<QuakeExtremeRecordV1, "observationSourceType"> {
   expiresAtMonotonicMs: number;
+  observationSourceType: string | null;
 }
 
 type QuakeExtremeInput = {
   domain: string;
   groupKey: string | null;
-  isCancellation: boolean;
+  cancellationResolved: boolean;
   maxIntRank: number | null;
+  maxIntPresence: SpecialValuePresence;
+  intensityStructureMissing: boolean;
   originTime: string | null;
+  hypocenterName: string | null;
+  magnitude: string | null;
+  depth: string | null;
   reportDateTime: string;
   serial: string | null;
   type: string;
@@ -66,12 +86,26 @@ export class QuakeExtremeStore {
   }
 
   applyPresentationEvent(event: PresentationEvent, nowMs: number): boolean {
+    const maxIntValue = event.maxIntValue ?? {
+      raw: event.maxInt ?? null,
+      value: (event.maxInt as JmaIntensity | null | undefined) ?? null,
+      condition: null,
+      description: null,
+      presence: event.maxInt == null ? "missing" as const : "value" as const,
+    };
     return this.apply({
       domain: event.domain,
       groupKey: event.domain === "earthquake" && event.eventId != null ? `quake:${event.eventId}` : null,
-      isCancellation: event.isCancellation,
+      cancellationResolved:
+        event.foundationResolvedTrigger != null
+        && event.foundationCancellationPolicy != null,
       maxIntRank: event.maxIntRank ?? null,
+      maxIntPresence: maxIntValue.presence,
+      intensityStructureMissing: isQuakeIntensityStructureMissing(event, maxIntValue),
       originTime: event.originTime ?? null,
+      hypocenterName: event.hypocenterName ?? null,
+      magnitude: event.magnitude ?? null,
+      depth: event.depth ?? null,
       reportDateTime: event.reportDateTime,
       serial: event.serial ?? null,
       type: event.type,
@@ -80,16 +114,24 @@ export class QuakeExtremeStore {
   }
 
   applyDto(dto: DisplayEventDtoV1, nowMs: number): boolean {
-    const rank = dto.latestQuake?.maxIntRank ??
+    const projection = quakeObservationBridgeOf(dto)?.latest ?? null;
+    const meta = projection == null ? null : quakeObservationMetaOf(projection);
+    const rank = projection?.maxIntRank ?? dto.latestQuake?.maxIntRank ??
       (dto.emergency?.kind === "largeQuake" ? dto.emergency.maxIntRank : null);
-    const originTime = dto.latestQuake?.originTime ??
-      (dto.emergency?.kind === "largeQuake" ? dto.emergency.originTime : null);
+    const quakeDetails = projection ?? dto.latestQuake;
+    const largeQuake = dto.emergency?.kind === "largeQuake" ? dto.emergency : null;
+    const originTime = quakeDetails != null ? quakeDetails.originTime : largeQuake?.originTime ?? null;
     return this.apply({
       domain: dto.domain,
       groupKey: dto.groupKey,
-      isCancellation: dto.isCancellation,
+      cancellationResolved: meta != null && hasResolvedQuakeCancellation(meta),
       maxIntRank: rank,
+      maxIntPresence: meta?.maxIntValue.presence ?? (rank == null ? "missing" : "value"),
+      intensityStructureMissing: meta?.intensityStructureMissing ?? rank == null,
       originTime,
+      hypocenterName: quakeDetails != null ? quakeDetails.hypocenterName : largeQuake?.hypocenterName ?? null,
+      magnitude: quakeDetails != null ? quakeDetails.magnitude : largeQuake?.magnitude ?? null,
+      depth: quakeDetails != null ? quakeDetails.depth : largeQuake?.depth ?? null,
       reportDateTime: dto.reportDateTime,
       serial: dto.serial ?? null,
       type: dto.type,
@@ -123,10 +165,24 @@ export class QuakeExtremeStore {
 
   export(): QuakeExtremePersistedV1 {
     return {
-      records: [...this.records.values()].map(({ groupKey, originTime, sourceTypes }) => ({
+      records: [...this.records.values()].map(({
         groupKey,
         originTime,
+        reportDateTime,
+        hypocenterName,
+        magnitude,
+        depth,
+        sourceTypes,
+        observationSourceType,
+      }) => ({
+        groupKey,
+        originTime,
+        ...(reportDateTime === undefined ? {} : { reportDateTime }),
+        ...(hypocenterName === undefined ? {} : { hypocenterName }),
+        ...(magnitude === undefined ? {} : { magnitude }),
+        ...(depth === undefined ? {} : { depth }),
         sourceTypes: [...sourceTypes],
+        ...(observationSourceType == null ? {} : { observationSourceType }),
       })),
       seen: this.revisionGuard.export(),
     };
@@ -135,14 +191,17 @@ export class QuakeExtremeStore {
   /** 起動時復元: 最新保存値のうち originTime から 12 時間以内のものだけを採る。 */
   restore(state: QuakeExtremePersistedV1, nowMs: number): void {
     this.records.clear();
-    this.revisionGuard.restore(state.seen ?? [], nowMs);
+    this.revisionGuard.restore(withGroupWatermarks(state.seen ?? []), nowMs);
     const monotonicMs = this.monotonicNow();
     for (const record of state.records) {
       const remainingMs = isValidRecord(record) ? remainingHoldMs(record.originTime, nowMs) : null;
       if (remainingMs != null) {
+        const observationSourceType = record.observationSourceType
+          ?? (record.sourceTypes.length === 1 ? record.sourceTypes[0]! : null);
         this.records.set(record.groupKey, {
           ...record,
           sourceTypes: [...record.sourceTypes],
+          observationSourceType,
           expiresAtMonotonicMs: monotonicMs + remainingMs,
         });
       }
@@ -153,26 +212,82 @@ export class QuakeExtremeStore {
     if (input.domain !== "earthquake" || input.groupKey == null) return false;
     const revision = revisionOf(input.reportDateTime, input.serial, nowMs);
     const revisionKey = `${input.groupKey}:${input.type}`;
-    if (!this.revisionGuard.accept(
-      revisionKey,
-      revision,
-      nowMs,
-      QUAKE_EXTREME_HOLD_MS,
-      input.isCorrection,
-    )) return false;
+    if (input.cancellationResolved) {
+      if (!this.revisionGuard.accept(
+        input.groupKey,
+        revision,
+        nowMs,
+        QUAKE_EXTREME_HOLD_MS,
+        input.isCorrection,
+      )) return false;
+    } else {
+      if (!this.revisionGuard.allows(input.groupKey, revision, input.isCorrection)) return false;
+      if (!this.revisionGuard.allows(revisionKey, revision, input.isCorrection)) return false;
+      this.revisionGuard.replace(input.groupKey, revision, nowMs, QUAKE_EXTREME_HOLD_MS);
+      this.revisionGuard.replace(revisionKey, revision, nowMs, QUAKE_EXTREME_HOLD_MS);
+    }
+
+    const previous = this.records.get(input.groupKey);
+    const preservesVxse51Observation = previous != null
+      && shouldPreserveVxse51Observation({
+        previousObservationSourceType: previous.observationSourceType,
+        previousMaxIntPresence: "value",
+        previousCancellationResolved: false,
+        nextSourceType: input.type,
+        nextMaxIntPresence: input.maxIntPresence,
+        nextIntensityStructureMissing: input.intensityStructureMissing,
+        nextCancellationResolved: input.cancellationResolved,
+      });
+    const explicitNonExact =
+      input.maxIntPresence !== "value"
+      && !(input.maxIntPresence === "missing" && input.intensityStructureMissing);
+    const invalidatingMissing =
+      input.maxIntPresence === "missing"
+      && input.intensityStructureMissing
+      && previous != null
+      && !preservesVxse51Observation;
+    const invalidatesRecord =
+      input.cancellationResolved
+      || explicitNonExact
+      || invalidatingMissing
+      || input.maxIntPresence === "value"
+        && input.maxIntRank != null
+        && input.maxIntRank < QUAKE_EXTREME_RANK;
 
     let changed = false;
-    if (input.isCancellation) {
-      changed = this.removeSource(input.groupKey, input.type);
-    } else if (input.maxIntRank != null && input.maxIntRank < QUAKE_EXTREME_RANK) {
-      // 続報の最大震度が下がった時点で保持を解除する。
-      changed = this.removeSource(input.groupKey, input.type);
+    if (invalidatesRecord) {
+      changed = this.records.delete(input.groupKey);
+    } else if (preservesVxse51Observation && previous != null) {
+      const originTime = input.originTime ?? previous.originTime;
+      const remainingMs = remainingHoldMs(originTime, nowMs);
+      if (remainingMs == null) {
+        changed = this.records.delete(input.groupKey);
+      } else {
+        const sourceTypes = [...new Set([...previous.sourceTypes, input.type])];
+        const expiresAtMonotonicMs = this.monotonicNow() + remainingMs;
+        changed = previous.originTime !== originTime
+          || previous.expiresAtMonotonicMs !== expiresAtMonotonicMs
+          || !previous.sourceTypes.includes(input.type);
+        this.records.set(input.groupKey, {
+          ...previous,
+          originTime,
+          reportDateTime: input.reportDateTime,
+          hypocenterName: input.hypocenterName,
+          magnitude: input.magnitude,
+          depth: input.depth,
+          sourceTypes,
+          expiresAtMonotonicMs,
+        });
+      }
     } else if (input.maxIntRank === QUAKE_EXTREME_RANK && input.originTime != null) {
-      const previous = this.records.get(input.groupKey);
-      if (previous?.originTime !== input.originTime || !previous.sourceTypes.includes(input.type)) {
+      if (
+        previous?.originTime !== input.originTime
+        || !previous.sourceTypes.includes(input.type)
+        || previous.observationSourceType !== input.type
+      ) {
         const remainingMs = remainingHoldMs(input.originTime, nowMs);
         if (remainingMs == null) {
-          changed = this.removeSource(input.groupKey, input.type);
+          changed = this.records.delete(input.groupKey);
         } else {
           const sameOrigin = previous?.originTime === input.originTime;
           const sourceTypes = sameOrigin
@@ -181,7 +296,12 @@ export class QuakeExtremeStore {
           this.records.set(input.groupKey, {
             groupKey: input.groupKey,
             originTime: input.originTime,
+            reportDateTime: input.reportDateTime,
+            hypocenterName: input.hypocenterName,
+            magnitude: input.magnitude,
+            depth: input.depth,
             sourceTypes,
+            observationSourceType: input.type,
             expiresAtMonotonicMs: sameOrigin
               ? previous.expiresAtMonotonicMs
               : this.monotonicNow() + remainingMs,
@@ -190,22 +310,13 @@ export class QuakeExtremeStore {
         }
       }
     }
-    // 続報の最大震度が下がった時点で保持を解除する。rank 欠落は根拠不十分なので既存値を保つ。
+    // 構造的 missing は VXSE51→VXSE52/61 の契約を証明できる場合だけ保持する。
     // view が変わらなくても revision tombstone は永続化する。
-    const durability = input.isCancellation || input.maxIntRank != null && input.maxIntRank < QUAKE_EXTREME_RANK
+    const durability = invalidatesRecord
       ? "immediate"
       : "debounced";
     this.notifyDurable(durability);
     return changed;
-  }
-
-  private removeSource(groupKey: string, sourceType: string): boolean {
-    const previous = this.records.get(groupKey);
-    if (previous == null || !previous.sourceTypes.includes(sourceType)) return false;
-    const sourceTypes = previous.sourceTypes.filter((type) => type !== sourceType);
-    if (sourceTypes.length === 0) return this.records.delete(groupKey);
-    this.records.set(groupKey, { ...previous, sourceTypes });
-    return false;
   }
 
   private notifyDurable(durability: QuakeExtremeDurability): void {
@@ -223,6 +334,36 @@ function remainingHoldMs(originTime: string, nowMs: number): number | null {
 function isValidRecord(value: QuakeExtremeRecordV1): boolean {
   return typeof value.groupKey === "string" && value.groupKey !== "" &&
     typeof value.originTime === "string" && Number.isFinite(Date.parse(value.originTime)) &&
+    (value.reportDateTime === undefined ||
+      typeof value.reportDateTime === "string" && Number.isFinite(Date.parse(value.reportDateTime))) &&
+    (value.hypocenterName === undefined || value.hypocenterName == null || typeof value.hypocenterName === "string") &&
+    (value.magnitude === undefined || value.magnitude == null || typeof value.magnitude === "string") &&
+    (value.depth === undefined || value.depth == null || typeof value.depth === "string") &&
     Array.isArray(value.sourceTypes) && value.sourceTypes.length > 0 &&
-    value.sourceTypes.every((type) => typeof type === "string" && type !== "");
+    value.sourceTypes.every((type) => typeof type === "string" && type !== "") &&
+    (value.observationSourceType == null ||
+      typeof value.observationSourceType === "string" && value.observationSourceType !== "" &&
+        value.sourceTypes.includes(value.observationSourceType));
+}
+
+function withGroupWatermarks(entries: PersistedSeenEntry[]): PersistedSeenEntry[] {
+  const migrated = new Map(entries.map((entry) => [entry.key, {
+    ...entry,
+    revision: { ...entry.revision },
+  }]));
+  for (const entry of entries) {
+    const match = /^(quake:.+):VXSE\d+$/.exec(entry.key);
+    const groupKey = match?.[1];
+    if (groupKey == null) continue;
+    const existing = migrated.get(groupKey);
+    const revision = existing == null || compareRevision(entry.revision, existing.revision) > 0
+      ? { ...entry.revision }
+      : { ...existing.revision };
+    migrated.set(groupKey, {
+      key: groupKey,
+      revision,
+      forgetAtMs: Math.max(existing?.forgetAtMs ?? 0, entry.forgetAtMs),
+    });
+  }
+  return [...migrated.values()];
 }

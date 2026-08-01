@@ -6,6 +6,10 @@ import type {
   DisplayStandbyRevisionV1,
 } from "../../../src/engine/display/types";
 import { displayEventDto } from "../../helpers/display-fixtures";
+import {
+  attachQuakeObservationBridge,
+  withQuakeObservationMeta,
+} from "../../../src/engine/display/quake-observation-merge";
 
 const MINUTE = 60_000;
 const T0 = Date.parse("2026-07-30T12:00:00+09:00");
@@ -229,7 +233,7 @@ describe("DisplayStateStore quake map lifecycle", () => {
     expect(store.snapshot(0, T0 + 3 * MINUTE).mapLayers?.quake?.events).toEqual([]);
   });
 
-  it("source contribution を独立管理し、取消時は残る source から再選択する", () => {
+  it("source contribution を独立管理し、取消時は同一 EventID の全 source を解除する", () => {
     const store = new DisplayStateStore();
     const older = upsert("earthquake:A", 3, T0, "1", "VXSE51");
     const newer = upsert("earthquake:A", 4, T0 + MINUTE, "1", "VXSE53");
@@ -238,9 +242,7 @@ describe("DisplayStateStore quake map lifecycle", () => {
     expect(store.snapshot(0, T0 + MINUTE).mapLayers?.quake?.events[0]?.sourceType).toBe("VXSE53");
 
     apply(store, remove("earthquake:A", T0 + 2 * MINUTE, "2", "VXSE53"), 0, T0 + 2 * MINUTE);
-    expect(store.snapshot(0, T0 + 2 * MINUTE).mapLayers?.quake?.events[0]).toEqual(
-      expect.objectContaining({ sourceType: "VXSE51", maxIntRank: 3 }),
-    );
+    expect(store.snapshot(0, T0 + 2 * MINUTE).mapLayers?.quake?.events).toEqual([]);
   });
 
   it("異種 source の同時刻 contribution は sourceType 昇順で決定する", () => {
@@ -378,5 +380,96 @@ describe("DisplayStateStore quake map lifecycle", () => {
       events: [],
       nonEmergencyHost: null,
     });
+  });
+
+  it("structural-missing preservation advances map and largeQuake hypocenter fields and hold time", () => {
+    const store = new DisplayStateStore();
+    const first = upsert("earthquake:A", 5, T0, "1", "VXSE51");
+    apply(store, first, 5, T0);
+
+    const reportDateTime = new Date(T0 + 5 * MINUTE).toISOString();
+    const originTime = new Date(T0 - 30_000).toISOString();
+    const command: DisplayQuakeMapCommandV1 = {
+      kind: "remove",
+      eventKey: "earthquake:A",
+      sourceType: "VXSE52",
+      reason: "structuralMissing",
+      revision: revision(T0 + 5 * MINUTE, "2"),
+      eventUpdate: {
+        eventId: "A",
+        reportDateTime,
+        originTime,
+        hypocenterName: "updated hypocenter",
+        depth: "20km",
+        magnitude: "5.8",
+        tsunamiWarning: true,
+        updatedAtMs: T0 + 5 * MINUTE,
+      },
+    };
+    const latest = withQuakeObservationMeta({
+      eventId: "A",
+      headline: null,
+      originTime,
+      hypocenterName: "updated hypocenter",
+      depth: "20km",
+      magnitude: "5.8",
+      maxInt: null,
+      maxIntRank: null,
+      tsunamiWarning: true,
+      intensityGroups: [],
+      reportDateTime,
+    }, {
+      sourceType: "VXSE52",
+      observationSourceType: "VXSE52",
+      infoType: "発表",
+      resolvedTrigger: null,
+      cancellationPolicy: null,
+      intensityStructureMissing: true,
+      maxIntValue: {
+        raw: null,
+        value: null,
+        condition: null,
+        description: null,
+        presence: "missing",
+      },
+    });
+    const dto = displayEventDto({
+      domain: "earthquake",
+      type: "VXSE52",
+      groupKey: "quake:A",
+      reportDateTime,
+      serial: "2",
+    });
+    attachQuakeObservationBridge(dto, { recent: null, latest });
+    expect(store.applyEvent(dto, T0 + 5 * MINUTE, null, command)).toBe(true);
+
+    const snapshot = store.snapshot(0, T0 + 5 * MINUTE);
+    expect(snapshot.mapLayers?.quake?.events[0]).toMatchObject({
+      sourceType: "VXSE51",
+      revision: command.revision,
+      reportDateTime,
+      originTime,
+      hypocenterName: "updated hypocenter",
+      depth: "20km",
+      magnitude: "5.8",
+      maxIntRank: 5,
+      localAreas: [{ code: "440", rank: 5 }],
+      updatedAtMs: T0 + 5 * MINUTE,
+    });
+    expect(snapshot.largeQuakes[0]).toMatchObject({
+      reportDateTime,
+      originTime,
+      hypocenterName: "updated hypocenter",
+      depth: "20km",
+      magnitude: "5.8",
+      maxIntRank: 5,
+      mapSourceType: "VXSE51",
+      mapRevision: command.revision,
+      updatedAtMs: T0 + 5 * MINUTE,
+    });
+    store.sweep(T0 + 10 * MINUTE + 1);
+    expect(store.snapshot(0, T0 + 10 * MINUTE + 1).largeQuakes).toHaveLength(1);
+    expect(store.sweep(T0 + 15 * MINUTE + 1)).toBe(true);
+    expect(store.snapshot(0, T0 + 15 * MINUTE + 1).largeQuakes).toEqual([]);
   });
 });

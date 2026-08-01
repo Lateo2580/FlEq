@@ -68,15 +68,21 @@ describe("projectQuakeMapCommand", () => {
     }));
   });
 
-  it("取消は remove、quakeIntensity 無しは無更新、明示的な震度2訂正は remove", () => {
+  it("registry 受理済み取消・描画不能な明示震度・震度2訂正は旧 map を remove", () => {
     expect(projectQuakeMapCommand(baseEvent({
-      eventId: "E1", serial: "2", isCancellation: true,
+      eventId: "E1",
+      serial: "2",
+      isCancellation: true,
+      foundationResolvedTrigger: "explicitCancellation",
+      foundationCancellationPolicy: "markCancelled",
     }), nowMs)).toEqual(expect.objectContaining({
       kind: "remove", eventKey: "earthquake:E1", reason: "cancelled",
     }));
     expect(projectQuakeMapCommand(baseEvent({
       eventId: "E1", serial: "2", maxInt: "4", maxIntRank: 4,
-    }), nowMs)).toBeNull();
+    }), nowMs)).toEqual(expect.objectContaining({
+      kind: "remove", eventKey: "earthquake:E1", reason: "nonExact",
+    }));
     expect(projectQuakeMapCommand(baseEvent({
       eventId: "E1",
       serial: "3",
@@ -88,6 +94,20 @@ describe("projectQuakeMapCommand", () => {
       },
     }), nowMs)).toEqual(expect.objectContaining({
       kind: "remove", eventKey: "earthquake:E1", reason: "belowThreshold",
+    }));
+    expect(projectQuakeMapCommand(baseEvent({
+      eventId: "E1",
+      type: "VXSE52",
+      serial: "4",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: {
+        raw: null, value: null, condition: null, description: null, presence: "missing",
+      },
+      areaItems: [],
+    }), nowMs)).toEqual(expect.objectContaining({
+      kind: "remove", eventKey: "earthquake:E1", reason: "structuralMissing",
+      eventUpdate: expect.objectContaining({ eventId: "E1", updatedAtMs: nowMs }),
     }));
   });
 
@@ -649,6 +669,30 @@ describe("projectDisplayEvent", () => {
     expect(dto.latestQuake).toMatchObject({ eventId: "Q5", maxInt: "4", hypocenterName: "茨城県沖" });
     expect(dto.latestQuake?.intensityGroups.length).toBeGreaterThan(0);
     expect(dto.latestQuake?.intensityGroups[0]).toMatchObject({ intensity: "4", areas: ["茨城県北部"] });
+  });
+
+  it("SpecialValue/provenance の内部 bridge は公開 display protocol JSON へ露出しない", () => {
+    const dto = projectDisplayEvent(
+      baseEvent({
+        domain: "earthquake",
+        type: "VXSE52",
+        eventId: "Q-internal",
+        hypocenterName: "茨城県沖",
+        maxInt: null,
+        maxIntRank: null,
+        maxIntValue: {
+          raw: "",
+          value: null,
+          condition: "未入電",
+          description: null,
+          presence: "unknown",
+        },
+      }),
+      "内部bridge",
+    );
+    const json = JSON.stringify(dto);
+    expect(json).not.toContain("maxIntValue");
+    expect(json).not.toContain("observationSourceType");
   });
 
   it("非地震イベントの latestQuake は null になる (Task 3)", () => {

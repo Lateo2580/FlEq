@@ -747,6 +747,7 @@ interface CancellationMutationEvidence {
     sourceFile: string;
     needles: readonly string[];
   }[];
+  evidenceMode?: "historicalBaseline" | "current";
 }
 
 export const CANCELLATION_MUTATION_EVIDENCE = [
@@ -783,6 +784,22 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
         needles: ["bySource?.delete(command.sourceType)", "this.quakeMapContributions.delete(eventKey)"],
       },
     ],
+    evidenceMode: "historicalBaseline",
+  },
+  {
+    domain: "earthquake", family: "earthquake", owner: "DisplayStateStore",
+    behavior: "Phase 4A migration: 承認済み §7.4 契約により取消を同一 EventID の全 map contribution へ適用",
+    sources: [
+      {
+        sourceFile: "src/engine/display/project-event.ts",
+        needles: ['if (resolvedCancellation) {', 'return { kind: "remove", eventKey, sourceType, reason: "cancelled"'],
+      },
+      {
+        sourceFile: "src/engine/display/state-store.ts",
+        needles: ["command.reason === \"structuralMissing\"", "changed = this.quakeMapContributions.delete(eventKey)"],
+      },
+    ],
+    evidenceMode: "current",
   },
   {
     domain: "earthquake", family: "earthquake", owner: "QuakeExtremeStore",
@@ -791,6 +808,16 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
       sourceFile: "src/engine/display/quake-extreme-store.ts",
       needles: ["if (input.isCancellation) {", "changed = this.removeSource(input.groupKey, input.type);"],
     }],
+    evidenceMode: "historicalBaseline",
+  },
+  {
+    domain: "earthquake", family: "earthquake", owner: "QuakeExtremeStore",
+    behavior: "Phase 4A migration: registry decision による取消を EventID 全体へ適用し groupKey watermark を永続化",
+    sources: [{
+      sourceFile: "src/engine/display/quake-extreme-store.ts",
+      needles: ["if (input.cancellationResolved) {", "input.groupKey,", "changed = this.records.delete(input.groupKey);"],
+    }],
+    evidenceMode: "current",
   },
   {
     domain: "lgObservation", family: "lgObservation", owner: "StandbyStateStore",
