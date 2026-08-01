@@ -32,14 +32,24 @@ export interface DisplayEewRegionV1 {
   arrivalTime: string | null;   // 主要動到達予測時刻
 }
 
+export interface DisplayEewRestoreRevisionV1 {
+  sourceType: string;
+  serial: string | null;
+  isCorrection: boolean;
+}
+
 export interface DisplayEewInputV1 {
   kind: "eew";
   eventId: string | null;
+  /** EEW revision family。旧 V1 DTO では欠落するため optional。 */
+  sourceType?: string;
   serial: string | null;
   isWarning: boolean;
   isFinal: boolean;
   isCancellation: boolean;
   isCorrection?: boolean;
+  /** 終端を撤回した抑止 family の revision。旧 V1 DTO では欠落する。 */
+  restoreRevision?: DisplayEewRestoreRevisionV1;
   hypocenterName: string | null;
   forecastMaxInt: string | null;
   forecastMaxIntRank: number | null;

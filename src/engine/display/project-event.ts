@@ -160,11 +160,15 @@ function projectEmergency(
     return {
       kind: "eew",
       eventId: event.eventId ?? null,
+      sourceType: event.type,
       serial: event.serial ?? null,
       isWarning: event.isWarning === true,
       isFinal: event.isFinal === true,
       isCancellation: event.isCancellation,
       isCorrection: event.infoType === "訂正",
+      ...(event.eewDisplayRestoreRevision != null
+        ? { restoreRevision: event.eewDisplayRestoreRevision }
+        : {}),
       hypocenterName: event.hypocenterName ?? null,
       forecastMaxInt: event.forecastMaxInt ?? null,
       forecastMaxIntRank: event.forecastMaxIntRank ?? null,

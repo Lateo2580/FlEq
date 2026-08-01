@@ -18,7 +18,6 @@ import {
   wrapFrameLines,
   intensityColor,
   lgIntensityColor,
-  intensityToNumeric,
   lgIntToNumeric,
   colorMagnitude,
   renderFooter,
@@ -34,7 +33,12 @@ import {
   clampFrameContent,
   pushClampedFrameLine,
 } from "./responsive-table-engine";
-import { eewPessimisticIntensity } from "../utils/intensity";
+import {
+  eewAreaHasArrived,
+  eewAreaIsPlum,
+  evaluateEewForecastArea,
+  getMaxForecastIntensityEvaluation,
+} from "../engine/eew/eew-tracker";
 
 // ── EEW 表示コンテキスト ──
 
@@ -160,6 +164,9 @@ export interface EewForecastRow {
   intensityTo?: string;   // To (From≠To のときのみ)
   /** To 基準 (悲観側) の並び・divider 用キー */
   sortKey: string;
+  sortRank: number | null;
+  displayLabel?: string;
+  aggregateLabel?: string;
   lgIntensity?: string;
   isPlum?: boolean;
   hasArrived?: boolean;
@@ -170,11 +177,17 @@ const INTENSITY_DISPLAY: Record<string, string> = { "5-": "5弱", "5+": "5強", 
 
 /** XML 生値 ("5-") を人間可読 ("5弱") に。既に可読形・数値はそのまま */
 export function formatEewIntensityLabel(value: string): string {
-  return INTENSITY_DISPLAY[value] ?? value;
+  return INTENSITY_DISPLAY[value]
+    ?? value.replace(/5-|5\+|6-|6\+/g, (part) => INTENSITY_DISPLAY[part] ?? part);
 }
 
 /** 範囲表記: From≠To は「4〜5弱」、To="over" は「4程度以上」(Task 0 確認の fail-safe) */
-export function formatEewIntensityRange(row: { intensity: string; intensityTo?: string }): string {
+export function formatEewIntensityRange(row: {
+  intensity: string;
+  intensityTo?: string;
+  displayLabel?: string;
+}): string {
+  if (row.displayLabel != null) return formatEewIntensityLabel(row.displayLabel);
   if (row.intensityTo == null) return formatEewIntensityLabel(row.intensity);
   if (row.intensityTo === "over") return `${formatEewIntensityLabel(row.intensity)}程度以上`;
   return `${formatEewIntensityLabel(row.intensity)}〜${formatEewIntensityLabel(row.intensityTo)}`;
@@ -203,20 +216,37 @@ export function buildEewForecastRows(
   areas: NonNullable<ParsedEewInfo["forecastIntensity"]>["areas"]
 ): EewForecastRow[] {
   return areas
-    .map((a) => ({
-      name: a.name,
-      intensity: a.intensity,
-      ...(a.intensityTo != null ? { intensityTo: a.intensityTo } : {}),
-      sortKey: eewPessimisticIntensity(a.intensity, a.intensityTo),
-      ...(a.lgIntensity != null ? { lgIntensity: a.lgIntensity } : {}),
-      ...(a.isPlum ? { isPlum: a.isPlum } : {}),
-      ...(a.hasArrived ? { hasArrived: a.hasArrived } : {}),
-      ...(a.arrivalTime != null ? { arrivalTime: a.arrivalTime } : {}),
-    }))
-    .sort((a, b) =>
-      (intensityToNumeric(b.sortKey) - intensityToNumeric(a.sortKey)) ||
-      a.name.localeCompare(b.name, "ja"),
-    );
+    .map((a) => {
+      const evaluation = evaluateEewForecastArea(a);
+      const preserveAggregateQualifier = evaluation != null && (
+        evaluation.specialValue.presence === "unknown"
+        || evaluation.specialValue.presence === "empty"
+        || evaluation.specialValue.presence === "qualitative"
+        || evaluation.specialValue.presence === "range" && !(
+          evaluation.specialValue.lowerBound != null
+          && evaluation.specialValue.upperBound != null
+        )
+      );
+      return {
+        name: a.name,
+        intensity: a.intensity,
+        ...(a.intensityTo != null ? { intensityTo: a.intensityTo } : {}),
+        sortKey: evaluation?.colorIntensity ?? "",
+        sortRank: evaluation?.safetyRank ?? null,
+        ...(evaluation?.detailLabel != null ? { displayLabel: evaluation.detailLabel } : {}),
+        ...(preserveAggregateQualifier ? { aggregateLabel: evaluation.detailLabel } : {}),
+        ...(a.lgIntensity != null ? { lgIntensity: a.lgIntensity } : {}),
+        ...(eewAreaIsPlum(a) ? { isPlum: true } : {}),
+        ...(eewAreaHasArrived(a) ? { hasArrived: true } : {}),
+        ...(a.arrivalTime != null ? { arrivalTime: a.arrivalTime } : {}),
+      };
+    })
+    .sort((a, b) => {
+      if (a.sortRank == null && b.sortRank != null) return 1;
+      if (a.sortRank != null && b.sortRank == null) return -1;
+      return ((b.sortRank ?? 0) - (a.sortRank ?? 0))
+        || a.name.localeCompare(b.name, "ja");
+    });
 }
 
 /**
@@ -276,6 +306,7 @@ export function eewForecastColumns(mode: ResponsiveDisplayMode, hasLg: boolean):
 /** 隠れ地域 1 震度分の内訳 (sortKey = 悲観側震度の生値。表記・色の決定キー) */
 export interface EewHiddenIntensityGroup {
   sortKey: string;
+  displayLabel?: string;
   count: number;
 }
 
@@ -284,11 +315,20 @@ export interface EewHiddenIntensityGroup {
  * そのまま強い順になり、再ソートも地域ごとの文字列生成も要らない (1 走査)。
  */
 export function summarizeHiddenEewRows(rows: EewForecastRow[]): EewHiddenIntensityGroup[] {
-  const counts = new Map<string, number>();
+  const counts = new Map<string, EewHiddenIntensityGroup>();
   for (const r of rows) {
-    counts.set(r.sortKey, (counts.get(r.sortKey) ?? 0) + 1);
+    const displayLabel = r.aggregateLabel ?? r.sortKey;
+    const key = `${r.sortKey}\u0000${displayLabel}`;
+    const existing = counts.get(key);
+    counts.set(key, existing == null
+      ? {
+          sortKey: r.sortKey,
+          ...(displayLabel !== r.sortKey ? { displayLabel } : {}),
+          count: 1,
+        }
+      : { ...existing, count: existing.count + 1 });
   }
-  return Array.from(counts, ([sortKey, count]) => ({ sortKey, count }));
+  return [...counts.values()];
 }
 
 /**
@@ -299,7 +339,7 @@ export function summarizeHiddenEewRows(rows: EewForecastRow[]): EewHiddenIntensi
 export function buildEewHiddenSummaryLine(rows: EewForecastRow[]): string {
   const breakdown = summarizeHiddenEewRows(rows)
     .map((g) =>
-      intensityColor(g.sortKey)(`震度${formatEewIntensityLabel(g.sortKey)}`) + chalk.gray(`: ${g.count}`))
+      intensityColor(g.sortKey)(`震度${formatEewIntensityLabel(g.displayLabel ?? g.sortKey)}`) + chalk.gray(`: ${g.count}`))
     .join(" / ");
   return chalk.gray(`… 他 ${rows.length} 地域 (`) + breakdown + chalk.gray(")");
 }
@@ -393,19 +433,18 @@ export function displayEewInfo(
       cardParts.push({ text: chalk.gray(info.infoType), priority: 0 });
     }
 
-    if (info.forecastIntensity?.areas.length) {
-      const areas = info.forecastIntensity.areas;
-      let maxInt = eewPessimisticIntensity(areas[0].intensity, areas[0].intensityTo);
-      for (const area of areas) {
-        const candidate = eewPessimisticIntensity(area.intensity, area.intensityTo);
-        if (intensityToNumeric(candidate) > intensityToNumeric(maxInt)) maxInt = candidate;
+    if (info.forecastIntensity != null) {
+      const maxInt = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+      if (maxInt != null) {
+        const maxLabel = formatEewIntensityLabel(maxInt.summaryLabel);
+        const coloredMaxLabel = maxInt.colorIntensity == null
+          ? chalk.white.bold(maxLabel)
+          : intensityColor(maxInt.colorIntensity).bold(maxLabel);
+        const intLabel = diff?.previousMaxInt
+          ? chalk.white("最大予測震度 ") + chalk.gray(formatEewIntensityLabel(diff.previousMaxInt)) + chalk.white(" → ") + coloredMaxLabel
+          : chalk.white("最大予測震度 ") + coloredMaxLabel;
+        cardParts.push({ text: intLabel, priority: 0 });
       }
-      const ic = intensityColor(maxInt);
-      const maxLabel = formatEewIntensityLabel(maxInt);
-      const intLabel = diff?.previousMaxInt
-        ? chalk.white("最大予測震度 ") + chalk.gray(formatEewIntensityLabel(diff.previousMaxInt)) + chalk.white(" → ") + ic.bold(maxLabel)
-        : chalk.white("最大予測震度 ") + ic.bold(maxLabel);
-      cardParts.push({ text: intLabel, priority: 0 });
 
       // 最大予測長周期地震動階級
       const maxLgInt = info.forecastIntensity.maxLgInt;

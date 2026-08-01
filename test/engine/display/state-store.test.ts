@@ -12,16 +12,16 @@ import type {
 const MIN = 60_000;
 const T0 = Date.parse("2026-07-06T21:00:00+09:00");
 
-function eewDto(over: Partial<{ eventId: string; serial: string; isFinal: boolean; isCancellation: boolean; isWarning: boolean; isCorrection: boolean; hypocenterName: string }>): DisplayEventDtoV1 {
-  const o = { eventId: "E1", serial: "1", isFinal: false, isCancellation: false, isWarning: true, isCorrection: false, hypocenterName: "X", ...over };
+function eewDto(over: Partial<{ eventId: string; sourceType: string | undefined; serial: string; isFinal: boolean; isCancellation: boolean; isWarning: boolean; isCorrection: boolean; hypocenterName: string }>): DisplayEventDtoV1 {
+  const o = { eventId: "E1", sourceType: "VXSE45" as string | undefined, serial: "1", isFinal: false, isCancellation: false, isWarning: true, isCorrection: false, hypocenterName: "X", ...over };
   return {
     version: 1, seq: 0, id: `m-${o.eventId}-${o.serial}`, eventKey: `eew:${o.eventId}:${o.serial}`,
-    groupKey: `eew:${o.eventId}`, domain: "eew", type: "VXSE45", infoType: "発表",
+    groupKey: `eew:${o.eventId}`, domain: "eew", type: o.sourceType ?? "VXSE45", infoType: "発表",
     reportDateTime: "2026-07-06T21:00:00+09:00", title: "緊急地震速報", headline: null,
     publishingOffice: "気象庁", isTest: false, frameLevel: "critical", isCancellation: o.isCancellation,
     summary: { text: "t", role: "eewWarning" },
     emergency: {
-      kind: "eew", eventId: o.eventId, serial: o.serial, isWarning: o.isWarning, isFinal: o.isFinal,
+      kind: "eew", eventId: o.eventId, ...(o.sourceType != null ? { sourceType: o.sourceType } : {}), serial: o.serial, isWarning: o.isWarning, isFinal: o.isFinal,
       isCancellation: o.isCancellation, isCorrection: o.isCorrection, hypocenterName: o.hypocenterName, forecastMaxInt: "5強",
       forecastMaxIntRank: 6, magnitude: "6.0", colorIndex: 0, reportDateTime: "2026-07-06T21:00:00+09:00",
     },
@@ -149,6 +149,65 @@ describe("DisplayStateStore: EEW", () => {
     const snap = store.snapshot(1, T0 + 1_000);
     expect(snap.activeEews.length).toBe(1);
     expect(snap.activeEews[0].serial).toBe("3");
+  });
+
+  it("serial gate は (eventId, sourceType) 単位で、別 family の小さい初報を受理する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(eewDto({ sourceType: "VXSE43", serial: "3" }), T0)).toBe(true);
+    expect(store.applyEvent(eewDto({ sourceType: "VXSE45", serial: "1" }), T0 + 1_000)).toBe(true);
+    expect(store.snapshot(1, T0 + 1_000).activeEews[0]).toMatchObject({
+      sourceType: "VXSE45",
+      serial: "1",
+    });
+
+    expect(store.applyEvent(eewDto({ sourceType: "VXSE43", serial: "2" }), T0 + 2_000)).toBe(false);
+    expect(store.snapshot(2, T0 + 2_000).activeEews[0]).toMatchObject({
+      sourceType: "VXSE45",
+      serial: "1",
+    });
+  });
+
+  it("sourceType 欠落の旧 DTO は EventID 全体の従来 serial gate へ fallback する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(eewDto({ sourceType: undefined, serial: "3" }), T0)).toBe(true);
+    expect(store.applyEvent(eewDto({ sourceType: undefined, serial: "1" }), T0 + 1_000)).toBe(false);
+    expect(store.snapshot(1, T0 + 1_000).activeEews[0].serial).toBe("3");
+  });
+
+  it("active がない取消も type-local tombstone として後続の古い同 family を拒否する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(eewDto({
+      sourceType: "VXSE44",
+      serial: "3",
+      isCancellation: true,
+    }), T0)).toBe(true);
+    expect(store.snapshot(1, T0).activeEews).toHaveLength(0);
+    expect(store.applyEvent(eewDto({
+      sourceType: "VXSE44",
+      serial: "2",
+      isCancellation: false,
+    }), T0 + 1_000)).toBe(false);
+    expect(store.snapshot(2, T0 + 1_000).activeEews).toHaveLength(0);
+  });
+
+  it("VXSE44 最終報は final card を作らず active EEW を解除する", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(eewDto({ sourceType: "VXSE45", serial: "3" }), T0)).toBe(true);
+    expect(store.applyEvent(eewDto({
+      sourceType: "VXSE44",
+      serial: "1",
+      isFinal: true,
+    }), T0 + 1_000)).toBe(true);
+    expect(store.snapshot(1, T0 + 1_000).activeEews).toHaveLength(0);
+
+    const emptyStore = new DisplayStateStore();
+    expect(emptyStore.applyEvent(eewDto({
+      eventId: "E2",
+      sourceType: "VXSE44",
+      serial: "1",
+      isFinal: true,
+    }), T0)).toBe(true);
+    expect(emptyStore.snapshot(1, T0).activeEews).toHaveLength(0);
   });
 
   it("古い serial は最終報 (isFinal) でも無視される。同 serial の final は受理される", () => {

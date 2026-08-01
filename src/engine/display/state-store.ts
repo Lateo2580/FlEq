@@ -144,6 +144,10 @@ function addedAreasForWire(added: readonly WeatherPromotionMemberV1[]): DisplayW
 // applyEvent/sweep の boolean = 「state snapshot の再配信が必要な変化があったか」。
 export class DisplayStateStore {
   private activeEews = new Map<string, DisplayActiveEewV1>();
+  private eewSourceRevisions = new Map<
+    string,
+    { eventId: string; serial: string | null; updatedAtMs: number }
+  >();
   private tsunami: DisplayTsunamiStateV1 | null = null;
   private tsunamiObservationGroups: DisplayTsunamiObservationGroups = {
     VTSE51: [],
@@ -418,6 +422,70 @@ export class DisplayStateStore {
     const eventId = input.eventId;
     if (eventId == null) return false;
     const existing = this.activeEews.get(eventId);
+    const sourceType = input.sourceType?.trim() || null;
+    const restoreRevision = input.restoreRevision;
+    if (restoreRevision != null) {
+      const restoreSourceType = restoreRevision.sourceType.trim();
+      if (
+        sourceType == null
+        || restoreSourceType !== "VXSE44"
+        || restoreSourceType === sourceType
+        || restoreRevision.serial == null
+        || restoreRevision.serial.trim() === ""
+        || input.isCancellation
+        || input.isFinal
+      ) return false;
+      const restoreKey = JSON.stringify([eventId, restoreSourceType]);
+      const previousRestore = this.eewSourceRevisions.get(restoreKey);
+      if (previousRestore != null) {
+        const cmp = compareSerial(restoreRevision.serial, previousRestore.serial);
+        if (cmp < 0) return false;
+        if (cmp === 0 && !restoreRevision.isCorrection) return false;
+      }
+      // Card 本体の authoritative serial とは分け、終端を撤回した family の
+      // revision を watermark として前進させる。これにより後着した旧終端を拒否できる。
+      this.eewSourceRevisions.set(restoreKey, {
+        eventId,
+        serial: restoreRevision.serial,
+        updatedAtMs: nowMs,
+      });
+      this.activeEews.set(eventId, { ...input, sourceType, updatedAtMs: nowMs });
+      return true;
+    }
+    if (sourceType != null) {
+      const revisionKey = JSON.stringify([eventId, sourceType]);
+      const sourceRevision = this.eewSourceRevisions.get(revisionKey);
+      const comparableExisting = sourceRevision == null
+        && (existing?.sourceType == null || existing.sourceType === sourceType)
+        ? existing
+        : null;
+      const previousSerial = sourceRevision?.serial ?? comparableExisting?.serial;
+      if (previousSerial !== undefined) {
+        const cmp = compareSerial(input.serial, previousSerial);
+        if (cmp < 0) return false;
+        if (
+          cmp === 0
+          && !input.isFinal
+          && !input.isCancellation
+          && input.isCorrection !== true
+        ) return false;
+      }
+      this.eewSourceRevisions.set(revisionKey, {
+        eventId,
+        serial: input.serial,
+        updatedAtMs: nowMs,
+      });
+      if (input.isCancellation || input.isFinal && sourceType === "VXSE44") {
+        this.activeEews.delete(eventId);
+        // VXSE44 は通常表示しないため、終端 outcome は card を作らず解除 command として扱う。
+        // active がなくても accepted tombstone の生成を mutation として扱う。
+        return true;
+      }
+      this.activeEews.set(eventId, { ...input, sourceType, updatedAtMs: nowMs });
+      return true;
+    }
+
+    // sourceType 欠落の旧 V1 DTO は従来の EventID 全体 serial gate へ fallback する。
     if (input.isCancellation) {
       // 遅延到着した古い serial の取消が新しい続報を消さないようガードする (続報の巻き戻し防止と同方針)
       if (existing != null && compareSerial(input.serial, existing.serial) < 0) return false;
@@ -558,6 +626,14 @@ export class DisplayStateStore {
       const ttlHit = nowMs - eew.updatedAtMs > EEW_TTL_MIN * MIN_MS;
       const finalHit = eew.isFinal && nowMs - eew.updatedAtMs > EEW_FINAL_HOLD_SEC * 1000;
       if (ttlHit || finalHit) { this.activeEews.delete(id); changed = true; }
+    }
+    for (const [key, revision] of this.eewSourceRevisions) {
+      if (
+        !this.activeEews.has(revision.eventId)
+        && nowMs - revision.updatedAtMs >= EEW_TTL_MIN * MIN_MS
+      ) {
+        this.eewSourceRevisions.delete(key);
+      }
     }
     for (const [id, q] of this.largeQuakes) {
       if (nowMs - q.updatedAtMs > LARGE_QUAKE_HOLD_MIN * MIN_MS) { this.largeQuakes.delete(id); changed = true; }

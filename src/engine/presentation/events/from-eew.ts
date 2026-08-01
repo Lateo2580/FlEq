@@ -1,39 +1,37 @@
 import type { EewOutcome, PresentationEvent, PresentationAreaItem, PresentationEewRegion } from "../types";
 import { presentationTelegramMeta } from "./presentation-meta";
-import { intensityToRank, eewPessimisticIntensity } from "../../../utils/intensity";
 import { magnitudeForPresentation } from "../../../utils/magnitude";
+import {
+  eewAreaHasArrived,
+  eewAreaIsPlum,
+  eewForecastAreaSpecialValue,
+  getMaxForecastIntensityEvaluation,
+} from "../../eew/eew-tracker";
 
 /** EewOutcome → PresentationEvent */
 export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
   const xmlReport = outcome.msg.xmlReport;
   const info = outcome.parsed;
 
-  // 予測地域から最大予測震度を算出
   const forecastAreas = info.forecastIntensity?.areas ?? [];
-  let forecastMaxInt: string | null = null;
-  let forecastMaxIntRank: number | null = null;
-
-  for (const area of forecastAreas) {
-    const pessimistic = eewPessimisticIntensity(area.intensity, area.intensityTo);
-    const rank = intensityToRank(pessimistic);
-    if (forecastMaxIntRank == null || rank > forecastMaxIntRank) {
-      forecastMaxIntRank = rank;
-      forecastMaxInt = pessimistic;
-    }
-  }
+  const currentForecast = outcome.eewResult.currentForecastIntensity
+    ?? getMaxForecastIntensityEvaluation(info.forecastIntensity);
 
   const areaNames = forecastAreas.map((a) => a.name);
   const areaItems: PresentationAreaItem[] = forecastAreas.map((a) => ({
     name: a.name,
     kind: "forecast",
+    maxIntValue: eewForecastAreaSpecialValue(a),
     maxInt: a.intensity,
+    ...(a.lgIntensityValue != null ? { maxLgIntValue: a.lgIntensityValue } : {}),
+    ...(a.lgIntensity != null ? { maxLgInt: a.lgIntensity } : {}),
   }));
   const eewRegions: PresentationEewRegion[] = forecastAreas.map((a) => ({
     name: a.name,
     intensity: a.intensity,
     intensityTo: a.intensityTo ?? null,
-    isPlum: a.isPlum === true,
-    hasArrived: a.hasArrived === true,
+    isPlum: eewAreaIsPlum(a),
+    hasArrived: eewAreaHasArrived(a),
     arrivalTime: a.arrivalTime ?? null,
   }));
 
@@ -70,8 +68,22 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     depth: info.earthquake?.depth ?? null,
     magnitude: magnitudeForPresentation(info.earthquake),
 
-    forecastMaxInt: forecastMaxInt,
-    forecastMaxIntRank: forecastMaxIntRank,
+    ...(info.forecastIntensity?.maxIntValue != null
+      ? { maxIntValue: info.forecastIntensity.maxIntValue }
+      : currentForecast?.specialValue != null
+        ? { maxIntValue: currentForecast.specialValue }
+        : {}),
+    // label/SpecialValue は今回 snapshot、rank だけは unknown による安全状態降格を防ぐ。
+    forecastMaxInt: currentForecast?.summaryLabel ?? null,
+    forecastMaxIntRank: outcome.eewResult.effectiveForecastSafetyRank
+      ?? currentForecast?.safetyRank
+      ?? null,
+    ...(outcome.eewResult.displayRestoreRevision != null
+      ? { eewDisplayRestoreRevision: outcome.eewResult.displayRestoreRevision }
+      : {}),
+    ...(info.forecastIntensity?.maxLgIntValue != null
+      ? { maxLgIntValue: info.forecastIntensity.maxLgIntValue }
+      : {}),
     maxLgInt: info.forecastIntensity?.maxLgInt ?? null,
 
     nextAdvisory: info.nextAdvisory ?? null,

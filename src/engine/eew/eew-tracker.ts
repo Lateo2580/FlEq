@@ -1,4 +1,10 @@
-import type { ParsedEewInfo, TelegramRevision } from "../../types";
+import type {
+  IntensitySafetyRank,
+  JmaIntensity,
+  ParsedEewInfo,
+  SpecialValue,
+  TelegramRevision,
+} from "../../types";
 import { telegramRevision } from "../../dmdata/telegram-meta";
 import * as intensityUtils from "../../utils/intensity";
 import {
@@ -24,6 +30,7 @@ export interface EewDiff {
 /** head.type ごとのシリアル・前回情報 */
 interface EewTypeState {
   previousInfo?: ParsedEewInfo;
+  retainedForecastSafetyRank?: number;
 }
 
 interface EewTerminalOwner {
@@ -36,6 +43,8 @@ interface EewEvent {
   eventId: string;
   /** head.type (VXSE43/44/45) ごとのシリアル・前回情報 */
   byType: Map<string, EewTypeState>;
+  /** type family をまたいで unknown が来ても降格させない EventID 単位の safety state。 */
+  retainedForecastSafetyRank?: number;
   /** VXSE45 を一度でも受信したか */
   hasSeen45: boolean;
   /** 警報を一度でも発出したか (イベント単位) */
@@ -72,7 +81,24 @@ export interface EewUpdateResult {
   diff?: EewDiff;
   /** 前回の EEW 情報 */
   previousInfo?: ParsedEewInfo;
+  /** 今回報が明示した表示 snapshot。前回値で置換しない。 */
+  currentForecastIntensity?: EewForecastIntensityEvaluation;
+  /** unknown が連続しても直前の known safety state を降格させない rank。 */
+  effectiveForecastSafetyRank?: number;
   /** バナー色分け用のカラーインデックス (0始まり) */
+  colorIndex: number;
+  /** 抑止 family の終端撤回で authoritative display card を復元する revision。 */
+  displayRestoreRevision?: {
+    sourceType: string;
+    serial: string | null;
+    isCorrection: boolean;
+  };
+}
+
+export interface EewLifecycleReplacement {
+  reactivated: boolean;
+  authoritativeInfo: ParsedEewInfo | null;
+  effectiveForecastSafetyRank: number | null;
   colorIndex: number;
 }
 
@@ -92,26 +118,350 @@ function parseDepthKm(depth: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
-/** 予測震度リストから最大震度を取得 (To 基準・悲観側。spec 4.5)。logger 等の他モジュールとも共有 */
-export function getMaxForecastIntensity(
-  areas: { name: string; intensity: string; intensityTo?: string }[]
-): string | null {
-  if (areas.length === 0) return null;
-  let maxInt = intensityUtils.eewPessimisticIntensity(areas[0].intensity, areas[0].intensityTo);
-  let maxRank = intensityUtils.intensityToRank(maxInt);
-  for (let i = 1; i < areas.length; i++) {
-    const candidate = intensityUtils.eewPessimisticIntensity(areas[i].intensity, areas[i].intensityTo);
-    const rank = intensityUtils.intensityToRank(candidate);
-    if (rank > maxRank) {
-      maxRank = rank;
-      maxInt = candidate;
+type EewForecastIntensity = NonNullable<ParsedEewInfo["forecastIntensity"]>;
+export type EewForecastArea = EewForecastIntensity["areas"][number];
+
+const CANONICAL_INTENSITY: Record<string, JmaIntensity> = {
+  "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+  "5-": "5-", "5弱": "5-", "5+": "5+", "5強": "5+",
+  "6-": "6-", "6弱": "6-", "6+": "6+", "6強": "6+", "7": "7",
+};
+
+const INTENSITY_BY_RANK: readonly JmaIntensity[] = [
+  "0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7",
+];
+
+export interface EewForecastIntensityEvaluation {
+  specialValue: SpecialValue<JmaIntensity>;
+  safety: IntensitySafetyRank;
+  /** range は upper、lower-only は lower。unknown は null のまま保持する。 */
+  safetyRank: number | null;
+  /** 既存 scalar consumer 向け。通常 range は安全側 upper、定性値は qualifier を保持する。 */
+  summaryLabel: string;
+  /** 地域行・ログ向けの From/To を含む完全な表記。 */
+  detailLabel: string;
+  /** safety rank 色へ渡せる canonical 値。unknown は null。 */
+  colorIntensity: JmaIntensity | null;
+  /** 最大候補の一部に数値化不能な明示状態があり、既知最大だけでは上限を確定できない。 */
+  hasUnknownCandidates: boolean;
+  /** 選択した候補とは別に、上限を確定できない候補が存在する。 */
+  hasAdditionalUncertainCandidates: boolean;
+}
+
+export type EewIntensitySafetyGate = "pass" | "below" | "unknown";
+
+function canonicalIntensity(value: string | null | undefined): JmaIntensity | null {
+  if (value == null) return null;
+  return CANONICAL_INTENSITY[value.normalize("NFKC").replace(/\s+/g, "")] ?? null;
+}
+
+function legacyAreaSpecialValue(area: EewForecastArea): SpecialValue<JmaIntensity> {
+  const lower = canonicalIntensity(area.intensity);
+  const rawTo = area.intensityTo;
+  const upper = canonicalIntensity(rawTo);
+  if (lower != null && rawTo == null) {
+    return {
+      raw: area.intensity,
+      value: lower,
+      condition: null,
+      description: null,
+      presence: "value",
+    };
+  }
+  if (lower != null && upper != null) {
+    if (lower === upper) {
+      return {
+        raw: area.intensity,
+        value: lower,
+        condition: null,
+        description: null,
+        presence: "value",
+        rawLowerBound: area.intensity,
+        rawUpperBound: rawTo ?? area.intensity,
+      };
+    }
+    return {
+      raw: area.intensity,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "range",
+      lowerBound: lower,
+      upperBound: upper,
+      rawLowerBound: area.intensity,
+      rawUpperBound: rawTo ?? null,
+    };
+  }
+  if (lower != null && rawTo?.normalize("NFKC").trim().toLowerCase() === "over") {
+    return {
+      raw: area.intensity,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "range",
+      lowerBound: lower,
+      upperBound: null,
+      rawLowerBound: area.intensity,
+      rawUpperBound: rawTo,
+    };
+  }
+  const raw = rawTo == null ? area.intensity : `${area.intensity}〜${rawTo}`;
+  return {
+    raw,
+    value: null,
+    condition: null,
+    description: null,
+    presence: raw.trim() === "" ? "empty" : "unknown",
+  };
+}
+
+function overallSpecialValue(forecast: EewForecastIntensity): SpecialValue<JmaIntensity> | null {
+  if (forecast.maxIntValue != null) return forecast.maxIntValue;
+  const value = canonicalIntensity(forecast.maxInt);
+  if (value == null) return null;
+  return {
+    raw: forecast.maxInt ?? value,
+    value,
+    condition: null,
+    description: null,
+    presence: "value",
+  };
+}
+
+export function eewForecastAreaSpecialValue(
+  area: EewForecastArea,
+): SpecialValue<JmaIntensity> {
+  return area.intensityValue ?? legacyAreaSpecialValue(area);
+}
+
+function qualifierLabel(value: SpecialValue<JmaIntensity>): string | null {
+  for (const candidate of [value.condition, value.description, value.raw]) {
+    if (candidate != null && candidate.trim() !== "") return candidate.trim();
+  }
+  return null;
+}
+
+function intensityDetailLabel(value: SpecialValue<JmaIntensity>): string | null {
+  switch (value.presence) {
+    case "value":
+      return value.value;
+    case "missing":
+      return null;
+    case "empty":
+      return "空欄";
+    case "unknown":
+      return qualifierLabel(value) ?? "不明";
+    case "qualitative":
+      return qualifierLabel(value)
+        ?? (value.lowerBound == null ? "不明" : `${value.lowerBound}以上`);
+    case "range": {
+      if (value.lowerBound != null && value.upperBound != null) {
+        return value.lowerBound === value.upperBound
+          ? value.lowerBound
+          : `${value.lowerBound}〜${value.upperBound}`;
+      }
+      if (value.lowerBound != null) {
+        const rawUpper = value.rawUpperBound?.normalize("NFKC").trim().toLowerCase();
+        return rawUpper === "over"
+          ? `${value.lowerBound}程度以上`
+          : `${value.lowerBound}以上`;
+      }
+      if (value.upperBound != null) return `${value.upperBound}以下`;
+      return qualifierLabel(value) ?? "不明";
     }
   }
-  return maxInt;
+}
+
+function intensitySummaryLabel(
+  value: SpecialValue<JmaIntensity>,
+  safety: IntensitySafetyRank,
+): string | null {
+  if (value.presence === "value") return value.value;
+  if (value.presence === "range" && safety.kind === "known" && safety.upper != null) {
+    return intensityDetailLabel(value);
+  }
+  return intensityDetailLabel(value);
+}
+
+export function evaluateEewForecastIntensity(
+  specialValue: SpecialValue<JmaIntensity>,
+): EewForecastIntensityEvaluation | null {
+  if (specialValue.presence === "missing") return null;
+  const safety = intensityUtils.evaluateIntensitySafetyRank(specialValue);
+  const safetyRank = safety.kind === "known" ? safety.upper ?? safety.lower : null;
+  const detailLabel = intensityDetailLabel(specialValue);
+  const summaryLabel = intensitySummaryLabel(specialValue, safety);
+  if (detailLabel == null || summaryLabel == null) return null;
+  return {
+    specialValue,
+    safety,
+    safetyRank,
+    summaryLabel,
+    detailLabel,
+    colorIntensity: safetyRank == null ? null : INTENSITY_BY_RANK[safetyRank] ?? null,
+    hasUnknownCandidates: safetyRank == null,
+    hasAdditionalUncertainCandidates: false,
+  };
+}
+
+export function evaluateEewForecastArea(
+  area: EewForecastArea,
+): EewForecastIntensityEvaluation | null {
+  return evaluateEewForecastIntensity(eewForecastAreaSpecialValue(area));
+}
+
+function qualifierPriority(value: SpecialValue<JmaIntensity>): number {
+  if (value.presence === "qualitative") return 3;
+  if (value.presence === "range") return 2;
+  if (value.presence === "value") return 1;
+  if (value.presence === "unknown") return 2;
+  if (value.presence === "empty") return 1;
+  return 0;
+}
+
+function higherEewIntensity(
+  current: EewForecastIntensityEvaluation | null,
+  candidate: EewForecastIntensityEvaluation | null,
+): EewForecastIntensityEvaluation | null {
+  if (candidate == null) return current;
+  if (current == null) return candidate;
+  const hasUnknownCandidates = current.hasUnknownCandidates || candidate.hasUnknownCandidates;
+  let selected: EewForecastIntensityEvaluation;
+  if (candidate.safetyRank != null && current.safetyRank == null) {
+    selected = candidate;
+  } else if (candidate.safetyRank == null && current.safetyRank != null) {
+    selected = current;
+  } else if (candidate.safetyRank != null && current.safetyRank != null) {
+    if (candidate.safetyRank > current.safetyRank) {
+      selected = candidate;
+    } else if (candidate.safetyRank < current.safetyRank) {
+      selected = current;
+    } else {
+      selected = qualifierPriority(candidate.specialValue) > qualifierPriority(current.specialValue)
+        ? candidate
+        : current;
+    }
+  } else {
+    selected = qualifierPriority(candidate.specialValue) > qualifierPriority(current.specialValue)
+      ? candidate
+      : current;
+  }
+  const unselected = selected === candidate ? current : candidate;
+  const hasAdditionalUncertainCandidates = selected.hasAdditionalUncertainCandidates
+    || unselected.hasAdditionalUncertainCandidates
+    || unselected.hasUnknownCandidates;
+  return selected.hasUnknownCandidates === hasUnknownCandidates
+      && selected.hasAdditionalUncertainCandidates === hasAdditionalUncertainCandidates
+    ? selected
+    : { ...selected, hasUnknownCandidates, hasAdditionalUncertainCandidates };
+}
+
+function reflectAdditionalUncertainty(
+  evaluation: EewForecastIntensityEvaluation | null,
+): EewForecastIntensityEvaluation | null {
+  if (
+    evaluation == null
+    || evaluation.safetyRank == null
+    || !evaluation.hasAdditionalUncertainCandidates
+  ) {
+    return evaluation;
+  }
+  let summaryLabel: string;
+  switch (evaluation.specialValue.presence) {
+    case "value":
+      summaryLabel = `${evaluation.summaryLabel}以上の可能性・一部不明`;
+      break;
+    case "range":
+      summaryLabel = evaluation.safety.kind === "known" && evaluation.safety.upper == null
+        ? `${evaluation.summaryLabel}・一部不明`
+        : `${evaluation.summaryLabel}以上の可能性・一部不明`;
+      break;
+    case "qualitative":
+    case "unknown":
+    case "empty":
+    case "missing":
+      summaryLabel = `${evaluation.summaryLabel}・一部不明`;
+      break;
+  }
+  return { ...evaluation, summaryLabel };
+}
+
+/**
+ * EEW の全体 ForecastInt と地域別予測震度を同じ safety rank で解決する。
+ * 地域なしの場合も全体値は評価する。表示 surface の生成可否は呼び出し側で決める。
+ */
+export function getMaxForecastIntensityEvaluation(
+  forecast: EewForecastIntensity | null | undefined,
+): EewForecastIntensityEvaluation | null {
+  if (forecast == null) return null;
+  let maximum: EewForecastIntensityEvaluation | null = null;
+  for (const area of forecast.areas) {
+    maximum = higherEewIntensity(maximum, evaluateEewForecastArea(area));
+  }
+  const overall = overallSpecialValue(forecast);
+  maximum = higherEewIntensity(
+    maximum,
+    overall == null ? null : evaluateEewForecastIntensity(overall),
+  );
+  return reflectAdditionalUncertainty(maximum);
+}
+
+/** legacy caller 向け summary scalar。unknown は rank 0 へ畳まず qualifier を返す。 */
+export function getMaxForecastIntensity(
+  areas: EewForecastArea[],
+): string | null {
+  return getMaxForecastIntensityEvaluation({ areas })?.summaryLabel ?? null;
+}
+
+export function evaluateEewIntensitySafetyGate(
+  evaluation: EewForecastIntensityEvaluation | null,
+  minimumRank: number,
+): EewIntensitySafetyGate {
+  if (evaluation?.safetyRank == null) return "unknown";
+  if (evaluation.safetyRank >= minimumRank) return "pass";
+  return evaluation.hasUnknownCandidates ? "unknown" : "below";
+}
+
+export function retainKnownEewForecastSafetyRank(
+  previous: number | null | undefined,
+  current: EewForecastIntensityEvaluation | null | undefined,
+): number | null {
+  // null は ForecastInt 自体の構造的 missing。前回値を表示・安全判定へ流用しない。
+  if (current == null) return null;
+  if (previous == null) return current.safetyRank;
+  if (current.safetyRank == null) return previous;
+  const hasKnownUpper = current.safety.kind === "known" && current.safety.upper != null;
+  if (!hasKnownUpper && current.safetyRank < previous) return previous;
+  return current.safetyRank;
+}
+
+function maxKnownEewForecastSafetyRank(
+  left: number | null | undefined,
+  right: number | null | undefined,
+): number | null {
+  if (left == null) return right ?? null;
+  if (right == null) return left;
+  return Math.max(left, right);
+}
+
+function normalizedAreaCondition(area: EewForecastArea): string {
+  return area.condition?.normalize("NFKC").replace(/\s+/g, "") ?? "";
+}
+
+export function eewAreaIsPlum(area: EewForecastArea): boolean {
+  return area.isPlum === true || normalizedAreaCondition(area).includes("PLUM法");
+}
+
+export function eewAreaHasArrived(area: EewForecastArea): boolean {
+  return area.hasArrived === true || normalizedAreaCondition(area).includes("既に主要動到達");
 }
 
 /** 2つの EEW 情報から差分を計算 */
-function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefined {
+function computeDiff(
+  prev: ParsedEewInfo,
+  curr: ParsedEewInfo,
+  previousRetainedForecastSafetyRank?: number,
+): EewDiff | undefined {
   const diff: EewDiff = {};
   let hasDiff = false;
 
@@ -135,12 +485,24 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
     }
   }
 
-  // 最大予測震度変化 (配列順に依存せず最大値を正規化して比較)
-  if (prev.forecastIntensity?.areas.length && curr.forecastIntensity?.areas.length) {
-    const prevMax = getMaxForecastIntensity(prev.forecastIntensity.areas);
-    const currMax = getMaxForecastIntensity(curr.forecastIntensity.areas);
-    if (prevMax && currMax && prevMax !== currMax) {
-      diff.previousMaxInt = prevMax;
+  // 最大予測震度変化。known→unknown は既存の高い状態を降格させる根拠にしない。
+  if (prev.forecastIntensity != null && curr.forecastIntensity != null) {
+    const prevMax = getMaxForecastIntensityEvaluation(prev.forecastIntensity);
+    const currMax = getMaxForecastIntensityEvaluation(curr.forecastIntensity);
+    const previousSafetyRank = previousRetainedForecastSafetyRank ?? prevMax?.safetyRank ?? null;
+    const rankChanged = previousSafetyRank !== currMax?.safetyRank;
+    const currentHasKnownUpper = currMax?.safety.kind === "known" && currMax.safety.upper != null;
+    const currentCanProveChange = currMax?.safetyRank != null && (
+      previousSafetyRank == null
+      || currMax.safetyRank > previousSafetyRank
+      || currentHasKnownUpper && !currMax.hasUnknownCandidates
+    );
+    if (
+      rankChanged
+      && currentCanProveChange
+      && prevMax != null
+    ) {
+      diff.previousMaxInt = prevMax.summaryLabel;
       hasDiff = true;
     }
   }
@@ -162,6 +524,7 @@ function computeDiff(prev: ParsedEewInfo, curr: ParsedEewInfo): EewDiff | undefi
  */
 export class EewTracker {
   private events = new Map<string, EewEvent>();
+  private suppressedForecastSafety = new Map<string, { rank: number; lastUpdate: Date }>();
   private readonly onCleanup?: (eventId: string) => void;
   private readonly onRevisionDecision?: (
     decision: TelegramRevisionDecision,
@@ -207,6 +570,8 @@ export class EewTracker {
     const isCancelled = info.infoType === "取消";
     const headType = info.type;
     if (revisionDecision.kind === "acceptTransient") {
+      const currentForecastIntensity = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+      const effectiveForecastSafetyRank = currentForecastIntensity?.safetyRank ?? null;
       return {
         isNew: !revisionDecision.isCorrection,
         isDuplicate: false,
@@ -217,6 +582,8 @@ export class EewTracker {
         isUpgradeToWarning: false,
         activeCount: this.getActiveCount(),
         colorIndex: 0,
+        ...(currentForecastIntensity != null ? { currentForecastIntensity } : {}),
+        ...(effectiveForecastSafetyRank != null ? { effectiveForecastSafetyRank } : {}),
       };
     }
 
@@ -224,32 +591,69 @@ export class EewTracker {
 
     if (existing) {
       const typeState = existing.byType.get(headType);
+      const isFirst45 = headType === "VXSE45" && !existing.hasSeen45;
+      const lifecycleAccepted = this.applyAcceptedLifecycle(existing, info, revisionDecision);
 
       // 抑制判定: VXSE45 受信済みなら VXSE43/44 は抑制
-      const isSuppressed = existing.hasSeen45 && (headType === "VXSE43" || headType === "VXSE44");
+      const isSuppressed = (
+        existing.hasSeen45 && (headType === "VXSE43" || headType === "VXSE44")
+      ) || !lifecycleAccepted;
 
       // type 状態の更新 (抑制されても serial・lastUpdate は更新する)
       const previousInfo = typeState?.previousInfo;
+      const previousRetainedForecastSafetyRank = typeState?.retainedForecastSafetyRank;
+      const currentForecast = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+      const typeEffectiveForecastSafetyRank = retainKnownEewForecastSafetyRank(
+        previousRetainedForecastSafetyRank,
+        currentForecast,
+      );
+      const eventSafetyRank = isFirst45
+        ? maxKnownEewForecastSafetyRank(
+            existing.retainedForecastSafetyRank,
+            this.suppressedForecastSafety.get(eventId)?.rank,
+          )
+        : existing.retainedForecastSafetyRank;
+      const effectiveForecastSafetyRank = isSuppressed
+        ? existing.retainedForecastSafetyRank ?? null
+        : retainKnownEewForecastSafetyRank(
+            eventSafetyRank,
+            currentForecast,
+          );
       if (!typeState) {
-        existing.byType.set(headType, { previousInfo: info });
+        existing.byType.set(headType, {
+          previousInfo: info,
+          ...(typeEffectiveForecastSafetyRank != null
+            ? { retainedForecastSafetyRank: typeEffectiveForecastSafetyRank }
+            : {}),
+        });
       } else {
         typeState.previousInfo = info;
+        typeState.retainedForecastSafetyRank = typeEffectiveForecastSafetyRank == null
+          ? undefined
+          : typeEffectiveForecastSafetyRank;
+      }
+      if (!isSuppressed) {
+        existing.retainedForecastSafetyRank = effectiveForecastSafetyRank == null
+          ? undefined
+          : effectiveForecastSafetyRank;
       }
 
       // hasSeen45 更新
-      if (headType === "VXSE45") {
+      if (headType === "VXSE45" && lifecycleAccepted) {
         existing.hasSeen45 = true;
+        this.suppressedForecastSafety.delete(eventId);
       }
 
       // 差分計算: 同一 type 内の連続更新でのみ (初めての type では diff なし)
-      const diff = previousInfo ? computeDiff(previousInfo, info) : undefined;
+      const diff = previousInfo
+        ? computeDiff(previousInfo, info, previousRetainedForecastSafetyRank)
+        : undefined;
 
       // 警報昇格判定 (イベント単位)
       const isUpgradeToWarning = !isSuppressed && !existing.hasWarningIssued && info.isWarning;
       if (!isSuppressed) {
         existing.hasWarningIssued = existing.hasWarningIssued || info.isWarning;
       }
-      this.applyAcceptedLifecycle(existing, info, revisionDecision);
       existing.lastUpdate = new Date();
 
       return {
@@ -263,6 +667,8 @@ export class EewTracker {
         activeCount: this.getActiveCount(),
         diff: isSuppressed ? undefined : diff,
         previousInfo,
+        ...(currentForecast != null ? { currentForecastIntensity: currentForecast } : {}),
+        ...(effectiveForecastSafetyRank != null ? { effectiveForecastSafetyRank } : {}),
         colorIndex: existing.colorIndex,
       };
     }
@@ -270,12 +676,27 @@ export class EewTracker {
     // 新規イベント
     const colorIndex = this.nextColorIndex();
     const byType = new Map<string, EewTypeState>();
-    byType.set(headType, { previousInfo: info });
+    const currentForecastIntensity = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+    const suppressedSafetyRank = this.suppressedForecastSafety.get(eventId)?.rank;
+    const effectiveForecastSafetyRank = retainKnownEewForecastSafetyRank(
+      suppressedSafetyRank,
+      currentForecastIntensity,
+    );
+    this.suppressedForecastSafety.delete(eventId);
+    byType.set(headType, {
+      previousInfo: info,
+      ...(currentForecastIntensity?.safetyRank != null
+        ? { retainedForecastSafetyRank: currentForecastIntensity.safetyRank }
+        : {}),
+    });
 
     const isFinalized = !isCancelled && revisionDecision.isTerminal;
     this.events.set(eventId, {
       eventId,
       byType,
+      ...(effectiveForecastSafetyRank != null
+        ? { retainedForecastSafetyRank: effectiveForecastSafetyRank }
+        : {}),
       hasSeen45: headType === "VXSE45",
       hasWarningIssued: info.isWarning,
       isCancelled,
@@ -301,6 +722,8 @@ export class EewTracker {
       isUpgradeToWarning: false,
       activeCount: this.getActiveCount(),
       colorIndex,
+      ...(currentForecastIntensity != null ? { currentForecastIntensity } : {}),
+      ...(effectiveForecastSafetyRank != null ? { effectiveForecastSafetyRank } : {}),
     };
   }
 
@@ -308,11 +731,35 @@ export class EewTracker {
   acceptSuppressed(info: ParsedEewInfo): TelegramRevisionDecision {
     this.cleanup();
     const eventId = info.eventId || "";
-    return this.decideRevision(
+    const decision = this.decideRevision(
       info,
       eventId,
       eventId === "" ? nextEewSingleSubjectKey(info.type) : null,
     );
+    const existing = eventId === "" ? undefined : this.events.get(eventId);
+    const canSeedFirst45 = existing?.hasSeen45 !== true;
+    if (
+      decision.accepted
+      && eventId !== ""
+      && canSeedFirst45
+      && info.infoType !== "取消"
+      && !decision.isTerminal
+    ) {
+      const current = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+      const retainedRank = maxKnownEewForecastSafetyRank(
+        this.suppressedForecastSafety.get(eventId)?.rank ?? existing?.retainedForecastSafetyRank,
+        current?.safetyRank,
+      );
+      if (retainedRank == null) {
+        this.suppressedForecastSafety.delete(eventId);
+      } else {
+        this.suppressedForecastSafety.set(eventId, { rank: retainedRank, lastUpdate: new Date() });
+        this.enforceSuppressedForecastLimit();
+      }
+    } else if (decision.accepted && eventId !== "" && canSeedFirst45) {
+      this.suppressedForecastSafety.delete(eventId);
+    }
+    return decision;
   }
 
   private decideRevision(
@@ -408,13 +855,55 @@ export class EewTracker {
   replaceLifecycle(
     info: ParsedEewInfo,
     decision: TelegramRevisionDecision,
-  ): boolean {
+  ): EewLifecycleReplacement | null {
     const eventId = info.eventId || "";
-    const ev = this.events.get(eventId);
-    if (ev == null) return false;
+    let ev = this.events.get(eventId);
+    if (ev == null) {
+      const isCancelled = info.infoType === "取消";
+      if (!isCancelled && !decision.isTerminal) return null;
+      const colorIndex = this.nextColorIndex();
+      ev = {
+        eventId,
+        byType: new Map([[info.type, { previousInfo: info }]]),
+        hasSeen45: info.type === "VXSE45",
+        hasWarningIssued: info.isWarning,
+        isCancelled,
+        isFinalized: !isCancelled,
+        terminalOwner: {
+          revisionFamily: info.type,
+          revision: telegramRevision(info.meta),
+        },
+        lastUpdate: new Date(),
+        colorIndex,
+      };
+      this.events.set(eventId, ev);
+      this.enforceEventLimit();
+      return {
+        reactivated: false,
+        authoritativeInfo: this.authoritativeInfo(ev),
+        effectiveForecastSafetyRank: ev.retainedForecastSafetyRank ?? null,
+        colorIndex,
+      };
+    }
+    const wasTerminal = ev.isCancelled || ev.isFinalized;
     const replaced = this.applyAcceptedLifecycle(ev, info, decision);
     ev.lastUpdate = new Date();
-    return replaced;
+    if (!replaced) return null;
+    return {
+      reactivated: wasTerminal && !ev.isCancelled && !ev.isFinalized,
+      authoritativeInfo: this.authoritativeInfo(ev),
+      effectiveForecastSafetyRank: ev.retainedForecastSafetyRank ?? null,
+      colorIndex: ev.colorIndex,
+    };
+  }
+
+  private authoritativeInfo(event: EewEvent): ParsedEewInfo | null {
+    if (event.hasSeen45) {
+      return event.byType.get("VXSE45")?.previousInfo ?? null;
+    }
+    // VXSE44 は常時表示抑止 family。復元対象は実際に card を所有できる
+    // VXSE45、または VXSE45 未受信時の VXSE43 snapshot に限る。
+    return event.byType.get("VXSE43")?.previousInfo ?? null;
   }
 
   private applyAcceptedLifecycle(
@@ -486,6 +975,21 @@ export class EewTracker {
         }
       }
       this.onCleanup?.(id);
+    }
+    for (const [id, state] of this.suppressedForecastSafety) {
+      if (now - state.lastUpdate.getTime() > CLEANUP_THRESHOLD_MS) {
+        this.suppressedForecastSafety.delete(id);
+      }
+    }
+  }
+
+  private enforceSuppressedForecastLimit(): void {
+    while (this.suppressedForecastSafety.size > MAX_TRACKED_EEW_EVENTS) {
+      const oldest = [...this.suppressedForecastSafety]
+        .sort(([, left], [, right]) =>
+          left.lastUpdate.getTime() - right.lastUpdate.getTime())[0];
+      if (oldest == null) return;
+      this.suppressedForecastSafety.delete(oldest[0]);
     }
   }
 

@@ -473,6 +473,12 @@ export interface PresentationEvent {
   maxLgIntRank?: number | null;
   forecastMaxInt?: string | null;
   forecastMaxIntRank?: number | null;
+  /** 抑止 EEW family の終端撤回に伴う display 復元 command。 */
+  eewDisplayRestoreRevision?: {
+    sourceType: string;
+    serial: string | null;
+    isCorrection: boolean;
+  };
   alertLevel?: number | null;
 
   // 付帯情報

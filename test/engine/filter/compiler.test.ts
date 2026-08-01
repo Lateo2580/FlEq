@@ -46,6 +46,16 @@ describe("compile", () => {
     expect(pred(makeEvent({ maxInt: "5-" }))).toBe(true);
   });
 
+  it("forecastMaxInt の閾値比較は unknown 表示でも保持 safety rank を使う", () => {
+    const pred = compileFilter('forecastMaxInt >= "5-"');
+    expect(pred(makeEvent({ forecastMaxInt: "未入電", forecastMaxIntRank: 7 }))).toBe(true);
+    expect(pred(makeEvent({
+      forecastMaxInt: "4以上の可能性・一部不明",
+      forecastMaxIntRank: 7,
+    }))).toBe(true);
+    expect(pred(makeEvent({ forecastMaxInt: "未入電", forecastMaxIntRank: null }))).toBe(false);
+  });
+
   it(">= enum:frameLevel", () => {
     const pred = compileFilter('frameLevel >= "warning"');
     expect(pred(makeEvent({ frameLevel: "critical" }))).toBe(true);

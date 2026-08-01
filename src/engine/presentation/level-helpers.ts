@@ -32,13 +32,52 @@ import {
   floodLevelToFrameLevel,
   floodLevelToSoundLevel,
 } from "../../dmdata/flood-level";
+import {
+  evaluateEewIntensitySafetyGate,
+  getMaxForecastIntensityEvaluation,
+  type EewIntensitySafetyGate,
+} from "../eew/eew-tracker";
 
 // ── frameLevel ──
 
+export interface EewLevels {
+  frameLevel: FrameLevel;
+  soundLevel: SoundLevel;
+  forecastSafetyGate: EewIntensitySafetyGate;
+}
+
+/** EEW の公式 warning 区分と予測震度 safety gate を一度に解決する。 */
+export function resolveEewLevels(
+  info: ParsedEewInfo,
+  minimumForecastRank = 5,
+): EewLevels {
+  const forecast = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+  const forecastSafetyGate = evaluateEewIntensitySafetyGate(forecast, minimumForecastRank);
+  return {
+    frameLevel: info.infoType === "取消"
+      ? "cancel"
+      : info.isWarning
+        ? "critical"
+        : "warning",
+    // 取消音は他 domain と同じ cancel。通常報は unknown gate で静音化しない。
+    soundLevel: info.infoType === "取消"
+      ? "cancel"
+      : info.isWarning
+        ? "critical"
+        : "warning",
+    forecastSafetyGate,
+  };
+}
+
+export function eewForecastSafetyGate(
+  info: ParsedEewInfo,
+  minimumRank: number,
+): EewIntensitySafetyGate {
+  return resolveEewLevels(info, minimumRank).forecastSafetyGate;
+}
+
 export function eewFrameLevel(info: ParsedEewInfo): FrameLevel {
-  if (info.infoType === "取消") return "cancel";
-  if (info.isWarning) return "critical";
-  return "warning";
+  return resolveEewLevels(info).frameLevel;
 }
 
 export function earthquakeFrameLevel(info: ParsedEarthquakeInfo): FrameLevel {
@@ -112,7 +151,7 @@ export function weatherFrameLevel(info: ParsedWeatherWarning): FrameLevel {
 // ── soundLevel ──
 
 export function eewSoundLevel(info: ParsedEewInfo): SoundLevel {
-  return info.isWarning ? "critical" : "warning";
+  return resolveEewLevels(info).soundLevel;
 }
 
 export function earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {

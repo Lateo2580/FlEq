@@ -1,7 +1,15 @@
 import * as fs from "fs";
 import * as path from "path";
 import { ParsedEewInfo, EewLogField } from "../../types";
-import { EewDiff, EewUpdateResult, getMaxForecastIntensity } from "./eew-tracker";
+import {
+  EewDiff,
+  EewUpdateResult,
+  eewAreaHasArrived,
+  eewAreaIsPlum,
+  evaluateEewForecastArea,
+  getMaxForecastIntensityEvaluation,
+  type EewForecastArea,
+} from "./eew-tracker";
 import * as log from "../../logger";
 import { formatMagnitudeLabel } from "../../utils/magnitude";
 
@@ -55,10 +63,10 @@ function formatDiff(diff: EewDiff, info: ParsedEewInfo): string {
   if (diff.previousDepth && info.earthquake?.depth) {
     parts.push(`${diff.previousDepth}→${info.earthquake.depth}`);
   }
-  if (diff.previousMaxInt && info.forecastIntensity?.areas.length) {
-    const maxInt = getMaxForecastIntensity(info.forecastIntensity.areas);
-    if (maxInt) {
-      parts.push(`震度${diff.previousMaxInt}→${maxInt}`);
+  if (diff.previousMaxInt && info.forecastIntensity != null) {
+    const maxInt = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+    if (maxInt != null) {
+      parts.push(`震度${diff.previousMaxInt}→${maxInt.summaryLabel}`);
     }
   }
   if (diff.hypocenterChange) parts.push("震源変更");
@@ -230,30 +238,25 @@ export class EewEventLogger {
   }
 
   /** 地域名に注記 ({Lx,P,A}) を付与 */
-  private formatAreaName(area: {
-    name: string;
-    lgIntensity?: string;
-    isPlum?: boolean;
-    hasArrived?: boolean;
-  }): string {
+  private formatAreaName(area: EewForecastArea): string {
     const flags: string[] = [];
     if (this.fields.lgIntensity && area.lgIntensity) {
       flags.push(`L${area.lgIntensity}`);
     }
-    if (this.fields.isPlum && area.isPlum) {
+    if (this.fields.isPlum && eewAreaIsPlum(area)) {
       flags.push("P");
     }
-    if (this.fields.hasArrived && area.hasArrived) {
+    if (this.fields.hasArrived && eewAreaHasArrived(area)) {
       flags.push("A");
     }
     return flags.length > 0 ? `${area.name}{${flags.join(",")}}` : area.name;
   }
 
   /** 地域注記の凡例行が必要かどうか判定 */
-  private needsAreaLegend(areas: { lgIntensity?: string; isPlum?: boolean; hasArrived?: boolean }[]): boolean {
+  private needsAreaLegend(areas: EewForecastArea[]): boolean {
     if (this.fields.lgIntensity && areas.some(a => a.lgIntensity)) return true;
-    if (this.fields.isPlum && areas.some(a => a.isPlum)) return true;
-    if (this.fields.hasArrived && areas.some(a => a.hasArrived)) return true;
+    if (this.fields.isPlum && areas.some(eewAreaIsPlum)) return true;
+    if (this.fields.hasArrived && areas.some(eewAreaHasArrived)) return true;
     return false;
   }
 
@@ -315,11 +318,11 @@ export class EewEventLogger {
       }
     }
 
-    if (info.forecastIntensity && info.forecastIntensity.areas.length > 0) {
+    if (info.forecastIntensity != null) {
       if (this.fields.forecastIntensity) {
-        const maxInt = getMaxForecastIntensity(info.forecastIntensity.areas);
-        if (maxInt) {
-          lines.push(`最大予測震度: ${maxInt}`);
+        const maxInt = getMaxForecastIntensityEvaluation(info.forecastIntensity);
+        if (maxInt != null) {
+          lines.push(`最大予測震度: ${maxInt.summaryLabel}`);
         }
       }
 
@@ -341,9 +344,10 @@ export class EewEventLogger {
         // 震度ごとにグループ化して地域名を表示
         const byIntensity = new Map<string, string[]>();
         for (const area of info.forecastIntensity.areas) {
-          const existing = byIntensity.get(area.intensity) ?? [];
+          const label = evaluateEewForecastArea(area)?.detailLabel ?? "不明";
+          const existing = byIntensity.get(label) ?? [];
           existing.push(this.formatAreaName(area));
-          byIntensity.set(area.intensity, existing);
+          byIntensity.set(label, existing);
         }
         for (const [intensity, names] of byIntensity) {
           lines.push(`  震度${intensity}: ${names.join(", ")}`);

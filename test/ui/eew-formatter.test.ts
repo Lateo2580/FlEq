@@ -4,8 +4,7 @@ import chalk from "chalk";
 import { displayEewInfo, buildEewAccuracyLine, buildEewCardLine } from "../../src/ui/eew-formatter";
 import { parseEewTelegram } from "../../src/dmdata/telegram-parser";
 import { setFrameWidth, stripAnsi, setMaxObservations, setDisplayMode, visualWidth } from "../../src/ui/formatter";
-import type { EewAccuracy } from "../../src/types";
-import type { ParsedEewInfo } from "../../src/types";
+import type { EewAccuracy, JmaIntensity, ParsedEewInfo, SpecialValue } from "../../src/types";
 import type { EewDiff } from "../../src/engine/eew/eew-tracker";
 import {
   buildEewForecastRows,
@@ -180,6 +179,89 @@ describe("EEW 予測震度テーブル (Phase 4b)", () => {
     expect(output()).not.toContain("既に主要動到達と推測:");
   });
 
+  it("親 Area/Condition を booleans と併読して PLUM・到達済みを表示する", () => {
+    displayEewInfo(syntheticEew([
+      { name: "PLUM地域", intensity: "4", condition: " PLUM 法による予測 " },
+      { name: "到達地域", intensity: "5-", condition: "既に 主要動到達 と推測" },
+    ]));
+    expect(output()).toContain("PLUM地域");
+    expect(output()).toContain("PLUM");
+    expect(output()).toContain("到達地域");
+    expect(output()).toContain("到達済");
+  });
+
+  it("unknown と 5弱以上未入電を rank 0 に畳まず qualifier 付きで表示する", () => {
+    const special = (
+      value: Partial<SpecialValue<JmaIntensity>>,
+    ): SpecialValue<JmaIntensity> => ({
+      raw: null,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "missing",
+      ...value,
+    });
+    displayEewInfo(syntheticEew([
+      {
+        name: "未入電地域",
+        intensity: "",
+        intensityValue: special({ raw: "", condition: "未入電", presence: "unknown" }),
+      },
+      {
+        name: "下限地域",
+        intensity: "",
+        intensityValue: special({
+          raw: "",
+          condition: "5弱以上未入電",
+          presence: "qualitative",
+          lowerBound: "5-",
+        }),
+      },
+    ]));
+    const lines = output().split("\n");
+    const lower = lines.findIndex((line) => line.includes("5弱以上未入電") && line.includes("下限地域"));
+    const unknown = lines.findIndex((line) => line.includes("未入電") && line.includes("未入電地域"));
+    expect(lower).toBeGreaterThan(-1);
+    expect(unknown).toBeGreaterThan(lower);
+    expect(lines.find((line) => line.includes("最大予測震度"))).toContain("5弱以上未入電");
+  });
+
+  it("地域なしの全体 5弱以上未入電も CLI 最大予測震度へ表示する", () => {
+    const info = syntheticEew([]);
+    info.forecastIntensity = {
+      maxInt: "",
+      maxIntValue: {
+        raw: "",
+        value: null,
+        condition: "5弱以上未入電",
+        description: "予測震度は5弱以上",
+        presence: "qualitative",
+        lowerBound: "5-",
+      },
+      areas: [],
+    };
+    displayEewInfo(info);
+    expect(output()).toContain("最大予測震度 5弱以上未入電");
+  });
+
+  it("exact 4 と unknown の混在を CLI 見出しで断定しない", () => {
+    displayEewInfo(syntheticEew([
+      { name: "既知地域", intensity: "4" },
+      {
+        name: "未入電地域",
+        intensity: "",
+        intensityValue: {
+          raw: "",
+          value: null,
+          condition: "未入電",
+          description: null,
+          presence: "unknown",
+        },
+      },
+    ]));
+    expect(output()).toContain("最大予測震度 4以上の可能性・一部不明");
+  });
+
   it("長周期列: 階級1以上の行があるときだけ表示、ultra-narrow では省略 (詳細逃がし廃止, spec §8 R2-4)", () => {
     const areas: NonNullable<ParsedEewInfo["forecastIntensity"]>["areas"] = [
       { name: "階級あり", intensity: "5-", lgIntensity: "2" },
@@ -238,6 +320,24 @@ describe("EEW 予測震度テーブル (Phase 4b)", () => {
       { name: "う", intensity: "4" },
     ]);
     expect(stripAnsi(buildEewHiddenSummaryLine(rows))).toBe("… 他 3 地域 (震度5弱: 1 / 震度4: 2)");
+  });
+
+  it("hidden summary でも unknown qualifier を空の震度 group に畳まない", () => {
+    const rows = buildEewForecastRows([{
+      name: "未入電地域",
+      intensity: "",
+      intensityValue: {
+        raw: "",
+        value: null,
+        condition: "未入電",
+        description: null,
+        presence: "unknown",
+      },
+    }]);
+    expect(summarizeHiddenEewRows(rows)).toEqual([
+      { sortKey: "", displayLabel: "未入電", count: 1 },
+    ]);
+    expect(stripAnsi(buildEewHiddenSummaryLine(rows))).toContain("震度未入電: 1");
   });
 
   it("fold が総出力を増やさない: 190 地域で maxObs=10 の出力は全件表示より短い", () => {

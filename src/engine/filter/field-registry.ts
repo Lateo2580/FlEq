@@ -19,6 +19,16 @@ function parseMagnitude(m: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+const FILTER_INTENSITY_BY_RANK = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"] as const;
+
+function forecastIntensityForFilter(event: PresentationEvent): string | null | undefined {
+  const rank = event.forecastMaxIntRank;
+  if (rank != null && Number.isInteger(rank) && rank >= 0 && rank < FILTER_INTENSITY_BY_RANK.length) {
+    return FILTER_INTENSITY_BY_RANK[rank];
+  }
+  return event.forecastMaxInt;
+}
+
 export const FILTER_FIELDS: Record<string, FilterField> = {
   // 識別
   domain: field("string", [], (e) => e.domain),
@@ -52,7 +62,9 @@ export const FILTER_FIELDS: Record<string, FilterField> = {
   // 強度
   maxInt: field("enum:intensity", [], (e) => e.maxInt, true),
   maxLgInt: field("enum:lgInt", [], (e) => e.maxLgInt, true),
-  forecastMaxInt: field("enum:intensity", [], (e) => e.forecastMaxInt, true),
+  // 表示 label が unknown／qualifier でも、保持済み safety rank があれば閾値比較に使用する。
+  forecastMaxInt: field("enum:intensity", [], forecastIntensityForFilter, true),
+  forecastMaxIntSafetyRank: field("number", [], (e) => e.forecastMaxIntRank, true),
   alertLevel: field("number", [], (e) => e.alertLevel, true),
 
   // テキスト

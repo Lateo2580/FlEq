@@ -5,7 +5,7 @@ import * as path from "path";
 import * as os from "os";
 import { EewEventLogger } from "../../src/engine/eew/eew-logger";
 import { EewUpdateResult } from "../../src/engine/eew/eew-tracker";
-import { ParsedEewInfo } from "../../src/types";
+import type { ParsedEewInfo } from "../../src/types";
 
 /** テスト用の ParsedEewInfo を生成する */
 function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
@@ -207,9 +207,92 @@ describe("EewEventLogger", () => {
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
-      // 先頭 area の From ("3") ではなく、To 基準の全体最大 ("6-") が出ること
-      expect(content).toContain("最大予測震度: 6-");
+      // 最大候補の bounded range を上端へ潰さず保持すること。
+      expect(content).toContain("最大予測震度: 4〜6-");
       expect(content).not.toContain("最大予測震度: 3");
+    });
+
+    it("5弱以上未入電と親 Area/Condition qualifier をログで失わない", async () => {
+      const info = createEewInfo({
+        serial: "1",
+        eventId: "ev-special-value",
+        forecastIntensity: {
+          areas: [{
+            name: "対象地域",
+            intensity: "",
+            condition: "PLUM法による予測・既に主要動到達と推測",
+            intensityValue: {
+              raw: "",
+              value: null,
+              condition: "5弱以上未入電",
+              description: "予測震度は5弱以上",
+              presence: "qualitative",
+              lowerBound: "5-",
+            },
+          }],
+        },
+      });
+      logger.logReport(info, createUpdateResult({ isNew: true }));
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(content).toContain("最大予測震度: 5弱以上未入電");
+      expect(content).toContain("震度5弱以上未入電: 対象地域{P,A}");
+    });
+
+    it("地域なしの全体 5弱以上未入電も最大予測震度として記録する", async () => {
+      const info = createEewInfo({
+        serial: "1",
+        eventId: "ev-regionless-special-value",
+        forecastIntensity: {
+          maxInt: "",
+          maxIntValue: {
+            raw: "",
+            value: null,
+            condition: "5弱以上未入電",
+            description: "予測震度は5弱以上",
+            presence: "qualitative",
+            lowerBound: "5-",
+          },
+          areas: [],
+        },
+      });
+      logger.logReport(info, createUpdateResult({ isNew: true }));
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(content).toContain("最大予測震度: 5弱以上未入電");
+    });
+
+    it("exact 4 と unknown の混在を最大予測震度4と断定しない", async () => {
+      const info = createEewInfo({
+        serial: "1",
+        eventId: "ev-partial-unknown",
+        forecastIntensity: {
+          areas: [
+            { name: "既知地域", intensity: "4" },
+            {
+              name: "未入電地域",
+              intensity: "",
+              intensityValue: {
+                raw: "",
+                value: null,
+                condition: "未入電",
+                description: null,
+                presence: "unknown",
+              },
+            },
+          ],
+        },
+      });
+      logger.logReport(info, createUpdateResult({ isNew: true }));
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(content).toContain("最大予測震度: 4以上の可能性・一部不明");
     });
 
     it("変化ログは To 基準最大同士の差分になる (先頭 area の From 生値ではない)", async () => {
@@ -242,8 +325,8 @@ describe("EewEventLogger", () => {
 
       const files = fs.readdirSync(tmpDir);
       const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
-      // 先頭 area の From ("3") ではなく、To 基準の全体最大 ("6+") への変化として出ること
-      expect(content).toContain("震度4→6+");
+      // bounded range を上端へ潰さず、全幅への変化として出ること。
+      expect(content).toContain("震度4→5-〜6+");
       expect(content).not.toContain("震度4→3");
     });
   });

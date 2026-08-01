@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EewTracker } from "../../src/engine/eew/eew-tracker";
-import { ParsedEewInfo } from "../../src/types";
+import {
+  EewTracker,
+  evaluateEewForecastArea,
+  evaluateEewIntensitySafetyGate,
+  getMaxForecastIntensityEvaluation,
+} from "../../src/engine/eew/eew-tracker";
+import type { ParsedEewInfo, SpecialValue, JmaIntensity } from "../../src/types";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
 
 /** テスト用の ParsedEewInfo を生成する */
@@ -1027,8 +1032,8 @@ describe("EewTracker", () => {
       const tracker = new EewTracker();
       tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "4", intensityTo: "5-" }]));
       const result = tracker.update(eewInfoWith("2", [{ name: "北部", intensity: "5+" }]));
-      // 前回の To 基準最大 = "5-" (From "4" ではない)
-      expect(result.diff?.previousMaxInt).toBe("5-");
+      // 前回の bounded range を上端だけへ折り畳まず保持する。
+      expect(result.diff?.previousMaxInt).toBe("4〜5-");
     });
 
     it("To 基準最大が同値なら diff を出さない (From 差では発火しない)", () => {
@@ -1036,6 +1041,260 @@ describe("EewTracker", () => {
       tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "4", intensityTo: "5-" }]));
       const result = tracker.update(eewInfoWith("2", [{ name: "北部", intensity: "5-" }]));
       expect(result.diff?.previousMaxInt).toBeUndefined();
+    });
+
+    const special = (
+      value: Partial<SpecialValue<JmaIntensity>>,
+    ): SpecialValue<JmaIntensity> => ({
+      raw: null,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "missing",
+      ...value,
+    });
+
+    it.each([
+      ["exact", { name: "A", intensity: "4" }, 4, "4", "below"],
+      ["range", { name: "A", intensity: "4", intensityTo: "5-" }, 5, "4〜5-", "pass"],
+      ["lower bound", { name: "A", intensity: "5-", intensityTo: "over" }, 5, "5-程度以上", "pass"],
+      ["unknown To", { name: "A", intensity: "4", intensityTo: "未入電" }, null, "4〜未入電", "unknown"],
+      ["plain 未入電", {
+        name: "A",
+        intensity: "",
+        intensityValue: special({ raw: "", condition: "未入電", presence: "unknown" }),
+      }, null, "未入電", "unknown"],
+      ["5弱以上未入電", {
+        name: "A",
+        intensity: "",
+        intensityValue: special({
+          raw: "",
+          condition: "5弱以上未入電",
+          presence: "qualitative",
+          lowerBound: "5-",
+        }),
+      }, 5, "5弱以上未入電", "pass"],
+    ] as const)("safety evaluation: %s", (_label, area, rank, summary, gate) => {
+      const evaluation = evaluateEewForecastArea(area);
+      expect(evaluation).toMatchObject({ safetyRank: rank, summaryLabel: summary });
+      expect(evaluateEewIntensitySafetyGate(evaluation, 5)).toBe(gate);
+    });
+
+    it("全体 ForecastInt と地域別 From/To を同じ safety rank で最大化する", () => {
+      const maxIntValue = special({
+        raw: "4",
+        presence: "range",
+        lowerBound: "4",
+        upperBound: "5-",
+        rawLowerBound: "4",
+        rawUpperBound: "5-",
+      });
+      expect(getMaxForecastIntensityEvaluation({
+        maxInt: "4",
+        maxIntValue,
+        areas: [{ name: "地域", intensity: "4" }],
+      })).toMatchObject({
+        specialValue: maxIntValue,
+        safetyRank: 5,
+        summaryLabel: "4〜5-",
+      });
+    });
+
+    it("地域なしでも全体 5弱以上未入電を safety gate の対象にする", () => {
+      const evaluation = getMaxForecastIntensityEvaluation({
+        maxInt: "",
+        maxIntValue: special({
+          raw: "",
+          condition: "5弱以上未入電",
+          presence: "qualitative",
+          lowerBound: "5-",
+        }),
+        areas: [],
+      });
+      expect(evaluation?.summaryLabel).toBe("5弱以上未入電");
+      expect(evaluateEewIntensitySafetyGate(evaluation, 5)).toBe("pass");
+    });
+
+    it("閾値未満 known と unknown の混在を below にせず、高い known は unknown より優先する", () => {
+      const unknown = special({ raw: "", condition: "未入電", presence: "unknown" });
+      const below = getMaxForecastIntensityEvaluation({
+        areas: [
+          { name: "既知地域", intensity: "4" },
+          { name: "未入電地域", intensity: "", intensityValue: unknown },
+        ],
+      });
+      expect(below).toMatchObject({ safetyRank: 4, hasUnknownCandidates: true });
+      expect(below?.summaryLabel).toBe("4以上の可能性・一部不明");
+      expect(evaluateEewIntensitySafetyGate(below, 5)).toBe("unknown");
+
+      const passing = getMaxForecastIntensityEvaluation({
+        areas: [
+          { name: "既知地域", intensity: "5-" },
+          { name: "未入電地域", intensity: "", intensityValue: unknown },
+        ],
+      });
+      expect(passing).toMatchObject({ safetyRank: 5, hasUnknownCandidates: true });
+      expect(evaluateEewIntensitySafetyGate(passing, 5)).toBe("pass");
+    });
+
+    it("lower-only range と unknown の混在は上方開放表現を重ねない", () => {
+      const lowerOnly = special({
+        raw: "5-",
+        presence: "range",
+        lowerBound: "5-",
+        rawLowerBound: "5-",
+        rawUpperBound: "over",
+      });
+      const unknown = special({ raw: "", condition: "未入電", presence: "unknown" });
+      const evaluation = getMaxForecastIntensityEvaluation({
+        areas: [
+          { name: "下限地域", intensity: "5-", intensityTo: "over", intensityValue: lowerOnly },
+          { name: "未入電地域", intensity: "", intensityValue: unknown },
+        ],
+      });
+
+      expect(evaluation).toMatchObject({ safetyRank: 5, hasUnknownCandidates: true });
+      expect(evaluation?.summaryLabel).toBe("5-程度以上・一部不明");
+      expect(evaluation?.summaryLabel).not.toContain("以上以上");
+
+      const lowerOnlyAlone = getMaxForecastIntensityEvaluation({
+        areas: [
+          { name: "下限地域", intensity: "5-", intensityTo: "over", intensityValue: lowerOnly },
+        ],
+      });
+      expect(lowerOnlyAlone).toMatchObject({
+        safetyRank: 5,
+        hasUnknownCandidates: false,
+        summaryLabel: "5-程度以上",
+      });
+    });
+
+    it("known から unknown への訂正は previousMaxInt の降格差分にしない", () => {
+      const tracker = new EewTracker();
+      tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "6-" }]));
+      const unknownArea = {
+        name: "北部",
+        intensity: "",
+        intensityValue: special({ raw: "", condition: "未入電", presence: "unknown" }),
+      };
+      const result = tracker.update(createEewInfo({
+        reportDateTime: new Date().toISOString(),
+        serial: "2",
+        eventId: "20260705000000",
+        forecastIntensity: { areas: [unknownArea] },
+      }));
+      expect(result.diff?.previousMaxInt).toBeUndefined();
+      expect(result.currentForecastIntensity?.summaryLabel).toBe("未入電");
+      expect(result.effectiveForecastSafetyRank).toBe(7);
+
+      const repeatedUnknown = tracker.update(createEewInfo({
+        reportDateTime: new Date().toISOString(),
+        serial: "3",
+        eventId: "20260705000000",
+        forecastIntensity: { areas: [unknownArea] },
+      }));
+      expect(repeatedUnknown.diff?.previousMaxInt).toBeUndefined();
+      expect(repeatedUnknown.currentForecastIntensity?.summaryLabel).toBe("未入電");
+      expect(repeatedUnknown.effectiveForecastSafetyRank).toBe(7);
+
+      const resolvedLower = tracker.update(eewInfoWith("4", [{ name: "北部", intensity: "4" }]));
+      expect(resolvedLower.diff?.previousMaxInt).toBe("未入電");
+      expect(resolvedLower.effectiveForecastSafetyRank).toBe(4);
+    });
+
+    it("known high から下限だけの qualitative への訂正も降格根拠にしない", () => {
+      const tracker = new EewTracker();
+      tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "6-" }]));
+      const qualitative = special({
+        raw: "",
+        condition: "5弱以上未入電",
+        presence: "qualitative",
+        lowerBound: "5-",
+      });
+      const result = tracker.update(createEewInfo({
+        reportDateTime: new Date().toISOString(),
+        serial: "2",
+        eventId: "20260705000000",
+        forecastIntensity: {
+          areas: [{ name: "北部", intensity: "", intensityValue: qualitative }],
+        },
+      }));
+
+      expect(result.diff?.previousMaxInt).toBeUndefined();
+      expect(result.currentForecastIntensity?.summaryLabel).toBe("5弱以上未入電");
+      expect(result.effectiveForecastSafetyRank).toBe(7);
+      expect(evaluateEewIntensitySafetyGate(
+        getMaxForecastIntensityEvaluation({
+          areas: [{ name: "北部", intensity: "", intensityValue: qualitative }],
+        }),
+        5,
+      )).toBe("pass");
+    });
+
+    it("VXSE45 後の抑止 VXSE43 は EventID 全体の safety state を降格させない", () => {
+      const tracker = new EewTracker();
+      tracker.update(createEewInfo({
+        type: "VXSE45",
+        serial: "1",
+        eventId: "suppressed-family-safety",
+        forecastIntensity: { areas: [{ name: "北部", intensity: "6-" }] },
+      }));
+      const suppressed = tracker.update(createEewInfo({
+        type: "VXSE43",
+        serial: "1",
+        eventId: "suppressed-family-safety",
+        forecastIntensity: { areas: [{ name: "北部", intensity: "4" }] },
+      }));
+      expect(suppressed.isSuppressed).toBe(true);
+      expect(suppressed.effectiveForecastSafetyRank).toBe(7);
+
+      const result = tracker.update(createEewInfo({
+        type: "VXSE45",
+        serial: "2",
+        eventId: "suppressed-family-safety",
+        forecastIntensity: {
+          areas: [{
+            name: "北部",
+            intensity: "",
+            intensityValue: special({ raw: "", condition: "未入電", presence: "unknown" }),
+          }],
+        },
+      }));
+
+      expect(result.currentForecastIntensity?.summaryLabel).toBe("未入電");
+      expect(result.effectiveForecastSafetyRank).toBe(7);
+    });
+
+    it("地域なし／構造的 missing は前回 known card scalar を保持しない", () => {
+      const tracker = new EewTracker();
+      tracker.update(eewInfoWith("1", [{ name: "北部", intensity: "6-" }]));
+      const result = tracker.update(createEewInfo({
+        reportDateTime: new Date().toISOString(),
+        serial: "2",
+        eventId: "20260705000000",
+        forecastIntensity: { areas: [] },
+      }));
+
+      expect(result.currentForecastIntensity).toBeUndefined();
+      expect(result.effectiveForecastSafetyRank).toBeUndefined();
+    });
+
+    it("unknown から known への解決は qualifier を previousMaxInt に残す", () => {
+      const tracker = new EewTracker();
+      tracker.update(createEewInfo({
+        reportDateTime: new Date().toISOString(),
+        serial: "1",
+        eventId: "20260705000000",
+        forecastIntensity: {
+          areas: [{
+            name: "北部",
+            intensity: "",
+            intensityValue: special({ raw: "", condition: "未入電", presence: "unknown" }),
+          }],
+        },
+      }));
+      const result = tracker.update(eewInfoWith("2", [{ name: "北部", intensity: "5-" }]));
+      expect(result.diff?.previousMaxInt).toBe("未入電");
     });
   });
 });

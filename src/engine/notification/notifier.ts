@@ -26,7 +26,10 @@ import {
 } from "../../types";
 import { VolcanoPresentation } from "../presentation/volcano-presentation";
 import { loadConfig, saveConfig } from "../../config";
-import { EewUpdateResult } from "../eew/eew-tracker";
+import {
+  EewUpdateResult,
+  getMaxForecastIntensityEvaluation,
+} from "../eew/eew-tracker";
 import { formatMagnitudeLabel } from "../../utils/magnitude";
 import { playSound, SoundLevel } from "./sound-player";
 import {
@@ -40,6 +43,7 @@ import {
   heatAlertSoundLevel,
   typhoonAnalysisSoundLevel,
   tsunamiSoundLevel,
+  eewSoundLevel,
 } from "../presentation/level-helpers";
 import { extractLeadSentence } from "../../dmdata/heat-alert-parser";
 import * as nodeNotifierLoader from "./node-notifier-loader";
@@ -354,15 +358,14 @@ export class Notifier {
       return;
     }
 
-    const soundLevel: SoundLevel = info.isWarning ? "critical" : "warning";
+    const soundLevel = eewSoundLevel(info);
 
     const baseTitle = info.isWarning
       ? "緊急地震速報（警報）"
       : "緊急地震速報（予報）";
     const title = isCorrection ? `[訂正] ${baseTitle}` : baseTitle;
-    const maxInt = info.forecastIntensity?.areas?.[0]
-      ? this.findMaxForecastInt(info)
-      : "不明";
+    const maxInt = getMaxForecastIntensityEvaluation(info.forecastIntensity)?.summaryLabel
+      ?? "不明";
     const body = info.earthquake
       ? `${info.earthquake.hypocenterName} / ${formatMagnitudeLabel(info.earthquake)} / 最大予測震度${maxInt}`
       : title;
@@ -1134,23 +1137,4 @@ export class Notifier {
     }
   }
 
-  private findMaxForecastInt(info: ParsedEewInfo): string {
-    if (!info.forecastIntensity?.areas || info.forecastIntensity.areas.length === 0) {
-      return "不明";
-    }
-    let maxLabel = intensityUtils.eewPessimisticIntensity(
-      info.forecastIntensity.areas[0].intensity,
-      info.forecastIntensity.areas[0].intensityTo,
-    );
-    let maxRank = intensityUtils.intensityToRank(maxLabel);
-    for (const area of info.forecastIntensity.areas) {
-      const candidate = intensityUtils.eewPessimisticIntensity(area.intensity, area.intensityTo);
-      const rank = intensityUtils.intensityToRank(candidate);
-      if (rank > maxRank) {
-        maxRank = rank;
-        maxLabel = candidate;
-      }
-    }
-    return maxLabel;
-  }
 }

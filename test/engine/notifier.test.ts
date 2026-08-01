@@ -24,7 +24,7 @@ vi.mock("../../src/logger", () => ({
 
 import { Notifier, resolveIconPath, clearIconPathCache } from "../../src/engine/notification/notifier";
 import { loadConfig } from "../../src/config";
-import type { ParsedEarthquakeInfo, ParsedEewInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning } from "../../src/types";
+import type { JmaIntensity, ParsedEarthquakeInfo, ParsedEewInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning, SpecialValue } from "../../src/types";
 import type { EewUpdateResult } from "../../src/engine/eew/eew-tracker";
 import { playSound } from "../../src/engine/notification/sound-player";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
@@ -492,8 +492,114 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     notifier.notifyEew(info, makeResult({ isNew: true }));
 
     const body = notifyMock.mock.calls[0][0].message as string;
-    expect(body).toContain("最大予測震度5-");
-    expect(body).not.toContain("最大予測震度4");
+    expect(body).toContain("最大予測震度4〜5-");
+  });
+
+  const nonExactIntensity = (
+    value: Partial<SpecialValue<JmaIntensity>>,
+  ): SpecialValue<JmaIntensity> => ({
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  });
+
+  it("5弱以上未入電は qualifier を保って warning 通知・音を発火する", () => {
+    const notifier = new Notifier();
+    notifier.notifyEew(makeEewInfo({
+      eventId: "EVT-QUALITATIVE",
+      forecastIntensity: {
+        areas: [{
+          name: "対象地域",
+          intensity: "",
+          intensityValue: nonExactIntensity({
+            raw: "",
+            condition: "5弱以上未入電",
+            presence: "qualitative",
+            lowerBound: "5-",
+          }),
+        }],
+      },
+    }), makeResult({ isNew: true }));
+
+    expect(notifyMock.mock.calls[0][0].message).toContain("最大予測震度5弱以上未入電");
+    expect(playSoundMock).toHaveBeenCalledWith("warning");
+  });
+
+  it("地域なしの全体 5弱以上未入電も qualifier 付きで通知する", () => {
+    const notifier = new Notifier();
+    notifier.notifyEew(makeEewInfo({
+      eventId: "EVT-REGIONLESS-QUALITATIVE",
+      forecastIntensity: {
+        maxInt: "",
+        maxIntValue: nonExactIntensity({
+          raw: "",
+          condition: "5弱以上未入電",
+          presence: "qualitative",
+          lowerBound: "5-",
+        }),
+        areas: [],
+      },
+    }), makeResult({ isNew: true }));
+
+    expect(notifyMock.mock.calls[0][0].message).toContain("最大予測震度5弱以上未入電");
+    expect(playSoundMock).toHaveBeenCalledWith("warning");
+  });
+
+  it("exact 4 と unknown の混在を最大震度4と断定しない", () => {
+    const notifier = new Notifier();
+    notifier.notifyEew(makeEewInfo({
+      eventId: "EVT-PARTIAL-UNKNOWN",
+      forecastIntensity: {
+        areas: [
+          { name: "既知地域", intensity: "4" },
+          {
+            name: "未入電地域",
+            intensity: "",
+            intensityValue: nonExactIntensity({
+              raw: "",
+              condition: "未入電",
+              presence: "unknown",
+            }),
+          },
+        ],
+      },
+    }), makeResult({ isNew: true }));
+
+    expect(notifyMock.mock.calls[0][0].message).toContain(
+      "最大予測震度4以上の可能性・一部不明",
+    );
+  });
+
+  it("known 後の unknown 訂正を閾値未満として抑止せず qualifier 付きで通知する", () => {
+    const notifier = new Notifier();
+    const initial = makeEewInfo({ eventId: "EVT-UNKNOWN-CORRECTION" });
+    notifier.notifyEew(initial, makeResult({ isNew: true }));
+    notifyMock.mockClear();
+    playSoundMock.mockClear();
+
+    notifier.notifyEew({
+      ...initial,
+      infoType: "訂正",
+      serial: "2",
+      forecastIntensity: {
+        areas: [{
+          name: "対象地域",
+          intensity: "",
+          intensityValue: nonExactIntensity({
+            raw: "",
+            condition: "未入電",
+            presence: "unknown",
+          }),
+        }],
+      },
+    }, makeResult({ isCorrection: true }));
+
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    expect(notifyMock.mock.calls[0][0].message).toContain("最大予測震度未入電");
+    expect(playSoundMock).toHaveBeenCalledWith("warning");
   });
 
   describe("TTL cleanup (10分超で履歴削除)", () => {

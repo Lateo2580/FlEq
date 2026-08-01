@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   weatherFrameLevel,
   eewFrameLevel,
+  eewForecastSafetyGate,
   earthquakeFrameLevel,
   tsunamiFrameLevel,
   seismicTextFrameLevel,
@@ -82,6 +83,8 @@ import type {
   ParsedClimateInfo,
   ParsedWeatherExplanation,
   ParsedWeatherWarningTimeseriesInfo,
+  JmaIntensity,
+  SpecialValue,
 } from "../../../src/types";
 
 // ── helpers ──
@@ -202,6 +205,79 @@ describe("eewFrameLevel", () => {
 
   it("returns warning for non-warning forecast", () => {
     expect(eewFrameLevel(eew({ isWarning: false }))).toBe("warning");
+  });
+
+  const special = (
+    value: Partial<SpecialValue<JmaIntensity>>,
+  ): SpecialValue<JmaIntensity> => ({
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  });
+
+  it.each([
+    ["exact 4", special({ raw: "4", value: "4", presence: "value" }), "below"],
+    ["range 4-5弱", special({
+      raw: "4",
+      presence: "range",
+      lowerBound: "4",
+      upperBound: "5-",
+      rawLowerBound: "4",
+      rawUpperBound: "5-",
+    }), "pass"],
+    ["5弱以上未入電", special({
+      raw: "",
+      condition: "5弱以上未入電",
+      presence: "qualitative",
+      lowerBound: "5-",
+    }), "pass"],
+    ["plain 未入電", special({ raw: "", condition: "未入電", presence: "unknown" }), "unknown"],
+  ] as const)("safety gate: %s -> %s", (_label, intensityValue, expected) => {
+    const info = eew({
+      forecastIntensity: { areas: [{ name: "地域", intensity: "", intensityValue }] },
+    });
+    expect(eewForecastSafetyGate(info, 5)).toBe(expected);
+    // official 予報の既存 frame/sound は unknown を閾値未満とみなして抑止しない。
+    expect(eewFrameLevel(info)).toBe("warning");
+    expect(eewSoundLevel(info)).toBe("warning");
+  });
+
+  it("閾値未満 known と unknown の混在は below でなく unknown gate を返す", () => {
+    const info = eew({
+      forecastIntensity: {
+        areas: [
+          { name: "既知地域", intensity: "4" },
+          {
+            name: "未入電地域",
+            intensity: "",
+            intensityValue: special({ raw: "", condition: "未入電", presence: "unknown" }),
+          },
+        ],
+      },
+    });
+    expect(eewForecastSafetyGate(info, 5)).toBe("unknown");
+    expect(eewFrameLevel(info)).toBe("warning");
+    expect(eewSoundLevel(info)).toBe("warning");
+  });
+
+  it("地域なしの全体 5弱以上未入電も frame safety gate を通る", () => {
+    const info = eew({
+      forecastIntensity: {
+        maxInt: "",
+        maxIntValue: special({
+          raw: "",
+          condition: "5弱以上未入電",
+          presence: "qualitative",
+          lowerBound: "5-",
+        }),
+        areas: [],
+      },
+    });
+    expect(eewForecastSafetyGate(info, 5)).toBe("pass");
+    expect(eewFrameLevel(info)).toBe("warning");
   });
 });
 
@@ -516,6 +592,11 @@ describe("eewSoundLevel", () => {
 
   it("returns warning for forecast", () => {
     expect(eewSoundLevel(eew({ isWarning: false }))).toBe("warning");
+  });
+
+  it("returns cancel for cancellation regardless of warning flag", () => {
+    expect(eewSoundLevel(eew({ infoType: "取消", isWarning: true }))).toBe("cancel");
+    expect(eewSoundLevel(eew({ infoType: "取消", isWarning: false }))).toBe("cancel");
   });
 });
 
