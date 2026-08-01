@@ -25,6 +25,7 @@ interface PersistedTestRecent {
   eventId: string | null;
   maxInt: string | null;
   maxIntRank: number | null;
+  maxIntSemantic?: Record<string, unknown> | null;
   observation: {
     sourceType: string | null;
     observationSourceType: string | null;
@@ -196,6 +197,102 @@ describe("DailyQuakePersistence", () => {
     const loaded = persistence.load(T0 + 2);
     expect(loaded).not.toBeNull();
     expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)!.maxIntValue).toEqual(qualitative);
+  });
+
+  it("maxIntSemantic を save→load→save で冪等に復元する", () => {
+    const first = filePath();
+    const second = filePath();
+    const qualitative: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: "5弱以上未入電", description: null,
+      presence: "qualitative", lowerBound: "5-",
+    };
+    const counter = new DailyQuakeCounter(T0);
+    counter.recordRecentQuake(projectRecentQuake(event({
+      eventId: "Q-semantic",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: qualitative,
+    })), T0);
+    const firstPersistence = new DailyQuakePersistence(first);
+    firstPersistence.save(counter.export(), T0 + 1);
+    const loaded = firstPersistence.load(T0 + 2);
+    expect(loaded?.recentQuakes[0]?.maxIntSemantic).toMatchObject({
+      presence: "qualitative", badge: "≥", safetyRank: 5,
+    });
+    new DailyQuakePersistence(second).save(loaded!, T0 + 1);
+    expect(JSON.parse(fs.readFileSync(second, "utf8"))).toEqual(
+      JSON.parse(fs.readFileSync(first, "utf8")),
+    );
+  });
+
+  it("意味矛盾した maxIntSemantic は entry 単位で fail-closed にする", () => {
+    const file = filePath();
+    const counter = new DailyQuakeCounter(T0);
+    const qualitative: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: "5弱以上未入電", description: null,
+      presence: "qualitative", lowerBound: "5-",
+    };
+    addQuake(counter, event({
+      eventId: "Q1", maxInt: null, maxIntRank: null, maxIntValue: qualitative,
+    }), T0);
+    addQuake(counter, event({
+      eventId: "Q2", reportDateTime: new Date(T0 + 1).toISOString(),
+    }), T0 + 1);
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 2);
+    const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedTestFile;
+    const broken = persisted.state.recentQuakes.find((entry) => entry.eventId === "Q1")!;
+    expect(broken.maxIntSemantic).not.toBeNull();
+    broken.maxIntSemantic!.color = "normalRank";
+    broken.maxIntSemantic!.safetyRank = 5;
+    fs.writeFileSync(file, JSON.stringify(persisted), "utf8");
+    expect(persistence.load(T0 + 3)?.recentQuakes.map((entry) => entry.eventId)).toEqual(["Q2"]);
+  });
+
+  it("負 rank と per-group semantic を含む混在カードを save/restart で対称に復元する", () => {
+    const file = filePath();
+    const exact = intensityValue("4");
+    const unknown: SpecialValue<JmaIntensity> = {
+      raw: "未入電", value: null, condition: "未入電", description: "地域値未入電",
+      presence: "unknown",
+    };
+    const empty: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: null, description: null, presence: "empty",
+    };
+    const counter = new DailyQuakeCounter(T0);
+    counter.recordRecentQuake(projectRecentQuake(event({
+      maxInt: "4",
+      maxIntRank: 4,
+      maxIntValue: exact,
+      areaItems: [
+        { name: "地域A", maxInt: "4", maxIntValue: exact },
+        { name: "地域B", maxIntValue: unknown },
+        { name: "地域C", maxIntValue: empty },
+      ],
+    })), T0);
+    const before = counter.getRecentQuakes(T0)[0]!;
+    expect(before.intensityGroups).toEqual(expect.arrayContaining([
+      expect.objectContaining({ rank: 4, areas: ["地域A"] }),
+      expect.objectContaining({
+        rank: -1,
+        areas: ["地域B"],
+        intensitySemantic: expect.objectContaining({
+          presence: "unknown", badge: "?", description: "地域値未入電",
+        }),
+      }),
+      expect.objectContaining({
+        rank: -1,
+        areas: ["地域C"],
+        intensitySemantic: expect.objectContaining({ presence: "empty", badge: "∅" }),
+      }),
+    ]));
+
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+    const loaded = persistence.load(T0 + 2);
+    const restored = new DailyQuakeCounter(T0 + 2);
+    expect(loaded == null ? false : restored.restore(loaded, T0 + 2)).toBe(true);
+    expect(restored.getRecentQuakes(T0 + 2)[0]?.intensityGroups).toEqual(before.intensityGroups);
   });
 
   it("persists cancelled observation provenance and blocks post-restart structural-missing preservation", () => {

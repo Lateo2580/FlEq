@@ -2,14 +2,17 @@ import { intensityToRank } from "../../utils/intensity";
 import { normalizeTsunamiKind, resolveTsunamiLevel } from "../../utils/tsunami-kind";
 import type { JmaIntensity, SpecialValue } from "../../types";
 import type { PresentationAreaItem, PresentationEvent } from "../presentation/types";
-import { groupIntensityAreas } from "./intensity-groups";
+import {
+  groupIntensityAreas,
+  projectIntensityMapValues,
+  projectIntensitySemantic,
+} from "./intensity-groups";
 import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningTimeseriesSentence } from "./ticker-sentence";
 import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
 import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
 import { revisionOf } from "./standby-registry";
-import { resolveIntensitySafetyRank } from "../presentation/level-helpers";
 import {
   attachQuakeObservationBridge,
   isQuakeIntensityStructureMissing,
@@ -80,13 +83,6 @@ export function projectQuakeMapCommand(
   }
   const maxIntValue = presentationMaxIntValue(event);
   const intensityStructureMissing = isQuakeIntensityStructureMissing(event, maxIntValue);
-  if (!intensityStructureMissing && maxIntValue.presence !== "value") {
-    return { kind: "remove", eventKey, sourceType, reason: "nonExact", revision, isCorrection };
-  }
-  const maxIntRank = event.maxIntRank ?? 0;
-  if (maxIntRank > 0 && maxIntRank < QUAKE_MAP_MIN_RANK) {
-    return { kind: "remove", eventKey, sourceType, reason: "belowThreshold", revision, isCorrection };
-  }
   if (maxIntValue.presence === "missing" && intensityStructureMissing) {
     return {
       kind: "remove",
@@ -107,9 +103,29 @@ export function projectQuakeMapCommand(
       },
     };
   }
-  if (event.maxInt == null || maxIntRank < QUAKE_MAP_MIN_RANK || event.quakeIntensity == null) {
+  const adoptedIntensity = resolveQuakeIntensityProjection(event);
+  const maxIntSemantic = adoptedIntensity.reportedSemantic;
+  const intensitySource = quakeLocalIntensitySource(event);
+  const localAreas = projectIntensityMapValues(intensitySource);
+  const gateRank = adoptedIntensity.semantic.safetyLowerRank ?? -1;
+  if (gateRank < QUAKE_MAP_MIN_RANK) {
+    return {
+      kind: "remove",
+      eventKey,
+      sourceType,
+      reason: gateRank < 0 ? "nonExact" : "belowThreshold",
+      revision,
+      isCorrection,
+    };
+  }
+  if (localAreas.length === 0) {
     return { kind: "remove", eventKey, sourceType, reason: "nonExact", revision, isCorrection };
   }
+  const displaySemantic = adoptedIntensity.semantic;
+  if (displaySemantic?.label == null) {
+    return { kind: "remove", eventKey, sourceType, reason: "nonExact", revision, isCorrection };
+  }
+  const maxIntRank = displaySemantic.colorRank ?? displaySemantic.safetyRank ?? gateRank;
   return {
     kind: "upsert",
     sourceType,
@@ -123,14 +139,15 @@ export function projectQuakeMapCommand(
       hypocenterName: event.hypocenterName ?? null,
       depth: normalizeDepth(event.depth),
       magnitude: event.magnitude ?? null,
-      maxInt: event.maxInt,
+      maxInt: displaySemantic.label,
       maxIntRank,
+      ...(displaySemantic.presence === "value" ? {} : { maxIntSemantic: displaySemantic }),
+      ...(maxIntSemantic === displaySemantic || maxIntSemantic.presence === "value"
+        ? {}
+        : { reportedMaxIntSemantic: maxIntSemantic }),
       tsunamiWarning: event.tsunamiWarning === true,
       intensityGroups: groupIntensityAreas(event.areaItems),
-      localAreas: event.quakeIntensity.localAreas.map((area) => ({
-        code: area.code,
-        rank: area.maxIntRank,
-      })),
+      localAreas,
       updatedAtMs: nowMs,
     },
   };
@@ -158,6 +175,7 @@ function projectEmergency(
   quakeMapCommand: DisplayQuakeMapCommandV1 | null,
 ): DisplayEmergencyInputV1 | null {
   if (event.domain === "eew") {
+    const forecastMaxIntSemantic = projectIntensitySemantic(event.maxIntValue, event.forecastMaxInt);
     return {
       kind: "eew",
       eventId: event.eventId ?? null,
@@ -173,6 +191,9 @@ function projectEmergency(
       hypocenterName: event.hypocenterName ?? null,
       forecastMaxInt: event.forecastMaxInt ?? null,
       forecastMaxIntRank: event.forecastMaxIntRank ?? null,
+      ...(forecastMaxIntSemantic == null || forecastMaxIntSemantic.presence === "value"
+        ? {}
+        : { forecastMaxIntSemantic }),
       magnitude: event.magnitude ?? null,
       colorIndex: event.stateSnapshot?.kind === "eew" ? event.stateSnapshot.colorIndex : null,
       reportDateTime: event.reportDateTime,
@@ -180,7 +201,23 @@ function projectEmergency(
       isAssumedHypocenter: event.isAssumedHypocenter === true,
       depth: normalizeDepth(event.depth),
       maxLgInt: event.maxLgInt ?? null,
-      regions: event.eewRegions ?? [],
+      regions: (event.eewRegions ?? []).map((region, index) => {
+        const item = event.areaItems[index];
+        const intensitySemantic = projectIntensitySemantic(item?.maxIntValue, item?.maxInt ?? region.intensity);
+        const needsLegacyQualifier = intensitySemantic != null
+          && intensitySemantic.presence !== "value"
+          && intensitySemantic.label != null
+          && region.intensity.trim() === "";
+        return {
+          ...region,
+          ...(needsLegacyQualifier
+            ? { intensity: intensitySemantic?.label ?? region.intensity, intensityTo: null }
+            : {}),
+          ...(intensitySemantic == null || intensitySemantic.presence === "value"
+            ? {}
+            : { intensitySemantic }),
+        };
+      }),
     };
   }
   if (event.domain === "tsunami" && !event.isCancellation) {
@@ -199,12 +236,15 @@ function projectEmergency(
       reportDateTime: event.reportDateTime,
     };
   }
+  const adoptedIntensity = event.domain === "earthquake" ? resolveQuakeIntensityProjection(event) : null;
+  const earthquakeSafetyRank = adoptedIntensity?.semantic.safetyLowerRank ?? null;
+  const maxIntSemantic = adoptedIntensity?.semantic;
   if (
     event.domain === "earthquake" &&
     !event.isCancellation &&
-    event.maxIntRank != null &&
-    event.maxIntRank >= LARGE_QUAKE_MIN_RANK &&
-    event.maxInt != null
+    earthquakeSafetyRank != null &&
+    earthquakeSafetyRank >= LARGE_QUAKE_MIN_RANK &&
+    maxIntSemantic?.label != null
   ) {
     return {
       kind: "largeQuake",
@@ -212,8 +252,9 @@ function projectEmergency(
       originTime: event.originTime ?? null,
       hypocenterName: event.hypocenterName ?? null,
       magnitude: event.magnitude ?? null,
-      maxInt: event.maxInt,
-      maxIntRank: event.maxIntRank,
+      maxInt: maxIntSemantic.label,
+      maxIntRank: maxIntSemantic.safetyRank ?? earthquakeSafetyRank,
+      ...(maxIntSemantic.presence === "value" ? {} : { maxIntSemantic }),
       intensityGroups: groupIntensityAreas(event.areaItems),
       reportDateTime: event.reportDateTime,
       depth: normalizeDepth(event.depth),
@@ -239,7 +280,11 @@ const canonicalIntensityValues = {
 
 function presentationMaxIntValue(event: PresentationEvent): SpecialValue<JmaIntensity> {
   if (event.maxIntValue != null) return event.maxIntValue;
-  if (event.maxInt == null) {
+  return scalarMaxIntValue(event.maxInt);
+}
+
+function scalarMaxIntValue(raw: string | null | undefined): SpecialValue<JmaIntensity> {
+  if (raw == null) {
     return {
       raw: null,
       value: null,
@@ -248,7 +293,6 @@ function presentationMaxIntValue(event: PresentationEvent): SpecialValue<JmaInte
       presence: "missing",
     };
   }
-  const raw = event.maxInt;
   const normalized = raw.replace(/\s+/g, "");
   const canonical = canonicalIntensityValues[normalized as keyof typeof canonicalIntensityValues];
   if (canonical != null) {
@@ -269,9 +313,52 @@ function presentationMaxIntValue(event: PresentationEvent): SpecialValue<JmaInte
   };
 }
 
+function quakeLocalIntensitySource(event: PresentationEvent) {
+  const structured = event.quakeIntensityValues?.localAreas
+    ?? event.quakeIntensity?.localAreas;
+  return structured != null && structured.length > 0 ? structured : event.areaItems;
+}
+
+export function resolveQuakeIntensityProjection(event: PresentationEvent) {
+  const reportedValue = presentationMaxIntValue(event);
+  const reportedSemantic = projectIntensitySemantic(reportedValue, event.maxInt)!;
+  const candidates = [
+    { value: reportedValue, scalar: event.maxInt ?? null, semantic: reportedSemantic },
+    ...quakeLocalIntensitySource(event).map((item) => {
+      const scalar = "maxInt" in item ? item.maxInt ?? null : null;
+      const value = item.maxIntValue ?? scalarMaxIntValue(scalar);
+      return { value, scalar, semantic: projectIntensitySemantic(value, scalar)! };
+    }),
+  ];
+  const known = candidates
+    .filter((candidate) => candidate.semantic.safetyLowerRank != null)
+    .sort((left, right) =>
+      (right.semantic.safetyLowerRank ?? -1) - (left.semantic.safetyLowerRank ?? -1)
+      || (right.semantic.safetyRank ?? -1) - (left.semantic.safetyRank ?? -1));
+  const adopted = known[0]
+    ?? candidates.find((candidate) => candidate.semantic.render)
+    ?? candidates[0]!;
+  return { ...adopted, reportedSemantic };
+}
+
+function hasExplicitQuakeIntensityValue(event: PresentationEvent): boolean {
+  return event.maxIntValue != null
+    || event.areaItems.some((item) => item.maxIntValue != null)
+    || event.quakeIntensityValues?.localAreas.some((item) => item.maxIntValue != null) === true
+    || event.quakeIntensity?.localAreas.some((item) => item.maxIntValue != null) === true;
+}
+
+/** SpecialValue input is authoritative even when its safety rank is unknown. */
+export function resolveQuakeIntensitySafetyRank(event: PresentationEvent): number | null {
+  const safetyRank = resolveQuakeIntensityProjection(event).semantic.safetyRank;
+  if (safetyRank != null || hasExplicitQuakeIntensityValue(event)) return safetyRank;
+  return event.maxIntRank ?? null;
+}
+
 function quakeObservationMeta(event: PresentationEvent) {
-  const maxIntValue = presentationMaxIntValue(event);
-  const intensityStructureMissing = isQuakeIntensityStructureMissing(event, maxIntValue);
+  const reportedMaxIntValue = presentationMaxIntValue(event);
+  const intensityStructureMissing = isQuakeIntensityStructureMissing(event, reportedMaxIntValue);
+  const maxIntValue = resolveQuakeIntensityProjection(event).value;
   return {
     sourceType: event.type,
     observationSourceType: event.type,
@@ -286,6 +373,7 @@ function quakeObservationMeta(event: PresentationEvent) {
 export function projectRecentQuake(event: PresentationEvent): RecentQuakeObservationProjection | null {
   if (event.domain !== "earthquake") return null;
   const meta = quakeObservationMeta(event);
+  const adoptedIntensity = resolveQuakeIntensityProjection(event);
   if (!event.isCancellation && meta.maxIntValue.presence === "missing" && event.hypocenterName == null) {
     return null;
   }
@@ -295,8 +383,11 @@ export function projectRecentQuake(event: PresentationEvent): RecentQuakeObserva
     originTime: event.originTime ?? null,
     hypocenterName: event.hypocenterName ?? null,
     magnitude: event.magnitude ?? null,
-    maxInt: event.maxInt ?? null,
-    maxIntRank: event.maxIntRank ?? null,
+    maxInt: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.label : null,
+    maxIntRank: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.safetyRank : null,
+    ...(adoptedIntensity.semantic.presence === "value"
+      ? {}
+      : { maxIntSemantic: adoptedIntensity.semantic }),
     depth: normalizeDepth(event.depth),
     tsunamiWarning: event.tsunamiWarning === true,
     intensityGroups: groupIntensityAreas(event.areaItems),
@@ -306,6 +397,7 @@ export function projectRecentQuake(event: PresentationEvent): RecentQuakeObserva
 function projectLatestQuake(event: PresentationEvent): LatestQuakeObservationProjection | null {
   if (event.domain !== "earthquake") return null;
   const meta = quakeObservationMeta(event);
+  const adoptedIntensity = resolveQuakeIntensityProjection(event);
   if (!event.isCancellation && meta.maxIntValue.presence === "missing" && event.hypocenterName == null) {
     return null;
   }
@@ -316,8 +408,11 @@ function projectLatestQuake(event: PresentationEvent): LatestQuakeObservationPro
     hypocenterName: event.hypocenterName ?? null,
     depth: normalizeDepth(event.depth),
     magnitude: event.magnitude ?? null,
-    maxInt: event.maxInt ?? null,
-    maxIntRank: event.maxIntRank ?? null,
+    maxInt: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.label : null,
+    maxIntRank: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.safetyRank : null,
+    ...(adoptedIntensity.semantic.presence === "value"
+      ? {}
+      : { maxIntSemantic: adoptedIntensity.semantic }),
     tsunamiWarning: event.tsunamiWarning === true,
     intensityGroups: groupIntensityAreas(event.areaItems),
     reportDateTime: event.reportDateTime,
@@ -422,7 +517,11 @@ function summaryRole(event: PresentationEvent): DisplayColorRole {
     if (info?.level === "advisory") return "tsunamiAdvisory";
     return event.frameLevel;
   }
-  if (event.domain === "earthquake" && (event.maxIntRank ?? 0) >= LARGE_QUAKE_MIN_RANK) {
+  if (
+    event.domain === "earthquake"
+    && (resolveQuakeIntensitySafetyRank(event) ?? 0)
+      >= LARGE_QUAKE_MIN_RANK
+  ) {
     return "quakeMajor";
   }
   // weather (VPWS50/VPWW55-61) の色は「現在の全国集約の最大 severity」で安定させる。
@@ -447,8 +546,7 @@ export function tickerPriority(event: PresentationEvent): DisplayTickerPriority 
     return "mid"; // 津波注意報・津波予報（若干の海面変動）は advisory 相当
   }
   if (event.domain === "earthquake") {
-    const safetyRank = resolveIntensitySafetyRank(event.maxIntValue, event.maxInt);
-    return (safetyRank ?? event.maxIntRank ?? 0) >= LARGE_QUAKE_MIN_RANK ? "high" : "mid"; // 5弱+ = high
+    return (resolveQuakeIntensitySafetyRank(event) ?? 0) >= LARGE_QUAKE_MIN_RANK ? "high" : "mid"; // 5弱+ = high
   }
   if (event.frameLevel === "critical") return "high";
   if (event.frameLevel === "warning") return "mid";
@@ -471,7 +569,9 @@ export function tickerSurface(event: PresentationEvent): DisplayTickerSurface {
     const severity = weatherDisplaySeverity(event.raw);
     return severity === "officialL5" || severity === "nonLevelSpecial" ? "solid" : "none";
   }
-  if (event.domain === "earthquake") return (event.maxIntRank ?? 0) >= QUAKE_EXTREME_RANK ? "solid" : "none";
+  if (event.domain === "earthquake") {
+    return (resolveQuakeIntensitySafetyRank(event) ?? 0) >= QUAKE_EXTREME_RANK ? "solid" : "none";
+  }
   return "none";
 }
 

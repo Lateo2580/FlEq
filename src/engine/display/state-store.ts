@@ -33,7 +33,12 @@ import {
 import type { Vpws50CurrentAreasForDisplay } from "../../types";
 import { intensityToRank } from "../../utils/intensity";
 import { jstDayKey } from "../../utils/jst-day-key";
-import { quakeCardTtlMs, shouldReplaceLatestQuake } from "./quake-card-selection";
+import {
+  quakeCardRank,
+  quakeCardTtlMs,
+  shouldReplaceLatestQuake,
+} from "./quake-card-selection";
+import { projectIntensitySemantic } from "./intensity-groups";
 import {
   mergeLatestQuakeObservation,
   mergeRecentQuakeObservation,
@@ -41,6 +46,7 @@ import {
   quakeObservationBridgeOf,
   quakeObservationMetaOf,
   shouldPreserveVxse51Observation,
+  shouldRetainKnownQuakeSafety,
 } from "./quake-observation-merge";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import {
@@ -63,6 +69,10 @@ interface QuakeMapMutationResult {
   accepted: boolean;
   changed: boolean;
   preservedObservation: boolean;
+}
+
+function quakeMapSafetyLowerRank(event: DisplayQuakeIntensityMapEventV1): number {
+  return event.maxIntSemantic?.safetyLowerRank ?? event.maxIntRank;
 }
 
 export interface DisplayTsunamiObservationGroups {
@@ -204,11 +214,15 @@ export class DisplayStateStore {
     changed = quakeMapMutation.changed || changed;
     const quakeProjection = quakeObservationBridge?.latest ?? null;
     const quakeMeta = quakeProjection == null ? null : quakeObservationMetaOf(quakeProjection);
+    const retainsKnownSafety = quakeMeta != null
+      && !hasResolvedQuakeCancellation(quakeMeta)
+      && shouldRetainKnownQuakeSafety(quakeMeta.maxIntValue);
     if (
       quakeMapMutation.accepted
       && quakeProjection?.eventId != null
       && quakeProjection.eventId.trim() !== ""
       && quakeMeta != null
+      && !retainsKnownSafety
       && (
         hasResolvedQuakeCancellation(quakeMeta)
         || !quakeMeta.intensityStructureMissing
@@ -261,20 +275,26 @@ export class DisplayStateStore {
     if (dto.emergency?.kind === "largeQuake" && quakeMapMutation.accepted) {
       const key = dto.emergency.eventId ?? dto.id;
       const existing = this.largeQuakes.get(key);
-      const preservedMapReference =
-        quakeMapCommand == null && existing?.mapEventKey != null
-          ? {
-              mapEventKey: existing.mapEventKey,
-              mapSourceType: existing.mapSourceType,
-              mapRevision: existing.mapRevision,
-            }
-          : {};
-      this.largeQuakes.set(key, {
-        ...dto.emergency,
-        ...preservedMapReference,
-        updatedAtMs: nowMs,
-      });
-      changed = true;
+      const preservesStrongerEmergency =
+        retainsKnownSafety
+        && existing != null
+        && quakeCardRank(existing) > quakeCardRank(dto.emergency);
+      if (!preservesStrongerEmergency) {
+        const preservedMapReference =
+          quakeMapCommand == null && existing?.mapEventKey != null
+            ? {
+                mapEventKey: existing.mapEventKey,
+                mapSourceType: existing.mapSourceType,
+                mapRevision: existing.mapRevision,
+              }
+            : {};
+        this.largeQuakes.set(key, {
+          ...dto.emergency,
+          ...preservedMapReference,
+          updatedAtMs: nowMs,
+        });
+        changed = true;
+      }
     }
     const recentQuake = quakeObservationBridge == null
       ? dto.recentQuake
@@ -354,8 +374,8 @@ export class DisplayStateStore {
     if (
       effectiveChanged
       && effective != null
-      && effective.maxIntRank >= QUAKE_MAP_HOST_MIN_RANK
-      && effective.maxIntRank < TIER_QUAKE_ALERT_RANK
+      && quakeMapSafetyLowerRank(effective) >= QUAKE_MAP_HOST_MIN_RANK
+      && quakeMapSafetyLowerRank(effective) < TIER_QUAKE_ALERT_RANK
     ) {
       const nextHost = { eventKey, expiresAtMs: nowMs + NON_EMERGENCY_HOST_TTL_MS };
       if (
@@ -368,8 +388,8 @@ export class DisplayStateStore {
     } else if (this.quakeMapHost?.eventKey === eventKey) {
       if (
         effective == null
-        || effective.maxIntRank < QUAKE_MAP_HOST_MIN_RANK
-        || effective.maxIntRank >= TIER_QUAKE_ALERT_RANK
+        || quakeMapSafetyLowerRank(effective) < QUAKE_MAP_HOST_MIN_RANK
+        || quakeMapSafetyLowerRank(effective) >= TIER_QUAKE_ALERT_RANK
       ) {
         this.quakeMapHost = null;
         changed = true;
@@ -657,7 +677,7 @@ export class DisplayStateStore {
     }
     changed = this.quakeExtreme.sweep(nowMs) || changed;
     if (this.latestQuake != null &&
-        nowMs - this.latestQuake.updatedAtMs > quakeCardTtlMs(this.latestQuake.maxIntRank ?? 0)) {
+        nowMs - this.latestQuake.updatedAtMs > quakeCardTtlMs(quakeCardRank(this.latestQuake))) {
       this.latestQuake = null;
       changed = true;
     }
@@ -778,8 +798,8 @@ export class DisplayStateStore {
       if (rec != null) bump(rec.level === 5 ? "critical" : "alert");
     }
     for (const eew of this.activeEews.values()) bump(eew.isWarning ? "alert" : "caution");
-    for (const q of this.largeQuakes.values()) if (q.maxIntRank >= TIER_QUAKE_ALERT_RANK) bump("alert");
-    if (this.latestQuake != null && (this.latestQuake.maxIntRank ?? 0) >= TIER_QUAKE_ALERT_RANK) bump("alert");
+    for (const q of this.largeQuakes.values()) if (quakeCardRank(q) >= TIER_QUAKE_ALERT_RANK) bump("alert");
+    if (this.latestQuake != null && quakeCardRank(this.latestQuake) >= TIER_QUAKE_ALERT_RANK) bump("alert");
     if (this.quakeMapHost != null && nowMs < this.quakeMapHost.expiresAtMs) bump("caution");
     for (const item of this.standbyItemsProvider?.() ?? []) {
       if (item.kind === "nankaiTrough" && item.severity === "critical") bump("caution");
@@ -860,12 +880,13 @@ export class DisplayStateStore {
       seq,
       activeEews: [...this.activeEews.values()],
       tsunami: this.tsunami,
-      largeQuakes: [...this.largeQuakes.values()],
+      largeQuakes: [...this.largeQuakes.values()].map(withWireIntensitySemantic),
       weatherAlerts: [...this.currentWeatherAlerts()],
       weatherPromotion: this.weatherPromotionForWire(),
       weatherL5Active: this.isWeatherL5Active(),
-      recentQuakes: this.recentQuakesProvider?.() ?? [...this.recentQuakes],
-      latestQuake: this.latestQuake,
+      recentQuakes: (this.recentQuakesProvider?.() ?? [...this.recentQuakes])
+        .map(withWireIntensitySemantic),
+      latestQuake: this.latestQuake == null ? null : withWireIntensitySemantic(this.latestQuake),
       stats: this.stats,
       severityTier: this.deriveSeverityTier(nowMs),
       backgroundTone: this.deriveBackgroundTone(nowMs),
@@ -883,6 +904,22 @@ export class DisplayStateStore {
 }
 
 /** originTime を優先し、欠落時だけ reportDateTime を使う。無効な ISO は null。 */
+type WireQuakeCard =
+  | DisplayRecentQuakeV1
+  | DisplayLatestQuakeInputV1
+  | DisplayLatestQuakeStateV1
+  | DisplayLargeQuakeStateV1;
+
+function withWireIntensitySemantic<T extends WireQuakeCard>(quake: T): T {
+  const meta = quakeObservationMetaOf(quake);
+  if (meta == null) return quake;
+  const semantic = projectIntensitySemantic(meta?.maxIntValue, quake.maxInt);
+  const { maxIntSemantic: _staleSemantic, ...withoutSemantic } = quake;
+  return semantic == null || semantic.presence === "value"
+    ? withoutSemantic as T
+    : { ...withoutSemantic, maxIntSemantic: semantic } as T;
+}
+
 export function quakeDayKey(q: DisplayRecentQuakeV1): string | null {
   const value = q.originTime ?? q.reportDateTime;
   const ms = Date.parse(value);

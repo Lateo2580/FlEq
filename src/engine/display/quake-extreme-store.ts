@@ -1,7 +1,9 @@
 import { performance } from "node:perf_hooks";
 import { intensityToRank } from "../../utils/intensity";
-import type { JmaIntensity, SpecialValuePresence } from "../../types";
+import type { SpecialValuePresence } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
+import { resolveIntensitySafetyRank } from "../presentation/level-helpers";
+import { resolveQuakeIntensityProjection } from "./project-event";
 import type { DisplayEventDtoV1 } from "./types";
 import { RevisionGuard, type PersistedSeenEntry } from "./revision-guard";
 import { compareRevision, revisionOf } from "./standby-registry";
@@ -11,6 +13,7 @@ import {
   quakeObservationBridgeOf,
   quakeObservationMetaOf,
   shouldPreserveVxse51Observation,
+  shouldRetainKnownQuakeSafety,
 } from "./quake-observation-merge";
 
 export const QUAKE_EXTREME_HOLD_MS = 12 * 60 * 60 * 1000;
@@ -47,6 +50,7 @@ type QuakeExtremeInput = {
   cancellationResolved: boolean;
   maxIntRank: number | null;
   maxIntPresence: SpecialValuePresence;
+  retainKnownSafety: boolean;
   intensityStructureMissing: boolean;
   originTime: string | null;
   hypocenterName: string | null;
@@ -86,21 +90,20 @@ export class QuakeExtremeStore {
   }
 
   applyPresentationEvent(event: PresentationEvent, nowMs: number): boolean {
-    const maxIntValue = event.maxIntValue ?? {
-      raw: event.maxInt ?? null,
-      value: (event.maxInt as JmaIntensity | null | undefined) ?? null,
-      condition: null,
-      description: null,
-      presence: event.maxInt == null ? "missing" as const : "value" as const,
-    };
+    const adoptedIntensity = resolveQuakeIntensityProjection(event);
+    const maxIntValue = adoptedIntensity.value;
+    const legacyRank = adoptedIntensity.semantic.safetyRank == null
+      ? event.maxIntRank ?? null
+      : null;
     return this.apply({
       domain: event.domain,
       groupKey: event.domain === "earthquake" && event.eventId != null ? `quake:${event.eventId}` : null,
       cancellationResolved:
         event.foundationResolvedTrigger != null
         && event.foundationCancellationPolicy != null,
-      maxIntRank: event.maxIntRank ?? null,
-      maxIntPresence: maxIntValue.presence,
+      maxIntRank: adoptedIntensity.semantic.safetyRank ?? legacyRank,
+      maxIntPresence: legacyRank == null ? maxIntValue.presence : "value",
+      retainKnownSafety: legacyRank == null && shouldRetainKnownQuakeSafety(maxIntValue),
       intensityStructureMissing: isQuakeIntensityStructureMissing(event, maxIntValue),
       originTime: event.originTime ?? null,
       hypocenterName: event.hypocenterName ?? null,
@@ -116,7 +119,9 @@ export class QuakeExtremeStore {
   applyDto(dto: DisplayEventDtoV1, nowMs: number): boolean {
     const projection = quakeObservationBridgeOf(dto)?.latest ?? null;
     const meta = projection == null ? null : quakeObservationMetaOf(projection);
-    const rank = projection?.maxIntRank ?? dto.latestQuake?.maxIntRank ??
+    const rank = resolveIntensitySafetyRank(meta?.maxIntValue, projection?.maxInt)
+      ?? projection?.maxIntRank ?? dto.latestQuake?.maxIntSemantic?.safetyRank
+      ?? dto.latestQuake?.maxIntRank ??
       (dto.emergency?.kind === "largeQuake" ? dto.emergency.maxIntRank : null);
     const quakeDetails = projection ?? dto.latestQuake;
     const largeQuake = dto.emergency?.kind === "largeQuake" ? dto.emergency : null;
@@ -127,6 +132,7 @@ export class QuakeExtremeStore {
       cancellationResolved: meta != null && hasResolvedQuakeCancellation(meta),
       maxIntRank: rank,
       maxIntPresence: meta?.maxIntValue.presence ?? (rank == null ? "missing" : "value"),
+      retainKnownSafety: meta == null ? false : shouldRetainKnownQuakeSafety(meta.maxIntValue),
       intensityStructureMissing: meta?.intensityStructureMissing ?? rank == null,
       originTime,
       hypocenterName: quakeDetails != null ? quakeDetails.hypocenterName : largeQuake?.hypocenterName ?? null,
@@ -240,6 +246,7 @@ export class QuakeExtremeStore {
       });
     const explicitNonExact =
       input.maxIntPresence !== "value"
+      && input.maxIntRank == null
       && !(input.maxIntPresence === "missing" && input.intensityStructureMissing);
     const invalidatingMissing =
       input.maxIntPresence === "missing"
@@ -248,11 +255,11 @@ export class QuakeExtremeStore {
       && !preservesVxse51Observation;
     const invalidatesRecord =
       input.cancellationResolved
-      || explicitNonExact
-      || invalidatingMissing
-      || input.maxIntPresence === "value"
-        && input.maxIntRank != null
-        && input.maxIntRank < QUAKE_EXTREME_RANK;
+      || !input.retainKnownSafety && (
+        explicitNonExact
+        || invalidatingMissing
+        || input.maxIntRank != null && input.maxIntRank < QUAKE_EXTREME_RANK
+      );
 
     let changed = false;
     if (invalidatesRecord) {

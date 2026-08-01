@@ -4,6 +4,7 @@ import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../../../src/engine/messages/tsunami-state";
 import type {
   DisplayEventDtoV1,
+  DisplayIntensitySemanticV1,
   DisplayTsunamiLevel,
   DisplayTsunamiObservationV1,
   DisplayWeatherAlertV1,
@@ -75,7 +76,14 @@ function largeQuakeOnlyDto(over: Partial<{ eventId: string; maxInt: string; maxI
   } as DisplayEventDtoV1;
 }
 
-function latestQuakeOnlyDto(over: Partial<{ eventId: string | null; maxInt: string; maxIntRank: number | null; reportDateTime: string; isCancellation: boolean }>): DisplayEventDtoV1 {
+function latestQuakeOnlyDto(over: Partial<{
+  eventId: string | null;
+  maxInt: string | null;
+  maxIntRank: number | null;
+  maxIntSemantic: DisplayIntensitySemanticV1;
+  reportDateTime: string;
+  isCancellation: boolean;
+}>): DisplayEventDtoV1 {
   const o = { eventId: "Q1", maxInt: "5弱", maxIntRank: 5, reportDateTime: "2026-07-06T21:00:00+09:00", isCancellation: false, ...over };
   return {
     version: 1, seq: 0, id: `m-${o.eventId}-${o.reportDateTime}`, eventKey: `quake:${o.eventId}:${o.reportDateTime}`,
@@ -88,6 +96,7 @@ function latestQuakeOnlyDto(over: Partial<{ eventId: string | null; maxInt: stri
     latestQuake: o.isCancellation ? null : {
       eventId: o.eventId, headline: null, originTime: null, hypocenterName: "X",
       depth: null, magnitude: "6.0", maxInt: o.maxInt, maxIntRank: o.maxIntRank,
+      ...(o.maxIntSemantic == null ? {} : { maxIntSemantic: o.maxIntSemantic }),
       tsunamiWarning: false, intensityGroups: [], reportDateTime: o.reportDateTime,
     },
     tickerDetail: null,
@@ -814,6 +823,40 @@ describe("DisplayStateStore: latestQuake", () => {
     expect(store.snapshot(1, T0 + 4 * MIN).latestQuake?.maxInt).toBe("不明");
     expect(store.sweep(T0 + 6 * MIN)).toBe(true);
     expect(store.snapshot(2, T0 + 6 * MIN).latestQuake).toBeNull();
+  });
+
+  it("qualitative lower bound は semantic safety rank で severity と TTL を決める", () => {
+    const semantic: DisplayIntensitySemanticV1 = {
+      raw: "",
+      presence: "qualitative",
+      label: "5弱以上未入電",
+      condition: "5弱以上未入電",
+      description: null,
+      lowerBound: "5-",
+      upperBound: null,
+      rawLowerBound: null,
+      rawUpperBound: null,
+      badge: "≥",
+      color: "safetyRank",
+      render: true,
+      safetyLowerRank: 5,
+      safetyUpperRank: null,
+      safetyRank: 5,
+      colorRank: 5,
+    };
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(latestQuakeOnlyDto({
+      eventId: "Q-special",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntSemantic: semantic,
+    }), T0)).toBe(true);
+    expect(store.snapshot(1, T0)).toMatchObject({
+      severityTier: "alert",
+      latestQuake: { maxInt: null, maxIntRank: null, maxIntSemantic: semantic },
+    });
+    expect(store.sweep(T0 + 6 * MIN)).toBe(false);
+    expect(store.sweep(T0 + 31 * MIN)).toBe(true);
   });
 
   it("低ランク帯 (震度1-2) は 5 分超の sweep で失効する", () => {

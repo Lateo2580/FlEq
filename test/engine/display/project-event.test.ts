@@ -9,6 +9,7 @@ import {
   tickerSurface,
 } from "../../../src/engine/display/project-event";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { JmaIntensity, SpecialValue } from "../../../src/types";
 
 describe("normalizeDepth", () => {
   it("null/undefined は null になる", () => {
@@ -149,6 +150,166 @@ describe("projectQuakeMapCommand", () => {
   it("earthquake 以外は対象外", () => {
     expect(projectQuakeMapCommand(baseEvent({ domain: "weather" }), nowMs)).toBeNull();
   });
+
+  it("5弱以上未入電は lower rank 5 で地図を発火し ≥ semantic を載せる", () => {
+    const value: SpecialValue<JmaIntensity> = {
+      raw: "",
+      value: null,
+      condition: "5弱以上未入電",
+      description: null,
+      presence: "qualitative",
+      lowerBound: "5-",
+    };
+    const command = projectQuakeMapCommand(baseEvent({
+      eventId: "qualitative",
+      maxIntValue: value,
+      maxInt: null,
+      maxIntRank: null,
+      areaItems: [{ name: "地域A", code: "440", maxIntValue: value }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: value }],
+        municipalities: [],
+      },
+    }), nowMs);
+    expect(command).toMatchObject({
+      kind: "upsert",
+      event: {
+        maxIntRank: 5,
+        maxIntSemantic: {
+          presence: "qualitative", label: "5弱以上未入電", badge: "≥",
+          color: "safetyRank", colorRank: 5, safetyLowerRank: 5,
+          condition: "5弱以上未入電",
+        },
+        localAreas: [{
+          code: "440", rank: 5,
+          intensitySemantic: { presence: "qualitative", badge: "≥", colorRank: 5 },
+        }],
+      },
+    });
+  });
+
+  it("range は lower で地図発火を判定し upper 色＋↔ semantic を載せる", () => {
+    const value: SpecialValue<JmaIntensity> = {
+      raw: "",
+      value: null,
+      condition: null,
+      description: "震度3から5弱",
+      presence: "range",
+      lowerBound: "3",
+      upperBound: "5-",
+    };
+    const command = projectQuakeMapCommand(baseEvent({
+      eventId: "range",
+      maxIntValue: value,
+      areaItems: [{ name: "地域A", code: "440", maxIntValue: value }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: value }],
+        municipalities: [],
+      },
+    }), nowMs);
+    expect(command).toMatchObject({
+      kind: "upsert",
+      event: {
+        maxIntRank: 5,
+        localAreas: [{
+          code: "440", rank: 5,
+          intensitySemantic: {
+            presence: "range", badge: "↔", color: "safetyUpperRank",
+            safetyLowerRank: 3, safetyUpperRank: 5, colorRank: 5,
+          },
+        }],
+      },
+    });
+  });
+
+  it("mixed 報は unknown/empty を負 rank semantic で載せ、missing だけを除外する", () => {
+    const exact: SpecialValue<JmaIntensity> = {
+      raw: "4", value: "4", condition: null, description: null, presence: "value",
+    };
+    const unknown: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: "未入電", description: null, presence: "unknown",
+    };
+    const empty: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: null, description: null, presence: "empty",
+    };
+    const missing: SpecialValue<JmaIntensity> = {
+      raw: null, value: null, condition: null, description: null, presence: "missing",
+    };
+    const values = [
+      { name: "exact", code: "440", maxIntValue: exact },
+      { name: "unknown", code: "441", maxIntValue: unknown },
+      { name: "empty", code: "442", maxIntValue: empty },
+      { name: "missing", code: "443", maxIntValue: missing },
+    ];
+    const command = projectQuakeMapCommand(baseEvent({
+      eventId: "mixed",
+      maxIntValue: exact,
+      maxInt: "4",
+      maxIntRank: 4,
+      areaItems: values,
+      quakeIntensityValues: { localAreas: values, municipalities: [] },
+    }), nowMs);
+    expect(command?.kind).toBe("upsert");
+    const localAreas = command?.kind === "upsert" ? command.event.localAreas : [];
+    expect(localAreas).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "440", rank: 4 }),
+      expect.objectContaining({
+        code: "441", rank: -1,
+        intensitySemantic: expect.objectContaining({ presence: "unknown", badge: "?", color: "unknown" }),
+      }),
+      expect.objectContaining({
+        code: "442", rank: -1,
+        intensitySemantic: expect.objectContaining({ presence: "empty", badge: "∅", color: "neutral" }),
+      }),
+    ]));
+    expect(localAreas.some((area) => area.code === "443")).toBe(false);
+  });
+
+  it("全体 MaxInt missing でも地域 exact があれば地域値で地図 gate と旧 scalar を構成する", () => {
+    const missing: SpecialValue<JmaIntensity> = {
+      raw: null, value: null, condition: null, description: null, presence: "missing",
+    };
+    const exact: SpecialValue<JmaIntensity> = {
+      raw: "4", value: "4", condition: null, description: null, presence: "value",
+    };
+    const command = projectQuakeMapCommand(baseEvent({
+      eventId: "local-exact",
+      maxIntValue: missing,
+      maxInt: null,
+      maxIntRank: null,
+      areaItems: [{ name: "地域A", code: "440", maxIntValue: exact }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: exact }],
+        municipalities: [],
+      },
+    }), nowMs);
+    expect(command).toMatchObject({
+      kind: "upsert",
+      event: {
+        maxInt: "4",
+        maxIntRank: 4,
+        reportedMaxIntSemantic: { presence: "missing", render: false },
+        localAreas: [{ code: "440", rank: 4 }],
+      },
+    });
+    expect(command?.kind === "upsert" ? command.event.maxIntSemantic : undefined).toBeUndefined();
+  });
+
+  it.each([
+    ["unknown", { raw: "", value: null, condition: "未入電", description: null, presence: "unknown" }],
+    ["empty", { raw: "", value: null, condition: null, description: null, presence: "empty" }],
+  ] as const)("%s-only 報は地図を発火しない", (_label, specialValue) => {
+    const value = specialValue as SpecialValue<JmaIntensity>;
+    expect(projectQuakeMapCommand(baseEvent({
+      eventId: `only-${specialValue.presence}`,
+      maxIntValue: value,
+      areaItems: [{ name: "地域A", code: "440", maxIntValue: value }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: value }],
+        municipalities: [],
+      },
+    }), nowMs)).toMatchObject({ kind: "remove", reason: "nonExact" });
+  });
 });
 
 describe("groupIntensityAreas", () => {
@@ -162,6 +323,82 @@ describe("groupIntensityAreas", () => {
       areas: ["熊本県熊本地方", "熊本県阿蘇地方"],
       omittedAreaCount: 0,
     }]);
+  });
+
+  it("SpecialValue の qualifier/badge/color をカード group に保持し missing は除外する", () => {
+    const groups = groupIntensityAreas([
+      {
+        name: "qualitative",
+        maxIntValue: {
+          raw: "", value: null, condition: "5弱以上未入電", description: null,
+          presence: "qualitative", lowerBound: "5-",
+        },
+      },
+      {
+        name: "unknown",
+        maxIntValue: {
+          raw: "", value: null, condition: "未入電", description: null, presence: "unknown",
+        },
+      },
+      {
+        name: "empty",
+        maxIntValue: {
+          raw: "", value: null, condition: null, description: null, presence: "empty",
+        },
+      },
+      {
+        name: "missing",
+        maxIntValue: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+    ]);
+    expect(groups).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        intensity: "5弱以上未入電", rank: 5, areas: ["qualitative"],
+        intensitySemantic: expect.objectContaining({ badge: "≥", color: "safetyRank" }),
+      }),
+      expect.objectContaining({
+        rank: -1, areas: ["unknown"],
+        intensitySemantic: expect.objectContaining({ presence: "unknown", badge: "?" }),
+      }),
+      expect.objectContaining({
+        rank: -1, areas: ["empty"],
+        intensitySemantic: expect.objectContaining({ presence: "empty", badge: "∅" }),
+      }),
+    ]));
+    expect(groups.some((group) => group.areas.includes("missing"))).toBe(false);
+  });
+
+  it("同一 label の semantic 差は一つの legacy-safe group に束ねる", () => {
+    const groups = groupIntensityAreas([
+      {
+        name: "地域A",
+        maxIntValue: {
+          raw: "5弱以上未入電", value: null, condition: "5弱以上未入電",
+          description: "説明A", presence: "qualitative", lowerBound: "5-",
+        },
+      },
+      {
+        name: "地域B",
+        maxIntValue: {
+          raw: " 5弱以上未入電 ", value: null, condition: "5弱以上未入電",
+          description: "説明B", presence: "qualitative", lowerBound: "5-",
+          rawLowerBound: "５－",
+        },
+      },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({
+      intensity: "5弱以上未入電",
+      rank: 5,
+      areas: ["地域A", "地域B"],
+      intensitySemantic: {
+        raw: "5弱以上未入電",
+        description: "説明A",
+        presence: "qualitative",
+      },
+    });
   });
 });
 
@@ -416,6 +653,60 @@ describe("tickerSurface (engine 権威)", () => {
 });
 
 describe("projectDisplayEvent", () => {
+  it("adopted local intensity drives summary role and ticker priority/surface", () => {
+    const missing = {
+      raw: null,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "missing" as const,
+    };
+    const local = {
+      raw: "7",
+      value: "7" as const,
+      condition: null,
+      description: null,
+      presence: "value" as const,
+    };
+    const dto = projectDisplayEvent(baseEvent({
+      domain: "earthquake",
+      eventId: "Q-local-7",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: missing,
+      areaItems: [{ name: "地域A", code: "440", maxInt: "7", maxIntValue: local }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: local }],
+        municipalities: [],
+      },
+    }), "local intensity");
+
+    expect(dto.summary.role).toBe("quakeMajor");
+    expect(dto.tickerPriority).toBe("high");
+    expect(dto.tickerSurface).toBe("solid");
+  });
+
+  it("explicit unknown suppresses stale legacy rank in summary and ticker consumers", () => {
+    const dto = projectDisplayEvent(baseEvent({
+      domain: "earthquake",
+      eventId: "Q-explicit-unknown",
+      frameLevel: "normal",
+      maxInt: null,
+      maxIntRank: 9,
+      maxIntValue: {
+        raw: "未入電",
+        value: null,
+        condition: "未入電",
+        description: null,
+        presence: "unknown",
+      },
+    }), "explicit unknown");
+
+    expect(dto.summary.role).toBe("normal");
+    expect(dto.tickerPriority).toBe("mid");
+    expect(dto.tickerSurface).toBe("none");
+  });
+
   it("raw と stateSnapshot を DTO に含めない (シリアライズ全走査)", () => {
     const dto = projectDisplayEvent(
       baseEvent({ raw: { dummy: true } as never, stateSnapshot: { kind: "volcano", isRenotification: false } }),
@@ -487,6 +778,44 @@ describe("projectDisplayEvent", () => {
     expect(dto.summary.role).toBe("quakeMajor");
   });
 
+  it("5弱以上未入電は exact scalar なしでも largeQuake gate を通り qualifier を wire に保持する", () => {
+    const value: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: "5弱以上未入電", description: null,
+      presence: "qualitative", lowerBound: "5-",
+    };
+    const dto = projectDisplayEvent(baseEvent({
+      domain: "earthquake",
+      eventId: "Q-qualitative",
+      maxIntValue: value,
+      maxInt: null,
+      maxIntRank: null,
+      hypocenterName: "震源A",
+      areaItems: [{ name: "地域A", maxIntValue: value }],
+    }), "qualitative");
+    expect(dto.emergency).toMatchObject({
+      kind: "largeQuake",
+      maxInt: "5弱以上未入電",
+      maxIntRank: 5,
+      maxIntSemantic: {
+        presence: "qualitative", badge: "≥", color: "safetyRank", colorRank: 5,
+      },
+      intensityGroups: [expect.objectContaining({
+        intensity: "5弱以上未入電", rank: 5,
+        intensitySemantic: expect.objectContaining({ badge: "≥", colorRank: 5 }),
+      })],
+    });
+    expect(dto.latestQuake).toMatchObject({
+      maxInt: null,
+      maxIntRank: null,
+      maxIntSemantic: { presence: "qualitative", badge: "≥", safetyRank: 5 },
+    });
+    expect(dto.recentQuake).toMatchObject({
+      maxInt: null,
+      maxIntRank: null,
+      maxIntSemantic: { presence: "qualitative", badge: "≥", safetyRank: 5 },
+    });
+  });
+
   it("震度4以下の地震は emergency null で recentQuake に載る", () => {
     const dto = projectDisplayEvent(
       baseEvent({ domain: "earthquake", eventId: "Q2", maxInt: "4", maxIntRank: 4, hypocenterName: "宮城県沖" }),
@@ -520,6 +849,47 @@ describe("projectDisplayEvent", () => {
         { name: "南部", intensity: "4", intensityTo: "5-", isPlum: false, hasArrived: false, arrivalTime: null },
         { name: "北部", intensity: "5弱", intensityTo: null, isPlum: true, hasArrived: true, arrivalTime: "2026-07-07T10:00:00+09:00" },
       ],
+    });
+  });
+
+  it("EEW 全体・地域別の SpecialValue と親 Area qualifier を同時に wire 化する", () => {
+    const qualitative: SpecialValue<JmaIntensity> = {
+      raw: "",
+      value: null,
+      condition: "5弱以上未入電",
+      description: "震度5弱以上",
+      presence: "qualitative",
+      lowerBound: "5-",
+      rawLowerBound: "5-",
+      rawUpperBound: "over",
+    };
+    const dto = projectDisplayEvent(baseEvent({
+      domain: "eew",
+      type: "VXSE45",
+      eventId: "E-semantic",
+      forecastMaxInt: "5弱以上未入電",
+      forecastMaxIntRank: 5,
+      maxIntValue: qualitative,
+      areaItems: [{ name: "北部", maxIntValue: qualitative }],
+      eewRegions: [{
+        name: "北部", intensity: "", intensityTo: "over",
+        isPlum: true, hasArrived: true, arrivalTime: null,
+      }],
+    }), "EEW qualifier");
+    expect(dto.emergency).toMatchObject({
+      kind: "eew",
+      forecastMaxIntSemantic: {
+        presence: "qualitative", label: "5弱以上未入電", badge: "≥",
+        condition: "5弱以上未入電", rawUpperBound: "over",
+      },
+      regions: [{
+        name: "北部", intensity: "5弱以上未入電", intensityTo: null,
+        isPlum: true, hasArrived: true,
+        intensitySemantic: {
+          presence: "qualitative", label: "5弱以上未入電", badge: "≥",
+          condition: "5弱以上未入電", rawUpperBound: "over",
+        },
+      }],
     });
   });
 
@@ -683,7 +1053,7 @@ describe("projectDisplayEvent", () => {
     expect(dto.latestQuake?.intensityGroups[0]).toMatchObject({ intensity: "4", areas: ["茨城県北部"] });
   });
 
-  it("SpecialValue/provenance の内部 bridge は公開 display protocol JSON へ露出しない", () => {
+  it("内部 provenance は隠し、公開用 SpecialValue semantic だけを display protocol JSON へ載せる", () => {
     const dto = projectDisplayEvent(
       baseEvent({
         domain: "earthquake",
@@ -705,6 +1075,9 @@ describe("projectDisplayEvent", () => {
     const json = JSON.stringify(dto);
     expect(json).not.toContain("maxIntValue");
     expect(json).not.toContain("observationSourceType");
+    expect(dto.latestQuake?.maxIntSemantic).toMatchObject({
+      presence: "unknown", badge: "?", color: "unknown", condition: "未入電",
+    });
   });
 
   it("非地震イベントの latestQuake は null になる (Task 3)", () => {

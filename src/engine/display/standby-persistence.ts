@@ -276,7 +276,7 @@ export interface PersistedVolcanoStateV1 {
   eventRevision: StandbyRevision | null;
 }
 export interface PersistedTornadoStateV1 { publishingOffice: string; sourceEventId: string; areas: string[]; isSighted: boolean; revision: StandbyRevision; expiresAtMs: number; appliedSemanticKey?: string; }
-export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; appliedSemanticKey?: string; }
+export interface PersistedLongPeriodStateV1 { eventId: string; maxLgInt: string; safetyRank?: number | null; revision: StandbyRevision; hosted: boolean; expiresAtMs: number; appliedSemanticKey?: string; }
 export interface PersistedQuakeHostStateV1 { eventId: string; maxIntRank: number; revision: StandbyRevision; expiresAtMs: number; }
 export interface PersistedNankaiStateV1 { sourceEventId: string; statusCode: string; label: string; revision: StandbyRevision; expiresAtMs: number; appliedSemanticKey?: string; }
 export interface PersistedWeatherAlertStateV1 { source: DisplayWeatherSourceV1; alerts: DisplayWeatherAlertV1[]; revision: StandbyRevision; expiresAtMs: number; }
@@ -794,12 +794,42 @@ function isTornadoState(value: unknown): value is PersistedTornadoStateV1 {
 }
 
 function isLongPeriodState(value: unknown): value is PersistedLongPeriodStateV1 {
+  const hasSafetyRank = isRecord(value) && Object.hasOwn(value, "safetyRank");
   return isRecord(value)
     && typeof value.eventId === "string"
     && typeof value.maxLgInt === "string"
+    && (!hasSafetyRank
+      || value.safetyRank == null
+      || typeof value.safetyRank === "number" && Number.isInteger(value.safetyRank)
+        && value.safetyRank >= 0 && value.safetyRank <= 4)
+    && (!hasSafetyRank || isLongPeriodSafetyRankConsistent(value.maxLgInt, value.safetyRank))
     && isRevision(value.revision)
     && typeof value.hosted === "boolean"
     && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+}
+
+function inferredLongPeriodSafetyRank(label: string): number | null | undefined {
+  const normalized = label.normalize("NFKC").trim();
+  const exact = /^([0-4])$/.exec(normalized);
+  if (exact != null) return Number(exact[1]);
+  const range = /^([0-4])\u301c([0-4])$/.exec(normalized);
+  if (range != null) return Number(range[2]);
+  const lower = /^([0-4])(?:程度)?以上$/.exec(normalized);
+  if (lower != null) return Number(lower[1]);
+  if (normalized === "不明" || normalized === "（空欄）" || normalized === "—") return null;
+  return undefined;
+}
+
+function isLongPeriodSafetyRankConsistent(label: string, rank: unknown): boolean {
+  const inferred = inferredLongPeriodSafetyRank(label);
+  return inferred === undefined || Object.is(inferred, rank);
+}
+
+export function persistedLongPeriodSafetyRank(
+  state: PersistedLongPeriodStateV1,
+): number | null {
+  if (Object.hasOwn(state, "safetyRank")) return state.safetyRank ?? null;
+  return inferredLongPeriodSafetyRank(state.maxLgInt) ?? null;
 }
 
 function isQuakeHostState(value: unknown): value is PersistedQuakeHostStateV1 {

@@ -10,6 +10,7 @@ import {
   quakeObservationMetaOf,
   withQuakeObservationMeta,
 } from "../../../src/engine/display/quake-observation-merge";
+import { projectIntensitySemantic } from "../../../src/engine/display/intensity-groups";
 
 function special(
   presence: SpecialValue<JmaIntensity>["presence"],
@@ -104,6 +105,20 @@ describe("quake-observation-merge SpecialValue contract", () => {
       });
     },
   );
+
+  it("VXSE51 observation 保持時は後報 missing semantic を残さない", () => {
+    const previous = recent("VXSE51", special("value"));
+    const missing = special("missing");
+    const next = recent("VXSE52", missing, {
+      maxIntSemantic: projectIntensitySemantic(missing),
+    });
+    const merged = mergeRecentQuakeObservation(previous, next);
+    expect(merged).toMatchObject({ maxInt: "4", maxIntRank: 4 });
+    expect(merged.maxIntSemantic).toBeUndefined();
+    expect(quakeObservationMetaOf(merged)?.maxIntValue).toMatchObject({
+      presence: "value", value: "4",
+    });
+  });
 
   it.each(["unknown", "empty", "qualitative"] as const)(
     "後報が %s なら旧観測値を保持せず明示状態へ置換する",

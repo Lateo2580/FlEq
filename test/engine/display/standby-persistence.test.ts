@@ -362,6 +362,30 @@ describe("StandbyPersistence", () => {
     }));
     expect(() => new StandbyStateStore().restoreActiveState(loaded!, T0 + 1)).not.toThrow();
   });
+
+  it("longPeriod safetyRank は明示 null と旧 field 欠落を区別し、label 矛盾を fail-closed にする", () => {
+    const revision = { reportTimeMs: T0, serial: "1" };
+    const expiresAtMs = T0 + 60_000;
+    const invalidPath = tempPath();
+    mkdirSync(dirname(invalidPath), { recursive: true });
+    writeFileSync(invalidPath, JSON.stringify(state({
+      longPeriod: [{ eventId: "Q1", maxLgInt: "4", safetyRank: null, revision, hosted: true, expiresAtMs }],
+    })), "utf8");
+    expect(new StandbyPersistence(invalidPath).load()?.longPeriod).toEqual([]);
+
+    const legacyPath = tempPath();
+    mkdirSync(dirname(legacyPath), { recursive: true });
+    writeFileSync(legacyPath, JSON.stringify(state({
+      quakeHost: { eventId: "Q1", maxIntRank: 5, revision, expiresAtMs },
+      longPeriod: [{ eventId: "Q1", maxLgInt: "4", revision, hosted: true, expiresAtMs }],
+    })), "utf8");
+    const loaded = new StandbyPersistence(legacyPath).load()!;
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, T0 + 1);
+    expect(restored.snapshotItems()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "longPeriod", severity: "critical" }),
+    ]));
+  });
 });
 
 describe("StandbyStateStore persistence", () => {

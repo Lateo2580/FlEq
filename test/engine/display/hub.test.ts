@@ -398,7 +398,7 @@ describe("InfoDisplayHub: state debounce", () => {
   });
 
   it.each(["unknown", "empty", "qualitative"] as const)(
-    "震度7初報後の明示 %s 続報は map/largeQuakes/severity/震度7背景の旧状態を残さない",
+    "震度7初報後の明示 %s 続報は payload を置換しつつ emergency safety latch を維持する",
     (presence) => {
       const { hub } = makeHub();
       hub.ingest(quakeSequenceEvent("VXSE51", "2026-07-06T21:00:00+09:00", {
@@ -431,10 +431,18 @@ describe("InfoDisplayHub: state debounce", () => {
         areaItems: [],
       }));
       expect(hub.buildSnapshot()).toMatchObject({
-        severityTier: "calm",
-        backgroundTone: "calm",
-        largeQuakes: [],
-        latestQuake: expect.objectContaining({ maxInt: null, intensityGroups: [] }),
+        severityTier: "alert",
+        backgroundTone: "quakeExtreme",
+        largeQuakes: [expect.objectContaining({
+          eventId: "Q-followup",
+          maxInt: "7",
+          maxIntRank: 9,
+        })],
+        latestQuake: expect.objectContaining({
+          maxInt: null,
+          intensityGroups: [],
+          maxIntSemantic: expect.objectContaining({ presence }),
+        }),
       });
       expect(hub.buildSnapshot().mapLayers?.quake?.events ?? []).toEqual([]);
     },
@@ -612,6 +620,140 @@ describe("InfoDisplayHub: state debounce", () => {
     });
     expect(snapshot.mapLayers?.quake?.events[0]).toMatchObject({
       localAreas: [{ code: "441", rank: 5 }],
+    });
+  });
+
+  it("special intensity semantic は snapshot と debounced state の両方へ載る", () => {
+    vi.useFakeTimers();
+    const { hub, transport } = makeHub();
+    const value = {
+      raw: "",
+      value: null,
+      condition: "5弱以上未入電",
+      description: "震度5弱以上",
+      presence: "qualitative" as const,
+      lowerBound: "5-" as const,
+    };
+    hub.ingest(quakeSequenceEvent("VXSE53", "2026-07-06T21:01:00+09:00", {
+      eventId: "Q-semantic",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: value,
+      areaItems: [{ name: "地域A", code: "440", maxIntValue: value }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: value }],
+        municipalities: [],
+      },
+    }));
+
+    expect(hub.buildSnapshot().mapLayers?.quake?.events[0]).toMatchObject({
+      eventKey: "earthquake:Q-semantic",
+      maxIntSemantic: { presence: "qualitative", badge: "≥", safetyRank: 5 },
+      localAreas: [{
+        code: "440",
+        rank: 5,
+        intensitySemantic: { presence: "qualitative", badge: "≥", safetyRank: 5 },
+      }],
+    });
+    vi.advanceTimersByTime(STATE_DEBOUNCE_MS);
+    expect(transport.states()[0]?.snapshot.mapLayers?.quake?.events[0]).toMatchObject({
+      eventKey: "earthquake:Q-semantic",
+      maxIntSemantic: { presence: "qualitative", badge: "≥", safetyRank: 5 },
+    });
+  });
+
+  it("全体 exact 2・地域 exact 4 は同じ採用値で map host を維持する", () => {
+    const { hub } = makeHub();
+    const overall = { raw: "2", value: "2" as const, condition: null, description: null, presence: "value" as const };
+    const local = { raw: "4", value: "4" as const, condition: null, description: null, presence: "value" as const };
+    hub.ingest(quakeSequenceEvent("VXSE53", "2026-07-06T21:01:00+09:00", {
+      eventId: "Q-adopt-local-4",
+      maxInt: "2",
+      maxIntRank: 2,
+      maxIntValue: overall,
+      areaItems: [{ name: "地域A", code: "440", maxInt: "4", maxIntValue: local }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: local }],
+        municipalities: [],
+      },
+    }));
+    expect(hub.buildSnapshot()).toMatchObject({
+      latestQuake: { maxInt: "4", maxIntRank: 4 },
+      largeQuakes: [],
+      mapLayers: {
+        quake: {
+          events: [expect.objectContaining({ maxInt: "4", maxIntRank: 4 })],
+          nonEmergencyHost: { eventKey: "earthquake:Q-adopt-local-4" },
+        },
+      },
+    });
+  });
+
+  it("全体 missing・地域 5弱は同じ採用値で map と largeQuake を維持する", () => {
+    const { hub } = makeHub();
+    const missing = { raw: null, value: null, condition: null, description: null, presence: "missing" as const };
+    const local = { raw: "5-", value: "5-" as const, condition: null, description: null, presence: "value" as const };
+    hub.ingest(quakeSequenceEvent("VXSE53", "2026-07-06T21:01:00+09:00", {
+      eventId: "Q-adopt-local-5",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: missing,
+      areaItems: [{ name: "地域A", code: "440", maxInt: "5弱", maxIntValue: local }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: local }],
+        municipalities: [],
+      },
+    }));
+    expect(hub.buildSnapshot()).toMatchObject({
+      latestQuake: { maxInt: "5弱", maxIntRank: 5 },
+      largeQuakes: [expect.objectContaining({
+        eventId: "Q-adopt-local-5", maxInt: "5弱", maxIntRank: 5,
+      })],
+      mapLayers: {
+        quake: { events: [expect.objectContaining({ maxInt: "5弱", maxIntRank: 5 })] },
+      },
+    });
+  });
+
+  it("bounded range 3〜5弱は下端 gate を通った map の non-emergency host を維持する", () => {
+    const { hub } = makeHub();
+    const range = {
+      raw: "",
+      value: null,
+      condition: null,
+      description: "震度3から5弱",
+      presence: "range" as const,
+      lowerBound: "3" as const,
+      upperBound: "5-" as const,
+    };
+    hub.ingest(quakeSequenceEvent("VXSE53", "2026-07-06T21:01:00+09:00", {
+      eventId: "Q-range-host",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue: range,
+      areaItems: [{ name: "地域A", code: "440", maxIntValue: range }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: range }],
+        municipalities: [],
+      },
+    }));
+
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot.largeQuakes).toEqual([]);
+    expect(snapshot.mapLayers?.quake?.events).toHaveLength(1);
+    expect(snapshot.mapLayers?.quake?.events[0]).toMatchObject({
+      eventKey: "earthquake:Q-range-host",
+      maxInt: "3〜5弱",
+      maxIntRank: 5,
+      maxIntSemantic: {
+        presence: "range",
+        safetyLowerRank: 3,
+        safetyUpperRank: 5,
+        safetyRank: 5,
+      },
+    });
+    expect(snapshot.mapLayers?.quake?.nonEmergencyHost).toMatchObject({
+      eventKey: "earthquake:Q-range-host",
     });
   });
 

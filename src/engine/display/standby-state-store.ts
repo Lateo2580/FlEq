@@ -17,8 +17,10 @@ import type {
   PersistedVolcanoStateV1,
   PersistedWeatherAlertStateV1,
 } from "./standby-persistence";
+import { persistedLongPeriodSafetyRank } from "./standby-persistence";
 import { FloodActiveReducer, type PersistedFloodState } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
+import { resolveQuakeIntensitySafetyRank } from "./project-event";
 import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdates, type VolcanoUpdate } from "./project-standby";
 import {
   NO_MUTATION,
@@ -33,6 +35,10 @@ import { nankaiBadgeAction } from "./nankai-status";
 import { quakeCardTtlMs, shouldReplaceQuakeHost } from "./quake-card-selection";
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "./tornado-group-key";
 import { FLOOD_FORECAST_MAX_SUBJECTS } from "../messages/revision-family-registry";
+import {
+  formatLgIntensitySpecialValue,
+  resolveLgIntensitySafetyRank,
+} from "../presentation/level-helpers";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -107,6 +113,7 @@ interface QuakeHostState {
 interface LongPeriodState {
   eventId: string;
   maxLgInt: string;
+  safetyRank: number | null;
   revision: StandbyRevision;
   appliedSemanticKey?: string;
   hosted: boolean;
@@ -156,6 +163,9 @@ export class StandbyStateStore {
   private readonly durableListeners: Array<() => void> = [];
 
   applyEvent(event: PresentationEvent, nowMs: number): DisplayMutation {
+    if (event.domain === "earthquake" && event.foundationMutationAccepted === false) {
+      return NO_MUTATION;
+    }
     if (
       ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation"].includes(event.domain)
       && event.standbyStateMutationAccepted === false
@@ -411,14 +421,20 @@ export class StandbyStateStore {
       const changed = this.longPeriodByEvent.delete(event.eventId);
       return { viewChanged: changed, durableChanged: true };
     }
-    if (raw.maxLgInt == null) return { viewChanged: false, durableChanged: true };
+    const maxLgIntValue = event.maxLgIntValue ?? raw.maxLgIntValue;
+    if (maxLgIntValue?.presence === "missing") return { viewChanged: false, durableChanged: true };
+    const maxLgIntScalar = event.maxLgInt ?? raw.maxLgInt;
+    const maxLgInt = formatLgIntensitySpecialValue(maxLgIntValue, maxLgIntScalar);
+    if (maxLgInt == null) return { viewChanged: false, durableChanged: true };
+    const safetyRank = resolveLgIntensitySafetyRank(maxLgIntValue, maxLgIntScalar);
     const existing = this.longPeriodByEvent.get(event.eventId);
     const host = this.quakeHost?.eventId === event.eventId && this.quakeHost.expiresAtMs > nowMs
       ? this.quakeHost
       : null;
     this.longPeriodByEvent.set(event.eventId, {
       eventId: event.eventId,
-      maxLgInt: raw.maxLgInt,
+      maxLgInt,
+      safetyRank,
       revision,
       appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined,
       hosted: host != null,
@@ -429,12 +445,24 @@ export class StandbyStateStore {
   }
 
   private applyEarthquakeHost(event: PresentationEvent, nowMs: number): DisplayMutation {
-    if (event.isCancellation || event.eventId == null) return NO_MUTATION;
+    if (event.eventId == null) return NO_MUTATION;
+    if (event.isCancellation) {
+      const hostMatched = this.quakeHost?.eventId === event.eventId;
+      if (hostMatched) this.quakeHost = null;
+      const rider = this.longPeriodByEvent.get(event.eventId);
+      const riderWasHosted = rider?.hosted === true;
+      if (riderWasHosted) this.longPeriodByEvent.delete(event.eventId);
+      return hostMatched || riderWasHosted
+        ? { viewChanged: riderWasHosted, durableChanged: true }
+        : NO_MUTATION;
+    }
     const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
-    const candidate = { eventId: event.eventId, maxIntRank: event.maxIntRank };
+    const safetyRank = resolveQuakeIntensitySafetyRank(event);
+    if (safetyRank == null) return NO_MUTATION;
+    const candidate = { eventId: event.eventId, maxIntRank: safetyRank };
     if (!shouldReplaceQuakeHost(this.quakeHost, candidate, nowMs)) return NO_MUTATION;
-    const expiresAtMs = nowMs + quakeCardTtlMs(event.maxIntRank ?? 0);
-    this.quakeHost = { ...candidate, maxIntRank: candidate.maxIntRank ?? 0, revision, expiresAtMs };
+    const expiresAtMs = nowMs + quakeCardTtlMs(safetyRank);
+    this.quakeHost = { ...candidate, maxIntRank: safetyRank, revision, expiresAtMs };
     let changed = false;
     for (const [eventId, state] of this.longPeriodByEvent) {
       if (eventId !== event.eventId) {
@@ -943,7 +971,8 @@ export class StandbyStateStore {
     for (const state of this.longPeriodByEvent.values()) if (state.hosted) items.push({
       kind: "longPeriod", surface: "quake-rider", key: `longPeriod:${state.eventId}`, sourceEventIds: [state.eventId],
       updatedAt: new Date(state.revision.reportTimeMs).toISOString(), expiresAt: new Date(state.expiresAtMs).toISOString(), restored: state.restored,
-      severity: state.maxLgInt === "4" ? "critical" : "warning", data: { eventId: state.eventId, maxLgInt: state.maxLgInt },
+      severity: (state.safetyRank ?? 0) >= 4 ? "critical" : "warning",
+      data: { eventId: state.eventId, maxLgInt: state.maxLgInt },
     });
     if (this.nankaiTrough != null) items.push({
       kind: "nankaiTrough", surface: "clock-below", key: "nankai:current", sourceEventIds: [this.nankaiTrough.sourceEventId],
@@ -991,7 +1020,7 @@ export class StandbyStateStore {
         expiresAtMs: state.expiresAtMs,
       })),
       tornado: [...this.tornadoByOffice.values()].map((state) => ({ publishingOffice: state.publishingOffice, sourceEventId: state.sourceEventId, areas: [...state.areas], isSighted: state.isSighted, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
-      longPeriod: [...this.longPeriodByEvent.values()].map((state) => ({ eventId: state.eventId, maxLgInt: state.maxLgInt, revision: { ...state.revision }, hosted: state.hosted, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
+      longPeriod: [...this.longPeriodByEvent.values()].map((state) => ({ eventId: state.eventId, maxLgInt: state.maxLgInt, safetyRank: state.safetyRank, revision: { ...state.revision }, hosted: state.hosted, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
       quakeHost: this.quakeHost == null ? null : { ...this.quakeHost, revision: { ...this.quakeHost.revision } },
       nankaiTrough: this.nankaiTrough == null ? null : { sourceEventId: this.nankaiTrough.sourceEventId, statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label, revision: { ...this.nankaiTrough.revision }, expiresAtMs: this.nankaiTrough.expiresAtMs, appliedSemanticKey: this.nankaiTrough.appliedSemanticKey },
       seen: this.revisionGuard.export(),
@@ -1062,6 +1091,7 @@ export class StandbyStateStore {
     if (data.quakeHost != null && data.quakeHost.expiresAtMs > nowMs) this.quakeHost = { ...data.quakeHost, revision: { ...data.quakeHost.revision } };
     for (const state of data.longPeriod ?? []) if (state.expiresAtMs > nowMs) this.longPeriodByEvent.set(state.eventId, {
       ...state,
+      safetyRank: persistedLongPeriodSafetyRank(state),
       hosted: state.hosted && this.quakeHost?.eventId === state.eventId,
       revision: { ...state.revision },
       restored: true,

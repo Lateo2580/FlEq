@@ -83,6 +83,16 @@ export function shouldPreserveVxse51Observation(
     && context.nextIntensityStructureMissing;
 }
 
+/** An explicit non-exact payload replaces the card, but cannot prove that a known safety latch decreased. */
+export function shouldRetainKnownQuakeSafety(
+  value: SpecialValue<JmaIntensity>,
+): boolean {
+  return value.presence === "unknown"
+    || value.presence === "empty"
+    || value.presence === "qualitative"
+    || value.presence === "range" && value.upperBound == null;
+}
+
 export function isQuakeIntensityStructureMissing(
   event: PresentationEvent,
   maxIntValue: SpecialValue<JmaIntensity>,
@@ -201,6 +211,7 @@ export function mergeLatestQuakeObservation(
     ...next,
     maxInt: previous.maxInt,
     maxIntRank: previous.maxIntRank,
+    maxIntSemantic: previous.maxIntSemantic,
     intensityGroups: previous.intensityGroups,
   }, preservedMeta(previous, next));
 }
@@ -217,6 +228,7 @@ export function mergeRecentQuakeObservation(
     ...next,
     maxInt: previous.maxInt,
     maxIntRank: previous.maxIntRank,
+    maxIntSemantic: previous.maxIntSemantic,
     intensityGroups: previous.intensityGroups,
   }, preservedMeta(previous, next));
 }

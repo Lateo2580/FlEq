@@ -21,8 +21,49 @@ export interface DisplaySummaryLineV1 {
   role: DisplayColorRole;
 }
 
+export type DisplaySpecialValuePresenceV1 =
+  | "value"
+  | "missing"
+  | "empty"
+  | "unknown"
+  | "qualitative"
+  | "range";
+
+export type DisplayIntensityBadgeV1 = null | "≥" | "↔" | "?" | "∅";
+
+export type DisplayIntensityColorV1 =
+  | "normalRank"
+  | "safetyRank"
+  | "safetyUpperRank"
+  | "unknown"
+  | "neutral"
+  | "notRendered";
+
+/** V1 additive semantic. Legacy clients keep using the sibling scalar/rank fields. */
+export interface DisplayIntensitySemanticV1 {
+  raw: string | null;
+  presence: DisplaySpecialValuePresenceV1;
+  label: string | null;
+  condition: string | null;
+  description: string | null;
+  lowerBound: string | null;
+  upperBound: string | null;
+  rawLowerBound: string | null;
+  rawUpperBound: string | null;
+  badge: DisplayIntensityBadgeV1;
+  color: DisplayIntensityColorV1;
+  render: boolean;
+  safetyLowerRank: number | null;
+  safetyUpperRank: number | null;
+  /** range=upper??lower, qualitative=lower. Card/severity ordering uses this value. */
+  safetyRank: number | null;
+  /** The rank whose color is used. unknown/empty/missing are null. */
+  colorRank: number | null;
+}
+
 export interface DisplayEewRegionV1 {
   name: string;
+  intensitySemantic?: DisplayIntensitySemanticV1;
   intensity: string;            // 予測震度 (下限)
   intensityTo: string | null;   // 範囲予測の上限 (なければ null)
   isPlum: boolean;
@@ -51,6 +92,7 @@ export interface DisplayEewInputV1 {
   hypocenterName: string | null;
   forecastMaxInt: string | null;
   forecastMaxIntRank: number | null;
+  forecastMaxIntSemantic?: DisplayIntensitySemanticV1;
   magnitude: string | null;
   colorIndex: number | null;
   reportDateTime: string;
@@ -95,6 +137,7 @@ export interface DisplayTsunamiInputV1 {
 export interface DisplayIntensityGroupV1 {
   intensity: string;
   rank: number;
+  intensitySemantic?: DisplayIntensitySemanticV1;
   areas: string[];
   omittedAreaCount: number;   // 追加 (必須)
 }
@@ -103,6 +146,7 @@ export interface DisplayIntensityGroupV1 {
 export interface DisplayIntensityMapValueV1 {
   code: string;
   rank: number;
+  intensitySemantic?: DisplayIntensitySemanticV1;
 }
 
 /** standby-registry の StandbyRevision と同じ wire 表現。 */
@@ -123,6 +167,9 @@ export interface DisplayQuakeIntensityMapEventV1 {
   magnitude: string | null;
   maxInt: string;
   maxIntRank: number;
+  maxIntSemantic?: DisplayIntensitySemanticV1;
+  /** 全体 MaxInt と地域から選んだ表示値が異なる場合の、電文全体値 provenance。 */
+  reportedMaxIntSemantic?: DisplayIntensitySemanticV1;
   tsunamiWarning: boolean;
   intensityGroups: DisplayIntensityGroupV1[];
   localAreas: DisplayIntensityMapValueV1[];
@@ -155,6 +202,7 @@ export interface DisplayLatestQuakeInputV1 {
   magnitude: string | null;
   maxInt: string | null;
   maxIntRank: number | null;
+  maxIntSemantic?: DisplayIntensitySemanticV1;
   tsunamiWarning: boolean;
   intensityGroups: DisplayIntensityGroupV1[];
   reportDateTime: string;
@@ -195,6 +243,7 @@ export interface DisplayLargeQuakeInputV1 {
   magnitude: string | null;
   maxInt: string;
   maxIntRank: number;
+  maxIntSemantic?: DisplayIntensitySemanticV1;
   intensityGroups: DisplayIntensityGroupV1[];
   reportDateTime: string;
   depth: string | null;
@@ -219,6 +268,7 @@ export interface DisplayRecentQuakeV1 {
   magnitude: string | null;
   maxInt: string | null;
   maxIntRank: number | null;
+  maxIntSemantic?: DisplayIntensitySemanticV1;
   depth: string | null;
   tsunamiWarning: boolean;
   /** 各地の震度 (履歴カードのクリック再表示用)。groupIntensityAreas 由来で latestQuake と同構造。

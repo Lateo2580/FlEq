@@ -7,11 +7,14 @@ import * as log from "../../../src/logger";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type {
+  JmaIntensity,
+  JmaLgIntensity,
   ParsedFloodForecastInfo,
   ParsedHeatAlertInfo,
   ParsedLgObservationInfo,
   ParsedTyphoonAnalysis,
   ParsedVolcanoInfo,
+  SpecialValue,
 } from "../../../src/types";
 import {
   createMockWsDataMessage,
@@ -80,7 +83,12 @@ function heatEvent(over: Partial<PresentationEvent> = {}, rawOver: Partial<Parse
   };
 }
 
-function quakeHostEvent(eventId: string, maxIntRank: number, timeMs: number): PresentationEvent {
+function quakeHostEvent(
+  eventId: string,
+  maxIntRank: number | null,
+  timeMs: number,
+  over: Partial<PresentationEvent> = {},
+): PresentationEvent {
   return heatEvent({
     id: `quake-${eventId}-${timeMs}`,
     domain: "earthquake",
@@ -88,11 +96,17 @@ function quakeHostEvent(eventId: string, maxIntRank: number, timeMs: number): Pr
     maxIntRank,
     reportDateTime: new Date(timeMs).toISOString(),
     raw: null,
+    ...over,
   });
 }
 
-function longPeriodEvent(eventId: string, timeMs: number): PresentationEvent {
+function longPeriodEvent(
+  eventId: string,
+  timeMs: number,
+  over: { maxLgInt?: string | null; maxLgIntValue?: SpecialValue<JmaLgIntensity> } = {},
+): PresentationEvent {
   const reportDateTime = new Date(timeMs).toISOString();
+  const maxLgInt = over.maxLgInt === undefined ? "3" : over.maxLgInt;
   const raw: ParsedLgObservationInfo = {
     meta: testTelegramMeta(false),
     type: "VXSE62",
@@ -101,7 +115,8 @@ function longPeriodEvent(eventId: string, timeMs: number): PresentationEvent {
     reportDateTime,
     headline: null,
     publishingOffice: "気象庁",
-    maxLgInt: "3",
+    ...(maxLgInt == null ? {} : { maxLgInt }),
+    ...(over.maxLgIntValue == null ? {} : { maxLgIntValue: over.maxLgIntValue }),
     areas: [],
     isTest: false,
   };
@@ -111,6 +126,8 @@ function longPeriodEvent(eventId: string, timeMs: number): PresentationEvent {
     type: raw.type,
     eventId,
     reportDateTime,
+    maxLgInt,
+    ...(over.maxLgIntValue == null ? {} : { maxLgIntValue: over.maxLgIntValue }),
     raw,
   });
 }
@@ -145,6 +162,143 @@ describe("StandbyStateStore: earthquake host", () => {
     expect(store.exportActiveState().quakeHost).toMatchObject({ eventId: "Q1", maxIntRank: 5 });
     expect(store.snapshotItems()).toEqual([
       expect.objectContaining({ kind: "longPeriod", data: { eventId: "Q1", maxLgInt: "3" } }),
+    ]);
+  });
+
+  it("5弱以上未入電を safety rank 5 の host として保持し、弱い別地震へ明け渡さない", () => {
+    const qualitative: SpecialValue<JmaIntensity> = {
+      raw: "5弱以上未入電", value: null, condition: "5弱以上未入電",
+      description: null, presence: "qualitative", lowerBound: "5-",
+    };
+    const store = new StandbyStateStore();
+    expect(store.applyEvent(quakeHostEvent("Q1", null, T0, {
+      maxInt: null,
+      maxIntValue: qualitative,
+    }), T0).durableChanged).toBe(true);
+    expect(store.applyEvent(longPeriodEvent("Q1", T0 + 1), T0 + 1).viewChanged).toBe(true);
+    expect(store.applyEvent(quakeHostEvent("Q2", 2, T0 + 60_000), T0 + 60_000))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().quakeHost).toMatchObject({ eventId: "Q1", maxIntRank: 5 });
+  });
+
+  it("overall missingでも採用した地域震度7をstandby hostとTTLへ使う", () => {
+    const missing: SpecialValue<JmaIntensity> = {
+      raw: null, value: null, condition: null, description: null, presence: "missing",
+    };
+    const local: SpecialValue<JmaIntensity> = {
+      raw: "7", value: "7", condition: null, description: null, presence: "value",
+    };
+    const store = new StandbyStateStore();
+    expect(store.applyEvent(quakeHostEvent("Q-local-7", null, T0, {
+      maxInt: null,
+      maxIntValue: missing,
+      areaItems: [{ name: "地域A", code: "440", maxInt: "7", maxIntValue: local }],
+      quakeIntensityValues: {
+        localAreas: [{ name: "地域A", code: "440", maxIntValue: local }],
+        municipalities: [],
+      },
+    }), T0)).toEqual({ viewChanged: false, durableChanged: true });
+    expect(store.exportActiveState().quakeHost).toMatchObject({
+      eventId: "Q-local-7",
+      maxIntRank: 9,
+      expiresAtMs: T0 + 30 * 60_000,
+    });
+  });
+
+  it("explicit unknown does not fall back to a stale legacy rank for standby host", () => {
+    const store = new StandbyStateStore();
+    expect(store.applyEvent(quakeHostEvent("Q-unknown", 9, T0, {
+      maxInt: null,
+      maxIntValue: {
+        raw: "未入電",
+        value: null,
+        condition: "未入電",
+        description: null,
+        presence: "unknown",
+      },
+    }), T0)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().quakeHost).toBeNull();
+  });
+
+  it("earthquake cancellation clears its standby host and hosted long-period rider", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(quakeHostEvent("Q-cancel", 5, T0), T0);
+    store.applyEvent(longPeriodEvent("Q-cancel", T0 + 1), T0 + 1);
+    expect(store.snapshotItems()).toHaveLength(1);
+
+    const cancelledAt = T0 + 60_000;
+    expect(store.applyEvent(quakeHostEvent("Q-cancel", null, cancelledAt, {
+      isCancellation: true,
+      infoType: "取消",
+      foundationMutationAccepted: true,
+    }), cancelledAt)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(store.exportActiveState().quakeHost).toBeNull();
+    expect(store.exportActiveState().longPeriod).toEqual([]);
+    expect(store.snapshotItems()).toEqual([]);
+  });
+
+  it("foundation-rejected earthquake cancellation cannot clear standby state", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(quakeHostEvent("Q-rejected-cancel", 5, T0), T0);
+    store.applyEvent(longPeriodEvent("Q-rejected-cancel", T0 + 1), T0 + 1);
+
+    const cancelledAt = T0 + 60_000;
+    expect(store.applyEvent(quakeHostEvent("Q-rejected-cancel", null, cancelledAt, {
+      isCancellation: true,
+      infoType: "取消",
+      foundationMutationAccepted: false,
+    }), cancelledAt)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.exportActiveState().quakeHost).toMatchObject({
+      eventId: "Q-rejected-cancel",
+      maxIntRank: 5,
+    });
+    expect(store.exportActiveState().longPeriod).toEqual([
+      expect.objectContaining({ eventId: "Q-rejected-cancel", hosted: true }),
+    ]);
+    expect(store.snapshotItems()).toHaveLength(1);
+  });
+
+  it.each([
+    ["range", {
+      raw: "", value: null, condition: null, description: "階級2から4",
+      presence: "range", lowerBound: "2", upperBound: "4",
+    }, "2〜4"],
+    ["qualitative", {
+      raw: "", value: null, condition: null, description: null,
+      presence: "qualitative", lowerBound: "4",
+    }, "4以上"],
+  ] as const)("長周期 %s 続報で rider の label・safety severity・永続状態を更新する", (
+    _case,
+    maxLgIntValue,
+    label,
+  ) => {
+    const store = new StandbyStateStore();
+    store.applyEvent(quakeHostEvent("Q1", 5, T0), T0);
+    store.applyEvent(longPeriodEvent("Q1", T0 + 1), T0 + 1);
+    store.applyEvent(longPeriodEvent("Q1", T0 + 2, {
+      maxLgInt: null,
+      maxLgIntValue: maxLgIntValue as SpecialValue<JmaLgIntensity>,
+    }), T0 + 2);
+    expect(store.snapshotItems()).toEqual([
+      expect.objectContaining({
+        kind: "longPeriod",
+        severity: "critical",
+        data: { eventId: "Q1", maxLgInt: label },
+      }),
+    ]);
+    expect(store.exportActiveState().longPeriod?.[0]).toMatchObject({
+      maxLgInt: label,
+      safetyRank: 4,
+    });
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(store.exportActiveState(), T0 + 3);
+    expect(restored.snapshotItems()).toEqual([
+      expect.objectContaining({
+        kind: "longPeriod",
+        severity: "critical",
+        data: { eventId: "Q1", maxLgInt: label },
+      }),
     ]);
   });
 });

@@ -3,7 +3,15 @@ import path from "node:path";
 import * as log from "../../logger";
 import { intensityToRank } from "../../utils/intensity";
 import type { JmaIntensity, SpecialValue, SpecialValueDiagnostic } from "../../types";
-import type { DisplayIntensityGroupV1, DisplayRecentQuakeV1 } from "../display/types";
+import type {
+  DisplayIntensityGroupV1,
+  DisplayIntensitySemanticV1,
+  DisplayRecentQuakeV1,
+} from "../display/types";
+import {
+  isProjectedIntensitySemantic,
+  projectIntensitySemantic,
+} from "../display/intensity-groups";
 import {
   hasResolvedQuakeCancellation,
   quakeObservationMetaOf,
@@ -99,6 +107,13 @@ function serializeState(state: DailyQuakePersistedV1): unknown {
     ...state,
     recentQuakes: state.recentQuakes.map((quake) => ({
       ...quake,
+      intensityGroups: quake.intensityGroups?.map((group) => ({
+        ...group,
+        ...(group.intensitySemantic == null
+          ? {}
+          : { intensitySemantic: { ...group.intensitySemantic } }),
+        areas: [...group.areas],
+      })),
       observation: quakeObservationMetaOf(quake) ?? legacyObservationMeta(quake),
     })),
   };
@@ -153,6 +168,13 @@ function parseRecentQuake(
   if (!times.every((time) => Number.isFinite(Date.parse(time)) && Date.parse(time) <= nowMs)) return null;
   const intensityGroups = value.intensityGroups == null ? undefined : parseIntensityGroups(value.intensityGroups);
   if (value.intensityGroups != null && intensityGroups == null) return null;
+  const hasMaxIntSemantic = Object.hasOwn(value, "maxIntSemantic");
+  const persistedMaxIntSemantic = !hasMaxIntSemantic
+    ? undefined
+    : value.maxIntSemantic == null
+      ? null
+      : parseIntensitySemantic(value.maxIntSemantic);
+  if (hasMaxIntSemantic && persistedMaxIntSemantic == null) return null;
   let quake: DisplayRecentQuakeV1 = {
     eventId: value.eventId as string | null,
     reportDateTime: value.reportDateTime,
@@ -175,9 +197,19 @@ function parseRecentQuake(
   ) {
     quake = { ...quake, maxInt: null, maxIntRank: null };
   }
-  return observation == null || !observationMatchesScalar(quake, observation)
-    ? null
-    : withQuakeObservationMeta(quake, observation);
+  if (observation == null || !observationMatchesScalar(quake, observation)) return null;
+  const projectedSemantic = projectIntensitySemantic(observation.maxIntValue, quake.maxInt);
+  if (projectedSemantic == null) return null;
+  const expectedMaxIntSemantic = projectedSemantic.presence === "value"
+    ? undefined
+    : projectedSemantic;
+  if (
+    persistedMaxIntSemantic != null
+    && (expectedMaxIntSemantic == null
+      || !sameIntensitySemantic(persistedMaxIntSemantic, expectedMaxIntSemantic))
+  ) return null;
+  if (expectedMaxIntSemantic != null) quake = { ...quake, maxIntSemantic: expectedMaxIntSemantic };
+  return withQuakeObservationMeta(quake, observation);
 }
 
 const CANONICAL_INTENSITIES = new Set<JmaIntensity>([
@@ -411,12 +443,103 @@ function parseIntensityGroups(value: unknown): DisplayIntensityGroupV1[] | null 
   if (!Array.isArray(value)) return null;
   const result: DisplayIntensityGroupV1[] = [];
   for (const group of value) {
-    if (!isRecord(group) || typeof group.intensity !== "string" || !isNonNegativeSafeInteger(group.rank) ||
+    if (!isRecord(group) || typeof group.intensity !== "string" || !isDisplayIntensityRank(group.rank) ||
         !Array.isArray(group.areas) || !group.areas.every((area): area is string => typeof area === "string") ||
         !isNonNegativeSafeInteger(group.omittedAreaCount)) return null;
-    result.push({ intensity: group.intensity, rank: group.rank, areas: [...group.areas], omittedAreaCount: group.omittedAreaCount });
+    const hasIntensitySemantic = Object.hasOwn(group, "intensitySemantic");
+    const intensitySemantic = !hasIntensitySemantic
+      ? undefined
+      : group.intensitySemantic == null
+        ? null
+        : parseIntensitySemantic(group.intensitySemantic);
+    if (hasIntensitySemantic && intensitySemantic == null) return null;
+    if (
+      intensitySemantic == null
+        ? group.rank < 0
+        : !intensitySemantic.render
+          || intensitySemantic.presence === "missing"
+          || intensitySemantic.label !== group.intensity
+          || group.rank !== (intensitySemantic.colorRank ?? -1)
+    ) return null;
+    result.push({
+      intensity: group.intensity,
+      rank: group.rank,
+      ...(intensitySemantic == null ? {} : { intensitySemantic }),
+      areas: [...group.areas],
+      omittedAreaCount: group.omittedAreaCount,
+    });
   }
   return result;
+}
+
+const SPECIAL_VALUE_PRESENCES = new Set([
+  "value", "missing", "empty", "unknown", "qualitative", "range",
+]);
+const INTENSITY_BADGES = new Set([null, "≥", "↔", "?", "∅"]);
+const INTENSITY_COLORS = new Set([
+  "normalRank", "safetyRank", "safetyUpperRank", "unknown", "neutral", "notRendered",
+]);
+
+function parseIntensitySemantic(value: unknown): DisplayIntensitySemanticV1 | null {
+  if (!isRecord(value)) return null;
+  const required = [
+    "raw", "presence", "label", "condition", "description", "lowerBound", "upperBound",
+    "rawLowerBound", "rawUpperBound", "badge", "color", "render", "safetyLowerRank",
+    "safetyUpperRank", "safetyRank", "colorRank",
+  ];
+  if (!required.every((key) => Object.hasOwn(value, key))) return null;
+  if (
+    !isNullableString(value.raw)
+    || typeof value.presence !== "string" || !SPECIAL_VALUE_PRESENCES.has(value.presence)
+    || !isNullableString(value.label)
+    || !isNullableString(value.condition)
+    || !isNullableString(value.description)
+    || !isNullableString(value.lowerBound)
+    || !isNullableString(value.upperBound)
+    || !isNullableString(value.rawLowerBound)
+    || !isNullableString(value.rawUpperBound)
+    || !INTENSITY_BADGES.has(value.badge as string | null)
+    || typeof value.color !== "string" || !INTENSITY_COLORS.has(value.color)
+    || typeof value.render !== "boolean"
+    || !isNullableIntensityRank(value.safetyLowerRank)
+    || !isNullableIntensityRank(value.safetyUpperRank)
+    || !isNullableIntensityRank(value.safetyRank)
+    || !isNullableIntensityRank(value.colorRank)
+  ) return null;
+  const parsed: DisplayIntensitySemanticV1 = {
+    raw: value.raw as string | null,
+    presence: value.presence as DisplayIntensitySemanticV1["presence"],
+    label: value.label as string | null,
+    condition: value.condition as string | null,
+    description: value.description as string | null,
+    lowerBound: value.lowerBound as string | null,
+    upperBound: value.upperBound as string | null,
+    rawLowerBound: value.rawLowerBound as string | null,
+    rawUpperBound: value.rawUpperBound as string | null,
+    badge: value.badge as DisplayIntensitySemanticV1["badge"],
+    color: value.color as DisplayIntensitySemanticV1["color"],
+    render: value.render,
+    safetyLowerRank: value.safetyLowerRank as number | null,
+    safetyUpperRank: value.safetyUpperRank as number | null,
+    safetyRank: value.safetyRank as number | null,
+    colorRank: value.colorRank as number | null,
+  };
+  return isProjectedIntensitySemantic(parsed) ? parsed : null;
+}
+
+function sameIntensitySemantic(
+  left: DisplayIntensitySemanticV1,
+  right: DisplayIntensitySemanticV1,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function isDisplayIntensityRank(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= -1 && value <= 9;
+}
+
+function isNullableIntensityRank(value: unknown): value is number | null {
+  return value == null || typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 9;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
