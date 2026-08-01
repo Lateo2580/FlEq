@@ -289,8 +289,15 @@ describe("telegram foundation Phase 1 shadow", () => {
       const shadow = extractSpecialValue(domain, node);
       const legacy = legacyRuntimeProjection(domain, presence, evidence);
 
-      expect(shadow.presence, `${domain}.${presence}: ${evidence.selector}`)
-        .toSatisfy((actual: string) => expected!.states.includes(actual as FiveStatePresence));
+      const sameCanonicalBounds = (domain === "Intensity" || domain === "LgInt")
+        && expected!.children?.From != null
+        && expected!.children.From === expected!.children.To;
+      if (sameCanonicalBounds) {
+        expect(shadow.presence, `${domain}.${presence}: ${evidence.selector}`).toBe("value");
+      } else {
+        expect(shadow.presence, `${domain}.${presence}: ${evidence.selector}`)
+          .toSatisfy((actual: string) => expected!.states.includes(actual as FiveStatePresence));
+      }
       expect(shadow.raw).toBe(expected!.exists ? expected!.raw ?? "" : null);
       if (expected!.attributes?.condition != null) {
         expect(shadow.condition).toBe(expected!.attributes.condition);

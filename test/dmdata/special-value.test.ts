@@ -3,6 +3,127 @@ import { extractSpecialValue } from "../../src/dmdata/special-value";
 import { createJmxShadowXmlParser } from "../../src/dmdata/xml-shape";
 
 describe("extractSpecialValue", () => {
+  it.each([
+    ["value", { "#text": "4" }, { raw: "4", value: "4", presence: "value" }],
+    ["missing", undefined, { raw: null, value: null, presence: "missing" }],
+    ["empty", {}, { raw: "", value: null, presence: "empty" }],
+    ["unknown", { "@_condition": "未入電" }, { value: null, condition: "未入電", presence: "unknown" }],
+    ["qualitative", { "@_condition": "5弱以上未入電" }, { value: null, condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }],
+    ["range", { From: "3", To: "4" }, { value: null, presence: "range", lowerBound: "3", upperBound: "4" }],
+  ] as const)("Intensity の %s を共通契約へ分類する", (_label, node, expected) => {
+    expect(extractSpecialValue("Intensity", node)).toMatchObject(expected);
+  });
+
+  it("未知 Condition と valid 本文が矛盾しても本文を value として保持する", () => {
+    expect(extractSpecialValue("Intensity", {
+      "#text": "4",
+      "@_condition": "5弱以上未入電ではない",
+    })).toEqual({
+      raw: "4",
+      value: "4",
+      condition: "5弱以上未入電ではない",
+      description: null,
+      presence: "value",
+    });
+  });
+
+  it("未知 Condition があっても Description の範囲 qualifier を保持する", () => {
+    expect(extractSpecialValue("Intensity", {
+      "#text": "4",
+      "@_condition": "新しい未知語",
+      "@_description": "震度4以上",
+    })).toEqual({
+      raw: "4",
+      value: null,
+      condition: "新しい未知語",
+      description: "震度4以上",
+      presence: "range",
+      lowerBound: "4",
+      upperBound: null,
+    });
+  });
+
+  it("Intensity の同値 From/To を raw bounds 付き exact value に畳む", () => {
+    expect(extractSpecialValue("Intensity", { From: "4", To: "4" })).toEqual({
+      raw: "",
+      value: "4",
+      condition: null,
+      description: null,
+      presence: "value",
+      rawLowerBound: "4",
+      rawUpperBound: "4",
+    });
+  });
+
+  it("Intensity の非 canonical To を raw のまま保持する", () => {
+    expect(extractSpecialValue("Intensity", { From: "5-", To: "over" })).toEqual({
+      raw: "",
+      value: null,
+      condition: null,
+      description: null,
+      presence: "range",
+      lowerBound: "5-",
+      upperBound: null,
+      rawLowerBound: "5-",
+      rawUpperBound: "over",
+    });
+  });
+
+  it.each([
+    ["unknown Condition", "新しい未知語", null, { value: "3", presence: "value" }],
+    ["negated known term", "未入電ではない", null, { value: "3", presence: "value" }],
+    ["Description range", "新しい未知語", "長周期地震動階級3以上", {
+      value: null,
+      presence: "range",
+      lowerBound: "3",
+      upperBound: null,
+    }],
+  ] as const)("LgInt の %s を完全一致規約で分類する", (_label, condition, description, expected) => {
+    expect(extractSpecialValue("LgInt", {
+      "#text": "3",
+      "@_condition": condition,
+      ...(description == null ? {} : { "@_description": description }),
+    })).toMatchObject({
+      condition,
+      description,
+      ...expected,
+    });
+  });
+
+  it.each([
+    ["Intensity value", "Intensity", { "#text": "４" }, {
+      raw: "４",
+      value: "4",
+      presence: "value",
+    }],
+    ["LgInt value", "LgInt", { "#text": "３" }, {
+      raw: "３",
+      value: "3",
+      presence: "value",
+    }],
+    ["Intensity range", "Intensity", { From: "３", To: "４" }, {
+      value: null,
+      presence: "range",
+      lowerBound: "3",
+      upperBound: "4",
+      rawLowerBound: "３",
+      rawUpperBound: "４",
+    }],
+  ] as const)("全角 canonical: %s", (_label, domain, node, expected) => {
+    expect(extractSpecialValue(domain, node)).toMatchObject(expected);
+  });
+
+  it.each([
+    ["value", { "#text": "3" }, { value: "3", presence: "value" }],
+    ["missing", undefined, { raw: null, value: null, presence: "missing" }],
+    ["empty", {}, { raw: "", value: null, presence: "empty" }],
+    ["unknown", { "@_condition": "未入電" }, { value: null, condition: "未入電", presence: "unknown" }],
+    ["qualitative", { "#text": "解析保留" }, { value: null, raw: "解析保留", presence: "qualitative" }],
+    ["range", { From: "1", To: "3" }, { value: null, presence: "range", lowerBound: "1", upperBound: "3" }],
+  ] as const)("LgInt の %s を共通契約へ分類する", (_label, node, expected) => {
+    expect(extractSpecialValue("LgInt", node)).toMatchObject(expected);
+  });
+
   it("missing と empty を別結果にする", () => {
     expect(extractSpecialValue("Magnitude", undefined)).toEqual({
       raw: null,
@@ -81,6 +202,8 @@ describe("extractSpecialValue", () => {
       presence: "range",
       lowerBound: "3",
       upperBound: "4",
+      rawLowerBound: "3",
+      rawUpperBound: "4",
     });
   });
 

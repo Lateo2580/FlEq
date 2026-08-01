@@ -1,4 +1,8 @@
-import type { SpecialValue } from "../types";
+import type {
+  JmaIntensity,
+  JmaLgIntensity,
+  SpecialValue,
+} from "../types";
 
 export type SpecialValueDomain =
   | "Magnitude"
@@ -86,7 +90,7 @@ function parseNumber(raw: string): number | null {
 }
 
 function parseIntensity(raw: string, domain: "Intensity" | "LgInt"): string | null {
-  const normalized = raw.trim();
+  const normalized = normalizeNumberSource(raw);
   const pattern = domain === "Intensity"
     ? /^(?:0|1|2|3|4|5-|5\+|6-|6\+|7)$/
     : /^(?:0|1|2|3|4)$/;
@@ -105,6 +109,20 @@ function includesAny(value: string | null, terms: readonly string[]): boolean {
 
 function includesInBodyOrCondition(parts: NodeParts, pattern: RegExp): boolean {
   return pattern.test(parts.raw) || pattern.test(parts.condition ?? "");
+}
+
+function normalizeSpecialTerm(value: string | null): string | null {
+  return value == null ? null : value.normalize("NFKC").trim();
+}
+
+function matchesAnySpecialTerm(value: string | null, terms: readonly string[]): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  return normalized != null && terms.includes(normalized);
+}
+
+function matchesInBodyOrCondition(parts: NodeParts, terms: readonly string[]): boolean {
+  return matchesAnySpecialTerm(parts.raw, terms)
+    || matchesAnySpecialTerm(parts.condition, terms);
 }
 
 function specialPresence(
@@ -133,12 +151,8 @@ function specialPresence(
       ) return "unknown";
       return includesInBodyOrCondition(parts, /ごく浅い/) ? "qualitative" : null;
     case "Intensity":
-      if (includesInBodyOrCondition(parts, /5弱以上未入電/)) return "qualitative";
-      if (
-        includesInBodyOrCondition(parts, /未入電/)
-        || includesAny(parts.raw, UNKNOWN_TERMS)
-        || includesAny(parts.condition, UNKNOWN_TERMS)
-      ) return "unknown";
+      if (matchesInBodyOrCondition(parts, ["5弱以上未入電"])) return "qualitative";
+      if (matchesInBodyOrCondition(parts, UNKNOWN_TERMS)) return "unknown";
       return null;
     case "TsunamiHeight":
       // 高さの定性 description は NaN/不明 condition より表示上の意味が具体的。
@@ -154,7 +168,7 @@ function specialPresence(
       ) return "unknown";
       return null;
     case "LgInt":
-      return includesInBodyOrCondition(parts, /未入電|不明|不詳/)
+      return matchesInBodyOrCondition(parts, ["未入電", "不明", "不詳"])
         ? "unknown"
         : null;
     case "Pressure":
@@ -189,10 +203,21 @@ function specialPresence(
   }
 }
 
-function rangeDirection(parts: NodeParts): "lower" | "upper" | null {
-  const candidates = [parts.condition, parts.description];
-  if (candidates.some((value) => includesAny(value, RANGE_LOWER_TERMS))) return "lower";
-  if (candidates.some((value) => includesAny(value, RANGE_UPPER_TERMS))) return "upper";
+function rangeDirection(
+  domain: SpecialValueDomain,
+  parts: NodeParts,
+): "lower" | "upper" | null {
+  const conditionMatches = domain === "Intensity" || domain === "LgInt"
+    ? matchesAnySpecialTerm
+    : includesAny;
+  if (
+    conditionMatches(parts.condition, RANGE_LOWER_TERMS)
+    || includesAny(parts.description, RANGE_LOWER_TERMS)
+  ) return "lower";
+  if (
+    conditionMatches(parts.condition, RANGE_UPPER_TERMS)
+    || includesAny(parts.description, RANGE_UPPER_TERMS)
+  ) return "upper";
   return null;
 }
 
@@ -213,6 +238,22 @@ function baseResult(parts: NodeParts): Pick<
  * `undefined` だけを要素欠落とし、self-closing、空文字、空白のみはすべて
  * 「存在する要素」として raw を変更せず保持する。
  */
+export function extractSpecialValue(
+  domain: "Intensity",
+  node: unknown,
+): SpecialValue<JmaIntensity>;
+export function extractSpecialValue(
+  domain: "LgInt",
+  node: unknown,
+): SpecialValue<JmaLgIntensity>;
+export function extractSpecialValue(
+  domain: NumericSpecialValueDomain,
+  node: unknown,
+): SpecialValue<number>;
+export function extractSpecialValue(
+  domain: SpecialValueDomain,
+  node: unknown,
+): ExtractedSpecialValue;
 export function extractSpecialValue(
   domain: SpecialValueDomain,
   node: unknown,
@@ -235,6 +276,21 @@ export function extractSpecialValue(
   const upperBound = parts.upperRaw == null
     ? null
     : parseDomainValue(domain, parts.upperRaw);
+  const hasBoundElements = parts.lowerRaw != null || parts.upperRaw != null;
+
+  if (
+    lowerBound != null
+    && upperBound != null
+    && lowerBound === upperBound
+  ) {
+    return {
+      ...common,
+      value: lowerBound,
+      presence: "value",
+      rawLowerBound: parts.lowerRaw,
+      rawUpperBound: parts.upperRaw,
+    };
+  }
 
   if (lowerBound != null || upperBound != null) {
     return {
@@ -243,6 +299,18 @@ export function extractSpecialValue(
       presence: "range",
       lowerBound,
       upperBound,
+      rawLowerBound: parts.lowerRaw,
+      rawUpperBound: parts.upperRaw,
+    };
+  }
+
+  if (hasBoundElements) {
+    return {
+      ...common,
+      value: null,
+      presence: "qualitative",
+      rawLowerBound: parts.lowerRaw,
+      rawUpperBound: parts.upperRaw,
     };
   }
 
@@ -256,14 +324,11 @@ export function extractSpecialValue(
 
   const special = specialPresence(domain, parts);
   if (special === "qualitative") {
-    const intensityLower = domain === "Intensity"
-      && [parts.raw, parts.condition, parts.description]
-        .some((value) => value?.includes("5弱以上未入電"));
     return {
       ...common,
       value: null,
       presence: "qualitative",
-      ...(intensityLower ? { lowerBound: "5-" } : {}),
+      ...(domain === "Intensity" ? { lowerBound: "5-" } : {}),
     };
   }
 
@@ -271,7 +336,7 @@ export function extractSpecialValue(
     return { ...common, value: null, presence: "unknown" };
   }
 
-  const direction = rangeDirection(parts);
+  const direction = rangeDirection(domain, parts);
   if (direction != null && parsedValue != null) {
     return {
       ...common,
@@ -280,6 +345,11 @@ export function extractSpecialValue(
       lowerBound: direction === "lower" ? parsedValue : null,
       upperBound: direction === "upper" ? parsedValue : null,
     };
+  }
+
+  if (domain === "Intensity" && parsedValue != null && parts.condition != null) {
+    // 未知 Condition から値の無効化を推定せず、valid 本文を保持する。
+    return { ...common, value: parsedValue, presence: "value" };
   }
 
   if (parts.raw.trim() === "") {

@@ -28,7 +28,55 @@ export interface SpecialValue<T> {
   presence: SpecialValuePresence;
   lowerBound?: T | null;
   upperBound?: T | null;
+  /** From 要素の未加工本文。canonical 変換に失敗した qualifier も保持する。 */
+  rawLowerBound?: string | null;
+  /** To 要素の未加工本文。`over` 等の非 canonical qualifier も保持する。 */
+  rawUpperBound?: string | null;
 }
+
+/** JMAXML が使用する震度階級の canonical value。 */
+export type JmaIntensity = "0" | "1" | "2" | "3" | "4" | "5-" | "5+" | "6-" | "6+" | "7";
+
+/** JMAXML が使用する長周期地震動階級の canonical value。 */
+export type JmaLgIntensity = "0" | "1" | "2" | "3" | "4";
+
+/**
+ * 震度の安全側評価。unknown を数値 rank に混ぜない。
+ * lower は確実に満たす rank、upper=null は上限を確定できないことを表す。
+ */
+export type IntensitySafetyRank =
+  | {
+      kind: "known";
+      lower: number;
+      upper: number | null;
+    }
+  | {
+      kind: "unknown";
+    };
+
+/** 長周期地震動階級 0〜4 専用の安全側評価。 */
+export type LgIntensityRank = 0 | 1 | 2 | 3 | 4;
+
+export type LgIntensitySafetyRank =
+  | {
+      kind: "known";
+      lower: LgIntensityRank;
+      upper: LgIntensityRank | null;
+    }
+  | {
+      kind: "unknown";
+    };
+
+export type SpecialValueBadge = null | "≥" | "↔" | "?" | "∅";
+
+/** map／card が raw を再解析せず利用する特殊値の表示 semantic。 */
+export type SpecialValueDisplaySemantic =
+  | { kind: "exact"; color: "normalRank"; badge: null; render: true }
+  | { kind: "lowerBound"; color: "safetyRank"; badge: "≥"; render: true }
+  | { kind: "range"; color: "safetyUpperRank"; badge: "↔"; render: true }
+  | { kind: "unknown"; color: "unknown"; badge: "?"; render: true }
+  | { kind: "empty"; color: "neutral"; badge: "∅"; render: true }
+  | { kind: "missing"; color: "notRendered"; badge: null; render: false };
 
 export interface StrictTextMeta {
   raw: string | null;
