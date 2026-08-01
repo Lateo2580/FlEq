@@ -323,7 +323,7 @@ describe("telegram foundation Phase 0 contract", () => {
         "heatAlert|heatAlert|clearCurrent|StandbyStateStore",
         "typhoonAnalysis|typhoonAnalysis|clearCurrent|StandbyStateStore",
         "typhoonProbability|typhoonProbability|clearCurrent|TyphoonProbabilityStateHolder",
-        "floodForecast|floodForecast|clearCurrent|FloodForecastStateHolder,FloodActiveReducer,StandbyStateStore",
+        "floodForecast|floodForecast|clearCurrent|FloodForecastStateHolder,StandbyStateStore",
         "raw|raw|markCancelled|",
       ]
     `);
@@ -380,7 +380,6 @@ describe("telegram foundation Phase 0 contract", () => {
         "DailyQuakeCounter",
         "DisplayStateStore",
         "EewTracker",
-        "FloodActiveReducer",
         "FloodForecastStateHolder",
         "PresentationDiffStore",
         "QuakeExtremeStore",

@@ -47,7 +47,7 @@ function flood(timeMs = T0): PresentationEvent {
     measurement: "water_level", measurementUnit: "m", rawUnit: "m", series: [],
     criteria: { L1: null, L2: null, L3: null, L4: null, L4Plan: null, unit: "m", rawUnit: "m" },
   }));
-  return event({ id: "flood-1", domain: "floodForecast", eventId: "flood-1", serial: "1", reportDateTime: iso(timeMs), raw: {
+  return event({ id: "flood-1", domain: "floodForecast", eventId: "flood-1", serial: "1", reportDateTime: iso(timeMs), floodStateMutationAccepted: true, floodActiveEventIds: ["flood-1"], raw: {
     schema: "vxko50", infoType: "発表", serial: 1, eventId: "flood-1", publishingOffice: "気象庁", rawStations: rivers,
     headlines: rivers.map((river: { primaryRiverCode: string; primaryRiverName: string }) => ({ scope: "河川", kindCode: "30", kindName: "氾濫警戒情報", areas: [{ name: river.primaryRiverName, code: river.primaryRiverCode }] })),
   } });

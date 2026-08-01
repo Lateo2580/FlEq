@@ -73,38 +73,42 @@ describe("FloodActiveReducer", () => {
     expect(reducer.snapshotCard()?.data.rivers).toHaveLength(3);
   });
 
-  it("observeOnly records the revision without changing view or extending TTL", () => {
+  it("observeOnly records its applied revision without changing the view or extending TTL", () => {
     const reducer = new FloodActiveReducer();
     reducer.apply(replace("event-a", T0, "1", [river("a")]), T0);
     const before = reducer.snapshotCard();
     expect(reducer.apply(observeOnly("event-a", T0 + HOUR, "2"), T0 + HOUR))
       .toEqual({ viewChanged: false, durableChanged: true });
     expect(reducer.snapshotCard()).toEqual(before);
+    expect(reducer.exportState().events[0]?.appliedRevision).toEqual({
+      reportTimeMs: T0 + HOUR,
+      serial: "2",
+    });
     expect(reducer.sweep(T0 + 12 * HOUR)).toEqual({ viewChanged: true, durableChanged: true });
     expect(reducer.snapshotCard()).toBeNull();
   });
 
-  it("keeps a cancel tombstone, but accepts a newer rollback report", () => {
+  it("applies already-authorized cancel and replacement mutations", () => {
     const reducer = new FloodActiveReducer();
     reducer.apply(replace("event-a", T0, "1", [river("a")]), T0);
     expect(reducer.apply(cancel("event-a", T0 + HOUR, "2"), T0 + HOUR))
       .toEqual({ viewChanged: true, durableChanged: true });
     expect(reducer.snapshotCard()).toBeNull();
     expect(reducer.apply(replace("event-a", T0, "1", [river("a")]), T0 + HOUR + 1))
-      .toEqual({ viewChanged: false, durableChanged: false });
+      .toEqual({ viewChanged: true, durableChanged: true });
     expect(reducer.apply(replace("event-a", T0 + 2 * HOUR, "3", [river("a", "L4", T0 + 2 * HOUR)]), T0 + 2 * HOUR))
       .toEqual({ viewChanged: true, durableChanged: true });
     expect(reducer.snapshotCard()?.data.rivers[0]?.level).toBe("L4");
   });
 
-  it("keeps a tombstone after replace with zero active rivers", () => {
+  it("removes projection after replace with zero active rivers", () => {
     const reducer = new FloodActiveReducer();
     reducer.apply(replace("event-a", T0, "1", [river("a")]), T0);
     reducer.apply(replace("event-a", T0 + HOUR, "2", []), T0 + HOUR);
     expect(reducer.snapshotCard()).toBeNull();
     expect(reducer.apply(replace("event-a", T0, "1", [river("a")]), T0 + HOUR + 1))
-      .toEqual({ viewChanged: false, durableChanged: false });
-    expect(reducer.snapshotCard()).toBeNull();
+      .toEqual({ viewChanged: true, durableChanged: true });
+    expect(reducer.snapshotCard()).not.toBeNull();
   });
 
   it("expires each EventID 12 hours after its report time", () => {
@@ -114,18 +118,17 @@ describe("FloodActiveReducer", () => {
     expect(reducer.sweep(T0 + 12 * HOUR)).toEqual({ viewChanged: true, durableChanged: true });
   });
 
-  it("round-trips active events and seen revisions, marking restored cards", () => {
+  it("round-trips active projection while common gate owns seen revisions", () => {
     const reducer = new FloodActiveReducer();
     reducer.apply(replace("event-a", T0, "1", [river("a")]), T0);
     reducer.apply(cancel("event-b", T0 + HOUR, "2"), T0 + HOUR);
     const saved = reducer.exportState();
+    expect(saved.seen).toEqual([]);
 
     const restored = new FloodActiveReducer();
     restored.restoreState(saved, T0 + 2 * HOUR);
     expect(restored.snapshotCard()).toEqual(expect.objectContaining({ restored: true }));
     expect(restored.apply(replace("event-a", T0, "1", [river("a")]), T0 + 2 * HOUR))
-      .toEqual({ viewChanged: false, durableChanged: false });
-    expect(restored.apply(replace("event-b", T0, "1", [river("b")]), T0 + 2 * HOUR))
-      .toEqual({ viewChanged: false, durableChanged: false });
+      .toEqual({ viewChanged: true, durableChanged: true });
   });
 });

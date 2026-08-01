@@ -31,6 +31,9 @@ import {
   activeLegacyEruptionIdentitySeeds,
   VolcanoStateHolder,
 } from "../messages/volcano-state";
+import { FloodForecastStateHolder } from "../messages/flood-forecast-state";
+import { FLOOD_FORECAST_RETENTION_MS } from "../messages/revision-family-registry";
+import { sweepFloodForecastFoundation } from "../messages/flood-forecast-lifecycle";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -57,10 +60,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const vpww56State = new Vpww56StateHolder();
   const tsunamiState = new TsunamiStateHolder();
   const volcanoState = new VolcanoStateHolder();
+  const floodForecastState = new FloodForecastStateHolder();
   const revisionGate = new TelegramRevisionGate();
   let vpws50FoundationAuthoritative = true;
   let vpww56FoundationAuthoritative = true;
   let volcanoFoundationAuthoritative = true;
+  let floodFoundationAuthoritative = true;
   const standbyPersistence = new StandbyPersistence(
     join(process.cwd(), "data", "runtime", "display-active-state-v1.json"),
     undefined,
@@ -95,6 +100,13 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
           entry.domain === "volcano"
           && (entry.revisionFamily === "volcanoAlert"
             || entry.revisionFamily === "volcanoEruption")),
+      },
+      floodForecast: {
+        authoritative: floodFoundationAuthoritative,
+        active: standbyStore.exportActiveState().floods?.events ?? [],
+        legacyEventIds: standbyStore.floodLegacyEventIds(),
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "floodForecast" && entry.revisionFamily === "floodForecast"),
       },
     }),
   );
@@ -142,6 +154,22 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
         restoredAtMs,
       ),
     );
+    const persistedFlood = persistedStandby.telegramFoundation.floodForecast;
+    floodFoundationAuthoritative = persistedFlood.authoritative;
+    revisionGate.restoreDurableEntries(persistedFlood.gateEntries);
+    revisionGate.expireRevisionFamily(
+      "floodForecast",
+      "floodForecast",
+      restoredAtMs,
+      FLOOD_FORECAST_RETENTION_MS,
+    );
+    if (persistedFlood.authoritative) {
+      standbyStore.restoreCanonicalFloods(
+        persistedFlood.active,
+        restoredAtMs,
+        persistedFlood.legacyEventIds ?? [],
+      );
+    }
     if (persistedVpws50.authoritative) {
       const identity = vpws50State.getCurrentIdentity();
       standbyStore.restoreCanonicalVpws50Alerts(
@@ -225,11 +253,29 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   }
 
   let standbySweepTimer: NodeJS.Timeout | null = null;
+  function sweepStandbyFoundation(nowMs: number) {
+    const standbyMutation = standbyStore.sweep(nowMs);
+    const floodMutation = sweepFloodForecastFoundation(
+      revisionGate,
+      floodForecastState,
+      standbyStore,
+      nowMs,
+    );
+    if (floodMutation.foundationChanged) {
+      standbyPersistence.schedule(standbyStore.exportActiveState());
+    }
+    return {
+      viewChanged: standbyMutation.viewChanged || floodMutation.viewChanged,
+      durableChanged: standbyMutation.durableChanged || floodMutation.durableChanged
+        || floodMutation.foundationChanged,
+    };
+  }
+
   function startStandbySweep(): void {
     if (standbySweepTimer != null) return;
     standbySweepTimer = setInterval(() => {
       const nowMs = Date.now();
-      standbyStore.sweep(nowMs);
+      sweepStandbyFoundation(nowMs);
       quakeExtremeStore.sweep(nowMs);
     }, 60_000);
     standbySweepTimer.unref();
@@ -297,6 +343,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     vpww56State,
     tsunamiState,
     volcanoState,
+    floodForecastState,
     revisionGate,
     onVpws50RevisionDecision: (decision) => {
       if (decision.accepted) vpws50FoundationAuthoritative = true;
@@ -310,6 +357,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     onVolcanoRevisionDecision: (decision) => {
       if (!decision.accepted) return;
       volcanoFoundationAuthoritative = true;
+      standbyPersistence.schedule(standbyStore.exportActiveState());
+    },
+    onFloodRevisionDecision: (decision) => {
+      if (!decision.accepted) return;
+      floodFoundationAuthoritative = true;
       standbyPersistence.schedule(standbyStore.exportActiveState());
     },
   });
@@ -340,7 +392,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       quakeExtreme: () => quakeExtremeStore,
       recentQuakes: () => dailyQuakeCounter.getRecentQuakes(),
       stats: () => buildDisplayStats(),
-      standbySweep: (nowMs) => standbyStore.sweep(nowMs),
+      standbySweep: sweepStandbyFoundation,
       standbyTickerGroupKeys: () => standbyStore.activeTickerGroupKeys(),
     },
     getRuntime: () => displayRuntime,

@@ -1,5 +1,8 @@
 import type { WsDataMessage } from "../../../types";
-import type { FloodForecastOutcome } from "../types";
+import type {
+  FloodForecastOutcome,
+  SuppressibleProcessResult,
+} from "../types";
 import type { ProcessDeps } from "./process-message";
 import { parseFloodForecast } from "../../../dmdata/flood-forecast-parser";
 import { resolveFloodForecastLevels } from "../level-helpers";
@@ -7,77 +10,141 @@ import {
   buildStationDigests,
   type FloodForecastDiff,
 } from "../../messages/flood-forecast-state";
+import {
+  FLOOD_FORECAST_RETENTION_MS,
+  floodForecastHasUnderstoodStations,
+  floodForecastRevisionFamilyPolicy,
+} from "../../messages/revision-family-registry";
+import {
+  semanticPayloadFingerprint,
+  telegramRevisionSemanticKey,
+  type TelegramRevisionGateInput,
+} from "../../messages/telegram-revision-gate";
+
+export type FloodForecastProcessResult = SuppressibleProcessResult<FloodForecastOutcome>;
 
 /**
- * 指定河川洪水予報 (VXKO50-89 / VXSU50-59) を処理し FloodForecastOutcome を返す。
- * パース失敗時は null (process-message.ts の switch が processRaw fallback を呼ぶ)。
- *
- * dedup bypass / state holder の役割分担 (spec §8.1):
- *   - 取消 (info.infoType === "取消"):
- *       state.rollback(eventId) のみ呼び、suppressNotify=false (取消通知は必ず出す)
- *   - VXKO 通常発表 (schema="vxko50" && infoType !== "訂正" && rawStations.length > 0):
- *       state.diffAndUpdate を呼び、!diff.hasChange なら suppressNotify=true
- *   - 訂正 (infoType === "訂正"):
- *       dedup bypass。毎回通知 (内容更新の周知)
- *   - Headline-only (rawStations.length === 0):
- *       dedup bypass。state は更新しない (station 情報がないため)
- *   - VXSU (schema === "vxsu50"):
- *       dedup bypass。Phase 1 では VXSU station dedup は実装せず毎回通知 (将来課題)
+ * Flood forecast processing after the common semantic revision gate.
+ * VXSU reports intentionally skip station digest state, while all schemas share
+ * the EventID lifecycle watermark and cancellation tombstone.
  */
 export function processFloodForecast(
   msg: WsDataMessage,
-  deps: Pick<ProcessDeps, "floodForecastState">,
-): FloodForecastOutcome | null {
+  deps: Pick<
+    ProcessDeps,
+    "floodForecastState" | "revisionGate" | "onRevisionDecision" | "onFloodRevisionDecision"
+  >,
+  nowMs: number = Date.now(),
+): FloodForecastProcessResult {
   const info = parseFloodForecast(msg);
-  if (info == null) return null;
+  if (info == null) return { kind: "parse-failed" };
+
+  const policy = floodForecastRevisionFamilyPolicy(msg.head.type);
+  if (policy == null) return { kind: "parse-failed" };
+  deps.revisionGate.expireRevisionFamily(
+    policy.domain,
+    policy.revisionFamily,
+    nowMs,
+    FLOOD_FORECAST_RETENTION_MS,
+  );
+
+  const extractedSubject = policy.extractStateSubjectKey(info.meta, info);
+  const subject = typeof extractedSubject === "string" ? extractedSubject : null;
+  const cancellationTargets = info.meta.infoType.value === "取消"
+    ? policy.extractCancellationTarget(info.meta, info)
+    : null;
+  const { meta: _meta, isTest: _isTest, ...semanticPayload } = info;
+  const payloadFingerprint = semanticPayloadFingerprint(semanticPayload);
+  const gateInput: TelegramRevisionGateInput = {
+    domain: policy.domain,
+    revisionFamily: policy.revisionFamily,
+    stateSubjectKey: subject,
+    transientSubjectKey: subject == null ? `flood:${msg.id}` : null,
+    meta: info.meta,
+    comparator: policy.comparator,
+    cancellationPolicy: policy.cancellationPolicy,
+    terminal: policy.terminalPredicate(info.meta, info),
+    deactivation: policy.deactivationPredicate(info.meta, info),
+    cancellationTargetMatches: cancellationTargets == null || subject == null
+      ? info.meta.infoType.value !== "取消"
+      : cancellationTargets.includes(subject),
+    durable: policy.durable,
+    tombstoneRetentionMs: policy.tombstoneRetentionMs,
+    maxSubjects: policy.maxSubjects,
+    retainForFamilyCapacity: false,
+    allowMissingSerial: policy.allowMissingSerial,
+    payloadFingerprint,
+    legacyRevisionKey: subject == null ? null : info.eventId,
+    legacyRevisionKeyProvenance: subject == null ? null : "eventId",
+  };
+  const evaluation = deps.revisionGate.evaluate(gateInput);
+  if (!evaluation.accepted) {
+    deps.onRevisionDecision?.(evaluation);
+    return { kind: "suppressed" };
+  }
+  const decision = deps.revisionGate.decide(gateInput);
+  deps.onRevisionDecision?.(decision);
+  if (!decision.accepted) return { kind: "suppressed" };
 
   const { frameLevel, soundLevel, maxLevel, maxRank } =
     resolveFloodForecastLevels(info);
-
   let suppressNotify = false;
   let diff: FloodForecastDiff | null = null;
 
-  if (info.infoType === "取消") {
-    // 取消: state を巻き戻し、通知は必ず出す (suppressNotify=false 据置)
+  if (subject == null) {
+    // Incomplete identity is display/ticker-only and never authoritative.
+    suppressNotify = true;
+  } else if (decision.kind === "clearCurrent") {
     deps.floodForecastState.rollback(info.eventId);
   } else if (
-    info.schema === "vxko50" &&
-    info.infoType !== "訂正" &&
-    info.rawStations.length > 0
+    info.schema === "vxko50"
+    && info.infoType !== "訂正"
+    && info.rawStations.length > 0
+    && floodForecastHasUnderstoodStations(info)
   ) {
-    // VXKO 通常発表のみ dedup を効かせる
-    const digests = buildStationDigests(info);
     diff = deps.floodForecastState.diffAndUpdate(
       info.eventId,
-      digests,
+      buildStationDigests(info),
       info.reportDateTime,
+      nowMs,
     );
-    if (!diff.hasChange) {
-      suppressNotify = true;
-    }
-  } else {
-    // 訂正 / Headline-only / VXSU は dedup bypass (suppressNotify=false 据置)。
-    // ただし EventID は活動中なので履歴の TTL だけ延ばす。これを怠ると、
-    // dedup 対象外の続報が長く続いた出水で履歴が期限切れになり、
-    // 内容が変わっていないのに全観測点が "new" に戻る。
-    deps.floodForecastState.touch(info.eventId);
+    suppressNotify = !diff.hasChange;
+  } else if (info.schema === "vxko50") {
+    // Correction and headline-only reports bypass station digest dedup.
+    deps.floodForecastState.touch(info.eventId, nowMs);
   }
 
+  const activeSubjects = deps.revisionGate.activeRevisionFamilySubjects(
+    policy.domain,
+    policy.revisionFamily,
+  );
+  const activeEventIds = activeSubjects.flatMap((key) =>
+    key.startsWith("flood:event:") ? [key.slice("flood:event:".length)] : []);
+  deps.floodForecastState.retainActiveEventIds(activeEventIds);
+  if (subject != null) deps.onFloodRevisionDecision?.(decision);
+
   return {
-    domain: "floodForecast",
-    msg,
-    headType: msg.head.type,
-    statsCategory: "floodForecast",
-    parsed: info,
-    diff,
-    maxLevel,
-    maxRank,
-    stats: { shouldRecord: true, eventId: info.eventId },
-    presentation: {
-      frameLevel,
-      soundLevel,
-      notifyCategory: "floodForecast",
-      suppressNotify,
+    kind: "ok",
+    outcome: {
+      domain: "floodForecast",
+      msg,
+      headType: msg.head.type,
+      statsCategory: "floodForecast",
+      parsed: info,
+      diff,
+      maxLevel,
+      maxRank,
+      stats: { shouldRecord: true, eventId: info.eventId },
+      presentation: {
+        frameLevel,
+        soundLevel,
+        notifyCategory: "floodForecast",
+        suppressNotify,
+        acceptedCorrection: decision.isCorrection,
+        floodStateMutationAccepted: subject != null,
+        floodActiveEventIds: activeEventIds,
+        floodAppliedSemanticKey: telegramRevisionSemanticKey(gateInput),
+      },
     },
   };
 }

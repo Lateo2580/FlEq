@@ -692,7 +692,7 @@ export const CANCELLATION_CHARACTERIZATION = {
   floodForecast: [{
     family: "floodForecast", headTypes: ["VXKO50-89", "VXSU50-59"],
     currentBehavior: "EventID 単位の active history と display state を削除",
-    targetPolicy: "clearCurrent", stateOwners: ["FloodForecastStateHolder", "FloodActiveReducer", "StandbyStateStore"],
+    targetPolicy: "clearCurrent", stateOwners: ["FloodForecastStateHolder", "StandbyStateStore"],
   }],
   raw: [{
     family: "raw", headTypes: ["*"],
@@ -705,7 +705,6 @@ export const STATE_HOLDER_CHARACTERIZATION = [
   { owner: "DailyQuakeCounter", sourceFile: "src/engine/messages/daily-quake-counter.ts", domains: ["earthquake"], cancellationRole: "recent/daily earthquake observation state" },
   { owner: "DisplayStateStore", sourceFile: "src/engine/display/state-store.ts", domains: ["eew", "earthquake", "tsunami"], cancellationRole: "emergency state and tsunami observation/level state" },
   { owner: "EewTracker", sourceFile: "src/engine/eew/eew-tracker.ts", domains: ["eew"], cancellationRole: "mark cancelled event" },
-  { owner: "FloodActiveReducer", sourceFile: "src/engine/display/flood-active-reducer.ts", domains: ["floodForecast"], cancellationRole: "EventID active state and tombstone" },
   { owner: "FloodForecastStateHolder", sourceFile: "src/engine/messages/flood-forecast-state.ts", domains: ["floodForecast"], cancellationRole: "EventID history rollback/clear" },
   { owner: "PresentationDiffStore", sourceFile: "src/engine/presentation/diff-store.ts", domains: ["*"], cancellationRole: "presentation diff baseline; no durable cancellation ownership" },
   { owner: "QuakeExtremeStore", sourceFile: "src/engine/display/quake-extreme-store.ts", domains: ["earthquake"], cancellationRole: "extreme background lifecycle" },
@@ -1002,7 +1001,7 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     sources: [
       {
         sourceFile: "src/engine/presentation/processors/process-flood-forecast.ts",
-        needles: ['if (info.infoType === "取消") {', "deps.floodForecastState.rollback(info.eventId);"],
+        needles: ['decision.kind === "clearCurrent"', "deps.floodForecastState.rollback(info.eventId);"],
       },
       {
         sourceFile: "src/engine/messages/flood-forecast-state.ts",
@@ -1011,8 +1010,8 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
     ],
   },
   {
-    domain: "floodForecast", family: "floodForecast", owner: "FloodActiveReducer",
-    behavior: "cancel update で EventID active state を削除し tombstone を維持",
+    domain: "floodForecast", family: "floodForecast", owner: "StandbyStateStore",
+    behavior: "common gate 受理済み cancel update で EventID active projection を削除",
     sources: [{
       sourceFile: "src/engine/display/flood-active-reducer.ts",
       needles: ['update.mode === "cancel"', "this.events.delete(update.eventId);"],

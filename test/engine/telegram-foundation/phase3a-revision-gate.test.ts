@@ -8,6 +8,7 @@ import {
 } from "../../../src/engine/messages/telegram-revision-gate";
 import { TelegramTransportDeduplicator } from "../../../src/engine/messages/telegram-transport-dedup";
 import {
+  ALL_REVISION_FAMILY_POLICIES,
   EEW_REVISION_FAMILY_POLICIES,
 } from "../../../src/engine/messages/revision-family-registry";
 
@@ -41,6 +42,7 @@ function decide(
     infoType?: string;
     payload?: string;
     reportDateTime?: string;
+    durable?: boolean;
   },
 ) {
   return gate.decide({
@@ -51,6 +53,9 @@ function decide(
     comparator: "serialOnly",
     cancellationPolicy: "markCancelled",
     terminal: false,
+    durable: input.durable === true,
+    tombstoneRetentionMs: input.durable === true ? null : undefined,
+    maxSubjects: input.durable === true ? 1 : undefined,
     payloadFingerprint: input.payload ?? "payload",
   });
 }
@@ -540,5 +545,83 @@ describe("Phase 3A EEW revision gate", () => {
     expect(capacityError).toHaveBeenCalledWith(expect.stringContaining(
       "indefinite tombstones exceed maxSubjects: synthetic:BROKEN-INDEFINITE (2/1)",
     ));
+  });
+});
+
+describe("Phase 3B clearCurrent cancellation latch", () => {
+  const affectedPolicies = ALL_REVISION_FAMILY_POLICIES.filter((policy) =>
+    policy.cancellationPolicy === "clearCurrent"
+    && (
+      policy.domain === "tsunami"
+      || policy.domain === "tsunamiObservation"
+      || policy.domain === "weather" && policy.revisionFamily === "VPWW56"
+      || policy.domain === "volcano"
+      || policy.domain === "floodForecast"
+    ));
+
+  it.each(affectedPolicies.map((policy) => [
+    `${policy.domain}:${policy.revisionFamily}`,
+    policy,
+  ] as const))("%s rejects an equal-revision correction after cancellation, including restart", (_label, policy) => {
+    const gate = new TelegramRevisionGate();
+    const receivedAtMs = Date.now();
+    const input = (infoType: "発表" | "訂正" | "取消", serial: string, payload: string) => ({
+      domain: policy.domain,
+      revisionFamily: policy.revisionFamily,
+      stateSubjectKey: `${policy.domain}:test-subject`,
+      meta: createTelegramMeta({
+        messageId: `${policy.domain}-${infoType}-${payload}`,
+        eventId: "event-1",
+        type: policy.headTypes[0]!,
+        reportDateTime: "2026-07-31T12:00:00+09:00",
+        serial,
+        infoType,
+        receivedAtMs,
+        status: "通常",
+        isTest: false,
+      }),
+      comparator: policy.comparator,
+      cancellationPolicy: policy.cancellationPolicy,
+      terminal: false,
+      cancellationTargetMatches: true,
+      durable: true,
+      tombstoneRetentionMs: policy.tombstoneRetentionMs,
+      maxSubjects: policy.maxSubjects,
+      allowMissingSerial: policy.allowMissingSerial,
+      payloadFingerprint: semanticPayloadFingerprint(payload),
+    });
+    expect(gate.decide(input("発表", "1", "active")).accepted).toBe(true);
+    expect(gate.decide(input("取消", "2", "cancel")).kind).toBe("clearCurrent");
+    expect(gate.decide(input("訂正", "2", "late-correction"))).toMatchObject({
+      kind: "stale",
+      accepted: false,
+    });
+
+    const restarted = new TelegramRevisionGate();
+    restarted.restoreDurableEntries(gate.exportDurableEntries());
+    expect(restarted.decide(input("訂正", "2", "restart-correction"))).toMatchObject({
+      kind: "stale",
+      accepted: false,
+    });
+  });
+
+  it("keeps markCancelled correction reactivation for EEW", () => {
+    const gate = new TelegramRevisionGate();
+    expect(decide(gate, { messageId: "active", serial: "1", payload: "active", durable: true }).accepted).toBe(true);
+    expect(decide(gate, {
+      messageId: "cancel",
+      serial: "2",
+      infoType: "取消",
+      payload: "cancel",
+      durable: true,
+    }).kind).toBe("markCancelled");
+    expect(decide(gate, {
+      messageId: "correction",
+      serial: "2",
+      infoType: "訂正",
+      payload: "corrected-active",
+      durable: true,
+    })).toMatchObject({ kind: "replaceCorrection", accepted: true });
+    expect(gate.exportDurableEntries()[0]?.cancelled).toBe(false);
   });
 });

@@ -75,6 +75,7 @@ describe("StandbyPersistence", () => {
         vpww56: { authoritative: false, state: null, gateEntries: [] },
         tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
         volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+        floodForecast: { authoritative: false, active: [], gateEntries: [] },
       },
     }));
   });
@@ -197,8 +198,8 @@ describe("StandbyPersistence", () => {
         riverKey: "river-old", riverName: "古い川", level: "L4", levelRank: 40,
         kindName: "氾濫危険情報", reportDateTime: new Date(T0).toISOString(),
       }],
-    }, T0 + 60_000)).toEqual({ viewChanged: false, durableChanged: false });
-    expect(reducer.snapshotCard()).toBeNull();
+    }, T0 + 60_000)).toEqual({ viewChanged: true, durableChanged: true });
+    expect(reducer.snapshotCard()).not.toBeNull();
   });
 
   it("代表観測所 station 込みで round-trip し、壊れた station は洪水 domain だけ破棄する", () => {
@@ -495,7 +496,11 @@ describe("StandbyStateStore persistence", () => {
       maxLevel: "unknown",
       maxRank: -1,
       stats: { shouldRecord: true, eventId: parsed.eventId },
-      presentation: { frameLevel: "info" },
+      presentation: {
+        frameLevel: "info",
+        floodStateMutationAccepted: true,
+        floodActiveEventIds: [parsed.eventId],
+      },
     };
     const event = {
       ...fromFloodForecastOutcome(outcome),
@@ -577,6 +582,7 @@ describe("StandbyStateStore persistence", () => {
         vpww56: { authoritative: false, state: null, gateEntries: [] },
         tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
         volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
+        floodForecast: { authoritative: false, active: [], gateEntries: [] },
       },
     }));
 

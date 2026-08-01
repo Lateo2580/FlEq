@@ -178,7 +178,9 @@ export function compactPersistedSemanticKeys(keys: readonly string[]): string[] 
   return newestFirst.reverse();
 }
 
-function semanticKey(input: TelegramRevisionGateInput): string {
+export function telegramRevisionSemanticKey(
+  input: Pick<TelegramRevisionGateInput, "meta" | "payloadFingerprint">,
+): string {
   return `${input.meta.infoType.value}:${input.payloadFingerprint}`;
 }
 
@@ -335,7 +337,7 @@ export class TelegramRevisionGate {
       && (stored.durable || input.meta.receivedAtMs - stored.acceptedAtMs <= REVISION_GATE_RETENTION_MS)
       ? stored
       : undefined;
-    const nextSemanticKey = semanticKey(input);
+    const nextSemanticKey = telegramRevisionSemanticKey(input);
 
     const cancellationTriggered = infoType.value === "取消"
       || input.terminal
@@ -385,6 +387,15 @@ export class TelegramRevisionGate {
     }
 
     if (relation === "equal") {
+      // clearCurrent tombstones start a new lifecycle only at a newer revision.
+      // Unlike EEW markCancelled, an equal-revision correction cannot reactivate them.
+      if (
+        input.cancellationPolicy === "clearCurrent"
+        && existing.cancelled
+        && !cancellationTriggered
+      ) {
+        return reject("stale", relation);
+      }
       if (infoType.value === "発表") {
         if (input.fragmentMerge !== true) return reject("duplicate", relation);
         // clearCurrent 後の同一 revision fragment で取消済み系列を復活させない。
@@ -496,7 +507,7 @@ export class TelegramRevisionGate {
         && input.meta.receivedAtMs - existing.acceptedAtMs > REVISION_GATE_RETENTION_MS)
     ) return false;
     const keys = [...existing.semanticKeys];
-    return keys[keys.length - 1] === semanticKey(input);
+    return keys[keys.length - 1] === telegramRevisionSemanticKey(input);
   }
 
   private touchState(key: string, state: AcceptedRevisionState): void {
@@ -559,6 +570,24 @@ export class TelegramRevisionGate {
     for (const key of this.states.keys()) {
       if (key.startsWith(prefix) && !retainedKeys.has(key)) this.states.delete(key);
     }
+  }
+
+  /** Finite-lifecycle domain の active watermark と tombstone を同じ期限で退場させる。 */
+  expireRevisionFamily(
+    domain: string,
+    revisionFamily: string,
+    nowMs: number,
+    retentionMs: number,
+  ): boolean {
+    const prefix = `${domain}:${revisionFamily}:`;
+    let changed = false;
+    for (const [key, state] of this.states) {
+      if (key.startsWith(prefix) && nowMs - state.acceptedAtMs > retentionMs) {
+        this.states.delete(key);
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   /** rollback key と由来を失わず更新する domain adapter 用参照。 */

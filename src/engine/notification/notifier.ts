@@ -992,9 +992,12 @@ export class Notifier {
 
     const body = headline === "" ? stationLabel : `${stationLabel}: ${headline}`;
 
+    const correction = parsed.infoType === "訂正";
     this.send(
-      `${NOTIFY_CATEGORY_LABELS.floodForecast} ${parsed.headTitle}`,
-      body,
+      correction
+        ? `[訂正] ${NOTIFY_CATEGORY_LABELS.floodForecast} ${parsed.headTitle}`
+        : `${NOTIFY_CATEGORY_LABELS.floodForecast} ${parsed.headTitle}`,
+      correction ? `訂正: ${body}` : body,
       "floodForecast",
       soundLevelOverride ?? "warning",
     );

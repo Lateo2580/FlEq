@@ -37,7 +37,7 @@ paths:
 15. `telegram.weather` + `VPFT50` → 熱中症警戒アラート (環境省・気象庁共同の暑さ指数 (ＷＢＧＴ) ベース注意喚起。Body は平文のみ)
 16. `telegram.weather` + `VPTW60`/`VPTW61`/`VPTW62` → 台風解析・予報情報 (台風の実況解析・推定・5日予報。VPTW60/61/62 は同一スキーマで 1 parser。通知は一律 normal)
 17. `telegram.weather` + `VPTA50` → 台風の暴風域に入る確率 (375地域×5日積算 + 40step時系列、府県集約・targetRows=24・連続ゼロdedup)
-18. `telegram.weather` + `VXKO50-89`/`VXSU50-59` → 指定河川洪水予報・水位周知河川 (parser は schema 分岐で同一型に正規化、formatter は VXKO full / VXSU minimal の 2 layout。state holder は EventID 単位 station digest dedup + 取消 rollback、processor は 4 ケース dedup bypass: 取消 (rollback のみ) / 訂正 / Headline-only (rawStations 空) / VXSU schema。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す。aggregateByRiver は formatter 内呼出 (engine→ui 境界遵守))
+18. `telegram.weather` + `VXKO50-89`/`VXSU50-59` → 指定河川洪水予報・水位周知河川 (parser は schema 分岐で同一型に正規化、formatter は VXKO full / VXSU minimal の 2 layout。Phase 3B 以降、EventID lifecycle・revision・取消 tombstone は共通 `TelegramRevisionGate` の `clearCurrent` が所有する。state holder は VXKO の EventID 単位 station digest dedup のみを持ち、取消 / 訂正 / Headline-only / VXSU は digest dedup を bypass する。EventID 欠落は ticker/CLI 表示だけを許す fail-open で、standby・通知・durable state は変更しない。v1 / pre-flood-v2 の表示 EventID は正規報受理か期限切れまで別集合で保全する。observeOnly は内容 revision を維持したまま numeric serial を持つ `appliedRevision` を gate と意味的一致させ、かつ内容 revision がそれ以下であることを要求して、通常報による未適用の revision 遅行と区別する。aggregateByRiver は formatter 内呼出 (engine→ui 境界遵守))
 19. それ以外 → `displayRawHeader` (フォールバック)
 
 **特記**: VFVO53 は単発処理ではなく `volcano-vfvo53-aggregator.ts` でバッチ集約される。CLI 表示・通知はバッチ 1 イベントのまま、**display テロップだけは投影段で火山ごとの単発相当イベントに分割**される（`expandVolcanoBatchForDisplay`、groupKey は `volcano:eventId:volcanoCode` で単発取消と系列一致。source msg 欠落時は分割せず縮退）。
@@ -187,7 +187,7 @@ ProcessOutcome → toPresentationEvent() → PresentationDiffStore.apply()
   - **dedup bypass 4 ケース** (processor 側で判定、`state.diffAndUpdate` を呼ばない): 取消電文 (rollback のみ) / 訂正電文 / Headline-only (rawStations 空) / VXSU schema (`schema === "vxsu50"`)。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す (`isNewEvent: true` で初回扱い)
   - **未知 Kind.Code 受信時**: frame=info に倒し、`logger.warn` で警告ログのみ (parser は null を返さない)
   - **VXSU50 (水位周知河川)**: 内部 schema 分岐 (`schema === "vxsu50"`)。observed series を持たないため state holder への登録はスキップ (processor 側で early return)、formatter は `displayVxsuMinimal` の最小 layout (Headline kindName + headlineText + footer のみ)
-  - **取消後の自動再復帰**: 取消電文を受けたら `state.rollback(eventId)` でスナップショット削除 → 直後に同一 EventID の新規発表で `diffAndUpdate` が初回扱い (`isNewEvent: true`) として正しく動く
+  - **取消後の再受理**: 取消電文を受けたら `state.rollback(eventId)` で station digest を削除し、共通 gate の tombstone は保持する。同一 revision の遅延報は拒否し、より新しい revision の再発表だけを新 lifecycle として受理する
   - 詳細: `設計メモ 2026-06-14-flood-water-level-design.md` §6 (frame/sound マッピング) / §10 (dedup) / §11 (engine→ui 境界)。Stage 14 後アーカイブ予定
 
 ## テスト

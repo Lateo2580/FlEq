@@ -832,6 +832,8 @@ describe("StandbyStateStore: flood", () => {
       serial: String(issued.serial),
       reportDateTime: issued.reportDateTime,
       infoType: issued.infoType,
+      floodStateMutationAccepted: true,
+      floodActiveEventIds: [issued.eventId],
       raw: issued,
     });
     const release = {
@@ -847,6 +849,8 @@ describe("StandbyStateStore: flood", () => {
       serial: String(release.serial),
       reportDateTime: release.reportDateTime,
       infoType: release.infoType,
+      floodStateMutationAccepted: true,
+      floodActiveEventIds: [],
       raw: release,
     });
     const store = new StandbyStateStore();
@@ -881,6 +885,7 @@ describe("StandbyStateStore: flood", () => {
     const presentation = heatEvent({
       id: "flood-message", domain: "floodForecast", type: "VXKO50", infoType: "発表", title: raw.headTitle,
       reportDateTime: raw.reportDateTime, eventId: raw.eventId, serial: "1", raw,
+      floodStateMutationAccepted: true, floodActiveEventIds: [raw.eventId],
     });
     const store = new StandbyStateStore();
 

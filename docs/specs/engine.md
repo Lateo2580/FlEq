@@ -1472,7 +1472,7 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcan
 
 ### 概要
 
-指定河川洪水予報 (VXKO50-89) / 水位周知河川に関する情報 (VXSU50-59) の状態を保持し、station 単位の dedup と差分 reasons 抽出を行うモジュール。`EventID` をキーとして各 EventID のスナップショット (station digests / headline / mainItemCode / mainText) を Map で管理する。
+指定河川洪水予報 (VXKO50-89) / 水位周知河川に関する情報 (VXSU50-59) の station 単位 dedup と差分 reasons 抽出を行うモジュール。Phase 3B 以降、EventID の revision watermark・取消 tombstone・遅延報拒否は共通 `TelegramRevisionGate` が所有し、この holder は受理済み VXKO の station digest だけを管理する。VXSU は observed series を持たないため holder へ登録しない。
 
 VXSU50 (水位周知河川) は内部スキーマで分岐し、state holder への登録はスキップする (parser が `schema === "vxsu50"` を返し、processor 側で early return)。
 
@@ -1507,15 +1507,15 @@ class FloodForecastStateHolder {
 
 #### `rollback(eventId)`
 
-取消電文を受信したとき、対象 EventID のスナップショットを削除する。直後に同一 EventID で新規発表が来た場合、`diffAndUpdate` で正しく初回扱い (`["new"]`) となる。
+共通 gate が受理した取消電文について、対象 EventID の station digest を削除する。取消 tombstone は gate 側に残るため、同一 revision の遅延発表は再受理しない。より新しい revision の再発表を gate が受理した場合だけ、`diffAndUpdate` では新 lifecycle の初回 (`["new"]`) となる。
 
-#### 取消・訂正・Headline-only・新規 EventID の bypass
+#### 取消・訂正・Headline-only・VXSU の bypass
 
 `processFloodForecast` 側で 4 ケースを判定して `diffAndUpdate` を呼ばずに bypass する (state を書き換えずに presentation だけ出す):
 - 取消電文 (`infoType === "取消"`)
 - 訂正電文 (`infoType` に「訂正」を含む)
 - Headline-only (Body 空、Headline のみ)
-- 新規 EventID (state holder に未登録)
+- VXSU schema (`schema === "vxsu50"`、observed series なし)
 
 ### 依存関係
 
@@ -1527,7 +1527,9 @@ class FloodForecastStateHolder {
 
 - `Vpws50StateHolder` の rich diff と異なり、本クラスは station digest ベースの単純 dedup のみ (rank 系の昇格判定は行わない)。
 - スナップショットは `EventID` 単位なので、複数河川の同時警報追跡にも対応可能。
-- VXSU50 (水位周知河川) は schema が異なり、observed series を持たないため state holder への登録はスキップする (現状は内部 schema 分岐で対応、Phase 2 で shared state holder への組み込み検討)。
+- VXSU50 (水位周知河川) は schema が異なり、observed series を持たないため state holder への登録はスキップする。EventID lifecycle の共通 gate と standby projection は VXKO と共有する。
+- Phase 3B の洪水 family は `flood:event:${EventID}` を subject とする `clearCurrent` policy。EventID 欠落は transient subject による再送抑止だけを行い、通知・standby・durable state を変更しない。
+- durable state は standby persistence v2 の `telegramFoundation.floodForecast`（active projection + gate entries）が真実源。rollback 用の真正 v1 `floods.events/seen` へ dual-write する。v1 / pre-flood-v2 由来の projection は `legacyEventIds` で gate 未移行と明示し、各 EventID の正規報受理または表示期限切れまで他 EventID の更新から保全する。旧形式からの表示復元は期限切れを除外した後、`revision`、`expiresAtMs`、EventID の決定的順序で最新 512 EventID に制限する。Headline-only の observeOnly では内容 `revision` を維持し、別の `appliedRevision` を最新 gate と一致させる。authoritative 復元では tombstone-only / gate-only を含む全 gate entry に valid numeric serial を要求し、active projection はさらに gate / `appliedRevision` の時刻＋serialの意味的一致と `revision <= appliedRevision` を満たす必要がある。正規 family と移行中 legacy projection はそれぞれ最大 512 EventID（移行中だけ合計最大 1024）、active watermark と tombstone は 36 時間で、holder・gate・projection の退場集合を同期する。
 
 ---
 
@@ -2162,7 +2164,7 @@ function processEew(msg: WsDataMessage, eewTracker: EewTracker, eewLogger: EewEv
 | `process-heat-alert.ts` | VPFT50 | `resolveHeatAlertLevels` で frame/sound を pair 解決 |
 | `process-typhoon-analysis.ts` | VPTW60/61/62 | `resolveTyphoonAnalysisLevels` で frame/sound を pair 解決。frame は一律 `normal`（取消は `cancel`） |
 | `process-typhoon-probability.ts` | VPTA50 | `resolveTyphoonProbabilityLevels` で frame/sound を pair 解決。`typhoonProbabilityState` で連続ゼロ抑制 (`suppressNotify`) |
-| `process-flood-forecast.ts` | VXKO50-89/VXSU50-59 | `floodForecastState.diffAndUpdate()` で station 単位 dedup + reasons 抽出。dedup bypass 4 ケース: 取消 (`rollback` のみ) / 訂正 / Headline-only (`rawStations` 空) / VXSU schema。通常 VXKO は新規 EventID でも `diffAndUpdate` に通して `new` reason を出す。`state.rollback()` で取消後の再復帰に備える |
+| `process-flood-forecast.ts` | VXKO50-89/VXSU50-59 | 共通 `TelegramRevisionGate` で EventID lifecycle を判定し、受理済み通常 VXKO だけを `floodForecastState.diffAndUpdate()` へ渡して station 単位 dedup + reasons を抽出する。dedup bypass 4 ケースは取消 (`rollback` のみ) / 訂正 / Headline-only (`rawStations` 空) / VXSU schema。取消後は tombstone が同一 revision の遅延報を拒否し、より新しい revision の再発表だけを新 lifecycle として受理する |
 | `process-raw.ts` | フォールバック | `statsCategory` を引数で受け取り、元ルートのカテゴリを保持。frameLevel 固定 `"info"` |
 
 ### 共通パターン

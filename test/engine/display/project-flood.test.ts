@@ -76,6 +76,8 @@ function event(raw: ParsedFloodForecastInfo, overrides: Partial<PresentationEven
     id: "message-1",
     classification: "telegram.weather",
     domain: "floodForecast",
+    floodStateMutationAccepted: true,
+    floodActiveEventIds: [raw.eventId],
     type: raw.typeCode,
     infoType: raw.infoType,
     title: raw.headTitle,
@@ -292,7 +294,7 @@ describe("projectFloodUpdate", () => {
       maxLevel: "unknown",
       maxRank: -1,
       stats: { shouldRecord: true, eventId: info.eventId },
-      presentation: { frameLevel: "info" },
+      presentation: { frameLevel: "info", floodStateMutationAccepted: true, floodActiveEventIds: [info.eventId] },
     };
     const update = projectFloodUpdate(fromFloodForecastOutcome(outcome));
     if (update?.mode !== "replace") throw new Error("expected replace");
@@ -351,7 +353,7 @@ describe("projectFloodUpdate", () => {
       maxLevel: "unknown",
       maxRank: -1,
       stats: { shouldRecord: true, eventId: info.eventId },
-      presentation: { frameLevel: "info" },
+      presentation: { frameLevel: "info", floodStateMutationAccepted: true, floodActiveEventIds: [info.eventId] },
     };
     const update = projectFloodUpdate(fromFloodForecastOutcome(outcome));
     expect(update?.mode).toBe(expectedMode);
@@ -386,7 +388,7 @@ describe("projectFloodUpdate", () => {
       maxLevel: "unknown",
       maxRank: -1,
       stats: { shouldRecord: true, eventId: info.eventId },
-      presentation: { frameLevel: "info" },
+      presentation: { frameLevel: "info", floodStateMutationAccepted: true, floodActiveEventIds: [info.eventId] },
     };
     const update = projectFloodUpdate(fromFloodForecastOutcome(outcome));
     expect(update?.mode).toBe("replace");

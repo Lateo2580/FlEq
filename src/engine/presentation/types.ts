@@ -86,6 +86,12 @@ export interface ProcessOutcomeBase {
     volcanoAcceptedSubjects?: string[];
     volcanoActiveAlertSubjects?: string[];
     volcanoActiveEruptionSubjects?: string[];
+    /** flood durable holder/gate mutation was committed authoritatively. */
+    floodStateMutationAccepted?: boolean;
+    /** Active EventIDs after gate compaction; projection uses this to mirror eviction. */
+    floodActiveEventIds?: string[];
+    /** Accepted semantic envelope whose flood projection path is about to run. */
+    floodAppliedSemanticKey?: string;
     typhoonProbabilityMaxDaily5?: number | null;
     /** true のとき dispatchNotify が通知をスキップする。
      *  VPTA50 の連続ゼロ状態抑止に使用 (TyphoonProbabilityStateHolder 経由)。
@@ -389,6 +395,10 @@ export interface PresentationEvent {
   volcanoAcceptedSubjects?: string[];
   volcanoActiveAlertSubjects?: string[];
   volcanoActiveEruptionSubjects?: string[];
+  /** fail-open display and authoritative flood projection are separated here. */
+  floodStateMutationAccepted?: boolean;
+  floodActiveEventIds?: string[];
+  floodAppliedSemanticKey?: string;
 
   // 状態フラグ
   isCancellation: boolean;

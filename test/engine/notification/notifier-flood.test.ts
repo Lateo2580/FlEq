@@ -112,4 +112,15 @@ describe("notifyFloodForecast", () => {
     const [, , , soundLevel] = spy.mock.calls[0];
     expect(soundLevel).toBe("warning");
   });
+
+  it("accepted correction is explicitly labelled in title and body", () => {
+    const info = parseFloodForecast(
+      createMockWsDataMessage("synthetic_VXKO50_correction.xml"),
+    )!;
+    const spy = vi.spyOn(asInternals(notifier), "send").mockImplementation(() => {});
+    notifier.notifyFloodForecast(info, "warning");
+    const [title, body] = spy.mock.calls[0];
+    expect(String(title)).toContain("訂正");
+    expect(String(body)).toContain("訂正");
+  });
 });

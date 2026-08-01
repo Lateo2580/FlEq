@@ -1,12 +1,13 @@
 import { FLOOD_LEVEL_RANK, floodKindCodeToLevel, maxFloodLevel } from "../../dmdata/flood-level";
+import { floodForecastHasUnderstoodStations } from "../messages/revision-family-registry";
 import type { FloodCriteria, FloodHeadline, FloodLevel, FloodStation, ParsedFloodForecastInfo } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
 import type { DisplayFloodHydrographV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "./protocol";
 
 export type DisplayFloodUpdate =
-  | { mode: "replace"; eventId: string; reportDateTime: string; serial: string | null; isCorrection?: boolean; rivers: DisplayFloodRiverV1[] }
-  | { mode: "cancel"; eventId: string; reportDateTime: string; serial: string | null; isCorrection?: boolean }
-  | { mode: "observeOnly"; eventId: string; reportDateTime: string; serial: string | null; isCorrection?: boolean };
+  | { mode: "replace"; eventId: string; reportDateTime: string; serial: string | null; appliedSemanticKey?: string; isCorrection?: boolean; rivers: DisplayFloodRiverV1[] }
+  | { mode: "cancel"; eventId: string; reportDateTime: string; serial: string | null; appliedSemanticKey?: string; isCorrection?: boolean }
+  | { mode: "observeOnly"; eventId: string; reportDateTime: string; serial: string | null; appliedSemanticKey?: string; isCorrection?: boolean };
 
 const FLOOD_LEVEL_NAMES: Record<FloodLevel, string> = {
   L1: "水位上昇情報",
@@ -236,6 +237,7 @@ function relevantHeadlineRivers(raw: ParsedFloodForecastInfo, reportDateTime: st
 
 export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate | null {
   if (event.domain !== "floodForecast" || event.raw == null || Array.isArray(event.raw)) return null;
+  if (event.floodStateMutationAccepted !== true) return null;
   const raw = event.raw as ParsedFloodForecastInfo;
   if (raw.schema !== "vxko50" && raw.schema !== "vxsu50") return null;
   const eventId = event.eventId ?? raw.eventId;
@@ -243,12 +245,24 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
   const reportDateTime = event.reportDateTime;
   const serial = event.serial ?? String(raw.serial);
   const isCorrection = event.infoType === "訂正" || raw.infoType === "訂正";
+  const appliedSemanticKey = event.floodAppliedSemanticKey;
   if (event.isCancellation || raw.infoType === "取消") {
     return {
       mode: "cancel",
       eventId,
       reportDateTime,
       serial,
+      ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
+      ...(isCorrection ? { isCorrection: true } : {}),
+    };
+  }
+  if (raw.rawStations.length > 0 && !floodForecastHasUnderstoodStations(raw)) {
+    return {
+      mode: "observeOnly",
+      eventId,
+      reportDateTime,
+      serial,
+      ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
       ...(isCorrection ? { isCorrection: true } : {}),
     };
   }
@@ -260,6 +274,7 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
         eventId,
         reportDateTime,
         serial,
+        ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
         ...(isCorrection ? { isCorrection: true } : {}),
         rivers: headline.rivers,
       };
@@ -270,6 +285,7 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
         eventId,
         reportDateTime,
         serial,
+        ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
         ...(isCorrection ? { isCorrection: true } : {}),
       };
     }
@@ -279,6 +295,7 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
         eventId,
         reportDateTime,
         serial,
+        ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
         ...(isCorrection ? { isCorrection: true } : {}),
         rivers: [],
       };
@@ -288,6 +305,7 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
       eventId,
       reportDateTime,
       serial,
+      ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
       ...(isCorrection ? { isCorrection: true } : {}),
     };
   }
@@ -296,6 +314,7 @@ export function projectFloodUpdate(event: PresentationEvent): DisplayFloodUpdate
     eventId,
     reportDateTime,
     serial,
+    ...(appliedSemanticKey != null ? { appliedSemanticKey } : {}),
     ...(isCorrection ? { isCorrection: true } : {}),
     rivers: projectRivers(raw, reportDateTime),
   };

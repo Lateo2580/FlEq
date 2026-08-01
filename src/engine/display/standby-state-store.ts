@@ -17,11 +17,12 @@ import type {
   PersistedVolcanoStateV1,
   PersistedWeatherAlertStateV1,
 } from "./standby-persistence";
-import { FloodActiveReducer } from "./flood-active-reducer";
+import { FloodActiveReducer, type PersistedFloodState } from "./flood-active-reducer";
 import { projectFloodUpdate } from "./project-flood";
 import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdates, type VolcanoUpdate } from "./project-standby";
 import {
   NO_MUTATION,
+  compareRevision,
   revisionOf,
   sortStandbyItems,
   tombstoneTtlForKey,
@@ -32,6 +33,7 @@ import { RevisionGuard } from "./revision-guard";
 import { nankaiBadgeAction } from "./nankai-status";
 import { quakeCardTtlMs, shouldReplaceQuakeHost } from "./quake-card-selection";
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "./tornado-group-key";
+import { FLOOD_FORECAST_MAX_SUBJECTS } from "../messages/revision-family-registry";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -39,6 +41,13 @@ export type { PersistedSeenEntry } from "./revision-guard";
 const DAY_MS = 24 * 60 * 60_000;
 const HOUR_MS = 60 * 60_000;
 const NANKAI_TTL_MS = 7 * DAY_MS;
+
+function combineMutations(left: DisplayMutation, right: DisplayMutation): DisplayMutation {
+  return {
+    viewChanged: left.viewChanged || right.viewChanged,
+    durableChanged: left.durableChanged || right.durableChanged,
+  };
+}
 
 interface HeatState {
   sourceEventIds: string[];
@@ -134,6 +143,8 @@ export class StandbyStateStore {
   private nankaiTrough: NankaiState | null = null;
   private weatherAlerts = new Map<DisplayWeatherSourceV1, PersistedWeatherAlertStateV1>();
   private readonly floods = new FloodActiveReducer();
+  /** v1 / pre-flood-v2 由来で、まだ共通 gate の正規報を受けていない表示 EventID。 */
+  private readonly legacyFloodEventIds = new Set<string>();
   private readonly revisionGuard = new RevisionGuard();
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
@@ -156,6 +167,16 @@ export class StandbyStateStore {
       case "floodForecast": {
         const update = projectFloodUpdate(event);
         mutation = update == null ? NO_MUTATION : this.floods.apply(update, nowMs);
+        if (update != null) this.legacyFloodEventIds.delete(update.eventId);
+        if (event.floodStateMutationAccepted === true && event.floodActiveEventIds != null) {
+          mutation = combineMutations(
+            mutation,
+            this.floods.retainActiveEventIds([
+              ...event.floodActiveEventIds,
+              ...this.legacyFloodEventIds,
+            ]),
+          );
+        }
         break;
       }
       case "tornado":
@@ -235,6 +256,41 @@ export class StandbyStateStore {
       revision: { reportTimeMs, serial },
       expiresAtMs: reportTimeMs + DAY_MS,
     });
+  }
+
+  restoreCanonicalFloods(
+    events: PersistedFloodState["events"],
+    nowMs: number,
+    legacyEventIds: readonly string[] = [],
+  ): void {
+    this.floods.restoreState({ events, seen: [] }, nowMs);
+    this.legacyFloodEventIds.clear();
+    const active = new Set(this.floods.activeEventIds());
+    for (const eventId of legacyEventIds) {
+      if (active.has(eventId)) this.legacyFloodEventIds.add(eventId);
+    }
+  }
+
+  retainCanonicalFloodEvents(eventIds: readonly string[]): DisplayMutation {
+    this.reconcileLegacyFloodEvents();
+    const mutation = this.floods.retainActiveEventIds([
+      ...eventIds,
+      ...this.legacyFloodEventIds,
+    ]);
+    this.notify(mutation);
+    return mutation;
+  }
+
+  floodLegacyEventIds(): string[] {
+    this.reconcileLegacyFloodEvents();
+    return [...this.legacyFloodEventIds];
+  }
+
+  private reconcileLegacyFloodEvents(): void {
+    const active = new Set(this.floods.activeEventIds());
+    for (const eventId of this.legacyFloodEventIds) {
+      if (!active.has(eventId)) this.legacyFloodEventIds.delete(eventId);
+    }
   }
 
   /** v2 foundation の正規 VPWW56 union から起動時 view を再構築する。通知は発火しない。 */
@@ -757,6 +813,7 @@ export class StandbyStateStore {
     }
     if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
     const floodMutation = this.floods.sweep(nowMs);
+    this.reconcileLegacyFloodEvents();
     viewChanged ||= floodMutation.viewChanged;
     durableChanged ||= floodMutation.durableChanged;
     const mutation = { viewChanged, durableChanged };
@@ -905,6 +962,7 @@ export class StandbyStateStore {
     this.quakeHost = null;
     this.nankaiTrough = null;
     this.weatherAlerts.clear();
+    this.legacyFloodEventIds.clear();
     for (const state of data.heat) {
       if (state.targetDateEndMs <= nowMs) continue;
       this.heatAlerts.set(state.key, {
@@ -969,7 +1027,19 @@ export class StandbyStateStore {
         expiresAtMs: state.expiresAtMs,
       });
     }
-    this.floods.restoreState(data.floods ?? { events: [], seen: [] }, nowMs);
+    const legacyFloods = data.floods ?? { events: [], seen: [] };
+    const restorableLegacyFloodEvents = legacyFloods.events
+      .filter((event) => event.expiresAtMs > nowMs)
+      .sort((left, right) =>
+        compareRevision(right.revision, left.revision)
+        || right.expiresAtMs - left.expiresAtMs
+        || (left.eventId < right.eventId ? -1 : left.eventId > right.eventId ? 1 : 0))
+      .slice(0, FLOOD_FORECAST_MAX_SUBJECTS);
+    this.floods.restoreState({
+      ...legacyFloods,
+      events: restorableLegacyFloodEvents,
+    }, nowMs);
+    for (const eventId of this.floods.activeEventIds()) this.legacyFloodEventIds.add(eventId);
     this.revisionGuard.restore(data.seen, nowMs);
   }
 

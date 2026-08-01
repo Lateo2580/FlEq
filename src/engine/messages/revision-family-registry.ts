@@ -1,5 +1,6 @@
 import type {
   ParsedEewInfo,
+  ParsedFloodForecastInfo,
   ParsedTsunamiInfo,
   ParsedVolcanoInfo,
   ParsedVolcanoTextInfo,
@@ -22,6 +23,7 @@ import {
   vpww56HasActiveAreas,
   vpww56StateSubjectKey,
 } from "./vpww56-state";
+import { FLOOD_LEVEL_RANK, floodKindCodeToLevel, maxFloodLevel } from "../../dmdata/flood-level";
 
 interface RevisionFamilyPolicyBase<TParsed> {
   domain: string;
@@ -107,6 +109,68 @@ function eewPolicy(headType: "VXSE43" | "VXSE44" | "VXSE45"):
 
 const VPWS50_SUBJECT = "weather:vpws50";
 const TSUNAMI_CURRENT_SUBJECT = "tsunami:current";
+export const FLOOD_FORECAST_MAX_SUBJECTS = 512;
+export const FLOOD_FORECAST_RETENTION_MS = 36 * 60 * 60_000;
+export const FLOOD_FORECAST_HEAD_TYPES = [
+  ...Array.from({ length: 40 }, (_, index) => `VXKO${50 + index}`),
+  ...Array.from({ length: 10 }, (_, index) => `VXSU${50 + index}`),
+] as const;
+
+export function floodForecastSubjectKey(eventId: string): string | null {
+  const normalized = eventId.trim();
+  return normalized === "" ? null : `flood:event:${normalized}`;
+}
+
+export function floodForecastHasActiveState(parsed: ParsedFloodForecastInfo): boolean {
+  if (parsed.rawStations.length > 0) {
+    return parsed.rawStations.some((station) =>
+      FLOOD_LEVEL_RANK[maxFloodLevel([
+        station.stationObservedLevel,
+        station.headlineLevel,
+      ])] >= FLOOD_LEVEL_RANK.L3);
+  }
+  return parsed.headlines.some((headline) =>
+    (headline.scope === "河川" || headline.scope === "発表区間")
+    && headline.areas.length > 0
+    && FLOOD_LEVEL_RANK[floodKindCodeToLevel(headline.kindCode)] >= FLOOD_LEVEL_RANK.L3);
+}
+
+/** station 本文が明示的な level/release を持つか。全件 unknown は解除根拠にしない。 */
+export function floodForecastHasUnderstoodStations(parsed: ParsedFloodForecastInfo): boolean {
+  return parsed.rawStations.some((station) =>
+    station.stationObservedLevel !== "unknown"
+    || station.headlineLevel !== "unknown");
+}
+
+function floodForecastDeactivatesState(parsed: ParsedFloodForecastInfo): boolean {
+  if (parsed.rawStations.length > 0) {
+    return floodForecastHasUnderstoodStations(parsed) && !floodForecastHasActiveState(parsed);
+  }
+  const understood = parsed.headlines.some((headline) =>
+    (headline.scope === "河川" || headline.scope === "発表区間")
+    && headline.areas.length > 0
+    && floodKindCodeToLevel(headline.kindCode) !== "unknown");
+  return understood && !floodForecastHasActiveState(parsed);
+}
+
+export const FLOOD_FORECAST_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedFloodForecastInfo> = {
+  domain: "floodForecast",
+  revisionFamily: "floodForecast",
+  headTypes: FLOOD_FORECAST_HEAD_TYPES,
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => floodForecastSubjectKey(parsed.eventId),
+  extractCancellationTarget: (_meta, parsed) => {
+    const subject = floodForecastSubjectKey(parsed.eventId);
+    return subject == null ? null : [subject];
+  },
+  cancellationPolicy: "clearCurrent",
+  terminalPredicate: () => false,
+  deactivationPredicate: (_meta, parsed) => floodForecastDeactivatesState(parsed),
+  durable: true,
+  tombstoneRetentionMs: FLOOD_FORECAST_RETENTION_MS,
+  maxSubjects: FLOOD_FORECAST_MAX_SUBJECTS,
+  fragmentMerge: false,
+};
 export const VOLCANO_MAX_SUBJECTS = 512;
 export const VOLCANO_ALERT_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60_000;
 export const VOLCANO_ERUPTION_TOMBSTONE_RETENTION_MS = 2 * 24 * 60 * 60_000;
@@ -451,6 +515,7 @@ export const ALL_REVISION_FAMILY_POLICIES = [
   ...Object.values(TSUNAMI_REVISION_FAMILY_POLICIES),
   VOLCANO_ALERT_REVISION_FAMILY_POLICY,
   VOLCANO_ERUPTION_REVISION_FAMILY_POLICY,
+  FLOOD_FORECAST_REVISION_FAMILY_POLICY,
 ] as const;
 
 validateRevisionFamilyPolicies(ALL_REVISION_FAMILY_POLICIES);
@@ -493,4 +558,12 @@ export function volcanoRevisionFamilyPolicy(
     return VOLCANO_ERUPTION_REVISION_FAMILY_POLICY;
   }
   return null;
+}
+
+export function floodForecastRevisionFamilyPolicy(
+  headType: string,
+): RevisionFamilyPolicy<ParsedFloodForecastInfo> | null {
+  return FLOOD_FORECAST_HEAD_TYPES.includes(headType)
+    ? FLOOD_FORECAST_REVISION_FAMILY_POLICY
+    : null;
 }

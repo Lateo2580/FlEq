@@ -13,9 +13,9 @@ import type {
   DisplayWeatherAlertV1,
   DisplayWeatherSourceV1,
 } from "./protocol";
-import type { PersistedFloodState } from "./flood-active-reducer";
+import type { PersistedFloodEventState, PersistedFloodState } from "./flood-active-reducer";
 import type { PersistedSeenEntry } from "./revision-guard";
-import type { StandbyRevision } from "./standby-registry";
+import { compareRevision, type StandbyRevision } from "./standby-registry";
 import type {
   ParsedEarthquakeHypocenter,
   ParsedTsunamiInfo,
@@ -48,6 +48,7 @@ import {
   TSUNAMI_REVISION_FAMILY_POLICIES,
   VPWW56_REVISION_FAMILY_POLICY,
   VPWS50_REVISION_FAMILY_POLICY,
+  FLOOD_FORECAST_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
@@ -111,15 +112,24 @@ export interface PersistedTelegramFoundationV2 {
     active: PersistedVolcanoStateV1[];
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
+  floodForecast: {
+    /** false means only the legacy display snapshot was recovered. */
+    authoritative: boolean;
+    active: PersistedFloodEventState[];
+    /** gate 未移行の v1 / pre-flood-v2 projection。各 EventID の正規受理か期限切れまで保全する。 */
+    legacyEventIds?: string[];
+    gateEntries: PersistedTelegramRevisionGateEntryV2[];
+  };
 }
 
 export type PersistedTelegramFoundationInputV2 = Omit<
   PersistedTelegramFoundationV2,
-  "tsunami" | "vpww56" | "volcano"
+  "tsunami" | "vpww56" | "volcano" | "floodForecast"
 > & {
   tsunami?: PersistedTelegramFoundationV2["tsunami"];
   vpww56?: PersistedTelegramFoundationV2["vpww56"];
   volcano?: PersistedTelegramFoundationV2["volcano"];
+  floodForecast?: PersistedTelegramFoundationV2["floodForecast"];
 };
 
 /**
@@ -170,6 +180,26 @@ function volcanoLegacySeenEntries(
         serial: entry.comparison.revision.serial.raw,
       },
       // gate は age > retention で落とす。旧 guard の forgetAt <= now と境界を揃える。
+      forgetAtMs: entry.acceptedAtMs + retentionMs + 1,
+    }];
+  });
+}
+
+function floodLegacySeenEntries(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedSeenEntry[] {
+  return entries.flatMap((entry) => {
+    const reportTimeMs = entry.comparison.revision.reportDateTime.epochMs;
+    const eventId = entry.legacyRevisionKey?.trim();
+    const retentionMs = entry.tombstoneRetentionMs
+      ?? FLOOD_FORECAST_REVISION_FAMILY_POLICY.tombstoneRetentionMs;
+    if (reportTimeMs == null || eventId == null || eventId === "" || retentionMs == null) return [];
+    return [{
+      key: eventId,
+      revision: {
+        reportTimeMs,
+        serial: entry.comparison.revision.serial.raw,
+      },
       forgetAtMs: entry.acceptedAtMs + retentionMs + 1,
     }];
   });
@@ -320,6 +350,9 @@ export class StandbyPersistence {
     const volcano = normalizeVolcanoFoundationForWrite(
       foundation.volcano ?? emptyVolcanoFoundation(),
     );
+    const floodForecast = normalizeFloodFoundationForWrite(
+      foundation.floodForecast ?? emptyFloodFoundation(),
+    );
     const seen = mergeLegacySeenEntries(
       state.seen,
       volcanoLegacySeenEntries(volcano.gateEntries, volcano.state),
@@ -328,11 +361,18 @@ export class StandbyPersistence {
       ...state,
       version: 2,
       seen,
+      floods: floodForecast.authoritative
+        ? {
+            events: structuredClone(floodForecast.active),
+            seen: floodLegacySeenEntries(floodForecast.gateEntries),
+          }
+        : state.floods,
       telegramFoundation: structuredClone({
         ...foundation,
         vpww56,
         tsunami,
         volcano,
+        floodForecast,
       }),
     };
   }
@@ -349,6 +389,12 @@ export class StandbyPersistence {
           state.telegramFoundation.volcano.state,
         ),
       ),
+      floods: state.telegramFoundation.floodForecast.authoritative
+        ? {
+            events: structuredClone(state.telegramFoundation.floodForecast.active),
+            seen: floodLegacySeenEntries(state.telegramFoundation.floodForecast.gateEntries),
+          }
+        : legacy.floods,
     };
   }
 
@@ -569,6 +615,8 @@ function isFloodEvent(value: unknown): value is PersistedFloodState["events"][nu
   return isRecord(value)
     && typeof value.eventId === "string"
     && isRevision(value.revision)
+    && (!Object.hasOwn(value, "appliedRevision") || isRevision(value.appliedRevision))
+    && (!Object.hasOwn(value, "appliedSemanticKey") || typeof value.appliedSemanticKey === "string")
     && Array.isArray(value.rivers)
     && value.rivers.every(isFloodRiver)
     && typeof value.expiresAtMs === "number"
@@ -824,11 +872,16 @@ function emptyTelegramFoundation(): PersistedTelegramFoundationV2 {
     vpww56: emptyVpww56Foundation(),
     tsunami: emptyTsunamiFoundation(),
     volcano: emptyVolcanoFoundation(),
+    floodForecast: emptyFloodFoundation(),
   };
 }
 
 function emptyVolcanoFoundation(): PersistedTelegramFoundationV2["volcano"] {
   return { authoritative: false, state: null, active: [], gateEntries: [] };
+}
+
+function emptyFloodFoundation(): PersistedTelegramFoundationV2["floodForecast"] {
+  return { authoritative: false, active: [], gateEntries: [] };
 }
 
 function isWeatherIdentity(value: unknown, receivedAtMs = Number.MAX_SAFE_INTEGER): boolean {
@@ -1599,6 +1652,163 @@ function sanitizeVolcanoFoundation(
   return { authoritative: true, state, active: structuredClone(active), gateEntries: entries };
 }
 
+function isFloodFoundationSubject(entry: PersistedTelegramRevisionGateEntryV2): boolean {
+  return entry.domain === "floodForecast"
+    && entry.revisionFamily === "floodForecast"
+    && entry.stateSubjectKey.startsWith("flood:event:")
+    && entry.stateSubjectKey.length > "flood:event:".length;
+}
+
+function numericFloodSerial(serial: string | null): number | null {
+  if (serial == null || !/^\d+$/u.test(serial)) return null;
+  const numeric = Number(serial);
+  return Number.isSafeInteger(numeric) ? numeric : null;
+}
+
+function floodGateHasValidSerial(entry: PersistedTelegramRevisionGateEntryV2): boolean {
+  const serial = entry.comparison.revision.serial;
+  return serial.valid
+    && serial.raw != null
+    && serial.numeric != null
+    && numericFloodSerial(serial.raw) === serial.numeric;
+}
+
+function floodProjectionWasAppliedThroughGate(
+  event: PersistedFloodEventState,
+  gate: PersistedTelegramRevisionGateEntryV2,
+): boolean {
+  const gateTimeMs = gate.comparison.revision.reportDateTime.epochMs;
+  const gateSerial = gate.comparison.revision.serial;
+  const applied = event.appliedRevision ?? event.revision;
+  if (
+    gateTimeMs == null
+    || !gateSerial.valid
+    || gateSerial.raw == null
+    || gateSerial.numeric == null
+    || applied.serial == null
+    || event.revision.serial == null
+  ) return false;
+  const appliedSerial = numericFloodSerial(applied.serial);
+  const contentSerial = numericFloodSerial(event.revision.serial);
+  if (appliedSerial == null || contentSerial == null) return false;
+  if (applied.reportTimeMs !== gateTimeMs || appliedSerial !== gateSerial.numeric) return false;
+  const gateSemanticKey = gate.semanticKeys.at(-1);
+  if (gateSemanticKey == null) return false;
+  if (event.appliedSemanticKey != null) {
+    if (event.appliedSemanticKey !== gateSemanticKey) return false;
+  } else if (
+    // pre-semantic-watermark v2: only a sole normal publication can be proven safe.
+    // A correction history without an applied token is deliberately not trusted.
+    gate.semanticKeys.length !== 1
+    || !gateSemanticKey.startsWith("発表:")
+  ) {
+    return false;
+  }
+  return event.revision.reportTimeMs < applied.reportTimeMs
+    || event.revision.reportTimeMs === applied.reportTimeMs && contentSerial <= appliedSerial;
+}
+
+function normalizeFloodFoundationForWrite(
+  value: PersistedTelegramFoundationV2["floodForecast"],
+): PersistedTelegramFoundationV2["floodForecast"] {
+  if (!value.authoritative) return emptyFloodFoundation();
+  const gateEntries = value.gateEntries
+    .filter(isFloodFoundationSubject)
+    .slice(-FLOOD_FORECAST_REVISION_FAMILY_POLICY.maxSubjects!)
+    .map((entry) => ({
+      ...structuredClone(entry),
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    }));
+  const gateByEventId = new Map(gateEntries.map((entry) => [
+    entry.stateSubjectKey.slice("flood:event:".length),
+    entry,
+  ]));
+  const activeGateByEventId = new Map(gateEntries.flatMap((entry) => {
+    if (entry.cancelled) return [];
+    return [[entry.stateSubjectKey.slice("flood:event:".length), entry] as const];
+  }));
+  const activeEventIds = new Set(value.active.map((event) => event.eventId));
+  const legacyEventIds = [...new Set(value.legacyEventIds ?? [])]
+    .filter((eventId) => activeEventIds.has(eventId) && !gateByEventId.has(eventId))
+    .slice(-FLOOD_FORECAST_REVISION_FAMILY_POLICY.maxSubjects!);
+  const legacyEvents = new Set(legacyEventIds);
+  const active = value.active.flatMap((event) => {
+    if (legacyEvents.has(event.eventId)) return [structuredClone(event)];
+    const gate = activeGateByEventId.get(event.eventId);
+    if (gate == null || !floodProjectionWasAppliedThroughGate(event, gate)) return [];
+    return [structuredClone(event)];
+  });
+  return { authoritative: true, active, legacyEventIds, gateEntries };
+}
+
+function sanitizeFloodFoundation(
+  value: unknown,
+): PersistedTelegramFoundationV2["floodForecast"] | null {
+  if (
+    !isRecord(value)
+    || typeof value.authoritative !== "boolean"
+    || !Array.isArray(value.active)
+    || !Array.isArray(value.gateEntries)
+  ) return null;
+  if (!value.authoritative) {
+    return value.active.length === 0 && value.gateEntries.length === 0
+      && (value.legacyEventIds == null
+        || Array.isArray(value.legacyEventIds) && value.legacyEventIds.length === 0)
+      ? emptyFloodFoundation()
+      : null;
+  }
+  if (!value.active.every(isFloodEvent)) return null;
+  if (value.legacyEventIds != null && (
+    !Array.isArray(value.legacyEventIds)
+    || !value.legacyEventIds.every((eventId) => typeof eventId === "string" && eventId !== "")
+  )) return null;
+  if (!value.gateEntries.every((entry) =>
+    isGateEntry(entry)
+    && isFloodFoundationSubject(entry)
+    && floodGateHasValidSerial(entry))) {
+    return null;
+  }
+  const gateEntries = (value.gateEntries as PersistedTelegramRevisionGateEntryV2[]).map((entry) => ({
+    ...structuredClone(entry),
+    semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+    tombstoneRetentionMs: entry.tombstoneRetentionMs
+      ?? FLOOD_FORECAST_REVISION_FAMILY_POLICY.tombstoneRetentionMs,
+  }));
+  if (gateEntries.length > FLOOD_FORECAST_REVISION_FAMILY_POLICY.maxSubjects!) return null;
+  if (new Set(gateEntries.map((entry) => entry.stateSubjectKey)).size !== gateEntries.length) return null;
+  const gateByEventId = new Map(gateEntries.map((entry) => [
+    entry.stateSubjectKey.slice("flood:event:".length),
+    entry,
+  ]));
+  const active = value.active as PersistedFloodEventState[];
+  if (active.length > FLOOD_FORECAST_REVISION_FAMILY_POLICY.maxSubjects! * 2) return null;
+  if (new Set(active.map((event) => event.eventId)).size !== active.length) return null;
+  const legacyEventIds = [...new Set((value.legacyEventIds ?? []) as string[])];
+  if (legacyEventIds.length !== (value.legacyEventIds ?? []).length) return null;
+  if (legacyEventIds.length > FLOOD_FORECAST_REVISION_FAMILY_POLICY.maxSubjects!) return null;
+  const activeEventIds = new Set(active.map((event) => event.eventId));
+  if (legacyEventIds.some((eventId) => !activeEventIds.has(eventId) || gateByEventId.has(eventId))) {
+    return null;
+  }
+  const legacyEvents = new Set(legacyEventIds);
+  const salvagedActive = active.filter((event) => {
+    if (legacyEvents.has(event.eventId)) return true;
+    const gate = gateByEventId.get(event.eventId);
+    return gate != null
+      && !gate.cancelled
+      && floodProjectionWasAppliedThroughGate(event, gate);
+  });
+  if (salvagedActive.length !== active.length) {
+    log.warn("[standby-persistence] flood active projection/gate coupling validation failed; salvaging gate entries");
+  }
+  return {
+    authoritative: true,
+    active: structuredClone(salvagedActive),
+    legacyEventIds,
+    gateEntries,
+  };
+}
+
 function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | null {
   if (!isRecord(value)) return null;
   const validatedVpws50 = sanitizeVpws50Foundation(value.vpws50);
@@ -1627,7 +1837,14 @@ function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | nul
   if (validatedVolcano == null) {
     log.warn("[standby-persistence] volcano foundation structure validation 失敗 — domain 破棄");
   }
-  return { vpws50, vpww56, tsunami, volcano };
+  const validatedFlood = value.floodForecast == null
+    ? emptyFloodFoundation()
+    : sanitizeFloodFoundation(value.floodForecast);
+  const floodForecast = validatedFlood ?? emptyFloodFoundation();
+  if (validatedFlood == null) {
+    log.warn("[standby-persistence] flood foundation structure validation failed; salvaging other domains");
+  }
+  return { vpws50, vpww56, tsunami, volcano, floodForecast };
 }
 
 function baseV1FromRecord(value: Record<string, unknown>): PersistedStandbyStateV1 | null {
@@ -1693,6 +1910,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
       vpww56: { authoritative: false, state: null, gateEntries: [] },
       tsunami: emptyTsunamiFoundation(),
       volcano: emptyVolcanoFoundation(),
+      floodForecast: emptyFloodFoundation(),
     },
   };
 }
@@ -1801,8 +2019,24 @@ function hasVolcanoMigrationConflict(raw: unknown, state: PersistedStandbyStateV
   return false;
 }
 
+function hasFloodMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
+  const foundation = state.telegramFoundation.floodForecast;
+  if (!foundation.authoritative || !isRecord(raw)) return false;
+  if (!Object.hasOwn(raw, "floods") || state.floods == null) {
+    return foundation.active.length > 0 || foundation.gateEntries.length > 0;
+  }
+  const canonicalEvents = [...foundation.active].sort((a, b) => a.eventId.localeCompare(b.eventId));
+  const legacyEvents = [...state.floods.events].sort((a, b) => a.eventId.localeCompare(b.eventId));
+  if (JSON.stringify(canonicalEvents) !== JSON.stringify(legacyEvents)) return true;
+  const canonicalSeen = floodLegacySeenEntries(foundation.gateEntries)
+    .sort((a, b) => a.key.localeCompare(b.key));
+  const legacySeen = [...state.floods.seen].sort((a, b) => a.key.localeCompare(b.key));
+  return JSON.stringify(canonicalSeen) !== JSON.stringify(legacySeen);
+}
+
 function hasFoundationMigrationConflict(raw: unknown, state: PersistedStandbyStateV2): boolean {
   return hasVpws50MigrationConflict(raw, state)
     || hasVpww56MigrationConflict(raw, state)
-    || hasVolcanoMigrationConflict(raw, state);
+    || hasVolcanoMigrationConflict(raw, state)
+    || hasFloodMigrationConflict(raw, state);
 }

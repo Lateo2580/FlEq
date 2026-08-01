@@ -1,12 +1,16 @@
 import type { DisplayFloodUpdate } from "./project-flood";
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1 } from "./protocol";
-import { RevisionGuard, type PersistedSeenEntry } from "./revision-guard";
+import type { PersistedSeenEntry } from "./revision-guard";
 import { compareRevision, NO_MUTATION, revisionOf, STANDBY_CARD_REGISTRY, type DisplayMutation, type StandbyRevision } from "./standby-registry";
 
 type FloodCard = Extract<ActiveStandbyCardV1, { kind: "flood" }>;
 
 interface FloodEventState {
   revision: StandbyRevision;
+  /** The latest accepted gate revision whose projection path completed. */
+  appliedRevision: StandbyRevision;
+  /** Semantic envelope applied at appliedRevision (InfoType + payload digest). */
+  appliedSemanticKey: string | null;
   rivers: DisplayFloodRiverV1[];
   expiresAtMs: number;
   restored: boolean;
@@ -15,6 +19,10 @@ interface FloodEventState {
 export interface PersistedFloodEventState {
   eventId: string;
   revision: StandbyRevision;
+  /** Optional for pre-watermark v2/v1 compatibility; absence means `revision`. */
+  appliedRevision?: StandbyRevision;
+  /** Optional for pre-semantic-watermark v2/v1 compatibility. */
+  appliedSemanticKey?: string;
   rivers: DisplayFloodRiverV1[];
   expiresAtMs: number;
 }
@@ -36,25 +44,32 @@ function cardFingerprint(card: FloodCard | null): string {
 
 export class FloodActiveReducer {
   private events = new Map<string, FloodEventState>();
-  private readonly revisionGuard = new RevisionGuard();
 
   apply(update: DisplayFloodUpdate, nowMs: number): DisplayMutation {
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(
-      update.eventId,
-      revision,
-      nowMs,
-      STANDBY_CARD_REGISTRY.flood.tombstoneTtlMs,
-      update.isCorrection === true,
-    )) return NO_MUTATION;
-    if (update.mode === "observeOnly") return { viewChanged: false, durableChanged: true };
+    if (update.mode === "observeOnly") {
+      const current = this.events.get(update.eventId);
+      if (
+        current == null
+        || compareRevision(current.appliedRevision, revision) === 0
+          && current.appliedSemanticKey === (update.appliedSemanticKey ?? null)
+      ) {
+        return NO_MUTATION;
+      }
+      current.appliedRevision = revision;
+      current.appliedSemanticKey = update.appliedSemanticKey ?? null;
+      return { viewChanged: false, durableChanged: true };
+    }
 
     const before = cardFingerprint(this.snapshotCard());
     if (update.mode === "cancel" || update.rivers.length === 0) {
       this.events.delete(update.eventId);
     } else {
+      this.events.delete(update.eventId);
       this.events.set(update.eventId, {
         revision,
+        appliedRevision: revision,
+        appliedSemanticKey: update.appliedSemanticKey ?? null,
         rivers: update.rivers.map(copyRiver),
         expiresAtMs: revision.reportTimeMs + FLOOD_TTL_MS,
         restored: false,
@@ -72,7 +87,6 @@ export class FloodActiveReducer {
         durableChanged = true;
       }
     }
-    if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
     if (!durableChanged) return NO_MUTATION;
     return { viewChanged: before !== cardFingerprint(this.snapshotCard()), durableChanged: true };
   }
@@ -117,11 +131,19 @@ export class FloodActiveReducer {
       events: [...this.events].map(([eventId, state]) => ({
         eventId,
         revision: { ...state.revision },
+        appliedRevision: { ...state.appliedRevision },
+        ...(state.appliedSemanticKey != null
+          ? { appliedSemanticKey: state.appliedSemanticKey }
+          : {}),
         rivers: state.rivers.map(copyRiver),
         expiresAtMs: state.expiresAtMs,
       })),
-      seen: this.revisionGuard.export(),
+      seen: [],
     };
+  }
+
+  activeEventIds(): string[] {
+    return [...this.events.keys()];
   }
 
   restoreState(data: PersistedFloodState, nowMs: number): void {
@@ -130,11 +152,29 @@ export class FloodActiveReducer {
       if (state.expiresAtMs <= nowMs) continue;
       this.events.set(state.eventId, {
         revision: { ...state.revision },
+        appliedRevision: { ...(state.appliedRevision ?? state.revision) },
+        appliedSemanticKey: state.appliedSemanticKey ?? null,
         rivers: state.rivers.map(copyRiver),
         expiresAtMs: state.expiresAtMs,
         restored: true,
       });
     }
-    this.revisionGuard.restore(data.seen, nowMs);
+  }
+
+  retainActiveEventIds(eventIds: readonly string[]): DisplayMutation {
+    const retained = new Set(eventIds);
+    const before = cardFingerprint(this.snapshotCard());
+    let durableChanged = false;
+    for (const eventId of this.events.keys()) {
+      if (!retained.has(eventId)) {
+        this.events.delete(eventId);
+        durableChanged = true;
+      }
+    }
+    if (!durableChanged) return NO_MUTATION;
+    return {
+      viewChanged: before !== cardFingerprint(this.snapshotCard()),
+      durableChanged: true,
+    };
   }
 }

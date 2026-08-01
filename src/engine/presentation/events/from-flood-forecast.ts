@@ -63,6 +63,9 @@ export function fromFloodForecastOutcome(
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,
     notifyCategory: outcome.presentation.notifyCategory,
+    floodStateMutationAccepted: outcome.presentation.floodStateMutationAccepted,
+    floodActiveEventIds: outcome.presentation.floodActiveEventIds,
+    floodAppliedSemanticKey: outcome.presentation.floodAppliedSemanticKey,
 
     isCancellation: info.infoType === "取消",
     // frameLevel が warning/critical のものは isWarning=true に統一

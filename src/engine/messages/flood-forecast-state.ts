@@ -72,7 +72,8 @@ interface EventHistory {
  * EventID 履歴の保持期間。最終更新からこれを過ぎた EventID は次の受信時に掃除する。
  * display 側の洪水 tombstoneTtlMs (DAY + 12h) と揃えた。
  */
-const HISTORY_TTL_MS = 36 * 60 * 60_000;
+export const FLOOD_FORECAST_HISTORY_TTL_MS = 36 * 60 * 60_000;
+export const FLOOD_FORECAST_MAX_EVENTS = 512;
 
 /**
  * 同一 EventID で前回の観測点状態を覚えて station 単位 dedup する state holder。
@@ -116,9 +117,10 @@ export class FloodForecastStateHolder {
     let history = this.events.get(eventId);
     if (history == null) {
       history = { lastSeenMs: nowMs, stations: new Map() };
-      this.events.set(eventId, history);
     }
     history.lastSeenMs = nowMs;
+    this.events.delete(eventId);
+    this.events.set(eventId, history);
 
     for (const d of digests) {
       const prev = history.stations.get(d.stationCode);
@@ -150,6 +152,12 @@ export class FloodForecastStateHolder {
       }
     }
 
+    while (this.events.size > FLOOD_FORECAST_MAX_EVENTS) {
+      const oldest = this.events.keys().next().value as string | undefined;
+      if (oldest == null) break;
+      this.events.delete(oldest);
+    }
+
     return {
       hasChange: changed.length > 0 || removed.length > 0,
       changedStations: changed,
@@ -166,7 +174,11 @@ export class FloodForecastStateHolder {
     this.sweepExpired(nowMs);
     if (eventId === "") return;
     const history = this.events.get(eventId);
-    if (history != null) history.lastSeenMs = nowMs;
+    if (history != null) {
+      history.lastSeenMs = nowMs;
+      this.events.delete(eventId);
+      this.events.set(eventId, history);
+    }
   }
 
   /** 取消 (info.infoType==="取消") 時に呼ぶ。同一 eventId の履歴ごと削除する */
@@ -175,10 +187,21 @@ export class FloodForecastStateHolder {
     this.events.delete(eventId);
   }
 
+  retainActiveEventIds(eventIds: readonly string[]): void {
+    const retained = new Set(eventIds);
+    for (const eventId of this.events.keys()) {
+      if (!retained.has(eventId)) this.events.delete(eventId);
+    }
+  }
+
+  activeEventIds(): string[] {
+    return [...this.events.keys()];
+  }
+
   /** 最終更新から HISTORY_TTL_MS を過ぎた EventID を捨てる */
   private sweepExpired(nowMs: number): void {
     for (const [eventId, history] of Array.from(this.events)) {
-      if (nowMs - history.lastSeenMs > HISTORY_TTL_MS) {
+      if (nowMs - history.lastSeenMs > FLOOD_FORECAST_HISTORY_TTL_MS) {
         this.events.delete(eventId);
       }
     }

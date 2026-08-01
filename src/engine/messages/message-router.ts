@@ -125,6 +125,7 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       return true;
     }
     case "floodForecast": {
+      if (outcome.presentation.floodStateMutationAccepted !== true) return false;
       // suppressNotify=true (VXKO 通常発表で station 内容変化なし) は通知を抑制
       if (outcome.presentation.suppressNotify) return false;
       notifier.notifyFloodForecast(
@@ -231,6 +232,7 @@ export interface MessageHandlerOptions {
   vpww56State?: Vpww56StateHolder;
   tsunamiState?: TsunamiStateHolder;
   volcanoState?: VolcanoStateHolder;
+  floodForecastState?: FloodForecastStateHolder;
   /** durable revision watermark の復元用。 */
   revisionGate?: TelegramRevisionGate;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
@@ -241,6 +243,7 @@ export interface MessageHandlerOptions {
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** volcano gate/holder の commit 完了を persistence owner へ伝える。 */
   onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /** createMessageHandler の戻り値 */
@@ -253,6 +256,7 @@ export interface MessageHandlerResult {
   volcanoState: VolcanoStateHolder;
   vpws50State: Vpws50StateHolder;
   vpww56State: Vpww56StateHolder;
+  floodForecastState: FloodForecastStateHolder;
   vpwp50Cache: Vpwp50DetailCache;
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
@@ -277,7 +281,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
   const vpwp50Cache = new Vpwp50DetailCache();
   const typhoonProbabilityState = new TyphoonProbabilityStateHolder();
-  const floodForecastState = new FloodForecastStateHolder();
+  const floodForecastState = options?.floodForecastState ?? new FloodForecastStateHolder();
   const stats = new TelegramStats();
   const summaryTracker = new SummaryWindowTracker();
   const dailyQuakeCounter = options?.dailyQuakeCounter ?? new DailyQuakeCounter();
@@ -341,14 +345,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     volcanoState,
     vpws50State,
     vpww56State,
+    floodForecastState,
     vpwp50Cache,
     typhoonProbabilityState,
-    floodForecastState,
     revisionGate,
     onRevisionDecision: recordRevisionDecision,
     onVpws50RevisionDecision: options?.onVpws50RevisionDecision,
     onVpww56RevisionDecision: options?.onVpww56RevisionDecision,
     onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
+    onFloodRevisionDecision: options?.onFloodRevisionDecision,
   };
 
   /**
@@ -474,6 +479,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     const usesFoundationGate = route === "eew" || route === "tsunami" || route === "volcano"
+      || route === "floodForecast"
       || route === "weather" && (msg.head.type === "VPWS50" || msg.head.type === "VPWW56");
     if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
@@ -538,11 +544,12 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const acceptedCorrection = outcome.domain === "eew"
       ? outcome.eewResult.isCorrection === true
       : outcome.presentation.acceptedCorrection === true;
-    if (acceptedCorrection) {
+    if (acceptedCorrection && notified) {
       stats.recordFoundation("correctionNotified");
     }
     const foundationTracked = outcome.domain === "eew"
       || outcome.domain === "tsunami"
+      || outcome.domain === "floodForecast"
       || outcome.domain === "weather" && (outcome.headType === "VPWS50" || outcome.headType === "VPWW56");
     if (foundationTracked && notified) {
       stats.recordFoundation("notified");
@@ -565,6 +572,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     volcanoState,
     vpws50State,
     vpww56State,
+    floodForecastState,
     vpwp50Cache,
     stats,
     summaryTracker,

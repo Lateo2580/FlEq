@@ -49,6 +49,7 @@ export interface ProcessDeps {
   onVpws50RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /**
@@ -103,7 +104,12 @@ const PROCESSOR_TABLE = {
   heatAlert: (msg, _deps, cat) => processHeatAlert(msg) ?? processRaw(msg, cat),
   typhoonAnalysis: (msg, _deps, cat) => processTyphoonAnalysis(msg) ?? processRaw(msg, cat),
   typhoonProbability: (msg, deps, cat) => processTyphoonProbability(msg, deps) ?? processRaw(msg, cat),
-  floodForecast: (msg, deps, cat) => processFloodForecast(msg, deps) ?? processRaw(msg, cat),
+  floodForecast: (msg, deps, cat) => {
+    const result = processFloodForecast(msg, deps);
+    if (result.kind === "ok") return result.outcome;
+    if (result.kind === "suppressed") return null;
+    return processRaw(msg, cat);
+  },
 } satisfies Record<LinearRoute, ProcessorAdapter>;
 
 /** route が PROCESSOR_TABLE の linear route か (volcano / ignore / raw を除く) を型安全に判定する。 */
