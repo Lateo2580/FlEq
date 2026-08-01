@@ -614,7 +614,7 @@ export const CANCELLATION_CHARACTERIZATION = {
     {
       family: "volcanoEruption", headTypes: ["VFVO52", "VFVO54", "VFVO55", "VFVO56", "VFVO60"],
       currentBehavior: "EventID／火山コードで最新噴火 event を削除",
-      targetPolicy: "clearCurrent", stateOwners: ["StandbyStateStore"],
+      targetPolicy: "clearCurrent", stateOwners: ["VolcanoStateHolder", "StandbyStateStore"],
     },
     {
       family: "volcanoAshfall", headTypes: ["VFVO53"],
@@ -712,7 +712,7 @@ export const STATE_HOLDER_CHARACTERIZATION = [
   { owner: "StandbyStateStore", sourceFile: "src/engine/display/standby-state-store.ts", domains: ["earthquake", "lgObservation", "volcano", "nankaiTrough", "weather", "tornado", "heatAlert", "typhoonAnalysis", "floodForecast"], cancellationRole: "standby active card state and tombstones" },
   { owner: "TsunamiStateHolder", sourceFile: "src/engine/messages/tsunami-state.ts", domains: ["tsunami"], cancellationRole: "accepted active level; watermark is owned by TelegramRevisionGate" },
   { owner: "TyphoonProbabilityStateHolder", sourceFile: "src/engine/messages/typhoon-probability-state.ts", domains: ["typhoonProbability"], cancellationRole: "EventID probability cache" },
-  { owner: "VolcanoStateHolder", sourceFile: "src/engine/messages/volcano-state.ts", domains: ["volcano"], cancellationRole: "volcano alert revision state" },
+  { owner: "VolcanoStateHolder", sourceFile: "src/engine/messages/volcano-state.ts", domains: ["volcano"], cancellationRole: "accepted active alert and eruption EventID mapping; watermark is owned by TelegramRevisionGate" },
   { owner: "VolcanoVfvo53Aggregator", sourceFile: "src/engine/messages/volcano-vfvo53-aggregator.ts", domains: ["volcano"], cancellationRole: "VFVO53 batch window; transient aggregation only" },
   { owner: "Vpwp50DetailCache", sourceFile: "src/engine/messages/vpwp50-detail-cache.ts", domains: ["weatherWarningTimeseries"], cancellationRole: "source detail cache" },
   { owner: "Vpws50StateHolder", sourceFile: "src/engine/messages/vpws50-state.ts", domains: ["weather"], cancellationRole: "current/previous snapshots for restorePrevious" },
@@ -820,11 +820,17 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
   },
   {
     domain: "volcano", family: "volcanoAlert", owner: "VolcanoStateHolder",
-    behavior: "火山コード単位の alert entry を削除",
-    sources: [{
-      sourceFile: "src/engine/messages/volcano-state.ts",
-      needles: ['if (info.infoType === "取消") {', "this.entries.delete(info.volcanoCode);"],
-    }],
+    behavior: "共通 clearCurrent decision を火山コード単位の alert entry 削除へ適用",
+    sources: [
+      {
+        sourceFile: "src/engine/messages/volcano-route-handler.ts",
+        needles: ['if (decision.kind === "clearCurrent") this.volcanoState.clearAlert'],
+      },
+      {
+        sourceFile: "src/engine/messages/volcano-state.ts",
+        needles: ["clearAlert(volcanoCode: string): void {", "this.entries.delete(volcanoCode);"],
+      },
+    ],
   },
   {
     domain: "volcano", family: "volcanoAlert", owner: "StandbyStateStore",
@@ -833,6 +839,20 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
       sourceFile: "src/engine/display/standby-state-store.ts",
       needles: ["if (update.isCancellation) {", "state.alertLevel = null;", "state.alertClass = null;"],
     }],
+  },
+  {
+    domain: "volcano", family: "volcanoEruption", owner: "VolcanoStateHolder",
+    behavior: "共通 clearCurrent decision を火山コード単位の eruption identity 削除へ適用",
+    sources: [
+      {
+        sourceFile: "src/engine/messages/volcano-route-handler.ts",
+        needles: ['if (decision.kind === "clearCurrent") this.volcanoState.clearEruption'],
+      },
+      {
+        sourceFile: "src/engine/messages/volcano-state.ts",
+        needles: ["clearEruption(volcanoCode: string): void {", "this.eruptions.delete(volcanoCode);"],
+      },
+    ],
   },
   {
     domain: "volcano", family: "volcanoEruption", owner: "StandbyStateStore",
@@ -1145,11 +1165,11 @@ export const REPAIR_A_TO_C_BASELINES = [
   {
     repair: "C",
     behavior: "空コード VFVO56 取消を EventID で削除する",
-    testFile: "test/engine/display/standby-state-store.test.ts",
+    testFile: "test/engine/telegram-foundation/phase3b-volcano.test.ts",
     expectedAssertions: [
-      "expect(restored.snapshotItems()).toEqual([]);",
-      "expect(afterRestart.snapshotItems()).toEqual([]);",
-      "expect(afterRestart.applyEvent(issue, cancelMs + 2)).toEqual({",
+      'it("空コード VFVO56 取消を EventID の一意対象だけへ適用する", () => {',
+      'expect(h.standby.exportActiveState().volcanoes.map((item) => item.code)).toEqual(["306"]);',
+      'expect(h.holder.resolveEruptionCancellation("event-506")).toBeNull();',
     ],
   },
   {

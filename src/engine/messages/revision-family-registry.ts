@@ -1,9 +1,12 @@
 import type {
   ParsedEewInfo,
   ParsedTsunamiInfo,
+  ParsedVolcanoInfo,
+  ParsedVolcanoTextInfo,
   ParsedWeatherWarning,
   TelegramMeta,
   TsunamiObservationStation,
+  VolcanoAlertStateEntry,
 } from "../../types";
 import type { TelegramRevisionComparator } from "../../dmdata/telegram-meta";
 import {
@@ -104,6 +107,124 @@ function eewPolicy(headType: "VXSE43" | "VXSE44" | "VXSE45"):
 
 const VPWS50_SUBJECT = "weather:vpws50";
 const TSUNAMI_CURRENT_SUBJECT = "tsunami:current";
+export const VOLCANO_MAX_SUBJECTS = 512;
+export const VOLCANO_ALERT_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60_000;
+export const VOLCANO_ERUPTION_TOMBSTONE_RETENTION_MS = 2 * 24 * 60 * 60_000;
+
+export function volcanoAlertSubjectKey(volcanoCode: string): string | null {
+  const code = volcanoCode.trim();
+  return code === "" ? null : `volcano:alert:${code}`;
+}
+
+export function volcanoEruptionSubjectKey(volcanoCode: string): string | null {
+  const code = volcanoCode.trim();
+  return code === "" ? null : `volcano:eruption:${code}`;
+}
+
+function volcanoAlertSubjects(parsed: ParsedVolcanoInfo): string | readonly string[] | null {
+  if (parsed.kind === "alert") return volcanoAlertSubjectKey(parsed.volcanoCode);
+  if (parsed.kind !== "text" || parsed.type !== "VFVO51") return null;
+  const subjects = volcanoTextAlertStateEntries(parsed).flatMap((entry) => {
+    const subject = volcanoAlertSubjectKey(entry.volcanoCode);
+    return subject == null ? [] : [subject];
+  });
+  return [...new Set(subjects)];
+}
+
+/** Phase 3B 導入前 DTO も受けつつ、VFVO51 の数値／非数値 state 候補を統一する。 */
+export function volcanoTextAlertStateEntries(
+  parsed: ParsedVolcanoTextInfo,
+): VolcanoAlertStateEntry[] {
+  if (parsed.alertStateEntries != null) {
+    return parsed.alertStateEntries.map((entry) => ({
+      ...entry,
+      alertClass: entry.alertClass == null ? null : { ...entry.alertClass },
+    }));
+  }
+  if (parsed.alertClasses.length > 0) {
+    return parsed.alertClasses.map((entry) => ({
+      volcanoCode: entry.volcanoCode,
+      volcanoName: entry.volcanoName,
+      alertLevel: null,
+      alertLevelCode: entry.alertClass.code,
+      action: entry.alertClass.isActive ? "continue" : "release",
+      warningKind: entry.alertClass.name,
+      alertClass: { ...entry.alertClass },
+    }));
+  }
+  const subject = volcanoAlertSubjectKey(parsed.volcanoCode);
+  if (subject == null || parsed.alertLevelCode == null) return [];
+  return [{
+    volcanoCode: parsed.volcanoCode,
+    volcanoName: parsed.volcanoName,
+    alertLevel: parsed.alertLevel,
+    alertLevelCode: parsed.alertLevelCode,
+    action: parsed.infoType === "取消" ? "cancel" : "continue",
+    warningKind: "",
+    alertClass: null,
+  }];
+}
+
+function volcanoAlertIsInactive(parsed: ParsedVolcanoInfo): boolean {
+  if (parsed.kind === "alert") {
+    return parsed.action === "release"
+      || parsed.action === "cancel"
+      || parsed.alertLevel === 1 && (parsed.action === "continue" || parsed.action === "lower");
+  }
+  return parsed.kind === "text"
+    && parsed.type === "VFVO51"
+    && volcanoTextAlertStateEntries(parsed).length === 1
+    && (() => {
+      const entry = volcanoTextAlertStateEntries(parsed)[0];
+      return entry.action === "release"
+        || entry.action === "cancel"
+        || entry.alertLevel === 1 && (entry.action === "continue" || entry.action === "lower")
+        || entry.alertClass?.isActive === false;
+    })();
+}
+
+export const VOLCANO_ALERT_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
+  domain: "volcano",
+  revisionFamily: "volcanoAlert",
+  headTypes: ["VFVO50", "VFVO51", "VFSVii"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => volcanoAlertSubjects(parsed),
+  extractCancellationTarget: (_meta, parsed) => {
+    const extracted = volcanoAlertSubjects(parsed);
+    return extracted == null ? null : typeof extracted === "string" ? [extracted] : extracted;
+  },
+  cancellationPolicy: "clearCurrent",
+  terminalPredicate: () => false,
+  deactivationPredicate: (_meta, parsed) => volcanoAlertIsInactive(parsed),
+  durable: true,
+  tombstoneRetentionMs: VOLCANO_ALERT_TOMBSTONE_RETENTION_MS,
+  maxSubjects: VOLCANO_MAX_SUBJECTS,
+  allowMissingSerial: true,
+  fragmentMerge: false,
+};
+
+export const VOLCANO_ERUPTION_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
+  domain: "volcano",
+  revisionFamily: "volcanoEruption",
+  headTypes: ["VFVO52", "VFVO56"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (_meta, parsed) => parsed.kind === "eruption"
+    ? volcanoEruptionSubjectKey(parsed.volcanoCode)
+    : null,
+  extractCancellationTarget: (_meta, parsed) => {
+    if (parsed.kind !== "eruption") return null;
+    const subject = volcanoEruptionSubjectKey(parsed.volcanoCode);
+    return subject == null ? null : [subject];
+  },
+  cancellationPolicy: "clearCurrent",
+  terminalPredicate: () => false,
+  deactivationPredicate: () => false,
+  durable: true,
+  tombstoneRetentionMs: VOLCANO_ERUPTION_TOMBSTONE_RETENTION_MS,
+  maxSubjects: VOLCANO_MAX_SUBJECTS,
+  allowMissingSerial: true,
+  fragmentMerge: false,
+};
 
 function tsunamiObservationItemSubjectKey(item: TsunamiObservationStation): string | null {
   const code = item.stationCode?.trim();
@@ -328,6 +449,8 @@ export const ALL_REVISION_FAMILY_POLICIES = [
   VPWS50_REVISION_FAMILY_POLICY,
   VPWW56_REVISION_FAMILY_POLICY,
   ...Object.values(TSUNAMI_REVISION_FAMILY_POLICIES),
+  VOLCANO_ALERT_REVISION_FAMILY_POLICY,
+  VOLCANO_ERUPTION_REVISION_FAMILY_POLICY,
 ] as const;
 
 validateRevisionFamilyPolicies(ALL_REVISION_FAMILY_POLICIES);
@@ -357,5 +480,17 @@ export function weatherRevisionFamilyPolicy(
 ): RevisionFamilyPolicy<ParsedWeatherWarning> | null {
   if (headType === "VPWS50") return VPWS50_REVISION_FAMILY_POLICY;
   if (headType === "VPWW56") return VPWW56_REVISION_FAMILY_POLICY;
+  return null;
+}
+
+export function volcanoRevisionFamilyPolicy(
+  headType: string,
+): RevisionFamilyPolicy<ParsedVolcanoInfo> | null {
+  if (VOLCANO_ALERT_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
+    return VOLCANO_ALERT_REVISION_FAMILY_POLICY;
+  }
+  if (VOLCANO_ERUPTION_REVISION_FAMILY_POLICY.headTypes.includes(headType)) {
+    return VOLCANO_ERUPTION_REVISION_FAMILY_POLICY;
+  }
   return null;
 }

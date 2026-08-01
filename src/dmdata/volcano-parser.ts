@@ -14,6 +14,7 @@ import {
   WindProfileEntry,
   VolcanoAlertClass,
   VolcanoAlertClassEntry,
+  VolcanoAlertStateEntry,
 } from "../types";
 import { decodeBody, parseXml, dig, str, first } from "./telegram-parser";
 import { requireTelegramMeta } from "./telegram-ingress";
@@ -625,6 +626,7 @@ function parseVolcanoText(
   // レベル情報 (VFVO51 のみ)
   let alertLevelCode: string | null = null;
   const alertClasses: VolcanoAlertClassEntry[] = [];
+  const alertStateEntries: VolcanoAlertStateEntry[] = [];
   if (headType === "VFVO51") {
     const headInfo = dig(head, "Headline", "Information");
     const headInfoList = Array.isArray(headInfo) ? headInfo : headInfo ? [headInfo] : [];
@@ -641,20 +643,31 @@ function parseVolcanoText(
           const code = str(dig(kindObj, "Code"));
           const name = str(dig(kindObj, "Name"));
           const condition = str(dig(kindObj, "Condition"));
-          if (code && levelCodeToNumber(code) != null) {
+          const itemAlertLevel = levelCodeToNumber(code);
+          if (code && itemAlertLevel != null) {
             if (!alertLevelCode || Number(code) > Number(alertLevelCode)) {
               alertLevelCode = code;
             }
           }
           const alertClass = volcanoAlertClass(code, name, condition, base.infoType);
-          if (alertClass != null) {
-            const areas = dig(item, "Areas", "Area");
-            for (const area of Array.isArray(areas) ? areas : areas ? [areas] : []) {
-              const volcanoCode = str(dig(area, "Code"));
-              if (volcanoCode === "") continue;
+          const areas = dig(item, "Areas", "Area");
+          for (const area of Array.isArray(areas) ? areas : areas ? [areas] : []) {
+            const volcanoCode = str(dig(area, "Code"));
+            if (volcanoCode === "") continue;
+            const volcanoName = str(dig(area, "Name"));
+            alertStateEntries.push({
+              volcanoCode,
+              volcanoName,
+              alertLevel: itemAlertLevel,
+              alertLevelCode: code || null,
+              action: conditionToAction(condition, base.infoType),
+              warningKind: name,
+              alertClass: alertClass == null ? null : { ...alertClass },
+            });
+            if (alertClass != null) {
               alertClasses.push({
                 volcanoCode,
-                volcanoName: str(dig(area, "Name")),
+                volcanoName,
                 alertClass: { ...alertClass },
               });
             }
@@ -680,6 +693,7 @@ function parseVolcanoText(
     alertLevel,
     alertLevelCode,
     alertClasses,
+    alertStateEntries,
     isExtraordinary,
     bodyText,
     nextAdvisory: nextAdvisory ? nextAdvisory.trim() : null,

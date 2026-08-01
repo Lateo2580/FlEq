@@ -1084,6 +1084,8 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 
 ## startup/volcano-initializer.ts
 
+Phase 3B 以降、火山の durable state は standby persistence v2 の `telegramFoundation.volcano`（holder state・active projection・gate entries）が真実源である。REST の VFVO50 replay は共通 `TelegramRevisionGate` を通し、persisted watermark と同一の最新 payload で holder が空の場合だけ安全に再構成する。取消 tombstone、異なる同一 revision payload、stale report は REST から復活させない。REST が新しい report を受理した場合は mutation callback で永続化を予約する。
+
 ### 概要
 
 起動時に dmdata.jp REST API から直近の VFVO50 電文履歴 (窓 = 100 件) を取得し、古い順に replay して火山警報状態 (`VolcanoStateHolder`) を復元する。WebSocket 接続が確立される前に実行され、接続前に発表済みの複数火山の警報をプロンプトに表示できるようにする。
@@ -1092,9 +1094,9 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 
 ### エクスポート API
 
-#### `restoreVolcanoState(apiKey: string, volcanoState: VolcanoStateHolder): Promise<void>`
+#### `restoreVolcanoState(apiKey, volcanoState, revisionGate?, foundationAuthoritative?, onMutation?): Promise<"success" | "failed">`
 
-直近の VFVO50 電文を `GET /v2/telegram?type=VFVO50&limit=100&formatMode=raw` (`VOLCANO_RESTORE_WINDOW = 100`) で取得し、`head.time` 昇順の安定ソート後に 1 件ずつ `volcanoState.update()` へ replay する。解除・取消・レベル1 復帰の削除は `update()` の既存分岐が replay 中に自然に適用されるため、復元専用の状態判定ロジックは持たない。
+直近の VFVO50 電文を `GET /v2/telegram?type=VFVO50&limit=100&formatMode=raw` (`VOLCANO_RESTORE_WINDOW = 100`) で取得し、`head.time` 昇順の安定ソート後に 1 件ずつ共通 revision gate へ replay する。v2 が authoritative の場合、duplicate は persisted active と semantic 一致し、かつ holder に対応 entry がない場合だけ再構成に使う。新しい受理報の解除・取消・レベル1復帰は `clearCurrent`、active report は `applyAcceptedAlert()` へ適用する。
 
 - 個別電文の body 欠落・パース失敗: デバッグログを出して skip し、残りの replay を続行
 - 警報状態が復元された場合: ログ出力 (`火山警報状態を復元しました (N 火山 / M 電文を replay)`)
@@ -1112,7 +1114,7 @@ Linux で canberra-gtk-play が使えない場合、`\x07` (BEL) を stdout に�
 ### 設計ノート
 
 - `TelegramListItem` → `WsDataMessage` 変換は `startup/telegram-adapter.ts` の共有 `toWsDataMessage()` で行う (tsunami-initializer と共用)。`type: "data"`, `version: "2.0"`, `passing: []` を補完する。
-- `volcanoState.update()` は `kind === "alert"` かつ `volcanoCode` が非空の場合のみ状態を更新するため、呼び出し側でのフィルタリングは不要。
+- v2 が非 authoritative の旧 state だけを読む場合に限り、互換 helper `volcanoState.update()` で REST replay する。通常は共通 gate の subject/comparator/cancellation policy を使う。
 - REST API 呼び出しは起動時の 1 回のみ。以降は WebSocket 経由のリアルタイム更新に任せる。
 
 ---
@@ -1401,6 +1403,8 @@ class VolcanoVfvo53Aggregator {
 
 ## messages/volcano-state.ts
 
+Phase 3B 以降、revision watermark と cancellation tombstone は `TelegramRevisionGate` が所有する。`VolcanoStateHolder` は gate 通過後の active alert と、空コード VFVO56 取消を一意に解決するための eruption EventID 対応だけを保持する。現行報のEventID欠落はlive、旧v1表示からseedした候補だけを`legacyV1Fallback`としてv2 DTOでも区別し、EventID不一致時のnull fallbackは後者だけへ許す。alert/eruption の更新 API は `applyAcceptedAlert()`、`applyAcceptedAlertClass()`、数値レベルを含む `applyAcceptedTextAlert()`、`applyAcceptedEruption()`、解除 API は `clearAlert()`、`clearEruption()` である。`retainActiveSubjects()` が gate の active subject 集合と holder の LRU/eviction を同期する。空コード取消の再送はgateのrollback keyからtombstone subjectを復元し、EventID欠落取消は既存のEventID keyを上書きしない。rollback key は `eventId` / `codeFallback` provenance とともに v2 保存し、空コード取消の EventID 逆引きは実 EventID 由来だけに限定する。provenance 欠落の旧 v2 は誤取消防止を優先して逆引き対象外とする。v2 writer は trusted gate entry を旧 `seen` の同一 key より優先して rollback 用 v1へ投影する。`legacyRevisionKey` がない旧 v2 の active 噴火は canonical holder state の EventID を回収し、取消済みで復元不能な場合だけ火山コードへ縮退する。期限切れの旧 v1 噴火 state は EventID 対応へ seed しない。`update()` は formatter/unit helper の互換入口であり、production の新旧判定には使わない。
+
 ### 概要
 
 火山警報の状態を保持し、複数火山の同時追跡に対応するモジュール。`PromptStatusProvider` と `DetailProvider` の両インターフェースを実装する。火山コード (`volcanoCode`) をキーとする Map で各火山のアラートエントリを管理し、再通知判定にも利用される。
@@ -1411,7 +1415,16 @@ class VolcanoVfvo53Aggregator {
 class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcano"> {
   readonly category: "volcano";
   readonly emptyMessage: string;
-  update(info: ParsedVolcanoInfo): void;
+  applyAcceptedAlert(info: ParsedVolcanoAlertInfo): void;
+  applyAcceptedAlertClass(entry: VolcanoAlertClassEntry, reportDateTime: string): void;
+  applyAcceptedTextAlert(entry: VolcanoAlertStateEntry, reportDateTime: string): void;
+  clearAlert(volcanoCode: string): void;
+  applyAcceptedEruption(info: ParsedVolcanoEruptionInfo, eventId: string | null): void;
+  clearEruption(volcanoCode: string): void;
+  resolveEruptionCancellation(eventId: string): string | null;
+  retainActiveSubjects(alertSubjects: readonly string[], eruptionSubjects: readonly string[]): void;
+  exportPersistedState(): PersistedVolcanoStateV2;
+  restorePersistedState(state: PersistedVolcanoStateV2): void;
   isRenotification(info: ParsedVolcanoAlertInfo): boolean;
   clear(): void;
   size(): number;
@@ -1423,13 +1436,12 @@ class VolcanoStateHolder implements PromptStatusProvider, DetailProvider<"volcan
 
 ### 内部ロジック
 
-#### 状態更新 (`update`)
+#### 状態更新
 
-- `kind !== "alert"` → 無視（eruption, ashfall 等は状態追跡しない）
-- 取消報 (`infoType === "取消"`) → エントリ削除
-- 解除 (`action === "release"`) → エントリ削除
-- レベル1 + 継続 → エントリ削除（通常状態に戻った）
-- それ以外 → エントリを upsert
+- route handler が共通 gate で受理した alert/VFVO51 entry だけを alert Map へ upsert する。
+- VFVO52/VFVO56 は火山コードと EventID の対応を eruption Map に保持し、空コード取消は exact EventID、または旧 snapshot の一意候補だけへ解決する。
+- `clearAlert()` と `clearEruption()` は別 Map を操作し、一方の取消で他方を消さない。
+- gate の family capacity eviction 後は `retainActiveSubjects()` で同じ LRU 対象を holder からも退場させる。旧 v1 表示復元専用 entry は gate 管理集合へ混ぜない。
 
 #### 再通知判定 (`isRenotification`)
 
@@ -2985,6 +2997,8 @@ interface DisplayCallbacks {
 
 ## messages/volcano-route-handler.ts
 
+VFVO50/VFVO51/VFSVii と VFVO52/VFVO56 は、通知・Presentation・standby 投影より前に共通 revision gate を通る。subject は alert/eruption を分けた火山コード単位で、VFVO51 は複数火山 entry を独立評価する。明示取消 A、terminal B、非活性 C は共通 resolver の `A > B > C` に従い、同一 subject の mutation・stats・永続化 callback は一回だけ発火する。subject を確定できない入力は表示/ticker だけの fail-open とし、`volcanoStateMutationAccepted=false` により通知・standby・promotion・永続化を抑止する。VFVO53 は従来どおり transient batch aggregator が担当する。
+
 ### 概要
 
 火山電文のルーティング処理を一元管理するハンドラクラス。火山は VFVO53 アグリゲータによるバッチ集約があるため、他ドメインの `processMessage()` → outcome → display の線形フローとは異なる。このハンドラがパース → メッセージキャッシュ → VFVO53 集約 → 通知 → 表示の全工程を担当する。
@@ -3002,6 +3016,11 @@ interface VolcanoRouteHandlerDeps {
   notifier: Notifier;
   runDisplayPipeline: DisplayPipelineFn;
   display?: DisplayCallbacks;
+  revisionGate?: TelegramRevisionGate;
+  onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onFoundationNotified?: (isCorrection: boolean) => void;
+  onFoundationPresented?: () => void;
 }
 
 class VolcanoRouteHandler {
@@ -3022,17 +3041,13 @@ class VolcanoRouteHandler {
 
 1. `pruneMsgCache()` で期限切れキャッシュを削除（TTL 10分）
 2. `parseVolcanoTelegram(msg)` でパース（失敗→`null` 返却）
-3. メッセージを `msgCache` にキャッシュ（volcanoCode をキー）
-4. `VolcanoVfvo53Aggregator.handle()` に委譲
+3. `VolcanoVfvo53Aggregator.handle()` に委譲
+4. alert/eruption の単発 callback は火山コード subject ごとに共通 gate を評価し、受理分だけ holder・通知・Presentation を更新する
 
 #### アグリゲータコールバック
 
-- **単発表示** (`emitSingle`) — `buildVolcanoOutcome()` で outcome 構築 → `resolveVolcanoPresentation()` → `volcanoState.update()` → `notifier.notifyVolcano()` → `runDisplayPipeline()` → `display.displayVolcano()`
+- **単発表示** (`emitSingle`) — `buildVolcanoOutcome()` で outcome 構築 → `resolveVolcanoPresentation()` → common gate → accepted holder mutation → 通知 → `runDisplayPipeline()` → `display.displayVolcano()`。訂正は通知 title/body に「訂正」を明示し、semantic duplicate は通知しない。
 - **バッチ表示** (`emitBatch`) — `resolveVolcanoBatchPresentation()` → `notifier.notifyVolcanoBatch()` → `VolcanoBatchOutcome` 構築 → `runDisplayPipeline()` → `display.displayVolcanoBatch()`
-
-#### メッセージキャッシュ
-
-`Map<volcanoCode, { msg, cachedAt }>` で直近の `WsDataMessage` を保持する。`buildVolcanoOutcome()` に元メッセージを渡すために必要。TTL は10分で、`handle()` 呼び出し時に期限切れエントリを自動削除する。
 
 ### 依存関係
 

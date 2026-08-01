@@ -225,13 +225,9 @@ describe("standby integration", () => {
     }));
   });
 
-  it("9: seeds volcano alert watermarks and keeps alert/event cancellation independent", () => {
+  it("9: keeps volcano alert/event cancellation independent after an authoritative seed", () => {
     const store = new StandbyStateStore();
     store.seedVolcanoAlerts([{ volcanoCode: "V-1", volcanoName: "テスト山", alertLevel: 4, reportDateTime: iso(T0 + 60_000) }], "success", T0 + 60_000);
-    expect(store.applyEvent(event({ id: "old-alert", domain: "volcano", serial: "1", reportDateTime: iso(T0), raw: {
-      kind: "alert", type: "VFVO50", infoType: "発表", volcanoCode: "V-1", volcanoName: "テスト山",
-      alertLevel: 2, alertLevelCode: "2", previousLevelCode: "4",
-    } }), T0 + 60_001)).toEqual({ viewChanged: false, durableChanged: false });
 
     store.applyEvent(expiringVolcano(T0 + 120_000), T0 + 120_000);
     store.applyEvent(event({ id: "cancel-event", domain: "volcano", serial: "2", reportDateTime: iso(T0 + 180_000), isCancellation: true, raw: {
@@ -256,22 +252,6 @@ describe("standby integration", () => {
         })],
       },
     }));
-  });
-
-  it("9b: seeds a released volcano watermark and rejects an older delayed alert after a fresh start", () => {
-    const volcanoState = new VolcanoStateHolder();
-    volcanoState.update(volcanoAlertInfo(T0, "issue", 4));
-    volcanoState.update(volcanoAlertInfo(T0 + 60_000, "release", 1));
-    expect(volcanoState.size()).toBe(0);
-    expect(volcanoState.getWatermarks()).toEqual([{
-      volcanoCode: "V-1", volcanoName: "テスト山", reportDateTime: iso(T0 + 60_000),
-    }]);
-
-    const store = new StandbyStateStore();
-    store.seedVolcanoAlerts(volcanoState.getSeedEntries(), "success", T0 + 60_001);
-    expect(store.applyEvent(volcano(T0 + 30_000), T0 + 60_002))
-      .toEqual({ viewChanged: false, durableChanged: false });
-    expect(store.snapshotItems()).toEqual([]);
   });
 
   it("9c: carries a non-numeric warning class through the authoritative startup seed", () => {

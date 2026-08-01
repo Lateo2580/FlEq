@@ -70,19 +70,29 @@ function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
     infoType: xmlReport?.head.infoType ?? "不明",
     title: xmlReport?.head.title ?? outcome.headType,
     headline: info.headline ?? xmlReport?.head.headline ?? null,
-    reportDateTime: xmlReport?.head.reportDateTime ?? outcome.msg.head.time,
+    reportDateTime: info.reportDateTime,
     publishingOffice: xmlReport?.control.publishingOffice ?? outcome.msg.head.author,
     isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,
     soundLevel: outcome.presentation.soundLevel,
     notifyCategory: outcome.presentation.notifyCategory,
+    volcanoStateMutationAccepted: outcome.presentation.volcanoStateMutationAccepted,
+    volcanoAcceptedSubjects: outcome.presentation.volcanoAcceptedSubjects == null
+      ? undefined
+      : [...outcome.presentation.volcanoAcceptedSubjects],
+    volcanoActiveAlertSubjects: outcome.presentation.volcanoActiveAlertSubjects == null
+      ? undefined
+      : [...outcome.presentation.volcanoActiveAlertSubjects],
+    volcanoActiveEruptionSubjects: outcome.presentation.volcanoActiveEruptionSubjects == null
+      ? undefined
+      : [...outcome.presentation.volcanoActiveEruptionSubjects],
 
     isCancellation: info.infoType === "取消",
     isRenotification: outcome.state.isRenotification,
 
-    eventId: xmlReport?.head.eventId ?? null,
-    serial: xmlReport?.head.serial ?? null,
+    eventId: info.meta.eventId.value,
+    serial: info.meta.serial.raw,
 
     volcanoCode: info.volcanoCode,
     volcanoName: info.volcanoName,

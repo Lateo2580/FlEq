@@ -28,6 +28,8 @@ import {
   FIXTURE_VXSE45_FINAL,
   FIXTURE_VFVO53_ASH_REGULAR,
   FIXTURE_VFVO54_ASH_RAPID,
+  FIXTURE_VFVO50_ALERT_LV3,
+  FIXTURE_VFVO51_NORMAL,
   FIXTURE_VPZJ51_SENJOU,
   FIXTURE_VPFJ51_KANTO,
   FIXTURE_VPCI50_KANTO_TSUYU,
@@ -41,6 +43,7 @@ import { notifyMock } from "../setup";
 import { WsDataMessage } from "../../src/types";
 import type { DisplayStatsV1 } from "../../src/engine/display/types";
 import * as fs from "fs";
+import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -399,6 +402,85 @@ describe("message-router 統合テスト", () => {
         correctionNotified: 1,
         notified: 2,
         presented: 2,
+        transportDuplicate: 1,
+      });
+    });
+  });
+
+  describe("火山 foundation 前処理", () => {
+    it("実 VFVO51 の数値レベルを火山コード subject で gate し、別 transport ID の再送を抑止する", () => {
+      const revisionGate = new TelegramRevisionGate();
+      const { handler, notifier, volcanoState } = createHandler({ revisionGate });
+      const notify = vi.spyOn(notifier, "notifyVolcano");
+      const first = createMockWsDataMessage(FIXTURE_VFVO51_NORMAL);
+      handler(first);
+      handler({ ...first, id: `${first.id}-replay`, meta: undefined });
+
+      expect(revisionGate.exportDurableEntries()).toEqual([
+        expect.objectContaining({
+          domain: "volcano",
+          revisionFamily: "volcanoAlert",
+          stateSubjectKey: "volcano:alert:350",
+        }),
+      ]);
+      expect(volcanoState.getEntry("350")).toMatchObject({ alertLevel: 2, alertLevelCode: "12" });
+      expect(notify).toHaveBeenCalledTimes(1);
+    });
+
+    it("同一 messageId の VFVO50 を transport 層で一回だけ処理する", () => {
+      const { handler, notifier, stats } = createHandler();
+      const notify = vi.spyOn(notifier, "notifyVolcano");
+      const msg = createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3);
+      handler(msg);
+      handler(msg);
+      expect(notify).toHaveBeenCalledTimes(1);
+      expect(stats.getSnapshot().foundation).toMatchObject({
+        received: 2,
+        transportDuplicate: 1,
+      });
+    });
+
+    it("invalid ReportDateTime は診断だけを表示して火山 state・通知を変更しない", () => {
+      const diagnostic = vi.spyOn(display, "displayTelegramDiagnostic");
+      const { handler, notifier, volcanoState, stats } = createHandler();
+      const notify = vi.spyOn(notifier, "notifyVolcano");
+      const xml = readFixture(FIXTURE_VFVO50_ALERT_LV3)
+        .replace(/<ReportDateTime>[^<]+<\/ReportDateTime>/, "<ReportDateTime>invalid</ReportDateTime>");
+      handler(createMockWsDataMessageFromXml(xml, "VFVO50"));
+      expect(diagnostic).toHaveBeenCalledTimes(1);
+      expect(notify).not.toHaveBeenCalled();
+      expect(volcanoState.size()).toBe(0);
+      expect(stats.getSnapshot().foundation.invalidDateDiagnosed).toBe(1);
+    });
+
+    it("15 分超未来の火山報も診断だけに分離する", () => {
+      const diagnostic = vi.spyOn(display, "displayTelegramDiagnostic");
+      const { handler, notifier, volcanoState, stats } = createHandler();
+      const notify = vi.spyOn(notifier, "notifyVolcano");
+      const future = new Date(Date.now() + 16 * 60_000).toISOString();
+      const xml = readFixture(FIXTURE_VFVO50_ALERT_LV3)
+        .replace(/<ReportDateTime>[^<]+<\/ReportDateTime>/, `<ReportDateTime>${future}</ReportDateTime>`);
+      handler(createMockWsDataMessageFromXml(xml, "VFVO50"));
+      expect(diagnostic).toHaveBeenCalledTimes(1);
+      expect(notify).not.toHaveBeenCalled();
+      expect(volcanoState.size()).toBe(0);
+      expect(stats.getSnapshot().foundation.futureDateDiagnosed).toBe(1);
+    });
+
+    it("同一 revision の火山訂正を一回だけ通知し「訂正」を明示する", () => {
+      const { handler, stats } = createHandler();
+      const source = readFixture(FIXTURE_VFVO50_ALERT_LV3);
+      const correction = source.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>");
+      handler(createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3));
+      handler(createMockWsDataMessageFromXml(correction, "VFVO50"));
+      handler(createMockWsDataMessageFromXml(correction, "VFVO50"));
+      expect(notifyMock).toHaveBeenCalledTimes(2);
+      const correctionNotice = notifyMock.mock.calls[1][0] as { title: string; message: string };
+      expect(correctionNotice.title).toContain("訂正");
+      expect(correctionNotice.message).toContain("訂正:");
+      expect(stats.getSnapshot().foundation).toMatchObject({
+        correctionReplaced: 1,
+        correctionNotified: 1,
         transportDuplicate: 1,
       });
     });

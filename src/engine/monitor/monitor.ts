@@ -27,6 +27,10 @@ import { TsunamiStateHolder } from "../messages/tsunami-state";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../display/weather-alert-view";
 import { createDisplaySink } from "./display-sink";
 import { Vpww56StateHolder } from "../messages/vpww56-state";
+import {
+  activeLegacyEruptionIdentitySeeds,
+  VolcanoStateHolder,
+} from "../messages/volcano-state";
 
 import { formatSummaryInterval } from "../../ui/summary-interval-formatter";
 import { WINDOW_MINUTES, type SummaryWindowTracker } from "../messages/summary-tracker";
@@ -52,9 +56,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const vpws50State = new Vpws50StateHolder();
   const vpww56State = new Vpww56StateHolder();
   const tsunamiState = new TsunamiStateHolder();
+  const volcanoState = new VolcanoStateHolder();
   const revisionGate = new TelegramRevisionGate();
   let vpws50FoundationAuthoritative = true;
   let vpww56FoundationAuthoritative = true;
+  let volcanoFoundationAuthoritative = true;
   const standbyPersistence = new StandbyPersistence(
     join(process.cwd(), "data", "runtime", "display-active-state-v1.json"),
     undefined,
@@ -79,6 +85,17 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
           || (entry.domain === "tsunamiObservation"
             && (entry.revisionFamily === "VTSE51" || entry.revisionFamily === "VTSE52"))),
       },
+      volcano: {
+        authoritative: volcanoFoundationAuthoritative,
+        state: volcanoState.size() === 0 && volcanoState.exportPersistedState().eruptions.length === 0
+          ? null
+          : volcanoState.exportPersistedState(),
+        active: standbyStore.exportActiveState().volcanoes,
+        gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "volcano"
+          && (entry.revisionFamily === "volcanoAlert"
+            || entry.revisionFamily === "volcanoEruption")),
+      },
     }),
   );
   let standbyDirtyNotify: (() => void) | null = null;
@@ -88,7 +105,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
   const persistedStandby = standbyPersistence.load();
   if (persistedStandby != null) {
-    standbyStore.restoreActiveState(persistedStandby, Date.now());
+    const restoredAtMs = Date.now();
+    standbyStore.restoreActiveState(persistedStandby, restoredAtMs);
     const persistedVpws50 = persistedStandby.telegramFoundation.vpws50;
     vpws50FoundationAuthoritative = persistedVpws50.authoritative;
     if (persistedVpws50.state != null) vpws50State.restorePersistedState(persistedVpws50.state);
@@ -103,6 +121,27 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       persistedTsunami.observations,
     );
     revisionGate.restoreDurableEntries(persistedTsunami.gateEntries);
+    const persistedVolcano = persistedStandby.telegramFoundation.volcano;
+    volcanoFoundationAuthoritative = persistedVolcano.authoritative;
+    if (persistedVolcano.state != null) volcanoState.restorePersistedState(persistedVolcano.state);
+    revisionGate.restoreDurableEntries(persistedVolcano.gateEntries);
+    if (persistedVolcano.authoritative) {
+      standbyStore.restoreCanonicalVolcanoes(
+        persistedVolcano.active,
+        persistedVolcano.gateEntries,
+        Date.now(),
+      );
+    }
+    const foundationVolcanoSubjects = new Set(
+      persistedVolcano.gateEntries.map((entry) => entry.stateSubjectKey),
+    );
+    volcanoState.seedLegacyEruptionIdentities(
+      activeLegacyEruptionIdentitySeeds(
+        persistedStandby.volcanoes,
+        foundationVolcanoSubjects,
+        restoredAtMs,
+      ),
+    );
     if (persistedVpws50.authoritative) {
       const identity = vpws50State.getCurrentIdentity();
       standbyStore.restoreCanonicalVpws50Alerts(
@@ -249,7 +288,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const persistAcceptedTsunamiRevision = () => {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   };
-  const { handler: routeMessage, eewLogger, notifier, volcanoState, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
+  const { handler: routeMessage, eewLogger, notifier, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, buildDisplayStats } = createMessageHandler({
     pipeline: pipeline ?? undefined,
     display,
     displaySink,
@@ -257,6 +296,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     vpws50State,
     vpww56State,
     tsunamiState,
+    volcanoState,
     revisionGate,
     onVpws50RevisionDecision: (decision) => {
       if (decision.accepted) vpws50FoundationAuthoritative = true;
@@ -267,6 +307,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       standbyPersistence.schedule(standbyStore.exportActiveState());
     },
     onTsunamiRevisionDecision: persistAcceptedTsunamiRevision,
+    onVolcanoRevisionDecision: (decision) => {
+      if (!decision.accepted) return;
+      volcanoFoundationAuthoritative = true;
+      standbyPersistence.schedule(standbyStore.exportActiveState());
+    },
   });
   for (let i = 0; i < standbyPersistence.takeMigrationConflictCount(); i++) {
     stats.recordFoundation("persistenceMigrationConflict");
@@ -402,8 +447,20 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     revisionGate,
     persistAcceptedTsunamiRevision,
   );
-  const volcanoRestoreResult = await restoreVolcanoState(config.apiKey, volcanoState);
-  standbyStore.seedVolcanoAlerts(volcanoState.getSeedEntries(), volcanoRestoreResult, Date.now());
+  const volcanoWasAuthoritative = volcanoFoundationAuthoritative;
+  let volcanoRestoreMutated = false;
+  const volcanoRestoreResult = await restoreVolcanoState(
+    config.apiKey,
+    volcanoState,
+    revisionGate,
+    volcanoFoundationAuthoritative,
+    () => { volcanoRestoreMutated = true; },
+  );
+  if (volcanoRestoreResult === "success" && (!volcanoWasAuthoritative || volcanoRestoreMutated)) {
+    volcanoFoundationAuthoritative = true;
+    standbyStore.seedVolcanoAlerts(volcanoState.getSeedEntries(), "success", Date.now());
+    standbyPersistence.schedule(standbyStore.exportActiveState());
+  }
 
   // 情報ディスプレイ runtime の起動 (restore 後・dmdata 接続開始前)
   if (config.display) {

@@ -1,18 +1,15 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
-import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
+import {
+  activeLegacyEruptionIdentitySeeds,
+  VolcanoStateHolder,
+} from "../../../src/engine/messages/volcano-state";
 import type { ParsedVolcanoAlertInfo } from "../../../src/types";
 
 /**
- * VolcanoStateHolder の敵対的シーケンステスト。
- *
- * volcano-state.test.ts に基本挙動 (追加/削除/再通知判定/単一火山の release
- * tombstone) が入っているので、このファイルは複数火山が並走する状況での
- * 「火山別 watermark の独立性」「取消の対象火山限定」「古い時刻の取消が
- * エントリを消さないこと」「取消→再上昇→古い報の遅着」を集める。
- *
- * watermark 判定 (reportTime < watermark → false) が 取消/解除 branch より
- * 前段にあり、かつ火山コード単位で独立している点が要点。
+ * gate 通過後だけを受け取る VolcanoStateHolder の subject 分離テスト。
+ * revision/tombstone の敵対シーケンスは phase3b-volcano.test.ts が共通 gate
+ * との統合経路で固定する。
  */
 
 function alert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVolcanoAlertInfo {
@@ -48,17 +45,15 @@ function alert(overrides: Partial<ParsedVolcanoAlertInfo> = {}): ParsedVolcanoAl
   };
 }
 
-describe("VolcanoStateHolder 敵対シーケンス", () => {
-  it("火山別 watermark は独立: 片方の古い報がもう片方を巻き戻さない", () => {
+describe("VolcanoStateHolder accepted mutation", () => {
+  it("一方の火山更新が別火山を変更しない", () => {
     const state = new VolcanoStateHolder();
     state.update(alert({ volcanoCode: "306", volcanoName: "浅間山", reportDateTime: "2025-01-01T10:00:00+09:00", alertLevel: 3, alertLevelCode: "13" }));
     state.update(alert({ volcanoCode: "506", volcanoName: "桜島", reportDateTime: "2025-01-01T10:00:00+09:00", alertLevel: 5, alertLevelCode: "15" }));
     expect(state.size()).toBe(2);
 
-    // 306 の古い報 (09:00 < watermark 10:00) は棄却され、306 は Lv3 のまま
-    expect(state.update(alert({ volcanoCode: "306", reportDateTime: "2025-01-01T09:00:00+09:00", alertLevel: 2, alertLevelCode: "12", action: "lower" }))).toBe(false);
-    expect(state.getEntry("306")!.alertLevel).toBe(3);
-    // 506 は別火山として無傷
+    state.applyAcceptedAlert(alert({ volcanoCode: "306", alertLevel: 2, alertLevelCode: "12", action: "lower" }));
+    expect(state.getEntry("306")!.alertLevel).toBe(2);
     expect(state.getEntry("506")!.alertLevel).toBe(5);
   });
 
@@ -74,28 +69,34 @@ describe("VolcanoStateHolder 敵対シーケンス", () => {
     expect(state.size()).toBe(1);
   });
 
-  it("watermark より古い時刻の取消はエントリを消さない (遅着取消の無効化)", () => {
+  it("clearAlert は指定 subject だけを消す", () => {
     const state = new VolcanoStateHolder();
     state.update(alert({ volcanoCode: "306", reportDateTime: "2025-01-01T10:00:00+09:00", alertLevel: 3 }));
 
-    // 発表より前の時刻を持つ取消 → watermark で棄却され、エントリは残る
-    expect(state.update(alert({ volcanoCode: "306", infoType: "取消", reportDateTime: "2025-01-01T09:00:00+09:00" }))).toBe(false);
-    expect(state.getEntry("306")!.alertLevel).toBe(3);
+    state.update(alert({ volcanoCode: "506", alertLevel: 4 }));
+    state.clearAlert("306");
+    expect(state.getEntry("306")).toBeUndefined();
+    expect(state.getEntry("506")?.alertLevel).toBe(4);
   });
 
-  it("取消→再上昇→古い報の遅着: 再上昇後の状態を古い報が壊さない", () => {
+  it("persisted state は alert と eruption の subject を独立に往復する", () => {
     const state = new VolcanoStateHolder();
-    state.update(alert({ volcanoCode: "306", reportDateTime: "2025-01-01T10:00:00+09:00", alertLevel: 3 }));
-    // 取消 (11:00) で削除、watermark は 11:00 に前進
-    state.update(alert({ volcanoCode: "306", infoType: "取消", reportDateTime: "2025-01-01T11:00:00+09:00" }));
-    expect(state.getEntry("306")).toBeUndefined();
+    state.applyAcceptedAlert(alert({ volcanoCode: "306", alertLevel: 4, alertLevelCode: "14" }));
+    state.restorePersistedState({
+      ...state.exportPersistedState(),
+      eruptions: [{ volcanoCode: "506", eventId: "eruption-1" }],
+    });
+    expect(state.getEntry("306")?.alertLevel).toBe(4);
+    expect(state.resolveEruptionCancellation("eruption-1")).toBe("506");
+  });
 
-    // 再上昇 (12:00) → 受理
-    state.update(alert({ volcanoCode: "306", reportDateTime: "2025-01-01T12:00:00+09:00", alertLevel: 4, alertLevelCode: "14" }));
-    expect(state.getEntry("306")!.alertLevel).toBe(4);
-
-    // 取消と再上昇の間の古い報 (10:30) が遅れて届く → 棄却され Lv4 を維持
-    expect(state.update(alert({ volcanoCode: "306", reportDateTime: "2025-01-01T10:30:00+09:00", alertLevel: 2, alertLevelCode: "12", action: "lower" }))).toBe(false);
-    expect(state.getEntry("306")!.alertLevel).toBe(4);
+  it("legacy 噴火 identity は未失効かつ foundation 管理外の state だけを seed する", () => {
+    expect(activeLegacyEruptionIdentitySeeds([
+      { code: "306", latestEvent: {}, latestEventId: null, eventExpiresAtMs: 10_001 },
+      { code: "506", latestEvent: {}, latestEventId: "expired", eventExpiresAtMs: 10_000 },
+      { code: "509", latestEvent: {}, latestEventId: "managed", eventExpiresAtMs: 20_000 },
+    ], new Set(["volcano:eruption:509"]), 10_000)).toEqual([
+      { volcanoCode: "306", eventId: null },
+    ]);
   });
 });

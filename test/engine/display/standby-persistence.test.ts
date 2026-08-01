@@ -74,6 +74,7 @@ describe("StandbyPersistence", () => {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
         vpww56: { authoritative: false, state: null, gateEntries: [] },
         tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
+        volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
       },
     }));
   });
@@ -575,6 +576,7 @@ describe("StandbyStateStore persistence", () => {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
         vpww56: { authoritative: false, state: null, gateEntries: [] },
         tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
+        volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
       },
     }));
 

@@ -230,6 +230,7 @@ export interface MessageHandlerOptions {
   vpws50State?: Vpws50StateHolder;
   vpww56State?: Vpww56StateHolder;
   tsunamiState?: TsunamiStateHolder;
+  volcanoState?: VolcanoStateHolder;
   /** durable revision watermark の復元用。 */
   revisionGate?: TelegramRevisionGate;
   /** 最初の durable domain が v1 表示復元状態を脱したことを monitor へ伝える。 */
@@ -238,6 +239,8 @@ export interface MessageHandlerOptions {
   onVpww56RevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** tsunami gate/item state の commit 完了を persistence owner へ伝える。 */
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** volcano gate/holder の commit 完了を persistence owner へ伝える。 */
+  onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
 }
 
 /** createMessageHandler の戻り値 */
@@ -269,7 +272,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const eewLogger = new EewEventLogger();
   const notifier = new Notifier();
   const tsunamiState = options?.tsunamiState ?? new TsunamiStateHolder();
-  const volcanoState = new VolcanoStateHolder();
+  const volcanoState = options?.volcanoState ?? new VolcanoStateHolder();
   const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
   const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
   const vpwp50Cache = new Vpwp50DetailCache();
@@ -426,6 +429,14 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     notifier,
     runDisplayPipeline,
     display,
+    revisionGate,
+    onRevisionDecision: recordRevisionDecision,
+    onVolcanoRevisionDecision: options?.onVolcanoRevisionDecision,
+    onFoundationNotified: (isCorrection) => {
+      stats.recordFoundation("notified");
+      if (isCorrection) stats.recordFoundation("correctionNotified");
+    },
+    onFoundationPresented: () => stats.recordFoundation("presented"),
   });
 
   const handler = (incoming: WsDataMessage): void => {
@@ -462,7 +473,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       }
     }
 
-    const usesFoundationGate = route === "eew" || route === "tsunami"
+    const usesFoundationGate = route === "eew" || route === "tsunami" || route === "volcano"
       || route === "weather" && (msg.head.type === "VPWS50" || msg.head.type === "VPWW56");
     if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
@@ -505,12 +516,14 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // 特殊ルート volcano: VFVO53 バッチ集約を伴う独立ライフサイクルのため線形 processor 表に
     // 載せず、VolcanoRouteHandler に委譲する (catalog は分類のみ担う)。
     if (route === "volcano") {
-      volcanoHandler.handle(msg);
-      stats.record({
-        headType: msg.head.type,
-        category: routeToCategory(route),
-        eventId: msg.xmlReport?.head.eventId ?? null,
-      });
+      const parsed = volcanoHandler.handle(msg);
+      if (parsed != null) {
+        stats.record({
+          headType: msg.head.type,
+          category: routeToCategory(route),
+          eventId: msg.xmlReport?.head.eventId ?? null,
+        });
+      }
       return;
     }
 

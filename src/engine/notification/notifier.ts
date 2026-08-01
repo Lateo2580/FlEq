@@ -470,7 +470,13 @@ export class Notifier {
       return;
     }
 
-    this.send(info.title, presentation.summary, "volcano", presentation.soundLevel);
+    const correction = info.infoType === "訂正";
+    this.send(
+      correction ? `[訂正] ${info.title}` : info.title,
+      correction ? `訂正: ${presentation.summary}` : presentation.summary,
+      "volcano",
+      presentation.soundLevel,
+    );
   }
 
   notifyVolcanoBatch(batch: { items: { volcanoName: string }[] }, presentation: VolcanoPresentation): void {

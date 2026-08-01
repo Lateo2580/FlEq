@@ -308,7 +308,7 @@ describe("telegram foundation Phase 0 contract", () => {
         "lgObservation|lgObservation|markCancelled|StandbyStateStore",
         "tsunami|tsunami|clearCurrent|TsunamiStateHolder,DisplayStateStore",
         "volcano|volcanoAlert|clearCurrent|VolcanoStateHolder,StandbyStateStore",
-        "volcano|volcanoEruption|clearCurrent|StandbyStateStore",
+        "volcano|volcanoEruption|clearCurrent|VolcanoStateHolder,StandbyStateStore",
         "volcano|volcanoAshfall|clearCurrent|VolcanoVfvo53Aggregator,StandbyStateStore",
         "nankaiTrough|nankaiTrough|clearCurrent|StandbyStateStore",
         "weather|VPWS50|restorePrevious|Vpws50StateHolder,StandbyStateStore,WeatherPromotionStore",

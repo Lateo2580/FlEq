@@ -6,7 +6,12 @@
  * このハンドラが火山の パース → 集約 → 通知 → 表示 を担当する。
  */
 
-import type { WsDataMessage, ParsedVolcanoAshfallInfo, ParsedVolcanoInfo } from "../../types";
+import type {
+  WsDataMessage,
+  ParsedVolcanoAshfallInfo,
+  ParsedVolcanoInfo,
+  ParsedVolcanoTextInfo,
+} from "../../types";
 import * as log from "../../logger";
 import { parseVolcanoTelegram } from "../../dmdata/volcano-parser";
 import { VolcanoVfvo53Aggregator, type FlushOptions, type Vfvo53BatchItems } from "./volcano-vfvo53-aggregator";
@@ -16,6 +21,18 @@ import { resolveVolcanoPresentation, resolveVolcanoBatchPresentation } from "../
 import { buildVolcanoOutcome } from "../presentation/processors/process-volcano";
 import type { VolcanoBatchOutcome, ProcessOutcome } from "../presentation/types";
 import type { DisplayCallbacks } from "./display-callbacks";
+import {
+  semanticPayloadFingerprint,
+  type TelegramRevisionDecision,
+  type TelegramRevisionGate,
+  type TelegramRevisionGateInput,
+} from "./telegram-revision-gate";
+import {
+  volcanoAlertSubjectKey,
+  volcanoEruptionSubjectKey,
+  volcanoRevisionFamilyPolicy,
+  volcanoTextAlertStateEntries,
+} from "./revision-family-registry";
 
 // ── 型定義 ──
 
@@ -31,6 +48,11 @@ export interface VolcanoRouteHandlerDeps {
   notifier: Notifier;
   runDisplayPipeline: DisplayPipelineFn;
   display?: DisplayCallbacks;
+  revisionGate?: TelegramRevisionGate;
+  onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  onFoundationNotified?: (isCorrection: boolean) => void;
+  onFoundationPresented?: () => void;
 }
 
 // ── 本体 ──
@@ -40,13 +62,24 @@ export class VolcanoRouteHandler {
   private readonly notifier: Notifier;
   private readonly runDisplayPipeline: DisplayPipelineFn;
   private readonly display?: DisplayCallbacks;
+  private readonly revisionGate?: TelegramRevisionGate;
+  private readonly onRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  private readonly onVolcanoRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  private readonly onFoundationNotified?: (isCorrection: boolean) => void;
+  private readonly onFoundationPresented?: () => void;
   private readonly aggregator: VolcanoVfvo53Aggregator;
+  private lastImmediateAccepted: boolean | null = null;
 
   constructor(deps: VolcanoRouteHandlerDeps) {
     this.volcanoState = deps.volcanoState;
     this.notifier = deps.notifier;
     this.runDisplayPipeline = deps.runDisplayPipeline;
     this.display = deps.display;
+    this.revisionGate = deps.revisionGate;
+    this.onRevisionDecision = deps.onRevisionDecision;
+    this.onVolcanoRevisionDecision = deps.onVolcanoRevisionDecision;
+    this.onFoundationNotified = deps.onFoundationNotified;
+    this.onFoundationPresented = deps.onFoundationPresented;
 
     this.aggregator = new VolcanoVfvo53Aggregator(
       (info, opts, msg) => this.emitSingle(info, opts, msg),
@@ -62,8 +95,9 @@ export class VolcanoRouteHandler {
     const volcanoInfo = parseVolcanoTelegram(msg);
     if (!volcanoInfo) return null;
 
+    this.lastImmediateAccepted = null;
     this.aggregator.handle(volcanoInfo, msg);
-    return volcanoInfo;
+    return this.lastImmediateAccepted === false ? null : volcanoInfo;
   }
 
   /** 保留中の火山バッファを flush してリソースを破棄する */
@@ -81,25 +115,246 @@ export class VolcanoRouteHandler {
     const outcome = msg
       ? buildVolcanoOutcome(msg, info, this.volcanoState)
       : null;
-
-    const presentation = resolveVolcanoPresentation(info, this.volcanoState);
-    if (!this.volcanoState.update(info)) return;
+    const presentation = outcome?.volcanoPresentation
+      ?? resolveVolcanoPresentation(info, this.volcanoState);
+    const foundation = msg == null ? null : this.applyFoundation(info, msg);
+    if (foundation?.suppressed === true) {
+      this.lastImmediateAccepted = false;
+      return;
+    }
+    this.lastImmediateAccepted = true;
+    if (outcome != null && foundation != null) {
+      outcome.presentation.volcanoStateMutationAccepted = foundation.authoritative;
+      outcome.presentation.volcanoAcceptedSubjects = foundation.acceptedSubjects;
+      outcome.presentation.volcanoActiveAlertSubjects = foundation.activeAlertSubjects;
+      outcome.presentation.volcanoActiveEruptionSubjects = foundation.activeEruptionSubjects;
+      outcome.presentation.acceptedCorrection = foundation.acceptedCorrection;
+    } else if (foundation == null) {
+      this.volcanoState.update(info);
+    }
 
     // 通知は filter 非適用
-    if (opts?.notify !== false) {
+    const notificationEligible = foundation == null || foundation.authoritative;
+    if (opts?.notify !== false && notificationEligible) {
       this.notifier.notifyVolcano(info, presentation);
+      if (foundation != null) this.onFoundationNotified?.(foundation.acceptedCorrection);
     }
 
     // PresentationEvent パイプライン
     if (outcome) {
-      this.runDisplayPipeline(outcome, () =>
+      const presented = this.runDisplayPipeline(outcome, () =>
         this.display?.displayVolcano(info, presentation),
       );
+      if (foundation != null && presented) this.onFoundationPresented?.();
     } else {
       // msg キャッシュがない場合はフォールバック表示
       this.display?.displayVolcano(info, presentation);
     }
 
+  }
+
+  private applyFoundation(
+    info: ParsedVolcanoInfo,
+    msg: WsDataMessage,
+  ): {
+    suppressed: boolean;
+    authoritative: boolean;
+    acceptedCorrection: boolean;
+    acceptedSubjects: string[];
+    activeAlertSubjects: string[];
+    activeEruptionSubjects: string[];
+  } | null {
+    const policy = volcanoRevisionFamilyPolicy(msg.head.type);
+    if (policy == null || this.revisionGate == null) return null;
+
+    const candidates: Array<{
+      parsed: ParsedVolcanoInfo;
+      subject: string | null;
+      apply: (decision: TelegramRevisionDecision, subject: string) => void;
+    }> = [];
+    if (info.kind === "text" && info.type === "VFVO51") {
+      const bySubject = new Map<string, typeof candidates[number]>();
+      for (const entry of volcanoTextAlertStateEntries(info)) {
+        const subject = volcanoAlertSubjectKey(entry.volcanoCode);
+        if (subject == null) continue;
+        const parsed: ParsedVolcanoTextInfo = {
+          ...info,
+          volcanoCode: entry.volcanoCode,
+          volcanoName: entry.volcanoName,
+          alertLevel: entry.alertLevel,
+          alertLevelCode: entry.alertLevelCode,
+          alertClasses: entry.alertClass == null ? [] : [{
+            volcanoCode: entry.volcanoCode,
+            volcanoName: entry.volcanoName,
+            alertClass: { ...entry.alertClass },
+          }],
+          alertStateEntries: [{
+            ...entry,
+            alertClass: entry.alertClass == null ? null : { ...entry.alertClass },
+          }],
+        };
+        // 同一 subject は電文順の最後を正とし、gate・holder・stats を一度だけ動かす。
+        bySubject.delete(subject);
+        bySubject.set(subject, {
+          parsed,
+          subject,
+          apply: (decision, subject) => {
+            if (decision.kind === "clearCurrent") this.volcanoState.clearAlert(entry.volcanoCode);
+            else this.volcanoState.applyAcceptedTextAlert(entry, info.reportDateTime);
+            this.retainFoundationSubjects();
+          },
+        });
+      }
+      candidates.push(...bySubject.values());
+      if (candidates.length === 0) {
+        // 対象火山コードを一件も確定できない VFVO51 は fail-open 表示だけを許す。
+        // foundation 非対象へ戻すと通知・durable projection が旧経路を貫通する。
+        candidates.push({
+          parsed: info,
+          subject: null,
+          apply: () => undefined,
+        });
+      }
+    } else if (info.kind === "alert") {
+      candidates.push({
+        parsed: info,
+        subject: volcanoAlertSubjectKey(info.volcanoCode),
+        apply: (decision) => {
+          if (decision.kind === "clearCurrent") this.volcanoState.clearAlert(info.volcanoCode);
+          else this.volcanoState.applyAcceptedAlert(info);
+          this.retainFoundationSubjects();
+        },
+      });
+    } else if (info.kind === "eruption") {
+      let resolvedCode = info.volcanoCode.trim();
+      if (resolvedCode === "" && info.infoType === "取消" && info.meta.eventId.value != null) {
+        const eventId = info.meta.eventId.value.trim();
+        const gateSubject = eventId === ""
+          ? null
+          : this.revisionGate.stateSubjectForLegacyRevisionKey(
+            policy.domain,
+            policy.revisionFamily,
+            `volcano:event:${eventId}`,
+            info.meta.receivedAtMs,
+          );
+        resolvedCode = this.volcanoState.resolveEruptionCancellation(eventId)
+          ?? gateSubject?.replace(/^volcano:eruption:/, "")
+          ?? "";
+      }
+      const parsed = resolvedCode === info.volcanoCode ? info : { ...info, volcanoCode: resolvedCode };
+      candidates.push({
+        parsed,
+        subject: volcanoEruptionSubjectKey(resolvedCode),
+        apply: (decision) => {
+          if (decision.kind === "clearCurrent") this.volcanoState.clearEruption(resolvedCode);
+          else this.volcanoState.applyAcceptedEruption(info, info.meta.eventId.value);
+          this.retainFoundationSubjects();
+        },
+      });
+    }
+    if (candidates.length === 0) return null;
+
+    const acceptedSubjects: string[] = [];
+    let acceptedCorrection = false;
+    let failOpen = false;
+    for (let index = 0; index < candidates.length; index++) {
+      const candidate = candidates[index];
+      const { meta: _meta, isTest: _isTest, ...payload } = candidate.parsed;
+      const cancellationTargets = candidate.parsed.meta.infoType.value === "取消"
+        ? policy.extractCancellationTarget(candidate.parsed.meta, candidate.parsed)
+        : null;
+      const terminal = policy.terminalPredicate(candidate.parsed.meta, candidate.parsed);
+      const deactivation = policy.deactivationPredicate(candidate.parsed.meta, candidate.parsed);
+      const isCancellation = candidate.parsed.meta.infoType.value === "取消"
+        || terminal
+        || deactivation;
+      const incomingEventId = candidate.parsed.meta.eventId.value?.trim() || null;
+      const existingLegacyRevision = candidate.subject == null
+        ? null
+        : this.revisionGate.legacyRevisionIdentityForSubject(
+          policy.domain,
+          policy.revisionFamily,
+          candidate.subject,
+        );
+      const holderLegacyRevision = candidate.subject == null
+        || policy.revisionFamily !== "volcanoEruption"
+        ? null
+        : (() => {
+          const eventId = this.volcanoState.eruptionEventId(
+            candidate.subject.slice("volcano:eruption:".length),
+          );
+          return eventId == null ? null : {
+            key: `volcano:event:${eventId}`,
+            provenance: "eventId" as const,
+          };
+        })();
+      const legacyRevision = candidate.subject == null
+        ? null
+        : policy.revisionFamily === "volcanoAlert"
+          ? { key: candidate.subject, provenance: "codeFallback" as const }
+          : incomingEventId != null
+            ? { key: `volcano:event:${incomingEventId}`, provenance: "eventId" as const }
+            : isCancellation && existingLegacyRevision?.provenance === "eventId"
+              ? existingLegacyRevision
+              : isCancellation && holderLegacyRevision != null
+                ? holderLegacyRevision
+                : isCancellation && existingLegacyRevision != null
+                  ? {
+                    key: existingLegacyRevision.key,
+                    provenance: existingLegacyRevision.provenance ?? "codeFallback" as const,
+                  }
+                  : {
+                    key: `volcano:event:${candidate.subject.slice("volcano:eruption:".length)}`,
+                    provenance: "codeFallback" as const,
+                  };
+      const input: TelegramRevisionGateInput = {
+        domain: policy.domain,
+        revisionFamily: policy.revisionFamily,
+        stateSubjectKey: candidate.subject,
+        transientSubjectKey: candidate.subject == null ? `volcano:${msg.id}:${index}` : null,
+        meta: candidate.parsed.meta,
+        comparator: policy.comparator,
+        cancellationPolicy: policy.cancellationPolicy,
+        terminal,
+        deactivation,
+        cancellationTargetMatches: cancellationTargets == null || candidate.subject == null
+          ? candidate.parsed.meta.infoType.value !== "取消"
+          : cancellationTargets.includes(candidate.subject),
+        durable: policy.durable,
+        tombstoneRetentionMs: policy.tombstoneRetentionMs,
+        maxSubjects: policy.maxSubjects,
+        allowMissingSerial: policy.allowMissingSerial,
+        payloadFingerprint: semanticPayloadFingerprint(payload),
+        legacyRevisionKey: legacyRevision?.key ?? null,
+        legacyRevisionKeyProvenance: legacyRevision?.provenance ?? null,
+      };
+      const decision = this.revisionGate.decide(input);
+      this.onRevisionDecision?.(decision);
+      if (!decision.accepted) continue;
+      if (candidate.subject == null) {
+        failOpen = true;
+        continue;
+      }
+      candidate.apply(decision, candidate.subject);
+      acceptedSubjects.push(candidate.subject);
+      acceptedCorrection ||= decision.isCorrection;
+      this.onVolcanoRevisionDecision?.(decision);
+    }
+    const authoritative = acceptedSubjects.length > 0;
+    return {
+      suppressed: !authoritative && !failOpen,
+      authoritative,
+      acceptedCorrection,
+      acceptedSubjects,
+      activeAlertSubjects: this.revisionGate.activeRevisionFamilySubjects("volcano", "volcanoAlert"),
+      activeEruptionSubjects: this.revisionGate.activeRevisionFamilySubjects("volcano", "volcanoEruption"),
+    };
+  }
+
+  private retainFoundationSubjects(): void {
+    const alerts = this.revisionGate?.activeRevisionFamilySubjects("volcano", "volcanoAlert") ?? [];
+    const eruptions = this.revisionGate?.activeRevisionFamilySubjects("volcano", "volcanoEruption") ?? [];
+    this.volcanoState.retainActiveSubjects(alerts, eruptions);
   }
 
   private emitBatch(batch: Vfvo53BatchItems, opts: FlushOptions): void {

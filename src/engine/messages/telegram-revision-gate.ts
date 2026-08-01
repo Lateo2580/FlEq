@@ -60,6 +60,10 @@ export interface TelegramRevisionGateInput {
   /** equal な通常報を whole-message duplicate にせず item gate へ渡す allowlist family。 */
   fragmentMerge?: boolean;
   payloadFingerprint: string;
+  /** rollback 用旧 revision guard へ射影する key。semantic comparison には使わない。 */
+  legacyRevisionKey?: string | null;
+  /** rollback key の由来。EventID 逆引きは eventId 由来だけに許可する。 */
+  legacyRevisionKeyProvenance?: "eventId" | "codeFallback" | null;
 }
 
 interface AcceptedRevisionState {
@@ -70,6 +74,8 @@ interface AcceptedRevisionState {
   durable: boolean;
   tombstoneRetentionMs: number | null;
   retainForFamilyCapacity: boolean;
+  legacyRevisionKey: string | null;
+  legacyRevisionKeyProvenance: "eventId" | "codeFallback" | null;
 }
 
 export interface PersistedTelegramRevisionGateEntryV2 {
@@ -81,6 +87,8 @@ export interface PersistedTelegramRevisionGateEntryV2 {
   cancelled: boolean;
   acceptedAtMs: number;
   tombstoneRetentionMs?: number | null;
+  legacyRevisionKey?: string | null;
+  legacyRevisionKeyProvenance?: "eventId" | "codeFallback" | null;
 }
 
 const REVISION_GATE_RETENTION_MS = 11 * 60_000;
@@ -350,6 +358,8 @@ export class TelegramRevisionGate {
           durable: input.durable === true,
           tombstoneRetentionMs: tombstoneRetentionMs(input),
           retainForFamilyCapacity: input.retainForFamilyCapacity === true,
+          legacyRevisionKey: input.legacyRevisionKey ?? null,
+          legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? null,
         });
         this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
         this.sweep(input.meta.receivedAtMs);
@@ -385,6 +395,10 @@ export class TelegramRevisionGate {
           existing.durable ||= input.durable === true;
           existing.tombstoneRetentionMs = tombstoneRetentionMs(input);
           existing.retainForFamilyCapacity ||= input.retainForFamilyCapacity === true;
+          if (input.legacyRevisionKey != null) {
+            existing.legacyRevisionKey = input.legacyRevisionKey;
+            existing.legacyRevisionKeyProvenance = input.legacyRevisionKeyProvenance ?? null;
+          }
           this.touchState(key, existing);
           this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
           this.sweep(input.meta.receivedAtMs);
@@ -423,6 +437,10 @@ export class TelegramRevisionGate {
         existing.durable ||= input.durable === true;
         existing.tombstoneRetentionMs = tombstoneRetentionMs(input);
         existing.retainForFamilyCapacity ||= input.retainForFamilyCapacity === true;
+        if (input.legacyRevisionKey != null) {
+          existing.legacyRevisionKey = input.legacyRevisionKey;
+          existing.legacyRevisionKeyProvenance = input.legacyRevisionKeyProvenance ?? null;
+        }
         this.touchState(key, existing);
         this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
         this.sweep(input.meta.receivedAtMs);
@@ -448,6 +466,8 @@ export class TelegramRevisionGate {
         durable: input.durable === true,
         tombstoneRetentionMs: tombstoneRetentionMs(input),
         retainForFamilyCapacity: input.retainForFamilyCapacity === true,
+        legacyRevisionKey: input.legacyRevisionKey ?? null,
+        legacyRevisionKeyProvenance: input.legacyRevisionKeyProvenance ?? null,
       });
       this.enforceFamilyLimit(input.domain, input.revisionFamily, input.maxSubjects);
       this.sweep(input.meta.receivedAtMs);
@@ -541,6 +561,40 @@ export class TelegramRevisionGate {
     }
   }
 
+  /** rollback key と由来を失わず更新する domain adapter 用参照。 */
+  legacyRevisionIdentityForSubject(
+    domain: string,
+    revisionFamily: string,
+    stateSubjectKey: string,
+  ): {
+    key: string;
+    provenance: "eventId" | "codeFallback" | null;
+  } | null {
+    const state = this.states.get(`${domain}:${revisionFamily}:${stateSubjectKey}`);
+    return state?.legacyRevisionKey == null ? null : {
+      key: state.legacyRevisionKey,
+      provenance: state.legacyRevisionKeyProvenance,
+    };
+  }
+
+  /** EventID だけを持つ取消を、保持中の active/tombstone subject へ一意に逆引きする。 */
+  stateSubjectForLegacyRevisionKey(
+    domain: string,
+    revisionFamily: string,
+    legacyRevisionKey: string,
+    nowMs: number,
+  ): string | null {
+    this.sweep(nowMs);
+    const prefix = `${domain}:${revisionFamily}:`;
+    const subjects = [...this.states]
+      .filter(([key, state]) =>
+        key.startsWith(prefix)
+        && state.legacyRevisionKey === legacyRevisionKey
+        && state.legacyRevisionKeyProvenance === "eventId")
+      .map(([key]) => key.slice(prefix.length));
+    return subjects.length === 1 ? subjects[0] : null;
+  }
+
   /** holder の active set を family compaction 後の watermark と同期するための参照。 */
   activeRevisionFamilySubjects(domain: string, revisionFamily: string): string[] {
     const prefix = `${domain}:${revisionFamily}:`;
@@ -589,6 +643,12 @@ export class TelegramRevisionGate {
         cancelled: state.cancelled,
         acceptedAtMs: state.acceptedAtMs,
         tombstoneRetentionMs: state.tombstoneRetentionMs,
+        ...(state.legacyRevisionKey == null
+          ? {}
+          : { legacyRevisionKey: state.legacyRevisionKey }),
+        ...(state.legacyRevisionKeyProvenance == null
+          ? {}
+          : { legacyRevisionKeyProvenance: state.legacyRevisionKeyProvenance }),
       });
     }
     return result;
@@ -607,6 +667,9 @@ export class TelegramRevisionGate {
           ? DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS
           : entry.tombstoneRetentionMs,
         retainForFamilyCapacity: false,
+        legacyRevisionKey: entry.legacyRevisionKey ?? null,
+        // pre-provenance v2 は EventID と code fallback を区別できないため逆引き対象外。
+        legacyRevisionKeyProvenance: entry.legacyRevisionKeyProvenance ?? null,
       });
     }
     this.sweep(Date.now());

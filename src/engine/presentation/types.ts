@@ -80,6 +80,12 @@ export interface ProcessOutcomeBase {
     weatherStateMutationAccepted?: boolean;
     /** 複数 subject の union を永続化するときに使う正規 revision。active が空なら null。 */
     weatherStateRevision?: { reportDateTime: string; serial: string | null } | null;
+    /** volcano の durable holder/gate mutation が authoritative に commit 済みか。 */
+    volcanoStateMutationAccepted?: boolean;
+    /** 同一電文内で gate を通過した火山 subject。standby projection の対象限定に使う。 */
+    volcanoAcceptedSubjects?: string[];
+    volcanoActiveAlertSubjects?: string[];
+    volcanoActiveEruptionSubjects?: string[];
     typhoonProbabilityMaxDaily5?: number | null;
     /** true のとき dispatchNotify が通知をスキップする。
      *  VPTA50 の連続ゼロ状態抑止に使用 (TyphoonProbabilityStateHolder 経由)。
@@ -377,6 +383,12 @@ export interface PresentationEvent {
   weatherStateMutationAccepted?: boolean;
   /** active weather subject 群から導出した union 用正規 revision。 */
   weatherStateRevision?: { reportDateTime: string; serial: string | null } | null;
+  /** fail-open 表示と durable volcano mutation を後段で分離する内部フラグ。 */
+  volcanoStateMutationAccepted?: boolean;
+  /** gate 通過済みの alert/eruption subject。 */
+  volcanoAcceptedSubjects?: string[];
+  volcanoActiveAlertSubjects?: string[];
+  volcanoActiveEruptionSubjects?: string[];
 
   // 状態フラグ
   isCancellation: boolean;

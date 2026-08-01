@@ -183,6 +183,15 @@ describe("parseVolcanoTelegram", () => {
       if (result!.kind === "text") {
         expect(result!.alertLevel).toBe(2);
         expect(result!.alertLevelCode).toBe("12");
+        expect(result!.alertClasses).toEqual([]);
+        expect(result!.alertStateEntries).toEqual([expect.objectContaining({
+          volcanoCode: "350",
+          volcanoName: "草津白根山（白根山（湯釜付近））",
+          alertLevel: 2,
+          alertLevelCode: "12",
+          action: "continue",
+          alertClass: null,
+        })]);
         expect(result!.isExtraordinary).toBe(false);
         expect(result!.bodyText).toBeTruthy();
       }

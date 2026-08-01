@@ -1,5 +1,6 @@
 import type { ParsedHeatAlertInfo, ParsedTyphoonAnalysis, ParsedVolcanoInfo } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
+import { volcanoTextAlertStateEntries } from "../messages/revision-family-registry";
 import type { DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
 
 export interface HeatUpdate {
@@ -103,16 +104,27 @@ export interface VolcanoUpdate {
 
 export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[] {
   if (event.domain !== "volcano" || event.raw == null || Array.isArray(event.raw)) return [];
+  if (event.volcanoStateMutationAccepted === false) return [];
+  const acceptedSubjects = event.volcanoAcceptedSubjects == null
+    ? null
+    : new Set(event.volcanoAcceptedSubjects);
   const raw = event.raw as ParsedVolcanoInfo;
   if (raw.kind === "text") {
-    return raw.alertClasses.map((entry) => ({
+    return volcanoTextAlertStateEntries(raw).flatMap((entry) => {
+      const subject = `volcano:alert:${entry.volcanoCode.trim()}`;
+      if (acceptedSubjects != null && !acceptedSubjects.has(subject)) return [];
+      const isCancellation = entry.action === "release"
+        || entry.action === "cancel"
+        || entry.alertLevel === 1 && (entry.action === "continue" || entry.action === "lower")
+        || entry.alertClass?.isActive === false;
+      return [{
       volcano: {
         code: entry.volcanoCode,
         name: entry.volcanoName,
-        alertLevel: null,
-        warningKind: null,
+        alertLevel: entry.alertLevel,
+        warningKind: entry.alertClass == null ? entry.warningKind.trim() || null : null,
         targetKinds: [],
-        alertClass: { ...entry.alertClass },
+        alertClass: entry.alertClass == null ? null : { ...entry.alertClass },
         latestEvent: null,
       },
       eventId: event.eventId ?? null,
@@ -120,15 +132,26 @@ export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[]
       reportDateTime: event.reportDateTime,
       serial: event.serial ?? null,
       kind: "alert",
-      isCancellation: !entry.alertClass.isActive,
+      isCancellation,
       isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
-    }));
+      }];
+    });
   }
   if (raw.kind !== "alert" && raw.kind !== "eruption") return [];
   const isCancellation = event.isCancellation
     || raw.infoType === "取消"
     || raw.kind === "alert" && (raw.action === "release" || raw.action === "cancel");
-  if (raw.volcanoCode === "" && !(raw.kind === "eruption" && isCancellation && event.eventId != null)) return [];
+  let volcanoCode = raw.volcanoCode.trim();
+  if (volcanoCode === "" && raw.kind === "eruption" && isCancellation && acceptedSubjects != null) {
+    const resolved = [...(acceptedSubjects ?? [])]
+      .filter((subject) => subject.startsWith("volcano:eruption:"));
+    if (resolved.length === 1) volcanoCode = resolved[0].slice("volcano:eruption:".length);
+  }
+  if (volcanoCode === "" && !(raw.kind === "eruption" && isCancellation && acceptedSubjects == null)) return [];
+  const subject = raw.kind === "alert"
+    ? `volcano:alert:${volcanoCode}`
+    : `volcano:eruption:${volcanoCode}`;
+  if (acceptedSubjects != null && !acceptedSubjects.has(subject)) return [];
   const alertLevel = raw.kind === "alert" ? raw.alertLevel : null;
   const warningKind = raw.kind === "alert" ? raw.warningKind?.trim() || null : null;
   const targetKinds = raw.kind === "alert"
@@ -140,7 +163,7 @@ export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[]
     : [];
   return [{
     volcano: {
-      code: raw.volcanoCode,
+      code: volcanoCode,
       name: raw.volcanoName,
       alertLevel,
       warningKind,

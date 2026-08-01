@@ -1737,9 +1737,21 @@ export interface ParsedVolcanoTextInfo extends ParsedVolcanoBase {
   alertLevel: 1 | 2 | 3 | 4 | 5 | null;
   alertLevelCode: string | null;
   alertClasses: VolcanoAlertClassEntry[];
+  /** VFVO51 の state 更新候補。数値レベルと非数値区分を火山単位で保持する。 */
+  alertStateEntries?: VolcanoAlertStateEntry[];
   isExtraordinary: boolean;
   bodyText: string;
   nextAdvisory: string | null;
+}
+
+export interface VolcanoAlertStateEntry {
+  volcanoCode: string;
+  volcanoName: string;
+  alertLevel: 1 | 2 | 3 | 4 | 5 | null;
+  alertLevelCode: string | null;
+  action: VolcanoAction;
+  warningKind: string;
+  alertClass: VolcanoAlertClass | null;
 }
 
 /** 推定噴煙流向報 (VFVO60) */

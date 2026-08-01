@@ -12,6 +12,8 @@ import type { ProcessOutcome, VolcanoBatchOutcome } from "../../src/engine/prese
 import { parseVolcanoTelegram } from "../../src/dmdata/volcano-parser";
 import { VolcanoRouteHandler } from "../../src/engine/messages/volcano-route-handler";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
+import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
+import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
 
 vi.mock("../../src/dmdata/volcano-parser", () => ({
   parseVolcanoTelegram: vi.fn(),
@@ -96,7 +98,17 @@ function createAlert(
   alertLevel: ParsedVolcanoAlertInfo["alertLevel"],
 ): ParsedVolcanoAlertInfo {
   return {
-    meta: testTelegramMeta(false),
+    meta: createTelegramMeta({
+      messageId: `volcano-${reportDateTime}-${action}`,
+      eventId: "volcano-alert-506",
+      type: "VFVO50",
+      reportDateTime,
+      serial: null,
+      infoType: "発表",
+      receivedAtMs: Date.parse(reportDateTime),
+      status: "通常",
+      isTest: false,
+    }),
     domain: "volcano",
     kind: "alert",
     type: "VFVO50",
@@ -215,6 +227,17 @@ describe("VolcanoRouteHandler", () => {
   });
 
   it("suppresses an older warning that arrives after a release", () => {
+    handler = new VolcanoRouteHandler({
+      volcanoState: state,
+      notifier: { notifyVolcano, notifyVolcanoBatch: vi.fn() } as never,
+      revisionGate: new TelegramRevisionGate(),
+      runDisplayPipeline: (outcome, displayFn) => {
+        outcomes.push(outcome);
+        displayFn();
+        return true;
+      },
+      display: { displayVolcano, displayVolcanoBatch: vi.fn() } as never,
+    });
     const warning = createAlert("2025-01-01T10:00:00+09:00", "issue", 3);
     const release = createAlert("2025-01-01T12:00:00+09:00", "release", 1);
     const staleWarning = createAlert("2025-01-01T11:00:00+09:00", "issue", 3);

@@ -137,7 +137,7 @@ describe("VolcanoStateHolder", () => {
     });
   });
 
-  it("keeps a release tombstone and rejects an older alert", () => {
+  it("direct helper は gate 通過済み mutation だけを適用し revision 判定を持たない", () => {
     expect(state.update(createAlertInfo({
       reportDateTime: "2025-01-01T10:00:00+09:00",
       alertLevel: 3,
@@ -154,8 +154,8 @@ describe("VolcanoStateHolder", () => {
       reportDateTime: "2025-01-01T11:00:00+09:00",
       alertLevel: 3,
       action: "issue",
-    }))).toBe(false);
-    expect(state.getEntry("306")).toBeUndefined();
+    }))).toBe(true);
+    expect(state.getEntry("306")?.alertLevel).toBe(3);
   });
 
   describe("clear", () => {

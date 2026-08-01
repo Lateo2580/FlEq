@@ -2,6 +2,15 @@ import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { restoreVolcanoState } from "../../src/engine/startup/volcano-initializer";
 import { VolcanoStateHolder } from "../../src/engine/messages/volcano-state";
+import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
+import {
+  volcanoRevisionFamilyPolicy,
+} from "../../src/engine/messages/revision-family-registry";
+import {
+  semanticPayloadFingerprint,
+  TelegramRevisionGate,
+  type TelegramRevisionGateInput,
+} from "../../src/engine/messages/telegram-revision-gate";
 import * as restClient from "../../src/dmdata/rest-client";
 import {
   ParsedVolcanoAlertInfo,
@@ -96,6 +105,54 @@ function createVolcanoAlert(
     preventionText: "",
     isMarine: false,
     ...overrides,
+  };
+}
+
+function createFoundationAlert(
+  id: string,
+  reportDateTime: string,
+  serial: string,
+  overrides: Partial<ParsedVolcanoAlertInfo> = {},
+): ParsedVolcanoAlertInfo {
+  const infoType = (overrides.infoType ?? "発表") as "発表" | "訂正" | "取消";
+  return createVolcanoAlert({
+    ...overrides,
+    infoType,
+    reportDateTime,
+    meta: createTelegramMeta({
+      messageId: id,
+      eventId: "volcano-506",
+      type: "VFVO50",
+      reportDateTime,
+      serial,
+      infoType,
+      receivedAtMs: Date.parse(reportDateTime),
+      status: "通常",
+      isTest: false,
+    }),
+  });
+}
+
+function foundationInput(info: ParsedVolcanoAlertInfo): TelegramRevisionGateInput {
+  const policy = volcanoRevisionFamilyPolicy(info.type)!;
+  const subject = policy.extractStateSubjectKey(info.meta, info);
+  if (typeof subject !== "string") throw new Error("expected one volcano subject");
+  const { meta: _meta, isTest: _isTest, ...payload } = info;
+  return {
+    domain: policy.domain,
+    revisionFamily: policy.revisionFamily,
+    stateSubjectKey: subject,
+    meta: info.meta,
+    comparator: policy.comparator,
+    cancellationPolicy: policy.cancellationPolicy,
+    terminal: policy.terminalPredicate(info.meta, info),
+    deactivation: policy.deactivationPredicate(info.meta, info),
+    cancellationTargetMatches: true,
+    durable: policy.durable,
+    tombstoneRetentionMs: policy.tombstoneRetentionMs,
+    maxSubjects: policy.maxSubjects,
+    allowMissingSerial: policy.allowMissingSerial,
+    payloadFingerprint: semanticPayloadFingerprint(payload),
   };
 }
 
@@ -217,5 +274,46 @@ describe("restoreVolcanoState", () => {
       restoreVolcanoState("test-key", volcanoState)
     ).resolves.toBe("failed");
     expect(volcanoState.size()).toBe(0);
+  });
+
+  it("persisted 取消 tombstone を REST の取消前報で復活させない", async () => {
+    const gate = new TelegramRevisionGate();
+    const issue = createFoundationAlert("issue", new Date(Date.now() - 120_000).toISOString(), "1");
+    const cancel = createFoundationAlert("cancel", new Date(Date.now() - 60_000).toISOString(), "2", {
+      infoType: "取消",
+      action: "cancel",
+    });
+    expect(gate.decide(foundationInput(issue)).accepted).toBe(true);
+    expect(gate.decide(foundationInput(cancel)).kind).toBe("clearCurrent");
+    mockListTelegrams.mockResolvedValue(createResponse([
+      createTelegramItem("rest-old", issue.reportDateTime),
+    ]));
+    mockParserByIds({ "rest-old": { ...issue, meta: { ...issue.meta, messageId: "rest-old" } } });
+
+    expect(await restoreVolcanoState("test-key", volcanoState, gate, true)).toBe("success");
+
+    expect(volcanoState.getEntry("506")).toBeUndefined();
+    expect(gate.exportDurableEntries()).toEqual([
+      expect.objectContaining({
+        domain: "volcano",
+        revisionFamily: "volcanoAlert",
+        stateSubjectKey: "volcano:alert:506",
+        cancelled: true,
+      }),
+    ]);
+  });
+
+  it("persisted active と semantic 一致する REST 報だけで空 holder を再構成する", async () => {
+    const gate = new TelegramRevisionGate();
+    const active = createFoundationAlert("active", "2026-07-01T00:00:00+09:00", "1");
+    expect(gate.decide(foundationInput(active)).accepted).toBe(true);
+    mockListTelegrams.mockResolvedValue(createResponse([
+      createTelegramItem("rest-active", active.reportDateTime),
+    ]));
+    mockParserByIds({ "rest-active": { ...active, meta: { ...active.meta, messageId: "rest-active" } } });
+
+    expect(await restoreVolcanoState("test-key", volcanoState, gate, true)).toBe("success");
+
+    expect(volcanoState.getEntry("506")).toMatchObject({ alertLevel: 3 });
   });
 });

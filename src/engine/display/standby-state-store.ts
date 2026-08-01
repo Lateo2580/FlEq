@@ -11,6 +11,7 @@ import type {
   DisplayWeatherSourceV1,
 } from "./protocol";
 import type {
+  PersistedTelegramFoundationV2,
   PersistedStandbyState,
   PersistedStandbyStateV1,
   PersistedVolcanoStateV1,
@@ -125,6 +126,8 @@ export class StandbyStateStore {
   private heatAlerts = new Map<string, HeatState>();
   private typhoons = new Map<string, TyphoonState>();
   private volcanoes = new Map<string, VolcanoState>();
+  private readonly managedVolcanoAlerts = new Set<string>();
+  private readonly managedVolcanoEruptions = new Set<string>();
   private tornadoByOffice = new Map<string, TornadoState>();
   private longPeriodByEvent = new Map<string, LongPeriodState>();
   private quakeHost: QuakeHostState | null = null;
@@ -375,6 +378,13 @@ export class StandbyStateStore {
   }
 
   private applyVolcano(event: PresentationEvent, nowMs: number): DisplayMutation {
+    for (const subject of event.volcanoAcceptedSubjects ?? []) {
+      if (subject.startsWith("volcano:alert:")) {
+        this.managedVolcanoAlerts.add(subject.slice("volcano:alert:".length));
+      } else if (subject.startsWith("volcano:eruption:")) {
+        this.managedVolcanoEruptions.add(subject.slice("volcano:eruption:".length));
+      }
+    }
     const updates = projectVolcanoUpdates(event);
     let mutation = NO_MUTATION;
     for (const update of updates) {
@@ -384,7 +394,61 @@ export class StandbyStateStore {
         durableChanged: mutation.durableChanged || next.durableChanged,
       };
     }
+    if (event.volcanoActiveAlertSubjects != null && event.volcanoActiveEruptionSubjects != null) {
+      const retained = this.retainVolcanoSubjects(
+        event.volcanoActiveAlertSubjects,
+        event.volcanoActiveEruptionSubjects,
+        nowMs,
+      );
+      mutation = {
+        viewChanged: mutation.viewChanged || retained.viewChanged,
+        durableChanged: mutation.durableChanged || retained.durableChanged,
+      };
+    }
     return mutation;
+  }
+
+  private retainVolcanoSubjects(
+    alertSubjects: readonly string[],
+    eruptionSubjects: readonly string[],
+    nowMs: number,
+  ): DisplayMutation {
+    const alerts = new Set(alertSubjects.map((subject) => subject.replace(/^volcano:alert:/, "")));
+    const eruptions = new Set(eruptionSubjects.map((subject) => subject.replace(/^volcano:eruption:/, "")));
+    let changed = false;
+    for (const code of this.managedVolcanoAlerts) {
+      if (alerts.has(code)) continue;
+      const state = this.volcanoes.get(code);
+      if (state != null && (state.alertLevel != null || state.alertClass != null)) {
+        state.alertLevel = null;
+        state.alertClass = null;
+        state.warningKind = null;
+        state.targetKinds = [];
+        state.alertExpiresAtMs = nowMs;
+        state.alertRevision = null;
+        changed = true;
+      }
+      this.managedVolcanoAlerts.delete(code);
+    }
+    for (const code of this.managedVolcanoEruptions) {
+      if (eruptions.has(code)) continue;
+      const state = this.volcanoes.get(code);
+      if (state != null && state.latestEvent != null) {
+        state.latestEvent = null;
+        state.latestEventId = null;
+        state.eventExpiresAtMs = null;
+        state.eventRevision = null;
+        changed = true;
+      }
+      this.managedVolcanoEruptions.delete(code);
+    }
+    for (const code of alerts) this.managedVolcanoAlerts.add(code);
+    for (const code of eruptions) this.managedVolcanoEruptions.add(code);
+    for (const [code, state] of this.volcanoes) {
+      const hasActiveAlert = state.alertLevel != null || state.alertClass?.isActive === true;
+      if (!hasActiveAlert && state.latestEvent == null) this.volcanoes.delete(code);
+    }
+    return changed ? { viewChanged: true, durableChanged: true } : NO_MUTATION;
   }
 
   private applyVolcanoUpdate(update: VolcanoUpdate, nowMs: number): DisplayMutation {
@@ -408,19 +472,7 @@ export class StandbyStateStore {
         }
       }
     }
-    const revisionIdentity = update.kind === "eruption" && update.eventId != null
-      ? update.eventId
-      : volcanoCode;
-    if (revisionIdentity === "") return NO_MUTATION;
-    const key = `volcano:${update.kind === "alert" ? "alert" : "event"}:${revisionIdentity}`;
     const revision = revisionOf(update.reportDateTime, update.serial, nowMs);
-    if (!this.revisionGuard.accept(
-      key,
-      revision,
-      nowMs,
-      tombstoneTtlForKey(key),
-      update.isCorrection || update.isCancellation,
-    )) return NO_MUTATION;
     if (volcanoCode === "") return { viewChanged: false, durableChanged: true };
     const previous = this.volcanoes.get(volcanoCode);
     const state: VolcanoState = previous ?? {
@@ -482,8 +534,6 @@ export class StandbyStateStore {
     let viewChanged = false;
     for (const [key, state] of this.volcanoes) {
       if (!keys.has(key)) {
-        const alertKey = `volcano:alert:${key}`;
-        this.revisionGuard.replace(alertKey, { reportTimeMs: nowMs, serial: null }, nowMs, tombstoneTtlForKey(alertKey));
         const alertWasVisible = state.alertLevel != null && state.alertLevel >= 4
           || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs;
         state.alertLevel = null;
@@ -503,8 +553,6 @@ export class StandbyStateStore {
     }
     for (const entry of entries) {
       const revision = revisionOf(entry.reportDateTime, null, nowMs);
-      const alertKey = `volcano:alert:${entry.volcanoCode}`;
-      this.revisionGuard.replace(alertKey, revision, nowMs, tombstoneTtlForKey(alertKey));
       if (entry.active === false) continue;
       const existing = this.volcanoes.get(entry.volcanoCode);
       const state: VolcanoState = existing ?? {
@@ -542,6 +590,83 @@ export class StandbyStateStore {
     const mutation = { viewChanged, durableChanged: true };
     this.notify(mutation);
     return mutation;
+  }
+
+  /** v2 volcano foundation を正として legacy volcano 表示 state を全置換する。 */
+  restoreCanonicalVolcanoes(
+    states: readonly PersistedVolcanoStateV1[],
+    gateEntries: PersistedTelegramFoundationV2["volcano"]["gateEntries"],
+    nowMs: number,
+  ): void {
+    this.managedVolcanoAlerts.clear();
+    this.managedVolcanoEruptions.clear();
+    for (const entry of gateEntries) {
+      const alertPrefix = "volcano:alert:";
+      const eruptionPrefix = "volcano:eruption:";
+      const code = entry.stateSubjectKey.startsWith(alertPrefix)
+        ? entry.stateSubjectKey.slice(alertPrefix.length)
+        : entry.stateSubjectKey.startsWith(eruptionPrefix)
+          ? entry.stateSubjectKey.slice(eruptionPrefix.length)
+          : "";
+      if (!entry.cancelled && entry.revisionFamily === "volcanoAlert") {
+        this.managedVolcanoAlerts.add(code);
+      } else if (!entry.cancelled && entry.revisionFamily === "volcanoEruption") {
+        this.managedVolcanoEruptions.add(code);
+      }
+      const existing = this.volcanoes.get(code);
+      if (existing == null) continue;
+      if (entry.revisionFamily === "volcanoAlert") {
+        existing.alertLevel = null;
+        existing.alertClass = null;
+        existing.warningKind = null;
+        existing.targetKinds = [];
+        existing.alertExpiresAtMs = null;
+        existing.alertRevision = null;
+      } else if (entry.revisionFamily === "volcanoEruption") {
+        existing.latestEvent = null;
+        existing.latestEventId = null;
+        existing.eventExpiresAtMs = null;
+        existing.eventRevision = null;
+      }
+      if (existing.alertLevel == null && existing.alertClass == null && existing.latestEvent == null) {
+        this.volcanoes.delete(code);
+      }
+    }
+    for (const state of states) {
+      if (!(state.alertExpiresAtMs == null || state.alertExpiresAtMs > nowMs
+        || state.eventExpiresAtMs != null && state.eventExpiresAtMs > nowMs)) continue;
+      const previous = this.volcanoes.get(state.code);
+      const restored = {
+        ...state,
+        alertClass: state.alertClass == null ? null : { ...state.alertClass },
+        warningKind: state.warningKind ?? null,
+        targetKinds: [...(state.targetKinds ?? [])],
+        latestEvent: restoreVolcanoEvent(state.latestEvent),
+        latestEventId: state.latestEventId ?? null,
+        sourceEventIds: [...state.sourceEventIds],
+        alertRevision: state.alertRevision == null ? null : { ...state.alertRevision },
+        eventRevision: state.eventRevision == null ? null : { ...state.eventRevision },
+        alertRestored: state.alertRevision != null,
+        eventRestored: state.eventRevision != null,
+      };
+      if (previous != null) {
+        if (restored.alertLevel == null && restored.alertClass == null) {
+          restored.alertLevel = previous.alertLevel;
+          restored.alertClass = previous.alertClass;
+          restored.warningKind = previous.warningKind;
+          restored.targetKinds = previous.targetKinds;
+          restored.alertExpiresAtMs = previous.alertExpiresAtMs;
+          restored.alertRevision = previous.alertRevision;
+        }
+        if (restored.latestEvent == null) {
+          restored.latestEvent = previous.latestEvent;
+          restored.latestEventId = previous.latestEventId;
+          restored.eventExpiresAtMs = previous.eventExpiresAtMs;
+          restored.eventRevision = previous.eventRevision;
+        }
+      }
+      this.volcanoes.set(state.code, restored);
+    }
   }
 
   private applyHeat(event: PresentationEvent, nowMs: number): DisplayMutation {
@@ -773,6 +898,8 @@ export class StandbyStateStore {
     this.heatAlerts.clear();
     this.typhoons.clear();
     this.volcanoes.clear();
+    this.managedVolcanoAlerts.clear();
+    this.managedVolcanoEruptions.clear();
     this.tornadoByOffice.clear();
     this.longPeriodByEvent.clear();
     this.quakeHost = null;

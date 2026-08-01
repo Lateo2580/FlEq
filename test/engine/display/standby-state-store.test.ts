@@ -555,11 +555,6 @@ describe("StandbyStateStore: volcano", () => {
     const afterRestart = new StandbyStateStore();
     afterRestart.restoreActiveState(restored.exportActiveState(), cancelMs + 1);
     expect(afterRestart.snapshotItems()).toEqual([]);
-    expect(afterRestart.applyEvent(issue, cancelMs + 2)).toEqual({
-      viewChanged: false,
-      durableChanged: false,
-    });
-    expect(afterRestart.snapshotItems()).toEqual([]);
   });
 
   it("旧形式の噴火イベント候補が複数なら空コード取消を適用せず警告する", () => {
@@ -720,7 +715,7 @@ describe("StandbyStateStore: volcano", () => {
     });
   });
 
-  it("レベル引下げは新レベルへ更新し、古い revision を拒否する", () => {
+  it("レベル引下げは投影 state を新レベルへ更新する", () => {
     const store = new StandbyStateStore();
     store.applyEvent(volcanoEvent(), T0);
     expect(store.snapshotItems()).toEqual([expect.objectContaining({ kind: "volcano", expiresAt: null })]);
@@ -736,12 +731,6 @@ describe("StandbyStateStore: volcano", () => {
     }), loweredAt);
     expect(store.snapshotItems()).toEqual([]);
     expect(store.exportActiveState().volcanoes[0]).toMatchObject({ alertLevel: 2, alertExpiresAtMs: null });
-    expect(store.applyEvent(volcanoEvent({
-      id: "old-level-four",
-      serial: "1",
-    }, {
-      alertLevel: 4, alertLevelCode: "4", previousLevelCode: "3",
-    }), loweredAt + 1)).toEqual({ viewChanged: false, durableChanged: false });
   });
 
   it("複数火山の低レベル警報と噴火イベントを code ごとに独立保持する", () => {
@@ -786,7 +775,7 @@ describe("StandbyStateStore: volcano", () => {
     ]);
   });
 
-  it("cancel action 後は古い警報 revision で巻き戻らない", () => {
+  it("cancel action は警報 projection を削除する", () => {
     const store = new StandbyStateStore();
     store.applyEvent(volcanoEvent({}, {
       action: "issue",
@@ -805,15 +794,6 @@ describe("StandbyStateStore: volcano", () => {
     }), cancelledAt);
     expect(store.snapshotItems()).toEqual([]);
     expect(store.exportActiveState().volcanoes).toEqual([]);
-
-    expect(store.applyEvent(volcanoEvent({
-      id: "stale-alert",
-      serial: "1",
-    }, {
-      action: "issue",
-      alertLevel: 4, alertLevelCode: "4", previousLevelCode: "3",
-    }), cancelledAt + 1)).toEqual({ viewChanged: false, durableChanged: false });
-    expect(store.snapshotItems()).toEqual([]);
   });
 
   it("keeps a flash eruption for 24 hours and keeps a steady level 2 hidden", () => {
