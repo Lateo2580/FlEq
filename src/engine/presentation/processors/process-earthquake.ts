@@ -12,9 +12,14 @@ export function processEarthquake(msg: WsDataMessage): EarthquakeOutcome | null 
   if (!eqInfo) return null;
 
   const eventId = msg.xmlReport?.head.eventId ?? null;
+  const exactMaxInt = eqInfo.intensity?.maxIntValue == null
+    ? eqInfo.intensity?.maxInt
+    : eqInfo.intensity.maxIntValue.presence === "value"
+      ? eqInfo.intensity.maxIntValue.value
+      : null;
   const maxIntUpdate =
-    eventId && eqInfo.intensity?.maxInt
-      ? { eventId, maxInt: eqInfo.intensity.maxInt, headType: msg.head.type }
+    eventId && exactMaxInt
+      ? { eventId, maxInt: exactMaxInt, headType: msg.head.type }
       : undefined;
 
   return {
@@ -23,7 +28,7 @@ export function processEarthquake(msg: WsDataMessage): EarthquakeOutcome | null 
     headType: msg.head.type,
     statsCategory: "earthquake",
     parsed: eqInfo,
-    state: eventId ? { eventId, representativeMaxInt: eqInfo.intensity?.maxInt } : undefined,
+    state: eventId ? { eventId, representativeMaxInt: exactMaxInt ?? undefined } : undefined,
     stats: {
       shouldRecord: true,
       eventId,

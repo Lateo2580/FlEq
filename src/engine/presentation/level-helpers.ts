@@ -19,8 +19,15 @@ import type {
   ParsedTyphoonProbability,
   ParsedFloodForecastInfo,
   FloodLevel,
+  JmaIntensity,
+  JmaLgIntensity,
+  SpecialValue,
 } from "../../types";
-import { intensityToRank } from "../../utils/intensity";
+import {
+  evaluateIntensitySafetyRank,
+  evaluateLgIntensitySafetyRank,
+  intensityToRank,
+} from "../../utils/intensity";
 import {
   DISPLAY_SEVERITY_TO_FRAME_LEVEL,
   SOUND_LEVEL_RANK,
@@ -44,6 +51,89 @@ export interface EewLevels {
   frameLevel: FrameLevel;
   soundLevel: SoundLevel;
   forecastSafetyGate: EewIntensitySafetyGate;
+}
+
+export type SpecialValueTextMode = "detail" | "notification" | "ticker";
+
+function intensityTextToken(value: JmaIntensity): string {
+  return ({
+    "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
+    "5-": "5弱", "5+": "5強", "6-": "6弱", "6+": "6強", "7": "7",
+  } satisfies Record<JmaIntensity, string>)[value];
+}
+
+function specialValueQualifier<T extends string>(value: SpecialValue<T>): string | null {
+  for (const candidate of [value.condition, value.description, value.raw]) {
+    const normalized = candidate?.normalize("NFKC").trim();
+    if (normalized != null && normalized !== "") {
+      return normalized.replace(/^(?:震度|階級)/, "");
+    }
+  }
+  return null;
+}
+
+/** CLI・通知・ticker が共用する SpecialValue の純粋本文 formatter。 */
+function formatSpecialValueText<T extends string>(
+  value: SpecialValue<T> | undefined,
+  scalar: string | null | undefined,
+  token: (item: T) => string,
+  mode: SpecialValueTextMode,
+): string | null {
+  if (value == null) return scalar == null || scalar === "" ? null : scalar;
+  switch (value.presence) {
+    case "value":
+      return scalar != null && scalar !== "" ? scalar : value.value == null ? null : token(value.value);
+    case "missing":
+      return mode === "detail" ? "—" : null;
+    case "empty":
+      return mode === "detail" ? "（空欄）" : null;
+    case "unknown": {
+      if (mode === "ticker") return "不明";
+      const reason = specialValueQualifier(value);
+      return reason == null || reason === "不明" ? "不明" : `不明（${reason}）`;
+    }
+    case "range": {
+      const lower = value.lowerBound == null ? null : token(value.lowerBound);
+      const upper = value.upperBound == null ? null : token(value.upperBound);
+      if (lower != null && upper != null) return lower === upper ? lower : `${lower}〜${upper}`;
+      if (lower != null) {
+        return value.rawUpperBound?.normalize("NFKC").trim().toLowerCase() === "over"
+          ? `${lower}程度以上`
+          : `${lower}以上`;
+      }
+      if (upper != null) return `${upper}以下`;
+      return "不明";
+    }
+    case "qualitative": {
+      const qualifier = specialValueQualifier(value);
+      if (qualifier != null) return qualifier;
+      const lower = value.lowerBound == null ? null : token(value.lowerBound);
+      const upper = value.upperBound == null ? null : token(value.upperBound);
+      if (lower != null && upper != null) return lower === upper ? `${lower}程度` : `${lower}〜${upper}`;
+      if (lower != null) return `${lower}以上`;
+      if (upper != null) return `${upper}以下`;
+      return "不明";
+    }
+  }
+}
+
+export function formatIntensitySpecialValue(
+  value: SpecialValue<JmaIntensity> | undefined,
+  scalar?: string | null,
+  mode: SpecialValueTextMode = "detail",
+): string | null {
+  const normalizedScalar = scalar != null && intensityToRank(scalar) > 0
+    ? scalar.replace(/\s+/g, "")
+    : scalar;
+  return formatSpecialValueText(value, normalizedScalar, intensityTextToken, mode);
+}
+
+export function formatLgIntensitySpecialValue(
+  value: SpecialValue<JmaLgIntensity> | undefined,
+  scalar?: string | null,
+  mode: SpecialValueTextMode = "detail",
+): string | null {
+  return formatSpecialValueText(value, scalar, (item) => item, mode);
 }
 
 /** EEW の公式 warning 区分と予測震度 safety gate を一度に解決する。 */
@@ -80,10 +170,41 @@ export function eewFrameLevel(info: ParsedEewInfo): FrameLevel {
   return resolveEewLevels(info).frameLevel;
 }
 
+/** SpecialValue の safety 側代表 rank。range は上端、lower-only/qualitative は下端を使う。 */
+export function resolveIntensitySafetyRank(
+  value: SpecialValue<JmaIntensity> | undefined,
+  scalar?: string | null,
+): number | null {
+  if (value != null) {
+    const safety = evaluateIntensitySafetyRank(value);
+    if (safety.kind !== "known") return null;
+    return value.presence === "range" ? safety.upper ?? safety.lower : safety.lower;
+  }
+  if (scalar == null || scalar.trim() === "") return null;
+  return intensityToRank(scalar);
+}
+
+/** 長周期階級の safety 側代表 rank。震度とは別の 0〜4 評価を使う。 */
+export function resolveLgIntensitySafetyRank(
+  value: SpecialValue<JmaLgIntensity> | undefined,
+  scalar?: string | null,
+): number | null {
+  if (value != null) {
+    const safety = evaluateLgIntensitySafetyRank(value);
+    if (safety.kind !== "known") return null;
+    return value.presence === "range" ? safety.upper ?? safety.lower : safety.lower;
+  }
+  if (scalar == null || !/^[0-4]$/.test(scalar.trim())) return null;
+  return Number(scalar.trim());
+}
+
 export function earthquakeFrameLevel(info: ParsedEarthquakeInfo): FrameLevel {
   if (info.infoType === "取消") return "cancel";
   if (info.intensity) {
-    const rank = intensityToRank(info.intensity.maxInt);
+    const rank = resolveIntensitySafetyRank(
+      info.intensity.maxIntValue,
+      info.intensity.maxInt,
+    ) ?? 0;
     if (rank >= 7) return "critical";
     if (rank >= 4) return "warning";
   }
@@ -120,14 +241,10 @@ export function lgObservationFrameLevel(
   info: ParsedLgObservationInfo,
 ): FrameLevel {
   if (info.infoType === "取消") return "cancel";
-  if (info.maxLgInt) {
-    const num = Number(info.maxLgInt);
-    if (!Number.isNaN(num)) {
-      if (num >= 4) return "critical";
-      if (num >= 3) return "warning";
-      if (num >= 2) return "normal";
-    }
-  }
+  const rank = resolveLgIntensitySafetyRank(info.maxLgIntValue, info.maxLgInt);
+  if (rank != null && rank >= 4) return "critical";
+  if (rank != null && rank >= 3) return "warning";
+  if (rank != null && rank >= 2) return "normal";
   return "info";
 }
 
@@ -155,9 +272,13 @@ export function eewSoundLevel(info: ParsedEewInfo): SoundLevel {
 }
 
 export function earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
+  if (info.infoType === "取消") return "cancel";
   if (!info.intensity) return "normal";
-  if (intensityToRank(info.intensity.maxInt) >= 4) return "warning";
-  return "normal";
+  const rank = resolveIntensitySafetyRank(
+    info.intensity.maxIntValue,
+    info.intensity.maxInt,
+  );
+  return rank != null && rank >= 4 ? "warning" : "normal";
 }
 
 export function tsunamiSoundLevel(info: ParsedTsunamiInfo): SoundLevel {
@@ -186,9 +307,10 @@ export function nankaiTroughSoundLevel(
 export function lgObservationSoundLevel(
   info: ParsedLgObservationInfo,
 ): SoundLevel {
-  if (!info.maxLgInt) return "normal";
-  if (info.maxLgInt === "4" || info.maxLgInt === "3") return "critical";
-  if (info.maxLgInt === "2" || info.maxLgInt === "1") return "warning";
+  if (info.infoType === "取消") return "cancel";
+  const rank = resolveLgIntensitySafetyRank(info.maxLgIntValue, info.maxLgInt);
+  if (rank != null && rank >= 3) return "critical";
+  if (rank != null && rank >= 1) return "warning";
   return "normal";
 }
 

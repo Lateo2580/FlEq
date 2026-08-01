@@ -84,6 +84,7 @@ import type {
   ParsedWeatherExplanation,
   ParsedWeatherWarningTimeseriesInfo,
   JmaIntensity,
+  JmaLgIntensity,
   SpecialValue,
 } from "../../../src/types";
 
@@ -192,6 +193,32 @@ function lgObservation(
   };
 }
 
+function intensityValue(
+  value: Partial<SpecialValue<JmaIntensity>>,
+): SpecialValue<JmaIntensity> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  };
+}
+
+function lgIntensityValue(
+  value: Partial<SpecialValue<JmaLgIntensity>>,
+): SpecialValue<JmaLgIntensity> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  };
+}
+
 // ── frameLevel tests ──
 
 describe("eewFrameLevel", () => {
@@ -282,6 +309,21 @@ describe("eewFrameLevel", () => {
 });
 
 describe("earthquakeFrameLevel", () => {
+  it.each([
+    ["plain 未入電", intensityValue({ condition: "未入電", presence: "unknown" }), "", "normal"],
+    ["exact 3", intensityValue({ raw: "3", value: "3", presence: "value" }), "3", "normal"],
+    ["exact 4", intensityValue({ raw: "4", value: "4", presence: "value" }), "4", "warning"],
+    ["range 3〜5弱", intensityValue({ presence: "range", lowerBound: "3", upperBound: "5-" }), "3", "warning"],
+    ["5弱以上未入電", intensityValue({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "", "warning"],
+    ["取消", intensityValue({ raw: "3", value: "3", presence: "value" }), "3", "cancel"],
+  ] as const)("SpecialValue %s の frame を safety rank で判定する", (_label, maxIntValue, maxInt, expected) => {
+    const info = earthquake({
+      infoType: expected === "cancel" ? "取消" : "発表",
+      intensity: { maxInt, maxIntValue, areas: [], municipalities: [] },
+    });
+    expect(earthquakeFrameLevel(info)).toBe(expected);
+  });
+
   it("returns cancel for 取消", () => {
     expect(earthquakeFrameLevel(earthquake({ infoType: "取消" }))).toBe(
       "cancel",
@@ -499,6 +541,22 @@ describe("nankaiTroughFrameLevel", () => {
 });
 
 describe("lgObservationFrameLevel", () => {
+  it.each([
+    ["plain 未入電", lgIntensityValue({ condition: "未入電", presence: "unknown" }), "", "info"],
+    ["exact 1", lgIntensityValue({ raw: "1", value: "1", presence: "value" }), "1", "info"],
+    ["exact 2", lgIntensityValue({ raw: "2", value: "2", presence: "value" }), "2", "normal"],
+    ["exact 3", lgIntensityValue({ raw: "3", value: "3", presence: "value" }), "3", "warning"],
+    ["range 2〜4", lgIntensityValue({ presence: "range", lowerBound: "2", upperBound: "4" }), "2", "critical"],
+    ["lower-only 2以上", lgIntensityValue({ presence: "range", lowerBound: "2" }), "2", "normal"],
+    ["取消", lgIntensityValue({ raw: "2", value: "2", presence: "value" }), "2", "cancel"],
+  ] as const)("SpecialValue %s の frame を safety rank で判定する", (_label, maxLgIntValue, maxLgInt, expected) => {
+    expect(lgObservationFrameLevel(lgObservation({
+      infoType: expected === "cancel" ? "取消" : "発表",
+      maxLgInt,
+      maxLgIntValue,
+    }))).toBe(expected);
+  });
+
   it("returns cancel for 取消", () => {
     expect(lgObservationFrameLevel(lgObservation({ infoType: "取消" }))).toBe(
       "cancel",
@@ -601,6 +659,20 @@ describe("eewSoundLevel", () => {
 });
 
 describe("earthquakeSoundLevel", () => {
+  it.each([
+    ["plain 未入電", intensityValue({ condition: "未入電", presence: "unknown" }), "", "発表", "normal"],
+    ["exact 3", intensityValue({ raw: "3", value: "3", presence: "value" }), "3", "発表", "normal"],
+    ["exact 4", intensityValue({ raw: "4", value: "4", presence: "value" }), "4", "発表", "warning"],
+    ["range 3〜5弱", intensityValue({ presence: "range", lowerBound: "3", upperBound: "5-" }), "3", "発表", "warning"],
+    ["5弱以上未入電", intensityValue({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "", "発表", "warning"],
+    ["取消", intensityValue({ raw: "3", value: "3", presence: "value" }), "3", "取消", "cancel"],
+  ] as const)("SpecialValue %s の音境界を safety rank で判定する", (_label, maxIntValue, maxInt, infoType, expected) => {
+    expect(earthquakeSoundLevel(earthquake({
+      infoType,
+      intensity: { maxInt, maxIntValue, areas: [], municipalities: [] },
+    }))).toBe(expected);
+  });
+
   it("returns warning for intensity rank >= 4", () => {
     expect(
       earthquakeSoundLevel(
@@ -736,6 +808,19 @@ describe("nankaiTroughSoundLevel", () => {
 });
 
 describe("lgObservationSoundLevel", () => {
+  it.each([
+    ["plain 未入電", lgIntensityValue({ condition: "未入電", presence: "unknown" }), "", "発表", "normal"],
+    ["exact 0", lgIntensityValue({ raw: "0", value: "0", presence: "value" }), "0", "発表", "normal"],
+    ["exact 1", lgIntensityValue({ raw: "1", value: "1", presence: "value" }), "1", "発表", "warning"],
+    ["exact 2", lgIntensityValue({ raw: "2", value: "2", presence: "value" }), "2", "発表", "warning"],
+    ["exact 3", lgIntensityValue({ raw: "3", value: "3", presence: "value" }), "3", "発表", "critical"],
+    ["range 2〜4", lgIntensityValue({ presence: "range", lowerBound: "2", upperBound: "4" }), "2", "発表", "critical"],
+    ["lower-only 2以上", lgIntensityValue({ presence: "range", lowerBound: "2" }), "2", "発表", "warning"],
+    ["取消", lgIntensityValue({ raw: "2", value: "2", presence: "value" }), "2", "取消", "cancel"],
+  ] as const)("SpecialValue %s の音境界を safety rank で判定する", (_label, maxLgIntValue, maxLgInt, infoType, expected) => {
+    expect(lgObservationSoundLevel(lgObservation({ infoType, maxLgInt, maxLgIntValue }))).toBe(expected);
+  });
+
   it("returns critical for lgInt 4", () => {
     expect(lgObservationSoundLevel(lgObservation({ maxLgInt: "4" }))).toBe(
       "critical",

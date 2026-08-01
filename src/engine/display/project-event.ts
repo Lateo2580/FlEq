@@ -9,6 +9,7 @@ import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
 import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
 import { revisionOf } from "./standby-registry";
+import { resolveIntensitySafetyRank } from "../presentation/level-helpers";
 import {
   attachQuakeObservationBridge,
   isQuakeIntensityStructureMissing,
@@ -446,7 +447,8 @@ export function tickerPriority(event: PresentationEvent): DisplayTickerPriority 
     return "mid"; // 津波注意報・津波予報（若干の海面変動）は advisory 相当
   }
   if (event.domain === "earthquake") {
-    return (event.maxIntRank ?? 0) >= LARGE_QUAKE_MIN_RANK ? "high" : "mid"; // 5弱+ = high
+    const safetyRank = resolveIntensitySafetyRank(event.maxIntValue, event.maxInt);
+    return (safetyRank ?? event.maxIntRank ?? 0) >= LARGE_QUAKE_MIN_RANK ? "high" : "mid"; // 5弱+ = high
   }
   if (event.frameLevel === "critical") return "high";
   if (event.frameLevel === "warning") return "mid";

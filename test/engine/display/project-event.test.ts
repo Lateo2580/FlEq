@@ -351,6 +351,18 @@ describe("tickerPriority (§2-1 境界値)", () => {
     expect(tickerPriority(baseEvent({ domain: "earthquake", maxIntRank: 4 }))).toBe("mid");
   });
 
+  it.each([
+    ["range 3〜5弱", { raw: null, value: null, condition: null, description: null, presence: "range" as const, lowerBound: "3" as const, upperBound: "5-" as const }],
+    ["5弱以上未入電", { raw: "", value: null, condition: "5弱以上未入電", description: null, presence: "qualitative" as const, lowerBound: "5-" as const }],
+  ])("%s は exact maxIntRank がなくても safety rank で high", (_label, maxIntValue) => {
+    expect(tickerPriority(baseEvent({
+      domain: "earthquake",
+      maxInt: null,
+      maxIntRank: null,
+      maxIntValue,
+    }))).toBe("high");
+  });
+
   it("取消 = low (ドメインに関わらず)", () => {
     expect(tickerPriority(baseEvent({ domain: "eew", isWarning: true, isCancellation: true }))).toBe("low");
     expect(tickerPriority(baseEvent({ domain: "tsunami", tsunamiKinds: ["大津波警報"], isCancellation: true }))).toBe("low");

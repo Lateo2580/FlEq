@@ -31,12 +31,22 @@ describe("processEarthquake", () => {
     }
   });
 
+  it("非 exact 最大震度は TelegramStats.maxIntUpdate へ採用しない", () => {
+    const outcome = processEarthquake(createMockWsDataMessage("synthetic_phase4a_VXSE51_special.xml"));
+    expect(outcome).not.toBeNull();
+    expect(outcome!.parsed.intensity?.maxIntValue?.presence).toBe("qualitative");
+    expect(outcome!.stats.maxIntUpdate).toBeUndefined();
+    expect(outcome!.state?.representativeMaxInt).toBeUndefined();
+    expect(outcome!.presentation.soundLevel).toBe("warning");
+  });
+
   it("取消報 → frameLevel cancel", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE51_CANCEL);
     const outcome = processEarthquake(msg);
 
     expect(outcome).not.toBeNull();
     expect(outcome!.presentation.frameLevel).toBe("cancel");
+    expect(outcome!.presentation.soundLevel).toBe("cancel");
   });
 
   it("eventId が state に設定される", () => {

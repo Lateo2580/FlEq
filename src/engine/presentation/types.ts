@@ -466,9 +466,13 @@ export interface PresentationEvent {
 
   // 強度
   maxIntValue?: SpecialValue<JmaIntensity>;
+  /** compact/focus を含む表示出口で SpecialValue qualifier を失わない表示ラベル。 */
+  maxIntLabel?: string | null;
   maxInt?: string | null;
   maxIntRank?: number | null;
   maxLgIntValue?: SpecialValue<JmaLgIntensity>;
+  /** compact/focus を含む表示出口で長周期階級 qualifier を失わない表示ラベル。 */
+  maxLgIntLabel?: string | null;
   maxLgInt?: string | null;
   maxLgIntRank?: number | null;
   forecastMaxInt?: string | null;

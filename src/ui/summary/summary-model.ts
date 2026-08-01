@@ -27,8 +27,16 @@ export function buildSummaryModel(event: PresentationEvent): SummaryModel {
     title: event.title,
     location: event.hypocenterName ?? event.volcanoName ?? undefined,
     magnitude: event.magnitude ? formatPresentationMagnitude(event.magnitude) : undefined,
-    maxInt: event.maxInt ? `震度${event.maxInt}` : undefined,
-    maxLgInt: event.maxLgInt ? `長周期${event.maxLgInt}` : undefined,
+    maxInt: event.maxIntLabel != null
+      ? `震度${event.maxIntLabel}`
+      : event.maxInt
+        ? `震度${event.maxInt}`
+        : undefined,
+    maxLgInt: event.maxLgIntLabel != null
+      ? `長周期${event.maxLgIntLabel}`
+      : event.maxLgInt
+        ? `長周期${event.maxLgInt}`
+        : undefined,
     headline: event.headline ?? undefined,
     volcanoName: event.volcanoName ?? undefined,
     serial: event.serial ? `#${event.serial}` : undefined,

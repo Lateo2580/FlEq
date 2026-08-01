@@ -9,6 +9,7 @@ import {
   formatPrefectureList,
 } from "../../../src/engine/display/prefecture-format";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../src/types";
 import { processWeatherWarningTimeseries } from "../../../src/engine/presentation/processors/process-weather-warning-timeseries";
 import { fromWeatherWarningTimeseriesOutcome } from "../../../src/engine/presentation/events/from-weather-warning-timeseries";
 import {
@@ -93,6 +94,17 @@ function makeEvent(overrides: Partial<PresentationEvent>): PresentationEvent {
   };
 }
 
+function special<T extends string>(value: Partial<SpecialValue<T>>): SpecialValue<T> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  };
+}
+
 describe("buildTickerSentence", () => {
   it("地震: 12時間制の時刻 + 震源 + M + 最大震度の代表地域", () => {
     const event = makeEvent({
@@ -110,6 +122,51 @@ describe("buildTickerSentence", () => {
     expect(buildTickerSentence(event)).toBe(
       "午後9時37分ごろ、宮城県沖を震源とするマグニチュード4.8の地震がありました。石巻市・東松島市で最大震度3を観測しています。",
     );
+  });
+
+  it.each([
+    ["unknown", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "最大震度不明を観測しています。"],
+    ["qualitative", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "最大震度5弱以上未入電を観測しています。"],
+    ["range", special<JmaIntensity>({ presence: "range", lowerBound: "4", upperBound: "5-" }), "最大震度4〜5弱を観測しています。"],
+    ["lower-only", special<JmaIntensity>({ presence: "range", lowerBound: "5-", rawUpperBound: "over" }), "最大震度5弱程度以上を観測しています。"],
+    ["qualitative upper-only", special<JmaIntensity>({ presence: "qualitative", upperBound: "5-" }), "最大震度5弱以下を観測しています。"],
+    ["empty", special<JmaIntensity>({ raw: "", presence: "empty" }), null],
+    ["missing", special<JmaIntensity>({ presence: "missing" }), null],
+  ] as const)("地震 ticker は SpecialValue %s を短縮表示し missing/empty を省略する", (_label, maxIntValue, expected) => {
+    const sentence = buildTickerSentence(makeEvent({
+      hypocenterName: "宮城県沖",
+      magnitude: "4.8",
+      maxInt: null,
+      maxIntValue,
+    }));
+    if (expected == null) expect(sentence).not.toContain("最大震度");
+    else expect(sentence).toContain(expected);
+  });
+
+  it("全体 maxIntValue が missing でも地域の exact 観測値は ticker から落とさない", () => {
+    const sentence = buildTickerSentence(makeEvent({
+      hypocenterName: "宮城県沖",
+      maxInt: null,
+      maxIntValue: special<JmaIntensity>({ presence: "missing" }),
+      areaItems: [{ name: "石巻市", maxInt: "4" }],
+    }));
+    expect(sentence).toContain("石巻市で最大震度4を観測しています。");
+  });
+
+  it("震源不明で地域 exact があっても全体 qualifier を優先する", () => {
+    const sentence = buildTickerSentence(makeEvent({
+      headline: "震度速報です。",
+      hypocenterName: null,
+      maxInt: null,
+      maxIntValue: special<JmaIntensity>({
+        condition: "5弱以上未入電",
+        presence: "qualitative",
+        lowerBound: "5-",
+      }),
+      areaItems: [{ name: "石巻市", maxInt: "4" }],
+    }));
+    expect(sentence).toContain("最大震度5弱以上未入電を観測しています。");
+    expect(sentence).not.toContain("最大震度4");
   });
 
   it("地震・EEW: 巨大地震 description を優先し NaN を出さない", () => {
@@ -432,6 +489,24 @@ describe("buildTickerSentence", () => {
     expect(buildTickerSentence(event)).toBe(
       "宮城県沖を震源とする地震で、東京都23区などで長周期地震動階級3を観測。",
     );
+  });
+
+  it.each([
+    ["unknown", special<JmaLgIntensity>({ condition: "未入電", presence: "unknown" }), "長周期地震動階級不明を観測。"],
+    ["range", special<JmaLgIntensity>({ presence: "range", lowerBound: "2", upperBound: "4" }), "長周期地震動階級2〜4を観測。"],
+    ["empty", special<JmaLgIntensity>({ raw: "", presence: "empty" }), null],
+  ] as const)("長周期 ticker は SpecialValue %s を短縮表示する", (_label, maxLgIntValue, expected) => {
+    const sentence = buildTickerSentence(makeEvent({
+      domain: "lgObservation",
+      type: "VXSE62",
+      title: "長周期地震動に関する観測情報",
+      headline: null,
+      hypocenterName: "宮城県沖",
+      maxLgInt: null,
+      maxLgIntValue,
+    }));
+    if (expected == null) expect(sentence).not.toContain("長周期地震動階級");
+    else expect(sentence).toContain(expected);
   });
 
   it("長周期地震動: 最大階級が 1 地域なら下位階級があっても「など」なし", () => {

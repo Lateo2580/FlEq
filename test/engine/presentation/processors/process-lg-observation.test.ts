@@ -3,8 +3,11 @@ import { processLgObservation } from "../../../../src/engine/presentation/proces
 import { fromLgObservationOutcome } from "../../../../src/engine/presentation/events/from-lg-observation";
 import {
   createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
   FIXTURE_VXSE62_LGOBS,
+  readFixture,
 } from "../../../helpers/mock-message";
+import type { JmaLgIntensity, SpecialValue } from "../../../../src/types";
 
 vi.mock("../../../../src/engine/notification/sound-player", () => ({ playSound: vi.fn() }));
 
@@ -40,6 +43,25 @@ describe("processLgObservation", () => {
     expect(outcome!.presentation.soundLevel).toBeDefined();
   });
 
+  it("exact 長周期階級3を共通 helper で critical 音へ投影する", () => {
+    const outcome = processLgObservation(createMockWsDataMessage(FIXTURE_VXSE62_LGOBS));
+    expect(outcome).not.toBeNull();
+    expect(outcome!.parsed.maxLgIntValue).toMatchObject({ presence: "value", value: "3" });
+    expect(outcome!.presentation.soundLevel).toBe("critical");
+  });
+
+  it("取消報は frameLevel・soundLevel ともに cancel へ投影する", () => {
+    const xml = readFixture(FIXTURE_VXSE62_LGOBS).replace(
+      /<InfoType>[^<]*<\/InfoType>/,
+      "<InfoType>取消</InfoType>",
+    );
+    const outcome = processLgObservation(createMockWsDataMessageFromXml(xml, "VXSE62"));
+
+    expect(outcome).not.toBeNull();
+    expect(outcome!.presentation.frameLevel).toBe("cancel");
+    expect(outcome!.presentation.soundLevel).toBe("cancel");
+  });
+
   it("Intensity/LgInt の SpecialValue を presentation event と areaItems へ保持する", () => {
     const outcome = processLgObservation(createMockWsDataMessage(FIXTURE_VXSE62_LGOBS));
     expect(outcome).not.toBeNull();
@@ -48,6 +70,24 @@ describe("processLgObservation", () => {
     expect(event.maxLgIntValue).toEqual(outcome!.parsed.maxLgIntValue);
     expect(event.areaItems[0]?.maxIntValue).toEqual(outcome!.parsed.areas[0]?.maxIntValue);
     expect(event.areaItems[0]?.maxLgIntValue).toEqual(outcome!.parsed.areas[0]?.maxLgIntValue);
+  });
+
+  it("非 exact 長周期階級の表示 label を presentation event へ貫通させる", () => {
+    const outcome = processLgObservation(createMockWsDataMessage(FIXTURE_VXSE62_LGOBS));
+    expect(outcome).not.toBeNull();
+    const maxLgIntValue: SpecialValue<JmaLgIntensity> = {
+      raw: "未入電",
+      value: null,
+      condition: "未入電",
+      description: null,
+      presence: "unknown",
+    };
+    const event = fromLgObservationOutcome({
+      ...outcome!,
+      parsed: { ...outcome!.parsed, maxLgInt: "", maxLgIntValue },
+    });
+    expect(event.maxLgInt).toBeNull();
+    expect(event.maxLgIntLabel).toBe("不明");
   });
 
   it("パース失敗 → null", () => {

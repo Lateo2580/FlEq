@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { SummaryWindowTracker } from "../../../src/engine/messages/summary-tracker";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { JmaIntensity, SpecialValue } from "../../../src/types";
 
 /** テスト用の最小限 PresentationEvent を生成する */
 function makeEvent(overrides: Partial<PresentationEvent> = {}): PresentationEvent {
@@ -29,6 +30,17 @@ function makeEvent(overrides: Partial<PresentationEvent> = {}): PresentationEven
     areaItems: [],
     raw: null,
     ...overrides,
+  };
+}
+
+function intensitySpecial(value: Partial<SpecialValue<JmaIntensity>>): SpecialValue<JmaIntensity> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
   };
 }
 
@@ -115,6 +127,26 @@ describe("SummaryWindowTracker", () => {
 
     const snap = tracker.getSnapshot(now);
     expect(snap.maxIntSeen).toBeNull();
+  });
+
+  it.each([
+    ["unknown", intensitySpecial({ condition: "未入電", presence: "unknown" })],
+    ["empty", intensitySpecial({ raw: "", presence: "empty" })],
+    ["qualitative", intensitySpecial({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" })],
+    ["range", intensitySpecial({ presence: "range", lowerBound: "4", upperBound: "5-" })],
+  ] as const)("summary は %s SpecialValue を統計最大値へ採用しない", (_label, maxIntValue) => {
+    const now = Date.now();
+    tracker.record(makeEvent({ maxInt: "5弱", maxIntValue }), true, now);
+    expect(tracker.getSnapshot(now).maxIntSeen).toBeNull();
+  });
+
+  it("summary は exact SpecialValue のみ最大値へ採用する", () => {
+    const now = Date.now();
+    tracker.record(makeEvent({
+      maxInt: "5弱",
+      maxIntValue: intensitySpecial({ raw: "5-", value: "5-", presence: "value" }),
+    }), true, now);
+    expect(tracker.getSnapshot(now).maxIntSeen).toBe("5-");
   });
 
   it("clear() で全統計がリセットされる", () => {

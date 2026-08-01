@@ -10,6 +10,7 @@ import {
   FIXTURE_VXSE53_ENCHI,
 } from "../../../helpers/mock-message";
 import type { EarthquakeOutcome } from "../../../../src/engine/presentation/types";
+import type { JmaIntensity, SpecialValue } from "../../../../src/types";
 
 describe("resolveEarthquakeTsunamiWarning", () => {
   it("text が null なら false", () => {
@@ -90,6 +91,27 @@ describe("fromEarthquakeOutcome", () => {
     expect(event.maxIntValue).toEqual(outcome.parsed.intensity?.maxIntValue);
     expect(event.maxIntValue).toMatchObject({ presence: "value" });
     expect(event.areaItems[0]?.maxIntValue).toMatchObject({ presence: "value" });
+  });
+
+  it("非 exact 最大震度の表示 label を PresentationEvent へ貫通させる", () => {
+    const outcome = outcomeFromDrillFixture();
+    const maxIntValue: SpecialValue<JmaIntensity> = {
+      raw: "",
+      value: null,
+      condition: "5弱以上未入電",
+      description: null,
+      presence: "qualitative",
+      lowerBound: "5-",
+    };
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: {
+        ...outcome.parsed,
+        intensity: { ...outcome.parsed.intensity!, maxInt: "", maxIntValue },
+      },
+    });
+    expect(event.maxInt).toBeNull();
+    expect(event.maxIntLabel).toBe("5弱以上未入電");
   });
 
   it("Area/City の非 exact SpecialValue を発火用 quakeIntensity と独立して保持する", () => {

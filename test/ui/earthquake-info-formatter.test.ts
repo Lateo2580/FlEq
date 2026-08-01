@@ -13,7 +13,7 @@ import {
   setFrameWidth,
   setMaxObservations,
 } from "../../src/ui/formatter";
-import type { ParsedEarthquakeInfo } from "../../src/types";
+import type { JmaIntensity, ParsedEarthquakeInfo, SpecialValue } from "../../src/types";
 import { parseEarthquakeTelegram } from "../../src/dmdata/telegram-parser";
 import {
   createMockWsDataMessage,
@@ -120,6 +120,12 @@ describe("intensityColumns (Tier 割当)", () => {
       expect(namesCol.wrap).toBe(true);
     }
   });
+
+  it("震度列も wrap: true で特殊値 qualifier を clip しない", () => {
+    for (const mode of ["ultra-narrow", "standard", "wide"] as const) {
+      expect(intensityColumns(mode).find((c) => c.header === "震度")?.wrap).toBe(true);
+    }
+  });
 });
 
 // 固定タイムスタンプの synthetic critical (震度7 + 長周期4。critical の実 VXSE53 fixture は無い)
@@ -154,6 +160,19 @@ const SYNTH_NOTO: ParsedEarthquakeInfo = {
   tsunami: { text: "日本海沿岸では津波警報を発表中です。" },
   isTest: false,
 };
+
+function intensitySpecial(
+  value: Partial<SpecialValue<JmaIntensity>>,
+): SpecialValue<JmaIntensity> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  };
+}
 
 describe("displayEarthquakeInfo (新デザイン言語)", () => {
   let logSpy: MockInstance<typeof console.log>;
@@ -208,6 +227,59 @@ describe("displayEarthquakeInfo (新デザイン言語)", () => {
     expect(out).toContain("N37.5 E137.3");
     expect(out).toContain("EventID: 20240101161009");
     expect(out).toContain("VXSE53");
+  });
+
+  it.each([
+    ["missing", intensitySpecial({ presence: "missing" }), "—"],
+    ["empty", intensitySpecial({ raw: "", presence: "empty" }), "（空欄）"],
+    ["unknown", intensitySpecial({ condition: "未入電", presence: "unknown" }), "不明（未入電）"],
+    ["qualitative", intensitySpecial({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "5弱以上未入電"],
+    ["range", intensitySpecial({ presence: "range", lowerBound: "4", upperBound: "5-", rawLowerBound: "4", rawUpperBound: "5-" }), "4〜5弱"],
+    ["lower-only", intensitySpecial({ presence: "range", lowerBound: "5-", rawLowerBound: "5-", rawUpperBound: "over" }), "5弱程度以上"],
+    ["qualitative upper-only", intensitySpecial({ presence: "qualitative", upperBound: "5-" }), "5弱以下"],
+  ] as const)("SpecialValue %s を CLI カード・地域行で qualifier 付き表示する", (_label, maxIntValue, expected) => {
+    setFrameWidth(140);
+    const out = stripAnsi(renderInfo({
+      ...SYNTH_NOTO,
+      intensity: {
+        maxInt: "",
+        maxIntValue,
+        areas: [{ name: "合成地域", code: null, intensity: "", intensityValue: maxIntValue }],
+        municipalities: [],
+      },
+    }));
+    expect(out).toContain(`最大震度 ${expected}`);
+    expect(buildIntensityRows([{
+      name: "合成地域",
+      intensity: "",
+      intensityValue: maxIntValue,
+    }])[0]?.intensity).toBe(expected);
+  });
+
+  it("狭幅の実描画でも地域別 qualifier『5弱以上未入電』を震度列へ全文表示する", () => {
+    setFrameWidth(60);
+    const maxIntValue = intensitySpecial({
+      condition: "5弱以上未入電",
+      presence: "qualitative",
+      lowerBound: "5-",
+    });
+    const plain = stripAnsi(renderInfo({
+      ...SYNTH_NOTO,
+      intensity: {
+        maxInt: "",
+        maxIntValue,
+        areas: [{ name: "合成地域", code: null, intensity: "", intensityValue: maxIntValue }],
+        municipalities: [],
+      },
+    }));
+    const lines = plain.split("\n");
+    const start = lines.findIndex((line) => line.includes("震度分布"));
+    const end = lines.findIndex((line, index) => index > start && line.startsWith("╠"));
+    const firstColumn = lines.slice(start + 1, end)
+      .map((line) => line.match(/^[║│]\s*([^│║]*?)\s*│/)?.[1].trim() ?? "")
+      .join("")
+      .replace(/\s/g, "");
+    expect(firstColumn).toContain("震度5弱以上未入電");
   });
 
   it.each(["NaN", "計算中"])("非数値 magnitude %s は M不明へ縮退し MNaN を出さない", (magnitude) => {

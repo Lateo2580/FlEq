@@ -25,7 +25,18 @@ function lgSynthetic(): ParsedLgObservationInfo {
     maxInt: ["1", "2", "3", "4", "5弱"][i % 5],
     maxLgInt: `${(i % 4) + 1}`,
   }));
-  return { ...parseBase(), maxLgInt: "4", areas };
+  return {
+    ...parseBase(),
+    maxLgInt: "4",
+    maxLgIntValue: {
+      raw: "4",
+      value: "4",
+      condition: null,
+      description: null,
+      presence: "value",
+    },
+    areas,
+  };
 }
 
 const CASES: SnapCase[] = [

@@ -3,6 +3,10 @@ import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../types"
 import { presentationTelegramMeta } from "./presentation-meta";
 import { intensityToRank } from "../../../utils/intensity";
 import { magnitudeForPresentation } from "../../../utils/magnitude";
+import {
+  formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
+} from "../level-helpers";
 
 function missingSpecialValue<T>(): SpecialValue<T> {
   return {
@@ -119,9 +123,11 @@ export function fromLgObservationOutcome(outcome: LgObservationOutcome): Present
     magnitude: magnitudeForPresentation(info.earthquake),
 
     maxIntValue,
+    maxIntLabel: formatIntensitySpecialValue(maxIntValue, maxInt, "ticker"),
     maxInt,
     maxIntRank,
     maxLgIntValue,
+    maxLgIntLabel: formatLgIntensitySpecialValue(maxLgIntValue, maxLgInt, "ticker"),
     maxLgInt,
     maxLgIntRank,
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildSummaryModel } from "../../../src/ui/summary/summary-model";
+import { buildSummaryTokens } from "../../../src/ui/summary/token-builders";
 import { toPresentationEvent } from "../../../src/engine/presentation/events/to-presentation-event";
 import { processMessage } from "../../../src/engine/presentation/processors/process-message";
 import { makeProcessDeps as makeDeps } from "../../helpers/process-deps";
@@ -106,5 +107,24 @@ describe("buildSummaryModel", () => {
     const model = buildSummaryModel(noSerialEvent);
 
     expect(model.serial).toBeUndefined();
+  });
+
+  it("compact/focus 用 model・token は非 exact の震度 qualifier label を省略しない", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    const outcome = processMessage(msg, "earthquake", makeDeps())!;
+    const event = {
+      ...toPresentationEvent(outcome),
+      maxInt: null,
+      maxIntLabel: "5弱以上未入電",
+      maxLgInt: null,
+      maxLgIntLabel: "不明",
+    };
+    const model = buildSummaryModel(event);
+    const texts = buildSummaryTokens(event, model).map((token) => token.text);
+
+    expect(model.maxInt).toBe("震度5弱以上未入電");
+    expect(model.maxLgInt).toBe("長周期不明");
+    expect(texts).toContain("震度5弱以上未入電");
+    expect(texts).toContain("長周期不明");
   });
 });

@@ -25,6 +25,10 @@ import { flattenEntries, type WeatherSeverityEntry } from "../presentation/weath
 import { normalizeKindName, KIND_NAME_MAP } from "../../dmdata/weather-warning-timeseries-significancy";
 import { DISPLAY_SEVERITY_RANK } from "../../dmdata/weather-warning-level";
 import { groupIntensityAreas } from "./intensity-groups";
+import {
+  formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
+} from "../presentation/level-helpers";
 
 const CATEGORY_LABELS: Record<string, string> = {
   eew: "緊急地震速報",
@@ -137,6 +141,16 @@ const EARTHQUAKE_FALLBACK_MAX_LENGTH = 180;
 const EARTHQUAKE_AREA_SUMMARY_MAX_LENGTH = 120;
 const EARTHQUAKE_AREA_NAME_MAX_LENGTH = 16;
 
+function tickerIntensityText(event: PresentationEvent): string | null {
+  return formatIntensitySpecialValue(event.maxIntValue, event.maxInt, "ticker");
+}
+
+function hasExplicitIntensityQualifier(event: PresentationEvent): boolean {
+  return event.maxIntValue?.presence === "unknown"
+    || event.maxIntValue?.presence === "qualitative"
+    || event.maxIntValue?.presence === "range";
+}
+
 function ellipsize(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   if (maxLength <= 1) return "…".slice(0, maxLength);
@@ -180,12 +194,14 @@ function earthquakeSentence(event: PresentationEvent): string | null {
     : "地震";
   let sentence = `${head}${hypocenterName}を震源とする${mag}がありました。`;
   const top = topIntensityAreas(event.areaItems);
-  if (top != null && top.names.length > 0) {
+  const maxInt = tickerIntensityText(event);
+  const hasExplicitQualifier = hasExplicitIntensityQualifier(event);
+  if (!hasExplicitQualifier && top != null && top.names.length > 0) {
     const listed = top.names.slice(0, 2).join("・");
     const suffix = top.names.length > 2 ? "など" : "";
     sentence += `${listed}${suffix}で最大震度${top.intensity}を観測しています。`;
-  } else if (event.maxInt != null) {
-    sentence += `最大震度${event.maxInt}を観測しています。`;
+  } else if (maxInt != null) {
+    sentence += `最大震度${maxInt}を観測しています。`;
   }
   return sentence;
 }
@@ -352,10 +368,12 @@ function floodForecastSentence(event: PresentationEvent): string | null {
  */
 function lgObservationSentence(event: PresentationEvent): string | null {
   if (event.isCancellation) return null;
-  const maxLg = event.maxLgInt;
+  const maxLg = formatLgIntensitySpecialValue(event.maxLgIntValue, event.maxLgInt, "ticker");
   if (maxLg == null || maxLg === "") return null;
   // 最大階級と一致する地域だけを母集団にする (from-lg-observation の maxLgInt と同一 parser 由来で書式一致)
-  const topAreas = event.areaItems.filter((i) => i.maxLgInt != null && i.maxLgInt === maxLg);
+  const topAreas = event.maxLgIntValue != null && event.maxLgIntValue.presence !== "value"
+    ? event.areaItems.filter((i) => formatLgIntensitySpecialValue(i.maxLgIntValue, i.maxLgInt, "ticker") === maxLg)
+    : event.areaItems.filter((i) => i.maxLgInt != null && i.maxLgInt === maxLg);
   const where =
     topAreas.length > 0 ? `${topAreas[0].name}${topAreas.length > 1 ? "など" : ""}で` : "";
   const head = event.hypocenterName != null ? `${event.hypocenterName}を震源とする地震で、` : "";
@@ -487,12 +505,21 @@ export function buildTickerSentence(event: PresentationEvent): string {
       case "earthquake":
         sentence = earthquakeSentence(event);
         if (sentence == null && !event.isCancellation) {
+          const maxInt = tickerIntensityText(event);
+          if (hasExplicitIntensityQualifier(event) && maxInt != null) {
+            const prefix = event.headline?.trim() || event.title.trim();
+            return `${prefix === "" ? "" : `${ensurePeriod(prefix)} `}最大震度${maxInt}を観測しています。`;
+          }
           const areas = earthquakeAreaSummary(event.areaItems);
           if (areas != null) {
             const prefix = event.headline?.trim() || event.title.trim();
             if (prefix === "") return areas;
             const prefixBudget = EARTHQUAKE_FALLBACK_MAX_LENGTH - areas.length - 1;
             return `${ellipsize(ensurePeriod(prefix), prefixBudget)} ${areas}`;
+          }
+          if (maxInt != null) {
+            const prefix = event.headline?.trim() || event.title.trim();
+            return `${prefix === "" ? "" : `${ensurePeriod(prefix)} `}最大震度${maxInt}を観測しています。`;
           }
         }
         break;

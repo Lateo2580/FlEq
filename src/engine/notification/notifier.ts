@@ -44,10 +44,13 @@ import {
   typhoonAnalysisSoundLevel,
   tsunamiSoundLevel,
   eewSoundLevel,
+  earthquakeSoundLevel,
+  formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
+  lgObservationSoundLevel,
 } from "../presentation/level-helpers";
 import { extractLeadSentence } from "../../dmdata/heat-alert-parser";
 import * as nodeNotifierLoader from "./node-notifier-loader";
-import * as intensityUtils from "../../utils/intensity";
 import * as log from "../../logger";
 
 /** 通知アイコンディレクトリ */
@@ -395,11 +398,16 @@ export class Notifier {
 
   notifyEarthquake(info: ParsedEarthquakeInfo): void {
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "earthquake", "cancel");
+      this.send(
+        `[取消] ${info.title}`,
+        "この情報は取り消されました",
+        "earthquake",
+        earthquakeSoundLevel(info),
+      );
       return;
     }
 
-    const soundLevel = this.earthquakeSoundLevel(info);
+    const soundLevel = earthquakeSoundLevel(info);
 
     const parts: string[] = [];
     if (info.earthquake) {
@@ -407,7 +415,8 @@ export class Notifier {
       parts.push(formatMagnitudeLabel(info.earthquake));
     }
     if (info.intensity) {
-      parts.push(`最大震度${info.intensity.maxInt}`);
+      const maxInt = formatIntensitySpecialValue(info.intensity.maxIntValue, info.intensity.maxInt, "notification");
+      if (maxInt != null) parts.push(`最大震度${maxInt}`);
     }
     const notification = correctionNotification(
       info.infoType,
@@ -479,22 +488,25 @@ export class Notifier {
 
   notifyLgObservation(info: ParsedLgObservationInfo): void {
     if (info.infoType === "取消") {
-      this.send(`[取消] ${info.title}`, "この情報は取り消されました", "lgObservation", "cancel");
+      this.send(
+        `[取消] ${info.title}`,
+        "この情報は取り消されました",
+        "lgObservation",
+        lgObservationSoundLevel(info),
+      );
       return;
     }
 
-    const soundLevel = this.lgObservationSoundLevel(info);
+    const soundLevel = lgObservationSoundLevel(info);
 
     const parts: string[] = [];
     if (info.earthquake) {
       parts.push(info.earthquake.hypocenterName);
     }
-    if (info.maxLgInt) {
-      parts.push(`長周期階級${info.maxLgInt}`);
-    }
-    if (info.maxInt) {
-      parts.push(`最大震度${info.maxInt}`);
-    }
+    const maxLgInt = formatLgIntensitySpecialValue(info.maxLgIntValue, info.maxLgInt, "notification");
+    if (maxLgInt != null) parts.push(`長周期階級${maxLgInt}`);
+    const maxInt = formatIntensitySpecialValue(info.maxIntValue, info.maxInt, "notification");
+    if (maxInt != null) parts.push(`最大震度${maxInt}`);
     const notification = correctionNotification(
       info.infoType,
       info.title,
@@ -1108,20 +1120,6 @@ export class Notifier {
     if (this.soundEnabled && level) {
       playSound(level);
     }
-  }
-
-  private earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
-    if (!info.intensity) return "normal";
-    if (intensityUtils.intensityToRank(info.intensity.maxInt) >= 4) return "warning";
-    return "normal";
-  }
-
-  /** 長周期地震動観測のサウンドレベルを判定 */
-  private lgObservationSoundLevel(info: ParsedLgObservationInfo): SoundLevel {
-    if (!info.maxLgInt) return "normal";
-    if (info.maxLgInt === "4" || info.maxLgInt === "3") return "critical";
-    if (info.maxLgInt === "2" || info.maxLgInt === "1") return "warning";
-    return "normal";
   }
 
   private persist(): void {

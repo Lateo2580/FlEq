@@ -1,7 +1,12 @@
 import chalk from "chalk";
 import { ParsedLgObservationInfo, LgObservationArea } from "../types";
 import * as theme from "./theme";
-import { lgObservationFrameLevel } from "../engine/presentation/level-helpers";
+import {
+  formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
+  lgObservationFrameLevel,
+  resolveLgIntensitySafetyRank,
+} from "../engine/presentation/level-helpers";
 import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
 import { typeLabel } from "./telegram-type-label";
 import {
@@ -39,16 +44,25 @@ export interface LgAreaRow {
   areaName: string;
   maxLgInt: string;   // 長周期地震動階級 (divider・ソート用。表示順のため lgIntToNumeric)
   maxInt: string;     // 最大震度 (colorize)
+  maxLgIntColor?: string;
+  maxIntColor?: string;
 }
 
 /** 階級降順 → 名前順 (sort invariant の実体、spec §5) */
 export function buildLgAreaRows(areas: LgObservationArea[]): LgAreaRow[] {
   return [...areas]
     .sort((a, b) =>
-      (lgIntToNumeric(b.maxLgInt) - lgIntToNumeric(a.maxLgInt)) ||
+      (lgIntToNumeric(b.maxLgIntValue?.upperBound ?? b.maxLgIntValue?.lowerBound ?? b.maxLgInt) -
+        lgIntToNumeric(a.maxLgIntValue?.upperBound ?? a.maxLgIntValue?.lowerBound ?? a.maxLgInt)) ||
       a.name.localeCompare(b.name, "ja"),
     )
-    .map((a) => ({ areaName: a.name, maxLgInt: a.maxLgInt, maxInt: a.maxInt }));
+    .map((a) => ({
+      areaName: a.name,
+      maxLgInt: formatLgIntensitySpecialValue(a.maxLgIntValue, a.maxLgInt) ?? "—",
+      maxInt: formatIntensitySpecialValue(a.maxIntValue, a.maxInt) ?? "—",
+      maxLgIntColor: a.maxLgIntValue?.value ?? a.maxLgIntValue?.upperBound ?? a.maxLgIntValue?.lowerBound ?? a.maxLgInt,
+      maxIntColor: a.maxIntValue?.value ?? a.maxIntValue?.upperBound ?? a.maxIntValue?.lowerBound ?? a.maxInt,
+    }));
 }
 
 // ── 列定義 (spec §3 Tier: 全 mode 2 列、wide は地域名 maxWidth 拡大) ──
@@ -66,24 +80,35 @@ export function lgAreaColumns(mode: ResponsiveDisplayMode): ColumnSpec<LgAreaRow
     header: "最大震度",
     minWidth: 8,
     maxWidth: 10,
+    wrap: true,
     // 震度ラベルが NO_COLOR の行内表現を兼ねる (冗長性 ①)
     cell: (r) => `震度${r.maxInt}`,
-    colorize: (r, padded) => intensityColor(r.maxInt)(padded),
+    colorize: (r, padded) => intensityColor(r.maxIntColor ?? r.maxInt)(padded),
   };
   return [areaCol, intCol];
 }
 
 /** 末尾件数サマリ (NO_COLOR 3 重冗長性 ③: 階級降順の階級別地域数) */
 export function buildLgSummaryLine(areas: LgObservationArea[]): string {
-  const byLgInt = new Map<string, number>();
+  const byLgInt = new Map<string, { count: number; rank: number }>();
   for (const a of areas) {
-    byLgInt.set(a.maxLgInt, (byLgInt.get(a.maxLgInt) ?? 0) + 1);
+    const label = formatLgIntensitySpecialValue(a.maxLgIntValue, a.maxLgInt) ?? "—";
+    const rank = resolveLgIntensitySafetyRank(a.maxLgIntValue, a.maxLgInt) ?? -1;
+    const current = byLgInt.get(label);
+    byLgInt.set(label, {
+      count: (current?.count ?? 0) + 1,
+      rank: Math.max(current?.rank ?? -1, rank),
+    });
   }
   const entries = [...byLgInt.entries()].sort(
-    (a, b) => lgIntToNumeric(b[0]) - lgIntToNumeric(a[0]),
+    (a, b) => b[1].rank - a[1].rank || a[0].localeCompare(b[0], "ja"),
   );
   return entries
-    .map(([lgInt, count]) => lgIntensityColor(lgInt)(`長周期${lgInt} ${count} 地域`))
+    .map(([lgInt, group]) =>
+      lgIntensityColor(group.rank >= 0 ? String(group.rank) : "")(
+        `長周期${lgInt} ${group.count} 地域`,
+      ),
+    )
     .join(chalk.gray(" ・ "));
 }
 
@@ -124,13 +149,27 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
 
   // カード行: 長周期階級 / 震度 / M / 深さ (欠損時は行ごと省略 — spec §2 特記事項。clamp 経由)
   const cardParts: string[] = [];
-  if (info.maxLgInt) {
-    const lc = lgIntensityColor(info.maxLgInt);
-    cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.maxLgInt));
+  if (info.maxLgIntValue != null || info.maxLgInt) {
+    const maxLgInt = formatLgIntensitySpecialValue(info.maxLgIntValue, info.maxLgInt);
+    if (maxLgInt != null) {
+      const colorValue = info.maxLgIntValue?.value
+        ?? info.maxLgIntValue?.upperBound
+        ?? info.maxLgIntValue?.lowerBound
+        ?? info.maxLgInt
+        ?? "";
+      cardParts.push(chalk.white("長周期階級 ") + lgIntensityColor(colorValue).bold(maxLgInt));
+    }
   }
-  if (info.maxInt) {
-    const ic = intensityColor(info.maxInt);
-    cardParts.push(chalk.white("最大震度 ") + ic.bold(info.maxInt));
+  if (info.maxIntValue != null || info.maxInt) {
+    const maxInt = formatIntensitySpecialValue(info.maxIntValue, info.maxInt);
+    if (maxInt != null) {
+      const colorValue = info.maxIntValue?.value
+        ?? info.maxIntValue?.upperBound
+        ?? info.maxIntValue?.lowerBound
+        ?? info.maxInt
+        ?? "";
+      cardParts.push(chalk.white("最大震度 ") + intensityColor(colorValue).bold(maxInt));
+    }
   }
   if (info.earthquake) {
     cardParts.push(

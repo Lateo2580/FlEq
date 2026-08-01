@@ -8,8 +8,8 @@ import {
   buildLgSummaryLine,
 } from "../../src/ui/lg-observation-formatter";
 import { parseLgObservationTelegram } from "../../src/dmdata/telegram-parser";
-import { setFrameWidth, stripAnsi, visualWidth } from "../../src/ui/formatter";
-import type { ParsedLgObservationInfo, LgObservationArea } from "../../src/types";
+import { lgIntensityColor, setFrameWidth, stripAnsi, visualWidth } from "../../src/ui/formatter";
+import type { JmaIntensity, JmaLgIntensity, ParsedLgObservationInfo, LgObservationArea, SpecialValue } from "../../src/types";
 import { createMockWsDataMessage, FIXTURE_VXSE62_LGOBS } from "../helpers/mock-message";
 
 /** wrap・frame 罫線・空白を除去して全文検索できる形に潰す (名前復元検査用、Phase 3 と同型) */
@@ -35,6 +35,17 @@ function makeSyntheticMulti(count = 60): ParsedLgObservationInfo {
     maxLgInt: `${(i % 4) + 1}`,
   }));
   return { ...base, maxLgInt: "4", areas };
+}
+
+function lgSpecial(value: Partial<SpecialValue<JmaLgIntensity>>): SpecialValue<JmaLgIntensity> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  };
 }
 
 describe("displayLgObservationInfo (engine テーブル)", () => {
@@ -77,6 +88,9 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
     const std = lgAreaColumns("standard").find((c) => c.header === "地域名")!;
     const wide = lgAreaColumns("wide").find((c) => c.header === "地域名")!;
     expect(wide.maxWidth).toBeGreaterThan(std.maxWidth);
+    for (const mode of ["ultra-narrow", "standard", "wide"] as const) {
+      expect(lgAreaColumns(mode).find((c) => c.header === "最大震度")?.wrap).toBe(true);
+    }
   });
 
   it("VXSE62 実 fixture: 階級 divider + 全地域名 + カード + 震源 + サマリが出る", () => {
@@ -96,6 +110,60 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
     expect(output).toContain("https://");       // detailUri
     // 折りたたみ廃止: 省略カウントが出ない (名前必須 invariant)
     expect(plain).not.toMatch(/他 \d+ 地点/);
+  });
+
+  it.each([
+    ["missing", lgSpecial({ presence: "missing" }), "—"],
+    ["empty", lgSpecial({ raw: "", presence: "empty" }), "（空欄）"],
+    ["unknown", lgSpecial({ condition: "未入電", presence: "unknown" }), "不明（未入電）"],
+    ["qualitative", lgSpecial({ description: "階級3以上", presence: "qualitative", lowerBound: "3" }), "3以上"],
+    ["range", lgSpecial({ presence: "range", lowerBound: "2", upperBound: "4" }), "2〜4"],
+  ] as const)("長周期 SpecialValue %s を CLI カード・地域 divider へ保持する", (_label, maxLgIntValue, expected) => {
+    setFrameWidth(140);
+    const base = parseFixture();
+    const output = stripAnsi(render({
+      ...base,
+      maxLgInt: "",
+      maxLgIntValue,
+      areas: [{
+        name: "合成地域",
+        maxInt: "3",
+        maxLgInt: "",
+        maxLgIntValue,
+      }],
+    }));
+    expect(output).toContain(`長周期階級 ${expected}`);
+    expect(output).toContain(`長周期${expected}`);
+  });
+
+  it("狭幅の実描画でも地域別震度 qualifier『5弱以上未入電』を全文表示する", () => {
+    setFrameWidth(60);
+    const base = parseFixture();
+    const maxIntValue: SpecialValue<JmaIntensity> = {
+      raw: "",
+      value: null,
+      condition: "5弱以上未入電",
+      description: null,
+      presence: "qualitative",
+      lowerBound: "5-",
+    };
+    const plain = stripAnsi(render({
+      ...base,
+      areas: [{
+        name: "合成地域",
+        maxInt: "",
+        maxIntValue,
+        maxLgInt: "3",
+      }],
+    }));
+    const lines = plain.split("\n");
+    const start = lines.findIndex((line) => line.includes("地域名") && line.includes("最大震度"));
+    const end = lines.findIndex((line, index) => index > start && line.startsWith("╠"));
+    const intensityColumn = lines.slice(start, end)
+      .map((line) => line.match(/│\s*([^│║]*?)\s*║$/)?.[1].trim() ?? "")
+      .join("")
+      .replace(/\s/g, "");
+    expect(intensityColumn).toContain("震度5弱以上未入電");
   });
 
   it.each(["NaN", "計算中"])("非数値 magnitude %s は M不明へ縮退し MNaN を出さない", (magnitude) => {
@@ -147,6 +215,35 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
     expect(s).toMatch(/長周期4 \d+ 地域/);
     expect(s).toMatch(/長周期1 \d+ 地域/);
     expect(s.indexOf("長周期4")).toBeLessThan(s.indexOf("長周期1"));
+  });
+
+  it("長周期サマリは range の safety 上端で順序・色を決め、整形済み label を再解析しない", () => {
+    const areas: LgObservationArea[] = [
+      { name: "exact3", maxInt: "3", maxLgInt: "3", maxLgIntValue: lgSpecial({ raw: "3", value: "3", presence: "value" }) },
+      { name: "range", maxInt: "3", maxLgInt: "", maxLgIntValue: lgSpecial({ presence: "range", lowerBound: "2", upperBound: "4" }) },
+      { name: "lower", maxInt: "3", maxLgInt: "", maxLgIntValue: lgSpecial({ presence: "range", lowerBound: "2" }) },
+      { name: "unknown", maxInt: "3", maxLgInt: "", maxLgIntValue: lgSpecial({ condition: "未入電", presence: "unknown" }) },
+    ];
+    const summary = buildLgSummaryLine(areas);
+    const plain = stripAnsi(summary);
+    expect(plain.indexOf("長周期2〜4")).toBeLessThan(plain.indexOf("長周期3"));
+    expect(plain.indexOf("長周期3")).toBeLessThan(plain.indexOf("長周期2以上"));
+    expect(plain.indexOf("長周期2以上")).toBeLessThan(plain.indexOf("長周期不明"));
+    expect(summary).toContain(lgIntensityColor("4")("長周期2〜4 1 地域"));
+  });
+
+  it("qualitative の両 bounds は下限 safety rank で順序・色を統一する", () => {
+    const areas: LgObservationArea[] = [
+      { name: "exact3", maxInt: "3", maxLgInt: "3", maxLgIntValue: lgSpecial({ raw: "3", value: "3", presence: "value" }) },
+      { name: "qualitative", maxInt: "3", maxLgInt: "", maxLgIntValue: lgSpecial({ presence: "qualitative", lowerBound: "2", upperBound: "4" }) },
+      { name: "exact1", maxInt: "3", maxLgInt: "1", maxLgIntValue: lgSpecial({ raw: "1", value: "1", presence: "value" }) },
+    ];
+    const summary = buildLgSummaryLine(areas);
+    const plain = stripAnsi(summary);
+    expect(plain.indexOf("長周期3")).toBeLessThan(plain.indexOf("長周期2〜4"));
+    expect(plain.indexOf("長周期2〜4")).toBeLessThan(plain.indexOf("長周期1"));
+    expect(summary).toContain(lgIntensityColor("2")("長周期2〜4 1 地域"));
+    expect(summary).not.toContain(lgIntensityColor("4")("長周期2〜4 1 地域"));
   });
 
   it("欠損 optional (earthquake/maxInt/maxLgInt/comment/detailUri なし) は行ごと省略され表示が壊れない", () => {

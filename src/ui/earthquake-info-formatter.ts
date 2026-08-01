@@ -1,9 +1,13 @@
 import chalk from "chalk";
-import { ParsedEarthquakeInfo } from "../types";
+import { ParsedEarthquakeInfo, type JmaIntensity, type JmaLgIntensity, type SpecialValue } from "../types";
 import * as theme from "./theme";
 import { intensityToRank } from "../utils/intensity";
 import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
-import { earthquakeFrameLevel } from "../engine/presentation/level-helpers";
+import {
+  earthquakeFrameLevel,
+  formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
+} from "../engine/presentation/level-helpers";
 import { typeLabel } from "./telegram-type-label";
 import {
   wrapFrameLines,
@@ -41,15 +45,22 @@ export interface IntensityRow {
   areaCount: number;      // 地域数
   areaNames: string;      // 全地域を `, ` 結合 (長周期バッジ含む)。wrap 列で全量表示 (spec §3.5)
   areas: { name: string; lgIntensity?: string }[];  // 生データ (行構築時の中間参照)
+  colorIntensity?: string;
+  specialValue?: boolean;
 }
 
-/** 震度階級の表示順 (旧 earthquake-formatter :272 の order 配列を踏襲) */
-const INTENSITY_ORDER = ["7", "6+", "6強", "6-", "6弱", "5+", "5強", "5-", "5弱", "4", "3", "2", "1"];
-
 /** 長周期地震動階級バッジ付き地域名 (現行踏襲) */
-function areaBadgeName(a: { name: string; lgIntensity?: string }): string {
-  if (a.lgIntensity && lgIntToNumeric(a.lgIntensity) >= 1) {
-    return `${a.name} [長周期${a.lgIntensity}]`;
+function areaBadgeName(a: {
+  name: string;
+  lgIntensity?: string;
+  lgIntensityValue?: SpecialValue<JmaLgIntensity>;
+}): string {
+  const label = formatLgIntensitySpecialValue(a.lgIntensityValue, a.lgIntensity);
+  const hasDisplayValue = a.lgIntensityValue != null
+    ? a.lgIntensityValue.presence !== "missing"
+    : lgIntToNumeric(a.lgIntensity ?? "") >= 1;
+  if (label != null && hasDisplayValue) {
+    return `${a.name} [長周期${label}]`;
   }
   return a.name;
 }
@@ -60,30 +71,56 @@ function areaBadgeName(a: { name: string; lgIntensity?: string }): string {
  * 地域名は全件を `, ` 結合し wrap 列で全量表示する (spec §3.5、折りたたみ廃止)。
  */
 export function buildIntensityRows(
-  areas: { name: string; intensity: string; lgIntensity?: string }[],
+  areas: {
+    name: string;
+    intensity: string;
+    intensityValue?: SpecialValue<JmaIntensity>;
+    lgIntensity?: string;
+    lgIntensityValue?: SpecialValue<JmaLgIntensity>;
+  }[],
 ): IntensityRow[] {
-  const byIntensity = new Map<string, { name: string; lgIntensity?: string }[]>();
+  const byIntensity = new Map<string, {
+    areas: { name: string; lgIntensity?: string; lgIntensityValue?: SpecialValue<JmaLgIntensity> }[];
+    colorIntensity: string;
+    specialValue: boolean;
+  }>();
   for (const area of areas) {
     // dmdata 電文には <MaxInt>4 </MaxInt> のように末尾空白が混入する個体がある
     // (実例: 32-35_01_03_240613_VXSE53.xml)。正規化しないと "4" と "4 " が
     // 別グループに割れ、かつ INTENSITY_ORDER.indexOf が -1 (未知) 扱いになり
     // 先頭 (震度7より上) に誤配置される。intensityToRank (utils/intensity.ts)
     // と同じ正規化をここでも適用する (formatter 側防御、parser は触らない)。
-    const key = intensityToRank(area.intensity) > 0
-      ? area.intensity.replace(/\s+/g, "")
-      : area.intensity;
-    if (!byIntensity.has(key)) byIntensity.set(key, []);
-    byIntensity.get(key)!.push({ name: area.name, ...(area.lgIntensity != null ? { lgIntensity: area.lgIntensity } : {}) });
+    const key = formatIntensitySpecialValue(area.intensityValue, area.intensity) ?? "—";
+    const colorIntensity = area.intensityValue?.value
+      ?? area.intensityValue?.upperBound
+      ?? area.intensityValue?.lowerBound
+      ?? area.intensity.replace(/\s+/g, "");
+    if (!byIntensity.has(key)) {
+      byIntensity.set(key, { areas: [], colorIntensity, specialValue: area.intensityValue != null });
+    }
+    byIntensity.get(key)!.areas.push({
+      name: area.name,
+      ...(area.lgIntensity != null ? { lgIntensity: area.lgIntensity } : {}),
+      ...(area.lgIntensityValue != null ? { lgIntensityValue: area.lgIntensityValue } : {}),
+    });
   }
   const entries = [...byIntensity.entries()].sort((a, b) => {
-    const ai = INTENSITY_ORDER.indexOf(a[0]);
-    const bi = INTENSITY_ORDER.indexOf(b[0]);
-    // indexOf -1 (未知) はそのまま比較すると最小 = 先頭に来る
-    return ai - bi;
+    const ai = intensityToRank(a[1].colorIntensity);
+    const bi = intensityToRank(b[1].colorIntensity);
+    if (ai === 0 && bi !== 0) return -1;
+    if (bi === 0 && ai !== 0) return 1;
+    return bi - ai;
   });
   return entries.map(([intensity, group]) => {
-    const areaNames = group.map(areaBadgeName).join(", ");
-    return { intensity, areaCount: group.length, areaNames, areas: group };
+    const areaNames = group.areas.map(areaBadgeName).join(", ");
+    return {
+      intensity,
+      areaCount: group.areas.length,
+      areaNames,
+      areas: group.areas,
+      colorIntensity: group.colorIntensity,
+      specialValue: group.specialValue,
+    };
   });
 }
 
@@ -95,9 +132,10 @@ export function intensityColumns(mode: ResponsiveDisplayMode): ColumnSpec<Intens
     header: "震度",
     minWidth: 6,
     maxWidth: 10,
+    wrap: true,
     // 震度列が NO_COLOR の行内 prefix を兼ねる。未知値は ? 付き raw 表示
-    cell: (r) => (intensityToRank(r.intensity) > 0 ? `震度${r.intensity}` : `?${r.intensity}`),
-    colorize: (r, padded) => intensityColor(r.intensity).bold(padded),
+    cell: (r) => (r.specialValue === true || intensityToRank(r.intensity) > 0 ? `震度${r.intensity}` : `?${r.intensity}`),
+    colorize: (r, padded) => intensityColor(r.colorIntensity ?? r.intensity).bold(padded),
   };
   const countCol: ColumnSpec<IntensityRow> = {
     header: "地域数",
@@ -169,12 +207,28 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   // カード行: 最大震度 / 長周期階級 / M / 深さ / 津波短縮 (clamp 経由)
   const cardParts: string[] = [];
   if (info.intensity) {
-    const ic = intensityColor(info.intensity.maxInt);
-    cardParts.push(chalk.white("最大震度 ") + ic.bold(info.intensity.maxInt));
+    const maxInt = formatIntensitySpecialValue(info.intensity.maxIntValue, info.intensity.maxInt);
+    if (maxInt != null) {
+      const colorValue = info.intensity.maxIntValue?.value
+        ?? info.intensity.maxIntValue?.upperBound
+        ?? info.intensity.maxIntValue?.lowerBound
+        ?? info.intensity.maxInt;
+      cardParts.push(chalk.white("最大震度 ") + intensityColor(colorValue).bold(maxInt));
+    }
   }
-  if (info.intensity?.maxLgInt && lgIntToNumeric(info.intensity.maxLgInt) >= 1) {
-    const lc = lgIntensityColor(info.intensity.maxLgInt);
-    cardParts.push(chalk.white("長周期階級 ") + lc.bold(info.intensity.maxLgInt));
+  if (
+    (info.intensity?.maxLgIntValue != null && info.intensity.maxLgIntValue.presence !== "missing")
+    || (info.intensity?.maxLgInt && lgIntToNumeric(info.intensity.maxLgInt) >= 1)
+  ) {
+    const maxLgInt = formatLgIntensitySpecialValue(info.intensity?.maxLgIntValue, info.intensity?.maxLgInt);
+    if (maxLgInt != null) {
+      const colorValue = info.intensity?.maxLgIntValue?.value
+        ?? info.intensity?.maxLgIntValue?.upperBound
+        ?? info.intensity?.maxLgIntValue?.lowerBound
+        ?? info.intensity?.maxLgInt
+        ?? "";
+      cardParts.push(chalk.white("長周期階級 ") + lgIntensityColor(colorValue).bold(maxLgInt));
+    }
   }
   if (info.earthquake) {
     cardParts.push(

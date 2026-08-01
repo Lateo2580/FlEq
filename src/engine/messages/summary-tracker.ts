@@ -41,12 +41,17 @@ export class SummaryWindowTracker {
     }
     bucket.byDomain[event.domain] = (bucket.byDomain[event.domain] ?? 0) + 1;
 
-    // maxInt 追跡 (バケット単位で記録)
-    if (event.maxInt != null) {
-      const rank = intensityToRank(event.maxInt);
+    // 統計値は exact SpecialValue のみ採用する。旧 presentation 入力は scalar へ fallback する。
+    const exactMaxInt = event.maxIntValue == null
+      ? event.maxInt
+      : event.maxIntValue.presence === "value"
+        ? event.maxIntValue.value
+        : null;
+    if (exactMaxInt != null) {
+      const rank = intensityToRank(exactMaxInt);
       if (rank > bucket.maxIntRank) {
         bucket.maxIntRank = rank;
-        bucket.maxIntStr = event.maxInt;
+        bucket.maxIntStr = exactMaxInt;
       }
     }
   }

@@ -24,13 +24,13 @@ vi.mock("../../src/logger", () => ({
 
 import { Notifier, resolveIconPath, clearIconPathCache } from "../../src/engine/notification/notifier";
 import { loadConfig } from "../../src/config";
-import type { JmaIntensity, ParsedEarthquakeInfo, ParsedEewInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning, SpecialValue } from "../../src/types";
+import type { JmaIntensity, JmaLgIntensity, ParsedEarthquakeInfo, ParsedEewInfo, ParsedLgObservationInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning, SpecialValue } from "../../src/types";
 import type { EewUpdateResult } from "../../src/engine/eew/eew-tracker";
 import { playSound } from "../../src/engine/notification/sound-player";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
 import { parseClimateInfo } from "../../src/dmdata/climate-info-parser";
 import { parseHeatAlert } from "../../src/dmdata/heat-alert-parser";
-import { parseEarthquakeTelegram, parseNankaiTroughTelegram, parseSeismicTextTelegram } from "../../src/dmdata/telegram-parser";
+import { parseEarthquakeTelegram, parseLgObservationTelegram, parseNankaiTroughTelegram, parseSeismicTextTelegram } from "../../src/dmdata/telegram-parser";
 import { parseWeatherBriefing } from "../../src/dmdata/briefing-parser";
 import { parseEarlyWeather } from "../../src/dmdata/early-weather-parser";
 import { parseWeatherWarning } from "../../src/dmdata/weather-parser";
@@ -71,6 +71,17 @@ const enabledNotifySettings = {
   typhoonProbability: true,
   floodForecast: true,
 };
+
+function special<T extends string>(value: Partial<SpecialValue<T>>): SpecialValue<T> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+    ...value,
+  };
+}
 
 beforeEach(() => {
   vi.mocked(loadConfig).mockReturnValue({ notify: enabledNotifySettings });
@@ -113,6 +124,83 @@ describe("Notifier", () => {
     notifier.notifyEarthquake(info);
 
     expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["missing", special<JmaIntensity>({ presence: "missing" }), null],
+    ["empty", special<JmaIntensity>({ raw: "", presence: "empty" }), null],
+    ["unknown", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "最大震度不明（未入電）"],
+    ["qualitative", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "最大震度5弱以上未入電"],
+    ["range", special<JmaIntensity>({ presence: "range", lowerBound: "4", upperBound: "5-" }), "最大震度4〜5弱"],
+    ["lower-only", special<JmaIntensity>({ presence: "range", lowerBound: "5-", rawUpperBound: "over" }), "最大震度5弱程度以上"],
+    ["qualitative upper-only", special<JmaIntensity>({ presence: "qualitative", upperBound: "5-" }), "最大震度5弱以下"],
+  ] as const)("地震通知は SpecialValue %s の qualifier を保持し missing/empty を省略する", (_label, maxIntValue, expected) => {
+    notifyMock.mockClear();
+    const base = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
+    new Notifier().notifyEarthquake({
+      ...base,
+      intensity: { ...base.intensity!, maxInt: "", maxIntValue },
+    });
+    const body = notifyMock.mock.calls[0][0].message as string;
+    if (expected == null) expect(body).not.toContain("最大震度");
+    else expect(body).toContain(expected);
+  });
+
+  it.each([
+    ["plain 未入電", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "", "発表", "normal"],
+    ["exact 3", special<JmaIntensity>({ raw: "3", value: "3", presence: "value" }), "3", "発表", "normal"],
+    ["exact 4", special<JmaIntensity>({ raw: "4", value: "4", presence: "value" }), "4", "発表", "warning"],
+    ["range 3〜5弱", special<JmaIntensity>({ presence: "range", lowerBound: "3", upperBound: "5-" }), "3", "発表", "warning"],
+    ["5弱以上未入電", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "", "発表", "warning"],
+    ["取消", special<JmaIntensity>({ raw: "4", value: "4", presence: "value" }), "4", "取消", "cancel"],
+  ] as const)("地震通知音は %s を共通 safety 判定する", (_label, maxIntValue, maxInt, infoType, expectedSound) => {
+    notifyMock.mockClear();
+    vi.mocked(playSound).mockClear();
+    const base = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(true);
+    notifier.notifyEarthquake({
+      ...base,
+      infoType,
+      intensity: {
+        ...base.intensity!,
+        maxInt,
+        maxIntValue,
+      },
+    });
+    expect(playSound).toHaveBeenCalledWith(expectedSound);
+  });
+
+  it.each([
+    ["unknown", special<JmaLgIntensity>({ condition: "未入電", presence: "unknown" }), "長周期階級不明（未入電）"],
+    ["range", special<JmaLgIntensity>({ presence: "range", lowerBound: "2", upperBound: "4" }), "長周期階級2〜4"],
+    ["empty", special<JmaLgIntensity>({ raw: "", presence: "empty" }), null],
+  ] as const)("長周期通知は SpecialValue %s を保持する", (_label, maxLgIntValue, expected) => {
+    notifyMock.mockClear();
+    const base = parseLgObservationTelegram(createMockWsDataMessage("synthetic_phase4a_VXSE62_special.xml"))!;
+    const info: ParsedLgObservationInfo = { ...base, maxLgInt: "", maxLgIntValue };
+    new Notifier().notifyLgObservation(info);
+    const body = notifyMock.mock.calls[0][0].message as string;
+    if (expected == null) expect(body).not.toContain("長周期階級");
+    else expect(body).toContain(expected);
+  });
+
+  it.each([
+    ["plain 未入電", special<JmaLgIntensity>({ condition: "未入電", presence: "unknown" }), "", "発表", "normal"],
+    ["exact 0", special<JmaLgIntensity>({ raw: "0", value: "0", presence: "value" }), "0", "発表", "normal"],
+    ["exact 1", special<JmaLgIntensity>({ raw: "1", value: "1", presence: "value" }), "1", "発表", "warning"],
+    ["exact 3", special<JmaLgIntensity>({ raw: "3", value: "3", presence: "value" }), "3", "発表", "critical"],
+    ["range 2〜4", special<JmaLgIntensity>({ presence: "range", lowerBound: "2", upperBound: "4" }), "2", "発表", "critical"],
+    ["lower-only 2以上", special<JmaLgIntensity>({ presence: "range", lowerBound: "2" }), "2", "発表", "warning"],
+    ["取消", special<JmaLgIntensity>({ raw: "3", value: "3", presence: "value" }), "3", "取消", "cancel"],
+  ] as const)("長周期通知音は %s を共通 safety 判定する", (_label, maxLgIntValue, maxLgInt, infoType, expectedSound) => {
+    notifyMock.mockClear();
+    vi.mocked(playSound).mockClear();
+    const base = parseLgObservationTelegram(createMockWsDataMessage("synthetic_phase4a_VXSE62_special.xml"))!;
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(true);
+    notifier.notifyLgObservation({ ...base, infoType, maxLgInt, maxLgIntValue });
+    expect(playSound).toHaveBeenCalledWith(expectedSound);
   });
 
   it("巨大地震 description を通知本文へ出し MNaN を出さない", () => {

@@ -8,6 +8,10 @@ import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../types"
 import { presentationTelegramMeta } from "./presentation-meta";
 import { intensityToRank } from "../../../utils/intensity";
 import { magnitudeForPresentation } from "../../../utils/magnitude";
+import {
+  formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
+} from "../level-helpers";
 import * as log from "../../../logger";
 
 interface QuakeIntensitySourceItem {
@@ -235,9 +239,11 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
     magnitude: magnitudeForPresentation(info.earthquake),
 
     maxIntValue,
+    maxIntLabel: formatIntensitySpecialValue(maxIntValue, maxInt, "ticker"),
     maxInt,
     maxIntRank,
     maxLgIntValue,
+    maxLgIntLabel: formatLgIntensitySpecialValue(maxLgIntValue, maxLgInt, "ticker"),
     maxLgInt,
     tsunamiWarning: resolveEarthquakeTsunamiWarning(info.tsunami?.text),
 
