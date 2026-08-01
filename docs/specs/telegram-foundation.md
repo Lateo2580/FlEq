@@ -1,9 +1,10 @@
 # 電文基盤共通化仕様 — 特殊値・TelegramMeta・Revision・試験判定・条件付き抑止
 
-> 状態: **Reviewed（Sol レビュー反映済み）**
-> 更新日: 2026-07-31
+> 状態: **Reviewed（Sol レビュー反映済み、Phase 3B 実装同期済み）**
+> 更新日: 2026-08-01
 > 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化
-> 参照基準: HEAD `f634e410` 時点のコードで再確認
+> 実装同期基準: HEAD `9f88b6b4`（Phase 3B 完了）
+> 起草時参照基準: HEAD `f634e410`
 > 前提: 修正弾 A〜C で個別 High は対処済みとし、本仕様は構造的根因の共通化を扱う
 
 ## 1. 目的・スコープ
@@ -421,6 +422,10 @@ export type RevisionFamilyPolicy<TParsed, TItem = never> = {
   cancellationPolicy: CancellationPolicy;
   terminalPredicate: (meta: TelegramMeta, parsed: TParsed) => boolean;
   deactivationPredicate: (meta: TelegramMeta, parsed: TParsed) => boolean;
+  durable: boolean;
+  tombstoneRetentionMs: number | null;
+  maxSubjects: number | null;
+  allowMissingSerial?: boolean;
 } & (
   | {
       fragmentMerge: false;
@@ -432,6 +437,7 @@ export type RevisionFamilyPolicy<TParsed, TItem = never> = {
     }
   | {
       fragmentMerge: true;
+      fragmentAllowlistKey: FragmentMergeAllowlistKey;
       extractItems: (parsed: TParsed) => readonly TItem[];
       itemSubjectKey: (
         meta: TelegramMeta,
@@ -452,13 +458,17 @@ export type RevisionFamilyPolicy<TParsed, TItem = never> = {
 - authoritative なコードだけで完全な subject key を抽出できる domain は、EventID 欠落時もその key で更新できる。EventID を名称や受信時刻で補完しない。
 - subject key が不完全で `null` となった電文は fail-open 表示してよいが、durable state、watermark、tombstone を変更しない。
 - `extractCancellationTarget` は解除対象の完全な subject key の集合を返す。部分キーしか得られない取消は、一致が一意に証明できる既存 subject だけへ適用し、revisionFamily 全体の一括解除へ拡張しない。
+- `durable` は gate entry を persistence v2 へ保存する family だけ `true` とする。`false` の family は process lifetime 中だけ watermark／tombstone を保持し、再起動後の復元を契約しない。
+- `tombstoneRetentionMs` は family 固有の保持期間である。`null` は無期限を表すが、必ず有限の `maxSubjects` と組み合わせる。
+- `maxSubjects` field は全 family で必須とし、登録 policy では非 `null` の有限値を要求する。family 内の whole-message subject と item subject の合計上限を表し、宣言値だけでなく起動時 validation と gate admission でも強制する。
+- `allowMissingSerial` は実 fixture で Serial 欠落が確認され、日時だけで安全に順序付けできる family に限って明示する。未指定時は numeric serial を必須とする。
 - VFVO51 の複数火山一覧は火山コードごとに一件へ展開し、各 entry を独立した `stateSubjectKey` として gate に通す。EventID が欠落しても火山コードが valid なら更新できる。
 - VFVO51 の `alertClass.isActive === false` は、その entry の火山コードに対応する alert subject だけを解除する。同じ火山の eruption event や、同じ電文に含まれる別火山を解除しない。
 - 旧 `domain + revisionFamily + EventID` state は、Phase 3B の reader が domain 固有情報から subject key を再構成できる場合だけ新 key へ移す。再構成不能または複数候補になる entry は表示復元専用とし、取消対象・watermark には採用しない。
 
 `fragmentMerge:true` は型上も registry 上も allowlist 制とする。
 
-- `extractItems`、`itemSubjectKey`、`itemFingerprint`、`fingerprintVersion`、`fragmentEvidence` の五つが揃わない family は起動時検証を失敗させる。
+- `fragmentAllowlistKey`、`extractItems`、`itemSubjectKey`、`itemFingerprint`、`fingerprintVersion`、`fragmentEvidence` の六つが揃わない family は起動時検証を失敗させる。
 - `itemSubjectKey` は item の authoritative なコードから安定生成し、配列位置、表示名、受信時刻を使用しない。key が `null` の item は fail-open 表示してよいが durable merge しない。
 - `itemFingerprint` は subject key を除く全 semantic field、`SpecialValue.raw`、presence、condition、description、bounds を順序固定の canonical form から生成する。transport ID、telegram 内の item 順、受信時刻を含めない。fingerprint algorithm／version は `fingerprintVersion` として registry entry に固定し、移行なしに変更しない。
 - 有効化には、同一 revision の分割・補完があり得ることを示す repo corpus、item key の一意性、merge／訂正／取消規則、到着順を反転した regression test を `fragmentEvidence` に列挙する。
@@ -505,6 +515,15 @@ registry に未登録の comparator override を暗黙に推定しない。
 | 訂正 | accept | replaceCorrection | stale | invalidRevision |
 | 取消 | domain policy を適用 | domain policy を適用 | stale | invalidRevision |
 | 不正・欠落 | invalidMeta | invalidMeta | invalidMeta | invalidMeta |
+
+revision gate は副作用のない `evaluate` と、採用を確定する `decide` に分離する。
+
+1. parser 後に `evaluate` で relation、semantic duplicate、取消 latch、capacity を判定する。この時点では watermark／tombstone／semantic key を変更しない。
+2. `evaluate` が拒否した invalid metadata、stale、unordered は既存の抑止／診断経路へ送る。受理候補には domain の safety check と projection preview を行い、異常放流量などの unsafe preview は既存の warning 表示／通知候補へ送ってよいが `decide` しない。
+3. safety check を通過した入力だけ `decide` し、gate、holder、projection、通知、永続化を順に更新する。
+
+この分離により、unsafe な新 revision が watermark だけを先行消費し、同 revision の正常な再送を拒否することを禁止する。
+解析対象 item が全件 unknown など、解除とも active 更新とも断定できない入力は `observeOnly` とする。受理済み revision／投影完了 token は進めてよいが、active payload を消去・置換せず、deactivation／tombstone を成立させない。
 
 訂正の規約は、修正弾 A で導入済みの「同一 revision の訂正は置換を許可し、通常報の同一 revision は重複として拒否」を一般化する。
 
@@ -573,6 +592,7 @@ const resolvedTrigger =
   : null;
 ```
 
+- `resolvedTrigger` と `isCorrection` は別フィールドとして保持する。訂正と A／B／C が同時成立した場合も、mutation kind は `resolvedTrigger` に対応する policy とし、訂正属性だけを失わない。
 - A が成立した場合、parser が同じ入力から `action:"cancel"` を生成して C も成立していても A だけを適用する。現行 `volcano-parser.ts` の `InfoType=取消 → action=cancel` がこの実例である。
 - A が不成立で B と C が同時成立した場合は、lifecycle 全体の終端を表す B を適用し、C の部分解除を別処理として重ねない。
 - 成立した raw predicate の集合は診断用に記録してよいが、state mutation、`cancelApplied`／関連 stats、presentation、通知、永続化は `resolvedTrigger` から一度だけ実行する。
@@ -592,6 +612,8 @@ const resolvedTrigger =
 - 対象となる current state を消す。
 - previous revision は復元しない。
 - tombstone を残し、取消以前の遅延電文を拒否する。
+- tombstone と同一 revision の非取消報は、`InfoType=訂正` であっても解除を許可しない。復活には strictly newer な revision を必要とする。
+- この latch は `clearCurrent` family の契約である。EEW の `markCancelled` は、同一 family の正当な訂正または newer 続報が final／cancel lifecycle を置換できる既存契約を維持する。
 - EventID、type family、地域コードなど domain key に一致する範囲だけを消す。
 
 #### markCancelled
@@ -602,35 +624,46 @@ const resolvedTrigger =
 
 ### 5.6 domain 間の実装差と正規化先
 
-この表を cancellation registry の初期値とする。
+Phase 3B 完了時の registry は次を正とする。保持期間の「runtime」は process lifetime 中だけ有効で、再起動時には失われる。
 
-| domain／revisionFamily | 現行実装の主な形 | 共通化後の policy |
-|---|---|---|
-| EEW（VXSE43/44/45） | `EewTracker` がイベントを取消済みにする | `markCancelled` |
-| earthquake | 主に transient event と取消文 | `markCancelled` |
-| seismicText | 主に transient event と取消文 | `markCancelled` |
-| lgObservation | 主に transient event と取消文 | `markCancelled` |
-| tsunami | active level／lastInfo を clear、watermark 維持 | `clearCurrent` |
-| volcano alert | 火山コード単位で active alert を削除。VFVO51 `isActive:false`、release／cancel、Lv1 引下げも非活性化 | `clearCurrent` |
-| volcano eruption event | EventID／火山単位で最新イベントを削除 | `clearCurrent` |
-| VPWS50 | current と履歴を持ち、取消対象一致時に rollback | `restorePrevious` |
-| VPWW56 | stream の current view を消し、watermark を維持 | `clearCurrent` |
-| floodForecast | EventID 単位の履歴を削除 | `clearCurrent` |
-| tornado | 発表官署／EventID 単位の active state を削除 | `clearCurrent` |
-| heatAlert | 対象日・地域単位の active state を削除 | `clearCurrent` |
-| typhoonAnalysis | 台風キー単位の active state を削除。`transitionedToLow`／`formationCancelled` も終端 | `clearCurrent` |
-| typhoonProbability | EventID／対象時刻単位の active cache を削除 | `clearCurrent` |
-| nankaiTrough | current active state を削除 | `clearCurrent` |
-| weatherWarningTimeseries | source／地域単位の active state を削除 | `clearCurrent` |
-| briefing | durable current を持たない取消表示 | `markCancelled` |
-| earlyWeather | durable current を持たない取消表示 | `markCancelled` |
-| climateInfo | durable current を持たない取消表示 | `markCancelled` |
-| weatherExplanation | durable current を持たない取消表示 | `markCancelled` |
-| raw | 状態を推定しない | `markCancelled` |
+| domain／revisionFamily（head.type） | state subject 粒度 | policy | durable／保持期間 | `maxSubjects` |
+|---|---|---|---|---:|
+| EEW／VXSE43、VXSE44、VXSE45 | family ごとの EventID | `markCancelled` | 非永続／11分 runtime | 各512 |
+| weather／VPWS50 | 固定 `weather:vpws50` | `restorePrevious` | 永続／無期限 | 1 |
+| weather／VPWW56 | `(head.type, publishingOffice)` stream | `clearCurrent` | 永続／6時間 | 128 |
+| tsunami／VTSE41 | 固定 `tsunami:current` | `clearCurrent` | 永続／無期限 | 1 |
+| tsunamiObservation／VTSE51、VTSE52 | family whole subject＋観測点コード item | `clearCurrent` | 永続／無期限 | 各1,025（whole 1＋station 1,024） |
+| volcano／volcanoAlert（VFVO50、VFVO51、VFSVii） | 火山コード | `clearCurrent` | 永続／30日 | 512 |
+| volcano／volcanoEruption（VFVO52、VFVO56） | 火山コード | `clearCurrent` | 永続／2日 | 512 |
+| volcano／volcanoAshfall（VFVO53〜55） | `(head.type, 火山コード)` | `markCancelled` | 非永続／36時間 runtime | 128 |
+| volcano／volcanoTransient（VZVO40、VFVO60） | `(head.type, EventID)` | `markCancelled` | 非永続／36時間 runtime | 128 |
+| floodForecast（VXKO50〜89、VXSU50〜59） | EventID | `clearCurrent` | 永続／36時間 | 512 |
+| tornado（VPHW50、VPHW51） | 正規化した発表官署 stream | `clearCurrent` | 永続／36時間 | 128 |
+| heatAlert／VPFT50 | `(JST対象日, 対象地域)` | `clearCurrent` | 永続／3日 | 256 |
+| typhoonAnalysis（VPTW60〜62） | typhoon EventID | `clearCurrent` | 永続／7日 | 64 |
+| typhoonProbability／VPTA50 | EventID | `clearCurrent` | 非永続／7日 runtime | 256 |
+| nankaiTrough／nankaiTrough（VYSE50〜52、VYSE60） | 固定 `nankai:current` | `clearCurrent` | 永続／30日 | 1 |
+| nankaiTrough／nankaiInformation（VYSE50〜52、VYSE60） | `(head.type, EventID)` | `clearCurrent` | 非永続／30日 runtime | 256 |
+| weatherWarningTimeseries／VPWP50 | `(発表官署, 対象コード／名称／全域)` | `clearCurrent` | 非永続／36時間 runtime | 512 |
+| lgObservation／VXSE62 | EventID | `markCancelled` | 永続／36時間 | 256 |
+| earthquake（VXSE51〜53、VXSE61） | type をまたぐ EventID | `markCancelled` | 非永続／24時間 runtime | 512 |
+| seismicText（VXSE56、VXSE60、VZSE40） | `(head.type, EventID)` | `markCancelled` | 非永続／36時間 runtime | 256 |
+| briefing／VPBS50 | `(head.type, EventID)` | `markCancelled` | 非永続／36時間 runtime | 128 |
+| earlyWeather／VPAW51 | `(head.type, EventID)` | `markCancelled` | 非永続／7日 runtime | 128 |
+| climateInfo（VPZI50、VPCI50） | `(head.type, EventID)` | `markCancelled` | 非永続／30日 runtime | 128 |
+| weatherExplanation（VPCJ51、VPZJ51、VPFJ51、VMCJ53〜55） | `(head.type, EventID)` | `markCancelled` | 非永続／36時間 runtime | 256 |
+| weather／VPWW55、VPWW57〜61 | `(head.type, EventID)` | `markCancelled` | 非永続／36時間 runtime | 128 |
+| raw fallback | `(head.type, EventID)`。欠落時は単発 transient key | `markCancelled` | 非永続／11分 runtime | 512 |
+
+- `typhoonAnalysis` の `transitionedToLow`／`formationCancelled` は B（terminal）として解決する。
+- 洪水は station が全件 unknown のとき `observeOnly` とし、解除 tombstone を作らない。VXSU の observed series 非保持契約も維持する。
+- VTSE51／52 は holder と gate の station 上限・LRU 順序を同じ 1,024 件にし、family 取消時は item watermark を除去して whole tombstone だけを残す。
+- 火山 eruption の旧 v1 key は、実 EventID 由来と火山コード fallback 由来の provenance を区別する。空コード取消の EventID 逆引きは実 EventID 由来だけを対象とし、legacy-v1 由来候補と live EventID 欠落 event も混同しない。
+- subject を抽出できない入力は family 固有 TTL／`maxSubjects` を使う単発 transient key で重複排除する。authoritative mutation は行わず、表示／ticker だけを fail-open し、通知と durable projection を抑止する。
 
 同じ Presentation domain 内で policy が異なる場合があるため、registry のキーを domain だけにしてはならない。
 
-新しい revisionFamily を追加したとき cancellation policy、subject extractor、cancellation target extractor、terminal predicate、deactivation predicate のいずれかが未登録なら、コンパイルまたは起動時検証を失敗させる。暗黙の既定 policy／predicate は置かない。
+新しい revisionFamily を追加したとき cancellation policy、subject extractor、cancellation target extractor、terminal predicate、deactivation predicate、durability、retention、`maxSubjects` のいずれかが未登録なら、コンパイルまたは起動時検証を失敗させる。暗黙の既定 policy／predicate／capacity は置かない。
 終端／非活性化を持たない family も predicate を省略せず、常に `false` を返す実装を明示登録する。
 
 ### 5.7 共通重複排除
@@ -642,7 +675,9 @@ transport validation
   → TelegramMeta 抽出
   → transport ID dedup
   → parser
-  → revision decision
+  → revision evaluate（副作用なし）
+  → domain safety check／observe-only 判定
+  → revision decide（commit）
   → item gate / semantic dedup
   → cancellation policy / state mutation
   → presentation diff
@@ -661,11 +696,22 @@ transport validation
 2. Semantic duplicate
    - stateSubjectKey、revisionFamily、ReportDateTime、serial、InfoType、payload fingerprint が同じ電文
 
+payload fingerprint は canonical payload の SHA-256 digest とし、永続化する semantic key を固定長にする。各 gate entry は InfoType prefix 付き digest の直近32件だけを順序付き集合として保持する。pre-digest v2 を読む場合も SHA-256 へ圧縮し、重複除去後の直近32件へ compact する。
+
 `fragmentMerge:true` の family では、2 の判定を item gate 後へ遅延する。equal revision を telegram 単位で先に捨ててはならない。
 
 通知は両方の重複排除を通過した後にだけ実行する。
 
 訂正は、重複排除を通過して共通 gate が受理され、§5.4 の通知適格性 filter を通過した場合、実質差分の有無にかかわらず訂正通知を一回発行する。
+
+容量は global LRU ではなく family partition とする。
+
+- `maxSubjects` は各 family の通常 subject、item subject、EventID 欠落時の transient subject を合算した hard limit である。
+- 各 `maxSubjects` は1以上16,384以下でなければならず、全登録 family の宣言値合計も16,384以下でなければ起動を失敗させる。無期限 durable family の合計にも同じ検証を適用する。Phase 3B 完了時の宣言値合計は9,285件である。
+- 新 subject 受理時は同じ family 内の期限切れ／退場可能 entry だけを整理する。他 family の watermark／tombstone を容量確保のために削除しない。
+- 無期限 tombstone や明示保護 entry だけで family が満杯なら、新 subject を fail-closed で拒否して capacity stats／warning を一度記録する。既存 subject の更新は許可し、family size が実際に上限未満へ戻るまで warning latch を再武装しない。
+- holder が独自 item 上限を持つ family は gate と同じ LRU 更新順・退場対象を使う。VTSE51／52 は station 1,024件と whole subject 1件を合わせて1,025件とする。
+- 非永続 family も宣言した `tombstoneRetentionMs` を runtime TTL として使用する。保持は process lifetime 内だけであり、再起動後の遅延報拒否は保証しない。
 
 受信統計と採用統計を分ける。
 
@@ -1049,28 +1095,47 @@ type ごとに次を記録する。
 
 ### 12.1 schema version
 
-`SpecialValue` と `TelegramMeta` を永続化する state は version を上げる。
+Phase 3B で schema version 2 を導入済みとする。互換期間は version 2 envelope 内の legacy projection だけで rollback 互換とみなさず、次の二ファイルを毎回生成する。
 
-schema 移行は Phase 7 まで待たず、最初の durable domain を共通 registry へ移す Phase 3B で開始する。Phase 3B の最初の変更単位に reader、dual-write、watermark 採否を含め、これらがない domain migration を完了扱いにしない。
+| path | 役割 | version |
+|---|---|---:|
+| `data/runtime/display-active-state-v2.json` | canonical。共通 gate、holder、projection coupling の真実源 | 2 |
+| `data/runtime/display-active-state-v1.json` | rollback 用。旧 binary がそのまま読める真正 v1 | 1 |
+
+- writer は同一確定 snapshot から v2 と v1 を生成し、それぞれ固有 tmp へ書いた後、v2、v1 の順に rename する。通し番号より古い非同期 write は rename しない。
+- load は canonical v2 を優先する。v2 が valid な場合も standalone v1 を読み、新旧二ファイルと v2 envelope 内の legacy projection を照合する。
+- canonical v2 がない場合は standalone path の真正 v1 を migration reader で読む。Phase 3B 導入途中に同 path へ書かれた version 2 も互換入力として読む。
+- 新旧矛盾は canonical v2 を正とする。一回の `load()` 内で複数箇所の矛盾が見つかっても、`persistenceMigrationConflict` は一回だけ計上する。
+- rollback 用 v1 の `seen`／flood `seen` は trusted な v2 gate entry から再投影する。同一 key に untrusted な旧 seen があっても新 gate 投影を優先する。
+
+v2 の `telegramFoundation` は domain ごとに holder state、active projection、gate entries を保持する。reader は domain を独立に sanitize し、壊れた domain または event／subject だけを空へ落とす。他 domain の valid watermark／tombstone を巻き添えにしない。洪水のように active projection と gate の semantic coupling を証明できない場合も、その event の projection だけを除外し、検証済みの別 EventID の tombstone は保持する。
+
+durable projection の完了証明は次による。
+
+- projection の内容由来 revision と、gate をどこまで適用処理したかを示す `appliedRevision` を分離する。`observeOnly` では内容 revision が遅行してよいが、`contentRevision <= appliedRevision` を満たす。
+- `appliedRevision` は対応 gate の revision と、日時だけでなく serial の presence／numeric 値まで意味的一致しなければならない。numeric serial 必須 family では `valid:true`、数字列 raw、numeric 一致を gate-only tombstone を含む全 entry に要求する。Serial 欠落を許す family は registry の `allowMissingSerial` と domain policy に従って明示的に検証する。
+- `appliedSemanticKey` は gate の最後に受理した semantic key と一致しなければならない。同一日時・同一 serial の訂正でも旧通常報 projection を「適用済み」とみなさない。
+- projection revision 自体を applied revision として使う domain も、対応 gate の最新 revision と `appliedSemanticKey` の両方を照合する。
+- tokenless projection は、対応 gate が存在しない真正 legacy input にだけ暫定許可する。active gate があるのに token がない projection は復元しない。
+
+v2 reader は shape 検証だけでなく、次の invariant を検証する。
+
+- `eventId`／`type` など identity の `valid:true` と値の一致。invalid identity を trusted gate entry として復元しない。
+- strict ReportDateTime、family policy に整合する serial、subject key、`maxSubjects`、semantic key 32件上限。
+- holder／active projection と gate の一対一対応。non-cancelled watermark は current identity と一致し、cancelled watermark は復元 current より新しいこと。
+- `restorePrevious` history の revision が strictly increasing であり、訂正前 snapshot を別履歴段として積まないこと。
+- whole subject と item watermark、active item、取消 tombstone、legacy provenance の cross-field invariant。
 
 旧 state の読込 adapter は次の規約とする。
 
-- 旧数値文字列を完全に解析できる場合だけ `presence:"value"` へ移行する。
-- `null` が欠落か不明か判別できない旧形式は `presence:"unknown"` とし、migration reason を記録する。
-- 旧空文字は `presence:"empty"` とする。
+- 旧数値文字列を完全に解析できる場合だけ `presence:"value"` へ移行する。旧空文字は `presence:"empty"`、欠落か不明か判別できない `null` は `presence:"unknown"` として migration reason を記録する。
 - 旧 state の不正 ReportDateTime を migration 時刻や now へ置き換えない。
 - 旧 revision が比較不能な state は表示復元できても、newer telegram を拒否する watermark には使用しない。
-- 現行 `revisionOf` が invalid／15分超の未来 ReportDateTime を `nowMs` へ昇格して生成した旧 `reportTimeMs` は trusted provenance を持たない。移行 reader は元の valid ReportDateTime を別 field から証明できない限り、その revision を watermark／tombstone／取消対象照合へ採用しない。
-- 旧 state の subject key を §5.1 の粒度へ一意に再構成できない場合、表示 snapshot の復元だけを許可し、mutation gate の seen entry へ dual-write しない。
-- migration 後の最初の valid telegram で正規状態へ置換する。
+- 旧 `revisionOf` が invalid／15分超の未来 ReportDateTime を `nowMs` へ昇格して生成した `reportTimeMs` は untrusted とする。元の valid ReportDateTime を別 field から証明できない限り watermark／tombstone／取消対象照合へ採用しない。
+- 旧 state の subject key を §5.1 の粒度へ一意に再構成できない場合、表示 snapshot の復元だけを許可し、mutation gate の entry にしない。migration 後の最初の valid telegram で正規状態へ置換する。
+- 旧 v2 で retention field が欠落する場合は一律既定値にせず、reader が対象 family の現在 policy から補完する。VPWS50／VTSE41／VTSE51／VTSE52 の無期限 tombstone もこの規則で維持する。
 
-Phase 3B の互換期間は次の write 規約とする。
-
-- reader は旧 schema と新 schema の双方を読む。
-- write は新 schema を正として必ず出力し、rollback に必要な期間だけ旧 schema も dual-write する。
-- 新旧が矛盾した場合は新 schema を正とし、`persistenceMigrationConflict` を記録する。
-- trusted な新 watermark と untrusted な旧 revision を比較して旧側を優先しない。
-- dual-write の終了は、全 durable domain の reader fixture、restart、取消、遅延報、round-trip test が通った後の Phase 7 cleanup とする。
+dual-write の終了は Phase 7 の明示 cleanup とする。全 durable domain の旧／新 reader fixture、実ファイル round-trip、restart、取消、訂正、遅延報、rollback test と migration telemetry を確認するまでは停止しない。
 
 ### 12.2 protocol
 
@@ -1176,33 +1241,44 @@ engine と frontend に同じ wire 型を持たせる。
 
 ### Phase 3B: cancellation registry の domain 移行
 
-内容:
+状態: **完了**（main `9f88b6b4`）。実装は次の7変更単位で収束した。
 
-- 最初の durable domain 移行と同時に persistence schema を上げ、旧／新 reader、dual-write、新 watermark の採否規則を導入する。
-- 旧 `revisionOf` の `nowMs` 昇格値は untrusted として watermark／tombstone に採用しない。
-- `extractStateSubjectKey`／`extractCancellationTarget` を domain ごとに実装し、EventID だけでは足りない state 粒度を固定する。
-- VPWS50 を `restorePrevious` の基準実装とする。
-- tsunami、volcano、VPWW56、floodForecast を `clearCurrent` へ移行する。
-- transient domain を `markCancelled` へ移行する。
-- active standby domain を一つずつ registry へ移行する。
-- 各 domain の旧 revision guard を、移行完了後にだけ削除する。
-- 各 domain の通知適格な受理済み訂正へ共通訂正通知規約を適用する。
+1. VPWS50: `restorePrevious` の基準実装、evaluate／decide 分離、persistence v2 と真正 v1 dual-write。
+2. tsunami: VTSE41／51／52 の `clearCurrent`、VTSE51／52 fragment item gate、active／観測／tombstone の restart 保護。
+3. VPWW56: `(head.type, publishingOffice)` stream 単位の `clearCurrent` と官署 union。
+4. volcano: alert／eruption の火山コード subject、ashfall／transient family、EventID／fallback provenance。
+5. floodForecast: EventID 単位の `clearCurrent`、station digest、observe-only、projection application token。
+6. active standby: tornado、heat、typhoon analysis／probability、nankai、VPWP50、lgObservation。
+7. transient coverage: earthquake、seismicText、briefing、earlyWeather、climateInfo、weatherExplanation、transient weather、raw fallback。
 
-完了条件:
+実装確定後の契約:
 
-- 全 revisionFamily に明示 policy がある。
-- 全 durable revisionFamily に comparator、subject extractor、cancellation target、terminal predicate、deactivation predicate がある。
-- 旧 schema fixture を reader が読み、新 schema と旧 schema の dual-write／restart round-trip が通る。
-- untrusted な旧 `nowMs` revision が valid な新報を stale 扱いしない。
-- VFVO51 の複数火山、EventID 欠落、部分キー取消が対象外 state を変更しない。
-- A／B／C が同時成立しても優先順位 `A > B > C` で一つに解決され、同一 subject へ policy、stats、通知、永続化が一回だけ適用される。
-- 取消対象不一致が current state を変更しない。
-- clear 後の遅延電文で状態が復活しない。
-- restorePrevious が一つ前の完全 snapshot だけを復元する。
-- invalid ReportDateTime／serial が current state を変更しない。
-- 全 domain で通知適格な受理済み訂正が `訂正` を明示して一回だけ通知される。
-- domain 固有の既存 lifecycle と表示期限に回帰がない。
-- 既存機能の回帰が 0 件である。
+- 全 routing 対象 head.type は明示 policy または raw fallback policy を持つ。broad matcher が未知 type を受理して専用 selector が policy を返せない場合は、legacy 経路へ抜けず警告付き raw fallback とする。
+- 全 family は comparator、subject extractor、cancellation target、terminal predicate、deactivation predicate、durability、retention、`maxSubjects` を明示する。
+- authoritative subject を抽出できない入力は表示／ticker だけ fail-open し、holder、durable projection、promotion、通知、watermark、tombstoneを変更しない。
+- clearCurrent、restorePrevious、markCancelled、訂正、unsafe preview、observe-only、fragment merge は §5 の共通 gate を通り、domain 固有 guard を重ねない。
+- durable family は §12.1 の v2 foundation と rollback 用 v1 を round-trip し、domain／event 単位 salvage と projection application token を適用する。
+- `maxSubjects` と family partition により、他 domain の流量が cancellation latch を期限前に追い出さない。保護 entry で満杯なら新 subject を fail-closed にする。
+
+起草時の計画から実装で確定・変更された点:
+
+- persistence の「新旧 field を同じ version 2 envelope に含めるだけ」の案は旧 binary が読めないため不十分とし、legacy projection を含む canonical v2 と真正 v1 の二ファイル方式へ変更した。
+- cancellation 判定は単純な predicate OR ではなく、`resolvedTrigger` で `A > B > C` を一つに解決し、`isCorrection` を独立保持する形に確定した。
+- clearCurrent は取消済み同一 revision の訂正でも解除できない latch とした。EEW markCancelled の正当な lifecycle 置換だけは例外として維持した。
+- semantic payload 全文の永続化は SHA-256 digest＋直近32件へ変更した。
+- 単一 global LRU は domain 間干渉を起こすため廃止し、family partition、合計16,384件の起動時検証、fail-closed admissionへ変更した。
+- 非永続 family の retention は固定11分ではなく family 宣言 TTL を process lifetime 中に適用する契約へ確定した。ただし再起動をまたぐ保護はしない。
+- durable projection は revision の前後だけでなく `appliedRevision`／`appliedSemanticKey` で gate 適用完了を証明する形へ強化した。
+- 全 station unknown など解除を断定できない入力は `observeOnly` とし、active payload と tombstone を変更しない形へ確定した。
+
+完了確認:
+
+- 全 revisionFamily の policy coverage と registry 起動時検証がある。
+- 旧 schema fixture、新旧 dual-write、restart、rollback、取消、訂正、遅延報、実ファイル round-trip の domain 回帰がある。
+- untrusted な旧 `nowMs` revision、invalid ReportDateTime／serial、identity 不整合が trusted watermark にならない。
+- VFVO51 の複数火山、EventID 欠落、部分キー取消、legacy provenance が対象外 state を変更しない。
+- A／B／C 同時成立、clear 後の遅延報、restorePrevious、通知適格な訂正一回通知が共通契約どおりである。
+- domain 固有 lifecycle、音、frame、表示期限と先行 domain に回帰がない。
 
 ### Phase 4A: 震度 Condition と EEW intensity
 
@@ -1356,7 +1432,11 @@ engine と frontend に同じ wire 型を持たせる。
 内容:
 
 - display protocol を正式版へ上げ、Phase 3B から運用している persistence 新 schema を正式化する。
-- Phase 3B の migration telemetry と互換 fixture を確認した後、旧 schema の dual-write を停止する。旧 read adapter は定めた互換期間だけ維持する。
+- Phase 3B の migration telemetry と互換 fixture を確認した後、旧 schema の dual-write を停止する。停止条件は、全 durable domain の v2 reader／writer が配備済みであること、rollback 対象の旧 binary を運用しないと決定したこと、新旧実ファイル conflict／salvage telemetry の観測期間を完了したこと、restart／rollback／取消／訂正／遅延報の fixture が継続して通ること、とする。観測期間と旧 binary のサポート終了日は cleanup 着手時に明示する。
+- dual-write 停止後も旧 read adapter は定めた互換期間だけ維持し、その終了条件と削除 release を記録する。
+- restart 後に durable projection から family ごとの managed-subject set を再構築し、最初の別 family 更新で復元 subject を legacy 扱いしたり刈り込んだりしない構造へ移す。
+- tokenless legacy projection の grace は、移行 telemetry で旧入力が不要と確認できた後に廃止する。それまでは「対応 gate が存在しない真正 legacy」にだけ限定する。
+- v1 migration 用 identity provenance、legacy EventID fallback、旧 seen adapter は、対応する rollback／read grace の終了後に domain 単位で削除する。
 - 十分な移行期間後に旧 scalar field と、registry に移管済みの domain 固有 revision comparator を削除する。EEW の serial 主 comparator override は registry 契約として残す。
 - `str()` の禁止範囲を lint、review checklist または型で固定する。
 - architecture docs を最終状態へ更新する。
@@ -1365,6 +1445,8 @@ engine と frontend に同じ wire 型を持たせる。
 
 - 旧 persistence fixture を読み込める。
 - 新 persistence の round-trip で presence、raw、bounds、revision が失われない。
+- dual-write 停止前に、canonical v2 単独で全 durable holder、projection、watermark、tombstone、managed-subject set を再構成できる。
+- tokenless legacy fixture の互換終了を telemetry と release policy で説明できる。
 - engine／frontend protocol sync が通る。
 - map badge semantic が engine と frontend で一致する。
 - domain 固有の重複判定や test 判定が残っていない。
@@ -1764,6 +1846,7 @@ badge の意味を凡例、tooltip、テキスト、アクセシビリティラ�
 - 地図の特殊値が色と記号バッジの双方で識別できる。
 - protocol と永続化で raw、presence、condition、description、bounds が round-trip する。
 - empty の元 raw が空白を含め byte-for-byte round-trip する。
-- 最初の durable domain 移行時点から新旧 persistence reader／dual-write が動作し、旧 `nowMs` 昇格 revision を watermark に採用しない。
+- Phase 3B の canonical v2／真正 v1 dual-write が動作し、domain／event 単位 salvage と projection application token が旧 `nowMs` 昇格 revision や未適用 payload を trusted watermark／projection にしない。
+- registry の family partition、宣言値合計16,384件以下、family ごとの fail-closed admission により、他 domain の流量が保持期間内の cancellation latch を追い出さない。
 - VXSE51→VXSE52／61 で missing のときだけ観測震度を保持し、明示 unknown／empty／qualitative／取消と区別する。
 - 全 Phase で既存機能の回帰が 0 件である。
