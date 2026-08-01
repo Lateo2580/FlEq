@@ -20,6 +20,10 @@ export type SpecialValuePresence =
   | "qualitative"
   | "range";
 
+export type SpecialValueDiagnostic =
+  | "unmappedSpecialValue"
+  | "specialValueConflict";
+
 export interface SpecialValue<T> {
   raw: string | null;
   value: T | null;
@@ -32,6 +36,8 @@ export interface SpecialValue<T> {
   rawLowerBound?: string | null;
   /** To 要素の未加工本文。`over` 等の非 canonical qualifier も保持する。 */
   rawUpperBound?: string | null;
+  /** 未知語・本文競合を後段の統計へ渡す診断。 */
+  diagnostics?: SpecialValueDiagnostic[];
 }
 
 /** JMAXML が使用する震度階級の canonical value。 */
@@ -741,24 +747,51 @@ export interface TelegramListResponse {
 export interface ParsedEarthquakeIntensityArea {
   name: string;
   code: string | null;
+  intensityValue?: SpecialValue<JmaIntensity>;
   intensity: string;
+  lgIntensityValue?: SpecialValue<JmaLgIntensity>;
   lgIntensity?: string;
 }
 
 export interface ParsedEarthquakeIntensityMunicipality {
   name: string;
   code: string | null;
+  intensityValue?: SpecialValue<JmaIntensity>;
   intensity: string;
+  lgIntensityValue?: SpecialValue<JmaLgIntensity>;
   lgIntensity?: string;
 }
 
-export interface ParsedEarthquakeIntensity {
+export interface ParsedEarthquakeIntensityStation {
+  name: string;
+  code: string | null;
+  intensityValue?: SpecialValue<JmaIntensity>;
+  /** 既存表示向け scalar adapter。特殊状態では空文字を維持する */
+  intensity: string;
+}
+
+export interface ParsedEarthquakeIntensityPref {
+  name: string;
+  code: string | null;
+  maxIntValue?: SpecialValue<JmaIntensity>;
   maxInt: string;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
   maxLgInt?: string;
+}
+
+export interface ParsedEarthquakeIntensity {
+  maxIntValue?: SpecialValue<JmaIntensity>;
+  maxInt: string;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
+  maxLgInt?: string;
+  /** Pref 階層の最大震度・最大長周期地震動階級。 */
+  prefs?: ParsedEarthquakeIntensityPref[];
   /** 一次細分区域。文字表示用に code 欠落 item も保持する */
   areas: ParsedEarthquakeIntensityArea[];
   /** Area 直下の City。IntensityStation は含めない */
   municipalities: ParsedEarthquakeIntensityMunicipality[];
+  /** City 直下の IntensityStation。地域・市町村とは別 provenance で保持する */
+  stations?: ParsedEarthquakeIntensityStation[];
 }
 
 export interface ParsedMagnitudeInfo {
@@ -853,12 +886,21 @@ export interface ParsedEewInfo {
   cancelText?: string;
   /** 予測震度 */
   forecastIntensity?: {
+    /** 最大予測震度 */
+    maxInt?: string;
+    maxIntValue?: SpecialValue<JmaIntensity>;
     /** 最大予測長周期地震動階級 */
     maxLgInt?: string;
+    maxLgIntValue?: SpecialValue<JmaLgIntensity>;
     areas: {
       name: string;
+      /** ForecastInt の正規 SpecialValue。親 Area/Condition は混ぜない */
+      intensityValue?: SpecialValue<JmaIntensity>;
       intensity: string;
+      lgIntensityValue?: SpecialValue<JmaLgIntensity>;
       lgIntensity?: string;
+      /** 親 Area/Condition。ForecastInt.condition とは独立に保持する */
+      condition?: string;
       /** PLUM法による予測か */
       isPlum?: boolean;
       /** 既に主要動到達と推測 */
@@ -972,7 +1014,19 @@ export interface ParsedNankaiTroughInfo {
 /** 長周期地震動観測地域 */
 export interface LgObservationArea {
   name: string;
+  maxIntValue?: SpecialValue<JmaIntensity>;
   maxInt: string;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
+  maxLgInt: string;
+}
+
+/** 長周期地震動観測情報の Pref 階層 */
+export interface LgObservationPref {
+  name: string;
+  code: string | null;
+  maxIntValue?: SpecialValue<JmaIntensity>;
+  maxInt: string;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
   maxLgInt: string;
 }
 
@@ -987,10 +1041,14 @@ export interface ParsedLgObservationInfo {
   earthquake?: ParsedEarthquakeHypocenter;
   /** 最大震度 */
   maxInt?: string;
+  maxIntValue?: SpecialValue<JmaIntensity>;
   /** 最大長周期地震動階級 */
   maxLgInt?: string;
+  maxLgIntValue?: SpecialValue<JmaLgIntensity>;
   /** 長周期地震動カテゴリ */
   lgCategory?: string;
+  /** Pref 階層の観測値 */
+  prefs?: LgObservationPref[];
   /** 地域別観測データ */
   areas: LgObservationArea[];
   /** コメント */

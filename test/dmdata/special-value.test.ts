@@ -24,6 +24,7 @@ describe("extractSpecialValue", () => {
       condition: "5弱以上未入電ではない",
       description: null,
       presence: "value",
+      diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
     });
   });
 
@@ -40,6 +41,106 @@ describe("extractSpecialValue", () => {
       presence: "range",
       lowerBound: "4",
       upperBound: null,
+      diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
+    });
+  });
+
+  it.each([
+    ["Intensity unknown", "Intensity", "未入電", "unknown", undefined],
+    ["Intensity qualitative", "Intensity", "5弱以上未入電", "qualitative", "5-"],
+    ["LgInt unknown", "LgInt", "未入電", "unknown", undefined],
+  ] as const)("既知 Condition を From/To より優先する: %s", (
+    _label,
+    domain,
+    condition,
+    presence,
+    lowerBound,
+  ) => {
+    expect(extractSpecialValue(domain, {
+      From: "3",
+      To: "4",
+      "@_condition": condition,
+    })).toMatchObject({
+      raw: "",
+      value: null,
+      condition,
+      presence,
+      rawLowerBound: "3",
+      rawUpperBound: "4",
+      ...(lowerBound == null ? {} : { lowerBound }),
+    });
+  });
+
+  it.each([
+    ["Condition unknown", "未入電", "5弱以上未入電", "unknown", undefined],
+    ["Condition qualitative", "5弱以上未入電", "未入電", "qualitative", "5-"],
+  ] as const)("既知 Condition を矛盾する Description より優先する: %s", (
+    _label,
+    condition,
+    description,
+    presence,
+    lowerBound,
+  ) => {
+    expect(extractSpecialValue("Intensity", {
+      "@_condition": condition,
+      "@_description": description,
+    })).toEqual({
+      raw: "",
+      value: null,
+      condition,
+      description,
+      presence,
+      ...(lowerBound == null ? {} : { lowerBound }),
+      diagnostics: ["specialValueConflict"],
+    });
+  });
+
+  it.each([
+    ["unknown", "未入電", undefined],
+    ["qualitative", "5弱以上未入電", "5-"],
+  ] as const)("priority %s return でも未知 Condition の diagnostics を保持する", (
+    presence,
+    description,
+    lowerBound,
+  ) => {
+    expect(extractSpecialValue("Intensity", {
+      From: "3",
+      To: "4",
+      "@_condition": "新しい未知語",
+      "@_description": description,
+    })).toEqual({
+      raw: "",
+      value: null,
+      condition: "新しい未知語",
+      description,
+      presence,
+      ...(lowerBound == null ? {} : { lowerBound }),
+      rawLowerBound: "3",
+      rawUpperBound: "4",
+      diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
+    });
+  });
+
+  it.each([
+    ["Intensity unknown", "Intensity", "未入電", "unknown", undefined],
+    ["Intensity qualitative", "Intensity", "5弱以上未入電", "qualitative", "5-"],
+    ["LgInt unknown", "LgInt", "未入電", "unknown", undefined],
+  ] as const)("description-only の既知特殊語を分類する: %s", (
+    _label,
+    domain,
+    description,
+    presence,
+    lowerBound,
+  ) => {
+    expect(extractSpecialValue(domain, {
+      "@_description": description,
+    })).toMatchObject({
+      raw: "",
+      value: null,
+      condition: null,
+      description,
+      presence,
+      ...(lowerBound == null ? {} : { lowerBound }),
     });
   });
 

@@ -14,8 +14,20 @@ import {
   TsunamiEstimationItem,
   ParsedEarthquakeIntensityArea,
   ParsedEarthquakeIntensityMunicipality,
+  ParsedEarthquakeIntensityStation,
+  ParsedEarthquakeIntensityPref,
+  LgObservationPref,
+  SpecialValue,
 } from "../types";
-import { createJmxXmlParser, dig, str, first, listOf } from "./xml-shape";
+import {
+  createJmxShadowXmlParser,
+  createJmxXmlParser,
+  dig,
+  str,
+  first,
+  listOf,
+} from "./xml-shape";
+import { extractSpecialValue } from "./special-value";
 import { decodeTelegramBody } from "./telegram-body";
 import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
@@ -24,7 +36,7 @@ import * as log from "../logger";
 // import している各所を壊さないよう re-export する。
 export { dig, str, first };
 
-const xmlParser = createJmxXmlParser((name) => {
+const isTelegramArrayTag = (name: string): boolean => {
   // 震度観測地域、市町村等は配列として扱う
   const arrayTags = [
     "Pref",
@@ -44,7 +56,20 @@ const xmlParser = createJmxXmlParser((name) => {
     "WindAboveCraterElements",
   ];
   return arrayTags.includes(name);
-});
+};
+
+const xmlParser = createJmxXmlParser(isTelegramArrayTag);
+// Phase 4A 対象値だけは、表示本文等の既存 trim 契約と分離した tree から読む。
+const specialValueXmlParser = createJmxShadowXmlParser(isTelegramArrayTag);
+
+const SPECIAL_VALUE_TELEGRAM_TYPES = new Set([
+  "VXSE43",
+  "VXSE44",
+  "VXSE45",
+  "VXSE51",
+  "VXSE53",
+  "VXSE62",
+]);
 
 /** body フィールドをデコードしてXML文字列を返す */
 export function decodeBody(msg: WsDataMessage): string {
@@ -173,49 +198,149 @@ function optionalCode(node: unknown): string | null {
   return code === "" ? null : code;
 }
 
+/** SpecialValue を既存表示用 scalar へ投影する互換 adapter。 */
+function specialValueScalar<T extends string>(specialValue: SpecialValue<T>): string {
+  switch (specialValue.presence) {
+    case "value":
+      return specialValue.value ?? specialValue.raw ?? "";
+    case "range":
+      return specialValue.lowerBound
+        ?? specialValue.rawLowerBound
+        ?? specialValue.raw
+        ?? "";
+    case "qualitative":
+      return "";
+    case "missing":
+    case "empty":
+    case "unknown":
+      return "";
+  }
+}
+
+/** EEW ForecastInt/To の既存 adapter。exact pair は To を省略する。 */
+function specialValueUpperScalar<T extends string>(
+  specialValue: SpecialValue<T>,
+): string | undefined {
+  if (specialValue.presence !== "range") return undefined;
+  const upper = specialValue.upperBound ?? specialValue.rawUpperBound;
+  if (upper == null || upper === "") return undefined;
+  return upper === specialValueScalar(specialValue) ? undefined : upper;
+}
+
+function emptyIntensityCarrier(
+  rawCarrier: unknown,
+): ParsedEarthquakeInfo["intensity"] {
+  const maxIntValue = extractSpecialValue("Intensity", rawCarrier);
+  const maxLgIntValue = extractSpecialValue("LgInt", rawCarrier);
+  return {
+    maxIntValue,
+    maxInt: specialValueScalar(maxIntValue),
+    maxLgIntValue,
+    prefs: [],
+    areas: [],
+    municipalities: [],
+    stations: [],
+  };
+}
+
 /** 震度観測地域を Observation/Pref/Area/City から抽出 */
 function extractIntensity(
-  body: unknown
+  body: unknown,
+  rawBody: unknown,
 ): ParsedEarthquakeInfo["intensity"] | undefined {
   const intensity = dig(body, "Intensity");
-  if (!intensity) return undefined;
+  if (intensity === undefined) return undefined;
+  const rawIntensity = dig(rawBody, "Intensity");
 
-  const rawObservation = dig(intensity, "Observation");
-  if (!rawObservation) return undefined;
-  const observation = first(listOf(rawObservation));
+  const observationNode = dig(intensity, "Observation");
+  if (observationNode === undefined) {
+    return emptyIntensityCarrier(rawIntensity);
+  }
+  const observation = first(listOf(observationNode));
+  const rawValueObservation = first(listOf(dig(rawIntensity, "Observation")));
+  if (typeof observation !== "object" || observation == null) {
+    return emptyIntensityCarrier(rawValueObservation);
+  }
 
-  const maxInt = str(dig(observation, "MaxInt"));
-  const maxLgIntRaw = str(dig(observation, "MaxLgInt"));
-  const maxLgInt = maxLgIntRaw || undefined;
+  const maxIntValue = extractSpecialValue("Intensity", dig(rawValueObservation, "MaxInt"));
+  const maxInt = specialValueScalar(maxIntValue);
+  const maxLgIntValue = extractSpecialValue("LgInt", dig(rawValueObservation, "MaxLgInt"));
+  const maxLgInt = specialValueScalar(maxLgIntValue) || undefined;
 
+  const prefs: ParsedEarthquakeIntensityPref[] = [];
   const areas: ParsedEarthquakeIntensityArea[] = [];
   const municipalities: ParsedEarthquakeIntensityMunicipality[] = [];
-  for (const pref of listOf(dig(observation, "Pref"))) {
-    for (const area of listOf(dig(pref, "Area"))) {
-      const lgInt = str(dig(area, "MaxLgInt"));
+  const stations: ParsedEarthquakeIntensityStation[] = [];
+  const prefNodes = listOf(dig(observation, "Pref"));
+  const rawPrefNodes = listOf(dig(rawValueObservation, "Pref"));
+  for (const [prefIndex, pref] of prefNodes.entries()) {
+    const rawPref = rawPrefNodes[prefIndex];
+    const prefMaxIntValue = extractSpecialValue("Intensity", dig(rawPref, "MaxInt"));
+    const prefMaxLgIntValue = extractSpecialValue("LgInt", dig(rawPref, "MaxLgInt"));
+    const prefMaxLgInt = specialValueScalar(prefMaxLgIntValue);
+    prefs.push({
+      name: str(dig(pref, "Name")),
+      code: optionalCode(pref),
+      maxIntValue: prefMaxIntValue,
+      maxInt: specialValueScalar(prefMaxIntValue),
+      maxLgIntValue: prefMaxLgIntValue,
+      ...(prefMaxLgInt ? { maxLgInt: prefMaxLgInt } : {}),
+    });
+    const areaNodes = listOf(dig(pref, "Area"));
+    const rawAreaNodes = listOf(dig(rawPref, "Area"));
+    for (const [areaIndex, area] of areaNodes.entries()) {
+      const rawArea = rawAreaNodes[areaIndex];
+      const intensityValue = extractSpecialValue("Intensity", dig(rawArea, "MaxInt"));
+      const lgIntensityValue = extractSpecialValue("LgInt", dig(rawArea, "MaxLgInt"));
+      const lgInt = specialValueScalar(lgIntensityValue);
       areas.push({
         name: str(dig(area, "Name")),
         code: optionalCode(area),
-        intensity: str(dig(area, "MaxInt")),
+        intensityValue,
+        intensity: specialValueScalar(intensityValue),
+        lgIntensityValue,
         ...(lgInt ? { lgIntensity: lgInt } : {}),
       });
-      for (const city of listOf(dig(area, "City"))) {
-        const cityLgInt = str(dig(city, "MaxLgInt"));
+      const cityNodes = listOf(dig(area, "City"));
+      const rawCityNodes = listOf(dig(rawArea, "City"));
+      for (const [cityIndex, city] of cityNodes.entries()) {
+        const rawCity = rawCityNodes[cityIndex];
+        const cityIntensityValue = extractSpecialValue("Intensity", dig(rawCity, "MaxInt"));
+        const cityLgIntensityValue = extractSpecialValue("LgInt", dig(rawCity, "MaxLgInt"));
+        const cityLgInt = specialValueScalar(cityLgIntensityValue);
         municipalities.push({
           name: str(dig(city, "Name")),
           code: optionalCode(city),
-          intensity: str(dig(city, "MaxInt")),
+          intensityValue: cityIntensityValue,
+          intensity: specialValueScalar(cityIntensityValue),
+          lgIntensityValue: cityLgIntensityValue,
           ...(cityLgInt ? { lgIntensity: cityLgInt } : {}),
         });
+        const stationNodes = listOf(dig(city, "IntensityStation"));
+        const rawStationNodes = listOf(dig(rawCity, "IntensityStation"));
+        for (const [stationIndex, station] of stationNodes.entries()) {
+          const rawStation = rawStationNodes[stationIndex];
+          const stationIntensityValue = extractSpecialValue("Intensity", dig(rawStation, "Int"));
+          stations.push({
+            name: str(dig(station, "Name")),
+            code: optionalCode(station),
+            intensityValue: stationIntensityValue,
+            intensity: specialValueScalar(stationIntensityValue),
+          });
+        }
       }
     }
   }
 
   return {
+    maxIntValue,
     maxInt,
+    maxLgIntValue,
     ...(maxLgInt ? { maxLgInt } : {}),
+    prefs,
     areas,
     municipalities,
+    stations,
   };
 }
 
@@ -288,70 +413,78 @@ function parseMaxIntChangeReason(body: unknown): number | undefined {
 }
 
 function extractEewForecastAreas(
-  body: unknown
+  body: unknown,
+  rawBody: unknown,
 ): {
-  areas: { name: string; intensity: string; lgIntensity?: string; isPlum?: boolean; hasArrived?: boolean; intensityTo?: string; arrivalTime?: string }[];
+  areas: NonNullable<ParsedEewInfo["forecastIntensity"]>["areas"];
+  maxInt?: string;
+  maxIntValue: NonNullable<ParsedEewInfo["forecastIntensity"]>["maxIntValue"];
   maxLgInt?: string;
+  maxLgIntValue: NonNullable<ParsedEewInfo["forecastIntensity"]>["maxLgIntValue"];
   hasPlumArea: boolean;
 } | undefined {
   const forecast = dig(body, "Intensity", "Forecast");
   if (!forecast) return undefined;
+  const rawForecast = dig(rawBody, "Intensity", "Forecast");
 
-  const overallLgInt = dig(forecast, "ForecastLgInt");
-  const overallLgIntFrom = str(
-    Array.isArray(overallLgInt)
-      ? dig(overallLgInt[0], "From")
-      : dig(overallLgInt, "From")
-  );
-  const maxLgInt = overallLgIntFrom || undefined;
+  const overallInt = dig(rawForecast, "ForecastInt");
+  const overallIntNode = Array.isArray(overallInt)
+    ? overallInt[0]
+    : overallInt;
+  const maxIntValue = extractSpecialValue("Intensity", overallIntNode);
+  const maxInt = specialValueScalar(maxIntValue) || undefined;
 
-  const areas: {
-    name: string;
-    intensity: string;
-    lgIntensity?: string;
-    isPlum?: boolean;
-    hasArrived?: boolean;
-    intensityTo?: string;
-    arrivalTime?: string;
-  }[] = [];
-  const prefs = dig(forecast, "Pref");
-  if (Array.isArray(prefs)) {
-    for (const pref of prefs) {
-      const prefAreas = dig(pref, "Area");
-      if (Array.isArray(prefAreas)) {
-        for (const area of prefAreas) {
-          const rawForecastInt = dig(area, "ForecastInt") || dig(area, "ForecastIntFrom");
-          const forecastInt = Array.isArray(rawForecastInt) ? rawForecastInt[0] : rawForecastInt;
+  const overallLgInt = dig(rawForecast, "ForecastLgInt");
+  const overallLgIntNode = Array.isArray(overallLgInt)
+    ? overallLgInt[0]
+    : overallLgInt;
+  const maxLgIntValue = extractSpecialValue("LgInt", overallLgIntNode);
+  const maxLgInt = specialValueScalar(maxLgIntValue) || undefined;
 
-          const rawLgInt = dig(area, "ForecastLgInt");
-          const lgInt = Array.isArray(rawLgInt)
-            ? str(dig(rawLgInt[0], "From"))
-            : str(dig(rawLgInt, "From"));
+  const areas: NonNullable<ParsedEewInfo["forecastIntensity"]>["areas"] = [];
+  const prefs = listOf(dig(forecast, "Pref"));
+  const rawPrefs = listOf(dig(rawForecast, "Pref"));
+  for (const [prefIndex, pref] of prefs.entries()) {
+    const rawPref = rawPrefs[prefIndex];
+    const prefAreas = listOf(dig(pref, "Area"));
+    const rawPrefAreas = listOf(dig(rawPref, "Area"));
+    for (const [areaIndex, area] of prefAreas.entries()) {
+      const rawArea = rawPrefAreas[areaIndex];
+      const rawForecastInt = dig(rawArea, "ForecastInt") || dig(rawArea, "ForecastIntFrom");
+      const forecastInt = Array.isArray(rawForecastInt) ? rawForecastInt[0] : rawForecastInt;
 
-          const condition = str(dig(area, "Condition"));
-          const isPlum = isPlumAreaCondition(condition) || undefined;
-          const hasArrived = hasArrivedAreaCondition(condition) || undefined;
+      const rawLgInt = dig(rawArea, "ForecastLgInt");
+      const lgIntNode = Array.isArray(rawLgInt) ? rawLgInt[0] : rawLgInt;
+      const lgIntensityValue = extractSpecialValue("LgInt", lgIntNode);
+      const lgInt = specialValueScalar(lgIntensityValue);
 
-          const intensityFrom = str(dig(forecastInt, "From") || forecastInt || "");
-          const intensityTo = str(dig(forecastInt, "To"));
-          const areaArrivalTime = str(dig(area, "ArrivalTime"));
+      const conditionNode = dig(area, "Condition");
+      const condition = str(conditionNode);
+      const isPlum = isPlumAreaCondition(condition) || undefined;
+      const hasArrived = hasArrivedAreaCondition(condition) || undefined;
 
-          areas.push({
-            name: str(dig(area, "Name")),
-            intensity: intensityFrom,
-            ...(intensityTo && intensityTo !== intensityFrom ? { intensityTo } : {}),
-            ...(areaArrivalTime ? { arrivalTime: areaArrivalTime } : {}),
-            ...(lgInt ? { lgIntensity: lgInt } : {}),
-            ...(isPlum ? { isPlum } : {}),
-            ...(hasArrived ? { hasArrived } : {}),
-          });
-        }
-      }
+      const intensityValue = extractSpecialValue("Intensity", forecastInt);
+      const intensityFrom = specialValueScalar(intensityValue);
+      const intensityTo = specialValueUpperScalar(intensityValue);
+      const areaArrivalTime = str(dig(area, "ArrivalTime"));
+
+      areas.push({
+        name: str(dig(area, "Name")),
+        intensityValue,
+        intensity: intensityFrom,
+        ...(intensityTo ? { intensityTo } : {}),
+        ...(areaArrivalTime ? { arrivalTime: areaArrivalTime } : {}),
+        lgIntensityValue,
+        ...(lgInt ? { lgIntensity: lgInt } : {}),
+        ...(conditionNode !== undefined ? { condition } : {}),
+        ...(isPlum ? { isPlum } : {}),
+        ...(hasArrived ? { hasArrived } : {}),
+      });
     }
   }
 
   const hasPlumArea = areas.some((a) => a.isPlum === true);
-  return { areas, maxLgInt, hasPlumArea };
+  return { areas, maxInt, maxIntValue, maxLgInt, maxLgIntValue, hasPlumArea };
 }
 
 /** rank 属性・数値要素を number | null に正規化 (欠落・非数値は null。0 は有効値) */
@@ -467,46 +600,78 @@ function extractTsunamiEstimations(tsunamiNode: unknown): TsunamiEstimationItem[
 
 // ── 長周期地震動ヘルパー ──
 
-function extractLgObservationDetails(body: unknown): {
+function extractLgObservationDetails(body: unknown, rawBody: unknown): {
   maxInt?: string;
   maxLgInt?: string;
+  maxIntValue: ParsedLgObservationInfo["maxIntValue"];
+  maxLgIntValue: ParsedLgObservationInfo["maxLgIntValue"];
   lgCategory?: string;
+  prefs: LgObservationPref[];
   areas: LgObservationArea[];
 } {
   const result: {
     maxInt?: string;
     maxLgInt?: string;
+    maxIntValue: ParsedLgObservationInfo["maxIntValue"];
+    maxLgIntValue: ParsedLgObservationInfo["maxLgIntValue"];
     lgCategory?: string;
+    prefs: LgObservationPref[];
     areas: LgObservationArea[];
-  } = { areas: [] };
+  } = {
+    maxIntValue: extractSpecialValue("Intensity", undefined),
+    maxLgIntValue: extractSpecialValue("LgInt", undefined),
+    prefs: [],
+    areas: [],
+  };
 
   const intensity = dig(body, "Intensity");
   if (!intensity) return result;
+  const rawIntensity = dig(rawBody, "Intensity");
 
-  const rawObservation = dig(intensity, "Observation");
-  if (!rawObservation) return result;
+  const observationNode = dig(intensity, "Observation");
+  if (!observationNode) return result;
 
-  const observation = first(rawObservation as unknown[]);
-  result.maxInt = str(dig(observation, "MaxInt")) || undefined;
-  result.maxLgInt = str(dig(observation, "MaxLgInt")) || undefined;
+  const observation = first(observationNode as unknown[]);
+  const rawValueObservation = first(listOf(dig(rawIntensity, "Observation")));
+  result.maxIntValue = extractSpecialValue("Intensity", dig(rawValueObservation, "MaxInt"));
+  result.maxLgIntValue = extractSpecialValue("LgInt", dig(rawValueObservation, "MaxLgInt"));
+  result.maxInt = specialValueScalar(result.maxIntValue) || undefined;
+  result.maxLgInt = specialValueScalar(result.maxLgIntValue) || undefined;
   result.lgCategory = str(dig(observation, "LgCategory")) || undefined;
 
-  const prefs = dig(observation, "Pref");
-  if (Array.isArray(prefs)) {
-    for (const pref of prefs) {
-      const prefAreas = dig(pref, "Area");
-      if (Array.isArray(prefAreas)) {
-        for (const area of prefAreas) {
-          const areaMaxInt = str(dig(area, "MaxInt"));
-          const areaMaxLgInt = str(dig(area, "MaxLgInt"));
-          if (areaMaxLgInt) {
-            result.areas.push({
-              name: str(dig(area, "Name")),
-              maxInt: areaMaxInt,
-              maxLgInt: areaMaxLgInt,
-            });
-          }
-        }
+  const prefs = listOf(dig(observation, "Pref"));
+  const rawPrefs = listOf(dig(rawValueObservation, "Pref"));
+  for (const [prefIndex, pref] of prefs.entries()) {
+    const rawPref = rawPrefs[prefIndex];
+    const prefMaxIntValue = extractSpecialValue("Intensity", dig(rawPref, "MaxInt"));
+    const prefMaxLgIntValue = extractSpecialValue("LgInt", dig(rawPref, "MaxLgInt"));
+    result.prefs.push({
+      name: str(dig(pref, "Name")),
+      code: optionalCode(pref),
+      maxIntValue: prefMaxIntValue,
+      maxInt: specialValueScalar(prefMaxIntValue),
+      maxLgIntValue: prefMaxLgIntValue,
+      maxLgInt: specialValueScalar(prefMaxLgIntValue),
+    });
+    const prefAreas = listOf(dig(pref, "Area"));
+    const rawPrefAreas = listOf(dig(rawPref, "Area"));
+    for (const [areaIndex, area] of prefAreas.entries()) {
+      const rawArea = rawPrefAreas[areaIndex];
+      const maxIntValue = extractSpecialValue("Intensity", dig(rawArea, "MaxInt"));
+      const maxLgIntValue = extractSpecialValue("LgInt", dig(rawArea, "MaxLgInt"));
+      const areaMaxInt = specialValueScalar(maxIntValue);
+      const areaMaxLgInt = specialValueScalar(maxLgIntValue);
+      if (
+        maxIntValue.presence !== "missing"
+        || maxLgIntValue.presence !== "missing"
+      ) {
+        result.areas.push({
+          name: str(dig(area, "Name")),
+          maxIntValue,
+          maxInt: areaMaxInt,
+          maxLgIntValue,
+          maxLgInt: areaMaxLgInt,
+        });
       }
     }
   }
@@ -521,6 +686,7 @@ export function extractBaseReport(msg: WsDataMessage): {
   report: unknown;
   head: unknown;
   body: unknown;
+  specialValueBody: unknown;
 } | null {
   const xmlStr = decodeBody(msg);
   const parsed = parseXml(xmlStr);
@@ -535,10 +701,21 @@ export function extractBaseReport(msg: WsDataMessage): {
     return null;
   }
 
+  let specialValueBody = dig(report, "Body");
+  if (SPECIAL_VALUE_TELEGRAM_TYPES.has(msg.head.type)) {
+    const specialParsed = specialValueXmlParser.parse(xmlStr) as Record<string, unknown>;
+    const specialReport =
+      dig(specialParsed, "Report")
+      || dig(specialParsed, "jmx:Report")
+      || dig(specialParsed, "jmx_seis:Report");
+    specialValueBody = dig(specialReport, "Body");
+  }
+
   return {
     report,
     head: dig(report, "Head"),
     body: dig(report, "Body"),
+    specialValueBody,
   };
 }
 
@@ -552,7 +729,7 @@ export function parseEarthquakeTelegram(
     const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
-    const { head, body } = base;
+    const { head, body, specialValueBody } = base;
 
     const info: ParsedEarthquakeInfo = {
       type: msg.head.type,
@@ -577,7 +754,7 @@ export function parseEarthquakeTelegram(
     }
 
     // 震度
-    info.intensity = extractIntensity(body);
+    info.intensity = extractIntensity(body, specialValueBody);
 
     // 津波
     info.tsunami = extractTsunami(body);
@@ -599,7 +776,7 @@ export function parseEewTelegram(
     const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
-    const { head, body } = base;
+    const { head, body, specialValueBody } = base;
 
     // 仮定震源要素の検出
     const earthquake = dig(body, "Earthquake");
@@ -634,11 +811,21 @@ export function parseEewTelegram(
       if (accuracy) info.accuracy = accuracy;
     }
 
-    const forecastResult = extractEewForecastAreas(body);
+    const forecastResult = extractEewForecastAreas(body, specialValueBody);
     const hasPlumArea = forecastResult?.hasPlumArea ?? false;
-    if (forecastResult && forecastResult.areas.length > 0) {
+    if (
+      forecastResult
+      && (
+        forecastResult.areas.length > 0
+        || forecastResult.maxIntValue?.presence !== "missing"
+        || forecastResult.maxLgIntValue?.presence !== "missing"
+      )
+    ) {
       info.forecastIntensity = {
+        ...(forecastResult.maxInt ? { maxInt: forecastResult.maxInt } : {}),
+        maxIntValue: forecastResult.maxIntValue,
         ...(forecastResult.maxLgInt ? { maxLgInt: forecastResult.maxLgInt } : {}),
+        maxLgIntValue: forecastResult.maxLgIntValue,
         areas: forecastResult.areas,
       };
     }
@@ -894,7 +1081,7 @@ export function parseLgObservationTelegram(
     const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
-    const { head, body } = base;
+    const { head, body, specialValueBody } = base;
 
     const info: ParsedLgObservationInfo = {
       type: msg.head.type,
@@ -903,6 +1090,8 @@ export function parseLgObservationTelegram(
       reportDateTime: str(dig(head, "ReportDateTime")),
       headline: str(dig(head, "Headline", "Text")) || null,
       publishingOffice: msg.xmlReport?.control?.publishingOffice || "",
+      maxIntValue: extractSpecialValue("Intensity", undefined),
+      maxLgIntValue: extractSpecialValue("LgInt", undefined),
       areas: [],
       meta,
       isTest: meta.isTest,
@@ -917,10 +1106,13 @@ export function parseLgObservationTelegram(
       info.earthquake = extractEarthquake(earthquake);
     }
 
-    const lgDetails = extractLgObservationDetails(body);
+    const lgDetails = extractLgObservationDetails(body, specialValueBody);
     info.maxInt = lgDetails.maxInt;
     info.maxLgInt = lgDetails.maxLgInt;
+    info.maxIntValue = lgDetails.maxIntValue;
+    info.maxLgIntValue = lgDetails.maxLgIntValue;
     info.lgCategory = lgDetails.lgCategory;
+    info.prefs = lgDetails.prefs;
     info.areas = lgDetails.areas;
 
     // コメント

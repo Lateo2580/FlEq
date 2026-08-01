@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Phase 4A synthetic fixture: EEW 特殊 ForecastInt/LgInt の実電文は未確認 -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>緊急地震速報（地震動予報）</Title>
+    <DateTime>2026-08-01T12:01:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>気象庁本庁</EditorialOffice>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>緊急地震速報（地震動予報）</Title>
+    <ReportDateTime>2026-08-01T21:01:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-08-01T21:00:59+09:00</TargetDateTime>
+    <EventID>synthetic-phase4a-eew</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>緊急地震速報</InfoKind>
+    <InfoKindVersion>1.2_0</InfoKindVersion>
+    <Headline><Text>Phase 4A synthetic</Text></Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Intensity>
+      <Forecast>
+        <ForecastInt condition="予測幅" description="最大予測震度幅"><From>４</From><To>５－</To></ForecastInt>
+        <ForecastLgInt><From>２</From><To>３</To></ForecastLgInt>
+        <Pref>
+          <Name>合成県</Name><Code>99</Code>
+          <Area>
+            <Name>PLUM地域</Name><Code>990</Code>
+            <ForecastInt condition="予測幅" description="震度5弱程度以上"><From>5-</From><To>over</To></ForecastInt>
+            <ForecastLgInt><From>１</From><To>２</To></ForecastLgInt>
+            <Condition> PLUM法による予測 </Condition>
+            <ArrivalTime> 2026-08-01T21:01:05+09:00 </ArrivalTime>
+          </Area>
+          <Area>
+            <Name>定性地域</Name><Code>991</Code>
+            <ForecastInt condition="5弱以上未入電" description="予測震度は5弱以上"><To>over</To></ForecastInt>
+            <ForecastLgInt condition="未入電" description="長周期階級未入電"/>
+            <Condition>既に主要動到達と推測</Condition>
+          </Area>
+          <Area>
+            <Name>空欄地域</Name><Code>992</Code>
+            <ForecastInt/>
+            <ForecastLgInt><From>０</From><To>０</To></ForecastLgInt>
+          </Area>
+        </Pref>
+      </Forecast>
+    </Intensity>
+  </Body>
+</Report>

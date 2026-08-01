@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Phase 4A synthetic fixture: VXSE62 特殊 MaxInt/MaxLgInt の実電文は未確認 -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>長周期地震動に関する観測情報</Title>
+    <DateTime>2026-08-01T12:02:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>気象庁本庁</EditorialOffice>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>長周期地震動に関する観測情報</Title>
+    <ReportDateTime>2026-08-01T21:02:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-08-01T21:01:00+09:00</TargetDateTime>
+    <EventID>synthetic-phase4a-lg</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>長周期地震動に関する観測情報</InfoKind>
+    <InfoKindVersion>1.3_0</InfoKindVersion>
+    <Headline><Text>Phase 4A synthetic</Text></Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Intensity>
+      <Observation>
+        <MaxInt>４</MaxInt>
+        <MaxLgInt condition="未入電" description="最大長周期階級未入電"/>
+        <LgCategory> 4 </LgCategory>
+        <Pref>
+          <Name> 合成県 </Name><Code> 99 </Code>
+          <MaxInt condition="5弱以上未入電" description="県最大震度は5弱以上"/>
+          <MaxLgInt><From>１</From><To>４</To></MaxLgInt>
+          <Area>
+            <Name>幅地域</Name><Code>990</Code>
+            <MaxInt>5-</MaxInt>
+            <MaxLgInt><From>２</From><To>４</To></MaxLgInt>
+          </Area>
+          <Area>
+            <Name>全角地域</Name><Code>991</Code>
+            <MaxInt/>
+            <MaxLgInt>３</MaxLgInt>
+          </Area>
+          <Area>
+            <Name>震度のみ地域</Name><Code>992</Code>
+            <MaxInt>４</MaxInt>
+          </Area>
+        </Pref>
+      </Observation>
+    </Intensity>
+  </Body>
+</Report>

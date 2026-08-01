@@ -240,10 +240,14 @@ describe("parseEarthquakeTelegram", () => {
       const result = parseEarthquakeTelegram(
         createMockWsDataMessageFromXml(xml, "VXSE53"),
       );
-      expect(result?.intensity?.areas).toEqual([
+      expect(result?.intensity?.areas.map(
+        ({ name, code, intensity }) => ({ name, code, intensity }),
+      )).toEqual([
         { name: "細分", code: "040", intensity: "4" },
       ]);
-      expect(result?.intensity?.municipalities).toEqual([
+      expect(result?.intensity?.municipalities.map(
+        ({ name, code, intensity }) => ({ name, code, intensity }),
+      )).toEqual([
         { name: "市町村", code: "0012345", intensity: "3" },
       ]);
       expect(result?.intensity?.areas.some(({ code }) => code === "999")).toBe(false);
@@ -261,10 +265,14 @@ describe("parseEarthquakeTelegram", () => {
       const result = parseEarthquakeTelegram(
         createMockWsDataMessageFromXml(xml, "VXSE53"),
       );
-      expect(result?.intensity?.areas).toEqual([
+      expect(result?.intensity?.areas.map(
+        ({ name, code, intensity }) => ({ name, code, intensity }),
+      )).toEqual([
         { name: "codeなし細分", code: null, intensity: "3" },
       ]);
-      expect(result?.intensity?.municipalities).toEqual([
+      expect(result?.intensity?.municipalities.map(
+        ({ name, code, intensity }) => ({ name, code, intensity }),
+      )).toEqual([
         { name: "codeなし市町村", code: null, intensity: "2" },
       ]);
     });
@@ -286,12 +294,16 @@ describe("parseEarthquakeTelegram", () => {
       const result = parseEarthquakeTelegram(
         createMockWsDataMessageFromXml(xml, "VXSE53"),
       );
-      expect(result?.intensity?.areas).toEqual([
+      expect(result?.intensity?.areas.map(
+        ({ name, code, intensity }) => ({ name, code, intensity }),
+      )).toEqual([
         { name: "細分・旧", code: "440", intensity: "3" },
         { name: "細分・新", code: "440", intensity: "4" },
         { name: "細分・同震度", code: "440", intensity: "4" },
       ]);
-      expect(result?.intensity?.municipalities).toEqual([
+      expect(result?.intensity?.municipalities.map(
+        ({ name, code, intensity }) => ({ name, code, intensity }),
+      )).toEqual([
         { name: "市町村・旧", code: "2230600", intensity: "3" },
         { name: "市町村・新", code: "2230600", intensity: "5-" },
         { name: "市町村・同震度", code: "2230600", intensity: "5-" },
@@ -1493,5 +1505,310 @@ describe("parseEewTelegram Phase 4b 拡張", () => {
     expect(info.landOrSea).toBeUndefined();
     expect(info.cancelText).toBeUndefined(); // 発表電文に cancelText は付かない
     expect(info.arrivalTime).toBe("2026-01-01T12:00:00+09:00");
+  });
+});
+
+// ── Phase 4A unit 2: SpecialValue parser migration ──
+
+describe("Phase 4A SpecialValue parser migration", () => {
+  // いずれも実電文未確認の synthetic fixture。特殊状態の parser 契約だけを固定する。
+  const QUAKE_MAX_SPECIAL = "synthetic_phase4a_VXSE51_special.xml";
+  const QUAKE_DETAIL_SPECIAL = "synthetic_phase4a_VXSE53_special.xml";
+  const QUAKE_MISSING_INTENSITY = "synthetic_phase4a_VXSE61_special.xml";
+  const EEW_SPECIAL = "synthetic_phase4a_VXSE45_special.xml";
+  const LG_SPECIAL = "synthetic_phase4a_VXSE62_special.xml";
+
+  it("通常 fixture は旧 scalar adapter と canonical value が一致する", () => {
+    const quake = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
+    expect(quake.intensity!.maxInt).toBe("4");
+    expect(quake.intensity!.maxIntValue!.value).toBe(quake.intensity!.maxInt);
+
+    const eew = parseEewTelegram(createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1))!;
+    const hiroshima = eew.forecastIntensity!.areas.find(
+      ({ name }) => name === "広島県南西部",
+    )!;
+    expect(hiroshima.intensity).toBe("3");
+    expect(hiroshima.intensityTo).toBe("4");
+    expect(hiroshima.intensityValue).toMatchObject({
+      presence: "range",
+      lowerBound: "3",
+      upperBound: "4",
+    });
+
+    const lg = parseLgObservationTelegram(createMockWsDataMessage(FIXTURE_VXSE62_LGOBS))!;
+    expect(lg.maxIntValue!.value).toBe(lg.maxInt);
+    expect(lg.maxLgIntValue!.value).toBe(lg.maxLgInt);
+  });
+
+  it("VXSE51 の MaxInt・Pref・Area qualifier を保持する", () => {
+    const info = parseEarthquakeTelegram(createMockWsDataMessage(QUAKE_MAX_SPECIAL))!;
+    expect(info.intensity!.maxIntValue).toMatchObject({
+      raw: "",
+      value: null,
+      condition: "5弱以上未入電",
+      description: "最大震度は5弱以上だが未入電",
+      presence: "qualitative",
+      lowerBound: "5-",
+    });
+    expect(info.intensity!.maxInt).toBe("");
+    expect(info.intensity!.maxLgIntValue).toMatchObject({
+      raw: "４",
+      value: "4",
+      presence: "value",
+    });
+    expect(info.intensity!.maxLgInt).toBe("4");
+
+    expect(info.intensity!.prefs).toHaveLength(1);
+    expect(info.intensity!.prefs![0]).toMatchObject({
+      name: "合成県",
+      code: "99",
+      maxInt: "4",
+      maxIntValue: {
+        presence: "range",
+        lowerBound: "4",
+        upperBound: "5-",
+        rawLowerBound: "４",
+        rawUpperBound: "５－",
+      },
+      maxLgIntValue: {
+        condition: "未入電",
+        description: "県最大長周期階級未入電",
+        presence: "unknown",
+      },
+    });
+
+    const area = info.intensity!.areas[0];
+    expect(area.intensityValue).toMatchObject({
+      raw: "",
+      condition: "未入電",
+      description: "観測値未入電",
+      presence: "unknown",
+    });
+    expect(area.intensity).toBe("");
+    expect(area.lgIntensityValue).toMatchObject({ raw: "", presence: "empty" });
+
+    const textQualitative = info.intensity!.areas.find(
+      ({ name }) => name === "本文定性地域",
+    )!;
+    expect(textQualitative.intensity).toBe("");
+    expect(textQualitative.intensityValue).toMatchObject({
+      raw: "5弱以上未入電",
+      value: null,
+      presence: "qualitative",
+      lowerBound: "5-",
+    });
+  });
+
+  it("VXSE53 の City・IntensityStation qualifier と空白 raw を保持する", () => {
+    const info = parseEarthquakeTelegram(createMockWsDataMessage(QUAKE_DETAIL_SPECIAL))!;
+
+    const city = info.intensity!.municipalities.find(({ name }) => name === "全角市")!;
+    expect(city.intensity).toBe("4");
+    expect(city.intensityValue).toMatchObject({ raw: "４", value: "4", presence: "value" });
+    expect(city.lgIntensityValue).toMatchObject({
+      presence: "range",
+      lowerBound: "1",
+      upperBound: "3",
+      rawLowerBound: "１",
+      rawUpperBound: "３",
+    });
+
+    expect(info.intensity!.stations).toHaveLength(1);
+    expect(info.intensity!.stations![0]).toMatchObject({
+      name: "下限観測点",
+      code: "9900001",
+      intensity: "",
+      intensityValue: {
+        condition: "5弱以上未入電",
+        description: "観測点は5弱以上",
+        presence: "qualitative",
+        lowerBound: "5-",
+      },
+    });
+
+    const whitespace = info.intensity!.municipalities.find(({ name }) => name === "空白市")!;
+    expect(whitespace.intensity).toBe("");
+    expect(whitespace.intensityValue).toMatchObject({
+      raw: " 　",
+      value: null,
+      presence: "empty",
+    });
+  });
+
+  it("VXSE61 は震度要素を構造的 missing として扱う", () => {
+    const info = parseEarthquakeTelegram(createMockWsDataMessage(QUAKE_MISSING_INTENSITY))!;
+    expect(info.intensity).toBeUndefined();
+  });
+
+  it("VXSE44/45 の ForecastInt/LgInt と親 Area/Condition を別 field で保持する", () => {
+    const info = parseEewTelegram(createMockWsDataMessage(EEW_SPECIAL))!;
+    expect(info.forecastIntensity!.maxInt).toBe("4");
+    expect(info.forecastIntensity!.maxIntValue).toMatchObject({
+      condition: "予測幅",
+      description: "最大予測震度幅",
+      presence: "range",
+      lowerBound: "4",
+      upperBound: "5-",
+      rawLowerBound: "４",
+      rawUpperBound: "５－",
+    });
+    expect(info.forecastIntensity!.maxLgInt).toBe("2");
+    expect(info.forecastIntensity!.maxLgIntValue).toMatchObject({
+      presence: "range",
+      lowerBound: "2",
+      upperBound: "3",
+      rawLowerBound: "２",
+      rawUpperBound: "３",
+    });
+
+    const plum = info.forecastIntensity!.areas.find(({ name }) => name === "PLUM地域")!;
+    expect(plum.condition).toBe("PLUM法による予測");
+    expect(plum.isPlum).toBe(true);
+    expect(plum.arrivalTime).toBe("2026-08-01T21:01:05+09:00");
+    expect(plum.intensity).toBe("5-");
+    expect(plum.intensityTo).toBe("over");
+    expect(plum.intensityValue).toMatchObject({
+      condition: "予測幅",
+      description: "震度5弱程度以上",
+      presence: "range",
+      lowerBound: "5-",
+      upperBound: null,
+      rawLowerBound: "5-",
+      rawUpperBound: "over",
+    });
+    expect(plum.lgIntensityValue).toMatchObject({
+      presence: "range",
+      lowerBound: "1",
+      upperBound: "2",
+      rawLowerBound: "１",
+      rawUpperBound: "２",
+    });
+
+    const qualitative = info.forecastIntensity!.areas.find(
+      ({ name }) => name === "定性地域",
+    )!;
+    expect(qualitative.condition).toBe("既に主要動到達と推測");
+    expect(qualitative.hasArrived).toBe(true);
+    expect(qualitative.intensityValue).toMatchObject({
+      condition: "5弱以上未入電",
+      description: "予測震度は5弱以上",
+      presence: "qualitative",
+      lowerBound: "5-",
+      rawUpperBound: "over",
+    });
+    expect(qualitative.intensity).toBe("");
+    expect(qualitative.intensityTo).toBeUndefined();
+    expect(qualitative.lgIntensityValue).toMatchObject({
+      condition: "未入電",
+      description: "長周期階級未入電",
+      presence: "unknown",
+    });
+
+    const empty = info.forecastIntensity!.areas.find(({ name }) => name === "空欄地域")!;
+    expect(empty.intensityValue).toMatchObject({ raw: "", presence: "empty" });
+    expect(empty.lgIntensityValue).toMatchObject({
+      value: "0",
+      presence: "value",
+      rawLowerBound: "０",
+      rawUpperBound: "０",
+    });
+  });
+
+  it("地域なし EEW でも全体 ForecastInt を保持し、地域一覧は空のままにする", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>緊急地震速報（地震動予報）</Title><DateTime>2026-08-01T12:03:00Z</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>緊急地震速報（地震動予報）</Title><ReportDateTime>2026-08-01T21:03:00+09:00</ReportDateTime><TargetDateTime>2026-08-01T21:02:59+09:00</TargetDateTime><EventID>synthetic-phase4a-overall-only</EventID><InfoType>発表</InfoType><Serial>1</Serial><InfoKind>緊急地震速報</InfoKind><InfoKindVersion>1.2_0</InfoKindVersion><Headline><Text>Phase 4A synthetic</Text></Headline></Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/"><Intensity><Forecast><ForecastInt condition="予測幅" description="全体予測震度幅"><From>４</From><To>５－</To></ForecastInt></Forecast></Intensity></Body>
+</Report>`;
+    const info = parseEewTelegram(createMockWsDataMessageFromXml(xml, "VXSE45"))!;
+    expect(info.forecastIntensity).toMatchObject({
+      maxInt: "4",
+      maxIntValue: {
+        condition: "予測幅",
+        description: "全体予測震度幅",
+        presence: "range",
+        lowerBound: "4",
+        upperBound: "5-",
+        rawLowerBound: "４",
+        rawUpperBound: "５－",
+      },
+      areas: [],
+    });
+  });
+
+  it("地域なし EEW でも全体 ForecastLgInt carrier を保持する", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>緊急地震速報（地震動予報）</Title><DateTime>2026-08-01T12:04:00Z</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>緊急地震速報（地震動予報）</Title><ReportDateTime>2026-08-01T21:04:00+09:00</ReportDateTime><TargetDateTime>2026-08-01T21:03:59+09:00</TargetDateTime><EventID>synthetic-phase4a-lg-overall-only</EventID><InfoType>発表</InfoType><Serial>1</Serial><InfoKind>緊急地震速報</InfoKind><InfoKindVersion>1.2_0</InfoKindVersion><Headline><Text>Phase 4A synthetic</Text></Headline></Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/"><Intensity><Forecast><ForecastLgInt>３</ForecastLgInt></Forecast></Intensity></Body>
+</Report>`;
+    const info = parseEewTelegram(createMockWsDataMessageFromXml(xml, "VXSE45"))!;
+    expect(info.forecastIntensity).toMatchObject({
+      maxIntValue: { presence: "missing" },
+      maxLgInt: "3",
+      maxLgIntValue: { raw: "３", value: "3", presence: "value" },
+      areas: [],
+    });
+  });
+
+  it("VXSE62 の MaxInt/MaxLgInt と地域別 bounds を保持する", () => {
+    const info = parseLgObservationTelegram(createMockWsDataMessage(LG_SPECIAL))!;
+    expect(info.maxInt).toBe("4");
+    expect(info.maxIntValue).toMatchObject({ raw: "４", value: "4", presence: "value" });
+    expect(info.maxLgInt).toBeUndefined();
+    expect(info.maxLgIntValue).toMatchObject({
+      raw: "",
+      condition: "未入電",
+      description: "最大長周期階級未入電",
+      presence: "unknown",
+    });
+    expect(info.lgCategory).toBe("4");
+
+    expect(info.prefs).toHaveLength(1);
+    expect(info.prefs![0]).toMatchObject({
+      name: "合成県",
+      code: "99",
+      maxInt: "",
+      maxIntValue: {
+        condition: "5弱以上未入電",
+        description: "県最大震度は5弱以上",
+        presence: "qualitative",
+        lowerBound: "5-",
+      },
+      maxLgInt: "1",
+      maxLgIntValue: {
+        presence: "range",
+        lowerBound: "1",
+        upperBound: "4",
+        rawLowerBound: "１",
+        rawUpperBound: "４",
+      },
+    });
+
+    const ranged = info.areas.find(({ name }) => name === "幅地域")!;
+    expect(ranged.maxInt).toBe("5-");
+    expect(ranged.maxLgInt).toBe("2");
+    expect(ranged.maxLgIntValue).toMatchObject({
+      presence: "range",
+      lowerBound: "2",
+      upperBound: "4",
+      rawLowerBound: "２",
+      rawUpperBound: "４",
+    });
+
+    const fullWidth = info.areas.find(({ name }) => name === "全角地域")!;
+    expect(fullWidth.maxIntValue).toMatchObject({ raw: "", presence: "empty" });
+    expect(fullWidth.maxLgInt).toBe("3");
+    expect(fullWidth.maxLgIntValue).toMatchObject({ raw: "３", value: "3", presence: "value" });
+
+    const intensityOnly = info.areas.find(({ name }) => name === "震度のみ地域")!;
+    expect(intensityOnly).toMatchObject({
+      maxInt: "4",
+      maxIntValue: { raw: "４", value: "4", presence: "value" },
+      maxLgInt: "",
+      maxLgIntValue: { raw: null, value: null, presence: "missing" },
+    });
   });
 });

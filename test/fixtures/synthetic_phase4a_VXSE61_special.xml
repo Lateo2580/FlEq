@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Phase 4A synthetic fixture: VXSE61 の実電文構造に合わせ、震度要素は持たない -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>顕著な地震の震源要素更新のお知らせ</Title>
+    <DateTime>2026-08-01T12:00:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>気象庁本庁</EditorialOffice>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>顕著な地震の震源要素更新のお知らせ</Title>
+    <ReportDateTime>2026-08-01T21:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-08-01T20:59:00+09:00</TargetDateTime>
+    <EventID>synthetic-phase4a-vxse61</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>震源要素更新のお知らせ</InfoKind>
+    <InfoKindVersion>1.0_0</InfoKindVersion>
+    <Headline><Text>Phase 4A synthetic</Text></Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Earthquake>
+      <OriginTime>2026-08-01T20:59:00+09:00</OriginTime>
+      <ArrivalTime>2026-08-01T20:59:00+09:00</ArrivalTime>
+      <Hypocenter><Area><Name>合成震源</Name></Area></Hypocenter>
+    </Earthquake>
+  </Body>
+</Report>

@@ -113,22 +113,22 @@ function legacyRuntimeProjection(
     case "Intensity:32-35_01_02_240613_VXSE52.xml": {
       const intensity = parseEarthquakeTelegram(message)?.intensity;
       return {
-        comparison: "collapsed",
+        comparison: "preserved",
         route: "parseEarthquakeTelegram().intensity",
         value: intensity ?? null,
         reason:
-          "当該 fixture の missing は undefined になるが、Body/Intensity の self-closing empty も同じ undefined に潰れる",
+          "当該 fixture の missing は carrier 欠落、Body/Intensity の self-closing empty は maxIntValue/maxLgIntValue の empty として区別する",
       };
     }
     case "Intensity:36_01_10_240613_VXSE44.xml": {
       const area = parseEewTelegram(message)?.forecastIntensity?.areas
         .find((item) => item.name === "福岡県福岡");
       return {
-        comparison: "partially-preserved",
+        comparison: "preserved",
         route: "parseEewTelegram().forecastIntensity.areas[福岡県福岡]",
         value: area ?? null,
         reason:
-          "当該 fixture の From=3・To=4 は保持するが、condition・description を運ばず完全な SpecialValue 構造ではない",
+          "From=3・To=4 の canonical/raw bounds と condition・description を SpecialValue で保持し、旧 scalar adapter も維持する",
       };
     }
     case "TsunamiHeight:32-39_11_10_250206_VTSE51.xml": {
@@ -175,20 +175,26 @@ function legacyRuntimeProjection(
     case "LgInt:36_01_10_240613_VXSE44.xml": {
       const forecast = parseEewTelegram(message)?.forecastIntensity;
       return {
-        comparison: "collapsed",
-        route: "parseEewTelegram().forecastIntensity.maxLgInt",
-        value: { maxLgInt: forecast?.maxLgInt ?? null },
+        comparison: "preserved",
+        route: "parseEewTelegram().forecastIntensity.maxLgIntValue",
+        value: {
+          maxLgInt: forecast?.maxLgInt ?? null,
+          maxLgIntValue: forecast?.maxLgIntValue ?? null,
+        },
         reason:
-          "当該 fixture の missing は undefined になるが、ForecastLgInt の self-closing empty も同じ undefined に潰れる",
+          "ForecastLgInt の missing を maxLgIntValue.presence=missing として保持し、self-closing empty と区別する",
       };
     }
     case "LgInt:37_01_02_240613_VXSE43.xml": {
       const forecast = parseEewTelegram(message)?.forecastIntensity;
       return {
-        comparison: "partially-preserved",
-        route: "parseEewTelegram().forecastIntensity.maxLgInt",
-        value: { maxLgInt: forecast?.maxLgInt ?? null },
-        reason: "From=To=2 の値は保持するが明示 range 構造は失われる",
+        comparison: "preserved",
+        route: "parseEewTelegram().forecastIntensity.maxLgIntValue",
+        value: {
+          maxLgInt: forecast?.maxLgInt ?? null,
+          maxLgIntValue: forecast?.maxLgIntValue ?? null,
+        },
+        reason: "From=To=2 の canonical value と raw bounds を maxLgIntValue に保持する",
       };
     }
     case "WindSpeed:83_02_02_250630_VPZJ51.xml": {
@@ -341,7 +347,7 @@ describe("telegram foundation Phase 1 shadow", () => {
     expect(classifications.filter((value) => value === "unproven")).toHaveLength(1);
   });
 
-  it("既存 parser は Depth 本文と Intensity/LgInt の missing/empty を同じ返却値へ潰す", () => {
+  it("parser は Depth rank の縮約を残すが Intensity/LgInt の missing/empty を区別する", () => {
     const depthUnknownXml = readFixture("36_01_10_240613_VXSE44.xml");
     const depthNumericXml = depthUnknownXml.replace(
       '<Depth rank="4">NaN</Depth>',
@@ -373,7 +379,12 @@ describe("telegram foundation Phase 1 shadow", () => {
     expect(parseEarthquakeTelegram(createMockWsDataMessageFromXml(
       intensityEmptyXml,
       "VXSE52",
-    ))?.intensity).toBeUndefined();
+    ))?.intensity).toMatchObject({
+      maxIntValue: { raw: "", presence: "empty" },
+      maxLgIntValue: { raw: "", presence: "empty" },
+      areas: [],
+      municipalities: [],
+    });
 
     const lgIntMissingXml = readFixture("36_01_10_240613_VXSE44.xml");
     const lgIntEmptyXml = lgIntMissingXml.replace(
@@ -384,11 +395,19 @@ describe("telegram foundation Phase 1 shadow", () => {
     expect(parseEewTelegram(createMockWsDataMessageFromXml(
       lgIntMissingXml,
       "VXSE44",
-    ))?.forecastIntensity?.maxLgInt).toBeUndefined();
-    expect(parseEewTelegram(createMockWsDataMessageFromXml(
+    ))?.forecastIntensity?.maxLgIntValue).toMatchObject({
+      raw: null,
+      presence: "missing",
+    });
+    const lgIntEmpty = parseEewTelegram(createMockWsDataMessageFromXml(
       lgIntEmptyXml,
       "VXSE44",
-    ))?.forecastIntensity?.maxLgInt).toBeUndefined();
+    ))?.forecastIntensity;
+    expect(lgIntEmpty?.maxLgInt).toBeUndefined();
+    expect(lgIntEmpty?.maxLgIntValue).toMatchObject({
+      raw: "",
+      presence: "empty",
+    });
   });
 
   it("legacy invalid ReportDateTime → nowMs 昇格の全 call site を双方向で固定する", () => {

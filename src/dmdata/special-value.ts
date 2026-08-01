@@ -2,6 +2,7 @@ import type {
   JmaIntensity,
   JmaLgIntensity,
   SpecialValue,
+  SpecialValueDiagnostic,
 } from "../types";
 
 export type SpecialValueDomain =
@@ -35,6 +36,21 @@ interface NodeParts {
 const UNKNOWN_TERMS = ["不明", "不詳", "観測できず", "未入電", "解析不能"] as const;
 const RANGE_LOWER_TERMS = ["以上", "超"] as const;
 const RANGE_UPPER_TERMS = ["以下", "未満"] as const;
+const INTENSITY_CONDITION_TERMS = [
+  ...UNKNOWN_TERMS,
+  "5弱以上未入電",
+  ...RANGE_LOWER_TERMS,
+  ...RANGE_UPPER_TERMS,
+  "予測幅",
+] as const;
+const LG_INT_CONDITION_TERMS = [
+  "未入電",
+  "不明",
+  "不詳",
+  ...RANGE_LOWER_TERMS,
+  ...RANGE_UPPER_TERMS,
+  "予測幅",
+] as const;
 
 function isXmlNode(value: unknown): value is XmlNode {
   return typeof value === "object" && value != null && !Array.isArray(value);
@@ -120,9 +136,43 @@ function matchesAnySpecialTerm(value: string | null, terms: readonly string[]): 
   return normalized != null && terms.includes(normalized);
 }
 
-function matchesInBodyOrCondition(parts: NodeParts, terms: readonly string[]): boolean {
-  return matchesAnySpecialTerm(parts.raw, terms)
-    || matchesAnySpecialTerm(parts.condition, terms);
+type SpecialPresence = "unknown" | "qualitative";
+
+interface ResolvedSpecialPresence {
+  presence: SpecialPresence;
+  conflict: boolean;
+}
+
+function specialPresenceForSource(
+  domain: "Intensity" | "LgInt",
+  value: string | null,
+): SpecialPresence | null {
+  if (domain === "Intensity") {
+    // 同一 source 内では、より具体的な語を先に判定する。
+    if (matchesAnySpecialTerm(value, ["5弱以上未入電"])) return "qualitative";
+    if (matchesAnySpecialTerm(value, UNKNOWN_TERMS)) return "unknown";
+    return null;
+  }
+  return matchesAnySpecialTerm(value, ["未入電", "不明", "不詳"])
+    ? "unknown"
+    : null;
+}
+
+function resolvePrioritySpecialPresence(
+  domain: "Intensity" | "LgInt",
+  parts: NodeParts,
+): ResolvedSpecialPresence | null {
+  // 既知語の source 優先は Condition > Description > 本文。
+  const candidates = [parts.condition, parts.description, parts.raw]
+    .map((value) => specialPresenceForSource(domain, value));
+  const presence = candidates.find((candidate) => candidate != null);
+  if (presence == null) return null;
+  return {
+    presence,
+    conflict: candidates.some(
+      (candidate) => candidate != null && candidate !== presence,
+    ),
+  };
 }
 
 function specialPresence(
@@ -151,9 +201,7 @@ function specialPresence(
       ) return "unknown";
       return includesInBodyOrCondition(parts, /ごく浅い/) ? "qualitative" : null;
     case "Intensity":
-      if (matchesInBodyOrCondition(parts, ["5弱以上未入電"])) return "qualitative";
-      if (matchesInBodyOrCondition(parts, UNKNOWN_TERMS)) return "unknown";
-      return null;
+      return resolvePrioritySpecialPresence(domain, parts)?.presence ?? null;
     case "TsunamiHeight":
       // 高さの定性 description は NaN/不明 condition より表示上の意味が具体的。
       if (
@@ -168,9 +216,7 @@ function specialPresence(
       ) return "unknown";
       return null;
     case "LgInt":
-      return matchesInBodyOrCondition(parts, ["未入電", "不明", "不詳"])
-        ? "unknown"
-        : null;
+      return resolvePrioritySpecialPresence(domain, parts)?.presence ?? null;
     case "Pressure":
       return (
         parts.raw.trim().toLowerCase() === "nan"
@@ -219,6 +265,30 @@ function rangeDirection(
     || includesAny(parts.description, RANGE_UPPER_TERMS)
   ) return "upper";
   return null;
+}
+
+function specialValueDiagnostics(
+  domain: SpecialValueDomain,
+  parts: NodeParts,
+  hasCanonicalValue: boolean,
+  hasSpecialSourceConflict: boolean,
+): SpecialValueDiagnostic[] | undefined {
+  if (domain !== "Intensity" && domain !== "LgInt") return undefined;
+  const diagnostics: SpecialValueDiagnostic[] = [];
+  const normalizedCondition = normalizeSpecialTerm(parts.condition);
+  if (normalizedCondition != null && normalizedCondition !== "") {
+    const knownTerms = domain === "Intensity"
+      ? INTENSITY_CONDITION_TERMS
+      : LG_INT_CONDITION_TERMS;
+    if (!knownTerms.some((term) => term === normalizedCondition)) {
+      diagnostics.push("unmappedSpecialValue");
+      if (hasCanonicalValue) diagnostics.push("specialValueConflict");
+    }
+  }
+  if (hasSpecialSourceConflict && !diagnostics.includes("specialValueConflict")) {
+    diagnostics.push("specialValueConflict");
+  }
+  return diagnostics.length === 0 ? undefined : diagnostics;
 }
 
 function baseResult(parts: NodeParts): Pick<
@@ -270,6 +340,7 @@ export function extractSpecialValue(
 
   const parts = nodeParts(node);
   const common = baseResult(parts);
+  const parsedValue = parseDomainValue(domain, parts.raw);
   const lowerBound = parts.lowerRaw == null
     ? null
     : parseDomainValue(domain, parts.lowerRaw);
@@ -277,6 +348,43 @@ export function extractSpecialValue(
     ? null
     : parseDomainValue(domain, parts.upperRaw);
   const hasBoundElements = parts.lowerRaw != null || parts.upperRaw != null;
+  const prioritySpecial = domain === "Intensity" || domain === "LgInt"
+    ? resolvePrioritySpecialPresence(domain, parts)
+    : null;
+  const diagnostics = specialValueDiagnostics(
+    domain,
+    parts,
+    parsedValue != null || lowerBound != null || upperBound != null,
+    prioritySpecial?.conflict ?? false,
+  );
+  const diagnosticFields = diagnostics == null ? {} : { diagnostics };
+  const rawBoundFields = hasBoundElements
+    ? {
+        rawLowerBound: parts.lowerRaw,
+        rawUpperBound: parts.upperRaw,
+      }
+    : {};
+
+  // Intensity/LgInt の既知特殊語は canonical bounds より優先する。
+  if (prioritySpecial?.presence === "qualitative") {
+    return {
+      ...common,
+      value: null,
+      presence: "qualitative",
+      ...(domain === "Intensity" ? { lowerBound: "5-" } : {}),
+      ...rawBoundFields,
+      ...diagnosticFields,
+    };
+  }
+  if (prioritySpecial?.presence === "unknown") {
+    return {
+      ...common,
+      value: null,
+      presence: "unknown",
+      ...rawBoundFields,
+      ...diagnosticFields,
+    };
+  }
 
   if (
     lowerBound != null
@@ -289,6 +397,7 @@ export function extractSpecialValue(
       presence: "value",
       rawLowerBound: parts.lowerRaw,
       rawUpperBound: parts.upperRaw,
+      ...diagnosticFields,
     };
   }
 
@@ -301,6 +410,7 @@ export function extractSpecialValue(
       upperBound,
       rawLowerBound: parts.lowerRaw,
       rawUpperBound: parts.upperRaw,
+      ...diagnosticFields,
     };
   }
 
@@ -311,10 +421,10 @@ export function extractSpecialValue(
       presence: "qualitative",
       rawLowerBound: parts.lowerRaw,
       rawUpperBound: parts.upperRaw,
+      ...diagnosticFields,
     };
   }
 
-  const parsedValue = parseDomainValue(domain, parts.raw);
   const numericTsunamiObservation = domain === "TsunamiHeight"
     && parsedValue != null
     && includesAny(parts.condition, ["観測中"]);
@@ -322,18 +432,19 @@ export function extractSpecialValue(
     return { ...common, value: parsedValue, presence: "value" };
   }
 
-  const special = specialPresence(domain, parts);
+  const special = prioritySpecial?.presence ?? specialPresence(domain, parts);
   if (special === "qualitative") {
     return {
       ...common,
       value: null,
       presence: "qualitative",
       ...(domain === "Intensity" ? { lowerBound: "5-" } : {}),
+      ...diagnosticFields,
     };
   }
 
   if (special === "unknown") {
-    return { ...common, value: null, presence: "unknown" };
+    return { ...common, value: null, presence: "unknown", ...diagnosticFields };
   }
 
   const direction = rangeDirection(domain, parts);
@@ -344,22 +455,23 @@ export function extractSpecialValue(
       presence: "range",
       lowerBound: direction === "lower" ? parsedValue : null,
       upperBound: direction === "upper" ? parsedValue : null,
+      ...diagnosticFields,
     };
   }
 
   if (domain === "Intensity" && parsedValue != null && parts.condition != null) {
     // 未知 Condition から値の無効化を推定せず、valid 本文を保持する。
-    return { ...common, value: parsedValue, presence: "value" };
+    return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
   }
 
   if (parts.raw.trim() === "") {
-    return { ...common, value: null, presence: "empty" };
+    return { ...common, value: null, presence: "empty", ...diagnosticFields };
   }
 
   if (parsedValue != null) {
-    return { ...common, value: parsedValue, presence: "value" };
+    return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
   }
 
   // 未知の定性語は値や unknown へ推定せず、そのまま保持する。
-  return { ...common, value: null, presence: "qualitative" };
+  return { ...common, value: null, presence: "qualitative", ...diagnosticFields };
 }
