@@ -4,8 +4,10 @@ import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { ParsedTsunamiInfo } from "../../src/types";
 import {
   canonicalizeLegacyTsunamiInfo,
+  type LegacyTsunamiForecastItemInput,
   type LegacyParsedTsunamiInfoInput,
 } from "../../src/dmdata/tsunami-legacy-adapter";
+import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
 
 // sound-player をモック
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -16,6 +18,14 @@ vi.mock("../../src/engine/notification/sound-player", () => ({
 function createTsunamiInfo(
   overrides: Partial<LegacyParsedTsunamiInfoInput> = {}
 ): ParsedTsunamiInfo {
+  const normalizedForecast = overrides.forecast?.map((item, index) => {
+    const { areaCode, kindCode, ...rest } = item;
+    return {
+      ...rest,
+      areaCode: areaCode === undefined ? `test-area-${index}` : areaCode,
+      kindCode: kindCode === undefined ? `test-kind-${index}` : kindCode,
+    };
+  });
   return canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE41",
@@ -28,7 +38,46 @@ function createTsunamiInfo(
     warningComment: "",
     isTest: false,
     ...overrides,
+    ...(normalizedForecast === undefined ? {} : { forecast: normalizedForecast }),
   });
+}
+
+function eventInfo(
+  eventId: string,
+  forecast: LegacyTsunamiForecastItemInput[],
+  reportDateTime = "2025-01-01T00:00:00+09:00",
+): ParsedTsunamiInfo {
+  return createTsunamiInfo({
+    meta: createTelegramMeta({
+      messageId: `${eventId}:${reportDateTime}`,
+      eventId,
+      type: "VTSE41",
+      reportDateTime,
+      serial: null,
+      infoType: "発表",
+      receivedAtMs: Date.parse(reportDateTime),
+      status: "通常",
+      isTest: false,
+    }),
+    reportDateTime,
+    forecast,
+  });
+}
+
+function forecast(
+  areaCode: string | null,
+  kindCode: string | null,
+  areaName: string,
+  kind = "津波警報",
+): LegacyTsunamiForecastItemInput {
+  return {
+    areaCode,
+    kindCode,
+    areaName,
+    kind,
+    maxHeightDescription: "3m",
+    firstHeight: "到達中と推測",
+  };
 }
 
 describe("TsunamiStateHolder", () => {
@@ -39,6 +88,217 @@ describe("TsunamiStateHolder", () => {
   });
 
   describe("accepted mutation", () => {
+    it("同コードの名称変更は同じ keyed state を表示名だけ更新する", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "51", "旧名称")]));
+      holder.applyAccepted(eventInfo(
+        "event-a",
+        [forecast("101", "51", "新名称")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", kindCode: "51", areaName: "新名称" }),
+      ]);
+    });
+
+    it("同名でも異なるコードは別 keyed state として並存する", () => {
+      holder.applyAccepted(eventInfo("event-a", [
+        forecast("101", "51", "同名区域"),
+        forecast("102", "51", "同名区域"),
+      ]));
+
+      expect(holder.getLastInfo()?.forecast?.map((item) => item.areaCode).sort())
+        .toEqual(["101", "102"]);
+    });
+
+    it("コード欠落 item は fail-open 表示しても既存 keyed state を置換・解除しない", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "51", "維持対象")]));
+      holder.applyAccepted(eventInfo(
+        "event-a",
+        [forecast(null, null, "コード欠落")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波警報");
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", kindCode: "51", areaName: "維持対象" }),
+      ]);
+      expect(holder.getPersistedActive()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", kindCode: "51", areaName: "維持対象" }),
+      ]);
+    });
+
+    it("keyed・unkeyed 混在後続報は keyed 分だけ更新し、照合不能な旧 state を維持する", () => {
+      holder.applyAccepted(eventInfo("event-a", [
+        forecast("101", "51", "更新対象"),
+        forecast("102", "51", "維持対象"),
+      ]));
+
+      holder.applyAccepted(eventInfo(
+        "event-a",
+        [
+          forecast("101", "51", "更新後"),
+          forecast(null, null, "コード欠落"),
+        ],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", areaName: "更新後" }),
+        expect.objectContaining({ areaCode: "102", areaName: "維持対象" }),
+      ]);
+    });
+
+    it("取消は EventID 内のコード keyed state だけを解除する", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "51", "同名区域")]));
+      holder.applyAccepted(eventInfo(
+        "event-b",
+        [forecast("102", "51", "同名区域")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+      const cancellation = eventInfo("event-a", [], "2025-01-01T00:02:00+09:00");
+      holder.clearAccepted(cancellation);
+
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "102", kindCode: "51", areaName: "同名区域" }),
+      ]);
+    });
+
+    it("コード付き取消は同名でも一致する triple key だけを解除する", () => {
+      holder.applyAccepted(eventInfo("event-a", [
+        forecast("101", "51", "同名区域"),
+        forecast("102", "51", "同名区域"),
+      ]));
+      holder.clearAccepted(eventInfo(
+        "event-a",
+        [forecast("101", "51", "改名後")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "102", kindCode: "51", areaName: "同名区域" }),
+      ]);
+    });
+
+    it("コード欠落 item 付き取消は EventID 全体を解除しない", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "51", "維持対象")]));
+
+      holder.clearAccepted(eventInfo(
+        "event-a",
+        [forecast(null, null, "照合不能")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", kindCode: "51", areaName: "維持対象" }),
+      ]);
+    });
+
+    it("受理済み後続報の forecast が空なら同 EventID の旧 item を除去する", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "51", "解除対象")]));
+
+      holder.applyAccepted(eventInfo("event-a", [], "2025-01-01T00:01:00+09:00"));
+
+      expect(holder.getLevel()).toBeNull();
+      expect(holder.getLastInfo()).toBeNull();
+      expect(holder.getPersistedActive()).toBeNull();
+    });
+
+    it("unkeyed item だけの新報は active state と永続 payload を作らない", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast(null, null, "表示専用")]));
+
+      expect(holder.getLevel()).toBeNull();
+      expect(holder.getLastInfo()).toBeNull();
+      expect(holder.getPersistedActive()).toBeNull();
+    });
+
+    it("異なる EventID の複数予報区は単一安全側レベルで並存する", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "62", "予報区A", "津波注意報")]));
+      holder.applyAccepted(eventInfo(
+        "event-b",
+        [forecast("102", "53", "予報区B", "大津波警報")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("大津波警報");
+      expect(holder.getLastInfo()?.forecast?.map((item) => item.areaCode).sort())
+        .toEqual(["101", "102"]);
+    });
+
+    it("複数 EventID は scalar active に保存せず、一方の取消後は残存 EventID だけを保存する", () => {
+      holder.applyAccepted(eventInfo("event-a", [forecast("101", "53", "予報区A", "大津波警報")]));
+      holder.applyAccepted(eventInfo(
+        "event-b",
+        [forecast("102", "62", "予報区B", "津波注意報")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getPersistedActive()).toBeNull();
+
+      holder.clearAccepted(eventInfo("event-a", [], "2025-01-01T00:02:00+09:00"));
+      const persisted = holder.getPersistedActive();
+      expect(persisted?.meta.eventId.value).toBe("event-b");
+      expect(persisted?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "102", areaName: "予報区B" }),
+      ]);
+
+      const restored = new TsunamiStateHolder();
+      restored.restorePersistedState(persisted, { VTSE51: [], VTSE52: [] });
+      restored.clearAccepted(eventInfo("event-a", [], "2025-01-01T00:03:00+09:00"));
+      expect(restored.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "102", areaName: "予報区B" }),
+      ]);
+    });
+
+    it("旧 unkeyed scalar 復元は別 EventID の取消で消さず、再永続化はしない", () => {
+      holder.restorePersistedState(
+        eventInfo("event-b", [forecast(null, null, "旧 snapshot")]),
+        { VTSE51: [], VTSE52: [] },
+      );
+
+      holder.clearAccepted(eventInfo("event-a", [], "2025-01-01T00:01:00+09:00"));
+
+      expect(holder.getLevel()).toBe("津波警報");
+      expect(holder.getLastInfo()?.meta.eventId.value).toBe("event-b");
+      expect(holder.getPersistedActive()).toBeNull();
+    });
+
+    it("旧 A=大津波 scalar と新 B=注意報 keyed を安全側最大で集約する", () => {
+      holder.restorePersistedState(
+        eventInfo("event-a", [forecast(null, null, "旧予報区A", "大津波警報")]),
+        { VTSE51: [], VTSE52: [] },
+      );
+
+      holder.applyAccepted(eventInfo(
+        "event-b",
+        [forecast("102", "62", "新予報区B", "津波注意報")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("大津波警報");
+      expect(holder.getLastInfo()?.forecast?.map((item) => item.areaName).sort())
+        .toEqual(["新予報区B", "旧予報区A"]);
+      expect(holder.getPersistedActive()).toBeNull();
+    });
+
+    it("旧 scalar は同 EventID の keyed 新報でだけ置換される", () => {
+      holder.restorePersistedState(
+        eventInfo("event-a", [forecast(null, null, "旧予報区A", "大津波警報")]),
+        { VTSE51: [], VTSE52: [] },
+      );
+
+      holder.applyAccepted(eventInfo(
+        "event-a",
+        [forecast("101", "62", "新予報区A", "津波注意報")],
+        "2025-01-01T00:01:00+09:00",
+      ));
+
+      expect(holder.getLevel()).toBe("津波注意報");
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", areaName: "新予報区A" }),
+      ]);
+    });
+
     it("津波警報で更新される", () => {
       const info = createTsunamiInfo({
         forecast: [

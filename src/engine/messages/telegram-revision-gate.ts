@@ -57,6 +57,8 @@ export interface TelegramRevisionGateInput {
   terminal: boolean;
   deactivation?: boolean;
   cancellationTargetMatches?: boolean;
+  /** 明示取消を表示上は受理するが、state/tombstone mutation の trigger にしない。 */
+  stateNeutralCancellation?: boolean;
   durable?: boolean;
   /** durable tombstone / non-durable runtime watermark の family 保持期間。 */
   tombstoneRetentionMs?: number | null;
@@ -130,7 +132,10 @@ function reject(
 function resolveCancellationTrigger(
   input: TelegramRevisionGateInput,
 ): CancellationTrigger | null {
-  if (input.meta.infoType.value === "取消") return "explicitCancellation";
+  if (
+    input.meta.infoType.value === "取消"
+    && input.stateNeutralCancellation !== true
+  ) return "explicitCancellation";
   if (input.terminal) return "terminal";
   if (input.deactivation === true) return "deactivation";
   return null;
@@ -910,7 +915,10 @@ export class TelegramRevisionGate {
         tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
           ? DEFAULT_DURABLE_TOMBSTONE_RETENTION_MS
           : entry.tombstoneRetentionMs,
-        retainForFamilyCapacity: false,
+        // VTSE41 は全 subject が holder の keyed state または無期限 tombstone に対応する。
+        // restart 後も live admission と同じ family 保護を復元する。
+        retainForFamilyCapacity:
+          entry.domain === "tsunami" && entry.revisionFamily === "VTSE41",
         legacyRevisionKey: entry.legacyRevisionKey ?? null,
         // pre-provenance v2 は EventID と code fallback を区別できないため逆引き対象外。
         legacyRevisionKeyProvenance: entry.legacyRevisionKeyProvenance ?? null,

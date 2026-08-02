@@ -42,8 +42,26 @@ import {
 import { notifyMock } from "../setup";
 import { WsDataMessage } from "../../src/types";
 import type { DisplayStatsV1 } from "../../src/engine/display/types";
+import { parseTsunamiTelegram } from "../../src/dmdata/telegram-parser";
+import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
+import { projectDisplayEvent } from "../../src/engine/display/project-event";
+import { playSound } from "../../src/engine/notification/sound-player";
+import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import * as fs from "fs";
 import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
+
+function cancellationForWarning() {
+  const cancellation = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
+  return {
+    ...cancellation,
+    xmlReport: cancellation.xmlReport == null
+      ? undefined
+      : {
+          ...cancellation.xmlReport,
+          head: { ...cancellation.xmlReport.head, eventId: "20110311144640" },
+        },
+  };
+}
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -338,7 +356,7 @@ describe("message-router 統合テスト", () => {
       expect(tsunamiState.getLevel()).not.toBeNull();
 
       // 取消
-      handler(createMockWsDataMessage(FIXTURE_VTSE41_CANCEL));
+      handler(cancellationForWarning());
       expect(tsunamiState.getLevel()).toBeNull();
     });
 
@@ -361,6 +379,45 @@ describe("message-router 統合テスト", () => {
 
       const output = getOutput();
       expect(output).toContain("取消");
+    });
+
+    it("別 Event が残る VTSE41 取消は取消通知・音・ticker を保ち、display payload は残存 aggregate にする", () => {
+      const tsunamiState = new TsunamiStateHolder();
+      const parsed = parseTsunamiTelegram(createMockWsDataMessage(FIXTURE_VTSE41_WARN));
+      expect(parsed).not.toBeNull();
+      if (parsed == null) return;
+      tsunamiState.applyAccepted({
+        ...parsed,
+        meta: createTelegramMeta({
+          messageId: "preloaded-event-b",
+          eventId: "event-b",
+          type: "VTSE41",
+          reportDateTime: "2025-02-06T11:00:00+09:00",
+          serial: null,
+          infoType: "発表",
+          receivedAtMs: Date.parse("2025-02-06T11:00:01+09:00"),
+          status: "通常",
+          isTest: false,
+        }),
+      });
+      const ingest = vi.fn();
+      vi.mocked(playSound).mockClear();
+      const { handler } = createHandler({
+        tsunamiState,
+        displaySink: { ingest, publishStats: vi.fn() },
+      });
+
+      handler(cancellationForWarning());
+
+      expect(notifyMock).toHaveBeenCalledTimes(1);
+      expect(notifyMock.mock.calls[0][0]).toMatchObject({ title: expect.stringContaining("取消") });
+      expect(playSound).toHaveBeenCalledWith("cancel");
+      expect(ingest).toHaveBeenCalledTimes(1);
+      const event = ingest.mock.calls[0][0];
+      expect(event).toMatchObject({ domain: "tsunami", isCancellation: true });
+      const dto = projectDisplayEvent(event, "津波取消");
+      expect(dto.tickerSentence).toBe("津波情報は取り消されました。");
+      expect(dto.emergency).toMatchObject({ kind: "tsunami", level: "majorWarning" });
     });
 
     it("VTSE51 津波情報を処理する", () => {

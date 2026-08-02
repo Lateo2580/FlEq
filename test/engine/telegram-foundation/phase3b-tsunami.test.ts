@@ -37,6 +37,7 @@ import type {
 import {
   canonicalizeLegacyTsunamiInfo,
   canonicalizeLegacyTsunamiObservation,
+  type LegacyTsunamiForecastItemInput,
 } from "../../../src/dmdata/tsunami-legacy-adapter";
 
 const { parseTsunamiMock } = vi.hoisted(() => ({ parseTsunamiMock: vi.fn() }));
@@ -105,14 +106,18 @@ function info(options: {
   serial?: string | null;
   observations?: TsunamiObservationStation[];
   kind?: string;
+  eventId?: string;
+  areaCode?: string | null;
+  kindCode?: string | null;
   messageId?: string;
+  forecast?: LegacyTsunamiForecastItemInput[];
 } = {}): ParsedTsunamiInfo {
   const type = options.type ?? "VTSE41";
   const infoType = options.infoType ?? "発表";
   const at = options.at ?? T1;
   const meta = createTelegramMeta({
     messageId: options.messageId ?? `${type}:${infoType}:${at}:${options.serial ?? ""}`,
-    eventId: "tsunami-event",
+    eventId: options.eventId ?? "tsunami-event",
     type,
     reportDateTime: at,
     serial: options.serial ?? (type === "VTSE41" ? null : "1"),
@@ -128,12 +133,16 @@ function info(options: {
     reportDateTime: at,
     headline: null,
     publishingOffice: "気象庁",
-    forecast: type === "VTSE41" && infoType !== "取消" ? [{
-      areaName: "岩手県",
-      kind: options.kind ?? "津波警報",
-      maxHeightDescription: "3m",
-      firstHeight: "到達中と推測",
-    }] : undefined,
+    forecast: type === "VTSE41"
+      ? options.forecast ?? (infoType !== "取消" ? [{
+          areaCode: options.areaCode ?? "210",
+          areaName: "岩手県",
+          kindCode: options.kindCode ?? "51",
+          kind: options.kind ?? "津波警報",
+          maxHeightDescription: "3m",
+          firstHeight: "到達中と推測",
+        }] : undefined)
+      : undefined,
     observations: options.observations,
     warningComment: "",
     meta,
@@ -156,12 +165,150 @@ function run(parsed: ParsedTsunamiInfo, shared: ReturnType<typeof deps>) {
 describe("Phase 3B tsunami common registry", () => {
   beforeEach(() => parseTsunamiMock.mockReset());
 
-  it("VTSE41 は fixed subject の clearCurrent で取消後の遅着報を拒否する", () => {
+  it("VTSE41 は EventID subject の clearCurrent で取消後の遅着報を拒否する", () => {
     const shared = deps();
     expect(run(info({ at: T1 }), shared).kind).toBe("ok");
     expect(run(info({ infoType: "取消", at: T2 }), shared).kind).toBe("ok");
     expect(run(info({ at: T1, messageId: "delayed" }), shared)).toEqual({ kind: "suppressed" });
     expect(shared.tsunamiState.getLevel()).toBeNull();
+  });
+
+  it("VTSE41 の取消は名称でなく EventID + code keyed state を対象にする", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "event-a", areaCode: "210", at: T1 }), shared).kind).toBe("ok");
+    expect(run(info({ eventId: "event-b", areaCode: "220", at: T2 }), shared).kind).toBe("ok");
+    expect(run(info({ eventId: "event-a", infoType: "取消", at: T3 }), shared).kind).toBe("ok");
+
+    expect(shared.tsunamiState.getLastInfo()?.forecast).toEqual([
+      expect.objectContaining({ areaCode: "220", areaName: "岩手県", kindCode: "51" }),
+    ]);
+  });
+
+  it("Presentation→DisplayStateStore は複数 EventID の安全側 aggregate を維持し、取消後は残存 Event を表示する", () => {
+    const shared = deps();
+    const displayStore = new DisplayStateStore();
+    const applyToDisplay = (result: ReturnType<typeof run>, now: number): void => {
+      expect(result.kind).toBe("ok");
+      if (result.kind !== "ok") return;
+      const event = fromTsunamiOutcome(result.outcome);
+      displayStore.applyEvent(
+        projectDisplayEvent(event, "津波警報・注意報"),
+        now,
+        event.tsunamiObservations,
+        null,
+        event.tsunamiObservationGroups,
+      );
+    };
+
+    const major = run(info({
+      eventId: "event-a",
+      areaCode: "210",
+      kindCode: "53",
+      kind: "大津波警報",
+      at: T1,
+      messageId: "event-a-major",
+    }), shared);
+    applyToDisplay(major, Date.parse(T1));
+    const advisory = run(info({
+      eventId: "event-b",
+      at: T2,
+      messageId: "event-b-advisory",
+      forecast: [{
+        areaCode: "220",
+        areaName: "宮城県",
+        kindCode: "62",
+        kind: "津波注意報",
+        maxHeightDescription: "1m",
+        firstHeight: "",
+      }],
+    }), shared);
+    expect(advisory.kind).toBe("ok");
+    if (advisory.kind !== "ok") return;
+    expect(advisory.outcome.parsed.forecast?.map((item) => item.areaCode))
+      .toEqual(["220"]);
+    expect(advisory.outcome.displaySnapshot.forecast?.map((item) => item.areaCode).sort())
+      .toEqual(["210", "220"]);
+    expect(advisory.outcome.presentation).toMatchObject({
+      frameLevel: "critical",
+      soundLevel: "critical",
+    });
+    const advisoryEvent = fromTsunamiOutcome(advisory.outcome);
+    const advisoryDto = projectDisplayEvent(advisoryEvent, "津波注意報");
+    expect(advisoryEvent.tsunamiKinds).toEqual(["津波注意報"]);
+    expect(advisoryEvent.forecastAreaNames).toEqual(["宮城県"]);
+    expect(advisoryDto).toMatchObject({
+      tickerSentence: "宮城県に津波注意報",
+      tickerPriority: "mid",
+      tickerSurface: "none",
+      emergency: { kind: "tsunami", level: "majorWarning" },
+    });
+    applyToDisplay(advisory, Date.parse(T2));
+
+    expect(displayStore.snapshot(1, Date.parse(T2)).tsunami).toMatchObject({
+      level: "majorWarning",
+    });
+
+    const cancellation = run(info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T3,
+      messageId: "event-a-cancel",
+    }), shared);
+    expect(cancellation.kind).toBe("ok");
+    if (cancellation.kind !== "ok") return;
+    expect(cancellation.outcome.parsed).toMatchObject({ infoType: "取消" });
+    expect(cancellation.outcome.displaySnapshot.forecast).toEqual([
+      expect.objectContaining({ areaCode: "220", kindCode: "62" }),
+    ]);
+    expect(cancellation.outcome.presentation).toMatchObject({
+      frameLevel: "normal",
+      soundLevel: "cancel",
+    });
+    const cancellationEvent = fromTsunamiOutcome(cancellation.outcome);
+    const cancellationDto = projectDisplayEvent(cancellationEvent, "津波取消");
+    expect(cancellationEvent.isCancellation).toBe(true);
+    expect(cancellationDto.tickerSentence).toBe("津波情報は取り消されました。");
+    expect(cancellationDto.emergency).toMatchObject({ kind: "tsunami", level: "advisory" });
+    applyToDisplay(cancellation, Date.parse(T3));
+
+    expect(displayStore.snapshot(2, Date.parse(T3)).tsunami).toMatchObject({
+      level: "advisory",
+    });
+  });
+
+  it("unkeyed VTSE41 は state・永続化に入れず Presentation→DisplayStateStore へ fail-open 表示する", () => {
+    const shared = deps();
+    const result = run(info({
+      eventId: "event-unkeyed",
+      at: T1,
+      messageId: "event-unkeyed-warning",
+      forecast: [{
+        areaCode: null,
+        areaName: "名称だけの予報区",
+        kindCode: null,
+        kind: "津波警報",
+        maxHeightDescription: "3m",
+        firstHeight: "到達中と推測",
+      }],
+    }), shared);
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(shared.tsunamiState.getLastInfo()).toBeNull();
+    expect(shared.tsunamiState.getPersistedActive()).toBeNull();
+
+    const displayStore = new DisplayStateStore();
+    const event = fromTsunamiOutcome(result.outcome);
+    expect(displayStore.applyEvent(
+      projectDisplayEvent(event, "津波警報"),
+      Date.parse(T1),
+      event.tsunamiObservations,
+      null,
+      event.tsunamiObservationGroups,
+    )).toBe(true);
+    expect(displayStore.snapshot(1, Date.parse(T1)).tsunami).toMatchObject({
+      level: "warning",
+    });
   });
 
   it("同一 revision の訂正を一度だけ受理し、presentation に訂正を明示する", () => {
@@ -330,7 +477,7 @@ describe("Phase 3B tsunami common registry", () => {
       expect.objectContaining({
         domain: "tsunami",
         revisionFamily: "VTSE41",
-        stateSubjectKey: "tsunami:current",
+        stateSubjectKey: "tsunami:tsunami-event",
         cancelled: false,
       }),
     ]);
@@ -340,6 +487,475 @@ describe("Phase 3B tsunami common registry", () => {
     // REST が失敗して何も補完できない場合でも、disk snapshot が active state の真実源になる。
     expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
     expect(restarted.tsunamiState.getLastInfo()).toEqual(active);
+  });
+
+  it("複数 EventID の VTSE41 は scalar active を保存せず、一方の取消後は残存 EventID だけを保存する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "event-a",
+      areaCode: "210",
+      kindCode: "53",
+      kind: "大津波警報",
+      at: T1,
+      messageId: "persist-event-a",
+    }), shared).kind).toBe("ok");
+    expect(run(info({
+      eventId: "event-b",
+      areaCode: "220",
+      kindCode: "62",
+      kind: "津波注意報",
+      at: T2,
+      messageId: "persist-event-b",
+    }), shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getPersistedActive()).toBeNull();
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    let loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active).toBeNull();
+    expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toHaveLength(2);
+
+    expect(run(info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T3,
+      messageId: "persist-event-a-cancel",
+    }), shared).kind).toBe("ok");
+    persistence.save(legacyState());
+
+    loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.meta.eventId.value).toBe("event-b");
+    expect(loaded.active?.forecast).toEqual([
+      expect.objectContaining({ areaCode: "220", kindCode: "62" }),
+    ]);
+  });
+
+  it("forecast 空続報で A が消滅した後は、非 cancel A gate が残っても B scalar を保存する", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "event-a", areaCode: "210", at: T1, messageId: "empty-a" }), shared).kind)
+      .toBe("ok");
+    expect(run(info({ eventId: "event-b", areaCode: "220", at: T2, messageId: "empty-b" }), shared).kind)
+      .toBe("ok");
+    expect(run(info({
+      eventId: "event-a",
+      at: T3,
+      forecast: [],
+      messageId: "empty-a-followup",
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.meta.eventId.value).toBe("event-b");
+    expect(loaded.gateEntries.filter((entry) =>
+      entry.domain === "tsunami" && !entry.cancelled)).toHaveLength(2);
+  });
+
+  it("同一 EventID の unkeyed 通常続報は直前 keyed active と後続 watermark を保存し、restart 後も警報を維持する", () => {
+    const shared = deps();
+    const active = info({
+      eventId: "event-a",
+      areaCode: "210",
+      kindCode: "51",
+      kind: "津波警報",
+      at: T1,
+      messageId: "keyed-before-unkeyed",
+    });
+    expect(run(active, shared).kind).toBe("ok");
+    const unkeyedFollowup = info({
+      eventId: "event-a",
+      at: T2,
+      messageId: "unkeyed-followup",
+      forecast: [{
+        areaCode: null,
+        areaName: "コード欠落の続報",
+        kindCode: null,
+        kind: "津波注意報",
+        maxHeightDescription: "1m",
+        firstHeight: "",
+      }],
+    });
+    expect(run(unkeyedFollowup, shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getLastInfo()?.meta.reportDateTime.raw).toBe(T1);
+    expect(shared.tsunamiState.getLevel()).toBe("津波警報");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.meta.reportDateTime.raw).toBe(T1);
+    expect(loaded.gateEntries.find((entry) => entry.stateSubjectKey === "tsunami:event-a")
+      ?.comparison.revision.reportDateTime.raw).toBe(T2);
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(loaded.active ?? null, loaded.observations);
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
+    expect(restarted.tsunamiState.getLastInfo()?.meta.reportDateTime.raw).toBe(T1);
+    expect(run({ ...unkeyedFollowup, meta: {
+      ...unkeyedFollowup.meta,
+      messageId: "unkeyed-followup-rest-replay",
+    } }, restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
+  });
+
+  it("同一日時でも Serial が active 1 → watermark 2 の順なら unkeyed 続報との結合を許可する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "serial-order",
+      serial: "1",
+      at: T1,
+      messageId: "serial-order-active",
+    }), shared).kind).toBe("ok");
+    expect(run(info({
+      eventId: "serial-order",
+      serial: "2",
+      at: T1,
+      messageId: "serial-order-unkeyed",
+      forecast: [{
+        areaCode: null,
+        areaName: "コード欠落の同時刻続報",
+        kindCode: null,
+        kind: "津波注意報",
+        maxHeightDescription: "1m",
+        firstHeight: "",
+      }],
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.meta.serial.raw).toBe("1");
+    expect(loaded.gateEntries[0]?.comparison.revision.serial.raw).toBe("2");
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(loaded.active ?? null, loaded.observations);
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
+  });
+
+  it.each([
+    { label: "Serial 逆転", raw: "1", numeric: 1, valid: true },
+    { label: "watermark 側だけ Serial 欠落", raw: null, numeric: null, valid: false },
+  ])("同一日時の $label snapshot は active 2 と結合せず tsunami foundation を拒否する", ({
+    raw, numeric, valid,
+  }) => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "broken-serial-order",
+      serial: "2",
+      at: T1,
+      messageId: "broken-serial-active",
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    persisted.telegramFoundation.tsunami.gateEntries[0].comparison.revision.serial = {
+      raw,
+      numeric,
+      valid,
+    };
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active).toBeNull();
+    expect(loaded.gateEntries).toEqual([]);
+  });
+
+  it("旧 tsunami:current gate が新 EventID gate と併存しても exact EventID の scalar を保存する", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "event-b", areaCode: "220", at: T2, messageId: "fixed-b" }), shared).kind)
+      .toBe("ok");
+    const entries = shared.revisionGate.exportDurableEntries();
+    const current = entries.find((entry) => entry.stateSubjectKey === "tsunami:event-b")!;
+    const legacyFixed = structuredClone(current);
+    legacyFixed.stateSubjectKey = "tsunami:current";
+    legacyFixed.comparison.stateSubjectKey = "tsunami:current";
+    legacyFixed.comparison.revision.eventId = {
+      ...legacyFixed.comparison.revision.eventId,
+      raw: "tsunami:current",
+      value: "tsunami:current",
+      valid: true,
+    };
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: [legacyFixed, ...entries],
+      },
+    }));
+    persistence.save(legacyState());
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.meta.eventId.value).toBe("event-b");
+    expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toHaveLength(2);
+  });
+
+  it("同一 EventID の keyed 部分取消は残存 item と non-cancel gate を persistence→restart 後も維持する", () => {
+    const shared = deps();
+    const active = info({
+      eventId: "event-a",
+      at: T1,
+      messageId: "partial-active",
+      forecast: [
+        {
+          areaCode: "210",
+          areaName: "解除対象",
+          kindCode: "51",
+          kind: "津波警報",
+          maxHeightDescription: "3m",
+          firstHeight: "",
+        },
+        {
+          areaCode: "220",
+          areaName: "残存対象",
+          kindCode: "62",
+          kind: "津波注意報",
+          maxHeightDescription: "1m",
+          firstHeight: "",
+        },
+      ],
+    });
+    expect(run(active, shared).kind).toBe("ok");
+    const cancellationForecast: LegacyTsunamiForecastItemInput[] = [{
+      areaCode: "210",
+      areaName: "名称は照合に使わない",
+      kindCode: "51",
+      kind: "津波警報",
+      maxHeightDescription: "3m",
+      firstHeight: "",
+    }];
+    const cancellation = info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T2,
+      messageId: "partial-cancellation",
+      forecast: cancellationForecast,
+    });
+    expect(run(cancellation, shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getLastInfo()?.forecast).toEqual([
+      expect.objectContaining({ areaCode: "220", kindCode: "62", areaName: "残存対象" }),
+    ]);
+    expect(shared.revisionGate.exportDurableEntries()).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: "tsunami:event-a",
+        cancelled: false,
+        semanticKeys: expect.arrayContaining([expect.stringContaining("取消:")]),
+        comparison: expect.objectContaining({
+          revision: expect.objectContaining({ reportDateTime: expect.objectContaining({ raw: T2 }) }),
+        }),
+      }),
+    ]);
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.forecast).toEqual([
+      expect.objectContaining({ areaCode: "220", kindCode: "62", areaName: "残存対象" }),
+    ]);
+    expect(loaded.gateEntries[0]).toMatchObject({ cancelled: false });
+
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(loaded.active ?? null, loaded.observations);
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(restarted.tsunamiState.getLastInfo()?.forecast).toEqual([
+      expect.objectContaining({ areaCode: "220", kindCode: "62", areaName: "残存対象" }),
+    ]);
+    expect(run(info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T2,
+      messageId: "partial-cancellation-replay",
+      forecast: cancellationForecast,
+    }), restarted)).toEqual({ kind: "suppressed" });
+  });
+
+  it("コード欠落取消は gate を tombstone 化せず、persistence→restart 後も警報を維持する", () => {
+    const shared = deps();
+    const active = info({ eventId: "event-a", areaCode: "210", at: T1, messageId: "neutral-active" });
+    expect(run(active, shared).kind).toBe("ok");
+    const cancellation = info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T2,
+      messageId: "neutral-cancellation",
+      forecast: [{
+        areaCode: null,
+        areaName: "名称だけの取消対象",
+        kindCode: null,
+        kind: "津波警報",
+        maxHeightDescription: "3m",
+        firstHeight: "",
+      }],
+    });
+    const cancelled = run(cancellation, shared);
+    expect(cancelled.kind).toBe("ok");
+    if (cancelled.kind !== "ok") return;
+    expect(cancelled.outcome.parsed.infoType).toBe("取消");
+    expect(shared.tsunamiState.getLevel()).toBe("津波警報");
+    expect(run(info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T2,
+      messageId: "neutral-cancellation-replay",
+      forecast: [{
+        areaCode: null,
+        areaName: "名称だけの取消対象",
+        kindCode: null,
+        kind: "津波警報",
+        maxHeightDescription: "3m",
+        firstHeight: "",
+      }],
+    }), shared)).toEqual({ kind: "suppressed" });
+    expect(shared.revisionGate.exportDurableEntries()).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: "tsunami:event-a",
+        cancelled: false,
+        semanticKeys: expect.arrayContaining([expect.stringContaining("取消:")]),
+        comparison: expect.objectContaining({
+          revision: expect.objectContaining({ reportDateTime: expect.objectContaining({ raw: T2 }) }),
+        }),
+      }),
+    ]);
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.meta.eventId.value).toBe("event-a");
+    expect(loaded.gateEntries[0]).toMatchObject({ cancelled: false });
+
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(loaded.active ?? null, loaded.observations);
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
+    expect(run(active, restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
+  });
+
+  it("persisted active なしの起動時 REST 部分取消 replay は空 holder を再構成しない", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "event-a",
+      at: T1,
+      messageId: "restore-guard-active",
+      forecast: [
+        {
+          areaCode: "210",
+          areaName: "解除対象",
+          kindCode: "51",
+          kind: "津波警報",
+          maxHeightDescription: "3m",
+          firstHeight: "",
+        },
+        {
+          areaCode: "220",
+          areaName: "残存対象",
+          kindCode: "62",
+          kind: "津波注意報",
+          maxHeightDescription: "1m",
+          firstHeight: "",
+        },
+      ],
+    }), shared).kind).toBe("ok");
+    const cancellationForecast: LegacyTsunamiForecastItemInput[] = [{
+      areaCode: "210",
+      areaName: "解除対象",
+      kindCode: "51",
+      kind: "津波警報",
+      maxHeightDescription: "3m",
+      firstHeight: "",
+    }];
+    expect(run(info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T2,
+      messageId: "restore-guard-cancellation",
+      forecast: cancellationForecast,
+    }), shared).kind).toBe("ok");
+
+    // 複数 EventID scalar 非保存などを模し、gate だけ復元して holder は空のままにする。
+    const restarted = deps();
+    restarted.revisionGate.restoreDurableEntries(shared.revisionGate.exportDurableEntries());
+    expect(restarted.tsunamiState.getLastInfo()).toBeNull();
+    const replay = info({
+      eventId: "event-a",
+      infoType: "取消",
+      at: T2,
+      messageId: "restore-guard-cancellation-rest",
+      forecast: cancellationForecast,
+    });
+    parseTsunamiMock.mockReturnValueOnce(replay);
+    expect(processTsunami(message("VTSE41", replay.meta.messageId), {
+      ...restarted,
+      restoreStateOnDuplicate: true,
+    })).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getLastInfo()).toBeNull();
+    expect(restarted.tsunamiState.getLevel()).toBeNull();
   });
 
   it("Phase 4B 前の scalar-only 津波 v2 persistence を canonical DTO にして復元する", () => {
@@ -615,7 +1231,7 @@ describe("Phase 3B tsunami common registry", () => {
       expect.objectContaining({
         domain: "tsunami",
         revisionFamily: "VTSE41",
-        stateSubjectKey: "tsunami:current",
+        stateSubjectKey: "tsunami:tsunami-event",
         cancelled: true,
         tombstoneRetentionMs: null,
       }),
@@ -856,6 +1472,86 @@ describe("Phase 3B tsunami common registry", () => {
     ]);
   });
 
+  it("VTSE41 sanitizer は active を優先して 512 件へ切り詰め、restart 後の新規 admission で active を退場させない", () => {
+    const shared = deps();
+    const active = info({
+      eventId: "capacity-active",
+      areaCode: "210",
+      kindCode: "51",
+      kind: "津波警報",
+      at: T1,
+      messageId: "capacity-active",
+    });
+    expect(run(active, shared).kind).toBe("ok");
+    const activeEntry = shared.revisionGate.exportDurableEntries().find(
+      (entry) => entry.stateSubjectKey === "tsunami:capacity-active",
+    )!;
+    const tombstone = (index: number) => {
+      const entry = structuredClone(activeEntry);
+      const subject = `tsunami:capacity-tombstone-${index}`;
+      entry.stateSubjectKey = subject;
+      entry.comparison.stateSubjectKey = subject;
+      entry.comparison.revision.eventId = {
+        raw: subject,
+        value: subject,
+        valid: true,
+      };
+      entry.comparison.revision.infoType = {
+        raw: "取消",
+        value: "取消",
+        valid: true,
+      };
+      entry.semanticKeys = [`capacity-cancel-${index}`];
+      entry.cancelled = true;
+      entry.acceptedAtMs = Date.parse(T1) + index + 1;
+      entry.tombstoneRetentionMs = null;
+      return entry;
+    };
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: [
+          activeEntry,
+          ...Array.from({ length: 511 }, (_, index) => tombstone(index)),
+        ],
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    persisted.telegramFoundation.tsunami.gateEntries.push(tombstone(511));
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    const loadedVtse41 = loaded.gateEntries.filter((entry) => entry.domain === "tsunami");
+    expect(loadedVtse41).toHaveLength(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects);
+    expect(loadedVtse41).toContainEqual(expect.objectContaining({
+      stateSubjectKey: "tsunami:capacity-active",
+      cancelled: false,
+    }));
+    expect(loaded.active?.meta.eventId.value).toBe("capacity-active");
+
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(loaded.active ?? null, loaded.observations);
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(run(info({
+      eventId: "capacity-new",
+      areaCode: "220",
+      at: T3,
+      messageId: "capacity-new",
+    }), restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
+    expect(restarted.revisionGate.exportDurableEntries()).toContainEqual(expect.objectContaining({
+      stateSubjectKey: "tsunami:capacity-active",
+      cancelled: false,
+    }));
+  });
+
   it("観測 holder と durable item gate を family 上限へ同期 compaction する", () => {
     const shared = deps();
     const stations = Array.from(
@@ -1049,7 +1745,7 @@ describe("Phase 3B tsunami common registry", () => {
       expect.objectContaining({
         domain: "tsunami",
         revisionFamily: "VTSE41",
-        stateSubjectKey: "tsunami:current",
+        stateSubjectKey: "tsunami:tsunami-event",
         cancelled: true,
       }),
     ]);
@@ -1099,7 +1795,7 @@ describe("Phase 3B tsunami common registry", () => {
     } as unknown as Parameters<typeof validateRevisionFamilyPolicy>[0];
     expect(() => validateRevisionFamilyPolicy(policy)).toThrow(/bounded maxSubjects/);
 
-    expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects).toBe(1);
+    expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects).toBe(512);
     expect(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE51.maxSubjects)
       .toBe(TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY + 1);
   });

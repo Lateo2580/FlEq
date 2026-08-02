@@ -55,6 +55,7 @@ import {
 } from "../messages/telegram-revision-gate";
 import {
   TSUNAMI_REVISION_FAMILY_POLICIES,
+  tsunamiStateSubjectKey,
   VPWW56_REVISION_FAMILY_POLICY,
   VPWS50_REVISION_FAMILY_POLICY,
   FLOOD_FORECAST_REVISION_FAMILY_POLICY,
@@ -1431,12 +1432,84 @@ function tsunamiActiveMatchesGate(
   gateEntry: PersistedTelegramRevisionGateEntryV2,
 ): boolean {
   const revision = gateEntry.comparison.revision;
-  return gateEntry.domain === "tsunami"
-    && gateEntry.revisionFamily === "VTSE41"
-    && gateEntry.stateSubjectKey === "tsunami:current"
-    && revision.reportDateTime.raw === active.meta.reportDateTime.raw
+  const exactSubject = gateEntry.stateSubjectKey === tsunamiStateSubjectKey(active.meta);
+  const subjectMatches = exactSubject
+    // v2 の固定 subject は migration 前 snapshot を読めるように残す。
+    || gateEntry.stateSubjectKey === "tsunami:current";
+  const sameRevision = revision.reportDateTime.raw === active.meta.reportDateTime.raw
     && revision.serial.raw === active.meta.serial.raw
     && revision.infoType.value === active.meta.infoType.value;
+  const gateReportMs = revision.reportDateTime.epochMs;
+  const activeReportMs = active.meta.reportDateTime.epochMs;
+  const gateSerialMissing = revision.serial.raw == null || revision.serial.raw === "";
+  const activeSerialMissing = active.meta.serial.raw == null || active.meta.serial.raw === "";
+  const watermarkDoesNotPrecedeActive = gateReportMs != null
+    && activeReportMs != null
+    && (
+      gateReportMs > activeReportMs
+      || gateReportMs === activeReportMs
+      && (
+        gateSerialMissing && activeSerialMissing
+        || !gateSerialMissing
+        && !activeSerialMissing
+        && revision.serial.valid
+        && active.meta.serial.valid
+        && revision.serial.numeric != null
+        && active.meta.serial.numeric != null
+        && revision.serial.numeric >= active.meta.serial.numeric
+      )
+    );
+  // 部分取消・照合不能取消・unkeyed 通常続報は、holder を変えずに
+  // revision だけを non-cancel watermark として進める。正式 comparator と同じく
+  // 同一日時は Serial 順を要求し、片側だけ欠落する unordered な組は拒否する。
+  const retainedActivePrecedesWatermark = exactSubject
+    && !gateEntry.cancelled
+    && active.meta.infoType.value !== "取消"
+    && watermarkDoesNotPrecedeActive;
+  return gateEntry.domain === "tsunami"
+    && gateEntry.revisionFamily === "VTSE41"
+    && subjectMatches
+    && (sameRevision || retainedActivePrecedesWatermark);
+}
+
+function isTsunamiVtse41Subject(subject: string): boolean {
+  return subject === "tsunami:current" || /^tsunami:\S+$/.test(subject);
+}
+
+function matchingTsunamiActiveGate(
+  active: ParsedTsunamiInfo,
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedTelegramRevisionGateEntryV2 | null {
+  const subject = tsunamiStateSubjectKey(active.meta);
+  const exactEntries = subject == null
+    ? []
+    : entries.filter((entry) => entry.stateSubjectKey === subject);
+  // EventID gate が存在する snapshot では旧 fixed gate へ fallback しない。
+  const candidates = exactEntries.length > 0
+    ? exactEntries
+    : entries.filter((entry) => entry.stateSubjectKey === "tsunami:current");
+  return candidates.find((entry) =>
+    !entry.cancelled && tsunamiActiveMatchesGate(active, entry)) ?? null;
+}
+
+function limitTsunamiVtse41Entries(
+  active: ParsedTsunamiInfo | null,
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedTelegramRevisionGateEntryV2[] {
+  const maxSubjects = TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects;
+  if (entries.length <= maxSubjects) return [...entries];
+  const activeGate = active == null ? null : matchingTsunamiActiveGate(active, entries);
+  const ranked = entries.map((entry, index) => ({ entry, index })).sort((left, right) => {
+    const leftPriority = left.entry === activeGate ? 0 : left.entry.cancelled ? 1 : 2;
+    const rightPriority = right.entry === activeGate ? 0 : right.entry.cancelled ? 1 : 2;
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+    const timeOrder = right.entry.acceptedAtMs - left.entry.acceptedAtMs;
+    return timeOrder !== 0 ? timeOrder : right.index - left.index;
+  });
+  const retainedIndexes = new Set(
+    ranked.slice(0, maxSubjects).map(({ index }) => index),
+  );
+  return entries.filter((_, index) => retainedIndexes.has(index));
 }
 
 /**
@@ -1449,21 +1522,20 @@ function normalizeTsunamiFoundationForWrite(
 ): PersistedTelegramFoundationV2["tsunami"] {
   const observations: TsunamiObservationGroups = { VTSE51: [], VTSE52: [] };
   const gateEntries: PersistedTelegramRevisionGateEntryV2[] = [];
-  const vtse41Entries = value.gateEntries.filter(
+  const vtse41Entries = limitTsunamiVtse41Entries(value.active ?? null, value.gateEntries.filter(
     (entry) => entry.domain === "tsunami"
       && entry.revisionFamily === "VTSE41"
-      && entry.stateSubjectKey === "tsunami:current",
-  );
-  if (vtse41Entries.length === 1) {
-    gateEntries.push({
-      ...structuredClone(vtse41Entries[0]),
-      semanticKeys: compactPersistedSemanticKeys(vtse41Entries[0].semanticKeys),
-    });
-  }
-  const active = vtse41Entries.length === 1
-    && !vtse41Entries[0].cancelled
+      && isTsunamiVtse41Subject(entry.stateSubjectKey),
+  ));
+  gateEntries.push(...vtse41Entries.map((entry) => ({
+    ...structuredClone(entry),
+    semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+  })));
+  const activeEntry = value.active == null
+    ? null
+    : matchingTsunamiActiveGate(value.active, vtse41Entries);
+  const active = activeEntry != null
     && value.active != null
-    && tsunamiActiveMatchesGate(value.active, vtse41Entries[0])
     ? structuredClone(value.active)
     : null;
   for (const family of ["VTSE51", "VTSE52"] as const) {
@@ -1520,7 +1592,7 @@ function sanitizeTsunamiFoundation(
     if (!isGateEntry(entry)) return false;
     if (entry.domain === "tsunami") {
       return entry.revisionFamily === "VTSE41"
-        && entry.stateSubjectKey === "tsunami:current";
+        && isTsunamiVtse41Subject(entry.stateSubjectKey);
     }
     if (entry.domain !== "tsunamiObservation") return false;
     if (entry.revisionFamily !== "VTSE51" && entry.revisionFamily !== "VTSE52") return false;
@@ -1533,16 +1605,18 @@ function sanitizeTsunamiFoundation(
   );
   if (uniqueGateKeys.size !== entries.length) return null;
 
-  const vtse41Entries = entries.filter((entry) => entry.domain === "tsunami");
-  if (vtse41Entries.length > 1) return null;
+  const vtse41Candidates = entries.filter(
+    (entry) => entry.domain === "tsunami",
+  ) as PersistedTelegramRevisionGateEntryV2[];
   if (
     active != null
-    && (
-      vtse41Entries.length !== 1
-      || vtse41Entries[0].cancelled
-      || !tsunamiActiveMatchesGate(active, vtse41Entries[0] as PersistedTelegramRevisionGateEntryV2)
-    )
+    && matchingTsunamiActiveGate(active, vtse41Candidates) == null
   ) return null;
+  const vtse41Entries = limitTsunamiVtse41Entries(active, vtse41Candidates);
+  const retainedVtse41Subjects = new Set(vtse41Entries.map((entry) => entry.stateSubjectKey));
+  const boundedEntries = (entries as PersistedTelegramRevisionGateEntryV2[]).filter(
+    (entry) => entry.domain !== "tsunami" || retainedVtse41Subjects.has(entry.stateSubjectKey),
+  );
 
   const groups = {
     VTSE51: rawGroups.VTSE51
@@ -1553,7 +1627,7 @@ function sanitizeTsunamiFoundation(
       .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
   };
   for (const family of ["VTSE51", "VTSE52"] as const) {
-    const familyEntries = entries.filter((entry) => entry.revisionFamily === family);
+    const familyEntries = boundedEntries.filter((entry) => entry.revisionFamily === family);
     const wholeSubject = `tsunami:observations:${family}`;
     const wholeEntries = familyEntries.filter((entry) => entry.stateSubjectKey === wholeSubject);
     if ((familyEntries.length > 0 || groups[family].length > 0) && wholeEntries.length !== 1) {
@@ -1570,7 +1644,7 @@ function sanitizeTsunamiFoundation(
   return {
     active: active == null ? null : structuredClone(active),
     observations: groups,
-    gateEntries: (entries as PersistedTelegramRevisionGateEntryV2[]).map((entry) => ({
+    gateEntries: boundedEntries.map((entry) => ({
       ...structuredClone(entry),
       semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
       // 旧 v2 の欠落値は各 family の無期限 tombstone policy へ移行する。

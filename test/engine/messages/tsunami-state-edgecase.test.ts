@@ -35,7 +35,14 @@ function tsunami(
     headline: null,
     publishingOffice: "気象庁",
     forecast: infoType === "取消" ? [] : [
-      { areaName: "岩手県", kind, maxHeightDescription: "3m", firstHeight: "到達中と推測" },
+      {
+        areaCode: "210",
+        areaName: "岩手県",
+        kindCode: kind === "大津波警報" ? "53" : kind === "津波注意報" ? "62" : "51",
+        kind,
+        maxHeightDescription: "3m",
+        firstHeight: "到達中と推測",
+      },
     ],
     warningComment: "",
     isTest: false,

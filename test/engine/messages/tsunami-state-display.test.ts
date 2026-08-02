@@ -36,7 +36,9 @@ describe("TsunamiStateHolder.getLastInfo", () => {
     const info = createTsunamiInfo({
       forecast: [
         {
+          areaCode: "340",
           areaName: "石川県能登",
+          kindCode: "51",
           kind: "津波警報",
           maxHeightDescription: "３ｍ",
           firstHeight: "",

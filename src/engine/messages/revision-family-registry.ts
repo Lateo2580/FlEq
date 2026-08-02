@@ -28,7 +28,6 @@ import {
   TELEGRAM_REVISION_MAX_ENTRIES,
   type CancellationPolicy,
 } from "./telegram-revision-gate";
-import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "./tsunami-state";
 import {
   VPWW56_MAX_SUBJECTS,
@@ -125,7 +124,6 @@ function eewPolicy(headType: "VXSE43" | "VXSE44" | "VXSE45"):
 }
 
 const VPWS50_SUBJECT = "weather:vpws50";
-const TSUNAMI_CURRENT_SUBJECT = "tsunami:current";
 const NANKAI_CURRENT_SUBJECT = "nankai:current";
 const STANDBY_DOMAIN_RETENTION_MS = 36 * 60 * 60_000;
 const HEAT_RETENTION_MS = 3 * 24 * 60 * 60_000;
@@ -142,6 +140,10 @@ function eventSubject(meta: TelegramMeta, prefix: string, includeType = true): s
   const headType = meta.type.valid ? nonBlank(meta.type.value) : null;
   if (eventId == null || includeType && headType == null) return null;
   return includeType ? `${prefix}:${headType}:${eventId}` : `${prefix}:${eventId}`;
+}
+
+export function tsunamiStateSubjectKey(meta: TelegramMeta): string | null {
+  return eventSubject(meta, "tsunami", false);
 }
 
 function transientEventPolicy<TParsed>(options: {
@@ -716,16 +718,19 @@ export const TSUNAMI_REVISION_FAMILY_POLICIES = {
     revisionFamily: "VTSE41",
     headTypes: ["VTSE41"],
     comparator: "reportDateTimeThenSerial",
-    // TsunamiStateHolder は EventID 別ではなく、全国で単一の active level/lastInfo を持つ。
-    extractStateSubjectKey: () => TSUNAMI_CURRENT_SUBJECT,
-    extractCancellationTarget: () => [TSUNAMI_CURRENT_SUBJECT],
+    // revision gate は EventID 単位。holder はその下で Area.Code + Kind.Code を分離する。
+    extractStateSubjectKey: (meta) => tsunamiStateSubjectKey(meta),
+    extractCancellationTarget: (meta) => {
+      const subject = tsunamiStateSubjectKey(meta);
+      return subject == null ? null : [subject];
+    },
     cancellationPolicy: "clearCurrent",
     terminalPredicate: () => false,
-    deactivationPredicate: (_meta, parsed) =>
-      resolveTsunamiLevel((parsed.forecast ?? []).map((item) => item.kind)) == null,
+    // 無警報 item は EventID 内の keyed state を更新する。別 EventID の active state は解除しない。
+    deactivationPredicate: () => false,
     durable: true,
     tombstoneRetentionMs: null,
-    maxSubjects: 1,
+    maxSubjects: 512,
     // VTSE41 は正常電文・取消とも Serial 空の実 fixture が存在する。
     allowMissingSerial: true,
     fragmentMerge: false,

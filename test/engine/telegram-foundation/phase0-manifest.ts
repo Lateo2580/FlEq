@@ -602,7 +602,7 @@ export const CANCELLATION_CHARACTERIZATION = {
   }],
   tsunami: [{
     family: "tsunami", headTypes: ["VTSE41", "VTSE51", "VTSE52"],
-    currentBehavior: "active level と lastInfo を clear、watermark は維持",
+    currentBehavior: "VTSE41 は EventID + code 対象だけを解除し、受信取消の意味と残存 aggregate 表示を分離。部分取消・照合可能 key ゼロは semantic/non-cancel watermark を記録し、残存 holder を維持",
     targetPolicy: "clearCurrent", stateOwners: ["TsunamiStateHolder", "DisplayStateStore"],
   }],
   volcano: [
@@ -829,25 +829,39 @@ export const CANCELLATION_MUTATION_EVIDENCE = [
   },
   {
     domain: "tsunami", family: "tsunami", owner: "TsunamiStateHolder",
-    behavior: "共通 clearCurrent decision で active level と lastInfo を clear し、watermark は registry に維持",
+    behavior: "コード付き部分取消は対象 item だけを解除し、部分取消・照合可能 key ゼロは semantic/non-cancel watermark を記録。holder 残存 state と persistence を維持",
     sources: [
       {
         sourceFile: "src/engine/presentation/processors/process-tsunami.ts",
-        needles: ['decision.kind === "clearCurrent"', "deps.tsunamiState.clearActive();"],
+        needles: ["stateNeutralCancellation", "const decision = deps.revisionGate.decide(gateInput);", "deps.tsunamiState.clearAccepted(tsunamiInfo);"],
       },
       {
         sourceFile: "src/engine/messages/tsunami-state.ts",
-        needles: ["clearActive(): void {", "this.clearActiveState();"],
+        needles: ["clearAccepted(info: ParsedTsunamiInfo): void {", "this.keyedForecasts.delete(key);"],
       },
     ],
   },
   {
     domain: "tsunami", family: "tsunami", owner: "DisplayStateStore",
-    behavior: "VTSE41 取消で display tsunami を clear",
-    sources: [{
-      sourceFile: "src/engine/display/state-store.ts",
-      needles: ['if (dto.type !== "VTSE41") return false;', "this.tsunami = null;"],
-    }],
+    behavior: "受信取消は通知・ticker の意味として保持し、残存 aggregate emergency があればカードを更新。aggregate が空のときだけ clear",
+    sources: [
+      {
+        sourceFile: "src/engine/presentation/processors/process-tsunami.ts",
+        needles: ["parsed: tsunamiInfo", "displaySnapshot,"],
+      },
+      {
+        sourceFile: "src/engine/presentation/events/from-tsunami.ts",
+        needles: ["const displayInfo = outcome.displaySnapshot;", 'isCancellation: info.infoType === "取消"'],
+      },
+      {
+        sourceFile: "src/engine/display/project-event.ts",
+        needles: ['if (event.domain === "tsunami") {', "event.tsunamiDisplay?.kinds ?? event.tsunamiKinds ?? []"],
+      },
+      {
+        sourceFile: "src/engine/display/state-store.ts",
+        needles: ['if (dto.emergency?.kind === "tsunami") {', "this.tsunami = null;"],
+      },
+    ],
   },
   {
     domain: "volcano", family: "volcanoAlert", owner: "VolcanoStateHolder",

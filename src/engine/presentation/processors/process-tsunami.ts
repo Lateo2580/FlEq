@@ -49,6 +49,19 @@ function semanticTsunamiPayload(
   return { ...payload, observations: observationFingerprints };
 }
 
+function nonBlankCode(code: string | null): boolean {
+  return code != null && code.trim() !== "";
+}
+
+function isKeylessVtse41Cancellation(info: ParsedTsunamiInfo): boolean {
+  const forecast = info.forecast ?? [];
+  return info.type === "VTSE41"
+    && info.meta.infoType.value === "取消"
+    && forecast.length > 0
+    && !forecast.some((item) =>
+      nonBlankCode(item.areaCode) && nonBlankCode(item.kindCode));
+}
+
 /**
  * 津波電文を共通 revision gate の後で state/presentation へ反映する。
  * VTSE51/52 は whole-message gate の equal を item gate へ送り、観測点単位で補完する。
@@ -68,6 +81,13 @@ export function processTsunami(
   const cancellationTargets = parsed.meta.infoType.value === "取消"
     ? policy.extractCancellationTarget(parsed.meta, parsed)
     : null;
+  const keylessCancellation = isKeylessVtse41Cancellation(parsed);
+  const stateNeutralCancellation = keylessCancellation
+    || (
+      parsed.type === "VTSE41"
+      && parsed.meta.infoType.value === "取消"
+      && deps.tsunamiState.retainsEventAfterCancellation(parsed)
+    );
   const gateInput: TelegramRevisionGateInput = {
     domain: policy.domain,
     revisionFamily: policy.revisionFamily,
@@ -80,6 +100,7 @@ export function processTsunami(
     cancellationTargetMatches: cancellationTargets == null || subject == null
       ? parsed.meta.infoType.value !== "取消"
       : cancellationTargets.includes(subject),
+    stateNeutralCancellation,
     durable: policy.durable,
     tombstoneRetentionMs: policy.tombstoneRetentionMs,
     maxSubjects: policy.maxSubjects,
@@ -95,6 +116,9 @@ export function processTsunami(
     if (
       deps.restoreStateOnDuplicate === true
       && msg.head.type === "VTSE41"
+      // 取消 payload は active snapshot ではない。non-cancel watermark と一致しても
+      // startup holder の再構成に使わず、取消のまま suppressed に留める。
+      && parsed.meta.infoType.value !== "取消"
       && (evaluation.kind === "duplicate" || evaluation.kind === "semanticDuplicate")
       && deps.tsunamiState.getLastInfo() == null
       && deps.revisionGate.matchesCurrentAcceptedPayload(gateInput)
@@ -151,6 +175,7 @@ export function processTsunami(
     }
   }
 
+  // state-neutral 取消も semantic/watermark は commit し、cancelled だけ false に保つ。
   const decision = deps.revisionGate.decide(gateInput);
   deps.onRevisionDecision?.(decision);
   if (!decision.accepted) return { kind: "suppressed" };
@@ -167,8 +192,9 @@ export function processTsunami(
     : { ...parsed, observations: acceptedObservations };
   const levelBefore = deps.tsunamiState.getLevel();
   if (msg.head.type === "VTSE41") {
-    if (decision.kind === "clearCurrent") deps.tsunamiState.clearActive();
-    else deps.tsunamiState.applyAccepted(tsunamiInfo);
+    if (tsunamiInfo.meta.infoType.value === "取消") {
+      if (!keylessCancellation) deps.tsunamiState.clearAccepted(tsunamiInfo);
+    } else deps.tsunamiState.applyAccepted(tsunamiInfo);
   } else if (msg.head.type === "VTSE51" || msg.head.type === "VTSE52") {
     if (decision.kind === "clearCurrent") {
       deps.tsunamiState.clearObservationFamily(msg.head.type);
@@ -190,6 +216,12 @@ export function processTsunami(
   // item gate の commit と holder mutation が完了してから永続化側へ通知する。
   deps.onTsunamiRevisionDecision?.(decision);
   const levelAfter = deps.tsunamiState.getLevel();
+  const displaySnapshot = msg.head.type === "VTSE41"
+    ? deps.tsunamiState.getPresentationInfo(tsunamiInfo)
+      ?? (tsunamiInfo.infoType === "取消"
+        ? { ...tsunamiInfo, forecast: [] }
+        : tsunamiInfo)
+    : tsunamiInfo;
 
   return {
     kind: "ok",
@@ -199,6 +231,7 @@ export function processTsunami(
       headType: msg.head.type,
       statsCategory: "tsunami",
       parsed: tsunamiInfo,
+      displaySnapshot,
       state: {
         levelBefore,
         levelAfter,
@@ -214,7 +247,7 @@ export function processTsunami(
         eventId: msg.xmlReport?.head.eventId ?? null,
       },
       presentation: {
-        frameLevel: tsunamiFrameLevel(tsunamiInfo),
+        frameLevel: tsunamiFrameLevel(displaySnapshot),
         soundLevel: tsunamiSoundLevel(tsunamiInfo),
         notifyCategory: "tsunami",
         acceptedCorrection: decision.isCorrection,

@@ -41,7 +41,9 @@ function makeTsunamiInfo(): ParsedTsunamiInfo {
     headline: "津波警報を発表しました。",
     publishingOffice: "気象庁",
     forecast: [{
+      areaCode: "340",
       areaName: "石川県能登",
+      kindCode: "51",
       kind: "津波警報",
       maxHeightDescription: "３ｍ",
       firstHeight: "ただちに津波来襲と予測",

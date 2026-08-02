@@ -158,7 +158,10 @@ export interface LgObservationOutcome extends ProcessOutcomeBase {
 
 export interface TsunamiOutcome extends ProcessOutcomeBase {
   domain: "tsunami";
+  /** 受信電文の意味。通知・ticker・取消判定は必ずこちらを参照する。 */
   parsed: ParsedTsunamiInfo;
+  /** holder 更新後の安全側 aggregate。カード・背景・frame 専用。 */
+  displaySnapshot: ParsedTsunamiInfo;
   state: {
     levelBefore: string | null;
     levelAfter: string | null;
@@ -512,6 +515,12 @@ export interface PresentationEvent {
 
   // 津波観測点 (Phase A、tsunami ドメインのみ使用)
   tsunamiObservations?: PresentationTsunamiObservation[];
+  /** カード・背景用の安全側 aggregate。受信電文由来の filter/ticker field と分離する。 */
+  tsunamiDisplay?: {
+    kinds: string[];
+    areaItems: PresentationAreaItem[];
+    warningComment: string | null;
+  };
   /** display server 内部で family 別 clear を維持するための非 wire bridge。 */
   tsunamiObservationGroups?: {
     VTSE51: PresentationTsunamiObservation[];

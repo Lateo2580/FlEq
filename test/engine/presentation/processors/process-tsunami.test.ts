@@ -12,6 +12,19 @@ function requireOutcome(result: ReturnType<typeof processTsunami>) {
   return result.outcome;
 }
 
+function cancellationForWarning() {
+  const cancellation = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
+  return {
+    ...cancellation,
+    xmlReport: cancellation.xmlReport == null
+      ? undefined
+      : {
+          ...cancellation.xmlReport,
+          head: { ...cancellation.xmlReport.head, eventId: "20110311144640" },
+        },
+  };
+}
+
 describe("processTsunami", () => {
   it("正常な津波電文 → TsunamiOutcome", () => {
     const tsunamiState = new TsunamiStateHolder();
@@ -37,7 +50,7 @@ describe("processTsunami", () => {
     const deps = makeProcessDeps({ tsunamiState });
     processTsunami(warn, deps);
     // Then cancel
-    const cancel = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
+    const cancel = cancellationForWarning();
     const outcome = requireOutcome(processTsunami(cancel, deps));
     expect(outcome.presentation.frameLevel).toBe("cancel");
     expect(outcome.presentation.soundLevel).toBe("cancel");
@@ -46,7 +59,7 @@ describe("processTsunami", () => {
   it("発表→取消→古い発表の後着を suppressed にし、状態を復活させない", () => {
     const tsunamiState = new TsunamiStateHolder();
     const warn = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
-    const cancel = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
+    const cancel = cancellationForWarning();
 
     const deps = makeProcessDeps({ tsunamiState });
     expect(processTsunami(warn, deps).kind).toBe("ok");

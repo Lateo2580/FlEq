@@ -6,6 +6,7 @@ import { buildTsunamiObservations } from "./tsunami-observations";
 export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
   const xmlReport = outcome.msg.xmlReport;
   const info = outcome.parsed;
+  const displayInfo = outcome.displaySnapshot;
 
   const forecastItems = info.forecast ?? [];
   const forecastAreaNames = forecastItems.map((f) => f.areaName);
@@ -16,15 +17,22 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     maxHeightDescription: f.maxHeightDescription || undefined,
     firstHeight: f.firstHeight || undefined,
   }));
+  const displayForecastItems = displayInfo.forecast ?? [];
+  const displayAreaItems: PresentationAreaItem[] = displayForecastItems.map((f) => ({
+    name: f.areaName,
+    kind: f.kind,
+    maxHeightDescription: f.maxHeightDescription || undefined,
+    firstHeight: f.firstHeight || undefined,
+  }));
   const presentationGroups = outcome.state.presentationObservationGroups == null
     ? null
     : {
         VTSE51: buildTsunamiObservations({
-          ...info,
+          ...displayInfo,
           observations: outcome.state.presentationObservationGroups.VTSE51,
         }),
         VTSE52: buildTsunamiObservations({
-          ...info,
+          ...displayInfo,
           observations: outcome.state.presentationObservationGroups.VTSE52,
         }),
       };
@@ -64,8 +72,13 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     municipalityCount: 0,
     observationCount: 0,
     areaItems,
+    tsunamiDisplay: {
+      kinds: displayForecastItems.map((f) => f.kind),
+      areaItems: displayAreaItems,
+      warningComment: displayInfo.warningComment || null,
+    },
     tsunamiObservations: presentationGroups == null
-      ? buildTsunamiObservations(info)
+      ? buildTsunamiObservations(displayInfo)
       : [...presentationGroups.VTSE51, ...presentationGroups.VTSE52],
     ...(presentationGroups == null ? {} : { tsunamiObservationGroups: presentationGroups }),
 

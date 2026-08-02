@@ -25,6 +25,19 @@ import {
 import type { WsDataMessage } from "../../../../src/types";
 import zlib from "node:zlib";
 
+function cancellationForWarning() {
+  const cancellation = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
+  return {
+    ...cancellation,
+    xmlReport: cancellation.xmlReport == null
+      ? undefined
+      : {
+          ...cancellation.xmlReport,
+          head: { ...cancellation.xmlReport.head, eventId: "20110311144640" },
+        },
+  };
+}
+
 vi.mock("fs", async () => {
   const actual = await vi.importActual<typeof import("fs")>("fs");
   return {
@@ -110,7 +123,7 @@ describe("processMessage", () => {
   it("津波の発表→取消→古い発表は null となり、表示・通知・統計へ流れない", () => {
     const deps = makeDeps();
     const warning = createMockWsDataMessage(FIXTURE_VTSE41_WARN);
-    const cancellation = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
+    const cancellation = cancellationForWarning();
 
     expect(processMessage(warning, "tsunami", deps)?.domain).toBe("tsunami");
     expect(processMessage(cancellation, "tsunami", deps)?.domain).toBe("tsunami");

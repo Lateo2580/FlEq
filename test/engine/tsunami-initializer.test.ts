@@ -94,7 +94,17 @@ function createResponse(items: TelegramListItem[]): TelegramListResponse {
 }
 
 function legacyInfo(info: LegacyParsedTsunamiInfoInput): ParsedTsunamiInfo {
-  return canonicalizeLegacyTsunamiInfo(info);
+  return canonicalizeLegacyTsunamiInfo({
+    ...info,
+    forecast: info.forecast?.map((item, index) => {
+      const { areaCode, kindCode, ...rest } = item;
+      return {
+        ...rest,
+        areaCode: areaCode === undefined ? `test-area-${index}` : areaCode,
+        kindCode: kindCode === undefined ? `test-kind-${index}` : kindCode,
+      };
+    }),
+  });
 }
 
 describe("restoreTsunamiState", () => {
@@ -218,6 +228,97 @@ describe("restoreTsunamiState", () => {
     )).toEqual(expect.objectContaining({ reportDateTime: active.reportDateTime }));
     expect(restartedState.getLevel()).toBe("津波警報");
     expect(persistReconstructedState).toHaveBeenCalledTimes(1);
+  });
+
+  it("persisted active なしで REST が部分取消を返しても空 holder を再構成しない", async () => {
+    const active = legacyInfo({
+      meta: createTelegramMeta({
+        messageId: "partial-restore-active",
+        eventId: "tsunami",
+        type: "VTSE41",
+        reportDateTime: "2025-01-01T00:01:00+09:00",
+        serial: null,
+        infoType: "発表",
+        receivedAtMs: Date.parse("2025-01-01T00:01:01+09:00"),
+        status: "通常",
+        isTest: false,
+      }),
+      type: "VTSE41",
+      infoType: "発表",
+      title: "津波警報・注意報・予報",
+      reportDateTime: "2025-01-01T00:01:00+09:00",
+      headline: null,
+      publishingOffice: "気象庁",
+      forecast: [
+        {
+          areaCode: "210",
+          areaName: "解除対象",
+          kindCode: "51",
+          kind: "津波警報",
+          maxHeightDescription: "3m",
+          firstHeight: "",
+        },
+        {
+          areaCode: "220",
+          areaName: "残存対象",
+          kindCode: "62",
+          kind: "津波注意報",
+          maxHeightDescription: "1m",
+          firstHeight: "",
+        },
+      ],
+      warningComment: "",
+      isTest: false,
+    });
+    const cancellation = legacyInfo({
+      ...active,
+      meta: createTelegramMeta({
+        messageId: "partial-restore-cancellation",
+        eventId: "tsunami",
+        type: "VTSE41",
+        reportDateTime: "2025-01-01T00:02:00+09:00",
+        serial: null,
+        infoType: "取消",
+        receivedAtMs: Date.parse("2025-01-01T00:02:01+09:00"),
+        status: "通常",
+        isTest: false,
+      }),
+      infoType: "取消",
+      reportDateTime: "2025-01-01T00:02:00+09:00",
+      forecast: [{
+        areaCode: "210",
+        areaName: "解除対象",
+        kindCode: "51",
+        kind: "津波警報",
+        maxHeightDescription: "3m",
+        firstHeight: "",
+      }],
+    });
+    mockParseTsunami.mockReturnValueOnce(active);
+    expect(processTsunami(toWsDataMessage(
+      createTelegramItem({ id: "partial-restore-active" }),
+      "dGVzdA==",
+    ), { tsunamiState, revisionGate }).kind).toBe("ok");
+    mockParseTsunami.mockReturnValueOnce(cancellation);
+    expect(processTsunami(toWsDataMessage(
+      createTelegramItem({ id: "partial-restore-cancellation" }),
+      "dGVzdA==",
+    ), { tsunamiState, revisionGate }).kind).toBe("ok");
+
+    const restartedState = new TsunamiStateHolder();
+    const restartedGate = new TelegramRevisionGate();
+    restartedGate.restoreDurableEntries(revisionGate.exportDurableEntries());
+    mockListTelegrams.mockResolvedValue(createResponse([
+      createTelegramItem({ id: "partial-restore-cancellation-rest" }),
+    ]));
+    mockParseTsunami.mockReturnValueOnce({
+      ...cancellation,
+      meta: { ...cancellation.meta, messageId: "partial-restore-cancellation-rest" },
+    });
+
+    expect(await restoreTsunamiState("test-key", restartedState, restartedGate)).toBeNull();
+    expect(restartedState.getLastInfo()).toBeNull();
+    expect(restartedState.getLevel()).toBeNull();
   });
 
   it("同一 revision 訂正後の active を実ファイル往復し、REST 不通でも維持する", async () => {

@@ -5,6 +5,7 @@ import {
   PromptStatusRole,
   DetailProvider,
   DetailSnapshotOf,
+  TsunamiForecastItem,
   TsunamiObservationStation,
 } from "../../types";
 import {
@@ -43,6 +44,33 @@ function emptyObservationGroups(): TsunamiObservationGroups {
   return { VTSE51: [], VTSE52: [] };
 }
 
+interface KeyedTsunamiForecastItem {
+  eventId: string;
+  item: TsunamiForecastItem;
+}
+
+function nonBlankCode(code: string | null): string | null {
+  return code == null || code.trim() === "" ? null : code;
+}
+
+function tsunamiForecastStateKey(
+  eventId: string,
+  item: TsunamiForecastItem,
+): string | null {
+  const areaCode = nonBlankCode(item.areaCode);
+  const kindCode = nonBlankCode(item.kindCode);
+  return areaCode == null || kindCode == null
+    ? null
+    : JSON.stringify([eventId, areaCode, kindCode]);
+}
+
+function tsunamiEventId(info: ParsedTsunamiInfo): string | null {
+  const eventId = info.meta.eventId;
+  return eventId.valid && eventId.value != null && eventId.value.trim() !== ""
+    ? eventId.value
+    : null;
+}
+
 /**
  * 津波情報の状態を保持し、プロンプト表示と detail コマンドを提供する。
  */
@@ -54,6 +82,9 @@ export class TsunamiStateHolder
 
   private currentLevel: TsunamiLevelLabel | null = null;
   private lastInfo: ParsedTsunamiInfo | null = null;
+  private keyedForecasts = new Map<string, KeyedTsunamiForecastItem>();
+  private eventInfos = new Map<string, ParsedTsunamiInfo>();
+  private legacyRestoredInfo: ParsedTsunamiInfo | null = null;
   private observationGroups = emptyObservationGroups();
 
   /** 現在の警報レベルを返す (テスト用) */
@@ -71,7 +102,64 @@ export class TsunamiStateHolder
   }
 
   getPersistedActive(): ParsedTsunamiInfo | null {
-    return this.lastInfo == null ? null : structuredClone(this.lastInfo);
+    if (this.keyedForecasts.size === 0) return null;
+    // legacy scalar も live aggregate の一員。keyed Event と併存中は
+    // scalar schema で単一 EventID を証明できないため保存しない。
+    if (this.legacyRestoredInfo != null) return null;
+    const eventIds = new Set(
+      [...this.keyedForecasts.values()].map((entry) => entry.eventId),
+    );
+    // v2 の scalar active に複数 EventID を詰めると、復元時に全 item が
+    // 一つの EventID へ誤帰属する。keyed schema 導入までは保存しない。
+    if (eventIds.size !== 1) return null;
+    const eventId = eventIds.values().next().value as string;
+    const envelope = this.eventInfos.get(eventId);
+    if (envelope == null) return null;
+    const forecast = [...this.keyedForecasts.values()]
+      .filter((entry) => entry.eventId === eventId)
+      .map((entry) => entry.item);
+    const level = resolveTsunamiLevel(forecast.map((item) => item.kind))?.label ?? null;
+    return level == null
+      ? null
+      : structuredClone({ ...envelope, forecast });
+  }
+
+  /**
+   * live presentation 用 snapshot。unkeyed item はこの返り値にだけ合成し、
+   * holder state と永続化には入れない。
+   */
+  getPresentationInfo(incoming: ParsedTsunamiInfo): ParsedTsunamiInfo | null {
+    if (this.lastInfo == null) return null;
+    if (incoming.meta.infoType.value === "取消") return this.lastInfo;
+    const incomingEventId = tsunamiEventId(incoming);
+    const unkeyed = (incoming.forecast ?? []).filter((item) =>
+      incomingEventId == null || tsunamiForecastStateKey(incomingEventId, item) == null);
+    return unkeyed.length === 0
+      ? this.lastInfo
+      : { ...this.lastInfo, forecast: [...(this.lastInfo.forecast ?? []), ...unkeyed] };
+  }
+
+  /**
+   * コード付き部分取消後も同じ EventID の active state が残るかを、mutation 前に判定する。
+   * gate は残存時に non-cancel watermark として commit する。
+   */
+  retainsEventAfterCancellation(info: ParsedTsunamiInfo): boolean {
+    const eventId = tsunamiEventId(info);
+    const forecast = info.forecast ?? [];
+    if (eventId == null || forecast.length === 0) return false;
+    const targetKeys = new Set(
+      forecast.flatMap((item) => {
+        const key = tsunamiForecastStateKey(eventId, item);
+        return key == null ? [] : [key];
+      }),
+    );
+    if (targetKeys.size === 0) return false;
+    if (
+      this.legacyRestoredInfo != null
+      && tsunamiEventId(this.legacyRestoredInfo) === eventId
+    ) return true;
+    return [...this.keyedForecasts].some(([key, entry]) =>
+      entry.eventId === eventId && !targetKeys.has(key));
   }
 
   applyAcceptedObservations(
@@ -120,22 +208,114 @@ export class TsunamiStateHolder
     groups: TsunamiObservationGroups,
   ): void {
     this.restoreObservationGroups(groups);
-    if (active == null) this.clearActiveState();
-    else this.applyAccepted(structuredClone(active));
+    this.clearActiveState();
+    if (active == null) return;
+    const restored = structuredClone(active);
+    const eventId = tsunamiEventId(restored);
+    const hasKeyedItem = eventId != null && (restored.forecast ?? []).some(
+      (item) => tsunamiForecastStateKey(eventId, item) != null,
+    );
+    if (hasKeyedItem) {
+      this.applyAccepted(restored);
+      return;
+    }
+    // 旧 scalar snapshot はコードを持たない場合がある。live の unkeyed
+    // mutation とは分離しつつ、既存 snapshot の単一 EventID 復元は維持する。
+    const level = resolveTsunamiLevel(
+      (restored.forecast ?? []).map((item) => item.kind),
+    )?.label ?? null;
+    if (level != null) {
+      this.legacyRestoredInfo = restored;
+      this.currentLevel = level;
+      this.lastInfo = restored;
+    }
   }
 
   /** 共通 revision gate が受理した VTSE41 を active state へ反映する。 */
   applyAccepted(info: ParsedTsunamiInfo): void {
-    const kinds = (info.forecast ?? []).map((f) => f.kind);
-    const level = resolveTsunamiLevel(kinds)?.label ?? null;
-
-    if (level == null) {
-      this.clearActiveState();
-      return;
+    const eventId = tsunamiEventId(info);
+    const keyed = new Map<string, KeyedTsunamiForecastItem>();
+    for (const item of info.forecast ?? []) {
+      const key = eventId == null ? null : tsunamiForecastStateKey(eventId, item);
+      if (key != null) keyed.set(key, { eventId: eventId!, item });
     }
 
-    this.currentLevel = level;
-    this.lastInfo = info;
+    const forecast = info.forecast ?? [];
+    const hasUnkeyedItem = keyed.size !== forecast.length;
+    if (eventId != null && (forecast.length === 0 || keyed.size > 0)) {
+      if (
+        this.legacyRestoredInfo != null
+        && tsunamiEventId(this.legacyRestoredInfo) === eventId
+      ) {
+        this.legacyRestoredInfo = null;
+      }
+      // 全 item が keyed の完全 snapshot だけ event 集合を置換する。
+      // 混在報は unkeyed item に対応し得る旧 state を消さず、keyed 分だけ upsert する。
+      if (!hasUnkeyedItem) {
+        for (const [key, entry] of this.keyedForecasts) {
+          if (entry.eventId === eventId) this.keyedForecasts.delete(key);
+        }
+      }
+      for (const [key, entry] of keyed) this.keyedForecasts.set(key, entry);
+      this.eventInfos.delete(eventId);
+      if (keyed.size > 0) {
+        const eventForecast = [...this.keyedForecasts.values()]
+          .filter((entry) => entry.eventId === eventId)
+          .map((entry) => entry.item);
+        this.eventInfos.set(eventId, {
+          ...info,
+          forecast: eventForecast,
+        });
+      }
+    }
+    // item があるのに照合可能 key がゼロなら fail-open 表示だけに留める。
+    this.rebuildActiveState();
+  }
+
+  /**
+   * InfoType=取消 を、EventID で絞った keyed item state へだけ反映する。
+   * item 名称は照合しない。コードを持たない item は解除対象にできない。
+   */
+  clearAccepted(info: ParsedTsunamiInfo): void {
+    const eventId = tsunamiEventId(info);
+    if (eventId == null) return;
+    const forecast = info.forecast ?? [];
+    const clearsWholeEvent = forecast.length === 0;
+    const targetKeys = new Set(
+      forecast.flatMap((item) => {
+        const key = tsunamiForecastStateKey(eventId, item);
+        return key == null ? [] : [key];
+      }),
+    );
+    // コード欠落 item 付き取消は全体取消ではない。照合不能なら mutation しない。
+    if (!clearsWholeEvent && targetKeys.size === 0) return;
+    for (const [key, entry] of this.keyedForecasts) {
+      if (entry.eventId === eventId && (clearsWholeEvent || targetKeys.has(key))) {
+        this.keyedForecasts.delete(key);
+      }
+    }
+    if (clearsWholeEvent) {
+      this.eventInfos.delete(eventId);
+      if (
+        this.legacyRestoredInfo != null
+        && tsunamiEventId(this.legacyRestoredInfo) === eventId
+      ) {
+        this.legacyRestoredInfo = null;
+      }
+    } else {
+      const envelope = this.eventInfos.get(eventId);
+      if (envelope != null) {
+        const remaining = [...this.keyedForecasts.values()]
+          .filter((entry) => entry.eventId === eventId)
+          .map((entry) => entry.item);
+        this.eventInfos.delete(eventId);
+        if (remaining.length > 0) {
+          this.eventInfos.set(eventId, { ...envelope, forecast: remaining });
+        }
+      }
+    }
+    this.rebuildActiveState();
+    if (this.currentLevel == null) this.observationGroups = emptyObservationGroups();
   }
 
   /** 共通 clearCurrent decision を active state へ反映する。watermark は registry が保持する。 */
@@ -153,6 +333,27 @@ export class TsunamiStateHolder
   private clearActiveState(): void {
     this.currentLevel = null;
     this.lastInfo = null;
+    this.keyedForecasts.clear();
+    this.eventInfos.clear();
+    this.legacyRestoredInfo = null;
+  }
+
+  private rebuildActiveState(): void {
+    const keyedForecast = [...this.keyedForecasts.values()].map((entry) => entry.item);
+    const forecast = [
+      ...(this.legacyRestoredInfo?.forecast ?? []),
+      ...keyedForecast,
+    ];
+    const level = resolveTsunamiLevel(forecast.map((item) => item.kind))?.label ?? null;
+    if (level == null) {
+      this.currentLevel = null;
+      this.lastInfo = null;
+      return;
+    }
+    this.currentLevel = level;
+    const envelope = [...this.eventInfos.values()].at(-1);
+    const base = envelope ?? this.legacyRestoredInfo;
+    this.lastInfo = base == null ? null : { ...base, forecast };
   }
 
   // ── PromptStatusProvider ──

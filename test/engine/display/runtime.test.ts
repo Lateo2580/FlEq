@@ -39,9 +39,9 @@ function tsunamiInfo(over: Partial<LegacyParsedTsunamiInfoInput> = {}): ParsedTs
     headline: null,
     publishingOffice: "気象庁",
     forecast: [
-      { areaName: "石川県能登", kind: "津波警報", maxHeightDescription: "３ｍ", firstHeight: "既に到達と推測" },
-      { areaName: "新潟県上中下越", kind: "津波注意報", maxHeightDescription: "１ｍ", firstHeight: "０６日２２時００分" },
-      { areaName: "北海道太平洋沿岸東部", kind: "津波予報（若干の海面変動）", maxHeightDescription: "0.2m未満", firstHeight: "" },
+      { areaCode: "340", areaName: "石川県能登", kindCode: "51", kind: "津波警報", maxHeightDescription: "３ｍ", firstHeight: "既に到達と推測" },
+      { areaCode: "250", areaName: "新潟県上中下越", kindCode: "62", kind: "津波注意報", maxHeightDescription: "１ｍ", firstHeight: "０６日２２時００分" },
+      { areaCode: "103", areaName: "北海道太平洋沿岸東部", kindCode: "71", kind: "津波予報（若干の海面変動）", maxHeightDescription: "0.2m未満", firstHeight: "" },
     ],
     warningComment: "",
     isTest: false,

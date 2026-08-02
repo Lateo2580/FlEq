@@ -232,15 +232,21 @@ function projectEmergency(
       }),
     };
   }
-  if (event.domain === "tsunami" && !event.isCancellation) {
-    const info = resolveTsunamiLevel(event.tsunamiKinds ?? []);
+  // 受信意味の取消と表示 aggregate は独立。残存 aggregate があればカードを更新する。
+  if (event.domain === "tsunami") {
+    const displayKinds = event.tsunamiDisplay?.kinds ?? event.tsunamiKinds ?? [];
+    const displayAreaItems = event.tsunamiDisplay?.areaItems ?? event.areaItems;
+    const displayWarningComment = event.tsunamiDisplay == null
+      ? event.warningComment ?? null
+      : event.tsunamiDisplay.warningComment;
+    const info = resolveTsunamiLevel(displayKinds);
     if (info == null) return null;
     return {
       kind: "tsunami",
       level: info.level,
       levelLabel: info.label,
-      coasts: pickAlertCoasts(event.areaItems, info.label),
-      warningComment: event.warningComment ?? null,
+      coasts: pickAlertCoasts(displayAreaItems, info.label),
+      warningComment: displayWarningComment,
       observations: (event.tsunamiObservations ?? []).map((o) => ({
         ...o,
         areaKind: o.areaKind != null ? normalizeTsunamiKind(o.areaKind) : null,

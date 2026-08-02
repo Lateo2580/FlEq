@@ -750,9 +750,17 @@ describe("projectDisplayEvent", () => {
     expect(dto.summary.role).toBe("tsunamiWarning");
   });
 
-  it("津波取消は emergency null になる", () => {
+  it("津波取消でも表示 aggregate が残れば emergency を維持する", () => {
     const dto = projectDisplayEvent(
       baseEvent({ domain: "tsunami", type: "VTSE41", isCancellation: true, tsunamiKinds: ["津波警報"] }),
+      "取消要約",
+    );
+    expect(dto.emergency).toMatchObject({ kind: "tsunami", level: "warning" });
+  });
+
+  it("津波取消の表示 aggregate が空なら emergency null になる", () => {
+    const dto = projectDisplayEvent(
+      baseEvent({ domain: "tsunami", type: "VTSE41", isCancellation: true, tsunamiKinds: [] }),
       "取消要約",
     );
     expect(dto.emergency).toBeNull();
