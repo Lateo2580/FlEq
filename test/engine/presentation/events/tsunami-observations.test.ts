@@ -2,9 +2,13 @@ import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { buildTsunamiObservations } from "../../../../src/engine/presentation/events/tsunami-observations";
 import type { ParsedTsunamiInfo } from "../../../../src/types";
+import {
+  canonicalizeLegacyTsunamiInfo,
+  type LegacyParsedTsunamiInfoInput,
+} from "../../../../src/dmdata/tsunami-legacy-adapter";
 
-function baseInfo(over: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
-  return {
+function baseInfo(over: Partial<LegacyParsedTsunamiInfoInput> = {}): ParsedTsunamiInfo {
+  return canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE51",
     infoType: "発表",
@@ -15,7 +19,7 @@ function baseInfo(over: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
     warningComment: "",
     isTest: false,
     ...over,
-  };
+  });
 }
 
 describe("buildTsunamiObservations", () => {

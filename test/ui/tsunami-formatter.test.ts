@@ -19,6 +19,11 @@ import { type ParsedTsunamiInfo } from "../../src/types";
 import { parseTsunamiTelegram } from "../../src/dmdata/telegram-parser";
 import { tsunamiFrameLevel } from "../../src/engine/presentation/level-helpers";
 import {
+  canonicalizeLegacyTsunamiForecastItem,
+  canonicalizeLegacyTsunamiInfo,
+  type LegacyTsunamiForecastItemInput,
+} from "../../src/dmdata/tsunami-legacy-adapter";
+import {
   createMockWsDataMessage,
   FIXTURE_VTSE41_WARN,
   FIXTURE_VTSE51_INFO,
@@ -200,17 +205,17 @@ describe("mergeRepeated 列 (Task 7: 区分/地域名の縦反復間引き)", ()
 
 describe("buildTsunamiForecastRows / buildTsunamiTideStationRows", () => {
   it("forecast rows は kind rank 順にソートされる", () => {
-    const rows = buildTsunamiForecastRows([
+    const rows = buildTsunamiForecastRows(([
       { areaName: "A", kind: "津波注意報", maxHeightDescription: "１ｍ", firstHeight: "" },
       { areaName: "B", kind: "大津波警報", maxHeightDescription: "巨大", firstHeight: "" },
       { areaName: "C", kind: "津波警報", maxHeightDescription: "高い", firstHeight: "" },
-    ]);
+    ] satisfies LegacyTsunamiForecastItemInput[]).map(canonicalizeLegacyTsunamiForecastItem));
     expect(rows.map((r) => r.areaName)).toEqual(["B", "C", "A"]);
     expect(rows.map((r) => r.severity)).toEqual(["major", "warning", "advisory"]);
   });
 
   it("tide rows は severity 順の予報区 → 電文内観測点順で flatten される", () => {
-    const rows = buildTsunamiTideStationRows([
+    const rows = buildTsunamiTideStationRows(([
       {
         areaName: "後", kind: "津波警報", maxHeightDescription: "", firstHeight: "",
         stations: [{ name: "s3", highTideDateTime: "", arrivalTime: "" }],
@@ -223,7 +228,7 @@ describe("buildTsunamiForecastRows / buildTsunamiTideStationRows", () => {
         ],
       },
       { areaName: "無", kind: "津波注意報", maxHeightDescription: "", firstHeight: "" },
-    ]);
+    ] satisfies LegacyTsunamiForecastItemInput[]).map(canonicalizeLegacyTsunamiForecastItem));
     expect(rows.map((r) => r.stationName)).toEqual(["s1", "s2", "s3"]);
     expect(rows[0].areaName).toBe("先");
   });
@@ -275,7 +280,7 @@ it.each([
 
 const LONG_AREA = "非常に長い架空の津波予報区名でセル幅を必ず超過させる検証用文字列";
 const LONG_HEIGHT = "１０ｍを大きく超える巨大な津波が長時間継続するおそれ";
-const syntheticLongInfo = (): ParsedTsunamiInfo => ({
+const syntheticLongInfo = (): ParsedTsunamiInfo => canonicalizeLegacyTsunamiInfo({
   meta: testTelegramMeta(false),
   type: "VTSE41",
   infoType: "発表",
@@ -342,7 +347,7 @@ describe("折りたたみ detail 復元 (Codex review Important #2)", () => {
   beforeEach(() => { chalk.level = 3; setFrameWidth(140); });
   afterEach(() => { setFrameWidth(60); setMaxObservations(null); });
 
-  const manyStationInfo = (): ParsedTsunamiInfo => ({
+  const manyStationInfo = (): ParsedTsunamiInfo => canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE51",
     infoType: "発表",
@@ -421,7 +426,7 @@ describe("severity 整合 (acceptance 9: 枠は tsunamiFrameLevel 由来)", () =
   });
 
   it("synthetic kind でも整合する (suffix 付き・解除・未知)", () => {
-    const mk = (kind: string): ParsedTsunamiInfo => ({
+    const mk = (kind: string): ParsedTsunamiInfo => canonicalizeLegacyTsunamiInfo({
       ...syntheticLongInfo(),
       forecast: [{ areaName: "X", kind, maxHeightDescription: "", firstHeight: "" }],
     });
@@ -497,7 +502,7 @@ describe("VTSE52 センサー列の standard 表示 (spec §8 R2-1)", () => {
   beforeEach(() => { chalk.level = 3; });
   afterEach(() => { setFrameWidth(60); });
 
-  const obsInfo = (): ParsedTsunamiInfo => ({
+  const obsInfo = (): ParsedTsunamiInfo => canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE52",
     infoType: "発表",

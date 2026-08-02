@@ -19,9 +19,11 @@ import { compareRevision, type StandbyRevision } from "./standby-registry";
 import type {
   ParsedEarthquakeHypocenter,
   ParsedTsunamiInfo,
+  SpecialValue,
+  SpecialValueDiagnostic,
   StrictTextMeta,
   TelegramMeta,
-  TsunamiObservationStation,
+  TsunamiParserDiagnostic,
   Vpws50CurrentAreasForDisplay,
 } from "../../types";
 import {
@@ -30,6 +32,13 @@ import {
   parseStrictReportDateTime,
   parseTelegramSerial,
 } from "../../dmdata/telegram-meta";
+import {
+  canonicalizeLegacyTsunamiInfo,
+  canonicalizeLegacyTsunamiObservation,
+  type LegacyParsedTsunamiInfoInput,
+  type LegacyTsunamiForecastItemInput,
+  type LegacyTsunamiObservationInput,
+} from "../../dmdata/tsunami-legacy-adapter";
 import {
   Vpws50StateHolder,
   type PersistedVpws50StateV2,
@@ -1144,7 +1153,7 @@ function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntr
     && type.value === value.revisionFamily;
 }
 
-function isTsunamiObservation(value: unknown): value is TsunamiObservationStation {
+function isTsunamiObservation(value: unknown): boolean {
   return isRecord(value)
     && (value.areaName == null || typeof value.areaName === "string")
     && typeof value.stationCode === "string"
@@ -1156,6 +1165,160 @@ function isTsunamiObservation(value: unknown): value is TsunamiObservationStatio
     && typeof value.maxHeightCondition === "string"
     && (value.maxHeightValue == null || typeof value.maxHeightValue === "string")
     && (value.maxHeightValueCondition == null || typeof value.maxHeightValueCondition === "string");
+}
+
+function parseTsunamiHeightDiagnostics(value: unknown): SpecialValueDiagnostic[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((item): item is SpecialValueDiagnostic =>
+    item === "unmappedSpecialValue"
+    || item === "specialValueConflict"
+    || item === "legacyNullUnknown")) return null;
+  return [...value];
+}
+
+function parseTsunamiParserDiagnostics(value: unknown): TsunamiParserDiagnostic[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((item): item is TsunamiParserDiagnostic =>
+    item === "unknownTsunamiAreaCode"
+    || item === "unknownTsunamiKindCode")) return null;
+  return [...value];
+}
+
+function sanitizeTsunamiParserDiagnostics(value: Record<string, unknown>): void {
+  if (!Object.hasOwn(value, "diagnostics")) return;
+  const diagnostics = parseTsunamiParserDiagnostics(value.diagnostics);
+  if (diagnostics == null) delete value.diagnostics;
+  else value.diagnostics = diagnostics;
+}
+
+function isStrictNullableString(value: unknown): value is string | null {
+  return value == null ? value !== undefined : typeof value === "string";
+}
+
+function isStrictNullableFiniteNumber(value: unknown): value is number | null {
+  return value == null
+    ? value !== undefined
+    : typeof value === "number" && Number.isFinite(value);
+}
+
+function parsePersistedTsunamiHeight(value: unknown): SpecialValue<number> | null {
+  if (
+    !isRecord(value)
+    || !Object.hasOwn(value, "raw")
+    || !Object.hasOwn(value, "value")
+    || !Object.hasOwn(value, "condition")
+    || !Object.hasOwn(value, "description")
+    || !Object.hasOwn(value, "presence")
+    || !isStrictNullableString(value.raw)
+    || !isStrictNullableFiniteNumber(value.value)
+    || !isStrictNullableString(value.condition)
+    || !isStrictNullableString(value.description)
+    || !["value", "missing", "empty", "unknown", "qualitative", "range"].includes(
+      typeof value.presence === "string" ? value.presence : "",
+    )
+  ) return null;
+  if (Object.hasOwn(value, "lowerBound") && !isStrictNullableFiniteNumber(value.lowerBound)) return null;
+  if (Object.hasOwn(value, "upperBound") && !isStrictNullableFiniteNumber(value.upperBound)) return null;
+  if (Object.hasOwn(value, "rawLowerBound") && !isStrictNullableString(value.rawLowerBound)) return null;
+  if (Object.hasOwn(value, "rawUpperBound") && !isStrictNullableString(value.rawUpperBound)) return null;
+  const hasDiagnostics = Object.hasOwn(value, "diagnostics");
+  const diagnostics = hasDiagnostics ? parseTsunamiHeightDiagnostics(value.diagnostics) : undefined;
+  if (hasDiagnostics && diagnostics == null) return null;
+
+  const parsed: SpecialValue<number> = {
+    raw: value.raw as string | null,
+    value: value.value as number | null,
+    condition: value.condition as string | null,
+    description: value.description as string | null,
+    presence: value.presence as SpecialValue<number>["presence"],
+    ...(Object.hasOwn(value, "lowerBound")
+      ? { lowerBound: value.lowerBound as number | null }
+      : {}),
+    ...(Object.hasOwn(value, "upperBound")
+      ? { upperBound: value.upperBound as number | null }
+      : {}),
+    ...(Object.hasOwn(value, "rawLowerBound")
+      ? { rawLowerBound: value.rawLowerBound as string | null }
+      : {}),
+    ...(Object.hasOwn(value, "rawUpperBound")
+      ? { rawUpperBound: value.rawUpperBound as string | null }
+      : {}),
+    ...(diagnostics == null ? {} : { diagnostics }),
+  };
+  const hasLower = Object.hasOwn(parsed, "lowerBound");
+  const hasUpper = Object.hasOwn(parsed, "upperBound");
+  const hasCanonicalBounds = hasLower || hasUpper;
+  const hasRawLower = Object.hasOwn(parsed, "rawLowerBound");
+  const hasRawUpper = Object.hasOwn(parsed, "rawUpperBound");
+  if (hasRawLower !== hasRawUpper) return null;
+  if (parsed.presence === "value" ? parsed.value == null : parsed.value != null) return null;
+  if (parsed.presence === "missing") {
+    return parsed.raw == null
+      && parsed.condition == null
+      && parsed.description == null
+      && !hasCanonicalBounds
+      && !hasRawLower
+      ? parsed
+      : null;
+  }
+  if (parsed.presence === "value") {
+    return parsed.raw != null && !hasCanonicalBounds ? parsed : null;
+  }
+  if (parsed.presence === "empty") {
+    return parsed.raw != null
+      && parsed.raw.trim() === ""
+      && !hasCanonicalBounds
+      && !hasRawLower
+      ? parsed
+      : null;
+  }
+  if (parsed.presence === "range") {
+    return parsed.raw != null
+      && (hasLower && parsed.lowerBound != null || hasUpper && parsed.upperBound != null)
+      ? parsed
+      : null;
+  }
+  if (parsed.presence === "qualitative") return parsed.raw != null ? parsed : null;
+  const legacyNull = parsed.diagnostics?.includes("legacyNullUnknown") === true;
+  return (parsed.raw != null || legacyNull) && !hasCanonicalBounds ? parsed : null;
+}
+
+function sanitizePersistedTsunamiForecast(
+  value: unknown,
+): LegacyTsunamiForecastItemInput {
+  const sanitized = structuredClone(value) as Record<string, unknown>;
+  sanitizeTsunamiParserDiagnostics(sanitized);
+  if (Object.hasOwn(sanitized, "areaCode") && !isStrictNullableString(sanitized.areaCode)) {
+    delete sanitized.areaCode;
+  }
+  if (Object.hasOwn(sanitized, "kindCode") && !isStrictNullableString(sanitized.kindCode)) {
+    delete sanitized.kindCode;
+  }
+  if (typeof sanitized.kindName !== "string") delete sanitized.kindName;
+  const maxHeight = parsePersistedTsunamiHeight(sanitized.maxHeight);
+  if (maxHeight == null) delete sanitized.maxHeight;
+  else sanitized.maxHeight = maxHeight;
+  return sanitized as unknown as LegacyTsunamiForecastItemInput;
+}
+
+function sanitizePersistedTsunamiObservation(
+  value: unknown,
+): LegacyTsunamiObservationInput {
+  const sanitized = structuredClone(value) as Record<string, unknown>;
+  const maxHeight = parsePersistedTsunamiHeight(sanitized.maxHeight);
+  if (maxHeight == null) delete sanitized.maxHeight;
+  else sanitized.maxHeight = maxHeight;
+  return sanitized as unknown as LegacyTsunamiObservationInput;
+}
+
+function sanitizePersistedTsunamiActive(value: unknown): LegacyParsedTsunamiInfoInput {
+  const sanitized = structuredClone(value) as Record<string, unknown>;
+  sanitizeTsunamiParserDiagnostics(sanitized);
+  sanitized.forecast = (sanitized.forecast as unknown[]).map(sanitizePersistedTsunamiForecast);
+  if (Array.isArray(sanitized.observations)) {
+    sanitized.observations = sanitized.observations.map(sanitizePersistedTsunamiObservation);
+  }
+  return sanitized as unknown as LegacyParsedTsunamiInfoInput;
 }
 
 function isPersistedTelegramMeta(value: unknown): value is TelegramMeta {
@@ -1210,7 +1373,7 @@ function isPersistedTsunamiEarthquake(value: unknown): value is ParsedEarthquake
   );
 }
 
-function isPersistedTsunamiActive(value: unknown): value is ParsedTsunamiInfo {
+function isPersistedTsunamiActive(value: unknown): boolean {
   if (
     !isRecord(value)
     || value.type !== "VTSE41"
@@ -1336,12 +1499,15 @@ function sanitizeTsunamiFoundation(
   if (!isRecord(value) || !isRecord(value.observations) || !Array.isArray(value.gateEntries)) {
     return null;
   }
-  const active = value.active == null
+  const legacyActive = value.active == null
     ? null
     : isPersistedTsunamiActive(value.active)
-      ? value.active
+      ? sanitizePersistedTsunamiActive(value.active)
       : undefined;
-  if (active === undefined) return null;
+  if (legacyActive === undefined) return null;
+  const active = legacyActive == null
+    ? null
+    : canonicalizeLegacyTsunamiInfo(structuredClone(legacyActive));
   const rawGroups = value.observations;
   if (
     !Array.isArray(rawGroups.VTSE51)
@@ -1379,9 +1545,11 @@ function sanitizeTsunamiFoundation(
   ) return null;
 
   const groups = {
-    VTSE51: (structuredClone(rawGroups.VTSE51) as TsunamiObservationStation[])
+    VTSE51: rawGroups.VTSE51
+      .map((item) => canonicalizeLegacyTsunamiObservation(sanitizePersistedTsunamiObservation(item)))
       .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
-    VTSE52: (structuredClone(rawGroups.VTSE52) as TsunamiObservationStation[])
+    VTSE52: rawGroups.VTSE52
+      .map((item) => canonicalizeLegacyTsunamiObservation(sanitizePersistedTsunamiObservation(item)))
       .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
   };
   for (const family of ["VTSE51", "VTSE52"] as const) {

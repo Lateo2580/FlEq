@@ -34,6 +34,7 @@ import { parseEarthquakeTelegram, parseLgObservationTelegram, parseNankaiTroughT
 import { parseWeatherBriefing } from "../../src/dmdata/briefing-parser";
 import { parseEarlyWeather } from "../../src/dmdata/early-weather-parser";
 import { parseWeatherWarning } from "../../src/dmdata/weather-parser";
+import { canonicalizeLegacyTsunamiInfo } from "../../src/dmdata/tsunami-legacy-adapter";
 import {
   createMockWsDataMessage,
   FIXTURE_VPZI50_HOT_DRY,
@@ -326,7 +327,7 @@ describe("Notifier", () => {
     ["大津波警報", "critical"],
   ] as const)("notifyTsunami は %s を %s 音で通知する", (kind, expectedLevel) => {
     const notifier = new Notifier();
-    const info: ParsedTsunamiInfo = {
+    const info = canonicalizeLegacyTsunamiInfo({
       meta: testTelegramMeta(false),
       type: "VTSE41",
       infoType: "発表",
@@ -342,7 +343,7 @@ describe("Notifier", () => {
       }],
       warningComment: "",
       isTest: false,
-    };
+    });
     const playSoundMock = vi.mocked(playSound);
     playSoundMock.mockClear();
 

@@ -51,6 +51,15 @@ const LG_INT_CONDITION_TERMS = [
   ...RANGE_UPPER_TERMS,
   "予測幅",
 ] as const;
+const TSUNAMI_HEIGHT_CONDITION_TERMS = [
+  ...UNKNOWN_TERMS,
+  "観測中",
+  "上昇中",
+  "下降中",
+  "重要",
+  ...RANGE_LOWER_TERMS,
+  ...RANGE_UPPER_TERMS,
+] as const;
 
 function isXmlNode(value: unknown): value is XmlNode {
   return typeof value === "object" && value != null && !Array.isArray(value);
@@ -136,6 +145,19 @@ function matchesAnySpecialTerm(value: string | null, terms: readonly string[]): 
   return normalized != null && terms.includes(normalized);
 }
 
+function isMappedTsunamiHeightText(
+  value: string | null,
+  allowHeightLabel: boolean,
+): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null || normalized === "") return true;
+  if (parseNumber(normalized) != null || normalized.toLowerCase() === "nan") return true;
+  if (/巨大|高い|観測中|上昇中|下降中|不明|不詳/.test(normalized)) return true;
+  if (RANGE_LOWER_TERMS.some((term) => normalized.includes(term))) return true;
+  if (RANGE_UPPER_TERMS.some((term) => normalized.includes(term))) return true;
+  return allowHeightLabel && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:m|メートル)$/.test(normalized);
+}
+
 type SpecialPresence = "unknown" | "qualitative";
 
 interface ResolvedSpecialPresence {
@@ -208,6 +230,10 @@ function specialPresence(
         /巨大|高い/.test(parts.description ?? "")
         || includesInBodyOrCondition(parts, /巨大|高い/)
       ) return "qualitative";
+      if (
+        !isMappedTsunamiHeightText(parts.description, true)
+        && parseNumber(parts.raw) == null
+      ) return "qualitative";
       if (includesInBodyOrCondition(parts, /観測中/)) return "qualitative";
       if (
         parts.raw.trim().toLowerCase() === "nan"
@@ -273,14 +299,26 @@ function specialValueDiagnostics(
   hasCanonicalValue: boolean,
   hasSpecialSourceConflict: boolean,
 ): SpecialValueDiagnostic[] | undefined {
-  if (domain !== "Intensity" && domain !== "LgInt") return undefined;
+  if (domain !== "Intensity" && domain !== "LgInt" && domain !== "TsunamiHeight") {
+    return undefined;
+  }
   const diagnostics: SpecialValueDiagnostic[] = [];
   const normalizedCondition = normalizeSpecialTerm(parts.condition);
   if (normalizedCondition != null && normalizedCondition !== "") {
     const knownTerms = domain === "Intensity"
       ? INTENSITY_CONDITION_TERMS
-      : LG_INT_CONDITION_TERMS;
+      : domain === "LgInt"
+        ? LG_INT_CONDITION_TERMS
+        : TSUNAMI_HEIGHT_CONDITION_TERMS;
     if (!knownTerms.some((term) => term === normalizedCondition)) {
+      diagnostics.push("unmappedSpecialValue");
+      if (hasCanonicalValue) diagnostics.push("specialValueConflict");
+    }
+  }
+  if (domain === "TsunamiHeight") {
+    const hasUnmappedText = !isMappedTsunamiHeightText(parts.raw, false)
+      || !isMappedTsunamiHeightText(parts.description, true);
+    if (hasUnmappedText && !diagnostics.includes("unmappedSpecialValue")) {
       diagnostics.push("unmappedSpecialValue");
       if (hasCanonicalValue) diagnostics.push("specialValueConflict");
     }
@@ -429,7 +467,7 @@ export function extractSpecialValue(
     && parsedValue != null
     && includesAny(parts.condition, ["観測中"]);
   if (numericTsunamiObservation) {
-    return { ...common, value: parsedValue, presence: "value" };
+    return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
   }
 
   const special = prioritySpecial?.presence ?? specialPresence(domain, parts);

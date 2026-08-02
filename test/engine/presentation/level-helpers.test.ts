@@ -87,6 +87,10 @@ import type {
   JmaLgIntensity,
   SpecialValue,
 } from "../../../src/types";
+import {
+  canonicalizeLegacyTsunamiInfo,
+  type LegacyParsedTsunamiInfoInput,
+} from "../../../src/dmdata/tsunami-legacy-adapter";
 
 // ── helpers ──
 
@@ -126,9 +130,9 @@ function earthquake(
 }
 
 function tsunami(
-  overrides: Partial<ParsedTsunamiInfo> = {},
+  overrides: Partial<LegacyParsedTsunamiInfoInput> = {},
 ): ParsedTsunamiInfo {
-  return {
+  return canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
@@ -139,7 +143,7 @@ function tsunami(
     warningComment: "",
     isTest: false,
     ...overrides,
-  };
+  });
 }
 
 function seismicText(

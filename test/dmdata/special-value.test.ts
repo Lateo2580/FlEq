@@ -375,6 +375,59 @@ describe("extractSpecialValue", () => {
     });
   });
 
+  it.each([
+    [{ "#text": "新しい波高表現" }, "新しい波高表現", null],
+    [{ "#text": "NaN", "@_condition": "不明", "@_description": "新しい波高表現" }, "NaN", "新しい波高表現"],
+  ] as const)("未知の TsunamiHeight 定性語は qualitative のまま診断を付ける", (
+    node,
+    raw,
+    description,
+  ) => {
+    expect(extractSpecialValue("TsunamiHeight", node)).toEqual({
+      raw,
+      value: null,
+      condition: "@_condition" in node ? node["@_condition"] : null,
+      description,
+      presence: "qualitative",
+      diagnostics: ["unmappedSpecialValue"],
+    });
+  });
+
+  it("未知の TsunamiHeight condition と数値本文は value と診断を両方保持する", () => {
+    expect(extractSpecialValue("TsunamiHeight", {
+      "#text": "3.2",
+      "@_condition": "新しい状態語",
+    })).toEqual({
+      raw: "3.2",
+      value: 3.2,
+      condition: "新しい状態語",
+      description: null,
+      presence: "value",
+      diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
+    });
+  });
+
+  it.each([
+    ["観測中", "新しい波高説明"],
+    ["観測中・新しい状態語", null],
+  ] as const)("数値付き観測中の未知 description／複合 condition でも診断を保持する", (
+    condition,
+    description,
+  ) => {
+    expect(extractSpecialValue("TsunamiHeight", {
+      "#text": "3.2",
+      "@_condition": condition,
+      ...(description == null ? {} : { "@_description": description }),
+    })).toEqual({
+      raw: "3.2",
+      value: 3.2,
+      condition,
+      description,
+      presence: "value",
+      diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
+    });
+  });
+
   it("未知 condition と valid 本文が衝突しても本文を value として保持する", () => {
     expect(extractSpecialValue("WindSpeed", {
       "#text": "25",

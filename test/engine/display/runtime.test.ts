@@ -18,14 +18,19 @@ import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import {
+  canonicalizeLegacyTsunamiInfo,
+  canonicalizeLegacyTsunamiObservation,
+  type LegacyParsedTsunamiInfoInput,
+} from "../../../src/dmdata/tsunami-legacy-adapter";
+import {
   DEFAULT_CONFIG,
   type AppConfig,
   type ParsedTsunamiInfo,
   type Vpws50CurrentAreasForDisplay,
 } from "../../../src/types";
 
-function tsunamiInfo(over: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
-  return {
+function tsunamiInfo(over: Partial<LegacyParsedTsunamiInfoInput> = {}): ParsedTsunamiInfo {
+  return canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
@@ -41,7 +46,7 @@ function tsunamiInfo(over: Partial<ParsedTsunamiInfo> = {}): ParsedTsunamiInfo {
     warningComment: "",
     isTest: false,
     ...over,
-  };
+  });
 }
 
 function mockDisplay(): DisplayCallbacks {
@@ -436,7 +441,7 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
 
   it("TsunamiStateHolder の警報状態が buildSnapshot().tsunami に seed され /healthz が 200 を返す", async () => {
     const holder = new TsunamiStateHolder();
-    holder.applyAcceptedObservations("VTSE51", [{
+    holder.applyAcceptedObservations("VTSE51", [canonicalizeLegacyTsunamiObservation({
       areaName: "岩手県",
       stationCode: "21001",
       name: "宮古",
@@ -445,7 +450,7 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
       initial: "押し",
       maxHeightCondition: "観測中",
       maxHeightValue: "1.0m",
-    }]);
+    })]);
     holder.applyAccepted(tsunamiInfo());
     distDir = mkdtempSync(join(tmpdir(), "fleq-display-"));
     writeFileSync(join(distDir, "index.html"), "<html>ok</html>");

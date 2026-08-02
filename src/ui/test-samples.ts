@@ -24,6 +24,7 @@ import type {
 } from "../types";
 import { displayEewInfo } from "./eew-formatter";
 import { displaySeismicTextInfo } from "./seismic-text-formatter";
+import { canonicalizeLegacyTsunamiInfo } from "../dmdata/tsunami-legacy-adapter";
 
 const SAMPLE_TELEGRAM_META: TelegramMeta = {
   messageId: "preview-sample",
@@ -392,7 +393,7 @@ export const SAMPLE_EEW = {
 } satisfies ParsedEewInfo;
 
 /** 津波情報サンプル */
-export const SAMPLE_TSUNAMI = {
+export const SAMPLE_TSUNAMI = canonicalizeLegacyTsunamiInfo({
   type: "VTSE41",
   infoType: "発表",
   title: "津波警報・注意報・予報a",
@@ -431,7 +432,7 @@ export const SAMPLE_TSUNAMI = {
     "津波による被害のおそれがあります。警報が発表された沿岸部や川沿いにいる人はただちに高台や避難ビルなど安全な場所へ避難してください。",
   meta: SAMPLE_TELEGRAM_META,
   isTest: true,
-} satisfies ParsedTsunamiInfo;
+});
 
 /** 地震活動テキスト情報サンプル */
 export const SAMPLE_SEISMIC_TEXT = {
@@ -729,7 +730,7 @@ const FALLBACK_EEW_FINAL = {
   isWarning: false,
 } satisfies ParsedEewInfo;
 
-const FALLBACK_TSUNAMI_MAJOR = {
+const FALLBACK_TSUNAMI_MAJOR = canonicalizeLegacyTsunamiInfo({
   type: "VTSE41",
   infoType: "発表",
   title: "大津波警報・津波警報・津波注意報",
@@ -755,9 +756,9 @@ const FALLBACK_TSUNAMI_MAJOR = {
   warningComment: "海岸や川沿いから直ちに避難してください。",
   meta: SAMPLE_TELEGRAM_META,
   isTest: true,
-} satisfies ParsedTsunamiInfo;
+});
 
-const FALLBACK_TSUNAMI_ADVISORY = {
+const FALLBACK_TSUNAMI_ADVISORY = canonicalizeLegacyTsunamiInfo({
   type: "VTSE41",
   infoType: "発表",
   title: "大津波警報・津波警報・津波注意報",
@@ -783,9 +784,9 @@ const FALLBACK_TSUNAMI_ADVISORY = {
   warningComment: "海の中では速い流れに注意してください。",
   meta: SAMPLE_TELEGRAM_META,
   isTest: true,
-} satisfies ParsedTsunamiInfo;
+});
 
-const FALLBACK_TSUNAMI_CANCEL = {
+const FALLBACK_TSUNAMI_CANCEL = canonicalizeLegacyTsunamiInfo({
   type: "VTSE41",
   infoType: "取消",
   title: "大津波警報・津波警報・津波注意報",
@@ -795,9 +796,9 @@ const FALLBACK_TSUNAMI_CANCEL = {
   warningComment: "現在、津波の心配はありません。",
   meta: SAMPLE_TELEGRAM_META,
   isTest: true,
-} satisfies ParsedTsunamiInfo;
+});
 
-const FALLBACK_TSUNAMI_OBS = {
+const FALLBACK_TSUNAMI_OBS = canonicalizeLegacyTsunamiInfo({
   type: "VTSE51",
   infoType: "発表",
   title: "津波情報",
@@ -834,9 +835,9 @@ const FALLBACK_TSUNAMI_OBS = {
   warningComment: "今後さらに高い津波が到達するおそれがあります。",
   meta: SAMPLE_TELEGRAM_META,
   isTest: true,
-} satisfies ParsedTsunamiInfo;
+});
 
-const FALLBACK_TSUNAMI_OFFSHORE = {
+const FALLBACK_TSUNAMI_OFFSHORE = canonicalizeLegacyTsunamiInfo({
   type: "VTSE52",
   infoType: "発表",
   title: "沖合の津波観測に関する情報",
@@ -866,7 +867,7 @@ const FALLBACK_TSUNAMI_OFFSHORE = {
   warningComment: "沿岸では引き続き警戒してください。",
   meta: SAMPLE_TELEGRAM_META,
   isTest: true,
-} satisfies ParsedTsunamiInfo;
+});
 
 const FALLBACK_SEISMIC_TEXT_CANCEL = {
   type: "VXSE60",

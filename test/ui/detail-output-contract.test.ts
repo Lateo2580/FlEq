@@ -20,6 +20,7 @@ import type {
 } from "../../src/types";
 import { setFrameWidth } from "../../src/ui/formatter";
 import { handleDetail } from "../../src/ui/repl-handlers/info-handlers";
+import { canonicalizeLegacyTsunamiInfo } from "../../src/dmdata/tsunami-legacy-adapter";
 
 const ORIGINAL_CHALK_LEVEL = chalk.level;
 const tmpRoots: string[] = [];
@@ -31,7 +32,7 @@ function makeTmpRoot(): string {
 }
 
 function makeTsunamiInfo(): ParsedTsunamiInfo {
-  return {
+  return canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
@@ -47,7 +48,7 @@ function makeTsunamiInfo(): ParsedTsunamiInfo {
     }],
     warningComment: "海岸から離れてください。",
     isTest: false,
-  };
+  });
 }
 
 function makeVolcanoInfo(): ParsedVolcanoAlertInfo {

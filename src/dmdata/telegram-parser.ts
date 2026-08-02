@@ -18,6 +18,7 @@ import {
   ParsedEarthquakeIntensityPref,
   LgObservationPref,
   SpecialValue,
+  TsunamiParserDiagnostic,
 } from "../types";
 import {
   createJmxShadowXmlParser,
@@ -69,6 +70,9 @@ const SPECIAL_VALUE_TELEGRAM_TYPES = new Set([
   "VXSE51",
   "VXSE53",
   "VXSE62",
+  "VTSE41",
+  "VTSE51",
+  "VTSE52",
 ]);
 
 /** body フィールドをデコードしてXML文字列を返す */
@@ -196,6 +200,72 @@ function parseCoordinate(coord: string): {
 function optionalCode(node: unknown): string | null {
   const code = str(dig(node, "Code")).trim();
   return code === "" ? null : code;
+}
+
+/**
+ * 津波コードは表示名用の既存コード helper と分離して raw を保持する。
+ * 空要素だけは欠落として null にするが、先頭ゼロ・空白を含む非空文字列は変更しない。
+ */
+function optionalRawTsunamiCode(node: unknown): string | null {
+  const raw = dig(node, "Code");
+  if (raw == null) return null;
+  const value = typeof raw === "object" && raw != null
+    ? str(dig(raw, "#text"))
+    : str(raw);
+  return value.trim() === "" ? null : value;
+}
+
+// 現行 JMAXML の津波予報区コード (66 区域)。未収載の将来コードは raw のまま診断へ送る。
+const KNOWN_TSUNAMI_FORECAST_AREA_CODES = new Set([
+  "100", "101", "102", "110", "111", "120", "200", "201", "202",
+  "210", "220", "230", "240", "250", "300", "310", "311", "312",
+  "320", "321", "330", "340", "341", "350", "360", "361", "370",
+  "380", "390", "391", "400", "500", "510", "520", "521", "522",
+  "530", "540", "550", "551", "560", "570", "580", "590", "600",
+  "601", "610", "700", "701", "710", "711", "712", "720", "730",
+  "731", "740", "750", "751", "760", "770", "771", "772", "773",
+  "800", "801", "802",
+]);
+
+// 予報区の Kind.Code は fixture corpus に現れる JMAXML code を網羅する。
+const KNOWN_TSUNAMI_KIND_CODES = new Set(["51", "52", "53", "60", "62", "71"]);
+
+function tsunamiCodeDiagnostic(
+  code: string | null,
+  knownCodes: ReadonlySet<string>,
+  diagnostic: TsunamiParserDiagnostic,
+): TsunamiParserDiagnostic | null {
+  return code == null || !knownCodes.has(code) ? diagnostic : null;
+}
+
+function tsunamiHeightNode(node: unknown): unknown {
+  const namespaced = dig(node, "MaxHeight", "jmx_eb:TsunamiHeight");
+  return namespaced !== undefined
+    ? namespaced
+    : dig(node, "MaxHeight", "TsunamiHeight");
+}
+
+/**
+ * VTSE51/52 の「観測中」は TsunamiHeight 要素ではなく MaxHeight/Condition に
+ * 出る実 fixture がある。値要素が欠落していても、その進行状態だけを同じ
+ * SpecialValue 抽出器へ渡すための carrier を作る。
+ */
+function tsunamiObservationHeightNode(node: unknown): unknown {
+  const height = tsunamiHeightNode(node);
+  const condition = str(dig(node, "MaxHeight", "Condition"));
+  if (height === undefined) {
+    return condition.includes("観測中")
+      ? { "#text": "", "@_condition": condition }
+      : undefined;
+  }
+  if (condition === "") return height;
+  if (typeof height === "object" && height != null && !Array.isArray(height)) {
+    const childCondition = str(dig(height, "@_condition"));
+    return childCondition.trim() === ""
+      ? { ...height, "@_condition": condition }
+      : height;
+  }
+  return { "#text": str(height), "@_condition": condition };
 }
 
 /** SpecialValue を既存表示用 scalar へ投影する互換 adapter。 */
@@ -514,36 +584,33 @@ function extractEewAccuracy(earthquake: unknown): EewAccuracy | undefined {
 
 // ── 津波ヘルパー ──
 
-function extractTsunamiObservations(tsunamiNode: unknown): TsunamiObservationStation[] {
-  const rawObservation = dig(tsunamiNode, "Observation");
-  const observationsNodes = Array.isArray(rawObservation)
-    ? rawObservation
-    : rawObservation
-      ? [rawObservation]
-      : [];
-
+function extractTsunamiObservations(
+  tsunamiNode: unknown,
+  specialValueTsunamiNode: unknown,
+): TsunamiObservationStation[] {
+  const observationsNodes = listOf(dig(tsunamiNode, "Observation"));
+  const specialObservationNodes = listOf(dig(specialValueTsunamiNode, "Observation"));
   const observations: TsunamiObservationStation[] = [];
-  for (const node of observationsNodes) {
-    const items = dig(node, "Item");
-    if (!Array.isArray(items)) {
-      continue;
-    }
-    for (const item of items) {
+  for (const [observationIndex, node] of observationsNodes.entries()) {
+    const specialNode = specialObservationNodes[observationIndex];
+    const items = listOf(dig(node, "Item"));
+    const specialItems = listOf(dig(specialNode, "Item"));
+    for (const [itemIndex, item] of items.entries()) {
+      const specialItem = specialItems[itemIndex];
       const area = first(dig(item, "Area") as unknown[]);
       const areaName = str(dig(area, "Name")).trim() || null;
-      const stationsRaw = dig(item, "Station");
-      const stations = Array.isArray(stationsRaw)
-        ? stationsRaw
-        : stationsRaw
-          ? [stationsRaw]
-          : [];
-      for (const station of stations) {
-        const tsunamiHeight =
-          dig(station, "MaxHeight", "jmx_eb:TsunamiHeight") ||
-          dig(station, "MaxHeight", "TsunamiHeight");
-        const maxHeightValue =
-          str(dig(tsunamiHeight, "@_description")).trim() ||
-          null;
+      const stations = listOf(dig(item, "Station"));
+      const specialStations = listOf(dig(specialItem, "Station"));
+      for (const [stationIndex, station] of stations.entries()) {
+        const specialStation = specialStations[stationIndex];
+        const rawTsunamiHeight = tsunamiHeightNode(station);
+        const maxHeight = extractSpecialValue(
+          "TsunamiHeight",
+          tsunamiObservationHeightNode(specialStation),
+        );
+        const maxHeightValue = maxHeight.description == null
+          ? null
+          : maxHeight.description.trim() || null;
         observations.push({
           areaName,
           stationCode: str(dig(station, "Code")).trim() || null,
@@ -553,7 +620,10 @@ function extractTsunamiObservations(tsunamiNode: unknown): TsunamiObservationSta
           initial: str(dig(station, "FirstHeight", "Initial")),
           maxHeightCondition: str(dig(station, "MaxHeight", "Condition")),
           maxHeightValue,
-          maxHeightValueCondition: str(dig(tsunamiHeight, "@_condition")),
+          maxHeight,
+          maxHeightValueCondition: rawTsunamiHeight === undefined
+            ? ""
+            : str(dig(rawTsunamiHeight, "@_condition")),
         });
       }
     }
@@ -889,7 +959,7 @@ export function parseTsunamiTelegram(
     const meta = requireTelegramMeta(msg);
     const base = extractBaseReport(msg);
     if (!base) return null;
-    const { head, body } = base;
+    const { head, body, specialValueBody } = base;
     const warningComment = dig(body, "Comments", "WarningComment");
     const warningCommentText = Array.isArray(warningComment)
       ? str(dig(warningComment[0], "Text"))
@@ -908,21 +978,49 @@ export function parseTsunamiTelegram(
     };
 
     const tsunami = dig(body, "Tsunami");
+    const specialValueTsunami = dig(specialValueBody, "Tsunami");
+    const parserDiagnostics = new Set<TsunamiParserDiagnostic>();
 
     const forecastItems = dig(tsunami, "Forecast", "Item");
     if (Array.isArray(forecastItems)) {
       const forecast: TsunamiForecastItem[] = [];
-      for (const item of forecastItems) {
+      const specialForecastItems = listOf(dig(specialValueTsunami, "Forecast", "Item"));
+      for (const [itemIndex, item] of forecastItems.entries()) {
+        const specialItem = specialForecastItems[itemIndex];
         const area = first(dig(item, "Area") as unknown[]);
         const category = first(dig(item, "Category") as unknown[]);
         const kind = first(dig(category, "Kind") as unknown[]);
+        const specialArea = first(dig(specialItem, "Area") as unknown[]);
+        const specialCategory = first(dig(specialItem, "Category") as unknown[]);
+        const specialKind = first(dig(specialCategory, "Kind") as unknown[]);
         const areaName = str(dig(area, "Name")).trim();
         if (!areaName) {
           continue;
         }
-        const maxHeightDescription =
-          str(dig(item, "MaxHeight", "jmx_eb:TsunamiHeight", "@_description")) ||
-          str(dig(item, "MaxHeight", "TsunamiHeight", "@_description"));
+        const areaCode = optionalRawTsunamiCode(specialArea);
+        const kindCode = optionalRawTsunamiCode(specialKind);
+        const itemDiagnostics: TsunamiParserDiagnostic[] = [];
+        const areaDiagnostic = tsunamiCodeDiagnostic(
+          areaCode,
+          KNOWN_TSUNAMI_FORECAST_AREA_CODES,
+          "unknownTsunamiAreaCode",
+        );
+        if (areaDiagnostic != null) itemDiagnostics.push(areaDiagnostic);
+        const kindDiagnostic = tsunamiCodeDiagnostic(
+          kindCode,
+          KNOWN_TSUNAMI_KIND_CODES,
+          "unknownTsunamiKindCode",
+        );
+        if (kindDiagnostic != null) itemDiagnostics.push(kindDiagnostic);
+        for (const diagnostic of itemDiagnostics) parserDiagnostics.add(diagnostic);
+
+        const maxHeight = extractSpecialValue(
+          "TsunamiHeight",
+          tsunamiHeightNode(specialItem),
+        );
+        const maxHeightDescription = maxHeight.description == null
+          ? ""
+          : maxHeight.description.trim();
         const firstHeight =
           str(dig(item, "FirstHeight", "ArrivalTime")) ||
           str(dig(item, "FirstHeight", "Condition"));
@@ -946,11 +1044,17 @@ export function parseTsunamiTelegram(
               str(dig(station, "FirstHeight", "Condition")),
           });
         }
+        const kindName = str(dig(kind, "Name"));
         forecast.push({
+          areaCode,
           areaName,
-          kind: str(dig(kind, "Name")),
+          kind: kindName,
+          kindCode,
+          kindName,
+          maxHeight,
           maxHeightDescription,
           firstHeight,
+          ...(itemDiagnostics.length > 0 ? { diagnostics: itemDiagnostics } : {}),
           ...(stations.length > 0 ? { stations } : {}),
         });
       }
@@ -959,7 +1063,11 @@ export function parseTsunamiTelegram(
       }
     }
 
-    const observations = extractTsunamiObservations(tsunami);
+    if (parserDiagnostics.size > 0) {
+      info.diagnostics = [...parserDiagnostics];
+    }
+
+    const observations = extractTsunamiObservations(tsunami, specialValueTsunami);
     if (observations.length > 0) {
       info.observations = observations;
     }

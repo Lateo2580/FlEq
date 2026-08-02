@@ -2,6 +2,10 @@ import { testTelegramMeta } from "../helpers/telegram-meta";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import { ParsedTsunamiInfo } from "../../src/types";
+import {
+  canonicalizeLegacyTsunamiInfo,
+  type LegacyParsedTsunamiInfoInput,
+} from "../../src/dmdata/tsunami-legacy-adapter";
 
 // sound-player をモック
 vi.mock("../../src/engine/notification/sound-player", () => ({
@@ -10,9 +14,9 @@ vi.mock("../../src/engine/notification/sound-player", () => ({
 
 /** テスト用の ParsedTsunamiInfo を生成する */
 function createTsunamiInfo(
-  overrides: Partial<ParsedTsunamiInfo> = {}
+  overrides: Partial<LegacyParsedTsunamiInfoInput> = {}
 ): ParsedTsunamiInfo {
-  return {
+  return canonicalizeLegacyTsunamiInfo({
     meta: testTelegramMeta(false),
     type: "VTSE41",
     infoType: "発表",
@@ -24,7 +28,7 @@ function createTsunamiInfo(
     warningComment: "",
     isTest: false,
     ...overrides,
-  };
+  });
 }
 
 describe("TsunamiStateHolder", () => {

@@ -8,6 +8,7 @@ import {
 } from "../../../src/engine/messages/telegram-revision-gate";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
 import type { ParsedTsunamiInfo } from "../../../src/types";
+import { canonicalizeLegacyTsunamiInfo } from "../../../src/dmdata/tsunami-legacy-adapter";
 
 function tsunami(
   reportDateTime: string,
@@ -25,7 +26,7 @@ function tsunami(
     status: "通常",
     isTest: false,
   });
-  return {
+  return canonicalizeLegacyTsunamiInfo({
     meta,
     type: "VTSE41",
     infoType,
@@ -38,7 +39,7 @@ function tsunami(
     ],
     warningComment: "",
     isTest: false,
-  };
+  });
 }
 
 function gateInput(info: ParsedTsunamiInfo): TelegramRevisionGateInput {

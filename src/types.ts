@@ -928,12 +928,29 @@ export interface TsunamiStationItem {
   arrivalTime: string;
 }
 
+/** 津波 parser が構造上の不確実性を検出したときの診断種別 */
+export type TsunamiParserDiagnostic =
+  | "unknownTsunamiAreaCode"
+  | "unknownTsunamiKindCode";
+
 /** 津波予報区域ごとの警報情報 */
 export interface TsunamiForecastItem {
+  /** Area/Code。欠落時は null とし、名称から推定しない。 */
+  areaCode: string | null;
   areaName: string;
+  /** Category/Kind/Code。欠落時は null とし、名称から推定しない。 */
+  kindCode: string | null;
+  /** §10.1 の canonical 表示名。 */
+  kindName: string;
+  /** MaxHeight/TsunamiHeight の semantic source。 */
+  maxHeight: SpecialValue<number>;
+  /** kindName から投影する既存 scalar 互換 field。 */
   kind: string;
+  /** maxHeight.description から投影する既存 scalar 互換 field。 */
   maxHeightDescription: string;
   firstHeight: string;
+  /** parser が検出した code 診断。raw code は areaCode/kindCode に保持する。 */
+  diagnostics?: TsunamiParserDiagnostic[];
   /** 潮位観測点 (VTSE51 の Item/Station。持たない Item では undefined) */
   stations?: TsunamiStationItem[];
 }
@@ -951,6 +968,8 @@ export interface TsunamiObservationStation {
   maxHeightCondition: string;
   /** 最大波の高さ記述 (MaxHeight/jmx_eb:TsunamiHeight@_description。無ければ null) */
   maxHeightValue: string | null;
+  /** MaxHeight/TsunamiHeight の semantic source。 */
+  maxHeight: SpecialValue<number>;
   /** TsunamiHeight@condition (例: 上昇中)。要素/属性が無ければ空文字列 */
   maxHeightValueCondition?: string;
 }
@@ -975,6 +994,8 @@ export interface ParsedTsunamiInfo {
   estimations?: TsunamiEstimationItem[];
   earthquake?: ParsedEarthquakeHypocenter;
   warningComment: string;
+  /** code 欠落・未知 code の parser 診断。 */
+  diagnostics?: TsunamiParserDiagnostic[];
   meta: TelegramMeta;
   isTest: boolean;
 }

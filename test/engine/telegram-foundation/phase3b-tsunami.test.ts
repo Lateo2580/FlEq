@@ -28,7 +28,16 @@ import { processTsunami } from "../../../src/engine/presentation/processors/proc
 import { fromTsunamiOutcome } from "../../../src/engine/presentation/events/from-tsunami";
 import { projectDisplayEvent } from "../../../src/engine/display/project-event";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
-import type { ParsedTsunamiInfo, TsunamiObservationStation, WsDataMessage } from "../../../src/types";
+import type {
+  ParsedTsunamiInfo,
+  TsunamiForecastItem,
+  TsunamiObservationStation,
+  WsDataMessage,
+} from "../../../src/types";
+import {
+  canonicalizeLegacyTsunamiInfo,
+  canonicalizeLegacyTsunamiObservation,
+} from "../../../src/dmdata/tsunami-legacy-adapter";
 
 const { parseTsunamiMock } = vi.hoisted(() => ({ parseTsunamiMock: vi.fn() }));
 vi.mock("../../../src/dmdata/telegram-parser", () => ({
@@ -77,7 +86,7 @@ function message(type: "VTSE41" | "VTSE51" | "VTSE52", id: string): WsDataMessag
 }
 
 function observation(code: string | null, name: string, value: string): TsunamiObservationStation {
-  return {
+  return canonicalizeLegacyTsunamiObservation({
     areaName: "岩手県",
     stationCode: code,
     name,
@@ -86,7 +95,7 @@ function observation(code: string | null, name: string, value: string): TsunamiO
     initial: "押し",
     maxHeightCondition: "観測中",
     maxHeightValue: value,
-  };
+  });
 }
 
 function info(options: {
@@ -112,7 +121,7 @@ function info(options: {
     status: "通常",
     isTest: false,
   });
-  return {
+  return canonicalizeLegacyTsunamiInfo({
     type,
     infoType,
     title: "津波警報・注意報・予報",
@@ -129,7 +138,7 @@ function info(options: {
     warningComment: "",
     meta,
     isTest: false,
-  };
+  });
 }
 
 function deps() {
@@ -331,6 +340,207 @@ describe("Phase 3B tsunami common registry", () => {
     // REST が失敗して何も補完できない場合でも、disk snapshot が active state の真実源になる。
     expect(restarted.tsunamiState.getLevel()).toBe("津波警報");
     expect(restarted.tsunamiState.getLastInfo()).toEqual(active);
+  });
+
+  it("Phase 4B 前の scalar-only 津波 v2 persistence を canonical DTO にして復元する", () => {
+    const shared = deps();
+    const active = info({ type: "VTSE41", at: T1, messageId: "legacy-active-vtse41" });
+    const station = observation("201", "legacy-station", "1.2m");
+    expect(run(active, shared).kind).toBe("ok");
+    expect(run(info({
+      type: "VTSE51",
+      at: T2,
+      serial: "1",
+      observations: [station],
+      messageId: "legacy-observation-vtse51",
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const persisted = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    for (const item of persisted.telegramFoundation.tsunami.active?.forecast ?? []) {
+      const legacyItem = item as Partial<TsunamiForecastItem>;
+      delete legacyItem.areaCode;
+      delete legacyItem.kindCode;
+      delete legacyItem.kindName;
+      delete legacyItem.maxHeight;
+    }
+    for (const family of ["VTSE51", "VTSE52"] as const) {
+      for (const item of persisted.telegramFoundation.tsunami.observations[family]) {
+        delete (item as Partial<TsunamiObservationStation>).maxHeight;
+      }
+    }
+    fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(persisted), "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.active?.forecast?.[0]).toMatchObject({
+      areaCode: null,
+      kindCode: null,
+      kindName: active.forecast![0].kind,
+      maxHeight: { value: 3, presence: "value" },
+    });
+    expect(loaded.observations.VTSE51[0]).toMatchObject({
+      stationCode: "201",
+      maxHeight: { value: 1.2, presence: "value" },
+    });
+  });
+
+  it("津波 v2 persistence の正しい canonical field は保持し、破損 field は scalar から再構成する", () => {
+    const shared = deps();
+    const baseActive = info({ type: "VTSE41", at: T1, messageId: "canonical-active-vtse41" });
+    const canonicalForecast: TsunamiForecastItem = {
+      ...baseActive.forecast![0],
+      areaCode: "210",
+      kindCode: "52",
+      kindName: baseActive.forecast![0].kind,
+      maxHeight: {
+        raw: " 3 ",
+        value: 3,
+        condition: null,
+        description: " 3m ",
+        presence: "value",
+      },
+    };
+    const canonicalActive: ParsedTsunamiInfo = {
+      ...baseActive,
+      forecast: [canonicalForecast],
+    };
+    const canonicalStation: TsunamiObservationStation = {
+      ...observation("201", "canonical-station", "1.2m"),
+      maxHeight: {
+        raw: "1.20",
+        value: 1.2,
+        condition: "観測中",
+        description: " 1.2m ",
+        presence: "value",
+      },
+    };
+    expect(run(canonicalActive, shared).kind).toBe("ok");
+    expect(run(info({
+      type: "VTSE51",
+      at: T2,
+      serial: "1",
+      observations: [canonicalStation],
+      messageId: "canonical-observation-vtse51",
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const validLoaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(validLoaded.active?.forecast?.[0]).toMatchObject({
+      areaCode: "210",
+      kindCode: "52",
+      kindName: canonicalForecast.kindName,
+      maxHeight: canonicalForecast.maxHeight,
+    });
+    expect(validLoaded.observations.VTSE51[0]?.maxHeight).toEqual(canonicalStation.maxHeight);
+
+    const persisted = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    const brokenForecast = persisted.telegramFoundation.tsunami.active!
+      .forecast![0] as unknown as Record<string, unknown>;
+    brokenForecast.areaCode = 210;
+    brokenForecast.kindCode = { code: "52" };
+    brokenForecast.kindName = 123;
+    brokenForecast.maxHeight = {};
+    const brokenObservation = persisted.telegramFoundation.tsunami.observations
+      .VTSE51[0] as unknown as Record<string, unknown>;
+    brokenObservation.maxHeight = {
+      raw: "1.2",
+      value: 1.2,
+      condition: null,
+      description: "1.2m",
+      presence: "range",
+      lowerBound: null,
+      upperBound: null,
+    };
+    fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(persisted), "utf8");
+
+    const recovered = persistence.load()!.telegramFoundation.tsunami;
+    expect(recovered.active?.forecast?.[0]).toMatchObject({
+      areaCode: null,
+      kindCode: null,
+      kindName: canonicalForecast.kind,
+      maxHeight: { value: 3, presence: "value" },
+    });
+    expect(recovered.observations.VTSE51[0]).toMatchObject({
+      stationCode: "201",
+      maxHeight: { value: 1.2, presence: "value" },
+    });
+  });
+
+  it("津波 v2 persistence の正しい parser diagnostics は保持し、不正値だけを局所破棄する", () => {
+    const shared = deps();
+    const baseActive = info({ type: "VTSE41", at: T1, messageId: "diagnostics-active-vtse41" });
+    const active: ParsedTsunamiInfo = {
+      ...baseActive,
+      diagnostics: ["unknownTsunamiAreaCode"],
+      forecast: baseActive.forecast?.map((item) => ({
+        ...item,
+        diagnostics: ["unknownTsunamiKindCode"],
+      })),
+    };
+    expect(run(active, shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const validLoaded = persistence.load()!.telegramFoundation.tsunami.active!;
+    expect(validLoaded.diagnostics).toEqual(["unknownTsunamiAreaCode"]);
+    expect(validLoaded.forecast?.[0]?.diagnostics).toEqual(["unknownTsunamiKindCode"]);
+
+    const persisted = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    const brokenActive = persisted.telegramFoundation.tsunami.active as unknown as Record<string, unknown>;
+    brokenActive.diagnostics = [123, "not-a-tsunami-diagnostic"];
+    const brokenForecast = persisted.telegramFoundation.tsunami.active!
+      .forecast![0] as unknown as Record<string, unknown>;
+    brokenForecast.diagnostics = ["unknownTsunamiAreaCode", { invalid: true }];
+    fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(persisted), "utf8");
+
+    const recovered = persistence.load()!.telegramFoundation.tsunami.active!;
+    expect(recovered.diagnostics).toBeUndefined();
+    expect(recovered.forecast?.[0]?.diagnostics).toBeUndefined();
+    expect(recovered.forecast?.[0]).toMatchObject({
+      areaName: active.forecast![0].areaName,
+      kind: active.forecast![0].kind,
+    });
   });
 
   it("同一 revision 訂正後の VTSE41 active と現況 watermark を v2 往復する", () => {

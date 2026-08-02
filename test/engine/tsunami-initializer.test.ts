@@ -8,6 +8,11 @@ import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revisio
 import * as restClient from "../../src/dmdata/rest-client";
 import type { ParsedTsunamiInfo, TelegramListItem, TelegramListResponse } from "../../src/types";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
+import {
+  canonicalizeLegacyTsunamiInfo,
+  canonicalizeLegacyTsunamiObservation,
+  type LegacyParsedTsunamiInfoInput,
+} from "../../src/dmdata/tsunami-legacy-adapter";
 import { processTsunami } from "../../src/engine/presentation/processors/process-tsunami";
 import { toWsDataMessage } from "../../src/engine/startup/telegram-adapter";
 import {
@@ -88,6 +93,10 @@ function createResponse(items: TelegramListItem[]): TelegramListResponse {
   };
 }
 
+function legacyInfo(info: LegacyParsedTsunamiInfoInput): ParsedTsunamiInfo {
+  return canonicalizeLegacyTsunamiInfo(info);
+}
+
 describe("restoreTsunamiState", () => {
   let tsunamiState: TsunamiStateHolder;
   let revisionGate: TelegramRevisionGate;
@@ -101,7 +110,7 @@ describe("restoreTsunamiState", () => {
   it("最新の VTSE41 に警報がある場合 → 状態を復元する", async () => {
     const item = createTelegramItem();
     mockListTelegrams.mockResolvedValue(createResponse([item]));
-    mockParseTsunami.mockReturnValue({
+    mockParseTsunami.mockReturnValue(legacyInfo({
       meta: createTelegramMeta({ messageId: "restore-1", eventId: "tsunami", type: "VTSE41", reportDateTime: "2025-01-01T00:00:00+09:00", serial: null, infoType: "発表", receivedAtMs: Date.parse("2025-01-01T00:00:01+09:00"), status: "通常", isTest: false }),
       type: "VTSE41",
       infoType: "発表",
@@ -114,7 +123,7 @@ describe("restoreTsunamiState", () => {
       ],
       warningComment: "",
       isTest: false,
-    });
+    }));
 
     const result = await restoreTsunamiState("test-key", tsunamiState, revisionGate);
 
@@ -126,7 +135,7 @@ describe("restoreTsunamiState", () => {
   it("REST 復元を共通 gate の watermark として seed し、遅着旧報を拒否する", async () => {
     const item = createTelegramItem({ id: "restore-new" });
     mockListTelegrams.mockResolvedValue(createResponse([item]));
-    const restored: ParsedTsunamiInfo = {
+    const restored = legacyInfo({
       meta: createTelegramMeta({ messageId: "restore-new", eventId: "tsunami", type: "VTSE41", reportDateTime: "2025-01-01T00:02:00+09:00", serial: null, infoType: "発表", receivedAtMs: Date.parse("2025-01-01T00:02:01+09:00"), status: "通常", isTest: false }),
       type: "VTSE41",
       infoType: "発表",
@@ -137,7 +146,7 @@ describe("restoreTsunamiState", () => {
       forecast: [{ areaName: "三陸沿岸", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "" }],
       warningComment: "",
       isTest: false,
-    };
+    });
     mockParseTsunami.mockReturnValueOnce(restored);
     expect(await restoreTsunamiState("test-key", tsunamiState, revisionGate)).not.toBeNull();
 
@@ -156,7 +165,7 @@ describe("restoreTsunamiState", () => {
   });
 
   it("persisted watermark と同じ REST 報でも空 holder を安全に再構成する", async () => {
-    const active: ParsedTsunamiInfo = {
+    const active = legacyInfo({
       meta: createTelegramMeta({
         messageId: "persisted-active",
         eventId: "tsunami",
@@ -182,7 +191,7 @@ describe("restoreTsunamiState", () => {
       }],
       warningComment: "",
       isTest: false,
-    };
+    });
     mockParseTsunami.mockReturnValueOnce(active);
     expect(processTsunami(toWsDataMessage(
       createTelegramItem({ id: "persisted-active" }),
@@ -212,7 +221,7 @@ describe("restoreTsunamiState", () => {
   });
 
   it("同一 revision 訂正後の active を実ファイル往復し、REST 不通でも維持する", async () => {
-    const normal: ParsedTsunamiInfo = {
+    const normal = legacyInfo({
       meta: createTelegramMeta({
         messageId: "normal-before-correction",
         eventId: "tsunami",
@@ -233,8 +242,8 @@ describe("restoreTsunamiState", () => {
       forecast: [{ areaName: "三陸沿岸", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "" }],
       warningComment: "",
       isTest: false,
-    };
-    const correction: ParsedTsunamiInfo = {
+    });
+    const correction = legacyInfo({
       ...normal,
       meta: createTelegramMeta({
         messageId: "major-correction",
@@ -249,7 +258,7 @@ describe("restoreTsunamiState", () => {
       }),
       infoType: "訂正",
       forecast: [{ areaName: "三陸沿岸", kind: "大津波警報", maxHeightDescription: "10m超", firstHeight: "" }],
-    };
+    });
     mockParseTsunami.mockReturnValueOnce(normal);
     expect(processTsunami(toWsDataMessage(
       createTelegramItem({ id: "normal-before-correction" }),
@@ -283,7 +292,7 @@ describe("restoreTsunamiState", () => {
   });
 
   it("persisted 取消 tombstone と同一 revision の通常 REST 報で警報を復活させない", async () => {
-    const active: ParsedTsunamiInfo = {
+    const active = legacyInfo({
       meta: createTelegramMeta({
         messageId: "same-revision-active",
         eventId: "tsunami",
@@ -304,8 +313,8 @@ describe("restoreTsunamiState", () => {
       forecast: [{ areaName: "三陸沿岸", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "" }],
       warningComment: "",
       isTest: false,
-    };
-    const cancelled: ParsedTsunamiInfo = {
+    });
+    const cancelled = legacyInfo({
       ...active,
       meta: createTelegramMeta({
         messageId: "same-revision-cancel",
@@ -320,7 +329,7 @@ describe("restoreTsunamiState", () => {
       }),
       infoType: "取消",
       forecast: [],
-    };
+    });
     mockParseTsunami.mockReturnValueOnce(active);
     expect(processTsunami(toWsDataMessage(
       createTelegramItem({ id: "same-revision-active" }),
@@ -348,7 +357,7 @@ describe("restoreTsunamiState", () => {
   });
 
   it("persisted 訂正 active を同一 revision の通常 REST 報で巻き戻さない", async () => {
-    const normal: ParsedTsunamiInfo = {
+    const normal = legacyInfo({
       meta: createTelegramMeta({
         messageId: "normal-before-persisted-correction",
         eventId: "tsunami",
@@ -369,8 +378,8 @@ describe("restoreTsunamiState", () => {
       forecast: [{ areaName: "三陸沿岸", kind: "津波警報", maxHeightDescription: "3m", firstHeight: "" }],
       warningComment: "",
       isTest: false,
-    };
-    const correction: ParsedTsunamiInfo = {
+    });
+    const correction = legacyInfo({
       ...normal,
       meta: createTelegramMeta({
         messageId: "persisted-correction",
@@ -385,7 +394,7 @@ describe("restoreTsunamiState", () => {
       }),
       infoType: "訂正",
       forecast: [{ areaName: "三陸沿岸", kind: "大津波警報", maxHeightDescription: "10m超", firstHeight: "" }],
-    };
+    });
     mockParseTsunami.mockReturnValueOnce(normal);
     expect(processTsunami(toWsDataMessage(
       createTelegramItem({ id: "normal-before-persisted-correction" }),
@@ -416,7 +425,7 @@ describe("restoreTsunamiState", () => {
   });
 
   it("persisted VTSE41 取消 tombstone は REST 失敗後も遅延警報を拒否する", async () => {
-    const active: ParsedTsunamiInfo = {
+    const active = legacyInfo({
       meta: createTelegramMeta({
         messageId: "before-cancel",
         eventId: "tsunami",
@@ -442,8 +451,8 @@ describe("restoreTsunamiState", () => {
       }],
       warningComment: "",
       isTest: false,
-    };
-    const cancelled: ParsedTsunamiInfo = {
+    });
+    const cancelled = legacyInfo({
       ...active,
       meta: createTelegramMeta({
         messageId: "cancelled",
@@ -459,7 +468,7 @@ describe("restoreTsunamiState", () => {
       infoType: "取消",
       reportDateTime: "2025-01-01T00:02:00+09:00",
       forecast: [],
-    };
+    });
     mockParseTsunami.mockReturnValueOnce(active);
     expect(processTsunami(toWsDataMessage(
       createTelegramItem({ id: "before-cancel" }),
@@ -492,7 +501,7 @@ describe("restoreTsunamiState", () => {
   it("最新の VTSE41 が取消報の場合 → 状態は null のまま", async () => {
     const item = createTelegramItem();
     mockListTelegrams.mockResolvedValue(createResponse([item]));
-    mockParseTsunami.mockReturnValue({
+    mockParseTsunami.mockReturnValue(legacyInfo({
       meta: createTelegramMeta({ messageId: "restore-2", eventId: "tsunami", type: "VTSE41", reportDateTime: "2025-01-01T00:00:00+09:00", serial: null, infoType: "取消", receivedAtMs: Date.parse("2025-01-01T00:00:01+09:00"), status: "通常", isTest: false }),
       type: "VTSE41",
       infoType: "取消",
@@ -503,8 +512,8 @@ describe("restoreTsunamiState", () => {
       forecast: [],
       warningComment: "",
       isTest: false,
-    });
-    tsunamiState.applyAcceptedObservations("VTSE51", [{
+    }));
+    tsunamiState.applyAcceptedObservations("VTSE51", [canonicalizeLegacyTsunamiObservation({
       areaName: "三陸沿岸",
       stationCode: "21001",
       name: "宮古",
@@ -513,7 +522,7 @@ describe("restoreTsunamiState", () => {
       initial: "",
       maxHeightCondition: "観測中",
       maxHeightValue: "1.0m",
-    }]);
+    })]);
     const persistAcceptedRevision = vi.fn(() => {
       expect(tsunamiState.getObservationGroups().VTSE51).toEqual([]);
     });
