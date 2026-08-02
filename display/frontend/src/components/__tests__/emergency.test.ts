@@ -1546,7 +1546,7 @@ describe("EmergencyScreen", () => {
       const source = readFileSync(join(__dirname, "..", "QuakePanel.svelte"), "utf-8");
       expect(source).toContain("cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET)");
       expect(source).toContain("use:measureHeight={applyPageBodyArea}");
-      expect(source).toContain("paginateAreas(input.intensityGroups, cityBudget, { allowCrossIntensity: true })");
+      expect(source).toContain("paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true })");
     });
 
     it("ページ切替は {#key cycler.index} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {

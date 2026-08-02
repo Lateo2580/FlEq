@@ -12,6 +12,7 @@
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import { measureBorderHeight, measureHeight } from "../lib/measure-height";
   import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { intensityVisual, type IntensityVisualV1 } from "../lib/quake-map-colors";
   import { onDestroy } from "svelte";
   import PageDots from "./PageDots.svelte";
   import RollingNumber from "./RollingNumber.svelte";
@@ -20,7 +21,10 @@
   let { input, compact = false, settling = false, emphasized = false }: { input: DisplayEewInputV1; compact?: boolean; settling?: boolean; emphasized?: boolean } = $props();
 
   const role = $derived(input.isWarning ? "eewWarning" : "eewForecast");
-  const tier = $derived(eewRegionFontTier(input.regions.length, compact));
+  const displayRegions = $derived(input.regions.filter((region) =>
+    intensityVisual(region.intensitySemantic, eewIntensityRangeLabel(region), eewIntensityRangeRank(region)).render
+  ));
+  const tier = $derived(eewRegionFontTier(displayRegions.length, compact));
   const tierFontClass = $derived(`tier-font-${tier.fontSizePx}`);
   const regionListStyle = $derived(`font-size: ${tier.fontSizePx}px;`);
 
@@ -28,6 +32,7 @@
     key: string;
     intensity: string;
     rank: number;
+    visual: IntensityVisualV1;
     regions: DisplayEewRegionV1[];
   }
 
@@ -37,7 +42,9 @@
     const order: string[] = [];
     const buckets = new Map<string, DisplayEewRegionV1[]>();
     for (const r of regions) {
-      const key = `${r.intensity}\u0000${r.intensityTo ?? ""}`;
+      const visual = intensityVisual(r.intensitySemantic, eewIntensityRangeLabel(r), eewIntensityRangeRank(r));
+      if (!visual.render) continue;
+      const key = `${r.intensitySemantic?.presence ?? "legacy"}\u0000${visual.label ?? ""}\u0000${visual.badge ?? ""}\u0000${visual.colorRank ?? ""}\u0000${visual.tooltip ?? ""}`;
       if (!buckets.has(key)) {
         buckets.set(key, []);
         order.push(key);
@@ -47,31 +54,42 @@
     return order
       .map((key) => {
         const bucketRegions = buckets.get(key)!;
+        const visual = intensityVisual(
+          bucketRegions[0].intensitySemantic,
+          eewIntensityRangeLabel(bucketRegions[0]),
+          eewIntensityRangeRank(bucketRegions[0]),
+        );
         return {
           key,
-          intensity: eewIntensityRangeLabel(bucketRegions[0]),
-          rank: eewIntensityRangeRank(bucketRegions[0]),
+          intensity: visual.label ?? "",
+          rank: visual.colorRank ?? 0,
+          visual,
           regions: bucketRegions,
         };
       })
       .sort((a, b) => b.rank - a.rank);
   }
 
-  const buckets = $derived(bucketByIntensity(input.regions));
+  const buckets = $derived(bucketByIntensity(displayRegions));
   const topBucket = $derived<IntensityBucket | null>(buckets[0] ?? null);
   const regionMeasureSample = $derived(
-    input.regions.reduce((longest, region) => region.name.length > longest.length ? region.name : longest, "測"),
+    displayRegions.reduce((longest, region) => region.name.length > longest.length ? region.name : longest, "測"),
   );
   const hasPlum = $derived(input.regions.some((r) => r.isPlum));
+  const maxVisual = $derived(intensityVisual(
+    input.forecastMaxIntSemantic,
+    input.forecastMaxInt != null ? formatIntShort(input.forecastMaxInt) : "不明",
+    input.forecastMaxIntRank,
+  ));
   let regionAreaHeight = $state(0);
   let regionLineHeight = $state(0);
   let pendingRegionAreaHeight: number | null = null;
   let pendingRegionLineHeight: number | null = null;
   const regionBudget = $derived(rowCapacity(regionAreaHeight, regionLineHeight, EEW_STATIC_LIST_MAX));
-  const regionPages = $derived(paginateEewRegions(input.regions, regionBudget));
-  const showStaticList = $derived(input.regions.length > 0 && input.regions.length <= EEW_STATIC_LIST_MAX);
-  const showRegionPages = $derived(input.regions.length > EEW_STATIC_LIST_MAX && regionPages.length > 0);
-  const regionResetKey = $derived(`${input.eventId ?? ""}:${input.serial ?? ""}:${input.regions.length}`);
+  const regionPages = $derived(paginateEewRegions(displayRegions, regionBudget));
+  const showStaticList = $derived(displayRegions.length > 0 && displayRegions.length <= EEW_STATIC_LIST_MAX);
+  const showRegionPages = $derived(displayRegions.length > EEW_STATIC_LIST_MAX && regionPages.length > 0);
+  const regionResetKey = $derived(`${input.eventId ?? ""}:${input.serial ?? ""}:${displayRegions.length}`);
   const regionCycler = createPageCycler({ pageCount: () => regionPages.length, resetKey: () => regionResetKey });
   onDestroy(() => regionCycler.destroy());
   const currentRegionPage = $derived(regionPages[regionCycler.index] ?? regionPages[0] ?? null);
@@ -110,7 +128,14 @@
         <span class="assumed-chip">仮定震源</span>
       {/if}
       <div class="hypocenter">{input.hypocenterName ?? "震源推定中"}</div>
-      <div class="max-int">推定最大震度 <RollingNumber value={input.forecastMaxInt != null ? formatIntShort(input.forecastMaxInt) : "不明"} /></div>
+      {#if maxVisual.render}<div class="max-int" title={maxVisual.tooltip ?? undefined} aria-label={`推定最大${maxVisual.ariaLabel ?? "震度不明"}`}>
+        {#if input.forecastMaxIntSemantic == null || input.forecastMaxIntSemantic.presence === "value"}
+          推定最大震度 <RollingNumber value={maxVisual.label ?? ""} />
+        {:else}
+          推定最大震度 <span class="semantic-value">{maxVisual.label ?? ""}</span>
+        {/if}
+        {#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}
+      </div>{/if}
     </div>
     <div class="tile-stats">
       <div class="tile stat-tile">
@@ -166,7 +191,7 @@
         >
           {#each buckets as b (b.key)}
             <div class="region-row">
-              <span class="region-intensity int-r{b.rank}">震度{b.intensity}</span>
+              <span class="region-intensity int-r{b.rank}" class:special-unknown={b.visual.colorClass === "quake-map-unknown"} class:special-empty={b.visual.colorClass === "quake-map-neutral"} title={b.visual.tooltip ?? undefined} aria-label={b.visual.ariaLabel ?? undefined}>震度{b.intensity}{#if b.visual.badge != null}<b class="semantic-badge">{b.visual.badge}</b>{/if}</span>
               <span class="region-names">{b.regions.map((r) => r.name).join(" ")}</span>
             </div>
           {/each}
@@ -181,7 +206,8 @@
             <span class="region-names">{regionMeasureSample}</span>
           </div>
           {#each currentRegionPage.sections as section (section.intensity)}
-            <div class="region-row"><span class="region-intensity int-r{section.rank}">震度{section.intensity}</span><span class="region-names">{section.regions.map((r) => r.name).join(" ")}</span></div>
+            {@const visual = intensityVisual(section.semantic, section.intensity, section.rank)}
+            <div class="region-row"><span class="region-intensity int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span><span class="region-names">{section.regions.map((r) => r.name).join(" ")}</span></div>
           {/each}
         </div>
       </div>
@@ -363,6 +389,12 @@
     font-variant-numeric: tabular-nums;
     font-weight: var(--type-body-weight-emphasized);
   }
+  .semantic-badge {
+    margin-left: 0.25em;
+    font-weight: var(--type-label-weight-emphasized);
+  }
+  .region-intensity.special-unknown { color: var(--c-raspberry); }
+  .region-intensity.special-empty { color: var(--role-muted); }
   .region-names {
     overflow-wrap: anywhere;
   }

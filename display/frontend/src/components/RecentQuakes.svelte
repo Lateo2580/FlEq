@@ -2,6 +2,7 @@
   import type { DisplayRecentQuakeV1 } from "../lib/protocol";
   import { formatMdHm, formatIntShort, formatDepth, recentQuakeId } from "../lib/format";
   import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { intensityVisual } from "../lib/quake-map-colors";
 
   // 呼び出し元 (StandbyScreen) が quakes.length === 0 のときはカードごと非表示にするため、
   // ここでは常に 1 件以上ある前提で render する (履歴なし placeholder は撤去)
@@ -35,9 +36,10 @@
   <h2>今日あった地震</h2>
   <ul>
     {#each shown as q, i (renderKey(q, i))}
+      {@const visual = intensityVisual(q.maxIntSemantic, formatIntShort(q.maxInt), q.maxIntRank)}
       <li>
         <button class="row" type="button" onclick={(e) => handleClick(e, q)}>
-          <span class="int-chip int-r{q.maxIntRank ?? 0}">{formatIntShort(q.maxInt)}</span>
+          {#if visual.render}<span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}
           <span class="hypocenter">{q.hypocenterName ?? "不明"}</span>
           {#if q.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
           <span class="stats">
@@ -93,12 +95,14 @@
     outline-offset: 2px;
   }
   .int-chip {
-    width: 2.2em;
+    min-width: 2.2em;
+    max-width: 12em;
     text-align: center;
     padding: 1px 5px;
     border-radius: var(--radius-s);
     font-weight: var(--num-weight);
     background: var(--surface-panel-raised);
+    overflow-wrap: anywhere;
   }
   .int-r0 { color: var(--role-muted); }
   .int-r1 { color: var(--int-1); }
@@ -116,6 +120,9 @@
     background: var(--int-9-bg);
     color: #fff;
   }
+  .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
+  .int-chip.special-unknown { color: var(--c-raspberry); border: 1px dashed currentColor; }
+  .int-chip.special-empty { color: var(--role-muted); border: 1px dotted currentColor; }
   .hypocenter {
     overflow: hidden;
     text-overflow: ellipsis;

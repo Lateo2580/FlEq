@@ -6,7 +6,7 @@ import { flushSync } from "svelte";
 import LatestQuakeCard from "../LatestQuakeCard.svelte";
 import { PAGE_HOLD_MS } from "../../lib/page-cycler.svelte";
 import { expectCurrentDot } from "./page-dots-test-utils";
-import type { DisplayLatestQuakeStateV1 } from "../../lib/protocol";
+import type { DisplayIntensitySemanticV1, DisplayLatestQuakeStateV1 } from "../../lib/protocol";
 
 // T5c: ページ切替は {#key} + transition:fade (重ねクロスフェード、231ms) になった。
 // fake timers 環境では element.animate() スタブ (test-setup.ts) の完了が setTimeout 経由なので、
@@ -43,6 +43,15 @@ function latestQuake(over: Partial<DisplayLatestQuakeStateV1> = {}): DisplayLate
     reportDateTime: "2026-07-08T09:03:00+09:00",
     updatedAtMs: 1783587780000,
     ...over,
+  };
+}
+
+function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySemanticV1 {
+  return {
+    raw: "4", presence: "value", label: "4", condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "normalRank", render: true, safetyLowerRank: 4,
+    safetyUpperRank: 4, safetyRank: 4, colorRank: 4, ...over,
   };
 }
 
@@ -151,6 +160,62 @@ describe("LatestQuakeCard", () => {
     expect(
       Array.from(groups[0].querySelectorAll(".city-name")).map((el) => el.textContent),
     ).toEqual(["宮崎市", "都城市"]);
+  });
+
+  it("最大値と地域別の qualifier を badge・tooltip・aria 付きで完全表示する", () => {
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const unknown = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
+      safetyRank: null, colorRank: null,
+    });
+    const { container } = render(LatestQuakeCard, { quake: latestQuake({
+      maxInt: "", maxIntRank: 5, maxIntSemantic: lower,
+      intensityGroups: [{
+        intensity: "不明", rank: -1, intensitySemantic: unknown,
+        areas: ["宮崎県宮崎市"], omittedAreaCount: 0,
+      }],
+    }) });
+    const maximum = container.querySelector(".int-chip");
+    expect(maximum?.textContent).toBe("5弱以上未入電≥");
+    expect(maximum?.getAttribute("title")).toContain("以上（下限値）");
+    const group = container.querySelector(".g-int");
+    expect(group?.textContent).toBe("震度不明?");
+    expect(group?.classList.contains("special-unknown")).toBe(true);
+    expect(group?.getAttribute("aria-label")).toContain("理由: 未入電");
+    const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf8");
+    expect(source).toMatch(/\.int-chip\s*\{[^}]*max-width: 12em;[^}]*overflow-wrap: anywhere;/s);
+  });
+
+  it("semantic missing は旧 scalar より権威があり最大値・地域行を描画しない", () => {
+    const missing = semantic({
+      raw: null, presence: "missing", label: null, badge: null, color: "notRendered",
+      render: false, safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(LatestQuakeCard, { quake: latestQuake({
+      maxInt: "7", maxIntRank: 9, maxIntSemantic: missing,
+      intensityGroups: [
+        { intensity: "4", rank: 4, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 },
+        { intensity: "7", rank: 9, intensitySemantic: missing, areas: ["地域欠落"], omittedAreaCount: 0 },
+      ],
+    }) });
+    expect(container.querySelector(".summary-row .int-chip")).toBeNull();
+    expect(container.querySelector(".banner-header")?.classList.contains("critical")).toBe(false);
+    expect(container.querySelectorAll(".groups li")).toHaveLength(1);
+    expect(container.textContent).not.toContain("地域欠落");
+    expect(container.textContent).not.toContain("震度7");
+  });
+
+  it("unknown 専用色規則は全 rank 規則より後かつ高詳細度で定義する", () => {
+    const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf8");
+    const rankEnd = source.lastIndexOf(".int-r9");
+    const unknownRule = source.indexOf(".int-chip.special-unknown");
+    expect(unknownRule).toBeGreaterThan(rankEnd);
+    expect(source).toMatch(/\.int-chip\.special-unknown,[\s\S]*?\.g-int\.special-unknown\s*\{\s*color: var\(--c-raspberry\)/);
   });
 
   // T7 回帰修正 (spec §2-b の静的リスト例「震度6強 宮崎市 日南市」どおり): 県名で始まらない
@@ -404,7 +469,7 @@ describe("LatestQuakeCard", () => {
       const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
       expect(source).toContain("cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET)");
       expect(source).toContain('use:measureHeight={(h) => (pageBodyAreaHeight = h)}');
-      expect(source).toContain("paginateAreas(quake.intensityGroups, cityBudget, { allowCrossIntensity: true })");
+      expect(source).toContain("paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true })");
     });
 
     it("ページ切替は {#key cycler.index} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {

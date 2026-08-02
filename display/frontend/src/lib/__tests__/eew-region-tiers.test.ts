@@ -3,7 +3,9 @@ import {
   EEW_REGION_LIST_TWO_COLUMN_MIN_ROWS,
   eewRegionFontTier,
   eewRegionListColumnCount,
+  paginateEewRegions,
 } from "../eew-region-tiers";
+import type { DisplayEewRegionV1, DisplayIntensitySemanticV1 } from "../protocol";
 
 // 最終レビュー Finding 2 (spec D1、確信度 0.97-0.99): compact 枝は EEW 予測地域 = 層1
 // (安全情報、14px 以上床) を割ってはいけない。旧実装は 9〜14 件で 13px、15 件以上で 11px を
@@ -42,5 +44,42 @@ describe("eewRegionListColumnCount", () => {
     expect(eewRegionListColumnCount(EEW_REGION_LIST_TWO_COLUMN_MIN_ROWS)).toBe(2);
     expect(eewRegionListColumnCount(EEW_REGION_LIST_TWO_COLUMN_MIN_ROWS + 1)).toBe(2);
     expect(eewRegionListColumnCount(10)).toBe(2); // EEW_STATIC_LIST_MAX の上限件数でも 2 のまま
+  });
+});
+
+describe("paginateEewRegions semantic authority", () => {
+  const missing: DisplayIntensitySemanticV1 = {
+    raw: null, presence: "missing", label: null, condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "notRendered", render: false, safetyLowerRank: null,
+    safetyUpperRank: null, safetyRank: null, colorRank: null,
+  };
+  const region = (name: string, over: Partial<DisplayEewRegionV1> = {}): DisplayEewRegionV1 => ({
+    name, intensity: "4", intensityTo: null, isPlum: false, hasArrived: false,
+    arrivalTime: null, ...over,
+  });
+
+  it("semantic missing は旧 scalar があってもページへ投影しない", () => {
+    const pages = paginateEewRegions([
+      region("表示地域"),
+      region("欠落地域", { intensity: "7", intensitySemantic: missing }),
+    ], 10);
+    expect(pages).toHaveLength(1);
+    expect(pages[0].sections[0].regions.map(({ name }) => name)).toEqual(["表示地域"]);
+  });
+
+  it("label が同じでも reason が異なる semantic は別 section に保つ", () => {
+    const unknown = (description: string): DisplayIntensitySemanticV1 => ({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電", description,
+      lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+      badge: "?", color: "unknown", render: true, safetyLowerRank: null,
+      safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const pages = paginateEewRegions([
+      region("地域A", { intensity: "", intensitySemantic: unknown("観測網A") }),
+      region("地域B", { intensity: "", intensitySemantic: unknown("観測網B") }),
+    ], 10);
+    expect(pages).toHaveLength(2);
+    expect(pages.map((page) => page.sections[0].semantic?.description)).toEqual(["観測網A", "観測網B"]);
   });
 });

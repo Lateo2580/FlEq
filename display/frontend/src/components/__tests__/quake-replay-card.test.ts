@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import QuakeReplayCard from "../QuakeReplayCard.svelte";
-import type { DisplayRecentQuakeV1 } from "../../lib/protocol";
+import type { DisplayIntensitySemanticV1, DisplayRecentQuakeV1 } from "../../lib/protocol";
 
 function quake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
   return {
@@ -15,6 +15,15 @@ function quake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
     depth: "20km",
     tsunamiWarning: false,
     ...over,
+  };
+}
+
+function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySemanticV1 {
+  return {
+    raw: "4", presence: "value", label: "4", condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "normalRank", render: true, safetyLowerRank: 4,
+    safetyUpperRank: 4, safetyRank: 4, colorRank: 4, ...over,
   };
 }
 
@@ -80,6 +89,44 @@ describe("QuakeReplayCard", () => {
     expect(screen.getByText("石巻市")).toBeTruthy();
     // 県見出しでグルーピングされる (LatestQuakeCard と同じ prefecture-group 文法)
     expect(screen.getAllByText("宮城県").length).toBeGreaterThan(0);
+  });
+
+  it("履歴最大値とリプレイ地域へ 5弱以上未入電・unknown・empty semantic を貫通する", () => {
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const unknown = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
+      safetyRank: null, colorRank: null,
+    });
+    const empty = semantic({
+      raw: "", presence: "empty", label: "空欄", badge: "∅", color: "neutral",
+      safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const missing = semantic({
+      raw: null, presence: "missing", label: null, badge: null, color: "notRendered",
+      render: false, safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(QuakeReplayCard, { quake: quake({
+      maxInt: null, maxIntRank: 5, maxIntSemantic: lower,
+      intensityGroups: [
+        { intensity: "", rank: 5, intensitySemantic: lower, areas: ["宮城県仙台市"], omittedAreaCount: 0 },
+        { intensity: "", rank: -1, intensitySemantic: unknown, areas: ["福島県福島市"], omittedAreaCount: 0 },
+        { intensity: "", rank: -1, intensitySemantic: empty, areas: ["茨城県水戸市"], omittedAreaCount: 0 },
+        { intensity: "7", rank: 9, intensitySemantic: missing, areas: ["地域欠落"], omittedAreaCount: 0 },
+      ],
+    }) });
+    expect(container.querySelector(".summary-row .int-chip")?.textContent).toBe("5弱以上未入電≥");
+    const groups = [...container.querySelectorAll(".g-int")];
+    expect(groups.map((group) => group.textContent)).toEqual([
+      "震度5弱以上未入電≥", "震度不明?", "震度空欄∅",
+    ]);
+    expect(groups[1].classList.contains("special-unknown")).toBe(true);
+    expect(groups[2].classList.contains("special-empty")).toBe(true);
+    expect(container.textContent).not.toContain("地域欠落");
   });
 
   it("intensityGroups が空/欠落なら震度セクションごと非表示 (無い情報を偽装しない)", () => {

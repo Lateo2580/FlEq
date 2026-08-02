@@ -1,9 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { compactIntensityGroups, QUAKE_REPLAY_AREA_BUDGET } from "../compact-intensity";
-import type { DisplayIntensityGroupV1 } from "../protocol";
+import type { DisplayIntensityGroupV1, DisplayIntensitySemanticV1 } from "../protocol";
 
 function grp(over: Partial<DisplayIntensityGroupV1> & { intensity: string; rank: number }): DisplayIntensityGroupV1 {
   return { areas: [], omittedAreaCount: 0, ...over };
+}
+
+function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySemanticV1 {
+  return {
+    raw: "4", presence: "value", label: "4", condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "normalRank", render: true, safetyLowerRank: 4,
+    safetyUpperRank: 4, safetyRank: 4, colorRank: 4, ...over,
+  };
 }
 
 describe("compactIntensityGroups", () => {
@@ -66,5 +75,25 @@ describe("compactIntensityGroups", () => {
     const res = compactIntensityGroups([grp({ intensity: "5弱", rank: 5, areas: many })]);
     expect(res.groups[0].areas).toHaveLength(QUAKE_REPLAY_AREA_BUDGET);
     expect(res.omittedAreaCount).toBe(20 - QUAKE_REPLAY_AREA_BUDGET);
+  });
+
+  it("semantic を compact 出力へ保持し、render:false は旧 scalar rank に関係なく除外する", () => {
+    const unknown = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
+      safetyRank: null, colorRank: null,
+    });
+    const missing = semantic({
+      raw: null, presence: "missing", label: null, badge: null, color: "notRendered",
+      render: false, safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const res = compactIntensityGroups([
+      grp({ intensity: "不明", rank: -1, intensitySemantic: unknown, areas: ["表示地域"] }),
+      grp({ intensity: "7", rank: 9, intensitySemantic: missing, areas: ["欠落地域"] }),
+    ]);
+    expect(res.groups).toHaveLength(1);
+    expect(res.groups[0].intensitySemantic).toEqual(unknown);
+    expect(res.groups[0].areas).toEqual(["表示地域"]);
+    expect(res.omittedAreaCount).toBe(0);
   });
 });

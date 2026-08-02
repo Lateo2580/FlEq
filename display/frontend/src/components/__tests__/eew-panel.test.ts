@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import EewPanel from "../EewPanel.svelte";
-import type { DisplayEewInputV1, DisplayEewRegionV1 } from "../../lib/protocol";
+import type { DisplayEewInputV1, DisplayEewRegionV1, DisplayIntensitySemanticV1 } from "../../lib/protocol";
 import { expectCurrentDot } from "./page-dots-test-utils";
 
 function region(name: string, over: Partial<DisplayEewRegionV1> = {}): DisplayEewRegionV1 {
@@ -31,6 +31,15 @@ function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
     maxLgInt: null,
     regions: [],
     ...over,
+  };
+}
+
+function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySemanticV1 {
+  return {
+    raw: "4", presence: "value", label: "4", condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "normalRank", render: true, safetyLowerRank: 4,
+    safetyUpperRank: 4, safetyRank: 4, colorRank: 4, ...over,
   };
 }
 
@@ -85,6 +94,81 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     expect(labels.map((label) => label.textContent)).toEqual(["震度5弱程度以上", "震度3〜4"]);
     expect(labels[0].classList.contains("int-r5")).toBe(true);
     expect(labels[1].classList.contains("int-r4")).toBe(true);
+  });
+
+  it("地域別 semantic の qualifier と badge を表示し、旧 scalar より semantic を優先する", () => {
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const range = semantic({
+      raw: null, presence: "range", label: "3〜5弱", lowerBound: "3", upperBound: "5-",
+      rawLowerBound: "3", rawUpperBound: "5-", badge: "↔", color: "safetyUpperRank",
+      safetyLowerRank: 3, safetyUpperRank: 5, safetyRank: 5, colorRank: 5,
+    });
+    const unknown = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
+      safetyRank: null, colorRank: null,
+    });
+    const missing = semantic({
+      raw: null, presence: "missing", label: null, badge: null, color: "notRendered",
+      render: false, safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(EewPanel, { input: eewInput({ regions: [
+      region("宮城県", { intensity: "", intensityTo: null, intensitySemantic: lower }),
+      region("福島県", { intensity: "3", intensityTo: "5弱", intensitySemantic: range }),
+      region("茨城県", { intensity: "", intensityTo: null, intensitySemantic: unknown }),
+      region("地域欠落", { intensity: "7", intensityTo: null, intensitySemantic: missing }),
+    ] }) });
+    const labels = [...container.querySelectorAll(".region-intensity")];
+    expect(labels.map((label) => label.textContent)).toEqual([
+      "震度5弱以上未入電≥", "震度3〜5弱↔", "震度不明?",
+    ]);
+    expect(labels[0].classList.contains("int-r5")).toBe(true);
+    expect(labels[1].classList.contains("int-r5")).toBe(true);
+    expect(labels[2].classList.contains("special-unknown")).toBe(true);
+    expect(labels[0].getAttribute("title")).toContain("以上（下限値）");
+    expect(labels[2].getAttribute("aria-label")).toContain("理由: 未入電");
+    expect(container.textContent).not.toContain("地域欠落");
+    expect(container.textContent).not.toContain("震度7");
+  });
+
+  it("全体最大予測震度の qualifier と badge を表示する", () => {
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const { container } = render(EewPanel, { input: eewInput({
+      forecastMaxInt: "", forecastMaxIntRank: 5, forecastMaxIntSemantic: lower,
+    }) });
+    expect(container.querySelector(".max-int")?.textContent?.replace(/\s+/g, " ")).toContain("推定最大震度 5弱以上未入電 ≥");
+    expect(container.querySelector(".max-int")?.getAttribute("aria-label")).toContain("以上（下限値）");
+  });
+
+  it("同じ label/badge でも Condition/Description が異なる地域を別 bucket で保持する", () => {
+    const first = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      description: "観測網A", badge: "?", color: "unknown", safetyLowerRank: null,
+      safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const second = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      description: "観測網B", badge: "?", color: "unknown", safetyLowerRank: null,
+      safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(EewPanel, { input: eewInput({ regions: [
+      region("地域A", { intensity: "", intensitySemantic: first }),
+      region("地域B", { intensity: "", intensitySemantic: second }),
+    ] }) });
+    const rows = [...container.querySelectorAll(".region-row")];
+    expect(rows).toHaveLength(2);
+    expect(rows[0].querySelector(".region-intensity")?.getAttribute("title")).toContain("説明: 観測網A");
+    expect(rows[1].querySelector(".region-intensity")?.getAttribute("title")).toContain("説明: 観測網B");
+    expect(rows[0].querySelector(".region-names")?.textContent).toBe("地域A");
+    expect(rows[1].querySelector(".region-names")?.textContent).toBe("地域B");
   });
 
   it("不明・巨大地震の magnitude 表示は M を重ねず description を維持する", () => {

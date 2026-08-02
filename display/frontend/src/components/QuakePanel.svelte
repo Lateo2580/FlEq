@@ -18,6 +18,7 @@
   import { onDestroy } from "svelte";
   import PageDots from "./PageDots.svelte";
   import QuakeMap from "./QuakeMap.svelte";
+  import { intensityVisual } from "../lib/quake-map-colors";
 
   // compact: main-stack の非 main スロット (EewPanel と同じ縮小パターンを適用し、
   // emergency-3 等で tile-main + tile-stats + 震度別グループが縦に収まりきらず
@@ -56,8 +57,11 @@
     !initialElementKeys.has("chip:tsunami") && !initialElementKeys.has("chip:origin");
 
   // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)
+  const displayGroups = $derived(input.intensityGroups.filter((group) =>
+    intensityVisual(group.intensitySemantic, formatIntShort(group.intensity), group.rank).render
+  ));
   const totalEffective = $derived(
-    input.intensityGroups.reduce((sum, g) => sum + effectiveAreaCount(g), 0),
+    displayGroups.reduce((sum, g) => sum + effectiveAreaCount(g), 0),
   );
   const paging = $derived(shouldPageDetails(totalEffective));
 
@@ -97,7 +101,7 @@
   // T8① でドットインジケータ (PageDots) に撤去済み。ドット列のグループ境界 gap 機能は
   // preview 目視レビューで「間隔が不揃いに見える」と不評だったため T8⑤ で撤去し、pageGroupMeta
   // ベースの境界計算も不要になった (削除済み)
-  const pages = $derived(paging ? paginateAreas(input.intensityGroups, cityBudget, { allowCrossIntensity: true }) : []);
+  const pages = $derived(paging ? paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true }) : []);
 
   // 別イベント (eventId 変化) か、同一イベントの続報で severityTier (地震は最大震度 rank) が
   // 「上昇」したときにページを先頭に戻す。下降・同値ではリセットしない (spec §3、Codex R
@@ -130,16 +134,23 @@
   // 1 フレーム空表示を避ける)
   const currentPage = $derived(pages[cycler.index] ?? pages[0] ?? null);
   const showMap = $derived(!compact && mapEvent != null);
+  const maxVisual = $derived(intensityVisual(input.maxIntSemantic, formatIntShort(input.maxInt), input.maxIntRank));
+  const maxSeverityRank = $derived(input.maxIntSemantic == null ? input.maxIntRank : input.maxIntSemantic.safetyRank);
+
+  function groupVisual(intensity: string, rank: number) {
+    const group = displayGroups.find((item) => item.intensity === intensity && item.rank === rank);
+    return intensityVisual(group?.intensitySemantic, formatIntShort(intensity), rank);
+  }
 </script>
 
 <div class="quake-panel role-quakeMajor" class:compact>
-  <div class="heading" class:critical={input.maxIntRank >= 7}>
+  <div class="heading" class:critical={(maxSeverityRank ?? 0) >= 7}>
     <span class="heading-text">地震情報</span>
   </div>
   <div class="tiles">
     <div class="tile tile-main">
       <div class="hypocenter">{input.hypocenterName ?? "震源調査中"}</div>
-      <div class="max-int">最大震度{formatIntShort(input.maxInt)}</div>
+      {#if maxVisual.render}<div class="max-int" title={maxVisual.tooltip ?? undefined} aria-label={`最大${maxVisual.ariaLabel ?? "震度不明"}`}>最大震度{maxVisual.label ?? ""}{#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}</div>{/if}
       {#if hasChips}
         <div
           class="reveal-wrap chip-reveal-wrap"
@@ -230,8 +241,9 @@
                       >測</span
                     >
                     {#each currentPage.sections as section (section.intensity)}
+                      {@const visual = groupVisual(section.intensity, section.rank)}
                       <div class="page-section">
-                        <span class="int-chip int-r{section.rank}">{formatIntShort(section.intensity)}</span>
+                        <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
                         {#each section.prefGroups as pg (pg.pref ?? "その他")}
                           <div class="pref-group">
                             <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
@@ -245,12 +257,13 @@
               {/key}
             </div>
           {/if}
-        {:else if input.intensityGroups.length > 0}
+        {:else if displayGroups.length > 0}
           <div class="tile tile-groups">
             <div class="groups">
-              {#each input.intensityGroups as g (g.intensity)}
+              {#each displayGroups as g (g.intensity)}
+                {@const visual = intensityVisual(g.intensitySemantic, formatIntShort(g.intensity), g.rank)}
                 <div class="group">
-                  <span class="int-chip int-r{g.rank}">{formatIntShort(g.intensity)}</span>
+                  <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
                   <div class="group-pref-groups">
                     <!-- T7 回帰修正: 静的リストは spec §2-b の例 (「震度6強 宮崎市 日南市」) どおり
                          県プレフィックス無しの area (pref:null) はラベル無しで市名だけ出す。
@@ -534,14 +547,17 @@
   /* 待機画面 (RecentQuakes/LatestQuakeCard) と同じ int-chip 形式に統一する */
   .int-chip {
     flex-shrink: 0;
-    width: 3.2em;
+    min-width: 3.2em;
+    max-width: 12em;
     text-align: center;
     padding: 2px 10px;
     border-radius: var(--radius-s);
     font-weight: var(--type-title-weight-emphasized);
     font-variant-numeric: tabular-nums;
     background: var(--surface-panel);
+    overflow-wrap: anywhere;
   }
+  .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
   .int-r1 { color: var(--int-1); }
   .int-r2 { color: var(--int-2); }
   .int-r3 { color: var(--int-3); }
@@ -557,6 +573,8 @@
     background: var(--int-9-bg);
     color: #fff;
   }
+  .int-chip.special-unknown { color: var(--c-raspberry); border: 1px dashed currentColor; }
+  .int-chip.special-empty { color: var(--role-muted); border: 1px dotted currentColor; }
   /* compact (main-stack 非 main スロット): ヒーロー部をさらに凝縮しリスト領域にカード高を
      渡す (第3波 Fix20)。震央名は headline-m(32px) → title-l(26px) へもう一段降格し、推定
      最大震度と近接2行にする。M/深さ/長周期の stat タイルは箱型をやめ、既存チップ文法

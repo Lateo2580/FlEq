@@ -3,7 +3,8 @@
 // (LatestQuakeCard の paginateAreas/PageCycler) は持ち込まず、rank 降順で上位から地域名の総数を
 // 予算内に切り詰め、あふれた分は「ほか N 地域」型の一括省略にまとめる。サーバ側 cap で既に切られた
 // 分 (omittedAreaCount) も省略数に加算する。
-import type { DisplayIntensityGroupV1 } from "./protocol";
+import type { DisplayIntensityGroupV1, DisplayIntensitySemanticV1 } from "./protocol";
+import { intensityVisual } from "./quake-map-colors";
 
 // カードに出す地域名 (市区町村・地方名) の総数上限。これを超える分は「ほか N 地域」に畳む。
 // 大規模地震でもカード高さが corner スロットで暴れないよう固定上限を課す。
@@ -12,6 +13,7 @@ export const QUAKE_REPLAY_AREA_BUDGET = 8;
 export interface CompactIntensityGroup {
   intensity: string;
   rank: number;
+  intensitySemantic?: DisplayIntensitySemanticV1;
   areas: string[];
 }
 
@@ -30,7 +32,13 @@ export function compactIntensityGroups(
   groups: DisplayIntensityGroupV1[],
   areaBudget = QUAKE_REPLAY_AREA_BUDGET,
 ): CompactIntensityResult {
-  const sorted = [...groups].sort((a, b) => b.rank - a.rank);
+  const sorted = groups
+    .filter((group) => intensityVisual(group.intensitySemantic, group.intensity, group.rank).render)
+    .sort((a, b) => {
+      const aRank = a.intensitySemantic == null ? a.rank : a.intensitySemantic.safetyRank ?? -1;
+      const bRank = b.intensitySemantic == null ? b.rank : b.intensitySemantic.safetyRank ?? -1;
+      return bRank - aRank;
+    });
   const out: CompactIntensityGroup[] = [];
   let budget = areaBudget;
   let omitted = 0;
@@ -38,7 +46,12 @@ export function compactIntensityGroups(
     omitted += g.omittedAreaCount; // サーバ cap で既に切られた分は必ず加算
     const take = budget > 0 ? Math.min(g.areas.length, budget) : 0;
     if (take > 0) {
-      out.push({ intensity: g.intensity, rank: g.rank, areas: g.areas.slice(0, take) });
+      out.push({
+        intensity: g.intensity,
+        rank: g.rank,
+        intensitySemantic: g.intensitySemantic,
+        areas: g.areas.slice(0, take),
+      });
       budget -= take;
     }
     omitted += g.areas.length - take; // 予算超過で入らなかった地域名

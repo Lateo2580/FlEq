@@ -4,6 +4,7 @@
   import type { DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatIntShort, formatMdHm } from "../lib/format";
   import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { intensityVisual } from "../lib/quake-map-colors";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -24,11 +25,14 @@
     dim?: boolean;
   } = $props();
 
+  const displayGroups = $derived(event.intensityGroups.filter((group) =>
+    intensityVisual(group.intensitySemantic, formatIntShort(group.intensity), group.rank).render
+  ));
   const totalEffective = $derived(
-    event.intensityGroups.reduce((sum, group) => sum + effectiveAreaCount(group), 0),
+    displayGroups.reduce((sum, group) => sum + effectiveAreaCount(group), 0),
   );
   const paging = $derived(shouldPageDetails(totalEffective));
-  const pages = $derived(paging ? paginateAreas(event.intensityGroups, PAGE_CITY_BUDGET) : []);
+  const pages = $derived(paging ? paginateAreas(displayGroups, PAGE_CITY_BUDGET) : []);
   const resetKey = $derived(
     `${event.eventKey}:${event.sourceType}:${event.revision.reportTimeMs}:${event.revision.serial ?? ""}`,
   );
@@ -38,15 +42,24 @@
   });
   const currentPage = $derived(pages[cycler.index]);
   const pageFadeMs = $derived(cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS);
+  const maxVisual = $derived(intensityVisual(event.maxIntSemantic, formatIntShort(event.maxInt), event.maxIntRank));
+
+  function groupVisual(intensity: string, rank: number) {
+    const group = displayGroups.find((item) => item.intensity === intensity && item.rank === rank);
+    return intensityVisual(group?.intensitySemantic, formatIntShort(intensity), rank);
+  }
 
   onDestroy(() => cycler.destroy());
 </script>
 
-<section class="quake-map-screen" class:dim aria-label="震度3から4の地震情報">
+<section class="quake-map-screen" class:dim aria-label={`${maxVisual.ariaLabel ?? "震度不明"}の地震情報`}>
   <header class="summary">
     <div class="summary-title">
       <span class="eyebrow">地震情報</span>
-      <span class="maximum">最大震度 {formatIntShort(event.maxInt)}</span>
+      {#if maxVisual.render}<span class="maximum" title={maxVisual.tooltip ?? undefined}>
+        最大震度 {maxVisual.label ?? ""}
+        {#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}
+      </span>{/if}
     </div>
     <dl class="facts">
       <div><dt>発生</dt><dd>{formatMdHm(event.originTime ?? event.reportDateTime)}</dd></div>
@@ -79,8 +92,9 @@
               out:fade={{ duration: pageFadeMs, easing: springEffectsOut }}
             >
               {#each currentPage.sections as section (section.intensity)}
+                {@const visual = groupVisual(section.intensity, section.rank)}
                 <div class="group">
-                  <span class="int-chip int-r{section.rank}">{formatIntShort(section.intensity)}</span>
+                  <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
                   <div class="pref-groups">
                     {#each section.prefGroups as prefGroup (prefGroup.pref ?? "その他")}
                       <div class="pref-group">
@@ -100,9 +114,10 @@
         </div>
       {:else}
         <div class="groups">
-          {#each event.intensityGroups as group (group.intensity)}
+          {#each displayGroups as group (group.intensity)}
+            {@const visual = intensityVisual(group.intensitySemantic, formatIntShort(group.intensity), group.rank)}
             <div class="group">
-              <span class="int-chip int-r{group.rank}">{formatIntShort(group.intensity)}</span>
+              <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
               <div class="pref-groups">
                 {#each groupByPrefecture(group.areas) as prefGroup (prefGroup.pref ?? "その他")}
                   <div class="pref-group">
@@ -239,7 +254,7 @@
   }
   .group {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: minmax(48px, max-content) minmax(0, 1fr);
     gap: var(--space-3);
     align-items: start;
   }
@@ -251,6 +266,12 @@
     border-radius: var(--radius-s);
     font-weight: var(--type-label-weight);
     background: var(--surface-panel-raised);
+    max-width: 12em;
+    overflow-wrap: anywhere;
+  }
+  .semantic-badge {
+    margin-left: 0.25em;
+    font-weight: var(--type-label-weight-emphasized);
   }
   .int-r1 { color: var(--int-1); }
   .int-r2 { color: var(--int-2); }
@@ -261,6 +282,8 @@
   .int-r7 { color: var(--int-7); }
   .int-r8 { color: var(--int-8-on); background: var(--int-8-bg); }
   .int-r9 { color: var(--int-9-on); background: var(--int-9-bg); }
+  .int-chip.special-unknown { color: var(--c-raspberry); border: 1px dashed currentColor; }
+  .int-chip.special-empty { color: var(--role-muted); border: 1px dotted currentColor; }
   .pref-groups {
     display: flex;
     flex-direction: column;

@@ -18,6 +18,7 @@
   import PageDots from "./PageDots.svelte";
   import RestoredChip from "./RestoredChip.svelte";
   import NumberUnit from "./NumberUnit.svelte";
+  import { intensityVisual } from "../lib/quake-map-colors";
 
   let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
 
@@ -28,10 +29,20 @@
   // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)。
   // ≤30 のときは topGroupCompact 相当の縮退分岐は実質発火しない (最大震度グループも ≤30 になる
   // ため) — 固定+スクロールの 2 領域構造はやめ、全グループを 1 本の静的リストで並べる
+  const displayGroups = $derived(quake.intensityGroups.filter((group) =>
+    intensityVisual(group.intensitySemantic, group.intensity, group.rank).render
+  ));
   const totalEffective = $derived(
-    quake.intensityGroups.reduce((sum, g) => sum + effectiveAreaCount(g), 0),
+    displayGroups.reduce((sum, g) => sum + effectiveAreaCount(g), 0),
   );
   const paging = $derived(shouldPageDetails(totalEffective));
+  const maxVisual = $derived(intensityVisual(quake.maxIntSemantic, formatIntShort(quake.maxInt), quake.maxIntRank));
+  const maxSeverityRank = $derived(quake.maxIntSemantic == null ? quake.maxIntRank : quake.maxIntSemantic.safetyRank);
+
+  function groupVisual(intensity: string, rank: number) {
+    const group = displayGroups.find((item) => item.intensity === intensity && item.rank === rank);
+    return intensityVisual(group?.intensitySemantic, intensity, rank);
+  }
 
   // ページ本文領域の実測高さ・行高から市町村数バジェットを導出する (T5c、spec §2-c 「LatestQuakeCard
   // は content 駆動なので先にカードへ高さ予算を与える」)。カードは height:100% の grid セルに
@@ -49,7 +60,7 @@
   // T8① でドットインジケータ (PageDots) に撤去済み。ドット列のグループ境界 gap 機能は
   // preview 目視レビューで「間隔が不揃いに見える」と不評だったため T8⑤ で撤去し、pageGroupMeta
   // ベースの境界計算も不要になった (削除済み)
-  const pages = $derived(paging ? paginateAreas(quake.intensityGroups, cityBudget, { allowCrossIntensity: true }) : []);
+  const pages = $derived(paging ? paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true }) : []);
 
   // 別イベント (eventId 変化) か、同一イベントの続報で severityTier (地震は最大震度 rank) が
   // 「上昇」したときにページを先頭に戻す。下降・同値ではリセットしない (spec §3、Codex R
@@ -60,7 +71,7 @@
   let prevMaxIntRank = -1;
   $effect(() => {
     const key = identityKey;
-    const rank = quake.maxIntRank ?? -1;
+    const rank = maxSeverityRank ?? -1;
     if (prevIdentityKey != null && (key !== prevIdentityKey || rank > prevMaxIntRank)) {
       resetSeq += 1;
     }
@@ -83,8 +94,9 @@
 </script>
 
 {#snippet groupItem(g: DisplayIntensityGroupV1)}
+  {@const visual = intensityVisual(g.intensitySemantic, g.intensity, g.rank)}
   <li>
-    <span class="g-int int-r{g.rank}">震度{g.intensity}</span>
+    <span class="g-int int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
     <div class="g-pref-groups">
       <!-- T7 回帰修正: 静的リストは spec §2-b の例 (「震度6強 宮崎市 日南市」) どおり
            県プレフィックス無しの area (pref:null) はラベル無しで市名だけ出す。
@@ -106,10 +118,10 @@
 {/snippet}
 
 <div class="quake-card">
-  <div class="banner-header" class:critical={(quake.maxIntRank ?? 0) >= 7}>地震情報</div>
+  <div class="banner-header" class:critical={(maxSeverityRank ?? 0) >= 7}>地震情報</div>
   <div class="card-body">
     <div class="summary-row">
-      <span class="int-chip int-r{quake.maxIntRank ?? 0}">{formatIntShort(quake.maxInt)}</span>
+      {#if maxVisual.render}<span class="int-chip int-r{maxVisual.colorRank ?? 0}" class:special-unknown={maxVisual.colorClass === "quake-map-unknown"} class:special-empty={maxVisual.colorClass === "quake-map-neutral"} title={maxVisual.tooltip ?? undefined} aria-label={maxVisual.ariaLabel ?? undefined}>{maxVisual.label ?? ""}{#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}</span>{/if}
       <span class="hypocenter">{quake.hypocenterName ?? "不明"}</span>
       {#if quake.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
     </div>
@@ -128,7 +140,7 @@
       </div>
     </div>
     {#if longPeriod != null}<div class="long-period-rider">長周期地震動階級 {longPeriod.maxLgInt}{#if longPeriod.restored}<RestoredChip />{/if}</div>{/if}
-    {#if quake.intensityGroups.length > 0}
+    {#if displayGroups.length > 0}
       {#if paging}
         {#if currentPage != null}
           <div class="page-detail">
@@ -149,8 +161,9 @@
                     >測</li
                   >
                   {#each currentPage.sections as section (section.intensity)}
+                    {@const visual = groupVisual(section.intensity, section.rank)}
                     <li class="page-section">
-                      <span class="g-int int-r{section.rank}">震度{section.intensity}</span>
+                      <span class="g-int int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
                       {#each section.prefGroups as pg (pg.pref ?? "その他")}
                         <div class="pref-group">
                           <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
@@ -166,7 +179,7 @@
         {/if}
       {:else}
         <ul class="groups">
-          {#each quake.intensityGroups as g (g.intensity)}
+          {#each displayGroups as g (g.intensity)}
             {@render groupItem(g)}
           {/each}
         </ul>
@@ -212,13 +225,19 @@
     gap: var(--space-3);
   }
   .int-chip {
-    width: 2.6em;
+    min-width: 2.6em;
+    max-width: 12em;
     text-align: center;
     padding: 2px 6px;
     border-radius: var(--radius-s);
     font-weight: var(--num-weight);
     font-variant-numeric: tabular-nums;
     background: var(--surface-panel-raised);
+    overflow-wrap: anywhere;
+  }
+  .semantic-badge {
+    margin-left: 0.25em;
+    font-weight: var(--type-label-weight-emphasized);
   }
   .int-r0 {
     color: var(--role-muted);
@@ -252,6 +271,10 @@
     background: var(--int-9-bg);
     color: #fff;
   }
+  .int-chip.special-unknown,
+  .g-int.special-unknown { color: var(--c-raspberry); border-color: currentColor; }
+  .int-chip.special-empty,
+  .g-int.special-empty { color: var(--role-muted); border-color: currentColor; }
   .hypocenter {
     font-weight: var(--type-title-weight-emphasized);
     font-size: var(--type-title-s-fluid);
@@ -298,7 +321,8 @@
   .g-int {
     flex-shrink: 0;
     font-weight: var(--type-body-weight-emphasized);
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   /* 都道府県 → 市区町村の階層。WeatherAlertCard の pref-group 文法と揃える (第3波 Fix7) */
   .g-pref-groups {

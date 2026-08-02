@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, waitFor } from "@testing-library/svelte";
+import { render, waitFor, within } from "@testing-library/svelte";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { flushSync } from "svelte";
@@ -7,6 +7,7 @@ import QuakeMap from "../QuakeMap.svelte";
 import QuakePanel from "../QuakePanel.svelte";
 import QuakeMapScreen from "../QuakeMapScreen.svelte";
 import type {
+  DisplayIntensitySemanticV1,
   DisplayLargeQuakeInputV1,
   DisplayQuakeMapEventV1,
 } from "../../lib/protocol";
@@ -45,6 +46,28 @@ function response(body: unknown, status = 200): Response {
     status,
     json: vi.fn(async () => body),
   } as unknown as Response;
+}
+
+function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySemanticV1 {
+  return {
+    raw: "4",
+    presence: "value",
+    label: "4",
+    condition: null,
+    description: null,
+    lowerBound: null,
+    upperBound: null,
+    rawLowerBound: null,
+    rawUpperBound: null,
+    badge: null,
+    color: "normalRank",
+    render: true,
+    safetyLowerRank: 4,
+    safetyUpperRank: 4,
+    safetyRank: 4,
+    colorRank: 4,
+    ...over,
+  };
 }
 
 function mapEvent(over: Partial<DisplayQuakeMapEventV1> = {}): DisplayQuakeMapEventV1 {
@@ -124,6 +147,19 @@ describe("QuakeMap", () => {
     expect(container.querySelector("figcaption")?.textContent).toContain("出典: 気象庁");
     expect(container.querySelector("svg")?.getAttribute("aria-label"))
       .toBe("地震情報、最大震度5弱、全国の震度分布");
+    const svg = within(container).getByRole("group", {
+      name: "地震情報、最大震度5弱、全国の震度分布",
+    });
+    const exactPath = within(svg).getByRole("img", { name: "地域コード440、震度5弱" });
+    expect(exactPath?.getAttribute("aria-hidden")).toBe("false");
+    expect(exactPath?.querySelector("title")?.textContent).toBe("地域コード440、震度5弱");
+    expect(exactPath?.parentElement?.closest('[role="img"]')).toBeNull();
+    expect(container.querySelector(".legend-swatch.quake-map-rank-5")?.getAttribute("style"))
+      .toContain("background: var(--int-5)");
+    expect(container.querySelector(".legend-swatch.quake-map-unknown")?.getAttribute("style"))
+      .toContain("background: var(--c-raspberry)");
+    expect(container.querySelector(".legend-swatch.quake-map-neutral")?.getAttribute("style"))
+      .toContain("background: var(--surface-highest)");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("999"));
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("area-information-city-quake");
   });
@@ -144,6 +180,59 @@ describe("QuakeMap", () => {
     await waitFor(() => expect(container.querySelector('[data-code="441"]')).toBeTruthy());
     expect(container.querySelector('[data-code="441"]')?.classList.contains("quake-map-rank-7")).toBe(true);
     expect(container.querySelector('[data-code="440"]')?.classList.contains("quake-map-unobserved")).toBe(true);
+  });
+
+  it("特殊値を色と SVG badge へ重畳し、凡例・tooltip・aria に意味を残す", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => response(asset({
+      pathsByCode: {
+        "440": "M0,0L10,0L10,10Z",
+        "441": "M10,0L20,0L20,10Z",
+        "442": "M20,0L30,0L30,10Z",
+        "443": "M30,0L40,0L40,10Z",
+      },
+    }))));
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const unknown = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
+      safetyRank: null, colorRank: null,
+    });
+    const empty = semantic({
+      raw: "", presence: "empty", label: "空欄", badge: "∅", color: "neutral",
+      safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const missing = semantic({
+      raw: null, presence: "missing", label: null, badge: null, color: "notRendered",
+      render: false, safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(QuakeMap, { event: mapEvent({
+      localAreas: [
+        { code: "440", rank: 5, intensitySemantic: lower },
+        { code: "441", rank: -1, intensitySemantic: unknown },
+        { code: "442", rank: -1, intensitySemantic: empty },
+        { code: "443", rank: -1, intensitySemantic: missing },
+      ],
+    }) });
+
+    await waitFor(() => expect(container.querySelectorAll(".quake-region")).toHaveLength(4));
+    expect(container.querySelector('[data-code="440"]')?.classList.contains("quake-map-rank-5")).toBe(true);
+    expect(container.querySelector('[data-badge-code="440"]')?.getAttribute("data-badge")).toBe("≥");
+    expect(container.querySelector('[data-badge-code="440"] circle')?.getAttribute("r")).toBe("17");
+    expect(container.querySelector('[data-badge-code="440"] text')?.getAttribute("font-size")).toBe("24");
+    expect(container.querySelector('[data-code="441"]')?.classList.contains("quake-map-unknown")).toBe(true);
+    expect(container.querySelector('[data-badge-code="441"]')?.textContent).toBe("?");
+    expect(container.querySelector('[data-code="442"]')?.classList.contains("quake-map-neutral")).toBe(true);
+    expect(container.querySelector('[data-badge-code="442"]')?.textContent).toBe("∅");
+    expect(container.querySelector('[data-code="443"]')?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector('[data-badge-code="443"]')).toBeNull();
+    expect(container.querySelector('[data-code="440"] title')?.textContent).toContain("以上（下限値）");
+    expect(container.querySelector('[data-code="441"]')?.getAttribute("aria-label")).toContain("理由: 未入電");
+    expect(container.querySelector(".quake-map-legend")?.textContent).toContain("≥以上（下限値）");
+    expect(container.querySelector(".quake-map-legend")?.textContent).toContain("↔範囲");
   });
 
   it("reduced-motion 下でも全区域を描画し、fill transition だけを無効化する", async () => {
@@ -205,6 +294,46 @@ describe("QuakePanel map integration", () => {
     expect(container.querySelector(".tile-groups .city-name")?.textContent).toBe("東部");
     expect(container.querySelector(".hypocenter")?.textContent).toBe("静岡県東部");
     expect(container.querySelector(".tsunami-mark")?.textContent).toBe("津波");
+  });
+
+  it("地震カードへ最大値と地域別 qualifier/badge を貫通させる", () => {
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const empty = semantic({
+      raw: "", presence: "empty", label: "空欄", badge: "∅", color: "neutral",
+      safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(QuakePanel, { input: panelInput({
+      maxInt: "", maxIntRank: 5, maxIntSemantic: lower,
+      intensityGroups: [{ intensity: "空欄", rank: -1, intensitySemantic: empty, areas: ["静岡県東部"], omittedAreaCount: 0 }],
+    }), mapEvent: null });
+    expect(container.querySelector(".max-int")?.textContent).toContain("最大震度5弱以上未入電≥");
+    const group = container.querySelector(".int-chip");
+    expect(group?.textContent).toBe("空欄∅");
+    expect(group?.classList.contains("special-empty")).toBe(true);
+    expect(group?.getAttribute("title")).toContain("空欄");
+  });
+
+  it("QuakePanel でも semantic missing は旧 scalar 最大値・地域行を復活させない", () => {
+    const missing = semantic({
+      raw: null, presence: "missing", label: null, badge: null, color: "notRendered",
+      render: false, safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(QuakePanel, { input: panelInput({
+      maxInt: "7", maxIntRank: 9, maxIntSemantic: missing,
+      intensityGroups: [
+        { intensity: "4", rank: 4, areas: ["静岡県東部"], omittedAreaCount: 0 },
+        { intensity: "7", rank: 9, intensitySemantic: missing, areas: ["地域欠落"], omittedAreaCount: 0 },
+      ],
+    }), mapEvent: null });
+    expect(container.querySelector(".max-int")).toBeNull();
+    expect(container.querySelector(".heading")?.classList.contains("critical")).toBe(false);
+    expect(container.querySelectorAll(".tile-groups .group")).toHaveLength(1);
+    expect(container.textContent).not.toContain("地域欠落");
+    expect(container.textContent).not.toContain("最大震度7");
   });
 
   it("prefetch と表示時 fallback が連続失敗しても既存文字一覧を維持する", async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import RecentQuakes from "../RecentQuakes.svelte";
-import type { DisplayRecentQuakeV1 } from "../../lib/protocol";
+import type { DisplayIntensitySemanticV1, DisplayRecentQuakeV1 } from "../../lib/protocol";
 
 function quake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
   return {
@@ -17,6 +17,46 @@ function quake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
     ...over,
   };
 }
+
+function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySemanticV1 {
+  return {
+    raw: "4", presence: "value", label: "4", condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "normalRank", render: true, safetyLowerRank: 4,
+    safetyUpperRank: 4, safetyRank: 4, colorRank: 4, ...over,
+  };
+}
+
+describe("RecentQuakes intensity semantic", () => {
+  it("5弱以上未入電・unknown・empty を label/badge/専用色で表示する", () => {
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const unknown = semantic({
+      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
+      safetyRank: null, colorRank: null,
+    });
+    const empty = semantic({
+      raw: "", presence: "empty", label: "空欄", badge: "∅", color: "neutral",
+      safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(RecentQuakes, { quakes: [
+      quake({ eventId: "L", hypocenterName: "下限", maxInt: null, maxIntRank: 5, maxIntSemantic: lower }),
+      quake({ eventId: "U", hypocenterName: "未知", maxInt: null, maxIntRank: null, maxIntSemantic: unknown }),
+      quake({ eventId: "E", hypocenterName: "空", maxInt: null, maxIntRank: null, maxIntSemantic: empty }),
+    ] });
+    const chips = [...container.querySelectorAll(".int-chip")];
+    expect(chips.map((chip) => chip.textContent)).toEqual(["5弱以上未入電≥", "不明?", "空欄∅"]);
+    expect(chips[0].classList.contains("int-r5")).toBe(true);
+    expect(chips[1].classList.contains("special-unknown")).toBe(true);
+    expect(chips[2].classList.contains("special-empty")).toBe(true);
+    expect(chips[0].getAttribute("title")).toContain("以上（下限値）");
+    expect(chips[1].getAttribute("aria-label")).toContain("理由: 未入電");
+  });
+});
 
 describe("RecentQuakes keyed-each 重複耐性", () => {
   it("eventId が null で同一 reportDateTime の行が複数あっても重複 key クラッシュを起こさず全件 render する", () => {

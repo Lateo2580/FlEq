@@ -3,7 +3,8 @@
   import { formatMdHm, formatIntShort, formatDepth } from "../lib/format";
   import { formatMagnitudeLabel } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
-  import { compactIntensityGroups } from "../lib/compact-intensity";
+  import { compactIntensityGroups, type CompactIntensityGroup } from "../lib/compact-intensity";
+  import { intensityVisual } from "../lib/quake-map-colors";
 
   // 待機画面の地震履歴クリックで再表示する専用コンパクトカード (2026-07-14)。QuakePanel は緊急画面用で
   // 過剰なため再利用しない。履歴 DTO (DisplayRecentQuakeV1) に実在する値だけを出し、無い情報は偽装しない。
@@ -15,18 +16,25 @@
 
   // intensityGroups は protocol 上 optional (古い snapshot 対応)。欠落は空配列として扱う。
   const compact = $derived(compactIntensityGroups(quake.intensityGroups ?? []));
+  const maxVisual = $derived(intensityVisual(quake.maxIntSemantic, formatIntShort(quake.maxInt), quake.maxIntRank));
+  const maxSeverityRank = $derived(quake.maxIntSemantic == null ? quake.maxIntRank : quake.maxIntSemantic.safetyRank);
 
   function handleClick(event: MouseEvent): void {
     event.stopPropagation();
     onClose?.();
   }
+
+  function replayGroupKey(group: CompactIntensityGroup, index: number): string {
+    const visual = intensityVisual(group.intensitySemantic, group.intensity, group.rank);
+    return `${group.intensitySemantic?.presence ?? "legacy"}:${visual.label ?? ""}:${visual.badge ?? ""}:${visual.colorRank ?? ""}:${index}`;
+  }
 </script>
 
 <button class="quake-replay-card" type="button" onclick={handleClick}>
-  <div class="banner-header" class:critical={(quake.maxIntRank ?? 0) >= 7}>地震情報</div>
+  <div class="banner-header" class:critical={(maxSeverityRank ?? 0) >= 7}>地震情報</div>
   <div class="card-body">
     <div class="summary-row">
-      <span class="int-chip int-r{quake.maxIntRank ?? 0}">{formatIntShort(quake.maxInt)}</span>
+      {#if maxVisual.render}<span class="int-chip int-r{maxVisual.colorRank ?? 0}" class:special-unknown={maxVisual.colorClass === "quake-map-unknown"} class:special-empty={maxVisual.colorClass === "quake-map-neutral"} title={maxVisual.tooltip ?? undefined} aria-label={maxVisual.ariaLabel ?? undefined}>{maxVisual.label ?? ""}{#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}</span>{/if}
       <span class="hypocenter">{quake.hypocenterName ?? "不明"}</span>
       {#if quake.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
     </div>
@@ -47,9 +55,10 @@
     {#if compact.groups.length > 0}
       <!-- 各地の震度 (LatestQuakeCard の静的リストと同じ文法。rank 降順・地域数上限で間引き済み) -->
       <ul class="groups">
-        {#each compact.groups as g (g.intensity)}
+        {#each compact.groups as g, index (replayGroupKey(g, index))}
+          {@const visual = intensityVisual(g.intensitySemantic, g.intensity, g.rank)}
           <li>
-            <span class="g-int int-r{g.rank}">震度{g.intensity}</span>
+            <span class="g-int int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
             <div class="g-pref-groups">
               {#each groupByPrefecture(g.areas) as pg (pg.pref ?? "その他")}
                 <div class="pref-group">
@@ -117,12 +126,14 @@
     gap: var(--space-3);
   }
   .int-chip {
-    width: 2.6em;
+    min-width: 2.6em;
+    max-width: 12em;
     text-align: center;
     padding: 2px 6px;
     border-radius: var(--radius-s);
     font-weight: var(--num-weight);
     background: var(--surface-panel-raised);
+    overflow-wrap: anywhere;
   }
   .int-r0 { color: var(--role-muted); }
   .int-r1 { color: var(--int-1); }
@@ -140,6 +151,11 @@
     background: var(--int-9-bg);
     color: #fff;
   }
+  .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
+  .int-chip.special-unknown,
+  .g-int.special-unknown { color: var(--c-raspberry); border: 1px dashed currentColor; }
+  .int-chip.special-empty,
+  .g-int.special-empty { color: var(--role-muted); border: 1px dotted currentColor; }
   .hypocenter {
     font-weight: var(--type-title-weight-emphasized);
     font-size: var(--type-title-s-fluid);
@@ -184,7 +200,8 @@
   .g-int {
     flex-shrink: 0;
     font-weight: var(--type-body-weight-emphasized);
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .g-pref-groups {
     display: flex;

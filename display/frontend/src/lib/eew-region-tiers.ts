@@ -23,26 +23,43 @@ export interface EewRegionFontTier {
 }
 
 export interface EewRegionPage {
-  sections: Array<{ intensity: string; rank: number; regions: DisplayEewRegionV1[] }>;
+  sections: Array<{
+    intensity: string;
+    rank: number;
+    semantic: DisplayEewRegionV1["intensitySemantic"];
+    regions: DisplayEewRegionV1[];
+  }>;
 }
 
 import type { DisplayEewRegionV1 } from "./protocol";
 import { intensityRank } from "./format";
+import { intensityVisual } from "./quake-map-colors";
 
-export function eewIntensityRangeLabel(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">): string {
+export function eewIntensityRangeLabel(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo" | "intensitySemantic">): string {
+  if (region.intensitySemantic != null) {
+    const visual = intensityVisual(region.intensitySemantic, region.intensity, null);
+    return visual.render ? visual.label ?? "" : "";
+  }
   const from = region.intensity;
   if (region.intensityTo == null || region.intensityTo === region.intensity) return from;
   if (region.intensityTo === "over") return `${from}程度以上`;
   return `${from}〜${region.intensityTo}`;
 }
 
-export function eewIntensityRangeRank(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">): number {
+export function eewIntensityRangeRank(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo" | "intensitySemantic">): number {
+  if (region.intensitySemantic != null) {
+    return intensityVisual(region.intensitySemantic, region.intensity, null).colorRank ?? 0;
+  }
   const fromRank = intensityRank(region.intensity) ?? 0;
   const toRank = region.intensityTo != null ? intensityRank(region.intensityTo) ?? 0 : 0;
   return Math.max(fromRank, toRank);
 }
 
-function rangeKey(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">): string {
+function rangeKey(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo" | "intensitySemantic">): string {
+  if (region.intensitySemantic != null) {
+    const visual = intensityVisual(region.intensitySemantic, region.intensity, null);
+    return `${region.intensitySemantic.presence}\u0000${visual.label ?? ""}\u0000${visual.badge ?? ""}\u0000${visual.colorRank ?? ""}\u0000${visual.tooltip ?? ""}`;
+  }
   return `${region.intensity}\u0000${region.intensityTo ?? ""}`;
 }
 
@@ -50,6 +67,9 @@ function rangeKey(region: Pick<DisplayEewRegionV1, "intensity" | "intensityTo">)
 export function paginateEewRegions(regions: DisplayEewRegionV1[], budget: number): EewRegionPage[] {
   const buckets = new Map<string, DisplayEewRegionV1[]>();
   for (const region of regions) {
+    if (!intensityVisual(region.intensitySemantic, eewIntensityRangeLabel(region), eewIntensityRangeRank(region)).render) {
+      continue;
+    }
     const key = rangeKey(region);
     buckets.set(key, [...(buckets.get(key) ?? []), region]);
   }
@@ -57,7 +77,12 @@ export function paginateEewRegions(regions: DisplayEewRegionV1[], budget: number
   for (const [, items] of [...buckets].sort((a, b) => eewIntensityRangeRank(b[1][0]) - eewIntensityRangeRank(a[1][0]))) {
     const intensity = eewIntensityRangeLabel(items[0]);
     for (let start = 0; start < items.length; start += budget) {
-      pages.push({ sections: [{ intensity, rank: eewIntensityRangeRank(items[0]), regions: items.slice(start, start + budget) }] });
+      pages.push({ sections: [{
+        intensity,
+        rank: eewIntensityRangeRank(items[0]),
+        semantic: items[0].intensitySemantic,
+        regions: items.slice(start, start + budget),
+      }] });
     }
   }
   return pages;
