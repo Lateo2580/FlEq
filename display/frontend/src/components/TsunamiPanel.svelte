@@ -33,7 +33,12 @@
     springSpatialOut,
   } from "../lib/motion";
   import { revealScaleIn, heightReveal } from "../lib/transitions";
-  import { keyCoastRows, keyObsRows, type KeyedRow } from "../lib/tsunami-rows";
+  import {
+    coastKindGroupKey,
+    keyCoastRows,
+    keyObsRows,
+    type KeyedRow,
+  } from "../lib/tsunami-rows";
   import { fade } from "svelte/transition";
   import { flip } from "svelte/animate";
   import { onDestroy } from "svelte";
@@ -119,13 +124,17 @@
     const order: string[] = [];
     const map = new Map<string, KeyedRow<Coast>[]>();
     for (const r of coastRows) {
-      if (!map.has(r.row.kind)) {
-        map.set(r.row.kind, []);
-        order.push(r.row.kind);
+      const groupKey = coastKindGroupKey(r.row);
+      if (!map.has(groupKey)) {
+        map.set(groupKey, []);
+        order.push(groupKey);
       }
-      map.get(r.row.kind)!.push(r);
+      map.get(groupKey)!.push(r);
     }
-    return order.map((kind) => ({ kind, coasts: map.get(kind)! }));
+    return order.map((key) => {
+      const coasts = map.get(key)!;
+      return { key, kind: coasts[0].row.kind, coasts };
+    });
   });
 
   // 予報区リストのページング (spec §2-c / §3)。全件が 1 ページに収まるなら (種別をまたいでいても)
@@ -545,7 +554,7 @@
              CSS はクラスセレクタのみ (h3.coast-kind 等の要素型セレクタは存在しない) で見た目は
              不変。ページング枝には対応する coast-kind 相当の見出しが無いため h3 のままにする
              対象自体が無く、両枝の要素型差分は発生しない -->
-        {#each coastGroups as g (g.kind)}
+        {#each coastGroups as g (g.key)}
           <div class="coast-group">
             <h2 class="coast-kind" style="color: {coastKindRoleVar(g.kind)}">{g.kind}</h2>
             <ul class="coasts">

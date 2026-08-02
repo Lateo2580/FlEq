@@ -54,6 +54,36 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
     expect(screen.getAllByText("岩手県").length).toBe(2);
   });
 
+  it("同じ kindCode の Kind.Name 変更でも親グループと子行の identity を維持する", async () => {
+    const beforeCoast = {
+      name: "旧予報区名", kind: "旧種別名", areaCode: "210", kindCode: "51",
+      maxHeight: null, firstHeight: null,
+    };
+    const { container, rerender } = render(TsunamiPanel, {
+      input: tsunamiInput({ coasts: [beforeCoast] }),
+    });
+    const beforeGroup = container.querySelector(".coast-group");
+    const beforeRow = container.querySelector(".coast-row-wrap");
+    expect(beforeGroup).not.toBeNull();
+    expect(beforeRow).not.toBeNull();
+
+    await rerender({
+      input: tsunamiInput({
+        coasts: [{
+          ...beforeCoast,
+          name: "新予報区名",
+          kind: "新種別名",
+        }],
+      }),
+    });
+    flushSync();
+
+    expect(container.querySelector(".coast-group")).toBe(beforeGroup);
+    expect(container.querySelector(".coast-row-wrap")).toBe(beforeRow);
+    expect(container.querySelector(".coast-kind")?.textContent).toBe("新種別名");
+    expect(container.querySelector(".coast-name")?.textContent).toBe("新予報区名");
+  });
+
   it("同名観測点が複数あっても重複 key クラッシュを起こさず全件 render する", () => {
     const observations = [
       observation({ stationName: "石巻" }),

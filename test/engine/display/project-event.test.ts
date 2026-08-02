@@ -968,7 +968,10 @@ describe("projectDisplayEvent", () => {
     const dto = projectDisplayEvent(
       baseEvent({
         domain: "tsunami", type: "VTSE41", tsunamiKinds: ["津波警報"],
-        areaItems: [{ name: "石川県能登", kind: "津波警報", maxHeightDescription: "３ｍ", firstHeight: "既に到達と推測" }],
+        areaItems: [{
+          name: "石川県能登", areaCode: "AREA-CODE-INTERNAL", kindCode: "KIND-CODE-INTERNAL",
+          kind: "津波警報", maxHeightDescription: "３ｍ", firstHeight: "既に到達と推測",
+        }],
         warningComment: "満潮と重なるとより高くなります",
         tsunamiObservations: [
           {
@@ -983,17 +986,59 @@ describe("projectDisplayEvent", () => {
     );
     expect(dto.emergency).toMatchObject({
       kind: "tsunami",
-      coasts: [{ name: "石川県能登", kind: "津波警報", maxHeight: "３ｍ", firstHeight: "既に到達と推測" }],
+      coasts: [{
+        name: "石川県能登", kind: "津波警報",
+        areaCode: "AREA-CODE-INTERNAL", kindCode: "KIND-CODE-INTERNAL",
+        maxHeight: "３ｍ", firstHeight: "既に到達と推測",
+      }],
       warningComment: "満潮と重なるとより高くなります",
       observations: [
         {
-          areaName: "石川県能登", areaKind: "津波警報", stationName: "輪島",
+          areaName: "石川県能登", areaCode: "AREA-CODE-INTERNAL", areaKind: "津波警報",
+          stationName: "輪島",
           arrivalTime: "2026-07-07T10:05:00+09:00", initial: "押し", maxHeightValue: "0.5m", condition: "観測中",
         },
       ],
     });
-    expect(JSON.stringify(dto)).not.toContain("AREA-CODE-INTERNAL");
-    expect(JSON.stringify(dto)).not.toContain("KIND-CODE-INTERNAL");
+    expect(JSON.stringify(dto)).toContain("AREA-CODE-INTERNAL");
+    expect(JSON.stringify(dto)).toContain("KIND-CODE-INTERNAL");
+  });
+
+  it("tsunamiDisplay aggregate 分岐の coasts へ Area.Code/Kind.Code を投影する", () => {
+    const dto = projectDisplayEvent(
+      baseEvent({
+        domain: "tsunami",
+        type: "VTSE41",
+        tsunamiKinds: ["津波注意報"],
+        areaItems: [{
+          name: "受信意味の予報区", areaCode: "PARSED-AREA", kindCode: "PARSED-KIND",
+          kind: "津波注意報",
+        }],
+        tsunamiDisplay: {
+          kinds: ["津波警報"],
+          areaItems: [{
+            name: "aggregate の予報区", areaCode: "DISPLAY-AREA", kindCode: "DISPLAY-KIND",
+            kind: "津波警報", maxHeightDescription: "３ｍ", firstHeight: "既に到達と推測",
+          }],
+          warningComment: null,
+        },
+        frameLevel: "warning",
+      }),
+      "津波概要",
+    );
+
+    expect(dto.emergency).toMatchObject({
+      kind: "tsunami",
+      level: "warning",
+      coasts: [{
+        name: "aggregate の予報区",
+        kind: "津波警報",
+        areaCode: "DISPLAY-AREA",
+        kindCode: "DISPLAY-KIND",
+        maxHeight: "３ｍ",
+        firstHeight: "既に到達と推測",
+      }],
+    });
   });
 
   it("津波種別の接尾辞つき表記 (「大津波警報：発表」等) も前方一致でレベル判定される (Phase 2)", () => {

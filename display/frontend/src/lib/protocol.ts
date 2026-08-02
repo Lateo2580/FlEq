@@ -127,6 +127,8 @@ export type DisplayTsunamiLevel = "majorWarning" | "warning" | "advisory";
 
 export interface DisplayTsunamiObservationV1 {
   areaName: string | null;   // 属する予報区名 (対応が取れない場合 null)
+  /** 属する予報区の Area.Code。旧 snapshot は欠落するため optional。 */
+  areaCode?: string | null;
   areaKind: string | null;   // その予報区の現在の警報種別 (フロントのレベル別フィルタ用)
   stationCode?: string | null;    // 観測点コード (旧 snapshot は欠落)
   stationName: string;
@@ -144,6 +146,10 @@ export interface DisplayTsunamiInputV1 {
   coasts: Array<{
     name: string;
     kind: string;
+    /** 予報区の Area.Code。名称から推定しない。旧 snapshot は欠落するため optional。 */
+    areaCode?: string | null;
+    /** 予報区の Kind.Code。名称から推定しない。旧 snapshot は欠落するため optional。 */
+    kindCode?: string | null;
     maxHeight: string | null;    // 予想波高の記述 (例 "10m超", "3m") = maxHeightDescription
     firstHeight: string | null;  // 第一波到達予想 (例 "ただちに津波来襲と予測", "07日15時30分頃")
   }>;

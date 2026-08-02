@@ -491,7 +491,7 @@ describe("Phase 3B tsunami common registry", () => {
     expect(restored.tsunamiState.getObservationGroups().VTSE51).toEqual([station]);
   });
 
-  it("観測 Area.Code を既存 v2 schema へ書かず、再保存しても observation shape を変えない", () => {
+  it("観測 Area.Code を v2 schema へ保存し、再保存しても observation shape を維持する", () => {
     const shared = deps();
     const legacyStation = observation("21001", "宮古", "1.0m");
     const legacyActiveStation = observation("22001", "釜石", "0.8m");
@@ -533,20 +533,20 @@ describe("Phase 3B tsunami common registry", () => {
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
     ) as PersistedStandbyStateV2;
     const firstObservation = firstPersisted.telegramFoundation.tsunami.observations.VTSE51[0];
-    expect(firstObservation).toEqual(legacyStation);
-    expect(firstObservation).not.toHaveProperty("areaCode");
+    expect(firstObservation).toEqual(stationWithAreaCode);
+    expect(firstObservation).toHaveProperty("areaCode", "210");
     expect(firstPersisted.telegramFoundation.tsunami.active?.observations)
-      .toEqual([legacyActiveStation]);
+      .toEqual([activeStationWithAreaCode]);
     expect(JSON.stringify({
       active: firstPersisted.telegramFoundation.tsunami.active?.observations,
       groups: firstPersisted.telegramFoundation.tsunami.observations,
     }))
-      .not.toContain("areaCode");
+      .toContain("areaCode");
 
     const loaded = persistence.load()!;
-    expect(loaded.telegramFoundation.tsunami.observations.VTSE51).toEqual([legacyStation]);
+    expect(loaded.telegramFoundation.tsunami.observations.VTSE51).toEqual([stationWithAreaCode]);
     expect(loaded.telegramFoundation.tsunami.active?.observations)
-      .toEqual([legacyActiveStation]);
+      .toEqual([activeStationWithAreaCode]);
     const roundTrip = new StandbyPersistence(file, 0, () => loaded.telegramFoundation);
     roundTrip.save(loaded);
 
@@ -559,10 +559,10 @@ describe("Phase 3B tsunami common registry", () => {
       active: secondPersisted.telegramFoundation.tsunami.active?.observations,
       groups: secondPersisted.telegramFoundation.tsunami.observations,
     }))
-      .not.toContain("areaCode");
+      .toContain("areaCode");
   });
 
-  it("保存済み v2 JSON に漏れた観測 Area.Code を load 時に除去する", () => {
+  it("保存済み v2 JSON の観測 Area.Code を load 時に保持する", () => {
     const shared = deps();
     const station = observation("21001", "宮古", "1.0m");
     const activeStation = observation("22001", "釜石", "0.8m");
@@ -614,13 +614,13 @@ describe("Phase 3B tsunami common registry", () => {
 
     const loaded = persistence.load()!.telegramFoundation.tsunami;
     const loadedObservation = loaded.observations.VTSE51[0];
-    expect(loadedObservation).toEqual(station);
-    expect(loadedObservation).not.toHaveProperty("areaCode");
-    expect(loaded.active?.observations).toEqual([activeStation]);
+    expect(loadedObservation).toEqual({ ...station, areaCode: "210" });
+    expect(loadedObservation).toHaveProperty("areaCode", "210");
+    expect(loaded.active?.observations).toEqual([{ ...activeStation, areaCode: "220" }]);
     expect(JSON.stringify({
       active: loaded.active?.observations,
       groups: loaded.observations,
-    })).not.toContain("areaCode");
+    })).toContain("areaCode");
   });
 
   it("VTSE41 active snapshot と watermark を v2 往復し、REST 不通でも警報を維持する", () => {
@@ -1206,6 +1206,7 @@ describe("Phase 3B tsunami common registry", () => {
     };
     const canonicalStation: TsunamiObservationStation = {
       ...observation("201", "canonical-station", "1.2m"),
+      areaCode: "210",
       maxHeight: {
         raw: "1.20",
         value: 1.2,
@@ -1243,7 +1244,10 @@ describe("Phase 3B tsunami common registry", () => {
       kindName: canonicalForecast.kindName,
       maxHeight: canonicalForecast.maxHeight,
     });
-    expect(validLoaded.observations.VTSE51[0]?.maxHeight).toEqual(canonicalStation.maxHeight);
+    expect(validLoaded.observations.VTSE51[0]).toMatchObject({
+      areaCode: "210",
+      maxHeight: canonicalStation.maxHeight,
+    });
 
     const persisted = JSON.parse(
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),

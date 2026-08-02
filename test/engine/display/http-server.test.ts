@@ -668,7 +668,7 @@ describe("InProcessSseDisplayTransport", () => {
     await reader.cancel();
   });
 
-  it("hub の code 付き観測を SSE snapshot にシリアライズしても wire v1 に code を出さない", async () => {
+  it("hub の code 付き観測を SSE snapshot へ code 付きでシリアライズする", async () => {
     const store = new DisplayStateStore();
     const hub = new InfoDisplayHub(store, {
       summarize: () => "tsunami summary",
@@ -685,6 +685,7 @@ describe("InProcessSseDisplayTransport", () => {
     const message = await readFirstSseMessage(response);
     expect(message.snapshot.tsunami?.observations).toEqual([{
       areaName: "宮崎県",
+      areaCode: "450",
       areaKind: "津波警報",
       stationCode: "45001",
       stationName: "細島",
@@ -693,8 +694,6 @@ describe("InProcessSseDisplayTransport", () => {
       maxHeightValue: "1.0m",
       condition: "観測中",
     }]);
-    expect(JSON.stringify(message.snapshot.tsunami?.observations)).not.toContain("areaCode");
-    expect(JSON.stringify(message.snapshot.tsunami?.observations)).not.toContain("kindCode");
     hub.stop();
   });
 

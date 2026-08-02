@@ -102,8 +102,8 @@ export interface PersistedStandbyStateV1 {
   seen: PersistedSeenEntry[];
 }
 
-/** Phase 4B 単位 6 まで areaCode を持たない既存 v2 observation schema。 */
-export type PersistedTsunamiObservationV2 = Omit<TsunamiObservationStation, "areaCode">;
+/** Phase 4B 単位 4 の v2 observation schema。旧 JSON の areaCode 欠落も許容する。 */
+export type PersistedTsunamiObservationV2 = TsunamiObservationStation;
 
 export interface PersistedTsunamiObservationGroupsV2 {
   VTSE51: PersistedTsunamiObservationV2[];
@@ -1169,6 +1169,7 @@ function isGateEntry(value: unknown): value is PersistedTelegramRevisionGateEntr
 function isTsunamiObservation(value: unknown): boolean {
   return isRecord(value)
     && (value.areaName == null || typeof value.areaName === "string")
+    && (value.areaCode == null || typeof value.areaCode === "string")
     && typeof value.stationCode === "string"
     && value.stationCode.trim() !== ""
     && typeof value.name === "string"
@@ -1318,8 +1319,9 @@ function sanitizePersistedTsunamiObservation(
   value: unknown,
 ): LegacyTsunamiObservationInput {
   const sanitized = structuredClone(value) as Record<string, unknown>;
-  // 観測 Area.Code は Phase 4B 単位 3 の runtime field。persistence schema 拡張までは復元しない。
-  delete sanitized.areaCode;
+  if (Object.hasOwn(sanitized, "areaCode") && !isStrictNullableString(sanitized.areaCode)) {
+    delete sanitized.areaCode;
+  }
   const maxHeight = parsePersistedTsunamiHeight(sanitized.maxHeight);
   if (maxHeight == null) delete sanitized.maxHeight;
   else sanitized.maxHeight = maxHeight;
@@ -1423,6 +1425,7 @@ function isPersistedTsunamiActive(value: unknown): boolean {
   if (value.observations != null && (!Array.isArray(value.observations) || !value.observations.every((item) =>
     isRecord(item)
     && (item.areaName == null || typeof item.areaName === "string")
+    && (item.areaCode == null || typeof item.areaCode === "string")
     && (item.stationCode == null || typeof item.stationCode === "string")
     && typeof item.name === "string"
     && typeof item.sensor === "string"
@@ -1580,15 +1583,15 @@ function normalizeTsunamiFoundationForWrite(
 }
 
 /**
- * Phase 4B 単位 6 まで既存の観測 persistence shape を固定する。
- * 構造的型付けと structuredClone だけでは areaCode 等の余剰 property が残るため、
- * schema に存在する field だけを列挙して投影する。
+ * 構造的型付けと structuredClone だけでは将来の余剰 property が残るため、
+ * schema に存在する field だけを列挙して投影する。areaCode は単位4で正式な field。
  */
 function projectPersistedTsunamiObservation(
   item: TsunamiObservationStation,
 ): PersistedTsunamiObservationV2 {
   return {
     areaName: item.areaName,
+    ...(Object.hasOwn(item, "areaCode") ? { areaCode: item.areaCode ?? null } : {}),
     ...(item.stationCode != null ? { stationCode: item.stationCode } : {}),
     name: item.name,
     sensor: item.sensor,

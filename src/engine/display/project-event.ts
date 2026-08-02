@@ -13,6 +13,7 @@ import { normalizeTickerBody } from "./ticker-body-normalize";
 import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
 import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
+import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import { revisionOf } from "./standby-registry";
 import {
   attachQuakeObservationBridge,
@@ -158,12 +159,21 @@ export function projectQuakeMapCommand(
 function pickAlertCoasts(
   items: PresentationAreaItem[],
   fallbackKind: string,
-): Array<{ name: string; kind: string; maxHeight: string | null; firstHeight: string | null }> {
+): Array<{
+  name: string;
+  kind: string;
+  areaCode?: string | null;
+  kindCode?: string | null;
+  maxHeight: string | null;
+  firstHeight: string | null;
+}> {
   const alerted = items.filter((i) => i.kind == null || /警報|注意報/.test(i.kind));
   const source = alerted.length > 0 ? alerted : items;
   return source.map((i) => ({
     name: i.name,
     kind: normalizeTsunamiKind(i.kind ?? fallbackKind),
+    ...(Object.hasOwn(i, "areaCode") ? { areaCode: i.areaCode ?? null } : {}),
+    ...(Object.hasOwn(i, "kindCode") ? { kindCode: i.kindCode ?? null } : {}),
     maxHeight: i.maxHeightDescription ?? null,
     firstHeight: i.firstHeight ?? null,
   }));
@@ -247,19 +257,13 @@ function projectEmergency(
       levelLabel: info.label,
       coasts: pickAlertCoasts(displayAreaItems, info.label),
       warningComment: displayWarningComment,
-      // PresentationEvent の areaCode/kindCode は内部結合用。display protocol へは
-      // 既存の名称フィールドだけを投影し、wire を拡張しない。
-      observations: (event.tsunamiObservations ?? []).map((o) => ({
-        areaName: o.areaName,
-        areaKind: o.areaKind != null ? normalizeTsunamiKind(o.areaKind) : null,
-        ...(o.stationCode != null ? { stationCode: o.stationCode } : {}),
-        stationName: o.stationName,
-        arrivalTime: o.arrivalTime,
-        initial: o.initial,
-        maxHeightValue: o.maxHeightValue,
-        condition: o.condition,
-        ...(o.heightCondition != null ? { heightCondition: o.heightCondition } : {}),
-      })),
+      // code は名称とは独立した identity として optional な protocol field へ明示投影する。
+      observations: projectDisplayTsunamiObservations(
+        (event.tsunamiObservations ?? []).map((o) => ({
+          ...o,
+          areaKind: o.areaKind != null ? normalizeTsunamiKind(o.areaKind) : null,
+        })),
+      ),
       reportDateTime: event.reportDateTime,
     };
   }

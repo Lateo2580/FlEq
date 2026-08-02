@@ -101,7 +101,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
       dto.seq = ++this.seq;
       this.store.setConnection({ lastReceivedAt: new Date(nowMs).toISOString() }, nowMs);
       // event.tsunamiObservations は DTO の emergency には (VTSE51/52 で level が組めないと) 載らないため、
-      // PresentationEvent から直接渡す (protocol 型は変えない server-internal な橋渡し)
+      // PresentationEvent から直接渡し、display protocol の明示 field へ投影する橋渡し。
       const tsunamiObservations = event.tsunamiObservations == null
         ? null
         : projectDisplayTsunamiObservations(event.tsunamiObservations);

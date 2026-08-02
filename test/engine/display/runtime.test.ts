@@ -87,13 +87,19 @@ describe("tsunamiSeedFromParsed", () => {
     expect(seed!.level).toBe("warning");
     expect(seed!.levelLabel).toBe("津波警報");
     expect(seed!.coasts).toEqual([
-      { name: "石川県能登", kind: "津波警報", maxHeight: "３ｍ", firstHeight: "既に到達と推測" },
-      { name: "新潟県上中下越", kind: "津波注意報", maxHeight: "１ｍ", firstHeight: "０６日２２時００分" },
+      {
+        name: "石川県能登", kind: "津波警報", areaCode: "340", kindCode: "51",
+        maxHeight: "３ｍ", firstHeight: "既に到達と推測",
+      },
+      {
+        name: "新潟県上中下越", kind: "津波注意報", areaCode: "250", kindCode: "62",
+        maxHeight: "１ｍ", firstHeight: "０６日２２時００分",
+      },
     ]);
     expect(seed!.reportDateTime).toBe("2026-07-06T21:00:00+09:00");
   });
 
-  it("warningComment と observations を引き継ぎ、内部 code は seed wire へ出さない", () => {
+  it("warningComment と observations を引き継ぎ、code は seed wire へ通す", () => {
     const seed = tsunamiSeedFromParsed(
       tsunamiInfo({
         warningComment: "満潮と重なるとより高くなります",
@@ -116,6 +122,7 @@ describe("tsunamiSeedFromParsed", () => {
     expect(seed!.observations).toEqual([
       {
         areaName: "石川県能登",
+        areaCode: "340",
         areaKind: "津波警報",
         stationName: "輪島",
         arrivalTime: "2026-07-06T21:10:00+09:00",
@@ -124,8 +131,6 @@ describe("tsunamiSeedFromParsed", () => {
         condition: "観測中",
       },
     ]);
-    expect(JSON.stringify(seed!.observations)).not.toContain("areaCode");
-    expect(JSON.stringify(seed!.observations)).not.toContain("kindCode");
   });
 
   it("大津波警報を含むと majorWarning になる", () => {
@@ -446,6 +451,7 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
     const holder = new TsunamiStateHolder();
     holder.applyAcceptedObservations("VTSE51", [canonicalizeLegacyTsunamiObservation({
       areaName: "岩手県",
+      areaCode: "340",
       stationCode: "21001",
       name: "宮古",
       sensor: "検潮所",
@@ -472,7 +478,9 @@ describe("startDisplayRuntime: seed 統合 (acceptance #12 unit 版)", () => {
     expect(snap.tsunami!.levelLabel).toBe("津波警報");
     expect(snap.tsunami!.level).toBe("warning");
     expect(snap.tsunami!.observations).toEqual([
-      expect.objectContaining({ stationCode: "21001", stationName: "宮古" }),
+      expect.objectContaining({
+        areaCode: "340", stationCode: "21001", stationName: "宮古",
+      }),
     ]);
 
     const res = await fetch(`http://127.0.0.1:${runtime!.transport.port()}/healthz`);

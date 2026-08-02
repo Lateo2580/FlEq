@@ -1,15 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { keyCoastRows, keyObsRows } from "../tsunami-rows";
+import { coastKindGroupKey, keyCoastRows, keyObsRows } from "../tsunami-rows";
 import type { DisplayTsunamiInputV1, DisplayTsunamiObservationV1 } from "../protocol";
 
 type Coast = DisplayTsunamiInputV1["coasts"][number];
-function coast(name: string, kind: string): Coast {
-  return { name, kind, maxHeight: null, firstHeight: null };
+function coast(
+  name: string,
+  kind: string,
+  codes: { areaCode?: string | null; kindCode?: string | null } = {},
+): Coast {
+  return { name, kind, ...codes, maxHeight: null, firstHeight: null };
 }
-function obs(stationName: string): DisplayTsunamiObservationV1 {
+function obs(
+  stationName: string,
+  stationCode?: string | null,
+): DisplayTsunamiObservationV1 {
   return {
     areaName: null,
     areaKind: null,
+    ...(stationCode === undefined ? {} : { stationCode }),
     stationName,
     arrivalTime: null,
     initial: null,
@@ -49,6 +57,41 @@ describe("keyCoastRows (ordinal 採番、spec §2-c Medium 6 / 最終改稿 2)",
     const c = coast("岩手県", "警報");
     expect(keyCoastRows([c])[0].row).toBe(c);
   });
+
+  it("同じ code の名称変更では行キーを維持する", () => {
+    const before = keyCoastRows([coast("旧名称", "警報", { areaCode: "210", kindCode: "51" })]);
+    const after = keyCoastRows([coast("新名称", "津波警報", { areaCode: "210", kindCode: "51" })]);
+    expect(before[0].key).toBe("code:210|51|0");
+    expect(after[0].key).toBe(before[0].key);
+  });
+
+  it("同じ名称でも code が異なる行は分離する", () => {
+    const rows = keyCoastRows([
+      coast("同じ名称", "津波警報", { areaCode: "210", kindCode: "51" }),
+      coast("同じ名称", "津波警報", { areaCode: "220", kindCode: "51" }),
+    ]);
+    expect(rows.map((r) => r.key)).toEqual(["code:210|51|0", "code:220|51|0"]);
+  });
+
+  it("raw Kind.Code の前後空白を正規化せず、行・グループ identity を分離する", () => {
+    const plain = coast("同じ名称", "同じ種別名", { areaCode: "210", kindCode: "53" });
+    const spaced = coast("同じ名称", "同じ種別名", { areaCode: "210", kindCode: " 53 " });
+
+    expect(keyCoastRows([plain, spaced]).map((r) => r.key)).toEqual([
+      "code:210|53|0",
+      "code:210| 53 |0",
+    ]);
+    expect([coastKindGroupKey(plain), coastKindGroupKey(spaced)]).toEqual([
+      "kind-code:53",
+      "kind-code: 53 ",
+    ]);
+  });
+
+  it("code が欠落した旧 snapshot は名称キーへ fallback する", () => {
+    expect(keyCoastRows([coast("岩手県", "警報")])[0].key).toBe("岩手県|警報|0");
+    expect(keyCoastRows([coast("岩手県", "警報", { areaCode: "210" })])[0].key)
+      .toBe("岩手県|警報|0");
+  });
 });
 
 describe("keyObsRows (ordinal 採番)", () => {
@@ -62,5 +105,37 @@ describe("keyObsRows (ordinal 採番)", () => {
     const after = keyObsRows([obs("石巻"), obs("大洗"), obs("宮古")]);
     expect(before[0].key).toBe(after[0].key);
     expect(before[1].key).toBe(after[2].key);
+  });
+
+  it("同じ stationCode の名称変更では行キーを維持する", () => {
+    const before = keyObsRows([obs("旧名称", "21001")]);
+    const after = keyObsRows([obs("新名称", "21001")]);
+    expect(before[0].key).toBe("code:21001|0");
+    expect(after[0].key).toBe(before[0].key);
+  });
+
+  it("同じ名称でも stationCode が異なる行は分離する", () => {
+    const rows = keyObsRows([
+      obs("同じ名称", "21001"),
+      obs("同じ名称", "22001"),
+    ]);
+    expect(rows.map((r) => r.key)).toEqual(["code:21001|0", "code:22001|0"]);
+  });
+
+  it("同名別 code 行が増減しても残存行の ordinal を再割当しない", () => {
+    const before = keyObsRows([obs("同じ名称", "22001")]);
+    const expanded = keyObsRows([
+      obs("同じ名称", "21001"),
+      obs("同じ名称", "22001"),
+    ]);
+    const after = keyObsRows([obs("同じ名称", "22001")]);
+    expect(expanded[1].key).toBe(before[0].key);
+    expect(after[0].key).toBe(before[0].key);
+    expect(after[0].key).toBe("code:22001|0");
+  });
+
+  it("stationCode が欠落した旧 snapshot は名称キーへ fallback する", () => {
+    expect(keyObsRows([obs("石巻")])[0].key).toBe("石巻|0");
+    expect(keyObsRows([obs("石巻", "  ")])[0].key).toBe("石巻|0");
   });
 });

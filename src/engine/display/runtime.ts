@@ -95,6 +95,8 @@ export function tsunamiSeedFromParsed(
     .map((f) => ({
       name: f.areaName,
       kind: f.kind,
+      areaCode: f.areaCode,
+      kindCode: f.kindCode,
       maxHeight: f.maxHeightDescription || null,
       firstHeight: f.firstHeight || null,
     }));
