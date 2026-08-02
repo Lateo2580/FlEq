@@ -4,7 +4,12 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import EewPanel from "../EewPanel.svelte";
-import type { DisplayEewInputV1, DisplayEewRegionV1, DisplayIntensitySemanticV1 } from "../../lib/protocol";
+import type {
+  DisplayEewInputV1,
+  DisplayEewRegionV1,
+  DisplayIntensitySemanticV1,
+  DisplayLgIntensitySemanticV1,
+} from "../../lib/protocol";
 import { expectCurrentDot } from "./page-dots-test-utils";
 
 function region(name: string, over: Partial<DisplayEewRegionV1> = {}): DisplayEewRegionV1 {
@@ -43,6 +48,15 @@ function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySe
   };
 }
 
+function lgSemantic(over: Partial<DisplayLgIntensitySemanticV1>): DisplayLgIntensitySemanticV1 {
+  return {
+    raw: "2", presence: "value", label: "2", condition: null, description: null,
+    lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "normalRank", render: true, safetyLowerRank: 2,
+    safetyUpperRank: 2, safetyRank: 2, colorRank: 2, ...over,
+  };
+}
+
 describe("EewPanel 固定サマリ計器 (T4a)", () => {
   it("ごく浅い震源を非数値テキストとしてそのまま描画する", () => {
     const { container } = render(EewPanel, { input: eewInput({ depth: "ごく浅い" }) });
@@ -66,6 +80,43 @@ describe("EewPanel 固定サマリ計器 (T4a)", () => {
     const { container } = render(EewPanel, { input: eewInput({ maxLgInt: "1" }) });
     expect(screen.getByText("長周期")).toBeTruthy();
     expect(container.querySelector('.stat-value [data-value="1"]')).toBeTruthy();
+  });
+
+  it("長周期の overall／地域 range・unknown semantic を label・badge・色付きで表示する", () => {
+    const overall = lgSemantic({
+      raw: "", presence: "range", label: "2〜3", condition: "予測幅",
+      description: "最大長周期階級幅", lowerBound: "2", upperBound: "3",
+      rawLowerBound: "２", rawUpperBound: "３", badge: "↔", color: "safetyUpperRank",
+      safetyLowerRank: 2, safetyUpperRank: 3, safetyRank: 3, colorRank: 3,
+    });
+    const regional = lgSemantic({
+      raw: "", presence: "range", label: "1〜2", condition: null,
+      description: "地域長周期階級幅", lowerBound: "1", upperBound: "2",
+      rawLowerBound: "１", rawUpperBound: "２", badge: "↔", color: "safetyUpperRank",
+      safetyLowerRank: 1, safetyUpperRank: 2, safetyRank: 2, colorRank: 2,
+    });
+    const unknown = lgSemantic({
+      raw: "", presence: "unknown", label: "不明（未入電）", condition: "未入電",
+      description: "長周期階級未入電", badge: "?", color: "unknown",
+      safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+    });
+    const { container } = render(EewPanel, { input: eewInput({
+      maxLgInt: "2",
+      maxLgIntSemantic: overall,
+      regions: [
+        region("幅地域", { lgIntensity: "1〜2", lgIntensitySemantic: regional }),
+        region("未入電地域", { lgIntensity: "不明（未入電）", lgIntensitySemantic: unknown }),
+      ],
+    }) });
+
+    const overallChip = container.querySelector(".stat-value.lg");
+    expect(overallChip?.textContent?.replace(/\s+/g, "")).toBe("2〜3↔");
+    expect(overallChip?.getAttribute("title")).toContain("最大長周期階級幅");
+    const regionalChips = [...container.querySelectorAll(".region-lg")];
+    expect(regionalChips.map((chip) => chip.textContent)).toEqual(["長周期1〜2↔", "長周期不明（未入電）?"]);
+    expect(regionalChips[0].classList.contains("lg-r2")).toBe(true);
+    expect(regionalChips[1].classList.contains("special-unknown")).toBe(true);
+    expect(regionalChips[1].getAttribute("aria-label")).toContain("長周期階級未入電");
   });
 
   it("震度別の地域数は出さず、震度チップと地域名リストは維持する", () => {

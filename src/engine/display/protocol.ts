@@ -61,11 +61,28 @@ export interface DisplayIntensitySemanticV1 {
   colorRank: number | null;
 }
 
+export type DisplayLgIntensityRankV1 = 0 | 1 | 2 | 3 | 4;
+
+/** V1 additive semantic for JMA long-period ground motion class (rank 0..4). */
+export interface DisplayLgIntensitySemanticV1 extends Omit<
+  DisplayIntensitySemanticV1,
+  "safetyLowerRank" | "safetyUpperRank" | "safetyRank" | "colorRank"
+> {
+  safetyLowerRank: DisplayLgIntensityRankV1 | null;
+  safetyUpperRank: DisplayLgIntensityRankV1 | null;
+  safetyRank: DisplayLgIntensityRankV1 | null;
+  colorRank: DisplayLgIntensityRankV1 | null;
+}
+
 export interface DisplayEewRegionV1 {
   name: string;
   intensitySemantic?: DisplayIntensitySemanticV1;
   intensity: string;            // 予測震度 (下限)
   intensityTo: string | null;   // 範囲予測の上限 (なければ null)
+  /** 旧 V1 では欠落。semantic 非対応 frontend 向けの表示 scalar。 */
+  lgIntensity?: string | null;
+  /** ForecastLgInt の qualifier を保持する V1 additive semantic。 */
+  lgIntensitySemantic?: DisplayLgIntensitySemanticV1;
   isPlum: boolean;
   hasArrived: boolean;
   arrivalTime: string | null;   // 主要動到達予測時刻
@@ -100,6 +117,7 @@ export interface DisplayEewInputV1 {
   isAssumedHypocenter: boolean;
   depth: string | null;
   maxLgInt: string | null;
+  maxLgIntSemantic?: DisplayLgIntensitySemanticV1;
   regions: DisplayEewRegionV1[];
 }
 

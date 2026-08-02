@@ -56,8 +56,8 @@ chalk による色付けは直接ハードコードせず、`theme.ts` のロー
 | `formatTimestamp(isoStr: string): string` | ISO 文字列を `"YYYY-MM-DD HH:MM:SS"` に整形 |
 | `formatElapsedTime(ms: number): string` | ミリ秒を `"HH:MM:SS"` 形式に整形 |
 | `formatUptime(ms: number): string` | ミリ秒を `"DDD:HH:MM:SS"` 形式に整形 (未使用ゼロ桁は dim 表示) |
-| `intensityColor(intensity: string): chalk.Chalk` | 震度文字列に対応する chalk スタイルを返す (テーマロール経由) |
-| `lgIntensityColor(lgInt: string): chalk.Chalk` | 長周期地震動階級に対応する chalk スタイルを返す |
+| `intensityColor(intensity: string): chalk.Chalk` | legacy scalar または `SpecialValue` の表示候補文字列に対応する chalk スタイルを返す (テーマロール経由)。presence／badge／描画可否はこの関数で再判定しない |
+| `lgIntensityColor(lgInt: string): chalk.Chalk` | legacy scalar または `SpecialValue` の表示候補文字列に対応する chalk スタイルを返す。震度 safety とは別の LgInt 系列を使う |
 
 #### 表示関数
 
@@ -87,11 +87,11 @@ Phase 4b (2026-07) で `eew-formatter.ts` を新デザイン言語化済み。�
 
 各電文タイプごとにフレームレベル判定関数がある:
 
-- `earthquakeFrameLevel`: 震度 6弱以上 → critical、震度 4 以上 → warning、取消 → cancel
+- `earthquakeFrameLevel`: `IntensitySafetyRank` の下限 6弱以上 → critical、下限 4 以上 → warning、unknown は数値 rank にせず、取消 → cancel
 - `eewFrameLevel`: 警報 → critical、取消 → cancel、予報 → warning
 - `tsunamiFrameLevel`: 大津波警報 → critical、津波警報 → warning、取消 → cancel
 - `nankaiTroughFrameLevel`: コード `120` → critical、`130`/`111`-`113`/`210`/`219` → warning、`190`/`200` → info
-- `lgObservationFrameLevel`: LgInt4 → critical、LgInt3 → warning、LgInt2 → normal、その他 → info
+- `lgObservationFrameLevel`: `LgIntensitySafetyRank` の階級4以上 → critical、3以上 → warning、2以上 → normal、unknown／その他 → info
 
 #### フレーム描画
 
@@ -142,17 +142,25 @@ VPWP50 (`weather-warning-timeseries-formatter.ts`) は上記いずれとも非�
 | standard / wide | 震度 │ 地域 │ 長周期 (`hasLg` 時のみ) │ 状態 |
 | ultra-narrow (〜幅40級) | 震度 │ 地域 │ 状態（長周期列は省略、`[詳細]` へも逃がさない — 高さ削減優先、spec §8 R2-4） |
 
-- 震度列: `formatEewIntensityRange()` で範囲表記対応（From≠To は「4〜5弱」、To="over" は「4程度以上」）
+- 震度列: `formatEewIntensityRange()` と `SpecialValue` label で範囲・qualitative・unknown・empty を保持（From≠To は「4〜5弱」、To="over" は「4程度以上」）。親 `Area/Condition` の PLUM／到達状態は状態列へ別に出す
 - 状態列: `eewStatusBadges()` が「到達済」/「HH:MM:SS 到達予測」/「PLUM」を優先順に併記（badge 配列、単一 enum にしない）。旧「主要動到達推測地域」独立セクションはこの列に吸収され撤去済み
-- 並び順: `buildEewForecastRows()` が **To 基準（悲観側）の震度降順**（`eewPessimisticIntensity(intensity, intensityTo)` をソートキーに）でソートする。**一枚テーブル統合（Task 5）**により、階級ごとの divider・ヘッダ繰り返しは廃止済み — `予測震度` labeled divider 1 本 + ヘッダ 1 回 + 全行（`shown`）を `renderResponsiveTable` 1 回で描画する（震度列が各行にあるため階級境の細線 divider なしでも読める）
+- 並び順: `buildEewForecastRows()` は各地域を `evaluateEewForecastArea()` で一度だけ safety evaluation し、`safetyRank` 降順（同 rank は地域名順）でソートする。unknown／empty は rank を捏造せず既知値の後へ置く。**一枚テーブル統合（Task 5）**により、階級ごとの divider・ヘッダ繰り返しは廃止済み — `予測震度` labeled divider 1 本 + ヘッダ 1 回 + 全行（`shown`）を `renderResponsiveTable` 1 回で描画する（震度列が各行にあるため階級境の細線 divider なしでも読める）
 - 件数制限: `getMaxObservations()` を維持。超過分は**震度別の集約行 1 本**（`… 他 N 地域 (震度6弱: 28 / 震度5強: 38 …)`。`summarizeHiddenEewRows()` の Map 1 走査、悲観側震度の強い順、`intensityColor()` 着色、` / ` を折返し点に `wrapFrameLines` で畳む）に畳む。旧方式（`[詳細]` ブロックへの全列回収 + `EEW_DETAIL_HARD_CAP = 200`）は 2026-07-25 に撤去 — fold が総出力を逆に増やす逆膨張（190 地域・fold=10 で約 590 行）の解消のため。全地域の内訳は EEW ログ（`eew-logger`、既定 ON）で復元可能
 
-**To 基準一気通貫**（`src/utils/intensity.ts` の `eewPessimisticIntensity(intensity, intensityTo)`）: 最大予測震度の算出を表示/通知の 4 箇所 + 記録層 1 箇所すべて `intensityTo ?? intensity`（悲観側）基準に揃える。単一 helper を共用し算出箇所の増殖を防ぐ。なお地域別の生値（震度別グループ一覧など）は From のまま — 「最大は To、地域別生値は From」の二層設計。
+**EEW safety evaluation 一気通貫**: 地域値は `evaluateEewForecastArea()`、全体最大は `getMaxForecastIntensityEvaluation()` を唯一の評価経路とする。後者は overall と全地域の `SpecialValue` を同じ `IntensitySafetyRank` で比較し、range の上限、qualitative の下限、unknown 混在、表示 label、色候補を一つの evaluation として返す。formatter、tracker diff、presentation、通知、logger はこの結果を共有し、legacy `getMaxForecastIntensity()` は旧 caller 用 summary adapter に限定する。
+
+#### Phase 4A SpecialValue 表示契約
+
+parser／engine は `SpecialValue` を `formatIntensitySpecialValue`／`formatLgIntensitySpecialValue` で表示 label へ投影し、`maxIntLabel`／`maxLgIntLabel` と legacy scalar を併せて formatter／summary／ticker へ渡す。`5弱以上未入電` は `≥` と安全側の震度色、range は `↔`、unknown は `?`、empty は `∅` とし、missing は描画しない。`IntensitySafetyRank` と `LgIntensitySafetyRank` は別系統で、LgInt unknown を震度の rank として扱わない。
+
+EEW の overall 値は地域配列が空でもカードの emergency payload へ投影できるが、地域 item／地域 badge は生成しない。display protocol は震度の `forecastMaxIntSemantic`／region `intensitySemantic` と、長周期階級の `maxLgIntSemantic`／region `lgIntensitySemantic` を optional additive field として持ち、既存 scalar field を置き換えない。長周期 semantic の rank は `0 | 1 | 2 | 3 | 4 | null` に限定する。終端撤回の `restoreRevision` は表示 payload の復元命令であり、unknown による safety latch の降格とは別に適用する。
+
+常設 display frontend (`display/frontend/src/components/QuakeMap.svelte`) の badge は SVG path の bounding box 中心ではなく、`quakeMapPathCenter()` が scanline で求める path 内の最長 filled span の中点を使う。凡例・tooltip・ARIA は `≥`／`↔`／`?`／`∅` を説明する。実電文 fixture は未確認で、検証 fixture は synthetic XML のみである。
 
 | # | 箇所 | 用途 |
 |---|------|------|
 | 1 | `eew-formatter.ts` (`displayEewInfo` カード行、`buildEewForecastRows`) | テーブルの並び・グループ化キー、カード行の最大予測震度 |
-| 2 | `eew-tracker.ts` の `getMaxForecastIntensity`（L71-82） | diff の `previousMaxInt` 比較値。`EewDiff` の外部契約・報数管理・colorIndex 採番は無変更 |
+| 2 | `eew-tracker.ts` の `evaluateEewForecastArea`／`getMaxForecastIntensityEvaluation` | 地域 sort と overall／地域共通の safety evaluation。diff の `previousMaxInt` も同じ evaluation の summary label を使う |
 | 3 | `engine/presentation/events/from-eew.ts` の `fromEewOutcome` | summary パイプラインの `forecastMaxInt` |
 | 4 | `engine/notification/notifier.ts:1097-1103` | 通知本文の最大震度算出 |
 | 5 | `engine/eew/eew-logger.ts`（差分ログ・最大予測震度の記録） | 記録層。tracker 由来の To 基準 `previousMaxInt` と混在しないよう統一（Codex 最終レビュー対応） |
@@ -861,7 +869,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 
 #### セル構築 (buildMinimapCells)
 
-- earthquake/lgObservation/eew: エリア名から都道府県にマッピングし、同一県内の最大震度を採用 (数値ランクで比較)
+- earthquake/lgObservation/eew: この legacy ASCII 経路は presentation の互換 scalar を都道府県へマッピングする。canonical な display frontend 地図は `DisplayIntensitySemanticV1` を使い、missing は非描画、unknown／empty は semantic 色・badge 付きで描画する。LgInt は震度と別系列で比較する
 - tsunami: エリア名から都道府県にマッピングし、最も重い津波警報種別を採用。略称: `MJ` (大津波警報)、`WN` (津波警報)、`AD` (津波注意報)
 
 ### 依存関係
@@ -904,7 +912,7 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 |---|---|
 | `SummaryPriority` | `0 \| 1 \| 2 \| 3 \| 4`。0 が最高優先 |
 | `SummaryToken` | トークン定義。`id`, `text`, `shortText?`, `priority: SummaryPriority`, `minWidth`, `preferredWidth`, `dropMode: "never" \| "shorten" \| "drop"` |
-| `SummaryModel` | サマリーモデル。`domain`, `severity`, `title?`, `location?`, `magnitude?`, `maxInt?`, `maxLgInt?`, `headline?`, `volcanoName?`, `serial?`, `areaNames?` |
+| `SummaryModel` | サマリーモデル。`domain`, `severity`, `title?`, `location?`, `magnitude?`, `maxInt?`, `maxLgInt?`, `headline?`, `volcanoName?`, `serial?`, `areaNames?`。構築時は `PresentationEvent.maxIntLabel`／`maxLgIntLabel` を優先して qualifier を保持する |
 
 #### 関数
 
@@ -923,12 +931,12 @@ function renderVolcanoDetail(entries: VolcanoAlertEntrySnapshot[]): void
 
 | ビルダー | ドメイン | 主なトークン |
 |---------|---------|-------------|
-| `buildEewTokens` | eew | severity, kind (EEW警報/予報/取消), serial, hypocenter, maxInt, magnitude, depth, forecastAreaTop |
-| `buildEarthquakeTokens` | earthquake | severity, type (VXSE51/52/53/61 別), hypocenter, magnitude, maxInt, maxLgInt, topAreas |
+| `buildEewTokens` | eew | severity, kind (EEW警報/予報/取消), serial, hypocenter, SpecialValue label の maxInt, magnitude, depth, forecastAreaTop |
+| `buildEarthquakeTokens` | earthquake | severity, type (VXSE51/52/53/61 別), hypocenter, magnitude, SpecialValue label の maxInt, maxLgInt, topAreas |
 | `buildTsunamiTokens` | tsunami | severity, bannerKind, topAreas, areaCount, hypocenter, magnitude |
 | `buildVolcanoTokens` | volcano | severity, type (VFVO50/52/53/51/60 別), volcanoName, alertLevel, areaCount, headline |
 | `buildSeismicTextTokens` | seismicText | severity, type, headline |
-| `buildLgObservationTokens` | lgObservation | severity, type, hypocenter, maxLgInt, maxInt, topAreas, magnitude, depth |
+| `buildLgObservationTokens` | lgObservation | severity, type, hypocenter, SpecialValue label の maxLgInt, maxInt, topAreas, magnitude, depth |
 | `buildNankaiTroughTokens` | nankaiTrough | severity, type, headline |
 | `buildRawTokens` | raw | severity, RAW, type, title, headline, office |
 

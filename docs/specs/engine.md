@@ -479,7 +479,7 @@ function createMessageHandler(options?: MessageHandlerOptions): MessageHandlerRe
 interface EewDiff {
   previousMagnitude?: string;
   previousDepth?: string;
-  previousMaxInt?: string;
+  previousMaxInt?: string; // SpecialValue safety evaluation の summary label
   hypocenterChange?: boolean;
 }
 
@@ -535,7 +535,7 @@ class EewTracker {
 
 - **マグニチュード** — 数値パース後に比較
 - **深さ** — `parseDepthKm()` で km 数値を抽出して比較
-- **最大予測震度** — `getMaxForecastIntensity()` で全地域の最大値を求めて比較（配列順に依存しない）
+- **最大予測震度** — `getMaxForecastIntensityEvaluation()` で全体／地域の `SpecialValue` safety evaluation を求め、summary label と retained safety rank を使って比較（配列順に依存しない）
 - **震源地名** — 文字列比較
 
 いずれかに変化があれば `EewDiff` を返す。変化なしなら `undefined`。
@@ -577,7 +577,7 @@ interface EewEvent {
 | 関数 | 説明 |
 |------|------|
 | `parseDepthKm(depth)` | 深さ文字列から数値(km)を抽出 |
-| `getMaxForecastIntensity(areas)` | 予測震度リストから最大震度を取得（`intensityToRank` で比較） |
+| `getMaxForecastIntensityEvaluation(areas)` | 予測震度リストの `SpecialValue` を safety evaluation し、表示 label・safety rank・unknown 候補を返す |
 | `computeDiff(prev, curr)` | 2つの EEW 情報から差分を計算 |
 
 ### 依存関係
@@ -1765,7 +1765,8 @@ interface PresentationEvent {
   // 状態フラグ: isCancellation, isWarning?, isFinal?, isAssumedHypocenter?, isRenotification?
   // イベント追跡: eventId?, serial?, volcanoCode?, volcanoName?
   // 震源情報: originTime?, hypocenterName?, latitude?, longitude?, depth?, magnitude?
-  // 強度: maxInt?, maxIntRank?, maxLgInt?, maxLgIntRank?, forecastMaxInt?, forecastMaxIntRank?, alertLevel?
+  // 強度 scalar adapter: maxInt?, maxIntRank?, maxLgInt?, maxLgIntRank?, forecastMaxInt?, forecastMaxIntRank?
+  // SpecialValue と表示ラベル: maxIntValue?, maxIntLabel?, maxLgIntValue?, maxLgIntLabel?
   // 付帯情報: nextAdvisory?, warningComment?, bodyText?
   // 地域集約: areaNames, forecastAreaNames, municipalityNames, observationNames, areaCount, forecastAreaCount, municipalityCount, observationCount, areaItems
   // filter 用: tsunamiKinds?, infoSerialCode?
@@ -1784,7 +1785,7 @@ interface PresentationEvent {
 
 | 型 | 説明 |
 |---|---|
-| `PresentationAreaItem` | 地域情報の個別項目（`name`, `code?`, `kind?`, `maxInt?`, `maxLgInt?`, `flags?`） |
+| `PresentationAreaItem` | 地域情報の個別項目（legacy `maxInt?`／`maxLgInt?`、`maxIntValue?`／`maxLgIntValue?`、SpecialValue の表示値、`flags?`）。semantic は display projection で付与する |
 | `EventStateSnapshot` | eew/tsunami/volcano の状態スナップショット判別共用体 |
 | `ParsedTelegramUnion` | 全パース済み型の和（`null` 含む） |
 
@@ -1911,22 +1912,22 @@ interface PresentationDiff {
 | 関数 | 判定ロジック |
 |------|-------------|
 | `eewFrameLevel(info)` | 取消→cancel、警報→critical、予報→warning |
-| `earthquakeFrameLevel(info)` | 取消→cancel、震度6弱以上→critical、震度4以上→warning、他→normal |
+| `earthquakeFrameLevel(info)` | 取消→cancel、`IntensitySafetyRank` の下限6弱以上→critical、下限4以上→warning、他→normal。unknown は数値 rank にしない |
 | `tsunamiFrameLevel(info)` | 取消→cancel、大津波警報→critical、津波警報→warning、他→normal |
 | `seismicTextFrameLevel(info)` | 取消→cancel、他→info |
 | `nankaiTroughFrameLevel(info)` | 取消→cancel、Code120→critical、Code130/111-113/210-219→warning、Code190/200→info、他→warning |
-| `lgObservationFrameLevel(info)` | 取消→cancel、階級4以上→critical、3以上→warning、2以上→normal、他→info |
+| `lgObservationFrameLevel(info)` | 取消→cancel、`LgIntensitySafetyRank` の階級4以上→critical、3以上→warning、2以上→normal、他／unknown→info |
 
 #### soundLevel 関数
 
 | 関数 | 判定ロジック |
 |------|-------------|
 | `eewSoundLevel(info)` | 警報→critical、予報→warning |
-| `earthquakeSoundLevel(info)` | 震度4以上→warning、他→normal |
+| `earthquakeSoundLevel(info)` | `IntensitySafetyRank` の下限4以上→warning、他／unknown→normal |
 | `tsunamiSoundLevel(info)` | 津波関連(解除以外)→critical、解除→warning、他→normal |
 | `seismicTextSoundLevel(_info)` | 常に info |
 | `nankaiTroughSoundLevel(info)` | Code120→critical、他→warning |
-| `lgObservationSoundLevel(info)` | 階級3-4→critical、階級1-2→warning、他→normal |
+| `lgObservationSoundLevel(info)` | `LgIntensitySafetyRank` の階級3-4→critical、1-2→warning、unknown→normal |
 
 ### 依存関係
 
@@ -1993,12 +1994,12 @@ function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent
 
 | ファイル | 入力型 | 特筆事項 |
 |---------|--------|----------|
-| `from-eew.ts` | `EewOutcome` | 予測地域から最大予測震度 (`forecastMaxInt`) を算出、`stateSnapshot` に EEW 状態を設定 |
-| `from-earthquake.ts` | `EarthquakeOutcome` | 観測地域の震度一覧を `areaItems` に展開、`maxIntRank` を `intensityToRank` で算出 |
+| `from-eew.ts` | `EewOutcome` | overall／予測地域の `SpecialValue` を保持して `forecastMaxInt` を算出。regionless overall も保持し、`eewDisplayRestoreRevision` と `stateSnapshot` に EEW 状態を設定。display projection が semantic を生成する |
+| `from-earthquake.ts` | `EarthquakeOutcome` | 観測地域の `SpecialValue` 震度一覧を `areaItems` に展開し、presentation label と legacy scalar を生成する。wire semantic は display projection が生成する |
 | `from-tsunami.ts` | `TsunamiOutcome` | forecast の `kind` を `tsunamiKinds` に集約、`stateSnapshot` に津波状態を設定 |
 | `from-volcano.ts` | `VolcanoOutcome` / `VolcanoBatchOutcome` | `isBatch` フラグで単発/バッチを分岐、バッチ時は `subType: "ashfallBatch"` を設定 |
 | `from-seismic-text.ts` | `SeismicTextOutcome` | `bodyText` のみを展開する軽量コンバータ |
-| `from-lg-observation.ts` | `LgObservationOutcome` | `maxLgInt`, `maxLgIntRank`, 観測地域を `observationNames`/`areaItems` に展開 |
+| `from-lg-observation.ts` | `LgObservationOutcome` | `maxLgIntValue` と `maxIntValue` を保持し、下流の `LgIntensitySafetyRank` と震度 safety を別系統で解決しながら観測地域を `observationNames`/`areaItems` に展開 |
 | `from-nankai-trough.ts` | `NankaiTroughOutcome` | `infoSerialCode`, `bodyText`, `nextAdvisory` を展開 |
 | `from-weather.ts` | `WeatherOutcome` | 気象警報・注意報 (VPWW55-61/VPWS50) |
 | `from-tornado.ts` | `TornadoOutcome` | 竜巻注意情報 (VPHW50/51) |
@@ -2024,6 +2025,16 @@ function toPresentationEvent(outcome: ProcessOutcome): PresentationEvent
 - `isTest` ← `msg.head.test`
 - `frameLevel` / `soundLevel` / `notifyCategory` ← `outcome.presentation.*`
 - 地域配列は未使用ドメインでは空配列 `[]`、カウントは `0`
+
+### Phase 4A SpecialValue 境界
+
+`PresentationEvent` は parser の `SpecialValue` を presentation label／legacy scalar へ投影し、display projection が `DisplayIntensitySemanticV1` を生成する。`IntensitySafetyRank` と `LgIntensitySafetyRank` は別の safety domain であり、`unknown` を数値 rank に混ぜない。`missing` は構造欠落として表示・merge の判断に使うが、`unknown`／`empty`／`qualitative`／`range` は存在する意味値として downstream へ渡す。
+
+地震の display projection は `resolveQuakeIntensityProjection()` を単一の採用経路とする。電文全体 MaxInt と局所観測値を候補にし、`safetyLowerRank` 最大、同値なら `safetyRank` 最大の一件を安全側の表示値として map gate、large-quake 判定、recent/latest quake に共用する。全体値と採用値が異なり、全体値が non-exact semantic の場合は `reportedMaxIntSemantic` に元の全体値を provenance として残す。これにより局所値を安全側に採用しても、電文が実際に報じた qualifier／missing を失わない。
+
+V1 wire の `DisplayIntensityGroupV1.rank` と `DisplayIntensityMapValueV1.rank` は既存 frontend 互換の required number である。unknown／empty のように legacy color rank を持たない描画対象は `rank: -1` を sentinel とし、同時に optional `intensitySemantic` の presence、label、badge、color、nullable safety ranks を真実源として送る。`-1` は低震度や safety rank ではない。missing は `render: false` の semantic を地域 wire に載せず、構造欠落として処理する。
+
+EEW の display DTO は震度の `forecastMaxIntSemantic`／region `intensitySemantic` に加え、長周期階級の `maxLgIntSemantic`／region `lgIntensitySemantic` を独立に持つ。長周期 semantic の rank は専用の `0 | 1 | 2 | 3 | 4 | null` domain とし、震度 rank と混同しない。overall 値があっても regionless の `areaItems`／display regions は空でよい。終端抑止の表示復元は `eewDisplayRestoreRevision` から display protocol の optional `restoreRevision` へ投影され、retained safety latch の更新とは別に適用される。
 
 ### 依存関係
 
@@ -2505,6 +2516,8 @@ function fieldNames(): string[]
 | `tsunamiKinds` | — | string[] | — |
 
 `depth` は `"10km"` → `10` に数値変換、`magnitude` は文字列→数値変換を getter 内で行う。
+
+`maxInt`／`maxLgInt`／`forecastMaxInt` は既存 filter との互換 scalar である。特殊値の condition、qualifier、bounds、badge、描画可否は `SpecialValue` と display projection の semantic が担い、scalar の数値比較だけで `SpecialValue` を再解釈しない。
 
 ### 依存関係
 
@@ -3151,9 +3164,9 @@ Set/Map のサイズ上限 `MAX_EVENT_ENTRIES = 1000`。超過時はバッチ削
 
 ## messages/daily-quake-counter.ts / daily-quake-persistence.ts
 
-`DailyQuakeCounter` は当日 (JST) の地震件数・最大震度に加え、待機画面の `recentQuakes` 表示 DTO（新しい順、最大 5 件）を monitor 所有の一状態として持つ。件数は `eventId` 単位で数え、同じ eventId の続報は最大震度だけを更新する。`eventId: null` は受信ごとに 1 件とする。
+`DailyQuakeCounter` は当日 (JST) の地震件数・最大震度に加え、待機画面の `recentQuakes` 表示 DTO（新しい順、最大 5 件）を monitor 所有の一状態として持つ。件数は `eventId` 単位で数え、同じ eventId の続報は最大震度だけを更新する。`eventId: null` は受信ごとに 1 件とする。正確な統計最大値は exact `SpecialValue` のみから導出し、履歴 DTO は qualifier／unknown／empty の semantic を保持する。
 
-- 保存先は gitignore 済みの `data/runtime/daily-quake-v1.json`。envelope は `version: 1`、`savedAt`、`state`（`dayKey` / `count` / `maxInt` / `maxIntRank` / `countedEventIds` / `recentQuakes`）であり、カウンタと履歴を別ファイルに分離しない。
+- 保存先は gitignore 済みの `data/runtime/daily-quake-v1.json`。canonical envelope は `version: 2`、`savedAt`、`state`（`dayKey` / `count` / `maxInt` / `maxIntRank` / `countedEventIds` / `recentQuakes`）で、履歴内の `intensityGroups[].intensitySemantic` を保持する。旧 `version: 1` は読み込み時の legacy adapter として受理し、カウンタと履歴を別ファイルに分離しない。
 - `DailyQuakePersistence` は 3 秒 debounce の後、`*.tmp` へ書いて rename する。終了時は `dispose()` → `save()` で予約より新しい現在状態を同期書き込みする。
 - `load(nowMs)` は envelope・version・全 DTO 構造・日時を検証する。JSON 破損、未知 version、未来 `savedAt` / 履歴日時は warn して全状態を捨て、本体は空状態で継続する。
 - 起動時の restore は `dayKey === jstDayKey(nowMs)` の同日データだけを受理する。前日データは空の当日状態にする。履歴は originTime（欠落時は reportDateTime）の JST 日付が当日であるものだけを載せるので、深夜到着の前日続報は履歴外だがカウンタには残る。

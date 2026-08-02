@@ -4,6 +4,8 @@
   import {
     eewIntensityRangeLabel,
     eewIntensityRangeRank,
+    eewLgIntensityVisual,
+    eewRegionRenderable,
     eewRegionFontTier,
     eewRegionListColumnCount,
     paginateEewRegions,
@@ -21,9 +23,7 @@
   let { input, compact = false, settling = false, emphasized = false }: { input: DisplayEewInputV1; compact?: boolean; settling?: boolean; emphasized?: boolean } = $props();
 
   const role = $derived(input.isWarning ? "eewWarning" : "eewForecast");
-  const displayRegions = $derived(input.regions.filter((region) =>
-    intensityVisual(region.intensitySemantic, eewIntensityRangeLabel(region), eewIntensityRangeRank(region)).render
-  ));
+  const displayRegions = $derived(input.regions.filter(eewRegionRenderable));
   const tier = $derived(eewRegionFontTier(displayRegions.length, compact));
   const tierFontClass = $derived(`tier-font-${tier.fontSizePx}`);
   const regionListStyle = $derived(`font-size: ${tier.fontSizePx}px;`);
@@ -33,6 +33,7 @@
     intensity: string;
     rank: number;
     visual: IntensityVisualV1;
+    lgVisual: IntensityVisualV1;
     regions: DisplayEewRegionV1[];
   }
 
@@ -43,8 +44,9 @@
     const buckets = new Map<string, DisplayEewRegionV1[]>();
     for (const r of regions) {
       const visual = intensityVisual(r.intensitySemantic, eewIntensityRangeLabel(r), eewIntensityRangeRank(r));
-      if (!visual.render) continue;
-      const key = `${r.intensitySemantic?.presence ?? "legacy"}\u0000${visual.label ?? ""}\u0000${visual.badge ?? ""}\u0000${visual.colorRank ?? ""}\u0000${visual.tooltip ?? ""}`;
+      const lgVisual = eewLgIntensityVisual(r.lgIntensitySemantic, r.lgIntensity);
+      if (!visual.render && !lgVisual.render) continue;
+      const key = `${r.intensitySemantic?.presence ?? "legacy"}\u0000${visual.label ?? ""}\u0000${visual.badge ?? ""}\u0000${visual.colorRank ?? ""}\u0000${visual.tooltip ?? ""}\u0000${r.lgIntensitySemantic?.presence ?? "legacy"}\u0000${lgVisual.label ?? ""}\u0000${lgVisual.badge ?? ""}\u0000${lgVisual.colorRank ?? ""}\u0000${lgVisual.tooltip ?? ""}`;
       if (!buckets.has(key)) {
         buckets.set(key, []);
         order.push(key);
@@ -59,11 +61,16 @@
           eewIntensityRangeLabel(bucketRegions[0]),
           eewIntensityRangeRank(bucketRegions[0]),
         );
+        const lgVisual = eewLgIntensityVisual(
+          bucketRegions[0].lgIntensitySemantic,
+          bucketRegions[0].lgIntensity,
+        );
         return {
           key,
           intensity: visual.label ?? "",
           rank: visual.colorRank ?? 0,
           visual,
+          lgVisual,
           regions: bucketRegions,
         };
       })
@@ -81,6 +88,7 @@
     input.forecastMaxInt != null ? formatIntShort(input.forecastMaxInt) : "不明",
     input.forecastMaxIntRank,
   ));
+  const maxLgVisual = $derived(eewLgIntensityVisual(input.maxLgIntSemantic, input.maxLgInt));
   let regionAreaHeight = $state(0);
   let regionLineHeight = $state(0);
   let pendingRegionAreaHeight: number | null = null;
@@ -154,10 +162,17 @@
           <span class="stat-value"><RollingNumber value={input.depth} /></span>
         </div>
       {/if}
-      {#if input.maxLgInt != null && input.maxLgInt !== "0"}
+      {#if maxLgVisual.render}
         <div class="tile stat-tile">
           <span class="stat-label">長周期</span>
-          <span class="stat-value lg"><RollingNumber value={input.maxLgInt} /></span>
+          <span class="stat-value lg" class:special-unknown={maxLgVisual.colorClass === "quake-map-unknown"} class:special-empty={maxLgVisual.colorClass === "quake-map-neutral"} title={maxLgVisual.tooltip ?? undefined} aria-label={maxLgVisual.ariaLabel ?? undefined}>
+            {#if input.maxLgIntSemantic == null || input.maxLgIntSemantic.presence === "value"}
+              {#if input.maxLgInt != null}<RollingNumber value={input.maxLgInt} />{/if}
+            {:else}
+              <span class="semantic-value">{maxLgVisual.label ?? ""}</span>
+            {/if}
+            {#if maxLgVisual.badge != null}<b class="semantic-badge">{maxLgVisual.badge}</b>{/if}
+          </span>
         </div>
       {/if}
       <!-- T8④ (preview 目視指摘): 値は「reportDateTime (当該報の受信時刻)」であり
@@ -191,7 +206,8 @@
         >
           {#each buckets as b (b.key)}
             <div class="region-row">
-              <span class="region-intensity int-r{b.rank}" class:special-unknown={b.visual.colorClass === "quake-map-unknown"} class:special-empty={b.visual.colorClass === "quake-map-neutral"} title={b.visual.tooltip ?? undefined} aria-label={b.visual.ariaLabel ?? undefined}>震度{b.intensity}{#if b.visual.badge != null}<b class="semantic-badge">{b.visual.badge}</b>{/if}</span>
+              {#if b.visual.render}<span class="region-intensity int-r{b.rank}" class:special-unknown={b.visual.colorClass === "quake-map-unknown"} class:special-empty={b.visual.colorClass === "quake-map-neutral"} title={b.visual.tooltip ?? undefined} aria-label={b.visual.ariaLabel ?? undefined}>震度{b.intensity}{#if b.visual.badge != null}<b class="semantic-badge">{b.visual.badge}</b>{/if}</span>{/if}
+              {#if b.lgVisual.render}<span class="region-lg lg-r{b.lgVisual.colorRank ?? 0}" class:special-unknown={b.lgVisual.colorClass === "quake-map-unknown"} class:special-empty={b.lgVisual.colorClass === "quake-map-neutral"} title={b.lgVisual.tooltip ?? undefined} aria-label={b.lgVisual.ariaLabel ?? undefined}>長周期{b.lgVisual.label ?? ""}{#if b.lgVisual.badge != null}<b class="semantic-badge">{b.lgVisual.badge}</b>{/if}</span>{/if}
               <span class="region-names">{b.regions.map((r) => r.name).join(" ")}</span>
             </div>
           {/each}
@@ -205,9 +221,10 @@
             <span class="region-intensity">震度{topBucket?.intensity ?? "-"}</span>
             <span class="region-names">{regionMeasureSample}</span>
           </div>
-          {#each currentRegionPage.sections as section (section.intensity)}
+          {#each currentRegionPage.sections as section (section.key)}
             {@const visual = intensityVisual(section.semantic, section.intensity, section.rank)}
-            <div class="region-row"><span class="region-intensity int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span><span class="region-names">{section.regions.map((r) => r.name).join(" ")}</span></div>
+            {@const lgVisual = eewLgIntensityVisual(section.lgSemantic, section.lgIntensity)}
+            <div class="region-row">{#if visual.render}<span class="region-intensity int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}{#if lgVisual.render}<span class="region-lg lg-r{lgVisual.colorRank ?? 0}" class:special-unknown={lgVisual.colorClass === "quake-map-unknown"} class:special-empty={lgVisual.colorClass === "quake-map-neutral"} title={lgVisual.tooltip ?? undefined} aria-label={lgVisual.ariaLabel ?? undefined}>長周期{lgVisual.label ?? ""}{#if lgVisual.badge != null}<b class="semantic-badge">{lgVisual.badge}</b>{/if}</span>{/if}<span class="region-names">{section.regions.map((r) => r.name).join(" ")}</span></div>
           {/each}
         </div>
       </div>
@@ -328,6 +345,10 @@
   .stat-value.lg {
     color: var(--c-orange);
   }
+  .stat-value.lg.special-unknown,
+  .region-lg.special-unknown { color: var(--c-raspberry); }
+  .stat-value.lg.special-empty,
+  .region-lg.special-empty { color: var(--role-muted); }
   .agg-tile {
     flex: 0 0 auto;
     display: flex;
@@ -386,6 +407,13 @@
   .region-intensity {
     flex: 0 0 auto;
     min-width: 5em;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--type-body-weight-emphasized);
+  }
+  .region-lg {
+    flex: 0 0 auto;
+    min-width: 5em;
+    color: var(--c-orange);
     font-variant-numeric: tabular-nums;
     font-weight: var(--type-body-weight-emphasized);
   }

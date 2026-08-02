@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Phase 4A synthetic fixture: 地域なし EEW 特殊 ForecastInt の実電文は未確認 -->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>緊急地震速報（地震動予報）</Title>
+    <DateTime>2026-08-01T12:03:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>気象庁本庁</EditorialOffice>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>緊急地震速報（地震動予報）</Title>
+    <ReportDateTime>2026-08-01T21:03:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-08-01T21:02:59+09:00</TargetDateTime>
+    <EventID>synthetic-phase4a-eew-regionless</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>緊急地震速報</InfoKind>
+    <InfoKindVersion>1.2_0</InfoKindVersion>
+    <Headline><Text>Phase 4A regionless synthetic</Text></Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Intensity>
+      <Forecast>
+        <ForecastInt condition="5弱以上未入電" description="地域なし最大予測震度は5弱以上"><To>over</To></ForecastInt>
+        <ForecastLgInt condition="未入電" description="地域なし最大長周期階級未入電"/>
+      </Forecast>
+    </Intensity>
+  </Body>
+</Report>

@@ -9,7 +9,7 @@ import {
   tickerSurface,
 } from "../../../src/engine/display/project-event";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
-import type { JmaIntensity, SpecialValue } from "../../../src/types";
+import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../../src/types";
 
 describe("normalizeDepth", () => {
   it("null/undefined は null になる", () => {
@@ -890,6 +890,61 @@ describe("projectDisplayEvent", () => {
           condition: "5弱以上未入電", rawUpperBound: "over",
         },
       }],
+    });
+  });
+
+  it("EEW 全体・地域別 ForecastLgInt の range／unknown qualifier を semantic wire に保持する", () => {
+    const overall: SpecialValue<JmaLgIntensity> = {
+      raw: "", value: null, condition: "予測幅", description: "最大長周期階級幅",
+      presence: "range", lowerBound: "2", upperBound: "3",
+      rawLowerBound: "２", rawUpperBound: "３",
+    };
+    const regional: SpecialValue<JmaLgIntensity> = {
+      raw: "", value: null, condition: null, description: "地域長周期階級幅",
+      presence: "range", lowerBound: "1", upperBound: "2",
+      rawLowerBound: "１", rawUpperBound: "２",
+    };
+    const unknown: SpecialValue<JmaLgIntensity> = {
+      raw: "", value: null, condition: "未入電", description: "長周期階級未入電",
+      presence: "unknown",
+    };
+    const dto = projectDisplayEvent(baseEvent({
+      domain: "eew", type: "VXSE45", eventId: "E-lg-semantic",
+      maxLgInt: null,
+      maxLgIntValue: overall,
+      areaItems: [
+        { name: "南部", maxInt: "4", maxLgIntValue: regional },
+        { name: "北部", maxInt: "4", maxLgIntValue: unknown },
+      ],
+      eewRegions: [
+        { name: "南部", intensity: "4", intensityTo: null, isPlum: false, hasArrived: false, arrivalTime: null },
+        { name: "北部", intensity: "4", intensityTo: null, isPlum: false, hasArrived: false, arrivalTime: null },
+      ],
+    }), "EEW LgInt qualifier");
+
+    expect(dto.emergency).toMatchObject({
+      kind: "eew",
+      maxLgInt: null,
+      maxLgIntSemantic: {
+        presence: "range", label: "2〜3", badge: "↔", color: "safetyUpperRank",
+        condition: "予測幅", description: "最大長周期階級幅",
+        safetyLowerRank: 2, safetyUpperRank: 3, safetyRank: 3, colorRank: 3,
+      },
+      regions: [
+        expect.objectContaining({
+          name: "南部", lgIntensity: "1〜2",
+          lgIntensitySemantic: expect.objectContaining({
+            presence: "range", label: "1〜2", badge: "↔", colorRank: 2,
+          }),
+        }),
+        expect.objectContaining({
+          name: "北部", lgIntensity: "不明（未入電）",
+          lgIntensitySemantic: expect.objectContaining({
+            presence: "unknown", label: "不明（未入電）", badge: "?", color: "unknown",
+            safetyRank: null, colorRank: null,
+          }),
+        }),
+      ],
     });
   });
 

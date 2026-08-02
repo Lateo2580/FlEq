@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { displayEewInfo, buildEewAccuracyLine, buildEewCardLine } from "../../src/ui/eew-formatter";
 import { parseEewTelegram } from "../../src/dmdata/telegram-parser";
 import { setFrameWidth, stripAnsi, setMaxObservations, setDisplayMode, visualWidth } from "../../src/ui/formatter";
-import type { EewAccuracy, JmaIntensity, ParsedEewInfo, SpecialValue } from "../../src/types";
+import type { EewAccuracy, JmaIntensity, JmaLgIntensity, ParsedEewInfo, SpecialValue } from "../../src/types";
 import type { EewDiff } from "../../src/engine/eew/eew-tracker";
 import {
   buildEewForecastRows,
@@ -283,6 +283,40 @@ describe("EEW 予測震度テーブル (Phase 4b)", () => {
     displayEewInfo(syntheticEew([{ name: "地域A", intensity: "4", lgIntensity: "0" }]));
     const headerLine = output().split("\n").find((l) => l.includes("震度") && l.includes("地域"))!;
     expect(headerLine).not.toContain("長周期");
+  });
+
+  it("ForecastLgInt の overall／地域 range・unknown qualifier を縮約せず表示する", () => {
+    const lgValue = (
+      value: Partial<SpecialValue<JmaLgIntensity>>,
+    ): SpecialValue<JmaLgIntensity> => ({
+      raw: null, value: null, condition: null, description: null, presence: "missing", ...value,
+    });
+    const info = syntheticEew([
+      {
+        name: "幅地域", intensity: "4", lgIntensity: "1",
+        lgIntensityValue: lgValue({
+          raw: "", presence: "range", lowerBound: "1", upperBound: "2",
+          rawLowerBound: "１", rawUpperBound: "２",
+        }),
+      },
+      {
+        name: "未入電地域", intensity: "3", lgIntensity: "",
+        lgIntensityValue: lgValue({
+          raw: "", presence: "unknown", condition: "未入電", description: "長周期階級未入電",
+        }),
+      },
+    ]);
+    info.forecastIntensity!.maxLgInt = "2";
+    info.forecastIntensity!.maxLgIntValue = lgValue({
+      raw: "", presence: "range", lowerBound: "2", upperBound: "3",
+      condition: "予測幅", description: "最大長周期階級幅",
+    });
+
+    displayEewInfo(info);
+    const rendered = output();
+    expect(rendered).toContain("長周期階級 2〜3");
+    expect(rendered).toContain("階級1〜2");
+    expect(rendered).toContain("階級不明（未入電）");
   });
 
   it("件数制限: getMaxObservations 超過分は震度別集約行に畳む (1 地域 1 詳細に展開しない)", () => {

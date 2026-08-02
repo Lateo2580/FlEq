@@ -1,5 +1,32 @@
-import { beforeEach, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { afterAll, beforeEach, vi } from "vitest";
 import { resetDisplayLayoutForTest } from "../src/ui/display-layout";
+import { cleanupStaleTestSandboxes } from "./helpers/test-sandbox-owner";
+
+// vi.hoisted はテストファイルの mock と静的 import より前に評価される。
+// config.ts が legacy path を探索しないよう、ここで checkout 内の config を先に作る。
+const testEnvironment = vi.hoisted(() => {
+  const nodeFs = require("node:fs") as typeof import("node:fs");
+  const nodePath = require("node:path") as typeof import("node:path");
+  const originalAppData = process.env.APPDATA;
+  const originalXdgConfigHome = process.env.XDG_CONFIG_HOME;
+  const isolatedAppData = nodeFs.mkdtempSync(
+    nodePath.join(process.cwd(), `.vitest-appdata-${process.pid}-`),
+  );
+  process.env.APPDATA = isolatedAppData;
+  process.env.XDG_CONFIG_HOME = isolatedAppData;
+  const isolatedConfigDir = nodePath.join(isolatedAppData, "fleq");
+  nodeFs.mkdirSync(isolatedConfigDir, { recursive: true });
+  nodeFs.writeFileSync(nodePath.join(isolatedConfigDir, "config.json"), "{}\n", "utf8");
+  return { originalAppData, originalXdgConfigHome, isolatedAppData };
+});
+
+const { originalAppData, originalXdgConfigHome, isolatedAppData } = testEnvironment;
+
+// 強制終了で残った checkout 内の sandbox だけを掃除する。
+// owner PID が生存中の directory は、作成時刻にかかわらず別 worker の現役領域として保護する。
+cleanupStaleTestSandboxes(process.cwd());
 
 /**
  * notifyMock を vi.hoisted() で定義し、vi.mock ファクトリ内で参照可能にする。
@@ -47,4 +74,20 @@ export { notifyMock };
 beforeEach(() => {
   notifyMock.mockClear();
   resetDisplayLayoutForTest();  // layout singleton の順序依存・外部 config 汚染を防ぐ
+});
+
+afterAll(() => {
+  if (originalAppData == null) {
+    delete process.env.APPDATA;
+  } else {
+    process.env.APPDATA = originalAppData;
+  }
+
+  if (originalXdgConfigHome == null) {
+    delete process.env.XDG_CONFIG_HOME;
+  } else {
+    process.env.XDG_CONFIG_HOME = originalXdgConfigHome;
+  }
+
+  fs.rmSync(isolatedAppData, { recursive: true, force: true });
 });

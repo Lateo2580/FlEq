@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { EewAccuracy, ParsedEewInfo } from "../types";
+import { EewAccuracy, ParsedEewInfo, type JmaLgIntensity, type SpecialValue } from "../types";
 import type { EewDiff } from "../engine/eew/eew-tracker";
 import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
 import * as theme from "./theme";
@@ -39,6 +39,10 @@ import {
   evaluateEewForecastArea,
   getMaxForecastIntensityEvaluation,
 } from "../engine/eew/eew-tracker";
+import {
+  formatLgIntensitySpecialValue,
+  resolveLgIntensitySafetyRank,
+} from "../engine/presentation/level-helpers";
 
 // ── EEW 表示コンテキスト ──
 
@@ -168,6 +172,10 @@ export interface EewForecastRow {
   displayLabel?: string;
   aggregateLabel?: string;
   lgIntensity?: string;
+  lgIntensityValue?: SpecialValue<JmaLgIntensity>;
+  lgDisplayLabel?: string;
+  lgSafetyRank: number | null;
+  lgRenderable: boolean;
   isPlum?: boolean;
   hasArrived?: boolean;
   arrivalTime?: string;
@@ -218,6 +226,12 @@ export function buildEewForecastRows(
   return areas
     .map((a) => {
       const evaluation = evaluateEewForecastArea(a);
+      const lgDisplayLabel = formatLgIntensitySpecialValue(a.lgIntensityValue, a.lgIntensity);
+      const lgSafetyRank = resolveLgIntensitySafetyRank(a.lgIntensityValue, a.lgIntensity);
+      const lgRenderable = a.lgIntensityValue != null
+        ? a.lgIntensityValue.presence !== "missing"
+          && !(a.lgIntensityValue.presence === "value" && a.lgIntensityValue.value === "0")
+        : a.lgIntensity != null && lgIntToNumeric(a.lgIntensity) >= 1;
       const preserveAggregateQualifier = evaluation != null && (
         evaluation.specialValue.presence === "unknown"
         || evaluation.specialValue.presence === "empty"
@@ -236,6 +250,10 @@ export function buildEewForecastRows(
         ...(evaluation?.detailLabel != null ? { displayLabel: evaluation.detailLabel } : {}),
         ...(preserveAggregateQualifier ? { aggregateLabel: evaluation.detailLabel } : {}),
         ...(a.lgIntensity != null ? { lgIntensity: a.lgIntensity } : {}),
+        ...(a.lgIntensityValue != null ? { lgIntensityValue: a.lgIntensityValue } : {}),
+        ...(lgDisplayLabel != null ? { lgDisplayLabel } : {}),
+        lgSafetyRank,
+        lgRenderable,
         ...(eewAreaIsPlum(a) ? { isPlum: true } : {}),
         ...(eewAreaHasArrived(a) ? { hasArrived: true } : {}),
         ...(a.arrivalTime != null ? { arrivalTime: a.arrivalTime } : {}),
@@ -255,7 +273,11 @@ export function buildEewForecastRows(
  * ultra-narrow の minWidth 合計 + separator は幅 40 の内幅 36 以下に収めること
  * (震度 6 + 地域 14 + 状態 10 = 30、sep 3×2 = 6 → 計 36。unit test で固定)。
  */
-export function eewForecastColumns(mode: ResponsiveDisplayMode, hasLg: boolean): ColumnSpec<EewForecastRow>[] {
+export function eewForecastColumns(
+  mode: ResponsiveDisplayMode,
+  hasLg: boolean,
+  hasLgQualifier = false,
+): ColumnSpec<EewForecastRow>[] {
   const narrow = mode === "ultra-narrow";
   const intCol: ColumnSpec<EewForecastRow> = {
     header: "震度",
@@ -274,11 +296,14 @@ export function eewForecastColumns(mode: ResponsiveDisplayMode, hasLg: boolean):
   const lgCol: ColumnSpec<EewForecastRow> = {
     header: "長周期",
     minWidth: 6,
-    maxWidth: 8,
-    cell: (r) => (r.lgIntensity != null && lgIntToNumeric(r.lgIntensity) >= 1 ? `階級${r.lgIntensity}` : "―"),
+    maxWidth: hasLgQualifier ? 24 : 8,
+    ...(hasLgQualifier ? { wrap: true } : {}),
+    cell: (r) => r.lgRenderable && r.lgDisplayLabel != null ? `階級${r.lgDisplayLabel}` : "―",
     colorize: (r, padded) =>
-      r.lgIntensity != null && lgIntToNumeric(r.lgIntensity) >= 1
-        ? lgIntensityColor(r.lgIntensity)(padded)
+      r.lgRenderable
+        ? r.lgSafetyRank == null
+          ? chalk.yellow(padded)
+          : lgIntensityColor(String(r.lgSafetyRank))(padded)
         : chalk.gray(padded),
   };
   const statusCol: ColumnSpec<EewForecastRow> = {
@@ -447,9 +472,17 @@ export function displayEewInfo(
       }
 
       // 最大予測長周期地震動階級
-      const maxLgInt = info.forecastIntensity.maxLgInt;
-      if (maxLgInt && lgIntToNumeric(maxLgInt) >= 1) {
-        cardParts.push({ text: chalk.white("長周期階級 ") + lgIntensityColor(maxLgInt).bold(maxLgInt), priority: 3 });
+      const maxLgIntValue = info.forecastIntensity.maxLgIntValue;
+      const maxLgInt = formatLgIntensitySpecialValue(maxLgIntValue, info.forecastIntensity.maxLgInt);
+      const maxLgIntRenderable = maxLgIntValue != null
+        ? maxLgIntValue.presence !== "missing"
+          && !(maxLgIntValue.presence === "value" && maxLgIntValue.value === "0")
+        : info.forecastIntensity.maxLgInt != null
+          && lgIntToNumeric(info.forecastIntensity.maxLgInt) >= 1;
+      if (maxLgIntRenderable && maxLgInt != null) {
+        const rank = resolveLgIntensitySafetyRank(maxLgIntValue, info.forecastIntensity.maxLgInt);
+        const colored = rank == null ? chalk.yellow.bold(maxLgInt) : lgIntensityColor(String(rank)).bold(maxLgInt);
+        cardParts.push({ text: chalk.white("長周期階級 ") + colored, priority: 3 });
       }
     }
     if (info.earthquake && !info.isAssumedHypocenter) {
@@ -593,14 +626,16 @@ export function displayEewInfo(
     const allRows = buildEewForecastRows(info.forecastIntensity.areas);
     const shown = maxObs != null ? allRows.slice(0, maxObs) : allRows;
     const hidden = allRows.slice(shown.length);
-    const hasLg = shown.some((r) => r.lgIntensity != null && lgIntToNumeric(r.lgIntensity) >= 1);
+    const hasLg = shown.some((r) => r.lgRenderable);
+    const hasLgQualifier = shown.some((r) =>
+      r.lgRenderable && r.lgIntensityValue != null && r.lgIntensityValue.presence !== "value");
 
     // 予測震度テーブルを一枚に統合 (spec §3.4)。階級ごとの divider・ヘッダ繰り返し・
     // 階級境の細線 divider は入れない (震度列が各行にあるので読める — レビュー指定)。
     // ultra-narrow の長周期列は省略のみで別ブロックへは逃がさない (spec §8 R2-4 —
     // 高さ削減優先、裁定の意図的な情報削減)。
     buf.push(frameDividerLabeled(level, "予測震度", width));
-    renderResponsiveTable(buf, level, width, eewForecastColumns(mode, hasLg), shown);
+    renderResponsiveTable(buf, level, width, eewForecastColumns(mode, hasLg, hasLgQualifier), shown);
 
     if (hidden.length > 0) {
       // 隠れ分は震度別の件数だけを出す (地域ごとの展開はしない — 続報バーストで

@@ -1,9 +1,9 @@
 # 電文基盤共通化仕様 — 特殊値・TelegramMeta・Revision・試験判定・条件付き抑止
 
-> 状態: **Reviewed（Sol レビュー反映済み、Phase 3B 実装同期済み）**
-> 更新日: 2026-08-01
+> 状態: **Reviewed（Sol レビュー反映済み、Phase 4A 実装・契約テスト同期済み）**
+> 更新日: 2026-08-02
 > 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化
-> 実装同期基準: HEAD `9f88b6b4`（Phase 3B 完了）
+> 実装同期基準: HEAD `052dfd1d`（Phase 4A runtime 実装完了。変更単位8の契約テスト・仕様同期は作業ツリーで追加）
 > 起草時参照基準: HEAD `f634e410`
 > 前提: 修正弾 A〜C で個別 High は対処済みとし、本仕様は構造的根因の共通化を扱う
 
@@ -1282,29 +1282,52 @@ engine と frontend に同じ wire 型を持たせる。
 
 ### Phase 4A: 震度 Condition と EEW intensity
 
-内容:
+状態: **完了**（runtime 実装基準: 現 HEAD `052dfd1d`。契約テスト・仕様同期は変更単位8で追加）。変更単位1〜7で共通値、parser、観測保持、EEW safety、下流 qualifier、display protocol、frontend 表示を実装し、変更単位8で同一 synthetic fixture の端到端契約を固定した。
 
-- Intensity／LgInt を `SpecialValue` へ移行する。
-- 震度の From／To／Condition／Description を保持する。
-- `IntensitySafetyRank` を導入する。
-- `未入電` と `5弱以上未入電` を分離する。
-- EEW、地震カード、通知、テロップ、地図を同じ rank helper へ移行する。
-- 色と記号バッジを実装する。
-- `quake-observation-merge` の「同一 EventID かつ後続の震度が missing の場合だけ VXSE51 観測値を VXSE52／61 へ保持する」契約を `SpecialValue` 上へ移植する。
+実装確定後の契約:
 
-完了条件:
+- `Intensity`／`LgInt` は `SpecialValue`（`value`／`missing`／`empty`／`unknown`／`qualitative`／`range`）を真実源とし、`raw`、`condition`、`description`、bounds、diagnostics を保持する。既存 scalar は表示・互換 adapter であり、判定の真実源ではない。
+- 対象電文は `specialValueBody` を使う shadow XML tree から特殊値の raw structure を再取得する。`VXSE43`／`44`／`45`／`51`／`53`／`62` の `Intensity`／`LgInt` を同じ契約で扱う。
+- EEW の親 `Area/Condition` は `forecastIntensity.areas[].condition` として独立保持し、ForecastInt の `intensityValue.condition` と混ぜない。PLUM と主要動到達も `isPlum`／`hasArrived` で独立する。
+- 地域なし EEW は overall `ForecastInt`／`ForecastLgInt` を評価する一方、地域項目・地域カードは生成しない。overall の emergency payload と `regions: []` は両立する。
+- 震度は `IntensitySafetyRank`、長周期は `LgIntensitySafetyRank` を使う。`5弱以上未入電` は下限 rank 5 として safety gate、色、`≥` badge を通し、LgInt の unknown は震度 rank に混ぜず、専用 frame／sound 判定へ渡す。
+- `unknown` は `?`／unknown、`empty` は `∅`／neutral、`missing` は非描画・構造欠落として扱う。`unknown`／`empty`／`qualitative` は observation merge の missing ではなく、後続報で旧観測値を誤保持しない。
+- qualifier は parser → presentation → notification／ticker → display semantic → persistence を貫通する。`5弱以上未入電`、range、unknown、empty の raw label と意味を下流で scalar に潰さない。
+- EEW の表示 payload 置換と safety latch は分離する（§7.3 準拠）。新しい unknown は retained safety rank を降格させず、emergency host を降格させない。
+- 終端抑止の撤回は `restoreRevision`（presentation では `eewDisplayRestoreRevision`）で直前の権威表示を復元する。restore 判定は safety latch と別の display state lifecycle である。
+- display protocol V1 は `DisplayIntensitySemanticV1`／`DisplayLgIntensitySemanticV1`、EEW の全体・地域 semantic、`restoreRevision` などを optional additive field として拡張し、旧 scalar field を残す。
+- frontend の地域 badge 座標は SVG path の bounding box 中心ではなく、scanline で求めた path 内の最長 filled span の中点を使う。凡例、tooltip、ARIA は `≥`／`↔`／`?`／`∅` を説明する。
+- 実電文 fixture での確認は未実施であり、変更単位8の fixture は synthetic XML のみである。
 
-- plain 未入電が rank 0 にならない。
-- `5弱以上未入電` が震度5弱以上の safety gate を通る。
-- `5弱以上未入電` が震度5弱色＋`≥` badge になる。
-- unknown が unknown 色＋`?` badge になる。
-- empty が neutral 色＋`∅` badge になる。
-- qualifier が通知、テロップ、カードで失われない。
-- `unknown`／`empty`／`qualitative`／取消が missing と誤認され、旧観測震度を保持しない。
-- unknown 地域が「震度なし」として地図表示されない。
-- badge の意味が凡例、tooltip、アクセシビリティラベルに反映される。
-- 通常震度の既存色、音、通知閾値に回帰がない。
-- 既存機能の回帰が 0 件である。
+起草時の計画から実装で確定・変更された点:
+
+- EEW 親 `Area/Condition` は ForecastInt の値へ畳み込まず、独立 field 方式へ確定した。
+- 地域なし EEW の全体値評価と、地域カード／地域 item 非生成を分離した。
+- `LgInt` は `IntensitySafetyRank` から分離した専用 safety 型とし、frame／sound も別 helper で判定する。
+- 表示 payload の置換と safety latch を分離し、§7.3 の safety state を unknown で降格させない契約へ確定した。
+- terminal retract は `restoreRevision` による終端撤回復元を持つ形へ確定した。
+- V1 wire は既存 scalar を置換せず optional semantic 拡張を追加する方式へ確定した。
+- frontend badge は見かけの中心ではなく scanline 内部点方式へ確定した。
+- 実電文 fixture の確認済みとはせず、synthetic fixture のみという制限を明記した。
+
+完了確認:
+
+- `test/engine/telegram-foundation/phase4a-contract.test.ts` は `VXSE45`（地域あり／regionless）・`VXSE51`・`VXSE53`・`VXSE61`・`VXSE62` の6 synthetic fixture を router の parser → presentation → notification → display projection → display state／ticker → standby／daily persistence へ通す。各 test は qualifier、presence、rank、badge、色、ticker 実文字列、対象 domain の round-trip 後の具体値を固定する。
+- 同テスト内の `[§13-N]` test 名と対応表は、上の実装確定後の契約11項目を検証先へ一対一で対応付ける。engine 側で `5弱以上未入電` の gate／色／badge、unknown／empty の required wire rank `-1` と optional semantic、City／IntensityStation、missing、regionless EEW、LgInt 専用 safety、通常震度4を固定する。payload／safety latch と `restoreRevision` は既存の EEW tracker／presentation processor 単体契約を参照する。
+- frontend の scanline 内部点、badge、凡例、tooltip、ARIA は root Vitest の対象外であるため、`npm run display:test` を完了ゲートの必須コマンドとする。root test だけの成功を Phase 4A 完了とは扱わない。
+- fixture は synthetic XML のみであり、実電文の schema／運用差分確認は残存リスクとして扱う。
+
+Phase 4A の完了ゲートは §14.1 の7コマンドに従い、次のコマンド列を全て成功させることとする。
+
+```text
+npm run build
+npm test
+npm run test:shuffle
+npm run typecheck:test
+npm run display:build
+npm run display:test
+npm --prefix display run typecheck
+```
 
 ### Phase 4B: 津波コードと TsunamiHeight
 

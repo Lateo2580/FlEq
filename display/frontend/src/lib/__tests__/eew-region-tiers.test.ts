@@ -5,7 +5,11 @@ import {
   eewRegionListColumnCount,
   paginateEewRegions,
 } from "../eew-region-tiers";
-import type { DisplayEewRegionV1, DisplayIntensitySemanticV1 } from "../protocol";
+import type {
+  DisplayEewRegionV1,
+  DisplayIntensitySemanticV1,
+  DisplayLgIntensitySemanticV1,
+} from "../protocol";
 
 // 最終レビュー Finding 2 (spec D1、確信度 0.97-0.99): compact 枝は EEW 予測地域 = 層1
 // (安全情報、14px 以上床) を割ってはいけない。旧実装は 9〜14 件で 13px、15 件以上で 11px を
@@ -81,5 +85,28 @@ describe("paginateEewRegions semantic authority", () => {
     ], 10);
     expect(pages).toHaveLength(2);
     expect(pages.map((page) => page.sections[0].semantic?.description)).toEqual(["観測網A", "観測網B"]);
+  });
+
+  it("震度 missing でも地域 ForecastLgInt semantic があれば page へ保持する", () => {
+    const lgRange: DisplayLgIntensitySemanticV1 = {
+      raw: "", presence: "range", label: "1〜2", condition: null, description: "地域長周期階級幅",
+      lowerBound: "1", upperBound: "2", rawLowerBound: "１", rawUpperBound: "２",
+      badge: "↔", color: "safetyUpperRank", render: true, safetyLowerRank: 1,
+      safetyUpperRank: 2, safetyRank: 2, colorRank: 2,
+    };
+    const pages = paginateEewRegions([
+      region("長周期のみ地域", {
+        intensity: "", intensitySemantic: missing,
+        lgIntensity: "1〜2", lgIntensitySemantic: lgRange,
+      }),
+    ], 10);
+    expect(pages).toHaveLength(1);
+    expect(pages[0].sections[0]).toMatchObject({
+      intensity: "",
+      lgIntensity: "1〜2",
+      lgRank: 2,
+      lgSemantic: expect.objectContaining({ presence: "range", badge: "↔", colorRank: 2 }),
+      regions: [expect.objectContaining({ name: "長周期のみ地域" })],
+    });
   });
 });

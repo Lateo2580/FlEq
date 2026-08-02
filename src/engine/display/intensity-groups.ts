@@ -1,15 +1,18 @@
-import type { JmaIntensity, SpecialValue } from "../../types";
+import type { JmaIntensity, JmaLgIntensity, SpecialValue } from "../../types";
 import {
   evaluateIntensitySafetyRank,
+  evaluateLgIntensitySafetyRank,
   specialValueDisplaySemantic,
 } from "../../utils/intensity";
 import {
   formatIntensitySpecialValue,
+  formatLgIntensitySpecialValue,
 } from "../presentation/level-helpers";
 import type { PresentationAreaItem } from "../presentation/types";
 import type {
   DisplayIntensityMapValueV1,
   DisplayIntensitySemanticV1,
+  DisplayLgIntensitySemanticV1,
 } from "./protocol";
 
 export interface IntensityAreaGroup {
@@ -53,6 +56,18 @@ function scalarIntensityValue(scalar: string): SpecialValue<JmaIntensity> {
   };
 }
 
+function scalarLgIntensityValue(scalar: string): SpecialValue<JmaLgIntensity> {
+  const normalized = scalar.normalize("NFKC").trim();
+  const value = /^[0-4]$/.test(normalized) ? normalized as JmaLgIntensity : null;
+  return {
+    raw: scalar,
+    value,
+    condition: null,
+    description: null,
+    presence: value != null ? "value" : normalized === "" ? "empty" : "unknown",
+  };
+}
+
 /** SpecialValue を frontend が再解析せず使える V1 additive semantic へ射影する。 */
 export function projectIntensitySemantic(
   value: SpecialValue<JmaIntensity> | undefined,
@@ -78,6 +93,47 @@ export function projectIntensitySemantic(
     raw: source.raw,
     presence: source.presence,
     label: formatIntensitySpecialValue(source, scalar),
+    condition: source.condition,
+    description: source.description,
+    lowerBound: source.lowerBound ?? null,
+    upperBound: source.upperBound ?? null,
+    rawLowerBound: source.rawLowerBound ?? null,
+    rawUpperBound: source.rawUpperBound ?? null,
+    badge: display.badge,
+    color: display.color,
+    render: display.render,
+    safetyLowerRank,
+    safetyUpperRank,
+    safetyRank,
+    colorRank,
+  };
+}
+
+/** EEW 長周期階級を震度とは独立した 0〜4 safety rank の V1 semantic へ投影する。 */
+export function projectLgIntensitySemantic(
+  value: SpecialValue<JmaLgIntensity> | undefined,
+  scalar?: string | null,
+): DisplayLgIntensitySemanticV1 | undefined {
+  const source = value ?? (scalar == null ? undefined : scalarLgIntensityValue(scalar));
+  if (source == null) return undefined;
+  const display = specialValueDisplaySemantic(source);
+  const safety = evaluateLgIntensitySafetyRank(source);
+  const safetyLowerRank = safety.kind === "known" ? safety.lower : null;
+  const safetyUpperRank = safety.kind === "known" ? safety.upper : null;
+  const safetyRank = safety.kind !== "known"
+    ? null
+    : source.presence === "range"
+      ? safety.upper ?? safety.lower
+      : safety.lower;
+  const colorRank = display.color === "safetyUpperRank"
+    ? safetyUpperRank ?? safetyLowerRank
+    : display.color === "normalRank" || display.color === "safetyRank"
+      ? safetyLowerRank
+      : null;
+  return {
+    raw: source.raw,
+    presence: source.presence,
+    label: formatLgIntensitySpecialValue(source, scalar),
     condition: source.condition,
     description: source.description,
     lowerBound: source.lowerBound ?? null,

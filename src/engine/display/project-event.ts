@@ -6,6 +6,7 @@ import {
   groupIntensityAreas,
   projectIntensityMapValues,
   projectIntensitySemantic,
+  projectLgIntensitySemantic,
 } from "./intensity-groups";
 import { buildTickerSentence, tickerCategoryOf, tickerSubjectOf, weatherWarningTimeseriesSentence } from "./ticker-sentence";
 import { normalizeTickerBody } from "./ticker-body-normalize";
@@ -176,6 +177,7 @@ function projectEmergency(
 ): DisplayEmergencyInputV1 | null {
   if (event.domain === "eew") {
     const forecastMaxIntSemantic = projectIntensitySemantic(event.maxIntValue, event.forecastMaxInt);
+    const maxLgIntSemantic = projectLgIntensitySemantic(event.maxLgIntValue, event.maxLgInt);
     return {
       kind: "eew",
       eventId: event.eventId ?? null,
@@ -201,9 +203,13 @@ function projectEmergency(
       isAssumedHypocenter: event.isAssumedHypocenter === true,
       depth: normalizeDepth(event.depth),
       maxLgInt: event.maxLgInt ?? null,
+      ...(maxLgIntSemantic == null || maxLgIntSemantic.presence === "value"
+        ? {}
+        : { maxLgIntSemantic }),
       regions: (event.eewRegions ?? []).map((region, index) => {
         const item = event.areaItems[index];
         const intensitySemantic = projectIntensitySemantic(item?.maxIntValue, item?.maxInt ?? region.intensity);
+        const lgIntensitySemantic = projectLgIntensitySemantic(item?.maxLgIntValue, item?.maxLgInt);
         const needsLegacyQualifier = intensitySemantic != null
           && intensitySemantic.presence !== "value"
           && intensitySemantic.label != null
@@ -216,6 +222,12 @@ function projectEmergency(
           ...(intensitySemantic == null || intensitySemantic.presence === "value"
             ? {}
             : { intensitySemantic }),
+          ...(lgIntensitySemantic == null
+            ? {}
+            : {
+                lgIntensity: lgIntensitySemantic.render ? lgIntensitySemantic.label : null,
+                ...(lgIntensitySemantic.presence === "value" ? {} : { lgIntensitySemantic }),
+              }),
         };
       }),
     };

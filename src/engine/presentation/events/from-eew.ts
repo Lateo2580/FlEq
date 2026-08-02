@@ -7,6 +7,7 @@ import {
   eewForecastAreaSpecialValue,
   getMaxForecastIntensityEvaluation,
 } from "../../eew/eew-tracker";
+import { formatLgIntensitySpecialValue } from "../level-helpers";
 
 /** EewOutcome → PresentationEvent */
 export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
@@ -84,6 +85,11 @@ export function fromEewOutcome(outcome: EewOutcome): PresentationEvent {
     ...(info.forecastIntensity?.maxLgIntValue != null
       ? { maxLgIntValue: info.forecastIntensity.maxLgIntValue }
       : {}),
+    maxLgIntLabel: formatLgIntensitySpecialValue(
+      info.forecastIntensity?.maxLgIntValue,
+      info.forecastIntensity?.maxLgInt,
+      "ticker",
+    ),
     maxLgInt: info.forecastIntensity?.maxLgInt ?? null,
 
     nextAdvisory: info.nextAdvisory ?? null,

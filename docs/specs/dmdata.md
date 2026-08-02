@@ -424,17 +424,17 @@ body フィールドは base64 + gzip で圧縮されている場合があるた
 
 XML 文字列を `fast-xml-parser` でパースし、JavaScript オブジェクトとして返す。
 
-#### `extractBaseReport(msg: WsDataMessage): { report: unknown; head: unknown; body: unknown } | null`
+#### `extractBaseReport(msg: WsDataMessage): { report: unknown; head: unknown; body: unknown; specialValueBody: unknown } | null`
 
-`decodeBody` → `parseXml` → Report/Head/Body 抽出を行う共通前処理。各パース関数 (`parseEarthquakeTelegram`, `parseEewTelegram` 等) の冒頭で呼ばれ、XML デコードから Report ノード探索までの定型処理を一元化する。`Report` / `jmx:Report` / `jmx_seis:Report` の3パターンを試行し、見つからない場合は `null` を返す。
+`decodeBody` → `parseXml` → Report/Head/Body 抽出を行う共通前処理。各パース関数 (`parseEarthquakeTelegram`, `parseEewTelegram` 等) の冒頭で呼ばれ、XML デコードから Report ノード探索までの定型処理を一元化する。`Report` / `jmx:Report` / `jmx_seis:Report` の3パターンを試行し、見つからない場合は `null` を返す。通常の `body` に加えて、`VXSE43`／`44`／`45`／`51`／`53`／`62` では特殊値の raw 構造を保持する `specialValueBody` を返す。
 
 #### `parseEarthquakeTelegram(msg: WsDataMessage): ParsedEarthquakeInfo | null`
 
-地震関連電文（VXSE51/52/53/61）をパースする。震源情報、震度観測、津波コメント、EventID を抽出する。
+地震関連電文（VXSE51/52/53/61）をパースする。震源情報、`SpecialValue` 化した最大震度・地域・市区町村・観測点の震度観測、津波コメント、EventID を抽出する。既存 scalar は互換 adapter として併せて生成する。
 
 #### `parseEewTelegram(msg: WsDataMessage): ParsedEewInfo | null`
 
-緊急地震速報電文（VXSE43/44/45）をパースする。震源情報、予測震度地域、仮定震源要素の検出、最終報判定（`NextAdvisory`）、isWarning の XML ベース主判定 + classification フォールバックを行う。
+緊急地震速報電文（VXSE43/44/45）をパースする。震源情報、overall／地域別の `SpecialValue` 予測震度・長周期値、親 `Area/Condition`、PLUM／主要動到達フラグ、仮定震源要素の検出、最終報判定（`NextAdvisory`）、isWarning の XML ベース主判定 + classification フォールバックを行う。親 Condition と ForecastInt の値 Condition は別 field として保持する。
 
 #### `parseTsunamiTelegram(msg: WsDataMessage): ParsedTsunamiInfo | null`
 
@@ -450,7 +450,7 @@ XML 文字列を `fast-xml-parser` でパースし、JavaScript オブジェク�
 
 #### `parseLgObservationTelegram(msg: WsDataMessage): ParsedLgObservationInfo | null`
 
-長周期地震動観測情報（VXSE62）をパースする。震源情報、最大震度、最大長周期地震動階級、長周期地震動階級カテゴリ、地域ごとの観測値、コメント、詳細 URI を抽出する。
+長周期地震動観測情報（VXSE62）をパースする。震源情報、`SpecialValue` の最大震度・最大長周期地震動階級、長周期地震動階級カテゴリ、地域ごとの `SpecialValue` 観測値、コメント、詳細 URI を抽出する。震度 safety と LgInt safety は別型で下流へ渡す。
 
 ### 内部ロジック
 
@@ -470,10 +470,16 @@ XML 文字列を `fast-xml-parser` でパースし、JavaScript オブジェク�
 1. `decodeBody(msg)` で XML 文字列を取得
 2. `parseXml(xmlStr)` でオブジェクト化
 3. Report ノードの探索: `Report` → `jmx:Report` → `jmx_seis:Report` の順に試行
-4. Report 内の `Head` / `Body` ノードを抽出して返却 (`{ report, head, body }`)
+4. Report 内の `Head` / `Body` ノードを抽出して返却 (`{ report, head, body, specialValueBody }`)
 5. いずれも見つからない場合は `null` を返す
 
 `extractBaseReport` は `decodeBody` や `parseXml` と合わせてエクスポートされており、`volcano-parser.ts` や `engine/presentation/processors/` 内のモジュールからも呼ばれる。
+
+#### Phase 4A 特殊値の shadow parse
+
+`SPECIAL_VALUE_TELEGRAM_TYPES`（`VXSE43`／`44`／`45`／`51`／`53`／`62`）では、正規化された `fast-xml-parser` の tree だけに依存せず、`specialValueBody` を `extractSpecialValue(domain, node)` へ渡す。これにより `Intensity`／`LgInt` の本文、`Condition`、`Description`、From／To の raw と canonical value を保持し、`missing`（要素なし）・`empty`（空要素）・`unknown`（未入電等）・`qualitative`・`range` を区別する。
+
+EEW の `Area/Condition` は `forecastIntensity.areas[].condition`、ForecastInt の値は `intensityValue.condition` に格納する。`isPlum` と `hasArrived` は親 Condition から導出するが、値そのものへ混ぜない。地域が存在しない場合でも overall `ForecastInt`／`ForecastLgInt` が `missing` でなければ overall 値を返し、地域配列は空のままとする。
 
 #### ヘルパー関数群
 
@@ -555,7 +561,7 @@ EEW 予測地域の `Condition` フィールドから以下を検出する:
 
 #### 長周期地震動観測の抽出 (`extractLgObservationDetails`)
 
-`Intensity > Observation` から最大震度、最大長周期地震動階級、長周期地震動階級カテゴリを取得し、`Pref > Area` を走査して `MaxLgInt` を持つ地域のみを `areas` に格納する。
+`Intensity > Observation` から `SpecialValue` の最大震度、最大長周期地震動階級、長周期地震動階級カテゴリを取得し、`Pref > Area` を走査して `MaxInt` または `MaxLgInt` が `missing` でない地域を `areas` に格納する。`maxIntValue` と `maxLgIntValue` を保持し、scalar は互換表示用に投影する。
 
 ### 依存関係
 

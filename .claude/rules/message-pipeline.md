@@ -3,11 +3,14 @@ paths:
   - src/dmdata/**
   - src/engine/messages/**
   - src/engine/presentation/**
+  - src/engine/display/**
   - src/engine/eew/**
   - src/engine/notification/**
+  - display/frontend/src/**
   - test/dmdata/**
   - test/engine/messages/**
   - test/engine/presentation/**
+  - test/engine/telegram-foundation/**
   - test/fixtures/**
 ---
 
@@ -49,6 +52,13 @@ paths:
 **Phase 3B standby revision contract**: VPHW50/51、VPFT50、VPTW60-62、VPTA50、VYSE50-60、VPWP50、VXSE62 は router の transport dedup / 日時診断後に共通 semantic revision gate を通す。subject 不明は表示/ticker のみで、通知・standby projection・VPWP50 detail cache・VPTA50 連続ゼロ cacheを更新しない。clearCurrent family は同一 revision 訂正で取消 tombstone を解除せず、受理済み訂正だけを一度通知する。durable projection の適用完了は `appliedSemanticKey` で gate payload と結合し、旧 v1 projection は各 subject が正規報を受けるまで legacy として保全する。
 
 **Phase 3B transient revision contract**: earthquake（VXSE51/52/53/61）、seismicText、VPBS50、VPAW51、VPWW55/57-61、VPZI50/VPCI50、気象解説、raw fallback は `markCancelled` policy を持つ。地震は head.type を跨ぐ EventID subject、その他は type＋EventID subject とし、EventID 欠落は受信時刻や名称で結合せず単発 transient gate にする。重複・stale・invalid revision は stats / display / notification より前に落とし、受理済み訂正だけを一度通知する。地震の観測値保持は従来どおり downstream の quake-observation-merge が担い、QuakeExtremeStore と quake map の局所 guard は永続 state / source 別投影の防御として残す。VFVO53-55 の降灰と VZVO40/VFVO60 も非 durable policy を明示し、VFVO53 は gate 通過後だけ既存 batch aggregator へ入れる。classification/prefix の broad route に未登録 head.type が到達した場合は警告して raw policy へ落とす。火山 handler は parse failure と semantic suppression を discriminated result で区別し、parse failure だけを raw 表示へ戻す。
+
+**Phase 4A intensity contract**: `VXSE43`／`44`／`45`／`51`／`53`／`62` の `Intensity`／`LgInt` は `SpecialValue` を真実源にする。parser は `specialValueBody` の shadow tree で raw／`Condition`／`Description`／From／To を保持し、`missing`・`empty`・`unknown`・`qualitative`・`range` を区別する。EEW 親 `Area/Condition` は ForecastInt の `intensityValue.condition` と別 field で、PLUM／主要動到達も別 flag とする。
+
+- 共通受理経路は parser → presentation → notification の後に display sink へ渡す。display hub 内の順序は display projection → display state → ticker recent queue／event broadcast であり、standby／daily persistence owner は受理済み event／state を別責務で保存する。全経路で qualifier を失わない。legacy scalar は optional semantic の互換 adapter であり、display protocol V1 は `DisplayIntensitySemanticV1`／EEW semantic／`restoreRevision` を additive に持つ。
+- `IntensitySafetyRank` と `LgIntensitySafetyRank` は別型・別 helper で解決する。`5弱以上未入電` は下限 rank 5 の gate／色／`≥` badge、unknown は `?`、empty は `∅`、missing は非描画・構造欠落とする。unknown／empty／qualitative は observation merge の missing ではない。
+- regionless EEW は overall 値を評価して emergency payload を生成できるが、地域 item／地域カードは生成しない。表示 payload の置換と retained safety latch は §7.3 に従い分離し、unknown が emergency host を降格させない。terminal retract は `restoreRevision` で直前の権威表示を復元する。
+- frontend の badge 点は bounding box 中心ではなく scanline で求めた path 内部点を使い、凡例／tooltip／ARIA に `≥`／`↔`／`?`／`∅` の意味を出す。変更単位8の契約 fixture は synthetic XML のみで、実電文確認済みとは扱わない。
 
 **Phase 3B gate capacity / trigger contract**: 全 revision family は有限の `maxSubjects` を宣言し、その合計を gate 全体の設計容量以下に固定する。退場は family 内だけで行い、他 family の流量で watermark／取消 tombstone を削除しない。family が退場不能な保護対象だけで満杯なら、新規 subject を `capacityExceeded` で fail-closed に拒否して hard bound を守る。EventID 等が欠落した transient subject も同じ family の TTL と `maxSubjects` に従う。取消 trigger は A（明示取消）> B（terminal）> C（deactivation）で `resolvedTrigger` 一つへ解決し、台風の `transitionedToLow`／`formationCancelled` は B とする。
 
