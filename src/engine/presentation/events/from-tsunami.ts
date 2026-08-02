@@ -13,6 +13,8 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
   const tsunamiKinds = forecastItems.map((f) => f.kind);
   const areaItems: PresentationAreaItem[] = forecastItems.map((f) => ({
     name: f.areaName,
+    areaCode: f.areaCode,
+    kindCode: f.kindCode,
     kind: f.kind,
     maxHeightDescription: f.maxHeightDescription || undefined,
     firstHeight: f.firstHeight || undefined,
@@ -20,6 +22,8 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
   const displayForecastItems = displayInfo.forecast ?? [];
   const displayAreaItems: PresentationAreaItem[] = displayForecastItems.map((f) => ({
     name: f.areaName,
+    areaCode: f.areaCode,
+    kindCode: f.kindCode,
     kind: f.kind,
     maxHeightDescription: f.maxHeightDescription || undefined,
     firstHeight: f.firstHeight || undefined,

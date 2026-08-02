@@ -972,6 +972,7 @@ describe("projectDisplayEvent", () => {
         warningComment: "満潮と重なるとより高くなります",
         tsunamiObservations: [
           {
+            areaCode: "AREA-CODE-INTERNAL", kindCode: "KIND-CODE-INTERNAL",
             areaName: "石川県能登", areaKind: "津波警報", stationName: "輪島",
             arrivalTime: "2026-07-07T10:05:00+09:00", initial: "押し", maxHeightValue: "0.5m", condition: "観測中",
           },
@@ -991,6 +992,8 @@ describe("projectDisplayEvent", () => {
         },
       ],
     });
+    expect(JSON.stringify(dto)).not.toContain("AREA-CODE-INTERNAL");
+    expect(JSON.stringify(dto)).not.toContain("KIND-CODE-INTERNAL");
   });
 
   it("津波種別の接尾辞つき表記 (「大津波警報：発表」等) も前方一致でレベル判定される (Phase 2)", () => {

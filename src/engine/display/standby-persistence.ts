@@ -23,6 +23,7 @@ import type {
   SpecialValueDiagnostic,
   StrictTextMeta,
   TelegramMeta,
+  TsunamiObservationStation,
   TsunamiParserDiagnostic,
   Vpws50CurrentAreasForDisplay,
 } from "../../types";
@@ -46,7 +47,6 @@ import {
 } from "../messages/vpws50-state";
 import {
   TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY,
-  type TsunamiObservationGroups,
 } from "../messages/tsunami-state";
 import {
   compactPersistedSemanticKeys,
@@ -102,6 +102,18 @@ export interface PersistedStandbyStateV1 {
   seen: PersistedSeenEntry[];
 }
 
+/** Phase 4B 単位 6 まで areaCode を持たない既存 v2 observation schema。 */
+export type PersistedTsunamiObservationV2 = Omit<TsunamiObservationStation, "areaCode">;
+
+export interface PersistedTsunamiObservationGroupsV2 {
+  VTSE51: PersistedTsunamiObservationV2[];
+  VTSE52: PersistedTsunamiObservationV2[];
+}
+
+export type PersistedTsunamiActiveV2 = Omit<ParsedTsunamiInfo, "observations"> & {
+  observations?: PersistedTsunamiObservationV2[];
+};
+
 export interface PersistedTelegramFoundationV2 {
   vpws50: {
     /** false は v1 adapter 由来で、表示 snapshot は旧 field を正とする。 */
@@ -117,8 +129,8 @@ export interface PersistedTelegramFoundationV2 {
   };
   tsunami: {
     /** 旧 v2 では欠落。欠落時は active なしとして REST から安全に補完する。 */
-    active?: ParsedTsunamiInfo | null;
-    observations: TsunamiObservationGroups;
+    active?: PersistedTsunamiActiveV2 | null;
+    observations: PersistedTsunamiObservationGroupsV2;
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
   volcano: {
@@ -1306,6 +1318,8 @@ function sanitizePersistedTsunamiObservation(
   value: unknown,
 ): LegacyTsunamiObservationInput {
   const sanitized = structuredClone(value) as Record<string, unknown>;
+  // 観測 Area.Code は Phase 4B 単位 3 の runtime field。persistence schema 拡張までは復元しない。
+  delete sanitized.areaCode;
   const maxHeight = parsePersistedTsunamiHeight(sanitized.maxHeight);
   if (maxHeight == null) delete sanitized.maxHeight;
   else sanitized.maxHeight = maxHeight;
@@ -1520,7 +1534,7 @@ function limitTsunamiVtse41Entries(
 function normalizeTsunamiFoundationForWrite(
   value: PersistedTelegramFoundationV2["tsunami"],
 ): PersistedTelegramFoundationV2["tsunami"] {
-  const observations: TsunamiObservationGroups = { VTSE51: [], VTSE52: [] };
+  const observations: PersistedTsunamiObservationGroupsV2 = { VTSE51: [], VTSE52: [] };
   const gateEntries: PersistedTelegramRevisionGateEntryV2[] = [];
   const vtse41Entries = limitTsunamiVtse41Entries(value.active ?? null, value.gateEntries.filter(
     (entry) => entry.domain === "tsunami"
@@ -1536,7 +1550,7 @@ function normalizeTsunamiFoundationForWrite(
     : matchingTsunamiActiveGate(value.active, vtse41Entries);
   const active = activeEntry != null
     && value.active != null
-    ? structuredClone(value.active)
+    ? projectPersistedTsunamiActive(value.active)
     : null;
   for (const family of ["VTSE51", "VTSE52"] as const) {
     const familyEntries = value.gateEntries.filter(
@@ -1560,9 +1574,45 @@ function normalizeTsunamiFoundationForWrite(
         return code != null && code !== "" && activeCodes.has(code);
       })
       .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY)
-      .map((item) => structuredClone(item));
+      .map(projectPersistedTsunamiObservation);
   }
   return { active, observations, gateEntries };
+}
+
+/**
+ * Phase 4B 単位 6 まで既存の観測 persistence shape を固定する。
+ * 構造的型付けと structuredClone だけでは areaCode 等の余剰 property が残るため、
+ * schema に存在する field だけを列挙して投影する。
+ */
+function projectPersistedTsunamiObservation(
+  item: TsunamiObservationStation,
+): PersistedTsunamiObservationV2 {
+  return {
+    areaName: item.areaName,
+    ...(item.stationCode != null ? { stationCode: item.stationCode } : {}),
+    name: item.name,
+    sensor: item.sensor,
+    arrivalTime: item.arrivalTime,
+    initial: item.initial,
+    maxHeightCondition: item.maxHeightCondition,
+    maxHeightValue: item.maxHeightValue,
+    maxHeight: structuredClone(item.maxHeight),
+    ...(Object.hasOwn(item, "maxHeightValueCondition")
+      ? { maxHeightValueCondition: item.maxHeightValueCondition }
+      : {}),
+  };
+}
+
+function projectPersistedTsunamiActive(
+  active: ParsedTsunamiInfo,
+): PersistedTsunamiActiveV2 {
+  const projected = structuredClone(active) as PersistedTsunamiActiveV2;
+  if (active.observations == null) {
+    delete projected.observations;
+  } else {
+    projected.observations = active.observations.map(projectPersistedTsunamiObservation);
+  }
+  return projected;
 }
 
 function sanitizeTsunamiFoundation(

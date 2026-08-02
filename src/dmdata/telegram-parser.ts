@@ -598,7 +598,11 @@ function extractTsunamiObservations(
     for (const [itemIndex, item] of items.entries()) {
       const specialItem = specialItems[itemIndex];
       const area = first(dig(item, "Area") as unknown[]);
+      const specialArea = first(dig(specialItem, "Area") as unknown[]);
       const areaName = str(dig(area, "Name")).trim() || null;
+      const areaCode = specialArea == null
+        ? optionalRawTsunamiCode(area)
+        : optionalRawTsunamiCode(specialArea);
       const stations = listOf(dig(item, "Station"));
       const specialStations = listOf(dig(specialItem, "Station"));
       for (const [stationIndex, station] of stations.entries()) {
@@ -613,6 +617,7 @@ function extractTsunamiObservations(
           : maxHeight.description.trim() || null;
         observations.push({
           areaName,
+          areaCode,
           stationCode: str(dig(station, "Code")).trim() || null,
           name: str(dig(station, "Name")),
           sensor: str(dig(station, "Sensor")),

@@ -1263,9 +1263,10 @@ describe("InfoDisplayHub: weatherAlerts (VPWS50)", () => {
 });
 
 describe("InfoDisplayHub: 津波観測の橋渡し (VTSE51/52 → state-store, Phase 2)", () => {
-  it("display 起動後の VTSE41 に family 別保留観測を載せて state を確立する", () => {
+  it("display 起動後の VTSE41 に family 別保留観測を載せ、内部 code を SSE snapshot へ出さない", () => {
     const { hub } = makeHub();
     const obs: PresentationTsunamiObservation[] = [{
+      areaCode: "450", kindCode: "51",
       areaName: "宮崎県", areaKind: "津波警報", stationCode: "45001", stationName: "細島",
       arrivalTime: "2026-07-06T21:10:00+09:00", initial: "押し", maxHeightValue: "1.0m", condition: "観測中",
     }];
@@ -1275,7 +1276,13 @@ describe("InfoDisplayHub: 津波観測の橋渡し (VTSE51/52 → state-store, P
       tsunamiObservationGroups: { VTSE51: obs, VTSE52: [] },
     });
 
-    expect(hub.buildSnapshot().tsunami?.observations).toEqual(obs);
+    const observations = hub.buildSnapshot().tsunami?.observations;
+    expect(observations).toEqual([{
+      areaName: "宮崎県", areaKind: "津波警報", stationCode: "45001", stationName: "細島",
+      arrivalTime: "2026-07-06T21:10:00+09:00", initial: "押し", maxHeightValue: "1.0m", condition: "観測中",
+    }]);
+    expect(JSON.stringify(observations)).not.toContain("areaCode");
+    expect(JSON.stringify(observations)).not.toContain("kindCode");
   });
 
   it("VTSE41 で津波 state 確立後、VTSE51 の観測 (PresentationEvent.tsunamiObservations) が state に反映される", () => {

@@ -491,6 +491,35 @@ describe("golden inventory (acceptance 7: 既存表示フィールドの欠落�
     expect(flat).toContain(info.type);
   });
 
+  it("予報区の code は表示せず、従来どおり名称を表示する", () => {
+    setFrameWidth(140);
+    const info = canonicalizeLegacyTsunamiInfo({
+      meta: testTelegramMeta(false),
+      type: "VTSE41",
+      infoType: "発表",
+      title: "津波警報・注意報・予報",
+      reportDateTime: "2026-07-02T10:00:00+09:00",
+      headline: null,
+      publishingOffice: "気象庁",
+      warningComment: "",
+      isTest: false,
+      forecast: [{
+        areaCode: "AREA-CODE-INTERNAL",
+        kindCode: "KIND-CODE-INTERNAL",
+        areaName: "表示地域",
+        kind: "津波警報",
+        maxHeightDescription: "３ｍ",
+        firstHeight: "",
+      }],
+    });
+    const plain = stripAnsi(captureDisplay(info));
+
+    expect(plain).toContain("表示地域");
+    expect(plain).toContain("津波警報");
+    expect(plain).not.toContain("AREA-CODE-INTERNAL");
+    expect(plain).not.toContain("KIND-CODE-INTERNAL");
+  });
+
   it("isTest=true でテスト電文バッジが出る", () => {
     setFrameWidth(140);
     const out = captureDisplay({ ...syntheticLongInfo(), isTest: true });

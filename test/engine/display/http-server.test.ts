@@ -91,6 +91,60 @@ function hugeRecentTicker(): DisplayEventDtoV1[] {
   );
 }
 
+function tsunamiWarningPresentationEvent(): PresentationEvent {
+  return {
+    id: "tsunami-warning",
+    classification: "telegram.earthquake",
+    domain: "tsunami",
+    type: "VTSE41",
+    infoType: "発表",
+    title: "津波警報",
+    headline: null,
+    reportDateTime: "2026-07-06T21:00:00+09:00",
+    publishingOffice: "気象庁",
+    isTest: false,
+    frameLevel: "warning",
+    isCancellation: false,
+    areaNames: ["宮崎県"],
+    forecastAreaNames: [],
+    municipalityNames: [],
+    observationNames: [],
+    areaCount: 1,
+    forecastAreaCount: 0,
+    municipalityCount: 0,
+    observationCount: 0,
+    areaItems: [{ name: "宮崎県", kind: "津波警報", areaCode: "450", kindCode: "51" }],
+    raw: null,
+    tsunamiKinds: ["津波警報"],
+  } as PresentationEvent;
+}
+
+function tsunamiObservationPresentationEvent(): PresentationEvent {
+  return {
+    ...tsunamiWarningPresentationEvent(),
+    id: "tsunami-observation",
+    type: "VTSE51",
+    title: "津波情報",
+    frameLevel: "info",
+    areaNames: [],
+    areaCount: 0,
+    areaItems: [],
+    tsunamiKinds: [],
+    tsunamiObservations: [{
+      areaName: "宮崎県",
+      areaKind: "津波警報",
+      areaCode: "450",
+      kindCode: "51",
+      stationCode: "45001",
+      stationName: "細島",
+      arrivalTime: "2026-07-06T21:10:00+09:00",
+      initial: "押し",
+      maxHeightValue: "1.0m",
+      condition: "観測中",
+    }],
+  } as PresentationEvent;
+}
+
 /** 縮退で latestQuake.intensityGroups が capIntensityGroups で 8 地域まで切られるほど巨大な地域リスト
  *  (単体で約 450KB、ticker 20 件縮退後もなお上限超過となるサイズを狙う) */
 function hugeIntensityGroups(): DisplayIntensityGroupV1[] {
@@ -612,6 +666,36 @@ describe("InProcessSseDisplayTransport", () => {
     const text = new TextDecoder().decode(value);
     expect(text).toContain("event: snapshot");
     await reader.cancel();
+  });
+
+  it("hub の code 付き観測を SSE snapshot にシリアライズしても wire v1 に code を出さない", async () => {
+    const store = new DisplayStateStore();
+    const hub = new InfoDisplayHub(store, {
+      summarize: () => "tsunami summary",
+      weatherAlerts: () => [],
+      now: () => Date.parse("2026-07-06T21:00:00+09:00"),
+    });
+    const t = await startTransport(() => hub.buildSnapshot());
+    hub.attachTransport(t);
+
+    hub.ingest(tsunamiWarningPresentationEvent());
+    hub.ingest(tsunamiObservationPresentationEvent());
+
+    const response = await fetch(`http://127.0.0.1:${t.port()}/events`);
+    const message = await readFirstSseMessage(response);
+    expect(message.snapshot.tsunami?.observations).toEqual([{
+      areaName: "宮崎県",
+      areaKind: "津波警報",
+      stationCode: "45001",
+      stationName: "細島",
+      arrivalTime: "2026-07-06T21:10:00+09:00",
+      initial: "押し",
+      maxHeightValue: "1.0m",
+      condition: "観測中",
+    }]);
+    expect(JSON.stringify(message.snapshot.tsunami?.observations)).not.toContain("areaCode");
+    expect(JSON.stringify(message.snapshot.tsunami?.observations)).not.toContain("kindCode");
+    hub.stop();
   });
 
   it("SSE クライアント数の増減を通知し、0→1 は初期 snapshot より先に届く", async () => {

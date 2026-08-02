@@ -18,10 +18,12 @@ describe("fromTsunamiOutcome", () => {
     const event = fromTsunamiOutcome(result.outcome);
 
     const iwate = event.areaItems.find((a) => a.name === "岩手県");
-    expect(iwate).toMatchObject({ kind: "大津波警報：発表", maxHeightDescription: "巨大" });
+    expect(iwate).toMatchObject({
+      areaCode: "210", kindCode: "53", kind: "大津波警報：発表", maxHeightDescription: "巨大",
+    });
   });
 
-  it("tsunamiObservations が areaName から予報区の kind を補完する (Phase A #4)", () => {
+  it("tsunamiObservations が Area.Code から予報区の kind を補完する (Phase 4B)", () => {
     const msg = createMockWsDataMessage(FIXTURE_VTSE51_OBSERVATION_MAXHEIGHT, {
       head: { type: "VTSE51", author: "気象庁", time: new Date().toISOString(), test: false },
     });
@@ -33,7 +35,9 @@ describe("fromTsunamiOutcome", () => {
     const kamaishi = event.tsunamiObservations!.find((o) => o.stationName === "釜石");
     expect(kamaishi).toMatchObject({
       areaName: "岩手県",
+      areaCode: "210",
       areaKind: "大津波警報",
+      kindCode: "52",
       maxHeightValue: "３．２ｍ",
       condition: "重要",
     });

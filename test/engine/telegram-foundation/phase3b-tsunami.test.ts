@@ -390,6 +390,44 @@ describe("Phase 3B tsunami common registry", () => {
       .toEqual({ kind: "suppressed" });
   });
 
+  it("VTSE51 の同一 station・同一 revision の Area.Code だけの訂正を受理する", () => {
+    const shared = deps();
+    const initial = { ...observation("21001", "宮古", "1.0m"), areaCode: null };
+    const corrected = { ...initial, areaCode: "210" };
+    expect(run(info({
+      type: "VTSE51",
+      observations: [initial],
+      messageId: "area-code-initial",
+    }), shared).kind).toBe("ok");
+
+    const firstCorrection = info({
+      type: "VTSE51",
+      infoType: "訂正",
+      observations: [initial],
+      messageId: "area-code-first-correction",
+    });
+    expect(run(firstCorrection, shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getObservationGroups().VTSE51).toEqual([initial]);
+
+    const codeOnlyCorrection = info({
+      type: "VTSE51",
+      infoType: "訂正",
+      observations: [corrected],
+      messageId: "area-code-second-correction",
+    });
+    const accepted = run(codeOnlyCorrection, shared);
+    expect(accepted.kind).toBe("ok");
+    if (accepted.kind === "ok") {
+      expect(accepted.outcome.parsed.observations).toEqual([corrected]);
+      expect(accepted.outcome.presentation.acceptedCorrection).toBe(true);
+    }
+    expect(shared.tsunamiState.getObservationGroups().VTSE51).toEqual([corrected]);
+    expect(run({
+      ...codeOnlyCorrection,
+      meta: { ...codeOnlyCorrection.meta, messageId: "area-code-second-correction-retry" },
+    }, shared)).toEqual({ kind: "suppressed" });
+  });
+
   it("VTSE51 の item 順序反転では訂正 fingerprint が変わらず再通知しない", () => {
     const shared = deps();
     const a = observation("21001", "宮古", "1.0m");
@@ -451,6 +489,138 @@ describe("Phase 3B tsunami common registry", () => {
       messageId: "active-retry-after-restart",
     }), restored)).toEqual({ kind: "suppressed" });
     expect(restored.tsunamiState.getObservationGroups().VTSE51).toEqual([station]);
+  });
+
+  it("観測 Area.Code を既存 v2 schema へ書かず、再保存しても observation shape を変えない", () => {
+    const shared = deps();
+    const legacyStation = observation("21001", "宮古", "1.0m");
+    const legacyActiveStation = observation("22001", "釜石", "0.8m");
+    const stationWithAreaCode: TsunamiObservationStation = {
+      ...legacyStation,
+      areaCode: "210",
+    };
+    const activeStationWithAreaCode: TsunamiObservationStation = {
+      ...legacyActiveStation,
+      areaCode: "220",
+    };
+    expect(run(info({
+      type: "VTSE41",
+      at: T1,
+      observations: [activeStationWithAreaCode],
+      messageId: "coded-active-before-persist",
+    }), shared).kind).toBe("ok");
+    expect(run(info({
+      type: "VTSE51",
+      at: T1,
+      observations: [stationWithAreaCode],
+      messageId: "coded-observation-before-persist",
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const firstPersisted = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    const firstObservation = firstPersisted.telegramFoundation.tsunami.observations.VTSE51[0];
+    expect(firstObservation).toEqual(legacyStation);
+    expect(firstObservation).not.toHaveProperty("areaCode");
+    expect(firstPersisted.telegramFoundation.tsunami.active?.observations)
+      .toEqual([legacyActiveStation]);
+    expect(JSON.stringify({
+      active: firstPersisted.telegramFoundation.tsunami.active?.observations,
+      groups: firstPersisted.telegramFoundation.tsunami.observations,
+    }))
+      .not.toContain("areaCode");
+
+    const loaded = persistence.load()!;
+    expect(loaded.telegramFoundation.tsunami.observations.VTSE51).toEqual([legacyStation]);
+    expect(loaded.telegramFoundation.tsunami.active?.observations)
+      .toEqual([legacyActiveStation]);
+    const roundTrip = new StandbyPersistence(file, 0, () => loaded.telegramFoundation);
+    roundTrip.save(loaded);
+
+    const secondPersisted = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    expect(secondPersisted.telegramFoundation.tsunami.observations.VTSE51[0])
+      .toEqual(firstObservation);
+    expect(JSON.stringify({
+      active: secondPersisted.telegramFoundation.tsunami.active?.observations,
+      groups: secondPersisted.telegramFoundation.tsunami.observations,
+    }))
+      .not.toContain("areaCode");
+  });
+
+  it("保存済み v2 JSON に漏れた観測 Area.Code を load 時に除去する", () => {
+    const shared = deps();
+    const station = observation("21001", "宮古", "1.0m");
+    const activeStation = observation("22001", "釜石", "0.8m");
+    expect(run(info({
+      type: "VTSE41",
+      at: T1,
+      observations: [activeStation],
+      messageId: "active-before-read-sanitize",
+    }), shared).kind).toBe("ok");
+    expect(run(info({
+      type: "VTSE51",
+      at: T1,
+      observations: [station],
+      messageId: "observation-before-read-sanitize",
+    }), shared).kind).toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        active: shared.tsunamiState.getPersistedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const leakedObservation = persisted.telegramFoundation.tsunami.observations
+      .VTSE51[0] as unknown as TsunamiObservationStation;
+    const leakedActiveObservation = persisted.telegramFoundation.tsunami.active
+      ?.observations?.[0] as unknown as TsunamiObservationStation;
+    leakedObservation.areaCode = "210";
+    leakedActiveObservation.areaCode = "220";
+    fs.writeFileSync(v2Path, JSON.stringify(persisted), "utf8");
+    const injected = JSON.parse(fs.readFileSync(v2Path, "utf8")) as unknown as {
+      telegramFoundation: {
+        tsunami: {
+          active: { observations: TsunamiObservationStation[] };
+          observations: { VTSE51: TsunamiObservationStation[] };
+        };
+      };
+    };
+    expect(injected.telegramFoundation.tsunami.observations.VTSE51[0]?.areaCode).toBe("210");
+    expect(injected.telegramFoundation.tsunami.active.observations[0]?.areaCode).toBe("220");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    const loadedObservation = loaded.observations.VTSE51[0];
+    expect(loadedObservation).toEqual(station);
+    expect(loadedObservation).not.toHaveProperty("areaCode");
+    expect(loaded.active?.observations).toEqual([activeStation]);
+    expect(JSON.stringify({
+      active: loaded.active?.observations,
+      groups: loaded.observations,
+    })).not.toContain("areaCode");
   });
 
   it("VTSE41 active snapshot と watermark を v2 往復し、REST 不通でも警報を維持する", () => {

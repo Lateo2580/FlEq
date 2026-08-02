@@ -302,6 +302,10 @@ export type ProcessOutcome =
 
 export interface PresentationAreaItem {
   name: string;
+  /** 津波予報区の Area.Code。名称から推定しない。 */
+  areaCode?: string | null;
+  /** 津波予報区の Category/Kind/Code。名称から推定しない。 */
+  kindCode?: string | null;
   code?: string;
   kind?: string;
   maxIntValue?: SpecialValue<JmaIntensity>;
@@ -358,6 +362,10 @@ export interface PresentationEewRegion {
 export interface PresentationTsunamiObservation {
   areaName: string | null;
   areaKind: string | null;
+  /** 観測点が属する津波予報区の Area.Code。名称から推定しない。 */
+  areaCode?: string | null;
+  /** 観測点へ対応付けた予報区の Kind.Code。未結合時は省略する。 */
+  kindCode?: string | null;
   stationCode?: string | null;
   stationName: string;
   arrivalTime: string | null;

@@ -959,6 +959,8 @@ export interface TsunamiForecastItem {
 export interface TsunamiObservationStation {
   /** 属する津波予報区名 (Observation/Item/Area/Name。取れない・空要素の場合 null) */
   areaName: string | null;
+  /** 属する津波予報区コード (Observation/Item/Area/Code。旧経路・欠落電文では省略または null) */
+  areaCode?: string | null;
   /** 観測点コード。旧経路・欠落電文では null/undefined */
   stationCode?: string | null;
   name: string;

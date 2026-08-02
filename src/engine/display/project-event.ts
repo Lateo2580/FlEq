@@ -247,9 +247,18 @@ function projectEmergency(
       levelLabel: info.label,
       coasts: pickAlertCoasts(displayAreaItems, info.label),
       warningComment: displayWarningComment,
+      // PresentationEvent の areaCode/kindCode は内部結合用。display protocol へは
+      // 既存の名称フィールドだけを投影し、wire を拡張しない。
       observations: (event.tsunamiObservations ?? []).map((o) => ({
-        ...o,
+        areaName: o.areaName,
         areaKind: o.areaKind != null ? normalizeTsunamiKind(o.areaKind) : null,
+        ...(o.stationCode != null ? { stationCode: o.stationCode } : {}),
+        stationName: o.stationName,
+        arrivalTime: o.arrivalTime,
+        initial: o.initial,
+        maxHeightValue: o.maxHeightValue,
+        condition: o.condition,
+        ...(o.heightCondition != null ? { heightCondition: o.heightCondition } : {}),
       })),
       reportDateTime: event.reportDateTime,
     };

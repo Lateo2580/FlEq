@@ -58,6 +58,7 @@ import { QuakeExtremeStore } from "./quake-extreme-store";
 import { RevisionGuard } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../messages/tsunami-state";
+import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 
 const MIN_MS = 60_000;
 const NON_EMERGENCY_HOST_TTL_MS = 5 * MIN_MS;
@@ -265,11 +266,20 @@ export class DisplayStateStore {
       changed = this.applyEew(dto.emergency, nowMs) || changed;
     }
     if (dto.domain === "tsunami") {
+      const wireObservations = tsunamiObservations == null
+        ? undefined
+        : projectDisplayTsunamiObservations(tsunamiObservations);
+      const wireObservationGroups = tsunamiObservationGroups == null
+        ? undefined
+        : {
+            VTSE51: projectDisplayTsunamiObservations(tsunamiObservationGroups.VTSE51),
+            VTSE52: projectDisplayTsunamiObservations(tsunamiObservationGroups.VTSE52),
+          };
       changed = this.applyTsunami(
         dto,
         nowMs,
-        tsunamiObservations ?? undefined,
-        tsunamiObservationGroups ?? undefined,
+        wireObservations,
+        wireObservationGroups,
       ) || changed;
     }
     if (dto.emergency?.kind === "largeQuake" && quakeMapMutation.accepted) {
@@ -702,15 +712,22 @@ export class DisplayStateStore {
     nowMs: number,
     observationGroups?: DisplayTsunamiObservationGroups,
   ): void {
-    this.tsunamiObservationGroups = observationGroups == null
+    const wireInputObservations = projectDisplayTsunamiObservations(input.observations);
+    const wireObservationGroups = observationGroups == null
+      ? null
+      : {
+          VTSE51: projectDisplayTsunamiObservations(observationGroups.VTSE51),
+          VTSE52: projectDisplayTsunamiObservations(observationGroups.VTSE52),
+        };
+    this.tsunamiObservationGroups = wireObservationGroups == null
       ? {
-          VTSE51: input.observations.slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+          VTSE51: wireInputObservations.slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
           VTSE52: [],
         }
       : {
-          VTSE51: structuredClone(observationGroups.VTSE51)
+          VTSE51: wireObservationGroups.VTSE51
             .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
-          VTSE52: structuredClone(observationGroups.VTSE52)
+          VTSE52: wireObservationGroups.VTSE52
             .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
         };
     this.tsunami = {

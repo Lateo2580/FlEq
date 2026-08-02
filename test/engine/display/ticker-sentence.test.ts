@@ -388,10 +388,10 @@ describe("buildTickerSentence", () => {
       title: "津波警報・注意報・予報",
       tsunamiKinds: ["津波警報"],
       areaItems: [
-        { name: "宮崎県", kind: "津波警報" },
-        { name: "大分県瀬戸内海沿岸", kind: "津波警報" },
-        { name: "愛媛県宇和海沿岸", kind: "津波警報" },
-        { name: "鹿児島県東部", kind: "津波警報" },
+        { name: "宮崎県", areaCode: "450", kindCode: "51", kind: "津波警報" },
+        { name: "大分県瀬戸内海沿岸", areaCode: "440", kindCode: "51", kind: "津波警報" },
+        { name: "愛媛県宇和海沿岸", areaCode: "380", kindCode: "51", kind: "津波警報" },
+        { name: "鹿児島県東部", areaCode: "460", kindCode: "51", kind: "津波警報" },
       ],
     });
     expect(buildTickerSentence(event)).toBe(

@@ -90,6 +90,7 @@ describe("Phase 4B 津波 parser contract", () => {
 
     const kamaishi = result!.observations?.find((station) => station.name === "釜石");
     expect(kamaishi).toMatchObject({
+      areaCode: "210",
       stationCode: "21003",
       maxHeightValue: "３．２ｍ",
       maxHeightValueCondition: "上昇中",

@@ -353,6 +353,38 @@ describe("Notifier", () => {
     expect(playSoundMock).toHaveBeenCalledWith(expectedLevel);
   });
 
+  it("notifyTsunami は code を表示せず名称を通知する", () => {
+    const notifier = new Notifier();
+    const info = canonicalizeLegacyTsunamiInfo({
+      meta: testTelegramMeta(false),
+      type: "VTSE41",
+      infoType: "発表",
+      title: "津波警報・注意報・予報",
+      reportDateTime: "2026-07-30T12:00:00+09:00",
+      headline: null,
+      publishingOffice: "気象庁",
+      forecast: [{
+        areaCode: "AREA-CODE-INTERNAL",
+        kindCode: "KIND-CODE-INTERNAL",
+        areaName: "コード地域",
+        kind: "津波警報",
+        maxHeightDescription: "３ｍ",
+        firstHeight: "",
+      }],
+      warningComment: "",
+      isTest: false,
+    });
+    notifyMock.mockClear();
+
+    notifier.notifyTsunami(info);
+
+    const notification = notifyMock.mock.calls[0][0] as { message: string };
+    expect(notification.message).toContain("津波警報");
+    expect(notification.message).toContain("コード地域");
+    expect(notification.message).not.toContain("AREA-CODE-INTERNAL");
+    expect(notification.message).not.toContain("KIND-CODE-INTERNAL");
+  });
+
   it("notifyTsunami は受理済み訂正を title/body の両方で明示する", () => {
     const notifier = new Notifier();
     const info: ParsedTsunamiInfo = {

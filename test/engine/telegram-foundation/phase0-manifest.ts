@@ -1084,12 +1084,13 @@ export const FRAGMENT_MERGE_ALLOWLIST = {
     headType: "VTSE51",
     extractItems: "ParsedTsunamiInfo.observations",
     itemSubjectKey: "stationCode; code 欠落 item は fail-open 表示のみで durable merge しない",
-    itemFingerprint: "stationCode を除く観測値・condition・areaName・stationName の canonical JSON",
-    fingerprintVersion: "tsunami-observation-v1",
+    itemFingerprint: "stationCode を除く areaCode・観測値・condition・areaName・stationName の canonical JSON",
+    fingerprintVersion: "tsunami-observation-v2",
     fragmentEvidence: {
       corpusFixtures: ["32-39_11_10_250206_VTSE51.xml"],
       regressionTests: [
         "test/engine/telegram-foundation/phase3b-tsunami.test.ts::VTSE51 の同一 revision 分割 item を順序に依存せず保持対象へ通す",
+        "test/engine/telegram-foundation/phase3b-tsunami.test.ts::VTSE51 の同一 station・同一 revision の Area.Code だけの訂正を受理する",
       ],
       rationale: "反復 Station と観測点 Code の実在、および部分報・遅延旧報 baseline がある",
       limits: "corpus は station identity の根拠のみ。同一 revision の分割到着は Phase 3 の synthetic regression で補う",
@@ -1099,12 +1100,13 @@ export const FRAGMENT_MERGE_ALLOWLIST = {
     headType: "VTSE52",
     extractItems: "ParsedTsunamiInfo.observations",
     itemSubjectKey: "stationCode; code 欠落 item は fail-open 表示のみで durable merge しない",
-    itemFingerprint: "stationCode を除く観測値・condition・areaName・stationName の canonical JSON",
-    fingerprintVersion: "tsunami-observation-v1",
+    itemFingerprint: "stationCode を除く areaCode・観測値・condition・areaName・stationName の canonical JSON",
+    fingerprintVersion: "tsunami-observation-v2",
     fragmentEvidence: {
       corpusFixtures: ["61_11_01_250206_VTSE52.xml"],
       regressionTests: [
         "test/engine/telegram-foundation/phase3b-tsunami.test.ts::VTSE51 と VTSE52 は独立 family で、allowlist evidence を持つ",
+        "test/engine/telegram-foundation/phase3b-tsunami.test.ts::VTSE51 の同一 station・同一 revision の Area.Code だけの訂正を受理する",
       ],
       rationale: "反復 Station と観測点 Code の実在、および VTSE51/52 独立系列 baseline がある",
       limits: "corpus は station identity の根拠のみ。同一 revision の分割到着は Phase 3 の synthetic regression で補う",

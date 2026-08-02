@@ -609,6 +609,7 @@ function tsunamiObservationItemSubjectKey(item: TsunamiObservationStation): stri
 
 function tsunamiObservationItemFingerprint(item: TsunamiObservationStation): string {
   return semanticPayloadFingerprint({
+    areaCode: item.areaCode ?? null,
     areaName: item.areaName,
     name: item.name,
     sensor: item.sensor,
@@ -648,7 +649,7 @@ function tsunamiObservationPolicy(
     // DisplayStateStore の legacy name fallback は旧 snapshot/key 昇格互換として維持する。
     itemSubjectKey: (_meta, item) => tsunamiObservationItemSubjectKey(item),
     itemFingerprint: tsunamiObservationItemFingerprint,
-    fingerprintVersion: "tsunami-observation-v1",
+    fingerprintVersion: "tsunami-observation-v2",
     fragmentEvidence: {
       corpusFixtures: [
         headType === "VTSE51"

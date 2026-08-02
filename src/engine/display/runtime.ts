@@ -21,6 +21,7 @@ import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-aler
 import { WeatherPromotionStore } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
+import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import type {
   ActiveStandbyCardV1,
   DisplayRecentQuakeV1,
@@ -103,7 +104,9 @@ export function tsunamiSeedFromParsed(
     levelLabel: label,
     coasts,
     warningComment: info.warningComment || null,
-    observations: buildTsunamiObservations({ ...info, observations: [...observations] }),
+    observations: projectDisplayTsunamiObservations(
+      buildTsunamiObservations({ ...info, observations: [...observations] }),
+    ),
     reportDateTime: info.reportDateTime,
   };
 }
@@ -196,8 +199,12 @@ export async function startDisplayRuntime(
     );
     if (seed != null) {
       store.seedTsunami(seed, nowMs, groups == null ? undefined : {
-        VTSE51: buildTsunamiObservations({ ...tsunamiInfo, observations: groups.VTSE51 }),
-        VTSE52: buildTsunamiObservations({ ...tsunamiInfo, observations: groups.VTSE52 }),
+        VTSE51: projectDisplayTsunamiObservations(
+          buildTsunamiObservations({ ...tsunamiInfo, observations: groups.VTSE51 }),
+        ),
+        VTSE52: projectDisplayTsunamiObservations(
+          buildTsunamiObservations({ ...tsunamiInfo, observations: groups.VTSE52 }),
+        ),
       });
     }
   }

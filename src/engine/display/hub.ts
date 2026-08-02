@@ -1,6 +1,7 @@
 import { performance } from "node:perf_hooks";
 import * as log from "../../logger";
 import type { PresentationEvent } from "../presentation/types";
+import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import {
   KILL_SWITCH_ERRORS,
   RECENT_TICKER_MAX,
@@ -101,12 +102,21 @@ export class InfoDisplayHub implements DisplayIngestSink {
       this.store.setConnection({ lastReceivedAt: new Date(nowMs).toISOString() }, nowMs);
       // event.tsunamiObservations は DTO の emergency には (VTSE51/52 で level が組めないと) 載らないため、
       // PresentationEvent から直接渡す (protocol 型は変えない server-internal な橋渡し)
+      const tsunamiObservations = event.tsunamiObservations == null
+        ? null
+        : projectDisplayTsunamiObservations(event.tsunamiObservations);
+      const tsunamiObservationGroups = event.tsunamiObservationGroups == null
+        ? null
+        : {
+            VTSE51: projectDisplayTsunamiObservations(event.tsunamiObservationGroups.VTSE51),
+            VTSE52: projectDisplayTsunamiObservations(event.tsunamiObservationGroups.VTSE52),
+          };
       let stateChanged = this.store.applyEvent(
         dto,
         nowMs,
-        event.tsunamiObservations ?? null,
+        tsunamiObservations,
         quakeMapCommand,
-        event.tsunamiObservationGroups ?? null,
+        tsunamiObservationGroups,
       );
       if (dto.type === "VPWS50" || dto.type === "VPWW56") {
         this.store.seedWeatherAlerts(this.deps.weatherAlerts(dto.reportDateTime));

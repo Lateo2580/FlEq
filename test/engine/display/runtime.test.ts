@@ -93,12 +93,13 @@ describe("tsunamiSeedFromParsed", () => {
     expect(seed!.reportDateTime).toBe("2026-07-06T21:00:00+09:00");
   });
 
-  it("warningComment と observations を info から引き継ぐ", () => {
+  it("warningComment と observations を引き継ぎ、内部 code は seed wire へ出さない", () => {
     const seed = tsunamiSeedFromParsed(
       tsunamiInfo({
         warningComment: "満潮と重なるとより高くなります",
         observations: [
           {
+            areaCode: "340",
             areaName: "石川県能登",
             name: "輪島",
             sensor: "検潮所",
@@ -123,6 +124,8 @@ describe("tsunamiSeedFromParsed", () => {
         condition: "観測中",
       },
     ]);
+    expect(JSON.stringify(seed!.observations)).not.toContain("areaCode");
+    expect(JSON.stringify(seed!.observations)).not.toContain("kindCode");
   });
 
   it("大津波警報を含むと majorWarning になる", () => {
