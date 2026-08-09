@@ -1,5 +1,9 @@
 <script lang="ts">
-  import type { DisplayTsunamiInputV1, DisplayTsunamiObservationV1 } from "../lib/protocol";
+  import type {
+    DisplayTsunamiHeightSemanticV1,
+    DisplayTsunamiInputV1,
+    DisplayTsunamiObservationV1,
+  } from "../lib/protocol";
   import { formatHm } from "../lib/format";
   import {
     bucketTsunamiHeight,
@@ -74,6 +78,28 @@
   const arrivalBuckets = $derived(bucketTsunamiArrival(input.coasts, input.reportDateTime));
   const maxHeightHeadline = $derived(heightBuckets[0] ?? null);
   const fastestArrivalHeadline = $derived(arrivalBuckets[0] ?? null);
+  const HEIGHT_BADGE_LEGEND = [
+    { badge: "≥", meaning: "以上（下限値）" },
+    { badge: "↔", meaning: "範囲（上限値で比較）" },
+    { badge: "?", meaning: "不明・定性値" },
+    { badge: "∅", meaning: "空欄" },
+  ] as const;
+
+  function displayedHeightBadgeLegend(): ReadonlyArray<(typeof HEIGHT_BADGE_LEGEND)[number]> {
+    const badges = new Set<string>();
+    const collect = (semantic: DisplayTsunamiHeightSemanticV1 | undefined): void => {
+      if (semantic?.render && semantic.presence !== "missing" && semantic.badge != null) {
+        badges.add(semantic.badge);
+      }
+    };
+    for (const coast of input.coasts) collect(coast.maxHeightSemantic);
+    for (const observation of input.observations) {
+      if (observationVisible(observation)) collect(observation.maxHeightSemantic);
+    }
+    return HEIGHT_BADGE_LEGEND.filter((item) => badges.has(item.badge));
+  }
+
+  const heightBadgeLegend = $derived(displayedHeightBadgeLegend());
 
   function coastKindRoleVar(kind: string): string {
     if (kind === "大津波警報") return "var(--role-tsunamiMajor)";
@@ -97,6 +123,89 @@
     if (kind === "津波警報") return "var(--header-tsunamiWarning-on)";
     if (kind === "津波注意報") return "var(--header-tsunamiAdvisory-on)";
     return "var(--fg)";
+  }
+
+  function tsunamiHeightRankVar(value: number | null, fallback: string): string {
+    if (value == null || !Number.isFinite(value)) return fallback;
+    if (value > 3) return "var(--role-tsunamiMajor)";
+    if (value > 1) return "var(--role-tsunamiWarning)";
+    return "var(--role-tsunamiAdvisory)";
+  }
+
+  function tsunamiHeightColorVar(
+    semantic: DisplayTsunamiHeightSemanticV1 | undefined,
+    fallback: string,
+  ): string {
+    if (semantic == null) return fallback;
+    switch (semantic.color) {
+      case "normalRank":
+        return tsunamiHeightRankVar(semantic.value, fallback);
+      case "safetyRank":
+        return tsunamiHeightRankVar(semantic.lowerBound, fallback);
+      case "safetyUpperRank":
+        return tsunamiHeightRankVar(semantic.upperBound ?? semantic.lowerBound, fallback);
+      case "unknown":
+        return "var(--c-raspberry)";
+      case "neutral":
+        return "var(--role-muted)";
+      case "notRendered":
+        return "var(--role-muted)";
+    }
+  }
+
+  function tsunamiHeightLabel(
+    legacyLabel: string | null | undefined,
+    semantic: DisplayTsunamiHeightSemanticV1 | undefined,
+  ): string {
+    if (semantic == null) return legacyLabel ?? "-";
+    if (!semantic.render || semantic.presence === "missing") return "-";
+    const label = semantic.label?.trim();
+    if (label) return label;
+    if (semantic.presence === "empty") return "空欄";
+    if (semantic.presence === "unknown") return "不明";
+    return "不明";
+  }
+
+  function tsunamiHeightMeaning(
+    legacyLabel: string | null | undefined,
+    semantic: DisplayTsunamiHeightSemanticV1 | undefined,
+  ): string | undefined {
+    if (semantic == null) return undefined;
+    const label = tsunamiHeightLabel(legacyLabel, semantic);
+    const state = semantic.presence === "value"
+      ? "通常値"
+      : semantic.presence === "range"
+        ? "範囲"
+        : semantic.presence === "qualitative"
+          ? "定性値"
+          : semantic.presence === "unknown"
+            ? "不明"
+            : semantic.presence === "empty"
+              ? "空欄"
+              : "値なし";
+    const condition = semantic.condition?.trim();
+    const description = semantic.description?.trim();
+    const badgeMeaning = semantic.badge === "≥"
+      ? "以上（下限値）"
+      : semantic.badge === "↔"
+        ? "範囲"
+        : semantic.badge === "?"
+          ? "不明"
+          : semantic.badge === "∅"
+            ? "空欄"
+            : null;
+    const details = [
+      state,
+      badgeMeaning,
+      condition == null || condition === "" ? null : `条件: ${condition}`,
+      description == null || description === "" || description === label ? null : `説明: ${description}`,
+    ].filter((part): part is string => part != null);
+    return `高さ: ${label}（${details.join("、")}）`;
+  }
+
+  function tsunamiHeightBadge(semantic: DisplayTsunamiHeightSemanticV1 | undefined): string | null {
+    if (semantic == null || !semantic.render || semantic.presence === "missing") return null;
+    return semantic.badge;
   }
 
   const panelRoleVar = $derived(
@@ -154,7 +263,9 @@
 
   function observationCondition(o: DisplayTsunamiObservationV1): string {
     const condition = o.condition?.trim() ?? "";
-    const heightCondition = o.heightCondition?.trim() ?? "";
+    const heightCondition = o.maxHeightSemantic != null
+      ? o.maxHeightSemantic.condition?.trim() ?? ""
+      : o.heightCondition?.trim() ?? "";
     if (heightCondition === "" || heightCondition === condition) return condition;
     return `${condition}（${heightCondition}）`;
   }
@@ -446,7 +557,12 @@
     in:revealScaleIn={{ reveal, duration: SPRING_SPATIAL_DEFAULT_MS }}
   >
     <span class="coast-name">{c.name}</span>
-    <span class="coast-height" style={tintHeight ? `color: ${panelRoleVar}` : undefined}>{c.maxHeight ?? "-"}</span>
+    <span
+      class="coast-height"
+      style={tintHeight || c.maxHeightSemantic != null ? `color: ${tsunamiHeightColorVar(c.maxHeightSemantic, panelRoleVar)}` : undefined}
+      title={tsunamiHeightMeaning(c.maxHeight, c.maxHeightSemantic)}
+      aria-label={tsunamiHeightMeaning(c.maxHeight, c.maxHeightSemantic)}
+    >{tsunamiHeightLabel(c.maxHeight, c.maxHeightSemantic)}{#if tsunamiHeightBadge(c.maxHeightSemantic) != null}<b class="semantic-badge height-badge" aria-hidden="true">{tsunamiHeightBadge(c.maxHeightSemantic)}</b>{/if}</span>
     <!-- T7 レビュー決定 (spec §2-c【確定 2026-07-10】): 括弧補足を削り時刻をコロン形式にした
          表示専用整形 (formatArrivalDisplay、tsunami-bucket.ts)。分類 (bucketTsunamiArrival) は
          この整形前の c.firstHeight そのままで行っている (別ロジック、上のスクリプト参照) -->
@@ -464,7 +580,12 @@
     <span class="obs-name">{o.stationName}</span>
     <span class="obs-time">{formatHm(o.arrivalTime)}</span>
     <span class="obs-initial">{o.initial ?? ""}</span>
-    <span class="obs-max-value">{o.maxHeightValue ?? "-"}</span>
+    <span
+      class="obs-max-value"
+      style={o.maxHeightSemantic != null ? `color: ${tsunamiHeightColorVar(o.maxHeightSemantic, "#fff")}` : undefined}
+      title={tsunamiHeightMeaning(o.maxHeightValue, o.maxHeightSemantic)}
+      aria-label={tsunamiHeightMeaning(o.maxHeightValue, o.maxHeightSemantic)}
+    >{tsunamiHeightLabel(o.maxHeightValue, o.maxHeightSemantic)}{#if tsunamiHeightBadge(o.maxHeightSemantic) != null}<b class="semantic-badge height-badge" aria-hidden="true">{tsunamiHeightBadge(o.maxHeightSemantic)}</b>{/if}</span>
     <span class="obs-condition">{observationCondition(o)}</span>
   </div>
 {/snippet}
@@ -482,7 +603,12 @@
     {#if maxHeightHeadline != null}
       <div class="instrument-headline">
         <span class="headline-label">予想最大</span>
-        <span class="headline-value" style="color: {panelRoleVar}">{maxHeightHeadline.label}</span>
+        <span
+          class="headline-value"
+          style="color: {tsunamiHeightColorVar(maxHeightHeadline.semantic, panelRoleVar)}"
+          title={tsunamiHeightMeaning(maxHeightHeadline.label, maxHeightHeadline.semantic)}
+          aria-label={tsunamiHeightMeaning(maxHeightHeadline.label, maxHeightHeadline.semantic)}
+        >{tsunamiHeightLabel(maxHeightHeadline.label, maxHeightHeadline.semantic)}{#if tsunamiHeightBadge(maxHeightHeadline.semantic) != null}<b class="semantic-badge height-badge" aria-hidden="true">{tsunamiHeightBadge(maxHeightHeadline.semantic)}</b>{/if}</span>
         <span class="headline-count">{maxHeightHeadline.count}予報区</span>
       </div>
     {/if}
@@ -494,6 +620,13 @@
       </div>
     {/if}
   </div>
+  {#if heightBadgeLegend.length > 0}
+    <div class="height-badge-legend" aria-label="津波高さ記号の凡例">
+      {#each heightBadgeLegend as item (item.badge)}
+        <span class="height-badge-legend-item"><b>{item.badge}</b><span>{item.meaning}</span></span>
+      {/each}
+    </div>
+  {/if}
   <!-- .tiles: 両タイル共通のビューポート。常時 flex:1;min-height:0 で constrained なため、
        実測高さは静的/ページングどちらの表示モードでも「実際に使える全高」を表す (T6)。
        各タイルの利用可能高さ (coastsAvailableHeight/obsAvailableHeight) はここから
@@ -596,7 +729,12 @@
                切り出す。1 行のテキストに戻して見せかけの単純さを保つため改行・インデント無しの
                単一行で書く (obsSummaryLine という 1 本の文字列 $derived だった旧実装をやめて
                テンプレート側で組み立てる形に変えたが、textContent は完全に一致する) -->
-          <span class="obs-summary-line">{#if maxObservation != null}最大観測: <span class="obs-summary-value">{maxObservation.label}</span> {maxObservation.stationName} / 観測 {visibleObservations.length}地点{:else}観測 {visibleObservations.length}地点{/if}</span>
+          <span class="obs-summary-line">{#if maxObservation != null}最大観測: <span
+            class="obs-summary-value"
+            style="color: {tsunamiHeightColorVar(maxObservation.semantic, panelRoleVar)}"
+            title={tsunamiHeightMeaning(maxObservation.label, maxObservation.semantic)}
+            aria-label={tsunamiHeightMeaning(maxObservation.label, maxObservation.semantic)}
+          >{tsunamiHeightLabel(maxObservation.label, maxObservation.semantic)}{#if tsunamiHeightBadge(maxObservation.semantic) != null}<b class="semantic-badge height-badge" aria-hidden="true">{tsunamiHeightBadge(maxObservation.semantic)}</b>{/if}</span> {maxObservation.stationName} / 観測 {visibleObservations.length}地点{:else}観測 {visibleObservations.length}地点{/if}</span>
         </div>
         <div class="obs-list-host" class:paged={currentObsPage != null}>
           {#if currentObsPage != null}
@@ -737,10 +875,32 @@
   .headline-value {
     white-space: nowrap;
   }
+  .height-badge {
+    margin-inline-start: 0.15em;
+    font-weight: var(--type-weight-bold);
+  }
   .headline-count {
     font-size: calc(var(--type-body-l-size) * var(--panel-scale, 1));
     color: var(--role-muted);
     font-variant-numeric: tabular-nums;
+  }
+  .height-badge-legend {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) calc(28px * var(--panel-scale, 1)) 0;
+    color: var(--role-muted);
+    font-size: max(12px, calc(var(--type-label-s-size) * var(--panel-scale, 1)));
+  }
+  .height-badge-legend-item {
+    display: inline-flex;
+    gap: 0.25em;
+    white-space: nowrap;
+  }
+  .height-badge-legend-item b {
+    color: var(--fg);
+    font-weight: var(--type-weight-bold);
   }
   .tiles {
     flex: 1;

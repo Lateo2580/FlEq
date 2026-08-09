@@ -61,6 +61,33 @@ export interface DisplayIntensitySemanticV1 {
   colorRank: number | null;
 }
 
+export type DisplayTsunamiHeightBadgeV1 = null | "≥" | "↔" | "?" | "∅";
+
+export type DisplayTsunamiHeightColorV1 =
+  | "normalRank"
+  | "safetyRank"
+  | "safetyUpperRank"
+  | "unknown"
+  | "neutral"
+  | "notRendered";
+
+/** V1 additive semantic for numeric-domain tsunami heights (meters). */
+export interface DisplayTsunamiHeightSemanticV1 {
+  raw: string | null;
+  presence: DisplaySpecialValuePresenceV1;
+  label: string | null;
+  condition: string | null;
+  description: string | null;
+  value: number | null;
+  lowerBound: number | null;
+  upperBound: number | null;
+  rawLowerBound: string | null;
+  rawUpperBound: string | null;
+  badge: DisplayTsunamiHeightBadgeV1;
+  color: DisplayTsunamiHeightColorV1;
+  render: boolean;
+}
+
 export type DisplayLgIntensityRankV1 = 0 | 1 | 2 | 3 | 4;
 
 /** V1 additive semantic for JMA long-period ground motion class (rank 0..4). */
@@ -133,6 +160,8 @@ export interface DisplayTsunamiObservationV1 {
   arrivalTime: string | null;
   initial: string | null;         // 第一波の状況
   maxHeightValue: string | null;  // 最大波の高さ (パーサにあれば)
+  /** TsunamiHeight の qualifier と numeric bounds。旧 V1 snapshot は欠落するため optional。 */
+  maxHeightSemantic?: DisplayTsunamiHeightSemanticV1;
   condition: string | null;       // 最大波の状況 (maxHeightCondition)
   heightCondition?: string | null; // TsunamiHeight@condition (例: 上昇中)
 }
@@ -149,6 +178,8 @@ export interface DisplayTsunamiInputV1 {
     /** 予報区の Kind.Code。名称から推定しない。旧 snapshot は欠落するため optional。 */
     kindCode?: string | null;
     maxHeight: string | null;    // 予想波高の記述 (例 "10m超", "3m") = maxHeightDescription
+    /** TsunamiHeight の qualifier と numeric bounds。旧 V1 snapshot は欠落するため optional。 */
+    maxHeightSemantic?: DisplayTsunamiHeightSemanticV1;
     firstHeight: string | null;  // 第一波到達予想 (例 "ただちに津波来襲と予測", "07日15時30分頃")
   }>;
   warningComment: string | null;  // 警報付帯コメント

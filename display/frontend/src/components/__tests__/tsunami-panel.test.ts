@@ -4,7 +4,11 @@ import { flushSync } from "svelte";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import TsunamiPanel from "../TsunamiPanel.svelte";
-import type { DisplayTsunamiInputV1, DisplayTsunamiObservationV1 } from "../../lib/protocol";
+import type {
+  DisplayTsunamiHeightSemanticV1,
+  DisplayTsunamiInputV1,
+  DisplayTsunamiObservationV1,
+} from "../../lib/protocol";
 import { PAGE_HOLD_MS } from "../../lib/page-cycler.svelte";
 import { expectCurrentDot } from "./page-dots-test-utils";
 
@@ -38,6 +42,27 @@ function observation(over: Partial<DisplayTsunamiObservationV1> = {}): DisplayTs
     initial: null,
     maxHeightValue: null,
     condition: null,
+    ...over,
+  };
+}
+
+function heightSemantic(
+  over: Partial<DisplayTsunamiHeightSemanticV1> = {},
+): DisplayTsunamiHeightSemanticV1 {
+  return {
+    raw: null,
+    presence: "unknown",
+    label: "不明",
+    condition: null,
+    description: null,
+    value: null,
+    lowerBound: null,
+    upperBound: null,
+    rawLowerBound: null,
+    rawUpperBound: null,
+    badge: "?",
+    color: "unknown",
+    render: true,
     ...over,
   };
 }
@@ -106,6 +131,144 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
     expect(container.querySelector(".obs-max-value")?.textContent).toBe("３．２ｍ");
     expect(container.querySelector(".obs-condition")?.textContent).toBe("重要（上昇中）");
+  });
+
+  it("height semantic の label/badge/color を表示し、scalar は再解釈せず condition を title/ARIA に含める", () => {
+    const coasts = [
+      {
+        name: "定性",
+        kind: "津波警報",
+        maxHeight: "999m",
+        maxHeightSemantic: heightSemantic({
+          presence: "qualitative", label: "巨大", condition: "定性判定", badge: "?", color: "unknown",
+        }),
+        firstHeight: null,
+      },
+      {
+        name: "下限",
+        kind: "津波警報",
+        maxHeight: "0m",
+        maxHeightSemantic: heightSemantic({
+          presence: "qualitative", label: "3m程度以上", lowerBound: 3,
+          badge: "≥", color: "safetyRank",
+        }),
+        firstHeight: null,
+      },
+      {
+        name: "範囲",
+        kind: "津波警報",
+        maxHeight: "0m",
+        maxHeightSemantic: heightSemantic({
+          presence: "range", label: "1〜4m", lowerBound: 1, upperBound: 4,
+          badge: "↔", color: "safetyUpperRank",
+        }),
+        firstHeight: null,
+      },
+      {
+        name: "空欄",
+        kind: "津波警報",
+        maxHeight: "10m",
+        maxHeightSemantic: heightSemantic({
+          presence: "empty", label: "空欄", badge: "∅", color: "neutral",
+        }),
+        firstHeight: null,
+      },
+    ];
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
+    const values = Array.from(container.querySelectorAll<HTMLElement>(".coast-height"));
+    expect(values.map((value) => value.textContent)).toEqual(expect.arrayContaining([
+      "巨大?", "3m程度以上≥", "1〜4m↔", "空欄∅",
+    ]));
+    const qualitative = values.find((value) => value.textContent === "巨大?");
+    expect(qualitative?.title).toContain("定性判定");
+    expect(qualitative?.getAttribute("aria-label")).toContain("定性判定");
+    expect(qualitative?.getAttribute("style")).toContain("var(--c-raspberry)");
+    expect(container.querySelector(".headline-value")?.textContent).toBe("巨大?");
+    const legend = container.querySelector(".height-badge-legend");
+    expect(legend?.getAttribute("aria-label")).toBe("津波高さ記号の凡例");
+    expect(legend?.textContent).toContain("≥以上（下限値）");
+    expect(legend?.textContent).toContain("↔範囲（上限値で比較）");
+    expect(legend?.textContent).toContain("?不明・定性値");
+    expect(legend?.textContent).toContain("∅空欄");
+  });
+
+  it("semantic badge が無い旧 V1 入力では高さ凡例を表示しない", () => {
+    const { container } = render(TsunamiPanel, {
+      input: tsunamiInput({
+        coasts: [{ name: "旧入力", kind: "津波警報", maxHeight: "3m", firstHeight: null }],
+      }),
+    });
+    expect(container.querySelector(".height-badge-legend")).toBeNull();
+  });
+
+  it("外部 semantic の空文字・空白 label は沿岸・観測・headline で不明表示へ倒す", () => {
+    const blankUnknown = heightSemantic({ presence: "unknown", label: "  \t" });
+    const { container } = render(TsunamiPanel, {
+      input: tsunamiInput({
+        coasts: [{
+          name: "空白ラベル",
+          kind: "津波警報",
+          maxHeight: "999m",
+          maxHeightSemantic: blankUnknown,
+          firstHeight: null,
+        }],
+        observations: [observation({
+          stationName: "空文字ラベル",
+          maxHeightValue: "999m",
+          maxHeightSemantic: heightSemantic({ presence: "unknown", label: "" }),
+        })],
+      }),
+    });
+    expect(container.querySelector(".coast-height")?.textContent).toBe("不明?");
+    expect(container.querySelector(".obs-max-value")?.textContent).toBe("不明?");
+    expect(container.querySelector(".headline-value")?.textContent).toBe("不明?");
+  });
+
+  it.each([
+    [1, "var(--role-tsunamiAdvisory)"],
+    [3, "var(--role-tsunamiWarning)"],
+    [1.2, "var(--role-tsunamiWarning)"],
+    [3.2, "var(--role-tsunamiMajor)"],
+    [10, "var(--role-tsunamiMajor)"],
+  ] as const)("exact %sm は確立済みの津波高さ境界色 %s を使う", (height, expectedColor) => {
+    const semantic = heightSemantic({
+      raw: String(height),
+      presence: "value",
+      label: `${height}m`,
+      value: height,
+      badge: null,
+      color: "normalRank",
+    });
+    const { container } = render(TsunamiPanel, {
+      input: tsunamiInput({
+        coasts: [{
+          name: "境界",
+          kind: "津波警報",
+          maxHeight: "999m",
+          maxHeightSemantic: semantic,
+          firstHeight: null,
+        }],
+      }),
+    });
+    expect(container.querySelector<HTMLElement>(".coast-height")?.getAttribute("style")).toContain(expectedColor);
+    expect(container.querySelector<HTMLElement>(".headline-value")?.getAttribute("style")).toContain(expectedColor);
+  });
+
+  it("observation height semantic を行・最大観測 headline へ表示し condition を併記する", () => {
+    const observations = [observation({
+      maxHeightValue: "0m",
+      maxHeightSemantic: heightSemantic({
+        presence: "value", label: "0.5m", value: 0.5, condition: "上昇中", badge: null, color: "normalRank",
+      }),
+      condition: "重要",
+    })];
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
+    const value = container.querySelector<HTMLElement>(".obs-max-value");
+    expect(value?.textContent).toBe("0.5m");
+    expect(value?.title).toContain("上昇中");
+    expect(value?.getAttribute("aria-label")).toContain("上昇中");
+    expect(container.querySelector(".obs-condition")?.textContent).toBe("重要（上昇中）");
+    expect(container.querySelector(".obs-summary-value")?.textContent).toBe("0.5m");
   });
 
   // Codex R4: compact (副役スロット) の配線。compact prop を分割代入し、class:compact と

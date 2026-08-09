@@ -22,6 +22,7 @@ import { WeatherPromotionStore } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
+import { projectTsunamiHeightSemantic } from "./tsunami-height-semantic";
 import type {
   ActiveStandbyCardV1,
   DisplayRecentQuakeV1,
@@ -92,14 +93,18 @@ export function tsunamiSeedFromParsed(
   // 津波予報 (0.2m 以下) の沿岸を一覧に混ぜない (project-event.ts の pickAlertCoasts と同方針)
   const coasts = forecast
     .filter((f) => /警報|注意報/.test(f.kind))
-    .map((f) => ({
-      name: f.areaName,
-      kind: f.kind,
-      areaCode: f.areaCode,
-      kindCode: f.kindCode,
-      maxHeight: f.maxHeightDescription || null,
-      firstHeight: f.firstHeight || null,
-    }));
+    .map((f) => {
+      const maxHeightSemantic = projectTsunamiHeightSemantic(f.maxHeight, f.maxHeightDescription);
+      return {
+        name: f.areaName,
+        kind: f.kind,
+        areaCode: f.areaCode,
+        kindCode: f.kindCode,
+        maxHeight: f.maxHeightDescription || null,
+        ...(maxHeightSemantic == null ? {} : { maxHeightSemantic }),
+        firstHeight: f.firstHeight || null,
+      };
+    });
   return {
     kind: "tsunami",
     level,

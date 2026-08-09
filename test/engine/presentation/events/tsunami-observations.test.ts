@@ -46,6 +46,9 @@ describe("buildTsunamiObservations", () => {
         areaCode: "210", areaName: "岩手県", areaKind: "大津波警報", kindCode: "53",
         stationName: "釜石",
         stationCode: "21003", arrivalTime: null, initial: "押し",
+        maxHeight: expect.objectContaining({
+          presence: "value", value: 3.2, condition: "上昇中", raw: "3.2",
+        }),
         maxHeightValue: "３．２ｍ", condition: "重要", heightCondition: "上昇中",
       },
     ]);

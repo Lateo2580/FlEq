@@ -1,71 +1,214 @@
+import type { DisplayTsunamiHeightSemanticV1 } from "./protocol";
+
 // 津波予報区の固定計器行 (spec: 設計メモ 2026-07-09-summary-instrument-paging.md §2-c) 用の
-// バケツ化純関数群。coasts[].maxHeight / firstHeight は構造化されていない自由文字列
-// (protocol.ts の DisplayTsunamiInputV1.coasts コメント参照) のため、フロントで文字列を解釈する。
-// JMA 階級への正規化はしない (fixtures 実値に "4m"/"2m"/"0.5m" 等の非標準値が実在するため、
-// 勝手に丸めると実値と食い違う)。パース不能・null は安全側フォールバックで「不明」系バケツへ寄せ、
-// 黙って集計から落とさない。
+// バケツ化純関数群。新 V1 の maxHeightSemantic がある行は semantic を唯一の真実源とし、
+// maxHeight/maxHeightValue の文字列を再解釈しない。semantic が無い旧 V1 snapshot の行だけ、
+// 既存の文字列 parse へ fallback する。表示ラベルは qualitative (巨大・高い等) のまま保つが、
+// 並び順と最大選定だけは既存カードの安全順序 (巨大=最上位、高い=3m・qualifierRank 3) を使う。
+// semantic の bounds はその実値で比較し、それ以外の qualitative 状態表現は数値へ推定しない。
 export interface TsunamiHeightBucket {
   readonly label: string;
   readonly count: number;
+  readonly semantic?: DisplayTsunamiHeightSemanticV1;
 }
 
 const UNKNOWN_HEIGHT_LABEL = "不明";
 
 interface ParsedHeight {
-  readonly value: number;
+  readonly kind: "numeric" | "qualitative" | "empty" | "unknown";
+  /** 表示には使わない、並び順・最大選定専用の内部比較値。 */
+  readonly orderValue: number | null;
   readonly qualifierRank: number;
+  readonly tieBreak: string;
 }
 
 function normalizedHeight(raw: string): string {
   return raw.normalize("NFKC").trim();
 }
 
-// 全角を NFKC 正規化してから "10m超" / "0.2m未満" / "3.2m" 等を読む。
-// 定性値は、巨大を大津波相当の最上位、高いを津波警報相当 (3m より安全側) として比較する。
-// 表示ラベルには正規化前の原文を使う。
+// 旧 V1 fallback は従前の安全順序を保つ。巨大/高いの内部比較値は表示には使わない。
 function parseHeight(raw: string): ParsedHeight | null {
   const normalized = normalizedHeight(raw);
-  if (normalized === "巨大") return { value: Number.POSITIVE_INFINITY, qualifierRank: 0 };
-  if (normalized === "高い") return { value: 3, qualifierRank: 3 };
+  if (normalized === "巨大") {
+    return { kind: "qualitative", orderValue: Number.POSITIVE_INFINITY, qualifierRank: 0, tieBreak: normalized };
+  }
+  if (normalized === "高い") {
+    return { kind: "qualitative", orderValue: 3, qualifierRank: 3, tieBreak: normalized };
+  }
   const m = /^([0-9]+(?:\.[0-9]+)?)m(超|以上|未満)?$/.exec(normalized);
   if (m == null) return null;
   const qualifierRank = m[2] === "超" ? 2 : m[2] === "以上" ? 1 : m[2] === "未満" ? -1 : 0;
-  return { value: Number(m[1]), qualifierRank };
+  return { kind: "numeric", orderValue: Number(m[1]), qualifierRank, tieBreak: normalized };
+}
+
+function semanticLabel(semantic: DisplayTsunamiHeightSemanticV1): string {
+  const label = semantic.label?.trim();
+  if (label) return label;
+  if (semantic.presence === "empty") return "空欄";
+  return "不明";
+}
+
+function qualitativeOrder(
+  ...candidates: ReadonlyArray<string | null>
+): Pick<ParsedHeight, "orderValue" | "qualifierRank"> | null {
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    const normalized = normalizedHeight(candidate);
+    if (normalized === "巨大") {
+      return { orderValue: Number.POSITIVE_INFINITY, qualifierRank: 0 };
+    }
+    if (normalized === "高い") return { orderValue: 3, qualifierRank: 3 };
+  }
+  return null;
+}
+
+function semanticHeight(semantic: DisplayTsunamiHeightSemanticV1): ParsedHeight {
+  const tieBreak = JSON.stringify([
+    semanticLabel(semantic).normalize("NFKC"),
+    semantic.condition?.normalize("NFKC") ?? null,
+    semantic.raw?.normalize("NFKC") ?? null,
+  ]);
+  if (
+    semantic.presence === "qualitative"
+    && semantic.lowerBound == null
+    && semantic.upperBound == null
+  ) {
+    const order = qualitativeOrder(semantic.label, semantic.raw);
+    return {
+      kind: "qualitative",
+      orderValue: order?.orderValue ?? null,
+      qualifierRank: order?.qualifierRank ?? 0,
+      tieBreak,
+    };
+  }
+  if (semantic.presence === "empty") {
+    return { kind: "empty", orderValue: null, qualifierRank: 0, tieBreak };
+  }
+  if (semantic.presence === "unknown") {
+    return { kind: "unknown", orderValue: null, qualifierRank: 0, tieBreak };
+  }
+  const orderValue = semantic.value ?? semantic.upperBound ?? semantic.lowerBound;
+  if (orderValue != null && Number.isFinite(orderValue)) {
+    // 文字列や badge は再解析せず、比較に使った semantic bounds の向きだけで旧順序へ写す。
+    // lower-only (以上系) > exact > upper-only / 両側 range (上限値で比較) とする。
+    const qualifierRank = semantic.value != null
+      ? 0
+      : semantic.upperBound != null
+        ? -1
+        : semantic.lowerBound != null
+          ? 1
+          : 0;
+    return { kind: "numeric", orderValue, qualifierRank, tieBreak };
+  }
+  return { kind: "unknown", orderValue: null, qualifierRank: 0, tieBreak };
+}
+
+function semanticKey(semantic: DisplayTsunamiHeightSemanticV1): string {
+  return JSON.stringify([
+    semantic.presence,
+    semantic.label,
+    semantic.condition,
+    semantic.value,
+    semantic.lowerBound,
+    semantic.upperBound,
+    semantic.badge,
+  ]);
+}
+
+function parsedHeightOrder(value: ParsedHeight): number {
+  if (value.orderValue != null) return 0;
+  switch (value.kind) {
+    case "qualitative":
+      return 1;
+    case "numeric":
+      return 3;
+    case "empty":
+      return 2;
+    case "unknown":
+      return 3;
+  }
+}
+
+function compareParsedHeight(left: ParsedHeight, right: ParsedHeight): number {
+  const kindOrder = parsedHeightOrder(left) - parsedHeightOrder(right);
+  if (kindOrder !== 0) return kindOrder;
+  if (left.orderValue != null && right.orderValue != null) {
+    if (left.orderValue > right.orderValue) return -1;
+    if (left.orderValue < right.orderValue) return 1;
+    if (left.qualifierRank !== right.qualifierRank) {
+      return right.qualifierRank - left.qualifierRank;
+    }
+  }
+  if (left.tieBreak < right.tieBreak) return -1;
+  if (left.tieBreak > right.tieBreak) return 1;
+  return 0;
+}
+
+function isHigherParsedHeight(candidate: ParsedHeight, current: ParsedHeight): boolean {
+  if (candidate.orderValue == null) return false;
+  if (current.orderValue == null) return true;
+  if (candidate.orderValue !== current.orderValue) {
+    return candidate.orderValue > current.orderValue;
+  }
+  return candidate.qualifierRank > current.qualifierRank;
+}
+
+interface HeightBucketEntry {
+  label: string;
+  count: number;
+  parsed: ParsedHeight;
+  semantic?: DisplayTsunamiHeightSemanticV1;
 }
 
 /** coasts[].maxHeight の distinct 値ごとに件数集計する。JMA 階級への正規化はしない
- *  (実値そのものをラベルにする)。NFKC 後の数値で降順ソートし、同数値は超・以上を上位、
- *  未満を下位に置く。定性値の「巨大」「高い」は安全側の警報階級で配置する。
- *  パース不能な値・null は末尾の「不明」バケツへ安全側フォールバックで合流させる */
+ *  (実値そのものをラベルにする)。semantic 経路では numeric bounds と既知の定性ラベルの
+ *  内部安全順序で比較するが、表示ラベルは数値化しない。旧 V1 のパース不能な値・null は
+ *  末尾の「不明」バケツへ寄せる。 */
 export function bucketTsunamiHeight(
-  coasts: ReadonlyArray<{ maxHeight: string | null }>,
+  coasts: ReadonlyArray<{
+    maxHeight: string | null;
+    maxHeightSemantic?: DisplayTsunamiHeightSemanticV1;
+  }>,
 ): TsunamiHeightBucket[] {
-  const counts = new Map<string, number>();
-  let unknownCount = 0;
+  const counts = new Map<string, HeightBucketEntry>();
+  let fallbackUnknownCount = 0;
   for (const coast of coasts) {
-    const raw = coast.maxHeight;
-    if (raw == null || parseHeight(raw) == null) {
-      unknownCount += 1;
+    if (coast.maxHeightSemantic != null) {
+      const semantic = coast.maxHeightSemantic;
+      if (!semantic.render || semantic.presence === "missing") continue;
+      const label = semanticLabel(semantic);
+      const key = `semantic:${semanticKey(semantic)}`;
+      const existing = counts.get(key);
+      if (existing == null) {
+        counts.set(key, { label, count: 1, parsed: semanticHeight(semantic), semantic });
+      } else {
+        existing.count += 1;
+      }
       continue;
     }
-    counts.set(raw, (counts.get(raw) ?? 0) + 1);
+    const raw = coast.maxHeight;
+    if (raw == null || parseHeight(raw) == null) {
+      fallbackUnknownCount += 1;
+      continue;
+    }
+    const parsed = parseHeight(raw)!;
+    const existing = counts.get(`legacy:${raw}`);
+    if (existing == null) {
+      counts.set(`legacy:${raw}`, { label: raw, count: 1, parsed });
+    } else {
+      existing.count += 1;
+    }
   }
 
-  const parsed = Array.from(counts.entries()).map(([label, count]) => ({
+  const parsed = Array.from(counts.values());
+  parsed.sort((a, b) => compareParsedHeight(a.parsed, b.parsed));
+
+  const buckets: TsunamiHeightBucket[] = parsed.map(({ label, count, semantic }) => ({
     label,
     count,
-    parsed: parseHeight(label)!,
+    ...(semantic == null ? {} : { semantic }),
   }));
-  parsed.sort((a, b) => {
-    if (a.parsed.value !== b.parsed.value) return b.parsed.value - a.parsed.value;
-    if (a.parsed.qualifierRank !== b.parsed.qualifierRank) {
-      return b.parsed.qualifierRank - a.parsed.qualifierRank;
-    }
-    return 0;
-  });
-
-  const buckets: TsunamiHeightBucket[] = parsed.map(({ label, count }) => ({ label, count }));
-  if (unknownCount > 0) buckets.push({ label: UNKNOWN_HEIGHT_LABEL, count: unknownCount });
+  if (fallbackUnknownCount > 0) buckets.push({ label: UNKNOWN_HEIGHT_LABEL, count: fallbackUnknownCount });
   return buckets;
 }
 
@@ -154,34 +297,52 @@ export function bucketTsunamiArrival(
 
 export interface TsunamiMaxObservation {
   readonly stationName: string;
-  readonly label: string; // 元の maxHeightValue 文字列そのまま (パース結果の丸め値ではなく実値を出す)
+  readonly label: string;
+  readonly semantic?: DisplayTsunamiHeightSemanticV1;
 }
 
-/** 観測実況 (observations) の中から最大波高の観測点を 1 つ選ぶ。maxHeightValue は自由文字列
- *  (protocol.ts DisplayTsunamiObservationV1 コメント参照) でパース不能・null が混在しうるため、
- *  NFKC 後にパースできた数値・定性値だけを安全側の順位で比較する。全件パース不能・空配列なら
- *  null (安全側で「最大観測」
- *  行ごと非表示にする判断は呼び出し側)。同値の場合は先に現れた観測点を優先する */
+/** semantic がある観測は value/bounds を真実源にして最大値を選ぶ。bounds の無い qualitative は
+ * 巨大/高いだけ既存の内部安全順序で比較し、観測中等の状態表現は最大選定から除外する。
+ * semantic の無い旧 V1 観測だけ maxHeightValue の文字列 parse へ fallback する。 */
 export function maxTsunamiObservation(
-  observations: ReadonlyArray<{ stationName: string; maxHeightValue: string | null }>,
+  observations: ReadonlyArray<{
+    stationName: string;
+    maxHeightValue: string | null;
+    maxHeightSemantic?: DisplayTsunamiHeightSemanticV1;
+  }>,
 ): TsunamiMaxObservation | null {
-  let best: { parsed: ParsedHeight; stationName: string; label: string } | null = null;
+  let best: {
+    parsed: ParsedHeight;
+    stationName: string;
+    label: string;
+    semantic?: DisplayTsunamiHeightSemanticV1;
+  } | null = null;
   for (const o of observations) {
+    if (o.maxHeightSemantic != null) {
+      const semantic = o.maxHeightSemantic;
+      if (!semantic.render || semantic.presence === "missing") continue;
+      const parsed = semanticHeight(semantic);
+      if (parsed.orderValue == null) continue;
+      if (best == null || isHigherParsedHeight(parsed, best.parsed)) {
+        best = { parsed, stationName: o.stationName, label: semanticLabel(semantic), semantic };
+      }
+      continue;
+    }
     if (o.maxHeightValue == null) continue;
     const parsed = parseHeight(o.maxHeightValue);
     if (parsed == null) continue;
-    if (
-      best == null
-      || parsed.value > best.parsed.value
-      || (
-        parsed.value === best.parsed.value
-        && parsed.qualifierRank > best.parsed.qualifierRank
-      )
-    ) {
+    if (parsed.orderValue == null) continue;
+    if (best == null || isHigherParsedHeight(parsed, best.parsed)) {
       best = { parsed, stationName: o.stationName, label: o.maxHeightValue };
     }
   }
-  return best != null ? { stationName: best.stationName, label: best.label } : null;
+  return best != null
+    ? {
+        stationName: best.stationName,
+        label: best.label,
+        ...(best.semantic == null ? {} : { semantic: best.semantic }),
+      }
+    : null;
 }
 
 // 全角括弧の補足 ("（地震発生から2分）"「（5分以内）」等) を削るための正規表現。TIME_PATTERN

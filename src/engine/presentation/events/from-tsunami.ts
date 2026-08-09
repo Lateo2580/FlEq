@@ -16,6 +16,7 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     areaCode: f.areaCode,
     kindCode: f.kindCode,
     kind: f.kind,
+    maxHeight: f.maxHeight,
     maxHeightDescription: f.maxHeightDescription || undefined,
     firstHeight: f.firstHeight || undefined,
   }));
@@ -25,6 +26,7 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     areaCode: f.areaCode,
     kindCode: f.kindCode,
     kind: f.kind,
+    maxHeight: f.maxHeight,
     maxHeightDescription: f.maxHeightDescription || undefined,
     firstHeight: f.firstHeight || undefined,
   }));

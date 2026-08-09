@@ -14,6 +14,7 @@ import { extractTickerEmphasis } from "./ticker-emphasis";
 import { tornadoTickerGroupKey } from "./tornado-group-key";
 import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
+import { projectTsunamiHeightSemantic } from "./tsunami-height-semantic";
 import { revisionOf } from "./standby-registry";
 import {
   attachQuakeObservationBridge,
@@ -165,18 +166,23 @@ function pickAlertCoasts(
   areaCode?: string | null;
   kindCode?: string | null;
   maxHeight: string | null;
+  maxHeightSemantic?: ReturnType<typeof projectTsunamiHeightSemantic>;
   firstHeight: string | null;
 }> {
   const alerted = items.filter((i) => i.kind == null || /警報|注意報/.test(i.kind));
   const source = alerted.length > 0 ? alerted : items;
-  return source.map((i) => ({
-    name: i.name,
-    kind: normalizeTsunamiKind(i.kind ?? fallbackKind),
-    ...(Object.hasOwn(i, "areaCode") ? { areaCode: i.areaCode ?? null } : {}),
-    ...(Object.hasOwn(i, "kindCode") ? { kindCode: i.kindCode ?? null } : {}),
-    maxHeight: i.maxHeightDescription ?? null,
-    firstHeight: i.firstHeight ?? null,
-  }));
+  return source.map((i) => {
+    const maxHeightSemantic = projectTsunamiHeightSemantic(i.maxHeight, i.maxHeightDescription);
+    return {
+      name: i.name,
+      kind: normalizeTsunamiKind(i.kind ?? fallbackKind),
+      ...(Object.hasOwn(i, "areaCode") ? { areaCode: i.areaCode ?? null } : {}),
+      ...(Object.hasOwn(i, "kindCode") ? { kindCode: i.kindCode ?? null } : {}),
+      maxHeight: i.maxHeightDescription ?? null,
+      ...(maxHeightSemantic == null ? {} : { maxHeightSemantic }),
+      firstHeight: i.firstHeight ?? null,
+    };
+  });
 }
 
 export { groupIntensityAreas } from "./intensity-groups";

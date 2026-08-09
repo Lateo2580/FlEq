@@ -33,6 +33,7 @@ export function buildTsunamiObservations(info: ParsedTsunamiInfo): PresentationT
       arrivalTime: o.arrivalTime || null,
       initial: o.initial || null,
       maxHeightValue: o.maxHeightValue,
+      maxHeight: o.maxHeight,
       condition: o.maxHeightCondition || null,
       ...(o.maxHeightValueCondition ? { heightCondition: o.maxHeightValueCondition } : {}),
     };

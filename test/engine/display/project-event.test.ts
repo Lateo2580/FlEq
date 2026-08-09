@@ -971,6 +971,7 @@ describe("projectDisplayEvent", () => {
         areaItems: [{
           name: "石川県能登", areaCode: "AREA-CODE-INTERNAL", kindCode: "KIND-CODE-INTERNAL",
           kind: "津波警報", maxHeightDescription: "３ｍ", firstHeight: "既に到達と推測",
+          maxHeight: { raw: "3", value: 3, condition: null, description: "３ｍ", presence: "value" },
         }],
         warningComment: "満潮と重なるとより高くなります",
         tsunamiObservations: [
@@ -978,6 +979,7 @@ describe("projectDisplayEvent", () => {
             areaCode: "AREA-CODE-INTERNAL", kindCode: "KIND-CODE-INTERNAL",
             areaName: "石川県能登", areaKind: "津波警報", stationName: "輪島",
             arrivalTime: "2026-07-07T10:05:00+09:00", initial: "押し", maxHeightValue: "0.5m", condition: "観測中",
+            maxHeight: { raw: "0.5", value: 0.5, condition: "観測中", description: "0.5m", presence: "value" },
           },
         ],
         frameLevel: "warning",
@@ -990,6 +992,9 @@ describe("projectDisplayEvent", () => {
         name: "石川県能登", kind: "津波警報",
         areaCode: "AREA-CODE-INTERNAL", kindCode: "KIND-CODE-INTERNAL",
         maxHeight: "３ｍ", firstHeight: "既に到達と推測",
+        maxHeightSemantic: expect.objectContaining({
+          presence: "value", value: 3, label: "３ｍ", badge: null, color: "normalRank", render: true,
+        }),
       }],
       warningComment: "満潮と重なるとより高くなります",
       observations: [
@@ -997,6 +1002,10 @@ describe("projectDisplayEvent", () => {
           areaName: "石川県能登", areaCode: "AREA-CODE-INTERNAL", areaKind: "津波警報",
           stationName: "輪島",
           arrivalTime: "2026-07-07T10:05:00+09:00", initial: "押し", maxHeightValue: "0.5m", condition: "観測中",
+          maxHeightSemantic: expect.objectContaining({
+            presence: "value", value: 0.5, label: "0.5m", condition: "観測中",
+            badge: null, color: "normalRank", render: true,
+          }),
         },
       ],
     });

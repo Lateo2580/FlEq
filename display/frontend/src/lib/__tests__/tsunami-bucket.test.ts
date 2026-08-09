@@ -6,6 +6,28 @@ import {
   formatArrivalDisplay,
   maxTsunamiObservation,
 } from "../tsunami-bucket";
+import type { DisplayTsunamiHeightSemanticV1 } from "../protocol";
+
+function heightSemantic(
+  over: Partial<DisplayTsunamiHeightSemanticV1> = {},
+): DisplayTsunamiHeightSemanticV1 {
+  return {
+    raw: null,
+    presence: "unknown",
+    label: "不明",
+    condition: null,
+    description: null,
+    value: null,
+    lowerBound: null,
+    upperBound: null,
+    rawLowerBound: null,
+    rawUpperBound: null,
+    badge: "?",
+    color: "unknown",
+    render: true,
+    ...over,
+  };
+}
 
 describe("bucketTsunamiHeight", () => {
   it("null / 空配列", () => {
@@ -13,10 +35,10 @@ describe("bucketTsunamiHeight", () => {
     expect(bucketTsunamiHeight([{ maxHeight: null }])).toEqual([{ label: "不明", count: 1 }]);
   });
 
-  it("定性値と NFKC 後の全角実値を安全側の順位で分類し、表示ラベルは原文を保つ", () => {
+  it("定性値の表示は保ったまま既存の内部安全順序で数値と混在ソートする", () => {
     expect(bucketTsunamiHeight([
-      { maxHeight: "巨大" },
       { maxHeight: "高い" },
+      { maxHeight: "巨大" },
       { maxHeight: "１０ｍ超" },
       { maxHeight: "３．２ｍ" },
       { maxHeight: "０．２ｍ未満" },
@@ -27,6 +49,145 @@ describe("bucketTsunamiHeight", () => {
       { label: "高い", count: 1 },
       { label: "０．２ｍ未満", count: 1 },
     ]);
+  });
+
+  it("semantic がある行は raw scalar を読まず、bounds と qualifier を真実源にする", () => {
+    const buckets = bucketTsunamiHeight([
+      {
+        maxHeight: "999m",
+        maxHeightSemantic: heightSemantic({
+          raw: "巨大", presence: "qualitative", label: "巨大", badge: "?", color: "unknown",
+        }),
+      },
+      {
+        maxHeight: "0m",
+        maxHeightSemantic: heightSemantic({
+          raw: "2", presence: "qualitative", label: "2m程度以上", lowerBound: 2,
+          badge: "≥", color: "safetyRank", rawLowerBound: "2",
+        }),
+      },
+      {
+        maxHeight: "1m",
+        maxHeightSemantic: heightSemantic({
+          raw: "1", presence: "range", label: "1〜4m", lowerBound: 1, upperBound: 4,
+          badge: "↔", color: "safetyUpperRank", rawLowerBound: "1", rawUpperBound: "4",
+        }),
+      },
+    ]);
+    expect(buckets.map(({ label, count, semantic }) => ({ label, count, badge: semantic?.badge }))).toEqual([
+      { label: "巨大", count: 1, badge: "?" },
+      { label: "1〜4m", count: 1, badge: "↔" },
+      { label: "2m程度以上", count: 1, badge: "≥" },
+    ]);
+  });
+
+  it.each([
+    [
+      heightSemantic({ raw: "0.2", presence: "value", label: "0.2m", value: 0.2, badge: null, color: "normalRank" }),
+      heightSemantic({ raw: "0.2", presence: "range", label: "0.2m未満", upperBound: 0.2, badge: "↔", color: "safetyUpperRank" }),
+      "0.2m",
+    ],
+    [
+      heightSemantic({ raw: "4", presence: "value", label: "4m", value: 4, badge: null, color: "normalRank" }),
+      heightSemantic({ raw: "1〜4", presence: "range", label: "1〜4m", lowerBound: 1, upperBound: 4, badge: "↔", color: "safetyUpperRank" }),
+      "4m",
+    ],
+  ] as const)("同じ比較値では upper 主導 range より exact %s を上位にする", (exact, upperRange, expected) => {
+    const entries = [
+      { maxHeight: "legacy ignored", maxHeightSemantic: upperRange },
+      { maxHeight: "legacy ignored", maxHeightSemantic: exact },
+    ];
+    expect(bucketTsunamiHeight(entries)[0]?.label).toBe(expected);
+    expect(maxTsunamiObservation(entries.map((entry, index) => ({
+      stationName: index === 0 ? "range" : "exact",
+      maxHeightValue: entry.maxHeight,
+      maxHeightSemantic: entry.maxHeightSemantic,
+    })))?.stationName).toBe("exact");
+  });
+
+  it("同じ比較値では lower-only を exact より上位にする", () => {
+    const lower = heightSemantic({
+      raw: "4", presence: "range", label: "4m以上", lowerBound: 4,
+      badge: "≥", color: "safetyRank",
+    });
+    const exact = heightSemantic({
+      raw: "4", presence: "value", label: "4m", value: 4,
+      badge: null, color: "normalRank",
+    });
+    expect(bucketTsunamiHeight([
+      { maxHeight: "4m", maxHeightSemantic: exact },
+      { maxHeight: "4m以上", maxHeightSemantic: lower },
+    ])[0]?.label).toBe("4m以上");
+  });
+
+  it("semantic の missing は非描画、empty/unknown は数値比較せず識別可能なまま集計する", () => {
+    expect(bucketTsunamiHeight([
+      {
+        maxHeight: "10m",
+        maxHeightSemantic: heightSemantic({ presence: "missing", label: null, badge: null, color: "notRendered", render: false }),
+      },
+      {
+        maxHeight: "10m",
+        maxHeightSemantic: heightSemantic({ presence: "empty", label: "空欄", badge: "∅", color: "neutral" }),
+      },
+      {
+        maxHeight: "10m",
+        maxHeightSemantic: heightSemantic({ presence: "unknown", label: "不明", badge: "?", color: "unknown" }),
+      },
+    ])).toEqual([
+      { label: "空欄", count: 1, semantic: expect.objectContaining({ badge: "∅" }) },
+      { label: "不明", count: 1, semantic: expect.objectContaining({ badge: "?" }) },
+    ]);
+  });
+
+  it("semantic の空文字・空白 label は有効表示にせず presence 別 fallback を使う", () => {
+    expect(bucketTsunamiHeight([
+      {
+        maxHeight: "999m",
+        maxHeightSemantic: heightSemantic({ presence: "unknown", label: "  \t" }),
+      },
+      {
+        maxHeight: "999m",
+        maxHeightSemantic: heightSemantic({
+          raw: "", presence: "empty", label: "", badge: "∅", color: "neutral",
+        }),
+      },
+    ])).toEqual([
+      { label: "空欄", count: 1, semantic: expect.objectContaining({ presence: "empty" }) },
+      { label: "不明", count: 1, semantic: expect.objectContaining({ presence: "unknown" }) },
+    ]);
+  });
+
+  it("semantic の bounds なし定性は巨大・高いだけ内部安全順序を使い、状態表現は数値の後に保つ", () => {
+    const buckets = bucketTsunamiHeight([
+      {
+        maxHeight: "999m",
+        maxHeightSemantic: heightSemantic({
+          raw: "", presence: "qualitative", label: "観測中", condition: "観測中",
+          badge: "?", color: "unknown",
+        }),
+      },
+      {
+        maxHeight: "999m",
+        maxHeightSemantic: heightSemantic({
+          raw: "高い", presence: "qualitative", label: "高い", badge: "?", color: "unknown",
+        }),
+      },
+      {
+        maxHeight: "0m",
+        maxHeightSemantic: heightSemantic({
+          raw: "10", presence: "value", label: "10m", value: 10,
+          badge: null, color: "normalRank",
+        }),
+      },
+      {
+        maxHeight: "0m",
+        maxHeightSemantic: heightSemantic({
+          raw: "巨大", presence: "qualitative", label: "巨大", badge: "?", color: "unknown",
+        }),
+      },
+    ]);
+    expect(buckets.map((bucket) => bucket.label)).toEqual(["巨大", "10m", "高い", "観測中"]);
   });
 
   it("パース不能な文字列は不明バケツへ安全側フォールバック", () => {
@@ -212,7 +373,7 @@ describe("maxTsunamiObservation", () => {
     expect(result).toEqual({ stationName: "大", label: "１０ｍ超" });
   });
 
-  it("定性値は巨大=大津波相当、高い=警報相当として安全側で比較する", () => {
+  it("旧 V1 定性値は表示を保ち、巨大=最上位・高い=3m相当の内部安全順序だけで比較する", () => {
     expect(maxTsunamiObservation([
       { stationName: "数値", maxHeightValue: "10m" },
       { stationName: "定性", maxHeightValue: "巨大" },
@@ -221,6 +382,69 @@ describe("maxTsunamiObservation", () => {
       { stationName: "注意報", maxHeightValue: "1m" },
       { stationName: "警報", maxHeightValue: "高い" },
     ])).toEqual({ stationName: "警報", label: "高い" });
+    expect(maxTsunamiObservation([
+      { stationName: "警報", maxHeightValue: "高い" },
+      { stationName: "数値", maxHeightValue: "10m" },
+    ])).toEqual({ stationName: "数値", label: "10m" });
+  });
+
+  it("semantic 観測は scalar を再解釈せず、高いの内部順位と bounds を比較する", () => {
+    const result = maxTsunamiObservation([
+      {
+        stationName: "定性",
+        maxHeightValue: "999m",
+        maxHeightSemantic: heightSemantic({
+          raw: "高い", presence: "qualitative", label: "高い", badge: "?", color: "unknown",
+        }),
+      },
+      {
+        stationName: "範囲",
+        maxHeightValue: "0m",
+        maxHeightSemantic: heightSemantic({
+          presence: "range", label: "2〜5m", lowerBound: 2, upperBound: 5,
+          badge: "↔", color: "safetyUpperRank",
+        }),
+      },
+    ]);
+    expect(result).toMatchObject({ stationName: "範囲", label: "2〜5m", semantic: { badge: "↔" } });
+    expect(maxTsunamiObservation([
+      {
+        stationName: "実測",
+        maxHeightValue: "10m",
+        maxHeightSemantic: heightSemantic({
+          raw: "10", presence: "value", label: "10m", value: 10,
+          badge: null, color: "normalRank",
+        }),
+      },
+      {
+        stationName: "定性",
+        maxHeightValue: "0m",
+        maxHeightSemantic: heightSemantic({
+          raw: "巨大", presence: "qualitative", label: "巨大", badge: "?", color: "unknown",
+        }),
+      },
+    ])).toMatchObject({ stationName: "定性", label: "巨大", semantic: { badge: "?" } });
+  });
+
+  it("semantic の bounds なし状態表現は最大選定から外し、全件が状態表現なら null", () => {
+    const observing = heightSemantic({
+      raw: "", presence: "qualitative", label: "観測中", condition: "観測中",
+      badge: "?", color: "unknown",
+    });
+    expect(maxTsunamiObservation([
+      { stationName: "未計測", maxHeightValue: "", maxHeightSemantic: observing },
+      {
+        stationName: "実測",
+        maxHeightValue: "10m",
+        maxHeightSemantic: heightSemantic({
+          raw: "10", presence: "value", label: "10m", value: 10,
+          badge: null, color: "normalRank",
+        }),
+      },
+    ])).toMatchObject({ stationName: "実測", label: "10m" });
+    expect(maxTsunamiObservation([
+      { stationName: "未計測", maxHeightValue: "", maxHeightSemantic: observing },
+    ])).toBeNull();
   });
 });
 

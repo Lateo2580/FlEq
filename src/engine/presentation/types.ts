@@ -315,6 +315,8 @@ export interface PresentationAreaItem {
   flags?: string[];
   /** 津波予報区の予想波高記述 (tsunami ドメインのみ使用) */
   maxHeightDescription?: string;
+  /** 津波予報区の MaxHeight/TsunamiHeight semantic source。display projection 専用。 */
+  maxHeight?: SpecialValue<number>;
   /** 津波予報区の第一波到達予想記述 (tsunami ドメインのみ使用) */
   firstHeight?: string;
 }
@@ -371,6 +373,8 @@ export interface PresentationTsunamiObservation {
   arrivalTime: string | null;
   initial: string | null;
   maxHeightValue: string | null;
+  /** 観測点の MaxHeight/TsunamiHeight semantic source。display projection 専用。 */
+  maxHeight?: SpecialValue<number>;
   condition: string | null;
   heightCondition?: string | null;
 }

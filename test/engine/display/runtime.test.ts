@@ -1,5 +1,5 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -13,8 +13,15 @@ import {
   type DisplayRuntime,
 } from "../../../src/engine/display/runtime";
 import { KILL_SWITCH_ERRORS } from "../../../src/engine/display/constants";
+import {
+  StandbyPersistence,
+  standbyPersistenceV2Path,
+  type PersistedStandbyStateV1,
+} from "../../../src/engine/display/standby-persistence";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
 import { TsunamiStateHolder } from "../../../src/engine/messages/tsunami-state";
+import { tsunamiStateSubjectKey } from "../../../src/engine/messages/revision-family-registry";
+import type { PersistedTelegramRevisionGateEntryV2 } from "../../../src/engine/messages/telegram-revision-gate";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import {
@@ -22,6 +29,7 @@ import {
   canonicalizeLegacyTsunamiObservation,
   type LegacyParsedTsunamiInfoInput,
 } from "../../../src/dmdata/tsunami-legacy-adapter";
+import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
 import {
   DEFAULT_CONFIG,
   type AppConfig,
@@ -90,13 +98,116 @@ describe("tsunamiSeedFromParsed", () => {
       {
         name: "石川県能登", kind: "津波警報", areaCode: "340", kindCode: "51",
         maxHeight: "３ｍ", firstHeight: "既に到達と推測",
+        maxHeightSemantic: expect.objectContaining({
+          presence: "value", label: "３ｍ", value: 3, badge: null, color: "normalRank", render: true,
+        }),
       },
       {
         name: "新潟県上中下越", kind: "津波注意報", areaCode: "250", kindCode: "62",
         maxHeight: "１ｍ", firstHeight: "０６日２２時００分",
+        maxHeightSemantic: expect.objectContaining({
+          presence: "value", label: "１ｍ", value: 1, badge: null, color: "normalRank", render: true,
+        }),
       },
     ]);
     expect(seed!.reportDateTime).toBe("2026-07-06T21:00:00+09:00");
+  });
+
+  it.each([
+    ["canonical SpecialValue あり", true],
+    ["旧 scalar のみ", false],
+  ] as const)("restart 後の %s snapshot は live と同じ semantic wire を再構成する", (_shape, keepSpecialValue) => {
+    const reportDateTime = "2026-07-06T21:00:00+09:00";
+    const acceptedAtMs = Date.parse(reportDateTime);
+    const meta = createTelegramMeta({
+      messageId: "restart-height-semantic",
+      eventId: "restart-tsunami-event",
+      type: "VTSE41",
+      reportDateTime,
+      serial: "1",
+      infoType: "発表",
+      receivedAtMs: acceptedAtMs,
+      status: "通常",
+      isTest: false,
+    });
+    const active = tsunamiInfo({
+      meta,
+      reportDateTime,
+    });
+    const liveWire = tsunamiSeedFromParsed(active);
+    expect(liveWire).not.toBeNull();
+
+    const subject = tsunamiStateSubjectKey(active.meta)!;
+    const gateEntry: PersistedTelegramRevisionGateEntryV2 = {
+      domain: "tsunami",
+      revisionFamily: "VTSE41",
+      stateSubjectKey: subject,
+      comparison: {
+        stateSubjectKey: subject,
+        revision: {
+          eventId: { raw: subject, value: subject, valid: true },
+          type: { raw: "VTSE41", value: "VTSE41", valid: true },
+          reportDateTime: active.meta.reportDateTime,
+          serial: active.meta.serial,
+          infoType: active.meta.infoType,
+        },
+      },
+      semanticKeys: [],
+      cancelled: false,
+      acceptedAtMs,
+    };
+    const persistedShell: PersistedStandbyStateV1 = {
+      version: 1,
+      savedAt: new Date(acceptedAtMs + 1).toISOString(),
+      heat: [],
+      typhoons: [],
+      volcanoes: [],
+      weatherAlerts: [],
+      tornado: [],
+      longPeriod: [],
+      quakeHost: null,
+      nankaiTrough: null,
+      seen: [],
+    };
+    const root = mkdtempSync(join(tmpdir(), "fleq-tsunami-restart-"));
+    const legacyPath = join(root, "display-active-state-v1.json");
+    try {
+      const persistence = new StandbyPersistence(legacyPath, 0, () => ({
+        vpws50: { authoritative: true, state: null, gateEntries: [] },
+        tsunami: {
+          active,
+          observations: { VTSE51: [], VTSE52: [] },
+          gateEntries: [gateEntry],
+        },
+      }));
+      persistence.save(persistedShell);
+
+      const v2Path = standbyPersistenceV2Path(legacyPath);
+      const raw = JSON.parse(readFileSync(v2Path, "utf8")) as {
+        telegramFoundation: {
+          tsunami: {
+            active: { forecast: Array<Record<string, unknown>> };
+          };
+        };
+      };
+      if (!keepSpecialValue) {
+        for (const forecast of raw.telegramFoundation.tsunami.active.forecast) {
+          delete forecast.maxHeight;
+        }
+        writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+      }
+
+      const loaded = new StandbyPersistence(legacyPath).load()!.telegramFoundation.tsunami;
+      const holder = new TsunamiStateHolder();
+      holder.restorePersistedState(loaded.active ?? null, loaded.observations);
+      const restored = holder.getLastInfo();
+      expect(restored).not.toBeNull();
+      const restartWire = tsunamiSeedFromParsed(restored!);
+      expect(restartWire).toEqual(liveWire);
+      expect(restartWire?.coasts.every((coast) => coast.maxHeightSemantic != null)).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("warningComment と observations を引き継ぎ、code は seed wire へ通す", () => {
@@ -128,6 +239,10 @@ describe("tsunamiSeedFromParsed", () => {
         arrivalTime: "2026-07-06T21:10:00+09:00",
         initial: "押し",
         maxHeightValue: "0.5m",
+        maxHeightSemantic: expect.objectContaining({
+          presence: "value", label: "0.5m", value: 0.5, condition: "観測中",
+          badge: null, color: "normalRank", render: true,
+        }),
         condition: "観測中",
       },
     ]);

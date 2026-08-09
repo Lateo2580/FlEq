@@ -1,9 +1,16 @@
 import type { PresentationTsunamiObservation } from "../presentation/types";
 import type { DisplayTsunamiObservationV1 } from "./types";
+import { projectTsunamiHeightSemantic } from "./tsunami-height-semantic";
 
 type DisplayTsunamiObservationSource =
   | PresentationTsunamiObservation
   | DisplayTsunamiObservationV1;
+
+function isPresentationObservation(
+  observation: DisplayTsunamiObservationSource,
+): observation is PresentationTsunamiObservation {
+  return Object.hasOwn(observation, "maxHeight");
+}
 
 /**
  * Presentation 内部の結合用 field を display protocol v1 の明示 field へ投影する境界。
@@ -12,6 +19,9 @@ type DisplayTsunamiObservationSource =
 export function projectDisplayTsunamiObservation(
   observation: DisplayTsunamiObservationSource,
 ): DisplayTsunamiObservationV1 {
+  const maxHeightSemantic = isPresentationObservation(observation)
+    ? projectTsunamiHeightSemantic(observation.maxHeight, observation.maxHeightValue)
+    : observation.maxHeightSemantic;
   return {
     areaName: observation.areaName,
     ...(Object.hasOwn(observation, "areaCode")
@@ -25,6 +35,7 @@ export function projectDisplayTsunamiObservation(
     arrivalTime: observation.arrivalTime,
     initial: observation.initial,
     maxHeightValue: observation.maxHeightValue,
+    ...(maxHeightSemantic == null ? {} : { maxHeightSemantic }),
     condition: observation.condition,
     ...(Object.hasOwn(observation, "heightCondition")
       ? { heightCondition: observation.heightCondition ?? null }
