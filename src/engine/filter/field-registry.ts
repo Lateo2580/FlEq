@@ -1,5 +1,6 @@
 import type { PresentationEvent } from "../presentation/types";
 import type { SpecialValue } from "../../types";
+import { isShallowDepthSpecialValue } from "../../utils/magnitude";
 import type { CompOp, FilterField, FilterKind } from "./types";
 
 function field<T>(kind: FilterKind, aliases: string[], get: (e: PresentationEvent) => T | null | undefined, supportsOrder?: boolean): FilterField<T> {
@@ -24,6 +25,7 @@ function compareCanonicalNumber(
   value: SpecialValue<number>,
   op: CompOp,
   right: number,
+  allowQualitativeBounds: (value: SpecialValue<number>) => boolean = () => false,
 ): boolean {
   if (value.presence === "value" && value.value != null) {
     switch (op) {
@@ -36,7 +38,7 @@ function compareCanonicalNumber(
       default: return false;
     }
   }
-  if (value.presence !== "range") return false;
+  if (value.presence !== "range" && !allowQualitativeBounds(value)) return false;
   const lower = value.lowerBound ?? null;
   const upper = value.upperBound ?? null;
   switch (op) {
@@ -53,6 +55,7 @@ function compareCanonicalNumber(
 function semanticNumberField(
   scalar: (event: PresentationEvent) => number | null,
   semantic: (event: PresentationEvent) => SpecialValue<number> | undefined,
+  allowQualitativeBounds?: (value: SpecialValue<number>) => boolean,
 ): FilterField<number> {
   return {
     kind: "number",
@@ -65,7 +68,9 @@ function semanticNumberField(
     supportsOrder: true,
     compareNumber: (event, op, right) => {
       const canonical = semantic(event);
-      if (canonical != null) return compareCanonicalNumber(canonical, op, right);
+      if (canonical != null) {
+        return compareCanonicalNumber(canonical, op, right, allowQualitativeBounds);
+      }
       const value = scalar(event);
       if (value == null) return false;
       return compareCanonicalNumber({
@@ -116,7 +121,11 @@ export const FILTER_FIELDS: Record<string, FilterField> = {
 
   // 震源情報
   hypocenterName: field("string", ["hypocenter"], (e) => e.hypocenterName),
-  depth: semanticNumberField((e) => parseDepth(e.depth), (e) => e.depthValue),
+  depth: semanticNumberField(
+    (e) => parseDepth(e.depth),
+    (e) => e.depthValue,
+    isShallowDepthSpecialValue,
+  ),
   magnitude: {
     ...semanticNumberField((e) => parseMagnitude(e.magnitude), (e) => e.magnitudeValue),
     aliases: ["mag"],

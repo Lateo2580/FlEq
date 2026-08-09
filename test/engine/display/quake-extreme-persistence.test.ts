@@ -10,6 +10,8 @@ import {
   projectMagnitudeSemantic,
 } from "../../../src/engine/display/magnitude-depth-semantic";
 import type { SpecialValue } from "../../../src/types";
+import { extractSpecialValue } from "../../../src/dmdata/special-value";
+import { specialValueCanonicalEquals } from "../../../src/utils/magnitude";
 
 const T0 = Date.parse("2026-07-29T00:00:00Z");
 const dirs: string[] = [];
@@ -179,6 +181,119 @@ describe("QuakeExtremePersistence", () => {
       depth: "30km",
       depthSemantic: { presence: "value", value: 30 },
     });
+  });
+
+  it("旧 shallow の canonical-only／wire-only／scalar-only／新旧同時を実 load で同じ canonical へ移行する", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fleq-quake-extreme-"));
+    dirs.push(dir);
+    const file = join(dir, "quake-extreme-v1.json");
+    const oldCanonical = {
+      raw: "-0", value: null, condition: null, description: null,
+      presence: "qualitative",
+    };
+    const oldWire = {
+      ...oldCanonical,
+      label: "ごく浅い",
+      lowerBound: null,
+      upperBound: null,
+      rawLowerBound: null,
+      rawUpperBound: null,
+      badge: "?",
+      color: "unknown",
+      render: true,
+    };
+    const common = {
+      originTime: new Date(T0).toISOString(),
+      magnitude: "M8 を超える巨大地震",
+      depth: "ごく浅い",
+      sourceTypes: ["VXSE53"],
+      observationSourceType: "VXSE53",
+    };
+    writeFileSync(file, JSON.stringify({
+      version: 1,
+      savedAt: new Date(T0).toISOString(),
+      records: [
+        { ...common, groupKey: "quake:canonical", depthValue: oldCanonical },
+        { ...common, groupKey: "quake:wire", depthSemantic: oldWire },
+        { ...common, groupKey: "quake:scalar" },
+        {
+          ...common,
+          groupKey: "quake:both",
+          depthValue: oldCanonical,
+          depthSemantic: oldWire,
+        },
+      ],
+      seen: [],
+    }), "utf8");
+
+    const loaded = new QuakeExtremePersistence(file).load(T0)!;
+    const fresh = extractSpecialValue("Depth", { "#text": "-0" }) as SpecialValue<number>;
+    expect(loaded.records).toHaveLength(4);
+    for (const record of loaded.records) {
+      expect(specialValueCanonicalEquals(record.depthValue, fresh)).toBe(true);
+      expect(record.depthSemantic).toMatchObject({
+        presence: "qualitative",
+        label: "ごく浅い",
+        upperBound: 5,
+        badge: null,
+        color: "safetyRank",
+      });
+      expect(record.magnitudeSemantic).toMatchObject({ rank: { kind: "giant" } });
+      expect(Object.hasOwn(record.magnitudeValue!, "upperBound")).toBe(false);
+    }
+  });
+
+  it("restart 直後の同一報は shallow migration 後も diff／durability update を発生させない", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fleq-quake-extreme-"));
+    dirs.push(dir);
+    const file = join(dir, "quake-extreme-v1.json");
+    const shallow = extractSpecialValue("Depth", { "#text": "-0" }) as SpecialValue<number>;
+    const dto = displayEventDto({
+      domain: "earthquake",
+      type: "VXSE53",
+      groupKey: "quake:restart-same",
+      reportDateTime: new Date(T0).toISOString(),
+      serial: "1",
+      latestQuake: {
+        eventId: "restart-same",
+        headline: null,
+        originTime: new Date(T0).toISOString(),
+        hypocenterName: "沖",
+        depth: "ごく浅い",
+        depthSemantic: projectDepthSemantic(shallow),
+        magnitude: "6.0",
+        magnitudeSemantic: projectMagnitudeSemantic(numericValue("6.0", 6)),
+        maxInt: "7",
+        maxIntRank: 9,
+        tsunamiWarning: false,
+        intensityGroups: [],
+        reportDateTime: new Date(T0).toISOString(),
+      },
+    });
+    const source = new QuakeExtremeStore();
+    expect(source.applyDto(dto, T0)).toBe(true);
+    const persistence = new QuakeExtremePersistence(file);
+    persistence.save(source.export(), T0);
+    const raw = JSON.parse(readFileSync(file, "utf8")) as {
+      records: Array<{
+        depthValue: Record<string, unknown>;
+        depthSemantic: Record<string, unknown>;
+      }>;
+    };
+    delete raw.records[0]!.depthValue.upperBound;
+    Object.assign(raw.records[0]!.depthSemantic, {
+      upperBound: null,
+      badge: "?",
+      color: "unknown",
+    });
+    writeFileSync(file, JSON.stringify(raw), "utf8");
+
+    const restored = new QuakeExtremeStore();
+    restored.restore(persistence.load(T0 + 1)!, T0 + 1);
+    const durability: string[] = [];
+    restored.onDurable((mode) => durability.push(mode));
+    expect(restored.applyDto(dto, T0 + 1)).toBe(false);
+    expect(durability).toEqual([]);
   });
 
   it("旧 v1 record の observationSourceType 欠落を sourceTypes のまま後方互換読取する", () => {

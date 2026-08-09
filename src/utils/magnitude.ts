@@ -1,5 +1,8 @@
 import type { ParsedEarthquakeHypocenter, SpecialValue } from "../types";
 
+/** 気象庁の「ごく浅い」（深さ約 5km 未満）を表す内部上限。 */
+export const SHALLOW_DEPTH_UPPER_BOUND_KM = 5;
+
 function normalizeDescription(description: string): string {
   return description
     .normalize("NFKC")
@@ -37,6 +40,31 @@ function isShallowDepthText(value: string | null): boolean {
   const normalized = value?.normalize("NFKC").trim();
   return normalized === "ごく浅い"
     || (normalized != null && /深さ\s*ごく浅い$/.test(normalized));
+}
+
+function isShallowDepthQualitative(value: SpecialValue<number>): boolean {
+  if (value.presence !== "qualitative") return false;
+  const normalizedRaw = value.raw?.normalize("NFKC").trim() ?? "";
+  const rawNumber = normalizedRaw === "" ? null : Number(normalizedRaw);
+  return rawNumber === 0
+    || [value.raw, value.description, value.condition].some(isShallowDepthText);
+}
+
+/** Depth 専用: upperBound 5 を持つ既知の「ごく浅い」だけを識別する。 */
+export function isShallowDepthSpecialValue(value: SpecialValue<number>): boolean {
+  return isShallowDepthQualitative(value)
+    && value.lowerBound == null
+    && value.upperBound === SHALLOW_DEPTH_UPPER_BOUND_KM;
+}
+
+/** 旧 canonical／legacy restore も含め「ごく浅い」の内部上限を補う。 */
+export function withShallowDepthUpperBound(
+  value: SpecialValue<number>,
+): SpecialValue<number> {
+  if (!isShallowDepthQualitative(value)) return value;
+  return value.upperBound === SHALLOW_DEPTH_UPPER_BOUND_KM
+    ? value
+    : { ...value, upperBound: SHALLOW_DEPTH_UPPER_BOUND_KM };
 }
 
 /** Magnitude の canonical 値を表示ラベルへ変換する。missing は null。 */

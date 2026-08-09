@@ -1,6 +1,8 @@
 import type { SpecialValue, SpecialValueDiagnostic } from "../types";
 import {
   isGiantMagnitudeText,
+  SHALLOW_DEPTH_UPPER_BOUND_KM,
+  withShallowDepthUpperBound,
 } from "../utils/magnitude";
 import type {
   DisplayDepthSemanticV1,
@@ -117,6 +119,14 @@ export function normalizeNumericSpecialValueForPersistence(
   return normalized;
 }
 
+/** Depth reader は旧 canonical の「ごく浅い」に 5km 未満の上限を補う。 */
+export function parsePersistedDepthSpecialValue(
+  value: unknown,
+): SpecialValue<number> | null {
+  const parsed = parsePersistedNumericSpecialValue(value);
+  return parsed == null ? null : withShallowDepthUpperBound(parsed);
+}
+
 function missingNumericValue(): SpecialValue<number> {
   return {
     raw: null,
@@ -179,6 +189,7 @@ export function depthValueFromLegacyScalar(value: string | null): SpecialValue<n
       condition: null,
       description: value,
       presence: "qualitative",
+      upperBound: SHALLOW_DEPTH_UPPER_BOUND_KM,
     };
   }
   const numericMatch = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*km$/i.exec(normalized);
@@ -192,6 +203,7 @@ export function depthValueFromLegacyScalar(value: string | null): SpecialValue<n
             condition: null,
             description: "ごく浅い",
             presence: "qualitative",
+            upperBound: SHALLOW_DEPTH_UPPER_BOUND_KM,
           }
         : {
             raw: value,
@@ -222,7 +234,7 @@ export function depthValueFromLegacyScalar(value: string | null): SpecialValue<n
 }
 
 export function numericSpecialValueFromDisplaySemantic(
-  semantic: DisplayDepthSemanticV1,
+  semantic: DisplayDepthSemanticV1 | DisplayMagnitudeSemanticV1,
 ): SpecialValue<number> | null {
   return parsePersistedNumericSpecialValue({
     raw: semantic.raw,
@@ -235,6 +247,14 @@ export function numericSpecialValueFromDisplaySemantic(
     rawLowerBound: semantic.rawLowerBound,
     rawUpperBound: semantic.rawUpperBound,
   });
+}
+
+/** Depth semantic reader だけが旧「ごく浅い」の内部上限を補う。 */
+export function depthValueFromDisplaySemantic(
+  semantic: DisplayDepthSemanticV1,
+): SpecialValue<number> | null {
+  const parsed = numericSpecialValueFromDisplaySemantic(semantic);
+  return parsed == null ? null : withShallowDepthUpperBound(parsed);
 }
 
 function sameJson(left: unknown, right: unknown): boolean {
@@ -266,10 +286,29 @@ export function parsePersistedMagnitudeSemantic(value: unknown): DisplayMagnitud
 export function parsePersistedDepthSemantic(value: unknown): DisplayDepthSemanticV1 | null {
   if (!isRecord(value)) return null;
   const semantic = value as unknown as DisplayDepthSemanticV1;
-  const source = numericSpecialValueFromDisplaySemantic(semantic);
-  if (source == null) return null;
+  const persistedSource = parsePersistedNumericSpecialValue({
+    raw: semantic.raw,
+    value: semantic.value,
+    condition: semantic.condition,
+    description: semantic.description,
+    presence: semantic.presence,
+    lowerBound: semantic.lowerBound,
+    upperBound: semantic.upperBound,
+    rawLowerBound: semantic.rawLowerBound,
+    rawUpperBound: semantic.rawUpperBound,
+  });
+  if (persistedSource == null) return null;
+  const source = withShallowDepthUpperBound(persistedSource);
   const projected = projectDepthSemantic(source);
-  return projected != null && sameJson(projected, value) ? projected : null;
+  if (projected == null) return null;
+  if (sameJson(projected, value)) return projected;
+  // 2026-08-10 裁定前の bounds なし「ごく浅い」semantic だけ読込方向で移行する。
+  const legacyProjected = projectDepthSemantic(persistedSource);
+  return source !== persistedSource
+    && legacyProjected != null
+    && sameJson(legacyProjected, value)
+    ? projected
+    : null;
 }
 
 export function magnitudeSemanticFromLegacyScalar(

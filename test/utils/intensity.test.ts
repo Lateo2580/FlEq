@@ -88,6 +88,7 @@ describe("specialValueDisplaySemantic", () => {
     ["range", intensityValue({ presence: "range", lowerBound: "3", upperBound: "4" }), { kind: "range", color: "safetyUpperRank", badge: "↔", render: true }],
     ["qualitative lower", intensityValue({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), { kind: "lowerBound", color: "safetyRank", badge: "≥", render: true }],
     ["qualitative lower with upper", intensityValue({ presence: "qualitative", lowerBound: "5-", upperBound: "7" }), { kind: "lowerBound", color: "safetyRank", badge: "≥", render: true }],
+    ["qualitative upper remains unknown", intensityValue({ raw: "推定値", presence: "qualitative", upperBound: "4" }), { kind: "unknown", color: "unknown", badge: "?", render: true }],
     ["qualitative without bounds", intensityValue({ raw: "推定不能", presence: "qualitative" }), { kind: "unknown", color: "unknown", badge: "?", render: true }],
     ["unknown", intensityValue({ condition: "未入電", presence: "unknown" }), { kind: "unknown", color: "unknown", badge: "?", render: true }],
     ["empty", intensityValue({ raw: "", presence: "empty" }), { kind: "empty", color: "neutral", badge: "∅", render: true }],

@@ -257,6 +257,8 @@ export type IntensitySafetyRank =
 
 共通規約として、通知やテロップで qualifier を削って通常値のように表示してはならない。
 
+Depth の既知定性語「ごく浅い」は、内部 semantic に `upperBound: 5`（km）を持つが、定性語表示を維持し、カード／地図では `?` badge を付けない。この例外を他 domain の upper-only `qualitative` へ一般化しない（2026-08-10 ユーザー裁定）。
+
 例:
 
 - `5弱以上未入電` を `震度5弱` と表示しない。
@@ -275,12 +277,14 @@ export type IntensitySafetyRank =
 | lower bound | lower bound の safety rank 色 | `≥` |
 | range | safety upper rank 色 | `↔` |
 | qualitative かつ lower bound あり | lower bound の safety rank 色 | `≥` |
+| Depth の `ごく浅い`（`qualitative`、`upperBound: 5`） | safety rank 色 | なし |
 | qualitative かつ bounds なし | unknown 色 | `?` |
 | unknown | unknown 色 | `?` |
 | empty | neutral 色 | `∅` |
 | missing | 非描画 | なし |
 
 - `5弱以上未入電` は震度5弱の色と `≥` badge を使用する。
+- upper-only `qualitative` の badge なしは Depth の既知「ごく浅い」だけの例外とし、他 domain は従来どおり unknown 色と `?` badge を使用する。
 - badge だけに意味を依存せず、凡例、tooltip、カード、アクセシビリティラベルにも condition を記載する。
 - exact value と特殊値を同じ色にする場合でも、badge を省略しない。
 - unknown 色を低震度色や「警戒なし」の色と共用しない。
@@ -1441,14 +1445,14 @@ npm --prefix display run typecheck
 
 - canonical field は `magnitudeValue`／`depthValue` の `SpecialValue<number>` とする。既存 `magnitude`／`depth` string は adapter が生成する表示互換 scalar であり、判定の真実源ではない。既存 field の非 nullable `string` 型は維持し、canonical `missing` の adapter 値は現行互換の `""` とする。semantic がある経路の表示は §3.7 に従い（CLI／カードの missing は `—`、通知／テロップは省略）、scalar `""` を表示判定に使うのは legacy consumer／fallback に限る。
 - Depth の情報源は Coordinate 第3成分の数値を主源とし、description／condition の特殊語を §3.5 の Depth 行に従って合成する。矛盾時は数値を `value` として保持し、特殊語を失わず diagnostics（`specialValueConflict`）へ記録する。未知語から値の無効化を推定しない。
-  - 深さ成分が存在し 0: `qualitative`（ごく浅い）。
+  - 深さ成分が存在し 0: `qualitative`（ごく浅い）。「ごく浅い」は「深さ約 5km 未満」に相当する内部 semantic として `upperBound: 5`（km）を持たせるが、表示・永続 raw・旧 scalar adapter は定性語のまま維持し、`?` badge は付けない（2026-08-10 ユーザー裁定）。
   - 深さ成分が欠落（Coordinate 全体の欠落・形式不正・第3成分なし）: `missing`。現行の「ごく浅い」表示への畳み込みは §2.2 違反として修正し、既存挙動変更を test で明示固定する（ご主人裁定 2026-08-09）。
   - 「深さ600km以上」等の bound 表現: `range`（lowerBound 設定）。
 - 巨大 Magnitude（「Ｍ８を超える巨大地震」）は `qualitative` とし、description を表示源とする。現行 helper（`src/utils/magnitude.ts`）の NFKC・trim・`M<数値>` 後の空白補正は維持し、`M8超` 等への意味的短縮はしない（ご主人裁定 2026-08-09＝現行表示の維持）。内部順序のみ exact／range より上位とし、順序 rank は engine 側 semantic として下流へ渡す。frontend に raw 再解析させない。
 - canonical equality helper は `presence`／`value`／`lowerBound`／`upperBound` で判定する。raw、condition、description、diagnostics は比較へ含めない。bounds の欠落と明示 `null` は同値として扱い、生成段でも各 schema で形を固定する（§3.3）。
 - diff は canonical の変化すべて（presence 遷移・value 変化・bounds 変化）で発火し、raw／description だけの表記揺れでは発火しない（ご主人裁定 2026-08-09）。適用面は `EewTracker` と `PresentationDiffStore` の両方とし、`PresentationDiffStore` には Depth も canonical equality で追加する。
 - 通知は既存 cadence を維持する。通常続報を Magnitude／Depth diff だけを理由に通知せず、受理済み訂正は実質差分の有無と独立に `訂正` を明示して通知する。地震・EEW 通知本文の Magnitude が `missing`／`empty` の場合は、§3.7 の省略規約に対する明示例外として現行互換の `M不明` 表示を維持する（2026-08-09 通知文言の現行一致を優先）。
-- filter の数値比較は canonical から判定する。exact は `value` を用い、range／lower-only／upper-only は bounds から結果が確定できる場合だけ真とし、確定できない場合と `unknown`／`missing`／`empty`／bounds なし `qualitative`（巨大を含む）は非マッチとする。これは特殊値が数値化不能で非マッチとなる現行挙動の保存であり、巨大の内部順序最上位（表示順）とは別契約とする。
+- filter の数値比較は canonical から判定する。exact は `value` を用い、range／lower-only／upper-only は bounds から結果が確定できる場合だけ真とする。`qualitative` の bounds 比較は Depth の既知「ごく浅い」（`upperBound: 5`）だけに許可し、他 domain の `qualitative`（巨大を含む）と、確定できない値／`unknown`／`missing`／`empty` は非マッチとする。これは特殊値が数値化不能で非マッチとなる現行挙動の保存であり、巨大の内部順序最上位（表示順）とは別契約とする。
 - 特殊値 fixture は実電文 schema に忠実な合成 XML を許容する（ご主人裁定 2026-08-09）。実電文が観測でき次第、差し替え候補としてバックログへ記録する。
 - 期待値変更の許可範囲は本実装契約で明示した範囲に限る: 深さ成分欠落の `missing` 化とその表示変更、巨大 Magnitude の内部順序最上位、canonical diff 発火範囲の変更、特殊値への badge／tooltip／ARIA 追加、persistence への additive semantic と legacy migration、合成 fixture の追加。通常値の丸め・`M7.3`／`深さ 10km` 等の表示接頭辞と空白・通知頻度と音・exact 値の filter 結果・VXSE51→52／61 の震度保持条件・persistence の salvage 方針・巨大以外の並び順が変わる場合は裁定済み範囲外として報告・停止する。
 
@@ -1470,7 +1474,7 @@ npm --prefix display run typecheck
 - EEW は optional Earthquake container 自体の欠落も Magnitude／Depth の canonical `missing` に正規化した。container 欠落↔contained missing は非発火、欠落↔value は missing endpoint 付き diff とし、Earthquake block がない current snapshot でも M／Depth diff 行だけを描画する。
 - restart／display off→on 後の structural-missing VXSE52／61 でも、復元済み daily history を fresh `DisplayStateStore` の baseline provider へ接続し、latest／recent／largeQuake が live と同じ §7.4 merge を使う形に確定した。震度だけを旧観測から保持し、Magnitude／Depth／震源名／発生時刻は後報を採用する。
 - daily／standby／QuakeExtreme の3 durable owner は canonical の全 field（raw、presence、value、condition、description、bounds、raw bounds、diagnostics）と JSON-safe rank を保存する。旧 scalar-only は読込方向だけ migration し、canonical valid なら壊れた派生 semantic を再生成して record を救済する。
-- filter の数値比較は exact または bounds から結果を確定できる場合だけ真とし、判定不能な range、unknown、missing、empty、qualitative は偽とした。巨大の表示順最上位と filter の数値非マッチは別契約である。
+- filter の数値比較は exact または range bounds から結果を確定できる場合だけ真とし、`qualitative` では Depth の既知「ごく浅い」の `upperBound: 5` だけを同様に扱う。判定不能な range、unknown、missing、empty、他 domain の qualitative は偽とした。巨大の表示順最上位と filter の数値非マッチは別契約である。
 - CLI／summary／ticker／template／card／replay／recent／emergency／map は semantic がある場合に §3.7 の特殊値表示へ移行した。`≥`／`↔`／`?`／`∅` の badge、tooltip、凡例、ARIA を追加し、scalar-only `magnitude:null` は既存の空欄／`-` 表示と ARIA の意味を一致させた。通常 exact の表示は従来どおりとした。
 
 完了確認:

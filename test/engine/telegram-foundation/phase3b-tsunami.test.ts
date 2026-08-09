@@ -563,17 +563,32 @@ describe("Phase 3B tsunami common registry", () => {
     const scalarOnly = structuredClone(persisted);
     const scalarEarthquake = scalarOnly.telegramFoundation.tsunami.keyedActive![0]!.earthquake!;
     scalarEarthquake.magnitude = "6.0";
-    scalarEarthquake.depth = "30km";
+    scalarEarthquake.depth = "ごく浅い";
     delete scalarEarthquake.magnitudeValue;
     delete scalarEarthquake.depthValue;
     fs.writeFileSync(v2Path, JSON.stringify(scalarOnly), "utf8");
-    expect(persistence.load()?.telegramFoundation.tsunami.keyedActive?.[0]?.earthquake)
-      .toMatchObject({
+    const scalarLoaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(scalarLoaded.keyedActive?.[0]?.earthquake).toMatchObject({
         magnitude: "6.0",
         magnitudeValue: { presence: "value", value: 6, raw: "6.0" },
-        depth: "30km",
-        depthValue: { presence: "value", value: 30, raw: "30km" },
+        depth: "ごく浅い",
+        depthValue: {
+          presence: "qualitative", value: null, raw: "ごく浅い", upperBound: 5,
+        },
       });
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(
+      null,
+      scalarLoaded.observations,
+      scalarLoaded.keyedActive ?? [],
+    );
+    restarted.revisionGate.restoreDurableEntries(scalarLoaded.gateEntries);
+    const retry = structuredClone(scalarLoaded.keyedActive![0]!);
+    retry.meta.messageId = "earthquake-semantic-retry-after-restart";
+    expect(run(retry, restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getPersistedKeyedActive()).toEqual(
+      scalarLoaded.keyedActive,
+    );
 
     const nullableLegacy = scalarEarthquake as unknown as {
       magnitude: string | null;

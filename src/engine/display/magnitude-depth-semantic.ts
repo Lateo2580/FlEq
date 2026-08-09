@@ -2,6 +2,7 @@ import type { SpecialValue } from "../../types";
 import {
   formatDepthSpecialValue,
   formatMagnitudeSpecialValue,
+  isShallowDepthSpecialValue,
   magnitudeSerializableRank,
 } from "../../utils/magnitude";
 import { specialValueDisplaySemantic } from "../../utils/intensity";
@@ -49,5 +50,8 @@ export function projectDepthSemantic(
   source: SpecialValue<number> | undefined,
 ): DisplayDepthSemanticV1 | undefined {
   if (source == null) return undefined;
-  return projectNumericSemantic(source, formatDepthSpecialValue(source));
+  const projected = projectNumericSemantic(source, formatDepthSpecialValue(source));
+  return isShallowDepthSpecialValue(source)
+    ? { ...projected, badge: null, color: "safetyRank" }
+    : projected;
 }

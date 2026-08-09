@@ -8,6 +8,8 @@ import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type { JmaIntensity, SpecialValue } from "../../../src/types";
 import { projectRecentQuake } from "../../../src/engine/display/project-event";
 import { quakeObservationMetaOf } from "../../../src/engine/display/quake-observation-merge";
+import { extractSpecialValue } from "../../../src/dmdata/special-value";
+import { specialValueCanonicalEquals } from "../../../src/utils/magnitude";
 
 const T0 = Date.parse("2026-07-29T12:00:00+09:00");
 const dirs: string[] = [];
@@ -33,6 +35,8 @@ interface PersistedTestRecent {
     observationSourceType: string | null;
     intensityStructureMissing: boolean;
     maxIntValue: PersistedTestSpecialValue;
+    magnitudeValue?: Record<string, unknown>;
+    depthValue?: Record<string, unknown>;
   };
 }
 
@@ -250,6 +254,61 @@ describe("DailyQuakePersistence", () => {
       magnitudeValue,
       depthValue,
     });
+  });
+
+  it("旧 shallow の canonical-only／wire-only／scalar-only／新旧同時を daily 実 load で同じ canonical へ移行する", () => {
+    const file = filePath();
+    const fresh = extractSpecialValue("Depth", { "#text": "-0" }) as SpecialValue<number>;
+    const giant: SpecialValue<number> = {
+      raw: "NaN", value: null, condition: null,
+      description: "Ｍ８を超える巨大地震", presence: "qualitative",
+    };
+    const counter = new DailyQuakeCounter(T0);
+    for (let index = 0; index < 4; index += 1) {
+      addQuake(counter, event({
+        eventId: `Q-shallow-${index}`,
+        reportDateTime: new Date(T0 + index).toISOString(),
+        originTime: new Date(T0 + index).toISOString(),
+        magnitude: "",
+        magnitudeValue: giant,
+        depth: "ごく浅い",
+        depthValue: fresh,
+      }), T0 + index);
+    }
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 10);
+    const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedTestFile;
+    const [both, scalar, wire, canonical] = persisted.state.recentQuakes;
+    for (const entry of [both, wire, canonical]) {
+      delete entry!.observation.depthValue!.upperBound;
+    }
+    for (const entry of [both, wire]) {
+      Object.assign(entry!.depthSemantic!, {
+        upperBound: null,
+        badge: "?",
+        color: "unknown",
+      });
+    }
+    delete canonical!.depthSemantic;
+    delete wire!.observation.depthValue;
+    delete scalar!.observation.depthValue;
+    delete scalar!.depthSemantic;
+    fs.writeFileSync(file, JSON.stringify(persisted), "utf8");
+
+    const loaded = persistence.load(T0 + 20)!;
+    expect(loaded.recentQuakes).toHaveLength(4);
+    for (const quake of loaded.recentQuakes) {
+      const meta = quakeObservationMetaOf(quake)!;
+      expect(specialValueCanonicalEquals(meta.depthValue, fresh)).toBe(true);
+      expect(quake.depthSemantic).toMatchObject({
+        presence: "qualitative",
+        upperBound: 5,
+        badge: null,
+        color: "safetyRank",
+      });
+      expect(quake.magnitudeSemantic).toMatchObject({ rank: { kind: "giant" } });
+      expect(Object.hasOwn(meta.magnitudeValue!, "upperBound")).toBe(false);
+    }
   });
 
   it("upper-only numeric bounds を daily owner で canonical/semantic とも round-trip する", () => {

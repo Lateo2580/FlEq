@@ -14,6 +14,7 @@ import {
   projectMagnitudeSemantic,
 } from "./magnitude-depth-semantic";
 import {
+  depthValueFromDisplaySemantic,
   numericSpecialValueFromDisplaySemantic,
   parsePersistedDepthSemantic,
   parsePersistedMagnitudeSemantic,
@@ -165,7 +166,7 @@ export class QuakeExtremeStore {
     const depthValue = meta?.depthValue
       ?? (projectedDepthSemantic == null
         ? undefined
-        : numericSpecialValueFromDisplaySemantic(projectedDepthSemantic) ?? undefined);
+        : depthValueFromDisplaySemantic(projectedDepthSemantic) ?? undefined);
     return this.apply({
       domain: dto.domain,
       groupKey: dto.groupKey,

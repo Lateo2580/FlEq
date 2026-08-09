@@ -158,6 +158,27 @@ describe("LatestQuakeCard", () => {
     expect(container.textContent).not.toContain("~10km");
   });
 
+  it("upper bound 付きのごく浅い震源は文言だけを表示し ? badge を付けない", () => {
+    const { container } = render(LatestQuakeCard, { quake: latestQuake({
+      depth: "ごく浅い",
+      depthSemantic: {
+        ...magnitudeSemantic({}),
+        raw: "-0",
+        presence: "qualitative",
+        label: "ごく浅い",
+        description: "ごく浅い",
+        upperBound: 5,
+        badge: null,
+        color: "safetyRank",
+        render: true,
+      },
+    }) });
+    const depth = container.querySelector(".depth");
+    expect(depth?.textContent).toBe("ごく浅い");
+    expect(depth?.querySelector(".semantic-badge")).toBeNull();
+    expect(depth?.getAttribute("aria-label")).toBe("深さ: ごく浅い");
+  });
+
   it("stat-value は他カードと同じ px 床を持ち、int-chip は tabular-nums を持つ", () => {
     const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf8");
     expect(source).toContain("font-size: max(14px, var(--type-body-l-fluid))");

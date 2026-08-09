@@ -75,6 +75,7 @@ import {
   depthValueFromLegacyScalar,
   magnitudeValueFromLegacyScalar,
   normalizeNumericSpecialValueForPersistence,
+  parsePersistedDepthSpecialValue,
   parsePersistedNumericSpecialValue,
 } from "../magnitude-depth-persistence";
 import { Vpww56StateHolder, type PersistedVpww56StateV2 } from "../messages/vpww56-state";
@@ -1499,7 +1500,7 @@ function sanitizePersistedTsunamiActive(value: unknown): LegacyParsedTsunamiInfo
       ? parsePersistedNumericSpecialValue(earthquake.magnitudeValue)!
       : magnitudeValueFromLegacyScalar(earthquake.magnitude as string | null);
     earthquake.depthValue = Object.hasOwn(earthquake, "depthValue")
-      ? parsePersistedNumericSpecialValue(earthquake.depthValue)!
+      ? parsePersistedDepthSpecialValue(earthquake.depthValue)!
       : depthValueFromLegacyScalar(earthquake.depth as string | null);
     earthquake.magnitude = magnitudeScalar;
     earthquake.depth = depthScalar;

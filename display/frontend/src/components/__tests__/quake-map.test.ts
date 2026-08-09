@@ -411,6 +411,34 @@ describe("QuakeMapScreen", () => {
     expect(container.textContent).not.toContain("~10km");
   });
 
+  it("非緊急全国図の upper bound 付き「ごく浅い」に ? badge を付けない", () => {
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({
+        depth: "ごく浅い",
+        depthSemantic: {
+          raw: "-0",
+          presence: "qualitative",
+          label: "ごく浅い",
+          condition: null,
+          description: "ごく浅い",
+          value: null,
+          lowerBound: null,
+          upperBound: 5,
+          rawLowerBound: null,
+          rawUpperBound: null,
+          badge: null,
+          color: "safetyRank",
+          render: true,
+        },
+      }),
+    });
+    const depthTerm = [...container.querySelectorAll("dt")].find((term) => term.textContent === "深さ");
+    const depth = depthTerm?.nextElementSibling;
+    expect(depth?.textContent).toBe("ごく浅い");
+    expect(depth?.querySelector(".semantic-badge")).toBeNull();
+    expect(depth?.getAttribute("aria-label")).toBe("深さ: ごく浅い");
+  });
+
   it("scalar-only magnitude:null の '-' 表示と ARIA を一致させる", () => {
     const { container } = render(QuakeMapScreen, {
       event: mapEvent({ magnitude: null }),

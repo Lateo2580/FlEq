@@ -4,6 +4,7 @@ import * as log from "../../logger";
 import type { QuakeExtremePersistedV1, QuakeExtremeRecordV1 } from "./quake-extreme-store";
 import type { PersistedSeenEntry } from "./revision-guard";
 import {
+  depthValueFromDisplaySemantic,
   depthValueFromLegacyScalar,
   depthSemanticFromLegacyScalar,
   magnitudeValueFromLegacyScalar,
@@ -11,6 +12,7 @@ import {
   normalizeNumericSpecialValueForPersistence,
   numericSpecialValueFromDisplaySemantic,
   parsePersistedDepthSemantic,
+  parsePersistedDepthSpecialValue,
   parsePersistedMagnitudeSemantic,
   parsePersistedNumericSpecialValue,
 } from "../magnitude-depth-persistence";
@@ -77,9 +79,9 @@ export class QuakeExtremePersistence {
               ? undefined
               : magnitudeValueFromLegacyScalar(magnitude);
         const depthValue = hasDepthValue
-          ? parsePersistedNumericSpecialValue(record.depthValue)
+          ? parsePersistedDepthSpecialValue(record.depthValue)
           : persistedDepthSemantic != null
-            ? numericSpecialValueFromDisplaySemantic(persistedDepthSemantic)
+            ? depthValueFromDisplaySemantic(persistedDepthSemantic)
             : depth === undefined
               ? undefined
               : depthValueFromLegacyScalar(depth);
@@ -163,7 +165,7 @@ export class QuakeExtremePersistence {
         const depthValue = record.depthValue
           ?? (record.depthSemantic == null
             ? record.depth === undefined ? undefined : depthValueFromLegacyScalar(record.depth)
-            : numericSpecialValueFromDisplaySemantic(record.depthSemantic) ?? undefined);
+            : depthValueFromDisplaySemantic(record.depthSemantic) ?? undefined);
         const magnitudeSemantic = magnitudeValue == null
           ? record.magnitudeSemantic
             ?? (record.magnitude === undefined ? undefined : magnitudeSemanticFromLegacyScalar(record.magnitude))

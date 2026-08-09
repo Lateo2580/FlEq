@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { parseEarthquakeTelegram } from "../../../src/dmdata/telegram-parser";
 import { extractSpecialValue } from "../../../src/dmdata/special-value";
+import {
+  depthValueFromLegacyScalar,
+  numericSpecialValueFromDisplaySemantic,
+  parsePersistedDepthSemantic,
+  parsePersistedDepthSpecialValue,
+  parsePersistedMagnitudeSemantic,
+} from "../../../src/engine/magnitude-depth-persistence";
+import { projectMagnitudeSemantic } from "../../../src/engine/display/magnitude-depth-semantic";
 import type { SpecialValue } from "../../../src/types";
 import {
   formatDepthSpecialValue,
@@ -69,7 +77,12 @@ describe("Phase 5A Magnitude/Depth parser contract", () => {
     }],
     ["ごく浅い", "synthetic_phase5a_depth_shallow.xml", {
       depth: "ごく浅い",
-      depthValue: { raw: "-0", value: null, presence: "qualitative" },
+      depthValue: {
+        raw: "-0",
+        value: null,
+        presence: "qualitative",
+        upperBound: 5,
+      },
     }],
     ["深さ成分欠落", "synthetic_phase5a_depth_missing.xml", {
       depth: "",
@@ -149,6 +162,68 @@ describe("Phase 5A Magnitude/Depth parser contract", () => {
     });
     expect(earthquake?.magnitude).toBe(legacy);
     expect(formatMagnitudeSpecialValue(earthquake!.magnitudeValue!)).toBe(formatted);
+  });
+
+  it("旧 scalar／canonical／wire のごく浅いを upperBound 5 へ読込移行する", () => {
+    expect(depthValueFromLegacyScalar("ごく浅い")).toMatchObject({
+      raw: "ごく浅い",
+      presence: "qualitative",
+      upperBound: 5,
+    });
+    expect(parsePersistedDepthSpecialValue({
+      raw: "-0",
+      value: null,
+      condition: null,
+      description: "ごく浅い",
+      presence: "qualitative",
+    })).toMatchObject({
+      raw: "-0",
+      presence: "qualitative",
+      upperBound: 5,
+    });
+    expect(parsePersistedDepthSemantic({
+      raw: "-0",
+      value: null,
+      condition: null,
+      description: "ごく浅い",
+      presence: "qualitative",
+      lowerBound: null,
+      upperBound: null,
+      rawLowerBound: null,
+      rawUpperBound: null,
+      label: "ごく浅い",
+      badge: "?",
+      color: "unknown",
+      render: true,
+    })).toMatchObject({
+      presence: "qualitative",
+      label: "ごく浅い",
+      upperBound: 5,
+      badge: null,
+      color: "safetyRank",
+    });
+  });
+
+  it.each([
+    ["raw -0", {
+      raw: "-0", value: null, condition: null, description: "解析保留",
+      presence: "qualitative" as const, diagnostics: ["unmappedSpecialValue" as const],
+    }],
+    ["巨大", {
+      raw: "NaN", value: null, condition: null, description: "Ｍ８を超える巨大地震",
+      presence: "qualitative" as const,
+    }],
+  ])("Magnitude %s の reader は Depth 上限を補完しない", (_label, value) => {
+    const semantic = projectMagnitudeSemantic(value)!;
+    expect(numericSpecialValueFromDisplaySemantic(semantic)).toMatchObject({
+      raw: value.raw,
+      value: value.value,
+      condition: value.condition,
+      description: value.description,
+      presence: value.presence,
+    });
+    expect(parsePersistedMagnitudeSemantic(semantic)).toEqual(semantic);
+    expect(Object.hasOwn(numericSpecialValueFromDisplaySemantic(semantic)!, "upperBound")).toBe(false);
   });
 
   it("Magnitude/Depth formatter は両側 range と未知 qualitative を保持する", () => {
@@ -389,7 +464,7 @@ describe("Phase 5A Magnitude/Depth parser contract", () => {
     },
   );
 
-  it("Coordinate description 終端の 深さ ごく浅い と非0本文の矛盾を記録する", () => {
+  it("Coordinate description 終端の 深さ ごく浅い と非0本文では既存の数値優先順序を維持する", () => {
     expect(extractSpecialValue("Depth", {
       "#text": "10",
       "@_description": "北緯３５度　東経１３９度　深さ ごく浅い",

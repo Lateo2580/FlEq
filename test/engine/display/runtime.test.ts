@@ -31,6 +31,7 @@ import {
 } from "../../../src/dmdata/tsunami-legacy-adapter";
 import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
 import { projectDisplayEvent } from "../../../src/engine/display/project-event";
+import { specialValueCanonicalEquals } from "../../../src/utils/magnitude";
 import {
   DEFAULT_CONFIG,
   type AppConfig,
@@ -197,16 +198,14 @@ describe("tsunamiSeedFromParsed", () => {
           description: "Ｍ８を超える巨大地震",
           presence: "qualitative",
         },
-        depth: "600km",
+        depth: "ごく浅い",
         depthValue: {
-          raw: "-600000",
+          raw: "-0",
           value: null,
-          condition: "600km以上",
-          description: "深さ600km以上",
-          presence: "range",
-          lowerBound: 600,
-          rawLowerBound: "６００",
-          rawUpperBound: null,
+          condition: null,
+          description: "ごく浅い",
+          presence: "qualitative",
+          upperBound: 5,
         },
       },
     });
@@ -268,10 +267,17 @@ describe("tsunamiSeedFromParsed", () => {
       const raw = JSON.parse(readFileSync(v2Path, "utf8")) as {
         telegramFoundation: {
           tsunami: {
-            keyedActive: Array<{ forecast: Array<Record<string, unknown>> }>;
+            keyedActive: Array<{
+              forecast: Array<Record<string, unknown>>;
+              earthquake?: {
+                magnitudeValue?: Record<string, unknown>;
+                depthValue?: Record<string, unknown>;
+              };
+            }>;
           };
         };
       };
+      const persistedEarthquake = raw.telegramFoundation.tsunami.keyedActive[0]!.earthquake!;
       if (!keepSpecialValue) {
         // 旧 scalar-only snapshot を migration reader で復元する経路。
         const scalar = raw.telegramFoundation.tsunami.keyedActive[0]!;
@@ -280,8 +286,12 @@ describe("tsunamiSeedFromParsed", () => {
         for (const forecast of scalar.forecast) {
           delete forecast.maxHeight;
         }
-        writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+        delete persistedEarthquake.depthValue;
+      } else {
+        // 2026-08-10 裁定前の canonical-only shallow を読込方向で補完する。
+        delete persistedEarthquake.depthValue!.upperBound;
       }
+      writeFileSync(v2Path, JSON.stringify(raw), "utf8");
 
       const loaded = new StandbyPersistence(legacyPath).load()!.telegramFoundation.tsunami;
       const holder = new TsunamiStateHolder();
@@ -294,11 +304,26 @@ describe("tsunamiSeedFromParsed", () => {
       const restored = holder.getLastInfo();
       expect(restored).not.toBeNull();
       const restartWire = tsunamiSeedFromParsed(restored!);
-      expect(restartWire).toEqual(liveWire);
-      expect(restartWire).toMatchObject({
-        magnitudeSemantic: liveProjection.magnitudeSemantic,
-        depthSemantic: liveProjection.depthSemantic,
-      });
+      if (keepSpecialValue) {
+        expect(restartWire).toEqual(liveWire);
+        expect(restartWire).toMatchObject({
+          magnitudeSemantic: liveProjection.magnitudeSemantic,
+          depthSemantic: liveProjection.depthSemantic,
+        });
+      } else {
+        expect(specialValueCanonicalEquals(
+          restored!.earthquake?.depthValue,
+          active.earthquake?.depthValue,
+        )).toBe(true);
+        expect(restartWire?.depthSemantic).toMatchObject({
+          presence: "qualitative",
+          label: "ごく浅い",
+          upperBound: 5,
+          badge: null,
+          color: "safetyRank",
+        });
+        expect(restartWire?.magnitudeSemantic).toEqual(liveWire?.magnitudeSemantic);
+      }
       expect(restartWire?.coasts.every((coast) => coast.maxHeightSemantic != null)).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });

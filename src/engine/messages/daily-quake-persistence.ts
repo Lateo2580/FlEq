@@ -19,13 +19,16 @@ import {
   type QuakeObservationMeta,
 } from "../display/quake-observation-merge";
 import {
+  depthValueFromDisplaySemantic,
   depthSemanticFromLegacyScalar,
   magnitudeSemanticFromLegacyScalar,
   normalizeNumericSpecialValueForPersistence,
+  parsePersistedDepthSpecialValue,
   parsePersistedNumericSpecialValue,
   parsePersistedDepthSemantic,
   parsePersistedMagnitudeSemantic,
 } from "../magnitude-depth-persistence";
+import { isShallowDepthSpecialValue } from "../../utils/magnitude";
 import {
   projectDepthSemantic,
   projectMagnitudeSemantic,
@@ -236,12 +239,25 @@ function parseRecentQuake(
     quake = { ...quake, maxInt: null, maxIntRank: null };
   }
   if (observation == null || !observationMatchesScalar(quake, observation)) return null;
-  const magnitudeSemantic = observation.magnitudeValue == null
+  const magnitudeValue = observation.magnitudeValue;
+  const restoredDepthValue = persistedDepthSemantic == null
+    ? undefined
+    : depthValueFromDisplaySemantic(persistedDepthSemantic) ?? undefined;
+  const depthValue = observation.depthValue
+    ?? (restoredDepthValue != null && isShallowDepthSpecialValue(restoredDepthValue)
+      ? restoredDepthValue
+      : undefined);
+  const migratedObservation: QuakeObservationMeta = {
+    ...observation,
+    ...(magnitudeValue == null ? {} : { magnitudeValue }),
+    ...(depthValue == null ? {} : { depthValue }),
+  };
+  const magnitudeSemantic = magnitudeValue == null
     ? persistedMagnitudeSemantic
-    : projectMagnitudeSemantic(observation.magnitudeValue);
-  const depthSemantic = observation.depthValue == null
+    : projectMagnitudeSemantic(magnitudeValue);
+  const depthSemantic = depthValue == null
     ? persistedDepthSemantic
-    : projectDepthSemantic(observation.depthValue);
+    : projectDepthSemantic(depthValue);
   if (magnitudeSemantic == null || depthSemantic == null) return null;
   quake = { ...quake, magnitudeSemantic, depthSemantic };
   const projectedSemantic = projectIntensitySemantic(observation.maxIntValue, quake.maxInt);
@@ -255,7 +271,7 @@ function parseRecentQuake(
       || !sameIntensitySemantic(persistedMaxIntSemantic, expectedMaxIntSemantic))
   ) return null;
   if (expectedMaxIntSemantic != null) quake = { ...quake, maxIntSemantic: expectedMaxIntSemantic };
-  return withQuakeObservationMeta(quake, observation);
+  return withQuakeObservationMeta(quake, migratedObservation);
 }
 
 const CANONICAL_INTENSITIES = new Set<JmaIntensity>([
@@ -335,7 +351,7 @@ function parseObservationMeta(value: unknown): QuakeObservationMeta | null {
     : undefined;
   const hasDepthValue = Object.hasOwn(value, "depthValue");
   const depthValue = hasDepthValue
-    ? parsePersistedNumericSpecialValue(value.depthValue)
+    ? parsePersistedDepthSpecialValue(value.depthValue)
     : undefined;
   if ((hasMagnitudeValue && magnitudeValue == null) || (hasDepthValue && depthValue == null)) {
     return null;

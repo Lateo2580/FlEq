@@ -4,7 +4,10 @@ import type {
   SpecialValue,
   SpecialValueDiagnostic,
 } from "../types";
-import { isGiantMagnitudeText } from "../utils/magnitude";
+import {
+  isGiantMagnitudeText,
+  SHALLOW_DEPTH_UPPER_BOUND_KM,
+} from "../utils/magnitude";
 
 export type SpecialValueDomain =
   | "Magnitude"
@@ -785,6 +788,10 @@ export function extractSpecialValue(
         || hasUnsupportedStructuredBounds
       : false;
   const parsedDepthBound = domain === "Depth" ? depthBound(parts) : null;
+  const isShallowDepth = domain === "Depth" && (
+    parsedValue === 0
+    || [parts.raw, parts.condition, parts.description].some(isDepthShallowTerm)
+  );
   const parsedPlumeBound = domain === "PlumeHeight"
     ? plumeBoundFromSource(parts.raw)
     : null;
@@ -953,7 +960,13 @@ export function extractSpecialValue(
       };
     }
     if (parsedValue === 0) {
-      return { ...common, value: null, presence: "qualitative", ...diagnosticFields };
+      return {
+        ...common,
+        value: null,
+        presence: "qualitative",
+        upperBound: SHALLOW_DEPTH_UPPER_BOUND_KM,
+        ...diagnosticFields,
+      };
     }
     if (depthSpecialConflict) {
       return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
@@ -983,6 +996,7 @@ export function extractSpecialValue(
       value: null,
       presence: "qualitative",
       ...(domain === "Intensity" ? { lowerBound: "5-" } : {}),
+      ...(isShallowDepth ? { upperBound: SHALLOW_DEPTH_UPPER_BOUND_KM } : {}),
       ...diagnosticFields,
     };
   }

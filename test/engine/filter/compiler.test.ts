@@ -56,6 +56,20 @@ describe("compile", () => {
         value: null, lowerBound: null, upperBound: 10,
       },
     }))).toBe(true);
+    expect(compileFilter("depth < 10")(makeEvent({
+      depth: "ごく浅い",
+      depthValue: {
+        raw: "-0", condition: null, description: "ごく浅い", presence: "qualitative",
+        value: null, lowerBound: null, upperBound: 5,
+      },
+    }))).toBe(true);
+    expect(compileFilter("magnitude < 10")(makeEvent({
+      magnitude: "",
+      magnitudeValue: {
+        raw: "推定値", condition: null, description: "解析保留", presence: "qualitative",
+        value: null, lowerBound: null, upperBound: 5,
+      },
+    }))).toBe(false);
     expect(atLeast(makeEvent({
       magnitude: "9.0",
       magnitudeValue: { raw: "NaN", condition: "不明", description: null, presence: "unknown", value: null },
