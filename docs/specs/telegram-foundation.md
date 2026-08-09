@@ -209,6 +209,9 @@ export interface SpecialValue<T> {
 | Pressure | `解析不能`（本文または `Condition`） | `unknown` | `Condition` を正とし、矛盾する数値本文は採用しない |
 | Intensity | `未入電` | `unknown` | 既知の `Condition` を正とし、数値 rank へ変換しない |
 | Intensity | `5弱以上未入電` | `qualitative` | 既知の `Condition` を正とし、`lowerBound:"5-"` を設定する |
+| Magnitude | `Ｍ８を超える巨大地震`（description、本文、`Condition` のいずれか） | `qualitative` | 巨大地震の description を正とし、矛盾する数値本文は採用せず raw と診断へ残す |
+| Depth | `ごく浅い`（Coordinate 深さ成分 0、または description／`Condition`） | `qualitative` | Coordinate 数値が 0 以外で矛盾する場合は数値を `value` とし、`ごく浅い` は採用せず raw と診断へ残す |
+| Depth | `以上`／`以下` を含む bound 表現（description または `Condition`） | `range` | Coordinate 数値と整合する場合は bound として合成する。矛盾する場合は数値を `value` とし、qualifier は採用せず raw と診断へ残す |
 
 - 数値本文を採用する例外は、上表の TsunamiHeight のように特殊語が値の無効化ではなく進行状況を表すと明記した場合だけとする。
 - 未知の `Condition` と valid な本文が矛盾する場合は本文を `value` として保持し、未知 `Condition` も失わず `unmappedSpecialValue`／`specialValueConflict` を記録する。未知語から値の無効化を推定しない。
@@ -1431,6 +1434,30 @@ npm --prefix display run typecheck
 - latest／recent／daily counter／persistence restore 後で quake-observation-merge の結果が一致する。
 - 受理済み訂正が実質差分の有無にかかわらず訂正通知される。
 - 既存機能の回帰が 0 件である。
+
+実装契約（2026-08-09 着手時確定。ご主人裁定 4 件と分岐判断を含む）:
+
+- canonical field は `magnitudeValue`／`depthValue` の `SpecialValue<number>` とする。既存 `magnitude`／`depth` string は adapter が生成する表示互換 scalar であり、判定の真実源ではない。既存 field の非 nullable `string` 型は維持し、canonical `missing` の adapter 値は現行互換の `""` とする。semantic がある経路の表示は §3.7 に従い（CLI／カードの missing は `—`、通知／テロップは省略）、scalar `""` を表示判定に使うのは legacy consumer／fallback に限る。
+- Depth の情報源は Coordinate 第3成分の数値を主源とし、description／condition の特殊語を §3.5 の Depth 行に従って合成する。矛盾時は数値を `value` として保持し、特殊語を失わず diagnostics（`specialValueConflict`）へ記録する。未知語から値の無効化を推定しない。
+  - 深さ成分が存在し 0: `qualitative`（ごく浅い）。
+  - 深さ成分が欠落（Coordinate 全体の欠落・形式不正・第3成分なし）: `missing`。現行の「ごく浅い」表示への畳み込みは §2.2 違反として修正し、既存挙動変更を test で明示固定する（ご主人裁定 2026-08-09）。
+  - 「深さ600km以上」等の bound 表現: `range`（lowerBound 設定）。
+- 巨大 Magnitude（「Ｍ８を超える巨大地震」）は `qualitative` とし、description を表示源とする。現行 helper（`src/utils/magnitude.ts`）の NFKC・trim・`M<数値>` 後の空白補正は維持し、`M8超` 等への意味的短縮はしない（ご主人裁定 2026-08-09＝現行表示の維持）。内部順序のみ exact／range より上位とし、順序 rank は engine 側 semantic として下流へ渡す。frontend に raw 再解析させない。
+- canonical equality helper は `presence`／`value`／`lowerBound`／`upperBound` で判定する。raw、condition、description、diagnostics は比較へ含めない。bounds の欠落と明示 `null` は同値として扱い、生成段でも各 schema で形を固定する（§3.3）。
+- diff は canonical の変化すべて（presence 遷移・value 変化・bounds 変化）で発火し、raw／description だけの表記揺れでは発火しない（ご主人裁定 2026-08-09）。適用面は `EewTracker` と `PresentationDiffStore` の両方とし、`PresentationDiffStore` には Depth も canonical equality で追加する。
+- 通知は既存 cadence を維持する。通常続報を Magnitude／Depth diff だけを理由に通知せず、受理済み訂正は実質差分の有無と独立に `訂正` を明示して通知する。
+- filter の数値比較は canonical から判定する。exact は `value` を用い、range／lower-only／upper-only は bounds から結果が確定できる場合だけ真とし、確定できない場合と `unknown`／`missing`／`empty`／bounds なし `qualitative`（巨大を含む）は非マッチとする。これは特殊値が数値化不能で非マッチとなる現行挙動の保存であり、巨大の内部順序最上位（表示順）とは別契約とする。
+- 特殊値 fixture は実電文 schema に忠実な合成 XML を許容する（ご主人裁定 2026-08-09）。実電文が観測でき次第、差し替え候補としてバックログへ記録する。
+- 期待値変更の許可範囲は本実装契約で明示した範囲に限る: 深さ成分欠落の `missing` 化とその表示変更、巨大 Magnitude の内部順序最上位、canonical diff 発火範囲の変更、特殊値への badge／tooltip／ARIA 追加、persistence への additive semantic と legacy migration、合成 fixture の追加。通常値の丸め・`M7.3`／`深さ 10km` 等の表示接頭辞と空白・通知頻度と音・exact 値の filter 結果・VXSE51→52／61 の震度保持条件・persistence の salvage 方針・巨大以外の並び順が変わる場合は裁定済み範囲外として報告・停止する。
+
+変更単位（依存順。共通 semantic 契約と engine 側投影を、state 永続化と EEW の両方より前に確定する）:
+
+1. 契約先行（本節と §3.5 Depth／Magnitude 行の固定。文書のみ）
+2. 共通型・parser・adapter: Coordinate carrier、diagnostics 拡張（Magnitude／Depth の conflict 記録）、Magnitude／Depth 本配線、欠落と深さ0の分離、VXSE52／61 の shadow 対象追加、canonical equality helper・ranking・共通 formatter、旧 scalar adapter、合成 fixture
+3. semantic 伝搬・通知・engine 投影: Parsed DTO→PresentationEvent（earthquake／EEW／tsunami／lg-observation）、engine display protocol の additive 型と engine display projection（`projectRecentQuake`・latest・EEW・map／emergency への semantic 投影）、notification formatter、`PresentationDiffStore`
+4. 地震 state・merge・永続化: latest／recent／daily merge、durable owner ごと（daily／standby／QuakeExtreme）の schema 拡張と旧 reader（読込方向のみ migration）・canonical 優先・scalar-only fixture・round-trip、live／restore の同値性、`test:shuffle` 通過
+5. EEW tracker・diff: canonical diff、同一 serial 訂正、logger と detail の diff 行のみ（通常 snapshot 表示は単位 6）
+6. 全表示 surface・frontend: CLI formatter 群（EEW は通常 snapshot 表示）、summary／ticker／template／filter、frontend view model と card／replay／recent／emergency、badge・tooltip・ARIA、内部順序の frontend 反映、legacy scalar fallback、同一合成 XML を parser→formatter→notification→ticker→card→persistence へ通す横断 contract test（§14.2）と protocol sync・全ゲート
 
 ### Phase 5B: 台風数値
 
