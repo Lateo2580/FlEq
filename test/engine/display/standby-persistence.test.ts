@@ -931,6 +931,68 @@ describe("StandbyStateStore persistence", () => {
     });
   });
 
+  it.each(
+    (["Pressure", "WindSpeed", "MovementSpeed"] as const).flatMap((domain) =>
+      (["", " ", "　"] as const).map((raw) => [domain, raw] as const),
+    ),
+  )("typhoon %s の empty raw %j は save→load→restore 後も byte-for-byte で一致する", (
+    domain,
+    raw,
+  ) => {
+    const emptyValue: SpecialValue<number> = {
+      raw,
+      value: null,
+      condition: null,
+      description: null,
+      presence: "empty",
+    };
+    const pressureHpaValue = domain === "Pressure" ? emptyValue : numericValue(990);
+    const maxWindMsValue = domain === "WindSpeed" ? emptyValue : numericValue(25);
+    const moveSpeedKmhValue = domain === "MovementSpeed" ? emptyValue : numericValue(20);
+    const persisted = state({
+      typhoons: [{
+        key: `typhoon:empty-raw:${domain}`,
+        sourceEventId: `typhoon-empty-raw-${domain}`,
+        typhoon: {
+          typhoonKey: `empty-raw:${domain}`,
+          name: "Alpha",
+          nameKana: null,
+          remark: null,
+          typhoonNumber: "2601",
+          category: "TS",
+          location: "ocean",
+          pressureHpa: pressureHpaValue.presence === "value" ? pressureHpaValue.value : null,
+          maxWindMs: maxWindMsValue.presence === "value" ? maxWindMsValue.value : null,
+          maxGustMs: 35,
+          moveDirection: "N",
+          moveSpeedKmh: moveSpeedKmhValue.presence === "value" ? moveSpeedKmhValue.value : null,
+          reportDateTime: new Date(T0).toISOString(),
+        },
+        pressureHpaValue,
+        maxWindMsValue,
+        maxGustMsValue: numericValue(35),
+        moveSpeedKmhValue,
+        revision: { reportTimeMs: T0, serial: "1" },
+        expiresAtMs: T0 + 24 * 60 * 60_000,
+      }],
+    });
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path);
+    persistence.save(persisted);
+    const loaded = persistence.load();
+    if (loaded == null) throw new Error("typhoon empty raw persistence load が null");
+    const field = domain === "Pressure"
+      ? "pressureHpaValue"
+      : domain === "WindSpeed"
+        ? "maxWindMsValue"
+        : "moveSpeedKmhValue";
+    expect(loaded.typhoons[0]?.[field]?.raw).toBe(raw);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, T0 + 60_000);
+    expect(restored.exportActiveState().typhoons[0]?.[field]?.raw).toBe(raw);
+  });
+
   it("scalar-only typhoon snapshot を読込時だけ canonical 化し、null の曖昧さを診断へ残す", () => {
     const path = tempPath();
     const legacy = state({

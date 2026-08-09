@@ -23,4 +23,20 @@ describe("protocol.ts 複製の同期", () => {
     const copy = extractSyncRegion(resolve(__dirname, "../../../display/frontend/src/lib/protocol.ts"));
     expect(copy).toBe(source);
   });
+
+  it("台風数値の serializable rank union と semantic DTO が engine/frontend で一致する", () => {
+    const source = extractSyncRegion(resolve(__dirname, "../../../src/engine/display/protocol.ts"));
+    const copy = extractSyncRegion(resolve(__dirname, "../../../display/frontend/src/lib/protocol.ts"));
+    const typhoonSemantic = (text: string): string => {
+      const begin = text.indexOf("export type DisplayTyphoonNumericRankV1");
+      const end = text.indexOf("export type DisplayLgIntensityRankV1", begin);
+      if (begin === -1 || end === -1) throw new Error("typhoon numeric semantic contract が見つからない");
+      return text.slice(begin, end);
+    };
+
+    expect(typhoonSemantic(copy)).toBe(typhoonSemantic(source));
+    expect(typhoonSemantic(source)).toContain('{ kind: "value"; value: number }');
+    expect(typhoonSemantic(source)).toContain('{ kind: "range"; lowerBound: number | null; upperBound: number | null }');
+    expect(typhoonSemantic(source)).toContain('{ kind: "unranked" }');
+  });
 });

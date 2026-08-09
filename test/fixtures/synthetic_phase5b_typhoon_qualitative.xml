@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+  <Control><Title>台風解析・予報情報</Title><DateTime>2026-08-10T00:00:00+09:00</DateTime><Status>通常</Status><EditorialOffice>気象庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>台風解析・予報情報</Title><ReportDateTime>2026-08-10T00:00:00+09:00</ReportDateTime><TargetDateTime>2026-08-10T00:00:00+09:00</TargetDateTime><EventID>TC2699</EventID><InfoType>発表</InfoType><Serial>1</Serial><InfoKind>台風解析・予報情報</InfoKind><InfoKindVersion>1.0_2</InfoKindVersion><Headline><Text/></Headline></Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+    <MeteorologicalInfos type="台風情報">
+      <MeteorologicalInfo>
+        <DateTime type="実況">2026-08-10T00:00:00+09:00</DateTime>
+        <Item>
+          <Kind><Property><Type>呼称</Type><TyphoonNamePart><Name>リーベ</Name><NameKana>LIEBE</NameKana><Number>2699</Number><Remark/></TyphoonNamePart></Property></Kind>
+          <Kind><Property><Type>階級</Type><ClassPart><jmx_eb:TyphoonClass type="熱帯擾乱種類">台風(TS)</jmx_eb:TyphoonClass><jmx_eb:AreaClass type="大きさ階級"/><jmx_eb:IntensityClass type="強さ階級"/></ClassPart></Property></Kind>
+          <Kind><Property><Type>中心</Type><CenterPart><Location>合成海域</Location><jmx_eb:Direction unit="１６方位漢字" type="移動方向">北</jmx_eb:Direction><jmx_eb:Speed condition="ほとんど停滞" unit="km/h" type="移動速度"/><jmx_eb:Pressure condition="解析不能" unit="hPa" type="中心気圧"/></CenterPart></Property></Kind>
+          <Kind><Property><Type>風</Type><WindPart><jmx_eb:WindSpeed description="最大風速なし" condition="なし" unit="m/s" type="最大風速">0</jmx_eb:WindSpeed></WindPart></Property></Kind>
+        </Item>
+      </MeteorologicalInfo>
+      <MeteorologicalInfo>
+        <DateTime type="予報　１時間後">2026-08-10T01:00:00+09:00</DateTime>
+        <Item>
+          <Kind><Property><Type>階級</Type><ClassPart><jmx_eb:TyphoonClass type="熱帯擾乱種類">台風(TS)</jmx_eb:TyphoonClass><jmx_eb:AreaClass type="大きさ階級"/><jmx_eb:IntensityClass type="強さ階級"/></ClassPart></Property></Kind>
+          <Kind><Property><Type>中心</Type><CenterPart><Location>合成海域</Location><jmx_eb:Direction unit="１６方位漢字" type="移動方向">北</jmx_eb:Direction><jmx_eb:Speed description="ゆっくり" unit="km/h" type="移動速度"/><jmx_eb:Pressure unit="hPa" type="中心気圧">1000</jmx_eb:Pressure></CenterPart></Property></Kind>
+        </Item>
+      </MeteorologicalInfo>
+    </MeteorologicalInfos>
+  </Body>
+</Report>

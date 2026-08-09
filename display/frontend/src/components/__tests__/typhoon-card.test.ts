@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import TyphoonCard from "../TyphoonCard.svelte";
-import type { ActiveStandbyCardV1, DisplayTyphoonV1 } from "../../lib/protocol";
+import type {
+  ActiveStandbyCardV1,
+  DisplayTyphoonNumericSemanticV1,
+  DisplayTyphoonV1,
+} from "../../lib/protocol";
 import { typhoonHeaderTone } from "../../lib/typhoon-header-tone";
 
 function typhoon(over: Partial<DisplayTyphoonV1> = {}): DisplayTyphoonV1 {
@@ -12,6 +16,28 @@ function typhoon(over: Partial<DisplayTyphoonV1> = {}): DisplayTyphoonV1 {
 
 function typhoonItem(typhoons = [typhoon()]): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
   return { kind: "typhoon", surface: "corner-right", key: "typhoon:active", sourceEventIds: ["typhoon-1"], updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-22T00:00:00.000Z", restored: false, severity: "normal", data: { typhoons } };
+}
+
+function numericSemantic(
+  over: Partial<DisplayTyphoonNumericSemanticV1> = {},
+): DisplayTyphoonNumericSemanticV1 {
+  return {
+    raw: "20",
+    presence: "value",
+    label: "20km/h",
+    condition: null,
+    description: null,
+    value: 20,
+    lowerBound: null,
+    upperBound: null,
+    rawLowerBound: null,
+    rawUpperBound: null,
+    badge: null,
+    color: "normalRank",
+    render: true,
+    rank: { kind: "value", value: 20 },
+    ...over,
+  };
 }
 
 describe("TyphoonCard", () => {
@@ -61,6 +87,227 @@ describe("TyphoonCard", () => {
     // 旧 .facts (span + " / " 区切り) は消えている
     expect(container.querySelector(".facts")).toBeNull();
     expect(card?.textContent).not.toContain(" / ");
+  });
+
+  it("exact semantic は scalar/label でなく value だけを既存の数値 component へ渡す", () => {
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({
+      pressureHpa: 999,
+      pressureHpaSemantic: numericSemantic({
+        raw: "990", label: "990hPa", value: 990, rank: { kind: "value", value: 990 },
+      }),
+      maxWindMs: 99,
+      maxWindMsSemantic: numericSemantic({
+        raw: "25", label: "25m/s", value: 25, rank: { kind: "value", value: 25 },
+      }),
+      maxGustMs: 99,
+      maxGustMsSemantic: numericSemantic({
+        raw: "35", label: "35m/s", value: 35, rank: { kind: "value", value: 35 },
+      }),
+      moveSpeedKmh: 99,
+      moveSpeedKmhSemantic: numericSemantic(),
+    })]) });
+
+    const stats = container.querySelectorAll(".meta .stat-value");
+    expect(stats[0].querySelector('[data-value="990"]')).toBeTruthy();
+    expect(stats[0].querySelector(".stat-unit")?.textContent).toBe("hPa");
+    expect(stats[0].querySelectorAll(".stat-unit")).toHaveLength(1);
+    expect(stats[1].querySelector('[data-value="25"]')).toBeTruthy();
+    expect(stats[1].querySelector(".stat-unit")?.textContent).toBe("m/s");
+    expect(stats[1].querySelectorAll(".stat-unit")).toHaveLength(1);
+    expect(stats[2].querySelector('[data-value="35"]')).toBeTruthy();
+    expect(stats[2].querySelector(".stat-unit")?.textContent).toBe("m/s");
+    expect(stats[2].querySelectorAll(".stat-unit")).toHaveLength(1);
+    expect(stats[3].querySelector(".nu-value")?.textContent).toBe("20");
+    expect(stats[3].textContent).toBe("N 20km/h");
+    expect(container.querySelector('[data-value="999"]')).toBeNull();
+  });
+
+  it("移動速度 qualitative は理由付き通常テキスト＋badge、WindSpeed なしは scalar 0 の従来表示にする", () => {
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({
+      pressureHpa: null,
+      pressureHpaSemantic: numericSemantic({
+        raw: "", presence: "unknown", label: "不明", condition: "解析不能",
+        value: null, badge: "?", color: "unknown", rank: { kind: "unranked" },
+      }),
+      maxWindMs: 0,
+      maxWindMsSemantic: numericSemantic({
+        raw: "0", presence: "qualitative", label: "なし", condition: "なし",
+        value: null, badge: "?", color: "unknown", rank: { kind: "unranked" },
+      }),
+      maxGustMs: null,
+      maxGustMsSemantic: numericSemantic({
+        raw: null, presence: "missing", label: null, value: null,
+        badge: null, color: "notRendered", render: false, rank: { kind: "unranked" },
+      }),
+      moveSpeedKmh: null,
+      moveSpeedKmhSemantic: numericSemantic({
+        raw: "", presence: "qualitative", label: "ほとんど停滞", condition: "ほとんど停滞",
+        description: "移動が極めて遅い状態", value: null, badge: "?", color: "unknown",
+        rank: { kind: "unranked" },
+      }),
+    })]) });
+
+    const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
+    expect(labels).toEqual(["最大風速", "進行"]);
+    const stats = container.querySelectorAll(".meta .stat-value");
+    expect(stats[0].querySelector('[data-value="0"]')).toBeTruthy();
+    expect(stats[0].querySelector(".stat-unit")?.textContent).toBe("m/s");
+    expect(stats[0].querySelector(".semantic-badge")).toBeNull();
+    expect(stats[1].textContent).toBe("N ほとんど停滞?");
+    const semanticSpeed = stats[1].querySelector<HTMLElement>(".semantic-speed");
+    expect(semanticSpeed?.querySelector(".semantic-text")?.textContent).toBe("ほとんど停滞");
+    expect(semanticSpeed?.title).toContain("条件: ほとんど停滞");
+    expect(semanticSpeed?.title).toContain("説明: 移動が極めて遅い状態");
+    expect(semanticSpeed?.title).toContain("記号 ?: 不明・定性値");
+    expect(semanticSpeed?.getAttribute("aria-label")).toBe(semanticSpeed?.title);
+    expect(semanticSpeed?.querySelector(".semantic-badge")?.textContent).toBe("?");
+    expect(semanticSpeed?.querySelector(".semantic-badge")?.getAttribute("aria-hidden")).toBe("true");
+    expect(semanticSpeed?.querySelector(".nu-value")).toBeNull();
+    expect(semanticSpeed?.querySelector("[data-value]")).toBeNull();
+  });
+
+  it("気圧・最大風速・最大瞬間の特殊値は semantic label/badge を新規表示しない", () => {
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({
+      pressureHpa: null,
+      pressureHpaSemantic: numericSemantic({
+        raw: "950", presence: "range", label: "950hPa以上", condition: "以上",
+        value: null, lowerBound: 950, rawLowerBound: "950", badge: "≥",
+        color: "safetyRank", rank: { kind: "range", lowerBound: 950, upperBound: null },
+      }),
+      maxWindMs: null,
+      maxWindMsSemantic: numericSemantic({
+        raw: "不明", presence: "unknown", label: "不明", value: null,
+        badge: "?", color: "unknown", rank: { kind: "unranked" },
+      }),
+      maxGustMs: null,
+      maxGustMsSemantic: numericSemantic({
+        raw: "", presence: "empty", label: "空欄", value: null,
+        badge: "∅", color: "neutral", rank: { kind: "unranked" },
+      }),
+      moveSpeedKmh: null,
+      moveSpeedKmhSemantic: numericSemantic({
+        raw: null, presence: "missing", label: null, value: null,
+        badge: null, color: "notRendered", render: false, rank: { kind: "unranked" },
+      }),
+    })]) });
+
+    expect(container.querySelector(".meta")).toBeNull();
+    expect(container.textContent).not.toMatch(/950hPa以上|不明\?|空欄∅/u);
+  });
+
+  it("移動速度の unknown・empty・range・missing は進行列を新規表示しない", () => {
+    const cases: Array<{ name: string; semantic: DisplayTyphoonNumericSemanticV1 }> = [
+      {
+        name: "unknown",
+        semantic: numericSemantic({
+          raw: "不明", presence: "unknown", label: "不明", value: null,
+          badge: "?", color: "unknown", render: true, rank: { kind: "unranked" },
+        }),
+      },
+      {
+        name: "empty",
+        semantic: numericSemantic({
+          raw: "", presence: "empty", label: "空欄", value: null,
+          badge: "∅", color: "neutral", render: true, rank: { kind: "unranked" },
+        }),
+      },
+      {
+        name: "range",
+        semantic: numericSemantic({
+          raw: "10", presence: "range", label: "10km/h以上", condition: "以上",
+          value: null, lowerBound: 10, rawLowerBound: "10", badge: "≥",
+          color: "safetyRank", render: true,
+          rank: { kind: "range", lowerBound: 10, upperBound: null },
+        }),
+      },
+      {
+        name: "missing",
+        semantic: numericSemantic({
+          raw: null, presence: "missing", label: null, value: null,
+          badge: null, color: "notRendered", render: false, rank: { kind: "unranked" },
+        }),
+      },
+    ];
+
+    for (const { name, semantic } of cases) {
+      const { container, unmount } = render(TyphoonCard, { item: typhoonItem([typhoon({
+        pressureHpa: null,
+        maxWindMs: null,
+        maxGustMs: null,
+        moveSpeedKmh: null,
+        moveSpeedKmhSemantic: semantic,
+      })]) });
+      expect(container.querySelector(".meta"), name).toBeNull();
+      expect(container.textContent, name).not.toContain("進行");
+      expect(container.querySelector(".semantic-speed"), name).toBeNull();
+      unmount();
+    }
+  });
+
+  it("移動速度 unknown でも valid な旧 scalar があれば従来の数値列へ戻す", () => {
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({
+      pressureHpa: null,
+      maxWindMs: null,
+      maxGustMs: null,
+      moveDirection: "北",
+      moveSpeedKmh: 10,
+      moveSpeedKmhSemantic: numericSemantic({
+        raw: "10", presence: "unknown", label: "不明", condition: "不明",
+        value: null, badge: "?", color: "unknown", render: true,
+        rank: { kind: "unranked" },
+      }),
+    })]) });
+
+    expect(container.querySelector(".stat-label")?.textContent).toBe("進行");
+    expect(container.querySelector(".stat-value")?.textContent).toBe("北 10km/h");
+    expect(container.querySelector(".nu-value")?.textContent).toBe("10");
+    expect(container.querySelector(".semantic-text")).toBeNull();
+    expect(container.querySelector(".semantic-badge")).toBeNull();
+  });
+
+  it("気圧・風速の特殊 condition に valid scalar がある場合は従来の数値表示を維持する", () => {
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({
+      pressureHpa: 1002,
+      pressureHpaSemantic: numericSemantic({
+        raw: "1002", presence: "unknown", label: "解析不能", condition: "解析不能",
+        value: null, badge: "?", color: "unknown", rank: { kind: "unranked" },
+      }),
+      maxWindMs: 0,
+      maxWindMsSemantic: numericSemantic({
+        raw: "0", presence: "qualitative", label: "なし", condition: "なし",
+        value: null, badge: "?", color: "unknown", rank: { kind: "unranked" },
+      }),
+      maxGustMs: null,
+      moveDirection: null,
+      moveSpeedKmh: null,
+    })]) });
+
+    const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
+    expect(labels).toEqual(["中心気圧", "最大風速"]);
+    expect(container.querySelector('[data-value="1002"]')).toBeTruthy();
+    expect(container.querySelector('[data-value="0"]')).toBeTruthy();
+    expect(container.querySelector(".semantic-badge")).toBeNull();
+  });
+
+  it("長い移動速度 qualitative は nowrap token にせず card 幅で折り返せる", () => {
+    const longLabel = "ほとんど停滞に近い非常に長い定性的な移動速度情報が継続している状態";
+    const { container } = render(TyphoonCard, { item: typhoonItem([typhoon({
+      pressureHpa: null,
+      maxWindMs: null,
+      maxGustMs: null,
+      moveSpeedKmh: null,
+      moveSpeedKmhSemantic: numericSemantic({
+        raw: "", presence: "qualitative", label: longLabel, condition: "ほとんど停滞",
+        description: longLabel, value: null, badge: "?", color: "unknown",
+        rank: { kind: "unranked" },
+      }),
+    })]) });
+
+    const speed = container.querySelector(".semantic-speed");
+    expect(speed?.textContent).toBe(`${longLabel}?`);
+    expect(speed?.classList.contains("stat-token")).toBe(false);
+    const source = readFileSync(join(__dirname, "..", "TyphoonCard.svelte"), "utf8");
+    expect(source).toMatch(/\.semantic-speed\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
   });
 
   it("stat を原子トークンに分け、トークン内は nowrap・トークン間は折り返し可能にする", () => {

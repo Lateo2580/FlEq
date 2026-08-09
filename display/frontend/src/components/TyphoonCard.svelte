@@ -1,5 +1,8 @@
 <script lang="ts">
-  import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import type {
+    ActiveStandbyCardV1,
+    DisplayTyphoonNumericSemanticV1,
+  } from "../lib/protocol";
   import { typhoonHeaderTone } from "../lib/typhoon-header-tone";
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
@@ -19,43 +22,128 @@
     if (trend === "weakening") return "衰弱傾向";
     return "横ばい";
   }
+  function legacyNumericValue(
+    semantic: DisplayTyphoonNumericSemanticV1 | undefined,
+    legacyScalar: number | null | undefined,
+  ): number | null {
+    if (semantic?.presence === "value" && semantic.render && semantic.value != null) {
+      return semantic.value;
+    }
+    return legacyScalar ?? null;
+  }
+  function movementVisual(
+    semantic: DisplayTyphoonNumericSemanticV1 | undefined,
+    legacyScalar: number | null | undefined,
+  ): {
+    render: boolean;
+    numericValue: number | null;
+    label: string | null;
+    badge: DisplayTyphoonNumericSemanticV1["badge"];
+  } {
+    if (semantic == null) {
+      return {
+        render: legacyScalar != null,
+        numericValue: legacyScalar ?? null,
+        label: null,
+        badge: null,
+      };
+    }
+    if (semantic.presence === "value") {
+      return {
+        render: semantic.render && semantic.value != null,
+        numericValue: semantic.value,
+        label: null,
+        badge: null,
+      };
+    }
+    if (semantic.presence !== "qualitative") {
+      return {
+        render: legacyScalar != null,
+        numericValue: legacyScalar ?? null,
+        label: null,
+        badge: null,
+      };
+    }
+    return {
+      render: semantic.render,
+      numericValue: null,
+      label: semantic.label,
+      badge: semantic.badge,
+    };
+  }
+  function movementMeaning(
+    semantic: DisplayTyphoonNumericSemanticV1 | undefined,
+  ): string | undefined {
+    if (semantic == null || semantic.presence !== "qualitative" || !semantic.render) return undefined;
+    const label = semantic.label?.trim() || "不明";
+    const badgeMeaning = semantic.badge === "≥"
+      ? "以上（下限値）"
+      : semantic.badge === "↔"
+        ? "範囲"
+        : semantic.badge === "?"
+          ? "不明・定性値"
+          : semantic.badge === "∅"
+            ? "空欄"
+            : null;
+    const condition = semantic.condition?.trim();
+    const description = semantic.description?.trim();
+    const details = [
+      "定性値",
+      badgeMeaning == null || semantic.badge == null
+        ? null
+        : `記号 ${semantic.badge}: ${badgeMeaning}`,
+      condition ? `条件: ${condition}` : null,
+      description ? `説明: ${description}` : null,
+    ].filter((detail): detail is string => detail != null);
+    return `移動速度: ${label}（${details.join("、")}）`;
+  }
 </script>
 
 <section class="standby-card typhoon-card">
   <header class:advisory={headerTone === "advisory"} class:warning={headerTone === "warning"} class:emergency={headerTone === "emergency"}>台風情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
   {#each item.data.typhoons as typhoon (typhoon.typhoonKey)}
+    {@const pressure = legacyNumericValue(typhoon.pressureHpaSemantic, typhoon.pressureHpa)}
+    {@const maxWind = legacyNumericValue(typhoon.maxWindMsSemantic, typhoon.maxWindMs)}
+    {@const maxGust = legacyNumericValue(typhoon.maxGustMsSemantic, typhoon.maxGustMs)}
+    {@const moveSpeed = movementVisual(typhoon.moveSpeedKmhSemantic, typhoon.moveSpeedKmh)}
+    {@const moveMeaning = movementMeaning(typhoon.moveSpeedKmhSemantic)}
+    {@const renderMove = moveSpeed.render && (moveSpeed.numericValue == null || typhoon.moveDirection != null)}
     <!-- 未命名 (発生予想等) は総称の「台風」を出さず remark を主行に昇格させる (2 行の冗長回避) -->
     <div class="typhoon">
       <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
       {#if typhoon.name != null && typhoon.remark != null}<div class="remark">{typhoon.remark}</div>{/if}
       {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
-      {#if typhoon.pressureHpa != null || typhoon.maxWindMs != null || typhoon.maxGustMs != null || (typhoon.moveDirection != null && typhoon.moveSpeedKmh != null)}
+      {#if pressure != null || maxWind != null || maxGust != null || renderMove}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
         <div class="meta">
-          {#if typhoon.pressureHpa != null}
+          {#if pressure != null}
             <div class="stat">
               <span class="stat-label">中心気圧</span>
-              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(typhoon.pressureHpa)} /><span class="stat-unit">hPa</span></span></span>
+              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(pressure)} /><span class="stat-unit">hPa</span></span></span>
             </div>
           {/if}
-          {#if typhoon.maxWindMs != null}
+          {#if maxWind != null}
             <div class="stat">
               <span class="stat-label">最大風速</span>
-              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(typhoon.maxWindMs)} /><span class="stat-unit">m/s</span></span></span>
+              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(maxWind)} /><span class="stat-unit">m/s</span></span></span>
             </div>
           {/if}
-          {#if typhoon.maxGustMs != null}
+          {#if maxGust != null}
             <div class="stat">
               <span class="stat-label">最大瞬間</span>
-              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(typhoon.maxGustMs)} /><span class="stat-unit">m/s</span></span></span>
+              <span class="stat-value"><span class="stat-token"><RollingNumber value={String(maxGust)} /><span class="stat-unit">m/s</span></span></span>
             </div>
           {/if}
-          {#if typhoon.moveDirection != null && typhoon.moveSpeedKmh != null}
+          {#if renderMove}
             <div class="stat">
               <span class="stat-label">進行</span>
               <span class="stat-value">
-                <span class="stat-token direction-token">{typhoon.moveDirection}</span>
-                <span class="stat-token speed-token"><NumberUnit value={String(typhoon.moveSpeedKmh)} unit="km/h" /></span>
+                {#if typhoon.moveDirection != null}<span class="stat-token direction-token">{typhoon.moveDirection}</span>{/if}
+                {#if moveSpeed.numericValue != null}
+                  <span class="stat-token speed-token"><NumberUnit value={String(moveSpeed.numericValue)} unit="km/h" /></span>
+                {:else}
+                  <span class="speed-token semantic-speed" title={moveMeaning} aria-label={moveMeaning}><span class="semantic-text">{moveSpeed.label ?? ""}</span>{#if moveSpeed.badge != null}<b class="semantic-badge" aria-hidden="true">{moveSpeed.badge}</b>{/if}</span>
+                {/if}
               </span>
             </div>
           {/if}
@@ -127,6 +215,8 @@
   }
   .stat-token { display: inline-block; white-space: nowrap; }
   .stat-unit { margin-left: 1px; font-size: max(12px, 0.6em); font-weight: normal; }
+  .semantic-speed { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
   .change-summary {
     display: flex;
     flex-wrap: wrap;

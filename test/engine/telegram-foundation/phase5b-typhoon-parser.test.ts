@@ -18,6 +18,16 @@ import {
 
 const FIRST_KMH_SPEED =
   '<jmx_eb:Speed description="毎時２０キロ" unit="km/h" type="移動速度">20</jmx_eb:Speed>';
+const FIRST_PRESSURE =
+  '<jmx_eb:Pressure description="中心気圧１００２ヘクトパスカル" unit="hPa" type="中心気圧">1002</jmx_eb:Pressure>';
+const FIRST_MAX_WIND_MS =
+  '<jmx_eb:WindSpeed description="中心付近の最大風速１５メートル" condition="中心付近" unit="m/s" type="最大風速">15</jmx_eb:WindSpeed>';
+
+const TYPHOON_NUMERIC_DOMAIN_MATRIX = [
+  ["Pressure", "hPa", FIRST_PRESSURE],
+  ["WindSpeed", "m/s", FIRST_MAX_WIND_MS],
+  ["MovementSpeed", "km/h", FIRST_KMH_SPEED],
+] as const;
 
 function parseFirstFrameWithSpeed(speedXml: string) {
   const xml = readFixture(FIXTURE_VPTW60_2020).replace(FIRST_KMH_SPEED, speedXml);
@@ -128,6 +138,70 @@ describe("Phase 5B typhoon numeric parser contract", () => {
         presence: "value",
         diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
       });
+    },
+  );
+
+  it.each(TYPHOON_NUMERIC_DOMAIN_MATRIX)(
+    "%s の不正単位・桁あふれ・empty raw・全角数値を対称に固定する",
+    (domain, unit, fixtureElement) => {
+      const source = readFixture(FIXTURE_VPTW60_2020);
+      const invalidUnitElement = fixtureElement.replace(`unit="${unit}"`, 'unit="invalid"');
+      const xml = source.replace(fixtureElement, invalidUnitElement);
+      expect(xml).not.toBe(source);
+      const frame = parseTyphoonAnalysis(
+        createMockWsDataMessageFromXml(xml, "VPTW60"),
+      )!.frames[0];
+      const invalidUnit = domain === "Pressure"
+        ? { scalar: frame.center.pressureHpa, canonical: frame.center.pressureHpaValue }
+        : domain === "WindSpeed"
+          ? { scalar: frame.wind?.maxWindMs, canonical: frame.wind?.maxWindMsValue }
+          : { scalar: frame.center.moveSpeedKmh, canonical: frame.center.moveSpeedKmhValue };
+      expect(invalidUnit.scalar).toBeNull();
+      expect(invalidUnit.canonical).toEqual({
+        raw: null,
+        value: null,
+        condition: null,
+        description: null,
+        presence: "missing",
+      });
+
+      const fullWidthRaw = "　＋１２．５　";
+      expect(extractSpecialValue(domain, {
+        "#text": fullWidthRaw,
+        "@_unit": unit,
+      })).toEqual({
+        raw: fullWidthRaw,
+        value: 12.5,
+        condition: null,
+        description: null,
+        presence: "value",
+      });
+
+      const overflowRaw = "9".repeat(400);
+      expect(extractSpecialValue(domain, {
+        "#text": overflowRaw,
+        "@_unit": unit,
+      })).toEqual({
+        raw: overflowRaw,
+        value: null,
+        condition: null,
+        description: null,
+        presence: "qualitative",
+        diagnostics: ["unmappedSpecialValue"],
+      });
+
+      for (const raw of ["", " ", "　"]) {
+        expect(extractSpecialValue(domain, {
+          "#text": raw,
+          "@_unit": unit,
+        })).toEqual({
+          raw,
+          value: null,
+          condition: null,
+          description: null,
+          presence: "empty",
+        });
+      }
     },
   );
 
