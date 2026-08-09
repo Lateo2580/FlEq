@@ -1,9 +1,9 @@
 # 電文基盤共通化仕様 — 特殊値・TelegramMeta・Revision・試験判定・条件付き抑止
 
-> 状態: **Reviewed（Sol レビュー反映済み、Phase 4A 実装・契約テスト同期済み）**
-> 更新日: 2026-08-02
+> 状態: **Phase 4B 完了（最終レビュー GO、仕様同期済み）**
+> 更新日: 2026-08-09
 > 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化
-> 実装同期基準: HEAD `052dfd1d`（Phase 4A runtime 実装完了。変更単位8の契約テスト・仕様同期は作業ツリーで追加）
+> 実装同期基準: HEAD `f7d2f5d`（Phase 4B 変更単位1〜6実装完了、最終レビュー GO）
 > 起草時参照基準: HEAD `f634e410`
 > 前提: 修正弾 A〜C で個別 High は対処済みとし、本仕様は構造的根因の共通化を扱う
 
@@ -953,6 +953,17 @@ EventID + Area.Code + Kind.Code
 - state、dedup、地図結合、取消対象照合はコードを使用する。
 - protocol は areaCode／kindCode を必ず通す。
 - 地図 asset と一致しないコードを名称一致で補完しない。
+- 予報区と観測点の警報種別結合は Area.Code で行う。観測側の code が欠落する場合は、同名でも結合しない。
+- 常設ディスプレイの予報区行、種別 group、観測行は code を identity に含める。表示ラベルは Name を使うが、Name の一致や変更を行 identity にしない。
+
+### 10.4 TsunamiHeight semantic と表示順序
+
+- parser／engine 内部は `maxHeight: SpecialValue<number>` を真実源とする。`maxHeightDescription`／`maxHeightValue` は既存 CLI と旧 protocol の表示互換 scalar であり、semantic がある経路では比較のために再解析しない。
+- display protocol は `DisplayTsunamiHeightSemanticV1` に `raw`、presence、label、condition、description、value、numeric／raw bounds、badge、color、render を明示する。§3.7 の永続化列と同じく元の qualifier を落とさない。
+- badge／color／描画規則は §3.8 に従う。exact は badge なし、lower-only は `≥`、upper-only／両側 range は `↔`、bounds なし qualitative／unknown は `?`、empty は `∅`、missing は非描画とする。
+- 高さの大小は `value ?? upperBound ?? lowerBound` を比較値とする。同じ比較値では `lower-only > exact > upper-only／両側 range` の順とし、range は上限値で安全側に比較する。この順序は bucket の並びと最大観測選定だけに使い、raw／label／badge は変更しない。
+- bounds のない既知 qualitative は、既存表示の安全順序を維持するため `巨大` を最上位、`高い` を 3m 相当かつ同値の lower-only より上位とする内部比較値だけを持つ。表示値や永続値を数値へ推定せず、`観測中` 等の状態表現は最大観測選定から除外する。
+- 予報区の height semantic と観測点の height semantic は別々に投影する。観測 projection は内部 `maxHeight` を wire へ spread せず、明示した観測 field と `maxHeightSemantic` だけを出力する。semantic がない旧 V1 観測は scalar のまま通す。
 
 ## 11. VPOA50・VPNO50・VXWW50 の条件付き抑止
 
@@ -1125,6 +1136,26 @@ v2 reader は shape 検証だけでなく、次の invariant を検証する。
 - holder／active projection と gate の一対一対応。non-cancelled watermark は current identity と一致し、cancelled watermark は復元 current より新しいこと。
 - `restorePrevious` history の revision が strictly increasing であり、訂正前 snapshot を別履歴段として積まないこと。
 - whole subject と item watermark、active item、取消 tombstone、legacy provenance の cross-field invariant。
+
+津波 domain の canonical v2 schema は次に確定する。
+
+```ts
+tsunami: {
+  active?: PersistedTsunamiActiveV2 | null; // migration input only
+  keyedActive?: PersistedTsunamiActiveV2[];
+  legacyActive?: PersistedTsunamiActiveV2 | null;
+  observations: { VTSE51: PersistedTsunamiObservationV2[]; VTSE52: PersistedTsunamiObservationV2[] };
+  gateEntries: PersistedTelegramRevisionGateEntryV2[];
+}
+```
+
+- canonical writer は `keyedActive`／`legacyActive` だけを書き、旧 scalar `active` を書き戻さない。`active` は旧 v2 を一方向 migration する reader 入力である。
+- `keyedActive` は EventID ごとの snapshot 配列とし、各 forecast item が `EventID + Area.Code + Kind.Code` で keyable でなければならない。警報レベルがなくても非空の正規 keyed state は保存・復元し、forecast が空の state と unkeyed item は保存しない。
+- keyed snapshot と non-cancel gate は `reportDateTimeThenSerial` で結合する。重複 active は EventID 内の全候補から最新を先に選び、その候補が gate と結合できなければ subject 全体を拒否する。片側 Serial 欠落など `unordered` な組は active／gate とも subject 単位で拒否する。
+- reader は壊れた EventID／subject だけを除外し、正常な別 EventID と検証済み取消 tombstone を salvage する。VTSE41 の EventID gate と `keyedActive` は上限512 subjectの同じ retained 集合で compact し、holder／gate の一対一を維持する。
+- `legacyActive` は code 不完全な名称-only snapshot の表示専用領域である。取消照合、revision gate、新報の置換・通知判定へ参加させず、同 EventID の正規通常報で退場させる。完全 keyed payload が `legacyActive` に入った入力は gate と結合できる場合だけ `keyedActive` へ昇格し、結合不能なら除外する。
+- 旧固定 subject `tsunami:current` は、有効な EventID を持つ旧 scalar／`legacyActive` を材料に canonical `tsunami:<EventID>` へ一方向 migration する。名称-only legacy と併存する固定 gate は `cancelled:true` の tombstone だけを移行して表示を残し、non-cancel gate は legacy mutation gate にしない。canonical tombstone は stale active や同 EventID の legacy 表示と併存しても保持し、再起動後の取消以前の遅延報を拒否する。
+- persisted 取消 payload 自体は `keyedActive`／`legacyActive` の表示 state に採用せず、検証済み tombstone だけを残す。旧形式への書き戻しは行わない。
 
 旧 state の読込 adapter は次の規約とする。
 
@@ -1331,24 +1362,55 @@ npm --prefix display run typecheck
 
 ### Phase 4B: 津波コードと TsunamiHeight
 
-内容:
+状態: **完了**（実装基準 HEAD `f7d2f5d`）。変更単位1〜6で parser／canonical DTO、keyed state、下流 code、display protocol、height semantic、永続化 migration を順に実装した。
 
-- Area.Code と Kind.Code を parser から下流まで保持する。
-- 状態キーと地図結合をコードへ変更する。
-- tsunami height を `SpecialValue<number>` へ移行する。
-- 高い、巨大、不明、観測中、範囲を保持する。
-- 名称キーの legacy adapter を読込専用にする。
-- 高さの range／qualitative を色と記号バッジへ反映する。
+1. parser: Area.Code／Kind.Code の raw 保持と診断、VTSE41／51／52 の `TsunamiHeight` を `SpecialValue<number>` 化し、旧 scalar adapter を追加した。
+2. state／revision: `EventID + Area.Code + Kind.Code` の keyed holder、EventID 単位 gate、コードだけを使う部分取消、unkeyed fail-open を実装した。
+3. presentation／CLI／通知: code を presentation まで貫通し、観測と予報区を Area.Code で結合する一方、CLI／通知は従来どおり名称を表示した。
+4. display protocol: 予報区／Kind／観測 identity を code 化し、予報・観測それぞれの height semantic projection と protocol sync を追加した。
+5. 常設ディスプレイ: `maxHeightSemantic` を行、headline、最大観測、bucket 順序、色、badge、tooltip／ARIAへ通し、旧 scalar fallback と restart 復元一致を固定した。
+6. persistence: EventID ごとの `keyedActive` と読込専用 `legacyActive`、scalar／固定 gate の一方向 migration、subject salvage、holder／gate 同期 compaction を実装した。
 
-完了条件:
+実装確定後の契約:
 
-- 同コード・名称変更が同じ state を更新する。
-- 同名称・別コードが混同されない。
-- コード欠落 item が既存 state を解除しない。
-- 高さの定性表現が数値やゼロへ変換されない。
-- range／qualitative の badge が qualifier と一致する。
-- 津波の既存警報レベル、通知、テロップ、カードに回帰がない。
-- 既存機能の回帰が 0 件である。
+- canonical forecast item は `areaCode`／`kindCode`／`kindName` と `maxHeight: SpecialValue<number>` を持つ。raw code は trim／名称推定せず保持し、不明 code は diagnostics とともに下流へ通す。
+- holder の mutation key は triple key、VTSE41 revision subject は `tsunami:<EventID>` とする。code 欠落 item は holder、取消照合、永続化へ入れず、live の表示・通知は受信 `parsed` を用いた fail-open とする（通知 payload の Kind・予報区名には unkeyed item も残る）。
+- 名称-only legacy snapshot は表示専用とし、取消、revision、置換、通知へ参加させない。同 EventID の正規通常報でだけ退場する。
+- VTSE51／52 の観測 holder は stationCode、予報区との表示結合は Area.Code を一次キーとし、code 欠落時の名称 fallback を禁止する。
+- height semantic の badge、色、描画、比較、`巨大`／`高い` の内部安全順序は §10.4 を正とし、表示 label や永続値を推定数値へ置換しない。
+- display wire は既存 scalar を残す optional additive semantic とする。semantic がある場合は scalar を比較へ再利用せず、観測 projection から内部 `maxHeight` を漏らさない。
+- 津波 v2 persistence は §12.1 の `keyedActive`／`legacyActive` を canonical とし、旧 scalar／`tsunami:current` は読込方向だけ migration する。
+
+起草時の計画から実装で確定・変更された点:
+
+- 単一の津波 active scalar では複数 EventID を復元できないため、EventID ごとの `keyedActive` と名称-only `legacyActive` に分離した。
+- unkeyed item は名称で既存 state を推定更新せず、受信時の fail-open 表示だけに限定した。
+- 予報区 height と観測 height は同じ `SpecialValue<number>` extractor を使うが、display projection は別境界とした。
+- 高さの安全順序は数値そのものだけでなく qualifier を含め、同値では `lower-only > exact > upper-only／range` とした。`巨大`／`高い` は表示を変えない内部比較規則に限定した。
+- 旧固定 tombstone は legacy 表示と分離して canonical EventID subject へ移行し、旧名称-only 表示を取消対象へ昇格させない形に確定した。
+
+完了確認:
+
+- 同コード・名称変更は `src/engine/messages/tsunami-state.ts:56` の triple key を共有し、`test/engine/tsunami-state.test.ts:91` が表示名だけの更新を固定する。
+- 同名称・別コードは同じ key に畳まれず、`test/engine/tsunami-state.test.ts:104` と `test/engine/presentation/events/tsunami-observations.test.ts:76` が holder／観測結合の分離を固定する。
+- code 欠落 item は `src/engine/messages/tsunami-state.ts:143` の presentation-only 経路へ送り、`test/engine/tsunami-state.test.ts:114` と `test/engine/telegram-foundation/phase3b-tsunami.test.ts:279` が既存 state／永続化を解除しないことを確認する。
+- 高さの定性表現、unknown、観測中、range は `src/dmdata/telegram-parser.ts:1022` から semantic のまま抽出し、`test/engine/telegram-foundation/phase4b-tsunami-parser.test.ts:13`、`:85`、`:151` がゼロ化せず raw／condition／bounds を保つことを確認する。
+- range／qualitative の badge と比較順は `src/engine/display/tsunami-height-semantic.ts:159` と `display/frontend/src/lib/tsunami-bucket.ts:65` に実装し、`test/engine/display/tsunami-height-semantic.test.ts:22`、`display/frontend/src/lib/__tests__/tsunami-bucket.test.ts:84`、`:108`、`:161` が qualifier、同値順、`巨大`／`高い` を固定する。
+- 既存警報レベル、通知、テロップ、CLI、カードは `test/engine/presentation/processors/process-tsunami.test.ts:29`、`test/engine/notifier.test.ts:328`／`:356`、`test/engine/display/project-event.test.ts:577`、`test/ui/tsunami-formatter.test.ts:494`、`display/frontend/src/components/__tests__/tsunami-panel.test.ts:82`／`:136`／`:257` で名称表示と既存 severity／surfaceを維持する。
+- 複数 EventID、警報レベルなし、部分破損 salvage、legacy 併存、旧 scalar／固定 tombstone、実ファイル、REST 不通、遅延報は `test/engine/telegram-foundation/phase3b-tsunami.test.ts:662`、`:727`、`:778`、`:996`、`:1234`、`:1280`、`:1359`、`:2028`、`:2280` と `test/engine/display/runtime.test.ts:116` で writer／reader／holder の対称性を確認する。
+- §14.1 の共通回帰ゲート7コマンドを全て成功させ、津波以外を含む既存機能の回帰が0件であることを Phase 4B 完了条件とした。
+
+Phase 4B の完了ゲートは §14.1 の7コマンドに従い、次のコマンド列を全て成功済みとする。
+
+```text
+npm run build
+npm test
+npm run test:shuffle
+npm run typecheck:test
+npm run display:build
+npm run display:test
+npm --prefix display run typecheck
+```
 
 ### Phase 5A: Magnitude・Depth
 
