@@ -4,6 +4,7 @@ import type {
   SpecialValue,
   SpecialValueDiagnostic,
 } from "../types";
+import { isGiantMagnitudeText } from "../utils/magnitude";
 
 export type SpecialValueDomain =
   | "Magnitude"
@@ -128,6 +129,23 @@ function parseDomainValue(domain: SpecialValueDomain, raw: string): number | str
     : parseNumber(raw);
 }
 
+function parseDepthValue(raw: string, unit: string | null): number | null {
+  const value = parseNumber(raw);
+  if (value == null) return null;
+  const absolute = Math.abs(value);
+  return unit === "m" ? absolute / 1000 : absolute;
+}
+
+function parseNodeDomainValue(
+  domain: SpecialValueDomain,
+  raw: string,
+  unit: string | null,
+): number | string | null {
+  return domain === "Depth"
+    ? parseDepthValue(raw, unit)
+    : parseDomainValue(domain, raw);
+}
+
 function includesAny(value: string | null, terms: readonly string[]): boolean {
   return value != null && terms.some((term) => value.includes(term));
 }
@@ -143,6 +161,102 @@ function normalizeSpecialTerm(value: string | null): string | null {
 function matchesAnySpecialTerm(value: string | null, terms: readonly string[]): boolean {
   const normalized = normalizeSpecialTerm(value);
   return normalized != null && terms.includes(normalized);
+}
+
+function isMagnitudeUnknownTerm(value: string | null): boolean {
+  return matchesAnySpecialTerm(value, [...UNKNOWN_TERMS, "M不明"]);
+}
+
+function isDepthShallowTerm(value: string | null): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  return normalized === "ごく浅い"
+    || (normalized != null && /深さ\s*ごく浅い$/.test(normalized));
+}
+
+function terminalRangeDirection(
+  value: string | null,
+): "lower" | "upper" | null {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null) return null;
+  if (RANGE_LOWER_TERMS.some((term) => normalized.endsWith(term))) return "lower";
+  if (RANGE_UPPER_TERMS.some((term) => normalized.endsWith(term))) return "upper";
+  return null;
+}
+
+function magnitudeRangeDirectionForSource(
+  source: string | null,
+): "lower" | "upper" | null {
+  return terminalRangeDirection(source);
+}
+
+function isKnownMagnitudeCondition(value: string | null): boolean {
+  return isMagnitudeUnknownTerm(value)
+    || isGiantMagnitudeText(value)
+    || magnitudeRangeDirectionForSource(value) != null;
+}
+
+interface DepthBound {
+  value: number;
+  direction: "lower" | "upper";
+}
+
+function depthBoundFromSource(source: string | null): DepthBound | null {
+  if (source == null) return null;
+  const normalized = normalizeNumberSource(source).normalize("NFKC");
+  const match = normalized.match(
+    /(?:^|深さ\s*)([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(?:km|キロメートル)?\s*(以上|超|以下|未満)\s*$/,
+  );
+  if (match == null) return null;
+  const value = parseNumber(match[1]);
+  if (value == null) return null;
+  return {
+    value: Math.abs(value),
+    direction: RANGE_LOWER_TERMS.includes(match[2] as typeof RANGE_LOWER_TERMS[number])
+      ? "lower"
+      : "upper",
+  };
+}
+
+function depthRangeDirectionForSource(
+  source: string | null,
+): "lower" | "upper" | null {
+  if (matchesAnySpecialTerm(source, RANGE_LOWER_TERMS)) return "lower";
+  if (matchesAnySpecialTerm(source, RANGE_UPPER_TERMS)) return "upper";
+  return depthBoundFromSource(source)?.direction ?? null;
+}
+
+function isMappedMagnitudeSource(value: string | null): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null || normalized === "") return true;
+  return parseNumber(normalized) != null
+    || normalized.toLowerCase() === "nan"
+    || isKnownMagnitudeCondition(normalized)
+    || /^M[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized);
+}
+
+function isMappedDepthSource(value: string | null): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null || normalized === "") return true;
+  return parseNumber(normalized) != null
+    || normalized.toLowerCase() === "nan"
+    || matchesAnySpecialTerm(normalized, UNKNOWN_TERMS)
+    || isDepthShallowTerm(normalized)
+    || depthRangeDirectionForSource(normalized) != null
+    || /深さ\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*(?:km|キロメートル)\s*$/.test(normalized);
+}
+
+function hasUnmappedQualitativeSource(
+  domain: "Magnitude" | "Depth",
+  parts: NodeParts,
+): boolean {
+  if (parseNodeDomainValue(domain, parts.raw, parts.unit) != null) return false;
+  const isMapped = domain === "Magnitude"
+    ? isMappedMagnitudeSource
+    : isMappedDepthSource;
+  return [parts.raw, parts.description].some((source) => {
+    const normalized = normalizeSpecialTerm(source);
+    return normalized != null && normalized !== "" && !isMapped(source);
+  });
 }
 
 function isMappedTsunamiHeightText(
@@ -204,24 +318,26 @@ function specialPresence(
   switch (domain) {
     case "Magnitude": {
       // 巨大地震の description は「不明」condition より具体的な意味を持つ。
-      if (
-        /巨大地震|Ｍ?8を超える巨大地震/.test(parts.description ?? "")
-        || includesInBodyOrCondition(parts, /巨大地震|Ｍ?8を超える巨大地震/)
-      ) return "qualitative";
+      if ([parts.description, parts.condition, parts.raw].some(isGiantMagnitudeText)) {
+        return "qualitative";
+      }
       if (
         parts.raw.trim().toLowerCase() === "nan"
-        || includesAny(parts.raw, UNKNOWN_TERMS)
-        || includesAny(parts.condition, UNKNOWN_TERMS)
+        || [parts.raw, parts.condition, parts.description].some(isMagnitudeUnknownTerm)
       ) return "unknown";
+      if (hasUnmappedQualitativeSource(domain, parts)) return "qualitative";
       return null;
     }
     case "Depth":
       if (
         parts.raw.trim().toLowerCase() === "nan"
-        || includesAny(parts.raw, UNKNOWN_TERMS)
-        || includesAny(parts.condition, UNKNOWN_TERMS)
+        || [parts.raw, parts.condition, parts.description]
+          .some((value) => matchesAnySpecialTerm(value, UNKNOWN_TERMS))
       ) return "unknown";
-      return includesInBodyOrCondition(parts, /ごく浅い/) ? "qualitative" : null;
+      if ([parts.raw, parts.condition, parts.description].some(isDepthShallowTerm)) {
+        return "qualitative";
+      }
+      return hasUnmappedQualitativeSource(domain, parts) ? "qualitative" : null;
     case "Intensity":
       return resolvePrioritySpecialPresence(domain, parts)?.presence ?? null;
     case "TsunamiHeight":
@@ -279,17 +395,43 @@ function rangeDirection(
   domain: SpecialValueDomain,
   parts: NodeParts,
 ): "lower" | "upper" | null {
-  const conditionMatches = domain === "Intensity" || domain === "LgInt"
-    ? matchesAnySpecialTerm
-    : includesAny;
+  if (domain === "Depth") {
+    const directions = [parts.condition, parts.description]
+      .map(depthRangeDirectionForSource);
+    if (directions.includes("lower")) return "lower";
+    if (directions.includes("upper")) return "upper";
+    return null;
+  }
+  if (domain === "Magnitude") {
+    const directions = [parts.condition, parts.description]
+      .map(magnitudeRangeDirectionForSource);
+    if (directions.includes("lower")) return "lower";
+    if (directions.includes("upper")) return "upper";
+    return null;
+  }
+  const exactCondition = domain === "Intensity"
+    || domain === "LgInt";
+  const conditionHas = (terms: readonly string[]): boolean => exactCondition
+    ? matchesAnySpecialTerm(parts.condition, terms)
+    : includesAny(parts.condition, terms);
+  const descriptionHas = (terms: readonly string[]): boolean =>
+    includesAny(parts.description, terms);
   if (
-    conditionMatches(parts.condition, RANGE_LOWER_TERMS)
-    || includesAny(parts.description, RANGE_LOWER_TERMS)
+    conditionHas(RANGE_LOWER_TERMS)
+    || descriptionHas(RANGE_LOWER_TERMS)
   ) return "lower";
   if (
-    conditionMatches(parts.condition, RANGE_UPPER_TERMS)
-    || includesAny(parts.description, RANGE_UPPER_TERMS)
+    conditionHas(RANGE_UPPER_TERMS)
+    || descriptionHas(RANGE_UPPER_TERMS)
   ) return "upper";
+  return null;
+}
+
+function depthBound(parts: NodeParts): DepthBound | null {
+  for (const source of [parts.condition, parts.description]) {
+    const bound = depthBoundFromSource(source);
+    if (bound != null) return bound;
+  }
   return null;
 }
 
@@ -298,8 +440,15 @@ function specialValueDiagnostics(
   parts: NodeParts,
   hasCanonicalValue: boolean,
   hasSpecialSourceConflict: boolean,
+  hasUnmappedQualitativeSource: boolean,
 ): SpecialValueDiagnostic[] | undefined {
-  if (domain !== "Intensity" && domain !== "LgInt" && domain !== "TsunamiHeight") {
+  if (
+    domain !== "Intensity"
+    && domain !== "LgInt"
+    && domain !== "TsunamiHeight"
+    && domain !== "Magnitude"
+    && domain !== "Depth"
+  ) {
     return undefined;
   }
   const diagnostics: SpecialValueDiagnostic[] = [];
@@ -309,11 +458,23 @@ function specialValueDiagnostics(
       ? INTENSITY_CONDITION_TERMS
       : domain === "LgInt"
         ? LG_INT_CONDITION_TERMS
-        : TSUNAMI_HEIGHT_CONDITION_TERMS;
-    if (!knownTerms.some((term) => term === normalizedCondition)) {
+        : domain === "TsunamiHeight"
+          ? TSUNAMI_HEIGHT_CONDITION_TERMS
+          : UNKNOWN_TERMS;
+    const isKnown = domain === "Magnitude"
+      ? isKnownMagnitudeCondition(normalizedCondition)
+      : domain === "Depth"
+        ? matchesAnySpecialTerm(normalizedCondition, UNKNOWN_TERMS)
+          || isDepthShallowTerm(normalizedCondition)
+          || depthRangeDirectionForSource(normalizedCondition) != null
+        : knownTerms.some((term) => term === normalizedCondition);
+    if (!isKnown) {
       diagnostics.push("unmappedSpecialValue");
       if (hasCanonicalValue) diagnostics.push("specialValueConflict");
     }
+  }
+  if (hasUnmappedQualitativeSource && !diagnostics.includes("unmappedSpecialValue")) {
+    diagnostics.push("unmappedSpecialValue");
   }
   if (domain === "TsunamiHeight") {
     const hasUnmappedText = !isMappedTsunamiHeightText(parts.raw, false)
@@ -378,22 +539,36 @@ export function extractSpecialValue(
 
   const parts = nodeParts(node);
   const common = baseResult(parts);
-  const parsedValue = parseDomainValue(domain, parts.raw);
+  const parsedValue = parseNodeDomainValue(domain, parts.raw, parts.unit);
   const lowerBound = parts.lowerRaw == null
     ? null
-    : parseDomainValue(domain, parts.lowerRaw);
+    : parseNodeDomainValue(domain, parts.lowerRaw, parts.unit);
   const upperBound = parts.upperRaw == null
     ? null
-    : parseDomainValue(domain, parts.upperRaw);
+    : parseNodeDomainValue(domain, parts.upperRaw, parts.unit);
   const hasBoundElements = parts.lowerRaw != null || parts.upperRaw != null;
   const prioritySpecial = domain === "Intensity" || domain === "LgInt"
     ? resolvePrioritySpecialPresence(domain, parts)
     : null;
+  const special = prioritySpecial?.presence ?? specialPresence(domain, parts);
+  const hasUnmappedQualitative = (
+    domain === "Magnitude" || domain === "Depth"
+  ) && special === "qualitative" && hasUnmappedQualitativeSource(domain, parts);
+  const parsedDepthBound = domain === "Depth" ? depthBound(parts) : null;
+  const depthSpecialConflict = domain === "Depth" && parsedValue != null && (
+    (parsedDepthBound != null && parsedDepthBound.value !== parsedValue)
+    || (parsedDepthBound == null && special === "qualitative" && parsedValue !== 0)
+    || special === "unknown"
+  );
+  const magnitudeSpecialConflict = domain === "Magnitude"
+    && parsedValue != null
+    && special != null;
   const diagnostics = specialValueDiagnostics(
     domain,
     parts,
     parsedValue != null || lowerBound != null || upperBound != null,
-    prioritySpecial?.conflict ?? false,
+    (prioritySpecial?.conflict ?? false) || depthSpecialConflict || magnitudeSpecialConflict,
+    hasUnmappedQualitative,
   );
   const diagnosticFields = diagnostics == null ? {} : { diagnostics };
   const rawBoundFields = hasBoundElements
@@ -463,6 +638,25 @@ export function extractSpecialValue(
     };
   }
 
+  if (domain === "Depth" && parsedValue != null) {
+    if (parsedDepthBound != null && parsedDepthBound.value === parsedValue) {
+      return {
+        ...common,
+        value: null,
+        presence: "range",
+        lowerBound: parsedDepthBound.direction === "lower" ? parsedValue : null,
+        upperBound: parsedDepthBound.direction === "upper" ? parsedValue : null,
+        ...diagnosticFields,
+      };
+    }
+    if (parsedValue === 0) {
+      return { ...common, value: null, presence: "qualitative", ...diagnosticFields };
+    }
+    if (depthSpecialConflict) {
+      return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
+    }
+  }
+
   const numericTsunamiObservation = domain === "TsunamiHeight"
     && parsedValue != null
     && includesAny(parts.condition, ["観測中"]);
@@ -470,7 +664,6 @@ export function extractSpecialValue(
     return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
   }
 
-  const special = prioritySpecial?.presence ?? specialPresence(domain, parts);
   if (special === "qualitative") {
     return {
       ...common,

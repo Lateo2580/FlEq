@@ -813,8 +813,12 @@ export interface ParsedEarthquakeHypocenter {
   longitude: string;
   /** 深さ */
   depth: string;
+  /** 深さの canonical 値。旧 depth はこの値から作る互換 scalar。 */
+  depthValue?: SpecialValue<number>;
   /** 数値マグニチュード。数値でない場合は空文字 */
   magnitude: string;
+  /** マグニチュードの canonical 値。旧 magnitude はこの値から作る互換 scalar。 */
+  magnitudeValue?: SpecialValue<number>;
   /** Magnitude 要素の値・condition・description */
   magnitudeInfo?: ParsedMagnitudeInfo;
 }

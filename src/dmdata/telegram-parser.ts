@@ -29,6 +29,7 @@ import {
   listOf,
 } from "./xml-shape";
 import { extractSpecialValue } from "./special-value";
+import { depthScalar, magnitudeScalar } from "../utils/magnitude";
 import { decodeTelegramBody } from "./telegram-body";
 import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
@@ -68,7 +69,9 @@ const SPECIAL_VALUE_TELEGRAM_TYPES = new Set([
   "VXSE44",
   "VXSE45",
   "VXSE51",
+  "VXSE52",
   "VXSE53",
+  "VXSE61",
   "VXSE62",
   "VTSE41",
   "VTSE51",
@@ -114,7 +117,8 @@ function isAssumedHypocenterFallbackPattern(
 
 /** 震源関連の情報を抽出 */
 function extractEarthquake(
-  earthquake: unknown
+  earthquake: unknown,
+  specialValueEarthquake: unknown = earthquake,
 ): ParsedEarthquakeInfo["earthquake"] | undefined {
   if (!earthquake) return undefined;
 
@@ -132,68 +136,77 @@ function extractEarthquake(
         (c: unknown) => str(dig(c, "@_type")) !== "震源位置（度分）"
       ) ?? rawCoord[0]
     : rawCoord;
+  const rawSpecialArea = first(dig(specialValueEarthquake, "Hypocenter", "Area") as unknown[]);
+  const rawSpecialCoord = dig(rawSpecialArea, "jmx_eb:Coordinate") || dig(rawSpecialArea, "Coordinate");
+  const specialCoordNode = Array.isArray(rawSpecialCoord)
+    ? rawSpecialCoord.find(
+        (c: unknown) => str(dig(c, "@_type")) !== "震源位置（度分）"
+      ) ?? rawSpecialCoord[0]
+    : rawSpecialCoord;
   const coordStr = str(
     coordNode != null && typeof coordNode === "object"
       ? dig(coordNode, "#text")
       : coordNode
   );
-  const { lat, lon, depth } = parseCoordinate(coordStr);
+  const coordinate = parseCoordinate(coordStr, specialCoordNode);
+  const depthValue = extractSpecialValue("Depth", coordinate.depthCarrier);
 
   const magnitudeNode =
-    dig(earthquake, "jmx_eb:Magnitude")
-    || dig(earthquake, "Magnitude");
-  const magRaw = str(
-    magnitudeNode != null && typeof magnitudeNode === "object"
-      ? dig(magnitudeNode, "#text")
-      : magnitudeNode
-  );
-  const magnitudeCondition = str(dig(magnitudeNode, "@_condition")).trim();
-  const magnitudeDescription = str(dig(magnitudeNode, "@_description")).trim();
-  // "4" → "4.0" のように小数点第1位を保証する
-  const mag = magRaw && !isNaN(parseFloat(magRaw))
-    ? parseFloat(magRaw).toFixed(1)
-    : "";
+    dig(specialValueEarthquake, "jmx_eb:Magnitude")
+    || dig(specialValueEarthquake, "Magnitude");
+  const magnitudeValue = extractSpecialValue("Magnitude", magnitudeNode);
 
   return {
     originTime,
     hypocenterName: name,
-    latitude: lat,
-    longitude: lon,
-    depth,
-    magnitude: mag,
+    latitude: coordinate.lat,
+    longitude: coordinate.lon,
+    depth: depthScalar(depthValue),
+    depthValue,
+    magnitude: magnitudeScalar(magnitudeValue),
+    magnitudeValue,
     magnitudeInfo: {
-      value: magRaw,
-      condition: magnitudeCondition || null,
-      description: magnitudeDescription || null,
+      value: magnitudeValue.raw ?? "",
+      condition: magnitudeValue.condition,
+      description: magnitudeValue.description,
     },
   };
 }
 
-/** 座標文字列をパース: "+35.7+139.8-10000/" → lat, lon, depth */
-function parseCoordinate(coord: string): {
+/** 座標文字列をパースし、深さ第3成分を SpecialValue 用 carrier へ載せる。 */
+function parseCoordinate(coord: string, rawCoordinateNode: unknown): {
   lat: string;
   lon: string;
-  depth: string;
+  depthCarrier: unknown;
 } {
-  if (!coord) return { lat: "", lon: "", depth: "" };
+  if (!coord) return { lat: "", lon: "", depthCarrier: undefined };
 
   // 形式: "+緯度+経度-深さ/" or "+緯度+経度/"
-  const match = coord.match(
-    /([+-][\d.]+)([+-][\d.]+)(?:([+-][\d.]+))?/
-  );
-  if (!match) return { lat: "", lon: "", depth: "" };
+  const numberComponent = String.raw`[+-](?:\d+(?:\.\d+)?|\.\d+)`;
+  const match = coord.match(new RegExp(
+    `^(${numberComponent})(${numberComponent})(?:(${numberComponent}))?/$`,
+  ));
+  if (!match) return { lat: "", lon: "", depthCarrier: undefined };
 
   const latNum = parseFloat(match[1]);
   const lonNum = parseFloat(match[2]);
-  const depthNum = match[3] ? Math.abs(parseFloat(match[3])) : 0;
-
-  // 深さはメートル単位で来る場合とキロメートル単位で来る場合がある
-  const depthKm = depthNum >= 1000 ? depthNum / 1000 : depthNum;
+  const rawDepth = match[3];
+  const depthNum = rawDepth == null ? null : Math.abs(parseFloat(rawDepth));
+  const rawCondition = dig(rawCoordinateNode, "@_condition");
+  const rawDescription = dig(rawCoordinateNode, "@_description");
+  const depthCarrier = rawDepth == null || depthNum == null || !Number.isFinite(depthNum)
+    ? undefined
+    : {
+        "#text": rawDepth,
+        ...(rawCondition === undefined ? {} : { "@_condition": str(rawCondition) }),
+        ...(rawDescription === undefined ? {} : { "@_description": str(rawDescription) }),
+        "@_unit": depthNum >= 1000 ? "m" : "km",
+      };
 
   return {
     lat: `${latNum >= 0 ? "N" : "S"}${Math.abs(latNum).toFixed(1)}`,
     lon: `${lonNum >= 0 ? "E" : "W"}${Math.abs(lonNum).toFixed(1)}`,
-    depth: depthKm > 0 ? `${depthKm}km` : "ごく浅い",
+    depthCarrier,
   };
 }
 
@@ -825,7 +838,11 @@ export function parseEarthquakeTelegram(
       earthquake = earthquake[0];
     }
     if (earthquake) {
-      info.earthquake = extractEarthquake(earthquake);
+      const specialEarthquake = dig(specialValueBody, "Earthquake");
+      info.earthquake = extractEarthquake(
+        earthquake,
+        Array.isArray(specialEarthquake) ? specialEarthquake[0] : specialEarthquake,
+      );
     }
 
     // 震度
@@ -876,7 +893,11 @@ export function parseEewTelegram(
     info.maxIntChangeReason = parseMaxIntChangeReason(body);
 
     if (earthquake) {
-      info.earthquake = extractEarthquake(earthquake);
+      const specialEarthquake = dig(specialValueBody, "Earthquake");
+      info.earthquake = extractEarthquake(
+        earthquake,
+        Array.isArray(specialEarthquake) ? specialEarthquake[0] : specialEarthquake,
+      );
       const arrivalTime = str(dig(earthquake, "ArrivalTime"));
       if (arrivalTime) info.arrivalTime = arrivalTime;
       const hypoArea = first(dig(earthquake, "Hypocenter", "Area") as unknown[]);
@@ -1087,7 +1108,11 @@ export function parseTsunamiTelegram(
       earthquake = earthquake[0];
     }
     if (earthquake) {
-      info.earthquake = extractEarthquake(earthquake);
+      const specialEarthquake = dig(specialValueBody, "Earthquake");
+      info.earthquake = extractEarthquake(
+        earthquake,
+        Array.isArray(specialEarthquake) ? specialEarthquake[0] : specialEarthquake,
+      );
     }
 
     return info;
@@ -1216,7 +1241,11 @@ export function parseLgObservationTelegram(
       earthquake = earthquake[0];
     }
     if (earthquake) {
-      info.earthquake = extractEarthquake(earthquake);
+      const specialEarthquake = dig(specialValueBody, "Earthquake");
+      info.earthquake = extractEarthquake(
+        earthquake,
+        Array.isArray(specialEarthquake) ? specialEarthquake[0] : specialEarthquake,
+      );
     }
 
     const lgDetails = extractLgObservationDetails(body, specialValueBody);

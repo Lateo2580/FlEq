@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+  <Control><Title>地震情報</Title><DateTime>2026-08-09T00:00:00+09:00</DateTime><Status>通常</Status><EditorialOffice>気象庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>震源に関する情報</Title><ReportDateTime>2026-08-09T00:00:00+09:00</ReportDateTime><TargetDateTime>2026-08-09T00:00:00+09:00</TargetDateTime><EventID>20260809000500</EventID><InfoType>発表</InfoType><Serial>1</Serial></Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/"><Earthquake><OriginTime>2026-08-08T23:59:00+09:00</OriginTime><Hypocenter><Area><Name>合成海域</Name><jmx_eb:Coordinate description="北緯３５度 東経１３９度 深さ６００ｋｍ以上">+35.0+139.0-500000/</jmx_eb:Coordinate></Area></Hypocenter><jmx_eb:Magnitude type="Mj">5.0</jmx_eb:Magnitude></Earthquake></Body>
+</Report>
