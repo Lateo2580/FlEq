@@ -1,9 +1,9 @@
 # 電文基盤共通化仕様 — 特殊値・TelegramMeta・Revision・試験判定・条件付き抑止
 
-> 状態: **Phase 4B 完了（最終レビュー GO、仕様同期済み）**
-> 更新日: 2026-08-09
+> 状態: **Phase 5A 完了（最終レビュー GO、仕様同期済み）**
+> 更新日: 2026-08-10
 > 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化
-> 実装同期基準: HEAD `f7d2f5d`（Phase 4B 変更単位1〜6実装完了、最終レビュー GO）
+> 実装同期基準: HEAD `30b0d4d`（Phase 5A 変更単位1〜6実装完了、最終レビュー GO）
 > 起草時参照基準: HEAD `f634e410`
 > 前提: 修正弾 A〜C で個別 High は対処済みとし、本仕様は構造的根因の共通化を扱う
 
@@ -1417,6 +1417,8 @@ npm --prefix display run typecheck
 
 ### Phase 5A: Magnitude・Depth
 
+状態: **完了**（実装基準 HEAD `30b0d4d`）。変更単位1〜6で契約、共通型／parser、semantic 伝搬、state／永続化、EEW diff、全表示 surface／frontend を順に実装し、最終 xhigh レビュー GO を得た。
+
 内容:
 
 - 地震、EEW、関連 formatter の Magnitude／Depth を `SpecialValue` へ移行する。
@@ -1459,7 +1461,54 @@ npm --prefix display run typecheck
 5. EEW tracker・diff: canonical diff、同一 serial 訂正、logger と detail の diff 行のみ（通常 snapshot 表示は単位 6）
 6. 全表示 surface・frontend: CLI formatter 群（EEW は通常 snapshot 表示）、summary／ticker／template／filter、frontend view model と card／replay／recent／emergency、badge・tooltip・ARIA、内部順序の frontend 反映、legacy scalar fallback、同一合成 XML を parser→formatter→notification→ticker→card→persistence へ通す横断 contract test（§14.2）と protocol sync・全ゲート
 
+起草時の計画から実装で確定・変更された点:
+
+- Depth は Coordinate の第3成分を raw のまま運ぶ carrier を設け、成分欠落／形式不正を `missing`、数値0だけを `qualitative`（ごく浅い）とした。description／Condition の安全な終端一致と数値が矛盾する場合は数値を保持し、`specialValueConflict` を残す §3.5 の状態機械へ確定した。
+- canonical equality は `presence`／`value`／`lowerBound`／`upperBound` だけを比較し、raw／condition／description／diagnostics の揺れを無視する。bounds の field 省略と明示 `null` は同値とし、wire は明示 `null`、persistence canonical は省略形へ正規化する方式に確定した。
+- Magnitude rank は `magnitudeSortRank()` の in-process 比較（巨大だけ `Infinity`）と `SerializableMagnitudeRank`／`magnitudeSerializableRank()` の wire／永続化表現に分離した。range の代表順位は旧 scalar 順序を維持する下限優先（lower-only／両側 range は lowerBound、upper-only は upperBound）へ engine／frontend とも統一し、parity test を常設した。
+- 地震／EEW 通知の canonical `missing`／`empty` Magnitude は、通知文言の現行一致を優先し、§3.7 の省略規約に対する例外として `M不明` を維持した。通常値の小数第1位丸め、通知 cadence、音は変更しない。
+- EEW は optional Earthquake container 自体の欠落も Magnitude／Depth の canonical `missing` に正規化した。container 欠落↔contained missing は非発火、欠落↔value は missing endpoint 付き diff とし、Earthquake block がない current snapshot でも M／Depth diff 行だけを描画する。
+- restart／display off→on 後の structural-missing VXSE52／61 でも、復元済み daily history を fresh `DisplayStateStore` の baseline provider へ接続し、latest／recent／largeQuake が live と同じ §7.4 merge を使う形に確定した。震度だけを旧観測から保持し、Magnitude／Depth／震源名／発生時刻は後報を採用する。
+- daily／standby／QuakeExtreme の3 durable owner は canonical の全 field（raw、presence、value、condition、description、bounds、raw bounds、diagnostics）と JSON-safe rank を保存する。旧 scalar-only は読込方向だけ migration し、canonical valid なら壊れた派生 semantic を再生成して record を救済する。
+- filter の数値比較は exact または bounds から結果を確定できる場合だけ真とし、判定不能な range、unknown、missing、empty、qualitative は偽とした。巨大の表示順最上位と filter の数値非マッチは別契約である。
+- CLI／summary／ticker／template／card／replay／recent／emergency／map は semantic がある場合に §3.7 の特殊値表示へ移行した。`≥`／`↔`／`?`／`∅` の badge、tooltip、凡例、ARIA を追加し、scalar-only `magnitude:null` は既存の空欄／`-` 表示と ARIA の意味を一致させた。通常 exact の表示は従来どおりとした。
+
+完了確認:
+
+1. 通常値の既存表示一致: `test/engine/telegram-foundation/phase5a-magnitude-depth-parser.test.ts:134` が旧 scalar と canonical formatter の小数第1位丸めを分離し、`test/engine/telegram-foundation/phase5a-surface-contract.test.ts:39` と `display/frontend/src/components/__tests__/latest-quake-card.test.ts:95` が CLI／実 card の通常 M／Depth 表示を固定する。
+2. 不明値の非数値保持: `test/engine/telegram-foundation/phase5a-magnitude-depth-parser.test.ts:65` が `unknown` と legacy `""` を分離し、`test/engine/notifier.test.ts:240` が通知の `M不明` 例外、`display/frontend/src/components/__tests__/latest-quake-card.test.ts:111`／`:146` が badge／ARIA と `NaN` 非表示を固定する。
+3. ごく浅いの非0km化: `test/engine/telegram-foundation/phase5a-magnitude-depth-parser.test.ts:70` が深さ0を `qualitative` として固定し、`display/frontend/src/components/__tests__/latest-quake-card.test.ts:154` が `ごく浅い` を距離表示へ変換しないことを確認する。
+4. canonical diff: `test/engine/eew-tracker.test.ts:657` が raw／description／diagnostics だけの揺れを非発火、`:706` が container missing の正規化、`:821` が同一 presence の bounds 変化を発火として固定する。
+5. latest／recent／daily／restore 同値: `test/engine/display/quake-observation-merge.test.ts:268` が latest／recent の helper 同値、`test/engine/display/state-store.test.ts:440` が復元 daily baseline＋fresh store の VXSE52／61、`test/engine/messages/daily-quake-persistence.test.ts:190` が diagnostics／rank 込み round-trip、`test/engine/display/runtime.test.ts:170` が live／restart の semantic wire 同値を固定する。
+6. 同一 serial 訂正: `test/engine/eew-tracker.test.ts:281` が実質差分なし訂正の一回受理と再送抑止、`test/engine/notifier.test.ts:556` が `訂正` 明示と一回通知を固定する。serial-only comparator 自体は変更していない。
+7. 横断回帰と protocol: `test/engine/telegram-foundation/phase5a-surface-contract.test.ts:23` が同一 XML を parser→formatter→notification→ticker→wire→persistence、`display/frontend/src/components/__tests__/phase5a-surface-contract.test.ts:13` が同じ XML を実 `LatestQuakeCard` DOM、`test/engine/display/protocol-sync.test.ts:20` が engine／frontend protocol mirror へ通す。下記7ゲートを全て成功させ、既存機能の回帰0件を確認した。
+
+緑でも固定できていない契約・実機リスク（実機観察待ち）:
+
+- 横断 contract は1つの合成 XML（exact Magnitude＋lower-only Depth）であり、全 presence の parser→全下流一括網羅ではない。presence ごとの単体／層別 test はあるが、同一 fixture の全経路網羅は実機観察後の追加候補とする。
+- 同一 XML の実 DOM 横断は `LatestQuakeCard` のみであり、他 card／replay／recent／emergency／map は component 単体 test で固定している。
+- 実解像度での badge／凡例／tooltip の視認性と、実スクリーンリーダーによる ARIA 読み上げは未確認である。
+- 実電文における Coordinate、Condition、description の空白／全半角／終端表現の揺れは synthetic fixture の範囲を超え得るため、観測時に raw と diagnostics を確認する。
+
+Phase 5A の完了ゲートは §14.1 の7コマンドに従い、次のコマンド列を全て成功済みとする。
+
+```text
+npm run build
+npm test
+npm run test:shuffle
+npm run typecheck:test
+npm run display:build
+npm run display:test
+npm --prefix display run typecheck
+```
+
 ### Phase 5B: 台風数値
+
+Phase 5A からの引き継ぎ（5B／5C 共通・順位）: range の代表順位を consumer ごとに定義せず、共通 serializable rank／比較 helper を唯一の契約とする。
+
+Phase 5A からの引き継ぎ（5B 固有）: 「ほとんど停滞」の qualitative 表示と filter／期限計算の数値判定を分離し、表示語を 0km/h や推定数値へ変換しない。
+
+Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend の serializable rank parity test を常設し、protocol mirror の同期漏れを完了ゲートで検出する。
 
 内容:
 
@@ -1478,6 +1527,12 @@ npm --prefix display run typecheck
 - 既存機能の回帰が 0 件である。
 
 ### Phase 5C: 噴煙高度
+
+Phase 5A からの引き継ぎ（5B／5C 共通・順位）: range の代表順位を consumer ごとに定義せず、共通 serializable rank／比較 helper を唯一の契約とする。
+
+Phase 5A からの引き継ぎ（5C 固有）: 海抜高度と火口上高度は field 名だけでなく型／判別子で基準を分離し、同じ `SpecialValue<number>` の無印値へ混在させない。
+
+Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend の serializable rank parity test を常設し、protocol mirror の同期漏れを完了ゲートで検出する。
 
 内容:
 
