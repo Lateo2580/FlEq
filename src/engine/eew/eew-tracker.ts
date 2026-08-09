@@ -7,6 +7,11 @@ import type {
 } from "../../types";
 import { telegramRevision } from "../../dmdata/telegram-meta";
 import * as intensityUtils from "../../utils/intensity";
+import { specialValueCanonicalEquals } from "../../utils/magnitude";
+import {
+  depthValueFromLegacyScalar,
+  magnitudeValueFromLegacyScalar,
+} from "../magnitude-depth-persistence";
 import {
   semanticPayloadFingerprint,
   TelegramRevisionGate,
@@ -19,8 +24,16 @@ import { eewRevisionFamilyPolicy } from "../messages/revision-family-registry";
 export interface EewDiff {
   /** マグニチュード変化 (前の値) */
   previousMagnitude?: string;
+  /** マグニチュード変化 (前の canonical 値) */
+  previousMagnitudeValue?: SpecialValue<number>;
+  /** マグニチュード変化 (今回の canonical 値) */
+  currentMagnitudeValue?: SpecialValue<number>;
   /** 深さ変化 (前の値) */
   previousDepth?: string;
+  /** 深さ変化 (前の canonical 値) */
+  previousDepthValue?: SpecialValue<number>;
+  /** 深さ変化 (今回の canonical 値) */
+  currentDepthValue?: SpecialValue<number>;
   /** 最大予測震度変化 (前の値) */
   previousMaxInt?: string;
   /** 震源地名が変わったか */
@@ -110,12 +123,6 @@ let eewSingleEventSequence = 0;
 function nextEewSingleSubjectKey(headType: string): string {
   eewSingleEventSequence += 1;
   return `eew:single:${headType}:${eewSingleEventSequence}`;
-}
-
-/** 深さ文字列から数値(km)を抽出 */
-function parseDepthKm(depth: string): number | null {
-  const m = depth.match(/(\d+)\s*km/);
-  return m ? parseInt(m[1], 10) : null;
 }
 
 type EewForecastIntensity = NonNullable<ParsedEewInfo["forecastIntensity"]>;
@@ -465,24 +472,28 @@ function computeDiff(
   const diff: EewDiff = {};
   let hasDiff = false;
 
-  // マグニチュード変化
-  if (prev.earthquake?.magnitude && curr.earthquake?.magnitude) {
-    const prevMag = parseFloat(prev.earthquake.magnitude);
-    const currMag = parseFloat(curr.earthquake.magnitude);
-    if (!isNaN(prevMag) && !isNaN(currMag) && prevMag !== currMag) {
-      diff.previousMagnitude = prev.earthquake.magnitude;
-      hasDiff = true;
-    }
+  // マグニチュード変化。additive field のない旧 DTO は canonical へ移行して比較する。
+  const prevMagnitudeValue = prev.earthquake?.magnitudeValue
+    ?? magnitudeValueFromLegacyScalar(prev.earthquake?.magnitude ?? null);
+  const currMagnitudeValue = curr.earthquake?.magnitudeValue
+    ?? magnitudeValueFromLegacyScalar(curr.earthquake?.magnitude ?? null);
+  if (!specialValueCanonicalEquals(prevMagnitudeValue, currMagnitudeValue)) {
+    diff.previousMagnitude = prev.earthquake?.magnitude;
+    diff.previousMagnitudeValue = prevMagnitudeValue;
+    diff.currentMagnitudeValue = currMagnitudeValue;
+    hasDiff = true;
   }
 
-  // 深さ変化
-  if (prev.earthquake?.depth && curr.earthquake?.depth) {
-    const prevD = parseDepthKm(prev.earthquake.depth);
-    const currD = parseDepthKm(curr.earthquake.depth);
-    if (prevD != null && currD != null && prevD !== currD) {
-      diff.previousDepth = prev.earthquake.depth;
-      hasDiff = true;
-    }
+  // 深さ変化。小数・範囲・特殊値を scalar の再解析で失わない。
+  const prevDepthValue = prev.earthquake?.depthValue
+    ?? depthValueFromLegacyScalar(prev.earthquake?.depth ?? null);
+  const currDepthValue = curr.earthquake?.depthValue
+    ?? depthValueFromLegacyScalar(curr.earthquake?.depth ?? null);
+  if (!specialValueCanonicalEquals(prevDepthValue, currDepthValue)) {
+    diff.previousDepth = prev.earthquake?.depth;
+    diff.previousDepthValue = prevDepthValue;
+    diff.currentDepthValue = currDepthValue;
+    hasDiff = true;
   }
 
   // 最大予測震度変化。known→unknown は既存の高い状態を降格させる根拠にしない。

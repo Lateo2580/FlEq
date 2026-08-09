@@ -11,7 +11,11 @@ import {
   type EewForecastArea,
 } from "./eew-tracker";
 import * as log from "../../logger";
-import { formatMagnitudeLabel } from "../../utils/magnitude";
+import {
+  formatDepthSpecialValue,
+  formatMagnitudeLabel,
+  formatMagnitudeSpecialValue,
+} from "../../utils/magnitude";
 
 /** ログ出力のデフォルトディレクトリ */
 const DEFAULT_LOG_DIR = path.join(process.cwd(), "eew-logs");
@@ -54,13 +58,36 @@ function nowFileTimestamp(): string {
   return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 }
 
+function canonicalMagnitudeDepthDiffParts(diff: EewDiff): string[] {
+  const parts: string[] = [];
+  if (diff.previousMagnitudeValue != null && diff.currentMagnitudeValue != null) {
+    const previous = formatMagnitudeSpecialValue(diff.previousMagnitudeValue) ?? "—";
+    const current = formatMagnitudeSpecialValue(diff.currentMagnitudeValue) ?? "—";
+    parts.push(`${previous}→${current}`);
+  }
+  if (diff.previousDepthValue != null && diff.currentDepthValue != null) {
+    const previous = formatDepthSpecialValue(diff.previousDepthValue) ?? "—";
+    const current = formatDepthSpecialValue(diff.currentDepthValue) ?? "—";
+    parts.push(`${previous}→${current}`);
+  }
+  return parts;
+}
+
 /** 差分情報をテキスト化 */
 function formatDiff(diff: EewDiff, info: ParsedEewInfo): string {
-  const parts: string[] = [];
-  if (diff.previousMagnitude && info.earthquake?.magnitude) {
+  const parts = canonicalMagnitudeDepthDiffParts(diff);
+  if (
+    !(diff.previousMagnitudeValue != null && diff.currentMagnitudeValue != null)
+    && diff.previousMagnitude
+    && info.earthquake?.magnitude
+  ) {
     parts.push(`M${diff.previousMagnitude}→M${info.earthquake.magnitude}`);
   }
-  if (diff.previousDepth && info.earthquake?.depth) {
+  if (
+    !(diff.previousDepthValue != null && diff.currentDepthValue != null)
+    && diff.previousDepth
+    && info.earthquake?.depth
+  ) {
     parts.push(`${diff.previousDepth}→${info.earthquake.depth}`);
   }
   if (diff.previousMaxInt && info.forecastIntensity != null) {
@@ -315,6 +342,12 @@ export class EewEventLogger {
           const label = MAX_INT_CHANGE_REASON_LABELS[info.maxIntChangeReason] ?? "不明";
           lines.push(`震度変化理由: ${label} [${info.maxIntChangeReason}]`);
         }
+      }
+    }
+    if (info.earthquake == null && !info.isAssumedHypocenter && this.fields.diff && diff) {
+      const parts = canonicalMagnitudeDepthDiffParts(diff);
+      if (parts.length > 0) {
+        lines.push(`変化:  [${parts.join(", ")}]`);
       }
     }
 

@@ -40,6 +40,26 @@ function createEewInfo(overrides: Partial<ParsedEewInfo> = {}): ParsedEewInfo {
   };
 }
 
+function numericSpecialValue(raw: string, value: number): SpecialValue<number> {
+  return {
+    raw,
+    value,
+    condition: null,
+    description: null,
+    presence: "value",
+  };
+}
+
+function missingSpecialValue(): SpecialValue<number> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+  };
+}
+
 describe("EewTracker", () => {
   let tracker: EewTracker;
 
@@ -181,7 +201,9 @@ describe("EewTracker", () => {
           latitude: "35.0",
           longitude: "139.0",
           depth: "10km",
+          depthValue: numericSpecialValue("10000", 10),
           magnitude: "5.0",
+          magnitudeValue: numericSpecialValue("5.0", 5),
         },
       }));
       const corrected = tracker.update(createEewInfo({
@@ -194,7 +216,17 @@ describe("EewTracker", () => {
           latitude: "35.0",
           longitude: "139.0",
           depth: "20km",
+          depthValue: numericSpecialValue("20000", 20),
           magnitude: "5.5",
+          magnitudeValue: {
+            raw: "5.5",
+            value: null,
+            condition: "以上",
+            description: "M5.5以上",
+            presence: "range",
+            lowerBound: 5.5,
+            upperBound: null,
+          },
         },
       }));
       const next = tracker.update(createEewInfo({
@@ -206,7 +238,9 @@ describe("EewTracker", () => {
           latitude: "35.0",
           longitude: "139.0",
           depth: "30km",
+          depthValue: numericSpecialValue("30000", 30),
           magnitude: "6.0",
+          magnitudeValue: numericSpecialValue("6.0", 6),
         },
       }));
 
@@ -216,8 +250,32 @@ describe("EewTracker", () => {
         isCorrection: true,
         revisionDecision: "replaceCorrection",
       });
+      expect(corrected.diff?.previousMagnitudeValue).toMatchObject({
+        presence: "value",
+        value: 5,
+      });
+      expect(corrected.diff?.currentMagnitudeValue).toMatchObject({
+        presence: "range",
+        lowerBound: 5.5,
+      });
+      expect(corrected.diff?.previousDepthValue).toMatchObject({
+        presence: "value",
+        value: 10,
+      });
+      expect(corrected.diff?.currentDepthValue).toMatchObject({
+        presence: "value",
+        value: 20,
+      });
       expect(next.previousInfo?.earthquake?.hypocenterName).toBe("訂正震源");
       expect(next.diff?.previousMagnitude).toBe("5.5");
+      expect(next.diff?.previousMagnitudeValue).toMatchObject({
+        presence: "range",
+        lowerBound: 5.5,
+      });
+      expect(next.diff?.previousDepthValue).toMatchObject({
+        presence: "value",
+        value: 20,
+      });
     });
 
     it("実質差分なしの同一 serial 訂正も一回だけ受理する", () => {
@@ -523,6 +581,287 @@ describe("EewTracker", () => {
 
       expect(result.diff).toBeDefined();
       expect(result.diff!.previousDepth).toBe("40km");
+    });
+
+    it("特殊値・小数深さ・bound の canonical 意味変化を検出する", () => {
+      const previous = createEewInfo({
+        serial: "1",
+        eventId: "event-canonical-diff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "10.5km",
+          depthValue: numericSpecialValue("10500", 10.5),
+          magnitude: "5.5",
+          magnitudeValue: numericSpecialValue("5.5", 5.5),
+        },
+      });
+      const current = createEewInfo({
+        serial: "2",
+        eventId: "event-canonical-diff",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "10.75km",
+          depthValue: numericSpecialValue("10750", 10.75),
+          magnitude: "",
+          magnitudeValue: {
+            raw: "不明",
+            value: null,
+            condition: "不明",
+            description: null,
+            presence: "unknown",
+          },
+        },
+      });
+
+      tracker.update(previous);
+      const result = tracker.update(current);
+
+      expect(result.diff?.previousMagnitudeValue).toMatchObject({
+        presence: "value",
+        value: 5.5,
+      });
+      expect(result.diff?.currentMagnitudeValue).toMatchObject({ presence: "unknown" });
+      expect(result.diff?.previousDepthValue).toMatchObject({ value: 10.5 });
+      expect(result.diff?.currentDepthValue).toMatchObject({ value: 10.75 });
+
+      const bounded = createEewInfo({
+        serial: "3",
+        eventId: "event-canonical-diff",
+        earthquake: {
+          ...current.earthquake!,
+          depth: "600km",
+          depthValue: {
+            raw: "600000",
+            value: null,
+            condition: "以上",
+            description: "深さ600km以上",
+            presence: "range",
+            lowerBound: 600,
+            upperBound: null,
+          },
+        },
+      });
+      const boundedResult = tracker.update(bounded);
+      expect(boundedResult.diff?.currentDepthValue).toMatchObject({
+        presence: "range",
+        lowerBound: 600,
+      });
+    });
+
+    it("canonical が同じ raw・description・diagnostics の揺れでは発火しない", () => {
+      const previous = createEewInfo({
+        serial: "1",
+        eventId: "event-canonical-metadata",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "600km",
+          depthValue: {
+            raw: "600000",
+            value: null,
+            condition: "以上",
+            description: "深さ600km以上",
+            presence: "range",
+            lowerBound: 600,
+          },
+          magnitude: "5.5",
+          magnitudeValue: numericSpecialValue("5.5", 5.5),
+        },
+      });
+      const current = createEewInfo({
+        serial: "2",
+        eventId: "event-canonical-metadata",
+        earthquake: {
+          ...previous.earthquake!,
+          depthValue: {
+            raw: "６０００００",
+            value: null,
+            condition: "深さ以上",
+            description: "別表記",
+            presence: "range",
+            lowerBound: 600,
+            upperBound: null,
+            diagnostics: ["specialValueConflict"],
+          },
+          magnitudeValue: {
+            ...numericSpecialValue("５．５", 5.5),
+            description: "別表記",
+            diagnostics: ["unmappedSpecialValue"],
+          },
+        },
+      });
+
+      tracker.update(previous);
+      expect(tracker.update(current).diff).toBeUndefined();
+    });
+
+    it("Earthquake 欠落と contained missing を同じ canonical missing として扱う", () => {
+      tracker.update(createEewInfo({
+        serial: "1",
+        eventId: "event-container-missing",
+        earthquake: undefined,
+      }));
+      const result = tracker.update(createEewInfo({
+        serial: "2",
+        eventId: "event-container-missing",
+        earthquake: {
+          originTime: "",
+          hypocenterName: "",
+          latitude: "",
+          longitude: "",
+          depth: "",
+          depthValue: missingSpecialValue(),
+          magnitude: "",
+          magnitudeValue: missingSpecialValue(),
+        },
+      }));
+
+      expect(result.diff).toBeUndefined();
+    });
+
+    it("Earthquake 欠落から value への変化に missing endpoint を付ける", () => {
+      tracker.update(createEewInfo({
+        serial: "1",
+        eventId: "event-container-to-value",
+        earthquake: undefined,
+      }));
+      const result = tracker.update(createEewInfo({
+        serial: "2",
+        eventId: "event-container-to-value",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "10km",
+          depthValue: numericSpecialValue("10000", 10),
+          magnitude: "5.0",
+          magnitudeValue: numericSpecialValue("5.0", 5),
+        },
+      }));
+
+      expect(result.diff?.previousMagnitudeValue).toMatchObject({ presence: "missing" });
+      expect(result.diff?.currentMagnitudeValue).toMatchObject({ presence: "value", value: 5 });
+      expect(result.diff?.previousDepthValue).toMatchObject({ presence: "missing" });
+      expect(result.diff?.currentDepthValue).toMatchObject({ presence: "value", value: 10 });
+    });
+
+    it("value から Earthquake 欠落への変化に current missing endpoint を付ける", () => {
+      tracker.update(createEewInfo({
+        serial: "1",
+        eventId: "event-value-to-container",
+        earthquake: {
+          originTime: "2024-04-17T23:14:54+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.2",
+          longitude: "E132.4",
+          depth: "10km",
+          depthValue: numericSpecialValue("10000", 10),
+          magnitude: "5.0",
+          magnitudeValue: numericSpecialValue("5.0", 5),
+        },
+      }));
+      const result = tracker.update(createEewInfo({
+        serial: "2",
+        eventId: "event-value-to-container",
+        earthquake: undefined,
+      }));
+
+      expect(result.diff?.previousMagnitudeValue).toMatchObject({ presence: "value", value: 5 });
+      expect(result.diff?.currentMagnitudeValue).toMatchObject({ presence: "missing" });
+      expect(result.diff?.previousDepthValue).toMatchObject({ presence: "value", value: 10 });
+      expect(result.diff?.currentDepthValue).toMatchObject({ presence: "missing" });
+    });
+
+    it.each([
+      ["canonical→scalar-only", true],
+      ["scalar-only→canonical", false],
+    ])("%s の同じ意味は非発火", (_label, canonicalFirst) => {
+      const canonicalEarthquake = {
+        originTime: "2024-04-17T23:14:54+09:00",
+        hypocenterName: "豊後水道",
+        latitude: "N33.2",
+        longitude: "E132.4",
+        depth: "10km",
+        depthValue: numericSpecialValue("10000", 10),
+        magnitude: "5.0",
+        magnitudeValue: numericSpecialValue("5.0", 5),
+      };
+      const scalarEarthquake = {
+        originTime: "2024-04-17T23:14:54+09:00",
+        hypocenterName: "豊後水道",
+        latitude: "N33.2",
+        longitude: "E132.4",
+        depth: "10km",
+        magnitude: "5.0",
+      };
+      const eventId = canonicalFirst ? "event-canonical-scalar" : "event-scalar-canonical";
+      tracker.update(createEewInfo({
+        serial: "1",
+        eventId,
+        earthquake: canonicalFirst ? canonicalEarthquake : scalarEarthquake,
+      }));
+      const result = tracker.update(createEewInfo({
+        serial: "2",
+        eventId,
+        earthquake: canonicalFirst ? scalarEarthquake : canonicalEarthquake,
+      }));
+
+      expect(result.diff).toBeUndefined();
+    });
+
+    it("同じ range presence でも bounds のみの変化を検出する", () => {
+      const range = (upperBound: number): SpecialValue<number> => ({
+        raw: "5",
+        value: null,
+        condition: null,
+        description: null,
+        presence: "range",
+        lowerBound: 5,
+        upperBound,
+      });
+      const earthquake = {
+        originTime: "2024-04-17T23:14:54+09:00",
+        hypocenterName: "豊後水道",
+        latitude: "N33.2",
+        longitude: "E132.4",
+        depth: "10km",
+        depthValue: numericSpecialValue("10000", 10),
+        magnitude: "5.0",
+        magnitudeValue: range(7),
+      };
+      tracker.update(createEewInfo({
+        serial: "1",
+        eventId: "event-bounds-only",
+        earthquake,
+      }));
+      const result = tracker.update(createEewInfo({
+        serial: "2",
+        eventId: "event-bounds-only",
+        earthquake: {
+          ...earthquake,
+          magnitudeValue: range(8),
+        },
+      }));
+
+      expect(result.diff?.previousMagnitudeValue).toMatchObject({
+        presence: "range",
+        lowerBound: 5,
+        upperBound: 7,
+      });
+      expect(result.diff?.currentMagnitudeValue).toMatchObject({
+        presence: "range",
+        lowerBound: 5,
+        upperBound: 8,
+      });
     });
 
     it("震源地名変更を検出する", () => {

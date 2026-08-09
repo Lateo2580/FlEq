@@ -5,7 +5,7 @@ import { displayEewInfo, buildEewAccuracyLine, buildEewCardLine } from "../../sr
 import { parseEewTelegram } from "../../src/dmdata/telegram-parser";
 import { setFrameWidth, stripAnsi, setMaxObservations, setDisplayMode, visualWidth } from "../../src/ui/formatter";
 import type { EewAccuracy, JmaIntensity, JmaLgIntensity, ParsedEewInfo, SpecialValue } from "../../src/types";
-import type { EewDiff } from "../../src/engine/eew/eew-tracker";
+import { EewTracker, type EewDiff } from "../../src/engine/eew/eew-tracker";
 import {
   buildEewForecastRows,
   eewForecastColumns,
@@ -485,7 +485,35 @@ describe("EEW 速報カード行 + compact 全廃 (Phase 4b)", () => {
     const diff: EewDiff = {
       previousMaxInt: "5-",
       previousMagnitude: "6.2",
+      previousMagnitudeValue: {
+        raw: "6.2",
+        value: 6.2,
+        condition: null,
+        description: null,
+        presence: "value",
+      },
+      currentMagnitudeValue: {
+        raw: "6.5",
+        value: 6.5,
+        condition: null,
+        description: null,
+        presence: "value",
+      },
       previousDepth: "20km",
+      previousDepthValue: {
+        raw: "20000",
+        value: 20,
+        condition: null,
+        description: null,
+        presence: "value",
+      },
+      currentDepthValue: {
+        raw: "10000",
+        value: 10,
+        condition: null,
+        description: null,
+        presence: "value",
+      },
       hypocenterChange: true,
     };
     displayEewInfo(info, { activeCount: 1, colorIndex: 0, diff });
@@ -513,6 +541,83 @@ describe("EEW 速報カード行 + compact 全廃 (Phase 4b)", () => {
     const hypoLine = text.split("\n").find((l) => l.includes("震源地:"))!;
     expect(hypoLine).toContain("石川県能登地方");
     expect(hypoLine).toContain("(変更)");
+  });
+
+  it("diff 行の canonical 特殊値・range・missing を共通 formatter で表示する", () => {
+    const info: ParsedEewInfo = {
+      ...syntheticEew([{ name: "地域A", intensity: "5+" }]),
+      earthquake: {
+        hypocenterName: "石川県能登地方",
+        latitude: "N37.5",
+        longitude: "E137.3",
+        magnitude: "",
+        magnitudeValue: {
+          raw: "巨大地震",
+          value: null,
+          condition: "巨大地震",
+          description: "M8を超える巨大地震",
+          presence: "qualitative",
+        },
+        depth: "600km",
+        depthValue: {
+          raw: "600000",
+          value: null,
+          condition: "以上",
+          description: "深さ600km以上",
+          presence: "range",
+          lowerBound: 600,
+          upperBound: null,
+        },
+        originTime: new Date().toISOString(),
+      },
+    };
+    const diff: EewDiff = {
+      previousMagnitudeValue: {
+        raw: "不明",
+        value: null,
+        condition: "不明",
+        description: null,
+        presence: "unknown",
+      },
+      currentMagnitudeValue: info.earthquake!.magnitudeValue!,
+      previousDepthValue: {
+        raw: null,
+        value: null,
+        condition: null,
+        description: null,
+        presence: "missing",
+      },
+      currentDepthValue: info.earthquake!.depthValue!,
+    };
+
+    displayEewInfo(info, { activeCount: 1, colorIndex: 0, diff });
+    const text = output();
+    const magLine = text.split("\n").find((line) => line.includes("規模:"))!;
+    const depthLine = text.split("\n").find((line) => line.includes("深さ:"))!;
+    expect(magLine).toContain("M不明 → M8 を超える巨大地震");
+    expect(depthLine).toContain("— → 600km以上");
+  });
+
+  it("tracker の value→container missing diff を earthquake block なしでも表示する", () => {
+    const tracker = new EewTracker();
+    const first = parseEewTelegram(eewMsg(FIXTURE_VXSE45_S1, "VXSE45"))!;
+    const nextParsed = parseEewTelegram(eewMsg(FIXTURE_VXSE45_S26, "VXSE45"))!;
+    const current: ParsedEewInfo = {
+      ...nextParsed,
+      earthquake: undefined,
+    };
+    tracker.update(first);
+    const result = tracker.update(current);
+
+    expect(result.diff?.currentMagnitudeValue?.presence).toBe("missing");
+    expect(result.diff?.currentDepthValue?.presence).toBe("missing");
+    displayEewInfo(current, { activeCount: 1, colorIndex: 0, diff: result.diff });
+
+    const text = output();
+    const magLine = text.split("\n").find((line) => line.includes("規模:"))!;
+    const depthLine = text.split("\n").find((line) => line.includes("深さ:"))!;
+    expect(magLine).toContain("→ —");
+    expect(depthLine).toContain("→ —");
   });
 });
 

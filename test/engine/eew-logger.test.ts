@@ -4,7 +4,8 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { EewEventLogger } from "../../src/engine/eew/eew-logger";
-import { EewUpdateResult } from "../../src/engine/eew/eew-tracker";
+import { EewTracker, type EewUpdateResult } from "../../src/engine/eew/eew-tracker";
+import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
 import type { ParsedEewInfo } from "../../src/types";
 
 /** テスト用の ParsedEewInfo を生成する */
@@ -52,6 +53,28 @@ function createUpdateResult(
     activeCount: 1,
     colorIndex: 0,
     ...overrides,
+  };
+}
+
+function createTrackedEewInfo(
+  serial: string,
+  eventId: string,
+  overrides: Partial<ParsedEewInfo> = {},
+): ParsedEewInfo {
+  const info = createEewInfo({ serial, eventId, ...overrides });
+  return {
+    ...info,
+    meta: createTelegramMeta({
+      messageId: `logger-${eventId}-${serial}`,
+      eventId,
+      type: info.type,
+      reportDateTime: info.reportDateTime,
+      serial,
+      infoType: info.infoType,
+      receivedAtMs: Date.parse(info.reportDateTime) + 60_000,
+      status: "通常",
+      isTest: false,
+    }),
   };
 }
 
@@ -109,7 +132,38 @@ describe("EewEventLogger", () => {
       });
       const result2 = createUpdateResult({
         isNew: false,
-        diff: { previousMagnitude: "4.2", previousDepth: "40km" },
+        diff: {
+          previousMagnitude: "4.2",
+          previousMagnitudeValue: {
+            raw: "4.2",
+            value: 4.2,
+            condition: null,
+            description: null,
+            presence: "value",
+          },
+          currentMagnitudeValue: {
+            raw: "4.5",
+            value: 4.5,
+            condition: null,
+            description: null,
+            presence: "value",
+          },
+          previousDepth: "40km",
+          previousDepthValue: {
+            raw: "40000",
+            value: 40,
+            condition: null,
+            description: null,
+            presence: "value",
+          },
+          currentDepthValue: {
+            raw: "35000",
+            value: 35,
+            condition: null,
+            description: null,
+            presence: "value",
+          },
+        },
       });
       logger.logReport(info2, result2);
       await logger.flush();
@@ -122,6 +176,132 @@ describe("EewEventLogger", () => {
       expect(content).toContain("第2報 (予報)");
       expect(content).toContain("M4.2→M4.5");
       expect(content).toContain("40km→35km");
+    });
+
+    it("canonical の特殊値・range を共通 formatter で差分表示する", async () => {
+      const info1 = createEewInfo({ serial: "1", eventId: "ev-semantic-diff" });
+      logger.logReport(info1, createUpdateResult({ isNew: true }));
+
+      const info2 = createEewInfo({
+        serial: "2",
+        eventId: "ev-semantic-diff",
+        earthquake: {
+          ...info1.earthquake!,
+          magnitude: "",
+          magnitudeValue: {
+            raw: "巨大地震",
+            value: null,
+            condition: "巨大地震",
+            description: "M8を超える巨大地震",
+            presence: "qualitative",
+          },
+          depth: "600km",
+          depthValue: {
+            raw: "600000",
+            value: null,
+            condition: "以上",
+            description: "深さ600km以上",
+            presence: "range",
+            lowerBound: 600,
+            upperBound: null,
+          },
+        },
+      });
+      logger.logReport(info2, createUpdateResult({
+        isNew: false,
+        diff: {
+          previousMagnitudeValue: {
+            raw: "5",
+            value: null,
+            condition: null,
+            description: "M5からM7",
+            presence: "range",
+            lowerBound: 5,
+            upperBound: 7,
+          },
+          currentMagnitudeValue: info2.earthquake!.magnitudeValue!,
+          previousDepthValue: {
+            raw: null,
+            value: null,
+            condition: null,
+            description: null,
+            presence: "missing",
+          },
+          currentDepthValue: info2.earthquake!.depthValue!,
+        },
+      }));
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(content).toContain("M5.0～7.0→M8 を超える巨大地震");
+      expect(content).toContain("—→600km以上");
+    });
+
+    it("tracker の container missing→value diff を —→値として記録する", async () => {
+      const tracker = new EewTracker();
+      const first = createTrackedEewInfo("1", "ev-tracker-diff", {
+        earthquake: undefined,
+      });
+      logger.logReport(first, tracker.update(first));
+
+      const second = createTrackedEewInfo("2", "ev-tracker-diff", {
+        earthquake: {
+          originTime: "2024-04-17T23:14:47+09:00",
+          hypocenterName: "豊後水道",
+          latitude: "N33.1",
+          longitude: "E132.4",
+          depth: "10km",
+          depthValue: {
+            raw: "10000",
+            value: 10,
+            condition: null,
+            description: null,
+            presence: "value",
+          },
+          magnitude: "5.0",
+          magnitudeValue: {
+            raw: "5.0",
+            value: 5,
+            condition: null,
+            description: null,
+            presence: "value",
+          },
+        },
+      });
+      const result = tracker.update(second);
+      logger.logReport(second, result);
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(result.diff?.previousMagnitudeValue?.presence).toBe("missing");
+      expect(content).toContain("—→M5.0");
+      expect(content).toContain("—→10km");
+    });
+
+    it("tracker の value→container missing は M/D diff だけを記録する", async () => {
+      const tracker = new EewTracker();
+      const first = createTrackedEewInfo("1", "ev-tracker-missing-current");
+      logger.logReport(first, tracker.update(first));
+
+      const second = createTrackedEewInfo("2", "ev-tracker-missing-current", {
+        earthquake: undefined,
+        forecastIntensity: {
+          areas: [{ name: "愛媛県", intensity: "4" }],
+        },
+      });
+      const result = tracker.update(second);
+      logger.logReport(second, result);
+      await logger.flush();
+
+      const files = fs.readdirSync(tmpDir);
+      const content = fs.readFileSync(path.join(tmpDir, files[0]), "utf-8");
+      expect(result.diff?.currentMagnitudeValue?.presence).toBe("missing");
+      expect(result.diff?.currentDepthValue?.presence).toBe("missing");
+      expect(content).toContain("M4.2→—");
+      expect(content).toContain("40km→—");
+      expect(content).not.toContain("震度3→4");
     });
 
     it("警報を正しく記録する", async () => {

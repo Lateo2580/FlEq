@@ -1,7 +1,12 @@
 import chalk from "chalk";
 import { EewAccuracy, ParsedEewInfo, type JmaLgIntensity, type SpecialValue } from "../types";
 import type { EewDiff } from "../engine/eew/eew-tracker";
-import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
+import {
+  formatDepthSpecialValue,
+  formatMagnitudeLabel,
+  formatMagnitudeSpecialValue,
+  isNumericMagnitude,
+} from "../utils/magnitude";
 import * as theme from "./theme";
 import {
   FrameLevel,
@@ -54,6 +59,24 @@ export interface EewDisplayContext {
   diff?: EewDiff;
   /** バナー色分け用のカラーインデックス (0始まり) */
   colorIndex?: number;
+}
+
+function magnitudeDiffLine(diff: EewDiff | undefined): string | null {
+  if (diff?.previousMagnitudeValue == null || diff.currentMagnitudeValue == null) return null;
+  const previous = formatMagnitudeSpecialValue(diff.previousMagnitudeValue) ?? "—";
+  const current = formatMagnitudeSpecialValue(diff.currentMagnitudeValue) ?? "—";
+  const currentDisplay = diff.currentMagnitudeValue.presence === "value"
+    && diff.currentMagnitudeValue.value != null
+    ? colorMagnitude(diff.currentMagnitudeValue.value.toFixed(1))
+    : chalk.white(current);
+  return chalk.white("規模: ") + chalk.gray(previous) + chalk.white(" → ") + chalk.bold(currentDisplay);
+}
+
+function depthDiffLine(diff: EewDiff | undefined): string | null {
+  if (diff?.previousDepthValue == null || diff.currentDepthValue == null) return null;
+  const previous = formatDepthSpecialValue(diff.previousDepthValue) ?? "—";
+  const current = formatDepthSpecialValue(diff.currentDepthValue) ?? "—";
+  return chalk.white("深さ: ") + chalk.gray(previous) + chalk.white(" → ") + chalk.bold.white(current);
 }
 
 // ── EEW バナーパレット ──
@@ -569,7 +592,10 @@ export function displayEewInfo(
     }
     if (!info.isAssumedHypocenter) {
       let magLine: string;
-      if (
+      const semanticDiffLine = magnitudeDiffLine(diff);
+      if (semanticDiffLine != null) {
+        magLine = semanticDiffLine;
+      } else if (
         isNumericMagnitude(eq.magnitude)
         && diff?.previousMagnitude != null
         && isNumericMagnitude(diff.previousMagnitude)
@@ -584,9 +610,12 @@ export function displayEewInfo(
       }
       pushClampedFrameLine(buf, level, width, magLine);
     }
-    if (eq.depth && !info.isAssumedHypocenter) {
+    if ((eq.depth || diff?.currentDepthValue != null) && !info.isAssumedHypocenter) {
       let depthLine: string;
-      if (diff?.previousDepth) {
+      const semanticDiffLine = depthDiffLine(diff);
+      if (semanticDiffLine != null) {
+        depthLine = semanticDiffLine;
+      } else if (diff?.previousDepth) {
         depthLine = chalk.white("深さ: ") + chalk.gray(diff.previousDepth) + chalk.white(" → ") + chalk.bold.white(eq.depth);
       } else {
         depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
@@ -598,6 +627,14 @@ export function displayEewInfo(
       if (accLine != null) {
         pushClampedFrameLine(buf, level, width, chalk.gray("精度: ") + chalk.gray(accLine));
       }
+    }
+  } else if (!isCancelled && !info.isAssumedHypocenter) {
+    const magLine = magnitudeDiffLine(diff);
+    const depthLine = depthDiffLine(diff);
+    if (magLine != null || depthLine != null) {
+      buf.push(frameDivider(level, width));
+      if (magLine != null) pushClampedFrameLine(buf, level, width, magLine);
+      if (depthLine != null) pushClampedFrameLine(buf, level, width, depthLine);
     }
   }
 
