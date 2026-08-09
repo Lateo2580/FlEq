@@ -83,7 +83,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
           entry.domain === "weather" && entry.revisionFamily === "VPWW56"),
       },
       tsunami: {
-        active: tsunamiState.getPersistedActive(),
+        keyedActive: tsunamiState.getPersistedKeyedActive(),
+        legacyActive: tsunamiState.getPersistedLegacyActive(),
         observations: tsunamiState.getObservationGroups(),
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
           (entry.domain === "tsunami" && entry.revisionFamily === "VTSE41")
@@ -134,8 +135,12 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     revisionGate.restoreDurableEntries(persistedVpww56.gateEntries);
     const persistedTsunami = persistedStandby.telegramFoundation.tsunami;
     tsunamiState.restorePersistedState(
-      persistedTsunami.active ?? null,
+      null,
       persistedTsunami.observations,
+      persistedTsunami.keyedActive ?? [],
+      persistedTsunami.keyedActive == null
+        ? persistedTsunami.active ?? null
+        : persistedTsunami.legacyActive ?? null,
     );
     revisionGate.restoreDurableEntries(persistedTsunami.gateEntries);
     const persistedVolcano = persistedStandby.telegramFoundation.volcano;

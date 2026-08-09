@@ -124,6 +124,18 @@ export class TsunamiStateHolder
       : structuredClone({ ...envelope, forecast });
   }
 
+  /** 複数 EventID を縮退させない keyed persistence 用 snapshot。 */
+  getPersistedKeyedActive(): ParsedTsunamiInfo[] {
+    return [...this.eventInfos.values()].map((info) => structuredClone(info));
+  }
+
+  /** 名称-only の旧 snapshot は表示専用の legacy payload として分離する。 */
+  getPersistedLegacyActive(): ParsedTsunamiInfo | null {
+    return this.legacyRestoredInfo == null
+      ? null
+      : structuredClone(this.legacyRestoredInfo);
+  }
+
   /**
    * live presentation 用 snapshot。unkeyed item はこの返り値にだけ合成し、
    * holder state と永続化には入れない。
@@ -154,10 +166,6 @@ export class TsunamiStateHolder
       }),
     );
     if (targetKeys.size === 0) return false;
-    if (
-      this.legacyRestoredInfo != null
-      && tsunamiEventId(this.legacyRestoredInfo) === eventId
-    ) return true;
     return [...this.keyedForecasts].some(([key, entry]) =>
       entry.eventId === eventId && !targetKeys.has(key));
   }
@@ -206,28 +214,52 @@ export class TsunamiStateHolder
   restorePersistedState(
     active: ParsedTsunamiInfo | null,
     groups: TsunamiObservationGroups,
+    keyedActive: readonly ParsedTsunamiInfo[] = [],
+    legacyActive: ParsedTsunamiInfo | null = null,
   ): void {
     this.restoreObservationGroups(groups);
     this.clearActiveState();
-    if (active == null) return;
-    const restored = structuredClone(active);
+    const restoredKeyedEventIds = new Set<string>();
+    for (const persisted of keyedActive) {
+      if (persisted.meta.infoType.value === "取消") continue;
+      const eventId = tsunamiEventId(persisted);
+      const forecast = persisted.forecast ?? [];
+      if (
+        eventId == null
+        || forecast.length === 0
+        || !forecast.every((item) => tsunamiForecastStateKey(eventId, item) != null)
+      ) continue;
+      this.applyAccepted(structuredClone(persisted));
+      restoredKeyedEventIds.add(eventId);
+    }
+    // active は旧 scalar schema の adapter 入力だけとして残す。keyed schema
+    // がある場合に同じ event を二重に復元しない。
+    const restoredLegacy = legacyActive ?? (keyedActive.length === 0 ? active : null);
+    if (restoredLegacy == null) return;
+    const restored = structuredClone(restoredLegacy);
+    if (restored.meta.infoType.value === "取消") return;
     const eventId = tsunamiEventId(restored);
-    const hasKeyedItem = eventId != null && (restored.forecast ?? []).some(
-      (item) => tsunamiForecastStateKey(eventId, item) != null,
-    );
-    if (hasKeyedItem) {
+    if (eventId != null && restoredKeyedEventIds.has(eventId)) return;
+    const forecast = restored.forecast ?? [];
+    const isFullyKeyed = eventId != null
+      && forecast.length > 0
+      && forecast.every((item) => tsunamiForecastStateKey(eventId, item) != null);
+    // 完全 keyed payload は legacy 表示へ迂回させない。persistence reader が
+    // gate 結合を証明した入力として canonical holder state へ昇格する。
+    if (isFullyKeyed) {
       this.applyAccepted(restored);
       return;
     }
-    // 旧 scalar snapshot はコードを持たない場合がある。live の unkeyed
-    // mutation とは分離しつつ、既存 snapshot の単一 EventID 復元は維持する。
+    const hasIncompleteCode = forecast.some((item) =>
+      nonBlankCode(item.areaCode) == null || nonBlankCode(item.kindCode) == null);
+    // legacy snapshot は表示だけに合成する。取消・revision gate・通知の判定には
+    // 参加させず、同 EventID の正規通常報でのみ置換される。
     const level = resolveTsunamiLevel(
       (restored.forecast ?? []).map((item) => item.kind),
     )?.label ?? null;
-    if (level != null) {
+    if (level != null && hasIncompleteCode) {
       this.legacyRestoredInfo = restored;
-      this.currentLevel = level;
-      this.lastInfo = restored;
+      this.rebuildActiveState();
     }
   }
 
@@ -296,12 +328,6 @@ export class TsunamiStateHolder
     }
     if (clearsWholeEvent) {
       this.eventInfos.delete(eventId);
-      if (
-        this.legacyRestoredInfo != null
-        && tsunamiEventId(this.legacyRestoredInfo) === eventId
-      ) {
-        this.legacyRestoredInfo = null;
-      }
     } else {
       const envelope = this.eventInfos.get(eventId);
       if (envelope != null) {

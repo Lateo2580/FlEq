@@ -186,12 +186,16 @@ describe("tsunamiSeedFromParsed", () => {
       const raw = JSON.parse(readFileSync(v2Path, "utf8")) as {
         telegramFoundation: {
           tsunami: {
-            active: { forecast: Array<Record<string, unknown>> };
+            keyedActive: Array<{ forecast: Array<Record<string, unknown>> }>;
           };
         };
       };
       if (!keepSpecialValue) {
-        for (const forecast of raw.telegramFoundation.tsunami.active.forecast) {
+        // 旧 scalar-only snapshot を migration reader で復元する経路。
+        const scalar = raw.telegramFoundation.tsunami.keyedActive[0]!;
+        Object.assign(raw.telegramFoundation.tsunami, { active: scalar });
+        delete (raw.telegramFoundation.tsunami as { keyedActive?: unknown }).keyedActive;
+        for (const forecast of scalar.forecast) {
           delete forecast.maxHeight;
         }
         writeFileSync(v2Path, JSON.stringify(raw), "utf8");
@@ -199,7 +203,12 @@ describe("tsunamiSeedFromParsed", () => {
 
       const loaded = new StandbyPersistence(legacyPath).load()!.telegramFoundation.tsunami;
       const holder = new TsunamiStateHolder();
-      holder.restorePersistedState(loaded.active ?? null, loaded.observations);
+      holder.restorePersistedState(
+        null,
+        loaded.observations,
+        loaded.keyedActive ?? [],
+        loaded.keyedActive == null ? loaded.active ?? null : loaded.legacyActive ?? null,
+      );
       const restored = holder.getLastInfo();
       expect(restored).not.toBeNull();
       const restartWire = tsunamiSeedFromParsed(restored!);

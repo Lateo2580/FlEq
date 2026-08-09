@@ -225,7 +225,7 @@ describe("TsunamiStateHolder", () => {
         .toEqual(["101", "102"]);
     });
 
-    it("複数 EventID は scalar active に保存せず、一方の取消後は残存 EventID だけを保存する", () => {
+    it("複数 EventID は keyed snapshot に分離して往復し、一方の取消後も残存 EventID を保つ", () => {
       holder.applyAccepted(eventInfo("event-a", [forecast("101", "53", "予報区A", "大津波警報")]));
       holder.applyAccepted(eventInfo(
         "event-b",
@@ -234,6 +234,17 @@ describe("TsunamiStateHolder", () => {
       ));
 
       expect(holder.getPersistedActive()).toBeNull();
+      expect(holder.getPersistedKeyedActive().map((item) => item.meta.eventId.value).sort())
+        .toEqual(["event-a", "event-b"]);
+
+      const bothRestored = new TsunamiStateHolder();
+      bothRestored.restorePersistedState(
+        null,
+        { VTSE51: [], VTSE52: [] },
+        holder.getPersistedKeyedActive(),
+      );
+      expect(bothRestored.getLastInfo()?.forecast?.map((item) => item.areaCode).sort())
+        .toEqual(["101", "102"]);
 
       holder.clearAccepted(eventInfo("event-a", [], "2025-01-01T00:02:00+09:00"));
       const persisted = holder.getPersistedActive();
@@ -261,6 +272,8 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getLevel()).toBe("津波警報");
       expect(holder.getLastInfo()?.meta.eventId.value).toBe("event-b");
       expect(holder.getPersistedActive()).toBeNull();
+      expect(holder.getPersistedKeyedActive()).toEqual([]);
+      expect(holder.getPersistedLegacyActive()?.forecast?.[0]?.areaName).toBe("旧 snapshot");
     });
 
     it("旧 A=大津波 scalar と新 B=注意報 keyed を安全側最大で集約する", () => {
@@ -279,6 +292,75 @@ describe("TsunamiStateHolder", () => {
       expect(holder.getLastInfo()?.forecast?.map((item) => item.areaName).sort())
         .toEqual(["新予報区B", "旧予報区A"]);
       expect(holder.getPersistedActive()).toBeNull();
+      expect(holder.getPersistedKeyedActive()).toHaveLength(1);
+      expect(holder.getPersistedLegacyActive()?.forecast?.[0]?.areaName).toBe("旧予報区A");
+    });
+
+    it("legacy 表示は同 EventID の取消や revision gate 判定に参加せず、正規通常報でだけ退場する", () => {
+      holder.restorePersistedState(
+        eventInfo("event-a", [forecast(null, null, "旧予報区", "大津波警報")]),
+        { VTSE51: [], VTSE52: [] },
+      );
+
+      holder.clearAccepted(eventInfo("event-a", [], "2025-01-01T00:01:00+09:00"));
+      expect(holder.getPersistedLegacyActive()?.forecast?.[0]?.areaName).toBe("旧予報区");
+      expect(holder.getLevel()).toBe("大津波警報");
+
+      holder.applyAccepted(eventInfo(
+        "event-a",
+        [forecast("101", "62", "正規予報区", "津波注意報")],
+        "2025-01-01T00:02:00+09:00",
+      ));
+      expect(holder.getPersistedLegacyActive()).toBeNull();
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", areaName: "正規予報区" }),
+      ]);
+    });
+
+    it("復元入力の取消 payload は keyed・legacy のどちらからも active state に入れない", () => {
+      const cancellation = eventInfo("event-a", [forecast("101", "51", "取消 payload")]);
+      cancellation.meta = createTelegramMeta({
+        messageId: "persisted-cancellation",
+        eventId: "event-a",
+        type: "VTSE41",
+        reportDateTime: "2025-01-01T00:00:00+09:00",
+        serial: null,
+        infoType: "取消",
+        receivedAtMs: Date.parse("2025-01-01T00:00:00+09:00"),
+        status: "通常",
+        isTest: false,
+      });
+
+      holder.restorePersistedState(
+        null,
+        { VTSE51: [], VTSE52: [] },
+        [cancellation],
+        cancellation,
+      );
+
+      expect(holder.getLastInfo()).toBeNull();
+      expect(holder.getPersistedKeyedActive()).toEqual([]);
+      expect(holder.getPersistedLegacyActive()).toBeNull();
+    });
+
+    it("完全 keyed な legacyActive 入力は legacy 表示にせず canonical keyed state へ昇格する", () => {
+      const keyedLegacy = eventInfo(
+        "event-a",
+        [forecast("101", "51", "誤分類された keyed payload")],
+      );
+
+      holder.restorePersistedState(
+        null,
+        { VTSE51: [], VTSE52: [] },
+        [],
+        keyedLegacy,
+      );
+
+      expect(holder.getPersistedKeyedActive()).toEqual([keyedLegacy]);
+      expect(holder.getPersistedLegacyActive()).toBeNull();
+      expect(holder.getLastInfo()?.forecast).toEqual([
+        expect.objectContaining({ areaCode: "101", kindCode: "51" }),
+      ]);
     });
 
     it("旧 scalar は同 EventID の keyed 新報でだけ置換される", () => {

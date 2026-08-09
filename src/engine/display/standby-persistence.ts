@@ -128,8 +128,15 @@ export interface PersistedTelegramFoundationV2 {
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
   tsunami: {
-    /** 旧 v2 では欠落。欠落時は active なしとして REST から安全に補完する。 */
+    /**
+     * v2 scalar schema の migration input。writer は出力しない。読み込み時は
+     * keyedActive または legacyActive へ一方向に移す。
+     */
     active?: PersistedTsunamiActiveV2 | null;
+    /** EventID ごとの keyed snapshot。各 forecast は EventID + Area.Code + Kind.Code で復元する。 */
+    keyedActive?: PersistedTsunamiActiveV2[];
+    /** 名称-only の旧 snapshot。表示専用で gate / 取消照合には使わない。 */
+    legacyActive?: PersistedTsunamiActiveV2 | null;
     observations: PersistedTsunamiObservationGroupsV2;
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
@@ -955,6 +962,8 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
 function emptyTsunamiFoundation(): PersistedTelegramFoundationV2["tsunami"] {
   return {
     active: null,
+    keyedActive: [],
+    legacyActive: null,
     observations: { VTSE51: [], VTSE52: [] },
     gateEntries: [],
   };
@@ -1421,7 +1430,6 @@ function isPersistedTsunamiActive(value: unknown): boolean {
       && typeof station.highTideDateTime === "string"
       && typeof station.arrivalTime === "string"))
   )) return false;
-  if (resolveTsunamiLevel(value.forecast.map((item) => item.kind)) == null) return false;
   if (value.observations != null && (!Array.isArray(value.observations) || !value.observations.every((item) =>
     isRecord(item)
     && (item.areaName == null || typeof item.areaName === "string")
@@ -1444,10 +1452,30 @@ function isPersistedTsunamiActive(value: unknown): boolean {
   return value.earthquake == null || isPersistedTsunamiEarthquake(value.earthquake);
 }
 
+function persistedTsunamiSubjectFromUnknown(value: unknown): string | null {
+  if (!isRecord(value) || !isRecord(value.meta) || !isRecord(value.meta.eventId)) return null;
+  const eventId = value.meta.eventId;
+  return eventId.valid === true
+    && typeof eventId.value === "string"
+    && eventId.value.trim() !== ""
+    ? `tsunami:${eventId.value}`
+    : null;
+}
+
+function isPersistedTsunamiCancellationUnknown(value: unknown): boolean {
+  return isRecord(value)
+    && isRecord(value.meta)
+    && isRecord(value.meta.infoType)
+    && value.meta.infoType.value === "取消";
+}
+
 function tsunamiActiveMatchesGate(
   active: ParsedTsunamiInfo,
   gateEntry: PersistedTelegramRevisionGateEntryV2,
 ): boolean {
+  // 取消 payload は表示 state ではない。revision が一致しても active projection
+  // として復元せず、gate / tombstone だけを残す。
+  if (active.meta.infoType.value === "取消") return false;
   const revision = gateEntry.comparison.revision;
   const exactSubject = gateEntry.stateSubjectKey === tsunamiStateSubjectKey(active.meta);
   const subjectMatches = exactSubject
@@ -1481,7 +1509,6 @@ function tsunamiActiveMatchesGate(
   // 同一日時は Serial 順を要求し、片側だけ欠落する unordered な組は拒否する。
   const retainedActivePrecedesWatermark = exactSubject
     && !gateEntry.cancelled
-    && active.meta.infoType.value !== "取消"
     && watermarkDoesNotPrecedeActive;
   return gateEntry.domain === "tsunami"
     && gateEntry.revisionFamily === "VTSE41"
@@ -1509,16 +1536,77 @@ function matchingTsunamiActiveGate(
     !entry.cancelled && tsunamiActiveMatchesGate(active, entry)) ?? null;
 }
 
+function matchingKeyedTsunamiActiveGate(
+  active: ParsedTsunamiInfo,
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): PersistedTelegramRevisionGateEntryV2 | null {
+  const subject = tsunamiStateSubjectKey(active.meta);
+  if (subject == null) return null;
+  return entries.find((entry) =>
+    entry.stateSubjectKey === subject
+    && !entry.cancelled
+    && tsunamiActiveMatchesGate(active, entry)) ?? null;
+}
+
+function fixedTsunamiGateDoesNotPrecedeActive(
+  gate: PersistedTelegramRevisionGateEntryV2,
+  active: ParsedTsunamiInfo,
+): boolean {
+  const revision = gate.comparison.revision;
+  const gateMs = revision.reportDateTime.epochMs;
+  const activeMs = active.meta.reportDateTime.epochMs;
+  if (gateMs == null || activeMs == null) return false;
+  if (gateMs !== activeMs) return gateMs > activeMs;
+  const gateMissing = revision.serial.raw == null || revision.serial.raw === "";
+  const activeMissing = active.meta.serial.raw == null || active.meta.serial.raw === "";
+  if (gateMissing || activeMissing) return gateMissing && activeMissing;
+  return revision.serial.valid
+    && active.meta.serial.valid
+    && revision.serial.numeric != null
+    && active.meta.serial.numeric != null
+    && revision.serial.numeric >= active.meta.serial.numeric;
+}
+
+function migrateLegacyFixedTsunamiGate(
+  active: ParsedTsunamiInfo,
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+  cancelledOnly = false,
+): PersistedTelegramRevisionGateEntryV2[] {
+  const subject = tsunamiStateSubjectKey(active.meta);
+  if (subject == null) return [...entries];
+  const fixedGate = entries.find((entry) =>
+    entry.domain === "tsunami"
+    && entry.revisionFamily === "VTSE41"
+    && entry.stateSubjectKey === "tsunami:current"
+    && (!cancelledOnly || entry.cancelled)
+    && fixedTsunamiGateDoesNotPrecedeActive(entry, active));
+  if (fixedGate == null) return [...entries];
+  const migrated = entries.map((entry) => entry !== fixedGate ? entry : {
+    ...structuredClone(entry),
+    stateSubjectKey: subject,
+    comparison: {
+      ...structuredClone(entry.comparison),
+      stateSubjectKey: subject,
+      revision: {
+        ...structuredClone(entry.comparison.revision),
+        eventId: { raw: subject, value: subject, valid: true },
+      },
+    },
+  });
+  // canonical subject が既にある部分 migration 形も revision 規則で一件へ畳む。
+  return collapseTsunamiGateEntries(migrated).entries;
+}
+
 function limitTsunamiVtse41Entries(
-  active: ParsedTsunamiInfo | null,
+  active: readonly ParsedTsunamiInfo[],
   entries: readonly PersistedTelegramRevisionGateEntryV2[],
 ): PersistedTelegramRevisionGateEntryV2[] {
   const maxSubjects = TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects;
   if (entries.length <= maxSubjects) return [...entries];
-  const activeGate = active == null ? null : matchingTsunamiActiveGate(active, entries);
+  const activeGates = new Set(active.map((item) => matchingTsunamiActiveGate(item, entries)));
   const ranked = entries.map((entry, index) => ({ entry, index })).sort((left, right) => {
-    const leftPriority = left.entry === activeGate ? 0 : left.entry.cancelled ? 1 : 2;
-    const rightPriority = right.entry === activeGate ? 0 : right.entry.cancelled ? 1 : 2;
+    const leftPriority = activeGates.has(left.entry) ? 0 : left.entry.cancelled ? 1 : 2;
+    const rightPriority = activeGates.has(right.entry) ? 0 : right.entry.cancelled ? 1 : 2;
     if (leftPriority !== rightPriority) return leftPriority - rightPriority;
     const timeOrder = right.entry.acceptedAtMs - left.entry.acceptedAtMs;
     return timeOrder !== 0 ? timeOrder : right.index - left.index;
@@ -1527,6 +1615,224 @@ function limitTsunamiVtse41Entries(
     ranked.slice(0, maxSubjects).map(({ index }) => index),
   );
   return entries.filter((_, index) => retainedIndexes.has(index));
+}
+
+function isKeyedTsunamiActive(active: ParsedTsunamiInfo): boolean {
+  const eventId = active.meta.eventId;
+  return active.meta.infoType.value !== "取消"
+    && eventId.valid
+    && eventId.value != null
+    && eventId.value.trim() !== ""
+    && (active.forecast ?? []).length > 0
+    && (active.forecast ?? []).every((item) =>
+      item.areaCode != null
+      && item.areaCode.trim() !== ""
+      && item.kindCode != null
+      && item.kindCode.trim() !== "");
+}
+
+function isDisplayableLegacyTsunamiActive(active: ParsedTsunamiInfo): boolean {
+  const forecast = active.forecast ?? [];
+  return active.meta.infoType.value !== "取消"
+    && !isKeyedTsunamiActive(active)
+    && forecast.some((item) =>
+      item.areaCode == null
+      || item.areaCode.trim() === ""
+      || item.kindCode == null
+      || item.kindCode.trim() === "")
+    && resolveTsunamiLevel(forecast.map((item) => item.kind)) != null;
+}
+
+function comparePersistedTsunamiRevision(
+  incoming: ParsedTsunamiInfo,
+  current: ParsedTsunamiInfo,
+): "newer" | "equal" | "older" | "unordered" {
+  const incomingMs = incoming.meta.reportDateTime.epochMs;
+  const currentMs = current.meta.reportDateTime.epochMs;
+  if (incomingMs == null || currentMs == null) return "unordered";
+  if (incomingMs !== currentMs) return incomingMs > currentMs ? "newer" : "older";
+  const incomingMissing = incoming.meta.serial.raw == null || incoming.meta.serial.raw === "";
+  const currentMissing = current.meta.serial.raw == null || current.meta.serial.raw === "";
+  if (incomingMissing || currentMissing) {
+    return incomingMissing && currentMissing ? "equal" : "unordered";
+  }
+  const incomingSerial = incoming.meta.serial.numeric;
+  const currentSerial = current.meta.serial.numeric;
+  if (
+    !incoming.meta.serial.valid
+    || !current.meta.serial.valid
+    || incomingSerial == null
+    || currentSerial == null
+  ) return "unordered";
+  if (incomingSerial === currentSerial) return "equal";
+  return incomingSerial > currentSerial ? "newer" : "older";
+}
+
+function comparePersistedTsunamiGateRevision(
+  incoming: PersistedTelegramRevisionGateEntryV2,
+  current: PersistedTelegramRevisionGateEntryV2,
+): "newer" | "equal" | "older" | "unordered" {
+  const incomingRevision = incoming.comparison.revision;
+  const currentRevision = current.comparison.revision;
+  const incomingMs = incomingRevision.reportDateTime.epochMs;
+  const currentMs = currentRevision.reportDateTime.epochMs;
+  if (incomingMs == null || currentMs == null) return "unordered";
+  if (incomingMs !== currentMs) return incomingMs > currentMs ? "newer" : "older";
+  const incomingMissing = incomingRevision.serial.raw == null || incomingRevision.serial.raw === "";
+  const currentMissing = currentRevision.serial.raw == null || currentRevision.serial.raw === "";
+  if (incomingMissing || currentMissing) {
+    return incomingMissing && currentMissing ? "equal" : "unordered";
+  }
+  const incomingSerial = incomingRevision.serial.numeric;
+  const currentSerial = currentRevision.serial.numeric;
+  if (
+    !incomingRevision.serial.valid
+    || !currentRevision.serial.valid
+    || incomingSerial == null
+    || currentSerial == null
+  ) return "unordered";
+  if (incomingSerial === currentSerial) return "equal";
+  return incomingSerial > currentSerial ? "newer" : "older";
+}
+
+function tsunamiInfoTypePrecedence(entry: PersistedTelegramRevisionGateEntryV2): number {
+  switch (entry.comparison.revision.infoType.value) {
+    case "取消": return 2;
+    case "訂正": return 1;
+    default: return 0;
+  }
+}
+
+function mergeEqualTsunamiGateEntries(
+  current: PersistedTelegramRevisionGateEntryV2,
+  incoming: PersistedTelegramRevisionGateEntryV2,
+): PersistedTelegramRevisionGateEntryV2 {
+  const incomingWins = incoming.cancelled !== current.cancelled
+    ? incoming.cancelled
+    : tsunamiInfoTypePrecedence(incoming) > tsunamiInfoTypePrecedence(current);
+  const winner = incomingWins ? incoming : current;
+  return {
+    ...structuredClone(winner),
+    acceptedAtMs: Math.max(current.acceptedAtMs, incoming.acceptedAtMs),
+    semanticKeys: compactPersistedSemanticKeys([
+      ...current.semanticKeys,
+      ...incoming.semanticKeys,
+    ]),
+  };
+}
+
+function collapseTsunamiGateEntries(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): { entries: PersistedTelegramRevisionGateEntryV2[]; rejectedKeys: Set<string> } {
+  const grouped = new Map<string, PersistedTelegramRevisionGateEntryV2[]>();
+  for (const entry of entries) {
+    const key = `${entry.domain}:${entry.revisionFamily}:${entry.stateSubjectKey}`;
+    const group = grouped.get(key) ?? [];
+    group.push(entry);
+    grouped.set(key, group);
+  }
+  const collapsed: PersistedTelegramRevisionGateEntryV2[] = [];
+  const rejectedKeys = new Set<string>();
+  for (const [key, group] of grouped) {
+    let unordered = false;
+    for (let left = 0; left < group.length && !unordered; left++) {
+      for (let right = left + 1; right < group.length; right++) {
+        if (comparePersistedTsunamiGateRevision(group[left], group[right]) === "unordered") {
+          unordered = true;
+          break;
+        }
+      }
+    }
+    if (unordered) {
+      rejectedKeys.add(key);
+      continue;
+    }
+    let retained = group[0];
+    for (const incoming of group.slice(1)) {
+      const order = comparePersistedTsunamiGateRevision(incoming, retained);
+      if (order === "newer") retained = incoming;
+      else if (order === "equal") retained = mergeEqualTsunamiGateEntries(retained, incoming);
+    }
+    collapsed.push(retained);
+  }
+  return { entries: collapsed, rejectedKeys };
+}
+
+interface KeyedTsunamiActiveSelection {
+  active: ParsedTsunamiInfo[];
+  rejectedSubjects: Set<string>;
+}
+
+/** EventID 重複は reportDateTimeThenSerial で選び、unordered subject は全件拒否する。 */
+function retainNewestKeyedTsunamiActive(
+  candidates: readonly ParsedTsunamiInfo[],
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): KeyedTsunamiActiveSelection {
+  const grouped = new Map<string, ParsedTsunamiInfo[]>();
+  for (const active of candidates) {
+    if (!isKeyedTsunamiActive(active)) continue;
+    const subject = tsunamiStateSubjectKey(active.meta);
+    if (subject == null) continue;
+    const group = grouped.get(subject) ?? [];
+    group.push(active);
+    grouped.set(subject, group);
+  }
+  const active: ParsedTsunamiInfo[] = [];
+  const rejectedSubjects = new Set<string>();
+  for (const [subject, group] of grouped) {
+    let unordered = false;
+    for (let left = 0; left < group.length && !unordered; left++) {
+      for (let right = left + 1; right < group.length; right++) {
+        if (comparePersistedTsunamiRevision(group[left], group[right]) === "unordered") {
+          unordered = true;
+          break;
+        }
+      }
+    }
+    if (unordered) {
+      rejectedSubjects.add(subject);
+      continue;
+    }
+    // gate と結合可能な古い candidate へ巻き戻さない。まず全 active から最新を
+    // 決め、その一件が gate と結合できなければ subject 全体を拒否する。
+    let retained = group[0];
+    for (const incoming of group.slice(1)) {
+      const order = comparePersistedTsunamiRevision(incoming, retained);
+      const incomingCorrection = incoming.meta.infoType.value === "訂正";
+      const currentCorrection = retained.meta.infoType.value === "訂正";
+      if (
+        order === "newer"
+        || order === "equal" && incomingCorrection && !currentCorrection
+      ) retained = incoming;
+    }
+    if (matchingKeyedTsunamiActiveGate(retained, entries) == null) {
+      rejectedSubjects.add(subject);
+      continue;
+    }
+    active.push(retained);
+  }
+  return { active, rejectedSubjects };
+}
+
+function normalizeTsunamiActiveInputs(
+  value: PersistedTelegramFoundationV2["tsunami"],
+): { keyedActive: ParsedTsunamiInfo[]; legacyActive: ParsedTsunamiInfo | null } {
+  if (value.keyedActive != null) {
+    return {
+      keyedActive: value.keyedActive.map((item) => structuredClone(item)),
+      legacyActive: value.legacyActive == null ? null : structuredClone(value.legacyActive),
+    };
+  }
+  if (value.active == null) {
+    return {
+      keyedActive: [],
+      legacyActive: value.legacyActive == null ? null : structuredClone(value.legacyActive),
+    };
+  }
+  const scalar = structuredClone(value.active);
+  return isKeyedTsunamiActive(scalar)
+    ? { keyedActive: [scalar], legacyActive: null }
+    : { keyedActive: [], legacyActive: scalar };
 }
 
 /**
@@ -1539,22 +1845,73 @@ function normalizeTsunamiFoundationForWrite(
 ): PersistedTelegramFoundationV2["tsunami"] {
   const observations: PersistedTsunamiObservationGroupsV2 = { VTSE51: [], VTSE52: [] };
   const gateEntries: PersistedTelegramRevisionGateEntryV2[] = [];
-  const vtse41Entries = limitTsunamiVtse41Entries(value.active ?? null, value.gateEntries.filter(
+  const inputs = normalizeTsunamiActiveInputs(value);
+  const rawVtse41Candidates = value.gateEntries.filter(
     (entry) => entry.domain === "tsunami"
       && entry.revisionFamily === "VTSE41"
       && isTsunamiVtse41Subject(entry.stateSubjectKey),
-  ));
+  );
+  let vtse41Candidates = collapseTsunamiGateEntries(rawVtse41Candidates).entries;
+  const scalarMigrationActive = value.keyedActive == null
+    && value.active != null
+    && tsunamiStateSubjectKey(value.active.meta) != null
+    ? value.active
+    : null;
+  if (scalarMigrationActive != null) {
+    vtse41Candidates = migrateLegacyFixedTsunamiGate(scalarMigrationActive, vtse41Candidates);
+  }
+  if (
+    inputs.legacyActive != null
+    && tsunamiStateSubjectKey(inputs.legacyActive.meta) != null
+  ) {
+    vtse41Candidates = migrateLegacyFixedTsunamiGate(
+      inputs.legacyActive,
+      vtse41Candidates,
+      !isKeyedTsunamiActive(inputs.legacyActive),
+    );
+  }
+  const keyedInputCandidates = [
+    ...inputs.keyedActive,
+    ...(inputs.legacyActive != null && isKeyedTsunamiActive(inputs.legacyActive)
+      ? [inputs.legacyActive]
+      : []),
+  ];
+  const candidateSelection = retainNewestKeyedTsunamiActive(
+    keyedInputCandidates,
+    vtse41Candidates,
+  );
+  const candidateKeyedActive = candidateSelection.active;
+  const keyedSubjects = new Set(candidateKeyedActive.flatMap((active) => {
+    const subject = tsunamiStateSubjectKey(active.meta);
+    return subject == null ? [] : [subject];
+  }));
+  const candidateLegacyActive = inputs.legacyActive != null
+    && isDisplayableLegacyTsunamiActive(inputs.legacyActive)
+    && !keyedSubjects.has(tsunamiStateSubjectKey(inputs.legacyActive.meta) ?? "")
+    ? inputs.legacyActive
+    : null;
+  const legacySubject = candidateLegacyActive == null
+    ? null
+    : tsunamiStateSubjectKey(candidateLegacyActive.meta);
+  const eligibleVtse41Entries = vtse41Candidates.filter((entry) =>
+    (entry.cancelled || !candidateSelection.rejectedSubjects.has(entry.stateSubjectKey))
+    // legacy display は revision gate / 取消照合に参加させない。
+    && (entry.cancelled
+      || legacySubject == null
+      || entry.stateSubjectKey !== legacySubject && entry.stateSubjectKey !== "tsunami:current"));
+  const vtse41Entries = limitTsunamiVtse41Entries(
+    candidateKeyedActive,
+    eligibleVtse41Entries,
+  );
   gateEntries.push(...vtse41Entries.map((entry) => ({
     ...structuredClone(entry),
     semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
   })));
-  const activeEntry = value.active == null
+  const keyedActive = retainNewestKeyedTsunamiActive(candidateKeyedActive, vtse41Entries).active
+    .map(projectPersistedTsunamiActive);
+  const legacyActive = candidateLegacyActive == null
     ? null
-    : matchingTsunamiActiveGate(value.active, vtse41Entries);
-  const active = activeEntry != null
-    && value.active != null
-    ? projectPersistedTsunamiActive(value.active)
-    : null;
+    : projectPersistedTsunamiActive(candidateLegacyActive);
   for (const family of ["VTSE51", "VTSE52"] as const) {
     const familyEntries = value.gateEntries.filter(
       (entry) => entry.domain === "tsunamiObservation" && entry.revisionFamily === family,
@@ -1579,7 +1936,15 @@ function normalizeTsunamiFoundationForWrite(
       .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY)
       .map(projectPersistedTsunamiObservation);
   }
-  return { active, observations, gateEntries };
+  // null の旧 field だけは rollback projection の空状態として維持する。実 payload
+  // は keyedActive / legacyActive にのみ書き、scalar snapshot を書き戻さない。
+  return {
+    ...(value.active === null ? { active: null } : {}),
+    keyedActive,
+    legacyActive,
+    observations,
+    gateEntries,
+  };
 }
 
 /**
@@ -1624,15 +1989,62 @@ function sanitizeTsunamiFoundation(
   if (!isRecord(value) || !isRecord(value.observations) || !Array.isArray(value.gateEntries)) {
     return null;
   }
-  const legacyActive = value.active == null
-    ? null
-    : isPersistedTsunamiActive(value.active)
-      ? sanitizePersistedTsunamiActive(value.active)
+  const parseActive = (raw: unknown): ParsedTsunamiInfo | undefined =>
+    isPersistedTsunamiActive(raw)
+      ? canonicalizeLegacyTsunamiInfo(
+          structuredClone(sanitizePersistedTsunamiActive(raw)),
+        )
       : undefined;
-  if (legacyActive === undefined) return null;
-  const active = legacyActive == null
-    ? null
-    : canonicalizeLegacyTsunamiInfo(structuredClone(legacyActive));
+  const hasKeyedSchema = Object.hasOwn(value, "keyedActive");
+  let scalarActive: ParsedTsunamiInfo | null = null;
+  if (!hasKeyedSchema && value.active != null) {
+    scalarActive = parseActive(value.active) ?? null;
+    if (scalarActive == null) {
+      log.warn("[standby-persistence] tsunami の壊れた旧 scalar active を破棄");
+    }
+  } else if (hasKeyedSchema && value.active != null && parseActive(value.active) == null) {
+    // keyed schema が権威入力なので、rollback projection の破損は domain を巻き込まない。
+    log.warn("[standby-persistence] tsunami keyed schema と併存する壊れた scalar active を無視");
+  }
+
+  const rawKeyedCandidates = hasKeyedSchema && Array.isArray(value.keyedActive)
+    ? value.keyedActive
+    : [];
+  if (hasKeyedSchema && !Array.isArray(value.keyedActive)) {
+    log.warn("[standby-persistence] tsunami keyedActive 配列の破損を局所破棄");
+  }
+  const rejectedKeyedSubjects = new Set<string>();
+  const parsedKeyedCandidates = rawKeyedCandidates.flatMap((raw) => {
+    const active = parseActive(raw);
+    if (active == null || !isKeyedTsunamiActive(active)) {
+      log.warn("[standby-persistence] tsunami の壊れた keyed EventID state を局所破棄");
+      const subject = persistedTsunamiSubjectFromUnknown(raw);
+      if (subject != null && !isPersistedTsunamiCancellationUnknown(raw)) {
+        rejectedKeyedSubjects.add(subject);
+      }
+      return [];
+    }
+    return [active];
+  });
+  if (!hasKeyedSchema && scalarActive != null && isKeyedTsunamiActive(scalarActive)) {
+    parsedKeyedCandidates.push(scalarActive);
+  }
+
+  const schemaLegacy = value.legacyActive == null ? null : parseActive(value.legacyActive) ?? null;
+  if (value.legacyActive != null && schemaLegacy == null) {
+    log.warn("[standby-persistence] tsunami の壊れた legacy active を局所破棄");
+  }
+  const candidateLegacy = schemaLegacy
+    ?? (!hasKeyedSchema && scalarActive != null && !isKeyedTsunamiActive(scalarActive)
+      ? scalarActive
+      : null);
+  if (schemaLegacy != null && isKeyedTsunamiActive(schemaLegacy)) {
+    parsedKeyedCandidates.push(schemaLegacy);
+  }
+  const displayableLegacy = candidateLegacy != null
+    && isDisplayableLegacyTsunamiActive(candidateLegacy)
+    ? candidateLegacy
+    : null;
   const rawGroups = value.observations;
   if (
     !Array.isArray(rawGroups.VTSE51)
@@ -1640,35 +2052,81 @@ function sanitizeTsunamiFoundation(
     || !Array.isArray(rawGroups.VTSE52)
     || !rawGroups.VTSE52.every(isTsunamiObservation)
   ) return null;
-  const entries = value.gateEntries;
-  if (!entries.every((entry) => {
-    if (!isGateEntry(entry)) return false;
+  const validEntries = value.gateEntries.flatMap((entry) => {
+    if (!isGateEntry(entry)) return [];
     if (entry.domain === "tsunami") {
-      return entry.revisionFamily === "VTSE41"
-        && isTsunamiVtse41Subject(entry.stateSubjectKey);
+      return entry.revisionFamily === "VTSE41" && isTsunamiVtse41Subject(entry.stateSubjectKey)
+        ? [entry]
+        : [];
     }
-    if (entry.domain !== "tsunamiObservation") return false;
-    if (entry.revisionFamily !== "VTSE51" && entry.revisionFamily !== "VTSE52") return false;
+    if (entry.domain !== "tsunamiObservation") return [];
+    if (entry.revisionFamily !== "VTSE51" && entry.revisionFamily !== "VTSE52") return [];
     const wholeSubject = `tsunami:observations:${entry.revisionFamily}`;
-    return entry.stateSubjectKey === wholeSubject || /^\d+$/.test(entry.stateSubjectKey);
-  })) return null;
-
-  const uniqueGateKeys = new Set(
-    entries.map((entry) => `${entry.domain}:${entry.revisionFamily}:${entry.stateSubjectKey}`),
-  );
-  if (uniqueGateKeys.size !== entries.length) return null;
+    return entry.stateSubjectKey === wholeSubject || /^\d+$/.test(entry.stateSubjectKey)
+      ? [entry]
+      : [];
+  }) as PersistedTelegramRevisionGateEntryV2[];
+  if (validEntries.length !== value.gateEntries.length) {
+    log.warn("[standby-persistence] tsunami の壊れた gate subject を局所破棄");
+  }
+  const collapsedEntries = collapseTsunamiGateEntries(validEntries);
+  if (collapsedEntries.rejectedKeys.size > 0) {
+    log.warn("[standby-persistence] tsunami の unordered な重複 gate subject を局所破棄");
+  } else if (collapsedEntries.entries.length !== validEntries.length) {
+    log.warn("[standby-persistence] tsunami の重複 gate subject を revision 順で一件へ集約");
+  }
+  let entries = collapsedEntries.entries;
+  if (
+    !hasKeyedSchema
+    && scalarActive != null
+    && tsunamiStateSubjectKey(scalarActive.meta) != null
+  ) {
+    entries = migrateLegacyFixedTsunamiGate(scalarActive, entries);
+  }
+  if (schemaLegacy != null && tsunamiStateSubjectKey(schemaLegacy.meta) != null) {
+    entries = migrateLegacyFixedTsunamiGate(
+      schemaLegacy,
+      entries,
+      !isKeyedTsunamiActive(schemaLegacy),
+    );
+  }
 
   const vtse41Candidates = entries.filter(
     (entry) => entry.domain === "tsunami",
   ) as PersistedTelegramRevisionGateEntryV2[];
-  if (
-    active != null
-    && matchingTsunamiActiveGate(active, vtse41Candidates) == null
-  ) return null;
-  const vtse41Entries = limitTsunamiVtse41Entries(active, vtse41Candidates);
+  const matchedSelection = retainNewestKeyedTsunamiActive(
+    parsedKeyedCandidates,
+    vtse41Candidates,
+  );
+  const matchedKeyedActive = matchedSelection.active;
+  for (const subject of matchedSelection.rejectedSubjects) rejectedKeyedSubjects.add(subject);
+  if (matchedKeyedActive.length !== parsedKeyedCandidates.length) {
+    log.warn("[standby-persistence] tsunami の不整合または重複 keyed EventID state を局所破棄");
+  }
+  const keyedSubjectsBeforeCompaction = new Set(matchedKeyedActive.flatMap((active) => {
+    const subject = tsunamiStateSubjectKey(active.meta);
+    return subject == null ? [] : [subject];
+  }));
+  const salvageableVtse41Candidates = vtse41Candidates.filter((entry) =>
+    entry.cancelled
+    || !rejectedKeyedSubjects.has(entry.stateSubjectKey)
+    || keyedSubjectsBeforeCompaction.has(entry.stateSubjectKey));
+  // 正規 keyed state が同じ EventID を持つ場合、legacy 表示を先に退場させる。
+  const legacyActive = displayableLegacy != null
+    && !keyedSubjectsBeforeCompaction.has(tsunamiStateSubjectKey(displayableLegacy.meta) ?? "")
+    ? displayableLegacy
+    : null;
+  const legacySubject = legacyActive == null ? null : tsunamiStateSubjectKey(legacyActive.meta);
+  const vtse41Entries = limitTsunamiVtse41Entries(matchedKeyedActive, salvageableVtse41Candidates.filter(
+    (entry) => entry.cancelled
+      || legacySubject == null
+      || entry.stateSubjectKey !== legacySubject && entry.stateSubjectKey !== "tsunami:current",
+  ));
   const retainedVtse41Subjects = new Set(vtse41Entries.map((entry) => entry.stateSubjectKey));
+  const keyedActive = retainNewestKeyedTsunamiActive(matchedKeyedActive, vtse41Entries).active;
   const boundedEntries = (entries as PersistedTelegramRevisionGateEntryV2[]).filter(
-    (entry) => entry.domain !== "tsunami" || retainedVtse41Subjects.has(entry.stateSubjectKey),
+    (entry) => entry.domain !== "tsunami"
+      || retainedVtse41Subjects.has(entry.stateSubjectKey),
   );
 
   const groups = {
@@ -1694,8 +2152,17 @@ function sanitizeTsunamiFoundation(
     ))) return null;
   }
 
+  // active は caller 互換の read-only projection。writer は keyedActive /
+  // legacyActive だけを出力し、旧 scalar form へ書き戻さない。
+  const compatibilityActive = keyedActive.length === 1
+    ? keyedActive[0]
+    : keyedActive.length === 0 ? legacyActive : null;
   return {
-    active: active == null ? null : structuredClone(active),
+    ...(compatibilityActive != null || Object.hasOwn(value, "active")
+      ? { active: compatibilityActive == null ? null : structuredClone(compatibilityActive) }
+      : {}),
+    keyedActive: keyedActive.map((active) => structuredClone(active)),
+    legacyActive: legacyActive == null ? null : structuredClone(legacyActive),
     observations: groups,
     gateEntries: boundedEntries.map((entry) => ({
       ...structuredClone(entry),

@@ -135,9 +135,9 @@ function info(options: {
     publishingOffice: "気象庁",
     forecast: type === "VTSE41"
       ? options.forecast ?? (infoType !== "取消" ? [{
-          areaCode: options.areaCode ?? "210",
+          areaCode: options.areaCode === undefined ? "210" : options.areaCode,
           areaName: "岩手県",
-          kindCode: options.kindCode ?? "51",
+          kindCode: options.kindCode === undefined ? "51" : options.kindCode,
           kind: options.kind ?? "津波警報",
           maxHeightDescription: "3m",
           firstHeight: "到達中と推測",
@@ -535,17 +535,17 @@ describe("Phase 3B tsunami common registry", () => {
     const firstObservation = firstPersisted.telegramFoundation.tsunami.observations.VTSE51[0];
     expect(firstObservation).toEqual(stationWithAreaCode);
     expect(firstObservation).toHaveProperty("areaCode", "210");
-    expect(firstPersisted.telegramFoundation.tsunami.active?.observations)
+    expect(firstPersisted.telegramFoundation.tsunami.keyedActive?.[0]?.observations)
       .toEqual([activeStationWithAreaCode]);
     expect(JSON.stringify({
-      active: firstPersisted.telegramFoundation.tsunami.active?.observations,
+      active: firstPersisted.telegramFoundation.tsunami.keyedActive?.[0]?.observations,
       groups: firstPersisted.telegramFoundation.tsunami.observations,
     }))
       .toContain("areaCode");
 
     const loaded = persistence.load()!;
     expect(loaded.telegramFoundation.tsunami.observations.VTSE51).toEqual([stationWithAreaCode]);
-    expect(loaded.telegramFoundation.tsunami.active?.observations)
+    expect(loaded.telegramFoundation.tsunami.keyedActive?.[0]?.observations)
       .toEqual([activeStationWithAreaCode]);
     const roundTrip = new StandbyPersistence(file, 0, () => loaded.telegramFoundation);
     roundTrip.save(loaded);
@@ -556,7 +556,7 @@ describe("Phase 3B tsunami common registry", () => {
     expect(secondPersisted.telegramFoundation.tsunami.observations.VTSE51[0])
       .toEqual(firstObservation);
     expect(JSON.stringify({
-      active: secondPersisted.telegramFoundation.tsunami.active?.observations,
+      active: secondPersisted.telegramFoundation.tsunami.keyedActive?.[0]?.observations,
       groups: secondPersisted.telegramFoundation.tsunami.observations,
     }))
       .toContain("areaCode");
@@ -596,7 +596,7 @@ describe("Phase 3B tsunami common registry", () => {
     const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
     const leakedObservation = persisted.telegramFoundation.tsunami.observations
       .VTSE51[0] as unknown as TsunamiObservationStation;
-    const leakedActiveObservation = persisted.telegramFoundation.tsunami.active
+    const leakedActiveObservation = persisted.telegramFoundation.tsunami.keyedActive?.[0]
       ?.observations?.[0] as unknown as TsunamiObservationStation;
     leakedObservation.areaCode = "210";
     leakedActiveObservation.areaCode = "220";
@@ -604,21 +604,21 @@ describe("Phase 3B tsunami common registry", () => {
     const injected = JSON.parse(fs.readFileSync(v2Path, "utf8")) as unknown as {
       telegramFoundation: {
         tsunami: {
-          active: { observations: TsunamiObservationStation[] };
+          keyedActive: Array<{ observations: TsunamiObservationStation[] }>;
           observations: { VTSE51: TsunamiObservationStation[] };
         };
       };
     };
     expect(injected.telegramFoundation.tsunami.observations.VTSE51[0]?.areaCode).toBe("210");
-    expect(injected.telegramFoundation.tsunami.active.observations[0]?.areaCode).toBe("220");
+    expect(injected.telegramFoundation.tsunami.keyedActive[0]?.observations[0]?.areaCode).toBe("220");
 
     const loaded = persistence.load()!.telegramFoundation.tsunami;
     const loadedObservation = loaded.observations.VTSE51[0];
     expect(loadedObservation).toEqual({ ...station, areaCode: "210" });
     expect(loadedObservation).toHaveProperty("areaCode", "210");
-    expect(loaded.active?.observations).toEqual([{ ...activeStation, areaCode: "220" }]);
+    expect(loaded.keyedActive?.[0]?.observations).toEqual([{ ...activeStation, areaCode: "220" }]);
     expect(JSON.stringify({
-      active: loaded.active?.observations,
+      active: loaded.keyedActive?.[0]?.observations,
       groups: loaded.observations,
     })).toContain("areaCode");
   });
@@ -659,7 +659,7 @@ describe("Phase 3B tsunami common registry", () => {
     expect(restarted.tsunamiState.getLastInfo()).toEqual(active);
   });
 
-  it("複数 EventID の VTSE41 は scalar active を保存せず、一方の取消後は残存 EventID だけを保存する", () => {
+  it("複数 EventID の VTSE41 keyed state を実ファイル経由で往復し、取消後も残存 EventID を保つ", () => {
     const shared = deps();
     expect(run(info({
       eventId: "event-a",
@@ -683,7 +683,8 @@ describe("Phase 3B tsunami common registry", () => {
     const persistence = new StandbyPersistence(file, 0, () => ({
       vpws50: { authoritative: true, state: null, gateEntries: [] },
       tsunami: {
-        active: shared.tsunamiState.getPersistedActive(),
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: shared.tsunamiState.getPersistedLegacyActive(),
         observations: shared.tsunamiState.getObservationGroups(),
         gateEntries: shared.revisionGate.exportDurableEntries().filter(
           (entry) => entry.domain === "tsunami" || entry.domain === "tsunamiObservation",
@@ -693,8 +694,19 @@ describe("Phase 3B tsunami common registry", () => {
     persistence.save(legacyState());
 
     let loaded = persistence.load()!.telegramFoundation.tsunami;
-    expect(loaded.active).toBeNull();
+    expect(loaded.active).toBeUndefined();
+    expect(loaded.keyedActive?.map((item) => item.meta.eventId.value).sort())
+      .toEqual(["event-a", "event-b"]);
     expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toHaveLength(2);
+    const restarted = new TsunamiStateHolder();
+    restarted.restorePersistedState(
+      null,
+      loaded.observations,
+      loaded.keyedActive ?? [],
+      loaded.legacyActive ?? null,
+    );
+    expect(restarted.getLastInfo()?.forecast?.map((item) => item.areaCode).sort())
+      .toEqual(["210", "220"]);
 
     expect(run(info({
       eventId: "event-a",
@@ -706,9 +718,825 @@ describe("Phase 3B tsunami common registry", () => {
 
     loaded = persistence.load()!.telegramFoundation.tsunami;
     expect(loaded.active?.meta.eventId.value).toBe("event-b");
+    expect(loaded.keyedActive?.map((item) => item.meta.eventId.value)).toEqual(["event-b"]);
     expect(loaded.active?.forecast).toEqual([
       expect.objectContaining({ areaCode: "220", kindCode: "62" }),
     ]);
+  });
+
+  it("警報レベルなしの keyed state は実ファイル往復し、forecast 空 state は書かない", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "sea-level-only",
+      areaCode: "210",
+      kindCode: "71",
+      kind: "津波予報（若干の海面変動）",
+      at: T1,
+      messageId: "sea-level-only",
+    }), shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getLevel()).toBeNull();
+    expect(shared.tsunamiState.getPersistedKeyedActive()).toHaveLength(1);
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: null,
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    let loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([
+      expect.objectContaining({
+        meta: expect.objectContaining({ eventId: expect.objectContaining({ value: "sea-level-only" }) }),
+        forecast: [expect.objectContaining({ kindCode: "71" })],
+      }),
+    ]);
+    const restarted = new TsunamiStateHolder();
+    restarted.restorePersistedState(null, loaded.observations, loaded.keyedActive ?? []);
+    expect(restarted.getLevel()).toBeNull();
+    expect(restarted.getPersistedKeyedActive()).toHaveLength(1);
+
+    expect(run(info({
+      eventId: "sea-level-only",
+      forecast: [],
+      at: T2,
+      messageId: "sea-level-empty",
+    }), shared).kind).toBe("ok");
+    persistence.save(legacyState());
+    loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([]);
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:sea-level-only", cancelled: false }),
+    ]);
+  });
+
+  it("壊れた旧 scalar と keyed 一要素を局所破棄し、正常 EventID と gate を救済する", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "salvage-a", at: T1, messageId: "salvage-a" }), shared).kind).toBe("ok");
+    expect(run(info({ eventId: "salvage-b", at: T2, messageId: "salvage-b" }), shared).kind).toBe("ok");
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: null,
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    persisted.telegramFoundation.tsunami.active = { broken: true } as never;
+    const broken = persisted.telegramFoundation.tsunami.keyedActive!.find(
+      (active) => active.meta.eventId.value === "salvage-a",
+    ) as unknown as Record<string, unknown>;
+    broken.title = 42;
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive?.map((active) => active.meta.eventId.value)).toEqual(["salvage-b"]);
+    expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")
+      .map((entry) => entry.stateSubjectKey)).toEqual(["tsunami:salvage-b"]);
+  });
+
+  it("同一 EventID の keyed＋legacy 混在は legacy を退場させ、keyed と gate を同期して復元する", () => {
+    const shared = deps();
+    const canonical = info({ eventId: "mixed-event", at: T2, messageId: "mixed-keyed" });
+    const legacy = info({
+      eventId: "mixed-event",
+      areaCode: null,
+      kindCode: null,
+      kind: "大津波警報",
+      at: T1,
+      messageId: "mixed-legacy",
+    });
+    expect(run(canonical, shared).kind).toBe("ok");
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: legacy,
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.legacyActive).toBeNull();
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toHaveLength(1);
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toHaveLength(1);
+    // reader 側にも混在 raw を与え、同じ解決規則を検証する。
+    persisted.telegramFoundation.tsunami.legacyActive = legacy;
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive?.map((active) => active.meta.eventId.value)).toEqual(["mixed-event"]);
+    expect(loaded.legacyActive).toBeNull();
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:mixed-event", cancelled: false }),
+    ]);
+    const restored = new TsunamiStateHolder();
+    restored.restorePersistedState(null, loaded.observations, loaded.keyedActive ?? [], loaded.legacyActive ?? null);
+    expect(restored.getLastInfo()?.forecast).toHaveLength(1);
+    expect(restored.getLastInfo()?.forecast?.[0]).toMatchObject({ areaCode: "210" });
+  });
+
+  it("keyed EventID 重複は新しい revision を残し、512 compaction 後も holder と gate を一対一にする", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "capacity-0", at: T2, messageId: "capacity-base" }), shared).kind).toBe("ok");
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: null,
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const baseActive = persisted.telegramFoundation.tsunami.keyedActive![0]!;
+    const baseGate = persisted.telegramFoundation.tsunami.gateEntries[0]!;
+    persisted.telegramFoundation.tsunami.keyedActive = Array.from({ length: 513 }, (_, index) => {
+      const active = structuredClone(baseActive);
+      const eventId = `capacity-${index}`;
+      active.meta.eventId = { raw: eventId, value: eventId, valid: true };
+      active.meta.messageId = `capacity-active-${index}`;
+      return active;
+    });
+    persisted.telegramFoundation.tsunami.gateEntries = Array.from({ length: 513 }, (_, index) => {
+      const gate = structuredClone(baseGate);
+      const eventId = `capacity-${index}`;
+      const subject = `tsunami:${eventId}`;
+      gate.stateSubjectKey = subject;
+      gate.comparison.stateSubjectKey = subject;
+      gate.comparison.revision.eventId = { raw: subject, value: subject, valid: true };
+      gate.acceptedAtMs += index;
+      return gate;
+    });
+    persisted.telegramFoundation.tsunami.keyedActive.push(info({
+      eventId: "capacity-512",
+      at: T1,
+      messageId: "capacity-duplicate-older",
+    }));
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    const keyedSubjects = loaded.keyedActive!.map((active) => `tsunami:${active.meta.eventId.value}`);
+    const gateSubjects = loaded.gateEntries
+      .filter((entry) => entry.domain === "tsunami")
+      .map((entry) => entry.stateSubjectKey);
+    expect(loaded.keyedActive).toHaveLength(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects);
+    expect(gateSubjects).toHaveLength(TSUNAMI_REVISION_FAMILY_POLICIES.VTSE41.maxSubjects);
+    expect(new Set(keyedSubjects)).toEqual(new Set(gateSubjects));
+    expect(loaded.keyedActive?.find((active) => active.meta.eventId.value === "capacity-512")
+      ?.meta.reportDateTime.raw).toBe(T2);
+  });
+
+  it("persisted 取消 payload は keyed／legacy active にせず gate だけを残す", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "cancel-payload", at: T1, messageId: "cancel-base" }), shared).kind).toBe("ok");
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: null,
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const cancellation = structuredClone(persisted.telegramFoundation.tsunami.keyedActive![0]!);
+    (cancellation as unknown as Record<string, unknown>).infoType = "取消";
+    cancellation.meta.infoType = { raw: "取消", value: "取消", valid: true };
+    persisted.telegramFoundation.tsunami.gateEntries[0]!.comparison.revision.infoType = {
+      raw: "取消", value: "取消", valid: true,
+    };
+    persisted.telegramFoundation.tsunami.keyedActive = [cancellation];
+    persisted.telegramFoundation.tsunami.legacyActive = cancellation;
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([]);
+    expect(loaded.legacyActive).toBeNull();
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:cancel-payload", cancelled: false }),
+    ]);
+    const restored = new TsunamiStateHolder();
+    restored.restorePersistedState(null, loaded.observations, loaded.keyedActive ?? [], loaded.legacyActive ?? null);
+    expect(restored.getLastInfo()).toBeNull();
+  });
+
+  it("古い active と新しい取消 tombstone の併存は active だけを捨て、再起動後も遅延報を拒否する", () => {
+    const shared = deps();
+    const stale = info({ eventId: "stale-before-cancel", at: T1, messageId: "stale-active" });
+    expect(run(stale, shared).kind).toBe("ok");
+    expect(run(info({
+      eventId: "stale-before-cancel",
+      infoType: "取消",
+      at: T2,
+      messageId: "newer-cancellation",
+    }), shared).kind).toBe("ok");
+    const foundation = {
+      keyedActive: [stale],
+      legacyActive: null,
+      observations: shared.tsunamiState.getObservationGroups(),
+      gateEntries: shared.revisionGate.exportDurableEntries(),
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    // writer も stale active だけを落とし、tombstone を残す。
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:stale-before-cancel", cancelled: true }),
+    ]);
+    // 部分書込みで stale active が残った raw を reader に直接与える。
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([]);
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:stale-before-cancel", cancelled: true }),
+    ]);
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(null, loaded.observations, loaded.keyedActive ?? []);
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(run({
+      ...stale,
+      meta: { ...stale.meta, messageId: "delayed-after-tombstone-restart" },
+    }, restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getLastInfo()).toBeNull();
+  });
+
+  it("legacy 表示と同 EventID の新しい取消 tombstone を併存保存し、再起動後も遅延報を拒否する", () => {
+    const shared = deps();
+    const legacy = info({
+      eventId: "legacy-with-tombstone",
+      areaCode: null,
+      kindCode: null,
+      kind: "大津波警報",
+      at: T1,
+      messageId: "legacy-before-cancel",
+    });
+    shared.tsunamiState.restorePersistedState(
+      null,
+      { VTSE51: [], VTSE52: [] },
+      [],
+      legacy,
+    );
+    expect(run(info({
+      eventId: "legacy-with-tombstone",
+      infoType: "取消",
+      at: T2,
+      messageId: "canonical-cancel-after-legacy",
+    }), shared).kind).toBe("ok");
+    expect(shared.tsunamiState.getPersistedLegacyActive()).not.toBeNull();
+    expect(shared.revisionGate.exportDurableEntries()).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:legacy-with-tombstone", cancelled: true }),
+    ]);
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: shared.tsunamiState.getPersistedLegacyActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const raw = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    expect(raw.telegramFoundation.tsunami.legacyActive).not.toBeNull();
+    expect(raw.telegramFoundation.tsunami.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:legacy-with-tombstone", cancelled: true }),
+    ]);
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.legacyActive).not.toBeNull();
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:legacy-with-tombstone", cancelled: true }),
+    ]);
+
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(
+      null,
+      loaded.observations,
+      loaded.keyedActive ?? [],
+      loaded.legacyActive ?? null,
+    );
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    const delayed = info({
+      eventId: "legacy-with-tombstone",
+      at: T1,
+      messageId: "delayed-after-legacy-tombstone",
+    });
+    expect(run(delayed, restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getPersistedLegacyActive()).not.toBeNull();
+  });
+
+  it("同一 EventID・同一日時で Serial が片側だけ欠落する重複 active は subject 単位で拒否する", () => {
+    const shared = deps();
+    const serialActive = info({
+      eventId: "unordered-active",
+      serial: "2",
+      at: T1,
+      messageId: "unordered-active-serial-2",
+    });
+    expect(run(serialActive, shared).kind).toBe("ok");
+    const missingSerialActive = info({
+      eventId: "unordered-active",
+      serial: null,
+      at: T1,
+      messageId: "unordered-active-no-serial",
+    });
+    const foundation = {
+      keyedActive: [serialActive, missingSerialActive],
+      legacyActive: null,
+      observations: shared.tsunamiState.getObservationGroups(),
+      gateEntries: shared.revisionGate.exportDurableEntries(),
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([]);
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([]);
+    expect(loaded.gateEntries).toEqual([]);
+  });
+
+  it("同一 subject の重複 gate は acceptedAtMs でなく revision 順で新しい取消 tombstone を残す", () => {
+    const shared = deps();
+    const stale = info({ eventId: "duplicate-gate", at: T1, messageId: "duplicate-gate-active" });
+    expect(run(stale, shared).kind).toBe("ok");
+    expect(run(info({
+      eventId: "duplicate-gate",
+      infoType: "取消",
+      at: T2,
+      messageId: "duplicate-gate-cancel",
+    }), shared).kind).toBe("ok");
+    const tombstone = shared.revisionGate.exportDurableEntries()[0]!;
+    const oldNonCancel = structuredClone(tombstone);
+    oldNonCancel.cancelled = false;
+    oldNonCancel.acceptedAtMs = tombstone.acceptedAtMs + 60_000;
+    oldNonCancel.comparison.revision.reportDateTime = {
+      raw: T1, epochMs: Date.parse(T1), valid: true,
+    };
+    oldNonCancel.comparison.revision.infoType = { raw: "発表", value: "発表", valid: true };
+    const foundation = {
+      keyedActive: [],
+      legacyActive: null,
+      observations: shared.tsunamiState.getObservationGroups(),
+      gateEntries: [oldNonCancel, tombstone],
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([
+      expect.objectContaining({ cancelled: true, acceptedAtMs: tombstone.acceptedAtMs }),
+    ]);
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({
+        cancelled: true,
+        comparison: expect.objectContaining({
+          revision: expect.objectContaining({
+            reportDateTime: expect.objectContaining({ raw: T2 }),
+          }),
+        }),
+      }),
+    ]);
+    const restarted = deps();
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(run({
+      ...stale,
+      meta: { ...stale.meta, messageId: "delayed-after-duplicate-gate" },
+    }, restarted)).toEqual({ kind: "suppressed" });
+  });
+
+  it("同一 subject・同一日時で Serial が片側だけ欠落する重複 gate は subject 単位で拒否する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "unordered-gate",
+      serial: "2",
+      at: T1,
+      messageId: "unordered-gate-serial-2",
+    }), shared).kind).toBe("ok");
+    const serialGate = shared.revisionGate.exportDurableEntries()[0]!;
+    const missingSerialGate = structuredClone(serialGate);
+    missingSerialGate.comparison.revision.serial = { raw: null, numeric: null, valid: false };
+    missingSerialGate.acceptedAtMs += 60_000;
+    const foundation = {
+      keyedActive: [],
+      legacyActive: null,
+      observations: shared.tsunamiState.getObservationGroups(),
+      gateEntries: [serialGate, missingSerialGate],
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([]);
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+    expect(persistence.load()!.telegramFoundation.tsunami.gateEntries).toEqual([]);
+  });
+
+  it("3 件以上の重複 gate に unordered ペアが含まれれば、縮約順に関係なく subject 全体を拒否する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "unordered-three-gates",
+      serial: "3",
+      at: T2,
+      messageId: "unordered-three-base",
+    }), shared).kind).toBe("ok");
+    const t2Serial3 = shared.revisionGate.exportDurableEntries()[0]!;
+    const t1Missing = structuredClone(t2Serial3);
+    t1Missing.comparison.revision.reportDateTime = {
+      raw: T1, epochMs: Date.parse(T1), valid: true,
+    };
+    t1Missing.comparison.revision.serial = { raw: null, numeric: null, valid: false };
+    const t1Serial2 = structuredClone(t1Missing);
+    t1Serial2.comparison.revision.serial = { raw: "2", numeric: 2, valid: true };
+    const foundation = {
+      keyedActive: [],
+      legacyActive: null,
+      observations: shared.tsunamiState.getObservationGroups(),
+      // 旧逐次縮約が見落とした順: T1 欠落 → T2/3 → T1/2。
+      gateEntries: [t1Missing, t2Serial3, t1Serial2],
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([]);
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+    expect(persistence.load()!.telegramFoundation.tsunami.gateEntries).toEqual([]);
+  });
+
+  it("旧 scalar＋tsunami:current gate だけの snapshot を EventID keyed schema へ一方向 migration する", () => {
+    const shared = deps();
+    const active = info({ eventId: "fixed-only", at: T1, messageId: "fixed-only-active" });
+    expect(run(active, shared).kind).toBe("ok");
+    const fixedGate = structuredClone(shared.revisionGate.exportDurableEntries()[0]!);
+    fixedGate.stateSubjectKey = "tsunami:current";
+    fixedGate.comparison.stateSubjectKey = "tsunami:current";
+    fixedGate.comparison.revision.eventId = {
+      raw: "tsunami:current", value: "tsunami:current", valid: true,
+    };
+    const foundation = {
+      active,
+      observations: shared.tsunamiState.getObservationGroups(),
+      gateEntries: [fixedGate],
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    // writer は旧 fixed gate を EventID subject へ同時 migration する。
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toEqual([
+      expect.objectContaining({ meta: expect.objectContaining({ eventId: expect.objectContaining({ value: "fixed-only" }) }) }),
+    ]);
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:fixed-only", cancelled: false }),
+    ]);
+    // reader に旧 snapshot そのものを与えても同じ canonical shape へ移る。
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive?.map((item) => item.meta.eventId.value)).toEqual(["fixed-only"]);
+    expect(loaded.legacyActive).toBeNull();
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:fixed-only", cancelled: false }),
+    ]);
+    const restarted = new TsunamiStateHolder();
+    restarted.restorePersistedState(null, loaded.observations, loaded.keyedActive ?? []);
+    expect(restarted.getLevel()).toBe("津波警報");
+  });
+
+  it("名称-only legacy scalar と旧 fixed tombstone を EventID subject へ移行し、REST なし再起動後も遅延報を拒否する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "legacy-fixed-cancel",
+      at: T1,
+      messageId: "legacy-fixed-cancel-active",
+    }), shared).kind).toBe("ok");
+    expect(run(info({
+      eventId: "legacy-fixed-cancel",
+      infoType: "取消",
+      at: T2,
+      messageId: "legacy-fixed-cancel-tombstone",
+    }), shared).kind).toBe("ok");
+    const fixedTombstone = structuredClone(shared.revisionGate.exportDurableEntries()[0]!);
+    fixedTombstone.stateSubjectKey = "tsunami:current";
+    fixedTombstone.comparison.stateSubjectKey = "tsunami:current";
+    fixedTombstone.comparison.revision.eventId = {
+      raw: "tsunami:current", value: "tsunami:current", valid: true,
+    };
+    const legacy = info({
+      eventId: "legacy-fixed-cancel",
+      areaCode: null,
+      kindCode: null,
+      kind: "大津波警報",
+      at: T1,
+      messageId: "legacy-fixed-name-only",
+    });
+    const foundation = {
+      active: legacy,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: [fixedTombstone],
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(persisted.telegramFoundation.tsunami.legacyActive?.meta.eventId.value)
+      .toBe("legacy-fixed-cancel");
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: "tsunami:legacy-fixed-cancel",
+        cancelled: true,
+      }),
+    ]);
+    // reader に migration 前の scalar/fixed 形を直接与える。
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.legacyActive?.meta.eventId.value).toBe("legacy-fixed-cancel");
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: "tsunami:legacy-fixed-cancel",
+        cancelled: true,
+      }),
+    ]);
+    // REST 補完を呼ばず disk state だけを復元し、取消前の canonical 遅延報を流す。
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(
+      null,
+      loaded.observations,
+      loaded.keyedActive ?? [],
+      loaded.legacyActive ?? null,
+    );
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(run(info({
+      eventId: "legacy-fixed-cancel",
+      at: T1,
+      messageId: "delayed-without-rest",
+    }), restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getPersistedLegacyActive()).not.toBeNull();
+  });
+
+  it("名称-only legacyActive の中間形でも旧 fixed tombstone を EventID subject へ移行し、遅延報を拒否する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "legacy-field-fixed-cancel",
+      at: T1,
+      messageId: "legacy-field-active",
+    }), shared).kind).toBe("ok");
+    expect(run(info({
+      eventId: "legacy-field-fixed-cancel",
+      infoType: "取消",
+      at: T2,
+      messageId: "legacy-field-tombstone",
+    }), shared).kind).toBe("ok");
+    const fixedTombstone = structuredClone(shared.revisionGate.exportDurableEntries()[0]!);
+    fixedTombstone.stateSubjectKey = "tsunami:current";
+    fixedTombstone.comparison.stateSubjectKey = "tsunami:current";
+    fixedTombstone.comparison.revision.eventId = {
+      raw: "tsunami:current", value: "tsunami:current", valid: true,
+    };
+    const legacy = info({
+      eventId: "legacy-field-fixed-cancel",
+      areaCode: null,
+      kindCode: null,
+      kind: "大津波警報",
+      at: T1,
+      messageId: "legacy-field-name-only",
+    });
+    const intermediateFoundation = {
+      keyedActive: [],
+      legacyActive: legacy,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: [fixedTombstone],
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: intermediateFoundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(persisted.telegramFoundation.tsunami.legacyActive?.meta.eventId.value)
+      .toBe("legacy-field-fixed-cancel");
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: "tsunami:legacy-field-fixed-cancel",
+        cancelled: true,
+      }),
+    ]);
+
+    // reader に前版 writer が生成しえた中間形を直接与える。
+    persisted.telegramFoundation.tsunami = structuredClone(intermediateFoundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.legacyActive?.meta.eventId.value).toBe("legacy-field-fixed-cancel");
+    expect(loaded.gateEntries).toEqual([
+      expect.objectContaining({
+        stateSubjectKey: "tsunami:legacy-field-fixed-cancel",
+        cancelled: true,
+      }),
+    ]);
+
+    const restarted = deps();
+    restarted.tsunamiState.restorePersistedState(
+      null,
+      loaded.observations,
+      loaded.keyedActive ?? [],
+      loaded.legacyActive ?? null,
+    );
+    restarted.revisionGate.restoreDurableEntries(loaded.gateEntries);
+    expect(run(info({
+      eventId: "legacy-field-fixed-cancel",
+      at: T1,
+      messageId: "legacy-field-delayed-without-rest",
+    }), restarted)).toEqual({ kind: "suppressed" });
+    expect(restarted.tsunamiState.getPersistedLegacyActive()).not.toBeNull();
+  });
+
+  it("同一 EventID の active T1/T3 と gate T2 は、最新 T3 の結合失敗で subject 全体を拒否する", () => {
+    const shared = deps();
+    expect(run(info({
+      eventId: "newest-before-gate-match",
+      at: T2,
+      messageId: "middle-gate",
+    }), shared).kind).toBe("ok");
+    const t1 = info({
+      eventId: "newest-before-gate-match",
+      at: T1,
+      messageId: "old-active-t1",
+    });
+    const t3 = info({
+      eventId: "newest-before-gate-match",
+      at: T3,
+      messageId: "new-active-t3",
+    });
+    const foundation = {
+      keyedActive: [t1, t3],
+      legacyActive: null,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: shared.revisionGate.exportDurableEntries(),
+    };
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: foundation,
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    let persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    expect(persisted.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(persisted.telegramFoundation.tsunami.gateEntries).toEqual([]);
+    persisted.telegramFoundation.tsunami = structuredClone(foundation);
+    fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([]);
+    expect(loaded.gateEntries).toEqual([]);
+  });
+
+  it("完全 keyed legacyActive は gate 結合時だけ keyedActive へ昇格し、結合不能なら除外する", () => {
+    const shared = deps();
+    const keyedLegacy = info({
+      eventId: "keyed-in-legacy",
+      at: T1,
+      messageId: "keyed-legacy-payload",
+    });
+    expect(run(keyedLegacy, shared).kind).toBe("ok");
+    const promotedFoundation = {
+      keyedActive: [],
+      legacyActive: keyedLegacy,
+      observations: { VTSE51: [], VTSE52: [] },
+      gateEntries: shared.revisionGate.exportDurableEntries(),
+    };
+    const promotedFile = persistencePath();
+    const promotedPersistence = new StandbyPersistence(promotedFile, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: promotedFoundation,
+    }));
+    promotedPersistence.save(legacyState());
+
+    const promotedPath = standbyPersistenceV2Path(promotedFile);
+    let promotedRaw = JSON.parse(fs.readFileSync(promotedPath, "utf8")) as PersistedStandbyStateV2;
+    expect(promotedRaw.telegramFoundation.tsunami.keyedActive?.map((item) => item.meta.eventId.value))
+      .toEqual(["keyed-in-legacy"]);
+    expect(promotedRaw.telegramFoundation.tsunami.legacyActive).toBeNull();
+    promotedRaw.telegramFoundation.tsunami = structuredClone(promotedFoundation);
+    fs.writeFileSync(promotedPath, `${JSON.stringify(promotedRaw)}\n`, "utf8");
+    const promoted = promotedPersistence.load()!.telegramFoundation.tsunami;
+    expect(promoted.keyedActive?.map((item) => item.meta.eventId.value)).toEqual(["keyed-in-legacy"]);
+    expect(promoted.legacyActive).toBeNull();
+    const restored = new TsunamiStateHolder();
+    restored.restorePersistedState(
+      null,
+      promoted.observations,
+      promoted.keyedActive ?? [],
+      promoted.legacyActive ?? null,
+    );
+    expect(restored.getPersistedKeyedActive()).toHaveLength(1);
+    expect(restored.getPersistedLegacyActive()).toBeNull();
+
+    const rejectedFoundation = {
+      ...promotedFoundation,
+      gateEntries: [],
+    };
+    const rejectedFile = persistencePath();
+    const rejectedPersistence = new StandbyPersistence(rejectedFile, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: rejectedFoundation,
+    }));
+    rejectedPersistence.save(legacyState());
+    const rejectedPath = standbyPersistenceV2Path(rejectedFile);
+    let rejectedRaw = JSON.parse(fs.readFileSync(rejectedPath, "utf8")) as PersistedStandbyStateV2;
+    expect(rejectedRaw.telegramFoundation.tsunami.keyedActive).toEqual([]);
+    expect(rejectedRaw.telegramFoundation.tsunami.legacyActive).toBeNull();
+    rejectedRaw.telegramFoundation.tsunami = structuredClone(rejectedFoundation);
+    fs.writeFileSync(rejectedPath, `${JSON.stringify(rejectedRaw)}\n`, "utf8");
+    const rejected = rejectedPersistence.load()!.telegramFoundation.tsunami;
+    expect(rejected.keyedActive).toEqual([]);
+    expect(rejected.legacyActive).toBeNull();
   });
 
   it("forecast 空続報で A が消滅した後は、非 cancel A gate が残っても B scalar を保存する", () => {
@@ -874,11 +1702,11 @@ describe("Phase 3B tsunami common registry", () => {
     fs.writeFileSync(v2Path, `${JSON.stringify(persisted)}\n`, "utf8");
 
     const loaded = persistence.load()!.telegramFoundation.tsunami;
-    expect(loaded.active).toBeNull();
+    expect(loaded.keyedActive).toEqual([]);
     expect(loaded.gateEntries).toEqual([]);
   });
 
-  it("旧 tsunami:current gate が新 EventID gate と併存しても exact EventID の scalar を保存する", () => {
+  it("旧 tsunami:current gate が新 EventID gate と併存すれば canonical EventID gate 一件へ畳む", () => {
     const shared = deps();
     expect(run(info({ eventId: "event-b", areaCode: "220", at: T2, messageId: "fixed-b" }), shared).kind)
       .toBe("ok");
@@ -907,7 +1735,9 @@ describe("Phase 3B tsunami common registry", () => {
 
     const loaded = persistence.load()!.telegramFoundation.tsunami;
     expect(loaded.active?.meta.eventId.value).toBe("event-b");
-    expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toHaveLength(2);
+    expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tsunami:event-b", cancelled: false }),
+    ]);
   });
 
   it("同一 EventID の keyed 部分取消は残存 item と non-cancel gate を persistence→restart 後も維持する", () => {
@@ -1157,6 +1987,11 @@ describe("Phase 3B tsunami common registry", () => {
     const persisted = JSON.parse(
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
     ) as PersistedStandbyStateV2;
+    expect(Object.hasOwn(persisted.telegramFoundation.tsunami, "active")).toBe(false);
+    // Phase 4B 前に書かれた scalar-only v2 fixture を明示的に構成する。
+    persisted.telegramFoundation.tsunami.active = persisted.telegramFoundation.tsunami.keyedActive![0]!;
+    delete persisted.telegramFoundation.tsunami.keyedActive;
+    delete persisted.telegramFoundation.tsunami.legacyActive;
     for (const item of persisted.telegramFoundation.tsunami.active?.forecast ?? []) {
       const legacyItem = item as Partial<TsunamiForecastItem>;
       delete legacyItem.areaCode;
@@ -1172,6 +2007,12 @@ describe("Phase 3B tsunami common registry", () => {
     fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(persisted), "utf8");
 
     const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive).toEqual([]);
+    expect(loaded.legacyActive?.forecast?.[0]).toMatchObject({
+      areaCode: null,
+      kindCode: null,
+    });
+    expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toEqual([]);
     expect(loaded.active?.forecast?.[0]).toMatchObject({
       areaCode: null,
       kindCode: null,
@@ -1182,6 +2023,63 @@ describe("Phase 3B tsunami common registry", () => {
       stationCode: "201",
       maxHeight: { value: 1.2, presence: "value" },
     });
+  });
+
+  it("keyed state と名称-only legacy 表示を実ファイルで併存させ、legacy を取消対象へ入れない", () => {
+    const shared = deps();
+    const canonical = info({
+      eventId: "canonical-event",
+      areaCode: "210",
+      kindCode: "51",
+      at: T1,
+      messageId: "canonical-before-legacy-roundtrip",
+    });
+    expect(run(canonical, shared).kind).toBe("ok");
+    const legacy = info({
+      eventId: "legacy-event",
+      areaCode: null,
+      kindCode: null,
+      kind: "大津波警報",
+      at: T2,
+      messageId: "name-only-legacy-roundtrip",
+    });
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: legacy,
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const raw = JSON.parse(
+      fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
+    ) as PersistedStandbyStateV2;
+    expect(Object.hasOwn(raw.telegramFoundation.tsunami, "active")).toBe(false);
+    const loaded = persistence.load()!.telegramFoundation.tsunami;
+    expect(loaded.keyedActive?.map((item) => item.meta.eventId.value)).toEqual(["canonical-event"]);
+    expect(loaded.legacyActive?.meta.eventId.value).toBe("legacy-event");
+    expect(loaded.gateEntries.some((entry) => entry.stateSubjectKey === "tsunami:legacy-event"))
+      .toBe(false);
+
+    const restored = new TsunamiStateHolder();
+    restored.restorePersistedState(
+      null,
+      loaded.observations,
+      loaded.keyedActive ?? [],
+      loaded.legacyActive ?? null,
+    );
+    restored.clearAccepted(info({
+      eventId: "legacy-event",
+      forecast: [],
+      at: T3,
+      messageId: "legacy-cancellation-must-not-apply",
+    }));
+    expect(restored.getLastInfo()?.forecast?.map((item) => item.areaName).sort())
+      .toEqual([canonical.forecast![0]!.areaName, legacy.forecast![0]!.areaName].sort());
   });
 
   it("津波 v2 persistence の正しい canonical field は保持し、破損 field は scalar から再構成する", () => {
@@ -1252,6 +2150,10 @@ describe("Phase 3B tsunami common registry", () => {
     const persisted = JSON.parse(
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
     ) as PersistedStandbyStateV2;
+    // scalar migration reader は壊れた code field を名称-only legacy 表示へ落とす。
+    persisted.telegramFoundation.tsunami.active = persisted.telegramFoundation.tsunami.keyedActive![0]!;
+    delete persisted.telegramFoundation.tsunami.keyedActive;
+    delete persisted.telegramFoundation.tsunami.legacyActive;
     const brokenForecast = persisted.telegramFoundation.tsunami.active!
       .forecast![0] as unknown as Record<string, unknown>;
     brokenForecast.areaCode = 210;
@@ -1317,9 +2219,9 @@ describe("Phase 3B tsunami common registry", () => {
     const persisted = JSON.parse(
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
     ) as PersistedStandbyStateV2;
-    const brokenActive = persisted.telegramFoundation.tsunami.active as unknown as Record<string, unknown>;
+    const brokenActive = persisted.telegramFoundation.tsunami.keyedActive![0] as unknown as Record<string, unknown>;
     brokenActive.diagnostics = [123, "not-a-tsunami-diagnostic"];
-    const brokenForecast = persisted.telegramFoundation.tsunami.active!
+    const brokenForecast = persisted.telegramFoundation.tsunami.keyedActive![0]!
       .forecast![0] as unknown as Record<string, unknown>;
     brokenForecast.diagnostics = ["unknownTsunamiAreaCode", { invalid: true }];
     fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(persisted), "utf8");
@@ -1877,6 +2779,8 @@ describe("Phase 3B tsunami common registry", () => {
     });
     expect(loaded?.telegramFoundation.tsunami).toEqual({
       active: null,
+      keyedActive: [],
+      legacyActive: null,
       observations: { VTSE51: [], VTSE52: [] },
       gateEntries: [],
     });
@@ -1943,7 +2847,8 @@ describe("Phase 3B tsunami common registry", () => {
       fs.readFileSync(standbyPersistenceV2Path(file), "utf8"),
     ) as PersistedStandbyStateV2;
     expect(written.telegramFoundation.tsunami).toEqual({
-      active: null,
+      keyedActive: [],
+      legacyActive: null,
       observations: { VTSE51: [], VTSE52: [] },
       gateEntries: [],
     });

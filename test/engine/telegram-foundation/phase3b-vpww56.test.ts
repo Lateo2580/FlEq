@@ -373,7 +373,8 @@ describe("Phase 3B VPWW56 common registry", () => {
     expect(loaded.telegramFoundation.vpww56).toEqual({ authoritative: false, state: null, gateEntries: [] });
     expect(loaded.telegramFoundation.vpws50).toEqual({ authoritative: true, state: null, gateEntries: [] });
     expect(loaded.telegramFoundation.tsunami).toEqual({
-      active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],
+      active: null, keyedActive: [], legacyActive: null,
+      observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],
     });
   });
 

@@ -73,7 +73,10 @@ describe("StandbyPersistence", () => {
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
         vpww56: { authoritative: false, state: null, gateEntries: [] },
-        tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
+        tsunami: {
+          active: null, keyedActive: [], legacyActive: null,
+          observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],
+        },
         volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
         floodForecast: { authoritative: false, active: [], gateEntries: [] },
         standbyDomains: { gateEntries: [] },
@@ -605,7 +608,10 @@ describe("StandbyStateStore persistence", () => {
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
         vpww56: { authoritative: false, state: null, gateEntries: [] },
-        tsunami: { active: null, observations: { VTSE51: [], VTSE52: [] }, gateEntries: [] },
+        tsunami: {
+          active: null, keyedActive: [], legacyActive: null,
+          observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],
+        },
         volcano: { authoritative: false, state: null, active: [], gateEntries: [] },
         floodForecast: { authoritative: false, active: [], gateEntries: [] },
         standbyDomains: { gateEntries: [] },
