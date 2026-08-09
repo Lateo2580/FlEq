@@ -75,7 +75,7 @@ describe("EEW 震源詳細ブロック (Phase 4b)", () => {
     expect(info.earthquake).toBeDefined();
     displayEewInfo({
       ...info,
-      earthquake: { ...info.earthquake!, magnitude, magnitudeInfo: undefined },
+      earthquake: { ...info.earthquake!, magnitude, magnitudeInfo: undefined, magnitudeValue: undefined },
     }, { activeCount: 1, colorIndex: 0 });
     expect(output()).toContain("M不明");
     expect(output()).not.toContain("MNaN");

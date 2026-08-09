@@ -56,6 +56,13 @@ describe("RecentQuakes intensity semantic", () => {
     expect(chips[0].getAttribute("title")).toContain("以上（下限値）");
     expect(chips[1].getAttribute("aria-label")).toContain("理由: 未入電");
   });
+
+  it("scalar-only magnitude:null の空表示と ARIA を一致させる", () => {
+    const { container } = render(RecentQuakes, { quakes: [quake({ magnitude: null })] });
+    const magnitude = container.querySelector(".magnitude");
+    expect(magnitude?.textContent).toBe("");
+    expect(magnitude?.getAttribute("aria-label")).toBe("マグニチュード: 空欄");
+  });
 });
 
 describe("RecentQuakes keyed-each 重複耐性", () => {

@@ -36,4 +36,21 @@ describe("getFieldValue", () => {
   it("存在しないキーは undefined を返す", () => {
     expect(getFieldValue(asEvent({ title: "earthquake" }), ["missing"])).toBeUndefined();
   });
+
+  it("additive な magnitudeLabel/depthLabel は canonical を優先し旧変数を変えない", () => {
+    const event = asEvent({
+      magnitude: "5.0",
+      depth: "600km",
+      magnitudeValue: {
+        raw: "NaN", condition: "不明", description: null, presence: "unknown",
+      },
+      depthValue: {
+        raw: "600", condition: "以上", description: "深さ600km以上", presence: "range",
+        lowerBound: 600, upperBound: null,
+      },
+    });
+    expect(getFieldValue(event, ["magnitude"])).toBe("5.0");
+    expect(getFieldValue(event, ["magnitudeLabel"])).toBe("M不明");
+    expect(getFieldValue(event, ["depthLabel"])).toBe("600km以上");
+  });
 });

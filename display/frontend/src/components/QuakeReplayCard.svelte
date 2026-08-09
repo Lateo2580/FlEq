@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DisplayRecentQuakeV1 } from "../lib/protocol";
-  import { formatMdHm, formatIntShort, formatDepth } from "../lib/format";
-  import { formatMagnitudeLabel } from "../lib/magnitude";
+  import { formatMdHm, formatIntShort } from "../lib/format";
+  import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import { compactIntensityGroups, type CompactIntensityGroup } from "../lib/compact-intensity";
   import { intensityVisual } from "../lib/quake-map-colors";
@@ -18,6 +18,8 @@
   const compact = $derived(compactIntensityGroups(quake.intensityGroups ?? []));
   const maxVisual = $derived(intensityVisual(quake.maxIntSemantic, formatIntShort(quake.maxInt), quake.maxIntRank));
   const maxSeverityRank = $derived(quake.maxIntSemantic == null ? quake.maxIntRank : quake.maxIntSemantic.safetyRank);
+  const magnitude = $derived(magnitudeVisual(quake.magnitudeSemantic, quake.magnitude));
+  const depth = $derived(depthVisual(quake.depthSemantic, quake.depth));
 
   function handleClick(event: MouseEvent): void {
     event.stopPropagation();
@@ -41,11 +43,11 @@
     <div class="meta">
       <div class="stat">
         <span class="stat-label">規模</span>
-        <span class="stat-value">{quake.magnitude != null ? formatMagnitudeLabel(quake.magnitude) : "-"}</span>
+        <span class="stat-value" title={magnitude.tooltip ?? undefined} aria-label={quake.magnitudeSemantic == null && quake.magnitude == null ? "マグニチュード: -" : magnitude.ariaLabel}>{quake.magnitudeSemantic == null && quake.magnitude == null ? "-" : magnitude.label}{#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>
-        <span class="stat-value">{formatDepth(quake.depth)}</span>
+        <span class="stat-value" title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{depth.label}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">発生</span>

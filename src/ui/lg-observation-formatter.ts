@@ -7,7 +7,11 @@ import {
   lgObservationFrameLevel,
   resolveLgIntensitySafetyRank,
 } from "../engine/presentation/level-helpers";
-import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
+import {
+  formatHypocenterDepth,
+  formatHypocenterMagnitude,
+  isNumericMagnitude,
+} from "../utils/magnitude";
 import { typeLabel } from "./telegram-type-label";
 import {
   FrameLevel,
@@ -172,14 +176,19 @@ export function displayLgObservationInfo(info: ParsedLgObservationInfo): void {
     }
   }
   if (info.earthquake) {
+    const magnitude = formatHypocenterMagnitude(info.earthquake);
     cardParts.push(
-      isNumericMagnitude(info.earthquake.magnitude)
+      info.earthquake.magnitudeValue?.presence === "value"
+        && info.earthquake.magnitudeValue.value != null
+        ? colorMagnitude(info.earthquake.magnitudeValue.value.toFixed(1))
+        : info.earthquake.magnitudeValue == null && isNumericMagnitude(info.earthquake.magnitude)
         ? colorMagnitude(info.earthquake.magnitude)
-        : chalk.white(formatMagnitudeLabel(info.earthquake)),
+        : chalk.white(magnitude),
     );
   }
-  if (info.earthquake?.depth) {
-    cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
+  const depth = info.earthquake == null ? null : formatHypocenterDepth(info.earthquake);
+  if (depth != null) {
+    cardParts.push(chalk.white("深さ ") + chalk.white(depth));
   }
   if (cardParts.length > 0) {
     buf.push(frameDivider(level, width));

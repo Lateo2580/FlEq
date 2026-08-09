@@ -18,6 +18,7 @@ export interface SummaryModel {
   title?: string;
   location?: string;
   magnitude?: string;
+  depth?: string;
   maxInt?: string;
   maxLgInt?: string;
   headline?: string;

@@ -411,6 +411,15 @@ describe("QuakeMapScreen", () => {
     expect(container.textContent).not.toContain("~10km");
   });
 
+  it("scalar-only magnitude:null の '-' 表示と ARIA を一致させる", () => {
+    const { container } = render(QuakeMapScreen, {
+      event: mapEvent({ magnitude: null }),
+    });
+    const magnitudeTerm = [...container.querySelectorAll("dt")].find((term) => term.textContent === "規模");
+    expect(magnitudeTerm?.nextElementSibling?.textContent).toBe("-");
+    expect(magnitudeTerm?.nextElementSibling?.getAttribute("aria-label")).toBe("マグニチュード: -");
+  });
+
   it("全国図と文字一覧を並置し、緊急画面の header/hero/motion を使わない", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => response(asset())));
     const { container } = render(QuakeMapScreen, {

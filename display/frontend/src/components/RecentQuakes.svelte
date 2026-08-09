@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DisplayRecentQuakeV1 } from "../lib/protocol";
-  import { formatMdHm, formatIntShort, formatDepth, recentQuakeId } from "../lib/format";
-  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { formatMdHm, formatIntShort, recentQuakeId } from "../lib/format";
+  import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { intensityVisual } from "../lib/quake-map-colors";
 
   // 呼び出し元 (StandbyScreen) が quakes.length === 0 のときはカードごと非表示にするため、
@@ -37,14 +37,16 @@
   <ul>
     {#each shown as q, i (renderKey(q, i))}
       {@const visual = intensityVisual(q.maxIntSemantic, formatIntShort(q.maxInt), q.maxIntRank)}
+      {@const magnitude = magnitudeVisual(q.magnitudeSemantic, q.magnitude)}
+      {@const depth = depthVisual(q.depthSemantic, q.depth)}
       <li>
         <button class="row" type="button" onclick={(e) => handleClick(e, q)}>
           {#if visual.render}<span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}
           <span class="hypocenter">{q.hypocenterName ?? "不明"}</span>
           {#if q.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
           <span class="stats">
-            <span class="magnitude" class:magnitude-description={!isNumericMagnitude(q.magnitude)}>{q.magnitude != null ? formatMagnitudeLabel(q.magnitude) : ""}</span>
-            <span class="depth">{formatDepth(q.depth)}</span>
+            <span class="magnitude" class:magnitude-description={magnitude.numericValue == null} title={magnitude.tooltip ?? undefined} aria-label={q.magnitudeSemantic == null && q.magnitude == null ? "マグニチュード: 空欄" : magnitude.ariaLabel}>{q.magnitudeSemantic == null && q.magnitude == null ? "" : magnitude.label}{#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}</span>
+            <span class="depth" title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{depth.label}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</span>
             <span class="time">{formatMdHm(q.originTime ?? q.reportDateTime)}</span>
           </span>
         </button>

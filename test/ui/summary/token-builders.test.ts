@@ -200,6 +200,21 @@ describe("buildSummaryTokens", () => {
       expect(typeToken.text).toBe("長周期地震動観測情報");
       expect(typeToken.shortText).toBe("長周期観測");
     });
+
+    it("Depth semantic は scalar でなく SummaryModel の表示値を使う", () => {
+      const { event } = makeTokens(FIXTURE_VXSE62_LGOBS, "lgObservation");
+      const semanticEvent = {
+        ...event,
+        depth: "600km",
+        depthValue: {
+          raw: "600000", value: null, condition: "以上", description: "深さ600km以上",
+          presence: "range" as const, lowerBound: 600, upperBound: null,
+        },
+      };
+      const model = buildSummaryModel(semanticEvent);
+      expect(buildSummaryTokens(semanticEvent, model).find((token) => token.id === "depth")?.text)
+        .toBe("深さ600km以上");
+    });
   });
 
   // ── テキスト ──

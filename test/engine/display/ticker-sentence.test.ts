@@ -190,6 +190,27 @@ describe("buildTickerSentence", () => {
     }))).toContain("M不明の地震");
   });
 
+  it("ticker は canonical missing/empty を省略し unknown/range/巨大を意味表示する", () => {
+    const base = { hypocenterName: "日本海溝付近", magnitude: "9.9" };
+    const numeric = (overrides: Partial<SpecialValue<number>>): SpecialValue<number> => ({
+      raw: null, value: null, condition: null, description: null, presence: "missing", ...overrides,
+    });
+    expect(buildTickerSentence(makeEvent({
+      ...base, magnitudeValue: numeric({ presence: "missing" }),
+    }))).toContain("日本海溝付近を震源とする地震");
+    expect(buildTickerSentence(makeEvent({
+      ...base, magnitudeValue: numeric({ raw: "NaN", condition: "不明", presence: "unknown" }),
+    }))).toContain("規模不明の地震");
+    expect(buildTickerSentence(makeEvent({
+      ...base, magnitudeValue: numeric({ presence: "range", lowerBound: 5, upperBound: 7 }),
+    }))).toContain("M5.0～7.0の地震");
+    expect(buildTickerSentence(makeEvent({
+      ...base, magnitudeValue: numeric({
+        raw: "NaN", condition: "不明", description: "M8 を超える巨大地震", presence: "qualitative",
+      }),
+    }))).toContain("M8 を超える巨大地震");
+  });
+
   it("地震: 最大震度グループが 3 地域以上なら「など」", () => {
     const event = makeEvent({
       originTime: "2026-07-08T09:05:00+09:00",

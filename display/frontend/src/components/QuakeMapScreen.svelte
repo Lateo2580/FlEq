@@ -3,7 +3,7 @@
   import { fade } from "svelte/transition";
   import type { DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatIntShort, formatMdHm } from "../lib/format";
-  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { intensityVisual } from "../lib/quake-map-colors";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
@@ -16,6 +16,7 @@
   import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
   import PageDots from "./PageDots.svelte";
   import QuakeMap from "./QuakeMap.svelte";
+  import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
 
   let {
     event,
@@ -43,6 +44,8 @@
   const currentPage = $derived(pages[cycler.index]);
   const pageFadeMs = $derived(cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS);
   const maxVisual = $derived(intensityVisual(event.maxIntSemantic, formatIntShort(event.maxInt), event.maxIntRank));
+  const magnitude = $derived(magnitudeVisual(event.magnitudeSemantic, event.magnitude, "map"));
+  const depth = $derived(depthVisual(event.depthSemantic, event.depth, "map"));
 
   function groupVisual(intensity: string, rank: number) {
     const group = displayGroups.find((item) => item.intensity === intensity && item.rank === rank);
@@ -64,10 +67,11 @@
     <dl class="facts">
       <div><dt>発生</dt><dd>{formatMdHm(event.originTime ?? event.reportDateTime)}</dd></div>
       <div><dt>震源</dt><dd>{event.hypocenterName ?? "調査中"}</dd></div>
-      <div><dt>{isNumericMagnitude(event.magnitude) ? "M" : "規模"}</dt><dd>{event.magnitude != null ? (isNumericMagnitude(event.magnitude) ? event.magnitude : formatMagnitudeLabel(event.magnitude)) : "-"}</dd></div>
-      <div><dt>深さ</dt><dd>{event.depth ?? "-"}</dd></div>
+      {#if magnitude.render}<div><dt>{magnitude.numericValue != null ? "M" : "規模"}</dt><dd title={magnitude.tooltip ?? undefined} aria-label={event.magnitudeSemantic == null && event.magnitude == null ? "マグニチュード: -" : magnitude.ariaLabel}>{event.magnitudeSemantic == null && event.magnitude == null ? "-" : magnitude.numericValue != null ? magnitude.numericValue.toFixed(1) : magnitude.label}{#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}</dd></div>{/if}
+      {#if depth.render}<div><dt>深さ</dt><dd title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{depth.label}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</dd></div>{/if}
       {#if event.tsunamiWarning}<div class="tsunami"><dt>津波</dt><dd>津波情報あり</dd></div>{/if}
     </dl>
+    <NumericSemanticLegend semantics={[event.magnitudeSemantic, event.depthSemantic]} />
   </header>
 
   <div class="content">

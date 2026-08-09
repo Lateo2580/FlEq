@@ -3,6 +3,8 @@ import { EewAccuracy, ParsedEewInfo, type JmaLgIntensity, type SpecialValue } fr
 import type { EewDiff } from "../engine/eew/eew-tracker";
 import {
   formatDepthSpecialValue,
+  formatHypocenterDepth,
+  formatHypocenterMagnitude,
   formatMagnitudeLabel,
   formatMagnitudeSpecialValue,
   isNumericMagnitude,
@@ -509,15 +511,20 @@ export function displayEewInfo(
       }
     }
     if (info.earthquake && !info.isAssumedHypocenter) {
+      const magnitude = formatHypocenterMagnitude(info.earthquake);
       cardParts.push({
-        text: isNumericMagnitude(info.earthquake.magnitude)
+        text: info.earthquake.magnitudeValue?.presence === "value"
+          && info.earthquake.magnitudeValue.value != null
+          ? colorMagnitude(info.earthquake.magnitudeValue.value.toFixed(1))
+          : info.earthquake.magnitudeValue == null && isNumericMagnitude(info.earthquake.magnitude)
           ? colorMagnitude(info.earthquake.magnitude)
-          : chalk.white(formatMagnitudeLabel(info.earthquake)),
+          : chalk.white(magnitude),
         priority: 1,
       });
     }
-    if (info.earthquake?.depth && !info.isAssumedHypocenter) {
-      cardParts.push({ text: chalk.white("深さ ") + chalk.white(info.earthquake.depth), priority: 2 });
+    const cardDepth = info.earthquake == null ? null : formatHypocenterDepth(info.earthquake);
+    if (cardDepth != null && !info.isAssumedHypocenter) {
+      cardParts.push({ text: chalk.white("深さ ") + chalk.white(cardDepth), priority: 2 });
     }
     buf.pushCard(frameLine(level, clampFrameContent(buildEewCardLine(cardParts, width), width), width));
   } else {
@@ -602,23 +609,27 @@ export function displayEewInfo(
       ) {
         magLine = chalk.white("規模: ") + chalk.gray(`M${diff.previousMagnitude}`) + chalk.white(" → ") + chalk.bold(colorMagnitude(eq.magnitude));
       } else {
+        const magnitude = formatHypocenterMagnitude(eq);
         magLine = chalk.white("規模: ") + (
-          isNumericMagnitude(eq.magnitude)
+          eq.magnitudeValue?.presence === "value" && eq.magnitudeValue.value != null
+            ? colorMagnitude(eq.magnitudeValue.value.toFixed(1))
+            : eq.magnitudeValue == null && isNumericMagnitude(eq.magnitude)
             ? colorMagnitude(eq.magnitude)
-            : chalk.white(formatMagnitudeLabel(eq))
+            : chalk.white(magnitude)
         );
       }
       pushClampedFrameLine(buf, level, width, magLine);
     }
-    if ((eq.depth || diff?.currentDepthValue != null) && !info.isAssumedHypocenter) {
+    const currentDepth = formatHypocenterDepth(eq);
+    if ((currentDepth != null || diff?.currentDepthValue != null) && !info.isAssumedHypocenter) {
       let depthLine: string;
       const semanticDiffLine = depthDiffLine(diff);
       if (semanticDiffLine != null) {
         depthLine = semanticDiffLine;
       } else if (diff?.previousDepth) {
-        depthLine = chalk.white("深さ: ") + chalk.gray(diff.previousDepth) + chalk.white(" → ") + chalk.bold.white(eq.depth);
+        depthLine = chalk.white("深さ: ") + chalk.gray(diff.previousDepth) + chalk.white(" → ") + chalk.bold.white(currentDepth ?? "—");
       } else {
-        depthLine = chalk.white("深さ: ") + chalk.white(eq.depth);
+        depthLine = chalk.white("深さ: ") + chalk.white(currentDepth ?? "—");
       }
       pushClampedFrameLine(buf, level, width, depthLine);
     }

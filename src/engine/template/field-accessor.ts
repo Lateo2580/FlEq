@@ -1,4 +1,9 @@
 import type { PresentationEvent } from "../presentation/types";
+import {
+  formatDepthSpecialValue,
+  formatMagnitudeSpecialValue,
+  formatPresentationMagnitude,
+} from "../../utils/magnitude";
 
 /**
  * PresentationEvent からドットパスで値を取得する。
@@ -17,6 +22,16 @@ export function getFieldValue(
 ): unknown {
   // 二重防御: parser を経由せず直接呼ばれた場合にも raw への参照を拒否
   if (segments[0] === "raw") return undefined;
+
+  // 旧 magnitude/depth 変数は互換維持。semantic 表示は additive な専用変数で公開する。
+  if (segments.length === 1 && segments[0] === "magnitudeLabel") {
+    if (event.magnitudeValue != null) return formatMagnitudeSpecialValue(event.magnitudeValue) ?? "—";
+    return event.magnitude == null ? undefined : formatPresentationMagnitude(event.magnitude);
+  }
+  if (segments.length === 1 && segments[0] === "depthLabel") {
+    if (event.depthValue != null) return formatDepthSpecialValue(event.depthValue) ?? "—";
+    return event.depth ?? undefined;
+  }
 
   let current: unknown = event;
 

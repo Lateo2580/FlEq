@@ -17,7 +17,7 @@ function formattedMagnitudeNumber(value: number): string {
 
 export function isGiantMagnitudeText(value: string | null): boolean {
   const normalized = value?.normalize("NFKC").trim();
-  return normalized === "M8を超える巨大地震" || normalized === "巨大地震";
+  return normalized === "巨大地震" || (normalized != null && /^M8\s*を超える巨大地震$/.test(normalized));
 }
 
 function normalizedDepthDescription(description: string | null): string | null {
@@ -178,7 +178,7 @@ export function magnitudeSortRank(value: SpecialValue<number>): number | null {
     case "value":
       return rank.value;
     case "range":
-      return rank.upperBound ?? rank.lowerBound;
+      return rank.lowerBound ?? rank.upperBound;
     case "unranked":
       return null;
   }
@@ -192,6 +192,26 @@ export function formatMagnitudeLabel(
   if (description) return normalizeDescription(description);
   if (isNumericMagnitude(earthquake.magnitude)) return `M${earthquake.magnitude}`;
   return "M不明";
+}
+
+/** canonical があれば優先し、無い旧 DTO だけ scalar 表示へ戻す。 */
+export function formatHypocenterMagnitude(
+  earthquake: Pick<ParsedEarthquakeHypocenter, "magnitude" | "magnitudeInfo" | "magnitudeValue">,
+): string {
+  if (earthquake.magnitudeValue != null) {
+    return formatMagnitudeSpecialValue(earthquake.magnitudeValue) ?? "—";
+  }
+  return formatMagnitudeLabel(earthquake);
+}
+
+/** canonical があれば優先し、無い旧 DTO だけ scalar 表示へ戻す。 */
+export function formatHypocenterDepth(
+  earthquake: Pick<ParsedEarthquakeHypocenter, "depth" | "depthValue">,
+): string | null {
+  if (earthquake.depthValue != null) {
+    return formatDepthSpecialValue(earthquake.depthValue) ?? "—";
+  }
+  return earthquake.depth === "" ? null : earthquake.depth;
 }
 
 /**

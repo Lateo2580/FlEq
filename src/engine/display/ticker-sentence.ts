@@ -19,7 +19,11 @@ import { FLOOD_LEVEL_RANK } from "../../types";
 import { analyzeWeatherTickerFacts, buildWeatherTickerSentence } from "./weather-ticker-facts";
 import { prefectureOf, formatPrefectureList, LIST_SEPARATOR, MAX_LISTED } from "./prefecture-format";
 import { intensityToRank } from "../../utils/intensity";
-import { formatPresentationMagnitude } from "../../utils/magnitude";
+import {
+  formatMagnitudeSpecialValue,
+  formatPresentationMagnitude,
+  isGiantMagnitudeText,
+} from "../../utils/magnitude";
 import { resolveTsunamiLevel, normalizeTsunamiKind } from "../../utils/tsunami-kind";
 import { flattenEntries, type WeatherSeverityEntry } from "../presentation/weather-severity-pyramid";
 import { normalizeKindName, KIND_NAME_MAP } from "../../dmdata/weather-warning-timeseries-significancy";
@@ -187,11 +191,7 @@ function earthquakeSentence(event: PresentationEvent): string | null {
   if (hypocenterName == null || hypocenterName === "") return null;
   const time = event.originTime != null ? formatJst12h(event.originTime) : null;
   const head = time != null ? `${time}、` : "";
-  const mag = event.magnitude != null
-    ? Number.isFinite(Number(event.magnitude))
-      ? `マグニチュード${event.magnitude}の地震`
-      : `${formatPresentationMagnitude(event.magnitude)}の地震`
-    : "地震";
+  const mag = tickerEarthquakePhrase(event, true);
   let sentence = `${head}${hypocenterName}を震源とする${mag}がありました。`;
   const top = topIntensityAreas(event.areaItems);
   const maxInt = tickerIntensityText(event);
@@ -211,11 +211,33 @@ function eewSentence(event: PresentationEvent): string | null {
   if (event.hypocenterName == null) return null;
   const label = event.isWarning === true ? "緊急地震速報" : "緊急地震速報(予報)";
   const serial = event.serial != null ? ` #${event.serial}` : "";
-  const mag = event.magnitude != null ? `${formatPresentationMagnitude(event.magnitude)}の地震` : "地震";
+  const mag = tickerEarthquakePhrase(event, false);
   const parts = [`${label}${serial}: ${event.hypocenterName}で${mag}`];
   if (event.forecastMaxInt != null) parts.push(`予想最大震度${event.forecastMaxInt}`);
   if (event.isWarning === true) parts.push("強い揺れに警戒");
   return parts.join("　"); // 体言止め・句点なし
+}
+
+function tickerEarthquakePhrase(event: PresentationEvent, verboseExact: boolean): string {
+  const semantic = event.magnitudeValue;
+  if (semantic != null) {
+    if (semantic.presence === "missing" || semantic.presence === "empty") return "地震";
+    if (semantic.presence === "value" && semantic.value != null) {
+      const value = semantic.value.toFixed(1);
+      return verboseExact ? `マグニチュード${value}の地震` : `M${value}の地震`;
+    }
+    if (semantic.presence === "unknown") return "規模不明の地震";
+    if (
+      semantic.presence === "qualitative"
+      && [semantic.description, semantic.condition, semantic.raw].some(isGiantMagnitudeText)
+    ) return formatMagnitudeSpecialValue(semantic) ?? "巨大地震";
+    const label = formatMagnitudeSpecialValue(semantic);
+    return label == null ? "地震" : `${label}の地震`;
+  }
+  if (event.magnitude == null) return "地震";
+  return Number.isFinite(Number(event.magnitude)) && verboseExact
+    ? `マグニチュード${event.magnitude}の地震`
+    : `${formatPresentationMagnitude(event.magnitude)}の地震`;
 }
 
 const TSUNAMI_LEVEL_LABELS: Record<string, string> = {

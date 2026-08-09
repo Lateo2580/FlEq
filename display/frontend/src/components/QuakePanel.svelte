@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DisplayLargeQuakeInputV1, DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatHm, formatMdHm, formatIntShort } from "../lib/format";
-  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -19,6 +19,7 @@
   import PageDots from "./PageDots.svelte";
   import QuakeMap from "./QuakeMap.svelte";
   import { intensityVisual } from "../lib/quake-map-colors";
+  import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
 
   // compact: main-stack の非 main スロット (EewPanel と同じ縮小パターンを適用し、
   // emergency-3 等で tile-main + tile-stats + 震度別グループが縦に収まりきらず
@@ -36,6 +37,9 @@
     compact?: boolean;
     layoutSettling?: boolean;
   } = $props();
+
+  const magnitude = $derived(magnitudeVisual(input.magnitudeSemantic, input.magnitude));
+  const depth = $derived(depthVisual(input.depthSemantic, input.depth));
 
   const hasChips = $derived(input.tsunamiWarning || input.originTime != null);
   const originTimeLabel = $derived(input.originTime == null ? "-" : compact ? formatHm(input.originTime) : formatMdHm(input.originTime));
@@ -151,6 +155,7 @@
     <div class="tile tile-main">
       <div class="hypocenter">{input.hypocenterName ?? "震源調査中"}</div>
       {#if maxVisual.render}<div class="max-int" title={maxVisual.tooltip ?? undefined} aria-label={`最大${maxVisual.ariaLabel ?? "震度不明"}`}>最大震度{maxVisual.label ?? ""}{#if maxVisual.badge != null}<b class="semantic-badge">{maxVisual.badge}</b>{/if}</div>{/if}
+      <NumericSemanticLegend semantics={[input.magnitudeSemantic, input.depthSemantic]} />
       {#if hasChips}
         <div
           class="reveal-wrap chip-reveal-wrap"
@@ -187,13 +192,13 @@
     </div>
     <div class="tile-stats">
       <div class="tile stat-tile">
-        <span class="stat-label">{isNumericMagnitude(input.magnitude) ? "M" : "規模"}</span>
-        <span class="stat-value">{input.magnitude != null ? (isNumericMagnitude(input.magnitude) ? input.magnitude : formatMagnitudeLabel(input.magnitude)) : "M不明"}</span>
+        <span class="stat-label">{magnitude.numericValue != null ? "M" : "規模"}</span>
+        <span class="stat-value" title={magnitude.tooltip ?? undefined} aria-label={magnitude.ariaLabel}>{magnitude.numericValue != null ? magnitude.numericValue.toFixed(1) : magnitude.label}{#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}</span>
       </div>
-      {#if input.depth != null}
+      {#if input.depthSemantic != null ? depth.render : input.depth != null}
         <div class="tile stat-tile">
           <span class="stat-label">深さ</span>
-          <span class="stat-value">{input.depth}</span>
+          <span class="stat-value" title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{depth.label}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</span>
         </div>
       {/if}
       {#if input.maxLgInt != null}

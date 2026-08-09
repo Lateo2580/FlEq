@@ -1,7 +1,11 @@
 import type { PresentationEvent } from "../../engine/presentation/types";
 import type { FrameLevel } from "../formatter";
 import type { SummaryModel } from "./types";
-import { formatPresentationMagnitude } from "../../utils/magnitude";
+import {
+  formatDepthSpecialValue,
+  formatMagnitudeSpecialValue,
+  formatPresentationMagnitude,
+} from "../../utils/magnitude";
 
 const SEVERITY_MAP: Record<FrameLevel, string> = {
   critical: "[緊急]",
@@ -26,7 +30,14 @@ export function buildSummaryModel(event: PresentationEvent): SummaryModel {
     severity,
     title: event.title,
     location: event.hypocenterName ?? event.volcanoName ?? undefined,
-    magnitude: event.magnitude ? formatPresentationMagnitude(event.magnitude) : undefined,
+    magnitude: event.magnitudeValue != null
+      ? formatMagnitudeSpecialValue(event.magnitudeValue) ?? "—"
+      : event.magnitude
+        ? formatPresentationMagnitude(event.magnitude)
+        : undefined,
+    depth: event.depthValue != null
+      ? formatDepthSpecialValue(event.depthValue) ?? "—"
+      : event.depth ?? undefined,
     maxInt: event.maxIntLabel != null
       ? `震度${event.maxIntLabel}`
       : event.maxInt

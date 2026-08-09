@@ -101,6 +101,7 @@ describe("displayTsunamiInfo (新デザイン言語)", () => {
         ...info.earthquake!,
         magnitude,
         magnitudeInfo: undefined,
+        magnitudeValue: undefined,
       },
     }));
     expect(out).toContain("M不明");

@@ -13,7 +13,8 @@ import {
 import * as log from "../../logger";
 import {
   formatDepthSpecialValue,
-  formatMagnitudeLabel,
+  formatHypocenterDepth,
+  formatHypocenterMagnitude,
   formatMagnitudeSpecialValue,
 } from "../../utils/magnitude";
 
@@ -329,7 +330,10 @@ export class EewEventLogger {
         }
       } else {
         if (this.fields.magnitude) {
-          lines.push(`${formatMagnitudeLabel(eq)}  深さ${eq.depth}`);
+          const magnitude = formatHypocenterMagnitude(eq);
+          // semantic が無い旧 DTO は従来どおり空 depth でも「深さ」まで出す。
+          const depth = eq.depthValue == null ? eq.depth : formatHypocenterDepth(eq);
+          lines.push(depth == null ? magnitude : `${magnitude}  深さ${depth}`);
         }
         if (this.fields.diff && diff) {
           const diffStr = formatDiff(diff, info);

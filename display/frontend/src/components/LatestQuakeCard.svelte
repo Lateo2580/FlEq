@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { DisplayIntensityGroupV1, DisplayLatestQuakeStateV1 } from "../lib/protocol";
-  import { formatMdHm, formatIntShort, formatDepth, splitNumberUnit } from "../lib/format";
-  import { formatMagnitudeLabel, isNumericMagnitude } from "../lib/magnitude";
+  import { formatMdHm, formatIntShort, splitNumberUnit } from "../lib/format";
+  import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
@@ -19,12 +19,14 @@
   import RestoredChip from "./RestoredChip.svelte";
   import NumberUnit from "./NumberUnit.svelte";
   import { intensityVisual } from "../lib/quake-map-colors";
+  import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
 
   let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
 
   // 数値深さは「20km」の数値大・単位小で見せる。「ごく浅い」は数値ではないため通常テキスト。
-  const formattedDepth = $derived(formatDepth(quake.depth));
-  const depthParts = $derived(splitNumberUnit(formattedDepth));
+  const magnitude = $derived(magnitudeVisual(quake.magnitudeSemantic, quake.magnitude));
+  const depth = $derived(depthVisual(quake.depthSemantic, quake.depth));
+  const depthParts = $derived(splitNumberUnit(depth.label));
 
   // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)。
   // ≤30 のときは topGroupCompact 相当の縮退分岐は実質発火しない (最大震度グループも ≤30 になる
@@ -128,17 +130,18 @@
     <div class="meta">
       <div class="stat">
         <span class="stat-label">規模</span>
-        <span class="magnitude stat-value">{#if quake.magnitude != null}{#if isNumericMagnitude(quake.magnitude)}<NumberUnit prefix="M" value={quake.magnitude} />{:else}{formatMagnitudeLabel(quake.magnitude)}{/if}{/if}</span>
+        <span class="magnitude stat-value" title={magnitude.tooltip ?? undefined} aria-label={quake.magnitudeSemantic == null && quake.magnitude == null ? "マグニチュード: 空欄" : magnitude.ariaLabel}>{#if quake.magnitudeSemantic == null && quake.magnitude == null}{:else if magnitude.numericValue != null}<NumberUnit prefix="M" value={magnitude.numericValue.toFixed(1)} />{:else}{magnitude.label}{/if}{#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">深さ</span>
-        <span class="depth stat-value">{#if formattedDepth === "ごく浅い"}{formattedDepth}{:else}<NumberUnit value={depthParts.value} unit={depthParts.unit} />{/if}</span>
+        <span class="depth stat-value" title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{#if depth.numericValue != null}<NumberUnit value={depthParts.value} unit={depthParts.unit} />{:else}{depth.label}{/if}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</span>
       </div>
       <div class="stat">
         <span class="stat-label">発生</span>
         <span class="time stat-value">{formatMdHm(quake.originTime ?? quake.reportDateTime)}</span>
       </div>
     </div>
+    <NumericSemanticLegend semantics={[quake.magnitudeSemantic, quake.depthSemantic]} />
     {#if longPeriod != null}<div class="long-period-rider">長周期地震動階級 {longPeriod.maxLgInt}{#if longPeriod.restored}<RestoredChip />{/if}</div>{/if}
     {#if displayGroups.length > 0}
       {#if paging}

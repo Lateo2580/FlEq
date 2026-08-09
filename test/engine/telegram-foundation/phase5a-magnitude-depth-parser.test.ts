@@ -9,6 +9,7 @@ import {
   magnitudeSortRank,
   specialValueCanonicalEquals,
 } from "../../../src/utils/magnitude";
+import { comparableMagnitudeRank } from "../../../display/frontend/src/lib/magnitude";
 import {
   createMockWsDataMessageFromXml,
   readFixture,
@@ -357,6 +358,36 @@ describe("Phase 5A Magnitude/Depth parser contract", () => {
       { kind: "unranked" },
     ]);
   });
+
+  it.each([
+    ["両側 range", {
+      raw: "5～7", value: null, condition: null, description: null,
+      presence: "range" as const, lowerBound: 5, upperBound: 7,
+    }],
+    ["lower-only", {
+      raw: "5以上", value: null, condition: "以上", description: null,
+      presence: "range" as const, lowerBound: 5, upperBound: null,
+    }],
+    ["upper-only", {
+      raw: "7以下", value: null, condition: "以下", description: null,
+      presence: "range" as const, lowerBound: null, upperBound: 7,
+    }],
+    ["exact", {
+      raw: "6", value: 6, condition: null, description: null,
+      presence: "value" as const,
+    }],
+    ["giant", {
+      raw: "巨大地震", value: null, condition: null, description: null,
+      presence: "qualitative" as const,
+    }],
+  ] satisfies ReadonlyArray<readonly [string, SpecialValue<number>]>) (
+    "共通 rank と frontend rank は %s で一致する",
+    (_label, value) => {
+      expect(magnitudeSortRank(value)).toBe(
+        comparableMagnitudeRank(magnitudeSerializableRank(value)),
+      );
+    },
+  );
 
   it("Coordinate description 終端の 深さ ごく浅い と非0本文の矛盾を記録する", () => {
     expect(extractSpecialValue("Depth", {

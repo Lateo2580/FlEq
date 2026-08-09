@@ -92,8 +92,8 @@ function buildEewTokens(event: PresentationEvent, model: SummaryModel): SummaryT
   }
 
   // depth
-  if (event.depth) {
-    tokens.push(token("depth", `深さ${event.depth}`, 3, "drop"));
+  if (model.depth) {
+    tokens.push(token("depth", `深さ${model.depth}`, 3, "drop"));
   }
 
   // forecastAreaTop
@@ -131,7 +131,7 @@ function buildEarthquakeTokens(event: PresentationEvent, model: SummaryModel): S
         short !== event.hypocenterName ? short : undefined));
     }
     if (model.magnitude) tokens.push(token("magnitude", model.magnitude, 1, "shorten", model.magnitude));
-    if (event.depth) tokens.push(token("depth", `深さ${event.depth}`, 2, "drop"));
+    if (model.depth) tokens.push(token("depth", `深さ${model.depth}`, 2, "drop"));
     if (event.headline && event.headline.includes("津波")) {
       tokens.push(token("tsunami", event.headline, 2, "drop"));
     }
@@ -300,8 +300,8 @@ function buildLgObservationTokens(event: PresentationEvent, model: SummaryModel)
     tokens.push(token("magnitude", model.magnitude, 2, "drop"));
   }
 
-  if (event.depth) {
-    tokens.push(token("depth", `深さ${event.depth}`, 3, "drop"));
+  if (model.depth) {
+    tokens.push(token("depth", `深さ${model.depth}`, 3, "drop"));
   }
 
   return tokens;

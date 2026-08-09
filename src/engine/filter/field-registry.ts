@@ -1,5 +1,6 @@
 import type { PresentationEvent } from "../presentation/types";
-import type { FilterField, FilterKind } from "./types";
+import type { SpecialValue } from "../../types";
+import type { CompOp, FilterField, FilterKind } from "./types";
 
 function field<T>(kind: FilterKind, aliases: string[], get: (e: PresentationEvent) => T | null | undefined, supportsOrder?: boolean): FilterField<T> {
   return { kind, aliases, get, supportsOrder };
@@ -17,6 +18,65 @@ function parseMagnitude(m: string | null | undefined): number | null {
   if (m == null) return null;
   const n = Number(m);
   return Number.isFinite(n) ? n : null;
+}
+
+function compareCanonicalNumber(
+  value: SpecialValue<number>,
+  op: CompOp,
+  right: number,
+): boolean {
+  if (value.presence === "value" && value.value != null) {
+    switch (op) {
+      case "=": return value.value === right;
+      case "!=": return value.value !== right;
+      case "<": return value.value < right;
+      case "<=": return value.value <= right;
+      case ">": return value.value > right;
+      case ">=": return value.value >= right;
+      default: return false;
+    }
+  }
+  if (value.presence !== "range") return false;
+  const lower = value.lowerBound ?? null;
+  const upper = value.upperBound ?? null;
+  switch (op) {
+    case "=": return lower != null && upper != null && lower === right && upper === right;
+    case "!=": return (upper != null && upper < right) || (lower != null && lower > right);
+    case "<": return upper != null && upper < right;
+    case "<=": return upper != null && upper <= right;
+    case ">": return lower != null && lower > right;
+    case ">=": return lower != null && lower >= right;
+    default: return false;
+  }
+}
+
+function semanticNumberField(
+  scalar: (event: PresentationEvent) => number | null,
+  semantic: (event: PresentationEvent) => SpecialValue<number> | undefined,
+): FilterField<number> {
+  return {
+    kind: "number",
+    aliases: [],
+    get: (event) => semantic(event)?.presence === "value"
+      ? semantic(event)?.value
+      : semantic(event) == null
+        ? scalar(event)
+        : null,
+    supportsOrder: true,
+    compareNumber: (event, op, right) => {
+      const canonical = semantic(event);
+      if (canonical != null) return compareCanonicalNumber(canonical, op, right);
+      const value = scalar(event);
+      if (value == null) return false;
+      return compareCanonicalNumber({
+        presence: "value",
+        raw: String(value),
+        condition: null,
+        description: null,
+        value,
+      }, op, right);
+    },
+  };
 }
 
 const FILTER_INTENSITY_BY_RANK = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"] as const;
@@ -56,8 +116,11 @@ export const FILTER_FIELDS: Record<string, FilterField> = {
 
   // 震源情報
   hypocenterName: field("string", ["hypocenter"], (e) => e.hypocenterName),
-  depth: field("number", [], (e) => parseDepth(e.depth), true),
-  magnitude: field("number", ["mag"], (e) => parseMagnitude(e.magnitude), true),
+  depth: semanticNumberField((e) => parseDepth(e.depth), (e) => e.depthValue),
+  magnitude: {
+    ...semanticNumberField((e) => parseMagnitude(e.magnitude), (e) => e.magnitudeValue),
+    aliases: ["mag"],
+  },
 
   // 強度
   maxInt: field("enum:intensity", [], (e) => e.maxInt, true),

@@ -113,6 +113,74 @@ describe("EewEventLogger", () => {
       expect(content).toContain("愛媛県");
     });
 
+    it("通常 snapshot の M/深さを canonical formatter で表示する", async () => {
+      const range = createEewInfo({
+        serial: "1",
+        eventId: "ev-snapshot-semantic-range",
+        earthquake: {
+          ...createEewInfo().earthquake!,
+          magnitude: "5.0",
+          magnitudeValue: {
+            raw: "5.0", value: 5, condition: null, description: null, presence: "value",
+          },
+          depth: "600km",
+          depthValue: {
+            raw: "600000", value: null, condition: "以上", description: "深さ600km以上",
+            presence: "range", lowerBound: 600, upperBound: null,
+          },
+        },
+      });
+      const missingAndEmpty = createEewInfo({
+        serial: "1",
+        eventId: "ev-snapshot-semantic-missing",
+        earthquake: {
+          ...createEewInfo().earthquake!,
+          magnitude: "",
+          magnitudeValue: {
+            raw: null, value: null, condition: null, description: null, presence: "missing",
+          },
+          depth: "",
+          depthValue: {
+            raw: "", value: null, condition: null, description: null, presence: "empty",
+          },
+        },
+      });
+      const emptyAndMissing = createEewInfo({
+        serial: "1",
+        eventId: "ev-snapshot-semantic-empty",
+        earthquake: {
+          ...createEewInfo().earthquake!,
+          magnitude: "",
+          magnitudeValue: {
+            raw: "", value: null, condition: null, description: null, presence: "empty",
+          },
+          depth: "",
+          depthValue: {
+            raw: null, value: null, condition: null, description: null, presence: "missing",
+          },
+        },
+      });
+      const legacyEmptyDepth = createEewInfo({
+        serial: "1",
+        eventId: "ev-snapshot-legacy-empty-depth",
+        earthquake: { ...createEewInfo().earthquake!, depth: "" },
+      });
+
+      logger.logReport(range, createUpdateResult({ isNew: true }));
+      logger.logReport(missingAndEmpty, createUpdateResult({ isNew: true }));
+      logger.logReport(emptyAndMissing, createUpdateResult({ isNew: true }));
+      logger.logReport(legacyEmptyDepth, createUpdateResult({ isNew: true }));
+      await logger.flush();
+
+      const contents = fs.readdirSync(tmpDir)
+        .map((file) => fs.readFileSync(path.join(tmpDir, file), "utf-8"))
+        .join("\n");
+      expect(contents).toContain("M5.0  深さ600km以上");
+      expect(contents).toContain("—  深さ（空欄）");
+      expect(contents).toContain("（空欄）  深さ—");
+      expect(contents).toContain("M4.2  深さ\n");
+    });
+
     it("続報を同一ファイルに追記する", async () => {
       const info1 = createEewInfo({ serial: "1", eventId: "ev002" });
       const result1 = createUpdateResult({ isNew: true });

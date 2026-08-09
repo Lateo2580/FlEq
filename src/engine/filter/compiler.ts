@@ -45,10 +45,20 @@ function compileComparison(left: ValueNode, op: CompOp, right: ValueNode): Filte
   // フィールドの型情報を取得 (enum ランク変換用)
   const leftField = left.kind === "path" ? resolveField(left.segments.join(".")) : null;
   const rankFn = leftField ? getRankFn(leftField.kind) : null;
+  const canonicalNumberComparison = leftField?.compareNumber;
+
+  const compareCanonicalNumber = (event: PresentationEvent): boolean | null => {
+    if (canonicalNumberComparison == null) return null;
+    const rightValue = getRight(event);
+    if (typeof rightValue !== "number" || !Number.isFinite(rightValue)) return false;
+    return canonicalNumberComparison(event, op, rightValue);
+  };
 
   switch (op) {
     case "=":
       return (event) => {
+        const canonical = compareCanonicalNumber(event);
+        if (canonical != null) return canonical;
         const l = getLeft(event);
         const r = getRight(event);
         if (l == null || r == null) return false;
@@ -56,6 +66,8 @@ function compileComparison(left: ValueNode, op: CompOp, right: ValueNode): Filte
       };
     case "!=":
       return (event) => {
+        const canonical = compareCanonicalNumber(event);
+        if (canonical != null) return canonical;
         const l = getLeft(event);
         const r = getRight(event);
         if (l == null || r == null) return false;
@@ -63,6 +75,8 @@ function compileComparison(left: ValueNode, op: CompOp, right: ValueNode): Filte
       };
     case "<": case "<=": case ">": case ">=":
       return (event) => {
+        const canonical = compareCanonicalNumber(event);
+        if (canonical != null) return canonical;
         let l = getLeft(event);
         let r = getRight(event);
         if (l == null || r == null) return false;

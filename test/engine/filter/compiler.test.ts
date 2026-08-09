@@ -39,6 +39,29 @@ describe("compile", () => {
     expect(pred(makeEvent({ magnitude: "5.0" }))).toBe(false);
   });
 
+  it("Magnitude/Depth canonical は exact と確定可能な bounds だけ比較を真にする", () => {
+    const atLeast = compileFilter("magnitude >= 6.5");
+    const below = compileFilter("depth < 20");
+    const uncertain = compileFilter("magnitude < 7");
+    const lowerRange = {
+      raw: "6.5", condition: "以上", description: null, presence: "range" as const,
+      value: null, lowerBound: 6.5, upperBound: null,
+    };
+    expect(atLeast(makeEvent({ magnitude: "", magnitudeValue: lowerRange }))).toBe(true);
+    expect(uncertain(makeEvent({ magnitude: "", magnitudeValue: lowerRange }))).toBe(false);
+    expect(below(makeEvent({
+      depth: "",
+      depthValue: {
+        raw: "10", condition: "以下", description: null, presence: "range",
+        value: null, lowerBound: null, upperBound: 10,
+      },
+    }))).toBe(true);
+    expect(atLeast(makeEvent({
+      magnitude: "9.0",
+      magnitudeValue: { raw: "NaN", condition: "不明", description: null, presence: "unknown", value: null },
+    }))).toBe(false);
+  });
+
   it(">= enum:intensity", () => {
     const pred = compileFilter('maxInt >= "5-"');
     expect(pred(makeEvent({ maxInt: "6+" }))).toBe(true);

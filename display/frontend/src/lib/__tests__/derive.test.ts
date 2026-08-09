@@ -307,6 +307,52 @@ describe("deriveEmergencyPanels", () => {
     expect(deriveEmergencyPanels(state).map((panel) => panel.key)).toEqual(["eew:E-strong", "eew:E-magnitude", "eew:E-late"]);
   });
 
+  it("EEW の巨大順位は scalar を再解析せず SerializableMagnitudeRank を使う", () => {
+    const semanticBase = {
+      raw: null, label: null, condition: null, description: null, value: null,
+      lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+      badge: "?" as const, color: "unknown" as const, render: true,
+    };
+    const panels = deriveEmergencyPanels(baseState({ activeEews: [
+      eewFixture({
+        eventId: "numeric", forecastMaxIntRank: 6, magnitude: "9.9",
+        magnitudeSemantic: { ...semanticBase, presence: "value", label: "M9.9", value: 9.9, badge: null, color: "normalRank", rank: { kind: "value", value: 9.9 } },
+      }),
+      eewFixture({
+        eventId: "giant", forecastMaxIntRank: 6, magnitude: null,
+        magnitudeSemantic: { ...semanticBase, presence: "qualitative", label: "M8 を超える巨大地震", rank: { kind: "giant" } },
+      }),
+    ] }));
+    expect(panels.map((panel) => panel.input.kind === "eew" ? panel.input.eventId : null))
+      .toEqual(["giant", "numeric"]);
+  });
+
+  it("EEW の両側 range は旧 scalar と同じ下限で比較し exact の順位を変えない", () => {
+    const semanticBase = {
+      raw: null, label: null, condition: null, description: null, value: null,
+      lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+      badge: null, color: "normalRank" as const, render: true,
+    };
+    const panels = deriveEmergencyPanels(baseState({ activeEews: [
+      eewFixture({
+        eventId: "range", forecastMaxIntRank: 6, magnitude: "5.0",
+        magnitudeSemantic: {
+          ...semanticBase, presence: "range", label: "M5.0～7.0", lowerBound: 5, upperBound: 7,
+          badge: "↔", color: "safetyRank", rank: { kind: "range", lowerBound: 5, upperBound: 7 },
+        },
+      }),
+      eewFixture({
+        eventId: "exact", forecastMaxIntRank: 6, magnitude: "6.0",
+        magnitudeSemantic: {
+          ...semanticBase, presence: "value", label: "M6.0", value: 6,
+          rank: { kind: "value", value: 6 },
+        },
+      }),
+    ] }));
+    expect(panels.map((panel) => panel.input.kind === "eew" ? panel.input.eventId : null))
+      .toEqual(["exact", "range"]);
+  });
+
   it("非数値 magnitude は最劣後とし、同値なら後続 tie-break へ進む", () => {
     const state = baseState({
       activeEews: [

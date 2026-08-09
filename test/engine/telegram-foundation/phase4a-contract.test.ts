@@ -415,7 +415,8 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
       raw: null, value: null, condition: null, description: null, presence: "missing",
     });
     expect(result.event.maxIntLabel).toBeNull();
-    expect(result.dto.tickerSentence).toBe("午後8時59分ごろ、合成震源を震源とするM不明の地震がありました。");
+    // Phase 5A §3.7: semantic missing は ticker では M 表示を省略する。
+    expect(result.dto.tickerSentence).toBe("午後8時59分ごろ、合成震源を震源とする地震がありました。");
     expectNotification("合成震源 / M不明");
     expect(result.quakeMapCommand).toMatchObject({ kind: "remove", reason: "structuralMissing" });
     expect(result.displaySnapshot.largeQuakes).toEqual([]);

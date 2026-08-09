@@ -72,6 +72,8 @@ export interface FilterField<T = unknown> {
   aliases: string[];
   get: (event: PresentationEvent) => T | null | undefined;
   supportsOrder?: boolean;
+  /** canonical range を含む数値比較。判定不能は false を返す。 */
+  compareNumber?: (event: PresentationEvent, op: CompOp, right: number) => boolean;
 }
 
 // ── Compiled ──

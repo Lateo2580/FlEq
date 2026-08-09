@@ -2,7 +2,11 @@ import chalk from "chalk";
 import { ParsedEarthquakeInfo, type JmaIntensity, type JmaLgIntensity, type SpecialValue } from "../types";
 import * as theme from "./theme";
 import { intensityToRank } from "../utils/intensity";
-import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
+import {
+  formatHypocenterDepth,
+  formatHypocenterMagnitude,
+  isNumericMagnitude,
+} from "../utils/magnitude";
 import {
   earthquakeFrameLevel,
   formatIntensitySpecialValue,
@@ -231,14 +235,19 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
     }
   }
   if (info.earthquake) {
+    const magnitude = formatHypocenterMagnitude(info.earthquake);
     cardParts.push(
-      isNumericMagnitude(info.earthquake.magnitude)
+      info.earthquake.magnitudeValue?.presence === "value"
+        && info.earthquake.magnitudeValue.value != null
+        ? colorMagnitude(info.earthquake.magnitudeValue.value.toFixed(1))
+        : info.earthquake.magnitudeValue == null && isNumericMagnitude(info.earthquake.magnitude)
         ? colorMagnitude(info.earthquake.magnitude)
-        : chalk.white(formatMagnitudeLabel(info.earthquake)),
+        : chalk.white(magnitude),
     );
   }
-  if (info.earthquake?.depth) {
-    cardParts.push(chalk.white("深さ ") + chalk.white(info.earthquake.depth));
+  const depth = info.earthquake == null ? null : formatHypocenterDepth(info.earthquake);
+  if (depth != null) {
+    cardParts.push(chalk.white("深さ ") + chalk.white(depth));
   }
   const tsunamiText = tsunamiShort(info);
   if (tsunamiText) {

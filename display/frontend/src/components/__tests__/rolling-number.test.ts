@@ -39,8 +39,9 @@ describe("RollingNumber", () => {
   it("EewPanel の主要数値 (M/深さ/推定最大震度/長周期) が RollingNumber を使う", () => {
     const src = readFileSync(join(__dirname, "..", "EewPanel.svelte"), "utf-8");
     expect(src).toContain('import RollingNumber from "./RollingNumber.svelte"');
-    expect(src).toContain("<RollingNumber value={input.magnitude");
-    expect(src).toContain("<RollingNumber value={input.depth}");
+    expect(src).toContain("<RollingNumber value={magnitude.numericValue.toFixed(1)}");
+    expect(src).toContain("<RollingNumber value={input.depth ?? \"\"}");
+    expect(src).toContain("<RollingNumber value={depth.label}");
     expect(src).toContain("<RollingNumber value={input.maxLgInt}");
     expect(src).toContain("推定最大震度 <RollingNumber");
   });

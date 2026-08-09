@@ -49,6 +49,13 @@ describe("QuakeReplayCard", () => {
     expect(container.textContent).not.toContain("~10km");
   });
 
+  it("scalar-only magnitude:null の '-' 表示と ARIA を一致させる", () => {
+    const { container } = render(QuakeReplayCard, { quake: quake({ magnitude: null }) });
+    const magnitude = container.querySelector(".stat:first-child .stat-value");
+    expect(magnitude?.textContent).toBe("-");
+    expect(magnitude?.getAttribute("aria-label")).toBe("マグニチュード: -");
+  });
+
   it("カードクリックで onClose を呼ぶ", () => {
     const onClose = vi.fn();
     const { container } = render(QuakeReplayCard, { quake: quake(), onClose });

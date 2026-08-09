@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { ParsedTsunamiInfo, TsunamiForecastItem, TsunamiObservationStation, TsunamiEstimationItem } from "../types";
 import * as theme from "./theme";
 import { tsunamiFrameLevel } from "../engine/presentation/level-helpers";
-import { formatMagnitudeLabel, isNumericMagnitude } from "../utils/magnitude";
+import { formatHypocenterMagnitude, isNumericMagnitude } from "../utils/magnitude";
 import {
   FrameLevel,
   RenderBuffer,
@@ -392,9 +392,11 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       level,
       width,
       chalk.white("規模: ") + (
-        isNumericMagnitude(eq.magnitude)
+        eq.magnitudeValue?.presence === "value" && eq.magnitudeValue.value != null
+          ? colorMagnitude(eq.magnitudeValue.value.toFixed(1))
+          : eq.magnitudeValue == null && isNumericMagnitude(eq.magnitude)
           ? colorMagnitude(eq.magnitude)
-          : chalk.white(formatMagnitudeLabel(eq))
+          : chalk.white(formatHypocenterMagnitude(eq))
       ),
     );
   }

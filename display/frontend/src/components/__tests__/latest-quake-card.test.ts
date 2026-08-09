@@ -6,7 +6,7 @@ import { flushSync } from "svelte";
 import LatestQuakeCard from "../LatestQuakeCard.svelte";
 import { PAGE_HOLD_MS } from "../../lib/page-cycler.svelte";
 import { expectCurrentDot } from "./page-dots-test-utils";
-import type { DisplayIntensitySemanticV1, DisplayLatestQuakeStateV1 } from "../../lib/protocol";
+import type { DisplayIntensitySemanticV1, DisplayLatestQuakeStateV1, DisplayMagnitudeSemanticV1 } from "../../lib/protocol";
 
 // T5c: ページ切替は {#key} + transition:fade (重ねクロスフェード、231ms) になった。
 // fake timers 環境では element.animate() スタブ (test-setup.ts) の完了が setTimeout 経由なので、
@@ -55,6 +55,14 @@ function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySe
   };
 }
 
+function magnitudeSemantic(over: Partial<DisplayMagnitudeSemanticV1>): DisplayMagnitudeSemanticV1 {
+  return {
+    raw: null, presence: "missing", label: null, condition: null, description: null,
+    value: null, lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    badge: null, color: "notRendered", render: false, rank: { kind: "unranked" }, ...over,
+  };
+}
+
 describe("LatestQuakeCard", () => {
   // 看板ヘッダ (津波/気象カードと同じ D 案標準文法): ラベルは固定文字列「地震情報」、
   // 色ロールは maxIntRank>=7 (震度6弱以上) で critical、それ未満・null で warning
@@ -100,9 +108,30 @@ describe("LatestQuakeCard", () => {
     expect(container.querySelector(".time")?.textContent).toBe("7/8 09:00");
   });
 
+  it("Magnitude/Depth semantic の特殊値を badge・tooltip・ARIA・凡例付きで表示する", () => {
+    const { container } = render(LatestQuakeCard, { quake: latestQuake({
+      magnitude: "9.9",
+      magnitudeSemantic: magnitudeSemantic({
+        raw: "NaN", presence: "unknown", label: "M不明", condition: "不明",
+        badge: "?", color: "unknown", render: true,
+      }),
+      depth: "600km",
+      depthSemantic: {
+        ...magnitudeSemantic({}), presence: "range", label: "600km以上", condition: "600km以上",
+        lowerBound: 600, badge: "≥", color: "safetyRank", render: true,
+      },
+    }) });
+    expect(container.querySelector(".magnitude")?.textContent).toContain("M不明?");
+    expect(container.querySelector(".magnitude")?.getAttribute("aria-label")).toContain("条件: 不明");
+    expect(container.querySelector(".depth")?.textContent).toContain("600km以上≥");
+    expect(container.querySelector(".numeric-semantic-legend")?.textContent).toContain("以上（下限値）");
+    expect(container.querySelector(".numeric-semantic-legend")?.textContent).toContain("不明・定性値");
+  });
+
   it("magnitude が null なら規模欄は空のまま (NumberUnit を出さない)", () => {
     const { container } = render(LatestQuakeCard, { quake: latestQuake({ magnitude: null }) });
     expect(container.querySelector(".magnitude")?.textContent).toBe("");
+    expect(container.querySelector(".magnitude")?.getAttribute("aria-label")).toBe("マグニチュード: 空欄");
   });
 
   it("巨大地震 description は M を重ねず通常テキストで描画する", () => {

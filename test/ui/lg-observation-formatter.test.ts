@@ -172,7 +172,7 @@ describe("displayLgObservationInfo (engine テーブル)", () => {
     expect(info.earthquake).toBeDefined();
     const output = stripAnsi(render({
       ...info,
-      earthquake: { ...info.earthquake!, magnitude, magnitudeInfo: undefined },
+      earthquake: { ...info.earthquake!, magnitude, magnitudeInfo: undefined, magnitudeValue: undefined },
     }));
     expect(output).toContain("M不明");
     expect(output).not.toContain("MNaN");

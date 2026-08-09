@@ -93,10 +93,31 @@ describe("buildSummaryModel", () => {
     const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
     const outcome = processMessage(msg, "earthquake", makeDeps())!;
     const event = toPresentationEvent(outcome);
-    const noMagEvent = { ...event, magnitude: null };
+    const noMagEvent = { ...event, magnitude: null, magnitudeValue: undefined };
     const model = buildSummaryModel(noMagEvent);
 
     expect(model.magnitude).toBeUndefined();
+  });
+
+  it("Magnitude/Depth canonical の特殊値を summary token へ保持する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    const outcome = processMessage(msg, "earthquake", makeDeps())!;
+    const event = {
+      ...toPresentationEvent(outcome),
+      magnitude: "9.9",
+      magnitudeValue: { raw: "NaN", value: null, condition: "不明", description: null, presence: "unknown" as const },
+      depth: "600km",
+      depthValue: {
+        raw: "600", value: null, condition: "以上", description: "深さ600km以上",
+        presence: "range" as const, lowerBound: 600, upperBound: null,
+      },
+    };
+    const model = buildSummaryModel(event);
+    expect(model.magnitude).toBe("M不明");
+    expect(model.depth).toBe("600km以上");
+    expect(buildSummaryTokens(event, model).map((item) => item.text)).toEqual(
+      expect.arrayContaining(["M不明"]),
+    );
   });
 
   it("serial がない場合は undefined", () => {

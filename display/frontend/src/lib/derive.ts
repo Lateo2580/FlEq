@@ -7,6 +7,7 @@ import type {
   DisplayTsunamiStateV1,
 } from "./protocol";
 import { buildWeatherEmergencyInput, type WeatherEmergencyInputV1 } from "./weather-panel";
+import { comparableMagnitudeRank } from "./magnitude";
 
 export type ScreenMode = "standby" | "quakeMap" | "emergency";
 
@@ -27,7 +28,7 @@ function assertNever(value: never): never {
   throw new Error(`未処理の緊急パネル kind: ${JSON.stringify(value)}`);
 }
 
-function comparableMagnitude(value: string | null): number {
+function comparableLegacyMagnitude(value: string | null): number {
   if (value == null) return Number.NEGATIVE_INFINITY;
   const normalized = value.trim();
   if (normalized.length === 0) return Number.NEGATIVE_INFINITY;
@@ -89,8 +90,12 @@ export function compareEmergencyPanels(a: EmergencyPanelModel, b: EmergencyPanel
 
   const rank = (b.input.forecastMaxIntRank ?? -1) - (a.input.forecastMaxIntRank ?? -1);
   if (rank !== 0) return rank;
-  const aMagnitude = comparableMagnitude(a.input.magnitude);
-  const bMagnitude = comparableMagnitude(b.input.magnitude);
+  const aMagnitude = a.input.magnitudeSemantic == null
+    ? comparableLegacyMagnitude(a.input.magnitude)
+    : comparableMagnitudeRank(a.input.magnitudeSemantic.rank);
+  const bMagnitude = b.input.magnitudeSemantic == null
+    ? comparableLegacyMagnitude(b.input.magnitude)
+    : comparableMagnitudeRank(b.input.magnitudeSemantic.rank);
   if (aMagnitude !== bMagnitude) return bMagnitude > aMagnitude ? 1 : -1;
   const time = (a.input.originTime ?? "").localeCompare(b.input.originTime ?? "");
   if (time !== 0) return time;
