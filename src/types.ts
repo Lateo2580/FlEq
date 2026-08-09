@@ -42,6 +42,13 @@ export interface SpecialValue<T> {
   diagnostics?: SpecialValueDiagnostic[];
 }
 
+/** 噴煙高度の基準・原単位を混同しない canonical 表現。 */
+export interface PlumeHeightSemantic {
+  reference: "aboveCrater" | "aboveSeaLevel";
+  unit: "m" | "FT";
+  value: SpecialValue<number>;
+}
+
 /** JMAXML が使用する震度階級の canonical value。 */
 export type JmaIntensity = "0" | "1" | "2" | "3" | "4" | "5-" | "5+" | "6-" | "6+" | "7";
 
@@ -1818,6 +1825,9 @@ interface ParsedVolcanoBase {
   coordinate: string | null;
   meta: TelegramMeta;
   isTest: boolean;
+  /** Phase 5C additive canonical fields. legacy scalar fields remain authoritative until unit 4. */
+  plumeHeightAboveCraterValue?: PlumeHeightSemantic;
+  plumeHeightAboveSeaLevelValue?: PlumeHeightSemantic;
 }
 
 /** 噴火警報・予報 (VFVO50, VFSVii) */

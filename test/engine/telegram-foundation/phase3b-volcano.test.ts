@@ -317,6 +317,58 @@ describe("Phase 3B volcano foundation", () => {
     expect(h.decisions.at(-1)).toBe("semanticDuplicate");
   });
 
+  it("unit 2 canonical field を旧 volcanoEruption fingerprint から除外し restart 後も同一訂正を抑止する", () => {
+    const legacy = eruption(
+      "legacy-correction",
+      "506",
+      new Date(T0).toISOString(),
+      "1",
+      "訂正",
+      "event-506",
+    );
+    currentParsed.set("legacy-correction", legacy);
+    const beforeRestart = createHarness();
+    expect(beforeRestart.handler.handle(
+      message("legacy-correction", "VFVO56", legacy.reportDateTime),
+    )).toMatchObject({ kind: "accepted" });
+
+    const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(beforeRestart.gate.exportDurableEntries());
+    const holder = new VolcanoStateHolder();
+    holder.restorePersistedState(beforeRestart.holder.exportPersistedState());
+    const standby = new StandbyStateStore();
+    standby.restoreActiveState(beforeRestart.standby.exportActiveState(), T0 + 1);
+    const restarted = createHarness({ gate, holder, standby });
+    const replay: ParsedVolcanoEruptionInfo = {
+      ...legacy,
+      meta: { ...legacy.meta, messageId: "canonical-replay" },
+      plumeHeightAboveCraterValue: {
+        reference: "aboveCrater",
+        unit: "m",
+        value: {
+          raw: "3000", value: 3000, condition: null, description: "火口上3000m",
+          presence: "value",
+        },
+      },
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: "12000", value: 12000, condition: null, description: "海抜12000FT",
+          presence: "value",
+        },
+      },
+    };
+    currentParsed.set("canonical-replay", replay);
+
+    expect(restarted.handler.handle(
+      message("canonical-replay", "VFVO56", replay.reportDateTime),
+    )).toMatchObject({ kind: "suppressed" });
+    expect(restarted.decisions).toEqual(["semanticDuplicate"]);
+    expect(restarted.notifyVolcano).not.toHaveBeenCalled();
+    expect(restarted.outcomes).toEqual([]);
+  });
+
   it("VFVO51 訂正内の同一 subject は最後の entry を一度だけ適用する", () => {
     const issued = text("text-issued", new Date(T0).toISOString(), "1", [{
       volcanoCode: "506", volcanoName: "桜島",

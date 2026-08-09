@@ -61,6 +61,14 @@ const TSUNAMI_HEIGHT_CONDITION_TERMS = [
   ...RANGE_LOWER_TERMS,
   ...RANGE_UPPER_TERMS,
 ] as const;
+const PLUME_HEIGHT_CONDITION_TERMS = [
+  "雲中",
+  "観測できず",
+  "不明",
+  "不詳",
+  ...RANGE_LOWER_TERMS,
+  ...RANGE_UPPER_TERMS,
+] as const;
 
 function isXmlNode(value: unknown): value is XmlNode {
   return typeof value === "object" && value != null && !Array.isArray(value);
@@ -319,6 +327,82 @@ function depthRangeDirectionForSource(
   return depthBoundFromSource(source)?.direction ?? null;
 }
 
+function plumeSpecialPresenceForSource(
+  value: string | null,
+): SpecialPresence | null {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null) return null;
+  // 完全一致を基本とし、複合 condition は安全な終端一致だけを許す。
+  const terminalMatch = (term: string): boolean => {
+    if (normalized === term) return true;
+    if (!normalized.endsWith(term)) return false;
+    const prefix = normalized.slice(0, -term.length);
+    return !/[非未不無]$/.test(prefix);
+  };
+  if (terminalMatch("観測できず") || terminalMatch("不明") || terminalMatch("不詳")) {
+    return "unknown";
+  }
+  return terminalMatch("雲中") ? "qualitative" : null;
+}
+
+function plumeRangeDirectionForSource(
+  value: string | null,
+): "lower" | "upper" | null {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null) return null;
+  if (RANGE_LOWER_TERMS.includes(normalized as typeof RANGE_LOWER_TERMS[number])) {
+    return "lower";
+  }
+  if (RANGE_UPPER_TERMS.includes(normalized as typeof RANGE_UPPER_TERMS[number])) {
+    return "upper";
+  }
+  return plumeBoundFromSource(normalized)?.direction ?? null;
+}
+
+interface PlumeBound {
+  value: number;
+  direction: "lower" | "upper";
+}
+
+function plumeBoundFromSource(source: string | null): PlumeBound | null {
+  if (source == null) return null;
+  const normalized = normalizeNumberSource(source.normalize("NFKC"));
+  const match = normalized.match(
+    /^(?:火口上|海抜)?\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(?:m|FT)?\s*(以上|超|以下|未満)\s*$/i,
+  );
+  if (match == null) return null;
+  const value = parseNumber(match[1]);
+  if (value == null) return null;
+  return {
+    value,
+    direction: RANGE_LOWER_TERMS.includes(match[2] as typeof RANGE_LOWER_TERMS[number])
+      ? "lower"
+      : "upper",
+  };
+}
+
+function isKnownPlumeHeightCondition(value: string | null): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  return normalized == null || normalized === ""
+    || plumeSpecialPresenceForSource(normalized) != null
+    || plumeRangeDirectionForSource(normalized) != null;
+}
+
+function isMappedPlumeHeightText(
+  value: string | null,
+  allowHeightLabel: boolean,
+): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized == null || normalized === "") return true;
+  if (parseNumber(normalized) != null || normalized.toLowerCase() === "nan") return true;
+  if (plumeSpecialPresenceForSource(normalized) != null) return true;
+  if (plumeRangeDirectionForSource(normalized) != null) {
+    return /[+-]?(?:\d+(?:\.\d+)?|\.\d+)/.test(normalized);
+  }
+  return allowHeightLabel
+    && /^(?:火口上|海抜)?[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*(?:m|FT)$/i.test(normalized);
+}
+
 function isMappedMagnitudeSource(value: string | null): boolean {
   const normalized = normalizeSpecialTerm(value);
   if (normalized == null || normalized === "") return true;
@@ -485,12 +569,11 @@ function specialPresence(
       return hasUnmappedTyphoonQualitativeSource(domain, parts) ? "qualitative" : null;
     case "PlumeHeight":
       // 観測阻害 condition/body を最優先し、description は分類に使わない。
-      if (includesInBodyOrCondition(parts, /観測できず/)) return "unknown";
-      if (
-        parts.raw.trim().toLowerCase() === "nan"
-        || includesInBodyOrCondition(parts, /不明|不詳/)
-      ) return "unknown";
-      return includesInBodyOrCondition(parts, /雲中/) ? "qualitative" : null;
+      // condition は本文 NaN より優先する（雲中 + NaN は qualitative）。
+      const conditionSpecial = plumeSpecialPresenceForSource(parts.condition);
+      if (conditionSpecial != null) return conditionSpecial;
+      if (parts.raw.trim().toLowerCase() === "nan") return "unknown";
+      return plumeSpecialPresenceForSource(parts.raw);
     default:
       return null;
   }
@@ -518,6 +601,13 @@ function rangeDirection(
   if (domain === "WindSpeed") {
     const directions = [parts.condition, parts.description]
       .map(terminalRangeDirection);
+    if (directions.includes("lower")) return "lower";
+    if (directions.includes("upper")) return "upper";
+    return null;
+  }
+  if (domain === "PlumeHeight") {
+    const directions = [parts.condition, parts.description]
+      .map(plumeRangeDirectionForSource);
     if (directions.includes("lower")) return "lower";
     if (directions.includes("upper")) return "upper";
     return null;
@@ -564,6 +654,7 @@ function specialValueDiagnostics(
     && domain !== "Pressure"
     && domain !== "WindSpeed"
     && domain !== "MovementSpeed"
+    && domain !== "PlumeHeight"
   ) {
     return undefined;
   }
@@ -576,6 +667,8 @@ function specialValueDiagnostics(
         ? LG_INT_CONDITION_TERMS
         : domain === "TsunamiHeight"
           ? TSUNAMI_HEIGHT_CONDITION_TERMS
+          : domain === "PlumeHeight"
+            ? PLUME_HEIGHT_CONDITION_TERMS
           : UNKNOWN_TERMS;
     const isKnown = isTyphoonNumericDomain(domain)
       ? isKnownTyphoonCondition(domain, normalizedCondition)
@@ -585,6 +678,8 @@ function specialValueDiagnostics(
         ? matchesAnySpecialTerm(normalizedCondition, UNKNOWN_TERMS)
           || isDepthShallowTerm(normalizedCondition)
           || depthRangeDirectionForSource(normalizedCondition) != null
+        : domain === "PlumeHeight"
+          ? isKnownPlumeHeightCondition(normalizedCondition)
         : knownTerms.some((term) => term === normalizedCondition);
     if (!isKnown) {
       diagnostics.push("unmappedSpecialValue");
@@ -597,6 +692,14 @@ function specialValueDiagnostics(
   if (domain === "TsunamiHeight") {
     const hasUnmappedText = !isMappedTsunamiHeightText(parts.raw, false)
       || !isMappedTsunamiHeightText(parts.description, true);
+    if (hasUnmappedText && !diagnostics.includes("unmappedSpecialValue")) {
+      diagnostics.push("unmappedSpecialValue");
+      if (hasCanonicalValue) diagnostics.push("specialValueConflict");
+    }
+  }
+  if (domain === "PlumeHeight") {
+    const hasUnmappedText = !isMappedPlumeHeightText(parts.raw, false)
+      || !isMappedPlumeHeightText(parts.description, true);
     if (hasUnmappedText && !diagnostics.includes("unmappedSpecialValue")) {
       diagnostics.push("unmappedSpecialValue");
       if (hasCanonicalValue) diagnostics.push("specialValueConflict");
@@ -682,6 +785,9 @@ export function extractSpecialValue(
         || hasUnsupportedStructuredBounds
       : false;
   const parsedDepthBound = domain === "Depth" ? depthBound(parts) : null;
+  const parsedPlumeBound = domain === "PlumeHeight"
+    ? plumeBoundFromSource(parts.raw)
+    : null;
   const depthSpecialConflict = domain === "Depth" && parsedValue != null && (
     (parsedDepthBound != null && parsedDepthBound.value !== parsedValue)
     || (parsedDepthBound == null && special === "qualitative" && parsedValue !== 0)
@@ -695,13 +801,25 @@ export function extractSpecialValue(
       parsedValue != null
       || (special != null && (lowerBound != null || upperBound != null))
     );
+  const plumeHeightSpecialConflict = domain === "PlumeHeight"
+    && (
+      parsedValue != null
+      || lowerBound != null
+      || upperBound != null
+      || parsedPlumeBound != null
+    )
+    && special != null;
   const diagnostics = specialValueDiagnostics(
     domain,
     parts,
-    parsedValue != null || lowerBound != null || upperBound != null,
+    parsedValue != null
+      || lowerBound != null
+      || upperBound != null
+      || parsedPlumeBound != null,
     (prioritySpecial?.conflict ?? false)
       || depthSpecialConflict
       || magnitudeSpecialConflict
+      || plumeHeightSpecialConflict
       || unsupportedStructuredBoundsConflict,
     hasUnmappedQualitative,
   );
@@ -745,6 +863,26 @@ export function extractSpecialValue(
     };
   }
   if (isTyphoonNumericDomain(domain) && special === "unknown") {
+    return {
+      ...common,
+      value: null,
+      presence: "unknown",
+      ...rawBoundFields,
+      ...diagnosticFields,
+    };
+  }
+
+  // PlumeHeight の観測阻害は本文数値だけでなく明示 From/To よりも優先する。
+  if (domain === "PlumeHeight" && special === "qualitative") {
+    return {
+      ...common,
+      value: null,
+      presence: "qualitative",
+      ...rawBoundFields,
+      ...diagnosticFields,
+    };
+  }
+  if (domain === "PlumeHeight" && special === "unknown") {
     return {
       ...common,
       value: null,
@@ -820,6 +958,16 @@ export function extractSpecialValue(
     if (depthSpecialConflict) {
       return { ...common, value: parsedValue, presence: "value", ...diagnosticFields };
     }
+  }
+  if (domain === "PlumeHeight" && parsedPlumeBound != null) {
+    return {
+      ...common,
+      value: null,
+      presence: "range",
+      lowerBound: parsedPlumeBound.direction === "lower" ? parsedPlumeBound.value : null,
+      upperBound: parsedPlumeBound.direction === "upper" ? parsedPlumeBound.value : null,
+      ...diagnosticFields,
+    };
   }
 
   const numericTsunamiObservation = domain === "TsunamiHeight"

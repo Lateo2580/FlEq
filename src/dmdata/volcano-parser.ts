@@ -15,9 +15,13 @@ import {
   VolcanoAlertClass,
   VolcanoAlertClassEntry,
   VolcanoAlertStateEntry,
+  PlumeHeightSemantic,
 } from "../types";
 import { decodeBody, parseXml, dig, str, first } from "./telegram-parser";
 import { requireTelegramMeta } from "./telegram-ingress";
+import { extractSpecialValue } from "./special-value";
+import { plumeHeightLegacyAdapter } from "../utils/plume-height";
+import { createJmxShadowXmlParser } from "./xml-shape";
 import * as log from "../logger";
 
 // ── 共通ヘルパー ──
@@ -218,17 +222,31 @@ function extractVolcanoBase(
 }
 
 /** 噴煙観測データを抽出 */
-function extractPlumeObservation(body: unknown): {
+function extractPlumeObservation(body: unknown, specialValueBody: unknown): {
   plumeHeight: number | null;
   plumeHeightUnknown: boolean;
+  plumeHeightAboveCraterValue: PlumeHeightSemantic;
+  plumeHeightAboveSeaLevelValue: PlumeHeightSemantic;
   plumeDirection: string | null;
   craterName: string | null;
 } {
   const obs = dig(body, "VolcanoObservation");
   const colorPlume = dig(obs, "ColorPlume");
+  const specialValueObs = dig(specialValueBody, "VolcanoObservation");
+  const specialValueColorPlume = dig(specialValueObs, "ColorPlume");
 
   let plumeHeight: number | null = null;
   let plumeHeightUnknown = false;
+  let plumeHeightAboveCraterValue: PlumeHeightSemantic = {
+    reference: "aboveCrater",
+    unit: "m",
+    value: extractSpecialValue("PlumeHeight", undefined),
+  };
+  let plumeHeightAboveSeaLevelValue: PlumeHeightSemantic = {
+    reference: "aboveSeaLevel",
+    unit: "FT",
+    value: extractSpecialValue("PlumeHeight", undefined),
+  };
   let plumeDirection: string | null = null;
 
   if (colorPlume) {
@@ -236,21 +254,35 @@ function extractPlumeObservation(body: unknown): {
     const heightNode =
       dig(colorPlume, "jmx_eb:PlumeHeightAboveCrater") ||
       dig(colorPlume, "PlumeHeightAboveCrater");
+    const specialValueHeightNode =
+      dig(specialValueColorPlume, "jmx_eb:PlumeHeightAboveCrater") ??
+      dig(specialValueColorPlume, "PlumeHeightAboveCrater");
     if (heightNode != null) {
-      const heightVal = typeof heightNode === "object"
+      const legacyRaw = typeof heightNode === "object"
         ? str(dig(heightNode, "#text"))
         : str(heightNode);
-      const heightCondition = typeof heightNode === "object"
+      const legacyCondition = typeof heightNode === "object"
         ? str(dig(heightNode, "@_condition"))
-        : "";
-
-      if (heightCondition === "不明" || heightVal === "不明") {
-        plumeHeightUnknown = true;
-      } else {
-        const parsed = parseInt(heightVal, 10);
-        if (!isNaN(parsed)) plumeHeight = parsed;
-      }
+        : null;
+      ({ plumeHeight, plumeHeightUnknown } = plumeHeightLegacyAdapter(
+        legacyRaw,
+        legacyCondition,
+      ));
     }
+    plumeHeightAboveCraterValue = {
+      reference: "aboveCrater",
+      unit: "m",
+      value: extractSpecialValue("PlumeHeight", specialValueHeightNode),
+    };
+
+    const specialValueSeaLevelNode =
+      dig(specialValueColorPlume, "jmx_eb:PlumeHeightAboveSeaLevel") ??
+      dig(specialValueColorPlume, "PlumeHeightAboveSeaLevel");
+    plumeHeightAboveSeaLevelValue = {
+      reference: "aboveSeaLevel",
+      unit: "FT",
+      value: extractSpecialValue("PlumeHeight", specialValueSeaLevelNode),
+    };
 
     // 流向
     const dirNode =
@@ -290,7 +322,14 @@ function extractPlumeObservation(body: unknown): {
     if (match) craterName = match[1].trim();
   }
 
-  return { plumeHeight, plumeHeightUnknown, plumeDirection, craterName };
+  return {
+    plumeHeight,
+    plumeHeightUnknown,
+    plumeHeightAboveCraterValue,
+    plumeHeightAboveSeaLevelValue,
+    plumeDirection,
+    craterName,
+  };
 }
 
 // ── 電文タイプ別パーサ ──
@@ -464,11 +503,13 @@ function parseVolcanoAlert(
 /** VFVO52 / VFVO56: 噴火に関する火山観測報 / 噴火速報 */
 function parseVolcanoEruption(
   report: unknown,
+  specialValueReport: unknown,
   headType: "VFVO52" | "VFVO56",
   msg: WsDataMessage,
 ): ParsedVolcanoEruptionInfo {
   const base = extractVolcanoBase(report, headType, msg);
   const body = dig(report, "Body");
+  const specialValueBody = dig(specialValueReport, "Body");
 
   // Kind (現象コード)
   let phenomenonCode = "";
@@ -491,7 +532,7 @@ function parseVolcanoEruption(
     if (phenomenonCode) break;
   }
 
-  const plume = extractPlumeObservation(body);
+  const plume = extractPlumeObservation(body, specialValueBody);
 
   // VolcanoInfoContent
   const content = dig(body, "VolcanoInfoContent");
@@ -506,6 +547,8 @@ function parseVolcanoEruption(
     craterName: plume.craterName,
     plumeHeight: plume.plumeHeight,
     plumeHeightUnknown: plume.plumeHeightUnknown,
+    plumeHeightAboveCraterValue: plume.plumeHeightAboveCraterValue,
+    plumeHeightAboveSeaLevelValue: plume.plumeHeightAboveSeaLevelValue,
     plumeDirection: plume.plumeDirection,
     isFlashReport: headType === "VFVO56",
     bodyText,
@@ -515,11 +558,13 @@ function parseVolcanoEruption(
 /** VFVO53 / VFVO54 / VFVO55: 降灰予報 */
 function parseVolcanoAshfall(
   report: unknown,
+  specialValueReport: unknown,
   headType: "VFVO53" | "VFVO54" | "VFVO55",
   msg: WsDataMessage,
 ): ParsedVolcanoAshfallInfo {
   const base = extractVolcanoBase(report, headType, msg);
   const body = dig(report, "Body");
+  const specialValueBody = dig(specialValueReport, "Body");
 
   const subKindMap: Record<string, "scheduled" | "rapid" | "detailed"> = {
     VFVO53: "scheduled",
@@ -584,7 +629,7 @@ function parseVolcanoAshfall(
   }
 
   // 噴煙情報
-  const plume = extractPlumeObservation(body);
+  const plume = extractPlumeObservation(body, specialValueBody);
 
   // VolcanoInfoContent
   const content = dig(body, "VolcanoInfoContent");
@@ -598,6 +643,8 @@ function parseVolcanoAshfall(
     craterName: plume.craterName,
     ashForecasts,
     plumeHeight: plume.plumeHeight,
+    plumeHeightAboveCraterValue: plume.plumeHeightAboveCraterValue,
+    plumeHeightAboveSeaLevelValue: plume.plumeHeightAboveSeaLevelValue,
     plumeDirection: plume.plumeDirection,
     bodyText,
   };
@@ -703,10 +750,12 @@ function parseVolcanoText(
 /** VFVO60: 推定噴煙流向報 */
 function parseVolcanoPlume(
   report: unknown,
+  specialValueReport: unknown,
   msg: WsDataMessage,
 ): ParsedVolcanoPlumeInfo {
   const base = extractVolcanoBase(report, "VFVO60", msg);
   const body = dig(report, "Body");
+  const specialValueBody = dig(specialValueReport, "Body");
 
   // Kind (現象コード)
   let phenomenonCode = "";
@@ -724,7 +773,7 @@ function parseVolcanoPlume(
     if (phenomenonCode) break;
   }
 
-  const plume = extractPlumeObservation(body);
+  const plume = extractPlumeObservation(body, specialValueBody);
 
   // WindAboveCrater
   const windProfile: WindProfileEntry[] = [];
@@ -770,6 +819,8 @@ function parseVolcanoPlume(
     phenomenonCode,
     craterName: plume.craterName,
     plumeHeight: plume.plumeHeight,
+    plumeHeightAboveCraterValue: plume.plumeHeightAboveCraterValue,
+    plumeHeightAboveSeaLevelValue: plume.plumeHeightAboveSeaLevelValue,
     plumeDirection: plume.plumeDirection,
     windProfile,
     bodyText,
@@ -786,8 +837,10 @@ export function parseVolcanoTelegram(
     const xmlStr = decodeBody(msg);
     const parsed = parseXml(xmlStr);
     const report = findReport(parsed);
+    const specialValueParsed = createJmxShadowXmlParser().parse(xmlStr) as Record<string, unknown>;
+    const specialValueReport = findReport(specialValueParsed);
 
-    if (!report) {
+    if (!report || !specialValueReport) {
       log.debug("Report ノードが見つかりません (火山電文)");
       return null;
     }
@@ -800,21 +853,21 @@ export function parseVolcanoTelegram(
       case "VFSVii":
         return parseVolcanoAlert(report, "VFSVii", msg);
       case "VFVO52":
-        return parseVolcanoEruption(report, "VFVO52", msg);
+        return parseVolcanoEruption(report, specialValueReport, "VFVO52", msg);
       case "VFVO56":
-        return parseVolcanoEruption(report, "VFVO56", msg);
+        return parseVolcanoEruption(report, specialValueReport, "VFVO56", msg);
       case "VFVO53":
-        return parseVolcanoAshfall(report, "VFVO53", msg);
+        return parseVolcanoAshfall(report, specialValueReport, "VFVO53", msg);
       case "VFVO54":
-        return parseVolcanoAshfall(report, "VFVO54", msg);
+        return parseVolcanoAshfall(report, specialValueReport, "VFVO54", msg);
       case "VFVO55":
-        return parseVolcanoAshfall(report, "VFVO55", msg);
+        return parseVolcanoAshfall(report, specialValueReport, "VFVO55", msg);
       case "VZVO40":
         return parseVolcanoText(report, "VZVO40", msg);
       case "VFVO51":
         return parseVolcanoText(report, "VFVO51", msg);
       case "VFVO60":
-        return parseVolcanoPlume(report, msg);
+        return parseVolcanoPlume(report, specialValueReport, msg);
       default:
         log.debug(`未対応の火山電文タイプ: ${headType}`);
         return null;
