@@ -1,9 +1,9 @@
 # 電文基盤共通化仕様 — 特殊値・TelegramMeta・Revision・試験判定・条件付き抑止
 
-> 状態: **Phase 5A 完了（最終レビュー GO、仕様同期済み）**
+> 状態: **Phase 5B・5C 完了（main 合流、最終レビュー GO、仕様同期済み）**
 > 更新日: 2026-08-10
 > 対象: FlEq parser／Presentation／CLI／通知／テロップ／常設ディスプレイ／永続化
-> 実装同期基準: HEAD `30b0d4d`（Phase 5A 変更単位1〜6実装完了、最終レビュー GO）
+> 実装同期基準: HEAD `da5f5a5`（Phase 5B `0e964f5` と Phase 5C を main へ合流、両 Phase 最終レビュー GO）
 > 起草時参照基準: HEAD `f634e410`
 > 前提: 修正弾 A〜C で個別 High は対処済みとし、本仕様は構造的根因の共通化を扱う
 
@@ -1504,6 +1504,8 @@ npm --prefix display run typecheck
 
 ### Phase 5B: 台風数値
 
+状態: **完了**（実装同期基準 HEAD `da5f5a5`、Phase 5B 実装基準 `0e964f5`）。変更単位1〜4で契約、parser／共通 helper、semantic 伝搬／state／永続化、既存 surface／card 横断 contract を順に実装し、最終 xhigh レビュー GO を得た。
+
 Phase 5A からの引き継ぎ（5B／5C 共通・順位）: range の代表順位を consumer ごとに定義せず、共通 serializable rank／比較 helper を唯一の契約とする。
 
 Phase 5A からの引き継ぎ（5B 固有）: 「ほとんど停滞」の qualitative 表示と filter／期限計算の数値判定を分離し、表示語を 0km/h や推定数値へ変換しない。
@@ -1545,7 +1547,44 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 3. 伝搬・state・永続化: engine semantic projection（label・badge・rank を protocol 投影時に生成）、standby store の差分/trend canonical 化、protocol と frontend mirror の additive semantic、persistence migration・round-trip、通知現行一致の回帰 test
 4. 表示 surface・横断 contract: CLI・テロップ（現行表示維持の固定）・card（qualitative テキスト表示・badge）・同一合成 XML の parser→表示→persistence 横断 test・engine/frontend parity・全ゲート
 
+起草時の計画から実装で確定・変更された点:
+
+- 旧 scalar adapter は valid な数値本文を condition の有無にかかわらず現 parser と bit 一致で保持した。`condition="なし"` の WindSpeed `0` も canonical qualitative と legacy scalar `0` を両立し、既存 CLI／card 数値表示を変えない。
+- 前報・現報がともに exact value の場合は canonical が同値でも、既存の差分 `0` と `steady` を維持した。unknown／missing／qualitative を差分・trend の根拠にせず、最大瞬間風速も trend へ加えない。
+- 意図的な表示変更は移動速度 qualitative の card テキストと badge に限定した。exact は adapter の bit 一致に裏づけられた canonical `value` を表示し、non-value（unknown／empty／range／missing）は valid な legacy scalar があれば従来表示へ戻し、scalar がなければ従来どおり省略する対称 fallback とした。気圧・風速の特殊 semantic、CLI、通知、テロップへ新しい表示値は追加しない。
+- live の `WindPart` 欠落は unknown と推定せず、最大風速／最大瞬間風速の canonical `missing` として diagnostics なしで保持・永続化する形に確定した。
+- range と canonical structured bounds は WindSpeed だけに許可した。Pressure／MovementSpeed の From／To は range 化せず、数値本文を優先して raw bounds と diagnostics を保持する。
+- protocol は4数値の JSON-safe rank を engine で一度だけ生成し、frontend mirror へ渡す。旧 scalar-only snapshot は読込方向だけ canonical 化する。
+
+完了確認:
+
+1. 停滞の非0化: `test/engine/telegram-foundation/phase5b-typhoon-parser.test.ts:77`／`:275` が「ゆっくり」「ほとんど停滞」と WindSpeed `なし + 0` の canonical／legacy 分離を固定し、`test/engine/telegram-foundation/phase5b-surface-contract.test.ts:25` と `display/frontend/src/components/__tests__/phase5b-surface-contract.test.ts:23` が parser→全 engine surface→persistence→実 card DOM で `0km/h` 化しないことを確認する。
+2. 不明値と trend: `test/engine/display/standby-state-store.test.ts:527` が両端 exact のみ差分を算出し、unknown を強度低下の根拠にせず exact 同値の `0/steady` を維持する。`:753` が片側欠落時の差分／trend を null に固定する。
+3. 通常表示・差分・期限: `display/frontend/src/components/__tests__/typhoon-card.test.ts:92` が exact の既存 NumberUnit 表示、`:125`／`:169`／`:198`／`:247` が qualitative 以外の legacy fallback と新規表示禁止を固定する。`test/engine/display/standby-state-store.test.ts:827` が stale resend で TTL を延長せず24時間と tombstone を維持する。
+4. 受理済み訂正: `test/engine/display/standby-state-store.test.ts:632` が同一 revision の訂正だけを置換し、`test/engine/notifier.test.ts:132` が通知の名称・位置だけの本文と title／body の `訂正` 明示を固定する。
+5. persistence: `test/engine/display/standby-persistence.test.ts:513` が `WindPart` 欠落の missing 往復、`:884` が diagnostics／raw bounds 込み canonical round-trip、`:1010` が旧 scalar-only の読込 migration を固定する。
+6. 横断回帰と protocol: `test/engine/telegram-foundation/phase5b-surface-contract.test.ts:25` と `display/frontend/src/components/__tests__/phase5b-surface-contract.test.ts:23` が同じ合成 XML の engine／DOM 横断、`test/engine/display/protocol-sync.test.ts:21`／`:27` が engine／frontend protocol と rank union の一致を固定する。下記7ゲートを全て成功させ、既存機能の回帰0件を確認した。
+
+緑でも固定できていない契約・実機リスク（実機観察待ち）:
+
+- 実台風電文における self-closing、description／condition、単位併記、`WindPart` 部分欠落の表記揺れは synthetic fixture を超え得るため、受信時に raw と diagnostics を確認する。
+- 実解像度での長い移動速度 qualitative の折返し、badge、tooltip／ARIA の視認性・読み上げは実機観察待ちである。
+
+Phase 5B の完了ゲートは §14.1 の7コマンドに従い、次のコマンド列を全て成功済みとする。
+
+```text
+npm run build
+npm test
+npm run test:shuffle
+npm run typecheck:test
+npm run display:build
+npm run display:test
+npm --prefix display run typecheck
+```
+
 ### Phase 5C: 噴煙高度
+
+状態: **完了**（実装同期基準 HEAD `da5f5a5`）。変更単位1〜4で契約、parser／型／共通 helper、semantic 伝搬／fingerprint／永続化、全既存表示 surface／警報判定／横断 contract を順に実装し、最終 xhigh レビュー GO を得た。
 
 Phase 5A からの引き継ぎ（5B／5C 共通・順位）: range の代表順位を consumer ごとに定義せず、共通 serializable rank／比較 helper を唯一の契約とする。
 
@@ -1589,6 +1628,41 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 2. parser・型・adapter・共通 helper: extractSpecialValue("PlumeHeight") 接続、PlumeHeightSemantic wrapper と両高度 field 追加（海抜は新規抽出）、既知語集合＋diagnostics 解除、旧 scalar adapter（parseInt 再現）、噴煙用共通 formatter・canonical equality 転用・serializable rank/比較 helper、warning 判定 corpus の固定、合成 fixture（雲中・観測できず・以上・海抜 FT・矛盾）
 3. 伝搬・fingerprint・永続化: engine semantic projection と protocol/frontend mirror の additive semantic（wire rank 含む）、revision fingerprint への canonical 反映、standby persistence migration・round-trip
 4. 表示 surface・横断 contract: CLI・通知・テロップ・card（火口上のみ・badge・ARIA）・警報閾値の canonical 原子的切替と発火比較・同一合成 XML の横断 test・frontend parity・全ゲート
+
+起草時の計画から実装で確定・変更された点:
+
+- canonical は `PlumeHeightSemantic` wrapper で reference／unit／`SpecialValue<number>` を一体化し、火口上 m と海抜 FT を型・field・wire・永続化の全てで分離した。海抜 FT は変換せず、既存表示面には新規表示しない。
+- canonical の raw／condition／description は `trimValues:false` の shadow XML tree から抽出し、旧 scalar adapter は従来 tree の trim 後文字列を `parseInt(..., 10)` へ渡す形に分離した。原文保持と legacy bit 一致を同じ tree へ依存させない。
+- revision fingerprint は canonical raw／presence／condition／description／bounds／reference／unit を含む key へ移行した。旧 key alias 一致時は canonical key を同じ slot で置換し、32件履歴を消費・追い出しせず、発表／訂正／取消の duplicate を無通知のまま restart 跨ぎで移行する。
+- §3.7 表示への切替軸は presence ではなく「分類を決めた語が spec 既知特殊語か」に統一した。既知の雲中／観測できず／不明／bound・range と `empty`（CLI `（空欄）`・card `空欄`・通知／テロップ省略）だけを semantic 表示し、exact、missing、機械表現 `NaN`、unmapped qualitative は valid な legacy scalar があれば従来表示へ戻し、なければ従来どおり省略する。
+- ※警報の「原子的切替」は保守側で、火口上 canonical の exact value または lowerBound が `>= 3000` **OR** 有効な legacy scalar が従来判定で `>= 3000` の論理和と確定した。canonical を主判定、legacy を安全床とし、桁あふれ等でも発火減少ゼロを構造的に保証する仮裁定である。
+- persistence reader は正当な片側 raw bound、qualitative の raw／canonical bounds を受理する。semantic だけが壊れている場合は volcano record／domain を捨てず、その semantic field だけを旧 scalar から再生成して別火山・tombstone を salvage する。
+
+完了確認:
+
+1. 特殊状態の分離: `test/engine/telegram-foundation/phase5c-plume-height-parser.test.ts:83`、`:137`、`:148` が雲中／観測できず／以上、NaN、明示 From／To の優先と raw bounds／diagnostics を固定し、`:237` が不明の parser 分類、`test/engine/telegram-foundation/phase5c-surface-contract.test.ts:47` が不明の全 surface 表示を固定して、相互に潰れないことを確認する。
+2. `X以上` の全下流伝搬: `test/engine/telegram-foundation/phase5c-plume-height-parser.test.ts:168` が本文 bound を lower-only range にし、`test/engine/telegram-foundation/phase5c-surface-contract.test.ts:324` が parser→CLI／通知／テロップ→wire→persistence、`display/frontend/src/components/__tests__/volcano-card.test.ts:352` が同じ XML の実 card DOM まで qualifier を保持する。
+3. 基準・単位・rank: `test/engine/telegram-foundation/phase5c-plume-height-parser.test.ts:61`／`:260`／`:349` が火口上 m／海抜 FT、明示 null bounds、JSON-safe rank を固定し、`test/engine/display/standby-persistence.test.ts:1109` が diagnostics／reference／unit／rank 込みの実ファイル往復を確認する。
+4. 訂正と fingerprint 移行: `test/engine/telegram-foundation/phase5c-surface-contract.test.ts:305` が実 notifier の `[訂正]`／`訂正:` を固定する。`test/engine/telegram-foundation/phase3b-volcano.test.ts:321`／`:399`／`:449` が旧 fingerprint の訂正／発表／取消 alias を無通知移行し、`test/engine/telegram-foundation/phase3a-revision-gate.test.ts:353` が32件満杯でも同じ slot を置換して未 flush restart と追い出し順を維持する。
+5. 警報・表示・salvage: `test/engine/telegram-foundation/phase5c-plume-height-parser.test.ts:469`／`:598`／`:668` が canonical 閾値、legacy safety floor、合成境界と既存 fixture corpus の発火減少ゼロを固定する。`:492` と `test/engine/telegram-foundation/phase5c-surface-contract.test.ts:147`／`:208`、`display/frontend/src/components/__tests__/volcano-card.test.ts:237`／`:261`／`:297` が既知特殊語だけの §3.7 切替を全 surface で固定する。`test/engine/display/standby-persistence.test.ts:1257` と `test/engine/telegram-foundation/phase3b-volcano.test.ts:690` が semantic 縮退時も別火山・tombstone を保全する。
+6. lifecycle と横断回帰: `test/engine/telegram-foundation/phase3b-volcano.test.ts:301`／`:845`／`:939` が同一 revision 訂正、restart 後取消 tombstone、保持期限前後を固定する。`test/engine/telegram-foundation/phase5c-surface-contract.test.ts:324`、`display/frontend/src/components/__tests__/volcano-card.test.ts:352`、`test/engine/display/protocol-sync.test.ts:21` が parser から実 DOM と protocol mirror までを横断する。下記7ゲートを全て成功させ、修正弾 A〜C と既存機能の回帰0件を確認した。
+
+緑でも固定できていない契約・実機リスク（実機観察待ち）:
+
+- 実噴煙電文における condition／description、全半角空白、否定形、本文 bound、単位不一致の表記揺れは synthetic matrix を超え得るため、受信時に raw と diagnostics を確認する。
+- 実解像度での噴煙特殊値、badge、tooltip／ARIA の視認性・読み上げは実機観察待ちである。海抜高度は本 Phase の表示対象外のままとする。
+
+Phase 5C の完了ゲートは §14.1 の7コマンドに従い、次のコマンド列を全て成功済みとする。
+
+```text
+npm run build
+npm test
+npm run test:shuffle
+npm run typecheck:test
+npm run display:build
+npm run display:test
+npm --prefix display run typecheck
+```
 
 ### Phase 6A: VXSE44 購読確認化
 
