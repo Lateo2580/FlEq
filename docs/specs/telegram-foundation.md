@@ -1526,6 +1526,25 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - persistence round-trip が通る。
 - 既存機能の回帰が 0 件である。
 
+実装契約（2026-08-10 着手時確定。※印は夜間自律走行の仮裁定——ご主人確認までは保守側の暫定であり、覆った場合は該当箇所のみ再実装する）:
+
+- canonical field は `pressureHpaValue`／`maxWindMsValue`／`maxGustMsValue`／`moveSpeedKmhValue` の `SpecialValue<number>` とする。抽出は `extractSpecialValue` の Pressure／WindSpeed／MovementSpeed domain を parser へ接続する。既存 scalar（`number | null`）は adapter が生成する互換値であり、**valid な数値本文は condition の有無にかかわらず現行どおり数値のまま保持する**（`condition="なし"` の `0m/s` を含む——現 parser の結果と bit 一致）。数値本文がない特殊値のみ `null` とする（現行一致）。
+- ※qualitative の表示語は description／condition／raw の既定優先順で最初の非空の語を使い、語自体は正規化しない（「ゆっくり」は self-closing 本文のため condition／description 由来になる。巨大 Magnitude と同じ流儀）。
+- ※WindSpeed の `condition="なし"` は qualitative として内部保持し、scalar・表示とも現行を維持する（CLI 予報表の `0(0)` を含め表示変更しない）。
+- 前報差分（RollingNumber 補助行）の数値差分・trend は両端が `presence:"value"` の場合のみ算出する。**前報・現報がともに exact value なら、canonical 同値でも現行どおり 0 差分と steady を維持する**（canonical equality は raw だけの揺れの識別に用いるものであり、既存の 0 差分表示を消さない）。※value↔unknown 等の遷移は差分行に出さない（現行の見え方保存）。
+- trend は canonical value から算出し、unknown／missing／qualitative を強度低下・上昇の根拠にしない。※優先規則（developing 先勝ち）は現行維持。※最大瞬間風速は trend・差分の根拠に含めず、SpecialValue 化は表示・保存のみとする。
+- ※移動速度の qualitative は card の数値 slot にテキスト表示する（RollingNumber は exact value のみ）。これは完了条件「停滞を 0km/h にしない」充足の最小形とし、**本 Phase の意図的な表示変更は card の qualitative テキストと付随 badge のみ**とする。CLI の `―km/h`・テロップの方向のみ表示は現行を維持する（§3.7 化の是非はご主人裁定待ちとして別途一覧へ）。
+- ※通知本文へ数値は追加しない（現行の名称・位置のみ＋受理済み訂正の `訂正` 明示を維持）。通知本文の現行一致・数値非追加・訂正明示は回帰 test で固定する。
+- standby persistence（typhoon domain）は canonical 全フィールド（diagnostics 込み）を additive 保存し、旧 scalar-only snapshot は読込方向のみ migration する。validator・restore default・protocol mirror を同時更新し round-trip を固定する（5A の 3 owner 契約と同形）。
+- 期待値変更の許可範囲: 移動速度 qualitative の card テキスト表示と付随 badge、canonical diff 発火範囲、persistence への additive semantic と migration、に限る。次が変わる場合は報告して停止する: 通常値の表示・strength/size の header tone・4 stat の 2×2 grid・exact 値の RollingNumber・exact 同値続報の 0 差分/steady・最大瞬間風速列の既存省略条件・通常通知本文（名称・位置）・trend 結果・TTL・通知 cadence。
+
+変更単位（依存順。共通 helper と engine 投影を表示より前に確定する）:
+
+1. 契約先行（本節。文書のみ）
+2. parser・型・adapter・共通 helper: extractSpecialValue 接続、canonical field 追加、旧 scalar adapter（数値本文保持）、数値 SpecialValue 共通 formatter（台風単位系）・canonical equality 転用・serializable rank/比較 helper、合成 fixture（ゆっくり・停滞・なし・不明・複数単位併記）
+3. 伝搬・state・永続化: engine semantic projection（label・badge・rank を protocol 投影時に生成）、standby store の差分/trend canonical 化、protocol と frontend mirror の additive semantic、persistence migration・round-trip、通知現行一致の回帰 test
+4. 表示 surface・横断 contract: CLI・テロップ（現行表示維持の固定）・card（qualitative テキスト表示・badge）・同一合成 XML の parser→表示→persistence 横断 test・engine/frontend parity・全ゲート
+
 ### Phase 5C: 噴煙高度
 
 Phase 5A からの引き継ぎ（5B／5C 共通・順位）: range の代表順位を consumer ごとに定義せず、共通 serializable rank／比較 helper を唯一の契約とする。
@@ -1549,6 +1568,27 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - 受理済み訂正が `訂正` を明示して通知される。
 - 修正弾 A〜C の火山 lifecycle に回帰がない。
 - 既存機能の回帰が 0 件である。
+
+実装契約（2026-08-10 着手時確定。※印は夜間自律走行の仮裁定——ご主人確認までは保守側の暫定であり、覆った場合は該当箇所のみ再実装する）:
+
+- canonical は基準と単位を判別子で持つ wrapper 型とする: `PlumeHeightSemantic = { reference: "aboveCrater" | "aboveSeaLevel", unit: "m" | "FT", value: SpecialValue<number> }`。field 名（`plumeHeightAboveCraterValue`／`plumeHeightAboveSeaLevelValue`）と型の両方で基準を分離し、無印 `SpecialValue<number>` へ混在させない（引き継ぎ契約の型分離）。
+- 無印 `plumeHeight` 系 scalar（`number | null`＋`plumeHeightUnknown`）は adapter が生成する互換値とし、**現 parser の parseInt 結果を bit 一致で再現する**（`以上` 等の数値本文が現在 scalar 数値になる挙動を含む）。警報発火判定は単位 4 の canonical 切替まで旧 scalar を使い続け、切替は表示・判定と同一単位で原子的に行う。
+- ※単位は原単位で保持する（火口上 m・海抜 FT。変換・丸めをしない）。表示も原単位＋単位表記とする。
+- `雲中`=qualitative、`観測できず`／`不明`=unknown、観測阻害の condition を数値より優先（§3.5 の PlumeHeight 行）。※表示語は「分類を決めた特殊語の原文」を無正規化で使う——観測阻害は condition の語、本文自体が特殊語なら raw、の優先順とする（不明の self-closing 本文で raw が空になるため）。補足文は足さない。
+- `X以上` は range（lowerBound）とし、表示は 5A Depth と同形「{n}m以上」。CLI・通知・テロップ・カードで同じ共通 formatter（噴煙用に新設）を使う。
+- diagnostics: PlumeHeight の既知 condition 語集合（雲中・観測できず・不明・以上系）を helper に追加した上で除外を解除し、数値本文と特殊語の矛盾を `specialValueConflict`、未知語を `unmappedSpecialValue` へ記録する。
+- ※表示面は現行の表示箇所（火口上）のみを semantic 化し、既存面へのラベル・値の新規追加はしない。**「単位・基準の明示」という完了条件は canonical・永続化・wire に限定して充足させる**——既存 card／通知への「火口上」ラベル追加は通常値表示の変更にあたるためご主人裁定待ちとし、本 Phase では行わない。海抜高度も canonical 保持・永続化までとし、表示への新規追加は行わない。
+- 警報閾値（`>= 3000`）は火口上のみを対象と明文化する。単位 4 で canonical 判定（exact value または lowerBound が閾値以上で発火。unknown／bounds なし qualitative は発火根拠にしない）へ原子的に切り替え、**切替前に現行 fixture corpus の warning 判定一覧を固定し、切替後の比較で発火が減る場合はその変更単位を受理しない**。
+- revision fingerprint（§5.1）には canonical の raw・presence・condition・description・bounds・reference・unit を含め、訂正検知の回帰 test を固定する。
+- standby persistence（volcano domain）は canonical 全フィールドを additive 保存し、旧 scalar/boolean snapshot は読込方向のみ migration する。`plumeHeightUnknown:true`→unknown、**`false`＋`null` は真の欠落と旧 parser が潰した特殊値を区別できないため missing＋`legacyNullUnknown` 診断**とする。round-trip を固定する。
+- 期待値変更の許可範囲: 特殊値（雲中・観測できず・以上・範囲）の表示 §3.7 化、diagnostics 追加、persistence への additive semantic と migration、に限る。通常値表示（既存面へのラベル追加を含む）・警報発火実績の減少・lifecycle（取消 tombstone・訂正置換）・通知 cadence が変わる場合は報告して停止する。
+
+変更単位（依存順。共通 helper と engine 投影を表示より前に確定する）:
+
+1. 契約先行（本節。文書のみ）
+2. parser・型・adapter・共通 helper: extractSpecialValue("PlumeHeight") 接続、PlumeHeightSemantic wrapper と両高度 field 追加（海抜は新規抽出）、既知語集合＋diagnostics 解除、旧 scalar adapter（parseInt 再現）、噴煙用共通 formatter・canonical equality 転用・serializable rank/比較 helper、warning 判定 corpus の固定、合成 fixture（雲中・観測できず・以上・海抜 FT・矛盾）
+3. 伝搬・fingerprint・永続化: engine semantic projection と protocol/frontend mirror の additive semantic（wire rank 含む）、revision fingerprint への canonical 反映、standby persistence migration・round-trip
+4. 表示 surface・横断 contract: CLI・通知・テロップ・card（火口上のみ・badge・ARIA）・警報閾値の canonical 原子的切替と発火比較・同一合成 XML の横断 test・frontend parity・全ゲート
 
 ### Phase 6A: VXSE44 購読確認化
 
