@@ -49,6 +49,49 @@ import {
 } from "./responsive-table-engine";
 import { getRoleChalk, RoleName } from "./theme";
 import { VolcanoPresentation } from "../engine/presentation/volcano-presentation";
+import {
+  formatPlumeHeightSpecialValue,
+  plumeHeightUsesLegacyDisplay,
+} from "../utils/plume-height";
+
+type VolcanoWithPlumeHeight =
+  | ParsedVolcanoEruptionInfo
+  | ParsedVolcanoAshfallInfo
+  | ParsedVolcanoPlumeInfo;
+
+function visiblePlumeHeightLabel(
+  info: VolcanoWithPlumeHeight,
+  allowExplicitUnknown: boolean,
+): string | null {
+  if (info.plumeHeightAboveCraterValue != null) {
+    if (plumeHeightUsesLegacyDisplay(info.plumeHeightAboveCraterValue)) {
+      return info.plumeHeight == null ? null : `${info.plumeHeight}m`;
+    }
+    return formatPlumeHeightSpecialValue(info.plumeHeightAboveCraterValue, "detail");
+  }
+  if (info.plumeHeight != null) return `${info.plumeHeight}m`;
+  return allowExplicitUnknown && info.kind === "eruption" && info.plumeHeightUnknown
+    ? "不明"
+    : null;
+}
+
+function visiblePlumeHeightDetail(
+  info: VolcanoWithPlumeHeight,
+  allowExplicitUnknown: boolean,
+): string | null {
+  const label = visiblePlumeHeightLabel(info, allowExplicitUnknown);
+  if (label == null) return null;
+  const semantic = info.plumeHeightAboveCraterValue;
+  const value = semantic?.value;
+  if (value == null) return info.plumeHeight == null ? `高度${label}` : `火口上${label}`;
+  if (semantic != null && plumeHeightUsesLegacyDisplay(semantic)) {
+    return `火口上${label}`;
+  }
+  if (value.presence === "value" || value.presence === "range" || value.lowerBound != null) {
+    return `火口上${label}`;
+  }
+  return value.presence === "unknown" ? `高度${label}` : label;
+}
 
 function detailLevelRole(level: number | null): RoleName {
   switch (level) {
@@ -581,10 +624,9 @@ function renderEruption(info: ParsedVolcanoEruptionInfo, level: FrameLevel, widt
   }
 
   // 噴煙高度・流向
-  if (info.plumeHeight != null) {
-    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} 火口上${info.plumeHeight}m`);
-  } else if (info.plumeHeightUnknown) {
-    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} 高度不明`);
+  const plumeHeight = visiblePlumeHeightDetail(info, true);
+  if (plumeHeight != null) {
+    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} ${plumeHeight}`);
   }
   if (info.plumeDirection) {
     pushClampedFrameLine(buf, level, width, ` ${chalk.gray("流向:")} ${info.plumeDirection}`);
@@ -627,8 +669,9 @@ function renderAshfall(info: ParsedVolcanoAshfallInfo, level: FrameLevel, width:
   }
 
   // 噴煙高度
-  if (info.plumeHeight != null) {
-    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} 火口上${info.plumeHeight}m`);
+  const plumeHeight = visiblePlumeHeightDetail(info, false);
+  if (plumeHeight != null) {
+    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} ${plumeHeight}`);
   }
 
   // 本文 (VolcanoActivity) — 降灰テーブルより先に表示
@@ -730,7 +773,8 @@ function renderPlume(info: ParsedVolcanoPlumeInfo, level: FrameLevel, width: num
     };
     const name = phenNames[info.phenomenonCode] ?? info.phenomenonCode;
     const cardParts = [phenFn(name)];
-    if (info.plumeHeight != null) cardParts.push(`${info.plumeHeight}m`);
+    const plumeHeight = visiblePlumeHeightLabel(info, false);
+    if (plumeHeight != null) cardParts.push(plumeHeight);
     if (info.plumeDirection) cardParts.push(info.plumeDirection);
     buf.pushCard(frameLine(level, clampFrameContent(` ${cardParts.join("  ")}`, width), width));
   }
@@ -741,8 +785,9 @@ function renderPlume(info: ParsedVolcanoPlumeInfo, level: FrameLevel, width: num
   }
 
   // 噴煙高度・流向
-  if (info.plumeHeight != null) {
-    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} 火口上${info.plumeHeight}m`);
+  const plumeHeight = visiblePlumeHeightDetail(info, false);
+  if (plumeHeight != null) {
+    pushClampedFrameLine(buf, level, width, ` ${chalk.gray("噴煙:")} ${plumeHeight}`);
   }
   if (info.plumeDirection) {
     pushClampedFrameLine(buf, level, width, ` ${chalk.gray("流向:")} ${info.plumeDirection}`);

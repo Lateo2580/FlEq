@@ -19,7 +19,7 @@ export function projectPlumeHeightSemantic(
     unit: source.unit,
     raw: source.value.raw,
     presence: source.value.presence,
-    label: formatPlumeHeightSpecialValue(source),
+    label: formatPlumeHeightSpecialValue(source, "card"),
     condition: source.value.condition,
     description: source.value.description,
     value: source.value.value ?? null,

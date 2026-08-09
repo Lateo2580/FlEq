@@ -8,6 +8,11 @@ import type { Vfvo53BatchItems } from "../messages/volcano-vfvo53-aggregator";
 import type { FrameLevel } from "../../types";
 import { SoundLevel } from "../notification/sound-player";
 import { VolcanoStateHolder } from "../messages/volcano-state";
+import {
+  formatPlumeHeightSpecialValue,
+  plumeHeightReachesThresholdWithLegacyFloor,
+  plumeHeightUsesLegacyDisplay,
+} from "../../utils/plume-height";
 
 /** 表示・通知判定の結果 */
 export interface VolcanoPresentation {
@@ -54,11 +59,15 @@ function resolveEruption(info: ParsedVolcanoEruptionInfo): VolcanoPresentation {
     return { frameLevel: "critical", soundLevel: "critical", summary };
   }
 
-  // VFVO52: 爆発(51) / 噴火多発(56) or 噴煙 ≥ 3000m → warning
+  // VFVO52: 爆発(51) / 噴火多発(56) or 火口上噴煙 ≥ 3000m → warning
   if (
     info.phenomenonCode === "51" ||
     info.phenomenonCode === "56" ||
-    (info.plumeHeight != null && info.plumeHeight >= 3000)
+    plumeHeightReachesThresholdWithLegacyFloor(
+      info.plumeHeightAboveCraterValue,
+      info.plumeHeight,
+      3000,
+    )
   ) {
     return { frameLevel: "warning", soundLevel: "normal", summary };
   }
@@ -178,7 +187,22 @@ function buildAlertSummary(info: ParsedVolcanoAlertInfo): string {
 
 function buildEruptionSummary(info: ParsedVolcanoEruptionInfo): string {
   const parts: string[] = [info.volcanoName, info.phenomenonName];
-  if (info.plumeHeight != null) {
+  if (info.plumeHeightAboveCraterValue != null) {
+    const presence = info.plumeHeightAboveCraterValue.value.presence;
+    if (plumeHeightUsesLegacyDisplay(info.plumeHeightAboveCraterValue)) {
+      if (info.plumeHeight != null) parts.push(`噴煙${info.plumeHeight}m`);
+    } else {
+      const plume = formatPlumeHeightSpecialValue(
+        info.plumeHeightAboveCraterValue,
+        "notification",
+      );
+      if (plume != null) {
+        parts.push(presence === "unknown" || presence === "qualitative"
+          ? `噴煙高度${plume}`
+          : `噴煙${plume}`);
+      }
+    }
+  } else if (info.plumeHeight != null) {
     parts.push(`噴煙${info.plumeHeight}m`);
   } else if (info.plumeHeightUnknown) {
     parts.push("噴煙高度不明");

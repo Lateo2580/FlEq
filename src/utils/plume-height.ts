@@ -24,9 +24,24 @@ function qualitativeText(value: SpecialValue<number>): string | null {
   return value.raw ?? value.description ?? value.condition;
 }
 
+/**
+ * spec 既知特殊語による分類だけを semantic 表示へ切り替える。
+ * missing・機械表現の unknown・未対応 qualitative・exact は旧 scalar 表示を維持する。
+ */
+export function plumeHeightUsesLegacyDisplay(height: PlumeHeightSemantic): boolean {
+  const { value } = height;
+  if (obstructionText(value) != null) return false;
+  if (
+    (value.presence === "range" || value.presence === "qualitative")
+    && (value.lowerBound != null || value.upperBound != null)
+  ) return false;
+  return value.presence !== "empty";
+}
+
 /** 噴煙高度 canonical の共通表示。単位は原文の基準どおり変換しない。 */
 export function formatPlumeHeightSpecialValue(
   height: PlumeHeightSemantic,
+  surface: "detail" | "notification" | "ticker" | "card" = "detail",
 ): string | null {
   const { unit, value } = height;
   switch (value.presence) {
@@ -46,8 +61,40 @@ export function formatPlumeHeightSpecialValue(
     case "missing":
       return null;
     case "empty":
-      return "（空欄）";
+      if (surface === "notification" || surface === "ticker") return null;
+      return surface === "card" ? "空欄" : "（空欄）";
   }
+}
+
+/**
+ * 噴煙高度の警報閾値評価。上限だけの range や unranked 状態を発火根拠にしない。
+ * sort 用の代表値とは安全性の意味が異なるため plumeHeightSortRank() は使わない。
+ */
+export function plumeHeightReachesThreshold(
+  height: PlumeHeightSemantic | undefined,
+  threshold: number,
+): boolean {
+  if (height?.reference !== "aboveCrater" || height.unit !== "m") return false;
+  const { value } = height;
+  if (value.presence === "value") {
+    return value.value != null
+      && Number.isFinite(value.value)
+      && value.value >= threshold;
+  }
+  if (value.presence !== "range" && value.presence !== "qualitative") return false;
+  return value.lowerBound != null
+    && Number.isFinite(value.lowerBound)
+    && value.lowerBound >= threshold;
+}
+
+/** canonical を主判定にし、旧 parseInt scalar の発火実績を安全床として維持する。 */
+export function plumeHeightReachesThresholdWithLegacyFloor(
+  height: PlumeHeightSemantic | undefined,
+  legacyHeight: number | null,
+  threshold: number,
+): boolean {
+  return plumeHeightReachesThreshold(height, threshold)
+    || legacyHeight != null && legacyHeight >= threshold;
 }
 
 /** raw/diagnostics を無視する canonical equality。基準と単位の一致も必須。 */

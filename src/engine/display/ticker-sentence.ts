@@ -11,6 +11,8 @@ import type {
   ParsedTyphoonProbability,
   ParsedFloodForecastInfo,
   ParsedVolcanoInfo,
+  ParsedVolcanoEruptionInfo,
+  ParsedVolcanoPlumeInfo,
   ParsedEarlyWeatherInfo,
   FloodLevel,
   TyphoonName,
@@ -33,6 +35,10 @@ import {
   formatIntensitySpecialValue,
   formatLgIntensitySpecialValue,
 } from "../presentation/level-helpers";
+import {
+  formatPlumeHeightSpecialValue,
+  plumeHeightUsesLegacyDisplay,
+} from "../../utils/plume-height";
 
 const CATEGORY_LABELS: Record<string, string> = {
   eew: "緊急地震速報",
@@ -429,6 +435,23 @@ function volcanoAnnounceSentence(name: string, kindTitle: string): string {
   return `${name}の${kindTitle}が発表されました。`;
 }
 
+function volcanoTickerPlumeHeight(
+  info: ParsedVolcanoEruptionInfo | ParsedVolcanoPlumeInfo,
+): string | null {
+  if (info.plumeHeightAboveCraterValue == null) {
+    return info.plumeHeight == null ? null : `火口上${info.plumeHeight}m`;
+  }
+  const value = info.plumeHeightAboveCraterValue.value;
+  if (plumeHeightUsesLegacyDisplay(info.plumeHeightAboveCraterValue)) {
+    return info.plumeHeight == null ? null : `火口上${info.plumeHeight}m`;
+  }
+  const label = formatPlumeHeightSpecialValue(info.plumeHeightAboveCraterValue, "ticker");
+  if (label == null) return null;
+  return value.presence === "range" || value.lowerBound != null
+    ? `火口上${label}`
+    : label;
+}
+
 /**
  * 火山ドメインの一文 (spec 2026-07-23 ticker-content-lifetime T4)。
  * bodyText がある電文は tickerBody が優先されるため、ここは本文空電文 (VFVO52/56/60、
@@ -448,7 +471,8 @@ function volcanoSentence(event: PresentationEvent): string | null {
     case "eruption": {
       const when = info.eventDateTime != null ? formatJst12h(info.eventDateTime) : null;
       const head = info.isFlashReport ? "噴火速報：" : "";
-      const plume = info.plumeHeight != null ? `噴煙は火口上${info.plumeHeight}m。` : "";
+      const plumeHeight = volcanoTickerPlumeHeight(info);
+      const plume = plumeHeight == null ? "" : `噴煙は${plumeHeight}。`;
       const phenomenon = info.phenomenonName !== "" ? info.phenomenonName : "噴火";
       return when != null
         ? `${head}${name}で${when}、${phenomenon}が発生しました。${plume}`
@@ -471,14 +495,15 @@ function volcanoSentence(event: PresentationEvent): string | null {
     case "text":
       return volcanoAnnounceSentence(name, info.title);
     case "plume": {
-      if (info.plumeHeight != null && info.plumeDirection != null) {
-        return `${name}の噴煙は火口上${info.plumeHeight}m、${info.plumeDirection}方向へ流れる見込みです。`;
+      const plumeHeight = volcanoTickerPlumeHeight(info);
+      if (plumeHeight != null && info.plumeDirection != null) {
+        return `${name}の噴煙は${plumeHeight}、${info.plumeDirection}方向へ流れる見込みです。`;
       }
       if (info.plumeDirection != null) {
         return `${name}の噴煙は${info.plumeDirection}方向へ流れる見込みです。`;
       }
-      if (info.plumeHeight != null) {
-        return `${name}の噴煙は火口上${info.plumeHeight}mです。`;
+      if (plumeHeight != null) {
+        return `${name}の噴煙は${plumeHeight}です。`;
       }
       return volcanoAnnounceSentence(name, info.title);
     }

@@ -272,7 +272,12 @@ function extractPlumeObservation(body: unknown, specialValueBody: unknown): {
     plumeHeightAboveCraterValue = {
       reference: "aboveCrater",
       unit: "m",
-      value: extractSpecialValue("PlumeHeight", specialValueHeightNode),
+      value: extractSpecialValue(
+        "PlumeHeight",
+        str(dig(specialValueHeightNode, "@_unit")) === "m"
+          ? specialValueHeightNode
+          : undefined,
+      ),
     };
 
     const specialValueSeaLevelNode =
@@ -281,7 +286,12 @@ function extractPlumeObservation(body: unknown, specialValueBody: unknown): {
     plumeHeightAboveSeaLevelValue = {
       reference: "aboveSeaLevel",
       unit: "FT",
-      value: extractSpecialValue("PlumeHeight", specialValueSeaLevelNode),
+      value: extractSpecialValue(
+        "PlumeHeight",
+        str(dig(specialValueSeaLevelNode, "@_unit")) === "FT"
+          ? specialValueSeaLevelNode
+          : undefined,
+      ),
     };
 
     // 流向

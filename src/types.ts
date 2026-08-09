@@ -1825,7 +1825,7 @@ interface ParsedVolcanoBase {
   coordinate: string | null;
   meta: TelegramMeta;
   isTest: boolean;
-  /** Phase 5C additive canonical fields. legacy scalar fields remain authoritative until unit 4. */
+  /** Phase 5C canonical fields. legacy scalar fields remain compatibility adapters. */
   plumeHeightAboveCraterValue?: PlumeHeightSemantic;
   plumeHeightAboveSeaLevelValue?: PlumeHeightSemantic;
 }

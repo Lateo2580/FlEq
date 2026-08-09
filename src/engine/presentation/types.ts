@@ -504,7 +504,7 @@ export interface PresentationEvent {
     isCorrection: boolean;
   };
   alertLevel?: number | null;
-  /** Parser canonical。既存 volcano scalar は単位4まで authoritative。 */
+  /** Parser canonical。既存 volcano scalar は互換 consumer 用に並存する。 */
   plumeHeightAboveCraterValue?: PlumeHeightSemantic;
   /** 海抜 FT は表示追加せず canonical propagation のみ行う。 */
   plumeHeightAboveSeaLevelValue?: PlumeHeightSemantic;

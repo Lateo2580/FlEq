@@ -5,6 +5,7 @@
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
   import NumberUnit from "./NumberUnit.svelte";
+  import { plumeHeightVisual } from "../lib/plume-height";
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "volcano" }> } = $props();
 
   // 見出し帯の段階カラーはカード内最高段階で決める (JMA 配色: レベル2=黄 / レベル3=橙 /
@@ -41,7 +42,18 @@
       || event.eventDateTime != null
       || event.plumeHeightM != null
       || event.plumeHeightUnknown
+      || plumeVisual(event).render
       || event.plumeDirection != null;
+  }
+
+  function plumeVisual(
+    event: NonNullable<Extract<ActiveStandbyCardV1, { kind: "volcano" }>["data"]["volcanoes"][number]["latestEvent"]>,
+  ) {
+    return plumeHeightVisual(
+      event.plumeHeightAboveCraterSemantic,
+      event.plumeHeightM,
+      event.plumeHeightUnknown,
+    );
   }
 </script>
 
@@ -60,6 +72,7 @@
       </div>
       {#if meaning != null}<div class="alert-meaning">{meaning}</div>{/if}
       {#if volcano.latestEvent != null}
+        {@const plume = plumeVisual(volcano.latestEvent)}
         <strong>{volcano.latestEvent.label}</strong>
         {#if hasEventStats(volcano.latestEvent)}
           <div class="event-stats">
@@ -69,15 +82,16 @@
             {#if volcano.latestEvent.eventDateTime != null}
               <div class="stat event-time-stat"><span class="stat-label">噴火時刻</span><span class="stat-value">{formatHm(volcano.latestEvent.eventDateTime)}</span></div>
             {/if}
-            {#if volcano.latestEvent.plumeHeightM != null || volcano.latestEvent.plumeHeightUnknown}
+            {#if plume.render}
               <div class="stat plume-height-stat">
                 <span class="stat-label">噴煙高度</span>
-                <span class="stat-value">
-                  {#if volcano.latestEvent.plumeHeightM != null}
-                    <NumberUnit value={String(volcano.latestEvent.plumeHeightM)} unit="m" />
+                <span class="stat-value" title={plume.tooltip ?? undefined} aria-label={plume.ariaLabel}>
+                  {#if plume.numericValue != null}
+                    <NumberUnit value={String(plume.numericValue)} unit={plume.unit} />
                   {:else}
-                    不明
+                    {plume.label}
                   {/if}
+                  {#if plume.badge != null}<b class="semantic-badge" aria-hidden="true">{plume.badge}</b>{/if}
                 </span>
               </div>
             {/if}
@@ -135,4 +149,5 @@
   .stat { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
   .stat-label { color: var(--role-muted); font-size: var(--type-label-xs-size); }
   .stat-value { color: var(--fg); font-size: max(14px, var(--type-body-l-fluid)); font-weight: var(--num-weight); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .semantic-badge { margin-left: 0.25em; font-weight: var(--type-label-weight-emphasized); }
 </style>

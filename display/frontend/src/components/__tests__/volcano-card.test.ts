@@ -1,7 +1,20 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import VolcanoCard from "../VolcanoCard.svelte";
-import type { ActiveStandbyCardV1, DisplayVolcanoEventV1 } from "../../lib/protocol";
+import { parseVolcanoTelegram } from "../../../../../src/dmdata/volcano-parser";
+import { StandbyPersistence } from "../../../../../src/engine/display/standby-persistence";
+import { StandbyStateStore } from "../../../../../src/engine/display/standby-state-store";
+import { VolcanoStateHolder } from "../../../../../src/engine/messages/volcano-state";
+import { fromVolcanoOutcome } from "../../../../../src/engine/presentation/events/from-volcano";
+import { buildVolcanoOutcome } from "../../../../../src/engine/presentation/processors/process-volcano";
+import { createMockWsDataMessageFromXml } from "../../../../../test/helpers/mock-message";
+import type {
+  ActiveStandbyCardV1,
+  DisplayPlumeHeightSemanticV1,
+  DisplayVolcanoEventV1,
+} from "../../lib/protocol";
 import { VOLCANO_LEVEL_LABELS } from "../../lib/standby-cards";
 
 function eruptionEvent(over: Partial<DisplayVolcanoEventV1> = {}): DisplayVolcanoEventV1 {
@@ -12,6 +25,31 @@ function eruptionEvent(over: Partial<DisplayVolcanoEventV1> = {}): DisplayVolcan
     plumeHeightM: 2500,
     plumeHeightUnknown: false,
     plumeDirection: "南東",
+    ...over,
+  };
+}
+
+function plumeSemantic(
+  over: Partial<DisplayPlumeHeightSemanticV1>,
+): DisplayPlumeHeightSemanticV1 {
+  return {
+    reference: "aboveCrater",
+    unit: "m",
+    raw: null,
+    presence: "missing",
+    label: null,
+    condition: null,
+    description: null,
+    value: null,
+    lowerBound: null,
+    upperBound: null,
+    rawLowerBound: null,
+    rawUpperBound: null,
+    diagnostics: [],
+    badge: null,
+    color: "notRendered",
+    render: false,
+    rank: { kind: "unranked", reference: "aboveCrater", unit: "m" },
     ...over,
   };
 }
@@ -36,6 +74,8 @@ describe("VolcanoCard", () => {
     expect(container.querySelector(".event-time-stat .stat-value")?.textContent).toBe("09:05");
     expect(container.querySelector(".plume-height-stat .nu-value")?.textContent).toBe("2500");
     expect(container.querySelector(".plume-height-stat .nu-unit")?.textContent).toBe("m");
+    expect(container.querySelector(".plume-height-stat .stat-value")?.getAttribute("title")).toBeNull();
+    expect(container.querySelector(".plume-height-stat .stat-value")?.getAttribute("aria-label")).toBeNull();
     expect(container.querySelector(".plume-direction-stat .stat-value")?.textContent).toBe("南東");
   });
 
@@ -140,6 +180,219 @@ describe("VolcanoCard", () => {
       }] },
     }) });
     expect(missing.container.querySelector(".plume-height-stat")).toBeNull();
+  });
+
+  it.each([
+    ["lower-only", "3000m以上", "≥", "以上", 3000, false],
+    ["range", "2000～4000m", "↔", "範囲観測", 2000, false],
+    ["unknown", "観測できず", "?", "観測できず", null, true],
+    ["empty", "空欄", "∅", null, null, false],
+  ] as const)("canonical %s を label・badge・tooltip・ARIA 付きで表示する", (
+    presence,
+    label,
+    badge,
+    condition,
+    legacyHeight,
+    legacyUnknown,
+  ) => {
+    const semantic = plumeSemantic({
+      raw: presence === "empty" ? "" : label,
+      presence: presence === "lower-only" || presence === "range" ? "range" : presence,
+      label,
+      condition,
+      lowerBound: presence === "lower-only" ? 3000 : presence === "range" ? 2000 : null,
+      upperBound: presence === "range" ? 4000 : null,
+      badge,
+      color: presence === "empty" ? "neutral" : presence === "unknown" ? "unknown" : "safetyRank",
+      render: true,
+      rank: presence === "lower-only" || presence === "range"
+        ? {
+            kind: "range", reference: "aboveCrater", unit: "m",
+            lowerBound: presence === "lower-only" ? 3000 : 2000,
+            upperBound: presence === "range" ? 4000 : null,
+          }
+        : { kind: "unranked", reference: "aboveCrater", unit: "m" },
+    });
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: null,
+        latestEvent: eruptionEvent({
+          plumeHeightM: legacyHeight,
+          plumeHeightUnknown: legacyUnknown,
+          plumeHeightAboveCraterSemantic: semantic,
+        }),
+      }] },
+    }) });
+    const value = container.querySelector(".plume-height-stat .stat-value");
+    const badgeNode = value?.querySelector(".semantic-badge");
+    expect(value?.textContent?.replace(/\s+/g, "")).toBe(`${label}${badge}`);
+    expect(badgeNode?.textContent).toBe(badge);
+    expect(badgeNode?.getAttribute("aria-hidden")).toBe("true");
+    if (condition != null) {
+      expect(value?.getAttribute("title")).toContain(`条件: ${condition}`);
+      expect(value?.getAttribute("aria-label")).toContain(`条件: ${condition}`);
+    }
+  });
+
+  it("全角 exact canonical は legacy scalar が null なら噴煙高度列を追加しない", () => {
+    const semantic = plumeSemantic({
+      raw: "３０００",
+      presence: "value",
+      label: "3000m",
+      value: 3000,
+      color: "normalRank",
+      render: true,
+      rank: { kind: "value", reference: "aboveCrater", unit: "m", value: 3000 },
+    });
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: null,
+        latestEvent: eruptionEvent({
+          plumeHeightM: null,
+          plumeHeightUnknown: false,
+          plumeHeightAboveCraterSemantic: semantic,
+        }),
+      }] },
+    }) });
+    expect(container.querySelector(".plume-height-stat")).toBeNull();
+    expect(container.textContent).not.toContain("3000m");
+  });
+
+  it.each([
+    ["3000m", 3000],
+    ["0x10", 0],
+    ["9".repeat(400), Number.POSITIVE_INFINITY],
+  ] as const)("unmapped qualitative %s は legacy scalar を badge/tooltip/ARIA なしで表示する", (
+    raw,
+    legacyHeight,
+  ) => {
+    const semantic = plumeSemantic({
+      raw,
+      presence: "qualitative",
+      label: raw,
+      diagnostics: ["unmappedSpecialValue"],
+      badge: "?",
+      color: "unknown",
+      render: true,
+    });
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: null,
+        latestEvent: eruptionEvent({
+          plumeHeightM: legacyHeight,
+          plumeHeightUnknown: false,
+          plumeHeightAboveCraterSemantic: semantic,
+        }),
+      }] },
+    }) });
+    const value = container.querySelector(".plume-height-stat .stat-value");
+    expect(value?.querySelector(".nu-value")?.textContent).toBe(String(legacyHeight));
+    expect(value?.querySelector(".nu-unit")?.textContent).toBe("m");
+    expect(value?.querySelector(".semantic-badge")).toBeNull();
+    expect(value?.getAttribute("title")).toBeNull();
+    expect(value?.getAttribute("aria-label")).toBeNull();
+    if (raw.length > 100) expect(value?.textContent).not.toContain(raw);
+  });
+
+  it.each([
+    [
+      "不正 unit の canonical missing",
+      '<jmx_eb:PlumeHeightAboveCrater unit="km">3000</jmx_eb:PlumeHeightAboveCrater>',
+      "3000",
+    ],
+    [
+      "機械表現 NaN の canonical unknown",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m">NaN</jmx_eb:PlumeHeightAboveCrater>',
+      null,
+    ],
+  ] as const)("parser→wire→card でも %s は legacy 表示規則を維持する", (
+    _label,
+    craterNode,
+    expectedValue,
+  ) => {
+    const fixture = readFileSync(resolve(
+      process.cwd(),
+      "../test/fixtures/synthetic_phase5c_plume_3000m_or_more.xml",
+    ), "utf8");
+    const xml = fixture.replace(
+      /<jmx_eb:PlumeHeightAboveCrater\b[^>]*>[\s\S]*?<\/jmx_eb:PlumeHeightAboveCrater>/,
+      craterNode,
+    );
+    const message = createMockWsDataMessageFromXml(xml, "VFVO52");
+    const parsed = parseVolcanoTelegram(message);
+    expect(parsed?.kind).toBe("eruption");
+    if (parsed?.kind !== "eruption") return;
+    const event = fromVolcanoOutcome(buildVolcanoOutcome(
+      message,
+      parsed,
+      new VolcanoStateHolder(),
+    ));
+    const store = new StandbyStateStore();
+    store.applyEvent(event, Date.parse("2026-08-10T09:00:01+09:00"));
+    const item = store.snapshotItems().find(
+      (candidate): candidate is Extract<ActiveStandbyCardV1, { kind: "volcano" }> =>
+        candidate.kind === "volcano",
+    );
+    expect(item).toBeDefined();
+    if (item == null) return;
+
+    const { container } = render(VolcanoCard, { item });
+    const value = container.querySelector(".plume-height-stat .stat-value");
+    if (expectedValue == null) {
+      expect(container.querySelector(".plume-height-stat")).toBeNull();
+    } else {
+      expect(value?.querySelector(".nu-value")?.textContent).toBe(expectedValue);
+      expect(value?.querySelector(".nu-unit")?.textContent).toBe("m");
+      expect(value?.querySelector(".semantic-badge")).toBeNull();
+      expect(value?.getAttribute("title")).toBeNull();
+      expect(value?.getAttribute("aria-label")).toBeNull();
+    }
+  });
+
+  it("Phase 5C 合成 XML を parser→wire→persistence→実 card DOM まで通す", () => {
+    const xml = readFileSync(resolve(
+      process.cwd(),
+      "../test/fixtures/synthetic_phase5c_plume_3000m_or_more.xml",
+    ), "utf8");
+    const message = createMockWsDataMessageFromXml(xml, "VFVO52");
+    const parsed = parseVolcanoTelegram(message);
+    expect(parsed?.kind).toBe("eruption");
+    if (parsed?.kind !== "eruption") return;
+    const event = fromVolcanoOutcome(buildVolcanoOutcome(
+      message,
+      parsed,
+      new VolcanoStateHolder(),
+    ));
+    const nowMs = Date.parse("2026-08-10T09:00:01+09:00");
+    const liveStore = new StandbyStateStore();
+    liveStore.applyEvent(event, nowMs);
+
+    const sandbox = mkdtempSync(join(process.cwd(), ".phase5c-card-contract-"));
+    try {
+      const persistence = new StandbyPersistence(join(sandbox, "display-active-state-v1.json"), 0);
+      persistence.save(liveStore.exportActiveState());
+      const loaded = persistence.load();
+      expect(loaded).not.toBeNull();
+      if (loaded == null) return;
+
+      const restoredStore = new StandbyStateStore();
+      restoredStore.restoreActiveState(loaded, nowMs + 1);
+      const restoredItem = restoredStore.snapshotItems().find(
+        (item): item is Extract<ActiveStandbyCardV1, { kind: "volcano" }> => item.kind === "volcano",
+      );
+      expect(restoredItem).toBeDefined();
+      if (restoredItem == null) return;
+
+      const { container } = render(VolcanoCard, { item: restoredItem });
+      const value = container.querySelector(".plume-height-stat .stat-value");
+      expect(value?.textContent?.replace(/\s+/g, "")).toBe("3000m以上≥");
+      expect(value?.getAttribute("title")).toContain("条件: 以上");
+      expect(value?.getAttribute("aria-label")).toContain("噴煙高度: 3000m以上");
+      expect(value?.querySelector(".semantic-badge")?.getAttribute("aria-hidden")).toBe("true");
+      expect(container.textContent).not.toContain("12000");
+    } finally {
+      rmSync(sandbox, { recursive: true, force: true });
+    }
   });
 
   it("警報のみなら stat 列を出さず、警報補助行と噴火 stat は共存時も別層に置く", () => {

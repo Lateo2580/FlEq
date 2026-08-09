@@ -7,9 +7,13 @@ import {
   formatPlumeHeightSpecialValue,
   plumeHeightCanonicalEquals,
   plumeHeightLegacyAdapter,
+  plumeHeightReachesThreshold,
+  plumeHeightReachesThresholdWithLegacyFloor,
   plumeHeightSerializableRank,
   plumeHeightSortRank,
+  plumeHeightUsesLegacyDisplay,
 } from "../../../src/utils/plume-height";
+import { comparablePlumeHeightRank } from "../../../display/frontend/src/lib/plume-height";
 import { resolveVolcanoPresentation } from "../../../src/engine/presentation/volcano-presentation";
 import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
 import { fromVolcanoOutcome } from "../../../src/engine/presentation/events/from-volcano";
@@ -275,6 +279,73 @@ describe("Phase 5C PlumeHeight parser and common helpers", () => {
     });
   });
 
+  it.each([
+    [
+      "全角 canonical",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m">３０００</jmx_eb:PlumeHeightAboveCrater>',
+      { raw: "３０００", value: 3000, presence: "value" },
+      null,
+    ],
+    [
+      "半角空白 raw",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m">   </jmx_eb:PlumeHeightAboveCrater>',
+      { raw: "   ", value: null, presence: "empty" },
+      null,
+    ],
+    [
+      "全角空白 raw",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m">　　</jmx_eb:PlumeHeightAboveCrater>',
+      { raw: "　　", value: null, presence: "empty" },
+      null,
+    ],
+    [
+      "上限のみ",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m"><To>4000</To></jmx_eb:PlumeHeightAboveCrater>',
+      {
+        raw: "", value: null, presence: "range",
+        lowerBound: null, upperBound: 4000,
+        rawLowerBound: null, rawUpperBound: "4000",
+      },
+      null,
+    ],
+    [
+      "不正な XML unit",
+      '<jmx_eb:PlumeHeightAboveCrater unit="km">3000</jmx_eb:PlumeHeightAboveCrater>',
+      { raw: null, value: null, presence: "missing" },
+      3000,
+    ],
+    [
+      "description-only",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m" description="火口上3000m以上" />',
+      {
+        raw: "", value: null, presence: "empty",
+        description: "火口上3000m以上",
+      },
+      null,
+    ],
+    [
+      "異体字を含む表示名",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m" description="髙岳火口上3000m">3000'
+      + "</jmx_eb:PlumeHeightAboveCrater>",
+      {
+        raw: "3000", value: 3000, presence: "value",
+        description: "髙岳火口上3000m",
+        diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
+      },
+      3000,
+    ],
+  ] as const)("§14.2 parser matrix: %s", (_label, node, expected, legacyHeight) => {
+    const parsed = plumeFixture(node);
+    expect(parsed?.kind).toBe("eruption");
+    if (parsed?.kind !== "eruption") return;
+    expect(parsed.plumeHeightAboveCraterValue).toMatchObject({
+      reference: "aboveCrater",
+      unit: "m",
+      value: expected,
+    });
+    expect(parsed.plumeHeight).toBe(legacyHeight);
+  });
+
   it("presentation から wire へ2高度・明示 null bounds・serializable rank を伝搬する", () => {
     const msg = createMockWsDataMessage(FIXTURE_VFVO52_ERUPTION_1);
     const parsed = plumeFixture(
@@ -370,6 +441,63 @@ describe("Phase 5C PlumeHeight parser and common helpers", () => {
     expect(formatPlumeHeightSpecialValue(semantic({
       raw: "NaN", value: null, condition: null, description: null, presence: "unknown",
     }))).toBe("不明");
+    const empty = semantic({
+      raw: "", value: null, condition: null, description: null, presence: "empty",
+    });
+    expect(formatPlumeHeightSpecialValue(empty, "detail")).toBe("（空欄）");
+    expect(formatPlumeHeightSpecialValue(empty, "card")).toBe("空欄");
+    expect(formatPlumeHeightSpecialValue(empty, "notification")).toBeNull();
+    expect(formatPlumeHeightSpecialValue(empty, "ticker")).toBeNull();
+  });
+
+  it.each([
+    ["exact 3000", { raw: "3000", value: 3000, condition: null, description: null, presence: "value" as const }, true],
+    ["lower-only 3000", { raw: "3000", value: null, condition: "以上", description: null, presence: "range" as const, lowerBound: 3000 }, true],
+    ["qualitative lower 3000", { raw: "3000以上", value: null, condition: "以上", description: null, presence: "qualitative" as const, lowerBound: 3000 }, true],
+    ["exact 2999", { raw: "2999", value: 2999, condition: null, description: null, presence: "value" as const }, false],
+    ["upper-only 4000", { raw: "4000", value: null, condition: "以下", description: null, presence: "range" as const, upperBound: 4000 }, false],
+    ["unknown", { raw: "不明", value: null, condition: "不明", description: null, presence: "unknown" as const }, false],
+    ["unbounded qualitative", { raw: "雲中", value: null, condition: "雲中", description: null, presence: "qualitative" as const }, false],
+  ] as const)("canonical warning は exact/lowerBound だけを根拠にする: %s", (
+    _label,
+    value,
+    expected,
+  ) => {
+    expect(plumeHeightReachesThreshold(semantic(value), 3000)).toBe(expected);
+  });
+
+  it("legacy safety floor は canonical 非発火でも旧 parseInt の Infinity 発火を維持する", () => {
+    const overflow = "9".repeat(400);
+    const parsed = plumeFixture(
+      `<jmx_eb:PlumeHeightAboveCrater unit="m">${overflow}</jmx_eb:PlumeHeightAboveCrater>`,
+    );
+    expect(parsed?.kind).toBe("eruption");
+    if (parsed?.kind !== "eruption") return;
+    expect(parsed.plumeHeightAboveCraterValue?.value).toMatchObject({
+      raw: overflow,
+      value: null,
+      presence: "qualitative",
+      diagnostics: ["unmappedSpecialValue"],
+    });
+    expect(parsed.plumeHeight).toBe(Number.POSITIVE_INFINITY);
+    expect(plumeHeightReachesThreshold(parsed.plumeHeightAboveCraterValue, 3000)).toBe(false);
+    expect(plumeHeightReachesThresholdWithLegacyFloor(
+      parsed.plumeHeightAboveCraterValue,
+      parsed.plumeHeight,
+      3000,
+    )).toBe(true);
+    expect(resolveVolcanoPresentation(parsed, new VolcanoStateHolder()).frameLevel).toBe("warning");
+  });
+
+  it.each([
+    ["known 雲中", { raw: "雲中", value: null, condition: null, description: null, presence: "qualitative" as const }, false],
+    ["known 観測できず", { raw: "NaN", value: null, condition: "観測できず", description: null, presence: "unknown" as const }, false],
+    ["known lower bound", { raw: "3000以上", value: null, condition: null, description: null, presence: "qualitative" as const, lowerBound: 3000 }, false],
+    ["unmapped 3000m", { raw: "3000m", value: null, condition: null, description: null, presence: "qualitative" as const }, true],
+    ["machine unknown NaN", { raw: "NaN", value: null, condition: null, description: null, presence: "unknown" as const }, true],
+    ["missing", { raw: null, value: null, condition: null, description: null, presence: "missing" as const }, true],
+  ] as const)("surface の legacy fallback 分類を固定する: %s", (_label, value, expected) => {
+    expect(plumeHeightUsesLegacyDisplay(semantic(value))).toBe(expected);
   });
 
   it("canonical equality と serializable rank は基準・単位を保ち、異単位比較を拒む", () => {
@@ -461,37 +589,79 @@ describe("Phase 5C PlumeHeight parser and common helpers", () => {
       .map(plumeHeightSerializableRank);
     expect(JSON.parse(JSON.stringify(allRanks))).toEqual(allRanks);
     expect(comparePlumeHeight(exact, { ...exact, reference: "aboveSeaLevel" })).toBeNull();
+    for (const height of [exact, lowerOnly, upperOnly, both, unranked]) {
+      expect(comparablePlumeHeightRank(plumeHeightSerializableRank(height)))
+        .toBe(plumeHeightSortRank(height));
+    }
   });
 
   it.each([
     [
       "2999",
       '<jmx_eb:PlumeHeightAboveCrater unit="m">2999</jmx_eb:PlumeHeightAboveCrater>',
+      false,
+      false,
       "normal",
     ],
     [
       "3000",
       '<jmx_eb:PlumeHeightAboveCrater unit="m">3000</jmx_eb:PlumeHeightAboveCrater>',
+      true,
+      true,
       "warning",
     ],
     [
       "3000以上",
       '<jmx_eb:PlumeHeightAboveCrater unit="m" condition="以上">3000</jmx_eb:PlumeHeightAboveCrater>',
+      true,
+      true,
       "warning",
     ],
     [
       "本文3000以上",
       '<jmx_eb:PlumeHeightAboveCrater unit="m">3000以上</jmx_eb:PlumeHeightAboveCrater>',
+      true,
+      true,
       "warning",
     ],
-  ] as const)("本番 presentation の legacy warning 境界を固定する: %s", (
+    [
+      "桁あふれ",
+      `<jmx_eb:PlumeHeightAboveCrater unit="m">${"9".repeat(400)}</jmx_eb:PlumeHeightAboveCrater>`,
+      true,
+      false,
+      "warning",
+    ],
+    [
+      "全角3000",
+      '<jmx_eb:PlumeHeightAboveCrater unit="m">３０００</jmx_eb:PlumeHeightAboveCrater>',
+      false,
+      true,
+      "warning",
+    ],
+  ] as const)("本番 presentation の legacy/canonical warning 境界を比較する: %s", (
     _label,
     node,
+    legacyExpected,
+    canonicalExpected,
     frameLevel,
   ) => {
     const parsed = plumeFixture(node);
     expect(parsed?.kind).toBe("eruption");
     if (parsed?.kind !== "eruption") return;
+    const legacyFires = parsed.plumeHeight != null && parsed.plumeHeight >= 3000;
+    const canonicalFires = plumeHeightReachesThreshold(
+      parsed.plumeHeightAboveCraterValue,
+      3000,
+    );
+    const effectiveFires = plumeHeightReachesThresholdWithLegacyFloor(
+      parsed.plumeHeightAboveCraterValue,
+      parsed.plumeHeight,
+      3000,
+    );
+    expect(legacyFires).toBe(legacyExpected);
+    expect(canonicalFires).toBe(canonicalExpected);
+    expect(effectiveFires).toBe(legacyFires || canonicalFires);
+    expect(legacyFires && !effectiveFires).toBe(false);
     expect(resolveVolcanoPresentation(parsed, new VolcanoStateHolder()).frameLevel).toBe(frameLevel);
   });
 
@@ -514,6 +684,12 @@ describe("Phase 5C PlumeHeight parser and common helpers", () => {
     if (parsed?.kind !== "eruption") return;
     expect(parsed.plumeHeight).toBe(height);
     expect(parsed.plumeHeightUnknown).toBe(unknown);
+    expect(plumeHeightReachesThresholdWithLegacyFloor(
+      parsed.plumeHeightAboveCraterValue,
+      parsed.plumeHeight,
+      3000,
+    ))
+      .toBe(parsed.plumeHeight != null && parsed.plumeHeight >= 3000);
     expect(resolveVolcanoPresentation(parsed, new VolcanoStateHolder()).frameLevel).toBe(frameLevel);
   });
 });
