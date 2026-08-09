@@ -61,11 +61,10 @@ export type VolcanoRouteHandleResult =
   | { kind: "policyMissing" }
   | { kind: "suppressed" };
 
-/**
- * Phase 5C unit 2 の canonical 噴煙高度は additive parser field に留める。
- * durable fingerprint は unit 3 の移行まで旧 DTO 投影を維持する。
- */
-function volcanoFingerprintPayload(info: ParsedVolcanoInfo): object {
+/** Phase 5C の volcano whole-payload fingerprint version。変更時は alias migration 必須。 */
+export const VOLCANO_PLUME_HEIGHT_FINGERPRINT_VERSION = "volcano-plume-height-v1";
+
+function legacyVolcanoFingerprintPayload(info: ParsedVolcanoInfo): object {
   const {
     meta: _meta,
     isTest: _isTest,
@@ -74,6 +73,27 @@ function volcanoFingerprintPayload(info: ParsedVolcanoInfo): object {
     ...payload
   } = info;
   return payload;
+}
+
+function volcanoPayloadFingerprints(info: ParsedVolcanoInfo): Pick<
+  TelegramRevisionGateInput,
+  "payloadFingerprint" | "payloadFingerprintAliases"
+> {
+  const legacyPayload = legacyVolcanoFingerprintPayload(info);
+  if (
+    info.plumeHeightAboveCraterValue == null
+    && info.plumeHeightAboveSeaLevelValue == null
+  ) {
+    return { payloadFingerprint: semanticPayloadFingerprint(legacyPayload) };
+  }
+  const { meta: _meta, isTest: _isTest, ...canonicalPayload } = info;
+  return {
+    payloadFingerprint: semanticPayloadFingerprint({
+      fingerprintVersion: VOLCANO_PLUME_HEIGHT_FINGERPRINT_VERSION,
+      payload: canonicalPayload,
+    }),
+    payloadFingerprintAliases: [semanticPayloadFingerprint(legacyPayload)],
+  };
 }
 
 // ── 本体 ──
@@ -307,7 +327,7 @@ export class VolcanoRouteHandler {
     let failOpen = false;
     for (let index = 0; index < candidates.length; index++) {
       const candidate = candidates[index];
-      const payload = volcanoFingerprintPayload(candidate.parsed);
+      const payloadFingerprints = volcanoPayloadFingerprints(candidate.parsed);
       const cancellationTargets = candidate.parsed.meta.infoType.value === "取消"
         ? policy.extractCancellationTarget(candidate.parsed.meta, candidate.parsed)
         : null;
@@ -372,13 +392,16 @@ export class VolcanoRouteHandler {
         tombstoneRetentionMs: policy.tombstoneRetentionMs,
         maxSubjects: policy.maxSubjects,
         allowMissingSerial: policy.allowMissingSerial,
-        payloadFingerprint: semanticPayloadFingerprint(payload),
+        ...payloadFingerprints,
         legacyRevisionKey: legacyRevision?.key ?? null,
         legacyRevisionKeyProvenance: legacyRevision?.provenance ?? null,
       };
       const decision = this.revisionGate.decide(input);
       this.onRevisionDecision?.(decision);
-      if (!decision.accepted) continue;
+      if (!decision.accepted) {
+        if (decision.semanticKeyMigrated) this.onVolcanoRevisionDecision?.(decision);
+        continue;
+      }
       if (candidate.subject == null) {
         failOpen = true;
         continue;
@@ -425,7 +448,7 @@ export class VolcanoRouteHandler {
       : [...new Set(typeof extracted === "string" ? [extracted] : extracted)];
     const subject = subjects.length === 1 ? subjects[0] : null;
     const targets = policy.extractCancellationTarget(info.meta, info);
-    const payload = volcanoFingerprintPayload(info);
+    const payloadFingerprints = volcanoPayloadFingerprints(info);
     const decision = this.revisionGate.decide({
       domain: policy.domain,
       revisionFamily: policy.revisionFamily,
@@ -443,11 +466,14 @@ export class VolcanoRouteHandler {
       tombstoneRetentionMs: policy.tombstoneRetentionMs,
       maxSubjects: policy.maxSubjects,
       allowMissingSerial: policy.allowMissingSerial,
-      payloadFingerprint: semanticPayloadFingerprint(payload),
+      ...payloadFingerprints,
       legacyRevisionKey: subject,
     });
     this.onRevisionDecision?.(decision);
-    if (!decision.accepted) return null;
+    if (!decision.accepted) {
+      if (decision.semanticKeyMigrated) this.onVolcanoRevisionDecision?.(decision);
+      return null;
+    }
     this.onVolcanoRevisionDecision?.(decision);
     return {
       suppressed: false,

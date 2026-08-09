@@ -350,6 +350,114 @@ describe("Phase 3A EEW revision gate", () => {
     expect(entry.semanticKeys.every((key) => key.length <= 68)).toBe(true);
   });
 
+  it("満杯の発表・訂正・取消履歴を alias 移行時に同じ slot で置換する", () => {
+    const base = {
+      domain: "synthetic",
+      revisionFamily: "MIXED",
+      stateSubjectKey: "subject-1",
+      comparator: "reportDateTimeThenSerial" as const,
+      cancellationPolicy: "markCancelled" as const,
+      terminal: false,
+      durable: true,
+      tombstoneRetentionMs: null,
+      maxSubjects: 1,
+    };
+    const legacyFingerprints = Array.from(
+      { length: TELEGRAM_REVISION_MAX_SEMANTIC_KEYS },
+      (_, index) => semanticPayloadFingerprint({ version: "legacy", index }),
+    );
+    const canonicalFingerprints = legacyFingerprints.map((_, index) =>
+      semanticPayloadFingerprint({ version: "canonical", index }));
+    const infoTypeFor = (index: number): "発表" | "訂正" | "取消" =>
+      index === 0
+        ? "発表"
+        : index === TELEGRAM_REVISION_MAX_SEMANTIC_KEYS - 1
+          ? "取消"
+          : "訂正";
+    const inputFor = (
+      index: number,
+      canonical = false,
+    ) => ({
+      ...base,
+      meta: meta({
+        messageId: `${canonical ? "canonical" : "legacy"}-${index}`,
+        serial: "1",
+        infoType: infoTypeFor(index),
+      }),
+      payloadFingerprint: canonical
+        ? canonicalFingerprints[index]
+        : legacyFingerprints[index],
+      ...(canonical ? { payloadFingerprintAliases: [legacyFingerprints[index]] } : {}),
+    });
+
+    const gate = new TelegramRevisionGate();
+    for (let index = 0; index < TELEGRAM_REVISION_MAX_SEMANTIC_KEYS; index++) {
+      expect(gate.decide(inputFor(index)).accepted).toBe(true);
+    }
+    const beforeMigration = gate.exportDurableEntries();
+    expect(beforeMigration[0].semanticKeys).toHaveLength(TELEGRAM_REVISION_MAX_SEMANTIC_KEYS);
+    expect(beforeMigration[0].semanticKeys.some((key) => key.startsWith("発表:"))).toBe(true);
+    expect(beforeMigration[0].semanticKeys.some((key) => key.startsWith("訂正:"))).toBe(true);
+    expect(beforeMigration[0].semanticKeys.some((key) => key.startsWith("取消:"))).toBe(true);
+
+    expect(gate.decide(inputFor(TELEGRAM_REVISION_MAX_SEMANTIC_KEYS - 1, true)))
+      .toMatchObject({ accepted: false, kind: "semanticDuplicate", semanticKeyMigrated: true });
+    const afterLastMigration = gate.exportDurableEntries()[0].semanticKeys;
+    expect(afterLastMigration).toHaveLength(TELEGRAM_REVISION_MAX_SEMANTIC_KEYS);
+    expect(afterLastMigration[0]).toBe(`発表:${legacyFingerprints[0]}`);
+    expect(afterLastMigration.at(-1)).toBe(
+      `取消:${canonicalFingerprints[TELEGRAM_REVISION_MAX_SEMANTIC_KEYS - 1]}`,
+    );
+
+    // schedule の flush 前に落ちても旧 snapshot の alias から再び無通知移行できる。
+    const unflushedRestart = new TelegramRevisionGate();
+    unflushedRestart.restoreDurableEntries(beforeMigration);
+    expect(unflushedRestart.decide(inputFor(
+      TELEGRAM_REVISION_MAX_SEMANTIC_KEYS - 1,
+      true,
+    ))).toMatchObject({
+      accepted: false,
+      kind: "semanticDuplicate",
+      semanticKeyMigrated: true,
+    });
+
+    const migratedRestart = new TelegramRevisionGate();
+    migratedRestart.restoreDurableEntries(gate.exportDurableEntries());
+    const replayAfterMigration = migratedRestart.decide(inputFor(
+      TELEGRAM_REVISION_MAX_SEMANTIC_KEYS - 1,
+      true,
+    ));
+    expect(replayAfterMigration).toMatchObject({
+      accepted: false,
+      kind: "semanticDuplicate",
+    });
+    expect(replayAfterMigration.semanticKeyMigrated).toBeUndefined();
+
+    // L32 の移行で L1 は退場しない。L1 自身も同位置で移行できる。
+    expect(gate.decide(inputFor(0, true))).toMatchObject({
+      accepted: false,
+      kind: "duplicate",
+      semanticKeyMigrated: true,
+    });
+    const afterFirstMigration = gate.exportDurableEntries()[0].semanticKeys;
+    expect(afterFirstMigration).toHaveLength(TELEGRAM_REVISION_MAX_SEMANTIC_KEYS);
+    expect(afterFirstMigration[0]).toBe(`発表:${canonicalFingerprints[0]}`);
+
+    const nextFingerprint = semanticPayloadFingerprint({ version: "canonical", index: 32 });
+    expect(gate.decide({
+      ...base,
+      meta: meta({ messageId: "canonical-32", serial: "1", infoType: "訂正" }),
+      payloadFingerprint: nextFingerprint,
+    }).accepted).toBe(true);
+    const afterNextRevision = gate.exportDurableEntries()[0].semanticKeys;
+    expect(afterNextRevision).toHaveLength(TELEGRAM_REVISION_MAX_SEMANTIC_KEYS);
+    expect(afterNextRevision[0]).toBe(`訂正:${legacyFingerprints[1]}`);
+    expect(afterNextRevision.at(-2)).toBe(
+      `取消:${canonicalFingerprints[TELEGRAM_REVISION_MAX_SEMANTIC_KEYS - 1]}`,
+    );
+    expect(afterNextRevision.at(-1)).toBe(`訂正:${nextFingerprint}`);
+  });
+
   it("durable entry を全体上限へ圧縮し、domain 指定期間後の tombstone を除去する", () => {
     const gate = new TelegramRevisionGate();
     const familyLimit = 64;

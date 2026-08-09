@@ -38,6 +38,10 @@ import {
 import { RevisionGuard } from "./revision-guard";
 import { nankaiBadgeAction } from "./nankai-status";
 import { quakeCardTtlMs, shouldReplaceQuakeHost } from "./quake-card-selection";
+import {
+  copyDisplayPlumeHeightSemantic,
+  legacyDisplayPlumeHeightSemantics,
+} from "./plume-height-semantic";
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "./tornado-group-key";
 import { FLOOD_FORECAST_MAX_SUBJECTS } from "../messages/revision-family-registry";
 import {
@@ -1194,21 +1198,49 @@ function copyWeatherAlert(alert: DisplayWeatherAlertV1): DisplayWeatherAlertV1 {
 function copyVolcanoEvent(
   event: DisplayVolcanoEventV1 | null | undefined,
 ): DisplayVolcanoEventV1 | null {
-  return event == null ? null : { ...event };
+  return event == null ? null : {
+    ...event,
+    ...(event.plumeHeightAboveCraterSemantic == null
+      ? {}
+      : {
+          plumeHeightAboveCraterSemantic:
+            copyDisplayPlumeHeightSemantic(event.plumeHeightAboveCraterSemantic),
+        }),
+    ...(event.plumeHeightAboveSeaLevelSemantic == null
+      ? {}
+      : {
+          plumeHeightAboveSeaLevelSemantic:
+            copyDisplayPlumeHeightSemantic(event.plumeHeightAboveSeaLevelSemantic),
+        }),
+  };
 }
 
 function restoreVolcanoEvent(
   event: PersistedVolcanoStateV1["latestEvent"],
 ): DisplayVolcanoEventV1 | null {
   if (event == null) return null;
-  if (typeof event !== "string") return { ...event };
-  return {
+  const legacyEvent: DisplayVolcanoEventV1 = typeof event === "string" ? {
     label: event,
     craterName: null,
     eventDateTime: null,
     plumeHeightM: null,
     plumeHeightUnknown: false,
     plumeDirection: null,
+  } : event;
+  const migrated = legacyDisplayPlumeHeightSemantics(
+    legacyEvent.plumeHeightM,
+    legacyEvent.plumeHeightUnknown,
+  );
+  return {
+    ...legacyEvent,
+    plumeHeightAboveCraterSemantic: copyDisplayPlumeHeightSemantic(
+      legacyEvent.plumeHeightAboveCraterSemantic
+        ?? migrated.plumeHeightAboveCraterSemantic,
+    ),
+    plumeHeightAboveSeaLevelSemantic: copyDisplayPlumeHeightSemantic(
+      legacyEvent.plumeHeightAboveSeaLevelSemantic
+        ?? migrated.plumeHeightAboveSeaLevelSemantic,
+    ),
   };
 }
 

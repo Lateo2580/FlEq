@@ -16,6 +16,10 @@ import { fromFloodForecastOutcome } from "../../../src/engine/presentation/event
 import type { FloodForecastOutcome, PresentationEvent } from "../../../src/engine/presentation/types";
 import type { SpecialValue } from "../../../src/types";
 import {
+  legacyDisplayPlumeHeightSemantics,
+  projectPlumeHeightSemantic,
+} from "../../../src/engine/display/plume-height-semantic";
+import {
   createMockWsDataMessage,
   FIXTURE_VFVO56_FLASH_1,
   FIXTURE_VFVO56_FLASH_4,
@@ -798,6 +802,7 @@ describe("StandbyStateStore persistence", () => {
     const persistence = new StandbyPersistence(tempPath());
     persistence.save(persisted);
     const loaded = persistence.load();
+    const migratedPlumeHeight = legacyDisplayPlumeHeightSemantics(2500, false);
     expect(loaded).toEqual(expect.objectContaining({
       ...persisted,
       typhoons: [expect.objectContaining({
@@ -806,6 +811,14 @@ describe("StandbyStateStore persistence", () => {
         maxWindMsValue: { raw: "25", value: 25, condition: null, description: null, presence: "value" },
         maxGustMsValue: { raw: "35", value: 35, condition: null, description: null, presence: "value" },
         moveSpeedKmhValue: { raw: "20", value: 20, condition: null, description: null, presence: "value" },
+      })],
+      volcanoes: [expect.objectContaining({
+        ...persisted.volcanoes[0],
+        latestEvent: expect.objectContaining({
+          plumeHeightM: 2500,
+          plumeHeightUnknown: false,
+          ...migratedPlumeHeight,
+        }),
       })],
       version: 2,
       telegramFoundation: {
@@ -838,6 +851,7 @@ describe("StandbyStateStore persistence", () => {
         label: "噴火", craterName: "山頂火口",
         eventDateTime: new Date(T0 - 60_000).toISOString(),
         plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
+        ...migratedPlumeHeight,
       },
     });
 
@@ -1090,6 +1104,221 @@ describe("StandbyStateStore persistence", () => {
         rawLowerBound: expected.rawLowerBound ?? null,
         rawUpperBound: expected.rawUpperBound ?? null,
       });
+  });
+
+  it("volcano canonical 全 field・diagnostics・rank を実ファイル round-trip する", () => {
+    const crater = projectPlumeHeightSemantic({
+      reference: "aboveCrater",
+      unit: "m",
+      value: {
+        raw: "",
+        value: null,
+        condition: "雲中",
+        description: "火口上2000mから4000m",
+        presence: "qualitative",
+        lowerBound: 2000,
+        rawLowerBound: "2000",
+        rawUpperBound: "4000",
+        diagnostics: ["specialValueConflict"],
+      },
+    })!;
+    const seaLevel = projectPlumeHeightSemantic({
+      reference: "aboveSeaLevel",
+      unit: "FT",
+      value: {
+        raw: "観測できず",
+        value: null,
+        condition: null,
+        description: null,
+        presence: "unknown",
+      },
+    })!;
+    const persisted = state({
+      volcanoes: [{
+        code: "V-1", name: "Mount Test", alertLevel: null,
+        alertExpiresAtMs: null,
+        latestEvent: {
+          label: "噴火", craterName: "山頂火口", eventDateTime: new Date(T0).toISOString(),
+          plumeHeightM: 2000, plumeHeightUnknown: false,
+          plumeHeightAboveCraterSemantic: crater,
+          plumeHeightAboveSeaLevelSemantic: seaLevel,
+          plumeDirection: "南東",
+        },
+        latestEventId: "event-1",
+        eventExpiresAtMs: T0 + 24 * 60 * 60_000,
+        sourceEventIds: ["volcano-1"],
+        alertRevision: null,
+        eventRevision: { reportTimeMs: T0, serial: "1" },
+      }],
+    });
+    const path = tempPath();
+    new StandbyPersistence(path).save(persisted);
+
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.volcanoes[0].latestEvent).toEqual(persisted.volcanoes[0].latestEvent);
+    expect(loaded.volcanoes[0].latestEvent).toEqual(expect.objectContaining({
+      plumeHeightAboveCraterSemantic: expect.objectContaining({
+        presence: "qualitative",
+        lowerBound: 2000,
+        upperBound: null,
+        badge: "≥",
+      }),
+    }));
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, T0 + 1);
+    expect(restored.exportActiveState().volcanoes[0].latestEvent)
+      .toEqual(persisted.volcanoes[0].latestEvent);
+  });
+
+  it.each([
+    [
+      "unknown",
+      null,
+      true,
+      { presence: "unknown", condition: "不明", diagnostics: [] },
+    ],
+    [
+      "legacy null",
+      null,
+      false,
+      { presence: "missing", condition: null, diagnostics: ["legacyNullUnknown"] },
+    ],
+  ] as const)("旧 volcano scalar snapshot を %s へ読込 migration する", (
+    _label,
+    plumeHeightM,
+    plumeHeightUnknown,
+    expected,
+  ) => {
+    const path = tempPath();
+    new StandbyPersistence(path).save(state({
+      volcanoes: [{
+        code: "V-1", name: "Mount Test", alertLevel: null, alertExpiresAtMs: null,
+        latestEvent: {
+          label: "噴火", craterName: null, eventDateTime: null,
+          plumeHeightM, plumeHeightUnknown, plumeDirection: null,
+        },
+        eventExpiresAtMs: T0 + 24 * 60 * 60_000,
+        sourceEventIds: ["volcano-1"],
+        alertRevision: null,
+        eventRevision: { reportTimeMs: T0, serial: "1" },
+      }],
+    }));
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.volcanoes[0].latestEvent).toEqual(expect.objectContaining({
+      plumeHeightAboveCraterSemantic: expect.objectContaining(expected),
+      plumeHeightAboveSeaLevelSemantic: expect.objectContaining({
+        reference: "aboveSeaLevel", unit: "FT", presence: "missing",
+      }),
+    }));
+  });
+
+  it("片側 raw bound field の省略を受理し null へ正規化する", () => {
+    const path = tempPath();
+    const semantic = projectPlumeHeightSemantic({
+      reference: "aboveCrater",
+      unit: "m",
+      value: {
+        raw: "", value: null, condition: "雲中", description: null,
+        presence: "qualitative", rawLowerBound: "2000",
+        diagnostics: ["specialValueConflict"],
+      },
+    })!;
+    const oneSided = structuredClone(semantic) as unknown as Record<string, unknown>;
+    delete oneSided.rawUpperBound;
+    const persisted = {
+      ...state(),
+      volcanoes: [{
+        code: "V-1", name: "Mount Test", alertLevel: null, alertExpiresAtMs: null,
+        latestEvent: {
+          label: "噴火", craterName: null, eventDateTime: null,
+          plumeHeightM: 3000, plumeHeightUnknown: false,
+          plumeHeightAboveCraterSemantic: oneSided,
+          plumeHeightAboveSeaLevelSemantic: legacyDisplayPlumeHeightSemantics(3000, false)
+            .plumeHeightAboveSeaLevelSemantic,
+          plumeDirection: null,
+        },
+        eventExpiresAtMs: T0 + 24 * 60 * 60_000,
+        sourceEventIds: ["volcano-1"], alertRevision: null,
+        eventRevision: { reportTimeMs: T0, serial: "1" },
+      }],
+    };
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(persisted), "utf8");
+    expect(new StandbyPersistence(path).load()?.volcanoes[0].latestEvent)
+      .toEqual(expect.objectContaining({
+        plumeHeightAboveCraterSemantic: expect.objectContaining({
+          presence: "qualitative",
+          rawLowerBound: "2000",
+          rawUpperBound: null,
+        }),
+      }));
+  });
+
+  it("壊れた plume semantic だけを scalar へ縮退し別火山と tombstone を保全する", () => {
+    const path = tempPath();
+    const invalidSemantic = structuredClone(projectPlumeHeightSemantic({
+      reference: "aboveCrater",
+      unit: "m",
+      value: {
+        raw: "2500", value: 2500, condition: null, description: null, presence: "value",
+      },
+    })!) as unknown as Record<string, unknown>;
+    invalidSemantic.rank = { kind: "invalid" };
+    const volcano = (
+      code: string,
+      plumeHeightM: number,
+      craterSemantic?: unknown,
+    ) => ({
+      code,
+      name: `Mount ${code}`,
+      alertLevel: null,
+      alertExpiresAtMs: null,
+      latestEvent: {
+        label: "噴火",
+        craterName: null,
+        eventDateTime: new Date(T0).toISOString(),
+        plumeHeightM,
+        plumeHeightUnknown: false,
+        ...(craterSemantic === undefined
+          ? {}
+          : {
+              plumeHeightAboveCraterSemantic: craterSemantic,
+              plumeHeightAboveSeaLevelSemantic:
+                legacyDisplayPlumeHeightSemantics(plumeHeightM, false)
+                  .plumeHeightAboveSeaLevelSemantic,
+            }),
+        plumeDirection: null,
+      },
+      latestEventId: `event-${code}`,
+      eventExpiresAtMs: T0 + 24 * 60 * 60_000,
+      sourceEventIds: [`volcano-${code}`],
+      alertRevision: null,
+      eventRevision: { reportTimeMs: T0, serial: "1" },
+    });
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(state({
+      volcanoes: [volcano("V-1", 2500, invalidSemantic), volcano("V-2", 3000)] as never,
+      seen: [{
+        key: "volcano:event:tombstone",
+        revision: { reportTimeMs: T0, serial: "2" },
+        forgetAtMs: T0 + 2 * 24 * 60 * 60_000,
+      }],
+    })), "utf8");
+
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.volcanoes.map((entry) => entry.code)).toEqual(["V-1", "V-2"]);
+    expect(loaded.volcanoes[0].latestEvent).toEqual(expect.objectContaining({
+      plumeHeightM: 2500,
+      plumeHeightAboveCraterSemantic: expect.objectContaining({
+        presence: "value",
+        value: 2500,
+        raw: "2500",
+      }),
+    }));
+    expect(loaded.seen).toContainEqual(expect.objectContaining({
+      key: "volcano:event:tombstone",
+      revision: { reportTimeMs: T0, serial: "2" },
+    }));
   });
 
   it("latestEventId のない旧形式 VFVO56 state を実ファイル復元し、単一候補なら空コード取消を適用する", () => {

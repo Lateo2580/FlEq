@@ -8,6 +8,7 @@ import type { PresentationEvent } from "../presentation/types";
 import { volcanoTextAlertStateEntries } from "../messages/revision-family-registry";
 import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persistence";
 import type { DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
+import { projectPlumeHeightSemantic } from "./plume-height-semantic";
 
 export interface HeatUpdate {
   sourceEventId: string;
@@ -193,6 +194,12 @@ export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[]
       return kinds;
     }, [])
     : [];
+  const plumeHeightAboveCraterSemantic = raw.kind === "eruption"
+    ? projectPlumeHeightSemantic(event.plumeHeightAboveCraterValue)
+    : undefined;
+  const plumeHeightAboveSeaLevelSemantic = raw.kind === "eruption"
+    ? projectPlumeHeightSemantic(event.plumeHeightAboveSeaLevelValue)
+    : undefined;
   return [{
     volcano: {
       code: volcanoCode,
@@ -207,6 +214,12 @@ export function projectVolcanoUpdates(event: PresentationEvent): VolcanoUpdate[]
         eventDateTime: raw.eventDateTime ?? null,
         plumeHeightM: raw.plumeHeight ?? null,
         plumeHeightUnknown: raw.plumeHeightUnknown === true,
+        ...(plumeHeightAboveCraterSemantic == null
+          ? {}
+          : { plumeHeightAboveCraterSemantic }),
+        ...(plumeHeightAboveSeaLevelSemantic == null
+          ? {}
+          : { plumeHeightAboveSeaLevelSemantic }),
         plumeDirection: raw.plumeDirection ?? null,
       } : null,
     },

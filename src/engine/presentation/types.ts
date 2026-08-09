@@ -27,6 +27,7 @@ import type {
   JmaIntensity,
   JmaLgIntensity,
   SpecialValue,
+  PlumeHeightSemantic,
 } from "../../types";
 import type { EewDiff, EewUpdateResult } from "../eew/eew-tracker";
 import type { VolcanoPresentation } from "./volcano-presentation";
@@ -503,6 +504,10 @@ export interface PresentationEvent {
     isCorrection: boolean;
   };
   alertLevel?: number | null;
+  /** Parser canonical。既存 volcano scalar は単位4まで authoritative。 */
+  plumeHeightAboveCraterValue?: PlumeHeightSemantic;
+  /** 海抜 FT は表示追加せず canonical propagation のみ行う。 */
+  plumeHeightAboveSeaLevelValue?: PlumeHeightSemantic;
 
   // 付帯情報
   nextAdvisory?: string | null;

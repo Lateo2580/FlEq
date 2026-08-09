@@ -12,6 +12,9 @@ import {
 } from "../../../src/utils/plume-height";
 import { resolveVolcanoPresentation } from "../../../src/engine/presentation/volcano-presentation";
 import { VolcanoStateHolder } from "../../../src/engine/messages/volcano-state";
+import { fromVolcanoOutcome } from "../../../src/engine/presentation/events/from-volcano";
+import type { VolcanoOutcome } from "../../../src/engine/presentation/types";
+import { projectVolcanoUpdates } from "../../../src/engine/display/project-standby";
 import {
   createMockWsDataMessage,
   createMockWsDataMessageFromXml,
@@ -270,6 +273,73 @@ describe("Phase 5C PlumeHeight parser and common helpers", () => {
         diagnostics: ["specialValueConflict"],
       },
     });
+  });
+
+  it("presentation から wire へ2高度・明示 null bounds・serializable rank を伝搬する", () => {
+    const msg = createMockWsDataMessage(FIXTURE_VFVO52_ERUPTION_1);
+    const parsed = plumeFixture(
+      '<jmx_eb:PlumeHeightAboveCrater unit="m" condition="以上">3000'
+      + "</jmx_eb:PlumeHeightAboveCrater>",
+      '<jmx_eb:PlumeHeightAboveSeaLevel unit="FT" condition="観測できず">12000'
+      + "</jmx_eb:PlumeHeightAboveSeaLevel>",
+    );
+    expect(parsed?.kind).toBe("eruption");
+    if (parsed?.kind !== "eruption") return;
+    const volcanoPresentation = resolveVolcanoPresentation(parsed, new VolcanoStateHolder());
+    const outcome: VolcanoOutcome = {
+      domain: "volcano",
+      msg,
+      headType: "VFVO52",
+      statsCategory: "volcano",
+      stats: { shouldRecord: true },
+      presentation: {
+        frameLevel: volcanoPresentation.frameLevel,
+        soundLevel: volcanoPresentation.soundLevel,
+        volcanoStateMutationAccepted: true,
+      },
+      parsed,
+      volcanoPresentation,
+      state: { isRenotification: false },
+    };
+    const event = fromVolcanoOutcome(outcome);
+    expect(event.plumeHeightAboveCraterValue).toEqual(parsed.plumeHeightAboveCraterValue);
+    expect(event.plumeHeightAboveSeaLevelValue).toEqual(parsed.plumeHeightAboveSeaLevelValue);
+
+    const latestEvent = projectVolcanoUpdates(event)[0]?.volcano.latestEvent;
+    expect(latestEvent?.plumeHeightAboveCraterSemantic).toEqual({
+      reference: "aboveCrater",
+      unit: "m",
+      raw: "3000",
+      presence: "range",
+      label: "3000m以上",
+      condition: "以上",
+      description: null,
+      value: null,
+      lowerBound: 3000,
+      upperBound: null,
+      rawLowerBound: null,
+      rawUpperBound: null,
+      diagnostics: [],
+      badge: "≥",
+      color: "safetyRank",
+      render: true,
+      rank: {
+        kind: "range", reference: "aboveCrater", unit: "m",
+        lowerBound: 3000, upperBound: null,
+      },
+    });
+    expect(latestEvent?.plumeHeightAboveSeaLevelSemantic).toMatchObject({
+      reference: "aboveSeaLevel",
+      unit: "FT",
+      raw: "12000",
+      presence: "unknown",
+      value: null,
+      lowerBound: null,
+      upperBound: null,
+      diagnostics: ["specialValueConflict"],
+      rank: { kind: "unranked", reference: "aboveSeaLevel", unit: "FT" },
+    });
+    expect(JSON.parse(JSON.stringify(latestEvent))).toEqual(latestEvent);
   });
 
   it("未対応語は unmappedSpecialValue にし、数値本文との矛盾を記録する", () => {

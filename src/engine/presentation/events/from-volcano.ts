@@ -97,6 +97,12 @@ function fromSingleVolcanoOutcome(outcome: VolcanoOutcome): PresentationEvent {
     volcanoCode: info.volcanoCode,
     volcanoName: info.volcanoName,
     alertLevel,
+    ...(info.plumeHeightAboveCraterValue == null
+      ? {}
+      : { plumeHeightAboveCraterValue: info.plumeHeightAboveCraterValue }),
+    ...(info.plumeHeightAboveSeaLevelValue == null
+      ? {}
+      : { plumeHeightAboveSeaLevelValue: info.plumeHeightAboveSeaLevelValue }),
 
     bodyText: info.kind === "ashfall" ? (volcanoAshfallToText(info) ?? info.bodyText) : info.bodyText,
 

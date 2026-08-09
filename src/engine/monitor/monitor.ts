@@ -366,8 +366,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
     onTsunamiRevisionDecision: persistAcceptedTsunamiRevision,
     onVolcanoRevisionDecision: (decision) => {
-      if (!decision.accepted) return;
-      volcanoFoundationAuthoritative = true;
+      if (!decision.accepted && !decision.semanticKeyMigrated) return;
+      if (decision.accepted) volcanoFoundationAuthoritative = true;
       standbyPersistence.schedule(standbyStore.exportActiveState());
     },
     onFloodRevisionDecision: (decision) => {

@@ -5,6 +5,7 @@ import type {
   ParsedVolcanoAlertInfo,
   ParsedVolcanoEruptionInfo,
   ParsedVolcanoTextInfo,
+  PlumeHeightSemantic,
   WsDataMessage,
 } from "../../../src/types";
 import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
@@ -317,7 +318,7 @@ describe("Phase 3B volcano foundation", () => {
     expect(h.decisions.at(-1)).toBe("semanticDuplicate");
   });
 
-  it("unit 2 canonical field を旧 volcanoEruption fingerprint から除外し restart 後も同一訂正を抑止する", () => {
+  it("旧 volcanoEruption fingerprint を canonical version へ restart 中に無通知移行する", () => {
     const legacy = eruption(
       "legacy-correction",
       "506",
@@ -367,6 +368,413 @@ describe("Phase 3B volcano foundation", () => {
     expect(restarted.decisions).toEqual(["semanticDuplicate"]);
     expect(restarted.notifyVolcano).not.toHaveBeenCalled();
     expect(restarted.outcomes).toEqual([]);
+    expect(restarted.persisted).toHaveBeenCalledTimes(1);
+    const migrated = restarted.gate.exportDurableEntries().find((entry) =>
+      entry.stateSubjectKey === "volcano:eruption:506");
+    expect(migrated?.semanticKeys).toHaveLength(1);
+    expect(migrated?.semanticKeys.every((key) => /^訂正:[0-9a-f]{64}$/.test(key))).toBe(true);
+
+    const migratedGate = new TelegramRevisionGate();
+    migratedGate.restoreDurableEntries(restarted.gate.exportDurableEntries());
+    const afterMigration = createHarness({
+      gate: migratedGate,
+      holder: restarted.holder,
+      standby: restarted.standby,
+    });
+    const replayAfterRestart: ParsedVolcanoEruptionInfo = {
+      ...replay,
+      meta: { ...replay.meta, messageId: "canonical-replay-after-restart" },
+    };
+    currentParsed.set(replayAfterRestart.meta.messageId, replayAfterRestart);
+    expect(afterMigration.handler.handle(message(
+      replayAfterRestart.meta.messageId,
+      "VFVO56",
+      replayAfterRestart.reportDateTime,
+    ))).toMatchObject({ kind: "suppressed" });
+    expect(afterMigration.notifyVolcano).not.toHaveBeenCalled();
+    expect(afterMigration.outcomes).toEqual([]);
+    expect(afterMigration.persisted).not.toHaveBeenCalled();
+  });
+
+  it("equal 発表 duplicate でも旧 fingerprint alias を無通知移行する", () => {
+    const legacy = eruption(
+      "legacy-issue",
+      "506",
+      new Date(T0).toISOString(),
+      "1",
+      "発表",
+      "event-506",
+    );
+    currentParsed.set(legacy.meta.messageId, legacy);
+    const beforeRestart = createHarness();
+    beforeRestart.handler.handle(message(legacy.meta.messageId, "VFVO56", legacy.reportDateTime));
+
+    const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(beforeRestart.gate.exportDurableEntries());
+    const restarted = createHarness({
+      gate,
+      holder: beforeRestart.holder,
+      standby: beforeRestart.standby,
+    });
+    const replay: ParsedVolcanoEruptionInfo = {
+      ...legacy,
+      meta: { ...legacy.meta, messageId: "canonical-issue-replay" },
+      plumeHeightAboveCraterValue: {
+        reference: "aboveCrater",
+        unit: "m",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+    };
+    currentParsed.set(replay.meta.messageId, replay);
+
+    expect(restarted.handler.handle(
+      message(replay.meta.messageId, "VFVO56", replay.reportDateTime),
+    )).toMatchObject({ kind: "suppressed" });
+    expect(restarted.decisions).toEqual(["duplicate"]);
+    expect(restarted.notifyVolcano).not.toHaveBeenCalled();
+    expect(restarted.outcomes).toEqual([]);
+    expect(restarted.persisted).toHaveBeenCalledTimes(1);
+    expect(restarted.gate.exportDurableEntries()[0].semanticKeys).toHaveLength(1);
+  });
+
+  it("既存取消の再送でも旧 fingerprint alias を無通知移行する", () => {
+    const issue = eruption(
+      "legacy-cancel-issue",
+      "506",
+      new Date(T0).toISOString(),
+      "1",
+      "発表",
+      "event-506",
+    );
+    const cancel = eruption(
+      "legacy-cancel",
+      "506",
+      new Date(T0 + 60_000).toISOString(),
+      "2",
+      "取消",
+      "event-506",
+    );
+    currentParsed.set(issue.meta.messageId, issue);
+    currentParsed.set(cancel.meta.messageId, cancel);
+    const beforeRestart = createHarness();
+    beforeRestart.handler.handle(message(issue.meta.messageId, "VFVO56", issue.reportDateTime));
+    beforeRestart.handler.handle(message(cancel.meta.messageId, "VFVO56", cancel.reportDateTime));
+
+    const gate = new TelegramRevisionGate();
+    gate.restoreDurableEntries(beforeRestart.gate.exportDurableEntries());
+    const restarted = createHarness({
+      gate,
+      holder: beforeRestart.holder,
+      standby: beforeRestart.standby,
+    });
+    const replay: ParsedVolcanoEruptionInfo = {
+      ...cancel,
+      meta: { ...cancel.meta, messageId: "canonical-cancel-replay" },
+      plumeHeightAboveCraterValue: {
+        reference: "aboveCrater",
+        unit: "m",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+    };
+    currentParsed.set(replay.meta.messageId, replay);
+
+    expect(restarted.handler.handle(
+      message(replay.meta.messageId, "VFVO56", replay.reportDateTime),
+    )).toMatchObject({ kind: "suppressed" });
+    expect(restarted.decisions).toEqual(["semanticDuplicate"]);
+    expect(restarted.notifyVolcano).not.toHaveBeenCalled();
+    expect(restarted.outcomes).toEqual([]);
+    expect(restarted.persisted).toHaveBeenCalledTimes(1);
+    const migrated = restarted.gate.exportDurableEntries()[0];
+    expect(migrated.cancelled).toBe(true);
+    expect(migrated.semanticKeys).toHaveLength(1);
+    expect(migrated.semanticKeys.every((key) => /^取消:[0-9a-f]{64}$/.test(key))).toBe(true);
+  });
+
+  it("canonical 噴煙高度の変更を同一 revision 訂正として一度だけ受理する", () => {
+    const canonical = (
+      id: string,
+      raw: string,
+      value: number,
+    ): ParsedVolcanoEruptionInfo => ({
+      ...eruption(id, "506", new Date(T0).toISOString(), "1", "訂正", "event-506"),
+      plumeHeight: 3000,
+      plumeHeightAboveCraterValue: {
+        reference: "aboveCrater",
+        unit: "m",
+        value: {
+          raw, value, condition: null, description: `火口上${raw}m`, presence: "value",
+        },
+      },
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+    });
+    const first = canonical("canonical-first", "3000", 3000);
+    const changed = canonical("canonical-changed", "3200", 3200);
+    const replay = canonical("canonical-replay", "3200", 3200);
+    for (const item of [first, changed, replay]) currentParsed.set(item.meta.messageId, item);
+    const h = createHarness();
+
+    h.handler.handle(message("canonical-first", "VFVO56", first.reportDateTime));
+    h.handler.handle(message("canonical-changed", "VFVO56", changed.reportDateTime));
+    h.handler.handle(message("canonical-replay", "VFVO56", replay.reportDateTime));
+
+    expect(h.decisions).toEqual(["replaceCorrection", "replaceCorrection", "semanticDuplicate"]);
+    expect(h.notifyVolcano).toHaveBeenCalledTimes(2);
+    expect(h.outcomes).toHaveLength(2);
+  });
+
+  it.each((() => {
+    const baseline: PlumeHeightSemantic = {
+      reference: "aboveCrater",
+      unit: "m",
+      value: {
+        raw: "3000",
+        value: null,
+        condition: "以上",
+        description: "火口上3000m以上",
+        presence: "range",
+        lowerBound: 3000,
+      },
+    };
+    return [
+      ["raw", { ...baseline, value: { ...baseline.value, raw: " 3000 " } }],
+      ["presence", { ...baseline, value: { ...baseline.value, presence: "qualitative" } }],
+      ["condition", { ...baseline, value: { ...baseline.value, condition: "超" } }],
+      ["description", { ...baseline, value: { ...baseline.value, description: "変更後" } }],
+      ["bounds", { ...baseline, value: { ...baseline.value, lowerBound: 3001 } }],
+      ["reference", { ...baseline, reference: "aboveSeaLevel" }],
+      ["unit", { ...baseline, unit: "FT" }],
+    ] satisfies Array<[string, PlumeHeightSemantic]>;
+  })())("fingerprint は canonical %s の単独変更を訂正として受理する", (_field, changedSemantic) => {
+    const baseline: PlumeHeightSemantic = {
+      reference: "aboveCrater",
+      unit: "m",
+      value: {
+        raw: "3000",
+        value: null,
+        condition: "以上",
+        description: "火口上3000m以上",
+        presence: "range",
+        lowerBound: 3000,
+      },
+    };
+    const first: ParsedVolcanoEruptionInfo = {
+      ...eruption(
+        `fingerprint-${_field}-first`,
+        "506",
+        new Date(T0).toISOString(),
+        "1",
+        "訂正",
+        "event-506",
+      ),
+      plumeHeight: 3000,
+      plumeHeightAboveCraterValue: baseline,
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+    };
+    const changed: ParsedVolcanoEruptionInfo = {
+      ...first,
+      meta: { ...first.meta, messageId: `fingerprint-${_field}-changed` },
+      plumeHeightAboveCraterValue: changedSemantic,
+    };
+    currentParsed.set(first.meta.messageId, first);
+    currentParsed.set(changed.meta.messageId, changed);
+    const h = createHarness();
+
+    h.handler.handle(message(first.meta.messageId, "VFVO56", first.reportDateTime));
+    h.handler.handle(message(changed.meta.messageId, "VFVO56", changed.reportDateTime));
+
+    expect(h.decisions).toEqual(["replaceCorrection", "replaceCorrection"]);
+    expect(h.notifyVolcano).toHaveBeenCalledTimes(2);
+    expect(h.outcomes).toHaveLength(2);
+  });
+
+  it("canonical 噴煙高度を v2 foundation active から restart 後まで保持する", () => {
+    const issue: ParsedVolcanoEruptionInfo = {
+      ...eruption(
+        "canonical-persistence",
+        "506",
+        new Date(T0).toISOString(),
+        "1",
+        "発表",
+        "canonical-event-506",
+      ),
+      plumeHeight: 3000,
+      plumeHeightAboveCraterValue: {
+        reference: "aboveCrater",
+        unit: "m",
+        value: {
+          raw: "",
+          value: null,
+          condition: "雲中",
+          description: "火口上2000mから4000m",
+          presence: "qualitative",
+          lowerBound: 2000,
+          rawLowerBound: "2000",
+          rawUpperBound: "4000",
+          diagnostics: ["specialValueConflict"],
+        },
+      },
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: "観測できず",
+          value: null,
+          condition: null,
+          description: null,
+          presence: "unknown",
+        },
+      },
+    };
+    currentParsed.set(issue.meta.messageId, issue);
+    const h = createHarness();
+    h.handler.handle(message(issue.meta.messageId, "VFVO56", issue.reportDateTime));
+    const expectedEvent = h.standby.exportActiveState().volcanoes[0].latestEvent;
+
+    const root = tempRoot("canonical-persistence");
+    const path = join(root, "display-active-state-v1.json");
+    mkdirSync(dirname(path), { recursive: true });
+    new StandbyPersistence(path, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      volcano: {
+        authoritative: true,
+        state: h.holder.exportPersistedState(),
+        active: h.standby.exportActiveState().volcanoes,
+        gateEntries: h.gate.exportDurableEntries().filter((entry) => entry.domain === "volcano"),
+      },
+    })).save(h.standby.exportActiveState());
+
+    const v2 = JSON.parse(readFileSync(standbyPersistenceV2Path(path), "utf8"));
+    expect(v2.telegramFoundation.volcano.active[0].latestEvent).toEqual(expectedEvent);
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.telegramFoundation.volcano.active[0].latestEvent).toEqual(expectedEvent);
+    const restarted = new StandbyStateStore();
+    restarted.restoreCanonicalVolcanoes(
+      loaded.telegramFoundation.volcano.active,
+      loaded.telegramFoundation.volcano.gateEntries,
+      T0 + 1,
+    );
+    expect(restarted.exportActiveState().volcanoes[0].latestEvent).toEqual(expectedEvent);
+  });
+
+  it("v2 の壊れた plume semantic だけを scalar へ縮退し別火山と tombstone を保全する", () => {
+    const eruptionIssue: ParsedVolcanoEruptionInfo = {
+      ...eruption(
+        "semantic-salvage-eruption",
+        "506",
+        new Date(T0).toISOString(),
+        "1",
+        "発表",
+        "semantic-salvage-event",
+      ),
+      plumeHeight: 2500,
+      plumeHeightAboveCraterValue: {
+        reference: "aboveCrater",
+        unit: "m",
+        value: {
+          raw: "2500", value: 2500, condition: null, description: null, presence: "value",
+        },
+      },
+      plumeHeightAboveSeaLevelValue: {
+        reference: "aboveSeaLevel",
+        unit: "FT",
+        value: {
+          raw: null, value: null, condition: null, description: null, presence: "missing",
+        },
+      },
+    };
+    const otherVolcano = alert(
+      "semantic-salvage-other",
+      "306",
+      new Date(T0).toISOString(),
+      "1",
+    );
+    const tombstoneIssue = alert(
+      "semantic-salvage-tombstone-issue",
+      "401",
+      new Date(T0).toISOString(),
+      "1",
+    );
+    const tombstoneCancel = alert(
+      "semantic-salvage-tombstone-cancel",
+      "401",
+      new Date(T0 + 60_000).toISOString(),
+      "2",
+      { infoType: "取消", action: "cancel" },
+    );
+    for (const item of [eruptionIssue, otherVolcano, tombstoneIssue, tombstoneCancel]) {
+      currentParsed.set(item.meta.messageId, item);
+    }
+    const h = createHarness();
+    h.handler.handle(message(eruptionIssue.meta.messageId, "VFVO56", eruptionIssue.reportDateTime));
+    h.handler.handle(message(otherVolcano.meta.messageId, "VFVO50", otherVolcano.reportDateTime));
+    h.handler.handle(message(tombstoneIssue.meta.messageId, "VFVO50", tombstoneIssue.reportDateTime));
+    h.handler.handle(message(tombstoneCancel.meta.messageId, "VFVO50", tombstoneCancel.reportDateTime));
+
+    const root = tempRoot("semantic-salvage");
+    const path = join(root, "display-active-state-v1.json");
+    mkdirSync(dirname(path), { recursive: true });
+    new StandbyPersistence(path, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      volcano: {
+        authoritative: true,
+        state: h.holder.exportPersistedState(),
+        active: h.standby.exportActiveState().volcanoes,
+        gateEntries: h.gate.exportDurableEntries().filter((entry) => entry.domain === "volcano"),
+      },
+    })).save(h.standby.exportActiveState());
+
+    const v2Path = standbyPersistenceV2Path(path);
+    const persisted = JSON.parse(readFileSync(v2Path, "utf8"));
+    const brokenEvent = persisted.telegramFoundation.volcano.active
+      .find((entry: { code: string }) => entry.code === "506").latestEvent;
+    brokenEvent.plumeHeightAboveCraterSemantic.rank = { kind: "invalid" };
+    writeFileSync(v2Path, JSON.stringify(persisted), "utf8");
+
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.telegramFoundation.volcano.authoritative).toBe(true);
+    expect(loaded.telegramFoundation.volcano.active.map((entry) => entry.code).sort())
+      .toEqual(["306", "506"]);
+    expect(loaded.telegramFoundation.volcano.active.find((entry) => entry.code === "506")?.latestEvent)
+      .toEqual(expect.objectContaining({
+        plumeHeightAboveCraterSemantic: expect.objectContaining({
+          presence: "value", value: 2500, raw: "2500",
+        }),
+      }));
+    expect(loaded.telegramFoundation.volcano.gateEntries).toContainEqual(expect.objectContaining({
+      stateSubjectKey: "volcano:alert:401",
+      cancelled: true,
+    }));
   });
 
   it("VFVO51 訂正内の同一 subject は最後の entry を一度だけ適用する", () => {

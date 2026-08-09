@@ -33,6 +33,11 @@ import {
   parseTelegramSerial,
 } from "../../dmdata/telegram-meta";
 import {
+  copyDisplayPlumeHeightSemantic,
+  isDisplayPlumeHeightSemantic,
+  legacyDisplayPlumeHeightSemantics,
+} from "./plume-height-semantic";
+import {
   canonicalizeLegacyTsunamiInfo,
   canonicalizeLegacyTsunamiObservation,
   type LegacyParsedTsunamiInfoInput,
@@ -902,6 +907,58 @@ function isVolcanoEvent(value: unknown): value is DisplayVolcanoEventV1 {
     && hasNullableString(value, "plumeDirection");
 }
 
+function migrateVolcanoEventForRead(
+  event: DisplayVolcanoEventV1 | string | null | undefined,
+): DisplayVolcanoEventV1 | string | null | undefined {
+  if (event == null || typeof event === "string") return event;
+  const migrated = legacyDisplayPlumeHeightSemantics(
+    event.plumeHeightM,
+    event.plumeHeightUnknown,
+  );
+  const rawEvent = event as unknown as Record<string, unknown>;
+  const craterSemantic = isDisplayPlumeHeightSemantic(
+    rawEvent.plumeHeightAboveCraterSemantic,
+    "aboveCrater",
+    "m",
+  )
+    ? rawEvent.plumeHeightAboveCraterSemantic
+    : migrated.plumeHeightAboveCraterSemantic;
+  const seaLevelSemantic = isDisplayPlumeHeightSemantic(
+    rawEvent.plumeHeightAboveSeaLevelSemantic,
+    "aboveSeaLevel",
+    "FT",
+  )
+    ? rawEvent.plumeHeightAboveSeaLevelSemantic
+    : migrated.plumeHeightAboveSeaLevelSemantic;
+  return {
+    ...event,
+    plumeHeightAboveCraterSemantic: copyDisplayPlumeHeightSemantic(
+      craterSemantic,
+    ),
+    plumeHeightAboveSeaLevelSemantic: copyDisplayPlumeHeightSemantic(
+      seaLevelSemantic,
+    ),
+  };
+}
+
+function migrateVolcanoStateForRead(
+  state: PersistedVolcanoStateV1,
+): PersistedVolcanoStateV1 {
+  return {
+    ...structuredClone(state),
+    latestEvent: migrateVolcanoEventForRead(state.latestEvent),
+  };
+}
+
+function sanitizeVolcanoStates(value: unknown): PersistedVolcanoStateV1[] {
+  if (value == null) return [];
+  if (!Array.isArray(value) || !value.every(isVolcanoState)) {
+    log.warn("[standby-persistence] volcanoes structure validation 失敗 — domain 破棄");
+    return [];
+  }
+  return (value as PersistedVolcanoStateV1[]).map(migrateVolcanoStateForRead);
+}
+
 function isTornadoState(value: unknown): value is PersistedTornadoStateV1 {
   return isRecord(value)
     && typeof value.publishingOffice === "string"
@@ -1038,7 +1095,7 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
     savedAt: value.savedAt,
     heat: validDomainArray(value.heat, isHeatState, "heat"),
     typhoons: sanitizeTyphoonStates(value.typhoons),
-    volcanoes: validDomainArray(value.volcanoes, isVolcanoState, "volcanoes"),
+    volcanoes: sanitizeVolcanoStates(value.volcanoes),
     floods,
     weatherAlerts: sanitizeWeatherAlertStates(value.weatherAlerts),
     tornado: validDomainArray(value.tornado, isTornadoState, "tornado"),
@@ -2653,7 +2710,7 @@ function sanitizeVolcanoFoundation(
   if (entries.filter((entry) => entry.revisionFamily === "volcanoEruption").length
     > VOLCANO_ERUPTION_REVISION_FAMILY_POLICY.maxSubjects!) return null;
   const activeSubjects = new Set(entries.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey));
-  const active = value.active as PersistedVolcanoStateV1[];
+  const active = (value.active as PersistedVolcanoStateV1[]).map(migrateVolcanoStateForRead);
   const gateBySubject = new Map(entries.map((entry) => [entry.stateSubjectKey, entry]));
   for (const volcano of active) {
     if (volcano.alertLevel != null || volcano.alertClass?.isActive === true) {

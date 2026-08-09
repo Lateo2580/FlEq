@@ -44,6 +44,8 @@ export interface TelegramRevisionDecision {
   isCorrection: boolean;
   isTerminal: boolean;
   resolvedTrigger: CancellationTrigger | null;
+  /** 旧 fingerprint alias 一致を新 primary key へ無通知移行した。 */
+  semanticKeyMigrated?: boolean;
 }
 
 export interface TelegramRevisionGateInput {
@@ -70,6 +72,8 @@ export interface TelegramRevisionGateInput {
   /** equal な通常報を whole-message duplicate にせず item gate へ渡す allowlist family。 */
   fragmentMerge?: boolean;
   payloadFingerprint: string;
+  /** fingerprint version 切替時の read-only alias。新規受理では primary だけを保存する。 */
+  payloadFingerprintAliases?: readonly string[];
   /** rollback 用旧 revision guard へ射影する key。semantic comparison には使わない。 */
   legacyRevisionKey?: string | null;
   /** rollback key の由来。EventID 逆引きは eventId 由来だけに許可する。 */
@@ -181,6 +185,21 @@ function rememberSemanticKey(state: AcceptedRevisionState, key: string): void {
   state.semanticKeys.add(key);
 }
 
+/** alias migration は bounded history の同じ slot を置換し、別 revision を退場させない。 */
+function replaceSemanticKey(
+  state: AcceptedRevisionState,
+  previousKey: string,
+  nextKey: string,
+): boolean {
+  if (previousKey === nextKey || state.semanticKeys.has(nextKey)) return false;
+  const keys = [...state.semanticKeys];
+  const index = keys.indexOf(previousKey);
+  if (index < 0) return false;
+  keys[index] = nextKey;
+  state.semanticKeys = new Set(keys);
+  return true;
+}
+
 function digestText(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -212,6 +231,16 @@ export function telegramRevisionSemanticKey(
   input: Pick<TelegramRevisionGateInput, "meta" | "payloadFingerprint">,
 ): string {
   return `${input.meta.infoType.value}:${input.payloadFingerprint}`;
+}
+
+function telegramRevisionSemanticKeys(input: TelegramRevisionGateInput): string[] {
+  return [...new Set([
+    input.payloadFingerprint,
+    ...(input.payloadFingerprintAliases ?? []),
+  ])].map((payloadFingerprint) => telegramRevisionSemanticKey({
+    meta: input.meta,
+    payloadFingerprint,
+  }));
 }
 
 function serialIsMissing(input: TelegramRevisionComparisonInput): boolean {
@@ -400,6 +429,7 @@ export class TelegramRevisionGate {
       ? stored
       : undefined;
     const nextSemanticKey = telegramRevisionSemanticKey(input);
+    const candidateSemanticKeys = telegramRevisionSemanticKeys(input);
 
     const resolvedTrigger = resolveCancellationTrigger(input);
     const cancellationTriggered = resolvedTrigger != null;
@@ -464,6 +494,22 @@ export class TelegramRevisionGate {
     }
 
     if (relation === "equal") {
+      const rejectMatchedSemanticKey = (
+        kind: Parameters<typeof reject>[0],
+      ): TelegramRevisionDecision | null => {
+        const matchedSemanticKey = candidateSemanticKeys.find((candidate) =>
+          existing.semanticKeys.has(candidate));
+        if (matchedSemanticKey == null) return null;
+        const decision = reject(kind, relation);
+        if (matchedSemanticKey !== nextSemanticKey && commit) {
+          decision.semanticKeyMigrated = replaceSemanticKey(
+            existing,
+            matchedSemanticKey,
+            nextSemanticKey,
+          );
+        }
+        return decision;
+      };
       // clearCurrent tombstones start a new lifecycle only at a newer revision.
       // Unlike EEW markCancelled, an equal-revision correction cannot reactivate them.
       if (
@@ -474,7 +520,9 @@ export class TelegramRevisionGate {
         return reject("stale", relation);
       }
       if (infoType.value === "発表") {
-        if (input.fragmentMerge !== true) return reject("duplicate", relation);
+        if (input.fragmentMerge !== true) {
+          return rejectMatchedSemanticKey("duplicate") ?? reject("duplicate", relation);
+        }
         // clearCurrent 後の同一 revision fragment で取消済み系列を復活させない。
         if (existing.cancelled) return reject("stale", relation);
         if (commit) {
@@ -510,11 +558,11 @@ export class TelegramRevisionGate {
         return reject("stale", relation);
       }
       if (cancellationTriggered && existing.cancelled) {
-        return reject("semanticDuplicate", relation);
+        return rejectMatchedSemanticKey("semanticDuplicate")
+          ?? reject("semanticDuplicate", relation);
       }
-      if (existing.semanticKeys.has(nextSemanticKey)) {
-        return reject("semanticDuplicate", relation);
-      }
+      const matchedSemanticDecision = rejectMatchedSemanticKey("semanticDuplicate");
+      if (matchedSemanticDecision != null) return matchedSemanticDecision;
       const kind = acceptedKind(input, resolvedTrigger);
       if (commit) {
         rememberSemanticKey(existing, nextSemanticKey);
@@ -587,7 +635,7 @@ export class TelegramRevisionGate {
         && input.meta.receivedAtMs - existing.acceptedAtMs > runtimeRetentionMs(existing))
     ) return false;
     const keys = [...existing.semanticKeys];
-    return keys[keys.length - 1] === telegramRevisionSemanticKey(input);
+    return telegramRevisionSemanticKeys(input).includes(keys[keys.length - 1]);
   }
 
   private touchState(key: string, state: AcceptedRevisionState): void {

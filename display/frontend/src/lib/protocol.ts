@@ -141,6 +141,43 @@ export interface DisplayTyphoonNumericSemanticV1 extends DisplayNumericSpecialVa
   rank: DisplayTyphoonNumericRankV1;
 }
 
+export type DisplaySpecialValueDiagnosticV1 =
+  | "unmappedSpecialValue"
+  | "specialValueConflict"
+  | "legacyNullUnknown";
+
+export type DisplayPlumeHeightReferenceV1 = "aboveCrater" | "aboveSeaLevel";
+export type DisplayPlumeHeightUnitV1 = "m" | "FT";
+
+/** Infinity を含まず JSON round-trip できる噴煙高度 rank。 */
+export type DisplayPlumeHeightRankV1 =
+  | {
+      kind: "value";
+      reference: DisplayPlumeHeightReferenceV1;
+      unit: DisplayPlumeHeightUnitV1;
+      value: number;
+    }
+  | {
+      kind: "range";
+      reference: DisplayPlumeHeightReferenceV1;
+      unit: DisplayPlumeHeightUnitV1;
+      lowerBound: number | null;
+      upperBound: number | null;
+    }
+  | {
+      kind: "unranked";
+      reference: DisplayPlumeHeightReferenceV1;
+      unit: DisplayPlumeHeightUnitV1;
+    };
+
+/** PlumeHeight canonical の additive wire semantic。bounds は明示 null。 */
+export interface DisplayPlumeHeightSemanticV1 extends DisplayNumericSpecialValueSemanticV1 {
+  reference: DisplayPlumeHeightReferenceV1;
+  unit: DisplayPlumeHeightUnitV1;
+  diagnostics: DisplaySpecialValueDiagnosticV1[];
+  rank: DisplayPlumeHeightRankV1;
+}
+
 export type DisplayLgIntensityRankV1 = 0 | 1 | 2 | 3 | 4;
 
 /** V1 additive semantic for JMA long-period ground motion class (rank 0..4). */
@@ -642,6 +679,10 @@ export interface DisplayVolcanoEventV1 {
   plumeHeightM: number | null;
   /** 高度不明が明示された場合 true。単なる欠損と区別する */
   plumeHeightUnknown: boolean;
+  /** 火口上 m の additive canonical。旧 protocol snapshot では欠落する。 */
+  plumeHeightAboveCraterSemantic?: DisplayPlumeHeightSemanticV1;
+  /** 海抜 FT の additive canonical。旧 protocol snapshot では欠落する。 */
+  plumeHeightAboveSeaLevelSemantic?: DisplayPlumeHeightSemanticV1;
   plumeDirection: string | null;
 }
 
