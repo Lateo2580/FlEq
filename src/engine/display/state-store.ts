@@ -47,6 +47,7 @@ import {
   quakeObservationMetaOf,
   shouldPreserveVxse51Observation,
   shouldRetainKnownQuakeSafety,
+  withQuakeObservationMeta,
 } from "./quake-observation-merge";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import {
@@ -247,7 +248,9 @@ export class DisplayStateStore {
           originTime: quakeProjection.originTime,
           hypocenterName: quakeProjection.hypocenterName,
           magnitude: quakeProjection.magnitude,
+          magnitudeSemantic: quakeProjection.magnitudeSemantic,
           depth: quakeProjection.depth,
+          depthSemantic: quakeProjection.depthSemantic,
           reportDateTime: quakeProjection.reportDateTime,
           tsunamiWarning: quakeProjection.tsunamiWarning,
           updatedAtMs: nowMs,
@@ -317,6 +320,7 @@ export class DisplayStateStore {
       : quakeObservationBridge.latest;
     if (latestQuake != null) {
       changed = this.applyLatestQuake(latestQuake, nowMs) || changed;
+      changed = this.restoreLargeQuakeFromLatest(latestQuake, nowMs) || changed;
     }
     changed = this.pruneUnreferencedQuakeMapEvents() || changed;
     return changed;
@@ -633,7 +637,7 @@ export class DisplayStateStore {
   }
 
   private applyLatestQuake(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
-    const existing = this.latestQuake;
+    const existing = this.latestQuake ?? this.restoredLatestBaseline(input);
     const meta = quakeObservationMetaOf(input);
     if (meta != null && hasResolvedQuakeCancellation(meta)) {
       if (
@@ -647,6 +651,86 @@ export class DisplayStateStore {
     }
     if (!shouldReplaceLatestQuake(existing, input)) return false;
     this.latestQuake = { ...mergeLatestQuakeObservation(existing, input), updatedAtMs: nowMs };
+    return true;
+  }
+
+  /**
+   * display off／再起動中の daily 履歴は snapshot の recent だけを所有する。起動直後に
+   * latest を見せ直すことはせず、§7.4 の structural-missing 続報を受けた時だけ、同じ
+   * EventID の復元済み recent を merge の基準として借りる。
+   */
+  private restoredLatestBaseline(input: DisplayLatestQuakeInputV1): DisplayLatestQuakeStateV1 | null {
+    if (this.recentQuakesProvider == null || input.eventId == null || input.eventId.trim() === "") {
+      return null;
+    }
+    const inputMeta = quakeObservationMetaOf(input);
+    const recent = this.recentQuakesProvider().find((quake) => quake.eventId === input.eventId);
+    const recentMeta = recent == null ? null : quakeObservationMetaOf(recent);
+    if (
+      inputMeta == null
+      || recent == null
+      || recentMeta == null
+      || !shouldPreserveVxse51Observation({
+        previousObservationSourceType: recentMeta.observationSourceType,
+        previousMaxIntPresence: recentMeta.maxIntValue.presence,
+        previousCancellationResolved: hasResolvedQuakeCancellation(recentMeta),
+        nextSourceType: inputMeta.sourceType,
+        nextMaxIntPresence: inputMeta.maxIntValue.presence,
+        nextIntensityStructureMissing: inputMeta.intensityStructureMissing,
+        nextCancellationResolved: hasResolvedQuakeCancellation(inputMeta),
+      })
+    ) return null;
+    return withQuakeObservationMeta({
+      eventId: recent.eventId,
+      headline: null,
+      originTime: recent.originTime,
+      hypocenterName: recent.hypocenterName,
+      depth: recent.depth,
+      depthSemantic: recent.depthSemantic,
+      magnitude: recent.magnitude,
+      magnitudeSemantic: recent.magnitudeSemantic,
+      maxInt: recent.maxInt,
+      maxIntRank: recent.maxIntRank,
+      maxIntSemantic: recent.maxIntSemantic,
+      tsunamiWarning: recent.tsunamiWarning,
+      intensityGroups: recent.intensityGroups ?? [],
+      reportDateTime: recent.reportDateTime,
+      updatedAtMs: 0,
+    }, recentMeta);
+  }
+
+  /** restoredLatestBaseline で初めて復元された latest と同じ震度を emergency にも揃える。 */
+  private restoreLargeQuakeFromLatest(input: DisplayLatestQuakeInputV1, nowMs: number): boolean {
+    if (
+      this.recentQuakesProvider == null
+      || input.eventId == null
+      || input.eventId.trim() === ""
+      || this.largeQuakes.has(input.eventId)
+      || this.latestQuake == null
+      || this.latestQuake.eventId !== input.eventId
+      || quakeCardRank(this.latestQuake) < TIER_QUAKE_ALERT_RANK
+      || this.restoredLatestBaseline(input) == null
+    ) return false;
+    const latest = this.latestQuake;
+    if (latest.maxInt == null || latest.maxIntRank == null) return false;
+    this.largeQuakes.set(input.eventId, {
+      kind: "largeQuake",
+      eventId: latest.eventId,
+      originTime: latest.originTime,
+      hypocenterName: latest.hypocenterName,
+      magnitude: latest.magnitude,
+      magnitudeSemantic: latest.magnitudeSemantic,
+      maxInt: latest.maxInt,
+      maxIntRank: latest.maxIntRank,
+      maxIntSemantic: latest.maxIntSemantic,
+      intensityGroups: latest.intensityGroups,
+      reportDateTime: latest.reportDateTime,
+      depth: latest.depth,
+      depthSemantic: latest.depthSemantic,
+      maxLgInt: null,
+      tsunamiWarning: latest.tsunamiWarning,
+      updatedAtMs: nowMs,
+    });
     return true;
   }
 

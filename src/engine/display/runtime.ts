@@ -23,6 +23,10 @@ import { QuakeExtremeStore } from "./quake-extreme-store";
 import { InProcessSseDisplayTransport, isLoopbackHost } from "./transport";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import { projectTsunamiHeightSemantic } from "./tsunami-height-semantic";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "./magnitude-depth-semantic";
 import type {
   ActiveStandbyCardV1,
   DisplayRecentQuakeV1,
@@ -90,6 +94,8 @@ export function tsunamiSeedFromParsed(
   if (label == null) return null;
   const level: DisplayTsunamiLevel =
     label === "大津波警報" ? "majorWarning" : label === "津波警報" ? "warning" : "advisory";
+  const magnitudeSemantic = projectMagnitudeSemantic(info.earthquake?.magnitudeValue);
+  const depthSemantic = projectDepthSemantic(info.earthquake?.depthValue);
   // 津波予報 (0.2m 以下) の沿岸を一覧に混ぜない (project-event.ts の pickAlertCoasts と同方針)
   const coasts = forecast
     .filter((f) => /警報|注意報/.test(f.kind))
@@ -115,6 +121,8 @@ export function tsunamiSeedFromParsed(
       buildTsunamiObservations({ ...info, observations: [...observations] }),
     ),
     reportDateTime: info.reportDateTime,
+    ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
+    ...(depthSemantic == null ? {} : { depthSemantic }),
   };
 }
 

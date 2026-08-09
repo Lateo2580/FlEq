@@ -11,6 +11,16 @@ import {
   withQuakeObservationMeta,
 } from "../../../src/engine/display/quake-observation-merge";
 import { projectIntensitySemantic } from "../../../src/engine/display/intensity-groups";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "../../../src/engine/display/magnitude-depth-semantic";
+
+function numericValue(raw: string, value: number): SpecialValue<number> {
+  return {
+    raw, value, condition: null, description: null, presence: "value",
+  };
+}
 
 function special(
   presence: SpecialValue<JmaIntensity>["presence"],
@@ -43,6 +53,8 @@ function recent(
     cancellationPolicy?: "markCancelled" | null;
     intensityStructureMissing?: boolean;
     infoType?: string;
+    metaMagnitudeValue?: SpecialValue<number>;
+    metaDepthValue?: SpecialValue<number>;
   } = {},
 ) {
   const {
@@ -50,6 +62,8 @@ function recent(
     cancellationPolicy = "markCancelled",
     intensityStructureMissing = maxIntValue.presence === "missing",
     infoType = "発表",
+    metaMagnitudeValue,
+    metaDepthValue,
     ...displayOverrides
   } = overrides;
   const display: DisplayRecentQuakeV1 = {
@@ -58,9 +72,11 @@ function recent(
     originTime: "2026-08-01T11:59:00+09:00",
     hypocenterName: "震源",
     magnitude: "4.0",
+    magnitudeSemantic: projectMagnitudeSemantic(numericValue("4.0", 4)),
     maxInt: maxIntValue.presence === "value" ? maxIntValue.value : null,
     maxIntRank: maxIntValue.presence === "value" ? 4 : null,
     depth: "10km",
+    depthSemantic: projectDepthSemantic(numericValue("-10000", 10)),
     tsunamiWarning: false,
     intensityGroups: maxIntValue.presence === "value"
       ? [{ intensity: "4", rank: 4, areas: ["地域A"], omittedAreaCount: 0 }]
@@ -75,6 +91,8 @@ function recent(
     cancellationPolicy,
     intensityStructureMissing,
     maxIntValue,
+    ...(metaMagnitudeValue == null ? {} : { magnitudeValue: metaMagnitudeValue }),
+    ...(metaDepthValue == null ? {} : { depthValue: metaDepthValue }),
   });
 }
 
@@ -87,7 +105,9 @@ describe("quake-observation-merge SpecialValue contract", () => {
         reportDateTime: "2026-08-01T12:01:00+09:00",
         hypocenterName: "更新震源",
         magnitude: "5.2",
+        magnitudeSemantic: projectMagnitudeSemantic(numericValue("5.2", 5.2)),
         depth: "20km",
+        depthSemantic: projectDepthSemantic(numericValue("-20000", 20)),
       });
       const merged = mergeRecentQuakeObservation(previous, next);
       expect(merged).toMatchObject({
@@ -95,7 +115,9 @@ describe("quake-observation-merge SpecialValue contract", () => {
         maxIntRank: 4,
         hypocenterName: "更新震源",
         magnitude: "5.2",
+        magnitudeSemantic: { presence: "value", value: 5.2, rank: { kind: "value", value: 5.2 } },
         depth: "20km",
+        depthSemantic: { presence: "value", value: 20 },
         intensityGroups: [{ intensity: "4", areas: ["地域A"] }],
       });
       expect(quakeObservationMetaOf(merged)).toMatchObject({
@@ -133,11 +155,33 @@ describe("quake-observation-merge SpecialValue contract", () => {
   );
 
   it("取消は missing として保持せず取消 projection を返す", () => {
+    const previousMagnitudeValue: SpecialValue<number> = {
+      raw: "4.0", value: 4, condition: null, description: null, presence: "value",
+      diagnostics: ["specialValueConflict"],
+    };
+    const previousDepthValue: SpecialValue<number> = {
+      raw: "-10000", value: 10, condition: null, description: null, presence: "value",
+      diagnostics: ["specialValueConflict"],
+    };
+    const previous = recent("VXSE51", special("value"), {
+      metaMagnitudeValue: previousMagnitudeValue,
+      metaDepthValue: previousDepthValue,
+    });
     const next = recent("VXSE52", special("missing"), {
       resolvedTrigger: "explicitCancellation",
       infoType: "取消",
+      magnitude: "",
+      magnitudeSemantic: undefined,
+      depth: "",
+      depthSemantic: undefined,
+      metaMagnitudeValue: {
+        raw: null, value: null, condition: null, description: null, presence: "missing",
+      },
+      metaDepthValue: {
+        raw: null, value: null, condition: null, description: null, presence: "missing",
+      },
     });
-    const merged = mergeRecentQuakeObservation(recent("VXSE51", special("value")), next);
+    const merged = mergeRecentQuakeObservation(previous, next);
     expect(merged).toMatchObject({
       maxInt: "4",
       maxIntRank: 4,
@@ -149,6 +193,8 @@ describe("quake-observation-merge SpecialValue contract", () => {
       resolvedTrigger: "explicitCancellation",
       cancellationPolicy: "markCancelled",
       infoType: "取消",
+      magnitudeValue: previousMagnitudeValue,
+      depthValue: previousDepthValue,
     });
   });
 
@@ -228,7 +274,9 @@ describe("quake-observation-merge SpecialValue contract", () => {
       originTime: previousRecent.originTime,
       hypocenterName: previousRecent.hypocenterName,
       depth: previousRecent.depth,
+      depthSemantic: previousRecent.depthSemantic,
       magnitude: previousRecent.magnitude,
+      magnitudeSemantic: previousRecent.magnitudeSemantic,
       maxInt: previousRecent.maxInt,
       maxIntRank: previousRecent.maxIntRank,
       tsunamiWarning: previousRecent.tsunamiWarning,
@@ -241,7 +289,9 @@ describe("quake-observation-merge SpecialValue contract", () => {
       originTime: nextRecent.originTime,
       hypocenterName: nextRecent.hypocenterName,
       depth: nextRecent.depth,
+      depthSemantic: nextRecent.depthSemantic,
       magnitude: nextRecent.magnitude,
+      magnitudeSemantic: nextRecent.magnitudeSemantic,
       maxInt: nextRecent.maxInt,
       maxIntRank: nextRecent.maxIntRank,
       tsunamiWarning: nextRecent.tsunamiWarning,
@@ -254,6 +304,8 @@ describe("quake-observation-merge SpecialValue contract", () => {
     );
     const recentMerged = mergeRecentQuakeObservation(previousRecent, nextRecent);
     expect(latest.maxInt).toBe(recentMerged.maxInt);
+    expect(latest.magnitudeSemantic).toEqual(nextRecent.magnitudeSemantic);
+    expect(latest.depthSemantic).toEqual(nextRecent.depthSemantic);
     expect(latest.intensityGroups).toEqual(recentMerged.intensityGroups);
     expect(quakeObservationMetaOf(latest)).toEqual(quakeObservationMetaOf(recentMerged));
   });

@@ -26,6 +26,8 @@ interface PersistedTestRecent {
   maxInt: string | null;
   maxIntRank: number | null;
   maxIntSemantic?: Record<string, unknown> | null;
+  magnitudeSemantic?: Record<string, unknown> | null;
+  depthSemantic?: Record<string, unknown> | null;
   observation: {
     sourceType: string | null;
     observationSourceType: string | null;
@@ -75,6 +77,10 @@ function intensityValue(maxInt: string | null | undefined): SpecialValue<JmaInte
     : { raw: maxInt, value: canonical, condition: null, description: null, presence: "value" };
 }
 
+function numericValue(raw: string, value: number): SpecialValue<number> {
+  return { raw, value, condition: null, description: null, presence: "value" };
+}
+
 function event(overrides: Partial<PresentationEvent> = {}): PresentationEvent {
   const result = {
     id: "id", classification: "telegram.earthquake", domain: "earthquake", type: "VXSE51",
@@ -120,10 +126,12 @@ describe("DailyQuakePersistence", () => {
       originTime: new Date(T0).toISOString(),
       hypocenterName: "初期震源",
       magnitude: "4.8",
+      magnitudeValue: numericValue("4.8", 4.8),
       maxInt: "4",
       maxIntValue: intensityValue("4"),
       maxIntRank: 4,
       depth: "10km",
+      depthValue: numericValue("-10000", 10),
       areaItems: [{ name: "茨城県北部", maxInt: "4", maxIntValue: intensityValue("4") }],
     });
     source.recordRecentQuake(projectRecentQuake(observed), T0);
@@ -133,6 +141,10 @@ describe("DailyQuakePersistence", () => {
     const loadedObserved = persistence.load(T0 + 2);
     const restoredObserved = new DailyQuakeCounter(T0 + 2);
     expect(loadedObserved == null ? false : restoredObserved.restore(loadedObserved, T0 + 2)).toBe(true);
+    expect(loadedObserved?.recentQuakes[0]).toMatchObject({
+      magnitudeSemantic: { presence: "value", value: 4.8 },
+      depthSemantic: { presence: "value", value: 10 },
+    });
     const followup = projectRecentQuake(event({
       type: "VXSE52",
       eventId: "Q1",
@@ -140,10 +152,12 @@ describe("DailyQuakePersistence", () => {
       originTime: new Date(T0).toISOString(),
       hypocenterName: "更新震源",
       magnitude: "5.2",
+      magnitudeValue: numericValue("5.2", 5.2),
       maxInt: null,
       maxIntValue: intensityValue(null),
       maxIntRank: null,
       depth: "20km",
+      depthValue: numericValue("-20000", 20),
       areaItems: [],
     }));
     source.recordRecentQuake(followup, T0 + 60_000);
@@ -159,7 +173,9 @@ describe("DailyQuakePersistence", () => {
     expect(restored.getRecentQuakes(T0 + 60_002)[0]).toMatchObject({
       hypocenterName: "更新震源",
       magnitude: "5.2",
+      magnitudeSemantic: { presence: "value", value: 5.2 },
       depth: "20km",
+      depthSemantic: { presence: "value", value: 20 },
       maxInt: "4",
       maxIntRank: 4,
       intensityGroups: [{ intensity: "4", areas: ["茨城県北部"] }],
@@ -169,6 +185,197 @@ describe("DailyQuakePersistence", () => {
       observationSourceType: "VXSE51",
       maxIntValue: { presence: "value", value: "4", raw: "4" },
     });
+  });
+
+  it("Magnitude/Depth semantic を explicit-null bounds と JSON-safe rank で round-trip する", () => {
+    const file = filePath();
+    const magnitudeValue: SpecialValue<number> = {
+      raw: "NaN",
+      value: null,
+      condition: null,
+      description: "Ｍ８を超える巨大地震",
+      presence: "qualitative",
+    };
+    const depthValue: SpecialValue<number> = {
+      raw: "-600000",
+      value: null,
+      condition: "600km以上",
+      description: "深さ600km以上",
+      presence: "range",
+      lowerBound: 600,
+      rawLowerBound: "６００",
+      diagnostics: ["specialValueConflict"],
+    };
+    const counter = new DailyQuakeCounter(T0);
+    counter.recordRecentQuake(projectRecentQuake(event({
+      eventId: "Q-semantic-md",
+      magnitude: "",
+      magnitudeValue,
+      depth: "600km",
+      depthValue,
+    })), T0);
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+
+    const serialized = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      state: { recentQuakes: Array<Record<string, unknown>> };
+    };
+    expect(serialized.state.recentQuakes[0]).toMatchObject({
+      magnitudeSemantic: {
+        presence: "qualitative",
+        lowerBound: null,
+        upperBound: null,
+        rank: { kind: "giant" },
+      },
+      depthSemantic: {
+        presence: "range",
+        lowerBound: 600,
+        upperBound: null,
+        rawLowerBound: "６００",
+        rawUpperBound: null,
+      },
+      observation: {
+        magnitudeValue: { presence: "qualitative", description: "Ｍ８を超える巨大地震" },
+        depthValue: {
+          presence: "range",
+          lowerBound: 600,
+          rawLowerBound: "６００",
+          diagnostics: ["specialValueConflict"],
+        },
+      },
+    });
+    const loaded = persistence.load(T0 + 2);
+    expect(loaded?.recentQuakes[0]).toEqual(counter.export().recentQuakes[0]);
+    expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)).toMatchObject({
+      magnitudeValue,
+      depthValue,
+    });
+  });
+
+  it("upper-only numeric bounds を daily owner で canonical/semantic とも round-trip する", () => {
+    const file = filePath();
+    const magnitudeValue: SpecialValue<number> = {
+      raw: "7.0",
+      value: null,
+      condition: "7.0以下",
+      description: "M7.0以下",
+      presence: "range",
+      upperBound: 7,
+      rawUpperBound: "７．０",
+      diagnostics: ["unmappedSpecialValue"],
+    };
+    const depthValue: SpecialValue<number> = {
+      raw: "-999000",
+      value: null,
+      condition: "999km以下",
+      description: "深さ999km以下",
+      presence: "range",
+      upperBound: 999,
+      rawUpperBound: "９９９",
+      diagnostics: ["specialValueConflict"],
+    };
+    const counter = new DailyQuakeCounter(T0);
+    counter.recordRecentQuake(projectRecentQuake(event({
+      eventId: "Q-upper-only",
+      magnitude: "7.0",
+      magnitudeValue,
+      depth: "999km",
+      depthValue,
+    })), T0);
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+
+    const loaded = persistence.load(T0 + 2);
+    expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)).toMatchObject({
+      magnitudeValue,
+      depthValue,
+    });
+    expect(loaded?.recentQuakes[0]).toMatchObject({
+      magnitudeSemantic: {
+        presence: "range", lowerBound: null, upperBound: 7,
+        rawLowerBound: null, rawUpperBound: "７．０",
+      },
+      depthSemantic: {
+        presence: "range", lowerBound: null, upperBound: 999,
+        rawLowerBound: null, rawUpperBound: "９９９",
+      },
+    });
+  });
+
+  it("valid canonical があれば壊れた派生 semantic を再生成して EventID を救済する", () => {
+    const file = filePath();
+    const magnitudeValue: SpecialValue<number> = {
+      raw: "6.3", value: 6.3, condition: null, description: null, presence: "value",
+      diagnostics: ["specialValueConflict"],
+    };
+    const depthValue: SpecialValue<number> = {
+      raw: "-600000", value: null, condition: "600km以上", description: "深さ600km以上",
+      presence: "range", lowerBound: 600, rawLowerBound: "６００",
+      diagnostics: ["specialValueConflict"],
+    };
+    const counter = new DailyQuakeCounter(T0);
+    addQuake(counter, event({
+      eventId: "Q-canonical-rescue",
+      magnitude: "6.3",
+      magnitudeValue,
+      depth: "600km",
+      depthValue,
+    }));
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+    const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedTestFile;
+    persisted.state.recentQuakes[0]!.magnitudeSemantic!.rank = Number.POSITIVE_INFINITY;
+    persisted.state.recentQuakes[0]!.depthSemantic!.label = "解析保留";
+    fs.writeFileSync(file, JSON.stringify(persisted), "utf8");
+
+    const loaded = persistence.load(T0 + 2);
+    expect(loaded?.recentQuakes).toHaveLength(1);
+    expect(loaded?.recentQuakes[0]).toMatchObject({
+      eventId: "Q-canonical-rescue",
+      magnitudeSemantic: { presence: "value", value: 6.3, rank: { kind: "value", value: 6.3 } },
+      depthSemantic: { presence: "range", label: "600km以上", lowerBound: 600 },
+    });
+    expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)).toMatchObject({
+      magnitudeValue,
+      depthValue,
+    });
+  });
+
+  it("daily writer は canonical optional bounds の明示 null を省略形へ正規化する", () => {
+    const file = filePath();
+    const magnitudeValue: SpecialValue<number> = {
+      raw: "6.0", value: 6, condition: null, description: null, presence: "value",
+      lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+    };
+    const depthValue: SpecialValue<number> = {
+      raw: "-600000", value: null, condition: "600km以上", description: "深さ600km以上",
+      presence: "range", lowerBound: 600, upperBound: null,
+      rawLowerBound: "６００", rawUpperBound: null,
+    };
+    const counter = new DailyQuakeCounter(T0);
+    addQuake(counter, event({
+      eventId: "Q-null-bounds",
+      magnitude: "6.0",
+      magnitudeValue,
+      depth: "600km",
+      depthValue,
+    }));
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+
+    const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      state: { recentQuakes: Array<{ observation: {
+        magnitudeValue: Record<string, unknown>;
+        depthValue: Record<string, unknown>;
+      } }> };
+    };
+    const observation = persisted.state.recentQuakes[0]!.observation;
+    for (const key of ["lowerBound", "upperBound", "rawLowerBound", "rawUpperBound"]) {
+      expect(Object.hasOwn(observation.magnitudeValue, key)).toBe(false);
+    }
+    expect(Object.hasOwn(observation.depthValue, "upperBound")).toBe(false);
+    expect(Object.hasOwn(observation.depthValue, "rawUpperBound")).toBe(false);
+    expect(persistence.load(T0 + 2)?.recentQuakes).toHaveLength(1);
   });
 
   it("SpecialValue の presence/bounds/raw/condition/description を v2 で対称に保存する", () => {
@@ -298,12 +505,22 @@ describe("DailyQuakePersistence", () => {
   it("persists cancelled observation provenance and blocks post-restart structural-missing preservation", () => {
     const file = filePath();
     const source = new DailyQuakeCounter(T0);
+    const magnitudeValue: SpecialValue<number> = {
+      raw: "4.0", value: 4, condition: null, description: null, presence: "value",
+      diagnostics: ["specialValueConflict"],
+    };
+    const depthValue: SpecialValue<number> = {
+      raw: "-30000", value: 30, condition: null, description: null, presence: "value",
+      diagnostics: ["specialValueConflict"],
+    };
     source.recordRecentQuake(projectRecentQuake(event({
       type: "VXSE51",
       eventId: "Q1",
       maxInt: "4",
       maxIntRank: 4,
       maxIntValue: intensityValue("4"),
+      magnitudeValue,
+      depthValue,
     })), T0);
     source.recordRecentQuake(projectRecentQuake(event({
       type: "VXSE52",
@@ -330,6 +547,8 @@ describe("DailyQuakePersistence", () => {
         observationSourceType: "VXSE51",
         resolvedTrigger: "explicitCancellation",
         maxIntValue: { presence: "value", value: "4" },
+        magnitudeValue,
+        depthValue,
       });
 
     restored.recordRecentQuake(projectRecentQuake(event({
@@ -421,6 +640,12 @@ describe("DailyQuakePersistence", () => {
     }), "utf8");
     const loaded = new DailyQuakePersistence(file).load(T0 + 2);
     expect(loaded?.recentQuakes[0]).toMatchObject({ maxInt: "4", maxIntRank: 4 });
+    expect(loaded?.recentQuakes[0]).toMatchObject({
+      magnitude: "4.0",
+      magnitudeSemantic: { presence: "value", value: 4, rank: { kind: "value", value: 4 } },
+      depth: "30km",
+      depthSemantic: { presence: "value", value: 30 },
+    });
     expect(quakeObservationMetaOf(loaded!.recentQuakes[0]!)).toMatchObject({
       sourceType: null,
       observationSourceType: null,
@@ -529,6 +754,12 @@ describe("DailyQuakePersistence", () => {
     }],
     ["value に canonical bounds", (entry: PersistedTestRecent) => {
       entry.observation.maxIntValue.lowerBound = "4";
+    }],
+    ["Magnitude semantic の非 JSON-safe rank", (entry: PersistedTestRecent) => {
+      entry.magnitudeSemantic!.rank = Number.POSITIVE_INFINITY;
+    }],
+    ["Depth semantic の scalar と矛盾する label", (entry: PersistedTestRecent) => {
+      entry.depthSemantic!.label = "解析保留";
     }],
   ] as const)("破損 v2 entry (%s) だけを fail-closed にして別 EventID を salvage する", (_label, corrupt) => {
     const file = filePath();

@@ -17,7 +17,6 @@ import type { PersistedFloodEventState, PersistedFloodState } from "./flood-acti
 import type { PersistedSeenEntry } from "./revision-guard";
 import { compareRevision, type StandbyRevision } from "./standby-registry";
 import type {
-  ParsedEarthquakeHypocenter,
   ParsedTsunamiInfo,
   SpecialValue,
   SpecialValueDiagnostic,
@@ -67,6 +66,12 @@ import {
 } from "../messages/revision-family-registry";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { resolveTsunamiLevel } from "../../utils/tsunami-kind";
+import {
+  depthValueFromLegacyScalar,
+  magnitudeValueFromLegacyScalar,
+  normalizeNumericSpecialValueForPersistence,
+  parsePersistedNumericSpecialValue,
+} from "../magnitude-depth-persistence";
 import { Vpww56StateHolder, type PersistedVpww56StateV2 } from "../messages/vpww56-state";
 import type { PersistedVolcanoStateV2 } from "../messages/volcano-state";
 import {
@@ -1344,6 +1349,19 @@ function sanitizePersistedTsunamiActive(value: unknown): LegacyParsedTsunamiInfo
   if (Array.isArray(sanitized.observations)) {
     sanitized.observations = sanitized.observations.map(sanitizePersistedTsunamiObservation);
   }
+  if (isRecord(sanitized.earthquake)) {
+    const earthquake = sanitized.earthquake;
+    const magnitudeScalar = typeof earthquake.magnitude === "string" ? earthquake.magnitude : "";
+    const depthScalar = typeof earthquake.depth === "string" ? earthquake.depth : "";
+    earthquake.magnitudeValue = Object.hasOwn(earthquake, "magnitudeValue")
+      ? parsePersistedNumericSpecialValue(earthquake.magnitudeValue)!
+      : magnitudeValueFromLegacyScalar(earthquake.magnitude as string | null);
+    earthquake.depthValue = Object.hasOwn(earthquake, "depthValue")
+      ? parsePersistedNumericSpecialValue(earthquake.depthValue)!
+      : depthValueFromLegacyScalar(earthquake.depth as string | null);
+    earthquake.magnitude = magnitudeScalar;
+    earthquake.depth = depthScalar;
+  }
   return sanitized as unknown as LegacyParsedTsunamiInfoInput;
 }
 
@@ -1381,15 +1399,23 @@ function isPersistedTelegramMeta(value: unknown): value is TelegramMeta {
     && JSON.stringify(rebuilt.infoType) === JSON.stringify(value.infoType);
 }
 
-function isPersistedTsunamiEarthquake(value: unknown): value is ParsedEarthquakeHypocenter {
+function isPersistedTsunamiEarthquake(value: unknown): boolean {
   if (!isRecord(value)) return false;
   if (
     typeof value.originTime !== "string"
     || typeof value.hypocenterName !== "string"
     || typeof value.latitude !== "string"
     || typeof value.longitude !== "string"
-    || typeof value.depth !== "string"
-    || typeof value.magnitude !== "string"
+    || !Object.hasOwn(value, "depth")
+    || value.depth !== null && typeof value.depth !== "string"
+    || !Object.hasOwn(value, "magnitude")
+    || value.magnitude !== null && typeof value.magnitude !== "string"
+  ) return false;
+  if (
+    (Object.hasOwn(value, "magnitudeValue")
+      && parsePersistedNumericSpecialValue(value.magnitudeValue) == null)
+    || (Object.hasOwn(value, "depthValue")
+      && parsePersistedNumericSpecialValue(value.depthValue) == null)
   ) return false;
   return value.magnitudeInfo == null || (
     isRecord(value.magnitudeInfo)
@@ -1975,6 +2001,19 @@ function projectPersistedTsunamiActive(
   active: ParsedTsunamiInfo,
 ): PersistedTsunamiActiveV2 {
   const projected = structuredClone(active) as PersistedTsunamiActiveV2;
+  if (active.earthquake != null) {
+    projected.earthquake = {
+      ...structuredClone(active.earthquake),
+      magnitudeValue: normalizeNumericSpecialValueForPersistence(
+        active.earthquake.magnitudeValue
+          ?? magnitudeValueFromLegacyScalar(active.earthquake.magnitude),
+      ),
+      depthValue: normalizeNumericSpecialValueForPersistence(
+        active.earthquake.depthValue
+          ?? depthValueFromLegacyScalar(active.earthquake.depth),
+      ),
+    };
+  }
   if (active.observations == null) {
     delete projected.observations;
   } else {
@@ -1995,15 +2034,24 @@ function sanitizeTsunamiFoundation(
           structuredClone(sanitizePersistedTsunamiActive(raw)),
         )
       : undefined;
+  const rejectedActiveSubjects = new Set<string>();
+  const rememberRejectedActiveSubject = (raw: unknown): void => {
+    const subject = persistedTsunamiSubjectFromUnknown(raw);
+    if (subject != null && !isPersistedTsunamiCancellationUnknown(raw)) {
+      rejectedActiveSubjects.add(subject);
+    }
+  };
   const hasKeyedSchema = Object.hasOwn(value, "keyedActive");
   let scalarActive: ParsedTsunamiInfo | null = null;
   if (!hasKeyedSchema && value.active != null) {
     scalarActive = parseActive(value.active) ?? null;
     if (scalarActive == null) {
+      rememberRejectedActiveSubject(value.active);
       log.warn("[standby-persistence] tsunami の壊れた旧 scalar active を破棄");
     }
   } else if (hasKeyedSchema && value.active != null && parseActive(value.active) == null) {
     // keyed schema が権威入力なので、rollback projection の破損は domain を巻き込まない。
+    rememberRejectedActiveSubject(value.active);
     log.warn("[standby-persistence] tsunami keyed schema と併存する壊れた scalar active を無視");
   }
 
@@ -2013,14 +2061,13 @@ function sanitizeTsunamiFoundation(
   if (hasKeyedSchema && !Array.isArray(value.keyedActive)) {
     log.warn("[standby-persistence] tsunami keyedActive 配列の破損を局所破棄");
   }
-  const rejectedKeyedSubjects = new Set<string>();
   const parsedKeyedCandidates = rawKeyedCandidates.flatMap((raw) => {
     const active = parseActive(raw);
     if (active == null || !isKeyedTsunamiActive(active)) {
       log.warn("[standby-persistence] tsunami の壊れた keyed EventID state を局所破棄");
       const subject = persistedTsunamiSubjectFromUnknown(raw);
       if (subject != null && !isPersistedTsunamiCancellationUnknown(raw)) {
-        rejectedKeyedSubjects.add(subject);
+        rejectedActiveSubjects.add(subject);
       }
       return [];
     }
@@ -2032,6 +2079,7 @@ function sanitizeTsunamiFoundation(
 
   const schemaLegacy = value.legacyActive == null ? null : parseActive(value.legacyActive) ?? null;
   if (value.legacyActive != null && schemaLegacy == null) {
+    rememberRejectedActiveSubject(value.legacyActive);
     log.warn("[standby-persistence] tsunami の壊れた legacy active を局所破棄");
   }
   const candidateLegacy = schemaLegacy
@@ -2099,7 +2147,7 @@ function sanitizeTsunamiFoundation(
     vtse41Candidates,
   );
   const matchedKeyedActive = matchedSelection.active;
-  for (const subject of matchedSelection.rejectedSubjects) rejectedKeyedSubjects.add(subject);
+  for (const subject of matchedSelection.rejectedSubjects) rejectedActiveSubjects.add(subject);
   if (matchedKeyedActive.length !== parsedKeyedCandidates.length) {
     log.warn("[standby-persistence] tsunami の不整合または重複 keyed EventID state を局所破棄");
   }
@@ -2109,7 +2157,7 @@ function sanitizeTsunamiFoundation(
   }));
   const salvageableVtse41Candidates = vtse41Candidates.filter((entry) =>
     entry.cancelled
-    || !rejectedKeyedSubjects.has(entry.stateSubjectKey)
+    || !rejectedActiveSubjects.has(entry.stateSubjectKey)
     || keyedSubjectsBeforeCompaction.has(entry.stateSubjectKey));
   // 正規 keyed state が同じ EventID を持つ場合、legacy 表示を先に退場させる。
   const legacyActive = displayableLegacy != null

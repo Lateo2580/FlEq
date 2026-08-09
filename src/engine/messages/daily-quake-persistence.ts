@@ -18,6 +18,18 @@ import {
   withQuakeObservationMeta,
   type QuakeObservationMeta,
 } from "../display/quake-observation-merge";
+import {
+  depthSemanticFromLegacyScalar,
+  magnitudeSemanticFromLegacyScalar,
+  normalizeNumericSpecialValueForPersistence,
+  parsePersistedNumericSpecialValue,
+  parsePersistedDepthSemantic,
+  parsePersistedMagnitudeSemantic,
+} from "../magnitude-depth-persistence";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "../display/magnitude-depth-semantic";
 import type { DailyQuakePersistedV1 } from "./daily-quake-counter";
 
 const PERSIST_SCHEMA_VERSION = 2;
@@ -107,6 +119,10 @@ function serializeState(state: DailyQuakePersistedV1): unknown {
     ...state,
     recentQuakes: state.recentQuakes.map((quake) => ({
       ...quake,
+      magnitudeSemantic: quake.magnitudeSemantic
+        ?? magnitudeSemanticFromLegacyScalar(quake.magnitude),
+      depthSemantic: quake.depthSemantic
+        ?? depthSemanticFromLegacyScalar(quake.depth),
       intensityGroups: quake.intensityGroups?.map((group) => ({
         ...group,
         ...(group.intensitySemantic == null
@@ -114,8 +130,22 @@ function serializeState(state: DailyQuakePersistedV1): unknown {
           : { intensitySemantic: { ...group.intensitySemantic } }),
         areas: [...group.areas],
       })),
-      observation: quakeObservationMetaOf(quake) ?? legacyObservationMeta(quake),
+      observation: serializeObservationMeta(
+        quakeObservationMetaOf(quake) ?? legacyObservationMeta(quake),
+      ),
     })),
+  };
+}
+
+function serializeObservationMeta(meta: QuakeObservationMeta): QuakeObservationMeta {
+  return {
+    ...meta,
+    ...(meta.magnitudeValue == null
+      ? {}
+      : { magnitudeValue: normalizeNumericSpecialValueForPersistence(meta.magnitudeValue) }),
+    ...(meta.depthValue == null
+      ? {}
+      : { depthValue: normalizeNumericSpecialValueForPersistence(meta.depthValue) }),
   };
 }
 
@@ -175,6 +205,14 @@ function parseRecentQuake(
       ? null
       : parseIntensitySemantic(value.maxIntSemantic);
   if (hasMaxIntSemantic && persistedMaxIntSemantic == null) return null;
+  const hasMagnitudeSemantic = Object.hasOwn(value, "magnitudeSemantic");
+  const persistedMagnitudeSemantic = hasMagnitudeSemantic
+    ? parsePersistedMagnitudeSemantic(value.magnitudeSemantic)
+    : magnitudeSemanticFromLegacyScalar(value.magnitude as string | null);
+  const hasDepthSemantic = Object.hasOwn(value, "depthSemantic");
+  const persistedDepthSemantic = hasDepthSemantic
+    ? parsePersistedDepthSemantic(value.depthSemantic)
+    : depthSemanticFromLegacyScalar(value.depth as string | null);
   let quake: DisplayRecentQuakeV1 = {
     eventId: value.eventId as string | null,
     reportDateTime: value.reportDateTime,
@@ -198,6 +236,14 @@ function parseRecentQuake(
     quake = { ...quake, maxInt: null, maxIntRank: null };
   }
   if (observation == null || !observationMatchesScalar(quake, observation)) return null;
+  const magnitudeSemantic = observation.magnitudeValue == null
+    ? persistedMagnitudeSemantic
+    : projectMagnitudeSemantic(observation.magnitudeValue);
+  const depthSemantic = observation.depthValue == null
+    ? persistedDepthSemantic
+    : projectDepthSemantic(observation.depthValue);
+  if (magnitudeSemantic == null || depthSemantic == null) return null;
+  quake = { ...quake, magnitudeSemantic, depthSemantic };
   const projectedSemantic = projectIntensitySemantic(observation.maxIntValue, quake.maxInt);
   if (projectedSemantic == null) return null;
   const expectedMaxIntSemantic = projectedSemantic.presence === "value"
@@ -283,6 +329,17 @@ function parseObservationMeta(value: unknown): QuakeObservationMeta | null {
   ) return null;
   const maxIntValue = parseIntensitySpecialValue(value.maxIntValue);
   if (maxIntValue == null) return null;
+  const hasMagnitudeValue = Object.hasOwn(value, "magnitudeValue");
+  const magnitudeValue = hasMagnitudeValue
+    ? parsePersistedNumericSpecialValue(value.magnitudeValue)
+    : undefined;
+  const hasDepthValue = Object.hasOwn(value, "depthValue");
+  const depthValue = hasDepthValue
+    ? parsePersistedNumericSpecialValue(value.depthValue)
+    : undefined;
+  if ((hasMagnitudeValue && magnitudeValue == null) || (hasDepthValue && depthValue == null)) {
+    return null;
+  }
   return {
     sourceType: value.sourceType,
     observationSourceType: value.observationSourceType,
@@ -291,6 +348,8 @@ function parseObservationMeta(value: unknown): QuakeObservationMeta | null {
     cancellationPolicy: value.cancellationPolicy,
     intensityStructureMissing: value.intensityStructureMissing,
     maxIntValue,
+    ...(magnitudeValue == null ? {} : { magnitudeValue }),
+    ...(depthValue == null ? {} : { depthValue }),
   };
 }
 

@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../../../src/engine/messages/tsunami-state";
+import {
+  projectDisplayEvent,
+  projectQuakeMapCommand,
+  projectRecentQuake,
+} from "../../../src/engine/display/project-event";
+import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-counter";
+import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { JmaIntensity, SpecialValue } from "../../../src/types";
 import type {
   DisplayEventDtoV1,
   DisplayIntensitySemanticV1,
@@ -54,6 +62,52 @@ function quakeDto(over: Partial<{ eventId: string; maxInt: string; maxIntRank: n
       tsunamiWarning: false, intensityGroups: [], reportDateTime: o.reportDateTime,
     },
     tickerDetail: null,
+  };
+}
+
+function quakePresentation(
+  type: "VXSE51" | "VXSE52" | "VXSE61",
+  reportDateTime: string,
+  maxIntValue: SpecialValue<JmaIntensity>,
+  magnitudeValue: SpecialValue<number>,
+  depthValue: SpecialValue<number>,
+): PresentationEvent {
+  return {
+    id: `Q-semantic-${type}`,
+    classification: "telegram.earthquake",
+    domain: "earthquake",
+    type,
+    infoType: "発表",
+    title: "地震情報",
+    headline: null,
+    reportDateTime,
+    publishingOffice: "気象庁",
+    isTest: false,
+    frameLevel: "warning",
+    isCancellation: false,
+    eventId: "Q-semantic",
+    originTime: "2026-07-06T20:59:00+09:00",
+    hypocenterName: type === "VXSE51" ? "初期震源" : "更新震源",
+    magnitude: type === "VXSE51" ? "5.0" : "6.2",
+    magnitudeValue,
+    depth: type === "VXSE51" ? "10km" : "600km",
+    depthValue,
+    maxInt: maxIntValue.value === "5+" ? "5強" : maxIntValue.value,
+    maxIntValue,
+    maxIntRank: maxIntValue.value == null ? null : 6,
+    tsunamiWarning: false,
+    areaNames: maxIntValue.presence === "value" ? ["地域A"] : [],
+    forecastAreaNames: [],
+    municipalityNames: [],
+    observationNames: [],
+    areaCount: maxIntValue.presence === "value" ? 1 : 0,
+    forecastAreaCount: 0,
+    municipalityCount: 0,
+    observationCount: 0,
+    areaItems: maxIntValue.presence === "value"
+      ? [{ name: "地域A", code: "001", maxInt: "5強", maxIntValue }]
+      : [],
+    raw: {} as PresentationEvent["raw"],
   };
 }
 
@@ -328,6 +382,124 @@ describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
     expect(snap.recentQuakes.length).toBe(1);
     expect(snap.recentQuakes[0].maxInt).toBe("6弱");
   });
+
+  it("VXSE51→52 構造 missing の震度だけを保持し全 quake state の canonical 諸元を後報へ揃える", () => {
+    const store = new DisplayStateStore();
+    const observedIntensity: SpecialValue<JmaIntensity> = {
+      raw: "5+", value: "5+", condition: null, description: null, presence: "value",
+    };
+    const missingIntensity: SpecialValue<JmaIntensity> = {
+      raw: null, value: null, condition: null, description: null, presence: "missing",
+    };
+    const first = quakePresentation(
+      "VXSE51",
+      "2026-07-06T21:00:00+09:00",
+      observedIntensity,
+      { raw: "5.0", value: 5, condition: null, description: null, presence: "value" },
+      { raw: "-10000", value: 10, condition: null, description: null, presence: "value" },
+    );
+    const followup = quakePresentation(
+      "VXSE52",
+      "2026-07-06T21:01:00+09:00",
+      missingIntensity,
+      { raw: "6.2", value: 6.2, condition: null, description: null, presence: "value" },
+      {
+        raw: "-600000", value: null, condition: "600km以上", description: "深さ600km以上",
+        presence: "range", lowerBound: 600,
+      },
+    );
+    for (const event of [first, followup]) {
+      const nowMs = Date.parse(event.reportDateTime);
+      const mapCommand = projectQuakeMapCommand(event, nowMs);
+      expect(mapCommand).not.toBeNull();
+      expect(store.applyEvent(projectDisplayEvent(event, "test", mapCommand), nowMs, null, mapCommand))
+        .toBe(true);
+    }
+
+    const snap = store.snapshot(1, Date.parse(followup.reportDateTime));
+    for (const quake of [
+      snap.recentQuakes[0],
+      snap.latestQuake,
+      snap.mapLayers?.quake?.events[0],
+      snap.largeQuakes[0],
+    ]) {
+      expect(quake).toMatchObject({
+        hypocenterName: "更新震源",
+        magnitude: "6.2",
+        magnitudeSemantic: {
+          presence: "value", value: 6.2, rank: { kind: "value", value: 6.2 },
+        },
+        depth: "600km",
+        depthSemantic: { presence: "range", lowerBound: 600, upperBound: null },
+      });
+    }
+    expect(snap.recentQuakes[0]).toMatchObject({ maxInt: "5強", maxIntRank: 6 });
+    expect(snap.latestQuake).toMatchObject({ maxInt: "5強", maxIntRank: 6 });
+  });
+
+  it.each(["VXSE52", "VXSE61"] as const)(
+    "復元済み daily provider＋fresh store の %s 構造 missing も latest/largeQuake を recent と同じ規則で merge する",
+    (type) => {
+      const observedIntensity: SpecialValue<JmaIntensity> = {
+        raw: "5+", value: "5+", condition: null, description: null, presence: "value",
+      };
+      const missingIntensity: SpecialValue<JmaIntensity> = {
+        raw: null, value: null, condition: null, description: null, presence: "missing",
+      };
+      const first = quakePresentation(
+        "VXSE51",
+        "2026-07-06T21:00:00+09:00",
+        observedIntensity,
+        { raw: "5.0", value: 5, condition: null, description: null, presence: "value" },
+        { raw: "-10000", value: 10, condition: null, description: null, presence: "value" },
+      );
+      const persisted = new DailyQuakeCounter(Date.parse(first.reportDateTime));
+      persisted.recordRecentQuake(projectRecentQuake(first), Date.parse(first.reportDateTime));
+      const restored = new DailyQuakeCounter(Date.parse(first.reportDateTime));
+      expect(restored.restore(persisted.export(), Date.parse(first.reportDateTime))).toBe(true);
+
+      const store = new DisplayStateStore(
+        undefined,
+        undefined,
+        undefined,
+        () => restored.getRecentQuakes(Date.parse("2026-07-06T21:01:00+09:00")),
+      );
+      expect(store.snapshot(0, Date.parse(first.reportDateTime)).latestQuake).toBeNull();
+      const followup = quakePresentation(
+        type,
+        "2026-07-06T21:01:00+09:00",
+        missingIntensity,
+        { raw: "6.2", value: 6.2, condition: null, description: null, presence: "value" },
+        {
+          raw: "-600000", value: null, condition: "600km以上", description: "深さ600km以上",
+          presence: "range", lowerBound: 600,
+        },
+      );
+      const followupNow = Date.parse(followup.reportDateTime);
+      restored.recordRecentQuake(projectRecentQuake(followup), followupNow);
+      const mapCommand = projectQuakeMapCommand(followup, followupNow);
+      expect(store.applyEvent(
+        projectDisplayEvent(followup, "test", mapCommand),
+        followupNow,
+        null,
+        mapCommand,
+      )).toBe(true);
+
+      const snap = store.snapshot(1, followupNow);
+      for (const quake of [snap.recentQuakes[0], snap.latestQuake, snap.largeQuakes[0]]) {
+        expect(quake).toMatchObject({
+          eventId: "Q-semantic",
+          maxInt: "5強",
+          maxIntRank: 6,
+          hypocenterName: "更新震源",
+          magnitude: "6.2",
+          magnitudeSemantic: { presence: "value", value: 6.2 },
+          depth: "600km",
+          depthSemantic: { presence: "range", lowerBound: 600, upperBound: null },
+        });
+      }
+    },
+  );
 
   it("LARGE_QUAKE_HOLD_MIN 経過で sweep が largeQuakes から除去する (recentQuakes には残る)", () => {
     const store = new DisplayStateStore();

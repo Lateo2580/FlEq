@@ -426,6 +426,8 @@ function quakeObservationMeta(event: PresentationEvent) {
     cancellationPolicy: event.foundationCancellationPolicy ?? null,
     intensityStructureMissing,
     maxIntValue,
+    ...(event.magnitudeValue == null ? {} : { magnitudeValue: event.magnitudeValue }),
+    ...(event.depthValue == null ? {} : { depthValue: event.depthValue }),
   };
 }
 

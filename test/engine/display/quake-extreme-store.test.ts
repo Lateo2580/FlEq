@@ -6,6 +6,13 @@ import {
   attachQuakeObservationBridge,
   withQuakeObservationMeta,
 } from "../../../src/engine/display/quake-observation-merge";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "../../../src/engine/display/magnitude-depth-semantic";
+import type { SpecialValue } from "../../../src/types";
+import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import { projectDisplayEvent } from "../../../src/engine/display/project-event";
 
 const T0 = Date.parse("2026-07-29T00:00:00Z");
 const originTime = new Date(T0).toISOString();
@@ -17,6 +24,11 @@ function quake(rank: number, over: {
   report?: string;
   serial?: string | null;
   type?: string;
+  hypocenterName?: string | null;
+  magnitude?: string | null;
+  magnitudeValue?: SpecialValue<number>;
+  depth?: string | null;
+  depthValue?: SpecialValue<number>;
 } = {}) {
   const reportDateTime = over.report ?? originTime;
   const dto = displayEventDto({
@@ -28,7 +40,14 @@ function quake(rank: number, over: {
     serial: over.serial ?? "1",
     latestQuake: {
       eventId: "Q1", headline: null, originTime: over.origin === undefined ? originTime : over.origin,
-      hypocenterName: "沖", depth: null, magnitude: null, maxInt: rank === 9 ? "7" : "6強",
+      hypocenterName: over.hypocenterName === undefined ? "沖" : over.hypocenterName,
+      depth: over.depth === undefined ? null : over.depth,
+      ...(over.depthValue == null ? {} : { depthSemantic: projectDepthSemantic(over.depthValue) }),
+      magnitude: over.magnitude === undefined ? null : over.magnitude,
+      ...(over.magnitudeValue == null
+        ? {}
+        : { magnitudeSemantic: projectMagnitudeSemantic(over.magnitudeValue) }),
+      maxInt: rank === 9 ? "7" : "6強",
       maxIntRank: rank, tsunamiWarning: false, intensityGroups: [], reportDateTime,
     },
   });
@@ -95,6 +114,110 @@ describe("QuakeExtremeStore", () => {
     const expired = new QuakeExtremeStore();
     expired.restore(source.export(), T0 + QUAKE_EXTREME_HOLD_MS);
     expect(expired.hasActive(T0 + QUAKE_EXTREME_HOLD_MS)).toBe(false);
+  });
+
+  it("同一 source・同一 originTime の震度7続報も更新された諸元へ書き換える", () => {
+    const store = new QuakeExtremeStore();
+    expect(store.applyDto(quake(9, {
+      type: "VXSE53",
+      serial: "1",
+      hypocenterName: "初期震源",
+      magnitude: "5.0",
+      magnitudeValue: {
+        raw: "5.0", value: 5, condition: null, description: null, presence: "value",
+      },
+      depth: "10km",
+      depthValue: {
+        raw: "-10000", value: 10, condition: null, description: null, presence: "value",
+      },
+    }), T0)).toBe(true);
+    expect(store.applyDto(quake(9, {
+      type: "VXSE53",
+      report: new Date(T0 + 1_000).toISOString(),
+      serial: "2",
+      hypocenterName: "更新震源",
+      magnitude: "6.4",
+      magnitudeValue: {
+        raw: "6.4", value: 6.4, condition: null, description: null, presence: "value",
+      },
+      depth: "600km",
+      depthValue: {
+        raw: "-600000", value: null, condition: "600km以上", description: "深さ600km以上",
+        presence: "range", lowerBound: 600,
+      },
+    }), T0 + 1_000)).toBe(true);
+
+    expect(store.export().records[0]).toMatchObject({
+      originTime,
+      reportDateTime: new Date(T0 + 1_000).toISOString(),
+      hypocenterName: "更新震源",
+      magnitude: "6.4",
+      magnitudeSemantic: { presence: "value", value: 6.4 },
+      depth: "600km",
+      depthSemantic: { presence: "range", lowerBound: 600, upperBound: null },
+      sourceTypes: ["VXSE53"],
+      observationSourceType: "VXSE53",
+    });
+  });
+
+  it("monitor→DTO の訂正二重適用でも bridge canonical の diagnostics を失わない", () => {
+    const magnitudeValue: SpecialValue<number> = {
+      raw: "7.2", value: 7.2, condition: "推定値", description: "M7.2",
+      presence: "value", diagnostics: ["specialValueConflict"],
+    };
+    const depthValue: SpecialValue<number> = {
+      raw: "-600000", value: null, condition: "600km以上", description: "深さ600km以上",
+      presence: "range", lowerBound: 600, rawLowerBound: "６００",
+      diagnostics: ["specialValueConflict"],
+    };
+    const event = {
+      id: "Q-double-apply",
+      classification: "telegram.earthquake",
+      domain: "earthquake",
+      type: "VXSE53",
+      infoType: "訂正",
+      title: "震源・震度情報",
+      headline: null,
+      reportDateTime: new Date(T0).toISOString(),
+      serial: "1",
+      publishingOffice: "気象庁",
+      isTest: false,
+      frameLevel: "warning",
+      isCancellation: false,
+      eventId: "Q-double-apply",
+      originTime,
+      hypocenterName: "日本海溝",
+      magnitude: "7.2",
+      magnitudeValue,
+      depth: "600km",
+      depthValue,
+      maxInt: "7",
+      maxIntValue: {
+        raw: "7", value: "7", condition: null, description: null, presence: "value",
+      },
+      maxIntRank: 9,
+      tsunamiWarning: false,
+      areaItems: [{
+        name: "地域A",
+        code: "001",
+        maxInt: "7",
+        maxIntValue: {
+          raw: "7", value: "7", condition: null, description: null, presence: "value",
+        },
+      }],
+      raw: {} as PresentationEvent["raw"],
+    } as PresentationEvent;
+    const store = new QuakeExtremeStore();
+    expect(store.applyPresentationEvent(event, T0)).toBe(true);
+    store.applyDto(projectDisplayEvent(event, "test"), T0);
+
+    expect(store.export().records[0]).toMatchObject({
+      magnitudeValue: { diagnostics: ["specialValueConflict"] },
+      depthValue: {
+        presence: "range", lowerBound: 600, rawLowerBound: "６００",
+        diagnostics: ["specialValueConflict"],
+      },
+    });
   });
 
   it("7→6強の後に遅延した古い7続報が来ても再点灯しない", () => {
@@ -276,7 +399,13 @@ describe("QuakeExtremeStore", () => {
       originTime: correctedOriginTime,
       hypocenterName: "updated hypocenter",
       depth: "20km",
+      depthSemantic: projectDepthSemantic({
+        raw: "-20000", value: 20, condition: null, description: null, presence: "value",
+      }),
       magnitude: "5.8",
+      magnitudeSemantic: projectMagnitudeSemantic({
+        raw: "5.8", value: 5.8, condition: null, description: null, presence: "value",
+      }),
       maxInt: null,
       maxIntRank: null,
       tsunamiWarning: false,
@@ -311,7 +440,11 @@ describe("QuakeExtremeStore", () => {
       reportDateTime,
       hypocenterName: "updated hypocenter",
       magnitude: "5.8",
+      magnitudeSemantic: {
+        presence: "value", value: 5.8, rank: { kind: "value", value: 5.8 },
+      },
       depth: "20km",
+      depthSemantic: { presence: "value", value: 20 },
       sourceTypes: ["VXSE51", "VXSE52"],
       observationSourceType: "VXSE51",
     });

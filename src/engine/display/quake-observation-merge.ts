@@ -22,6 +22,10 @@ export interface QuakeObservationMeta {
   /** 全体 MaxInt と Area/City の震度要素がすべて構造的 missing の場合だけ true。 */
   intensityStructureMissing: boolean;
   maxIntValue: SpecialValue<JmaIntensity>;
+  /** daily persistence だけが保持する Magnitude canonical。wire には列挙しない。 */
+  magnitudeValue?: SpecialValue<number>;
+  /** daily persistence だけが保持する Depth canonical。wire には列挙しない。 */
+  depthValue?: SpecialValue<number>;
 }
 
 export const QUAKE_OBSERVATION_META: unique symbol = Symbol("quakeObservationMeta");
@@ -178,6 +182,8 @@ function terminalCancelledRecentObservation(
     observationSourceType: previousMeta.observationSourceType,
     intensityStructureMissing: false,
     maxIntValue: previousMeta.maxIntValue,
+    magnitudeValue: previousMeta.magnitudeValue,
+    depthValue: previousMeta.depthValue,
   });
 }
 

@@ -3,6 +3,21 @@ import path from "node:path";
 import * as log from "../../logger";
 import type { QuakeExtremePersistedV1, QuakeExtremeRecordV1 } from "./quake-extreme-store";
 import type { PersistedSeenEntry } from "./revision-guard";
+import {
+  depthValueFromLegacyScalar,
+  depthSemanticFromLegacyScalar,
+  magnitudeValueFromLegacyScalar,
+  magnitudeSemanticFromLegacyScalar,
+  normalizeNumericSpecialValueForPersistence,
+  numericSpecialValueFromDisplaySemantic,
+  parsePersistedDepthSemantic,
+  parsePersistedMagnitudeSemantic,
+  parsePersistedNumericSpecialValue,
+} from "../magnitude-depth-persistence";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "./magnitude-depth-semantic";
 
 const PERSIST_SCHEMA_VERSION = 1;
 const SAVE_DEBOUNCE_MS = 3000;
@@ -31,7 +46,11 @@ export class QuakeExtremePersistence {
         const reportDateTime = record.reportDateTime;
         const hypocenterName = record.hypocenterName;
         const magnitude = record.magnitude;
+        const hasMagnitudeSemantic = Object.hasOwn(record, "magnitudeSemantic");
+        const hasMagnitudeValue = Object.hasOwn(record, "magnitudeValue");
         const depth = record.depth;
+        const hasDepthSemantic = Object.hasOwn(record, "depthSemantic");
+        const hasDepthValue = Object.hasOwn(record, "depthValue");
         const sourceTypes = nonEmptyStrings(record.sourceTypes);
         const observationSourceType = record.observationSourceType;
         if (typeof groupKey !== "string" || groupKey === "" || typeof originTime !== "string" ||
@@ -44,6 +63,40 @@ export class QuakeExtremePersistence {
             observationSourceType != null &&
               (typeof observationSourceType !== "string" || observationSourceType === "" ||
                 !sourceTypes.includes(observationSourceType))) return [];
+        const persistedMagnitudeSemantic = hasMagnitudeSemantic
+          ? parsePersistedMagnitudeSemantic(record.magnitudeSemantic)
+          : undefined;
+        const persistedDepthSemantic = hasDepthSemantic
+          ? parsePersistedDepthSemantic(record.depthSemantic)
+          : undefined;
+        const magnitudeValue = hasMagnitudeValue
+          ? parsePersistedNumericSpecialValue(record.magnitudeValue)
+          : persistedMagnitudeSemantic != null
+            ? numericSpecialValueFromDisplaySemantic(persistedMagnitudeSemantic)
+            : magnitude === undefined
+              ? undefined
+              : magnitudeValueFromLegacyScalar(magnitude);
+        const depthValue = hasDepthValue
+          ? parsePersistedNumericSpecialValue(record.depthValue)
+          : persistedDepthSemantic != null
+            ? numericSpecialValueFromDisplaySemantic(persistedDepthSemantic)
+            : depth === undefined
+              ? undefined
+              : depthValueFromLegacyScalar(depth);
+        if (
+          (magnitudeValue == null && hasMagnitudeValue)
+          || (depthValue == null && hasDepthValue)
+          || (persistedMagnitudeSemantic == null && hasMagnitudeSemantic && !hasMagnitudeValue)
+          || (persistedDepthSemantic == null && hasDepthSemantic && !hasDepthValue)
+        ) {
+          return [];
+        }
+        const magnitudeSemantic = magnitudeValue == null
+          ? persistedMagnitudeSemantic
+          : projectMagnitudeSemantic(magnitudeValue);
+        const depthSemantic = depthValue == null
+          ? persistedDepthSemantic
+          : projectDepthSemantic(depthValue);
         const originMs = Date.parse(originTime);
         if (!Number.isFinite(originMs) || originMs > nowMs) return [];
         return [{
@@ -52,7 +105,11 @@ export class QuakeExtremePersistence {
           ...(reportDateTime === undefined ? {} : { reportDateTime }),
           ...(hypocenterName === undefined ? {} : { hypocenterName }),
           ...(magnitude === undefined ? {} : { magnitude }),
+          ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
+          ...(magnitudeValue == null ? {} : { magnitudeValue }),
           ...(depth === undefined ? {} : { depth }),
+          ...(depthSemantic == null ? {} : { depthSemantic }),
+          ...(depthValue == null ? {} : { depthValue }),
           sourceTypes: [...new Set(sourceTypes)],
           ...(observationSourceType == null ? {} : { observationSourceType }),
         }];
@@ -98,7 +155,39 @@ export class QuakeExtremePersistence {
     const data: PersistedQuakeExtremeV1 = {
       version: PERSIST_SCHEMA_VERSION,
       savedAt: new Date(nowMs).toISOString(),
-      records: state.records,
+      records: state.records.map((record) => {
+        const magnitudeValue = record.magnitudeValue
+          ?? (record.magnitudeSemantic == null
+            ? record.magnitude === undefined ? undefined : magnitudeValueFromLegacyScalar(record.magnitude)
+            : numericSpecialValueFromDisplaySemantic(record.magnitudeSemantic) ?? undefined);
+        const depthValue = record.depthValue
+          ?? (record.depthSemantic == null
+            ? record.depth === undefined ? undefined : depthValueFromLegacyScalar(record.depth)
+            : numericSpecialValueFromDisplaySemantic(record.depthSemantic) ?? undefined);
+        const magnitudeSemantic = magnitudeValue == null
+          ? record.magnitudeSemantic
+            ?? (record.magnitude === undefined ? undefined : magnitudeSemanticFromLegacyScalar(record.magnitude))
+          : projectMagnitudeSemantic(magnitudeValue);
+        const depthSemantic = depthValue == null
+          ? record.depthSemantic
+            ?? (record.depth === undefined ? undefined : depthSemanticFromLegacyScalar(record.depth))
+          : projectDepthSemantic(depthValue);
+        return {
+          ...record,
+          ...(magnitudeSemantic == null
+            ? {}
+            : { magnitudeSemantic: { ...magnitudeSemantic } }),
+          ...(magnitudeValue == null
+            ? {}
+            : { magnitudeValue: normalizeNumericSpecialValueForPersistence(magnitudeValue) }),
+          ...(depthSemantic == null
+            ? {}
+            : { depthSemantic: { ...depthSemantic } }),
+          ...(depthValue == null
+            ? {}
+            : { depthValue: normalizeNumericSpecialValueForPersistence(depthValue) }),
+        };
+      }),
       seen: state.seen ?? [],
     };
     const dir = path.dirname(this.persistPath);

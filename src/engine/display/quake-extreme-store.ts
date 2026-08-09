@@ -1,10 +1,24 @@
 import { performance } from "node:perf_hooks";
 import { intensityToRank } from "../../utils/intensity";
-import type { SpecialValuePresence } from "../../types";
+import type { SpecialValue, SpecialValuePresence } from "../../types";
 import type { PresentationEvent } from "../presentation/types";
 import { resolveIntensitySafetyRank } from "../presentation/level-helpers";
 import { resolveQuakeIntensityProjection } from "./project-event";
-import type { DisplayEventDtoV1 } from "./types";
+import type {
+  DisplayDepthSemanticV1,
+  DisplayEventDtoV1,
+  DisplayMagnitudeSemanticV1,
+} from "./types";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "./magnitude-depth-semantic";
+import {
+  numericSpecialValueFromDisplaySemantic,
+  parsePersistedDepthSemantic,
+  parsePersistedMagnitudeSemantic,
+  parsePersistedNumericSpecialValue,
+} from "../magnitude-depth-persistence";
 import { RevisionGuard, type PersistedSeenEntry } from "./revision-guard";
 import { compareRevision, revisionOf } from "./standby-registry";
 import {
@@ -25,7 +39,11 @@ export interface QuakeExtremeRecordV1 {
   reportDateTime?: string;
   hypocenterName?: string | null;
   magnitude?: string | null;
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
+  magnitudeValue?: SpecialValue<number>;
   depth?: string | null;
+  depthSemantic?: DisplayDepthSemanticV1;
+  depthValue?: SpecialValue<number>;
   /** この EventID を震度 7 と報じている電文種別。revision 系列と同じ粒度。 */
   sourceTypes: string[];
   /** 新規保存では常に保持。旧 v1 は単一 sourceTypes の場合だけ安全に推定する。 */
@@ -55,7 +73,11 @@ type QuakeExtremeInput = {
   originTime: string | null;
   hypocenterName: string | null;
   magnitude: string | null;
+  magnitudeSemantic: DisplayMagnitudeSemanticV1 | undefined;
+  magnitudeValue: SpecialValue<number> | undefined;
   depth: string | null;
+  depthSemantic: DisplayDepthSemanticV1 | undefined;
+  depthValue: SpecialValue<number> | undefined;
   reportDateTime: string;
   serial: string | null;
   type: string;
@@ -108,7 +130,11 @@ export class QuakeExtremeStore {
       originTime: event.originTime ?? null,
       hypocenterName: event.hypocenterName ?? null,
       magnitude: event.magnitude ?? null,
+      magnitudeSemantic: projectMagnitudeSemantic(event.magnitudeValue),
+      magnitudeValue: event.magnitudeValue,
       depth: event.depth ?? null,
+      depthSemantic: projectDepthSemantic(event.depthValue),
+      depthValue: event.depthValue,
       reportDateTime: event.reportDateTime,
       serial: event.serial ?? null,
       type: event.type,
@@ -126,6 +152,20 @@ export class QuakeExtremeStore {
     const quakeDetails = projection ?? dto.latestQuake;
     const largeQuake = dto.emergency?.kind === "largeQuake" ? dto.emergency : null;
     const originTime = quakeDetails != null ? quakeDetails.originTime : largeQuake?.originTime ?? null;
+    const projectedMagnitudeSemantic = quakeDetails != null
+      ? quakeDetails.magnitudeSemantic
+      : largeQuake?.magnitudeSemantic;
+    const projectedDepthSemantic = quakeDetails != null
+      ? quakeDetails.depthSemantic
+      : largeQuake?.depthSemantic;
+    const magnitudeValue = meta?.magnitudeValue
+      ?? (projectedMagnitudeSemantic == null
+        ? undefined
+        : numericSpecialValueFromDisplaySemantic(projectedMagnitudeSemantic) ?? undefined);
+    const depthValue = meta?.depthValue
+      ?? (projectedDepthSemantic == null
+        ? undefined
+        : numericSpecialValueFromDisplaySemantic(projectedDepthSemantic) ?? undefined);
     return this.apply({
       domain: dto.domain,
       groupKey: dto.groupKey,
@@ -137,7 +177,15 @@ export class QuakeExtremeStore {
       originTime,
       hypocenterName: quakeDetails != null ? quakeDetails.hypocenterName : largeQuake?.hypocenterName ?? null,
       magnitude: quakeDetails != null ? quakeDetails.magnitude : largeQuake?.magnitude ?? null,
+      magnitudeSemantic: magnitudeValue == null
+        ? projectedMagnitudeSemantic
+        : projectMagnitudeSemantic(magnitudeValue),
+      magnitudeValue,
       depth: quakeDetails != null ? quakeDetails.depth : largeQuake?.depth ?? null,
+      depthSemantic: depthValue == null
+        ? projectedDepthSemantic
+        : projectDepthSemantic(depthValue),
+      depthValue,
       reportDateTime: dto.reportDateTime,
       serial: dto.serial ?? null,
       type: dto.type,
@@ -177,7 +225,11 @@ export class QuakeExtremeStore {
         reportDateTime,
         hypocenterName,
         magnitude,
+        magnitudeSemantic,
+        magnitudeValue,
         depth,
+        depthSemantic,
+        depthValue,
         sourceTypes,
         observationSourceType,
       }) => ({
@@ -186,7 +238,11 @@ export class QuakeExtremeStore {
         ...(reportDateTime === undefined ? {} : { reportDateTime }),
         ...(hypocenterName === undefined ? {} : { hypocenterName }),
         ...(magnitude === undefined ? {} : { magnitude }),
+        ...(magnitudeSemantic === undefined ? {} : { magnitudeSemantic: { ...magnitudeSemantic } }),
+        ...(magnitudeValue === undefined ? {} : { magnitudeValue: structuredClone(magnitudeValue) }),
         ...(depth === undefined ? {} : { depth }),
+        ...(depthSemantic === undefined ? {} : { depthSemantic: { ...depthSemantic } }),
+        ...(depthValue === undefined ? {} : { depthValue: structuredClone(depthValue) }),
         sourceTypes: [...sourceTypes],
         ...(observationSourceType == null ? {} : { observationSourceType }),
       })),
@@ -281,7 +337,11 @@ export class QuakeExtremeStore {
           reportDateTime: input.reportDateTime,
           hypocenterName: input.hypocenterName,
           magnitude: input.magnitude,
+          magnitudeSemantic: input.magnitudeSemantic,
+          magnitudeValue: input.magnitudeValue,
           depth: input.depth,
+          depthSemantic: input.depthSemantic,
+          depthValue: input.depthValue,
           sourceTypes,
           expiresAtMonotonicMs,
         });
@@ -291,6 +351,14 @@ export class QuakeExtremeStore {
         previous?.originTime !== input.originTime
         || !previous.sourceTypes.includes(input.type)
         || previous.observationSourceType !== input.type
+        || previous.reportDateTime !== input.reportDateTime
+        || previous.hypocenterName !== input.hypocenterName
+        || previous.magnitude !== input.magnitude
+        || JSON.stringify(previous.magnitudeSemantic) !== JSON.stringify(input.magnitudeSemantic)
+        || previous.depth !== input.depth
+        || JSON.stringify(previous.depthSemantic) !== JSON.stringify(input.depthSemantic)
+        || !sameNumericSpecialValue(previous.magnitudeValue, input.magnitudeValue)
+        || !sameNumericSpecialValue(previous.depthValue, input.depthValue)
       ) {
         const remainingMs = remainingHoldMs(input.originTime, nowMs);
         if (remainingMs == null) {
@@ -306,14 +374,18 @@ export class QuakeExtremeStore {
             reportDateTime: input.reportDateTime,
             hypocenterName: input.hypocenterName,
             magnitude: input.magnitude,
+            magnitudeSemantic: input.magnitudeSemantic,
+            magnitudeValue: input.magnitudeValue,
             depth: input.depth,
+            depthSemantic: input.depthSemantic,
+            depthValue: input.depthValue,
             sourceTypes,
             observationSourceType: input.type,
             expiresAtMonotonicMs: sameOrigin
               ? previous.expiresAtMonotonicMs
               : this.monotonicNow() + remainingMs,
           });
-          changed = previous == null;
+          changed = true;
         }
       }
     }
@@ -345,12 +417,23 @@ function isValidRecord(value: QuakeExtremeRecordV1): boolean {
       typeof value.reportDateTime === "string" && Number.isFinite(Date.parse(value.reportDateTime))) &&
     (value.hypocenterName === undefined || value.hypocenterName == null || typeof value.hypocenterName === "string") &&
     (value.magnitude === undefined || value.magnitude == null || typeof value.magnitude === "string") &&
+    (value.magnitudeSemantic === undefined || parsePersistedMagnitudeSemantic(value.magnitudeSemantic) != null) &&
+    (value.magnitudeValue === undefined || parsePersistedNumericSpecialValue(value.magnitudeValue) != null) &&
     (value.depth === undefined || value.depth == null || typeof value.depth === "string") &&
+    (value.depthSemantic === undefined || parsePersistedDepthSemantic(value.depthSemantic) != null) &&
+    (value.depthValue === undefined || parsePersistedNumericSpecialValue(value.depthValue) != null) &&
     Array.isArray(value.sourceTypes) && value.sourceTypes.length > 0 &&
     value.sourceTypes.every((type) => typeof type === "string" && type !== "") &&
     (value.observationSourceType == null ||
       typeof value.observationSourceType === "string" && value.observationSourceType !== "" &&
         value.sourceTypes.includes(value.observationSourceType));
+}
+
+function sameNumericSpecialValue(
+  left: SpecialValue<number> | undefined,
+  right: SpecialValue<number> | undefined,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function withGroupWatermarks(entries: PersistedSeenEntry[]): PersistedSeenEntry[] {

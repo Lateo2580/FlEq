@@ -111,6 +111,7 @@ function info(options: {
   kindCode?: string | null;
   messageId?: string;
   forecast?: LegacyTsunamiForecastItemInput[];
+  earthquake?: ParsedTsunamiInfo["earthquake"];
 } = {}): ParsedTsunamiInfo {
   const type = options.type ?? "VTSE41";
   const infoType = options.infoType ?? "発表";
@@ -145,6 +146,7 @@ function info(options: {
       : undefined,
     observations: options.observations,
     warningComment: "",
+    ...(options.earthquake == null ? {} : { earthquake: options.earthquake }),
     meta,
     isTest: false,
   });
@@ -490,6 +492,216 @@ describe("Phase 3B tsunami common registry", () => {
     }), restored)).toEqual({ kind: "suppressed" });
     expect(restored.tsunamiState.getObservationGroups().VTSE51).toEqual([station]);
   });
+
+  it("津波地震要素の Magnitude/Depth semantic を往復し、scalar-only v2 を読込移行する", () => {
+    const shared = deps();
+    const earthquake: NonNullable<ParsedTsunamiInfo["earthquake"]> = {
+      originTime: T1,
+      hypocenterName: "日本海溝",
+      latitude: "+38.0",
+      longitude: "+144.0",
+      magnitude: "",
+      magnitudeValue: {
+        raw: "NaN",
+        value: null,
+        condition: null,
+        description: "Ｍ８を超える巨大地震",
+        presence: "qualitative",
+      },
+      depth: "600km",
+      depthValue: {
+        raw: "-600000",
+        value: null,
+        condition: "600km以上",
+        description: "深さ600km以上",
+        presence: "range",
+        lowerBound: 600,
+        rawLowerBound: "６００",
+        rawUpperBound: null,
+      },
+    };
+    expect(run(info({ earthquake, messageId: "earthquake-semantic" }), shared).kind).toBe("ok");
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const persistedEarthquake = persisted.telegramFoundation.tsunami.keyedActive?.[0]?.earthquake;
+    expect(persistedEarthquake).toMatchObject({
+      magnitude: "",
+      magnitudeValue: { presence: "qualitative", description: "Ｍ８を超える巨大地震" },
+      depth: "600km",
+      depthValue: { presence: "range", lowerBound: 600, rawLowerBound: "６００" },
+    });
+    expect(Object.hasOwn(persistedEarthquake!.magnitudeValue!, "lowerBound")).toBe(false);
+    expect(Object.hasOwn(persistedEarthquake!.depthValue!, "upperBound")).toBe(false);
+    const loadedEarthquake = persistence.load()?.telegramFoundation.tsunami.keyedActive?.[0]?.earthquake;
+    expect(loadedEarthquake).toMatchObject({
+      ...earthquake,
+      depthValue: {
+        raw: "-600000",
+        value: null,
+        condition: "600km以上",
+        description: "深さ600km以上",
+        presence: "range",
+        lowerBound: 600,
+        rawLowerBound: "６００",
+      },
+    });
+    expect(Object.hasOwn(loadedEarthquake!.depthValue!, "rawUpperBound")).toBe(false);
+
+    const scalarOnly = structuredClone(persisted);
+    const scalarEarthquake = scalarOnly.telegramFoundation.tsunami.keyedActive![0]!.earthquake!;
+    scalarEarthquake.magnitude = "6.0";
+    scalarEarthquake.depth = "30km";
+    delete scalarEarthquake.magnitudeValue;
+    delete scalarEarthquake.depthValue;
+    fs.writeFileSync(v2Path, JSON.stringify(scalarOnly), "utf8");
+    expect(persistence.load()?.telegramFoundation.tsunami.keyedActive?.[0]?.earthquake)
+      .toMatchObject({
+        magnitude: "6.0",
+        magnitudeValue: { presence: "value", value: 6, raw: "6.0" },
+        depth: "30km",
+        depthValue: { presence: "value", value: 30, raw: "30km" },
+      });
+
+    const nullableLegacy = scalarEarthquake as unknown as {
+      magnitude: string | null;
+      depth: string | null;
+      magnitudeValue?: unknown;
+      depthValue?: unknown;
+    };
+    nullableLegacy.magnitude = null;
+    nullableLegacy.depth = "";
+    delete nullableLegacy.magnitudeValue;
+    delete nullableLegacy.depthValue;
+    fs.writeFileSync(v2Path, JSON.stringify(scalarOnly), "utf8");
+    expect(persistence.load()?.telegramFoundation.tsunami.keyedActive?.[0]?.earthquake)
+      .toMatchObject({
+        magnitude: "",
+        magnitudeValue: { raw: null, presence: "missing", value: null },
+        depth: "",
+        depthValue: { raw: null, presence: "missing", value: null },
+      });
+  });
+
+  it("津波地震要素の upper-only numeric bounds を standby owner で round-trip する", () => {
+    const shared = deps();
+    const earthquake: NonNullable<ParsedTsunamiInfo["earthquake"]> = {
+      originTime: T1,
+      hypocenterName: "日本海溝",
+      latitude: "+38.0",
+      longitude: "+144.0",
+      magnitude: "7.0",
+      magnitudeValue: {
+        raw: "7.0", value: null, condition: "7.0以下", description: "M7.0以下",
+        presence: "range", upperBound: 7, rawUpperBound: "７．０",
+        diagnostics: ["unmappedSpecialValue"],
+      },
+      depth: "999km",
+      depthValue: {
+        raw: "-999000", value: null, condition: "999km以下", description: "深さ999km以下",
+        presence: "range", upperBound: 999, rawUpperBound: "９９９",
+        diagnostics: ["specialValueConflict"],
+      },
+    };
+    expect(run(info({ earthquake, messageId: "earthquake-upper-only" }), shared).kind).toBe("ok");
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter(
+          (entry) => entry.domain === "tsunami",
+        ),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const loaded = persistence.load()!.telegramFoundation.tsunami.keyedActive![0]!.earthquake;
+    expect(loaded).toMatchObject({
+      magnitudeValue: {
+        presence: "range", upperBound: 7, rawUpperBound: "７．０",
+        diagnostics: ["unmappedSpecialValue"],
+      },
+      depthValue: {
+        presence: "range", upperBound: 999, rawUpperBound: "９９９",
+        diagnostics: ["specialValueConflict"],
+      },
+    });
+    expect(Object.hasOwn(loaded!.magnitudeValue!, "lowerBound")).toBe(false);
+    expect(Object.hasOwn(loaded!.depthValue!, "rawLowerBound")).toBe(false);
+  });
+
+  it.each(["scalar", "legacyActive"] as const)(
+    "津波の壊れた旧 %s active は対応する non-cancel gate も局所破棄する",
+    (shape) => {
+      const shared = deps();
+      const earthquake: NonNullable<ParsedTsunamiInfo["earthquake"]> = {
+        originTime: T1,
+        hypocenterName: "日本海溝",
+        latitude: "+38.0",
+        longitude: "+144.0",
+        magnitude: "6.0",
+        magnitudeValue: {
+          raw: "6.0", value: 6, condition: null, description: null, presence: "value",
+        },
+        depth: "30km",
+        depthValue: {
+          raw: "-30000", value: 30, condition: null, description: null, presence: "value",
+        },
+      };
+      expect(run(info({
+        eventId: `broken-${shape}`,
+        earthquake,
+        messageId: `broken-${shape}-active`,
+      }), shared).kind).toBe("ok");
+      const file = persistencePath();
+      const persistence = new StandbyPersistence(file, 0, () => ({
+        vpws50: { authoritative: true, state: null, gateEntries: [] },
+        tsunami: {
+          keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+          observations: shared.tsunamiState.getObservationGroups(),
+          gateEntries: shared.revisionGate.exportDurableEntries().filter(
+            (entry) => entry.domain === "tsunami",
+          ),
+        },
+      }));
+      persistence.save(legacyState());
+      const v2Path = standbyPersistenceV2Path(file);
+      const persisted = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+      const broken = structuredClone(persisted.telegramFoundation.tsunami.keyedActive![0]!);
+      broken.earthquake!.magnitudeValue = {
+        raw: "6.0", value: 6, condition: null, description: null, presence: "range",
+      };
+      if (shape === "scalar") {
+        persisted.telegramFoundation.tsunami.active = broken;
+        delete persisted.telegramFoundation.tsunami.keyedActive;
+        delete persisted.telegramFoundation.tsunami.legacyActive;
+      } else {
+        persisted.telegramFoundation.tsunami.keyedActive = [];
+        persisted.telegramFoundation.tsunami.legacyActive = broken;
+        delete persisted.telegramFoundation.tsunami.active;
+      }
+      fs.writeFileSync(v2Path, JSON.stringify(persisted), "utf8");
+
+      const loaded = persistence.load()!.telegramFoundation.tsunami;
+      expect(loaded.keyedActive).toEqual([]);
+      expect(loaded.legacyActive).toBeNull();
+      expect(loaded.gateEntries.filter((entry) => entry.domain === "tsunami")).toEqual([]);
+    },
+  );
 
   it("観測 Area.Code を v2 schema へ保存し、再保存しても observation shape を維持する", () => {
     const shared = deps();

@@ -30,6 +30,7 @@ import {
   type LegacyParsedTsunamiInfoInput,
 } from "../../../src/dmdata/tsunami-legacy-adapter";
 import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
+import { projectDisplayEvent } from "../../../src/engine/display/project-event";
 import {
   DEFAULT_CONFIG,
   type AppConfig,
@@ -55,6 +56,56 @@ function tsunamiInfo(over: Partial<LegacyParsedTsunamiInfoInput> = {}): ParsedTs
     isTest: false,
     ...over,
   });
+}
+
+function liveTsunamiProjection(info: ParsedTsunamiInfo) {
+  const forecast = info.forecast ?? [];
+  const areaItems = forecast.map((item) => ({
+    name: item.areaName,
+    areaCode: item.areaCode,
+    kindCode: item.kindCode,
+    kind: item.kind,
+    maxHeight: item.maxHeight,
+    maxHeightDescription: item.maxHeightDescription,
+    firstHeight: item.firstHeight,
+  }));
+  const event: PresentationEvent = {
+    id: info.meta.messageId,
+    classification: "telegram.earthquake",
+    domain: "tsunami",
+    type: info.type,
+    infoType: info.infoType,
+    title: info.title,
+    headline: info.headline,
+    reportDateTime: info.reportDateTime,
+    publishingOffice: info.publishingOffice,
+    isTest: info.isTest,
+    frameLevel: "critical",
+    isCancellation: false,
+    eventId: info.meta.eventId.value,
+    magnitudeValue: info.earthquake?.magnitudeValue,
+    depthValue: info.earthquake?.depthValue,
+    warningComment: info.warningComment,
+    tsunamiKinds: forecast.map((item) => item.kind),
+    areaNames: [],
+    forecastAreaNames: forecast.map((item) => item.areaName),
+    municipalityNames: [],
+    observationNames: [],
+    areaCount: 0,
+    forecastAreaCount: forecast.length,
+    municipalityCount: 0,
+    observationCount: 0,
+    areaItems,
+    tsunamiDisplay: {
+      kinds: forecast.map((item) => item.kind),
+      areaItems,
+      warningComment: info.warningComment,
+    },
+    raw: info,
+  };
+  const emergency = projectDisplayEvent(event, "live tsunami").emergency;
+  if (emergency?.kind !== "tsunami") throw new Error("tsunami live projection missing");
+  return emergency;
 }
 
 function mockDisplay(): DisplayCallbacks {
@@ -133,9 +184,40 @@ describe("tsunamiSeedFromParsed", () => {
     const active = tsunamiInfo({
       meta,
       reportDateTime,
+      earthquake: {
+        originTime: "2026-07-06T20:59:00+09:00",
+        hypocenterName: "日本海溝",
+        latitude: "+38.0",
+        longitude: "+144.0",
+        magnitude: "",
+        magnitudeValue: {
+          raw: "NaN",
+          value: null,
+          condition: null,
+          description: "Ｍ８を超える巨大地震",
+          presence: "qualitative",
+        },
+        depth: "600km",
+        depthValue: {
+          raw: "-600000",
+          value: null,
+          condition: "600km以上",
+          description: "深さ600km以上",
+          presence: "range",
+          lowerBound: 600,
+          rawLowerBound: "６００",
+          rawUpperBound: null,
+        },
+      },
     });
     const liveWire = tsunamiSeedFromParsed(active);
     expect(liveWire).not.toBeNull();
+    const liveProjection = liveTsunamiProjection(active);
+    expect(liveWire).toMatchObject({
+      magnitudeSemantic: liveProjection.magnitudeSemantic,
+      depthSemantic: liveProjection.depthSemantic,
+    });
+    expect(liveProjection.magnitudeSemantic?.rank).toEqual({ kind: "giant" });
 
     const subject = tsunamiStateSubjectKey(active.meta)!;
     const gateEntry: PersistedTelegramRevisionGateEntryV2 = {
@@ -213,6 +295,10 @@ describe("tsunamiSeedFromParsed", () => {
       expect(restored).not.toBeNull();
       const restartWire = tsunamiSeedFromParsed(restored!);
       expect(restartWire).toEqual(liveWire);
+      expect(restartWire).toMatchObject({
+        magnitudeSemantic: liveProjection.magnitudeSemantic,
+        depthSemantic: liveProjection.depthSemantic,
+      });
       expect(restartWire?.coasts.every((coast) => coast.maxHeightSemantic != null)).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
