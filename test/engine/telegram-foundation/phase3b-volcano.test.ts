@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ParsedVolcanoAlertInfo,
   ParsedVolcanoEruptionInfo,
@@ -27,7 +27,24 @@ import { fromVolcanoOutcome } from "../../../src/engine/presentation/events/from
 import type { ProcessOutcome, VolcanoBatchOutcome, VolcanoOutcome } from "../../../src/engine/presentation/types";
 
 const T0 = Date.parse("2026-08-01T09:00:00+09:00");
+const TEST_NOW = Date.parse("2026-07-31T12:30:00+09:00");
 const roots: string[] = [];
+
+beforeEach(() => {
+  vi.useFakeTimers({ now: TEST_NOW, toFake: ["Date"] });
+});
+
+function tempRoot(label: string): string {
+  const root = join(
+    process.cwd(),
+    ".tmp-workflow-out",
+    "phase3b-volcano",
+    `${label}-${process.pid}-${Date.now()}`,
+  );
+  rmSync(root, { recursive: true, force: true });
+  roots.push(root);
+  return root;
+}
 
 function message(id: string, type: string, reportDateTime: string): WsDataMessage {
   return {
@@ -153,6 +170,7 @@ vi.mock("../../../src/dmdata/volcano-parser", async (importOriginal) => {
 const currentParsed = new Map<string, ParsedVolcanoAlertInfo | ParsedVolcanoTextInfo | ParsedVolcanoEruptionInfo>();
 
 afterEach(() => {
+  vi.useRealTimers();
   currentParsed.clear();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
   vi.restoreAllMocks();
@@ -375,8 +393,7 @@ describe("Phase 3B volcano foundation", () => {
     h.handler.handle(message("issue", "VFVO50", issue.reportDateTime));
     h.handler.handle(message("cancel", "VFVO50", cancel.reportDateTime));
 
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `roundtrip-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("roundtrip");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     const foundation = () => ({
@@ -429,8 +446,7 @@ describe("Phase 3B volcano foundation", () => {
     h.handler.handle(message("eruption-v1", "VFVO56", issue.reportDateTime));
     h.handler.handle(message("eruption-v1-cancel", "VFVO56", cancel.reportDateTime));
 
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `rollback-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("rollback");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     new StandbyPersistence(path, 0, () => ({
@@ -503,8 +519,7 @@ describe("Phase 3B volcano foundation", () => {
     currentParsed.set("active", issue);
     const h = createHarness();
     h.handler.handle(message("active", "VFVO50", issue.reportDateTime));
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `active-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("active");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     const foundation = () => ({
@@ -614,8 +629,7 @@ describe("Phase 3B volcano foundation", () => {
       delete entry.legacyRevisionKey;
       delete entry.legacyRevisionKeyProvenance;
     }
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `pre-key-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("pre-key");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     const foundation = {
@@ -651,8 +665,7 @@ describe("Phase 3B volcano foundation", () => {
       forgetAtMs: T0 + 40 * 24 * 60 * 60_000,
     });
 
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `trusted-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("trusted");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     new StandbyPersistence(path, 0, () => ({
@@ -717,8 +730,7 @@ describe("Phase 3B volcano foundation", () => {
     const initial = createHarness();
     initial.handler.handle(message("collision-issue", "VFVO56", issue.reportDateTime));
 
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `key-provenance-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("key-provenance");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     new StandbyPersistence(path, 0, () => ({
@@ -805,8 +817,7 @@ describe("Phase 3B volcano foundation", () => {
       cancelled: true,
     }));
 
-    const root = join(process.cwd(), ".tmp-workflow-out", "phase3b-volcano", `missing-cancel-id-${Date.now()}`);
-    roots.push(root);
+    const root = tempRoot("missing-cancel-id");
     const path = join(root, "display-active-state-v1.json");
     mkdirSync(dirname(path), { recursive: true });
     new StandbyPersistence(path, 0, () => ({

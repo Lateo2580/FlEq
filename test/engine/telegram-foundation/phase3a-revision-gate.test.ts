@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTelegramMeta } from "../../../src/dmdata/telegram-meta";
 import {
   semanticPayloadFingerprint,
@@ -13,6 +13,15 @@ import {
 } from "../../../src/engine/messages/revision-family-registry";
 
 const RECEIVED_AT = Date.parse("2026-07-31T12:10:00+09:00");
+const TEST_NOW = Date.parse("2026-07-31T12:30:00+09:00");
+
+beforeEach(() => {
+  vi.useFakeTimers({ now: TEST_NOW, toFake: ["Date"] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function meta(input: {
   messageId: string;
