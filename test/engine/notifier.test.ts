@@ -30,6 +30,7 @@ import { playSound } from "../../src/engine/notification/sound-player";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
 import { parseClimateInfo } from "../../src/dmdata/climate-info-parser";
 import { parseHeatAlert } from "../../src/dmdata/heat-alert-parser";
+import { parseTyphoonAnalysis } from "../../src/dmdata/typhoon-analysis-parser";
 import { parseEarthquakeTelegram, parseLgObservationTelegram, parseNankaiTroughTelegram, parseSeismicTextTelegram } from "../../src/dmdata/telegram-parser";
 import { parseWeatherBriefing } from "../../src/dmdata/briefing-parser";
 import { parseEarlyWeather } from "../../src/dmdata/early-weather-parser";
@@ -43,6 +44,7 @@ import {
   FIXTURE_VPFT50_CANCEL,
   FIXTURE_VPFT50_NO_BODY,
   FIXTURE_VPFT50_TITLE_ESCALATION,
+  FIXTURE_VPTW60_2020,
   FIXTURE_VXSE51_SHINDO,
   FIXTURE_VXSE56_ACTIVITY_1,
   FIXTURE_VPBS50_LINEAR_OBSERVED,
@@ -125,6 +127,31 @@ describe("Notifier", () => {
     notifier.notifyEarthquake(info);
 
     expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("台風通知は名称・位置だけを維持し、受理済み訂正だけ訂正を明示する", () => {
+    const notifier = new Notifier();
+    const info = parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW60_2020))!;
+    const nameLabel = info.name?.name
+      ? `${info.name.name}${info.name.number ? ` (台風${info.name.number.slice(2)}号)` : ""}`
+      : info.name?.remark || "熱帯低気圧";
+    const expectedBody = `${nameLabel} ${info.frames[0]?.center.location ?? ""}`.trim();
+
+    notifier.notifyTyphoonAnalysis(info, "normal");
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(notifyMock.mock.calls[0][0]).toMatchObject({
+      title: info.title,
+      message: expectedBody,
+    });
+    expect(expectedBody).not.toMatch(/hPa|m\/s|km\/h/);
+
+    notifyMock.mockClear();
+    notifier.notifyTyphoonAnalysis({ ...info, infoType: "訂正" }, "normal");
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(notifyMock.mock.calls[0][0]).toMatchObject({
+      title: `[訂正] ${info.title}`,
+      message: `訂正: ${expectedBody}`,
+    });
   });
 
   it.each([

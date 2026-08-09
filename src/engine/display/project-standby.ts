@@ -1,6 +1,12 @@
-import type { ParsedHeatAlertInfo, ParsedTyphoonAnalysis, ParsedVolcanoInfo } from "../../types";
+import type {
+  ParsedHeatAlertInfo,
+  ParsedTyphoonAnalysis,
+  ParsedVolcanoInfo,
+  SpecialValue,
+} from "../../types";
 import type { PresentationEvent } from "../presentation/types";
 import { volcanoTextAlertStateEntries } from "../messages/revision-family-registry";
+import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persistence";
 import type { DisplayHeatAreaV1, DisplayTyphoonV1, DisplayVolcanoEntryV1 } from "./protocol";
 
 export interface HeatUpdate {
@@ -50,8 +56,22 @@ export interface TyphoonUpdate {
   reportDateTime: string;
   serial: string | null;
   typhoon: DisplayTyphoonV1;
+  pressureHpaValue: SpecialValue<number>;
+  maxWindMsValue: SpecialValue<number>;
+  maxGustMsValue: SpecialValue<number>;
+  moveSpeedKmhValue: SpecialValue<number>;
   isCancellation: boolean;
   isCorrection: boolean;
+}
+
+function missingTyphoonNumericValue(): SpecialValue<number> {
+  return {
+    raw: null,
+    value: null,
+    condition: null,
+    description: null,
+    presence: "missing",
+  };
 }
 
 export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | null {
@@ -71,6 +91,18 @@ export function projectTyphoonUpdate(event: PresentationEvent): TyphoonUpdate | 
       || raw.lifecycle === "transitionedToLow"
       || raw.lifecycle === "formationCancelled",
     isCorrection: event.infoType === "訂正" || raw.infoType === "訂正",
+    pressureHpaValue: frame.center.pressureHpaValue
+      ?? typhoonNumericValueFromLegacyScalar(frame.center.pressureHpa),
+    maxWindMsValue: frame.wind == null
+      ? missingTyphoonNumericValue()
+      : frame.wind.maxWindMsValue
+        ?? typhoonNumericValueFromLegacyScalar(frame.wind.maxWindMs),
+    maxGustMsValue: frame.wind == null
+      ? missingTyphoonNumericValue()
+      : frame.wind.maxGustMsValue
+        ?? typhoonNumericValueFromLegacyScalar(frame.wind.maxGustMs ?? null),
+    moveSpeedKmhValue: frame.center.moveSpeedKmhValue
+      ?? typhoonNumericValueFromLegacyScalar(frame.center.moveSpeedKmh),
     typhoon: {
       typhoonKey,
       name: raw.name?.name ?? null,

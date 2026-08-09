@@ -1,5 +1,10 @@
 import type { PresentationEvent } from "../presentation/types";
-import type { ParsedLgObservationInfo, ParsedNankaiTroughInfo, ParsedTornadoAdvisory } from "../../types";
+import type {
+  ParsedLgObservationInfo,
+  ParsedNankaiTroughInfo,
+  ParsedTornadoAdvisory,
+  SpecialValue,
+} from "../../types";
 import * as log from "../../logger";
 import type {
   ActiveStandbyCardV1,
@@ -39,6 +44,8 @@ import {
   formatLgIntensitySpecialValue,
   resolveLgIntensitySafetyRank,
 } from "../presentation/level-helpers";
+import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persistence";
+import { projectTyphoonNumericSemantic } from "./typhoon-numeric-semantic";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -68,6 +75,10 @@ interface HeatState {
 interface TyphoonState {
   sourceEventId: string;
   typhoon: DisplayTyphoonV1;
+  pressureHpaValue: SpecialValue<number>;
+  maxWindMsValue: SpecialValue<number>;
+  maxGustMsValue: SpecialValue<number>;
+  moveSpeedKmhValue: SpecialValue<number>;
   revision: StandbyRevision;
   appliedSemanticKey?: string;
   expiresAtMs: number;
@@ -487,11 +498,21 @@ export class StandbyStateStore {
     if (update.isCancellation) {
       return { viewChanged: this.typhoons.delete(update.typhoonKey), durableChanged: true };
     }
-    const previous = this.typhoons.get(update.typhoonKey)?.typhoon;
-    const pressureDeltaHpa = numericDelta(update.typhoon.pressureHpa, previous?.pressureHpa);
-    const maxWindDeltaMs = numericDelta(update.typhoon.maxWindMs, previous?.maxWindMs);
+    const previousState = this.typhoons.get(update.typhoonKey);
+    const pressureDeltaHpa = canonicalNumericDelta(
+      update.pressureHpaValue,
+      previousState?.pressureHpaValue,
+    );
+    const maxWindDeltaMs = canonicalNumericDelta(
+      update.maxWindMsValue,
+      previousState?.maxWindMsValue,
+    );
     this.typhoons.set(update.typhoonKey, {
       sourceEventId: update.sourceEventId,
+      pressureHpaValue: structuredClone(update.pressureHpaValue),
+      maxWindMsValue: structuredClone(update.maxWindMsValue),
+      maxGustMsValue: structuredClone(update.maxGustMsValue),
+      moveSpeedKmhValue: structuredClone(update.moveSpeedKmhValue),
       typhoon: {
         ...update.typhoon,
         pressureDeltaHpa,
@@ -920,7 +941,13 @@ export class StandbyStateStore {
         updatedAt: new Date(Math.max(...states.map((state) => state.revision.reportTimeMs))).toISOString(),
         expiresAt: new Date(Math.max(...states.map((state) => state.expiresAtMs))).toISOString(),
         restored: states.some((state) => state.restored), severity: "normal",
-        data: { typhoons: states.map((state) => ({ ...state.typhoon })) },
+        data: { typhoons: states.map((state) => ({
+          ...state.typhoon,
+          pressureHpaSemantic: projectTyphoonNumericSemantic(state.pressureHpaValue, "hPa"),
+          maxWindMsSemantic: projectTyphoonNumericSemantic(state.maxWindMsValue, "m/s"),
+          maxGustMsSemantic: projectTyphoonNumericSemantic(state.maxGustMsValue, "m/s"),
+          moveSpeedKmhSemantic: projectTyphoonNumericSemantic(state.moveSpeedKmhValue, "km/h"),
+        })) },
       });
     }
     const volcanoes = [...this.volcanoes.values()].filter((state) =>
@@ -996,7 +1023,20 @@ export class StandbyStateStore {
         revision: { ...state.revision },
         appliedSemanticKey: state.appliedSemanticKey,
       })),
-      typhoons: [...this.typhoons].map(([key, state]) => ({ key, sourceEventId: state.sourceEventId, typhoon: { ...state.typhoon }, revision: { ...state.revision }, expiresAtMs: state.expiresAtMs, appliedSemanticKey: state.appliedSemanticKey })),
+      typhoons: [...this.typhoons].map(([key, state]) => ({
+        key,
+        sourceEventId: state.sourceEventId,
+        typhoon: { ...state.typhoon },
+        pressureHpaValue: structuredClone(state.pressureHpaValue),
+        maxWindMsValue: structuredClone(state.maxWindMsValue),
+        maxGustMsValue: structuredClone(state.maxGustMsValue),
+        moveSpeedKmhValue: structuredClone(state.moveSpeedKmhValue),
+        revision: { ...state.revision },
+        expiresAtMs: state.expiresAtMs,
+        ...(state.appliedSemanticKey == null
+          ? {}
+          : { appliedSemanticKey: state.appliedSemanticKey }),
+      })),
       volcanoes: [...this.volcanoes.values()].map((state) => ({
         code: state.code,
         name: state.name,
@@ -1056,6 +1096,14 @@ export class StandbyStateStore {
       if (state.expiresAtMs > nowMs) {
         this.typhoons.set(state.typhoon.typhoonKey, {
           sourceEventId: state.sourceEventId,
+          pressureHpaValue: structuredClone(state.pressureHpaValue
+            ?? typhoonNumericValueFromLegacyScalar(state.typhoon.pressureHpa)),
+          maxWindMsValue: structuredClone(state.maxWindMsValue
+            ?? typhoonNumericValueFromLegacyScalar(state.typhoon.maxWindMs)),
+          maxGustMsValue: structuredClone(state.maxGustMsValue
+            ?? typhoonNumericValueFromLegacyScalar(state.typhoon.maxGustMs ?? null)),
+          moveSpeedKmhValue: structuredClone(state.moveSpeedKmhValue
+            ?? typhoonNumericValueFromLegacyScalar(state.typhoon.moveSpeedKmh)),
           typhoon: {
             ...state.typhoon,
             pressureDeltaHpa: state.typhoon.pressureDeltaHpa ?? null,
@@ -1164,8 +1212,16 @@ function restoreVolcanoEvent(
   };
 }
 
-function numericDelta(current: number | null, previous: number | null | undefined): number | null {
-  return current == null || previous == null ? null : current - previous;
+function canonicalNumericDelta(
+  current: SpecialValue<number>,
+  previous: SpecialValue<number> | undefined,
+): number | null {
+  return current.presence !== "value"
+    || current.value == null
+    || previous?.presence !== "value"
+    || previous.value == null
+    ? null
+    : current.value - previous.value;
 }
 
 function typhoonIntensityTrend(

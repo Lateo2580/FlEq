@@ -13,7 +13,8 @@ import { FloodActiveReducer } from "../../../src/engine/display/flood-active-red
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
-import type { FloodForecastOutcome } from "../../../src/engine/presentation/types";
+import type { FloodForecastOutcome, PresentationEvent } from "../../../src/engine/presentation/types";
+import type { SpecialValue } from "../../../src/types";
 import {
   createMockWsDataMessage,
   FIXTURE_VFVO56_FLASH_1,
@@ -57,6 +58,101 @@ function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbySta
     nankaiTrough: null,
     ...over,
   };
+}
+
+type TyphoonDeltaField = "pressure" | "maxWind";
+
+function numericValue(value: number): SpecialValue<number> {
+  return {
+    raw: String(value),
+    value,
+    condition: null,
+    description: null,
+    presence: "value",
+  };
+}
+
+function transitionSpecialValue(
+  presence: "missing" | "empty" | "qualitative" | "range",
+): SpecialValue<number> {
+  switch (presence) {
+    case "missing":
+      return { raw: null, value: null, condition: null, description: null, presence };
+    case "empty":
+      return { raw: "", value: null, condition: null, description: null, presence };
+    case "qualitative":
+      return {
+        raw: "ほとんど停滞",
+        value: null,
+        condition: "ほとんど停滞",
+        description: null,
+        presence,
+      };
+    case "range":
+      return {
+        raw: "25",
+        value: null,
+        condition: "以上",
+        description: null,
+        presence,
+        lowerBound: 25,
+        rawLowerBound: "25",
+      };
+  }
+}
+
+function typhoonTransitionEvent(
+  serial: string,
+  field: TyphoonDeltaField,
+  target: SpecialValue<number>,
+): PresentationEvent {
+  const missing = transitionSpecialValue("missing");
+  const pressureHpaValue = field === "pressure" ? target : missing;
+  const maxWindMsValue = field === "maxWind" ? target : missing;
+  const reportDateTime = new Date(T0 + (Number(serial) - 1) * 60_000).toISOString();
+  return {
+    id: `typhoon-${field}-${serial}`,
+    domain: "typhoonAnalysis",
+    eventId: "TC-transition",
+    serial,
+    reportDateTime,
+    isCancellation: false,
+    raw: {
+      type: "VPTW60",
+      infoType: "発表",
+      eventId: "TC-transition",
+      serial,
+      name: { name: "Alpha", nameKana: "ALPHA", number: "2601", remark: null },
+      frames: [{
+        kind: "analysis",
+        typhoonClass: { category: "TS" },
+        center: {
+          location: "ocean",
+          pressureHpa: pressureHpaValue.presence === "value" ? pressureHpaValue.value : null,
+          pressureHpaValue,
+          moveDirection: "N",
+          moveSpeedKmh: 20,
+          moveSpeedKmhValue: numericValue(20),
+        },
+        wind: {
+          maxWindMs: maxWindMsValue.presence === "value" ? maxWindMsValue.value : null,
+          maxWindMsValue,
+          maxGustMs: null,
+          maxGustMsValue: missing,
+        },
+      }],
+      lifecycle: "active",
+    },
+  } as unknown as PresentationEvent;
+}
+
+function expectNoTyphoonNumericTrend(store: StandbyStateStore): void {
+  const typhoon = store.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0];
+  expect(typhoon).toMatchObject({
+    pressureDeltaHpa: null,
+    maxWindDeltaMs: null,
+    intensityTrend: null,
+  });
 }
 
 afterEach(() => {
@@ -410,6 +506,106 @@ describe("StandbyStateStore persistence", () => {
     };
   }
 
+  it("live の WindPart 欠落を診断なし missing として save→load→restore する", () => {
+    const live = new StandbyStateStore();
+    live.applyEvent({
+      id: "typhoon-wind-missing",
+      domain: "typhoonAnalysis",
+      eventId: "TC-wind-missing",
+      serial: "1",
+      reportDateTime: new Date(T0).toISOString(),
+      isCancellation: false,
+      raw: {
+        type: "VPTW60",
+        infoType: "発表",
+        eventId: "TC-wind-missing",
+        serial: "1",
+        name: { name: "Alpha", nameKana: "ALPHA", number: "2601", remark: null },
+        frames: [{
+          kind: "analysis",
+          typhoonClass: { category: "TS" },
+          center: {
+            location: "ocean",
+            pressureHpa: 990,
+            pressureHpaValue: numericValue(990),
+            moveDirection: "N",
+            moveSpeedKmh: 20,
+            moveSpeedKmhValue: numericValue(20),
+          },
+          wind: null,
+        }],
+        lifecycle: "active",
+      },
+    } as unknown as PresentationEvent, T0);
+
+    const liveState = live.exportActiveState();
+    expect(liveState.typhoons[0]).toMatchObject({
+      maxWindMsValue: { raw: null, value: null, presence: "missing" },
+      maxGustMsValue: { raw: null, value: null, presence: "missing" },
+    });
+    expect(liveState.typhoons[0]!.maxWindMsValue).not.toHaveProperty("diagnostics");
+    expect(liveState.typhoons[0]!.maxGustMsValue).not.toHaveProperty("diagnostics");
+    expect(live.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0])
+      .toMatchObject({
+        maxWindMsSemantic: { presence: "missing", label: null, badge: null, render: false },
+        maxGustMsSemantic: { presence: "missing", label: null, badge: null, render: false },
+      });
+
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path);
+    persistence.save(liveState);
+    const loaded = persistence.load()!;
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, T0 + 1);
+
+    expect(restored.exportActiveState().typhoons[0]).toMatchObject({
+      maxWindMsValue: { raw: null, value: null, presence: "missing" },
+      maxGustMsValue: { raw: null, value: null, presence: "missing" },
+    });
+    expect(restored.exportActiveState().typhoons[0]!.maxWindMsValue).not.toHaveProperty("diagnostics");
+    expect(restored.exportActiveState().typhoons[0]!.maxGustMsValue).not.toHaveProperty("diagnostics");
+    expect(restored.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0])
+      .toMatchObject({
+        maxWindMsSemantic: { presence: "missing", label: null, badge: null, render: false },
+        maxGustMsSemantic: { presence: "missing", label: null, badge: null, render: false },
+      });
+  });
+
+  it.each([
+    ["pressure", "missing"],
+    ["pressure", "empty"],
+    ["pressure", "qualitative"],
+    ["pressure", "range"],
+    ["maxWind", "missing"],
+    ["maxWind", "empty"],
+    ["maxWind", "qualitative"],
+    ["maxWind", "range"],
+  ] as const)("%s の value→%s→value は live／restart とも差分・trend を出さない", (
+    field,
+    presence,
+  ) => {
+    const exact = numericValue(field === "pressure" ? 990 : 25);
+    const special = transitionSpecialValue(presence);
+
+    const live = new StandbyStateStore();
+    live.applyEvent(typhoonTransitionEvent("1", field, exact), T0);
+    live.applyEvent(typhoonTransitionEvent("2", field, special), T0 + 60_000);
+    expectNoTyphoonNumericTrend(live);
+    live.applyEvent(typhoonTransitionEvent("3", field, exact), T0 + 120_000);
+    expectNoTyphoonNumericTrend(live);
+
+    const beforeRestart = new StandbyStateStore();
+    beforeRestart.applyEvent(typhoonTransitionEvent("1", field, exact), T0);
+    const persistence = new StandbyPersistence(tempPath());
+    persistence.save(beforeRestart.exportActiveState());
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(persistence.load()!, T0 + 1);
+    restored.applyEvent(typhoonTransitionEvent("2", field, special), T0 + 60_000);
+    expectNoTyphoonNumericTrend(restored);
+    restored.applyEvent(typhoonTransitionEvent("3", field, exact), T0 + 120_000);
+    expectNoTyphoonNumericTrend(restored);
+  });
+
   it("気象警報を実ファイルへ書き、新しい store でカード現況を復元する", () => {
     const path = tempPath();
     const alert = weatherAlert("vpws50");
@@ -604,6 +800,13 @@ describe("StandbyStateStore persistence", () => {
     const loaded = persistence.load();
     expect(loaded).toEqual(expect.objectContaining({
       ...persisted,
+      typhoons: [expect.objectContaining({
+        ...persisted.typhoons[0],
+        pressureHpaValue: { raw: "990", value: 990, condition: null, description: null, presence: "value" },
+        maxWindMsValue: { raw: "25", value: 25, condition: null, description: null, presence: "value" },
+        maxGustMsValue: { raw: "35", value: 35, condition: null, description: null, presence: "value" },
+        moveSpeedKmhValue: { raw: "20", value: 20, condition: null, description: null, presence: "value" },
+      })],
       version: 2,
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
@@ -662,6 +865,169 @@ describe("StandbyStateStore persistence", () => {
     expect(store.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
       pressureDeltaHpa: -5, maxWindDeltaMs: 5, intensityTrend: "developing",
     });
+  });
+
+  it("typhoon canonical 全 field と diagnostics を保存し、restore 後も semantic を再生成できる", () => {
+    const persisted = state({
+      typhoons: [{
+        key: "typhoon:TC-1",
+        sourceEventId: "typhoon-special",
+        typhoon: {
+          typhoonKey: "TC-1", name: "Alpha", nameKana: null, remark: null,
+          typhoonNumber: "2601", category: "TS", location: "ocean",
+          pressureHpa: null, maxWindMs: 25, maxGustMs: null,
+          moveDirection: "N", moveSpeedKmh: null,
+          reportDateTime: new Date(T0).toISOString(),
+        },
+        pressureHpaValue: {
+          raw: "解析不能", value: null, condition: "解析不能", description: null,
+          presence: "unknown", diagnostics: ["unmappedSpecialValue"],
+        },
+        maxWindMsValue: {
+          raw: "25", value: null, condition: "以上", description: null,
+          presence: "range", lowerBound: 25,
+          rawLowerBound: "25",
+        },
+        maxGustMsValue: {
+          raw: "不明", value: null, condition: null, description: "観測不能",
+          presence: "unknown", diagnostics: ["specialValueConflict"],
+        },
+        moveSpeedKmhValue: {
+          raw: "", value: null, condition: "停滞気味", description: null,
+          presence: "qualitative", diagnostics: ["unmappedSpecialValue"],
+        },
+        revision: { reportTimeMs: T0, serial: "1" },
+        expiresAtMs: T0 + 24 * 60 * 60_000,
+      }],
+    });
+    const path = tempPath();
+    new StandbyPersistence(path).save(persisted);
+    const loaded = new StandbyPersistence(path).load()!;
+
+    expect(loaded.typhoons[0]).toMatchObject({
+      pressureHpaValue: persisted.typhoons[0]!.pressureHpaValue,
+      maxWindMsValue: persisted.typhoons[0]!.maxWindMsValue,
+      maxGustMsValue: persisted.typhoons[0]!.maxGustMsValue,
+      moveSpeedKmhValue: persisted.typhoons[0]!.moveSpeedKmhValue,
+    });
+    expect(Object.hasOwn(loaded.typhoons[0]!.maxWindMsValue!, "rawUpperBound")).toBe(false);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, T0 + 60_000);
+    expect(restored.exportActiveState().typhoons[0]).toMatchObject({
+      pressureHpaValue: persisted.typhoons[0]!.pressureHpaValue,
+      maxWindMsValue: persisted.typhoons[0]!.maxWindMsValue,
+      maxGustMsValue: persisted.typhoons[0]!.maxGustMsValue,
+      moveSpeedKmhValue: persisted.typhoons[0]!.moveSpeedKmhValue,
+    });
+    expect(restored.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]).toMatchObject({
+      pressureHpaSemantic: { presence: "unknown", label: "不明", rank: { kind: "unranked" } },
+      maxWindMsSemantic: {
+        presence: "range", label: "25m/s以上", badge: "≥",
+        rank: { kind: "range", lowerBound: 25, upperBound: null },
+      },
+      maxGustMsSemantic: { presence: "unknown", label: "不明" },
+      moveSpeedKmhSemantic: { presence: "qualitative", label: "停滞気味" },
+    });
+  });
+
+  it("scalar-only typhoon snapshot を読込時だけ canonical 化し、null の曖昧さを診断へ残す", () => {
+    const path = tempPath();
+    const legacy = state({
+      typhoons: [{
+        key: "typhoon:TC-1", sourceEventId: "legacy-typhoon",
+        typhoon: {
+          typhoonKey: "TC-1", name: "Alpha", nameKana: null, remark: null,
+          typhoonNumber: "2601", category: "TS", location: "ocean",
+          pressureHpa: 990, maxWindMs: null,
+          moveDirection: "N", moveSpeedKmh: 20,
+          reportDateTime: new Date(T0).toISOString(),
+        },
+        revision: { reportTimeMs: T0, serial: "1" },
+        expiresAtMs: T0 + 24 * 60 * 60_000,
+      }],
+    });
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(legacy), "utf8");
+
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.typhoons[0]).toMatchObject({
+      pressureHpaValue: { raw: "990", value: 990, presence: "value" },
+      maxWindMsValue: {
+        raw: null, value: null, presence: "unknown", diagnostics: ["legacyNullUnknown"],
+      },
+      maxGustMsValue: {
+        raw: null, value: null, presence: "unknown", diagnostics: ["legacyNullUnknown"],
+      },
+      moveSpeedKmhValue: { raw: "20", value: 20, presence: "value" },
+    });
+  });
+
+  it.each([
+    [
+      "lower-only",
+      {
+        raw: "25", value: null, condition: "以上", description: null,
+        presence: "range", lowerBound: 25, rawLowerBound: "25",
+      },
+      {
+        lowerBound: 25, upperBound: undefined,
+        rawLowerBound: "25", rawUpperBound: undefined,
+      },
+    ],
+    [
+      "upper-only",
+      {
+        raw: "30", value: null, condition: "以下", description: null,
+        presence: "range", upperBound: 30, rawUpperBound: "30",
+      },
+      {
+        lowerBound: undefined, upperBound: 30,
+        rawLowerBound: undefined, rawUpperBound: "30",
+      },
+    ],
+  ] as const)("typhoon canonical の %s raw bound が save→load→restore で独立に往復する", (
+    _label,
+    maxWindMsValue,
+    expected,
+  ) => {
+    const path = tempPath();
+    const persisted = state({
+      typhoons: [{
+        key: "typhoon:TC-1", sourceEventId: "bounded-typhoon",
+        typhoon: {
+          typhoonKey: "TC-1", name: "Alpha", nameKana: null, remark: null,
+          typhoonNumber: "2601", category: "TS", location: "ocean",
+          pressureHpa: 990, maxWindMs: 25,
+          moveDirection: "N", moveSpeedKmh: 20,
+          reportDateTime: new Date(T0).toISOString(),
+        },
+        maxWindMsValue,
+        revision: { reportTimeMs: T0, serial: "1" },
+        expiresAtMs: T0 + 24 * 60 * 60_000,
+      }],
+    });
+    new StandbyPersistence(path).save(persisted);
+
+    const loaded = new StandbyPersistence(path).load()!;
+    expect(loaded.typhoons).toHaveLength(1);
+    expect(loaded.typhoons[0]!.maxWindMsValue).toMatchObject(maxWindMsValue);
+    for (const [key, bound] of Object.entries(expected)) {
+      expect(loaded.typhoons[0]!.maxWindMsValue?.[key as keyof typeof expected]).toBe(bound);
+    }
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded, T0 + 60_000);
+    expect(restored.exportActiveState().typhoons[0]!.maxWindMsValue).toEqual(
+      loaded.typhoons[0]!.maxWindMsValue,
+    );
+    expect(restored.snapshotItems().find((item) => item.kind === "typhoon")?.data.typhoons[0]
+      ?.maxWindMsSemantic).toMatchObject({
+        lowerBound: expected.lowerBound ?? null,
+        upperBound: expected.upperBound ?? null,
+        rawLowerBound: expected.rawLowerBound ?? null,
+        rawUpperBound: expected.rawUpperBound ?? null,
+      });
   });
 
   it("latestEventId のない旧形式 VFVO56 state を実ファイル復元し、単一候補なら空コード取消を適用する", () => {

@@ -395,6 +395,19 @@ function typhoonEvent(over: Record<string, unknown> = {}, rawOver: Record<string
   } as unknown as PresentationEvent;
 }
 
+function typhoonNumeric(
+  over: Partial<SpecialValue<number>> = {},
+): SpecialValue<number> {
+  return {
+    raw: "0",
+    value: 0,
+    condition: null,
+    description: null,
+    presence: "value",
+    ...over,
+  };
+}
+
 function volcanoRaw(over: Record<string, unknown> = {}): ParsedVolcanoInfo {
   return {
     kind: "alert",
@@ -447,6 +460,174 @@ describe("StandbyStateStore: typhoon", () => {
     const item = store.snapshotItems().find((candidate) => candidate.kind === "typhoon");
     return item?.data.typhoons.find((typhoon) => typhoon.typhoonKey === key);
   }
+
+  it("4 数値 canonical を label・badge・JSON-safe rank 付き protocol semantic へ一度だけ射影する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({}, {
+      frames: [{
+        kind: "analysis",
+        typhoonClass: { category: "TS" },
+        center: {
+          location: "ocean",
+          pressureHpa: 990,
+          pressureHpaValue: typhoonNumeric({ raw: "９９０", value: 990 }),
+          moveDirection: "N",
+          moveSpeedKmh: null,
+          moveSpeedKmhValue: typhoonNumeric({
+            raw: "",
+            value: null,
+            condition: "ほとんど停滞",
+            description: null,
+            presence: "qualitative",
+          }),
+        },
+        wind: {
+          maxWindMs: 25,
+          maxWindMsValue: typhoonNumeric({
+            raw: "25",
+            value: null,
+            condition: "以上",
+            presence: "range",
+            lowerBound: 25,
+            rawLowerBound: "25",
+            rawUpperBound: null,
+          }),
+          maxGustMs: null,
+          maxGustMsValue: typhoonNumeric({
+            raw: "不明",
+            value: null,
+            presence: "unknown",
+            diagnostics: ["unmappedSpecialValue"],
+          }),
+        },
+      }],
+    }), T0);
+
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureHpaSemantic: {
+        raw: "９９０", label: "990hPa", presence: "value",
+        lowerBound: null, upperBound: null, rawLowerBound: null, rawUpperBound: null,
+        badge: null, rank: { kind: "value", value: 990 },
+      },
+      maxWindMsSemantic: {
+        label: "25m/s以上", presence: "range", badge: "≥",
+        lowerBound: 25, upperBound: null, rawLowerBound: "25", rawUpperBound: null,
+        rank: { kind: "range", lowerBound: 25, upperBound: null },
+      },
+      maxGustMsSemantic: {
+        label: "不明", presence: "unknown", badge: "?", rank: { kind: "unranked" },
+      },
+      moveSpeedKmhSemantic: {
+        label: "ほとんど停滞", presence: "qualitative", badge: "?",
+        rank: { kind: "unranked" },
+      },
+    });
+  });
+
+  it("差分と trend は両端 value だけで算出し、exact 同値は 0/steady、gust は根拠にしない", () => {
+    const frame = (
+      pressureHpa: number,
+      pressureHpaValue: SpecialValue<number>,
+      maxWindMsValue: SpecialValue<number>,
+      maxGustMsValue: SpecialValue<number>,
+    ) => ({
+      frames: [{
+        kind: "analysis",
+        typhoonClass: { category: "TS" },
+        center: {
+          location: "ocean", pressureHpa, pressureHpaValue,
+          moveDirection: "N", moveSpeedKmh: 20,
+          moveSpeedKmhValue: typhoonNumeric({ raw: "20", value: 20 }),
+        },
+        wind: {
+          maxWindMs: maxWindMsValue.presence === "value" ? maxWindMsValue.value : 25,
+          maxWindMsValue,
+          maxGustMs: 80,
+          maxGustMsValue,
+        },
+      }],
+    });
+    const exactWind = typhoonNumeric({ raw: "25", value: 25 });
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({}, frame(
+      990,
+      typhoonNumeric({ raw: "990", value: 990 }),
+      exactWind,
+      typhoonNumeric({ raw: "30", value: 30 }),
+    )), T0);
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-unknown", serial: "2", reportDateTime: new Date(T0 + 60_000).toISOString() },
+      {
+        serial: "2",
+        ...frame(
+          980,
+          typhoonNumeric({ raw: "解析不能", value: null, presence: "unknown" }),
+          exactWind,
+          typhoonNumeric({ raw: "80", value: 80 }),
+        ),
+      },
+    ), T0 + 60_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: null,
+      maxWindDeltaMs: 0,
+      intensityTrend: null,
+    });
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-value", serial: "3", reportDateTime: new Date(T0 + 120_000).toISOString() },
+      {
+        serial: "3",
+        ...frame(
+          970,
+          typhoonNumeric({ raw: "970", value: 970 }),
+          exactWind,
+          typhoonNumeric({ raw: "不明", value: null, presence: "unknown" }),
+        ),
+      },
+    ), T0 + 120_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: null,
+      maxWindDeltaMs: 0,
+      intensityTrend: null,
+    });
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-steady-raw-variant", serial: "4", reportDateTime: new Date(T0 + 180_000).toISOString() },
+      {
+        serial: "4",
+        ...frame(
+          970,
+          typhoonNumeric({ raw: "９７０", value: 970 }),
+          typhoonNumeric({ raw: "２５", value: 25 }),
+          typhoonNumeric({ raw: "100", value: 100 }),
+        ),
+      },
+    ), T0 + 180_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: 0,
+      maxWindDeltaMs: 0,
+      intensityTrend: "steady",
+    });
+
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-conflicting-trend", serial: "5", reportDateTime: new Date(T0 + 240_000).toISOString() },
+      {
+        serial: "5",
+        ...frame(
+          965,
+          typhoonNumeric({ raw: "965", value: 965 }),
+          typhoonNumeric({ raw: "20", value: 20 }),
+          typhoonNumeric({ raw: "90", value: 90 }),
+        ),
+      },
+    ), T0 + 240_000);
+    expect(currentTyphoon(store)).toMatchObject({
+      pressureDeltaHpa: -5,
+      maxWindDeltaMs: -5,
+      intensityTrend: "developing",
+    });
+  });
 
   it("同一時刻・同一 serial の VPTW60 訂正は置換し、非訂正の重複は拒否する", () => {
     const store = new StandbyStateStore();

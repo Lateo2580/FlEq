@@ -913,6 +913,20 @@ describe("message-router 統合テスト", () => {
       expect(snap.categoryByType.get("VPTW60")).toBe("typhoonAnalysis");
       expect(getOutput()).toContain("台風解析・予報情報");
     });
+
+    it("通常報→同一 revision 訂正→同一訂正 replay は router 境界で二回だけ通知する", () => {
+      const { handler, notifier } = createHandler();
+      notifier.toggleCategory("typhoonAnalysis");
+      const source = readFixture(FIXTURE_VPTW60_2020);
+      const correction = source.replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>");
+      expect(correction).not.toBe(source);
+
+      handler(createMockWsDataMessage(FIXTURE_VPTW60_2020));
+      handler(createMockWsDataMessageFromXml(correction, "VPTW60"));
+      handler(createMockWsDataMessageFromXml(correction, "VPTW60"));
+
+      expect(notifyMock).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("配信終了予定電文の無視", () => {

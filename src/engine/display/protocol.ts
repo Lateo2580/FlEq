@@ -128,6 +128,17 @@ export interface DisplayMagnitudeSemanticV1 extends DisplayNumericSpecialValueSe
 
 export type DisplayDepthSemanticV1 = DisplayNumericSpecialValueSemanticV1;
 
+/** Infinity を使わず JSON round-trip できる台風数値の比較順位。 */
+export type DisplayTyphoonNumericRankV1 =
+  | { kind: "value"; value: number }
+  | { kind: "range"; lowerBound: number | null; upperBound: number | null }
+  | { kind: "unranked" };
+
+/** 中心気圧・風速・移動速度に共通する additive wire semantic。 */
+export interface DisplayTyphoonNumericSemanticV1 extends DisplayNumericSpecialValueSemanticV1 {
+  rank: DisplayTyphoonNumericRankV1;
+}
+
 export type DisplayLgIntensityRankV1 = 0 | 1 | 2 | 3 | 4;
 
 /** V1 additive semantic for JMA long-period ground motion class (rank 0..4). */
@@ -647,17 +658,25 @@ export interface DisplayTyphoonV1 {
   sizeClass?: string | null;
   location: string | null;
   pressureHpa: number | null;
+  /** 中心気圧 canonical の additive wire semantic。 */
+  pressureHpaSemantic?: DisplayTyphoonNumericSemanticV1;
   /** 直前の同一台風との差。負数は気圧低下。旧永続化データでは省略される。 */
   pressureDeltaHpa?: number | null;
   maxWindMs: number | null;
+  /** 最大風速 canonical の additive wire semantic。 */
+  maxWindMsSemantic?: DisplayTyphoonNumericSemanticV1;
   /** 最大瞬間風速。旧永続化データとの互換のため省略可。 */
   maxGustMs?: number | null;
+  /** 最大瞬間風速 canonical の additive wire semantic。 */
+  maxGustMsSemantic?: DisplayTyphoonNumericSemanticV1;
   /** 直前の同一台風との差。正数は風速増加。旧永続化データでは省略される。 */
   maxWindDeltaMs?: number | null;
   /** 気圧・最大風速の両差分が算出できる場合だけ設定する。 */
   intensityTrend?: "developing" | "weakening" | "steady" | null;
   moveDirection: string | null;
   moveSpeedKmh: number | null;
+  /** 移動速度 canonical の additive wire semantic。 */
+  moveSpeedKmhSemantic?: DisplayTyphoonNumericSemanticV1;
   reportDateTime: string;
 }
 

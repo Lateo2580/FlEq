@@ -78,6 +78,11 @@ import {
   VOLCANO_ALERT_REVISION_FAMILY_POLICY,
   VOLCANO_ERUPTION_REVISION_FAMILY_POLICY,
 } from "../messages/revision-family-registry";
+import {
+  normalizeTyphoonNumericValueForPersistence,
+  parsePersistedTyphoonNumericValue,
+  typhoonNumericValueFromLegacyScalar,
+} from "../typhoon-numeric-persistence";
 
 const PERSIST_SCHEMA_VERSION = 2;
 
@@ -291,7 +296,22 @@ function mergeLegacySeenEntries(
   return [...merged.values()];
 }
 
-export interface PersistedTyphoonStateV1 { key: string; sourceEventId: string; typhoon: DisplayTyphoonV1; revision: StandbyRevision; expiresAtMs: number; appliedSemanticKey?: string; }
+export interface PersistedTyphoonStateV1 {
+  key: string;
+  sourceEventId: string;
+  typhoon: DisplayTyphoonV1;
+  /** Phase 5B canonical。旧 scalar-only snapshot では欠落する。 */
+  pressureHpaValue?: SpecialValue<number>;
+  /** Phase 5B canonical。旧 scalar-only snapshot では欠落する。 */
+  maxWindMsValue?: SpecialValue<number>;
+  /** Phase 5B canonical。旧 scalar-only snapshot では欠落する。 */
+  maxGustMsValue?: SpecialValue<number>;
+  /** Phase 5B canonical。旧 scalar-only snapshot では欠落する。 */
+  moveSpeedKmhValue?: SpecialValue<number>;
+  revision: StandbyRevision;
+  expiresAtMs: number;
+  appliedSemanticKey?: string;
+}
 export interface PersistedVolcanoStateV1 {
   code: string;
   name: string;
@@ -429,8 +449,9 @@ export class StandbyPersistence {
     const standbyDomains = normalizeStandbyDomainsFoundationForWrite(
       foundation.standbyDomains ?? emptyStandbyDomainsFoundation(),
     );
+    const typhoons = normalizeTyphoonStatesForWrite(state.typhoons);
     const projectionState = salvageStandbyDomainProjections(
-      { ...state, version: 1 },
+      { ...state, version: 1, typhoons },
       standbyDomains,
     );
     const seen = mergeLegacySeenEntries(
@@ -768,13 +789,77 @@ function isTyphoon(value: unknown): value is DisplayTyphoonV1 {
     && typeof value.reportDateTime === "string";
 }
 
-function isTyphoonState(value: unknown): value is PersistedTyphoonStateV1 {
-  return isRecord(value)
-    && typeof value.key === "string"
-    && typeof value.sourceEventId === "string"
-    && isTyphoon(value.typhoon)
-    && isRevision(value.revision)
-    && typeof value.expiresAtMs === "number" && Number.isFinite(value.expiresAtMs);
+function sanitizeTyphoonState(value: unknown): PersistedTyphoonStateV1 | null {
+  if (
+    !isRecord(value)
+    || typeof value.key !== "string"
+    || typeof value.sourceEventId !== "string"
+    || !isTyphoon(value.typhoon)
+    || !isRevision(value.revision)
+    || typeof value.expiresAtMs !== "number"
+    || !Number.isFinite(value.expiresAtMs)
+    || Object.hasOwn(value, "appliedSemanticKey")
+      && typeof value.appliedSemanticKey !== "string"
+  ) return null;
+  const parseOrMigrate = (
+    key: "pressureHpaValue" | "maxWindMsValue" | "maxGustMsValue" | "moveSpeedKmhValue",
+    scalar: number | null,
+  ): SpecialValue<number> | null => Object.hasOwn(value, key)
+    ? parsePersistedTyphoonNumericValue(value[key])
+    : typhoonNumericValueFromLegacyScalar(scalar);
+  const pressureHpaValue = parseOrMigrate("pressureHpaValue", value.typhoon.pressureHpa);
+  const maxWindMsValue = parseOrMigrate("maxWindMsValue", value.typhoon.maxWindMs);
+  const maxGustMsValue = parseOrMigrate("maxGustMsValue", value.typhoon.maxGustMs ?? null);
+  const moveSpeedKmhValue = parseOrMigrate("moveSpeedKmhValue", value.typhoon.moveSpeedKmh);
+  if (
+    pressureHpaValue == null
+    || maxWindMsValue == null
+    || maxGustMsValue == null
+    || moveSpeedKmhValue == null
+  ) return null;
+  return {
+    key: value.key,
+    sourceEventId: value.sourceEventId,
+    typhoon: structuredClone(value.typhoon),
+    pressureHpaValue,
+    maxWindMsValue,
+    maxGustMsValue,
+    moveSpeedKmhValue,
+    revision: { ...value.revision },
+    expiresAtMs: value.expiresAtMs,
+    ...(typeof value.appliedSemanticKey === "string"
+      ? { appliedSemanticKey: value.appliedSemanticKey }
+      : {}),
+  };
+}
+
+function sanitizeTyphoonStates(value: unknown): PersistedTyphoonStateV1[] {
+  if (!Array.isArray(value)) {
+    log.warn("[standby-persistence] typhoons structure validation 失敗 — domain 破棄");
+    return [];
+  }
+  const states = value.map(sanitizeTyphoonState);
+  if (states.some((state) => state == null)) {
+    log.warn("[standby-persistence] typhoons structure validation 失敗 — domain 破棄");
+    return [];
+  }
+  return states as PersistedTyphoonStateV1[];
+}
+
+function normalizeTyphoonStatesForWrite(
+  states: readonly PersistedTyphoonStateV1[],
+): PersistedTyphoonStateV1[] {
+  return states.map((state) => {
+    const normalized = sanitizeTyphoonState(state);
+    if (normalized == null) throw new Error("invalid persisted typhoon state");
+    return {
+      ...normalized,
+      pressureHpaValue: normalizeTyphoonNumericValueForPersistence(normalized.pressureHpaValue!),
+      maxWindMsValue: normalizeTyphoonNumericValueForPersistence(normalized.maxWindMsValue!),
+      maxGustMsValue: normalizeTyphoonNumericValueForPersistence(normalized.maxGustMsValue!),
+      moveSpeedKmhValue: normalizeTyphoonNumericValueForPersistence(normalized.moveSpeedKmhValue!),
+    };
+  });
 }
 
 function isVolcanoState(value: unknown): value is PersistedVolcanoStateV1 {
@@ -952,7 +1037,7 @@ function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV
     version: 1,
     savedAt: value.savedAt,
     heat: validDomainArray(value.heat, isHeatState, "heat"),
-    typhoons: validDomainArray(value.typhoons, isTyphoonState, "typhoons"),
+    typhoons: sanitizeTyphoonStates(value.typhoons),
     volcanoes: validDomainArray(value.volcanoes, isVolcanoState, "volcanoes"),
     floods,
     weatherAlerts: sanitizeWeatherAlertStates(value.weatherAlerts),
