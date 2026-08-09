@@ -90,6 +90,46 @@ export interface DisplayTsunamiHeightSemanticV1 {
   render: boolean;
 }
 
+export type DisplayNumericSpecialValueBadgeV1 = null | "≥" | "↔" | "?" | "∅";
+
+export type DisplayNumericSpecialValueColorV1 =
+  | "normalRank"
+  | "safetyRank"
+  | "safetyUpperRank"
+  | "unknown"
+  | "neutral"
+  | "notRendered";
+
+/** Magnitude／Depth 共通の additive wire semantic。bounds は常に明示 null に固定する。 */
+export interface DisplayNumericSpecialValueSemanticV1 {
+  raw: string | null;
+  presence: DisplaySpecialValuePresenceV1;
+  label: string | null;
+  condition: string | null;
+  description: string | null;
+  value: number | null;
+  lowerBound: number | null;
+  upperBound: number | null;
+  rawLowerBound: string | null;
+  rawUpperBound: string | null;
+  badge: DisplayNumericSpecialValueBadgeV1;
+  color: DisplayNumericSpecialValueColorV1;
+  render: boolean;
+}
+
+/** Infinity を使わず JSON round-trip できる Magnitude 順序 semantic。 */
+export type DisplayMagnitudeRankV1 =
+  | { kind: "giant" }
+  | { kind: "value"; value: number }
+  | { kind: "range"; lowerBound: number | null; upperBound: number | null }
+  | { kind: "unranked" };
+
+export interface DisplayMagnitudeSemanticV1 extends DisplayNumericSpecialValueSemanticV1 {
+  rank: DisplayMagnitudeRankV1;
+}
+
+export type DisplayDepthSemanticV1 = DisplayNumericSpecialValueSemanticV1;
+
 export type DisplayLgIntensityRankV1 = 0 | 1 | 2 | 3 | 4;
 
 /** V1 additive semantic for JMA long-period ground motion class (rank 0..4). */
@@ -140,11 +180,13 @@ export interface DisplayEewInputV1 {
   forecastMaxIntRank: number | null;
   forecastMaxIntSemantic?: DisplayIntensitySemanticV1;
   magnitude: string | null;
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
   colorIndex: number | null;
   reportDateTime: string;
   originTime: string | null;
   isAssumedHypocenter: boolean;
   depth: string | null;
+  depthSemantic?: DisplayDepthSemanticV1;
   maxLgInt: string | null;
   maxLgIntSemantic?: DisplayLgIntensitySemanticV1;
   regions: DisplayEewRegionV1[];
@@ -187,6 +229,10 @@ export interface DisplayTsunamiInputV1 {
   warningComment: string | null;  // 警報付帯コメント
   observations: DisplayTsunamiObservationV1[];
   reportDateTime: string;
+  /** 津波電文に含まれる地震要素。旧 V1 DTO では欠落するため optional。 */
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
+  /** 津波電文に含まれる地震要素。旧 V1 DTO では欠落するため optional。 */
+  depthSemantic?: DisplayDepthSemanticV1;
 }
 
 /** 既存 DisplayIntensityGroupV1 に omittedAreaCount を追加 (縮退後も「ほか N 地域」を出せる構造。
@@ -221,7 +267,9 @@ export interface DisplayQuakeIntensityMapEventV1 {
   originTime: string | null;
   hypocenterName: string | null;
   depth: string | null;
+  depthSemantic?: DisplayDepthSemanticV1;
   magnitude: string | null;
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
   maxInt: string;
   maxIntRank: number;
   maxIntSemantic?: DisplayIntensitySemanticV1;
@@ -256,7 +304,9 @@ export interface DisplayLatestQuakeInputV1 {
   originTime: string | null;
   hypocenterName: string | null;
   depth: string | null;
+  depthSemantic?: DisplayDepthSemanticV1;
   magnitude: string | null;
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
   maxInt: string | null;
   maxIntRank: number | null;
   maxIntSemantic?: DisplayIntensitySemanticV1;
@@ -298,12 +348,14 @@ export interface DisplayLargeQuakeInputV1 {
   originTime: string | null;
   hypocenterName: string | null;
   magnitude: string | null;
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
   maxInt: string;
   maxIntRank: number;
   maxIntSemantic?: DisplayIntensitySemanticV1;
   intensityGroups: DisplayIntensityGroupV1[];
   reportDateTime: string;
   depth: string | null;
+  depthSemantic?: DisplayDepthSemanticV1;
   maxLgInt: string | null;
   tsunamiWarning: boolean;
   /** 対応地図を参照する三点組。三つ揃わない場合は文字表示だけに縮退する。 */
@@ -323,10 +375,12 @@ export interface DisplayRecentQuakeV1 {
   originTime: string | null;
   hypocenterName: string | null;
   magnitude: string | null;
+  magnitudeSemantic?: DisplayMagnitudeSemanticV1;
   maxInt: string | null;
   maxIntRank: number | null;
   maxIntSemantic?: DisplayIntensitySemanticV1;
   depth: string | null;
+  depthSemantic?: DisplayDepthSemanticV1;
   tsunamiWarning: boolean;
   /** 各地の震度 (履歴カードのクリック再表示用)。groupIntensityAreas 由来で latestQuake と同構造。
    *  古い snapshot には無いためフロントは欠落を空配列として扱う */

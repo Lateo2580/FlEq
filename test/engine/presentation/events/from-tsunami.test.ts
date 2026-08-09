@@ -21,6 +21,8 @@ describe("fromTsunamiOutcome", () => {
     expect(iwate).toMatchObject({
       areaCode: "210", kindCode: "53", kind: "大津波警報：発表", maxHeightDescription: "巨大",
     });
+    expect(event.magnitudeValue).toEqual(result.outcome.parsed.earthquake?.magnitudeValue);
+    expect(event.depthValue).toEqual(result.outcome.parsed.earthquake?.depthValue);
   });
 
   it("tsunamiObservations が Area.Code から予報区の kind を補完する (Phase 4B)", () => {

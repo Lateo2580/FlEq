@@ -21,6 +21,7 @@ import {
   ParsedTyphoonAnalysis,
   ParsedTyphoonProbability,
   ParsedFloodForecastInfo,
+  ParsedEarthquakeHypocenter,
   TyphoonProbPeak,
   DEFAULT_CONFIG,
 } from "../../types";
@@ -30,7 +31,10 @@ import {
   EewUpdateResult,
   getMaxForecastIntensityEvaluation,
 } from "../eew/eew-tracker";
-import { formatMagnitudeLabel } from "../../utils/magnitude";
+import {
+  formatMagnitudeLabel,
+  formatMagnitudeSpecialValue,
+} from "../../utils/magnitude";
 import { playSound, SoundLevel } from "./sound-player";
 import {
   weatherSoundLevel,
@@ -227,6 +231,22 @@ function correctionNotification(
     : { title, body };
 }
 
+/** canonical がある電文だけ SpecialValue 表示へ移し、legacy は従来 formatter を保つ。 */
+function notificationMagnitude(
+  earthquake: Pick<
+    ParsedEarthquakeHypocenter,
+    "magnitude" | "magnitudeInfo" | "magnitudeValue"
+  >,
+): string | null {
+  if (earthquake.magnitudeValue == null) return formatMagnitudeLabel(earthquake);
+  const formatted = formatMagnitudeSpecialValue(earthquake.magnitudeValue);
+  if (
+    earthquake.magnitudeValue.presence === "missing"
+    || earthquake.magnitudeValue.presence === "empty"
+  ) return formatMagnitudeLabel(earthquake);
+  return formatted;
+}
+
 export class Notifier {
   private settings: NotifySettings;
   private soundEnabled: boolean;
@@ -370,7 +390,11 @@ export class Notifier {
     const maxInt = getMaxForecastIntensityEvaluation(info.forecastIntensity)?.summaryLabel
       ?? "不明";
     const body = info.earthquake
-      ? `${info.earthquake.hypocenterName} / ${formatMagnitudeLabel(info.earthquake)} / 最大予測震度${maxInt}`
+      ? [
+          info.earthquake.hypocenterName,
+          notificationMagnitude(info.earthquake),
+          `最大予測震度${maxInt}`,
+        ].filter((part): part is string => part != null).join(" / ")
       : title;
 
     this.send(
@@ -412,7 +436,8 @@ export class Notifier {
     const parts: string[] = [];
     if (info.earthquake) {
       parts.push(info.earthquake.hypocenterName);
-      parts.push(formatMagnitudeLabel(info.earthquake));
+      const magnitude = notificationMagnitude(info.earthquake);
+      if (magnitude != null) parts.push(magnitude);
     }
     if (info.intensity) {
       const maxInt = formatIntensitySpecialValue(info.intensity.maxIntValue, info.intensity.maxInt, "notification");

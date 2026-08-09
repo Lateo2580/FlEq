@@ -65,6 +65,13 @@ export function fromTsunamiOutcome(outcome: TsunamiOutcome): PresentationEvent {
     eventId: xmlReport?.head.eventId ?? null,
     serial: xmlReport?.head.serial ?? null,
 
+    ...(info.earthquake?.depthValue != null
+      ? { depthValue: info.earthquake.depthValue }
+      : {}),
+    ...(info.earthquake?.magnitudeValue != null
+      ? { magnitudeValue: info.earthquake.magnitudeValue }
+      : {}),
+
     warningComment: info.warningComment || null,
 
     tsunamiKinds,

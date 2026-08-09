@@ -1445,7 +1445,7 @@ npm --prefix display run typecheck
 - 巨大 Magnitude（「Ｍ８を超える巨大地震」）は `qualitative` とし、description を表示源とする。現行 helper（`src/utils/magnitude.ts`）の NFKC・trim・`M<数値>` 後の空白補正は維持し、`M8超` 等への意味的短縮はしない（ご主人裁定 2026-08-09＝現行表示の維持）。内部順序のみ exact／range より上位とし、順序 rank は engine 側 semantic として下流へ渡す。frontend に raw 再解析させない。
 - canonical equality helper は `presence`／`value`／`lowerBound`／`upperBound` で判定する。raw、condition、description、diagnostics は比較へ含めない。bounds の欠落と明示 `null` は同値として扱い、生成段でも各 schema で形を固定する（§3.3）。
 - diff は canonical の変化すべて（presence 遷移・value 変化・bounds 変化）で発火し、raw／description だけの表記揺れでは発火しない（ご主人裁定 2026-08-09）。適用面は `EewTracker` と `PresentationDiffStore` の両方とし、`PresentationDiffStore` には Depth も canonical equality で追加する。
-- 通知は既存 cadence を維持する。通常続報を Magnitude／Depth diff だけを理由に通知せず、受理済み訂正は実質差分の有無と独立に `訂正` を明示して通知する。
+- 通知は既存 cadence を維持する。通常続報を Magnitude／Depth diff だけを理由に通知せず、受理済み訂正は実質差分の有無と独立に `訂正` を明示して通知する。地震・EEW 通知本文の Magnitude が `missing`／`empty` の場合は、§3.7 の省略規約に対する明示例外として現行互換の `M不明` 表示を維持する（2026-08-09 通知文言の現行一致を優先）。
 - filter の数値比較は canonical から判定する。exact は `value` を用い、range／lower-only／upper-only は bounds から結果が確定できる場合だけ真とし、確定できない場合と `unknown`／`missing`／`empty`／bounds なし `qualitative`（巨大を含む）は非マッチとする。これは特殊値が数値化不能で非マッチとなる現行挙動の保存であり、巨大の内部順序最上位（表示順）とは別契約とする。
 - 特殊値 fixture は実電文 schema に忠実な合成 XML を許容する（ご主人裁定 2026-08-09）。実電文が観測でき次第、差し替え候補としてバックログへ記録する。
 - 期待値変更の許可範囲は本実装契約で明示した範囲に限る: 深さ成分欠落の `missing` 化とその表示変更、巨大 Magnitude の内部順序最上位、canonical diff 発火範囲の変更、特殊値への badge／tooltip／ARIA 追加、persistence への additive semantic と legacy migration、合成 fixture の追加。通常値の丸め・`M7.3`／`深さ 10km` 等の表示接頭辞と空白・通知頻度と音・exact 値の filter 結果・VXSE51→52／61 の震度保持条件・persistence の salvage 方針・巨大以外の並び順が変わる場合は裁定済み範囲外として報告・停止する。

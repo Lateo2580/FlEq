@@ -478,6 +478,10 @@ export interface PresentationEvent {
   longitude?: string | null;
   depth?: string | null;
   magnitude?: string | null;
+  /** Parser canonical。既存 scalar は legacy consumer 用に並存する。 */
+  depthValue?: SpecialValue<number>;
+  /** Parser canonical。既存 scalar は legacy consumer 用に並存する。 */
+  magnitudeValue?: SpecialValue<number>;
 
   // 強度
   maxIntValue?: SpecialValue<JmaIntensity>;

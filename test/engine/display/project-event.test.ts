@@ -653,6 +653,155 @@ describe("tickerSurface (engine 権威)", () => {
 });
 
 describe("projectDisplayEvent", () => {
+  const giantMagnitude: SpecialValue<number> = {
+    raw: "NaN",
+    value: null,
+    condition: "不明",
+    description: "Ｍ８を超える巨大地震",
+    presence: "qualitative",
+  };
+  const boundedDepth: SpecialValue<number> = {
+    raw: "-600000",
+    value: null,
+    condition: "以上",
+    description: "深さ600km以上",
+    presence: "range",
+    lowerBound: 600,
+  };
+
+  it("Magnitude/Depth semantic を recent/latest/map/largeQuake へ JSON-safe に射影する", () => {
+    const event = baseEvent({
+      eventId: "Q-semantic",
+      serial: "2",
+      maxInt: "5弱",
+      maxIntRank: 5,
+      hypocenterName: "震源A",
+      magnitude: "M8 を超える巨大地震",
+      magnitudeValue: giantMagnitude,
+      depth: "600km",
+      depthValue: boundedDepth,
+      areaItems: [{ name: "地域A", code: "440", maxInt: "5弱" }],
+    });
+    const command = projectQuakeMapCommand(event, Date.parse(event.reportDateTime));
+    expect(command).toMatchObject({
+      kind: "upsert",
+      event: {
+        magnitude: "M8 を超える巨大地震",
+        magnitudeSemantic: {
+          raw: "NaN",
+          presence: "qualitative",
+          label: "M8 を超える巨大地震",
+          value: null,
+          lowerBound: null,
+          upperBound: null,
+          badge: "?",
+          color: "unknown",
+          render: true,
+          rank: { kind: "giant" },
+        },
+        depth: "600km",
+        depthSemantic: {
+          raw: "-600000",
+          presence: "range",
+          label: "600km以上",
+          value: null,
+          lowerBound: 600,
+          upperBound: null,
+          badge: "≥",
+          color: "safetyRank",
+          render: true,
+        },
+      },
+    });
+
+    const dto = projectDisplayEvent(event, "semantic", command);
+    for (const projection of [dto.recentQuake, dto.latestQuake, dto.emergency]) {
+      expect(projection).toMatchObject({
+        magnitudeSemantic: { rank: { kind: "giant" } },
+        depthSemantic: { lowerBound: 600, upperBound: null },
+      });
+    }
+    const roundTripped = JSON.parse(JSON.stringify(dto)) as typeof dto;
+    expect(roundTripped).toMatchObject({
+      recentQuake: {
+        magnitudeSemantic: { rank: { kind: "giant" } },
+        depthSemantic: { lowerBound: 600, upperBound: null },
+      },
+      latestQuake: {
+        magnitudeSemantic: { rank: { kind: "giant" } },
+        depthSemantic: { lowerBound: 600, upperBound: null },
+      },
+      emergency: {
+        kind: "largeQuake",
+        magnitudeSemantic: { rank: { kind: "giant" } },
+        depthSemantic: { lowerBound: 600, upperBound: null },
+      },
+    });
+    const roundTripSemantics = [
+      roundTripped.recentQuake?.magnitudeSemantic,
+      roundTripped.recentQuake?.depthSemantic,
+      roundTripped.latestQuake?.magnitudeSemantic,
+      roundTripped.latestQuake?.depthSemantic,
+      roundTripped.emergency?.kind === "largeQuake"
+        ? roundTripped.emergency.magnitudeSemantic
+        : undefined,
+      roundTripped.emergency?.kind === "largeQuake"
+        ? roundTripped.emergency.depthSemantic
+        : undefined,
+    ];
+    for (const semantic of roundTripSemantics) {
+      expect(semantic).toBeDefined();
+      expect(Object.hasOwn(semantic!, "value")).toBe(true);
+      expect(Object.hasOwn(semantic!, "lowerBound")).toBe(true);
+      expect(Object.hasOwn(semantic!, "upperBound")).toBe(true);
+      expect(Object.hasOwn(semantic!, "rawLowerBound")).toBe(true);
+      expect(Object.hasOwn(semantic!, "rawUpperBound")).toBe(true);
+    }
+  });
+
+  it("EEW と津波 emergency に canonical semantic を additive に射影する", () => {
+    const eew = projectDisplayEvent(baseEvent({
+      domain: "eew",
+      type: "VXSE43",
+      eventId: "E-semantic",
+      isWarning: true,
+      magnitude: "M8 を超える巨大地震",
+      magnitudeValue: giantMagnitude,
+      depth: "600km",
+      depthValue: boundedDepth,
+    }), "EEW");
+    expect(eew.emergency).toMatchObject({
+      kind: "eew",
+      magnitudeSemantic: { rank: { kind: "giant" } },
+      depthSemantic: { lowerBound: 600, upperBound: null },
+    });
+
+    const tsunami = projectDisplayEvent(baseEvent({
+      domain: "tsunami",
+      type: "VTSE51",
+      tsunamiKinds: ["津波警報"],
+      magnitudeValue: giantMagnitude,
+      depthValue: boundedDepth,
+    }), "津波");
+    expect(tsunami.emergency).toMatchObject({
+      kind: "tsunami",
+      magnitudeSemantic: { rank: { kind: "giant" } },
+      depthSemantic: { lowerBound: 600, upperBound: null },
+    });
+  });
+
+  it("legacy scalar-only event では additive semantic field を省略する", () => {
+    const dto = projectDisplayEvent(baseEvent({
+      domain: "eew",
+      type: "VXSE43",
+      eventId: "E-legacy",
+      magnitude: "6.5",
+      depth: "10km",
+    }), "legacy");
+    expect(dto.emergency).not.toHaveProperty("magnitudeSemantic");
+    expect(dto.emergency).not.toHaveProperty("depthSemantic");
+  });
+
   it("adopted local intensity drives summary role and ticker priority/surface", () => {
     const missing = {
       raw: null,

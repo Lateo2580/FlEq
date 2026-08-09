@@ -237,6 +237,12 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
     longitude: info.earthquake?.longitude ?? null,
     depth: info.earthquake?.depth ?? null,
     magnitude: magnitudeForPresentation(info.earthquake),
+    ...(info.earthquake?.depthValue != null
+      ? { depthValue: info.earthquake.depthValue }
+      : {}),
+    ...(info.earthquake?.magnitudeValue != null
+      ? { magnitudeValue: info.earthquake.magnitudeValue }
+      : {}),
 
     maxIntValue,
     maxIntLabel: formatIntensitySpecialValue(maxIntValue, maxInt, "ticker"),

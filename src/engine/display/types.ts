@@ -14,7 +14,9 @@ export type DisplayQuakeMapEventUpdateV1 = Pick<
   | "originTime"
   | "hypocenterName"
   | "depth"
+  | "depthSemantic"
   | "magnitude"
+  | "magnitudeSemantic"
   | "tsunamiWarning"
   | "updatedAtMs"
 >;

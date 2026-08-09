@@ -70,6 +70,8 @@ describe("processLgObservation", () => {
     expect(event.maxLgIntValue).toEqual(outcome!.parsed.maxLgIntValue);
     expect(event.areaItems[0]?.maxIntValue).toEqual(outcome!.parsed.areas[0]?.maxIntValue);
     expect(event.areaItems[0]?.maxLgIntValue).toEqual(outcome!.parsed.areas[0]?.maxLgIntValue);
+    expect(event.magnitudeValue).toEqual(outcome!.parsed.earthquake?.magnitudeValue);
+    expect(event.depthValue).toEqual(outcome!.parsed.earthquake?.depthValue);
   });
 
   it("非 exact 長周期階級の表示 label を presentation event へ貫通させる", () => {

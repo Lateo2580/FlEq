@@ -92,6 +92,77 @@ describe("PresentationDiffStore", () => {
       expect(result.diff!.fields.some((f) => f.key === "magnitude")).toBe(true);
     });
 
+    it("Magnitude は canonical equality で比較し raw/description だけの揺れを無視する", () => {
+      const store = new PresentationDiffStore();
+      store.apply(makeEvent({
+        eventId: "ev-mag-canonical",
+        magnitude: "6.5",
+        magnitudeValue: {
+          raw: "6.5", value: 6.5, condition: null, description: "Ｍ６．５", presence: "value",
+        },
+      }));
+      const result = store.apply(makeEvent({
+        eventId: "ev-mag-canonical",
+        magnitude: "6.5",
+        magnitudeValue: {
+          raw: "６．５", value: 6.5, condition: null, description: "M6.5", presence: "value",
+        },
+      }));
+
+      expect(result.diff?.changed).toBe(false);
+      expect(result.diff?.fields).toEqual([]);
+    });
+
+    it("Magnitude bounds の canonical 変化は同じ legacy scalar でも発火する", () => {
+      const store = new PresentationDiffStore();
+      const base = {
+        raw: "6.0", value: null, condition: "以上", description: null, presence: "range" as const,
+      };
+      store.apply(makeEvent({
+        eventId: "ev-mag-bounds",
+        magnitude: "6.0",
+        magnitudeValue: { ...base, lowerBound: 6 },
+      }));
+      const result = store.apply(makeEvent({
+        eventId: "ev-mag-bounds",
+        magnitude: "6.0",
+        magnitudeValue: { ...base, lowerBound: 7 },
+      }));
+
+      expect(result.diff?.fields).toContainEqual(expect.objectContaining({ key: "magnitude" }));
+      expect(result.diff?.summary).not.toContain("M6.0→6.0");
+    });
+
+    it("Depth は canonical presence/value/bounds で比較する", () => {
+      const store = new PresentationDiffStore();
+      store.apply(makeEvent({
+        eventId: "ev-depth",
+        depth: "600km",
+        depthValue: {
+          raw: "-600000", value: null, condition: "以上", description: "深さ600km以上",
+          presence: "range", lowerBound: 600,
+        },
+      }));
+      const rawOnly = store.apply(makeEvent({
+        eventId: "ev-depth",
+        depth: "600km",
+        depthValue: {
+          raw: "-600000.0", value: null, condition: "600km以上", description: "深さ 600 km 以上",
+          presence: "range", lowerBound: 600, upperBound: null,
+        },
+      }));
+      expect(rawOnly.diff?.changed).toBe(false);
+
+      const changed = store.apply(makeEvent({
+        eventId: "ev-depth",
+        depth: "600km",
+        depthValue: {
+          raw: "-600000", value: 600, condition: null, description: null, presence: "value",
+        },
+      }));
+      expect(changed.diff?.fields).toContainEqual(expect.objectContaining({ key: "depth" }));
+    });
+
     it("maxInt 変化の summary", () => {
       const store = new PresentationDiffStore();
       store.apply(makeEvent({

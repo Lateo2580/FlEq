@@ -15,6 +15,10 @@ import { tornadoTickerGroupKey } from "./tornado-group-key";
 import { weatherOfficeStreamKey } from "../messages/weather-stream-key";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import { projectTsunamiHeightSemantic } from "./tsunami-height-semantic";
+import {
+  projectDepthSemantic,
+  projectMagnitudeSemantic,
+} from "./magnitude-depth-semantic";
 import { revisionOf } from "./standby-registry";
 import {
   attachQuakeObservationBridge,
@@ -78,6 +82,8 @@ export function projectQuakeMapCommand(
   const revision = revisionOf(event.reportDateTime, event.serial ?? null, nowMs);
   const sourceType = event.type;
   const isCorrection = event.infoType === "訂正";
+  const depthSemantic = projectDepthSemantic(event.depthValue);
+  const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
   const resolvedCancellation =
     event.foundationResolvedTrigger != null
     && event.foundationCancellationPolicy != null;
@@ -100,7 +106,9 @@ export function projectQuakeMapCommand(
         originTime: event.originTime ?? null,
         hypocenterName: event.hypocenterName ?? null,
         depth: normalizeDepth(event.depth),
+        ...(depthSemantic == null ? {} : { depthSemantic }),
         magnitude: event.magnitude ?? null,
+        ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
         tsunamiWarning: event.tsunamiWarning === true,
         updatedAtMs: nowMs,
       },
@@ -141,7 +149,9 @@ export function projectQuakeMapCommand(
       originTime: event.originTime ?? null,
       hypocenterName: event.hypocenterName ?? null,
       depth: normalizeDepth(event.depth),
+      ...(depthSemantic == null ? {} : { depthSemantic }),
       magnitude: event.magnitude ?? null,
+      ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
       maxInt: displaySemantic.label,
       maxIntRank,
       ...(displaySemantic.presence === "value" ? {} : { maxIntSemantic: displaySemantic }),
@@ -194,6 +204,8 @@ function projectEmergency(
   if (event.domain === "eew") {
     const forecastMaxIntSemantic = projectIntensitySemantic(event.maxIntValue, event.forecastMaxInt);
     const maxLgIntSemantic = projectLgIntensitySemantic(event.maxLgIntValue, event.maxLgInt);
+    const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
+    const depthSemantic = projectDepthSemantic(event.depthValue);
     return {
       kind: "eew",
       eventId: event.eventId ?? null,
@@ -213,11 +225,13 @@ function projectEmergency(
         ? {}
         : { forecastMaxIntSemantic }),
       magnitude: event.magnitude ?? null,
+      ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
       colorIndex: event.stateSnapshot?.kind === "eew" ? event.stateSnapshot.colorIndex : null,
       reportDateTime: event.reportDateTime,
       originTime: event.originTime ?? null,
       isAssumedHypocenter: event.isAssumedHypocenter === true,
       depth: normalizeDepth(event.depth),
+      ...(depthSemantic == null ? {} : { depthSemantic }),
       maxLgInt: event.maxLgInt ?? null,
       ...(maxLgIntSemantic == null || maxLgIntSemantic.presence === "value"
         ? {}
@@ -257,6 +271,8 @@ function projectEmergency(
       : event.tsunamiDisplay.warningComment;
     const info = resolveTsunamiLevel(displayKinds);
     if (info == null) return null;
+    const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
+    const depthSemantic = projectDepthSemantic(event.depthValue);
     return {
       kind: "tsunami",
       level: info.level,
@@ -271,6 +287,8 @@ function projectEmergency(
         })),
       ),
       reportDateTime: event.reportDateTime,
+      ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
+      ...(depthSemantic == null ? {} : { depthSemantic }),
     };
   }
   const adoptedIntensity = event.domain === "earthquake" ? resolveQuakeIntensityProjection(event) : null;
@@ -283,18 +301,22 @@ function projectEmergency(
     earthquakeSafetyRank >= LARGE_QUAKE_MIN_RANK &&
     maxIntSemantic?.label != null
   ) {
+    const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
+    const depthSemantic = projectDepthSemantic(event.depthValue);
     return {
       kind: "largeQuake",
       eventId: event.eventId ?? null,
       originTime: event.originTime ?? null,
       hypocenterName: event.hypocenterName ?? null,
       magnitude: event.magnitude ?? null,
+      ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
       maxInt: maxIntSemantic.label,
       maxIntRank: maxIntSemantic.safetyRank ?? earthquakeSafetyRank,
       ...(maxIntSemantic.presence === "value" ? {} : { maxIntSemantic }),
       intensityGroups: groupIntensityAreas(event.areaItems),
       reportDateTime: event.reportDateTime,
       depth: normalizeDepth(event.depth),
+      ...(depthSemantic == null ? {} : { depthSemantic }),
       maxLgInt: event.maxLgInt ?? null,
       tsunamiWarning: event.tsunamiWarning === true,
       ...(quakeMapCommand?.kind === "upsert"
@@ -411,6 +433,8 @@ export function projectRecentQuake(event: PresentationEvent): RecentQuakeObserva
   if (event.domain !== "earthquake") return null;
   const meta = quakeObservationMeta(event);
   const adoptedIntensity = resolveQuakeIntensityProjection(event);
+  const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
+  const depthSemantic = projectDepthSemantic(event.depthValue);
   if (!event.isCancellation && meta.maxIntValue.presence === "missing" && event.hypocenterName == null) {
     return null;
   }
@@ -420,12 +444,14 @@ export function projectRecentQuake(event: PresentationEvent): RecentQuakeObserva
     originTime: event.originTime ?? null,
     hypocenterName: event.hypocenterName ?? null,
     magnitude: event.magnitude ?? null,
+    ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
     maxInt: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.label : null,
     maxIntRank: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.safetyRank : null,
     ...(adoptedIntensity.semantic.presence === "value"
       ? {}
       : { maxIntSemantic: adoptedIntensity.semantic }),
     depth: normalizeDepth(event.depth),
+    ...(depthSemantic == null ? {} : { depthSemantic }),
     tsunamiWarning: event.tsunamiWarning === true,
     intensityGroups: groupIntensityAreas(event.areaItems),
   }, meta);
@@ -435,6 +461,8 @@ function projectLatestQuake(event: PresentationEvent): LatestQuakeObservationPro
   if (event.domain !== "earthquake") return null;
   const meta = quakeObservationMeta(event);
   const adoptedIntensity = resolveQuakeIntensityProjection(event);
+  const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
+  const depthSemantic = projectDepthSemantic(event.depthValue);
   if (!event.isCancellation && meta.maxIntValue.presence === "missing" && event.hypocenterName == null) {
     return null;
   }
@@ -444,7 +472,9 @@ function projectLatestQuake(event: PresentationEvent): LatestQuakeObservationPro
     originTime: event.originTime ?? null,
     hypocenterName: event.hypocenterName ?? null,
     depth: normalizeDepth(event.depth),
+    ...(depthSemantic == null ? {} : { depthSemantic }),
     magnitude: event.magnitude ?? null,
+    ...(magnitudeSemantic == null ? {} : { magnitudeSemantic }),
     maxInt: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.label : null,
     maxIntRank: adoptedIntensity.semantic.presence === "value" ? adoptedIntensity.semantic.safetyRank : null,
     ...(adoptedIntensity.semantic.presence === "value"

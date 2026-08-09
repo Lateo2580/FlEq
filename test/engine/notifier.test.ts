@@ -237,6 +237,36 @@ describe("Notifier", () => {
     expect(message).not.toContain("NaN");
   });
 
+  it.each([
+    ["exact", {
+      raw: "7.25", value: 7.25, condition: null, description: null, presence: "value" as const,
+    }, "7.3", "M7.3"],
+    ["range", {
+      raw: "5～7", value: null, condition: null, description: null, presence: "range" as const,
+      lowerBound: 5, upperBound: 7,
+    }, "", "M5.0～7.0"],
+    ["missing", {
+      raw: null, value: null, condition: null, description: null, presence: "missing" as const,
+    }, "", "M不明"],
+    ["empty", {
+      raw: "", value: null, condition: null, description: null, presence: "empty" as const,
+    }, "", "M不明"],
+  ] as const)("地震通知の canonical Magnitude %s は formatter を通し既存文言を維持する", (
+    _label,
+    magnitudeValue,
+    magnitude,
+    expected,
+  ) => {
+    notifyMock.mockClear();
+    const base = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
+    new Notifier().notifyEarthquake({
+      ...base,
+      earthquake: { ...base.earthquake!, magnitude, magnitudeValue },
+    });
+    const message = notifyMock.mock.calls[0][0].message as string;
+    expect(message).toContain(expected);
+  });
+
   it("passes category-specific icon to node-notifier", () => {
     const spy = vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       return String(p).endsWith("earthquake.png");
@@ -614,6 +644,44 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
 
     const body = notifyMock.mock.calls[0][0].message as string;
     expect(body).toContain("最大予測震度4〜5-");
+  });
+
+  it("EEW 通知も canonical Magnitude formatter を使い通常丸めを維持する", () => {
+    const notifier = new Notifier();
+    const base = makeEewInfo({ eventId: "EVT-MAGNITUDE" });
+    notifier.notifyEew({
+      ...base,
+      earthquake: {
+        ...base.earthquake!,
+        magnitude: "7.3",
+        magnitudeValue: {
+          raw: "7.25", value: 7.25, condition: null, description: null, presence: "value",
+        },
+      },
+    }, makeResult({ isNew: true }));
+
+    expect(notifyMock.mock.calls[0][0].message).toContain(" / M7.3 / ");
+  });
+
+  it.each([
+    ["missing", {
+      raw: null, value: null, condition: null, description: null, presence: "missing" as const,
+    }],
+    ["empty", {
+      raw: "", value: null, condition: null, description: null, presence: "empty" as const,
+    }],
+  ] as const)("EEW 通知の canonical Magnitude %s は既存の M不明を維持する", (
+    label,
+    magnitudeValue,
+  ) => {
+    const notifier = new Notifier();
+    const base = makeEewInfo({ eventId: `EVT-MAGNITUDE-${label}` });
+    notifier.notifyEew({
+      ...base,
+      earthquake: { ...base.earthquake!, magnitude: "", magnitudeValue },
+    }, makeResult({ isNew: true }));
+
+    expect(notifyMock.mock.calls[0][0].message).toContain(" / M不明 / ");
   });
 
   const nonExactIntensity = (

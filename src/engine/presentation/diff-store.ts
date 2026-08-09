@@ -1,6 +1,9 @@
 import type { PresentationEvent } from "./types";
 import type { PresentationDiff, PresentationDiffField } from "./diff-types";
-import { formatPresentationMagnitude } from "../../utils/magnitude";
+import {
+  formatPresentationMagnitude,
+  specialValueCanonicalEquals,
+} from "../../utils/magnitude";
 
 export type { PresentationDiff, PresentationDiffField };
 
@@ -127,18 +130,41 @@ export class PresentationDiffStore {
     summary: string[],
   ): void {
     // magnitude
-    if (prev.magnitude !== curr.magnitude) {
+    const magnitudeChanged = prev.magnitudeValue != null || curr.magnitudeValue != null
+      ? !specialValueCanonicalEquals(prev.magnitudeValue, curr.magnitudeValue)
+      : prev.magnitude !== curr.magnitude;
+    if (magnitudeChanged) {
       fields.push({
         key: "magnitude",
         previous: prev.magnitude ?? null,
         current: curr.magnitude ?? null,
         significance: "major",
       });
-      if (prev.magnitude != null && curr.magnitude != null) {
+      if (
+        prev.magnitude != null
+        && curr.magnitude != null
+        && prev.magnitude !== curr.magnitude
+      ) {
         const current = Number.isFinite(Number(curr.magnitude))
           ? curr.magnitude
           : formatPresentationMagnitude(curr.magnitude);
         summary.push(`${formatPresentationMagnitude(prev.magnitude)}→${current}`);
+      }
+    }
+
+    // depth
+    const depthChanged = prev.depthValue != null || curr.depthValue != null
+      ? !specialValueCanonicalEquals(prev.depthValue, curr.depthValue)
+      : prev.depth !== curr.depth;
+    if (depthChanged) {
+      fields.push({
+        key: "depth",
+        previous: prev.depth ?? null,
+        current: curr.depth ?? null,
+        significance: "major",
+      });
+      if (prev.depth != null && curr.depth != null && prev.depth !== curr.depth) {
+        summary.push(`${prev.depth}→${curr.depth}`);
       }
     }
 

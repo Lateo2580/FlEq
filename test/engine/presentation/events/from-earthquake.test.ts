@@ -61,6 +61,13 @@ describe("fromEarthquakeOutcome", () => {
     expect(event.tsunamiWarning).toBe(false);
   });
 
+  it("Magnitude/Depth canonical を scalar と並行して PresentationEvent へ渡す", () => {
+    const outcome = outcomeFromFixture();
+    const event = fromEarthquakeOutcome(outcome);
+    expect(event.magnitudeValue).toEqual(outcome.parsed.earthquake?.magnitudeValue);
+    expect(event.depthValue).toEqual(outcome.parsed.earthquake?.depthValue);
+  });
+
   it("tsunami.text が津波警報言及を含む場合は tsunamiWarning=true になる (Phase A #2)", () => {
     const outcome = outcomeFromFixture();
     const event = fromEarthquakeOutcome({

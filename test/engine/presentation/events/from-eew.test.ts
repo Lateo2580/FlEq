@@ -45,6 +45,8 @@ describe("fromEewOutcome", () => {
     expect(event.stateSnapshot?.kind).toBe("eew");
     expect(event.isCancellation).toBe(false);
     expect(event.originTime).toBe(outcome.parsed.earthquake?.originTime ?? null);
+    expect(event.magnitudeValue).toEqual(outcome.parsed.earthquake?.magnitudeValue);
+    expect(event.depthValue).toEqual(outcome.parsed.earthquake?.depthValue);
   });
 });
 
