@@ -14,6 +14,7 @@ import { decodeBody, dig, str } from "./telegram-parser";
 import { listOf, toNumberOrNull, nodeText } from "./timeseries-common";
 import { requireTelegramMeta } from "./telegram-ingress";
 import { createJmxXmlParser } from "./xml-shape";
+import { extractSpecialValue } from "./special-value";
 import * as log from "../logger";
 
 const typhoonXmlParser = createJmxXmlParser((name) =>
@@ -29,11 +30,17 @@ function findProperty(item: unknown, typeName: string): unknown {
   return null;
 }
 
-function numByUnit(nodes: unknown, unit: string): number | null {
+function nodeByUnit(nodes: unknown, unit: string): unknown {
   for (const n of listOf(nodes)) {
-    if (str(dig(n, "@_unit")) === unit) return toNumberOrNull(nodeText(n));
+    if (str(dig(n, "@_unit")) === unit) return n;
   }
-  return null;
+  return undefined;
+}
+
+/** 既存 scalar adapter。canonical の presence にかかわらず従来の数値化を維持する。 */
+function numByUnit(nodes: unknown, unit: string): number | null {
+  const node = nodeByUnit(nodes, unit);
+  return node === undefined ? null : toNumberOrNull(nodeText(node));
 }
 
 function parseWindArea(wap: unknown): TyphoonWindArea {
@@ -87,6 +94,8 @@ function parseFrame(info: unknown): TyphoonFrame {
       }
     }
   }
+  const movementSpeedNode = nodeByUnit(dig(centerPart, "jmx_eb:Speed"), "km/h");
+  const pressureNode = nodeByUnit(dig(centerPart, "jmx_eb:Pressure"), "hPa");
   const center: TyphoonCenter = {
     location: str(dig(centerPart, "Location")) || null,
     coordinate,
@@ -94,6 +103,8 @@ function parseFrame(info: unknown): TyphoonFrame {
     moveDirection: nodeText(dig(centerPart, "jmx_eb:Direction")) || null,
     moveSpeedKmh: numByUnit(dig(centerPart, "jmx_eb:Speed"), "km/h"),
     pressureHpa: numByUnit(dig(centerPart, "jmx_eb:Pressure"), "hPa"),
+    moveSpeedKmhValue: extractSpecialValue("MovementSpeed", movementSpeedNode),
+    pressureHpaValue: extractSpecialValue("Pressure", pressureNode),
   };
 
   const windProp = findProperty(item, "風");
@@ -102,11 +113,18 @@ function parseFrame(info: unknown): TyphoonFrame {
     const windPart = dig(windProp, "WindPart");
     let maxWindMs: number | null = null;
     let maxGustMs: number | null = null;
+    let maxWindMsValue = extractSpecialValue("WindSpeed", undefined);
+    let maxGustMsValue = extractSpecialValue("WindSpeed", undefined);
     for (const w of listOf(dig(windPart, "jmx_eb:WindSpeed"))) {
       if (str(dig(w, "@_unit")) !== "m/s") continue;
       const t = str(dig(w, "@_type"));
-      if (t === "最大風速") maxWindMs = toNumberOrNull(nodeText(w));
-      else if (t === "最大瞬間風速") maxGustMs = toNumberOrNull(nodeText(w));
+      if (t === "最大風速") {
+        maxWindMs = toNumberOrNull(nodeText(w));
+        maxWindMsValue = extractSpecialValue("WindSpeed", w);
+      } else if (t === "最大瞬間風速") {
+        maxGustMs = toNumberOrNull(nodeText(w));
+        maxGustMsValue = extractSpecialValue("WindSpeed", w);
+      }
     }
     let stormArea: TyphoonWindArea | null = null;
     let galeArea: TyphoonWindArea | null = null;
@@ -118,7 +136,15 @@ function parseFrame(info: unknown): TyphoonFrame {
       else if (t === "強風域") galeArea = area;
       else if (t === "暴風警戒域") stormWarningArea = area;
     }
-    wind = { maxWindMs, maxGustMs, stormArea, galeArea, stormWarningArea };
+    wind = {
+      maxWindMs,
+      maxGustMs,
+      maxWindMsValue,
+      maxGustMsValue,
+      stormArea,
+      galeArea,
+      stormWarningArea,
+    };
   }
 
   return { kind, label, validTime: nodeText(dt), typhoonClass, center, wind };

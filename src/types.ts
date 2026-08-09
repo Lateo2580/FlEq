@@ -2358,11 +2358,19 @@ export interface TyphoonCenter {
   moveDirection: string | null;          // 移動方向 "西北西"
   moveSpeedKmh: number | null;           // 移動速度 km/h
   pressureHpa: number | null;            // 中心気圧 hPa
+  /** Phase 5B canonical 値。旧 scalar は互換 adapter として維持する。 */
+  moveSpeedKmhValue?: SpecialValue<number>;
+  /** Phase 5B canonical 値。旧 scalar は互換 adapter として維持する。 */
+  pressureHpaValue?: SpecialValue<number>;
 }
 
 export interface TyphoonWind {
   maxWindMs: number | null;
   maxGustMs: number | null;
+  /** Phase 5B canonical 値。旧 scalar は互換 adapter として維持する。 */
+  maxWindMsValue?: SpecialValue<number>;
+  /** Phase 5B canonical 値。旧 scalar は互換 adapter として維持する。 */
+  maxGustMsValue?: SpecialValue<number>;
   stormArea: TyphoonWindArea | null;        // 暴風域（実況/推定）
   galeArea: TyphoonWindArea | null;         // 強風域（実況/推定）
   stormWarningArea: TyphoonWindArea | null; // 暴風警戒域（予報）

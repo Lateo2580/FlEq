@@ -163,6 +163,100 @@ function matchesAnySpecialTerm(value: string | null, terms: readonly string[]): 
   return normalized != null && terms.includes(normalized);
 }
 
+type TyphoonNumericDomain = "Pressure" | "WindSpeed" | "MovementSpeed";
+
+function isTyphoonNumericDomain(domain: SpecialValueDomain): domain is TyphoonNumericDomain {
+  return domain === "Pressure" || domain === "WindSpeed" || domain === "MovementSpeed";
+}
+
+/** NFKC 後の完全一致、または否定形を拾わない肯定的な終端一致だけを許す。 */
+function matchesTerminalSpecialTerm(value: string | null, terms: readonly string[]): boolean {
+  const normalized = normalizeSpecialTerm(value);
+  return normalized != null && terms.some(
+    (term) => normalized === term || normalized.endsWith(term),
+  );
+}
+
+interface TyphoonClassificationSource {
+  kind: "raw" | "condition" | "description";
+  value: string | null;
+}
+
+function typhoonClassificationSources(
+  domain: TyphoonNumericDomain,
+  parts: NodeParts,
+): TyphoonClassificationSource[] {
+  const common: TyphoonClassificationSource[] = [
+    { kind: "condition", value: parts.condition },
+    { kind: "raw", value: parts.raw },
+  ];
+  return domain === "MovementSpeed"
+    ? [{ kind: "description", value: parts.description }, ...common]
+    : common;
+}
+
+function isNormalizedNan(value: string | null): boolean {
+  return normalizeSpecialTerm(value)?.toLowerCase() === "nan";
+}
+
+function isKnownTyphoonSpecialSource(
+  domain: TyphoonNumericDomain,
+  source: string | null,
+): boolean {
+  switch (domain) {
+    case "Pressure":
+      return matchesTerminalSpecialTerm(source, ["解析不能", "不明", "不詳"]);
+    case "WindSpeed":
+      return matchesAnySpecialTerm(source, ["なし"])
+        || matchesTerminalSpecialTerm(source, ["不明", "不詳"]);
+    case "MovementSpeed":
+      return matchesTerminalSpecialTerm(
+        source,
+        ["ゆっくり", "ほとんど停滞", "不明", "不詳"],
+      );
+  }
+}
+
+function isKnownTyphoonCondition(
+  domain: TyphoonNumericDomain,
+  condition: string | null,
+): boolean {
+  const normalized = normalizeSpecialTerm(condition);
+  if (normalized == null || normalized === "") return true;
+  if (isKnownTyphoonSpecialSource(domain, normalized)) return true;
+  if (domain === "WindSpeed") {
+    return normalized === "中心付近"
+      || normalized === "値なし"
+      || terminalRangeDirection(normalized) != null;
+  }
+  return false;
+}
+
+function hasUnmappedTyphoonQualitativeSource(
+  domain: TyphoonNumericDomain,
+  parts: NodeParts,
+): boolean {
+  // valid 本文は unknown Condition から無効化せず、診断だけを付ける。
+  if (parseNodeDomainValue(domain, parts.raw, parts.unit) != null) return false;
+  return typhoonClassificationSources(domain, parts).some(({ kind, value }) => {
+    const normalized = normalizeSpecialTerm(value);
+    if (normalized == null || normalized === "") return false;
+    if (parseNumber(normalized) != null || normalized.toLowerCase() === "nan") return false;
+    if (isKnownTyphoonSpecialSource(domain, normalized)) return false;
+    if (kind === "condition" && isKnownTyphoonCondition(domain, normalized)) return false;
+    if (domain === "WindSpeed" && terminalRangeDirection(normalized) != null) return false;
+    return true;
+  });
+}
+
+function hasUnsupportedTyphoonStructuredBounds(
+  domain: SpecialValueDomain,
+  parts: NodeParts,
+): boolean {
+  return (domain === "Pressure" || domain === "MovementSpeed")
+    && (parts.lowerRaw != null || parts.upperRaw != null);
+}
+
 function isMagnitudeUnknownTerm(value: string | null): boolean {
   return matchesAnySpecialTerm(value, [...UNKNOWN_TERMS, "M不明"]);
 }
@@ -360,24 +454,35 @@ function specialPresence(
     case "LgInt":
       return resolvePrioritySpecialPresence(domain, parts)?.presence ?? null;
     case "Pressure":
-      return (
-        parts.raw.trim().toLowerCase() === "nan"
-        || includesInBodyOrCondition(parts, /解析不能|不明|不詳/)
-      ) ? "unknown" : null;
+      if (
+        isNormalizedNan(parts.raw)
+        || typhoonClassificationSources(domain, parts).some(({ value }) =>
+          matchesTerminalSpecialTerm(value, ["解析不能", "不明", "不詳"])
+        )
+      ) return "unknown";
+      return hasUnmappedTyphoonQualitativeSource(domain, parts) ? "qualitative" : null;
     case "WindSpeed":
-      if (parts.condition === "なし") return "qualitative";
-      return (
-        parts.raw.trim().toLowerCase() === "nan"
-        || includesInBodyOrCondition(parts, /不明|不詳/)
-      ) ? "unknown" : null;
+      if (typhoonClassificationSources(domain, parts).some(({ value }) =>
+        matchesAnySpecialTerm(value, ["なし"])
+      )) return "qualitative";
+      if (
+        isNormalizedNan(parts.raw)
+        || typhoonClassificationSources(domain, parts).some(({ value }) =>
+          matchesTerminalSpecialTerm(value, ["不明", "不詳"])
+        )
+      ) return "unknown";
+      return hasUnmappedTyphoonQualitativeSource(domain, parts) ? "qualitative" : null;
     case "MovementSpeed":
-      if (includesInBodyOrCondition(parts, /ゆっくり|ほとんど停滞/)) {
-        return "qualitative";
-      }
-      return (
-        parts.raw.trim().toLowerCase() === "nan"
-        || includesInBodyOrCondition(parts, /不明|不詳/)
-      ) ? "unknown" : null;
+      if (typhoonClassificationSources(domain, parts).some(({ value }) =>
+        matchesTerminalSpecialTerm(value, ["ゆっくり", "ほとんど停滞"])
+      )) return "qualitative";
+      if (
+        isNormalizedNan(parts.raw)
+        || typhoonClassificationSources(domain, parts).some(({ value }) =>
+          matchesTerminalSpecialTerm(value, ["不明", "不詳"])
+        )
+      ) return "unknown";
+      return hasUnmappedTyphoonQualitativeSource(domain, parts) ? "qualitative" : null;
     case "PlumeHeight":
       // 観測阻害 condition/body を最優先し、description は分類に使わない。
       if (includesInBodyOrCondition(parts, /観測できず/)) return "unknown";
@@ -405,6 +510,14 @@ function rangeDirection(
   if (domain === "Magnitude") {
     const directions = [parts.condition, parts.description]
       .map(magnitudeRangeDirectionForSource);
+    if (directions.includes("lower")) return "lower";
+    if (directions.includes("upper")) return "upper";
+    return null;
+  }
+  if (domain === "Pressure" || domain === "MovementSpeed") return null;
+  if (domain === "WindSpeed") {
+    const directions = [parts.condition, parts.description]
+      .map(terminalRangeDirection);
     if (directions.includes("lower")) return "lower";
     if (directions.includes("upper")) return "upper";
     return null;
@@ -448,6 +561,9 @@ function specialValueDiagnostics(
     && domain !== "TsunamiHeight"
     && domain !== "Magnitude"
     && domain !== "Depth"
+    && domain !== "Pressure"
+    && domain !== "WindSpeed"
+    && domain !== "MovementSpeed"
   ) {
     return undefined;
   }
@@ -461,7 +577,9 @@ function specialValueDiagnostics(
         : domain === "TsunamiHeight"
           ? TSUNAMI_HEIGHT_CONDITION_TERMS
           : UNKNOWN_TERMS;
-    const isKnown = domain === "Magnitude"
+    const isKnown = isTyphoonNumericDomain(domain)
+      ? isKnownTyphoonCondition(domain, normalizedCondition)
+      : domain === "Magnitude"
       ? isKnownMagnitudeCondition(normalizedCondition)
       : domain === "Depth"
         ? matchesAnySpecialTerm(normalizedCondition, UNKNOWN_TERMS)
@@ -551,9 +669,18 @@ export function extractSpecialValue(
     ? resolvePrioritySpecialPresence(domain, parts)
     : null;
   const special = prioritySpecial?.presence ?? specialPresence(domain, parts);
+  const hasUnsupportedStructuredBounds = hasUnsupportedTyphoonStructuredBounds(
+    domain,
+    parts,
+  );
   const hasUnmappedQualitative = (
     domain === "Magnitude" || domain === "Depth"
-  ) && special === "qualitative" && hasUnmappedQualitativeSource(domain, parts);
+  )
+    ? special === "qualitative" && hasUnmappedQualitativeSource(domain, parts)
+    : isTyphoonNumericDomain(domain)
+      ? hasUnmappedTyphoonQualitativeSource(domain, parts)
+        || hasUnsupportedStructuredBounds
+      : false;
   const parsedDepthBound = domain === "Depth" ? depthBound(parts) : null;
   const depthSpecialConflict = domain === "Depth" && parsedValue != null && (
     (parsedDepthBound != null && parsedDepthBound.value !== parsedValue)
@@ -563,11 +690,19 @@ export function extractSpecialValue(
   const magnitudeSpecialConflict = domain === "Magnitude"
     && parsedValue != null
     && special != null;
+  const unsupportedStructuredBoundsConflict = hasUnsupportedStructuredBounds
+    && (
+      parsedValue != null
+      || (special != null && (lowerBound != null || upperBound != null))
+    );
   const diagnostics = specialValueDiagnostics(
     domain,
     parts,
     parsedValue != null || lowerBound != null || upperBound != null,
-    (prioritySpecial?.conflict ?? false) || depthSpecialConflict || magnitudeSpecialConflict,
+    (prioritySpecial?.conflict ?? false)
+      || depthSpecialConflict
+      || magnitudeSpecialConflict
+      || unsupportedStructuredBoundsConflict,
     hasUnmappedQualitative,
   );
   const diagnosticFields = diagnostics == null ? {} : { diagnostics };
@@ -599,8 +734,29 @@ export function extractSpecialValue(
     };
   }
 
+  // 台風の既知特殊語は構造化 bounds より優先する。
+  if (isTyphoonNumericDomain(domain) && special === "qualitative") {
+    return {
+      ...common,
+      value: null,
+      presence: "qualitative",
+      ...rawBoundFields,
+      ...diagnosticFields,
+    };
+  }
+  if (isTyphoonNumericDomain(domain) && special === "unknown") {
+    return {
+      ...common,
+      value: null,
+      presence: "unknown",
+      ...rawBoundFields,
+      ...diagnosticFields,
+    };
+  }
+
   if (
-    lowerBound != null
+    !hasUnsupportedStructuredBounds
+    && lowerBound != null
     && upperBound != null
     && lowerBound === upperBound
   ) {
@@ -614,7 +770,7 @@ export function extractSpecialValue(
     };
   }
 
-  if (lowerBound != null || upperBound != null) {
+  if (!hasUnsupportedStructuredBounds && (lowerBound != null || upperBound != null)) {
     return {
       ...common,
       value: null,
@@ -628,6 +784,15 @@ export function extractSpecialValue(
   }
 
   if (hasBoundElements) {
+    if (hasUnsupportedStructuredBounds && parsedValue != null) {
+      return {
+        ...common,
+        value: parsedValue,
+        presence: "value",
+        ...rawBoundFields,
+        ...diagnosticFields,
+      };
+    }
     return {
       ...common,
       value: null,
