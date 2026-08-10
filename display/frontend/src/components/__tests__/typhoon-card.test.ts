@@ -477,9 +477,29 @@ describe("TyphoonCard", () => {
     expect(container.querySelector(".compact-summary")?.textContent).toContain("ocean");
     expect(container.querySelector('.compact-summary [data-value="990"]')).toBeTruthy();
     expect(container.querySelector('.compact-summary [data-value="25"]')).toBeTruthy();
+    const windToken = container.querySelector('.compact-summary [data-value="25"]')?.closest(".compact-token");
+    expect(windToken?.childNodes[0]?.textContent).toBe("最大風速 ");
+    const firstCard = container.querySelector(".typhoon");
+    expect(Array.from(firstCard?.querySelectorAll(".compact-numeric") ?? []).map((node) =>
+      node.querySelector("[data-value]")?.getAttribute("data-value") ?? node.querySelector(".nu-value")?.textContent,
+    ))
+      .toEqual(["990", "25"]);
     expect(container.querySelector(".compact-movement")?.textContent).toBe("N ほとんど停滞?");
     expect(container.querySelector(".compact-movement .semantic-badge")?.textContent).toBe("?");
     expect(container.querySelector(".meta")).toBeNull();
     expect(container.querySelector(".change-summary")).toBeNull();
+  });
+
+  it("compact の中心気圧・最大風速・数値移動速度を同じ太字 token で表示する", () => {
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem(),
+      displayMode: "compact",
+    });
+    const windToken = container.querySelector('.compact-summary [data-value="25"]')?.closest(".compact-token");
+    expect(windToken?.childNodes[0]?.textContent).toBe("最大風速 ");
+    expect(Array.from(container.querySelectorAll(".compact-numeric")).map((node) =>
+      node.querySelector("[data-value]")?.getAttribute("data-value") ?? node.querySelector(".nu-value")?.textContent,
+    ))
+      .toEqual(["990", "25", "20"]);
   });
 });

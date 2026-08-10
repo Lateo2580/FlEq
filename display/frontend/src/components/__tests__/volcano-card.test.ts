@@ -9,7 +9,11 @@ import { StandbyStateStore } from "../../../../../src/engine/display/standby-sta
 import { VolcanoStateHolder } from "../../../../../src/engine/messages/volcano-state";
 import { fromVolcanoOutcome } from "../../../../../src/engine/presentation/events/from-volcano";
 import { buildVolcanoOutcome } from "../../../../../src/engine/presentation/processors/process-volcano";
-import { createMockWsDataMessageFromXml } from "../../../../../test/helpers/mock-message";
+import {
+  createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
+  FIXTURE_VFVO50_ALERT_LV3,
+} from "../../../../../test/helpers/mock-message";
 import type {
   ActiveStandbyCardV1,
   DisplayPlumeHeightSemanticV1,
@@ -101,28 +105,63 @@ describe("VolcanoCard", () => {
     expect(container.querySelector(".volcano-main")?.textContent).toContain(VOLCANO_LEVEL_LABELS[3]);
   });
 
-  it("見出しと同義の全角警戒レベルを補助行へ重複表示しない", () => {
+  it("警報由来カードで見出しと同義の warningKind を補助行へ重複表示しない", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem({
       data: { volcanoes: [{
         code: "506", name: "桜島", alertLevel: 3,
-        warningKind: "噴火警報（火口周辺）", targetKinds: ["レベル３（入山規制）"],
-        latestEvent: eruptionEvent(),
+        warningKind: "レベル３（入山規制）", targetKinds: ["火口周辺警報"],
+        latestEvent: null,
       }] },
     }) });
     expect(container.querySelector(".volcano-main")?.textContent).toContain("桜島 レベル3（入山規制）");
-    expect(container.querySelector(".alert-meaning")?.textContent).toBe("噴火警報（火口周辺）");
+    expect(container.querySelector(".alert-meaning")?.textContent).toBe("火口周辺警報");
     expect(container.textContent?.match(/入山規制/g)).toHaveLength(1);
   });
 
-  it("見出しに数値レベルがない場合は警戒レベル表記を補助行に残す", () => {
+  it("見出しに数値レベルがない場合は warningKind の警戒レベル表記を補助行に残す", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem({
       data: { volcanoes: [{
         code: "506", name: "桜島", alertLevel: null,
-        warningKind: null, targetKinds: ["レベル３（入山規制）"], latestEvent: eruptionEvent(),
+        warningKind: "レベル３（入山規制）", targetKinds: [], latestEvent: eruptionEvent(),
       }] },
     }) });
     expect(container.querySelector(".volcano-main")?.textContent?.trim()).toBe("桜島");
     expect(container.querySelector(".alert-meaning")?.textContent).toBe("レベル３（入山規制）");
+  });
+
+  it("実 VFVO50 の警報 state と後着噴火観測を併合しても警戒レベルを一度だけ表示する", () => {
+    const holder = new VolcanoStateHolder();
+    const store = new StandbyStateStore();
+    const alertMessage = createMockWsDataMessage(FIXTURE_VFVO50_ALERT_LV3);
+    const alert = parseVolcanoTelegram(alertMessage);
+    expect(alert?.kind).toBe("alert");
+    if (alert == null) return;
+    store.applyEvent(fromVolcanoOutcome(buildVolcanoOutcome(alertMessage, alert, holder)), Date.parse(alert.reportDateTime));
+
+    const eruptionXml = readFileSync(resolve(
+      process.cwd(),
+      "../test/fixtures/synthetic_phase5c_plume_3000m_or_more.xml",
+    ), "utf8");
+    const eruptionMessage = createMockWsDataMessageFromXml(eruptionXml, "VFVO52");
+    const eruption = parseVolcanoTelegram(eruptionMessage);
+    expect(eruption?.kind).toBe("eruption");
+    if (eruption == null) return;
+    store.applyEvent(fromVolcanoOutcome(buildVolcanoOutcome(eruptionMessage, eruption, holder)), Date.parse(eruption.reportDateTime));
+
+    const item = store.snapshotItems().find(
+      (candidate): candidate is Extract<ActiveStandbyCardV1, { kind: "volcano" }> =>
+        candidate.kind === "volcano",
+    );
+    expect(item?.data.volcanoes[0]).toMatchObject({
+      code: "306",
+      alertLevel: 3,
+      warningKind: "レベル３（入山規制）",
+      latestEvent: expect.objectContaining({ label: "噴火" }),
+    });
+    if (item == null) return;
+    const { container } = render(VolcanoCard, { item });
+    expect(container.textContent?.match(/入山規制/g)).toHaveLength(1);
+    expect(container.querySelector(".volcano-main")?.textContent).toContain("レベル3（入山規制）");
   });
 
   it("単一の対象区分を主行の下に muted 補助行で表示する", () => {

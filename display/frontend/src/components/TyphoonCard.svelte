@@ -127,13 +127,13 @@
         {#if typhoon.location != null || pressure != null || maxWind != null || renderMove}
           <div class="compact-summary">
             {#if typhoon.location != null}<span class="compact-token compact-location">{typhoon.location}</span>{/if}
-            {#if pressure != null}<span class="compact-token"><RollingNumber value={String(pressure)} /><span class="stat-unit">hPa</span></span>{/if}
-            {#if maxWind != null}<span class="compact-token">最大 <RollingNumber value={String(maxWind)} /><span class="stat-unit">m/s</span></span>{/if}
+            {#if pressure != null}<span class="compact-token"><span class="compact-numeric"><RollingNumber value={String(pressure)} /></span><span class="stat-unit">hPa</span></span>{/if}
+            {#if maxWind != null}<span class="compact-token">最大風速 <span class="compact-numeric"><RollingNumber value={String(maxWind)} /></span><span class="stat-unit">m/s</span></span>{/if}
             {#if renderMove}
               <span class="compact-token compact-movement">
                 {#if typhoon.moveDirection != null}<span class="direction-token">{typhoon.moveDirection}</span>{/if}
                 {#if moveSpeed.numericValue != null}
-                  <NumberUnit value={String(moveSpeed.numericValue)} unit="km/h" />
+                  <span class="compact-numeric"><NumberUnit value={String(moveSpeed.numericValue)} unit="km/h" /></span>
                 {:else}
                   <span class="semantic-speed" title={moveMeaning} aria-label={moveMeaning}><span class="semantic-text">{moveSpeed.label ?? ""}</span>{#if moveSpeed.badge != null}<b class="semantic-badge" aria-hidden="true">{moveSpeed.badge}</b>{/if}</span>
                 {/if}
@@ -277,6 +277,7 @@
   .compact-class { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .compact-summary { margin-top: 2px; }
   .compact-token { display: inline-flex; flex-shrink: 0; align-items: baseline; gap: var(--space-1); white-space: nowrap; }
+  .compact-numeric { font-weight: var(--num-weight); }
   .compact-location { flex: 1 1 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
   .compact .semantic-speed { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

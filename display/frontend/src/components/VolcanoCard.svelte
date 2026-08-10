@@ -43,7 +43,10 @@
         && !duplicatesMainAlertLevel(kind, volcano.alertLevel));
     const visibleKinds = targetKinds.slice(0, 2);
     if (targetKinds.length > visibleKinds.length) visibleKinds.push(`ほか${targetKinds.length - visibleKinds.length}種`);
-    const warningKind = volcano.warningKind?.trim() ?? "";
+    const rawWarningKind = volcano.warningKind?.trim() ?? "";
+    const warningKind = duplicatesMainAlertLevel(rawWarningKind, volcano.alertLevel)
+      ? ""
+      : rawWarningKind;
     const alertClassName = volcano.alertClass?.isActive === true ? volcano.alertClass.name.trim() : "";
     const parts = [warningKind === alertClassName ? "" : warningKind, visibleKinds.join("・")]
       .filter((part) => part !== "");
