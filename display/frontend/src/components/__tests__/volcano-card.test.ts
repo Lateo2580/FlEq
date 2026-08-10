@@ -101,6 +101,30 @@ describe("VolcanoCard", () => {
     expect(container.querySelector(".volcano-main")?.textContent).toContain(VOLCANO_LEVEL_LABELS[3]);
   });
 
+  it("見出しと同義の全角警戒レベルを補助行へ重複表示しない", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: 3,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["レベル３（入山規制）"],
+        latestEvent: eruptionEvent(),
+      }] },
+    }) });
+    expect(container.querySelector(".volcano-main")?.textContent).toContain("桜島 レベル3（入山規制）");
+    expect(container.querySelector(".alert-meaning")?.textContent).toBe("噴火警報（火口周辺）");
+    expect(container.textContent?.match(/入山規制/g)).toHaveLength(1);
+  });
+
+  it("見出しに数値レベルがない場合は警戒レベル表記を補助行に残す", () => {
+    const { container } = render(VolcanoCard, { item: volcanoItem({
+      data: { volcanoes: [{
+        code: "506", name: "桜島", alertLevel: null,
+        warningKind: null, targetKinds: ["レベル３（入山規制）"], latestEvent: eruptionEvent(),
+      }] },
+    }) });
+    expect(container.querySelector(".volcano-main")?.textContent?.trim()).toBe("桜島");
+    expect(container.querySelector(".alert-meaning")?.textContent).toBe("レベル３（入山規制）");
+  });
+
   it("単一の対象区分を主行の下に muted 補助行で表示する", () => {
     const { container } = render(VolcanoCard, { item: volcanoItem({
       data: { volcanoes: [{

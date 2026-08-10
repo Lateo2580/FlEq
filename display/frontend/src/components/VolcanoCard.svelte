@@ -22,10 +22,25 @@
           : "advisory",
   );
 
+  function compactLevelText(value: string): string {
+    return value.normalize("NFKC").replace(/\s+/g, "");
+  }
+
+  function duplicatesMainAlertLevel(kind: string, alertLevel: number | null): boolean {
+    if (alertLevel == null) return false;
+    const label = VOLCANO_LEVEL_LABELS[alertLevel];
+    if (label == null) return false;
+    const normalized = compactLevelText(kind);
+    return normalized === compactLevelText(`レベル${alertLevel}（${label}）`)
+      || normalized === compactLevelText(`噴火警戒レベル${alertLevel}（${label}）`);
+  }
+
   function alertMeaning(volcano: Extract<ActiveStandbyCardV1, { kind: "volcano" }>["data"]["volcanoes"][number]): string | null {
     const targetKinds = (volcano.targetKinds ?? [])
       .map((kind) => kind.trim())
-      .filter((kind, index, all) => kind !== "" && all.indexOf(kind) === index);
+      .filter((kind, index, all) => kind !== ""
+        && all.indexOf(kind) === index
+        && !duplicatesMainAlertLevel(kind, volcano.alertLevel));
     const visibleKinds = targetKinds.slice(0, 2);
     if (targetKinds.length > visibleKinds.length) visibleKinds.push(`ほか${targetKinds.length - visibleKinds.length}種`);
     const warningKind = volcano.warningKind?.trim() ?? "";
