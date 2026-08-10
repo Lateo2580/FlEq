@@ -8,7 +8,14 @@
   import UpdatedStamp from "./UpdatedStamp.svelte";
   import NumberUnit from "./NumberUnit.svelte";
   import RollingNumber from "./RollingNumber.svelte";
-  let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> } = $props();
+  export type TyphoonCardDisplayMode = "full" | "compact";
+  let {
+    item,
+    displayMode = "full",
+  }: {
+    item: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>;
+    displayMode?: TyphoonCardDisplayMode;
+  } = $props();
   const headerTone = $derived(typhoonHeaderTone(item.data.typhoons));
   function title(typhoon: Extract<ActiveStandbyCardV1, { kind: "typhoon" }>['data']['typhoons'][number]): string {
     const number = typhoon.typhoonNumber == null ? null : Number(typhoon.typhoonNumber.slice(2));
@@ -99,7 +106,7 @@
   }
 </script>
 
-<section class="standby-card typhoon-card">
+<section class="standby-card typhoon-card" class:compact={displayMode === "compact"}>
   <header class:advisory={headerTone === "advisory"} class:warning={headerTone === "warning"} class:emergency={headerTone === "emergency"}>台風情報{#if item.restored}<RestoredChip />{/if}<UpdatedStamp iso={item.updatedAt} /></header>
   {#each item.data.typhoons as typhoon (typhoon.typhoonKey)}
     {@const pressure = legacyNumericValue(typhoon.pressureHpaSemantic, typhoon.pressureHpa)}
@@ -110,10 +117,35 @@
     {@const renderMove = moveSpeed.render && (moveSpeed.numericValue == null || typhoon.moveDirection != null)}
     <!-- 未命名 (発生予想等) は総称の「台風」を出さず remark を主行に昇格させる (2 行の冗長回避) -->
     <div class="typhoon">
-      <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
-      {#if typhoon.name != null && typhoon.remark != null}<div class="remark">{typhoon.remark}</div>{/if}
-      {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
-      {#if pressure != null || maxWind != null || maxGust != null || renderMove}
+      {#if displayMode === "compact"}
+        <div class="compact-primary">
+          <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
+          {#if typhoon.sizeClass != null || typhoon.intensityClass != null}
+            <span class="compact-class">{[typhoon.sizeClass, typhoon.intensityClass].filter((value) => value != null).join("・")}</span>
+          {/if}
+        </div>
+        {#if typhoon.location != null || pressure != null || maxWind != null || renderMove}
+          <div class="compact-summary">
+            {#if typhoon.location != null}<span class="compact-token compact-location">{typhoon.location}</span>{/if}
+            {#if pressure != null}<span class="compact-token"><RollingNumber value={String(pressure)} /><span class="stat-unit">hPa</span></span>{/if}
+            {#if maxWind != null}<span class="compact-token">最大 <RollingNumber value={String(maxWind)} /><span class="stat-unit">m/s</span></span>{/if}
+            {#if renderMove}
+              <span class="compact-token compact-movement">
+                {#if typhoon.moveDirection != null}<span class="direction-token">{typhoon.moveDirection}</span>{/if}
+                {#if moveSpeed.numericValue != null}
+                  <NumberUnit value={String(moveSpeed.numericValue)} unit="km/h" />
+                {:else}
+                  <span class="semantic-speed" title={moveMeaning} aria-label={moveMeaning}><span class="semantic-text">{moveSpeed.label ?? ""}</span>{#if moveSpeed.badge != null}<b class="semantic-badge" aria-hidden="true">{moveSpeed.badge}</b>{/if}</span>
+                {/if}
+              </span>
+            {/if}
+          </div>
+        {/if}
+      {:else}
+        <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
+        {#if typhoon.name != null && typhoon.remark != null}<div class="remark">{typhoon.remark}</div>{/if}
+        {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
+        {#if pressure != null || maxWind != null || maxGust != null || renderMove}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
         <div class="meta">
           {#if pressure != null}
@@ -156,6 +188,7 @@
               <span class="change-item trend-label">{trendLabel(typhoon.intensityTrend)}</span>
             {/if}
           </div>
+        {/if}
         {/if}
       {/if}
     </div>
@@ -227,4 +260,23 @@
     font-variant-numeric: tabular-nums;
   }
   .change-item { white-space: nowrap; }
+  .compact .typhoon { padding-block: var(--space-1); }
+  .compact-primary, .compact-summary {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    flex-wrap: nowrap;
+    gap: 0 var(--space-2);
+    overflow: hidden;
+  }
+  .compact-primary strong { flex-shrink: 0; white-space: nowrap; }
+  .compact-class, .compact-summary {
+    color: var(--role-muted);
+    font-size: max(12px, var(--type-label-s-fluid));
+  }
+  .compact-class { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .compact-summary { margin-top: 2px; }
+  .compact-token { display: inline-flex; flex-shrink: 0; align-items: baseline; gap: var(--space-1); white-space: nowrap; }
+  .compact-location { flex: 1 1 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
+  .compact .semantic-speed { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

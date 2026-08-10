@@ -108,6 +108,73 @@ export function selectRightStackWithSummary(
   return { ...selected, summaryReservedPx };
 }
 
+export type RightStackDisplayMode = "full" | "compact";
+
+/**
+ * 右上スタックを full → 台風のみ compact → overflow の順で選ぶ。
+ * compact は「full では現在の残予算に入らない」場合だけ試し、他 domain の表示は縮約しない。
+ */
+export function selectRightStackWithTyphoonCompact(
+  cornerRight: ActiveStandbyCardV1[],
+  budgetPx: number,
+  estimateHeightPx: (item: ActiveStandbyCardV1, mode: RightStackDisplayMode) => number,
+  summaryHeightPx: number,
+  forceSummary: boolean,
+  gapPx: number,
+): {
+  visible: ActiveStandbyCardV1[];
+  overflow: ActiveStandbyCardV1[];
+  displayModes: ReadonlyMap<string, RightStackDisplayMode>;
+  usedPx: number;
+  summaryReservedPx: number;
+} {
+  const severityRank: Record<ActiveStandbyCardV1["severity"], number> = {
+    info: 1,
+    normal: 1,
+    warning: 2,
+    critical: 3,
+  };
+  const order = cornerRight
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => severityRank[right.item.severity] - severityRank[left.item.severity] || left.index - right.index);
+
+  const selectWithGaps = (availablePx: number) => {
+    let usedPx = 0;
+    const picked = new Map<number, RightStackDisplayMode>();
+    for (const { item, index } of order) {
+      const gap = picked.size > 0 ? gapPx : 0;
+      const fullRequired = estimateHeightPx(item, "full") + gap;
+      if (usedPx + fullRequired <= availablePx) {
+        picked.set(index, "full");
+        usedPx += fullRequired;
+        continue;
+      }
+      if (item.kind === "typhoon") {
+        const compactRequired = estimateHeightPx(item, "compact") + gap;
+        if (usedPx + compactRequired <= availablePx) {
+          picked.set(index, "compact");
+          usedPx += compactRequired;
+        }
+      }
+    }
+    const visible = cornerRight.filter((_, index) => picked.has(index));
+    const overflow = cornerRight.filter((_, index) => !picked.has(index));
+    const displayModes = new Map(visible.map((item) => {
+      const index = cornerRight.indexOf(item);
+      return [item.key, picked.get(index) ?? "full"] as const;
+    }));
+    return { visible, overflow, displayModes, usedPx };
+  };
+
+  const first = selectWithGaps(budgetPx);
+  const needsSummary = forceSummary || first.overflow.length > 0;
+  const summaryReservedPx = needsSummary ? summaryHeightPx + gapPx : 0;
+  const selected = needsSummary
+    ? selectWithGaps(Math.max(0, budgetPx - summaryReservedPx))
+    : first;
+  return { ...selected, summaryReservedPx };
+}
+
 export const VOLCANO_LEVEL_LABELS: Record<number, string> = {
   1: "活火山であることに留意", 2: "火口周辺規制", 3: "入山規制", 4: "高齢者等避難", 5: "避難",
 };

@@ -5,6 +5,7 @@ import {
   partitionStandbyItems,
   rightStackBudgetPx,
   selectRightStack,
+  selectRightStackWithTyphoonCompact,
   selectRightStackWithSummary,
 } from "./standby-cards";
 
@@ -94,6 +95,90 @@ describe("standby-cards", () => {
       const result = selectRightStackWithSummary(cards, 344, h({ a: 200, c: 500 }), 32, false, 12);
       expect(result.usedPx + result.summaryReservedPx).toBeLessThanOrEqual(344);
       expect(result.summaryReservedPx).toBe(44);
+    });
+  });
+
+  describe("selectRightStackWithTyphoonCompact", () => {
+    const heights = (full: Record<string, number>, compact: Record<string, number>) =>
+      (candidate: ActiveStandbyCardV1, mode: "full" | "compact") =>
+        (mode === "compact" ? compact : full)[candidate.key];
+
+    it("full が入らない台風は overflow の前に compact で採用する", () => {
+      const cards = [item("typhoon", "corner-right", "typhoon", "normal")];
+      const result = selectRightStackWithTyphoonCompact(
+        cards, 180, heights({ typhoon: 240 }, { typhoon: 140 }), 32, false, 12,
+      );
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["typhoon"]);
+      expect(result.displayModes.get("typhoon")).toBe("compact");
+      expect(result.overflow).toEqual([]);
+      expect(result.summaryReservedPx).toBe(0);
+    });
+
+    it("compact でも入らない台風は従来どおり要約へ送る", () => {
+      const cards = [item("typhoon", "corner-right", "typhoon", "normal")];
+      const result = selectRightStackWithTyphoonCompact(
+        cards, 120, heights({ typhoon: 240 }, { typhoon: 140 }), 32, false, 12,
+      );
+      expect(result.visible).toEqual([]);
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["typhoon"]);
+      expect(result.summaryReservedPx).toBe(44);
+    });
+
+    it("複数 domain では severity を優先し、描画順は元配列順に保つ", () => {
+      const cards = [
+        item("typhoon", "corner-right", "typhoon", "normal"),
+        item("heat", "corner-right", "heat", "normal"),
+        item("volcano", "corner-right", "volcano", "warning"),
+      ];
+      const result = selectRightStackWithTyphoonCompact(
+        cards,
+        468,
+        heights({ typhoon: 200, heat: 200, volcano: 200 }, { typhoon: 150 }),
+        32,
+        false,
+        12,
+      );
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["typhoon", "volcano"]);
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["heat"]);
+      expect(result.displayModes.get("typhoon")).toBe("full");
+    });
+
+    it("同一 severity は元配列順を tie-break にする", () => {
+      const cards = [
+        item("volcano", "corner-right", "volcano", "normal"),
+        item("typhoon", "corner-right", "typhoon", "normal"),
+        item("heat", "corner-right", "heat", "normal"),
+      ];
+      const result = selectRightStackWithTyphoonCompact(
+        cards,
+        468,
+        heights({ volcano: 200, typhoon: 200, heat: 200 }, { typhoon: 150 }),
+        32,
+        false,
+        12,
+      );
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["volcano", "typhoon"]);
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["heat"]);
+    });
+
+    it("要約領域の再予約後に full を再判定し、台風 compact で予算内へ収める", () => {
+      const cards = [
+        item("volcano", "corner-right", "volcano", "warning"),
+        item("typhoon", "corner-right", "typhoon", "warning"),
+        item("heat", "corner-right", "heat", "normal"),
+      ];
+      const result = selectRightStackWithTyphoonCompact(
+        cards,
+        400,
+        heights({ volcano: 180, typhoon: 180, heat: 500 }, { typhoon: 130 }),
+        32,
+        false,
+        12,
+      );
+      expect(result.visible.map((candidate) => candidate.key)).toEqual(["volcano", "typhoon"]);
+      expect(result.displayModes.get("typhoon")).toBe("compact");
+      expect(result.overflow.map((candidate) => candidate.key)).toEqual(["heat"]);
+      expect(result.usedPx + result.summaryReservedPx).toBeLessThanOrEqual(400);
     });
   });
 });

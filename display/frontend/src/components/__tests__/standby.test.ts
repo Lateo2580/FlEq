@@ -976,7 +976,8 @@ describe("measurement shelf (spec 2026-07-23 standby-right-stack T1/T3)", () => 
     expect(shelf).toBeTruthy();
     expect(shelf!.getAttribute("aria-hidden")).toBe("true");
     expect(shelf!.hasAttribute("inert")).toBe(true);
-    expect(shelf!.querySelectorAll(".measure-shelf-item")).toHaveLength(4); // 選抜結果に関わらず全候補
+    expect(shelf!.querySelectorAll('[data-display-mode="full"]')).toHaveLength(4); // 選抜結果に関わらず全候補
+    expect(shelf!.querySelectorAll('[data-display-mode="compact"]')).toHaveLength(1); // 台風だけ compact も実測
   });
 
   it("(d)(e) 実測発火で選抜が実測ベースに切り替わり、item 削除で計測も消える", async () => {
@@ -990,7 +991,7 @@ describe("measurement shelf (spec 2026-07-23 standby-right-stack T1/T3)", () => 
     const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")));
     expect(rec).toBeTruthy();
     const shelfItems = [...container.querySelectorAll(".measure-shelf-item")];
-    expect(shelfItems).toHaveLength(2);
+    expect(shelfItems).toHaveLength(3); // full 2 枚 + 台風 compact 1 枚
     // 実測を発火: 両カードとも 100px (見積り 240 と大きく乖離)
     fire(rec!, shelfItems.map((el) => [el, 100] as [Element, number]));
     await tick();
@@ -1024,5 +1025,80 @@ describe("measurement shelf (spec 2026-07-23 standby-right-stack T1/T3)", () => 
     await tick();
     expect(container.querySelectorAll(".corner-right .standby-card").length)
       .toBeLessThanOrEqual(container.querySelectorAll(".standby-card").length - 1); // 棚に最低 1 枚
+  });
+
+  it("台風 full が予算外なら実測 compact を採用する", async () => {
+    const items = [cardItem("typhoon", "typhoon:active", "v1")];
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")))!;
+    const full = container.querySelector('[data-display-mode="full"]')!;
+    const compact = container.querySelector('[data-display-mode="compact"]')!;
+    fire(rec, [[full, 700], [compact, 300]]);
+    await tick();
+    expect(container.querySelector(".corner-right .typhoon-card.compact")).toBeTruthy();
+    expect(container.querySelector(".corner-right .overflow")).toBeNull();
+  });
+
+  it("台風 compact も予算外なら従来の overflow 要約へ送る", async () => {
+    const items = [cardItem("typhoon", "typhoon:active", "v1")];
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")))!;
+    const full = container.querySelector('[data-display-mode="full"]')!;
+    const compact = container.querySelector('[data-display-mode="compact"]')!;
+    fire(rec, [[full, 700], [compact, 700]]);
+    await tick();
+    // 旧カードは outro 中だけ DOM に残り得るため、選抜結果が即時反映される要約で観測する。
+    expect(container.querySelector(".corner-right .overflow")?.textContent).toBe("ほか1件: 台風");
+  });
+
+  it("実機シナリオ: 台風3件の表示中に気象警報が増えると full から compact へ縮約して台風を残す", async () => {
+    const baseTyphoon = cardItem("typhoon", "typhoon:active", "v1", "warning");
+    if (baseTyphoon.kind !== "typhoon") throw new Error("test fixture kind mismatch");
+    const threeTyphoons: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> = {
+      ...baseTyphoon,
+      data: {
+        typhoons: Array.from({ length: 3 }, (_, index) => ({
+          ...baseTyphoon.data.typhoons[0],
+          typhoonKey: `TC${index + 1}`,
+          typhoonNumber: `260${index + 1}`,
+          nameKana: `TYPHOON-${index + 1}`,
+          remark: null,
+        })),
+      },
+    };
+    const increasedAlert = weatherAlert({
+      role: "weatherWarning",
+      label: "気象警報",
+      items: ["大雨警報", "洪水警報", "暴風警報"].map((kind, index) => ({
+        kind,
+        displaySeverity: "warning",
+        rank: "warning" as const,
+        shownAreas: [`関東地方${index + 1}`],
+        omittedAreaCount: 0,
+      })),
+    });
+    const { container, rerender } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [threeTyphoons] }), now, dim: false, sseConnected: true,
+    });
+    await tick();
+    expect(container.querySelector(".corner-right .typhoon-card.compact")).toBeNull();
+
+    await rerender({
+      snapshot: baseSnapshot({ standbyItems: [threeTyphoons], weatherAlerts: [increasedAlert] }),
+      now,
+      dim: false,
+      sseConnected: true,
+    });
+    await tick();
+    expect(container.querySelector(".weather-card")).toBeTruthy();
+    expect(container.querySelector(".corner-right .typhoon-card.compact")).toBeTruthy();
+    expect(container.querySelectorAll(".corner-right .typhoon-card.compact .typhoon")).toHaveLength(3);
+    expect(container.querySelector(".corner-right .overflow")).toBeNull();
   });
 });

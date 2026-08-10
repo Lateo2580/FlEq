@@ -26,7 +26,12 @@
   import FloodWideCard from "./FloodWideCard.svelte";
   import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
   import NankaiBadge from "./NankaiBadge.svelte";
-  import { partitionStandbyItems, rightStackBudgetPx, selectRightStackWithSummary } from "../lib/standby-cards";
+  import {
+    partitionStandbyItems,
+    rightStackBudgetPx,
+    selectRightStackWithTyphoonCompact,
+    type RightStackDisplayMode,
+  } from "../lib/standby-cards";
   import { applyMeasurements, heightEstimator, pruneMeasurements, type MeasureMap } from "../lib/standby-measure";
   import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
@@ -184,21 +189,26 @@
   // 固定見積り (typhoon=240 等) は棚の初回計測が届くまでの暫定値 (実高 ~120px の 1 エントリ台風カードが
   // 恒久 overflow になる実機不具合の根治)
   const rightCandidates = $derived(standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"));
+  const compactCandidates = $derived(rightCandidates.filter((item) => item.kind === "typhoon"));
   let cardHeights = $state<MeasureMap>(new Map());
-  const shelfMeta = new WeakMap<Element, { key: string; version: string }>();
+  let compactCardHeights = $state<MeasureMap>(new Map());
+  const shelfMeta = new WeakMap<Element, { key: string; version: string; mode: RightStackDisplayMode }>();
   // 棚全体で 1 つの Observer を共有し、callback 1 回につき immutable 一括反映 (混在誤選抜の防止)
   const shelfObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver((entries) => {
     const updates = entries.flatMap((entry) => {
       const meta = shelfMeta.get(entry.target);
-      return meta == null ? [] : [{ key: meta.key, version: meta.version, height: borderBoxHeightOf(entry) }];
+      return meta == null ? [] : [{ key: meta.key, version: meta.version, mode: meta.mode, height: borderBoxHeightOf(entry) }];
     });
-    if (updates.length > 0) cardHeights = applyMeasurements(cardHeights, updates);
+    const fullUpdates = updates.filter((update) => update.mode === "full");
+    const compactUpdates = updates.filter((update) => update.mode === "compact");
+    if (fullUpdates.length > 0) cardHeights = applyMeasurements(cardHeights, fullUpdates);
+    if (compactUpdates.length > 0) compactCardHeights = applyMeasurements(compactCardHeights, compactUpdates);
   });
-  function shelfMeasure(node: HTMLElement, meta: { key: string; version: string }) {
+  function shelfMeasure(node: HTMLElement, meta: { key: string; version: string; mode: RightStackDisplayMode }) {
     shelfMeta.set(node, meta);
     shelfObserver?.observe(node);
     return {
-      update(next: { key: string; version: string }) {
+      update(next: { key: string; version: string; mode: RightStackDisplayMode }) {
         shelfMeta.set(node, next);
         // 版が変わっても高さ同一だと ResizeObserver は再発火せず、旧版の計測が残って
         // 一括切替ゲートが成立しなくなる → re-observe で初回通知を強制する (plan レビュー R1)
@@ -215,12 +225,24 @@
     // effect の自己再実行ループを防ぐ (cardHeights は untrack で読む)
     const pruned = pruneMeasurements(untrack(() => cardHeights), rightCandidates);
     if (pruned !== untrack(() => cardHeights)) cardHeights = pruned;
+    const compactPruned = pruneMeasurements(untrack(() => compactCardHeights), compactCandidates);
+    if (compactPruned !== untrack(() => compactCardHeights)) compactCardHeights = compactPruned;
   });
-  const fallbackCardHeight = (item: ActiveStandbyCardV1): number => (item.kind === "heat" ? 160 : 240);
-  const rightStack = $derived(selectRightStackWithSummary(
+  const fallbackCardHeight = (item: ActiveStandbyCardV1): number => {
+    if (item.kind === "heat") return 160;
+    // 台風は 1 件ごとに full の detail grid が増える。初回 ResizeObserver 前も件数に追随し、
+    // 3 件併記を 1 件相当の固定値で選抜して一時クリップする窓を作らない。
+    if (item.kind === "typhoon") return 48 + item.data.typhoons.length * 112;
+    return 240;
+  };
+  const fallbackCompactHeight = (item: ActiveStandbyCardV1): number =>
+    item.kind === "typhoon" ? 48 + item.data.typhoons.length * 46 : fallbackCardHeight(item);
+  const rightStack = $derived(selectRightStackWithTyphoonCompact(
     rightCandidates,
     rightBudgetPx,
-    heightEstimator(cardHeights, rightCandidates, fallbackCardHeight),
+    (item, mode) => mode === "compact"
+      ? heightEstimator(compactCardHeights, compactCandidates, fallbackCompactHeight)(item)
+      : heightEstimator(cardHeights, rightCandidates, fallbackCardHeight)(item),
     32,
     standbyPartitions.unknown.length > 0,
     12,
@@ -365,17 +387,17 @@
     {#each rightStack.visible as item (item.key)}
       <div class="standby-corner">
         <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
-          {@render rightCard(item)}
+          {@render rightCard(item, rightStack.displayModes.get(item.key) ?? "full")}
         </div>
       </div>
     {/each}
     <StandbyOverflowSummary items={rightOverflow} />
   </div>
-  {#snippet rightCard(item: ActiveStandbyCardV1)}
+  {#snippet rightCard(item: ActiveStandbyCardV1, displayMode: RightStackDisplayMode)}
     {#if item.kind === "heat"}
       <HeatAlertCard {item} />
     {:else if item.kind === "typhoon"}
-      <TyphoonCard {item} />
+      <TyphoonCard {item} {displayMode} />
     {:else if item.kind === "volcano"}
       <VolcanoCard {item} />
     {/if}
@@ -384,8 +406,13 @@
        二層 slot 規約に従い棚には motion を載せない。.corner-right の overflow:hidden の外に置く -->
   <div class="measure-shelf" inert aria-hidden="true">
     {#each rightCandidates as item (item.key)}
-      <div class="measure-shelf-item" use:shelfMeasure={{ key: item.key, version: item.updatedAt }}>
-        {@render rightCard(item)}
+      <div class="measure-shelf-item" data-display-mode="full" use:shelfMeasure={{ key: item.key, version: item.updatedAt, mode: "full" }}>
+        {@render rightCard(item, "full")}
+      </div>
+    {/each}
+    {#each compactCandidates as item (item.key)}
+      <div class="measure-shelf-item" data-display-mode="compact" use:shelfMeasure={{ key: item.key, version: item.updatedAt, mode: "compact" }}>
+        {@render rightCard(item, "compact")}
       </div>
     {/each}
   </div>

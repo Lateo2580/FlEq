@@ -452,4 +452,34 @@ describe("TyphoonCard", () => {
     const { container } = render(TyphoonCard, { item: { ...typhoonItem(), restored: true } });
     expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
   });
+
+  it("compact は各台風を二行以内にまとめ、詳細列と差分を省略して qualitative badge を保つ", () => {
+    const qualitativeMove = numericSemantic({
+      raw: "", presence: "qualitative", label: "ほとんど停滞", condition: "ほとんど停滞",
+      value: null, badge: "?", color: "unknown", rank: { kind: "unranked" },
+    });
+    const { container } = render(TyphoonCard, {
+      item: typhoonItem([
+        typhoon({
+          intensityClass: "非常に強い", sizeClass: "超大型", moveSpeedKmh: null,
+          moveSpeedKmhSemantic: qualitativeMove, pressureDeltaHpa: -5, maxWindDeltaMs: 4,
+        }),
+        typhoon({ typhoonKey: "TC-2", typhoonNumber: "2606", nameKana: "BETA" }),
+      ]),
+      displayMode: "compact",
+    });
+
+    expect(container.querySelector(".typhoon-card")?.classList.contains("compact")).toBe(true);
+    for (const card of container.querySelectorAll(".typhoon")) {
+      expect(card.querySelectorAll(":scope > div").length).toBeLessThanOrEqual(2);
+    }
+    expect(container.querySelector(".compact-primary")?.textContent).toContain("超大型・非常に強い");
+    expect(container.querySelector(".compact-summary")?.textContent).toContain("ocean");
+    expect(container.querySelector('.compact-summary [data-value="990"]')).toBeTruthy();
+    expect(container.querySelector('.compact-summary [data-value="25"]')).toBeTruthy();
+    expect(container.querySelector(".compact-movement")?.textContent).toBe("N ほとんど停滞?");
+    expect(container.querySelector(".compact-movement .semantic-badge")?.textContent).toBe("?");
+    expect(container.querySelector(".meta")).toBeNull();
+    expect(container.querySelector(".change-summary")).toBeNull();
+  });
 });

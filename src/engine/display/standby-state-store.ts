@@ -89,6 +89,17 @@ interface TyphoonState {
   restored: boolean;
 }
 
+/** frontend の typhoon-header-tone と同じ階級で、台風カードの選抜 severity を決める。 */
+export function typhoonStandbySeverity(
+  typhoons: ReadonlyArray<Pick<DisplayTyphoonV1, "intensityClass" | "sizeClass">>,
+): ActiveStandbyCardV1["severity"] {
+  if (typhoons.some((typhoon) => typhoon.intensityClass === "猛烈な")) return "critical";
+  if (typhoons.some((typhoon) =>
+    typhoon.intensityClass === "非常に強い" || typhoon.sizeClass === "超大型"
+  )) return "warning";
+  return "normal";
+}
+
 interface VolcanoState {
   code: string;
   name: string;
@@ -944,7 +955,8 @@ export class StandbyStateStore {
         sourceEventIds: states.map((state) => state.sourceEventId),
         updatedAt: new Date(Math.max(...states.map((state) => state.revision.reportTimeMs))).toISOString(),
         expiresAt: new Date(Math.max(...states.map((state) => state.expiresAtMs))).toISOString(),
-        restored: states.some((state) => state.restored), severity: "normal",
+        restored: states.some((state) => state.restored),
+        severity: typhoonStandbySeverity(states.map((state) => state.typhoon)),
         data: { typhoons: states.map((state) => ({
           ...state.typhoon,
           pressureHpaSemantic: projectTyphoonNumericSemantic(state.pressureHpaValue, "hPa"),

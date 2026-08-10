@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1, DisplayWeatherAlertItemV1, DisplayWeatherAlertV1, DisplayWeatherRank } from "../lib/protocol";
+  import { tick } from "svelte";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
@@ -98,39 +99,169 @@
     return merged;
   });
 
+  const displayItems = $derived.by(() => {
+    let rowIndex = 0;
+    return items.map((item) => {
+      const kindRowIndex = rowIndex++;
+      const groups = groupByPrefectureOrRegion(item.shownAreas).map((group) => ({
+        group,
+        rowIndex: rowIndex++,
+      }));
+      const omittedRowIndex = item.omittedAreaCount > 0 ? rowIndex++ : null;
+      return { item, kindRowIndex, groups, omittedRowIndex };
+    });
+  });
+  let visibleRowLimit = $state<number | null>(null);
+  const clippedCount = $derived.by(() => {
+    if (visibleRowLimit == null) return 0;
+    const limit = visibleRowLimit;
+    let count = 0;
+    for (const entry of displayItems) {
+      if (entry.kindRowIndex >= limit) {
+        count += 1;
+        continue;
+      }
+      count += entry.groups.filter(({ rowIndex }) => rowIndex >= limit).length;
+      if (entry.omittedRowIndex != null && entry.omittedRowIndex >= limit) {
+        count += entry.item.omittedAreaCount;
+      }
+    }
+    return count;
+  });
+  // 行数が同じでも警報名・地域名・市区町村名の長さで折返し高は変わる。表示文字列そのものを
+  // key に含め、同構造の内容差し替えでも action.update から再計測する。
+  const clipMeasureKey = $derived(JSON.stringify(displayItems.map((entry) => ({
+    kind: entry.item.kind,
+    rank: entry.item.rank,
+    groups: entry.groups.map(({ group }) => ({ pref: group.pref, cities: group.cities })),
+    omittedAreaCount: entry.item.omittedAreaCount,
+  }))));
+
+  // max-height 内に実際に収まる行だけを残す。地域名の折返しも DOM の実高で判定し、
+  // 切られる末尾は件数つきの 1 行へ置換する。jsdom の全矩形 0 は「未計測」として全表示する。
+  function clipWeatherRows(node: HTMLUListElement, measureKey: string) {
+    let generation = 0;
+    let destroyed = false;
+    let suppressObserver = true;
+    let releaseObserverTimer: ReturnType<typeof setTimeout> | null = null;
+    const observed = new Set<Element>();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      if (!suppressObserver) void measure();
+    });
+    const syncObservedRows = () => {
+      const targets = new Set<Element>([
+        node,
+        ...node.querySelectorAll<HTMLElement>("[data-weather-row], [data-clip-summary]"),
+      ]);
+      for (const target of observed) {
+        if (!targets.has(target)) {
+          observer?.unobserve(target);
+          observed.delete(target);
+        }
+      }
+      for (const target of targets) {
+        if (!observed.has(target)) {
+          observer?.observe(target);
+          observed.add(target);
+        }
+      }
+    };
+    const measure = async () => {
+      const current = ++generation;
+      suppressObserver = true;
+      if (releaseObserverTimer != null) clearTimeout(releaseObserverTimer);
+      visibleRowLimit = null;
+      await tick();
+      if (destroyed || current !== generation) return;
+      syncObservedRows();
+      const listRect = node.getBoundingClientRect();
+      const rows = [...node.querySelectorAll<HTMLElement>("[data-weather-row]")];
+      const lastBottom = rows.at(-1)?.getBoundingClientRect().bottom ?? listRect.top;
+      if (listRect.height > 0 && lastBottom > listRect.bottom) {
+        const summaryRect = node.querySelector<HTMLElement>("[data-clip-summary]")?.getBoundingClientRect();
+        // 省略行の top が、その padding・font metrics・bottom inset をすべて含む正確な境界になる。
+        const contentBottom = summaryRect != null && summaryRect.height > 0
+          ? summaryRect.top
+          : listRect.bottom;
+        let limit = 0;
+        for (const row of rows) {
+          const rowIndex = Number(row.dataset.weatherRow);
+          if (row.getBoundingClientRect().bottom > contentBottom) break;
+          limit = rowIndex + 1;
+        }
+        visibleRowLimit = Math.max(1, limit);
+      }
+      await tick();
+      if (destroyed || current !== generation) return;
+      syncObservedRows();
+      // 自身の full↔clip 切替で届く ResizeObserver 通知は捨て、次フレーム以降の
+      // viewport・行折返し・font metrics 変化だけを再計測トリガーにする。
+      releaseObserverTimer = setTimeout(() => { suppressObserver = false; }, 0);
+    };
+    observer?.observe(node);
+    observed.add(node);
+    void measure();
+    const fonts = typeof document === "undefined" ? null : document.fonts;
+    const onFontsLoaded = () => { if (!destroyed) void measure(); };
+    void fonts?.ready.then(onFontsLoaded);
+    fonts?.addEventListener("loadingdone", onFontsLoaded);
+    return {
+      update(nextKey: string) {
+        if (nextKey !== measureKey) {
+          measureKey = nextKey;
+          void measure();
+        }
+      },
+      destroy() {
+        destroyed = true;
+        generation += 1;
+        if (releaseObserverTimer != null) clearTimeout(releaseObserverTimer);
+        fonts?.removeEventListener("loadingdone", onFontsLoaded);
+        observer?.disconnect();
+        observed.clear();
+      },
+    };
+  }
+
   // 都道府県 → 市区町村への階層整形は lib/prefecture-group.ts の groupByPrefecture を
   // LatestQuakeCard/QuakePanel と共有する (第3波 Fix7)。当カードのみ groupByPrefectureOrRegion
   // を使い、県名にマッチしない地域 (離島部等) も県名見出しと同格の独立見出しにする (backlog §1)
 </script>
 
 {#if alerts.length > 0 || tornado != null}
-  <div class="weather-card">
+  <div class="weather-card" class:clipped={clippedCount > 0}>
     <div
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
     >{headerLabel(topRole, alerts)}<UpdatedStamp iso={latestUpdatedAt} /></div>
-    {#if alerts.length > 0}<ul>
-      {#each items as it (it.kind + it.rank)}
-        <li class="rank-{it.rank}">
-          <span class="kind">{it.kind}</span>
-          {#each groupByPrefectureOrRegion(it.shownAreas) as g (g.pref)}
-            <div class="pref-group">
+    {#if alerts.length > 0}<ul use:clipWeatherRows={clipMeasureKey}>
+      {#each displayItems as entry (entry.item.kind + entry.item.rank)}
+        <li class="rank-{entry.item.rank}" class:clip-hidden={visibleRowLimit != null && entry.kindRowIndex >= visibleRowLimit}>
+          <span class="kind" data-weather-row={entry.kindRowIndex}>{entry.item.kind}</span>
+          {#each entry.groups as grouped (grouped.group.pref)}
+            <div class="pref-group" data-weather-row={grouped.rowIndex} class:clip-hidden={visibleRowLimit != null && grouped.rowIndex >= visibleRowLimit}>
               <!-- 県名前方一致しない地域 (例: 沖縄本島地方・宗谷地方) も groupByPrefectureOrRegion
                    により県名見出しと同格の独立見出しとして展開されるため、pref は常に non-null
                    (実機フィードバックバックログ §1) -->
-              <span class="pref-name">{g.pref}</span>
-              {#if g.cities.length > 0}
+              <span class="pref-name">{grouped.group.pref}</span>
+              {#if grouped.group.cities.length > 0}
                 <span class="cities">
-                  {#each g.cities as city (city)}<span class="city-name">{city}</span>{/each}
+                  {#each grouped.group.cities as city (city)}<span class="city-name">{city}</span>{/each}
                 </span>
               {/if}
             </div>
           {/each}
-          {#if it.omittedAreaCount > 0}
-            <span class="omitted">ほか{it.omittedAreaCount}地域</span>
+          {#if entry.item.omittedAreaCount > 0}
+            <span class="omitted" data-weather-row={entry.omittedRowIndex} class:clip-hidden={visibleRowLimit != null && entry.omittedRowIndex != null && entry.omittedRowIndex >= visibleRowLimit}>ほか{entry.item.omittedAreaCount}地域</span>
           {/if}
         </li>
       {/each}
+      <li
+        class="clip-summary"
+        class:clip-summary-hidden={clippedCount === 0}
+        data-clip-summary
+        aria-hidden={clippedCount === 0 ? "true" : undefined}
+      >ほか{clippedCount}項目/地域</li>
     </ul>{/if}
     {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas[0] ?? "対象地域"}{tornado.data.areas.length > 1 ? " ほか" : ""}）{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
   </div>
@@ -149,6 +280,7 @@
     flex-direction: column;
     color: var(--fg);
   }
+  .weather-card.clipped { height: min(44vh, 280px); }
   .card-header {
     /* 最終更新時刻を右端へ寄せるため flex 行にする (他カードの header と同じ文法) */
     display: flex;
@@ -162,6 +294,7 @@
     margin: 0;
     padding: var(--space-2) var(--space-4) var(--space-3);
     overflow: hidden;
+    position: relative;
   }
   li {
     display: flex;
@@ -219,4 +352,17 @@
     color: var(--role-muted);
     font-size: var(--type-label-xs-size);
   }
+  .clip-hidden { display: none; }
+  .clip-summary {
+    position: absolute;
+    right: var(--space-4);
+    bottom: var(--space-2);
+    left: var(--space-4);
+    padding: 2px 0;
+    color: var(--role-muted);
+    background: var(--surface-standby);
+    font-size: var(--type-label-xs-size);
+    font-weight: var(--type-body-weight-emphasized);
+  }
+  .clip-summary-hidden { visibility: hidden; }
 </style>

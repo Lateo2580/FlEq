@@ -674,6 +674,45 @@ describe("StandbyStateStore: typhoon", () => {
     expect(item?.data.typhoons[0]).toMatchObject({ intensityClass: "非常に強い", sizeClass: "超大型" });
   });
 
+  it("台風の最大階級を standby severity へ連動し、advisory 相当と階級なしは normal を保つ", () => {
+    const severityFor = (intensity?: string, size?: string) => {
+      const store = new StandbyStateStore();
+      store.applyEvent(typhoonEvent({}, {
+        frames: [{
+          kind: "analysis",
+          typhoonClass: { category: "TS", ...(intensity == null ? {} : { intensity }), ...(size == null ? {} : { size }) },
+          center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 },
+          wind: { maxWindMs: 25 },
+        }],
+      }), T0);
+      return store.snapshotItems().find((candidate) => candidate.kind === "typhoon")?.severity;
+    };
+
+    expect(severityFor()).toBe("normal");
+    expect(severityFor("強い")).toBe("normal");
+    expect(severityFor(undefined, "大型")).toBe("normal");
+    expect(severityFor("非常に強い")).toBe("warning");
+    expect(severityFor(undefined, "超大型")).toBe("warning");
+    expect(severityFor("猛烈な")).toBe("critical");
+  });
+
+  it("複数台風は最大の階級を standby severity に採用する", () => {
+    const store = new StandbyStateStore();
+    store.applyEvent(typhoonEvent({}, {
+      frames: [{ kind: "analysis", typhoonClass: { category: "TS", intensity: "非常に強い" }, center: { location: "ocean", pressureHpa: 990, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 25 } }],
+    }), T0);
+    store.applyEvent(typhoonEvent(
+      { id: "typhoon-2" },
+      {
+        eventId: "TC-2",
+        name: { name: "Beta", nameKana: "BETA", number: "2602", remark: null },
+        frames: [{ kind: "analysis", typhoonClass: { category: "TS", intensity: "猛烈な" }, center: { location: "ocean", pressureHpa: 950, moveDirection: "N", moveSpeedKmh: 20 }, wind: { maxWindMs: 45 } }],
+      },
+    ), T0);
+
+    expect(store.snapshotItems().find((candidate) => candidate.kind === "typhoon")?.severity).toBe("critical");
+  });
+
   it("VPTW60 fixture の GustSpeed を最大瞬間風速として display protocol へ射影する", () => {
     const raw = parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW60_2020));
     expect(raw?.frames[0]?.wind?.maxGustMs).toBe(23);
