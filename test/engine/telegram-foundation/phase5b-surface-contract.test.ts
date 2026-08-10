@@ -48,9 +48,8 @@ describe("Phase 5B typhoon numeric transverse contract", () => {
     displayTyphoonAnalysisInfo(parsed);
     const cli = stripAnsi(log.mock.calls.map((call) => String(call[0] ?? "")).join("\n"));
     log.mockRestore();
-    expect(cli).toContain("移動 北 ―km/h");
+    expect(cli).toContain("移動 北 ほとんど停滞");
     expect(cli).toContain("最大風速 0 m/s");
-    expect(cli).not.toMatch(/ゆっくり|ほとんど停滞/u);
 
     notifyMock.mockClear();
     const notifier = new Notifier();
@@ -68,9 +67,9 @@ describe("Phase 5B typhoon numeric transverse contract", () => {
     if (outcome == null) throw new Error("typhoon outcome が null");
     const event = fromTyphoonAnalysisOutcome(outcome);
     const ticker = projectDisplayEvent(event, "Phase 5B contract").tickerBody ?? "";
-    expect(ticker).toContain("北へ進んでいます");
+    expect(ticker).toContain("北へ向かっていますが、移動速度は「ほとんど停滞」です");
+    expect(ticker).toContain("北へ向かうものの、移動速度は「ゆっくり」となる見込みです");
     expect(ticker).not.toContain("時速");
-    expect(ticker).not.toMatch(/ゆっくり|ほとんど停滞/u);
 
     const live = new StandbyStateStore();
     live.applyEvent(event, NOW);

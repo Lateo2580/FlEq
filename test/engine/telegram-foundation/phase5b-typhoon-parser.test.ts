@@ -6,6 +6,7 @@ import { specialValueCanonicalEquals } from "../../../src/utils/magnitude";
 import {
   comparableNumericSpecialValueRank,
   formatNumericSpecialValue,
+  movementSpeedQualitativeDisplay,
   numericSpecialValueSerializableRank,
   numericSpecialValueSortRank,
 } from "../../../src/utils/numeric-special-value";
@@ -478,6 +479,12 @@ describe("Phase 5B typhoon numeric parser contract", () => {
     expect(formatNumericSpecialValue({
       ...qualitative, description: null, condition: null,
     }, "km/h")).toBe("未整理");
+    expect(movementSpeedQualitativeDisplay({
+      ...qualitative, description: "　ゆっくり　",
+    })).toEqual({ text: "　ゆっくり　", kind: "slow" });
+    expect(movementSpeedQualitativeDisplay({
+      ...qualitative, description: null, condition: null,
+    })).toBeNull();
     expect(specialValueCanonicalEquals(range, {
       ...range, raw: "５～７", lowerBound: 5, upperBound: 7,
     })).toBe(true);

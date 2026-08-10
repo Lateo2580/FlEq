@@ -8,6 +8,7 @@ import type {
   TyphoonWindArea,
 } from "../../../types";
 import { aggregateByPrefecture } from "../typhoon-probability-aggregate";
+import { movementSpeedQualitativeDisplay } from "../../../utils/numeric-special-value";
 
 // VPTW/VPTA は原文の自由文本文を持たない (実 XML 24 件で <Comment>・非空 <Text> ゼロ)。
 // このモジュールは「原文全文」ではなく構造化電文を表示用に決定的に長文化する。
@@ -88,15 +89,42 @@ function framePhrase(f: TyphoonFrame): string | null {
   const subject = analysisSubject(f);
   const position = centerPosition(f.center);
   const c = f.center;
+  const qualitativeSpeed = movementSpeedQualitativeDisplay(c.moveSpeedKmhValue);
+  const hasStorm = f.wind != null && hasWindArea(f.wind.stormArea);
+  const wind = analysisWindSentence(f.wind);
+  const heading = f.label.replace(/\s+/g, "");
 
-  // 移動句 (実況は事実形「進んでいます」)。速度 0/欠損なら方向のみ。
+  // 任意の原文を動詞化せず、方向・風域とは独立した引用節として表示する。
+  if (qualitativeSpeed != null) {
+    let head: string;
+    if (c.moveDirection != null && c.moveDirection !== "") {
+      const movement = `${c.moveDirection}へ向かっていますが、移動速度は「${qualitativeSpeed.text}」です`;
+      const predicate = hasStorm ? `暴風域を伴って${movement}` : movement;
+      head = position != null
+        ? `${subject}が${position}にあり、${predicate}。`
+        : `${subject}は${predicate}。`;
+    } else {
+      const speed = `移動速度は「${qualitativeSpeed.text}」です`;
+      if (position != null) {
+        head = `${subject}が${position}にあり、${hasStorm ? "暴風域を伴っており、" : ""}${speed}。`;
+      } else if (hasStorm) {
+        head = `${subject}は暴風域を伴っており、${speed}。`;
+      } else {
+        head = `${subject}の${speed}。`;
+      }
+    }
+    return `【${heading}】${wind != null ? `${head}${wind}` : head}`;
+  }
+
+  // 移動句 (実況は事実形「進んでいます」)。0/欠損なら方向のみ。
   let move: string | null = null;
   if (c.moveDirection != null && c.moveDirection !== "") {
-    move = c.moveSpeedKmh != null && c.moveSpeedKmh > 0
-      ? `${c.moveDirection}へ時速${c.moveSpeedKmh}kmで進んでいます`
-      : `${c.moveDirection}へ進んでいます`;
+    if (c.moveSpeedKmh != null && c.moveSpeedKmh > 0) {
+      move = `${c.moveDirection}へ時速${c.moveSpeedKmh}kmで進んでいます`;
+    } else {
+      move = `${c.moveDirection}へ進んでいます`;
+    }
   }
-  const hasStorm = f.wind != null && hasWindArea(f.wind.stormArea);
 
   // 暴風域と移動を 1 述語にまとめる (実況は「伴って/伴っています」の事実形)。
   let predicate: string | null;
@@ -105,7 +133,6 @@ function framePhrase(f: TyphoonFrame): string | null {
   else if (move != null) predicate = move;
   else predicate = null;
 
-  const wind = analysisWindSentence(f.wind);
   // 位置も移動も暴風域も風速も階級も無い frame は行にしない (実況/推定は通常 position を持つ)。
   const hasClass = f.typhoonClass.intensity != null || f.typhoonClass.size != null
     || (f.typhoonClass.category != null && f.typhoonClass.category !== "");
@@ -120,7 +147,6 @@ function framePhrase(f: TyphoonFrame): string | null {
     head = predicate != null ? `${subject}は${predicate}。` : `${subject}です。`;
   }
   const body = wind != null ? `${head}${wind}` : head;
-  const heading = f.label.replace(/\s+/g, "");
   return `【${heading}】${body}`;
 }
 
@@ -135,13 +161,38 @@ function forecastTimeLabel(iso: string): string | null {
 interface ForecastSegment {
   mid: string;
   end: string;
+  subjectParticle?: "は" | "の";
 }
 
 /** 予報の移動句。地名があれば「〜を」で前置。移動が無く位置だけあれば「〜にある」で拾う。 */
 function forecastMoveSegment(c: TyphoonCenter, position: string | null): ForecastSegment | null {
+  const qualitativeSpeed = movementSpeedQualitativeDisplay(c.moveSpeedKmhValue);
+  if (qualitativeSpeed != null) {
+    const speed = `移動速度は「${qualitativeSpeed.text}」`;
+    if (c.moveDirection != null && c.moveDirection !== "") {
+      const place = position != null ? `${position}を` : "";
+      return {
+        mid: `${place}${c.moveDirection}へ向かうものの、${speed}となり`,
+        end: `${place}${c.moveDirection}へ向かうものの、${speed}となる見込みです`,
+      };
+    }
+    if (position != null) {
+      return {
+        mid: `${position}に位置し、${speed}となり`,
+        end: `${position}に位置し、${speed}となる見込みです`,
+      };
+    }
+    return {
+      mid: `${speed}となり`,
+      end: `${speed}となる見込みです`,
+      subjectParticle: "の",
+    };
+  }
   if (c.moveDirection != null && c.moveDirection !== "") {
     const place = position != null ? `${position}を` : "";
-    const speed = c.moveSpeedKmh != null && c.moveSpeedKmh > 0 ? `時速${c.moveSpeedKmh}kmで` : "";
+    const speed = c.moveSpeedKmh != null && c.moveSpeedKmh > 0
+      ? `時速${c.moveSpeedKmh}kmで`
+      : "";
     return {
       mid: `${place}${c.moveDirection}へ${speed}進み`,
       end: `${place}${c.moveDirection}へ${speed}進む見込みです`,
@@ -210,7 +261,8 @@ function forecastNarrative(frames: TyphoonFrame[], initialPrevClass: string | nu
     }
 
     const parts = segments.map((s, i) => (i === segments.length - 1 ? s.end : s.mid));
-    sentences.push(`${timeLabel}には、${subject}は${parts.join("、")}`);
+    const subjectParticle = segments[0]?.subjectParticle ?? "は";
+    sentences.push(`${timeLabel}には、${subject}${subjectParticle}${parts.join("、")}`);
   }
   if (sentences.length === 0) return null;
   return `【予報】${sentences.join("。")}。`;

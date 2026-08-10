@@ -14,6 +14,31 @@ function qualitativeSource(value: SpecialValue<number>): string | null {
     .find((source) => source != null && source !== "") ?? null;
 }
 
+export interface MovementSpeedQualitativeDisplay {
+  text: string;
+  kind: "slow" | "stationary";
+}
+
+/**
+ * MovementSpeed の既知 qualitative だけを表示へ渡す。
+ * 分類用には NFKC/trim を使うが、表示語は description/condition/raw 優先の原文を返す。
+ */
+export function movementSpeedQualitativeDisplay(
+  value: SpecialValue<number> | undefined,
+): MovementSpeedQualitativeDisplay | null {
+  if (value?.presence !== "qualitative") return null;
+  const text = qualitativeSource(value);
+  if (text == null) return null;
+  const normalized = text.normalize("NFKC").trim();
+  if (normalized === "ゆっくり" || normalized.endsWith("ゆっくり")) {
+    return { text, kind: "slow" };
+  }
+  if (normalized === "ほとんど停滞" || normalized.endsWith("ほとんど停滞")) {
+    return { text, kind: "stationary" };
+  }
+  return null;
+}
+
 /** 数値を丸めず、raw も変更せずに台風単位系の表示へ整形する。 */
 export function formatNumericSpecialValue(
   value: SpecialValue<number>,

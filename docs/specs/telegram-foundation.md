@@ -1539,30 +1539,30 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - ※WindSpeed の `condition="なし"` は qualitative として内部保持し、scalar・表示とも現行を維持する（CLI 予報表の `0(0)` を含め表示変更しない）。
 - 前報差分（RollingNumber 補助行）の数値差分・trend は両端が `presence:"value"` の場合のみ算出する。**前報・現報がともに exact value なら、canonical 同値でも現行どおり 0 差分と steady を維持する**（canonical equality は raw だけの揺れの識別に用いるものであり、既存の 0 差分表示を消さない）。※value↔unknown 等の遷移は差分行に出さない（現行の見え方保存）。
 - trend は canonical value から算出し、unknown／missing／qualitative を強度低下・上昇の根拠にしない。※優先規則（developing 先勝ち）は現行維持。※最大瞬間風速は trend・差分の根拠に含めず、SpecialValue 化は表示・保存のみとする。
-- ※移動速度の qualitative は card の数値 slot にテキスト表示する（RollingNumber は exact value のみ）。これは完了条件「停滞を 0km/h にしない」充足の最小形とし、**本 Phase の意図的な表示変更は card の qualitative テキストと付随 badge のみ**とする。CLI の `―km/h`・テロップの方向のみ表示は現行を維持する（§3.7 化の是非はご主人裁定待ちとして別途一覧へ）。
+- ※移動速度の既知 qualitative は card の数値 slot（RollingNumber は exact value のみ）に加え、CLI とテロップにも description／condition／raw 優先の原文で表示する。CLI は方向と定性語を組み合わせる。テロップは任意の原文を動詞へ直接連結せず、実況を `北へ向かっていますが、移動速度は「原文」です`、予報を `北へ向かうものの、移動速度は「原文」となる見込みです` の独立節とし、方向欠落時も移動速度節だけを表示する。今回変更する CLI／テロップでは unmapped qualitative の従来 fallback（CLI は旧欠損表示、テロップは速度句省略）を維持する（2026-08-10 朝のユーザー裁定で card 限定から拡張）。
 - ※通知本文へ数値は追加しない（現行の名称・位置のみ＋受理済み訂正の `訂正` 明示を維持）。通知本文の現行一致・数値非追加・訂正明示は回帰 test で固定する。
 - standby persistence（typhoon domain）は canonical 全フィールド（diagnostics 込み）を additive 保存し、旧 scalar-only snapshot は読込方向のみ migration する。validator・restore default・protocol mirror を同時更新し round-trip を固定する（5A の 3 owner 契約と同形）。
-- 期待値変更の許可範囲: 移動速度 qualitative の card テキスト表示と付随 badge、canonical diff 発火範囲、persistence への additive semantic と migration、に限る。次が変わる場合は報告して停止する: 通常値の表示・strength/size の header tone・4 stat の 2×2 grid・exact 値の RollingNumber・exact 同値続報の 0 差分/steady・最大瞬間風速列の既存省略条件・通常通知本文（名称・位置）・trend 結果・TTL・通知 cadence。
+- 期待値変更の許可範囲: 移動速度 qualitative の card テキストと付随 badge、および既知 qualitative の CLI／テロップ表示、canonical diff 発火範囲、persistence への additive semantic と migration、に限る。次が変わる場合は報告して停止する: 通常値の表示・strength/size の header tone・4 stat の 2×2 grid・exact 値の RollingNumber・exact 同値続報の 0 差分/steady・最大瞬間風速列の既存省略条件・通常通知本文（名称・位置）・trend 結果・TTL・通知 cadence。
 
 変更単位（依存順。共通 helper と engine 投影を表示より前に確定する）:
 
 1. 契約先行（本節。文書のみ）
 2. parser・型・adapter・共通 helper: extractSpecialValue 接続、canonical field 追加、旧 scalar adapter（数値本文保持）、数値 SpecialValue 共通 formatter（台風単位系）・canonical equality 転用・serializable rank/比較 helper、合成 fixture（ゆっくり・停滞・なし・不明・複数単位併記）
 3. 伝搬・state・永続化: engine semantic projection（label・badge・rank を protocol 投影時に生成）、standby store の差分/trend canonical 化、protocol と frontend mirror の additive semantic、persistence migration・round-trip、通知現行一致の回帰 test
-4. 表示 surface・横断 contract: CLI・テロップ（現行表示維持の固定）・card（qualitative テキスト表示・badge）・同一合成 XML の parser→表示→persistence 横断 test・engine/frontend parity・全ゲート
+4. 表示 surface・横断 contract: CLI・テロップ・card（既知 qualitative テキスト表示。card は badge も付与）・同一合成 XML の parser→表示→persistence 横断 test・engine/frontend parity・全ゲート。CLI／テロップへの拡張は 2026-08-10 朝のユーザー裁定で追加した。
 
 起草時の計画から実装で確定・変更された点:
 
 - 旧 scalar adapter は valid な数値本文を condition の有無にかかわらず現 parser と bit 一致で保持した。`condition="なし"` の WindSpeed `0` も canonical qualitative と legacy scalar `0` を両立し、既存 CLI／card 数値表示を変えない。
 - 前報・現報がともに exact value の場合は canonical が同値でも、既存の差分 `0` と `steady` を維持した。unknown／missing／qualitative を差分・trend の根拠にせず、最大瞬間風速も trend へ加えない。
-- 意図的な表示変更は移動速度 qualitative の card テキストと badge に限定した。exact は adapter の bit 一致に裏づけられた canonical `value` を表示し、non-value（unknown／empty／range／missing）は valid な legacy scalar があれば従来表示へ戻し、scalar がなければ従来どおり省略する対称 fallback とした。気圧・風速の特殊 semantic、CLI、通知、テロップへ新しい表示値は追加しない。
+- 当初は移動速度 qualitative の表示変更を card テキストと badge に限定したが、2026-08-10 朝のユーザー裁定で既知 qualitative に限り CLI／テロップへ拡張した。表示語は description／condition／raw 優先の原文を維持し、unmapped qualitative は旧表示へ戻す。exact は adapter の bit 一致に裏づけられた canonical `value` を表示し、気圧・風速の特殊 semantic、通知には新しい表示値を追加しない。
 - live の `WindPart` 欠落は unknown と推定せず、最大風速／最大瞬間風速の canonical `missing` として diagnostics なしで保持・永続化する形に確定した。
 - range と canonical structured bounds は WindSpeed だけに許可した。Pressure／MovementSpeed の From／To は range 化せず、数値本文を優先して raw bounds と diagnostics を保持する。
 - protocol は4数値の JSON-safe rank を engine で一度だけ生成し、frontend mirror へ渡す。旧 scalar-only snapshot は読込方向だけ canonical 化する。
 
 完了確認:
 
-1. 停滞の非0化: `test/engine/telegram-foundation/phase5b-typhoon-parser.test.ts:77`／`:275` が「ゆっくり」「ほとんど停滞」と WindSpeed `なし + 0` の canonical／legacy 分離を固定し、`test/engine/telegram-foundation/phase5b-surface-contract.test.ts:25` と `display/frontend/src/components/__tests__/phase5b-surface-contract.test.ts:23` が parser→全 engine surface→persistence→実 card DOM で `0km/h` 化しないことを確認する。
+1. 停滞の非0化と表示: `test/engine/telegram-foundation/phase5b-typhoon-parser.test.ts:77`／`:275` が「ゆっくり」「ほとんど停滞」と WindSpeed `なし + 0` の canonical／legacy 分離を固定する。`test/engine/telegram-foundation/phase5b-surface-contract.test.ts` が同一 XML の CLI／テロップ表示、`test/ui/typhoon-analysis-formatter.test.ts` と `test/engine/presentation/events/typhoon-to-text.test.ts` が既知語・unmapped・exact／missing fallback、`display/frontend/src/components/__tests__/phase5b-surface-contract.test.ts:23` が実 card DOM まで `0km/h` 化しないことを確認する。
 2. 不明値と trend: `test/engine/display/standby-state-store.test.ts:527` が両端 exact のみ差分を算出し、unknown を強度低下の根拠にせず exact 同値の `0/steady` を維持する。`:753` が片側欠落時の差分／trend を null に固定する。
 3. 通常表示・差分・期限: `display/frontend/src/components/__tests__/typhoon-card.test.ts:92` が exact の既存 NumberUnit 表示、`:125`／`:169`／`:198`／`:247` が qualitative 以外の legacy fallback と新規表示禁止を固定する。`test/engine/display/standby-state-store.test.ts:827` が stale resend で TTL を延長せず24時間と tombstone を維持する。
 4. 受理済み訂正: `test/engine/display/standby-state-store.test.ts:632` が同一 revision の訂正だけを置換し、`test/engine/notifier.test.ts:132` が通知の名称・位置だけの本文と title／body の `訂正` 明示を固定する。
@@ -1572,7 +1572,7 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 緑でも固定できていない契約・実機リスク（実機観察待ち）:
 
 - 実台風電文における self-closing、description／condition、単位併記、`WindPart` 部分欠落の表記揺れは synthetic fixture を超え得るため、受信時に raw と diagnostics を確認する。
-- 実解像度での長い移動速度 qualitative の折返し、badge、tooltip／ARIA の視認性・読み上げは実機観察待ちである。
+- 実解像度での長い移動速度 qualitative の CLI／テロップ折返しと card の折返し、badge、tooltip／ARIA の視認性・読み上げは実機観察待ちである。
 
 Phase 5B の完了ゲートは §14.1 の7コマンドに従い、次のコマンド列を全て成功済みとする。
 

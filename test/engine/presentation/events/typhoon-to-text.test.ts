@@ -257,6 +257,102 @@ describe("typhoonAnalysisToText", () => {
     expect(text).not.toContain("強風域");
   });
 
+  it.each([
+    ["ほとんど停滞", {
+      raw: "", value: null, condition: "ほとんど停滞", description: null,
+      presence: "qualitative",
+    }, "北西へ向かっていますが、移動速度は「ほとんど停滞」です"],
+    ["ゆっくり", {
+      raw: "", value: null, condition: "ほとんど停滞", description: "ゆっくり",
+      presence: "qualitative",
+    }, "北西へ向かっていますが、移動速度は「ゆっくり」です"],
+    ["raw 由来", {
+      raw: "ゆっくり", value: null, condition: null, description: null,
+      presence: "qualitative",
+    }, "北西へ向かっていますが、移動速度は「ゆっくり」です"],
+    ["複合終端表現", {
+      raw: "", value: null, condition: null,
+      description: "移動速度２０ｋｍ／ｈではほとんど停滞",
+      presence: "qualitative",
+    }, "北西へ向かっていますが、移動速度は「移動速度２０ｋｍ／ｈではほとんど停滞」です"],
+  ] as const)("実況の移動速度 qualitative %s は方向と原文を文章化する", (
+    _label,
+    moveSpeedKmhValue,
+    expected,
+  ) => {
+    const text = typhoonAnalysisToText(syntheticAnalysis({
+      center: {
+        location: "南大東島の南南東", coordinate: null, forecastCircleRadiusKm: null,
+        moveDirection: "北西", moveSpeedKmh: 20, moveSpeedKmhValue, pressureHpa: 940,
+      },
+    }));
+    expect(text).toContain(expected);
+    expect(text).not.toContain("時速20km");
+  });
+
+  it("方向欠落時も定性原文を独立した移動速度文として表示する", () => {
+    const value = {
+      raw: "ゆっくり", value: null, condition: null, description: null,
+      presence: "qualitative",
+    } as const;
+    const analysis = typhoonAnalysisToText(syntheticAnalysis({
+      center: {
+        location: null, coordinate: null, forecastCircleRadiusKm: null,
+        moveDirection: null, moveSpeedKmh: null, moveSpeedKmhValue: value, pressureHpa: null,
+      },
+      wind: null,
+    }));
+    expect(analysis).toContain("非常に強い大型の台風の移動速度は「ゆっくり」です。");
+  });
+
+  it("予報の既知語・方向欠落・fallback を独立した移動速度節で処理する", () => {
+    const forecast = (
+      moveSpeedKmhValue: TyphoonFrame["center"]["moveSpeedKmhValue"],
+      moveDirection: string | null = "北",
+      moveSpeedKmh: number | null = null,
+    ): TyphoonFrame => ({
+      kind: "予報", label: "予報　１２時間後", validTime: "2020-09-29T15:00:00+09:00",
+      typhoonClass: { category: null, intensity: null, size: null },
+      center: {
+        location: null, coordinate: null, forecastCircleRadiusKm: null,
+        moveDirection, moveSpeedKmh, pressureHpa: null, moveSpeedKmhValue,
+      },
+      wind: null,
+    });
+    const text = (frame: TyphoonFrame): string => typhoonAnalysisToText({
+      ...syntheticAnalysis({}), frames: [frame],
+    })!;
+    const slow = {
+      raw: "", value: null, condition: null, description: "ゆっくり", presence: "qualitative",
+    } as const;
+    const stationary = {
+      raw: "", value: null, condition: "ほとんど停滞", description: null, presence: "qualitative",
+    } as const;
+    expect(text(forecast(slow)))
+      .toContain("北へ向かうものの、移動速度は「ゆっくり」となる見込みです");
+    expect(text(forecast(stationary)))
+      .toContain("北へ向かうものの、移動速度は「ほとんど停滞」となる見込みです");
+    expect(text(forecast(slow, null))).toBe(
+      "TALIM（台風18号）\n【予報】29日15時には、台風の移動速度は「ゆっくり」となる見込みです。",
+    );
+
+    for (const value of [
+      { raw: "NaN", value: null, condition: "不明", description: null, presence: "unknown" },
+      { raw: "", value: null, condition: null, description: null, presence: "empty" },
+    ] as const) {
+      const fallback = text(forecast(value));
+      expect(fallback).toContain("北へ進む見込みです");
+      expect(fallback).not.toMatch(/移動速度|不明|空欄/u);
+    }
+
+    const unmapped = text(forecast({
+      raw: "7.25", value: null, condition: "停滞気味", description: null,
+      presence: "qualitative", diagnostics: ["unmappedSpecialValue"],
+    }, "北", 7.25));
+    expect(unmapped).toContain("北へ時速7.25kmで進む見込みです");
+    expect(unmapped).not.toMatch(/停滞気味|移動速度/u);
+  });
+
   it("実況の風速は「最大風速は..、最大瞬間風速は..です」の文章体", () => {
     const text = typhoonAnalysisToText(syntheticAnalysis({}));
     expect(text).toContain("最大風速は45m/s、最大瞬間風速は60m/sです。");

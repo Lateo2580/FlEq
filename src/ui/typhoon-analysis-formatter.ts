@@ -9,6 +9,7 @@ import {
 import { getDisplaySeverityText } from "./weather-warning-level-theme";
 import { pushFrameTable, FrameTableColumn } from "./frame-table-builder";
 import { typhoonAnalysisFrameLevel } from "../engine/presentation/level-helpers";
+import { movementSpeedQualitativeDisplay } from "../utils/numeric-special-value";
 
 const WHITE_BORDER = chalk.rgb(232, 232, 232);
 
@@ -25,10 +26,14 @@ function pushConfirmedBlock(
   buf.push(frameDividerColored(level, color, width));
   buf.push(frameLineColored(level, color, `  ${chalk.bold.cyan(`▸ ${heading}`)}`, width));
   const c = f.center;
+  const qualitativeSpeed = movementSpeedQualitativeDisplay(c.moveSpeedKmhValue);
+  const movement = c.moveDirection
+    ? `移動 ${c.moveDirection} ${qualitativeSpeed?.text ?? `${c.moveSpeedKmh ?? "―"}km/h`}`
+    : qualitativeSpeed == null ? "" : `移動 ${qualitativeSpeed.text}`;
   const lines = [
     `${classLabel(f)}   ${c.location ?? ""}`.trim(),
     [c.pressureHpa != null ? `中心気圧 ${c.pressureHpa} hPa` : "",
-     c.moveDirection ? `移動 ${c.moveDirection} ${c.moveSpeedKmh ?? "―"}km/h` : ""]
+     movement]
       .filter(Boolean).join("   "),
     f.wind?.maxWindMs != null
       ? `最大風速 ${f.wind.maxWindMs} m/s` + (f.wind.maxGustMs != null ? ` (瞬間 ${f.wind.maxGustMs} m/s)` : "")
