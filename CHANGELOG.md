@@ -2,6 +2,68 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [3.3.0](https://github.com/Lateo2580/FlEq/compare/v3.2.0...v3.3.0) (2026-08-10)
+
+
+### 機能追加
+
+* **foundation:** 台風移動速度の定性語を CLI とテロップへ拡張表示する ([6d1c79b](https://github.com/Lateo2580/FlEq/commit/6d1c79bf6979aff03e72eca4e795f790cbd8db41))
+* **foundation:** 深さ「ごく浅い」へ内部 upperBound を付与し ? badge を解消する ([909f203](https://github.com/Lateo2580/FlEq/commit/909f2038858edc0a4099ac9955bc5ec1db4dc7b9))
+* **foundation:** 電文基盤 Phase 1 として共通型と shadow extractor を追加する ([fffb84e](https://github.com/Lateo2580/FlEq/commit/fffb84e915387bb069864572cd141d5e14890d6e))
+* **foundation:** 電文基盤 Phase 2 として訓練・試験判定を一元化する ([013961f](https://github.com/Lateo2580/FlEq/commit/013961f9c6da8fe303d3ce2b1acbb83f179b22c5))
+* **foundation:** 電文基盤 Phase 3A として共通 revision gate を EEW へ適用する ([92245f9](https://github.com/Lateo2580/FlEq/commit/92245f94376606a28f28a0aab4c0377b133749ad))
+* **foundation:** 電文基盤 Phase 3B 変更単位 1 として VPWS50 を共通 registry と persistence v2 へ移行する ([4e07b5c](https://github.com/Lateo2580/FlEq/commit/4e07b5c3b7616b55567d99c26c6a4f269ac0b648))
+* **foundation:** 電文基盤 Phase 3B 変更単位 2 として津波 domain を共通 registry へ移行する ([e528b9a](https://github.com/Lateo2580/FlEq/commit/e528b9a8ebec4f0a9d3cb7fdda54012e587b6bd7))
+* **foundation:** 電文基盤 Phase 3B 変更単位 3 として VPWW56 を共通 registry へ移行する ([0d84f42](https://github.com/Lateo2580/FlEq/commit/0d84f42a2aeef7692b3d5ea71fe0d798c635330f))
+* **foundation:** 電文基盤 Phase 3B 変更単位 4 として火山 domain を共通 registry へ移行する ([4f9bf26](https://github.com/Lateo2580/FlEq/commit/4f9bf26cf8cbf4ef4305f4a3c5b20537eb2a0740))
+* **foundation:** 電文基盤 Phase 3B 変更単位 5 として洪水 domain を共通 registry へ移行する ([4790fcb](https://github.com/Lateo2580/FlEq/commit/4790fcb70911013dccfafdd61edae17d1aaa1ce2))
+* **foundation:** 電文基盤 Phase 3B 変更単位 6+7 として standby/transient 全 domain を共通 registry へ移行する ([9f88b6b](https://github.com/Lateo2580/FlEq/commit/9f88b6b450e09022540dc10093f8446961b5d099))
+* **foundation:** 電文基盤 Phase 4A 変更単位 1 として共通震度契約を導入する ([c393158](https://github.com/Lateo2580/FlEq/commit/c393158dd87fa4b7bbc8bf96d5ab152771c09bba))
+* **foundation:** 電文基盤 Phase 4A 変更単位 2 として parser を SpecialValue へ実移行する ([59ae6f7](https://github.com/Lateo2580/FlEq/commit/59ae6f7c952a8efda6b52c1f4da272ccc79bbc16))
+* **foundation:** 電文基盤 Phase 4A 変更単位 3 として観測保持と永続化を共通契約へ移行する ([78bf07b](https://github.com/Lateo2580/FlEq/commit/78bf07b777e8613fa1ff458e2303bb61d0ad45e9))
+* **foundation:** 電文基盤 Phase 4A 変更単位 4 として EEW safety flow を共通契約へ移行する ([81df922](https://github.com/Lateo2580/FlEq/commit/81df922e97e138dbce65cb857a572079bdef0045))
+* **foundation:** 電文基盤 Phase 4A 変更単位 5 として下流出口の qualifier 貫通を実装する ([b33acf7](https://github.com/Lateo2580/FlEq/commit/b33acf7589ffc4337da0fc75847eef825258313e))
+* **foundation:** 電文基盤 Phase 4A 変更単位 6 として display protocol と projection を semantic 化する ([eac04d5](https://github.com/Lateo2580/FlEq/commit/eac04d5fcc4b183104d0d59af445a429ff9f7640))
+* **foundation:** 電文基盤 Phase 4A 変更単位 7 として frontend の特殊値表示を実装する ([052dfd1](https://github.com/Lateo2580/FlEq/commit/052dfd1d130d92dbc328583279debb8eafa7d161)), closes [#cc79a7](https://github.com/Lateo2580/FlEq/issues/cc79a7)
+* **foundation:** 電文基盤 Phase 4A 変更単位 8 として契約テストと仕様書を完了同期する ([0e67c22](https://github.com/Lateo2580/FlEq/commit/0e67c223551f1d8a4843903b349bca72180c8fa4))
+* **foundation:** 電文基盤 Phase 4B 変更単位 1 として津波 parser のコード保持と TsunamiHeight の SpecialValue 化を実装する ([327f9a2](https://github.com/Lateo2580/FlEq/commit/327f9a21f31deb8879fa68390d2392c77500ecad))
+* **foundation:** 電文基盤 Phase 4B 変更単位 2 として keyed tsunami state と EventID revision gate・取消規約を実装する ([826ce16](https://github.com/Lateo2580/FlEq/commit/826ce16c01b002f4b2d387cdb5c4a88567ffe0de))
+* **foundation:** 電文基盤 Phase 4B 変更単位 3 として presentation・CLI・通知の code 貫通を実装する ([73a01e3](https://github.com/Lateo2580/FlEq/commit/73a01e33c8a0f49ce5d9e4923bf9b31502ae7112))
+* **foundation:** 電文基盤 Phase 4B 変更単位 4 として display protocol と Pi 行 identity の code 化を実装する ([b94149e](https://github.com/Lateo2580/FlEq/commit/b94149e783b55ce9eb1a3331f8538c59e972226f))
+* **foundation:** 電文基盤 Phase 4B 変更単位 5 として高さ semantic の Pi 表示・色・badge を実装する ([7c14480](https://github.com/Lateo2580/FlEq/commit/7c14480cb51d65c4ae1aa1415f56374e226fbcaa))
+* **foundation:** 電文基盤 Phase 4B 変更単位 6 として永続化 migration と legacy adapter 読込専用化を実装する ([f7d2f5d](https://github.com/Lateo2580/FlEq/commit/f7d2f5dd01538b3a2509f9947d3ed350300da7d2))
+* **foundation:** 電文基盤 Phase 5A 変更単位 2 として Magnitude・Depth の SpecialValue 抽出と旧 scalar adapter を実装する ([505d171](https://github.com/Lateo2580/FlEq/commit/505d171270a4adc8e90422f5d25c4bd9251eb593))
+* **foundation:** 電文基盤 Phase 5A 変更単位 3 として Magnitude・Depth semantic の伝搬・通知・engine 投影を実装する ([8e7dffc](https://github.com/Lateo2580/FlEq/commit/8e7dffc7cd2c5a30116fcf026722b4a1c63d0ae0))
+* **foundation:** 電文基盤 Phase 5A 変更単位 4 として地震 state・merge・永続化の semantic 対応を実装する ([638b190](https://github.com/Lateo2580/FlEq/commit/638b1904a0a40159a8442eefa2b3e47e9a26d104))
+* **foundation:** 電文基盤 Phase 5A 変更単位 5 として EEW tracker の canonical diff と diff 行表示を実装する ([16815ad](https://github.com/Lateo2580/FlEq/commit/16815ad2fca03ee9b28d92af2f1ffb8e2c6caaf3))
+* **foundation:** 電文基盤 Phase 5A 変更単位 6 として全表示 surface と frontend の semantic 対応・横断 contract を実装する ([30b0d4d](https://github.com/Lateo2580/FlEq/commit/30b0d4dd7dd673d37e3897b6f258c3cbc4d7a622))
+* **foundation:** 電文基盤 Phase 5B 変更単位 2 として台風数値の SpecialValue 抽出と共通 helper を実装する ([e15ed6b](https://github.com/Lateo2580/FlEq/commit/e15ed6b88348db7a85f2cfcd7a072858609580ff))
+* **foundation:** 電文基盤 Phase 5B 変更単位 3 として台風数値の semantic 伝搬・state・永続化を実装する ([f86d853](https://github.com/Lateo2580/FlEq/commit/f86d853d01b33dcb595906e2a72f3438c118cb7b))
+* **foundation:** 電文基盤 Phase 5B 変更単位 4 として台風カードの qualitative 表示と横断 contract を実装する ([0e964f5](https://github.com/Lateo2580/FlEq/commit/0e964f5a9e039413b579d40ea8582a905ac3d904))
+* **foundation:** 電文基盤 Phase 5C 変更単位 2 として噴煙高度の SpecialValue 抽出と共通 helper を実装する ([fc9f32e](https://github.com/Lateo2580/FlEq/commit/fc9f32e9b74a984c8bd8c226f01ef238fa1920e6))
+* **foundation:** 電文基盤 Phase 5C 変更単位 3 として噴煙高度の semantic 伝搬・fingerprint 移行・永続化を実装する ([11d4709](https://github.com/Lateo2580/FlEq/commit/11d4709ace59c055e9901c16f3c831c775979051))
+* **foundation:** 電文基盤 Phase 5C 変更単位 4 として噴煙高度の表示 surface と警報 canonical 切替を実装する ([da5f5a5](https://github.com/Lateo2580/FlEq/commit/da5f5a580fda1b2e9378dd0d385a3a979154befa))
+
+
+### バグ修正
+
+* **display:** 待機カードの選抜を三段構えにして重要カードの無言非表示を解消する ([f59ff5d](https://github.com/Lateo2580/FlEq/commit/f59ff5d808de92230b65fb8e4d2e6e73e9b43a10))
+* **display:** 火山カードの警戒レベル重複行を抑止し待機カード仕様を同期する ([cb646be](https://github.com/Lateo2580/FlEq/commit/cb646be28d8b995af5b2e598cf22011c329c4b94))
+* **display:** 火山警戒レベル重複を実データの warningKind へ対応し台風 compact の表示を調整する ([892bc28](https://github.com/Lateo2580/FlEq/commit/892bc283dd1d5d8e85a978596362b114cf5ee93c))
+
+
+### ドキュメント
+
+* **foundation:** Phase 5B・5C の仮裁定 10 件をご主人確認済みとして確定に更新する ([391bfab](https://github.com/Lateo2580/FlEq/commit/391bfab897f62cb526447afa5c788d59e9d55faa))
+* **foundation:** 電文基盤 Phase 4B の完了を仕様書へ同期する ([cab086e](https://github.com/Lateo2580/FlEq/commit/cab086e09faf68612581e817f2557d7e8c4b8735))
+* **foundation:** 電文基盤 Phase 5A の完了を仕様書へ同期する ([5bfe725](https://github.com/Lateo2580/FlEq/commit/5bfe725a2fdbfa2c2c72bc0271f5fb513d10141b))
+* **foundation:** 電文基盤 Phase 5A 変更単位 1 として実装契約と変更単位を仕様書へ固定する ([342e102](https://github.com/Lateo2580/FlEq/commit/342e102f7d46860c15c86dcaac8e7a67fdc063db))
+* **foundation:** 電文基盤 Phase 5B・5C の完了を仕様書へ同期する ([eb706fd](https://github.com/Lateo2580/FlEq/commit/eb706fdc4d3f3be852a47c78d8b18539a2b015d5))
+* **foundation:** 電文基盤 Phase 5B・5C の実装契約と変更単位を仕様書へ固定する ([834449f](https://github.com/Lateo2580/FlEq/commit/834449f4f4965d4d49d9692c2131ac6cb0999bf6))
+* **specs:** 電文基盤共通化仕様に Sol レビュー 3 巡の指摘を反映し実装可とする ([eedfc55](https://github.com/Lateo2580/FlEq/commit/eedfc5506d6d90b891efcfcabbb1c1e217bfa8f0))
+* **specs:** 電文基盤共通化仕様のドラフトを追加する ([f634e41](https://github.com/Lateo2580/FlEq/commit/f634e410a39e3799646ec5cf2b38929673d29b2f))
+* **specs:** 電文基盤共通化仕様を Phase 3B 実装確定の最終設計へ同期する ([809b056](https://github.com/Lateo2580/FlEq/commit/809b056c660127c6e6e96bc237e75732b6d2bb73))
+
 ## [3.2.0](https://github.com/Lateo2580/FlEq/compare/v3.1.0...v3.2.0) (2026-07-30)
 
 
