@@ -1532,7 +1532,7 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - persistence round-trip が通る。
 - 既存機能の回帰が 0 件である。
 
-実装契約（2026-08-10 着手時確定。※印は夜間自律走行の仮裁定——ご主人確認までは保守側の暫定であり、覆った場合は該当箇所のみ再実装する）:
+実装契約（2026-08-10 着手時確定。※印は夜間自律走行の仮裁定として起草し、同日朝にユーザー確認済み——確定）:
 
 - canonical field は `pressureHpaValue`／`maxWindMsValue`／`maxGustMsValue`／`moveSpeedKmhValue` の `SpecialValue<number>` とする。抽出は `extractSpecialValue` の Pressure／WindSpeed／MovementSpeed domain を parser へ接続する。既存 scalar（`number | null`）は adapter が生成する互換値であり、**valid な数値本文は condition の有無にかかわらず現行どおり数値のまま保持する**（`condition="なし"` の `0m/s` を含む——現 parser の結果と bit 一致）。数値本文がない特殊値のみ `null` とする（現行一致）。
 - ※qualitative の表示語は description／condition／raw の既定優先順で最初の非空の語を使い、語自体は正規化しない（「ゆっくり」は self-closing 本文のため condition／description 由来になる。巨大 Magnitude と同じ流儀）。
@@ -1612,7 +1612,7 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - 修正弾 A〜C の火山 lifecycle に回帰がない。
 - 既存機能の回帰が 0 件である。
 
-実装契約（2026-08-10 着手時確定。※印は夜間自律走行の仮裁定——ご主人確認までは保守側の暫定であり、覆った場合は該当箇所のみ再実装する）:
+実装契約（2026-08-10 着手時確定。※印は夜間自律走行の仮裁定として起草し、同日朝にユーザー確認済み——確定）:
 
 - canonical は基準と単位を判別子で持つ wrapper 型とする: `PlumeHeightSemantic = { reference: "aboveCrater" | "aboveSeaLevel", unit: "m" | "FT", value: SpecialValue<number> }`。field 名（`plumeHeightAboveCraterValue`／`plumeHeightAboveSeaLevelValue`）と型の両方で基準を分離し、無印 `SpecialValue<number>` へ混在させない（引き継ぎ契約の型分離）。
 - 無印 `plumeHeight` 系 scalar（`number | null`＋`plumeHeightUnknown`）は adapter が生成する互換値とし、**現 parser の parseInt 結果を bit 一致で再現する**（`以上` 等の数値本文が現在 scalar 数値になる挙動を含む）。警報発火判定は単位 4 の canonical 切替まで旧 scalar を使い続け、切替は表示・判定と同一単位で原子的に行う。
@@ -1639,7 +1639,7 @@ Phase 5A からの引き継ぎ（5B／5C 共通・同期）: engine／frontend �
 - canonical の raw／condition／description は `trimValues:false` の shadow XML tree から抽出し、旧 scalar adapter は従来 tree の trim 後文字列を `parseInt(..., 10)` へ渡す形に分離した。原文保持と legacy bit 一致を同じ tree へ依存させない。
 - revision fingerprint は canonical raw／presence／condition／description／bounds／reference／unit を含む key へ移行した。旧 key alias 一致時は canonical key を同じ slot で置換し、32件履歴を消費・追い出しせず、発表／訂正／取消の duplicate を無通知のまま restart 跨ぎで移行する。
 - §3.7 表示への切替軸は presence ではなく「分類を決めた語が spec 既知特殊語か」に統一した。既知の雲中／観測できず／不明／bound・range と `empty`（CLI `（空欄）`・card `空欄`・通知／テロップ省略）だけを semantic 表示し、exact、missing、機械表現 `NaN`、unmapped qualitative は valid な legacy scalar があれば従来表示へ戻し、なければ従来どおり省略する。
-- ※警報の「原子的切替」は保守側で、火口上 canonical の exact value または lowerBound が `>= 3000` **OR** 有効な legacy scalar が従来判定で `>= 3000` の論理和と確定した。canonical を主判定、legacy を安全床とし、桁あふれ等でも発火減少ゼロを構造的に保証する仮裁定である。
+- ※警報の「原子的切替」は保守側で、火口上 canonical の exact value または lowerBound が `>= 3000` **OR** 有効な legacy scalar が従来判定で `>= 3000` の論理和と確定した。canonical を主判定、legacy を安全床とし、桁あふれ等でも発火減少ゼロを構造的に保証する（2026-08-10 朝にユーザー確認済み——確定）。
 - persistence reader は正当な片側 raw bound、qualitative の raw／canonical bounds を受理する。semantic だけが壊れている場合は volcano record／domain を捨てず、その semantic field だけを旧 scalar から再生成して別火山・tombstone を salvage する。
 
 完了確認:
