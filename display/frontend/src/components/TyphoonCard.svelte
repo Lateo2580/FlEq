@@ -269,6 +269,9 @@
     gap: 0 var(--space-2);
     overflow: hidden;
   }
+  /* 位置文字列は数値トークン (flex-shrink:0) に圧縮され「いわき市の南西」級で
+     末尾が欠けるため、summary 行のみ折返しを許して全文を優先する (2026-08-11 実機) */
+  .compact-summary { flex-wrap: wrap; }
   .compact-primary strong { flex-shrink: 0; white-space: nowrap; }
   .compact-class, .compact-summary {
     color: var(--role-muted);
