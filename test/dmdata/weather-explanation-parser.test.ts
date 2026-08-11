@@ -1,12 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
+import { joinSections } from "../../src/engine/presentation/events/join-body-sections";
 import {
   createMockWsDataMessage,
   FIXTURE_VPCJ51_KANTO_SNOW,
   FIXTURE_VPCJ51_TOHOKU_HOT,
   FIXTURE_VPZJ51_SENJOU,
+  FIXTURE_VPZJ51_SENJOU_2,
   FIXTURE_VPZJ51_TYPHOON,
+  FIXTURE_VPFJ51_KANTO,
+  FIXTURE_VPFJ51_FUKUI_SNOW_INITIAL,
+  FIXTURE_VPFJ51_FUKUI_SNOW_UPDATE,
+  FIXTURE_VPFJ51_FUKUI_SNOW_CONTINUE,
   FIXTURE_VMCJ53_OSHIO,
+  FIXTURE_VMCJ54_OSHIO,
   FIXTURE_VMCJ55_FUKUSHINDO,
   FIXTURE_VMCJ55_OSHIO_CHIBA,
 } from "../helpers/mock-message";
@@ -184,6 +191,31 @@ describe("parseWeatherExplanation - 境界 (合成 XML)", () => {
     expect(result!.headline).toBe("本文のみ");
   });
 
+  it("Text が「本文なし。」だけの section は除外され bodyText は null になる", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>地方気象解説情報</Title><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>地方気象解説情報（本文なし）</Title>
+    <ReportDateTime>2026-08-11T10:00:00+09:00</ReportDateTime>
+    <InfoType>発表</InfoType>
+    <EventID>ZJPTK260036</EventID>
+    <Headline><Text>有意なヘッドライン</Text></Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+    <MeteorologicalInfos type="付加情報">
+      <MeteorologicalInfo><Item><Kind><Property><Type>補足事項</Type>
+        <Text type="本文">　本文なし。　</Text>
+      </Property></Kind></Item></MeteorologicalInfo>
+    </MeteorologicalInfos>
+  </Body>
+</Report>`;
+    const result = parseWeatherExplanation(makeMsg(xml));
+    expect(result).not.toBeNull();
+    expect(result!.sections).toEqual([]);
+    expect(joinSections(result!.sections)).toBeNull();
+  });
+
   it("[Codex R2 info] 情報タグと別系統が混在しても情報タグのみが採用される (W1 回帰)", () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
@@ -288,6 +320,40 @@ describe("mock-message VPZJ 認識 (Codex R1 Blocker 回帰)", () => {
     expect(msg.head.type).toBe("VPZJ51");
     expect(msg.classification).toBe("telegram.weather");
   });
+});
+
+const WEATHER_EXPLANATION_FIXTURES_WITH_NON_EMPTY_ADDITIONAL_TEXT = [
+  FIXTURE_VPZJ51_SENJOU,
+  FIXTURE_VPZJ51_SENJOU_2,
+  FIXTURE_VPZJ51_TYPHOON,
+  FIXTURE_VPCJ51_KANTO_SNOW,
+  FIXTURE_VPFJ51_KANTO,
+  FIXTURE_VPFJ51_FUKUI_SNOW_INITIAL,
+  FIXTURE_VPFJ51_FUKUI_SNOW_UPDATE,
+  FIXTURE_VPFJ51_FUKUI_SNOW_CONTINUE,
+  FIXTURE_VMCJ53_OSHIO,
+  FIXTURE_VMCJ54_OSHIO,
+  FIXTURE_VMCJ55_FUKUSHINDO,
+  FIXTURE_VMCJ55_OSHIO_CHIBA,
+] as const;
+
+describe("parseWeatherExplanation - 既存の付加情報本文回帰", () => {
+  it.each(WEATHER_EXPLANATION_FIXTURES_WITH_NON_EMPTY_ADDITIONAL_TEXT)(
+    "%s の非空な付加情報本文を維持する",
+    (fixtureName) => {
+      const result = parseWeatherExplanation(createMockWsDataMessage(fixtureName));
+      expect(result).not.toBeNull();
+      const additionalSections = result!.sections.filter((s) => s.sectionType === "付加情報");
+      expect(additionalSections.length).toBeGreaterThan(0);
+      expect(additionalSections.every((s) => s.text.trim() !== "")).toBe(true);
+
+      const bodyText = joinSections(result!.sections);
+      expect(bodyText).not.toBeNull();
+      for (const section of additionalSections) {
+        expect(bodyText).toContain(section.text.trim());
+      }
+    },
+  );
 });
 
 describe("extractSections Property listOf 化 (synthetic VPFJ51)", () => {

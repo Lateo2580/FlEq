@@ -2,8 +2,10 @@ import { testTelegramMeta } from "../../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { fromWeatherExplanationOutcome } from "../../../../src/engine/presentation/events/from-weather-explanation";
 import { processWeatherExplanation } from "../../../../src/engine/presentation/processors/process-weather-explanation";
+import { projectDisplayEvent } from "../../../../src/engine/display/project-event";
 import {
   createMockWsDataMessage,
+  createMockWsDataMessageFromXml,
   FIXTURE_VPZJ51_SENJOU,
   FIXTURE_VPZJ51_TYPHOON,
   FIXTURE_VPFJ51_KANTO,
@@ -11,6 +13,26 @@ import {
 } from "../../../helpers/mock-message";
 import type { WeatherExplanationOutcome } from "../../../../src/engine/presentation/types";
 import type { ParsedWeatherExplanation } from "../../../../src/types";
+
+const WEATHER_EXPLANATION_PLACEHOLDER_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
+  <Control><Title>全般気象解説情報</Title><PublishingOffice>気象庁</PublishingOffice></Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>全般気象解説情報（台風第１５号）</Title>
+    <ReportDateTime>2026-08-11T10:00:00+09:00</ReportDateTime>
+    <InfoType>発表</InfoType>
+    <EventID>ZJPTK260036</EventID>
+    <Serial>1</Serial>
+    <Headline><Text>台風第１５号は茨城県南部に上陸しました。</Text></Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/">
+    <MeteorologicalInfos type="付加情報">
+      <MeteorologicalInfo><Item><Kind><Property><Type>補足事項</Type>
+        <Text type="本文">　本文なし。　</Text>
+      </Property></Kind></Item></MeteorologicalInfo>
+    </MeteorologicalInfos>
+  </Body>
+</Report>`;
 
 /**
  * ParsedWeatherExplanation の最低限モック (targetAreas を差し替えるため)
@@ -56,6 +78,21 @@ function makeOutcomeWithAreas(
 }
 
 describe("fromWeatherExplanationOutcome", () => {
+  it("本文なし placeholder だけなら bodyText を落とし headline をテロップに流す", () => {
+    const msg = createMockWsDataMessageFromXml(WEATHER_EXPLANATION_PLACEHOLDER_XML, "VPZJ51");
+    const outcome = processWeatherExplanation(msg);
+    expect(outcome).not.toBeNull();
+
+    const event = fromWeatherExplanationOutcome(outcome!);
+    expect(event.bodyText).toBeNull();
+
+    const dto = projectDisplayEvent(event, "要約");
+    expect(dto.tickerBody).toBeNull();
+    expect(dto.tickerSentence).toBe("台風第１５号は茨城県南部に上陸しました。");
+    expect(dto.tickerSentence).not.toContain("本文なし。");
+    expect(dto.tickerSuppressed).toBe(false);
+  });
+
   describe("VPZJ51 fixture (線状降水帯予測)", () => {
     it("controlTitle が event に載る", () => {
       const msg = createMockWsDataMessage(FIXTURE_VPZJ51_SENJOU);

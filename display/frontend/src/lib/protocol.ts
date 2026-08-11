@@ -479,7 +479,7 @@ export interface DisplayEventDtoV1 {
   /** テロップ抑制フラグ (汎用機構、spec 2026-07-23 ticker-content-lifetime T5-2)。
    *  true のイベントはサーバが recentTicker に積まず、フロントも ticker 配列に積まない
    *  (event broadcast 自体は seq 整合のため通常どおり流れる)。
-   *  現用途: 情報ゼロ (sentence/body とも組めない非取消) の VPWP50。
+   *  現用途: 情報ゼロの非取消 VPWP50、および本文・headline とも空の気象解説。
    *  projectDisplayEvent が常に明示値をセットする。欠落 (旧 snapshot) は false 扱い
    *  (optional は protocol 移行の安全化——本ファイルの他 ticker フィールドと同じ規約) */
   tickerSuppressed?: boolean;

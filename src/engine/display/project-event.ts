@@ -658,7 +658,9 @@ export function projectDisplayEvent(
   const priority = tickerPriority(event);
   // 情報ゼロ電文のテロップ抑制 (spec T5-2)。sentence も body も組めない非取消 VPWP50 は
   // title 単独のノイズテロップになるため流さない (「予測なし」文言は schema 差・parser 縮退でも
-  // 起こり得る entries ゼロに偽の安心を与えるため不採用 — 対立的レビュー R2 裁定)
+  // 起こり得る entries ゼロに偽の安心を与えるため不採用 — 対立的レビュー R2 裁定)。
+  // 気象解説も、正規化済み body と headline がともに空なら抑制する。buildTickerSentence() は
+  // title fallback で非空になり得るため、ここでは sentence を判定材料にしない。
   const tickerSuppressed =
     event.domain === "eew" ||
     (
@@ -666,6 +668,12 @@ export function projectDisplayEvent(
       !event.isCancellation &&
       tickerBody == null &&
       weatherWarningTimeseriesSentence(event) == null
+    ) ||
+    (
+      event.domain === "weatherExplanation" &&
+      !event.isCancellation &&
+      tickerBody == null &&
+      (event.headline == null || event.headline.trim() === "")
     );
   // 重要語句の強調は情報系 (low) と警報級手前 (mid) の本文テロップに載せる。high は割込み意匠と
   // severity 色体系に干渉させないため非適用。ルール側で value(数値)=low 専用、transition/status=low+mid に

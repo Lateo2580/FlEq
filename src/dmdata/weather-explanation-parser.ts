@@ -14,6 +14,9 @@ import { createJmxXmlParser } from "./xml-shape";
 import { requireTelegramMeta } from "./telegram-ingress";
 import * as log from "../logger";
 
+/** 気象庁の placeholder 定型文。完全一致のみ。実電文 ZJPTK260036 2026-08-11 で確認。 */
+const WEATHER_EXPLANATION_EMPTY_BODY_PLACEHOLDER = "本文なし。";
+
 /**
  * 気象解説情報 (地方=VPCJ51 / 全般=VPZJ51) 用 XML パーサ。
  *
@@ -219,7 +222,7 @@ function extractSections(body: unknown): WeatherExplanationSection[] {
               } else {
                 body = str(t);
               }
-              if (!body) continue;
+              if (!body || body.trim() === WEATHER_EXPLANATION_EMPTY_BODY_PLACEHOLDER) continue;
               result.push({ sectionType, propertyType, textType, text: body });
             }
           }

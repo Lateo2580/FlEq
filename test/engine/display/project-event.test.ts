@@ -1489,6 +1489,13 @@ describe("tickerSuppressed (情報ゼロ電文の抑制、spec 2026-07-23 T5-2)"
       title: "鹿児島県警戒・注意事項時系列情報",
       ...over,
     });
+  const weatherExplanation = (over: Partial<PresentationEvent>) =>
+    baseEvent({
+      domain: "weatherExplanation", type: "VPZJ51",
+      title: "全般気象解説情報",
+      frameLevel: "normal",
+      ...over,
+    });
 
   it("entries ゼロ (sentence null・body null) の非取消 VPWP50 は true", () => {
     const dto = projectDisplayEvent(vpwp50({ raw: { areas: [] } as never }), "s");
@@ -1517,5 +1524,30 @@ describe("tickerSuppressed (情報ゼロ電文の抑制、spec 2026-07-23 T5-2)"
       "s",
     );
     expect(dto.tickerSuppressed).toBe(true);
+  });
+
+  it("headline も本文もない非取消の気象解説は抑制する", () => {
+    const dto = projectDisplayEvent(
+      weatherExplanation({ headline: null, bodyText: null }),
+      "s",
+    );
+    expect(dto.tickerSuppressed).toBe(true);
+  });
+
+  it("headline がある気象解説は本文がなくても抑制しない", () => {
+    const dto = projectDisplayEvent(
+      weatherExplanation({ headline: "有意なヘッドライン", bodyText: null }),
+      "s",
+    );
+    expect(dto.tickerSuppressed).toBe(false);
+    expect(dto.tickerSentence).toBe("有意なヘッドライン。");
+  });
+
+  it("取消の気象解説は本文・headline がなくても抑制しない", () => {
+    const dto = projectDisplayEvent(
+      weatherExplanation({ isCancellation: true, infoType: "取消", headline: null, bodyText: null }),
+      "s",
+    );
+    expect(dto.tickerSuppressed).toBe(false);
   });
 });
