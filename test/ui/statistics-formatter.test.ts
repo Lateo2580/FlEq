@@ -40,6 +40,19 @@ function makeSnapshot(overrides: Partial<StatsSnapshot> = {}): StatsSnapshot {
       notified: 0,
       vxse44SuppressedByObservedVxse45: 0,
       vxse44SuppressedByCapability: 0,
+      legacyMatchedSuppressed: 0,
+      legacyUnmatchedDisplayed: 0,
+      legacyUnmatchedHighSeverityNotified: 0,
+      legacyUnmatchedNonHighNotificationSuppressed: 0,
+      legacySeverityUnknownNotificationSuppressed: 0,
+      legacyAmbiguousDisplayed: 0,
+      legacyCorrelationExpired: 0,
+      legacyCorrectionMismatch: 0,
+      legacyCancellationMismatch: 0,
+      legacyCounterpartArrivedFirst: 0,
+      legacySourceArrivedFirst: 0,
+      legacyLateCounterpartReconciled: 0,
+      legacyLateCounterpartExpired: 0,
     },
     foundationByHeadType: new Map(),
     ...overrides,
@@ -224,5 +237,7 @@ describe("displayStatistics", () => {
     expect(text).toContain("2件 / 0イベント");
     expect(text).not.toContain("vxse44SuppressedByObservedVxse45");
     expect(text).not.toContain("vxse44SuppressedByCapability");
+    expect(text).not.toContain("legacyUnmatchedDisplayed");
+    expect(text).not.toContain("legacySeverityUnknownNotificationSuppressed");
   });
 });

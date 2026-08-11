@@ -198,6 +198,33 @@ describe("TelegramStats", () => {
   });
 
   describe("foundation stats", () => {
+    it("legacy metric tupleをglobal / source type-localへadditiveに各一回記録する", () => {
+      const metrics = [
+        "legacyMatchedSuppressed",
+        "legacyUnmatchedDisplayed",
+        "legacyUnmatchedHighSeverityNotified",
+        "legacyUnmatchedNonHighNotificationSuppressed",
+        "legacySeverityUnknownNotificationSuppressed",
+        "legacyAmbiguousDisplayed",
+        "legacyCorrelationExpired",
+        "legacyCorrectionMismatch",
+        "legacyCancellationMismatch",
+        "legacyCounterpartArrivedFirst",
+        "legacySourceArrivedFirst",
+        "legacyLateCounterpartReconciled",
+        "legacyLateCounterpartExpired",
+      ] as const satisfies readonly TelegramFoundationMetric[];
+      for (const metric of metrics) {
+        stats.recordFoundationForHeadType("VPOA50", metric, BASE);
+      }
+      const snapshot = stats.getSnapshot(BASE);
+      const local = snapshot.foundationByHeadType.get("VPOA50");
+      for (const metric of metrics) {
+        expect(snapshot.foundation[metric]).toBe(1);
+        expect(local?.[metric]).toBe(1);
+      }
+    });
+
     it("既存 recordFoundation() は global だけを加算する", () => {
       stats.recordFoundation("received", BASE);
 

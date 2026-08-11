@@ -21,6 +21,7 @@ import {
   ParsedTyphoonAnalysis,
   ParsedTyphoonProbability,
   ParsedFloodForecastInfo,
+  ParsedLegacyCounterpartInfo,
   ParsedEarthquakeHypocenter,
   TyphoonProbPeak,
   DEFAULT_CONFIG,
@@ -56,6 +57,7 @@ import {
 import { extractLeadSentence } from "../../dmdata/heat-alert-parser";
 import * as nodeNotifierLoader from "./node-notifier-loader";
 import * as log from "../../logger";
+import { normalizeLegacyCounterpartDisplayText } from "../presentation/legacy-counterpart-display-text";
 
 /** 通知アイコンディレクトリ */
 const ICONS_DIR = path.resolve(__dirname, "../../../assets/icons");
@@ -1058,6 +1060,29 @@ export class Notifier {
       "floodForecast",
       soundLevelOverride ?? "warning",
     );
+  }
+
+  /** unmatched legacy は code registry が high を確定した場合だけ通知する。 */
+  notifyLegacyCounterpart(
+    info: ParsedLegacyCounterpartInfo,
+    isHighSeverity: boolean,
+  ): boolean {
+    if (isHighSeverity !== true) return false;
+    if (!this.settings.weather || this.isMuted()) return false;
+    const qualifier = "対応電文未確認";
+    const subject = normalizeLegacyCounterpartDisplayText(info.title).trim() || info.type;
+    const headline = info.headline == null
+      ? ""
+      : normalizeLegacyCounterpartDisplayText(info.headline).trim();
+    const detail = headline === "" ? subject : headline;
+    const correction = info.infoType === "訂正";
+    this.send(
+      correction ? `[訂正] ${subject}（${qualifier}）` : `${subject}（${qualifier}）`,
+      correction ? `訂正: ${detail}（${qualifier}）` : `${detail}（${qualifier}）`,
+      "weather",
+      "warning",
+    );
+    return true;
   }
 
   // ── 内部メソッド ──

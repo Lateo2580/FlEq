@@ -39,15 +39,20 @@ type LegacyCounterpartBatch = {
   affectedSources?: readonly LegacyCounterpartAffectedSource[];
 };
 
-export type LegacyCounterpartAction =
-  | { kind: "emitNow"; outcome: ProcessOutcome; reason: "counterpart" | "unrelated" }
+type LegacyCounterpartActionPayload =
+  | { kind: "emitNow"; outcome: ProcessOutcome; reason: "counterpart"; sourceType: LegacyCounterpartSourceType }
+  | { kind: "emitNow"; outcome: ProcessOutcome; reason: "unrelated" }
   | { kind: "holdSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; deadlineMs: number }
   | ({ kind: "suppressSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; counterpartOutcome: ProcessOutcome; triggerOutcome?: ProcessOutcome } & LegacyCounterpartBatch)
-  | ({ kind: "releaseSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; reason: "timeout" | "counterpartCancelled" | "correlatorCapacityExceeded" | "releasedUpdate"; triggerOutcome?: ProcessOutcome } & LegacyCounterpartBatch)
+  | ({ kind: "releaseSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; reason: "timeout" | "counterpartCancelled" | "correlatorCapacityExceeded" | "releasedUpdate"; triggerOutcome?: ProcessOutcome; candidateCount?: number } & LegacyCounterpartBatch)
   | ({ kind: "ambiguousSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; candidateCount: number; ambiguityReason?: "multipleCandidates" | "multipleSources"; triggerOutcome?: ProcessOutcome } & LegacyCounterpartBatch)
   | ({ kind: "reconcileLateCounterpart"; outcome: ProcessOutcome; sourceOutcome: LegacyCounterpartOutcome; sourceIdentity: string } & LegacyCounterpartBatch);
 
-export type LegacyCounterpartLifecycleEvent =
+export type LegacyCounterpartAction = LegacyCounterpartActionPayload & { decidedAtMs: number };
+
+type LegacyCounterpartLifecycleEventPayload =
+  | { kind: "legacySourceArrivedFirst"; sourceType: LegacyCounterpartSourceType; sourceIdentity: string }
+  | { kind: "legacyCounterpartArrivedFirst"; sourceType: LegacyCounterpartSourceType; counterpartIdentity: string }
   | { kind: "legacyCorrelationExpired"; sourceType: LegacyCounterpartSourceType; sourceIdentity: string }
   | { kind: "legacyLateCounterpartExpired"; sourceType: LegacyCounterpartSourceType; sourceIdentity: string }
   | { kind: "legacyCorrectionMismatch"; sourceType: LegacyCounterpartSourceType; counterpartType: string }
@@ -55,6 +60,8 @@ export type LegacyCounterpartLifecycleEvent =
   | { kind: "sourceCapacityExceeded"; sourceType: LegacyCounterpartSourceType; sourceIdentity: string }
   | { kind: "counterpartEvicted"; sourceType: LegacyCounterpartSourceType; counterpartIdentity: string }
   | { kind: "counterpartCapacityBypassed"; sourceType: LegacyCounterpartSourceType; counterpartIdentity: string };
+
+export type LegacyCounterpartLifecycleEvent = LegacyCounterpartLifecycleEventPayload & { decidedAtMs: number };
 
 export interface LegacyCounterpartCorrelatorOptions {
   registry?: LegacyCounterpartRegistry;
@@ -338,13 +345,21 @@ export class LegacyCounterpartCorrelator {
     this.lifecycleEventSinkBound = true;
   }
 
+  private decide<T extends LegacyCounterpartActionPayload>(action: T): T & { decidedAtMs: number } {
+    return { ...action, decidedAtMs: this.clock.nowMs() };
+  }
+
+  private emitLifecycle(event: LegacyCounterpartLifecycleEventPayload): void {
+    this.onLifecycleEvent?.({ ...event, decidedAtMs: this.clock.nowMs() });
+  }
+
   accept(outcome: ProcessOutcome): LegacyCounterpartAction | null {
     if (this.disposed) return null;
     const nowMs = this.clock.nowMs();
     this.prune(nowMs);
     if (outcome.domain === "legacyCounterpart") return this.acceptSource(outcome, nowMs);
     const rule = this.registry.ruleByCounterpartType.get(outcome.headType);
-    if (rule == null) return { kind: "emitNow", outcome, reason: "unrelated" };
+    if (rule == null) return this.decide({ kind: "emitNow", outcome, reason: "unrelated" });
     return this.acceptCounterpart(outcome, rule, nowMs);
   }
 
@@ -377,10 +392,10 @@ export class LegacyCounterpartCorrelator {
 
   private acceptSource(outcome: LegacyCounterpartOutcome, nowMs: number): LegacyCounterpartAction {
     const rule = this.registry.ruleBySourceType.get(outcome.parsed.type);
-    if (rule == null) return { kind: "emitNow", outcome, reason: "unrelated" };
+    if (rule == null) return this.decide({ kind: "emitNow", outcome, reason: "unrelated" });
     const meta = outcome.parsed.meta;
     const revision = strictRevisionIdentity(meta);
-    if (revision == null) return { kind: "releaseSource", outcome, sourceIdentity: sourceIdentity(outcome, null), reason: "correlatorCapacityExceeded" };
+    if (revision == null) return this.decide({ kind: "releaseSource", outcome, sourceIdentity: sourceIdentity(outcome, null), reason: "correlatorCapacityExceeded", candidateCount: 0 });
     const key = rule.extractEventKey(meta, outcome.parsed);
     const id = sourceIdentity(outcome, key);
     const existing = this.sources.get(id);
@@ -391,17 +406,20 @@ export class LegacyCounterpartCorrelator {
       existing.key = key;
       existing.revision = revision;
       if (existing.status === "released-unmatched") {
-        return { kind: "releaseSource", outcome, sourceIdentity: id, reason: "releasedUpdate" };
+        return this.decide({ kind: "releaseSource", outcome, sourceIdentity: id, reason: "releasedUpdate" });
       }
       return this.recomputeSource(existing, undefined, false)
-        ?? { kind: "holdSource", outcome, sourceIdentity: id, deadlineMs: existing.holdbackDeadlineMs };
+        ?? this.decide({ kind: "holdSource", outcome, sourceIdentity: id, deadlineMs: existing.holdbackDeadlineMs });
     }
 
     this.removeTombstone(id);
     const candidates = this.candidatesFor(rule, meta, key);
     if (this.sources.size >= this.sourceCapacity) {
-      this.onLifecycleEvent?.({ kind: "sourceCapacityExceeded", sourceType: rule.sourceType, sourceIdentity: id });
-      return { kind: "releaseSource", outcome, sourceIdentity: id, reason: "correlatorCapacityExceeded" };
+      if (candidates.length === 0) {
+        this.emitLifecycle({ kind: "legacySourceArrivedFirst", sourceType: rule.sourceType, sourceIdentity: id });
+      }
+      this.emitLifecycle({ kind: "sourceCapacityExceeded", sourceType: rule.sourceType, sourceIdentity: id });
+      return this.decide({ kind: "releaseSource", outcome, sourceIdentity: id, reason: "correlatorCapacityExceeded", candidateCount: candidates.length });
     }
 
     const record: SourceRecord = {
@@ -424,29 +442,30 @@ export class LegacyCounterpartCorrelator {
     this.sources.set(id, record);
     this.armSourceExpiry(record);
     if (candidates.length === 0) {
+      this.emitLifecycle({ kind: "legacySourceArrivedFirst", sourceType: rule.sourceType, sourceIdentity: id });
       this.armHoldback(record);
-      return { kind: "holdSource", outcome, sourceIdentity: id, deadlineMs: record.holdbackDeadlineMs };
+      return this.decide({ kind: "holdSource", outcome, sourceIdentity: id, deadlineMs: record.holdbackDeadlineMs });
     }
     this.setCandidates(record, candidates);
     if (candidates.length === 1) {
       record.status = "matched-suppressed";
       this.bindCounterpartExpiryToSource(candidates[0], record);
-      return {
+      return this.decide({
         kind: "suppressSource",
         outcome,
         sourceIdentity: id,
         counterpartOutcome: candidates[0].outcome,
-      };
+      });
     }
     for (const candidate of candidates) this.bindCounterpartExpiryToSource(candidate, record);
     record.status = "ambiguous";
-    return {
+    return this.decide({
       kind: "ambiguousSource",
       outcome,
       sourceIdentity: id,
       candidateCount: candidates.length,
       ambiguityReason: "multipleCandidates",
-    };
+    });
   }
 
   private observeSourceRevisionMismatch(
@@ -466,7 +485,7 @@ export class LegacyCounterpartCorrelator {
       targetRevision != null
       && identityCandidates.some((record) => revisionMatches(record.revision, targetRevision))
     ) return;
-    this.onLifecycleEvent?.({
+    this.emitLifecycle({
       kind: infoType === "訂正" ? "legacyCorrectionMismatch" : "legacyCancellationMismatch",
       sourceType: rule.sourceType,
       counterpartType: identityCandidates[0].outcome.headType,
@@ -480,7 +499,7 @@ export class LegacyCounterpartCorrelator {
   ): LegacyCounterpartAction {
     const meta = metaOf(outcome);
     const revision = meta == null ? null : strictRevisionIdentity(meta);
-    if (meta == null || revision == null) return { kind: "emitNow", outcome, reason: "counterpart" };
+    if (meta == null || revision == null) return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
     const key = rule.extractEventKey(meta, parsedOf(outcome));
     const id = counterpartIdentity(outcome, meta, key);
     const existing = this.counterparts.get(id);
@@ -489,11 +508,11 @@ export class LegacyCounterpartCorrelator {
 
     if (infoType === "取消") {
       if (existing == null || key?.targetRevision == null || !revisionMatches(existing.revision, key.targetRevision)) {
-        this.onLifecycleEvent?.({ kind: "legacyCancellationMismatch", sourceType: rule.sourceType, counterpartType: outcome.headType });
-        return { kind: "emitNow", outcome, reason: "counterpart" };
+        this.emitLifecycle({ kind: "legacyCancellationMismatch", sourceType: rule.sourceType, counterpartType: outcome.headType });
+        return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
       }
       return this.removeCounterpart(existing, outcome, true)
-        ?? { kind: "emitNow", outcome, reason: "counterpart" };
+        ?? this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
     }
 
     if (
@@ -504,8 +523,8 @@ export class LegacyCounterpartCorrelator {
         || !revisionMatches(existing.revision, key.targetRevision)
       )
     ) {
-      this.onLifecycleEvent?.({ kind: "legacyCorrectionMismatch", sourceType: rule.sourceType, counterpartType: outcome.headType });
-      return { kind: "emitNow", outcome, reason: "counterpart" };
+      this.emitLifecycle({ kind: "legacyCorrectionMismatch", sourceType: rule.sourceType, counterpartType: outcome.headType });
+      return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
     }
 
     let record = existing;
@@ -541,15 +560,18 @@ export class LegacyCounterpartCorrelator {
       .map((sourceId) => this.sources.get(sourceId))
       .filter((source): source is SourceRecord => source != null);
     if (existing == null) {
+      if (directlyMatchingSources.length === 0) {
+        this.emitLifecycle({ kind: "legacyCounterpartArrivedFirst", sourceType: rule.sourceType, counterpartIdentity: id });
+      }
       if (this.counterparts.size >= this.counterpartCapacity) {
         const victim = [...this.counterparts.values()]
           .filter((candidate) => candidate.referencedBy.size === 0)
           .sort((a, b) => a.receivedAtMs - b.receivedAtMs || a.stableId - b.stableId)[0];
         if (victim != null) {
-          this.onLifecycleEvent?.({ kind: "counterpartEvicted", sourceType: rule.sourceType, counterpartIdentity: victim.id });
+          this.emitLifecycle({ kind: "counterpartEvicted", sourceType: rule.sourceType, counterpartIdentity: victim.id });
           this.removeCounterpart(victim);
         } else {
-          this.onLifecycleEvent?.({ kind: "counterpartCapacityBypassed", sourceType: rule.sourceType, counterpartIdentity: id });
+          this.emitLifecycle({ kind: "counterpartCapacityBypassed", sourceType: rule.sourceType, counterpartIdentity: id });
           this.consumeMatchingTombstone(record);
           if (directlyMatchingSources.length > 1) {
             return this.transitionSourcesToAmbiguous(directlyMatchingSources, outcome, "multipleSources");
@@ -558,7 +580,7 @@ export class LegacyCounterpartCorrelator {
             const action = this.recomputeSourceWithTransientCounterpart(source, record, outcome);
             if (action != null) return action;
           }
-          return { kind: "emitNow", outcome, reason: "counterpart" };
+          return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
         }
       }
       this.counterparts.set(id, record);
@@ -568,7 +590,7 @@ export class LegacyCounterpartCorrelator {
     this.consumeMatchingTombstone(record);
 
     if (affectedSources.length === 0) {
-      return { kind: "emitNow", outcome, reason: "counterpart" };
+      return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
     }
 
     if (directlyMatchingSources.length > 1) {
@@ -580,16 +602,16 @@ export class LegacyCounterpartCorrelator {
       if (noLongerMatchingAction.kind === "emitNow" || noLongerMatchingAction.kind === "holdSource") {
         return ambiguousAction;
       }
-      return {
+      return this.decide({
         ...noLongerMatchingAction,
         affectedSources: [
           ...this.affectedSourcesOf(noLongerMatchingAction),
           ...this.affectedSourcesOf(ambiguousAction),
         ],
-      };
+      });
     }
     return this.recomputeAffectedSources(affectedSources, outcome, false)
-      ?? { kind: "emitNow", outcome, reason: "counterpart" };
+      ?? this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
   }
 
   private recomputeSourceWithTransientCounterpart(
@@ -605,34 +627,34 @@ export class LegacyCounterpartCorrelator {
       this.clearTimer(source.holdTimer);
       source.holdTimer = null;
       source.status = "ambiguous";
-      return {
+      return this.decide({
         kind: "ambiguousSource",
         outcome: source.outcome,
         sourceIdentity: source.id,
         candidateCount,
         ambiguityReason: "multipleCandidates",
         triggerOutcome,
-      };
+      });
     }
     if (source.status === "released-unmatched") {
       source.status = "late-reconciled";
-      return {
+      return this.decide({
         kind: "reconcileLateCounterpart",
         outcome: triggerOutcome,
         sourceOutcome: source.outcome,
         sourceIdentity: source.id,
-      };
+      });
     }
     this.clearTimer(source.holdTimer);
     source.holdTimer = null;
     source.status = "matched-suppressed";
-    return {
+    return this.decide({
       kind: "suppressSource",
       outcome: source.outcome,
       sourceIdentity: source.id,
       counterpartOutcome: counterpart.outcome,
       triggerOutcome,
-    };
+    });
   }
 
   private transitionSourcesToAmbiguous(
@@ -649,7 +671,7 @@ export class LegacyCounterpartCorrelator {
       source.status = "ambiguous";
     }
     const first = sources[0];
-    return {
+    return this.decide({
       kind: "ambiguousSource",
       outcome: first.outcome,
       sourceIdentity: first.id,
@@ -663,7 +685,7 @@ export class LegacyCounterpartCorrelator {
         candidateCount: Math.max(2, this.candidatesFor(source.rule, source.meta, source.key).length),
         ambiguityReason,
       })),
-    };
+    });
   }
 
   private recomputeAffectedSources(
@@ -681,7 +703,7 @@ export class LegacyCounterpartCorrelator {
       .map((action) => this.affectedSourceOf(action))
       .filter((affected): affected is LegacyCounterpartAffectedSource => affected != null);
     if (first.kind === "emitNow" || first.kind === "holdSource") return first;
-    return { ...first, affectedSources };
+    return this.decide({ ...first, affectedSources });
   }
 
   private affectedSourceOf(action: LegacyCounterpartAction): LegacyCounterpartAffectedSource | null {
@@ -749,50 +771,50 @@ export class LegacyCounterpartCorrelator {
     if (candidates.length === 0) {
       if (source.status === "pending") return null;
       source.status = "released-unmatched";
-      return {
+      return this.decide({
         kind: "releaseSource",
         outcome: source.outcome,
         sourceIdentity: source.id,
         reason: cancellation ? "counterpartCancelled" : "releasedUpdate",
         ...(triggerOutcome == null ? {} : { triggerOutcome }),
-      };
+      });
     }
     if (candidates.length > 1) {
       for (const candidate of candidates) this.bindCounterpartExpiryToSource(candidate, source);
       this.clearTimer(source.holdTimer);
       source.holdTimer = null;
       source.status = "ambiguous";
-      return {
+      return this.decide({
         kind: "ambiguousSource",
         outcome: source.outcome,
         sourceIdentity: source.id,
         candidateCount: candidates.length,
         ambiguityReason: "multipleCandidates",
         ...(triggerOutcome == null ? {} : { triggerOutcome }),
-      };
+      });
     }
 
     const counterpart = candidates[0];
     this.bindCounterpartExpiryToSource(counterpart, source);
     if (source.status === "released-unmatched") {
       source.status = "late-reconciled";
-      return {
+      return this.decide({
         kind: "reconcileLateCounterpart",
         outcome: triggerOutcome ?? counterpart.outcome,
         sourceOutcome: source.outcome,
         sourceIdentity: source.id,
-      };
+      });
     }
     this.clearTimer(source.holdTimer);
     source.holdTimer = null;
     source.status = "matched-suppressed";
-    return {
+    return this.decide({
       kind: "suppressSource",
       outcome: source.outcome,
       sourceIdentity: source.id,
       counterpartOutcome: counterpart.outcome,
       ...(triggerOutcome == null ? {} : { triggerOutcome }),
-    };
+    });
   }
 
   private setCandidates(source: SourceRecord, candidates: readonly CounterpartRecord[]): void {
@@ -842,12 +864,12 @@ export class LegacyCounterpartCorrelator {
       }
       current.holdTimer = null;
       current.status = "released-unmatched";
-      this.onAction?.({
+      this.onAction?.(this.decide({
         kind: "releaseSource",
         outcome: current.outcome,
         sourceIdentity: current.id,
         reason: "timeout",
-      });
+      }));
     };
     record.holdTimer = this.timer.set(Math.max(0, record.holdbackDeadlineMs - this.clock.nowMs()), callback);
   }
@@ -906,7 +928,7 @@ export class LegacyCounterpartCorrelator {
         this.clearTimer(source.holdTimer);
         source.holdTimer = null;
         source.status = "released-unmatched";
-        this.onAction?.({ kind: "releaseSource", outcome: source.outcome, sourceIdentity: source.id, reason: "timeout" });
+        this.onAction?.(this.decide({ kind: "releaseSource", outcome: source.outcome, sourceIdentity: source.id, reason: "timeout" }));
       }
       if (nowMs > source.expiryMs) this.expireSource(source, nowMs);
     }
@@ -925,7 +947,7 @@ export class LegacyCounterpartCorrelator {
     this.clearTimer(record.expiryTimer);
     this.setCandidates(record, []);
     if (record.status !== "released-unmatched" && record.status !== "ambiguous") return;
-    this.onLifecycleEvent?.({ kind: "legacyCorrelationExpired", sourceType: record.rule.sourceType, sourceIdentity: record.id });
+    this.emitLifecycle({ kind: "legacyCorrelationExpired", sourceType: record.rule.sourceType, sourceIdentity: record.id });
     const tombstone: ExpiredSourceTombstone = {
       id: record.id,
       stableId: this.nextStableId++,
@@ -973,7 +995,7 @@ export class LegacyCounterpartCorrelator {
       };
       if (!correlationMatches(tombstone.rule, sourceMeta, tombstone.key, counterpart.meta, counterpart.key)) continue;
       this.removeTombstone(tombstone.id);
-      this.onLifecycleEvent?.({
+      this.emitLifecycle({
         kind: "legacyLateCounterpartExpired",
         sourceType: tombstone.sourceType,
         sourceIdentity: tombstone.id,

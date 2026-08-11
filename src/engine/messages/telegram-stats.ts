@@ -86,6 +86,19 @@ const FOUNDATION_METRICS = [
   "notified",
   "vxse44SuppressedByObservedVxse45",
   "vxse44SuppressedByCapability",
+  "legacyMatchedSuppressed",
+  "legacyUnmatchedDisplayed",
+  "legacyUnmatchedHighSeverityNotified",
+  "legacyUnmatchedNonHighNotificationSuppressed",
+  "legacySeverityUnknownNotificationSuppressed",
+  "legacyAmbiguousDisplayed",
+  "legacyCorrelationExpired",
+  "legacyCorrectionMismatch",
+  "legacyCancellationMismatch",
+  "legacyCounterpartArrivedFirst",
+  "legacySourceArrivedFirst",
+  "legacyLateCounterpartReconciled",
+  "legacyLateCounterpartExpired",
 ] as const;
 
 export type TelegramFoundationMetric = (typeof FOUNDATION_METRICS)[number];

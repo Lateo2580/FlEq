@@ -24,7 +24,7 @@ vi.mock("../../src/logger", () => ({
 
 import { Notifier, resolveIconPath, clearIconPathCache } from "../../src/engine/notification/notifier";
 import { loadConfig } from "../../src/config";
-import type { JmaIntensity, JmaLgIntensity, ParsedEarthquakeInfo, ParsedEewInfo, ParsedLgObservationInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning, SpecialValue } from "../../src/types";
+import type { JmaIntensity, JmaLgIntensity, ParsedEarthquakeInfo, ParsedEewInfo, ParsedLegacyCounterpartInfo, ParsedLgObservationInfo, ParsedTornadoAdvisory, ParsedTsunamiInfo, ParsedWeatherBriefing, ParsedWeatherExplanation, ParsedWeatherWarning, SpecialValue } from "../../src/types";
 import type { EewUpdateResult } from "../../src/engine/eew/eew-tracker";
 import { playSound } from "../../src/engine/notification/sound-player";
 import { parseWeatherExplanation } from "../../src/dmdata/weather-explanation-parser";
@@ -127,6 +127,59 @@ describe("Notifier", () => {
     notifier.notifyEarthquake(info);
 
     expect(notifyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("legacy counterpart通知境界はisHighSeverity=true以外を常に拒否する", () => {
+    const info: ParsedLegacyCounterpartInfo = {
+      type: "VPOA50",
+      infoType: "発表",
+      title: "旧形式情報",
+      controlTitle: "旧形式情報",
+      reportDateTime: "2026-08-11T09:00:00+09:00",
+      headline: "見出し",
+      publishingOffice: "気象庁",
+      editorialOffice: "気象庁",
+      eventId: "LEGACY-1",
+      serial: "1",
+      areas: [],
+      phenomena: [],
+      kinds: [],
+      severityEvidence: [],
+      meta: testTelegramMeta(false),
+      isTest: false,
+    };
+    const notifier = new Notifier();
+    expect(notifier.notifyLegacyCounterpart(info, false)).toBe(false);
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
+  it("legacy counterpart high訂正通知は訂正と対応電文未確認を明示し制御文字を除く", () => {
+    const info: ParsedLegacyCounterpartInfo = {
+      type: "VXWW50",
+      infoType: "訂正",
+      title: "旧形式\n情報\x1B[31m赤\x1B[0m",
+      controlTitle: "旧形式情報",
+      reportDateTime: "2026-08-11T09:00:00+09:00",
+      headline: "訂正\r\n見出し\x00",
+      publishingOffice: "気象庁",
+      editorialOffice: "気象庁",
+      eventId: "LEGACY-2",
+      serial: "2",
+      areas: [],
+      phenomena: [],
+      kinds: [],
+      severityEvidence: [],
+      meta: testTelegramMeta(false),
+      isTest: false,
+    };
+    expect(new Notifier().notifyLegacyCounterpart(info, true)).toBe(true);
+    expect(notifyMock).toHaveBeenCalledOnce();
+    const notification = notifyMock.mock.calls[0][0];
+    expect(notification.title).toContain("[訂正]");
+    expect(notification.title).toContain("対応電文未確認");
+    expect(notification.message).toContain("訂正:");
+    expect(notification.message).toContain("対応電文未確認");
+    expect(JSON.stringify(notification)).not.toMatch(/[\x00-\x1F\x7F-\x9F]/);
   });
 
   it("台風通知は名称・位置だけを維持し、受理済み訂正だけ訂正を明示する", () => {

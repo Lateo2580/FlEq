@@ -72,6 +72,7 @@ function expectOutcome(outcome: ProcessOutcome | null): ProcessOutcome {
 
 describe("Phase 6B unit 2: legacy counterpart route and presentation slice", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -158,6 +159,8 @@ describe("Phase 6B unit 2: legacy counterpart route and presentation slice", () 
   });
 
   it("transport duplicate と semantic duplicate は legacy presentation 前で抑止される", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(BASE_REPORT_DATE_TIME));
     const outcomes: ProcessOutcome[] = [];
     const { handler, stats } = createMessageHandler({ outcomeTaps: [outcome => outcomes.push(outcome as ProcessOutcome)] });
     const first = makeLegacyMessage("VXWW50", "legacy-duplicate", "VXWW50:first");
@@ -165,6 +168,9 @@ describe("Phase 6B unit 2: legacy counterpart route and presentation slice", () 
     handler(first);
     handler(withNewMessageId(first, "VXWW50:second"));
 
+    expect(outcomes).toHaveLength(0);
+    expect(stats.getSnapshot().countByType.get("VXWW50")).toBe(1);
+    vi.advanceTimersByTime(60_001);
     const snapshot = stats.getSnapshot();
     expect(outcomes).toHaveLength(1);
     expect(snapshot.countByType.get("VXWW50")).toBe(1);

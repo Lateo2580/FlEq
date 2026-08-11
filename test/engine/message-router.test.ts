@@ -49,6 +49,125 @@ import { playSound } from "../../src/engine/notification/sound-player";
 import { TsunamiStateHolder } from "../../src/engine/messages/tsunami-state";
 import * as fs from "fs";
 import { TelegramRevisionGate } from "../../src/engine/messages/telegram-revision-gate";
+import { normalizeTelegramMessage } from "../../src/dmdata/telegram-ingress";
+import {
+  LegacyCounterpartCorrelator,
+  type LegacyCounterpartAction,
+  type LegacyCounterpartCorrelatorFactory,
+} from "../../src/engine/messages/legacy-counterpart-correlator";
+import {
+  createLegacyCounterpartRegistry,
+  LEGACY_CORRELATION_WINDOW_AFTER_MS,
+  LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+  LEGACY_SOURCE_HOLDBACK_MS,
+  type LegacyCounterpartCorrelationKey,
+} from "../../src/engine/messages/legacy-counterpart-registry";
+
+const LEGACY_ROUTER_KEYS = new Map<string, LegacyCounterpartCorrelationKey | null>();
+const LEGACY_ROUTER_BASE_MS = Date.parse("2026-08-11T00:00:00.000Z");
+
+function legacyRouterKey(
+  overrides: Partial<LegacyCounterpartCorrelationKey> = {},
+): LegacyCounterpartCorrelationKey {
+  return {
+    officeCode: "OFFICE-01",
+    areaCodes: ["AREA-01"],
+    phenomenonCodes: ["PHENOM-01"],
+    kindCodes: ["KIND-01"],
+    targetTimeMs: LEGACY_ROUTER_BASE_MS,
+    ...overrides,
+  };
+}
+
+function makeLegacyRouterMessage(options: {
+  type?: "VPOA50" | "VPNO50" | "VXWW50" | "SYNTH-CP" | "SYNTH-CP-2";
+  id: string;
+  eventId?: string | null;
+  reportDateTimeMs?: number;
+  receivedAtMs?: number;
+  serial?: string | null;
+  infoType?: "発表" | "訂正" | "取消";
+  key?: LegacyCounterpartCorrelationKey | null;
+}): WsDataMessage {
+  const type = options.type ?? "VPOA50";
+  const source = createMockWsDataMessageFromXml(readFixture(FIXTURE_VXSE51_SHINDO), type);
+  if (source.xmlReport == null) throw new Error("fixture envelope is missing");
+  const reportDateTimeMs = options.reportDateTimeMs ?? LEGACY_ROUTER_BASE_MS;
+  const receivedAtMs = options.receivedAtMs ?? reportDateTimeMs;
+  LEGACY_ROUTER_KEYS.set(
+    options.id,
+    options.key === undefined ? legacyRouterKey() : options.key,
+  );
+  return normalizeTelegramMessage({
+    ...source,
+    id: options.id,
+    classification: "classification.synthetic",
+    head: {
+      ...source.head,
+      type,
+      time: new Date(receivedAtMs).toISOString(),
+    },
+    xmlReport: {
+      ...source.xmlReport,
+      control: {
+        ...source.xmlReport.control,
+        title: "旧形式防災情報",
+        publishingOffice: "テスト官署",
+      },
+      head: {
+        ...source.xmlReport.head,
+        title: type.startsWith("SYNTH") ? "synthetic counterpart" : "旧形式情報",
+        reportDateTime: new Date(reportDateTimeMs).toISOString(),
+        eventId: options.eventId === undefined ? "LEGACY-EVENT" : options.eventId,
+        serial: options.serial === undefined ? "1" : options.serial,
+        infoType: options.infoType ?? "発表",
+        headline: "旧形式の見出し",
+      },
+    },
+    meta: undefined,
+  }, receivedAtMs).message;
+}
+
+function syntheticLegacyCorrelatorFactory(options: {
+  sourceCapacity?: number;
+  counterpartCapacity?: number;
+  clock?: { nowMs(): number };
+  timerScheduler?: { set(delayMs: number, callback: () => void): unknown; clear(handle: unknown): void };
+  releasedSeverity?: "high" | "nonHigh";
+  actionTap?: (action: LegacyCounterpartAction) => void;
+} = {}): LegacyCounterpartCorrelatorFactory {
+  const registry = createLegacyCounterpartRegistry([{
+    sourceType: "VPOA50",
+    status: "confirmed",
+    counterpartTypes: ["SYNTH-CP", "SYNTH-CP-2"],
+    extractEventKey: (meta) => LEGACY_ROUTER_KEYS.get(meta.messageId) ?? null,
+    windowBeforeMs: LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+    windowAfterMs: LEGACY_CORRELATION_WINDOW_AFTER_MS,
+    holdbackMs: LEGACY_SOURCE_HOLDBACK_MS,
+  }]);
+  return ({ actionSink, lifecycleEventSink }) => {
+    const mappedActionSink: typeof actionSink = (action) => {
+      options.actionTap?.(action);
+      if (options.releasedSeverity != null && action.kind === "releaseSource") {
+        actionSink({
+          ...action,
+          outcome: { ...action.outcome, severity: options.releasedSeverity },
+        });
+        return;
+      }
+      actionSink(action);
+    };
+    return new LegacyCounterpartCorrelator({
+      registry,
+      clock: options.clock,
+      timerScheduler: options.timerScheduler,
+      sourceCapacity: options.sourceCapacity,
+      counterpartCapacity: options.counterpartCapacity,
+      onAction: mappedActionSink,
+      onLifecycleEvent: lifecycleEventSink,
+    });
+  };
+}
 
 function cancellationForWarning() {
   const cancellation = createMockWsDataMessage(FIXTURE_VTSE41_CANCEL);
@@ -96,10 +215,12 @@ describe("message-router 統合テスト", () => {
   const display = createDisplayAdapter();
 
   beforeEach(() => {
+    LEGACY_ROUTER_KEYS.clear();
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     consoleSpy.mockRestore();
     vi.restoreAllMocks();
   });
@@ -1378,6 +1499,372 @@ describe("message-router 統合テスト", () => {
       expect(throwing).toHaveBeenCalledTimes(1);
       expect(getOutput()).toContain("南太平洋");
       expect(stats.getSnapshot().countByType.get("VXSE53")).toBe(1);
+    });
+  });
+
+  describe("Phase 6B unit 4 router integration", () => {
+    it("production空ruleはadmission statsだけ即時記録し60,001ms後にunknown通知なしで一回releaseする", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const outcomes: unknown[] = [];
+      const { handler, stats } = createHandler({ outcomeTaps: [(outcome) => outcomes.push(outcome)] });
+
+      handler(makeLegacyRouterMessage({ id: "production-source", eventId: "PRODUCTION" }));
+      let snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.countByType.get("VPOA50")).toBe(1);
+      expect(snapshot.foundation.legacySourceArrivedFirst).toBe(1);
+      expect(snapshot.foundation.presented).toBe(0);
+      expect(snapshot.foundation.notified).toBe(0);
+      expect(outcomes).toHaveLength(0);
+      expect(notifyMock).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(60_000);
+      expect(outcomes).toHaveLength(0);
+      vi.advanceTimersByTime(1);
+      snapshot = stats.getSnapshot(Date.now());
+      expect(outcomes).toHaveLength(1);
+      expect(snapshot.countByType.get("VPOA50")).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+      expect(snapshot.foundation.legacyAmbiguousDisplayed).toBe(0);
+      expect(snapshot.foundation.presented).toBe(1);
+      expect(snapshot.foundation.notified).toBe(0);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyUnmatchedDisplayed).toBe(1);
+      expect(notifyMock).not.toHaveBeenCalled();
+    });
+
+    it("60,000ms同時刻のcounterpart inputがtimeoutより先勝ちしmatchedを一回記録する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const { handler, stats } = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      handler(makeLegacyRouterMessage({ id: "boundary-source", eventId: "BOUNDARY" }));
+      vi.advanceTimersByTime(60_000);
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "boundary-counterpart", eventId: "BOUNDARY" }));
+      vi.advanceTimersByTime(1);
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyMatchedSuppressed).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(0);
+      expect(snapshot.foundation.legacySourceArrivedFirst).toBe(1);
+      expect(snapshot.countByType.get("VPOA50")).toBe(1);
+      expect(snapshot.countByType.get("SYNTH-CP")).toBe(1);
+    });
+
+    it("released sourceのnewer受理は再Holdbackせず即時表示しarrival metricを再加算しない", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const outcomes: unknown[] = [];
+      const { handler, stats } = createHandler({ outcomeTaps: [(outcome) => outcomes.push(outcome)] });
+      handler(makeLegacyRouterMessage({ id: "released-1", eventId: "RELEASED", serial: "1" }));
+      vi.advanceTimersByTime(60_001);
+      handler(makeLegacyRouterMessage({
+        id: "released-2",
+        eventId: "RELEASED",
+        serial: "2",
+        reportDateTimeMs: LEGACY_ROUTER_BASE_MS + 1,
+        receivedAtMs: LEGACY_ROUTER_BASE_MS + 60_001,
+      }));
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(outcomes).toHaveLength(2);
+      expect(snapshot.countByType.get("VPOA50")).toBe(2);
+      expect(snapshot.foundation.legacySourceArrivedFirst).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(2);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(2);
+    });
+
+    it("source capacity fail-openは即時表示しcandidate 0のarrival metricとunknown抑止を一回記録する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const outcomes: unknown[] = [];
+      const { handler, stats } = createHandler({
+        outcomeTaps: [(outcome) => outcomes.push(outcome)],
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory({ sourceCapacity: 1 }),
+      });
+      handler(makeLegacyRouterMessage({ id: "capacity-occupant", eventId: "CAP-1" }));
+      handler(makeLegacyRouterMessage({ id: "capacity-bypass", eventId: "CAP-2" }));
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(outcomes).toHaveLength(1);
+      expect(snapshot.countByType.get("VPOA50")).toBe(2);
+      expect(snapshot.foundation.legacySourceArrivedFirst).toBe(2);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+    });
+
+    it("candidateありのsource capacity bypassはsource-first metricを加算しない", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const { handler, stats } = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory({ sourceCapacity: 1 }),
+      });
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "capacity-candidate", eventId: "CAP-2" }));
+      handler(makeLegacyRouterMessage({ id: "capacity-occupant", eventId: "CAP-1" }));
+      handler(makeLegacyRouterMessage({ id: "capacity-bypass-with-candidate", eventId: "CAP-2" }));
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacySourceArrivedFirst).toBe(1);
+      expect(snapshot.foundation.legacyMatchedSuppressed).toBe(0);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacySourceArrivedFirst).toBe(1);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyUnmatchedDisplayed).toBe(1);
+    });
+
+    it("counterpart-first metricはsynthetic registryの唯一の所有sourceTypeへ帰属する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const { handler, stats } = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "first-counterpart", eventId: "PAIR" }));
+      let snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyCounterpartArrivedFirst).toBe(1);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyCounterpartArrivedFirst).toBe(1);
+      expect(snapshot.foundationByHeadType.has("SYNTH-CP")).toBe(false);
+
+      handler(makeLegacyRouterMessage({ id: "second-source", eventId: "PAIR" }));
+      snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyMatchedSuppressed).toBe(1);
+      expect(snapshot.foundation.legacyCounterpartArrivedFirst).toBe(1);
+    });
+
+    it("ambiguous表示はnotification metric三種とunmatched metricを重ねない", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const { handler, stats } = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "ambiguous-cp-1", eventId: null }));
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP-2", id: "ambiguous-cp-2", eventId: null }));
+      handler(makeLegacyRouterMessage({ id: "ambiguous-source", eventId: "AMBIGUOUS" }));
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyAmbiguousDisplayed).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(0);
+      expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(0);
+      expect(snapshot.foundation.legacyUnmatchedNonHighNotificationSuppressed).toBe(0);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(0);
+      expect(notifyMock).not.toHaveBeenCalled();
+    });
+
+    it("counterpart取消によるsource復帰は表示metricだけを加算しnotification metricを評価しない", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const { handler, stats } = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "cancel-cp", eventId: "CANCEL" }));
+      handler(makeLegacyRouterMessage({ id: "cancel-source", eventId: "CANCEL" }));
+      handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP",
+        id: "cancel-trigger",
+        eventId: "CANCEL",
+        infoType: "取消",
+        serial: "2",
+        key: legacyRouterKey({ targetRevision: { reportDateTimeMs: LEGACY_ROUTER_BASE_MS, serial: 1 } }),
+      }));
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyMatchedSuppressed).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(0);
+      expect(snapshot.foundation.legacyUnmatchedNonHighNotificationSuppressed).toBe(0);
+      expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(0);
+    });
+
+    it("mixed batchはtriggerを一回だけemitしreleaseとlate reconcileを個別処理する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const emittedIds: string[] = [];
+      const { handler, stats } = createHandler({
+        outcomeTaps: [(outcome) => emittedIds.push(outcome.msg.id)],
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "mixed-original", eventId: null }));
+      handler(makeLegacyRouterMessage({ id: "mixed-source-a", eventId: "A" }));
+      handler(makeLegacyRouterMessage({
+        id: "mixed-source-b",
+        eventId: "B",
+        reportDateTimeMs: LEGACY_ROUTER_BASE_MS + 300_001,
+      }));
+      vi.advanceTimersByTime(60_001);
+      handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP",
+        id: "mixed-correction",
+        eventId: null,
+        serial: "2",
+        infoType: "訂正",
+        reportDateTimeMs: LEGACY_ROUTER_BASE_MS + 300_001,
+        receivedAtMs: LEGACY_ROUTER_BASE_MS + 60_001,
+        key: legacyRouterKey({ targetRevision: { reportDateTimeMs: LEGACY_ROUTER_BASE_MS, serial: 1 } }),
+      }));
+
+      expect(emittedIds.filter((id) => id === "mixed-correction")).toHaveLength(1);
+      expect(emittedIds.filter((id) => id === "mixed-source-a")).toHaveLength(1);
+      expect(emittedIds.filter((id) => id === "mixed-source-b")).toHaveLength(1);
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyMatchedSuppressed).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(2);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(2);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyMatchedSuppressed).toBe(1);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyUnmatchedDisplayed).toBe(2);
+    });
+
+    it.each([
+      ["high", "legacyUnmatchedHighSeverityNotified", 1],
+      ["nonHigh", "legacyUnmatchedNonHighNotificationSuppressed", 0],
+    ] as const)("unmatched %s releaseは排他的notification metricをglobal/type-localへ一回記録する", (severity, metric, notifyCount) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const result = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory({ releasedSeverity: severity }),
+      });
+      const notifyLegacySpy = vi.spyOn(result.notifier, "notifyLegacyCounterpart")
+        .mockReturnValue(severity === "high");
+      result.handler(makeLegacyRouterMessage({ id: `severity-${severity}`, eventId: `SEVERITY-${severity}` }));
+      vi.advanceTimersByTime(60_001);
+
+      const snapshot = result.stats.getSnapshot(Date.now());
+      expect(snapshot.foundation[metric]).toBe(1);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.[metric]).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(0);
+      expect(notifyLegacySpy).toHaveBeenCalledOnce();
+      expect(notifyLegacySpy).toHaveBeenCalledWith(expect.anything(), severity === "high");
+      expect(Number(notifyLegacySpy.mock.results[0].value)).toBe(notifyCount);
+    });
+
+    it("expiry・tombstone late・revision mismatch lifecycleをsource type-localへ一回ずつ記録する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const { handler, stats } = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      handler(makeLegacyRouterMessage({ id: "expiry-source", eventId: "EXPIRY" }));
+      vi.advanceTimersByTime(660_001);
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "expiry-late", eventId: "EXPIRY" }));
+
+      handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "mismatch-original", eventId: "MISMATCH" }));
+      handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP",
+        id: "mismatch-correction",
+        eventId: "MISMATCH",
+        infoType: "訂正",
+        serial: "2",
+        key: legacyRouterKey({ targetRevision: { reportDateTimeMs: LEGACY_ROUTER_BASE_MS, serial: 99 } }),
+      }));
+      handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP",
+        id: "mismatch-cancellation",
+        eventId: "MISMATCH",
+        infoType: "取消",
+        serial: "3",
+        key: legacyRouterKey({ targetRevision: { reportDateTimeMs: LEGACY_ROUTER_BASE_MS, serial: 99 } }),
+      }));
+
+      const snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyCorrelationExpired).toBe(1);
+      expect(snapshot.foundation.legacyLateCounterpartExpired).toBe(1);
+      expect(snapshot.foundation.legacyCorrectionMismatch).toBe(1);
+      expect(snapshot.foundation.legacyCancellationMismatch).toBe(1);
+      expect(snapshot.foundation.legacyLateCounterpartReconciled).toBe(0);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyLateCounterpartExpired).toBe(1);
+    });
+
+    it("JST日跨ぎrelease後の古いadmission時刻を非減少化し当日metricを過去へ戻さない", () => {
+      vi.useFakeTimers();
+      const beforeMidnight = Date.parse("2025-01-01T14:59:30.000Z");
+      vi.setSystemTime(beforeMidnight);
+      const { handler, stats } = createHandler();
+      handler(makeLegacyRouterMessage({
+        id: "day-before-source",
+        eventId: "DAY-BEFORE",
+        reportDateTimeMs: beforeMidnight,
+        receivedAtMs: beforeMidnight,
+      }));
+      expect(stats.getSnapshot(Date.now()).countByType.get("VPOA50")).toBe(1);
+
+      vi.advanceTimersByTime(60_001);
+      let snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.countByType.get("VPOA50")).toBeUndefined();
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+
+      handler(makeLegacyRouterMessage({
+        id: "old-clock-admission",
+        eventId: "OLD-CLOCK",
+        reportDateTimeMs: beforeMidnight,
+        receivedAtMs: beforeMidnight,
+      }));
+      snapshot = stats.getSnapshot(Date.now());
+      expect(snapshot.countByType.get("VPOA50")).toBe(1);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+    });
+
+    it("correlator注入clockの決定時刻でJST帰属しsystem clockと古いdisplay stats読取に影響されない", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(Date.parse("2030-01-05T00:00:00.000Z"));
+      const beforeMidnight = Date.parse("2025-01-01T14:59:30.000Z");
+      let correlationNowMs = beforeMidnight;
+      const timerActions: LegacyCounterpartAction[] = [];
+      const result = createHandler({
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory({
+          clock: { nowMs: () => correlationNowMs },
+          timerScheduler: {
+            set: (delayMs, callback) => setTimeout(callback, delayMs),
+            clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+          },
+          actionTap: (action) => timerActions.push(action),
+        }),
+      });
+      const foundationTypeSpy = vi.spyOn(result.stats, "recordFoundationForHeadType");
+      const source = makeLegacyRouterMessage({
+        id: "separate-clock-source",
+        eventId: "SEPARATE-CLOCK",
+        reportDateTimeMs: beforeMidnight,
+        receivedAtMs: beforeMidnight,
+      });
+      expect(source.meta?.receivedAtMs).toBe(beforeMidnight);
+      result.handler(source);
+
+      correlationNowMs = beforeMidnight + 60_001;
+      vi.advanceTimersByTime(60_001);
+      expect(timerActions).toMatchObject([{ kind: "releaseSource", decidedAtMs: correlationNowMs }]);
+      expect(foundationTypeSpy).toHaveBeenCalledWith(
+        "VPOA50",
+        "legacyUnmatchedDisplayed",
+        correlationNowMs,
+      );
+      const beforeOldRead = result.stats.getSnapshot(correlationNowMs);
+      expect(beforeOldRead.foundation.legacyUnmatchedDisplayed).toBe(1);
+      result.buildDisplayStats(beforeMidnight);
+      const snapshot = result.stats.getSnapshot(correlationNowMs);
+      expect(snapshot.countByType.get("VPOA50")).toBeUndefined();
+      expect(snapshot.foundation.legacySourceArrivedFirst).toBe(0);
+      expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+      expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyUnmatchedDisplayed).toBe(1);
+    });
+
+    it("handler所有disposeは冪等でdispose後のtimer callbackをemitしない", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const outcomes: unknown[] = [];
+      const factory = vi.fn(syntheticLegacyCorrelatorFactory());
+      const result = createHandler({
+        outcomeTaps: [(outcome) => outcomes.push(outcome)],
+        legacyCounterpartCorrelatorFactory: factory,
+      });
+      result.handler(makeLegacyRouterMessage({ id: "dispose-source", eventId: "DISPOSE" }));
+      result.disposeLegacyCounterpartCorrelator();
+      result.disposeLegacyCounterpartCorrelator();
+      vi.advanceTimersByTime(700_000);
+
+      expect(factory).toHaveBeenCalledTimes(1);
+      expect(outcomes).toHaveLength(0);
+      expect(result.stats.getSnapshot(Date.now()).foundation.legacyUnmatchedDisplayed).toBe(0);
     });
   });
 });

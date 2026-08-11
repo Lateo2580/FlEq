@@ -44,6 +44,13 @@ import {
   createUnknownDeliveryCapabilities,
   type DeliveryCapabilities,
 } from "../../dmdata/delivery-capabilities";
+import {
+  LegacyCounterpartCorrelator,
+  type LegacyCounterpartAction,
+  type LegacyCounterpartAffectedSource,
+  type LegacyCounterpartCorrelatorFactory,
+  type LegacyCounterpartLifecycleEvent,
+} from "./legacy-counterpart-correlator";
 
 // ── 電文分類 (Route) ──
 //
@@ -146,8 +153,10 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       return true;
     }
     case "legacyCounterpart":
-      // Phase 6B 単位 2 は fail-open 表示だけを提供し、対応電文確定後の通知は単位 3/4 で追加する。
-      return false;
+      return notifier.notifyLegacyCounterpart(
+        outcome.parsed,
+        outcome.severity === "high",
+      );
     case "raw":
       // raw: 通知なし (フォールバック表示のみ)
       return false;
@@ -162,17 +171,17 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
 }
 
 /** outcome.stats に基づいて統計を記録する */
-function recordStats(outcome: ProcessOutcome, stats: TelegramStats): void {
+function recordStats(outcome: ProcessOutcome, stats: TelegramStats, nowMs?: number): void {
   if (outcome.stats.shouldRecord) {
     stats.record({
       headType: outcome.headType,
       category: outcome.statsCategory,
       eventId: outcome.stats.eventId,
-    });
+    }, nowMs);
   }
   if (outcome.stats.maxIntUpdate) {
     const u = outcome.stats.maxIntUpdate;
-    stats.updateMaxInt(u.eventId, u.maxInt, u.headType);
+    stats.updateMaxInt(u.eventId, u.maxInt, u.headType, nowMs);
   }
 }
 
@@ -262,6 +271,8 @@ export interface MessageHandlerOptions {
   onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** message 処理時点の process-wide capability を読む遅延 getter。 */
   getDeliveryCapabilities?: () => DeliveryCapabilities;
+  /** Phase 6B integration test 用。未指定時は production correlator を handler が所有する。 */
+  legacyCounterpartCorrelatorFactory?: LegacyCounterpartCorrelatorFactory;
 }
 
 /** createMessageHandler の戻り値 */
@@ -282,6 +293,8 @@ export interface MessageHandlerResult {
   /** 起動直後と display on 時に明示 publish する stats snapshot。 */
   buildDisplayStats: (now?: number) => DisplayStatsV1;
   flushAndDisposeVolcanoBuffer: () => void;
+  /** handler 所有の legacy correlator／timerを冪等に破棄する唯一の口。 */
+  disposeLegacyCounterpartCorrelator: () => void;
 }
 
 /** 受信データのハンドリング */
@@ -306,6 +319,21 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const diffStore = new PresentationDiffStore();
   const transportDedup = new TelegramTransportDeduplicator();
   const revisionGate = options?.revisionGate ?? new TelegramRevisionGate();
+  let lastStatsNowMs = Number.NEGATIVE_INFINITY;
+  const statsNowMs = (rawNowMs: number): number => {
+    lastStatsNowMs = Math.max(lastStatsNowMs, rawNowMs);
+    return lastStatsNowMs;
+  };
+  let activeMessageStatsNowMs: number | null = null;
+  const callbackStatsNowMs = (): number => statsNowMs(activeMessageStatsNowMs ?? Date.now());
+  const withMessageStatsTime = <T>(nowMs: number, callback: () => T): T => {
+    activeMessageStatsNowMs = nowMs;
+    try {
+      return callback();
+    } finally {
+      activeMessageStatsNowMs = null;
+    }
+  };
   const eewTracker = new EewTracker({
     onCleanup: (eventId) => {
       eewLogger.closeEvent(eventId, "タイムアウト");
@@ -313,26 +341,26 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onRevisionDecision: (decision) => {
       switch (decision.kind) {
         case "replaceCorrection":
-          stats.recordFoundation("correctionReplaced");
+          stats.recordFoundation("correctionReplaced", callbackStatsNowMs());
           break;
         case "markCancelled":
-          stats.recordFoundation("cancelApplied");
+          stats.recordFoundation("cancelApplied", callbackStatsNowMs());
           break;
         case "duplicate":
         case "semanticDuplicate":
-          stats.recordFoundation("semanticDuplicate");
+          stats.recordFoundation("semanticDuplicate", callbackStatsNowMs());
           break;
         case "stale":
-          stats.recordFoundation("stale");
+          stats.recordFoundation("stale", callbackStatsNowMs());
           break;
         case "invalidMeta":
-          stats.recordFoundation("invalidMeta");
+          stats.recordFoundation("invalidMeta", callbackStatsNowMs());
           break;
         case "invalidRevision":
-          stats.recordFoundation("invalidRevision");
+          stats.recordFoundation("invalidRevision", callbackStatsNowMs());
           break;
         case "cancelTargetMismatch":
-          stats.recordFoundation("cancelTargetMismatch");
+          stats.recordFoundation("cancelTargetMismatch", callbackStatsNowMs());
           break;
         default:
           break;
@@ -342,16 +370,16 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
   const recordRevisionDecision = (decision: TelegramRevisionDecision): void => {
     switch (decision.kind) {
-      case "replaceCorrection": stats.recordFoundation("correctionReplaced"); break;
+      case "replaceCorrection": stats.recordFoundation("correctionReplaced", callbackStatsNowMs()); break;
       case "markCancelled":
       case "restorePrevious":
-      case "clearCurrent": stats.recordFoundation("cancelApplied"); break;
+      case "clearCurrent": stats.recordFoundation("cancelApplied", callbackStatsNowMs()); break;
       case "duplicate":
-      case "semanticDuplicate": stats.recordFoundation("semanticDuplicate"); break;
-      case "stale": stats.recordFoundation("stale"); break;
-      case "invalidMeta": stats.recordFoundation("invalidMeta"); break;
-      case "invalidRevision": stats.recordFoundation("invalidRevision"); break;
-      case "cancelTargetMismatch": stats.recordFoundation("cancelTargetMismatch"); break;
+      case "semanticDuplicate": stats.recordFoundation("semanticDuplicate", callbackStatsNowMs()); break;
+      case "stale": stats.recordFoundation("stale", callbackStatsNowMs()); break;
+      case "invalidMeta": stats.recordFoundation("invalidMeta", callbackStatsNowMs()); break;
+      case "invalidRevision": stats.recordFoundation("invalidRevision", callbackStatsNowMs()); break;
+      case "cancelTargetMismatch": stats.recordFoundation("cancelTargetMismatch", callbackStatsNowMs()); break;
       default: break;
     }
   };
@@ -381,6 +409,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         reason === "observed-vxse45"
           ? "vxse44SuppressedByObservedVxse45"
           : "vxse44SuppressedByCapability",
+        callbackStatsNowMs(),
       );
     },
   };
@@ -393,6 +422,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   function runDisplayPipeline(
     outcome: ProcessOutcome | VolcanoBatchOutcome,
     displayFn: () => void,
+    statsAtMs?: number,
   ): boolean {
     // 処理済み outcome の汎用 tap (filter 非適用: shouldDisplay の判定より前)。
     // 線形ルート・火山単発・火山バッチの全 outcome がここを通る。例外は本体へ波及させない。
@@ -427,7 +457,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       } else {
         displaySink?.ingest(event);
       }
-      displaySink?.publishStats?.(buildDisplayStats(summaryTracker, stats, dailyQuakeCounter));
+      displaySink?.publishStats?.(buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, statsAtMs));
     } catch {
       // 表示系の障害を本体に波及させない
     }
@@ -457,6 +487,199 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     return true;
   }
 
+  function emitAcceptedOutcome(
+    outcome: ProcessOutcome,
+    actionNowMs: number,
+    allowNotification = true,
+  ): { notified: boolean; presented: boolean } {
+    const notified = allowNotification && dispatchNotify(outcome, notifier);
+    const acceptedCorrection = outcome.domain === "eew"
+      ? outcome.eewResult.isCorrection === true
+      : outcome.presentation.acceptedCorrection === true;
+    if (acceptedCorrection && notified) {
+      stats.recordFoundation("correctionNotified", actionNowMs);
+    }
+    if (notified) stats.recordFoundation("notified", actionNowMs);
+    const presented = runDisplayPipeline(
+      outcome,
+      () => display?.displayOutcome(outcome),
+      actionNowMs,
+    );
+    if (presented) stats.recordFoundation("presented", actionNowMs);
+    return { notified, presented };
+  }
+
+  function sourceDispositions(action: LegacyCounterpartAction): readonly LegacyCounterpartAffectedSource[] {
+    if (action.kind === "emitNow" || action.kind === "holdSource") return [];
+    if (action.affectedSources != null) return action.affectedSources;
+    switch (action.kind) {
+      case "suppressSource":
+        return [{
+          kind: action.kind,
+          outcome: action.outcome,
+          sourceIdentity: action.sourceIdentity,
+          counterpartOutcome: action.counterpartOutcome,
+        }];
+      case "releaseSource":
+        return [{
+          kind: action.kind,
+          outcome: action.outcome,
+          sourceIdentity: action.sourceIdentity,
+          reason: action.reason,
+        }];
+      case "ambiguousSource":
+        return [{
+          kind: action.kind,
+          outcome: action.outcome,
+          sourceIdentity: action.sourceIdentity,
+          candidateCount: action.candidateCount,
+          ...(action.ambiguityReason == null ? {} : { ambiguityReason: action.ambiguityReason }),
+        }];
+      case "reconcileLateCounterpart":
+        return [{
+          kind: action.kind,
+          outcome: action.outcome,
+          sourceOutcome: action.sourceOutcome,
+          sourceIdentity: action.sourceIdentity,
+        }];
+    }
+  }
+
+  function recordLegacyNotificationDisposition(
+    outcome: Extract<ProcessOutcome, { domain: "legacyCounterpart" }>,
+    notified: boolean,
+    actionNowMs: number,
+  ): void {
+    if (outcome.severity === "high") {
+      if (notified) {
+        stats.recordFoundationForHeadType(
+          outcome.parsed.type,
+          "legacyUnmatchedHighSeverityNotified",
+          actionNowMs,
+        );
+      }
+      return;
+    }
+    stats.recordFoundationForHeadType(
+      outcome.parsed.type,
+      outcome.severity === "nonHigh"
+        ? "legacyUnmatchedNonHighNotificationSuppressed"
+        : "legacySeverityUnknownNotificationSuppressed",
+      actionNowMs,
+    );
+  }
+
+  function handleLegacyCounterpartAction(action: LegacyCounterpartAction): void {
+    const actionNowMs = statsNowMs(action.decidedAtMs);
+    if (action.kind === "emitNow") {
+      emitAcceptedOutcome(action.outcome, actionNowMs);
+      return;
+    }
+    if (action.kind === "holdSource") return;
+
+    const triggerOutcome = "triggerOutcome" in action ? action.triggerOutcome : undefined;
+    if (triggerOutcome != null) {
+      emitAcceptedOutcome(triggerOutcome, actionNowMs);
+    }
+
+    for (const disposition of sourceDispositions(action)) {
+      switch (disposition.kind) {
+        case "suppressSource":
+          stats.recordFoundationForHeadType(
+            disposition.outcome.parsed.type,
+            "legacyMatchedSuppressed",
+            actionNowMs,
+          );
+          break;
+        case "releaseSource": {
+          const evaluateNotification = disposition.reason !== "counterpartCancelled";
+          const emitted = emitAcceptedOutcome(
+            disposition.outcome,
+            actionNowMs,
+            evaluateNotification,
+          );
+          if (emitted.presented) {
+            stats.recordFoundationForHeadType(
+              disposition.outcome.parsed.type,
+              "legacyUnmatchedDisplayed",
+              actionNowMs,
+            );
+          }
+          if (evaluateNotification) {
+            recordLegacyNotificationDisposition(
+              disposition.outcome,
+              emitted.notified,
+              actionNowMs,
+            );
+          }
+          break;
+        }
+        case "ambiguousSource": {
+          const emitted = emitAcceptedOutcome(disposition.outcome, actionNowMs, false);
+          if (emitted.presented) {
+            stats.recordFoundationForHeadType(
+              disposition.outcome.parsed.type,
+              "legacyAmbiguousDisplayed",
+              actionNowMs,
+            );
+          }
+          break;
+        }
+        case "reconcileLateCounterpart":
+          // 骨組みでは typed action と canonical outcome の通常 emit まで。
+          // active surface の原子的 reconcile 成功 metric は 6B 後半で有効化する。
+          if (disposition.outcome !== triggerOutcome) {
+            emitAcceptedOutcome(disposition.outcome, actionNowMs);
+          }
+          break;
+      }
+    }
+  }
+
+  function handleLegacyCounterpartLifecycleEvent(event: LegacyCounterpartLifecycleEvent): void {
+    const eventNowMs = statsNowMs(event.decidedAtMs);
+    switch (event.kind) {
+      case "legacySourceArrivedFirst":
+        stats.recordFoundationForHeadType(event.sourceType, "legacySourceArrivedFirst", eventNowMs);
+        break;
+      case "legacyCounterpartArrivedFirst":
+        stats.recordFoundationForHeadType(event.sourceType, "legacyCounterpartArrivedFirst", eventNowMs);
+        break;
+      case "legacyCorrelationExpired":
+        stats.recordFoundationForHeadType(event.sourceType, "legacyCorrelationExpired", eventNowMs);
+        break;
+      case "legacyLateCounterpartExpired":
+        stats.recordFoundationForHeadType(event.sourceType, "legacyLateCounterpartExpired", eventNowMs);
+        break;
+      case "legacyCorrectionMismatch":
+        stats.recordFoundationForHeadType(event.sourceType, "legacyCorrectionMismatch", eventNowMs);
+        break;
+      case "legacyCancellationMismatch":
+        stats.recordFoundationForHeadType(event.sourceType, "legacyCancellationMismatch", eventNowMs);
+        break;
+      case "sourceCapacityExceeded":
+        log.warn(`[legacy-counterpart] source capacity exceeded: ${event.sourceIdentity}`);
+        break;
+      case "counterpartEvicted":
+        log.warn(`[legacy-counterpart] counterpart evicted: ${event.counterpartIdentity}`);
+        break;
+      case "counterpartCapacityBypassed":
+        log.warn(`[legacy-counterpart] counterpart capacity bypassed: ${event.counterpartIdentity}`);
+        break;
+    }
+  }
+
+  const legacyCounterpartCorrelatorContext = {
+    actionSink: handleLegacyCounterpartAction,
+    lifecycleEventSink: handleLegacyCounterpartLifecycleEvent,
+  };
+  const legacyCounterpartCorrelator = options?.legacyCounterpartCorrelatorFactory == null
+    ? new LegacyCounterpartCorrelator({
+      onAction: legacyCounterpartCorrelatorContext.actionSink,
+      onLifecycleEvent: legacyCounterpartCorrelatorContext.lifecycleEventSink,
+    })
+    : options.legacyCounterpartCorrelatorFactory(legacyCounterpartCorrelatorContext);
+
   // 火山ルートハンドラ
   const volcanoHandler = new VolcanoRouteHandler({
     volcanoState,
@@ -467,17 +690,18 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onRevisionDecision: recordRevisionDecision,
     onVolcanoRevisionDecision: options?.onVolcanoRevisionDecision,
     onFoundationNotified: (isCorrection) => {
-      stats.recordFoundation("notified");
-      if (isCorrection) stats.recordFoundation("correctionNotified");
+      const nowMs = statsNowMs(Date.now());
+      stats.recordFoundation("notified", nowMs);
+      if (isCorrection) stats.recordFoundation("correctionNotified", nowMs);
     },
-    onFoundationPresented: () => stats.recordFoundation("presented"),
+    onFoundationPresented: () => stats.recordFoundation("presented", statsNowMs(Date.now())),
   });
 
   const handler = (incoming: WsDataMessage): void => {
     const normalized = normalizeTelegramMessage(incoming);
     const msg = normalized.message;
     if (normalized.diagnostics.testMetadataMismatch) {
-      stats.recordTestMetadataMismatch();
+      stats.recordTestMetadataMismatch(statsNowMs(msg.meta?.receivedAtMs ?? Date.now()));
     }
 
     // XML電文でない場合はヘッダ情報のみ表示
@@ -512,9 +736,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     const usesFoundationGate = route !== "ignore";
     if (usesFoundationGate) {
       const meta = requireTelegramMeta(msg);
-      stats.recordFoundation("received", meta.receivedAtMs);
+      const admissionNowMs = statsNowMs(meta.receivedAtMs);
+      stats.recordFoundation("received", admissionNowMs);
       if (!transportDedup.accept(meta.messageId, meta.receivedAtMs)) {
-        stats.recordFoundation("transportDuplicate", meta.receivedAtMs);
+        stats.recordFoundation("transportDuplicate", admissionNowMs);
         return;
       }
       // Envelope 自体を取得できない malformed XML は既存の raw fallback へ残す。
@@ -526,7 +751,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           dateReason === "futureSkewExceeded"
             ? "futureDateDiagnosed"
             : "invalidDateDiagnosed",
-          meta.receivedAtMs,
+          admissionNowMs,
         );
         log.warn(
           `[telegram-date] ${diagnostic.type} EventID=${diagnostic.eventId ?? "(none)"} ReportDateTime=${diagnostic.reportDateTimeRaw ?? "(missing)"} receivedAt=${diagnostic.receivedAtIso} futureSkewMs=${diagnostic.futureSkewMs ?? "(n/a)"} reason=${diagnostic.kind}`,
@@ -535,7 +760,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         try {
           displaySink?.ingest(dateDiagnosticPresentationEvent(msg, diagnostic));
           displaySink?.publishStats?.(
-            buildDisplayStats(summaryTracker, stats, dailyQuakeCounter),
+            buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, admissionNowMs),
           );
         } catch {
           // 診断表示の配送障害を受信本体へ波及させない。
@@ -561,21 +786,25 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     // 特殊ルート volcano: VFVO53 バッチ集約を伴う独立ライフサイクルのため線形 processor 表に
     // 載せず、VolcanoRouteHandler に委譲する (catalog は分類のみ担う)。
     let outcome: ProcessOutcome | null;
+    const messageStatsNowMs = msg.meta?.receivedAtMs ?? Date.now();
     if (processingRoute === "volcano") {
-      const result = volcanoHandler.handle(msg);
+      const result = withMessageStatsTime(messageStatsNowMs, () => volcanoHandler.handle(msg));
       if (result.kind === "accepted") {
         stats.record({
           headType: msg.head.type,
           category: routeToCategory(processingRoute),
           eventId: msg.xmlReport?.head.eventId ?? null,
-        });
+        }, statsNowMs(msg.meta?.receivedAtMs ?? Date.now()));
         return;
       }
       if (result.kind === "suppressed") return;
-      outcome = processMsg(msg, "raw", processDeps);
+      outcome = withMessageStatsTime(messageStatsNowMs, () => processMsg(msg, "raw", processDeps));
     } else {
       // 火山以外: processMessage → recordStats → dispatchNotify → runDisplayPipeline
-      outcome = processMsg(msg, processingRoute, processDeps);
+      outcome = withMessageStatsTime(
+        messageStatsNowMs,
+        () => processMsg(msg, processingRoute, processDeps),
+      );
     }
 
     if (outcome == null) {
@@ -591,25 +820,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       return;
     }
 
-    recordStats(outcome, stats);
-    const notified = dispatchNotify(outcome, notifier);
-    const acceptedCorrection = outcome.domain === "eew"
-      ? outcome.eewResult.isCorrection === true
-      : outcome.presentation.acceptedCorrection === true;
-    if (acceptedCorrection && notified) {
-      stats.recordFoundation("correctionNotified");
-    }
-    const foundationTracked = usesFoundationGate;
-    if (foundationTracked && notified) {
-      stats.recordFoundation("notified");
-    }
-    const presented = runDisplayPipeline(
-      outcome,
-      () => display?.displayOutcome(outcome),
-    );
-    if (foundationTracked && presented) {
-      stats.recordFoundation("presented");
-    }
+    const outcomeAdmissionNowMs = statsNowMs(outcome.msg.meta?.receivedAtMs ?? Date.now());
+    recordStats(outcome, stats, outcomeAdmissionNowMs);
+    const action = legacyCounterpartCorrelator.accept(outcome);
+    if (action != null) handleLegacyCounterpartAction(action);
   };
 
   return {
@@ -626,7 +840,13 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     stats,
     summaryTracker,
     dailyQuakeCounter,
-    buildDisplayStats: (now?: number) => buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, now),
+    buildDisplayStats: (now?: number) => buildDisplayStats(
+      summaryTracker,
+      stats,
+      dailyQuakeCounter,
+      statsNowMs(now ?? Date.now()),
+    ),
     flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),
+    disposeLegacyCounterpartCorrelator: () => legacyCounterpartCorrelator.dispose(),
   };
 }

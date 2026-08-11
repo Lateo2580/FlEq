@@ -282,6 +282,19 @@ describe("Phase 6B unit 3: legacy counterpart registry", () => {
 });
 
 describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
+  it("actionとlifecycle eventに注入clockの決定時刻を載せる", () => {
+    const { runtime, actions, events, correlator } = harness();
+    const hold = correlator.accept(makeSource({ id: "decision-time-source", eventId: "TIME" }));
+    expect(hold).toMatchObject({ kind: "holdSource", decidedAtMs: BASE_MS });
+    expect(events).toMatchObject([{ kind: "legacySourceArrivedFirst", decidedAtMs: BASE_MS }]);
+
+    runtime.advanceBy(60_001);
+    expect(actions).toMatchObject([{
+      kind: "releaseSource",
+      decidedAtMs: BASE_MS + 60_001,
+    }]);
+  });
+
   beforeEach(() => KEYS.clear());
 
   it("production 空 rule でも source を60秒 holdし、60,000msは保持・60,001msでreleaseする", () => {
@@ -503,7 +516,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
       infoType,
       key: correlationKey({ targetRevision: { reportDateTimeMs: BASE_MS, serial: 99 } }),
     }))).toMatchObject({ kind: "holdSource" });
-    expect(mismatch.events).toMatchObject([{
+    expect(mismatch.events.filter((event) => event.kind.endsWith("Mismatch"))).toMatchObject([{
       kind: infoType === "訂正" ? "legacyCorrectionMismatch" : "legacyCancellationMismatch",
     }]);
   });
@@ -582,7 +595,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     const mismatch = { reportDateTimeMs: BASE_MS, serial: 99 };
     expect(correlator.accept(makeCounterpart({ id: "cp-correction", infoType: "訂正", key: correlationKey({ targetRevision: mismatch }) }))).toMatchObject({ kind: "emitNow" });
     expect(correlator.accept(makeCounterpart({ id: "cp-cancel", infoType: "取消", key: correlationKey({ targetRevision: mismatch }) }))).toMatchObject({ kind: "emitNow" });
-    expect(events.map((event) => event.kind)).toEqual(["legacyCorrectionMismatch", "legacyCancellationMismatch"]);
+    expect(events.map((event) => event.kind).filter((kind) => kind.endsWith("Mismatch"))).toEqual(["legacyCorrectionMismatch", "legacyCancellationMismatch"]);
     expect(correlator.snapshot().counterpartCount).toBe(1);
   });
 
@@ -595,7 +608,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
       serial: "2",
       infoType: "訂正",
     }))).toMatchObject({ kind: "emitNow" });
-    expect(events).toMatchObject([{ kind: "legacyCorrectionMismatch" }]);
+    expect(events.filter((event) => event.kind === "legacyCorrectionMismatch")).toMatchObject([{ kind: "legacyCorrectionMismatch" }]);
     expect(correlator.accept(makeSource({ id: "source-after-rejected-correction", eventId: "E1" }))).toMatchObject({
       kind: "suppressSource",
       counterpartOutcome: { msg: { id: "cp-original" } },
@@ -682,9 +695,25 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     expect(correlator.accept(makeSource({ id: "source-2", eventId: "E2" }))).toMatchObject({
       kind: "releaseSource",
       reason: "correlatorCapacityExceeded",
+      candidateCount: 0,
     });
     expect(correlator.snapshot().sourceCount).toBe(1);
-    expect(events).toMatchObject([{ kind: "sourceCapacityExceeded" }]);
+    expect(events.filter((event) => event.kind === "legacySourceArrivedFirst")).toHaveLength(2);
+    expect(events.filter((event) => event.kind === "sourceCapacityExceeded")).toMatchObject([{ kind: "sourceCapacityExceeded" }]);
+  });
+
+  it("source capacity bypassはcandidate数をactionへ保持し到着順eventを0件時だけ出す", () => {
+    const { correlator, events } = harness({ sourceCapacity: 1 });
+    correlator.accept(makeSource({ id: "occupant", eventId: "OCCUPANT" }));
+    correlator.accept(makeCounterpart({ id: "candidate", eventId: "MATCHED" }));
+    expect(correlator.accept(makeSource({ id: "bypassed", eventId: "MATCHED" }))).toMatchObject({
+      kind: "releaseSource",
+      reason: "correlatorCapacityExceeded",
+      candidateCount: 1,
+    });
+    expect(events.filter(
+      (event) => event.kind === "legacySourceArrivedFirst" && event.sourceIdentity.includes("MATCHED"),
+    )).toHaveLength(0);
   });
 
   it("counterpart満杯は最古の未参照recordをevictする", () => {
@@ -693,7 +722,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     correlator.accept(makeCounterpart({ id: "cp-2", eventId: "E2" }));
     correlator.accept(makeCounterpart({ id: "cp-3", eventId: "E3" }));
     expect(correlator.snapshot().counterpartIds.some((id) => id.includes("E1"))).toBe(false);
-    expect(events).toMatchObject([{ kind: "counterpartEvicted" }]);
+    expect(events.filter((event) => event.kind === "counterpartEvicted")).toMatchObject([{ kind: "counterpartEvicted" }]);
   });
 
   it("counterpart全件参照中は新recordをbypassし既存参照を壊さない", () => {
@@ -907,7 +936,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     correlator.accept(makeSource());
     runtime.advanceBy(660_001);
     expect(actions).toMatchObject([{ kind: "releaseSource", reason: "timeout" }]);
-    expect(events).toMatchObject([{ kind: "legacyCorrelationExpired" }]);
+    expect(events.filter((event) => event.kind === "legacyCorrelationExpired")).toMatchObject([{ kind: "legacyCorrelationExpired" }]);
 
     const constructorBound = harness();
     expect(() => constructorBound.correlator.setActionSink(() => undefined)).toThrow(/already bound/);
@@ -931,5 +960,17 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     const unrelated: ProcessOutcome = makeCounterpart({ type: "NOT-REGISTERED" });
     expect(correlator.accept(unrelated)).toMatchObject({ kind: "emitNow", reason: "unrelated" });
     expect(correlator.snapshot().counterpartCount).toBe(0);
+  });
+
+  it("counterpart-first action/eventはregistry所有sourceTypeを明示する", () => {
+    const { correlator, events } = harness();
+    expect(correlator.accept(makeCounterpart({ id: "owned-counterpart", eventId: "OWNED" }))).toMatchObject({
+      kind: "emitNow",
+      reason: "counterpart",
+      sourceType: "VPOA50",
+    });
+    expect(events.filter((event) => event.kind === "legacyCounterpartArrivedFirst")).toEqual([
+      expect.objectContaining({ sourceType: "VPOA50" }),
+    ]);
   });
 });
