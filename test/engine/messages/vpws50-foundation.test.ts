@@ -323,6 +323,49 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     expect(persistence.takeMigrationConflictCount()).toBe(0);
   });
 
+  it("注意報のみの snapshot (nonLevelAdvisory) を round-trip で破棄しない", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new Vpws50StateHolder();
+    const advisory: ParsedWeatherWarning = {
+      ...weather(meta(T1, null, "発表"), "A"),
+      layers: [{ type: "府県予報区等", items: [{
+        areaName: "地域A", areaCode: "A", changeStatus: "変化有", fullStatus: "全域",
+        kinds: [{ name: "濃霧注意報", code: "20", severity: "advisory" }], statuses: [],
+      }] }],
+      maxSeverity: "advisory", maxDisplaySeverity: "nonLevelAdvisory", maxSoundLevel: "normal",
+      warningAreaCount: 0, advisoryAreaCount: 1,
+    };
+    expect(decide(gate, advisory).accepted).toBe(true);
+    holder.diffAndUpdate(advisory, "advisory", { reportDateTime: T1, serial: null });
+    const exported = holder.exportPersistedState();
+    expect(exported?.current?.snapshot.areas[0]?.kinds[0]?.displaySeverity).toBe("nonLevelAdvisory");
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: {
+        authoritative: true,
+        state: exported,
+        gateEntries: gate.exportDurableEntries(),
+      },
+    }));
+    persistence.save(legacyState());
+
+    const loaded = new StandbyPersistence(file).load();
+    expect(loaded?.telegramFoundation.vpws50.state).not.toBeNull();
+    expect(loaded?.telegramFoundation.vpws50.gateEntries).toHaveLength(1);
+    expect(loaded?.telegramFoundation.vpws50.state?.current?.snapshot.areas[0]?.kinds[0]?.displaySeverity)
+      .toBe("nonLevelAdvisory");
+
+    // officialL1 も型 DisplaySeverity の全値許容から欠落しないことを固定する
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    raw.telegramFoundation.vpws50.state!.current!.snapshot.areas[0].kinds[0].displaySeverity = "officialL1";
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+    const reloaded = new StandbyPersistence(file).load();
+    expect(reloaded?.telegramFoundation.vpws50.state?.current?.snapshot.areas[0]?.kinds[0]?.displaySeverity)
+      .toBe("officialL1");
+  });
+
   it("pre-digest v2 の semantic key を reader で固定長へ移行する", () => {
     const { file, expected } = persistedFoundationFixture();
     expected.telegramFoundation.vpws50.gateEntries[0].semanticKeys = [

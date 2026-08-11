@@ -1225,9 +1225,11 @@ function isVpws50Kind(value: unknown): boolean {
     && typeof value.kindCode === "string"
     && typeof value.kindName === "string"
     && (value.severity === "specialWarning" || value.severity === "warning" || value.severity === "advisory" || value.severity === "release" || value.severity === "unknown")
-    && (value.displaySeverity === "release" || value.displaySeverity === "officialL2"
+    && (value.displaySeverity === "release" || value.displaySeverity === "officialL1"
+      || value.displaySeverity === "officialL2"
       || value.displaySeverity === "officialL3" || value.displaySeverity === "officialL4"
       || value.displaySeverity === "officialL5" || value.displaySeverity === "nonLevelWarning"
+      || value.displaySeverity === "nonLevelAdvisory"
       || value.displaySeverity === "nonLevelSpecial" || value.displaySeverity === "unknown")
     && (value.officialAlertLevel == null || value.officialAlertLevel === 1 || value.officialAlertLevel === 2
       || value.officialAlertLevel === 3 || value.officialAlertLevel === 4 || value.officialAlertLevel === 5)
