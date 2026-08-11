@@ -219,7 +219,13 @@ describe("Phase 6B unit 2: legacy counterpart route and presentation slice", () 
 
     const dto = projectDisplayEvent(event, summary);
     expect(dto.id).toBe("legacy:VPOA50:legacy-stable");
-    expect(dto.eventKey).toBe(dto.id);
+    expect(dto.eventKey).toBe(
+      `legacy:VPOA50:legacy-stable:revision:${JSON.stringify([
+        event.serial,
+        event.reportDateTime,
+        "VPOA50:with-event",
+      ])}`,
+    );
     expect(dto.groupKey).toBeNull();
     expect(dto.tickerCategory).toBe("旧形式防災情報");
     expect(dto.tickerDetail).toContain("対応電文未確認");

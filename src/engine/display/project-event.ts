@@ -1,6 +1,6 @@
 import { intensityToRank } from "../../utils/intensity";
 import { normalizeTsunamiKind, resolveTsunamiLevel } from "../../utils/tsunami-kind";
-import type { JmaIntensity, SpecialValue } from "../../types";
+import type { JmaIntensity, ParsedLegacyCounterpartInfo, SpecialValue } from "../../types";
 import type { PresentationAreaItem, PresentationEvent } from "../presentation/types";
 import { normalizeLegacyCounterpartDisplayText } from "../presentation/legacy-counterpart-display-text";
 import {
@@ -670,6 +670,15 @@ function weatherDisplaySeverity(raw: PresentationEvent["raw"]): unknown {
   return raw.maxDisplaySeverity;
 }
 
+function legacyRevisionEventKey(event: PresentationEvent, stableId: string): string {
+  const info = event.raw as ParsedLegacyCounterpartInfo;
+  return `${stableId}:revision:${JSON.stringify([
+    event.serial ?? null,
+    event.reportDateTime,
+    info.meta.messageId,
+  ])}`;
+}
+
 export function projectDisplayEvent(
   event: PresentationEvent,
   summaryText: string,
@@ -726,7 +735,7 @@ export function projectDisplayEvent(
     eventKey: event.domain === "volcano"
       ? `volcano:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}:${event.volcanoCode ?? "-"}:${event.reportDateTime}`
       : event.domain === "legacyCounterpart"
-      ? stableId
+      ? legacyRevisionEventKey(event, stableId)
       : `${event.domain}:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}`,
     groupKey: makeGroupKey(event),
     domain: event.domain,

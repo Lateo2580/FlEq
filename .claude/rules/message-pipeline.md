@@ -22,26 +22,27 @@ paths:
 
 `message-router.ts` が `classification` + `head.type` で振り分ける。
 
-0. （最優先・classification 非依存）`head.type` が `IGNORED_HEAD_TYPES` (VPWW53/54・VPNO50・VPOA50・VPZJ50・VPCJ50・VPFJ50・VMCJ50/51/52・VXWW50) → `ignore` ルート。handler 冒頭で早期 return し、**表示・通知・統計をすべてスキップ**（raw フォールバックも出さない）。配信終了予定 + 既存電文 (VPWW55-61/VPWS50・VPZJ51/VPCJ51/VPFJ51 等) と内容重複のため。
-1. `eew.forecast` / `eew.warning` → EEW パス (EewTracker 重複検出 + EewEventLogger)
-2. `telegram.volcano` → 火山パス (VolcanoStateHolder + VolcanoPresentation)
-3. `telegram.earthquake` + `VXSE56`/`VXSE60`/`VZSE40` → テキスト系
-4. `telegram.earthquake` + `VXSE62` → 長周期地震動観測
-5. `telegram.earthquake` + `VXSE*` → 地震情報
-6. `telegram.earthquake` + `VTSE*` → 津波情報
-7. `telegram.earthquake` + `VYSE*` → 南海トラフ
-8. `telegram.weather` + `VPWW55-61`/`VPWS50` → 気象警報・注意報
-9. `telegram.weather` + `VPHW50`/`VPHW51` → 竜巻注意情報
-10. `telegram.weather` + `VPBS50` → 気象防災速報 (線状降水帯/記録雨/短時間大雪)
-11. `telegram.weather` + `VPAW51` → 早期天候情報 (高温/低温/大雪/雪 の長期予報)
-12. `telegram.weather` + `VPWP50` → 気象警報・注意報時系列情報 (3 時間/24 時間/日単位 の時系列予測)
-13. `telegram.weather` + `VPZI50`/`VPCI50` → 全般/地方天候情報 (気温・降水量の平年差/比 を含む長期気候統計情報。VPCI50 は梅雨入り/明け等の seasonEvents も持つ)
-14. `telegram.weather` + `VPCJ51`/`VPZJ51`/`VPFJ51`/`VMCJ53`/`VMCJ54`/`VMCJ55` → 気象解説情報 (地方/全般/府県 — 気象台が積極的に解説する事象、大雪・高温・豪雨・線状降水帯・台風等。VMCJ53-55 は潮位版で大潮・副振動等の TidalLevelPart を持つ)
-15. `telegram.weather` + `VPFT50` → 熱中症警戒アラート (環境省・気象庁共同の暑さ指数 (ＷＢＧＴ) ベース注意喚起。Body は平文のみ)
-16. `telegram.weather` + `VPTW60`/`VPTW61`/`VPTW62` → 台風解析・予報情報 (台風の実況解析・推定・5日予報。VPTW60/61/62 は同一スキーマで 1 parser。通知は一律 normal)
-17. `telegram.weather` + `VPTA50` → 台風の暴風域に入る確率 (375地域×5日積算 + 40step時系列、府県集約・targetRows=24・連続ゼロdedup)
-18. `telegram.weather` + `VXKO50-89`/`VXSU50-59` → 指定河川洪水予報・水位周知河川 (parser は schema 分岐で同一型に正規化、formatter は VXKO full / VXSU minimal の 2 layout。Phase 3B 以降、EventID lifecycle・revision・取消 tombstone は共通 `TelegramRevisionGate` の `clearCurrent` が所有する。state holder は VXKO の EventID 単位 station digest dedup のみを持ち、取消 / 訂正 / Headline-only / VXSU は digest dedup を bypass する。EventID 欠落は ticker/CLI 表示だけを許す fail-open で、standby・通知・durable state は変更しない。v1 / pre-flood-v2 の表示 EventID は正規報受理か期限切れまで別集合で保全する。observeOnly は内容 revision を維持したまま numeric serial を持つ `appliedRevision` を gate と意味的一致させ、かつ内容 revision がそれ以下であることを要求して、通常報による未適用の revision 遅行と区別する。aggregateByRiver は formatter 内呼出 (engine→ui 境界遵守))
-19. それ以外 → `displayRawHeader` (フォールバック)
+0. （最優先・classification 非依存）`head.type` が `IGNORED_HEAD_TYPES` (VPWW53/54・VPZJ50・VPCJ50・VPFJ50・VMCJ50/51/52) → `ignore` ルート。handler 冒頭で早期 return し、**表示・通知・統計をすべてスキップ**（raw フォールバックも出さない）。配信終了予定 + 既存電文 (VPWW55-61/VPWS50・VPZJ51/VPCJ51/VPFJ51 等) と内容重複のため。
+1. （classification 非依存）`head.type` が `VPOA50`/`VPNO50`/`VXWW50` → 専用 `legacyCounterpart` パス (最小 parser + counterpart correlator。production rule 未確認時は holdback 後に fail-open)
+2. `eew.forecast` / `eew.warning` → EEW パス (EewTracker 重複検出 + EewEventLogger)
+3. `telegram.volcano` → 火山パス (VolcanoStateHolder + VolcanoPresentation)
+4. `telegram.earthquake` + `VXSE56`/`VXSE60`/`VZSE40` → テキスト系
+5. `telegram.earthquake` + `VXSE62` → 長周期地震動観測
+6. `telegram.earthquake` + `VXSE*` → 地震情報
+7. `telegram.earthquake` + `VTSE*` → 津波情報
+8. `telegram.earthquake` + `VYSE*` → 南海トラフ
+9. `telegram.weather` + `VPWW55-61`/`VPWS50` → 気象警報・注意報
+10. `telegram.weather` + `VPHW50`/`VPHW51` → 竜巻注意情報
+11. `telegram.weather` + `VPBS50` → 気象防災速報 (線状降水帯/記録雨/短時間大雪)
+12. `telegram.weather` + `VPAW51` → 早期天候情報 (高温/低温/大雪/雪 の長期予報)
+13. `telegram.weather` + `VPWP50` → 気象警報・注意報時系列情報 (3 時間/24 時間/日単位 の時系列予測)
+14. `telegram.weather` + `VPZI50`/`VPCI50` → 全般/地方天候情報 (気温・降水量の平年差/比 を含む長期気候統計情報。VPCI50 は梅雨入り/明け等の seasonEvents も持つ)
+15. `telegram.weather` + `VPCJ51`/`VPZJ51`/`VPFJ51`/`VMCJ53`/`VMCJ54`/`VMCJ55` → 気象解説情報 (地方/全般/府県 — 気象台が積極的に解説する事象、大雪・高温・豪雨・線状降水帯・台風等。VMCJ53-55 は潮位版で大潮・副振動等の TidalLevelPart を持つ)
+16. `telegram.weather` + `VPFT50` → 熱中症警戒アラート (環境省・気象庁共同の暑さ指数 (ＷＢＧＴ) ベース注意喚起。Body は平文のみ)
+17. `telegram.weather` + `VPTW60`/`VPTW61`/`VPTW62` → 台風解析・予報情報 (台風の実況解析・推定・5日予報。VPTW60/61/62 は同一スキーマで 1 parser。通知は一律 normal)
+18. `telegram.weather` + `VPTA50` → 台風の暴風域に入る確率 (375地域×5日積算 + 40step時系列、府県集約・targetRows=24・連続ゼロdedup)
+19. `telegram.weather` + `VXKO50-89`/`VXSU50-59` → 指定河川洪水予報・水位周知河川 (parser は schema 分岐で同一型に正規化、formatter は VXKO full / VXSU minimal の 2 layout。Phase 3B 以降、EventID lifecycle・revision・取消 tombstone は共通 `TelegramRevisionGate` の `clearCurrent` が所有する。state holder は VXKO の EventID 単位 station digest dedup のみを持ち、取消 / 訂正 / Headline-only / VXSU は digest dedup を bypass する。EventID 欠落は ticker/CLI 表示だけを許す fail-open で、standby・通知・durable state は変更しない。v1 / pre-flood-v2 の表示 EventID は正規報受理か期限切れまで別集合で保全する。observeOnly は内容 revision を維持したまま numeric serial を持つ `appliedRevision` を gate と意味的一致させ、かつ内容 revision がそれ以下であることを要求して、通常報による未適用の revision 遅行と区別する。aggregateByRiver は formatter 内呼出 (engine→ui 境界遵守))
+20. それ以外 → `displayRawHeader` (フォールバック)
 
 **特記**: VFVO53 は単発処理ではなく `volcano-vfvo53-aggregator.ts` でバッチ集約される。CLI 表示・通知はバッチ 1 イベントのまま、**display テロップだけは投影段で火山ごとの単発相当イベントに分割**される（`expandVolcanoBatchForDisplay`、groupKey は `volcano:eventId:volcanoCode` で単発取消と系列一致。source msg 欠落時は分割せず縮退）。
 

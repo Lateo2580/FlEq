@@ -42,6 +42,7 @@ import {
 import { notifyMock } from "../setup";
 import { WsDataMessage } from "../../src/types";
 import type { DisplayStatsV1 } from "../../src/engine/display/types";
+import type { PresentationEvent } from "../../src/engine/presentation/types";
 import { parseTsunamiTelegram } from "../../src/dmdata/telegram-parser";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
 import { projectDisplayEvent } from "../../src/engine/display/project-event";
@@ -1552,11 +1553,15 @@ describe("message-router 統合テスト", () => {
       expect(snapshot.countByType.get("SYNTH-CP")).toBe(1);
     });
 
-    it("released sourceのnewer受理は再Holdbackせず即時表示しarrival metricを再加算しない", () => {
+    it("released sourceのnewer受理は安定idを維持したrevision固有eventKeyで即時表示する", () => {
       vi.useFakeTimers();
       vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
       const outcomes: unknown[] = [];
-      const { handler, stats } = createHandler({ outcomeTaps: [(outcome) => outcomes.push(outcome)] });
+      const displayed: PresentationEvent[] = [];
+      const { handler, stats } = createHandler({
+        outcomeTaps: [(outcome) => outcomes.push(outcome)],
+        displaySink: { ingest: (event) => displayed.push(event) },
+      });
       handler(makeLegacyRouterMessage({ id: "released-1", eventId: "RELEASED", serial: "1" }));
       vi.advanceTimersByTime(60_001);
       handler(makeLegacyRouterMessage({
@@ -1569,6 +1574,16 @@ describe("message-router 統合テスト", () => {
 
       const snapshot = stats.getSnapshot(Date.now());
       expect(outcomes).toHaveLength(2);
+      expect(displayed).toHaveLength(2);
+      const projected = displayed.map((event) => projectDisplayEvent(event, "legacy summary"));
+      expect(projected.map((event) => event.id)).toEqual([
+        "legacy:VPOA50:RELEASED",
+        "legacy:VPOA50:RELEASED",
+      ]);
+      expect(projected.map((event) => event.groupKey)).toEqual([null, null]);
+      expect(projected[0].eventKey).not.toBe(projected[1].eventKey);
+      expect(projected[0].eventKey).toContain("released-1");
+      expect(projected[1].eventKey).toContain("released-2");
       expect(snapshot.countByType.get("VPOA50")).toBe(2);
       expect(snapshot.foundation.legacySourceArrivedFirst).toBe(1);
       expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(2);

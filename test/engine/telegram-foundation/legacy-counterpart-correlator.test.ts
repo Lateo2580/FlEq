@@ -362,7 +362,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     expect(fallback.correlator.accept(makeSource({ id: "fallback-src", eventId: "E1" }))).toMatchObject({ kind: "suppressSource" });
   });
 
-  it("code不一致・地名だけ相当のcode欠落は一致させない", () => {
+  it("code不一致・地名だけ相当のcode欠落・対象時刻欠落・blank-only codeは一致させない", () => {
     const mismatch = harness();
     mismatch.correlator.accept(makeCounterpart({ eventId: null, key: correlationKey({ areaCodes: ["AREA-X"] }) }));
     expect(mismatch.correlator.accept(makeSource({ eventId: null }))).toMatchObject({ kind: "holdSource" });
@@ -371,6 +371,54 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     const namesOnly = harness();
     namesOnly.correlator.accept(makeCounterpart({ eventId: null, key: correlationKey({ areaCodes: [] }) }));
     expect(namesOnly.correlator.accept(makeSource({ eventId: null, key: correlationKey({ areaCodes: [] }) }))).toMatchObject({ kind: "holdSource" });
+
+    KEYS.clear();
+    const missingTargetTime = harness();
+    missingTargetTime.correlator.accept(makeCounterpart({
+      eventId: null,
+      key: correlationKey({ targetTimeMs: null }),
+    }));
+    expect(missingTargetTime.correlator.accept(makeSource({ eventId: null }))).toMatchObject({ kind: "holdSource" });
+
+    KEYS.clear();
+    const nonFiniteTargetTime = harness();
+    nonFiniteTargetTime.correlator.accept(makeCounterpart({
+      eventId: null,
+      key: correlationKey({ targetTimeMs: Number.NaN }),
+    }));
+    expect(nonFiniteTargetTime.correlator.accept(makeSource({ eventId: null }))).toMatchObject({ kind: "holdSource" });
+
+    KEYS.clear();
+    const blankOnly = harness();
+    const blankOnlyKey = correlationKey({
+      areaCodes: ["", "  "],
+      phenomenonCodes: [" "],
+      kindCodes: [""],
+    });
+    blankOnly.correlator.accept(makeCounterpart({ eventId: null, key: blankOnlyKey }));
+    expect(blankOnly.correlator.accept(makeSource({ eventId: null, key: blankOnlyKey }))).toMatchObject({ kind: "holdSource" });
+  });
+
+  it("EventIDなし・同一code・別messageIdのsourceを別lifecycleとして各60秒保持する", () => {
+    const { correlator, runtime, actions, events } = harness();
+    expect(correlator.accept(makeSource({ id: "transient-source-1", eventId: null }))).toMatchObject({
+      kind: "holdSource",
+      sourceIdentity: "VPOA50:message:transient-source-1",
+    });
+    expect(correlator.accept(makeSource({ id: "transient-source-2", eventId: null }))).toMatchObject({
+      kind: "holdSource",
+      sourceIdentity: "VPOA50:message:transient-source-2",
+    });
+    expect(correlator.snapshot().sourceCount).toBe(2);
+    expect(events.filter((event) => event.kind === "legacySourceArrivedFirst")).toHaveLength(2);
+
+    runtime.advanceBy(60_000);
+    expect(actions).toEqual([]);
+    runtime.advanceBy(1);
+    expect(actions).toMatchObject([
+      { kind: "releaseSource", sourceIdentity: "VPOA50:message:transient-source-1", reason: "timeout" },
+      { kind: "releaseSource", sourceIdentity: "VPOA50:message:transient-source-2", reason: "timeout" },
+    ]);
   });
 
   it("候補複数はnearestを選ばずambiguousにする", () => {

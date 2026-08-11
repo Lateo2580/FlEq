@@ -71,6 +71,32 @@ describe("Ticker (親スケジューラ)", () => {
     expect(screen.getByText("新しい本文です。")).toBeTruthy();
   });
 
+  it("legacyの安定idが同じでもrevision固有eventKeyなら続報をenqueueする", async () => {
+    const first = tickerEvent({
+      id: "legacy:VPOA50:EVENT-1",
+      eventKey: "legacy:VPOA50:EVENT-1:revision:1:first",
+      domain: "legacyCounterpart",
+      type: "VPOA50",
+      tickerBody: null,
+      tickerSentence: "旧形式情報の初報です。",
+    });
+    const newer = tickerEvent({
+      id: first.id,
+      eventKey: "legacy:VPOA50:EVENT-1:revision:2:newer",
+      domain: "legacyCounterpart",
+      type: "VPOA50",
+      tickerBody: null,
+      tickerSentence: "旧形式情報の続報です。",
+    });
+    const view = render(Ticker, { lines: [first], tickerGeneration: 0 });
+    await tick();
+    expect(screen.getByText("旧形式情報の初報です。")).toBeTruthy();
+
+    await view.rerender({ lines: [newer, first], tickerGeneration: 0 });
+    await tick();
+    expect(screen.getByText("旧形式情報の続報です。")).toBeTruthy();
+  });
+
   it("帯 (.ticker) は instrument surface (surface-low + 上辺 hairline) を敷く (Spec C §2)", () => {
     const src = readFileSync(join(__dirname, "..", "Ticker.svelte"), "utf-8");
     expect(src).toMatch(/\.ticker\s*\{[^}]*background:\s*var\(--surface-low\)/);

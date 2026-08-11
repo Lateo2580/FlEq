@@ -108,4 +108,3 @@ export const PRODUCTION_LEGACY_COUNTERPART_REGISTRY = createLegacyCounterpartReg
   unconfirmedRule("VPNO50"),
   unconfirmedRule("VXWW50"),
 ]);
-

@@ -188,7 +188,13 @@ function canonicalKey(key: LegacyCounterpartCorrelationKey | null): string | nul
   const areas = normalizedCodes(key.areaCodes);
   const phenomena = normalizedCodes(key.phenomenonCodes);
   const kinds = normalizedCodes(key.kindCodes);
-  if (office == null || areas.length === 0 || phenomena.length + kinds.length === 0) return null;
+  if (
+    office == null
+    || areas.length === 0
+    || phenomena.length + kinds.length === 0
+    || key.targetTimeMs == null
+    || !Number.isFinite(key.targetTimeMs)
+  ) return null;
   return JSON.stringify([office, areas, phenomena, kinds, key.targetTimeMs]);
 }
 
@@ -200,17 +206,25 @@ function codeIdentityMatches(
   const sourceOffice = nonBlank(source.officeCode);
   const counterpartOffice = nonBlank(counterpart.officeCode);
   if (sourceOffice == null || counterpartOffice == null || sourceOffice !== counterpartOffice) return false;
-  if (source.areaCodes.length === 0 || counterpart.areaCodes.length === 0) return false;
+  const sourceAreas = normalizedCodes(source.areaCodes);
+  const counterpartAreas = normalizedCodes(counterpart.areaCodes);
+  const sourcePhenomena = normalizedCodes(source.phenomenonCodes);
+  const counterpartPhenomena = normalizedCodes(counterpart.phenomenonCodes);
+  const sourceKinds = normalizedCodes(source.kindCodes);
+  const counterpartKinds = normalizedCodes(counterpart.kindCodes);
+  if (sourceAreas.length === 0 || counterpartAreas.length === 0) return false;
   if (
-    source.phenomenonCodes.length + source.kindCodes.length === 0
-    || counterpart.phenomenonCodes.length + counterpart.kindCodes.length === 0
+    sourcePhenomena.length + sourceKinds.length === 0
+    || counterpartPhenomena.length + counterpartKinds.length === 0
   ) return false;
-  if (!sameCodes(source.areaCodes, counterpart.areaCodes)) return false;
-  if (!sameCodes(source.phenomenonCodes, counterpart.phenomenonCodes)) return false;
-  if (!sameCodes(source.kindCodes, counterpart.kindCodes)) return false;
-  return source.targetTimeMs == null
-    || counterpart.targetTimeMs == null
-    || source.targetTimeMs === counterpart.targetTimeMs;
+  if (!sameCodes(sourceAreas, counterpartAreas)) return false;
+  if (!sameCodes(sourcePhenomena, counterpartPhenomena)) return false;
+  if (!sameCodes(sourceKinds, counterpartKinds)) return false;
+  return source.targetTimeMs != null
+    && counterpart.targetTimeMs != null
+    && Number.isFinite(source.targetTimeMs)
+    && Number.isFinite(counterpart.targetTimeMs)
+    && source.targetTimeMs === counterpart.targetTimeMs;
 }
 
 function correlationIdentityAndTimeMatches(
@@ -260,16 +274,10 @@ function metaOf(outcome: ProcessOutcome): TelegramMeta | null {
   return outcome.msg.meta ?? null;
 }
 
-function sourceIdentity(
-  outcome: LegacyCounterpartOutcome,
-  key: LegacyCounterpartCorrelationKey | null,
-): string {
+function sourceIdentity(outcome: LegacyCounterpartOutcome): string {
   const eventId = eventIdOf(outcome.parsed.meta);
   if (eventId != null) return `${outcome.parsed.type}:event:${eventId}`;
-  const canonical = canonicalKey(key);
-  return canonical == null
-    ? `${outcome.parsed.type}:message:${outcome.parsed.meta.messageId}`
-    : `${outcome.parsed.type}:code:${canonical}`;
+  return `${outcome.parsed.type}:message:${outcome.parsed.meta.messageId}`;
 }
 
 function counterpartIdentity(
@@ -395,9 +403,9 @@ export class LegacyCounterpartCorrelator {
     if (rule == null) return this.decide({ kind: "emitNow", outcome, reason: "unrelated" });
     const meta = outcome.parsed.meta;
     const revision = strictRevisionIdentity(meta);
-    if (revision == null) return this.decide({ kind: "releaseSource", outcome, sourceIdentity: sourceIdentity(outcome, null), reason: "correlatorCapacityExceeded", candidateCount: 0 });
+    if (revision == null) return this.decide({ kind: "releaseSource", outcome, sourceIdentity: sourceIdentity(outcome), reason: "correlatorCapacityExceeded", candidateCount: 0 });
     const key = rule.extractEventKey(meta, outcome.parsed);
-    const id = sourceIdentity(outcome, key);
+    const id = sourceIdentity(outcome);
     const existing = this.sources.get(id);
     this.observeSourceRevisionMismatch(rule, meta, key);
     if (existing != null) {
