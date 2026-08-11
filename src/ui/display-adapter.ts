@@ -33,6 +33,7 @@ import { displayHeatAlertInfo } from "./heat-alert-formatter";
 import { displayTyphoonAnalysisInfo } from "./typhoon-analysis-formatter";
 import { displayTyphoonProbabilityInfo } from "./typhoon-probability-formatter";
 import { displayFloodForecastInfo } from "./flood-forecast-formatter";
+import { displayLegacyCounterpartInfo } from "./legacy-counterpart-formatter";
 import { assertNever } from "../utils/assert-never";
 
 /** DisplayCallbacks の実装を生成する */
@@ -101,6 +102,9 @@ export function createDisplayAdapter(): DisplayCallbacks {
           break;
         case "floodForecast":
           displayFloodForecastInfo(outcome.parsed);
+          break;
+        case "legacyCounterpart":
+          displayLegacyCounterpartInfo(outcome.parsed, outcome.reason);
           break;
         case "raw":
           displayRawHeader(outcome.msg);

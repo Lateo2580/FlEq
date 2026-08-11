@@ -90,23 +90,24 @@ const FLOOD_FORECAST_HEAD_TYPES: readonly string[] = [
  */
 export const IGNORED_HEAD_TYPES = [
   "VPWW53", "VPWW54",            // 旧 気象警報・注意報 (VPWW55-61/VPWS50 と重複)
-  "VPNO50",                      // 気象特別警報報知
-  "VPOA50",                      // 記録的短時間大雨情報
   "VPZJ50", "VPCJ50", "VPFJ50",  // 旧 気象情報 (VPZJ51/VPCJ51/VPFJ51 と重複)
   "VMCJ50", "VMCJ51", "VMCJ52",  // 潮位情報
-  "VXWW50",                      // 土砂災害警戒情報
 ] as const;
+
+/** Phase 6B legacy counterpart の source type。classification とは独立に専用 route へ送る。 */
+const LEGACY_COUNTERPART_HEAD_TYPES = ["VPOA50", "VPNO50", "VXWW50"] as const;
 
 /**
  * ルート判定カタログ。**配列順が判定の優先順位**。上から順に最初に一致した route を返す。
  *
  * 優先順位 (旧 classifyMessage の if 連鎖と 1:1):
  *   0. ignore (classification 非依存・最優先)
- *   1. eew.forecast / eew.warning → eew
- *   2. telegram.volcano → volcano
- *   3-7. telegram.earthquake の head.type 別 (exact 集合を prefix より先に置く)
- *   8-18. telegram.weather の head.type 別
- *   19. raw (フォールバック)
+ *   1. legacy counterpart (classification 非依存)
+ *   2. eew.forecast / eew.warning → eew
+ *   3. telegram.volcano → volcano
+ *   4-8. telegram.earthquake の head.type 別 (exact 集合を prefix より先に置く)
+ *   9-19. telegram.weather の head.type 別
+ *   20. raw (フォールバック)
  *
  * exact 集合 (seismicText / lgObservation) を prefix (earthquake=VXSE*) より**前**に
  * 置くことで、VXSE56/60/62 が earthquake に吸われる前に拾われる。旧実装と同順。
@@ -117,6 +118,16 @@ export const ROUTE_CATALOG = [
     statsCategory: "other",
     foundationHeadTypes: [],
     matcher: { kind: "headTypeSet", classification: null, headTypes: IGNORED_HEAD_TYPES },
+  },
+  {
+    route: "legacyCounterpart",
+    statsCategory: "other",
+    foundationHeadTypes: LEGACY_COUNTERPART_HEAD_TYPES,
+    matcher: {
+      kind: "headTypeSet",
+      classification: null,
+      headTypes: LEGACY_COUNTERPART_HEAD_TYPES,
+    },
   },
   {
     route: "eew",

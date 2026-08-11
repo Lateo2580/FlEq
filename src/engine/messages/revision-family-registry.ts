@@ -18,6 +18,7 @@ import type {
   ParsedVolcanoTextInfo,
   ParsedWeatherWarning,
   ParsedWeatherWarningTimeseriesInfo,
+  ParsedLegacyCounterpartInfo,
   TelegramMeta,
   TsunamiObservationStation,
   VolcanoAlertStateEntry,
@@ -250,6 +251,30 @@ export const RAW_REVISION_FAMILY_POLICY = transientEventPolicy<unknown>({
   retentionMs: 11 * 60_000,
   maxSubjects: 512,
 });
+
+/** legacy counterpart の revision watermark 用保持期間。相関 cache の retention と共有しない。 */
+export const LEGACY_COUNTERPART_REVISION_RETENTION_MS = 11 * 60_000;
+
+/** VPOA50／VPNO50／VXWW50 専用の非永続 revision family。 */
+export const LEGACY_COUNTERPART_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedLegacyCounterpartInfo> = {
+  domain: "legacyCounterpart",
+  revisionFamily: "legacyCounterpart",
+  headTypes: ["VPOA50", "VPNO50", "VXWW50"],
+  comparator: "reportDateTimeThenSerial",
+  extractStateSubjectKey: (meta) => eventSubject(meta, "legacyCounterpart"),
+  extractCancellationTarget: (meta) => {
+    const subject = eventSubject(meta, "legacyCounterpart");
+    return subject == null ? null : [subject];
+  },
+  cancellationPolicy: "markCancelled",
+  terminalPredicate: () => false,
+  deactivationPredicate: () => false,
+  durable: false,
+  tombstoneRetentionMs: LEGACY_COUNTERPART_REVISION_RETENTION_MS,
+  maxSubjects: 512,
+  allowMissingSerial: true,
+  fragmentMerge: false,
+};
 
 export const VOLCANO_ASHFALL_REVISION_FAMILY_POLICY: RevisionFamilyPolicy<ParsedVolcanoInfo> = {
   domain: "volcano",
@@ -854,6 +879,7 @@ export const ALL_REVISION_FAMILY_POLICIES = [
   CLIMATE_INFO_REVISION_FAMILY_POLICY,
   WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
   TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
+  LEGACY_COUNTERPART_REVISION_FAMILY_POLICY,
   RAW_REVISION_FAMILY_POLICY,
 ] as const;
 

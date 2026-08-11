@@ -17,6 +17,7 @@ import { fromHeatAlertOutcome } from "./from-heat-alert";
 import { fromTyphoonAnalysisOutcome } from "./from-typhoon-analysis";
 import { fromTyphoonProbabilityOutcome } from "./from-typhoon-probability";
 import { fromFloodForecastOutcome } from "./from-flood-forecast";
+import { fromLegacyCounterpartOutcome } from "./from-legacy-counterpart";
 import { fromRawOutcome } from "./from-raw";
 import { assertNever } from "../../../utils/assert-never";
 
@@ -58,6 +59,8 @@ function convertPresentationEvent(outcome: ProcessOutcome): PresentationEvent {
       return fromTyphoonProbabilityOutcome(outcome);
     case "floodForecast":
       return fromFloodForecastOutcome(outcome);
+    case "legacyCounterpart":
+      return fromLegacyCounterpartOutcome(outcome);
     case "raw":
       return fromRawOutcome(outcome);
     default:

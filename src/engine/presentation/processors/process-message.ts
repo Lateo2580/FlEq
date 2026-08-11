@@ -32,6 +32,7 @@ import { processHeatAlert } from "./process-heat-alert";
 import { processTyphoonAnalysis } from "./process-typhoon-analysis";
 import { processTyphoonProbability } from "./process-typhoon-probability";
 import { processFloodForecast } from "./process-flood-forecast";
+import { processLegacyCounterpart } from "./process-legacy-counterpart";
 import { processRaw } from "./process-raw";
 import {
   HEAT_ALERT_REVISION_FAMILY_POLICY,
@@ -50,6 +51,7 @@ import {
   WEATHER_EXPLANATION_REVISION_FAMILY_POLICY,
   TRANSIENT_WEATHER_REVISION_FAMILY_POLICY,
   RAW_REVISION_FAMILY_POLICY,
+  LEGACY_COUNTERPART_REVISION_FAMILY_POLICY,
   type RevisionFamilyPolicy,
 } from "../../messages/revision-family-registry";
 import { processStandbyFoundation, standbyFoundationPresentation } from "./process-standby-foundation";
@@ -232,6 +234,12 @@ const PROCESSOR_TABLE = {
     if (result.kind === "ok") return result.outcome;
     if (result.kind === "suppressed") return null;
     return processRaw(msg, cat);
+  },
+  legacyCounterpart: (msg, deps, cat) => {
+    const outcome = processLegacyCounterpart(msg);
+    return outcome == null
+      ? processRaw(msg, cat)
+      : gateTransientOutcome(outcome, LEGACY_COUNTERPART_REVISION_FAMILY_POLICY, deps);
   },
 } satisfies Record<LinearRoute, ProcessorAdapter>;
 

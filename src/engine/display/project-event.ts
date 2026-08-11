@@ -2,6 +2,7 @@ import { intensityToRank } from "../../utils/intensity";
 import { normalizeTsunamiKind, resolveTsunamiLevel } from "../../utils/tsunami-kind";
 import type { JmaIntensity, SpecialValue } from "../../types";
 import type { PresentationAreaItem, PresentationEvent } from "../presentation/types";
+import { normalizeLegacyCounterpartDisplayText } from "../presentation/legacy-counterpart-display-text";
 import {
   groupIntensityAreas,
   projectIntensityMapValues,
@@ -527,6 +528,25 @@ function formatAreaGroups(items: PresentationAreaItem[]): string | null {
  */
 export function buildTickerDetail(event: PresentationEvent): string | null {
   if (event.domain === "eew") return null;
+  if (event.domain === "legacyCounterpart") {
+    const pairs = [
+      ...(event.legacyAreas ?? []).map((pair) =>
+        `対象地域 ${normalizeLegacyCounterpartDisplayText(pair.name)}（${normalizeLegacyCounterpartDisplayText(pair.code)}）`,
+      ),
+      ...(event.legacyPhenomena ?? []).map((pair) =>
+        `現象 ${normalizeLegacyCounterpartDisplayText(pair.name)}（${normalizeLegacyCounterpartDisplayText(pair.code)}）`,
+      ),
+      ...(event.legacyKinds ?? []).map((pair) =>
+        `種別 ${normalizeLegacyCounterpartDisplayText(pair.name)}（${normalizeLegacyCounterpartDisplayText(pair.code)}）`,
+      ),
+    ];
+    const headline = event.headline == null
+      ? null
+      : normalizeLegacyCounterpartDisplayText(event.headline).trim();
+    return [headline, "対応電文未確認", ...pairs]
+      .filter((part): part is string => part != null && part !== "")
+      .join(" ▪ ");
+  }
   const parts: string[] = [];
   const headline = event.headline?.trim();
   if (headline) parts.push(headline);
@@ -537,6 +557,7 @@ export function buildTickerDetail(event: PresentationEvent): string | null {
 }
 
 function makeGroupKey(event: PresentationEvent): string | null {
+  if (event.domain === "legacyCounterpart") return null;
   if (event.domain === "eew") return event.eventId != null ? `eew:${event.eventId}` : null;
   if (event.domain === "tsunami") return "tsunami:current";
   if (event.domain === "earthquake") return event.eventId != null ? `quake:${event.eventId}` : null;
@@ -684,12 +705,28 @@ export function projectDisplayEvent(
       : [];
   const recentQuakeObservation = projectRecentQuake(event);
   const latestQuakeObservation = projectLatestQuake(event);
+  const stableId = event.domain === "legacyCounterpart"
+    ? event.eventId != null && event.eventId.trim() !== ""
+      ? `legacy:${event.type}:${event.eventId}`
+      : event.id
+    : event.id;
+  const displayTitle = event.domain === "legacyCounterpart"
+    ? normalizeLegacyCounterpartDisplayText(event.title)
+    : event.title;
+  const displayHeadline = event.domain === "legacyCounterpart" && event.headline != null
+    ? normalizeLegacyCounterpartDisplayText(event.headline)
+    : event.headline;
+  const displayPublishingOffice = event.domain === "legacyCounterpart"
+    ? normalizeLegacyCounterpartDisplayText(event.publishingOffice)
+    : event.publishingOffice;
   const dto: DisplayEventDtoV1 = {
     version: DISPLAY_PROTOCOL_VERSION,
     seq: 0,
-    id: event.id,
+    id: stableId,
     eventKey: event.domain === "volcano"
       ? `volcano:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}:${event.volcanoCode ?? "-"}:${event.reportDateTime}`
+      : event.domain === "legacyCounterpart"
+      ? stableId
       : `${event.domain}:${event.eventId ?? event.id}:${event.serial ?? event.reportDateTime}`,
     groupKey: makeGroupKey(event),
     domain: event.domain,
@@ -697,9 +734,9 @@ export function projectDisplayEvent(
     infoType: event.infoType,
     reportDateTime: event.reportDateTime,
     serial: event.serial ?? null,
-    title: event.title,
-    headline: event.headline,
-    publishingOffice: event.publishingOffice,
+    title: displayTitle,
+    headline: displayHeadline,
+    publishingOffice: displayPublishingOffice,
     isTest: event.isTest,
     frameLevel: event.frameLevel,
     isCancellation: event.isCancellation,

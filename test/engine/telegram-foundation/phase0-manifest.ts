@@ -699,6 +699,11 @@ export const CANCELLATION_CHARACTERIZATION = {
     currentBehavior: "EventID 単位の active history と display state を削除",
     targetPolicy: "clearCurrent", stateOwners: ["FloodForecastStateHolder", "StandbyStateStore"],
   }],
+  legacyCounterpart: [{
+    family: "legacyCounterpart", headTypes: ["VPOA50", "VPNO50", "VXWW50"],
+    currentBehavior: "header-only fail-open 表示。対応電文未確認のため durable state owner を持たない",
+    targetPolicy: "markCancelled", stateOwners: [],
+  }],
   raw: [{
     family: "raw", headTypes: ["*"],
     currentBehavior: "状態を推定せず transient に表示",

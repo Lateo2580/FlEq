@@ -22,6 +22,10 @@ import type {
   ParsedTyphoonAnalysis,
   ParsedTyphoonProbability,
   ParsedFloodForecastInfo,
+  ParsedLegacyCounterpartInfo,
+  LegacyCounterpartCodeNamePair,
+  LegacyCounterpartReason,
+  LegacyCounterpartSeverity,
   FloodLevel,
   Vpws50Diff,
   JmaIntensity,
@@ -59,6 +63,7 @@ export type PresentationDomain =
   | "typhoonAnalysis"
   | "typhoonProbability"
   | "floodForecast"
+  | "legacyCounterpart"
   | "raw";
 
 // ── ProcessOutcome ──
@@ -274,6 +279,14 @@ export interface FloodForecastOutcome extends ProcessOutcomeBase {
   maxRank: number;
 }
 
+/** VPOA50／VPNO50／VXWW50 の header-only fail-open outcome。 */
+export interface LegacyCounterpartOutcome extends ProcessOutcomeBase {
+  domain: "legacyCounterpart";
+  parsed: ParsedLegacyCounterpartInfo;
+  reason: LegacyCounterpartReason;
+  severity: LegacyCounterpartSeverity;
+}
+
 export interface RawOutcome extends ProcessOutcomeBase {
   domain: "raw";
   parsed: null;
@@ -299,6 +312,7 @@ export type ProcessOutcome =
   | TyphoonAnalysisOutcome
   | TyphoonProbabilityOutcome
   | FloodForecastOutcome
+  | LegacyCounterpartOutcome
   | RawOutcome;
 
 // ── PresentationEvent ──
@@ -407,6 +421,7 @@ export type ParsedTelegramUnion =
   | ParsedTyphoonAnalysis
   | ParsedTyphoonProbability
   | ParsedFloodForecastInfo
+  | ParsedLegacyCounterpartInfo
   | null;
 
 export interface PresentationEvent {
@@ -428,6 +443,13 @@ export interface PresentationEvent {
   reportDateTime: string;
   publishingOffice: string;
   isTest: boolean;
+
+  /** legacy counterpart の fail-open qualifier／未確定 severity。 */
+  legacyReason?: LegacyCounterpartReason;
+  legacySeverity?: LegacyCounterpartSeverity;
+  legacyAreas?: LegacyCounterpartCodeNamePair[];
+  legacyPhenomena?: LegacyCounterpartCodeNamePair[];
+  legacyKinds?: LegacyCounterpartCodeNamePair[];
 
   // レベル
   frameLevel: FrameLevel;

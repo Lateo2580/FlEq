@@ -134,6 +134,49 @@ export interface TelegramMeta {
   isTest: boolean;
 }
 
+/** Phase 6B legacy counterpart の source type。実在 counterpart は characterization 後に登録する。 */
+export type LegacyCounterpartSourceType = "VPOA50" | "VPNO50" | "VXWW50";
+
+/** コードを一次キーとして保持する、legacy counterpart の最小 code-name pair。 */
+export interface LegacyCounterpartCodeNamePair {
+  code: string;
+  name: string;
+}
+
+export type LegacyCounterpartSeverity = "high" | "nonHigh" | "unknown";
+
+/** 高 Severity 判定の根拠。骨組みでは extractor／registry が空なので空配列を保持する。 */
+export interface LegacyCounterpartSeverityEvidence {
+  source: "registry" | "unknown";
+  severity: LegacyCounterpartSeverity;
+  phenomenonCode: string | null;
+  kindCode: string | null;
+  levelCode: string | null;
+}
+
+/** VPOA50／VPNO50／VXWW50 の header-only parsed model。本文 XML は保持しない。 */
+export interface ParsedLegacyCounterpartInfo {
+  type: LegacyCounterpartSourceType;
+  infoType: string;
+  title: string;
+  controlTitle: string;
+  reportDateTime: string;
+  headline: string | null;
+  publishingOffice: string;
+  editorialOffice: string;
+  eventId: string | null;
+  serial: string | null;
+  areas: LegacyCounterpartCodeNamePair[];
+  phenomena: LegacyCounterpartCodeNamePair[];
+  kinds: LegacyCounterpartCodeNamePair[];
+  severityEvidence: LegacyCounterpartSeverityEvidence[];
+  meta: TelegramMeta;
+  isTest: boolean;
+}
+
+/** fail-open legacy 表示に付与する理由。骨組みの production reason は一つだけ。 */
+export type LegacyCounterpartReason = "counterpartRuleUnconfirmed";
+
 export interface TelegramRevision {
   eventId: StrictTextMeta;
   type: StrictTextMeta;

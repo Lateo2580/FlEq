@@ -145,6 +145,9 @@ function dispatchNotify(outcome: ProcessOutcome, notifier: Notifier): boolean {
       );
       return true;
     }
+    case "legacyCounterpart":
+      // Phase 6B 単位 2 は fail-open 表示だけを提供し、対応電文確定後の通知は単位 3/4 で追加する。
+      return false;
     case "raw":
       // raw: 通知なし (フォールバック表示のみ)
       return false;

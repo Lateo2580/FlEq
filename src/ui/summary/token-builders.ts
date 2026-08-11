@@ -1,4 +1,5 @@
 import type { PresentationEvent } from "../../engine/presentation/types";
+import { normalizeLegacyCounterpartDisplayText } from "../../engine/presentation/legacy-counterpart-display-text";
 import type { SummaryModel, SummaryToken, SummaryPriority } from "./types";
 import type { ParsedWeatherWarning } from "../../types";
 import { visualWidth } from "../formatter";
@@ -644,6 +645,24 @@ function buildFloodForecastTokens(event: PresentationEvent, model: SummaryModel)
   return tokens;
 }
 
+function buildLegacyCounterpartTokens(event: PresentationEvent, model: SummaryModel): SummaryToken[] {
+  const tokens: SummaryToken[] = [];
+  const type = normalizeLegacyCounterpartDisplayText(event.type);
+  const title = normalizeLegacyCounterpartDisplayText(event.title);
+  const headline = event.headline == null
+    ? null
+    : normalizeLegacyCounterpartDisplayText(event.headline);
+  const areaNames = event.areaNames.map(normalizeLegacyCounterpartDisplayText);
+  tokens.push(token("severity", model.severity, 0, "never"));
+  tokens.push(token("type", type, 0, "never"));
+  tokens.push(token("qualifier", "対応電文未確認", 0, "shorten"));
+  if (title) tokens.push(token("title", title, 1, "shorten"));
+  if (headline) tokens.push(token("headline", headline, 2, "drop"));
+  const parts = topAreaTokenParts(areaNames, 2);
+  if (parts) tokens.push(token("topAreas", parts.text, 2, "shorten", parts.shortText));
+  return tokens;
+}
+
 function buildRawTokens(event: PresentationEvent, model: SummaryModel): SummaryToken[] {
   const tokens: SummaryToken[] = [];
 
@@ -706,6 +725,8 @@ export function buildSummaryTokens(event: PresentationEvent, model: SummaryModel
       return buildTyphoonProbabilityTokens(event, model);
     case "floodForecast":
       return buildFloodForecastTokens(event, model);
+    case "legacyCounterpart":
+      return buildLegacyCounterpartTokens(event, model);
     case "raw":
       return buildRawTokens(event, model);
   }

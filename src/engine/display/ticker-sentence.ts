@@ -4,6 +4,7 @@
 // [警告] 等の CLI 接頭辞は含めない (重要度は role 色と種別ラベルが担う)。
 
 import type { PresentationEvent, PresentationAreaItem } from "../presentation/types";
+import { normalizeLegacyCounterpartDisplayText } from "../presentation/legacy-counterpart-display-text";
 import type {
   ParsedWeatherWarning,
   ParsedWeatherWarningTimeseriesInfo,
@@ -59,12 +60,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   typhoonAnalysis: "台風情報",
   typhoonProbability: "台風暴風域確率",
   floodForecast: "洪水予報",
+  legacyCounterpart: "旧形式防災情報",
   raw: "気象庁情報",
 };
 
 export function tickerCategoryOf(event: PresentationEvent): string {
   if (event.diagnosticKind != null) return "診断";
   if (event.domain === "weather" && event.type === "VPWS50") return "気象警報・注意報（全国集約）";
+  if (event.domain === "legacyCounterpart") return "旧形式防災情報";
   return CATEGORY_LABELS[event.domain] ?? "気象庁情報";
 }
 
@@ -126,6 +129,30 @@ function ensurePeriod(text: string): string {
 function fallbackTickerText(event: PresentationEvent): string {
   const base = event.headline?.trim() || event.title;
   return ensurePeriod(base);
+}
+
+function legacyCounterpartPairs(event: PresentationEvent): string[] {
+  const sections: Array<[string, PresentationEvent["legacyAreas"]]> = [
+    ["対象地域", event.legacyAreas],
+    ["現象", event.legacyPhenomena],
+    ["種別", event.legacyKinds],
+  ];
+  return sections.flatMap(([label, pairs]) =>
+    (pairs ?? []).map((pair) =>
+      `${label} ${normalizeLegacyCounterpartDisplayText(pair.name)}（${normalizeLegacyCounterpartDisplayText(pair.code)}）`,
+    ),
+  );
+}
+
+function legacyCounterpartSentence(event: PresentationEvent): string {
+  const headline = event.headline == null
+    ? ""
+    : normalizeLegacyCounterpartDisplayText(event.headline).trim();
+  const title = normalizeLegacyCounterpartDisplayText(event.title).trim();
+  const type = normalizeLegacyCounterpartDisplayText(event.type);
+  const base = headline || title || `${type}の情報`;
+  const details = legacyCounterpartPairs(event);
+  return `${ensurePeriod(base)}対応電文未確認${details.length > 0 ? ` ${details.join("、")}` : ""}。`;
 }
 
 /** ISO 日時 → 「午後9時37分ごろ」 (JST 12 時間制)。パース不能は null */
@@ -590,6 +617,9 @@ export function buildTickerSentence(event: PresentationEvent): string {
         break;
       case "earlyWeather":
         sentence = earlyWeatherSentence(event);
+        break;
+      case "legacyCounterpart":
+        sentence = legacyCounterpartSentence(event);
         break;
       default:
         sentence = event.isCancellation

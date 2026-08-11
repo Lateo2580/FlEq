@@ -81,6 +81,7 @@ const PRESENTATION_DOMAINS = [
   "typhoonAnalysis",
   "typhoonProbability",
   "floodForecast",
+  "legacyCounterpart",
   "raw",
 ] as const satisfies readonly PresentationDomain[];
 
@@ -325,6 +326,7 @@ describe("telegram foundation Phase 0 contract", () => {
         "typhoonAnalysis|typhoonAnalysis|clearCurrent|StandbyStateStore",
         "typhoonProbability|typhoonProbability|clearCurrent|TyphoonProbabilityStateHolder",
         "floodForecast|floodForecast|clearCurrent|FloodForecastStateHolder,StandbyStateStore",
+        "legacyCounterpart|legacyCounterpart|markCancelled|",
         "raw|raw|markCancelled|",
       ]
     `);

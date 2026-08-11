@@ -840,6 +840,21 @@ describe("earlyWeatherSentence (spec 2026-07-23 ticker-content-lifetime T5)", ()
   });
 });
 
+describe("legacyCounterpart ticker", () => {
+  it("専用 category と qualifier 付きの fail-open sentence を生成する", () => {
+    const event = makeEvent({
+      domain: "legacyCounterpart",
+      type: "VPOA50",
+      title: "旧形式の防災情報",
+      headline: "旧形式のヘッドライン",
+      legacyReason: "counterpartRuleUnconfirmed",
+      legacySeverity: "unknown",
+    });
+    expect(tickerCategoryOf(event)).toBe("旧形式防災情報");
+    expect(buildTickerSentence(event)).toContain("対応電文未確認");
+  });
+});
+
 describe("fixture スナップショット固定 (spec T4/T5 受け入れ基準)", () => {
   it("VPAW51 fixture 8 件すべてで headline 単独ではない一文が生成される", async () => {
     const { processEarlyWeather } = await import("../../../src/engine/presentation/processors/process-early-weather");

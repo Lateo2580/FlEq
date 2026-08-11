@@ -10,7 +10,7 @@ import type { Route } from "../../src/engine/messages/route-catalog";
 
 describe("routeToCategory()", () => {
   // 全 Route を網羅 (Record 化に合わせて typhoonAnalysis / typhoonProbability /
-  // floodForecast、特殊ルート volcano / ignore / raw も列挙)。エントリの型を
+  // floodForecast / legacyCounterpart、特殊ルート volcano / ignore / raw も列挙)。エントリの型を
   // [Route, StatsCategory] にしているため、存在しない route 名を書くとコンパイルエラー。
   const CASES: ReadonlyArray<[Route, StatsCategory]> = [
     ["eew", "eew"],
@@ -31,6 +31,7 @@ describe("routeToCategory()", () => {
     ["typhoonAnalysis", "typhoonAnalysis"],
     ["typhoonProbability", "typhoonProbability"],
     ["floodForecast", "floodForecast"],
+    ["legacyCounterpart", "other"],
     ["ignore", "other"],
     ["raw", "other"],
   ];
