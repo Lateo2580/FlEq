@@ -38,7 +38,10 @@ function makeSnapshot(overrides: Partial<StatsSnapshot> = {}): StatsSnapshot {
       persistenceMigrationConflict: 0,
       presented: 0,
       notified: 0,
+      vxse44SuppressedByObservedVxse45: 0,
+      vxse44SuppressedByCapability: 0,
     },
+    foundationByHeadType: new Map(),
     ...overrides,
   };
 }
@@ -173,5 +176,53 @@ describe("displayStatistics", () => {
     // intensities 3 and 4 appear (1 and 2 are zero, omitted)
     expect(text).toContain("3:");
     expect(text).toContain("4:");
+  });
+
+  it("新規 foundation metric は既存表示項目・ラベル・並び順を変えない", () => {
+    const withSuppressionMetrics = makeSnapshot({
+      countByType: new Map([["VXSE44", 2]]),
+      categoryByType: new Map([["VXSE44", "eew" as const]]),
+      totalCount: 2,
+      foundation: {
+        ...makeSnapshot().foundation,
+        vxse44SuppressedByObservedVxse45: 3,
+        vxse44SuppressedByCapability: 4,
+      },
+      foundationByHeadType: new Map([
+        [
+          "VXSE44",
+          {
+            ...makeSnapshot().foundation,
+            vxse44SuppressedByObservedVxse45: 3,
+            vxse44SuppressedByCapability: 4,
+          },
+        ],
+      ]),
+    });
+    displayStatistics(
+      withSuppressionMetrics,
+      new Date("2025-01-01T00:30:00Z"),
+    );
+
+    const text = stripAnsi(output());
+    const expectedLabelsInOrder = [
+      "統計",
+      "開始:",
+      "経過:",
+      "合計:",
+      "[EEW]",
+      "VXSE44",
+      "緊急地震速報(予報)",
+    ];
+    let previousPosition = -1;
+    for (const label of expectedLabelsInOrder) {
+      const position = text.indexOf(label);
+      expect(position, `${label} が表示されること`).toBeGreaterThan(-1);
+      expect(position, `${label} の表示順`).toBeGreaterThan(previousPosition);
+      previousPosition = position;
+    }
+    expect(text).toContain("2件 / 0イベント");
+    expect(text).not.toContain("vxse44SuppressedByObservedVxse45");
+    expect(text).not.toContain("vxse44SuppressedByCapability");
   });
 });

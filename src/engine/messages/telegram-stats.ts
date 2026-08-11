@@ -61,26 +61,14 @@ export interface StatsSnapshot {
   testMetadataMismatch: number;
   /** 共通電文基盤の受信・採用判定カウンタ */
   foundation: Readonly<Record<TelegramFoundationMetric, number>>;
+  /** head type ごとの共通電文基盤カウンタ。entry がない head type は未記録。 */
+  foundationByHeadType: ReadonlyMap<
+    string,
+    Readonly<Record<TelegramFoundationMetric, number>>
+  >;
 }
 
-export type TelegramFoundationMetric =
-  | "received"
-  | "transportDuplicate"
-  | "semanticDuplicate"
-  | "correctionReplaced"
-  | "correctionNotified"
-  | "stale"
-  | "invalidMeta"
-  | "invalidRevision"
-  | "invalidDateDiagnosed"
-  | "futureDateDiagnosed"
-  | "cancelApplied"
-  | "cancelTargetMismatch"
-  | "persistenceMigrationConflict"
-  | "presented"
-  | "notified";
-
-const FOUNDATION_METRICS: readonly TelegramFoundationMetric[] = [
+const FOUNDATION_METRICS = [
   "received",
   "transportDuplicate",
   "semanticDuplicate",
@@ -96,7 +84,11 @@ const FOUNDATION_METRICS: readonly TelegramFoundationMetric[] = [
   "persistenceMigrationConflict",
   "presented",
   "notified",
-];
+  "vxse44SuppressedByObservedVxse45",
+  "vxse44SuppressedByCapability",
+] as const;
+
+export type TelegramFoundationMetric = (typeof FOUNDATION_METRICS)[number];
 
 function emptyFoundationStats(): Record<TelegramFoundationMetric, number> {
   return Object.fromEntries(
@@ -142,6 +134,10 @@ export class TelegramStats {
   private readonly earthquakeMaxIntByEvent = new Map<string, { maxInt: string; priority: number }>();
   private testMetadataMismatch = 0;
   private foundation = emptyFoundationStats();
+  private readonly foundationByHeadType = new Map<
+    string,
+    Record<TelegramFoundationMetric, number>
+  >();
 
   constructor(startTime?: Date) {
     this.startTime = startTime ?? new Date();
@@ -173,6 +169,22 @@ export class TelegramStats {
   ): void {
     this.rolloverIfNeeded(now ?? Date.now());
     this.foundation[metric]++;
+  }
+
+  /** global と head type-local の foundation metric を一操作で各一回加算する。 */
+  recordFoundationForHeadType(
+    headType: string,
+    metric: TelegramFoundationMetric,
+    now?: number,
+  ): void {
+    this.rolloverIfNeeded(now ?? Date.now());
+    let typeLocal = this.foundationByHeadType.get(headType);
+    if (typeLocal == null) {
+      typeLocal = emptyFoundationStats();
+      this.foundationByHeadType.set(headType, typeLocal);
+    }
+    this.foundation[metric]++;
+    typeLocal[metric]++;
   }
 
   /**
@@ -216,6 +228,12 @@ export class TelegramStats {
       totalCount,
       testMetadataMismatch: this.testMetadataMismatch,
       foundation: { ...this.foundation },
+      foundationByHeadType: new Map(
+        [...this.foundationByHeadType.entries()].map(([headType, metrics]) => [
+          headType,
+          { ...metrics },
+        ]),
+      ),
     };
   }
 
@@ -233,6 +251,7 @@ export class TelegramStats {
       this.earthquakeMaxIntByEvent.clear();
       this.testMetadataMismatch = 0;
       this.foundation = emptyFoundationStats();
+      this.foundationByHeadType.clear();
     }
   }
 }

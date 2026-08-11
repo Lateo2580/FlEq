@@ -3,6 +3,7 @@ import {
   TelegramStats,
   routeToCategory,
   StatsCategory,
+  TelegramFoundationMetric,
 } from "../../src/engine/messages/telegram-stats";
 import { ROUTE_TO_STATS_CATEGORY } from "../../src/engine/messages/route-catalog";
 import type { Route } from "../../src/engine/messages/route-catalog";
@@ -173,6 +174,7 @@ describe("TelegramStats", () => {
       expect(snap.countByType.size).toBe(0);
       expect(snap.categoryByType.size).toBe(0);
       expect(snap.earthquakeMaxIntByEvent.size).toBe(0);
+      expect(snap.foundationByHeadType.size).toBe(0);
     });
 
     it("startTime は防御コピーを返す（外部変更の影響を受けない）", () => {
@@ -191,6 +193,90 @@ describe("TelegramStats", () => {
 
       const snap2 = stats.getSnapshot(BASE);
       expect(snap2.countByType.get("VXSE53")).toBe(1);
+    });
+  });
+
+  describe("foundation stats", () => {
+    it("既存 recordFoundation() は global だけを加算する", () => {
+      stats.recordFoundation("received", BASE);
+
+      const snap = stats.getSnapshot(BASE);
+      expect(snap.foundation.received).toBe(1);
+      expect(snap.foundation.vxse44SuppressedByObservedVxse45).toBe(0);
+      expect(snap.foundation.vxse44SuppressedByCapability).toBe(0);
+      expect(snap.foundationByHeadType.size).toBe(0);
+    });
+
+    it("head type 付き API は既存 metric と新規二 metric を global / type-local へ加算する", () => {
+      stats.recordFoundationForHeadType("VXSE44", "received", BASE);
+      stats.recordFoundationForHeadType(
+        "VXSE44",
+        "vxse44SuppressedByObservedVxse45",
+        BASE,
+      );
+      stats.recordFoundationForHeadType(
+        "VXSE44",
+        "vxse44SuppressedByCapability",
+        BASE,
+      );
+
+      const snap = stats.getSnapshot(BASE);
+      const vxse44 = snap.foundationByHeadType.get("VXSE44");
+      expect(snap.foundation.received).toBe(1);
+      expect(snap.foundation.vxse44SuppressedByObservedVxse45).toBe(1);
+      expect(snap.foundation.vxse44SuppressedByCapability).toBe(1);
+      expect(vxse44?.received).toBe(1);
+      expect(vxse44?.vxse44SuppressedByObservedVxse45).toBe(1);
+      expect(vxse44?.vxse44SuppressedByCapability).toBe(1);
+    });
+
+    it("同じ metric を複数 head type へ独立して記録する", () => {
+      stats.recordFoundationForHeadType("VXSE44", "semanticDuplicate", BASE);
+      stats.recordFoundationForHeadType("VXSE45", "semanticDuplicate", BASE);
+
+      const snap = stats.getSnapshot(BASE);
+      expect(snap.foundation.semanticDuplicate).toBe(2);
+      expect(
+        snap.foundationByHeadType.get("VXSE44")?.semanticDuplicate,
+      ).toBe(1);
+      expect(
+        snap.foundationByHeadType.get("VXSE45")?.semanticDuplicate,
+      ).toBe(1);
+    });
+
+    it("一回の API 呼出で global と type-local を各一回だけ加算する", () => {
+      stats.recordFoundationForHeadType(
+        "VXSE44",
+        "vxse44SuppressedByCapability",
+        BASE,
+      );
+
+      const snap = stats.getSnapshot(BASE);
+      const vxse44 = snap.foundationByHeadType.get("VXSE44");
+      expect(Object.values(snap.foundation).reduce((sum, value) => sum + value, 0)).toBe(1);
+      expect(
+        Object.values(vxse44 ?? {}).reduce((sum, value) => sum + value, 0),
+      ).toBe(1);
+    });
+
+    it("foundationByHeadType の外側 Map と内側 record を防御コピーする", () => {
+      stats.recordFoundationForHeadType("VXSE44", "received", BASE);
+      const snap = stats.getSnapshot(BASE);
+
+      const mutableOuter = snap.foundationByHeadType as Map<
+        string,
+        Readonly<Record<TelegramFoundationMetric, number>>
+      >;
+      mutableOuter.set("VXSE45", { ...snap.foundation });
+      const mutableInner = snap.foundationByHeadType.get("VXSE44") as Record<
+        TelegramFoundationMetric,
+        number
+      >;
+      mutableInner.received = 999;
+
+      const snap2 = stats.getSnapshot(BASE);
+      expect(snap2.foundationByHeadType.has("VXSE45")).toBe(false);
+      expect(snap2.foundationByHeadType.get("VXSE44")?.received).toBe(1);
     });
   });
 
@@ -250,6 +336,32 @@ describe("TelegramStats", () => {
 
       const snap = s.getSnapshot(AFTER_MIDNIGHT);
       expect(snap.totalCount).toBe(0);
+    });
+
+    it("head type 付き記録時の JST rollover で旧日値を捨て新日値を双方へ記録する", () => {
+      const s = new TelegramStats(new Date(BEFORE_MIDNIGHT));
+      s.recordFoundationForHeadType(
+        "VXSE44",
+        "vxse44SuppressedByCapability",
+        BEFORE_MIDNIGHT,
+      );
+      expect(
+        s.getSnapshot(BEFORE_MIDNIGHT).foundationByHeadType.get("VXSE44")
+          ?.vxse44SuppressedByCapability,
+      ).toBe(1);
+
+      s.recordFoundationForHeadType(
+        "VXSE44",
+        "vxse44SuppressedByCapability",
+        AFTER_MIDNIGHT,
+      );
+      const snap = s.getSnapshot(AFTER_MIDNIGHT);
+      expect(snap.foundation.vxse44SuppressedByCapability).toBe(1);
+      expect(snap.foundationByHeadType.size).toBe(1);
+      expect(
+        snap.foundationByHeadType.get("VXSE44")
+          ?.vxse44SuppressedByCapability,
+      ).toBe(1);
     });
   });
 });
