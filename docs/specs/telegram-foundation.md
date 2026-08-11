@@ -246,6 +246,8 @@ export type IntensitySafetyRank =
 
 ### 3.7 下流表示規約
 
+本節の表は、各 surface が当該値を表示対象にした場合の表現規約である。すべての domain／field を各 surface に新規表示することまでは要求しない。
+
 | 下流 | value | missing | empty | unknown | qualitative / range |
 |---|---|---|---|---|---|
 | CLI 詳細 | 数値＋単位 | `—` | `（空欄）` | `不明`＋理由 | 定性語、`X以上`、`X～Y` |
@@ -254,6 +256,8 @@ export type IntensitySafetyRank =
 | カード | 数値＋単位 | `—` | `空欄` | `不明` badge | qualifier badge 付き |
 | 地図 | 通常色 | 非描画 | neutral 色＋`∅` badge | unknown 色＋`?` badge | safety rank 色＋記号 badge |
 | 永続化 | 全フィールド保存 | `raw:null` | 元 raw を空白も含め完全保存（長さ0／self-closing のみ `raw:""`） | raw・condition 保存 | raw・bounds 保存 |
+
+台風カードは既存表示維持の例外とする。気圧・最大風速・最大瞬間風速の `range`／`unknown`／`empty` は semantic を保持しても新規表示せず、移動速度も `qualitative` 以外の特殊値は新規表示しない。既知の移動速度 `qualitative` だけを原文と badge 付きで表示する。
 
 共通規約として、通知やテロップで qualifier を削って通常値のように表示してはならない。
 
@@ -574,7 +578,7 @@ revision gate は副作用のない `evaluate` と、採用を確定する `deci
 
 ### 5.5 cancellation policy
 
-取消動作は次の三種類だけを使用する。
+subject 全体に適用する取消動作は次の三種類だけを使用する。これらとは別に、津波 VTSE41 の keyed 部分取消だけは、後述の `stateNeutralCancellation` を第四の処理経路として使用する。
 
 ```ts
 export type CancellationPolicy =
@@ -588,6 +592,8 @@ export type CancellationPolicy =
 - A. 明示取消: `meta.infoType.value === "取消"`。`extractCancellationTarget` が返した subject に `cancellationPolicy` を適用する。
 - B. lifecycle 終端: `terminalPredicate(meta, parsed) === true`。台風の `transitionedToLow`／`formationCancelled` など、現象が terminal state へ移った subject に policy を適用する。
 - C. active state の非活性化: `deactivationPredicate(meta, parsed) === true`。火山 `alertClass.isActive === false`、`action === "release"`／`"cancel"`、噴火警戒レベル1への引下げなどを alert subject の解除として扱う。
+
+第四経路である津波 keyed 部分取消は、同一 EventID の一部 `EventID + Area.Code + Kind.Code` だけを解除し、別 item が残る場合に使用する。`stateNeutralCancellation:true` により A を不成立とし、`resolvedTrigger`／`clearCurrent`／`cancelApplied` を経由せず、共通 gate が受理した後に holder が対象 item をコードで直接削除する。gate は取消電文の semantic と revision を受理済みとして進めるが、EventID subject は `cancelled:false` の non-cancel watermark として残し、残存 item と再起動後の遅延報拒否を維持する。`test/engine/telegram-foundation/phase3b-tsunami.test.ts` は、同一 EventID の keyed 部分取消後も残存 item と non-cancel watermark を persistence／restart 越しに保つ regression を固定する。
 
 優先順位は `A > B > C` とする。
 
@@ -631,14 +637,14 @@ const resolvedTrigger =
 
 ### 5.6 domain 間の実装差と正規化先
 
-Phase 3B 完了時の registry は次を正とする。保持期間の「runtime」は process lifetime 中だけ有効で、再起動時には失われる。
+Phase 3B 完了時の registry は次を正とする。保持期間の「runtime」は process lifetime 中だけ有効で、再起動時には失われる。durable family の期間は cancellation tombstone の保持期間を基準に記載し、active holder に同じ期間を適用するかは domain policy で分離する。
 
-| domain／revisionFamily（head.type） | state subject 粒度 | policy | durable／保持期間 | `maxSubjects` |
+| domain／revisionFamily（head.type） | state subject 粒度 | policy | durable／tombstone 保持期間（非永続は runtime TTL） | `maxSubjects` |
 |---|---|---|---|---:|
 | EEW／VXSE43、VXSE44、VXSE45 | family ごとの EventID | `markCancelled` | 非永続／11分 runtime | 各512 |
 | weather／VPWS50 | 固定 `weather:vpws50` | `restorePrevious` | 永続／無期限 | 1 |
 | weather／VPWW56 | `(head.type, publishingOffice)` stream | `clearCurrent` | 永続／6時間 | 128 |
-| tsunami／VTSE41 | 固定 `tsunami:current` | `clearCurrent` | 永続／無期限 | 1 |
+| tsunami／VTSE41 | EventID | `clearCurrent` | 永続／無期限 | 512 |
 | tsunamiObservation／VTSE51、VTSE52 | family whole subject＋観測点コード item | `clearCurrent` | 永続／無期限 | 各1,025（whole 1＋station 1,024） |
 | volcano／volcanoAlert（VFVO50、VFVO51、VFSVii） | 火山コード | `clearCurrent` | 永続／30日 | 512 |
 | volcano／volcanoEruption（VFVO52、VFVO56） | 火山コード | `clearCurrent` | 永続／2日 | 512 |
@@ -664,7 +670,9 @@ Phase 3B 完了時の registry は次を正とする。保持期間の「runtime
 
 - `typhoonAnalysis` の `transitionedToLow`／`formationCancelled` は B（terminal）として解決する。
 - 洪水は station が全件 unknown のとき `observeOnly` とし、解除 tombstone を作らない。VXSU の observed series 非保持契約も維持する。
+- 洪水で unknown と known 低位が混在する場合、現行実装は known 低位が一件以上あり警報級が一件もなければ EventID 全体を deactivation できる。前回警報級だった局が今回 unknown の場合に早期解除となる可能性は既知の限界であり、`前回 high + 今回 known-low／unknown 混在` を将来の回帰ケース候補とする。
 - VTSE51／52 は holder と gate の station 上限・LRU 順序を同じ 1,024 件にし、family 取消時は item watermark を除去して whole tombstone だけを残す。
+- 火山 `volcanoAlert`／`volcanoEruption` の30日／2日は tombstone の保持期間である。active holder はこの期間では期限切れにせず、明示解除または family capacity による退場まで保持する。
 - 火山 eruption の旧 v1 key は、実 EventID 由来と火山コード fallback 由来の provenance を区別する。空コード取消の EventID 逆引きは実 EventID 由来だけを対象とし、legacy-v1 由来候補と live EventID 欠落 event も混同しない。
 - subject を抽出できない入力は family 固有 TTL／`maxSubjects` を使う単発 transient key で重複排除する。authoritative mutation は行わず、表示／ticker だけを fail-open し、通知と durable projection を抑止する。
 
@@ -714,11 +722,14 @@ payload fingerprint は canonical payload の SHA-256 digest とし、永続化�
 容量は global LRU ではなく family partition とする。
 
 - `maxSubjects` は各 family の通常 subject、item subject、EventID 欠落時の transient subject を合算した hard limit である。
-- 各 `maxSubjects` は1以上16,384以下でなければならず、全登録 family の宣言値合計も16,384以下でなければ起動を失敗させる。無期限 durable family の合計にも同じ検証を適用する。Phase 3B 完了時の宣言値合計は9,285件である。
+- 各 `maxSubjects` は1以上16,384以下でなければならず、全登録 family の宣言値合計も16,384以下でなければ起動を失敗させる。無期限 durable family の合計にも同じ検証を適用する。Phase 3B 完了時の宣言値合計は9,796件である。
 - 新 subject 受理時は同じ family 内の期限切れ／退場可能 entry だけを整理する。他 family の watermark／tombstone を容量確保のために削除しない。
-- 無期限 tombstone や明示保護 entry だけで family が満杯なら、新 subject を fail-closed で拒否して capacity stats／warning を一度記録する。既存 subject の更新は許可し、family size が実際に上限未満へ戻るまで warning latch を再武装しない。
+- 無期限 tombstone や明示保護 entry だけで family が満杯なら、新 subject を fail-closed で拒否して warning を一度記録する。既存 subject の更新は許可する。
+- 既知の限界として、現行 warning latch の再武装は `enforceFamilyLimit` 終端で family size が上限未満になった場合に限られる。`clear`、family clear、expiry など他の削除経路では直接解除されないため、一枠だけ空いて再充填された後の capacity 拒否では warning が再発火しない場合がある。
 - holder が独自 item 上限を持つ family は gate と同じ LRU 更新順・退場対象を使う。VTSE51／52 は station 1,024件と whole subject 1件を合わせて1,025件とする。
 - 非永続 family も宣言した `tombstoneRetentionMs` を runtime TTL として使用する。保持は process lifetime 内だけであり、再起動後の遅延報拒否は保証しない。
+
+既知の実装課題: `capacityExceeded` の正式な foundation metric 化は未実装であり、現行の受信統計／採用統計には含めない。
 
 受信統計と採用統計を分ける。
 
@@ -878,6 +889,8 @@ EEW revisionFamily は §5.2 の `serialOnly` comparator override を使用す�
 共通 gate が訂正を受理した場合は、実質差分がなくても `訂正` を明示した通知を一回発行する。ただし transport duplicate、semantic duplicate、stale、invalid revision は通知しない。
 
 ## 9. VXSE44 の購読確認付き抑止
+
+> **稼働状態:** 本節の capability 抑止は Phase 6A 実装契約（§13）に基づく将来契約である。Phase 6A が main へ統合されるまで、現行実装は VXSE44 を常時抑止する。
 
 ### 9.1 基本方針
 
