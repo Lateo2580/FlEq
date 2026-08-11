@@ -6,6 +6,10 @@ import {
   Classification,
 } from "../../types";
 import { listContracts } from "../../dmdata/rest-client";
+import {
+  clearVerifiedContractClassifications,
+  setVerifiedContractClassifications,
+} from "../../dmdata/delivery-capabilities";
 import { startMonitor } from "../monitor/monitor";
 import { setFrameWidth, setInfoFullText, setDisplayMode, setMaxObservations, setTruncation, setWeatherWarningDisplayOptions } from "../../ui/formatter";
 import { setTerminalTitle } from "../../ui/terminal-title";
@@ -85,7 +89,9 @@ export async function runMonitor(opts: RunMonitorOptions): Promise<void> {
     }
 
     config.classifications = active as Classification[];
+    setVerifiedContractClassifications(config, contractedClassifications);
   } catch (err) {
+    clearVerifiedContractClassifications(config);
     log.warn(
       `契約状況の確認に失敗しました: ${err instanceof Error ? err.message : err}`
     );

@@ -22,6 +22,7 @@ vi.mock("../../src/logger", () => ({
 
 import { WsManagerEvents } from "../../src/dmdata/ws-client";
 import { MultiConnectionManager } from "../../src/dmdata/multi-connection-manager";
+import { DeliveryCapabilities } from "../../src/dmdata/delivery-capabilities";
 import { AppConfig, DEFAULT_CONFIG, WsDataMessage } from "../../src/types";
 import * as log from "../../src/logger";
 
@@ -79,17 +80,42 @@ function createMockMsg(id: string): WsDataMessage {
   };
 }
 
+function confirmedCapability(
+  classifications: readonly string[],
+  guaranteedHeadTypes: readonly string[],
+): DeliveryCapabilities {
+  return {
+    connected: true,
+    effectiveClassifications: classifications,
+    guaranteedHeadTypes: new Set(guaranteedHeadTypes),
+    source: "contract-and-socket",
+  };
+}
+
+function socketStartCapability(
+  classifications: readonly string[],
+): DeliveryCapabilities {
+  return {
+    connected: true,
+    effectiveClassifications: classifications,
+    guaranteedHeadTypes: new Set(),
+    source: "socket-start",
+  };
+}
+
 describe("MultiConnectionManager", () => {
   let capturedPrimaryEvents: WsManagerEvents;
   let capturedBackupEvents: WsManagerEvents;
   let mockPrimaryInstance: {
     connect: ReturnType<typeof vi.fn>;
     getStatus: ReturnType<typeof vi.fn>;
+    getDeliveryCapabilities: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
   };
   let mockBackupInstance: {
     connect: ReturnType<typeof vi.fn>;
     getStatus: ReturnType<typeof vi.fn>;
+    getDeliveryCapabilities: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
   };
   let constructorCallCount: number;
@@ -106,6 +132,12 @@ describe("MultiConnectionManager", () => {
         reconnectAttempt: 0,
         heartbeatDeadlineAt: null,
       })),
+      getDeliveryCapabilities: vi.fn(() => ({
+        connected: false,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set<string>(),
+        source: "unknown" as const,
+      })),
       close: vi.fn(),
     };
 
@@ -116,6 +148,12 @@ describe("MultiConnectionManager", () => {
         socketId: 200,
         reconnectAttempt: 0,
         heartbeatDeadlineAt: null,
+      })),
+      getDeliveryCapabilities: vi.fn(() => ({
+        connected: false,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set<string>(),
+        source: "unknown" as const,
       })),
       close: vi.fn(),
     };
@@ -147,6 +185,198 @@ describe("MultiConnectionManager", () => {
 
     expect(manager.isBackupRunning()).toBe(false);
     expect(manager.getBackupStatus()).toBeNull();
+  });
+
+  it("primary の start 確認済み capability をそのまま公開する", async () => {
+    const primaryCapability = confirmedCapability(
+      ["eew.forecast"],
+      ["VXSE45"],
+    );
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(primaryCapability);
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    }, {
+      now: () => 1_700_000_000_000,
+      nextSocketGeneration: (() => {
+        let generation = 0;
+        return () => ++generation;
+      })(),
+    });
+
+    await manager.connect();
+
+    expect(manager.getDeliveryCapabilities()).toEqual(primaryCapability);
+  });
+
+  it("primary confirmed + backup unknown は全体を unknown にする", async () => {
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(["eew.forecast"], ["VXSE45"]),
+    );
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual({
+      connected: false,
+      effectiveClassifications: [],
+      guaranteedHeadTypes: new Set(),
+      source: "unknown",
+    });
+  });
+
+  it("backup が connected unknown なら接続中のまま保証だけを空にする", async () => {
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(["eew.forecast"], ["VXSE45"]),
+    );
+    mockBackupInstance.getDeliveryCapabilities.mockReturnValue({
+      connected: true,
+      effectiveClassifications: [],
+      guaranteedHeadTypes: new Set(),
+      source: "unknown",
+    });
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual({
+      connected: true,
+      effectiveClassifications: [],
+      guaranteedHeadTypes: new Set(),
+      source: "unknown",
+    });
+  });
+
+  it("primary と backup の両系 confirmed 時だけ保証を合成する", async () => {
+    const confirmed = confirmedCapability(["eew.forecast"], ["VXSE45"]);
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(confirmed);
+    mockBackupInstance.getDeliveryCapabilities.mockReturnValue(confirmed);
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual({
+      connected: true,
+      effectiveClassifications: ["eew.forecast"],
+      guaranteedHeadTypes: new Set(["VXSE45"]),
+      source: "contract-and-socket",
+    });
+  });
+
+  it("異なる classifications の両系 confirmed は共通部分だけを公開する", async () => {
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(
+        ["eew.forecast", "eew.warning"],
+        ["VXSE44", "VXSE43"],
+      ),
+    );
+    mockBackupInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(["eew.forecast"], ["VXSE44"]),
+    );
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual({
+      connected: true,
+      effectiveClassifications: ["eew.forecast"],
+      guaranteedHeadTypes: new Set(["VXSE44"]),
+      source: "contract-and-socket",
+    });
+  });
+
+  it("異なる classifications の両系 socket-start は共通部分だけを公開する", async () => {
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(
+      socketStartCapability(["eew.forecast", "eew.warning"]),
+    );
+    mockBackupInstance.getDeliveryCapabilities.mockReturnValue(
+      socketStartCapability(["eew.forecast"]),
+    );
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual({
+      connected: true,
+      effectiveClassifications: ["eew.forecast"],
+      guaranteedHeadTypes: new Set(),
+      source: "socket-start",
+    });
+  });
+
+  it("mixed source は共通 classifications を保持し保証だけを空にする", async () => {
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(
+        ["eew.forecast", "eew.warning"],
+        ["VXSE44", "VXSE43"],
+      ),
+    );
+    mockBackupInstance.getDeliveryCapabilities.mockReturnValue(
+      socketStartCapability(["eew.forecast"]),
+    );
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual({
+      connected: true,
+      effectiveClassifications: ["eew.forecast"],
+      guaranteedHeadTypes: new Set(),
+      source: "unknown",
+    });
+  });
+
+  it("backup 停止後は primary の capability だけへ戻る", async () => {
+    mockPrimaryInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(["eew.forecast"], ["VXSE45"]),
+    );
+    mockBackupInstance.getDeliveryCapabilities.mockReturnValue(
+      confirmedCapability(["eew.forecast"], ["VXSE45"]),
+    );
+    const manager = new MultiConnectionManager(createConfig(), {
+      onData: vi.fn(),
+      onConnected: vi.fn(),
+      onDisconnected: vi.fn(),
+    });
+
+    await manager.connect();
+    await manager.startBackup();
+    manager.stopBackup();
+
+    expect(manager.getDeliveryCapabilities()).toEqual(
+      confirmedCapability(["eew.forecast"], ["VXSE45"]),
+    );
   });
 
   it("startBackup / stopBackup のライフサイクル", async () => {

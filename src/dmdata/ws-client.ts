@@ -1,8 +1,17 @@
 import WebSocket from "ws";
-import { AppConfig, WsDataMessage, WsStartMessage, WsPingMessage } from "../types";
+import { AppConfig, WsDataMessage, WsPingMessage } from "../types";
 import { prepareAndStartSocket } from "./rest-client";
 import { EndpointSelector } from "./endpoint-selector";
 import { ConnectionManager } from "./connection-manager";
+import {
+  CLASSIFICATION_HEAD_TYPE_REGISTRY,
+  cloneDeliveryCapabilities,
+  createUnknownDeliveryCapabilities,
+  getVerifiedContractClassifications,
+  guaranteedHeadTypesForClassifications,
+  ClassificationHeadTypeRegistry,
+  DeliveryCapabilities,
+} from "./delivery-capabilities";
 import * as log from "../logger";
 
 export interface WsManagerStatus {
@@ -16,6 +25,14 @@ export interface WsManagerEvents {
   onData: (msg: WsDataMessage) => void;
   onConnected: () => void;
   onDisconnected: (reason: string) => void;
+}
+
+/** WebSocketManager の接続時計・世代を差し替えるための依存性注入。 */
+export interface WsManagerOptions {
+  now?: () => number;
+  nextSocketGeneration?: () => number;
+  verifiedContractClassifications?: readonly string[];
+  deliveryCapabilityRegistry?: ClassificationHeadTypeRegistry;
 }
 
 /** サーバーからの ping が途絶えたとみなすまでのミリ秒 */
@@ -47,10 +64,32 @@ export function isWsDataMessage(parsed: unknown): parsed is WsDataMessage {
   return true;
 }
 
-function isWsStartMessage(parsed: unknown): parsed is WsStartMessage {
+interface WsCapabilityStartMessage {
+  type: "start";
+  socketId: number;
+  classifications: string[];
+}
+
+function isWsCapabilityStartMessage(
+  parsed: unknown,
+): parsed is WsCapabilityStartMessage {
   if (typeof parsed !== "object" || parsed == null) return false;
   const msg = parsed as Record<string, unknown>;
-  return typeof msg["socketId"] === "number" && Array.isArray(msg["classifications"]);
+  if (msg["type"] !== "start") return false;
+  if (typeof msg["socketId"] !== "number" || !Number.isFinite(msg["socketId"])) {
+    return false;
+  }
+  const classifications = msg["classifications"];
+  return Array.isArray(classifications)
+    && classifications.every((classification) => typeof classification === "string");
+}
+
+function sameClassifications(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return left.length === right.length
+    && left.every((classification, index) => classification === right[index]);
 }
 
 function isWsPingMessage(parsed: unknown): parsed is WsPingMessage {
@@ -73,15 +112,42 @@ export class WebSocketManager implements ConnectionManager {
   private endpointSelector = new EndpointSelector();
   /** connect 世代番号 — close() 時にインクリメントして in-flight connect を無効化する */
   private connectSeq = 0;
+  private readonly now: () => number;
+  private readonly nextSocketGeneration: () => number;
+  private readonly verifiedContractClassifications: readonly string[] | null;
+  private readonly deliveryCapabilityRegistry: ClassificationHeadTypeRegistry;
+  /** WebSocket インスタンス単位の capability 世代。古い start を現行世代へ混ぜない。 */
+  private activeSocketGeneration: number | null = null;
+  private startConfirmedGeneration: number | null = null;
+  private effectiveClassifications: readonly string[] = [];
+  private latchedStart: WsCapabilityStartMessage | null = null;
+  private invalidatedSocketGeneration: number | null = null;
 
-  constructor(config: AppConfig, events: WsManagerEvents) {
+  constructor(
+    config: AppConfig,
+    events: WsManagerEvents,
+    options?: WsManagerOptions,
+  ) {
     this.config = config;
     this.events = events;
+    this.now = options?.now ?? Date.now;
+    let localSocketGeneration = 0;
+    this.nextSocketGeneration = options?.nextSocketGeneration
+      ?? (() => ++localSocketGeneration);
+    const verifiedClassifications =
+      options?.verifiedContractClassifications
+      ?? getVerifiedContractClassifications(config);
+    this.verifiedContractClassifications = verifiedClassifications == null
+      ? null
+      : Object.freeze([...verifiedClassifications]);
+    this.deliveryCapabilityRegistry =
+      options?.deliveryCapabilityRegistry ?? CLASSIFICATION_HEAD_TYPE_REGISTRY;
   }
 
   /** 接続を開始する */
   async connect(): Promise<void> {
     this.shouldRun = true;
+    this.resetDeliveryCapability();
     // 既存の再接続タイマーと CONNECTING 中のソケットを中止してから新規接続する
     this.cancelInflight();
     const seq = ++this.connectSeq;
@@ -98,6 +164,43 @@ export class WebSocketManager implements ConnectionManager {
     };
   }
 
+  /** 現行 socket の start と契約情報から配送 capability を返す。 */
+  getDeliveryCapabilities(): DeliveryCapabilities {
+    const connected = this.ws != null && this.ws.readyState === WebSocket.OPEN;
+    const generation = this.activeSocketGeneration;
+    if (
+      !connected
+      || generation == null
+      || this.startConfirmedGeneration !== generation
+    ) {
+      return createUnknownDeliveryCapabilities(connected);
+    }
+
+    const effectiveClassifications = [...this.effectiveClassifications];
+    if (this.verifiedContractClassifications == null) {
+      return cloneDeliveryCapabilities({
+        connected,
+        effectiveClassifications,
+        guaranteedHeadTypes: new Set<string>(),
+        source: "socket-start",
+      });
+    }
+
+    const verified = new Set(this.verifiedContractClassifications);
+    const contractedSocketClassifications = effectiveClassifications.filter(
+      (classification) => verified.has(classification),
+    );
+    return cloneDeliveryCapabilities({
+      connected,
+      effectiveClassifications,
+      guaranteedHeadTypes: guaranteedHeadTypesForClassifications(
+        contractedSocketClassifications,
+        this.deliveryCapabilityRegistry,
+      ),
+      source: "contract-and-socket",
+    });
+  }
+
   /** 接続を停止する */
   close(): void {
     this.shouldRun = false;
@@ -108,6 +211,7 @@ export class WebSocketManager implements ConnectionManager {
       this.ws = null;
     }
     this.heartbeatDeadlineAt = null;
+    this.resetDeliveryCapability();
   }
 
   private clearTimers(): void {
@@ -119,6 +223,32 @@ export class WebSocketManager implements ConnectionManager {
       clearTimeout(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+  }
+
+  /** 新しい WebSocket 世代を開始し、start 確認前の unknown へ戻す。 */
+  private beginSocketGeneration(generation: number): void {
+    this.activeSocketGeneration = generation;
+    this.startConfirmedGeneration = null;
+    this.effectiveClassifications = [];
+    this.latchedStart = null;
+    this.invalidatedSocketGeneration = null;
+  }
+
+  /** start の保証根拠を破棄する。transport の切断・再接続開始時に必ず呼ぶ。 */
+  private resetDeliveryCapability(): void {
+    this.activeSocketGeneration = null;
+    this.startConfirmedGeneration = null;
+    this.effectiveClassifications = [];
+    this.latchedStart = null;
+    this.invalidatedSocketGeneration = null;
+  }
+
+  /** 現行 socket 世代を unknown に固定する。切断までは後続 start で回復させない。 */
+  private invalidateDeliveryCapability(socketGeneration: number): void {
+    if (this.activeSocketGeneration !== socketGeneration) return;
+    this.startConfirmedGeneration = null;
+    this.effectiveClassifications = [];
+    this.invalidatedSocketGeneration = socketGeneration;
   }
 
   /** 再接続タイマーと CONNECTING 中のソケットを中止する */
@@ -141,6 +271,7 @@ export class WebSocketManager implements ConnectionManager {
   /** close/error 共通の切断後処理 */
   private onDisconnect(reason: string): void {
     this.clearTimers();
+    this.resetDeliveryCapability();
     this.ws = null;
     this.previousSocketId = this.socketId;
     this.socketId = null;
@@ -181,6 +312,8 @@ export class WebSocketManager implements ConnectionManager {
       }
 
       const socket = new WebSocket(wsUrl, ["dmdata.v2"]);
+      const socketGeneration = this.nextSocketGeneration();
+      this.beginSocketGeneration(socketGeneration);
       this.ws = socket;
 
       socket.on("open", () => {
@@ -196,7 +329,7 @@ export class WebSocketManager implements ConnectionManager {
 
       socket.on("message", (raw: WebSocket.Data) => {
         if (this.ws !== socket) return;
-        this.handleMessage(raw);
+        this.handleMessage(raw, socketGeneration);
       });
 
       socket.on("close", (code: number, reason: Buffer) => {
@@ -235,7 +368,7 @@ export class WebSocketManager implements ConnectionManager {
     return String(raw);
   }
 
-  private handleMessage(raw: WebSocket.Data): void {
+  private handleMessage(raw: WebSocket.Data, socketGeneration: number): void {
     let parsed: unknown;
     try {
       const text = WebSocketManager.normalizeWsData(raw);
@@ -255,7 +388,7 @@ export class WebSocketManager implements ConnectionManager {
 
     switch (messageType) {
       case "start":
-        this.handleStartMessage(parsed);
+        this.handleStartMessage(parsed, socketGeneration);
         break;
 
       case "ping":
@@ -279,12 +412,37 @@ export class WebSocketManager implements ConnectionManager {
     }
   }
 
-  private handleStartMessage(parsed: unknown): void {
-    if (!isWsStartMessage(parsed)) {
+  private handleStartMessage(parsed: unknown, socketGeneration: number): void {
+    if (this.activeSocketGeneration !== socketGeneration) return;
+    if (!isWsCapabilityStartMessage(parsed)) {
+      this.invalidateDeliveryCapability(socketGeneration);
       log.warn("start メッセージのスキーマが不正です");
       return;
     }
+
+    if (this.invalidatedSocketGeneration === socketGeneration) return;
+
+    if (this.latchedStart != null) {
+      const isExactDuplicate = this.latchedStart.socketId === parsed.socketId
+        && sameClassifications(
+          this.latchedStart.classifications,
+          parsed.classifications,
+        );
+      if (isExactDuplicate) return;
+
+      this.invalidateDeliveryCapability(socketGeneration);
+      log.warn("同一 socket 世代で内容の異なる start を受信したため capability を unknown に戻します");
+      return;
+    }
+
+    this.latchedStart = {
+      type: "start",
+      socketId: parsed.socketId,
+      classifications: [...parsed.classifications],
+    };
     this.socketId = parsed.socketId;
+    this.startConfirmedGeneration = socketGeneration;
+    this.effectiveClassifications = [...parsed.classifications];
     log.info(`セッション開始: socketId=${parsed.socketId}`);
     log.info(`区分: [${parsed.classifications.join(", ")}]`);
   }
@@ -342,7 +500,7 @@ export class WebSocketManager implements ConnectionManager {
     if (this.heartbeatTimer) {
       clearTimeout(this.heartbeatTimer);
     }
-    this.heartbeatDeadlineAt = Date.now() + HEARTBEAT_TIMEOUT_MS;
+    this.heartbeatDeadlineAt = this.now() + HEARTBEAT_TIMEOUT_MS;
     this.heartbeatTimer = setTimeout(() => {
       log.warn(
         `ハートビートタイムアウト: ${HEARTBEAT_TIMEOUT_MS / 1000}秒間 ping を受信していません`

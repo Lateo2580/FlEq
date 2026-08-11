@@ -34,6 +34,7 @@ vi.mock("../../src/logger", () => ({
 import { runMonitor } from "../../src/engine/cli/cli-run";
 import { loadConfig } from "../../src/config";
 import { listContracts } from "../../src/dmdata/rest-client";
+import { getVerifiedContractClassifications } from "../../src/dmdata/delivery-capabilities";
 import { startMonitor } from "../../src/engine/monitor/monitor";
 import { PipelineController } from "../../src/engine/filter-template/pipeline-controller";
 import * as log from "../../src/logger";
@@ -224,6 +225,25 @@ describe("runMonitor", () => {
   });
 
   describe("契約状況チェック", () => {
+    it("契約確認成功時は検証済み区分を connection 層へ渡す", async () => {
+      mockListContracts.mockResolvedValue([
+        "telegram.earthquake",
+        "eew.forecast",
+      ]);
+
+      await runMonitor({
+        apiKey: "key",
+        classifications: "eew.forecast",
+        debug: false,
+      });
+
+      const [config] = mockStartMonitor.mock.calls[0];
+      expect(getVerifiedContractClassifications(config)).toEqual([
+        "telegram.earthquake",
+        "eew.forecast",
+      ]);
+    });
+
     it("未契約の区分をスキップする", async () => {
       mockListContracts.mockResolvedValue(["telegram.earthquake"]);
 
@@ -267,6 +287,8 @@ describe("runMonitor", () => {
         expect.stringContaining("契約状況の確認に失敗しました")
       );
       expect(mockStartMonitor).toHaveBeenCalled();
+      const [config] = mockStartMonitor.mock.calls[0];
+      expect(getVerifiedContractClassifications(config)).toBeNull();
     });
   });
 

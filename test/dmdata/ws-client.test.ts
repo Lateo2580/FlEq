@@ -16,6 +16,7 @@ class MockWebSocket extends EventEmitter {
 }
 
 let mockWsInstance: MockWebSocket;
+const mockWsInstances: MockWebSocket[] = [];
 
 vi.mock("ws", () => {
   return {
@@ -30,20 +31,22 @@ vi.mock("ws", () => {
       private emitter: EventEmitter;
 
       constructor(_url: string, _protocols?: string[]) {
-        mockWsInstance = new MockWebSocket();
-        this.readyState = mockWsInstance.readyState;
-        this.send = mockWsInstance.send;
-        this.close = mockWsInstance.close;
-        this.emitter = mockWsInstance;
+        const instance = new MockWebSocket();
+        mockWsInstance = instance;
+        mockWsInstances.push(instance);
+        this.readyState = instance.readyState;
+        this.send = instance.send;
+        this.close = instance.close;
+        this.emitter = instance;
 
         // readyState をプロキシで同期
         const self = this;
         Object.defineProperty(this, "readyState", {
           get() {
-            return mockWsInstance.readyState;
+            return instance.readyState;
           },
           set(v: number) {
-            mockWsInstance.readyState = v;
+            instance.readyState = v;
           },
         });
 
@@ -129,6 +132,7 @@ function mockSocketStartSuccess(): void {
 describe("WebSocketManager", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    mockWsInstances.length = 0;
     mockSocketStartSuccess();
   });
 
@@ -167,6 +171,107 @@ describe("WebSocketManager", () => {
       expect(mockWsInstance.close).toHaveBeenCalledWith(1000, "client shutdown");
       expect(manager.getStatus().connected).toBe(false);
     });
+
+    it("open だけでは capability は unknown のまま", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set(),
+        source: "unknown",
+      });
+
+      manager.close();
+    });
+
+    it("open → start で実効 classifications を保持する", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["eew.forecast"],
+        }),
+      );
+
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: ["eew.forecast"],
+        guaranteedHeadTypes: new Set(),
+        source: "socket-start",
+      });
+
+      manager.close();
+    });
+
+    it("契約確認済みなら socket start との積集合だけを保証へ解決する", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events, {
+        now: () => 1_000,
+        nextSocketGeneration: () => 17,
+        verifiedContractClassifications: ["eew.forecast"],
+        deliveryCapabilityRegistry: new Map([
+          ["eew.forecast", ["VXSE45"]],
+        ]),
+      });
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+      expect(manager.getStatus().heartbeatDeadlineAt).toBe(91_000);
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["eew.forecast", "telegram.earthquake"],
+        }),
+      );
+
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: ["eew.forecast", "telegram.earthquake"],
+        guaranteedHeadTypes: new Set(["VXSE45"]),
+        source: "contract-and-socket",
+      });
+
+      manager.close();
+    });
+
+    it("契約確認失敗時は start を観測しても保証へ昇格しない", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events, {
+        deliveryCapabilityRegistry: new Map([
+          ["eew.forecast", ["VXSE45"]],
+        ]),
+      });
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["eew.forecast"],
+        }),
+      );
+
+      const capability = manager.getDeliveryCapabilities();
+      expect(capability.source).toBe("socket-start");
+      expect(capability.guaranteedHeadTypes).toEqual(new Set());
+
+      manager.close();
+    });
   });
 
   describe("メッセージハンドリング", () => {
@@ -201,6 +306,27 @@ describe("WebSocketManager", () => {
       expect(events.onData).toHaveBeenCalledWith(
         expect.objectContaining({ type: "data", id: "test-id-0001234567890" })
       );
+
+      manager.close();
+    });
+
+    it("data を open 後に受けても start 未確認なら capability は unknown", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events);
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "data",
+          id: "data-before-start",
+          head: { type: "VXSE45", test: false },
+        }),
+      );
+
+      expect(manager.getDeliveryCapabilities().source).toBe("unknown");
+      expect(manager.getDeliveryCapabilities().guaranteedHeadTypes).toEqual(new Set());
 
       manager.close();
     });
@@ -339,6 +465,96 @@ describe("WebSocketManager", () => {
 
       expect(events.onDisconnected).toHaveBeenCalledWith("connection lost");
       expect(manager.getStatus().reconnectAttempt).toBe(1);
+
+      manager.close();
+    });
+
+    it("start を世代内で latch し、旧 socket の遅延 start を新世代へ混ぜない", async () => {
+      const log = await import("../../src/logger");
+      const events = createEvents();
+      let generation = 0;
+      const manager = new WebSocketManager(createConfig(), events, {
+        nextSocketGeneration: () => ++generation,
+        verifiedContractClassifications: ["eew.forecast"],
+        deliveryCapabilityRegistry: new Map([
+          ["eew.forecast", ["VXSE45"]],
+        ]),
+      });
+
+      await manager.connect();
+      const firstSocket = mockWsInstance;
+      firstSocket.emit("open");
+      const firstStart = JSON.stringify({
+        type: "start",
+        socketId: 99,
+        classifications: ["eew.forecast"],
+      });
+      firstSocket.emit("message", firstStart);
+      expect(manager.getDeliveryCapabilities().guaranteedHeadTypes).toEqual(
+        new Set(["VXSE45"]),
+      );
+
+      vi.mocked(log.warn).mockClear();
+      firstSocket.emit("message", firstStart);
+      expect(manager.getDeliveryCapabilities().guaranteedHeadTypes).toEqual(
+        new Set(["VXSE45"]),
+      );
+      expect(log.warn).not.toHaveBeenCalled();
+
+      firstSocket.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["telegram.earthquake"],
+        }),
+      );
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set(),
+        source: "unknown",
+      });
+      expect(log.warn).toHaveBeenCalledWith(
+        expect.stringContaining("内容の異なる start"),
+      );
+
+      vi.spyOn(Math, "random").mockReturnValue(0);
+      firstSocket.emit("close", 1006, Buffer.from("connection lost"));
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: false,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set(),
+        source: "unknown",
+      });
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      const secondSocket = mockWsInstance;
+      expect(secondSocket).not.toBe(firstSocket);
+      expect(mockWsInstances).toEqual([firstSocket, secondSocket]);
+      secondSocket.emit("open");
+      expect(manager.getDeliveryCapabilities().source).toBe("unknown");
+
+      firstSocket.emit("message", firstStart);
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set(),
+        source: "unknown",
+      });
+
+      secondSocket.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 100,
+          classifications: ["eew.forecast"],
+        }),
+      );
+      expect(manager.getDeliveryCapabilities().guaranteedHeadTypes).toEqual(
+        new Set(["VXSE45"]),
+      );
+      expect(generation).toBe(2);
 
       manager.close();
     });
@@ -571,9 +787,14 @@ describe("WebSocketManager", () => {
       manager.close();
     });
 
-    it("socketId が欠落した start メッセージでもクラッシュしない", async () => {
+    it("最初の start が malformed なら同一世代の後続 valid でも unknown を維持する", async () => {
       const events = createEvents();
-      const manager = new WebSocketManager(createConfig(), events);
+      const manager = new WebSocketManager(createConfig(), events, {
+        verifiedContractClassifications: ["eew.forecast"],
+        deliveryCapabilityRegistry: new Map([
+          ["eew.forecast", ["VXSE45"]],
+        ]),
+      });
 
       await manager.connect();
       mockWsInstance.emit("open");
@@ -584,8 +805,67 @@ describe("WebSocketManager", () => {
         JSON.stringify({ type: "start", classifications: ["telegram.earthquake"] })
       );
 
-      // socketId が記録されていないこと (null のまま)
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["eew.forecast"],
+        }),
+      );
+
       expect(manager.getStatus().socketId).toBeNull();
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set(),
+        source: "unknown",
+      });
+
+      manager.close();
+    });
+
+    it("classifications の要素が不正な start は capability を unknown に戻す", async () => {
+      const events = createEvents();
+      const manager = new WebSocketManager(createConfig(), events, {
+        verifiedContractClassifications: ["eew.forecast"],
+        deliveryCapabilityRegistry: new Map([
+          ["eew.forecast", ["VXSE45"]],
+        ]),
+      });
+
+      await manager.connect();
+      mockWsInstance.emit("open");
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["eew.forecast"],
+        }),
+      );
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: ["eew.forecast"],
+        guaranteedHeadTypes: new Set(["VXSE45"]),
+        source: "contract-and-socket",
+      });
+
+      mockWsInstance.emit(
+        "message",
+        JSON.stringify({
+          type: "start",
+          socketId: 99,
+          classifications: ["eew.forecast", 42],
+        }),
+      );
+
+      expect(manager.getDeliveryCapabilities()).toEqual({
+        connected: true,
+        effectiveClassifications: [],
+        guaranteedHeadTypes: new Set(),
+        source: "unknown",
+      });
 
       manager.close();
     });

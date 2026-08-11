@@ -1,4 +1,5 @@
 import { WsManagerStatus } from "./ws-client";
+import type { DeliveryCapabilities } from "./delivery-capabilities";
 
 /**
  * WebSocket 接続管理の共通インターフェース。
@@ -7,5 +8,7 @@ import { WsManagerStatus } from "./ws-client";
 export interface ConnectionManager {
   connect(): Promise<void>;
   getStatus(): WsManagerStatus;
+  /** 配送 capability。旧実装・UI 用 mock との互換性のため optional な additive API とする。 */
+  getDeliveryCapabilities?(): DeliveryCapabilities;
   close(): void;
 }
