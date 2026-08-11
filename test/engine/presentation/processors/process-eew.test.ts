@@ -41,6 +41,15 @@ describe("processEew", () => {
     eewLogger = new EewEventLogger();
   });
 
+  const vxse45Capability = {
+    getDeliveryCapabilities: () => ({
+      connected: true,
+      effectiveClassifications: ["eew.forecast"],
+      guaranteedHeadTypes: new Set(["VXSE45"]),
+      source: "contract-and-socket" as const,
+    }),
+  };
+
   function phase4aEewXml(
     eventId: string,
     serial: string,
@@ -123,13 +132,40 @@ describe("processEew", () => {
     expect(result.outcome.presentation.soundLevel).toBe("cancel");
   });
 
-  it("VXSE44 は常時 suppressed を返す (VXSE45 未受信でも)", () => {
+  it("capability unknown では VXSE44 を fail-open で通常処理する", () => {
     const msg44 = createMockWsDataMessage(FIXTURE_VXSE44_S10);
     const result = processEew(msg44, eewTracker, eewLogger);
-    expect(result.kind).toBe("suppressed");
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.outcome.eewResult.isSuppressed).toBe(false);
+    expect(result.outcome.eewResult.firstReportSignal).toBe(true);
   });
 
-  it("VXSE44 も共通 revision gate を通り、同一報の再送は duplicate", () => {
+  it("fail-open VXSE44 で logger を開始し後続 VXSE45 は同じ event log へ追記する", async () => {
+    const fs = await import("fs");
+    const appendFile = vi.mocked(fs.promises.appendFile);
+    appendFile.mockClear();
+
+    const first44 = processEew(
+      createMockWsDataMessage(FIXTURE_VXSE44_S10),
+      eewTracker,
+      eewLogger,
+    );
+    const later45 = processEew(
+      createMockWsDataMessage(FIXTURE_VXSE45_S1),
+      eewTracker,
+      eewLogger,
+    );
+    expect(first44.kind).toBe("ok");
+    expect(later45.kind).toBe("ok");
+    await eewLogger.flush();
+
+    expect(appendFile).toHaveBeenCalledTimes(2);
+    expect(String(appendFile.mock.calls[0][1])).toContain("記録開始:");
+    expect(String(appendFile.mock.calls[1][1])).not.toContain("記録開始:");
+  });
+
+  it("capability 抑止 VXSE44 も共通 revision gate を通り、同一報の再送は duplicate", () => {
     const first = createMockWsDataMessage(FIXTURE_VXSE44_S10);
     const repeated = {
       ...createMockWsDataMessage(FIXTURE_VXSE44_S10),
@@ -137,8 +173,8 @@ describe("processEew", () => {
       meta: undefined,
     };
 
-    expect(processEew(first, eewTracker, eewLogger).kind).toBe("suppressed");
-    expect(processEew(repeated, eewTracker, eewLogger).kind).toBe("duplicate");
+    expect(processEew(first, eewTracker, eewLogger, vxse45Capability).kind).toBe("suppressed");
+    expect(processEew(repeated, eewTracker, eewLogger, vxse45Capability).kind).toBe("duplicate");
   });
 
   it("VXSE45 受信済みイベントの VXSE44 も suppressed を返す", () => {
@@ -153,11 +189,9 @@ describe("processEew", () => {
     expect(result44.kind).toBe("suppressed");
   });
 
-  it("VXSE44 が先行受信されても VXSE45 は isNew=true を返す (第1報通知の発火条件を担保)", () => {
-    // 同じ EventID の VXSE44 → VXSE45 の順で受信。VXSE44 で event を登録しないので
-    // 後続 VXSE45 は isNew=true となり、Notifier.notifyEew() の第1報通知が発火する。
+  it("capability-suppressed VXSE44 は latch を消費せず後続 VXSE45 が第1報 signal を得る", () => {
     const msg44 = createMockWsDataMessage(FIXTURE_VXSE44_S10);
-    const result44 = processEew(msg44, eewTracker, eewLogger);
+    const result44 = processEew(msg44, eewTracker, eewLogger, vxse45Capability);
     expect(result44.kind).toBe("suppressed");
 
     const msg45 = createMockWsDataMessage(FIXTURE_VXSE45_S1);
@@ -165,6 +199,7 @@ describe("processEew", () => {
     expect(result45.kind).toBe("ok");
     if (result45.kind !== "ok") return;
     expect(result45.outcome.eewResult.isNew).toBe(true);
+    expect(result45.outcome.eewResult.firstReportSignal).toBe(true);
   });
 
   it("実 processor 経路の VXSE44 known → VXSE45 unknown は表示 snapshot だけ置換し safety rank を継承する", () => {
@@ -178,6 +213,7 @@ describe("processEew", () => {
       createMockWsDataMessageFromXml(knownXml, "VXSE44"),
       eewTracker,
       eewLogger,
+      vxse45Capability,
     ).kind).toBe("suppressed");
 
     const unknownXml = phase4aEewXml(
@@ -227,7 +263,7 @@ describe("processEew", () => {
       eventId,
       "1",
       "<ForecastInt><From>6-</From><To>6-</To></ForecastInt>",
-    ), "VXSE44"), eewTracker, eewLogger).kind).toBe("suppressed");
+    ), "VXSE44"), eewTracker, eewLogger, vxse45Capability).kind).toBe("suppressed");
 
     const unknown45 = processEew(createMockWsDataMessageFromXml(phase4aEewXml(
       eventId,
@@ -283,7 +319,7 @@ describe("processEew", () => {
       eventId,
       "1",
       "<ForecastInt><From>4</From><To>4</To></ForecastInt>",
-    ), "VXSE44"), eewTracker, eewLogger).kind).toBe("suppressed");
+    ), "VXSE44"), eewTracker, eewLogger, vxse45Capability).kind).toBe("suppressed");
 
     const unknown45 = processEew(createMockWsDataMessageFromXml(phase4aEewXml(
       eventId,
@@ -504,7 +540,7 @@ describe("processEew", () => {
       sourceType: "VXSE45",
       isFinal: false,
       isCancellation: false,
-      isCorrection: true,
+      isCorrection: false,
       restoreRevision: {
         sourceType: "VXSE44",
         serial: "30",
@@ -607,6 +643,7 @@ describe("processEew", () => {
       createMockWsDataMessageFromXml(finalXml, "VXSE44"),
       eewTracker,
       eewLogger,
+      vxse45Capability,
     );
     expect(terminal44.kind).toBe("ok");
     if (terminal44.kind !== "ok") return;
@@ -717,5 +754,96 @@ describe("processEew", () => {
     // Restore watermark は VXSE44 serial=99。後着した旧 final=30 は card を消せない。
     expect(display.applyEvent(finalDto, 4_000)).toBe(false);
     expect(display.snapshot(4, 4_000).activeEews).toHaveLength(1);
+  });
+
+  it("fail-open VXSE44 owner を capability 抑止の最終報後に同 family 続報で復元する", () => {
+    const finalXml = readFixture(FIXTURE_VXSE45_FINAL);
+    const nonFinalXml = finalXml
+      .replace(/<NextAdvisory>[^<]*<\/NextAdvisory>/, "")
+      .replace(/<Serial>[^<]*<\/Serial>/, "<Serial>29</Serial>")
+      .replace(
+        /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+        "<ReportDateTime>2026-01-01T12:00:29+09:00</ReportDateTime>",
+      );
+    const newerXml = nonFinalXml
+      .replace(/<Serial>[^<]*<\/Serial>/, "<Serial>99</Serial>")
+      .replace(
+        /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+        "<ReportDateTime>2026-01-01T12:01:39+09:00</ReportDateTime>",
+      );
+    const display = new DisplayStateStore();
+
+    const active44 = processEew(
+      createMockWsDataMessageFromXml(nonFinalXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+    );
+    expect(active44.kind).toBe("ok");
+    if (active44.kind !== "ok") return;
+    expect(display.applyEvent(
+      projectDisplayEvent(fromEewOutcome(active44.outcome), "summary"),
+      1_000,
+    )).toBe(true);
+    expect(display.snapshot(1, 1_000).activeEews).toHaveLength(1);
+
+    const final44 = processEew(
+      createMockWsDataMessageFromXml(finalXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+      vxse45Capability,
+    );
+    expect(final44.kind).toBe("ok");
+    if (final44.kind !== "ok") return;
+    const finalDto = projectDisplayEvent(fromEewOutcome(final44.outcome), "summary");
+    expect(display.applyEvent(finalDto, 2_000)).toBe(true);
+    expect(display.snapshot(2, 2_000).activeEews).toHaveLength(0);
+
+    const reactivated = processEew(
+      createMockWsDataMessageFromXml(newerXml, "VXSE44"),
+      eewTracker,
+      eewLogger,
+      vxse45Capability,
+    );
+    expect(reactivated.kind).toBe("ok");
+    if (reactivated.kind !== "ok") return;
+    expect(reactivated.outcome.displayLifecycleOnly).toBe(true);
+    expect(reactivated.outcome.eewResult.isSuppressed).toBe(true);
+    expect(reactivated.outcome.parsed.type).toBe("VXSE44");
+    expect({
+      type: reactivated.outcome.msg.head.type,
+      serial: reactivated.outcome.msg.xmlReport?.head.serial,
+      infoType: reactivated.outcome.msg.xmlReport?.head.infoType,
+      reportDateTime: reactivated.outcome.msg.xmlReport?.head.reportDateTime,
+    }).toEqual({
+      type: reactivated.outcome.parsed.type,
+      serial: reactivated.outcome.parsed.serial,
+      infoType: reactivated.outcome.parsed.infoType,
+      reportDateTime: reactivated.outcome.parsed.reportDateTime,
+    });
+    expect({
+      serial: reactivated.outcome.parsed.serial,
+      infoType: reactivated.outcome.parsed.infoType,
+      reportDateTime: reactivated.outcome.parsed.reportDateTime,
+    }).toEqual({
+      serial: "29",
+      infoType: "発表",
+      reportDateTime: "2026-01-01T12:00:29+09:00",
+    });
+    const restoreDto = projectDisplayEvent(
+      fromEewOutcome(reactivated.outcome),
+      "summary",
+    );
+    expect(restoreDto.emergency).toMatchObject({
+      kind: "eew",
+      sourceType: "VXSE44",
+      serial: "29",
+      restoreRevision: {
+        sourceType: "VXSE44",
+        serial: "99",
+        isCorrection: false,
+      },
+    });
+    expect(display.applyEvent(restoreDto, 3_000)).toBe(true);
+    expect(display.snapshot(3, 3_000).activeEews).toHaveLength(1);
   });
 });

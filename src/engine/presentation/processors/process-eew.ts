@@ -7,6 +7,7 @@ import {
   type EewUpdateResult,
 } from "../../eew/eew-tracker";
 import type { EewEventLogger } from "../../eew/eew-logger";
+import type { DeliveryCapabilities } from "../../../dmdata/delivery-capabilities";
 import { eewFrameLevel, eewSoundLevel } from "../level-helpers";
 import * as log from "../../../logger";
 
@@ -17,14 +18,25 @@ export type EewProcessResult =
   | { kind: "suppressed" }
   | { kind: "parse-failed" };
 
+export type Vxse44SuppressionReason = "observed-vxse45" | "capability";
+
+export interface ProcessEewOptions {
+  getDeliveryCapabilities?: () => DeliveryCapabilities;
+  onVxse44Suppressed?: (reason: Vxse44SuppressionReason) => void;
+}
+
 function eewOutcome(
   msg: WsDataMessage,
   eewInfo: ParsedEewInfo,
   result: EewUpdateResult,
-  shouldRecord = true,
+  options?: {
+    shouldRecord?: boolean;
+    displayLifecycleOnly?: boolean;
+  },
 ): EewOutcome {
   return {
     domain: "eew",
+    ...(options?.displayLifecycleOnly === true ? { displayLifecycleOnly: true as const } : {}),
     msg,
     headType: eewInfo.type,
     statsCategory: "eew",
@@ -37,7 +49,7 @@ function eewOutcome(
     },
     eewResult: result,
     stats: {
-      shouldRecord,
+      shouldRecord: options?.shouldRecord ?? true,
       eventId: eewInfo.eventId,
     },
     presentation: {
@@ -58,16 +70,26 @@ export function processEew(
   msg: WsDataMessage,
   eewTracker: EewTracker,
   eewLogger: EewEventLogger,
+  options?: ProcessEewOptions,
 ): EewProcessResult {
   const eewInfo = parseEewTelegram(msg);
   if (!eewInfo) return { kind: "parse-failed" };
+  const eventId = eewInfo.meta.eventId.valid
+    ? eewInfo.meta.eventId.value
+    : null;
 
-  // VXSE44 は VXSE45 と重複するため常時抑制 (VXSE44 は配信終了予定)。
-  // ここで EewTracker への登録もスキップしないと、後続 VXSE45 が
-  // isNew=false になり「第1報通知（音含む）」が発火しないため、
-  // update() を呼ばずに早期 return する。終端処理は eventId を使って
-  // 直接実行する（既存イベントがなければ no-op）。
-  if (msg.head.type === "VXSE44") {
+  // 実受信 VXSE45 の相関を最優先し、それがない場合だけ capability を読む。
+  const suppressedByObservedVxse45 = msg.head.type === "VXSE44"
+    && eewTracker.hasSeen45(eewInfo);
+  const suppressedByCapability = msg.head.type === "VXSE44"
+    && !suppressedByObservedVxse45
+    && (() => {
+      const capability = options?.getDeliveryCapabilities?.();
+      return capability?.connected === true
+        && capability.guaranteedHeadTypes.has("VXSE45");
+    })();
+
+  if (suppressedByObservedVxse45 || suppressedByCapability) {
     const revisionDecision = eewTracker.acceptSuppressed(eewInfo);
     if (!revisionDecision.accepted) {
       log.debug(
@@ -75,26 +97,31 @@ export function processEew(
       );
       return { kind: "duplicate" };
     }
-    log.debug(`EEW 抑制 (VXSE44常時抑制): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
+    const suppressionReason: Vxse44SuppressionReason = suppressedByObservedVxse45
+      ? "observed-vxse45"
+      : "capability";
+    options?.onVxse44Suppressed?.(suppressionReason);
+    log.debug(`EEW 抑制 (${suppressionReason}): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     // 終端処理: tracker.update() を経由しないため、取消/最終報のいずれでも
     // finalizeEvent() を呼び、既存イベントを active カウントから外す
     const isTerminal = eewInfo.infoType === "取消" || eewInfo.nextAdvisory != null;
-    const lifecycleReplacement = eewInfo.eventId
+    const lifecycleReplacement = eventId != null
       ? eewTracker.replaceLifecycle(eewInfo, revisionDecision)
       : null;
-    if (eewInfo.eventId) {
+    if (eventId != null) {
       if (eewInfo.infoType === "取消") {
-        eewLogger.closeEvent(eewInfo.eventId, "取消");
-        eewTracker.finalizeEvent(eewInfo.eventId);
+        eewLogger.closeEvent(eventId, "取消");
+        eewTracker.finalizeEvent(eventId);
       } else if (eewInfo.nextAdvisory) {
-        eewLogger.closeEvent(eewInfo.eventId, "最終報");
-        eewTracker.finalizeEvent(eewInfo.eventId);
+        eewLogger.closeEvent(eventId, "最終報");
+        eewTracker.finalizeEvent(eventId);
       }
     }
     if (isTerminal) {
       const currentForecastIntensity = getMaxForecastIntensityEvaluation(eewInfo.forecastIntensity);
       const result: EewUpdateResult = {
         isNew: false,
+        firstReportSignal: false,
         isDuplicate: false,
         isCorrection: revisionDecision.isCorrection,
         revisionDecision: revisionDecision.kind,
@@ -109,15 +136,23 @@ export function processEew(
           : {}),
       };
       // 通知・統計は抑止したまま、display lifecycle command だけを pipeline へ通す。
-      return { kind: "ok", outcome: eewOutcome(msg, eewInfo, result, false) };
+      return {
+        kind: "ok",
+        outcome: eewOutcome(msg, eewInfo, result, {
+          shouldRecord: false,
+          displayLifecycleOnly: true,
+        }),
+      };
     }
-    if (lifecycleReplacement?.reactivated && lifecycleReplacement.authoritativeInfo != null) {
-      const authoritativeInfo = lifecycleReplacement.authoritativeInfo;
+    if (lifecycleReplacement?.reactivated && lifecycleReplacement.authoritativeSnapshot != null) {
+      const { info: authoritativeInfo, message: authoritativeMessage } =
+        lifecycleReplacement.authoritativeSnapshot;
       const currentForecastIntensity = getMaxForecastIntensityEvaluation(
         authoritativeInfo.forecastIntensity,
       );
       const result: EewUpdateResult = {
         isNew: false,
+        firstReportSignal: false,
         isDuplicate: false,
         isCorrection: revisionDecision.isCorrection,
         revisionDecision: revisionDecision.kind,
@@ -137,12 +172,18 @@ export function processEew(
           ? { effectiveForecastSafetyRank: lifecycleReplacement.effectiveForecastSafetyRank }
           : {}),
       };
-      return { kind: "ok", outcome: eewOutcome(msg, authoritativeInfo, result, false) };
+      return {
+        kind: "ok",
+        outcome: eewOutcome(authoritativeMessage, authoritativeInfo, result, {
+          shouldRecord: false,
+          displayLifecycleOnly: true,
+        }),
+      };
     }
     return { kind: "suppressed" };
   }
 
-  const result = eewTracker.update(eewInfo);
+  const result = eewTracker.update(eewInfo, msg);
   if (result.isDuplicate) {
     log.debug(`EEW 重複報スキップ: EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     return { kind: "duplicate" };
@@ -152,24 +193,36 @@ export function processEew(
     log.debug(`EEW 抑制 (VXSE45優先): type=${eewInfo.type} EventID=${eewInfo.eventId} 第${eewInfo.serial}報`);
     eewLogger.logReport(eewInfo, result);
     // 抑制されても終端処理は実行する
-    if (result.isCancelled && eewInfo.eventId) {
-      eewLogger.closeEvent(eewInfo.eventId, "取消");
+    if (result.isCancelled && eventId != null) {
+      eewLogger.closeEvent(eventId, "取消");
     }
-    if (eewInfo.nextAdvisory && eewInfo.eventId && !result.isCancelled) {
-      eewLogger.closeEvent(eewInfo.eventId, "最終報");
-      eewTracker.finalizeEvent(eewInfo.eventId);
+    if (eewInfo.nextAdvisory && eventId != null && !result.isCancelled) {
+      eewLogger.closeEvent(eventId, "最終報");
+      eewTracker.finalizeEvent(eventId);
+    }
+    if (
+      msg.head.type === "VXSE44"
+      && (result.isCancelled || eewInfo.nextAdvisory != null)
+    ) {
+      return {
+        kind: "ok",
+        outcome: eewOutcome(msg, eewInfo, result, {
+          shouldRecord: false,
+          displayLifecycleOnly: true,
+        }),
+      };
     }
     return { kind: "suppressed" };
   }
 
   // ログ記録
   eewLogger.logReport(eewInfo, result);
-  if (result.isCancelled && eewInfo.eventId) {
-    eewLogger.closeEvent(eewInfo.eventId, "取消");
+  if (result.isCancelled && eventId != null) {
+    eewLogger.closeEvent(eventId, "取消");
   }
-  if (eewInfo.nextAdvisory && eewInfo.eventId && !result.isCancelled) {
-    eewLogger.closeEvent(eewInfo.eventId, "最終報");
-    eewTracker.finalizeEvent(eewInfo.eventId);
+  if (eewInfo.nextAdvisory && eventId != null && !result.isCancelled) {
+    eewLogger.closeEvent(eventId, "最終報");
+    eewTracker.finalizeEvent(eventId);
   }
 
   return { kind: "ok", outcome: eewOutcome(msg, eewInfo, result) };

@@ -463,7 +463,6 @@ export class DisplayStateStore {
       if (
         sourceType == null
         || restoreSourceType !== "VXSE44"
-        || restoreSourceType === sourceType
         || restoreRevision.serial == null
         || restoreRevision.serial.trim() === ""
         || input.isCancellation
@@ -476,8 +475,9 @@ export class DisplayStateStore {
         if (cmp < 0) return false;
         if (cmp === 0 && !restoreRevision.isCorrection) return false;
       }
-      // Card 本体の authoritative serial とは分け、終端を撤回した family の
-      // revision を watermark として前進させる。これにより後着した旧終端を拒否できる。
+      // Card 本体の authoritative snapshot とは分け、終端を撤回した family の
+      // revision を watermark として前進させる。fail-open VXSE44 owner の同 family
+      // 復元でも、これにより後着した旧終端を拒否できる。
       this.eewSourceRevisions.set(restoreKey, {
         eventId,
         serial: restoreRevision.serial,
@@ -511,7 +511,7 @@ export class DisplayStateStore {
       });
       if (input.isCancellation || input.isFinal && sourceType === "VXSE44") {
         this.activeEews.delete(eventId);
-        // VXSE44 は通常表示しないため、終端 outcome は card を作らず解除 command として扱う。
+        // 抑止された VXSE44 終端 outcome は card を作らず解除 command として扱う。
         // active がなくても accepted tombstone の生成を mutation として扱う。
         return true;
       }

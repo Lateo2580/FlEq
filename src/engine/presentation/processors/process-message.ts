@@ -14,6 +14,8 @@ import type { StatsCategory } from "../../messages/telegram-stats";
 import { routeToCategory } from "../../messages/telegram-stats";
 import type { Route, LinearRoute } from "../../messages/route-catalog";
 import { processEew } from "./process-eew";
+import type { Vxse44SuppressionReason } from "./process-eew";
+import type { DeliveryCapabilities } from "../../../dmdata/delivery-capabilities";
 import { processEarthquake } from "./process-earthquake";
 import { processSeismicText } from "./process-seismic-text";
 import { processLgObservation } from "./process-lg-observation";
@@ -74,6 +76,8 @@ export interface ProcessDeps {
   onTsunamiRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  getDeliveryCapabilities?: () => DeliveryCapabilities;
+  onVxse44Suppressed?: (reason: Vxse44SuppressionReason) => void;
 }
 
 /**
@@ -108,7 +112,10 @@ function gateStandbyOutcome<
 
 const PROCESSOR_TABLE = {
   eew: (msg, deps, cat) => {
-    const eewResult = processEew(msg, deps.eewTracker, deps.eewLogger);
+    const eewResult = processEew(msg, deps.eewTracker, deps.eewLogger, {
+      getDeliveryCapabilities: deps.getDeliveryCapabilities,
+      onVxse44Suppressed: deps.onVxse44Suppressed,
+    });
     if (eewResult.kind === "ok") return eewResult.outcome;
     if (eewResult.kind === "duplicate" || eewResult.kind === "suppressed") return null; // 重複・抑制 → 表示・統計なし
     // parse-failed → raw 表示するが統計には含めない（旧 router と同じ動作）

@@ -4,6 +4,7 @@ import type {
   ParsedEewInfo,
   SpecialValue,
   TelegramRevision,
+  WsDataMessage,
 } from "../../types";
 import { telegramRevision } from "../../dmdata/telegram-meta";
 import * as intensityUtils from "../../utils/intensity";
@@ -51,6 +52,12 @@ interface EewTerminalOwner {
   revision: TelegramRevision;
 }
 
+interface EewAuthoritativeDisplay {
+  ownerType: string;
+  info: ParsedEewInfo;
+  message: WsDataMessage | null;
+}
+
 /** EEW イベントの状態 */
 interface EewEvent {
   eventId: string;
@@ -67,6 +74,8 @@ interface EewEvent {
   isFinalized: boolean;
   /** cancel/final を成立させた family と revision */
   terminalOwner: EewTerminalOwner | null;
+  /** 実際に表示資格を得た最後の非抑止・非終端 snapshot と owner。 */
+  authoritativeDisplay: EewAuthoritativeDisplay | null;
   lastUpdate: Date;
   /** バナー色分け用のカラーインデックス (0始まり) */
   colorIndex: number;
@@ -76,6 +85,8 @@ interface EewEvent {
 export interface EewUpdateResult {
   /** 新規イベントか */
   isNew: boolean;
+  /** EventID 単位の第1報通知 signal。通知層はこの値だけを消費する。 */
+  firstReportSignal: boolean;
   /** 重複報か（既に同じ報数以上を受信済み） */
   isDuplicate: boolean;
   /** 共通 revision gate が訂正として受理したか */
@@ -110,13 +121,17 @@ export interface EewUpdateResult {
 
 export interface EewLifecycleReplacement {
   reactivated: boolean;
-  authoritativeInfo: ParsedEewInfo | null;
+  authoritativeSnapshot: {
+    info: ParsedEewInfo;
+    message: WsDataMessage;
+  } | null;
   effectiveForecastSafetyRank: number | null;
   colorIndex: number;
 }
 
 /** 古いイベントを自動削除するまでの時間 (ミリ秒) */
 const CLEANUP_THRESHOLD_MS = 10 * 60 * 1000; // 10分
+const FIRST_REPORT_SIGNAL_TTL_MS = 10 * 60 * 1000;
 const MAX_TRACKED_EEW_EVENTS = 512;
 let eewSingleEventSequence = 0;
 
@@ -536,6 +551,7 @@ function computeDiff(
 export class EewTracker {
   private events = new Map<string, EewEvent>();
   private suppressedForecastSafety = new Map<string, { rank: number; lastUpdate: Date }>();
+  private firstReportSignalAt = new Map<string, number>();
   private readonly onCleanup?: (eventId: string) => void;
   private readonly onRevisionDecision?: (
     decision: TelegramRevisionDecision,
@@ -551,11 +567,11 @@ export class EewTracker {
   }
 
   /** EEW 情報を受け取り、状態を更新して結果を返す */
-  update(info: ParsedEewInfo): EewUpdateResult {
+  update(info: ParsedEewInfo, message?: WsDataMessage): EewUpdateResult {
     // 古いイベントをクリーンアップ
     this.cleanup();
 
-    const eventId = info.eventId || "";
+    const eventId = this.validEventId(info) ?? "";
     const transientSubjectKey = eventId === ""
       ? nextEewSingleSubjectKey(info.type)
       : null;
@@ -568,6 +584,7 @@ export class EewTracker {
       const current = eventId === "" ? undefined : this.events.get(eventId);
       return {
         isNew: false,
+        firstReportSignal: false,
         isDuplicate: true,
         isCancelled: current?.isCancelled ?? false,
         isSuppressed: false,
@@ -585,6 +602,7 @@ export class EewTracker {
       const effectiveForecastSafetyRank = currentForecastIntensity?.safetyRank ?? null;
       return {
         isNew: !revisionDecision.isCorrection,
+        firstReportSignal: false,
         isDuplicate: false,
         isCorrection: revisionDecision.isCorrection,
         revisionDecision: revisionDecision.kind,
@@ -647,6 +665,13 @@ export class EewTracker {
         existing.retainedForecastSafetyRank = effectiveForecastSafetyRank == null
           ? undefined
           : effectiveForecastSafetyRank;
+        if (!isCancelled && !revisionDecision.isTerminal) {
+          existing.authoritativeDisplay = {
+            ownerType: headType,
+            info,
+            message: message ?? null,
+          };
+        }
       }
 
       // hasSeen45 更新
@@ -667,8 +692,18 @@ export class EewTracker {
       }
       existing.lastUpdate = new Date();
 
+      const firstReportSignal = this.updateFirstReportSignalLatch({
+        eventId,
+        info,
+        isSuppressed,
+        isUpgradeToWarning,
+        isCorrection: revisionDecision.isCorrection,
+        isTerminal: revisionDecision.isTerminal,
+      });
+
       return {
         isNew: false,
+        firstReportSignal,
         isDuplicate: false,
         isCorrection: revisionDecision.isCorrection,
         revisionDecision: revisionDecision.kind,
@@ -718,13 +753,26 @@ export class EewTracker {
             revision: telegramRevision(info.meta),
           }
         : null,
+      authoritativeDisplay: !isCancelled && !isFinalized
+        ? { ownerType: headType, info, message: message ?? null }
+        : null,
       lastUpdate: new Date(),
       colorIndex,
     });
     this.enforceEventLimit();
 
+    const firstReportSignal = this.updateFirstReportSignalLatch({
+      eventId,
+      info,
+      isSuppressed: false,
+      isUpgradeToWarning: false,
+      isCorrection: revisionDecision.isCorrection,
+      isTerminal: revisionDecision.isTerminal,
+    });
+
     return {
       isNew: !revisionDecision.isCorrection,
+      firstReportSignal,
       isDuplicate: false,
       isCorrection: revisionDecision.isCorrection,
       revisionDecision: revisionDecision.kind,
@@ -741,7 +789,7 @@ export class EewTracker {
   /** 常時表示抑制する VXSE44 でも共通 revision gate だけは通す。 */
   acceptSuppressed(info: ParsedEewInfo): TelegramRevisionDecision {
     this.cleanup();
-    const eventId = info.eventId || "";
+    const eventId = this.validEventId(info) ?? "";
     const decision = this.decideRevision(
       info,
       eventId,
@@ -867,7 +915,7 @@ export class EewTracker {
     info: ParsedEewInfo,
     decision: TelegramRevisionDecision,
   ): EewLifecycleReplacement | null {
-    const eventId = info.eventId || "";
+    const eventId = this.validEventId(info) ?? "";
     let ev = this.events.get(eventId);
     if (ev == null) {
       const isCancelled = info.infoType === "取消";
@@ -884,6 +932,7 @@ export class EewTracker {
           revisionFamily: info.type,
           revision: telegramRevision(info.meta),
         },
+        authoritativeDisplay: null,
         lastUpdate: new Date(),
         colorIndex,
       };
@@ -891,7 +940,7 @@ export class EewTracker {
       this.enforceEventLimit();
       return {
         reactivated: false,
-        authoritativeInfo: this.authoritativeInfo(ev),
+        authoritativeSnapshot: this.authoritativeSnapshot(ev),
         effectiveForecastSafetyRank: ev.retainedForecastSafetyRank ?? null,
         colorIndex,
       };
@@ -902,19 +951,16 @@ export class EewTracker {
     if (!replaced) return null;
     return {
       reactivated: wasTerminal && !ev.isCancelled && !ev.isFinalized,
-      authoritativeInfo: this.authoritativeInfo(ev),
+      authoritativeSnapshot: this.authoritativeSnapshot(ev),
       effectiveForecastSafetyRank: ev.retainedForecastSafetyRank ?? null,
       colorIndex: ev.colorIndex,
     };
   }
 
-  private authoritativeInfo(event: EewEvent): ParsedEewInfo | null {
-    if (event.hasSeen45) {
-      return event.byType.get("VXSE45")?.previousInfo ?? null;
-    }
-    // VXSE44 は常時表示抑止 family。復元対象は実際に card を所有できる
-    // VXSE45、または VXSE45 未受信時の VXSE43 snapshot に限る。
-    return event.byType.get("VXSE43")?.previousInfo ?? null;
+  private authoritativeSnapshot(event: EewEvent): EewLifecycleReplacement["authoritativeSnapshot"] {
+    const display = event.authoritativeDisplay;
+    if (display?.message == null) return null;
+    return { info: display.info, message: display.message };
   }
 
   private applyAcceptedLifecycle(
@@ -946,6 +992,57 @@ export class EewTracker {
     event.isFinalized = false;
     event.terminalOwner = null;
     return true;
+  }
+
+  /** valid な EventID だけを type 間相関と第1報 latch の subject にする。 */
+  private validEventId(info: ParsedEewInfo): string | null {
+    return info.meta.eventId.valid ? info.meta.eventId.value : null;
+  }
+
+  /** 同一 EventID で VXSE45 を受信済みか。invalid EventID は相関しない。 */
+  hasSeen45(info: ParsedEewInfo): boolean {
+    this.cleanup();
+    const eventId = this.validEventId(info);
+    return eventId != null && this.events.get(eventId)?.hasSeen45 === true;
+  }
+
+  /** accepted outcome と同じ同期遷移内で第1報 latch / TTL を更新する。 */
+  private updateFirstReportSignalLatch(input: {
+    eventId: string;
+    info: ParsedEewInfo;
+    isSuppressed: boolean;
+    isUpgradeToWarning: boolean;
+    isCorrection: boolean;
+    isTerminal: boolean;
+  }): boolean {
+    if (input.eventId === "" || input.isSuppressed) return false;
+
+    const now = Date.now();
+    const previousSignalAt = this.firstReportSignalAt.get(input.eventId);
+    if (
+      previousSignalAt != null
+      && now - previousSignalAt >= FIRST_REPORT_SIGNAL_TTL_MS
+    ) {
+      this.firstReportSignalAt.delete(input.eventId);
+    }
+
+    if (input.info.infoType === "取消") {
+      this.firstReportSignalAt.delete(input.eventId);
+      return false;
+    }
+
+    const firstReportSignal = input.info.infoType === "発表"
+      && !input.isTerminal
+      && !this.firstReportSignalAt.has(input.eventId);
+    if (
+      firstReportSignal
+      || input.isUpgradeToWarning
+      || input.isCorrection
+      || input.isTerminal
+    ) {
+      this.firstReportSignalAt.set(input.eventId, now);
+    }
+    return firstReportSignal;
   }
 
   /** 未使用の最小カラーインデックスを返す */
@@ -980,6 +1077,7 @@ export class EewTracker {
     for (const id of expired) {
       const event = this.events.get(id);
       this.events.delete(id);
+      this.firstReportSignalAt.delete(id);
       if (event != null) {
         for (const headType of event.byType.keys()) {
           this.revisionGate.clear("eew", headType, id);
@@ -990,6 +1088,11 @@ export class EewTracker {
     for (const [id, state] of this.suppressedForecastSafety) {
       if (now - state.lastUpdate.getTime() > CLEANUP_THRESHOLD_MS) {
         this.suppressedForecastSafety.delete(id);
+      }
+    }
+    for (const [id, signalAt] of this.firstReportSignalAt) {
+      if (now - signalAt >= FIRST_REPORT_SIGNAL_TTL_MS) {
+        this.firstReportSignalAt.delete(id);
       }
     }
   }
@@ -1012,6 +1115,7 @@ export class EewTracker {
       if (oldest == null) return;
       const [id, event] = oldest;
       this.events.delete(id);
+      this.firstReportSignalAt.delete(id);
       for (const headType of event.byType.keys()) {
         this.revisionGate.clear("eew", headType, id);
       }

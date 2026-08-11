@@ -151,6 +151,294 @@ describe("EewTracker", () => {
     });
   });
 
+  describe("firstReportSignal", () => {
+    it("fail-open VXSE44 → VXSE45 の第1報 signal は EventID ごとに一回", () => {
+      const first44 = tracker.update(createEewInfo({
+        type: "VXSE44",
+        eventId: "signal-44-45",
+      }));
+      const later45 = tracker.update(createEewInfo({
+        type: "VXSE45",
+        eventId: "signal-44-45",
+      }));
+
+      expect(first44.firstReportSignal).toBe(true);
+      expect(later45.firstReportSignal).toBe(false);
+      expect(first44.isNew).toBe(true);
+      expect(later45.isNew).toBe(false);
+    });
+
+    it("VXSE45 → VXSE44 は 45 だけが signal を得て 44 は observed 抑止される", () => {
+      const first45 = tracker.update(createEewInfo({
+        type: "VXSE45",
+        eventId: "signal-45-44",
+      }));
+      const later44 = tracker.update(createEewInfo({
+        type: "VXSE44",
+        eventId: "signal-45-44",
+      }));
+
+      expect(first45.firstReportSignal).toBe(true);
+      expect(later44.firstReportSignal).toBe(false);
+      expect(later44.isSuppressed).toBe(true);
+    });
+
+    it.each([null, "", "   "])(
+      "EventID=%j は transient として第1報 latch・type 間相関へ参加しない",
+      (eventId) => {
+        const first45 = tracker.update(createEewInfo({
+          type: "VXSE45",
+          eventId,
+        }));
+        const later44 = tracker.update(createEewInfo({
+          type: "VXSE44",
+          eventId,
+        }));
+
+        expect(first45.firstReportSignal).toBe(false);
+        expect(later44.firstReportSignal).toBe(false);
+        expect(later44.isSuppressed).toBe(false);
+      },
+    );
+
+    it("10分 expiry 後の strictly newer 続報は第1報資格を再評価する", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        expect(tracker.update(createEewInfo({
+          eventId: "signal-expiry",
+          serial: "1",
+        })).firstReportSignal).toBe(true);
+
+        vi.advanceTimersByTime(10 * 60 * 1000);
+        const newer = tracker.update(createEewInfo({
+          eventId: "signal-expiry",
+          serial: "2",
+        }));
+        expect(newer.isDuplicate).toBe(false);
+        expect(newer.firstReportSignal).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("警報昇格 outcome は TTL を刷新し firstReportSignal と独立に共存する", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        expect(tracker.update(createEewInfo({
+          type: "VXSE44",
+          eventId: "signal-upgrade-refresh",
+          serial: "1",
+        })).firstReportSignal).toBe(true);
+
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        const upgrade = tracker.update(createEewInfo({
+          type: "VXSE43",
+          eventId: "signal-upgrade-refresh",
+          serial: "1",
+          isWarning: true,
+        }));
+        expect(upgrade.firstReportSignal).toBe(false);
+        expect(upgrade.isUpgradeToWarning).toBe(true);
+
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        expect(tracker.update(createEewInfo({
+          eventId: "signal-upgrade-refresh",
+          serial: "2",
+        })).firstReportSignal).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("TTL expiry 後の警報昇格は firstReportSignal と同時に true になれる", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        tracker.update(createEewInfo({
+          type: "VXSE44",
+          eventId: "signal-upgrade-coexist",
+          serial: "1",
+        }));
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        tracker.update(createEewInfo({
+          type: "VXSE44",
+          eventId: "signal-upgrade-coexist",
+          serial: "2",
+        }));
+        vi.advanceTimersByTime(2 * 60 * 1000);
+
+        const upgrade = tracker.update(createEewInfo({
+          type: "VXSE43",
+          eventId: "signal-upgrade-coexist",
+          serial: "1",
+          isWarning: true,
+        }));
+        expect(upgrade.firstReportSignal).toBe(true);
+        expect(upgrade.isUpgradeToWarning).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("非抑止取消だけが latch を削除して次の発表を再武装する", () => {
+      expect(tracker.update(createEewInfo({
+        type: "VXSE44",
+        eventId: "signal-cancel-rearm",
+        serial: "1",
+      })).firstReportSignal).toBe(true);
+      const cancellation = tracker.update(createEewInfo({
+        type: "VXSE44",
+        eventId: "signal-cancel-rearm",
+        serial: "2",
+        infoType: "取消",
+      }));
+      expect(cancellation.isSuppressed).toBe(false);
+      expect(cancellation.firstReportSignal).toBe(false);
+
+      const reactivated = tracker.update(createEewInfo({
+        type: "VXSE44",
+        eventId: "signal-cancel-rearm",
+        serial: "3",
+      }));
+      expect(reactivated.firstReportSignal).toBe(true);
+    });
+
+    it("suppressed 取消は latch を削除せず TTL も刷新しない", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        expect(tracker.update(createEewInfo({
+          type: "VXSE45",
+          eventId: "signal-suppressed-cancel",
+          serial: "1",
+        })).firstReportSignal).toBe(true);
+
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        const cancellation = tracker.update(createEewInfo({
+          type: "VXSE44",
+          eventId: "signal-suppressed-cancel",
+          serial: "1",
+          infoType: "取消",
+        }));
+        expect(cancellation.isSuppressed).toBe(true);
+        const correction = tracker.update(createEewInfo({
+          type: "VXSE44",
+          eventId: "signal-suppressed-cancel",
+          serial: "1",
+          infoType: "訂正",
+        }));
+        expect(correction.isSuppressed).toBe(true);
+        expect(tracker.update(createEewInfo({
+          type: "VXSE45",
+          eventId: "signal-suppressed-cancel",
+          serial: "2",
+        })).firstReportSignal).toBe(false);
+
+        vi.advanceTimersByTime(2 * 60 * 1000);
+        expect(tracker.update(createEewInfo({
+          type: "VXSE45",
+          eventId: "signal-suppressed-cancel",
+          serial: "3",
+        })).firstReportSignal).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("最終報は latch を刷新するが再武装しない", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        expect(tracker.update(createEewInfo({
+          eventId: "signal-final",
+          serial: "1",
+        })).firstReportSignal).toBe(true);
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        const final = tracker.update(createEewInfo({
+          eventId: "signal-final",
+          serial: "2",
+          nextAdvisory: "最終報",
+        }));
+        expect(final.firstReportSignal).toBe(false);
+
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        const withdrawn = tracker.update(createEewInfo({
+          eventId: "signal-final",
+          serial: "3",
+        }));
+        expect(withdrawn.isSuppressed).toBe(false);
+        expect(withdrawn.firstReportSignal).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("10分 expiry 後の same-family 終端撤回は第1報資格を再評価する", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        tracker.update(createEewInfo({
+          eventId: "signal-final-expiry",
+          serial: "1",
+        }));
+        tracker.update(createEewInfo({
+          eventId: "signal-final-expiry",
+          serial: "2",
+          nextAdvisory: "最終報",
+        }));
+
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        const delayedOtherFamily = tracker.update(createEewInfo({
+          type: "VXSE43",
+          eventId: "signal-final-expiry",
+          serial: "1",
+          isWarning: true,
+        }));
+        expect(delayedOtherFamily.isSuppressed).toBe(true);
+        expect(delayedOtherFamily.firstReportSignal).toBe(false);
+
+        vi.advanceTimersByTime(60 * 1000 + 1);
+        const withdrawn = tracker.update(createEewInfo({
+          eventId: "signal-final-expiry",
+          serial: "3",
+        }));
+        expect(withdrawn.isSuppressed).toBe(false);
+        expect(withdrawn.firstReportSignal).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("受理済み訂正は signal を発行せず TTL だけを刷新する", () => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-08-11T00:00:00Z"));
+        expect(tracker.update(createEewInfo({
+          eventId: "signal-correction-refresh",
+          serial: "1",
+        })).firstReportSignal).toBe(true);
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        const correction = tracker.update(createEewInfo({
+          eventId: "signal-correction-refresh",
+          serial: "1",
+          infoType: "訂正",
+        }));
+        expect(correction.isCorrection).toBe(true);
+        expect(correction.firstReportSignal).toBe(false);
+
+        vi.advanceTimersByTime(9 * 60 * 1000);
+        expect(tracker.update(createEewInfo({
+          eventId: "signal-correction-refresh",
+          serial: "2",
+        })).firstReportSignal).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe("Serial 更新", () => {
     it("Serial が増加するとき isDuplicate=false で更新される", () => {
       const info1 = createEewInfo({ serial: "1", eventId: "event-001" });

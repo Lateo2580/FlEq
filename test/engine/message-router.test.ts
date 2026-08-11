@@ -113,6 +113,20 @@ describe("message-router 統合テスト", () => {
     return createMessageHandler({ display, ...opts });
   }
 
+  function deliveryCapabilities(
+    guaranteedHeadTypes: readonly string[],
+    connected = true,
+  ) {
+    return {
+      connected,
+      effectiveClassifications: connected ? ["eew.forecast"] : [],
+      guaranteedHeadTypes: new Set(guaranteedHeadTypes),
+      source: guaranteedHeadTypes.length > 0
+        ? "contract-and-socket" as const
+        : "unknown" as const,
+    };
+  }
+
   describe("EEW ルーティング", () => {
     it("VXSE43 EEW 警報を処理する", () => {
       const { handler } = createHandler();
@@ -123,13 +137,118 @@ describe("message-router 統合テスト", () => {
       expect(output).toContain("緊急地震速報");
     });
 
-    it("VXSE44 EEW 予報は常時抑制される", () => {
-      const { handler } = createHandler();
+    it("capability unknown の VXSE44 EEW 予報は fail-open で表示・通知する", () => {
+      const { handler, stats } = createHandler();
       const msg = createMockWsDataMessage(FIXTURE_VXSE44_S10);
       handler(msg);
 
       const output = getOutput();
-      expect(output).not.toContain("緊急地震速報");
+      expect(output).toContain("緊急地震速報");
+      expect(stats.getSnapshot().countByType.get("VXSE44")).toBe(1);
+    });
+
+    it("切断中の capability は保証集合があっても VXSE44 を fail-open にする", () => {
+      const { handler } = createHandler({
+        getDeliveryCapabilities: () => deliveryCapabilities(["VXSE45"], false),
+      });
+      handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+
+      expect(getOutput()).toContain("緊急地震速報");
+    });
+
+    it("VXSE45 capability がある場合だけ VXSE44 を抑止し理由別 stats を一回記録する", () => {
+      const { handler, stats } = createHandler({
+        getDeliveryCapabilities: () => deliveryCapabilities(["VXSE45"]),
+      });
+      handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+
+      expect(getOutput()).not.toContain("緊急地震速報");
+      const snapshot = stats.getSnapshot();
+      expect(snapshot.foundation.vxse44SuppressedByCapability).toBe(1);
+      expect(snapshot.foundation.vxse44SuppressedByObservedVxse45).toBe(0);
+      expect(
+        snapshot.foundationByHeadType.get("VXSE44")
+          ?.vxse44SuppressedByCapability,
+      ).toBe(1);
+    });
+
+    it("実受信 VXSE45 と capability が両方真なら observed 理由だけを記録する", () => {
+      const getDeliveryCapabilities = vi.fn(
+        () => deliveryCapabilities(["VXSE45"]),
+      );
+      const { handler, stats } = createHandler({
+        getDeliveryCapabilities,
+      });
+      handler(createMockWsDataMessage(FIXTURE_VXSE45_S1));
+      handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+
+      const snapshot = stats.getSnapshot();
+      expect(snapshot.foundation.vxse44SuppressedByObservedVxse45).toBe(1);
+      expect(snapshot.foundation.vxse44SuppressedByCapability).toBe(0);
+      expect(getDeliveryCapabilities).not.toHaveBeenCalled();
+      expect(
+        snapshot.foundationByHeadType.get("VXSE44")
+          ?.vxse44SuppressedByObservedVxse45,
+      ).toBe(1);
+    });
+
+    it("期限切れ VXSE45 は unknown capability の VXSE44 を observed 抑止しない", () => {
+      vi.useFakeTimers();
+      try {
+        notifyMock.mockClear();
+        const { handler, stats } = createHandler();
+        handler(createMockWsDataMessage(FIXTURE_VXSE45_S1));
+        notifyMock.mockClear();
+
+        vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+        handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+
+        const snapshot = stats.getSnapshot();
+        expect(snapshot.countByType.get("VXSE44")).toBe(1);
+        expect(snapshot.foundation.vxse44SuppressedByObservedVxse45).toBe(0);
+        expect(notifyMock).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("各 message で capability getter の fresh snapshot を読む", () => {
+      const getDeliveryCapabilities = vi.fn()
+        .mockReturnValueOnce(deliveryCapabilities([]))
+        .mockReturnValueOnce(deliveryCapabilities(["VXSE45"]));
+      const { handler, stats } = createHandler({ getDeliveryCapabilities });
+      const firstXml = readFixture(FIXTURE_VXSE44_S10);
+      const secondXml = firstXml.replace(
+        /<EventID>[^<]*<\/EventID>/,
+        "<EventID>fresh-capability-second</EventID>",
+      );
+      handler({
+        ...createMockWsDataMessageFromXml(firstXml, "VXSE44"),
+        id: "fresh-capability-first",
+      });
+      handler({
+        ...createMockWsDataMessageFromXml(secondXml, "VXSE44"),
+        id: "fresh-capability-second",
+      });
+
+      expect(getDeliveryCapabilities).toHaveBeenCalledTimes(2);
+      expect(stats.getSnapshot().countByType.get("VXSE44")).toBe(1);
+      expect(stats.getSnapshot().foundation.vxse44SuppressedByCapability).toBe(1);
+    });
+
+    it("transport / semantic replay は suppression metric を二重加算しない", () => {
+      const { handler, stats } = createHandler({
+        getDeliveryCapabilities: () => deliveryCapabilities(["VXSE45"]),
+      });
+      const first = createMockWsDataMessage(FIXTURE_VXSE44_S10);
+      handler(first);
+      handler(first);
+      handler({ ...first, id: "vxse44-semantic-replay" });
+
+      const foundation = stats.getSnapshot().foundation;
+      expect(foundation.vxse44SuppressedByCapability).toBe(1);
+      expect(foundation.transportDuplicate).toBe(1);
+      expect(foundation.semanticDuplicate).toBe(1);
     });
 
     it("VXSE45 EEW 地震動予報を処理する", () => {
@@ -139,6 +258,177 @@ describe("message-router 統合テスト", () => {
 
       const output = getOutput();
       expect(output).toContain("緊急地震速報");
+    });
+
+    it("fail-open VXSE44 → VXSE45 は EventID ごとに第1報通知を一回へ畳む", () => {
+      notifyMock.mockClear();
+      const { handler } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+      handler(createMockWsDataMessage(FIXTURE_VXSE45_S1));
+
+      expect(notifyMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("VXSE45 → VXSE44 は 45 だけを通知し 44 を observed 抑止する", () => {
+      notifyMock.mockClear();
+      const { handler } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VXSE45_S1));
+      handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+
+      expect(notifyMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("capability-suppressed VXSE44 → VXSE45 は 45 が第1報通知を得る", () => {
+      notifyMock.mockClear();
+      const { handler } = createHandler({
+        getDeliveryCapabilities: () => deliveryCapabilities(["VXSE45"]),
+      });
+      handler(createMockWsDataMessage(FIXTURE_VXSE44_S10));
+      handler(createMockWsDataMessage(FIXTURE_VXSE45_S1));
+
+      expect(notifyMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["取消", FIXTURE_VXSE45_CANCEL],
+      ["最終報", FIXTURE_VXSE45_FINAL],
+    ])("capability-suppressed VXSE44 %s は router 経路でも通知・音を出さない", (_label, fixture) => {
+      notifyMock.mockClear();
+      const playSoundMock = vi.mocked(playSound);
+      playSoundMock.mockClear();
+      const { handler } = createHandler({
+        getDeliveryCapabilities: () => deliveryCapabilities(["VXSE45"]),
+      });
+
+      handler(createMockWsDataMessage(fixture, {
+        classification: "eew.forecast",
+        head: {
+          type: "VXSE44",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+          xml: true,
+        },
+      }));
+
+      expect(notifyMock).not.toHaveBeenCalled();
+      expect(playSoundMock).not.toHaveBeenCalled();
+    });
+
+    it("display lifecycle 専用の終端・復元は display ingest だけを更新する", () => {
+      const finalXml = readFixture(FIXTURE_VXSE45_FINAL);
+      const activeXml = finalXml
+        .replace(/<NextAdvisory>[^<]*<\/NextAdvisory>/, "")
+        .replace(/<Serial>[^<]*<\/Serial>/, "<Serial>29</Serial>")
+        .replace(
+          /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+          "<ReportDateTime>2026-01-01T12:00:29+09:00</ReportDateTime>",
+        );
+      const newerXml = activeXml
+        .replace(/<Serial>[^<]*<\/Serial>/, "<Serial>99</Serial>")
+        .replace(
+          /<ReportDateTime>[^<]*<\/ReportDateTime>/,
+          "<ReportDateTime>2026-01-01T12:01:39+09:00</ReportDateTime>",
+        );
+      let capabilityConfirmed = false;
+      const ingest = vi.fn();
+      const publishStats = vi.fn();
+      const outcomeTap = vi.fn();
+      const playSoundMock = vi.mocked(playSound);
+      const { handler, stats, summaryTracker } = createHandler({
+        getDeliveryCapabilities: () => capabilityConfirmed
+          ? deliveryCapabilities(["VXSE45"])
+          : deliveryCapabilities([]),
+        displaySink: { ingest, publishStats },
+        outcomeTaps: [outcomeTap],
+      });
+
+      handler(createMockWsDataMessageFromXml(activeXml, "VXSE44"));
+      const baselineFoundation = stats.getSnapshot().foundation;
+      const baselineTypeCount = stats.getSnapshot().countByType.get("VXSE44");
+      const baselineSummary = summaryTracker.getSnapshot();
+      capabilityConfirmed = true;
+      ingest.mockClear();
+      publishStats.mockClear();
+      outcomeTap.mockClear();
+      notifyMock.mockClear();
+      playSoundMock.mockClear();
+      consoleSpy.mockClear();
+
+      handler(createMockWsDataMessageFromXml(finalXml, "VXSE44"));
+      handler(createMockWsDataMessageFromXml(newerXml, "VXSE44"));
+
+      expect(ingest).toHaveBeenCalledTimes(2);
+      expect(ingest.mock.calls[0][0]).toMatchObject({
+        domain: "eew",
+        type: "VXSE44",
+        serial: "30",
+        isFinal: true,
+      });
+      expect(ingest.mock.calls[1][0]).toMatchObject({
+        domain: "eew",
+        type: "VXSE44",
+        serial: "29",
+        infoType: "発表",
+        reportDateTime: "2026-01-01T12:00:29+09:00",
+        eewDisplayRestoreRevision: {
+          sourceType: "VXSE44",
+          serial: "99",
+          isCorrection: false,
+        },
+      });
+      expect(publishStats).not.toHaveBeenCalled();
+      expect(outcomeTap).not.toHaveBeenCalled();
+      expect(notifyMock).not.toHaveBeenCalled();
+      expect(playSoundMock).not.toHaveBeenCalled();
+      expect(getOutput()).toBe("");
+      expect(summaryTracker.getSnapshot()).toEqual(baselineSummary);
+      const after = stats.getSnapshot();
+      expect(after.countByType.get("VXSE44")).toBe(baselineTypeCount);
+      expect(after.foundation.notified).toBe(baselineFoundation.notified);
+      expect(after.foundation.presented).toBe(baselineFoundation.presented);
+    });
+
+    it("fail-open VXSE44 後の VXSE43 警報昇格は第1報 signal と独立に通知する", () => {
+      notifyMock.mockClear();
+      const playSoundMock = vi.mocked(playSound);
+      playSoundMock.mockClear();
+      const { handler } = createHandler();
+      handler(createMockWsDataMessage(FIXTURE_VXSE45_S1, {
+        head: {
+          type: "VXSE44",
+          author: "気象庁",
+          time: new Date().toISOString(),
+          test: false,
+          xml: true,
+        },
+      }));
+      handler(createMockWsDataMessage(FIXTURE_VXSE43_WARNING_S1));
+
+      expect(notifyMock).toHaveBeenCalledTimes(2);
+      expect(playSoundMock).toHaveBeenCalledTimes(2);
+      expect(playSoundMock).toHaveBeenLastCalledWith("critical");
+    });
+
+    it("同一 serial の受理済み EEW 訂正は第1報 signal なしでも一回通知する", () => {
+      notifyMock.mockClear();
+      const { handler, stats } = createHandler();
+      const source = readFixture(FIXTURE_VXSE45_S1);
+      const correction = source
+        .replace("<InfoType>発表</InfoType>", "<InfoType>訂正</InfoType>")
+        .replace(">4.2<", ">4.3<");
+      handler({
+        ...createMockWsDataMessageFromXml(source, "VXSE45"),
+        id: "eew-correction-source",
+      });
+      handler({
+        ...createMockWsDataMessageFromXml(correction, "VXSE45"),
+        id: "eew-correction-accepted",
+      });
+
+      expect(notifyMock).toHaveBeenCalledTimes(2);
+      expect(notifyMock.mock.calls[1][0].title).toContain("訂正");
+      expect(stats.getSnapshot().foundation.correctionNotified).toBe(1);
     });
 
     it("VXSE45 取消報を処理する", () => {

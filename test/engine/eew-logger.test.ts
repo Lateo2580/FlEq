@@ -46,6 +46,7 @@ function createUpdateResult(
 ): EewUpdateResult {
   return {
     isNew: true,
+    firstReportSignal: true,
     isDuplicate: false,
     isCancelled: false,
     isSuppressed: false,

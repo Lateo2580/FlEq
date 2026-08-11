@@ -218,9 +218,6 @@ export const NOTIFY_CATEGORY_LABELS: Record<NotifyCategory, string> = {
   floodForecast: "洪水予報",
 };
 
-/** EEW 通知履歴の TTL (ms)。EewTracker のクリーンアップ閾値と揃える */
-const NOTIFIED_EEW_TTL_MS = 10 * 60 * 1000; // 10分
-
 function correctionNotification(
   infoType: string,
   title: string,
@@ -251,17 +248,6 @@ export class Notifier {
   private settings: NotifySettings;
   private soundEnabled: boolean;
   private muteUntil: number | null = null;
-  /**
-   * EEW の eventId 別「初回通知済み」記録。eventId → 最初の通知時刻 (ms)。
-   *
-   * notifyEew() の第1報判定を EewTracker の `result.isNew` 依存から切り離す
-   * ための安全網。VXSE43/44/45 の到着順や上流の処理変更に左右されず、
-   * 「Notifier から見て初回の eventId」では必ず通知が発火する。
-   *
-   * Map の値はクリーンアップ判定用のタイムスタンプ。
-   */
-  private notifiedEewEventIds = new Map<string, number>();
-
   constructor() {
     const fileConfig = loadConfig();
     this.settings = {
@@ -343,25 +329,12 @@ export class Notifier {
     // Notifier 単体の契約としても初回扱いにならないようガード)
     if (result.isDuplicate) return;
 
-    // 古いエントリをクリーンアップ (10分超のものを削除)
-    this.cleanupNotifiedEewEventIds();
-
-    // 「Notifier から見て初回の eventId か」を判定する。
-    // EewTracker の result.isNew は上流処理 (VXSE43/44/45 の到着順や
-    // 抑制ロジック) の影響を受けやすいため、第1報通知の発火を
-    // Notifier 自身の状態で担保する安全網。eventId が無い場合は
-    // 従来通り result.isNew にフォールバックする。
-    const isFirstNotificationForEvent =
-      info.eventId != null
-        ? !this.notifiedEewEventIds.has(info.eventId)
-        : result.isNew;
-
-    // 通知条件: 第1報 (イベント単位の初回通知) / 警報昇格 / 取消報 / 最終報
+    // 通知条件: tracker 発行の第1報 signal / 警報昇格 / 取消報 / 訂正 / 最終報
     const isFinal = info.nextAdvisory != null;
     const isCorrection = result.isCorrection === true;
 
     if (
-      !isFirstNotificationForEvent &&
+      !result.firstReportSignal &&
       !result.isUpgradeToWarning &&
       !result.isCancelled &&
       !isCorrection &&
@@ -372,12 +345,6 @@ export class Notifier {
 
     if (result.isCancelled) {
       this.send("[取消] 緊急地震速報", "緊急地震速報は取り消されました", "eew", "cancel");
-      // 取消後は同じ eventId が再到来したときに再度「初回通知」として
-      // 鳴らせるよう、履歴から削除する (実運用上は同一 eventId の再発は
-      // ほぼ無いが、テストや再接続のシナリオでの安全網)。
-      if (info.eventId != null) {
-        this.notifiedEewEventIds.delete(info.eventId);
-      }
       return;
     }
 
@@ -403,21 +370,6 @@ export class Notifier {
       "eew",
       soundLevel,
     );
-
-    // 通知発火を履歴に記録 (cleanup 用のタイムスタンプを格納)
-    if (info.eventId != null) {
-      this.notifiedEewEventIds.set(info.eventId, Date.now());
-    }
-  }
-
-  /** EEW 通知履歴から TTL 超のエントリを削除する */
-  private cleanupNotifiedEewEventIds(): void {
-    const now = Date.now();
-    for (const [id, ts] of this.notifiedEewEventIds) {
-      if (now - ts > NOTIFIED_EEW_TTL_MS) {
-        this.notifiedEewEventIds.delete(id);
-      }
-    }
   }
 
   notifyEarthquake(info: ParsedEarthquakeInfo): void {

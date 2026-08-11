@@ -127,6 +127,8 @@ export type SuppressibleProcessResult<TOutcome extends ProcessOutcomeBase> =
 
 export interface EewOutcome extends ProcessOutcomeBase {
   domain: "eew";
+  /** 通常 pipeline を通さず display state command としてだけ ingest する。 */
+  displayLifecycleOnly?: true;
   parsed: ParsedEewInfo;
   state: {
     activeCount: number;

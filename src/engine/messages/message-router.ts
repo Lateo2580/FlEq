@@ -40,6 +40,10 @@ import {
 } from "./telegram-diagnostic";
 import { TelegramRevisionGate, type TelegramRevisionDecision } from "./telegram-revision-gate";
 import { routeHasExplicitRevisionFamilyPolicy } from "./revision-family-registry";
+import {
+  createUnknownDeliveryCapabilities,
+  type DeliveryCapabilities,
+} from "../../dmdata/delivery-capabilities";
 
 // ── 電文分類 (Route) ──
 //
@@ -253,6 +257,8 @@ export interface MessageHandlerOptions {
   onFloodRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** tornado/heat/typhoon/nankai/VPWP/VXSE62 common gate commit. */
   onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
+  /** message 処理時点の process-wide capability を読む遅延 getter。 */
+  getDeliveryCapabilities?: () => DeliveryCapabilities;
 }
 
 /** createMessageHandler の戻り値 */
@@ -364,6 +370,16 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     onTsunamiRevisionDecision: options?.onTsunamiRevisionDecision,
     onFloodRevisionDecision: options?.onFloodRevisionDecision,
     onStandbyRevisionDecision: options?.onStandbyRevisionDecision,
+    getDeliveryCapabilities: options?.getDeliveryCapabilities
+      ?? (() => createUnknownDeliveryCapabilities()),
+    onVxse44Suppressed: (reason) => {
+      stats.recordFoundationForHeadType(
+        "VXSE44",
+        reason === "observed-vxse45"
+          ? "vxse44SuppressedByObservedVxse45"
+          : "vxse44SuppressedByCapability",
+      );
+    },
   };
 
   /**
@@ -560,6 +576,15 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     }
 
     if (outcome == null) {
+      return;
+    }
+
+    if (outcome.domain === "eew" && outcome.displayLifecycleOnly === true) {
+      try {
+        displaySink?.ingest(toPresentationEvent(outcome));
+      } catch {
+        // display lifecycle command の配送障害を受信本体へ波及させない。
+      }
       return;
     }
 

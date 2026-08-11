@@ -500,6 +500,7 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
   function makeResult(overrides: Partial<EewUpdateResult> = {}): EewUpdateResult {
     return {
       isNew: false,
+      firstReportSignal: overrides.firstReportSignal ?? overrides.isNew === true,
       isDuplicate: false,
       isCancelled: false,
       isSuppressed: false,
@@ -515,20 +516,24 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     clearIconPathCache();
   });
 
-  it("eewResult.isNew=true の第1報で通知音が鳴る (既存挙動)", () => {
+  it("tracker の firstReportSignal=true だけで第1報通知音が鳴る", () => {
     const notifier = new Notifier();
-    notifier.notifyEew(makeEewInfo({ eventId: "EVT-A" }), makeResult({ isNew: true }));
+    notifier.notifyEew(
+      makeEewInfo({ eventId: "EVT-A" }),
+      makeResult({ isNew: false, firstReportSignal: true }),
+    );
     expect(playSoundMock).toHaveBeenCalledWith("warning");
     expect(notifyMock).toHaveBeenCalledTimes(1);
   });
 
-  it("eewResult.isNew=false でも eventId 初回なら通知音が鳴る (安全網)", () => {
-    // 上流のバグや到着順により isNew=false で第1報が届いても、
-    // Notifier 側で初回 eventId を検出して鳴らす。
+  it("isNew=true でも firstReportSignal=false なら第1報を導出しない", () => {
     const notifier = new Notifier();
-    notifier.notifyEew(makeEewInfo({ eventId: "EVT-B" }), makeResult({ isNew: false }));
-    expect(playSoundMock).toHaveBeenCalledWith("warning");
-    expect(notifyMock).toHaveBeenCalledTimes(1);
+    notifier.notifyEew(
+      makeEewInfo({ eventId: "EVT-B" }),
+      makeResult({ isNew: true, firstReportSignal: false }),
+    );
+    expect(playSoundMock).not.toHaveBeenCalled();
+    expect(notifyMock).not.toHaveBeenCalled();
   });
 
   it("同じ eventId への 2 回目以降の通常報は鳴らない", () => {
@@ -552,6 +557,25 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     expect(playSoundMock).toHaveBeenNthCalledWith(2, "critical");
   });
 
+  it("firstReportSignal と警報昇格が同時でも一通知・一音へ畳む", () => {
+    const notifier = new Notifier();
+    notifier.notifyEew(
+      makeEewInfo({
+        eventId: "EVT-SIGNAL-UPGRADE",
+        type: "VXSE43",
+        isWarning: true,
+      }),
+      makeResult({
+        firstReportSignal: true,
+        isUpgradeToWarning: true,
+      }),
+    );
+
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    expect(playSoundMock).toHaveBeenCalledTimes(1);
+    expect(playSoundMock).toHaveBeenCalledWith("critical");
+  });
+
   it("isFinal (nextAdvisory 付き) は eventId 既通知でも鳴る (最終報)", () => {
     const notifier = new Notifier();
     const info = makeEewInfo({ eventId: "EVT-E" });
@@ -563,7 +587,7 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     expect(playSoundMock).toHaveBeenCalledTimes(2);
   });
 
-  it("isCancelled=true は cancel 音で鳴り、履歴がクリアされる (再発時に再度初回扱い)", () => {
+  it("isCancelled と再武装後の tracker signal をそれぞれ独立に通知する", () => {
     const notifier = new Notifier();
     const info = makeEewInfo({ eventId: "EVT-F" });
     // 第1報
@@ -575,8 +599,11 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     );
     expect(playSoundMock).toHaveBeenNthCalledWith(2, "cancel");
 
-    // 同じ eventId で再度発表 → 初回扱いで鳴る (実運用ではほぼ無いが安全網)
-    notifier.notifyEew({ ...info, serial: "3" }, makeResult({ isNew: false }));
+    // tracker が取消後の再武装を確定した発表だけ signal を渡す
+    notifier.notifyEew(
+      { ...info, serial: "3" },
+      makeResult({ isNew: false, firstReportSignal: true }),
+    );
     expect(playSoundMock).toHaveBeenCalledTimes(3);
   });
 
@@ -612,27 +639,45 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     expect(playSoundMock).not.toHaveBeenCalled();
   });
 
-  it("result.isSuppressed=true は何もしない (eventId も記録しない)", () => {
+  it.each([
+    ["第1報", {}, { firstReportSignal: true }],
+    ["警報昇格", {}, { isUpgradeToWarning: true }],
+    ["訂正", { infoType: "訂正" }, { isCorrection: true }],
+    ["取消", { infoType: "取消" }, { isCancelled: true }],
+    ["最終報", { nextAdvisory: "これで最終報です" }, {}],
+  ] as Array<[string, Partial<ParsedEewInfo>, Partial<EewUpdateResult>]>) (
+    "result.isSuppressed=true は %s 資格があっても通知・音を出さない",
+    (_label, infoOverrides, resultOverrides) => {
+      const notifier = new Notifier();
+      notifier.notifyEew(
+        makeEewInfo({ eventId: `EVT-SUPPRESSED-${_label}`, ...infoOverrides }),
+        makeResult({ ...resultOverrides, isSuppressed: true }),
+      );
+
+      expect(playSoundMock).not.toHaveBeenCalled();
+      expect(notifyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("抑止報の後でも後続 tracker signal を通知する", () => {
     const notifier = new Notifier();
     const info = makeEewInfo({ eventId: "EVT-G" });
     notifier.notifyEew(info, makeResult({ isSuppressed: true }));
     expect(playSoundMock).not.toHaveBeenCalled();
     expect(notifyMock).not.toHaveBeenCalled();
 
-    // 抑制された後でも、次の正規通知は初回扱いで鳴る
-    notifier.notifyEew(info, makeResult({ isNew: false }));
+    // 抑制された後でも tracker signal があれば鳴る
+    notifier.notifyEew(info, makeResult({ firstReportSignal: true }));
     expect(playSoundMock).toHaveBeenCalledTimes(1);
   });
 
-  it("eventId=null では従来通り result.isNew にフォールバックする", () => {
+  it("eventId=null でも isNew から第1報を導出しない", () => {
     const notifier = new Notifier();
-    // eventId なし & isNew=true → 鳴る
-    notifier.notifyEew(makeEewInfo({ eventId: null }), makeResult({ isNew: true }));
-    expect(playSoundMock).toHaveBeenCalledTimes(1);
-
-    // eventId なし & isNew=false & 全 flag false → 鳴らない
-    notifier.notifyEew(makeEewInfo({ eventId: null, serial: "2" }), makeResult({ isNew: false }));
-    expect(playSoundMock).toHaveBeenCalledTimes(1);
+    notifier.notifyEew(
+      makeEewInfo({ eventId: null }),
+      makeResult({ isNew: true, firstReportSignal: false }),
+    );
+    expect(playSoundMock).not.toHaveBeenCalled();
   });
 
   it("settings.eew=false なら何もしない", () => {
@@ -651,8 +696,8 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
     expect(playSoundMock).not.toHaveBeenCalled();
     expect(notifyMock).not.toHaveBeenCalled();
 
-    // 重複でガードされた後でも、後続の正規通知は初回扱いで鳴る
-    notifier.notifyEew(info, makeResult({ isNew: false }));
+    // 重複でガードされた後でも、後続の tracker signal は鳴る
+    notifier.notifyEew(info, makeResult({ firstReportSignal: true }));
     expect(playSoundMock).toHaveBeenCalledTimes(1);
   });
 
@@ -839,7 +884,7 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
       expect(playSoundMock).toHaveBeenCalledTimes(1); // 履歴有効 → 鳴らない
     });
 
-    it("10分超経過後に notifyEew を呼ぶと cleanup され、同じ eventId が再度初回扱いで鳴る", () => {
+    it("10分超経過しても notifier は独自に第1報 signal を導出しない", () => {
       const notifier = new Notifier();
       const info = makeEewInfo({ eventId: "EVT-TTL-2" });
       notifier.notifyEew(info, makeResult({ isNew: true }));
@@ -847,9 +892,8 @@ describe("Notifier.notifyEew (第1報発火・eventId 単位の通知履歴)", (
 
       // 10 分 + 1 秒経過
       vi.advanceTimersByTime(10 * 60 * 1000 + 1000);
-      // 次の notifyEew 呼び出し時に cleanup が走り、履歴から削除される
       notifier.notifyEew({ ...info, serial: "2" }, makeResult({ isNew: false }));
-      expect(playSoundMock).toHaveBeenCalledTimes(2); // 履歴クリア → 再度鳴る
+      expect(playSoundMock).toHaveBeenCalledTimes(1);
     });
   });
 });

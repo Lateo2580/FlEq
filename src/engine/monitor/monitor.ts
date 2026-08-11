@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { join } from "node:path";
 import { AppConfig } from "../../types";
 import { MultiConnectionManager } from "../../dmdata/multi-connection-manager";
+import { createUnknownDeliveryCapabilities } from "../../dmdata/delivery-capabilities";
 import { createMessageHandler } from "../messages/message-router";
 import { restoreTsunamiState } from "../startup/tsunami-initializer";
 import { restoreVolcanoState } from "../startup/volcano-initializer";
@@ -342,6 +343,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let isFirstConnection = true;
 
   const pipeline = pipelineController?.getPipeline();
+  let manager: MultiConnectionManager | null = null;
   const persistAcceptedTsunamiRevision = () => {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   };
@@ -378,6 +380,8 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     onStandbyRevisionDecision: (decision) => {
       if (decision.accepted) standbyPersistence.schedule(standbyStore.exportActiveState());
     },
+    getDeliveryCapabilities: () => manager?.getDeliveryCapabilities()
+      ?? createUnknownDeliveryCapabilities(),
   });
   for (let i = 0; i < standbyPersistence.takeMigrationConflictCount(); i++) {
     stats.recordFoundation("persistenceMigrationConflict");
@@ -428,7 +432,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   let replHandler: ReplHandlerType | null = null;
   let summaryTimerControl: SummaryTimerControl | null = null;
 
-  const manager = new MultiConnectionManager(config, {
+  manager = new MultiConnectionManager(config, {
     onData: (msg) => {
       withReplDisplay(replHandler, () => routeMessage(msg));
     },
