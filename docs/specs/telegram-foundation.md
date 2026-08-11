@@ -890,7 +890,7 @@ EEW revisionFamily は §5.2 の `serialOnly` comparator override を使用す�
 
 ## 9. VXSE44 の購読確認付き抑止
 
-> **稼働状態:** 本節の capability 抑止は Phase 6A 実装契約（§13）に基づく将来契約である。Phase 6A が main へ統合されるまで、現行実装は VXSE44 を常時抑止する。
+> **稼働状態:** Phase 6A は main へ統合済みであり、本節の購読確認付き抑止が稼働中である。VXSE45 の実受信または `DeliveryCapabilities` による配送保証がある場合だけ VXSE44 を抑止し、capability unknown／切断中は fail-open とする。
 
 ### 9.1 基本方針
 
@@ -1734,11 +1734,13 @@ npm --prefix display run typecheck
 変更単位（依存順。connection capability と stats の独立契約を先に固定し、最後に EEW policy へ接続する）:
 
 1. 契約先行（本節。文書のみ）: 対象は `docs/specs/telegram-foundation.md`。完了条件は capability の generation latch／unknown 固定／multi-connection 集約式、遅延 getter、EventID と InfoType を限定した第1報 signal、notifier との責務境界、stats の原子的二重集計、真理値表、回帰禁止事項が一意に読めること。検証は文書差分と既存 §5.4／§9／§13／§17 の整合確認とする。
-2. connection capability（feature/phase6a で実装・独立レビュー完了、main 統合待ち）: 対象は新規 `src/dmdata/delivery-capabilities.ts`、`src/dmdata/connection-manager.ts`、`src/dmdata/ws-client.ts`、`src/dmdata/multi-connection-manager.ts`、`src/engine/cli/cli-run.ts` と対応する dmdata／CLI tests。完了条件は current generation の event だけが snapshot を変更し、最初の valid start を latch、完全一致重複を no-op、不一致／malformed を同世代 unknown 固定、旧世代 event を無視し、single／primary+backup を上記の all／積集合／mixed-source 式で集約すること。test は open→start、open/data だけ、最初から malformed、valid→完全一致、valid→不一致、valid→malformed、旧世代 start／close、disconnect→reconnect、primary confirmed＋backup unknown、両系 confirmed、mixed source、backup 停止を固定する。
+2. connection capability（main `d6add13` で統合済み）: 対象は新規 `src/dmdata/delivery-capabilities.ts`、`src/dmdata/connection-manager.ts`、`src/dmdata/ws-client.ts`、`src/dmdata/multi-connection-manager.ts`、`src/engine/cli/cli-run.ts` と対応する dmdata／CLI tests。完了条件は current generation の event だけが snapshot を変更し、最初の valid start を latch、完全一致重複を no-op、不一致／malformed を同世代 unknown 固定、旧世代 event を無視し、single／primary+backup を上記の all／積集合／mixed-source 式で集約すること。test は open→start、open/data だけ、最初から malformed、valid→完全一致、valid→不一致、valid→malformed、旧世代 start／close、disconnect→reconnect、primary confirmed＋backup unknown、両系 confirmed、mixed source、backup 停止を固定する。
 3. stats additive API: 対象は `src/engine/messages/telegram-stats.ts`、必要な stats formatter と `test/engine/telegram-stats.test.ts`／`test/ui/statistics-formatter.test.ts`。完了条件は既存 metric key の意味と非 VXSE44 入力の結果を維持し、head type 付き記録 API が一操作で global と type-local を各一回だけ原子的に加算し、`foundationByHeadType` の外側 Map／内側 record を snapshot ごとにコピーし、両集計が JST rollover すること。test は API 単体の既存 metric、新規二 metric、同 metric の複数 head type、原子的二重集計、外側／内側防御コピー、rollover、formatter の既存項目・ラベル・並び順不変を固定する。本番 call-site の排他的理由判定と加算回数は単位4で検証する。
 4. EEW policy・notifier 接続・回帰固定: 対象は `src/engine/monitor/monitor.ts`、`src/engine/messages/message-router.ts`、`src/engine/presentation/processors/process-message.ts`、`src/engine/presentation/processors/process-eew.ts`、`src/engine/eew/eew-tracker.ts`、`src/engine/notification/notifier.ts` と `test/engine/message-router.test.ts`、`test/engine/presentation/processors/process-eew.test.ts`、`test/engine/eew-tracker.test.ts`、`test/engine/notifier.test.ts`。完了条件は遅延 getter の fresh snapshot で三分岐し、unknown／切断中の44を通常処理し、observed／capability の理由を排他的に各一回記録し、`EewUpdateResult.firstReportSignal` と `isNew` を分離し、notifier が tracker signal だけで第1報音を判定し、取消再武装／10分TTLと上記真理値表を満たすこと。test は fail-open 44、capability 抑止、45実受信後の44抑止、45後の43抑止、双方受理可能な44→45／45→44、suppressed 44→45、suppressed終端44→遅延45、非抑止取消再武装、suppressed 取消で latch／TTL 不変、最終報非再武装、10分 expiry 後の strictly newer 続報／same-family 終端撤回に対する第1報資格再評価、別-family 遅延報抑止、EventID null／空文字／空白、警報昇格、同一 serial 訂正通知、logger start／append／close、safety rank 継承、semantic／transport replay、本番 metric call-site の排他性と一回加算を固定する。さらに `firstReportSignal` と `isUpgradeToWarning`／`isCorrection`／terminal notification が独立に共存し、既存優先規則で一通知／一音へ畳まれることを確認し、最後に build／通常 test／shuffle test／test typecheck を通す。
 
 ### Phase 6B: legacy counterpart correlator
+
+状態: **骨組み完了**（main `e9220a6`。変更単位2〜5を実装し、Sol high 独立レビュー各巡を経て xhigh 最終 GO。production counterpart／severity rule は空のままで、三 source type は60秒 Holdback後に fail-open表示する。6B後半は実 pair fixture 取得後に別契約で着手する）。
 
 内容:
 
