@@ -20,8 +20,10 @@
 
 この文書は常設情報ディスプレイ（`display/`）のデザイントークンとアクセシビリティ基準の正本である。
 トークンとは「色・文字サイズ・角丸などの値に名前を付けて一箇所で定義した設定値」で、実体は `display/frontend/src/lib/theme.css` の CSS カスタムプロパティ（`--...`）にある。
-各コンポーネントはこの名前を参照するだけで、生の値を持たない。
+意味色・サイズ・shape などは原則としてこの名前を参照する。マスク用の黒白、反転文字の on-color、TierOverlay の演出用 rgba など、役割がコンポーネント内に閉じる低水準の生値は例外として認めるが、意味色を生値で再定義してはならない。
 値を一箇所に集めることで、全画面の見た目を一本の定義から動かせる。
+
+責務の境界は次のとおりである。画面 mode、イベントの lifecycle、snapshot の protocol と導出規則の正本は [`engine.md`](./engine.md) とし、本書はその表示上の帰結だけを規定する。電文値の意味、presence、badge の規則は [`telegram-foundation.md`](./telegram-foundation.md) を正本とし、本書は frontend で使う実色と描画方法を規定する。重複記述が食い違う場合は、それぞれの責務を持つ文書を優先する。
 
 対象範囲は `display/` の frontend に限る。
 FlEq には別に CLI 側の端末テーマがあり、その規範は `docs/specs/ui.md` と `docs/display-reference.md` にある。
@@ -48,27 +50,27 @@ FlEq には別に CLI 側の端末テーマがあり、その規範は `docs/spe
 この思想が全トークンの土台にある。
 
 **計器盤思想。**
-本文フォントに等幅の JetBrains Mono を第一候補に置く（`theme.css:1-5` のヘッダコメント、`--font-ui` は `theme.css:105`）。
+本文フォントに等幅の JetBrains Mono を第一候補に置く（`theme.css` のヘッダコメントと `--font-ui`）。
 等幅フォントは全文字が同じ横幅なので、桁の位置が揃い、数値が縦にきれいに並ぶ。
 数値表示には `tabular-nums`（等幅数字）を使い、値の列は em / ch を単位に固定幅で揃える。
 これにより、震度やマグニチュードが更新されても桁位置が動かず、遠目でも読み違えない。
 画面幅への追従は文字幅ではなく font-size 経由で行う（§3 タイポ）。
 
 **ダーク常設。**
-`:root` に `color-scheme: dark` を固定する（`theme.css:23`）。
+`:root` に `color-scheme: dark` を固定する（`theme.css`）。
 ライト／ダークを切り替える機構は持たない。
 明るさ調整は減光（dim）トグルだけで、寝室などで画面全体を沈めるための一段階である（§4・§5 の StandbyScreen）。
-背景は `--bg`（純黒）、基本文字は `--fg`（`theme.css:25-28`）で、この 2 色が全コントラストの基準点になる。
+背景は `--bg`（純黒）、基本文字は `--fg` で、この 2 色が全コントラストの基準点になる。
 
 **CUD 9 色と JMA 法定色を錨とする。**
-色の土台は CUD（Color Universal Design、色覚多様性対応）の 9 色パレットである（`theme.css:30-41`）。
+色の土台は CUD（Color Universal Design、色覚多様性対応）の 9 色パレットである（`theme.css` の CUD primitive）。
 CUD は、色の見え方が多数派と異なる人にも区別しやすいよう選ばれた配色群を指す。
 この 9 色を「錨（anchor）」＝動かさない基準色として固定し、意味色はここから導く。
-例外は津波の 3 段階で、これは気象庁（JMA）が定める法定の標準色（紫・赤・黄）に従う（`theme.css:43-47`）。
+例外は津波の 3 段階で、これは気象庁（JMA）が定める法定の標準色（紫・赤・黄）に従う（`theme.css` の JMA primitive）。
 人命に直結する津波表示で独自色を使わないための規約である。
 
 **M3E 概念の自前翻訳。**
-角丸の段階（shape scale）、面の重なり（surface container）、影による奥行き（tonal elevation）、ばね物理の動き（spring motion）といった概念は、Material 3 Expressive（M3E）から発想を借りている（`theme.css:161-224`）。
+角丸の段階（shape scale）、面の重なり（surface container）、影による奥行き（tonal elevation）、ばね物理の動き（spring motion）といった概念は、Material 3 Expressive（M3E）から発想を借りている（`theme.css` の shape / surface / elevation / spring token 群）。
 ただし M3E のライブラリやコンポーネントには依存しない。
 概念だけを受け取り、値はすべてこのディスプレイの都合（ダーク常設・遠見・焼付き回避）に合わせて自前で定義した。
 したがって本書のトークンは M3E の実装と一対一では対応しない。
@@ -83,77 +85,86 @@ CUD は、色の見え方が多数派と異なる人にも区別しやすいよ�
 色は 4 層の階層で組む。
 下層ほど生の値に近く、上層ほど意味に近い。
 
-1. **プリミティブ**（`theme.css:30-47`）: CUD 9 色に加え、`-lift` 変種と JMA 津波色を置く。ここが唯一の生の色定義である。
-2. **DisplayColorRole**（`theme.css:49-66`）: `--role-critical` や `--role-tsunamiMajor` のように「意味」に色を割り当てる層。コンポーネントは原則この role を参照し、生の色を直接触らない。
-3. **震度 rank**（`theme.css:68-80`）: 震度 1〜7 を 9 段（5 弱・5 強・6 弱・6 強・7 を分割）に展開したテキスト色。rank 1〜7 は文字色だが、6 強（rank8）と 7（rank9）だけは面（背景色）＋反転文字で塗る。強い震度を「文字色」ではなく「塗り」で示して段位を跳ね上げるためである。
-4. **ヘッダ 3 層**（`theme.css:82-102`）: 緊急パネル見出しの意味色 container 面・明るい on-container 文字・下端の CUD 色帯の 3 点セット。色相＝意味のシグナルは下端の帯（`--header-band-*`、既存の CUD/JMA 色）が担保するので、container 面の色相を各意味へ手動移植しても色の錨には抵触しない。
+1. **プリミティブ**（`theme.css` の CUD / JMA token 群）: CUD 9 色に加え、`-lift` 変種と JMA 津波色を置く。共通 palette の生値はここに集約する。コンポーネント内に閉じるマスク、反転 on-color、演出用 rgba は例外であり、意味色の定義には使わない。
+2. **DisplayColorRole**（`theme.css` の `--role-*`）: `--role-critical` や `--role-tsunamiMajor` のように「意味」に色を割り当てる層。コンポーネントは原則この role を参照し、生の色を直接触らない。
+3. **震度 rank**（`theme.css` の `--int-*`）: 震度 1〜7 を 9 段（5 弱・5 強・6 弱・6 強・7 を分割）に展開したテキスト色。rank 1〜7 は文字色だが、6 強（rank8）と 7（rank9）だけは面（背景色）＋反転文字で塗る。強い震度を「文字色」ではなく「塗り」で示して段位を跳ね上げるためである。
+4. **ヘッダ 3 層**（`theme.css` の `--header-*`）: 緊急パネル見出しの意味色 container 面・明るい on-container 文字・下端の CUD 色帯の 3 点セット。色相＝意味のシグナルは下端の帯（`--header-band-*`、既存の CUD/JMA 色）が担保するので、container 面の色相を各意味へ手動移植しても色の錨には抵触しない。
 
-`-lift` 変種（`--c-blue-lift`・`--c-orange-lift`、`theme.css:34,38`）は「黒背景のテキスト専用に一段明るくした色」で、面（背景塗り）には使わない。
+`-lift` 変種（`--c-gray-lift`・`--c-blue-lift`・`--c-orange-lift`・`--c-vermillion-lift`）は「黒背景のテキスト専用に一段明るくした色」で、面（背景塗り）には使わない。
 純黒の上に暗い CUD 色を文字として置くとコントラストが足りないため、文字のときだけ明度を持ち上げる。
-特に `--c-orange-lift` は、実機パネルで `--c-orange` が注意報の黄色と見分けづらかったため、テキスト role をこちらへ寄せた経緯がある（`theme.css:38` のコメント）。
+特に `--c-orange-lift` は、実機パネルで `--c-orange` が注意報の黄色と見分けづらかったため、テキスト role をこちらへ寄せた経緯がある（`theme.css` の token コメント）。
 
-`--c-jma-purple-bar` は語彙設計上の中立 alias である（`theme.css:82-90`）。
+`--c-jma-purple-bar` は語彙設計上の中立 alias である。
 大津波警報（津波）と気象特別警報（気象）は共に法定紫で、container 面も下端帯も一致する。これは意図通りで、両者は見出し文言で区別する。
 ただし帯トークンで気象側が津波専用名の `--c-tsunami-purple-bar` を直接借りると「気象なのに津波色を使っている」と読める語彙の混線が起きる。
 そこで中立名 `--c-jma-purple-bar` を一枚かませ、両者はこの alias 経由で同じ紫を共有する（プリミティブの `--c-tsunami-purple-bar` はそのまま温存）。
 
 ### 3.2 タイポグラフィ
 
-フォントは 2 種をセルフホストする（`theme.css:7-20`）。
+フォントは 2 種をセルフホストする（`theme.css` の font-face 定義）。
 欧文・数字の JetBrains Mono と、日本語の Noto Sans JP で、いずれも 1 ファイルで複数太さを持つ可変フォント（variable font）である。
 ライセンスは SIL Open Font License 1.1（同ディレクトリの `OFL-*.txt`）。
 外部 CDN に頼らずアプリ内に同梱するのは、ネットワーク断でも確実に同じ字形で表示させるためである。
 
-太さは可変フォントの wght 軸を段階化した `--type-weight-*`（regular〜heavy）で持ち、role 別に baseline と emphasized の 2 つを定義する（`theme.css:115-122`）。
+太さは可変フォントの wght 軸を段階化した `--type-weight-*`（regular〜heavy）で持ち、role 別に baseline と emphasized の 2 つを定義する。
 通常時は baseline、強調時は emphasized に切り替えることで、太さのゆらぎを役割単位で一元管理する。
 主役数字の太さ `--num-weight` は tier に連動して離散的に heavy へ持ち上がる（§4）。
 
 型スケール（文字サイズの段階表）は二本立てである。
 
-- **固定 px**（`theme.css:124-140`）: 緊急パネル向け。使用側で `* var(--panel-scale, 1)` を掛け、パネルの拡大率に追従させる。緊急時（scale 1.5）に主役文字を一律に大きくするための仕組みである。
-- **fluid clamp**（`theme.css:145-151`）: 待機画面向け。`clamp(最小, 画面幅追従, 最大)` で画面幅に連続追従する。待機画面は情報密度が低く、画面サイズに応じてなめらかに伸縮させたいためである。
+- **固定 px**（`theme.css` の固定 type scale）: 緊急パネル向け。使用側で `* var(--panel-scale, 1)` を掛け、パネルの拡大率に追従させる。緊急時（scale 1.5）に主役文字を一律に大きくするための仕組みである。
+- **fluid clamp**（`theme.css` の fluid type scale）: 待機画面向け。`clamp(最小, 画面幅追従, 最大)` で画面幅に連続追従する。待機画面は情報密度が低く、画面サイズに応じてなめらかに伸縮させたいためである。
 
-`--panel-scale` は緊急パネル系のみが注入し（EmergencyScreen が `1.5` を定義）、下端帯幅 `--header-band-width` などもこれに連動する（`theme.css:91,124`）。
+`--panel-scale` は緊急パネル系のみが注入し（EmergencyScreen が `1.5` を定義）、下端帯幅 `--header-band-width` などもこれに連動する。
 この二本立ての帰結として、同一トークンが画面幅次第で小さめの文字にもなり得る点は §6 のアクセシビリティ方針に効いてくる。
 
+RecentQuakes の行本文は現行実装どおり `--type-body-s-fluid` を使い、FHD では 14px とする。§8a の `--type-body-l-fluid` に残る RecentQuakes の説明は generator が転記する `theme.css` 側の旧コメントであり、消費箇所の規範ではない。14px の遠見可読性は実機ゲートで再評価する。
+
 **数値+添え字（NumberUnit）。**
-単位・等級ラベルつきの数値は NumberUnit コンポーネント（`components/NumberUnit.svelte`）で「主役数値 大 + 添え字 小」に統一する（2026-07-23 数値表記統一）。
+単位・等級ラベルつきの数値は原則として NumberUnit コンポーネント（`components/NumberUnit.svelte`）で「主役数値 大 + 添え字 小」に統一する（2026-07-23 数値表記統一）。
 添え字とは数値に従属する短い記号・語のことで、後置の単位（`3.31m` の m、hPa、m/s、km/h、km）と前置の等級ラベル（`M7.1` の M、`レベル3` のレベル）の両方を指す。
 つまり「読む人がまず掴むべきは数値、添え字はその読み方の補助」という優先度を、サイズ差で表現する仕組みである。
 
 - 数値（`.nu-value`）は常に `tabular-nums`（等幅数字）+ `--num-weight`（tier 連動）。添え字（`.nu-prefix` / `.nu-unit`）は weight・variant とも normal
 - 添え字サイズは `max(12px, var(--number-unit-affix-size, 0.6em))`。0.6em の縮小は数値が 20px 級（洪水ワイドの主役水位など）で初めて視覚的な階層になる。12〜14px 文脈では 12px 床が効いて縮小がほぼ潰れるため、狭小レイアウト側は `--number-unit-affix-size: 1em` を指定して**縮小なし・構造だけ共有**とする（FloodCard corner の水位が該当）。この例外は「洪水という意味」ではなく「狭小レイアウトという表示制約」に紐づく判断である
 - NumberUnit は文字列を解析しない。`value` / `prefix?` / `unit?` の描画だけを担い、null 分岐・丸め・ラベル選択は呼び出し側の責務
-- 適用外: 時刻表示、震度チップ（単位語がなくチップ自体が形式）、範囲値
+- 適用外: 時刻表示、震度チップ（単位語がなくチップ自体が形式）、範囲値。加えて、RollingNumber と一体で更新する TyphoonCard の hPa / m/s はローカルな stat-unit を使い、EewPanel / QuakePanel / QuakeMapScreen の M は計器レイアウト上の独立ラベルとして値と分ける。新規実装は、数値アニメーションまたは計器配置上の理由がない限り NumberUnit を使う
 - 将来の調整枠: FHD 実画面で「規模の M だけ見失う」失敗が観測された場合は、M 特例ではなく全 prefix 共通で 0.6em → 0.75em へ上げる（2026-07-23 対立的レビュー裁定）
 
 ### 3.3 Shape / Surface / Elevation / Spacing
 
-面まわりの 4 スケールは M3E 概念の自前翻訳で、いずれも段階を刻んだ数列として持つ（`theme.css:174-203`）。
+面まわりの 4 スケールは M3E 概念の自前翻訳で、いずれも段階を刻んだ数列として持つ。
 
-- **Shape（角丸）**: 7 段の radius（`--radius-xs`〜`--radius-full`、`theme.css:174-180`）。none（角丸なし＝0）はトークン化しない。待機カードは `l`（16px）、緊急ヒーローは `xl`（28px）を割り当て、形の大胆さで階層を付ける。
-- **Surface（面の明度）**: 5 段の無彩色面（`--surface-lowest`〜`--surface-highest`、`theme.css:181-186`）。純黒からわずかに持ち上げた暗いグレー階層で、面の重なりを明度差だけで示す。無彩色なので CUD 色相の錨に抵触しない。
-- **Elevation（奥行き）**: 3 段の box-shadow（`--elevation-1`〜`-3`、`theme.css:187-190`）。通常 LCD と判明したため OLED 焼付き制約を外し、ダーク向けの控えめな影を解禁した。
-- **Spacing（余白）**: 4px グリッドの 12 段（`--space-1`〜`-12` = 4〜48px、`theme.css:191-203`）。余白を 4px の倍数に揃え、間隔のばらつきを無くす。
+- **Shape（角丸）**: 6 段の radius（`--radius-xs`〜`--radius-full`）。none（角丸なし＝0）はトークン化しない。待機カードは `l`（16px）、緊急ヒーローは `xl`（28px）を割り当て、形の大胆さで階層を付ける。
+- **Surface（面の明度）**: 5 段の無彩色面（`--surface-lowest`〜`--surface-highest`）。純黒からわずかに持ち上げた暗いグレー階層で、面の重なりを明度差だけで示す。無彩色なので CUD 色相の錨に抵触しない。
+- **Elevation（奥行き）**: 3 段の box-shadow（`--elevation-1`〜`-3`）。通常 LCD と判明したため OLED 焼付き制約を外し、ダーク向けの控えめな影を解禁した。
+- **Spacing（余白）**: 4px グリッドの 12 段（`--space-1`〜`-12` = 4〜48px）。余白を 4px の倍数に揃え、間隔のばらつきを無くす。
 
-surface と elevation の適用は Phase B の作業で、トークン定義が先行している。
+surface と elevation は待機カード、緊急パネル、地図画面などへ適用済みで、トークン定義と使用側をともに現行規範とする。§8a の「7 段」「Phase B」は generator が転記する `theme.css` 側の旧コメントであり、実際の token 数や適用状態の規範ではない。
 
 ### 3.4 Motion
 
-動きはばね物理（spring）から生成する（`theme.css:204-224` と `display/scripts/generate-springs.mjs`）。
+動きはばね物理（spring）から生成する（`theme.css` と `display/scripts/generate-springs.mjs`）。
 ばね物理とは、実際のばねの伸び縮みを模した動きのモデルで、硬さ（stiffness）と減衰（damping）の 2 値で振る舞いが決まる。
 `generate-springs.mjs` はこの 2 値から減衰振動の単位ステップ応答をサンプリングし、CSS の `linear()` イージング（動きの緩急を折れ線で近似する関数）を 25 点の点列として書き出す。
 値は生成物なので手で書かず、`--write` で `theme.css` の該当マーカー間へ再生成する。
 
-spring は spatial 3 種と effects 2 種の 5 つを用意する（`generate-springs.mjs:24-30` の `SPRING_SPECS`）。
+spring は spatial 3 種と effects 2 種の 5 つを用意する（`generate-springs.mjs` の `SPRING_SPECS`）。
 使い分けの軸は overshoot（行き過ぎて戻る動き）の可否である。
 
 - **spatial**（default / quick / slow、damping 0.8）: 位置・スケールの移動用。damping が 1 未満なので目標を少し行き過ぎてから戻る。動きに弾みを付けて生き生きと見せる。
 - **effects**（default / slow、damping 1.0）: 色・不透明度の変化用。臨界減衰（damping = 1）で overshoot しない。色や透明度が行き過ぎると別の色に見えてしまうため、まっすぐ収束させる。
 
-退場は不透明度だけを `--dur-exit`（200ms、`theme.css:223`）で処理する。
-「消失感を出さない」ため、位置移動を伴わずその場でそっと消す設計である。
-tier 昇格時の主役ウェイト bold→heavy の遷移は `--dur-weight-swell`（200ms、`theme.css:224`）が担い、太さだけを連続的に膨らませる（色・面は瞬時、§4）。
+画面 mode の入退場は次を規範とする。いずれも位置移動を伴わず、退場はその場で不透明度だけを落とす。
+
+| mode | 入場 | 退場 |
+| --- | --- | --- |
+| standby | opacity fade、`--spring-effects-slow-duration`（327ms） | opacity fade、`--dur-exit`（200ms） |
+| quakeMap | opacity fade、`--spring-effects-slow-duration`（327ms） | opacity fade、`--spring-effects-slow-duration`（327ms） |
+| emergency | scale のみ、`--spring-spatial-quick-duration`（142ms）。opacity は初期フレームから 1 | opacity fade、`--spring-effects-slow-duration`（327ms） |
+
+`prefers-reduced-motion: reduce` では全 mode の入退場を 0ms にする。`--dur-exit` は standby と短い component outro の token であり、全画面の退場時間ではない。
+tier 昇格時の主役ウェイト bold→heavy の遷移は `--dur-weight-swell`（200ms）が担い、太さだけを連続的に膨らませる（色・面は瞬時、§4）。
 
 **二層 slot（dim と transition の所有権分離、2026-07-23 モーション修正）。**
 待機画面の slot 4 系統（flood-slot / weather-corner / standby-corner / corner-item）は、外枠と内枠 `.slot-motion` の二層で組む。
@@ -176,9 +187,9 @@ keyframe は `transform` ではなく独立 CSS `translate` プロパティを�
 
 `backgroundTone` は engine が snapshot に明示する画面背面の契約で、`calm` / `caution` / `alert` / `critical` / `quakeExtreme` を持つ。frontend は再判定せず `data-background-tone` として適用する。欠落・未知値は `calm`、イベントの `tickerSurface` の欠落・未知値は `none` に縮退する。
 
-`quakeExtreme` persists for 12 hours from an intensity-7 `originTime`, independently of the largeQuake/latestQuake display TTL, TierOverlay, and night dim. The production values are confined to the canonical `--background-tone-*` tokens.
+`quakeExtreme` の成立・保持・解除・訂正時の扱いは [`engine.md`](./engine.md) を正本とする。frontend は engine が返す `backgroundTone` を描画するだけで、largeQuake / latestQuake の表示 TTL、TierOverlay、night dim とは独立した背景として見える。実色は本書の `--background-tone-*` token を正本とする。
 
-`tickerSurface: "solid"` は engine が指定したイベントだけに role の container/on token 面を敷く。大津波警報は既存の `--header-tsunamiMajor-container/on` を使い、L5 相当と震度 7 も同じ経路で描画する。dim は面と文字を混色し、警報級 floor は既存規則を維持する。`#tone-matrix` preview は 5 tone × dim × critical overlay の目視ゲートである。
+`tickerSurface: "solid"` は engine が指定したすべてのイベントに role の container/on token 面を敷く。大津波警報、L5 相当、震度 7 は同じ汎用経路の利用例であり、frontend は特定 role だけへ限定しない。dim は面と文字を混色し、警報級 floor は既存規則を維持する。`#tone-matrix` preview は 5 tone × dim × critical overlay の目視ゲートである。
 
 tier（severity tier、重大度の段）は、平常から緊急までの「今どれだけ重大か」を表す離散的な段位である。
 これを 2 系統の別々な仕組みで表現し、役割を分ける。
@@ -186,25 +197,25 @@ tier（severity tier、重大度の段）は、平常から緊急までの「今
 LCD-confirmed production values (2026-07-29) are `calm: #000000`, `caution: #131300`, `alert: #1A0400`, `critical: #1A001A`, and `quakeExtreme: #1D0010`. They are the canonical `--background-tone-*` tokens, derived from target relative luminance: 0.006 for caution and 0.003 for alert, critical, and quakeExtreme. The anchors are the Cabinet Office R2.5.29 published palette (#F2E700 / #FF2800 / #AA00AA) and the JMA Color Design Guideline H24.5 intensity-7 color (#B40068).
 
 **離散上書き（`main[data-tier]` 駆動）。**
-`main` 要素の `data-tier` 属性（alert / critical など）に応じて、CSS が特定トークンを離散的に差し替える（`theme.css:257-268`）。
+`main` 要素の `data-tier` 属性（alert / critical など）に応じて、CSS が特定トークンを離散的に差し替える（`theme.css` の `main[data-tier]` 規則）。
 具体的には緊急パネル面を一段持ち上げ（`--surface-panel` を container→high、`--surface-panel-raised` を high→highest）、主役数字の太さ `--num-weight` を heavy へ上書きする。
 これは「段が上がった瞬間の状態そのもの」の切り替えで、色・面は瞬時に切り替わる。
 太さだけは消費側の hero 要素に `--dur-weight-swell` の transition を付け、bold→heavy をなだらかに昇らせる（wght スウェル）。
 
 **opacity crossfade（TierOverlay）。**
-一方 `TierOverlay.svelte` は、画面全体に敷いた 3 層（caution / alert / critical）の不透明度をクロスフェードで出し入れする（`TierOverlay.svelte:27-35`）。
+一方 `TierOverlay.svelte` は、画面全体に敷いた 3 層（caution / alert / critical）の不透明度をクロスフェードで出し入れする。
 各層は radial-gradient で「中心は透明、縁だけほんのり色づく」気配の面で、色は rgba 直値で持つ（例: critical は `rgba(160, 48, 160, ...)`）。
 色面自体は静止させ、`opacity` の遷移だけ（`--spring-effects-slow`）で雰囲気を連続的に変える。
 段が上がったときの「空気の変化」を担うのがこちらである。
 
 つまり離散上書きが「値の瞬時切替（状態）」を、TierOverlay の crossfade が「雰囲気の連続遷移」を受け持つ。
 両者を分けることで、情報（数値・面の段位）は即座に正しく切り替えつつ、演出（周縁の色づき）だけをなめらかに追従させられる。
-`prefers-reduced-motion` 指定時は TierOverlay の transition を切り、情報は消さずに即時切替へ倒す（`TierOverlay.svelte:42-46`）。
+`prefers-reduced-motion` 指定時は TierOverlay の transition を切り、情報は消さずに即時切替へ倒す。
 
 ## 5. コンポーネントカタログ
 
-`display/frontend/src/components/` の 21 コンポーネントを役割・主要トークン依存・特記の順に挙げる。
-緊急パネル系（EewPanel / QuakePanel / TsunamiPanel / WeatherEmergencyPanel / QuakeHeadline の panel variant）は `--panel-scale` 連動を持ち、待機画面系カードは持たない。
+`display/frontend/src/components/` の主要コンポーネントを役割・主要トークン依存・特記の順に挙げる。
+緊急パネル系（EewPanel / QuakePanel / TsunamiPanel / WeatherEmergencyPanel）は `--panel-scale` 連動を持ち、待機画面系カードは持たない。
 
 - **Clock**: 待機画面の大時計（時刻＋日付）と緊急画面の小時計の 2 バリアント。`--type-clock-hero`・`--clock-fg`・`--font-num` 依存。小時計の時刻はあえて `--fg`（`--clock-fg` の非減光トーンを避ける）。
 - **ConnectionBadge**: SSE / dmdata 切断時のみ時計上に出す警告バッジ。`--role-connectionStale`・`--role-muted` 依存。意味色 1 つで全体を統一する role 依存の典型。
@@ -213,21 +224,32 @@ LCD-confirmed production values (2026-07-29) are `calm: #000000`, `caution: #131
 - **InstrumentRow**: 待機画面下部の統計行（受信通数・本日の地震件数＋スパークライン）。`--role-muted`・`--num-weight`・`--fg-faint` 依存。SVG スパークラインは `fill="var(--role-muted)"` を属性で直接埋める。
 - **LatestQuakeCard**: 待機画面左上の「最新の地震」カード（看板ヘッダ＋概要＋震度別グループ／ページング）。`--surface-standby`・`--header-quakeWarning/Critical-*`・`--int-*` 依存。震度 8/9 面の前景は `#000`/`#fff` 直値（トークン未整備箇所）。
 - **PageDots**: 詳細ページャの現在地ドット＋クリックジャンプ（4 箇所で共有）。`--fg`・`--spring-effects-default` 依存。非強調を opacity ではなく `color-mix(--fg 35%, transparent)` で表す減光合成の代表例。
-- **QuakeHeadline**: 「最大震度規模行＋拡大範囲行」の共有ヘッドライン（QuakePanel / LatestQuakeCard で共通化）。`variant="panel"|"card"` で寸法差を吸収。震度 8/9 面の前景を `--int-8-on`/`--int-9-on` でトークン化している唯一の箇所。
 - **QuakePanel**: 緊急画面の地震情報パネル（EewPanel と対）。震源・最大震度・チップ・震度別リストを表示。トークン構成は EewPanel とほぼ同型で `--panel-scale` 連動が広範。震度 8/9 前景は `#000`/`#fff` 直値。
 - **QuakeReplayCard**: 待機画面の地震履歴クリックで再表示する簡易版カード（ページング無し）。LatestQuakeCard と寸法・トークンをほぼ完全共有。フォーカスリングは `outline: 2px solid var(--role-muted)`。
-- **RecentQuakes**: 待機画面の「直近の地震」一覧（最大 5 件、行クリックで Replay）。`--int-*`・`--role-muted`・`--num-weight` 依存。震度 8/9 前景は `#000`/`#fff` 直値。
+- **RecentQuakes**: 待機画面の「直近の地震」一覧（最大 5 件、行クリックで Replay）。行本文は `--type-body-s-fluid`（FHD 14px）を使い、`--int-*`・`--role-muted`・`--num-weight` に依存する。震度 8/9 前景は `#000`/`#fff` 直値。遠見可読性は実機ゲートで再評価する。
 - **RollingNumber**: 数値を桁ごとに転がして更新するアニメーション部品。トークン依存が低く（色・サイズは親から継承）、動きに専念する。
 - **StandbyScreen**: 待機画面全体のレイアウト（時計中央・左上コーナー・右上・下段）。`--surface-standby`・`--space-*`・`--hairline` 依存。減光は例外的に opacity 方式で、`.standby.dim` 全体 0.35 に主要ブロック 0.7 を重ねる「寝室仕様」の全体沈降（他所の opacity 禁止規範とは用途が別）。**右上スタックの選抜は実高計測ベース**（2026-07-24、measurement shelf 方式）: 全候補カードを `.measure-shelf`（inert + aria-hidden + visibility:hidden、`.corner-right` の overflow:hidden の外）に隠し描画し、台風は full / compact の両モードを共有 ResizeObserver で実測する。全候補が現在版（updatedAt）で計測済みになったら選抜入力を台風件数連動の固定見積り→実測へ一括切替する。選抜は severity 降順 + 配列順 tie-break（描画順は常に配列順）で、予算不足時は **full → 台風 compact → StandbyOverflowSummary** の三段構えとする。カード幅の真実源は `.standby` の `--standby-card-width`（本表示と棚で共有——棚の containing block 差による折返し高ズレを防ぐ）。二層 slot 規約に従い棚には motion を載せない。
-- **Ticker**: 下部テロップ帯（2 レーン）のスケジューラ表示コンテナと緊急画面用の右端時計。`--surface-low`＋`--hairline` 上辺で「計器盤の最暗面の一段上」に敷く。
-- **TickerLane**: テロップ 1 レーンの走行描画。dim 時は文字・チップを `color-mix(--tk-c 35%, --bg)` で面と同率に沈める合成規則を持つ（`TickerLane.svelte:527-539`）。大津波警報の走行文字だけ header 反転ペアで面付き強調する。
-- **TierOverlay**: 画面全体の tier 気配レイヤ（§4）。radial-gradient を rgba 直値でグラデ発光させ、opacity crossfade で雰囲気を出す（`TierOverlay.svelte:27-35`）。
+- **Ticker**: 下部テロップ帯（現行 2 レーン、各 40px）のスケジューラ表示コンテナと緊急画面用の右端時計。レーン数の scheduling 上の正本は `lib/ticker-lanes.ts` の `LANES` で、CSS の `--ticker-rows` は同値へ同期させる。走行速度は全角換算 5 字/秒、最短走行 8 秒、reduced-motion の最短保持 3 秒、chip linger 500ms とする。`--surface-low`＋`--hairline` 上辺で「計器盤の最暗面の一段上」に敷く。
+- **TickerLane**: テロップ 1 レーンの走行描画。dim 時は文字・チップを `color-mix(--tk-c 35%, --bg)` で面と同率に沈める合成規則を持つ。`tickerSurface: "solid"` を受けたすべての role を header container/on pair で面付き強調し、特定の電文種別へ固定しない。
+- **TierOverlay**: 画面全体の tier 気配レイヤ（§4）。radial-gradient を rgba 直値でグラデ発光させ、opacity crossfade で雰囲気を出す。
 - **TsunamiPanel**: 緊急画面の津波パネル（予報区リスト／観測実況・種別別背景面）。`--header-tsunami*-*`・`--role-tsunami*` に依存し、背景トーンは `color-mix(role色 15%, --bg)` で合成する。CSS 変数名を JS で組み立て inline style へ注入する。
 - **TsunamiStandbyBanner**: 待機画面左上の津波バナー（種別別マーキー巡回＋チップ再生）。`--surface-standby`・`--radius-full` 依存。dim は opacity 重ね掛け事故を避け `color-mix(chipBg 35%, --surface-standby)` へ切替。
 - **UpdatedStamp**: カード見出し右端の「最終更新時刻」（気象警報／台風情報／火山情報／津波情報バナーで共有）。表記は常に月日込み（`formatMdHm`）— 数時間〜数日更新が空く種別があり、`HH:MM` だけだと古い電文が今日の更新に見えるため、桁数より曖昧さの排除を採る。色は `color: inherit` で見出し帯の on 色を継承し、独自トークンを持たない（コントラスト監査の対象ペアを増やさない）。
 - **VolcanoCard**: 待機画面右上の火山カード。数値の噴火警戒レベルは火山名と同じ見出し行へ載せる。警報の対象区分に同義の生表記（例: `レベル３（入山規制）`）があっても、見出しに数値レベルがある場合は補助行へ重複表示しない。数値レベルがない場合は補助行が唯一の情報源になり得るため、生表記を維持する。
 - **WeatherAlertCard**: 待機画面右上の気象警報／特別警報カード（最高ランクのみ表示）。`--header-weather*-*`・`--role-weather*` 依存。意味色は JS 注入でなく CSS クラスセレクタで完結する。高さ上限 280px は維持し、収まらない末尾は黙って切らず、実測した省略行で「ほか N 項目／地域」と可視化する。表示文字列・行構造・フォント確定による高さ変化を再計測へ反映する。
-- **WeatherEmergencyPanel**: 緊急画面の気象警報パネル（警戒レベル 4・5 相当の主役化、Spec C）。**面（surface + 影）を持つのは詳細一覧（「どこ」）だけ**で、「何が」はパネル地の上のヒーロー（`警戒レベル N` + 一段小さい `相当`）、「どうする」は `--role-weather*` の縦レール（`border-inline-start`）を持つ行動レール、副セクションは `--hairline` の区切り線のみ。**compact スロットだけ**はレベルと行動文を `警戒レベル N 相当 — <行動文>` の 1 行に束ねて縦を節約する（ゆとりのある主役スロットでは分離したまま）——同格タイルを 4 枚並べると重要度が横並びになり、EEW / 津波 / 地震の「主役＋計器＋リスト」構成に対して平板に見えるため（実機目視 2026-07-26）。詳細行は「区分 ｜ 地域」の 2 列グリッドで、地域側に `--hairline` の縦罫を引く（**遠見・夜間減光では font-weight 差が最初に消える**ので、太さだけの分離は成立しない）。警報名はパネル内でのみ `L5 ` 接頭辞を落として揃える（レベルは見出しの「警戒レベル N 相当」が担う。`formatLevelLabel` 自体は変更せず、待機カード・テロップ・CLI は接頭辞つきのまま）。1 行に並べる地域名の件数は領域の実測幅と文字サイズから算出する（固定件数だと、ゆとりがあるのに省略／狭いのに詰め込む、の両方が起きる）。「何が（警戒レベル N 相当＋警報名）／どこ（種別ごとの地域＋ほか N 地域）／どうする（固定の行動文＋補助行）」の 3 固定領域で、L5 昇格中に併存する L4 相当は同パネル内の副セクションへ回す。色 role は `--header-weather{Emergency,Warning}-*`・`--role-weather*` を **WeatherAlertCard と共有**し、新規トークンを持たない（ただし監査ペアは増える——実際に消費する面との組合せを §8b に追加した）。**critical tier（L5 発表中・大津波警報併発など）では主要な文字を `--fg` へ退避する**：`TierOverlay` の全画面フィルム（最大 α=0.34）が文字にも背景にも掛かり、合成後は意味色が AA を割るため（weatherEmergency 3.21〜3.66:1 / weatherWarning 3.90〜4.44:1、`--fg` なら 6.85〜7.81:1）。意味色は看板ヘッダ帯と行動レール（非テキスト、閾値 3:1）に残す。この「使わない組合せ」も監査表に載せ、退避を外したら FAIL として気づけるようにしてある。source（vpws50 / vpww56）間で同じ `displaySeverity × phenomenonKey` の行は待機カードと同様に統合し、地域・追加地域は出現順を保って union、省略地域数は合算する（`phenomenonKey` 欠落の旧サーバは表示名へ縮退）。「どこ」領域は QuakePanel / TsunamiPanel と同じ `createPageCycler` + `PageDots` の自動ページ送りで、領域高と代表行を実測して 1 ページの行数を決める（実測不能時は fallback 行数）。**画面に収まらない情報を黙って切らない**ことを設計の錨とし、上限で落ちた情報は必ず件数で可視化する（1 行の地域名は engine 縮退ぶんと合算して「ほか N 地域」、副セクションに載らない種別と「何が」の警報名は「ほか N 種別」）。ページ送りを持たない固定領域（「何が」「どうする」「副セクション」）は内容駆動で伸ばさず有界にする。ただし**区分一覧（警報名）は上限を掛けず、折り返して全種別を載せる**——上限 + 「ほか N 種別」で畳むと、狭い枠で**最上級レベルに何が出ているかが件数へ丸められ**、最優先の情報を最初に削ることになる（実機目視 2026-07-26）。表示の優先順位は **レベル + 行動文 ＞ 区分一覧 ＞ 地域** で、ヒーローは `flex: 0 0 auto` で縮まず、高さが足りないときは**ページ送りを持つ地域カード側が縮む**（ページ送りの待ちを地域だけに閉じ込め、「何が起きていて何をするか」は常に一目で読める）。補助行「自治体が発令する避難指示とは別の防災気象情報です」は行動レール内に置き、主役スロットのみに出す（compact では主情報へ高さを回す）。**副セクション（L5 昇格中の L4 相当）は幅によらず地域名を持たない種別の要約**にする（件数の上限は高さの上限にならないため——地域行は折返しで高さが青天井になり、ページ送りのない領域では溢れが黙って切られる。L4 の地域が要る場面は主レベルの「どこ」が担う）。省略の告知は**行末の件数だけ**に一本化する（領域下端の固定文「表示は一部です」は主語が無く「ページの一部」と誤読されたため廃止。実機目視 2026-07-26）。ページャは詳細一覧の見出し行（`対象地域・区分` と同じ行）に置き、省略の告知とは場所を分ける。副セクションの上限は distinct な種別数で数える（source 違いの同一種別を 2 種別と数えない）。**点灯規則（Spec C 追補 2026-07-26/27）**: 保持は受理から 3 分（降格判定は最大 5 秒遅れ）で、点灯するのは**新規発表と更新発表だけ**——同内容の定時再掲では点灯し直さない（切り替え自体が視線を引く役割を持つので、出しっぱなしにするとその力が死ぬ）。見出し帯の右端に「新規発表 / 更新発表」バッジを出し（判定材料が無ければ無表示）、更新で**追加された地域は下線で強調**する。ハイライトは**文字色を触らず下線 + 記号**で表す——critical overlay 下では意味色が文字として AA を割るため（下線は非テキスト 3:1 で通常 5.96〜8.25:1 / critical 合成後 3.66〜4.44:1、いずれも PASS）。バッジと下線は §8b の監査表にカテゴリ 15 として載せてあり、意味色を文字へ流用したら FAIL で気づける。内容更新でパネルはマウントされたままなので、`activationKey`（engine が採番）が変わったら**内部だけを差し替えて短い fade-in** を掛ける（旧内容は outro を持たない片方向フェード）（外側の key に混ぜるとレイアウト補間と実測状態が壊れる）。追加地域を含む行のページを初期ページにする。
+- **WeatherEmergencyPanel**: 緊急画面の気象警報パネル（警戒レベル 4・5 相当の主役化、Spec C）。「何が」はヒーロー、「どこ」は surface と影を持つページング詳細、「どうする」は意味色の縦レールを持つ行動欄として分離する。compact slot だけはレベルと行動文を 1 行に束ねる。詳細は「区分 ｜ 地域」の 2 列で、地域数と 1 ページの行数は領域の実測値から決め、落とした情報は「ほか N 地域／種別」で可視化する。L5 と併存する L4 は地域名を持たない副セクションへ回す。色 role は WeatherAlertCard と共有し、critical tier では overlay 合成後の AA を守るため主要文字を `--fg` へ退避し、意味色は看板帯・行動レール・追加地域の下線へ残す。engine が供給する activation と追加地域を、新規／更新バッジ、下線＋記号、クロスフェードとして描画する。
+
+WeatherEmergencyPanel の `activationKey` 切替は、現行実装どおり旧内容と新内容を重ね、双方の `in:fade` / `out:fade`（`--spring-effects-default-duration`、231ms）でクロスフェードすることを規範とする。コード内の「outro を持たない片方向フェード」というコメントは旧記述であり、現行動作を変更しない。コメントの修正は次回の実装変更に委ねる。
+
+WeatherEmergencyPanel の保持、再掲判定、`activationKey` 採番、追加地域の導出は [`engine.md`](./engine.md) を正本とする。frontend の規範は、engine が供給した activation と追加地域を、バッジ・下線・クロスフェードとして欠落なく描画することである。
+
+### 5.1 待機画面カード拡充
+
+HeatAlertCard、TyphoonCard、VolcanoCard、FloodCard / FloodWideCard は右上または時計上の待機カードである。NankaiBadge は時計下、竜巻と長周期地震動は既存の WeatherAlertCard / LatestQuakeCard の rider として表示する。右上の収容予算を full カードが超える場合は、台風カードだけを 1〜2 行／台風の compact 表示へ縮約して再選抜し、それでも収まらない候補を StandbyOverflowSummary に集約する。台風カードの severity はカード内の最大強度に連動し、通常相当は normal、非常に強い／超大型は warning、猛烈なは critical とする。WeatherAlertCard は 280px 上限を保ち、末尾の省略を「ほか N 項目／地域」行で可視化する。RestoredChip（同期中）は永続化から復元した状態だけに付け、live 更新後は消す。critical standby は tier と夜間減光を抑止するが、emergency 画面遷移はしない。
+
+engine が供給する候補配列の順序を描画順の protocol 契約とする。frontend は severity 降順で収容候補を選び、同値は入力順で解決するが、採用後は元の配列順で描画する。frontend は kind による固定順を保証しないため、火山・台風・熱中症などの優先表示順が必要なら engine がその順で配列を構成する。気象警報と洪水は専用 slot の配置規則に従う。
+
+洪水スロットは corner ⇔ clock-top を同一 key で移動するため絶対配置し、気象カード高さ分の offset と spacer で気象カードの下に収める。FloodWideCard の幅 `min(720px, 56vw)` は視聴環境の錨（24 インチ FHD）では左右コーナーと衝突しない。FHD 未満（例: 1280px 幅）では右上カード列と水平に重なり得る既知の制約であり、常用する場合は幅計算を「画面幅 − 左右コーナー幅」基準へ変更する。目視確認は preview `#standby-active-cards` / `#standby-active-wide` を使う。
 
 ## 6. アクセシビリティ
 
@@ -262,9 +284,9 @@ fluid clamp や container query で、同一トークンが画面幅次第で小
 特に、radial-gradient の位置依存 alpha（TierOverlay の縁ぼかし）・blur・画像の重なりは、位置によって実効コントラストが変わるため静的監査の適用外とする。
 これらは実機の目視検証で担保する。
 
-**FAIL 許容リストの読み方。**
-§8b には閾値未満の FAIL 行が含まれる（例: `--fg-faint` の base、dim チップ各種、dim×high lane 各種）。
-FAIL の一部は「許容」として明示的に受け入れているが、許容は免罪符ではなく「非適合をあえて明示した記録」である。
+**監査結果「許容」の読み方。**
+§8b には閾値未満を「許容」とした行が含まれる（例: `--fg-faint` の base、dim チップ各種、dim×high lane 各種）。
+「許容」は免罪符ではなく「非適合をあえて明示した記録」である。FAIL と STALE は生成・検査時の gate 状態を指し、現行の生成表で受理済みの行を FAIL と呼ばない。
 沈んでいてよい要素（接続正常ドットなど）や、減光時に意図的に沈める dim 面がこれに当たる。
 許容は生成器への入力（トークン値・ペア定義）の hash に紐づいており、入力が変われば許容は STALE として失効し、判断のやり直しを迫る。
 つまり「一度許容したら永久に無視」ではなく、根拠が変わるたびに再点検が走る。
@@ -275,10 +297,10 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 
 - [ ] **視聴環境の錨**: 24 インチ FHD（1920×1080）・視聴距離 1.0〜1.5m を前提に本節の数値を導いている。設置環境（画面サイズ・距離）が変わったら、この錨から数値を再導出すること。
 - [ ] **二層文字サイズ**: 層 1（安全情報・常設情報）は 14px 以上、層 2（低プロミネンス補足）は 12px 以上。11px のトークン・fluid 下限は廃止済み。14px は暫定下限であり、視角 16 分（この視聴距離では約 21px）に満たない帯（12〜20px）が残る既知の限界を正直に記録する。「規範を満たす＝理想」ではなく「規範を満たす＝この端末で許容する下限」である。実機での距離別可読性検証（津波バナー地域名を代表に 14px と 21px 級を目視比較）は**未実施の残タスク**として明記する。
-- [ ] **行間**: グローバル `line-height: 1.3`（`theme.css:243`）はデータ密度優先の kiosk 例外（緊急パネル収容制約）で、DADS の 150% 基準（段落文章向け）はここには適用しない。折り返して読ませる文章ブロック（散文）には `.prose`（行間 1.5、`theme.css:261-263`）を付けること。列挙式の適用対象リストではなく、この反転チェックリスト（付け忘れをレビューで検出する運用）で管理する。
+- [ ] **行間**: グローバル `line-height: 1.3` はデータ密度優先の kiosk 例外（緊急パネル収容制約）で、DADS の 150% 基準（段落文章向け）はここには適用しない。折り返して読ませる文章ブロック（散文）には `.prose`（行間 1.5）を付けること。列挙式の適用対象リストではなく、この反転チェックリスト（付け忘れをレビューで検出する運用）で管理する。
 - [ ] **動くテロップ・自動ページ送り**: 停止手段を持たない放送型 kiosk の挙動は「本製品独自の例外判断であり、停止手段がない既知の差分」であり、WCAG 適合を意味しない（将来の静止モードが成立しうる以上「停止が本質的に不可能」とは言えない）。`prefers-reduced-motion` は「動きの軽減」（アニメーションを 0ms 化する）に限られ、ページ送り（10 秒）とテロップの自動切替は reduced-motion でも継続する。ここを「停止手段」とは呼ばない。静止モードは将来タスクとし、受入条件を明記しておく：(1) サーバ／REPL から静止モードを指示できる (2) 静止中はテロップ・自動ページ送りが自動では進まない (3) 現在の表示内容は失われず手動送りができる (4) 解除で通常動作へ復帰する。
 - [ ] **dim 操作系**: クリックは「対話要素発のクリックを無視する」ガード反転方式（契約は `lib/dim-interaction.ts` の `shouldToggleDimOnClick`）を採り、対話要素発の誤爆を構造的に防ぐ。既存コンポーネント側の `stopPropagation` は二重防御として残す。D キーでもトグルできる（`shouldToggleDimOnKey`）。長押し反復（`repeat`）・修飾キー併押・編集可能要素へのフォーカス中は無視する。画面に常設 UI を置かない設計のため、操作の発見可能性は `docs/display-setup.md` の記載で担保する。
-- [ ] **night-dim 二重防御**: 「災害情報端末として、夜でも警報は光る」を原則とする。基底ガードは警報級 role の可読性フロアで、dim による混色を除外する（判定表の真実源は `lib/alert-roles.ts` の `isAlertRole`、監査番兵は §8b の cat9／cat11／cat14）。強調層は警報級掲載中の自動サスペンドで、`requestedDim`（手動意思）と `effectiveDim`（実効値）を分離し、判定不能・未知の重大度は明るい側へ倒す（fail-bright、`computeEffectiveDim`）。
+- [ ] **night-dim 二重防御**: 「災害情報端末として、夜でも警報は光る」を原則とする。基底ガードは Ticker role の可読性フロアで、dim による混色を除外する（判定表の真実源は `lib/alert-roles.ts` の `isAlertRole`、監査番兵は §8b の cat9／cat11／cat14）。Ticker role は未知値も警報側へ倒す。強調層は snapshot の明示的な `critical` tier と weather L5 掲載中の自動サスペンドで、`requestedDim`（手動意思）と `effectiveDim`（実効値）を分離する。**現行の fail-bright 保証範囲は Ticker role のみ**であり、snapshot 側の未知 severity は自動サスペンドを保証しない。snapshot 側も未知値を明るい側へ倒す改修はバックログで予定している。
 - [ ] **ターゲットサイズ**: 対話要素の当たり判定は 24×24px 以上。PageDots は当初「透明 24×24px ボタン＋擬似要素でドットを描く」方式で適合させたが、26 ページ相当の多ページ時に 624px → 2 行折返しでメイン表示を圧迫する実害が preview で見つかり (再裁定 2026-07-18)、ドット自身を見えるサイズ (6px/current 8px) で直描きする旧来構造に撤回した。ヒット領域は縦 24px + 横は間隔上限 (約10px) の拡張に留め、24×24px には満たない既知の限界として記録する。津波バナーの count-chip は `min-height: 24px` で適合させる (この項は不変)。
 - [ ] **見出し階層**: 視覚非表示の `<h1>`（`App.svelte` の `.visually-hidden`）を起点にレベルを飛ばさない。
 - [ ] **DADS 出典の区別**: 「正式準拠」（JIS X 8341-3:2016 = WCAG 2.0 レベル AA 相当。§6 のコントラスト基準はここに属する）と「先取り推奨」（2.5.8 など、WCAG 2.1／2.2 系で DADS が順次追加中の達成基準。ターゲットサイズはここに属する）を混同せず書き分ける。
@@ -958,11 +980,5 @@ FAIL の一部は「許容」として明示的に受け入れているが、許
 | dim-mid-weatherEmergency | 14 dim×通常レーン警報本文 | dim | `floor(--role-weatherEmergency)` | `dim60(--surface-low)` | 6.29:1 | 4.5:1 | PASS |
 | dim-mid-weatherWarning | 14 dim×通常レーン警報本文 | dim | `floor(--role-weatherWarning)` | `dim60(--surface-low)` | 8.70:1 | 4.5:1 | PASS |
 <!-- GENERATED:contrast:end -->
-
-## 5. 待機画面カード拡充
-
-HeatAlertCard、TyphoonCard、VolcanoCard、FloodCard/FloodWideCard は右上または時計上の待機カードである。NankaiBadge は時計下、竜巻と長周期地震動は既存の WeatherAlertCard / LatestQuakeCard の rider として表示する。右上の収容予算を full カードが超える場合は、台風カードだけを 1〜2 行／台風の compact 表示へ縮約して再選抜し、それでも収まらない候補を StandbyOverflowSummary に集約する。台風カードの severity はカード内の最大強度に連動し、通常相当は normal、非常に強い／超大型は warning、猛烈なは critical とする。WeatherAlertCard は 280px 上限を保ち、末尾の省略を「ほか N 項目／地域」行で可視化する。RestoredChip（同期中）は永続化から復元した状態だけに付け、live 更新後は消す。critical standby は tier と夜間減光を抑止するが、emergency 画面遷移はしない。
-
-右上の積み順は 気象警報カード > 洪水 > 火山 > 台風 > 熱中症（洪水スロットは corner⇔clock-top を同一 key で移動するため絶対配置だが、気象カード高さ分のオフセット + スペーサーで気象カードの下に収める）。FloodWideCard の幅 `min(720px, 56vw)` は視聴環境の錨（24インチ FHD）では左右コーナーと衝突しない。**FHD 未満（例: 1280px 幅）では右上カード列と水平に重なり得る既知の制約**であり、FHD 未満の常用が必要になったら幅計算を「画面幅 − 左右コーナー幅」基準へ変更する。目視確認はプレビュー `#standby-active-cards` / `#standby-active-wide` を使う。
 
 </details>
