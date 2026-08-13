@@ -453,7 +453,7 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
     expect(weatherResult!.snapshot.weatherAlerts[0]!.items[0]!.shownAreas.length).toBeLessThanOrEqual(6);
     expect(weatherResult!.snapshot.stats?.sparklineData).toEqual(sparklineData);
 
-    // recentQuakes が最終段 (空) まで進むケース (段10)
+    // recentQuakes が最終段 (空) まで進むケース (段11)
     const heavyRecentQuakesForSparkline: DisplayRecentQuakeV1[] = Array.from({ length: 5 }, (_, i) => ({
       eventId: `sq${i}`, reportDateTime: "2026-07-06T21:00:00+09:00", originTime: "2026-07-06T21:00:00+09:00",
       hypocenterName: `巨大震源${i}`.repeat(20000), magnitude: "M7.0", maxInt: "5弱", maxIntRank: 50,
@@ -468,7 +468,7 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
 
   it("recentQuakes[].intensityGroups は件数削減より先に刈られる (各地震度 → 詳細空化 → 件数の順)", () => {
     // 肥大は recentQuakes[].intensityGroups のみ (各地の震度)。cap-to-8 でも収まらないほど巨大にし、
-    // 詳細を空配列化する段 (段8) で収束させる。5 件のカード骨子は温存されるべき
+    // 詳細を空配列化する段 (段9) で収束させる。5 件のカード骨子は温存されるべき
     const groupHeavy: DisplayRecentQuakeV1[] = Array.from({ length: 5 }, (_, i) => ({
       eventId: `gq${i}`, reportDateTime: "2026-07-06T21:00:00+09:00", originTime: "2026-07-06T21:00:00+09:00",
       hypocenterName: `震源${i}`, magnitude: "M5.0", maxInt: "3", maxIntRank: 3,
@@ -498,9 +498,9 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
     const full = baseSnapshot({ recentQuakes: heavyRecentQuakes });
     const result = degradeSnapshotToBudget(full, "state");
     expect(result).not.toBeNull();
-    // 肥大源が hypocenterName (intensityGroups 段では刈れない) なので、intensityGroups 刈り (段7-8)
-    // を空振りしたのち 5→3 (段9)・空 (段10) まで到達する
-    expect(result!.level).toBe(10);                      // 最終段 (recentQuakes 空) まで到達する
+    // 肥大源が hypocenterName (intensityGroups 段では刈れない) なので、intensityGroups 刈り (段8-9)
+    // を空振りしたのち 5→3 (段10)・空 (段11) まで到達する
+    expect(result!.level).toBe(11);                      // 最終段 (recentQuakes 空) まで到達する
     expect(result!.snapshot.recentQuakes).toEqual([]);   // 最終段で空になる
   });
 
@@ -866,6 +866,78 @@ describe("InProcessSseDisplayTransport", () => {
     expect(sentItem).toBeDefined();
     expect(sentItem!.shownAreas.length).toBeLessThanOrEqual(6);
     expect(sentItem!.omittedAreaCount).toBe(originalWeatherAreaCount - sentItem!.shownAreas.length);
+  });
+
+  it.each([4, 5] as const)("⑦-c L%d 昇格中の weatherAlerts は市町村地域を全件保持する", (level) => {
+    const areas = Array.from({ length: 2_000 }, (_, i) => `市町村${i.toString().padStart(4, "0")}`);
+    // level 4 の weather 縮退を実際に通過させる。20 件 cap 後も 256KB を超える ticker を
+    // 併置し、level 5 で ticker が空になって初めて収まる入力にする。
+    const blockingTicker = Array.from({ length: 20 }, (_, i) =>
+      displayEventDto({ seq: i, id: `weather-cap-${i}`, eventKey: `weather-cap-${i}`, title: "A".repeat(15_000) }),
+    );
+    const result = degradeSnapshotToBudget(baseSnapshot({
+      recentTicker: blockingTicker,
+      weatherAlerts: [{
+        source: "vpws50", label: "気象特別警報", role: "weatherEmergency", totalAreas: areas.length,
+        items: [
+          {
+            kind: level === 5 ? "L5 大雨特別警報" : "L4 大雨警報",
+            displaySeverity: level === 5 ? "officialL5" : "officialL4",
+            rank: level === 5 ? "emergency" : "warning",
+            shownAreas: areas, omittedAreaCount: 0,
+          },
+          {
+            kind: "L3 雷警報", displaySeverity: "officialL3", rank: "warning",
+            shownAreas: areas, omittedAreaCount: 0,
+          },
+        ],
+        updatedAt: "2026-07-06T21:00:00+09:00",
+      }],
+      weatherPromotion: {
+        vpws50: { level, promotedAt: "2026-07-06T21:00:00+09:00", generation: 1 },
+        vpww56: null,
+      },
+    }), "state");
+
+    expect(result).not.toBeNull();
+    expect(result?.level).toBe(5);
+    expect(result?.snapshot.recentTicker).toEqual([]);
+    expect(result?.snapshot.weatherAlerts[0]?.items[0]?.shownAreas).toHaveLength(areas.length);
+    expect(result?.snapshot.weatherAlerts[0]?.items[0]?.omittedAreaCount).toBe(0);
+    // 同じ source の通常行まで source-wide に保護しない。旧実装ではここも 2,000 件のまま残る。
+    expect(result?.snapshot.weatherAlerts[0]?.items[1]?.shownAreas).toHaveLength(6);
+    expect(result?.snapshot.weatherAlerts[0]?.items[1]?.omittedAreaCount).toBe(areas.length - 6);
+  });
+
+  it("⑦-d 6 種別×2,000 地域の L5 行も代替縮退で緊急行を優先し、配信不能にならない", () => {
+    const items = Array.from({ length: 6 }, (_, kindIndex) => ({
+      kind: `L5 気象現象${kindIndex}特別警報`,
+      displaySeverity: "officialL5",
+      rank: "emergency" as const,
+      shownAreas: Array.from(
+        { length: 2_000 },
+        (_, areaIndex) => `第${kindIndex}種別・長い市町村地域名${areaIndex.toString().padStart(4, "0")}`,
+      ),
+      omittedAreaCount: 0,
+    }));
+    const result = degradeSnapshotToBudget(baseSnapshot({
+      weatherAlerts: [{
+        source: "vpws50", label: "気象特別警報", role: "weatherEmergency",
+        totalAreas: 2_000, items, updatedAt: "2026-07-06T21:00:00+09:00",
+      }],
+      weatherPromotion: {
+        vpws50: { level: 5, promotedAt: "2026-07-06T21:00:00+09:00", generation: 1 },
+        vpww56: null,
+      },
+    }), "state");
+
+    expect(result).not.toBeNull();
+    expect(result?.level).toBe(6);
+    expect(result?.snapshot.weatherAlerts[0]?.items).toHaveLength(6);
+    for (const item of result?.snapshot.weatherAlerts[0]?.items ?? []) {
+      expect(item.shownAreas).toHaveLength(512);
+      expect(item.omittedAreaCount).toBe(1_488);
+    }
   });
 
   it("⑦-e 震度6弱以上 (rank 7〜9) の intensityGroups は縮退時も areas を省略しない (目視ゲート第3波 Fix8)", async () => {

@@ -16,6 +16,7 @@ import {
 } from "./constants";
 import type { DisplayWeatherAlertItemV1, DisplayWeatherSourceV1 } from "./types";
 import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
+import { VPWS50_SNAPSHOT_GENERATION } from "../messages/vpws50-state";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import type {
   WeatherPromotionPersistedV1,
@@ -151,6 +152,8 @@ export class WeatherPromotionPersistence {
     // (activationSeq / uncertainSources が実際に落ちていた、Codex レビュー 3 巡目 2026-07-27)
     return {
       ...state,
+      // save() の入口へ旧 shape が渡っても、現在プロセスが生成した内容として必ず世代を付ける。
+      vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
       version: PERSIST_SCHEMA_VERSION,
       savedAt: new Date(nowMs).toISOString(),
     };
@@ -264,6 +267,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 function discardedWithoutMaterial(): WeatherPromotionPersistedV1 {
   return {
+    vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
     records: { vpws50: null, vpww56: null },
     generations: { vpws50: 0, vpww56: 0 },
     uncertainSources: Object.fromEntries(WEATHER_PROMOTION_SOURCES.map((s) => [s, null])),
@@ -326,7 +330,19 @@ function sanitizePersisted(parsed: Record<string, unknown>): WeatherPromotionPer
   // 保存時点で立っていた印も引き継ぐ (次の受理まで維持される)。
   // 値は tombstone の signature、文字列でなければ「材料なし」に倒す
   const savedUncertain = sanitizeUncertainSources(parsed.uncertainSources);
+  // holder state と同じ粒度世代で promotion の控えも切り替える。旧府県粒度の items / members を
+  // 残すと restoredItems で再表示されるだけでなく、次の市町村報が全地域追加に見える。
+  // signature も粒度を跨いで比較できないため tombstone にはせず、材料なしへ倒す。
+  if (parsed.vpws50SnapshotGeneration !== VPWS50_SNAPSHOT_GENERATION) {
+    log.debug(
+      `[weather-promotion-persistence] VPWS50 snapshot 世代交代 `
+      + `(${String(parsed.vpws50SnapshotGeneration)} → ${VPWS50_SNAPSHOT_GENERATION}) — 旧 record 破棄`,
+    );
+    records.vpws50 = null;
+    uncertainSources.vpws50 = null;
+  }
   return {
+    vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
     records,
     generations,
     unseenSinceMs,

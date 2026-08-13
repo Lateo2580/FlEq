@@ -16,6 +16,7 @@ import {
   type WeatherPromotionRecord,
 } from "../../../src/engine/display/weather-promotion-store";
 import type { DisplayWeatherAlertV1 } from "../../../src/engine/display/types";
+import { VPWS50_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpws50-state";
 import * as log from "../../../src/logger";
 
 const MIN = 60_000;
@@ -283,7 +284,11 @@ describe("WeatherPromotionPersistence", () => {
 
   function write(content: unknown): void {
     mkdirSync(dir, { recursive: true });
-    writeFileSync(file, typeof content === "string" ? content : JSON.stringify(content), "utf8");
+    const normalized =
+      typeof content === "object" && content != null && !Array.isArray(content)
+        ? { vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION, ...content }
+        : content;
+    writeFileSync(file, typeof normalized === "string" ? normalized : JSON.stringify(normalized), "utf8");
   }
 
   it("save したものを load で読み戻せる", () => {
@@ -393,6 +398,37 @@ describe("WeatherPromotionPersistence", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("VPWS50 promotion の世代不一致は旧 record を破棄し、次報を装飾なしで再構築する", () => {
+    write({
+      version: 2,
+      savedAt: new Date(T0).toISOString(),
+      vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION - 1,
+      records: {
+        vpws50: activeRecord({
+          items: [{ ...SNAPSHOT_ITEM, shownAreas: ["千葉県"] }],
+          members: [{ ...SNAPSHOT_MEMBER, areaCode: "120000", areaName: "千葉県" }],
+        }),
+        vpww56: null,
+      },
+      generations: { vpws50: 3, vpww56: 0 },
+    });
+
+    const loaded = new WeatherPromotionPersistence(file).load(T0 + MIN);
+    expect(loaded?.records.vpws50).toBeNull();
+    expect(loaded?.generations.vpws50).toBe(3);
+    expect(loaded?.uncertainSources).toHaveProperty("vpws50", null);
+    expect(loaded?.vpws50SnapshotGeneration).toBe(VPWS50_SNAPSHOT_GENERATION);
+
+    const store = new WeatherPromotionStore();
+    store.restore(loaded!, T0 + MIN);
+    store.apply("vpws50", rawView("officialL5", ["千葉市", "市原市"]), T0 + 2 * MIN);
+    const rebuilt = store.get("vpws50");
+    expect(rebuilt?.state).toBe("active");
+    expect(rebuilt?.trigger).toBeNull();
+    expect(rebuilt?.addedAreas).toEqual([]);
+    expect(rebuilt?.items[0]?.shownAreas).toEqual(["千葉市", "市原市"]);
   });
 
   it("signature 欠落の record は破棄する (復元後の unchanged 判定が壊れるため)", () => {
@@ -819,7 +855,12 @@ describe("record を破棄する全条件で控えも消える", () => {
   }
 
   function saved(records: unknown, savedAtMs = T0): void {
-    writeFile2({ version: 2, savedAt: new Date(savedAtMs).toISOString(), records, generations: { vpws50: 3, vpww56: 0 } });
+    writeFile2({
+      version: 2,
+      vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+      savedAt: new Date(savedAtMs).toISOString(), records,
+      generations: { vpws50: 3, vpww56: 0 },
+    });
   }
 
   /** 復元後に控えが残っていないことを snapshot 経由で確認する */
@@ -1063,6 +1104,7 @@ describe("破損 record の復元 (load 経路)", () => {
       // items が壊れた record (sanitizeRecord が undefined を返す経路)
       writeFileSync(file, JSON.stringify({
         version: 2,
+        vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
         savedAt: new Date(T0).toISOString(),
         records: { vpws50: { state: "active", level: 5, promotedAtMs: T0, generation: 3, signature: "s", items: "壊れた" }, vpww56: null },
         generations: { vpws50: 3, vpww56: 0 },
@@ -1103,6 +1145,7 @@ describe("旧形式 uncertainSources (配列) からの復元", () => {
   function writeLegacyUncertain(uncertainSources: unknown): void {
     writeFileSync(file3, JSON.stringify({
       version: 2,
+      vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
       savedAt: new Date(T0).toISOString(),
       records: { vpws50: null, vpww56: null },
       generations: { vpws50: 3, vpww56: 0 },
@@ -1195,6 +1238,7 @@ describe("save → load の実ファイル経路 (watermark と印の往復)", (
       // 壊れた record を load → restore して印を立て、その状態を保存し直す
       writeFileSync(file, JSON.stringify({
         version: 2,
+        vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
         savedAt: new Date(T0).toISOString(),
         records: { vpws50: { state: "active", level: 5, promotedAtMs: T0, generation: 3, signature: "s", items: "壊れた" }, vpww56: null },
         generations: { vpws50: 3, vpww56: 0 },
@@ -1222,6 +1266,7 @@ describe("装飾の all-or-nothing 検証", () => {
       const file = join(dir, "p.json");
       writeFileSync(file, JSON.stringify({
         version: 2,
+        vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
         savedAt: new Date(T0).toISOString(),
         records: {
           vpws50: {
@@ -1251,6 +1296,7 @@ describe("装飾の all-or-nothing 検証", () => {
       const file = join(dir, "p.json");
       writeFileSync(file, JSON.stringify({
         version: 2,
+        vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
         savedAt: new Date(T0).toISOString(),
         records: {
           vpws50: {

@@ -1,6 +1,7 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
 import { describe, it, expect } from "vitest";
 import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
+import { classifyWeatherPromotion } from "../../../src/engine/display/weather-promotion";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
 import type { ParsedWeatherWarning, WeatherItem, WeatherKind } from "../../../src/types";
 
@@ -36,6 +37,15 @@ function makeInfo(items: WeatherItem[]): ParsedWeatherWarning {
   };
 }
 
+function makeInfoWithLayers(layers: ParsedWeatherWarning["layers"]): ParsedWeatherWarning {
+  return {
+    ...makeInfo([]),
+    layers,
+    maxDisplaySeverity: computeMaxDisplaySeverity(layers),
+    maxSoundLevel: computeMaxSoundLevel(layers),
+  };
+}
+
 describe("Vpws50StateHolder.getCurrentAreasForDisplay", () => {
   it("未受信時は undefined", () => {
     expect(new Vpws50StateHolder().getCurrentAreasForDisplay()).toBeUndefined();
@@ -50,5 +60,66 @@ describe("Vpws50StateHolder.getCurrentAreasForDisplay", () => {
     const display = state.getCurrentAreasForDisplay();
     expect(display).not.toBeUndefined();
     expect(display?.totalAreas).toBeGreaterThan(0);
+  });
+
+  it("多層電文では市町村等 layer を state・表示 view の入力にする", () => {
+    const state = new Vpws50StateHolder();
+    const kind = makeKind("03", "warning");
+    const info = makeInfoWithLayers([
+      { type: "気象警報・注意報（府県予報区等）", items: [makeItem("千葉県", "120000", [kind])] },
+      { type: "気象警報・注意報（一次細分区域等）", items: [makeItem("千葉県北西部", "120010", [kind])] },
+      { type: "気象警報・注意報（市町村等をまとめた地域等）", items: [makeItem("葛南地域", "120020", [kind])] },
+      {
+        type: "気象警報・注意報（市町村等）",
+        items: [
+          makeItem("千葉市", "121000", [kind]),
+          makeItem("市原市", "122190", [kind]),
+        ],
+      },
+    ]);
+
+    state.diffAndUpdate(info, "msg-municipalities");
+
+    const display = state.getCurrentAreasForDisplay();
+    expect(display?.totalAreas).toBe(2);
+    expect(display?.kinds[0]?.areas).toEqual([
+      { areaName: "千葉市", areaCode: "121000" },
+      { areaName: "市原市", areaCode: "122190" },
+    ]);
+  });
+
+  it("市町村 A/B → A 昇格・B 解除・C 追加を差分化し、rollback で前報へ戻す", () => {
+    const state = new Vpws50StateHolder();
+    const l4 = makeKind("43", "warning", "レベル４大雨危険警報");
+    const l5 = makeKind("33", "specialWarning", "大雨特別警報");
+    const municipalityLayer = (items: WeatherItem[]): ParsedWeatherWarning => makeInfoWithLayers([
+      { type: "気象警報・注意報（市町村等）", items },
+    ]);
+
+    state.diffAndUpdate(municipalityLayer([
+      makeItem("市町村A", "120001", [l4]),
+      makeItem("市町村B", "120002", [l4]),
+    ]), "msg-before");
+    const diff = state.diffAndUpdate(municipalityLayer([
+      makeItem("市町村A", "120001", [l5]),
+      makeItem("市町村C", "120003", [l4]),
+    ]), "msg-after");
+
+    expect(diff.added).toMatchObject([{ areaCode: "120003" }]);
+    expect(diff.upgraded).toMatchObject([{ areaCode: "120001", changes: [{
+      prevDisplaySeverity: "officialL4",
+      newDisplaySeverity: "officialL5",
+    }] }]);
+    expect(diff.downgraded).toEqual([]);
+    expect(diff.released).toMatchObject([{ areaCode: "120002" }]);
+    expect(classifyWeatherPromotion(state.getCurrentAreasForDisplay(), "vpws50")?.level).toBe(5);
+
+    const rollback = state.restorePrevious();
+    expect(rollback.isCancelRollback).toBe(true);
+    expect(state.getCurrentAreasForDisplay()?.kinds[0]?.areas).toEqual([
+      { areaName: "市町村A", areaCode: "120001" },
+      { areaName: "市町村B", areaCode: "120002" },
+    ]);
+    expect(classifyWeatherPromotion(state.getCurrentAreasForDisplay(), "vpws50")?.level).toBe(4);
   });
 });

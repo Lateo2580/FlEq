@@ -7,6 +7,7 @@ import type { TipContext } from "../../tips/waiting-tips";
 import { encodeSseGuarded } from "./sse-clients";
 import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
+import { displayWeatherPromotionLevel, isDisplayWeatherSeverity } from "./protocol";
 import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -23,6 +24,7 @@ const CONTENT_TYPES: Record<string, string> = {
 const DEGRADED_TICKER_MAX = 20;
 const QUAKE_GROUP_AREA_MAX = 8;   // latestQuake 各震度の地域上限
 const WEATHER_AREA_MAX = 6;        // 気象カード各種別の地域上限
+const WEATHER_EMERGENCY_FALLBACK_AREA_MAX = 512; // 予算超過時だけ使う L4/L5 の最終安全弁
 const DEGRADED_RECENT_QUAKES = 3;
 
 export interface DisplayRequestHandlerDeps {
@@ -174,27 +176,66 @@ function capWeatherAreas(
   promotion?: DisplayWeatherPromotionV1,
 ): DisplayWeatherAlertV1[] {
   return alerts.map((alert) => {
+    const promoted = promotion?.[alert.source] != null;
     const added = addedAreaSetOf(promotion?.[alert.source]);
     return {
       ...alert,
       items: alert.items.map((item) => {
-        if (item.shownAreas.length <= max) return item;
-        const priority = added.get(item.kind);
-        const kept = priority == null
-          ? item.shownAreas.slice(0, max)
-          : [
-            ...item.shownAreas.filter((a) => priority.has(a)),
-            ...item.shownAreas.filter((a) => !priority.has(a)),
-          ].slice(0, max);
-        // 元の並び順で描くため、選抜後に出現順へ戻す
-        const keptSet = new Set(kept);
-        const shownAreas = item.shownAreas.filter((a) => keptSet.has(a));
-        return {
-          ...item,
-          shownAreas,
-          omittedAreaCount: item.omittedAreaCount + (item.shownAreas.length - shownAreas.length),
-        };
+        // 主役パネルが読む L4/L5 行だけ全件を守る。同じ source に併載された L3 以下まで
+        // 無制限にすると、通常カード用の行だけで SSE 予算を使い切る。
+        if (promoted && isPromotedWeatherItem(item)) return item;
+        return capWeatherItemAreas(item, max, added.get(item.kind));
       }),
+    };
+  });
+}
+
+function isPromotedWeatherItem(item: DisplayWeatherAlertV1["items"][number]): boolean {
+  return isDisplayWeatherSeverity(item.displaySeverity)
+    && displayWeatherPromotionLevel(item.displaySeverity) != null;
+}
+
+function capWeatherItemAreas(
+  item: DisplayWeatherAlertV1["items"][number],
+  max: number,
+  priority?: Set<string>,
+): DisplayWeatherAlertV1["items"][number] {
+  if (item.shownAreas.length <= max) return item;
+  const kept = priority == null
+    ? item.shownAreas.slice(0, max)
+    : [
+      ...item.shownAreas.filter((a) => priority.has(a)),
+      ...item.shownAreas.filter((a) => !priority.has(a)),
+    ].slice(0, max);
+  const keptSet = new Set(kept);
+  const shownAreas = item.shownAreas.filter((a) => keptSet.has(a));
+  return {
+    ...item,
+    shownAreas,
+    omittedAreaCount: item.omittedAreaCount + (item.shownAreas.length - shownAreas.length),
+  };
+}
+
+/** 通常縮退と ticker 除去後も超過するときだけ使う weather の代替段。
+ * 昇格 source では緊急パネルが読む L4/L5 行を優先して残し、L3 以下を落としたうえで
+ * 各緊急行にも大きめの上限を掛ける。全地域保持より「SSE 自体が届かない」を避ける最終安全弁。 */
+function prioritizePromotedWeatherItems(
+  alerts: DisplayWeatherAlertV1[],
+  promotion?: DisplayWeatherPromotionV1,
+): DisplayWeatherAlertV1[] {
+  return alerts.map((alert) => {
+    const promoted = promotion?.[alert.source];
+    if (promoted == null) return alert;
+    const added = addedAreaSetOf(promoted);
+    return {
+      ...alert,
+      items: alert.items
+        .filter(isPromotedWeatherItem)
+        .map((item) => capWeatherItemAreas(
+          item,
+          WEATHER_EMERGENCY_FALLBACK_AREA_MAX,
+          added.get(item.kind),
+        )),
     };
   });
 }
@@ -215,15 +256,16 @@ function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined
 // 3. latestQuake.intensityGroups[] 各震度 max 8 地域 + omittedAreaCount (震度6弱以上は cap 対象外)
 // 4. weatherAlerts[].items[].shownAreas 各種別 max 6 地域 + omittedAreaCount
 // 5. recentTicker 0 (recentQuakes はまだ触らない)
-// 6. active host / largeQuake から参照されない地図 event を event 単位で除外
-// 7. recentQuakes[].intensityGroups を各震度 max 8 地域に刈る (件数は削らず各地震度の地域列だけ間引く)
-// 8. recentQuakes[].intensityGroups を空配列化 (履歴カードの各地震度を諦める。件数・骨子情報は残す)
-// 9. recentQuakes 5 → 3 (肥大源を刈り尽くした後の最終手前。カード自体を減らす)
-// 10. recentQuakes 空 (最後の手段)
+// 6. weather の緊急優先代替縮退 (L3 以下を落とし、L4/L5 を大きめの上限まで保持)
+// 7. active host / largeQuake から参照されない地図 event を event 単位で除外
+// 8. recentQuakes[].intensityGroups を各震度 max 8 地域に刈る (件数は削らず各地震度の地域列だけ間引く)
+// 9. recentQuakes[].intensityGroups を空配列化 (履歴カードの各地震度を諦める。件数・骨子情報は残す)
+// 10. recentQuakes 5 → 3 (肥大源を刈り尽くした後の最終手前。カード自体を減らす)
+// 11. recentQuakes 空 (最後の手段)
 //
 // 設計原則 (2026-07-14 各地震度配線): 履歴カードの各地震度 (intensityGroups) は「1 枚のカードに
-// 付随する詳細」なので、カードの件数 (段 9) やカード自体 (段 10) を削るより前に、詳細の地域列 (段 7)
-// → 詳細全体 (段 8) の順で先に諦める。骨子 (震源・M・最大震度) を持つカードを 5 枚残すことを、
+// 付随する詳細」なので、カードの件数 (段 10) やカード自体 (段 11) を削るより前に、詳細の地域列 (段 8)
+// → 詳細全体 (段 9) の順で先に諦める。骨子 (震源・M・最大震度) を持つカードを 5 枚残すことを、
 // 各カードの各地震度より優先する。
 //
 // 設計原則 (2026-07-17 Fix11B): stats.sparklineData は数百バイトしかない軽量フィールドであり、
@@ -255,6 +297,8 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
   attempts.push(s);
   s = { ...s, recentTicker: [] };
+  attempts.push(s);
+  s = { ...s, weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion) };
   attempts.push(s);
   s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
@@ -297,8 +341,8 @@ function capTickerKeepingActiveEews(
 
 export interface SnapshotDegradeResult {
   snapshot: DisplayStateSnapshotV1;
-  /** 0 = 縮退なし (full のまま収まった)。1〜10 は buildDegradeAttempts の段番号
-   *  (最終段 level 10 = recentQuakes 空) */
+  /** 0 = 縮退なし (full のまま収まった)。1〜11 は buildDegradeAttempts の段番号
+   *  (最終段 level 11 = recentQuakes 空) */
   level: number;
 }
 
@@ -337,6 +381,8 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
   };
   attempts.push(s);
   s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
+  attempts.push(s);
+  s = { ...s, weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion) };
   attempts.push(s);
   // active な文字・地図を保護し、未参照地図だけを原子的に落とす
   s = dropUnreferencedQuakeMapEvents(s);

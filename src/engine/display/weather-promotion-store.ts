@@ -13,6 +13,7 @@ import {
   WEATHER_PROMOTION_DEMOTE_MIN,
 } from "./constants";
 import type { Vpws50CurrentAreasForDisplay } from "../../types";
+import { VPWS50_SNAPSHOT_GENERATION } from "../messages/vpws50-state";
 import type {
   DisplayWeatherAlertItemV1,
   DisplayWeatherPromotionLevelV1,
@@ -121,6 +122,8 @@ function sameAreaNames(
 
 /** 永続化・復元の受け渡し形 (シリアライズ可能な素直な構造)。wire プロトコルには載らない */
 export interface WeatherPromotionPersistedV1 {
+  /** VPWS50 の地域粒度世代。欠落・不一致の record は旧府県粒度として復元しない。 */
+  vpws50SnapshotGeneration?: number;
   records: Record<DisplayWeatherSourceV1, WeatherPromotionRecord | null>;
   /** record 削除後も保持する source 別 generation watermark */
   generations: Record<DisplayWeatherSourceV1, number>;
@@ -284,6 +287,7 @@ export class WeatherPromotionStore {
   /** 永続化用の lifecycle 一式 (promotedAtMs / state / generation / watermark)。 */
   export(): WeatherPromotionPersistedV1 {
     return {
+      vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
       records: { ...this.records },
       generations: { ...this.generations },
       unseenSinceMs: this.unseenSinceMs,

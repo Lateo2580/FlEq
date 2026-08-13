@@ -3,7 +3,10 @@ import { describe, it, expect, vi } from "vitest";
 import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
 import type { ParsedWeatherWarning, WeatherItem, WeatherKind } from "../../../src/types";
-import type { WeatherReportIdentity } from "../../../src/engine/messages/vpws50-state";
+import type {
+  PersistedVpws50StateV2,
+  WeatherReportIdentity,
+} from "../../../src/engine/messages/vpws50-state";
 
 function identity(reportDateTime: string, serial: string | null = null): WeatherReportIdentity {
   return { reportDateTime, serial };
@@ -323,6 +326,45 @@ describe("Vpws50StateHolder restorePrevious (revision 判定は共通 gate が�
     expect(restored.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("120000");
     restored.restorePrevious();
     expect(restored.getCurrentAreasForDisplay()?.kinds[0].areas[0].areaCode).toBe("140000");
+  });
+
+  it("旧形式・破損 snapshot は破棄し、次の受信で安全に再構築する", () => {
+    const legacy = {
+      current: {
+        messageId: "legacy",
+        identity: { reportDateTime: "2026-06-05T15:00:00+09:00", serial: "1" },
+        // marker 導入前の府県粒度 snapshot。配列構造自体は現行と同じでも復元しない。
+        snapshot: {
+          areas: [{
+            areaCode: "120000",
+            areaName: "千葉県",
+            kinds: [{
+              phenomenonKey: "rain",
+              kindCode: "03",
+              kindName: "大雨警報",
+              severity: "warning",
+              displaySeverity: "officialL3",
+              officialAlertLevel: 3,
+              resolutionSource: "map",
+            }],
+          }],
+        },
+      },
+      history: [],
+      lastSuccessfulFullDisplayAt: null,
+    } as unknown as PersistedVpws50StateV2;
+    const restored = new Vpws50StateHolder();
+
+    expect(() => restored.restorePersistedState(legacy)).not.toThrow();
+    expect(restored.getCurrentAreasForDisplay()).toBeUndefined();
+
+    restored.diffAndUpdate(makeInfo([
+      makeItem("市原市", "122190", [makeKind("03", "warning")]),
+    ]), "rebuild");
+    expect(restored.getCurrentAreasForDisplay()?.kinds[0]?.areas[0]).toEqual({
+      areaName: "市原市",
+      areaCode: "122190",
+    });
   });
 });
 

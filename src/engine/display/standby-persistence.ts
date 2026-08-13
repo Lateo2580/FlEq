@@ -45,6 +45,7 @@ import {
   type LegacyTsunamiObservationInput,
 } from "../../dmdata/tsunami-legacy-adapter";
 import {
+  VPWS50_SNAPSHOT_GENERATION,
   Vpws50StateHolder,
   type PersistedVpws50StateV2,
   type WeatherReportIdentity,
@@ -1237,7 +1238,9 @@ function isVpws50Kind(value: unknown): boolean {
 }
 
 function isVpws50Snapshot(value: unknown): boolean {
-  return isRecord(value) && Array.isArray(value.areas) && value.areas.every((area) =>
+  return isRecord(value)
+    && value.generation === VPWS50_SNAPSHOT_GENERATION
+    && Array.isArray(value.areas) && value.areas.every((area) =>
     isRecord(area)
     && typeof area.areaCode === "string"
     && typeof area.areaName === "string"

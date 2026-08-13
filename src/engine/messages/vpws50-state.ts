@@ -14,6 +14,7 @@ import type {
   ResolutionSource,
 } from "../../types";
 import * as log from "../../logger";
+import { selectPreferredWeatherLayer } from "../../dmdata/weather-parser";
 import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
 import {
   resolvePhenomenonFamily,
@@ -40,6 +41,9 @@ interface Snapshot {
   areas: Map<string, { areaName: string; kinds: AreaSnapshot }>;
 }
 
+/** 市町村等を基準にした snapshot 世代。marker 欠落の旧府県粒度 state は復元しない。 */
+export const VPWS50_SNAPSHOT_GENERATION = 1 as const;
+
 export interface PersistedVpws50KindV2 {
   phenomenonKey: PhenomenonKey;
   kindCode: string;
@@ -51,6 +55,7 @@ export interface PersistedVpws50KindV2 {
 }
 
 export interface PersistedVpws50SnapshotV2 {
+  generation: typeof VPWS50_SNAPSHOT_GENERATION;
   areas: Array<{
     areaCode: string;
     areaName: string;
@@ -74,6 +79,7 @@ export interface PersistedVpws50StateV2 {
 
 function serializeSnapshot(snapshot: Snapshot): PersistedVpws50SnapshotV2 {
   return {
+    generation: VPWS50_SNAPSHOT_GENERATION,
     areas: [...snapshot.areas].map(([areaCode, area]) => ({
       areaCode,
       areaName: area.areaName,
@@ -92,6 +98,49 @@ function restoreSnapshot(snapshot: PersistedVpws50SnapshotV2): Snapshot {
       },
     ])),
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isPersistedWeatherIdentity(value: unknown): value is WeatherReportIdentity {
+  return isRecord(value)
+    && typeof value.reportDateTime === "string"
+    && (value.serial == null || typeof value.serial === "string");
+}
+
+function isPersistedSnapshot(value: unknown): value is PersistedVpws50SnapshotV2 {
+  if (
+    !isRecord(value)
+    || value.generation !== VPWS50_SNAPSHOT_GENERATION
+    || !Array.isArray(value.areas)
+  ) return false;
+  return value.areas.every((area) => {
+    if (!isRecord(area) || typeof area.areaCode !== "string" || typeof area.areaName !== "string") return false;
+    if (!Array.isArray(area.kinds)) return false;
+    return area.kinds.every((kind) => isRecord(kind)
+      && typeof kind.phenomenonKey === "string"
+      && typeof kind.kindCode === "string"
+      && typeof kind.kindName === "string"
+      && typeof kind.severity === "string"
+      && typeof kind.displaySeverity === "string"
+      && (kind.officialAlertLevel == null || typeof kind.officialAlertLevel === "number")
+      && typeof kind.resolutionSource === "string");
+  });
+}
+
+/** 旧形式・破損 snapshot を直接渡された場合も holder 内で例外にしない。 */
+function isPersistedState(value: unknown): value is PersistedVpws50StateV2 {
+  if (!isRecord(value) || !Object.hasOwn(value, "current") || !Array.isArray(value.history)) return false;
+  const isEntry = (entry: unknown, identityRequired: boolean): boolean => {
+    if (!isRecord(entry) || typeof entry.messageId !== "string" || !isPersistedSnapshot(entry.snapshot)) return false;
+    if (entry.identity == null) return !identityRequired;
+    return isPersistedWeatherIdentity(entry.identity);
+  };
+  return (value.current == null || isEntry(value.current, true))
+    && value.history.every((entry) => isEntry(entry, false))
+    && (value.lastSuccessfulFullDisplayAt == null || typeof value.lastSuccessfulFullDisplayAt === "string");
 }
 
 /** 気象警報系電文の単調性・取消対象を識別する Head identity。 */
@@ -153,7 +202,7 @@ export function shortKindName(name: string): string {
 }
 
 function infoToSnapshot(info: ParsedWeatherWarning): Snapshot | null {
-  const layer = info.layers.find((l) => l.type.includes("府県予報区等"));
+  const layer = selectPreferredWeatherLayer(info.layers);
   if (!layer) return null;
   const areas = new Map<string, { areaName: string; kinds: AreaSnapshot }>();
   for (const item of layer.items) {
@@ -470,6 +519,15 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
   }
 
   restorePersistedState(state: PersistedVpws50StateV2): void {
+    if (!isPersistedState(state)) {
+      log.warn("[vpws50-state] persisted snapshot is incompatible; discarding it");
+      this.current = null;
+      this.currentMessageId = null;
+      this.currentIdentity = null;
+      this.history = [];
+      this.lastSuccessfulFullDisplayAt = null;
+      return;
+    }
     this.current = state.current == null ? null : restoreSnapshot(state.current.snapshot);
     this.currentMessageId = state.current?.messageId ?? null;
     this.currentIdentity = state.current == null ? null : { ...state.current.identity };

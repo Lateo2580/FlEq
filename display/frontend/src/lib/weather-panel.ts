@@ -97,6 +97,29 @@ export function weatherRowAreaMax(
 export function stripLevelPrefix(kind: string): string {
   return kind.replace(/^L\d+\s+/, "");
 }
+
+/**
+ * 緊急気象パネルの色付きヘッダー。主レベルの具体種別を、最大 2 種まで直接示す。
+ * 3 種以上は先頭 1 種 +「ほか」へ畳み、種別を安全に抽出できなければ従来名へ戻す。
+ */
+export function weatherEmergencyHeading(input: WeatherEmergencyInputV1): string {
+  const fallback = input.level === 5 ? "気象特別警報" : "気象警報";
+  const suffix = input.level === 5 ? "特別警報" : "警報";
+  const maxLevelItems = input.items.filter((item) => item.level === input.level);
+  const phenomena = maxLevelItems.map((item) =>
+    stripLevelPrefix(item.kind)
+      .match(/^(.+?)(?:特別警報|危険警報|警戒情報|警報)$/)?.[1]
+      ?.trim() ?? "",
+  );
+  // 最大レベル行を 1 件でも解釈できなければ、既知の行だけを断定表示しない。
+  // 未知種別を黙って消すより、汎用名へ安全に倒す。
+  if (phenomena.some((name) => name === "")) return fallback;
+  const sorted = [...new Set(phenomena)].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+  if (sorted.length === 0) return fallback;
+  if (sorted.length === 1) return `${sorted[0]}${suffix}`;
+  if (sorted.length === 2) return `${sorted.join("・")}${suffix}`;
+  return `${sorted[0]}ほか${suffix}`;
+}
 /** 副セクション (L5 昇格中の L4 相当) に並べる種別の上限。超過は「ほか N 種別」で明示する */
 export const WEATHER_SUB_KIND_MAX = 3;
 /**

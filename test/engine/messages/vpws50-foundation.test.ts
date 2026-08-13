@@ -516,6 +516,46 @@ describe("VPWS50 common cancellation registry + persistence v2", () => {
     expect(reloaded?.weatherAlerts).toEqual(migrated.weatherAlerts);
   });
 
+  it("snapshot 世代 marker が無い旧 holder state は対応する revision gate と一緒に破棄する", () => {
+    const { file, expected } = persistedFoundationFixture();
+    const snapshot = expected.telegramFoundation.vpws50.state!.current!.snapshot;
+    snapshot.areas.push({
+      ...structuredClone(snapshot.areas[0]),
+      areaCode: "B",
+      areaName: "地域B",
+    });
+    delete (snapshot as { generation?: number }).generation;
+    fs.writeFileSync(standbyPersistenceV2Path(file), JSON.stringify(expected), "utf8");
+
+    const loaded = new StandbyPersistence(file).load()!;
+    expect(loaded.telegramFoundation.vpws50).toEqual({
+      authoritative: true,
+      state: null,
+      gateEntries: [],
+    });
+
+    const restoredGate = new TelegramRevisionGate();
+    const restoredHolder = new Vpws50StateHolder();
+    restoredGate.restoreDurableEntries(loaded.telegramFoundation.vpws50.gateEntries);
+    const municipalityReport = {
+      ...weather(meta(T2, "2", "発表"), "120001"),
+      layers: [{
+        type: "気象警報・注意報（市町村等）",
+        items: [{
+          areaName: "市町村A", areaCode: "120001", changeStatus: "変化有", fullStatus: "全域",
+          kinds: [{ name: "大雨警報", code: "03", severity: "warning" as const }], statuses: [],
+        }],
+      }],
+    };
+    expect(decide(restoredGate, municipalityReport).kind).toBe("accept");
+    expect(restoredHolder.diffAndUpdate(
+      municipalityReport,
+      "municipality",
+      { reportDateTime: T2, serial: "2" },
+    )).toMatchObject({ confidence: "confirmed", isFirstReport: true });
+    expect(restoredHolder.getCurrentAreasForDisplay()?.kinds[0]?.areas[0]?.areaName).toBe("市町村A");
+  });
+
   it.each([
     ["current ReportDateTime", (state: PersistedStandbyStateV2) => {
       state.telegramFoundation.vpws50.state!.current!.identity.reportDateTime = "invalid";

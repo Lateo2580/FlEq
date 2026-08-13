@@ -10,6 +10,7 @@
     selectPagedItems,
     selectSubKinds,
     stripLevelPrefix,
+    weatherEmergencyHeading,
     weatherPageCapacity,
     weatherRowAreaMax,
     type WeatherEmergencyInputV1,
@@ -38,7 +39,7 @@
   // L5 相当 = officialL5 ∪ nonLevelSpecial (どちらも特別警報級)、L4 相当 = officialL4 (警報級)。
   // 色 role は既存の weatherEmergency / weatherWarning を再利用する (新規トークンを作らない、spec §3)
   const role = $derived(input.level === 5 ? "weatherEmergency" : "weatherWarning");
-  const headingLabel = $derived(input.level === 5 ? "気象特別警報" : "気象警報");
+  const headingLabel = $derived(weatherEmergencyHeading(input));
   // 新規発表 / 更新発表のバッジ (spec 追補 3)。判定材料が無いときは出さない —
   // 嘘の「新規」を出すより無表示を採る (C5)
   const triggerLabel = $derived(
@@ -470,6 +471,13 @@
     background: var(--header-weatherEmergency-container);
     color: var(--header-weatherEmergency-on);
     border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
+  }
+  /* L5 ヘッダーだけ気象庁の黒地白文字を反転する。暗色画面で黒帯を沈ませず、本文・凡例・
+     地域リストの role 色には触れない。L4 以下は直前の既存配色をそのまま使う。 */
+  .level-5 .heading {
+    background: #fff;
+    color: #000;
+    border-bottom-color: #000;
   }
   .tiles {
     flex: 1;

@@ -213,7 +213,7 @@ describe("EmergencyScreen", () => {
         panels: [panel("weather:current", weatherInput())],
       });
       const p = container.querySelector(".weather-panel")!;
-      expect(p.querySelector(".heading")?.textContent).toContain("気象特別警報");
+      expect(p.querySelector(".heading")?.textContent).toContain("大雨特別警報");
       // 何が
       expect(p.querySelector(".tile-what .level-label")?.textContent).toBe("警戒レベル5相当");
       expect(p.querySelector(".tile-what .alert-name")?.textContent).toBe("大雨特別警報");
@@ -244,10 +244,53 @@ describe("EmergencyScreen", () => {
         ],
       });
       const p = container.querySelector(".weather-panel")!;
-      expect(p.querySelector(".heading")?.textContent).toContain("気象警報");
+      expect(p.querySelector(".heading")?.textContent).toContain("洪水警報");
       expect(p.querySelector(".level-label")?.textContent).toBe("警戒レベル4相当");
       expect(p.querySelector(".action-main")?.textContent).toBe("危険な場所にいる人は全員避難");
       expect(p.classList.contains("role-weatherWarning")).toBe(true);
+    });
+
+    it.each([
+      [
+        "単一種別",
+        [weatherItem({ key: "rain", kind: "L5 大雨特別警報" })],
+        "大雨特別警報",
+      ],
+      [
+        "同レベル2種",
+        [
+          weatherItem({ key: "rain", kind: "L5 大雨特別警報" }),
+          weatherItem({ key: "landslide", kind: "L5 土砂災害特別警報" }),
+        ],
+        "土砂災害・大雨特別警報",
+      ],
+      [
+        "同レベル3種以上",
+        [
+          weatherItem({ key: "storm", kind: "暴風特別警報" }),
+          weatherItem({ key: "rain", kind: "L5 大雨特別警報" }),
+          weatherItem({ key: "landslide", kind: "L5 土砂災害特別警報" }),
+        ],
+        "土砂災害ほか特別警報",
+      ],
+      [
+        "種別不明",
+        [weatherItem({ key: "unknown", kind: "種別情報なし" })],
+        "気象特別警報",
+      ],
+      [
+        "既知・不明混在",
+        [
+          weatherItem({ key: "rain", kind: "L5 大雨特別警報" }),
+          weatherItem({ key: "unknown", kind: "種別情報なし" }),
+        ],
+        "気象特別警報",
+      ],
+    ] as const)("ヘッダーに最大レベルの具体種別を出す: %s", (_label, items, expected) => {
+      const { container } = render(WeatherEmergencyPanel, {
+        input: weatherInput({ items: [...items] }),
+      });
+      expect(container.querySelector(".heading-text")?.textContent).toBe(expected);
     });
 
     it("L5 主 + L4 併存では L4 が副セクションへ回り、主セクションには混ざらない", () => {
@@ -799,6 +842,23 @@ describe("EmergencyScreen", () => {
       // 意味色は看板ヘッダ帯と行動レール (非テキスト) に残す
       expect(src).toMatch(/\.role-weatherEmergency \.heading\s*\{[^}]*background: var\(--header-weatherEmergency-container\)/);
       expect(src).toMatch(/\.role-weatherEmergency \.tile-action\s*\{[^}]*border-inline-start-color: var\(--role-weatherEmergency\)/);
+    });
+
+    it("L5 ヘッダーだけ白背景・黒字に反転し、L4 以下は既存配色を維持する", () => {
+      const src = readFileSync(join(__dirname, "..", "WeatherEmergencyPanel.svelte"), "utf-8");
+      expect(src).toMatch(/\.level-5 \.heading\s*\{[^}]*background: #fff;[^}]*color: #000;/);
+      expect(src).toMatch(/\.heading\s*\{[^}]*background: var\(--header-weatherWarning-container\);[^}]*color: var\(--header-weatherWarning-on\);/);
+
+      const l5 = render(WeatherEmergencyPanel, { input: weatherInput({ level: 5 }) }).container;
+      expect(l5.querySelector(".weather-panel")?.classList.contains("level-5")).toBe(true);
+      const l4 = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          level: 4,
+          items: [weatherItem({ key: "flood", kind: "L4 洪水警報", level: 4 })],
+        }),
+      }).container;
+      expect(l4.querySelector(".weather-panel")?.classList.contains("level-4")).toBe(true);
+      expect(l4.querySelector(".weather-panel")?.classList.contains("level-5")).toBe(false);
     });
 
     // ユーザー指摘 2026-07-26: 行動文 (最長 14 文字) が行動レールの幅で折り返すと視線が切れる。
