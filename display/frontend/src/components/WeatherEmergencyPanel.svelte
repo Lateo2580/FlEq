@@ -9,7 +9,11 @@
     paginateWeatherRows,
     selectPagedItems,
     selectSubKinds,
+    selectWeatherChangeItems,
     stripLevelPrefix,
+    weatherChangeRowText,
+    weatherChangeFadeDuration,
+    weatherChangeSummary,
     weatherEmergencyHeading,
     weatherPageCapacity,
     weatherRowAreaMax,
@@ -45,6 +49,14 @@
   const triggerLabel = $derived(
     input.trigger === "new" ? "新規発表" : input.trigger === "update" ? "更新発表" : null,
   );
+  const changeSelection = $derived(
+    selectWeatherChangeItems(
+      input.change,
+      compact ? 2 : 4,
+    ),
+  );
+  const changeVisible = $derived(input.change != null && changeSelection.items.length > 0);
+  const changeSummary = $derived(weatherChangeSummary(changeSelection));
 
   // 主レベルの行 (「何が」の対象)。種別名は L 接頭辞を落とす (ユーザー指摘 2026-07-26):
   // 主レベルは「警戒レベル N 相当」で一度示しているので行ごとの L は情報を足さず、
@@ -399,6 +411,23 @@
   </div>
   {/key}
   </div>
+  {#if changeVisible && input.change != null}
+    {#key input.change.changeKey}
+      <section
+        class="weather-change"
+        aria-label="気象警報（VPWS50）の今回の変更"
+        in:fade={{ duration: weatherChangeFadeDuration(reducedMotion), easing: springEffectsOut }}
+      >
+        <h2 class="change-heading" aria-live="polite">気象警報（VPWS50）の今回の変更</h2>
+        <p class="change-summary" aria-live="polite">{changeSummary}</p>
+        <div class="change-rows">
+          {#each changeSelection.items as item (item.areaCode + ":" + item.phenomenonKey)}
+            <div class="change-row" data-change-kind={item.kind}>{weatherChangeRowText(item)}</div>
+          {/each}
+        </div>
+      </section>
+    {/key}
+  {/if}
 </div>
 
 <style>
@@ -433,6 +462,48 @@
      実測を弾くのは CSS ではなく token ガード (acceptsMeasurement) の役目 */
   .activation:not(:last-child) {
     pointer-events: none;
+  }
+  .weather-change {
+    flex: 0 0 auto;
+    margin: 0 calc(28px * var(--panel-scale, 1)) calc(18px * var(--panel-scale, 1));
+    padding: calc(10px * var(--panel-scale, 1)) calc(14px * var(--panel-scale, 1));
+    background: var(--surface-panel-raised);
+    border: 1px solid var(--hairline);
+    border-left: calc(4px * var(--panel-scale, 1)) solid var(--header-band-weatherWarning);
+    border-radius: var(--radius-m);
+    box-shadow: var(--elevation-1);
+  }
+  .change-heading,
+  .change-summary {
+    margin: 0;
+  }
+  .change-heading {
+    color: var(--fg);
+    font-size: calc(var(--type-label-l-size) * var(--panel-scale, 1));
+    font-weight: var(--type-headline-weight-emphasized);
+  }
+  .change-summary {
+    margin-top: var(--space-1);
+    color: var(--role-muted);
+    font-size: calc(var(--type-label-m-size) * var(--panel-scale, 1));
+  }
+  .change-rows {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+  .change-row {
+    min-width: 0;
+    color: var(--fg);
+    font-size: calc(var(--type-body-s-size) * var(--panel-scale, 1));
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .compact .weather-change {
+    margin-left: calc(14px * var(--panel-scale, 1));
+    margin-right: calc(14px * var(--panel-scale, 1));
+    margin-bottom: calc(10px * var(--panel-scale, 1));
+    padding: calc(7px * var(--panel-scale, 1)) calc(10px * var(--panel-scale, 1));
   }
   /* 新規/更新バッジ。見出し帯の on 色を継承し、輪郭だけで存在を示す
      (帯の container/on ペアは監査済み。独自の文字色・面を作らない) */

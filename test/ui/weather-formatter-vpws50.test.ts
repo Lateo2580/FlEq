@@ -1713,6 +1713,33 @@ describe("displayWeatherWarning + diff の統合 (VPWS50)", () => {
     }
   });
 
+  it("同 rank の表示名だけが変わっても unchanged の CLI 出力は変化しない", () => {
+    const diff = makeDiff({ isUnchanged: true, shouldRecap: false });
+    const outputFor = (name: string): string => {
+      const logs: string[] = [];
+      const original = console.log;
+      console.log = (message: unknown) => logs.push(String(message));
+      try {
+        displayWeatherWarning(makeFakeInfo({
+          layers: [{
+            type: "気象警報・注意報（府県予報区等）",
+            items: [{
+              areaName: "神奈川県",
+              areaCode: "140000",
+              kinds: [{ name, code: "33", severity: "specialWarning" }],
+              statuses: [],
+            }],
+          }],
+        }), diff);
+        return logs.join("\n");
+      } finally {
+        console.log = original;
+      }
+    };
+
+    expect(outputFor("大雨極端危険情報")).toBe(outputFor("大雨特別警報"));
+  });
+
   it("unchanged + shouldRecap: フレーム付きで再掲", () => {
     const original = chalkRef.level;
     chalkRef.level = 0;

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deriveEmergencyCompanionControl } from "../emergency-tips-policy";
+import { deriveEmergencyCompanionControl as deriveEmergencyCompanionControlAt } from "../emergency-tips-policy";
 import { baseSnapshot } from "./fixtures";
+
+const deriveEmergencyCompanionControl = (snapshot: ReturnType<typeof baseSnapshot>) =>
+  deriveEmergencyCompanionControlAt(snapshot, Date.parse(snapshot.generatedAt));
 
 describe("deriveEmergencyCompanionControl", () => {
   it("allowlist にある緊急パネルだけを hazard として許可する", () => {

@@ -183,6 +183,15 @@ function cancellationForWarning() {
   };
 }
 
+function vpws50L5Message(name: string, reportDateTime: string, serial: string): WsDataMessage {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
+<Control><Title>気象警報・注意報（Ｒ０６）（集約通報）</Title><DateTime>${reportDateTime}</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/"><Title>警戒・注意事項集約定時通報</Title><ReportDateTime>${reportDateTime}</ReportDateTime><TargetDateTime>${reportDateTime}</TargetDateTime><EventID></EventID><InfoType>発表</InfoType><Serial>${serial}</Serial><InfoKind>気象警報・注意報</InfoKind><InfoKindVersion>1.5_0</InfoKindVersion><Headline><Text></Text><Information type="気象警報・注意報（府県予報区等）"><Item><Kind><Name>${name}</Name><Code>33</Code></Kind><Areas codeType="気象情報／府県予報区・細分区域等"><Area><Name>神奈川県</Name><Code>140000</Code></Area></Areas></Item></Information></Headline></Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"></Body></Report>`;
+  return createMockWsDataMessageFromXml(xml, "VPWS50");
+}
+
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
 vi.mock("../../src/engine/notification/sound-player", () => ({
   playSound: vi.fn(),
@@ -248,6 +257,24 @@ describe("message-router 統合テスト", () => {
         : "unknown" as const,
     };
   }
+
+  it("L5 継続中の表示名だけの変更は critical 通知音と OS 通知を再発火しない", () => {
+    const playSoundMock = vi.mocked(playSound);
+    playSoundMock.mockClear();
+    notifyMock.mockClear();
+    const { handler } = createHandler();
+
+    handler(vpws50L5Message("大雨特別警報", "2026-08-13T12:00:00+09:00", "1"));
+    expect(playSoundMock).toHaveBeenLastCalledWith("critical");
+    expect(notifyMock).toHaveBeenCalledTimes(1);
+    playSoundMock.mockClear();
+    notifyMock.mockClear();
+
+    handler(vpws50L5Message("大雨極端危険情報", "2026-08-13T12:01:00+09:00", "2"));
+
+    expect(playSoundMock).not.toHaveBeenCalled();
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
 
   describe("EEW ルーティング", () => {
     it("VXSE43 EEW 警報を処理する", () => {

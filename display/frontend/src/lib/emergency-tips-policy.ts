@@ -18,6 +18,7 @@ const DISABLED: EmergencyCompanionControl = { sessionId: "none", enabled: false,
  */
 export function deriveEmergencyCompanionControl(
   snapshot: DisplayStateSnapshotV1 | null | undefined,
+  nowMs: number,
 ): EmergencyCompanionControl {
   if (snapshot == null) return DISABLED;
   if (snapshot.severityTier !== "calm" && snapshot.severityTier !== "caution" && snapshot.severityTier !== "alert") {
@@ -38,7 +39,7 @@ export function deriveEmergencyCompanionControl(
     hazards.push("earthquake");
     keys.push(...snapshot.largeQuakes.map((entry, index) => `earthquake:${entry.eventId ?? index}`));
   }
-  if (buildWeatherEmergencyInput(snapshot) != null) {
+  if (buildWeatherEmergencyInput(snapshot, nowMs) != null) {
     hazards.push("weather");
     keys.push("weather:current");
   }

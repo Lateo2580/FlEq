@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   acceptsMeasurement,
-  buildWeatherEmergencyInput,
+  buildWeatherEmergencyInput as buildWeatherEmergencyInputAt,
   capRowAreas,
   paginateWeatherRows,
   selectPagedItems,
@@ -17,6 +17,9 @@ import type {
   DisplayWeatherPromotionEntryV1,
 } from "../protocol";
 import { baseSnapshot } from "./fixtures";
+
+const buildWeatherEmergencyInput = (snapshot: ReturnType<typeof baseSnapshot>) =>
+  buildWeatherEmergencyInputAt(snapshot, Date.parse(snapshot.generatedAt));
 
 function item(over: Partial<DisplayWeatherAlertItemV1> & { kind: string }): DisplayWeatherAlertItemV1 {
   return {

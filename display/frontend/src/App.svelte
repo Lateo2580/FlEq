@@ -55,11 +55,13 @@
   });
   $effect(() => () => clock.stop());
 
-  const mode = $derived(deriveMode(connection.state, clock.now.getTime()));
+  const nowMs = $derived(clock.now.getTime());
+  const mode = $derived(deriveMode(connection.state, nowMs));
   const quakeMapEvent = $derived(
-    deriveQuakeMapHostEvent(connection.state, clock.now.getTime()),
+    deriveQuakeMapHostEvent(connection.state, nowMs),
   );
-  const tickerLines = $derived(deriveTickerLines(connection.state));
+  const tickerLines = $derived(deriveTickerLines(connection.state, nowMs));
+  const emergencyPanels = $derived(deriveEmergencyPanels(connection.state, nowMs));
   const severityTier = $derived(connection.state.snapshot?.severityTier ?? "calm");
   // 旧 server・未知 wire 値は、演出を足さない calm に明示的に縮退する。
   const backgroundTone = $derived(normalizeBackgroundTone(connection.state.snapshot?.backgroundTone));
@@ -91,7 +93,7 @@
     });
   });
   const emergencyCompanionControl = $derived.by(() => {
-    const base = deriveEmergencyCompanionControl(connection.state.snapshot);
+    const base = deriveEmergencyCompanionControl(connection.state.snapshot, nowMs);
     return {
       ...base,
       sessionId: mode === "emergency" ? `emergency-${emergencySession}` : mode,
@@ -214,7 +216,7 @@
         in:emergencyEnter={{ duration: enterDur }}
         out:fade={{ duration: calmDur }}
       >
-        <EmergencyScreen panels={deriveEmergencyPanels(connection.state)} />
+        <EmergencyScreen panels={emergencyPanels} />
       </div>
     {/if}
   </div>

@@ -60,6 +60,8 @@ import { RevisionGuard } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../messages/tsunami-state";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
+import type { PresentationEvent } from "../presentation/types";
+import { WeatherChangeDisplayStore } from "./weather-change-store";
 
 const MIN_MS = 60_000;
 const NON_EMERGENCY_HOST_TTL_MS = 5 * MIN_MS;
@@ -183,6 +185,7 @@ export class DisplayStateStore {
   private readonly promotions: WeatherPromotionStore;
   /** 震度 7 の 12 時間保持。monitor 注入時は display on/off・再起動の外で生きる。 */
   private readonly quakeExtreme: QuakeExtremeStore;
+  private readonly weatherChanges = new WeatherChangeDisplayStore();
 
   constructor(
     private readonly standbyItemsProvider?: () => ActiveStandbyCardV1[],
@@ -207,8 +210,12 @@ export class DisplayStateStore {
     tsunamiObservations?: DisplayTsunamiObservationV1[] | null,
     quakeMapCommand?: DisplayQuakeMapCommandV1 | null,
     tsunamiObservationGroups?: DisplayTsunamiObservationGroups | null,
+    presentationEvent?: PresentationEvent,
   ): boolean {
-    let changed = this.quakeExtreme.applyDto(dto, nowMs);
+    let changed = presentationEvent == null
+      ? false
+      : this.weatherChanges.apply(presentationEvent, nowMs);
+    changed = this.quakeExtreme.applyDto(dto, nowMs) || changed;
     const quakeObservationBridge = quakeObservationBridgeOf(dto);
     const quakeMapMutation = quakeMapCommand == null
       ? { accepted: true, changed: false, preservedObservation: false }
@@ -761,6 +768,7 @@ export class DisplayStateStore {
     if (sweepWeatherPromotions) {
       changed = this.promotions.sweepDemote(nowMs) || changed;
     }
+    changed = this.weatherChanges.sweep(nowMs) || changed;
     if (this.recentQuakesProvider == null) {
       const today = jstDayKey(nowMs);
       const currentRecent = this.recentQuakes.filter((q) => quakeDayKey(q) === today);
@@ -983,6 +991,7 @@ export class DisplayStateStore {
       tsunami: this.tsunami,
       largeQuakes: [...this.largeQuakes.values()].map(withWireIntensitySemantic),
       weatherAlerts: [...this.currentWeatherAlerts()],
+      weatherChange: this.weatherChanges.snapshot(nowMs),
       weatherPromotion: this.weatherPromotionForWire(),
       weatherL5Active: this.isWeatherL5Active(),
       recentQuakes: (this.recentQuakesProvider?.() ?? [...this.recentQuakes])

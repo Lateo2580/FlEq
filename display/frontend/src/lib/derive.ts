@@ -102,7 +102,10 @@ export function compareEmergencyPanels(a: EmergencyPanelModel, b: EmergencyPanel
   return (a.input.eventId ?? "").localeCompare(b.input.eventId ?? "");
 }
 
-export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelModel[] {
+export function deriveEmergencyPanels(
+  s: DisplayClientState,
+  nowMs: number,
+): EmergencyPanelModel[] {
   const snap = s.snapshot;
   if (snap == null) return [];
   const panels: EmergencyPanelModel[] = [];
@@ -112,7 +115,7 @@ export function deriveEmergencyPanels(s: DisplayClientState): EmergencyPanelMode
   }
   // 気象警報の昇格は engine が権威 (weatherPromotion)。パネルは source 横断で全体 1 枚、key は
   // 固定 (`weather:current`) にして再昇格でも再マウントさせない (spec C §3)
-  const weather = buildWeatherEmergencyInput(snap);
+  const weather = buildWeatherEmergencyInput(snap, nowMs);
   if (weather != null) {
     panels.push({ key: "weather:current", input: weather });
   }
@@ -141,13 +144,16 @@ export function deriveQuakeMapHostEvent(
   return quake?.events.find((event) => event.eventKey === host.eventKey);
 }
 
-export function deriveMode(s: DisplayClientState, nowMs: number = Date.now()): ScreenMode {
-  if (deriveEmergencyPanels(s).length > 0) return "emergency";
+export function deriveMode(s: DisplayClientState, nowMs: number): ScreenMode {
+  if (deriveEmergencyPanels(s, nowMs).length > 0) return "emergency";
   return deriveQuakeMapHostEvent(s, nowMs) == null ? "standby" : "quakeMap";
 }
 
-export function deriveTickerLines(s: DisplayClientState): DisplayEventDtoV1[] {
-  const active = new Set(deriveEmergencyPanels(s).map((p) => p.key));
+export function deriveTickerLines(
+  s: DisplayClientState,
+  nowMs: number,
+): DisplayEventDtoV1[] {
+  const active = new Set(deriveEmergencyPanels(s, nowMs).map((p) => p.key));
   // 代表 high (active EEW/津波警報/震度5弱+) は緊急パネルと groupKey が重なっても除外しない:
   // スケジューラの割込み規則 2 のためにテロップへ届ける必要がある (規則 4 の tickerPriority を尊重)
   return s.ticker.filter(

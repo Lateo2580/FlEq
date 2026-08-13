@@ -617,6 +617,47 @@ export interface DisplayWeatherPromotionV1 {
   activationKey?: string;
 }
 
+export type DisplayWeatherChangeKindV1 =
+  | "added"
+  | "released"
+  | "upgraded"
+  | "downgraded"
+  | "kindChanged";
+
+export interface DisplayWeatherChangeValueV1 {
+  kindShortName: string;
+  kindCode: string;
+  displaySeverity: string;
+  officialAlertLevel: number | null;
+}
+
+export interface DisplayWeatherChangeItemV1 {
+  areaCode: string;
+  areaName: string;
+  phenomenonKey: string;
+  kind: DisplayWeatherChangeKindV1;
+  before: DisplayWeatherChangeValueV1 | null;
+  after: DisplayWeatherChangeValueV1 | null;
+}
+
+export interface DisplayWeatherChangeOmittedV1 {
+  added?: number;
+  released?: number;
+  upgraded?: number;
+  downgraded?: number;
+  kindChanged?: number;
+}
+
+export interface DisplayWeatherChangeV1 {
+  source: "vpws50";
+  changeKey: string;
+  reportDateTime: string;
+  issuedAt: string;
+  expiresAt: string;
+  changes: DisplayWeatherChangeItemV1[];
+  omitted: DisplayWeatherChangeOmittedV1;
+}
+
 export interface DisplayActiveEewV1 extends DisplayEewInputV1 {
   updatedAtMs: number;
 }
@@ -814,6 +855,8 @@ export interface DisplayStateSnapshotV1 {
   tsunami: DisplayTsunamiStateV1 | null;
   largeQuakes: DisplayLargeQuakeStateV1[];
   weatherAlerts: DisplayWeatherAlertV1[];
+  /** VPWS50 の短命な続報差分。欠落は旧 server、null は新 server の空状態。 */
+  weatherChange?: DisplayWeatherChangeV1 | null;
   /** 主役パネルへの昇格状態 (権威は engine)。欠落 (旧サーバ) は両 source null 扱い。
    *  各 alert 内ではなくトップレベルに置く — VPWS50 は rank 別に同 source の alert が複数あるため */
   weatherPromotion?: DisplayWeatherPromotionV1;

@@ -55,6 +55,8 @@ export function fromWeatherOutcome(outcome: WeatherOutcome): PresentationEvent {
     displaySeverity: outcome.presentation.displaySeverity ?? null,
     // weatherDiff を持たない経路 (VPWW55-61 / state holder 未注入) は confirmed 扱い
     weatherConfidence: outcome.presentation.weatherDiff?.confidence ?? "confirmed",
+    weatherDiff: outcome.presentation.weatherDiff,
+    weatherChangeDiff: outcome.presentation.weatherChangeDiff,
     weatherStateMutationAccepted: outcome.presentation.weatherStateMutationAccepted,
     weatherStateRevision: outcome.presentation.weatherStateRevision,
 

@@ -25,6 +25,8 @@ import type {
   ParsedWeatherWarningTimeseriesInfo,
   WeatherItem,
   WeatherKind,
+  Vpws50Diff,
+  Vpws50DisplayDiff,
 } from "../../../src/types";
 
 const T0 = Date.parse("2026-07-06T21:00:00+09:00");
@@ -161,6 +163,40 @@ function quakeSequenceEvent(
 
 function vpws50Event(reportDateTime: string): PresentationEvent {
   return baseEvent({ id: `vpws50-${reportDateTime}`, type: "VPWS50", reportDateTime });
+}
+
+function vpws50ChangeEvent(
+  reportDateTime: string,
+  displayDiff: Vpws50DisplayDiff,
+  diffOverrides: Partial<Vpws50Diff> = {},
+  over: Partial<PresentationEvent> = {},
+): PresentationEvent {
+  const stripDisplayLabel = (areas: Vpws50DisplayDiff["added"]) => areas.map((area) => ({
+    ...area,
+    changes: area.changes.map(({ prevKindShortName: _prevKindShortName, ...change }) => change),
+  }));
+  const diff: Vpws50Diff = {
+    isFirstReport: false,
+    isUnchanged: false,
+    isCancelRollback: false,
+    shouldRecap: false,
+    confidence: "confirmed",
+    added: stripDisplayLabel(displayDiff.added),
+    upgraded: stripDisplayLabel(displayDiff.upgraded),
+    downgraded: stripDisplayLabel(displayDiff.downgraded),
+    released: stripDisplayLabel(displayDiff.released),
+    ...diffOverrides,
+  };
+  return baseEvent({
+    id: `vpws50-change-${reportDateTime}`,
+    type: "VPWS50",
+    reportDateTime,
+    weatherConfidence: diff.confidence,
+    weatherDiff: diff,
+    weatherChangeDiff: displayDiff,
+    weatherStateMutationAccepted: true,
+    ...over,
+  });
 }
 
 /** VTSE41 (津波警報・注意報・予報)。emergency:tsunami を組む状態確立イベント */
@@ -1202,6 +1238,105 @@ describe("InfoDisplayHub: state timer の例外封じ込め", () => {
 });
 
 describe("InfoDisplayHub: weatherAlerts (VPWS50)", () => {
+  it("accepted VPWS50 diff は hub 経由で snapshot に載り、unchanged は clear、TTL sweep は独立する", () => {
+    const changed: Vpws50DisplayDiff = {
+      added: [],
+      upgraded: [{
+        areaCode: "13101",
+        areaName: "千代田区",
+        changes: [{
+          phenomenonKey: "大雨",
+          kindShortName: "大雨警報",
+          prevKindShortName: "大雨注意報",
+          prevKindCode: "10",
+          newKindCode: "03",
+          prevSeverity: "advisory",
+          newSeverity: "warning",
+          prevDisplaySeverity: "officialL2",
+          newDisplaySeverity: "officialL3",
+          prevOfficialAlertLevel: 2,
+          newOfficialAlertLevel: 3,
+        }],
+      }],
+      downgraded: [],
+      released: [],
+      kindChanged: [],
+    };
+    let nowMs = T0;
+    const { hub, store } = makeHub({ now: () => nowMs });
+    hub.ingest(vpws50ChangeEvent("2026-07-06T21:00:00+09:00", changed));
+    const first = hub.buildSnapshot().weatherChange;
+    expect(first?.changes[0]).toMatchObject({
+      areaCode: "13101",
+      kind: "upgraded",
+      before: { kindCode: "10" },
+      after: { kindCode: "03" },
+    });
+
+    const unchanged: Vpws50DisplayDiff = { ...changed, upgraded: [] };
+    hub.ingest(vpws50ChangeEvent(
+      "2026-07-06T21:01:00+09:00",
+      unchanged,
+      { isUnchanged: true, upgraded: [] },
+    ));
+    expect(hub.buildSnapshot().weatherChange).toBeNull();
+
+    hub.ingest(vpws50ChangeEvent("2026-07-06T21:02:00+09:00", changed));
+    nowMs = T0 + 60_000;
+    expect(store.sweep(nowMs, false)).toBe(true);
+    expect(hub.buildSnapshot().weatherChange).toBeNull();
+
+    hub.ingest(vpws50ChangeEvent("2026-07-06T21:03:00+09:00", changed));
+    nowMs = T0 + 120_000;
+    // sweep 前の手動 snapshot でも期限切れ DTO を復活させない。
+    expect(hub.buildSnapshot().weatherChange).toBeNull();
+  });
+
+  it("無客中も timer sweep が期限切れ change を dirty 化し、既存 client 向け state に null を配る", () => {
+    vi.useFakeTimers();
+    const changed: Vpws50DisplayDiff = {
+      added: [],
+      upgraded: [{
+        areaCode: "13101",
+        areaName: "千代田区",
+        changes: [{
+          phenomenonKey: "大雨",
+          kindShortName: "大雨警報",
+          prevKindShortName: "大雨注意報",
+          prevKindCode: "10",
+          newKindCode: "03",
+          prevSeverity: "advisory",
+          newSeverity: "warning",
+          prevDisplaySeverity: "officialL2",
+          newDisplaySeverity: "officialL3",
+          prevOfficialAlertLevel: 2,
+          newOfficialAlertLevel: 3,
+        }],
+      }],
+      downgraded: [],
+      released: [],
+      kindChanged: [],
+    };
+    let nowMs = T0;
+    const { hub, transport } = makeHub({ now: () => nowMs });
+    transport.clients = 0;
+    hub.startSseClientTracking(0, nowMs);
+    hub.ingest(vpws50ChangeEvent("2026-07-06T21:00:00+09:00", changed));
+    vi.advanceTimersByTime(STATE_DEBOUNCE_MS);
+    expect(transport.states().at(-1)?.snapshot.weatherChange).not.toBeNull();
+    transport.messages = [];
+
+    hub.startTimers();
+    nowMs = T0 + 60_000;
+    // 接続時 snapshot が先に期限 guard を踏んでも、record は sweep 用に残る。
+    expect(hub.buildSnapshot().weatherChange).toBeNull();
+    vi.advanceTimersByTime(SWEEP_INTERVAL_MS);
+    vi.advanceTimersByTime(STATE_DEBOUNCE_MS);
+
+    expect(transport.states()).toHaveLength(1);
+    expect(transport.states()[0]?.snapshot.weatherChange).toBeNull();
+  });
+
   it("⑧ VPWS50 の ingest で weatherAlerts が reportDateTime 付きで呼ばれ、snapshot 反映 + state push", () => {
     vi.useFakeTimers();
     const rdt = "2026-07-06T20:50:00+09:00";

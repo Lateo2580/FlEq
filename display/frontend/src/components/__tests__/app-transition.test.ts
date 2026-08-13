@@ -130,7 +130,8 @@ describe("App クロスフェード中の入力所有権 (指摘1 → レビュ�
     expect(src).toContain("<QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} />");
     expect(src).toMatch(/mode === "quakeMap"[\s\S]*?in:fade=\{\{ duration: calmDur \}\}/);
     expect(src).not.toMatch(/data-kind="quakeMap"[\s\S]{0,180}data-motion-reveal/);
-    expect(src).toMatch(/deriveMode\(connection\.state,\s*clock\.now\.getTime\(\)\)/);
+    // clock 値を nowMs に束ね、mode/panel/ticker へ同じ時刻を渡す契約へ更新した。
+    expect(src).toMatch(/deriveMode\(connection\.state,\s*nowMs\)/);
   });
 
   it("減光トグルは <svelte:window> のガード付きハンドラが担う (層に依存しない)", () => {

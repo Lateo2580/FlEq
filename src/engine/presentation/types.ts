@@ -28,6 +28,7 @@ import type {
   LegacyCounterpartSeverity,
   FloodLevel,
   Vpws50Diff,
+  Vpws50DisplayDiff,
   JmaIntensity,
   JmaLgIntensity,
   SpecialValue,
@@ -87,6 +88,8 @@ export interface ProcessOutcomeBase {
      *  テロップ色は全国集約の最大 severity を保つため、frameLevel とは別に運ぶ (summaryRole が参照)。 */
     displaySeverity?: FrameLevel;
     weatherDiff?: Vpws50Diff;
+    /** 緊急画面の weatherChange DTO 専用。通知・CLI 判定には使用しない。 */
+    weatherChangeDiff?: Vpws50DisplayDiff;
     /** 共通 revision gate で commit 済みの訂正だけを通知統計へ載せる。 */
     acceptedCorrection?: boolean;
     /** transient family の共通 gate が authoritative に受理した報。 */
@@ -461,6 +464,10 @@ export interface PresentationEvent {
   /** VPWS50 state 更新の確度 (weather 系のみ)。unsafe = state を更新しないまま outcome が
    *  通った報。display の昇格判定はこの報を再昇格契機にしない。欠落は confirmed 扱い。 */
   weatherConfidence?: Vpws50Diff["confidence"];
+  /** VPWS50 の受理済み差分本体。display の transient change store へ渡す内部値。 */
+  weatherDiff?: Vpws50Diff;
+  /** 緊急画面の weatherChange DTO 専用。通知・CLI 判定には使用しない。 */
+  weatherChangeDiff?: Vpws50DisplayDiff;
   /** fail-open 表示と durable weather mutation を後段で分離する内部フラグ。 */
   weatherStateMutationAccepted?: boolean;
   /** active weather subject 群から導出した union 用正規 revision。 */

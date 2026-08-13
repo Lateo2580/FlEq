@@ -10,6 +10,8 @@ import { expectCurrentDot } from "./page-dots-test-utils";
 import type { EmergencyPanelModel } from "../../lib/derive";
 import type {
   DisplayEewInputV1,
+  DisplayWeatherChangeItemV1,
+  DisplayWeatherChangeV1,
   DisplayLargeQuakeInputV1,
   DisplayTsunamiInputV1,
 } from "../../lib/protocol";
@@ -112,6 +114,40 @@ function weatherInput(over: Partial<WeatherEmergencyInputV1> = {}): WeatherEmerg
     updatedAt: "2026-07-25T10:00:00+09:00",
     activationKey: "a1",
     firstPageRowKey: null,
+    ...over,
+  };
+}
+
+function changeItem(kind: DisplayWeatherChangeItemV1["kind"], areaName: string, index: number): DisplayWeatherChangeItemV1 {
+  return {
+    areaCode: `${kind}-${index}`,
+    areaName,
+    phenomenonKey: `ph-${kind}-${index}`,
+    kind,
+    before: kind === "added" ? null : {
+      kindShortName: "大雨注意報", kindCode: "10", displaySeverity: "officialL2", officialAlertLevel: 2,
+    },
+    after: kind === "released" ? null : {
+      kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL3", officialAlertLevel: 3,
+    },
+  };
+}
+
+function weatherChange(over: Partial<DisplayWeatherChangeV1> = {}): DisplayWeatherChangeV1 {
+  return {
+    source: "vpws50",
+    changeKey: "boot:1",
+    reportDateTime: "2026-08-13T20:00:00+09:00",
+    issuedAt: "2026-08-13T12:00:00.000Z",
+    expiresAt: "2026-08-13T12:01:00.000Z",
+    changes: [
+      changeItem("upgraded", "悪化地域", 0),
+      changeItem("added", "追加地域", 0),
+      changeItem("kindChanged", "種別変更地域", 0),
+      changeItem("downgraded", "緩和地域", 0),
+      changeItem("released", "解除地域", 0),
+    ],
+    omitted: {},
     ...over,
   };
 }
@@ -248,6 +284,108 @@ describe("EmergencyScreen", () => {
       expect(p.querySelector(".level-label")?.textContent).toBe("警戒レベル4相当");
       expect(p.querySelector(".action-main")?.textContent).toBe("危険な場所にいる人は全員避難");
       expect(p.classList.contains("role-weatherWarning")).toBe(true);
+    });
+
+    it("今回の変更を現況と別 surface に表示し、normal は最大4件で悪化・解除を代表表示する", () => {
+      const { container } = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange() }),
+      });
+      const changeSurface = container.querySelector(".weather-change")!;
+      expect(changeSurface).toBeTruthy();
+      expect(changeSurface.querySelector(".change-heading")?.textContent)
+        .toBe("気象警報（VPWS50）の今回の変更");
+      expect(changeSurface.querySelectorAll(".change-row")).toHaveLength(4);
+      expect(changeSurface.textContent).toContain("悪化地域");
+      expect(changeSurface.textContent).toContain("解除地域");
+      expect(changeSurface.querySelector(".change-summary")?.textContent).toContain("緩和");
+      expect(container.querySelector(".tile-where")?.textContent).not.toContain("解除地域");
+    });
+
+    it("compact は最大2件でも upgraded と released を残し、同一ラベル kindChanged は描かない", () => {
+      const codeOnly = changeItem("kindChanged", "同一ラベル", 1);
+      codeOnly.before = { ...codeOnly.before!, kindShortName: "大雨" };
+      codeOnly.after = { ...codeOnly.after!, kindShortName: "大雨" };
+      const { container } = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          change: weatherChange({ changes: [
+            changeItem("upgraded", "悪化", 0),
+            changeItem("added", "追加", 0),
+            codeOnly,
+            changeItem("released", "解除", 0),
+          ] }),
+        }),
+        compact: true,
+      });
+      const surface = container.querySelector(".weather-change")!;
+      expect(surface.querySelectorAll(".change-row")).toHaveLength(2);
+      expect(surface.textContent).toContain("悪化");
+      expect(surface.textContent).toContain("解除");
+      expect(surface.textContent).not.toContain("同一ラベル");
+    });
+
+    it("変更 item が code-only だけなら surface 全体を隠す", () => {
+      const codeOnly = changeItem("kindChanged", "同一ラベル", 0);
+      codeOnly.before = { ...codeOnly.before!, kindShortName: "大雨" };
+      codeOnly.after = { ...codeOnly.after!, kindShortName: "大雨" };
+      const { container } = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange({ changes: [codeOnly] }) }),
+      });
+      expect(container.querySelector(".weather-change")).toBeFalsy();
+    });
+
+    it.each([
+      ["added", "追加地域 — 追加: L4 大雨警報"],
+      ["released", "解除地域 — 解除: L4 大雨警報"],
+      ["upgraded", "悪化地域 — 種別: L4 大雨警報 → L5 大雨特別警報"],
+      ["downgraded", "緩和地域 — 種別: L5 大雨特別警報 → L4 大雨警報"],
+      ["kindChanged", "変更地域 — 種別: L4 洪水警報 → L4 大雨警報"],
+    ] as const)("%s の前後文言を DOM に固定する", (kind, expected) => {
+      const entry = changeItem(kind, expected.slice(0, 4), 0);
+      if (kind === "added") {
+        entry.after = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
+      } else if (kind === "released") {
+        entry.before = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
+      } else if (kind === "upgraded") {
+        entry.before = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
+        entry.after = { kindShortName: "大雨特別警報", kindCode: "33", displaySeverity: "officialL5", officialAlertLevel: 5 };
+      } else if (kind === "downgraded") {
+        entry.before = { kindShortName: "大雨特別警報", kindCode: "33", displaySeverity: "officialL5", officialAlertLevel: 5 };
+        entry.after = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
+      } else {
+        entry.before = { kindShortName: "洪水警報", kindCode: "04", displaySeverity: "officialL4", officialAlertLevel: 4 };
+        entry.after = { kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL4", officialAlertLevel: 4 };
+      }
+      const { container } = render(WeatherEmergencyPanel, {
+        input: weatherInput({ change: weatherChange({ changes: [entry] }) }),
+      });
+      expect(container.querySelector(".change-row")?.textContent).toBe(expected);
+    });
+
+    it("reduced-motion でも changeKey 差し替え後の変更内容を省略しない", async () => {
+      const originalMatchMedia = window.matchMedia;
+      window.matchMedia = ((query: string) => ({
+        matches: query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => true),
+      })) as unknown as typeof window.matchMedia;
+      try {
+        const { container, rerender } = render(WeatherEmergencyPanel, {
+          input: weatherInput({ change: weatherChange({ changeKey: "boot:1" }) }),
+        });
+        flushSync();
+        await rerender({
+          input: weatherInput({ change: weatherChange({ changeKey: "boot:2" }) }),
+        });
+        flushSync();
+        expect(container.querySelector(".weather-change")?.textContent).toContain("悪化地域");
+      } finally {
+        window.matchMedia = originalMatchMedia;
+      }
     });
 
     it.each([

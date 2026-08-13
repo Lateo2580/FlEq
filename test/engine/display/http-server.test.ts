@@ -19,6 +19,8 @@ import type {
   DisplayServerMessage,
   DisplayStateSnapshotV1,
   DisplayWeatherAlertV1,
+  DisplayWeatherChangeItemV1,
+  DisplayWeatherChangeV1,
 } from "../../../src/engine/display/types";
 
 const log = { info: (): void => {}, warn: (): void => {} };
@@ -219,6 +221,33 @@ function hugeBodiedTicker(): DisplayEventDtoV1[] {
   );
 }
 
+function hugeWeatherChange(): DisplayWeatherChangeV1 {
+  const kinds = ["upgraded", "added", "kindChanged", "downgraded", "released"] as const;
+  const changes: DisplayWeatherChangeItemV1[] = kinds.flatMap((kind) =>
+    Array.from({ length: 6 }, (_, i) => ({
+      areaCode: `${kind}-${i}`,
+      areaName: `${kind}-${i}-${"地域".repeat(10_000)}`,
+      phenomenonKey: `ph-${kind}-${i}`,
+      kind,
+      before: kind === "added" ? null : {
+        kindShortName: "大雨注意報", kindCode: "10", displaySeverity: "officialL2", officialAlertLevel: 2,
+      },
+      after: kind === "released" ? null : {
+        kindShortName: "大雨警報", kindCode: "03", displaySeverity: "officialL3", officialAlertLevel: 3,
+      },
+    })),
+  );
+  return {
+    source: "vpws50",
+    changeKey: "boot:1",
+    reportDateTime: "2026-08-13T20:00:00+09:00",
+    issuedAt: "2026-08-13T12:00:00.000Z",
+    expiresAt: "2026-08-13T12:01:00.000Z",
+    changes,
+    omitted: {},
+  };
+}
+
 /** intensityGroups が巨大な largeQuakes 1 件 (約 450KB)。この肥大源が recentQuakes より先に
  *  刈られる (空配列化される) ことを検証するための縮退契約テスト用 */
 function hugeGroupLargeQuakes(): DisplayLargeQuakeStateV1[] {
@@ -279,6 +308,20 @@ function mapEvent(
 }
 
 describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state 配信の共通安全弁)", () => {
+  it("weatherChange は item だけを代表枠つきで縮退し、upgraded と released を共存させる", () => {
+    const full = baseSnapshot({ weatherChange: hugeWeatherChange() });
+    expect(() => JSON.parse(JSON.stringify(full))).not.toThrow();
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    const change = result!.snapshot.weatherChange!;
+    expect(change.changes.length).toBeLessThanOrEqual(4);
+    expect(change.changes.some((item) => item.kind === "upgraded")).toBe(true);
+    expect(change.changes.some((item) => item.kind === "released")).toBe(true);
+    expect(change.omitted.upgraded).toBeGreaterThan(0);
+    expect(change.omitted.released).toBeGreaterThan(0);
+    expect(change.omitted.downgraded).toBeGreaterThan(0);
+  });
+
   it("縮退段 2 は 20 件を超えても active EEW の最新 DTO を残す", () => {
     const ticker = hugeRecentTicker().slice(0, 25).map((dto, index) =>
       index === 21 ? { ...dto, id: "active-eew", groupKey: "eew:E1", domain: "eew" as const } : dto,

@@ -117,6 +117,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
         tsunamiObservations,
         quakeMapCommand,
         tsunamiObservationGroups,
+        event,
       );
       if (dto.type === "VPWS50" || dto.type === "VPWW56") {
         this.store.seedWeatherAlerts(this.deps.weatherAlerts(dto.reportDateTime));

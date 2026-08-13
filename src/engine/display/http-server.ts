@@ -8,7 +8,7 @@ import { encodeSseGuarded } from "./sse-clients";
 import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
 import { displayWeatherPromotionLevel, isDisplayWeatherSeverity } from "./protocol";
-import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
+import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherChangeKindV1, DisplayWeatherChangeV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -25,7 +25,18 @@ const DEGRADED_TICKER_MAX = 20;
 const QUAKE_GROUP_AREA_MAX = 8;   // latestQuake 各震度の地域上限
 const WEATHER_AREA_MAX = 6;        // 気象カード各種別の地域上限
 const WEATHER_EMERGENCY_FALLBACK_AREA_MAX = 512; // 予算超過時だけ使う L4/L5 の最終安全弁
+const WEATHER_CHANGE_WIRE_MAX = 12; // change DTO 専用の item 上限。現況 weatherAlerts とは独立
+const WEATHER_CHANGE_WIRE_COMPACT_MAX = 4;
+const WEATHER_CHANGE_WIRE_MIN_MAX = 2;
 const DEGRADED_RECENT_QUAKES = 3;
+
+const WEATHER_CHANGE_KIND_ORDER: readonly DisplayWeatherChangeKindV1[] = [
+  "upgraded",
+  "added",
+  "kindChanged",
+  "downgraded",
+  "released",
+];
 
 export interface DisplayRequestHandlerDeps {
   distDir: string;
@@ -240,6 +251,50 @@ function prioritizePromotedWeatherItems(
   });
 }
 
+/** change DTO は構造を壊さず item だけを代表枠アルゴリズムで縮退する。 */
+function capWeatherChangeItems(
+  change: DisplayWeatherChangeV1,
+  max: number,
+): DisplayWeatherChangeV1 {
+  if (change.changes.length <= max) return change;
+  const byKind = new Map<DisplayWeatherChangeKindV1, DisplayWeatherChangeV1["changes"]>();
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) byKind.set(kind, []);
+  for (const item of change.changes) byKind.get(item.kind)?.push(item);
+
+  const presentKinds = WEATHER_CHANGE_KIND_ORDER.filter((kind) =>
+    (byKind.get(kind)?.length ?? 0) > 0,
+  );
+  const reservedKinds = max >= presentKinds.length
+    ? presentKinds
+    : max >= 2
+      && presentKinds.length >= 3
+      && (byKind.get("upgraded")?.length ?? 0) > 0
+      && (byKind.get("released")?.length ?? 0) > 0
+      ? ["upgraded", "released"] as const
+      : presentKinds.slice(0, max);
+  const selected = new Set<DisplayWeatherChangeV1["changes"][number]>();
+  for (const kind of reservedKinds) {
+    const item = byKind.get(kind)?.[0];
+    if (item != null) selected.add(item);
+  }
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) {
+    for (const item of byKind.get(kind) ?? []) {
+      if (selected.size >= max) break;
+      selected.add(item);
+    }
+    if (selected.size >= max) break;
+  }
+
+  const changes = change.changes.filter((item) => selected.has(item));
+  const omitted: DisplayWeatherChangeV1["omitted"] = {};
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) {
+    const total = (byKind.get(kind)?.length ?? 0) + (change.omitted[kind] ?? 0);
+    const retained = changes.filter((item) => item.kind === kind).length;
+    if (total > retained) omitted[kind] = total - retained;
+  }
+  return { ...change, changes, omitted };
+}
+
 /** 昇格 entry の addedAreas を「種別 → 地域名の集合」へ */
 function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined): Map<string, Set<string>> {
   const map = new Map<string, Set<string>>();
@@ -255,13 +310,17 @@ function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined
 // 2. recentTicker full → 20
 // 3. latestQuake.intensityGroups[] 各震度 max 8 地域 + omittedAreaCount (震度6弱以上は cap 対象外)
 // 4. weatherAlerts[].items[].shownAreas 各種別 max 6 地域 + omittedAreaCount
-// 5. recentTicker 0 (recentQuakes はまだ触らない)
-// 6. weather の緊急優先代替縮退 (L3 以下を落とし、L4/L5 を大きめの上限まで保持)
-// 7. active host / largeQuake から参照されない地図 event を event 単位で除外
-// 8. recentQuakes[].intensityGroups を各震度 max 8 地域に刈る (件数は削らず各地震度の地域列だけ間引く)
-// 9. recentQuakes[].intensityGroups を空配列化 (履歴カードの各地震度を諦める。件数・骨子情報は残す)
-// 10. recentQuakes 5 → 3 (肥大源を刈り尽くした後の最終手前。カード自体を減らす)
-// 11. recentQuakes 空 (最後の手段)
+// 5. weatherChange の item だけをカテゴリ代表枠つきで max 12
+// 6. recentTicker 0 (recentQuakes はまだ触らない)
+// 7. weather の緊急優先代替縮退 (L3 以下を落とし、L4/L5 を大きめの上限まで保持)
+// 8. weatherChange の item だけを max 4 へ再縮退
+// 9. active host / largeQuake から参照されない地図 event を event 単位で除外
+// 10. recentQuakes[].intensityGroups を各震度 max 8 地域に刈る (件数は削らず各地震度の地域列だけ間引く)
+// 11. recentQuakes[].intensityGroups を空配列化 (履歴カードの各地震度を諦める。件数・骨子情報は残す)
+// 12. recentQuakes 5 → 3 (肥大源を刈り尽くした後の最終手前。カード自体を減らす)
+// 13. weatherChange の item を max 2 へ再縮退
+// 14. weatherChange の item を 0 件へ縮退 (カテゴリ別 omitted は残す)
+// 15. recentQuakes 空 (最後の手段)
 //
 // 設計原則 (2026-07-14 各地震度配線): 履歴カードの各地震度 (intensityGroups) は「1 枚のカードに
 // 付随する詳細」なので、カードの件数 (段 10) やカード自体 (段 11) を削るより前に、詳細の地域列 (段 8)
@@ -296,10 +355,20 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   attempts.push(s);
   s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
   attempts.push(s);
+  const wireWeatherChange = s.weatherChange;
+  if (wireWeatherChange != null) {
+    s = { ...s, weatherChange: capWeatherChangeItems(wireWeatherChange, WEATHER_CHANGE_WIRE_MAX) };
+    attempts.push(s);
+  }
   s = { ...s, recentTicker: [] };
   attempts.push(s);
   s = { ...s, weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion) };
   attempts.push(s);
+  const compactWeatherChange = s.weatherChange;
+  if (compactWeatherChange != null) {
+    s = { ...s, weatherChange: capWeatherChangeItems(compactWeatherChange, WEATHER_CHANGE_WIRE_COMPACT_MAX) };
+    attempts.push(s);
+  }
   s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
   s = { ...s, recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX) };
@@ -308,6 +377,15 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   attempts.push(s);
   s = { ...s, recentQuakes: s.recentQuakes.slice(0, DEGRADED_RECENT_QUAKES) };
   attempts.push(s);
+  const minWeatherChange = s.weatherChange;
+  if (minWeatherChange != null) {
+    s = { ...s, weatherChange: capWeatherChangeItems(minWeatherChange, WEATHER_CHANGE_WIRE_MIN_MAX) };
+    attempts.push(s);
+    // 空 changes の DTO は wire に出さない契約。最終段では差分 surface 全体を落とし、
+    // 現況 snapshot の配信可能性を優先する。
+    s = { ...s, weatherChange: null };
+    attempts.push(s);
+  }
   s = { ...s, recentQuakes: [] };
   attempts.push(s);
   return attempts;
@@ -341,8 +419,7 @@ function capTickerKeepingActiveEews(
 
 export interface SnapshotDegradeResult {
   snapshot: DisplayStateSnapshotV1;
-  /** 0 = 縮退なし (full のまま収まった)。1〜11 は buildDegradeAttempts の段番号
-   *  (最終段 level 11 = recentQuakes 空) */
+  /** 0 = 縮退なし。1 以上は buildDegradeAttempts の段番号。 */
   level: number;
 }
 
@@ -364,7 +441,7 @@ export function degradeSnapshotToBudget(
   return null;
 }
 
-// recentTicker を一切削らない縮退ラダー (buildDegradeAttempts の段 3・4・6・7・8・9・10 相当のみ)。
+// recentTicker を一切削らない縮退ラダー (buildDegradeAttempts の weather/地図/履歴詳細相当のみ)。
 // tickerSynced:true の state は recentTicker が「権威値」であることが前提のため、段1 (本文間引き)・
 // 段2/5 (件数削減・空化) を通すと不完全な構成が権威として全置換されてしまう (レビュー R2 Important)。
 // 完全な recentTicker を保ったまま他フィールドだけ縮退し、それでも収まらなければ呼び出し元が
@@ -382,8 +459,18 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
   attempts.push(s);
   s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
   attempts.push(s);
+  const syncedWireWeatherChange = s.weatherChange;
+  if (syncedWireWeatherChange != null) {
+    s = { ...s, weatherChange: capWeatherChangeItems(syncedWireWeatherChange, WEATHER_CHANGE_WIRE_MAX) };
+    attempts.push(s);
+  }
   s = { ...s, weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion) };
   attempts.push(s);
+  const syncedCompactWeatherChange = s.weatherChange;
+  if (syncedCompactWeatherChange != null) {
+    s = { ...s, weatherChange: capWeatherChangeItems(syncedCompactWeatherChange, WEATHER_CHANGE_WIRE_COMPACT_MAX) };
+    attempts.push(s);
+  }
   // active な文字・地図を保護し、未参照地図だけを原子的に落とす
   s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
@@ -394,6 +481,13 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
   attempts.push(s);
   s = { ...s, recentQuakes: s.recentQuakes.slice(0, DEGRADED_RECENT_QUAKES) };
   attempts.push(s);
+  const syncedMinWeatherChange = s.weatherChange;
+  if (syncedMinWeatherChange != null) {
+    s = { ...s, weatherChange: capWeatherChangeItems(syncedMinWeatherChange, WEATHER_CHANGE_WIRE_MIN_MAX) };
+    attempts.push(s);
+    s = { ...s, weatherChange: null };
+    attempts.push(s);
+  }
   s = { ...s, recentQuakes: [] };
   attempts.push(s);
   return attempts;

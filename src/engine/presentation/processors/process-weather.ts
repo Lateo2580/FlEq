@@ -38,6 +38,7 @@ export function processWeather(
   };
 
   let weatherDiff: WeatherOutcome["presentation"]["weatherDiff"] = undefined;
+  let weatherChangeDiff: WeatherOutcome["presentation"]["weatherChangeDiff"] = undefined;
   let acceptedCorrection = false;
   let weatherStateMutationAccepted = false;
   let weatherStateRevision: WeatherOutcome["presentation"]["weatherStateRevision"] = null;
@@ -142,11 +143,11 @@ export function processWeather(
         frameLevel = "cancel";
         soundLevel = "cancel";
       } else {
-        const updateDiff = deps.vpws50State.diffAndUpdate(info, messageId, identity, {
+        const update = deps.vpws50State.diffAndUpdateWithDisplay(info, messageId, identity, {
           replaceCurrentRevision: decision.kind === "replaceCorrection" && decision.relation === "equal",
         });
-        if (updateDiff == null) return { kind: "suppressed" };
-        weatherDiff = updateDiff;
+        weatherDiff = update.diff;
+        weatherChangeDiff = update.displayDiff ?? undefined;
 
         if (weatherDiff.confidence === "unsafe") {
           frameLevel = "warning";
@@ -162,6 +163,10 @@ export function processWeather(
             log.debug(`[vpws50] unchanged but ${warningAreas} warning areas exist (reportDateTime=${info.reportDateTime})`);
           }
         }
+        weatherStateMutationAccepted = weatherDiff.confidence === "confirmed";
+      }
+      if (decision.kind === "restorePrevious") {
+        weatherStateMutationAccepted = weatherDiff?.confidence === "confirmed";
       }
     } else if (msg.head.type === "VPWW56") {
       if (decision.kind === "clearCurrent") deps.vpww56State!.clearSubject(subject);
@@ -195,6 +200,7 @@ export function processWeather(
         soundLevel,
         notifyCategory: "weather",
         weatherDiff,
+        weatherChangeDiff,
         displaySeverity,
         acceptedCorrection,
         weatherStateMutationAccepted,

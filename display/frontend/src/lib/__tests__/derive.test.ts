@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  deriveEmergencyPanels,
-  deriveMode,
+  deriveEmergencyPanels as deriveEmergencyPanelsAt,
+  deriveMode as deriveModeAt,
   deriveQuakeMapHostEvent,
-  deriveTickerLines,
+  deriveTickerLines as deriveTickerLinesAt,
 } from "../derive";
 import type {
   DisplayActiveEewV1,
@@ -16,6 +16,16 @@ import type {
 import type { DisplayClientState } from "../store";
 import { baseState, tickerEvent } from "./fixtures";
 import { assignLanes, enqueueJob, toTickerJob, type LaneState, type SchedulerState } from "../ticker-schedule";
+
+const TEST_NOW_MS = Date.parse("2026-07-06T21:00:00+09:00");
+const deriveEmergencyPanels = (
+  state: DisplayClientState,
+  nowMs: number = TEST_NOW_MS,
+) => deriveEmergencyPanelsAt(state, nowMs);
+const deriveMode = (state: DisplayClientState, nowMs: number = TEST_NOW_MS) =>
+  deriveModeAt(state, nowMs);
+const deriveTickerLines = (state: DisplayClientState, nowMs: number = TEST_NOW_MS) =>
+  deriveTickerLinesAt(state, nowMs);
 
 function runningLowLane(key: string): LaneState {
   return {

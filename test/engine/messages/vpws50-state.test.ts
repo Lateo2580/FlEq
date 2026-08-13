@@ -241,6 +241,42 @@ describe("DISPLAY_SEVERITY_RANK ベースの昇降格 (Phase C)", () => {
   });
 });
 
+describe("VPWS50 同一 rank の種別変更", () => {
+  it("表示名だけの変更は通知用 diff を従来どおり unchanged に保ち、表示専用 diff だけへ載せる", () => {
+    const holder = new Vpws50StateHolder();
+    holder.diffAndUpdate(makeInfo([
+      makeItem("神奈川県", "140000", [makeKind("03", "warning", "大雨警報")]),
+    ]), "m1");
+    const { diff, displayDiff } = holder.diffAndUpdateWithDisplay(makeInfo([
+      makeItem("神奈川県", "140000", [makeKind("03", "warning", "大雨危険情報")]),
+    ]), "m2", { reportDateTime: "2026-08-13T12:01:00+09:00", serial: "2" });
+
+    expect(diff).toEqual({
+      isFirstReport: false,
+      isUnchanged: true,
+      isCancelRollback: false,
+      shouldRecap: false,
+      confidence: "confirmed",
+      added: [],
+      upgraded: [],
+      downgraded: [],
+      released: [],
+    });
+    expect(displayDiff?.kindChanged).toHaveLength(1);
+    expect(displayDiff?.kindChanged[0]?.changes[0]).toMatchObject({
+      phenomenonKey: "大雨",
+      prevKindShortName: "大雨",
+      kindShortName: "大雨危険情報",
+      prevKindCode: "03",
+      newKindCode: "03",
+      prevDisplaySeverity: "officialL3",
+      newDisplaySeverity: "officialL3",
+    });
+    expect(displayDiff?.upgraded).toHaveLength(0);
+    expect(displayDiff?.downgraded).toHaveLength(0);
+  });
+});
+
 describe("Vpws50StateHolder.rollback (history 深さ 8, R1-6/R2-3)", () => {
   it("通常 → 取消 で直前報の state に戻る", () => {
     const state = new Vpws50StateHolder();

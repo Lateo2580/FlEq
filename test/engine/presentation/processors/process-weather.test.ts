@@ -75,6 +75,8 @@ describe("processWeather - VPWS50 差分連携", () => {
     const out = requireWeatherOutcome(processWeather(msg, fakeDeps(state)));
     expect(out.presentation.weatherDiff?.isFirstReport).toBe(true);
     expect(out.presentation.weatherDiff?.confidence).toBe("confirmed");
+    expect(out.presentation.weatherStateMutationAccepted).toBe(true);
+    expect(toPresentationEvent(out).weatherDiff).toBe(out.presentation.weatherDiff);
     // 初回は frameLevel は info ではない (weatherFrameLevel ベース)
     expect(out.presentation.frameLevel).not.toBe("info");
   });
@@ -104,6 +106,41 @@ describe("processWeather - VPWS50 差分連携", () => {
     expect(out.presentation.weatherDiff?.isUnchanged).toBe(true);
     expect(out.presentation.frameLevel).toBe("info");
     expect(out.presentation.soundLevel).toBe("info");
+  });
+
+  it("L5 継続中の表示名だけの変更は静音化を保ち、表示専用 kindChanged だけを生成する", () => {
+    const state = new Vpws50StateHolder();
+    const deps = fakeDeps(state);
+    processWeather(buildVpws50Msg([{ code: "33", name: "大雨特別警報" }], {
+      id: "l5-label-1",
+      reportDateTime: "2026-06-12T15:00:00+09:00",
+      serial: "1",
+    }), deps);
+    const out = requireWeatherOutcome(processWeather(buildVpws50Msg([
+      { code: "33", name: "大雨極端危険情報" },
+    ], {
+      id: "l5-label-2",
+      reportDateTime: "2026-06-12T15:01:00+09:00",
+      serial: "2",
+    }), deps));
+
+    expect(out.presentation.weatherDiff).toEqual(expect.objectContaining({
+      isUnchanged: true,
+      added: [],
+      upgraded: [],
+      downgraded: [],
+      released: [],
+    }));
+    expect(out.presentation.weatherDiff).not.toHaveProperty("kindChanged");
+    expect(out.presentation.frameLevel).toBe("info");
+    expect(out.presentation.soundLevel).toBe("info");
+    expect(out.presentation.weatherChangeDiff?.kindChanged[0]?.changes[0]).toMatchObject({
+      prevKindShortName: "大雨",
+      kindShortName: "大雨極端危険情報",
+      prevDisplaySeverity: "officialL5",
+      newDisplaySeverity: "officialL5",
+    });
+    expect(toPresentationEvent(out).weatherChangeDiff).toBe(out.presentation.weatherChangeDiff);
   });
 });
 

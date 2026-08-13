@@ -1250,6 +1250,28 @@ export interface Vpws50AreaChange {
   changes: Vpws50KindTransition[];
 }
 
+/** 緊急画面の続報表示だけが使う遷移。通知・CLI 用 Vpws50Diff とは分離する。 */
+export interface Vpws50DisplayKindTransition extends Vpws50KindTransition {
+  /** 前報の表示用ラベル。追加時は null。 */
+  prevKindShortName: string | null;
+}
+
+/** 緊急画面の続報表示だけが使う 1 予報区の変化。 */
+export interface Vpws50DisplayAreaChange {
+  areaName: string;
+  areaCode: string;
+  changes: Vpws50DisplayKindTransition[];
+}
+
+/** 通知・CLI の意味に影響させない、weatherChange DTO 専用差分。 */
+export interface Vpws50DisplayDiff {
+  added: Vpws50DisplayAreaChange[];
+  upgraded: Vpws50DisplayAreaChange[];
+  downgraded: Vpws50DisplayAreaChange[];
+  released: Vpws50DisplayAreaChange[];
+  kindChanged: Vpws50DisplayAreaChange[];
+}
+
 /** 現況表示用の 1 種別グループ (Phase C: displaySeverity ベース) */
 export interface Vpws50DisplayKindGroup {
   kindCode: string;

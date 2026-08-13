@@ -3,9 +3,13 @@ import {
   isDisplayWeatherSeverity,
   type DisplayStateSnapshotV1,
   type DisplayWeatherAlertItemV1,
+  type DisplayWeatherChangeItemV1,
+  type DisplayWeatherChangeKindV1,
+  type DisplayWeatherChangeV1,
   type DisplayWeatherPromotionLevelV1,
   type DisplayWeatherSourceV1,
 } from "./protocol";
+import { SPRING_EFFECTS_DEFAULT_MS } from "./motion";
 
 /** 主役パネルへ載せる 1 行。同じ severity × 現象は source をまたいで統合する (spec §3) */
 export interface WeatherPanelItemV1 {
@@ -48,6 +52,8 @@ export interface WeatherEmergencyInputV1 {
   activationKey: string;
   /** 追加地域を含む行が最初のページに来るよう、その行のキーを持つ (spec 追補 C11) */
   firstPageRowKey: string | null;
+  /** 現況とは別の、VPWS50 の短命な続報差分。期限・形状検証済みだけを載せる。 */
+  change?: DisplayWeatherChangeV1 | null;
 }
 
 const SOURCES: readonly DisplayWeatherSourceV1[] = ["vpws50", "vpww56"];
@@ -59,6 +65,12 @@ export const WEATHER_PAGE_ROW_CAPACITY = 4;
 export const WEATHER_ROW_AREA_MAX = 12;
 /** compact スロット (狭い右列) での地域名上限の fallback */
 export const WEATHER_ROW_AREA_MAX_COMPACT = 6;
+export const WEATHER_CHANGE_ROW_CAPACITY = 4;
+export const WEATHER_CHANGE_ROW_CAPACITY_COMPACT = 2;
+
+export function weatherChangeFadeDuration(reducedMotion: boolean): number {
+  return reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS;
+}
 /** 地域名 1 件が消費する幅の見積り (全角 n 文字ぶん)。「◯◯県」「宮古島地方」等の実データから、
  *  区切りの gap も込みで少し多めに置く — 見積りが過小だと 1 行に詰め込みすぎて折返しが増える */
 const AREA_NAME_EM = 6;
@@ -208,6 +220,222 @@ export function selectSubKinds(
   return { kinds: shown, hiddenKindCount: hidden.size };
 }
 
+const WEATHER_CHANGE_KIND_ORDER: readonly DisplayWeatherChangeKindV1[] = [
+  "upgraded",
+  "added",
+  "kindChanged",
+  "downgraded",
+  "released",
+];
+
+function isDisplayableWeatherChange(item: DisplayWeatherChangeItemV1): boolean {
+  return item.kind !== "kindChanged"
+    || (
+      item.before?.kindShortName != null
+      && item.after?.kindShortName != null
+      && item.before.kindShortName !== item.after.kindShortName
+    );
+}
+
+export interface WeatherChangeSelectionV1 {
+  items: DisplayWeatherChangeItemV1[];
+  totals: Record<DisplayWeatherChangeKindV1, number>;
+  displayed: Record<DisplayWeatherChangeKindV1, number>;
+}
+
+/** wire と UI の双方の縮退で、カテゴリ代表枠を予約して内容の消失を明示する。 */
+export function selectWeatherChangeItems(
+  change: DisplayWeatherChangeV1 | null | undefined,
+  max: number,
+): WeatherChangeSelectionV1 {
+  const empty = {
+    items: [],
+    totals: { added: 0, released: 0, upgraded: 0, downgraded: 0, kindChanged: 0 },
+    displayed: { added: 0, released: 0, upgraded: 0, downgraded: 0, kindChanged: 0 },
+  } satisfies WeatherChangeSelectionV1;
+  if (change == null) return empty;
+  const visible = change.changes.filter(isDisplayableWeatherChange);
+  const byKind = new Map<DisplayWeatherChangeKindV1, DisplayWeatherChangeItemV1[]>();
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) byKind.set(kind, []);
+  for (const item of visible) byKind.get(item.kind)?.push(item);
+  const totals = { ...empty.totals };
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) {
+    totals[kind] = (byKind.get(kind)?.length ?? 0) + (change.omitted[kind] ?? 0);
+  }
+  const presentKinds = WEATHER_CHANGE_KIND_ORDER.filter((kind) => totals[kind] > 0);
+  const limit = Math.max(0, Math.floor(max));
+  const reservedKinds = limit >= presentKinds.length
+    ? presentKinds
+    : limit >= 2
+      && presentKinds.length >= 3
+      && totals.upgraded > 0
+      && totals.released > 0
+      ? ["upgraded", "released"] as const
+      : presentKinds.slice(0, limit);
+  const selected = new Set<DisplayWeatherChangeItemV1>();
+  for (const kind of reservedKinds) {
+    const item = byKind.get(kind)?.[0];
+    if (item != null) selected.add(item);
+  }
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) {
+    for (const item of byKind.get(kind) ?? []) {
+      if (selected.size >= limit) break;
+      selected.add(item);
+    }
+    if (selected.size >= limit) break;
+  }
+  const items = visible.filter((item) => selected.has(item));
+  const displayed = { ...empty.displayed };
+  for (const item of items) displayed[item.kind] += 1;
+  return { items, totals, displayed };
+}
+
+export function weatherChangeValueLabel(
+  value: DisplayWeatherChangeItemV1["before"],
+): string {
+  if (value == null) return "—";
+  if (value.officialAlertLevel != null) return `L${value.officialAlertLevel} ${value.kindShortName}`;
+  const prefix = value.displaySeverity === "nonLevelSpecial"
+    ? "特別警報"
+    : value.displaySeverity === "nonLevelWarning"
+      ? "警報"
+      : value.displaySeverity === "nonLevelAdvisory"
+        ? "注意報"
+        : "";
+  return prefix === "" ? value.kindShortName : `${prefix} ${value.kindShortName}`;
+}
+
+export function weatherChangeRowText(item: DisplayWeatherChangeItemV1): string {
+  const before = weatherChangeValueLabel(item.before);
+  const after = weatherChangeValueLabel(item.after);
+  if (item.kind === "added") return `${item.areaName} — 追加: ${after}`;
+  if (item.kind === "released") return `${item.areaName} — 解除: ${before}`;
+  return `${item.areaName} — 種別: ${before} → ${after}`;
+}
+
+/** wire 縮退・normal/compact の UI 縮退で落ちた件数をカテゴリ別に明示する。 */
+export function weatherChangeSummary(selection: WeatherChangeSelectionV1): string {
+  const labels: Record<DisplayWeatherChangeKindV1, string> = {
+    upgraded: "悪化",
+    added: "追加",
+    kindChanged: "種別変更",
+    downgraded: "緩和",
+    released: "解除",
+  };
+  const omitted = WEATHER_CHANGE_KIND_ORDER
+    .filter((kind) => selection.totals[kind] > selection.displayed[kind])
+    .map((kind) => `${labels[kind]} ${selection.totals[kind]}件（表示 ${selection.displayed[kind]}件）`);
+  return omitted.length > 0
+    ? omitted.join("・")
+    : `変更 ${selection.items.length}件`;
+}
+
+function isWeatherChangeKind(value: unknown): value is DisplayWeatherChangeKindV1 {
+  return value === "added"
+    || value === "released"
+    || value === "upgraded"
+    || value === "downgraded"
+    || value === "kindChanged";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseFiniteTime(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function validateWeatherChangeValue(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return typeof value.kindShortName === "string"
+    && typeof value.kindCode === "string"
+    && typeof value.displaySeverity === "string"
+    && (value.officialAlertLevel == null
+      || (typeof value.officialAlertLevel === "number"
+        && Number.isFinite(value.officialAlertLevel)
+        && Number.isInteger(value.officialAlertLevel)
+        && value.officialAlertLevel >= 1
+        && value.officialAlertLevel <= 5));
+}
+
+/** 旧 server の欠落・不正時刻・未来へ飛んだ DTO は安全側に非表示にする。 */
+export function validateWeatherChange(
+  snapshot: DisplayStateSnapshotV1,
+  nowMs: number,
+): DisplayWeatherChangeV1 | null {
+  const raw = snapshot.weatherChange;
+  if (!isRecord(raw) || raw.source !== "vpws50") return null;
+  const generatedAtMs = parseFiniteTime(snapshot.generatedAt);
+  const issuedAtMs = parseFiniteTime(raw.issuedAt);
+  const expiresAtMs = parseFiniteTime(raw.expiresAt);
+  if (generatedAtMs == null || issuedAtMs == null || expiresAtMs == null || !Number.isFinite(nowMs)) return null;
+  if (
+    expiresAtMs - issuedAtMs !== 60_000
+    || !(generatedAtMs - 60_000 < issuedAtMs)
+    || issuedAtMs > generatedAtMs + 5_000
+    || !(generatedAtMs < expiresAtMs)
+    || expiresAtMs > generatedAtMs + 65_000
+    || expiresAtMs <= nowMs
+    || typeof raw.changeKey !== "string"
+    || raw.changeKey.length === 0
+    || typeof raw.reportDateTime !== "string"
+    || !Array.isArray(raw.changes)
+    || !isRecord(raw.omitted)
+  ) return null;
+  const changes: DisplayWeatherChangeItemV1[] = [];
+  const identities = new Set<string>();
+  for (const item of raw.changes) {
+    if (
+      !isRecord(item)
+      || typeof item.areaCode !== "string"
+      || typeof item.areaName !== "string"
+      || typeof item.phenomenonKey !== "string"
+      || !isWeatherChangeKind(item.kind)
+      || !("before" in item)
+      || !("after" in item)
+      || !(item.before === null || validateWeatherChangeValue(item.before))
+      || !(item.after === null || validateWeatherChangeValue(item.after))
+    ) return null;
+    const beforePresent = item.before != null;
+    const afterPresent = item.after != null;
+    if (
+      (item.kind === "added" && (beforePresent || !afterPresent))
+      || (item.kind === "released" && (!beforePresent || afterPresent))
+      || (
+        item.kind !== "added"
+        && item.kind !== "released"
+        && (!beforePresent || !afterPresent)
+      )
+    ) return null;
+    const identity = `${item.areaCode}\u0000${item.phenomenonKey}`;
+    if (identities.has(identity)) return null;
+    identities.add(identity);
+    changes.push(item as unknown as DisplayWeatherChangeItemV1);
+  }
+  const omitted: DisplayWeatherChangeV1["omitted"] = {};
+  for (const kind of WEATHER_CHANGE_KIND_ORDER) {
+    const value = raw.omitted[kind];
+    if (value == null) continue;
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0) return null;
+    if (value > 0) omitted[kind] = value;
+  }
+  const validated: DisplayWeatherChangeV1 = {
+    source: "vpws50",
+    changeKey: raw.changeKey,
+    reportDateTime: raw.reportDateTime,
+    issuedAt: raw.issuedAt as string,
+    expiresAt: raw.expiresAt as string,
+    changes,
+    omitted,
+  };
+  return selectWeatherChangeItems(validated, Number.MAX_SAFE_INTEGER).items.length > 0
+    ? validated
+    : null;
+}
+
 /**
  * 行をページへ等分割する。`capacity` は実測駆動なので 0 以下や NaN が来うる — その場合は
  * 1 行ずつに割って**必ず全行が到達可能**にする (画面外へ押し出して黙って消さない)。
@@ -237,6 +465,7 @@ function promotionLevelOf(item: DisplayWeatherAlertItemV1): DisplayWeatherPromot
  */
 export function buildWeatherEmergencyInput(
   snapshot: DisplayStateSnapshotV1,
+  nowMs: number,
 ): WeatherEmergencyInputV1 | null {
   const promotion = snapshot.weatherPromotion;
   if (promotion == null) return null;
@@ -253,6 +482,7 @@ export function buildWeatherEmergencyInput(
   const promotedLevels: DisplayWeatherPromotionLevelV1[] = [];
   let restored = false;
   let updatedAt: string | null = null;
+  let hasVpws50Contribution = false;
 
   // パネル全体の点灯キー (engine の watermark)。欠落 (旧サーバ) は演出も装飾も出さない
   const panelActivationKey = promotion.activationKey ?? "";
@@ -292,6 +522,9 @@ export function buildWeatherEmergencyInput(
       liveAlerts.length > 0
         ? liveAlerts.flatMap((a) => a.items)
         : (entry.restoredItems ?? []);
+    if (source === "vpws50" && (liveAlerts.length > 0 || sourceItems.length > 0)) {
+      hasVpws50Contribution = true;
+    }
     if (liveAlerts.length === 0 && sourceItems.length > 0) restored = true;
     // 追加地域は種別ごとに届く。**source を含めて照合する** — 別 source の同名地域を
     // 取り違えないため (spec 追補 C10)。今回の点灯を起こしていない source の追加地域は
@@ -362,6 +595,7 @@ export function buildWeatherEmergencyInput(
 
   items.sort((a, b) => b.level - a.level); // 安定ソート: 同レベルは source 順 → 出現順のまま
   const panelLevel = Math.max(...promotedLevels) as DisplayWeatherPromotionLevelV1;
+  const change = hasVpws50Contribution ? validateWeatherChange(snapshot, nowMs) : null;
   return {
     kind: "weather",
     // 主レベルは **engine の昇格レベル**を採る (item 側から推定しない)。中身がまだ組めていない
@@ -382,6 +616,7 @@ export function buildWeatherEmergencyInput(
       items.find((i) => i.level === panelLevel && i.addedAreas.length > 0)?.key
       ?? items.find((i) => i.addedAreas.length > 0)?.key
       ?? null,
+    change,
   };
 }
 

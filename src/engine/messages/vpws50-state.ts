@@ -4,6 +4,9 @@ import type {
   Vpws50Diff,
   Vpws50AreaChange,
   Vpws50KindTransition,
+  Vpws50DisplayDiff,
+  Vpws50DisplayAreaChange,
+  Vpws50DisplayKindTransition,
   Vpws50CurrentAreasForDisplay,
   Vpws50DisplayKindGroup,
   PhenomenonKey,
@@ -308,6 +311,83 @@ function computeDiff(prev: Snapshot | null, curr: Snapshot): {
   return { added, upgraded, downgraded, released };
 }
 
+/** 緊急画面だけの細粒度差分。通知・CLI 用 computeDiff の意味には混ぜない。 */
+function computeDisplayDiff(prev: Snapshot | null, curr: Snapshot): Vpws50DisplayDiff {
+  const added: Vpws50DisplayAreaChange[] = [];
+  const upgraded: Vpws50DisplayAreaChange[] = [];
+  const downgraded: Vpws50DisplayAreaChange[] = [];
+  const released: Vpws50DisplayAreaChange[] = [];
+  const kindChanged: Vpws50DisplayAreaChange[] = [];
+  const prevAreas = prev?.areas ?? new Map<string, { areaName: string; kinds: AreaSnapshot }>();
+
+  for (const [areaCode, currArea] of curr.areas) {
+    const prevArea = prevAreas.get(areaCode);
+    const buckets = {
+      added: [] as Vpws50DisplayKindTransition[],
+      upgraded: [] as Vpws50DisplayKindTransition[],
+      downgraded: [] as Vpws50DisplayKindTransition[],
+      kindChanged: [] as Vpws50DisplayKindTransition[],
+    };
+    for (const [phenomenonKey, currKind] of currArea.kinds) {
+      const prevKind = prevArea?.kinds.get(phenomenonKey);
+      const transition: Vpws50DisplayKindTransition = {
+        phenomenonKey,
+        kindShortName: shortKindName(currKind.kindName),
+        prevKindShortName: prevKind == null ? null : shortKindName(prevKind.kindName),
+        prevKindCode: prevKind?.kindCode ?? null,
+        newKindCode: currKind.kindCode,
+        prevSeverity: prevKind?.severity ?? null,
+        newSeverity: currKind.severity,
+        prevDisplaySeverity: prevKind?.displaySeverity ?? null,
+        newDisplaySeverity: currKind.displaySeverity,
+        prevOfficialAlertLevel: prevKind?.officialAlertLevel ?? null,
+        newOfficialAlertLevel: currKind.officialAlertLevel,
+      };
+      if (prevKind == null) buckets.added.push(transition);
+      else if (prevKind.displaySeverity !== currKind.displaySeverity) {
+        const prevRank = DISPLAY_SEVERITY_RANK[prevKind.displaySeverity];
+        const currRank = DISPLAY_SEVERITY_RANK[currKind.displaySeverity];
+        (currRank > prevRank ? buckets.upgraded : buckets.downgraded).push(transition);
+      } else if (
+        prevKind.kindCode !== currKind.kindCode
+        || transition.prevKindShortName !== transition.kindShortName
+      ) buckets.kindChanged.push(transition);
+    }
+    for (const kind of ["added", "upgraded", "downgraded", "kindChanged"] as const) {
+      if (buckets[kind].length > 0) {
+        ({ added, upgraded, downgraded, kindChanged })[kind].push({
+          areaName: currArea.areaName,
+          areaCode,
+          changes: buckets[kind],
+        });
+      }
+    }
+  }
+
+  for (const [areaCode, prevArea] of prevAreas) {
+    const currArea = curr.areas.get(areaCode);
+    const changes: Vpws50DisplayKindTransition[] = [];
+    for (const [phenomenonKey, prevKind] of prevArea.kinds) {
+      if (currArea != null && currArea.kinds.has(phenomenonKey)) continue;
+      changes.push({
+        phenomenonKey,
+        kindShortName: shortKindName(prevKind.kindName),
+        prevKindShortName: shortKindName(prevKind.kindName),
+        prevKindCode: prevKind.kindCode,
+        newKindCode: null,
+        prevSeverity: prevKind.severity,
+        newSeverity: null,
+        prevDisplaySeverity: prevKind.displaySeverity,
+        newDisplaySeverity: null,
+        prevOfficialAlertLevel: prevKind.officialAlertLevel,
+        newOfficialAlertLevel: null,
+      });
+    }
+    if (changes.length > 0) released.push({ areaName: prevArea.areaName, areaCode, changes });
+  }
+  return { added, upgraded, downgraded, released, kindChanged };
+}
+
 function countAreaKeys(snap: Snapshot | null): number {
   if (snap == null) return 0;
   let n = 0;
@@ -354,15 +434,35 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     identity?: WeatherReportIdentity,
     options?: { replaceCurrentRevision?: boolean },
   ): Vpws50Diff | null {
+    return this.diffAndUpdateInternal(info, messageId, identity, options).diff;
+  }
+
+  /** 通知用 diff と緊急画面専用 diff を同じ state 遷移から原子的に生成する。 */
+  diffAndUpdateWithDisplay(
+    info: ParsedWeatherWarning,
+    messageId: string,
+    identity: WeatherReportIdentity,
+    options?: { replaceCurrentRevision?: boolean },
+  ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
+    return this.diffAndUpdateInternal(info, messageId, identity, options);
+  }
+
+  private diffAndUpdateInternal(
+    info: ParsedWeatherWarning,
+    messageId: string,
+    identity?: WeatherReportIdentity,
+    options?: { replaceCurrentRevision?: boolean },
+  ): { diff: Vpws50Diff; displayDiff: Vpws50DisplayDiff | null } {
     const newSnap = infoToSnapshot(info);
     const unsafeReason = this.unsafeReasonFor(newSnap);
-    if (unsafeReason != null) return this.buildUnsafeDiff(unsafeReason);
-    if (newSnap == null) return this.buildUnsafeDiff("layer_missing");
+    if (unsafeReason != null) return { diff: this.buildUnsafeDiff(unsafeReason), displayDiff: null };
+    if (newSnap == null) return { diff: this.buildUnsafeDiff("layer_missing"), displayDiff: null };
 
     const isFirstReport = this.current == null;
     const diffParts = isFirstReport
       ? { added: [], upgraded: [], downgraded: [], released: [] }
       : computeDiff(this.current, newSnap);
+    const displayDiff = isFirstReport ? null : computeDisplayDiff(this.current, newSnap);
     const isUnchanged =
       !isFirstReport &&
       diffParts.added.length === 0 &&
@@ -394,12 +494,15 @@ export class Vpws50StateHolder implements DetailProvider<"vpws50"> {
     }
 
     return {
-      isFirstReport,
-      isUnchanged,
-      isCancelRollback: false,
-      shouldRecap,
-      confidence: "confirmed",
-      ...diffParts,
+      diff: {
+        isFirstReport,
+        isUnchanged,
+        isCancelRollback: false,
+        shouldRecap,
+        confidence: "confirmed",
+        ...diffParts,
+      },
+      displayDiff,
     };
   }
 
