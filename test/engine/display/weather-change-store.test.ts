@@ -80,6 +80,12 @@ function event(over: Partial<PresentationEvent> = {}): PresentationEvent {
 }
 
 describe("WeatherChangeDisplayStore", () => {
+  it("VPWW56 は案 C の対象外で weatherChange を生成しない", () => {
+    const store = new WeatherChangeDisplayStore();
+    expect(store.apply(event({ type: "VPWW56" }), NOW)).toBe(false);
+    expect(store.snapshot(NOW)).toBeNull();
+  });
+
   it("accepted changed を作成し、続報で原子的に置換する", () => {
     const store = new WeatherChangeDisplayStore();
     store.apply(event(), NOW);

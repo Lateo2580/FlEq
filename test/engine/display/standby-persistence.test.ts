@@ -10,6 +10,7 @@ import {
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { FloodActiveReducer } from "../../../src/engine/display/flood-active-reducer";
+import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-state";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
@@ -172,7 +173,12 @@ describe("StandbyPersistence", () => {
       version: 2,
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
-        vpww56: { authoritative: false, state: null, gateEntries: [] },
+        vpww56: {
+          generation: VPWW56_SNAPSHOT_GENERATION,
+          authoritative: false,
+          state: null,
+          gateEntries: [],
+        },
         tsunami: {
           active: null, keyedActive: [], legacyActive: null,
           observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],
@@ -637,11 +643,11 @@ describe("StandbyStateStore persistence", () => {
 
   it("weatherAlerts の壊れた source だけを破棄し、正常な別 source を復元する", () => {
     const path = tempPath();
-    const vpww56 = weatherAlert("vpww56");
+    const vpws50 = weatherAlert("vpws50");
     const persisted = state({
       weatherAlerts: [{
-        source: "vpww56",
-        alerts: [vpww56],
+        source: "vpws50",
+        alerts: [vpws50],
         revision: { reportTimeMs: T0, serial: "1" },
         expiresAtMs: T0 + 24 * 60 * 60_000,
       }],
@@ -650,7 +656,7 @@ describe("StandbyStateStore persistence", () => {
     writeFileSync(path, JSON.stringify({
       ...persisted,
       weatherAlerts: [
-        { source: "vpws50", alerts: "broken", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 1 },
+        { source: "vpww56", alerts: "broken", revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 1 },
         ...persisted.weatherAlerts!,
       ],
     }), "utf8");
@@ -659,7 +665,7 @@ describe("StandbyStateStore persistence", () => {
     expect(loaded?.weatherAlerts).toEqual(persisted.weatherAlerts);
     const restarted = new StandbyStateStore();
     restarted.restoreActiveState(loaded!, T0 + 60_000);
-    expect(restarted.snapshotWeatherAlerts()).toEqual([vpww56]);
+    expect(restarted.snapshotWeatherAlerts()).toEqual([vpws50]);
   });
 
   it("weatherAlerts フィールドのない旧ファイルを空の現況として復元する", () => {
@@ -823,7 +829,12 @@ describe("StandbyStateStore persistence", () => {
       version: 2,
       telegramFoundation: {
         vpws50: { authoritative: true, state: null, gateEntries: [] },
-        vpww56: { authoritative: false, state: null, gateEntries: [] },
+        vpww56: {
+          generation: VPWW56_SNAPSHOT_GENERATION,
+          authoritative: false,
+          state: null,
+          gateEntries: [],
+        },
         tsunami: {
           active: null, keyedActive: [], legacyActive: null,
           observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],

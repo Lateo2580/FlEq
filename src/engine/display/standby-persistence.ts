@@ -79,7 +79,11 @@ import {
   parsePersistedDepthSpecialValue,
   parsePersistedNumericSpecialValue,
 } from "../magnitude-depth-persistence";
-import { Vpww56StateHolder, type PersistedVpww56StateV2 } from "../messages/vpww56-state";
+import {
+  VPWW56_SNAPSHOT_GENERATION,
+  Vpww56StateHolder,
+  type PersistedVpww56StateV2,
+} from "../messages/vpww56-state";
 import type { PersistedVolcanoStateV2 } from "../messages/volcano-state";
 import {
   VOLCANO_ALERT_REVISION_FAMILY_POLICY,
@@ -139,6 +143,8 @@ export interface PersistedTelegramFoundationV2 {
     gateEntries: PersistedTelegramRevisionGateEntryV2[];
   };
   vpww56: {
+    /** writer は常に付与する。欠落は市町村等粒度へ切替える前の旧 foundation。 */
+    generation?: typeof VPWW56_SNAPSHOT_GENERATION;
     /** false は v1 の union 表示だけを復元した状態で、subject watermark には採用しない。 */
     authoritative: boolean;
     state: PersistedVpww56StateV2 | null;
@@ -391,7 +397,13 @@ export class StandbyPersistence {
     if (fallback.migrationConflict) {
       this.recordMigrationConflict("telegram foundation envelope fields differ; new schema is authoritative");
     }
-    return fallback.state;
+    if (fallback.state == null || fallback.state.telegramFoundation.vpww56.authoritative) {
+      return fallback.state;
+    }
+    return {
+      ...fallback.state,
+      weatherAlerts: fallback.state.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
+    };
   }
 
   save(state: PersistedStandbyState): void {
@@ -1124,7 +1136,12 @@ function emptyVpws50Foundation(): PersistedTelegramFoundationV2["vpws50"] {
 
 function emptyVpww56Foundation(): PersistedTelegramFoundationV2["vpww56"] {
   // field 欠落・v1 adapter・domain salvage は官署別 subject を再構成できないため非 authoritative。
-  return { authoritative: false, state: null, gateEntries: [] };
+  return {
+    generation: VPWW56_SNAPSHOT_GENERATION,
+    authoritative: false,
+    state: null,
+    gateEntries: [],
+  };
 }
 
 function emptyTelegramFoundation(): PersistedTelegramFoundationV2 {
@@ -2513,7 +2530,7 @@ function isVpww56View(value: unknown): value is Vpws50CurrentAreasForDisplay {
 function normalizeVpww56FoundationForWrite(
   value: PersistedTelegramFoundationV2["vpww56"],
 ): PersistedTelegramFoundationV2["vpww56"] {
-  if (!value.authoritative) return { authoritative: false, state: null, gateEntries: [] };
+  if (!value.authoritative) return emptyVpww56Foundation();
   const gateEntries = value.gateEntries
     .filter((entry) => entry.domain === "weather"
       && entry.revisionFamily === "VPWW56"
@@ -2526,23 +2543,109 @@ function normalizeVpww56FoundationForWrite(
   const activeSubjects = new Set(
     gateEntries.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey),
   );
+  const pendingSubjects = (value.state?.pendingSubjects ?? [])
+    .filter((subject) => activeSubjects.has(subject))
+    .slice(-VPWW56_REVISION_FAMILY_POLICY.maxSubjects!);
   const streams = (value.state?.streams ?? [])
-    .filter((stream) => activeSubjects.has(stream.subjectKey))
+    .filter((stream) => stream.generation === VPWW56_SNAPSHOT_GENERATION
+      && activeSubjects.has(stream.subjectKey)
+      && !pendingSubjects.includes(stream.subjectKey))
     .slice(-VPWW56_REVISION_FAMILY_POLICY.maxSubjects!)
-    .map((stream) => structuredClone(stream));
+    .map((stream) => ({
+      ...structuredClone(stream),
+      generation: VPWW56_SNAPSHOT_GENERATION,
+    }));
   const retainedSubjects = new Set(streams.map((stream) => stream.subjectKey));
+  for (const subject of pendingSubjects) retainedSubjects.add(subject);
   return {
+    generation: VPWW56_SNAPSHOT_GENERATION,
     authoritative: true,
-    state: streams.length === 0 ? null : { streams },
+    state: retainedSubjects.size === 0 ? null : {
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      streams,
+      pendingSubjects,
+    },
     gateEntries: gateEntries.filter((entry) => entry.cancelled || retainedSubjects.has(entry.stateSubjectKey)),
+  };
+}
+
+/**
+ * 市町村等粒度 marker 導入前の active stream は、官署 identity と revision watermark だけを
+ * 救済する。旧 view は表示せず、各官署の次の受理報まで pending とする。取消済み subject は
+ * active 官署ではないため旧 tombstone ごと捨てる。
+ */
+function migrateLegacyVpww56Foundation(
+  value: Record<string, unknown>,
+): PersistedTelegramFoundationV2["vpww56"] | null {
+  if (value.authoritative !== true || !Array.isArray(value.gateEntries)) return null;
+  if (!value.gateEntries.every((entry) =>
+    isGateEntry(entry)
+    && entry.domain === "weather"
+    && entry.revisionFamily === "VPWW56"
+    && isVpww56SubjectKey(entry.stateSubjectKey),
+  )) return null;
+  if (value.state == null) return emptyVpww56Foundation();
+  if (!isRecord(value.state) || !Array.isArray(value.state.streams)) return null;
+  if (value.state.streams.length > VPWW56_REVISION_FAMILY_POLICY.maxSubjects!) return null;
+  if (!value.state.streams.every((stream) =>
+    isRecord(stream) && isVpww56SubjectKey(stream.subjectKey) && isVpww56View(stream.view),
+  )) return null;
+
+  const rawStreams = value.state.streams as Array<{
+    generation?: typeof VPWW56_SNAPSHOT_GENERATION;
+    subjectKey: string;
+    view: Vpws50CurrentAreasForDisplay;
+  }>;
+  const streamSubjects = rawStreams.map((stream) => stream.subjectKey);
+  if (new Set(streamSubjects).size !== streamSubjects.length) return null;
+  const streams = rawStreams
+    .filter((stream) => stream.generation === VPWW56_SNAPSHOT_GENERATION)
+    .map((stream) => ({
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      subjectKey: stream.subjectKey,
+      view: structuredClone(stream.view),
+    }));
+  const pendingSubjects = rawStreams
+    .filter((stream) => stream.generation !== VPWW56_SNAPSHOT_GENERATION)
+    .map((stream) => stream.subjectKey);
+  const representedSet = new Set(streamSubjects);
+  const activeEntries = (value.gateEntries as PersistedTelegramRevisionGateEntryV2[])
+    .filter((entry) => !entry.cancelled && representedSet.has(entry.stateSubjectKey))
+    .map((entry) => ({
+      ...structuredClone(entry),
+      semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
+      tombstoneRetentionMs: entry.tombstoneRetentionMs === undefined
+        ? VPWW56_REVISION_FAMILY_POLICY.tombstoneRetentionMs
+        : entry.tombstoneRetentionMs,
+    }));
+  if (activeEntries.length !== streamSubjects.length) return null;
+  const activeSubjects = new Set(activeEntries.map((entry) => entry.stateSubjectKey));
+  if (activeSubjects.size !== streamSubjects.length
+    || streamSubjects.some((subject) => !activeSubjects.has(subject))) return null;
+  return {
+    generation: VPWW56_SNAPSHOT_GENERATION,
+    authoritative: true,
+    state: {
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      streams,
+      pendingSubjects,
+    },
+    gateEntries: activeEntries,
   };
 }
 
 function sanitizeVpww56Foundation(
   value: unknown,
 ): PersistedTelegramFoundationV2["vpww56"] | null {
-  if (!isRecord(value) || typeof value.authoritative !== "boolean" || !Array.isArray(value.gateEntries)) {
+  if (
+    !isRecord(value)
+    || typeof value.authoritative !== "boolean"
+    || !Array.isArray(value.gateEntries)
+  ) {
     return null;
+  }
+  if (value.generation !== VPWW56_SNAPSHOT_GENERATION) {
+    return migrateLegacyVpww56Foundation(value);
   }
   if (!value.gateEntries.every((entry) =>
     isGateEntry(entry)
@@ -2563,31 +2666,62 @@ function sanitizeVpww56Foundation(
   if (gateSubjects.size !== entries.length) return null;
   if (!value.authoritative) {
     return value.state == null && entries.length === 0
-      ? { authoritative: false, state: null, gateEntries: [] }
+      ? emptyVpww56Foundation()
       : null;
   }
   if (value.state == null) {
     return entries.some((entry) => !entry.cancelled)
       ? null
-      : { authoritative: true, state: null, gateEntries: entries };
+      : {
+          generation: VPWW56_SNAPSHOT_GENERATION,
+          authoritative: true,
+          state: null,
+          gateEntries: entries,
+        };
   }
-  if (!isRecord(value.state) || !Array.isArray(value.state.streams)) return null;
+  if (
+    !isRecord(value.state)
+    || !Array.isArray(value.state.streams)
+  ) return null;
+  if (value.state.generation !== VPWW56_SNAPSHOT_GENERATION) {
+    return migrateLegacyVpww56Foundation(value);
+  }
   if (value.state.streams.length > VPWW56_REVISION_FAMILY_POLICY.maxSubjects!) return null;
+  if (!Array.isArray(value.state.pendingSubjects)
+    || value.state.streams.some((stream) =>
+      !isRecord(stream) || stream.generation !== VPWW56_SNAPSHOT_GENERATION)) {
+    return migrateLegacyVpww56Foundation(value);
+  }
   if (!value.state.streams.every((stream) =>
-    isRecord(stream) && isVpww56SubjectKey(stream.subjectKey) && isVpww56View(stream.view),
+    isRecord(stream)
+    && stream.generation === VPWW56_SNAPSHOT_GENERATION
+    && isVpww56SubjectKey(stream.subjectKey)
+    && isVpww56View(stream.view),
   )) return null;
+  if (value.state.pendingSubjects.length > VPWW56_REVISION_FAMILY_POLICY.maxSubjects!
+    || !value.state.pendingSubjects.every(isVpww56SubjectKey)) return null;
   const streams = (value.state.streams as PersistedVpww56StateV2["streams"]).map((stream) =>
     structuredClone(stream));
+  const pendingSubjects = value.state.pendingSubjects as string[];
   const streamSubjects = new Set(streams.map((stream) => stream.subjectKey));
   if (streamSubjects.size !== streams.length) return null;
+  const pendingSet = new Set(pendingSubjects);
+  if (pendingSet.size !== pendingSubjects.length
+    || pendingSubjects.some((subject) => streamSubjects.has(subject))) return null;
   const activeGateSubjects = new Set(
     entries.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey),
   );
+  const representedSubjects = new Set([...streamSubjects, ...pendingSet]);
   if (
-    streamSubjects.size !== activeGateSubjects.size
-    || [...streamSubjects].some((subject) => !activeGateSubjects.has(subject))
+    representedSubjects.size !== activeGateSubjects.size
+    || [...representedSubjects].some((subject) => !activeGateSubjects.has(subject))
   ) return null;
-  return { authoritative: true, state: { streams }, gateEntries: entries };
+  return {
+    generation: VPWW56_SNAPSHOT_GENERATION,
+    authoritative: true,
+    state: { generation: VPWW56_SNAPSHOT_GENERATION, streams, pendingSubjects },
+    gateEntries: entries,
+  };
 }
 
 function isVolcanoFoundationSubject(entry: PersistedTelegramRevisionGateEntryV2): boolean {
@@ -3018,7 +3152,15 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
   const base = baseV1FromRecord(value);
   const telegramFoundation = sanitizeFoundation(value.telegramFoundation);
   if (base == null || telegramFoundation == null) return null;
-  const salvaged = salvageStandbyDomainProjections(base, telegramFoundation.standbyDomains);
+  // 官署 provenance のない旧 VPWW56 union は subject 単位の復元待ちへ変換できない。
+  // 非 authoritative foundation と併存する名称-only 表示は、旧粒度を固着させず破棄する。
+  const withoutLegacyVpww56 = telegramFoundation.vpww56.authoritative
+    ? base
+    : {
+        ...base,
+        weatherAlerts: base.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
+      };
+  const salvaged = salvageStandbyDomainProjections(withoutLegacyVpww56, telegramFoundation.standbyDomains);
   return { ...salvaged, version: 2, telegramFoundation };
 }
 
@@ -3070,7 +3212,7 @@ function migratePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV2
     version: 2,
     telegramFoundation: {
       vpws50: { authoritative: false, state: null, gateEntries: migratedVpws50GateEntries(base) },
-      vpww56: { authoritative: false, state: null, gateEntries: [] },
+      vpww56: emptyVpww56Foundation(),
       tsunami: emptyTsunamiFoundation(),
       volcano: emptyVolcanoFoundation(),
       floodForecast: emptyFloodFoundation(),
@@ -3110,6 +3252,9 @@ function hasVpww56MigrationConflict(raw: unknown, state: PersistedStandbyStateV2
   const legacy = state.weatherAlerts?.find((entry) => entry.source === "vpww56");
   const legacyHasPayload = legacy != null && legacy.alerts.length > 0;
   const current = foundation.state;
+  // 旧粒度 stream を官署別に復元待ちへ移した直後は canonical が意図的に部分集合になる。
+  // legacy union との差は migration conflict ではなく世代移行そのものなので数えない。
+  if ((current?.pendingSubjects?.length ?? 0) > 0) return false;
   if (current == null || current.streams.length === 0) return legacyHasPayload;
   if (!rawHasLegacyField || legacy == null) return true;
 

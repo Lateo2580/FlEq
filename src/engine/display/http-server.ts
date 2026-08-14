@@ -212,14 +212,17 @@ function capWeatherItemAreas(
   priority?: Set<string>,
 ): DisplayWeatherAlertV1["items"][number] {
   if (item.shownAreas.length <= max) return item;
+  // wire では名称だけを運ぶが、投影元は areaCode ごとに 1 要素を並べている。同名・別 code を
+  // 名称 Set へ戻すと cap 境界の外側まで復活するため、各要素の位置を地域 identity として選ぶ。
+  const indexed = item.shownAreas.map((area, index) => ({ area, index }));
   const kept = priority == null
-    ? item.shownAreas.slice(0, max)
+    ? indexed.slice(0, max)
     : [
-      ...item.shownAreas.filter((a) => priority.has(a)),
-      ...item.shownAreas.filter((a) => !priority.has(a)),
+      ...indexed.filter(({ area }) => priority.has(area)),
+      ...indexed.filter(({ area }) => !priority.has(area)),
     ].slice(0, max);
-  const keptSet = new Set(kept);
-  const shownAreas = item.shownAreas.filter((a) => keptSet.has(a));
+  const keptIndices = new Set(kept.map(({ index }) => index));
+  const shownAreas = indexed.filter(({ index }) => keptIndices.has(index)).map(({ area }) => area);
   return {
     ...item,
     shownAreas,

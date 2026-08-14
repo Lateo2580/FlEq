@@ -7,8 +7,10 @@ import { degradeSnapshotToBudget, degradeSyncedStateToBudget } from "../../../sr
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { InProcessSseDisplayTransport } from "../../../src/engine/display/transport";
+import { weatherAlertsFromVpww56 } from "../../../src/engine/display/weather-alert-view";
 import { DISPLAY_PROTOCOL_VERSION } from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
+import type { Vpws50CurrentAreasForDisplay } from "../../../src/types";
 import { displayEventDto, displaySnapshot } from "../../helpers/display-fixtures";
 import type {
   DisplayEventDtoV1,
@@ -911,45 +913,86 @@ describe("InProcessSseDisplayTransport", () => {
     expect(sentItem!.omittedAreaCount).toBe(originalWeatherAreaCount - sentItem!.shownAreas.length);
   });
 
-  it.each([4, 5] as const)("⑦-c L%d 昇格中の weatherAlerts は市町村地域を全件保持する", (level) => {
-    const areas = Array.from({ length: 2_000 }, (_, i) => `市町村${i.toString().padStart(4, "0")}`);
-    // level 4 の weather 縮退を実際に通過させる。20 件 cap 後も 256KB を超える ticker を
-    // 併置し、level 5 で ticker が空になって初めて収まる入力にする。
-    const blockingTicker = Array.from({ length: 20 }, (_, i) =>
-      displayEventDto({ seq: i, id: `weather-cap-${i}`, eventKey: `weather-cap-${i}`, title: "A".repeat(15_000) }),
-    );
-    const result = degradeSnapshotToBudget(baseSnapshot({
-      recentTicker: blockingTicker,
-      weatherAlerts: [{
-        source: "vpws50", label: "気象特別警報", role: "weatherEmergency", totalAreas: areas.length,
-        items: [
-          {
-            kind: level === 5 ? "L5 大雨特別警報" : "L4 大雨警報",
-            displaySeverity: level === 5 ? "officialL5" : "officialL4",
-            rank: level === 5 ? "emergency" : "warning",
-            shownAreas: areas, omittedAreaCount: 0,
-          },
-          {
-            kind: "L3 雷警報", displaySeverity: "officialL3", rank: "warning",
-            shownAreas: areas, omittedAreaCount: 0,
-          },
+  it("同名・別 areaCode が cap 境界をまたいでも code 件数で縮退する", () => {
+    const longSuffix = "A".repeat(40_000);
+    const duplicateName = `同名市${longSuffix}`;
+    const view: Vpws50CurrentAreasForDisplay = {
+      totalAreas: 7,
+      specialAreas: 0,
+      warningAreas: 0,
+      advisoryAreas: 0,
+      kinds: [{
+        kindCode: "09",
+        kindShortName: "土砂災害",
+        kindName: "レベル３土砂災害警戒警報",
+        displaySeverity: "officialL3",
+        officialAlertLevel: 3,
+        areas: [
+          { areaName: duplicateName, areaCode: "0000001" },
+          ...Array.from({ length: 5 }, (_, index) => ({
+            areaName: `別名市${index}${longSuffix}`,
+            areaCode: `000000${index + 2}`,
+          })),
+          { areaName: duplicateName, areaCode: "0000007" },
         ],
-        updatedAt: "2026-07-06T21:00:00+09:00",
       }],
-      weatherPromotion: {
-        vpws50: { level, promotedAt: "2026-07-06T21:00:00+09:00", generation: 1 },
-        vpww56: null,
-      },
-    }), "state");
+    };
+    const alerts = weatherAlertsFromVpww56(view, "2026-07-06T21:00:00+09:00");
+    expect(alerts[0]?.items[0]?.shownAreas).toHaveLength(7);
 
+    const result = degradeSnapshotToBudget(baseSnapshot({ weatherAlerts: alerts }), "state");
+    const item = result?.snapshot.weatherAlerts[0]?.items[0];
     expect(result).not.toBeNull();
-    expect(result?.level).toBe(5);
-    expect(result?.snapshot.recentTicker).toEqual([]);
-    expect(result?.snapshot.weatherAlerts[0]?.items[0]?.shownAreas).toHaveLength(areas.length);
-    expect(result?.snapshot.weatherAlerts[0]?.items[0]?.omittedAreaCount).toBe(0);
-    // 同じ source の通常行まで source-wide に保護しない。旧実装ではここも 2,000 件のまま残る。
-    expect(result?.snapshot.weatherAlerts[0]?.items[1]?.shownAreas).toHaveLength(6);
-    expect(result?.snapshot.weatherAlerts[0]?.items[1]?.omittedAreaCount).toBe(areas.length - 6);
+    expect(item?.shownAreas).toHaveLength(6);
+    expect(item?.shownAreas.filter((area) => area === duplicateName)).toHaveLength(1);
+    expect(item?.omittedAreaCount).toBe(1);
+    expect(result?.snapshot.weatherAlerts[0]?.totalAreas).toBe(7);
+  });
+
+  it.each([
+    { source: "vpws50" as const, label: "気象特別警報" },
+    { source: "vpww56" as const, label: "土砂災害警戒情報" },
+  ])("⑦-c %s 昇格中の weatherAlerts は市町村地域を全件保持する", ({ source, label }) => {
+    for (const level of [4, 5] as const) {
+      const areas = Array.from({ length: 2_000 }, (_, i) => `市町村${i.toString().padStart(4, "0")}`);
+      // level 4 の weather 縮退を実際に通過させる。20 件 cap 後も 256KB を超える ticker を
+      // 併置し、level 5 で ticker が空になって初めて収まる入力にする。
+      const blockingTicker = Array.from({ length: 20 }, (_, i) =>
+        displayEventDto({ seq: i, id: `weather-cap-${source}-${i}`, eventKey: `weather-cap-${source}-${i}`, title: "A".repeat(15_000) }),
+      );
+      const promotionEntry = { level, promotedAt: "2026-07-06T21:00:00+09:00", generation: 1 };
+      const result = degradeSnapshotToBudget(baseSnapshot({
+        recentTicker: blockingTicker,
+        weatherAlerts: [{
+          source, label, role: "weatherEmergency", totalAreas: areas.length,
+          items: [
+            {
+              kind: level === 5 ? "L5 大雨特別警報" : "L4 大雨警報",
+              displaySeverity: level === 5 ? "officialL5" : "officialL4",
+              rank: level === 5 ? "emergency" : "warning",
+              shownAreas: areas, omittedAreaCount: 0,
+            },
+            {
+              kind: "L3 雷警報", displaySeverity: "officialL3", rank: "warning",
+              shownAreas: areas, omittedAreaCount: 0,
+            },
+          ],
+          updatedAt: "2026-07-06T21:00:00+09:00",
+        }],
+        weatherPromotion: source === "vpws50"
+          ? { vpws50: promotionEntry, vpww56: null }
+          : { vpws50: null, vpww56: promotionEntry },
+      }), "state");
+
+      expect(result).not.toBeNull();
+      expect(result?.level).toBe(5);
+      expect(result?.snapshot.recentTicker).toEqual([]);
+      expect(result?.snapshot.weatherAlerts[0]?.items[0]?.shownAreas).toHaveLength(areas.length);
+      expect(result?.snapshot.weatherAlerts[0]?.items[0]?.omittedAreaCount).toBe(0);
+      // 同じ source の通常行まで source-wide に保護しない。旧実装ではここも 2,000 件のまま残る。
+      expect(result?.snapshot.weatherAlerts[0]?.items[1]?.shownAreas).toHaveLength(6);
+      expect(result?.snapshot.weatherAlerts[0]?.items[1]?.omittedAreaCount).toBe(areas.length - 6);
+    }
   });
 
   it("⑦-d 6 種別×2,000 地域の L5 行も代替縮退で緊急行を優先し、配信不能にならない", () => {

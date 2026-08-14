@@ -374,6 +374,15 @@ describe("capRowAreas", () => {
     expect(row.hiddenAreaCount).toBe(6); // 5 (engine) + 1 (UI 上限)
   });
 
+  it("同名・別 code 由来の要素が上限境界をまたいでも位置単位で省略数を数える", () => {
+    const row = capRowAreas(panelItem({
+      shownAreas: ["同名市", "別名市", "同名市"],
+      omittedAreaCount: 0,
+    }), 2);
+    expect(row.areas).toEqual(["同名市", "別名市"]);
+    expect(row.hiddenAreaCount).toBe(1);
+  });
+
   it("上限 0 以下でも 1 件は必ず出す (全滅させない)", () => {
     expect(capRowAreas(panelItem(), 0).areas).toEqual(["東京都"]);
     expect(capRowAreas(panelItem(), -3).areas).toEqual(["東京都"]);

@@ -64,7 +64,9 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const floodForecastState = new FloodForecastStateHolder();
   const revisionGate = new TelegramRevisionGate();
   let vpws50FoundationAuthoritative = true;
-  let vpww56FoundationAuthoritative = true;
+  // domain 全体を一報で authoritative 化しない。true は「現行 schema で初期化済み」の意味だけで、
+  // 復元待ち／到着済みの authority は Vpww56StateHolder が subject 単位で持つ。
+  let vpww56FoundationSchemaTrusted = true;
   let volcanoFoundationAuthoritative = true;
   let floodFoundationAuthoritative = true;
   const standbyPersistence = new StandbyPersistence(
@@ -78,7 +80,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
           entry.domain === "weather" && entry.revisionFamily === "VPWS50"),
       },
       vpww56: {
-        authoritative: vpww56FoundationAuthoritative,
+        authoritative: vpww56FoundationSchemaTrusted
+          || vpww56State.activeSubjectKeys().length > 0
+          || vpww56State.pendingSubjectKeys().length > 0
+          || revisionGate.exportDurableEntries().some((entry) =>
+            entry.domain === "weather" && entry.revisionFamily === "VPWW56"),
         state: vpww56State.exportPersistedState(),
         gateEntries: revisionGate.exportDurableEntries().filter((entry) =>
           entry.domain === "weather" && entry.revisionFamily === "VPWW56"),
@@ -131,7 +137,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     if (persistedVpws50.state != null) vpws50State.restorePersistedState(persistedVpws50.state);
     revisionGate.restoreDurableEntries(persistedVpws50.gateEntries);
     const persistedVpww56 = persistedStandby.telegramFoundation.vpww56;
-    vpww56FoundationAuthoritative = persistedVpww56.authoritative;
+    vpww56FoundationSchemaTrusted = persistedVpww56.authoritative;
     if (persistedVpww56.state != null) vpww56State.restorePersistedState(persistedVpww56.state);
     revisionGate.restoreDurableEntries(persistedVpww56.gateEntries);
     const persistedTsunami = persistedStandby.telegramFoundation.tsunami;
@@ -363,7 +369,6 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
     onVpww56RevisionDecision: (decision) => {
       if (!decision.accepted) return;
-      vpww56FoundationAuthoritative = true;
       standbyPersistence.schedule(standbyStore.exportActiveState());
     },
     onTsunamiRevisionDecision: persistAcceptedTsunamiRevision,

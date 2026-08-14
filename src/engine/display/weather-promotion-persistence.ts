@@ -16,6 +16,7 @@ import {
 } from "./constants";
 import type { DisplayWeatherAlertItemV1, DisplayWeatherSourceV1 } from "./types";
 import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
+import { VPWW56_SNAPSHOT_GENERATION } from "../messages/vpww56-state";
 import { VPWS50_SNAPSHOT_GENERATION } from "../messages/vpws50-state";
 import { WEATHER_PROMOTION_SOURCES, type WeatherPromotionMemberV1 } from "./weather-promotion";
 import type {
@@ -84,6 +85,8 @@ export class WeatherPromotionPersistence {
         // 次の受理で「新規発表」と偽らないよう tombstone だけ残す (spec 追補 C5)
         const aged = sanitizePersisted(parsed);
         return {
+          vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+          vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
           records: { vpws50: null, vpww56: null },
           generations: aged.generations,
           activationSeq: aged.activationSeq,
@@ -101,6 +104,8 @@ export class WeatherPromotionPersistence {
         // **signature は tombstone として残す** — 時計が信用できないだけで内容は読めているので、
         // 次の受理が同内容なら点灯しない (spec 追補 C5)
         return {
+          vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+          vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
           records: { vpws50: null, vpww56: null },
           generations: sanitized.generations,
           activationSeq: sanitized.activationSeq,
@@ -154,6 +159,7 @@ export class WeatherPromotionPersistence {
       ...state,
       // save() の入口へ旧 shape が渡っても、現在プロセスが生成した内容として必ず世代を付ける。
       vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+      vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
       version: PERSIST_SCHEMA_VERSION,
       savedAt: new Date(nowMs).toISOString(),
     };
@@ -268,6 +274,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function discardedWithoutMaterial(): WeatherPromotionPersistedV1 {
   return {
     vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+    vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
     records: { vpws50: null, vpww56: null },
     generations: { vpws50: 0, vpww56: 0 },
     uncertainSources: Object.fromEntries(WEATHER_PROMOTION_SOURCES.map((s) => [s, null])),
@@ -341,8 +348,19 @@ function sanitizePersisted(parsed: Record<string, unknown>): WeatherPromotionPer
     records.vpws50 = null;
     uncertainSources.vpws50 = null;
   }
+  // VPWS50 と同じ promotion ファイルに VPWW56 の控えも入る。世代を source ごとに判定し、
+  // VPWW56 の旧府県粒度だけを落として VPWS50 の現行 record を巻き添えにしない。
+  if (parsed.vpww56SnapshotGeneration !== VPWW56_SNAPSHOT_GENERATION) {
+    log.debug(
+      `[weather-promotion-persistence] VPWW56 snapshot 世代交代 `
+      + `(${String(parsed.vpww56SnapshotGeneration)} → ${VPWW56_SNAPSHOT_GENERATION}) — 旧 record 破棄`,
+    );
+    records.vpww56 = null;
+    uncertainSources.vpww56 = null;
+  }
   return {
     vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+    vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
     records,
     generations,
     unseenSinceMs,

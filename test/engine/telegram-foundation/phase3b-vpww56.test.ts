@@ -15,7 +15,10 @@ import { createMessageHandler } from "../../../src/engine/messages/message-route
 import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { VPWW56_REVISION_FAMILY_POLICY } from "../../../src/engine/messages/revision-family-registry";
 import { TelegramRevisionGate } from "../../../src/engine/messages/telegram-revision-gate";
-import { Vpww56StateHolder } from "../../../src/engine/messages/vpww56-state";
+import {
+  VPWW56_SNAPSHOT_GENERATION,
+  Vpww56StateHolder,
+} from "../../../src/engine/messages/vpww56-state";
 import { processWeather } from "../../../src/engine/presentation/processors/process-weather";
 import { toPresentationEvent } from "../../../src/engine/presentation/events/to-presentation-event";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
@@ -169,6 +172,207 @@ describe("Phase 3B VPWW56 common registry", () => {
     ]);
     expect(restoredGate.exportDurableEntries().filter((entry) => entry.revisionFamily === "VPWW56"))
       .toHaveLength(2);
+    expect(loaded.telegramFoundation.vpww56.generation).toBe(VPWW56_SNAPSHOT_GENERATION);
+    expect(loaded.telegramFoundation.vpww56.state?.generation).toBe(VPWW56_SNAPSHOT_GENERATION);
+  });
+
+  it("旧世代の VPWW56 active view は官署単位の復元待ちへ移し watermark を保つ", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    expect(processWeather(message("稚内地方気象台", T1, "1"), makeProcessDeps({ vpww56State: holder, revisionGate: gate })).kind)
+      .toBe("ok");
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, foundationProvider(holder, gate));
+    persistence.save(legacyWithView(holder, T1, "1"));
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: {
+        vpww56: {
+          state: Record<string, unknown> & { streams: Array<{ generation?: number }> };
+          gateEntries: unknown[];
+        };
+      };
+    };
+    delete raw.telegramFoundation.vpww56.state.generation;
+    for (const stream of raw.telegramFoundation.vpww56.state.streams) delete stream.generation;
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+
+    expect(new StandbyPersistence(file, 0).load()!.telegramFoundation.vpww56).toEqual({
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      authoritative: true,
+      state: {
+        generation: VPWW56_SNAPSHOT_GENERATION,
+        streams: [],
+        pendingSubjects: ["weather:VPWW56:稚内地方気象台"],
+      },
+      gateEntries: [expect.objectContaining({
+        stateSubjectKey: "weather:VPWW56:稚内地方気象台",
+        cancelled: false,
+      })],
+    });
+  });
+
+  it("二官署の旧世代復元待ちで取消が先着しても、別官署を authoritative 扱いせず待機を保つ", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ vpww56State: holder, revisionGate: gate });
+    expect(processWeather(message("稚内地方気象台", T1, "1"), deps).kind).toBe("ok");
+    expect(processWeather(message("旭川地方気象台", T1, "1"), deps).kind).toBe("ok");
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, foundationProvider(holder, gate));
+    persistence.save(legacyWithView(holder, T1, "1"));
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: {
+        vpww56: {
+          generation?: number;
+          state: { streams: Array<{ generation?: number }> };
+        };
+      };
+    };
+    delete raw.telegramFoundation.vpww56.generation;
+    for (const stream of raw.telegramFoundation.vpww56.state.streams) delete stream.generation;
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+
+    const migrated = new StandbyPersistence(file, 0).load()!.telegramFoundation.vpww56;
+    expect(migrated.state?.streams).toEqual([]);
+    expect(migrated.state?.pendingSubjects?.sort()).toEqual([
+      "weather:VPWW56:旭川地方気象台",
+      "weather:VPWW56:稚内地方気象台",
+    ]);
+    expect(migrated.gateEntries).toHaveLength(2);
+
+    const restartedHolder = new Vpww56StateHolder();
+    const restartedGate = new TelegramRevisionGate();
+    restartedHolder.restorePersistedState(migrated.state!);
+    restartedGate.restoreDurableEntries(migrated.gateEntries);
+    const restarted = makeProcessDeps({ vpww56State: restartedHolder, revisionGate: restartedGate });
+
+    const cancellation = processWeather(
+      message("稚内地方気象台", T2, "2", "取消", "cancel-first"),
+      restarted,
+    );
+    expect(cancellation.kind).toBe("ok");
+    expect(restartedHolder.getCurrentAreasForDisplay()).toBeUndefined();
+    expect(restartedHolder.pendingSubjectKeys()).toEqual(["weather:VPWW56:旭川地方気象台"]);
+
+    const afterCancelFile = tempPath();
+    const afterCancelPersistence = new StandbyPersistence(
+      afterCancelFile,
+      0,
+      foundationProvider(restartedHolder, restartedGate),
+    );
+    afterCancelPersistence.save(legacyState());
+    const afterCancel = afterCancelPersistence.load()!.telegramFoundation.vpww56;
+    expect(afterCancel.state?.pendingSubjects).toEqual(["weather:VPWW56:旭川地方気象台"]);
+    const secondHolder = new Vpww56StateHolder();
+    const secondGate = new TelegramRevisionGate();
+    secondHolder.restorePersistedState(afterCancel.state!);
+    secondGate.restoreDurableEntries(afterCancel.gateEntries);
+
+    const otherOffice = processWeather(
+      message("旭川地方気象台", T2, "2", "発表", "other-office-next"),
+      makeProcessDeps({ vpww56State: secondHolder, revisionGate: secondGate }),
+    );
+    expect(otherOffice.kind).toBe("ok");
+    expect(secondHolder.pendingSubjectKeys()).toEqual([]);
+    expect(secondHolder.activeSubjectKeys()).toEqual(["weather:VPWW56:旭川地方気象台"]);
+    expect(secondHolder.getCurrentAreasForDisplay()).toBeDefined();
+  });
+
+  it("一官署だけ旧世代なら、その官署の取消先着でも新世代の別官署 view を削除しない", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ vpww56State: holder, revisionGate: gate });
+    expect(processWeather(message("稚内地方気象台", T1, "1"), deps).kind).toBe("ok");
+    expect(processWeather(message("旭川地方気象台", T1, "1"), deps).kind).toBe("ok");
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, foundationProvider(holder, gate));
+    persistence.save(legacyWithView(holder, T1, "1"));
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: {
+        vpww56: { state: { streams: Array<{ generation?: number; subjectKey: string }> } };
+      };
+    };
+    const oldOffice = raw.telegramFoundation.vpww56.state.streams.find((stream) =>
+      stream.subjectKey === "weather:VPWW56:稚内地方気象台")!;
+    delete oldOffice.generation;
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+
+    const migrated = new StandbyPersistence(file, 0).load()!.telegramFoundation.vpww56;
+    expect(migrated.state?.streams.map((stream) => stream.subjectKey)).toEqual([
+      "weather:VPWW56:旭川地方気象台",
+    ]);
+    expect(migrated.state?.pendingSubjects).toEqual(["weather:VPWW56:稚内地方気象台"]);
+
+    const restartedHolder = new Vpww56StateHolder();
+    const restartedGate = new TelegramRevisionGate();
+    restartedHolder.restorePersistedState(migrated.state!);
+    restartedGate.restoreDurableEntries(migrated.gateEntries);
+    const before = restartedHolder.getCurrentAreasForDisplay();
+    expect(before).toBeDefined();
+
+    const cancellation = processWeather(
+      message("稚内地方気象台", T2, "2", "取消", "old-office-cancel-first"),
+      makeProcessDeps({ vpww56State: restartedHolder, revisionGate: restartedGate }),
+    );
+    expect(cancellation.kind).toBe("ok");
+    expect(restartedHolder.pendingSubjectKeys()).toEqual([]);
+    expect(restartedHolder.activeSubjectKeys()).toEqual(["weather:VPWW56:旭川地方気象台"]);
+    expect(restartedHolder.getCurrentAreasForDisplay()).toEqual(before);
+    if (cancellation.kind !== "ok") return;
+
+    const standby = new StandbyStateStore();
+    const sink = createDisplaySink({
+      standby,
+      promotions: new WeatherPromotionStore(),
+      weatherViews: {
+        vpws50: () => undefined,
+        vpww56: () => restartedHolder.getCurrentAreasForDisplay(),
+      },
+      getHub: () => null,
+      now: () => Date.parse(T2),
+    });
+    sink.ingest(toPresentationEvent(cancellation.outcome));
+    expect(standby.snapshotWeatherAlerts()).toEqual(weatherAlertsFromVpww56(before, T1));
+  });
+
+  it("旧世代の cancellation-only VPWW56 foundation は tombstone ごと破棄する", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ vpww56State: holder, revisionGate: gate });
+    expect(processWeather(message("稚内地方気象台", T1, "1"), deps).kind).toBe("ok");
+    expect(processWeather(message("稚内地方気象台", T2, "2", "取消"), deps).kind).toBe("ok");
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, foundationProvider(holder, gate));
+    persistence.save(legacyState());
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: {
+        vpww56: {
+          generation?: number;
+          state: unknown;
+          gateEntries: unknown[];
+        };
+      };
+    };
+    expect(raw.telegramFoundation.vpww56.generation).toBe(VPWW56_SNAPSHOT_GENERATION);
+    expect(raw.telegramFoundation.vpww56.state).toBeNull();
+    expect(raw.telegramFoundation.vpww56.gateEntries).toHaveLength(1);
+    delete raw.telegramFoundation.vpww56.generation;
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+
+    expect(new StandbyPersistence(file, 0).load()!.telegramFoundation.vpww56).toEqual({
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      authoritative: false,
+      state: null,
+      gateEntries: [],
+    });
   });
 
   it("同一 payload でも v2 gate と legacy revision が異なれば migration conflict を記録する", () => {
@@ -332,7 +536,7 @@ describe("Phase 3B VPWW56 common registry", () => {
     const persistence = new StandbyPersistence(file, 0, foundationProvider(holder, gate));
     persistence.save(legacyWithView(holder, T1, "1"));
     const loaded = persistence.load()!.telegramFoundation.vpww56;
-    expect(loaded.state?.streams[0].view.kinds[0].kindCode).toBe("09");
+    expect(loaded.state?.streams[0].view.kinds.find((kind) => kind.kindCode === "09")).toBeDefined();
     expect(loaded.gateEntries[0].comparison.revision.infoType.value).toBe("訂正");
   });
 
@@ -370,7 +574,12 @@ describe("Phase 3B VPWW56 common registry", () => {
     raw.telegramFoundation.vpww56 = { authoritative: true, state: { streams: "broken" }, gateEntries: [] };
     fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
     const loaded = new StandbyPersistence(file, 0).load()!;
-    expect(loaded.telegramFoundation.vpww56).toEqual({ authoritative: false, state: null, gateEntries: [] });
+    expect(loaded.telegramFoundation.vpww56).toEqual({
+      generation: VPWW56_SNAPSHOT_GENERATION,
+      authoritative: false,
+      state: null,
+      gateEntries: [],
+    });
     expect(loaded.telegramFoundation.vpws50).toEqual({ authoritative: true, state: null, gateEntries: [] });
     expect(loaded.telegramFoundation.tsunami).toEqual({
       active: null, keyedActive: [], legacyActive: null,
@@ -378,7 +587,7 @@ describe("Phase 3B VPWW56 common registry", () => {
     });
   });
 
-  it("旧 v1 は表示 snapshot だけを復元し、再構成不能な官署 watermark を採用しない", () => {
+  it("旧 v1 の官署不明 union は旧粒度を固着させず、表示も watermark も復元しない", () => {
     const file = tempPath();
     const legacy = legacyState();
     legacy.weatherAlerts = [{
@@ -393,8 +602,9 @@ describe("Phase 3B VPWW56 common registry", () => {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(legacy), "utf8");
     const loaded = new StandbyPersistence(file, 0).load()!;
-    expect(loaded.weatherAlerts).toEqual(legacy.weatherAlerts);
+    expect(loaded.weatherAlerts).toEqual([]);
     expect(loaded.telegramFoundation.vpww56).toEqual({
+      generation: VPWW56_SNAPSHOT_GENERATION,
       authoritative: false, state: null, gateEntries: [],
     });
   });
@@ -410,6 +620,7 @@ describe("Phase 3B VPWW56 common registry", () => {
     delete raw.telegramFoundation.vpww56;
     fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
     expect(new StandbyPersistence(file, 0).load()!.telegramFoundation.vpww56).toEqual({
+      generation: VPWW56_SNAPSHOT_GENERATION,
       authoritative: false, state: null, gateEntries: [],
     });
   });

@@ -1548,6 +1548,7 @@ revision 比較、訂正、`clearCurrent`、6 時間の取消 tombstone、128 su
 ```ts
 const VPWW56_MAX_SUBJECTS = 128;
 const VPWW56_TOMBSTONE_RETENTION_MS = 6 * 60 * 60 * 1000;
+const VPWW56_SNAPSHOT_GENERATION = 1;
 
 function vpww56StateSubjectKey(type: string, publishingOffice: string): string | null;
 function vpww56HasActiveAreas(info: ParsedWeatherWarning): boolean;
@@ -1568,14 +1569,14 @@ class Vpww56StateHolder {
 ### 内部ロジック
 
 - `processWeather` が common gate の accepted decision を得た後だけ `applyAccepted()` / `clearSubject()` を呼ぶ。
-- `applyAccepted()` は「府県予報区等」layer から release 以外の Kind を view 化する。active Kind が無ければ当該 subject を clear する。
+- `applyAccepted()` は `selectPreferredWeatherLayer()` と同じ優先順（市町村等 → 市町村等をまとめた地域等 → 一次細分区域等 → 最後の layer）で選んだ layer から、release 以外の Kind を view 化する。active Kind が無ければ当該 subject を clear する。
 - `retainActiveSubjects()` は gate が保持する active subject 集合と holder を同期する。
 - Map は受理順に delete→set し、128 件超過時の退場順を gate と一致させる。
 - `update()` は holder 単体利用向けの互換入口であり、revision 判定は行わない。
 
 #### union
 
-view を持つストリームを走査し、kindCode でグループを併合する。`totalAreas` は全ストリーム横断の areaCode 集合サイズ。府県予報区は官署ごとに排他だが、越境発表が来ても地域を二重に並べないよう areaCode で dedup する。kinds は displaySeverity 降順、同 rank では kindCode 昇順で並べ、ストリームをまたいでも順序を決定的にする。union 結果はキャッシュし、accepted mutation / clear / restore で無効化する。
+view を持つストリームを走査し、kindCode でグループを併合する。`totalAreas` は全ストリーム横断の areaCode 集合サイズ。市町村等を基準にした view が官署ごとに分かれていても、越境発表が来た場合に地域を二重に並べないよう areaCode で dedup する。kinds は displaySeverity 降順、同 rank では kindCode 昇順で並べ、ストリームをまたいでも順序を決定的にする。union 結果はキャッシュし、accepted mutation / clear / restore で無効化する。
 
 standby の union `updatedAt` / expiry と起動時復元時刻は、gate 内の active subject 群で最新の ReportDateTime から導出する。別官署の遅着報自身の時刻で union 全体を巻き戻さない。
 
@@ -1593,7 +1594,8 @@ standby の union `updatedAt` / expiry と起動時復元時刻は、gate 内の
 
 - 出力形は `Vpws50StateHolder.buildCurrentAreasForDisplay` と同じ (`Vpws50CurrentAreasForDisplay`)。`specialAreas` / `warningAreas` / `advisoryAreas` は気象カードで未使用のため 0 を置く (rank は `displaySeverity` 由来、VPWW56 は土砂災害単一種別で 3 段カウントの意味が薄い)。
 - VPWS50 は本 holder に入らない。`processWeather` が `msg.head.type === "VPWW56"` で門番しており、全国集約の VPWS50 は `Vpws50StateHolder` (rich diff 持ち) の担当。「全国集約は 1 本に畳む / 府県気象台は官署別」の非対称は、この 2 つの holder の役割分担そのもの。
-- v2 foundation は active view と同じ subject の gate entry を一緒に保存する。旧 v1 union は官署別 provenance を再構成できないため non-authoritative として表示だけを復元し、watermark には採用しない。
+- v2 foundation は active view と同じ subject の gate entry を一緒に保存する。旧 v1 union や foundation 欠落 v2 は官署別 provenance を再構成できず旧粒度を固着させるため、VPWW56 表示も watermark も復元しない。
+- 地域粒度の世代 marker は foundation と各官署 stream に保存する。旧世代 stream は view だけを破棄して subject を `pendingSubjects` (復元待ち) へ移し、watermark を保持する。新報または取消が来た官署だけ待機解除し、表示 union は現世代 stream のみから構成するため、一官署の受理で他官署まで authoritative にはしない。active stream のない旧 cancellation-only foundation は、世代を証明できない tombstone ごと破棄する。
 - 6 時間経過後の遅延報復活は、旧 dormant policy を引き継いだ有限 tombstone 方針として受容する。
 
 ---

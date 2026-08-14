@@ -80,6 +80,15 @@ const T3 = "2026-07-19T11:00:00+09:00";
 const WAKKANAI = "稚内地方気象台";
 const ASAHIKAWA = "旭川地方気象台";
 
+const WAKKANAI_MUNICIPAL_CODES = [
+  "0121400", "0151100", "0151200", "0151300", "0151400",
+  "0151600", "0151700", "0151800", "0151900", "0152000",
+];
+const ASAHIKAWA_MUNICIPAL_CODES = [
+  "0120100", "0145200", "0145300", "0145400", "0145500",
+  "0145600", "0145700", "0145800", "0145900", "0146100",
+];
+
 describe("Vpww56StateHolder 官署単位 union", () => {
   it("別官署の発表は互いを消さず union された view を返す", () => {
     const holder = new Vpww56StateHolder();
@@ -283,11 +292,31 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
     return { ...parsed!, reportDateTime };
   }
 
-  /** fixture XML の対象地域を差し替えた synthetic 電文 (別府県予報区の官署を模す) */
+  /** fixture XML の対象地域を市町村等まで差し替えた synthetic 電文 (別官署を模す) */
   function parseAsOtherArea(office: string, reportDateTime: string): ParsedWeatherWarning {
     const xml = readFixture(FIXTURE_VPWW56_DOSHA)
       .replaceAll("宗谷地方", "上川地方")
-      .replaceAll("011000", "012000");
+      .replaceAll("011000", "012000")
+      .replaceAll("稚内市", "旭川市")
+      .replaceAll("0121400", "0120100")
+      .replaceAll("猿払村", "鷹栖町")
+      .replaceAll("0151100", "0145200")
+      .replaceAll("浜頓別町", "東神楽町")
+      .replaceAll("0151200", "0145300")
+      .replaceAll("中頓別町", "当麻町")
+      .replaceAll("0151300", "0145400")
+      .replaceAll("枝幸町", "比布町")
+      .replaceAll("0151400", "0145500")
+      .replaceAll("豊富町", "愛別町")
+      .replaceAll("0151600", "0145600")
+      .replaceAll("礼文町", "上川町")
+      .replaceAll("0151700", "0145700")
+      .replaceAll("利尻富士町", "美瑛町")
+      .replaceAll("0151900", "0145900")
+      .replaceAll("利尻町", "東川町")
+      .replaceAll("0151800", "0145800")
+      .replaceAll("幌延町", "占冠村")
+      .replaceAll("0152000", "0146100");
     const msg = createMockWsDataMessageFromXml(xml, "VPWW56", { publishingOffice: office });
     const parsed = parseWeatherWarning(msg);
     expect(parsed).not.toBeNull();
@@ -309,27 +338,30 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
   it("別官署の発表が既存官署の view を消さず、両方の地域が union される", () => {
     const holder = new Vpww56StateHolder();
     holder.update(parseAsOffice(WAKKANAI, T1), id(T1, "1"));
-    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(1);
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(10);
 
     holder.update(parseAsOtherArea(ASAHIKAWA, T2), id(T2, "1"));
     const view = holder.getCurrentAreasForDisplay();
-    expect(view?.totalAreas).toBe(2);
+    expect(view?.totalAreas).toBe(20);
     const areaCodes = view?.kinds.flatMap((k) => k.areas.map((a) => a.areaCode)) ?? [];
-    expect([...new Set(areaCodes)].sort()).toEqual(["011000", "012000"]);
+    expect([...new Set(areaCodes)].sort()).toEqual([
+      ...WAKKANAI_MUNICIPAL_CODES,
+      ...ASAHIKAWA_MUNICIPAL_CODES,
+    ].sort());
   });
 
   it("片方の官署だけが取消されても、もう片方の view は残る", () => {
     const holder = new Vpww56StateHolder();
     holder.update(parseAsOffice(WAKKANAI, T1), id(T1, "1"));
     holder.update(parseAsOtherArea(ASAHIKAWA, T1), id(T1, "1"));
-    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(20);
 
     const cancelled: ParsedWeatherWarning = { ...parseAsOffice(WAKKANAI, T1), infoType: "取消" };
     expect(holder.update(cancelled, id(T1, "1"))).toEqual({ kind: "updated" });
 
     const view = holder.getCurrentAreasForDisplay();
-    expect(view?.totalAreas).toBe(1);
-    expect(view?.kinds[0].areas).toEqual([{ areaName: "上川地方", areaCode: "012000" }]);
+    expect(view?.totalAreas).toBe(10);
+    expect(view?.kinds[0].areas).toEqual([{ areaName: "旭川市", areaCode: "0120100" }]);
   });
 
   it("他官署が新しい報を出しても、自官署の続報は古い扱いにならない", () => {
@@ -339,7 +371,7 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
     // 稚内は T1 → T2 と自分のペースで進める
     expect(holder.update(parseAsOffice(WAKKANAI, T1), id(T1, "1"))).toEqual({ kind: "updated" });
     expect(holder.update(parseAsOffice(WAKKANAI, T2), id(T2, "2"))).toEqual({ kind: "updated" });
-    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(20);
   });
 
   it("将来 VPWW61 が相乗りしても、同一官署の別カテゴリを上書きしない", () => {
@@ -349,7 +381,7 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
     holder.update(heavyRain, id(T2, "1"));
 
     expect(holder.trackedStreamCount()).toBe(2);
-    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(2);
+    expect(holder.getCurrentAreasForDisplay()?.totalAreas).toBe(20);
   });
 
   it("同一官署が同じ fixture を出し続けても地域は重複しない", () => {
@@ -358,7 +390,7 @@ describe("Vpww56StateHolder 官署単位 union (fixture 実経路)", () => {
     holder.update(parseAsOffice(WAKKANAI, T2), id(T2, "2"));
 
     const view = holder.getCurrentAreasForDisplay();
-    expect(view?.totalAreas).toBe(1);
-    expect(view?.kinds[0].areas).toEqual([{ areaName: "宗谷地方", areaCode: "011000" }]);
+    expect(view?.totalAreas).toBe(10);
+    expect(view?.kinds[0].areas).toEqual([{ areaName: "稚内市", areaCode: "0121400" }]);
   });
 });

@@ -178,15 +178,17 @@ export function capRowAreas(item: WeatherPanelItemV1, maxAreas: number): Weather
   // slice だと、狭い枠 (compact は 6 件) で追加地域が後方にあると真っ先に落ちて
   // ハイライトが空振りする。engine 側の縮退保護と同じ考え方をフロントの上限にも掛ける
   const added = new Set(item.addedAreas);
+  const indexed = item.shownAreas.map((area, index) => ({ area, index }));
   const kept = added.size === 0
-    ? item.shownAreas.slice(0, limit)
+    ? indexed.slice(0, limit)
     : [
-      ...item.shownAreas.filter((a) => added.has(a)),
-      ...item.shownAreas.filter((a) => !added.has(a)),
+      ...indexed.filter(({ area }) => added.has(area)),
+      ...indexed.filter(({ area }) => !added.has(area)),
     ].slice(0, limit);
-  // 残す集合が決まったら、描画は元の並び順に戻す (読み手の見え方を変えない)
-  const keptSet = new Set(kept);
-  const areas = item.shownAreas.filter((a) => keptSet.has(a));
+  // wire は名称のみだが、1 要素は engine 投影元の 1 areaCode に対応する。同名・別 code を
+  // 名称 Set で再展開せず、位置 identity で元順へ戻して件数を保つ。
+  const keptIndices = new Set(kept.map(({ index }) => index));
+  const areas = indexed.filter(({ index }) => keptIndices.has(index)).map(({ area }) => area);
   const droppedByUi = Math.max(0, item.shownAreas.length - areas.length);
   return { ...item, areas, hiddenAreaCount: item.omittedAreaCount + droppedByUi };
 }

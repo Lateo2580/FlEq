@@ -16,6 +16,7 @@ import {
   type WeatherPromotionRecord,
 } from "../../../src/engine/display/weather-promotion-store";
 import type { DisplayWeatherAlertV1 } from "../../../src/engine/display/types";
+import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-state";
 import { VPWS50_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpws50-state";
 import * as log from "../../../src/logger";
 
@@ -286,7 +287,11 @@ describe("WeatherPromotionPersistence", () => {
     mkdirSync(dir, { recursive: true });
     const normalized =
       typeof content === "object" && content != null && !Array.isArray(content)
-        ? { vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION, ...content }
+        ? {
+            vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+            vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
+            ...content,
+          }
         : content;
     writeFileSync(file, typeof normalized === "string" ? normalized : JSON.stringify(normalized), "utf8");
   }
@@ -429,6 +434,36 @@ describe("WeatherPromotionPersistence", () => {
     expect(rebuilt?.trigger).toBeNull();
     expect(rebuilt?.addedAreas).toEqual([]);
     expect(rebuilt?.items[0]?.shownAreas).toEqual(["千葉市", "市原市"]);
+  });
+
+  it("VPWW56 promotion の世代不一致は VPWW56 だけを破棄し、VPWS50 を巻き込まない", () => {
+    write({
+      version: 2,
+      savedAt: new Date(T0).toISOString(),
+      vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION - 1,
+      records: {
+        vpws50: activeRecord({
+          items: [{ ...SNAPSHOT_ITEM, shownAreas: ["東京都"] }],
+        }),
+        vpww56: activeRecord({
+          items: [{ ...SNAPSHOT_ITEM, kind: "L4 土砂災害警戒情報", shownAreas: ["東京都"] }],
+        }),
+      },
+      generations: { vpws50: 3, vpww56: 4 },
+    });
+
+    const loaded = new WeatherPromotionPersistence(file).load(T0 + MIN);
+    expect(loaded?.records.vpws50).not.toBeNull();
+    expect(loaded?.records.vpww56).toBeNull();
+    expect(loaded?.generations.vpww56).toBe(4);
+    expect(loaded?.uncertainSources).toHaveProperty("vpww56", null);
+    expect(loaded?.vpww56SnapshotGeneration).toBe(VPWW56_SNAPSHOT_GENERATION);
+
+    const store = new WeatherPromotionStore();
+    store.restore(loaded!, T0 + MIN);
+    store.apply("vpww56", rawView("officialL4", ["千葉市", "市原市"]), T0 + 2 * MIN);
+    expect(store.get("vpww56")?.trigger).toBeNull();
+    expect(store.get("vpww56")?.addedAreas).toEqual([]);
   });
 
   it("signature 欠落の record は破棄する (復元後の unchanged 判定が壊れるため)", () => {
@@ -1146,6 +1181,7 @@ describe("旧形式 uncertainSources (配列) からの復元", () => {
     writeFileSync(file3, JSON.stringify({
       version: 2,
       vpws50SnapshotGeneration: VPWS50_SNAPSHOT_GENERATION,
+      vpww56SnapshotGeneration: VPWW56_SNAPSHOT_GENERATION,
       savedAt: new Date(T0).toISOString(),
       records: { vpws50: null, vpww56: null },
       generations: { vpws50: 3, vpww56: 0 },
