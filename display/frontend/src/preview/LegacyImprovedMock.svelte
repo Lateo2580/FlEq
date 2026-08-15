@@ -257,12 +257,12 @@
         moved.add(key);
       }
     } else if (override == null) {
-      // 右列が実測高を超えたときだけ、内容量スコアを tie-breaker にして左の空きを使う。
-      // 右列が収まる場合は heat を含む全カードをそのまま残すため、不要な溢れを起こさない。
+      // 右列が実測高を超えたときだけ左の空きを使う。移動枚数を最小にするため
+      // 背の高いカードから動かす (小さいカードは右列に残れるならそのまま残す)。
       while (columnNaturalHeight(right) > capacity) {
         const movable = right
           .filter((card) => card.key !== "weather")
-          .sort((leftCard, rightCard) => leftCard.score - rightCard.score || rightCard.order - leftCard.order);
+          .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.score - rightCard.score);
         const toLeft = movable.find((card) => columnNaturalHeight([...left, card]) <= capacity);
         if (toLeft == null) break;
         right = right.filter((card) => card.key !== toLeft.key);
