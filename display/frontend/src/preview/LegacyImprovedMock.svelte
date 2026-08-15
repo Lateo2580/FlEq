@@ -762,6 +762,15 @@
     width: 100%;
   }
 
+  /* marquee の absolute 配置はカード外の positioned ancestor を基準に走るため、
+     overflow clip では閉じ込められない (v11 実測)。モックは静止画評価なので
+     in-flow 静止化で banner-areas 内に収める。実表示の走行は本実装側で扱う。 */
+  .legacy-mock .legacy-card :global(.marquee-text) {
+    position: static;
+    white-space: nowrap;
+    animation-name: none;
+  }
+
   /* TsunamiStandbyBanner の走行文字を、モック側でもカード外へ出さない。component は無改造のまま、
      バナー本体と marquee の containing block の両方をカード幅で clip する。 */
   .legacy-mock .legacy-card :global(.tsunami-banner) {
