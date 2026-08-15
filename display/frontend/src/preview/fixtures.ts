@@ -1971,6 +1971,12 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   },
 ];
 
+/** v10 の気象カード mock 用: WeatherAlertCard の「ほか」省略を展開して全対象地域を見せる。 */
+export const legacyImprovedTornadoFullAreas = [
+  "宮崎県南部平野部",
+  "宮崎県北部平野部",
+] as const;
+
 /** 実機再現 (2026-07-23/24 実機不具合 5・熱中症カード欠落): 気象カードあり + volcano(warning) +
  *  typhoon(発生予想 1 エントリのみ = 実高が見積 240px より大幅に低いカード) + heat×2。720p で
  *  全カードが visible になることを検証する (spec standby-right-stack T3、#standby-right-stack-budget) */

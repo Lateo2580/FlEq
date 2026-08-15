@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v9", () => {
+describe("legacy improved standby mock v10", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -36,7 +36,10 @@ describe("legacy improved standby mock v9", () => {
     expect(root.dataset.measurementMode).toBe("sync-dom");
     expect(root.dataset.measurementPass).toBe("2");
     expect(root.dataset.nankaiHeightPx).toBeDefined();
+    expect(root.dataset.clusterGapPx).toBeDefined();
+    expect(root.dataset.clusterFlowHeightPx).toBeDefined();
     expect(root.dataset.layoutCapacityPx).toBeDefined();
+    expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
     expect(root.dataset.clockMode).toBe("viewport-center");
     expect(rendered.container.querySelector("[data-clock-landmark]")).toBeTruthy();
     expect(Number(root.dataset.measurementReadCount)).toBeGreaterThan(0);
@@ -98,6 +101,14 @@ describe("legacy improved standby mock v9", () => {
       expect(card?.dataset.regionExpanded).toBe("true");
     }
     expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).not.toContain("ほか3地域");
+    expect(rendered.container.querySelector('[data-mock-card="weather"] [data-weather-two-column]')).toBeTruthy();
+    const tornado = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"] [data-tornado-full]');
+    expect(tornado?.textContent).toContain("宮崎県南部平野部");
+    expect(tornado?.textContent).toContain("宮崎県北部平野部");
+    expect(tornado?.textContent).not.toContain("ほか");
+    expect(mockSource).toContain("tornado={null}");
+    expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul\)\s*\{[^}]*column-count:\s*2/s);
+    expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul \.pref-group\)\s*\{[^}]*break-inside:\s*avoid/s);
   });
 
   it("spills volcano and heat to the left column at forced ladder 1 without a ribbon", () => {
@@ -118,6 +129,27 @@ describe("legacy improved standby mock v9", () => {
       .map((card) => card.dataset.mockCard);
     expect(rightKeys).not.toContain("volcano");
     expect(rightKeys).not.toContain("heat");
+  });
+
+  it("exposes the center eligibility rule and keeps non-eligible hazards out of the receiver", () => {
+    const { rendered, root } = renderMock("legacyMock2=7&ladder=2");
+
+    for (const key of ["weather", "flood", "typhoon", "volcano"] as const) {
+      expect(rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`)?.dataset.centerEligible).toBe("true");
+    }
+    for (const key of ["tsunami", "quake", "heat"] as const) {
+      expect(rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`)?.dataset.centerEligible).toBe("false");
+    }
+    const centerKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="center"] [data-mock-card]')]
+      .map((card) => card.dataset.mockCard);
+    expect(centerKeys).not.toContain("heat");
+    for (const key of centerKeys) {
+      expect(rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`)?.dataset.centerEligible).toBe("true");
+    }
+    expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
+    expect(mockSource).toContain("const centerEligibleKeys = new Set<CardKey>([\"weather\", \"flood\", \"typhoon\", \"volcano\"]);");
+    expect(mockSource).toContain("function moveEligibleToCenter");
+    expect(mockSource).toContain("function moveIneligibleToLeft");
   });
 
   it.each(["2", "3"] as const)("moves the clock to the ticker area at ladder %s", (stage) => {
@@ -148,6 +180,8 @@ describe("legacy improved standby mock v9", () => {
     expect(mockSource).toContain("data-center-measure-card");
     expect(mockSource).toContain("measuredCenterHeights");
     expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*gap:\s*var\(--mock-cluster-gap\)[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*justify-content:\s*space-between;[^}]*height:\s*var\(--mock-cluster-flow-height\)/s);
+    expect(mockSource).toContain("const clusterGap = lowerSpace > 0 ? Math.floor(lowerSpace / 3) : 0;");
     expect(mockSource).toMatch(/\.side-left,[\s\n]+\.side-right\s*\{\s*align-items:\s*center;/s);
     expect(mockSource).toContain("--mock-cluster-gap: calc(var(--mock-gap) * 1.75);");
     expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*justify-content:\s*safe center/s);
@@ -193,6 +227,6 @@ describe("legacy improved standby mock v9", () => {
     expect(rendered.container.querySelector('[data-clock-landmark] [data-fixed-stack-item="nankai"]')).toBeNull();
     expect(root.dataset.centerUnresolved).toBe("false");
     expect(mockSource).toMatch(/function centerNaturalHeight\(cards: readonly CardCandidate\[\]\)/);
-    expect(mockSource).toMatch(/requestedStage === 2 && centerUnresolved \? 3 : requestedStage/);
+    expect(mockSource).toMatch(/requestedStage === 2 && \(centerUnresolved \|\| sideUnresolved\) \? 3 : requestedStage/);
   });
 });

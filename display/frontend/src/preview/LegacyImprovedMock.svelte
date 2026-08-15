@@ -20,6 +20,7 @@
     legacyImprovedMaxWeatherAlerts,
     legacyImprovedMaxWeatherAlertsCompact,
     legacyImprovedWeatherAlertsCompact,
+    legacyImprovedTornadoFullAreas,
     recentQuakesRich,
     standbyItemsShowcase,
     statsStandbyCards,
@@ -107,6 +108,9 @@
   const volcano = findItem(activeItems, "volcano");
   const heat = findItem(activeItems, "heat");
   const tornado = findItem(activeItems, "tornado");
+  const tornadoFullAreas = tornado == null
+    ? []
+    : [...new Set([...legacyImprovedTornadoFullAreas, ...tornado.data.areas])];
   const longPeriod = findItem(activeItems, "longPeriod");
   const nankai = findItem(activeItems, "nankaiTrough");
   const fixedRecentRows = recentQuakesRich.slice(0, scenario === "4" ? 3 : 5);
@@ -143,11 +147,15 @@
   const centerCardMeasureNodes = new Map<string, HTMLElement>();
   let layoutEl = $state<HTMLElement | null>(null);
   let sideEl = $state<HTMLElement | null>(null);
+  let clockWrapEl = $state<HTMLElement | null>(null);
   let nankaiBandEl = $state<HTMLElement | null>(null);
+  let tickerEl = $state<HTMLElement | null>(null);
   let measuredHeights = $state<Record<string, number>>({});
   let measuredCenterHeights = $state<Record<string, number>>({});
   let measuredFixedHeights = $state<Record<string, number>>({});
   let measuredNankaiHeightPx = $state(0);
+  let measuredClusterGapPx = $state(0);
+  let measuredClusterFlowHeightPx = $state(0);
   let measuredLayoutHeightPx = $state(0);
   let measuredLayoutWidthPx = $state(0);
   let measuredCardWidthPx = $state(0);
@@ -198,6 +206,15 @@
       nextFixedHeights[key] = measureNaturalHeight(centerMeasureNodes.get(key));
     }
     const nankaiHeight = measureNaturalHeight(nankaiBandEl ?? undefined);
+    const clockRect = (clockWrapEl?.firstElementChild as HTMLElement | null)?.getBoundingClientRect();
+    const boundaryRect = (nankaiBandEl ?? tickerEl)?.getBoundingClientRect();
+    const lowerSpace = clockRect == null || boundaryRect == null
+      ? 0
+      : Math.round(boundaryRect.top - clockRect.bottom
+        - (nextFixedHeights.stats ?? 0)
+        - (nextFixedHeights["recent-quakes"] ?? 0));
+    const clusterGap = lowerSpace > 0 ? Math.floor(lowerSpace / 3) : 0;
+    const clusterFlowHeight = clusterGap > 0 ? lowerSpace - clusterGap * 2 : 0;
     const layoutRect = layoutEl?.getBoundingClientRect();
     const layoutHeight = Math.round(layoutRect?.height ?? layoutEl?.offsetHeight ?? 0);
     const layoutWidth = Math.round(layoutRect?.width ?? layoutEl?.offsetWidth ?? 0);
@@ -207,6 +224,8 @@
     measuredCenterHeights = nextCenterHeights;
     measuredFixedHeights = nextFixedHeights;
     measuredNankaiHeightPx = nankaiHeight;
+    measuredClusterGapPx = clusterGap;
+    measuredClusterFlowHeightPx = clusterFlowHeight;
     measuredLayoutHeightPx = layoutHeight;
     measuredLayoutWidthPx = layoutWidth;
     measuredCardWidthPx = cardWidth;
@@ -290,15 +309,38 @@
 
   const leftKeys = new Set<CardKey>(["tsunami", "quake"]);
   const rightKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano", "heat"]);
+  const centerEligibleKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
   const forcedOverflowKeys = new Set<CardKey>(["volcano", "heat"]);
 
-  function moveBottomToCenter(cards: CardCandidate[], center: CardCandidate[], capacity: number): void {
-    const overflow: CardCandidate[] = [];
-    while (columnNaturalHeight(cards) > capacity && cards.length > 0) {
-      const last = cards.pop();
-      if (last != null) overflow.unshift(last);
+  function moveEligibleToCenter(cards: CardCandidate[], center: CardCandidate[], capacity: number): void {
+    const movedCards: CardCandidate[] = [];
+    while (columnNaturalHeight(cards) > capacity) {
+      const toCenter = cards
+        .filter((card) => centerEligibleKeys.has(card.key))
+        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)[0];
+      if (toCenter == null) break;
+      cards.splice(cards.indexOf(toCenter), 1);
+      movedCards.push(toCenter);
     }
-    center.push(...overflow);
+    movedCards.sort((leftCard, rightCard) => leftCard.order - rightCard.order);
+    center.push(...movedCards);
+  }
+
+  function moveIneligibleToLeft(
+    right: CardCandidate[],
+    left: CardCandidate[],
+    capacity: number,
+    moved: Set<CardKey>,
+  ): void {
+    while (columnNaturalHeight(right) > capacity) {
+      const toLeft = right
+        .filter((card) => !centerEligibleKeys.has(card.key))
+        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)[0];
+      if (toLeft == null) break;
+      right.splice(right.indexOf(toLeft), 1);
+      left.push(toLeft);
+      moved.add(toLeft.key);
+    }
   }
 
   function makeColumnPlan(candidates: readonly CardCandidate[], override: LadderStage | null): Omit<ColumnPlan, "variants"> {
@@ -316,46 +358,27 @@
         left = [...left, card];
         moved.add(key);
       }
-    } else if (override == null) {
-      // 右列が実測高を超えたときだけ左の空きを使う。移動枚数を最小にするため
-      // 背の高いカードから動かす (小さいカードは右列に残れるならそのまま残す)。
-      while (columnNaturalHeight(right) > capacity) {
-        const movable = right
-          .filter((card) => card.key !== "weather")
-          .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.score - rightCard.score);
-        const toLeft = movable.find((card) => columnNaturalHeight([...left, card]) <= capacity);
-        if (toLeft == null) break;
-        right = right.filter((card) => card.key !== toLeft.key);
-        left = [...left, toLeft];
-        moved.add(toLeft.key);
-      }
     }
 
     const rightNeedsCenter = override == null || (override != null && override >= 2);
-    if (rightNeedsCenter) moveBottomToCenter(right, center, capacity);
-    if (rightNeedsCenter) moveBottomToCenter(left, center, capacity);
+    if (rightNeedsCenter) moveEligibleToCenter(right, center, capacity);
+    if (override == null) moveIneligibleToLeft(right, left, capacity, moved);
 
     // 明示 ladder=2/3 は目視ゲート用の「中央受け皿」も必ず見せる。実測で左右の超過が
-    // 無い jsdom でも、右列の続き (なければ左列の続き) を中央へ移して構造を確認できる。
+    // 無い jsdom でも、資格を持つ右列の続き (なければ左列の続き) を中央へ移して構造を確認できる。
     if (override != null && override >= 2 && center.length === 0) {
-      const rightContinuation = [...right].reverse().find((card) => card.key !== "weather") ?? right.at(-1);
+      const rightContinuation = [...right].reverse().find((card) => centerEligibleKeys.has(card.key));
       if (rightContinuation != null) {
         right = right.filter((card) => card.key !== rightContinuation.key);
         center.push(rightContinuation);
-      } else {
-        const leftContinuation = left.at(-1);
-        if (leftContinuation != null) {
-          left = left.slice(0, -1);
-          center.push(leftContinuation);
-        }
       }
     }
 
     const centerUnresolved = centerNaturalHeight(center) > centerCapacityPx();
     const sideUnresolved = columnNaturalHeight(left) > capacity || columnNaturalHeight(right) > capacity;
     const requestedStage: LadderStage = override
-      ?? (center.length > 0 ? (centerUnresolved ? 3 : 2) : moved.size > 0 ? 1 : 0);
-    const stage: LadderStage = requestedStage === 2 && centerUnresolved ? 3 : requestedStage;
+      ?? (center.length > 0 ? (centerUnresolved || sideUnresolved ? 3 : 2) : sideUnresolved ? 3 : moved.size > 0 ? 1 : 0);
+    const stage: LadderStage = requestedStage === 2 && (centerUnresolved || sideUnresolved) ? 3 : requestedStage;
     return {
       left,
       right,
@@ -394,6 +417,15 @@
     return { ...makeColumnPlan(buildCandidates(variants), ladderOverride), variants };
   });
 
+  const clusterGapStyle = $derived(
+    measuredClusterGapPx > 0
+      ? `${measuredClusterGapPx}px`
+      : layoutPlan.stage >= 3
+        ? "calc(var(--mock-gap) * 1.25)"
+        : "calc(var(--mock-gap) * 1.75)",
+  );
+  const clusterFlowHeightStyle = $derived(measuredClusterFlowHeightPx > 0 ? `${measuredClusterFlowHeightPx}px` : "auto");
+
   function plannedCards(
     cards: readonly CardCandidate[],
     placement: "left" | "right" | "center",
@@ -431,7 +463,14 @@
       longPeriod={longPeriod == null ? null : { ...longPeriod.data, restored: longPeriod.restored }}
     />
   {:else if key === "weather"}
-    <WeatherAlertCard alerts={variant === "expanded" ? fullWeatherAlerts : compactWeatherAlerts} {tornado} />
+    <div class="mock-weather-shell" data-weather-two-column="true">
+      <WeatherAlertCard alerts={variant === "expanded" ? fullWeatherAlerts : compactWeatherAlerts} tornado={null} />
+      {#if tornado != null}
+        <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-tornado-full>
+          ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each tornadoFullAreas as area, index}{#if index > 0}、{/if}{area}{/each}）
+        </div>
+      {/if}
+    </div>
   {:else if key === "flood" && flood != null}
     <FloodCard item={flood} />
   {:else if key === "typhoon" && typhoon != null}
@@ -448,6 +487,7 @@
     class="legacy-card"
     data-mock-card={entry.key}
     data-overflow-placement={entry.placement === "center" ? "center" : entry.overflowed ? "left-bottom" : undefined}
+    data-center-eligible={centerEligibleKeys.has(entry.key) ? "true" : "false"}
     data-region-expanded={isExpanded(entry) ? "true" : undefined}
     data-content-score={entry.score}
     data-natural-height-px={entry.naturalHeight}
@@ -459,12 +499,12 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v9</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v10</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
   class="legacy-mock ladder-{layoutPlan.stage}"
-  style={`--mock-nankai-reserve: ${measuredNankaiHeightPx}px;`}
+  style={`--mock-nankai-reserve: ${measuredNankaiHeightPx}px; --mock-cluster-gap: ${clusterGapStyle}; --mock-cluster-flow-height: ${clusterFlowHeightStyle};`}
   data-legacy-improved-mock
   data-ladder-stage={layoutPlan.stage}
   data-ladder-auto={ladderAuto ? "true" : "false"}
@@ -479,6 +519,9 @@
   data-layout-width-px={measuredLayoutWidthPx}
   data-card-width-px={measuredCardWidthPx}
   data-nankai-height-px={measuredNankaiHeightPx}
+  data-cluster-gap-px={measuredClusterGapPx}
+  data-cluster-flow-height-px={measuredClusterFlowHeightPx}
+  data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage < 2 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
   data-center-capacity-px={centerCapacityPx()}
@@ -487,7 +530,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v9</strong>
+    <strong>従来フォーマット改良 v10</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -501,7 +544,7 @@
 
   {#if layoutPlan.stage < 2}
     <section class="clock-landmark" data-clock-landmark aria-label="画面中央時計と中央クラスタ">
-      <div class="clock-wrap">
+      <div class="clock-wrap" bind:this={clockWrapEl}>
         <Clock {now} />
         <div class="clock-below" data-clock-below-stack>
           <div class="fixed-stats" data-fixed-stack-item="stats"><InstrumentRow stats={statsStandbyCards} /></div>
@@ -565,7 +608,7 @@
     </div>
   {/if}
 
-  <footer class="ticker-reserve" aria-label="テロップ領域">
+  <footer class="ticker-reserve" aria-label="テロップ領域" bind:this={tickerEl}>
     <span>TELEGRAM</span><span>ページングなし・実 DOM 自然高さ優先</span>
     {#if layoutPlan.stage >= 2}
       <div class="ticker-clock" data-clock-placement="ticker-bottom-right"><Clock {now} size="small" /></div>
@@ -578,6 +621,7 @@
     --mock-edge: clamp(14px, 2.5vw, 48px);
     --mock-gap: clamp(8px, 1vw, 18px);
     --mock-cluster-gap: calc(var(--mock-gap) * 1.75);
+    --mock-cluster-flow-height: auto;
     --mock-ticker-h: clamp(52px, 6vh, 68px);
     --mock-nankai-reserve: 0px;
     --center-cluster-width: min(36rem, 60vw);
@@ -704,6 +748,63 @@
     width: 100%;
   }
 
+  /* WeatherAlertCard の本体は無改造のまま、モックだけ外殻と展開行を足す。県名と地域の
+     対応を崩さないよう、列は pref-group 単位で分割を止める。 */
+  .mock-weather-shell {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-standby);
+    box-shadow: var(--elevation-2);
+    background: var(--surface-standby);
+    color: var(--fg);
+  }
+
+  .legacy-mock .mock-weather-shell :global(.weather-card) {
+    width: 100%;
+    max-height: none;
+    height: auto;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .legacy-mock .mock-weather-shell :global(.weather-card.clipped) {
+    height: auto;
+  }
+
+  .legacy-mock .mock-weather-shell :global(.weather-card > ul) {
+    column-count: 2;
+    column-gap: var(--mock-gap);
+    column-fill: balance;
+  }
+
+  .legacy-mock .mock-weather-shell :global(.weather-card > ul > li) {
+    display: block;
+    break-inside: auto;
+  }
+
+  .legacy-mock .mock-weather-shell :global(.weather-card > ul .pref-group) {
+    break-inside: avoid;
+  }
+
+  .mock-tornado-rider {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--hairline);
+    padding: var(--space-2) var(--space-4);
+    color: var(--role-weatherWarning);
+    font-size: max(14px, var(--type-label-l-fluid));
+    font-weight: var(--type-body-weight-emphasized);
+  }
+
+  .mock-tornado-rider.sighted {
+    color: var(--role-weatherEmergency);
+    background: color-mix(in srgb, var(--role-weatherEmergency) 10%, var(--surface-standby));
+  }
+
   .center-landmark {
     display: flex;
     flex-direction: column;
@@ -758,7 +859,9 @@
     left: 0;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     gap: var(--mock-cluster-gap);
+    height: var(--mock-cluster-flow-height);
     width: 100%;
   }
 
