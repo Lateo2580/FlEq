@@ -5,6 +5,7 @@
   import EmergencyScreen from "../components/EmergencyScreen.svelte";
   import Ticker from "../components/Ticker.svelte";
   import TierOverlay from "../components/TierOverlay.svelte";
+  import LegacyImprovedMock from "./LegacyImprovedMock.svelte";
   import MotionCatalog from "./MotionCatalog.svelte";
   import { fade } from "svelte/transition";
   import { emergencyEnter } from "../lib/transitions";
@@ -92,6 +93,7 @@
     "ticker-tips",
     "tone-matrix",
     "motion-catalog",
+    "legacy-improved-mock",
   ] as const;
   type Scenario = (typeof SCENARIOS)[number];
 
@@ -572,6 +574,8 @@
       {/each}
     </div>
   </section>
+{:else if scenario === "legacy-improved-mock"}
+  <LegacyImprovedMock />
 {:else}
 <main class="preview-screen" data-tier={snapshot.severityTier} data-background-tone={snapshot.backgroundTone ?? "calm"}>
   <div class="screen-area">

@@ -2102,3 +2102,127 @@ export const weatherSyncingInput: WeatherEmergencyInputV1 = {
   firstPageRowKey: null,
   items: [],
 };
+
+// ── 従来フォーマット改良 v3: scenario=max 用 ──
+// main のカード自身が行う省略/マーキーを壊さず、展開版と集約版を fixture 切替で比較する。
+const LEGACY_IMPROVED_MAX_WEATHER_AREAS = [
+  "北海道石狩地方", "青森県津軽", "岩手県内陸北部", "宮城県北部", "秋田県沿岸", "山形県最上",
+  "福島県会津", "茨城県北部", "栃木県北部", "群馬県北部", "埼玉県秩父地方", "東京都多摩西部",
+  "神奈川県西部", "新潟県上越", "富山県東部", "石川県加賀", "福井県嶺北", "長野県北部",
+  "岐阜県飛騨", "静岡県西部", "愛知県東部", "三重県北部", "滋賀県北部", "京都府北部",
+];
+
+export const legacyImprovedWeatherAlertsCompact: DisplayWeatherAlertV1[] = [
+  {
+    source: "vpws50",
+    label: "大雨警報",
+    role: "weatherWarning",
+    totalAreas: 12,
+    items: [{
+      kind: "大雨警報(土砂災害)",
+      displaySeverity: "officialL3",
+      rank: "warning",
+      shownAreas: ["熊本県山鹿市", "熊本県菊池市"],
+      omittedAreaCount: 10,
+    }],
+    updatedAt: NOW_ISO,
+  },
+];
+
+export const legacyImprovedMaxWeatherAlerts: DisplayWeatherAlertV1[] = [
+  {
+    source: "vpws50",
+    label: "大雨警報",
+    role: "weatherWarning",
+    totalAreas: LEGACY_IMPROVED_MAX_WEATHER_AREAS.length,
+    items: [{
+      kind: "大雨警報(土砂災害)",
+      displaySeverity: "officialL3",
+      rank: "warning",
+      shownAreas: [...LEGACY_IMPROVED_MAX_WEATHER_AREAS],
+      omittedAreaCount: 0,
+    }],
+    updatedAt: NOW_ISO,
+  },
+];
+
+export const legacyImprovedMaxWeatherAlertsCompact: DisplayWeatherAlertV1[] = [
+  {
+    source: "vpws50",
+    label: "大雨警報",
+    role: "weatherWarning",
+    totalAreas: LEGACY_IMPROVED_MAX_WEATHER_AREAS.length,
+    items: [{
+      kind: "大雨警報(土砂災害)",
+      displaySeverity: "officialL3",
+      rank: "warning",
+      shownAreas: LEGACY_IMPROVED_MAX_WEATHER_AREAS.slice(0, 3),
+      omittedAreaCount: LEGACY_IMPROVED_MAX_WEATHER_AREAS.length - 3,
+    }],
+    updatedAt: NOW_ISO,
+  },
+];
+
+const legacyImprovedMaxHeatAreas = [
+  "宮城県", "福島県", "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+  "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県", "静岡県", "愛知県",
+  "三重県", "滋賀県", "京都府", "大阪府", "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県",
+  "岡山県", "広島県", "山口県",
+];
+
+export const legacyImprovedMaxItems: ActiveStandbyCardV1[] = [
+  ...standbyItemsShowcase.filter((item) =>
+    item.kind === "flood" || item.kind === "tornado" || item.kind === "longPeriod" || item.kind === "nankaiTrough"),
+  {
+    ...STANDBY_ITEM_BASE,
+    kind: "volcano",
+    surface: "corner-right",
+    key: "volcano:legacy-improved-max",
+    severity: "critical",
+    data: { volcanoes: [
+      {
+        code: "506", name: "桜島", alertLevel: 4,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["入山規制"],
+        latestEvent: {
+          label: "噴火速報", craterName: "南岳山頂火口", eventDateTime: NOW_ISO,
+          plumeHeightM: 2500, plumeHeightUnknown: false, plumeDirection: "南東",
+        },
+      },
+      { code: "550", name: "諏訪之瀬島", alertLevel: 3, latestEvent: null },
+      {
+        code: "509", name: "口永良部島", alertLevel: 3,
+        warningKind: "噴火警報（火口周辺）", targetKinds: ["火口周辺規制"], latestEvent: null,
+      },
+      { code: "501", name: "阿蘇山", alertLevel: 2, latestEvent: null },
+      { code: "101", name: "浅間山", alertLevel: 2, latestEvent: null },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE,
+    kind: "typhoon",
+    surface: "corner-right",
+    key: "typhoon:legacy-improved-max",
+    severity: "warning",
+    data: { typhoons: [
+      { typhoonKey: "TC2618", name: "TALIM", nameKana: "タリム", remark: null, typhoonNumber: "2618", category: "台風(TY)", location: "沖縄の南", pressureHpa: 940, maxWindMs: 45, maxGustMs: 65, moveDirection: "北北西", moveSpeedKmh: 20, reportDateTime: NOW_ISO },
+      { typhoonKey: "TC2619", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "マリアナ諸島", pressureHpa: 1002, maxWindMs: 15, maxGustMs: 25, moveDirection: "西", moveSpeedKmh: 15, reportDateTime: NOW_ISO },
+    ] },
+  },
+  {
+    ...STANDBY_ITEM_BASE,
+    kind: "heat",
+    surface: "corner-right",
+    key: "heat:legacy-improved-max",
+    severity: "critical",
+    data: {
+      targetDate: "2026-07-07",
+      areas: legacyImprovedMaxHeatAreas.map((areaName) => ({ areaName, isSpecial: false })),
+    },
+  },
+];
+
+/** max scenario の「入力には存在するが描画しない」未知系カード。 */
+export const legacyImprovedMaxUnknownItems = [
+  { key: "unknown:legacy-improved-1", kind: "未対応の警報種別", label: "未知の警報カード" },
+  { key: "unknown:legacy-improved-2", kind: "未対応の観測種別", label: "未知の観測カード" },
+] as const;
