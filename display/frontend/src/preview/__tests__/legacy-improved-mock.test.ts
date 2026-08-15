@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, render } from "@testing-library/svelte";
 import { afterEach, describe, expect, it } from "vitest";
 import LegacyImprovedMock from "../LegacyImprovedMock.svelte";
+
+const mockSource = readFileSync(join(__dirname, "..", "LegacyImprovedMock.svelte"), "utf8");
 
 afterEach(() => {
   cleanup();
@@ -15,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v4", () => {
+describe("legacy improved standby mock v5", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -118,5 +122,25 @@ describe("legacy improved standby mock v4", () => {
     expect(rendered.container.querySelector("[data-center-card-region]")).toBeTruthy();
     expect(rendered.container.querySelector('[data-fixed-stack-item="recent-quakes"]')).toBeTruthy();
     expect(rendered.container.querySelector('[data-mock-side="center"] [data-mock-card]')).toBeTruthy();
+  });
+
+  it("uses the shared card width for the three columns, center stack, and measurement shelf", () => {
+    expect(mockSource).toContain("--mock-card-width: min(360px, 28vw);");
+    expect(mockSource).toMatch(/\.measure-shelf\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
+    expect(mockSource).toMatch(/\.measure-item\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
+    expect(mockSource).toMatch(/\.legacy-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
+    expect(mockSource).toMatch(/\.fixed-nankai,[\s\n]+\.fixed-stats,[\s\n]+\.fixed-recent,[\s\n]+\.center-stack-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
+    expect(mockSource).toMatch(/\.ladder-2 \.legacy-layout,[\s\n]+\.ladder-3 \.legacy-layout\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/s);
+  });
+
+  it("keeps the fixed recent-quake stack readable at the shared card width", () => {
+    const { rendered } = renderMock("legacyMock2=7&ladder=0");
+    const recent = rendered.container.querySelector<HTMLElement>('[data-fixed-stack-item="recent-quakes"]');
+
+    expect(recent?.textContent).toContain("日向灘");
+    expect(recent?.textContent).toContain("岐阜県美濃中西部");
+    expect(mockSource).toMatch(/\.fixed-recent :global\(\.row\),[\s\n]+\.center-recent :global\(\.row\)\s*\{[^}]*flex-wrap:\s*wrap/s);
+    expect(mockSource).toMatch(/\.fixed-recent :global\(\.hypocenter\),[\s\n]+\.center-recent :global\(\.hypocenter\)\s*\{[^}]*white-space:\s*normal/s);
+    expect(mockSource).toMatch(/\.fixed-recent\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible/s);
   });
 });

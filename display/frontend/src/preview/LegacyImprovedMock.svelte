@@ -385,7 +385,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v4</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v5</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -405,7 +405,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v4</strong>
+    <strong>従来フォーマット改良 v5</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -555,6 +555,13 @@
     min-height: 0;
   }
 
+  /* 時計退避後は、中央へ回った hazard も左右列と同じ規格幅で読む。列自体は等幅にして
+     中央だけが痩せることを防ぎ、カードの実幅は --mock-card-width で三列共通にする。 */
+  .ladder-2 .legacy-layout,
+  .ladder-3 .legacy-layout {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .side {
     display: flex;
     flex-direction: column;
@@ -609,8 +616,20 @@
     display: flex;
     flex-direction: column;
     gap: clamp(5px, 0.7vh, 9px);
-    width: min(100%, 40rem);
+    width: var(--mock-card-width);
+    max-width: 100%;
     margin-top: clamp(12px, 2vh, 24px);
+  }
+
+  /* 中央の固定情報も side のカードと同じ幅トークンを使う。時計だけは .clock-wrap の
+     保護された最小幅を維持し、カード幅へ縮めない。 */
+  .fixed-nankai,
+  .fixed-stats,
+  .fixed-recent,
+  .center-stack-card {
+    width: var(--mock-card-width);
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .fixed-nankai :global(.nankai-badge) {
@@ -629,10 +648,8 @@
   .fixed-stats :global(.instrument-row) { justify-content: center; }
 
   .fixed-recent {
-    box-sizing: border-box;
-    width: 100%;
-    max-height: min(19vh, 170px);
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
     padding: clamp(6px, 0.8vh, 10px) clamp(10px, 1vw, 16px);
     border: 1px solid var(--hairline);
     border-radius: var(--radius-standby);
@@ -641,7 +658,24 @@
 
   .fixed-recent :global(.hypocenter),
   .center-recent :global(.hypocenter) {
+    min-width: 0;
+    overflow: visible;
     text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .fixed-recent :global(.row),
+  .center-recent :global(.row) {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+
+  .fixed-recent :global(.stats),
+  .center-recent :global(.stats) {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
   }
 
   .center-card-region {
@@ -653,6 +687,10 @@
   }
 
   .center-card-region > .legacy-card {
+    align-self: center;
+  }
+
+  .center-card-region > .center-stack-card {
     align-self: center;
   }
 
@@ -675,7 +713,7 @@
   }
 
   .center-stack-card :global(.instrument-row) { justify-content: center; }
-  .center-recent { max-height: 44%; overflow: visible; }
+  .center-recent { max-height: none; overflow: visible; }
 
   .ticker-reserve {
     position: absolute;
