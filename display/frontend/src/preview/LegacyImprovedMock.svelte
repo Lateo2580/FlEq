@@ -459,7 +459,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v8</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v9</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -487,7 +487,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v8</strong>
+    <strong>従来フォーマット改良 v9</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -577,6 +577,7 @@
   .legacy-mock {
     --mock-edge: clamp(14px, 2.5vw, 48px);
     --mock-gap: clamp(8px, 1vw, 18px);
+    --mock-cluster-gap: calc(var(--mock-gap) * 1.75);
     --mock-ticker-h: clamp(52px, 6vh, 68px);
     --mock-nankai-reserve: 0px;
     --center-cluster-width: min(36rem, 60vw);
@@ -596,6 +597,7 @@
   .ladder-3 {
     --mock-edge: clamp(10px, 1.8vw, 32px);
     --mock-gap: clamp(4px, 0.6vw, 10px);
+    --mock-cluster-gap: calc(var(--mock-gap) * 1.25);
     --mock-ticker-h: clamp(48px, 5vh, 60px);
     --space-1: 2px;
     --space-2: 4px;
@@ -752,11 +754,11 @@
 
   .clock-below {
     position: absolute;
-    top: calc(100% + var(--mock-gap));
+    top: calc(100% + var(--mock-cluster-gap));
     left: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--mock-gap);
+    gap: var(--mock-cluster-gap);
     width: 100%;
   }
 
@@ -779,9 +781,9 @@
   .nankai-ticker {
     position: absolute;
     z-index: 12;
-    right: 0;
+    right: var(--mock-edge);
     bottom: var(--mock-ticker-h);
-    left: 0;
+    left: var(--mock-edge);
   }
 
   .nankai-ticker :global(.nankai-badge) {
@@ -833,7 +835,7 @@
 
   .center-card-region {
     align-items: stretch;
-    justify-content: flex-start;
+    justify-content: safe center;
     gap: var(--mock-gap);
     padding-block: 0;
     overflow: auto;

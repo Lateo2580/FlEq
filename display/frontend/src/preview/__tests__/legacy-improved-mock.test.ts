@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v8", () => {
+describe("legacy improved standby mock v9", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -147,16 +147,18 @@ describe("legacy improved standby mock v8", () => {
     expect(mockSource).toMatch(/\.center-measure-shelf\s*\{[^}]*width:\s*var\(--center-cluster-width\)/s);
     expect(mockSource).toContain("data-center-measure-card");
     expect(mockSource).toContain("measuredCenterHeights");
-    expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*gap:\s*var\(--mock-gap\)[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*gap:\s*var\(--mock-cluster-gap\)[^}]*width:\s*100%/s);
     expect(mockSource).toMatch(/\.side-left,[\s\n]+\.side-right\s*\{\s*align-items:\s*center;/s);
+    expect(mockSource).toContain("--mock-cluster-gap: calc(var(--mock-gap) * 1.75);");
+    expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*justify-content:\s*safe center/s);
   });
 
   it("pins the clock to viewport center and places the cluster relative to the clock box", () => {
     expect(mockSource).toMatch(/\.clock-landmark\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s);
     expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*top:\s*50%;[^}]*left:\s*50%;/s);
     expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*transform:\s*translate\(-50%, -50%\)/s);
-    expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*top:\s*calc\(100% \+ var\(--mock-gap\)\)/s);
-    expect(mockSource).toMatch(/\.nankai-ticker\s*\{[^}]*bottom:\s*var\(--mock-ticker-h\)/s);
+    expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*top:\s*calc\(100% \+ var\(--mock-cluster-gap\)\)/s);
+    expect(mockSource).toMatch(/\.nankai-ticker\s*\{[^}]*right:\s*var\(--mock-edge\)[^}]*bottom:\s*var\(--mock-ticker-h\)[^}]*left:\s*var\(--mock-edge\)/s);
     expect(mockSource).toMatch(/\.nankai-ticker :global\(\.nankai-badge\)\s*\{[^}]*margin:\s*0/s);
     expect(mockSource).toMatch(/inset: var\(--mock-edge\) var\(--mock-edge\) calc\(var\(--mock-ticker-h\) \+ var\(--mock-edge\) \+ var\(--mock-nankai-reserve\)\)/s);
     expect(mockSource).toMatch(/measuredLayoutHeightPx - measuredNankaiHeightPx/);
