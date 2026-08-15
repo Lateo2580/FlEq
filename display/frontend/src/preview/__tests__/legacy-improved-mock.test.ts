@@ -154,9 +154,9 @@ describe("legacy improved standby mock v7", () => {
 
   it("scales the large clock from its equal column without shrinking the font below the floor", () => {
     expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*container-type:\s*inline-size/s);
-    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap :global\(\.time\)\s*\{[^}]*font-size:\s*clamp\(64px, 13cqw, 130px\)/s);
-    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap :global\(\.time \.sec\)\s*\{[^}]*font-size:\s*0\.35em/s);
-    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap :global\(\.date\)\s*\{[^}]*font-size:\s*clamp\(14px, 3cqw, 22px\)/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.time\)\s*\{[^}]*font-size:\s*clamp\(64px, 13cqw, 130px\)/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.time \.sec\)\s*\{[^}]*font-size:\s*0\.35em/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.date\)\s*\{[^}]*font-size:\s*clamp\(14px, 3cqw, 22px\)/s);
     expect(mockSource).not.toContain("min-width: 40rem");
   });
 

@@ -704,17 +704,18 @@
     transform: translate(-50%, -50%);
   }
 
-  .legacy-mock .clock-wrap :global(.time) {
+  /* Clock 直下だけに当てる: RecentQuakes の .time/.date を巻き込まない */
+  .legacy-mock .clock-wrap > :global(.clock > .time) {
     width: 100%;
     white-space: nowrap;
     font-size: clamp(64px, 13cqw, 130px);
   }
 
-  .legacy-mock .clock-wrap :global(.time .sec) {
+  .legacy-mock .clock-wrap > :global(.clock > .time .sec) {
     font-size: 0.35em;
   }
 
-  .legacy-mock .clock-wrap :global(.date) {
+  .legacy-mock .clock-wrap > :global(.clock > .date) {
     font-size: clamp(14px, 3cqw, 22px);
     margin-top: clamp(4px, 1.5cqw, 10px);
   }
