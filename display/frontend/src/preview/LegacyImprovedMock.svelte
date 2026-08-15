@@ -550,7 +550,7 @@
     position: absolute;
     inset: var(--mock-edge) var(--mock-edge) calc(var(--mock-ticker-h) + var(--mock-edge));
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(var(--center-min-width), 1.2fr) minmax(0, 1fr);
+    grid-template-columns: var(--mock-card-width) minmax(var(--center-min-width), 1fr) var(--mock-card-width);
     gap: var(--mock-gap);
     min-height: 0;
   }

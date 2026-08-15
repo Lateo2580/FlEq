@@ -130,6 +130,7 @@ describe("legacy improved standby mock v5", () => {
     expect(mockSource).toMatch(/\.measure-item\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
     expect(mockSource).toMatch(/\.legacy-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
     expect(mockSource).toMatch(/\.fixed-nankai,[\s\n]+\.fixed-stats,[\s\n]+\.fixed-recent,[\s\n]+\.center-stack-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
+    expect(mockSource).toMatch(/grid-template-columns:\s*var\(--mock-card-width\) minmax\(var\(--center-min-width\), 1fr\) var\(--mock-card-width\)/);
     expect(mockSource).toMatch(/\.ladder-2 \.legacy-layout,[\s\n]+\.ladder-3 \.legacy-layout\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/s);
   });
 
