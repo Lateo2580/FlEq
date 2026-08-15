@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v7", () => {
+describe("legacy improved standby mock v8", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -35,6 +35,8 @@ describe("legacy improved standby mock v7", () => {
     expect(root.dataset.inputItemCount).toBe(String(inputCount));
     expect(root.dataset.measurementMode).toBe("sync-dom");
     expect(root.dataset.measurementPass).toBe("2");
+    expect(root.dataset.nankaiHeightPx).toBeDefined();
+    expect(root.dataset.layoutCapacityPx).toBeDefined();
     expect(root.dataset.clockMode).toBe("viewport-center");
     expect(rendered.container.querySelector("[data-clock-landmark]")).toBeTruthy();
     expect(Number(root.dataset.measurementReadCount)).toBeGreaterThan(0);
@@ -42,6 +44,7 @@ describe("legacy improved standby mock v7", () => {
     expect(rendered.container.querySelectorAll('[data-mock-side="right"] [data-mock-card]')).toHaveLength(right);
     expect(rendered.container.querySelector('[data-mock-card="unknown"]')).toBeNull();
     expect(rendered.container.querySelector('[data-fixed-stack-item="nankai"]')).toBeTruthy();
+    expect(rendered.container.querySelector("[data-nankai-ticker]")).toBeTruthy();
     expect(rendered.container.querySelector('[data-fixed-stack-item="stats"]')).toBeTruthy();
     expect(rendered.container.querySelector('[data-fixed-stack-item="recent-quakes"]')).toBeTruthy();
   });
@@ -139,7 +142,11 @@ describe("legacy improved standby mock v7", () => {
     expect(mockSource).toMatch(/\.measure-item\s*\{[^}]*width:\s*100%/s);
     expect(mockSource).toMatch(/\.legacy-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) var\(--center-cluster-width\) minmax\(0, 1fr\)/s);
     expect(mockSource).toMatch(/\.legacy-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
-    expect(mockSource).toMatch(/\.fixed-nankai,[\s\n]+\.fixed-stats,[\s\n]+\.fixed-recent,[\s\n]+\.center-stack-card\s*\{[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.fixed-stats,[\s\n]+\.fixed-recent,[\s\n]+\.center-stack-card\s*\{[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.center-card-region > \.legacy-card\s*\{[^}]*width:\s*var\(--center-cluster-width\)/s);
+    expect(mockSource).toMatch(/\.center-measure-shelf\s*\{[^}]*width:\s*var\(--center-cluster-width\)/s);
+    expect(mockSource).toContain("data-center-measure-card");
+    expect(mockSource).toContain("measuredCenterHeights");
     expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*gap:\s*var\(--mock-gap\)[^}]*width:\s*100%/s);
     expect(mockSource).toMatch(/\.side-left,[\s\n]+\.side-right\s*\{\s*align-items:\s*center;/s);
   });
@@ -148,15 +155,19 @@ describe("legacy improved standby mock v7", () => {
     expect(mockSource).toMatch(/\.clock-landmark\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s);
     expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*top:\s*50%;[^}]*left:\s*50%;/s);
     expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*transform:\s*translate\(-50%, -50%\)/s);
-    expect(mockSource).toMatch(/\.clock-above\s*\{[^}]*bottom:\s*calc\(100% \+ var\(--mock-gap\)\)/s);
     expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*top:\s*calc\(100% \+ var\(--mock-gap\)\)/s);
+    expect(mockSource).toMatch(/\.nankai-ticker\s*\{[^}]*bottom:\s*var\(--mock-ticker-h\)/s);
+    expect(mockSource).toMatch(/\.nankai-ticker :global\(\.nankai-badge\)\s*\{[^}]*margin:\s*0/s);
+    expect(mockSource).toMatch(/inset: var\(--mock-edge\) var\(--mock-edge\) calc\(var\(--mock-ticker-h\) \+ var\(--mock-edge\) \+ var\(--mock-nankai-reserve\)\)/s);
+    expect(mockSource).toMatch(/measuredLayoutHeightPx - measuredNankaiHeightPx/);
   });
 
   it("scales the large clock from its equal column without shrinking the font below the floor", () => {
     expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*container-type:\s*inline-size/s);
-    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.time\)\s*\{[^}]*font-size:\s*clamp\(64px, 13cqw, 130px\)/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.time\)\s*\{[^}]*font-size:\s*clamp\(72px, 16cqw, 160px\)/s);
     expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.time \.sec\)\s*\{[^}]*font-size:\s*0\.35em/s);
-    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.date\)\s*\{[^}]*font-size:\s*clamp\(14px, 3cqw, 22px\)/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap > :global\(\.clock > \.date\)\s*\{[^}]*font-size:\s*clamp\(16px, 3\.7cqw, 26px\)/s);
+    expect(mockSource).not.toContain(".legacy-mock .clock-wrap :global(.time)");
     expect(mockSource).not.toContain("min-width: 40rem");
   });
 
@@ -172,10 +183,12 @@ describe("legacy improved standby mock v7", () => {
   });
 
   it("exposes central receiver capacity and unresolved state for ladder escalation", () => {
-    const { root } = renderMock("legacyMock2=max&ladder=2");
+    const { rendered, root } = renderMock("legacyMock2=max&ladder=2");
 
     expect(root.dataset.centerFixedHeightPx).toBeDefined();
     expect(root.dataset.centerCapacityPx).toBeDefined();
+    expect(rendered.container.querySelector("[data-nankai-ticker]")).toBeTruthy();
+    expect(rendered.container.querySelector('[data-clock-landmark] [data-fixed-stack-item="nankai"]')).toBeNull();
     expect(root.dataset.centerUnresolved).toBe("false");
     expect(mockSource).toMatch(/function centerNaturalHeight\(cards: readonly CardCandidate\[\]\)/);
     expect(mockSource).toMatch(/requestedStage === 2 && centerUnresolved \? 3 : requestedStage/);

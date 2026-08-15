@@ -32,7 +32,7 @@
   type CardKey = "tsunami" | "quake" | "weather" | "flood" | "typhoon" | "volcano" | "heat";
   type ExpandableCardKey = "quake" | "weather";
   type CardVariant = "compact" | "expanded";
-  type FixedMeasureKey = "nankai" | "stats" | "recent-quakes";
+  type FixedMeasureKey = "stats" | "recent-quakes";
   type StandbyItemOf<K extends ActiveStandbyCardV1["kind"]> = Extract<ActiveStandbyCardV1, { kind: K }>;
 
   interface VariantSelection {
@@ -52,6 +52,7 @@
     score: number;
     variant: CardVariant;
     naturalHeight: number;
+    centerNaturalHeight: number;
   }
 
   interface PlannedCard extends CardCandidate {
@@ -109,9 +110,7 @@
   const longPeriod = findItem(activeItems, "longPeriod");
   const nankai = findItem(activeItems, "nankaiTrough");
   const fixedRecentRows = recentQuakesRich.slice(0, scenario === "4" ? 3 : 5);
-  const fixedMeasureKeys: FixedMeasureKey[] = nankai == null
-    ? ["stats", "recent-quakes"]
-    : ["nankai", "stats", "recent-quakes"];
+  const fixedMeasureKeys: FixedMeasureKey[] = ["stats", "recent-quakes"];
   const fullWeatherAlerts: DisplayWeatherAlertV1[] = scenario === "max"
     ? legacyImprovedMaxWeatherAlerts
     : weatherWarningOnlyStandbyCards;
@@ -141,10 +140,14 @@
   // 実ブラウザの offsetHeight を取得できる。rAF/ResizeObserver の遅延には依存しない。
   const measureNodes = new Map<string, HTMLElement>();
   const centerMeasureNodes = new Map<FixedMeasureKey, HTMLElement>();
+  const centerCardMeasureNodes = new Map<string, HTMLElement>();
   let layoutEl = $state<HTMLElement | null>(null);
   let sideEl = $state<HTMLElement | null>(null);
+  let nankaiBandEl = $state<HTMLElement | null>(null);
   let measuredHeights = $state<Record<string, number>>({});
+  let measuredCenterHeights = $state<Record<string, number>>({});
   let measuredFixedHeights = $state<Record<string, number>>({});
+  let measuredNankaiHeightPx = $state(0);
   let measuredLayoutHeightPx = $state(0);
   let measuredLayoutWidthPx = $state(0);
   let measuredCardWidthPx = $state(0);
@@ -166,6 +169,13 @@
     };
   }
 
+  function captureCenterCardMeasure(node: HTMLElement, id: string): { destroy: () => void } {
+    centerCardMeasureNodes.set(id, node);
+    return {
+      destroy: () => centerCardMeasureNodes.delete(id),
+    };
+  }
+
   function measureNaturalHeight(node: HTMLElement | undefined): number {
     if (node == null) return 0;
     const child = node.firstElementChild as HTMLElement | null;
@@ -178,25 +188,30 @@
 
   onMount(() => {
     const nextHeights: Record<string, number> = {};
+    const nextCenterHeights: Record<string, number> = {};
     const nextFixedHeights: Record<string, number> = {};
     for (const entry of measureEntries) {
       nextHeights[entry.id] = measureNaturalHeight(measureNodes.get(entry.id));
+      nextCenterHeights[entry.id] = measureNaturalHeight(centerCardMeasureNodes.get(entry.id));
     }
     for (const key of fixedMeasureKeys) {
       nextFixedHeights[key] = measureNaturalHeight(centerMeasureNodes.get(key));
     }
+    const nankaiHeight = measureNaturalHeight(nankaiBandEl ?? undefined);
     const layoutRect = layoutEl?.getBoundingClientRect();
     const layoutHeight = Math.round(layoutRect?.height ?? layoutEl?.offsetHeight ?? 0);
     const layoutWidth = Math.round(layoutRect?.width ?? layoutEl?.offsetWidth ?? 0);
     const cardWidth = Math.round(layoutEl?.querySelector<HTMLElement>("[data-mock-side='left'] [data-mock-card]")?.getBoundingClientRect().width ?? 0);
     const computedGap = sideEl == null ? 0 : parseFloat(getComputedStyle(sideEl).rowGap);
     measuredHeights = nextHeights;
+    measuredCenterHeights = nextCenterHeights;
     measuredFixedHeights = nextFixedHeights;
+    measuredNankaiHeightPx = nankaiHeight;
     measuredLayoutHeightPx = layoutHeight;
     measuredLayoutWidthPx = layoutWidth;
     measuredCardWidthPx = cardWidth;
     measuredGapPx = Number.isFinite(computedGap) ? computedGap : 0;
-    measurementReadCount = measureEntries.length;
+    measurementReadCount = measureEntries.length * 2 + fixedMeasureKeys.length + (nankai == null ? 0 : 1);
     measurementComplete = true;
   });
 
@@ -204,8 +219,9 @@
     return key === "quake" || key === "weather" ? `${key}:${variant}` : key;
   }
 
-  function measuredHeight(key: CardKey, variant: CardVariant): number {
-    return measuredHeights[measureId(key, variant)] ?? 0;
+  function measuredHeight(key: CardKey, variant: CardVariant, placement: "side" | "center" = "side"): number {
+    const id = measureId(key, variant);
+    return (placement === "center" ? measuredCenterHeights[id] : measuredHeights[id]) ?? 0;
   }
 
   function contentScore(key: CardKey): number {
@@ -221,7 +237,10 @@
   function layoutCapacityPx(): number {
     // 0 は jsdom の「矩形なし」を意味する。ブラウザでは必ず実測値を使い、テストだけ無限予算で
     // カードを消さずに自然 DOM を残す。
-    return measuredLayoutHeightPx > 0 ? measuredLayoutHeightPx : Number.POSITIVE_INFINITY;
+    if (measuredLayoutHeightPx <= 0) return Number.POSITIVE_INFINITY;
+    // 南海帯は ticker 直上で画面下端を専有する。初回 layout の実測高からその実測高を引き、
+    // 左右列・中央受け皿の共通容量を同じ空間に揃える。
+    return Math.max(0, measuredLayoutHeightPx - measuredNankaiHeightPx);
   }
 
   function columnGapPx(): number {
@@ -237,7 +256,7 @@
   function centerNaturalHeight(cards: readonly CardCandidate[]): number {
     const fixedHeights = fixedMeasureKeys.map((key) => measuredFixedHeights[key] ?? 0);
     const totalCount = cards.length + fixedHeights.length;
-    return cards.reduce((total, card) => total + card.naturalHeight, 0)
+    return cards.reduce((total, card) => total + card.centerNaturalHeight, 0)
       + fixedHeights.reduce((total, height) => total + height, 0)
       + Math.max(0, totalCount - 1) * columnGapPx();
   }
@@ -264,6 +283,7 @@
         score: contentScore(key),
         variant,
         naturalHeight: measuredHeight(key, variant),
+        centerNaturalHeight: measuredHeight(key, variant, "center"),
       };
     });
   }
@@ -379,14 +399,18 @@
     placement: "left" | "right" | "center",
     moved: ReadonlySet<CardKey>,
   ): PlannedCard[] {
-    return cards.map((card) => ({
-      ...card,
-      allocatedHeight: card.naturalHeight,
-      extraHeight: 0,
-      clipped: false,
-      overflowed: placement === "center" || moved.has(card.key),
-      placement,
-    }));
+    return cards.map((card) => {
+      const naturalHeight = placement === "center" ? card.centerNaturalHeight : card.naturalHeight;
+      return {
+        ...card,
+        naturalHeight,
+        allocatedHeight: naturalHeight,
+        extraHeight: 0,
+        clipped: false,
+        overflowed: placement === "center" || moved.has(card.key),
+        placement,
+      };
+    });
   }
 
   const leftCards = $derived(plannedCards(layoutPlan.left, "left", layoutPlan.moved));
@@ -435,11 +459,12 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v7</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v8</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
   class="legacy-mock ladder-{layoutPlan.stage}"
+  style={`--mock-nankai-reserve: ${measuredNankaiHeightPx}px;`}
   data-legacy-improved-mock
   data-ladder-stage={layoutPlan.stage}
   data-ladder-auto={ladderAuto ? "true" : "false"}
@@ -450,8 +475,10 @@
   data-measurement-pass={measurementComplete ? "2" : "1"}
   data-measurement-read-count={measurementReadCount}
   data-layout-height-px={measuredLayoutHeightPx}
+  data-layout-capacity-px={layoutCapacityPx()}
   data-layout-width-px={measuredLayoutWidthPx}
   data-card-width-px={measuredCardWidthPx}
+  data-nankai-height-px={measuredNankaiHeightPx}
   data-clock-mode={layoutPlan.stage < 2 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
   data-center-capacity-px={centerCapacityPx()}
@@ -460,7 +487,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v7</strong>
+    <strong>従来フォーマット改良 v8</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -476,9 +503,6 @@
     <section class="clock-landmark" data-clock-landmark aria-label="画面中央時計と中央クラスタ">
       <div class="clock-wrap">
         <Clock {now} />
-        {#if nankai != null}
-          <div class="clock-above fixed-nankai" data-fixed-stack-item="nankai"><NankaiBadge item={nankai} /></div>
-        {/if}
         <div class="clock-below" data-clock-below-stack>
           <div class="fixed-stats" data-fixed-stack-item="stats"><InstrumentRow stats={statsStandbyCards} /></div>
           <div class="fixed-recent" data-fixed-stack-item="recent-quakes" data-fixed-recent-row-count={fixedRecentRows.length}>
@@ -490,11 +514,11 @@
   {/if}
 
   <div class="center-measure-shelf" aria-hidden="true" inert>
-    {#if nankai != null}
-      <div class="fixed-nankai center-measure-item" data-center-measure="nankai" use:captureCenterMeasure={"nankai"}>
-        <NankaiBadge item={nankai} />
+    {#each measureEntries as entry (entry.id)}
+      <div class="measure-item center-measure-item" data-center-measure-card={entry.id} use:captureCenterCardMeasure={entry.id}>
+        {@render renderCard(entry.key, entry.variant)}
       </div>
-    {/if}
+    {/each}
     <div class="fixed-stats center-measure-item" data-center-measure="stats" use:captureCenterMeasure={"stats"}>
       <InstrumentRow stats={statsStandbyCards} />
     </div>
@@ -521,9 +545,6 @@
         {#each centerCards as entry (entry.key)}
           {@render renderSideCard(entry)}
         {/each}
-        {#if nankai != null}
-          <div class="center-stack-card" data-fixed-stack-item="nankai"><NankaiBadge item={nankai} /></div>
-        {/if}
         <div class="center-stack-card" data-fixed-stack-item="stats"><InstrumentRow stats={statsStandbyCards} /></div>
         <div class="center-stack-card center-recent" data-fixed-stack-item="recent-quakes" data-fixed-recent-row-count={fixedRecentRows.length}>
           <RecentQuakes quakes={fixedRecentRows} />
@@ -538,6 +559,12 @@
     </div>
   </section>
 
+  {#if nankai != null}
+    <div class="nankai-ticker" data-nankai-ticker data-fixed-stack-item="nankai" bind:this={nankaiBandEl}>
+      <NankaiBadge item={nankai} />
+    </div>
+  {/if}
+
   <footer class="ticker-reserve" aria-label="テロップ領域">
     <span>TELEGRAM</span><span>ページングなし・実 DOM 自然高さ優先</span>
     {#if layoutPlan.stage >= 2}
@@ -551,6 +578,7 @@
     --mock-edge: clamp(14px, 2.5vw, 48px);
     --mock-gap: clamp(8px, 1vw, 18px);
     --mock-ticker-h: clamp(52px, 6vh, 68px);
+    --mock-nankai-reserve: 0px;
     --center-cluster-width: min(36rem, 60vw);
     /* 左右の等幅 track に収めるカード幅。中央クラスタの余地を先に確保し、
        余った左右幅で同じ値を算出する。測定棚もこの値を使う。 */
@@ -639,7 +667,7 @@
 
   .legacy-layout {
     position: absolute;
-    inset: var(--mock-edge) var(--mock-edge) calc(var(--mock-ticker-h) + var(--mock-edge));
+    inset: var(--mock-edge) var(--mock-edge) calc(var(--mock-ticker-h) + var(--mock-edge) + var(--mock-nankai-reserve));
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--center-cluster-width) minmax(0, 1fr);
     gap: var(--mock-gap);
@@ -708,7 +736,7 @@
   .legacy-mock .clock-wrap > :global(.clock > .time) {
     width: 100%;
     white-space: nowrap;
-    font-size: clamp(64px, 13cqw, 130px);
+    font-size: clamp(72px, 16cqw, 160px);
   }
 
   .legacy-mock .clock-wrap > :global(.clock > .time .sec) {
@@ -716,17 +744,11 @@
   }
 
   .legacy-mock .clock-wrap > :global(.clock > .date) {
-    font-size: clamp(14px, 3cqw, 22px);
+    font-size: clamp(16px, 3.7cqw, 26px);
     margin-top: clamp(4px, 1.5cqw, 10px);
   }
 
   .ticker-clock :global(.time) { white-space: nowrap; }
-
-  .clock-above {
-    position: absolute;
-    bottom: calc(100% + var(--mock-gap));
-    left: 0;
-  }
 
   .clock-below {
     position: absolute;
@@ -745,7 +767,6 @@
 
   /* 時計クラスタは viewport 中央の時計を基準に上下へ沿わせる。中央固定情報は side
      カードとは別規格の 36rem 級幅を保ち、最近地震の一行を優先する。 */
-  .fixed-nankai,
   .fixed-stats,
   .fixed-recent,
   .center-stack-card {
@@ -753,7 +774,18 @@
     box-sizing: border-box;
   }
 
-  .fixed-nankai :global(.nankai-badge) {
+  /* 南海帯は時計クラスタから切り離し、ticker の上辺へ直接接地させる。実測した高さを
+     --mock-nankai-reserve に戻して legacy-layout の下端から同じ分だけ退避する。 */
+  .nankai-ticker {
+    position: absolute;
+    z-index: 12;
+    right: 0;
+    bottom: var(--mock-ticker-h);
+    left: 0;
+  }
+
+  .nankai-ticker :global(.nankai-badge) {
+    display: flex;
     width: 100%;
     margin: 0;
     box-sizing: border-box;
@@ -809,6 +841,8 @@
 
   .center-card-region > .legacy-card {
     align-self: center;
+    width: var(--center-cluster-width);
+    max-width: 100%;
   }
 
   .center-card-region > .center-stack-card {
@@ -824,13 +858,6 @@
     border: 1px solid var(--hairline);
     border-radius: var(--radius-standby);
     background: var(--surface-standby);
-  }
-
-  .center-stack-card :global(.nankai-badge) {
-    width: 100%;
-    margin: 0;
-    box-sizing: border-box;
-    justify-content: center;
   }
 
   .center-stack-card :global(.instrument-row) { justify-content: center; }
