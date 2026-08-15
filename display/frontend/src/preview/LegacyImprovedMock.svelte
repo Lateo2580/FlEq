@@ -32,6 +32,7 @@
   type CardKey = "tsunami" | "quake" | "weather" | "flood" | "typhoon" | "volcano" | "heat";
   type ExpandableCardKey = "quake" | "weather";
   type CardVariant = "compact" | "expanded";
+  type FixedMeasureKey = "nankai" | "stats" | "recent-quakes";
   type StandbyItemOf<K extends ActiveStandbyCardV1["kind"]> = Extract<ActiveStandbyCardV1, { kind: K }>;
 
   interface VariantSelection {
@@ -67,6 +68,7 @@
     center: CardCandidate[];
     moved: Set<CardKey>;
     unresolved: boolean;
+    centerUnresolved: boolean;
     stage: LadderStage;
     variants: VariantSelection;
   }
@@ -107,6 +109,9 @@
   const longPeriod = findItem(activeItems, "longPeriod");
   const nankai = findItem(activeItems, "nankaiTrough");
   const fixedRecentRows = recentQuakesRich.slice(0, scenario === "4" ? 3 : 5);
+  const fixedMeasureKeys: FixedMeasureKey[] = nankai == null
+    ? ["stats", "recent-quakes"]
+    : ["nankai", "stats", "recent-quakes"];
   const fullWeatherAlerts: DisplayWeatherAlertV1[] = scenario === "max"
     ? legacyImprovedMaxWeatherAlerts
     : weatherWarningOnlyStandbyCards;
@@ -135,11 +140,14 @@
   // 1 パス目の同期 layout read 用。測定棚は visibility:hidden だが display:none ではないため、
   // 実ブラウザの offsetHeight を取得できる。rAF/ResizeObserver の遅延には依存しない。
   const measureNodes = new Map<string, HTMLElement>();
+  const centerMeasureNodes = new Map<FixedMeasureKey, HTMLElement>();
   let layoutEl = $state<HTMLElement | null>(null);
   let sideEl = $state<HTMLElement | null>(null);
   let measuredHeights = $state<Record<string, number>>({});
+  let measuredFixedHeights = $state<Record<string, number>>({});
   let measuredLayoutHeightPx = $state(0);
   let measuredLayoutWidthPx = $state(0);
+  let measuredCardWidthPx = $state(0);
   let measuredGapPx = $state(0);
   let measurementComplete = $state(false);
   let measurementReadCount = $state(0);
@@ -148,6 +156,13 @@
     measureNodes.set(id, node);
     return {
       destroy: () => measureNodes.delete(id),
+    };
+  }
+
+  function captureCenterMeasure(node: HTMLElement, key: FixedMeasureKey): { destroy: () => void } {
+    centerMeasureNodes.set(key, node);
+    return {
+      destroy: () => centerMeasureNodes.delete(key),
     };
   }
 
@@ -163,16 +178,23 @@
 
   onMount(() => {
     const nextHeights: Record<string, number> = {};
+    const nextFixedHeights: Record<string, number> = {};
     for (const entry of measureEntries) {
       nextHeights[entry.id] = measureNaturalHeight(measureNodes.get(entry.id));
+    }
+    for (const key of fixedMeasureKeys) {
+      nextFixedHeights[key] = measureNaturalHeight(centerMeasureNodes.get(key));
     }
     const layoutRect = layoutEl?.getBoundingClientRect();
     const layoutHeight = Math.round(layoutRect?.height ?? layoutEl?.offsetHeight ?? 0);
     const layoutWidth = Math.round(layoutRect?.width ?? layoutEl?.offsetWidth ?? 0);
+    const cardWidth = Math.round(layoutEl?.querySelector<HTMLElement>("[data-mock-side='left'] [data-mock-card]")?.getBoundingClientRect().width ?? 0);
     const computedGap = sideEl == null ? 0 : parseFloat(getComputedStyle(sideEl).rowGap);
     measuredHeights = nextHeights;
+    measuredFixedHeights = nextFixedHeights;
     measuredLayoutHeightPx = layoutHeight;
     measuredLayoutWidthPx = layoutWidth;
+    measuredCardWidthPx = cardWidth;
     measuredGapPx = Number.isFinite(computedGap) ? computedGap : 0;
     measurementReadCount = measureEntries.length;
     measurementComplete = true;
@@ -204,6 +226,24 @@
 
   function columnGapPx(): number {
     return measuredGapPx;
+  }
+
+  function centerFixedNaturalHeight(): number {
+    const heights = fixedMeasureKeys.map((key) => measuredFixedHeights[key] ?? 0);
+    return heights.reduce((total, height) => total + height, 0)
+      + Math.max(0, heights.length - 1) * columnGapPx();
+  }
+
+  function centerNaturalHeight(cards: readonly CardCandidate[]): number {
+    const fixedHeights = fixedMeasureKeys.map((key) => measuredFixedHeights[key] ?? 0);
+    const totalCount = cards.length + fixedHeights.length;
+    return cards.reduce((total, card) => total + card.naturalHeight, 0)
+      + fixedHeights.reduce((total, height) => total + height, 0)
+      + Math.max(0, totalCount - 1) * columnGapPx();
+  }
+
+  function centerCapacityPx(): number {
+    return layoutCapacityPx();
   }
 
   function columnNaturalHeight(cards: readonly CardCandidate[]): number {
@@ -291,10 +331,20 @@
       }
     }
 
-    const unresolved = columnNaturalHeight(left) > capacity || columnNaturalHeight(right) > capacity;
-    const stage: LadderStage = override
-      ?? (center.length > 0 ? 2 : moved.size > 0 ? 1 : 0);
-    return { left, right, center, moved, unresolved, stage };
+    const centerUnresolved = centerNaturalHeight(center) > centerCapacityPx();
+    const sideUnresolved = columnNaturalHeight(left) > capacity || columnNaturalHeight(right) > capacity;
+    const requestedStage: LadderStage = override
+      ?? (center.length > 0 ? (centerUnresolved ? 3 : 2) : moved.size > 0 ? 1 : 0);
+    const stage: LadderStage = requestedStage === 2 && centerUnresolved ? 3 : requestedStage;
+    return {
+      left,
+      right,
+      center,
+      moved,
+      unresolved: sideUnresolved || centerUnresolved,
+      centerUnresolved,
+      stage,
+    };
   }
 
   function columnFor(plan: Omit<ColumnPlan, "variants">, key: CardKey): CardCandidate[] | null {
@@ -385,7 +435,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v6</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v7</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -401,11 +451,16 @@
   data-measurement-read-count={measurementReadCount}
   data-layout-height-px={measuredLayoutHeightPx}
   data-layout-width-px={measuredLayoutWidthPx}
+  data-card-width-px={measuredCardWidthPx}
+  data-clock-mode={layoutPlan.stage < 2 ? "viewport-center" : "ticker-bottom-right"}
+  data-center-fixed-height-px={centerFixedNaturalHeight()}
+  data-center-capacity-px={centerCapacityPx()}
+  data-center-unresolved={layoutPlan.centerUnresolved ? "true" : "false"}
   data-layout-unresolved={layoutPlan.unresolved ? "true" : "false"}
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v6</strong>
+    <strong>従来フォーマット改良 v7</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -415,6 +470,37 @@
         {@render renderCard(entry.key, entry.variant)}
       </div>
     {/each}
+  </div>
+
+  {#if layoutPlan.stage < 2}
+    <section class="clock-landmark" data-clock-landmark aria-label="画面中央時計と中央クラスタ">
+      <div class="clock-wrap">
+        <Clock {now} />
+        {#if nankai != null}
+          <div class="clock-above fixed-nankai" data-fixed-stack-item="nankai"><NankaiBadge item={nankai} /></div>
+        {/if}
+        <div class="clock-below" data-clock-below-stack>
+          <div class="fixed-stats" data-fixed-stack-item="stats"><InstrumentRow stats={statsStandbyCards} /></div>
+          <div class="fixed-recent" data-fixed-stack-item="recent-quakes" data-fixed-recent-row-count={fixedRecentRows.length}>
+            <RecentQuakes quakes={fixedRecentRows} />
+          </div>
+        </div>
+      </div>
+    </section>
+  {/if}
+
+  <div class="center-measure-shelf" aria-hidden="true" inert>
+    {#if nankai != null}
+      <div class="fixed-nankai center-measure-item" data-center-measure="nankai" use:captureCenterMeasure={"nankai"}>
+        <NankaiBadge item={nankai} />
+      </div>
+    {/if}
+    <div class="fixed-stats center-measure-item" data-center-measure="stats" use:captureCenterMeasure={"stats"}>
+      <InstrumentRow stats={statsStandbyCards} />
+    </div>
+    <div class="fixed-recent center-measure-item" data-center-measure="recent-quakes" use:captureCenterMeasure={"recent-quakes"}>
+      <RecentQuakes quakes={fixedRecentRows} />
+    </div>
   </div>
 
   <section
@@ -429,18 +515,7 @@
     </div>
 
     {#if layoutPlan.stage < 2}
-      <section class="center-landmark" aria-label="中央時計と固定情報">
-        <div class="clock-wrap"><Clock {now} /></div>
-        <div class="clock-below" data-clock-below-stack>
-          {#if nankai != null}
-            <div class="fixed-nankai" data-fixed-stack-item="nankai"><NankaiBadge item={nankai} /></div>
-          {/if}
-          <div class="fixed-stats" data-fixed-stack-item="stats"><InstrumentRow stats={statsStandbyCards} /></div>
-          <div class="fixed-recent" data-fixed-stack-item="recent-quakes" data-fixed-recent-row-count={fixedRecentRows.length}>
-            <RecentQuakes quakes={fixedRecentRows} />
-          </div>
-        </div>
-      </section>
+      <div class="center-grid-spacer" aria-hidden="true"></div>
     {:else}
       <section class="center-landmark center-card-region" data-center-card-region data-mock-side="center" aria-label="中央カード領域">
         {#each centerCards as entry (entry.key)}
@@ -476,8 +551,10 @@
     --mock-edge: clamp(14px, 2.5vw, 48px);
     --mock-gap: clamp(8px, 1vw, 18px);
     --mock-ticker-h: clamp(52px, 6vh, 68px);
-    /* 表示 grid の 1 列幅。測定棚も同じ値を使い、表示と測定の containing block を揃える。 */
-    --mock-card-width: calc((100vw - var(--mock-edge) - var(--mock-edge) - var(--mock-gap) - var(--mock-gap)) / 3);
+    --center-cluster-width: min(36rem, 60vw);
+    /* 左右の等幅 track に収めるカード幅。中央クラスタの余地を先に確保し、
+       余った左右幅で同じ値を算出する。測定棚もこの値を使う。 */
+    --mock-card-width: min(30rem, calc((100vw - var(--mock-edge) - var(--mock-edge) - var(--mock-gap) - var(--mock-gap) - var(--center-cluster-width)) / 2));
     box-sizing: border-box;
     position: relative;
     width: 100vw;
@@ -542,11 +619,29 @@
     width: 100%;
   }
 
+  .center-measure-shelf {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mock-gap);
+    width: var(--center-cluster-width);
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
+  .center-measure-item {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
   .legacy-layout {
     position: absolute;
     inset: var(--mock-edge) var(--mock-edge) calc(var(--mock-ticker-h) + var(--mock-edge));
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) var(--center-cluster-width) minmax(0, 1fr);
     gap: var(--mock-gap);
     min-height: 0;
   }
@@ -561,12 +656,13 @@
     scrollbar-width: thin;
   }
 
-  .side-left { align-items: flex-start; }
-  .side-right { align-items: flex-end; }
+  .side-left,
+  .side-right { align-items: center; }
 
   .legacy-card {
     flex: 0 0 auto;
-    width: 100%;
+    width: var(--mock-card-width);
+    max-width: 100%;
     min-height: 0;
     overflow: visible;
   }
@@ -589,11 +685,23 @@
     overflow: visible;
   }
 
+  .clock-landmark {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    overflow: visible;
+    pointer-events: none;
+  }
+
   .clock-wrap {
-    width: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--center-cluster-width);
     min-width: 0;
     container-type: inline-size;
     overflow: visible;
+    transform: translate(-50%, -50%);
   }
 
   .legacy-mock .clock-wrap :global(.time) {
@@ -613,16 +721,29 @@
 
   .ticker-clock :global(.time) { white-space: nowrap; }
 
+  .clock-above {
+    position: absolute;
+    bottom: calc(100% + var(--mock-gap));
+    left: 0;
+  }
+
   .clock-below {
+    position: absolute;
+    top: calc(100% + var(--mock-gap));
+    left: 0;
     display: flex;
     flex-direction: column;
     gap: var(--mock-gap);
     width: 100%;
-    margin-top: clamp(12px, 2vh, 24px);
   }
 
-  /* 中央の固定情報も side のカードと同じ幅トークンを使う。時計だけは .clock-wrap の
-     保護された最小幅を維持し、カード幅へ縮めない。 */
+  .center-grid-spacer {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* 時計クラスタは viewport 中央の時計を基準に上下へ沿わせる。中央固定情報は side
+     カードとは別規格の 36rem 級幅を保ち、最近地震の一行を優先する。 */
   .fixed-nankai,
   .fixed-stats,
   .fixed-recent,
@@ -681,6 +802,7 @@
     align-items: stretch;
     justify-content: flex-start;
     gap: var(--mock-gap);
+    padding-block: 0;
     overflow: auto;
   }
 
