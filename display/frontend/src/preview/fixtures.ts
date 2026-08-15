@@ -302,6 +302,20 @@ export const latestQuakeStandbyCards: DisplayLatestQuakeStateV1 = {
   updatedAtMs: NOW_MS,
 };
 
+/** 従来フォーマット改良 v4 の展開確認用。震度5強の省略3地域を完全列挙する。 */
+export const legacyImprovedExpandedLatestQuake: DisplayLatestQuakeStateV1 = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: latestQuakeStandbyCards.intensityGroups.map((group) =>
+    group.intensity === "5強"
+      ? {
+          ...group,
+          areas: [...group.areas, "西都市", "えびの市", "高鍋町"],
+          omittedAreaCount: 0,
+        }
+      : group,
+  ),
+};
+
 // standby-cards シナリオ用: 計器列 (直近30分スパークライン・受信数・本日地震・最大震度)
 export const statsStandbyCards: DisplayStatsV1 = {
   sparklineData: [

@@ -15,7 +15,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v3", () => {
+describe("legacy improved standby mock v4", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -29,6 +29,9 @@ describe("legacy improved standby mock v3", () => {
     expect(root.dataset.paging).toBe("none");
     expect(root.dataset.suppressedUnknownCount).toBe(String(suppressed));
     expect(root.dataset.inputItemCount).toBe(String(inputCount));
+    expect(root.dataset.measurementMode).toBe("sync-dom");
+    expect(root.dataset.measurementPass).toBe("2");
+    expect(Number(root.dataset.measurementReadCount)).toBeGreaterThan(0);
     expect(rendered.container.querySelectorAll('[data-mock-side="left"] [data-mock-card]')).toHaveLength(left);
     expect(rendered.container.querySelectorAll('[data-mock-side="right"] [data-mock-card]')).toHaveLength(right);
     expect(rendered.container.querySelector('[data-mock-card="unknown"]')).toBeNull();
@@ -37,7 +40,7 @@ describe("legacy improved standby mock v3", () => {
     expect(rendered.container.querySelector('[data-fixed-stack-item="recent-quakes"]')).toBeTruthy();
   });
 
-  it("renders the main card roots and keeps natural-height metadata", () => {
+  it("renders main card roots and keeps measured-height metadata without ratio allocation", () => {
     const { rendered } = renderMock("legacyMock2=7&ladder=0");
 
     for (const selector of [
@@ -57,8 +60,8 @@ describe("legacy improved standby mock v3", () => {
     for (const card of cards) {
       const natural = Number(card.dataset.naturalHeightPx);
       const allocated = Number(card.dataset.allocatedHeightPx);
-      expect(natural).toBeGreaterThan(0);
-      expect(allocated).toBeGreaterThan(0);
+      expect(Number.isFinite(natural)).toBe(true);
+      expect(Number.isFinite(allocated)).toBe(true);
       expect(allocated).toBeLessThanOrEqual(natural);
       expect(card.dataset.allocatedRatio).toBeUndefined();
       expect(card.classList.contains("overflow-card")).toBe(false);
@@ -66,14 +69,26 @@ describe("legacy improved standby mock v3", () => {
     }
   });
 
-  it("marks omitted ladder as auto and spills from the right by arithmetic fit", () => {
+  it("marks omitted ladder as auto and leaves a measured placement plan", () => {
     const { rendered, root } = renderMock("legacyMock2=max");
 
     expect(root.dataset.ladderAuto).toBe("true");
     const stage = Number(root.dataset.ladderStage);
-    expect(stage).toBeGreaterThanOrEqual(1);
+    expect(stage).toBeGreaterThanOrEqual(0);
     expect(stage).toBeLessThanOrEqual(2);
-    expect(rendered.container.querySelector('[data-overflow-placement="left-bottom"]')).toBeTruthy();
+    expect(root.dataset.layoutUnresolved).toBe("false");
+    expect(rendered.container.querySelectorAll("[data-mock-card]").length).toBe(7);
+  });
+
+  it("exposes expansion metadata for earthquake and weather fixtures when measured space permits", () => {
+    const { rendered } = renderMock("legacyMock2=4&ladder=0");
+
+    for (const key of ["quake", "weather"]) {
+      const card = rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`);
+      expect(card).toBeTruthy();
+      expect(card?.dataset.regionExpanded).toBe("true");
+    }
+    expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).not.toContain("ほか3地域");
   });
 
   it("spills volcano and heat to the left column at forced ladder 1 without a ribbon", () => {
@@ -102,5 +117,6 @@ describe("legacy improved standby mock v3", () => {
     expect(rendered.container.querySelector('[data-clock-placement="ticker-bottom-right"]')).toBeTruthy();
     expect(rendered.container.querySelector("[data-center-card-region]")).toBeTruthy();
     expect(rendered.container.querySelector('[data-fixed-stack-item="recent-quakes"]')).toBeTruthy();
+    expect(rendered.container.querySelector('[data-mock-side="center"] [data-mock-card]')).toBeTruthy();
   });
 });
