@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v10", () => {
+describe("legacy improved standby mock v11", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -39,6 +39,8 @@ describe("legacy improved standby mock v10", () => {
     expect(root.dataset.clusterGapPx).toBeDefined();
     expect(root.dataset.clusterFlowHeightPx).toBeDefined();
     expect(root.dataset.layoutCapacityPx).toBeDefined();
+    expect(root.dataset.centerGapPx).toBeDefined();
+    expect(root.dataset.centerNaturalHeightPx).toBeDefined();
     expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
     expect(root.dataset.clockMode).toBe("viewport-center");
     expect(rendered.container.querySelector("[data-clock-landmark]")).toBeTruthy();
@@ -150,6 +152,7 @@ describe("legacy improved standby mock v10", () => {
     expect(mockSource).toContain("const centerEligibleKeys = new Set<CardKey>([\"weather\", \"flood\", \"typhoon\", \"volcano\"]);");
     expect(mockSource).toContain("function moveEligibleToCenter");
     expect(mockSource).toContain("function moveIneligibleToLeft");
+    expect(mockSource).toMatch(/moveIneligibleToLeft\(right, left, capacity, moved\);[\s\S]*moveEligibleToCenter\(right, center, capacity\);/);
   });
 
   it.each(["2", "3"] as const)("moves the clock to the ticker area at ladder %s", (stage) => {
@@ -223,10 +226,19 @@ describe("legacy improved standby mock v10", () => {
 
     expect(root.dataset.centerFixedHeightPx).toBeDefined();
     expect(root.dataset.centerCapacityPx).toBeDefined();
+    expect(root.dataset.centerNaturalHeightPx).toBeDefined();
     expect(rendered.container.querySelector("[data-nankai-ticker]")).toBeTruthy();
     expect(rendered.container.querySelector('[data-clock-landmark] [data-fixed-stack-item="nankai"]')).toBeNull();
     expect(root.dataset.centerUnresolved).toBe("false");
     expect(mockSource).toMatch(/function centerNaturalHeight\(cards: readonly CardCandidate\[\]\)/);
+    expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*gap:\s*var\(--mock-gap\)/s);
+    expect(mockSource).not.toContain("min-height: clamp(3rem, 8vh, 6rem)");
     expect(mockSource).toMatch(/requestedStage === 2 && \(centerUnresolved \|\| sideUnresolved\) \? 3 : requestedStage/);
+  });
+
+  it("clips the tsunami marquee at the mock card boundary", () => {
+    expect(mockSource).toMatch(/\.legacy-card\[data-mock-card="tsunami"\]\s*\{[^}]*overflow:\s*hidden/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.legacy-card :global\(\.tsunami-banner\)\s*\{[^}]*overflow:\s*hidden/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.legacy-card :global\(\.tsunami-banner \.banner-areas\)\s*\{[^}]*overflow:\s*hidden/s);
   });
 });

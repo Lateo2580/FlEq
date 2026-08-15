@@ -312,20 +312,6 @@
   const centerEligibleKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
   const forcedOverflowKeys = new Set<CardKey>(["volcano", "heat"]);
 
-  function moveEligibleToCenter(cards: CardCandidate[], center: CardCandidate[], capacity: number): void {
-    const movedCards: CardCandidate[] = [];
-    while (columnNaturalHeight(cards) > capacity) {
-      const toCenter = cards
-        .filter((card) => centerEligibleKeys.has(card.key))
-        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)[0];
-      if (toCenter == null) break;
-      cards.splice(cards.indexOf(toCenter), 1);
-      movedCards.push(toCenter);
-    }
-    movedCards.sort((leftCard, rightCard) => leftCard.order - rightCard.order);
-    center.push(...movedCards);
-  }
-
   function moveIneligibleToLeft(
     right: CardCandidate[],
     left: CardCandidate[],
@@ -335,12 +321,29 @@
     while (columnNaturalHeight(right) > capacity) {
       const toLeft = right
         .filter((card) => !centerEligibleKeys.has(card.key))
-        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)[0];
+        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)
+        .find((card) => columnNaturalHeight([...left, card]) <= capacity);
       if (toLeft == null) break;
       right.splice(right.indexOf(toLeft), 1);
       left.push(toLeft);
       moved.add(toLeft.key);
     }
+  }
+
+  function moveEligibleToCenter(cards: CardCandidate[], center: CardCandidate[], capacity: number): void {
+    const movedCards: CardCandidate[] = [];
+    while (columnNaturalHeight(cards) > capacity) {
+      const toCenter = cards
+        .filter((card) => centerEligibleKeys.has(card.key))
+        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)
+        .find((card) => centerNaturalHeight([...center, card]) <= capacity);
+      if (toCenter == null) break;
+      cards.splice(cards.indexOf(toCenter), 1);
+      movedCards.push(toCenter);
+      center.push(toCenter);
+    }
+    movedCards.sort((leftCard, rightCard) => leftCard.order - rightCard.order);
+    center.sort((leftCard, rightCard) => leftCard.order - rightCard.order);
   }
 
   function makeColumnPlan(candidates: readonly CardCandidate[], override: LadderStage | null): Omit<ColumnPlan, "variants"> {
@@ -361,8 +364,12 @@
     }
 
     const rightNeedsCenter = override == null || (override != null && override >= 2);
-    if (rightNeedsCenter) moveEligibleToCenter(right, center, capacity);
-    if (override == null) moveIneligibleToLeft(right, left, capacity, moved);
+    if (rightNeedsCenter) {
+      // 右列の超過は、まず左に収まる非資格カードを退避し、残りを中央資格カードで受ける。
+      // どちらも実測容量に収まらない場合だけ unresolved として圧縮段へ送る。
+      moveIneligibleToLeft(right, left, capacity, moved);
+      moveEligibleToCenter(right, center, capacity);
+    }
 
     // 明示 ladder=2/3 は目視ゲート用の「中央受け皿」も必ず見せる。実測で左右の超過が
     // 無い jsdom でも、資格を持つ右列の続き (なければ左列の続き) を中央へ移して構造を確認できる。
@@ -425,6 +432,7 @@
         : "calc(var(--mock-gap) * 1.75)",
   );
   const clusterFlowHeightStyle = $derived(measuredClusterFlowHeightPx > 0 ? `${measuredClusterFlowHeightPx}px` : "auto");
+  const centerNaturalHeightPx = $derived(centerNaturalHeight(layoutPlan.center));
 
   function plannedCards(
     cards: readonly CardCandidate[],
@@ -521,6 +529,8 @@
   data-nankai-height-px={measuredNankaiHeightPx}
   data-cluster-gap-px={measuredClusterGapPx}
   data-cluster-flow-height-px={measuredClusterFlowHeightPx}
+  data-center-gap-px={columnGapPx()}
+  data-center-natural-height-px={centerNaturalHeightPx}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage < 2 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
@@ -562,10 +572,10 @@
         {@render renderCard(entry.key, entry.variant)}
       </div>
     {/each}
-    <div class="fixed-stats center-measure-item" data-center-measure="stats" use:captureCenterMeasure={"stats"}>
+    <div class="center-stack-card center-measure-item" data-center-measure="stats" use:captureCenterMeasure={"stats"}>
       <InstrumentRow stats={statsStandbyCards} />
     </div>
-    <div class="fixed-recent center-measure-item" data-center-measure="recent-quakes" use:captureCenterMeasure={"recent-quakes"}>
+    <div class="center-stack-card center-recent center-measure-item" data-center-measure="recent-quakes" use:captureCenterMeasure={"recent-quakes"}>
       <RecentQuakes quakes={fixedRecentRows} />
     </div>
   </div>
@@ -741,11 +751,28 @@
     overflow: visible;
   }
 
+  .legacy-card[data-mock-card="tsunami"] {
+    overflow: hidden;
+  }
+
   .legacy-mock .legacy-card :global(.tsunami-banner),
   .legacy-mock .legacy-card :global(.quake-card),
   .legacy-mock .legacy-card :global(.weather-card),
   .legacy-mock .legacy-card :global(.standby-card) {
     width: 100%;
+  }
+
+  /* TsunamiStandbyBanner の走行文字を、モック側でもカード外へ出さない。component は無改造のまま、
+     バナー本体と marquee の containing block の両方をカード幅で clip する。 */
+  .legacy-mock .legacy-card :global(.tsunami-banner) {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .legacy-mock .legacy-card :global(.tsunami-banner .banner-areas) {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   /* WeatherAlertCard の本体は無改造のまま、モックだけ外殻と展開行を足す。県名と地域の
@@ -957,7 +984,7 @@
   .center-stack-card {
     flex: 0 0 auto;
     min-width: 0;
-    min-height: clamp(3rem, 8vh, 6rem);
+    min-height: 0;
     overflow: visible;
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--hairline);
