@@ -385,7 +385,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v5</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v6</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -405,7 +405,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v5</strong>
+    <strong>従来フォーマット改良 v6</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -476,10 +476,8 @@
     --mock-edge: clamp(14px, 2.5vw, 48px);
     --mock-gap: clamp(8px, 1vw, 18px);
     --mock-ticker-h: clamp(52px, 6vh, 68px);
-    --mock-card-width: min(360px, 28vw);
-    --standby-card-width: var(--mock-card-width);
-    /* Clock の 11vw 級の時刻+秒と「今日あった地震」の震央名を受け止める幅。 */
-    --center-min-width: max(40rem, 45vw);
+    /* 表示 grid の 1 列幅。測定棚も同じ値を使い、表示と測定の containing block を揃える。 */
+    --mock-card-width: calc((100vw - var(--mock-edge) - var(--mock-edge) - var(--mock-gap) - var(--mock-gap)) / 3);
     box-sizing: border-box;
     position: relative;
     width: 100vw;
@@ -534,32 +532,23 @@
 
   .measure-item {
     flex: 0 0 auto;
-    width: var(--mock-card-width);
-    max-width: 100%;
+    width: 100%;
   }
 
-  .measure-item :global(.tsunami-banner),
-  .measure-item :global(.quake-card),
-  .measure-item :global(.weather-card),
-  .measure-item :global(.standby-card) {
-    width: var(--standby-card-width);
-    max-width: 100%;
+  .legacy-mock .measure-item :global(.tsunami-banner),
+  .legacy-mock .measure-item :global(.quake-card),
+  .legacy-mock .measure-item :global(.weather-card),
+  .legacy-mock .measure-item :global(.standby-card) {
+    width: 100%;
   }
 
   .legacy-layout {
     position: absolute;
     inset: var(--mock-edge) var(--mock-edge) calc(var(--mock-ticker-h) + var(--mock-edge));
     display: grid;
-    grid-template-columns: var(--mock-card-width) minmax(var(--center-min-width), 1fr) var(--mock-card-width);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--mock-gap);
     min-height: 0;
-  }
-
-  /* 時計退避後は、中央へ回った hazard も左右列と同じ規格幅で読む。列自体は等幅にして
-     中央だけが痩せることを防ぎ、カードの実幅は --mock-card-width で三列共通にする。 */
-  .ladder-2 .legacy-layout,
-  .ladder-3 .legacy-layout {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .side {
@@ -577,18 +566,16 @@
 
   .legacy-card {
     flex: 0 0 auto;
-    width: var(--mock-card-width);
-    max-width: 100%;
+    width: 100%;
     min-height: 0;
     overflow: visible;
   }
 
-  .legacy-card :global(.tsunami-banner),
-  .legacy-card :global(.quake-card),
-  .legacy-card :global(.weather-card),
-  .legacy-card :global(.standby-card) {
-    width: var(--standby-card-width);
-    max-width: 100%;
+  .legacy-mock .legacy-card :global(.tsunami-banner),
+  .legacy-mock .legacy-card :global(.quake-card),
+  .legacy-mock .legacy-card :global(.weather-card),
+  .legacy-mock .legacy-card :global(.standby-card) {
+    width: 100%;
   }
 
   .center-landmark {
@@ -604,20 +591,33 @@
 
   .clock-wrap {
     width: 100%;
-    min-width: 40rem;
+    min-width: 0;
     container-type: inline-size;
     overflow: visible;
   }
 
-  .clock-wrap :global(.time),
+  .legacy-mock .clock-wrap :global(.time) {
+    width: 100%;
+    white-space: nowrap;
+    font-size: clamp(64px, 13cqw, 130px);
+  }
+
+  .legacy-mock .clock-wrap :global(.time .sec) {
+    font-size: 0.35em;
+  }
+
+  .legacy-mock .clock-wrap :global(.date) {
+    font-size: clamp(14px, 3cqw, 22px);
+    margin-top: clamp(4px, 1.5cqw, 10px);
+  }
+
   .ticker-clock :global(.time) { white-space: nowrap; }
 
   .clock-below {
     display: flex;
     flex-direction: column;
-    gap: clamp(5px, 0.7vh, 9px);
-    width: var(--mock-card-width);
-    max-width: 100%;
+    gap: var(--mock-gap);
+    width: 100%;
     margin-top: clamp(12px, 2vh, 24px);
   }
 
@@ -627,8 +627,7 @@
   .fixed-stats,
   .fixed-recent,
   .center-stack-card {
-    width: var(--mock-card-width);
-    max-width: 100%;
+    width: 100%;
     box-sizing: border-box;
   }
 
@@ -682,7 +681,6 @@
     align-items: stretch;
     justify-content: flex-start;
     gap: var(--mock-gap);
-    padding: var(--mock-gap);
     overflow: auto;
   }
 
@@ -721,7 +719,7 @@
     height: var(--mock-ticker-h);
     display: flex;
     align-items: center;
-    gap: clamp(16px, 2vw, 36px);
+    gap: var(--mock-gap);
     box-sizing: border-box;
     padding-inline: var(--mock-edge);
     border-top: 1px solid var(--hairline);

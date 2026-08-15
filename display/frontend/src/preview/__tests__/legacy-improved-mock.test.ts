@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v5", () => {
+describe("legacy improved standby mock v6", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -124,14 +124,26 @@ describe("legacy improved standby mock v5", () => {
     expect(rendered.container.querySelector('[data-mock-side="center"] [data-mock-card]')).toBeTruthy();
   });
 
-  it("uses the shared card width for the three columns, center stack, and measurement shelf", () => {
-    expect(mockSource).toContain("--mock-card-width: min(360px, 28vw);");
+  it("uses one shared column width for the equal grid and measurement shelf", () => {
+    expect(mockSource).toContain("--mock-card-width: calc((100vw - var(--mock-edge) - var(--mock-edge) - var(--mock-gap) - var(--mock-gap)) / 3);");
+    expect((mockSource.match(/--mock-card-width\s*:/g) ?? []).length).toBe(1);
+    expect(mockSource).not.toContain("--standby-card-width");
+    expect(mockSource).not.toContain("--center-min-width");
+    expect(mockSource).not.toContain("!important");
     expect(mockSource).toMatch(/\.measure-shelf\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
-    expect(mockSource).toMatch(/\.measure-item\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
-    expect(mockSource).toMatch(/\.legacy-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
-    expect(mockSource).toMatch(/\.fixed-nankai,[\s\n]+\.fixed-stats,[\s\n]+\.fixed-recent,[\s\n]+\.center-stack-card\s*\{[^}]*width:\s*var\(--mock-card-width\)/s);
-    expect(mockSource).toMatch(/grid-template-columns:\s*var\(--mock-card-width\) minmax\(var\(--center-min-width\), 1fr\) var\(--mock-card-width\)/);
-    expect(mockSource).toMatch(/\.ladder-2 \.legacy-layout,[\s\n]+\.ladder-3 \.legacy-layout\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/s);
+    expect(mockSource).toMatch(/\.measure-item\s*\{[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.legacy-layout\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/s);
+    expect(mockSource).toMatch(/\.legacy-card\s*\{[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.fixed-nankai,[\s\n]+\.fixed-stats,[\s\n]+\.fixed-recent,[\s\n]+\.center-stack-card\s*\{[^}]*width:\s*100%/s);
+    expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*gap:\s*var\(--mock-gap\)[^}]*width:\s*100%/s);
+  });
+
+  it("scales the large clock from its equal column without shrinking the font below the floor", () => {
+    expect(mockSource).toMatch(/\.clock-wrap\s*\{[^}]*container-type:\s*inline-size/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap :global\(\.time\)\s*\{[^}]*font-size:\s*clamp\(64px, 13cqw, 130px\)/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap :global\(\.time \.sec\)\s*\{[^}]*font-size:\s*0\.35em/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.clock-wrap :global\(\.date\)\s*\{[^}]*font-size:\s*clamp\(14px, 3cqw, 22px\)/s);
+    expect(mockSource).not.toContain("min-width: 40rem");
   });
 
   it("keeps the fixed recent-quake stack readable at the shared card width", () => {
