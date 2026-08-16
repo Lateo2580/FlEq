@@ -6,7 +6,7 @@
 
 ## 1. 目的と主張
 
-- **主張**: 全 active hazard を無操作・無ページングで常時表示しながら、平時は時計ランドマークを画面中心に保ち、災害多発時も文字サイズを潰さずに収容する。§5 の最終段でも収容できない入力は隠さず layout-failure として明示する。
+- **主張**: 全 active hazard を無操作で常時表示し、外側レイアウトのカードページング・巡回を行わない（カード内部の既存ページング機構は §2 のとおり維持する）。平時は時計ランドマークを画面中心に保ち、災害多発時も文字サイズを潰さずに収容する。§5 の最終段でも収容できない入力は隠さず layout-failure として明示する。
 - **基線**: 現行 main の待機画面（corner スタック＋overflow summary）と、凍結済みグリッド実装。
 - **反証条件**: 実機（Pi・720p〜1080p）の目視で「基線より読みにくい」「配置が予測できない」とご主人が裁定した場合、該当変更単位を差し戻す。
 - **Oracle と証跡**: 機械層は §9.1（テスト・実測ゲート・診断属性）。利用価値層はご主人の目視 packet 裁定（§10）。
@@ -44,8 +44,10 @@
   1. 左右 2 列に全カードが収まる割当を全列挙で探す（左先頭は津波→地震固定）。
   2. 不成立なら中央資格カードを中央受け皿へ移して時計退避（stage 1）。中央も実測容量で判定。
   3. それでも不成立なら余白・行間圧縮（stage 2）。**フォントサイズは縮めない**。
-- **決定性**: カード列挙は §2 の tier 表の基準順（canonical order）で行い、同点の割当候補は「左列キー列・右列キー列・中央キー列」を canonical order で並べた辞書順で最小のものを採る。snapshot の到着順・入力 shuffle に依存しない。
-- **振動防止**: stage を上げる判定は `natural > capacity`、下げる判定は `natural + ヒステリシス余裕（--mock-gap 2 個分以上）< capacity` の非対称閾値で行う。同一 epoch 内の遷移は 1 段まで。圧縮（stage 2）適用後の再測定で「圧縮なしでも収まる」と出ても、次の内容変化 epoch まで stage を保持する。
+- **主比較規則（規範）**: 割当候補の優劣は正本モックの比較器（`LegacyImprovedMock.svelte` の plan 比較。`5af389d` 時点）を規範とする: ①中央移動枚数の少なさ → ②最大側列高の低さ → ③左右列高差の小ささ → ④中央 overflow の少なさ → ⑤移動枚数の少なさ、の辞書式。新 stage 番号（§5）へ読み替えて移植する。
+- **決定性**: 配置と stage は「カード集合（内容含む）・実測寸法・直前 stage」の 3 つだけの関数とする。カード列挙は §2 の tier 表の基準順（canonical order）で行い、主比較規則で同点の割当候補は「左列キー列・右列キー列・中央キー列」を canonical order で並べた辞書順で最小のものを採る。snapshot の到着順・入力 shuffle に依存しない。
+- **初回・多段遷移**: 目標 stage が 2 段以上先でも、同一の外部 epoch 内で内部 settle を繰り返して**目標 stage まで直接確定**してから描画する（stage 適用による寸法変化は settle 内で再測定する）。「1 epoch 1 段」の見かけ遷移はアニメーション（§7）の演出であり、判定は一度に確定する。
+- **振動防止**: stage を上げる判定は `natural > capacity`、下げる判定は `natural + H < capacity` の非対称閾値で行う。ヒステリシス値 `H` は**平時（非圧縮）の --mock-gap 相当トークン × 2 の px 値**で一意に定める。下げ判定の候補配置は下位 stage の規則（非圧縮の寸法）で測った測定値を使う。内容変化を伴わない epoch（resize を除く）では stage を下げない。
 
 ## 5. 劣化のはしご（3 段）
 
@@ -55,18 +57,31 @@
 | 1 | 時計退避 | 左右のみで不成立。時計は ticker 右下（緊急画面と同位置）へ、中央資格カードを中央受け皿へ |
 | 2 | 余白圧縮 | 中央込みでも不成立。余白・行間のみ圧縮（文字サイズ死守） |
 
-- 旧 4 段案の「左退避」は独立の段ではなく stage 0 の割当自由度に統合された（2026-08-16 ご主人裁定）。モックの `ladder` URL パラメータは歴史的に 0/2/3 を使う（1 は欠番）。本実装の診断属性は 0/1/2 の新番号を正とする。
-- **終端**: stage 2 でも収まらない場合、列は overflow スクロールへ逃がさず、収容不能カードの位置に「ほか N 件を表示できません」の layout-failure 行を明示する（グリッド期の layout-failure 資産を流用）。この状態は §9.1 のゲートでは FAIL として扱い、設計上の想定入力（全 7 domain・720p 以上）では到達しないことを fixture で保証する。
-- 判定は決定的（同一入力→同一 stage）。
+- 旧 4 段案の「左退避」は独立の段ではなく stage 0 の割当自由度に統合された（2026-08-16 ご主人裁定）。モックの `ladder` URL パラメータの旧番号との対応は **新 0→旧 0、新 1→旧 2、新 2→旧 3**（旧 1「左退避の強制」は廃止。モックには残存するが本実装へは移植しない）。本実装の診断属性は 0/1/2 の新番号を正とする。
+- **終端と削除規則**: stage 2 でも収まらない場合、列は overflow スクロールへ逃がさず layout-failure とする。削除は canonical order（§2 tier 表）の**逆順**（熱中症→火山→台風→河川→気象警報）で、津波・地震・中央クラスタは削除しない。削除された枚数を N（カード数）として、削除が発生した各列の末尾に「ほか N 件を表示できません」行を 1 行だけ描画する（グリッド期の layout-failure 資産を流用）。
+- **期待 stage 表（モック実測、`5af389d`・auto）**:
+
+| viewport | scenario 4 | scenario 7 | scenario max |
+|---|---|---|---|
+| 1920×1080 | 0 | 0 | 1 |
+| 1512×982 | 0 | 1 | 1 |
+| 1280×720 | 0 | 2＋layout-failure | 2＋layout-failure |
+| 960×620（反証用） | 1 | 2＋layout-failure | 2＋layout-failure |
+
+  - **720p の注記**: モック実測では 720p の scenario 7 以上は圧縮段でも収容できない（unresolved）。本実装のゲートは 720p では「stage 2＋layout-failure 行の正しい描画」を合格条件とし、720p での完全収容（カード側の 720p 向け縮退調整）は実機評価枠の別課題として本 spec のスコープ外に置く。
+- 判定は決定的（§4 の 3 入力の関数）。
 
 ## 6. 地域リスト適応展開と気象警報カード改修
 
 - **A→B の一方向**: ソルバ（A）が配置と stage を確定した後、**確定済み配置の残余容量だけ**を使って展開（B）を判定する。展開はソルバを再実行せず、他カードの配置・stage を変えない（モックの「展開候補ごとにソルバ再実行」は試作上の近似であり、本実装はこの一方向規則を正とする）。展開判定の順序は canonical order（quake→weather）で固定する。
+- **跨 epoch の一方向性**: A は epoch を問わず**常に compact baseline の測定値**で解く（前 epoch で expanded 表示中でも、A の入力は compact 測定値）。B は別途測定済みの expanded variant 高を残余容量に当てて判定する。これにより前 epoch の展開が次 epoch の配置・stage に影響しない。
 - 展開対象: 地震カードの震度地域行（「ほか n 地域」→実地域名）・気象警報の対象地域。
-- **engine 側 wire 契約（新設）**: 展開候補を snapshot DTO の新フィールドで供給する。
-  - `expandedAreas`（quake の震度地域・weather の対象地域それぞれに対応する構造で、既存 `shownAreas` とは別フィールド）。最大 24 地域・発表順・重複排除済み。
-  - transport 縮退（地域名 6 件切り等）が発生しても展開候補フィールドは独立に管理し、snapshot budget（SSE 256KB 安全弁）の範囲で保持優先度は「現行表示分 > 展開候補」とする。予算超過時は展開候補から末尾を落とす（表示中の情報は削らない）。
-  - グリッド期資産（`grid-region-expansion` と engine 側候補供給の実装、feature/legacy-improved-gridbase 参照）を移植元とする。frontend 側 protocol 複製（display/frontend/src/lib/protocol.ts）にも同時反映する。
+- **engine 側 wire 契約（新設）**: 展開候補を snapshot DTO の optional フィールドで供給する。
+  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`（当該震度 group の完全地域リスト）、weather は `DisplayWeatherAlertItemV1` に `expandedAreas?: string[]`（当該警報 item の完全地域リスト）。いずれも**現行表示分（`areas`/`shownAreas`）を含む完全候補**で、発表順・重複排除済み。
+  - **上限**: カード（quake カード 1 枚・weather カード 1 枚）あたり合計 24 地域。group/item 間の配分は発表順の先着。
+  - **欠落時の互換**: フィールド欠落時は展開しない（現行表示のまま）。`omittedAreaCount` 系の既存値は現行どおり engine が計算し、展開表示時の「ほか n」再計算は frontend が `expandedAreas` から導出する。
+  - **縮退ラダー上の位置**: snapshot budget（SSE 256KB 安全弁）超過時、展開候補の削除は**カード本体の縮退より前段**に置く（gridbase で GO 済みの順序）。保持優先度は「現行表示分 > 展開候補」。
+  - **移植元の固定**: `feature/legacy-improved-gridbase` の commit `e5d6bbb`（地域適応展開ラウンド最終 GO）。対象 path は `display/frontend/src/lib/grid-region-expansion.ts` と対応する engine 側候補供給・SSE 縮退ラダー変更。frontend 側 protocol 複製（`display/frontend/src/lib/protocol.ts`）にも同時反映する。
 - **WeatherAlertCard 本改修**（モックでは mock 側 CSS で試作済み・本実装でコンポーネントへ移す）:
   - 対象地域リストの 2 列組版（県名と地域の組は pref-group 単位で保ち、列間で泣き別れさせない）。
   - 竜巻注意情報・竜巻目撃情報の対象地域フル表示（現行の「ほか」省略を廃止）。
@@ -85,21 +100,24 @@
 ## 8a. unknown の抑止とログ
 
 - unknown（未対応電文系）カードは待機画面に描画しない。
-- engine 側で unknown を受信するたび（受信イベント単位）に logger へ 1 record（電文種別コード・受信時刻）を出す。frontend は snapshot ごとの抑止枚数を `data-suppressed-unknown-count` に出す。両者の突合は「snapshot 抑止対象の種別集合 ⊆ ログ済み種別集合」で検証する（イベント数と枚数の同値は要求しない）。
+- engine と frontend にはこの件のデータ経路を新設せず、**それぞれ単体で検証**する（突合は行わない）。
+  - engine: 未対応電文の受信イベントごとに logger へ 1 record（電文種別コード・受信時刻）。ユニットテストで record 出力を検証。
+  - frontend: snapshot 内の future-kind DTO（既存 partition が unknown に分類するもの）を描画せず、枚数を `data-suppressed-unknown-count` に出す。ユニットテストで非描画と枚数を検証。
 
 ## 9. 受け入れ条件
 
 ### 9.1 機械検証可能（テスト・ゲートが判定）
 
 - ビルド・テスト（個別に実行）: `npm run build`・`npm test`・`npm --prefix display run build`・`npm --prefix display test`・`npm --prefix display run typecheck` がすべて成功。
-- **実ブラウザ実測ゲート**（headless Chrome runner・fixture ごとに期待 stage を表で固定）:
-  - scenario（4/7/max 相当 fixture）× viewport（1920×1080・1512×982・1280×720）で `data-ladder-stage` が期待値と一致し、`data-layout-unresolved="false"`。
-  - **切れゼロ**: 各カード root の `scrollHeight ≤ clientHeight + 1` かつカード矩形が viewport 内。
+- **実ブラウザ実測ゲート**（headless Chrome runner。期待 stage は §5 の実測表を正本とし、実装後の観測値で表を書き換えない）:
+  - runner は `data-measurement-settled="true"`（fonts.ready・測定 epoch・stage settle の完了後に立てる診断属性）を待ってから採寸する。
+  - scenario（4/7/max fixture）× viewport（1920×1080・1512×982・1280×720）で `data-ladder-stage` が §5 の表と一致。720p の 7/max は「stage 2＋layout-failure 行の描画」を合格とし、それ以外のセルは `data-layout-unresolved="false"`。
+  - **切れゼロ（縦横）**: 各カード root の `scrollHeight ≤ clientHeight + 1` かつ `scrollWidth ≤ clientWidth + 1`、カード矩形が viewport 内。時計の秒・日付要素の矩形がクラスタ矩形に包含される。
   - **重なりゼロ**: カード矩形同士・カードと時計クラスタ・南海帯の交差面積 0（境界 1px 許容）。
-  - **時計中心**: stage 0 で時計の時刻要素の中心と viewport 中心の差が各軸 ≤ 1px（DPR 込みの実測 rect で判定）。秒要素が viewport 内に完全に含まれる。
+  - **時計中心**: stage 0 で時計の時刻要素の中心と viewport 中心の差が各軸 ≤ 1px（DPR 込みの実測 rect で判定）。
   - 列スクロールが発生していない（各列 `scrollHeight ≤ clientHeight + 1`）。
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）が完全一致。
-- **ゲートの反証 fixture**: わざと容量超過にした fixture（全 domain 最大内容×縮小 viewport）でゲートが FAIL し、layout-failure 行が描画されること。
+- **ゲートの反証 fixture**: 960×620 × scenario 7/max（§5 表の反証行）でゲートが layout-failure の描画を検出し、それが欠けている実装を FAIL にできること。
 - §8a の unknown 突合。
 
 ### 9.2 人間検証必須（ご主人の目視 packet が判定）
@@ -123,7 +141,7 @@
 
 ## 11. 実装対象の見取り図
 
-- **`App.svelte` / `Ticker.svelte`** — stage の所有権整理。現行は App が待機領域から ticker 高を除外して渡しているため、時計の「viewport 中央」と「ticker 右下退避」は StandbyScreen 単独では実現できない。stage 1 以降の ticker 内時計表示（現行 Ticker の時計は App が `now` を渡して所有）と、待機領域の座標系（ticker 込み viewport 基準）の契約を App 層で定める。
+- **`App.svelte` / `Ticker.svelte`** — stage 所有権の契約: **StandbyScreen がソルバと stage の権威**であり、確定した stage を prop/callback で App へ通知する。App は通知を受けて ticker 内時計の表示/非表示を切り替える（中央時計と ticker 時計は同一 stage 確定の同一描画フレームで排他切替し、両方表示・両方非表示のフレームを作らない）。時計の viewport 中央配置は、`.screen-area`（ticker 高除外済み）内からの絶対配置ではなく viewport 基準（fixed 相当）で行う。**容量計算は `.screen-area` の実測高（既に ticker 高を除外済み）から南海帯の実測高のみを差し引く**（ticker 高を二重控除しない）。
 - **`StandbyScreen.svelte`** — 3 列レイアウト・実測 2 パス＋ソルバ・はしご・縦中央揃え（最大の変更単位）。
 - **`WeatherAlertCard.svelte`** — 2 列組版・竜巻フル表示（§6）。
 - **engine 側** — unknown 受信ログ（§8a）・展開候補の wire 契約と供給（§6、グリッド期資産の移植）。
