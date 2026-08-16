@@ -850,6 +850,92 @@
     return sideOverflow + centerOverflow;
   }
 
+  function placementSelectedCenterHeight(
+    choice: PlacementChoice,
+    selection: DisplaySelection,
+  ): number {
+    const cardHeight = selectedColumnHeight(choice.center, "center", selection);
+    const fixedHeights = fixedMeasureKeys.map((key) => measuredFixedHeights[key] ?? 0);
+    const totalCount = choice.center.length + fixedHeights.length;
+    return cardHeight + fixedHeights.reduce((total, height) => total + height, 0)
+      + Math.max(0, totalCount - 1) * columnGapPx();
+  }
+
+  function placementSelectedRightHeight(
+    choice: PlacementChoice,
+    selection: DisplaySelection,
+    rotationSlotHeight: number,
+    failureHeight: number,
+  ): number {
+    let total = selectedColumnHeight(choice.right, "right", selection);
+    if (rotationSlotHeight > 0) total += (choice.right.length > 0 ? columnGapPx() : 0) + rotationSlotHeight;
+    if (failureHeight > 0) total += columnGapPx() + failureHeight;
+    return total;
+  }
+
+  function placementSelectionFits(
+    choice: PlacementChoice,
+    selection: DisplaySelection,
+    capacity: number,
+    rotationSlotHeight: number,
+    failureHeight: number,
+  ): boolean {
+    return selectedColumnHeight(choice.left, "left", selection) <= capacity
+      && placementSelectedRightHeight(choice, selection, rotationSlotHeight, failureHeight) <= capacity
+      && (choice.center.length === 0 || placementSelectedCenterHeight(choice, selection) <= capacity);
+  }
+
+  function achievableSurplusUse(
+    choice: PlacementChoice,
+    capacity: number,
+    rotationSlotHeight = 0,
+    failureHeight = 0,
+  ): number {
+    // ①'' は B を実行せず、A 候補ごとの二重測定値だけで「この配置なら何段使えるか」を
+    // 数える。配置・stage はこの診断中に変更しない。
+    const typhoonCard = [...choice.left, ...choice.right, ...choice.center]
+      .find((card) => card.key === "typhoon");
+    let selection: DisplaySelection = {
+      typhoon: typhoonCard?.variant === "full" ? "full" : "compact",
+      floodWide: false,
+      quakeRows: 0,
+      weatherRows: 0,
+    };
+    let achieved = 0;
+
+    // §4 の余裕利用フェーズと同じ compact 昇格順を、候補比較用に再現する。
+    const floodCard = [...choice.left, ...choice.right, ...choice.center]
+      .find((card) => card.key === "flood");
+    if (floodIsWide && floodCard != null && !choice.center.some((card) => card.key === "flood")) {
+      const promoted = { ...selection, floodWide: true };
+      if (placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) {
+        selection = promoted;
+        achieved += 1;
+      }
+    }
+    if (typhoonCard != null && selection.typhoon === "compact") {
+      const promoted = { ...selection, typhoon: "full" as const };
+      if (placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) {
+        selection = promoted;
+        achieved += 1;
+      }
+    }
+
+    // 地域展開は quake→weather、1 region row ごとに prefix を数える。
+    for (const key of ["quake", "weather"] as const) {
+      if (![...choice.left, ...choice.right, ...choice.center].some((card) => card.key === key)) continue;
+      for (let regionRows = 1; regionRows <= maxRegionRows(key); regionRows += 1) {
+        const promoted = key === "quake"
+          ? { ...selection, quakeRows: regionRows }
+          : { ...selection, weatherRows: regionRows };
+        if (!placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) break;
+        selection = promoted;
+        achieved += 1;
+      }
+    }
+    return achieved;
+  }
+
   function comparePlacements(
     leftChoice: PlacementChoice,
     rightChoice: PlacementChoice,
@@ -873,6 +959,9 @@
       const leftWideFlood = floodIsWide && leftChoice.center.some((card) => card.key === "flood");
       const rightWideFlood = floodIsWide && rightChoice.center.some((card) => card.key === "flood");
       if (leftWideFlood !== rightWideFlood) return leftWideFlood ? -1 : 1;
+      const leftSurplusUse = achievableSurplusUse(leftChoice, capacity, rotationSlotHeight, failureHeight);
+      const rightSurplusUse = achievableSurplusUse(rightChoice, capacity, rotationSlotHeight, failureHeight);
+      if (leftSurplusUse !== rightSurplusUse) return rightSurplusUse - leftSurplusUse;
       const leftMax = Math.max(columnNaturalHeight(leftChoice.left), rightNaturalHeight(leftChoice.right, rotationSlotHeight, failureHeight));
       const rightMax = Math.max(columnNaturalHeight(rightChoice.left), rightNaturalHeight(rightChoice.right, rotationSlotHeight, failureHeight));
       if (leftMax !== rightMax) return leftMax - rightMax;
@@ -1395,6 +1484,18 @@
       weather: weatherByKind,
     });
   });
+
+  const placementSurplusUse = $derived.by(() => achievableSurplusUse(
+    {
+      left: layoutPlan.left,
+      right: layoutPlan.right,
+      center: layoutPlan.center,
+      moved: layoutPlan.moved,
+    },
+    layoutCapacityPx(),
+    layoutPlan.rotationSlotHeight,
+    layoutPlan.rotationFailureCount > 0 ? measuredRotationFailureHeightPx : 0,
+  ));
 </script>
 
   {#snippet renderCard(
@@ -1456,7 +1557,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v17</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v18</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -1503,6 +1604,7 @@
   data-typhoon-variant={typhoon == null ? "none" : contentSelection.typhoon}
   data-flood-form={floodForm}
   data-expanded-counts={expandedCounts}
+  data-placement-surplus-use={placementSurplusUse}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage === 0 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
@@ -1520,7 +1622,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v17</strong>
+    <strong>従来フォーマット改良 v18</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
@@ -1890,20 +1992,20 @@
 
   /* TyphoonCard は無改造。mock 側で既存の location ノードをタイトル行の右端へ移し、
      compact/full の両形式で台風名と位置情報を同じ行に揃える。 */
-  .legacy-mock .legacy-card :global(.typhoon-card .typhoon) {
+  .legacy-mock :global(.typhoon-card .typhoon) {
     position: relative;
   }
 
-  .legacy-mock .legacy-card :global(.typhoon-card .compact-primary) {
+  .legacy-mock :global(.typhoon-card .compact-primary) {
     padding-right: 45%;
   }
 
-  .legacy-mock .legacy-card :global(.typhoon-card .compact-summary) {
+  .legacy-mock :global(.typhoon-card .compact-summary) {
     padding-right: 45%;
     overflow: visible;
   }
 
-  .legacy-mock .legacy-card :global(.typhoon-card .compact-summary .compact-location) {
+  .legacy-mock :global(.typhoon-card .compact-summary .compact-location) {
     position: absolute;
     top: var(--space-1);
     right: var(--space-4);
@@ -1915,7 +2017,7 @@
     text-overflow: ellipsis;
   }
 
-  .legacy-mock .legacy-card :global(.typhoon-card:not(.compact) .typhoon > .location) {
+  .legacy-mock :global(.typhoon-card:not(.compact) .typhoon > .location) {
     position: absolute;
     top: var(--space-2);
     right: var(--space-4);
@@ -1924,6 +2026,17 @@
     margin: 0;
     overflow: hidden;
     text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* full 形式も位置行を独立段にせず、タイトルと同じ一行の右端へ置くために
+     タイトル側へ測定済みの空きを予約する。実コンポーネントは無改造のまま。 */
+  .legacy-mock :global(.typhoon-card:not(.compact) .typhoon > strong) {
+    display: block;
+    min-width: 0;
+    padding-right: 45%;
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

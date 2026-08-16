@@ -76,7 +76,7 @@ function installMeasuredLayout(options: { capacityPx?: number; baseCardPx?: numb
   };
 }
 
-describe("legacy improved standby mock v17", () => {
+describe("legacy improved standby mock v18", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -105,6 +105,7 @@ describe("legacy improved standby mock v17", () => {
     expect(root.dataset.clusterGapPx).toBeDefined();
     expect(root.dataset.clusterFlowHeightPx).toBeDefined();
     expect(root.dataset.layoutCapacityPx).toBeDefined();
+    expect(root.dataset.placementSurplusUse).toBeDefined();
     expect(root.dataset.centerGapPx).toBeDefined();
     expect(root.dataset.centerNaturalHeightPx).toBeDefined();
     expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
@@ -313,9 +314,9 @@ describe("legacy improved standby mock v17", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v17 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v18 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v17");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v18");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -341,6 +342,23 @@ describe("legacy improved standby mock v17", () => {
     expect(mockSource).toContain('for (const key of ["quake", "weather"] as const)');
     expect(mockSource).toContain("if (!selectionFits(plan, promoted)) break;");
     expect(mockSource).not.toContain("expandedFits(plan");
+  });
+
+  it("ranks fitting placements by achievable surplus use after center and wide-flood priority", () => {
+    expect(mockSource).toContain("function achievableSurplusUse");
+    expect(mockSource).toContain("const leftSurplusUse = achievableSurplusUse(leftChoice");
+    expect(mockSource).toContain("if (leftSurplusUse !== rightSurplusUse) return rightSurplusUse - leftSurplusUse;");
+    expect(mockSource).toContain("①''");
+    expect(mockSource).toMatch(/leftChoice\.center\.length[^\n]*rightChoice\.center\.length/);
+    expect(mockSource).toMatch(/leftWideFlood[^\n]*rightWideFlood/);
+    expect(mockSource).toContain("二重測定値だけで");
+  });
+
+  it("enumerates multiple central eligible-card subsets without a one-card cap", () => {
+    expect(mockSource).toContain("const centerMaskCount = 1 << centerCandidates.length;");
+    expect(mockSource).toContain("for (let centerMask = 0; centerMask < centerMaskCount; centerMask += 1)");
+    expect(mockSource).toContain("center: sortedCards(center)");
+    expect(mockSource).toContain("const centerCandidates = allowCenter ? movable.filter((card) => centerEligibleKeys.has(card.key)) : [];");
   });
 
   it("exposes deterministic rotation metadata and the bounded settle coordinator", () => {
@@ -515,10 +533,11 @@ describe("legacy improved standby mock v17", () => {
     expect(mockSource).toContain("data-center-measure-card");
   });
 
-  it("exposes v17 surplus-use diagnostics for wide flood and recalculated counts", () => {
+  it("exposes v18 surplus-use diagnostics for wide flood and recalculated counts", () => {
     const { root, rendered } = renderMock("legacyMock2=7&floodWide=1&ladder=0");
     expect(root.dataset.typhoonVariant).toBeDefined();
     expect(root.dataset.floodForm).toBe("wide");
+    expect(root.dataset.placementSurplusUse).toBeDefined();
     const expandedCounts = JSON.parse(root.dataset.expandedCounts ?? "{}") as {
       quake?: { count: number; n: number };
       weather?: Record<string, { count: number; n: number }>;
@@ -575,6 +594,8 @@ describe("legacy improved standby mock v17", () => {
     expect(mockSource).toContain("@container (max-width: 240px)");
     expect(mockSource).toMatch(/\.typhoon-card \.compact-summary \.compact-location[^}]*position:\s*absolute[^}]*text-align:\s*right/s);
     expect(mockSource).toMatch(/\.typhoon-card:not\(\.compact\) \.typhoon > \.location[^}]*position:\s*absolute[^}]*text-align:\s*right/s);
+    expect(mockSource).toMatch(/\.typhoon-card:not\(\.compact\) \.typhoon > strong[^}]*padding-right:\s*45%[^}]*white-space:\s*nowrap/s);
+    expect(mockSource).toContain(".legacy-mock :global(.typhoon-card .typhoon)");
     expect(mockSource).toContain("本実装では TsunamiStandbyBanner 側の header 改修へ移す");
   });
 });
