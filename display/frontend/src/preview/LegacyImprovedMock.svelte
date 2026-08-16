@@ -124,6 +124,30 @@
     return items.find((item): item is StandbyItemOf<K> => item.kind === kind) ?? null;
   }
 
+  const knownCardKeys: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
+
+  function parseCardKey(value: string): CardKey | null {
+    return knownCardKeys.includes(value as CardKey) ? value as CardKey : null;
+  }
+
+  function parseRotationKeys(value: string | null): CardKey[] | null {
+    if (value == null || value.trim() === "") return null;
+    const keys = value.split(",").map((rawKey) => parseCardKey(rawKey.trim())).filter((key): key is CardKey => key != null);
+    return keys.length > 0 ? [...new Set(keys)] : null;
+  }
+
+  interface RotationTestChange {
+    action: "add" | "remove";
+    key: CardKey;
+  }
+
+  function parseRotationTestChange(value: string | null): RotationTestChange | null {
+    if (value == null) return null;
+    const [action, rawKey] = value.split(":");
+    const key = rawKey == null ? null : parseCardKey(rawKey.trim());
+    return (action === "add" || action === "remove") && key != null ? { action, key } : null;
+  }
+
   const scenario = parseScenario(params.get("legacyMock2"));
   const ladderOverride = parseLadder(params.get("ladder"));
   const ladderAuto = ladderOverride == null;
@@ -131,10 +155,24 @@
   const rotationTickOverride = rotationTickParam == null || !/^\d+$/.test(rotationTickParam)
     ? null
     : Number.parseInt(rotationTickParam, 10);
+  // rotationKeys/rotationChange は fake timer テスト専用の集合変化 override。通常の mock は
+  // solver が返す rotationKeys をそのまま使い、URL 未指定時にはこの経路へ入らない。
+  const rotationTestKeysParam = parseRotationKeys(params.get("rotationKeys"));
+  const rotationTestChange = parseRotationTestChange(params.get("rotationChange"));
+  const rotationTestChangeAtParam = params.get("rotationChangeAt");
+  const rotationTestChangeAtMs = rotationTestChangeAtParam != null && /^\d+$/.test(rotationTestChangeAtParam)
+    ? Number.parseInt(rotationTestChangeAtParam, 10)
+    : 1_000;
+  let rotationTestKeys = $state<CardKey[] | null>(rotationTestKeysParam);
+  let rotationTestChangeTimer: ReturnType<typeof setTimeout> | null = null;
   const MAX_SETTLE_PASSES = 4;
   const MAX_ROTATION_CANDIDATE_PASSES = 5;
   const ROTATION_PERIOD_MS = 15_000;
   const ROTATION_TRANSITION_DEADLINE_MS = 500;
+
+  function rotationRedisplayIntervalMs(setLength: number): number {
+    return setLength > 0 ? ROTATION_PERIOD_MS * setLength : 0;
+  }
   let settleFloorStage = $state<LadderStage>(ladderOverride ?? 0);
   const now = new Date("2026-08-15T12:34:56+09:00");
   const wideFloodRequested = params.get("flood") === "wide" || params.get("floodWide") === "1";
@@ -244,7 +282,9 @@
   let rotationActiveKey = $state<CardKey | null>(null);
   let rotationSchedulerStage: LadderStage | null = null;
   let rotationSchedulerKeys: CardKey[] = [];
+  let rotationPhaseKey: CardKey | null = null;
   let rotationEnteredAtMs = 0;
+  let rotationActiveStartedAtMs = 0;
   let rotationProcessedTick = 0;
   let rotationTimer: ReturnType<typeof setTimeout> | null = null;
   let rotationTransition: Animation | null = null;
@@ -328,6 +368,17 @@
     return typeof window !== "undefined"
       && typeof window.matchMedia === "function"
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function sameRotationKeys(leftKeys: readonly CardKey[], rightKeys: readonly CardKey[]): boolean {
+    return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => key === rightKeys[index]);
+  }
+
+  function resetRotationPhase(key: CardKey, startedAtMs: number): void {
+    rotationPhaseKey = key;
+    rotationEnteredAtMs = startedAtMs;
+    rotationActiveStartedAtMs = startedAtMs;
+    rotationProcessedTick = 0;
   }
 
   function completeRotationTransition(token: number): void {
@@ -425,7 +476,12 @@
     }
     rotationProcessedTick = elapsedTicks;
     const canonicalKeys = rotationKeysInCanonicalOrder(rotationSchedulerKeys);
-    applyRotationKey(canonicalKeys[elapsedTicks % canonicalKeys.length] ?? null, true);
+    const phaseIndex = rotationPhaseKey == null ? 0 : canonicalKeys.indexOf(rotationPhaseKey);
+    const activeIndex = rotationActiveKey == null ? -1 : canonicalKeys.indexOf(rotationActiveKey);
+    const originIndex = phaseIndex >= 0 ? phaseIndex : Math.max(0, activeIndex);
+    const nextKey = canonicalKeys[(originIndex + elapsedTicks) % canonicalKeys.length] ?? null;
+    applyRotationKey(nextKey, true);
+    rotationActiveStartedAtMs = rotationEnteredAtMs + elapsedTicks * ROTATION_PERIOD_MS;
     scheduleRotationTimer(nowMs);
   }
 
@@ -446,6 +502,10 @@
       rotationSchedulerStage = null;
       rotationSchedulerKeys = [];
       rotationSchedulerSuspended = false;
+      rotationPhaseKey = null;
+      rotationEnteredAtMs = 0;
+      rotationActiveStartedAtMs = 0;
+      rotationProcessedTick = 0;
       rotationActiveKey = null;
       rotationTickPending = false;
       rotationEpochBusy = false;
@@ -455,23 +515,36 @@
     const resuming = rotationSchedulerSuspended;
     const previousKeys = rotationSchedulerKeys;
     const previousKey = rotationActiveKey;
+    const collectionChanged = !sameRotationKeys(previousKeys, canonicalKeys);
     if (rotationSchedulerStage !== 3) {
       rotationSchedulerStage = 3;
       rotationSchedulerKeys = canonicalKeys;
       rotationSchedulerSuspended = false;
       rotationEnteredAtMs = monotonicNowMs();
-      rotationProcessedTick = 0;
       const initialKey = rotationTickOverride == null
         ? canonicalKeys[0]
         : canonicalKeys[rotationTickOverride % canonicalKeys.length];
+      if (initialKey != null) resetRotationPhase(initialKey, rotationEnteredAtMs);
       applyRotationKey(initialKey ?? null, false);
     } else {
       rotationSchedulerKeys = canonicalKeys;
       rotationSchedulerSuspended = false;
       if (rotationTickOverride != null) {
         applyRotationKey(canonicalKeys[rotationTickOverride % canonicalKeys.length] ?? null, false);
-      } else if (previousKey == null || !canonicalKeys.includes(previousKey)) {
-        applyRotationKey(nextRotationKeyAfterRemoval(previousKeys, previousKey, canonicalKeys), false);
+      } else if (collectionChanged) {
+        const nowMs = monotonicNowMs();
+        if (previousKey != null && canonicalKeys.includes(previousKey)) {
+          // 追加・非 active 削除: 現在 key の表示開始時刻を新しい位相の起点にする。
+          // 次 tick は新集合での current key の canonical 後続から始まる。
+          resetRotationPhase(previousKey, rotationActiveStartedAtMs);
+        } else {
+          // active 削除: 旧 canonical 後続へ即時交代し、その交代時刻を新しい位相の起点にする。
+          const nextKey = nextRotationKeyAfterRemoval(previousKeys, previousKey, canonicalKeys);
+          if (nextKey != null) {
+            resetRotationPhase(nextKey, nowMs);
+            applyRotationKey(nextKey, false);
+          }
+        }
       }
     }
     if (resuming) rotationTickPending = true;
@@ -487,9 +560,17 @@
   function disposeRotationScheduler(): void {
     rotationSchedulerMounted = false;
     clearRotationTimer();
+    if (rotationTestChangeTimer != null) {
+      clearTimeout(rotationTestChangeTimer);
+      rotationTestChangeTimer = null;
+    }
     cancelRotationTransition();
     rotationSchedulerStage = null;
     rotationSchedulerKeys = [];
+    rotationPhaseKey = null;
+    rotationEnteredAtMs = 0;
+    rotationActiveStartedAtMs = 0;
+    rotationProcessedTick = 0;
     rotationActiveKey = null;
     rotationTickPending = false;
   }
@@ -595,7 +676,8 @@
     measurementDisposed = false;
     readMeasurements();
     rotationSchedulerMounted = true;
-    syncRotationScheduler(layoutPlan.stage, layoutPlan.rotationKeys);
+    syncRotationScheduler(layoutPlan.stage, schedulerRotationKeys);
+    scheduleRotationTestMutation();
     void settleMeasurements();
     return () => {
       measurementDisposed = true;
@@ -1092,6 +1174,23 @@
   // compact 昇格 → quake→weather の行 prefix 展開を残余容量へ順に当てる。
   const layoutPlan = $derived(baselinePlan);
 
+  const schedulerRotationKeys = $derived.by(() => layoutPlan.stage === 3
+    ? rotationKeysInCanonicalOrder(rotationTestKeys ?? layoutPlan.rotationKeys)
+    : []);
+
+  function scheduleRotationTestMutation(): void {
+    if (rotationTestChange == null) return;
+    rotationTestChangeTimer = setTimeout(() => {
+      rotationTestChangeTimer = null;
+      const currentKeys = rotationTestKeys ?? layoutPlan.rotationKeys;
+      if (rotationTestChange.action === "add") {
+        if (!currentKeys.includes(rotationTestChange.key)) rotationTestKeys = [...currentKeys, rotationTestChange.key];
+      } else {
+        rotationTestKeys = currentKeys.filter((key) => key !== rotationTestChange.key);
+      }
+    }, rotationTestChangeAtMs);
+  }
+
   function cardPlacement(plan: ColumnPlan, key: CardKey): "left" | "right" | "center" | null {
     if (plan.left.some((card) => card.key === key)) return "left";
     if (plan.right.some((card) => card.key === key)) return "right";
@@ -1187,7 +1286,7 @@
   // し、同じ stage 3 の再計測なら現在 key と起点時刻を維持する。
   $effect(() => {
     const stage = layoutPlan.stage;
-    const keys = layoutPlan.rotationKeys;
+    const keys = schedulerRotationKeys;
     const epoch = measurementPass;
     const settled = measurementSettled;
     void epoch;
@@ -1241,8 +1340,8 @@
   const centerCards = $derived(plannedCards(layoutPlan.center, "center", contentSelection));
   const compactCandidates = $derived(buildCandidates({ quake: "compact", weather: "compact", typhoon: "compact" }));
   const rotationActiveKeyForRender = $derived.by(() => {
-    if (layoutPlan.stage !== 3 || layoutPlan.rotationKeys.length === 0) return null;
-    const canonicalKeys = rotationKeysInCanonicalOrder(layoutPlan.rotationKeys);
+    if (layoutPlan.stage !== 3 || schedulerRotationKeys.length === 0) return null;
+    const canonicalKeys = rotationKeysInCanonicalOrder(schedulerRotationKeys);
     if (rotationTickOverride != null) return canonicalKeys[rotationTickOverride % canonicalKeys.length] ?? null;
     return rotationActiveKey != null && canonicalKeys.includes(rotationActiveKey)
       ? rotationActiveKey
@@ -1269,6 +1368,33 @@
   function isExpanded(entry: PlannedCard): boolean {
     return (entry.key === "quake" || entry.key === "weather") && entry.regionRows > 0;
   }
+
+  const floodForm = $derived.by(() => {
+    if (flood == null) return "none";
+    const placement = cardPlacement(layoutPlan, "flood");
+    return floodIsWide && (placement === "center" || contentSelection.floodWide) ? "wide" : "card";
+  });
+
+  const expandedCounts = $derived.by(() => {
+    const quake = quakeForRegionRows(contentSelection.quakeRows);
+    const weatherByKind: Record<string, { count: number; n: number }> = {};
+    for (const alert of weatherForRegionRows(contentSelection.weatherRows)) {
+      for (const item of alert.items) {
+        const previous = weatherByKind[item.kind] ?? { count: 0, n: 0 };
+        weatherByKind[item.kind] = {
+          count: previous.count + item.shownAreas.length,
+          n: previous.n + item.omittedAreaCount,
+        };
+      }
+    }
+    return JSON.stringify({
+      quake: {
+        count: quake.intensityGroups.reduce((total, group) => total + group.areas.length, 0),
+        n: quake.intensityGroups.reduce((total, group) => total + group.omittedAreaCount, 0),
+      },
+      weather: weatherByKind,
+    });
+  });
 </script>
 
   {#snippet renderCard(
@@ -1330,7 +1456,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v16</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v17</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -1370,10 +1496,13 @@
   data-left-residual-height-px={Math.max(0, layoutCapacityPx() - selectedColumnHeight(layoutPlan.left, "left", contentSelection))}
   data-right-residual-height-px={Math.max(0, layoutCapacityPx() - selectedRightHeight(layoutPlan, contentSelection))}
   data-center-residual-height-px={Math.max(0, centerCapacityPx() - selectedCenterHeight(layoutPlan, contentSelection))}
-  data-typhoon-display-mode={contentSelection.typhoon}
+  data-typhoon-display-mode={typhoon == null ? "none" : contentSelection.typhoon}
   data-flood-wide-promoted={contentSelection.floodWide ? "true" : "false"}
   data-quake-expanded-rows={contentSelection.quakeRows}
   data-weather-expanded-rows={contentSelection.weatherRows}
+  data-typhoon-variant={typhoon == null ? "none" : contentSelection.typhoon}
+  data-flood-form={floodForm}
+  data-expanded-counts={expandedCounts}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage === 0 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
@@ -1381,16 +1510,17 @@
   data-center-unresolved={layoutPlan.centerUnresolved ? "true" : "false"}
   data-layout-unresolved={layoutPlan.unresolved ? "true" : "false"}
   data-layout-failure={layoutPlan.layoutFailure ? "true" : "false"}
-  data-rotation-keys={layoutPlan.rotationKeys.join(",")}
+  data-rotation-keys={schedulerRotationKeys.join(",")}
   data-rotation-current-key={rotationActiveKeyForRender ?? undefined}
   data-rotation-active-key={rotationActiveKeyForRender ?? undefined}
   data-rotation-omitted-count={layoutPlan.rotationFailureCount}
+  data-rotation-cycle-ms={rotationRedisplayIntervalMs(schedulerRotationKeys.length)}
   data-rotation-slot-height-px={layoutPlan.rotationSlotHeight}
   data-rotation-failure-count={layoutPlan.rotationFailureCount}
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v16</strong>
+    <strong>従来フォーマット改良 v17</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 

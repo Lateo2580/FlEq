@@ -76,7 +76,7 @@ function installMeasuredLayout(options: { capacityPx?: number; baseCardPx?: numb
   };
 }
 
-describe("legacy improved standby mock v16", () => {
+describe("legacy improved standby mock v17", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -313,9 +313,9 @@ describe("legacy improved standby mock v16", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v16 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v17 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v16");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v17");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -401,6 +401,101 @@ describe("legacy improved standby mock v16", () => {
     }
   });
 
+  it("keeps the same key and starts the new phase at its display start on addition", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=volcano,heat&rotationChange=add:typhoon&rotationChangeAt=1000");
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("volcano");
+
+      vi.advanceTimersByTime(1_000);
+      await tick();
+      expect(root.dataset.rotationKeys).toBe("typhoon,volcano,heat");
+      expect(root.dataset.rotationActiveKey).toBe("volcano");
+
+      vi.advanceTimersByTime(14_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("heat");
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the active key and resets phase when a non-active key is removed", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=typhoon,volcano,heat&rotationChange=remove:volcano&rotationChangeAt=31000");
+      await tick();
+      vi.advanceTimersByTime(30_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("heat");
+
+      vi.advanceTimersByTime(1_000);
+      await tick();
+      expect(root.dataset.rotationKeys).toBe("typhoon,heat");
+      expect(root.dataset.rotationActiveKey).toBe("heat");
+
+      vi.advanceTimersByTime(14_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("typhoon");
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("moves immediately to the canonical successor when the active key is removed", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=typhoon,volcano,heat&rotationChange=remove:typhoon&rotationChangeAt=1000");
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("typhoon");
+
+      vi.advanceTimersByTime(1_000);
+      await tick();
+      expect(root.dataset.rotationKeys).toBe("volcano,heat");
+      expect(root.dataset.rotationActiveKey).toBe("volcano");
+
+      vi.advanceTimersByTime(15_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("heat");
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("uses a 15 second times rotation-set length re-display interval", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=typhoon,volcano,heat");
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("typhoon");
+
+      vi.advanceTimersByTime(30_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).not.toBe("typhoon");
+
+      vi.advanceTimersByTime(15_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe("typhoon");
+      expect(root.dataset.rotationCycleMs).toBe("45000");
+      expect(mockSource).toContain("function rotationRedisplayIntervalMs");
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps wide flood placement conversion measurable for central and side promotion", () => {
     const { rendered, root } = renderMock("legacyMock2=7&flood=wide&ladder=1");
 
@@ -418,6 +513,24 @@ describe("legacy improved standby mock v16", () => {
     expect(mockSource).toContain("wide surface は中央 36rem の恩恵を受ける優先候補");
     expect(mockSource).toContain("FloodWideCard");
     expect(mockSource).toContain("data-center-measure-card");
+  });
+
+  it("exposes v17 surplus-use diagnostics for wide flood and recalculated counts", () => {
+    const { root, rendered } = renderMock("legacyMock2=7&floodWide=1&ladder=0");
+    expect(root.dataset.typhoonVariant).toBeDefined();
+    expect(root.dataset.floodForm).toBe("wide");
+    const expandedCounts = JSON.parse(root.dataset.expandedCounts ?? "{}") as {
+      quake?: { count: number; n: number };
+      weather?: Record<string, { count: number; n: number }>;
+    };
+    expect(expandedCounts.quake?.count).toBe(7);
+    expect(expandedCounts.quake?.n).toBe(0);
+    expect(expandedCounts.weather?.["大雨警報(土砂災害)"]?.count).toBe(12);
+    expect(expandedCounts.weather?.["大雨警報(土砂災害)"]?.n).toBe(0);
+    expect(mockSource).toContain("data-typhoon-variant");
+    expect(mockSource).toContain("data-flood-form");
+    expect(mockSource).toContain("data-expanded-counts");
+    rendered.unmount();
   });
 
   it("separates DOM settle and rotation candidate counters", () => {
