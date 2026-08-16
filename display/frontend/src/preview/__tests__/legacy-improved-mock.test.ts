@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanup, render } from "@testing-library/svelte";
-import { afterEach, describe, expect, it } from "vitest";
+import { tick } from "svelte";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import LegacyImprovedMock from "../LegacyImprovedMock.svelte";
 
 const mockSource = readFileSync(join(__dirname, "..", "LegacyImprovedMock.svelte"), "utf8");
@@ -19,7 +20,43 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v14", () => {
+function installMeasuredLayout(): () => void {
+  const offsetHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+  const originalRect = HTMLElement.prototype.getBoundingClientRect;
+  Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    configurable: true,
+    get(this: HTMLElement): number {
+      if (this.classList.contains("legacy-layout")) return 180;
+      if (this.matches("[data-measure-card], [data-center-measure-card], [data-mock-card]")) return 90;
+      if (this.classList.contains("center-stack-card")) return 20;
+      if (this.classList.contains("rotation-failure-measure")) return 24;
+      if (this.hasAttribute("data-nankai-ticker")) return 20;
+      return offsetHeightDescriptor?.get?.call(this) ?? 0;
+    },
+  });
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
+    if (this.classList.contains("legacy-layout")) {
+      return { x: 0, y: 0, width: 960, height: 180, top: 0, right: 960, bottom: 180, left: 0, toJSON: () => ({}) } as DOMRect;
+    }
+    if (this.matches("[data-mock-card], [data-measure-card], [data-center-measure-card]")) {
+      return { x: 0, y: 0, width: 300, height: 90, top: 0, right: 300, bottom: 90, left: 0, toJSON: () => ({}) } as DOMRect;
+    }
+    if (this.classList.contains("ticker-reserve")) {
+      return { x: 0, y: 180, width: 960, height: 52, top: 180, right: 960, bottom: 232, left: 0, toJSON: () => ({}) } as DOMRect;
+    }
+    return originalRect.call(this);
+  };
+  return () => {
+    if (offsetHeightDescriptor == null) {
+      Reflect.deleteProperty(HTMLElement.prototype, "offsetHeight");
+    } else {
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", offsetHeightDescriptor);
+    }
+    HTMLElement.prototype.getBoundingClientRect = originalRect;
+  };
+}
+
+describe("legacy improved standby mock v15", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -195,6 +232,7 @@ describe("legacy improved standby mock v14", () => {
     expect(mockSource).toMatch(/\.clock-below\s*\{[^}]*justify-content:\s*space-between;[^}]*height:\s*var\(--mock-cluster-flow-height\)/s);
     expect(mockSource).toContain("const clusterGap = lowerSpace > 0 ? Math.floor(lowerSpace / 3) : 0;");
     expect(mockSource).toMatch(/\.side-left,[\s\n]+\.side-right\s*\{\s*align-items:\s*center;/s);
+    expect(mockSource).toMatch(/\.ladder-1 \.side,[\s\n]+\.ladder-2 \.side,[\s\n]+\.ladder-3 \.side \{ justify-content: safe center; \}/s);
     expect(mockSource).toContain("--mock-cluster-gap: calc(var(--mock-gap) * 1.75);");
     expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*justify-content:\s*safe center/s);
   });
@@ -255,9 +293,9 @@ describe("legacy improved standby mock v14", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v14 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v15 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v14");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v15");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -299,5 +337,72 @@ describe("legacy improved standby mock v14", () => {
     expect(mockSource).toContain("rotationTickParam");
     expect(mockSource).toContain("data-rotation-keys");
     expect(mockSource).toContain("data-measurement-settled");
+  });
+
+  it("runs the real-time rotation scheduler in canonical order every 15 seconds", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3");
+      await tick();
+      const keys = (root.dataset.rotationKeys ?? "").split(",").filter(Boolean);
+      expect(keys.length).toBeGreaterThanOrEqual(2);
+      expect(root.dataset.rotationActiveKey).toBe(keys[0]);
+
+      vi.advanceTimersByTime(14_999);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe(keys[0]);
+
+      vi.advanceTimersByTime(1);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe(keys[1]);
+
+      const observed = [keys[0], root.dataset.rotationActiveKey ?? ""];
+      for (let index = 2; index < keys.length; index += 1) {
+        vi.advanceTimersByTime(15_000);
+        await tick();
+        observed.push(root.dataset.rotationActiveKey ?? "");
+      }
+      expect(observed).toEqual(keys);
+      vi.advanceTimersByTime(15_000);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe(keys[0]);
+      expect(root.dataset.rotationOmittedCount).toBeDefined();
+      rendered.unmount();
+      expect(mockSource).toContain("ROTATION_PERIOD_MS = 15_000");
+      expect(mockSource).toContain("rotationTickOverride");
+      expect(mockSource).toContain("nextRotationKeyAfterRemoval");
+      expect(mockSource).toContain("disposeRotationScheduler");
+      expect(mockSource).toContain("rotationTickPending");
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps wide flood as FloodWideCard only in the central placement and measures both forms", () => {
+    const { rendered, root } = renderMock("legacyMock2=7&flood=wide&ladder=1");
+
+    expect(root.dataset.floodWideRequested).toBe("true");
+    expect(rendered.container.querySelector('[data-measure-card="flood"] .flood-card')).toBeTruthy();
+    expect(rendered.container.querySelector('[data-center-measure-card="flood"] .flood-wide-card')).toBeTruthy();
+    const visibleFlood = rendered.container.querySelector<HTMLElement>('[data-mock-card="flood"]');
+    if (visibleFlood?.dataset.floodRenderMode === "wide") {
+      expect(visibleFlood.querySelector(".flood-wide-card")).toBeTruthy();
+    } else if (visibleFlood != null) {
+      expect(visibleFlood.querySelector(".flood-card")).toBeTruthy();
+    }
+    expect(mockSource).toContain("standbyItemsFloodWide");
+    expect(mockSource).toContain("placement === \"center\" && floodIsWide");
+    expect(mockSource).toContain("wide surface は中央 36rem の恩恵を受ける優先候補");
+    expect(mockSource).toContain("FloodWideCard");
+    expect(mockSource).toContain("data-center-measure-card");
+  });
+
+  it("separates DOM settle and rotation candidate counters", () => {
+    expect(mockSource).toContain("const MAX_SETTLE_PASSES = 4;");
+    expect(mockSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 5;");
+    expect(mockSource).toMatch(/pass < MAX_ROTATION_CANDIDATE_PASSES[^\n]*displayedKeys\.length \+ failedKeys\.length < available\.length/s);
+    expect(mockSource).not.toMatch(/pass < MAX_SETTLE_PASSES[^\n]*displayedKeys\.length/s);
   });
 });

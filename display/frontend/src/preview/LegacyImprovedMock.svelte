@@ -2,6 +2,7 @@
   import { onMount, tick } from "svelte";
   import Clock from "../components/Clock.svelte";
   import FloodCard from "../components/FloodCard.svelte";
+  import FloodWideCard from "../components/FloodWideCard.svelte";
   import HeatAlertCard from "../components/HeatAlertCard.svelte";
   import InstrumentRow from "../components/InstrumentRow.svelte";
   import LatestQuakeCard from "../components/LatestQuakeCard.svelte";
@@ -23,6 +24,7 @@
     legacyImprovedTornadoFullAreas,
     recentQuakesRich,
     standbyItemsShowcase,
+    standbyItemsFloodWide,
     statsStandbyCards,
     tsunamiBanner,
     weatherWarningOnlyStandbyCards,
@@ -114,16 +116,25 @@
   const ladderOverride = parseLadder(params.get("ladder"));
   const ladderAuto = ladderOverride == null;
   const rotationTickParam = params.get("rotationTick");
-  const rotationTick = rotationTickParam == null || !/^\d+$/.test(rotationTickParam)
-    ? 0
+  const rotationTickOverride = rotationTickParam == null || !/^\d+$/.test(rotationTickParam)
+    ? null
     : Number.parseInt(rotationTickParam, 10);
   const MAX_SETTLE_PASSES = 4;
+  const MAX_ROTATION_CANDIDATE_PASSES = 5;
+  const ROTATION_PERIOD_MS = 15_000;
+  const ROTATION_TRANSITION_DEADLINE_MS = 500;
   let settleFloorStage = $state<LadderStage>(ladderOverride ?? 0);
   const now = new Date("2026-08-15T12:34:56+09:00");
-  const activeItems = scenario === "max" ? legacyImprovedMaxItems : standbyItemsShowcase;
+  const wideFloodRequested = params.get("flood") === "wide" || params.get("floodWide") === "1";
+  const baseActiveItems = scenario === "max" ? legacyImprovedMaxItems : standbyItemsShowcase;
+  const wideFloodItem = findItem(standbyItemsFloodWide, "flood");
+  const activeItems = wideFloodRequested && scenario !== "4" && wideFloodItem != null
+    ? [...baseActiveItems.filter((item) => item.kind !== "flood"), wideFloodItem]
+    : baseActiveItems;
   const unknownInputs = scenario === "max" ? legacyImprovedMaxUnknownItems : [];
   const tsunami = scenario === "4" ? null : tsunamiBanner;
   const flood = scenario === "4" ? null : findItem(activeItems, "flood");
+  const floodIsWide = flood?.surface === "clock-top-wide";
   const typhoon = scenario === "4" ? null : findItem(activeItems, "typhoon");
   const volcano = findItem(activeItems, "volcano");
   const heat = findItem(activeItems, "heat");
@@ -193,6 +204,24 @@
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
   let rotationFailureMeasureEl = $state<HTMLElement | null>(null);
+  let rotationSlotEl = $state<HTMLElement | null>(null);
+  let rotationActiveKey = $state<CardKey | null>(null);
+  let rotationSchedulerStage: LadderStage | null = null;
+  let rotationSchedulerKeys: CardKey[] = [];
+  let rotationEnteredAtMs = 0;
+  let rotationProcessedTick = 0;
+  let rotationTimer: ReturnType<typeof setTimeout> | null = null;
+  let rotationTransition: Animation | null = null;
+  let rotationTransitionDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
+  let rotationTransitionToken = 0;
+  let rotationEpochBusy = false;
+  let rotationTickPending = false;
+  let rotationSchedulerSuspended = false;
+  let rotationSchedulerMounted = false;
+  let measurementDisposed = false;
+  let monotonicOriginPerformanceMs: number | null = null;
+  let monotonicOriginDateMs: number | null = null;
+  let monotonicLastMs = 0;
 
   function captureMeasure(node: HTMLElement, id: string): { destroy: () => void } {
     measureNodes.set(id, node);
@@ -226,6 +255,207 @@
       child?.offsetHeight ?? 0,
       child?.scrollHeight ?? 0,
     ));
+  }
+
+  function monotonicNowMs(): number {
+    const performanceNow = typeof performance !== "undefined" ? performance.now() : Number.NaN;
+    const dateNow = Date.now();
+    monotonicOriginPerformanceMs ??= Number.isFinite(performanceNow) ? performanceNow : 0;
+    monotonicOriginDateMs ??= dateNow;
+    const performanceDelta = Number.isFinite(performanceNow) ? performanceNow - monotonicOriginPerformanceMs : 0;
+    const dateDelta = dateNow - monotonicOriginDateMs;
+    // performance.now() は本番の単調時計、Date の差分は fake timer/バックグラウンド復帰の
+    // 補助時計として使う。前回値を下回らないようにすることで wall-clock の逆行を吸収する。
+    monotonicLastMs = Math.max(monotonicLastMs, performanceDelta, dateDelta);
+    return monotonicLastMs;
+  }
+
+  function clearRotationTimer(): void {
+    if (rotationTimer != null) {
+      clearTimeout(rotationTimer);
+      rotationTimer = null;
+    }
+  }
+
+  function cancelRotationTransition(): void {
+    rotationTransitionToken += 1;
+    if (rotationTransitionDeadlineTimer != null) {
+      clearTimeout(rotationTransitionDeadlineTimer);
+      rotationTransitionDeadlineTimer = null;
+    }
+    const animation = rotationTransition;
+    rotationTransition = null;
+    animation?.cancel();
+  }
+
+  function reducedMotionRequested(): boolean {
+    return typeof window !== "undefined"
+      && typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function completeRotationTransition(token: number): void {
+    if (token !== rotationTransitionToken) return;
+    if (rotationTransitionDeadlineTimer != null) {
+      clearTimeout(rotationTransitionDeadlineTimer);
+      rotationTransitionDeadlineTimer = null;
+    }
+    rotationTransition = null;
+    if (rotationTickPending && !rotationEpochBusy) {
+      rotationTickPending = false;
+      processRotationTick();
+    }
+  }
+
+  function startRotationTransition(): void {
+    if (rotationSlotEl == null || reducedMotionRequested() || typeof rotationSlotEl.animate !== "function") return;
+    const token = ++rotationTransitionToken;
+    const animation = rotationSlotEl.animate(
+      [{ opacity: "0.72" }, { opacity: "1" }],
+      { duration: ROTATION_TRANSITION_DEADLINE_MS / 2, easing: "ease-out" },
+    );
+    rotationTransition = animation;
+    animation.onfinish = () => completeRotationTransition(token);
+    animation.oncancel = () => completeRotationTransition(token);
+    rotationTransitionDeadlineTimer = setTimeout(() => {
+      if (token !== rotationTransitionToken) return;
+      animation.cancel();
+      completeRotationTransition(token);
+    }, ROTATION_TRANSITION_DEADLINE_MS);
+  }
+
+  function applyRotationKey(key: CardKey | null, animate: boolean): void {
+    if (key == null || key === rotationActiveKey) return;
+    cancelRotationTransition();
+    // 空フレームを作らず、新しいカードを同じ枠へ直接差し替える。
+    rotationActiveKey = key;
+    if (!animate || rotationTickOverride != null || rotationSchedulerStage !== 3) return;
+    const token = rotationTransitionToken;
+    void tick().then(() => {
+      if (token !== rotationTransitionToken || rotationActiveKey !== key || rotationSchedulerStage !== 3) return;
+      startRotationTransition();
+    });
+  }
+
+  function nextRotationKeyAfterRemoval(
+    previousKeys: readonly CardKey[],
+    previousKey: CardKey | null,
+    nextKeys: readonly CardKey[],
+  ): CardKey | null {
+    const canonicalNext = rotationKeysInCanonicalOrder(nextKeys);
+    if (canonicalNext.length === 0) return null;
+    if (previousKey == null) return canonicalNext[0];
+    const canonicalPrevious = rotationKeysInCanonicalOrder(previousKeys);
+    const previousIndex = canonicalPrevious.indexOf(previousKey);
+    if (previousIndex >= 0) {
+      for (let offset = 1; offset <= canonicalPrevious.length; offset += 1) {
+        const candidate = canonicalPrevious[(previousIndex + offset) % canonicalPrevious.length];
+        if (canonicalNext.includes(candidate)) return candidate;
+      }
+    }
+    return canonicalNext[0];
+  }
+
+  function scheduleRotationTimer(nowMs = monotonicNowMs()): void {
+    clearRotationTimer();
+    if (rotationTickOverride != null || rotationSchedulerStage !== 3 || rotationSchedulerSuspended || rotationSchedulerKeys.length <= 1) return;
+    const elapsedTicks = Math.max(0, Math.floor((nowMs - rotationEnteredAtMs) / ROTATION_PERIOD_MS));
+    const nextDeadline = rotationEnteredAtMs + (elapsedTicks + 1) * ROTATION_PERIOD_MS;
+    rotationTimer = setTimeout(() => {
+      rotationTimer = null;
+      if (rotationEpochBusy) {
+        rotationTickPending = true;
+        return;
+      }
+      processRotationTick();
+    }, Math.max(0, nextDeadline - nowMs));
+  }
+
+  function processRotationTick(): void {
+    if (!rotationSchedulerMounted || rotationSchedulerStage !== 3 || rotationSchedulerSuspended || rotationSchedulerKeys.length === 0) return;
+    if (rotationEpochBusy) {
+      rotationTickPending = true;
+      return;
+    }
+    if (rotationTransition != null && rotationTransition.playState === "running") {
+      rotationTickPending = true;
+      return;
+    }
+    const nowMs = monotonicNowMs();
+    const elapsedTicks = Math.max(0, Math.floor((nowMs - rotationEnteredAtMs) / ROTATION_PERIOD_MS));
+    if (elapsedTicks <= rotationProcessedTick) {
+      scheduleRotationTimer(nowMs);
+      return;
+    }
+    rotationProcessedTick = elapsedTicks;
+    const canonicalKeys = rotationKeysInCanonicalOrder(rotationSchedulerKeys);
+    applyRotationKey(canonicalKeys[elapsedTicks % canonicalKeys.length] ?? null, true);
+    scheduleRotationTimer(nowMs);
+  }
+
+  function syncRotationScheduler(stage: LadderStage, keys: readonly CardKey[]): void {
+    if (!rotationSchedulerMounted || measurementDisposed) return;
+    rotationEpochBusy = true;
+    // epoch/stage 更新を tick より優先し、進行中の transition はここで cancel する。
+    cancelRotationTransition();
+    const canonicalKeys = rotationKeysInCanonicalOrder(keys);
+    if (stage !== 3 || canonicalKeys.length === 0) {
+      if (rotationSchedulerStage === 3 && !measurementSettled) {
+        rotationSchedulerSuspended = true;
+        clearRotationTimer();
+        rotationEpochBusy = false;
+        return;
+      }
+      clearRotationTimer();
+      rotationSchedulerStage = null;
+      rotationSchedulerKeys = [];
+      rotationSchedulerSuspended = false;
+      rotationActiveKey = null;
+      rotationTickPending = false;
+      rotationEpochBusy = false;
+      return;
+    }
+
+    const resuming = rotationSchedulerSuspended;
+    const previousKeys = rotationSchedulerKeys;
+    const previousKey = rotationActiveKey;
+    if (rotationSchedulerStage !== 3) {
+      rotationSchedulerStage = 3;
+      rotationSchedulerKeys = canonicalKeys;
+      rotationSchedulerSuspended = false;
+      rotationEnteredAtMs = monotonicNowMs();
+      rotationProcessedTick = 0;
+      const initialKey = rotationTickOverride == null
+        ? canonicalKeys[0]
+        : canonicalKeys[rotationTickOverride % canonicalKeys.length];
+      applyRotationKey(initialKey ?? null, false);
+    } else {
+      rotationSchedulerKeys = canonicalKeys;
+      rotationSchedulerSuspended = false;
+      if (rotationTickOverride != null) {
+        applyRotationKey(canonicalKeys[rotationTickOverride % canonicalKeys.length] ?? null, false);
+      } else if (previousKey == null || !canonicalKeys.includes(previousKey)) {
+        applyRotationKey(nextRotationKeyAfterRemoval(previousKeys, previousKey, canonicalKeys), false);
+      }
+    }
+    if (resuming) rotationTickPending = true;
+    rotationEpochBusy = false;
+    if (rotationTickPending) {
+      rotationTickPending = false;
+      processRotationTick();
+    } else {
+      scheduleRotationTimer();
+    }
+  }
+
+  function disposeRotationScheduler(): void {
+    rotationSchedulerMounted = false;
+    clearRotationTimer();
+    cancelRotationTransition();
+    rotationSchedulerStage = null;
+    rotationSchedulerKeys = [];
+    rotationActiveKey = null;
+    rotationTickPending = false;
   }
 
   function cssPx(value: string | undefined): number {
@@ -308,7 +538,9 @@
   async function settleMeasurements(): Promise<void> {
     let previousSignature = measurementSignature();
     for (let pass = 1; pass < MAX_SETTLE_PASSES; pass += 1) {
+      if (measurementDisposed) return;
       await tick();
+      if (measurementDisposed) return;
       if (ladderAuto && layoutPlan.stage > settleFloorStage) settleFloorStage = layoutPlan.stage;
       readMeasurements();
       await tick();
@@ -324,8 +556,15 @@
   }
 
   onMount(() => {
+    measurementDisposed = false;
     readMeasurements();
+    rotationSchedulerMounted = true;
+    syncRotationScheduler(layoutPlan.stage, layoutPlan.rotationKeys);
     void settleMeasurements();
+    return () => {
+      measurementDisposed = true;
+      disposeRotationScheduler();
+    };
   });
 
   function measureId(key: CardKey, variant: CardVariant): string {
@@ -431,6 +670,11 @@
       if (leftChoice.center.length !== rightChoice.center.length) {
         return leftChoice.center.length - rightChoice.center.length;
       }
+      // wide surface は中央 36rem の恩恵を受ける優先候補。中央移動枚数が同じ場合だけ
+      // tie-break に参加させ、通常の「時計を中央に残す」目的関数を崩さない。
+      const leftWideFlood = floodIsWide && leftChoice.center.some((card) => card.key === "flood");
+      const rightWideFlood = floodIsWide && rightChoice.center.some((card) => card.key === "flood");
+      if (leftWideFlood !== rightWideFlood) return leftWideFlood ? -1 : 1;
       const leftMax = Math.max(columnNaturalHeight(leftChoice.left), rightNaturalHeight(leftChoice.right, rotationSlotHeight, failureHeight));
       const rightMax = Math.max(columnNaturalHeight(rightChoice.left), rightNaturalHeight(rightChoice.right, rotationSlotHeight, failureHeight));
       if (leftMax !== rightMax) return leftMax - rightMax;
@@ -548,7 +792,7 @@
 
   function rotationCurrentKey(keys: readonly CardKey[]): CardKey | null {
     const canonicalKeys = rotationKeysInCanonicalOrder(keys);
-    return canonicalKeys.length === 0 ? null : canonicalKeys[rotationTick % canonicalKeys.length];
+    return canonicalKeys[0] ?? null;
   }
 
   interface RotationSolution {
@@ -579,7 +823,7 @@
       return { placement, slotHeight, failureHeight };
     }
 
-    for (let pass = 0; pass < MAX_SETTLE_PASSES && displayedKeys.length + failedKeys.length < available.length; pass += 1) {
+    for (let pass = 0; pass < MAX_ROTATION_CANDIDATE_PASSES && displayedKeys.length + failedKeys.length < available.length; pass += 1) {
       const nextKey = available.find((key) => !displayedKeys.includes(key) && !failedKeys.includes(key));
       if (nextKey == null) break;
       displayedKeys.push(nextKey);
@@ -768,6 +1012,20 @@
     return plan;
   });
 
+  // scheduler は layoutPlan の stage/key と測定 epoch だけを購読する。active key 自身は読まないため、
+  // tick による差し替えで scheduler が自己再入しない。epoch 更新中は sync 側で transition を cancel
+  // し、同じ stage 3 の再計測なら現在 key と起点時刻を維持する。
+  $effect(() => {
+    const stage = layoutPlan.stage;
+    const keys = layoutPlan.rotationKeys;
+    const epoch = measurementPass;
+    const settled = measurementSettled;
+    void epoch;
+    void settled;
+    if (!rotationSchedulerMounted) return;
+    syncRotationScheduler(stage, keys);
+  });
+
   const clusterGapStyle = $derived(
     measuredClusterGapPx > 0
       ? `${measuredClusterGapPx}px`
@@ -800,9 +1058,17 @@
   const rightCards = $derived(plannedCards(layoutPlan.right, "right"));
   const centerCards = $derived(plannedCards(layoutPlan.center, "center"));
   const compactCandidates = $derived(buildCandidates({ quake: "compact", weather: "compact", typhoon: "compact" }));
+  const rotationActiveKeyForRender = $derived.by(() => {
+    if (layoutPlan.stage !== 3 || layoutPlan.rotationKeys.length === 0) return null;
+    const canonicalKeys = rotationKeysInCanonicalOrder(layoutPlan.rotationKeys);
+    if (rotationTickOverride != null) return canonicalKeys[rotationTickOverride % canonicalKeys.length] ?? null;
+    return rotationActiveKey != null && canonicalKeys.includes(rotationActiveKey)
+      ? rotationActiveKey
+      : canonicalKeys[0] ?? null;
+  });
   const rotationCurrentCard = $derived.by(() => {
-    if (layoutPlan.rotationCurrentKey == null) return null;
-    return compactCandidates.find((card) => card.key === layoutPlan.rotationCurrentKey) ?? null;
+    if (rotationActiveKeyForRender == null) return null;
+    return compactCandidates.find((card) => card.key === rotationActiveKeyForRender) ?? null;
   });
   const rotationCurrentPlannedCard = $derived.by(() => rotationCurrentCard == null
     ? null
@@ -820,7 +1086,7 @@
   }
 </script>
 
-{#snippet renderCard(key: CardKey, variant: CardVariant)}
+  {#snippet renderCard(key: CardKey, variant: CardVariant, placement: "side" | "center" = "side")}
   {#if key === "tsunami" && tsunami != null}
     <TsunamiStandbyBanner tsunami={tsunami} />
   {:else if key === "quake"}
@@ -838,7 +1104,11 @@
       {/if}
     </div>
   {:else if key === "flood" && flood != null}
-    <FloodCard item={flood} />
+    {#if placement === "center" && floodIsWide}
+      <FloodWideCard item={flood} />
+    {:else}
+      <FloodCard item={flood} />
+    {/if}
   {:else if key === "typhoon" && typhoon != null}
     <TyphoonCard item={typhoon} displayMode={variant === "compact" ? "compact" : "full"} />
   {:else if key === "volcano" && volcano != null}
@@ -860,12 +1130,13 @@
     data-allocated-height-px={entry.allocatedHeight}
     data-height-extra-px={entry.extraHeight}
     data-card-clipped={entry.clipped ? "true" : undefined}
+    data-flood-render-mode={entry.key === "flood" && entry.placement === "center" && floodIsWide ? "wide" : entry.key === "flood" ? "side" : undefined}
   >
-    {@render renderCard(entry.key, entry.variant)}
+    {@render renderCard(entry.key, entry.variant, entry.placement === "center" ? "center" : "side")}
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v14</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v15</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -875,6 +1146,7 @@
   data-ladder-stage={layoutPlan.stage}
   data-ladder-auto={ladderAuto ? "true" : "false"}
   data-scenario={scenario}
+  data-flood-wide-requested={wideFloodRequested && floodIsWide ? "true" : "false"}
   data-suppressed-unknown-count={unknownInputs.length}
   data-input-item-count={cardKeys.length + unknownInputs.length}
   data-measurement-mode={measurementComplete ? "sync-dom" : "pending"}
@@ -906,13 +1178,15 @@
   data-layout-unresolved={layoutPlan.unresolved ? "true" : "false"}
   data-layout-failure={layoutPlan.layoutFailure ? "true" : "false"}
   data-rotation-keys={layoutPlan.rotationKeys.join(",")}
-  data-rotation-current-key={layoutPlan.rotationCurrentKey ?? undefined}
+  data-rotation-current-key={rotationActiveKeyForRender ?? undefined}
+  data-rotation-active-key={rotationActiveKeyForRender ?? undefined}
+  data-rotation-omitted-count={layoutPlan.rotationFailureCount}
   data-rotation-slot-height-px={layoutPlan.rotationSlotHeight}
   data-rotation-failure-count={layoutPlan.rotationFailureCount}
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v14</strong>
+    <strong>従来フォーマット改良 v15</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
@@ -944,7 +1218,7 @@
   <div class="center-measure-shelf" aria-hidden="true" inert>
     {#each measureEntries as entry (entry.id)}
       <div class="measure-item center-measure-item" data-center-measure-card={entry.id} use:captureCenterCardMeasure={entry.id}>
-        {@render renderCard(entry.key, entry.variant)}
+        {@render renderCard(entry.key, entry.variant, "center")}
       </div>
     {/each}
     <div class="center-stack-card center-measure-item" data-center-measure="stats" use:captureCenterMeasure={"stats"}>
@@ -985,7 +1259,7 @@
         {@render renderSideCard(entry)}
       {/each}
       {#if layoutPlan.stage === 3}
-        <div class="rotation-slot" data-rotation-slot style={`height: ${layoutPlan.rotationSlotHeight}px;`}>
+        <div class="rotation-slot" data-rotation-slot bind:this={rotationSlotEl} style={`height: ${layoutPlan.rotationSlotHeight}px;`}>
           {#if rotationCurrentPlannedCard != null}
             {@render renderSideCard(rotationCurrentPlannedCard)}
           {/if}
@@ -1147,10 +1421,10 @@
   .side-left,
   .side-right { align-items: center; }
 
-  /* 時計退避後も左右列は上詰めに保ち、中央の受け皿だけを縦中央へ置く。 */
+  /* stage 1 以降は v5 spec の裁定どおり、左右列も中央受け皿も縦中央へ置く。 */
   .ladder-1 .side,
   .ladder-2 .side,
-  .ladder-3 .side { justify-content: flex-start; }
+  .ladder-3 .side { justify-content: safe center; }
 
   .legacy-card {
     flex: 0 0 auto;
@@ -1167,8 +1441,17 @@
   .legacy-mock .legacy-card :global(.tsunami-banner),
   .legacy-mock .legacy-card :global(.quake-card),
   .legacy-mock .legacy-card :global(.weather-card),
-  .legacy-mock .legacy-card :global(.standby-card) {
+  .legacy-mock .legacy-card :global(.standby-card),
+  .legacy-mock .legacy-card :global(.flood-wide-card) {
     width: 100%;
+    max-width: 100%;
+  }
+
+  /* wide surface は中央 placement だけ FloodWideCard に変換する。測定棚も同じ中央幅で
+     測り、側列・輪番枠では通常の FloodCard を使う。 */
+  .legacy-mock .measure-item :global(.flood-wide-card) {
+    width: 100%;
+    max-width: 100%;
   }
 
   /* marquee の absolute 配置はカード外の positioned ancestor を基準に走るため、
