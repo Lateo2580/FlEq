@@ -340,7 +340,7 @@ describe("legacy improved standby mock v18", () => {
     expect(mockSource).toContain("const layoutPlan = $derived(baselinePlan);");
     expect(mockSource).toContain("function promoteAndExpand(plan: ColumnPlan): DisplaySelection");
     expect(mockSource).toContain('for (const key of ["quake", "weather"] as const)');
-    expect(mockSource).toContain("if (!selectionFits(plan, promoted)) break;");
+    expect(mockSource).toContain("if (selectionFits(plan, promoted)) best = regionRows;");
     expect(mockSource).not.toContain("expandedFits(plan");
   });
 

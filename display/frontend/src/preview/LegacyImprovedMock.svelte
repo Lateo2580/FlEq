@@ -921,16 +921,20 @@
       }
     }
 
-    // 地域展開は quake→weather、1 region row ごとに prefix を数える。
+    // 地域展開は quake→weather。prefix 高は「ほか n」行の消滅で非単調になり得るため、
+    // 途中 non-fit で打ち切らず全 prefix を評価して fit する最大値を採る (spec v9)。
     for (const key of ["quake", "weather"] as const) {
       if (![...choice.left, ...choice.right, ...choice.center].some((card) => card.key === key)) continue;
+      let best = 0;
       for (let regionRows = 1; regionRows <= maxRegionRows(key); regionRows += 1) {
         const promoted = key === "quake"
           ? { ...selection, quakeRows: regionRows }
           : { ...selection, weatherRows: regionRows };
-        if (!placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) break;
-        selection = promoted;
-        achieved += 1;
+        if (placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) best = regionRows;
+      }
+      if (best > 0) {
+        selection = key === "quake" ? { ...selection, quakeRows: best } : { ...selection, weatherRows: best };
+        achieved += best;
       }
     }
     return achieved;
@@ -1357,12 +1361,16 @@
     for (const key of ["quake", "weather"] as const) {
       if (plan.rotationKeys.includes(key)) continue;
       const maxRows = maxRegionRows(key);
+      // 非単調な prefix 高に備え、全 prefix を評価して fit する最大値を採る (spec v9)
+      let best = 0;
       for (let regionRows = 1; regionRows <= maxRows; regionRows += 1) {
         const promoted = key === "quake"
           ? { ...selection, quakeRows: regionRows }
           : { ...selection, weatherRows: regionRows };
-        if (!selectionFits(plan, promoted)) break;
-        selection = promoted;
+        if (selectionFits(plan, promoted)) best = regionRows;
+      }
+      if (best > 0) {
+        selection = key === "quake" ? { ...selection, quakeRows: best } : { ...selection, weatherRows: best };
       }
     }
     return selection;
