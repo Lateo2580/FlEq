@@ -2,8 +2,8 @@
 
 グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック反復（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=..&rotationTick=..&cardPageTick=..&floodWide=1]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。
 
-- **正本**: 寸法・配置・意味論の正本は**モック v22（`HEAD` の最新コミット）**。本文の数値はそこから写す。`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する。
-- **本文の役割分担**: spec は「保証すべき性質（invariant）・確定した規則・受け入れ Oracle」を定め、アルゴリズムの手続き詳細はモック実装を規範とする。両者が食い違う場合は、規則→spec が正、手続き→モックが正。
+- **正本**: モック v22（commit `5b469df`）。本文の数値はそこから写す。`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する。
+- **本文の役割分担（排他）**: **性質・意味論・確定規則＝spec が正**。**数値・視覚配置・規則を満たす手続きの実装＝モックが正**。食い違いはこの区分で裁定し、どちらに属するか曖昧な事項は spec 側に規則として追記してから進める。
 - 裁定に使った目視 packet は第一〜十八号（セッションログ参照）。本 spec は品質メタ見直し（2026-08-15 合意）の第一号適用例であり、§11 の受け入れ条件は Oracle 欄（主張・基線・反証条件・Oracle と証跡・判定者と時点）を持つ。
 
 ## 1. 目的と主張
@@ -76,7 +76,7 @@
 - 旧 4 段案の「左退避」は stage 0 の割当自由度に統合（ご主人裁定）。モックの `ladder` パラメータ旧番号との対応は新 0→旧 0・新 1→旧 2・新 2→旧 3（旧 1 は廃止・本実装へ移植しない）。診断属性は新番号 0/1/2/3 が正。
 - **輪番集合の構成（stage 3）**: canonical order 逆順（熱中症→火山→台風→河川→気象警報。津波・地震・中央クラスタは対象外）でカードを 1 枚ずつ輪番集合へ移し、そのたびにソルバを再実行する。**候補列挙 loop は DOM settle pass（最大 4）とは独立のカウンタで、最大 5 枚まで必ず試し切る**。全常設カード＋輪番枠（右列末尾固定・高さは集合の compact 実測高の最大値を予約）が収まった時点で確定。
 - **終端（省略告知）**: 集合の最大 compact 高でも枠を確保できない場合、集合中最大のカード（同値なら canonical 逆順で先）を予約対象から外して枠高を次点で再計算し、外れた枚数 N の「ほか N 件を表示できません」行を枠直下に 1 行描画する（グリッド期資産流用。failure 行の実測高も予約に含める）。診断は `data-rotation-omitted-count`（省略告知）と `data-layout-unresolved`（真の未解決）に分離する。
-- **期待 stage 表（v16 実測・v18/v21 で同値確認・rotationTick=0。機械 Oracle の正本とし実装後の観測値で書き換えない）**:
+- **期待 stage 表（v16 実測・v18/v21/v22 で同値確認・rotationTick=0。機械 Oracle の正本とし実装後の観測値で書き換えない）**:
 
 | viewport | scenario 4 | scenario 7 | scenario max |
 |---|---|---|---|
@@ -91,12 +91,12 @@
 
 ## 6. 地域リスト適応展開と wire 契約
 
-- **B（地域展開）**: 余裕利用フェーズの一部（§4）。展開候補の**原子は地域 1 件**とし、追加件数 j（j=0..候補追加数）の prefix を実組版（pref-group 集約・2 列・折返し込み）で実測し **fit する最大の j** を採る。prefix 高は「ほか n」行の消滅境界で非単調になり得るため、途中打ち切り・二分探索は禁止（列挙は逐次貪欲・測定キャッシュの計算量契約 §7 に従う）。入力は最大 128 件（wire 上限）。**B の役割は常時表示枠の拡大まで**で、それを超える分は §7 のカード内改ページが受け持つ。展開しきれない残りは「ほか n」に集約（n は下記再計算式。期待値表の「展開」列は現行表示分を含む総表示件数）。
+- **B（地域展開）**: 余裕利用フェーズの一部（§4）。展開候補の**原子は地域 1 件**とし、追加件数 j（j=0..候補追加数）の prefix を実組版（pref-group 集約・2 列・折返し込み）で実測し **fit する最大の j** を採る。prefix 高は「ほか n」行の消滅境界で非単調になり得るため、**B は j=0..候補追加数の全 prefix を線形に全走査**して fit する最大 j を採る（途中 non-fit での打ち切り・二分探索は禁止。「途中 non-fit・後続 fit」の反証 fixture を §11.1 C に置く）。測定キャッシュは §7 の計算量契約に従う。入力は最大 128 件（wire 上限）。**B の役割は常時表示枠の拡大まで**で、それを超える分は §7 のカード内改ページが受け持つ。展開しきれない残りは「ほか n」に集約（n は下記再計算式。期待値表の「展開」列は現行表示分を含む総表示件数）。
 - **跨 epoch の一方向性**: A は epoch を問わず常に compact baseline の測定値で解く。B は別測定の expanded variant 高を残余容量に当てる。前 epoch の展開が次 epoch の配置・stage に影響しない。輪番集合内カードは B の対象外（枠内は常に compact）。
 - **engine 側 wire 契約（新設）**:
-  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]` と `candidateTruncated?: boolean`（group 単位。新 producer は常時送信・欠落は旧 snapshot 互換=展開しない）。weather は**表示単位（kind 統合後）**で供給する: `DisplayStateSnapshotV1` に新集約型 `DisplayWeatherExpandedKindV1 { kindKey: string; areas: string[]; totalAreaCount: number; candidateTruncated: boolean }` の配列 `weatherExpandedKinds?` を新設。
+  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]` と `candidateTruncated?: boolean`（group 単位。新 producer は常時送信・欠落は旧 snapshot 互換=展開しない）。weather は**表示単位（kind 統合後）**で供給する: `DisplayStateSnapshotV1` に新集約型 `DisplayWeatherExpandedKindV1 { kindKey: string; areas: string[]; totalAreaCount: number; candidateTruncated: boolean }` の配列 `weatherExpandedKinds?` を新設。**候補配列は現行表示分を先頭に含む canonical prefix**（発表順・重複排除済み）。
   - **grouping の正規化**: rank filter（最高 rank のみ）・`phenomenonKey ?? kind` の alias 解決・旧 item 形式 fallback を含む正規化は、engine 側（src/engine/display/）の実装を唯一の正本とし、display/frontend へは protocol 複製と同じ既存機構による**一方向コピー**を置く（手書き二重実装禁止・同一入力 fixture への出力一致テストを §11.1 に含める）。`kindKey` はこの関数の出力キー。候補は union・重複排除（発表順・最初の出現保持）し統合後ユニーク総数を持つ。
-  - **上限**: 候補は**完全リスト供給が原則**・カードあたり安全弁 **128 地域**。安全弁または snapshot budget の縮退で切られた場合は `candidateTruncated=true` を送る（optional 欠落=旧互換と縮退を frontend が確実に区別）。現行表示分は無条件で全含。現行表示だけで 128 超は既存 compact formatter の表示上限により到達不能（入力不変条件として明記。万一超過時は現行表示分優先・truncated=true）。
+  - **上限**: 候補は**完全リスト供給が原則**・カードあたり安全弁 **128 地域**。**複数 group/kind への配分は発表順の先着**（128 に達した時点で後続 group/kind の候補は切られ、それぞれの candidateTruncated を true にする）。安全弁または snapshot budget の縮退で切られた場合は `candidateTruncated=true` を送る（optional 欠落=旧互換と縮退を frontend が確実に区別）。現行表示分は無条件で全含。現行表示だけで 128 超は既存 compact formatter の表示上限により到達不能（入力不変条件として明記。万一超過時は現行表示分優先・truncated=true）。
   - **「ほか n」再計算式**: quake `n = group 総地域数 − 表示件数`、weather `n = totalAreaCount − 表示済みユニーク地域数`。既存 `omittedAreaCount` 系は非展開表示用として変更しない。
   - **縮退ラダー上の位置**: snapshot budget（SSE 256KB 安全弁）超過時、候補削除は**カード本体の縮退より前段**（gridbase で GO 済みの順序）。保持優先度は「現行表示分 > 展開候補」。
   - **移植元**: `feature/legacy-improved-gridbase` の `e5d6bbb`（`display/frontend/src/lib/grid-region-expansion.ts`・engine 側候補供給・SSE 縮退ラダー）。frontend protocol 複製（`display/frontend/src/lib/protocol.ts`）へ同時反映。
@@ -107,19 +107,21 @@
 
 ### 7.1 不変条件（invariant）
 
-- **INV-到達**: 供給された全要素（輪番カード・全ページ）は、集合が安定していれば同一要素の再表示間隔 **15 秒×集合長** 以内に必ず再表示される。集合が変化し続けても、残存する要素が飢餓しない（先頭 reset を繰り返さない）。
-- **INV-決定**: 表示中の要素は「集合・実測寸法・直前 stage・単調 tick」の関数（テスト・撮影用に tick override（`rotationTick`/`cardPageTick`）を持つ）。
+- **INV-到達（単体）**: 単体のインスタンスでは、集合が安定していれば同一要素の再表示間隔は **周期×集合長** 以内。
+- **INV-到達（合成）**: 輪番集合内カードのページは論理 tick（=再登場イベント）で進むため、輪番長 R・ページ数 P のとき同一ページの再表示間隔は最長 **15 秒×R×P**。この値は §11.2「カード内改ページ」の目視 packet に総周期として記録し、ご主人が体感の許容を裁定する。
+- **INV-飢餓なし（有限 churn 前提）**: 集合変更が有限回で止まれば、その後 INV-到達の式が成立する。変更が続いても、残存し続ける要素は変更のたびに位置を失わず（先頭 reset を繰り返さず）、表示機会が単調に進む。
+- **INV-決定**: scheduler は明示的な内部状態（現在要素 key・位相起点時刻・pending/defer 集合・一周起点 key）を持ち、表示中の要素は「列挙入力（集合・実測寸法・直前 stage）＋scheduler 状態＋単調 tick」の関数とする（同一入力でも状態履歴が異なれば表示が異なるのは正常。テスト・撮影用に tick override（`rotationTick`/`cardPageTick`）と状態の診断属性を持つ）。
 - **INV-固定**: 時分割は枠・カード・リスト領域の位置と高さを変えない（中身の交代のみ）。
 - **INV-排他**: epoch/stage 変更は進行中の交代 transition を cancel して優先する。次 tick の交代は前 transition の finished/deadline 後。交代中も要素は枠外へ描画されず、空表示フレームを作らない。unmount・stage 退出で timer と animation を破棄する。
 - **INV-継続**: reduced-motion では交代の動きを即時差し替えにするが、時分割そのものは停止しない。
 
 ### 7.2 共通規則
 
-- 周期 15 秒・単調時計基準（wall-clock 境界ではない）。周期の起点は当該インスタンスの開始時刻（stage 3 進入・改ページ成立）。
+- **tick の種別**: 輪番枠と非輪番カードの改ページは**実時間 tick**（周期 15 秒・単調時計基準。wall-clock 境界ではない）。輪番集合内カードの改ページは**論理 tick**（再登場イベント。§7.4 合成規則）。周期の起点は当該インスタンスの開始時刻（stage 3 進入・改ページ成立）。**初期要素は集合の canonical 順先頭**。
 - **集合変化時の位相**: 現在表示要素が残る変更では表示とタイマーを維持し、次 tick は**新集合における現在要素の canonical 後続**へ進む。現在要素が消えた変更では canonical 後続へ即時交代し、その時刻を位相起点とする。
 - timer drift・background 復帰は、単調時計で位相起点からの経過 tick 数を再計算して 1 回で合流する。
 - epoch 処理は tick に優先し、tick は epoch 完了後に処理する（skip しない）。
-- 退出→再進入は reset（先頭から）。同一 epoch 内の settle による瞬間的な出入りは resume。
+- **exit と suspend の区別**: reset（先頭から）になる「退出」は、**カードの消滅・改ページの不成立化（1 ページ化）・stage 3 の終了**のみ。**輪番による一時非表示は suspend であり、ページ状態（現在ページ・pending）を保持して再登場時に resume する**（再登場ごとに reset して次ページへ永遠に進まない状態を禁止）。同一 epoch 内の settle による瞬間的な出入りも resume。
 
 ### 7.3 輪番枠インスタンス（§5 stage 3）
 
@@ -130,7 +132,7 @@
 
 余裕利用後も展開しきれない残りがある（n>0）多項目カード（気象警報・地震の震度地域）は、地域リスト領域を固定高のまま時分割でページ交代し、供給された全地域をいずれ必ず表示する（「ほか n」の恒久省略を廃止。wire 縮退時の例外は §6）。
 
-- **ページ分割（実測 partition）**: 候補を canonical 順に「そのページに追加しても固定高に入る」限り詰める貪欲法で決定的に分割する（実組版で実測・件数不揃い許容）。**計算量契約**: 測定は逐次貪欲（1 件ずつ追加測定・溢れたら改ページして続きから）で probe 数 O(候補数)（128 件で高々 ~256 回/カード）・同一 epoch 内は測定キャッシュ。1 地域も入らないページが生じる場合は改ページを断念し「ほか n」残置＋`data-card-page-infeasible`（終端）。現行表示 0 件・n>0 の合法入力も先頭ページから表示する。
+- **ページ分割（実測 partition。B の全走査とは別契約）**: 候補を canonical 順に「そのページに追加しても固定高に入る」限り詰め、**最初の overflow でそのページを閉じて次ページを続きから始める**逐次貪欲で決定的に分割する（実組版で実測・件数不揃い許容。B の「全 j 走査」とは探索規則が異なることを明記する）。**計算量契約**: 測定は逐次貪欲（1 件ずつ追加測定・溢れたら改ページして続きから）で probe 数 O(実供給候補数)（上限は **2×実供給数/カード**。128 件供給で高々 ~256 回）・同一 epoch 内は測定キャッシュ。1 地域も入らないページが生じる場合は改ページを断念し「ほか n」残置＋`data-card-page-infeasible`（終端）。現行表示 0 件・n>0 の合法入力も先頭ページから表示する。
 - **truncated の残置行は group/kind 単位**: partition は group/kind ごとの tail（供給切れ残数）を保持し、「ほか n」は各 group/kind の並び末尾にそれぞれの n で描画する（カード全体残数の一括帰属＝危険度の誤帰属を禁止。供給 0 件の group/kind も自身の残置行を持つ）。残置行込みの組版で測定して partition する（測定/描画のズレによる境界 overflow 禁止）。
 - **ページ identity**: 安定 key は「kindKey（quake は group key）＋先頭地域名＋canonical 出現順」の複合（同名重複でも一意）。repartition 後、現在ページの先頭地域が残っていれば位置維持・消えたら canonical 後続へ。追加ページは**現在ページ起点の一周完了後**に参加（defer）。**defer 中に起点ページが削除されたら、削除時点の canonical 後続を新起点として解禁判定を継続**する（pending の永久飢餓禁止）。
 - **輪番との合成**: 輪番集合内のカードのページは自走させず、**輪番で再登場するたびに 1 ページ前進**する（15 秒×15 秒の共振で一部ページが gcd 分の 1 しか表示されない問題の回避）。**輪番集合長 1 の場合は 15 秒の slot boundary を再登場と数える**。
@@ -171,7 +173,7 @@
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）完全一致。
 
 **C. 余裕利用・時分割ゲート**:
-- **余裕利用の期待値表（v18 実測・v21 で同値確認・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
+- **余裕利用の期待値表（v18 実測・v21/v22 で同値確認・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
 
 | セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） | surplus |
 |---|---|---|---|---|---|
@@ -192,10 +194,11 @@
 
   - surplus は `data-placement-surplus-use`。「−（不在）」はカード不在。存在するのに非検査の欄は本表に置かない。stage 3 セルの輪番カードは昇格・展開の対象外。
   - **比較器 ①'' の反証 fixture**: 旧比較器なら低展開配置・①'' 込みなら高展開配置を選ぶ入力を固定し、配置キー列が高展開側であることを検査。
+- **時分割 scheduler の共通 contract test**（輪番・改ページの両インスタンス＋合成ケースへ同一スイートを適用）: ①epoch/tick 競合時に epoch 優先・tick を skip しない ②reduced-motion でも時分割が継続する ③交代 transition の finished/deadline 排他・空表示フレームなし ④unmount・exit 後に timer と animation が破棄される ⑤exit=reset / 輪番 suspend=resume の境界（§7.2）⑥合成到達時間（R×P の最長再表示間隔が 15×R×P 以内）。
 - **輪番の検査**: stage 3 セルは `data-rotation-keys` の期待集合一致＋`rotationTick=0..集合長−1` の全 tick 撮影（現在 key・枠内包含・切れ・重なり・failure 行）。fake timer で①安定集合の交代順序と再表示間隔（15 秒×集合長）②カード追加③非 active 削除④active 削除⑤長時間停止後の一括合流、の 5 系統。
-- **改ページの検査**: n>0 セルで①全ページ撮影の地域 union が期待 canonical 集合と完全一致（重複・欠落ゼロ）②各ページが固定高に収まる（長い地域名・複数 pref-group・複数 kind fixture 込み）③現行表示 0 件・n>0 ④公約数 fixture で再登場前進により全ページ到達 ⑤15 秒未満連続更新で後方ページが飢餓しない ⑥LatestQuakeCard で二重ページャ不発火 ⑦輪番集合長 1×複数ページで全ページ到達 ⑧同名地域重複 fixture で複合 identity が誤ジャンプしない ⑨defer 一周解禁＋起点削除でも全ページ到達 ⑩truncated 最終ページの残置行込み包含 ⑪`data-partition-probe-count ≤ 256/カード`・128 件×2 カードで settle 完了・非収束なし。
+- **改ページの検査**: n>0 セルで①全ページ撮影の地域 union が期待 canonical 集合と完全一致（重複・欠落ゼロ）②各ページが固定高に収まる（長い地域名・複数 pref-group・複数 kind fixture 込み）③現行表示 0 件・n>0 ④公約数 fixture で再登場前進により全ページ到達 ⑤15 秒未満連続更新で後方ページが飢餓しない ⑥LatestQuakeCard で二重ページャ不発火 ⑦輪番集合長 1×複数ページで全ページ到達 ⑧同名地域重複 fixture で複合 identity が誤ジャンプしない ⑨defer 一周解禁＋起点削除でも全ページ到達 ⑩truncated 最終ページの残置行込み包含 ⑪`data-partition-probe-count ≤ 2×実供給数/カード`・128 件×2 カードで settle 完了・非収束なし。
 
-**D. wire 契約ユニットテスト（engine 側）**: ①同一 kind・複数 source・一部重複の union（順序・重複排除・totalAreaCount）②安全弁 128 の境界（127/128/129——129 で prefix 128 切り・candidateTruncated=true・残数正）③optional 欠落の旧互換④budget 縮退で候補が本体より先に落ち truncated=true が残る⑤sanitizer・protocol 複製後も候補と flag が保持⑥正規化関数コピーの同一性（同一入力→出力一致）。
+**D. wire 契約ユニットテスト（engine 側）**: ①同一 kind・複数 source・一部重複の union（順序・重複排除・totalAreaCount）②安全弁 128 の境界（127/128/129——129 で prefix 128 切り・candidateTruncated=true・残数正。**複数 group/kind をまたいで 128 に到達する fixture を含み、切られた group/kind の帰属が正しいこと**）③optional 欠落の旧互換④budget 縮退で候補が本体より先に落ち truncated=true が残る⑤sanitizer・protocol 複製後も候補と flag が保持⑥正規化関数コピーの同一性（同一入力→出力一致）。
 
 **E. ゲートの反証テスト**（runner 自体の失敗能力）: 意図的に壊した 3 種の fixture（overflow／矩形重なり／stage 3 で枠・failure 行を描かない）で runner が非ゼロ終了する。壊し方はテスト専用パラメータで注入し本番経路に置かない。§10 の unknown 単体検証も含む。
 
