@@ -56,6 +56,13 @@
     centerNaturalHeight: number;
   }
 
+  interface PlacementChoice {
+    left: CardCandidate[];
+    right: CardCandidate[];
+    center: CardCandidate[];
+    moved: Set<CardKey>;
+  }
+
   interface PlannedCard extends CardCandidate {
     allocatedHeight: number;
     extraHeight: number;
@@ -156,10 +163,13 @@
   let measuredNankaiHeightPx = $state(0);
   let measuredClusterGapPx = $state(0);
   let measuredClusterFlowHeightPx = $state(0);
+  let measuredBaseLayoutHeightPx = $state(0);
   let measuredLayoutHeightPx = $state(0);
   let measuredLayoutWidthPx = $state(0);
   let measuredCardWidthPx = $state(0);
   let measuredGapPx = $state(0);
+  let measuredColumnPaddingPx = $state(0);
+  let measuredTickerHeightPx = $state(0);
   let measurementComplete = $state(false);
   let measurementReadCount = $state(0);
 
@@ -194,6 +204,11 @@
     return Math.round(Math.max(node.scrollHeight, child?.scrollHeight ?? 0));
   }
 
+  function cssPx(value: string | undefined): number {
+    const parsed = parseFloat(value ?? "0");
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+
   onMount(() => {
     const nextHeights: Record<string, number> = {};
     const nextCenterHeights: Record<string, number> = {};
@@ -216,20 +231,30 @@
     const clusterGap = lowerSpace > 0 ? Math.floor(lowerSpace / 3) : 0;
     const clusterFlowHeight = clusterGap > 0 ? lowerSpace - clusterGap * 2 : 0;
     const layoutRect = layoutEl?.getBoundingClientRect();
-    const layoutHeight = Math.round(layoutRect?.height ?? layoutEl?.offsetHeight ?? 0);
+    const baseLayoutHeight = Math.round(layoutRect?.height ?? layoutEl?.offsetHeight ?? 0);
     const layoutWidth = Math.round(layoutRect?.width ?? layoutEl?.offsetWidth ?? 0);
     const cardWidth = Math.round(layoutEl?.querySelector<HTMLElement>("[data-mock-side='left'] [data-mock-card]")?.getBoundingClientRect().width ?? 0);
-    const computedGap = sideEl == null ? 0 : parseFloat(getComputedStyle(sideEl).rowGap);
+    const sideStyle = sideEl == null ? null : getComputedStyle(sideEl);
+    const computedGap = cssPx(sideStyle?.rowGap);
+    const columnPadding = cssPx(sideStyle?.paddingTop) + cssPx(sideStyle?.paddingBottom);
+    const tickerRect = tickerEl?.getBoundingClientRect();
+    const tickerHeight = Math.round(tickerRect?.height ?? tickerEl?.offsetHeight ?? 0);
+    // 初回の legacy-layout は --mock-nankai-reserve=0px で読まれる。南海帯の実測高を
+    // 一度だけ差し引き、state 更新後に実際に表示される最終 layout 高へ正規化する。
+    const layoutHeight = Math.max(0, baseLayoutHeight - nankaiHeight);
     measuredHeights = nextHeights;
     measuredCenterHeights = nextCenterHeights;
     measuredFixedHeights = nextFixedHeights;
     measuredNankaiHeightPx = nankaiHeight;
     measuredClusterGapPx = clusterGap;
     measuredClusterFlowHeightPx = clusterFlowHeight;
+    measuredBaseLayoutHeightPx = baseLayoutHeight;
     measuredLayoutHeightPx = layoutHeight;
     measuredLayoutWidthPx = layoutWidth;
     measuredCardWidthPx = cardWidth;
-    measuredGapPx = Number.isFinite(computedGap) ? computedGap : 0;
+    measuredGapPx = computedGap;
+    measuredColumnPaddingPx = columnPadding;
+    measuredTickerHeightPx = tickerHeight;
     measurementReadCount = measureEntries.length * 2 + fixedMeasureKeys.length + (nankai == null ? 0 : 1);
     measurementComplete = true;
   });
@@ -257,9 +282,10 @@
     // 0 は jsdom の「矩形なし」を意味する。ブラウザでは必ず実測値を使い、テストだけ無限予算で
     // カードを消さずに自然 DOM を残す。
     if (measuredLayoutHeightPx <= 0) return Number.POSITIVE_INFINITY;
-    // 南海帯は ticker 直上で画面下端を専有する。初回 layout の実測高からその実測高を引き、
-    // 左右列・中央受け皿の共通容量を同じ空間に揃える。
-    return Math.max(0, measuredLayoutHeightPx - measuredNankaiHeightPx);
+    // measuredLayoutHeightPx は南海帯予約を反映した最終 track 高。列 padding はカードの
+    // natural 合計に含まれないため、最後に明示的に引く。ticker/edge は layout の inset に
+    // 既に含まれており、二重控除しない。
+    return Math.max(0, measuredLayoutHeightPx - measuredColumnPaddingPx);
   }
 
   function columnGapPx(): number {
@@ -289,6 +315,96 @@
       + Math.max(0, cards.length - 1) * columnGapPx();
   }
 
+  function sortedCards(cards: readonly CardCandidate[]): CardCandidate[] {
+    return [...cards].sort((leftCard, rightCard) => leftCard.order - rightCard.order);
+  }
+
+  function overflowPx(height: number, capacity: number): number {
+    return Number.isFinite(capacity) ? Math.max(0, height - capacity) : 0;
+  }
+
+  function placementTotalOverflow(choice: PlacementChoice, capacity: number): number {
+    const sideOverflow = overflowPx(columnNaturalHeight(choice.left), capacity)
+      + overflowPx(columnNaturalHeight(choice.right), capacity);
+    const centerOverflow = choice.center.length === 0
+      ? 0
+      : overflowPx(centerNaturalHeight(choice.center), capacity);
+    return sideOverflow + centerOverflow;
+  }
+
+  function comparePlacements(leftChoice: PlacementChoice, rightChoice: PlacementChoice, capacity: number): number {
+    const leftOverflow = placementTotalOverflow(leftChoice, capacity);
+    const rightOverflow = placementTotalOverflow(rightChoice, capacity);
+    const leftFits = leftOverflow === 0;
+    const rightFits = rightOverflow === 0;
+    if (leftFits !== rightFits) return leftFits ? -1 : 1;
+
+    if (leftFits) {
+      // 時計を中央に残すことを最優先し、完全に収まる配置では中央移動枚数を最小化する。
+      if (leftChoice.center.length !== rightChoice.center.length) {
+        return leftChoice.center.length - rightChoice.center.length;
+      }
+      const leftMax = Math.max(columnNaturalHeight(leftChoice.left), columnNaturalHeight(leftChoice.right));
+      const rightMax = Math.max(columnNaturalHeight(rightChoice.left), columnNaturalHeight(rightChoice.right));
+      if (leftMax !== rightMax) return leftMax - rightMax;
+    } else if (leftOverflow !== rightOverflow) {
+      return leftOverflow - rightOverflow;
+    }
+
+    const leftSideBalance = Math.abs(columnNaturalHeight(leftChoice.left) - columnNaturalHeight(leftChoice.right));
+    const rightSideBalance = Math.abs(columnNaturalHeight(rightChoice.left) - columnNaturalHeight(rightChoice.right));
+    if (leftSideBalance !== rightSideBalance) return leftSideBalance - rightSideBalance;
+
+    const leftCenterOverflow = leftChoice.center.length === 0 ? 0 : overflowPx(centerNaturalHeight(leftChoice.center), capacity);
+    const rightCenterOverflow = rightChoice.center.length === 0 ? 0 : overflowPx(centerNaturalHeight(rightChoice.center), capacity);
+    if (leftCenterOverflow !== rightCenterOverflow) return leftCenterOverflow - rightCenterOverflow;
+    if (leftChoice.center.length !== rightChoice.center.length) return leftChoice.center.length - rightChoice.center.length;
+    if (leftChoice.moved.size !== rightChoice.moved.size) return leftChoice.moved.size - rightChoice.moved.size;
+    return 0;
+  }
+
+  function enumeratePlacements(
+    candidates: readonly CardCandidate[],
+    forcedLeftKeys: ReadonlySet<CardKey>,
+    allowCenter: boolean,
+    requireCenter: boolean,
+  ): PlacementChoice[] {
+    const fixedLeft = candidates.filter((card) => leftKeys.has(card.key) || forcedLeftKeys.has(card.key));
+    const movable = candidates.filter((card) => !leftKeys.has(card.key) && !forcedLeftKeys.has(card.key));
+    const centerCandidates = allowCenter ? movable.filter((card) => centerEligibleKeys.has(card.key)) : [];
+    const placements: PlacementChoice[] = [];
+    const centerMaskCount = 1 << centerCandidates.length;
+
+    for (let centerMask = 0; centerMask < centerMaskCount; centerMask += 1) {
+      const center = centerCandidates.filter((_, index) => (centerMask & (1 << index)) !== 0);
+      if (requireCenter && center.length === 0) continue;
+      const centerKeys = new Set(center.map((card) => card.key));
+      const sideMovable = movable.filter((card) => !centerKeys.has(card.key));
+      const leftMaskCount = 1 << sideMovable.length;
+      for (let leftMask = 0; leftMask < leftMaskCount; leftMask += 1) {
+        const leftMovable = sideMovable.filter((_, index) => (leftMask & (1 << index)) !== 0);
+        const left = sortedCards([...fixedLeft, ...leftMovable]);
+        const leftKeysForMask = new Set(leftMovable.map((card) => card.key));
+        const right = sortedCards(sideMovable.filter((card) => !leftKeysForMask.has(card.key)));
+        placements.push({
+          left,
+          right,
+          center: sortedCards(center),
+          moved: new Set(left.filter((card) => !leftKeys.has(card.key)).map((card) => card.key)),
+        });
+      }
+    }
+    return placements;
+  }
+
+  function bestPlacement(placements: readonly PlacementChoice[], capacity: number): PlacementChoice | null {
+    let best: PlacementChoice | null = null;
+    for (const placement of placements) {
+      if (best == null || comparePlacements(placement, best, capacity) < 0) best = placement;
+    }
+    return best;
+  }
+
   function buildCandidates(variants: VariantSelection): CardCandidate[] {
     return cardKeys.map((key, order) => {
       const variant = key === "quake"
@@ -308,90 +424,37 @@
   }
 
   const leftKeys = new Set<CardKey>(["tsunami", "quake"]);
-  const rightKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano", "heat"]);
   const centerEligibleKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
   const forcedOverflowKeys = new Set<CardKey>(["volcano", "heat"]);
 
-  function moveIneligibleToLeft(
-    right: CardCandidate[],
-    left: CardCandidate[],
-    capacity: number,
-    moved: Set<CardKey>,
-  ): void {
-    while (columnNaturalHeight(right) > capacity) {
-      const toLeft = right
-        .filter((card) => !centerEligibleKeys.has(card.key))
-        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)
-        .find((card) => columnNaturalHeight([...left, card]) <= capacity);
-      if (toLeft == null) break;
-      right.splice(right.indexOf(toLeft), 1);
-      left.push(toLeft);
-      moved.add(toLeft.key);
-    }
-  }
-
-  function moveEligibleToCenter(cards: CardCandidate[], center: CardCandidate[], capacity: number): void {
-    const movedCards: CardCandidate[] = [];
-    while (columnNaturalHeight(cards) > capacity) {
-      const toCenter = cards
-        .filter((card) => centerEligibleKeys.has(card.key))
-        .sort((leftCard, rightCard) => rightCard.naturalHeight - leftCard.naturalHeight || leftCard.order - rightCard.order)
-        .find((card) => centerNaturalHeight([...center, card]) <= capacity);
-      if (toCenter == null) break;
-      cards.splice(cards.indexOf(toCenter), 1);
-      movedCards.push(toCenter);
-      center.push(toCenter);
-    }
-    movedCards.sort((leftCard, rightCard) => leftCard.order - rightCard.order);
-    center.sort((leftCard, rightCard) => leftCard.order - rightCard.order);
-  }
-
   function makeColumnPlan(candidates: readonly CardCandidate[], override: LadderStage | null): Omit<ColumnPlan, "variants"> {
-    let left = candidates.filter((card) => leftKeys.has(card.key));
-    let right = candidates.filter((card) => rightKeys.has(card.key));
-    const center: CardCandidate[] = [];
-    const moved = new Set<CardKey>();
     const capacity = layoutCapacityPx();
 
-    if (override != null && override >= 1) {
-      for (const key of forcedOverflowKeys) {
-        const card = right.find((candidate) => candidate.key === key);
-        if (card == null) continue;
-        right = right.filter((candidate) => candidate.key !== key);
-        left = [...left, card];
-        moved.add(key);
-      }
-    }
-
-    const rightNeedsCenter = override == null || (override != null && override >= 2);
-    if (rightNeedsCenter) {
-      // 右列の超過は、まず左に収まる非資格カードを退避し、残りを中央資格カードで受ける。
-      // どちらも実測容量に収まらない場合だけ unresolved として圧縮段へ送る。
-      moveIneligibleToLeft(right, left, capacity, moved);
-      moveEligibleToCenter(right, center, capacity);
-    }
-
-    // 明示 ladder=2/3 は目視ゲート用の「中央受け皿」も必ず見せる。実測で左右の超過が
-    // 無い jsdom でも、資格を持つ右列の続き (なければ左列の続き) を中央へ移して構造を確認できる。
-    if (override != null && override >= 2 && center.length === 0) {
-      const rightContinuation = [...right].reverse().find((card) => centerEligibleKeys.has(card.key));
-      if (rightContinuation != null) {
-        right = right.filter((card) => card.key !== rightContinuation.key);
-        center.push(rightContinuation);
-      }
-    }
-
-    const centerUnresolved = centerNaturalHeight(center) > centerCapacityPx();
+    // 明示 ladder=1/2/3 の左退避だけは既存の目視ゲートとして固定する。auto では固定せず、
+    // 全カードの左右割当を総当たりして「中央なしで収まる」配置を最初に探す。
+    const forcedLeftKeys = override != null && override >= 1 ? forcedOverflowKeys : new Set<CardKey>();
+    const allowCenter = override == null || override >= 2;
+    const requireCenter = override != null && override >= 2;
+    const placements = enumeratePlacements(candidates, forcedLeftKeys, allowCenter, requireCenter);
+    const selected = bestPlacement(placements, capacity)
+      ?? bestPlacement(enumeratePlacements(candidates, forcedLeftKeys, false, false), capacity)
+      ?? { left: [], right: [], center: [], moved: new Set<CardKey>() };
+    const left = selected.left;
+    const right = selected.right;
+    const center = selected.center;
+    const moved = selected.moved;
+    const centerUnresolved = center.length > 0 && centerNaturalHeight(center) > centerCapacityPx();
     const sideUnresolved = columnNaturalHeight(left) > capacity || columnNaturalHeight(right) > capacity;
+    const unresolved = sideUnresolved || centerUnresolved;
     const requestedStage: LadderStage = override
-      ?? (center.length > 0 ? (centerUnresolved || sideUnresolved ? 3 : 2) : sideUnresolved ? 3 : moved.size > 0 ? 1 : 0);
-    const stage: LadderStage = requestedStage === 2 && (centerUnresolved || sideUnresolved) ? 3 : requestedStage;
+      ?? (center.length > 0 ? (unresolved ? 3 : 2) : unresolved ? 3 : 0);
+    const stage: LadderStage = requestedStage === 2 && unresolved ? 3 : requestedStage;
     return {
       left,
       right,
       center,
       moved,
-      unresolved: sideUnresolved || centerUnresolved,
+      unresolved,
       centerUnresolved,
       stage,
     };
@@ -507,7 +570,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v10</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v12</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -522,13 +585,20 @@
   data-measurement-mode={measurementComplete ? "sync-dom" : "pending"}
   data-measurement-pass={measurementComplete ? "2" : "1"}
   data-measurement-read-count={measurementReadCount}
+  data-layout-base-height-px={measuredBaseLayoutHeightPx}
   data-layout-height-px={measuredLayoutHeightPx}
   data-layout-capacity-px={layoutCapacityPx()}
   data-layout-width-px={measuredLayoutWidthPx}
   data-card-width-px={measuredCardWidthPx}
   data-nankai-height-px={measuredNankaiHeightPx}
+  data-ticker-height-px={measuredTickerHeightPx}
+  data-column-padding-px={measuredColumnPaddingPx}
   data-cluster-gap-px={measuredClusterGapPx}
   data-cluster-flow-height-px={measuredClusterFlowHeightPx}
+  data-left-natural-height-px={columnNaturalHeight(layoutPlan.left)}
+  data-right-natural-height-px={columnNaturalHeight(layoutPlan.right)}
+  data-left-capacity-px={layoutCapacityPx()}
+  data-right-capacity-px={layoutCapacityPx()}
   data-center-gap-px={columnGapPx()}
   data-center-natural-height-px={centerNaturalHeightPx}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
@@ -540,7 +610,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v10</strong>
+    <strong>従来フォーマット改良 v12</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実測 2 パス</span>
   </div>
 
@@ -766,6 +836,12 @@
      overflow clip では閉じ込められない (v11 実測)。モックは静止画評価なので
      in-flow 静止化で banner-areas 内に収める。実表示の走行は本実装側で扱う。 */
   .legacy-mock .legacy-card :global(.marquee-text) {
+    position: static;
+    white-space: nowrap;
+    animation-name: none;
+  }
+
+  .legacy-mock .measure-item :global(.marquee-text) {
     position: static;
     white-space: nowrap;
     animation-name: none;

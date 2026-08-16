@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v11", () => {
+describe("legacy improved standby mock v12", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -35,6 +35,13 @@ describe("legacy improved standby mock v11", () => {
     expect(root.dataset.inputItemCount).toBe(String(inputCount));
     expect(root.dataset.measurementMode).toBe("sync-dom");
     expect(root.dataset.measurementPass).toBe("2");
+    expect(root.dataset.layoutBaseHeightPx).toBeDefined();
+    expect(root.dataset.tickerHeightPx).toBeDefined();
+    expect(root.dataset.columnPaddingPx).toBeDefined();
+    expect(root.dataset.leftNaturalHeightPx).toBeDefined();
+    expect(root.dataset.rightNaturalHeightPx).toBeDefined();
+    expect(root.dataset.leftCapacityPx).toBeDefined();
+    expect(root.dataset.rightCapacityPx).toBeDefined();
     expect(root.dataset.nankaiHeightPx).toBeDefined();
     expect(root.dataset.clusterGapPx).toBeDefined();
     expect(root.dataset.clusterFlowHeightPx).toBeDefined();
@@ -150,9 +157,10 @@ describe("legacy improved standby mock v11", () => {
     }
     expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
     expect(mockSource).toContain("const centerEligibleKeys = new Set<CardKey>([\"weather\", \"flood\", \"typhoon\", \"volcano\"]);");
-    expect(mockSource).toContain("function moveEligibleToCenter");
-    expect(mockSource).toContain("function moveIneligibleToLeft");
-    expect(mockSource).toMatch(/moveIneligibleToLeft\(right, left, capacity, moved\);[\s\S]*moveEligibleToCenter\(right, center, capacity\);/);
+    expect(mockSource).toContain("function enumeratePlacements");
+    expect(mockSource).toContain("function bestPlacement");
+    expect(mockSource).toContain("function comparePlacements");
+    expect(mockSource).toContain("時計を中央に残すことを最優先");
   });
 
   it.each(["2", "3"] as const)("moves the clock to the ticker area at ladder %s", (stage) => {
@@ -198,7 +206,8 @@ describe("legacy improved standby mock v11", () => {
     expect(mockSource).toMatch(/\.nankai-ticker\s*\{[^}]*right:\s*var\(--mock-edge\)[^}]*bottom:\s*var\(--mock-ticker-h\)[^}]*left:\s*var\(--mock-edge\)/s);
     expect(mockSource).toMatch(/\.nankai-ticker :global\(\.nankai-badge\)\s*\{[^}]*margin:\s*0/s);
     expect(mockSource).toMatch(/inset: var\(--mock-edge\) var\(--mock-edge\) calc\(var\(--mock-ticker-h\) \+ var\(--mock-edge\) \+ var\(--mock-nankai-reserve\)\)/s);
-    expect(mockSource).toMatch(/measuredLayoutHeightPx - measuredNankaiHeightPx/);
+    expect(mockSource).toContain("const layoutHeight = Math.max(0, baseLayoutHeight - nankaiHeight);");
+    expect(mockSource).toMatch(/measuredLayoutHeightPx - measuredColumnPaddingPx/);
   });
 
   it("scales the large clock from its equal column without shrinking the font below the floor", () => {
@@ -233,12 +242,25 @@ describe("legacy improved standby mock v11", () => {
     expect(mockSource).toMatch(/function centerNaturalHeight\(cards: readonly CardCandidate\[\]\)/);
     expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*gap:\s*var\(--mock-gap\)/s);
     expect(mockSource).not.toContain("min-height: clamp(3rem, 8vh, 6rem)");
-    expect(mockSource).toMatch(/requestedStage === 2 && \(centerUnresolved \|\| sideUnresolved\) \? 3 : requestedStage/);
+    expect(mockSource).toContain("const unresolved = sideUnresolved || centerUnresolved;");
+    expect(mockSource).toMatch(/requestedStage === 2 && unresolved \? 3 : requestedStage/);
   });
 
   it("clips the tsunami marquee at the mock card boundary", () => {
     expect(mockSource).toMatch(/\.legacy-card\[data-mock-card="tsunami"\]\s*\{[^}]*overflow:\s*hidden/s);
     expect(mockSource).toMatch(/\.legacy-mock \.legacy-card :global\(\.tsunami-banner\)\s*\{[^}]*overflow:\s*hidden/s);
     expect(mockSource).toMatch(/\.legacy-mock \.legacy-card :global\(\.tsunami-banner \.banner-areas\)\s*\{[^}]*overflow:\s*hidden/s);
+    expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
+  });
+
+  it("labels the mock as v12 and exposes per-column measurement diagnostics", () => {
+    const { rendered } = renderMock("legacyMock2=max&ladder=0");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v12");
+    expect(mockSource).toContain("data-left-natural-height-px");
+    expect(mockSource).toContain("data-right-natural-height-px");
+    expect(mockSource).toContain("data-left-capacity-px");
+    expect(mockSource).toContain("data-right-capacity-px");
+    expect(mockSource).toContain("measuredTickerHeightPx");
+    expect(mockSource).toContain("measuredColumnPaddingPx");
   });
 });
