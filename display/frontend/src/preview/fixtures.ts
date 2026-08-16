@@ -319,6 +319,16 @@ export const latestQuakeStandbyCards: DisplayLatestQuakeStateV1 = {
   updatedAtMs: NOW_MS,
 };
 
+/** 従来フォーマット改良 v20 用: 現行表示が 0 件でも候補地域を供給できる入力。 */
+export const legacyImprovedZeroVisibleLatestQuake: DisplayLatestQuakeStateV1 = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: latestQuakeStandbyCards.intensityGroups.map((group) =>
+    group.intensity === "5強"
+      ? { ...group, areas: [], omittedAreaCount: 3 }
+      : group,
+  ),
+};
+
 /** 従来フォーマット改良 v4 の展開確認用。震度5強の省略3地域を完全列挙する。 */
 export const legacyImprovedExpandedLatestQuake: DisplayLatestQuakeStateV1 = {
   ...latestQuakeStandbyCards,

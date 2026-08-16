@@ -25,6 +25,7 @@ function installMeasuredLayout(options: {
   baseCardPx?: number;
   prefixRowPx?: number;
   cardHeightById?: Readonly<Record<string, number>>;
+  pageHeightByLength?: Readonly<Record<number, number>>;
 } = {}): () => void {
   const capacityPx = options.capacityPx ?? 180;
   const baseCardPx = options.baseCardPx ?? 90;
@@ -33,6 +34,11 @@ function installMeasuredLayout(options: {
     if (id == null) return baseCardPx;
     const baseId = id.split(":")[0];
     const measuredBase = options.cardHeightById?.[id] ?? options.cardHeightById?.[baseId] ?? baseCardPx;
+    const pageRange = id.match(/^(?:quake|weather):page:(\d+):(\d+)$/);
+    if (pageRange != null) {
+      const length = Number(pageRange[2]) - Number(pageRange[1]);
+      return options.pageHeightByLength?.[length] ?? measuredBase + length * prefixRowPx;
+    }
     const regionMatch = id.match(/:(?:region:)(\d+)$/);
     if (regionMatch != null) return measuredBase + Number(regionMatch[1]) * prefixRowPx;
     if (id.endsWith(":expanded")) {
@@ -48,7 +54,9 @@ function installMeasuredLayout(options: {
     get(this: HTMLElement): number {
       if (this.classList.contains("legacy-layout")) return capacityPx;
       if (this.hasAttribute("data-measure-card")) return shelfHeight(this.dataset.measureCard);
+      if (this.hasAttribute("data-measure-card-page")) return shelfHeight(this.dataset.measureCardPage);
       if (this.hasAttribute("data-center-measure-card")) return shelfHeight(this.dataset.centerMeasureCard);
+      if (this.hasAttribute("data-center-measure-card-page")) return shelfHeight(this.dataset.centerMeasureCardPage);
       if (this.matches("[data-mock-card]")) return baseCardPx;
       if (this.classList.contains("center-stack-card")) return 20;
       if (this.classList.contains("rotation-failure-measure")) return 24;
@@ -60,8 +68,8 @@ function installMeasuredLayout(options: {
     if (this.classList.contains("legacy-layout")) {
       return { x: 0, y: 0, width: 960, height: capacityPx, top: 0, right: 960, bottom: capacityPx, left: 0, toJSON: () => ({}) } as DOMRect;
     }
-    if (this.hasAttribute("data-measure-card") || this.hasAttribute("data-center-measure-card")) {
-      const id = this.dataset.measureCard ?? this.dataset.centerMeasureCard;
+    if (this.hasAttribute("data-measure-card") || this.hasAttribute("data-measure-card-page") || this.hasAttribute("data-center-measure-card") || this.hasAttribute("data-center-measure-card-page")) {
+      const id = this.dataset.measureCard ?? this.dataset.measureCardPage ?? this.dataset.centerMeasureCard ?? this.dataset.centerMeasureCardPage;
       const height = shelfHeight(id);
       return { x: 0, y: 0, width: 300, height, top: 0, right: 300, bottom: height, left: 0, toJSON: () => ({}) } as DOMRect;
     }
@@ -83,7 +91,7 @@ function installMeasuredLayout(options: {
   };
 }
 
-describe("legacy improved standby mock v19", () => {
+describe("legacy improved standby mock v20", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -94,7 +102,7 @@ describe("legacy improved standby mock v19", () => {
     expect(root.dataset.scenario).toBe(scenario);
     expect(root.dataset.ladderStage).toBe("0");
     expect(root.dataset.ladderAuto).toBe("false");
-    expect(root.dataset.paging).toBe("none");
+    expect(root.dataset.outerPaging).toBe("none");
     expect(root.dataset.suppressedUnknownCount).toBe(String(suppressed));
     expect(root.dataset.inputItemCount).toBe(String(inputCount));
     expect(root.dataset.measurementMode).toBe("sync-dom");
@@ -205,13 +213,130 @@ describe("legacy improved standby mock v19", () => {
         expect(current).toBeGreaterThanOrEqual(1);
         expect(current).toBeLessThanOrEqual(total);
         expect(Number(card.dataset.cardPageFixedHeight)).toBe(Number(card.dataset.naturalHeightPx));
-        expect(card.querySelector("[data-card-page-indicator]")?.textContent).toBe(`${current}/${total}`);
+        const indicator = card.querySelector<HTMLElement>("[data-card-page-indicator]");
+        const body = card.querySelector<HTMLElement>("[data-card-page-body]");
+        expect(indicator?.textContent).toBe(`${current}/${total}`);
+        expect(indicator?.parentElement).toBe(card);
+        expect(body?.contains(indicator ?? null)).toBe(false);
+        if (indicator != null && body != null) {
+          const indicatorRect = indicator.getBoundingClientRect();
+          const bodyRect = body.getBoundingClientRect();
+          const overlapWidth = Math.max(0, Math.min(indicatorRect.right, bodyRect.right) - Math.max(indicatorRect.left, bodyRect.left));
+          const overlapHeight = Math.max(0, Math.min(indicatorRect.bottom, bodyRect.bottom) - Math.max(indicatorRect.top, bodyRect.top));
+          expect(overlapWidth * overlapHeight).toBe(0);
+        }
         expect(card.textContent).not.toContain("ほか3地域");
       }
-      expect(mockSource).toContain("function quakeCardPages");
-      expect(mockSource).toContain("function weatherCardPages");
+      expect(mockSource).toContain("function partitionQuakePages");
+      expect(mockSource).toContain("function partitionWeatherPages");
       expect(mockSource).toContain("data-card-page");
+      expect(mockSource).toContain("pageMeasureEntries");
       expect(mockSource).toContain("cardPageTickOverride");
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("greedily partitions canonical regions by measured range height and keeps page identity keys", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 90,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageHeightByLength: { 1: 40, 2: 40, 3: 100 },
+    });
+    try {
+      const expected = ["宮崎市", "日南市", "都城市", "延岡市", "西都市", "えびの市", "高鍋町"];
+      const observed = new Set<string>();
+      const pageAreaCounts: number[] = [];
+      let pageKeys: string[] = [];
+      let pageCount = 0;
+      for (let pageTick = 0; pageTick < 4; pageTick += 1) {
+        const { rendered, root } = renderMock(`legacyMock2=4&ladder=0&cardPageTick=${pageTick}`);
+        await tick();
+        const card = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
+        const current = card?.dataset.cardPage ?? "";
+        pageCount = Number(current.split("/")[1]);
+        pageKeys = JSON.parse(card?.dataset.cardPageKeys ?? "[]") as string[];
+        const areas = [...(card?.querySelectorAll<HTMLElement>(".city-name") ?? [])].map((node) => node.textContent ?? "");
+        areas.forEach((area) => observed.add(area));
+        pageAreaCounts.push(areas.length);
+        rendered.unmount();
+      }
+      expect(pageCount).toBe(4);
+      expect(pageAreaCounts).toEqual([2, 2, 2, 1]);
+      expect(pageKeys).toEqual(["宮崎市", "都城市", "西都市", "高鍋町"]);
+      expect([...observed]).toEqual(expected);
+
+      const weatherExpected = [
+        "熊本県山鹿市", "熊本県菊池市", "熊本県玉名市", "宮崎県延岡市", "宮崎県日向市",
+        "大分県佐伯市", "鹿児島県霧島市", "福岡県朝倉市", "佐賀県嬉野市", "長崎県諫早市",
+        "熊本県阿蘇市", "宮崎県都城市",
+      ];
+      const weatherAreas = new Set<string>();
+      for (let pageTick = 0; ; pageTick += 1) {
+        const { rendered, root } = renderMock(`legacyMock2=4&ladder=0&cardPageTick=${pageTick}`);
+        await tick();
+        const weather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
+        const total = Number(weather?.dataset.cardPage?.split("/")[1] ?? 1);
+        for (const group of weather?.querySelectorAll<HTMLElement>(".pref-group") ?? []) {
+          const pref = group.querySelector<HTMLElement>(".pref-name")?.textContent ?? "";
+          for (const city of group.querySelectorAll<HTMLElement>(".city-name")) {
+            weatherAreas.add(`${pref}${city.textContent ?? ""}`);
+          }
+        }
+        expect(root.dataset.cardPageKeys).toContain("熊本県山鹿市");
+        rendered.unmount();
+        if (pageTick + 1 >= total) break;
+        if (pageTick >= 127) throw new Error("weather candidate pagination did not settle");
+      }
+      expect([...weatherAreas]).toEqual(weatherExpected);
+
+      const epochStart = mockSource.indexOf("function cardPageEpochKey");
+      const epochEnd = mockSource.indexOf("function cardPagePartition", epochStart);
+      expect(mockSource.slice(epochStart, epochEnd)).not.toContain("measurementPass");
+      expect(mockSource).toMatch(/\.legacy-card\.paged-card \.card-page-body\s*\{[^}]*overflow:\s*hidden/s);
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("starts partitioning from a zero-visible group and marks only supply shrink as truncated", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&zeroVisible=1&cardPageTick=2");
+      await tick();
+      expect(root.dataset.candidateTruncated).toBe("false");
+      expect(root.dataset.cardPageInfeasible).toBe("false");
+      expect(root.dataset.cardPageActive).toBe("true");
+      expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("都城市");
+      expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPageKeys).toContain("宮崎市");
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("keeps the final supplied page's omitted count visible only when candidates are truncated", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&candidateTruncated=1&cardPageTick=3");
+      await tick();
+      expect(root.dataset.candidateTruncated).toBe("true");
+      expect(root.dataset.cardPageKeys).toContain("宮崎市");
+      expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("ほか");
+      expect(rendered.container.querySelector('[data-mock-card="weather"]')?.textContent).toContain("ほか");
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("marks an infeasible partition and leaves the compact omission row", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 100 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
+      await tick();
+      expect(root.dataset.cardPageInfeasible).toBe("true");
+      expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPageInfeasible).toBe("true");
+      expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("ほか");
     } finally {
       restoreMeasuredLayout();
     }
@@ -351,9 +476,9 @@ describe("legacy improved standby mock v19", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v19 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v20 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v19");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v20");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -535,6 +660,80 @@ describe("legacy improved standby mock v19", () => {
     }
   });
 
+  it("preserves the current page identity through rapid repartition updates", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&cardPageRefresh=1&cardPageRefreshAt=16000");
+      await tick();
+      await tick();
+      await tick();
+      const firstCard = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
+      expect(firstCard?.dataset.cardPage).toBe("1/7");
+
+      vi.advanceTimersByTime(15_000);
+      await tick();
+      expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPage).toBe("2/7");
+
+      vi.advanceTimersByTime(1_000);
+      await tick();
+      await tick();
+      await tick();
+      expect(root.dataset.cardPageRevision).toBe("1");
+      expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPage).toBe("2/8");
+
+      vi.advanceTimersByTime(2_000);
+      await tick();
+      await tick();
+      await tick();
+      expect(root.dataset.cardPageRevision).toBe("3");
+      expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPage).toBe("2/8");
+      expect(root.dataset.cardPageTick).toBe("1");
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("advances a rotation card once per reappearance and reaches every page in the gcd case", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 90,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageHeightByLength: { 1: 40, 2: 40, 3: 100 },
+    });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=weather,heat");
+      await tick();
+      await tick();
+      await tick();
+      const initialWeather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
+      const pageCount = Number(initialWeather?.dataset.cardPage?.split("/")[1] ?? 0);
+      expect(pageCount).toBeGreaterThan(1);
+      expect(pageCount % 2).toBe(0);
+      const observed = new Set<string>();
+      if (initialWeather?.dataset.cardPage != null) observed.add(initialWeather.dataset.cardPage);
+
+      for (let reappearance = 0; reappearance < pageCount - 1; reappearance += 1) {
+        vi.advanceTimersByTime(30_000);
+        await tick();
+        const weather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
+        expect(root.dataset.rotationActiveKey).toBe("weather");
+        if (weather?.dataset.cardPage != null) observed.add(weather.dataset.cardPage);
+      }
+      expect(observed.size).toBe(pageCount);
+      expect([...observed].map((page) => Number(page.split("/")[0])).sort((a, b) => a - b)).toEqual(
+        Array.from({ length: pageCount }, (_, index) => index + 1),
+      );
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps the same key and starts the new phase at its display start on addition", async () => {
     vi.useFakeTimers();
     const restoreMeasuredLayout = installMeasuredLayout();
@@ -649,7 +848,7 @@ describe("legacy improved standby mock v19", () => {
     expect(mockSource).toContain("data-center-measure-card");
   });
 
-  it("exposes v19 surplus-use diagnostics for wide flood and recalculated counts", () => {
+  it("exposes v20 surplus-use diagnostics for wide flood and recalculated counts", () => {
     const { root, rendered } = renderMock("legacyMock2=7&floodWide=1&ladder=0");
     expect(root.dataset.typhoonVariant).toBeDefined();
     expect(root.dataset.floodForm).toBe("wide");
