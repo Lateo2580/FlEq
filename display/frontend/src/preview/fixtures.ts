@@ -477,6 +477,35 @@ export const legacyImprovedMultiTailWeatherAlertsCompact: DisplayWeatherAlertV1[
   })),
 }];
 
+type LegacyImprovedTailOnlyIntensityGroup = DisplayIntensityGroupV1 & { candidateTruncated: boolean };
+
+/** v24: 候補供給が 0 件でも group 別残置行だけを持つ合法入力。 */
+export const legacyImprovedTailOnlyLatestQuake: DisplayLatestQuakeStateV1 = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: [
+    { intensity: "6弱", rank: 7, areas: [], omittedAreaCount: 2, candidateTruncated: true },
+    { intensity: "5強", rank: 6, areas: [], omittedAreaCount: 3, candidateTruncated: true },
+  ] as LegacyImprovedTailOnlyIntensityGroup[],
+};
+
+type LegacyImprovedTailOnlyWeatherItem = DisplayWeatherAlertItemV1 & { candidateTruncated: boolean };
+
+const legacyImprovedTailOnlyWeatherItems: LegacyImprovedTailOnlyWeatherItem[] = [
+  {
+    ...weatherWarningOnlyStandbyCards[0].items[0],
+    shownAreas: [],
+    omittedAreaCount: 4,
+    candidateTruncated: true,
+  },
+];
+
+/** v24: 気象側も供給 0 件＋kind 別残置行だけを持つ合法入力。 */
+export const legacyImprovedTailOnlyWeatherAlerts: DisplayWeatherAlertV1[] = [{
+  ...weatherWarningOnlyStandbyCards[0],
+  totalAreas: 4,
+  items: legacyImprovedTailOnlyWeatherItems,
+}];
+
 /** kind が異なる同名地域を持つ identity 検証用 fixture。 */
 export const legacyImprovedDuplicateWeatherAlerts: DisplayWeatherAlertV1[] = [{
   ...weatherWarningOnlyStandbyCards[0],

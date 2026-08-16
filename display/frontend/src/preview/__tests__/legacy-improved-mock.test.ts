@@ -167,6 +167,39 @@ function contractActive(root: HTMLElement): string {
   return root.dataset.rotationActiveKey ?? "";
 }
 
+interface SchedulerDiagnosticState {
+  rotation: {
+    stage: number | null;
+    keys: string[];
+    currentKey: string | null;
+    phaseKey: string | null;
+    processedTick: number;
+    seenKeys: string[];
+    tickPending: boolean;
+    suspended: boolean;
+    inFlight: boolean;
+    timerActive: boolean;
+  };
+  paging: {
+    stage: number | null;
+    activeKeys: { quake: string | null; weather: string | null };
+    pendingKeys: { quake: string[]; weather: string[] };
+    cycleOriginKeys: { quake: string | null; weather: string | null };
+    processedTick: number;
+    previousPageCounts: { quake: number; weather: number };
+    tickPending: boolean;
+    suspendedKeys: string[];
+    inFlight: boolean;
+    timerActive: boolean;
+  };
+}
+
+function schedulerState(root: HTMLElement): SchedulerDiagnosticState {
+  const encoded = root.dataset.schedulerState;
+  if (encoded == null) throw new Error("scheduler diagnostic state was not rendered");
+  return JSON.parse(encoded) as SchedulerDiagnosticState;
+}
+
 async function withContractCase(
   contractCase: SchedulerContractCase,
   query: string,
@@ -245,7 +278,7 @@ function installAnimationProbe(): { animations: AnimationProbe[]; restore: () =>
   };
 }
 
-describe("legacy improved standby mock v23", () => {
+describe("legacy improved standby mock v24", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -464,6 +497,24 @@ describe("legacy improved standby mock v23", () => {
       expect(root.dataset.cardPageActive).toBe("true");
       expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("都城市");
       expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPageKeys).toContain("宮崎市");
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("uses one partition probe per card for a tail-only supply", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&tailOnly=1&cardPageTick=0");
+      await settleMockMeasurements(320);
+      const probeCounts = JSON.parse(root.dataset.partitionProbeCount ?? "{}") as { quake?: number; weather?: number };
+      expect(root.dataset.candidateTruncated).toBe("true");
+      expect(probeCounts.quake).toBe(1);
+      expect(probeCounts.weather).toBe(1);
+      expect(probeCounts.quake).toBeLessThanOrEqual(Math.max(1, 2 * 0));
+      expect(probeCounts.weather).toBeLessThanOrEqual(Math.max(1, 2 * 0));
+      expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("ほか");
+      expect(rendered.container.querySelector('[data-mock-card="weather"]')?.textContent).toContain("ほか");
     } finally {
       restoreMeasuredLayout();
     }
@@ -767,15 +818,39 @@ describe("legacy improved standby mock v23", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v23 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v24 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v23");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v24");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
     expect(mockSource).toContain("data-right-capacity-px");
     expect(mockSource).toContain("measuredTickerHeightPx");
     expect(mockSource).toContain("measuredColumnPaddingPx");
+  });
+
+  it("exposes the INV-決定 scheduler state without source inspection", async () => {
+    vi.useFakeTimers();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=volcano,heat");
+      await settleMockMeasurements(320);
+      const initial = schedulerState(root);
+      expect(initial.rotation.currentKey).toBe("volcano");
+      expect(initial.rotation.seenKeys).toContain("volcano");
+      expect(initial.rotation.processedTick).toBe(0);
+      expect(initial.paging.previousPageCounts.quake).toBeGreaterThanOrEqual(1);
+      expect(initial.rotation.inFlight).toBe(false);
+      vi.advanceTimersByTime(15_000);
+      await tick();
+      await tick();
+      const afterTick = schedulerState(root);
+      expect(afterTick.rotation.processedTick).toBe(1);
+      expect(afterTick.rotation.seenKeys.length).toBeGreaterThanOrEqual(1);
+      expect(afterTick.paging.previousPageCounts.quake).toBe(initial.paging.previousPageCounts.quake);
+      rendered.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("measures typhoon full and compact variants in both shelves", () => {
@@ -1292,7 +1367,32 @@ describe("legacy improved standby mock v23", () => {
     expect(mockSource).toContain("本実装では TsunamiStandbyBanner 側の header 改修へ移す");
   });
 
-  describe("v23 common time-sliced scheduler contract", () => {
+  it("preserves page identity across resize-like stage transitions", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock(
+        "legacyMock2=4&ladder=0&cardPageTick=0&stageSequence=1@1000,2@2000,3@3000,0@4000",
+      );
+      await settleMockMeasurements(320);
+      const initialActiveKeys = root.dataset.cardPageActiveKeys;
+      const initialQuakeKey = schedulerState(root).paging.activeKeys.quake;
+      expect(root.dataset.ladderStage).toBe("0");
+      for (const expectedStage of [1, 2, 3, 0]) {
+        vi.advanceTimersByTime(1_000);
+        await settleMockMeasurements(320);
+        expect(root.dataset.ladderStage).toBe(String(expectedStage));
+        expect(root.dataset.cardPageActiveKeys).toBe(initialActiveKeys);
+        expect(schedulerState(root).paging.activeKeys.quake).toBe(initialQuakeKey);
+      }
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  describe("v24 common time-sliced scheduler contract", () => {
     it("gives epoch precedence without skipping a due tick", async () => {
       vi.useFakeTimers();
       try {
@@ -1349,12 +1449,30 @@ describe("legacy improved standby mock v23", () => {
         for (const contractCase of schedulerContractCases) {
           const animationCountBefore = animationProbe.animations.length;
           await withContractCase(contractCase, contractCase.query, async ({ rendered, root }) => {
-            vi.advanceTimersByTime(15_000);
             await settleMockMeasurements(4);
             if (contractCase.mode === "paging") {
-              expect(rendered.container.querySelector('[data-card-page-body]'), contractCase.name).toBeTruthy();
+              const pageCard = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
+              const beforePage = pageCard?.dataset.cardPage;
+              const beforeText = pageCard?.textContent ?? "";
+              const emptySnapshots: boolean[] = [];
+              const observer = new MutationObserver(() => {
+                const body = pageCard?.querySelector<HTMLElement>('[data-card-page-body]');
+                emptySnapshots.push(body == null || (body.textContent ?? "").trim() === "");
+              });
+              if (pageCard != null) observer.observe(pageCard, { attributes: true, childList: true, subtree: true, characterData: true });
+              vi.advanceTimersByTime(15_000);
+              await tick();
+              await Promise.resolve();
+              observer.disconnect();
+              expect(animationProbe.animations.length, contractCase.name).toBe(animationCountBefore);
+              expect(pageCard?.dataset.cardPage, contractCase.name).not.toBe(beforePage);
+              expect(pageCard?.textContent, contractCase.name).not.toBe(beforeText);
+              expect(pageCard?.querySelectorAll('[data-card-page-body]').length, contractCase.name).toBe(1);
+              expect(emptySnapshots, contractCase.name).not.toContain(true);
               return;
             }
+            vi.advanceTimersByTime(15_000);
+            await settleMockMeasurements(4);
             const first = animationProbe.animations[animationCountBefore];
             expect(first, contractCase.name).toBeDefined();
             expect(rendered.container.querySelector("[data-rotation-slot] [data-mock-card]"), contractCase.name).toBeTruthy();
@@ -1392,11 +1510,16 @@ describe("legacy improved standby mock v23", () => {
             vi.advanceTimersByTime(15_000);
             await tick();
             await tick();
+            expect(vi.getTimerCount(), contractCase.name).toBeGreaterThan(0);
+            const animationCountAfterTick = animationProbe.animations.length;
             unmount();
             expect(vi.getTimerCount(), contractCase.name).toBe(0);
             if (contractCase.mode !== "paging") {
               expect(animationProbe.animations[animationCountBefore]?.cancel, contractCase.name).toHaveBeenCalled();
             }
+            vi.advanceTimersByTime(30_000);
+            await tick();
+            expect(animationProbe.animations.length, contractCase.name).toBe(animationCountAfterTick);
           });
 
           await withContractCase(contractCase, contractCase.exitQuery, async ({ rendered, root }) => {
@@ -1405,9 +1528,12 @@ describe("legacy improved standby mock v23", () => {
             await settleMockMeasurements(64);
             if (contractCase.mode === "paging") {
               expect(contractPage({ rendered, root }), contractCase.name).toBe("1/1");
+              expect(schedulerState(root).paging.inFlight, contractCase.name).toBe(false);
             } else {
               expect(root.dataset.rotationKeys, contractCase.name).toBe("");
               expect(root.dataset.rotationActiveKey, contractCase.name).toBeUndefined();
+              expect(schedulerState(root).rotation.timerActive, contractCase.name).toBe(false);
+              expect(schedulerState(root).rotation.inFlight, contractCase.name).toBe(false);
             }
           });
         }

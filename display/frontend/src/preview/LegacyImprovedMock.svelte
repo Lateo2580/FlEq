@@ -33,6 +33,8 @@
     legacyImprovedMultiTailLatestQuakeExpanded,
     legacyImprovedMultiTailWeatherAlerts,
     legacyImprovedMultiTailWeatherAlertsCompact,
+    legacyImprovedTailOnlyLatestQuake,
+    legacyImprovedTailOnlyWeatherAlerts,
     legacyImprovedZeroVisibleLatestQuake,
     legacyImprovedMaxItems,
     legacyImprovedMaxUnknownItems,
@@ -233,6 +235,21 @@
     return null;
   }
 
+  interface StageSequenceEntry {
+    stage: LadderStage;
+    atMs: number;
+  }
+
+  function parseStageSequence(value: string | null): StageSequenceEntry[] {
+    if (value == null || value.trim() === "") return [];
+    return value.split(",").flatMap((rawEntry): StageSequenceEntry[] => {
+      const [rawStage, rawAtMs] = rawEntry.split("@");
+      const stage = parseLadder(rawStage?.trim() ?? null);
+      if (stage == null || rawAtMs == null || !/^\d+$/.test(rawAtMs.trim())) return [];
+      return [{ stage, atMs: Number.parseInt(rawAtMs, 10) }];
+    }).sort((left, right) => left.atMs - right.atMs);
+  }
+
   function findItem<K extends ActiveStandbyCardV1["kind"]>(
     items: readonly ActiveStandbyCardV1[],
     kind: K,
@@ -279,6 +296,7 @@
   const candidate129Requested = params.get("candidate129") === "1";
   const duplicatePageKeyFixtureRequested = params.get("duplicatePageKeys") === "1";
   const multiTailFixtureRequested = params.get("multiTail") === "1";
+  const tailOnlyFixtureRequested = params.get("tailOnly") === "1";
   const nonMonotonicBFixtureRequested = params.get("nonMonotonicB") === "1";
   const zeroVisibleQuakeRequested = params.get("zeroVisible") === "1";
   const cardPageRefreshRequested = params.get("cardPageRefresh") === "1";
@@ -288,6 +306,7 @@
   const cardPageRefreshAtMs = cardPageRefreshAtParam != null && /^\d+$/.test(cardPageRefreshAtParam)
     ? Number.parseInt(cardPageRefreshAtParam, 10)
     : 1_000;
+  const stageSequence = parseStageSequence(params.get("stageSequence"));
   // rotationKeys/rotationChange は fake timer テスト専用の集合変化 override。通常の mock は
   // solver が返す rotationKeys をそのまま使い、URL 未指定時にはこの経路へ入らない。
   const rotationTestKeysParam = parseRotationKeys(params.get("rotationKeys"));
@@ -298,6 +317,8 @@
     : 1_000;
   let rotationTestKeys = $state<CardKey[] | null>(rotationTestKeysParam);
   let rotationTestChangeTimer: ReturnType<typeof setTimeout> | null = null;
+  let stageFixtureOverride = $state<LadderStage | null>(null);
+  let stageTransitionTimers: ReturnType<typeof setTimeout>[] = [];
   let cardPageFixtureRevision = $state(0);
   let cardPageRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   const MAX_SETTLE_PASSES = 4;
@@ -339,6 +360,8 @@
       ? legacyImprovedDuplicateWeatherAlerts
       : multiTailFixtureRequested
         ? legacyImprovedMultiTailWeatherAlerts
+      : tailOnlyFixtureRequested
+        ? legacyImprovedTailOnlyWeatherAlerts
       : scenario === "max"
         ? legacyImprovedMaxWeatherAlerts
         : legacyImprovedWeatherAlertsExpanded;
@@ -348,6 +371,8 @@
       ? legacyImprovedDuplicateWeatherAlertsCompact
       : multiTailFixtureRequested
         ? legacyImprovedMultiTailWeatherAlertsCompact
+      : tailOnlyFixtureRequested
+        ? legacyImprovedTailOnlyWeatherAlerts
       : scenario === "max"
         ? legacyImprovedMaxWeatherAlertsCompact
         : legacyImprovedWeatherAlertsCompact;
@@ -355,6 +380,8 @@
     ? legacyImprovedCandidate129LatestQuakeCompact
     : multiTailFixtureRequested
       ? legacyImprovedMultiTailLatestQuakeCompact
+    : tailOnlyFixtureRequested
+      ? legacyImprovedTailOnlyLatestQuake
     : zeroVisibleQuakeRequested
       ? legacyImprovedZeroVisibleLatestQuake
       : latestQuakeStandbyCards;
@@ -362,6 +389,8 @@
     ? legacyImprovedCandidate129LatestQuakeExpanded
     : multiTailFixtureRequested
       ? legacyImprovedMultiTailLatestQuakeExpanded
+    : tailOnlyFixtureRequested
+      ? legacyImprovedTailOnlyLatestQuake
     : nonMonotonicBFixtureRequested
       ? legacyImprovedNonMonotonicLatestQuake
     : legacyImprovedExpandedLatestQuake;
@@ -480,6 +509,13 @@
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
   let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0 };
+  let schedulerDiagnosticRevision = $state(0);
+
+  function touchSchedulerDiagnostics(): void {
+    untrack(() => {
+      schedulerDiagnosticRevision += 1;
+    });
+  }
   let cardPageRuntime = $state<Record<PageableCardKey, CardPageRuntime>>({
     quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -708,6 +744,7 @@
     cardPageProcessedTick = elapsedTicks;
     cardPageTick = elapsedTicks;
     for (const key of selfAdvancingPageKeys()) advanceCardPageFor(key, tickDelta);
+    touchSchedulerDiagnostics();
     scheduleCardPageTimer(nowMs, pageable);
   }
 
@@ -720,11 +757,11 @@
       quake: cardPagePartitions.quake.pages.length,
       weather: cardPagePartitions.weather.pages.length,
     };
-    const stageReset = cardPageSchedulerStage !== stage;
+    const initialScheduler = cardPageSchedulerStage == null;
     if (cardPageSchedulerEpoch !== epochKey) {
       cardPageSchedulerEpoch = epochKey;
     }
-    if (stageReset) {
+    if (initialScheduler) {
       cardPageSchedulerStage = stage;
       cardPageStartedAtMs = monotonicNowMs();
       cardPageProcessedTick = 0;
@@ -732,6 +769,9 @@
       reconcileCardPageRuntime("quake", true);
       reconcileCardPageRuntime("weather", true);
     } else {
+      // stage 変更は改ページ instance の exit ではない。現在ページ・pending・位相を
+      // 維持し、実際に 1 ページ化したカードだけを page boundary として reset する。
+      cardPageSchedulerStage = stage;
       // 1ページ化は改ページインスタンスの exit。再び複数ページへ戻ったときは
       // stage が同じでも reset し、輪番 suspend/resume や通常の repartition とは分離する。
       let pageReentryReset = false;
@@ -753,6 +793,7 @@
       if (cardPageTickOverride != null) cardPageTick = cardPageTickOverride;
     }
     cardPageSchedulerPageCounts = currentPageCounts;
+    touchSchedulerDiagnostics();
     cardPageEpochBusy = false;
     if (cardPageTickPending) {
       cardPageTickPending = false;
@@ -778,6 +819,7 @@
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     };
+    touchSchedulerDiagnostics();
   }
 
   function clearRotationTimer(): void {
@@ -796,6 +838,7 @@
     const animation = rotationTransition;
     rotationTransition = null;
     animation?.cancel();
+    touchSchedulerDiagnostics();
   }
 
   function reducedMotionRequested(): boolean {
@@ -822,6 +865,7 @@
       rotationTransitionDeadlineTimer = null;
     }
     rotationTransition = null;
+    touchSchedulerDiagnostics();
     if (rotationTickPending && !rotationEpochBusy) {
       rotationTickPending = false;
       processRotationTick();
@@ -836,6 +880,7 @@
       { duration: ROTATION_TRANSITION_DEADLINE_MS / 2, easing: "ease-out" },
     );
     rotationTransition = animation;
+    touchSchedulerDiagnostics();
     animation.onfinish = () => completeRotationTransition(token, animation);
     animation.oncancel = () => completeRotationTransition(token, animation);
     rotationTransitionDeadlineTimer = setTimeout(() => {
@@ -850,6 +895,7 @@
     cancelRotationTransition();
     // 空フレームを作らず、新しいカードを同じ枠へ直接差し替える。
     rotationActiveKey = key;
+    touchSchedulerDiagnostics();
     if (!animate || rotationTickOverride != null || rotationSchedulerStage !== 3) return;
     const token = rotationTransitionToken;
     void tick().then(() => {
@@ -930,6 +976,7 @@
     const nextKey = canonicalKeys[(originIndex + elapsedTicks) % canonicalKeys.length] ?? null;
     applyRotationKey(nextKey, true);
     rotationActiveStartedAtMs = rotationEnteredAtMs + elapsedTicks * ROTATION_PERIOD_MS;
+    touchSchedulerDiagnostics();
     scheduleRotationTimer(nowMs);
   }
 
@@ -951,6 +998,7 @@
       if (rotationSchedulerStage === 3 && !measurementSettled) {
         rotationSchedulerSuspended = true;
         clearRotationTimer();
+        touchSchedulerDiagnostics();
         rotationEpochBusy = false;
         return;
       }
@@ -965,6 +1013,7 @@
       rotationSeenKeys = new Set();
       rotationActiveKey = null;
       rotationTickPending = false;
+      touchSchedulerDiagnostics();
       rotationEpochBusy = false;
       return;
     }
@@ -1012,6 +1061,7 @@
     } else {
       scheduleRotationTimer();
     }
+    touchSchedulerDiagnostics();
   }
 
   function disposeRotationScheduler(): void {
@@ -1031,6 +1081,7 @@
     rotationSeenKeys = new Set();
     rotationActiveKey = null;
     rotationTickPending = false;
+    touchSchedulerDiagnostics();
   }
 
   function cssPx(value: string | undefined): number {
@@ -1198,10 +1249,13 @@
     syncRotationScheduler(layoutPlan.stage, schedulerRotationKeys);
     cardPageSchedulerMounted = true;
     scheduleRotationTestMutation();
+    scheduleStageSequence();
     scheduleCardPageRefresh();
     startFontReadiness();
     return () => {
       measurementDisposed = true;
+      stageTransitionTimers.forEach((timer) => clearTimeout(timer));
+      stageTransitionTimers = [];
       disposeRotationScheduler();
       disposeCardPageScheduler();
     };
@@ -1276,6 +1330,12 @@
   }
 
   function fullQuakeGroups(): DisplayIntensityGroupV1[] {
+    if (tailOnlyFixtureRequested) {
+      return compactQuakeState.intensityGroups.map((group) => ({
+        ...group,
+        areas: [],
+      }));
+    }
     if (cardPageCollapseRequested && cardPageFixtureRevision === 1) {
       // 共通 contract test の exit=1 page 境界。revision 2 以降は通常候補へ戻し、
       // 再進入時に改ページ scheduler が reset されることを観測できるようにする。
@@ -1331,6 +1391,16 @@
 
   function suppliedQuakeGroups(): SuppliedQuakeGroups {
     const fullGroups = fullQuakeGroups();
+    if (tailOnlyFixtureRequested) {
+      return {
+        groups: fullGroups.map((group) => ({ ...group, areas: [], omittedAreaCount: 0 })),
+        tails: fullGroups
+          .filter((group) => group.omittedAreaCount > 0)
+          .map((group) => ({ kindKey: quakeGroupKey(group), omittedAreaCount: group.omittedAreaCount })),
+        truncated: true,
+        fullAreaKeys: [],
+      };
+    }
     const fullAreaKeys = fullGroups.flatMap((group) => group.areas);
     let remaining = candidateSupplyLimit();
     const groups = fullGroups.map((group) => {
@@ -1503,7 +1573,11 @@
       const existingIndex = indexByKind.get(item.kind);
       if (existingIndex == null) {
         indexByKind.set(item.kind, merged.length);
-        merged.push({ templateAlert: alert, item: { ...item, shownAreas: [], omittedAreaCount: 0 }, areas: [] });
+        merged.push({
+          templateAlert: alert,
+          item: { ...item, shownAreas: [], omittedAreaCount: item.omittedAreaCount },
+          areas: [],
+        });
       }
       const target = merged[indexByKind.get(item.kind) ?? 0];
       for (const area of item.shownAreas) {
@@ -1515,6 +1589,20 @@
 
   function suppliedWeatherItems(): SuppliedWeatherItems {
     const fullItems = mergeWeatherPageItems(fullWeatherAlerts);
+    if (tailOnlyFixtureRequested) {
+      return {
+        items: fullItems.map((entry) => ({
+          ...entry,
+          areas: [],
+          item: { ...entry.item, shownAreas: [], omittedAreaCount: entry.item.omittedAreaCount },
+        })),
+        tails: fullItems
+          .filter((entry) => entry.item.omittedAreaCount > 0)
+          .map((entry) => ({ kindKey: entry.item.kind, omittedAreaCount: entry.item.omittedAreaCount })),
+        truncated: true,
+        fullAreaKeys: [],
+      };
+    }
     const fullAreaKeys = fullItems.flatMap((entry) => entry.areas);
     let remaining = candidateSupplyLimit();
     const items = fullItems.map((entry) => {
@@ -2252,6 +2340,7 @@
 
   function makeColumnPlan(): ColumnPlan {
     const capacity = layoutCapacityPx();
+    const requestedLadder = stageFixtureOverride ?? ladderOverride;
     const emptyForced = new Set<CardKey>();
     const fullVariants: VariantSelection = { quake: "compact", weather: "compact", typhoon: "full" };
     const fullCandidates = buildCandidates(fullVariants);
@@ -2267,8 +2356,8 @@
       sidePlacement = bestPlacement(enumeratePlacements(candidates, emptyForced, false, false), capacity);
     }
 
-    const auto = ladderOverride == null;
-    const floor = auto ? settleFloorStage : ladderOverride ?? 0;
+    const auto = requestedLadder == null;
+    const floor = auto ? settleFloorStage : requestedLadder ?? 0;
     let selected = sidePlacement ?? emptyPlacement();
     let stage: LadderStage = 0;
     let rotationKeys: CardKey[] = [];
@@ -2312,9 +2401,9 @@
       }
     }
 
-    if (ladderOverride === 1) stage = 1;
-    if (ladderOverride === 2) stage = 2;
-    if (ladderOverride === 3) {
+    if (requestedLadder === 1) stage = 1;
+    if (requestedLadder === 2) stage = 2;
+    if (requestedLadder === 3) {
       const rotation = solveRotation(candidates, capacity);
       selected = rotation.placement;
       rotationKeys = rotation.rotationKeys;
@@ -2367,6 +2456,17 @@
         rotationTestKeys = currentKeys.filter((key) => key !== rotationTestChange.key);
       }
     }, rotationTestChangeAtMs);
+  }
+
+  function scheduleStageSequence(): void {
+    stageTransitionTimers.forEach((timer) => clearTimeout(timer));
+    stageTransitionTimers = stageSequence.map((entry) => setTimeout(() => {
+      if (measurementDisposed) return;
+      stageFixtureOverride = entry.stage;
+      measurementSettled = false;
+      settledMeasurementEpoch = "";
+      requestMeasurementSettle();
+    }, entry.atMs));
   }
 
   function clearCardPageRefreshTimer(): void {
@@ -2763,6 +2863,46 @@
     layoutPlan.rotationSlotHeight,
     layoutPlan.rotationFailureCount > 0 ? measuredRotationFailureHeightPx : 0,
   ));
+
+  const schedulerState = $derived.by(() => {
+    void schedulerDiagnosticRevision;
+    return JSON.stringify({
+      rotation: {
+        stage: rotationSchedulerStage,
+        keys: [...rotationSchedulerKeys],
+        currentKey: rotationActiveKey,
+        phaseKey: rotationPhaseKey,
+        phaseStartedAtMs: rotationEnteredAtMs,
+        processedTick: rotationProcessedTick,
+        seenKeys: [...rotationSeenKeys],
+        tickPending: rotationTickPending,
+        suspended: rotationSchedulerSuspended,
+        inFlight: rotationTransition != null || rotationEpochBusy,
+        timerActive: rotationTimer != null || rotationTransitionDeadlineTimer != null,
+      },
+      paging: {
+        stage: cardPageSchedulerStage,
+        activeKeys: {
+          quake: cardPageRuntime.quake.activeKey,
+          weather: cardPageRuntime.weather.activeKey,
+        },
+        pendingKeys: {
+          quake: [...cardPageRuntime.quake.pendingKeys],
+          weather: [...cardPageRuntime.weather.pendingKeys],
+        },
+        cycleOriginKeys: {
+          quake: cardPageRuntime.quake.cycleOriginKey,
+          weather: cardPageRuntime.weather.cycleOriginKey,
+        },
+        processedTick: cardPageProcessedTick,
+        previousPageCounts: { ...cardPageSchedulerPageCounts },
+        tickPending: cardPageTickPending,
+        suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather"),
+        inFlight: cardPageEpochBusy,
+        timerActive: cardPageSchedulerTimer != null,
+      },
+    });
+  });
 </script>
 
   {#snippet renderPageProbe(entry: PageMeasureEntry)}
@@ -2868,7 +3008,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v23</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v24</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -2946,10 +3086,11 @@
   data-rotation-slot-height-px={layoutPlan.rotationSlotHeight}
   data-rotation-failure-count={layoutPlan.rotationFailureCount}
   data-rotation-suspended={rotationSchedulerSuspended ? "true" : "false"}
+  data-scheduler-state={schedulerState}
   data-outer-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v23</strong>
+    <strong>従来フォーマット改良 v24</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
