@@ -20,19 +20,26 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-function installMeasuredLayout(options: { capacityPx?: number; baseCardPx?: number; prefixRowPx?: number } = {}): () => void {
+function installMeasuredLayout(options: {
+  capacityPx?: number;
+  baseCardPx?: number;
+  prefixRowPx?: number;
+  cardHeightById?: Readonly<Record<string, number>>;
+} = {}): () => void {
   const capacityPx = options.capacityPx ?? 180;
   const baseCardPx = options.baseCardPx ?? 90;
   const prefixRowPx = options.prefixRowPx ?? 0;
   const shelfHeight = (id: string | undefined): number => {
     if (id == null) return baseCardPx;
+    const baseId = id.split(":")[0];
+    const measuredBase = options.cardHeightById?.[id] ?? options.cardHeightById?.[baseId] ?? baseCardPx;
     const regionMatch = id.match(/:(?:region:)(\d+)$/);
-    if (regionMatch != null) return baseCardPx + Number(regionMatch[1]) * prefixRowPx;
+    if (regionMatch != null) return measuredBase + Number(regionMatch[1]) * prefixRowPx;
     if (id.endsWith(":expanded")) {
       const maxRows = id.startsWith("quake:") ? 3 : 10;
-      return baseCardPx + maxRows * prefixRowPx;
+      return measuredBase + maxRows * prefixRowPx;
     }
-    return baseCardPx;
+    return measuredBase;
   };
   const offsetHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
   const originalRect = HTMLElement.prototype.getBoundingClientRect;
@@ -76,7 +83,7 @@ function installMeasuredLayout(options: { capacityPx?: number; baseCardPx?: numb
   };
 }
 
-describe("legacy improved standby mock v18", () => {
+describe("legacy improved standby mock v19", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -178,6 +185,36 @@ describe("legacy improved standby mock v18", () => {
     expect(mockSource).toContain("tornado={null}");
     expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul\)\s*\{[^}]*column-count:\s*2/s);
     expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul \.pref-group\)\s*\{[^}]*break-inside:\s*avoid/s);
+  });
+
+  it("pages residual quake and weather regions with a fixed card height", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&cardPageTick=1");
+      await tick();
+      expect(root.dataset.cardPageTickOverride).toBe("1");
+      expect(root.dataset.cardPageActive).toBe("true");
+      expect(root.dataset.cardPageCounts).toMatch(/quake:[2-9]/);
+
+      const pageCards = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-card="quake"], [data-mock-card="weather"]')];
+      expect(pageCards.some((card) => (card.dataset.cardPage ?? "").includes("/"))).toBe(true);
+      for (const card of pageCards) {
+        const page = card.dataset.cardPage;
+        if (page == null) continue;
+        const [current, total] = page.split("/").map(Number);
+        expect(current).toBeGreaterThanOrEqual(1);
+        expect(current).toBeLessThanOrEqual(total);
+        expect(Number(card.dataset.cardPageFixedHeight)).toBe(Number(card.dataset.naturalHeightPx));
+        expect(card.querySelector("[data-card-page-indicator]")?.textContent).toBe(`${current}/${total}`);
+        expect(card.textContent).not.toContain("ほか3地域");
+      }
+      expect(mockSource).toContain("function quakeCardPages");
+      expect(mockSource).toContain("function weatherCardPages");
+      expect(mockSource).toContain("data-card-page");
+      expect(mockSource).toContain("cardPageTickOverride");
+    } finally {
+      restoreMeasuredLayout();
+    }
   });
 
   it("uses the new stage 1 clock retreat without reviving the old forced left spill", () => {
@@ -314,9 +351,9 @@ describe("legacy improved standby mock v18", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v18 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v19 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v18");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v19");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -352,6 +389,32 @@ describe("legacy improved standby mock v18", () => {
     expect(mockSource).toMatch(/leftChoice\.center\.length[^\n]*rightChoice\.center\.length/);
     expect(mockSource).toMatch(/leftWideFlood[^\n]*rightWideFlood/);
     expect(mockSource).toContain("二重測定値だけで");
+  });
+
+  it("chooses the higher-expansion placement in the counterfixture", async () => {
+    const counterfixture = {
+      capacityPx: 100,
+      baseCardPx: 20,
+      prefixRowPx: 10,
+      cardHeightById: { quake: 85, weather: 50, volcano: 1, heat: 10 },
+    } as const;
+    const restoreMeasuredLayout = installMeasuredLayout(counterfixture);
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
+      await tick();
+      await tick();
+      await tick();
+      const leftKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="left"] [data-mock-card]')]
+        .map((card) => card.dataset.mockCard);
+      const rightKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="right"] [data-mock-card]')]
+        .map((card) => card.dataset.mockCard);
+      expect(root.dataset.ladderStage).toBe("0");
+      expect(leftKeys).toEqual(["quake", "volcano"]);
+      expect(rightKeys).toEqual(["weather", "heat"]);
+      expect(Number(root.dataset.weatherExpandedRows)).toBe(4);
+    } finally {
+      restoreMeasuredLayout();
+    }
   });
 
   it("enumerates multiple central eligible-card subsets without a one-card cap", () => {
@@ -413,6 +476,59 @@ describe("legacy improved standby mock v18", () => {
       expect(mockSource).toContain("nextRotationKeyAfterRemoval");
       expect(mockSource).toContain("disposeRotationScheduler");
       expect(mockSource).toContain("rotationTickPending");
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("merges a long rotation pause into the monotonic phase in one pass", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout();
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3");
+      await tick();
+      await tick();
+      await tick();
+      const keys = (root.dataset.rotationKeys ?? "").split(",").filter(Boolean);
+      expect(keys.length).toBeGreaterThanOrEqual(2);
+      expect(root.dataset.rotationActiveKey).toBe(keys[0]);
+
+      const elapsedTicks = 7;
+      vi.advanceTimersByTime(15_000 * elapsedTicks + 1);
+      await tick();
+      expect(root.dataset.rotationActiveKey).toBe(keys[elapsedTicks % keys.length]);
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cycles residual card pages every 15 seconds and coalesces a long pause", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
+      await tick();
+      await tick();
+      await tick();
+      const counts = (root.dataset.cardPageCounts ?? "").split(",").map((entry) => Number(entry.split(":")[1]));
+      const total = Math.max(...counts);
+      expect(total).toBeGreaterThan(1);
+      expect(root.dataset.cardPageTick).toBe("0");
+
+      const elapsedTicks = 7;
+      vi.advanceTimersByTime(15_000 * elapsedTicks + 1);
+      await tick();
+      expect(root.dataset.cardPageTick).toBe(String(elapsedTicks));
+      const quakeTotal = Number((root.dataset.cardPageCounts ?? "").split(",")[0].split(":")[1]);
+      const quake = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
+      expect(quake?.dataset.cardPage).toBe(`${(elapsedTicks % quakeTotal) + 1}/${quakeTotal}`);
+      expect(mockSource).toContain("function processCardPageTick");
+      expect(mockSource).toContain("elapsedTicks");
+      expect(mockSource).toContain("disposeCardPageScheduler");
+      rendered.unmount();
     } finally {
       restoreMeasuredLayout();
       vi.useRealTimers();
@@ -533,7 +649,7 @@ describe("legacy improved standby mock v18", () => {
     expect(mockSource).toContain("data-center-measure-card");
   });
 
-  it("exposes v18 surplus-use diagnostics for wide flood and recalculated counts", () => {
+  it("exposes v19 surplus-use diagnostics for wide flood and recalculated counts", () => {
     const { root, rendered } = renderMock("legacyMock2=7&floodWide=1&ladder=0");
     expect(root.dataset.typhoonVariant).toBeDefined();
     expect(root.dataset.floodForm).toBe("wide");

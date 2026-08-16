@@ -12,7 +12,13 @@
   import TyphoonCard from "../components/TyphoonCard.svelte";
   import VolcanoCard from "../components/VolcanoCard.svelte";
   import WeatherAlertCard from "../components/WeatherAlertCard.svelte";
-  import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayWeatherAlertV1 } from "../lib/protocol";
+  import type {
+    ActiveStandbyCardV1,
+    DisplayIntensityGroupV1,
+    DisplayLatestQuakeStateV1,
+    DisplayWeatherAlertItemV1,
+    DisplayWeatherAlertV1,
+  } from "../lib/protocol";
   import {
     latestQuakeStandbyCards,
     legacyImprovedExpandedLatestQuake,
@@ -87,6 +93,12 @@
     weatherRows: number;
   }
 
+  interface WeatherPageItem {
+    templateAlert: DisplayWeatherAlertV1;
+    item: DisplayWeatherAlertItemV1;
+    areas: string[];
+  }
+
   interface ColumnPlan {
     left: CardCandidate[];
     right: CardCandidate[];
@@ -155,6 +167,10 @@
   const rotationTickOverride = rotationTickParam == null || !/^\d+$/.test(rotationTickParam)
     ? null
     : Number.parseInt(rotationTickParam, 10);
+  const cardPageTickParam = params.get("cardPageTick");
+  const cardPageTickOverride = cardPageTickParam == null || !/^\d+$/.test(cardPageTickParam)
+    ? null
+    : Number.parseInt(cardPageTickParam, 10);
   // rotationKeys/rotationChange は fake timer テスト専用の集合変化 override。通常の mock は
   // solver が返す rotationKeys をそのまま使い、URL 未指定時にはこの経路へ入らない。
   const rotationTestKeysParam = parseRotationKeys(params.get("rotationKeys"));
@@ -298,6 +314,14 @@
   let monotonicOriginPerformanceMs: number | null = null;
   let monotonicOriginDateMs: number | null = null;
   let monotonicLastMs = 0;
+  let cardPageTick = $state(0);
+  let cardPageSchedulerTimer: ReturnType<typeof setTimeout> | null = null;
+  let cardPageSchedulerMounted = false;
+  let cardPageSchedulerEpoch = "";
+  let cardPageStartedAtMs = 0;
+  let cardPageProcessedTick = 0;
+  let cardPageEpochBusy = false;
+  let cardPageTickPending = false;
 
   function captureMeasure(node: HTMLElement, id: string): { destroy: () => void } {
     measureNodes.set(id, node);
@@ -344,6 +368,80 @@
     // 補助時計として使う。前回値を下回らないようにすることで wall-clock の逆行を吸収する。
     monotonicLastMs = Math.max(monotonicLastMs, performanceDelta, dateDelta);
     return monotonicLastMs;
+  }
+
+  function clearCardPageTimer(): void {
+    if (cardPageSchedulerTimer != null) {
+      clearTimeout(cardPageSchedulerTimer);
+      cardPageSchedulerTimer = null;
+    }
+  }
+
+  function scheduleCardPageTimer(nowMs = monotonicNowMs(), pageable = true): void {
+    clearCardPageTimer();
+    if (cardPageTickOverride != null || !pageable || !cardPageSchedulerMounted) return;
+    const elapsedTicks = Math.max(0, Math.floor((nowMs - cardPageStartedAtMs) / ROTATION_PERIOD_MS));
+    const nextDeadline = cardPageStartedAtMs + (elapsedTicks + 1) * ROTATION_PERIOD_MS;
+    cardPageSchedulerTimer = setTimeout(() => {
+      cardPageSchedulerTimer = null;
+      if (cardPageEpochBusy) {
+        cardPageTickPending = true;
+        return;
+      }
+      processCardPageTick(pageable);
+    }, Math.max(0, nextDeadline - nowMs));
+  }
+
+  function processCardPageTick(pageable: boolean): void {
+    if (!cardPageSchedulerMounted || !pageable) return;
+    if (cardPageEpochBusy) {
+      cardPageTickPending = true;
+      return;
+    }
+    const nowMs = monotonicNowMs();
+    const elapsedTicks = Math.max(0, Math.floor((nowMs - cardPageStartedAtMs) / ROTATION_PERIOD_MS));
+    if (elapsedTicks <= cardPageProcessedTick) {
+      scheduleCardPageTimer(nowMs, pageable);
+      return;
+    }
+    // 長時間停止後も elapsed tick を一括で位相へ合流させる。ページごとの timer callback
+    // 回数には依存せず、同じ単調時計起点から決定的に現在ページを求める。
+    cardPageProcessedTick = elapsedTicks;
+    cardPageTick = elapsedTicks;
+    scheduleCardPageTimer(nowMs, pageable);
+  }
+
+  function syncCardPageScheduler(epochKey: string, pageable: boolean): void {
+    if (!cardPageSchedulerMounted || measurementDisposed) return;
+    cardPageEpochBusy = true;
+    clearCardPageTimer();
+    if (cardPageSchedulerEpoch !== epochKey) {
+      cardPageSchedulerEpoch = epochKey;
+      cardPageStartedAtMs = monotonicNowMs();
+      cardPageProcessedTick = 0;
+      cardPageTick = cardPageTickOverride ?? 0;
+    } else if (cardPageTickOverride != null) {
+      cardPageTick = cardPageTickOverride;
+    }
+    if (!pageable && cardPageTickOverride == null) cardPageTick = 0;
+    cardPageEpochBusy = false;
+    if (cardPageTickPending) {
+      cardPageTickPending = false;
+      processCardPageTick(pageable);
+    } else {
+      scheduleCardPageTimer(monotonicNowMs(), pageable);
+    }
+  }
+
+  function disposeCardPageScheduler(): void {
+    cardPageSchedulerMounted = false;
+    clearCardPageTimer();
+    cardPageSchedulerEpoch = "";
+    cardPageStartedAtMs = 0;
+    cardPageProcessedTick = 0;
+    cardPageTick = 0;
+    cardPageEpochBusy = false;
+    cardPageTickPending = false;
   }
 
   function clearRotationTimer(): void {
@@ -677,11 +775,14 @@
     readMeasurements();
     rotationSchedulerMounted = true;
     syncRotationScheduler(layoutPlan.stage, schedulerRotationKeys);
+    cardPageSchedulerMounted = true;
+    syncCardPageScheduler(cardPageEpochKey(), cardPageIsActive);
     scheduleRotationTestMutation();
     void settleMeasurements();
     return () => {
       measurementDisposed = true;
       disposeRotationScheduler();
+      disposeCardPageScheduler();
     };
   });
 
@@ -751,6 +852,108 @@
         items,
       };
     });
+  }
+
+  function fullQuakeGroups(): DisplayIntensityGroupV1[] {
+    return latestQuakeStandbyCards.intensityGroups.map((compactGroup) => {
+      const expandedGroup = legacyImprovedExpandedLatestQuake.intensityGroups.find((group) =>
+        group.intensity === compactGroup.intensity && group.rank === compactGroup.rank
+      ) ?? compactGroup;
+      return {
+        ...compactGroup,
+        areas: [...expandedGroup.areas],
+        omittedAreaCount: 0,
+      };
+    });
+  }
+
+  function quakeCardPages(regionRows: number): DisplayLatestQuakeStateV1[] {
+    const selected = quakeForRegionRows(regionRows);
+    const fullGroups = fullQuakeGroups();
+    const selectedAreaCount = selected.intensityGroups.reduce((total, group) => total + group.areas.length, 0);
+    const fullAreaCount = fullGroups.reduce((total, group) => total + group.areas.length, 0);
+    if (fullAreaCount <= selectedAreaCount || selectedAreaCount <= 0) return [selected];
+
+    const pageSize = Math.max(1, selectedAreaCount);
+    const pages: DisplayLatestQuakeStateV1[] = [];
+    for (let start = 0; start < fullAreaCount; start += pageSize) {
+      const end = start + pageSize;
+      let offset = 0;
+      const intensityGroups = fullGroups
+        .map((group) => {
+          const groupStart = offset;
+          offset += group.areas.length;
+          return {
+            ...group,
+            areas: group.areas.slice(Math.max(0, start - groupStart), Math.max(0, end - groupStart)),
+            omittedAreaCount: 0,
+          };
+        })
+        .filter((group) => group.areas.length > 0);
+      pages.push({ ...selected, intensityGroups });
+    }
+    return pages.length > 1 ? pages : [selected];
+  }
+
+  function weatherRankValue(rank: DisplayWeatherAlertV1["role"]): number {
+    if (rank === "weatherEmergency") return 3;
+    if (rank === "weatherWarning") return 2;
+    return 1;
+  }
+
+  function mergeWeatherPageItems(alerts: readonly DisplayWeatherAlertV1[]): WeatherPageItem[] {
+    const allItems = alerts.flatMap((alert) => alert.items.map((item) => ({ alert, item })));
+    const topRank = Math.max(0, ...allItems.map(({ alert }) => weatherRankValue(alert.role)));
+    const merged: WeatherPageItem[] = [];
+    const indexByKind = new Map<string, number>();
+    for (const { alert, item } of allItems) {
+      if (weatherRankValue(alert.role) !== topRank) continue;
+      const existingIndex = indexByKind.get(item.kind);
+      if (existingIndex == null) {
+        indexByKind.set(item.kind, merged.length);
+        merged.push({ templateAlert: alert, item: { ...item, shownAreas: [], omittedAreaCount: 0 }, areas: [] });
+      }
+      const target = merged[indexByKind.get(item.kind) ?? 0];
+      for (const area of item.shownAreas) {
+        if (!target.areas.includes(area)) target.areas.push(area);
+      }
+    }
+    return merged;
+  }
+
+  function weatherCardPages(regionRows: number): DisplayWeatherAlertV1[][] {
+    const selectedAlerts = weatherForRegionRows(regionRows);
+    const selectedItems = mergeWeatherPageItems(selectedAlerts);
+    const fullItems = mergeWeatherPageItems(fullWeatherAlerts);
+    const selectedAreaCount = selectedItems.reduce((total, entry) => total + entry.areas.length, 0);
+    const fullAreaCount = fullItems.reduce((total, entry) => total + entry.areas.length, 0);
+    if (fullAreaCount <= selectedAreaCount || selectedAreaCount <= 0 || fullItems.length === 0) return [selectedAlerts];
+
+    const pageSize = Math.max(1, selectedAreaCount);
+    const pages: DisplayWeatherAlertV1[][] = [];
+    for (let start = 0; start < fullAreaCount; start += pageSize) {
+      const end = start + pageSize;
+      let offset = 0;
+      const pageItems = fullItems
+        .map((entry) => {
+          const itemStart = offset;
+          offset += entry.areas.length;
+          return {
+            ...entry.item,
+            shownAreas: entry.areas.slice(Math.max(0, start - itemStart), Math.max(0, end - itemStart)),
+            omittedAreaCount: 0,
+          };
+        })
+        .filter((item) => item.shownAreas.length > 0);
+      const templateAlert = fullItems[0]?.templateAlert ?? selectedAlerts[0];
+      if (templateAlert == null || pageItems.length === 0) continue;
+      pages.push([{
+        ...templateAlert,
+        totalAreas: fullAreaCount,
+        items: pageItems,
+      }]);
+    }
+    return pages.length > 1 ? pages : [selectedAlerts];
   }
 
   function regionRemainingCount(key: CardKey, regionRows: number): number {
@@ -1378,6 +1581,52 @@
 
   const contentSelection = $derived.by(() => promoteAndExpand(layoutPlan));
 
+  const cardPageLists = $derived.by(() => ({
+    quake: quakeCardPages(contentSelection.quakeRows),
+    weather: weatherCardPages(contentSelection.weatherRows),
+  }));
+  const cardPageCounts = $derived.by(() => ({
+    quake: cardPageLists.quake.length,
+    weather: cardPageLists.weather.length,
+  }));
+  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1);
+  const currentCardPageTick = $derived(cardPageTickOverride ?? cardPageTick);
+
+  function cardPageEpochKey(): string {
+    return [
+      measurementPass,
+      layoutPlan.stage,
+      contentSelection.quakeRows,
+      contentSelection.weatherRows,
+      cardPageCounts.quake,
+      cardPageCounts.weather,
+    ].join("|");
+  }
+
+  function cardPageCount(key: CardKey): number {
+    if (key === "quake") return cardPageCounts.quake;
+    if (key === "weather") return cardPageCounts.weather;
+    return 1;
+  }
+
+  function cardPageIndex(key: CardKey): number {
+    const total = cardPageCount(key);
+    return total > 1 ? currentCardPageTick % total : 0;
+  }
+
+  function cardPageAttribute(key: CardKey): string | undefined {
+    if (key !== "quake" && key !== "weather") return undefined;
+    return `${cardPageIndex(key) + 1}/${cardPageCount(key)}`;
+  }
+
+  function quakePageForRender(regionRows: number, pageIndex: number): DisplayLatestQuakeStateV1 {
+    return quakeCardPages(regionRows)[pageIndex] ?? quakeCardPages(regionRows)[0] ?? quakeForRegionRows(regionRows);
+  }
+
+  function weatherPageForRender(regionRows: number, pageIndex: number): DisplayWeatherAlertV1[] {
+    return weatherCardPages(regionRows)[pageIndex] ?? weatherCardPages(regionRows)[0] ?? weatherForRegionRows(regionRows);
+  }
+
   // scheduler は layoutPlan の stage/key と測定 epoch だけを購読する。active key 自身は読まないため、
   // tick による差し替えで scheduler が自己再入しない。epoch 更新中は sync 側で transition を cancel
   // し、同じ stage 3 の再計測なら現在 key と起点時刻を維持する。
@@ -1390,6 +1639,13 @@
     void settled;
     if (!rotationSchedulerMounted) return;
     syncRotationScheduler(stage, keys);
+  });
+
+  $effect(() => {
+    const epoch = cardPageEpochKey();
+    const pageable = cardPageIsActive;
+    if (!cardPageSchedulerMounted) return;
+    syncCardPageScheduler(epoch, pageable);
   });
 
   const clusterGapStyle = $derived(
@@ -1512,23 +1768,27 @@
     placement: "side" | "center" = "side",
     regionRows = 0,
     floodWide = false,
+    pageIndex = 0,
+    pageCount = 1,
   )}
   {#if key === "tsunami" && tsunami != null}
     <TsunamiStandbyBanner tsunami={tsunami} />
   {:else if key === "quake"}
     <LatestQuakeCard
-      quake={quakeForRegionRows(regionRows)}
+      quake={pageCount > 1 ? quakePageForRender(regionRows, pageIndex) : quakeForRegionRows(regionRows)}
       longPeriod={longPeriod == null ? null : { ...longPeriod.data, restored: longPeriod.restored }}
     />
+    {#if pageCount > 1}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
   {:else if key === "weather"}
     <div class="mock-weather-shell" data-weather-two-column="true">
-      <WeatherAlertCard alerts={weatherForRegionRows(regionRows)} tornado={null} />
+      <WeatherAlertCard alerts={pageCount > 1 ? weatherPageForRender(regionRows, pageIndex) : weatherForRegionRows(regionRows)} tornado={null} />
       {#if tornado != null}
         <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-tornado-full>
           ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each tornadoFullAreas as area, index}{#if index > 0}、{/if}{area}{/each}）
         </div>
       {/if}
     </div>
+    {#if pageCount > 1}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
   {:else if key === "flood" && flood != null}
     {#if floodIsWide && (placement === "center" || floodWide)}
       <FloodWideCard item={flood} />
@@ -1547,12 +1807,17 @@
 {#snippet renderSideCard(entry: PlannedCard)}
   <article
     class="legacy-card"
+    class:paged-card={cardPageCount(entry.key) > 1}
+    style={cardPageCount(entry.key) > 1 ? `height: ${entry.naturalHeight}px;` : undefined}
     data-mock-card={entry.key}
     data-overflow-placement={entry.placement === "center" ? "center" : undefined}
     data-center-eligible={centerEligibleKeys.has(entry.key) ? "true" : "false"}
     data-region-expanded={isExpanded(entry) ? "true" : undefined}
     data-region-expanded-rows={entry.regionRows}
     data-region-remaining-count={entry.regionRemaining}
+    data-card-page={cardPageAttribute(entry.key)}
+    data-card-page-tick={cardPageCount(entry.key) > 1 ? currentCardPageTick : undefined}
+    data-card-page-fixed-height={cardPageCount(entry.key) > 1 ? entry.naturalHeight : undefined}
     data-content-score={entry.score}
     data-natural-height-px={entry.naturalHeight}
     data-allocated-height-px={entry.allocatedHeight}
@@ -1561,11 +1826,19 @@
     data-flood-render-mode={entry.key === "flood" && floodIsWide && (entry.placement === "center" || entry.floodWide) ? "wide" : entry.key === "flood" ? "side" : undefined}
     data-typhoon-display-mode={entry.key === "typhoon" ? entry.variant : undefined}
   >
-    {@render renderCard(entry.key, entry.variant, entry.placement === "center" ? "center" : "side", entry.regionRows, entry.floodWide)}
+    {@render renderCard(
+      entry.key,
+      entry.variant,
+      entry.placement === "center" ? "center" : "side",
+      entry.regionRows,
+      entry.floodWide,
+      cardPageIndex(entry.key),
+      cardPageCount(entry.key),
+    )}
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v18</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v19</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -1613,6 +1886,10 @@
   data-flood-form={floodForm}
   data-expanded-counts={expandedCounts}
   data-placement-surplus-use={placementSurplusUse}
+  data-card-page-tick={currentCardPageTick}
+  data-card-page-tick-override={cardPageTickOverride ?? undefined}
+  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather}`}
+  data-card-page-active={cardPageIsActive ? "true" : "false"}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage === 0 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
@@ -1630,7 +1907,7 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v18</strong>
+    <strong>従来フォーマット改良 v19</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
@@ -1876,6 +2153,27 @@
     max-width: 100%;
     min-height: 0;
     overflow: visible;
+  }
+
+  /* カード内改ページは外殻の高さを変えず、固定高内の本文だけを差し替える。 */
+  .legacy-card.paged-card {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mock-card-page {
+    position: absolute;
+    z-index: 3;
+    right: var(--space-3);
+    bottom: var(--space-2);
+    padding: 1px var(--space-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--surface-standby) 92%, transparent);
+    color: var(--role-muted);
+    font-size: var(--type-label-xs-size);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
   }
 
   .legacy-card[data-mock-card="tsunami"] {
