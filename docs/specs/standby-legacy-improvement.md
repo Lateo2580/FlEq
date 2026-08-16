@@ -83,7 +83,7 @@
   - 診断属性: 輪番集合のキー列（`data-rotation-keys`）・現在表示キー（`data-rotation-active-key`）・省略告知数（`data-rotation-omitted-count`）。
 - **終端（省略告知）**: 輪番集合の最大 compact 高ですら枠を確保できない場合、輪番集合の中で最大のカード（同値なら canonical 逆順で先のもの）を枠の予約対象から外し（枠高さを次点で再計算）、外れたカード数を N として枠の直下に「ほか N 件を表示できません」行を 1 行描画する（グリッド期資産の流用。N は全体数・行は右列末尾の枠に隣接する 1 箇所のみ）。failure 行自身の実測高も予約に含める。
   - 診断は 2 属性に分離する: 省略告知の有無・数は `data-rotation-omitted-count`、告知を含めても最終配置が成立しない真の未解決のみ `data-layout-unresolved="true"`。
-- **期待 stage 表（v14 モック `5d41a73` 実測・rotationTick=0・本表を機械 Oracle の正本とし実装後の観測値で書き換えない）**:
+- **期待 stage 表（v16 モック `68ac46d` 実測・rotationTick=0・本表を機械 Oracle の正本とし実装後の観測値で書き換えない。v14 実測と同値＝余裕利用フェーズは stage を変えないことの実証）**:
 
 | viewport | scenario 4 | scenario 7 | scenario max |
 |---|---|---|---|
