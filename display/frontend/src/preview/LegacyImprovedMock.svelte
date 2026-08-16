@@ -813,6 +813,10 @@
   .side-left,
   .side-right { align-items: center; }
 
+  /* 時計退避後は中央列だけでなく左右列も縦センターへ寄せ、三列の上下バランスを揃える */
+  .ladder-2 .side,
+  .ladder-3 .side { justify-content: safe center; }
+
   .legacy-card {
     flex: 0 0 auto;
     width: var(--mock-card-width);
