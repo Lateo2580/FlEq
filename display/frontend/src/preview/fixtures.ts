@@ -263,6 +263,23 @@ export const weatherWarningOnlyStandbyCards: DisplayWeatherAlertV1[] = [
   },
 ];
 
+/** 従来フォーマット改良 v16 の行単位展開用。compact の先頭3地域を含む完全 prefix。 */
+export const legacyImprovedWeatherAlertsExpanded: DisplayWeatherAlertV1[] = [
+  {
+    ...weatherWarningOnlyStandbyCards[0],
+    totalAreas: 12,
+    items: [{
+      ...weatherWarningOnlyStandbyCards[0].items[0],
+      shownAreas: [
+        "熊本県山鹿市", "熊本県菊池市", "熊本県玉名市", "宮崎県延岡市", "宮崎県日向市",
+        "大分県佐伯市", "鹿児島県霧島市", "福岡県朝倉市", "佐賀県嬉野市", "長崎県諫早市",
+        "熊本県阿蘇市", "宮崎県都城市",
+      ],
+      omittedAreaCount: 0,
+    }],
+  },
+];
+
 // B2a 目視用: 気象注意報のみ (最高ランク=advisory → 気象注意報ヘッダ container)
 export const weatherAdvisoryOnlyStandbyCards: DisplayWeatherAlertV1[] = [
   {

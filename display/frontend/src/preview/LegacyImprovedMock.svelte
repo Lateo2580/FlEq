@@ -12,7 +12,7 @@
   import TyphoonCard from "../components/TyphoonCard.svelte";
   import VolcanoCard from "../components/VolcanoCard.svelte";
   import WeatherAlertCard from "../components/WeatherAlertCard.svelte";
-  import type { ActiveStandbyCardV1, DisplayWeatherAlertV1 } from "../lib/protocol";
+  import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayWeatherAlertV1 } from "../lib/protocol";
   import {
     latestQuakeStandbyCards,
     legacyImprovedExpandedLatestQuake,
@@ -20,6 +20,7 @@
     legacyImprovedMaxUnknownItems,
     legacyImprovedMaxWeatherAlerts,
     legacyImprovedMaxWeatherAlertsCompact,
+    legacyImprovedWeatherAlertsExpanded,
     legacyImprovedWeatherAlertsCompact,
     legacyImprovedTornadoFullAreas,
     recentQuakesRich,
@@ -27,7 +28,6 @@
     standbyItemsFloodWide,
     statsStandbyCards,
     tsunamiBanner,
-    weatherWarningOnlyStandbyCards,
   } from "./fixtures";
 
   type Scenario = "4" | "7" | "max";
@@ -49,6 +49,8 @@
     id: string;
     key: CardKey;
     variant: CardVariant;
+    regionRows: number;
+    floodWide: boolean;
   }
 
   interface CardCandidate {
@@ -73,6 +75,16 @@
     clipped: boolean;
     overflowed: boolean;
     placement: "left" | "right" | "center";
+    regionRows: number;
+    regionRemaining: number;
+    floodWide: boolean;
+  }
+
+  interface DisplaySelection {
+    typhoon: TyphoonVariant;
+    floodWide: boolean;
+    quakeRows: number;
+    weatherRows: number;
   }
 
   interface ColumnPlan {
@@ -148,10 +160,22 @@
   const fixedMeasureKeys: FixedMeasureKey[] = ["stats", "recent-quakes"];
   const fullWeatherAlerts: DisplayWeatherAlertV1[] = scenario === "max"
     ? legacyImprovedMaxWeatherAlerts
-    : weatherWarningOnlyStandbyCards;
+    : legacyImprovedWeatherAlertsExpanded;
   const compactWeatherAlerts: DisplayWeatherAlertV1[] = scenario === "max"
     ? legacyImprovedMaxWeatherAlertsCompact
     : legacyImprovedWeatherAlertsCompact;
+
+  const quakeExpansionMaxRows = Math.max(0, ...legacyImprovedExpandedLatestQuake.intensityGroups.map((group, index) => {
+    const compactGroup = latestQuakeStandbyCards.intensityGroups[index];
+    return compactGroup == null ? 0 : Math.max(0, group.areas.length - compactGroup.areas.length);
+  }));
+  const weatherExpansionMaxRows = Math.max(0, ...fullWeatherAlerts.map((alert, alertIndex) => {
+    const compactAlert = compactWeatherAlerts[alertIndex];
+    return alert.items.reduce((total, item, itemIndex) => {
+      const compactItem = compactAlert?.items[itemIndex];
+      return total + (compactItem == null ? 0 : Math.max(0, item.shownAreas.length - compactItem.shownAreas.length));
+    }, 0);
+  }));
 
   const cardKeys: CardKey[] = [];
   if (tsunami != null) cardKeys.push("tsunami");
@@ -164,13 +188,25 @@
   const measureEntries: MeasureEntry[] = [];
   for (const key of cardKeys) {
     if (key === "quake" || key === "weather") {
-      measureEntries.push({ id: `${key}:compact`, key, variant: "compact" });
-      measureEntries.push({ id: `${key}:expanded`, key, variant: "expanded" });
+      measureEntries.push({ id: `${key}:compact`, key, variant: "compact", regionRows: 0, floodWide: false });
+      const maxRows = key === "quake" ? quakeExpansionMaxRows : weatherExpansionMaxRows;
+      for (let regionRows = 1; regionRows <= maxRows; regionRows += 1) {
+        measureEntries.push({
+          id: regionRows === maxRows ? `${key}:expanded` : `${key}:region:${regionRows}`,
+          key,
+          variant: "expanded",
+          regionRows,
+          floodWide: false,
+        });
+      }
     } else if (key === "typhoon") {
-      measureEntries.push({ id: `${key}:compact`, key, variant: "compact" });
-      measureEntries.push({ id: `${key}:full`, key, variant: "full" });
+      measureEntries.push({ id: `${key}:compact`, key, variant: "compact", regionRows: 0, floodWide: false });
+      measureEntries.push({ id: `${key}:full`, key, variant: "full", regionRows: 0, floodWide: false });
+    } else if (key === "flood" && floodIsWide) {
+      measureEntries.push({ id: key, key, variant: "compact", regionRows: 0, floodWide: false });
+      measureEntries.push({ id: `${key}:wide`, key, variant: "compact", regionRows: 0, floodWide: true });
     } else {
-      measureEntries.push({ id: key, key, variant: "compact" });
+      measureEntries.push({ id: key, key, variant: "compact", regionRows: 0, floodWide: false });
     }
   }
 
@@ -567,12 +603,92 @@
     };
   });
 
-  function measureId(key: CardKey, variant: CardVariant): string {
-    return key === "quake" || key === "weather" || key === "typhoon" ? `${key}:${variant}` : key;
+  function maxRegionRows(key: ExpandableCardKey): number {
+    return key === "quake" ? quakeExpansionMaxRows : weatherExpansionMaxRows;
   }
 
-  function measuredHeight(key: CardKey, variant: CardVariant, placement: "side" | "center" = "side"): number {
-    const id = measureId(key, variant);
+  function regionMeasureId(key: ExpandableCardKey, regionRows: number): string {
+    if (regionRows <= 0) return `${key}:compact`;
+    return regionRows >= maxRegionRows(key) ? `${key}:expanded` : `${key}:region:${regionRows}`;
+  }
+
+  function measureId(key: CardKey, variant: CardVariant, regionRows = 0, floodWide = false): string {
+    if (key === "flood" && floodWide) return "flood:wide";
+    if (key === "quake" || key === "weather") return regionMeasureId(key, regionRows);
+    return key === "typhoon" ? `${key}:${variant}` : key;
+  }
+
+  function quakeForRegionRows(regionRows: number): DisplayLatestQuakeStateV1 {
+    if (regionRows <= 0) return latestQuakeStandbyCards;
+    let remainingRows = Math.min(regionRows, quakeExpansionMaxRows);
+    return {
+      ...latestQuakeStandbyCards,
+      intensityGroups: latestQuakeStandbyCards.intensityGroups.map((compactGroup) => {
+        const expandedGroup = legacyImprovedExpandedLatestQuake.intensityGroups.find((group) =>
+          group.intensity === compactGroup.intensity && group.rank === compactGroup.rank
+        ) ?? compactGroup;
+        const totalAreas = Math.max(expandedGroup.areas.length, compactGroup.areas.length + compactGroup.omittedAreaCount);
+        const availableRows = Math.max(0, expandedGroup.areas.length - compactGroup.areas.length);
+        const addedRows = Math.min(remainingRows, availableRows);
+        remainingRows -= addedRows;
+        const visibleCount = compactGroup.areas.length + addedRows;
+        return {
+          ...compactGroup,
+          areas: expandedGroup.areas.slice(0, visibleCount),
+          omittedAreaCount: Math.max(0, totalAreas - visibleCount),
+        };
+      }),
+    };
+  }
+
+  function weatherForRegionRows(regionRows: number): DisplayWeatherAlertV1[] {
+    if (regionRows <= 0) return compactWeatherAlerts;
+    let remainingRows = Math.min(regionRows, weatherExpansionMaxRows);
+    return fullWeatherAlerts.map((alert, alertIndex) => {
+      const compactAlert = compactWeatherAlerts[alertIndex];
+      const items = alert.items.map((expandedItem, itemIndex) => {
+        const compactItem = compactAlert?.items[itemIndex];
+        if (compactItem == null) return expandedItem;
+        const totalAreas = Math.max(
+          expandedItem.shownAreas.length,
+          compactItem.shownAreas.length + compactItem.omittedAreaCount,
+        );
+        const availableRows = Math.max(0, expandedItem.shownAreas.length - compactItem.shownAreas.length);
+        const addedRows = Math.min(remainingRows, availableRows);
+        remainingRows -= addedRows;
+        const visibleCount = compactItem.shownAreas.length + addedRows;
+        return {
+          ...expandedItem,
+          shownAreas: expandedItem.shownAreas.slice(0, visibleCount),
+          omittedAreaCount: Math.max(0, totalAreas - visibleCount),
+        };
+      });
+      return {
+        ...alert,
+        totalAreas: items.reduce((total, item) => total + item.shownAreas.length + item.omittedAreaCount, 0),
+        items,
+      };
+    });
+  }
+
+  function regionRemainingCount(key: CardKey, regionRows: number): number {
+    if (key === "quake") return quakeForRegionRows(regionRows).intensityGroups.reduce((total, group) => total + group.omittedAreaCount, 0);
+    if (key === "weather") return weatherForRegionRows(regionRows).reduce(
+      (total, alert) => total + alert.items.reduce((subtotal, item) => subtotal + item.omittedAreaCount, 0),
+      0,
+    );
+    return 0;
+  }
+
+  function measuredHeight(
+    key: CardKey,
+    variant: CardVariant,
+    placement: "side" | "center" = "side",
+    regionRows = 0,
+    floodWide = false,
+  ): number {
+    const actualFloodWide = key === "flood" && floodIsWide && (floodWide || placement === "center");
+    const id = measureId(key, variant, regionRows, actualFloodWide);
     return (placement === "center" ? measuredCenterHeights[id] : measuredHeights[id]) ?? 0;
   }
 
@@ -970,47 +1086,101 @@
     };
   }
 
-  function replacePlanVariants(plan: ColumnPlan, variants: VariantSelection): ColumnPlan {
-    const candidateMap = new Map(buildCandidates(variants).map((card) => [card.key, card]));
-    const replace = (cards: readonly CardCandidate[]): CardCandidate[] => cards.map((card) => candidateMap.get(card.key) ?? card);
-    return {
-      ...plan,
-      left: replace(plan.left),
-      right: replace(plan.right),
-      center: replace(plan.center),
-      variants,
-    };
-  }
-
-  function columnFor(plan: ColumnPlan, key: CardKey): CardCandidate[] | null {
-    if (plan.left.some((card) => card.key === key)) return plan.left;
-    if (plan.right.some((card) => card.key === key)) return plan.right;
-    return plan.center.some((card) => card.key === key) ? plan.center : null;
-  }
-
-  function expandedFits(plan: ColumnPlan, variants: VariantSelection, key: ExpandableCardKey): boolean {
-    if (plan.rotationKeys.includes(key)) return false;
-    const trial = replacePlanVariants(plan, variants);
-    const column = columnFor(trial, key);
-    if (column == null) return false;
-    if (column === trial.center) return centerNaturalHeight(trial.center) <= centerCapacityPx();
-    const failureHeight = trial.rotationFailureCount > 0 ? measuredRotationFailureHeightPx : 0;
-    return columnNaturalHeight(trial.left) <= layoutCapacityPx()
-      && rightNaturalHeight(trial.right, trial.rotationSlotHeight, failureHeight) <= layoutCapacityPx();
-  }
-
   const baselinePlan = $derived(makeColumnPlan());
 
-  const layoutPlan = $derived.by(() => {
-    // B は baseline の配置・stageを固定したまま、quake→weather の順に残余容量だけを判定する。
-    let plan = baselinePlan;
-    const expansionOrder: ExpandableCardKey[] = ["quake", "weather"];
-    for (const key of expansionOrder) {
-      const variants = { ...plan.variants, [key]: "expanded" as const };
-      if (expandedFits(plan, variants, key)) plan = replacePlanVariants(plan, variants);
+  // A の配置・stage を確定した後だけに使う B。カードの所属列は一切再計算せず、
+  // compact 昇格 → quake→weather の行 prefix 展開を残余容量へ順に当てる。
+  const layoutPlan = $derived(baselinePlan);
+
+  function cardPlacement(plan: ColumnPlan, key: CardKey): "left" | "right" | "center" | null {
+    if (plan.left.some((card) => card.key === key)) return "left";
+    if (plan.right.some((card) => card.key === key)) return "right";
+    if (plan.center.some((card) => card.key === key)) return "center";
+    return null;
+  }
+
+  function displayNaturalHeight(
+    card: CardCandidate,
+    placement: "left" | "right" | "center",
+    selection: DisplaySelection,
+  ): number {
+    const regionRows = card.key === "quake"
+      ? selection.quakeRows
+      : card.key === "weather"
+        ? selection.weatherRows
+        : 0;
+    const variant = card.key === "typhoon" ? selection.typhoon : card.variant;
+    const floodWide = card.key === "flood" && selection.floodWide;
+    return measuredHeight(card.key, variant, placement === "center" ? "center" : "side", regionRows, floodWide);
+  }
+
+  function selectedColumnHeight(
+    cards: readonly CardCandidate[],
+    placement: "left" | "right" | "center",
+    selection: DisplaySelection,
+  ): number {
+    return cards.reduce((total, card) => total + displayNaturalHeight(card, placement, selection), 0)
+      + Math.max(0, cards.length - 1) * columnGapPx();
+  }
+
+  function selectedCenterHeight(plan: ColumnPlan, selection: DisplaySelection): number {
+    const cardHeight = selectedColumnHeight(plan.center, "center", selection);
+    const fixedHeights = fixedMeasureKeys.map((key) => measuredFixedHeights[key] ?? 0);
+    const totalCount = plan.center.length + fixedHeights.length;
+    return cardHeight + fixedHeights.reduce((total, height) => total + height, 0)
+      + Math.max(0, totalCount - 1) * columnGapPx();
+  }
+
+  function selectedRightHeight(plan: ColumnPlan, selection: DisplaySelection): number {
+    let total = selectedColumnHeight(plan.right, "right", selection);
+    if (plan.rotationSlotHeight > 0) total += (plan.right.length > 0 ? columnGapPx() : 0) + plan.rotationSlotHeight;
+    if (plan.rotationFailureCount > 0) total += columnGapPx() + measuredRotationFailureHeightPx;
+    return total;
+  }
+
+  function selectionFits(plan: ColumnPlan, selection: DisplaySelection): boolean {
+    return selectedColumnHeight(plan.left, "left", selection) <= layoutCapacityPx()
+      && selectedRightHeight(plan, selection) <= layoutCapacityPx()
+      && (plan.center.length === 0 || selectedCenterHeight(plan, selection) <= centerCapacityPx());
+  }
+
+  function promoteAndExpand(plan: ColumnPlan): DisplaySelection {
+    let selection: DisplaySelection = {
+      typhoon: plan.variants.typhoon,
+      floodWide: false,
+      quakeRows: 0,
+      weatherRows: 0,
+    };
+
+    // §4 の compact 昇格は canonical order で固定。配置・stage は変えない。
+    for (const key of ["flood", "typhoon"] as const) {
+      const placement = cardPlacement(plan, key);
+      if (placement == null || plan.rotationKeys.includes(key)) continue;
+      if (key === "flood" && floodIsWide && placement !== "center") {
+        const promoted = { ...selection, floodWide: true };
+        if (selectionFits(plan, promoted)) selection = promoted;
+      }
+      if (key === "typhoon" && selection.typhoon === "compact") {
+        const promoted = { ...selection, typhoon: "full" as const };
+        if (selectionFits(plan, promoted)) selection = promoted;
+      }
     }
-    return plan;
-  });
+
+    for (const key of ["quake", "weather"] as const) {
+      if (plan.rotationKeys.includes(key)) continue;
+      const maxRows = maxRegionRows(key);
+      for (let regionRows = 1; regionRows <= maxRows; regionRows += 1) {
+        const promoted = key === "quake"
+          ? { ...selection, quakeRows: regionRows }
+          : { ...selection, weatherRows: regionRows };
+        if (!selectionFits(plan, promoted)) break;
+        selection = promoted;
+      }
+    }
+    return selection;
+  }
+
+  const contentSelection = $derived.by(() => promoteAndExpand(layoutPlan));
 
   // scheduler は layoutPlan の stage/key と測定 epoch だけを購読する。active key 自身は読まないため、
   // tick による差し替えで scheduler が自己再入しない。epoch 更新中は sync 側で transition を cancel
@@ -1034,29 +1204,41 @@
         : "calc(var(--mock-gap) * 1.75)",
   );
   const clusterFlowHeightStyle = $derived(measuredClusterFlowHeightPx > 0 ? `${measuredClusterFlowHeightPx}px` : "auto");
-  const centerNaturalHeightPx = $derived(centerNaturalHeight(layoutPlan.center));
+  const centerNaturalHeightPx = $derived(selectedCenterHeight(layoutPlan, contentSelection));
 
   function plannedCards(
     cards: readonly CardCandidate[],
     placement: "left" | "right" | "center",
+    selection: DisplaySelection,
   ): PlannedCard[] {
     return cards.map((card) => {
-      const naturalHeight = placement === "center" ? card.centerNaturalHeight : card.naturalHeight;
+      const regionRows = card.key === "quake"
+        ? selection.quakeRows
+        : card.key === "weather"
+          ? selection.weatherRows
+          : 0;
+      const floodWide = card.key === "flood" && selection.floodWide;
+      const variant = card.key === "typhoon" ? selection.typhoon : card.variant;
+      const naturalHeight = measuredHeight(card.key, variant, placement === "center" ? "center" : "side", regionRows, floodWide);
       return {
         ...card,
+        variant,
         naturalHeight,
         allocatedHeight: naturalHeight,
         extraHeight: 0,
         clipped: false,
-        overflowed: placement === "center",
+        overflowed: false,
         placement,
+        regionRows,
+        regionRemaining: regionRemainingCount(card.key, regionRows),
+        floodWide,
       };
     });
   }
 
-  const leftCards = $derived(plannedCards(layoutPlan.left, "left"));
-  const rightCards = $derived(plannedCards(layoutPlan.right, "right"));
-  const centerCards = $derived(plannedCards(layoutPlan.center, "center"));
+  const leftCards = $derived(plannedCards(layoutPlan.left, "left", contentSelection));
+  const rightCards = $derived(plannedCards(layoutPlan.right, "right", contentSelection));
+  const centerCards = $derived(plannedCards(layoutPlan.center, "center", contentSelection));
   const compactCandidates = $derived(buildCandidates({ quake: "compact", weather: "compact", typhoon: "compact" }));
   const rotationActiveKeyForRender = $derived.by(() => {
     if (layoutPlan.stage !== 3 || layoutPlan.rotationKeys.length === 0) return null;
@@ -1071,7 +1253,7 @@
     return compactCandidates.find((card) => card.key === rotationActiveKeyForRender) ?? null;
   });
   const rotationCurrentPlannedCard = $derived.by(() => rotationCurrentCard == null
-    ? null
+      ? null
     : {
         ...rotationCurrentCard,
         allocatedHeight: rotationCurrentCard.naturalHeight,
@@ -1079,24 +1261,33 @@
         clipped: false,
         overflowed: false,
         placement: "right" as const,
+        regionRows: 0,
+        regionRemaining: 0,
+        floodWide: false,
       });
 
   function isExpanded(entry: PlannedCard): boolean {
-    return (entry.key === "quake" || entry.key === "weather") && entry.variant === "expanded";
+    return (entry.key === "quake" || entry.key === "weather") && entry.regionRows > 0;
   }
 </script>
 
-  {#snippet renderCard(key: CardKey, variant: CardVariant, placement: "side" | "center" = "side")}
+  {#snippet renderCard(
+    key: CardKey,
+    variant: CardVariant,
+    placement: "side" | "center" = "side",
+    regionRows = 0,
+    floodWide = false,
+  )}
   {#if key === "tsunami" && tsunami != null}
     <TsunamiStandbyBanner tsunami={tsunami} />
   {:else if key === "quake"}
     <LatestQuakeCard
-      quake={variant === "expanded" ? legacyImprovedExpandedLatestQuake : latestQuakeStandbyCards}
+      quake={quakeForRegionRows(regionRows)}
       longPeriod={longPeriod == null ? null : { ...longPeriod.data, restored: longPeriod.restored }}
     />
   {:else if key === "weather"}
     <div class="mock-weather-shell" data-weather-two-column="true">
-      <WeatherAlertCard alerts={variant === "expanded" ? fullWeatherAlerts : compactWeatherAlerts} tornado={null} />
+      <WeatherAlertCard alerts={weatherForRegionRows(regionRows)} tornado={null} />
       {#if tornado != null}
         <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-tornado-full>
           ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each tornadoFullAreas as area, index}{#if index > 0}、{/if}{area}{/each}）
@@ -1104,7 +1295,7 @@
       {/if}
     </div>
   {:else if key === "flood" && flood != null}
-    {#if placement === "center" && floodIsWide}
+    {#if floodIsWide && (placement === "center" || floodWide)}
       <FloodWideCard item={flood} />
     {:else}
       <FloodCard item={flood} />
@@ -1125,18 +1316,21 @@
     data-overflow-placement={entry.placement === "center" ? "center" : undefined}
     data-center-eligible={centerEligibleKeys.has(entry.key) ? "true" : "false"}
     data-region-expanded={isExpanded(entry) ? "true" : undefined}
+    data-region-expanded-rows={entry.regionRows}
+    data-region-remaining-count={entry.regionRemaining}
     data-content-score={entry.score}
     data-natural-height-px={entry.naturalHeight}
     data-allocated-height-px={entry.allocatedHeight}
     data-height-extra-px={entry.extraHeight}
     data-card-clipped={entry.clipped ? "true" : undefined}
-    data-flood-render-mode={entry.key === "flood" && entry.placement === "center" && floodIsWide ? "wide" : entry.key === "flood" ? "side" : undefined}
+    data-flood-render-mode={entry.key === "flood" && floodIsWide && (entry.placement === "center" || entry.floodWide) ? "wide" : entry.key === "flood" ? "side" : undefined}
+    data-typhoon-display-mode={entry.key === "typhoon" ? entry.variant : undefined}
   >
-    {@render renderCard(entry.key, entry.variant, entry.placement === "center" ? "center" : "side")}
+    {@render renderCard(entry.key, entry.variant, entry.placement === "center" ? "center" : "side", entry.regionRows, entry.floodWide)}
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v15</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v16</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -1170,6 +1364,16 @@
   data-right-capacity-px={layoutCapacityPx()}
   data-center-gap-px={columnGapPx()}
   data-center-natural-height-px={centerNaturalHeightPx}
+  data-displayed-left-natural-height-px={selectedColumnHeight(layoutPlan.left, "left", contentSelection)}
+  data-displayed-right-natural-height-px={selectedRightHeight(layoutPlan, contentSelection)}
+  data-displayed-center-natural-height-px={selectedCenterHeight(layoutPlan, contentSelection)}
+  data-left-residual-height-px={Math.max(0, layoutCapacityPx() - selectedColumnHeight(layoutPlan.left, "left", contentSelection))}
+  data-right-residual-height-px={Math.max(0, layoutCapacityPx() - selectedRightHeight(layoutPlan, contentSelection))}
+  data-center-residual-height-px={Math.max(0, centerCapacityPx() - selectedCenterHeight(layoutPlan, contentSelection))}
+  data-typhoon-display-mode={contentSelection.typhoon}
+  data-flood-wide-promoted={contentSelection.floodWide ? "true" : "false"}
+  data-quake-expanded-rows={contentSelection.quakeRows}
+  data-weather-expanded-rows={contentSelection.weatherRows}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage === 0 ? "viewport-center" : "ticker-bottom-right"}
   data-center-fixed-height-px={centerFixedNaturalHeight()}
@@ -1186,14 +1390,14 @@
   data-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v15</strong>
+    <strong>従来フォーマット改良 v16</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
   <div class="measure-shelf" aria-hidden="true" inert>
     {#each measureEntries as entry (entry.id)}
       <div class="measure-item" data-measure-card={entry.id} use:captureMeasure={entry.id}>
-        {@render renderCard(entry.key, entry.variant)}
+        {@render renderCard(entry.key, entry.variant, "side", entry.regionRows, entry.floodWide)}
       </div>
     {/each}
   </div>
@@ -1218,7 +1422,7 @@
   <div class="center-measure-shelf" aria-hidden="true" inert>
     {#each measureEntries as entry (entry.id)}
       <div class="measure-item center-measure-item" data-center-measure-card={entry.id} use:captureCenterCardMeasure={entry.id}>
-        {@render renderCard(entry.key, entry.variant, "center")}
+        {@render renderCard(entry.key, entry.variant, "center", entry.regionRows, entry.floodWide)}
       </div>
     {/each}
     <div class="center-stack-card center-measure-item" data-center-measure="stats" use:captureCenterMeasure={"stats"}>
@@ -1447,8 +1651,8 @@
     max-width: 100%;
   }
 
-  /* wide surface は中央 placement だけ FloodWideCard に変換する。測定棚も同じ中央幅で
-     測り、側列・輪番枠では通常の FloodCard を使う。 */
+  /* wide surface は中央 placement では FloodWideCard、側列・輪番枠では基本 FloodCard。
+     余裕利用フェーズで側列に昇格できる場合だけ FloodWideCard の side 測定値を使う。 */
   .legacy-mock .measure-item :global(.flood-wide-card) {
     width: 100%;
     max-width: 100%;
@@ -1474,6 +1678,35 @@
   .legacy-mock .legacy-card :global(.tsunami-banner) {
     max-width: 100%;
     overflow: hidden;
+    container-type: inline-size;
+  }
+
+  /* 狭幅プロトタイプ: 見出しは一行を守り、従属する更新スタンプだけを縮小/省略する。
+     本実装では TsunamiStandbyBanner 側の header 改修へ移す。 */
+  .legacy-mock .legacy-card :global(.tsunami-banner .banner-header) {
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+
+  .legacy-mock .legacy-card :global(.tsunami-banner .banner-title) {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .legacy-mock .legacy-card :global(.tsunami-banner .updated-stamp) {
+    min-width: 0;
+    max-width: 45%;
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: clamp(10px, 2.6cqw, 14px);
+  }
+
+  @container (max-width: 240px) {
+    .legacy-mock .legacy-card :global(.tsunami-banner .updated-stamp) { display: none; }
   }
 
   .legacy-mock .legacy-card :global(.tsunami-banner .banner-areas) {
@@ -1523,6 +1756,46 @@
 
   .legacy-mock .mock-weather-shell :global(.weather-card > ul .pref-group) {
     break-inside: avoid;
+  }
+
+  /* TyphoonCard は無改造。mock 側で既存の location ノードをタイトル行の右端へ移し、
+     compact/full の両形式で台風名と位置情報を同じ行に揃える。 */
+  .legacy-mock .legacy-card :global(.typhoon-card .typhoon) {
+    position: relative;
+  }
+
+  .legacy-mock .legacy-card :global(.typhoon-card .compact-primary) {
+    padding-right: 45%;
+  }
+
+  .legacy-mock .legacy-card :global(.typhoon-card .compact-summary) {
+    padding-right: 45%;
+    overflow: visible;
+  }
+
+  .legacy-mock .legacy-card :global(.typhoon-card .compact-summary .compact-location) {
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-4);
+    width: 42%;
+    max-width: 42%;
+    margin: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+  }
+
+  .legacy-mock .legacy-card :global(.typhoon-card:not(.compact) .typhoon > .location) {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-4);
+    width: 42%;
+    max-width: 42%;
+    margin: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mock-tornado-rider {

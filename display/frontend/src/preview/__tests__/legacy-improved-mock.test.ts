@@ -20,14 +20,29 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-function installMeasuredLayout(): () => void {
+function installMeasuredLayout(options: { capacityPx?: number; baseCardPx?: number; prefixRowPx?: number } = {}): () => void {
+  const capacityPx = options.capacityPx ?? 180;
+  const baseCardPx = options.baseCardPx ?? 90;
+  const prefixRowPx = options.prefixRowPx ?? 0;
+  const shelfHeight = (id: string | undefined): number => {
+    if (id == null) return baseCardPx;
+    const regionMatch = id.match(/:(?:region:)(\d+)$/);
+    if (regionMatch != null) return baseCardPx + Number(regionMatch[1]) * prefixRowPx;
+    if (id.endsWith(":expanded")) {
+      const maxRows = id.startsWith("quake:") ? 3 : 10;
+      return baseCardPx + maxRows * prefixRowPx;
+    }
+    return baseCardPx;
+  };
   const offsetHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
   const originalRect = HTMLElement.prototype.getBoundingClientRect;
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
     configurable: true,
     get(this: HTMLElement): number {
-      if (this.classList.contains("legacy-layout")) return 180;
-      if (this.matches("[data-measure-card], [data-center-measure-card], [data-mock-card]")) return 90;
+      if (this.classList.contains("legacy-layout")) return capacityPx;
+      if (this.hasAttribute("data-measure-card")) return shelfHeight(this.dataset.measureCard);
+      if (this.hasAttribute("data-center-measure-card")) return shelfHeight(this.dataset.centerMeasureCard);
+      if (this.matches("[data-mock-card]")) return baseCardPx;
       if (this.classList.contains("center-stack-card")) return 20;
       if (this.classList.contains("rotation-failure-measure")) return 24;
       if (this.hasAttribute("data-nankai-ticker")) return 20;
@@ -36,13 +51,18 @@ function installMeasuredLayout(): () => void {
   });
   HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
     if (this.classList.contains("legacy-layout")) {
-      return { x: 0, y: 0, width: 960, height: 180, top: 0, right: 960, bottom: 180, left: 0, toJSON: () => ({}) } as DOMRect;
+      return { x: 0, y: 0, width: 960, height: capacityPx, top: 0, right: 960, bottom: capacityPx, left: 0, toJSON: () => ({}) } as DOMRect;
     }
-    if (this.matches("[data-mock-card], [data-measure-card], [data-center-measure-card]")) {
-      return { x: 0, y: 0, width: 300, height: 90, top: 0, right: 300, bottom: 90, left: 0, toJSON: () => ({}) } as DOMRect;
+    if (this.hasAttribute("data-measure-card") || this.hasAttribute("data-center-measure-card")) {
+      const id = this.dataset.measureCard ?? this.dataset.centerMeasureCard;
+      const height = shelfHeight(id);
+      return { x: 0, y: 0, width: 300, height, top: 0, right: 300, bottom: height, left: 0, toJSON: () => ({}) } as DOMRect;
+    }
+    if (this.matches("[data-mock-card]")) {
+      return { x: 0, y: 0, width: 300, height: baseCardPx, top: 0, right: 300, bottom: baseCardPx, left: 0, toJSON: () => ({}) } as DOMRect;
     }
     if (this.classList.contains("ticker-reserve")) {
-      return { x: 0, y: 180, width: 960, height: 52, top: 180, right: 960, bottom: 232, left: 0, toJSON: () => ({}) } as DOMRect;
+      return { x: 0, y: capacityPx, width: 960, height: 52, top: capacityPx, right: 960, bottom: capacityPx + 52, left: 0, toJSON: () => ({}) } as DOMRect;
     }
     return originalRect.call(this);
   };
@@ -56,7 +76,7 @@ function installMeasuredLayout(): () => void {
   };
 }
 
-describe("legacy improved standby mock v15", () => {
+describe("legacy improved standby mock v16", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -293,9 +313,9 @@ describe("legacy improved standby mock v15", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v15 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v16 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v15");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v16");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -316,10 +336,11 @@ describe("legacy improved standby mock v15", () => {
 
   it("keeps A compact-baseline placement fixed while B expands quake then weather", () => {
     expect(mockSource).toContain('const fullVariants: VariantSelection = { quake: "compact", weather: "compact", typhoon: "full" };');
-    expect(mockSource).toContain('const expansionOrder: ExpandableCardKey[] = ["quake", "weather"];');
-    expect(mockSource).toContain("if (expandedFits(plan, variants, key)) plan = replacePlanVariants(plan, variants);");
-    expect(mockSource).toContain("function replacePlanVariants(plan: ColumnPlan, variants: VariantSelection)");
-    expect(mockSource).not.toContain("makeColumnPlan(trial");
+    expect(mockSource).toContain("const layoutPlan = $derived(baselinePlan);");
+    expect(mockSource).toContain("function promoteAndExpand(plan: ColumnPlan): DisplaySelection");
+    expect(mockSource).toContain('for (const key of ["quake", "weather"] as const)');
+    expect(mockSource).toContain("if (!selectionFits(plan, promoted)) break;");
+    expect(mockSource).not.toContain("expandedFits(plan");
   });
 
   it("exposes deterministic rotation metadata and the bounded settle coordinator", () => {
@@ -380,7 +401,7 @@ describe("legacy improved standby mock v15", () => {
     }
   });
 
-  it("keeps wide flood as FloodWideCard only in the central placement and measures both forms", () => {
+  it("keeps wide flood placement conversion measurable for central and side promotion", () => {
     const { rendered, root } = renderMock("legacyMock2=7&flood=wide&ladder=1");
 
     expect(root.dataset.floodWideRequested).toBe("true");
@@ -393,7 +414,7 @@ describe("legacy improved standby mock v15", () => {
       expect(visibleFlood.querySelector(".flood-card")).toBeTruthy();
     }
     expect(mockSource).toContain("standbyItemsFloodWide");
-    expect(mockSource).toContain("placement === \"center\" && floodIsWide");
+    expect(mockSource).toContain("floodIsWide && (placement === \"center\" || floodWide)");
     expect(mockSource).toContain("wide surface は中央 36rem の恩恵を受ける優先候補");
     expect(mockSource).toContain("FloodWideCard");
     expect(mockSource).toContain("data-center-measure-card");
@@ -404,5 +425,43 @@ describe("legacy improved standby mock v15", () => {
     expect(mockSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 5;");
     expect(mockSource).toMatch(/pass < MAX_ROTATION_CANDIDATE_PASSES[^\n]*displayedKeys\.length \+ failedKeys\.length < available\.length/s);
     expect(mockSource).not.toMatch(/pass < MAX_SETTLE_PASSES[^\n]*displayedKeys\.length/s);
+  });
+
+  it.each([
+    ["zero", 80],
+    ["partial", 90],
+    ["all", 200],
+  ] as const)("uses row-prefix expansion boundary %s without changing A placement", async (label, capacityPx) => {
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
+      await tick();
+      expect(root.dataset.ladderStage).toBe("0");
+      const quakeRows = Number(root.dataset.quakeExpandedRows);
+      const weatherRows = Number(root.dataset.weatherExpandedRows);
+      expect((rendered.container.querySelector('[data-mock-card="quake"]') as HTMLElement | null)?.dataset.regionExpandedRows).toBe(String(quakeRows));
+      expect((rendered.container.querySelector('[data-mock-card="weather"]') as HTMLElement | null)?.dataset.regionExpandedRows).toBe(String(weatherRows));
+      if (label === "zero") {
+        expect(quakeRows).toBe(0);
+        expect(weatherRows).toBe(0);
+      } else if (label === "all") {
+        expect(quakeRows).toBe(3);
+        expect(weatherRows).toBe(10);
+      } else {
+        expect([quakeRows, weatherRows].some((rows) => rows > 0)).toBe(true);
+        expect(quakeRows < 3 || weatherRows < 10).toBe(true);
+      }
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("keeps narrow tsunami headings on one line and right-aligns typhoon locations in both modes", () => {
+    expect(mockSource).toMatch(/\.tsunami-banner \.banner-title[^}]*white-space:\s*nowrap/s);
+    expect(mockSource).toMatch(/\.tsunami-banner \.updated-stamp[^}]*font-size:\s*clamp\(10px, 2\.6cqw, 14px\)/s);
+    expect(mockSource).toContain("@container (max-width: 240px)");
+    expect(mockSource).toMatch(/\.typhoon-card \.compact-summary \.compact-location[^}]*position:\s*absolute[^}]*text-align:\s*right/s);
+    expect(mockSource).toMatch(/\.typhoon-card:not\(\.compact\) \.typhoon > \.location[^}]*position:\s*absolute[^}]*text-align:\s*right/s);
+    expect(mockSource).toContain("本実装では TsunamiStandbyBanner 側の header 改修へ移す");
   });
 });
