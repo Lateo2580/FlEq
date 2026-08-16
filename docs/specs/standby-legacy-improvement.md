@@ -150,7 +150,26 @@
   - **時計中心**: stage 0 で時計の時刻要素の中心と viewport 中心の差が各軸 ≤ 1px（DPR 込みの実測 rect で判定）。
   - 列スクロールが発生していない（各列 `scrollHeight ≤ clientHeight + 1`）。
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）が完全一致。
-- **余裕利用の期待値表**: セルごとに「台風の variant・wide flood の描画形式・quake 展開件数・weather 展開件数（kind ごと）・再計算後の n」を正本モックの実測で固定した表を持ち、ゲートは診断属性（`data-typhoon-variant`・`data-flood-form`・`data-expanded-counts` 等）との一致を検査する（昇格・展開を実装しない実装が stage 表だけで通過することを防ぐ）。wide flood fixture の 2 セル（1920×1080・1280×720）と stage 3 セル（輪番カードが対象外であること）も表に含める。期待値表は実装前にモック実測で確定し、実装後の観測値で書き換えない。
+- **余裕利用の期待値表（v18 モック `7c47b55` 実測・rotationTick=0。ゲートは診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査し、実装後の観測値で書き換えない）**:
+
+| セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） |
+|---|---|---|---|---|
+| 1920×1080 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) |
+| 1920×1080 / 7 | full | card | 7 (n=0) | 12 (n=0) |
+| 1920×1080 / max | compact | card | 7 (n=0) | 16 (n=8) |
+| 1512×982 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) |
+| 1512×982 / 7 | compact | card | 7 (n=0) | 12 (n=0) |
+| 1512×982 / max | full | card | 7 (n=0) | 24 (n=0) |
+| 1280×720 / 4 | −（不在） | −（不在） | 7 (n=0) | 3 (n=9) |
+| 1280×720 / 7 | compact | card | 7 (n=0) | 8 (n=4) |
+| 1280×720 / max | compact | card | 7 (n=0) | 5 (n=19) |
+| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) |
+| 960×620 / 7 | compact | card | 7 (n=0) | 12 (n=0) |
+| 960×620 / max | compact | card | 7 (n=0) | 5 (n=19) |
+| 1920×1080 / max＋floodWide | compact / stage 0 | card（中央不在のため FloodCard 変換） | − | − |
+| 1280×720 / max＋floodWide | compact / stage 3（輪番: flood,typhoon,volcano,heat） | card | − | − |
+
+  - stage 3 セルの輪番カードは昇格・展開の対象外（表の値は常設カード分のみ）。
 - **ゲートの反証テスト（runner 自体の失敗能力の検証）**: 意図的に壊した 3 種の fixture（①カードを overflow させる ②カード矩形を重ねる ③stage 3 相当でローテーション枠・failure 行を描かない）に対して runner が非ゼロ終了すること。壊し方はテスト専用パラメータで注入し、本番経路には置かない。
 - §8a の unknown 単体検証（engine の受信ログ・frontend の非描画と枚数）。
 
