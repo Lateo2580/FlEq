@@ -1,6 +1,6 @@
 # 待機画面 従来フォーマット改良
 
-グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック 13 巡（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=0..3]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。**寸法・配置・意味論の正本はモック v18 系（現行 `1c643b4`）**とし、本文の数値はそこから写している（`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する）。裁定に使った目視 packet は第一〜十五号（セッションログ参照）。
+グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック 13 巡（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=0..3]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。**寸法・配置・意味論の正本はモック v19（現行 `a3c096b`）**とし、本文の数値はそこから写している（stage 表・余裕利用表は v19 でも同値確認済みのため v16/v18 実測値を継承。`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する）。裁定に使った目視 packet は第一〜十五号（セッションログ参照）。
 
 本 spec は品質メタ見直し（2026-08-15 合意）の第一号適用例であり、§9 の受け入れ条件は Oracle 欄（主張・基線・反証条件・Oracle と証跡・判定者と時点）を持つ。
 
@@ -98,7 +98,7 @@
   - 全セルで `data-layout-unresolved="false"`（ローテーション枠の導入により解決不能セルは消滅。layout-failure 行は本表の範囲では不発）。
   - 旧モック `5af389d` の実測表は意味論差のため機械 Oracle から除外（視覚 Oracle としては引き続き有効）。
   - **720p の注記**: 旧モック実測では 720p の scenario 7 以上は圧縮段でも収容できず、stage 3（ローテーション枠）へ到達する見込み。720p のローテーション枠と layout-failure の見え方は §9.2 の目視必須項目とし、「720p で現行 main より読める情報量が減らないこと」を比較 gate に含める。カード側の 720p 向け縮退調整は後続課題（backlog 登録）としてスコープ外に置く。
-- 判定は決定的（§4 の 3 入力の関数。stage 3 の枠内表示のみ周期 tick に依存）。
+- 判定は決定的（§4 の 3 入力の関数。stage 3 の枠内表示とカード内ページのみ周期 tick に依存）。外側レイアウトのページング不在を示す診断属性は `data-outer-paging="none"` へ改名する（カード内改ページの診断と誤読させない）。
 
 ## 6. 地域リスト適応展開と気象警報カード改修
 
@@ -107,17 +107,19 @@
 - **跨 epoch の一方向性**: A は epoch を問わず**常に compact baseline の測定値**で解く（前 epoch で expanded 表示中でも、A の入力は compact 測定値）。B は別途測定済みの expanded variant 高を残余容量に当てて判定する。これにより前 epoch の展開が次 epoch の配置・stage に影響しない。輪番集合に入ったカードは B の対象外（枠内では常に compact のまま）。
 - 展開対象: 地震カードの震度地域行（「ほか n 地域」→実地域名）・気象警報の対象地域。
 - **engine 側 wire 契約（新設）**: 展開候補を snapshot DTO の optional フィールドで供給する。
-  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`（group 単位）。weather は source 単位の item ではなく、**表示単位（kind 統合後）**で供給する: `DisplayStateSnapshotV1` に新集約型 `DisplayWeatherExpandedKindV1 { kindKey: string; areas: string[]; totalAreaCount: number }` の配列 `weatherExpandedKinds?: DisplayWeatherExpandedKindV1[]` を新設する。`kindKey` は frontend の統合キーと同一の **`phenomenonKey ?? kind`**。engine 側で複数 source の同一 kind を union・重複排除（発表順・最初の出現を保持）した候補 prefix と統合後ユニーク総数を持たせる。いずれの候補も**現行表示分を先頭に含む展開候補 prefix**であり、完全リストであることは保証しない。
-  - **上限**: **現行表示分は無条件で全て含む**。追加候補は現行表示分と合わせてカードあたり合計 24 地域を超えない範囲で付与する（現行表示だけで 24 を超える合法入力——震度 6 弱以上は cap されない等——では追加候補ゼロ、フィールドは現行表示分のみで供給）。group/kind 間の配分は発表順の先着。
+  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`（group 単位）。weather は source 単位の item ではなく、**表示単位（kind 統合後）**で供給する: `DisplayStateSnapshotV1` に新集約型 `DisplayWeatherExpandedKindV1 { kindKey: string; areas: string[]; totalAreaCount: number }` の配列 `weatherExpandedKinds?: DisplayWeatherExpandedKindV1[]` を新設する。**grouping の正規化（rank filter＝最高 rank のみ・`phenomenonKey ?? kind` の alias 解決・旧 item 形式の fallback を含む）は engine/frontend が共有する単一の正規化関数として実装し、`kindKey` はその関数の出力キーとする**（現行 WeatherAlertCard の統合実装をこの関数へ抽出して両側から使う。片側だけ phenomenonKey を持つ互換入力でも同一 key になることをテストで固定）。engine 側で候補を union・重複排除（発表順・最初の出現を保持）し統合後ユニーク総数を持たせる。いずれの候補も**現行表示分を先頭に含む展開候補 prefix**であり、完全リストであることは保証しない。
+  - **上限（改ページ対応で改定）**: 候補は**完全リスト供給を原則**とし、カードあたりの安全弁を **128 地域**に置く（旧 24 上限は撤廃。カード内改ページ §6a が全地域へ到達できることを wire レベルで保証するため）。安全弁または snapshot budget の縮退で候補が切られた場合のみ、改ページは供給分を巡回し、残りは「ほか n」を最終ページに残置してよい（この残置は縮退時の例外であり、診断属性 `data-candidate-truncated` で観測可能にする）。group/kind 間の配分は発表順の先着。
   - **欠落時の互換**: フィールド欠落時は展開しない（現行表示のまま）。
   - **「ほか n」の再計算式**: quake は `n = 当該 group の総地域数（既存の件数フィールド由来） − expandedAreas のうち表示した件数`。weather は `n = totalAreaCount − 表示済みユニーク地域数`。engine 既存の `omittedAreaCount` 系は現行表示（非展開）用として変更しない。
   - **縮退ラダー上の位置**: snapshot budget（SSE 256KB 安全弁）超過時、展開候補の削除は**カード本体の縮退より前段**に置く（gridbase で GO 済みの順序）。保持優先度は「現行表示分 > 展開候補」。
   - **移植元の固定**: `feature/legacy-improved-gridbase` の commit `e5d6bbb`（地域適応展開ラウンド最終 GO）。対象 path は `display/frontend/src/lib/grid-region-expansion.ts` と対応する engine 側候補供給・SSE 縮退ラダー変更。frontend 側 protocol 複製（`display/frontend/src/lib/protocol.ts`）にも同時反映する。
-- **カード内改ページ（2026-08-16 ご主人裁定）**: 余裕利用フェーズ後も展開しきれない残りがある（n>0）多項目カード（気象警報・地震の震度地域）は、地域リスト領域を**固定高のまま周期改ページ**し、全地域をいずれ必ず表示する（「ほか n」の恒久省略を廃止し、§1「隠さない」を項目レベルでも成立させる）。
-  - ページ分割は確定した表示行数単位・canonical 順・決定的。周期は輪番と同じ 15 秒、位相規則も §5 輪番 scheduler と同じ（単調時計・epoch 優先・reduced-motion でも継続・unmount 破棄）。
+- **カード内改ページ（2026-08-16 ご主人裁定・§6a）**: 余裕利用フェーズ後も展開しきれない残りがある（n>0）多項目カード（気象警報・地震の震度地域）は、地域リスト領域を**固定高のまま周期改ページ**し、供給された全地域をいずれ必ず表示する（「ほか n」の恒久省略を廃止し、§1「隠さない」を項目レベルでも成立させる。wire 縮退時の例外は §6 上限の項）。
+  - **ページ分割（実測 partition）**: 件数等分ではなく、候補を canonical 順に走査し「そのページに追加しても固定高に入る」限り詰める貪欲法で決定的に分割する（各ページの実組版——pref-group・2 列・見出し・折返し込み——を実測して判定。ページごとの件数は不揃いでよい）。1 地域すら入らないページが生じる場合はそのカードの改ページを断念し「ほか n」残置＋`data-card-page-infeasible` を立てる（終端）。現行表示 0 件・n>0 の合法入力もこの partition で先頭ページから表示する。
+  - **周期と位相**: 非輪番カードは 15 秒周期の自走（位相規則は §5 輪番 scheduler と同じ: 単調時計・epoch 優先・reduced-motion 継続・unmount 破棄）。**輪番集合内のカードは自走させず、輪番で再登場するたびに内部ページを 1 つ進める**（外側 15 秒×内側 15 秒の共振で一部ページが gcd(pageCount, rotationLength) 分の 1 しか表示されない問題の回避）。
+  - **ページ identity**: ページの安定 key は「そのページ先頭の地域名」。内容更新で repartition しても現在ページの先頭地域が残っていれば同じページ位置を維持し、消えていれば canonical 後続ページへ、追加ページは次周から参加する（15 秒未満の連続更新でページ 1 へ戻り続ける飢餓を防ぐ）。
   - 最終ページには「ほか n」ではなくページ表示（例「2/3」）を出す。1 ページに収まる場合は改ページしない。
-  - 配置・stage・カード高は改ページで変化しない（固定高内の内容交代のみ）。診断属性 `data-card-page`（現在ページ/総ページ）を出す。
-  - 実装は LatestQuakeCard の内部ページング前例に倣い、対象コンポーネント（WeatherAlertCard・LatestQuakeCard の震度地域行）の本改修とする。
+  - 配置・stage・カード高は改ページで変化しない（固定高内の内容交代のみ）。診断属性 `data-card-page`（現在/総ページ）・`data-card-page-keys`（各ページ先頭地域）を出す。
+  - **既存ページャとの一元化**: LatestQuakeCard の既存内部ページング（10 秒 page-cycler）は本機構へ**置換統合**する（同一カード内で二重ページャを発火させない。周期は 15 秒へ統一し、既存のページ構成条件は partition 規則に吸収する）。対象コンポーネント（WeatherAlertCard・LatestQuakeCard）の本改修とする。
 - **WeatherAlertCard 本改修**（モックでは mock 側 CSS で試作済み・本実装でコンポーネントへ移す）:
   - 対象地域リストの 2 列組版（県名と地域の組は pref-group 単位で保ち、列間で泣き別れさせない）。
   - 竜巻注意情報・竜巻目撃情報の対象地域フル表示（現行の「ほか」省略を廃止）。
@@ -180,7 +182,7 @@
   - **比較器 ①'' の反証 fixture**: 旧比較器（展開量を見ない）なら低展開の配置を選び、①'' 込みなら高展開の配置を選ぶ入力を 1 つ固定し、配置キー列（DOM の data-mock-side / data-mock-card から採取）が高展開側であることを検査する。
 - **ゲートの反証テスト（runner 自体の失敗能力の検証）**: 意図的に壊した 3 種の fixture（①カードを overflow させる ②カード矩形を重ねる ③stage 3 相当でローテーション枠・failure 行を描かない）に対して runner が非ゼロ終了すること。壊し方はテスト専用パラメータで注入し、本番経路には置かない。
 - §8a の unknown 単体検証（engine の受信ログ・frontend の非描画と枚数）。
-- **カード内改ページの検査**: n>0 のセル（期待値表参照）で `data-card-page` の総ページ数が `ceil(総地域数 ÷ 1 ページ表示数)` と一致し、cardPageTick の全ページ撮影で切れ・重なりがなく、全地域が一巡で表示されること（fake timer で周期・順序を検証）。
+- **カード内改ページの検査**: n>0 のセル（期待値表参照）で、①全ページ撮影の**地域 union が期待 canonical 集合と完全一致**（重複・欠落ゼロ）②各ページが固定高に収まる（長い地域名・複数 pref-group・複数 kind の fixture を含む）③現行表示 0 件・n>0 の fixture ④外側輪番長とページ数に公約数がある fixture で再登場ごとの 1 ページ前進により全ページへ到達 ⑤15 秒未満の連続更新 fixture で後方ページが飢餓しない（ページ identity 維持）⑥LatestQuakeCard で新旧ページャが二重発火しない、を fake timer・実測ゲートで検証する。ページ番号矩形と地域本文矩形の交差 0 も切れ検査に含める。
 - **wire 契約のユニットテスト義務（engine 側）**: ①同一 kind・複数 source・一部重複地域の union（順序・重複排除・totalAreaCount）②現行表示が 24 未満／24 超の両境界（超過時は追加候補ゼロ）③optional フィールド欠落時の互換（展開しない）④snapshot budget 縮退で候補がカード本体より先に落ちること⑤persistence sanitizer・frontend protocol 複製を通過しても候補が保持されること。
 
 ### 9.2 人間検証必須（ご主人の目視 packet が判定）
@@ -192,7 +194,7 @@
 | 距離可読性 | 実機の視聴距離で主情報が読める | 現行実機 | 実機 gate で読めない項目の指摘（packet に距離・対象文字を明記して裁定する） |
 | 変化の体感 | 更新時の動きが追える（§7） | 現行（瞬間切替） | 「変化に気づけない/うるさい」裁定（packet に更新シーケンス動画または連続キャプチャを含める） |
 | 720p 輪番 | stage 3 の一周で全 key が現れ、現行 main より読める情報量が減らない | 現行 main の 720p 表示 | 「輪番で情報を追えない」「main より減った」裁定（packet に一周分の連続キャプチャと、同一 snapshot における domain key・主要フィールドの表示有無を main/本実装で並べた対照表を含める） |
-| カード内改ページ | n>0 でも全地域が周期到達し、改ページが読み取りを乱さない | 「ほか n」恒久省略（v18 まで） | 「ページ交代が追えない/うるさい」裁定（packet に全ページの連続キャプチャを含める） |
+| カード内改ページ | n>0 でも全地域が周期到達し、改ページが読み取りを乱さない | 「ほか n」恒久省略（v18 まで） | 「ページ交代が追えない/うるさい」「最終ページ到達が遅すぎる」裁定（packet に全ページの連続キャプチャと、総周期・最終ページ到達時間の記録を含める） |
 
 - **Oracle と証跡**: 目視 packet（§10）のスクリーンショット集とご主人の GO/NO-GO 記録。
 - **判定者と時点**: ご主人。変更単位ごと（実装後）＋ main 合流前（最終）＋ Pi 実機反映後（実機 gate）。
