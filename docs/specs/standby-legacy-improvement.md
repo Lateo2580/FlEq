@@ -1,6 +1,6 @@
 # 待機画面 従来フォーマット改良
 
-グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック 13 巡（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=0..3]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。**寸法・配置・意味論の正本はモック v16（commit `68ac46d`）**とし、本文の数値はそこから写している（`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する）。裁定に使った目視 packet は第一〜十五号（セッションログ参照）。
+グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック 13 巡（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=0..3]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。**寸法・配置・意味論の正本はモック v18 系（現行 `1c643b4`）**とし、本文の数値はそこから写している（`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する）。裁定に使った目視 packet は第一〜十五号（セッションログ参照）。
 
 本 spec は品質メタ見直し（2026-08-15 合意）の第一号適用例であり、§9 の受け入れ条件は Oracle 欄（主張・基線・反証条件・Oracle と証跡・判定者と時点）を持つ。
 
@@ -47,7 +47,8 @@
   3. 不成立なら中央資格カードを中央受け皿へ移して時計退避（stage 1）。中央へ移す枚数に固定上限は設けず（1 枚制限をしない）、中央の実測容量が許す範囲で複数枚の組合せも候補として列挙する。
   4. それでも不成立なら余白・行間圧縮（stage 2）。**フォントサイズは縮めない**。
   5. それでも不成立ならローテーション枠（stage 3、§5）。
-- **余裕利用フェーズ（配置確定後・一方向）**: 配置と stage を確定した後、各列の残余容量を canonical 順に次の優先度で使い切る。いずれも配置・stage・他カードの寸法を変えない（§6 の一方向規則の一般化）。
+- **フェーズ構造（A0→比較器→B）**: ①A0 が compact baseline の測定値で fit 候補を全列挙する ②比較器（①''の「達成可能な展開量」potential を含む）が 1 候補を確定する——potential は二重測定値からの算出であり B は実行しない ③B（余裕利用フェーズ）が確定した候補へ**一度だけ**実体化し、その結果を A0・比較器へ再入力しない。
+- **余裕利用フェーズ（配置確定後・一方向）**: 確定した配置の各列残余容量を canonical 順に次の優先度で使い切る。いずれも配置・stage・他カードの寸法を変えない（§6 の一方向規則の一般化）。
   1. **compact 昇格**: A で compact になったカード（台風・wide flood の FloodCard 変換を含む）を、残余容量が許せば full／wide へ昇格する（昇格後の高さは二重測定済みの値を使う）。
   2. **地域展開**: §6 の B（quake 震度地域 → weather 対象地域の順）。
   - 判定は残余容量に対する実測値比較のみで行い、昇格・展開が新たな溢れを生まないことを保証する（入らないものは昇格・展開しない）。
@@ -85,7 +86,7 @@
   - 診断属性: 輪番集合のキー列（`data-rotation-keys`）・現在表示キー（`data-rotation-active-key`）・省略告知数（`data-rotation-omitted-count`）。
 - **終端（省略告知）**: 輪番集合の最大 compact 高ですら枠を確保できない場合、輪番集合の中で最大のカード（同値なら canonical 逆順で先のもの）を枠の予約対象から外し（枠高さを次点で再計算）、外れたカード数を N として枠の直下に「ほか N 件を表示できません」行を 1 行描画する（グリッド期資産の流用。N は全体数・行は右列末尾の枠に隣接する 1 箇所のみ）。failure 行自身の実測高も予約に含める。
   - 診断は 2 属性に分離する: 省略告知の有無・数は `data-rotation-omitted-count`、告知を含めても最終配置が成立しない真の未解決のみ `data-layout-unresolved="true"`。
-- **期待 stage 表（v16 モック `68ac46d` 実測・rotationTick=0・本表を機械 Oracle の正本とし実装後の観測値で書き換えない。v14 実測と同値＝余裕利用フェーズは stage を変えないことの実証）**:
+- **期待 stage 表（v16 実測を v18 で再確認・同値のため継承。rotationTick=0・本表を機械 Oracle の正本とし実装後の観測値で書き換えない）**:
 
 | viewport | scenario 4 | scenario 7 | scenario max |
 |---|---|---|---|
@@ -102,14 +103,14 @@
 ## 6. 地域リスト適応展開と気象警報カード改修
 
 - **A→B の一方向**: ソルバ（A）が配置と stage を確定した後、**確定済み配置の残余容量だけ**を使って展開（B）を判定する。展開はソルバを再実行せず、他カードの配置・stage を変えない。展開判定の順序は canonical order（quake→weather）で固定する（§4 余裕利用フェーズの一部）。
-- **prefix 展開の単位と実測**: 展開候補の**原子は地域 1 件**とし、候補の先頭から k 件を展開した状態（k=0..候補数）を実際の組版（pref-group 集約・2 列・折返し込み）で実測し、残余容量に入る最大の k を採る（探索は線形でも二分でもよいが結果は同一であること）。「expanded 全体は入らないが 10 地域なら入る」余裕を捨てない。展開しきれない残りは「ほか n」に集約する（n は本節の再計算式）。
+- **prefix 展開の単位と実測**: 展開候補の**原子は地域 1 件**とし、**追加件数 j（j=0..候補追加数。現行表示分を超えて追加する件数）**の全 prefix を実際の組版（pref-group 集約・2 列・折返し込み）で実測し、**fit する最大の j** を採る。prefix 高は「ほか n」行の消滅境界で非単調になり得るため、途中 non-fit での打ち切りや二分探索は用いず全列挙する（最大 24 件で列挙コストは限定的）。「expanded 全体は入らないが 10 地域なら入る」余裕を捨てない。展開しきれない残りは「ほか n」に集約する（n は本節の再計算式。期待値表の「展開」列は現行表示分を含む総表示件数で記録する）。
 - **跨 epoch の一方向性**: A は epoch を問わず**常に compact baseline の測定値**で解く（前 epoch で expanded 表示中でも、A の入力は compact 測定値）。B は別途測定済みの expanded variant 高を残余容量に当てて判定する。これにより前 epoch の展開が次 epoch の配置・stage に影響しない。輪番集合に入ったカードは B の対象外（枠内では常に compact のまま）。
 - 展開対象: 地震カードの震度地域行（「ほか n 地域」→実地域名）・気象警報の対象地域。
 - **engine 側 wire 契約（新設）**: 展開候補を snapshot DTO の optional フィールドで供給する。
-  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`（group 単位）。weather は item 単位ではなく、**表示単位（kind 統合後）**で供給する: weather カード DTO に `expandedKinds?: Array<{ kindKey: string; areas: string[]; totalAreaCount: number }>` を新設し、engine 側で複数 source の同一 kind を union・重複排除（発表順・最初の出現を保持）した候補 prefix と統合後ユニーク総数を持たせる（frontend の kind 統合表示と 1:1 対応させ、「ほか n」の一意性を保証する）。いずれの候補も**現行表示分を先頭に含む展開候補 prefix**であり、完全リストであることは保証しない。
+  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`（group 単位）。weather は source 単位の item ではなく、**表示単位（kind 統合後）**で供給する: `DisplayStateSnapshotV1` に新集約型 `DisplayWeatherExpandedKindV1 { kindKey: string; areas: string[]; totalAreaCount: number }` の配列 `weatherExpandedKinds?: DisplayWeatherExpandedKindV1[]` を新設する。`kindKey` は frontend の統合キーと同一の **`phenomenonKey ?? kind`**。engine 側で複数 source の同一 kind を union・重複排除（発表順・最初の出現を保持）した候補 prefix と統合後ユニーク総数を持たせる。いずれの候補も**現行表示分を先頭に含む展開候補 prefix**であり、完全リストであることは保証しない。
   - **上限**: **現行表示分は無条件で全て含む**。追加候補は現行表示分と合わせてカードあたり合計 24 地域を超えない範囲で付与する（現行表示だけで 24 を超える合法入力——震度 6 弱以上は cap されない等——では追加候補ゼロ、フィールドは現行表示分のみで供給）。group/kind 間の配分は発表順の先着。
   - **欠落時の互換**: フィールド欠落時は展開しない（現行表示のまま）。
-  - **「ほか n」の再計算式**: 展開表示時の残り件数は `n = 当該 group/item の総地域数（既存の件数フィールド由来） − expandedAreas のうち表示した件数` とする。engine 既存の `omittedAreaCount` 系は現行表示（非展開）用として変更しない。
+  - **「ほか n」の再計算式**: quake は `n = 当該 group の総地域数（既存の件数フィールド由来） − expandedAreas のうち表示した件数`。weather は `n = totalAreaCount − 表示済みユニーク地域数`。engine 既存の `omittedAreaCount` 系は現行表示（非展開）用として変更しない。
   - **縮退ラダー上の位置**: snapshot budget（SSE 256KB 安全弁）超過時、展開候補の削除は**カード本体の縮退より前段**に置く（gridbase で GO 済みの順序）。保持優先度は「現行表示分 > 展開候補」。
   - **移植元の固定**: `feature/legacy-improved-gridbase` の commit `e5d6bbb`（地域適応展開ラウンド最終 GO）。対象 path は `display/frontend/src/lib/grid-region-expansion.ts` と対応する engine 側候補供給・SSE 縮退ラダー変更。frontend 側 protocol 複製（`display/frontend/src/lib/protocol.ts`）にも同時反映する。
 - **WeatherAlertCard 本改修**（モックでは mock 側 CSS で試作済み・本実装でコンポーネントへ移す）:
@@ -143,35 +144,38 @@
 - ビルド・テスト（個別に実行）: `npm run build`・`npm test`・`npm --prefix display run build`・`npm --prefix display test`・`npm --prefix display run typecheck` がすべて成功。
 - **実ブラウザ実測ゲート**（headless Chrome runner。期待 stage は §5 の実測表を正本とし、実装後の観測値で表を書き換えない）:
   - runner は `data-measurement-settled="true"`（fonts.ready・測定 epoch・stage settle の完了後に立てる診断属性）を待ってから採寸する。
-  - scenario（4/7/max fixture）× viewport（1920×1080・1512×982・1280×720）で `data-ladder-stage` が §5 の再実測表と一致し、`data-layout-unresolved="false"` かつ `data-measurement-nonconverged="false"`。
-  - stage 3 のセルは `data-rotation-keys` の期待集合一致に加え、**`rotationTick=0..集合長−1` の全 tick を撮影・検査**する（現在 key の一致・枠内包含・切れ・重なり。failure 行がある場合はそれも対象）。fake timer のユニットテストで 15 秒ごとの交代順序と一周最大待ち時間（15 秒×(集合長−1)）を検証する。
-  - **切れゼロ（縦横）**: 各カード root の `scrollHeight ≤ clientHeight + 1` かつ `scrollWidth ≤ clientWidth + 1`、カード矩形が viewport 内。時計の秒・日付要素の矩形がクラスタ矩形に包含される。
+  - scenario（4/7/max fixture）× viewport（1920×1080・1512×982・1280×720・960×620）で `data-ladder-stage` が §5 の再実測表と一致し、`data-layout-unresolved="false"` かつ `data-measurement-nonconverged="false"`。
+  - stage 3 のセルは `data-rotation-keys` の期待集合一致に加え、**`rotationTick=0..集合長−1` の全 tick を撮影・検査**する（現在 key の一致・枠内包含・切れ・重なり。failure 行がある場合はそれも対象）。fake timer のユニットテストで、①安定集合の 15 秒交代順序と同一 key 再表示間隔（15 秒×集合長）②カード追加③非 active カード削除④active カード削除⑤長時間停止後の一括位相合流、の 5 系統を検証する。
+  - **切れゼロ（縦横）**: 各カード root の `scrollHeight ≤ clientHeight + 1` かつ `scrollWidth ≤ clientWidth + 1`、カード矩形が viewport 内。時計の秒・日付要素の矩形がクラスタ矩形に包含される。台風カードの名前要素と位置情報要素は同一行（矩形の縦中心差 ≤ 2px）にあること（compact/full 両形式）。
   - **重なりゼロ**: カード矩形同士・カードと時計クラスタ・南海帯の交差面積 0（境界 1px 許容）。
   - **時計中心**: stage 0 で時計の時刻要素の中心と viewport 中心の差が各軸 ≤ 1px（DPR 込みの実測 rect で判定）。
   - 列スクロールが発生していない（各列 `scrollHeight ≤ clientHeight + 1`）。
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）が完全一致。
 - **余裕利用の期待値表（v18 モック `7c47b55` 実測・rotationTick=0。ゲートは診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査し、実装後の観測値で書き換えない）**:
 
-| セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） |
-|---|---|---|---|---|
-| 1920×1080 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) |
-| 1920×1080 / 7 | full | card | 7 (n=0) | 12 (n=0) |
-| 1920×1080 / max | compact | card | 7 (n=0) | 16 (n=8) |
-| 1512×982 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) |
-| 1512×982 / 7 | compact | card | 7 (n=0) | 12 (n=0) |
-| 1512×982 / max | full | card | 7 (n=0) | 24 (n=0) |
-| 1280×720 / 4 | −（不在） | −（不在） | 7 (n=0) | 3 (n=9) |
-| 1280×720 / 7 | compact | card | 7 (n=0) | 8 (n=4) |
-| 1280×720 / max | compact | card | 7 (n=0) | 5 (n=19) |
-| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) |
-| 960×620 / 7 | compact | card | 7 (n=0) | 12 (n=0) |
-| 960×620 / max | compact | card | 7 (n=0) | 5 (n=19) |
-| 1920×1080 / max＋floodWide | compact / stage 0 | card（中央不在のため FloodCard 変換） | − | − |
-| 1280×720 / max＋floodWide | compact / stage 3（輪番: flood,typhoon,volcano,heat） | card | − | − |
+| セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） | surplus |
+|---|---|---|---|---|---|
+| 1920×1080 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
+| 1920×1080 / 7 | full | card | 7 (n=0) | 12 (n=0) | 13 |
+| 1920×1080 / max | compact | card | 7 (n=0) | 16 (n=8) | 16 |
+| 1512×982 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
+| 1512×982 / 7 | compact | card | 7 (n=0) | 12 (n=0) | 13 |
+| 1512×982 / max | full | card | 7 (n=0) | 24 (n=0) | 25 |
+| 1280×720 / 4 | −（不在） | −（不在） | 7 (n=0) | 3 (n=9) | 4 |
+| 1280×720 / 7 | compact | card | 7 (n=0) | 8 (n=4) | 9 |
+| 1280×720 / max | compact | card | 7 (n=0) | 5 (n=19) | 5 |
+| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
+| 960×620 / 7 | compact | card | 7 (n=0) | 12 (n=0) | 13 |
+| 960×620 / max | compact | card | 7 (n=0) | 5 (n=19) | 5 |
+| 1920×1080 / max＋floodWide | compact / stage 0 | card（中央不在のため FloodCard 変換） | 7 (n=0) | 5 (n=19) | 5 |
+| 1280×720 / max＋floodWide | compact / stage 3（輪番: flood,typhoon,volcano,heat） | card | 7 (n=0) | 4 (n=20) | 4 |
 
+  - surplus は `data-placement-surplus-use`（確定配置で達成した昇格数＋追加展開地域数）。「−（不在）」はカード不在を意味し、存在するのに非検査の欄は本表に置かない。
   - stage 3 セルの輪番カードは昇格・展開の対象外（表の値は常設カード分のみ）。
+  - **比較器 ①'' の反証 fixture**: 旧比較器（展開量を見ない）なら低展開の配置を選び、①'' 込みなら高展開の配置を選ぶ入力を 1 つ固定し、配置キー列（DOM の data-mock-side / data-mock-card から採取）が高展開側であることを検査する。
 - **ゲートの反証テスト（runner 自体の失敗能力の検証）**: 意図的に壊した 3 種の fixture（①カードを overflow させる ②カード矩形を重ねる ③stage 3 相当でローテーション枠・failure 行を描かない）に対して runner が非ゼロ終了すること。壊し方はテスト専用パラメータで注入し、本番経路には置かない。
 - §8a の unknown 単体検証（engine の受信ログ・frontend の非描画と枚数）。
+- **wire 契約のユニットテスト義務（engine 側）**: ①同一 kind・複数 source・一部重複地域の union（順序・重複排除・totalAreaCount）②現行表示が 24 未満／24 超の両境界（超過時は追加候補ゼロ）③optional フィールド欠落時の互換（展開しない）④snapshot budget 縮退で候補がカード本体より先に落ちること⑤persistence sanitizer・frontend protocol 複製を通過しても候補が保持されること。
 
 ### 9.2 人間検証必須（ご主人の目視 packet が判定）
 
