@@ -28,6 +28,10 @@
     legacyImprovedCandidate129WeatherAlertsCompact,
     legacyImprovedDuplicateWeatherAlerts,
     legacyImprovedDuplicateWeatherAlertsCompact,
+    legacyImprovedMultiTailLatestQuakeCompact,
+    legacyImprovedMultiTailLatestQuakeExpanded,
+    legacyImprovedMultiTailWeatherAlerts,
+    legacyImprovedMultiTailWeatherAlertsCompact,
     legacyImprovedZeroVisibleLatestQuake,
     legacyImprovedMaxItems,
     legacyImprovedMaxUnknownItems,
@@ -106,6 +110,18 @@
     areas: string[];
   }
 
+  interface PageTail {
+    kindKey: string;
+    omittedAreaCount: number;
+  }
+
+  interface PageRange {
+    start: number;
+    end: number;
+    tails: PageTail[];
+    omittedAreaCount: number;
+  }
+
   type PageableCardKey = "quake" | "weather";
 
   interface QuakePage {
@@ -113,6 +129,7 @@
     firstArea: string;
     identity: string;
     areaKeys: string[];
+    tails: PageTail[];
   }
 
   interface WeatherPage {
@@ -120,6 +137,7 @@
     firstArea: string;
     identity: string;
     areaKeys: string[];
+    tails: PageTail[];
   }
 
   interface CardPagePartition<T> {
@@ -139,6 +157,7 @@
     key: PageableCardKey;
     start: number;
     end: number;
+    tails: PageTail[];
     omittedAreaCount: number;
   }
 
@@ -156,7 +175,7 @@
   }
 
   interface PagePartitionScan {
-    ranges: Array<{ start: number; end: number; omittedAreaCount: number }>;
+    ranges: PageRange[];
     pending: PageMeasureEntry[];
     infeasible: boolean;
     probeCount: number;
@@ -164,6 +183,20 @@
     candidateTruncated: boolean;
     areaCount: number;
     fullAreaCount: number;
+  }
+
+  interface SuppliedQuakeGroups {
+    groups: DisplayIntensityGroupV1[];
+    tails: PageTail[];
+    truncated: boolean;
+    fullAreaKeys: string[];
+  }
+
+  interface SuppliedWeatherItems {
+    items: WeatherPageItem[];
+    tails: PageTail[];
+    truncated: boolean;
+    fullAreaKeys: string[];
   }
 
   type CandidateTruncatedIntensityGroup = DisplayIntensityGroupV1 & { candidateTruncated?: boolean };
@@ -244,8 +277,10 @@
   const cardPageCandidateTruncatedRequested = params.get("candidateTruncated") === "1";
   const candidate129Requested = params.get("candidate129") === "1";
   const duplicatePageKeyFixtureRequested = params.get("duplicatePageKeys") === "1";
+  const multiTailFixtureRequested = params.get("multiTail") === "1";
   const zeroVisibleQuakeRequested = params.get("zeroVisible") === "1";
   const cardPageRefreshRequested = params.get("cardPageRefresh") === "1";
+  const cardPageRefreshDeleteOriginRequested = params.get("cardPageRefreshDeleteOrigin") === "1";
   const cardPageRefreshAtParam = params.get("cardPageRefreshAt");
   const cardPageRefreshAtMs = cardPageRefreshAtParam != null && /^\d+$/.test(cardPageRefreshAtParam)
     ? Number.parseInt(cardPageRefreshAtParam, 10)
@@ -299,6 +334,8 @@
     ? legacyImprovedCandidate129WeatherAlerts
     : duplicatePageKeyFixtureRequested
       ? legacyImprovedDuplicateWeatherAlerts
+      : multiTailFixtureRequested
+        ? legacyImprovedMultiTailWeatherAlerts
       : scenario === "max"
         ? legacyImprovedMaxWeatherAlerts
         : legacyImprovedWeatherAlertsExpanded;
@@ -306,16 +343,22 @@
     ? legacyImprovedCandidate129WeatherAlertsCompact
     : duplicatePageKeyFixtureRequested
       ? legacyImprovedDuplicateWeatherAlertsCompact
+      : multiTailFixtureRequested
+        ? legacyImprovedMultiTailWeatherAlertsCompact
       : scenario === "max"
         ? legacyImprovedMaxWeatherAlertsCompact
         : legacyImprovedWeatherAlertsCompact;
   const compactQuakeState = candidate129Requested
     ? legacyImprovedCandidate129LatestQuakeCompact
+    : multiTailFixtureRequested
+      ? legacyImprovedMultiTailLatestQuakeCompact
     : zeroVisibleQuakeRequested
       ? legacyImprovedZeroVisibleLatestQuake
       : latestQuakeStandbyCards;
   const expandedQuakeState = candidate129Requested
     ? legacyImprovedCandidate129LatestQuakeExpanded
+    : multiTailFixtureRequested
+      ? legacyImprovedMultiTailLatestQuakeExpanded
     : legacyImprovedExpandedLatestQuake;
 
   const quakeExpansionMaxRows = Math.max(0, ...expandedQuakeState.intensityGroups.map((group, index) => {
@@ -380,7 +423,7 @@
   let measuredPageHeights = $state<Record<string, number>>({});
   let measuredCenterPageHeights = $state<Record<string, number>>({});
   let pageMeasurementEpoch = "";
-  let pageMeasurementCacheKey = "";
+  let pageMeasurementCacheKey = $state("");
   let measuredFixedHeights = $state<Record<string, number>>({});
   let measuredNankaiHeightPx = $state(0);
   let measuredClusterGapPx = $state(0);
@@ -397,6 +440,8 @@
   let measurementReadCount = $state(0);
   let measurementPass = $state(0);
   let measurementSettled = $state(false);
+  let fontsReady = $state(false);
+  let settledMeasurementEpoch = $state("");
   let measurementNonConverged = $state(false);
   let rotationFailureMeasureEl = $state<HTMLElement | null>(null);
   let rotationSlotEl = $state<HTMLElement | null>(null);
@@ -569,9 +614,17 @@
       ? []
       : [...previousRuntime.pendingKeys.filter((candidate) => nextKeys.includes(candidate)), ...addedKeys]
         .filter((candidate, index, all) => all.indexOf(candidate) === index && candidate !== activeKey);
+    let nextCycleOriginKey = previousRuntime.cycleOriginKey;
+    if (nextCycleOriginKey != null && !nextKeys.includes(nextCycleOriginKey)) {
+      // defer 中の起点が消えたら、削除時点の canonical 後続（pending ではない既存ページ）を
+      // 新しい起点へ差し替える。旧 key を持ち続けると解禁条件が永久に成立しない。
+      const stableNextKeys = nextKeys.filter((candidate) => !pendingKeys.includes(candidate));
+      nextCycleOriginKey = nextPageKeyAfterRemoval(previousKeys, nextCycleOriginKey, stableNextKeys)
+        ?? activeKey;
+    }
     const cycleOriginKey = pendingKeys.length === 0
       ? null
-      : previousRuntime.cycleOriginKey ?? previousKey ?? activeKey;
+      : nextCycleOriginKey ?? previousKey ?? activeKey;
     updateCardPageRuntime(key, activeKey, nextKeys, pendingKeys, cycleOriginKey);
   }
 
@@ -1038,6 +1091,11 @@
   }
 
   async function settleMeasurements(): Promise<void> {
+    if (!fontsReady || measurementDisposed) {
+      measurementSettled = false;
+      return;
+    }
+    measurementSettled = false;
     let previousSignature = measurementSignature();
     for (let pass = 1; pass < MAX_SETTLE_PASSES; pass += 1) {
       if (measurementDisposed) return;
@@ -1054,14 +1112,49 @@
         probeSteps += 1;
       } while (pageMeasureEntries.length > 0 && probeSteps < maxProbeSteps);
       const nextSignature = measurementSignature();
-      if (nextSignature === previousSignature && pageMeasureEntries.length === 0) {
+      if (
+        nextSignature === previousSignature
+        && pageMeasureEntries.length === 0
+        && fontsReady
+        && pageMeasurementCacheKey !== ""
+        && layoutPlan.stage === Number.parseInt(nextSignature.split("|")[0] ?? "-1", 10)
+      ) {
         measurementSettled = true;
+        settledMeasurementEpoch = pageMeasurementCacheKey;
         return;
       }
       previousSignature = nextSignature;
     }
     measurementNonConverged = true;
-    measurementSettled = true;
+    measurementSettled = false;
+  }
+
+  let measurementSettleInFlight = false;
+
+  function requestMeasurementSettle(): void {
+    if (!fontsReady || measurementDisposed || measurementSettleInFlight) return;
+    measurementSettleInFlight = true;
+    void settleMeasurements().finally(() => {
+      measurementSettleInFlight = false;
+      if (!measurementSettled && fontsReady && !measurementDisposed && pageMeasureEntries.length > 0) {
+        requestMeasurementSettle();
+      }
+    });
+  }
+
+  function startFontReadiness(): void {
+    const fontReady = typeof document !== "undefined" ? document.fonts?.ready : undefined;
+    if (fontReady == null) {
+      fontsReady = true;
+      requestMeasurementSettle();
+      return;
+    }
+    void fontReady.then(() => {
+      if (measurementDisposed) return;
+      fontsReady = true;
+      measurementSettled = false;
+      requestMeasurementSettle();
+    });
   }
 
   onMount(() => {
@@ -1072,7 +1165,7 @@
     cardPageSchedulerMounted = true;
     scheduleRotationTestMutation();
     scheduleCardPageRefresh();
-    void settleMeasurements();
+    startFontReadiness();
     return () => {
       measurementDisposed = true;
       disposeRotationScheduler();
@@ -1149,7 +1242,7 @@
   }
 
   function fullQuakeGroups(): DisplayIntensityGroupV1[] {
-    const groups = compactQuakeState.intensityGroups.map((compactGroup) => {
+    let groups = compactQuakeState.intensityGroups.map((compactGroup) => {
       const expandedGroup = expandedQuakeState.intensityGroups.find((group) =>
         group.intensity === compactGroup.intensity && group.rank === compactGroup.rank
       ) ?? compactGroup;
@@ -1160,9 +1253,17 @@
       };
     });
     if (cardPageRefreshRequested && cardPageFixtureRevision > 0) {
-      return groups.map((group) => group.intensity === "5強"
+      groups = groups.map((group) => group.intensity === "5強"
         ? { ...group, areas: [...group.areas, "高千穂町"] }
         : group);
+    }
+    if (cardPageRefreshDeleteOriginRequested && cardPageFixtureRevision >= 2) {
+      const firstNonEmpty = groups.findIndex((group) => group.areas.length > 0);
+      if (firstNonEmpty >= 0) {
+        groups = groups.map((group, index) => index === firstNonEmpty
+          ? { ...group, areas: group.areas.slice(1) }
+          : group);
+      }
     }
     return groups;
   }
@@ -1185,38 +1286,104 @@
     return cardPageCandidateTruncatedRequested ? CANDIDATE_TEST_LIMIT : CANDIDATE_SAFE_LIMIT;
   }
 
-  function suppliedQuakeGroups(): { groups: DisplayIntensityGroupV1[]; truncated: boolean; fullAreaKeys: string[] } {
+  function suppliedQuakeGroups(): SuppliedQuakeGroups {
     const fullGroups = fullQuakeGroups();
     const fullAreaKeys = fullGroups.flatMap((group) => group.areas);
     let remaining = candidateSupplyLimit();
     const groups = fullGroups.map((group) => {
-      const areas = group.areas.slice(0, Math.max(0, remaining));
+      const suppliedCount = Math.min(group.areas.length, Math.max(0, remaining));
+      const areas = group.areas.slice(0, suppliedCount);
       remaining -= areas.length;
       return { ...group, areas, omittedAreaCount: 0 };
-    }).filter((group) => group.areas.length > 0);
+    });
+    const tails = fullGroups.flatMap((group, index) => {
+      const omittedAreaCount = group.areas.length - (groups[index]?.areas.length ?? 0);
+      return omittedAreaCount > 0
+        ? [{ kindKey: quakeGroupKey(group), omittedAreaCount }]
+        : [];
+    });
     return {
       groups,
+      tails,
       truncated: fullGroups.some(intensityGroupCandidateTruncated)
         || fullAreaKeys.length > groups.reduce((total, group) => total + group.areas.length, 0),
       fullAreaKeys,
     };
   }
 
-  function quakeGroupsForRange(groups: readonly DisplayIntensityGroupV1[], start: number, end: number, omittedAreaCount = 0): DisplayIntensityGroupV1[] {
+  function pageTailCount(tails: readonly PageTail[], kindKey: string): number {
+    return tails.find((tail) => tail.kindKey === kindKey)?.omittedAreaCount ?? 0;
+  }
+
+  function quakeTailEntriesForRange(
+    groups: readonly DisplayIntensityGroupV1[],
+    tails: readonly PageTail[],
+    start: number,
+    end: number,
+    areaCount: number,
+  ): PageTail[] {
+    const result: PageTail[] = [];
+    let offset = 0;
+    for (const group of groups) {
+      const groupStart = offset;
+      const groupEnd = offset + group.areas.length;
+      offset = groupEnd;
+      const tail = tails.find((entry) => entry.kindKey === quakeGroupKey(group));
+      if (tail == null) continue;
+      const hasVisibleTail = groupEnd > start && groupEnd <= end;
+      const zeroGroupInPage = groupStart === groupEnd && (
+        (start <= groupStart && groupStart < end)
+        || (areaCount === 0 && start === 0 && end === 0)
+        || (groupStart === areaCount && end === areaCount && start < end)
+      );
+      if (hasVisibleTail || zeroGroupInPage) result.push(tail);
+    }
+    return result;
+  }
+
+  function weatherTailEntriesForRange(
+    items: readonly WeatherPageItem[],
+    tails: readonly PageTail[],
+    start: number,
+    end: number,
+    areaCount: number,
+  ): PageTail[] {
+    const result: PageTail[] = [];
+    let offset = 0;
+    for (const entry of items) {
+      const groupStart = offset;
+      const groupEnd = offset + entry.areas.length;
+      offset = groupEnd;
+      const tail = tails.find((candidate) => candidate.kindKey === entry.item.kind);
+      if (tail == null) continue;
+      const hasVisibleTail = groupEnd > start && groupEnd <= end;
+      const zeroGroupInPage = groupStart === groupEnd && (
+        (start <= groupStart && groupStart < end)
+        || (areaCount === 0 && start === 0 && end === 0)
+        || (groupStart === areaCount && end === areaCount && start < end)
+      );
+      if (hasVisibleTail || zeroGroupInPage) result.push(tail);
+    }
+    return result;
+  }
+
+  function quakeGroupsForRange(
+    groups: readonly DisplayIntensityGroupV1[],
+    start: number,
+    end: number,
+    tails: readonly PageTail[] = [],
+  ): DisplayIntensityGroupV1[] {
     let offset = 0;
     const selected = groups.map((group) => {
       const groupStart = offset;
       offset += group.areas.length;
+      const areas = group.areas.slice(Math.max(0, start - groupStart), Math.max(0, end - groupStart));
       return {
         ...group,
-        areas: group.areas.slice(Math.max(0, start - groupStart), Math.max(0, end - groupStart)),
-        omittedAreaCount: 0,
+        areas,
+        omittedAreaCount: pageTailCount(tails, quakeGroupKey(group)),
       };
-    }).filter((group) => group.areas.length > 0);
-    if (omittedAreaCount > 0 && selected.length > 0) {
-      const last = selected.length - 1;
-      selected[last] = { ...selected[last], omittedAreaCount };
-    }
+    }).filter((group) => group.areas.length > 0 || group.omittedAreaCount > 0);
     return selected;
   }
 
@@ -1241,14 +1408,18 @@
     groups: readonly DisplayIntensityGroupV1[],
     start: number,
     end: number,
-    omittedAreaCount = 0,
+    tails: readonly PageTail[] = [],
   ): QuakePage {
     const pageEntries = quakeAreaEntries(groups).slice(start, end);
+    const firstTail = tails[0];
     return {
-      state: { ...compactQuakeState, intensityGroups: quakeGroupsForRange(groups, start, end, omittedAreaCount) },
-      firstArea: pageEntries[0]?.area ?? "",
-      identity: pageEntries[0] == null ? "" : pageIdentity(pageEntries[0]),
+      state: { ...compactQuakeState, intensityGroups: quakeGroupsForRange(groups, start, end, tails) },
+      firstArea: pageEntries[0]?.area ?? firstTail?.kindKey ?? "",
+      identity: pageEntries[0] == null
+        ? firstTail == null ? "" : `${firstTail.kindKey}|<tail>|0`
+        : pageIdentity(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
+      tails: [...tails],
     };
   }
 
@@ -1260,6 +1431,7 @@
       firstArea: pageEntries[0]?.area ?? "",
       identity: pageEntries[0] == null ? "" : pageIdentity(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
+      tails: [],
     };
   }
 
@@ -1289,7 +1461,7 @@
     return merged;
   }
 
-  function suppliedWeatherItems(): { items: WeatherPageItem[]; truncated: boolean; fullAreaKeys: string[] } {
+  function suppliedWeatherItems(): SuppliedWeatherItems {
     const fullItems = mergeWeatherPageItems(fullWeatherAlerts);
     const fullAreaKeys = fullItems.flatMap((entry) => entry.areas);
     let remaining = candidateSupplyLimit();
@@ -1297,30 +1469,40 @@
       const areas = entry.areas.slice(0, Math.max(0, remaining));
       remaining -= areas.length;
       return { ...entry, areas };
-    }).filter((entry) => entry.areas.length > 0);
+    });
+    const tails = fullItems.flatMap((entry, index) => {
+      const omittedAreaCount = entry.areas.length - (items[index]?.areas.length ?? 0);
+      return omittedAreaCount > 0
+        ? [{ kindKey: entry.item.kind, omittedAreaCount }]
+        : [];
+    });
     return {
       items,
+      tails,
       truncated: weatherCandidateTruncated(fullWeatherAlerts)
         || fullAreaKeys.length > items.reduce((total, entry) => total + entry.areas.length, 0),
       fullAreaKeys,
     };
   }
 
-  function weatherItemsForRange(items: readonly WeatherPageItem[], start: number, end: number, omittedAreaCount = 0): WeatherPageItem[] {
+  function weatherItemsForRange(
+    items: readonly WeatherPageItem[],
+    start: number,
+    end: number,
+    tails: readonly PageTail[] = [],
+  ): WeatherPageItem[] {
     let offset = 0;
     const selected = items.map((entry) => {
       const itemStart = offset;
       offset += entry.areas.length;
       const areas = entry.areas.slice(Math.max(0, start - itemStart), Math.max(0, end - itemStart));
-      return { ...entry, item: { ...entry.item, shownAreas: areas, omittedAreaCount: 0 }, areas };
-    }).filter((entry) => entry.areas.length > 0);
-    if (omittedAreaCount > 0 && selected.length > 0) {
-      const last = selected.length - 1;
-      selected[last] = {
-        ...selected[last],
-        item: { ...selected[last].item, omittedAreaCount },
+      const omittedAreaCount = pageTailCount(tails, entry.item.kind);
+      return {
+        ...entry,
+        item: { ...entry.item, shownAreas: areas, omittedAreaCount },
+        areas,
       };
-    }
+    }).filter((entry) => entry.areas.length > 0 || entry.item.omittedAreaCount > 0);
     return selected;
   }
 
@@ -1340,10 +1522,11 @@
     start: number,
     end: number,
     totalAreaCount: number,
-    omittedAreaCount = 0,
+    tails: readonly PageTail[] = [],
   ): WeatherPage {
-    const selected = weatherItemsForRange(items, start, end, omittedAreaCount);
+    const selected = weatherItemsForRange(items, start, end, tails);
     const pageEntries = weatherAreaEntries(items).slice(start, end);
+    const firstTail = tails[0];
     const templateAlert = selected[0]?.templateAlert ?? fullWeatherAlerts[0];
     const alerts = templateAlert == null || selected.length === 0
       ? []
@@ -1354,9 +1537,12 @@
         }];
     return {
       alerts,
-      firstArea: pageEntries[0]?.area ?? "",
-      identity: pageEntries[0] == null ? "" : pageIdentity(pageEntries[0]),
+      firstArea: pageEntries[0]?.area ?? firstTail?.kindKey ?? "",
+      identity: pageEntries[0] == null
+        ? firstTail == null ? "" : `${firstTail.kindKey}|<tail>|0`
+        : pageIdentity(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
+      tails: [...tails],
     };
   }
 
@@ -1368,13 +1554,18 @@
       firstArea: pageEntries[0]?.area ?? "",
       identity: pageEntries[0] == null ? "" : pageIdentity(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
+      tails: [],
     };
   }
 
-  function pageMeasureId(key: PageableCardKey, start: number, end: number, omittedAreaCount = 0): string {
-    return omittedAreaCount > 0
-      ? `${key}:page:${start}:${end}:omitted:${omittedAreaCount}`
-      : `${key}:page:${start}:${end}`;
+  function pageTailSignature(tails: readonly PageTail[]): string {
+    return tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
+  }
+
+  function pageMeasureId(key: PageableCardKey, start: number, end: number, tails: readonly PageTail[] = []): string {
+    if (tails.length === 0) return `${key}:page:${start}:${end}`;
+    const omittedAreaCount = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
+    return `${key}:page:${start}:${end}:omitted:${omittedAreaCount}:tails:${pageTailSignature(tails)}`;
   }
 
   function pageRangeHeight(
@@ -1382,9 +1573,9 @@
     start: number,
     end: number,
     placement: "side" | "center",
-    omittedAreaCount = 0,
+    tails: readonly PageTail[] = [],
   ): number | undefined {
-    const id = pageMeasureId(key, start, end, omittedAreaCount);
+    const id = pageMeasureId(key, start, end, tails);
     return placement === "center" ? measuredCenterPageHeights[id] : measuredPageHeights[id];
   }
 
@@ -1393,39 +1584,67 @@
     areaCount: number,
     fixedHeight: number,
     placement: "side" | "center",
-    omittedAreaCount: number,
+    tailEntriesForRange: (start: number, end: number) => PageTail[],
   ): Pick<PagePartitionScan, "ranges" | "pending" | "infeasible" | "probeCount"> {
     const ranges: PagePartitionScan["ranges"] = [];
     const pending: PageMeasureEntry[] = [];
     const probedIds = new Set<string>();
+    if (areaCount === 0) {
+      const tails = tailEntriesForRange(0, 0);
+      if (tails.length === 0) return { ranges, pending, infeasible: false, probeCount: 0 };
+      const id = pageMeasureId(key, 0, 0, tails);
+      probedIds.add(id);
+      const measured = pageRangeHeight(key, 0, 0, placement, tails);
+      const omittedAreaCount = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
+      if (measured == null) {
+        pending.push({ id, key, start: 0, end: 0, tails, omittedAreaCount });
+        return { ranges: [{ start: 0, end: 0, tails, omittedAreaCount }], pending, infeasible: false, probeCount: probedIds.size };
+      }
+      if (fixedHeight <= 0 || measured <= fixedHeight) {
+        return { ranges: [{ start: 0, end: 0, tails, omittedAreaCount }], pending, infeasible: false, probeCount: probedIds.size };
+      }
+      return { ranges: [], pending: [], infeasible: true, probeCount: probedIds.size };
+    }
     let start = 0;
     while (start < areaCount) {
       let acceptedEnd = start;
       for (let end = start + 1; end <= areaCount; end += 1) {
-        const pageOmitted = end === areaCount ? omittedAreaCount : 0;
-        const id = pageMeasureId(key, start, end, pageOmitted);
+        const tails = tailEntriesForRange(start, end);
+        const id = pageMeasureId(key, start, end, tails);
         probedIds.add(id);
-        const measured = pageRangeHeight(key, start, end, placement, pageOmitted);
+        const measured = pageRangeHeight(key, start, end, placement, tails);
         if (measured == null) {
-          pending.push({ id, key, start, end, omittedAreaCount: pageOmitted });
+          const omittedAreaCount = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
           const provisionalEnd = acceptedEnd > start ? acceptedEnd : end;
+          const provisionalTails = tailEntriesForRange(start, provisionalEnd);
+          const provisionalOmittedAreaCount = provisionalTails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
+          pending.push({ id, key, start, end, tails, omittedAreaCount });
           ranges.push({
             start,
             end: provisionalEnd,
-            omittedAreaCount: provisionalEnd === areaCount ? omittedAreaCount : 0,
+            tails: provisionalTails,
+            omittedAreaCount: provisionalOmittedAreaCount,
           });
           return { ranges, pending, infeasible: false, probeCount: probedIds.size };
         }
         if (fixedHeight <= 0 || measured <= fixedHeight) {
           acceptedEnd = end;
           if (acceptedEnd === areaCount) {
-            ranges.push({ start, end: acceptedEnd, omittedAreaCount });
+            const finalTails = tailEntriesForRange(start, acceptedEnd);
+            const omittedAreaCount = finalTails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
+            ranges.push({ start, end: acceptedEnd, tails: finalTails, omittedAreaCount });
             return { ranges, pending, infeasible: false, probeCount: probedIds.size };
           }
           continue;
         }
         if (acceptedEnd === start) return { ranges: [], pending: [], infeasible: true, probeCount: probedIds.size };
-        ranges.push({ start, end: acceptedEnd, omittedAreaCount: 0 });
+        const acceptedTails = tailEntriesForRange(start, acceptedEnd);
+        ranges.push({
+          start,
+          end: acceptedEnd,
+          tails: acceptedTails,
+          omittedAreaCount: acceptedTails.reduce((total, tail) => total + tail.omittedAreaCount, 0),
+        });
         start = acceptedEnd;
         break;
       }
@@ -1447,7 +1666,7 @@
       ? quakeForRegionRows(regionRows).intensityGroups.reduce((total, group) => total + group.omittedAreaCount, 0)
       : weatherForRegionRows(regionRows).reduce((total, alert) => total + alert.items.reduce((subtotal, item) => subtotal + item.omittedAreaCount, 0), 0);
     const needsPages = areaCount > selected.areaKeys.length || selectedOmitted > 0 || suppliedTruncated;
-    if (!needsPages || areaCount === 0) {
+    if (!needsPages) {
       return {
         ranges: [],
         pending: [],
@@ -1461,12 +1680,27 @@
     }
     const placement = cardPlacement(layoutPlan, key) === "center" ? "center" : "side";
     const fixedHeight = measuredHeight(key, "expanded", placement, regionRows);
+    const tailEntriesForRange = key === "quake"
+      ? (start: number, end: number) => quakeTailEntriesForRange(
+        suppliedQuake?.groups ?? [],
+        suppliedQuake?.tails ?? [],
+        start,
+        end,
+        areaCount,
+      )
+      : (start: number, end: number) => weatherTailEntriesForRange(
+        suppliedWeather?.items ?? [],
+        suppliedWeather?.tails ?? [],
+        start,
+        end,
+        areaCount,
+      );
     const scan = sequentialPartitionRanges(
       key,
       areaCount,
       fixedHeight,
       placement,
-      suppliedTruncated ? suppliedFullAreaCount - areaCount : 0,
+      tailEntriesForRange,
     );
     return {
       ...scan,
@@ -1491,7 +1725,7 @@
       supplied.groups,
       range.start,
       range.end,
-      range.omittedAreaCount,
+      range.tails,
     ));
     return {
       pages,
@@ -1519,7 +1753,7 @@
       range.start,
       range.end,
       supplied.fullAreaKeys.length,
-      range.omittedAreaCount,
+      range.tails,
     ));
     return {
       pages,
@@ -1532,17 +1766,17 @@
     };
   }
 
-  function quakeProbeForRange(start: number, end: number, omittedAreaCount = 0): DisplayLatestQuakeStateV1 {
+  function quakeProbeForRange(start: number, end: number, tails: readonly PageTail[] = []): DisplayLatestQuakeStateV1 {
     const supplied = suppliedQuakeGroups();
     return {
       ...compactQuakeState,
-      intensityGroups: quakeGroupsForRange(supplied.groups, start, end, omittedAreaCount),
+      intensityGroups: quakeGroupsForRange(supplied.groups, start, end, tails),
     };
   }
 
-  function weatherProbeForRange(start: number, end: number, omittedAreaCount = 0): DisplayWeatherAlertV1[] {
+  function weatherProbeForRange(start: number, end: number, tails: readonly PageTail[] = []): DisplayWeatherAlertV1[] {
     const supplied = suppliedWeatherItems();
-    const selected = weatherItemsForRange(supplied.items, start, end, omittedAreaCount);
+    const selected = weatherItemsForRange(supplied.items, start, end, tails);
     const templateAlert = selected[0]?.templateAlert ?? fullWeatherAlerts[0];
     if (templateAlert == null || selected.length === 0) return [];
     return [{
@@ -2097,8 +2331,9 @@
       cardPageRefreshTimer = null;
       revision += 1;
       measurementSettled = false;
+      settledMeasurementEpoch = "";
       cardPageFixtureRevision = revision;
-      void settleMeasurements();
+      requestMeasurementSettle();
       if (revision < 3 && !measurementDisposed) cardPageRefreshTimer = setTimeout(refresh, 1_000);
     };
     cardPageRefreshTimer = setTimeout(refresh, cardPageRefreshAtMs);
@@ -2279,6 +2514,10 @@
     return cardPagePartition(key)?.identities ?? [];
   }
 
+  function cardPageTailEntries(key: CardKey): PageTail[][] {
+    return cardPagePartition(key)?.pages.map((page) => page.tails) ?? [];
+  }
+
   function cardPageIndex(key: CardKey): number {
     const total = cardPageCount(key);
     if (total <= 1) return 0;
@@ -2344,13 +2583,19 @@
       measuredPageHeights = {};
       measuredCenterPageHeights = {};
       pageMeasurementEpoch = "";
+      settledMeasurementEpoch = "";
+      measurementSettled = false;
+      measurementNonConverged = false;
+    }
+    if (!fontsReady || pageMeasureEntries.length > 0 || settledMeasurementEpoch !== pageMeasurementCacheKey) {
+      measurementSettled = false;
+      requestMeasurementSettle();
     }
     if (pageMeasurementEpoch === epoch) return;
     pageMeasurementEpoch = epoch;
     // fixture 更新で測定棚の候補範囲が変わったときも、DOM 更新直後に一度だけ同期 read する。
     untrack(() => {
       readMeasurements();
-      measurementSettled = true;
     });
   });
 
@@ -2471,12 +2716,12 @@
   {#snippet renderPageProbe(entry: PageMeasureEntry)}
     {#if entry.key === "quake"}
       <LatestQuakeCard
-        quake={quakeProbeForRange(entry.start, entry.end, entry.omittedAreaCount)}
+        quake={quakeProbeForRange(entry.start, entry.end, entry.tails)}
         longPeriod={longPeriod == null ? null : { ...longPeriod.data, restored: longPeriod.restored }}
       />
     {:else}
       <div class="mock-weather-shell" data-weather-two-column="true">
-        <WeatherAlertCard alerts={weatherProbeForRange(entry.start, entry.end, entry.omittedAreaCount)} tornado={null} />
+        <WeatherAlertCard alerts={weatherProbeForRange(entry.start, entry.end, entry.tails)} tornado={null} />
         {#if tornado != null}
           <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-tornado-full>
             ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each tornadoFullAreas as area, index}{#if index > 0}、{/if}{area}{/each}）
@@ -2505,7 +2750,7 @@
         longPeriod={longPeriod == null ? null : { ...longPeriod.data, restored: longPeriod.restored }}
       />
     </div>
-    {#if useCardPage && pageCount > 1}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
+    {#if useCardPage && (pageCount > 1 || cardPagePartition("quake")?.candidateTruncated)}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
   {:else if key === "weather"}
     <div class="card-page-body" data-card-page-body>
       <div class="mock-weather-shell" data-weather-two-column="true">
@@ -2517,7 +2762,7 @@
         {/if}
       </div>
     </div>
-    {#if useCardPage && pageCount > 1}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
+    {#if useCardPage && (pageCount > 1 || cardPagePartition("weather")?.candidateTruncated)}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
   {:else if key === "flood" && flood != null}
     {#if floodIsWide && (placement === "center" || floodWide)}
       <FloodWideCard item={flood} />
@@ -2549,6 +2794,7 @@
     data-card-page-fixed-height={cardPageUsesCandidate(entry.key) ? entry.naturalHeight : undefined}
     data-card-page-keys={cardPagePartition(entry.key) == null ? undefined : JSON.stringify(cardPageKeys(entry.key))}
     data-card-page-identities={cardPagePartition(entry.key) == null ? undefined : JSON.stringify(cardPageIdentityKeys(entry.key))}
+    data-card-page-tail-counts={cardPagePartition(entry.key) == null ? undefined : JSON.stringify(cardPageTailEntries(entry.key))}
     data-card-page-infeasible={cardPagePartition(entry.key)?.infeasible ? "true" : undefined}
     data-content-score={entry.score}
     data-natural-height-px={entry.naturalHeight}
@@ -2570,7 +2816,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v21</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v22</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -2586,6 +2832,8 @@
   data-measurement-mode={measurementComplete ? "sync-dom" : "pending"}
   data-measurement-pass={measurementPass}
   data-measurement-settled={measurementSettled ? "true" : "false"}
+  data-fonts-ready={fontsReady ? "true" : "false"}
+  data-measurement-epoch={pageMeasurementCacheKey}
   data-measurement-nonconverged={measurementNonConverged ? "true" : "false"}
   data-measurement-read-count={measurementReadCount}
   data-layout-base-height-px={measuredBaseLayoutHeightPx}
@@ -2624,6 +2872,7 @@
   data-card-page-active={cardPageIsActive ? "true" : "false"}
   data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys })}
   data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities })}
+  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather") })}
   data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey })}
   data-partition-probe-count={JSON.stringify(partitionProbeCounts)}
   data-partition-tail-probe={partitionTailProbeMeasured ? "true" : "false"}
@@ -2647,7 +2896,7 @@
   data-outer-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v21</strong>
+    <strong>従来フォーマット改良 v22</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 

@@ -400,6 +400,69 @@ export const legacyImprovedCandidate129WeatherAlertsCompact: DisplayWeatherAlert
   }],
 }];
 
+type LegacyImprovedMultiTailIntensityGroup = DisplayIntensityGroupV1 & { candidateTruncated: boolean };
+
+/** v22: 複数 group/kind をまたいで安全弁が発火し、末尾 group/kind が供給0になる入力。 */
+export const legacyImprovedMultiTailLatestQuakeCompact: DisplayLatestQuakeStateV1 = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: [
+    { intensity: "6弱", rank: 7, areas: ["宮崎市"], omittedAreaCount: 1, candidateTruncated: true },
+    { intensity: "5強", rank: 6, areas: ["都城市"], omittedAreaCount: 1, candidateTruncated: true },
+    { intensity: "5弱", rank: 5, areas: ["高千穂町"], omittedAreaCount: 1, candidateTruncated: true },
+  ] as LegacyImprovedMultiTailIntensityGroup[],
+};
+
+export const legacyImprovedMultiTailLatestQuakeExpanded: DisplayLatestQuakeStateV1 = {
+  ...legacyImprovedMultiTailLatestQuakeCompact,
+  intensityGroups: [
+    { intensity: "6弱", rank: 7, areas: ["宮崎市", "日南市"], omittedAreaCount: 0, candidateTruncated: true },
+    { intensity: "5強", rank: 6, areas: ["都城市", "延岡市"], omittedAreaCount: 0, candidateTruncated: true },
+    { intensity: "5弱", rank: 5, areas: ["高千穂町", "串間市"], omittedAreaCount: 0, candidateTruncated: true },
+  ] as LegacyImprovedMultiTailIntensityGroup[],
+};
+
+type LegacyImprovedMultiTailWeatherItem = DisplayWeatherAlertItemV1 & { candidateTruncated: boolean };
+
+const legacyImprovedMultiTailWeatherItems: LegacyImprovedMultiTailWeatherItem[] = [
+  {
+    ...weatherWarningOnlyStandbyCards[0].items[0],
+    kind: "大雨警報(土砂災害)",
+    shownAreas: ["熊本県山鹿市", "熊本県菊池市"],
+    omittedAreaCount: 0,
+    candidateTruncated: true,
+  },
+  {
+    ...weatherWarningOnlyStandbyCards[0].items[0],
+    kind: "洪水警報",
+    shownAreas: ["大分県佐伯市", "宮崎県延岡市"],
+    omittedAreaCount: 0,
+    candidateTruncated: true,
+  },
+  {
+    ...weatherWarningOnlyStandbyCards[0].items[0],
+    kind: "暴風警報",
+    shownAreas: ["鹿児島県霧島市", "福岡県朝倉市"],
+    omittedAreaCount: 0,
+    candidateTruncated: true,
+  },
+];
+
+export const legacyImprovedMultiTailWeatherAlerts: DisplayWeatherAlertV1[] = [{
+  ...weatherWarningOnlyStandbyCards[0],
+  totalAreas: 6,
+  items: legacyImprovedMultiTailWeatherItems,
+}];
+
+export const legacyImprovedMultiTailWeatherAlertsCompact: DisplayWeatherAlertV1[] = [{
+  ...weatherWarningOnlyStandbyCards[0],
+  totalAreas: 6,
+  items: legacyImprovedMultiTailWeatherItems.map((item) => ({
+    ...item,
+    shownAreas: item.shownAreas.slice(0, 1),
+    omittedAreaCount: 1,
+  })),
+}];
+
 /** kind が異なる同名地域を持つ identity 検証用 fixture。 */
 export const legacyImprovedDuplicateWeatherAlerts: DisplayWeatherAlertV1[] = [{
   ...weatherWarningOnlyStandbyCards[0],
