@@ -19,7 +19,7 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
-describe("legacy improved standby mock v12", () => {
+describe("legacy improved standby mock v14", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -34,7 +34,9 @@ describe("legacy improved standby mock v12", () => {
     expect(root.dataset.suppressedUnknownCount).toBe(String(suppressed));
     expect(root.dataset.inputItemCount).toBe(String(inputCount));
     expect(root.dataset.measurementMode).toBe("sync-dom");
-    expect(root.dataset.measurementPass).toBe("2");
+    expect(Number(root.dataset.measurementPass)).toBeGreaterThan(0);
+    expect(root.dataset.measurementSettled).toBeDefined();
+    expect(root.dataset.measurementNonconverged).toBeDefined();
     expect(root.dataset.layoutBaseHeightPx).toBeDefined();
     expect(root.dataset.tickerHeightPx).toBeDefined();
     expect(root.dataset.columnPaddingPx).toBeDefined();
@@ -120,24 +122,18 @@ describe("legacy improved standby mock v12", () => {
     expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul \.pref-group\)\s*\{[^}]*break-inside:\s*avoid/s);
   });
 
-  it("spills volcano and heat to the left column at forced ladder 1 without a ribbon", () => {
+  it("uses the new stage 1 clock retreat without reviving the old forced left spill", () => {
     const { rendered, root } = renderMock("legacyMock2=7&ladder=1");
     expect(root.dataset.ladderStage).toBe("1");
     expect(root.dataset.ladderAuto).toBe("false");
-
-    const leftKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="left"] [data-mock-card]')]
-      .map((card) => card.dataset.mockCard);
-    expect(leftKeys).toContain("volcano");
-    expect(leftKeys).toContain("heat");
-    for (const key of ["volcano", "heat"]) {
-      const card = rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`);
-      expect(card?.dataset.overflowPlacement).toBe("left-bottom");
-      expect(card?.classList.contains("overflow-card")).toBe(false);
+    expect(root.dataset.clockMode).toBe("ticker-bottom-right");
+    expect(rendered.container.querySelector("[data-clock-landmark]")).toBeNull();
+    expect(rendered.container.querySelector('[data-clock-placement="ticker-bottom-right"]')).toBeTruthy();
+    expect(rendered.container.querySelector("[data-center-card-region]")).toBeTruthy();
+    const leftCards = rendered.container.querySelectorAll('[data-mock-side="left"] [data-mock-card]');
+    for (const card of leftCards) {
+      expect(card.getAttribute("data-overflow-placement")).not.toBe("left-bottom");
     }
-    const rightKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="right"] [data-mock-card]')]
-      .map((card) => card.dataset.mockCard);
-    expect(rightKeys).not.toContain("volcano");
-    expect(rightKeys).not.toContain("heat");
   });
 
   it("exposes the center eligibility rule and keeps non-eligible hazards out of the receiver", () => {
@@ -171,7 +167,12 @@ describe("legacy improved standby mock v12", () => {
     expect(rendered.container.querySelector('[data-clock-placement="ticker-bottom-right"]')).toBeTruthy();
     expect(rendered.container.querySelector("[data-center-card-region]")).toBeTruthy();
     expect(rendered.container.querySelector('[data-fixed-stack-item="recent-quakes"]')).toBeTruthy();
-    expect(rendered.container.querySelector('[data-mock-side="center"] [data-mock-card]')).toBeTruthy();
+    expect(rendered.container.querySelector('[data-mock-side="center"]')).toBeTruthy();
+    if (stage === "3") {
+      expect(rendered.container.querySelector("[data-rotation-slot]")).toBeTruthy();
+      expect(root.dataset.rotationKeys).toBeDefined();
+      expect(root.dataset.rotationCurrentKey).toBeDefined();
+    }
   });
 
   it("uses equal side tracks, a centered cluster track, and synchronized measurement widths", () => {
@@ -206,7 +207,7 @@ describe("legacy improved standby mock v12", () => {
     expect(mockSource).toMatch(/\.nankai-ticker\s*\{[^}]*right:\s*var\(--mock-edge\)[^}]*bottom:\s*var\(--mock-ticker-h\)[^}]*left:\s*var\(--mock-edge\)/s);
     expect(mockSource).toMatch(/\.nankai-ticker :global\(\.nankai-badge\)\s*\{[^}]*margin:\s*0/s);
     expect(mockSource).toMatch(/inset: var\(--mock-edge\) var\(--mock-edge\) calc\(var\(--mock-ticker-h\) \+ var\(--mock-edge\) \+ var\(--mock-nankai-reserve\)\)/s);
-    expect(mockSource).toContain("const layoutHeight = Math.max(0, baseLayoutHeight - nankaiHeight);");
+    expect(mockSource).toContain("const layoutHeight = Math.max(0, baseLayoutHeight);");
     expect(mockSource).toMatch(/measuredLayoutHeightPx - measuredColumnPaddingPx/);
   });
 
@@ -242,8 +243,9 @@ describe("legacy improved standby mock v12", () => {
     expect(mockSource).toMatch(/function centerNaturalHeight\(cards: readonly CardCandidate\[\]\)/);
     expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*gap:\s*var\(--mock-gap\)/s);
     expect(mockSource).not.toContain("min-height: clamp(3rem, 8vh, 6rem)");
-    expect(mockSource).toContain("const unresolved = sideUnresolved || centerUnresolved;");
-    expect(mockSource).toMatch(/requestedStage === 2 && unresolved \? 3 : requestedStage/);
+    expect(mockSource).toContain("const unresolved = layoutFailure || sideUnresolved || centerUnresolved;");
+    expect(mockSource).toContain("const MAX_SETTLE_PASSES = 4;");
+    expect(mockSource).toContain("function solveRotation");
   });
 
   it("clips the tsunami marquee at the mock card boundary", () => {
@@ -253,14 +255,49 @@ describe("legacy improved standby mock v12", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v12 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v14 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v12");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v14");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
     expect(mockSource).toContain("data-right-capacity-px");
     expect(mockSource).toContain("measuredTickerHeightPx");
     expect(mockSource).toContain("measuredColumnPaddingPx");
+  });
+
+  it("measures typhoon full and compact variants in both shelves", () => {
+    const { rendered } = renderMock("legacyMock2=max&ladder=0");
+
+    expect(rendered.container.querySelector('[data-measure-card="typhoon:compact"]')).toBeTruthy();
+    expect(rendered.container.querySelector('[data-measure-card="typhoon:full"]')).toBeTruthy();
+    expect(rendered.container.querySelector('[data-center-measure-card="typhoon:compact"]')).toBeTruthy();
+    expect(rendered.container.querySelector('[data-center-measure-card="typhoon:full"]')).toBeTruthy();
+    expect(mockSource).toContain('displayMode={variant === "compact" ? "compact" : "full"}');
+  });
+
+  it("keeps A compact-baseline placement fixed while B expands quake then weather", () => {
+    expect(mockSource).toContain('const fullVariants: VariantSelection = { quake: "compact", weather: "compact", typhoon: "full" };');
+    expect(mockSource).toContain('const expansionOrder: ExpandableCardKey[] = ["quake", "weather"];');
+    expect(mockSource).toContain("if (expandedFits(plan, variants, key)) plan = replacePlanVariants(plan, variants);");
+    expect(mockSource).toContain("function replacePlanVariants(plan: ColumnPlan, variants: VariantSelection)");
+    expect(mockSource).not.toContain("makeColumnPlan(trial");
+  });
+
+  it("exposes deterministic rotation metadata and the bounded settle coordinator", () => {
+    const first = renderMock("legacyMock2=max&ladder=3&rotationTick=1");
+    const second = renderMock("legacyMock2=max&ladder=3&rotationTick=1");
+
+    expect(first.root.dataset.ladderStage).toBe("3");
+    expect(first.root.dataset.rotationKeys).toBeDefined();
+    expect(first.root.dataset.rotationCurrentKey).toBe(second.root.dataset.rotationCurrentKey);
+    expect(first.root.dataset.measurementSettled).toBeDefined();
+    expect(first.root.dataset.measurementNonconverged).toBeDefined();
+    expect(first.root.dataset.rotationSlotHeightPx).toBeDefined();
+    expect(first.root.dataset.rotationFailureCount).toBeDefined();
+    expect(first.rendered.container.querySelector("[data-rotation-slot]")).toBeTruthy();
+    expect(mockSource).toContain("rotationTickParam");
+    expect(mockSource).toContain("data-rotation-keys");
+    expect(mockSource).toContain("data-measurement-settled");
   });
 });
