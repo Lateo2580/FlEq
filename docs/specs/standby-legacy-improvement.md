@@ -1,6 +1,6 @@
 # 待機画面 従来フォーマット改良
 
-グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック 13 巡（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=0..3]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。**寸法・配置の正本はモック（commit `5af389d` 時点）**とし、本文の数値はそこから写している。裁定に使った目視 packet は第一〜十三号（セッションログ参照）。
+グリッドレイアウト凍結（2026-08-15、`freeze/standby-grid-2026-08-15`）を受けた従来フォーマットの改良仕様。比較モック 13 巡（`display/frontend/src/preview/LegacyImprovedMock.svelte`、`preview.html?nav=0&legacyMock2=4|7|max[&ladder=0..3]#legacy-improved-mock`）でご主人の目視 GO を得た確定形を本実装へ写す。**寸法・配置・意味論の正本はモック v16（commit `68ac46d`）**とし、本文の数値はそこから写している（`5af389d` 以前のモックは目視裁定の視覚基線としてのみ参照する）。裁定に使った目視 packet は第一〜十五号（セッションログ参照）。
 
 本 spec は品質メタ見直し（2026-08-15 合意）の第一号適用例であり、§9 の受け入れ条件は Oracle 欄（主張・基線・反証条件・Oracle と証跡・判定者と時点）を持つ。
 
@@ -40,7 +40,7 @@
 
 - 高さは算術推定ではなく**実 DOM 同期測定**で得る: 測定棚（本表示と同幅・同 CSS の非表示棚。側列幅と中央 36rem の二重測定）を同期 read し、1 回の再描画で配置を確定する。rAF 連鎖は使わない（headless 停止実績があるため）。
 - 判定には gap・列 padding・南海帯予約・ticker 高さを px 単位で含め、`data-left/right/center-natural-height-px` / `-capacity-px` 等の診断属性で外部から照合可能にする。
-- **再測定の契機**（測定 epoch を進める）: mount／viewport resize／カード集合の変化（追加・削除・surface 切替）／カード内容の更新（updatedAt・variant 変化）／`document.fonts.ready`。**reactive effect による再入は禁止**する一方、epoch coordinator 内の **bounded settle pass**（stage 適用・圧縮・ローテーション枠確保による寸法変化の再測定）は最大 4 pass まで許す。4 pass で収束しない場合は最後の pass の結果で確定し、診断属性に非収束を記録する。ticker 高は診断属性として測るが、capacity は `.screen-area`（ticker 高除外済み）基準のため控除には使わない（§11）。
+- **再測定の契機**（測定 epoch を進める）: mount／viewport resize／カード集合の変化（追加・削除・engine 判定の surface 切替）／カード内容の更新（updatedAt 変化）／`document.fonts.ready`。**A・余裕利用フェーズが選ぶ表示形式（台風 compact/full・flood 形式変換・展開 k）は同一 coordinator 内の出力であり、外部 epoch を進めない**（compact baseline→昇格→再 epoch の自己駆動を禁止する）。**reactive effect による再入は禁止**する一方、epoch coordinator 内の **bounded settle pass**（stage 適用・圧縮・ローテーション枠確保による寸法変化の再測定）は最大 4 pass まで許す。4 pass で収束しない場合は最後の pass の結果で確定し、診断属性に非収束を記録する。ticker 高は診断属性として測るが、capacity は `.screen-area`（ticker 高除外済み）基準のため控除には使わない（§11）。
 - **ソルバの解決順**（時計の中央維持が最優先の目的関数）:
   1. 左右 2 列に全カードが収まる割当を全列挙で探す（左先頭は津波→地震固定。**全カード常設・quake/weather は compact baseline・台風のみ full から試行**）。
   2. 不成立なら**台風カードを compact mode に切り替えて**再度 1. を試す（現行 StandbyScreen の full/compact 実測選択を、ソルバの自由度として引き継ぐ。compact の採否は A の一部）。
@@ -51,9 +51,10 @@
   1. **compact 昇格**: A で compact になったカード（台風・wide flood の FloodCard 変換を含む）を、残余容量が許せば full／wide へ昇格する（昇格後の高さは二重測定済みの値を使う）。
   2. **地域展開**: §6 の B（quake 震度地域 → weather 対象地域の順）。
   - 判定は残余容量に対する実測値比較のみで行い、昇格・展開が新たな溢れを生まないことを保証する（入らないものは昇格・展開しない）。
+  - **輪番集合のカードは余裕利用フェーズ全体（compact 昇格・地域展開とも）の対象外**とする（枠は compact 最大高で予約されているため。モック v15 以降の実装と一致）。
 - **主比較規則（規範・モック比較器の完全転写）**: 割当候補の優劣は次の辞書式で決める。
   1. 総 overflow（左右列の容量超過 px 合計＋中央使用時は中央の超過 px）が 0 の候補（fit）は、非 0 の候補（non-fit）に常に勝つ。
-  2. 両者 fit の場合: ①中央移動枚数の少なさ → ②最大側列高の低さ。
+  2. 両者 fit の場合: ①中央移動枚数の少なさ → ①'（stage 1 以降のみ）wide flood が中央に配置されている候補の優先 → ②最大側列高の低さ。
   3. 両者 non-fit の場合: ①総 overflow の少なさ。
   4. 以降は共通: ③左右列高差の小ささ → ④中央 overflow の少なさ → ⑤中央移動枚数の少なさ → ⑥移動枚数の少なさ → ⑦決定性 tie-break（後述の辞書順）。
 - **決定性**: 配置と stage は「カード集合（内容含む）・実測寸法・直前 stage」の 3 つだけの関数とする。カード列挙は §2 の tier 表の基準順（canonical order）で行い、主比較規則で同点の割当候補は「左列キー列・右列キー列・中央キー列」を canonical order で並べた辞書順で最小のものを採る。snapshot の到着順・入力 shuffle に依存しない。
@@ -76,9 +77,10 @@
     - 集合の変化: 現在表示 key が集合に残っていれば表示とタイマーを**維持**する（更新のたびに先頭へ戻さない——後方カードの飢餓を防ぐ）。現在 key が集合から消えたら canonical 順で次の key へ即時交代。追加カードは canonical 順の位置に入り次周から巡回。
     - stage 3 の退出→再進入: reset（先頭から）。同一 epoch 内の settle による瞬間的な出入りは resume。
     - tick と測定 epoch の競合: epoch 処理を優先し、tick は epoch 完了後に処理する（skip しない）。
-    - timer drift・background 復帰: 単調時計で経過 tick 数を再計算し、`経過 tick 数 mod 集合長` の key へ 1 回で合流する。
+    - timer drift・background 復帰: 単調時計で位相起点からの経過 tick 数を再計算し、現在 key の canonical 位置＋経過 tick 数（mod 集合長）の key へ 1 回で合流する。
     - reduced-motion: 交代の動きは即時差し替えにするが、**輪番自体は停止しない**。
-    - 公平性: 集合が安定している限り、任意のカードの一周最大待ち時間は 15 秒 × (集合長 − 1)。
+    - 公平性: 集合が安定している限り、同一カードの再表示間隔は 15 秒 × 集合長。任意時点から任意のカードが表示されるまでの最大待ち時間は 15 秒 × (集合長 − 1) ＋現在表示の残り時間。
+    - **集合変更時の位相**: 現在表示 key が残る変更では、現在 key の表示開始時刻を新しい位相の起点とし、次 tick は**新集合における現在 key の canonical 後続**へ進む（旧起点の経過 tick 数を新集合長で mod する方式は用いない——直前表示 key の再選択を防ぐ）。現在 key が消える変更では、消えた key の canonical 後続へ即時交代し、その時刻を位相起点とする。
   - **交代とアニメーションの排他契約**（詳細 easing は §7 の scoped spec に送るが、以下は本 spec の契約とする）: ①epoch/stage 変更は進行中の輪番 transition を cancel して優先する ②次 tick の交代は前 transition の finished または deadline 後に開始する ③交代中もカードは枠外へ描画されず、空表示フレームを作らない ④unmount・stage 退出時に timer と animation を破棄する。
   - 診断属性: 輪番集合のキー列（`data-rotation-keys`）・現在表示キー（`data-rotation-active-key`）・省略告知数（`data-rotation-omitted-count`）。
 - **終端（省略告知）**: 輪番集合の最大 compact 高ですら枠を確保できない場合、輪番集合の中で最大のカード（同値なら canonical 逆順で先のもの）を枠の予約対象から外し（枠高さを次点で再計算）、外れたカード数を N として枠の直下に「ほか N 件を表示できません」行を 1 行描画する（グリッド期資産の流用。N は全体数・行は右列末尾の枠に隣接する 1 箇所のみ）。failure 行自身の実測高も予約に含める。
@@ -100,12 +102,12 @@
 ## 6. 地域リスト適応展開と気象警報カード改修
 
 - **A→B の一方向**: ソルバ（A）が配置と stage を確定した後、**確定済み配置の残余容量だけ**を使って展開（B）を判定する。展開はソルバを再実行せず、他カードの配置・stage を変えない。展開判定の順序は canonical order（quake→weather）で固定する（§4 余裕利用フェーズの一部）。
-- **行単位の prefix 展開**: 展開は compact/expanded の二値ではなく、**残余容量に入る行数だけ**展開候補の先頭から展開する（行高は実測。「expanded 全体は入らないが 10 地域なら入る」余裕を捨てない）。展開しきれない残りは「ほか n」に集約する（n は §6 の再計算式）。
+- **prefix 展開の単位と実測**: 展開候補の**原子は地域 1 件**とし、候補の先頭から k 件を展開した状態（k=0..候補数）を実際の組版（pref-group 集約・2 列・折返し込み）で実測し、残余容量に入る最大の k を採る（探索は線形でも二分でもよいが結果は同一であること）。「expanded 全体は入らないが 10 地域なら入る」余裕を捨てない。展開しきれない残りは「ほか n」に集約する（n は本節の再計算式）。
 - **跨 epoch の一方向性**: A は epoch を問わず**常に compact baseline の測定値**で解く（前 epoch で expanded 表示中でも、A の入力は compact 測定値）。B は別途測定済みの expanded variant 高を残余容量に当てて判定する。これにより前 epoch の展開が次 epoch の配置・stage に影響しない。輪番集合に入ったカードは B の対象外（枠内では常に compact のまま）。
 - 展開対象: 地震カードの震度地域行（「ほか n 地域」→実地域名）・気象警報の対象地域。
 - **engine 側 wire 契約（新設）**: 展開候補を snapshot DTO の optional フィールドで供給する。
-  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`、weather は `DisplayWeatherAlertItemV1` に `expandedAreas?: string[]`。いずれも**「現行表示分を先頭に含む、発表順・重複排除済みの展開候補 prefix」**であり、完全リストであることは保証しない（実地域数がカード上限を超える場合、後方 group/item の候補は途中で切れる）。
-  - **上限**: カード（quake カード 1 枚・weather カード 1 枚）あたり合計 24 地域。group/item 間の配分は発表順の先着。
+  - **設置場所と型**: quake は `DisplayIntensityGroupV1` に `expandedAreas?: string[]`（group 単位）。weather は item 単位ではなく、**表示単位（kind 統合後）**で供給する: weather カード DTO に `expandedKinds?: Array<{ kindKey: string; areas: string[]; totalAreaCount: number }>` を新設し、engine 側で複数 source の同一 kind を union・重複排除（発表順・最初の出現を保持）した候補 prefix と統合後ユニーク総数を持たせる（frontend の kind 統合表示と 1:1 対応させ、「ほか n」の一意性を保証する）。いずれの候補も**現行表示分を先頭に含む展開候補 prefix**であり、完全リストであることは保証しない。
+  - **上限**: **現行表示分は無条件で全て含む**。追加候補は現行表示分と合わせてカードあたり合計 24 地域を超えない範囲で付与する（現行表示だけで 24 を超える合法入力——震度 6 弱以上は cap されない等——では追加候補ゼロ、フィールドは現行表示分のみで供給）。group/kind 間の配分は発表順の先着。
   - **欠落時の互換**: フィールド欠落時は展開しない（現行表示のまま）。
   - **「ほか n」の再計算式**: 展開表示時の残り件数は `n = 当該 group/item の総地域数（既存の件数フィールド由来） − expandedAreas のうち表示した件数` とする。engine 既存の `omittedAreaCount` 系は現行表示（非展開）用として変更しない。
   - **縮退ラダー上の位置**: snapshot budget（SSE 256KB 安全弁）超過時、展開候補の削除は**カード本体の縮退より前段**に置く（gridbase で GO 済みの順序）。保持優先度は「現行表示分 > 展開候補」。
@@ -148,6 +150,7 @@
   - **時計中心**: stage 0 で時計の時刻要素の中心と viewport 中心の差が各軸 ≤ 1px（DPR 込みの実測 rect で判定）。
   - 列スクロールが発生していない（各列 `scrollHeight ≤ clientHeight + 1`）。
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）が完全一致。
+- **余裕利用の期待値表**: セルごとに「台風の variant・wide flood の描画形式・quake 展開件数・weather 展開件数（kind ごと）・再計算後の n」を正本モックの実測で固定した表を持ち、ゲートは診断属性（`data-typhoon-variant`・`data-flood-form`・`data-expanded-counts` 等）との一致を検査する（昇格・展開を実装しない実装が stage 表だけで通過することを防ぐ）。wide flood fixture の 2 セル（1920×1080・1280×720）と stage 3 セル（輪番カードが対象外であること）も表に含める。期待値表は実装前にモック実測で確定し、実装後の観測値で書き換えない。
 - **ゲートの反証テスト（runner 自体の失敗能力の検証）**: 意図的に壊した 3 種の fixture（①カードを overflow させる ②カード矩形を重ねる ③stage 3 相当でローテーション枠・failure 行を描かない）に対して runner が非ゼロ終了すること。壊し方はテスト専用パラメータで注入し、本番経路には置かない。
 - §8a の unknown 単体検証（engine の受信ログ・frontend の非描画と枚数）。
 
@@ -159,7 +162,7 @@
 | 多発時の姿 | stage 1/2 でも読み取りが破綻しない | モック 13 巡目 max | 「どこを見ればいいか分からない」裁定 |
 | 距離可読性 | 実機の視聴距離で主情報が読める | 現行実機 | 実機 gate で読めない項目の指摘（packet に距離・対象文字を明記して裁定する） |
 | 変化の体感 | 更新時の動きが追える（§7） | 現行（瞬間切替） | 「変化に気づけない/うるさい」裁定（packet に更新シーケンス動画または連続キャプチャを含める） |
-| 720p 輪番 | stage 3 の一周で全 key が現れ、現行 main より読める情報量が減らない | 現行 main の 720p 表示 | 「輪番で情報を追えない」「main より減った」裁定（packet に一周分の連続キャプチャを含める） |
+| 720p 輪番 | stage 3 の一周で全 key が現れ、現行 main より読める情報量が減らない | 現行 main の 720p 表示 | 「輪番で情報を追えない」「main より減った」裁定（packet に一周分の連続キャプチャと、同一 snapshot における domain key・主要フィールドの表示有無を main/本実装で並べた対照表を含める） |
 
 - **Oracle と証跡**: 目視 packet（§10）のスクリーンショット集とご主人の GO/NO-GO 記録。
 - **判定者と時点**: ご主人。変更単位ごと（実装後）＋ main 合流前（最終）＋ Pi 実機反映後（実機 gate）。
@@ -176,7 +179,7 @@
 - **`App.svelte` / `Ticker.svelte`** — stage 所有権の契約: **StandbyScreen がソルバと stage の権威**であり、確定した stage を prop/callback で App へ通知する。App は通知を受けて ticker 内時計の表示/非表示を切り替える（中央時計と ticker 時計は同一 stage 確定の同一描画フレームで排他切替し、両方表示・両方非表示のフレームを作らない）。時計の viewport 中央配置は、`.screen-area`（ticker 高除外済み）内からの絶対配置ではなく viewport 基準（fixed 相当）で行う。**容量計算は `.screen-area` の実測高（既に ticker 高を除外済み）から南海帯の実測高のみを差し引く**（ticker 高を二重控除しない）。
 - **`StandbyScreen.svelte`** — 3 列レイアウト・実測 2 パス＋ソルバ・はしご・縦中央揃え（最大の変更単位）。
 - **`WeatherAlertCard.svelte`** — 2 列組版・竜巻フル表示（§6）。
-- **engine 側** — unknown 受信ログ（§8a）・展開候補の wire 契約と供給（§6、グリッド期資産の移植）。
+- **engine 側** — unknown 受信ログ（§8a）・展開候補の wire 契約と供給（§6、グリッド期資産の移植）。DTO を再構築する全経路（weather kind 統合・永続化 sanitizer・snapshot 縮退時のコピー処理）で候補フィールドが落ちないことを監査対象に含める。
 - モックの実測棚・ソルバ・診断属性のロジックは本実装への移植元とする（モックは spec の実証プロトタイプとして残す）。
 - 変更単位の分割・委譲契約・レビュー階梯（実装→Sol high→xhigh→**目視 GO**→合流）は plan 側で確定する。
 - **後続課題（本 spec のスコープ外・backlog 登録）**: 720p でのカード縮退調整による完全収容。登録先はリポジトリ外の常設バックログ（Obsidian Vault `Artifacts/FlEq-やりたいことリスト.md`）で、この checkout には存在しない。
