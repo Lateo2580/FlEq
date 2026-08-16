@@ -187,6 +187,10 @@ interface SchedulerDiagnosticState {
     cycleOriginKeys: { quake: string | null; weather: string | null };
     processedTick: number;
     previousPageCounts: { quake: number; weather: number };
+    substates: {
+      quake: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
+      weather: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
+    };
     tickPending: boolean;
     suspendedKeys: string[];
     inFlight: boolean;
@@ -278,7 +282,7 @@ function installAnimationProbe(): { animations: AnimationProbe[]; restore: () =>
   };
 }
 
-describe("legacy improved standby mock v24", () => {
+describe("legacy improved standby mock v25", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -818,9 +822,9 @@ describe("legacy improved standby mock v24", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v24 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v25 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v24");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v25");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -1392,7 +1396,120 @@ describe("legacy improved standby mock v24", () => {
     }
   });
 
-  describe("v24 common time-sliced scheduler contract", () => {
+  it("performs a real rotation-stage exit when the card set shrinks", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&fixtureRemove=volcano,heat&fixtureRemoveAt=1000");
+      await settleMockMeasurements(320);
+      expect(root.dataset.ladderAuto).toBe("true");
+      expect(root.dataset.ladderStage).toBe("3");
+      expect(rendered.container.querySelector("[data-rotation-slot]")).toBeTruthy();
+
+      vi.advanceTimersByTime(1_000);
+      await settleMockMeasurements(320);
+      expect(Number(root.dataset.ladderStage)).toBeLessThan(3);
+      expect(rendered.container.querySelector('[data-mock-card="volcano"]')).toBeNull();
+      expect(rendered.container.querySelector('[data-mock-card="heat"]')).toBeNull();
+      expect(root.dataset.rotationKeys).toBe("");
+      expect(schedulerState(root).rotation.timerActive).toBe(false);
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the shared paging timer alive when one pageable card disappears", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&fixtureRemove=quake&fixtureRemoveAt=1000");
+      await settleMockMeasurements(320);
+      expect(Number(root.dataset.cardPageCounts?.split(",")[0]?.split(":")[1] ?? 0)).toBeGreaterThan(1);
+      const weatherBefore = contractPage({ rendered, root }, "weather");
+
+      vi.advanceTimersByTime(1_000);
+      await settleMockMeasurements(320);
+      expect(rendered.container.querySelector('[data-mock-card="quake"]')).toBeNull();
+      expect(schedulerState(root).paging.previousPageCounts.quake).toBe(0);
+      expect(schedulerState(root).paging.previousPageCounts.weather).toBeGreaterThan(1);
+      expect(schedulerState(root).paging.timerActive).toBe(true);
+
+      vi.advanceTimersByTime(15_000);
+      await settleMockMeasurements(64);
+      expect(contractPage({ rendered, root }, "weather")).not.toBe(weatherBefore);
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts a fresh real-time phase after rotation suspension without retroactive ticks", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock(
+        "legacyMock2=max&rotationKeys=weather&fixtureRemove=volcano,heat&fixtureRemoveAt=1000",
+      );
+      await settleMockMeasurements(320);
+      expect(root.dataset.ladderStage).toBe("3");
+      const initialPage = contractPage({ rendered, root }, "weather");
+      expect(schedulerState(root).paging.substates.weather.mode).toBe("logical");
+
+      vi.advanceTimersByTime(1_000);
+      await settleMockMeasurements(320);
+      expect(Number(root.dataset.ladderStage)).toBeLessThan(3);
+      const afterResume = schedulerState(root);
+      expect(afterResume.paging.substates.weather.mode).toBe("real");
+      expect(afterResume.paging.substates.weather.processedTick).toBe(0);
+      expect(contractPage({ rendered, root }, "weather")).toBe(initialPage);
+
+      vi.advanceTimersByTime(14_999);
+      await settleMockMeasurements(64);
+      expect(schedulerState(root).paging.substates.weather.processedTick).toBe(0);
+      expect(contractPage({ rendered, root }, "weather")).toBe(initialPage);
+      vi.advanceTimersByTime(1);
+      await settleMockMeasurements(64);
+      expect(schedulerState(root).paging.substates.weather.processedTick).toBe(1);
+      expect(contractPage({ rendered, root }, "weather")).not.toBe(initialPage);
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves a pageable card identity through real stage transitions without an override", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
+    try {
+      const { rendered, root } = renderMock(
+        "legacyMock2=4&stageSequence=1@1000,2@2000,3@3000,0@4000",
+      );
+      await settleMockMeasurements(320);
+      const initialPage = contractPage({ rendered, root }, "weather");
+
+      vi.advanceTimersByTime(4_000);
+      await settleMockMeasurements(320);
+      expect(root.dataset.ladderStage).toBe("0");
+      expect(contractPage({ rendered, root }, "weather")).toBe(initialPage);
+
+      vi.advanceTimersByTime(10_999);
+      await settleMockMeasurements(64);
+      expect(contractPage({ rendered, root }, "weather")).toBe(initialPage);
+      vi.advanceTimersByTime(1);
+      await settleMockMeasurements(64);
+      expect(contractPage({ rendered, root }, "weather")).not.toBe(initialPage);
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  describe("v25 common time-sliced scheduler contract", () => {
     it("gives epoch precedence without skipping a due tick", async () => {
       vi.useFakeTimers();
       try {

@@ -171,6 +171,13 @@
     cycleOriginKey: string | null;
   }
 
+  interface CardPageSchedulerSubstate {
+    mode: "real" | "logical";
+    phaseStartedAtMs: number;
+    processedTick: number;
+    pageCount: number;
+  }
+
   interface PageAreaEntry {
     kindKey: string;
     area: string;
@@ -306,6 +313,11 @@
   const cardPageRefreshAtMs = cardPageRefreshAtParam != null && /^\d+$/.test(cardPageRefreshAtParam)
     ? Number.parseInt(cardPageRefreshAtParam, 10)
     : 1_000;
+  const fixtureRemovalKeys = parseRotationKeys(params.get("fixtureRemove")) ?? [];
+  const fixtureRemovalAtParam = params.get("fixtureRemoveAt");
+  const fixtureRemovalAtMs = fixtureRemovalAtParam != null && /^\d+$/.test(fixtureRemovalAtParam)
+    ? Number.parseInt(fixtureRemovalAtParam, 10)
+    : 1_000;
   const stageSequence = parseStageSequence(params.get("stageSequence"));
   // rotationKeys/rotationChange は fake timer テスト専用の集合変化 override。通常の mock は
   // solver が返す rotationKeys をそのまま使い、URL 未指定時にはこの経路へ入らない。
@@ -321,6 +333,8 @@
   let stageTransitionTimers: ReturnType<typeof setTimeout>[] = [];
   let cardPageFixtureRevision = $state(0);
   let cardPageRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let fixtureRemovalTimer: ReturnType<typeof setTimeout> | null = null;
+  let fixtureRemovedKeys = $state<CardKey[]>([]);
   const MAX_SETTLE_PASSES = 4;
   const MAX_ROTATION_CANDIDATE_PASSES = 5;
   const ROTATION_PERIOD_MS = 15_000;
@@ -509,6 +523,10 @@
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
   let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0 };
+  let cardPageSchedulerSubstates = $state<Record<PageableCardKey, CardPageSchedulerSubstate>>({
+    quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+    weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+  });
   let schedulerDiagnosticRevision = $state(0);
 
   function touchSchedulerDiagnostics(): void {
@@ -593,15 +611,23 @@
     return key === "quake" ? cardPagePartitions.quake : cardPagePartitions.weather;
   }
 
+  function pageCardIsVisible(key: PageableCardKey): boolean {
+    return cardPlacement(layoutPlan, key) != null;
+  }
+
   function pageKeysFor(key: PageableCardKey): string[] {
-    return pagePartitionFor(key).identities;
+    return pageCardIsVisible(key) ? pagePartitionFor(key).identities : [];
   }
 
   function selfAdvancingPageKeys(): PageableCardKey[] {
     return (["quake", "weather"] as const).filter((key) => {
       const partition = pagePartitionFor(key);
-      return partition.pages.length > 1 && !schedulerRotationKeys.includes(key);
+      return pageCardIsVisible(key) && partition.pages.length > 1 && !schedulerRotationKeys.includes(key);
     });
+  }
+
+  function pageSchedulerMode(key: PageableCardKey): "real" | "logical" {
+    return schedulerRotationKeys.includes(key) ? "logical" : "real";
   }
 
   function nextPageKeyAfterRemoval(previousKeys: readonly string[], previousKey: string | null, nextKeys: readonly string[]): string | null {
@@ -713,9 +739,12 @@
 
   function scheduleCardPageTimer(nowMs = monotonicNowMs(), pageable = true): void {
     clearCardPageTimer();
-    if (cardPageTickOverride != null || !pageable || !cardPageSchedulerMounted) return;
-    const elapsedTicks = Math.max(0, Math.floor((nowMs - cardPageStartedAtMs) / ROTATION_PERIOD_MS));
-    const nextDeadline = cardPageStartedAtMs + (elapsedTicks + 1) * ROTATION_PERIOD_MS;
+    const realKeys = selfAdvancingPageKeys();
+    if (cardPageTickOverride != null || !pageable || !cardPageSchedulerMounted || realKeys.length === 0) return;
+    const nextDeadline = Math.min(...realKeys.map((key) => {
+      const substate = cardPageSchedulerSubstates[key];
+      return substate.phaseStartedAtMs + (substate.processedTick + 1) * ROTATION_PERIOD_MS;
+    }));
     cardPageSchedulerTimer = setTimeout(() => {
       cardPageSchedulerTimer = null;
       if (cardPageEpochBusy) {
@@ -727,24 +756,30 @@
   }
 
   function processCardPageTick(pageable: boolean): void {
-    if (!cardPageSchedulerMounted || !pageable) return;
+    if (!cardPageSchedulerMounted || !pageable || selfAdvancingPageKeys().length === 0) return;
     if (cardPageEpochBusy) {
       cardPageTickPending = true;
       return;
     }
     const nowMs = monotonicNowMs();
-    const elapsedTicks = Math.max(0, Math.floor((nowMs - cardPageStartedAtMs) / ROTATION_PERIOD_MS));
-    if (elapsedTicks <= cardPageProcessedTick) {
-      scheduleCardPageTimer(nowMs, pageable);
-      return;
+    let nextSubstates = { ...cardPageSchedulerSubstates };
+    let advanced = false;
+    for (const key of selfAdvancingPageKeys()) {
+      const substate = nextSubstates[key];
+      const elapsedTicks = Math.max(0, Math.floor((nowMs - substate.phaseStartedAtMs) / ROTATION_PERIOD_MS));
+      if (elapsedTicks <= substate.processedTick) continue;
+      advanceCardPageFor(key, elapsedTicks - substate.processedTick);
+      nextSubstates = {
+        ...nextSubstates,
+        [key]: { ...substate, processedTick: elapsedTicks },
+      };
+      advanced = true;
     }
-    // 長時間停止後も elapsed tick を一括で位相へ合流させる。ページごとの timer callback
-    // 回数には依存せず、同じ単調時計起点から決定的に現在ページを求める。
-    const tickDelta = elapsedTicks - cardPageProcessedTick;
-    cardPageProcessedTick = elapsedTicks;
-    cardPageTick = elapsedTicks;
-    for (const key of selfAdvancingPageKeys()) advanceCardPageFor(key, tickDelta);
-    touchSchedulerDiagnostics();
+    cardPageSchedulerSubstates = nextSubstates;
+    const processedTicks = Object.values(nextSubstates).map((substate) => substate.processedTick);
+    cardPageProcessedTick = Math.max(0, ...processedTicks);
+    cardPageTick = cardPageProcessedTick;
+    if (advanced) touchSchedulerDiagnostics();
     scheduleCardPageTimer(nowMs, pageable);
   }
 
@@ -754,43 +789,62 @@
     clearCardPageTimer();
     const stage = layoutPlan.stage;
     const currentPageCounts: Record<PageableCardKey, number> = {
-      quake: cardPagePartitions.quake.pages.length,
-      weather: cardPagePartitions.weather.pages.length,
+      quake: pageCardIsVisible("quake") ? cardPagePartitions.quake.pages.length : 0,
+      weather: pageCardIsVisible("weather") ? cardPagePartitions.weather.pages.length : 0,
     };
     const initialScheduler = cardPageSchedulerStage == null;
+    const nowMs = monotonicNowMs();
     if (cardPageSchedulerEpoch !== epochKey) {
       cardPageSchedulerEpoch = epochKey;
     }
+    let nextSubstates = { ...cardPageSchedulerSubstates };
     if (initialScheduler) {
       cardPageSchedulerStage = stage;
-      cardPageStartedAtMs = monotonicNowMs();
+      cardPageStartedAtMs = nowMs;
       cardPageProcessedTick = 0;
       cardPageTick = cardPageTickOverride ?? 0;
-      reconcileCardPageRuntime("quake", true);
-      reconcileCardPageRuntime("weather", true);
+      for (const key of ["quake", "weather"] as const) {
+        reconcileCardPageRuntime(key, true);
+        nextSubstates[key] = {
+          mode: pageSchedulerMode(key),
+          phaseStartedAtMs: nowMs,
+          processedTick: 0,
+          pageCount: currentPageCounts[key],
+        };
+      }
     } else {
       // stage 変更は改ページ instance の exit ではない。現在ページ・pending・位相を
       // 維持し、実際に 1 ページ化したカードだけを page boundary として reset する。
       cardPageSchedulerStage = stage;
       // 1ページ化は改ページインスタンスの exit。再び複数ページへ戻ったときは
       // stage が同じでも reset し、輪番 suspend/resume や通常の repartition とは分離する。
-      let pageReentryReset = false;
       for (const key of ["quake", "weather"] as const) {
         const previousCount = cardPageSchedulerPageCounts[key];
         const currentCount = currentPageCounts[key];
         const pageExitBoundary = previousCount > 1 && currentCount <= 1;
-        const pageReentryBoundary = previousCount <= 1 && previousCount !== 0 && currentCount > 1;
-        pageReentryReset ||= pageReentryBoundary;
+        const pageReentryBoundary = previousCount <= 1 && currentCount > 1;
+        const previousSubstate = nextSubstates[key];
+        const nextMode = pageSchedulerMode(key);
+        const modeChanged = previousSubstate.mode !== nextMode;
         reconcileCardPageRuntime(key, pageExitBoundary || pageReentryBoundary);
-      }
-      if (pageReentryReset) {
-        // exit 後の再入場は改ページインスタンス自身の新しい位相として扱う。
-        // 他の epoch の経過 tick を持ち越すと、復帰直後に 2 ページ目へ飛ぶ。
-        cardPageStartedAtMs = monotonicNowMs();
-        cardPageProcessedTick = 0;
-        cardPageTick = cardPageTickOverride ?? 0;
+        nextSubstates[key] = {
+          mode: nextMode,
+          phaseStartedAtMs: modeChanged || pageExitBoundary || pageReentryBoundary
+            ? nowMs
+            : previousSubstate.phaseStartedAtMs,
+          processedTick: modeChanged || pageExitBoundary || pageReentryBoundary
+            ? 0
+            : previousSubstate.processedTick,
+          pageCount: currentCount,
+        };
       }
       if (cardPageTickOverride != null) cardPageTick = cardPageTickOverride;
+    }
+    cardPageSchedulerSubstates = nextSubstates;
+    const activeSubstates = Object.values(nextSubstates).filter((substate) => substate.pageCount > 1);
+    if (activeSubstates.length > 0) {
+      cardPageStartedAtMs = Math.min(...activeSubstates.map((substate) => substate.phaseStartedAtMs));
+      cardPageProcessedTick = Math.max(...activeSubstates.map((substate) => substate.processedTick));
     }
     cardPageSchedulerPageCounts = currentPageCounts;
     touchSchedulerDiagnostics();
@@ -815,6 +869,10 @@
     cardPageEpochBusy = false;
     cardPageTickPending = false;
     cardPageSchedulerPageCounts = { quake: 0, weather: 0 };
+    cardPageSchedulerSubstates = {
+      quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+      weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+    };
     cardPageRuntime = {
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -1250,12 +1308,14 @@
     cardPageSchedulerMounted = true;
     scheduleRotationTestMutation();
     scheduleStageSequence();
+    scheduleFixtureRemoval();
     scheduleCardPageRefresh();
     startFontReadiness();
     return () => {
       measurementDisposed = true;
       stageTransitionTimers.forEach((timer) => clearTimeout(timer));
       stageTransitionTimers = [];
+      clearFixtureRemovalTimer();
       disposeRotationScheduler();
       disposeCardPageScheduler();
     };
@@ -2211,7 +2271,8 @@
   }
 
   function buildCandidates(variants: VariantSelection): CardCandidate[] {
-    return cardKeys.map((key, order) => {
+    return cardKeys.filter((key) => !fixtureRemovedKeys.includes(key)).map((key) => {
+      const order = cardKeys.indexOf(key);
       const variant = key === "quake"
         ? variants.quake
         : key === "weather"
@@ -2467,6 +2528,29 @@
       settledMeasurementEpoch = "";
       requestMeasurementSettle();
     }, entry.atMs));
+  }
+
+  function clearFixtureRemovalTimer(): void {
+    if (fixtureRemovalTimer != null) {
+      clearTimeout(fixtureRemovalTimer);
+      fixtureRemovalTimer = null;
+    }
+  }
+
+  function scheduleFixtureRemoval(): void {
+    clearFixtureRemovalTimer();
+    if (fixtureRemovalKeys.length === 0) return;
+    fixtureRemovalTimer = setTimeout(() => {
+      fixtureRemovalTimer = null;
+      if (measurementDisposed) return;
+      fixtureRemovedKeys = [...fixtureRemovalKeys];
+      // 入力集合が実際に縮んだ epoch では、過去の stage floor を持ち越さず再解決する。
+      // これが stage 3 の実 exit を発生させ、空の rotation set を作る近似を避ける。
+      if (ladderAuto) settleFloorStage = 0;
+      measurementSettled = false;
+      settledMeasurementEpoch = "";
+      requestMeasurementSettle();
+    }, fixtureRemovalAtMs);
   }
 
   function clearCardPageRefreshTimer(): void {
@@ -2896,6 +2980,10 @@
         },
         processedTick: cardPageProcessedTick,
         previousPageCounts: { ...cardPageSchedulerPageCounts },
+        substates: {
+          quake: { ...cardPageSchedulerSubstates.quake },
+          weather: { ...cardPageSchedulerSubstates.weather },
+        },
         tickPending: cardPageTickPending,
         suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather"),
         inFlight: cardPageEpochBusy,
@@ -3008,7 +3096,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v24</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v25</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -3018,6 +3106,7 @@
   data-ladder-stage={layoutPlan.stage}
   data-ladder-auto={ladderAuto ? "true" : "false"}
   data-scenario={scenario}
+  data-fixture-removed-keys={fixtureRemovedKeys.join(",")}
   data-flood-wide-requested={wideFloodRequested && floodIsWide ? "true" : "false"}
   data-suppressed-unknown-count={unknownInputs.length}
   data-input-item-count={cardKeys.length + unknownInputs.length}
@@ -3090,7 +3179,7 @@
   data-outer-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v24</strong>
+    <strong>従来フォーマット改良 v25</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
