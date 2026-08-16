@@ -20,6 +20,7 @@ import {
   type DisplayTsunamiInputV1,
   type DisplayTsunamiObservationV1,
   type DisplayTsunamiStateV1,
+  type DisplayWeatherAlertItemV1,
   type DisplayWeatherAlertV1,
 } from "../lib/protocol";
 
@@ -342,6 +343,91 @@ export const legacyImprovedExpandedLatestQuake: DisplayLatestQuakeStateV1 = {
       : group,
   ),
 };
+
+type LegacyImprovedCandidateIntensityGroup = DisplayIntensityGroupV1 & { candidateTruncated: boolean };
+
+const legacyImprovedCandidate129Areas = Array.from(
+  { length: 129 },
+  (_, index) => `宮崎県候補地域${String(index + 1).padStart(3, "0")}`,
+);
+
+/** v12 wire の安全弁境界用。候補は 129 件、compact 表示は先頭 3 件。 */
+export const legacyImprovedCandidate129LatestQuakeCompact: DisplayLatestQuakeStateV1 = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: [{
+    intensity: "6弱",
+    rank: 7,
+    areas: legacyImprovedCandidate129Areas.slice(0, 3),
+    omittedAreaCount: 126,
+    candidateTruncated: true,
+  } as LegacyImprovedCandidateIntensityGroup],
+};
+
+export const legacyImprovedCandidate129LatestQuakeExpanded: DisplayLatestQuakeStateV1 = {
+  ...latestQuakeStandbyCards,
+  intensityGroups: [{
+    intensity: "6弱",
+    rank: 7,
+    areas: [...legacyImprovedCandidate129Areas],
+    omittedAreaCount: 0,
+    candidateTruncated: true,
+  } as LegacyImprovedCandidateIntensityGroup],
+};
+
+const legacyImprovedCandidate129WeatherItem: DisplayWeatherAlertItemV1 & { candidateTruncated: boolean } = {
+  kind: "大雨警報(土砂災害)",
+  displaySeverity: "officialL3",
+  rank: "warning",
+  shownAreas: [...legacyImprovedCandidate129Areas],
+  omittedAreaCount: 0,
+  candidateTruncated: true,
+};
+
+/** 気象側も同じ 129 件候補を持たせ、2 カードの逐次 probe 上限を検査する。 */
+export const legacyImprovedCandidate129WeatherAlerts: DisplayWeatherAlertV1[] = [{
+  ...weatherWarningOnlyStandbyCards[0],
+  totalAreas: 129,
+  items: [legacyImprovedCandidate129WeatherItem],
+}];
+
+export const legacyImprovedCandidate129WeatherAlertsCompact: DisplayWeatherAlertV1[] = [{
+  ...weatherWarningOnlyStandbyCards[0],
+  totalAreas: 129,
+  items: [{
+    ...legacyImprovedCandidate129WeatherItem,
+    shownAreas: legacyImprovedCandidate129Areas.slice(0, 3),
+    omittedAreaCount: 126,
+  }],
+}];
+
+/** kind が異なる同名地域を持つ identity 検証用 fixture。 */
+export const legacyImprovedDuplicateWeatherAlerts: DisplayWeatherAlertV1[] = [{
+  ...weatherWarningOnlyStandbyCards[0],
+  totalAreas: 4,
+  items: [
+    {
+      ...weatherWarningOnlyStandbyCards[0].items[0],
+      kind: "大雨警報(土砂災害)",
+      shownAreas: ["熊本県山鹿市", "宮崎県日向市"],
+      omittedAreaCount: 0,
+    },
+    {
+      ...weatherWarningOnlyStandbyCards[0].items[0],
+      kind: "洪水警報",
+      shownAreas: ["熊本県山鹿市", "大分県佐伯市"],
+      omittedAreaCount: 0,
+    },
+  ],
+}];
+
+export const legacyImprovedDuplicateWeatherAlertsCompact: DisplayWeatherAlertV1[] = [{
+  ...legacyImprovedDuplicateWeatherAlerts[0],
+  items: legacyImprovedDuplicateWeatherAlerts[0].items.map((item) => ({
+    ...item,
+    shownAreas: item.shownAreas.slice(0, 1),
+    omittedAreaCount: 1,
+  })),
+}];
 
 // standby-cards シナリオ用: 計器列 (直近30分スパークライン・受信数・本日地震・最大震度)
 export const statsStandbyCards: DisplayStatsV1 = {

@@ -20,10 +20,15 @@ function renderMock(query: string) {
   return { rendered, root };
 }
 
+async function settleMockMeasurements(probeBudget = 48): Promise<void> {
+  for (let index = 0; index < probeBudget; index += 1) await tick();
+}
+
 function installMeasuredLayout(options: {
   capacityPx?: number;
   baseCardPx?: number;
   prefixRowPx?: number;
+  pageOmittedExtraPx?: number;
   cardHeightById?: Readonly<Record<string, number>>;
   pageHeightByLength?: Readonly<Record<number, number>>;
 } = {}): () => void {
@@ -38,6 +43,12 @@ function installMeasuredLayout(options: {
     if (pageRange != null) {
       const length = Number(pageRange[2]) - Number(pageRange[1]);
       return options.pageHeightByLength?.[length] ?? measuredBase + length * prefixRowPx;
+    }
+    const omittedPageRange = id.match(/^(?:quake|weather):page:(\d+):(\d+):omitted:(\d+)$/);
+    if (omittedPageRange != null) {
+      const length = Number(omittedPageRange[2]) - Number(omittedPageRange[1]);
+      return (options.pageHeightByLength?.[length] ?? measuredBase + length * prefixRowPx)
+        + Number(omittedPageRange[3]) * (options.pageOmittedExtraPx ?? 0);
     }
     const regionMatch = id.match(/:(?:region:)(\d+)$/);
     if (regionMatch != null) return measuredBase + Number(regionMatch[1]) * prefixRowPx;
@@ -91,7 +102,7 @@ function installMeasuredLayout(options: {
   };
 }
 
-describe("legacy improved standby mock v20", () => {
+describe("legacy improved standby mock v21", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -199,7 +210,7 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0&cardPageTick=1");
-      await tick();
+      await settleMockMeasurements();
       expect(root.dataset.cardPageTickOverride).toBe("1");
       expect(root.dataset.cardPageActive).toBe("true");
       expect(root.dataset.cardPageCounts).toMatch(/quake:[2-9]/);
@@ -252,7 +263,7 @@ describe("legacy improved standby mock v20", () => {
       let pageCount = 0;
       for (let pageTick = 0; pageTick < 4; pageTick += 1) {
         const { rendered, root } = renderMock(`legacyMock2=4&ladder=0&cardPageTick=${pageTick}`);
-        await tick();
+        await settleMockMeasurements();
         const card = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
         const current = card?.dataset.cardPage ?? "";
         pageCount = Number(current.split("/")[1]);
@@ -275,7 +286,7 @@ describe("legacy improved standby mock v20", () => {
       const weatherAreas = new Set<string>();
       for (let pageTick = 0; ; pageTick += 1) {
         const { rendered, root } = renderMock(`legacyMock2=4&ladder=0&cardPageTick=${pageTick}`);
-        await tick();
+        await settleMockMeasurements();
         const weather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
         const total = Number(weather?.dataset.cardPage?.split("/")[1] ?? 1);
         for (const group of weather?.querySelectorAll<HTMLElement>(".pref-group") ?? []) {
@@ -304,7 +315,7 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0&zeroVisible=1&cardPageTick=2");
-      await tick();
+      await settleMockMeasurements();
       expect(root.dataset.candidateTruncated).toBe("false");
       expect(root.dataset.cardPageInfeasible).toBe("false");
       expect(root.dataset.cardPageActive).toBe("true");
@@ -319,11 +330,22 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0&candidateTruncated=1&cardPageTick=3");
-      await tick();
+      await settleMockMeasurements(320);
       expect(root.dataset.candidateTruncated).toBe("true");
       expect(root.dataset.cardPageKeys).toContain("宮崎市");
-      expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("ほか");
-      expect(rendered.container.querySelector('[data-mock-card="weather"]')?.textContent).toContain("ほか");
+      const quake = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
+      const weather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
+      const quakePageCount = Number(quake?.dataset.cardPage?.split("/")[1] ?? 1);
+      const weatherPageCount = Number(weather?.dataset.cardPage?.split("/")[1] ?? 1);
+      rendered.unmount();
+      const finalQuake = renderMock(`legacyMock2=4&ladder=0&candidateTruncated=1&cardPageTick=${quakePageCount - 1}`);
+      await settleMockMeasurements();
+      expect(finalQuake.rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("ほか");
+      finalQuake.rendered.unmount();
+      const finalWeather = renderMock(`legacyMock2=4&ladder=0&candidateTruncated=1&cardPageTick=${weatherPageCount - 1}`);
+      await settleMockMeasurements();
+      expect(finalWeather.rendered.container.querySelector('[data-mock-card="weather"]')?.textContent).toContain("ほか");
+      finalWeather.rendered.unmount();
     } finally {
       restoreMeasuredLayout();
     }
@@ -333,10 +355,82 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 100 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
-      await tick();
+      await settleMockMeasurements();
       expect(root.dataset.cardPageInfeasible).toBe("true");
       expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPageInfeasible).toBe("true");
       expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("ほか");
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("keeps 129-candidate partition probes linear for both pageable cards", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 90,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageHeightByLength: { 1: 40, 2: 40, 3: 100 },
+    });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&candidate129=1");
+      await settleMockMeasurements(320);
+      const probeCounts = JSON.parse(root.dataset.partitionProbeCount ?? "{}") as { quake?: number; weather?: number };
+      expect(root.dataset.candidateTruncated).toBe("true");
+      expect(probeCounts.quake).toBeGreaterThan(0);
+      expect(probeCounts.weather).toBeGreaterThan(0);
+      expect(probeCounts.quake).toBeLessThanOrEqual(256);
+      expect(probeCounts.weather).toBeLessThanOrEqual(256);
+      expect(root.dataset.cardPageInfeasible).toBe("false");
+      expect(root.dataset.cardPageKeys).toContain("宮崎県候補地域001");
+      expect(mockSource).toContain("const CANDIDATE_SAFE_LIMIT = 128;");
+      expect(mockSource).toContain("data-partition-probe-count");
+      expect(mockSource).not.toMatch(/for \(let start = 0; start < count; start \+= 1\)/);
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("keeps truncated-tail measurement in the sequential partition probe", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 90,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageOmittedExtraPx: 1,
+      pageHeightByLength: { 1: 40, 2: 40, 3: 100 },
+    });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&candidateTruncated=1");
+      await settleMockMeasurements();
+      expect(root.dataset.partitionTailProbe).toBe("true");
+      expect(root.dataset.cardPageInfeasible).toBe("false");
+      expect(mockSource).toContain("entry.omittedAreaCount");
+      expect(mockSource).toContain(":omitted:");
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
+  it("uses kind and occurrence in page identity when region names collide", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 50,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageHeightByLength: { 1: 40, 2: 100 },
+    });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&duplicatePageKeys=1&cardPageTick=0");
+      await settleMockMeasurements();
+      const weather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
+      const heads = JSON.parse(weather?.dataset.cardPageKeys ?? "[]") as string[];
+      const identities = JSON.parse(weather?.dataset.cardPageIdentities ?? "[]") as string[];
+      expect(heads.filter((head) => head === "熊本県山鹿市")).toHaveLength(2);
+      expect(new Set(identities).size).toBe(identities.length);
+      expect(identities.filter((identity) => identity.includes("熊本県山鹿市"))).toHaveLength(2);
+      expect(root.dataset.cardPageActiveKeys).toContain("大雨警報(土砂災害)");
+      expect(root.dataset.cardPageActiveKeys).not.toContain("undefined");
+      rendered.unmount();
     } finally {
       restoreMeasuredLayout();
     }
@@ -476,9 +570,9 @@ describe("legacy improved standby mock v20", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v20 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v21 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v20");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v21");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -526,9 +620,7 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout(counterfixture);
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
-      await tick();
-      await tick();
-      await tick();
+      await settleMockMeasurements();
       const leftKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="left"] [data-mock-card]')]
         .map((card) => card.dataset.mockCard);
       const rightKeys = [...rendered.container.querySelectorAll<HTMLElement>('[data-mock-side="right"] [data-mock-card]')]
@@ -588,6 +680,7 @@ describe("legacy improved standby mock v20", () => {
       for (let index = 2; index < keys.length; index += 1) {
         vi.advanceTimersByTime(15_000);
         await tick();
+        await tick();
         observed.push(root.dataset.rotationActiveKey ?? "");
       }
       expect(observed).toEqual(keys);
@@ -622,6 +715,7 @@ describe("legacy improved standby mock v20", () => {
       const elapsedTicks = 7;
       vi.advanceTimersByTime(15_000 * elapsedTicks + 1);
       await tick();
+      await tick();
       expect(root.dataset.rotationActiveKey).toBe(keys[elapsedTicks % keys.length]);
       rendered.unmount();
     } finally {
@@ -635,9 +729,7 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0");
-      await tick();
-      await tick();
-      await tick();
+      await settleMockMeasurements();
       const counts = (root.dataset.cardPageCounts ?? "").split(",").map((entry) => Number(entry.split(":")[1]));
       const total = Math.max(...counts);
       expect(total).toBeGreaterThan(1);
@@ -665,9 +757,7 @@ describe("legacy improved standby mock v20", () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0&cardPageRefresh=1&cardPageRefreshAt=16000");
-      await tick();
-      await tick();
-      await tick();
+      await settleMockMeasurements(320);
       const firstCard = rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]');
       expect(firstCard?.dataset.cardPage).toBe("1/7");
 
@@ -676,16 +766,12 @@ describe("legacy improved standby mock v20", () => {
       expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPage).toBe("2/7");
 
       vi.advanceTimersByTime(1_000);
-      await tick();
-      await tick();
-      await tick();
+      await settleMockMeasurements(320);
       expect(root.dataset.cardPageRevision).toBe("1");
       expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPage).toBe("2/8");
 
       vi.advanceTimersByTime(2_000);
-      await tick();
-      await tick();
-      await tick();
+      await settleMockMeasurements(320);
       expect(root.dataset.cardPageRevision).toBe("3");
       expect(rendered.container.querySelector<HTMLElement>('[data-mock-card="quake"]')?.dataset.cardPage).toBe("2/8");
       expect(root.dataset.cardPageTick).toBe("1");
@@ -702,13 +788,11 @@ describe("legacy improved standby mock v20", () => {
       capacityPx: 90,
       baseCardPx: 40,
       prefixRowPx: 10,
-      pageHeightByLength: { 1: 40, 2: 40, 3: 100 },
+      pageHeightByLength: { 1: 40, 2: 40, 3: 40, 4: 100 },
     });
     try {
       const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=weather,heat");
-      await tick();
-      await tick();
-      await tick();
+      await settleMockMeasurements();
       const initialWeather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
       const pageCount = Number(initialWeather?.dataset.cardPage?.split("/")[1] ?? 0);
       expect(pageCount).toBeGreaterThan(1);
@@ -727,6 +811,39 @@ describe("legacy improved standby mock v20", () => {
       expect([...observed].map((page) => Number(page.split("/")[0])).sort((a, b) => a - b)).toEqual(
         Array.from({ length: pageCount }, (_, index) => index + 1),
       );
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts a singleton rotation slot boundary as reappearance", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 90,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageHeightByLength: { 1: 40, 2: 40, 3: 100 },
+    });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&ladder=3&rotationKeys=weather");
+      await settleMockMeasurements(320);
+      const weather = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]');
+      const pageCount = Number(weather?.dataset.cardPage?.split("/")[1] ?? 0);
+      expect(root.dataset.rotationKeys).toBe("weather");
+      expect(pageCount).toBeGreaterThan(1);
+      const observed = new Set<string>();
+      if (weather?.dataset.cardPage != null) observed.add(weather.dataset.cardPage);
+      for (let boundary = 0; boundary < pageCount - 1; boundary += 1) {
+        vi.advanceTimersByTime(15_000);
+        await tick();
+        await tick();
+        const current = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"]')?.dataset.cardPage;
+        if (current != null) observed.add(current);
+      }
+      expect(observed.size).toBe(pageCount);
+      expect(root.dataset.rotationCycleMs).toBe("15000");
       rendered.unmount();
     } finally {
       restoreMeasuredLayout();
