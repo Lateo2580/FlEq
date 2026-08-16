@@ -24,14 +24,16 @@ async function settleMockMeasurements(probeBudget = 48): Promise<void> {
   for (let index = 0; index < probeBudget; index += 1) await tick();
 }
 
-function installMeasuredLayout(options: {
+interface MeasuredLayoutOptions {
   capacityPx?: number;
   baseCardPx?: number;
   prefixRowPx?: number;
   pageOmittedExtraPx?: number;
   cardHeightById?: Readonly<Record<string, number>>;
   pageHeightByLength?: Readonly<Record<number, number>>;
-} = {}): () => void {
+}
+
+function installMeasuredLayout(options: MeasuredLayoutOptions = {}): () => void {
   const capacityPx = options.capacityPx ?? 180;
   const baseCardPx = options.baseCardPx ?? 90;
   const prefixRowPx = options.prefixRowPx ?? 0;
@@ -102,7 +104,148 @@ function installMeasuredLayout(options: {
   };
 }
 
-describe("legacy improved standby mock v22", () => {
+type SchedulerContractMode = "rotation" | "paging" | "composite";
+
+interface SchedulerContractCase {
+  name: string;
+  mode: SchedulerContractMode;
+  query: string;
+  epochQuery: string;
+  exitQuery: string;
+  exitAtMs: number;
+  suspendQuery: string;
+  layout: MeasuredLayoutOptions;
+}
+
+const schedulerContractCases: readonly SchedulerContractCase[] = [
+  {
+    name: "rotation",
+    mode: "rotation",
+    query: "legacyMock2=max&ladder=3&rotationKeys=volcano,heat",
+    epochQuery: "legacyMock2=max&ladder=3&rotationKeys=volcano,heat&rotationChange=add:typhoon&rotationChangeAt=14999",
+    exitQuery: "legacyMock2=max&ladder=3&rotationKeys=weather&rotationChange=remove:weather&rotationChangeAt=1000&cardPageTick=0",
+    exitAtMs: 1_000,
+    suspendQuery: "legacyMock2=max&ladder=3&rotationKeys=weather,heat",
+    layout: {},
+  },
+  {
+    name: "paging",
+    mode: "paging",
+    query: "legacyMock2=4&ladder=0",
+    epochQuery: "legacyMock2=4&ladder=0&cardPageRefresh=1&cardPageRefreshAt=14999",
+    exitQuery: "legacyMock2=4&ladder=0&cardPageRefresh=1&cardPageCollapse=1&cardPageRefreshAt=16000",
+    exitAtMs: 16_000,
+    suspendQuery: "legacyMock2=4&ladder=0&cardPageRefresh=1&cardPageRefreshAt=16000",
+    layout: { capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 },
+  },
+  {
+    name: "composite",
+    mode: "composite",
+    query: "legacyMock2=max&ladder=3&rotationKeys=weather,heat",
+    epochQuery: "legacyMock2=max&ladder=3&rotationKeys=weather,heat&rotationChange=add:typhoon&rotationChangeAt=14999",
+    exitQuery: "legacyMock2=max&ladder=3&rotationKeys=weather&rotationChange=remove:weather&rotationChangeAt=1000&cardPageTick=0",
+    exitAtMs: 1_000,
+    suspendQuery: "legacyMock2=max&ladder=3&rotationKeys=weather,heat",
+    layout: {
+      capacityPx: 90,
+      baseCardPx: 40,
+      prefixRowPx: 10,
+      pageHeightByLength: { 1: 40, 2: 40, 3: 40, 4: 100 },
+    },
+  },
+];
+
+function contractPage(rendered: ReturnType<typeof renderMock>, key: "quake" | "weather" = "quake"): string {
+  const rotationCard = rendered.rendered.container.querySelector<HTMLElement>(
+    `[data-rotation-slot] [data-mock-card="${key}"]`,
+  );
+  return (rotationCard
+    ?? rendered.rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`))?.dataset.cardPage ?? "";
+}
+
+function contractActive(root: HTMLElement): string {
+  return root.dataset.rotationActiveKey ?? "";
+}
+
+async function withContractCase(
+  contractCase: SchedulerContractCase,
+  query: string,
+  callback: (rendered: ReturnType<typeof renderMock>, unmount: () => void) => Promise<void>,
+): Promise<void> {
+  const restoreMeasuredLayout = installMeasuredLayout(contractCase.layout);
+  const rendered = renderMock(query);
+  let mounted = true;
+  const unmount = (): void => {
+    if (!mounted) return;
+    mounted = false;
+    rendered.rendered.unmount();
+  };
+  try {
+    await settleMockMeasurements(320);
+    await callback(rendered, unmount);
+  } finally {
+    unmount();
+    restoreMeasuredLayout();
+  }
+}
+
+function installReducedMotionMatchMedia(matches = true): () => void {
+  const hadOwnMatchMedia = Object.prototype.hasOwnProperty.call(window, "matchMedia");
+  const originalMatchMedia = window.matchMedia;
+  const reducedMatchMedia = (): MediaQueryList => ({
+    matches,
+    media: "(prefers-reduced-motion: reduce)",
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  } as unknown as MediaQueryList);
+  Object.defineProperty(window, "matchMedia", { configurable: true, writable: true, value: reducedMatchMedia });
+  return () => {
+    if (hadOwnMatchMedia) {
+      Object.defineProperty(window, "matchMedia", { configurable: true, writable: true, value: originalMatchMedia });
+    } else {
+      Reflect.deleteProperty(window, "matchMedia");
+    }
+  };
+}
+
+interface AnimationProbe {
+  playState: AnimationPlayState;
+  cancel: ReturnType<typeof vi.fn>;
+  onfinish: (() => void) | null;
+  oncancel: (() => void) | null;
+}
+
+function installAnimationProbe(): { animations: AnimationProbe[]; restore: () => void } {
+  const originalAnimate = HTMLElement.prototype.animate;
+  const animations: AnimationProbe[] = [];
+  const animate = vi.fn((..._args: Parameters<HTMLElement["animate"]>): Animation => {
+    const probe: AnimationProbe = {
+      playState: "running",
+      cancel: vi.fn(),
+      onfinish: null,
+      oncancel: null,
+    };
+    animations.push(probe);
+    return probe as unknown as Animation;
+  });
+  Object.defineProperty(HTMLElement.prototype, "animate", { configurable: true, writable: true, value: animate });
+  return {
+    animations,
+    restore: () => {
+      if (originalAnimate == null) {
+        Reflect.deleteProperty(HTMLElement.prototype, "animate");
+      } else {
+        Object.defineProperty(HTMLElement.prototype, "animate", { configurable: true, writable: true, value: originalAnimate });
+      }
+    },
+  };
+}
+
+describe("legacy improved standby mock v23", () => {
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -624,9 +767,9 @@ describe("legacy improved standby mock v22", () => {
     expect(mockSource).toMatch(/\.legacy-mock \.measure-item :global\(\.marquee-text\)\s*\{[^}]*position:\s*static[^}]*animation-name:\s*none/s);
   });
 
-  it("labels the mock as v22 and exposes per-column measurement diagnostics", () => {
+  it("labels the mock as v23 and exposes per-column measurement diagnostics", () => {
     const { rendered } = renderMock("legacyMock2=max&ladder=0");
-    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v22");
+    expect(rendered.container.querySelector(".mock-label strong")?.textContent).toContain("v23");
     expect(mockSource).toContain("data-left-natural-height-px");
     expect(mockSource).toContain("data-right-natural-height-px");
     expect(mockSource).toContain("data-left-capacity-px");
@@ -1112,6 +1255,32 @@ describe("legacy improved standby mock v22", () => {
     }
   });
 
+  it("takes a later fitting prefix in the non-monotonic B counterfixture", async () => {
+    const restoreMeasuredLayout = installMeasuredLayout({
+      capacityPx: 120,
+      baseCardPx: 20,
+      prefixRowPx: 0,
+      cardHeightById: {
+        quake: 20,
+        weather: 20,
+        "quake:region:1": 60,
+        "quake:region:2": 120,
+        "quake:region:3": 80,
+        "quake:expanded": 80,
+      },
+    });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=4&ladder=0&nonMonotonicB=1");
+      await settleMockMeasurements(320);
+      expect(root.dataset.quakeExpandedRows).toBe("3");
+      expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).toContain("非単調追加地域C");
+      expect(mockSource).toContain("legacyImprovedNonMonotonicLatestQuake");
+      expect(mockSource).toContain("for (let regionRows = 1; regionRows <= maxRows; regionRows += 1)");
+    } finally {
+      restoreMeasuredLayout();
+    }
+  });
+
   it("keeps narrow tsunami headings on one line and right-aligns typhoon locations in both modes", () => {
     expect(mockSource).toMatch(/\.tsunami-banner \.banner-title[^}]*white-space:\s*nowrap/s);
     expect(mockSource).toMatch(/\.tsunami-banner \.updated-stamp[^}]*font-size:\s*clamp\(10px, 2\.6cqw, 14px\)/s);
@@ -1121,5 +1290,210 @@ describe("legacy improved standby mock v22", () => {
     expect(mockSource).toMatch(/\.typhoon-card:not\(\.compact\) \.typhoon > strong[^}]*padding-right:\s*45%[^}]*white-space:\s*nowrap/s);
     expect(mockSource).toContain(".legacy-mock :global(.typhoon-card .typhoon)");
     expect(mockSource).toContain("本実装では TsunamiStandbyBanner 側の header 改修へ移す");
+  });
+
+  describe("v23 common time-sliced scheduler contract", () => {
+    it("gives epoch precedence without skipping a due tick", async () => {
+      vi.useFakeTimers();
+      try {
+        for (const contractCase of schedulerContractCases) {
+          await withContractCase(contractCase, contractCase.epochQuery, async ({ rendered, root }) => {
+            const before = contractCase.mode === "paging" ? contractPage({ rendered, root }) : contractActive(root);
+            vi.advanceTimersByTime(15_000);
+            await tick();
+            await settleMockMeasurements(64);
+            if (contractCase.mode === "paging") {
+              expect(root.dataset.cardPageRevision, contractCase.name).toBe("1");
+              expect(root.dataset.cardPageTick, contractCase.name).toBe("1");
+              expect(contractPage({ rendered, root }), contractCase.name).not.toBe(before);
+            } else {
+              expect(root.dataset.rotationKeys, contractCase.name).toContain("typhoon");
+              expect(contractActive(root), contractCase.name).not.toBe(before);
+            }
+          });
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("continues time slicing with reduced motion enabled", async () => {
+      vi.useFakeTimers();
+      const restoreMatchMedia = installReducedMotionMatchMedia();
+      try {
+        for (const contractCase of schedulerContractCases) {
+          await withContractCase(contractCase, contractCase.query, async ({ rendered, root }) => {
+            const before = contractCase.mode === "paging" ? contractPage({ rendered, root }) : contractActive(root);
+            vi.advanceTimersByTime(15_000);
+            await settleMockMeasurements(4);
+            for (let microtask = 0; microtask < 8; microtask += 1) await Promise.resolve();
+            if (contractCase.mode === "paging") {
+              expect(root.dataset.cardPageTick, contractCase.name).toBe("1");
+              expect(contractPage({ rendered, root }), contractCase.name).not.toBe(before);
+            } else {
+              expect(contractActive(root), contractCase.name).not.toBe(before);
+            }
+          });
+        }
+      } finally {
+        restoreMatchMedia();
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps finished/deadline transition paths exclusive and never renders an empty slot", async () => {
+      vi.useFakeTimers();
+      const animationProbe = installAnimationProbe();
+      const restoreMatchMedia = installReducedMotionMatchMedia(false);
+      try {
+        for (const contractCase of schedulerContractCases) {
+          const animationCountBefore = animationProbe.animations.length;
+          await withContractCase(contractCase, contractCase.query, async ({ rendered, root }) => {
+            vi.advanceTimersByTime(15_000);
+            await settleMockMeasurements(4);
+            if (contractCase.mode === "paging") {
+              expect(rendered.container.querySelector('[data-card-page-body]'), contractCase.name).toBeTruthy();
+              return;
+            }
+            const first = animationProbe.animations[animationCountBefore];
+            expect(first, contractCase.name).toBeDefined();
+            expect(rendered.container.querySelector("[data-rotation-slot] [data-mock-card]"), contractCase.name).toBeTruthy();
+            first?.onfinish?.();
+            vi.advanceTimersByTime(500);
+            await tick();
+            expect(first?.cancel, contractCase.name).not.toHaveBeenCalled();
+
+            vi.advanceTimersByTime(15_000);
+            await tick();
+            await tick();
+            const second = animationProbe.animations[animationCountBefore + 1];
+            expect(second, contractCase.name).toBeDefined();
+            vi.advanceTimersByTime(500);
+            await tick();
+            expect(second?.cancel, contractCase.name).toHaveBeenCalledTimes(1);
+            expect(root.dataset.rotationActiveKey, contractCase.name).toBeDefined();
+            expect(rendered.container.querySelector("[data-rotation-slot] [data-mock-card]"), contractCase.name).toBeTruthy();
+          });
+        }
+      } finally {
+        restoreMatchMedia();
+        animationProbe.restore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("disposes timer and animation resources on unmount and exit", async () => {
+      vi.useFakeTimers();
+      const animationProbe = installAnimationProbe();
+      try {
+        for (const contractCase of schedulerContractCases) {
+          const animationCountBefore = animationProbe.animations.length;
+          await withContractCase(contractCase, contractCase.query, async ({ rendered }, unmount) => {
+            vi.advanceTimersByTime(15_000);
+            await tick();
+            await tick();
+            unmount();
+            expect(vi.getTimerCount(), contractCase.name).toBe(0);
+            if (contractCase.mode !== "paging") {
+              expect(animationProbe.animations[animationCountBefore]?.cancel, contractCase.name).toHaveBeenCalled();
+            }
+          });
+
+          await withContractCase(contractCase, contractCase.exitQuery, async ({ rendered, root }) => {
+            vi.advanceTimersByTime(contractCase.exitAtMs);
+            await tick();
+            await settleMockMeasurements(64);
+            if (contractCase.mode === "paging") {
+              expect(contractPage({ rendered, root }), contractCase.name).toBe("1/1");
+            } else {
+              expect(root.dataset.rotationKeys, contractCase.name).toBe("");
+              expect(root.dataset.rotationActiveKey, contractCase.name).toBeUndefined();
+            }
+          });
+        }
+      } finally {
+        animationProbe.restore();
+        vi.useRealTimers();
+      }
+    });
+
+    it("distinguishes exit reset from rotation suspend/resume", async () => {
+      vi.useFakeTimers();
+      try {
+        for (const contractCase of schedulerContractCases) {
+          if (contractCase.mode === "paging") {
+            await withContractCase(contractCase, contractCase.suspendQuery, async ({ rendered, root }) => {
+              vi.advanceTimersByTime(15_000);
+              await tick();
+              const beforeRefresh = root.dataset.cardPageActiveKeys;
+              vi.advanceTimersByTime(1_000);
+              await settleMockMeasurements(64);
+              expect(root.dataset.cardPageRevision, contractCase.name).toBe("1");
+              expect(root.dataset.cardPageActiveKeys, contractCase.name).toBe(beforeRefresh);
+            });
+
+            await withContractCase(contractCase, contractCase.exitQuery, async ({ rendered, root }) => {
+              vi.advanceTimersByTime(contractCase.exitAtMs);
+              await settleMockMeasurements(64);
+              expect(contractPage({ rendered, root }), contractCase.name).toBe("1/1");
+              vi.advanceTimersByTime(1_000);
+              await settleMockMeasurements(64);
+              expect(root.dataset.cardPageRevision, contractCase.name).toBe("2");
+              expect(contractPage({ rendered, root }), contractCase.name).toMatch(/^1\/\d+$/);
+            });
+            continue;
+          }
+
+          await withContractCase(contractCase, contractCase.suspendQuery, async ({ rendered, root }) => {
+            const firstPage = contractCase.mode === "composite" ? contractPage({ rendered, root }, "weather") : "";
+            expect(contractActive(root), contractCase.name).toBe("weather");
+            vi.advanceTimersByTime(15_000);
+            await tick();
+            expect(contractActive(root), contractCase.name).toBe("heat");
+            expect(rendered.container.querySelector('[data-rotation-slot] [data-mock-card="weather"]'), contractCase.name).toBeNull();
+            vi.advanceTimersByTime(15_000);
+            await tick();
+            await tick();
+            expect(contractActive(root), contractCase.name).toBe("weather");
+            if (contractCase.mode === "composite") {
+              expect(contractPage({ rendered, root }, "weather"), contractCase.name).not.toBe(firstPage);
+            }
+          });
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("returns to the same page within the 15×R×P composite bound", async () => {
+      vi.useFakeTimers();
+      try {
+        for (const contractCase of schedulerContractCases) {
+          await withContractCase(contractCase, contractCase.query, async ({ rendered, root }) => {
+            if (contractCase.mode === "paging") {
+              const initialPage = contractPage({ rendered, root });
+              const pageCount = Number(initialPage.split("/")[1] ?? 1);
+              vi.advanceTimersByTime(15_000 * pageCount + 1);
+              await tick();
+              expect(contractPage({ rendered, root }), contractCase.name).toBe(initialPage);
+              return;
+            }
+            const initialKey = contractActive(root);
+            const rotationCount = (root.dataset.rotationKeys ?? "").split(",").filter(Boolean).length;
+            const initialPage = contractCase.mode === "composite" ? contractPage({ rendered, root }, "weather") : "";
+            const pageCount = contractCase.mode === "composite" ? Number(initialPage.split("/")[1] ?? 1) : 1;
+            vi.advanceTimersByTime(15_000 * rotationCount * pageCount + 1);
+            await tick();
+            await tick();
+            expect(contractActive(root), contractCase.name).toBe(initialKey);
+            if (contractCase.mode === "composite") {
+              expect(contractPage({ rendered, root }, "weather"), contractCase.name).toBe(initialPage);
+            }
+          });
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

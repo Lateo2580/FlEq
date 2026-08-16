@@ -22,6 +22,7 @@
   import {
     latestQuakeStandbyCards,
     legacyImprovedExpandedLatestQuake,
+    legacyImprovedNonMonotonicLatestQuake,
     legacyImprovedCandidate129LatestQuakeCompact,
     legacyImprovedCandidate129LatestQuakeExpanded,
     legacyImprovedCandidate129WeatherAlerts,
@@ -278,8 +279,10 @@
   const candidate129Requested = params.get("candidate129") === "1";
   const duplicatePageKeyFixtureRequested = params.get("duplicatePageKeys") === "1";
   const multiTailFixtureRequested = params.get("multiTail") === "1";
+  const nonMonotonicBFixtureRequested = params.get("nonMonotonicB") === "1";
   const zeroVisibleQuakeRequested = params.get("zeroVisible") === "1";
   const cardPageRefreshRequested = params.get("cardPageRefresh") === "1";
+  const cardPageCollapseRequested = params.get("cardPageCollapse") === "1";
   const cardPageRefreshDeleteOriginRequested = params.get("cardPageRefreshDeleteOrigin") === "1";
   const cardPageRefreshAtParam = params.get("cardPageRefreshAt");
   const cardPageRefreshAtMs = cardPageRefreshAtParam != null && /^\d+$/.test(cardPageRefreshAtParam)
@@ -359,6 +362,8 @@
     ? legacyImprovedCandidate129LatestQuakeExpanded
     : multiTailFixtureRequested
       ? legacyImprovedMultiTailLatestQuakeExpanded
+    : nonMonotonicBFixtureRequested
+      ? legacyImprovedNonMonotonicLatestQuake
     : legacyImprovedExpandedLatestQuake;
 
   const quakeExpansionMaxRows = Math.max(0, ...expandedQuakeState.intensityGroups.map((group, index) => {
@@ -459,7 +464,7 @@
   let rotationTransitionToken = 0;
   let rotationEpochBusy = false;
   let rotationTickPending = false;
-  let rotationSchedulerSuspended = false;
+  let rotationSchedulerSuspended = $state(false);
   let rotationSchedulerMounted = false;
   let measurementDisposed = false;
   let monotonicOriginPerformanceMs: number | null = null;
@@ -474,6 +479,7 @@
   let cardPageEpochBusy = false;
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
+  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0 };
   let cardPageRuntime = $state<Record<PageableCardKey, CardPageRuntime>>({
     quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -710,11 +716,15 @@
     cardPageEpochBusy = true;
     clearCardPageTimer();
     const stage = layoutPlan.stage;
-    const reset = cardPageSchedulerStage !== stage;
+    const currentPageCounts: Record<PageableCardKey, number> = {
+      quake: cardPagePartitions.quake.pages.length,
+      weather: cardPagePartitions.weather.pages.length,
+    };
+    const stageReset = cardPageSchedulerStage !== stage;
     if (cardPageSchedulerEpoch !== epochKey) {
       cardPageSchedulerEpoch = epochKey;
     }
-    if (reset) {
+    if (stageReset) {
       cardPageSchedulerStage = stage;
       cardPageStartedAtMs = monotonicNowMs();
       cardPageProcessedTick = 0;
@@ -722,10 +732,27 @@
       reconcileCardPageRuntime("quake", true);
       reconcileCardPageRuntime("weather", true);
     } else {
-      reconcileCardPageRuntime("quake", false);
-      reconcileCardPageRuntime("weather", false);
+      // 1ページ化は改ページインスタンスの exit。再び複数ページへ戻ったときは
+      // stage が同じでも reset し、輪番 suspend/resume や通常の repartition とは分離する。
+      let pageReentryReset = false;
+      for (const key of ["quake", "weather"] as const) {
+        const previousCount = cardPageSchedulerPageCounts[key];
+        const currentCount = currentPageCounts[key];
+        const pageExitBoundary = previousCount > 1 && currentCount <= 1;
+        const pageReentryBoundary = previousCount <= 1 && previousCount !== 0 && currentCount > 1;
+        pageReentryReset ||= pageReentryBoundary;
+        reconcileCardPageRuntime(key, pageExitBoundary || pageReentryBoundary);
+      }
+      if (pageReentryReset) {
+        // exit 後の再入場は改ページインスタンス自身の新しい位相として扱う。
+        // 他の epoch の経過 tick を持ち越すと、復帰直後に 2 ページ目へ飛ぶ。
+        cardPageStartedAtMs = monotonicNowMs();
+        cardPageProcessedTick = 0;
+        cardPageTick = cardPageTickOverride ?? 0;
+      }
       if (cardPageTickOverride != null) cardPageTick = cardPageTickOverride;
     }
+    cardPageSchedulerPageCounts = currentPageCounts;
     cardPageEpochBusy = false;
     if (cardPageTickPending) {
       cardPageTickPending = false;
@@ -746,6 +773,7 @@
     cardPageTick = 0;
     cardPageEpochBusy = false;
     cardPageTickPending = false;
+    cardPageSchedulerPageCounts = { quake: 0, weather: 0 };
     cardPageRuntime = {
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
@@ -787,8 +815,8 @@
     rotationProcessedTick = 0;
   }
 
-  function completeRotationTransition(token: number): void {
-    if (token !== rotationTransitionToken) return;
+  function completeRotationTransition(token: number, completedAnimation: Animation): void {
+    if (token !== rotationTransitionToken || rotationTransition !== completedAnimation) return;
     if (rotationTransitionDeadlineTimer != null) {
       clearTimeout(rotationTransitionDeadlineTimer);
       rotationTransitionDeadlineTimer = null;
@@ -808,12 +836,12 @@
       { duration: ROTATION_TRANSITION_DEADLINE_MS / 2, easing: "ease-out" },
     );
     rotationTransition = animation;
-    animation.onfinish = () => completeRotationTransition(token);
-    animation.oncancel = () => completeRotationTransition(token);
+    animation.onfinish = () => completeRotationTransition(token, animation);
+    animation.oncancel = () => completeRotationTransition(token, animation);
     rotationTransitionDeadlineTimer = setTimeout(() => {
       if (token !== rotationTransitionToken) return;
       animation.cancel();
-      completeRotationTransition(token);
+      completeRotationTransition(token, animation);
     }, ROTATION_TRANSITION_DEADLINE_MS);
   }
 
@@ -908,9 +936,17 @@
   function syncRotationScheduler(stage: LadderStage, keys: readonly CardKey[]): void {
     if (!rotationSchedulerMounted || measurementDisposed) return;
     rotationEpochBusy = true;
-    // epoch/stage 更新を tick より優先し、進行中の transition はここで cancel する。
-    cancelRotationTransition();
     const canonicalKeys = rotationKeysInCanonicalOrder(keys);
+    const previousStage = rotationSchedulerStage;
+    const previousKeys = rotationSchedulerKeys;
+    const stageChanged = previousStage !== stage;
+    const collectionChanged = !sameRotationKeys(previousKeys, canonicalKeys);
+    // measurementSettled の変化だけでは epoch は変わっていない。実際の stage/集合変更か
+    // suspend 入口だけで transition を cancel し、settle の再実行で交代を潰さない。
+    const enteringSuspend = (stage !== 3 || canonicalKeys.length === 0)
+      && previousStage === 3
+      && !measurementSettled;
+    if (stageChanged || collectionChanged || enteringSuspend) cancelRotationTransition();
     if (stage !== 3 || canonicalKeys.length === 0) {
       if (rotationSchedulerStage === 3 && !measurementSettled) {
         rotationSchedulerSuspended = true;
@@ -934,9 +970,7 @@
     }
 
     const resuming = rotationSchedulerSuspended;
-    const previousKeys = rotationSchedulerKeys;
     const previousKey = rotationActiveKey;
-    const collectionChanged = !sameRotationKeys(previousKeys, canonicalKeys);
     if (rotationSchedulerStage !== 3) {
       rotationSchedulerStage = 3;
       rotationSchedulerKeys = canonicalKeys;
@@ -1242,6 +1276,15 @@
   }
 
   function fullQuakeGroups(): DisplayIntensityGroupV1[] {
+    if (cardPageCollapseRequested && cardPageFixtureRevision === 1) {
+      // 共通 contract test の exit=1 page 境界。revision 2 以降は通常候補へ戻し、
+      // 再進入時に改ページ scheduler が reset されることを観測できるようにする。
+      return compactQuakeState.intensityGroups.map((group) => ({
+        ...group,
+        areas: [...group.areas],
+        omittedAreaCount: 0,
+      }));
+    }
     let groups = compactQuakeState.intensityGroups.map((compactGroup) => {
       const expandedGroup = expandedQuakeState.intensityGroups.find((group) =>
         group.intensity === compactGroup.intensity && group.rank === compactGroup.rank
@@ -1424,7 +1467,16 @@
   }
 
   function quakeSelectedPage(regionRows: number): QuakePage {
-    const state = quakeForRegionRows(regionRows);
+    const selectedState = quakeForRegionRows(regionRows);
+    const state = cardPageCollapseRequested && cardPageFixtureRevision === 1
+      ? {
+          ...selectedState,
+          intensityGroups: selectedState.intensityGroups.map((group) => ({
+            ...group,
+            omittedAreaCount: 0,
+          })),
+        }
+      : selectedState;
     const pageEntries = quakeAreaEntries(state.intensityGroups);
     return {
       state,
@@ -1663,7 +1715,7 @@
     const suppliedFullAreaCount = suppliedQuake?.fullAreaKeys.length ?? suppliedWeather?.fullAreaKeys.length ?? 0;
     const areaCount = suppliedAreaCount;
     const selectedOmitted = key === "quake"
-      ? quakeForRegionRows(regionRows).intensityGroups.reduce((total, group) => total + group.omittedAreaCount, 0)
+      ? (selected as QuakePage).state.intensityGroups.reduce((total, group) => total + group.omittedAreaCount, 0)
       : weatherForRegionRows(regionRows).reduce((total, alert) => total + alert.items.reduce((subtotal, item) => subtotal + item.omittedAreaCount, 0), 0);
     const needsPages = areaCount > selected.areaKeys.length || selectedOmitted > 0 || suppliedTruncated;
     if (!needsPages) {
@@ -2816,7 +2868,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v22</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v23</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -2893,10 +2945,11 @@
   data-rotation-cycle-ms={rotationRedisplayIntervalMs(schedulerRotationKeys.length)}
   data-rotation-slot-height-px={layoutPlan.rotationSlotHeight}
   data-rotation-failure-count={layoutPlan.rotationFailureCount}
+  data-rotation-suspended={rotationSchedulerSuspended ? "true" : "false"}
   data-outer-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v22</strong>
+    <strong>従来フォーマット改良 v23</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 

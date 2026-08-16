@@ -344,6 +344,20 @@ export const legacyImprovedExpandedLatestQuake: DisplayLatestQuakeStateV1 = {
   ),
 };
 
+/** v23 B 反証用。j=2 で一度溢れ、j=3 で再び fit する prefix を持つ完全候補。 */
+export const legacyImprovedNonMonotonicLatestQuake: DisplayLatestQuakeStateV1 = {
+  ...legacyImprovedExpandedLatestQuake,
+  intensityGroups: legacyImprovedExpandedLatestQuake.intensityGroups.map((group) =>
+    group.intensity === "6弱"
+      ? {
+          ...group,
+          areas: [...group.areas, "非単調追加地域A", "非単調追加地域B", "非単調追加地域C"],
+          omittedAreaCount: 0,
+        }
+      : group,
+  ),
+};
+
 type LegacyImprovedCandidateIntensityGroup = DisplayIntensityGroupV1 & { candidateTruncated: boolean };
 
 const legacyImprovedCandidate129Areas = Array.from(
