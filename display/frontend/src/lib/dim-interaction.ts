@@ -49,6 +49,18 @@ export function computeSnapshotAlertActive(
   } | null | undefined,
 ): boolean {
   if (snapshot == null) return false;
-  const standbyCritical = snapshot.standbyItems?.some((item) => item.severity === "critical") ?? false;
+  const standbyCritical = snapshot.standbyItems?.some((item) => {
+    switch (item.severity) {
+      case "critical":
+        return true;
+      case "info":
+      case "normal":
+      case "warning":
+        return false;
+      default:
+        // 新しい severity は安全側に倒し、減光を解除する。
+        return true;
+    }
+  }) ?? false;
   return standbyCritical || (snapshot.weatherL5Active ?? false);
 }

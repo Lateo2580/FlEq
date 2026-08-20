@@ -98,10 +98,17 @@ describe("computeSnapshotAlertActive (spec D5 + spec C §4)", () => {
     expect(computeSnapshotAlertActive({ weatherL5Active: false })).toBe(false);
   });
 
-  it("待機カードの critical は従来どおり掲載あり、それ以外の severity は掲載なし", () => {
+  it("待機カードの critical は従来どおり掲載あり", () => {
     expect(computeSnapshotAlertActive({ standbyItems: [{ severity: "critical" }] })).toBe(true);
+  });
+
+  it.each(["info", "normal", "warning"])("既知の非 critical severity (%s) は掲載なし", (severity) => {
     expect(
-      computeSnapshotAlertActive({ standbyItems: [{ severity: "warning" }, { severity: "info" }] }),
+      computeSnapshotAlertActive({ standbyItems: [{ severity }] }),
     ).toBe(false);
+  });
+
+  it("未知 severity は fail-bright で掲載あり", () => {
+    expect(computeSnapshotAlertActive({ standbyItems: [{ severity: "future-severity" }] })).toBe(true);
   });
 });
