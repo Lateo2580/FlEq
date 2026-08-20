@@ -612,7 +612,9 @@
   }
 
   function pageCardIsVisible(key: PageableCardKey): boolean {
-    return cardPlacement(layoutPlan, key) != null;
+    // 輪番枠は通常列と別経路で描画されるが、改ページ instance にとっては exit ではない。
+    // 非 active slot の間も substate を保持し、再登場 event でだけ logical tick を進める。
+    return cardPlacement(layoutPlan, key) != null || schedulerRotationKeys.includes(key);
   }
 
   function pageKeysFor(key: PageableCardKey): string[] {
@@ -2984,6 +2986,9 @@
           quake: { ...cardPageSchedulerSubstates.quake },
           weather: { ...cardPageSchedulerSubstates.weather },
         },
+        activeSubstateKeys: (["quake", "weather"] as const).filter(
+          (key) => cardPageSchedulerSubstates[key].pageCount > 1,
+        ),
         tickPending: cardPageTickPending,
         suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather"),
         inFlight: cardPageEpochBusy,
@@ -3096,7 +3101,7 @@
   </article>
 {/snippet}
 
-<svelte:head><title>Legacy standby improved mock v25</title></svelte:head>
+<svelte:head><title>Legacy standby improved mock v26</title></svelte:head>
 
 <main
   id="legacy-improved-mock"
@@ -3179,7 +3184,7 @@
   data-outer-paging="none"
 >
   <div class="mock-label">
-    <strong>従来フォーマット改良 v25</strong>
+    <strong>従来フォーマット改良 v26</strong>
     <span>scenario={scenario} · ladder={ladderAuto ? "auto" : layoutPlan.stage} · 実 DOM 同期測定</span>
   </div>
 
