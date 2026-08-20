@@ -277,7 +277,7 @@ function compareWithSerialPolicy(
  */
 export class TelegramRevisionGate {
   private readonly states = new Map<string, AcceptedRevisionState>();
-  private readonly warnedFamilyCapacity = new Set<string>();
+  private readonly warnedFamilyCapacity = new Map<string, number>();
   private readonly transientStates = new Map<
     string,
     {
@@ -764,9 +764,40 @@ export class TelegramRevisionGate {
   ): void {
     const warningKey = `${domain}:${revisionFamily}`;
     if (this.warnedFamilyCapacity.has(warningKey)) return;
-    this.warnedFamilyCapacity.add(warningKey);
+    this.warnedFamilyCapacity.set(
+      warningKey,
+      maxSubjects ?? TELEGRAM_REVISION_MAX_ENTRIES,
+    );
     this.onCapacityError(
       `[telegram-revision-gate] rejected new subject at hard family capacity: ${warningKey} (${maxSubjects ?? "global"})`,
+    );
+  }
+
+  private familySize(domain: string, revisionFamily: string): number {
+    const prefix = `${domain}:${revisionFamily}:`;
+    const regular = [...this.states.keys()].filter((key) => key.startsWith(prefix)).length;
+    const transient = [...this.transientStates.values()].filter((state) =>
+      state.domain === domain && state.revisionFamily === revisionFamily).length;
+    return regular + transient;
+  }
+
+  /** 容量警告を、当該 family に空きができたときだけ再武装する。 */
+  private rearmCapacityWarning(domain: string, revisionFamily: string): void {
+    const warningKey = `${domain}:${revisionFamily}`;
+    const maxSubjects = this.warnedFamilyCapacity.get(warningKey);
+    if (maxSubjects == null) return;
+    if (this.familySize(domain, revisionFamily) < maxSubjects) {
+      this.warnedFamilyCapacity.delete(warningKey);
+    }
+  }
+
+  private rearmCapacityWarningForStateKey(stateKey: string): void {
+    const domainSeparator = stateKey.indexOf(":");
+    const familySeparator = stateKey.indexOf(":", domainSeparator + 1);
+    if (domainSeparator < 0 || familySeparator < 0) return;
+    this.rearmCapacityWarning(
+      stateKey.slice(0, domainSeparator),
+      stateKey.slice(domainSeparator + 1, familySeparator),
     );
   }
 
@@ -782,8 +813,8 @@ export class TelegramRevisionGate {
     const transientFamilyEntries = () => [...this.transientStates].filter(
       ([, state]) => state.domain === domain && state.revisionFamily === revisionFamily,
     );
-    const familySize = () => familyEntries().length + transientFamilyEntries().length;
-    while (familySize() > maxSubjects) {
+    const currentFamilySize = () => familyEntries().length + transientFamilyEntries().length;
+    while (currentFamilySize() > maxSubjects) {
       const oldestTransient = transientFamilyEntries()
         .sort(([, a], [, b]) => a.acceptedAtMs - b.acceptedAtMs)[0];
       if (oldestTransient != null) {
@@ -800,9 +831,7 @@ export class TelegramRevisionGate {
       }
       this.states.delete(oldestEvictable);
     }
-    if (familySize() < maxSubjects) {
-      this.warnedFamilyCapacity.delete(`${domain}:${revisionFamily}`);
-    }
+    this.rearmCapacityWarning(domain, revisionFamily);
   }
 
   private deleteTransientState(
@@ -815,8 +844,23 @@ export class TelegramRevisionGate {
     }
   }
 
-  clear(domain: string, revisionFamily: string, stateSubjectKey: string): void {
+  clear(): void;
+  clear(domain: string, revisionFamily: string, stateSubjectKey: string): void;
+  clear(
+    domain?: string,
+    revisionFamily?: string,
+    stateSubjectKey?: string,
+  ): void {
+    if (domain == null && revisionFamily == null && stateSubjectKey == null) {
+      this.clearAll();
+      return;
+    }
+    if (domain == null || revisionFamily == null || stateSubjectKey == null) return;
     this.states.delete(`${domain}:${revisionFamily}:${stateSubjectKey}`);
+    const transientKey = `${domain}:${revisionFamily}:${stateSubjectKey}`;
+    const transientState = this.transientStates.get(transientKey);
+    if (transientState != null) this.deleteTransientState(transientKey, transientState);
+    this.rearmCapacityWarning(domain, revisionFamily);
   }
 
   clearRevisionFamilySubjectsExcept(
@@ -831,6 +875,23 @@ export class TelegramRevisionGate {
     for (const key of this.states.keys()) {
       if (key.startsWith(prefix) && !retainedKeys.has(key)) this.states.delete(key);
     }
+    for (const [key, state] of [...this.transientStates]) {
+      if (key.startsWith(prefix) && !retainedKeys.has(key)) {
+        this.deleteTransientState(key, state);
+      }
+    }
+    this.rearmCapacityWarning(domain, revisionFamily);
+  }
+
+  clearFamily(domain: string, revisionFamily: string): void {
+    this.clearRevisionFamilySubjectsExcept(domain, revisionFamily, []);
+  }
+
+  clearAll(): void {
+    this.states.clear();
+    this.transientStates.clear();
+    this.transientSemanticKeys.clear();
+    this.warnedFamilyCapacity.clear();
   }
 
   /** Finite-lifecycle domain の active watermark と tombstone を同じ期限で退場させる。 */
@@ -848,6 +909,17 @@ export class TelegramRevisionGate {
         changed = true;
       }
     }
+    for (const [subjectKey, state] of [...this.transientStates]) {
+      if (
+        state.domain === domain
+        && state.revisionFamily === revisionFamily
+        && nowMs - state.acceptedAtMs > retentionMs
+      ) {
+        this.deleteTransientState(subjectKey, state);
+        changed = true;
+      }
+    }
+    this.rearmCapacityWarning(domain, revisionFamily);
     return changed;
   }
 
@@ -976,6 +1048,7 @@ export class TelegramRevisionGate {
   }
 
   private sweep(nowMs: number): void {
+    const affectedStateKeys = new Set<string>();
     for (const [key, state] of this.states) {
       const expiredTransient = !state.durable
         && nowMs - state.acceptedAtMs > runtimeRetentionMs(state);
@@ -985,12 +1058,17 @@ export class TelegramRevisionGate {
         && nowMs - state.acceptedAtMs > state.tombstoneRetentionMs;
       if (expiredTransient || expiredTombstone) {
         this.states.delete(key);
+        affectedStateKeys.add(key);
       }
     }
     for (const [subjectKey, state] of this.transientStates) {
       if (nowMs - state.acceptedAtMs > state.retentionMs) {
         this.deleteTransientState(subjectKey, state);
+        affectedStateKeys.add(subjectKey);
       }
+    }
+    for (const stateKey of affectedStateKeys) {
+      this.rearmCapacityWarningForStateKey(stateKey);
     }
   }
 }

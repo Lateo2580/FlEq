@@ -69,6 +69,49 @@ function decide(
   });
 }
 
+function capacityInput(input: {
+  id: string;
+  stateSubjectKey: string | null;
+  transientSubjectKey?: string | null;
+  receivedAtMs?: number;
+  domain?: string;
+  revisionFamily?: string;
+  maxSubjects?: number | null;
+  durable?: boolean;
+  tombstoneRetentionMs?: number | null;
+  retainForFamilyCapacity?: boolean;
+}) {
+  const stateSubjectKey = input.stateSubjectKey;
+  return {
+    domain: input.domain ?? "synthetic",
+    revisionFamily: input.revisionFamily ?? "CAPACITY",
+    stateSubjectKey,
+    transientSubjectKey: input.transientSubjectKey
+      ?? (stateSubjectKey == null ? `transient:${input.id}` : null),
+    meta: createTelegramMeta({
+      messageId: input.id,
+      eventId: input.id,
+      type: "CAPACITY",
+      reportDateTime: "2026-07-31T12:00:00+09:00",
+      serial: "1",
+      infoType: "発表",
+      receivedAtMs: input.receivedAtMs ?? RECEIVED_AT,
+      status: "通常",
+      isTest: false,
+    }),
+    comparator: "serialOnly" as const,
+    cancellationPolicy: "markCancelled" as const,
+    terminal: false,
+    durable: input.durable ?? true,
+    tombstoneRetentionMs: input.tombstoneRetentionMs === undefined
+      ? null
+      : input.tombstoneRetentionMs,
+    maxSubjects: input.maxSubjects === undefined ? 1 : input.maxSubjects,
+    retainForFamilyCapacity: input.retainForFamilyCapacity ?? true,
+    payloadFingerprint: semanticPayloadFingerprint({ id: input.id }),
+  };
+}
+
 describe("Phase 3A transport dedup", () => {
   it("primary/backup の同一 messageId を transport 層で一回にする", () => {
     const dedup = new TelegramTransportDeduplicator();
@@ -696,6 +739,144 @@ describe("Phase 3A EEW revision gate", () => {
     expect(capacityError).toHaveBeenCalledWith(expect.stringContaining(
       "rejected new subject at hard family capacity: synthetic:BROKEN-INDEFINITE (1)",
     ));
+  });
+});
+
+describe("S7 capacity warning latch rearm", () => {
+  it("上限到達後の拒否で警告を一度だけ出す", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    expect(gate.decide(capacityInput({ id: "full-1", stateSubjectKey: "full-1" })).accepted)
+      .toBe(true);
+    expect(gate.decide(capacityInput({ id: "full-2", stateSubjectKey: "full-2" }))).toMatchObject({
+      kind: "capacityExceeded",
+      accepted: false,
+    });
+    expect(gate.decide(capacityInput({ id: "full-3", stateSubjectKey: "full-3" })).kind)
+      .toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(1);
+  });
+
+  it("1 件 clear 後に再上限へ達すると警告を再武装する", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    gate.decide(capacityInput({ id: "clear-1", stateSubjectKey: "clear-1" }));
+    expect(gate.decide(capacityInput({ id: "clear-reject-1", stateSubjectKey: "clear-reject-1" })).kind)
+      .toBe("capacityExceeded");
+
+    gate.clear("synthetic", "CAPACITY", "clear-1");
+    expect(gate.decide(capacityInput({ id: "clear-2", stateSubjectKey: "clear-2" })).accepted)
+      .toBe(true);
+    expect(gate.decide(capacityInput({ id: "clear-reject-2", stateSubjectKey: "clear-reject-2" })).kind)
+      .toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
+  });
+
+  it("expiry で空きができた後に警告を再武装する", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    gate.decide(capacityInput({ id: "expire-1", stateSubjectKey: "expire-1" }));
+    expect(gate.decide(capacityInput({ id: "expire-reject-1", stateSubjectKey: "expire-reject-1" })).kind)
+      .toBe("capacityExceeded");
+
+    expect(gate.expireRevisionFamily("synthetic", "CAPACITY", RECEIVED_AT + 101, 100))
+      .toBe(true);
+    expect(gate.decide(capacityInput({
+      id: "expire-2",
+      stateSubjectKey: "expire-2",
+      receivedAtMs: RECEIVED_AT + 101,
+    })).accepted).toBe(true);
+    expect(gate.decide(capacityInput({
+      id: "expire-reject-2",
+      stateSubjectKey: "expire-reject-2",
+      receivedAtMs: RECEIVED_AT + 101,
+    })).kind).toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
+  });
+
+  it("regular と transient の合計で family occupancy を再評価する", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    gate.decide(capacityInput({ id: "mixed-regular", stateSubjectKey: "mixed-regular" }));
+    expect(gate.decide(capacityInput({ id: "mixed-reject", stateSubjectKey: "mixed-reject" })).kind)
+      .toBe("capacityExceeded");
+
+    gate.decide(capacityInput({
+      id: "mixed-transient",
+      stateSubjectKey: null,
+      transientSubjectKey: "mixed-transient",
+      durable: false,
+      maxSubjects: null,
+      tombstoneRetentionMs: 60_000,
+      retainForFamilyCapacity: false,
+    }));
+    gate.clear("synthetic", "CAPACITY", "mixed-regular");
+    gate.clear("synthetic", "CAPACITY", "mixed-transient");
+
+    gate.decide(capacityInput({ id: "mixed-regular-2", stateSubjectKey: "mixed-regular-2" }));
+    expect(gate.decide(capacityInput({ id: "mixed-reject-2", stateSubjectKey: "mixed-reject-2" })).kind)
+      .toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
+  });
+
+  it("family clear は対象 family だけを再武装する", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    gate.decide(capacityInput({
+      id: "family-a-1",
+      stateSubjectKey: "family-a-1",
+      revisionFamily: "FAMILY-A",
+    }));
+    expect(gate.decide(capacityInput({
+      id: "family-a-reject-1",
+      stateSubjectKey: "family-a-reject-1",
+      revisionFamily: "FAMILY-A",
+    })).kind).toBe("capacityExceeded");
+    gate.decide(capacityInput({
+      id: "family-b-1",
+      stateSubjectKey: "family-b-1",
+      revisionFamily: "FAMILY-B",
+    }));
+    expect(gate.decide(capacityInput({
+      id: "family-b-reject-1",
+      stateSubjectKey: "family-b-reject-1",
+      revisionFamily: "FAMILY-B",
+    })).kind).toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
+
+    gate.clearFamily("synthetic", "FAMILY-A");
+    expect(gate.decide(capacityInput({
+      id: "family-b-reject-2",
+      stateSubjectKey: "family-b-reject-2",
+      revisionFamily: "FAMILY-B",
+    })).kind).toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
+    gate.decide(capacityInput({
+      id: "family-a-2",
+      stateSubjectKey: "family-a-2",
+      revisionFamily: "FAMILY-A",
+    }));
+    expect(gate.decide(capacityInput({
+      id: "family-a-reject-2",
+      stateSubjectKey: "family-a-reject-2",
+      revisionFamily: "FAMILY-A",
+    })).kind).toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(3);
+  });
+
+  it("全 clear 後は全 family の警告を再武装する", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    gate.decide(capacityInput({ id: "all-clear-1", stateSubjectKey: "all-clear-1" }));
+    expect(gate.decide(capacityInput({ id: "all-clear-reject-1", stateSubjectKey: "all-clear-reject-1" })).kind)
+      .toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(1);
+
+    gate.clear();
+    gate.decide(capacityInput({ id: "all-clear-2", stateSubjectKey: "all-clear-2" }));
+    expect(gate.decide(capacityInput({ id: "all-clear-reject-2", stateSubjectKey: "all-clear-reject-2" })).kind)
+      .toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
   });
 });
 
