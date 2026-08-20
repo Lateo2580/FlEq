@@ -12,6 +12,7 @@ import {
   type DisplayBackgroundTone,
   type DisplayEewInputV1,
   type DisplayEventDtoV1,
+  type DisplayIntensityGroupV1,
   type DisplayLargeQuakeStateV1,
   type DisplayQuakeIntensityMapEventV1,
   type DisplayQuakeMapCommandV1,
@@ -26,6 +27,7 @@ import {
   type DisplayTsunamiStateV1,
   type DisplayWeatherAddedAreasV1,
   type DisplayWeatherAlertV1,
+  type DisplayWeatherExpandedKindV1,
   type DisplayWeatherPromotionEntryV1,
   type DisplayWeatherPromotionV1,
   type DisplayWeatherSourceV1,
@@ -62,6 +64,11 @@ import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../messages/tsunami
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
 import type { PresentationEvent } from "../presentation/types";
 import { WeatherChangeDisplayStore } from "./weather-change-store";
+import {
+  collectWeatherExpandedKinds,
+  WEATHER_EXPANDED_KINDS,
+  type WeatherAlertsSnapshotV1,
+} from "./weather-expanded-kinds";
 
 const MIN_MS = 60_000;
 const NON_EMERGENCY_HOST_TTL_MS = 5 * MIN_MS;
@@ -867,8 +874,25 @@ export class DisplayStateStore {
     return this.promotions.resume(nowMs);
   }
 
+  private currentWeatherSnapshot(): {
+    alerts: DisplayWeatherAlertV1[];
+    expandedKinds: DisplayWeatherExpandedKindV1[];
+  } {
+    const provided = this.weatherAlertsProvider?.();
+    const alerts = provided ?? this.weatherAlerts;
+    const suppliedExpandedKinds = provided == null
+      ? undefined
+      : (provided as WeatherAlertsSnapshotV1)[WEATHER_EXPANDED_KINDS];
+    return {
+      alerts,
+      expandedKinds: copyWeatherExpandedKinds(
+        suppliedExpandedKinds ?? collectWeatherExpandedKinds(alerts),
+      ),
+    };
+  }
+
   private currentWeatherAlerts(): DisplayWeatherAlertV1[] {
-    return this.weatherAlertsProvider?.() ?? this.weatherAlerts;
+    return this.currentWeatherSnapshot().alerts;
   }
 
   sweepWeatherPromotions(nowMs: number): boolean {
@@ -955,10 +979,12 @@ export class DisplayStateStore {
   }
 
   /** demoted は null へ投影する (フロントに期限計算をさせない) */
-  private weatherPromotionForWire(): DisplayWeatherPromotionV1 {
+  private weatherPromotionForWire(
+    currentAlerts: readonly DisplayWeatherAlertV1[] = this.currentWeatherAlerts(),
+  ): DisplayWeatherPromotionV1 {
     return {
-      vpws50: this.promotionEntryForWire("vpws50"),
-      vpww56: this.promotionEntryForWire("vpww56"),
+      vpws50: this.promotionEntryForWire("vpws50", currentAlerts),
+      vpww56: this.promotionEntryForWire("vpww56", currentAlerts),
       // パネル全体の点灯キー。**source の降格・解除では動かない** watermark
       activationKey: `${this.promotions.activationWatermark()}`,
     };
@@ -969,10 +995,13 @@ export class DisplayStateStore {
    * 控えを載せるのは「昇格しているのにカードが空」の窓 (再起動直後・display on 直後) だけ。
    * 定常運転では snapshot に同じ内容を二重に積まないので、バイト上限にも効かない。
    */
-  private promotionEntryForWire(source: DisplayWeatherSourceV1): DisplayWeatherPromotionEntryV1 | null {
+  private promotionEntryForWire(
+    source: DisplayWeatherSourceV1,
+    currentAlerts: readonly DisplayWeatherAlertV1[] = this.currentWeatherAlerts(),
+  ): DisplayWeatherPromotionEntryV1 | null {
     const entry = promotionEntry(this.promotions.get(source));
     if (entry == null) return null;
-    if (this.currentWeatherAlerts().some((a) => a.source === source)) return entry;
+    if (currentAlerts.some((a) => a.source === source)) return entry;
     const items = this.promotions.get(source)?.items ?? [];
     return items.length === 0 ? entry : { ...entry, restoredItems: items };
   }
@@ -983,20 +1012,27 @@ export class DisplayStateStore {
   }
 
   snapshot(seq: number, nowMs: number): DisplayStateSnapshotV1 {
+    const weatherSnapshot = this.currentWeatherSnapshot();
     return {
       version: DISPLAY_PROTOCOL_VERSION,
       generatedAt: new Date(nowMs).toISOString(),
       seq,
       activeEews: [...this.activeEews.values()],
       tsunami: this.tsunami,
-      largeQuakes: [...this.largeQuakes.values()].map(withWireIntensitySemantic),
-      weatherAlerts: [...this.currentWeatherAlerts()],
-      weatherChange: this.weatherChanges.snapshot(nowMs),
-      weatherPromotion: this.weatherPromotionForWire(),
-      weatherL5Active: this.isWeatherL5Active(),
-      recentQuakes: (this.recentQuakesProvider?.() ?? [...this.recentQuakes])
+      largeQuakes: [...this.largeQuakes.values()]
+        .map(withWireIntensityCandidates)
         .map(withWireIntensitySemantic),
-      latestQuake: this.latestQuake == null ? null : withWireIntensitySemantic(this.latestQuake),
+      weatherAlerts: [...weatherSnapshot.alerts],
+      weatherChange: this.weatherChanges.snapshot(nowMs),
+      weatherPromotion: this.weatherPromotionForWire(weatherSnapshot.alerts),
+      weatherL5Active: this.isWeatherL5Active(),
+      weatherExpandedKinds: weatherSnapshot.expandedKinds,
+      recentQuakes: (this.recentQuakesProvider?.() ?? [...this.recentQuakes])
+        .map(withWireIntensityCandidates)
+        .map(withWireIntensitySemantic),
+      latestQuake: this.latestQuake == null
+        ? null
+        : withWireIntensitySemantic(withWireIntensityCandidates(this.latestQuake)),
       stats: this.stats,
       severityTier: this.deriveSeverityTier(nowMs),
       backgroundTone: this.deriveBackgroundTone(nowMs),
@@ -1005,12 +1041,71 @@ export class DisplayStateStore {
       standbyItems: this.standbyItemsProvider?.() ?? [],
       mapLayers: {
         quake: {
-          events: this.effectiveQuakeMapEvents(),
+          events: this.effectiveQuakeMapEvents().map(withWireIntensityCandidates),
           nonEmergencyHost: this.quakeMapHost == null ? null : { ...this.quakeMapHost },
         },
       },
     };
   }
+}
+
+function copyWeatherExpandedKinds(
+  kinds: readonly DisplayWeatherExpandedKindV1[],
+): DisplayWeatherExpandedKindV1[] {
+  return kinds.map((kind) => ({ ...kind, areas: [...kind.areas] }));
+}
+
+interface WireIntensityGroups {
+  intensityGroups?: DisplayIntensityGroupV1[];
+}
+
+/** 旧・永続化由来の quake DTO にも、新 wire の候補 prefix を snapshot 境界で補う。 */
+function withWireIntensityCandidates<T extends WireIntensityGroups>(quake: T): T {
+  if (quake.intensityGroups == null) return quake;
+  const candidates = quake.intensityGroups.map((group) => {
+    const allCurrentAreas = [...new Set(group.areas)];
+    const currentAreaSet = new Set(allCurrentAreas);
+    const candidateAreas = group.expandedAreas ?? allCurrentAreas;
+    const uniqueCandidateAreas = [...new Set(candidateAreas)];
+    const additionalAreas = uniqueCandidateAreas.filter((area) => !currentAreaSet.has(area));
+    return {
+      group,
+      currentAreas: allCurrentAreas,
+      additionalAreas,
+      totalAreaCount: Math.max(
+        allCurrentAreas.length + group.omittedAreaCount,
+        uniqueCandidateAreas.length,
+      ),
+    };
+  });
+  const currentAreaTotal = candidates.reduce((total, candidate) =>
+    total + candidate.currentAreas.length, 0);
+  // 二段配分: 通常は全 group の現行表示分を予約してから追加候補へ残余を回す。
+  // 現行表示だけで上限を超える旧 provider 入力は、発表順の現行表示を優先して安全弁を適用する。
+  let remainingCurrent = 128;
+  const reservedCurrentAreas = candidates.map(({ currentAreas }) => {
+    if (currentAreaTotal <= 128) return currentAreas;
+    const areas = currentAreas.slice(0, remainingCurrent);
+    remainingCurrent -= areas.length;
+    return areas;
+  });
+  let remaining = Math.max(
+    0,
+    128 - reservedCurrentAreas.reduce((total, areas) => total + areas.length, 0),
+  );
+  const intensityGroups = candidates.map(({ group, additionalAreas, totalAreaCount }, index) => {
+    const currentAreas = reservedCurrentAreas[index]!;
+    const additions = additionalAreas.slice(0, remaining);
+    remaining -= additions.length;
+    const expandedAreas = [...currentAreas, ...additions];
+    return {
+      ...group,
+      expandedAreas,
+      candidateTruncated: group.candidateTruncated === true
+        || expandedAreas.length < totalAreaCount,
+    };
+  });
+  return { ...quake, intensityGroups };
 }
 
 /** originTime を優先し、欠落時だけ reportDateTime を使う。無効な ISO は null。 */

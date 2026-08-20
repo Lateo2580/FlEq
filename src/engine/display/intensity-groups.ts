@@ -21,7 +21,11 @@ export interface IntensityAreaGroup {
   intensitySemantic?: DisplayIntensitySemanticV1;
   areas: string[];
   omittedAreaCount: number;
+  expandedAreas?: string[];
+  candidateTruncated?: boolean;
 }
+
+const QUAKE_EXPANDED_AREA_LIMIT = 128;
 
 const CANONICAL_INTENSITY = {
   "0": "0", "1": "1", "2": "2", "3": "3", "4": "4",
@@ -270,8 +274,43 @@ export function groupIntensityAreas(items: PresentationAreaItem[]): IntensityAre
       omittedAreaCount: 0,
     });
   }
-  return [...groups.values()].sort((a, b) =>
+  const sorted = [...groups.values()].sort((a, b) =>
     b.rank - a.rank || a.intensity.localeCompare(b.intensity, "ja"));
+  const candidates = sorted.map((group) => {
+    const allCurrentAreas = [...new Set(group.areas)];
+    return {
+      group,
+      currentAreas: allCurrentAreas,
+      totalAreaCount: allCurrentAreas.length + group.omittedAreaCount,
+    };
+  });
+  const currentAreaTotal = candidates.reduce((total, candidate) =>
+    total + candidate.currentAreas.length, 0);
+  // 二段配分: 通常は全 group の現行表示分を予約してから追加候補へ残余を回す。
+  // 現行表示だけで上限を超える不変条件外入力は、発表順で現行表示を優先して安全弁を適用する。
+  let remainingCurrent = QUAKE_EXPANDED_AREA_LIMIT;
+  const reservedCurrentAreas = candidates.map(({ currentAreas }) => {
+    if (currentAreaTotal <= QUAKE_EXPANDED_AREA_LIMIT) return currentAreas;
+    const areas = currentAreas.slice(0, remainingCurrent);
+    remainingCurrent -= areas.length;
+    return areas;
+  });
+  let remaining = Math.max(
+    0,
+    QUAKE_EXPANDED_AREA_LIMIT - reservedCurrentAreas.reduce((total, areas) => total + areas.length, 0),
+  );
+  return candidates.map(({ group, totalAreaCount }, index) => {
+    const currentAreas = reservedCurrentAreas[index]!;
+    const additionalAreas: string[] = [];
+    const additions = additionalAreas.slice(0, remaining);
+    remaining -= additions.length;
+    const expandedAreas = [...currentAreas, ...additions];
+    return {
+      ...group,
+      expandedAreas,
+      candidateTruncated: expandedAreas.length < totalAreaCount,
+    };
+  });
 }
 
 /** code keyed map values。missing と code 欠落は非描画、重複 code は高い color rank を採用する。 */

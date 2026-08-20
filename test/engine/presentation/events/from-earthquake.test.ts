@@ -270,8 +270,13 @@ describe("fromEarthquakeOutcome", () => {
         rank: 4,
         areas: ["細分・新A", "細分・新B", "codeなし細分"],
         omittedAreaCount: 0,
+        expandedAreas: ["細分・新A", "細分・新B", "codeなし細分"],
+        candidateTruncated: false,
       },
-      { intensity: "3", rank: 3, areas: ["細分・旧"], omittedAreaCount: 0 },
+      {
+        intensity: "3", rank: 3, areas: ["細分・旧"], omittedAreaCount: 0,
+        expandedAreas: ["細分・旧"], candidateTruncated: false,
+      },
     ]);
     expect(buildTickerSentence(event)).toContain(
       "細分・新A・細分・新Bなどで最大震度4",
@@ -308,8 +313,14 @@ describe("fromEarthquakeOutcome", () => {
     });
     expect(event.areaNames).toEqual(["細分A", "細分B", "細分C"]);
     expect(projectRecentQuake(event)?.intensityGroups).toEqual([
-      { intensity: "4", rank: 4, areas: ["細分A", "細分C"], omittedAreaCount: 0 },
-      { intensity: "3", rank: 3, areas: ["細分B"], omittedAreaCount: 0 },
+      {
+        intensity: "4", rank: 4, areas: ["細分A", "細分C"], omittedAreaCount: 0,
+        expandedAreas: ["細分A", "細分C"], candidateTruncated: false,
+      },
+      {
+        intensity: "3", rank: 3, areas: ["細分B"], omittedAreaCount: 0,
+        expandedAreas: ["細分B"], candidateTruncated: false,
+      },
     ]);
   });
 });

@@ -132,6 +132,7 @@ function serializeState(state: DailyQuakePersistedV1): unknown {
           ? {}
           : { intensitySemantic: { ...group.intensitySemantic } }),
         areas: [...group.areas],
+        ...(group.expandedAreas == null ? {} : { expandedAreas: [...group.expandedAreas] }),
       })),
       observation: serializeObservationMeta(
         quakeObservationMetaOf(quake) ?? legacyObservationMeta(quake),
@@ -528,6 +529,21 @@ function parseIntensityGroups(value: unknown): DisplayIntensityGroupV1[] | null 
         ? null
         : parseIntensitySemantic(group.intensitySemantic);
     if (hasIntensitySemantic && intensitySemantic == null) return null;
+    const hasExpandedAreas = Object.hasOwn(group, "expandedAreas");
+    const expandedAreas = !hasExpandedAreas
+      ? undefined
+      : Array.isArray(group.expandedAreas)
+        && group.expandedAreas.every((area): area is string => typeof area === "string")
+        ? [...group.expandedAreas]
+        : null;
+    if (hasExpandedAreas && expandedAreas == null) return null;
+    const hasCandidateTruncated = Object.hasOwn(group, "candidateTruncated");
+    const candidateTruncated = !hasCandidateTruncated
+      ? undefined
+      : typeof group.candidateTruncated === "boolean"
+        ? group.candidateTruncated
+        : null;
+    if (hasCandidateTruncated && candidateTruncated == null) return null;
     if (
       intensitySemantic == null
         ? group.rank < 0
@@ -542,6 +558,8 @@ function parseIntensityGroups(value: unknown): DisplayIntensityGroupV1[] | null 
       ...(intensitySemantic == null ? {} : { intensitySemantic }),
       areas: [...group.areas],
       omittedAreaCount: group.omittedAreaCount,
+      ...(expandedAreas == null ? {} : { expandedAreas }),
+      ...(candidateTruncated == null ? {} : { candidateTruncated }),
     });
   }
   return result;

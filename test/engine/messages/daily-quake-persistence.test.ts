@@ -558,7 +558,52 @@ describe("DailyQuakePersistence", () => {
     const loaded = persistence.load(T0 + 2);
     const restored = new DailyQuakeCounter(T0 + 2);
     expect(loaded == null ? false : restored.restore(loaded, T0 + 2)).toBe(true);
-    expect(restored.getRecentQuakes(T0 + 2)[0]?.intensityGroups).toEqual(before.intensityGroups);
+    expect(restored.getRecentQuakes(T0 + 2)[0]?.intensityGroups).toEqual(
+      before.intensityGroups,
+    );
+  });
+
+  it("expandedAreas と candidateTruncated を保存・load で保持し、候補なし旧 JSON も読む", () => {
+    const file = filePath();
+    const counter = new DailyQuakeCounter(T0);
+    const quake = projectRecentQuake(event({
+      eventId: "candidate-round-trip",
+      maxInt: "4",
+      maxIntRank: 4,
+      maxIntValue: intensityValue("4"),
+      areaItems: [{ name: "地域A", maxInt: "4", maxIntValue: intensityValue("4") }],
+    }))!;
+    quake.intensityGroups = [{
+      intensity: "4",
+      rank: 4,
+      areas: ["地域A"],
+      omittedAreaCount: 2,
+      expandedAreas: ["地域A", "候補B", "候補C"],
+      candidateTruncated: true,
+    }];
+    counter.recordRecentQuake(quake, T0);
+
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+    const loaded = persistence.load(T0 + 2);
+    expect(loaded?.recentQuakes[0]?.intensityGroups).toEqual(quake.intensityGroups);
+
+    const legacy = counter.export();
+    const legacyRecent = legacy.recentQuakes.map((recent) => ({
+      ...recent,
+      intensityGroups: recent.intensityGroups?.map((group) => {
+        const { expandedAreas: _expandedAreas, candidateTruncated: _candidateTruncated, ...withoutCandidates } = group;
+        return withoutCandidates;
+      }),
+    }));
+    persistence.save({ ...legacy, recentQuakes: legacyRecent }, T0 + 3);
+    const loadedLegacy = persistence.load(T0 + 4);
+    expect(loadedLegacy?.recentQuakes[0]?.intensityGroups).toEqual([{
+      intensity: "4",
+      rank: 4,
+      areas: ["地域A"],
+      omittedAreaCount: 2,
+    }]);
   });
 
   it("persists cancelled observation provenance and blocks post-restart structural-missing preservation", () => {

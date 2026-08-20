@@ -402,7 +402,14 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
       countedEventIds: ["synthetic-phase4a-vxse53"],
       recentQuakes: [expect.objectContaining({
         eventId: "synthetic-phase4a-vxse53", maxInt: "4", maxIntRank: 4,
-        intensityGroups: [{ intensity: "4", rank: 4, areas: ["詳細地域"], omittedAreaCount: 0 }],
+        intensityGroups: [{
+          intensity: "4",
+          rank: 4,
+          areas: ["詳細地域"],
+          omittedAreaCount: 0,
+          expandedAreas: ["詳細地域"],
+          candidateTruncated: false,
+        }],
       })],
     });
   });

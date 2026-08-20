@@ -11,6 +11,7 @@ import {
   readFixture,
 } from "../../helpers/mock-message";
 import { normalizeTelegramMessage } from "../../../src/dmdata/telegram-ingress";
+import * as log from "../../../src/logger";
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
 vi.mock("../../../src/engine/notification/sound-player", () => ({
@@ -84,6 +85,85 @@ describe("message-router displaySink 挿入", () => {
 
     expect(() => handler(createMockWsDataMessage(FIXTURE_VXSE53_ENCHI))).not.toThrow();
     expect(display.displayOutcome).toHaveBeenCalledTimes(1);
+  });
+
+  it("未対応電文の raw fallback ごとに type と受信時刻を 1 record 記録する", () => {
+    const receivedAtMs = Date.parse("2026-08-20T12:34:56.789Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(receivedAtMs);
+    const base = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    if (base.meta == null) throw new Error("fixture metadata is missing");
+    const unknown = {
+      ...base,
+      id: "unknown-telegram-1",
+      classification: "telegram.unknown",
+      head: { ...base.head, type: "VZZZ99", time: new Date(receivedAtMs).toISOString() },
+      meta: { ...base.meta, messageId: "unknown-telegram-1", receivedAtMs },
+    };
+    const infoSpy = vi.spyOn(log, "info").mockImplementation(() => {});
+    const display = createMockDisplay();
+    const { handler } = createMessageHandler({ display });
+
+    handler(unknown);
+
+    const records = infoSpy.mock.calls
+      .map(([message]) => message)
+      .filter((message): message is string =>
+        typeof message === "string" && message.startsWith("[unknown-telegram]"));
+    expect(records).toEqual([
+      `[unknown-telegram] type=VZZZ99 receivedAt=${new Date(receivedAtMs).toISOString()}`,
+    ]);
+  });
+
+  it("非 XML の未対応電文も raw fallback の受信記録を一回だけ残す", () => {
+    const receivedAtMs = Date.parse("2026-08-20T12:34:56.789Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(receivedAtMs);
+    const base = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    const unknown = normalizeTelegramMessage({
+      ...base,
+      id: "unknown-non-xml",
+      classification: "telegram.unknown",
+      format: "json" as const,
+      head: { ...base.head, type: "VZZZ98", xml: false },
+    }).message;
+    const infoSpy = vi.spyOn(log, "info").mockImplementation(() => {});
+    const { handler } = createMessageHandler({ display: createMockDisplay() });
+
+    handler(unknown);
+
+    expect(infoSpy.mock.calls.filter(([message]) =>
+      message === `[unknown-telegram] type=VZZZ98 receivedAt=${new Date(unknown.meta!.receivedAtMs).toISOString()}`,
+    )).toHaveLength(1);
+  });
+
+  it("未対応 XML の日付診断 return も raw fallback の受信記録を一回だけ残す", () => {
+    const receivedAtMs = Date.parse("2026-08-20T12:34:56.789Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(receivedAtMs);
+    const base = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+    if (base.xmlReport == null) throw new Error("fixture envelope is missing");
+    const unknown = normalizeTelegramMessage({
+      ...base,
+      id: "unknown-invalid-date",
+      classification: "telegram.unknown",
+      head: { ...base.head, type: "VZZZ97" },
+      xmlReport: {
+        ...base.xmlReport,
+        head: {
+          ...base.xmlReport.head,
+          reportDateTime: "invalid",
+        },
+      },
+    }).message;
+    const infoSpy = vi.spyOn(log, "info").mockImplementation(() => {});
+    const { handler } = createMessageHandler({ display: createMockDisplay() });
+
+    handler(unknown);
+
+    expect(infoSpy.mock.calls.filter(([message]) =>
+      message === `[unknown-telegram] type=VZZZ97 receivedAt=${new Date(unknown.meta!.receivedAtMs).toISOString()}`,
+    )).toHaveLength(1);
   });
 
   it("legacy timeout callbackも同期経路と同じdisplay ingestを一回だけ通る", () => {

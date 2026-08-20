@@ -225,6 +225,17 @@ function describeTapError(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** raw fallback は画面から抑止するが、未対応電文の受信事実は 1 件ずつ観測可能にする。 */
+function logUnknownRawFallback(msg: WsDataMessage): void {
+  const receivedAtMs = msg.meta?.receivedAtMs;
+  const receivedAt = receivedAtMs != null && Number.isFinite(receivedAtMs)
+    ? new Date(receivedAtMs)
+    : new Date();
+  log.info(
+    `[unknown-telegram] type=${msg.head.type} receivedAt=${receivedAt.toISOString()}`,
+  );
+}
+
 /**
  * 処理済み outcome を観測できる汎用購読点。
  *
@@ -704,13 +715,23 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       stats.recordTestMetadataMismatch(statsNowMs(msg.meta?.receivedAtMs ?? Date.now()));
     }
 
+    const route = classifyMessage(msg.classification, msg.head.type);
+    let rawFallbackLogged = false;
+    const logUnknownRawFallbackOnce = (): void => {
+      if (rawFallbackLogged) return;
+      logUnknownRawFallback(msg);
+      rawFallbackLogged = true;
+    };
+    // policy 未定義の route は後段で raw fallback になる。早期 return でも同じ受信記録を残す。
+    const fallsBackToRaw = route === "raw"
+      || route !== "ignore" && !routeHasExplicitRevisionFamilyPolicy(route, msg.head.type);
+
     // XML電文でない場合はヘッダ情報のみ表示
     if (msg.format !== "xml" || !msg.head.xml) {
+      if (fallsBackToRaw) logUnknownRawFallbackOnce();
       display?.displayRawHeader(msg);
       return;
     }
-
-    const route = classifyMessage(msg.classification, msg.head.type);
 
     // 分類済みの全電文を汎用 tap に通知 (ignore / raw / suppressed / 火山も含む)。
     // tap の例外は本体処理へ波及させない (Error 以外の throw 値でもログ側で二次例外を起こさない)。
@@ -746,6 +767,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       // ReportDateTime を読めた電文だけを日時診断へ分離する。
       const dateReason = msg.xmlReport == null ? null : telegramDateDiagnosticReason(meta);
       if (dateReason != null) {
+        if (fallsBackToRaw) logUnknownRawFallbackOnce();
         const diagnostic = telegramDateDiagnostic(msg, meta, dateReason);
         stats.recordFoundation(
           dateReason === "futureSkewExceeded"
@@ -775,6 +797,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         `[telegram-foundation] explicit revision policy missing: route=${route} type=${msg.head.type}; raw fallback`,
       );
       processingRoute = "raw";
+    }
+
+    if (processingRoute === "raw") {
+      logUnknownRawFallbackOnce();
     }
 
     // 特殊ルート ignore: 配信終了予定 + 既存表示と重複する電文は受信しても無視
@@ -809,6 +835,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     if (outcome == null) {
       return;
+    }
+
+    if (outcome.domain === "raw" && !rawFallbackLogged) {
+      logUnknownRawFallbackOnce();
     }
 
     if (outcome.domain === "eew" && outcome.displayLifecycleOnly === true) {

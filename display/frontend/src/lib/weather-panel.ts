@@ -10,6 +10,7 @@ import {
   type DisplayWeatherSourceV1,
 } from "./protocol";
 import { SPRING_EFFECTS_DEFAULT_MS } from "./motion";
+import { resolveWeatherKindKeys } from "./weather-expanded-kinds";
 
 /** 主役パネルへ載せる 1 行。同じ severity × 現象は source をまたいで統合する (spec §3) */
 export interface WeatherPanelItemV1 {
@@ -545,26 +546,9 @@ export function buildWeatherEmergencyInput(
     }
   }
 
-  // phenomenonKey の有無が混在しても同じ現象を統合するため、先に表示名 alias ごとの
-  // 安定キー候補を集める。候補が 1 つだけなら旧 item もそのキーへ寄せる。複数候補がある
-  // 曖昧な alias は無理に統合せず、別現象の誤結合を避ける
-  const phenomenonKeysByKind = new Map<string, Set<string>>();
-  for (const { item } of candidates) {
-    if (item.phenomenonKey == null) continue;
-    const kindKey = `${item.displaySeverity}|${item.kind}`;
-    const keys = phenomenonKeysByKind.get(kindKey) ?? new Set<string>();
-    keys.add(`${item.displaySeverity}|${item.phenomenonKey}`);
-    phenomenonKeysByKind.set(kindKey, keys);
-  }
-
-  for (const { source, item, level, addedAreas } of candidates) {
-    const kindKey = `${item.displaySeverity}|${item.kind}`;
-    const aliasKeys = phenomenonKeysByKind.get(kindKey);
-    const rowKey = item.phenomenonKey != null
-      ? `${item.displaySeverity}|${item.phenomenonKey}`
-      : aliasKeys?.size === 1
-        ? [...aliasKeys][0]!
-        : kindKey;
+  const rowKeys = resolveWeatherKindKeys(candidates.map(({ item }) => item));
+  candidates.forEach(({ source, item, level, addedAreas }, index) => {
+    const rowKey = rowKeys[index]!;
     const existing = itemsByPhenomenon.get(rowKey);
     if (existing != null) {
       for (const area of item.shownAreas) {
@@ -574,7 +558,7 @@ export function buildWeatherEmergencyInput(
         if (!existing.addedAreas.includes(area)) existing.addedAreas.push(area);
       }
       existing.omittedAreaCount += item.omittedAreaCount;
-      continue;
+      return;
     }
     const row: WeatherPanelItemV1 = {
       key: rowKey,
@@ -587,7 +571,7 @@ export function buildWeatherEmergencyInput(
     };
     itemsByPhenomenon.set(rowKey, row);
     items.push(row);
-  }
+  });
 
   // 昇格中の source が 1 つも無ければパネルを出さない。**逆に、非 null source があるなら
   // 中身が組めなくてもパネルは出す** — 昇格状態の権威は engine で、フロントが「描く item が無い」

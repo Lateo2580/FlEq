@@ -8,7 +8,7 @@ import { encodeSseGuarded } from "./sse-clients";
 import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
 import { displayWeatherPromotionLevel, isDisplayWeatherSeverity } from "./protocol";
-import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherChangeKindV1, DisplayWeatherChangeV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
+import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherChangeKindV1, DisplayWeatherChangeV1, DisplayWeatherExpandedKindV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -305,6 +305,65 @@ function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined
   return map;
 }
 
+/** 展開候補だけを落とし、現行表示分と「切られた」事実は残す。カード本体の縮退より前段。 */
+function stripIntensityExpansionCandidates(
+  groups: readonly DisplayIntensityGroupV1[],
+): DisplayIntensityGroupV1[] {
+  let changed = false;
+  const stripped = groups.map((group) => {
+    if (group.expandedAreas == null && group.candidateTruncated !== true) return group;
+    changed = true;
+    return { ...group, expandedAreas: [], candidateTruncated: true };
+  });
+  return changed ? stripped : groups as DisplayIntensityGroupV1[];
+}
+
+function stripWeatherExpansionCandidates(
+  kinds: readonly DisplayWeatherExpandedKindV1[],
+): DisplayWeatherExpandedKindV1[] {
+  let changed = false;
+  const stripped = kinds.map((kind) => {
+    if (kind.areas.length === 0 && kind.candidateTruncated) return kind;
+    changed = true;
+    return { ...kind, areas: [], candidateTruncated: true };
+  });
+  return changed ? stripped : kinds as DisplayWeatherExpandedKindV1[];
+}
+
+function stripExpansionCandidates(snapshot: DisplayStateSnapshotV1): DisplayStateSnapshotV1 {
+  let changed = false;
+  const stripQuake = <T extends { intensityGroups?: DisplayIntensityGroupV1[] }>(value: T): T => {
+    if (value.intensityGroups == null) return value;
+    const intensityGroups = stripIntensityExpansionCandidates(value.intensityGroups);
+    if (intensityGroups === value.intensityGroups) return value;
+    changed = true;
+    return { ...value, intensityGroups };
+  };
+  const latestQuake = snapshot.latestQuake == null ? null : stripQuake(snapshot.latestQuake);
+  const largeQuakes = snapshot.largeQuakes.map((quake) => stripQuake(quake));
+  const recentQuakes = snapshot.recentQuakes.map((quake) =>
+    quake.intensityGroups == null ? quake : stripQuake(quake),
+  );
+  const quakeMap = snapshot.mapLayers?.quake;
+  const mapEvents = quakeMap?.events.map((event) => stripQuake(event));
+  if (mapEvents?.some((event, index) => event !== quakeMap?.events[index])) changed = true;
+  const weatherExpandedKinds = snapshot.weatherExpandedKinds == null
+    ? undefined
+    : stripWeatherExpansionCandidates(snapshot.weatherExpandedKinds);
+  if (weatherExpandedKinds !== snapshot.weatherExpandedKinds) changed = true;
+  if (!changed) return snapshot;
+  return {
+    ...snapshot,
+    latestQuake,
+    largeQuakes,
+    recentQuakes,
+    weatherExpandedKinds,
+    ...(quakeMap == null || mapEvents == null
+      ? {}
+      : { mapLayers: { ...snapshot.mapLayers, quake: { ...quakeMap, events: mapEvents } } }),
+  };
+}
+
 // snapshot は field 別予算で縮退する (軽い縮退から順に累積)。
 // 順序の設計原則 (2026-07-11): 待機画面の地震履歴 recentQuakes は「軽量なのに巻き添えで先に
 // 消える」ことを避けるため最後に回す。肥大源 (recentTicker 本文/件数・weatherAlerts 地域・
@@ -336,6 +395,12 @@ function addedAreaSetOf(entry: DisplayWeatherPromotionEntryV1 | null | undefined
 function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapshotV1[] {
   const attempts: DisplayStateSnapshotV1[] = [full];
   let s = full;
+  // 現行表示分を保ったまま展開候補だけを最初に落とす (spec §6)。
+  const withoutExpansionCandidates = stripExpansionCandidates(s);
+  if (withoutExpansionCandidates !== s) {
+    s = withoutExpansionCandidates;
+    attempts.push(s);
+  }
   // まず本文を間引く (件数を削るより軽い縮退。先頭 N 件だけ tickerBody を残す)
   s = {
     ...s,
@@ -453,6 +518,11 @@ export function degradeSnapshotToBudget(
 function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): DisplayStateSnapshotV1[] {
   const attempts: DisplayStateSnapshotV1[] = [full];
   let s = full;
+  const withoutExpansionCandidates = stripExpansionCandidates(s);
+  if (withoutExpansionCandidates !== s) {
+    s = withoutExpansionCandidates;
+    attempts.push(s);
+  }
   s = {
     ...s,
     latestQuake: s.latestQuake != null

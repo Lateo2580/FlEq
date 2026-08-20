@@ -322,6 +322,8 @@ describe("groupIntensityAreas", () => {
       rank: 8,
       areas: ["熊本県熊本地方", "熊本県阿蘇地方"],
       omittedAreaCount: 0,
+      expandedAreas: ["熊本県熊本地方", "熊本県阿蘇地方"],
+      candidateTruncated: false,
     }]);
   });
 
@@ -399,6 +401,28 @@ describe("groupIntensityAreas", () => {
         presence: "qualitative",
       },
     });
+  });
+
+  it("現行表示合計が128を超える不変条件外入力は全体上限で後続 group を切る", () => {
+    const groups = groupIntensityAreas([
+      ...Array.from({ length: 127 }, (_, index) => ({ name: `先行${index}`, maxInt: "3" })),
+      ...Array.from({ length: 3 }, (_, index) => ({ name: `後続${index}`, maxInt: "2" })),
+    ]);
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({
+      intensity: "3",
+      areas: Array.from({ length: 127 }, (_, index) => `先行${index}`),
+      expandedAreas: Array.from({ length: 127 }, (_, index) => `先行${index}`),
+      candidateTruncated: false,
+    });
+    expect(groups[1]).toMatchObject({
+      intensity: "2",
+      areas: ["後続0", "後続1", "後続2"],
+      expandedAreas: ["後続0"],
+      candidateTruncated: true,
+    });
+    expect(groups.reduce((total, group) => total + (group.expandedAreas?.length ?? 0), 0)).toBe(128);
   });
 });
 

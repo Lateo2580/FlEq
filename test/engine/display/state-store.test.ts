@@ -13,6 +13,7 @@ import type { JmaIntensity, SpecialValue } from "../../../src/types";
 import type {
   DisplayEventDtoV1,
   DisplayIntensitySemanticV1,
+  DisplayRecentQuakeV1,
   DisplayTsunamiLevel,
   DisplayTsunamiObservationV1,
   DisplayWeatherAlertV1,
@@ -362,6 +363,137 @@ describe("DisplayStateStore: EEW", () => {
 });
 
 describe("DisplayStateStore: largeQuakes / recentQuakes", () => {
+  it("旧 provider の候補再供給でも後続 group の現行表示分を先に予約する", () => {
+    const recent: DisplayRecentQuakeV1 = {
+      eventId: "two-phase-candidates",
+      reportDateTime: "2026-07-06T21:00:00+09:00",
+      originTime: null,
+      hypocenterName: "候補震源",
+      magnitude: null,
+      maxInt: "3",
+      maxIntRank: 3,
+      depth: null,
+      tsunamiWarning: false,
+      intensityGroups: [
+        {
+          intensity: "3",
+          rank: 3,
+          areas: ["先行の現行表示"],
+          omittedAreaCount: 0,
+          expandedAreas: Array.from({ length: 127 }, (_, index) =>
+            index === 0 ? "先行の現行表示" : `先行候補${index}`),
+          candidateTruncated: false,
+        },
+        {
+          intensity: "2",
+          rank: 2,
+          areas: ["後続0", "後続1", "後続2"],
+          omittedAreaCount: 0,
+          expandedAreas: ["後続0", "後続1", "後続2"],
+          candidateTruncated: false,
+        },
+      ],
+    };
+    const store = new DisplayStateStore(undefined, undefined, undefined, () => [recent]);
+
+    const groups = store.snapshot(1, T0).recentQuakes[0]!.intensityGroups!;
+    expect(groups[0]).toMatchObject({ expandedAreas: expect.arrayContaining(["先行の現行表示"]) });
+    expect(groups[0]!.expandedAreas).toHaveLength(125);
+    expect(groups[0]!.candidateTruncated).toBe(true);
+    expect(groups[1]).toMatchObject({
+      expandedAreas: ["後続0", "後続1", "後続2"],
+      candidateTruncated: false,
+    });
+  });
+
+  it("旧 provider の現行表示合計が128を超える不変条件外入力は全体上限で後続 group を切る", () => {
+    const recent: DisplayRecentQuakeV1 = {
+      eventId: "over-limit-current-candidates",
+      reportDateTime: "2026-07-06T21:00:00+09:00",
+      originTime: null,
+      hypocenterName: "候補震源",
+      magnitude: null,
+      maxInt: "3",
+      maxIntRank: 3,
+      depth: null,
+      tsunamiWarning: false,
+      intensityGroups: [
+        {
+          intensity: "3",
+          rank: 3,
+          areas: Array.from({ length: 127 }, (_, index) => `先行${index}`),
+          omittedAreaCount: 0,
+          candidateTruncated: false,
+        },
+        {
+          intensity: "2",
+          rank: 2,
+          areas: ["後続0", "後続1", "後続2"],
+          omittedAreaCount: 0,
+          candidateTruncated: false,
+        },
+      ],
+    };
+    const store = new DisplayStateStore(undefined, undefined, undefined, () => [recent]);
+
+    const groups = store.snapshot(1, T0).recentQuakes[0]!.intensityGroups!;
+    expect(groups.flatMap((group) => group.expandedAreas ?? [])).toHaveLength(128);
+    expect(groups[0]).toMatchObject({
+      expandedAreas: Array.from({ length: 127 }, (_, index) => `先行${index}`),
+      candidateTruncated: false,
+    });
+    expect(groups[1]).toMatchObject({
+      expandedAreas: ["後続0"],
+      candidateTruncated: true,
+    });
+  });
+
+  it("完全供給済み候補は omittedAreaCount を二重計上せず truncated を反転しない", () => {
+    const recent: DisplayRecentQuakeV1 = {
+      eventId: "complete-candidates",
+      reportDateTime: "2026-07-06T21:00:00+09:00",
+      originTime: null,
+      hypocenterName: "候補震源",
+      magnitude: null,
+      maxInt: "3",
+      maxIntRank: 3,
+      depth: null,
+      tsunamiWarning: false,
+      intensityGroups: [{
+        intensity: "3", rank: 3, areas: ["A"], omittedAreaCount: 1,
+        expandedAreas: ["A", "B"], candidateTruncated: false,
+      }],
+    };
+    const store = new DisplayStateStore(undefined, undefined, undefined, () => [recent]);
+
+    expect(store.snapshot(1, T0).recentQuakes[0]!.intensityGroups![0]).toMatchObject({
+      expandedAreas: ["A", "B"],
+      candidateTruncated: false,
+    });
+  });
+
+  it("同じ候補入力を recent / latest / largeQuake の3経路で同じ wire 出力にする", () => {
+    const intensityGroups = [{
+      intensity: "3", rank: 3, areas: ["A"], omittedAreaCount: 1,
+      expandedAreas: ["A", "B"], candidateTruncated: false,
+    }];
+    const base = quakeDto({});
+    const event = {
+      ...base,
+      emergency: base.emergency == null ? null : { ...base.emergency, intensityGroups },
+      recentQuake: base.recentQuake == null ? null : { ...base.recentQuake, intensityGroups },
+      latestQuake: base.latestQuake == null ? null : { ...base.latestQuake, intensityGroups },
+    };
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(event, T0)).toBe(true);
+
+    const snap = store.snapshot(1, T0);
+    const expected = { expandedAreas: ["A", "B"], candidateTruncated: false };
+    for (const quake of [snap.recentQuakes[0], snap.latestQuake, snap.largeQuakes[0]]) {
+      expect(quake!.intensityGroups![0]).toMatchObject(expected);
+    }
+  });
+
   it("largeQuake DTO が largeQuakes と recentQuakes 両方に載る", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(quakeDto({}), T0)).toBe(true);

@@ -50,6 +50,7 @@ import {
 } from "../presentation/level-helpers";
 import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persistence";
 import { projectTyphoonNumericSemantic } from "./typhoon-numeric-semantic";
+import { attachWeatherExpandedKinds } from "./weather-expanded-kinds";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -320,7 +321,8 @@ export class StandbyStateStore {
   }
 
   snapshotWeatherAlerts(): DisplayWeatherAlertV1[] {
-    return [...this.weatherAlerts.values()].flatMap((state) => state.alerts.map(copyWeatherAlert));
+    const alerts = [...this.weatherAlerts.values()].flatMap((state) => state.alerts.map(copyWeatherAlert));
+    return attachWeatherExpandedKinds(alerts);
   }
 
   /** v2 foundation の正規 VPWS50 snapshot から起動時 view を再構築する。通知は発火しない。 */

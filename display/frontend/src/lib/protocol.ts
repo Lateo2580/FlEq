@@ -291,6 +291,10 @@ export interface DisplayIntensityGroupV1 {
   intensitySemantic?: DisplayIntensitySemanticV1;
   areas: string[];
   omittedAreaCount: number;   // 追加 (必須)
+  /** 展開候補。欠落は旧 snapshot 互換=展開しない。現行表示分を先頭に含む canonical prefix */
+  expandedAreas?: string[];
+  /** 候補が安全弁または snapshot 縮退で切られた。欠落は旧 snapshot 互換=未提供 */
+  candidateTruncated?: boolean;
 }
 
 /** 震度地図の区域値。Phase 1〜4 は一次細分区域だけを wire に載せる。 */
@@ -514,6 +518,13 @@ export interface DisplayWeatherAlertV1 {
   totalAreas: number;
   items: DisplayWeatherAlertItemV1[];
   updatedAt: string;
+}
+
+export interface DisplayWeatherExpandedKindV1 {
+  kindKey: string;
+  areas: string[];
+  totalAreaCount: number;
+  candidateTruncated: boolean;
 }
 
 /** 気象警報の source。時計・世代・昇格判定はこの単位で完全に独立する */
@@ -865,6 +876,8 @@ export interface DisplayStateSnapshotV1 {
   /** L5 相当 (officialL5 ∪ nonLevelSpecial) の気象警報が発表中か (night-dim 用)。
    *  パネル降格 (demoted) 後も警報解除まで true。欠落は false 扱い */
   weatherL5Active?: boolean;
+  /** 気象警報の表示単位別展開候補。欠落は旧 snapshot 互換=展開しない。 */
+  weatherExpandedKinds?: DisplayWeatherExpandedKindV1[];
   recentQuakes: DisplayRecentQuakeV1[];
   latestQuake: DisplayLatestQuakeStateV1 | null;   // 追加
   stats: DisplayStatsV1 | null;                    // 追加

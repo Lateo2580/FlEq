@@ -16,6 +16,7 @@ import type {
   DisplayEventDtoV1,
   DisplayIntensityGroupV1,
   DisplayLargeQuakeStateV1,
+  DisplayLatestQuakeStateV1,
   DisplayQuakeIntensityMapEventV1,
   DisplayRecentQuakeV1,
   DisplayServerMessage,
@@ -310,6 +311,76 @@ function mapEvent(
 }
 
 describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state 配信の共通安全弁)", () => {
+  it("snapshot budget では展開候補をカード本体より先に落とし、現行表示分と flag を残す", () => {
+    const latestQuake: DisplayLatestQuakeStateV1 = {
+      eventId: "candidate-budget",
+      headline: null,
+      originTime: null,
+      hypocenterName: "現行カードの震源",
+      depth: "10km",
+      magnitude: "M5.0",
+      maxInt: "3",
+      maxIntRank: 3,
+      tsunamiWarning: false,
+      reportDateTime: "2026-07-06T21:00:00+09:00",
+      updatedAtMs: 1,
+      intensityGroups: [{
+        intensity: "3",
+        rank: 3,
+        areas: ["現行表示地域"],
+        omittedAreaCount: 0,
+        expandedAreas: Array.from({ length: 12_000 }, (_, i) => `展開候補${i}${"候補".repeat(20)}`),
+        candidateTruncated: false,
+      }],
+    };
+    const full = baseSnapshot({
+      latestQuake,
+      weatherExpandedKinds: [{
+        kindKey: "officialL5|大雨",
+        areas: Array.from({ length: 12_000 }, (_, i) => `気象候補${i}${"候補".repeat(20)}`),
+        totalAreaCount: 12_000,
+        candidateTruncated: false,
+      }],
+    });
+
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe(1);
+    expect(result!.snapshot.latestQuake?.hypocenterName).toBe("現行カードの震源");
+    expect(result!.snapshot.latestQuake?.intensityGroups[0]).toMatchObject({
+      areas: ["現行表示地域"],
+      expandedAreas: [],
+      candidateTruncated: true,
+    });
+    expect(result!.snapshot.weatherExpandedKinds).toEqual([{
+      kindKey: "officialL5|大雨",
+      areas: [],
+      totalAreaCount: 12_000,
+      candidateTruncated: true,
+    }]);
+  });
+
+  it("候補 field が欠落した旧 snapshot は縮退判定を変えず、そのまま通す", () => {
+    const legacy = baseSnapshot({
+      latestQuake: {
+        eventId: "legacy",
+        headline: null,
+        originTime: null,
+        hypocenterName: "旧 snapshot",
+        depth: null,
+        magnitude: null,
+        maxInt: "3",
+        maxIntRank: 3,
+        tsunamiWarning: false,
+        reportDateTime: "2026-07-06T21:00:00+09:00",
+        updatedAtMs: 1,
+        intensityGroups: [{ intensity: "3", rank: 3, areas: ["地域"], omittedAreaCount: 0 }],
+      },
+    });
+    const result = degradeSnapshotToBudget(legacy, "snapshot");
+    expect(result).toEqual({ level: 0, snapshot: legacy });
+  });
+
   it("weatherChange は item だけを代表枠つきで縮退し、upgraded と released を共存させる", () => {
     const full = baseSnapshot({ weatherChange: hugeWeatherChange() });
     expect(() => JSON.parse(JSON.stringify(full))).not.toThrow();
