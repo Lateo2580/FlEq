@@ -794,6 +794,31 @@ describe("S7 capacity warning latch rearm", () => {
     expect(onCapacityError).toHaveBeenCalledTimes(2);
   });
 
+  it("decide 冒頭の自動 sweep による期限切れ削除でも警告を再武装する", () => {
+    const onCapacityError = vi.fn();
+    const gate = new TelegramRevisionGate(onCapacityError);
+    gate.decide(capacityInput({
+      id: "sweep-1",
+      stateSubjectKey: "sweep-1",
+      durable: false,
+      tombstoneRetentionMs: 60_000,
+    }));
+    expect(gate.decide(capacityInput({ id: "sweep-reject-1", stateSubjectKey: "sweep-reject-1" })).kind)
+      .toBe("capacityExceeded");
+
+    expect(gate.decide(capacityInput({
+      id: "sweep-2",
+      stateSubjectKey: "sweep-2",
+      receivedAtMs: RECEIVED_AT + 61_000,
+    })).accepted).toBe(true);
+    expect(gate.decide(capacityInput({
+      id: "sweep-reject-2",
+      stateSubjectKey: "sweep-reject-2",
+      receivedAtMs: RECEIVED_AT + 61_000,
+    })).kind).toBe("capacityExceeded");
+    expect(onCapacityError).toHaveBeenCalledTimes(2);
+  });
+
   it("regular と transient の合計で family occupancy を再評価する", () => {
     const onCapacityError = vi.fn();
     const gate = new TelegramRevisionGate(onCapacityError);
