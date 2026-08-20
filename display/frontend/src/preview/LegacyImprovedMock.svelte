@@ -49,21 +49,38 @@
     statsStandbyCards,
     tsunamiBanner,
   } from "./fixtures";
+  import {
+    achievableSurplusUse as solveAchievableSurplusUse,
+    makeColumnPlan as solveColumnPlan,
+    promoteAndExpand as solvePromoteAndExpand,
+    type SolverContext,
+  } from "../lib/legacy-standby/solver";
+  import {
+    pageIdentity as pageIdentityForEntry,
+    planCardPageRuntimeUpdate,
+    sequentialPartitionRanges as partitionRanges,
+  } from "../lib/legacy-standby/page-partition";
+  import type {
+    CardCandidate,
+    CardKey,
+    CardPageRuntime,
+    CardVariant,
+    ColumnPlan,
+    DisplaySelection,
+    LadderStage,
+    PageAreaEntry,
+    PageMeasureEntry as LegacyPageMeasureEntry,
+    PageRange,
+    PageTail,
+    PlacementChoice,
+    TyphoonVariant,
+    VariantSelection,
+  } from "../lib/legacy-standby/types";
 
   type Scenario = "4" | "7" | "max";
-  type LadderStage = 0 | 1 | 2 | 3;
-  type CardKey = "tsunami" | "quake" | "weather" | "flood" | "typhoon" | "volcano" | "heat";
   type ExpandableCardKey = "quake" | "weather";
-  type CardVariant = "compact" | "expanded" | "full";
-  type TyphoonVariant = "compact" | "full";
   type FixedMeasureKey = "stats" | "recent-quakes";
   type StandbyItemOf<K extends ActiveStandbyCardV1["kind"]> = Extract<ActiveStandbyCardV1, { kind: K }>;
-
-  interface VariantSelection {
-    quake: CardVariant;
-    weather: CardVariant;
-    typhoon: TyphoonVariant;
-  }
 
   interface MeasureEntry {
     id: string;
@@ -71,22 +88,6 @@
     variant: CardVariant;
     regionRows: number;
     floodWide: boolean;
-  }
-
-  interface CardCandidate {
-    key: CardKey;
-    order: number;
-    score: number;
-    variant: CardVariant;
-    naturalHeight: number;
-    centerNaturalHeight: number;
-  }
-
-  interface PlacementChoice {
-    left: CardCandidate[];
-    right: CardCandidate[];
-    center: CardCandidate[];
-    moved: Set<CardKey>;
   }
 
   interface PlannedCard extends CardCandidate {
@@ -100,29 +101,10 @@
     floodWide: boolean;
   }
 
-  interface DisplaySelection {
-    typhoon: TyphoonVariant;
-    floodWide: boolean;
-    quakeRows: number;
-    weatherRows: number;
-  }
-
   interface WeatherPageItem {
     templateAlert: DisplayWeatherAlertV1;
     item: DisplayWeatherAlertItemV1;
     areas: string[];
-  }
-
-  interface PageTail {
-    kindKey: string;
-    omittedAreaCount: number;
-  }
-
-  interface PageRange {
-    start: number;
-    end: number;
-    tails: PageTail[];
-    omittedAreaCount: number;
   }
 
   type PageableCardKey = "quake" | "weather";
@@ -155,20 +137,9 @@
     probeCount: number;
   }
 
-  interface PageMeasureEntry {
-    id: string;
+  /** Partition probes exist only for the pageable quake/weather cards. */
+  interface PageMeasureEntry extends Omit<LegacyPageMeasureEntry, "key"> {
     key: PageableCardKey;
-    start: number;
-    end: number;
-    tails: PageTail[];
-    omittedAreaCount: number;
-  }
-
-  interface CardPageRuntime {
-    activeKey: string | null;
-    knownKeys: string[];
-    pendingKeys: string[];
-    cycleOriginKey: string | null;
   }
 
   interface CardPageSchedulerSubstate {
@@ -176,12 +147,6 @@
     phaseStartedAtMs: number;
     processedTick: number;
     pageCount: number;
-  }
-
-  interface PageAreaEntry {
-    kindKey: string;
-    area: string;
-    occurrenceIndex: number;
   }
 
   interface PagePartitionScan {
@@ -211,22 +176,6 @@
 
   type CandidateTruncatedIntensityGroup = DisplayIntensityGroupV1 & { candidateTruncated?: boolean };
   type CandidateTruncatedWeatherItem = DisplayWeatherAlertItemV1 & { candidateTruncated?: boolean };
-
-  interface ColumnPlan {
-    left: CardCandidate[];
-    right: CardCandidate[];
-    center: CardCandidate[];
-    moved: Set<CardKey>;
-    unresolved: boolean;
-    centerUnresolved: boolean;
-    stage: LadderStage;
-    variants: VariantSelection;
-    rotationKeys: CardKey[];
-    rotationCurrentKey: CardKey | null;
-    rotationSlotHeight: number;
-    rotationFailureCount: number;
-    layoutFailure: boolean;
-  }
 
   const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
 
@@ -265,6 +214,8 @@
   }
 
   const knownCardKeys: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
+  // Solver の内部規則と同じ。テンプレートの診断属性にも使うため、ここに残す。
+  const centerEligibleKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
 
   function parseCardKey(value: string): CardKey | null {
     return knownCardKeys.includes(value as CardKey) ? value as CardKey : null;
@@ -336,7 +287,6 @@
   let fixtureRemovalTimer: ReturnType<typeof setTimeout> | null = null;
   let fixtureRemovedKeys = $state<CardKey[]>([]);
   const MAX_SETTLE_PASSES = 4;
-  const MAX_ROTATION_CANDIDATE_PASSES = 5;
   const ROTATION_PERIOD_MS = 15_000;
   const CANDIDATE_SAFE_LIMIT = 128;
   const CANDIDATE_TEST_LIMIT = 4;
@@ -632,19 +582,6 @@
     return schedulerRotationKeys.includes(key) ? "logical" : "real";
   }
 
-  function nextPageKeyAfterRemoval(previousKeys: readonly string[], previousKey: string | null, nextKeys: readonly string[]): string | null {
-    if (nextKeys.length === 0) return null;
-    if (previousKey == null) return nextKeys[0] ?? null;
-    const previousIndex = previousKeys.indexOf(previousKey);
-    if (previousIndex >= 0) {
-      for (let offset = 1; offset <= previousKeys.length; offset += 1) {
-        const candidate = previousKeys[(previousIndex + offset) % previousKeys.length];
-        if (nextKeys.includes(candidate)) return candidate;
-      }
-    }
-    return nextKeys[0] ?? null;
-  }
-
   function updateCardPageRuntime(
     key: PageableCardKey,
     activeKey: string | null,
@@ -661,41 +598,12 @@
   function reconcileCardPageRuntime(key: PageableCardKey, reset: boolean): void {
     const nextKeys = pageKeysFor(key);
     const previousRuntime = cardPageRuntime[key];
-    const previousKeys = previousRuntime.knownKeys;
-    const previousKey = previousRuntime.activeKey;
     const initialMeasurementGrowth = !reset && cardPageProcessedTick === 0 && cardPageTick === 0;
-    let activeKey: string | null;
-    if (nextKeys.length === 0) {
-      activeKey = null;
-    } else if (reset) {
-      const index = cardPageTickOverride == null ? 0 : cardPageTickOverride % nextKeys.length;
-      activeKey = nextKeys[index] ?? nextKeys[0] ?? null;
-    } else if (previousKey != null && nextKeys.includes(previousKey)) {
-      // repartition で現在ページの先頭が残る場合は同じページ identity を維持する。
-      activeKey = previousKey;
-    } else {
-      // 現在ページが消えた場合だけ canonical 後続へ移り、追加ページは次周に参加させる。
-      activeKey = nextPageKeyAfterRemoval(previousKeys, previousKey, nextKeys);
-    }
-    const addedKeys = reset || initialMeasurementGrowth
-      ? []
-      : nextKeys.filter((candidate) => !previousKeys.includes(candidate));
-    const pendingKeys = reset
-      ? []
-      : [...previousRuntime.pendingKeys.filter((candidate) => nextKeys.includes(candidate)), ...addedKeys]
-        .filter((candidate, index, all) => all.indexOf(candidate) === index && candidate !== activeKey);
-    let nextCycleOriginKey = previousRuntime.cycleOriginKey;
-    if (nextCycleOriginKey != null && !nextKeys.includes(nextCycleOriginKey)) {
-      // defer 中の起点が消えたら、削除時点の canonical 後続（pending ではない既存ページ）を
-      // 新しい起点へ差し替える。旧 key を持ち続けると解禁条件が永久に成立しない。
-      const stableNextKeys = nextKeys.filter((candidate) => !pendingKeys.includes(candidate));
-      nextCycleOriginKey = nextPageKeyAfterRemoval(previousKeys, nextCycleOriginKey, stableNextKeys)
-        ?? activeKey;
-    }
-    const cycleOriginKey = pendingKeys.length === 0
-      ? null
-      : nextCycleOriginKey ?? previousKey ?? activeKey;
-    updateCardPageRuntime(key, activeKey, nextKeys, pendingKeys, cycleOriginKey);
+    const nextRuntime = planCardPageRuntimeUpdate(previousRuntime, nextKeys, reset, initialMeasurementGrowth);
+    const activeKey = reset && cardPageTickOverride != null && nextKeys.length > 0
+      ? nextKeys[cardPageTickOverride % nextKeys.length] ?? nextKeys[0] ?? null
+      : nextRuntime.activeKey;
+    updateCardPageRuntime(key, activeKey, nextRuntime.knownKeys, nextRuntime.pendingKeys, nextRuntime.cycleOriginKey);
   }
 
   function advanceCardPageFor(key: PageableCardKey, steps: number): void {
@@ -1562,10 +1470,6 @@
     return selected;
   }
 
-  function pageIdentity(entry: PageAreaEntry): string {
-    return `${entry.kindKey}|${entry.area}|${entry.occurrenceIndex}`;
-  }
-
   function quakeAreaEntries(groups: readonly DisplayIntensityGroupV1[]): PageAreaEntry[] {
     const occurrenceByArea = new Map<string, number>();
     return groups.flatMap((group) => {
@@ -1592,7 +1496,7 @@
       firstArea: pageEntries[0]?.area ?? firstTail?.kindKey ?? "",
       identity: pageEntries[0] == null
         ? firstTail == null ? "" : `${firstTail.kindKey}|<tail>|0`
-        : pageIdentity(pageEntries[0]),
+        : pageIdentityForEntry(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
       tails: [...tails],
     };
@@ -1613,7 +1517,7 @@
     return {
       state,
       firstArea: pageEntries[0]?.area ?? "",
-      identity: pageEntries[0] == null ? "" : pageIdentity(pageEntries[0]),
+      identity: pageEntries[0] == null ? "" : pageIdentityForEntry(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
       tails: [],
     };
@@ -1742,7 +1646,7 @@
       firstArea: pageEntries[0]?.area ?? firstTail?.kindKey ?? "",
       identity: pageEntries[0] == null
         ? firstTail == null ? "" : `${firstTail.kindKey}|<tail>|0`
-        : pageIdentity(pageEntries[0]),
+        : pageIdentityForEntry(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
       tails: [...tails],
     };
@@ -1754,7 +1658,7 @@
     return {
       alerts,
       firstArea: pageEntries[0]?.area ?? "",
-      identity: pageEntries[0] == null ? "" : pageIdentity(pageEntries[0]),
+      identity: pageEntries[0] == null ? "" : pageIdentityForEntry(pageEntries[0]),
       areaKeys: pageEntries.map((entry) => entry.area),
       tails: [],
     };
@@ -1779,79 +1683,6 @@
   ): number | undefined {
     const id = pageMeasureId(key, start, end, tails);
     return placement === "center" ? measuredCenterPageHeights[id] : measuredPageHeights[id];
-  }
-
-  function sequentialPartitionRanges(
-    key: PageableCardKey,
-    areaCount: number,
-    fixedHeight: number,
-    placement: "side" | "center",
-    tailEntriesForRange: (start: number, end: number) => PageTail[],
-  ): Pick<PagePartitionScan, "ranges" | "pending" | "infeasible" | "probeCount"> {
-    const ranges: PagePartitionScan["ranges"] = [];
-    const pending: PageMeasureEntry[] = [];
-    const probedIds = new Set<string>();
-    if (areaCount === 0) {
-      const tails = tailEntriesForRange(0, 0);
-      if (tails.length === 0) return { ranges, pending, infeasible: false, probeCount: 0 };
-      const id = pageMeasureId(key, 0, 0, tails);
-      probedIds.add(id);
-      const measured = pageRangeHeight(key, 0, 0, placement, tails);
-      const omittedAreaCount = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
-      if (measured == null) {
-        pending.push({ id, key, start: 0, end: 0, tails, omittedAreaCount });
-        return { ranges: [{ start: 0, end: 0, tails, omittedAreaCount }], pending, infeasible: false, probeCount: probedIds.size };
-      }
-      if (fixedHeight <= 0 || measured <= fixedHeight) {
-        return { ranges: [{ start: 0, end: 0, tails, omittedAreaCount }], pending, infeasible: false, probeCount: probedIds.size };
-      }
-      return { ranges: [], pending: [], infeasible: true, probeCount: probedIds.size };
-    }
-    let start = 0;
-    while (start < areaCount) {
-      let acceptedEnd = start;
-      for (let end = start + 1; end <= areaCount; end += 1) {
-        const tails = tailEntriesForRange(start, end);
-        const id = pageMeasureId(key, start, end, tails);
-        probedIds.add(id);
-        const measured = pageRangeHeight(key, start, end, placement, tails);
-        if (measured == null) {
-          const omittedAreaCount = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
-          const provisionalEnd = acceptedEnd > start ? acceptedEnd : end;
-          const provisionalTails = tailEntriesForRange(start, provisionalEnd);
-          const provisionalOmittedAreaCount = provisionalTails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
-          pending.push({ id, key, start, end, tails, omittedAreaCount });
-          ranges.push({
-            start,
-            end: provisionalEnd,
-            tails: provisionalTails,
-            omittedAreaCount: provisionalOmittedAreaCount,
-          });
-          return { ranges, pending, infeasible: false, probeCount: probedIds.size };
-        }
-        if (fixedHeight <= 0 || measured <= fixedHeight) {
-          acceptedEnd = end;
-          if (acceptedEnd === areaCount) {
-            const finalTails = tailEntriesForRange(start, acceptedEnd);
-            const omittedAreaCount = finalTails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
-            ranges.push({ start, end: acceptedEnd, tails: finalTails, omittedAreaCount });
-            return { ranges, pending, infeasible: false, probeCount: probedIds.size };
-          }
-          continue;
-        }
-        if (acceptedEnd === start) return { ranges: [], pending: [], infeasible: true, probeCount: probedIds.size };
-        const acceptedTails = tailEntriesForRange(start, acceptedEnd);
-        ranges.push({
-          start,
-          end: acceptedEnd,
-          tails: acceptedTails,
-          omittedAreaCount: acceptedTails.reduce((total, tail) => total + tail.omittedAreaCount, 0),
-        });
-        start = acceptedEnd;
-        break;
-      }
-    }
-    return { ranges, pending, infeasible: false, probeCount: probedIds.size };
   }
 
   function scanPagePartition(key: PageableCardKey, regionRows: number): PagePartitionScan {
@@ -1897,15 +1728,23 @@
         end,
         areaCount,
       );
-    const scan = sequentialPartitionRanges(
+    const scan = partitionRanges(
       key,
+      placement,
       areaCount,
       fixedHeight,
-      placement,
-      tailEntriesForRange,
+      (probeKey, probePlacement, range) => pageRangeHeight(
+        probeKey as PageableCardKey,
+        range.start,
+        range.end,
+        probePlacement,
+        range.tails,
+      ) ?? null,
+      (range) => tailEntriesForRange(range.start, range.end),
     );
     return {
       ...scan,
+      pending: scan.pending.map((entry) => ({ ...entry, key: entry.key as PageableCardKey })),
       usesCandidate: true,
       candidateTruncated: suppliedTruncated,
       areaCount,
@@ -2039,50 +1878,25 @@
       + Math.max(0, heights.length - 1) * columnGapPx();
   }
 
-  function centerNaturalHeight(cards: readonly CardCandidate[]): number {
-    const fixedHeights = fixedMeasureKeys.map((key) => measuredFixedHeights[key] ?? 0);
-    const totalCount = cards.length + fixedHeights.length;
-    return cards.reduce((total, card) => total + card.centerNaturalHeight, 0)
-      + fixedHeights.reduce((total, height) => total + height, 0)
-      + Math.max(0, totalCount - 1) * columnGapPx();
-  }
-
   function centerCapacityPx(): number {
     return layoutCapacityPx();
   }
 
+  // 描画済みではなく、テンプレートの natural-height 診断に表示する基準値。
   function columnNaturalHeight(cards: readonly CardCandidate[]): number {
     return cards.reduce((total, card) => total + card.naturalHeight, 0)
       + Math.max(0, cards.length - 1) * columnGapPx();
   }
 
-  function sortedCards(cards: readonly CardCandidate[]): CardCandidate[] {
-    return [...cards].sort((leftCard, rightCard) => leftCard.order - rightCard.order);
-  }
-
-  function overflowPx(height: number, capacity: number): number {
-    return Number.isFinite(capacity) ? Math.max(0, height - capacity) : 0;
-  }
-
-  function rightNaturalHeight(cards: readonly CardCandidate[], rotationSlotHeight = 0, failureHeight = 0): number {
+  function rightNaturalHeight(
+    cards: readonly CardCandidate[],
+    rotationSlotHeight: number,
+    failureHeight: number,
+  ): number {
     let total = columnNaturalHeight(cards);
     if (rotationSlotHeight > 0) total += (cards.length > 0 ? columnGapPx() : 0) + rotationSlotHeight;
     if (failureHeight > 0) total += columnGapPx() + failureHeight;
     return total;
-  }
-
-  function placementTotalOverflow(
-    choice: PlacementChoice,
-    capacity: number,
-    rotationSlotHeight = 0,
-    failureHeight = 0,
-  ): number {
-    const sideOverflow = overflowPx(columnNaturalHeight(choice.left), capacity)
-      + overflowPx(rightNaturalHeight(choice.right, rotationSlotHeight, failureHeight), capacity);
-    const centerOverflow = choice.center.length === 0
-      ? 0
-      : overflowPx(centerNaturalHeight(choice.center), capacity);
-    return sideOverflow + centerOverflow;
   }
 
   function placementSelectedCenterHeight(
@@ -2108,170 +1922,6 @@
     return total;
   }
 
-  function placementSelectionFits(
-    choice: PlacementChoice,
-    selection: DisplaySelection,
-    capacity: number,
-    rotationSlotHeight: number,
-    failureHeight: number,
-  ): boolean {
-    return selectedColumnHeight(choice.left, "left", selection) <= capacity
-      && placementSelectedRightHeight(choice, selection, rotationSlotHeight, failureHeight) <= capacity
-      && (choice.center.length === 0 || placementSelectedCenterHeight(choice, selection) <= capacity);
-  }
-
-  function achievableSurplusUse(
-    choice: PlacementChoice,
-    capacity: number,
-    rotationSlotHeight = 0,
-    failureHeight = 0,
-  ): number {
-    // ①'' は B を実行せず、A 候補ごとの二重測定値だけで「この配置なら何段使えるか」を
-    // 数える。配置・stage はこの診断中に変更しない。
-    const typhoonCard = [...choice.left, ...choice.right, ...choice.center]
-      .find((card) => card.key === "typhoon");
-    let selection: DisplaySelection = {
-      typhoon: typhoonCard?.variant === "full" ? "full" : "compact",
-      floodWide: false,
-      quakeRows: 0,
-      weatherRows: 0,
-    };
-    let achieved = 0;
-
-    // §4 の余裕利用フェーズと同じ compact 昇格順を、候補比較用に再現する。
-    const floodCard = [...choice.left, ...choice.right, ...choice.center]
-      .find((card) => card.key === "flood");
-    if (floodIsWide && floodCard != null && !choice.center.some((card) => card.key === "flood")) {
-      const promoted = { ...selection, floodWide: true };
-      if (placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) {
-        selection = promoted;
-        achieved += 1;
-      }
-    }
-    if (typhoonCard != null && selection.typhoon === "compact") {
-      const promoted = { ...selection, typhoon: "full" as const };
-      if (placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) {
-        selection = promoted;
-        achieved += 1;
-      }
-    }
-
-    // 地域展開は quake→weather。prefix 高は「ほか n」行の消滅で非単調になり得るため、
-    // 途中 non-fit で打ち切らず全 prefix を評価して fit する最大値を採る (spec v9)。
-    for (const key of ["quake", "weather"] as const) {
-      if (![...choice.left, ...choice.right, ...choice.center].some((card) => card.key === key)) continue;
-      let best = 0;
-      for (let regionRows = 1; regionRows <= maxRegionRows(key); regionRows += 1) {
-        const promoted = key === "quake"
-          ? { ...selection, quakeRows: regionRows }
-          : { ...selection, weatherRows: regionRows };
-        if (placementSelectionFits(choice, promoted, capacity, rotationSlotHeight, failureHeight)) best = regionRows;
-      }
-      if (best > 0) {
-        selection = key === "quake" ? { ...selection, quakeRows: best } : { ...selection, weatherRows: best };
-        achieved += best;
-      }
-    }
-    return achieved;
-  }
-
-  function comparePlacements(
-    leftChoice: PlacementChoice,
-    rightChoice: PlacementChoice,
-    capacity: number,
-    rotationSlotHeight = 0,
-    failureHeight = 0,
-  ): number {
-    const leftOverflow = placementTotalOverflow(leftChoice, capacity, rotationSlotHeight, failureHeight);
-    const rightOverflow = placementTotalOverflow(rightChoice, capacity, rotationSlotHeight, failureHeight);
-    const leftFits = leftOverflow === 0;
-    const rightFits = rightOverflow === 0;
-    if (leftFits !== rightFits) return leftFits ? -1 : 1;
-
-    if (leftFits) {
-      // 時計を中央に残すことを最優先し、完全に収まる配置では中央移動枚数を最小化する。
-      if (leftChoice.center.length !== rightChoice.center.length) {
-        return leftChoice.center.length - rightChoice.center.length;
-      }
-      // wide surface は中央 36rem の恩恵を受ける優先候補。中央移動枚数が同じ場合だけ
-      // tie-break に参加させ、通常の「時計を中央に残す」目的関数を崩さない。
-      const leftWideFlood = floodIsWide && leftChoice.center.some((card) => card.key === "flood");
-      const rightWideFlood = floodIsWide && rightChoice.center.some((card) => card.key === "flood");
-      if (leftWideFlood !== rightWideFlood) return leftWideFlood ? -1 : 1;
-      const leftSurplusUse = achievableSurplusUse(leftChoice, capacity, rotationSlotHeight, failureHeight);
-      const rightSurplusUse = achievableSurplusUse(rightChoice, capacity, rotationSlotHeight, failureHeight);
-      if (leftSurplusUse !== rightSurplusUse) return rightSurplusUse - leftSurplusUse;
-      const leftMax = Math.max(columnNaturalHeight(leftChoice.left), rightNaturalHeight(leftChoice.right, rotationSlotHeight, failureHeight));
-      const rightMax = Math.max(columnNaturalHeight(rightChoice.left), rightNaturalHeight(rightChoice.right, rotationSlotHeight, failureHeight));
-      if (leftMax !== rightMax) return leftMax - rightMax;
-    } else if (leftOverflow !== rightOverflow) {
-      return leftOverflow - rightOverflow;
-    }
-
-    const leftSideBalance = Math.abs(columnNaturalHeight(leftChoice.left) - rightNaturalHeight(leftChoice.right, rotationSlotHeight, failureHeight));
-    const rightSideBalance = Math.abs(columnNaturalHeight(rightChoice.left) - rightNaturalHeight(rightChoice.right, rotationSlotHeight, failureHeight));
-    if (leftSideBalance !== rightSideBalance) return leftSideBalance - rightSideBalance;
-
-    const leftCenterOverflow = leftChoice.center.length === 0 ? 0 : overflowPx(centerNaturalHeight(leftChoice.center), capacity);
-    const rightCenterOverflow = rightChoice.center.length === 0 ? 0 : overflowPx(centerNaturalHeight(rightChoice.center), capacity);
-    if (leftCenterOverflow !== rightCenterOverflow) return leftCenterOverflow - rightCenterOverflow;
-    if (leftChoice.center.length !== rightChoice.center.length) return leftChoice.center.length - rightChoice.center.length;
-    if (leftChoice.moved.size !== rightChoice.moved.size) return leftChoice.moved.size - rightChoice.moved.size;
-    const placementTuple = (choice: PlacementChoice): string => [choice.left, choice.right, choice.center]
-      .map((cards) => cards.map((card) => card.key).join(","))
-      .join("|");
-    const leftTuple = placementTuple(leftChoice);
-    const rightTuple = placementTuple(rightChoice);
-    return leftTuple < rightTuple ? -1 : leftTuple > rightTuple ? 1 : 0;
-  }
-
-  function enumeratePlacements(
-    candidates: readonly CardCandidate[],
-    forcedLeftKeys: ReadonlySet<CardKey>,
-    allowCenter: boolean,
-    requireCenter: boolean,
-  ): PlacementChoice[] {
-    const fixedLeft = candidates.filter((card) => leftKeys.has(card.key) || forcedLeftKeys.has(card.key));
-    const movable = candidates.filter((card) => !leftKeys.has(card.key) && !forcedLeftKeys.has(card.key));
-    const centerCandidates = allowCenter ? movable.filter((card) => centerEligibleKeys.has(card.key)) : [];
-    const placements: PlacementChoice[] = [];
-    const centerMaskCount = 1 << centerCandidates.length;
-
-    for (let centerMask = 0; centerMask < centerMaskCount; centerMask += 1) {
-      const center = centerCandidates.filter((_, index) => (centerMask & (1 << index)) !== 0);
-      if (requireCenter && center.length === 0) continue;
-      const centerKeys = new Set(center.map((card) => card.key));
-      const sideMovable = movable.filter((card) => !centerKeys.has(card.key));
-      const leftMaskCount = 1 << sideMovable.length;
-      for (let leftMask = 0; leftMask < leftMaskCount; leftMask += 1) {
-        const leftMovable = sideMovable.filter((_, index) => (leftMask & (1 << index)) !== 0);
-        const left = sortedCards([...fixedLeft, ...leftMovable]);
-        const leftKeysForMask = new Set(leftMovable.map((card) => card.key));
-        const right = sortedCards(sideMovable.filter((card) => !leftKeysForMask.has(card.key)));
-        placements.push({
-          left,
-          right,
-          center: sortedCards(center),
-          moved: new Set(left.filter((card) => !leftKeys.has(card.key)).map((card) => card.key)),
-        });
-      }
-    }
-    return placements;
-  }
-
-  function bestPlacement(
-    placements: readonly PlacementChoice[],
-    capacity: number,
-    rotationSlotHeight = 0,
-    failureHeight = 0,
-  ): PlacementChoice | null {
-    let best: PlacementChoice | null = null;
-    for (const placement of placements) {
-      if (best == null || comparePlacements(placement, best, capacity, rotationSlotHeight, failureHeight) < 0) best = placement;
-    }
-    return best;
-  }
-
   function buildCandidates(variants: VariantSelection): CardCandidate[] {
     return cardKeys.filter((key) => !fixtureRemovedKeys.includes(key)).map((key) => {
       const order = cardKeys.indexOf(key);
@@ -2289,213 +1939,53 @@
         variant,
         naturalHeight: measuredHeight(key, variant),
         centerNaturalHeight: measuredHeight(key, variant, "center"),
+        measurements: {
+          compact: { naturalHeight: measuredHeight(key, "compact"), centerNaturalHeight: measuredHeight(key, "compact", "center") },
+          expanded: { naturalHeight: measuredHeight(key, "expanded"), centerNaturalHeight: measuredHeight(key, "expanded", "center") },
+          full: { naturalHeight: measuredHeight(key, "full"), centerNaturalHeight: measuredHeight(key, "full", "center") },
+        },
+        maxRegionRows: key === "quake" || key === "weather" ? maxRegionRows(key) : 0,
       };
     });
-  }
-
-  const leftKeys = new Set<CardKey>(["tsunami", "quake"]);
-  const centerEligibleKeys = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
-  const rotationReverseOrder: CardKey[] = ["heat", "volcano", "typhoon", "flood", "weather"];
-
-  function emptyPlacement(): PlacementChoice {
-    return { left: [], right: [], center: [], moved: new Set<CardKey>() };
-  }
-
-  function placementFits(choice: PlacementChoice | null, capacity: number, rotationSlotHeight = 0, failureHeight = 0): boolean {
-    return choice != null && placementTotalOverflow(choice, capacity, rotationSlotHeight, failureHeight) === 0;
   }
 
   function rotationKeysInCanonicalOrder(keys: readonly CardKey[]): CardKey[] {
     return [...keys].sort((leftKey, rightKey) => cardKeys.indexOf(leftKey) - cardKeys.indexOf(rightKey));
   }
 
-  function compactRotationHeight(key: CardKey): number {
-    return measuredHeight(key, "compact");
-  }
-
-  function rotationSlotHeight(keys: readonly CardKey[]): number {
-    return Math.max(0, ...keys.map((key) => compactRotationHeight(key)));
-  }
-
-  function rotationCurrentKey(keys: readonly CardKey[]): CardKey | null {
-    const canonicalKeys = rotationKeysInCanonicalOrder(keys);
-    return canonicalKeys[0] ?? null;
-  }
-
-  interface RotationSolution {
-    placement: PlacementChoice;
-    rotationKeys: CardKey[];
-    currentKey: CardKey | null;
-    slotHeight: number;
-    failureCount: number;
-    layoutFailure: boolean;
-  }
-
-  function solveRotation(candidates: readonly CardCandidate[], capacity: number): RotationSolution {
-    const available = rotationReverseOrder.filter((key) => candidates.some((card) => card.key === key));
-    const displayedKeys: CardKey[] = [];
-    const failedKeys: CardKey[] = [];
-
-    function solveRemaining(): { placement: PlacementChoice | null; slotHeight: number; failureHeight: number } {
-      const excluded = new Set([...displayedKeys, ...failedKeys]);
-      const remaining = candidates.filter((card) => !excluded.has(card.key));
-      const slotHeight = rotationSlotHeight(displayedKeys);
-      const failureHeight = failedKeys.length > 0 ? measuredRotationFailureHeightPx : 0;
-      const placement = bestPlacement(
-        enumeratePlacements(remaining, new Set<CardKey>(), true, false),
-        capacity,
-        slotHeight,
-        failureHeight,
-      );
-      return { placement, slotHeight, failureHeight };
-    }
-
-    for (let pass = 0; pass < MAX_ROTATION_CANDIDATE_PASSES && displayedKeys.length + failedKeys.length < available.length; pass += 1) {
-      const nextKey = available.find((key) => !displayedKeys.includes(key) && !failedKeys.includes(key));
-      if (nextKey == null) break;
-      displayedKeys.push(nextKey);
-      const solved = solveRemaining();
-      if (placementFits(solved.placement, capacity, solved.slotHeight, solved.failureHeight)) {
-        const canonicalKeys = rotationKeysInCanonicalOrder(displayedKeys);
-        return {
-          placement: solved.placement ?? emptyPlacement(),
-          rotationKeys: canonicalKeys,
-          currentKey: rotationCurrentKey(canonicalKeys),
-          slotHeight: solved.slotHeight,
-          failureCount: failedKeys.length,
-          layoutFailure: false,
-        };
-      }
-    }
-
-    // 枠そのものが高すぎる場合は、輪番集合から最大 compact カードを外し、failure 行へ送る。
-    while (displayedKeys.length > 0) {
-      const solved = solveRemaining();
-      if (placementFits(solved.placement, capacity, solved.slotHeight, solved.failureHeight)) {
-        const canonicalKeys = rotationKeysInCanonicalOrder(displayedKeys);
-        return {
-          placement: solved.placement ?? emptyPlacement(),
-          rotationKeys: canonicalKeys,
-          currentKey: rotationCurrentKey(canonicalKeys),
-          slotHeight: solved.slotHeight,
-          failureCount: failedKeys.length,
-          layoutFailure: false,
-        };
-      }
-      const largestKey = displayedKeys
-        .slice()
-        .sort((leftKey, rightKey) => compactRotationHeight(rightKey) - compactRotationHeight(leftKey) || cardKeys.indexOf(rightKey) - cardKeys.indexOf(leftKey))[0];
-      displayedKeys.splice(displayedKeys.indexOf(largestKey), 1);
-      failedKeys.push(largestKey);
-    }
-
-    const solved = solveRemaining();
-    const canonicalKeys = rotationKeysInCanonicalOrder(displayedKeys);
+  function solverContext(plan: ColumnPlan | null = null): SolverContext {
+    const capacity = layoutCapacityPx();
     return {
-      placement: solved.placement ?? emptyPlacement(),
-      rotationKeys: canonicalKeys,
-      currentKey: rotationCurrentKey(canonicalKeys),
-      slotHeight: solved.slotHeight,
-      failureCount: failedKeys.length,
-      layoutFailure: !placementFits(solved.placement, capacity, solved.slotHeight, solved.failureHeight),
+      measuredHeight: (key, variant) => measuredHeight(key, variant),
+      measureSelection: (choice, selection) => ({
+        leftOverflowPx: selectedColumnHeight(choice.left, "left", selection) - capacity,
+        rightOverflowPx: placementSelectedRightHeight(
+          choice,
+          selection,
+          plan?.rotationSlotHeight ?? 0,
+          plan?.rotationFailureCount != null && plan.rotationFailureCount > 0 ? measuredRotationFailureHeightPx : 0,
+        ) - capacity,
+        centerOverflowPx: choice.center.length === 0 ? 0 : placementSelectedCenterHeight(choice, selection) - centerCapacityPx(),
+      }),
+      capacityPx: { left: capacity, right: capacity, center: centerCapacityPx() },
+      centerFixedHeightPx: centerFixedNaturalHeight(),
+      floodIsWide,
+      candidateSupplyLimit: candidateSupplyLimit(),
+      rotationSlotHeight: (keys) => Math.max(0, ...keys.map((key) => measuredHeight(key, "compact"))),
+      failureRowHeight: measuredRotationFailureHeightPx,
+      gapPx: columnGapPx(),
     };
   }
 
   function makeColumnPlan(): ColumnPlan {
-    const capacity = layoutCapacityPx();
     const requestedLadder = stageFixtureOverride ?? ladderOverride;
-    const emptyForced = new Set<CardKey>();
     const fullVariants: VariantSelection = { quake: "compact", weather: "compact", typhoon: "full" };
-    const fullCandidates = buildCandidates(fullVariants);
-    const fullSide = bestPlacement(enumeratePlacements(fullCandidates, emptyForced, false, false), capacity);
-    let variants = fullVariants;
-    let candidates = fullCandidates;
-    let sidePlacement = fullSide;
-
-    // A の入力は常に compact baseline。full 台風で左右が成立しなければ compact 台風で一度だけ再試行する。
-    if (!placementFits(fullSide, capacity)) {
-      variants = { ...fullVariants, typhoon: "compact" };
-      candidates = buildCandidates(variants);
-      sidePlacement = bestPlacement(enumeratePlacements(candidates, emptyForced, false, false), capacity);
-    }
-
-    const auto = requestedLadder == null;
-    const floor = auto ? settleFloorStage : requestedLadder ?? 0;
-    let selected = sidePlacement ?? emptyPlacement();
-    let stage: LadderStage = 0;
-    let rotationKeys: CardKey[] = [];
-    let rotationCurrent: CardKey | null = null;
-    let rotationHeight = 0;
-    let rotationFailureCount = 0;
-    let layoutFailure = false;
-    const sideFits = placementFits(sidePlacement, capacity);
-
-    if (floor === 0 && (sideFits || !auto)) {
-      stage = 0;
-    } else {
-      const centerPlacement = bestPlacement(enumeratePlacements(candidates, emptyForced, true, true), capacity);
-      const centerFits = placementFits(centerPlacement, capacity);
-      if (floor <= 1 && (centerFits || !auto || floor === 1)) {
-        selected = centerPlacement ?? selected;
-        stage = 1;
-        if (auto && !centerFits) stage = 2;
-      } else if (floor <= 2) {
-        selected = centerPlacement ?? selected;
-        stage = 2;
-        if (auto && !centerFits) {
-          const rotation = solveRotation(candidates, capacity);
-          selected = rotation.placement;
-          rotationKeys = rotation.rotationKeys;
-          rotationCurrent = rotation.currentKey;
-          rotationHeight = rotation.slotHeight;
-          rotationFailureCount = rotation.failureCount;
-          layoutFailure = rotation.layoutFailure;
-          stage = 3;
-        }
-      } else {
-        const rotation = solveRotation(candidates, capacity);
-        selected = rotation.placement;
-        rotationKeys = rotation.rotationKeys;
-        rotationCurrent = rotation.currentKey;
-        rotationHeight = rotation.slotHeight;
-        rotationFailureCount = rotation.failureCount;
-        layoutFailure = rotation.layoutFailure;
-        stage = 3;
-      }
-    }
-
-    if (requestedLadder === 1) stage = 1;
-    if (requestedLadder === 2) stage = 2;
-    if (requestedLadder === 3) {
-      const rotation = solveRotation(candidates, capacity);
-      selected = rotation.placement;
-      rotationKeys = rotation.rotationKeys;
-      rotationCurrent = rotation.currentKey;
-      rotationHeight = rotation.slotHeight;
-      rotationFailureCount = rotation.failureCount;
-      layoutFailure = rotation.layoutFailure;
-      stage = 3;
-    }
-
-    const centerUnresolved = selected.center.length > 0 && centerNaturalHeight(selected.center) > centerCapacityPx();
-    const sideUnresolved = columnNaturalHeight(selected.left) > capacity
-      || rightNaturalHeight(selected.right, rotationHeight, rotationFailureCount > 0 ? measuredRotationFailureHeightPx : 0) > capacity;
-    const unresolved = layoutFailure || sideUnresolved || centerUnresolved;
-    return {
-      left: selected.left,
-      right: selected.right,
-      center: selected.center,
-      moved: selected.moved,
-      unresolved,
-      centerUnresolved,
-      stage,
-      variants,
-      rotationKeys,
-      rotationCurrentKey: rotationCurrent,
-      rotationSlotHeight: rotationHeight,
-      rotationFailureCount,
-      layoutFailure,
-    };
+    return solveColumnPlan({
+      candidates: buildCandidates(fullVariants),
+      ctx: solverContext(),
+      floorStage: settleFloorStage,
+      requestedLadder,
+    });
   }
 
   const baselinePlan = $derived(makeColumnPlan());
@@ -2623,50 +2113,8 @@
     return total;
   }
 
-  function selectionFits(plan: ColumnPlan, selection: DisplaySelection): boolean {
-    return selectedColumnHeight(plan.left, "left", selection) <= layoutCapacityPx()
-      && selectedRightHeight(plan, selection) <= layoutCapacityPx()
-      && (plan.center.length === 0 || selectedCenterHeight(plan, selection) <= centerCapacityPx());
-  }
-
   function promoteAndExpand(plan: ColumnPlan): DisplaySelection {
-    let selection: DisplaySelection = {
-      typhoon: plan.variants.typhoon,
-      floodWide: false,
-      quakeRows: 0,
-      weatherRows: 0,
-    };
-
-    // §4 の compact 昇格は canonical order で固定。配置・stage は変えない。
-    for (const key of ["flood", "typhoon"] as const) {
-      const placement = cardPlacement(plan, key);
-      if (placement == null || plan.rotationKeys.includes(key)) continue;
-      if (key === "flood" && floodIsWide && placement !== "center") {
-        const promoted = { ...selection, floodWide: true };
-        if (selectionFits(plan, promoted)) selection = promoted;
-      }
-      if (key === "typhoon" && selection.typhoon === "compact") {
-        const promoted = { ...selection, typhoon: "full" as const };
-        if (selectionFits(plan, promoted)) selection = promoted;
-      }
-    }
-
-    for (const key of ["quake", "weather"] as const) {
-      if (plan.rotationKeys.includes(key)) continue;
-      const maxRows = maxRegionRows(key);
-      // 非単調な prefix 高に備え、全 prefix を評価して fit する最大値を採る (spec v9)
-      let best = 0;
-      for (let regionRows = 1; regionRows <= maxRows; regionRows += 1) {
-        const promoted = key === "quake"
-          ? { ...selection, quakeRows: regionRows }
-          : { ...selection, weatherRows: regionRows };
-        if (selectionFits(plan, promoted)) best = regionRows;
-      }
-      if (best > 0) {
-        selection = key === "quake" ? { ...selection, quakeRows: best } : { ...selection, weatherRows: best };
-      }
-    }
-    return selection;
+    return solvePromoteAndExpand(plan, solverContext(plan));
   }
 
   const contentSelection = $derived.by(() => promoteAndExpand(layoutPlan));
@@ -2938,16 +2386,14 @@
     });
   });
 
-  const placementSurplusUse = $derived.by(() => achievableSurplusUse(
+  const placementSurplusUse = $derived.by(() => solveAchievableSurplusUse(
     {
       left: layoutPlan.left,
       right: layoutPlan.right,
       center: layoutPlan.center,
       moved: layoutPlan.moved,
     },
-    layoutCapacityPx(),
-    layoutPlan.rotationSlotHeight,
-    layoutPlan.rotationFailureCount > 0 ? measuredRotationFailureHeightPx : 0,
+    solverContext(layoutPlan),
   ));
 
   const schedulerState = $derived.by(() => {

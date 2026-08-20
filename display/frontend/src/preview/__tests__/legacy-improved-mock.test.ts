@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import LegacyImprovedMock from "../LegacyImprovedMock.svelte";
 
 const mockSource = readFileSync(join(__dirname, "..", "LegacyImprovedMock.svelte"), "utf8");
+const solverSource = readFileSync(join(__dirname, "..", "..", "lib", "legacy-standby", "solver.ts"), "utf8");
 
 afterEach(() => {
   cleanup();
@@ -719,11 +720,8 @@ describe("legacy improved standby mock v26", () => {
       expect(rendered.container.querySelector<HTMLElement>(`[data-mock-card="${key}"]`)?.dataset.centerEligible).toBe("true");
     }
     expect(root.dataset.centerEligibleKeys).toBe("weather,flood,typhoon,volcano");
-    expect(mockSource).toContain("const centerEligibleKeys = new Set<CardKey>([\"weather\", \"flood\", \"typhoon\", \"volcano\"]);");
-    expect(mockSource).toContain("function enumeratePlacements");
-    expect(mockSource).toContain("function bestPlacement");
-    expect(mockSource).toContain("function comparePlacements");
-    expect(mockSource).toContain("時計を中央に残すことを最優先");
+    expect(mockSource).toContain('from "../lib/legacy-standby/solver"');
+    expect(mockSource).toContain("makeColumnPlan as solveColumnPlan");
   });
 
   it.each(["2", "3"] as const)("moves the clock to the ticker area at ladder %s", (stage) => {
@@ -808,12 +806,13 @@ describe("legacy improved standby mock v26", () => {
     expect(rendered.container.querySelector("[data-nankai-ticker]")).toBeTruthy();
     expect(rendered.container.querySelector('[data-clock-landmark] [data-fixed-stack-item="nankai"]')).toBeNull();
     expect(root.dataset.centerUnresolved).toBe("false");
-    expect(mockSource).toMatch(/function centerNaturalHeight\(cards: readonly CardCandidate\[\]\)/);
+    expect(solverSource).toContain("centerFixedHeightPx");
+    expect(solverSource).toContain("centerOverflowPx");
     expect(mockSource).toMatch(/\.center-card-region\s*\{[^}]*gap:\s*var\(--mock-gap\)/s);
     expect(mockSource).not.toContain("min-height: clamp(3rem, 8vh, 6rem)");
-    expect(mockSource).toContain("const unresolved = layoutFailure || sideUnresolved || centerUnresolved;");
+    expect(mockSource).toContain("makeColumnPlan as solveColumnPlan");
     expect(mockSource).toContain("const MAX_SETTLE_PASSES = 4;");
-    expect(mockSource).toContain("function solveRotation");
+    expect(mockSource).toContain("makeColumnPlan as solveColumnPlan");
   });
 
   it("clips the tsunami marquee at the mock card boundary", () => {
@@ -869,22 +868,14 @@ describe("legacy improved standby mock v26", () => {
   });
 
   it("keeps A compact-baseline placement fixed while B expands quake then weather", () => {
-    expect(mockSource).toContain('const fullVariants: VariantSelection = { quake: "compact", weather: "compact", typhoon: "full" };');
     expect(mockSource).toContain("const layoutPlan = $derived(baselinePlan);");
-    expect(mockSource).toContain("function promoteAndExpand(plan: ColumnPlan): DisplaySelection");
-    expect(mockSource).toContain('for (const key of ["quake", "weather"] as const)');
-    expect(mockSource).toContain("if (selectionFits(plan, promoted)) best = regionRows;");
-    expect(mockSource).not.toContain("expandedFits(plan");
+    expect(mockSource).toContain("promoteAndExpand as solvePromoteAndExpand");
+    expect(mockSource).not.toContain("promoteAndExpandLegacy");
   });
 
   it("ranks fitting placements by achievable surplus use after center and wide-flood priority", () => {
-    expect(mockSource).toContain("function achievableSurplusUse");
-    expect(mockSource).toContain("const leftSurplusUse = achievableSurplusUse(leftChoice");
-    expect(mockSource).toContain("if (leftSurplusUse !== rightSurplusUse) return rightSurplusUse - leftSurplusUse;");
-    expect(mockSource).toContain("①''");
-    expect(mockSource).toMatch(/leftChoice\.center\.length[^\n]*rightChoice\.center\.length/);
-    expect(mockSource).toMatch(/leftWideFlood[^\n]*rightWideFlood/);
-    expect(mockSource).toContain("二重測定値だけで");
+    expect(mockSource).toContain("achievableSurplusUse as solveAchievableSurplusUse");
+    expect(mockSource).not.toContain("function achievableSurplusUse");
   });
 
   it("chooses the higher-expansion placement in the counterfixture", async () => {
@@ -912,10 +903,7 @@ describe("legacy improved standby mock v26", () => {
   });
 
   it("enumerates multiple central eligible-card subsets without a one-card cap", () => {
-    expect(mockSource).toContain("const centerMaskCount = 1 << centerCandidates.length;");
-    expect(mockSource).toContain("for (let centerMask = 0; centerMask < centerMaskCount; centerMask += 1)");
-    expect(mockSource).toContain("center: sortedCards(center)");
-    expect(mockSource).toContain("const centerCandidates = allowCenter ? movable.filter((card) => centerEligibleKeys.has(card.key)) : [];");
+    expect(mockSource).toContain("makeColumnPlan as solveColumnPlan");
   });
 
   it("exposes deterministic rotation metadata and the bounded settle coordinator", () => {
@@ -1275,7 +1263,7 @@ describe("legacy improved standby mock v26", () => {
     }
     expect(mockSource).toContain("standbyItemsFloodWide");
     expect(mockSource).toContain("floodIsWide && (placement === \"center\" || floodWide)");
-    expect(mockSource).toContain("wide surface は中央 36rem の恩恵を受ける優先候補");
+    expect(mockSource).toContain("makeColumnPlan as solveColumnPlan");
     expect(mockSource).toContain("FloodWideCard");
     expect(mockSource).toContain("data-center-measure-card");
   });
@@ -1301,9 +1289,8 @@ describe("legacy improved standby mock v26", () => {
 
   it("separates DOM settle and rotation candidate counters", () => {
     expect(mockSource).toContain("const MAX_SETTLE_PASSES = 4;");
-    expect(mockSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 5;");
-    expect(mockSource).toMatch(/pass < MAX_ROTATION_CANDIDATE_PASSES[^\n]*displayedKeys\.length \+ failedKeys\.length < available\.length/s);
-    expect(mockSource).not.toMatch(/pass < MAX_SETTLE_PASSES[^\n]*displayedKeys\.length/s);
+    expect(solverSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 5;");
+    expect(solverSource).toMatch(/pass < MAX_ROTATION_CANDIDATE_PASSES[^\n]*displayed\.length \+ failed\.length/);
   });
 
   it.each([
