@@ -109,8 +109,16 @@
   // standby outro の反転で overlay が残る不整合を防ぐ (onDestroy 依存だけだと outro 中の反転で
   // destroy されず残る)。bind:this は outro 中も生存し、mode が standby を離れた瞬間に呼べる。
   let standbyRef = $state<{ closeQuakeCard: () => void } | null>(null);
+  // StandbyScreen が測定・ソルバ後の stage を唯一決める。App は ticker 内時計の
+  // 所有だけを受け持ち、中央時計との排他をこの値で配線する。
+  let standbyStage = $state<0 | 1 | 2 | 3>(0);
   $effect(() => {
-    if (mode !== "standby") untrack(() => standbyRef?.closeQuakeCard());
+    if (mode !== "standby") untrack(() => {
+      // An outgoing standby layer may survive for its outro. Reset ownership
+      // now so a later standby entry always starts with the central clock.
+      standbyStage = 0;
+      standbyRef?.closeQuakeCard();
+    });
   });
 
   // 津波 snapshot の世代。更新 (updatedAtMs 変化) と解除 (null 化) の両方で単調増加させ、Ticker が
@@ -197,6 +205,7 @@
           dim={effectiveDim}
           sseConnected={connection.state.sseConnected}
           onTsunamiReplay={replayTsunami}
+          onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }}
         />
       </div>
     {:else if mode === "quakeMap" && quakeMapEvent != null}
@@ -224,7 +233,7 @@
     <Ticker
       bind:this={tickerApi}
       lines={displayTickerLines}
-      now={mode === "emergency" ? clock.now : null}
+      now={mode === "emergency" || (mode === "standby" && standbyStage >= 1) ? clock.now : null}
       tickerGeneration={connection.state.tickerGeneration}
       tsunamiGeneration={tsunamiGeneration}
       dim={effectiveDim}

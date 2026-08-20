@@ -27,7 +27,8 @@
   import TickerLane from "./TickerLane.svelte";
 
   // 親 Ticker が全体スケジューラを持ち、2 レーンへ優先度で割り当てる (spec §4-2)。固定ハッシュ分配は廃止。
-  // now: 緊急画面ではテロップ右端に時計を組み込むため渡される。待機画面では null。
+  // now: 緊急画面と、時計を退避した standby stage 1 以降ではテロップ右端に時計を組み込む。
+  // stage の権威は StandbyScreen にあり、App が同じ stage 確定で排他配線する。
   // tickerGeneration: snapshot 由来の ticker 全差し替え回数。変化でスケジューラ reset (§6)。
   // onJobComplete: 1 つの job の最終 run を完走した (= idle 化した) 瞬間に、その job の eventKey を渡して
   //   1 回呼ぶ (Tips フィラーの deck 送り用、spec 2026-07-13 フィラー化)。発火 generation が現行と一致し、

@@ -23,7 +23,9 @@
   .time {
     font-family: var(--font-num);
     font-weight: var(--type-display-weight);
-    font-size: var(--type-clock-hero);
+    /* StandbyScreen の中央クラスタは inline-size container。時計はカード幅でなく
+       中央 36rem track に追従し、秒を含めた一行を保つ。 */
+    font-size: clamp(72px, 16cqw, 160px);
     letter-spacing: 0;
     line-height: 1;
     font-variant-numeric: tabular-nums;
@@ -36,7 +38,7 @@
     margin-left: 0.12em;
   }
   .date {
-    font-size: var(--type-headline-s-fluid);
+    font-size: clamp(16px, 3.7cqw, 26px);
     color: var(--role-muted);
     letter-spacing: 0.12em;
     margin-top: clamp(6px, 1.2vw, 16px);

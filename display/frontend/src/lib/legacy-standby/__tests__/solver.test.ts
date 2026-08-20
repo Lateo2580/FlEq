@@ -126,6 +126,34 @@ describe("legacy standby solver", () => {
     expect(makeColumnPlan({ candidates, ctx, floorStage: 0, requestedLadder: null }).stage).toBe(0);
   });
 
+  it("settles stage 1, explicit compressed stage 2, and stage 3 from measured card heights", () => {
+    const candidates = [card("quake", 0, 60), card("weather", 1, 80), card("volcano", 2, 80), card("heat", 3, 80)];
+    const stage1Ctx = { ...context(() => 0), capacityPx: { left: 100, right: 100, center: 200 } };
+    expect(makeColumnPlan({ candidates, ctx: stage1Ctx, floorStage: 0, requestedLadder: null }).stage).toBe(1);
+    expect(makeColumnPlan({ candidates, ctx: stage1Ctx, floorStage: 0, requestedLadder: 2 }).stage).toBe(2);
+    const stage3Ctx = { ...context(() => 0), capacityPx: { left: 60, right: 60, center: 60 }, rotationSlotHeight: () => 40 };
+    expect(makeColumnPlan({ candidates, ctx: stage3Ctx, floorStage: 0, requestedLadder: null }).stage).toBe(3);
+  });
+
+  it("uses compact typhoon measurements before escalating the ladder", () => {
+    const typhoon: CardCandidate = {
+      ...card("typhoon", 1, 120),
+      measurements: {
+        full: { naturalHeight: 120, centerNaturalHeight: 120 },
+        compact: { naturalHeight: 35, centerNaturalHeight: 35 },
+      },
+    };
+    const plan = makeColumnPlan({
+      candidates: [card("quake", 0, 60), card("weather", 1, 60), { ...typhoon, order: 2 }],
+      ctx: { ...context(() => 0), capacityPx: { left: 60, right: 95, center: 60 } },
+      floorStage: 0,
+      requestedLadder: null,
+    });
+    expect(plan.variants.typhoon).toBe("compact");
+    expect(plan.stage).toBe(0);
+    expect([...plan.left, ...plan.right, ...plan.center].some((entry) => entry.key === "typhoon")).toBe(true);
+  });
+
   it("reports omitted rotation cards through the failure row", () => {
     const candidates = [card("quake", 0, 110), card("weather", 1, 20), card("heat", 2, 80)];
     const ctx = { ...context(() => 0), failureRowHeight: 20, rotationSlotHeight: (keys: readonly CardCandidate["key"][]) => keys.length === 0 ? 0 : 80 };

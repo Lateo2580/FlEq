@@ -1,625 +1,727 @@
 <script lang="ts">
-  import type {
-    DisplayStateSnapshotV1,
-    DisplayTsunamiStateV1,
-    DisplayLatestQuakeStateV1,
-    DisplayRecentQuakeV1,
-    DisplayTsunamiLevel,
-    ActiveStandbyCardV1,
-  } from "../lib/protocol";
-  import { onDestroy, untrack } from "svelte";
-  import { flip } from "svelte/animate";
-  import { fade } from "svelte/transition";
+  import { flushSync, onDestroy, onMount, tick, untrack } from "svelte";
+  import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayStateSnapshotV1, DisplayTsunamiLevel } from "../lib/protocol";
   import { recentQuakeId } from "../lib/format";
+  import { resolveWeatherKindKeys } from "../lib/weather-expanded-kinds";
+  import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
+  import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
+  import { createEpochCoordinator, type EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
+  import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
-  import RecentQuakes from "./RecentQuakes.svelte";
-  import QuakeReplayCard from "./QuakeReplayCard.svelte";
   import ConnectionBadge from "./ConnectionBadge.svelte";
-  import TsunamiStandbyBanner from "./TsunamiStandbyBanner.svelte";
-  import WeatherAlertCard from "./WeatherAlertCard.svelte";
-  import LatestQuakeCard from "./LatestQuakeCard.svelte";
-  import InstrumentRow from "./InstrumentRow.svelte";
-  import HeatAlertCard from "./HeatAlertCard.svelte";
-  import TyphoonCard from "./TyphoonCard.svelte";
-  import VolcanoCard from "./VolcanoCard.svelte";
   import FloodCard from "./FloodCard.svelte";
   import FloodWideCard from "./FloodWideCard.svelte";
-  import StandbyOverflowSummary from "./StandbyOverflowSummary.svelte";
+  import HeatAlertCard from "./HeatAlertCard.svelte";
+  import InstrumentRow from "./InstrumentRow.svelte";
+  import LatestQuakeCard from "./LatestQuakeCard.svelte";
   import NankaiBadge from "./NankaiBadge.svelte";
-  import {
-    partitionStandbyItems,
-    rightStackBudgetPx,
-    selectRightStackWithTyphoonCompact,
-    type RightStackDisplayMode,
-  } from "../lib/standby-cards";
-  import { applyMeasurements, heightEstimator, pruneMeasurements, type MeasureMap } from "../lib/standby-measure";
-  import { SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut, SPRING_LINEARS } from "../lib/motion";
-  import { spatialScaleIn } from "../lib/transitions";
-  import { measureBorderHeight, borderBoxHeightOf } from "../lib/measure-height";
+  import QuakeReplayCard from "./QuakeReplayCard.svelte";
+  import RecentQuakes from "./RecentQuakes.svelte";
+  import TsunamiStandbyBanner from "./TsunamiStandbyBanner.svelte";
+  import TyphoonCard from "./TyphoonCard.svelte";
+  import VolcanoCard from "./VolcanoCard.svelte";
+  import WeatherAlertCard from "./WeatherAlertCard.svelte";
 
-  // onTsunamiReplay: 津波チップクリックでその種別のテロップ再生を App へ委譲する (2026-07-14)。
-  let { snapshot, now, dim, sseConnected, onTsunamiReplay }: {
+  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
     sseConnected: boolean;
     onTsunamiReplay?: (level: DisplayTsunamiLevel) => void;
+    onStageChange?: (stage: LadderStage) => void;
+    /** Test-only deterministic geometry injection; never supplied by App. */
+    testMeasurementOverride?: Partial<Record<string, number>>;
   } = $props();
 
-  // 地震履歴クリックで再表示する詳細カード overlay の所有者 (設計 v2 確定事項 5)。selectedRecentQuake が
-  // null でなければ overlay を出す。サーバ状態 / deriveMode には一切影響させない (フロントローカル)。
-  // 選択は安定 ID (recentQuakeId、index 非依存) で持ち、snapshot 更新に追従する (Codex 指摘2)。
+  export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
+  export function closeQuakeCard(): void { clearCloseTimer(); selectedRecentQuake = null; selectedId = null; }
+
+  const coordinator = createEpochCoordinator();
+  const MAX_SETTLE_PASSES = 4;
+  // Layout changes are deliberately non-animated in U3; keep the shared
+  // motion token as the hand-off point for U6 rather than a local duration.
+  const layoutMotionDuration = SPRING_SPATIAL_DEFAULT_MS;
+  const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough"]);
+  const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
+  const MAX_PREFIX_ROWS = 128;
   const QUAKE_CARD_AUTO_CLOSE_MS = 20_000;
+  type Placement = "left" | "right" | "center";
+  type PrefixPlacement = "side" | "center";
+  type MeasureId = `${CardKey}:${CardVariant}:${Placement}`;
+  type PrefixCardKey = "quake" | "weather";
+  interface PrefixTail { kindKey: string; omittedAreaCount: number }
+  interface PrefixMeasureEntry {
+    id: string;
+    key: PrefixCardKey;
+    placement: PrefixPlacement;
+    start: number;
+    end: number;
+    tails: PrefixTail[];
+  }
+
   let selectedRecentQuake = $state<DisplayRecentQuakeV1 | null>(null);
   let selectedId = $state<string | null>(null);
-  // タイマーは世代管理して stale クローズを防ぐ (差し替え・即クローズで前タイマーの発火を無効化する)。
-  let closeGen = 0;
   let closeTimer: ReturnType<typeof setTimeout> | null = null;
+  let closeGen = 0;
+  let standbyEl = $state<HTMLElement | null>(null);
+  let layoutEl = $state<HTMLElement | null>(null);
+  let nankaiEl = $state<HTMLElement | null>(null);
+  let failureMeasureEl = $state<HTMLElement | null>(null);
+  let statsMeasureEl = $state<HTMLElement | null>(null);
+  let recentMeasureEl = $state<HTMLElement | null>(null);
+  let connectionMeasureEl = $state<HTMLElement | null>(null);
+  let baselineGapMeasureEl = $state<HTMLElement | null>(null);
+  let clockFaceEl = $state<HTMLElement | null>(null);
+  let measureNodes = new Map<MeasureId, HTMLElement>();
+  let prefixMeasureNodes = new Map<string, HTMLElement>();
+  let measurements = $state<Record<string, number>>({});
+  let prefixMeasurements = $state<Record<string, number>>({});
+  let prefixMeasureEntries = $state<PrefixMeasureEntry[]>([]);
+  let layoutWidthPx = $state(0);
+  let layoutHeightPx = $state(0);
+  let nankaiHeightPx = $state(0);
+  let statsHeightPx = $state(0);
+  let recentHeightPx = $state(0);
+  let connectionHeightPx = $state(0);
+  let clusterGapPx = $state(0);
+  let clusterFlowHeightPx = $state(0);
+  let gapPx = $state(12);
+  let baselineGapPx = $state(12);
+  let measurementPass = $state(0);
+  let measurementReadCount = $state(0);
+  let measurementSettled = $state(false);
+  let measurementNonConverged = $state(false);
+  let epoch = $state(0);
+  let epochKey = $state("0");
+  let floorStage = $state<LadderStage>(0);
+  let committedStage = $state<LadderStage>(0);
+  let committedPlan = $state<ColumnPlan | null>(null);
+  let committedSelection = $state<DisplaySelection | null>(null);
+  let contentDemotionRequested = false;
+  let settling = false;
+  let settleRequested = false;
+  let disposed = false;
+  let lastInputKey = "";
+  let lastContentKey = "";
+  let fontsReady = typeof document === "undefined" || document.fonts == null;
 
   function clearCloseTimer(): void {
-    closeGen += 1; // 進行中タイマーが遅れて発火しても世代不一致で no-op になる
-    if (closeTimer != null) {
-      clearTimeout(closeTimer);
-      closeTimer = null;
-    }
+    closeGen += 1;
+    if (closeTimer != null) clearTimeout(closeTimer);
+    closeTimer = null;
   }
-
-  // 外部 (App) からも呼べる公開クローズ。emergency 遷移開始時に App が明示的に閉じ、standby outro の
-  // 反転で overlay が戻る不整合を防ぐ (Codex 指摘5。onDestroy 依存だけだと outro 中の反転で destroy
-  // されず残る)。
-  export function closeQuakeCard(): void {
-    clearCloseTimer();
-    selectedRecentQuake = null;
-    selectedId = null;
-  }
-
-  function scheduleAutoClose(): void {
-    clearCloseTimer();
-    const gen = closeGen;
-    closeTimer = setTimeout(() => {
-      closeTimer = null;
-      if (gen === closeGen) closeQuakeCard();
-    }, QUAKE_CARD_AUTO_CLOSE_MS);
-  }
-
   function selectRecentQuake(quake: DisplayRecentQuakeV1, id: string): void {
-    if (selectedId === id) {
-      closeQuakeCard(); // 同じ項目の再クリックは即クローズ (トグル)
-      return;
-    }
-    selectedRecentQuake = quake; // 別項目は差し替え + タイマーリセット
+    if (selectedId === id) return closeQuakeCard();
+    clearCloseTimer();
+    selectedRecentQuake = quake;
     selectedId = id;
-    scheduleAutoClose();
+    const generation = closeGen;
+    closeTimer = setTimeout(() => { if (generation === closeGen) closeQuakeCard(); }, QUAKE_CARD_AUTO_CLOSE_MS);
   }
-
-  // snapshot.recentQuakes 更新への追従 (Codex 指摘2)。選択中の地震が新リストに居れば最新 DTO へ差し替え
-  // (訂正報反映)、居なくなれば閉じる (5 件押し出しで消えた地震の overlay を残さない)。DTO 差し替えでは
-  // タイマーをリセットせず残存時間を維持する (ユーザーが開いた瞬間からの 20 秒を守る)。
   $effect(() => {
     const list = snapshot.recentQuakes;
     untrack(() => {
       if (selectedId == null) return;
-      const matches = list.filter((q) => recentQuakeId(q) === selectedId);
-      // 一意でない (0 件=消えた / 2 件以上=ID 衝突) ときは追従を諦めて閉じる。誤った先頭 find で
-      // 別の地震を出すより安全 (レビュー再検証)。eventId が途中付与されると ID が変わり 0 件化して
-      // 閉じるが、これはサーバ系列 ID 供給 (残課題) までの許容挙動。
-      if (matches.length !== 1) {
-        closeQuakeCard();
-        return;
-      }
-      const fresh = matches[0]!;
-      if (fresh !== selectedRecentQuake) {
-        selectedRecentQuake = fresh; // 最新版へ差し替え (タイマーは維持)
-      }
+      const matches = list.filter((quake) => recentQuakeId(quake) === selectedId);
+      if (matches.length !== 1) closeQuakeCard();
+      else selectedRecentQuake = matches[0]!;
     });
   });
 
-  // emergency 遷移 (StandbyScreen unmount) でタイマーが残留しないよう確実に止める (二重防御。主経路は
-  // App が closeQuakeCard を明示呼び出しする)。
-  onDestroy(() => clearCloseTimer());
-
-  // prefers-reduced-motion を購読する (TickerLane.svelte の既存パターンを踏襲)。
-  // matchMedia 未実装環境 (一部テスト環境) ではスキップし、通常の duration のまま動かす。
-  let reducedMotion = $state(
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
-  );
-  $effect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    reducedMotion = mq.matches;
-    const onChange = (e: MediaQueryListEvent): void => {
-      reducedMotion = e.matches;
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+  const standbyItems = $derived(snapshot.standbyItems ?? []);
+  const unknownInputs = $derived(standbyItems.filter((item) => !KNOWN_KINDS.has(item.kind)));
+  const knownItems = $derived(standbyItems.filter((item) => KNOWN_KINDS.has(item.kind)));
+  const itemOf = <K extends ActiveStandbyCardV1["kind"]>(kind: K): Extract<ActiveStandbyCardV1, { kind: K }> | null =>
+    (knownItems.find((item) => item.kind === kind) as Extract<ActiveStandbyCardV1, { kind: K }> | undefined) ?? null;
+  const tornadoItem = $derived(itemOf("tornado"));
+  const longPeriodItem = $derived(itemOf("longPeriod"));
+  const floodItem = $derived(itemOf("flood"));
+  const typhoonItem = $derived(itemOf("typhoon"));
+  const volcanoItem = $derived(itemOf("volcano"));
+  const heatItem = $derived(itemOf("heat"));
+  const nankaiItem = $derived(itemOf("nankaiTrough"));
+  const hasWeather = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
+  const hasQuake = $derived(snapshot.latestQuake != null || selectedRecentQuake != null);
+  const connectionVisible = $derived(!sseConnected || snapshot.connection.dmdata === "disconnected");
+  const weatherItemKindKeys = $derived.by(() => {
+    const items = snapshot.weatherAlerts.flatMap((alert) => alert.items);
+    const keys = resolveWeatherKindKeys(items);
+    return new Map(items.map((item, index) => [item, keys[index]! ]));
   });
-  const flipDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
-  const enterDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
-  const exitDur = $derived(reducedMotion ? 0 : EXIT_MS); // 消失感を出さない短い fade
+  function expandedWeatherAreas(item: DisplayStateSnapshotV1["weatherAlerts"][number]["items"][number]): string[] {
+    const kindKey = weatherItemKindKeys.get(item) ?? resolveWeatherKindKeys([item])[0]!;
+    return snapshot.weatherExpandedKinds?.find((kind) => kind.kindKey === kindKey)?.areas ?? item.shownAreas;
+  }
+  function weatherKindKey(item: DisplayStateSnapshotV1["weatherAlerts"][number]["items"][number]): string {
+    return weatherItemKindKeys.get(item) ?? resolveWeatherKindKeys([item])[0]!;
+  }
+  function weatherTotalAreaCount(item: DisplayStateSnapshotV1["weatherAlerts"][number]["items"][number]): number {
+    const expanded = snapshot.weatherExpandedKinds?.find((kind) => kind.kindKey === weatherKindKey(item));
+    return expanded?.totalAreaCount ?? Math.max(item.shownAreas.length + item.omittedAreaCount, expandedWeatherAreas(item).length);
+  }
 
-  // 左上コーナーの表示アイテムを keyed 配列で導出する (animate:flip の並べ替え検出用)。
-  // 履歴クリックの詳細カード (replay) は「普通に地震情報を受信したときと同じ位置」= LatestQuakeCard の
-  // スロットに出す (実機フィードバック 2026-07-14)。選択中は replay がそのスロットを占有し LatestQuakeCard
-  // は隠れる (別スロットに二重表示しない)。閉じると LatestQuakeCard に戻る。
-  //
-  // 重要: 地震スロットは replay/latest を跨いで同一 key "quake-slot" にする (増分レビュー)。
-  // 別 key にすると切替時に旧カードが outro 完了 (~200ms) まで残り、新旧 2 枚が同時に
-  // corner-left へ積まれて排他占有が視覚的に破れる。同一 key なら外側の corner-item 要素は生死を
-  // またがず (outro なし)、内側のコンポーネントだけ即時差し替わる。スロット全体が現れる/消えるとき
-  // (地震情報が無い⇔ある) だけ従来どおり in/out する。
-  type QuakeSlotPayload =
-    | { replay: DisplayRecentQuakeV1; quake: null }
-    | { replay: null; quake: DisplayLatestQuakeStateV1 };
-  type CornerItem =
-    | { key: "tsunami"; tsunami: DisplayTsunamiStateV1 }
-    | ({ key: "quake-slot" } & QuakeSlotPayload);
-  const quakeSlot = $derived<CornerItem | null>(
-    selectedRecentQuake != null
-      ? { key: "quake-slot", replay: selectedRecentQuake, quake: null }
-      : snapshot.latestQuake != null
-        ? { key: "quake-slot", replay: null, quake: snapshot.latestQuake }
-        : null,
-  );
-  const leftStack = $derived<CornerItem[]>([
-    ...(snapshot.tsunami != null ? [{ key: "tsunami", tsunami: snapshot.tsunami } as const] : []),
-    ...(quakeSlot != null ? [quakeSlot] : []),
-  ]);
-  const standbyPartitions = $derived(partitionStandbyItems(snapshot.standbyItems ?? []));
-  const floodItem = $derived(
-    standbyPartitions.cornerRight.find((item) => item.kind === "flood")
-      ?? standbyPartitions.clockTopWide.find((item) => item.kind === "flood")
-      ?? null,
-  );
-  const floodSlot = $derived(floodItem == null ? [] : [floodItem]);
-  let floodHeightPx = $state(0);
-  const floodCornerOffsetPx = $derived(floodItem?.surface === "corner-right" ? floodHeightPx + 12 : 0);
-  const tornadoItem = $derived(standbyPartitions.weatherRider.find((item) => item.kind === "tornado") as Extract<ActiveStandbyCardV1, { kind: "tornado" }> | undefined ?? null);
-  let standbyHeightPx = $state(640);
-  let weatherHeightPx = $state(0);
-  const hasWeatherCard = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
-  const measuredWeatherHeightPx = $derived(hasWeatherCard ? (weatherHeightPx > 0 ? weatherHeightPx : 280) : 0);
-  // 気象警報カードを右上の最上位に保つ (spec §4)。洪水スロットは気象カードの直下に絶対配置し、
-  // corner-right のスタック側には同じ高さのスペーサーを置いて流し込みの整合を取る
-  const weatherFloodOffsetPx = $derived(
-    floodItem?.surface === "corner-right" && hasWeatherCard ? measuredWeatherHeightPx + 12 : 0,
-  );
-  const rightBudgetPx = $derived(rightStackBudgetPx(standbyHeightPx, measuredWeatherHeightPx, floodCornerOffsetPx, 12));
-  // ── measurement shelf (spec 2026-07-23 standby-right-stack T1): 全候補を非表示棚で常時実測し、
-  // 全候補が現在版で計測済みになったら選抜入力を見積り→実測へ一括切替する。
-  // 固定見積り (typhoon=240 等) は棚の初回計測が届くまでの暫定値 (実高 ~120px の 1 エントリ台風カードが
-  // 恒久 overflow になる実機不具合の根治)
-  const rightCandidates = $derived(standbyPartitions.cornerRight.filter((item) => item.kind !== "flood"));
-  const compactCandidates = $derived(rightCandidates.filter((item) => item.kind === "typhoon"));
-  let cardHeights = $state<MeasureMap>(new Map());
-  let compactCardHeights = $state<MeasureMap>(new Map());
-  const shelfMeta = new WeakMap<Element, { key: string; version: string; mode: RightStackDisplayMode }>();
-  // 棚全体で 1 つの Observer を共有し、callback 1 回につき immutable 一括反映 (混在誤選抜の防止)
-  const shelfObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver((entries) => {
-    const updates = entries.flatMap((entry) => {
-      const meta = shelfMeta.get(entry.target);
-      return meta == null ? [] : [{ key: meta.key, version: meta.version, mode: meta.mode, height: borderBoxHeightOf(entry) }];
-    });
-    const fullUpdates = updates.filter((update) => update.mode === "full");
-    const compactUpdates = updates.filter((update) => update.mode === "compact");
-    if (fullUpdates.length > 0) cardHeights = applyMeasurements(cardHeights, fullUpdates);
-    if (compactUpdates.length > 0) compactCardHeights = applyMeasurements(compactCardHeights, compactUpdates);
-  });
-  function shelfMeasure(node: HTMLElement, meta: { key: string; version: string; mode: RightStackDisplayMode }) {
-    shelfMeta.set(node, meta);
-    shelfObserver?.observe(node);
+  function quakeWithSelection(rows: number): DisplayLatestQuakeStateV1 | null {
+    const quake = snapshot.latestQuake;
+    if (quake == null || rows <= 0) return quake;
+    let remaining = rows;
     return {
-      update(next: { key: string; version: string; mode: RightStackDisplayMode }) {
-        shelfMeta.set(node, next);
-        // 版が変わっても高さ同一だと ResizeObserver は再発火せず、旧版の計測が残って
-        // 一括切替ゲートが成立しなくなる → re-observe で初回通知を強制する (plan レビュー R1)
-        shelfObserver?.unobserve(node);
-        shelfObserver?.observe(node);
-      },
-      destroy() {
-        shelfObserver?.unobserve(node);
-      },
+      ...quake,
+      intensityGroups: quake.intensityGroups.map((group) => {
+        const source = group.expandedAreas ?? group.areas;
+        const extra = Math.min(remaining, Math.max(0, source.length - group.areas.length));
+        remaining -= extra;
+        const areas = source.slice(0, group.areas.length + extra);
+        const total = Math.max(group.areas.length + group.omittedAreaCount, source.length);
+        return { ...group, areas, omittedAreaCount: Math.max(0, total - areas.length) };
+      }),
     };
   }
-  $effect(() => {
-    // pruneMeasurements は削除なしのとき同一参照を返す契約 → 参照が変わったときだけ代入し
-    // effect の自己再実行ループを防ぐ (cardHeights は untrack で読む)
-    const pruned = pruneMeasurements(untrack(() => cardHeights), rightCandidates);
-    if (pruned !== untrack(() => cardHeights)) cardHeights = pruned;
-    const compactPruned = pruneMeasurements(untrack(() => compactCardHeights), compactCandidates);
-    if (compactPruned !== untrack(() => compactCardHeights)) compactCardHeights = compactPruned;
+  function weatherWithSelection(rows: number) {
+    if (rows <= 0) return snapshot.weatherAlerts;
+    let remaining = rows;
+    return snapshot.weatherAlerts.map((alert) => ({
+      ...alert,
+      items: alert.items.map((item) => {
+        const source = expandedWeatherAreas(item);
+        const extra = Math.min(remaining, Math.max(0, source.length - item.shownAreas.length));
+        remaining -= extra;
+        const shownAreas = source.slice(0, item.shownAreas.length + extra);
+        return { ...item, shownAreas, omittedAreaCount: Math.max(0, weatherTotalAreaCount(item) - shownAreas.length) };
+      }),
+    }));
+  }
+  function prefixTails(key: PrefixCardKey, rows: number): PrefixTail[] {
+    if (key === "quake") {
+      return (quakeWithSelection(rows)?.intensityGroups ?? []).flatMap((group, index) => group.omittedAreaCount > 0
+        ? [{ kindKey: `${index}:${group.intensity}`, omittedAreaCount: group.omittedAreaCount }]
+        : []);
+    }
+    return weatherWithSelection(rows).flatMap((alert) => alert.items.flatMap((item) => item.omittedAreaCount > 0
+      ? [{ kindKey: weatherKindKey(item), omittedAreaCount: item.omittedAreaCount }]
+      : []));
+  }
+  function prefixTailSignature(tails: readonly PrefixTail[]): string {
+    return tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
+  }
+  function prefixMeasureId(key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[]): string {
+    const omitted = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
+    const tailPart = tails.length === 0 ? "" : `:omitted:${omitted}:tails:${prefixTailSignature(tails)}`;
+    return `${key}:page:${start}:${end}${tailPart}:placement:${placement}`;
+  }
+  function prefixHeight(key: PrefixCardKey, rows: number, placement: Placement): number | null {
+    const tails = prefixTails(key, rows);
+    // The left and right columns share one shelf and width.  Keep their B
+    // cache entries identical too; only the center needs its own geometry.
+    const measurePlacement: PrefixPlacement = placement === "center" ? "center" : "side";
+    const id = prefixMeasureId(key, measurePlacement, 0, rows, tails);
+    const cached = prefixMeasurements[id];
+    if (cached != null) return cached;
+    // The first render precedes the mount/input effect that opens epoch 1.
+    // Defer registration so probes cannot manufacture a synthetic epoch 0
+    // that consumes one of the four bounded settle passes.
+    if (epoch === 0) return null;
+    coordinator.enqueueProbe(id, () => {
+      if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
+      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: rows, tails }];
+    });
+    return null;
+  }
+
+  function defaultHeight(key: CardKey, variant: CardVariant): number {
+    if (key === "tsunami") return 112;
+    if (key === "quake") return variant === "expanded" ? 260 : 184;
+    if (key === "weather") return variant === "expanded" ? 270 : 178;
+    if (key === "typhoon") return variant === "full" ? 240 : 120;
+    if (key === "heat") return 150;
+    return 150;
+  }
+  function measureId(key: CardKey, variant: CardVariant, placement: Placement): MeasureId { return `${key}:${variant}:${placement}`; }
+  function measured(key: CardKey, variant: CardVariant, placement: Placement): number {
+    return measurements[measureId(key, variant, placement)] ?? defaultHeight(key, variant);
+  }
+  function captureMeasure(node: HTMLElement, id: MeasureId) {
+    measureNodes.set(id, node);
+    let current = id;
+    return { update(next: MeasureId) { measureNodes.delete(current); current = next; measureNodes.set(current, node); }, destroy() { measureNodes.delete(current); } };
+  }
+  function capturePrefixMeasure(node: HTMLElement, id: string) {
+    prefixMeasureNodes.set(id, node);
+    let current = id;
+    return { update(next: string) { prefixMeasureNodes.delete(current); current = next; prefixMeasureNodes.set(current, node); }, destroy() { prefixMeasureNodes.delete(current); } };
+  }
+  function candidatePresent(key: CardKey): boolean {
+    return key === "tsunami" ? snapshot.tsunami != null
+      : key === "quake" ? hasQuake
+      : key === "weather" ? hasWeather
+      : key === "flood" ? floodItem != null
+      : key === "typhoon" ? typhoonItem != null
+      : key === "volcano" ? volcanoItem != null
+      : heatItem != null;
+  }
+  function candidates(): CardCandidate[] {
+    return CARD_ORDER.filter(candidatePresent).map((key, order) => ({
+      key, order, score: CARD_ORDER.length - order,
+      variant: key === "typhoon" ? "full" : "compact",
+      naturalHeight: measured(key, key === "typhoon" ? "full" : "compact", "right"),
+      centerNaturalHeight: measured(key, key === "typhoon" ? "full" : "compact", "center"),
+      measurements: {
+        compact: { naturalHeight: measured(key, "compact", "right"), centerNaturalHeight: measured(key, "compact", "center") },
+        expanded: { naturalHeight: measured(key, "expanded", "right"), centerNaturalHeight: measured(key, "expanded", "center") },
+        full: { naturalHeight: measured(key, "full", "right"), centerNaturalHeight: measured(key, "full", "center") },
+      },
+      maxRegionRows: key === "quake"
+        ? Math.min(MAX_PREFIX_ROWS, snapshot.latestQuake?.intensityGroups.reduce((total, group) =>
+          total + Math.max(0, (group.expandedAreas?.length ?? group.areas.length) - group.areas.length), 0) ?? 0)
+        : key === "weather"
+          ? Math.min(MAX_PREFIX_ROWS, snapshot.weatherAlerts.reduce((total, alert) => total + alert.items.reduce((itemTotal, item) => {
+            return itemTotal + Math.max(0, expandedWeatherAreas(item).length - item.shownAreas.length);
+          }, 0), 0))
+          : 0,
+    }));
+  }
+  const fixedCenterItemCount = $derived((connectionVisible ? 1 : 0) + (snapshot.stats == null ? 0 : 1) + (snapshot.recentQuakes.length === 0 ? 0 : 1));
+  const fixedCenterContentHeight = $derived(
+    (connectionVisible ? connectionHeightPx : 0)
+      + (snapshot.stats == null ? 0 : statsHeightPx)
+      + (snapshot.recentQuakes.length === 0 ? 0 : recentHeightPx),
+  );
+  const fixedCenterHeight = $derived(fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * gapPx);
+  // jsdom and the initial pre-layout pass report a zero rect. Until the first
+  // synchronous read has a real screen-area size, retain all cards rather
+  // than manufacture a stage-3 overflow from that transient zero.
+  const capacity = $derived(layoutHeightPx === 0 ? 10_000 : Math.max(0, layoutHeightPx - nankaiHeightPx));
+  function selectedHeight(cards: readonly CardCandidate[], placement: Placement, selection: DisplaySelection, measureGap = gapPx): number | null {
+    const measurementPlacement = placement === "center" ? "center" : "right";
+    let total = Math.max(0, cards.length - 1) * measureGap;
+    for (const card of cards) {
+      const rows = card.key === "quake" ? selection.quakeRows : card.key === "weather" ? selection.weatherRows : 0;
+      const height = rows > 0 && (card.key === "quake" || card.key === "weather")
+        ? prefixHeight(card.key, rows, placement)
+        : measured(card.key, selectedVariant(card.key, selection), measurementPlacement);
+      if (height == null) return null;
+      total += height;
+    }
+    return total;
+  }
+  function naturalColumnHeight(cards: readonly CardCandidate[]): number {
+    return cards.reduce((total, card) => total + card.naturalHeight, 0) + Math.max(0, cards.length - 1) * gapPx;
+  }
+  function centerHeight(choice: PlacementChoice, selection: DisplaySelection, measureGap = gapPx): number {
+    const fixed = fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * measureGap;
+    const selected = selectedHeight(choice.center, "center", selection, measureGap);
+    return (selected ?? Number.POSITIVE_INFINITY) + fixed + (choice.center.length > 0 && fixedCenterItemCount > 0 ? measureGap : 0);
+  }
+  function solverContext(plan: ColumnPlan | null = null, capacityLimit = capacity, measureGap = gapPx): SolverContext {
+    const rotationReserve = plan == null ? 0
+      : (plan.rotationSlotHeight > 0 ? (plan.right.length > 0 ? measureGap : 0) + plan.rotationSlotHeight : 0)
+        + (plan.rotationFailureCount > 0 ? measureGap + (failureMeasureEl?.getBoundingClientRect().height ?? 28) : 0);
+    return {
+      measuredHeight: (key, variant) => measured(key, variant, "right"),
+      measureSelection: (choice, selection) => {
+        const leftHeight = selectedHeight(choice.left, "left", selection, measureGap);
+        const rightHeight = selectedHeight(choice.right, "right", selection, measureGap);
+        const selectedCenterHeight = choice.center.length === 0 ? 0 : centerHeight(choice, selection, measureGap);
+        if (leftHeight == null || rightHeight == null || !Number.isFinite(selectedCenterHeight)) return null;
+        return {
+          leftOverflowPx: leftHeight - capacityLimit,
+          // promoteAndExpand receives this context after stage 3 is fixed.  Its
+          // surplus decision must retain the rotation slot and failure notice.
+          rightOverflowPx: rightHeight + rotationReserve - capacityLimit,
+          centerOverflowPx: selectedCenterHeight - capacityLimit,
+        };
+      },
+      capacityPx: { left: capacityLimit, right: capacityLimit, center: capacityLimit },
+      centerFixedHeightPx: fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * measureGap,
+      floodIsWide: floodItem?.surface === "clock-top-wide",
+      candidateSupplyLimit: MAX_PREFIX_ROWS,
+      rotationSlotHeight: (keys) => Math.max(0, ...keys.map((key) => measured(key, "compact", "right"))),
+      failureRowHeight: failureMeasureEl?.getBoundingClientRect().height ?? 28,
+      gapPx: measureGap,
+    };
+  }
+  function compressedGap(): number {
+    // Mirror the compressed rule from the independently measured baseline gap
+    // before the compressed CSS class itself is drawn.
+    return Math.min(10, Math.max(4, baselineGapPx * 0.6));
+  }
+  function automaticPlan(capacityLimit: number): ColumnPlan {
+    const baseline = makeColumnPlan({ candidates: candidates(), ctx: solverContext(null, capacityLimit, baselineGapPx), floorStage: 0, requestedLadder: null });
+    if (baseline.stage !== 3) return baseline;
+    const compressedMeasureGap = compressedGap();
+    const compressed = makeColumnPlan({
+      candidates: candidates(),
+      ctx: solverContext(null, capacityLimit, compressedMeasureGap),
+      floorStage: 2,
+      requestedLadder: null,
+    });
+    return compressed.stage === 2 && !compressed.unresolved ? compressed : baseline;
+  }
+  function solvePlan(solveFloor: LadderStage, capacityLimit = capacity): ColumnPlan {
+    const automatic = automaticPlan(capacityLimit);
+    if (automatic.stage >= solveFloor) return automatic;
+    const retainedGap = solveFloor >= 2 ? compressedGap() : baselineGapPx;
+    return makeColumnPlan({
+      candidates: candidates(),
+      ctx: solverContext(null, capacityLimit, retainedGap),
+      floorStage: solveFloor,
+      requestedLadder: solveFloor,
+    });
+  }
+  const plan = $derived.by(() => solvePlan(floorStage));
+  const selection = $derived.by(() => promoteAndExpand(plan, solverContext(plan)));
+  const stage = $derived(plan.stage);
+  // A solver epoch may revise placement several times while measurements and
+  // prefix probes converge.  The visible grid stays on this last complete
+  // snapshot until the next result has settled, so center ownership and card
+  // placement cannot be observed from different plans in one frame.
+  const initialRenderPlan = $derived.by((): ColumnPlan => ({
+    ...plan,
+    stage: 0,
+    // Before the first measurement result commits, retain the conventional
+    // clock-centered layout and keep cards out of the unowned center column.
+    right: [...plan.right, ...plan.center],
+    center: [],
+    rotationKeys: [],
+    rotationCurrentKey: null,
+    rotationSlotHeight: 0,
+    rotationFailureCount: 0,
+  }));
+  const renderPlan = $derived(committedPlan ?? initialRenderPlan);
+  const renderSelection = $derived(committedSelection ?? selection);
+  const renderStage = $derived(committedPlan?.stage ?? initialRenderPlan.stage);
+  function selectedVariant(key: CardKey, selected: DisplaySelection): CardVariant {
+    if (key === "typhoon") return selected.typhoon;
+    // The flood "expanded" shelf is the wide placement form.  It is a local
+    // measurement variant, so B can price the post-promotion card directly.
+    if (key === "flood" && selected.floodWide) return "expanded";
+    if (key === "quake" && selected.quakeRows > 0) return "expanded";
+    if (key === "weather" && selected.weatherRows > 0) return "expanded";
+    return "compact";
+  }
+  const displayVariant = (card: CardCandidate): CardVariant => selectedVariant(card.key, renderSelection);
+  const rotationItem = $derived(renderPlan.rotationCurrentKey == null ? null : candidates().find((candidate) => candidate.key === renderPlan.rotationCurrentKey) ?? null);
+  const expandedCounts = $derived.by(() => {
+    const quake = quakeWithSelection(renderSelection.quakeRows);
+    const weatherByKind: Record<string, { count: number; n: number }> = {};
+    for (const alert of weatherWithSelection(renderSelection.weatherRows)) {
+      for (const item of alert.items) {
+        const previous = weatherByKind[item.kind] ?? { count: 0, n: 0 };
+        weatherByKind[item.kind] = {
+          count: previous.count + item.shownAreas.length,
+          n: previous.n + item.omittedAreaCount,
+        };
+      }
+    }
+    return JSON.stringify({
+      quake: {
+        count: quake?.intensityGroups.reduce((total, group) => total + group.areas.length, 0) ?? 0,
+        n: quake?.intensityGroups.reduce((total, group) => total + group.omittedAreaCount, 0) ?? 0,
+      },
+      weather: weatherByKind,
+    });
   });
-  const fallbackCardHeight = (item: ActiveStandbyCardV1): number => {
-    if (item.kind === "heat") return 160;
-    // 台風は 1 件ごとに full の detail grid が増える。初回 ResizeObserver 前も件数に追随し、
-    // 3 件併記を 1 件相当の固定値で選抜して一時クリップする窓を作らない。
-    if (item.kind === "typhoon") return 48 + item.data.typhoons.length * 112;
-    return 240;
-  };
-  const fallbackCompactHeight = (item: ActiveStandbyCardV1): number =>
-    item.kind === "typhoon" ? 48 + item.data.typhoons.length * 46 : fallbackCardHeight(item);
-  const rightStack = $derived(selectRightStackWithTyphoonCompact(
-    rightCandidates,
-    rightBudgetPx,
-    (item, mode) => mode === "compact"
-      ? heightEstimator(compactCardHeights, compactCandidates, fallbackCompactHeight)(item)
-      : heightEstimator(cardHeights, rightCandidates, fallbackCardHeight)(item),
-    32,
-    standbyPartitions.unknown.length > 0,
-    12,
-  ));
-  const rightOverflow = $derived([...rightStack.overflow, ...standbyPartitions.unknown]);
-  const longPeriodItem = $derived(standbyPartitions.quakeRider.find((item) => item.kind === "longPeriod" && item.data.eventId === snapshot.latestQuake?.eventId) as Extract<ActiveStandbyCardV1, { kind: "longPeriod" }> | undefined ?? null);
-  const nankaiItem = $derived(standbyPartitions.clockBelow.find((item) => item.kind === "nankaiTrough") as Extract<ActiveStandbyCardV1, { kind: "nankaiTrough" }> | undefined ?? null);
-
-  // 時計ブロック (切断バッジ + 時刻 + 日付) の実測高さの半分 (px)。時計は .clock-row が
-  // top:50% 中央配置なので、その「実下端」= 50% + 高さ/2。統計行の帯はこの実下端から始める
-  // (帯上端を素の 50% にすると時計の下半分＝日付行が帯に食い込み、統計行が日付に重なる。
-  // Chrome 実測 2026-07-12 で検出した回帰の修正)。時計サイズは min(14vw,25vh) 等で可変な
-  // ため px 直値では追えず、measureBorderHeight (既存 ResizeObserver action) で実測して
-  // CSS var 経由で calc に渡す。jsdom は ResizeObserver 未実装で 0 のまま (帯上端は 50% に退避)。
-  let clockHalfPx = $state(0);
-
-  // 統計行 (計器列) は「地震カード有無」で縦位置が変わる:
-  //  - カード無し: 領域 [時計ブロック下端, テロップ上端] の中央に置く
-  //  - カード有り: 領域 [時計ブロック下端, カード上端] の中央に置く (カードは従来どおり最下段)
-  // どちらも .instrument-slot (flex:1) の垂直中央寄せで実現するため、状態遷移では
-  // flex の再配分が起きて要素が瞬間移動する。これを FLIP (First-Last-Invert-Play) で
-  // 滑らかに繋ぐ。svelte の animate:flip は keyed each の並べ替え専用で単独要素の
-  // 兄弟出現には反応しないため、$effect.pre で遷移前 top を測り $effect で遷移後 top
-  // との差を WAAPI translateY アニメに乗せる。easing/duration は spatial spring トークン
-  // (SPRING_LINEARS/SPRING_SPATIAL_DEFAULT_MS) を流用し、新規時間定数は作らない。
-  const hasCard = $derived(snapshot.recentQuakes.length > 0);
-  let instrumentEl = $state<HTMLElement | null>(null);
-  let flipReady = false; // 初回マウント時は演出しない (位置差の無い初期描画)
-  let flipFirstTop = 0;
-  // 走行中の FLIP アニメのハンドル。短時間にカード状態が往復すると、走行中の transform が
-  // $effect.pre の計測に混ざって揺れ・アニメ蓄積を起こすため、次回計測前と unmount 時に
-  // cancel() する (レビュー Minor)。計測は cancel 後 (transform 除去後) に行う。
-  let flipAnim: Animation | null = null;
-
-  $effect.pre(() => {
-    hasCard; // カード有無の切替を購読 (これが縦位置を変える唯一の入力)
-    if (instrumentEl == null) return;
-    flipAnim?.cancel(); // 走行中アニメを止め、計測に in-flight transform を混ぜない
-    flipAnim = null;
-    flipFirstTop = instrumentEl.getBoundingClientRect().top;
+  const renderFloodForm = $derived.by(() => {
+    if (floodItem == null) return "none";
+    const placement = renderPlan.center.some((card) => card.key === "flood") ? "center" : "side";
+    return (placement === "center" && floodItem.surface === "clock-top-wide") || renderSelection.floodWide ? "wide" : "card";
   });
-  $effect(() => {
-    hasCard; // $effect.pre と同じ切替で発火させる
-    if (!flipReady) {
-      flipReady = true;
+  const renderSurplusUse = $derived.by(() => {
+    const typhoonWasCompact = [...renderPlan.left, ...renderPlan.right, ...renderPlan.center]
+      .find((card) => card.key === "typhoon")?.variant === "compact";
+    const floodInSide = !renderPlan.center.some((card) => card.key === "flood");
+    return renderSelection.quakeRows + renderSelection.weatherRows
+      + Number(typhoonWasCompact && renderSelection.typhoon === "full")
+      + Number(floodInSide && renderSelection.floodWide);
+  });
+  function snapshotPlan(source: ColumnPlan): ColumnPlan {
+    return { ...source, left: [...source.left], right: [...source.right], center: [...source.center], moved: new Set(source.moved), rotationKeys: [...source.rotationKeys] };
+  }
+
+  function readMeasurements(): void {
+    const next: Record<string, number> = {};
+    for (const [id, node] of measureNodes) next[id] = testMeasurementOverride?.[id] ?? Math.round(node.getBoundingClientRect().height);
+    const nextPrefixes = { ...prefixMeasurements };
+    for (const [id, node] of prefixMeasureNodes) {
+      const entry = prefixMeasureEntries.find((candidate) => candidate.id === id);
+      const genericOverride = entry == null ? undefined : testMeasurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
+      nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
+    }
+    const rect = layoutEl?.getBoundingClientRect();
+    const style = layoutEl == null ? null : getComputedStyle(layoutEl);
+    measurements = next;
+    prefixMeasurements = nextPrefixes;
+    layoutWidthPx = testMeasurementOverride?.layoutWidthPx ?? Math.round(rect?.width ?? 0);
+    layoutHeightPx = testMeasurementOverride?.layoutHeightPx ?? Math.round(rect?.height ?? 0);
+    nankaiHeightPx = testMeasurementOverride?.nankaiHeightPx ?? Math.round(nankaiEl?.getBoundingClientRect().height ?? 0);
+    statsHeightPx = testMeasurementOverride?.statsHeightPx ?? Math.round(statsMeasureEl?.getBoundingClientRect().height ?? 0);
+    recentHeightPx = testMeasurementOverride?.recentHeightPx ?? Math.round(recentMeasureEl?.getBoundingClientRect().height ?? 0);
+    connectionHeightPx = testMeasurementOverride?.connectionHeightPx ?? Math.round(connectionMeasureEl?.getBoundingClientRect().height ?? 0);
+    const clockRect = clockFaceEl?.getBoundingClientRect();
+    const nankaiRect = nankaiEl?.getBoundingClientRect();
+    const standbyRect = standbyEl?.getBoundingClientRect();
+    const boundaryTop = testMeasurementOverride?.boundaryTopPx ?? nankaiRect?.top ?? standbyRect?.bottom;
+    const clockBottom = testMeasurementOverride?.clockBottomPx ?? clockRect?.bottom;
+    const belowItemCount = (snapshot.stats == null ? 0 : 1) + (snapshot.recentQuakes.length === 0 ? 0 : 1);
+    const belowContentHeight = (snapshot.stats == null ? 0 : statsHeightPx) + (snapshot.recentQuakes.length === 0 ? 0 : recentHeightPx);
+    const freeLowerSpace = clockBottom == null || boundaryTop == null ? 0 : Math.max(0, Math.round(boundaryTop - clockBottom - belowContentHeight));
+    clusterGapPx = belowItemCount > 0 && freeLowerSpace > 0 ? Math.floor(freeLowerSpace / (belowItemCount + 1)) : 0;
+    clusterFlowHeightPx = belowItemCount > 0 ? belowContentHeight + Math.max(0, belowItemCount - 1) * clusterGapPx : 0;
+    gapPx = testMeasurementOverride?.gapPx ?? Math.max(0, Number.parseFloat(style?.rowGap ?? "12") || 12);
+    baselineGapPx = testMeasurementOverride?.baselineGapPx
+      ?? (Math.max(0, Math.round(baselineGapMeasureEl?.getBoundingClientRect().width ?? 0)) || 12);
+    measurementReadCount = measureNodes.size + prefixMeasureNodes.size + 8;
+    measurementPass += 1;
+  }
+  function signature(): string {
+    return [stage, capacity, nankaiHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+  }
+  async function settleMeasurements(): Promise<void> {
+    if (disposed || settling || !fontsReady) return;
+    settling = true;
+    settleRequested = false;
+    measurementSettled = false;
+    measurementNonConverged = false;
+    const activeEpoch = String(epoch);
+    epochKey = activeEpoch;
+    coordinator.begin(activeEpoch);
+    let previous = "";
+    let superseded = false;
+    for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
+      let probeSteps = 0;
+      const maxProbeSteps = MAX_PREFIX_ROWS * 2 + 1;
+      do {
+        await tick();
+        if (disposed) break;
+        readMeasurements();
+        if (contentDemotionRequested) {
+          const hysteresisCapacity = Math.max(0, capacity - baselineGapPx * 2 - 0.01);
+          const lowerPlan = solvePlan(0, hysteresisCapacity);
+          floorStage = lowerPlan.stage < committedStage ? lowerPlan.stage : committedStage;
+        }
+        coordinator.drainProbes();
+        await tick();
+        probeSteps += 1;
+      } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
+      if (disposed) break;
+      if (plan.stage > floorStage) floorStage = plan.stage;
+      const next = signature();
+      if (next === previous && !coordinator.hasPendingProbes()) {
+        if (coordinator.settle()) {
+          measurementSettled = true;
+          contentDemotionRequested = false;
+          const nextPlan = snapshotPlan(plan);
+          const nextSelection = { ...selection };
+          const firstCommit = committedPlan == null;
+          flushSync(() => {
+            const stageChanged = committedStage !== nextPlan.stage;
+            committedPlan = nextPlan;
+            committedSelection = nextSelection;
+            committedStage = nextPlan.stage;
+            if (firstCommit || stageChanged) onStageChange?.(committedStage);
+          });
+          break;
+        }
+        if (coordinator.epochKey() !== activeEpoch) { superseded = true; break; }
+      }
+      previous = next;
+    }
+    if (!measurementSettled && !disposed && !superseded) measurementNonConverged = true;
+    settling = false;
+    if (settleRequested && !disposed) {
+      settleRequested = false;
+      void settleMeasurements();
+    }
+  }
+  function requestSettle(): void {
+    epoch += 1;
+    epochKey = String(epoch);
+    coordinator.begin(epochKey);
+    measurementSettled = false;
+    prefixMeasurements = {};
+    prefixMeasureEntries = [];
+    if (settling) {
+      settleRequested = true;
       return;
     }
-    const el = instrumentEl;
-    if (el == null || reducedMotion) return; // reduced-motion では瞬時切替 (FLIP なし)
-    const dy = flipFirstTop - el.getBoundingClientRect().top;
-    if (Math.abs(dy) < 0.5) return; // 位置が動いていなければ何もしない
-    flipAnim = el.animate(
-      [{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }],
-      { duration: SPRING_SPATIAL_DEFAULT_MS, easing: SPRING_LINEARS["spring-spatial-default"] },
-    );
-    flipAnim.onfinish = () => {
-      flipAnim = null;
-    };
-  });
-  // unmount 時に走行中アニメを確実に停止する (ハンドルのリーク防止)
-  $effect(() => () => flipAnim?.cancel());
-
-  // 洪水スロットの surface 切替 (corner-right ⇔ clock-top-wide) は同一 key のまま class と
-  // absolute 座標だけが変わるため、animate: では補間できない (animate: は keyed each の並べ替え
-  // 専用 — 時計スライドと同じ理由)。手動 FLIP で位置だけ補間する。keyframe は transform でなく
-  // 独立 CSS translate プロパティを使い、.clock-top-slot の translateX(-50%) と自動合成させる
-  // (matrix 文字列合成は base に scale/rotate が加わると dx/dy が変形するため使わない)。
-  const floodSurface = $derived(floodItem?.surface ?? null);
-  let floodSlotEl = $state<HTMLElement | null>(null);
-  let floodFlipAnim: Animation | null = null;
-  let floodFlipFirst: DOMRect | null = null;
-  let prevFloodSurface: "corner-right" | "clock-top-wide" | null = null;
-
-  $effect.pre(() => {
-    const next = floodSurface;
-    if (floodSlotEl == null || prevFloodSurface == null || next == null || next === prevFloodSurface) return;
-    // 走行中 transform を含む「見えている位置」を先に読む。先に cancel すると要素が基底位置へ
-    // 戻り、次のアニメ開始点が飛ぶ
-    floodFlipFirst = floodSlotEl.getBoundingClientRect();
-    floodFlipAnim?.cancel();
-    floodFlipAnim = null;
-  });
+    void settleMeasurements();
+  }
   $effect(() => {
-    const next = floodSurface;
-    const el = floodSlotEl;
-    const first = floodFlipFirst;
-    floodFlipFirst = null;
-    const changed = prevFloodSurface != null && next != null && next !== prevFloodSurface;
-    prevFloodSurface = next;
-    // 初回 mount・null→surface・surface→null は in/out に任せて FLIP しない
-    if (!changed || el == null || first == null || reducedMotion) return;
-    const last = el.getBoundingClientRect();
-    const dx = first.left - last.left;
-    const dy = first.top - last.top;
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
-    const anim = el.animate(
-      [{ translate: `${dx}px ${dy}px` }, { translate: "0px 0px" }],
-      { duration: SPRING_SPATIAL_DEFAULT_MS, easing: SPRING_LINEARS["spring-spatial-default"] },
-    );
-    floodFlipAnim = anim;
-    anim.onfinish = () => {
-      if (floodFlipAnim === anim) floodFlipAnim = null;
-    };
-    anim.oncancel = () => {
-      if (floodFlipAnim === anim) floodFlipAnim = null;
-    };
+    const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", snapshot.standbyItems?.map((item) => `${item.kind}:${item.updatedAt}`).join(",") ?? "", snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
+    const input = [contentKey, sseConnected].join("|");
+    if (input !== lastInputKey) {
+      lastInputKey = input;
+      contentDemotionRequested = lastContentKey !== "" && contentKey !== lastContentKey;
+      lastContentKey = contentKey;
+      floorStage = committedStage;
+      requestSettle();
+    }
   });
-  $effect(() => () => floodFlipAnim?.cancel());
+  onMount(() => {
+    const onViewportResize = () => {
+      // A geometry-only epoch may promote, but must retain its committed
+      // stage.  Demotion is reserved for a content-changing epoch that clears
+      // the strict two-gap hysteresis margin.
+      contentDemotionRequested = false;
+      floorStage = committedStage;
+      requestSettle();
+    };
+    window.addEventListener("resize", onViewportResize);
+    void document.fonts?.ready?.then(() => { fontsReady = true; requestSettle(); });
+    // The reactive input effect normally opened epoch 1 before mount. Avoid
+    // manufacturing a second identical epoch solely because nodes attached.
+    if (epoch === 0) requestSettle();
+    return () => window.removeEventListener("resize", onViewportResize);
+  });
+  onDestroy(() => { disposed = true; clearCloseTimer(); coordinator.dispose(); });
+
 </script>
 
-<div class="standby" class:dim style="--clock-half: {clockHalfPx}px; --flood-corner-offset: {floodCornerOffsetPx}px; --weather-corner-offset: {weatherFloodOffsetPx}px" use:measureBorderHeight={(height) => (standbyHeightPx = height)}>
-  {#each floodSlot as item (item.key)}
-    <div
-      class="flood-slot"
-      class:flood-corner={item.surface === "corner-right"}
-      class:clock-top-slot={item.surface === "clock-top-wide"}
-      use:measureBorderHeight={(height) => (floodHeightPx = height)}
-      bind:this={floodSlotEl}
-    >
-      <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
-        {#if item.surface === "clock-top-wide"}
-          <FloodWideCard {item} />
-        {:else}
-          <FloodCard {item} />
-        {/if}
+{#snippet renderCard(key: CardKey, variant: CardVariant = "compact", placement: Placement = "right", measuring = false, selected: DisplaySelection = selection)}
+  {#if key === "tsunami" && snapshot.tsunami != null}
+    <TsunamiStandbyBanner tsunami={snapshot.tsunami} onReplayLevel={onTsunamiReplay} />
+  {:else if key === "quake" && selectedRecentQuake != null}
+    <QuakeReplayCard quake={selectedRecentQuake} onClose={closeQuakeCard} />
+  {:else if key === "quake" && snapshot.latestQuake != null}
+    <LatestQuakeCard quake={quakeWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "quake")?.maxRegionRows ?? 0 : 0) : selected.quakeRows) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
+  {:else if key === "weather"}
+    <WeatherAlertCard alerts={weatherWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0) : selected.weatherRows)} tornado={tornadoItem} />
+  {:else if key === "flood" && floodItem != null}
+    {#if (placement === "center" && floodItem.surface === "clock-top-wide") || (measuring ? variant === "expanded" : selected.floodWide)}<FloodWideCard item={floodItem} />{:else}<FloodCard item={floodItem} />{/if}
+  {:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />
+  {:else if key === "volcano" && volcanoItem != null}<VolcanoCard item={volcanoItem} />
+  {:else if key === "heat" && heatItem != null}<HeatAlertCard item={heatItem} />
+  {/if}
+{/snippet}
+
+{#snippet renderPrefixProbe(entry: PrefixMeasureEntry)}
+  {#if entry.key === "quake" && snapshot.latestQuake != null}
+    <LatestQuakeCard quake={quakeWithSelection(entry.end) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
+  {:else if entry.key === "weather"}
+    <WeatherAlertCard alerts={weatherWithSelection(entry.end)} tornado={tornadoItem} />
+  {/if}
+{/snippet}
+
+<div
+  bind:this={standbyEl}
+  class="standby" class:dim class:ladder-compressed={renderStage >= 2} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
+  data-ladder-stage={renderStage}
+  data-solver-stage={stage}
+  data-layout-unresolved={renderPlan.unresolved ? "true" : "false"}
+  data-measurement-settled={measurementSettled ? "true" : "false"}
+  data-measurement-nonconverged={measurementNonConverged ? "true" : "false"}
+  data-measurement-pass={measurementPass}
+  data-measurement-read-count={measurementReadCount}
+  data-layout-motion-duration={layoutMotionDuration}
+  data-measurement-epoch={epochKey}
+  data-suppressed-unknown-count={unknownInputs.length}
+  data-left-natural-height-px={naturalColumnHeight(renderPlan.left)}
+  data-right-natural-height-px={naturalColumnHeight(renderPlan.right) + (renderPlan.rotationSlotHeight > 0 ? gapPx + renderPlan.rotationSlotHeight : 0) + (renderPlan.rotationFailureCount > 0 ? gapPx + (failureMeasureEl?.getBoundingClientRect().height ?? 0) : 0)}
+  data-center-natural-height-px={renderPlan.center.reduce((total, card) => total + card.centerNaturalHeight, fixedCenterContentHeight) + Math.max(0, renderPlan.center.length + fixedCenterItemCount - 1) * gapPx}
+  data-left-capacity-px={capacity} data-right-capacity-px={capacity} data-center-capacity-px={capacity}
+  data-layout-height-px={layoutHeightPx} data-layout-width-px={layoutWidthPx} data-nankai-height-px={nankaiHeightPx}
+  data-rotation-keys={renderPlan.rotationKeys.join(",")} data-rotation-omitted-count={renderPlan.rotationFailureCount}
+  data-rotation-slot-height-px={renderPlan.rotationSlotHeight}
+  data-expanded-counts={expandedCounts}
+  data-prefix-probe-count={prefixMeasureEntries.length}
+  data-typhoon-variant={renderSelection.typhoon}
+  data-flood-form={renderFloodForm}
+  data-placement-left={renderPlan.left.map((card) => card.key).join(",")}
+  data-placement-right={renderPlan.right.map((card) => card.key).join(",")}
+  data-placement-center={renderPlan.center.map((card) => card.key).join(",")}
+  data-placement-surplus-use={renderSurplusUse}
+  data-outer-paging="none"
+>
+  <div class="measure-shelf" aria-hidden="true" inert>
+    {#each CARD_ORDER as key}
+      {#if candidatePresent(key)}
+        {#each ["compact", "expanded", "full"] as variant}
+          <div class="measure-item" data-measure-variant={variant} use:captureMeasure={measureId(key, variant as CardVariant, "right")}>{@render renderCard(key, variant as CardVariant, "right", true)}</div>
+        {/each}
+      {/if}
+    {/each}
+    {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+    {/each}
+  </div>
+  <div class="center-measure-shelf" aria-hidden="true" inert>
+    {#each CARD_ORDER as key}
+      {#if candidatePresent(key)}
+        {#each ["compact", "expanded", "full"] as variant}
+          <div class="measure-item" data-measure-variant={variant} use:captureMeasure={measureId(key, variant as CardVariant, "center")}>{@render renderCard(key, variant as CardVariant, "center", true)}</div>
+        {/each}
+      {/if}
+    {/each}
+    {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+    {/each}
+    {#if snapshot.stats != null}<div class="center-stack-card" bind:this={statsMeasureEl}><InstrumentRow stats={snapshot.stats} /></div>{/if}
+    {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card" bind:this={recentMeasureEl}><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
+  </div>
+  <div class="baseline-gap-measure" bind:this={baselineGapMeasureEl} aria-hidden="true"></div>
+  <div class="rotation-failure-measure" bind:this={failureMeasureEl} aria-hidden="true">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>
+
+  {#if renderStage === 0}
+    <section class="clock-landmark" data-clock-landmark aria-label="画面中央時計と中央クラスタ">
+      <div class="clock-wrap">{#if connectionVisible}<div class="clock-connection" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}<div class="clock-face" bind:this={clockFaceEl}><Clock {now} /></div>
+        <div class="clock-below">{#if snapshot.stats != null}<div class="instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}{#if snapshot.recentQuakes.length > 0}<div class="quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}</div>
       </div>
+    </section>
+  {/if}
+  <section class="legacy-layout" bind:this={layoutEl} aria-label="従来待機画面 改良">
+    <div class="side corner-left side-left" data-side="left">
+      {#each renderPlan.left as card (card.key)}<article class="legacy-card corner-item" class:tsunami-corner={card.key === "tsunami"} class:quake-corner={card.key === "quake"}>{@render renderCard(card.key, displayVariant(card), "left", false, renderSelection)}</article>{/each}
     </div>
-  {/each}
-  <div class="corner-right">
-    {#if snapshot.weatherAlerts.length > 0 || tornadoItem != null}
-      <div
-        class="weather-corner"
-        use:measureBorderHeight={(height) => (weatherHeightPx = height)}
-      >
-        <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}><WeatherAlertCard alerts={snapshot.weatherAlerts} tornado={tornadoItem} /></div>
-      </div>
+    {#if renderStage === 0}<div class="center-grid-spacer" aria-hidden="true"></div>{:else}
+      <section class="center-card-region center-landmark" data-side="center">
+        {#if connectionVisible}<div class="connection-stage-card" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
+        {#each renderPlan.center as card (card.key)}<article class="legacy-card">{@render renderCard(card.key, displayVariant(card), "center", false, renderSelection)}</article>{/each}
+        {#if snapshot.stats != null}<div class="center-stack-card instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}
+        {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
+      </section>
     {/if}
-    {#if floodCornerOffsetPx > 0}
-      <!-- 気象カード直下に絶対配置される洪水スロットの居場所 (flex 流し込みの整合用スペーサー) -->
-      <div class="flood-spacer" style="height: {floodHeightPx}px" aria-hidden="true"></div>
-    {/if}
-    {#each rightStack.visible as item (item.key)}
-      <div class="standby-corner">
-        <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
-          {@render rightCard(item, rightStack.displayModes.get(item.key) ?? "full")}
-        </div>
-      </div>
-    {/each}
-    <StandbyOverflowSummary items={rightOverflow} />
-  </div>
-  {#snippet rightCard(item: ActiveStandbyCardV1, displayMode: RightStackDisplayMode)}
-    {#if item.kind === "heat"}
-      <HeatAlertCard {item} />
-    {:else if item.kind === "typhoon"}
-      <TyphoonCard {item} {displayMode} />
-    {:else if item.kind === "volcano"}
-      <VolcanoCard {item} />
-    {/if}
-  {/snippet}
-  <!-- measurement shelf (spec T1): 本表示と同幅・非表示の計測棚。overflow 中の候補も常時実測する。
-       二層 slot 規約に従い棚には motion を載せない。.corner-right の overflow:hidden の外に置く -->
-  <div class="measure-shelf" inert aria-hidden="true">
-    {#each rightCandidates as item (item.key)}
-      <div class="measure-shelf-item" data-display-mode="full" use:shelfMeasure={{ key: item.key, version: item.updatedAt, mode: "full" }}>
-        {@render rightCard(item, "full")}
-      </div>
-    {/each}
-    {#each compactCandidates as item (item.key)}
-      <div class="measure-shelf-item" data-display-mode="compact" use:shelfMeasure={{ key: item.key, version: item.updatedAt, mode: "compact" }}>
-        {@render rightCard(item, "compact")}
-      </div>
-    {/each}
-  </div>
-  <div class="corner-left">
-    {#each leftStack as item (item.key)}
-      <div
-        class="corner-item"
-        class:tsunami-corner={item.key === "tsunami"}
-        class:quake-corner={item.key === "quake-slot"}
-        animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-      >
-        <div class="slot-motion" in:spatialScaleIn|global={{ duration: enterDur, start: 0.97 }} out:fade={{ duration: exitDur }}>
-          {#if item.key === "tsunami"}
-            <TsunamiStandbyBanner tsunami={item.tsunami} onReplayLevel={onTsunamiReplay} />
-          {:else if item.replay != null}
-            <!-- 同一 key スロットの内側差し替え。replay 選択中は replay を出し LatestQuakeCard は隠す -->
-            <QuakeReplayCard quake={item.replay} onClose={closeQuakeCard} />
-          {:else}
-            <LatestQuakeCard quake={item.quake} longPeriod={longPeriodItem == null ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
-          {/if}
-        </div>
-      </div>
-    {/each}
-  </div>
-  <div class="clock-row">
-    <div class="clock-stack" use:measureBorderHeight={(h) => (clockHalfPx = h / 2)}>
-      <ConnectionBadge connection={snapshot.connection} {sseConnected} />
-      <Clock {now} />
+    <div class="side corner-right side-right" data-side="right">
+      {#each renderPlan.right as card (card.key)}<article class="legacy-card" class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>{/each}
+      {#if renderStage === 3}<div class="rotation-slot" style:height={`${renderPlan.rotationSlotHeight}px`}>{#if rotationItem != null}{@render renderCard(rotationItem.key, "compact", "right", false, renderSelection)}{/if}</div>{#if renderPlan.rotationFailureCount > 0}<div class="rotation-failure">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>{/if}{/if}
     </div>
-  </div>
-  <div class="bottom-stack">
-    {#if nankaiItem != null}<div class="nankai-slot"><NankaiBadge item={nankaiItem} /></div>{/if}
-    <div class="instrument-slot">
-      <div class="instrument-row-wrap" bind:this={instrumentEl}>
-        <InstrumentRow stats={snapshot.stats} />
-      </div>
-    </div>
-    {#if snapshot.recentQuakes.length > 0}
-      <div class="quakes-card">
-        <RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} />
-      </div>
-    {/if}
-  </div>
+  </section>
+  {#if nankaiItem != null}<div class="nankai-ticker bottom-stack" bind:this={nankaiEl}><NankaiBadge item={nankaiItem} /></div>{/if}
 </div>
 
 <style>
-  .standby {
-    position: relative;
-    /* 親 (.screen-area) がテロップの高さを除いた領域を渡してくるので 100% を使う。
-       100vh にすると画面全高に固定されテロップの下へはみ出す */
-    width: 100%;
-    height: 100%;
-    padding: var(--space-12);
-    background: var(--bg);
-    transition: opacity var(--dur-standby-dim) ease;
-    /* corner-right カードの幅の真実源 (spec T1)。本表示と計測棚が同じ値を共有し、
-       折返し由来の実測高ズレを防ぐ。各カードの width はこの変数を参照する */
-    --standby-card-width: min(360px, 28vw);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .standby {
-      transition: none;
-    }
-  }
-  .corner-right {
-    position: absolute;
-    top: 24px;
-    right: 32px;
-    max-height: calc(100% - 48px);
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: var(--space-3);
-    overflow: hidden;
-  }
-  .standby-corner {
-    /* flex 圧縮による暗黙の高さ変動を封じる (実測選抜の前提、spec T4) */
-    flex-shrink: 0;
-  }
-  /* 計測棚 (spec T1): 本表示と同じ containing block 条件 + 同幅で、選抜前の全候補を隠し描画する */
-  .measure-shelf {
-    position: absolute;
-    top: 24px;
-    right: 32px;
-    visibility: hidden;
-    pointer-events: none;
-    z-index: -1;
-  }
-  .measure-shelf-item {
-    width: var(--standby-card-width);
-  }
-  /* 棚には motion を載せない規約の強制 (カード内マーキー等の子コンポーネント animation も含めて止める。
-     非表示棚で走る CPU の無駄と、計測タイミングへの干渉を防ぐ) */
-  .measure-shelf :global(*) {
-    animation: none !important;
-    transition: none !important;
-  }
-  .flood-slot {
-    z-index: 2;
-  }
-  .flood-spacer {
-    flex-shrink: 0;
-  }
-  .flood-corner {
-    position: absolute;
-    top: calc(24px + var(--weather-corner-offset, 0px));
-    right: 32px;
-  }
-  .clock-top-slot {
-    position: absolute;
-    left: 50%;
-    top: 24px;
-    transform: translateX(-50%);
-    /* 上端は左右カード (.corner-left/.corner-right) と同じ 24px。max-height は時計上端
-       (50% - 時計高さ/2) まで、さらに --space-6 のクリアランスを引いて時計と重ねない */
-    max-height: calc(50% - var(--clock-half, 0px) - 24px - var(--space-6));
-    overflow: hidden;
-  }
-  .corner-left {
-    position: absolute;
-    top: 24px;
-    left: 32px;
-    max-height: calc(100% - 48px);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    overflow: hidden;
-  }
-  /* 時計 (+切断通知) は画面の垂直方向でも中心に来るよう、下段コンテンツと独立に
-     絶対配置で中央固定する (下段の高さに引きずられて上寄りになっていた問題の修正) */
-  .clock-row {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-  .clock-stack {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  /* 下段は「時計ブロックの実下端 (50% + 時計高さ/2)」から「テロップ上端 (bottom:0)」までを
-     占める帯。--clock-half は clock-stack の実測 border-box 高さの半分 (px) を JS が渡す。
-     南海バッジ・統計行・地震カードの 3 要素を justify-content: space-evenly で並べ、
-     「時計下端 → 南海バッジ → 統計 → 地震カード → テロップ上端」の 4 区間を等間隔にする。
-     要素が減っても (南海バッジ無し・カード無し) space-evenly が自然に等間隔へ再配分する。
-     時計の下半分を帯に含めないので統計行が日付行に重ならない (px 直値を使わない)。 */
-  .bottom-stack {
-    position: absolute;
-    left: 24px;
-    right: 24px;
-    top: calc(50% + var(--clock-half, 0px));
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-evenly;
-  }
-  .nankai-slot {
-    flex: 0 0 auto;
-  }
-  /* 統計行を載せるスロット。space-evenly の分配対象なので自然サイズ (flex 伸長しない)。
-     overflow を切らないので統計行がクリップされない (可読性の安全側)。 */
-  .instrument-slot {
-    flex: 0 0 auto;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .instrument-row-wrap {
-    display: flex;
-    justify-content: center;
-    /* WAAPI FLIP が transform を書き換えるため、静止時の合成基準を明示しておく */
-    transform: translateY(0);
-  }
-  .quakes-card {
-    background: var(--surface-standby);
-    border-radius: var(--radius-standby);
-    border: 1px solid var(--hairline);
-    box-shadow: var(--elevation-2);
-    padding: var(--space-4) var(--space-7);
-    width: min(600px, calc(100% - 48px));
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-  .quakes-card::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* 寝室仕様の減光: 全体 0.35 で時計を暗く沈める。時計以外のカード類は子 0.7 を
-     重ねて親 0.35 × 子 0.7 = 実効約 0.25 とし、内容が読み取れる可読性を保つ。 */
-  .standby.dim {
-    opacity: 0.35;
-  }
+  .standby { --base-edge: clamp(14px, 2.5vw, 48px); --base-gap: clamp(8px, 1vw, 18px); --compressed-edge: clamp(10px, 1.8vw, 32px); --compressed-gap: clamp(4px, .6vw, 10px); --edge: var(--base-edge); --gap: var(--base-gap); --center-width: min(36rem, 60vw); position: relative; width: 100%; height: 100%; overflow: hidden; color: var(--fg); background: var(--bg); transition: opacity var(--dur-standby-dim) ease; }
+  .standby.ladder-compressed { --edge: var(--compressed-edge); --gap: var(--compressed-gap); }
+  .measure-shelf, .center-measure-shelf { position: absolute; top: 0; display: flex; flex-direction: column; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; z-index: -1; }
+  .measure-shelf { right: 0; } .center-measure-shelf { left: 50%; width: var(--center-width); transform: translateX(-50%); }
+  .measure-shelf :global(*), .center-measure-shelf :global(*) { animation: none !important; transition: none !important; }
+  .measure-item { width: 100%; flex: 0 0 auto; }
+  .baseline-gap-measure { position: absolute; width: var(--base-gap); height: 1px; visibility: hidden; pointer-events: none; }
+  .rotation-failure-measure { position: absolute; visibility: hidden; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; pointer-events: none; }
+  .legacy-layout { position: absolute; inset: var(--edge); display: grid; grid-template-columns: minmax(0, 1fr) var(--center-width) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
+  .side, .center-card-region { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; min-height: 0; overflow: visible; }
+  .side-left, .side-right { align-items: center; }
+  .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe center; box-sizing: border-box; padding-bottom: var(--nankai-reserve); }
+  .legacy-card, .rotation-slot, .rotation-failure { flex: 0 0 auto; box-sizing: border-box; width: min(30rem, 100%); max-width: 100%; }
+  .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }
+  .center-card-region > .legacy-card, .center-stack-card { width: 100%; }
+  .center-stack-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }
+  .clock-landmark { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .clock-wrap { position: absolute; top: 50%; left: 50%; width: var(--center-width); container-type: inline-size; text-align: center; transform: translate(-50%, -50%); }
+  .clock-connection { position: absolute; right: 0; bottom: calc(100% + var(--gap)); left: 0; }
+  .clock-below { position: absolute; top: calc(100% + var(--cluster-gap)); left: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--cluster-gap); width: 100%; height: var(--cluster-flow-height); }
+  .instrument-row-wrap { display: flex; justify-content: center; } .quakes-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }
+  .nankai-ticker { position: absolute; z-index: 3; right: var(--edge); bottom: 0; left: var(--edge); } .nankai-ticker :global(.nankai-badge) { width: 100%; margin: 0; box-sizing: border-box; justify-content: center; }
+  .rotation-slot { display: flex; overflow: hidden; } .rotation-slot > :global(*) { width: 100%; } .rotation-failure { padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; }
+  .standby.dim { opacity: .35; }
+  /* Normal information and warning-grade fixed tiers remain separate groups:
+     their current floor is equal, but keeping the selectors separate prevents
+     a future severity adjustment from accidentally dimming tsunami with the
+     ordinary quake group. */
   .standby.dim .quake-corner,
   .standby.dim .instrument-row-wrap,
-  .standby.dim .quakes-card {
-    opacity: 0.7;
-  }
-  /* 警報級の常駐カード (気象警報カード・津波バナー) は一般要素と同じ可読性下限で扱う。
-     具体値は実機夜間検証で調整する。 */
+  .standby.dim .quakes-card,
+  .standby.dim .nankai-ticker { opacity: .7; }
   .standby.dim .weather-corner,
   .standby.dim .tsunami-corner,
-  .standby.dim .flood-slot {
-    opacity: 0.7;
-  }
+  .standby.dim .flood-slot { opacity: .7; }
+  @media (prefers-reduced-motion: reduce) { .standby { transition: none; } }
 </style>

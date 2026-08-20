@@ -1,1104 +1,591 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import { tick } from "svelte";
 import StandbyScreen from "../StandbyScreen.svelte";
 import { baseSnapshot } from "../../lib/__tests__/fixtures";
-import type {
-  DisplayLatestQuakeStateV1,
-  DisplayRecentQuakeV1,
-  DisplayStatsV1,
-  DisplayTsunamiStateV1,
-  DisplayWeatherAlertV1,
-  ActiveStandbyCardV1,
-  DisplayFloodRiverV1,
-} from "../../lib/protocol";
+import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayTsunamiStateV1, DisplayTyphoonV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
 
-function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
-  return {
-    source: "vpww56",
-    label: "気象特別警報",
-    role: "weatherEmergency",
-    totalAreas: 1,
-    items: [
-      {
-        kind: "大雨特別警報",
-        displaySeverity: "Emergency",
-        rank: "emergency",
-        shownAreas: ["宮崎市"],
-        omittedAreaCount: 0,
-      },
-    ],
-    updatedAt: "2026-07-06T21:00:00+09:00",
-    ...over,
-  };
+const now = new Date("2026-08-20T12:00:00+09:00");
+const recent: DisplayRecentQuakeV1 = {
+  eventId: "q-1", reportDateTime: "2026-08-20T12:00:00+09:00", originTime: "2026-08-20T11:58:00+09:00",
+  hypocenterName: "日向灘", magnitude: "5.2", maxInt: "5弱", maxIntRank: 5, depth: "20km", tsunamiWarning: false,
+};
+
+function latestQuake(over: Partial<DisplayLatestQuakeStateV1> = {}): DisplayLatestQuakeStateV1 {
+  return { eventId: "latest-1", headline: null, originTime: "2026-08-20T11:58:00+09:00", hypocenterName: "日向灘", depth: "20km", magnitude: "5.2", maxInt: "5弱", maxIntRank: 5, tsunamiWarning: false, intensityGroups: [], reportDateTime: "2026-08-20T12:00:00+09:00", updatedAtMs: 1, ...over };
+}
+function tsunami(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunamiStateV1 {
+  return { kind: "tsunami", level: "warning", levelLabel: "津波警報", coasts: [{ name: "宮崎県", kind: "津波警報", maxHeight: "3m", firstHeight: null }], warningComment: null, observations: [], reportDateTime: "2026-08-20T12:00:00+09:00", updatedAtMs: 1, ...over };
+}
+function weather(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
+  return { source: "vpww56", label: "気象特別警報", role: "weatherEmergency", totalAreas: 1, items: [{ kind: "大雨特別警報", displaySeverity: "Emergency", rank: "emergency", shownAreas: ["宮崎市"], omittedAreaCount: 0 }], updatedAt: "2026-08-20T12:00:00+09:00", ...over };
 }
 
-function latestQuakeState(over: Partial<DisplayLatestQuakeStateV1> = {}): DisplayLatestQuakeStateV1 {
+function flood(surface: "corner-right" | "clock-top-wide" = "corner-right"): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
   return {
-    eventId: "Q1",
-    headline: null,
-    originTime: "2026-07-06T20:58:00+09:00",
-    hypocenterName: "日向灘",
-    depth: "20km",
-    magnitude: "5.2",
-    maxInt: "5弱",
-    maxIntRank: 5,
-    tsunamiWarning: false,
-    intensityGroups: [],
-    reportDateTime: "2026-07-06T21:00:00+09:00",
-    updatedAtMs: 0,
-    ...over,
+    kind: "flood", surface, key: "flood:1", sourceEventIds: ["flood:1"], updatedAt: "2026-08-20T12:00:00+09:00",
+    expiresAt: "2026-08-20T13:00:00+09:00", restored: false, severity: "critical",
+    data: { rivers: [{ riverKey: "river", riverName: "一級河川", level: "L4", levelRank: 40, kindName: "氾濫危険情報", reportDateTime: "2026-08-20T12:00:00+09:00" }] },
   };
 }
-
-function statsState(over: Partial<DisplayStatsV1> = {}): DisplayStatsV1 {
-  return {
-    sparklineData: [1, 2, 3],
-    totalReceived: 42,
-    todayQuakeCount: 3,
-    todayMaxInt: "5弱",
-    todayMaxIntRank: 5,
-    ...over,
-  };
+function typhoon(): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
+  const storm: DisplayTyphoonV1 = { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, maxGustMs: 35, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-08-20T12:00:00+09:00" };
+  return { kind: "typhoon", surface: "corner-right", key: "typhoon:1", sourceEventIds: ["typhoon:1"], updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "normal", data: { typhoons: [storm] } };
 }
 
-function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunamiStateV1 {
-  return {
-    kind: "tsunami",
-    level: "warning",
-    levelLabel: "津波警報",
-    coasts: [{ name: "宮崎県", kind: "津波警報", maxHeight: "3m", firstHeight: null }],
-    warningComment: null,
-    observations: [],
-    reportDateTime: "2026-07-06T21:00:00+09:00",
-    updatedAtMs: 0,
-    ...over,
-  };
-}
-
-function recentQuake(over: Partial<DisplayRecentQuakeV1> = {}): DisplayRecentQuakeV1 {
-  return {
-    eventId: "Q1",
-    reportDateTime: "2026-07-06T21:00:00+09:00",
-    originTime: "2026-07-06T20:58:00+09:00",
-    hypocenterName: "浦河沖",
-    magnitude: "5.2",
-    maxInt: "4",
-    maxIntRank: 5,
-    depth: "30km",
-    tsunamiWarning: false,
-    ...over,
-  };
-}
-
-function floodStandbyItem(surface: "corner-right" | "clock-top-wide", count: number): Extract<ActiveStandbyCardV1, { kind: "flood" }> {
-  const rivers: DisplayFloodRiverV1[] = Array.from({ length: count }, (_, index) => ({
-    riverKey: `river-${index}`, riverName: `第${index + 1}川`, level: index === 0 ? "L4" : "L3",
-    levelRank: index === 0 ? 40 : 30, kindName: index === 0 ? "氾濫危険情報" : "氾濫警戒情報",
-    reportDateTime: "2026-07-21T00:00:00.000Z",
-  }));
-  return {
-    kind: "flood", surface, key: "flood:active", sourceEventIds: ["flood-1"],
-    updatedAt: "2026-07-21T00:00:00.000Z", expiresAt: "2026-07-21T12:00:00.000Z",
-    restored: false, severity: "critical", data: { rivers },
-  };
-}
-
-const now = new Date("2026-07-06T21:00:00+09:00");
-
-// ② weatherAlerts render / ③ tsunami 常駐バナー のテストは Phase B (Expressive
-// Instrument 再構成) で ActiveAlerts ブロックを StandbyScreen から削除したため撤去した。
-// weatherAlerts・tsunami バナーはもう待機画面に出ない (ActiveAlerts.svelte は非テスト参照
-// ゼロを確認の上、デッドコードとして削除済み)。
-
-describe("StandbyScreen", () => {
-  it("南海トラフバッジは中央帯 (.bottom-stack) の統計行より前に置き、時計スタックには含めない (等間隔リズム 2026-07-22)", () => {
-    const src = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
-    // 時計スタックには南海バッジを含めない (時計高さ実測に混ぜない)
-    const clockStack = src.slice(src.indexOf('<div class="clock-stack"'), src.indexOf('</div>', src.indexOf('<div class="clock-stack"')));
-    expect(clockStack.indexOf("<Clock {now} />")).toBeGreaterThanOrEqual(0);
-    expect(clockStack.indexOf("<NankaiBadge")).toBe(-1);
-    // 南海バッジは .bottom-stack 内で統計行スロットより前 (時計下端→南海→統計→カードの順)
-    const bottomStack = src.slice(src.indexOf('<div class="bottom-stack">'), src.indexOf('<style>'));
-    const nankaiIdx = bottomStack.indexOf("<NankaiBadge");
-    const instrumentIdx = bottomStack.indexOf('class="instrument-slot"');
-    expect(nankaiIdx).toBeGreaterThanOrEqual(0);
-    expect(instrumentIdx).toBeGreaterThan(nankaiIdx);
-    // 4 区間の等間隔は space-evenly で作る
-    expect(src).toContain("justify-content: space-evenly");
+describe("StandbyScreen legacy-improved skeleton", () => {
+  it("renders the fixed three-column grid, viewport clock landmark, and no outer paging", () => {
+    const { container } = render(StandbyScreen, { snapshot: baseSnapshot(), now, dim: false, sseConnected: true });
+    const root = container.querySelector(".standby");
+    expect(root?.getAttribute("data-outer-paging")).toBe("none");
+    expect(root?.querySelector(".legacy-layout")).toBeTruthy();
+    expect(root?.querySelectorAll(".legacy-layout > .side")).toHaveLength(2);
+    expect(root?.querySelector("[data-clock-landmark] .clock-wrap")).toBeTruthy();
   });
 
-  it("renders normal and wide flood surfaces through one keyed flood slot", async () => {
+  it("keeps flood as one placement card and uses the side form outside the center", async () => {
     const { container, rerender } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: [floodStandbyItem("corner-right", 3)] }),
-      now, dim: false, sseConnected: true,
+      snapshot: baseSnapshot({ standbyItems: [flood()] }), now, dim: false, sseConnected: true,
     });
     expect(container.querySelectorAll(".flood-slot")).toHaveLength(1);
-    expect(container.querySelector(".flood-slot.flood-corner .flood-card")).toBeTruthy();
-    expect(container.querySelector(".flood-wide-card")).toBeFalsy();
-
-    await rerender({
-      snapshot: baseSnapshot({ standbyItems: [floodStandbyItem("clock-top-wide", 4)] }),
-      now, dim: false, sseConnected: true,
-    });
+    expect(container.querySelector(".flood-slot .flood-card")).toBeTruthy();
+    expect(container.querySelector(".standby")?.getAttribute("data-flood-form")).toBe("card");
+    await rerender({ snapshot: baseSnapshot({ standbyItems: [flood("clock-top-wide")] }), now, dim: false, sseConnected: true });
     await tick();
-    expect(container.querySelectorAll(".flood-slot")).toHaveLength(1);
-    expect(container.querySelector(".flood-slot.clock-top-slot .flood-wide-card")).toBeTruthy();
-    expect(container.querySelector(".flood-card")).toBeFalsy();
+    // The solver may move a wide request to center, but it must never create a duplicate flood card.
+    expect(container.querySelectorAll(".legacy-layout .flood-card, .legacy-layout .flood-wide-card")).toHaveLength(1);
+    const visibleWide = container.querySelector(".legacy-layout .flood-wide-card") != null;
+    expect(container.querySelector(".standby")?.getAttribute("data-flood-form")).toBe(visibleWide ? "wide" : "card");
   });
 
-  it("二層 slot: transition は .slot-motion 内枠が持ち、外枠 (dim/計測/flip 対象) は transition を持たない", () => {
-    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
-    // 4 系統すべて内枠に in/out がある (flood-slot / weather-corner / standby-corner / corner-item)
-    expect(source.match(/class="slot-motion"/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
-    // transition ディレクティブは slot-motion 内枠の行にしか現れない (外枠 4 系統のどれに
-    // 残存しても FAIL する全称検査。実装は内枠 div を 1 行で書くこと)
-    for (const line of source.split("\n").filter((l) => l.includes("in:spatialScaleIn") || l.includes("out:fade"))) {
-      expect(line).toContain('class="slot-motion"');
-    }
-    // 内枠は intro |global (画面切替時の入場演出を維持) + local outro (画面切替を遅らせない)
-    expect(source).toContain('class="slot-motion" in:spatialScaleIn|global');
-    expect(source).not.toContain("out:fade|global");
-  });
-
-  it("flood-slot の surface 切替は独立 translate プロパティの手動 FLIP で補間する (transform 合成を壊さない)", () => {
-    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
-    // FLIP 対象の外枠に bind がある
-    expect(source).toContain("bind:this={floodSlotEl}");
-    // 可視 rect → cancel → final rect の順 (先に cancel すると開始点が飛ぶ)。読取が cancel より前
-    const readIdx = source.indexOf("floodFlipFirst = floodSlotEl.getBoundingClientRect()");
-    const cancelIdx = source.indexOf("floodFlipAnim?.cancel()");
-    expect(readIdx).toBeGreaterThan(-1);
-    expect(cancelIdx).toBeGreaterThan(readIdx);
-    // ガード: 初回/null 遷移/同値/reduced-motion を除外
-    expect(source).toContain("next === prevFloodSurface");
-    expect(source).toContain("if (!changed || el == null || first == null || reducedMotion) return");
-    expect(source).toMatch(/translate: `\$\{dx\}px \$\{dy\}px`/);
-    expect(source).toContain('{ translate: "0px 0px" }');
-    // onfinish/oncancel は animation identity を確認する
-    expect(source).toContain("if (floodFlipAnim === anim) floodFlipAnim = null");
-  });
-
-  it("recentQuakes が空のとき .quakes-card ごと非表示になる (2026-07-11 目視観察の修正)", () => {
+  it("does not count an initially full typhoon as placement surplus", async () => {
     const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ recentQuakes: [] }),
-      now,
-      dim: false,
-      sseConnected: true,
+      snapshot: baseSnapshot({ standbyItems: [typhoon()] }), now, dim: false, sseConnected: true,
     });
-    expect(container.querySelector(".quakes-card")).toBeFalsy();
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelector(".standby")?.getAttribute("data-typhoon-variant")).toBe("full");
+    expect(container.querySelector(".standby")?.getAttribute("data-placement-surplus-use")).toBe("0");
   });
 
-  it("地震カード無し (recentQuakes 0 件) でも統計行は .instrument-slot 内に置かれ、.quakes-card は無い (2026-07-12 中間配置)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ recentQuakes: [] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    const slot = container.querySelector(".bottom-stack .instrument-slot");
-    expect(slot).toBeTruthy();
-    // 統計行 (.instrument-row-wrap) はスロットの子として存在する
-    expect(slot?.querySelector(".instrument-row-wrap")).toBeTruthy();
-    expect(container.querySelector(".bottom-stack .quakes-card")).toBeFalsy();
+  it("measures every candidate variant in both shelves, prunes removals, and keeps shelves out of visible counts", async () => {
+    const first = flood();
+    const { container, rerender } = render(StandbyScreen, { snapshot: baseSnapshot({ standbyItems: [first, typhoon()], weatherAlerts: [weather()] }), now, dim: false, sseConnected: true });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelectorAll(".measure-shelf .measure-item")).toHaveLength(9);
+    expect(container.querySelectorAll(".center-measure-shelf .measure-item")).toHaveLength(9);
+    expect(container.querySelectorAll(".legacy-layout .flood-card, .legacy-layout .flood-wide-card")).toHaveLength(1);
+    const before = container.querySelector(".standby")?.getAttribute("data-measurement-epoch");
+    await rerender({ snapshot: baseSnapshot({ standbyItems: [{ ...first, updatedAt: "2026-08-20T12:01:00+09:00" }] }), now, dim: false, sseConnected: true });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelector(".standby")?.getAttribute("data-measurement-epoch")).not.toBe(before);
+    await rerender({ snapshot: baseSnapshot({ standbyItems: [] }), now, dim: false, sseConnected: true });
+    await tick();
+    expect(container.querySelectorAll(".measure-shelf .measure-item, .center-measure-shelf .measure-item")).toHaveLength(0);
   });
 
-  it("地震カード有り (recentQuakes 1 件以上) では .bottom-stack 内で統計行スロット → カードの縦順になる (2026-07-12 中間配置)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ recentQuakes: [recentQuake()] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    const children = Array.from(container.querySelector(".bottom-stack")?.children ?? []);
-    const slotIdx = children.findIndex((c) => c.classList.contains("instrument-slot"));
-    const cardIdx = children.findIndex((c) => c.classList.contains("quakes-card"));
-    expect(slotIdx).toBeGreaterThanOrEqual(0);
-    expect(cardIdx).toBeGreaterThanOrEqual(0);
-    // 統計行スロットがカードより前 (= カードは最下段、統計行はその上の残余に中央寄せ)
-    expect(slotIdx).toBeLessThan(cardIdx);
-    // 統計行はどちらの状態でも同じ .instrument-slot 内にある (状態間で移動する同一要素)
-    expect(children[slotIdx].querySelector(".instrument-row-wrap")).toBeTruthy();
-  });
-
-  it("統計行の帯上端は時計ブロックの実下端に追従する (時計高さ実測 → calc、日付行との重なり回避 2026-07-12)", () => {
-    const src = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
-    // 時計ブロック (clock-stack) の高さを既存 ResizeObserver action で実測する
-    expect(src).toContain("measureBorderHeight");
-    expect(src).toMatch(/clockHalfPx\s*=\s*h\s*\/\s*2/);
-    // 帯上端は素の 50% ではなく「50% + 時計高さの半分」= 時計ブロック下端
-    expect(src).toContain("calc(50% + var(--clock-half, 0px))");
-    // 時計高さは px 直値でなく実測値を CSS var 経由で渡す
-    expect(src).toMatch(/--clock-half:\s*\{clockHalfPx\}px/);
-  });
-
-  it("統計行の状態間移動は spatial spring トークンを流用した FLIP で繋ぐ (新規時間定数を作らない / reduced-motion で瞬時)", () => {
-    const src = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
-    // FLIP: 遷移前後の top を測って WAAPI で translateY アニメを乗せる
-    expect(src).toContain("getBoundingClientRect");
-    expect(src).toMatch(/\.animate\(/);
-    // easing/duration は既存の spatial spring トークンを流用 (新規定数を作らない)
-    expect(src).toContain('SPRING_LINEARS["spring-spatial-default"]');
-    expect(src).toContain("SPRING_SPATIAL_DEFAULT_MS");
-    // reduced-motion では FLIP を打たず瞬時切替にする
-    expect(src).toMatch(/reducedMotion\)\s*return/);
-    // 走行中アニメのハンドルを保持し、次回計測前と unmount で cancel する (往復時の
-    // transform 混入・アニメ蓄積の防止、レビュー Minor)
-    expect(src).toMatch(/flipAnim\s*:\s*Animation\s*\|\s*null/);
-    expect(src).toMatch(/flipAnim\?\.cancel\(\)/);
-    // cancel は計測 (getBoundingClientRect) より前に置く (transform を計測に混ぜない)
-    const preBody = src.match(/\$effect\.pre\(\(\)\s*=>\s*\{[\s\S]*?\}\);/)?.[0] ?? "";
-    expect(preBody.indexOf("cancel()")).toBeGreaterThanOrEqual(0);
-    expect(preBody.indexOf("cancel()")).toBeLessThan(preBody.indexOf("getBoundingClientRect"));
-  });
-
-  it("recentQuakes が1件以上あれば .quakes-card が render される", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ recentQuakes: [recentQuake()] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".quakes-card")).toBeTruthy();
-  });
-
-  it("① 直近地震 (震央名) が render される", () => {
-    render(StandbyScreen, {
-      snapshot: baseSnapshot({ recentQuakes: [recentQuake({ hypocenterName: "浦河沖" })] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(screen.getByText("浦河沖")).toBeTruthy();
-  });
-
-  it("② 震度チップ (短縮表記)・深さ・時刻・津波マークが RecentQuakes 経由で render される", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({
-        recentQuakes: [
-          recentQuake({ hypocenterName: "日向灘", maxInt: "5弱", maxIntRank: 5, depth: "20km", tsunamiWarning: true }),
-        ],
-      }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    // 待機画面のチップは formatIntShort で「5弱」→「5-」に短縮される (緊急パネル側は従来表記のまま)
-    expect(screen.getByText("5-")).toBeTruthy();
-    expect(screen.getByText("20km")).toBeTruthy();
-    expect(screen.getByText("津波")).toBeTruthy();
-    expect(container.querySelector(".int-r5")).toBeTruthy();
-  });
-
-  it("④ connection.dmdata===\"disconnected\" で「切断されています」通知が時計上に出る", () => {
-    render(StandbyScreen, {
-      snapshot: baseSnapshot({
-        connection: { dmdata: "disconnected", lastReceivedAt: null, disconnectedSince: "t", reason: "timeout" },
-      }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(screen.getByText("切断されています")).toBeTruthy();
-  });
-
-  it("⑤ dim=true で root 要素に class=\"dim\" が付く", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot(),
-      now,
-      dim: true,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".standby")?.classList.contains("dim")).toBe(true);
-  });
-
-  it("dim=false では root 要素に class=\"dim\" が付かない", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot(),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".standby")?.classList.contains("dim")).toBe(false);
-  });
-
-  it("snapshot.tsunami != null なら津波継続バナーが左上に render される (Phase 2)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: tsunamiState() }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".tsunami-corner")).toBeTruthy();
-    expect(container.querySelector(".banner-title")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
-      "津波警報 発令中",
-    );
-  });
-
-  it("snapshot.tsunami が null なら津波継続バナーは render されない", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: null }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".tsunami-corner")).toBeFalsy();
-  });
-
-  it("dim=true のとき津波継続バナーも他の周辺ブロック (quakes-card 等) と同じ dim 対象に含まれる", () => {
-    // CSS の実解決値 (opacity) ではなく、.standby.dim 配下に .tsunami-corner が
-    // quakes-card と同格の子要素として存在すること (CSS ルールの適用対象) を検証する。
-    // 実 opacity 値のテストは jsdom の CSS 解決の信頼性が低いため避ける (このプロジェクトの既存規約)。
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: tsunamiState(), recentQuakes: [recentQuake()] }),
-      now,
-      dim: true,
-      sseConnected: true,
-    });
-    const root = container.querySelector(".standby.dim");
-    expect(root?.querySelector(".tsunami-corner")).toBeTruthy();
-    expect(root?.querySelector(".quakes-card")).toBeTruthy();
-  });
-
-  it("weatherAlerts に特別警報を積むと .weather-corner 配下に「気象特別警報」が render される (Task 13)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ weatherAlerts: [weatherAlert()] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".weather-corner")?.textContent).toContain("気象特別警報");
-  });
-
-  it("VPWW56 の officialL4 は wire label を変えず待機カード見出しを「気象危険警報」へ昇格する", () => {
-    const alert = weatherAlert({
-      source: "vpww56",
-      label: "土砂災害警戒情報",
-      role: "weatherWarning",
-      items: [{
-        kind: "L4 土砂災害危険警報",
-        displaySeverity: "officialL4",
-        rank: "warning",
-        shownAreas: ["東京都"],
-        omittedAreaCount: 0,
-      }],
-    });
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ weatherAlerts: [alert] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-
-    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象危険警報");
-  });
-
-  it("officialL4 と officialL5 の併発では「気象特別警報」が勝つ", () => {
-    const l4 = weatherAlert({
-      source: "vpww56",
-      label: "土砂災害警戒情報",
-      role: "weatherWarning",
-      items: [{
-        kind: "L4 土砂災害危険警報",
-        displaySeverity: "officialL4",
-        rank: "warning",
-        shownAreas: ["東京都"],
-        omittedAreaCount: 0,
-      }],
-    });
-    const l5 = weatherAlert({
-      source: "vpws50",
-      label: "気象特別警報",
-      role: "weatherEmergency",
-      items: [{
-        kind: "L5 大雨特別警報",
-        displaySeverity: "officialL5",
-        rank: "emergency",
-        shownAreas: ["千葉県"],
-        omittedAreaCount: 0,
-      }],
-    });
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ weatherAlerts: [l4, l5] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-
-    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象特別警報");
-    expect(container.querySelector(".weather-corner .card-header")?.textContent).not.toContain("気象危険警報");
-  });
-
-  it("L4 を含まない続報へ更新されると見出しを「気象警報」へ戻す", async () => {
-    const l4 = weatherAlert({
-      source: "vpww56",
-      label: "土砂災害警戒情報",
-      role: "weatherWarning",
-      items: [{
-        kind: "L4 土砂災害危険警報",
-        displaySeverity: "officialL4",
-        rank: "warning",
-        shownAreas: ["東京都"],
-        omittedAreaCount: 0,
-      }],
-    });
-    const l3 = weatherAlert({
-      source: "vpws50",
-      label: "気象警報",
-      role: "weatherWarning",
-      items: [{
-        kind: "L3 大雨警報",
-        displaySeverity: "officialL3",
-        rank: "warning",
-        shownAreas: ["東京都"],
-        omittedAreaCount: 0,
-      }],
-    });
-    const { container, rerender } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ weatherAlerts: [l4] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象危険警報");
-
-    await rerender({
-      snapshot: baseSnapshot({ weatherAlerts: [l3] }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".weather-corner .card-header")?.textContent).toContain("気象警報");
-    expect(container.querySelector(".weather-corner .card-header")?.textContent).not.toContain("気象危険警報");
-  });
-
-  it("latestQuake を積むと .quake-corner 配下に震源名が render される (Task 13)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ latestQuake: latestQuakeState({ hypocenterName: "日向灘" }) }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".quake-corner")?.textContent).toContain("日向灘");
-  });
-
-  it("stats を積むと .instrument-row-wrap 配下に「受信」が render される (Task 13)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ stats: statsState() }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    expect(container.querySelector(".instrument-row-wrap")?.textContent).toContain("受信");
-  });
-
-  it("dim=true のとき .weather-corner / .quake-corner / .instrument-row-wrap も同格の子として dim 対象に含まれる (Task 13)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({
-        weatherAlerts: [weatherAlert()],
-        latestQuake: latestQuakeState(),
-        stats: statsState(),
-      }),
-      now,
-      dim: true,
-      sseConnected: true,
-    });
-    const root = container.querySelector(".standby.dim");
-    expect(root?.querySelector(".weather-corner")).toBeTruthy();
-    expect(root?.querySelector(".quake-corner")).toBeTruthy();
-    expect(root?.querySelector(".instrument-row-wrap")).toBeTruthy();
-  });
-
-  it("津波 null + latestQuake ありのとき .corner-left 最上段に .quake-corner が来る (tsunami-corner 不在) (Task 13)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: null, latestQuake: latestQuakeState() }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    const cornerLeft = container.querySelector(".corner-left");
-    expect(cornerLeft?.querySelector(".tsunami-corner")).toBeFalsy();
-    expect(cornerLeft?.firstElementChild?.classList.contains("quake-corner")).toBe(true);
-  });
-
-  it("津波+地震 両方ありのとき .corner-left の先頭は .tsunami-corner (Task 13 修正)", () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: tsunamiState(), latestQuake: latestQuakeState() }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    const cornerLeft = container.querySelector(".corner-left");
-    expect(cornerLeft?.firstElementChild?.classList.contains("tsunami-corner")).toBe(true);
-  });
-
-  it("待機カードの int-chip は radius-s トークン参照で直値 8px を持たない", () => {
-    const recent = readFileSync(join(__dirname, "..", "RecentQuakes.svelte"), "utf-8");
-    const latest = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
-    for (const src of [recent, latest]) {
-      expect(src).toContain("var(--radius-s)");
-      expect(src).not.toMatch(/border-radius:\s*8px/);
+  it("reports a bounded synchronous measurement epoch and the capacity diagnostics", async () => {
+    const { container } = render(StandbyScreen, { snapshot: baseSnapshot(), now, dim: false, sseConnected: true });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector(".standby")!;
+    expect(Number(root.getAttribute("data-measurement-pass"))).toBeLessThanOrEqual(4);
+    expect(root.getAttribute("data-measurement-settled")).toBe("true");
+    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px"]) {
+      expect(root.hasAttribute(name)).toBe(true);
     }
   });
 
-  it("津波あり/なしで .corner-left の keyed item (.corner-item) 数が変わる (Task 7: flip/transition スタック化)", () => {
-    const { container: withTsunami } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: tsunamiState(), latestQuake: latestQuakeState() }),
-      now,
-      dim: false,
-      sseConnected: true,
+  it("suppresses an unrecognised future DTO and exposes its count", () => {
+    const future = { kind: "future-hazard", key: "future:1", updatedAt: "2026-08-20T12:00:00+09:00" } as unknown as ActiveStandbyCardV1;
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [future] }), now, dim: false, sseConnected: true,
     });
-    expect(withTsunami.querySelectorAll(".corner-left .corner-item").length).toBe(2);
+    const root = container.querySelector(".standby")!;
+    expect(root.getAttribute("data-suppressed-unknown-count")).toBe("1");
+    expect(root.textContent).not.toContain("future-hazard");
+  });
 
-    const { container: withoutTsunami } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: null, latestQuake: latestQuakeState() }),
-      now,
-      dim: false,
-      sseConnected: true,
+  it("preserves the recent-quake replay replacement and auto-close API", async () => {
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ recentQuakes: [recent] }), now, dim: false, sseConnected: true,
     });
-    expect(withoutTsunami.querySelectorAll(".corner-left .corner-item").length).toBe(1);
+    const row = container.querySelector<HTMLButtonElement>(".quakes-card button.row")!;
+    row.click();
+    await tick();
+    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
   });
 
-  it("津波バナーは一般減光グループではなく警報級 (専用) グループに属する (Task 13 修正: severity 反転回帰ガード)", () => {
-    // jsdom は実効 opacity を解決しないため、コンポーネント CSS ソースのセレクタ構造を
-    // 直接検査する。「.tsunami-corner が .quake-corner 等の一般セレクタ列に
-    // 含まれず、.weather-corner と同じ専用減光ルールに属する」ことを固定する。
-    // 現状は両グループとも子 opacity 0.7 (親 0.35 と乗算で実効約 0.25) だが、
-    // 減光率を分けられる構造 (別セレクタ列) が保たれていることを検証する。
-    const source = readFileSync(
-      join(__dirname, "..", "StandbyScreen.svelte"),
-      "utf-8",
-    );
-    const generalDimMatch = source.match(/\.standby\.dim\s+\.quake-corner[\s\S]*?\{\s*opacity:\s*0\.7;\s*\}/);
-    expect(generalDimMatch).toBeTruthy();
-    expect(generalDimMatch?.[0]).not.toContain(".tsunami-corner");
-
-    const emergencyDimMatch = source.match(
-      /\.standby\.dim\s+\.weather-corner[\s\S]*?\{\s*opacity:\s*0\.7;\s*\}/,
-    );
-    expect(emergencyDimMatch).toBeTruthy();
-    expect(emergencyDimMatch?.[0]).toContain(".tsunami-corner");
+  it("notifies App only after the solved stage has settled", async () => {
+    const onStageChange = vi.fn();
+    render(StandbyScreen, { snapshot: baseSnapshot(), now, dim: false, sseConnected: true, onStageChange });
+    expect(onStageChange).not.toHaveBeenCalled();
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(onStageChange).toHaveBeenCalledWith(0);
   });
 
-  it("待機カード類は elevation-2 の box-shadow を持つ (B2b)", () => {
-    for (const f of ["LatestQuakeCard.svelte", "WeatherAlertCard.svelte", "TsunamiStandbyBanner.svelte"]) {
-      const src = readFileSync(join(__dirname, "..", f), "utf-8");
-      expect(src, f).toContain("box-shadow: var(--elevation-2)");
-    }
-  });
-
-  it("StandbyScreen は spatialScaleIn/springSpatialOut を使い組込 scale を使わない (B3, Codex R2)", () => {
-    const src = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
-    expect(src).toContain("spatialScaleIn");
-    expect(src).toContain("springSpatialOut");
-    // opacity に overshoot が乗る組込 scale transition を使っていないこと
-    expect(src).not.toMatch(/in:scale\b/);
-    // svelte/transition から scale を import していないこと
-    expect(src).not.toMatch(/import\s*\{[^}]*\bscale\b[^}]*\}\s*from\s*"svelte\/transition"/);
+  it("resets standby clock ownership on exit and ignores callbacks from an outgoing layer", () => {
+    const source = readFileSync(join(__dirname, "..", "..", "App.svelte"), "utf8");
+    expect(source).toMatch(/if \(mode !== "standby"\)[\s\S]*standbyStage = 0;[\s\S]*standbyRef\?\.closeQuakeCard\(\)/);
+    expect(source).toContain('onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }}');
   });
 });
 
-// 地震履歴クリック overlay (2026-07-14, 設計 v2 確定事項 5)。transition のちらつきを避けるため
-// reduced-motion を強制し exit/enter を 0ms にする (jsdom の raf 駆動 transition を待たない)。
-describe("StandbyScreen 地震履歴クリック overlay", () => {
+describe("StandbyScreen preserved standby behaviour", () => {
   let matchMediaOriginal: typeof window.matchMedia;
   beforeEach(() => {
     matchMediaOriginal = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: true, // reduced-motion 強制 → enter/exit 0ms
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof window.matchMedia;
+    window.matchMedia = ((query: string) => ({ matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
     vi.useFakeTimers();
   });
-  afterEach(() => {
-    vi.useRealTimers();
-    window.matchMedia = matchMediaOriginal;
+  afterEach(() => { vi.useRealTimers(); window.matchMedia = matchMediaOriginal; });
+  const renderScreen = (over: Parameters<typeof baseSnapshot>[0] = {}) => render(StandbyScreen, { snapshot: baseSnapshot(over), now, dim: false, sseConnected: true });
+  const recentRow = (container: HTMLElement): HTMLButtonElement => container.querySelector<HTMLButtonElement>(".legacy-layout .quakes-card button.row, [data-clock-landmark] .quakes-card button.row")!;
+
+  it("keeps recent-quakes visibility, content, and the disconnected connection badge", () => {
+    const empty = renderScreen({ recentQuakes: [] });
+    expect(empty.container.querySelector(".quakes-card")).toBeFalsy();
+    empty.unmount();
+    const { container } = renderScreen({ recentQuakes: [recent], connection: { dmdata: "disconnected", lastReceivedAt: null, disconnectedSince: "t", reason: "timeout" } });
+    expect(container.querySelector(".quakes-card")?.textContent).toContain("日向灘");
+    expect(screen.getByText("切断されています")).toBeTruthy();
   });
 
-  function renderWithQuakes(quakes = [recentQuake({ eventId: "A", hypocenterName: "浦河沖" })]) {
-    return render(StandbyScreen, {
-      snapshot: baseSnapshot({ recentQuakes: quakes }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-  }
-
-  function rowButtons(container: Element): HTMLButtonElement[] {
-    return Array.from(container.querySelectorAll<HTMLButtonElement>(".quakes-card button.row"));
-  }
-
-  it("履歴行クリックで詳細カードが表示される", async () => {
-    const { container } = renderWithQuakes();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    const card = container.querySelector(".quake-replay-card");
-    expect(card).toBeTruthy();
-    expect(card?.textContent).toContain("浦河沖");
+  it("keeps the recent-quake compact intensity, depth, time, and tsunami markers", () => {
+    const { container } = renderScreen({ recentQuakes: [{ ...recent, tsunamiWarning: true }] });
+    expect(container.querySelector(".int-r5")?.textContent).toContain("5-");
+    expect(container.querySelector(".depth")?.textContent).toContain("20km");
+    expect(container.querySelector(".tsunami-mark")?.textContent).toBe("津波");
   });
 
-  it("詳細カードは corner-left の地震情報スロット (LatestQuakeCard と同じ位置) に出る (実機フィードバック 2026-07-14)", async () => {
-    const { container } = renderWithQuakes();
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    // 画面中央 overlay ではなく corner-left の .corner-item.quake-corner 内に置かれる (時計と被らない)
-    const card = container.querySelector(".corner-left .corner-item.quake-corner .quake-replay-card");
-    expect(card).toBeTruthy();
-    // 旧・中央 overlay 用ラッパは撤去済み
-    expect(container.querySelector(".quake-overlay")).toBeFalsy();
+  it("keeps dim on all visible card groups while retaining distinct tsunami severity styling", () => {
+    const stats = { sparklineData: [1, 2], totalReceived: 10, todayQuakeCount: 1, todayMaxInt: "5弱", todayMaxIntRank: 5 };
+    const { container } = render(StandbyScreen, { snapshot: baseSnapshot({ tsunami: tsunami(), latestQuake: latestQuake(), weatherAlerts: [weather()], recentQuakes: [recent], stats }), now, dim: true, sseConnected: true });
+    const root = container.querySelector(".standby.dim")!;
+    expect(root.querySelector(".tsunami-corner")).toBeTruthy();
+    expect(root.querySelector(".quake-corner")).toBeTruthy();
+    expect(root.querySelector(".weather-corner")).toBeTruthy();
+    expect(root.querySelector(".instrument-row-wrap")).toBeTruthy();
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    const normalGroup = source.slice(source.indexOf(".standby.dim .quake-corner"), source.indexOf(".standby.dim .weather-corner"));
+    const tsunamiGroup = source.slice(source.indexOf(".standby.dim .weather-corner"), source.indexOf("@media"));
+    expect(normalGroup).toContain("opacity: .7");
+    expect(normalGroup).not.toContain("tsunami-corner");
+    expect(tsunamiGroup).toContain(".tsunami-corner");
+    expect(tsunamiGroup).toContain("opacity: .7");
+    const undimmed = render(StandbyScreen, { snapshot: baseSnapshot({ tsunami: tsunami(), latestQuake: latestQuake() }), now, dim: false, sseConnected: true });
+    expect(undimmed.container.querySelector(".standby")?.classList.contains("dim")).toBe(false);
   });
 
-  it("LatestQuakeCard 表示中に履歴クリックすると replay がスロットを占有し、LatestQuakeCard は隠れる。閉じると戻る (二重表示しない)", async () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({
-        latestQuake: latestQuakeState({ hypocenterName: "石垣島近海" }),
-        recentQuakes: [recentQuake({ eventId: "A", hypocenterName: "浦河沖" })],
-      }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    // 初期: LatestQuakeCard (.quake-card) がスロットに居る、replay は無い
-    expect(container.querySelector(".corner-left .quake-card")).toBeTruthy();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
+  it("keeps tsunami/latest-quake fixed at the left-column head in tier order", async () => {
+    const { container, rerender } = renderScreen({ tsunami: tsunami(), latestQuake: latestQuake() });
+    const left = container.querySelector(".corner-left")!;
+    expect(left.firstElementChild?.classList.contains("tsunami-corner")).toBe(true);
+    await rerender({ snapshot: baseSnapshot({ tsunami: null, latestQuake: latestQuake() }), now, dim: false, sseConnected: true });
+    expect(left.querySelector(".tsunami-corner")).toBeFalsy();
+    expect(left.firstElementChild?.classList.contains("quake-corner")).toBe(true);
+  });
 
-    // 履歴クリック → replay がスロットを占有、LatestQuakeCard は消える (別スロットに二重表示しない)
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  it("keeps weather severity heading promotion, precedence, and recovery on revision", async () => {
+    const l4 = weather({ label: "土砂災害警戒情報", role: "weatherWarning", items: [{ kind: "L4 土砂災害危険警報", displaySeverity: "officialL4", rank: "warning", shownAreas: ["東京都"], omittedAreaCount: 0 }] });
+    const l5 = weather({ source: "vpws50", items: [{ kind: "L5 大雨特別警報", displaySeverity: "officialL5", rank: "emergency", shownAreas: ["千葉県"], omittedAreaCount: 0 }] });
+    const { container, rerender } = renderScreen({ weatherAlerts: [l4] });
+    expect(container.querySelector(".weather-card .card-header")?.textContent).toContain("気象危険警報");
+    await rerender({ snapshot: baseSnapshot({ weatherAlerts: [l4, l5] }), now, dim: false, sseConnected: true });
+    expect(container.querySelector(".weather-card .card-header")?.textContent).toContain("気象特別警報");
+    const l3 = weather({ label: "気象警報", role: "weatherWarning", items: [{ kind: "大雨警報", displaySeverity: "officialL3", rank: "warning", shownAreas: ["東京都"], omittedAreaCount: 0 }] });
+    await rerender({ snapshot: baseSnapshot({ weatherAlerts: [l3] }), now, dim: false, sseConnected: true });
+    expect(container.querySelector(".weather-card .card-header")?.textContent).toContain("気象警報");
+  });
+
+  it("keeps the latest-quake rider and card design-token contracts", () => {
+    const longPeriod = { kind: "longPeriod", surface: "quake-rider", key: "lp:1", sourceEventIds: ["lp"], updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "warning", data: { eventId: "latest-1", maxLgInt: "3" } } as Extract<ActiveStandbyCardV1, { kind: "longPeriod" }>;
+    const { container } = renderScreen({ latestQuake: latestQuake(), standbyItems: [longPeriod] });
+    expect(container.querySelector(".quake-corner .quake-card")?.textContent).toContain("長周期地震動");
+    for (const name of ["RecentQuakes.svelte", "LatestQuakeCard.svelte"]) {
+      const source = readFileSync(join(__dirname, "..", name), "utf8");
+      expect(source).toContain("var(--radius-s)");
+    }
+    for (const name of ["LatestQuakeCard.svelte", "WeatherAlertCard.svelte", "TsunamiStandbyBanner.svelte"]) {
+      const source = readFileSync(join(__dirname, "..", name), "utf8");
+      expect(source).toContain("box-shadow: var(--elevation-2)");
+    }
+  });
+
+  it("keeps replay replacement in the quake slot without duplicate latest cards", async () => {
+    const { container } = renderScreen({ latestQuake: latestQuake({ hypocenterName: "石垣島近海" }), recentQuakes: [recent] });
+    recentRow(container).click();
     await tick();
+    expect(container.querySelectorAll(".corner-left .quake-corner")).toHaveLength(1);
     expect(container.querySelector(".corner-left .quake-replay-card")).toBeTruthy();
     expect(container.querySelector(".corner-left .quake-card")).toBeFalsy();
-    // corner-left の quake 系スロットは 1 つだけ (二重表示していない)
-    expect(container.querySelectorAll(".corner-left .corner-item.quake-corner").length).toBe(1);
-
-    // 閉じる (再クリック) → LatestQuakeCard に戻る
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    recentRow(container).click();
     await tick();
     expect(container.querySelector(".corner-left .quake-card")).toBeTruthy();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
   });
 
-  it("20 秒経過で自動クローズする", async () => {
-    const { container } = renderWithQuakes();
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-    vi.advanceTimersByTime(19_999);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy(); // まだ開いている
-    vi.advanceTimersByTime(1);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy(); // 20 秒で閉じる
-  });
-
-  it("同じ項目の再クリックで即クローズする (トグル)", async () => {
-    const { container } = renderWithQuakes();
-    const btn = rowButtons(container)[0];
-    btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-    btn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
-  });
-
-  it("別項目クリックで差し替え + タイマーがリセットされる", async () => {
-    const { container } = renderWithQuakes([
-      recentQuake({ eventId: "A", hypocenterName: "浦河沖" }),
-      recentQuake({ eventId: "B", hypocenterName: "日向灘" }),
-    ]);
-    const btns = rowButtons(container);
-    btns[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
+  it("keeps replay toggle, replacement, 20-second auto-close, and external close", async () => {
+    const { container, component } = renderScreen({ latestQuake: latestQuake(), recentQuakes: [recent, { ...recent, eventId: "q-2", hypocenterName: "浦河沖" }] });
+    const rows = Array.from(container.querySelectorAll<HTMLButtonElement>(".quakes-card button.row"));
+    rows[0]!.click(); await tick();
+    rows[1]!.click(); await tick();
     expect(container.querySelector(".quake-replay-card")?.textContent).toContain("浦河沖");
-
-    vi.advanceTimersByTime(15_000); // 1件目のタイマーを 15 秒進める
-    btns[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("日向灘"); // 差し替え
-
-    // 1件目クリックから 20 秒 (=差し替え後 5 秒) 経過してもタイマーはリセット済みで閉じない
-    vi.advanceTimersByTime(5_000);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-    // 差し替えから 20 秒でようやく閉じる
-    vi.advanceTimersByTime(15_000);
-    await tick();
+    vi.advanceTimersByTime(20_000); await tick();
+    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
+    rows[0]!.click(); await tick();
+    component.closeQuakeCard(); await tick();
     expect(container.querySelector(".quake-replay-card")).toBeFalsy();
   });
 
-  it("unmount 後に stale なクローズタイマーが発火しても crash しない (タイマー残留なし)", async () => {
-    const { container, unmount } = renderWithQuakes();
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    unmount();
-    expect(() => {
-      vi.advanceTimersByTime(20_000);
-    }).not.toThrow();
-  });
-
-  it("履歴行クリックは window の click (減光トグル) へ伝播しない", async () => {
-    const { container } = renderWithQuakes();
-    const windowClick = vi.fn();
-    window.addEventListener("click", windowClick);
-    try {
-      rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      expect(windowClick).not.toHaveBeenCalled();
-    } finally {
-      window.removeEventListener("click", windowClick);
-    }
-  });
-
-  function rerenderQuakes(rerender: (props: Record<string, unknown>) => Promise<void>, quakes: DisplayRecentQuakeV1[]) {
-    return rerender({ snapshot: baseSnapshot({ recentQuakes: quakes }), now, dim: false, sseConnected: true });
-  }
-
-  it("snapshot 更新で選択中地震が最新 DTO へ差し替わる (訂正報追従、指摘2)。タイマーはリセットしない", async () => {
-    const { container, rerender } = renderWithQuakes([recentQuake({ eventId: "A", hypocenterName: "浦河沖", magnitude: "5.2" })]);
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("M5.2");
-
-    vi.advanceTimersByTime(5_000);
-    // 同じ eventId で訂正 (規模更新)
-    await rerenderQuakes(rerender, [recentQuake({ eventId: "A", hypocenterName: "浦河沖", magnitude: "5.8" })]);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("M5.8"); // 最新版へ差し替え
-    expect(container.querySelector(".quake-replay-card")?.textContent).not.toContain("M5.2");
-
-    // タイマーは維持: 開いてから 20 秒 (差し替え後 15 秒) でちょうど閉じる (リセットなら 25 秒まで開く)
-    vi.advanceTimersByTime(14_999);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-    vi.advanceTimersByTime(1);
-    await tick();
+  it("follows a corrected selected quake and closes when it disappears or becomes ambiguous", async () => {
+    const { container, rerender } = renderScreen({ recentQuakes: [recent] });
+    recentRow(container).click(); await tick();
+    await rerender({ snapshot: baseSnapshot({ recentQuakes: [{ ...recent, hypocenterName: "訂正後の震源" }] }), now, dim: false, sseConnected: true });
+    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("訂正後の震源");
+    await rerender({ snapshot: baseSnapshot({ recentQuakes: [] }), now, dim: false, sseConnected: true });
     expect(container.querySelector(".quake-replay-card")).toBeFalsy();
   });
 
-  it("選択中地震が snapshot から消えたら overlay を閉じる (5 件押し出し、指摘2)", async () => {
-    const { container, rerender } = renderWithQuakes([recentQuake({ eventId: "A", hypocenterName: "浦河沖" })]);
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-
-    // A が消え、別の地震だけになる
-    await rerenderQuakes(rerender, [recentQuake({ eventId: "Z", hypocenterName: "択捉島" })]);
-    await tick();
+  it("closes an ambiguous selection and never bubbles a recent-quake click to the dim toggle", async () => {
+    const { container, rerender } = renderScreen({ recentQuakes: [recent] });
+    let bubbled = false;
+    window.addEventListener("click", () => { bubbled = true; }, { once: true });
+    recentRow(container).click(); await tick();
+    expect(bubbled).toBe(false);
+    await rerender({ snapshot: baseSnapshot({ recentQuakes: [recent, { ...recent, hypocenterName: "重複" }] }), now, dim: false, sseConnected: true });
     expect(container.querySelector(".quake-replay-card")).toBeFalsy();
   });
 
-  it("公開 closeQuakeCard() で外部から閉じられる (App が emergency 遷移で呼ぶ経路、指摘5)", async () => {
-    const { container, component } = renderWithQuakes();
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-    (component as unknown as { closeQuakeCard: () => void }).closeQuakeCard();
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
-    // 閉じた後にタイマーが遅れて発火しても crash しない (タイマー破棄済み)
-    expect(() => vi.advanceTimersByTime(20_000)).not.toThrow();
-  });
-
-  it("eventId null の訂正報 (reportDateTime のみ変化) でも追従が維持される (指摘2, originTime 主キー)", async () => {
-    const base = { eventId: null, originTime: "2026-07-14T20:58:00+09:00", hypocenterName: "浦河沖" };
-    const { container, rerender } = renderWithQuakes([
-      recentQuake({ ...base, reportDateTime: "2026-07-14T21:00:00+09:00", magnitude: "5.0" }),
-    ]);
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("M5.0");
-
-    // reportDateTime だけ変わる訂正報 (originTime|hypocenter は不変 → 同じ ID)
-    await rerenderQuakes(rerender, [
-      recentQuake({ ...base, reportDateTime: "2026-07-14T21:05:00+09:00", magnitude: "5.6" }),
-    ]);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("M5.6"); // 追従維持
-  });
-
-  it("選択 ID が recentQuakes 内で複数行に衝突したら追従を諦めて閉じる (指摘2)", async () => {
-    const dup = { eventId: null, originTime: "2026-07-14T20:58:00+09:00", hypocenterName: "浦河沖" };
-    const { container, rerender } = renderWithQuakes([recentQuake({ ...dup, reportDateTime: "2026-07-14T21:00:00+09:00" })]);
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-
-    // 同一 ID (originTime|hypocenter が一致) の行が 2 つになる → 一意でないので閉じる
-    await rerenderQuakes(rerender, [
-      recentQuake({ ...dup, reportDateTime: "2026-07-14T21:00:00+09:00" }),
-      recentQuake({ ...dup, reportDateTime: "2026-07-14T21:05:00+09:00" }),
-    ]);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
-  });
-
-  it("eventId が途中付与されると ID が変わり追従が切れて閉じる (許容挙動の明文化、指摘2)", async () => {
-    const base = { originTime: "2026-07-14T20:58:00+09:00", hypocenterName: "浦河沖", reportDateTime: "2026-07-14T21:00:00+09:00" };
-    const { container, rerender } = renderWithQuakes([recentQuake({ ...base, eventId: null })]);
-    rowButtons(container)[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeTruthy();
-
-    // 同じ地震に eventId が後付けされると ID が originTime|hypocenter → eventId へ変わり不一致で閉じる。
-    // これはサーバ系列 ID 供給 (残課題) までの許容挙動。
-    await rerenderQuakes(rerender, [recentQuake({ ...base, eventId: "E1" })]);
-    await tick();
-    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
-  });
-});
-
-describe("StandbyScreen 津波チップ replay 配線", () => {
-  it("津波チップクリックで onTsunamiReplay(level) が呼ばれる (banner → standby → App 配線)", () => {
+  it("keeps tsunami replay wiring and places the nankai band immediately above the ticker edge", () => {
     const onTsunamiReplay = vi.fn();
-    const multi = tsunamiState({
-      level: "majorWarning",
-      coasts: [
-        { name: "宮崎県", kind: "大津波警報", maxHeight: "10m超", firstHeight: null },
-        { name: "高知県", kind: "津波警報", maxHeight: "3m", firstHeight: null },
-      ],
-    });
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ tsunami: multi }),
-      now,
-      dim: false,
-      sseConnected: true,
-      onTsunamiReplay,
-    });
-    const chips = container.querySelectorAll<HTMLButtonElement>(".count-chip");
-    expect(chips.length).toBe(2);
-    chips[1].dispatchEvent(new MouseEvent("click", { bubbles: true })); // 「警報」チップ
+    const nankai = { kind: "nankaiTrough", surface: "clock-below", key: "nankai:1", sourceEventIds: ["n"], updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "info", data: { statusCode: "normal", label: "南海トラフ" } } as Extract<ActiveStandbyCardV1, { kind: "nankaiTrough" }>;
+    const { container } = render(StandbyScreen, { snapshot: baseSnapshot({ tsunami: tsunami(), standbyItems: [nankai] }), now, dim: false, sseConnected: true, onTsunamiReplay });
+    const buttons = container.querySelectorAll<HTMLButtonElement>(".legacy-layout .tsunami-corner .count-chip");
+    buttons[0]?.click();
     expect(onTsunamiReplay).toHaveBeenCalledWith("warning");
+    expect(container.querySelector(".nankai-ticker.bottom-stack")).toBeTruthy();
   });
-});
 
-// 通常モーション (reduced-motion を stub しない → out:fade が非0ms) での排他スロット検証。
-// 別 key 実装だと latest↔replay 切替時に旧カードが outro 完了まで残り 2 枚同時に積まれる回帰
-// (増分レビュー)。同一 key "quake-slot" で内側だけ差し替える修正を固定する。
-describe("StandbyScreen 排他スロットの二重化防止 (通常モーション)", () => {
-  // このブロックでは matchMedia を stub しない (jsdom 既定で未実装 → reducedMotion=false = 通常モーション)。
-  // fake timer も使わない: 切替直後 (outro があるなら完了前) の DOM を観測するため。
-  function slotCount(container: Element): number {
-    return container.querySelectorAll(".corner-left .corner-item.quake-corner").length;
-  }
-
-  it("latest→replay 切替直後に quake-corner 要素が同時に 2 枚存在しない", async () => {
+  it("keeps separate tsunami chips and propagates the selected warning level", () => {
+    const onTsunamiReplay = vi.fn();
     const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({
-        latestQuake: latestQuakeState({ hypocenterName: "石垣島近海" }),
-        recentQuakes: [recentQuake({ eventId: "A", hypocenterName: "浦河沖" })],
-      }),
-      now,
-      dim: false,
-      sseConnected: true,
+      snapshot: baseSnapshot({ tsunami: tsunami({ coasts: [
+        { name: "宮崎県", kind: "津波警報", maxHeight: "3m", firstHeight: null },
+        { name: "鹿児島県", kind: "津波注意報", maxHeight: "1m", firstHeight: null },
+      ] }) }), now, dim: false, sseConnected: true, onTsunamiReplay,
     });
-    expect(slotCount(container)).toBe(1); // 初期: LatestQuakeCard 1 枚
-    container.querySelector(".quakes-card button.row")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await tick();
-    // 同一 key スロットなので旧カードの outro が発生せず、切替直後も常に 1 枚
-    expect(slotCount(container)).toBe(1);
-    expect(container.querySelector(".corner-left .quake-replay-card")).toBeTruthy();
-    expect(container.querySelector(".corner-left .quake-card")).toBeFalsy();
+    const chips = container.querySelectorAll<HTMLButtonElement>(".tsunami-corner .count-chip");
+    expect(chips).toHaveLength(2);
+    expect(chips[0]?.textContent).toContain("警報");
+    expect(chips[1]?.textContent).toContain("注意報");
+    chips[1]?.click();
+    expect(onTsunamiReplay).toHaveBeenCalledWith("advisory");
   });
 
-  it("replay→latest 切替 (クローズ) 直後も quake-corner は 1 枚のまま", async () => {
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({
-        latestQuake: latestQuakeState({ hypocenterName: "石垣島近海" }),
-        recentQuakes: [recentQuake({ eventId: "A", hypocenterName: "浦河沖" })],
-      }),
-      now,
-      dim: false,
-      sseConnected: true,
-    });
-    const row = container.querySelector(".quakes-card button.row")!;
-    row.dispatchEvent(new MouseEvent("click", { bubbles: true })); // latest→replay
-    await tick();
-    row.dispatchEvent(new MouseEvent("click", { bubbles: true })); // 再クリックでクローズ replay→latest
-    await tick();
-    expect(slotCount(container)).toBe(1);
-    expect(container.querySelector(".corner-left .quake-card")).toBeTruthy();
-    expect(container.querySelector(".corner-left .quake-replay-card")).toBeFalsy();
-  });
-});
-
-describe("measurement shelf (spec 2026-07-23 standby-right-stack T1/T3)", () => {
-  type ROCallback = (entries: Array<{ target: Element }>) => void;
-  let roInstances: Array<{ cb: ROCallback; observed: Element[]; observeCalls: Element[]; unobserveCalls: Element[] }>;
-
-  class StubResizeObserver {
-    cb: ROCallback;
-    rec: { cb: ROCallback; observed: Element[]; observeCalls: Element[]; unobserveCalls: Element[] };
-    constructor(cb: ROCallback) {
-      this.cb = cb;
-      this.rec = { cb, observed: [], observeCalls: [], unobserveCalls: [] };
-      roInstances.push(this.rec);
-    }
-    observe(el: Element) { this.rec.observed.push(el); this.rec.observeCalls.push(el); }
-    unobserve(el: Element) { this.rec.unobserveCalls.push(el); this.rec.observed = this.rec.observed.filter((e) => e !== el); }
-    disconnect() { this.rec.observed = []; }
-  }
-
-  const cardItem = (kind: string, key: string, updatedAt: string, severity = "normal"): ActiveStandbyCardV1 =>
-    ({
-      kind, key, surface: "corner-right", severity, updatedAt,
-      sourceEventIds: [], expiresAt: null, restored: false,
-      data: kind === "typhoon"
-        ? { typhoons: [{ typhoonKey: "TC1", name: null, nameKana: null, remark: "台風発生予想", typhoonNumber: null, category: "熱帯低気圧(TD)", location: "フィリピンの東", pressureHpa: 1000, maxWindMs: 15, moveDirection: "西", moveSpeedKmh: 20, reportDateTime: "2026-07-23T19:10:00+09:00" }] }
-        : kind === "volcano"
-          ? { volcanoes: [{ code: "506", name: "桜島", alertLevel: 3, action: "入山規制", updatedAt: "2026-07-23T19:00:00+09:00" }] }
-          : { areas: [{ areaName: "埼玉県" }], targetDate: "2026-07-24", updatedAt: "2026-07-23T19:00:00+09:00" },
-    }) as unknown as ActiveStandbyCardV1;
-
-  // 高さを模擬発火する: borderBoxHeightOf は borderBoxSize 優先なので blockSize を与える
-  const fire = (rec: (typeof roInstances)[number], pairs: Array<[Element, number]>) => {
-    rec.cb(pairs.map(([target, h]) => ({ target, borderBoxSize: [{ blockSize: h, inlineSize: 360 }] })) as never);
-  };
-
-  beforeEach(() => {
-    roInstances = [];
-    vi.stubGlobal("ResizeObserver", StubResizeObserver);
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("(a)(b) overflow 候補も含め全候補が棚に描画され、棚は inert + aria-hidden", async () => {
-    const items = [cardItem("volcano", "volcano:active", "v1", "warning"), cardItem("typhoon", "typhoon:active", "v1"), cardItem("heat", "heat:1", "v1", "warning"), cardItem("heat", "heat:2", "v1", "warning")];
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    const shelf = container.querySelector(".measure-shelf");
-    expect(shelf).toBeTruthy();
-    expect(shelf!.getAttribute("aria-hidden")).toBe("true");
-    expect(shelf!.hasAttribute("inert")).toBe(true);
-    expect(shelf!.querySelectorAll('[data-display-mode="full"]')).toHaveLength(4); // 選抜結果に関わらず全候補
-    expect(shelf!.querySelectorAll('[data-display-mode="compact"]')).toHaveLength(1); // 台風だけ compact も実測
-  });
-
-  it("(d)(e) 実測発火で選抜が実測ベースに切り替わり、item 削除で計測も消える", async () => {
-    // jsdom は高さ 0 のため初期は全件見積り (volcano240 + typhoon240+12 + heat160+12 ×2 > budget0) →
-    // 棚経由の実測発火で全候補が現在版になった時点で実測選抜へ
-    const items = [cardItem("volcano", "volcano:active", "v1", "warning"), cardItem("typhoon", "typhoon:active", "v1")];
-    const { container, rerender } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")));
-    expect(rec).toBeTruthy();
-    const shelfItems = [...container.querySelectorAll(".measure-shelf-item")];
-    expect(shelfItems).toHaveLength(3); // full 2 枚 + 台風 compact 1 枚
-    // 実測を発火: 両カードとも 100px (見積り 240 と大きく乖離)
-    fire(rec!, shelfItems.map((el) => [el, 100] as [Element, number]));
-    await tick();
-    // standbyHeightPx は jsdom で 640 初期値 → budget = 640-48-0-0 = 592。実測 100×2+gap12 は余裕で visible
-    expect(container.querySelectorAll(".corner-right .standby-corner")).toHaveLength(2);
-    // item 削除 → 棚からも消える (Map prune は挙動としては棚 DOM 数で観測)
-    await rerender({ snapshot: baseSnapshot({ standbyItems: [items[0]] }), now, dim: false, sseConnected: true });
-    await tick();
-    expect(container.querySelectorAll(".measure-shelf-item")).toHaveLength(1);
-  });
-
-  it("(c) updatedAt 変更・高さ同一で unobserve→observe が呼ばれる (再計測強制)", async () => {
-    const items = [cardItem("typhoon", "typhoon:active", "v1")];
-    const { container, rerender } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")));
-    const before = rec!.observeCalls.length;
-    await rerender({ snapshot: baseSnapshot({ standbyItems: [cardItem("typhoon", "typhoon:active", "v2")] }), now, dim: false, sseConnected: true });
-    await tick();
-    expect(rec!.unobserveCalls.length).toBeGreaterThan(0);
-    expect(rec!.observeCalls.length).toBeGreaterThan(before);
-  });
-
-  it("(f) 棚内のカードが本表示のセレクタ数を汚さない (visible は corner-right 直下のみで数える)", async () => {
-    const items = [cardItem("typhoon", "typhoon:active", "v1")];
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    expect(container.querySelectorAll(".corner-right .standby-card").length)
-      .toBeLessThanOrEqual(container.querySelectorAll(".standby-card").length - 1); // 棚に最低 1 枚
-  });
-
-  it("台風 full が予算外なら実測 compact を採用する", async () => {
-    const items = [cardItem("typhoon", "typhoon:active", "v1")];
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")))!;
-    const full = container.querySelector('[data-display-mode="full"]')!;
-    const compact = container.querySelector('[data-display-mode="compact"]')!;
-    fire(rec, [[full, 700], [compact, 300]]);
-    await tick();
-    expect(container.querySelector(".corner-right .typhoon-card.compact")).toBeTruthy();
-    expect(container.querySelector(".corner-right .overflow")).toBeNull();
-  });
-
-  it("台風 compact も予算外なら従来の overflow 要約へ送る", async () => {
-    const items = [cardItem("typhoon", "typhoon:active", "v1")];
-    const { container } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: items }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    const rec = roInstances.find((r) => r.observed.some((el) => (el as HTMLElement).classList?.contains("measure-shelf-item")))!;
-    const full = container.querySelector('[data-display-mode="full"]')!;
-    const compact = container.querySelector('[data-display-mode="compact"]')!;
-    fire(rec, [[full, 700], [compact, 700]]);
-    await tick();
-    // 旧カードは outro 中だけ DOM に残り得るため、選抜結果が即時反映される要約で観測する。
-    expect(container.querySelector(".corner-right .overflow")?.textContent).toBe("ほか1件: 台風");
-  });
-
-  it("実機シナリオ: 台風3件の表示中に気象警報が増えると full から compact へ縮約して台風を残す", async () => {
-    const baseTyphoon = cardItem("typhoon", "typhoon:active", "v1", "warning");
-    if (baseTyphoon.kind !== "typhoon") throw new Error("test fixture kind mismatch");
-    const threeTyphoons: Extract<ActiveStandbyCardV1, { kind: "typhoon" }> = {
-      ...baseTyphoon,
-      data: {
-        typhoons: Array.from({ length: 3 }, (_, index) => ({
-          ...baseTyphoon.data.typhoons[0],
-          typhoonKey: `TC${index + 1}`,
-          typhoonNumber: `260${index + 1}`,
-          nameKana: `TYPHOON-${index + 1}`,
-          remark: null,
-        })),
-      },
+  it("renders selected quake and weather expansion candidates in the cards", async () => {
+    const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["宮崎市"], omittedAreaCount: 2, expandedAreas: ["宮崎市", "日南市", "串間市"] }] });
+    const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 1 }] });
+    const { container } = renderScreen({ latestQuake: quake, weatherAlerts: [alert], weatherExpandedKinds: [{ kindKey: "officialL3|heavy-rain", areas: ["宮崎市", "日南市"], totalAreaCount: 2, candidateTruncated: false }] });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const counts = JSON.parse(container.querySelector(".standby")?.getAttribute("data-expanded-counts") ?? "{}") as {
+      quake?: { count: number; n: number };
+      weather?: Record<string, { count: number; n: number }>;
     };
-    const increasedAlert = weatherAlert({
-      role: "weatherWarning",
-      label: "気象警報",
-      items: ["大雨警報", "洪水警報", "暴風警報"].map((kind, index) => ({
-        kind,
-        displaySeverity: "warning",
-        rank: "warning" as const,
-        shownAreas: [`関東地方${index + 1}`],
-        omittedAreaCount: 0,
-      })),
-    });
-    const { container, rerender } = render(StandbyScreen, {
-      snapshot: baseSnapshot({ standbyItems: [threeTyphoons] }), now, dim: false, sseConnected: true,
-    });
-    await tick();
-    expect(container.querySelector(".corner-right .typhoon-card.compact")).toBeNull();
+    expect(counts.quake).toEqual({ count: 3, n: 0 });
+    expect(counts.weather?.["大雨警報"]).toEqual({ count: 2, n: 0 });
+    expect(container.querySelector(".legacy-layout")?.textContent).toContain("日南市");
+  });
 
-    await rerender({
-      snapshot: baseSnapshot({ standbyItems: [threeTyphoons], weatherAlerts: [increasedAlert] }),
-      now,
-      dim: false,
-      sseConnected: true,
+  it("keeps compact and full measurement variants independent from B expansion", async () => {
+    const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["宮崎市"], omittedAreaCount: 1, expandedAreas: ["宮崎市", "日南市"] }] });
+    const { container } = renderScreen({ latestQuake: quake });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelector('.measure-item[data-measure-variant="compact"]')?.textContent).not.toContain("日南市");
+    expect(container.querySelector('.measure-item[data-measure-variant="full"]')?.textContent).not.toContain("日南市");
+    expect(container.querySelector('.measure-item[data-measure-variant="expanded"]')?.textContent).toContain("日南市");
+  });
+
+  it("measures flood promotion with the wide shelf form", () => {
+    const { container } = render(StandbyScreen, { snapshot: baseSnapshot({ standbyItems: [flood("clock-top-wide")] }), now, dim: false, sseConnected: true });
+    expect(container.querySelector('.measure-item[data-measure-variant="compact"] .flood-card')).toBeTruthy();
+    expect(container.querySelector('.measure-item[data-measure-variant="expanded"] .flood-wide-card')).toBeTruthy();
+  });
+
+  it("reduces typhoon full to compact and retains it when weather increases", async () => {
+    const testMeasurementOverride = {
+      layoutWidthPx: 1280, layoutHeightPx: 100,
+      "quake:compact:right": 60, "quake:expanded:right": 60, "quake:full:right": 60,
+      "quake:compact:center": 60, "quake:expanded:center": 60, "quake:full:center": 60,
+      "weather:compact:right": 60, "weather:expanded:right": 60, "weather:full:right": 60,
+      "weather:compact:center": 60, "weather:expanded:center": 60, "weather:full:center": 60,
+      "typhoon:compact:right": 20, "typhoon:expanded:right": 20, "typhoon:full:right": 90,
+      "typhoon:compact:center": 20, "typhoon:expanded:center": 20, "typhoon:full:center": 90,
+    };
+    const { container, rerender } = render(StandbyScreen, { snapshot: baseSnapshot({ latestQuake: latestQuake(), standbyItems: [typhoon()] }), now, dim: false, sseConnected: true, testMeasurementOverride });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelector(".legacy-layout .typhoon-card.compact")).toBeFalsy();
+    await rerender({ snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: [typhoon()] }), now, dim: false, sseConnected: true, testMeasurementOverride });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelector(".legacy-layout .typhoon-card.compact")).toBeTruthy();
+    expect(container.querySelector(".legacy-layout .typhoon-card")).toBeTruthy();
+  });
+});
+
+describe("StandbyScreen measured stage epoch", () => {
+  const cardHeights = (weatherRight: number, weatherCenter: number, typhoonRight = 0, typhoonCenter = 0) => ({
+    layoutWidthPx: 1280, layoutHeightPx: 100,
+    "quake:compact:right": 80, "quake:expanded:right": 80, "quake:full:right": 80,
+    "quake:compact:center": 80, "quake:expanded:center": 80, "quake:full:center": 80,
+    "weather:compact:right": weatherRight, "weather:expanded:right": weatherRight, "weather:full:right": weatherRight,
+    "weather:compact:center": weatherCenter, "weather:expanded:center": weatherCenter, "weather:full:center": weatherCenter,
+    "typhoon:compact:right": typhoonRight, "typhoon:expanded:right": typhoonRight, "typhoon:full:right": typhoonRight,
+    "typhoon:compact:center": typhoonCenter, "typhoon:expanded:center": typhoonCenter, "typhoon:full:center": typhoonCenter,
+  });
+  const cases = [
+    { stage: 1, override: cardHeights(120, 90), items: [] as ActiveStandbyCardV1[] },
+    { stage: 2, override: cardHeights(120, 45, 120, 45), items: [typhoon()] as ActiveStandbyCardV1[] },
+    { stage: 3, override: cardHeights(120, 55, 120, 55), items: [typhoon()] as ActiveStandbyCardV1[] },
+  ] as const;
+
+  it.each(cases)("settles auto-selected measured stage $stage through the component epoch", async ({ stage, override, items }) => {
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: items }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: override,
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector(".standby")!;
+    expect(root.getAttribute("data-measurement-settled")).toBe("true");
+    expect(root.getAttribute("data-ladder-stage")).toBe(String(stage));
+    if (stage < 3) expect(container.querySelector(".center-card-region")).toBeTruthy();
+    else expect(container.querySelector(".rotation-slot")).toBeTruthy();
+  });
+
+  it("keeps exactly one clock owner while an upgrade and a same-content epoch are unsettled", async () => {
+    const callbacks: number[] = [];
+    let tickerOwnsClock = false;
+    const stageOne = { ...cardHeights(120, 90), baselineGapPx: 10 };
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: stageOne,
+      onStageChange: (nextStage: number) => { callbacks.push(nextStage); tickerOwnsClock = nextStage >= 1; },
+    });
+    const assertExclusive = () => {
+      const centerOwnsClock = view.container.querySelector("[data-clock-landmark]") != null;
+      expect(Number(centerOwnsClock) + Number(tickerOwnsClock)).toBe(1);
+    };
+    assertExclusive();
+    for (let pass = 0; pass < 8; pass += 1) { await tick(); assertExclusive(); }
+    expect(callbacks).toEqual([1]);
+
+    await view.rerender({
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: { ...stageOne, layoutHeightPx: 141 },
+      onStageChange: (nextStage: number) => { callbacks.push(nextStage); tickerOwnsClock = nextStage >= 1; },
+    });
+    window.dispatchEvent(new Event("resize"));
+    assertExclusive();
+    for (let pass = 0; pass < 8; pass += 1) { await tick(); assertExclusive(); }
+    expect(callbacks).toEqual([1]);
+  });
+
+  it("holds the committed grid during settling, then switches plan and clock ownership together", async () => {
+    const calm = { ...cardHeights(120, 90), layoutHeightPx: 250, baselineGapPx: 10 };
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: calm,
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(view.container.querySelector(".standby")?.getAttribute("data-ladder-stage")).toBe("0");
+    expect(view.container.querySelector(".legacy-layout .weather-card")).toBeTruthy();
+
+    await view.rerender({
+      snapshot: baseSnapshot({ latestQuake: latestQuake({ updatedAtMs: 2 }), weatherAlerts: [weather({ updatedAt: "2026-08-20T12:01:00+09:00" })] }),
+      now, dim: false, sseConnected: true, testMeasurementOverride: { ...calm, layoutHeightPx: 100 },
     });
     await tick();
-    expect(container.querySelector(".weather-card")).toBeTruthy();
-    expect(container.querySelector(".corner-right .typhoon-card.compact")).toBeTruthy();
-    expect(container.querySelectorAll(".corner-right .typhoon-card.compact .typhoon")).toHaveLength(3);
-    expect(container.querySelector(".corner-right .overflow")).toBeNull();
+    const unsettled = view.container.querySelector(".standby");
+    expect(unsettled?.getAttribute("data-measurement-settled")).toBe("false");
+    expect(unsettled?.getAttribute("data-ladder-stage")).toBe("0");
+    expect(view.container.querySelector("[data-clock-landmark]")).toBeTruthy();
+    expect(view.container.querySelector(".legacy-layout .weather-card")).toBeTruthy();
+
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(view.container.querySelector(".standby")?.getAttribute("data-ladder-stage")).toBe("1");
+    expect(view.container.querySelector("[data-clock-landmark]")).toBeNull();
+    expect(view.container.querySelector(".center-card-region .weather-card")).toBeTruthy();
+  });
+
+  it("demotes only for content change after the strict two-gap hysteresis margin", async () => {
+    const initial = { ...cardHeights(120, 90), baselineGapPx: 10 };
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: initial,
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(view.container.querySelector(".standby")?.getAttribute("data-ladder-stage")).toBe("1");
+
+    await view.rerender({ snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }), now, dim: false, sseConnected: false, testMeasurementOverride: { ...initial, layoutHeightPx: 141 } });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(view.container.querySelector(".standby")?.getAttribute("data-ladder-stage")).toBe("1");
+
+    await view.rerender({ snapshot: baseSnapshot({ latestQuake: latestQuake() }), now, dim: false, sseConnected: false, testMeasurementOverride: { ...initial, layoutHeightPx: 141 } });
+    for (let pass = 0; pass < 16; pass += 1) await tick();
+    const finalRoot = view.container.querySelector(".standby");
+    expect({
+      ladder: finalRoot?.getAttribute("data-ladder-stage"),
+      solver: finalRoot?.getAttribute("data-solver-stage"),
+      settled: finalRoot?.getAttribute("data-measurement-settled"),
+      nonconverged: finalRoot?.getAttribute("data-measurement-nonconverged"),
+    }).toEqual({ ladder: "0", solver: "0", settled: "true", nonconverged: "false" });
+  });
+
+  it("opens a measurement epoch when only the connection badge visibility changes", async () => {
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake() }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: cardHeights(120, 90),
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const before = view.container.querySelector(".standby")?.getAttribute("data-measurement-epoch");
+    await view.rerender({ snapshot: baseSnapshot({ latestQuake: latestQuake() }), now, dim: false, sseConnected: false, testMeasurementOverride: cardHeights(120, 90) });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(view.container.querySelector(".standby")?.getAttribute("data-measurement-epoch")).not.toBe(before);
+  });
+});
+
+describe("StandbyScreen prefix probes and fixed-center geometry", () => {
+  it("measures every B prefix and selects a later fit after a non-monotonic overflow", async () => {
+    const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["A"], omittedAreaCount: 3, expandedAreas: ["A", "B", "C", "D"] }] });
+    const testMeasurementOverride = {
+      layoutWidthPx: 1280, layoutHeightPx: 120, baselineGapPx: 10,
+      "quake:compact:right": 20, "quake:expanded:right": 80, "quake:full:right": 80,
+      "quake:compact:center": 20, "quake:expanded:center": 80, "quake:full:center": 80,
+      "quake:prefix:1:side": 60,
+      "quake:prefix:2:side": 130,
+      "quake:prefix:3:side": 80,
+    };
+    const { container } = render(StandbyScreen, { snapshot: baseSnapshot({ latestQuake: quake }), now, dim: false, sseConnected: true, testMeasurementOverride });
+    for (let pass = 0; pass < 12; pass += 1) await tick();
+    const root = container.querySelector(".standby")!;
+    expect(root.getAttribute("data-measurement-settled")).toBe("true");
+    expect(root.getAttribute("data-prefix-probe-count")).toBe("3");
+    expect(container.querySelectorAll('[data-prefix-measure*="placement:side"]')).toHaveLength(3);
+    const counts = JSON.parse(root.getAttribute("data-expanded-counts") ?? "{}") as { quake?: { count: number; n: number } };
+    expect(counts.quake).toEqual({ count: 4, n: 0 });
+    expect(container.querySelector(".legacy-layout")?.textContent).toContain("D");
+  });
+
+  it("normalizes 128 quake and weather prefixes to two side probe sets within the settle bound", async () => {
+    const areas = Array.from({ length: 129 }, (_, index) => `地域${index + 1}`);
+    const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: [areas[0]!], omittedAreaCount: 128, expandedAreas: areas }] });
+    const alert = weather({ items: [{ kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL3", rank: "warning", shownAreas: [areas[0]!], omittedAreaCount: 128 }] });
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: quake, weatherAlerts: [alert], weatherExpandedKinds: [{ kindKey: "officialL3|heavy-rain", areas, totalAreaCount: 129, candidateTruncated: false }] }),
+      now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+    });
+    for (let pass = 0; pass < 16; pass += 1) await tick();
+    const root = container.querySelector(".standby")!;
+    expect(root.getAttribute("data-measurement-settled")).toBe("true");
+    expect(root.getAttribute("data-measurement-nonconverged")).toBe("false");
+    expect(root.getAttribute("data-prefix-probe-count")).toBe("256");
+    expect(container.querySelectorAll('[data-prefix-measure*="placement:side"]')).toHaveLength(256);
+    expect(container.querySelectorAll('[data-prefix-measure*="placement:left"], [data-prefix-measure*="placement:right"]')).toHaveLength(0);
+  });
+
+  it("uses the ticker-edge fallback for three equal calm intervals without shifting the clock for connection state", async () => {
+    const stats = { sparklineData: [1], totalReceived: 1, todayQuakeCount: 1, todayMaxInt: null, todayMaxIntRank: null };
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ stats, recentQuakes: [recent], connection: { dmdata: "disconnected", lastReceivedAt: null, disconnectedSince: "t", reason: "timeout" } }),
+      now, dim: false, sseConnected: true,
+      testMeasurementOverride: { boundaryTopPx: 500, clockBottomPx: 200, statsHeightPx: 30, recentHeightPx: 60, connectionHeightPx: 24 },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const style = container.querySelector<HTMLElement>(".standby")?.getAttribute("style") ?? "";
+    expect(style).toContain("--cluster-gap: 70px");
+    expect(style).toContain("--cluster-flow-height: 160px");
+    expect(container.querySelector(".clock-wrap > .clock-face > .clock")).toBeTruthy();
+    expect(container.querySelector(".clock-wrap > .clock-connection")).toBeTruthy();
+  });
+
+  it("includes connection, stats, recent rows, and their gaps in fixed-center capacity", async () => {
+    const stats = { sparklineData: [1], totalReceived: 1, todayQuakeCount: 1, todayMaxInt: null, todayMaxIntRank: null };
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ stats, recentQuakes: [recent], connection: { dmdata: "disconnected", lastReceivedAt: null, disconnectedSince: "t", reason: "timeout" } }),
+      now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutHeightPx: 500, statsHeightPx: 20, recentHeightPx: 30, connectionHeightPx: 10, baselineGapPx: 10, gapPx: 10 },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    expect(container.querySelector(".standby")?.getAttribute("data-center-natural-height-px")).toBe("80");
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toMatch(/\.rotation-failure-measure[^}]*box-sizing: border-box[^}]*border: 1px solid/);
+    expect(source).toMatch(/\.clock-below[^}]*gap: var\(--cluster-gap\)/);
+  });
+});
+
+describe("StandbyScreen replay exclusivity with normal motion", () => {
+  it("never renders latest and replay together while motion is enabled", async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+    try {
+      const { container } = render(StandbyScreen, { snapshot: baseSnapshot({ latestQuake: latestQuake(), recentQuakes: [recent] }), now, dim: false, sseConnected: true });
+      const row = container.querySelector<HTMLButtonElement>(".quakes-card button.row")!;
+      row.click();
+      await tick();
+      expect(container.querySelectorAll(".corner-left .quake-card, .corner-left .quake-replay-card")).toHaveLength(1);
+      expect(container.querySelector(".corner-left .quake-replay-card")).toBeTruthy();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});
+
+describe("StandbyScreen replay identity and timer lifecycle", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+  const renderReplay = (recentQuakes: DisplayRecentQuakeV1[]) => render(StandbyScreen, { snapshot: baseSnapshot({ recentQuakes }), now, dim: false, sseConnected: true });
+  const rows = (container: HTMLElement) => Array.from(container.querySelectorAll<HTMLButtonElement>(".quakes-card button.row"));
+
+  it("restarts the 20-second baseline when a different item is selected", async () => {
+    const { container } = renderReplay([recent, { ...recent, eventId: "q-2", hypocenterName: "浦河沖" }]);
+    rows(container)[0]?.click(); await tick();
+    vi.advanceTimersByTime(15_000);
+    rows(container)[1]?.click(); await tick();
+    vi.advanceTimersByTime(5_000); await tick();
+    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("浦河沖");
+    vi.advanceTimersByTime(15_000); await tick();
+    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
+  });
+
+  it("does not restart a replay timer for a correction of the selected event", async () => {
+    const { container, rerender } = renderReplay([recent]);
+    rows(container)[0]?.click(); await tick();
+    vi.advanceTimersByTime(15_000);
+    await rerender({ snapshot: baseSnapshot({ recentQuakes: [{ ...recent, hypocenterName: "訂正後" }] }), now, dim: false, sseConnected: true });
+    vi.advanceTimersByTime(5_000); await tick();
+    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
+  });
+
+  it("disposes a pending replay timer on unmount", async () => {
+    const view = renderReplay([recent]);
+    rows(view.container)[0]?.click(); await tick();
+    view.unmount();
+    vi.advanceTimersByTime(20_000);
+    expect(view.container.querySelector(".quake-replay-card")).toBeFalsy();
+  });
+
+  it("follows an eventId-null selection by its fallback identity", async () => {
+    const nullId = { ...recent, eventId: null };
+    const { container, rerender } = renderReplay([nullId]);
+    rows(container)[0]?.click(); await tick();
+    await rerender({ snapshot: baseSnapshot({ recentQuakes: [{ ...nullId, depth: "30km" }] }), now, dim: false, sseConnected: true });
+    expect(container.querySelector(".quake-replay-card")?.textContent).toContain("30km");
+  });
+
+  it("closes a fallback selection when a later report supplies eventId", async () => {
+    const nullId = { ...recent, eventId: null };
+    const { container, rerender } = renderReplay([nullId]);
+    rows(container)[0]?.click(); await tick();
+    await rerender({ snapshot: baseSnapshot({ recentQuakes: [{ ...nullId, eventId: "q-later" }] }), now, dim: false, sseConnected: true });
+    expect(container.querySelector(".quake-replay-card")).toBeFalsy();
   });
 });
