@@ -112,7 +112,7 @@
 - **INV-飢餓なし（有限 churn 前提）**: 集合変更が有限回で止まれば、その後 INV-到達の式が成立する。変更が続いても、残存し続ける要素は変更のたびに位置を失わず（先頭 reset を繰り返さず）、表示機会が単調に進む。
 - **INV-決定**: scheduler は明示的な内部状態（現在要素 key・位相起点時刻・pending/defer 集合・一周起点 key・**一周管理の既表示集合・処理済み tick 数・直前ページ数・suspend/in-flight transition フラグ**）を持ち、表示中の要素は「列挙入力（集合・実測寸法・直前 stage）＋scheduler 状態＋単調 tick」の関数とする（同一入力でも状態履歴が異なれば表示が異なるのは正常。テスト・撮影用に tick override（`rotationTick`/`cardPageTick`）と状態の診断属性を持つ）。
 - **INV-固定**: 時分割は枠・カード・リスト領域の位置と高さを変えない（中身の交代のみ）。
-- **INV-排他**: epoch/stage 変更は進行中の交代 transition を cancel して優先する。次 tick の交代は前 transition の finished/deadline 後。交代中も要素は枠外へ描画されず、空表示フレームを作らない。unmount・stage 退出で timer と animation を破棄する。
+- **INV-排他**: epoch/stage 変更は進行中の交代 transition を cancel して優先する。次 tick の交代は前 transition の finished/deadline 後。交代中も要素は枠外へ描画されず、空表示フレームを作らない。unmount では各 scheduler の timer と animation を破棄し、**stage 退出で timer と animation を破棄するのは輪番 scheduler に限る**（改ページは §7.2・§7.4 の exit 条件まで共有 coordinator を維持する）。
 - **INV-継続**: reduced-motion では交代の動きを即時差し替えにするが、時分割そのものは停止しない。
 
 ### 7.2 共通規則
@@ -173,7 +173,7 @@
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）完全一致。
 
 **C. 余裕利用・時分割ゲート**:
-- **余裕利用の期待値表（v18 実測・v21〜v24 で同値確認・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
+- **余裕利用の期待値表（v18 実測・v21〜v25 で同値確認・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
 
 | セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） | surplus |
 |---|---|---|---|---|---|
