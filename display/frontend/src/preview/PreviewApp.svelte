@@ -109,7 +109,7 @@
   let now = $state(new Date());
   const showNav = new URLSearchParams(window.location.search).get("nav") !== "0";
   const gateScenarioParam = new URLSearchParams(window.location.search).get("gateScenario");
-  const gateScenario: LegacyStandbyGateScenario = gateScenarioParam === "7" || gateScenarioParam === "max"
+  const gateScenario: LegacyStandbyGateScenario = gateScenarioParam === "quiet" || gateScenarioParam === "7" || gateScenarioParam === "max" || gateScenarioParam === "max-floodWide"
     ? gateScenarioParam
     : "4";
   const legacyStandbyGate = $derived(currentHash === "#legacy-standby-gate");

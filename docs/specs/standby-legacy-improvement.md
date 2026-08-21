@@ -6,6 +6,10 @@
 - **本文の役割分担（排他）**: **性質・意味論・確定規則・数値（固定表）＝spec が正**。**視覚配置・規則を満たす手続きの実装＝モックが正**。食い違いはこの区分で裁定し、どちらに属するか曖昧な事項は spec 側に規則として追記してから進める。
 - 裁定に使った目視 packet は第一〜十八号（セッションログ参照）。本 spec は品質メタ見直し（2026-08-15 合意）の第一号適用例であり、§11 の受け入れ条件は Oracle 欄（主張・基線・反証条件・Oracle と証跡・判定者と時点）を持つ。
 
+## 改版履歴
+
+- **2026-08-21 ご主人裁定（packet 二号・三号）起因の改版**: 静止観察でも輪番枠の巡回位置と総数が判る常設インジケータを §7.3 に追加し、その実測高を枠予約へ算入した。960×620 で側列の可読幅を失わない中央トラック規則へ §3 を改定した。影響する §5・§11.1 の数値正本を再実測し、変更セルだけを更新した。
+
 ## 1. 目的と主張
 
 - **主張（隠さないの三層）**: 全 active hazard を無操作で表示し、情報を無言で隠さない。
@@ -31,20 +35,20 @@
 - 左列の先頭は常に津波→地震。それ以外の可動カードは §4 のソルバが左右いずれにも配置できる（右列の並びは基準順を保つ。左へ移った可動カードは左列の末尾側に基準順で並ぶ）。
 - 中央受け皿（時計退避後）へ移動できるのは **気象警報・河川洪水・台風・火山** のみ（中央資格）。熱中症は左右のみ。地震・津波系は常に左。
 - **現行機能の維持**（本 spec で廃止しない）: 接続バッジ、FloodWideCard への surface 切替（engine 判定）、台風カードの compact mode（§4 でソルバの自由度として扱う）、リプレイ差し替え。LatestQuakeCard の内部ページングは**機能として維持しつつ実装を §7 の時分割 scheduler へ置換統合**する（二重ページャ禁止）。
-- **wide flood の placement 変換**: engine が wide surface を選んだ flood は中央資格の**優先候補**とし、中央受け皿では FloodWideCard（36rem）、側列・輪番枠では FloodCard へ変換して描画してよい（placement に応じた形式変換。両形式を測定棚で二重実測する）。上記以外のカードはソルバからは「1 枚のカード」として実測されるだけで、内部挙動に介入しない。
+- **wide flood の placement 変換**: engine が wide surface を選んだ flood は中央資格の**優先候補**とし、中央受け皿では FloodWideCard（実中央トラック幅、上限 36rem）、側列・輪番枠では FloodCard へ変換して描画してよい（placement に応じた形式変換。両形式を測定棚で二重実測する）。上記以外のカードはソルバからは「1 枚のカード」として実測されるだけで、内部挙動に介入しない。
 
 ## 3. レイアウトと時計ランドマーク
 
-- 3 列グリッド。**中央トラックは固定幅 `min(36rem, 60vw)`、左右トラックは残余の等分 `minmax(0, 1fr)`**（モック正）。間隔は縦横 1 トークン。
-- 側列カード幅は `min(30rem, トラック幅)` でトラック内中央寄せ。中央に置かれる要素（時計クラスタ・受け皿カード）はすべて中央トラック幅（36rem 規格）。
-- **時計は viewport（ticker を含む画面全体）の縦横中央に絶対固定**。フォントは列幅追従 `clamp(72px, 16cqw, 160px)`、秒・日付は比例。1920×1080 / 1512×982 / 1280×720 で秒が欠けない。
+- 3 列グリッド。側列の最低可読幅を **`W_min = 17.5rem`（標準 16px root で 280px）** とし、中央トラックは **`min(36rem, viewport − 2×edge − 2×gap − 2×W_min)`**、左右トラックは残余の等分 `minmax(0, 1fr)` とする。これにより通常トークンの 960px 幅では左右各 280px・中央約 333px、1280px 以上では従来の中央 36rem を維持する。間隔は縦横 1 トークン。
+- 側列カード幅は `min(30rem, トラック幅)` でトラック内中央寄せ。中央に置かれる要素（時計クラスタ・受け皿カード）はすべて実中央トラック幅（上限 36rem）。
+- **時計は viewport（ticker を含む画面全体）の縦横中央に絶対固定**。フォントは列幅追従 `clamp(72px, 16cqw, 160px)`、秒・日付は比例。1920×1080 / 1512×982 / 1280×720 / 960×620 で秒が欠けない。
 - 平時の中央クラスタは「時計 → 受信統計 → 今日あった地震 → 南海帯上辺」の 3 区間を実測等間隔。
 - 南海トラフ帯は ticker 領域の直上に gap なしで接地し、左右に edge inset を持つ。帯の実測高は全列の容量から差し引く。
 - 時計退避（§5 stage 1 以降）後は、全列（左右・中央）ともカードを縦中央揃えにする（packet 第十三号 GO。以降のモックで側列 flex-start に戻る変更は退行として扱う）。
 
 ## 4. 実測 2 パスとソルバ
 
-- 高さは算術推定ではなく**実 DOM 同期測定**で得る: 測定棚（本表示と同幅・同 CSS の非表示棚。側列幅と中央 36rem の二重測定）を同期 read し、1 回の再描画で配置を確定する。rAF 連鎖は使わない（headless 停止実績があるため）。
+- 高さは算術推定ではなく**実 DOM 同期測定**で得る: 測定棚（本表示と同幅・同 CSS の非表示棚。側列幅と実中央トラック幅（上限 36rem）の二重測定）を同期 read し、1 回の再描画で配置を確定する。rAF 連鎖は使わない（headless 停止実績があるため）。
 - 判定には gap・列 padding・南海帯予約を px 単位で含め、`data-left/right/center-natural-height-px` / `-capacity-px` 等の診断属性で外部から照合可能にする。容量は `.screen-area`（ticker 高除外済み）基準で、ticker 高は診断として測るのみ（二重控除しない。§13）。
 - **再測定の契機**（測定 epoch を進める）: mount／viewport resize／カード集合の変化（追加・削除・engine 判定の surface 切替）／カード内容の更新（updatedAt 変化）／`document.fonts.ready`。**A・余裕利用フェーズが選ぶ表示形式（台風 compact/full・flood 形式変換・展開 k）は同一 coordinator 内の出力であり、外部 epoch を進めない**。reactive effect による再入は禁止。epoch coordinator 内の **bounded settle pass**（stage 適用・圧縮・輪番枠確保による寸法変化の再測定）は最大 4 pass。非収束時は最後の pass で確定し診断（`data-measurement-nonconverged`）に記録する。
 - **フェーズ構造（A0→比較器→B）**: ①A0 が compact baseline の測定値で fit 候補を全列挙 ②比較器（達成可能展開量 potential 込み）が 1 候補を確定——potential は二重測定値からの算出で B は実行しない ③B（余裕利用フェーズ）が確定候補へ**一度だけ**実体化し、結果を A0・比較器へ再入力しない。
@@ -74,16 +78,16 @@
 | 3 | 輪番枠 | 圧縮でも不成立。低優先カードが固定位置の 1 枠を時分割表示（§7） |
 
 - 旧 4 段案の「左退避」は stage 0 の割当自由度に統合（ご主人裁定）。モックの `ladder` パラメータ旧番号との対応は新 0→旧 0・新 1→旧 2・新 2→旧 3（旧 1 は廃止・本実装へ移植しない）。診断属性は新番号 0/1/2/3 が正。
-- **輪番集合の構成（stage 3）**: canonical order 逆順（熱中症→火山→台風→河川→気象警報。津波・地震・中央クラスタは対象外）でカードを 1 枚ずつ輪番集合へ移し、そのたびにソルバを再実行する。**候補列挙 loop は DOM settle pass（最大 4）とは独立のカウンタで、最大 5 枚まで必ず試し切る**。全常設カード＋輪番枠（右列末尾固定・高さは集合の compact 実測高の最大値を予約）が収まった時点で確定。
+- **輪番集合の構成（stage 3）**: canonical order 逆順（熱中症→火山→台風→河川→気象警報。津波・地震・中央クラスタは対象外）でカードを 1 枚ずつ輪番集合へ移し、そのたびにソルバを再実行する。**候補列挙 loop は DOM settle pass（最大 4）とは独立のカウンタで、最大 5 枚まで必ず試し切る**。全常設カード＋輪番枠（右列末尾固定・高さは集合の compact 実測高の最大値＋§7.3 のインジケータ footer 実測高を予約）が収まった時点で確定。
 - **終端（省略告知）**: 集合の最大 compact 高でも枠を確保できない場合、集合中最大のカード（同値なら canonical 逆順で先）を予約対象から外して枠高を次点で再計算し、外れた枚数 N の「ほか N 件を表示できません」行を枠直下に 1 行描画する（グリッド期資産流用。failure 行の実測高も予約に含める）。診断は `data-rotation-omitted-count`（省略告知）と `data-layout-unresolved`（真の未解決）に分離する。
-- **期待 stage 表（v16 実測・v18/v21〜v24 で同値確認・rotationTick=0。§冒頭の数値正本規則に従い実装後の観測値で書き換えない）**:
+- **期待 stage 表（2026-08-21 ご主人裁定改版の実装を再実測・rotationTick=0）**:
 
 | viewport | scenario 4 | scenario 7 | scenario max |
 |---|---|---|---|
 | 1920×1080 | 0 | 0 | 0 |
 | 1512×982 | 0 | 0 | 1 |
-| 1280×720 | 0 | 3（輪番: heat） | 3（輪番: volcano,heat） |
-| 960×620 | 1 | 3（輪番: volcano,heat） | 3（輪番: typhoon,volcano,heat） |
+| 1280×720 | 0 | 3（輪番: flood,typhoon,volcano,heat） | 3（輪番: flood,typhoon,volcano,heat） |
+| 960×620 | 1 | 3（輪番: weather,flood,typhoon,volcano,heat） | 3（輪番: weather,flood,typhoon,volcano,heat） |
 
   - 全セルで `data-layout-unresolved="false"`（輪番枠の導入により解決不能セルは消滅）。
   - **720p の注記**: 720p の scenario 7 以上は圧縮でも収容できず stage 3 へ到達する。720p の見え方は §11.2 の目視必須項目とし、「現行 main より読める情報量が減らないこと」を比較 gate に含める。カード側の 720p 向け縮退調整は後続課題（§13）。
@@ -126,7 +130,8 @@
 ### 7.3 輪番枠インスタンス（§5 stage 3）
 
 - 集合は §5 の輪番集合・canonical order 巡回・枠は右列末尾固定。
-- 診断: `data-rotation-keys` / `data-rotation-active-key` / `data-rotation-omitted-count`。
+- 枠 footer に巡回位置 `n/m`（例 `2/4`）を常設する。カード内改ページ footer と同じ小型の枠線付き表示とし、カード本文を圧迫しない独立領域に置く。**枠予約高は「集合の compact 実測高の最大値＋インジケータ footer 実測高」**とし、交代中も高さを変えない。
+- 診断: `data-rotation-keys` / `data-rotation-active-key` / `data-rotation-position` / `data-rotation-slot-height-px` / `data-rotation-indicator-height-px` / `data-rotation-omitted-count`。
 
 ### 7.4 カード内改ページインスタンス（2026-08-16 ご主人裁定）
 
@@ -168,34 +173,35 @@
 - runner は `data-measurement-settled="true"` を待って採寸する。この属性は **fonts.ready・測定 epoch・stage settle・partition queue の全消化**が揃った時点でのみ true（途中状態の撮影禁止）。
 - scenario（4/7/max）× viewport（1920×1080・1512×982・1280×720・960×620）で `data-ladder-stage` が §5 表と一致し、`data-layout-unresolved="false"` かつ `data-measurement-nonconverged="false"`。
 - **切れゼロ（縦横）**: 各カード root の `scrollHeight ≤ clientHeight + 1`・`scrollWidth ≤ clientWidth + 1`・カード矩形が viewport 内。時計の秒・日付矩形がクラスタ矩形に包含。台風カードの名前と位置情報が同一行（矩形縦中心差 ≤ 2px、compact/full 両形式）。ページ番号矩形と地域本文矩形の交差 0。
+- **狭幅トラック整合**: 960×620 で `data-left/right-track-width-px ≥ 280`、`data-center-track-width-px` は実トラック幅と一致し、`data-side-measure-shelf-width-px` は左右トラック幅、`data-center-measure-shelf-width-px` は中央トラック幅との差が各 ≤ 1px。時計の秒・日付を含む全要素で横切れゼロ。
 - **重なりゼロ**: カード矩形同士・時計クラスタ・南海帯の交差面積 0（境界 1px 許容）。
 - **時計中心**: stage 0 で時刻要素中心と viewport 中心の差が各軸 ≤ 1px（DPR 込み実測 rect）。列スクロールなし（各列 `scrollHeight ≤ clientHeight + 1`）。
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）完全一致。
 
 **C. 余裕利用・時分割ゲート**:
-- **余裕利用の期待値表（v18 実測・v21〜v25 で同値確認・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
+- **余裕利用の期待値表（2026-08-21 ご主人裁定改版の実装を再実測・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
 
 | セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） | surplus |
 |---|---|---|---|---|---|
 | 1920×1080 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
-| 1920×1080 / 7 | full | card | 7 (n=0) | 12 (n=0) | 13 |
-| 1920×1080 / max | compact | card | 7 (n=0) | 16 (n=8) | 16 |
+| 1920×1080 / 7 | full | card | 4 (n=3) | 9 (n=3) | 7 |
+| 1920×1080 / max | compact | card | 4 (n=3) | 12 (n=12) | 9 |
 | 1512×982 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
-| 1512×982 / 7 | compact | card | 7 (n=0) | 12 (n=0) | 13 |
-| 1512×982 / max | full | card | 7 (n=0) | 24 (n=0) | 25 |
-| 1280×720 / 4 | −（不在） | −（不在） | 7 (n=0) | 3 (n=9) | 4 |
-| 1280×720 / 7 | compact | card | 7 (n=0) | 8 (n=4) | 9 |
-| 1280×720 / max | compact | card | 7 (n=0) | 5 (n=19) | 5 |
-| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
-| 960×620 / 7 | compact | card | 7 (n=0) | 12 (n=0) | 13 |
-| 960×620 / max | compact | card | 7 (n=0) | 5 (n=19) | 5 |
+| 1512×982 / 7 | compact | card | 4 (n=3) | 10 (n=2) | 8 |
+| 1512×982 / max | compact | card | 7 (n=0) | 24 (n=0) | 24 |
+| 1280×720 / 4 | −（不在） | −（不在） | 4 (n=3) | 3 (n=9) | 1 |
+| 1280×720 / 7 | compact | card | 4 (n=3) | 9 (n=3) | 7 |
+| 1280×720 / max | compact | card | 4 (n=3) | 10 (n=14) | 7 |
+| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 4 (n=8) | 5 |
+| 960×620 / 7 | compact | card | 4 (n=3) | 2 (n=10) | 0 |
+| 960×620 / max | compact | card | 4 (n=3) | 3 (n=21) | 0 |
 | 1920×1080 / max＋floodWide | compact / stage 0 | card（中央不在のため FloodCard 変換） | 7 (n=0) | 5 (n=19) | 5 |
 | 1280×720 / max＋floodWide | compact / stage 3（輪番: flood,typhoon,volcano,heat） | card | 7 (n=0) | 4 (n=20) | 4 |
 
   - surplus は `data-placement-surplus-use`。「−（不在）」はカード不在。存在するのに非検査の欄は本表に置かない。stage 3 セルの輪番カードは昇格・展開の対象外。
   - **比較器 ①'' の反証 fixture**: 旧比較器なら低展開配置・①'' 込みなら高展開配置を選ぶ入力を固定し、配置キー列が高展開側であることを検査。
 - **時分割 scheduler の共通 contract test**（輪番・改ページの両インスタンス＋合成ケースへ同一スイートを適用。**存在確認や本文文字列検査でなく挙動検査であること**）: ①epoch/tick 競合時に epoch 優先・tick を skip しない ②reduced-motion でも時分割が継続する ③交代 transition の finished/deadline 排他・空表示フレームなし（**非アニメの交代は「animation を生成しない＋原子的差替え」を検査**）④unmount・exit 後に timer と animation が破棄される（**unmount 前後の資源観測で検査**。改ページの共有 timer は最後の対象カード exit でのみ破棄——1 カード exit で残存カードの timer が止まらないことも検査）⑤exit 条件を**実際に発生させる個別 fixture**で検査する——輪番=**実際の stage 3 終了**（集合を空にするだけの近似では不可）／改ページ=**pageable カードの消滅**と 1 ページ化。stage 遷移でのページ状態維持（override なしの実 tick 環境で pageable カード自身を検査）・輪番 suspend=resume・**輪番対象カードの論理→実時間切替**（復帰後に遡及 tick が適用されないこと）も個別に ⑥合成到達時間（R×P の最長再表示間隔が 15×R×P 以内）。
-- **輪番の検査**: stage 3 セルは `data-rotation-keys` の期待集合一致＋`rotationTick=0..集合長−1` の全 tick 撮影（現在 key・枠内包含・切れ・重なり・failure 行）。fake timer で①安定集合の交代順序と再表示間隔（15 秒×集合長）②カード追加③非 active 削除④active 削除⑤長時間停止後の一括合流、の 5 系統。
+- **輪番の検査**: stage 3 セルは `data-rotation-keys` の期待集合一致＋`rotationTick=0..集合長−1` の全 tick 撮影（現在 key・`data-rotation-position=n/m`・枠内包含・切れ・重なり・failure 行）。全 tick でインジケータを常設し、`data-rotation-slot-height-px = compact 最大実測高 + data-rotation-indicator-height-px`、カード viewport と footer の交差 0 を検査する。fake timer で①安定集合の交代順序と再表示間隔（15 秒×集合長）②カード追加③非 active 削除④active 削除⑤長時間停止後の一括合流、の 5 系統。
 - **改ページの検査**: n>0 セルで①全ページ撮影の地域 union が期待 canonical 集合と完全一致（重複・欠落ゼロ）②各ページが固定高に収まる（長い地域名・複数 pref-group・複数 kind fixture 込み）③現行表示 0 件・n>0 ④公約数 fixture で再登場前進により全ページ到達 ⑤15 秒未満連続更新で後方ページが飢餓しない ⑥LatestQuakeCard で二重ページャ不発火 ⑦輪番集合長 1×複数ページで全ページ到達 ⑧同名地域重複 fixture で複合 identity が誤ジャンプしない ⑨defer 一周解禁＋起点削除でも全ページ到達 ⑩truncated 最終ページの残置行込み包含 ⑪`data-partition-probe-count ≤ max(1, 2×実供給数)/カード`（tail-only fixture 含む）・128 件×2 カードで settle 完了・非収束なし。
 
 **D. wire 契約ユニットテスト（engine 側）**: ①同一 kind・複数 source・一部重複の union（順序・重複排除・totalAreaCount）②安全弁 128 の境界（127/128/129——129 で prefix 128 切り・candidateTruncated=true・残数正。**複数 group/kind をまたいで 128 に到達する fixture を含み、切られた group/kind の帰属が正しいこと**）③optional 欠落の旧互換④budget 縮退で候補が本体より先に落ち truncated=true が残る⑤sanitizer・protocol 複製後も候補と flag が保持⑥正規化関数コピーの同一性（同一入力→出力一致）。

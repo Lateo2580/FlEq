@@ -87,6 +87,31 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(root?.querySelector("[data-clock-landmark] .clock-wrap")).toBeTruthy();
   });
 
+  it("guarantees readable side tracks at 960px and measures shelves against the same track widths", async () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toContain("--side-readable-width: 17.5rem");
+    expect(source).toContain("--center-width: min(36rem, calc(100vw - var(--edge) * 2 - var(--gap) * 2 - var(--side-readable-width) * 2))");
+    expect(source).toMatch(/\.measure-shelf, \.center-measure-shelf \{[^}]*calc\(\(100% - var\(--edge\) \* 2 - var\(--gap\) \* 2 - var\(--center-width\)\) \/ 2\)/);
+
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot(), now, dim: false, sseConnected: true,
+      testMeasurementOverride: {
+        layoutWidthPx: 912, layoutHeightPx: 572,
+        leftTrackWidthPx: 280, centerTrackWidthPx: 333, rightTrackWidthPx: 280,
+        sideMeasureShelfWidthPx: 280, centerMeasureShelfWidthPx: 333,
+      },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    expect({
+      left: root.dataset.leftTrackWidthPx,
+      center: root.dataset.centerTrackWidthPx,
+      right: root.dataset.rightTrackWidthPx,
+      sideShelf: root.dataset.sideMeasureShelfWidthPx,
+      centerShelf: root.dataset.centerMeasureShelfWidthPx,
+    }).toEqual({ left: "280", center: "333", right: "280", sideShelf: "280", centerShelf: "333" });
+  });
+
   it("keeps flood as one placement card and uses the side form outside the center", async () => {
     const { container, rerender } = render(StandbyScreen, {
       snapshot: baseSnapshot({ standbyItems: [flood()] }), now, dim: false, sseConnected: true,
@@ -117,6 +142,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     for (let pass = 0; pass < 8; pass += 1) await tick();
     expect(container.querySelectorAll(".measure-shelf .measure-item")).toHaveLength(9);
     expect(container.querySelectorAll(".center-measure-shelf .measure-item")).toHaveLength(9);
+    expect(container.querySelectorAll(".measure-shelf > .partition-preflight, .center-measure-shelf > .partition-preflight")).toHaveLength(2);
     expect(container.querySelectorAll(".legacy-layout .flood-card, .legacy-layout .flood-wide-card")).toHaveLength(1);
     const before = container.querySelector(".standby")?.getAttribute("data-measurement-epoch");
     await rerender({ snapshot: baseSnapshot({ standbyItems: [{ ...first, updatedAt: "2026-08-20T12:01:00+09:00" }] }), now, dim: false, sseConnected: true });
@@ -133,9 +159,12 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const root = container.querySelector(".standby")!;
     expect(Number(root.getAttribute("data-measurement-pass"))).toBeLessThanOrEqual(4);
     expect(root.getAttribute("data-measurement-settled")).toBe("true");
-    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px"]) {
+    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px", "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-clock-children-horizontal-clipped"]) {
       expect(root.hasAttribute(name)).toBe(true);
     }
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source.indexOf("const geometry = readRenderedGeometry()"))
+      .toBeLessThan(source.indexOf("measurementSettled = true", source.indexOf("function publishSettledGeometry")));
   });
 
   it("suppresses an unrecognised future DTO and exposes its count", () => {
@@ -646,10 +675,13 @@ describe("StandbyScreen measured stage epoch", () => {
   const cases = [
     { stage: 1, override: cardHeights(120, 90), items: [] as ActiveStandbyCardV1[] },
     { stage: 2, override: cardHeights(120, 45, 120, 45), items: [typhoon()] as ActiveStandbyCardV1[] },
-    { stage: 3, override: cardHeights(120, 55, 120, 55), items: [typhoon()] as ActiveStandbyCardV1[] },
+    // No rotation reservation fits this measurement set, so it remains a
+    // central stage-2 plan instead of exposing an empty rotation slot.
+    { stage: 2, override: cardHeights(120, 55, 120, 55), items: [typhoon()] as ActiveStandbyCardV1[] },
   ] as const;
   const rotationStage = {
     ...cardHeights(40, 40, 40, 40), layoutHeightPx: 90, gapPx: 10, baselineGapPx: 10,
+    rotationIndicatorHeightPx: 12,
     "flood:compact:right": 40, "flood:expanded:right": 40, "flood:full:right": 40,
     "flood:compact:center": 40, "flood:expanded:center": 40, "flood:full:center": 40,
     "volcano:compact:right": 40, "volcano:expanded:right": 40, "volcano:full:right": 40,
@@ -670,6 +702,21 @@ describe("StandbyScreen measured stage epoch", () => {
     expect(root.getAttribute("data-ladder-stage")).toBe(String(stage));
     if (stage < 3) expect(container.querySelector(".center-card-region")).toBeTruthy();
     else expect(container.querySelector(".rotation-slot")).toBeTruthy();
+  });
+
+  it("re-measures in compressed geometry before committing a stage-3 plan", async () => {
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: rotationItems }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: rotationStage,
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    expect(root.dataset.ladderStage).toBe("3");
+    expect(root.dataset.measurementGeometryStage).toBe("3");
+    expect(root.classList.contains("ladder-compressed")).toBe(true);
+    // First reads occur in stage 0, then the same bounded pass reads once more
+    // after the stage-3 compression variables are applied.
+    expect(Number(root.dataset.measurementPass)).toBeGreaterThanOrEqual(3);
   });
 
   it("commits and releases a bounded nonconvergent final pass", async () => {
@@ -806,11 +853,25 @@ describe("StandbyScreen measured stage epoch", () => {
       const keys = (root.dataset.rotationKeys ?? "").split(",").filter(Boolean);
       expect({ stage: root.dataset.ladderStage, keys }).toEqual({ stage: "3", keys: expect.arrayContaining([expect.any(String), expect.any(String)]) });
       expect(root.dataset.rotationActiveKey).toBe(keys[rotationTick % keys.length]);
+      expect(root.dataset.rotationPosition).toBe(`${rotationTick % keys.length + 1}/${keys.length}`);
+      expect(root.dataset.rotationIndicatorHeightPx).toBe("12");
+      expect(root.dataset.rotationSlotHeightPx).toBe("52");
+      expect(root.dataset.rotationCompactMaxHeightPx).toBe("40");
+      expect(root.hasAttribute("data-rotation-viewport-footer-overlap-px")).toBe(true);
       expect(view.container.querySelectorAll('.rotation-card:not([hidden])')).toHaveLength(1);
       expect(view.container.querySelector<HTMLElement>('.rotation-card:not([hidden])')?.dataset.rotationCard).toBe(root.dataset.rotationActiveKey);
+      expect(view.container.querySelector<HTMLElement>('[data-rotation-indicator]')?.textContent).toBe(root.dataset.rotationPosition);
+      expect(view.container.querySelector<HTMLElement>('.rotation-card-viewport')?.style.minHeight).toBe("40px");
       expect(JSON.parse(root.dataset.schedulerState ?? "{}")).toMatchObject({ rotation: { timerActive: false } });
       view.unmount();
     }
+  });
+
+  it("uses the effective rotation key for both its indicator and visible card", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toContain("const effectiveRotationKey");
+    expect(source).toContain("data-rotation-active-key={effectiveRotationKey ?? undefined}");
+    expect(source).toContain("hidden={key !== effectiveRotationKey}");
   });
 
   it("performs a real stage-3 exit and releases the rotation resources", async () => {

@@ -2469,7 +2469,7 @@ export const legacyImprovedMaxUnknownItems = [
 ] as const;
 
 /** 実 StandbyScreen 用の layout gate 入力。描画は preview mock ではなく本体へ渡す。 */
-export type LegacyStandbyGateScenario = "4" | "7" | "max";
+export type LegacyStandbyGateScenario = "quiet" | "4" | "7" | "max" | "max-floodWide";
 
 function legacyStandbyGateWeatherExpandedKinds(
   alerts: readonly DisplayWeatherAlertV1[],
@@ -2492,10 +2492,14 @@ function legacyStandbyGateWeatherExpandedKinds(
 export function legacyStandbyGateSnapshot(
   scenario: LegacyStandbyGateScenario,
 ): DisplayStateSnapshotV1 {
-  const weatherCandidates = scenario === "max"
+  if (scenario === "quiet") {
+    return standbySnapshot({ recentQuakes: [], recentTicker: [] });
+  }
+  const isMax = scenario === "max" || scenario === "max-floodWide";
+  const weatherCandidates = isMax
     ? legacyImprovedMaxWeatherAlerts
     : legacyImprovedWeatherAlertsExpanded;
-  const weatherAlerts = scenario === "max"
+  const weatherAlerts = isMax
     ? legacyImprovedMaxWeatherAlertsCompact
     : legacyImprovedWeatherAlertsCompact;
   const expandedQuake = legacyImprovedExpandedLatestQuake;
@@ -2509,7 +2513,9 @@ export function legacyStandbyGateSnapshot(
   };
   const sourceItems = scenario === "4"
     ? standbyItemsShowcase.filter((item) => item.kind !== "flood" && item.kind !== "typhoon")
-    : scenario === "max"
+    : scenario === "max-floodWide"
+      ? [...legacyImprovedMaxItems.filter((item) => item.kind !== "flood"), ...standbyItemsFloodWide.filter((item) => item.kind === "flood")]
+      : scenario === "max"
       ? legacyImprovedMaxItems
       : standbyItemsShowcase;
 

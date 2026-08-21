@@ -262,7 +262,21 @@ export function makeColumnPlan(input: ColumnPlanInput): ColumnPlan {
   let selected = sidePlacement ?? emptyPlacement();
   let stage: LadderStage = 0;
   let rotation: RotationSolution | null = null;
-  const useRotation = (): void => { rotation = solveRotation(candidates, ctx); selected = rotation.placement; stage = 3; };
+  const useRotation = (): void => {
+    const solved = solveRotation(candidates, ctx);
+    // A stage-3 plan must reserve and expose at least one rotating card.  The
+    // empty fallback has excluded failed rotation candidates, so restore the
+    // ordinary central placement before leaving the rotation path.
+    if (solved.rotationKeys.length === 0) {
+      selected = bestPlacement(enumeratePlacements(candidates, new Set<CardKey>(), true, true), ctx) ?? selected;
+      rotation = null;
+      stage = 2;
+      return;
+    }
+    selected = solved.placement;
+    rotation = solved;
+    stage = 3;
+  };
   if (!(floor === 0 && (placementFits(sidePlacement, ctx) || !auto))) {
     const centerPlacement = bestPlacement(enumeratePlacements(candidates, new Set<CardKey>(), true, true), ctx);
     const centerFits = placementFits(centerPlacement, ctx);

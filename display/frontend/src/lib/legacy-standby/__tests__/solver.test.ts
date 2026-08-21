@@ -135,6 +135,22 @@ describe("legacy standby solver", () => {
     expect(makeColumnPlan({ candidates, ctx: stage3Ctx, floorStage: 0, requestedLadder: null }).stage).toBe(3);
   });
 
+  it("does not emit an empty rotation stage when its reservation cannot fit", () => {
+    const candidates = [card("quake", 0, 100), card("weather", 1, 100), card("heat", 2, 60)];
+    const plan = makeColumnPlan({
+      candidates,
+      ctx: { ...context(() => 0), rotationSlotHeight: () => 150 },
+      floorStage: 0,
+      requestedLadder: 3,
+    });
+
+    expect(plan.stage).toBe(2);
+    expect(plan.rotationKeys).toEqual([]);
+    expect(plan.rotationSlotHeight).toBe(0);
+    expect(plan.unresolved).toBe(false);
+    expect([...plan.left, ...plan.right, ...plan.center].map((entry) => entry.key).sort()).toEqual(candidates.map((entry) => entry.key).sort());
+  });
+
   it("uses compact typhoon measurements before escalating the ladder", () => {
     const typhoon: CardCandidate = {
       ...card("typhoon", 1, 120),

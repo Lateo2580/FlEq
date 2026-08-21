@@ -97,7 +97,13 @@
   let layoutEl = $state<HTMLElement | null>(null);
   let nankaiEl = $state<HTMLElement | null>(null);
   let failureMeasureEl = $state<HTMLElement | null>(null);
+  let rotationIndicatorMeasureEl = $state<HTMLElement | null>(null);
   let rotationSlotEl = $state<HTMLElement | null>(null);
+  let sideMeasureShelfEl = $state<HTMLElement | null>(null);
+  let centerMeasureShelfEl = $state<HTMLElement | null>(null);
+  let leftTrackEl = $state<HTMLElement | null>(null);
+  let centerTrackEl = $state<HTMLElement | null>(null);
+  let rightTrackEl = $state<HTMLElement | null>(null);
   let statsMeasureEl = $state<HTMLElement | null>(null);
   let recentMeasureEl = $state<HTMLElement | null>(null);
   let connectionMeasureEl = $state<HTMLElement | null>(null);
@@ -110,7 +116,13 @@
   let prefixMeasureEntries = $state<PrefixMeasureEntry[]>([]);
   let layoutWidthPx = $state(0);
   let layoutHeightPx = $state(0);
+  let leftTrackWidthPx = $state(0);
+  let centerTrackWidthPx = $state(0);
+  let rightTrackWidthPx = $state(0);
+  let sideMeasureShelfWidthPx = $state(0);
+  let centerMeasureShelfWidthPx = $state(0);
   let nankaiHeightPx = $state(0);
+  let rotationIndicatorHeightPx = $state(0);
   let statsHeightPx = $state(0);
   let recentHeightPx = $state(0);
   let connectionHeightPx = $state(0);
@@ -120,6 +132,17 @@
   let baselineGapPx = $state(12);
   let measurementPass = $state(0);
   let measurementReadCount = $state(0);
+  let measurementGeometryStage = $state<LadderStage>(0);
+  let leftTrackRectWidthPx = $state(0);
+  let centerTrackRectWidthPx = $state(0);
+  let rightTrackRectWidthPx = $state(0);
+  let sideMeasureShelfRectWidthPx = $state(0);
+  let centerMeasureShelfRectWidthPx = $state(0);
+  let clockHorizontallyClipped = $state(false);
+  let clockChildrenHorizontallyClipped = $state(false);
+  let rotationCardViewportRectHeightPx = $state(0);
+  let rotationFooterRectHeightPx = $state(0);
+  let rotationViewportFooterOverlapPx = $state(0);
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
   let epoch = $state(0);
@@ -473,7 +496,9 @@
       centerFixedHeightPx: fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * measureGap,
       floodIsWide: floodItem?.surface === "clock-top-wide",
       candidateSupplyLimit: MAX_PREFIX_ROWS,
-      rotationSlotHeight: (keys) => Math.max(0, ...keys.map((key) => measured(key, "compact", "right"))),
+      rotationSlotHeight: (keys) => keys.length === 0
+        ? 0
+        : Math.max(0, ...keys.map((key) => measured(key, "compact", "right"))) + rotationIndicatorHeightPx,
       failureRowHeight: failureMeasureEl?.getBoundingClientRect().height ?? 28,
       gapPx: measureGap,
     };
@@ -539,6 +564,17 @@
   }
   const displayVariant = (card: CardCandidate): CardVariant => selectedVariant(card.key, renderSelection);
   const rotationActiveKey = $derived(rotationScheduler.currentKey());
+  const effectiveRotationKey = $derived.by(() => rotationActiveKey != null && renderPlan.rotationKeys.includes(rotationActiveKey)
+    ? rotationActiveKey
+    : renderPlan.rotationKeys[0] ?? null);
+  const rotationPosition = $derived.by(() => {
+    if (renderPlan.rotationKeys.length === 0) return "";
+    const index = effectiveRotationKey == null ? 0 : renderPlan.rotationKeys.indexOf(effectiveRotationKey);
+    return `${index + 1}/${renderPlan.rotationKeys.length}`;
+  });
+  const rotationCompactMaxHeightPx = $derived(renderPlan.rotationKeys.length === 0
+    ? 0
+    : Math.max(...renderPlan.rotationKeys.map((key) => measured(key, "compact", "right"))));
   const expandedCounts = $derived.by(() => {
     const quake = quakeWithSelection(renderSelection.quakeRows);
     const weatherByKind: Record<string, { count: number; n: number }> = {};
@@ -620,7 +656,13 @@
     prefixMeasurements = nextPrefixes;
     layoutWidthPx = measurementOverride?.layoutWidthPx ?? Math.round(rect?.width ?? 0);
     layoutHeightPx = measurementOverride?.layoutHeightPx ?? Math.round(rect?.height ?? 0);
+    leftTrackWidthPx = measurementOverride?.leftTrackWidthPx ?? Math.round(leftTrackEl?.getBoundingClientRect().width ?? 0);
+    centerTrackWidthPx = measurementOverride?.centerTrackWidthPx ?? Math.round(centerTrackEl?.getBoundingClientRect().width ?? 0);
+    rightTrackWidthPx = measurementOverride?.rightTrackWidthPx ?? Math.round(rightTrackEl?.getBoundingClientRect().width ?? 0);
+    sideMeasureShelfWidthPx = measurementOverride?.sideMeasureShelfWidthPx ?? Math.round(sideMeasureShelfEl?.getBoundingClientRect().width ?? 0);
+    centerMeasureShelfWidthPx = measurementOverride?.centerMeasureShelfWidthPx ?? Math.round(centerMeasureShelfEl?.getBoundingClientRect().width ?? 0);
     nankaiHeightPx = measurementOverride?.nankaiHeightPx ?? Math.round(nankaiEl?.getBoundingClientRect().height ?? 0);
+    rotationIndicatorHeightPx = measurementOverride?.rotationIndicatorHeightPx ?? Math.round(rotationIndicatorMeasureEl?.getBoundingClientRect().height ?? 0);
     statsHeightPx = measurementOverride?.statsHeightPx ?? Math.round(statsMeasureEl?.getBoundingClientRect().height ?? 0);
     recentHeightPx = measurementOverride?.recentHeightPx ?? Math.round(recentMeasureEl?.getBoundingClientRect().height ?? 0);
     connectionHeightPx = measurementOverride?.connectionHeightPx ?? Math.round(connectionMeasureEl?.getBoundingClientRect().height ?? 0);
@@ -637,11 +679,75 @@
     gapPx = measurementOverride?.gapPx ?? Math.max(0, Number.parseFloat(style?.rowGap ?? "12") || 12);
     baselineGapPx = measurementOverride?.baselineGapPx
       ?? (Math.max(0, Math.round(baselineGapMeasureEl?.getBoundingClientRect().width ?? 0)) || 12);
-    measurementReadCount = measureNodes.size + prefixMeasureNodes.size + 8;
+    measurementReadCount = measureNodes.size + prefixMeasureNodes.size + 14;
     measurementPass += 1;
   }
   function signature(): string {
-    return [stage, capacity, nankaiHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+    return [stage, measurementGeometryStage, capacity, nankaiHeightPx, rotationIndicatorHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+  }
+  interface RenderedGeometry {
+    leftTrackWidthPx: number;
+    centerTrackWidthPx: number;
+    rightTrackWidthPx: number;
+    sideShelfWidthPx: number;
+    centerShelfWidthPx: number;
+    clockClipped: boolean;
+    clockChildrenClipped: boolean;
+    rotationViewportHeightPx: number;
+    rotationFooterHeightPx: number;
+    rotationOverlapPx: number;
+  }
+  function readRenderedGeometry(): RenderedGeometry {
+    const standbyRect = standbyEl?.getBoundingClientRect();
+    const clockRect = clockFaceEl?.getBoundingClientRect();
+    const clockEl = clockFaceEl;
+    const clockChildren = clockEl == null ? [] : [...clockEl.querySelectorAll<HTMLElement>(".time, .time .sec, .date")];
+    const containsHorizontally = (rect: DOMRect, bounds: DOMRect) => rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1;
+    const clockClipped = clockRect != null && standbyRect != null
+      && (!containsHorizontally(clockRect, standbyRect) || (clockEl != null && clockEl.scrollWidth > clockEl.clientWidth + 1));
+    const clockChildrenClipped = standbyRect != null && clockChildren.some((child) => {
+      const rect = child.getBoundingClientRect();
+      return !containsHorizontally(rect, standbyRect) || child.scrollWidth > child.clientWidth + 1;
+    });
+    const rotationViewportRect = standbyEl?.querySelector<HTMLElement>(".rotation-card-viewport")?.getBoundingClientRect();
+    // The measure shelf holds an aria-hidden copy of the footer earlier in
+    // document order — select the live footer by its data attribute instead.
+    const rotationFooterRect = standbyEl?.querySelector<HTMLElement>("[data-rotation-indicator]")?.getBoundingClientRect();
+    const rotationOverlapPx = rotationViewportRect == null || rotationFooterRect == null
+      ? 0
+      : Math.max(0, Math.min(rotationViewportRect.bottom, rotationFooterRect.bottom) - Math.max(rotationViewportRect.top, rotationFooterRect.top));
+    return {
+      leftTrackWidthPx: Math.round(leftTrackEl?.getBoundingClientRect().width ?? 0),
+      centerTrackWidthPx: Math.round(centerTrackEl?.getBoundingClientRect().width ?? 0),
+      rightTrackWidthPx: Math.round(rightTrackEl?.getBoundingClientRect().width ?? 0),
+      sideShelfWidthPx: Math.round(sideMeasureShelfEl?.getBoundingClientRect().width ?? 0),
+      centerShelfWidthPx: Math.round(centerMeasureShelfEl?.getBoundingClientRect().width ?? 0),
+      clockClipped,
+      clockChildrenClipped,
+      rotationViewportHeightPx: Math.round(rotationViewportRect?.height ?? 0),
+      rotationFooterHeightPx: Math.round(rotationFooterRect?.height ?? 0),
+      rotationOverlapPx: Math.round(rotationOverlapPx),
+    };
+  }
+  function publishSettledGeometry(pendingStageChange: LadderStage | null): void {
+    // This read is deliberately after the final plan flush. The subsequent
+    // flush publishes every rect diagnostic and measurementSettled together.
+    const geometry = readRenderedGeometry();
+    flushSync(() => {
+      leftTrackRectWidthPx = geometry.leftTrackWidthPx;
+      centerTrackRectWidthPx = geometry.centerTrackWidthPx;
+      rightTrackRectWidthPx = geometry.rightTrackWidthPx;
+      sideMeasureShelfRectWidthPx = geometry.sideShelfWidthPx;
+      centerMeasureShelfRectWidthPx = geometry.centerShelfWidthPx;
+      clockHorizontallyClipped = geometry.clockClipped;
+      clockChildrenHorizontallyClipped = geometry.clockChildrenClipped;
+      rotationCardViewportRectHeightPx = geometry.rotationViewportHeightPx;
+      rotationFooterRectHeightPx = geometry.rotationFooterHeightPx;
+      rotationViewportFooterOverlapPx = geometry.rotationOverlapPx;
+      measurementSettled = true;
+      contentDemotionRequested = false;
+      if (pendingStageChange != null) onStageChange?.(pendingStageChange);
+    });
   }
   async function settleMeasurements(): Promise<void> {
     if (disposed || settling || !fontsReady) return;
@@ -664,20 +770,34 @@
         await tick();
         if (disposed) break;
         readMeasurements();
+        // The final plan can cross the stage-2 compression boundary after
+        // measurements made in the preceding geometry. Re-read immediately in
+        // the target geometry before this pass may settle; do not spend an
+        // extra outer pass or extend the prefix-probe budget.
+        if ((measurementGeometryStage >= 2) !== (plan.stage >= 2)) {
+          measurementGeometryStage = plan.stage;
+          flushSync();
+          await tick();
+          if (disposed) break;
+          readMeasurements();
+        }
         if (contentDemotionRequested) {
           const hysteresisCapacity = Math.max(0, capacity - baselineGapPx * 2 - 0.01);
           const lowerPlan = solvePlan(0, hysteresisCapacity);
           floorStage = lowerPlan.stage < committedStage ? lowerPlan.stage : committedStage;
         }
         coordinator.drainProbes();
-        await tick();
+        // Probe callbacks mount hidden shelf entries and can synchronously
+        // register the next partition range. Flush those effects before the
+        // pending check so the whole bounded probe chain stays in this pass.
+        flushSync();
         probeSteps += 1;
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
       if (disposed) break;
       testProbeAfterMeasurementPass?.(coordinator, pass);
       if (plan.stage > floorStage) floorStage = plan.stage;
       const next = signature();
-      if (next === previous && !coordinator.hasPendingProbes()) {
+      if (next === previous && !coordinator.hasPendingProbes() && (measurementGeometryStage >= 2) === (plan.stage >= 2)) {
         if (!coordinator.canSettle(activeEpoch)) {
           coordinator.settle();
           if (coordinator.epochKey() !== activeEpoch) { superseded = true; break; }
@@ -690,6 +810,7 @@
             committedPlan = nextPlan;
             committedSelection = nextSelection;
             committedStage = nextPlan.stage;
+            measurementGeometryStage = nextPlan.stage;
             if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
             testLateProbeDuringFinalCommit?.(coordinator);
           });
@@ -702,15 +823,17 @@
               superseded = true;
               break;
             }
+            // The final placement flush can mount a center/rotation page probe.
+            // Materialize that same-epoch entry now, so the next outer pass can
+            // measure it instead of spending one of the four passes merely
+            // discovering the callback and exhausting before confirmation.
+            coordinator.drainProbes();
+            flushSync();
             previous = "";
             continue;
           }
-          flushSync(() => {
-            measurementSettled = true;
-            contentDemotionRequested = false;
-            if (pendingStageChange != null) onStageChange?.(pendingStageChange);
-            pendingStageChange = null;
-          });
+          publishSettledGeometry(pendingStageChange);
+          pendingStageChange = null;
           layoutMotionCoordinator.runForEpoch(activeEpoch, () => {
             cardPageCoordinator.releaseAfterLayoutMotion();
             rotationScheduler.releaseAfterLayoutMotion();
@@ -741,6 +864,7 @@
           committedPlan = nextPlan;
           committedSelection = nextSelection;
           committedStage = nextPlan.stage;
+          measurementGeometryStage = nextPlan.stage;
           if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
         });
         // A probe still queued at pass exhaustion cannot keep the coordinator
@@ -750,12 +874,8 @@
         if (!settled && coordinator.epochKey() !== activeEpoch) {
           superseded = true;
         } else {
-          flushSync(() => {
-            measurementSettled = true;
-            contentDemotionRequested = false;
-            if (pendingStageChange != null) onStageChange?.(pendingStageChange);
-            pendingStageChange = null;
-          });
+          publishSettledGeometry(pendingStageChange);
+          pendingStageChange = null;
           layoutMotionCoordinator.runForEpoch(activeEpoch, () => {
             cardPageCoordinator.releaseAfterLayoutMotion();
             rotationScheduler.releaseAfterLayoutMotion();
@@ -778,6 +898,7 @@
     rotationScheduler.holdForEpoch();
     cardPageCoordinator.holdForEpoch();
     measurementSettled = false;
+    measurementGeometryStage = committedPlan?.stage ?? 0;
     prefixMeasurements = {};
     prefixMeasureEntries = [];
     if (settling) {
@@ -867,7 +988,7 @@
 
 <div
   bind:this={standbyEl}
-  class="standby" class:dim class:ladder-compressed={renderStage >= 2} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
+  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
   data-ladder-stage={renderStage}
   data-solver-stage={stage}
   data-layout-unresolved={renderPlan.unresolved ? "true" : "false"}
@@ -883,10 +1004,23 @@
   data-center-natural-height-px={renderPlan.center.reduce((total, card) => total + card.centerNaturalHeight, fixedCenterContentHeight) + Math.max(0, renderPlan.center.length + fixedCenterItemCount - 1) * gapPx}
   data-left-capacity-px={capacity} data-right-capacity-px={capacity} data-center-capacity-px={capacity}
   data-layout-height-px={layoutHeightPx} data-layout-width-px={layoutWidthPx} data-nankai-height-px={nankaiHeightPx}
+  data-left-track-width-px={leftTrackWidthPx} data-center-track-width-px={centerTrackWidthPx} data-right-track-width-px={rightTrackWidthPx}
+  data-side-measure-shelf-width-px={sideMeasureShelfWidthPx} data-center-measure-shelf-width-px={centerMeasureShelfWidthPx}
   data-rotation-keys={renderPlan.rotationKeys.join(",")} data-rotation-omitted-count={renderPlan.rotationFailureCount}
-  data-rotation-active-key={rotationActiveKey ?? undefined}
+  data-rotation-active-key={effectiveRotationKey ?? undefined}
+  data-rotation-position={rotationPosition || undefined}
   data-rotation-tick-override={rotationTickOverride}
   data-rotation-slot-height-px={renderPlan.rotationSlotHeight}
+  data-rotation-indicator-height-px={rotationIndicatorHeightPx}
+  data-rotation-compact-max-height-px={rotationCompactMaxHeightPx}
+  data-rotation-card-viewport-rect-height-px={rotationCardViewportRectHeightPx}
+  data-rotation-footer-rect-height-px={rotationFooterRectHeightPx}
+  data-rotation-viewport-footer-overlap-px={rotationViewportFooterOverlapPx}
+  data-measurement-geometry-stage={measurementGeometryStage}
+  data-left-track-rect-width-px={leftTrackRectWidthPx} data-center-track-rect-width-px={centerTrackRectWidthPx} data-right-track-rect-width-px={rightTrackRectWidthPx}
+  data-side-measure-shelf-rect-width-px={sideMeasureShelfRectWidthPx} data-center-measure-shelf-rect-width-px={centerMeasureShelfRectWidthPx}
+  data-clock-horizontal-clipped={clockHorizontallyClipped ? "true" : "false"}
+  data-clock-children-horizontal-clipped={clockChildrenHorizontallyClipped ? "true" : "false"}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}
@@ -902,7 +1036,7 @@
   data-placement-surplus-use={renderSurplusUse}
   data-outer-paging="none"
 >
-  <div class="measure-shelf" aria-hidden="true" inert>
+  <div class="measure-shelf" bind:this={sideMeasureShelfEl} aria-hidden="true" inert>
     {#each CARD_ORDER as key}
       {#if candidatePresent(key)}
         {#each ["compact", "expanded", "full"] as variant}
@@ -910,11 +1044,18 @@
         {/each}
       {/if}
     {/each}
+    {#if hasWeather}
+      <!-- Keep the rotation-slot (side geometry) page partition ready before
+           stage 3 changes weather from a permanent card into a slot member. -->
+      <div class="partition-preflight">
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "side")} pagePlacement="side" />
+      </div>
+    {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
       <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
   </div>
-  <div class="center-measure-shelf" aria-hidden="true" inert>
+  <div class="center-measure-shelf" bind:this={centerMeasureShelfEl} aria-hidden="true" inert>
     {#each CARD_ORDER as key}
       {#if candidatePresent(key)}
         {#each ["compact", "expanded", "full"] as variant}
@@ -922,6 +1063,14 @@
         {/each}
       {/if}
     {/each}
+    {#if hasWeather}
+      <!-- A stage-1/3 commit can move weather from a side into the center. Run
+           its center-width page partition while the measurement shelf is
+           already active, so the final placement flush has no new probe chain. -->
+      <div class="partition-preflight">
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "center")} pagePlacement="center" />
+      </div>
+    {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
       <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
@@ -929,6 +1078,7 @@
     {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card" bind:this={recentMeasureEl}><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
   </div>
   <div class="baseline-gap-measure" bind:this={baselineGapMeasureEl} aria-hidden="true"></div>
+  <div class="rotation-indicator-measure rotation-indicator-footer" bind:this={rotationIndicatorMeasureEl} aria-hidden="true"><span class="rotation-indicator">5/5</span></div>
   <div class="rotation-failure-measure" bind:this={failureMeasureEl} aria-hidden="true">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>
 
   <section
@@ -946,14 +1096,14 @@
     </div>
   </section>
   <section class="legacy-layout" bind:this={layoutEl} aria-label="従来待機画面 改良">
-    <div class="side corner-left side-left" data-side="left">
+    <div class="side corner-left side-left" bind:this={leftTrackEl} data-side="left">
       {#each renderPlan.left as card (card.key)}
         {@const fixedHeight = pageFixedHeight(card, "left")}
         <article class="legacy-card corner-item" class:paged-card={fixedHeight != null} class:tsunami-corner={card.key === "tsunami"} class:quake-corner={card.key === "quake"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined} data-layout-motion-card={`${card.key}:left`} use:registerLayoutCard={{ key: card.key, surface: "left" }}>{@render renderCard(card.key, displayVariant(card), "left", false, renderSelection)}</article>
       {/each}
     </div>
-    {#if renderStage === 0}<div class="center-grid-spacer" aria-hidden="true"></div>{:else}
-      <section class="center-card-region center-landmark" data-side="center">
+    {#if renderStage === 0}<div class="center-grid-spacer" bind:this={centerTrackEl} aria-hidden="true"></div>{:else}
+      <section class="center-card-region center-landmark" bind:this={centerTrackEl} data-side="center">
         {#if connectionVisible}<div class="connection-stage-card" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
         {#each renderPlan.center as card (card.key)}
           {@const fixedHeight = pageFixedHeight(card, "center")}
@@ -963,18 +1113,21 @@
         {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
       </section>
     {/if}
-    <div class="side corner-right side-right" data-side="right">
+    <div class="side corner-right side-right" bind:this={rightTrackEl} data-side="right">
       {#each renderPlan.right as card (card.key)}
         {@const fixedHeight = pageFixedHeight(card, "right")}
         <article class="legacy-card" class:paged-card={fixedHeight != null} class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined} data-layout-motion-card={`${card.key}:right`} use:registerLayoutCard={{ key: card.key, surface: "right" }}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>
       {/each}
       {#if renderStage === 3}
         <div class="rotation-slot" bind:this={rotationSlotEl} style:height={`${renderPlan.rotationSlotHeight}px`}>
-          {#each renderPlan.rotationKeys as key (key)}
-            <div class="rotation-card" hidden={key !== rotationActiveKey} data-rotation-card={key} data-layout-motion-card={`${key}:rotation`} use:registerLayoutCard={{ key, surface: "rotation" }}>
-              {@render renderCard(key, "compact", "right", false, renderSelection)}
-            </div>
-          {/each}
+          <div class="rotation-card-viewport" style:min-height={`${Math.max(0, renderPlan.rotationSlotHeight - rotationIndicatorHeightPx)}px`}>
+            {#each renderPlan.rotationKeys as key (key)}
+              <div class="rotation-card" hidden={key !== effectiveRotationKey} data-rotation-card={key} data-layout-motion-card={`${key}:rotation`} use:registerLayoutCard={{ key, surface: "rotation" }}>
+                {@render renderCard(key, "compact", "right", false, renderSelection)}
+              </div>
+            {/each}
+          </div>
+          <div class="rotation-indicator-footer" data-rotation-indicator aria-label={`輪番 ${rotationPosition}`}><span class="rotation-indicator">{rotationPosition}</span></div>
         </div>
         {#if renderPlan.rotationFailureCount > 0}<div class="rotation-failure">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>{/if}
       {/if}
@@ -984,13 +1137,18 @@
 </div>
 
 <style>
-  .standby { --base-edge: clamp(14px, 2.5vw, 48px); --base-gap: clamp(8px, 1vw, 18px); --compressed-edge: clamp(10px, 1.8vw, 32px); --compressed-gap: clamp(4px, .6vw, 10px); --edge: var(--base-edge); --gap: var(--base-gap); --center-width: min(36rem, 60vw); position: relative; width: 100%; height: 100%; overflow: hidden; color: var(--fg); background: var(--bg); transition: opacity var(--dur-standby-dim) ease; }
+  /* The shared center width must resolve from one absolute basis. A percentage
+     would resolve against the grid for tracks but against .standby for shelves,
+     making the solver measure a different width from the visible cards. */
+  .standby { --base-edge: clamp(14px, 2.5vw, 48px); --base-gap: clamp(8px, 1vw, 18px); --compressed-edge: clamp(10px, 1.8vw, 32px); --compressed-gap: clamp(4px, .6vw, 10px); --edge: var(--base-edge); --gap: var(--base-gap); --side-readable-width: 17.5rem; --center-width: min(36rem, calc(100vw - var(--edge) * 2 - var(--gap) * 2 - var(--side-readable-width) * 2)); position: relative; width: 100%; height: 100%; overflow: hidden; color: var(--fg); background: var(--bg); transition: opacity var(--dur-standby-dim) ease; }
   .standby.ladder-compressed { --edge: var(--compressed-edge); --gap: var(--compressed-gap); }
   .measure-shelf, .center-measure-shelf { position: absolute; top: 0; display: flex; flex-direction: column; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; z-index: -1; }
   .measure-shelf { right: 0; } .center-measure-shelf { left: 50%; width: var(--center-width); transform: translateX(-50%); }
   .measure-shelf :global(*), .center-measure-shelf :global(*) { animation: none !important; transition: none !important; }
   .measure-item { width: 100%; flex: 0 0 auto; }
+  .partition-preflight { width: 100%; flex: 0 0 auto; }
   .baseline-gap-measure { position: absolute; width: var(--base-gap); height: 1px; visibility: hidden; pointer-events: none; }
+  .rotation-indicator-measure { position: absolute; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; }
   .rotation-failure-measure { position: absolute; visibility: hidden; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; pointer-events: none; }
   .legacy-layout { position: absolute; inset: var(--edge) var(--edge) calc(var(--edge) + var(--nankai-reserve)); display: grid; grid-template-columns: minmax(0, 1fr) var(--center-width) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
   .side, .center-card-region { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; min-height: 0; overflow: visible; }
@@ -1008,7 +1166,15 @@
   .clock-below { position: absolute; top: calc(100% + var(--cluster-gap)); left: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--cluster-gap); width: 100%; height: var(--cluster-flow-height); }
   .instrument-row-wrap { display: flex; justify-content: center; } .quakes-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }
   .nankai-ticker { position: absolute; z-index: 3; right: var(--edge); bottom: 0; left: var(--edge); } .nankai-ticker :global(.nankai-badge) { width: 100%; margin: 0; box-sizing: border-box; justify-content: center; }
-  .rotation-slot { display: flex; overflow: hidden; } .rotation-card { width: 100%; } .rotation-card[hidden] { display: none; } .rotation-card > :global(*) { width: 100%; } .rotation-failure { padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; }
+  /* A shared grid track gives the viewport and footer one exact boundary.
+     Flex item pixel distribution can otherwise make their independently
+     rounded rects overlap by a subpixel in tall rotation slots. */
+  .rotation-slot { display: grid; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; }
+  .rotation-card-viewport { min-height: 0; width: 100%; overflow: hidden; }
+  .rotation-card { width: 100%; } .rotation-card[hidden] { display: none; } .rotation-card > :global(*) { width: 100%; }
+  .rotation-indicator-footer { display: flex; flex: 0 0 auto; justify-content: flex-end; box-sizing: border-box; width: 100%; padding: 0 var(--space-4) var(--space-2); }
+  .rotation-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); background: color-mix(in srgb, var(--surface-standby) 92%, transparent); color: var(--role-muted); font-size: var(--type-label-xs-size); font-variant-numeric: tabular-nums; }
+  .rotation-failure { padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; }
   .standby.dim { opacity: .35; }
   /* Normal information and warning-grade fixed tiers remain separate groups:
      their current floor is equal, but keeping the selectors separate prevents
