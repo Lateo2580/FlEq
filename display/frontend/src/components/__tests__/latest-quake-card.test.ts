@@ -2,18 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
-import { flushSync } from "svelte";
+import { flushSync, tick } from "svelte";
 import LatestQuakeCard from "../LatestQuakeCard.svelte";
-import { PAGE_HOLD_MS } from "../../lib/page-cycler.svelte";
+import WeatherAlertCard from "../WeatherAlertCard.svelte";
+import { TIME_SLICE_PERIOD_MS, createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 import { expectCurrentDot } from "./page-dots-test-utils";
 import type { DisplayIntensitySemanticV1, DisplayLatestQuakeStateV1, DisplayMagnitudeSemanticV1 } from "../../lib/protocol";
 
-// T5c: ページ切替は {#key} + transition:fade (重ねクロスフェード、231ms) になった。
-// fake timers 環境では element.animate() スタブ (test-setup.ts) の完了が setTimeout 経由なので、
-// ページ送りのタイマーを進めた直後だけでなく、フェード時間ぶんも追加で進めてから DOM を読む
-// (現物のブラウザでも「切替が完了してから次の状態を見る」のと同じ意味)
-function settleFade(): void {
-  vi.advanceTimersByTime(1000);
+// Scheduler の callback と Svelte の同期 DOM flush をまとめて進める。
+function settlePage(): void {
   flushSync();
 }
 
@@ -369,9 +366,8 @@ describe("LatestQuakeCard", () => {
     expect(page?.querySelector(".page-title")?.textContent).toBe("観測震度 詳細");
     expect(page?.querySelector(".page-count")).toBeFalsy();
     expect(container.querySelector(".instruments")).toBeFalsy();
-    // 高知(31)・愛知(27) ともバジェット(20)超のため各県が2ページに分断され、震度7グループ内で計4ページ
-    // 最終の半端ページは次の震度セクションを同居させるため、全4ページになる
-    expectCurrentDot(page, 1, 5);
+    // sequential partition は overflow まで詰めるため、末尾の半端ページへ次の震度を同居させる。
+    expectCurrentDot(page, 1, 4);
     expect(page?.querySelector(".pref-name")?.textContent).toBe("高知県");
   });
 
@@ -431,13 +427,221 @@ describe("LatestQuakeCard", () => {
         expectCurrentDot(container, 1, 2);
         expect(container.querySelector(".pref-name")?.textContent).toBe("高知県");
 
-        vi.advanceTimersByTime(PAGE_HOLD_MS);
-        settleFade();
+        vi.advanceTimersByTime(TIME_SLICE_PERIOD_MS);
+        settlePage();
         expectCurrentDot(container, 2, 2);
         expect(container.querySelector(".pref-name")?.textContent).toBe("高知県（続き）");
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("15秒共有機構だけで1ページ進み、旧10秒 cycler の二重 timer を持たない", () => {
+      vi.useFakeTimers();
+      try {
+        const areas = Array.from({ length: 31 }, (_, i) => `高知県市町村${i}`);
+        const view = render(LatestQuakeCard, { quake: latestQuake({
+          intensityGroups: [{ intensity: "7", rank: 9, areas, omittedAreaCount: 0 }],
+        }) });
+        const card = view.container.querySelector<HTMLElement>(".quake-card")!;
+        expect(card.dataset.cardPage).toBe("1/2");
+        expect(vi.getTimerCount()).toBe(1);
+        vi.advanceTimersByTime(10_000);
+        settlePage();
+        expect(card.dataset.cardPage).toBe("1/2");
+        vi.advanceTimersByTime(5_000);
+        settlePage();
+        expect(card.dataset.cardPage).toBe("2/2");
+        expect(vi.getTimerCount()).toBe(1);
+        expect(new Set(JSON.parse(card.dataset.cardPageIdentities ?? "[]") as string[]).size).toBe(2);
+        view.unmount();
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("実カードが1ページ化した exit で page substate と timer を解放する", async () => {
+      vi.useFakeTimers();
+      try {
+        const areas = Array.from({ length: 31 }, (_, i) => `高知県市町村${i}`);
+        const view = render(LatestQuakeCard, { quake: latestQuake({
+          intensityGroups: [{ intensity: "7", rank: 9, areas, omittedAreaCount: 0 }],
+        }) });
+        expect(view.container.querySelector<HTMLElement>(".quake-card")?.dataset.cardPage).toBe("1/2");
+        expect(vi.getTimerCount()).toBe(1);
+        await view.rerender({ quake: latestQuake({
+          intensityGroups: [{ intensity: "7", rank: 9, areas: ["高知県高知市"], omittedAreaCount: 0 }],
+        }) });
+        settlePage();
+        expect(view.container.querySelector<HTMLElement>(".quake-card")?.dataset.cardPage).toBe("1/1");
+        expect(vi.getTimerCount()).toBe(0);
+        view.unmount();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("実カード消滅は自分だけをexitし、最後のpageableカードで共有timerを解放する", async () => {
+      vi.useFakeTimers();
+      try {
+        const pageCoordinator = createCardPageCoordinator();
+        const quakeView = render(LatestQuakeCard, { pageCoordinator, quake: latestQuake({
+          intensityGroups: [{ intensity: "7", rank: 9, areas: Array.from({ length: 31 }, (_, i) => `高知県市町村${i}`), omittedAreaCount: 0 }],
+        }) });
+        const weatherView = render(WeatherAlertCard, {
+          pageCoordinator,
+          pageScheduling: true,
+          alerts: [{
+            source: "vpww56", label: "気象警報", role: "weatherWarning", totalAreas: 9,
+            updatedAt: "2026-07-08T09:00:00+09:00",
+            items: [{ kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: Array.from({ length: 9 }, (_, i) => `地域${i}`), omittedAreaCount: 0 }],
+          }],
+        });
+        expect(vi.getTimerCount()).toBe(1);
+        await quakeView.rerender({ pageCoordinator, pageScheduling: false, quake: latestQuake() });
+        settlePage();
+        expect(vi.getTimerCount()).toBe(1);
+        await weatherView.rerender({ pageCoordinator, pageScheduling: false, alerts: [] });
+        settlePage();
+        expect(vi.getTimerCount()).toBe(0);
+        quakeView.unmount();
+        weatherView.unmount();
+        pageCoordinator.dispose();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("U3 probe が最初の候補を収容不能と返したら infeasible を明示して恒久ページ化しない", () => {
+      const view = render(LatestQuakeCard, {
+        quake: latestQuake({ intensityGroups: [{ intensity: "7", rank: 9, areas: ["高知県高知市"], omittedAreaCount: 3 }] }),
+        partitionProbe: () => 2,
+      });
+      const card = view.container.querySelector<HTMLElement>(".quake-card")!;
+      expect(card.dataset.cardPageInfeasible).toBe("true");
+      expect(card.dataset.cardPage).toBe("0/0");
+      expect(view.container.querySelector(".page-detail")).toBeNull();
+    });
+
+    it("measurementRange は一枚でも専用 page body に固定し、静的全候補表示へ戻さない", () => {
+      const view = render(LatestQuakeCard, {
+        quake: latestQuake({ intensityGroups: [{
+          intensity: "7", rank: 9, areas: ["高知県高知市", "高知県室戸市"], omittedAreaCount: 0,
+        }] }),
+        measurementRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
+      });
+      expect(view.container.querySelector("[data-page-probe-body]")).toBeTruthy();
+      expect(view.container.querySelector(".groups")).toBeNull();
+      expect(view.container.querySelector("[data-page-probe-body]")?.textContent).toContain("高知市");
+      expect(view.container.querySelector("[data-page-probe-body]")?.textContent).not.toContain("室戸市");
+    });
+
+    it("tail-only 震度group は他groupの複数ページ後にも残置行へ到達する", () => {
+      const pageCoordinator = createCardPageCoordinator({ tickOverride: 2 });
+      const view = render(LatestQuakeCard, {
+        quake: latestQuake({ intensityGroups: [
+          { intensity: "7", rank: 9, areas: ["高知県高知市"], omittedAreaCount: 0 },
+          { intensity: "6強", rank: 8, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 },
+          { intensity: "6弱", rank: 7, areas: [], omittedAreaCount: 13 },
+        ] }),
+        pageCoordinator,
+        partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+      });
+      const card = view.container.querySelector<HTMLElement>(".quake-card")!;
+      expect(card.dataset.cardPage).toBe("3/3");
+      expect(card.textContent).toContain("ほか13地域");
+      view.unmount();
+      pageCoordinator.dispose();
+    });
+
+    it("先行 tail-only 震度group は後続の複数ページより前のcanonical位置に残る", () => {
+      const view = render(LatestQuakeCard, {
+        quake: latestQuake({ intensityGroups: [
+          { intensity: "7", rank: 9, areas: [], omittedAreaCount: 13 },
+          { intensity: "6強", rank: 8, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 },
+          { intensity: "6弱", rank: 7, areas: ["高知県高知市"], omittedAreaCount: 0 },
+        ] }),
+        partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+      });
+      const card = view.container.querySelector<HTMLElement>(".quake-card")!;
+      expect(card.dataset.cardPage).toBe("1/3");
+      expect(card.textContent).toContain("ほか13地域");
+      expect(card.textContent).not.toContain("宮崎市");
+    });
+
+    it("tail-only identity は前方候補の追加削除後も同じページを維持する", async () => {
+      const pageCoordinator = createCardPageCoordinator();
+      const tail = { intensity: "6強", rank: 8, areas: [], omittedAreaCount: 13 };
+      const after = { intensity: "6弱", rank: 7, areas: ["高知県高知市"], omittedAreaCount: 0 };
+      const partitionProbe = (_key: string, _placement: "side" | "center", range: { start: number; end: number }) => range.end - range.start > 1 ? 2 : 0;
+      const view = render(LatestQuakeCard, {
+        quake: latestQuake({ intensityGroups: [{ intensity: "7", rank: 9, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 }, tail, after] }),
+        pageCoordinator,
+        partitionProbe,
+      });
+      const card = view.container.querySelector<HTMLElement>(".quake-card")!;
+      expect(JSON.parse(card.dataset.cardPageIdentities ?? "[]")).toContain("8:6強|<tail>|0");
+      pageCoordinator.jumpTo("quake", 1);
+      await tick();
+      expect(card.dataset.cardPage).toBe("2/3");
+      await view.rerender({
+        quake: latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["愛媛県松山市"], omittedAreaCount: 0 }, { intensity: "7", rank: 9, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 }, tail, after] }),
+        pageCoordinator,
+        partitionProbe,
+      });
+      await tick();
+      expect(card.dataset.cardPage).toBe("3/4");
+      await view.rerender({
+        quake: latestQuake({ intensityGroups: [{ intensity: "7", rank: 9, areas: ["宮崎県宮崎市"], omittedAreaCount: 0 }, tail, after] }),
+        pageCoordinator,
+        partitionProbe,
+      });
+      await tick();
+      expect(card.dataset.cardPage).toBe("2/3");
+      view.unmount();
+      pageCoordinator.dispose();
+    });
+
+    it("同名地域の repartition でもcanonical occurrenceで次のページを維持する", async () => {
+      const pageCoordinator = createCardPageCoordinator({ tickOverride: 1 });
+      const quake = latestQuake({ intensityGroups: [
+        { intensity: "7", rank: 9, areas: ["高知県高知市"], omittedAreaCount: 0 },
+        { intensity: "7", rank: 9, areas: ["高知県高知市"], omittedAreaCount: 0 },
+        { intensity: "7", rank: 9, areas: ["高知県高知市"], omittedAreaCount: 0 },
+      ] });
+      const view = render(LatestQuakeCard, {
+        quake,
+        pageCoordinator,
+        partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+      });
+      const card = view.container.querySelector<HTMLElement>(".quake-card")!;
+      expect(JSON.parse(card.dataset.cardPageIdentities ?? "[]")).toEqual(["9:7|高知市|0", "9:7|高知市|1", "9:7|高知市|2"]);
+      await view.rerender({
+        quake,
+        pageCoordinator,
+        partitionProbe: (_key, _placement, range) => range.end - range.start > 2 ? 2 : 0,
+      });
+      expect(JSON.parse(card.dataset.cardPageIdentities ?? "[]")).toEqual(["9:7|高知市|0", "9:7|高知市|2"]);
+      expect(card.dataset.cardPage).toBe("2/2");
+      view.unmount();
+      pageCoordinator.dispose();
+    });
+
+    it("candidate truncated の残数を該当震度の最終ページに残す", () => {
+      const pageCoordinator = createCardPageCoordinator({ tickOverride: 1 });
+      const view = render(LatestQuakeCard, {
+        quake: latestQuake({ intensityGroups: [{
+          intensity: "7", rank: 9,
+          areas: Array.from({ length: 20 }, (_, i) => `高知県市町村${i}`),
+          omittedAreaCount: 11,
+        }] }),
+        pageCoordinator,
+      });
+      expect(view.container.querySelector<HTMLElement>(".quake-card")?.dataset.cardPage).toBe("2/2");
+      expect(view.container.querySelector(".page-section")?.textContent).toContain("ほか11地域");
+      view.unmount();
+      pageCoordinator.dispose();
     });
 
     // Codex R レビュー M2: severityTier (地震は最大震度 rank) が同一イベントの続報中に
@@ -454,23 +658,23 @@ describe("LatestQuakeCard", () => {
         const { container, rerender } = render(LatestQuakeCard, { quake: quake1 });
         expectCurrentDot(container, 1, 10);
 
-        vi.advanceTimersByTime(PAGE_HOLD_MS * 2);
-        settleFade();
+        vi.advanceTimersByTime(TIME_SLICE_PERIOD_MS * 2);
+        settlePage();
         expectCurrentDot(container, 3, 10);
 
         // 下降 (rank 7→5、同一 eventId): リセットしない
         await rerender({ quake: { ...quake1, maxIntRank: 5 } });
-        settleFade();
+        settlePage();
         expectCurrentDot(container, 3, 10);
 
         // 同値 (rank 5→5): リセットしない
         await rerender({ quake: { ...quake1, maxIntRank: 5 } });
-        settleFade();
+        settlePage();
         expectCurrentDot(container, 3, 10);
 
         // 上昇 (rank 5→9、同一 eventId): 先頭ページに戻る
         await rerender({ quake: { ...quake1, maxIntRank: 9 } });
-        settleFade();
+        settlePage();
         expectCurrentDot(container, 1, 10);
       } finally {
         vi.useRealTimers();
@@ -489,13 +693,13 @@ describe("LatestQuakeCard", () => {
         const { container, rerender } = render(LatestQuakeCard, { quake: quake1 });
         expectCurrentDot(container, 1, 10);
 
-        vi.advanceTimersByTime(PAGE_HOLD_MS * 2);
-        settleFade();
+        vi.advanceTimersByTime(TIME_SLICE_PERIOD_MS * 2);
+        settlePage();
         expectCurrentDot(container, 3, 10);
 
         // 同一 eventId の続報 (reportDateTime だけ変わる) ではリセットしない
         await rerender({ quake: { ...quake1, reportDateTime: "2026-07-08T09:05:00+09:00" } });
-        settleFade();
+        settlePage();
         expectCurrentDot(container, 3, 10);
 
         // 別イベント (eventId 変化) では先頭ページに戻る
@@ -504,7 +708,7 @@ describe("LatestQuakeCard", () => {
           intensityGroups: [{ intensity: "7", rank: 9, areas, omittedAreaCount: 0 }],
         });
         await rerender({ quake: quake2 });
-        settleFade();
+        settlePage();
         expectCurrentDot(container, 1, 10);
       } finally {
         vi.useRealTimers();
@@ -512,37 +716,36 @@ describe("LatestQuakeCard", () => {
     });
   });
 
-  // T5c: ページ行容量の画面高さ駆動化 + 切替フェード (spec §2-c)。jsdom は ResizeObserver 未実装
+  // T5c: ページ行容量の画面高さ駆動化 (spec §2-c)。jsdom は ResizeObserver 未実装
   // かつ layout 未解決のため実測 px の挙動 (T7 preview 実測対象) はソース文字列で配線を検査する
-  describe("LatestQuakeCard T5c 配線 (画面高さ駆動 + フェード)", () => {
-    it("ページ本文は measureHeight (面積+代表行) で実測し、cityBudgetFromArea でバジェットを導出する", () => {
+  describe("LatestQuakeCard T5c 配線 (画面高さ駆動)", () => {
+    it("Standby path は U3 shelf probe の実組版結果を逐次 partition へ渡す", () => {
       const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
-      expect(source).toContain("cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET)");
-      expect(source).toContain('use:measureHeight={(h) => (pageBodyAreaHeight = h)}');
-      expect(source).toContain("paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true })");
+      expect(source).toContain("if (partitionProbe != null) return sequentialPartitionRanges(");
+      expect(source).toContain("data-page-probe-body");
+      expect(source).not.toContain("detailPageWeight");
+      expect(source).toContain("sequentialPartitionRanges(");
     });
 
-    it("ページ切替は {#key cycler.index} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {
+    it("ページ切替は共有 coordinator の index を唯一の描画源にして原子的に差し替える", () => {
       const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
-      expect(source).toContain("{#key cycler.index}");
-      expect(source).toContain('import { fade } from "svelte/transition"');
-      expect(source).toContain('import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion"');
-      expect(source).toMatch(
-        /transition:fade=\{\{\s*duration: cycler\.reducedMotion \? 0 : SPRING_EFFECTS_DEFAULT_MS,\s*easing: springEffectsOut,\s*\}\}/,
-      );
+      expect(source).toContain("{#key currentPageIndex}");
+      expect(source).toContain('pageCoordinator.activeIndex("quake")');
+      expect(source).not.toContain("transition:fade");
+      expect(source).not.toContain("createPageCycler");
     });
 
     // Codex R レビュー M1: createPageCycler は $effect.root で独立 root を持つため、消費側が
     // destroy() を呼ばないと unmount (待機カードの流れ替え) で timer/matchMedia listener が
     // リークする。page-cycler.svelte.ts 側には「destroy 後はタイマーが発火しない」の単体
     // テストが既にあるため、消費側はソースの配線だけを検査する
-    it("onDestroy で cycler.destroy() を呼ぶ (Codex R M1)", () => {
+    it("所有する coordinator だけを unmount で dispose し、共有 substate は placement remount で破棄しない", () => {
       const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
-      expect(source).toContain('import { onDestroy } from "svelte"');
-      expect(source).toContain("onDestroy(() => cycler.destroy())");
+      expect(source).toContain("if (ownsPageCoordinator) pageCoordinator.dispose()");
+      expect(source).not.toContain("cycler.destroy()");
     });
 
-    it("旧ページと新ページが重なるよう、.page-detail は position:relative + 明示 height を持ち .page-fade は position:absolute で重ねる", () => {
+    it("原子的なページ差し替え用の固定枠として .page-detail と .page-fade の寸法を維持する", () => {
       const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
       expect(source).toMatch(/\.page-detail\s*\{[^}]*position: relative;/);
       expect(source).toMatch(/\.page-detail\s*\{[^}]*height: calc\(7 \* 1\.6em \+ 4px\);/);

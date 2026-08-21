@@ -6,6 +6,8 @@
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
+  import type { PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
   import ConnectionBadge from "./ConnectionBadge.svelte";
@@ -22,7 +24,7 @@
   import VolcanoCard from "./VolcanoCard.svelte";
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
 
-  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride }: {
+  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, rotationTick, cardPageTick }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
@@ -31,12 +33,30 @@
     onStageChange?: (stage: LadderStage) => void;
     /** Test-only deterministic geometry injection; never supplied by App. */
     testMeasurementOverride?: Partial<Record<string, number>>;
+    /** Capture/test-only deterministic scheduler positions. */
+    rotationTick?: number;
+    cardPageTick?: number;
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
   export function closeQuakeCard(): void { clearCloseTimer(); selectedRecentQuake = null; selectedId = null; }
 
+  function schedulerTickOverride(propValue: number | undefined, queryName: "rotationTick" | "cardPageTick"): number | undefined {
+    if (propValue != null) return propValue;
+    if (typeof window === "undefined") return undefined;
+    const raw = new URLSearchParams(window.location.search).get(queryName);
+    return raw != null && /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : undefined;
+  }
+
   const coordinator = createEpochCoordinator();
+  const cardPageTickOverride = untrack(() => schedulerTickOverride(cardPageTick, "cardPageTick"));
+  const rotationTickOverride = untrack(() => schedulerTickOverride(rotationTick, "rotationTick"));
+  const cardPageCoordinator = createCardPageCoordinator({ epoch: coordinator, tickOverride: cardPageTickOverride });
+  const rotationScheduler = createRotationScheduler({
+    epoch: coordinator,
+    tickOverride: rotationTickOverride,
+    onAppearance: (key) => cardPageCoordinator.recordRotationAppearance(key),
+  });
   const MAX_SETTLE_PASSES = 4;
   // Layout changes are deliberately non-animated in U3; keep the shared
   // motion token as the hand-off point for U6 rather than a local duration.
@@ -57,6 +77,8 @@
     start: number;
     end: number;
     tails: PrefixTail[];
+    omittedAreaCount: number;
+    purpose?: "prefix" | "page";
   }
 
   let selectedRecentQuake = $state<DisplayRecentQuakeV1 | null>(null);
@@ -67,6 +89,7 @@
   let layoutEl = $state<HTMLElement | null>(null);
   let nankaiEl = $state<HTMLElement | null>(null);
   let failureMeasureEl = $state<HTMLElement | null>(null);
+  let rotationSlotEl = $state<HTMLElement | null>(null);
   let statsMeasureEl = $state<HTMLElement | null>(null);
   let recentMeasureEl = $state<HTMLElement | null>(null);
   let connectionMeasureEl = $state<HTMLElement | null>(null);
@@ -118,6 +141,9 @@
     const generation = closeGen;
     closeTimer = setTimeout(() => { if (generation === closeGen) closeQuakeCard(); }, QUAKE_CARD_AUTO_CLOSE_MS);
   }
+  $effect(() => {
+    rotationScheduler.setTransitionTarget(rotationSlotEl);
+  });
   $effect(() => {
     const list = snapshot.recentQuakes;
     untrack(() => {
@@ -203,17 +229,17 @@
   function prefixTailSignature(tails: readonly PrefixTail[]): string {
     return tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
   }
-  function prefixMeasureId(key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[]): string {
+  function prefixMeasureId(purpose: "prefix" | "page-fit", key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[]): string {
     const omitted = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
     const tailPart = tails.length === 0 ? "" : `:omitted:${omitted}:tails:${prefixTailSignature(tails)}`;
-    return `${key}:page:${start}:${end}${tailPart}:placement:${placement}`;
+    return `${key}:${purpose}:${start}:${end}${tailPart}:placement:${placement}`;
   }
   function prefixHeight(key: PrefixCardKey, rows: number, placement: Placement): number | null {
     const tails = prefixTails(key, rows);
     // The left and right columns share one shelf and width.  Keep their B
     // cache entries identical too; only the center needs its own geometry.
     const measurePlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-    const id = prefixMeasureId(key, measurePlacement, 0, rows, tails);
+    const id = prefixMeasureId("prefix", key, measurePlacement, 0, rows, tails);
     const cached = prefixMeasurements[id];
     if (cached != null) return cached;
     // The first render precedes the mount/input effect that opens epoch 1.
@@ -222,9 +248,28 @@
     if (epoch === 0) return null;
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
-      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: rows, tails }];
+      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: rows, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0), purpose: "prefix" }];
     });
     return null;
+  }
+  function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement): PartitionProbe {
+    return (_cardKey, _probePlacement, range, tails) => {
+      // jsdom has no layout engine. Returning a fitting measurement here keeps
+      // its U3 settle contract deterministic; browsers enter the shelf path.
+      if (typeof ResizeObserver === "undefined") return 0;
+      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails);
+      const cached = prefixMeasurements[id];
+      if (cached != null) return cached;
+      if (epoch === 0) return null;
+      coordinator.enqueueProbe(id, () => {
+        if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
+        prefixMeasureEntries = [...prefixMeasureEntries, {
+          id, key, placement, start: range.start, end: range.end,
+          tails: [...tails], omittedAreaCount: range.omittedAreaCount, purpose: "page",
+        }];
+      });
+      return null;
+    };
   }
 
   function defaultHeight(key: CardKey, variant: CardVariant): number {
@@ -402,7 +447,7 @@
     return "compact";
   }
   const displayVariant = (card: CardCandidate): CardVariant => selectedVariant(card.key, renderSelection);
-  const rotationItem = $derived(renderPlan.rotationCurrentKey == null ? null : candidates().find((candidate) => candidate.key === renderPlan.rotationCurrentKey) ?? null);
+  const rotationActiveKey = $derived(rotationScheduler.currentKey());
   const expandedCounts = $derived.by(() => {
     const quake = quakeWithSelection(renderSelection.quakeRows);
     const weatherByKind: Record<string, { count: number; n: number }> = {};
@@ -440,6 +485,20 @@
     return { ...source, left: [...source.left], right: [...source.right], center: [...source.center], moved: new Set(source.moved), rotationKeys: [...source.rotationKeys] };
   }
 
+  $effect(() => {
+    rotationScheduler.sync({
+      stage: renderStage,
+      keys: renderPlan.rotationKeys,
+      suspended: renderStage === 3 && !measurementSettled,
+    });
+  });
+  $effect(() => {
+    // A placement remount or a non-active rotation slot is suspension. Only an
+    // actual card disappearance/replay replacement exits the page substate.
+    if (snapshot.latestQuake == null || selectedRecentQuake != null) cardPageCoordinator.unregister("quake");
+    if (!hasWeather) cardPageCoordinator.unregister("weather");
+  });
+
   function readMeasurements(): void {
     const next: Record<string, number> = {};
     for (const [id, node] of measureNodes) next[id] = testMeasurementOverride?.[id] ?? Math.round(node.getBoundingClientRect().height);
@@ -447,7 +506,13 @@
     for (const [id, node] of prefixMeasureNodes) {
       const entry = prefixMeasureEntries.find((candidate) => candidate.id === id);
       const genericOverride = entry == null ? undefined : testMeasurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
-      nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
+      if (entry?.purpose === "page") {
+        const body = node.querySelector<HTMLElement>("[data-page-probe-body]");
+        const fits = body == null || body.clientHeight === 0 || body.scrollHeight <= body.clientHeight + 1;
+        nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? (fits ? 0 : 2);
+      } else {
+        nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
+      }
     }
     const rect = layoutEl?.getBoundingClientRect();
     const style = layoutEl == null ? null : getComputedStyle(layoutEl);
@@ -491,7 +556,9 @@
     let superseded = false;
     for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
       let probeSteps = 0;
-      const maxProbeSteps = MAX_PREFIX_ROWS * 2 + 1;
+      // B and the two U4 pageable cards may each consume their bounded probe
+      // budget in the same epoch (128 × 2 candidates per card).
+      const maxProbeSteps = MAX_PREFIX_ROWS * 4 + 1;
       do {
         await tick();
         if (disposed) break;
@@ -575,7 +642,13 @@
     if (epoch === 0) requestSettle();
     return () => window.removeEventListener("resize", onViewportResize);
   });
-  onDestroy(() => { disposed = true; clearCloseTimer(); coordinator.dispose(); });
+  onDestroy(() => {
+    disposed = true;
+    clearCloseTimer();
+    rotationScheduler.dispose();
+    cardPageCoordinator.dispose();
+    coordinator.dispose();
+  });
 
 </script>
 
@@ -585,9 +658,25 @@
   {:else if key === "quake" && selectedRecentQuake != null}
     <QuakeReplayCard quake={selectedRecentQuake} onClose={closeQuakeCard} />
   {:else if key === "quake" && snapshot.latestQuake != null}
-    <LatestQuakeCard quake={quakeWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "quake")?.maxRegionRows ?? 0 : 0) : selected.quakeRows) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
+    <LatestQuakeCard
+      quake={quakeWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "quake")?.maxRegionRows ?? 0 : 0) : selected.quakeRows) ?? snapshot.latestQuake}
+      longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }}
+      pageCoordinator={measuring ? undefined : cardPageCoordinator}
+      rotationMember={!measuring && renderPlan.rotationKeys.includes("quake")}
+      pageScheduling={!measuring}
+      partitionProbe={measuring ? undefined : pagePartitionProbe("quake", placement === "center" ? "center" : "side")}
+      pagePlacement={placement === "center" ? "center" : "side"}
+    />
   {:else if key === "weather"}
-    <WeatherAlertCard alerts={weatherWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0) : selected.weatherRows)} tornado={tornadoItem} />
+    <WeatherAlertCard
+      alerts={weatherWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0) : MAX_PREFIX_ROWS)}
+      tornado={tornadoItem}
+      pageCoordinator={measuring ? undefined : cardPageCoordinator}
+      rotationMember={!measuring && renderPlan.rotationKeys.includes("weather")}
+      pageScheduling={!measuring}
+      partitionProbe={measuring ? undefined : pagePartitionProbe("weather", placement === "center" ? "center" : "side")}
+      pagePlacement={placement === "center" ? "center" : "side"}
+    />
   {:else if key === "flood" && floodItem != null}
     {#if (placement === "center" && floodItem.surface === "clock-top-wide") || (measuring ? variant === "expanded" : selected.floodWide)}<FloodWideCard item={floodItem} />{:else}<FloodCard item={floodItem} />{/if}
   {:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />
@@ -598,9 +687,9 @@
 
 {#snippet renderPrefixProbe(entry: PrefixMeasureEntry)}
   {#if entry.key === "quake" && snapshot.latestQuake != null}
-    <LatestQuakeCard quake={quakeWithSelection(entry.end) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} />
+    <LatestQuakeCard quake={quakeWithSelection(MAX_PREFIX_ROWS) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
   {:else if entry.key === "weather"}
-    <WeatherAlertCard alerts={weatherWithSelection(entry.end)} tornado={tornadoItem} />
+    <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
   {/if}
 {/snippet}
 
@@ -623,7 +712,14 @@
   data-left-capacity-px={capacity} data-right-capacity-px={capacity} data-center-capacity-px={capacity}
   data-layout-height-px={layoutHeightPx} data-layout-width-px={layoutWidthPx} data-nankai-height-px={nankaiHeightPx}
   data-rotation-keys={renderPlan.rotationKeys.join(",")} data-rotation-omitted-count={renderPlan.rotationFailureCount}
+  data-rotation-active-key={rotationActiveKey ?? undefined}
+  data-rotation-tick-override={rotationTickOverride}
   data-rotation-slot-height-px={renderPlan.rotationSlotHeight}
+  data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
+  data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
+  data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}
+  data-card-page-tick-override={cardPageTickOverride}
+  data-scheduler-state={JSON.stringify({ rotation: rotationScheduler.diagnostics(), paging: cardPageCoordinator.diagnostics() })}
   data-expanded-counts={expandedCounts}
   data-prefix-probe-count={prefixMeasureEntries.length}
   data-typhoon-variant={renderSelection.typhoon}
@@ -643,7 +739,7 @@
       {/if}
     {/each}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
-      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
   </div>
   <div class="center-measure-shelf" aria-hidden="true" inert>
@@ -655,7 +751,7 @@
       {/if}
     {/each}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
-      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
     {#if snapshot.stats != null}<div class="center-stack-card" bind:this={statsMeasureEl}><InstrumentRow stats={snapshot.stats} /></div>{/if}
     {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card" bind:this={recentMeasureEl}><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
@@ -684,7 +780,16 @@
     {/if}
     <div class="side corner-right side-right" data-side="right">
       {#each renderPlan.right as card (card.key)}<article class="legacy-card" class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>{/each}
-      {#if renderStage === 3}<div class="rotation-slot" style:height={`${renderPlan.rotationSlotHeight}px`}>{#if rotationItem != null}{@render renderCard(rotationItem.key, "compact", "right", false, renderSelection)}{/if}</div>{#if renderPlan.rotationFailureCount > 0}<div class="rotation-failure">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>{/if}{/if}
+      {#if renderStage === 3}
+        <div class="rotation-slot" bind:this={rotationSlotEl} style:height={`${renderPlan.rotationSlotHeight}px`}>
+          {#each renderPlan.rotationKeys as key (key)}
+            <div class="rotation-card" hidden={key !== rotationActiveKey} data-rotation-card={key}>
+              {@render renderCard(key, "compact", "right", false, renderSelection)}
+            </div>
+          {/each}
+        </div>
+        {#if renderPlan.rotationFailureCount > 0}<div class="rotation-failure">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>{/if}
+      {/if}
     </div>
   </section>
   {#if nankaiItem != null}<div class="nankai-ticker bottom-stack" bind:this={nankaiEl}><NankaiBadge item={nankaiItem} /></div>{/if}
@@ -713,7 +818,7 @@
   .clock-below { position: absolute; top: calc(100% + var(--cluster-gap)); left: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--cluster-gap); width: 100%; height: var(--cluster-flow-height); }
   .instrument-row-wrap { display: flex; justify-content: center; } .quakes-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }
   .nankai-ticker { position: absolute; z-index: 3; right: var(--edge); bottom: 0; left: var(--edge); } .nankai-ticker :global(.nankai-badge) { width: 100%; margin: 0; box-sizing: border-box; justify-content: center; }
-  .rotation-slot { display: flex; overflow: hidden; } .rotation-slot > :global(*) { width: 100%; } .rotation-failure { padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; }
+  .rotation-slot { display: flex; overflow: hidden; } .rotation-card { width: 100%; } .rotation-card[hidden] { display: none; } .rotation-card > :global(*) { width: 100%; } .rotation-failure { padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; }
   .standby.dim { opacity: .35; }
   /* Normal information and warning-grade fixed tiers remain separate groups:
      their current floor is equal, but keeping the selectors separate prevents

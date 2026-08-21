@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import WeatherAlertCard from "../WeatherAlertCard.svelte";
 import type { ActiveStandbyCardV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
+import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 
 function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
   return {
@@ -547,6 +548,133 @@ describe("WeatherAlertCard", () => {
     const { container } = render(WeatherAlertCard, { alerts: [alert] });
     const kinds = Array.from(container.querySelectorAll(".kind")).map((el) => el.textContent);
     expect(kinds).toEqual(["洪水警報", "強風注意報"]);
+  });
+
+  it("共有 coordinator の weather substate が地域リスト内容をページ単位で差し替える", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const areas = Array.from({ length: 9 }, (_, index) => `地域${index + 1}`);
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{
+        kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: areas, omittedAreaCount: 0,
+      }] })],
+      pageCoordinator,
+      pageScheduling: true,
+      rotationMember: true,
+    });
+    await tick();
+    const card = view.container.querySelector<HTMLElement>(".weather-card")!;
+    expect(card.dataset.cardPage).toBe("1/2");
+    expect(card.textContent).toContain("地域1");
+    expect(card.textContent).not.toContain("地域9");
+    pageCoordinator.jumpTo("weather", 1);
+    await tick();
+    expect(card.dataset.cardPage).toBe("2/2");
+    expect(card.textContent).toContain("地域9");
+    expect(card.textContent).not.toContain("地域1");
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
+  it("wire truncated の残置行は該当 kind の最終ページにだけ復元する", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const areas = Array.from({ length: 9 }, (_, index) => `地域${index + 1}`);
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{
+        kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: areas, omittedAreaCount: 12,
+      }] })],
+      pageCoordinator,
+      pageScheduling: true,
+    });
+    await tick();
+    expect(view.container.querySelector(".omitted")).toBeNull();
+    pageCoordinator.jumpTo("weather", 1);
+    await tick();
+    expect(view.container.querySelector<HTMLElement>(".weather-card")?.dataset.cardPage).toBe("2/2");
+    expect(view.container.querySelector(".omitted")?.textContent).toContain("ほか12地域");
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
+  it("tail-only kind は他kindの複数ページ後にも残置行として描画される", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 1 });
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [
+        { kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: Array.from({ length: 9 }, (_, i) => `地域${i + 1}`), omittedAreaCount: 0 },
+        { kind: "洪水警報", displaySeverity: "warning", rank: "warning", shownAreas: [], omittedAreaCount: 7 },
+      ] })],
+      pageCoordinator,
+      pageScheduling: true,
+    });
+    await tick();
+    expect(view.container.querySelector<HTMLElement>(".weather-card")?.dataset.cardPage).toBe("2/2");
+    expect(view.container.textContent).toContain("洪水警報");
+    expect(view.container.textContent).toContain("ほか7地域");
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
+  it("先行 tail-only kind は後続地域の複数ページより前のcanonical位置に残る", async () => {
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [
+        { kind: "洪水警報", displaySeverity: "warning", rank: "warning", shownAreas: [], omittedAreaCount: 7 },
+        { kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["後続地域1", "後続地域2"], omittedAreaCount: 0 },
+      ] })],
+      pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const card = view.container.querySelector<HTMLElement>(".weather-card")!;
+    expect(card.dataset.cardPage).toBe("1/3");
+    expect(card.textContent).toContain("洪水警報");
+    expect(card.textContent).toContain("ほか7地域");
+    expect(card.textContent).not.toContain("後続地域1");
+    view.unmount();
+  });
+
+  it("実測 partition probe は長い地域名を一枚ずつのページ本文として残す", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 1 });
+    const longAreas = ["長い地域名長い地域名長い地域名A", "長い地域名長い地域名長い地域名B"];
+    const view = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{ kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: longAreas, omittedAreaCount: 0 }] })],
+      pageCoordinator,
+      pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const card = view.container.querySelector<HTMLElement>(".weather-card")!;
+    expect(card.dataset.cardPage).toBe("2/2");
+    expect(card.textContent).toContain(longAreas[1]);
+    expect(card.querySelector(".clip-summary")?.getAttribute("aria-hidden")).toBe("true");
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
+  it("輪番所属 weather は実時間timerを持たず、再登場eventで地域ページを進める", async () => {
+    vi.useFakeTimers();
+    try {
+      const pageCoordinator = createCardPageCoordinator();
+      const areas = Array.from({ length: 9 }, (_, index) => `地域${index + 1}`);
+      const view = render(WeatherAlertCard, {
+        alerts: [weatherAlert({ items: [{
+          kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: areas, omittedAreaCount: 0,
+        }] })],
+        pageCoordinator,
+        pageScheduling: true,
+        rotationMember: true,
+      });
+      await tick();
+      const card = view.container.querySelector<HTMLElement>(".weather-card")!;
+      expect(card.dataset.cardPage).toBe("1/2");
+      expect(vi.getTimerCount()).toBe(0);
+      pageCoordinator.recordRotationAppearance("weather");
+      await tick();
+      expect(card.dataset.cardPage).toBe("2/2");
+      expect(card.textContent).toContain("地域9");
+      view.unmount();
+      pageCoordinator.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("card-header は container/on/band トークンで #000 直値 fg を持たない", () => {

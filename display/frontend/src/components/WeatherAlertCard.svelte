@@ -1,11 +1,28 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1, DisplayWeatherAlertItemV1, DisplayWeatherAlertV1, DisplayWeatherRank } from "../lib/protocol";
-  import { tick } from "svelte";
+  import { onDestroy, tick, untrack } from "svelte";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
+  import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import type { PageRange } from "../lib/legacy-standby/types";
+  import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
-  let { alerts, tornado = null }: { alerts: DisplayWeatherAlertV1[]; tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null } = $props();
+  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange }: {
+    alerts: DisplayWeatherAlertV1[];
+    tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null;
+    pageCoordinator?: CardPageCoordinator;
+    rotationMember?: boolean;
+    pageScheduling?: boolean;
+    /** U3 shelf-backed actual page composition probe. */
+    partitionProbe?: PartitionProbe;
+    pagePlacement?: "side" | "center";
+    /** A single shelf probe renders exactly this candidate range. */
+    measurementRange?: PageRange;
+  } = $props();
+  const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
+  const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
+  const ownsPageCoordinator = initialPageCoordinator == null;
 
   const RANK_ORDER: Record<DisplayWeatherRank, number> = { emergency: 3, warning: 2, advisory: 1 };
 
@@ -99,9 +116,86 @@
     return merged;
   });
 
+  // Unit 4 owns state and content switching here; U5 will replace this interim
+  // single-column page composition with the two-column weather composition.
+  const WEATHER_PAGE_AREA_CAPACITY = 8;
+  const pageCandidates = $derived.by(() => items.flatMap((item) => [
+    ...item.shownAreas.map((area, occurrenceIndex) => ({ kindKey: item.kind, area, occurrenceIndex, tailOnly: false })),
+    ...(item.shownAreas.length === 0 && item.omittedAreaCount > 0
+      ? [{ kindKey: item.kind, area: `tail-${item.kind}`, occurrenceIndex: 0, tailOnly: true }]
+      : []),
+  ]));
+  const lastAreaIndexByKind = $derived.by(() => {
+    const indices = new Map<string, number>();
+    for (const [index, entry] of pageCandidates.entries()) if (!entry.tailOnly) indices.set(entry.kindKey, index);
+    return indices;
+  });
+  function tailsForRange(range: PageRange) {
+    return items.flatMap((item) => {
+      const last = lastAreaIndexByKind.get(item.kind);
+      return item.omittedAreaCount > 0 && last != null && last >= range.start && last < range.end
+        ? [{ kindKey: item.kind, omittedAreaCount: item.omittedAreaCount }]
+        : [];
+    });
+  }
+  const pagePartition = $derived.by(() => {
+    if (measurementRange != null) return { ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1 };
+    if (partitionProbe != null) return sequentialPartitionRanges(
+      "weather", pagePlacement, pageCandidates.length, 1, partitionProbe, tailsForRange,
+    );
+    return sequentialPartitionRanges(
+      "weather", pagePlacement, pageCandidates.length, WEATHER_PAGE_AREA_CAPACITY,
+      (_key, _placement, range) => range.end - range.start,
+      tailsForRange,
+    );
+  });
+  const weatherPages = $derived(pagePartition.ranges.map((range) => ({
+    entries: pageCandidates.slice(range.start, range.end), tails: range.tails,
+  })));
+  const pageIdentities = $derived(weatherPages.map((page, index) => pageIdentity(page.entries[0] ?? {
+    kindKey: "weather", area: `page-${index + 1}`, occurrenceIndex: 0,
+  })));
+  const pageLabels = $derived(weatherPages.map((page, index) => page.entries[0]?.area ?? `page-${index + 1}`));
+  $effect(() => {
+    pageCoordinator.register({
+      key: "weather",
+      identities: pageScheduling ? pageIdentities : [],
+      labels: pageScheduling ? pageLabels : [],
+      rotationMember,
+    });
+  });
+  onDestroy(() => {
+    if (ownsPageCoordinator) pageCoordinator.dispose();
+  });
+  const currentPageIndex = $derived(pageCoordinator.activeIndex("weather"));
+  const currentPage = $derived(weatherPages[currentPageIndex] ?? weatherPages[0] ?? { entries: [], tails: [] });
+  const visibleItems = $derived.by(() => {
+    // A shelf probe is a forced [start, end) composition even when that
+    // local range makes one page. Never fall back to the static all-items
+    // branch, or U3 would falsely measure every later candidate as fitting.
+    if ((!pageScheduling && measurementRange == null) || (weatherPages.length <= 1 && measurementRange == null)) return items;
+    const areasByKind = new Map<string, string[]>();
+    for (const entry of currentPage.entries) {
+      if (entry.tailOnly) continue;
+      const areas = areasByKind.get(entry.kindKey) ?? [];
+      areas.push(entry.area);
+      areasByKind.set(entry.kindKey, areas);
+    }
+    const tailKinds = new Set(currentPage.tails.map((tail) => tail.kindKey));
+    for (const entry of currentPage.entries) if (entry.tailOnly) tailKinds.add(entry.kindKey);
+    return items
+      .map((item) => {
+        const shownAreas = areasByKind.get(item.kind) ?? [];
+        const omittedAreaCount = tailKinds.has(item.kind) ? item.omittedAreaCount : 0;
+        return { ...item, shownAreas, omittedAreaCount };
+      })
+      .filter((item) => item.shownAreas.length > 0 || item.omittedAreaCount > 0);
+  });
+  const pageDiagnostics = $derived(pageCoordinator.cardDiagnostics("weather"));
+
   const displayItems = $derived.by(() => {
     let rowIndex = 0;
-    return items.map((item) => {
+    return visibleItems.map((item) => {
       const kindRowIndex = rowIndex++;
       const groups = groupByPrefectureOrRegion(item.shownAreas).map((group) => ({
         group,
@@ -140,6 +234,7 @@
   // max-height 内に実際に収まる行だけを残す。地域名の折返しも DOM の実高で判定し、
   // 切られる末尾は件数つきの 1 行へ置換する。jsdom の全矩形 0 は「未計測」として全表示する。
   function clipWeatherRows(node: HTMLUListElement, measureKey: string) {
+    if (measureKey === "") return { update: () => {}, destroy: () => {} };
     let generation = 0;
     let destroyed = false;
     let suppressObserver = true;
@@ -229,12 +324,18 @@
 </script>
 
 {#if alerts.length > 0 || tornado != null}
-  <div class="weather-card" class:clipped={clippedCount > 0}>
+  <div
+    class="weather-card"
+    class:clipped={clippedCount > 0}
+    data-card-page={pageDiagnostics.page}
+    data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
+    data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
+  >
     <div
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
     >{headerLabel(topRole, alerts)}<UpdatedStamp iso={latestUpdatedAt} /></div>
-    {#if alerts.length > 0}<ul use:clipWeatherRows={clipMeasureKey}>
+    {#if alerts.length > 0}<ul data-page-probe-body={measurementRange != null ? "" : undefined} use:clipWeatherRows={pageScheduling || measurementRange != null ? "" : clipMeasureKey}>
       {#each displayItems as entry (entry.item.kind + entry.item.rank)}
         <li class="rank-{entry.item.rank}" class:clip-hidden={visibleRowLimit != null && entry.kindRowIndex >= visibleRowLimit}>
           <span class="kind" data-weather-row={entry.kindRowIndex}>{entry.item.kind}</span>

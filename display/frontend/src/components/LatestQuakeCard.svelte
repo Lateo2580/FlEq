@@ -4,40 +4,49 @@
   import { depthVisual, magnitudeVisual } from "../lib/magnitude";
   import { groupByPrefecture } from "../lib/prefecture-group";
   import {
+    DETAIL_SECTION_HEADER_WEIGHT,
     PAGE_CITY_BUDGET,
     cityBudgetFromArea,
-    effectiveAreaCount,
     paginateAreas,
-    shouldPageDetails,
+    type DetailPage,
   } from "../lib/instrument-layout";
-  import { createPageCycler } from "../lib/page-cycler.svelte";
+  import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import type { PageRange } from "../lib/legacy-standby/types";
+  import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import { measureHeight } from "../lib/measure-height";
-  import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
-  import { fade } from "svelte/transition";
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import PageDots from "./PageDots.svelte";
   import RestoredChip from "./RestoredChip.svelte";
   import NumberUnit from "./NumberUnit.svelte";
   import { intensityVisual } from "../lib/quake-map-colors";
   import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
 
-  let { quake, longPeriod = null }: { quake: DisplayLatestQuakeStateV1; longPeriod?: { maxLgInt: string; restored: boolean } | null } = $props();
+  let { quake, longPeriod = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = true, partitionProbe, pagePlacement = "side", measurementRange }: {
+    quake: DisplayLatestQuakeStateV1;
+    longPeriod?: { maxLgInt: string; restored: boolean } | null;
+    /** StandbyScreen supplies the shared coordinator; isolated card renders own one. */
+    pageCoordinator?: CardPageCoordinator;
+    rotationMember?: boolean;
+    pageScheduling?: boolean;
+    /** U3 shelf-backed actual composition probe. Isolated card tests use the fallback only. */
+    partitionProbe?: PartitionProbe;
+    pagePlacement?: "side" | "center";
+    /** A single shelf probe renders exactly this candidate range. */
+    measurementRange?: PageRange;
+  } = $props();
+  const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
+  const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
+  const ownsPageCoordinator = initialPageCoordinator == null;
 
   // 数値深さは「20km」の数値大・単位小で見せる。「ごく浅い」は数値ではないため通常テキスト。
   const magnitude = $derived(magnitudeVisual(quake.magnitudeSemantic, quake.magnitude));
   const depth = $derived(depthVisual(quake.depthSemantic, quake.depth));
   const depthParts = $derived(splitNumberUnit(depth.label));
 
-  // 全グループ合計の実効件数。静的リスト ⇔ 詳細ページングの切替判定に使う (spec §4 決定表)。
-  // ≤30 のときは topGroupCompact 相当の縮退分岐は実質発火しない (最大震度グループも ≤30 になる
-  // ため) — 固定+スクロールの 2 領域構造はやめ、全グループを 1 本の静的リストで並べる
+  // 表示対象の震度グループ。複数ページになるかは固定件数閾値ではなく、下の partition 結果で決める。
   const displayGroups = $derived(quake.intensityGroups.filter((group) =>
     intensityVisual(group.intensitySemantic, group.intensity, group.rank).render
   ));
-  const totalEffective = $derived(
-    displayGroups.reduce((sum, g) => sum + effectiveAreaCount(g), 0),
-  );
-  const paging = $derived(shouldPageDetails(totalEffective));
   const maxVisual = $derived(intensityVisual(quake.maxIntSemantic, formatIntShort(quake.maxInt), quake.maxIntRank));
   const maxSeverityRank = $derived(quake.maxIntSemantic == null ? quake.maxIntRank : quake.maxIntSemantic.safetyRank);
 
@@ -58,11 +67,117 @@
   let pageBodyLineHeight = $state(0);
   const cityBudget = $derived(cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET));
 
-  // 詳細ページ配列 (県単位、paging=false のときは空)。旧「1/4」(グループ内番号) の文字表示は
-  // T8① でドットインジケータ (PageDots) に撤去済み。ドット列のグループ境界 gap 機能は
-  // preview 目視レビューで「間隔が不揃いに見える」と不評だったため T8⑤ で撤去し、pageGroupMeta
-  // ベースの境界計算も不要になった (削除済み)
-  const pages = $derived(paging ? paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true }) : []);
+  // 県を分断しない最小 fragment を作り、U2 の逐次 greedy partition で固定予算へ詰める。
+  // expandedAreas がある実カードでは compact の恒久省略をやめ、供給候補全体を対象にする。
+  const pageSourceGroups = $derived(displayGroups.map((group) => {
+    if (!pageScheduling || group.expandedAreas == null) return group;
+    const total = Math.max(group.areas.length + group.omittedAreaCount, group.expandedAreas.length);
+    return { ...group, areas: group.expandedAreas, omittedAreaCount: Math.max(0, total - group.expandedAreas.length) };
+  }));
+  // Make the candidate unit one region. The real StandbyScreen path supplies a
+  // U3 epoch probe that measures this exact range in the shelf; no item-count
+  // weight decides a production page boundary.
+  function fragmentsInCanonicalGroupOrder(budget: number): DetailPage[] {
+    return pageSourceGroups.flatMap((group): DetailPage[] => {
+      if (group.areas.length === 0 && group.omittedAreaCount > 0) return [{
+        intensity: group.intensity,
+        rank: group.rank,
+        prefGroups: [],
+        sections: [{ intensity: group.intensity, rank: group.rank, prefGroups: [] }],
+      }];
+      // paginate one source group at a time so a tail-only group remains at
+      // its canonical group boundary instead of being appended after all data.
+      return paginateAreas([group], budget);
+    });
+  }
+  const measuredPageFragments = $derived(fragmentsInCanonicalGroupOrder(DETAIL_SECTION_HEADER_WEIGHT + 1));
+  // Isolated cards have no U3 shelf. Preserve their historical deterministic
+  // fallback; all StandbyScreen production and shelf paths use one-region
+  // candidates measured through partitionProbe.
+  const pageFragments = $derived(partitionProbe != null || measurementRange != null
+    ? measuredPageFragments
+    : fragmentsInCanonicalGroupOrder(cityBudget));
+  const fragmentTails = $derived.by(() => {
+    const lastIndexByKind = new Map<string, number>();
+    for (const [index, page] of pageFragments.entries()) {
+      for (const section of page.sections) lastIndexByKind.set(`${section.rank}:${section.intensity}`, index);
+    }
+    return [...lastIndexByKind].flatMap(([kindKey, lastIndex]) => {
+      const source = pageSourceGroups.find((group) => `${group.rank}:${group.intensity}` === kindKey);
+      return (source?.omittedAreaCount ?? 0) > 0 ? [{ kindKey, lastIndex, omittedAreaCount: source!.omittedAreaCount }] : [];
+    });
+  });
+  function tailsForRange(range: PageRange) {
+    return fragmentTails
+      .filter((tail) => tail.lastIndex >= range.start && tail.lastIndex < range.end)
+      .map(({ kindKey, omittedAreaCount }) => ({ kindKey, omittedAreaCount }));
+  }
+  function standaloneFallbackHeight(range: PageRange): number {
+    return pageFragments.slice(range.start, range.end).reduce((total, page) => total + page.sections.reduce(
+      (sectionTotal, section) => sectionTotal + DETAIL_SECTION_HEADER_WEIGHT
+        + section.prefGroups.reduce((prefTotal, group) => prefTotal + Math.max(1, group.cities.length), 0),
+      0,
+    ), 0);
+  }
+  const pagePartition = $derived.by(() => {
+    if (measurementRange != null) return {
+      ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1,
+    };
+    if (partitionProbe != null) return sequentialPartitionRanges(
+      "quake", pagePlacement, pageFragments.length, 1,
+      partitionProbe,
+      tailsForRange,
+    );
+    // Standalone card usage has no U3 shelf. Keep its deterministic fallback
+    // for component tests; StandbyScreen never takes this branch.
+    return sequentialPartitionRanges(
+      "quake", pagePlacement, pageFragments.length, cityBudget,
+      (_key, _placement, range) => standaloneFallbackHeight(range),
+      tailsForRange,
+    );
+  });
+  const pages = $derived(pagePartition.ranges.map((range): DetailPage => {
+    const sections = pageFragments.slice(range.start, range.end).flatMap((page) => page.sections);
+    const first = sections[0]!;
+    return { sections, ...first };
+  }));
+  // A shelf probe must render the same fixed page body even though its local
+  // partition contains exactly one forced range. Otherwise it would fall back
+  // to the static all-candidates list and report a false fit.
+  const paging = $derived(measurementRange != null || pages.length > 1);
+  // Identity occurrence is canonical across every fragment, not re-counted at
+  // each partition boundary. Repartitioning therefore cannot merge two equal
+  // region names into one coordinator identity.
+  const fragmentEntries = $derived.by(() => {
+    const occurrences = new Map<string, number>();
+    return pageFragments.map((fragment, index) => {
+      let first: { kindKey: string; area: string; occurrenceIndex: number } | null = null;
+      for (const section of fragment.sections) {
+        const kindKey = `${section.rank}:${section.intensity}`;
+        for (const prefGroup of section.prefGroups) {
+          const areas = prefGroup.cities.length > 0 ? prefGroup.cities : [prefGroup.pref ?? "その他"];
+          for (const area of areas) {
+            const occurrenceKey = `${kindKey}\u0000${area}`;
+            const occurrenceIndex = occurrences.get(occurrenceKey) ?? 0;
+            occurrences.set(occurrenceKey, occurrenceIndex + 1);
+            first ??= { kindKey, area, occurrenceIndex };
+          }
+        }
+      }
+      return first ?? {
+        kindKey: `${fragment.rank}:${fragment.intensity}`,
+        // Tail-only pages have no geographic first entry. Use the stable
+        // kind-local sentinel rather than their mutable fragment position.
+        area: "<tail>",
+        occurrenceIndex: 0,
+      };
+    });
+  });
+  const pageEntries = $derived(pagePartition.ranges.map((range, index) =>
+    fragmentEntries[range.start] ?? { kindKey: "quake", area: `page-${index + 1}`, occurrenceIndex: 0 },
+  ));
+  const pageIdentities = $derived(pageEntries.map(pageIdentity));
+  const pageLabels = $derived(pageEntries.map((entry) => entry.area));
 
   // 別イベント (eventId 変化) か、同一イベントの続報で severityTier (地震は最大震度 rank) が
   // 「上昇」したときにページを先頭に戻す。下降・同値ではリセットしない (spec §3、Codex R
@@ -81,18 +196,37 @@
     prevMaxIntRank = rank;
   });
 
-  const cycler = createPageCycler({
-    pageCount: () => pages.length,
-    resetKey: () => resetSeq,
+  $effect(() => {
+    pageCoordinator.register({
+      key: "quake",
+      identities: pageScheduling ? pageIdentities : [],
+      labels: pageScheduling ? pageLabels : [],
+      rotationMember,
+      resetKey: resetSeq,
+    });
   });
-  // unmount (待機カードの流れ替え) で $effect.root のタイマー/matchMedia リスナーが
-  // リークしないよう、コンポーネント破棄時に必ず destroy() する (Codex R レビュー M1)
-  onDestroy(() => cycler.destroy());
+  onDestroy(() => {
+    // A shared coordinator owns the substate across placement/stage remounts.
+    // StandbyScreen performs the actual card-disappearance exit.
+    if (ownsPageCoordinator) pageCoordinator.dispose();
+  });
 
-  // paging=true なら pages.length>0 が保証される (shouldPageDetails は intensityGroups が
-  // 空でない前提でしか true にならない) ため、範囲外 fallback は pages[0] へ (null 経由の
-  // 1 フレーム空表示を避ける)
-  const currentPage = $derived(pages[cycler.index] ?? pages[0] ?? null);
+  // 範囲外 fallback は pages[0] へ置き、交代時に null の空フレームを経由させない。
+  const currentPageIndex = $derived(pageCoordinator.activeIndex("quake"));
+  const currentPage = $derived(pages[currentPageIndex] ?? pages[0] ?? null);
+  const currentPageTails = $derived.by(() => {
+    const tails = new Map<string, number>();
+    for (const section of currentPage?.sections ?? []) {
+      const kindKey = `${section.rank}:${section.intensity}`;
+      const occursLater = pages.slice(currentPageIndex + 1).some((page) => page.sections
+        .some((candidate) => `${candidate.rank}:${candidate.intensity}` === kindKey));
+      if (occursLater) continue;
+      const source = pageSourceGroups.find((group) => `${group.rank}:${group.intensity}` === kindKey);
+      if ((source?.omittedAreaCount ?? 0) > 0) tails.set(kindKey, source!.omittedAreaCount);
+    }
+    return tails;
+  });
+  const pageDiagnostics = $derived(pageCoordinator.cardDiagnostics("quake"));
 </script>
 
 {#snippet groupItem(g: DisplayIntensityGroupV1)}
@@ -119,7 +253,14 @@
   </li>
 {/snippet}
 
-<div class="quake-card">
+<div
+  class="quake-card"
+  data-card-page={pageDiagnostics.page}
+  data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
+  data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
+  data-partition-probe-count={pagePartition.probeCount}
+  data-card-page-infeasible={pagePartition.infeasible ? "true" : "false"}
+>
   <div class="banner-header" class:critical={(maxSeverityRank ?? 0) >= 7}>地震情報</div>
   <div class="card-body">
     <div class="summary-row">
@@ -147,23 +288,17 @@
       {#if paging}
         {#if currentPage != null}
           <div class="page-detail">
-            {#key cycler.index}
-              <div
-                class="page-fade"
-                transition:fade={{
-                  duration: cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS,
-                  easing: springEffectsOut,
-                }}
-              >
+            {#key currentPageIndex}
+              <div class="page-fade">
                 <div class="page-header">
                   <span class="page-title">観測震度 詳細</span>
-                  <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
+                  <PageDots total={pages.length} current={currentPageIndex} onJump={(i) => pageCoordinator.jumpTo("quake", i)} />
                 </div>
-                <ul class="page-body" use:measureHeight={(h) => (pageBodyAreaHeight = h)}>
+                <ul class="page-body" data-page-probe-body use:measureHeight={(h) => (pageBodyAreaHeight = h)}>
                   <li class="line-ruler" aria-hidden="true" use:measureHeight={(h) => (pageBodyLineHeight = h)}
                     >測</li
                   >
-                  {#each currentPage.sections as section (section.intensity)}
+                  {#each currentPage.sections as section, sectionIndex (`${section.rank}:${section.intensity}:${section.prefGroups[0]?.pref ?? ""}:${sectionIndex}`)}
                     {@const visual = groupVisual(section.intensity, section.rank)}
                     <li class="page-section">
                       <span class="g-int int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
@@ -173,6 +308,9 @@
                           {#if pg.cities.length > 0}<span class="cities">{#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}</span>{/if}
                         </div>
                       {/each}
+                      {#if (currentPageTails.get(`${section.rank}:${section.intensity}`) ?? 0) > 0}
+                        <span class="g-omitted">ほか{currentPageTails.get(`${section.rank}:${section.intensity}`)}地域</span>
+                      {/if}
                     </li>
                   {/each}
                 </ul>
@@ -182,7 +320,7 @@
         {/if}
       {:else}
         <ul class="groups">
-          {#each displayGroups as g (g.intensity)}
+          {#each pageSourceGroups as g (g.intensity)}
             {@render groupItem(g)}
           {/each}
         </ul>
@@ -306,8 +444,7 @@
     font-weight: var(--num-weight);
     font-variant-numeric: tabular-nums;
   }
-  /* 静的リスト (paging=false、spec §4 決定表の totalEffective<=30) — 自動スクロールは撤去し、
-     全グループを1本の静的リストで並べる (原則5「動くものは読めたら補足まで」) */
+  /* partition が1ページなら自走させず、従来の静的リストで全グループを並べる。 */
   .groups {
     margin: 4px 0 0;
     font-size: var(--type-label-s-fluid);
@@ -363,19 +500,16 @@
     font-size: var(--type-label-xs-size);
   }
   /* 詳細ページング (spec §3): 各ページに見出し・件数・ページ番号を固定枠で常時表示する
-     (原則3「任意の瞬間が単独で読める」)。ページ切替は旧ページ・新ページを重ねたクロスフェード
-     (T5c、spec §3 再々改訂)。.page-detail に position:relative + 明示 height (予算、下記) を
-     与え、{#key cycler.index} で再マウントされる .page-fade を position:absolute で重ねる。
-     outro (旧ページ) と intro (新ページ) が同時に走るため空白を経由しない (§8 の減光禁止には
-     該当しない、入替表現のため)。フェード完了後は outro 側が DOM から破棄され単層 opacity:1 */
+     (原則3「任意の瞬間が単独で読める」)。Unit 4 では共有 coordinator が選んだページを
+     keyed block で原子的に差し替える。旧ページを残さないため二重ページャや空白フレームを作らない。 */
   .page-detail {
     position: relative;
     margin: 4px 0 0;
     /* T5c: LatestQuakeCard は height:100% の grid セルに属さない content-driven カードのため、
        他パネルのように flex:1 で「残り画面高さ」を自然に受け取れない。ヘッダ1行 (概算) + gap +
        page-body の高さ予算 (6行分、review-T5a-2 FIX-1 由来) を合算した固定 height を与える。
-       page-fade が position:absolute;inset:0 でこの箱いっぱいに重なり、内部の page-body は
-       flex:1 でヘッダの実高さを引いた残りを受け取る (ヘッダ実測ぶんを自動で吸収する) */
+       内部の page-body は flex:1 でヘッダの実高さを引いた残りを受け取る
+       (ヘッダ実測ぶんを自動で吸収する) */
     height: calc(7 * 1.6em + 4px);
   }
   .page-fade {

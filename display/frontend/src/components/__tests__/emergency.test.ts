@@ -1507,13 +1507,14 @@ describe("EmergencyScreen", () => {
     }
   });
 
-  it("QuakePanel/LatestQuakeCard は詳細ページングに共有のページャ部品 (lib/page-cycler.svelte) を参照し、実装がコピペ複製されていない", () => {
+  it("QuakePanel は既存 page-cycler を維持し、LatestQuakeCard だけが待機画面の共有 scheduler へ一元化される", () => {
     const quake = readFileSync(join(__dirname, "..", "QuakePanel.svelte"), "utf-8");
     const latest = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf-8");
-    for (const src of [quake, latest]) {
-      expect(src).toContain("../lib/page-cycler.svelte");
-      expect(src).toContain("createPageCycler");
-    }
+    expect(quake).toContain("../lib/page-cycler.svelte");
+    expect(quake).toContain("createPageCycler");
+    expect(latest).toContain("../lib/legacy-standby/time-slice-scheduler.svelte");
+    expect(latest).toContain("createCardPageCoordinator");
+    expect(latest).not.toContain("createPageCycler");
   });
 
   it("EewPanel はスクロール機構 (vertical-ping-pong-scroll) を参照しない (T4a 全廃)", () => {

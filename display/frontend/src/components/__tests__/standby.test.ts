@@ -34,6 +34,20 @@ function typhoon(): Extract<ActiveStandbyCardV1, { kind: "typhoon" }> {
   const storm: DisplayTyphoonV1 = { typhoonKey: "TC-1", name: "Alpha", nameKana: "ALPHA", remark: null, typhoonNumber: "2605", category: "TS", location: "ocean", pressureHpa: 990, maxWindMs: 25, maxGustMs: 35, moveDirection: "N", moveSpeedKmh: 20, reportDateTime: "2026-08-20T12:00:00+09:00" };
   return { kind: "typhoon", surface: "corner-right", key: "typhoon:1", sourceEventIds: ["typhoon:1"], updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "normal", data: { typhoons: [storm] } };
 }
+function volcano(): Extract<ActiveStandbyCardV1, { kind: "volcano" }> {
+  return {
+    kind: "volcano", surface: "corner-right", key: "volcano:1", sourceEventIds: ["volcano:1"],
+    updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "critical",
+    data: { volcanoes: [{ code: "506", name: "桜島", alertLevel: 3, latestEvent: null }] },
+  };
+}
+function heat(): Extract<ActiveStandbyCardV1, { kind: "heat" }> {
+  return {
+    kind: "heat", surface: "corner-right", key: "heat:1", sourceEventIds: ["heat:1"],
+    updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: "2026-08-20T15:00:00+09:00", restored: false,
+    severity: "warning", data: { targetDate: "2026-08-20", areas: [{ areaName: "宮崎県", isSpecial: false }] },
+  };
+}
 
 describe("StandbyScreen legacy-improved skeleton", () => {
   it("renders the fixed three-column grid, viewport clock landmark, and no outer paging", () => {
@@ -362,6 +376,16 @@ describe("StandbyScreen measured stage epoch", () => {
     { stage: 2, override: cardHeights(120, 45, 120, 45), items: [typhoon()] as ActiveStandbyCardV1[] },
     { stage: 3, override: cardHeights(120, 55, 120, 55), items: [typhoon()] as ActiveStandbyCardV1[] },
   ] as const;
+  const rotationStage = {
+    ...cardHeights(40, 40, 40, 40), layoutHeightPx: 90, gapPx: 10, baselineGapPx: 10,
+    "flood:compact:right": 40, "flood:expanded:right": 40, "flood:full:right": 40,
+    "flood:compact:center": 40, "flood:expanded:center": 40, "flood:full:center": 40,
+    "volcano:compact:right": 40, "volcano:expanded:right": 40, "volcano:full:right": 40,
+    "volcano:compact:center": 40, "volcano:expanded:center": 40, "volcano:full:center": 40,
+    "heat:compact:right": 40, "heat:expanded:right": 40, "heat:full:right": 40,
+    "heat:compact:center": 40, "heat:expanded:center": 40, "heat:full:center": 40,
+  };
+  const rotationItems = [flood(), typhoon(), volcano(), heat()];
 
   it.each(cases)("settles auto-selected measured stage $stage through the component epoch", async ({ stage, override, items }) => {
     const { container } = render(StandbyScreen, {
@@ -374,6 +398,59 @@ describe("StandbyScreen measured stage epoch", () => {
     expect(root.getAttribute("data-ladder-stage")).toBe(String(stage));
     if (stage < 3) expect(container.querySelector(".center-card-region")).toBeTruthy();
     else expect(container.querySelector(".rotation-slot")).toBeTruthy();
+  });
+
+  it("renders exactly the tick-override rotation key and exposes scheduler diagnostics", async () => {
+    for (const rotationTick of [0, 1, 4]) {
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: rotationItems }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: rotationStage, rotationTick,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      const root = view.container.querySelector<HTMLElement>(".standby")!;
+      const keys = (root.dataset.rotationKeys ?? "").split(",").filter(Boolean);
+      expect({ stage: root.dataset.ladderStage, keys }).toEqual({ stage: "3", keys: expect.arrayContaining([expect.any(String), expect.any(String)]) });
+      expect(root.dataset.rotationActiveKey).toBe(keys[rotationTick % keys.length]);
+      expect(view.container.querySelectorAll('.rotation-card:not([hidden])')).toHaveLength(1);
+      expect(view.container.querySelector<HTMLElement>('.rotation-card:not([hidden])')?.dataset.rotationCard).toBe(root.dataset.rotationActiveKey);
+      expect(JSON.parse(root.dataset.schedulerState ?? "{}")).toMatchObject({ rotation: { timerActive: false } });
+      view.unmount();
+    }
+  });
+
+  it("performs a real stage-3 exit and releases the rotation resources", async () => {
+    vi.useFakeTimers();
+    try {
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: rotationItems }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: rotationStage,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      const firstRoot = view.container.querySelector<HTMLElement>(".standby")!;
+      const firstActive = firstRoot.dataset.rotationActiveKey;
+      vi.advanceTimersByTime(15_000);
+      await tick();
+      vi.advanceTimersByTime(0);
+      await tick();
+      expect(firstRoot.dataset.rotationActiveKey).not.toBe(firstActive);
+
+      await view.rerender({
+        snapshot: baseSnapshot({ latestQuake: latestQuake({ updatedAtMs: 2 }) }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: { ...rotationStage, layoutHeightPx: 10_000 },
+      });
+      for (let pass = 0; pass < 16; pass += 1) await tick();
+      const exited = view.container.querySelector<HTMLElement>(".standby")!;
+      expect(exited.dataset.ladderStage).toBe("0");
+      expect(exited.dataset.rotationKeys).toBe("");
+      expect(exited.dataset.rotationActiveKey).toBeUndefined();
+      expect(JSON.parse(exited.dataset.schedulerState ?? "{}")).toMatchObject({ rotation: { timerActive: false, inFlight: false } });
+      expect(view.container.querySelector(".rotation-slot")).toBeNull();
+      view.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps exactly one clock owner while an upgrade and a same-content epoch are unsettled", async () => {
@@ -469,6 +546,77 @@ describe("StandbyScreen measured stage epoch", () => {
 });
 
 describe("StandbyScreen prefix probes and fixed-center geometry", () => {
+  it("weather shelf の forced measurementRange は一候補だけを描画する", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    try {
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [weather({ items: [{
+          kind: "大雨警報", displaySeverity: "warning", rank: "warning",
+          shownAreas: ["先頭地域", "後続地域"], omittedAreaCount: 0,
+        }] })] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+      });
+      for (let pass = 0; pass < 16; pass += 1) await tick();
+      const probe = Array.from(container.querySelectorAll<HTMLElement>("[data-prefix-measure]"))
+        .find((node) => node.dataset.prefixMeasure?.startsWith("weather:page-fit:0:1"));
+      expect(probe).toBeTruthy();
+      expect(probe?.querySelector("[data-page-probe-body]")?.textContent).toContain("先頭地域");
+      expect(probe?.querySelector("[data-page-probe-body]")?.textContent).not.toContain("後続地域");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fixed-height に収まらない page range は専用棚 body を実測して infeasible にする", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 10 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : 0; },
+    });
+    try {
+      const quake = latestQuake({ intensityGroups: [{
+        intensity: "5弱", rank: 5, areas: ["A"], omittedAreaCount: 1, expandedAreas: ["A", "B"],
+      }] });
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: quake }), now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+      });
+      for (let pass = 0; pass < 16; pass += 1) await tick();
+      const probe = container.querySelector<HTMLElement>("[data-page-probe='true']");
+      expect(probe?.querySelector("[data-page-probe-body]")).toBeTruthy();
+      expect(probe?.querySelector<HTMLElement>("[data-page-probe-body]")?.scrollHeight).toBeGreaterThan(
+        probe?.querySelector<HTMLElement>("[data-page-probe-body]")?.clientHeight ?? 0,
+      );
+      const ids = Array.from(container.querySelectorAll<HTMLElement>("[data-prefix-measure]")).map((node) => node.dataset.prefixMeasure ?? "");
+      expect(ids.some((id) => id.startsWith("quake:prefix:"))).toBe(true);
+      expect(ids.some((id) => id.startsWith("quake:page-fit:"))).toBe(true);
+      expect(container.querySelector<HTMLElement>(".legacy-layout .quake-card")?.dataset.cardPageInfeasible).toBe("true");
+    } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("measures every B prefix and selects a later fit after a non-monotonic overflow", async () => {
     const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["A"], omittedAreaCount: 3, expandedAreas: ["A", "B", "C", "D"] }] });
     const testMeasurementOverride = {
