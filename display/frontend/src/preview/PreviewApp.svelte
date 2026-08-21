@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { EmergencyPanelModel } from "../lib/derive";
-  import type { DisplayEventDtoV1, DisplayLargeQuakeInputV1, DisplayTsunamiInputV1 } from "../lib/protocol";
+  import type { DisplayEventDtoV1, DisplayLargeQuakeInputV1, DisplayStateSnapshotV1, DisplayTsunamiInputV1 } from "../lib/protocol";
   import StandbyScreen from "../components/StandbyScreen.svelte";
   import EmergencyScreen from "../components/EmergencyScreen.svelte";
   import Ticker from "../components/Ticker.svelte";
@@ -51,6 +51,8 @@
     weatherEmergencyInput,
     weatherSyncingInput,
     backgroundTonePreviewFixtures,
+    legacyStandbyGateSnapshot,
+    type LegacyStandbyGateScenario,
   } from "./fixtures";
   import { createTipsFeeder } from "../lib/tips-feeder.svelte";
 
@@ -102,9 +104,15 @@
     return (SCENARIOS as readonly string[]).includes(name) ? (name as Scenario) : "standby-quiet";
   }
 
+  let currentHash = $state(window.location.hash);
   let scenario = $state<Scenario>(parseScenario(window.location.hash));
   let now = $state(new Date());
   const showNav = new URLSearchParams(window.location.search).get("nav") !== "0";
+  const gateScenarioParam = new URLSearchParams(window.location.search).get("gateScenario");
+  const gateScenario: LegacyStandbyGateScenario = gateScenarioParam === "7" || gateScenarioParam === "max"
+    ? gateScenarioParam
+    : "4";
+  const legacyStandbyGate = $derived(currentHash === "#legacy-standby-gate");
 
   const PREVIEW_TIPS = [
     "震度は「ある場所の揺れの強さ」、マグニチュードは「地震そのものの規模」です。",
@@ -121,7 +129,8 @@
 
   $effect(() => {
     const onHashChange = () => {
-      scenario = parseScenario(window.location.hash);
+      currentHash = window.location.hash;
+      scenario = parseScenario(currentHash);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
@@ -239,8 +248,10 @@
       ? "emergency"
       : "standby",
   );
-  const snapshot = $derived(
-    scenario === "standby-weather-warning"
+  const snapshot = $derived<DisplayStateSnapshotV1>(
+    legacyStandbyGate
+      ? legacyStandbyGateSnapshot(gateScenario)
+      : scenario === "standby-weather-warning"
       ? weatherWarningSnapshot
       : scenario === "standby-weather-advisory"
         ? weatherAdvisorySnapshot

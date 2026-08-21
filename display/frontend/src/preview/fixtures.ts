@@ -1,6 +1,7 @@
 // デザイン目視ゲート用フィクスチャ。SSE 接続を使わず、現実的な日本語コンテンツで
 // 各画面パターンを再現する。protocol.ts の型に厳密準拠する (any 禁止)。
 import type { WeatherEmergencyInputV1 } from "../lib/weather-panel";
+import { resolveWeatherKindKeys } from "../lib/weather-expanded-kinds";
 import {
   DISPLAY_PROTOCOL_VERSION,
   type ActiveStandbyCardV1,
@@ -22,6 +23,7 @@ import {
   type DisplayTsunamiStateV1,
   type DisplayWeatherAlertItemV1,
   type DisplayWeatherAlertV1,
+  type DisplayWeatherExpandedKindV1,
 } from "../lib/protocol";
 
 const NOW_ISO = "2026-07-07T14:32:00+09:00";
@@ -2465,3 +2467,59 @@ export const legacyImprovedMaxUnknownItems = [
   { key: "unknown:legacy-improved-1", kind: "未対応の警報種別", label: "未知の警報カード" },
   { key: "unknown:legacy-improved-2", kind: "未対応の観測種別", label: "未知の観測カード" },
 ] as const;
+
+/** 実 StandbyScreen 用の layout gate 入力。描画は preview mock ではなく本体へ渡す。 */
+export type LegacyStandbyGateScenario = "4" | "7" | "max";
+
+function legacyStandbyGateWeatherExpandedKinds(
+  alerts: readonly DisplayWeatherAlertV1[],
+): DisplayWeatherExpandedKindV1[] {
+  const items = alerts.flatMap((alert) => alert.items);
+  const kindKeys = resolveWeatherKindKeys(items);
+  return items.map((item, index) => ({
+    // StandbyScreen が正本として参照する kindKey を使う。label 文字列を自作しない。
+    kindKey: kindKeys[index]!,
+    areas: [...item.shownAreas],
+    totalAreaCount: Math.max(item.shownAreas.length + item.omittedAreaCount, item.shownAreas.length),
+    candidateTruncated: false,
+  }));
+}
+
+/**
+ * #legacy-standby-gate の scenario snapshot。
+ * compact 本文と wire の canonical 展開候補を分け、本番と同じ余裕利用経路を通す。
+ */
+export function legacyStandbyGateSnapshot(
+  scenario: LegacyStandbyGateScenario,
+): DisplayStateSnapshotV1 {
+  const weatherCandidates = scenario === "max"
+    ? legacyImprovedMaxWeatherAlerts
+    : legacyImprovedWeatherAlertsExpanded;
+  const weatherAlerts = scenario === "max"
+    ? legacyImprovedMaxWeatherAlertsCompact
+    : legacyImprovedWeatherAlertsCompact;
+  const expandedQuake = legacyImprovedExpandedLatestQuake;
+  const latestQuake: DisplayLatestQuakeStateV1 = {
+    ...latestQuakeStandbyCards,
+    intensityGroups: latestQuakeStandbyCards.intensityGroups.map((group, index) => ({
+      ...group,
+      expandedAreas: [...(expandedQuake.intensityGroups[index]?.areas ?? group.areas)],
+      candidateTruncated: false,
+    })),
+  };
+  const sourceItems = scenario === "4"
+    ? standbyItemsShowcase.filter((item) => item.kind !== "flood" && item.kind !== "typhoon")
+    : scenario === "max"
+      ? legacyImprovedMaxItems
+      : standbyItemsShowcase;
+
+  return standbySnapshot({
+    tsunami: scenario === "4" ? null : tsunamiBanner,
+    latestQuake,
+    weatherAlerts,
+    weatherExpandedKinds: legacyStandbyGateWeatherExpandedKinds(weatherCandidates),
+    recentQuakes: recentQuakesRich.slice(0, scenario === "4" ? 3 : 5),
+    stats: statsStandbyCards,
+    standbyItems: sourceItems,
+  });
+}
