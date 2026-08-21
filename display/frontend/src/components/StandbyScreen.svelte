@@ -169,22 +169,53 @@
   const hasWeather = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
   const hasQuake = $derived(snapshot.latestQuake != null || selectedRecentQuake != null);
   const connectionVisible = $derived(!sseConnected || snapshot.connection.dmdata === "disconnected");
+  function weatherRoleRank(role: string): number {
+    if (role === "weatherEmergency") return 3;
+    if (role === "weatherWarning") return 2;
+    return 1;
+  }
+  // weatherExpandedKinds / WeatherAlertCard と同じ表示単位。下位 role の alias が最高 role
+  // の旧形式 fallback を汚染したり、候補配分を消費したりしないよう resolver 前に絞る。
+  const highestWeatherRoleRank = $derived(Math.max(0, ...snapshot.weatherAlerts.map((alert) => weatherRoleRank(alert.role))));
+  const displayWeatherAlerts = $derived(
+    snapshot.weatherAlerts.filter((alert) => weatherRoleRank(alert.role) === highestWeatherRoleRank),
+  );
   const weatherItemKindKeys = $derived.by(() => {
-    const items = snapshot.weatherAlerts.flatMap((alert) => alert.items);
+    const items = displayWeatherAlerts.flatMap((alert) => alert.items);
     const keys = resolveWeatherKindKeys(items);
     return new Map(items.map((item, index) => [item, keys[index]! ]));
   });
-  function expandedWeatherAreas(item: DisplayStateSnapshotV1["weatherAlerts"][number]["items"][number]): string[] {
-    const kindKey = weatherItemKindKeys.get(item) ?? resolveWeatherKindKeys([item])[0]!;
-    return snapshot.weatherExpandedKinds?.find((kind) => kind.kindKey === kindKey)?.areas ?? item.shownAreas;
-  }
   function weatherKindKey(item: DisplayStateSnapshotV1["weatherAlerts"][number]["items"][number]): string {
     return weatherItemKindKeys.get(item) ?? resolveWeatherKindKeys([item])[0]!;
   }
-  function weatherTotalAreaCount(item: DisplayStateSnapshotV1["weatherAlerts"][number]["items"][number]): number {
-    const expanded = snapshot.weatherExpandedKinds?.find((kind) => kind.kindKey === weatherKindKey(item));
-    return expanded?.totalAreaCount ?? Math.max(item.shownAreas.length + item.omittedAreaCount, expandedWeatherAreas(item).length);
-  }
+  // source 横断の kind が同じ wire 集約値を個々の item へ複製すると、残置数をカード側で
+  // 再合算してしまう。候補・残置は kindKey ごとに一度だけ選び、描画時は先頭 item を carrier にする。
+  const weatherDisplayGroups = $derived.by(() => {
+    const groups = new Map<string, { currentAreas: string[]; areaSet: Set<string>; fallbackOmittedAreaCount: number }>();
+    for (const alert of displayWeatherAlerts) {
+      for (const item of alert.items) {
+        const kindKey = weatherKindKey(item);
+        const group = groups.get(kindKey) ?? { currentAreas: [], areaSet: new Set<string>(), fallbackOmittedAreaCount: 0 };
+        for (const area of item.shownAreas) {
+          if (group.areaSet.has(area)) continue;
+          group.areaSet.add(area);
+          group.currentAreas.push(area);
+        }
+        group.fallbackOmittedAreaCount += item.omittedAreaCount;
+        if (!groups.has(kindKey)) groups.set(kindKey, group);
+      }
+    }
+    return new Map([...groups].map(([kindKey, group]) => {
+      const expanded = snapshot.weatherExpandedKinds?.find((candidate) => candidate.kindKey === kindKey);
+      const areas = expanded?.areas ?? group.currentAreas;
+      return [kindKey, {
+        currentAreas: group.currentAreas,
+        areas,
+        totalAreaCount: expanded?.totalAreaCount ?? group.currentAreas.length + group.fallbackOmittedAreaCount,
+        candidateTruncated: expanded?.candidateTruncated === true,
+      }];
+    }));
+  });
 
   function quakeWithSelection(rows: number): DisplayLatestQuakeStateV1 | null {
     const quake = snapshot.latestQuake;
@@ -203,16 +234,34 @@
     };
   }
   function weatherWithSelection(rows: number) {
-    if (rows <= 0) return snapshot.weatherAlerts;
     let remaining = rows;
-    return snapshot.weatherAlerts.map((alert) => ({
+    const selectedByKind = new Map<string, { areas: string[]; omittedAreaCount: number; candidateTruncated: boolean }>();
+    for (const [kindKey, group] of weatherDisplayGroups) {
+      const extra = Math.min(remaining, Math.max(0, group.areas.length - group.currentAreas.length));
+      remaining -= extra;
+      const areas = group.areas.slice(0, group.currentAreas.length + extra);
+      selectedByKind.set(kindKey, {
+        areas,
+        omittedAreaCount: Math.max(0, group.totalAreaCount - areas.length),
+        candidateTruncated: group.candidateTruncated,
+      });
+    }
+    const emittedKinds = new Set<string>();
+    return displayWeatherAlerts.map((alert) => ({
       ...alert,
       items: alert.items.map((item) => {
-        const source = expandedWeatherAreas(item);
-        const extra = Math.min(remaining, Math.max(0, source.length - item.shownAreas.length));
-        remaining -= extra;
-        const shownAreas = source.slice(0, item.shownAreas.length + extra);
-        return { ...item, shownAreas, omittedAreaCount: Math.max(0, weatherTotalAreaCount(item) - shownAreas.length) };
+        const kindKey = weatherKindKey(item);
+        const selected = selectedByKind.get(kindKey)!;
+        if (emittedKinds.has(kindKey)) {
+          return { ...item, shownAreas: [], omittedAreaCount: 0, candidateTruncated: false };
+        }
+        emittedKinds.add(kindKey);
+        return {
+          ...item,
+          shownAreas: selected.areas,
+          omittedAreaCount: selected.omittedAreaCount,
+          candidateTruncated: selected.candidateTruncated,
+        };
       }),
     }));
   }
@@ -318,11 +367,37 @@
         ? Math.min(MAX_PREFIX_ROWS, snapshot.latestQuake?.intensityGroups.reduce((total, group) =>
           total + Math.max(0, (group.expandedAreas?.length ?? group.areas.length) - group.areas.length), 0) ?? 0)
         : key === "weather"
-          ? Math.min(MAX_PREFIX_ROWS, snapshot.weatherAlerts.reduce((total, alert) => total + alert.items.reduce((itemTotal, item) => {
-            return itemTotal + Math.max(0, expandedWeatherAreas(item).length - item.shownAreas.length);
-          }, 0), 0))
+          ? Math.min(MAX_PREFIX_ROWS, [...weatherDisplayGroups.values()].reduce((total, group) =>
+            total + Math.max(0, group.areas.length - group.currentAreas.length), 0))
           : 0,
     }));
+  }
+  function pageFormattingActive(key: CardKey): boolean {
+    const page = key === "quake" || key === "weather" ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
+    const pageCount = Number(page.split("/")[1] ?? 0);
+    if (pageCount > 1) return true;
+    if (key === "weather") {
+      return [...weatherDisplayGroups.values()].some((group) =>
+        group.candidateTruncated || group.totalAreaCount > group.areas.length);
+    }
+    return key === "quake" && (snapshot.latestQuake?.intensityGroups.some((group) =>
+      group.omittedAreaCount > 0 || (group as { candidateTruncated?: boolean }).candidateTruncated === true) ?? false);
+  }
+  function selectedCardHeight(card: CardCandidate, placement: Placement): number {
+    const rows = card.key === "quake" ? renderSelection.quakeRows : card.key === "weather" ? renderSelection.weatherRows : 0;
+    const measurementPlacement = placement === "center" ? "center" : "right";
+    if (rows > 0 && (card.key === "quake" || card.key === "weather")) {
+      const tails = prefixTails(card.key, rows);
+      const prefixPlacement: PrefixPlacement = placement === "center" ? "center" : "side";
+      const id = prefixMeasureId("prefix", card.key, prefixPlacement, 0, rows, tails);
+      // B が採用するのは prefixHeight と同じ棚の実測値。描画側で probe を
+      // 追加せず、未確定時だけ variant 棚へ安全に戻す。
+      return prefixMeasurements[id] ?? measured(card.key, selectedVariant(card.key, renderSelection), measurementPlacement);
+    }
+    return measured(card.key, selectedVariant(card.key, renderSelection), measurementPlacement);
+  }
+  function pageFixedHeight(card: CardCandidate, placement: Placement): number | null {
+    return pageFormattingActive(card.key) ? selectedCardHeight(card, placement) : null;
   }
   const fixedCenterItemCount = $derived((connectionVisible ? 1 : 0) + (snapshot.stats == null ? 0 : 1) + (snapshot.recentQuakes.length === 0 ? 0 : 1));
   const fixedCenterContentHeight = $derived(
@@ -508,7 +583,13 @@
       const genericOverride = entry == null ? undefined : testMeasurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
       if (entry?.purpose === "page") {
         const body = node.querySelector<HTMLElement>("[data-page-probe-body]");
-        const fits = body == null || body.clientHeight === 0 || body.scrollHeight <= body.clientHeight + 1;
+        const card = node.querySelector<HTMLElement>("[data-page-probe-card]") ?? body;
+        // 縦はページ番号・残置行・rider を含むカード全体、横は多段組の地域リストで判定する。
+        // column-count の第3列以降は scrollHeight に現れないため、scrollWidth も必須。
+        const cardFitsVertically = card == null || card.clientHeight === 0 || card.scrollHeight <= card.clientHeight + 1;
+        const bodyFitsVertically = body == null || body.clientHeight === 0 || body.scrollHeight <= body.clientHeight + 1;
+        const fitsHorizontally = body == null || body.clientWidth === 0 || body.scrollWidth <= body.clientWidth + 1;
+        const fits = cardFitsVertically && bodyFitsVertically && fitsHorizontally;
         nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? (fits ? 0 : 2);
       } else {
         nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
@@ -768,18 +849,27 @@
   {/if}
   <section class="legacy-layout" bind:this={layoutEl} aria-label="従来待機画面 改良">
     <div class="side corner-left side-left" data-side="left">
-      {#each renderPlan.left as card (card.key)}<article class="legacy-card corner-item" class:tsunami-corner={card.key === "tsunami"} class:quake-corner={card.key === "quake"}>{@render renderCard(card.key, displayVariant(card), "left", false, renderSelection)}</article>{/each}
+      {#each renderPlan.left as card (card.key)}
+        {@const fixedHeight = pageFixedHeight(card, "left")}
+        <article class="legacy-card corner-item" class:paged-card={fixedHeight != null} class:tsunami-corner={card.key === "tsunami"} class:quake-corner={card.key === "quake"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined}>{@render renderCard(card.key, displayVariant(card), "left", false, renderSelection)}</article>
+      {/each}
     </div>
     {#if renderStage === 0}<div class="center-grid-spacer" aria-hidden="true"></div>{:else}
       <section class="center-card-region center-landmark" data-side="center">
         {#if connectionVisible}<div class="connection-stage-card" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
-        {#each renderPlan.center as card (card.key)}<article class="legacy-card">{@render renderCard(card.key, displayVariant(card), "center", false, renderSelection)}</article>{/each}
+        {#each renderPlan.center as card (card.key)}
+          {@const fixedHeight = pageFixedHeight(card, "center")}
+          <article class="legacy-card" class:paged-card={fixedHeight != null} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined}>{@render renderCard(card.key, displayVariant(card), "center", false, renderSelection)}</article>
+        {/each}
         {#if snapshot.stats != null}<div class="center-stack-card instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}
         {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
       </section>
     {/if}
     <div class="side corner-right side-right" data-side="right">
-      {#each renderPlan.right as card (card.key)}<article class="legacy-card" class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>{/each}
+      {#each renderPlan.right as card (card.key)}
+        {@const fixedHeight = pageFixedHeight(card, "right")}
+        <article class="legacy-card" class:paged-card={fixedHeight != null} class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>
+      {/each}
       {#if renderStage === 3}
         <div class="rotation-slot" bind:this={rotationSlotEl} style:height={`${renderPlan.rotationSlotHeight}px`}>
           {#each renderPlan.rotationKeys as key (key)}
@@ -809,6 +899,7 @@
   .side-left, .side-right { align-items: center; }
   .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe center; box-sizing: border-box; }
   .legacy-card, .rotation-slot, .rotation-failure { flex: 0 0 auto; box-sizing: border-box; width: min(30rem, 100%); max-width: 100%; }
+  .legacy-card.paged-card { position: relative; overflow: hidden; }
   .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }
   .center-card-region > .legacy-card, .center-stack-card { width: 100%; }
   .center-stack-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }

@@ -6,6 +6,7 @@ import { tick } from "svelte";
 import WeatherAlertCard from "../WeatherAlertCard.svelte";
 import type { ActiveStandbyCardV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
+import { collectWeatherExpandedKinds } from "../../lib/weather-expanded-kinds";
 
 function weatherAlert(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
   return {
@@ -225,6 +226,30 @@ describe("WeatherAlertCard", () => {
     expect(container.querySelector(".omitted")?.textContent).toBe("ほか3地域");
   });
 
+  it("wire の candidateTruncated が残置数0でもページ表示を残す", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const source = weatherAlert({
+      items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: Array.from({ length: 129 }, (_, index) => `地域${index + 1}`), omittedAreaCount: 0,
+      }],
+    });
+    const [wire] = collectWeatherExpandedKinds([source]);
+    expect(wire?.candidateTruncated).toBe(true);
+    const alert = weatherAlert({
+      items: [{
+        ...source.items[0]!, shownAreas: ["宮崎市"], omittedAreaCount: 0,
+        candidateTruncated: wire?.candidateTruncated,
+      } as DisplayWeatherAlertV1["items"][number] & { candidateTruncated: boolean }],
+    });
+    const view = render(WeatherAlertCard, { alerts: [alert], pageCoordinator, pageScheduling: true });
+    await tick();
+    expect(view.container.querySelector<HTMLElement>(".weather-card")?.dataset.cardPage).toBe("1/1");
+    expect(view.container.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/1");
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
   it("alerts が空なら .weather-card を render しない", () => {
     const { container } = render(WeatherAlertCard, { alerts: [] });
     expect(container.querySelector(".weather-card")).toBeFalsy();
@@ -236,147 +261,47 @@ describe("WeatherAlertCard", () => {
     expect(container.textContent).toContain("同期中");
   });
 
+  it("竜巻注意/目撃情報は対象地域を「ほか」省略せず全件表示する", () => {
+    const { container } = render(WeatherAlertCard, {
+      alerts: [],
+      tornado: { ...restoredTornado(), data: { areas: ["東京都", "長崎県", "宮崎県"], isSighted: true } },
+    });
+    const rider = container.querySelector(".tornado-rider");
+    expect(rider?.textContent).toContain("竜巻目撃情報（東京都、長崎県、宮崎県）");
+    expect(rider?.textContent).not.toContain("ほか");
+  });
+
   it("右上予算と一致する WeatherAlertCard の高さ上限を持つ", () => {
     const src = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
     expect(src).toMatch(/\.weather-card\s*\{[^}]*max-height:\s*min\(44vh,\s*280px\);/);
   });
 
-  it("280px 枠からはみ出す末尾を黙って切らず、件数つき省略行へ置換する", async () => {
-    const originalRect = Element.prototype.getBoundingClientRect;
-    Element.prototype.getBoundingClientRect = function (): DOMRect {
-      if (this instanceof HTMLElement && this.hasAttribute("data-clip-summary")) {
-        return { x: 16, y: 212, top: 212, right: 344, bottom: 240, left: 16, width: 328, height: 28, toJSON() {} } as DOMRect;
-      }
-      if (this instanceof HTMLUListElement) {
-        return { x: 0, y: 40, top: 40, right: 360, bottom: 240, left: 0, width: 360, height: 200, toJSON() {} } as DOMRect;
-      }
-      const row = this instanceof HTMLElement ? this.dataset.weatherRow : undefined;
-      if (row != null) {
-        const top = 50 + Number(row) * 50;
-        // row=3 は旧固定予約 24px の境界 (bottom=216) には入るが、実測省略行 top=212 には入らない。
-        const bottom = row === "3" ? 214 : top + 30;
-        return { x: 0, y: top, top, right: 360, bottom, left: 0, width: 360, height: bottom - top, toJSON() {} } as DOMRect;
-      }
-      return originalRect.call(this);
-    };
-    try {
-      const alert = weatherAlert({
-        items: ["大雨警報", "洪水警報", "暴風警報"].map((kind, index) => ({
-          kind,
-          displaySeverity: "warning",
-          rank: "warning" as const,
-          shownAreas: [`地域${index + 1}A`, `地域${index + 1}B`],
-          omittedAreaCount: 0,
-        })),
-      });
-      const { container } = render(WeatherAlertCard, { alerts: [alert] });
-      await tick();
-      await tick();
-      expect(container.querySelector(".weather-card")?.classList.contains("clipped")).toBe(true);
-      expect(container.querySelector(".clip-summary")?.textContent).toBe("ほか2項目/地域");
-      expect(container.querySelectorAll("li.clip-hidden")).toHaveLength(2);
-    } finally {
-      Element.prototype.getBoundingClientRect = originalRect;
-    }
+  it("対象地域は2列に組版し、pref-groupを列境界で分断せず旧clip機構を持たない", () => {
+    const src = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
+    expect(src).toMatch(/ul\s*\{[^}]*column-count:\s*2;[^}]*column-gap:/s);
+    expect(src).toMatch(/\.pref-group\s*\{[^}]*break-inside:\s*avoid;/s);
+    expect(src).not.toContain("clipWeatherRows");
+    expect(src).not.toContain("clip-summary");
+    expect(src).not.toContain("clip-hidden");
   });
 
-  it("同じ行構造の警報名・地域名差し替えでも再計測し、古い省略状態を残さない", async () => {
-    const originalRect = Element.prototype.getBoundingClientRect;
-    Element.prototype.getBoundingClientRect = function (): DOMRect {
-      if (this instanceof HTMLElement && this.hasAttribute("data-clip-summary")) {
-        return { x: 16, y: 210, top: 210, right: 344, bottom: 240, left: 16, width: 328, height: 30, toJSON() {} } as DOMRect;
-      }
-      if (this instanceof HTMLUListElement) {
-        return { x: 0, y: 40, top: 40, right: 360, bottom: 240, left: 0, width: 360, height: 200, toJSON() {} } as DOMRect;
-      }
-      const row = this instanceof HTMLElement ? this.dataset.weatherRow : undefined;
-      if (row != null) {
-        const longContent = (this.textContent?.length ?? 0) > 20;
-        const top = 50 + Number(row) * 50;
-        const bottom = longContent ? 270 : top + 30;
-        return { x: 0, y: top, top, right: 360, bottom, left: 0, width: 360, height: bottom - top, toJSON() {} } as DOMRect;
-      }
-      return originalRect.call(this);
-    };
-    const short = weatherAlert({ items: [{
-      kind: "大雨警報", displaySeverity: "warning", rank: "warning",
-      shownAreas: ["宮崎市"], omittedAreaCount: 0,
-    }] });
-    const long = weatherAlert({ items: [{
-      kind: "非常に長い名称の大雨警報が同じ項目位置へ差し替わるケース",
-      displaySeverity: "warning", rank: "warning",
-      shownAreas: ["非常に長い地域名称が同じ地域位置へ差し替わるケース"], omittedAreaCount: 0,
-    }] });
-    try {
-      const { container, rerender } = render(WeatherAlertCard, { alerts: [short] });
-      await tick();
-      await tick();
-      expect(container.querySelector(".clip-summary")?.classList.contains("clip-summary-hidden")).toBe(true);
-
-      await rerender({ alerts: [long] });
-      await tick();
-      await tick();
-      expect(container.querySelector(".clip-summary")?.textContent).toBe("ほか1項目/地域");
-      expect(container.querySelector(".clip-summary")?.classList.contains("clip-summary-hidden")).toBe(false);
-
-      await rerender({ alerts: [short] });
-      await tick();
-      await tick();
-      expect(container.querySelector(".clip-summary")?.classList.contains("clip-summary-hidden")).toBe(true);
-      expect(container.querySelector(".weather-card")?.classList.contains("clipped")).toBe(false);
-    } finally {
-      Element.prototype.getBoundingClientRect = originalRect;
-    }
-  });
-
-  it("web font の確定後に行高を再計測して省略状態を更新する", async () => {
-    const originalRect = Element.prototype.getBoundingClientRect;
-    const originalFonts = Object.getOwnPropertyDescriptor(document, "fonts");
-    let fontLoaded = false;
-    let resolveFonts!: () => void;
-    const ready = new Promise<void>((resolve) => { resolveFonts = resolve; });
-    const addEventListener = vi.fn();
-    const removeEventListener = vi.fn();
-    Object.defineProperty(document, "fonts", {
-      configurable: true,
-      value: { ready, addEventListener, removeEventListener },
+  it("測定棚ではページ番号を本文・riderと同じin-flow footerで組版する", () => {
+    const { container } = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{
+        kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
+      }] })],
+      tornado: restoredTornado(),
+      measurementRange: { start: 0, end: 1, tails: [{ kindKey: "warning|大雨警報", omittedAreaCount: 3 }], omittedAreaCount: 3 },
     });
-    Element.prototype.getBoundingClientRect = function (): DOMRect {
-      if (this instanceof HTMLElement && this.hasAttribute("data-clip-summary")) {
-        return { x: 16, y: 210, top: 210, right: 344, bottom: 240, left: 16, width: 328, height: 30, toJSON() {} } as DOMRect;
-      }
-      if (this instanceof HTMLUListElement) {
-        return { x: 0, y: 40, top: 40, right: 360, bottom: 240, left: 0, width: 360, height: 200, toJSON() {} } as DOMRect;
-      }
-      const row = this instanceof HTMLElement ? this.dataset.weatherRow : undefined;
-      if (row != null) {
-        const top = 50 + Number(row) * 50;
-        const bottom = fontLoaded && row === "1" ? 270 : top + 30;
-        return { x: 0, y: top, top, right: 360, bottom, left: 0, width: 360, height: bottom - top, toJSON() {} } as DOMRect;
-      }
-      return originalRect.call(this);
-    };
-    try {
-      const { container, unmount } = render(WeatherAlertCard, { alerts: [weatherAlert()] });
-      await tick();
-      await tick();
-      expect(container.querySelector(".clip-summary")?.classList.contains("clip-summary-hidden")).toBe(true);
-      expect(addEventListener).toHaveBeenCalledWith("loadingdone", expect.any(Function));
-
-      fontLoaded = true;
-      resolveFonts();
-      await ready;
-      await tick();
-      await tick();
-      expect(container.querySelector(".clip-summary")?.textContent).toBe("ほか1項目/地域");
-      expect(container.querySelector(".clip-summary")?.classList.contains("clip-summary-hidden")).toBe(false);
-      unmount();
-      expect(removeEventListener).toHaveBeenCalledWith("loadingdone", expect.any(Function));
-    } finally {
-      Element.prototype.getBoundingClientRect = originalRect;
-      if (originalFonts == null) delete (document as { fonts?: unknown }).fonts;
-      else Object.defineProperty(document, "fonts", originalFonts);
-    }
+    const card = container.querySelector<HTMLElement>(".weather-card");
+    const body = card?.querySelector<HTMLElement>("[data-page-probe-body]");
+    const footer = card?.querySelector<HTMLElement>("[data-card-page-footer]");
+    expect(card?.hasAttribute("data-page-probe-card")).toBe(true);
+    expect(footer?.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/1");
+    expect(body?.contains(footer ?? null)).toBe(false);
+    const source = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
+    expect(source).toMatch(/\.card-page-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*flex-end;/s);
+    expect(source).not.toMatch(/\.card-page-indicator\s*\{[^}]*position:\s*absolute;/s);
   });
 
   it("複数バケツ (emergency + warning) を渡したとき、最高ランク (emergency) の item だけが描画され、下位 (warning) は省略される", () => {
@@ -477,7 +402,7 @@ describe("WeatherAlertCard", () => {
       ],
     });
     const { container } = render(WeatherAlertCard, { alerts: [vpws50Alert, vpww56Alert] });
-    const items = container.querySelectorAll("li:not(.clip-summary)");
+    const items = container.querySelectorAll("li");
     expect(items.length).toBe(1);
     const prefNames = Array.from(container.querySelectorAll(".pref-name")).map((el) => el.textContent);
     expect(prefNames).toEqual(["栃木県", "群馬県"]);
@@ -490,7 +415,7 @@ describe("WeatherAlertCard", () => {
     expect(src).not.toContain("g.cities.join(");
   });
 
-  it("item 行に rank 別の色クラス (rank-emergency / rank-warning / rank-advisory) が対応して付く (最高ランクのみ残る)", () => {
+  it("最高 role 内の item は rank 別色を保ったまま全て表示する", () => {
     const alert = weatherAlert({
       role: "weatherEmergency",
       items: [
@@ -518,11 +443,10 @@ describe("WeatherAlertCard", () => {
       ],
     });
     const { container } = render(WeatherAlertCard, { alerts: [alert] });
-    const classes = Array.from(container.querySelectorAll("li:not(.clip-summary)")).map((li) =>
+    const classes = Array.from(container.querySelectorAll("li")).map((li) =>
       li.className.split(" ").filter((c) => c.startsWith("rank-")),
     );
-    // 最高ランク (emergency) の item だけが残り、warning/advisory は省略される
-    expect(classes).toEqual([["rank-emergency"]]);
+    expect(classes).toEqual([["rank-emergency"], ["rank-warning"], ["rank-advisory"]]);
   });
 
   it("単一バケツ (warning のみ) では従来どおり全 item が描画される", () => {
@@ -564,11 +488,13 @@ describe("WeatherAlertCard", () => {
     await tick();
     const card = view.container.querySelector<HTMLElement>(".weather-card")!;
     expect(card.dataset.cardPage).toBe("1/2");
+    expect(card.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/2");
     expect(card.textContent).toContain("地域1");
     expect(card.textContent).not.toContain("地域9");
     pageCoordinator.jumpTo("weather", 1);
     await tick();
     expect(card.dataset.cardPage).toBe("2/2");
+    expect(card.querySelector("[data-card-page-indicator]")?.textContent).toBe("2/2");
     expect(card.textContent).toContain("地域9");
     expect(card.textContent).not.toContain("地域1");
     view.unmount();
@@ -587,9 +513,11 @@ describe("WeatherAlertCard", () => {
     });
     await tick();
     expect(view.container.querySelector(".omitted")).toBeNull();
+    expect(view.container.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/2");
     pageCoordinator.jumpTo("weather", 1);
     await tick();
     expect(view.container.querySelector<HTMLElement>(".weather-card")?.dataset.cardPage).toBe("2/2");
+    expect(view.container.querySelector("[data-card-page-indicator]")?.textContent).toBe("2/2");
     expect(view.container.querySelector(".omitted")?.textContent).toContain("ほか12地域");
     view.unmount();
     pageCoordinator.dispose();
@@ -644,9 +572,50 @@ describe("WeatherAlertCard", () => {
     const card = view.container.querySelector<HTMLElement>(".weather-card")!;
     expect(card.dataset.cardPage).toBe("2/2");
     expect(card.textContent).toContain(longAreas[1]);
-    expect(card.querySelector(".clip-summary")?.getAttribute("aria-hidden")).toBe("true");
+    expect(card.querySelector("[data-card-page-indicator]")?.textContent).toBe("2/2");
     view.unmount();
     pageCoordinator.dispose();
+  });
+
+  it("混在rank・alias fallback・複数sourceでも wire weatherExpandedKinds とカード group key 集合が一致する", () => {
+    const alerts = [
+      weatherAlert({
+        source: "vpws50",
+        role: "weatherEmergency",
+        items: [
+          {
+            kind: "大雨特別警報", phenomenonKey: "heavy-rain", displaySeverity: "emergency", rank: "emergency",
+            shownAreas: ["宮崎市"], omittedAreaCount: 0,
+          },
+          {
+            kind: "洪水特別警報", phenomenonKey: "flood", displaySeverity: "emergency", rank: "advisory",
+            shownAreas: ["都城市"], omittedAreaCount: 0,
+          },
+        ],
+      }),
+      weatherAlert({
+        source: "vpww56",
+        role: "weatherEmergency",
+        items: [{
+          kind: "大雨特別警報", displaySeverity: "emergency", rank: "warning",
+          shownAreas: ["日南市"], omittedAreaCount: 0,
+        }],
+      }),
+      weatherAlert({
+        source: "vpww56",
+        role: "weatherWarning",
+        items: [{
+          kind: "下位の大雨警報", phenomenonKey: "lower-rain", displaySeverity: "warning", rank: "warning",
+          shownAreas: ["除外地域"], omittedAreaCount: 0,
+        }],
+      }),
+    ];
+    const wireKeys = collectWeatherExpandedKinds(alerts).map((entry) => entry.kindKey);
+    const { container } = render(WeatherAlertCard, { alerts });
+    const cardKeys = Array.from(container.querySelectorAll<HTMLElement>("[data-kind-key]"))
+      .map((element) => element.dataset.kindKey);
+    expect(cardKeys).toEqual(wireKeys);
+    expect(container.textContent).not.toContain("除外地域");
   });
 
   it("輪番所属 weather は実時間timerを持たず、再登場eventで地域ページを進める", async () => {

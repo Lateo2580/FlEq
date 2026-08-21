@@ -161,6 +161,18 @@ describe("TsunamiStandbyBanner", () => {
     expect(duration).toBeGreaterThanOrEqual(18);
   });
 
+  it("staticMarquee は撮影時だけ in-flow 静止にし、通常の走行経路は残す", () => {
+    const { container } = render(TsunamiStandbyBanner, {
+      tsunami: tsunamiState(),
+      staticMarquee: true,
+    });
+    const marquee = container.querySelector<HTMLElement>(".marquee-text");
+    expect(marquee?.dataset.marqueeStatic).toBe("true");
+    expect(marquee?.classList.contains("capture-static")).toBe(true);
+    const source = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
+    expect(source).toMatch(/\.marquee-text\.capture-static\s*\{[^}]*position:\s*static;[^}]*animation:\s*none;/s);
+  });
+
   // 第3波 Fix16: 減光は opacity ではなく background の color-mix (surface へのトーンブレンド) で
   // 表現する (祖先 .standby.dim との opacity 乗算事故を避けるため)。テストでは style 属性に
   // color-mix( が含まれるかで減光状態を判定する

@@ -86,6 +86,19 @@ describe("対象都道府県のカード内マーキー (2026-07-25 実機報告
     expect(marquee!.classList.contains("running")).toBe(false);
   });
 
+  it("staticMarquee は撮影時だけ in-flow 静止にし、通常表示の走行経路を残す", () => {
+    const { container } = render(HeatAlertCard, {
+      item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(40) } }),
+      staticMarquee: true,
+    });
+    const marquee = container.querySelector<HTMLElement>(".areas .marquee-text");
+    expect(marquee?.dataset.marqueeStatic).toBe("true");
+    expect(marquee?.classList.contains("capture-static")).toBe(true);
+    expect(marquee?.classList.contains("running")).toBe(false);
+    const source = readFileSync(join(__dirname, "..", "HeatAlertCard.svelte"), "utf-8");
+    expect(source).toMatch(/\.marquee-text\.capture-static\s*\{[^}]*position:\s*static;[^}]*animation:\s*none;/s);
+  });
+
   it("少数府県は従来どおり全列挙 (静的)", () => {
     const { container } = render(HeatAlertCard, {
       item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(2) } }),

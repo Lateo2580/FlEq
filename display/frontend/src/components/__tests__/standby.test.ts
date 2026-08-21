@@ -6,6 +6,7 @@ import { tick } from "svelte";
 import StandbyScreen from "../StandbyScreen.svelte";
 import { baseSnapshot } from "../../lib/__tests__/fixtures";
 import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayTsunamiStateV1, DisplayTyphoonV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
+import { collectWeatherExpandedKinds } from "../../lib/weather-expanded-kinds";
 
 const now = new Date("2026-08-20T12:00:00+09:00");
 const recent: DisplayRecentQuakeV1 = {
@@ -326,6 +327,89 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(container.querySelector(".legacy-layout")?.textContent).toContain("日南市");
   });
 
+  it("最高roleだけで alias fallback と候補配分を wire と同じ kindKey へ揃える", async () => {
+    const alerts = [
+      weather({
+        source: "vpww56",
+        role: "weatherEmergency",
+        items: [{
+          kind: "大雨警報", displaySeverity: "warning", rank: "warning",
+          shownAreas: ["宮崎市"], omittedAreaCount: 1,
+        }],
+      }),
+      weather({
+        source: "vpws50",
+        role: "weatherWarning",
+        items: [{
+          kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+          shownAreas: ["下位地域"], omittedAreaCount: 0,
+        }],
+      }),
+    ];
+    const wire = collectWeatherExpandedKinds(alerts);
+    expect(wire).toEqual([{
+      kindKey: "warning|大雨警報", areas: ["宮崎市"], totalAreaCount: 2, candidateTruncated: true,
+    }]);
+    const { container } = renderScreen({ weatherAlerts: alerts, weatherExpandedKinds: wire });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const card = container.querySelector<HTMLElement>(".legacy-layout .weather-card");
+    expect(card?.querySelector("[data-kind-key]")?.getAttribute("data-kind-key")).toBe(wire[0]?.kindKey);
+    expect(card?.textContent).toContain("宮崎市");
+    expect(card?.textContent).not.toContain("下位地域");
+    const counts = JSON.parse(container.querySelector(".standby")?.getAttribute("data-expanded-counts") ?? "{}") as {
+      weather?: Record<string, { count: number; n: number }>;
+    };
+    expect(counts.weather?.["大雨警報"]).toEqual({ count: 1, n: 1 });
+  });
+
+  it("同一 kindKey の複数sourceでも wire 残置数を一度だけカードへ帰属する", async () => {
+    const alerts = [
+      weather({ source: "vpws50", role: "weatherWarning", items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["宮崎市"], omittedAreaCount: 0,
+      }] }),
+      weather({ source: "vpww56", role: "weatherWarning", items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["日南市"], omittedAreaCount: 0,
+      }] }),
+    ];
+    const { container } = renderScreen({
+      weatherAlerts: alerts,
+      weatherExpandedKinds: [{
+        kindKey: "warning|heavy-rain", areas: ["宮崎市", "日南市"], totalAreaCount: 5, candidateTruncated: true,
+      }],
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const card = container.querySelector(".legacy-layout .weather-card");
+    expect(card?.querySelectorAll("[data-kind-key]")).toHaveLength(1);
+    expect(card?.querySelector(".omitted")?.textContent).toBe("ほか3地域");
+  });
+
+  it("下位roleの同一 kindKey は B の候補行数を消費しない", async () => {
+    const alerts = [
+      weather({ source: "vpww56", role: "weatherEmergency", items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["宮崎市"], omittedAreaCount: 0,
+      }] }),
+      weather({ source: "vpws50", role: "weatherWarning", items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["下位地域"], omittedAreaCount: 0,
+      }] }),
+    ];
+    const { container } = renderScreen({
+      weatherAlerts: alerts,
+      weatherExpandedKinds: [{
+        kindKey: "warning|heavy-rain", areas: ["宮崎市", "高位候補"], totalAreaCount: 2, candidateTruncated: false,
+      }],
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const ids = Array.from(container.querySelectorAll<HTMLElement>("[data-prefix-measure]"))
+      .map((node) => node.dataset.prefixMeasure ?? "");
+    expect(ids.some((id) => id.startsWith("weather:prefix:2:"))).toBe(false);
+    expect(container.querySelector(".legacy-layout")?.textContent).toContain("高位候補");
+    expect(container.querySelector(".legacy-layout")?.textContent).not.toContain("下位地域");
+  });
+
   it("keeps compact and full measurement variants independent from B expansion", async () => {
     const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: ["宮崎市"], omittedAreaCount: 1, expandedAreas: ["宮崎市", "日南市"] }] });
     const { container } = renderScreen({ latestQuake: quake });
@@ -546,6 +630,94 @@ describe("StandbyScreen measured stage epoch", () => {
 });
 
 describe("StandbyScreen prefix probes and fixed-center geometry", () => {
+  it("weatherExpandedKinds の candidateTruncated をカードのページ表示へ渡す", async () => {
+    const alert = weather({
+      role: "weatherWarning",
+      items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["宮崎市"], omittedAreaCount: 0,
+      }],
+    });
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({
+        weatherAlerts: [alert],
+        weatherExpandedKinds: [{
+          kindKey: "warning|heavy-rain", areas: ["宮崎市"], totalAreaCount: 2, candidateTruncated: true,
+        }],
+      }),
+      now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const card = container.querySelector<HTMLElement>(".legacy-layout .weather-card");
+    expect(card?.dataset.cardPageTruncated).toBe("true");
+    expect(card?.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/1");
+    const shell = card?.closest<HTMLElement>(".legacy-card");
+    expect(shell?.classList.contains("paged-card")).toBe(true);
+    expect(shell?.dataset.cardPageFixedHeight).toBeTruthy();
+    expect(shell?.style.height).toBe(`${shell?.dataset.cardPageFixedHeight}px`);
+  });
+
+  it("weather 改ページの外殻矩形高はページ間で測定済み自然高に固定される", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    const originalRect = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
+      if (this.classList.contains("paged-card")) {
+        const height = Number.parseFloat(this.style.height);
+        return { x: 0, y: 0, top: 0, right: 300, bottom: height, left: 0, width: 300, height, toJSON() {} } as DOMRect;
+      }
+      return originalRect.call(this);
+    };
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const pageFitOverrides = Object.fromEntries(
+      Array.from({ length: 9 }, (_, index) => [
+        [`weather:page-fit:${index}:${index + 1}:placement:side`, 0],
+        ...(index < 8 ? [[`weather:page-fit:${index}:${index + 2}:placement:side`, 2]] : []),
+      ]).flat(),
+    );
+    const testMeasurementOverride = {
+      layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10,
+      "weather:compact:right": 77, "weather:expanded:right": 88, "weather:full:right": 88,
+      ...Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`weather:prefix:${index + 1}:side`, 133])),
+      ...pageFitOverrides,
+    };
+    async function pageShell(cardPageTick: number) {
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [weather({ items: [{
+          kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+          shownAreas: ["地域1"], omittedAreaCount: 8,
+        }] })], weatherExpandedKinds: [{
+          kindKey: "warning|heavy-rain", areas: Array.from({ length: 9 }, (_, index) => `地域${index + 1}`), totalAreaCount: 9, candidateTruncated: false,
+        }] }),
+        now, dim: false, sseConnected: true, cardPageTick, testMeasurementOverride,
+      });
+      for (let pass = 0; pass < 24; pass += 1) await tick();
+      const card = view.container.querySelector<HTMLElement>(".legacy-layout .weather-card")!;
+      const shell = card.closest<HTMLElement>(".legacy-card")!;
+      const expanded = JSON.parse(view.container.querySelector(".standby")?.getAttribute("data-expanded-counts") ?? "{}") as { weather?: Record<string, { count: number }> };
+      const result = { page: card.dataset.cardPage, fixedHeight: shell.dataset.cardPageFixedHeight, rectHeight: shell.getBoundingClientRect().height, selectedCount: expanded.weather?.["大雨警報"]?.count };
+      view.unmount();
+      return result;
+    }
+    try {
+      const first = await pageShell(0);
+      const second = await pageShell(1);
+      expect(first.page).toMatch(/^1\/[2-9]$/);
+      expect(second.page).toBe(first.page?.replace(/^1\//, "2/"));
+      expect(first.selectedCount).toBe(9);
+      expect(first.fixedHeight).toBe("133");
+      expect(second.fixedHeight).toBe("133");
+      expect(second.rectHeight).toBe(first.rectHeight);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = originalRect;
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("weather shelf の forced measurementRange は一候補だけを描画する", async () => {
     class TestResizeObserver {
       observe(): void {}
@@ -613,6 +785,115 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
       if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
       else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("weather の2列目以降の横あふれは page range を fit と誤判定しない", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 200 : 0; },
+    });
+    try {
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [weather({ items: [{
+          kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["A"], omittedAreaCount: 1,
+        }] })] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+      });
+      for (let pass = 0; pass < 16; pass += 1) await tick();
+      const probeBody = container.querySelector<HTMLElement>("[data-page-probe-body]");
+      expect(probeBody?.scrollWidth).toBeGreaterThan(probeBody?.clientWidth ?? 0);
+      expect(container.querySelector<HTMLElement>(".legacy-layout .weather-card")?.dataset.cardPageInfeasible).toBe("true");
+    } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      if (clientWidth == null) delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      else Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
+      if (scrollWidth == null) delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
+      else Object.defineProperty(HTMLElement.prototype, "scrollWidth", scrollWidth);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("本文だけの縦あふれも page range を fit と誤判定しない", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement): number {
+        return this.matches("[data-page-probe-card], [data-page-probe-body]") ? 100 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement): number {
+        return this.matches("[data-page-probe-body]") ? 200 : this.matches("[data-page-probe-card]") ? 100 : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : 0; },
+    });
+    try {
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [weather({ items: [{
+          kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["A"], omittedAreaCount: 1,
+        }] })] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+      });
+      for (let pass = 0; pass < 16; pass += 1) await tick();
+      const body = container.querySelector<HTMLElement>("[data-page-probe-body]");
+      expect(body?.scrollHeight).toBeGreaterThan(body?.clientHeight ?? 0);
+      expect(body?.scrollWidth).toBe(body?.clientWidth);
+      expect(container.querySelector<HTMLElement>(".legacy-layout .weather-card")?.dataset.cardPageInfeasible).toBe("true");
+    } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      if (clientWidth == null) delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      else Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
+      if (scrollWidth == null) delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
+      else Object.defineProperty(HTMLElement.prototype, "scrollWidth", scrollWidth);
       vi.unstubAllGlobals();
     }
   });

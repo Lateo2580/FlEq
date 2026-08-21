@@ -123,10 +123,10 @@
           {#if typhoon.sizeClass != null || typhoon.intensityClass != null}
             <span class="compact-class">{[typhoon.sizeClass, typhoon.intensityClass].filter((value) => value != null).join("・")}</span>
           {/if}
+          {#if typhoon.location != null}<span class="location compact-location">{typhoon.location}</span>{/if}
         </div>
-        {#if typhoon.location != null || pressure != null || maxWind != null || renderMove}
+        {#if pressure != null || maxWind != null || renderMove}
           <div class="compact-summary">
-            {#if typhoon.location != null}<span class="compact-token compact-location">{typhoon.location}</span>{/if}
             {#if pressure != null}<span class="compact-token"><span class="compact-numeric"><RollingNumber value={String(pressure)} /></span><span class="stat-unit">hPa</span></span>{/if}
             {#if maxWind != null}<span class="compact-token">最大風速 <span class="compact-numeric"><RollingNumber value={String(maxWind)} /></span><span class="stat-unit">m/s</span></span>{/if}
             {#if renderMove}
@@ -142,9 +142,11 @@
           </div>
         {/if}
       {:else}
-        <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
+        <div class="typhoon-title-row">
+          <strong>{typhoon.name == null && typhoon.remark != null ? typhoon.remark : title(typhoon)}</strong>
+          {#if typhoon.location != null}<span class="location">{typhoon.location}</span>{/if}
+        </div>
         {#if typhoon.name != null && typhoon.remark != null}<div class="remark">{typhoon.remark}</div>{/if}
-        {#if typhoon.location != null}<div class="location">{typhoon.location}</div>{/if}
         {#if pressure != null || maxWind != null || maxGust != null || renderMove}
         <!-- LatestQuakeCard の .meta/.stat 列パターン (muted ラベル + 値の縦組みを横並び)。null 列は列ごと省略 -->
         <div class="meta">
@@ -222,9 +224,26 @@
     border-bottom: var(--header-band-width) solid var(--header-band-weatherEmergency);
   }
   .typhoon { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); }
-  .typhoon strong { display: block; font-size: max(14px, var(--type-label-l-fluid)); }
-  /* 現在位置: ラベルなしの muted 本文 (層2) */
-  .location, .remark { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
+  .typhoon-title-row {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .typhoon-title-row strong { flex: 1 1 55%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: max(14px, var(--type-label-l-fluid)); }
+  /* 現在位置は台風名と同じ行の右端へ置く (compact/full 共通)。 */
+  .typhoon-title-row .location {
+    flex: 0 0 42%;
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    color: var(--role-muted);
+    font-size: max(12px, var(--type-label-s-fluid));
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .remark { margin-top: 2px; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); }
   /* 通常幅は VolcanoCard と同じ 2×2。各列に 9rem を確保できない幅では自動的に 1 列へ落とし、
      minmax(0, ...) のように内容幅を無視して親の overflow:hidden へ押し込まない。 */
   .meta {
@@ -272,15 +291,15 @@
   /* 位置文字列は数値トークン (flex-shrink:0) に圧縮され「いわき市の南西」級で
      末尾が欠けるため、summary 行のみ折返しを許して全文を優先する (2026-08-11 実機) */
   .compact-summary { flex-wrap: wrap; }
-  .compact-primary strong { flex-shrink: 0; white-space: nowrap; }
+  .compact-primary strong { flex: 1 1 55%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .compact-class, .compact-summary {
     color: var(--role-muted);
     font-size: max(12px, var(--type-label-s-fluid));
   }
   .compact-class { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .compact-summary { margin-top: 2px; }
+  .compact-primary .compact-location { flex: 0 0 42%; min-width: 0; margin-left: auto; overflow: hidden; color: var(--role-muted); font-size: max(12px, var(--type-label-s-fluid)); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
   .compact-token { display: inline-flex; flex-shrink: 0; align-items: baseline; gap: var(--space-1); white-space: nowrap; }
   .compact-numeric { font-weight: var(--num-weight); }
-  .compact-location { flex: 1 1 auto; min-width: 2em; overflow: hidden; text-overflow: ellipsis; }
   .compact .semantic-speed { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

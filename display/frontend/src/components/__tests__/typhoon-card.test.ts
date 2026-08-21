@@ -68,6 +68,8 @@ describe("TyphoonCard", () => {
     expect(card?.textContent).toContain("ALPHA");
     // 現在位置はラベルなし本文
     expect(container.querySelector(".location")?.textContent).toBe("ocean");
+    expect(container.querySelector(".typhoon-title-row > .location")?.textContent).toBe("ocean");
+    expect(container.querySelector(".typhoon > .location")).toBeNull();
     // 最大瞬間風速は「最大瞬間」に短縮して最大風速の隣に置き、差分は追加しない
     const labels = Array.from(container.querySelectorAll(".meta .stat-label")).map((el) => el.textContent);
     expect(labels).toEqual(["中心気圧", "最大風速", "最大瞬間", "進行"]);
@@ -87,6 +89,14 @@ describe("TyphoonCard", () => {
     // 旧 .facts (span + " / " 区切り) は消えている
     expect(container.querySelector(".facts")).toBeNull();
     expect(card?.textContent).not.toContain(" / ");
+  });
+
+  it("長い台風名でも位置欄の42%をfull/compactで予約する", () => {
+    const source = readFileSync(join(__dirname, "..", "TyphoonCard.svelte"), "utf-8");
+    expect(source).toMatch(/\.typhoon-title-row strong\s*\{[^}]*flex:\s*1 1 55%;/s);
+    expect(source).toMatch(/\.typhoon-title-row \.location\s*\{[^}]*flex:\s*0 0 42%;/s);
+    expect(source).toMatch(/\.compact-primary strong\s*\{[^}]*flex:\s*1 1 55%;/s);
+    expect(source).toMatch(/\.compact-primary \.compact-location\s*\{[^}]*flex:\s*0 0 42%;/s);
   });
 
   it("exact semantic は scalar/label でなく value だけを既存の数値 component へ渡す", () => {
@@ -474,7 +484,8 @@ describe("TyphoonCard", () => {
       expect(card.querySelectorAll(":scope > div").length).toBeLessThanOrEqual(2);
     }
     expect(container.querySelector(".compact-primary")?.textContent).toContain("超大型・非常に強い");
-    expect(container.querySelector(".compact-summary")?.textContent).toContain("ocean");
+    expect(container.querySelector(".compact-primary .compact-location")?.textContent).toBe("ocean");
+    expect(container.querySelector(".compact-summary")?.textContent).not.toContain("ocean");
     expect(container.querySelector('.compact-summary [data-value="990"]')).toBeTruthy();
     expect(container.querySelector('.compact-summary [data-value="25"]')).toBeTruthy();
     const windToken = container.querySelector('.compact-summary [data-value="25"]')?.closest(".compact-token");

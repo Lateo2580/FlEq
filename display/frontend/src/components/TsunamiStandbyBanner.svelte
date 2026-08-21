@@ -17,10 +17,17 @@
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
   // onReplayLevel: チップクリックでその種別のテロップ再生を要求する (2026-07-14)。省略時は非対話。
-  let { tsunami, onReplayLevel }: {
+  let { tsunami, onReplayLevel, staticMarquee = false }: {
     tsunami: DisplayTsunamiStateV1;
     onReplayLevel?: (level: DisplayTsunamiLevel) => void;
+    staticMarquee?: boolean;
   } = $props();
+
+  function staticMarqueeFromUrl(): boolean {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("marquee") === "static";
+  }
+  const staticMarqueeEnabled = $derived(staticMarquee || staticMarqueeFromUrl());
 
   // クリックは必ず stopPropagation する: App.svelte の window click 減光トグルへ伝播させない。
   function handleChipClick(event: MouseEvent, level: DisplayTsunamiLevel): void {
@@ -178,7 +185,9 @@
         {#key displayGen}
           <span
             class="marquee-text"
+            class:capture-static={staticMarqueeEnabled}
             bind:this={textEl}
+            data-marquee-static={staticMarqueeEnabled ? "true" : undefined}
             style="animation-duration: {durationS}s; animation-iteration-count: {multiSegment ? 1 : 'infinite'}; --marquee-shift: {shiftPx}px;"
             onanimationend={onSegmentEnd}
           >{marqueeText}</span>
@@ -283,6 +292,11 @@
     animation-name: tsunami-banner-marquee;
     animation-timing-function: linear;
     animation-fill-mode: forwards;
+  }
+  .marquee-text.capture-static {
+    position: static;
+    animation: none;
+    transform: none;
   }
   @keyframes tsunami-banner-marquee {
     from {

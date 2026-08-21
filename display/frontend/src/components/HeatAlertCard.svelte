@@ -2,7 +2,12 @@
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import { relativeJstDayLabel } from "../lib/jst-day-key";
   import RestoredChip from "./RestoredChip.svelte";
-  let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "heat" }> } = $props();
+  let { item, staticMarquee = false }: { item: Extract<ActiveStandbyCardV1, { kind: "heat" }>; staticMarquee?: boolean } = $props();
+  function staticMarqueeFromUrl(): boolean {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("marquee") === "static";
+  }
+  const staticMarqueeEnabled = $derived(staticMarquee || staticMarqueeFromUrl());
   const special = $derived(item.severity === "critical" || item.data.areas.some((area) => area.isSpecial));
   let nowMs = $state(Date.now());
   $effect(() => {
@@ -68,8 +73,10 @@
     {:else}
       <span
         class="marquee-text"
-        class:running={needsMarquee}
+        class:running={needsMarquee && !staticMarqueeEnabled}
+        class:capture-static={staticMarqueeEnabled}
         bind:this={textEl}
+        data-marquee-static={staticMarqueeEnabled ? "true" : undefined}
         style="animation-duration: {durationS}s; --marquee-shift: {shiftPx}px;"
       >{areaText}</span>
     {/if}
@@ -95,9 +102,9 @@
     border-bottom-color: var(--header-band-weatherEmergency);
   }
   /* タイトルは折り返さない (見出し帯 1 行固定)。日付短縮と併せて最長ケースでも wrap しない */
-  .title { white-space: nowrap; }
+  .title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 日付は見出し帯の右端に寄せる (header は flex 済み)。色は帯上の --header-*-on を継承 */
-  .date { margin-left: auto; white-space: nowrap; font-size: max(12px, var(--type-label-s-fluid)); }
+  .date { flex: 0 0 auto; margin-left: auto; white-space: nowrap; font-size: max(12px, var(--type-label-s-fluid)); }
   /* 対象府県のカード内マーキー行 (1 行固定、TsunamiStandbyBanner .banner-areas と同型)。
      高さ 1.5em 固定なので府県数によらずカード高が一定 = 右スタックの実測選抜にも優しい */
   .areas {
@@ -120,6 +127,11 @@
     left: 100%;
     /* duration は inline style (animation-duration: {durationS}s) が shorthand より優先される */
     animation: heat-card-marquee linear infinite;
+  }
+  .marquee-text.capture-static {
+    position: static;
+    animation: none;
+    transform: none;
   }
   @keyframes heat-card-marquee {
     from {
