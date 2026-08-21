@@ -54,6 +54,14 @@ describe("TsunamiStandbyBanner", () => {
     expect(header?.textContent?.replace(/\s+/g, " ").trim()).toBe("大津波警報等 発令中");
   });
 
+  it("狭幅でも見出しを一行に保ち、更新時刻を縮小・省略できる", () => {
+    const source = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
+    expect(source).toMatch(/\.banner-header\s*\{[^}]*min-width:\s*0;[^}]*flex-wrap:\s*nowrap;/s);
+    expect(source).toMatch(/\.banner-title\s*\{[^}]*flex:\s*1 1 auto;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s);
+    expect(source).toMatch(/\.banner-header :global\(\.updated-stamp\)\s*\{[^}]*max-width:\s*45%;[^}]*font-size:\s*clamp\(10px, 2\.6cqw, 14px\)/s);
+    expect(source).toMatch(/@container \(max-width:\s*240px\)\s*\{\s*\.banner-header :global\(\.updated-stamp\)\s*\{\s*display:\s*none;/s);
+  });
+
   it("レベル別カウントを降順 (大津波→警報→注意報) のチップで render する", () => {
     const tsunami = tsunamiState({
       level: "majorWarning",

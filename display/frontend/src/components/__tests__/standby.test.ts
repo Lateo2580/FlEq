@@ -266,6 +266,22 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(container.querySelector(".nankai-ticker.bottom-stack")).toBeTruthy();
   });
 
+  it("reserves the Nankai band outside the side-column rectangle", async () => {
+    const nankai = { kind: "nankaiTrough", surface: "clock-below", key: "nankai:reserve", sourceEventIds: ["n"], updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: null, restored: false, severity: "info", data: { statusCode: "normal", label: "南海トラフ" } } as Extract<ActiveStandbyCardV1, { kind: "nankaiTrough" }>;
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), standbyItems: [nankai, typhoon()] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 160, nankaiHeightPx: 48, baselineGapPx: 10 },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    expect(root.style.getPropertyValue("--nankai-reserve")).toBe("48px");
+    // layoutHeightPx is now the rectangle above the band, so solver and the
+    // visible side columns use the same bottom edge instead of double pricing.
+    expect(root.getAttribute("data-left-capacity-px")).toBe("160");
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
+    expect(source).toMatch(/\.legacy-layout\s*\{[^}]*inset:\s*var\(--edge\) var\(--edge\) calc\(var\(--edge\) \+ var\(--nankai-reserve\)\)/s);
+  });
+
   it("keeps separate tsunami chips and propagates the selected warning level", () => {
     const onTsunamiReplay = vi.fn();
     const { container } = render(StandbyScreen, {

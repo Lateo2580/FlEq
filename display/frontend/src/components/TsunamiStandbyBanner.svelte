@@ -197,15 +197,33 @@
     box-shadow: var(--elevation-2);
     overflow: hidden;
     width: min(360px, 28vw);
+    container-type: inline-size;
     color: var(--fg);
   }
   .banner-header {
     /* 最終更新時刻を右端へ寄せるため flex 行にする (カード header と同じ文法) */
     display: flex;
     align-items: center;
+    min-width: 0;
+    flex-wrap: nowrap;
     font-size: var(--type-title-s-fluid);
     font-weight: var(--type-title-weight-emphasized);
     padding: 8px 16px;
+  }
+  .banner-title {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .banner-header :global(.updated-stamp) {
+    min-width: 0;
+    max-width: 45%;
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: clamp(10px, 2.6cqw, 14px);
   }
   .etc {
     /* 最終レビュー Finding 2 (spec D1): 親 .banner-header は --type-title-s-fluid
@@ -292,5 +310,8 @@
       height: auto;
       max-height: 2.6em;
     }
+  }
+  @container (max-width: 240px) {
+    .banner-header :global(.updated-stamp) { display: none; }
   }
 </style>

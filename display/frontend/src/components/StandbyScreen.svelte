@@ -289,7 +289,10 @@
   // jsdom and the initial pre-layout pass report a zero rect. Until the first
   // synchronous read has a real screen-area size, retain all cards rather
   // than manufacture a stage-3 overflow from that transient zero.
-  const capacity = $derived(layoutHeightPx === 0 ? 10_000 : Math.max(0, layoutHeightPx - nankaiHeightPx));
+  // .legacy-layout itself ends above the Nankai band.  Price that reserved
+  // rectangle once through its measured height; subtracting it here as well
+  // would make solver capacity diverge from the visible side columns.
+  const capacity = $derived(layoutHeightPx === 0 ? 10_000 : Math.max(0, layoutHeightPx));
   function selectedHeight(cards: readonly CardCandidate[], placement: Placement, selection: DisplaySelection, measureGap = gapPx): number | null {
     const measurementPlacement = placement === "center" ? "center" : "right";
     let total = Math.max(0, cards.length - 1) * measureGap;
@@ -696,10 +699,10 @@
   .measure-item { width: 100%; flex: 0 0 auto; }
   .baseline-gap-measure { position: absolute; width: var(--base-gap); height: 1px; visibility: hidden; pointer-events: none; }
   .rotation-failure-measure { position: absolute; visibility: hidden; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; pointer-events: none; }
-  .legacy-layout { position: absolute; inset: var(--edge); display: grid; grid-template-columns: minmax(0, 1fr) var(--center-width) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
+  .legacy-layout { position: absolute; inset: var(--edge) var(--edge) calc(var(--edge) + var(--nankai-reserve)); display: grid; grid-template-columns: minmax(0, 1fr) var(--center-width) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
   .side, .center-card-region { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; min-height: 0; overflow: visible; }
   .side-left, .side-right { align-items: center; }
-  .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe center; box-sizing: border-box; padding-bottom: var(--nankai-reserve); }
+  .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe center; box-sizing: border-box; }
   .legacy-card, .rotation-slot, .rotation-failure { flex: 0 0 auto; box-sizing: border-box; width: min(30rem, 100%); max-width: 100%; }
   .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }
   .center-card-region > .legacy-card, .center-stack-card { width: 100%; }
