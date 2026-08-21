@@ -37,6 +37,66 @@ function restoredTornado(): Extract<ActiveStandbyCardV1, { kind: "tornado" }> {
 }
 
 describe("WeatherAlertCard", () => {
+  it("県名プレフィックスなしの市町村を areaCode から都道府県グループへ入れる", () => {
+    const alert = weatherAlert({
+      items: [{
+        kind: "L3 大雨警報",
+        displaySeverity: "warning",
+        rank: "warning",
+        shownAreas: ["宮崎市", "都城市"],
+        shownAreaCodes: ["4520100", "4520200"],
+        omittedAreaCount: 0,
+      }],
+    });
+
+    const { container } = render(WeatherAlertCard, { alerts: [alert] });
+    const group = container.querySelector(".pref-group");
+    expect(group?.querySelector(".pref-name")?.textContent).toBe("宮崎県");
+    expect(Array.from(group?.querySelectorAll(".city-name") ?? []).map((el) => el.textContent))
+      .toEqual(["宮崎市", "都城市"]);
+  });
+
+  it("shownAreaCodes がない旧 wire は県名完全前方一致で従来どおりグループ化する", () => {
+    const alert = weatherAlert({
+      items: [{
+        kind: "L3 大雨警報",
+        displaySeverity: "warning",
+        rank: "warning",
+        shownAreas: ["宮崎県延岡市", "宮崎県日向市"],
+        omittedAreaCount: 0,
+      }],
+    });
+
+    const { container } = render(WeatherAlertCard, { alerts: [alert] });
+    const group = container.querySelector(".pref-group");
+    expect(group?.querySelector(".pref-name")?.textContent).toBe("宮崎県");
+    expect(Array.from(group?.querySelectorAll(".city-name") ?? []).map((el) => el.textContent))
+      .toEqual(["延岡市", "日向市"]);
+  });
+
+  it("同名でも異なる Area.Code の市町村は source 横断で両方を表示する", () => {
+    const tokyo = weatherAlert({
+      source: "vpws50",
+      items: [{
+        kind: "L3 大雨警報", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["府中市"], shownAreaCodes: ["1320600"], omittedAreaCount: 0,
+      }],
+    });
+    const hiroshima = weatherAlert({
+      source: "vpww56",
+      items: [{
+        kind: "L3 大雨警報", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["府中市"], shownAreaCodes: ["3420600"], omittedAreaCount: 0,
+      }],
+    });
+
+    const { container } = render(WeatherAlertCard, { alerts: [tokyo, hiroshima] });
+    expect(Array.from(container.querySelectorAll(".pref-name")).map((el) => el.textContent))
+      .toEqual(["東京都", "広島県"]);
+    expect(Array.from(container.querySelectorAll(".city-name")).map((el) => el.textContent))
+      .toEqual(["府中市", "府中市"]);
+  });
+
   it("emergency alert なら紫ヘッダ・「気象特別警報」ラベルで render する", () => {
     const alert = weatherAlert({
       role: "weatherEmergency",
@@ -227,7 +287,7 @@ describe("WeatherAlertCard", () => {
   });
 
   it("wire の candidateTruncated が残置数0でもページ表示を残す", async () => {
-    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const pageCoordinator = createCardPageCoordinator();
     const source = weatherAlert({
       items: [{
         kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
@@ -475,7 +535,7 @@ describe("WeatherAlertCard", () => {
   });
 
   it("共有 coordinator の weather substate が地域リスト内容をページ単位で差し替える", async () => {
-    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const pageCoordinator = createCardPageCoordinator();
     const areas = Array.from({ length: 9 }, (_, index) => `地域${index + 1}`);
     const view = render(WeatherAlertCard, {
       alerts: [weatherAlert({ items: [{
@@ -573,6 +633,59 @@ describe("WeatherAlertCard", () => {
     expect(card.dataset.cardPage).toBe("2/2");
     expect(card.textContent).toContain(longAreas[1]);
     expect(card.querySelector("[data-card-page-indicator]")?.textContent).toBe("2/2");
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
+  it("pageScheduling は同名地域の Area.Code 差し替えを別ページ identity として扱う", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const makeAlerts = (firstCode: string) => [weatherAlert({ items: [{
+      kind: "大雨警報", displaySeverity: "warning", rank: "warning",
+      shownAreas: ["府中市", "後続地域"], shownAreaCodes: [firstCode, "4520100"], omittedAreaCount: 0,
+    }] })];
+    const view = render(WeatherAlertCard, {
+      alerts: makeAlerts("1320600"), pageCoordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const before = pageCoordinator.cardDiagnostics("weather").identities;
+    expect(before[0]).toContain("code:1320600");
+
+    await view.rerender({
+      alerts: makeAlerts("3420600"), pageCoordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const after = pageCoordinator.cardDiagnostics("weather").identities;
+    expect(after[0]).toContain("code:3420600");
+    expect(after).not.toContain(before[0]!);
+    view.unmount();
+    pageCoordinator.dispose();
+  });
+
+  it("pageScheduling は先頭へ加わる同名別 Area.Code を既存ページと別 identity にする", async () => {
+    const pageCoordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const makeAlerts = (codes: string[]) => [weatherAlert({ items: [{
+      kind: "大雨警報", displaySeverity: "warning", rank: "warning",
+      shownAreas: codes.map(() => "府中市"), shownAreaCodes: codes, omittedAreaCount: 0,
+    }] })];
+    const view = render(WeatherAlertCard, {
+      alerts: makeAlerts(["1320600", "3420600"]), pageCoordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const previous = pageCoordinator.cardDiagnostics("weather").identities;
+
+    await view.rerender({
+      alerts: makeAlerts(["1310100", "1320600", "3420600"]), pageCoordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+    });
+    await tick();
+    const diagnostics = pageCoordinator.cardDiagnostics("weather");
+    expect(diagnostics.identities).toHaveLength(3);
+    expect(diagnostics.identities[0]).toContain("code:1310100");
+    expect(diagnostics.identities).not.toContain(previous[0]!);
+    expect(diagnostics.identities).toContain("warning|大雨警報|府中市|1|code:1320600");
     view.unmount();
     pageCoordinator.dispose();
   });

@@ -67,6 +67,7 @@ import { WeatherChangeDisplayStore } from "./weather-change-store";
 import {
   collectWeatherExpandedKinds,
   WEATHER_EXPANDED_KINDS,
+  weatherAreaIdentity,
   type WeatherAlertsSnapshotV1,
 } from "./weather-expanded-kinds";
 
@@ -140,7 +141,7 @@ function promotionEntry(record: WeatherPromotionRecord | null): DisplayWeatherPr
     promotedAt,
     generation: record.generation,
     trigger: record.trigger ?? undefined,
-    // 安定キーで求めた追加地域を、wire では表示名 (種別 → 地域名) へ畳んで載せる
+    // 安定キーで求めた追加地域を、wire では表示名と対応コードの対で畳んで載せる
     addedAreas: addedAreasForWire(record.addedAreas),
     // 点灯の同一性キー。**点灯イベントの通し番号だけ**を使う (Codex レビュー 2026-07-27) —
     // promotedAt を混ぜると display on の測り直しで再点灯し、generation だけだと
@@ -154,8 +155,17 @@ function addedAreasForWire(added: readonly WeatherPromotionMemberV1[]): DisplayW
   const byKind = new Map<string, DisplayWeatherAddedAreasV1>();
   for (const m of added) {
     const entry = byKind.get(m.kind);
-    if (entry == null) byKind.set(m.kind, { kind: m.kind, areas: [m.areaName] });
-    else if (!entry.areas.includes(m.areaName)) entry.areas.push(m.areaName);
+    if (entry == null) {
+      byKind.set(m.kind, { kind: m.kind, areas: [m.areaName], areaCodes: [m.areaCode] });
+      continue;
+    }
+    const identity = weatherAreaIdentity(m.areaName, m.areaCode);
+    const exists = entry.areas.some((area, index) =>
+      weatherAreaIdentity(area, entry.areaCodes?.[index]) === identity);
+    if (!exists) {
+      entry.areas.push(m.areaName);
+      entry.areaCodes?.push(m.areaCode);
+    }
   }
   return [...byKind.values()];
 }
@@ -1052,7 +1062,11 @@ export class DisplayStateStore {
 function copyWeatherExpandedKinds(
   kinds: readonly DisplayWeatherExpandedKindV1[],
 ): DisplayWeatherExpandedKindV1[] {
-  return kinds.map((kind) => ({ ...kind, areas: [...kind.areas] }));
+  return kinds.map((kind) => ({
+    ...kind,
+    areas: [...kind.areas],
+    areaCodes: kind.areaCodes == null ? undefined : [...kind.areaCodes],
+  }));
 }
 
 interface WireIntensityGroups {

@@ -194,6 +194,29 @@ describe("buildWeatherEmergencyInput", () => {
     expect(input?.firstPageRowKey).toBe("officialL4|土砂災害");
   });
 
+  it("同名でも別 Area.Code の地域を source 横断の昇格行と cap に保持する", () => {
+    const snap = baseSnapshot({
+      weatherPromotion: { vpws50: entry({ level: 4 }), vpww56: entry({ level: 4 }) },
+      weatherAlerts: [
+        alert("vpws50", [item({
+          kind: "L4 大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL4",
+          shownAreas: ["府中市"], shownAreaCodes: ["1320600"],
+        })]),
+        alert("vpww56", [item({
+          kind: "L4 大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "officialL4",
+          shownAreas: ["府中市"], shownAreaCodes: ["3420600"],
+        })]),
+      ],
+    });
+
+    const panelItem = buildWeatherEmergencyInput(snap)?.items[0];
+    expect(panelItem?.shownAreas).toEqual(["府中市", "府中市"]);
+    expect(panelItem?.shownAreaCodes).toEqual(["1320600", "3420600"]);
+    expect(capRowAreas(panelItem!, 1)).toMatchObject({
+      areas: ["府中市"], areaCodes: ["1320600"], hiddenAreaCount: 1,
+    });
+  });
+
   it("phenomenonKey が両方にないとき、表示名で同じ行へ統合する", () => {
     const snap = baseSnapshot({
       weatherPromotion: { vpws50: entry(), vpww56: null },
@@ -695,6 +718,18 @@ describe("追加地域の保護", () => {
     // 並び順は元のまま (読み手の見え方を変えない)
     expect(row.areas).toEqual([...row.areas].sort((a, b) => areas.indexOf(a) - areas.indexOf(b)));
     expect(row.hiddenAreaCount).toBe(17);
+  });
+
+  it("同名地域は Area.Code で追加を選び、先頭の別県を優先しない", () => {
+    const row = capRowAreas(panelItem({
+      shownAreas: ["府中市", "府中市"],
+      shownAreaCodes: ["1320600", "3420600"],
+      addedAreas: ["府中市"],
+      addedAreaCodes: ["3420600"],
+    }), 1);
+    expect(row).toMatchObject({
+      areas: ["府中市"], areaCodes: ["3420600"], hiddenAreaCount: 1,
+    });
   });
 
   it("追加地域が無ければ従来どおり先頭から詰める", () => {

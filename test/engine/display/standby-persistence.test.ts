@@ -510,6 +510,7 @@ describe("StandbyStateStore persistence", () => {
         displaySeverity: source === "vpws50" ? "officialL3" : "officialL4",
         rank: "warning" as const,
         shownAreas: ["東京都"],
+        shownAreaCodes: ["130000"],
         omittedAreaCount: 0,
       }],
       updatedAt,

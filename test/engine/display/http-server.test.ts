@@ -338,6 +338,7 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
       weatherExpandedKinds: [{
         kindKey: "officialL5|大雨",
         areas: Array.from({ length: 12_000 }, (_, i) => `気象候補${i}${"候補".repeat(20)}`),
+        areaCodes: Array.from({ length: 12_000 }, (_, i) => `452${String(i).padStart(4, "0")}`),
         totalAreaCount: 12_000,
         candidateTruncated: false,
       }],
@@ -355,6 +356,7 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
     expect(result!.snapshot.weatherExpandedKinds).toEqual([{
       kindKey: "officialL5|大雨",
       areas: [],
+      areaCodes: [],
       totalAreaCount: 12_000,
       candidateTruncated: true,
     }]);
@@ -1010,11 +1012,17 @@ describe("InProcessSseDisplayTransport", () => {
     };
     const alerts = weatherAlertsFromVpww56(view, "2026-07-06T21:00:00+09:00");
     expect(alerts[0]?.items[0]?.shownAreas).toHaveLength(7);
+    expect(alerts[0]?.items[0]?.shownAreaCodes).toEqual([
+      "0000001", "0000002", "0000003", "0000004", "0000005", "0000006", "0000007",
+    ]);
 
     const result = degradeSnapshotToBudget(baseSnapshot({ weatherAlerts: alerts }), "state");
     const item = result?.snapshot.weatherAlerts[0]?.items[0];
     expect(result).not.toBeNull();
     expect(item?.shownAreas).toHaveLength(6);
+    expect(item?.shownAreaCodes).toEqual([
+      "0000001", "0000002", "0000003", "0000004", "0000005", "0000006",
+    ]);
     expect(item?.shownAreas.filter((area) => area === duplicateName)).toHaveLength(1);
     expect(item?.omittedAreaCount).toBe(1);
     expect(result?.snapshot.weatherAlerts[0]?.totalAreas).toBe(7);

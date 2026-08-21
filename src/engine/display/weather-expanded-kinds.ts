@@ -46,9 +46,19 @@ const WEATHER_ROLE_RANK: Record<DisplayWeatherAlertV1["role"], number> = {
 
 interface WeatherExpandedKindAccumulator {
   kindKey: string;
-  areas: string[];
+  areas: WeatherExpandedArea[];
   areaSet: Set<string>;
   omittedAreaCount: number;
+}
+
+interface WeatherExpandedArea {
+  area: string;
+  areaCode: string | null;
+}
+
+/** XML Area.Code があれば地域 identity に使い、旧形式だけ名称へ fallback する。 */
+export function weatherAreaIdentity(area: string, areaCode?: string | null): string {
+  return areaCode == null || areaCode === "" ? `name:${area}` : `code:${areaCode}`;
 }
 
 /** weatherAlerts の source 横断 union を、表示単位ごとの canonical prefix へ集約する。 */
@@ -74,10 +84,12 @@ export function collectWeatherExpandedKinds(
       areaSet: new Set<string>(),
       omittedAreaCount: 0,
     };
-    for (const area of item.shownAreas) {
-      if (accumulator.areaSet.has(area)) continue;
-      accumulator.areaSet.add(area);
-      accumulator.areas.push(area);
+    for (const [areaIndex, area] of item.shownAreas.entries()) {
+      const areaCode = item.shownAreaCodes?.[areaIndex] ?? null;
+      const identity = weatherAreaIdentity(area, areaCode);
+      if (accumulator.areaSet.has(identity)) continue;
+      accumulator.areaSet.add(identity);
+      accumulator.areas.push({ area, areaCode });
     }
     accumulator.omittedAreaCount += item.omittedAreaCount;
     if (existing == null) byKind.set(kindKey, accumulator);
@@ -105,13 +117,16 @@ export function collectWeatherExpandedKinds(
   );
   return candidates.map(({ candidate, totalAreaCount }, index) => {
     const currentAreas = reservedCurrentAreas[index]!;
-    const additionalAreas: string[] = [];
+    const additionalAreas: WeatherExpandedArea[] = [];
     const additions = additionalAreas.slice(0, remaining);
     remaining -= additions.length;
     const areas = [...currentAreas, ...additions];
     return {
       kindKey: candidate.kindKey,
-      areas,
+      areas: areas.map(({ area }) => area),
+      ...(areas.some(({ areaCode }) => areaCode != null)
+        ? { areaCodes: areas.map(({ areaCode }) => areaCode ?? "") }
+        : {}),
       totalAreaCount,
       candidateTruncated: areas.length < totalAreaCount,
     };

@@ -21,6 +21,13 @@ describe("legacy standby page partition", () => {
     expect(pageIdentity({ kindKey: "大雨警報", area: "熊本県山鹿市", occurrenceIndex: 1 })).toBe("大雨警報|熊本県山鹿市|1");
   });
 
+  it("non-empty Area.Code を page identity に含め、旧コードなし形式は維持する", () => {
+    expect(pageIdentity({ kindKey: "大雨警報", area: "府中市", areaCode: "1320600", occurrenceIndex: 0 }))
+      .toBe("大雨警報|府中市|0|code:1320600");
+    expect(pageIdentity({ kindKey: "大雨警報", area: "府中市", areaCode: "", occurrenceIndex: 0 }))
+      .toBe("大雨警報|府中市|0");
+  });
+
   it("keeps an existing active page and defers only newly added pages", () => {
     const next = planCardPageRuntimeUpdate(
       { activeKey: "b", knownKeys: ["a", "b"], pendingKeys: [], cycleOriginKey: null },

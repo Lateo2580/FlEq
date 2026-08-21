@@ -212,8 +212,8 @@ function capWeatherItemAreas(
   priority?: Set<string>,
 ): DisplayWeatherAlertV1["items"][number] {
   if (item.shownAreas.length <= max) return item;
-  // wire では名称だけを運ぶが、投影元は areaCode ごとに 1 要素を並べている。同名・別 code を
-  // 名称 Set へ戻すと cap 境界の外側まで復活するため、各要素の位置を地域 identity として選ぶ。
+  // shownAreas / shownAreaCodes は同じ添字で 1 地域を表す。同名・別 code を名称 Set へ戻すと
+  // cap 境界の外側まで復活するため、各要素の位置を地域 identity として選ぶ。
   const indexed = item.shownAreas.map((area, index) => ({ area, index }));
   const kept = priority == null
     ? indexed.slice(0, max)
@@ -223,9 +223,15 @@ function capWeatherItemAreas(
     ].slice(0, max);
   const keptIndices = new Set(kept.map(({ index }) => index));
   const shownAreas = indexed.filter(({ index }) => keptIndices.has(index)).map(({ area }) => area);
+  const shownAreaCodes = item.shownAreaCodes == null
+    ? undefined
+    : indexed
+      .filter(({ index }) => keptIndices.has(index))
+      .map(({ index }) => item.shownAreaCodes?.[index] ?? "");
   return {
     ...item,
     shownAreas,
+    ...(shownAreaCodes == null ? {} : { shownAreaCodes }),
     omittedAreaCount: item.omittedAreaCount + (item.shownAreas.length - shownAreas.length),
   };
 }
@@ -325,7 +331,7 @@ function stripWeatherExpansionCandidates(
   const stripped = kinds.map((kind) => {
     if (kind.areas.length === 0 && kind.candidateTruncated) return kind;
     changed = true;
-    return { ...kind, areas: [], candidateTruncated: true };
+    return { ...kind, areas: [], ...(kind.areaCodes == null ? {} : { areaCodes: [] }), candidateTruncated: true };
   });
   return changed ? stripped : kinds as DisplayWeatherExpandedKindV1[];
 }

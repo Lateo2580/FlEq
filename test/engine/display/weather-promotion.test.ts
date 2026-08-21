@@ -9,6 +9,7 @@ import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import {
   classifyWeatherPromotion,
+  itemsFromMembers,
   WEATHER_PROMOTION_SOURCES,
   __test_resetUnknownSeverityWarnings,
 } from "../../../src/engine/display/weather-promotion";
@@ -109,6 +110,17 @@ function promotionOf(store: DisplayStateStore, nowMs: number) {
 // ── classifier (集合ベース) ──
 
 describe("classifyWeatherPromotion (集合ベース判定)", () => {
+  it("同名でも別 Area.Code の地域を控え item で重複排除しない", () => {
+    const members = [
+      { level: 4 as const, severity: "officialL4", kindCode: "43", phenomenonKey: "heavy-rain", areaCode: "1320600", kind: "大雨警報", areaName: "府中市" },
+      { level: 4 as const, severity: "officialL4", kindCode: "43", phenomenonKey: "heavy-rain", areaCode: "3420600", kind: "大雨警報", areaName: "府中市" },
+    ];
+    expect(itemsFromMembers(members)).toMatchObject([{
+      shownAreas: ["府中市", "府中市"],
+      shownAreaCodes: ["1320600", "3420600"],
+    }]);
+  });
+
   it("L5 相当 = officialL5 ∪ nonLevelSpecial、L4 相当 = officialL4", () => {
     expect(classifyWeatherPromotion(rawView(L5_TOKYO), "vpws50")?.level).toBe(5);
     expect(
@@ -824,6 +836,17 @@ describe("点灯規則 (spec 追補)", () => {
     const rec = store.get("vpws50");
     expect(rec?.trigger).toBe("update");
     expect(rec?.addedAreas.map((m) => m.areaName)).toEqual(["千葉県"]);
+  });
+
+  it("追加地域 wire は表示名と Area.Code を同じ添字で載せる", () => {
+    const promotions = new WeatherPromotionStore();
+    promotions.apply("vpws50", rawView(L4_TOKYO), T0);
+    promotions.apply("vpws50", rawView(L4_TOKYO_CHIBA), T0 + MIN);
+    const display = new DisplayStateStore(undefined, promotions);
+
+    expect(display.snapshot(1, T0 + MIN).weatherPromotion?.vpws50?.addedAreas).toEqual([{
+      kind: "L4 大雨警報", areas: ["千葉県"], areaCodes: ["千葉県"],
+    }]);
   });
 
   // spec 追補 C2: kind は表示ラベル (L4 大雨警報 / L5 大雨特別警報) なので、それで判定すると

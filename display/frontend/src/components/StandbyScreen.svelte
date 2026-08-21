@@ -2,7 +2,7 @@
   import { flushSync, onDestroy, onMount, tick, untrack } from "svelte";
   import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayStateSnapshotV1, DisplayTsunamiLevel } from "../lib/protocol";
   import { recentQuakeId } from "../lib/format";
-  import { resolveWeatherKindKeys } from "../lib/weather-expanded-kinds";
+  import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
@@ -230,15 +230,18 @@
   // source 横断の kind が同じ wire 集約値を個々の item へ複製すると、残置数をカード側で
   // 再合算してしまう。候補・残置は kindKey ごとに一度だけ選び、描画時は先頭 item を carrier にする。
   const weatherDisplayGroups = $derived.by(() => {
-    const groups = new Map<string, { currentAreas: string[]; areaSet: Set<string>; fallbackOmittedAreaCount: number }>();
+    type WeatherArea = { area: string; areaCode: string | null };
+    const groups = new Map<string, { currentAreas: WeatherArea[]; areaSet: Set<string>; fallbackOmittedAreaCount: number }>();
     for (const alert of displayWeatherAlerts) {
       for (const item of alert.items) {
         const kindKey = weatherKindKey(item);
         const group = groups.get(kindKey) ?? { currentAreas: [], areaSet: new Set<string>(), fallbackOmittedAreaCount: 0 };
-        for (const area of item.shownAreas) {
-          if (group.areaSet.has(area)) continue;
-          group.areaSet.add(area);
-          group.currentAreas.push(area);
+        for (const [areaIndex, area] of item.shownAreas.entries()) {
+          const areaCode = item.shownAreaCodes?.[areaIndex] ?? null;
+          const identity = weatherAreaIdentity(area, areaCode);
+          if (group.areaSet.has(identity)) continue;
+          group.areaSet.add(identity);
+          group.currentAreas.push({ area, areaCode });
         }
         group.fallbackOmittedAreaCount += item.omittedAreaCount;
         if (!groups.has(kindKey)) groups.set(kindKey, group);
@@ -246,7 +249,9 @@
     }
     return new Map([...groups].map(([kindKey, group]) => {
       const expanded = snapshot.weatherExpandedKinds?.find((candidate) => candidate.kindKey === kindKey);
-      const areas = expanded?.areas ?? group.currentAreas;
+      const areas = expanded == null
+        ? group.currentAreas
+        : expanded.areas.map((area, areaIndex) => ({ area, areaCode: expanded.areaCodes?.[areaIndex] ?? null }));
       return [kindKey, {
         currentAreas: group.currentAreas,
         areas,
@@ -274,7 +279,7 @@
   }
   function weatherWithSelection(rows: number) {
     let remaining = rows;
-    const selectedByKind = new Map<string, { areas: string[]; omittedAreaCount: number; candidateTruncated: boolean }>();
+    const selectedByKind = new Map<string, { areas: Array<{ area: string; areaCode: string | null }>; omittedAreaCount: number; candidateTruncated: boolean }>();
     for (const [kindKey, group] of weatherDisplayGroups) {
       const extra = Math.min(remaining, Math.max(0, group.areas.length - group.currentAreas.length));
       remaining -= extra;
@@ -292,12 +297,21 @@
         const kindKey = weatherKindKey(item);
         const selected = selectedByKind.get(kindKey)!;
         if (emittedKinds.has(kindKey)) {
-          return { ...item, shownAreas: [], omittedAreaCount: 0, candidateTruncated: false };
+          return {
+            ...item,
+            shownAreas: [],
+            ...(item.shownAreaCodes == null ? {} : { shownAreaCodes: [] }),
+            omittedAreaCount: 0,
+            candidateTruncated: false,
+          };
         }
         emittedKinds.add(kindKey);
         return {
           ...item,
-          shownAreas: selected.areas,
+          shownAreas: selected.areas.map(({ area }) => area),
+          ...(selected.areas.some(({ areaCode }) => areaCode != null)
+            ? { shownAreaCodes: selected.areas.map(({ areaCode }) => areaCode ?? "") }
+            : { shownAreaCodes: undefined }),
           omittedAreaCount: selected.omittedAreaCount,
           candidateTruncated: selected.candidateTruncated,
         };

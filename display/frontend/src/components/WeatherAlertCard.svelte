@@ -2,7 +2,7 @@
   import type { ActiveStandbyCardV1, DisplayWeatherAlertItemV1, DisplayWeatherAlertV1 } from "../lib/protocol";
   import { onDestroy, untrack } from "svelte";
   import { groupByPrefectureOrRegion } from "../lib/prefecture-group";
-  import { resolveWeatherKindKeys } from "../lib/weather-expanded-kinds";
+  import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
   import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import type { PageRange } from "../lib/legacy-standby/types";
   import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
@@ -26,7 +26,10 @@
   const ownsPageCoordinator = initialPageCoordinator == null;
 
   type CandidateTruncatedWeatherItem = DisplayWeatherAlertItemV1 & { candidateTruncated?: boolean };
-  type WeatherCardItem = CandidateTruncatedWeatherItem & { kindKey: string };
+  type WeatherCardItem = Omit<CandidateTruncatedWeatherItem, "shownAreaCodes"> & {
+    kindKey: string;
+    shownAreaCodes: Array<string | null>;
+  };
 
   function rankOfRole(role: string): number {
     if (role === "weatherEmergency") return 3;
@@ -112,13 +115,23 @@
           displaySeverity: it.displaySeverity,
           rank: it.rank,
           shownAreas: [...it.shownAreas],
+          shownAreaCodes: it.shownAreas.map((_, index) => it.shownAreaCodes?.[index] ?? null),
           omittedAreaCount: it.omittedAreaCount,
         });
         continue;
       }
       const target = merged[existingIndex];
-      for (const area of it.shownAreas) {
-        if (!target.shownAreas.includes(area)) target.shownAreas.push(area);
+      for (const [areaIndex, area] of it.shownAreas.entries()) {
+        const areaCode = it.shownAreaCodes?.[areaIndex] ?? null;
+        const identity = weatherAreaIdentity(area, areaCode);
+        const existingAreaIndex = target.shownAreas.findIndex((existingArea, index) =>
+          weatherAreaIdentity(existingArea, target.shownAreaCodes[index]) === identity);
+        if (existingAreaIndex < 0) {
+          target.shownAreas.push(area);
+          target.shownAreaCodes.push(areaCode);
+        } else if (target.shownAreaCodes[existingAreaIndex] == null && areaCode != null) {
+          target.shownAreaCodes[existingAreaIndex] = areaCode;
+        }
       }
       target.omittedAreaCount += it.omittedAreaCount;
       if ((it as CandidateTruncatedWeatherItem).candidateTruncated === true) target.candidateTruncated = true;
@@ -128,9 +141,15 @@
 
   const WEATHER_PAGE_AREA_CAPACITY = 8;
   const pageCandidates = $derived.by(() => items.flatMap((item) => [
-    ...item.shownAreas.map((area, occurrenceIndex) => ({ kindKey: item.kindKey, area, occurrenceIndex, tailOnly: false })),
+    ...item.shownAreas.map((area, occurrenceIndex) => ({
+      kindKey: item.kindKey,
+      area,
+      areaCode: item.shownAreaCodes[occurrenceIndex] ?? null,
+      occurrenceIndex,
+      tailOnly: false,
+    })),
     ...(item.shownAreas.length === 0 && item.omittedAreaCount > 0
-      ? [{ kindKey: item.kindKey, area: `tail-${item.kindKey}`, occurrenceIndex: 0, tailOnly: true }]
+      ? [{ kindKey: item.kindKey, area: `tail-${item.kindKey}`, areaCode: null, occurrenceIndex: 0, tailOnly: true }]
       : []),
   ]));
   const lastAreaIndexByKind = $derived.by(() => {
@@ -182,20 +201,22 @@
     // local range makes one page. Never fall back to the static all-items
     // branch, or U3 would falsely measure every later candidate as fitting.
     if ((!pageScheduling && measurementRange == null) || (weatherPages.length <= 1 && measurementRange == null)) return items;
-    const areasByKind = new Map<string, string[]>();
+    const areasByKind = new Map<string, Array<{ area: string; areaCode: string | null }>>();
     for (const entry of currentPage.entries) {
       if (entry.tailOnly) continue;
       const areas = areasByKind.get(entry.kindKey) ?? [];
-      areas.push(entry.area);
+      areas.push({ area: entry.area, areaCode: entry.areaCode });
       areasByKind.set(entry.kindKey, areas);
     }
     const tailKinds = new Set(currentPage.tails.map((tail) => tail.kindKey));
     for (const entry of currentPage.entries) if (entry.tailOnly) tailKinds.add(entry.kindKey);
     return items
       .map((item) => {
-        const shownAreas = areasByKind.get(item.kindKey) ?? [];
+        const areas = areasByKind.get(item.kindKey) ?? [];
+        const shownAreas = areas.map((entry) => entry.area);
+        const shownAreaCodes = areas.map((entry) => entry.areaCode);
         const omittedAreaCount = tailKinds.has(item.kindKey) ? item.omittedAreaCount : 0;
-        return { ...item, shownAreas, omittedAreaCount };
+        return { ...item, shownAreas, shownAreaCodes, omittedAreaCount };
       })
       .filter((item) => item.shownAreas.length > 0 || item.omittedAreaCount > 0);
   });
@@ -220,7 +241,7 @@
   const displayItems = $derived.by(() => {
     return visibleItems.map((item) => ({
       item,
-      groups: groupByPrefectureOrRegion(item.shownAreas).map((group) => ({ group })),
+      groups: groupByPrefectureOrRegion(item.shownAreas, item.shownAreaCodes).map((group) => ({ group })),
     }));
   });
 

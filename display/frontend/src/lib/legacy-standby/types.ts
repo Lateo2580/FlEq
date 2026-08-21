@@ -99,5 +99,7 @@ export interface CardPageRuntime {
 export interface PageAreaEntry {
   kindKey: string;
   area: string;
+  /** 同名地域を区別する XML Area.Code。旧経路は欠落しうる。 */
+  areaCode?: string | null;
   occurrenceIndex: number;
 }

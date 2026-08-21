@@ -58,6 +58,21 @@ describe("weather expanded kind wire supply", () => {
     }]);
   });
 
+  it("地域名と Area.Code を対で source 横断集約し、同名でも別コードなら保持する", () => {
+    const result = collectWeatherExpandedKinds([
+      alert("vpws50", [item("大雨", ["府中市"], { shownAreaCodes: ["1320600"] })]),
+      alert("vpww56", [item("大雨", ["府中市", "宮崎市"], { shownAreaCodes: ["3420600", "4520100"] })]),
+    ]);
+
+    expect(result).toEqual([{
+      kindKey: "officialL5|大雨",
+      areas: ["府中市", "府中市", "宮崎市"],
+      areaCodes: ["1320600", "3420600", "4520100"],
+      totalAreaCount: 3,
+      candidateTruncated: false,
+    }]);
+  });
+
   it("複数 rank の alert は最高 rank の候補だけを供給する", () => {
     const warning = {
       ...alert("vpws50", [item("大雨", ["警報級"])]),
@@ -134,6 +149,19 @@ describe("weather expanded kind wire supply", () => {
 
     const jsonRoundTrip = JSON.parse(JSON.stringify(snapshot)) as typeof snapshot;
     expect(jsonRoundTrip.weatherExpandedKinds).toEqual(snapshot.weatherExpandedKinds);
+  });
+
+  it("snapshot の areaCodes は供給側 metadata と独立に複製する", () => {
+    const supplied = attachWeatherExpandedKinds([
+      alert("vpws50", [item("大雨", ["宮崎市"], { shownAreaCodes: ["4520100"] })]),
+    ]);
+    const store = new DisplayStateStore(undefined, undefined, undefined, undefined, () => supplied);
+    const snapshot = store.snapshot(1, T0);
+    snapshot.weatherExpandedKinds![0]!.areaCodes![0] = "破壊的変更";
+
+    expect(store.snapshot(1, T0).weatherExpandedKinds).toMatchObject([{
+      areas: ["宮崎市"], areaCodes: ["4520100"],
+    }]);
   });
 
   it("StandbyStateStore.snapshotWeatherAlerts が source 横断候補を一度の供給値へ添付する", () => {

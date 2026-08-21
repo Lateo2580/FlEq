@@ -1205,7 +1205,11 @@ export class StandbyStateStore {
 function copyWeatherAlert(alert: DisplayWeatherAlertV1): DisplayWeatherAlertV1 {
   return {
     ...alert,
-    items: alert.items.map((item) => ({ ...item, shownAreas: [...item.shownAreas] })),
+    items: alert.items.map((item) => ({
+      ...item,
+      shownAreas: [...item.shownAreas],
+      ...(item.shownAreaCodes == null ? {} : { shownAreaCodes: [...item.shownAreaCodes] }),
+    })),
   };
 }
 

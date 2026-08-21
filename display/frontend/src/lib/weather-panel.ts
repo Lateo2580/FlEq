@@ -10,7 +10,7 @@ import {
   type DisplayWeatherSourceV1,
 } from "./protocol";
 import { SPRING_EFFECTS_DEFAULT_MS } from "./motion";
-import { resolveWeatherKindKeys } from "./weather-expanded-kinds";
+import { resolveWeatherKindKeys, weatherAreaIdentity } from "./weather-expanded-kinds";
 
 /** 主役パネルへ載せる 1 行。同じ severity × 現象は source をまたいで統合する (spec §3) */
 export interface WeatherPanelItemV1 {
@@ -21,9 +21,13 @@ export interface WeatherPanelItemV1 {
   kind: string;
   level: DisplayWeatherPromotionLevelV1;
   shownAreas: string[];
+  /** shownAreas と同じ添字の XML Area.Code。旧 wire 由来は欠落しうる。 */
+  shownAreaCodes?: string[];
   omittedAreaCount: number;
   /** この点灯で追加された地域 (この行のぶん)。フロントは下線で強調する */
   addedAreas: string[];
+  /** addedAreas と同じ添字の XML Area.Code。旧 wire 由来は欠落しうる。 */
+  addedAreaCodes?: string[];
 }
 
 /**
@@ -164,6 +168,8 @@ export function weatherPageCapacity(
 export interface WeatherPanelRowV1 extends WeatherPanelItemV1 {
   /** 実際に描く地域名 */
   areas: string[];
+  /** areas と同じ添字の XML Area.Code。 */
+  areaCodes?: string[];
   /** 「ほか N 地域」の N。engine の omittedAreaCount + UI 上限で落ちた件数 */
   hiddenAreaCount: number;
 }
@@ -178,20 +184,32 @@ export function capRowAreas(item: WeatherPanelItemV1, maxAreas: number): Weather
   // **この点灯で追加された地域は優先して残す** (Codex レビュー 2026-07-27)。素朴な先頭
   // slice だと、狭い枠 (compact は 6 件) で追加地域が後方にあると真っ先に落ちて
   // ハイライトが空振りする。engine 側の縮退保護と同じ考え方をフロントの上限にも掛ける
-  const added = new Set(item.addedAreas);
-  const indexed = item.shownAreas.map((area, index) => ({ area, index }));
+  const added = new Set(item.addedAreas.map((area, index) =>
+    weatherAreaIdentity(area, item.addedAreaCodes?.[index])));
+  const indexed = item.shownAreas.map((area, index) => ({
+    area,
+    areaCode: item.shownAreaCodes?.[index] ?? null,
+    index,
+  }));
   const kept = added.size === 0
     ? indexed.slice(0, limit)
     : [
-      ...indexed.filter(({ area }) => added.has(area)),
-      ...indexed.filter(({ area }) => !added.has(area)),
+      ...indexed.filter(({ area, areaCode }) => added.has(weatherAreaIdentity(area, areaCode))),
+      ...indexed.filter(({ area, areaCode }) => !added.has(weatherAreaIdentity(area, areaCode))),
     ].slice(0, limit);
-  // wire は名称のみだが、1 要素は engine 投影元の 1 areaCode に対応する。同名・別 code を
-  // 名称 Set で再展開せず、位置 identity で元順へ戻して件数を保つ。
+  // shownAreas の 1 要素は engine 投影元の 1 areaCode に対応する。同名・別 code を名称 Set で
+  // 再展開せず、位置 identity で元順へ戻して件数を保つ。
   const keptIndices = new Set(kept.map(({ index }) => index));
-  const areas = indexed.filter(({ index }) => keptIndices.has(index)).map(({ area }) => area);
+  const selected = indexed.filter(({ index }) => keptIndices.has(index));
+  const areas = selected.map(({ area }) => area);
+  const areaCodes = selected.map(({ areaCode }) => areaCode ?? "");
   const droppedByUi = Math.max(0, item.shownAreas.length - areas.length);
-  return { ...item, areas, hiddenAreaCount: item.omittedAreaCount + droppedByUi };
+  return {
+    ...item,
+    areas,
+    ...(item.shownAreaCodes == null ? {} : { areaCodes }),
+    hiddenAreaCount: item.omittedAreaCount + droppedByUi,
+  };
 }
 
 /**
@@ -480,6 +498,7 @@ export function buildWeatherEmergencyInput(
     item: DisplayWeatherAlertItemV1;
     level: DisplayWeatherPromotionLevelV1;
     addedAreas: string[];
+    addedAreaCodes: Array<string | null>;
   }> = [];
   const generations: string[] = [];
   const promotedLevels: DisplayWeatherPromotionLevelV1[] = [];
@@ -532,30 +551,71 @@ export function buildWeatherEmergencyInput(
     // 追加地域は種別ごとに届く。**source を含めて照合する** — 別 source の同名地域を
     // 取り違えないため (spec 追補 C10)。今回の点灯を起こしていない source の追加地域は
     // 前の点灯の残りなので載せない (持ち越し防止)
-    const addedByKind = new Map<string, Set<string>>();
+    const addedByKind = new Map<string, Array<{ area: string; areaCode: string | null }>>();
     if (decorated) {
-      for (const a of entry.addedAreas ?? []) addedByKind.set(a.kind, new Set(a.areas));
+      for (const a of entry.addedAreas ?? []) {
+        addedByKind.set(a.kind, a.areas.map((area, index) => ({
+          area,
+          areaCode: a.areaCodes?.[index] ?? null,
+        })));
+      }
     }
 
     for (const item of sourceItems) {
       const level = promotionLevelOf(item);
       if (level == null) continue;
-      const added = addedByKind.get(item.kind);
-      const addedAreas = added == null ? [] : item.shownAreas.filter((a) => added.has(a));
-      candidates.push({ source, item, level, addedAreas });
+      const added = addedByKind.get(item.kind) ?? [];
+      const addedPairs = item.shownAreas.flatMap((area, areaIndex) => {
+        const areaCode = item.shownAreaCodes?.[areaIndex] ?? null;
+        return added.some((candidate) =>
+          weatherAreaIdentity(candidate.area, candidate.areaCode) === weatherAreaIdentity(area, areaCode))
+          ? [{ area, areaCode }]
+          : [];
+      });
+      candidates.push({
+        source,
+        item,
+        level,
+        addedAreas: addedPairs.map(({ area }) => area),
+        addedAreaCodes: addedPairs.map(({ areaCode }) => areaCode),
+      });
     }
   }
 
   const rowKeys = resolveWeatherKindKeys(candidates.map(({ item }) => item));
-  candidates.forEach(({ source, item, level, addedAreas }, index) => {
+  candidates.forEach(({ source, item, level, addedAreas, addedAreaCodes }, index) => {
     const rowKey = rowKeys[index]!;
     const existing = itemsByPhenomenon.get(rowKey);
     if (existing != null) {
-      for (const area of item.shownAreas) {
-        if (!existing.shownAreas.includes(area)) existing.shownAreas.push(area);
+      for (const [areaIndex, area] of item.shownAreas.entries()) {
+        const areaCode = item.shownAreaCodes?.[areaIndex] ?? null;
+        const identity = weatherAreaIdentity(area, areaCode);
+        const existingAreaIndex = existing.shownAreas.findIndex((existingArea, index) =>
+          weatherAreaIdentity(existingArea, existing.shownAreaCodes?.[index]) === identity);
+        if (existingAreaIndex < 0) {
+          existing.shownAreas.push(area);
+          if (existing.shownAreaCodes != null) existing.shownAreaCodes.push(areaCode ?? "");
+          else if (areaCode != null) {
+            existing.shownAreaCodes = existing.shownAreas.map((_, index) =>
+              index === existing.shownAreas.length - 1 ? areaCode : "");
+          }
+        } else if (existing.shownAreaCodes?.[existingAreaIndex] === "" && areaCode != null) {
+          existing.shownAreaCodes[existingAreaIndex] = areaCode;
+        }
       }
-      for (const area of addedAreas) {
-        if (!existing.addedAreas.includes(area)) existing.addedAreas.push(area);
+      for (const [areaIndex, area] of addedAreas.entries()) {
+        const areaCode = addedAreaCodes[areaIndex] ?? null;
+        const identity = weatherAreaIdentity(area, areaCode);
+        const existingAreaIndex = existing.addedAreas.findIndex((existingArea, index) =>
+          weatherAreaIdentity(existingArea, existing.addedAreaCodes?.[index]) === identity);
+        if (existingAreaIndex < 0) {
+          existing.addedAreas.push(area);
+          if (existing.addedAreaCodes != null) existing.addedAreaCodes.push(areaCode ?? "");
+          else if (areaCode != null) {
+            existing.addedAreaCodes = existing.addedAreas.map((_, index) =>
+              index === existing.addedAreas.length - 1 ? areaCode : "");
+          }
+        }
       }
       existing.omittedAreaCount += item.omittedAreaCount;
       return;
@@ -566,8 +626,12 @@ export function buildWeatherEmergencyInput(
       kind: item.kind,
       level,
       shownAreas: [...item.shownAreas],
+      ...(item.shownAreaCodes == null ? {} : { shownAreaCodes: [...item.shownAreaCodes] }),
       omittedAreaCount: item.omittedAreaCount,
       addedAreas,
+      ...(addedAreaCodes.some((areaCode) => areaCode != null)
+        ? { addedAreaCodes: addedAreaCodes.map((areaCode) => areaCode ?? "") }
+        : {}),
     };
     itemsByPhenomenon.set(rowKey, row);
     items.push(row);

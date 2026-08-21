@@ -85,7 +85,10 @@ function sameItems(a: readonly DisplayWeatherAlertItemV1[], b: readonly DisplayW
     items
       .map(
         (it) =>
-          `${it.displaySeverity}|${it.phenomenonKey ?? ""}|${it.kind}|${[...it.shownAreas].sort().join(",")}`,
+          `${it.displaySeverity}|${it.phenomenonKey ?? ""}|${it.kind}|${it.shownAreas
+            .map((area, index) => `${area}:${it.shownAreaCodes?.[index] ?? ""}`)
+            .sort()
+            .join(",")}`,
       )
       .sort()
       .join("\n");

@@ -72,6 +72,7 @@ export function weatherAlertsFromVpws50(
       displaySeverity: group.displaySeverity,
       rank,
       shownAreas: group.areas.map((a) => a.areaName),
+      shownAreaCodes: group.areas.map((a) => a.areaCode),
       omittedAreaCount: 0,
     };
     itemsByRank[rank].push(item);
@@ -112,6 +113,7 @@ export function weatherAlertsFromVpww56(
       displaySeverity: g.displaySeverity,
       rank: weatherRankOf(g.displaySeverity),
       shownAreas: g.areas.map((a) => a.areaName),
+      shownAreaCodes: g.areas.map((a) => a.areaCode),
       omittedAreaCount: 0,
     }));
   if (items.length === 0) return [];

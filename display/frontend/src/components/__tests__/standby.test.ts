@@ -579,6 +579,31 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(counts.weather?.["大雨警報"]).toEqual({ count: 1, n: 1 });
   });
 
+  it("snapshot の展開候補を名称と Area.Code の対で card まで渡し、同名別県を保持する", async () => {
+    const alerts = [
+      weather({ source: "vpws50", role: "weatherWarning", items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["府中市"], shownAreaCodes: ["1320600"], omittedAreaCount: 0,
+      }] }),
+      weather({ source: "vpww56", role: "weatherWarning", items: [{
+        kind: "大雨警報", phenomenonKey: "heavy-rain", displaySeverity: "warning", rank: "warning",
+        shownAreas: ["府中市"], shownAreaCodes: ["3420600"], omittedAreaCount: 0,
+      }] }),
+    ];
+    const wire = collectWeatherExpandedKinds(alerts);
+    expect(wire[0]).toMatchObject({
+      areas: ["府中市", "府中市"], areaCodes: ["1320600", "3420600"],
+    });
+
+    const { container } = renderScreen({ weatherAlerts: alerts, weatherExpandedKinds: wire });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const card = container.querySelector(".legacy-layout .weather-card");
+    expect(Array.from(card?.querySelectorAll(".pref-name") ?? []).map((el) => el.textContent))
+      .toEqual(["東京都", "広島県"]);
+    expect(Array.from(card?.querySelectorAll(".city-name") ?? []).map((el) => el.textContent))
+      .toEqual(["府中市", "府中市"]);
+  });
+
   it("同一 kindKey の複数sourceでも wire 残置数を一度だけカードへ帰属する", async () => {
     const alerts = [
       weather({ source: "vpws50", role: "weatherWarning", items: [{

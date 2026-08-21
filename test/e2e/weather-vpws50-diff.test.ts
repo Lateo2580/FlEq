@@ -2,6 +2,7 @@ import { beforeAll, describe, it, expect } from "vitest";
 import zlib from "node:zlib";
 import { XMLBuilder } from "fast-xml-parser";
 import { processWeather } from "../../src/engine/presentation/processors/process-weather";
+import { weatherAlertsFromVpws50 } from "../../src/engine/display/weather-alert-view";
 import { Vpws50StateHolder } from "../../src/engine/messages/vpws50-state";
 import { Vpww56StateHolder } from "../../src/engine/messages/vpww56-state";
 import { EewTracker } from "../../src/engine/eew/eew-tracker";
@@ -327,6 +328,27 @@ describe("E2E: VPWS50 parser → process-weather → presentation (実 fixture)"
 });
 
 describe("E2E: VPWS50 parser → process-weather → presentation (動的人工 fixture)", () => {
+  it("県名なし市町村の Area.Code を parser → state → standby wire まで保持する", () => {
+    const reportDateTime = "2026-06-05T16:00:00+09:00";
+    const msg = buildVpws50WsMessage(
+      [{
+        areaName: "宮崎市",
+        areaCode: "4520100",
+        kinds: [{ name: "大雨警報", code: "03" }],
+      }],
+      { id: "municipality-code", reportDateTime },
+    );
+    const state = new Vpws50StateHolder();
+
+    requireWeatherOutcome(processWeather(msg, fakeDeps(state)));
+
+    const alerts = weatherAlertsFromVpws50(state.getCurrentAreasForDisplay(), reportDateTime);
+    expect(alerts[0]?.items[0]).toMatchObject({
+      shownAreas: ["宮崎市"],
+      shownAreaCodes: ["4520100"],
+    });
+  });
+
   it("昇格: 大雨注意報 (code=10) → 大雨警報 (code=03) で upgraded に乗る", () => {
     const state = new Vpws50StateHolder();
     const deps = fakeDeps(state);

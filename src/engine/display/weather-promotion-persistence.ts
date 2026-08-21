@@ -495,10 +495,16 @@ function sanitizeItems(value: unknown): DisplayWeatherAlertItemV1[] | undefined 
   const items: DisplayWeatherAlertItemV1[] = [];
   for (const raw of value) {
     if (!isRecord(raw)) return undefined;
-    const { kind, phenomenonKey, displaySeverity, rank, shownAreas, omittedAreaCount } = raw;
+    const { kind, phenomenonKey, displaySeverity, rank, shownAreas, shownAreaCodes, omittedAreaCount } = raw;
     if (typeof kind !== "string" || typeof displaySeverity !== "string") return undefined;
     if (rank !== "emergency" && rank !== "warning" && rank !== "advisory") return undefined;
     if (!Array.isArray(shownAreas) || shownAreas.some((a) => typeof a !== "string")) return undefined;
+    if (
+      shownAreaCodes != null
+      && (!Array.isArray(shownAreaCodes)
+        || shownAreaCodes.some((code) => typeof code !== "string")
+        || shownAreaCodes.length !== shownAreas.length)
+    ) return undefined;
     if (typeof omittedAreaCount !== "number" || !Number.isSafeInteger(omittedAreaCount) || omittedAreaCount < 0) {
       return undefined;
     }
@@ -508,6 +514,7 @@ function sanitizeItems(value: unknown): DisplayWeatherAlertItemV1[] | undefined 
       displaySeverity,
       rank,
       shownAreas: shownAreas as string[],
+      ...(shownAreaCodes == null ? {} : { shownAreaCodes: shownAreaCodes as string[] }),
       omittedAreaCount,
     });
   }

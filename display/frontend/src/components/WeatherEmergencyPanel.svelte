@@ -19,6 +19,7 @@
     weatherRowAreaMax,
     type WeatherEmergencyInputV1,
   } from "../lib/weather-panel";
+  import { weatherAreaIdentity } from "../lib/weather-expanded-kinds";
   import { measureHeight, measureBorderHeight, observeResize } from "../lib/measure-height";
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import { SPRING_EFFECTS_DEFAULT_MS, springEffectsOut } from "../lib/motion";
@@ -378,9 +379,10 @@
                   >{#if row.level !== input.level}<span class="row-level">L{row.level}</span>{/if}{row.kind}</span
                 >
                 <span class="areas" use:registerAreas={input.activationKey}>
-                  {#each row.areas as area (area)}<span
+                  {#each row.areas as area, areaIndex (weatherAreaIdentity(area, row.areaCodes?.[areaIndex]))}<span
                       class="area-name"
-                      class:added={row.addedAreas.includes(area)}>{area}</span
+                      class:added={row.addedAreas.some((addedArea, index) =>
+                        weatherAreaIdentity(addedArea, row.addedAreaCodes?.[index]) === weatherAreaIdentity(area, row.areaCodes?.[areaIndex]))}>{area}</span
                     >{/each}
                   {#if row.hiddenAreaCount > 0}<span class="omitted">ほか{row.hiddenAreaCount}地域</span>{/if}
                 </span>

@@ -508,6 +508,8 @@ export interface DisplayWeatherAlertItemV1 {
   displaySeverity: string;  // DisplaySeverity 値 (import-free のため string)
   rank: DisplayWeatherRank;
   shownAreas: string[];     // 縮退で切り詰められる。ほか N 地域は omittedAreaCount で表現
+  /** shownAreas と同じ添字の XML Area.Code。旧 snapshot / 旧 server は欠落するため optional。 */
+  shownAreaCodes?: string[];
   omittedAreaCount: number;
 }
 
@@ -523,6 +525,8 @@ export interface DisplayWeatherAlertV1 {
 export interface DisplayWeatherExpandedKindV1 {
   kindKey: string;
   areas: string[];
+  /** areas と同じ添字の XML Area.Code。旧 snapshot は欠落するため optional。 */
+  areaCodes?: string[];
   totalAreaCount: number;
   candidateTruncated: boolean;
 }
@@ -594,7 +598,7 @@ export interface DisplayWeatherPromotionEntryV1 {
   /**
    * この点灯で**追加された**地域 (種別ごと)。フロントは「どこ」の該当地域を下線で強調する。
    * 新規発表では載らない (全部が新規なので全面ハイライトは意味を失う)。
-   * 判定は engine 側の安定キー (現象コード × 地域コード) で行い、ここへは表示名で載せる —
+   * 判定は engine 側の安定キー (現象コード × 地域コード) で行い、ここへは表示名と対応コードを載せる —
    * 表示ラベルで判定すると L4→L5 の悪化で同じ地域が「追加」に化ける (spec 追補 C2)。
    */
   addedAreas?: DisplayWeatherAddedAreasV1[];
@@ -610,10 +614,12 @@ export interface DisplayWeatherPromotionEntryV1 {
 /** 点灯の契機。新規発表と更新発表を区別してバッジに出す (spec 追補 3) */
 export type DisplayWeatherPromotionTriggerV1 = "new" | "update";
 
-/** 追加された地域 (種別単位)。`kind` は表示ラベル、`areas` は地域名 */
+/** 追加された地域 (種別単位)。`kind` は表示ラベル、`areas` は地域名。 */
 export interface DisplayWeatherAddedAreasV1 {
   kind: string;
   areas: string[];
+  /** areas と同じ添字の XML Area.Code。旧 wire は欠落しうる。 */
+  areaCodes?: string[];
 }
 
 /** source 別の昇格状態。demoted (画面都合の降格) は null に投影されるため、

@@ -768,6 +768,22 @@ describe("EmergencyScreen", () => {
       expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
     });
 
+    it("同名地域でも Area.Code が一致する追加地域だけを下線にする", () => {
+      const { container } = render(WeatherEmergencyPanel, {
+        input: weatherInput({
+          items: [weatherItem({
+            key: "k", kind: "L5 大雨特別警報",
+            shownAreas: ["府中市", "府中市"],
+            shownAreaCodes: ["1320600", "3420600"],
+            addedAreas: ["府中市"],
+            addedAreaCodes: ["3420600"],
+          })],
+        }),
+      });
+      const areas = Array.from(container.querySelectorAll(".tile-where .area-name"));
+      expect(areas.map((el) => el.classList.contains("added"))).toEqual([false, true]);
+    });
+
     // ご主人決定 2026-07-27: 「L5 継続中に L4 の地域が増えた」で更新点灯するのに、下位レベルが
     // 種別名 + 件数へ畳まれているとどこが増えたのか一度も読めない。追加が起きた下位行だけを
     // 例外として地域名つきでページ送り列に出す

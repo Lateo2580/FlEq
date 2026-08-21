@@ -1046,6 +1046,10 @@ function isWeatherAlertItem(value: unknown): value is DisplayWeatherAlertItemV1 
     && typeof value.displaySeverity === "string"
     && (value.rank === "emergency" || value.rank === "warning" || value.rank === "advisory")
     && isStringArray(value.shownAreas)
+    && (
+      !Object.hasOwn(value, "shownAreaCodes")
+      || (isStringArray(value.shownAreaCodes) && value.shownAreaCodes.length === value.shownAreas.length)
+    )
     && typeof value.omittedAreaCount === "number"
     && Number.isSafeInteger(value.omittedAreaCount)
     && value.omittedAreaCount >= 0;

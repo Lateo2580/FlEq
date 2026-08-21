@@ -10,6 +10,7 @@ import { kindCodeToPhenomenonKey } from "../../dmdata/weather-phenomenon-key";
 import { formatLevelLabel } from "../../dmdata/weather-warning-level";
 import type { Vpws50CurrentAreasForDisplay } from "../../types";
 import { displayWeatherPromotionLevel, isDisplayWeatherSeverity } from "./protocol";
+import { weatherAreaIdentity } from "./weather-expanded-kinds";
 import type {
   DisplayWeatherAlertItemV1,
   DisplayWeatherPromotionLevelV1,
@@ -151,11 +152,18 @@ export function itemsFromMembers(
         displaySeverity: m.severity,
         rank: m.level === 5 ? "emergency" : "warning",
         shownAreas: [m.areaName],
+        shownAreaCodes: [m.areaCode],
         omittedAreaCount: 0,
       });
       continue;
     }
-    if (!existing.shownAreas.includes(m.areaName)) existing.shownAreas.push(m.areaName);
+    const identity = weatherAreaIdentity(m.areaName, m.areaCode);
+    const alreadyPresent = existing.shownAreas.some((area, areaIndex) =>
+      weatherAreaIdentity(area, existing.shownAreaCodes?.[areaIndex]) === identity);
+    if (!alreadyPresent) {
+      existing.shownAreas.push(m.areaName);
+      existing.shownAreaCodes?.push(m.areaCode);
+    }
   }
   return [...byKind.values()];
 }

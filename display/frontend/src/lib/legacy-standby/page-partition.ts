@@ -56,7 +56,8 @@ export function sequentialPartitionRanges(key: CardKey, placement: "side" | "cen
 }
 
 export function pageIdentity(entry: PageAreaEntry): string {
-  return `${entry.kindKey}|${entry.area}|${entry.occurrenceIndex}`;
+  const base = `${entry.kindKey}|${entry.area}|${entry.occurrenceIndex}`;
+  return entry.areaCode == null || entry.areaCode === "" ? base : `${base}|code:${entry.areaCode}`;
 }
 
 function nextPageKeyAfterRemoval(previousKeys: readonly string[], previousKey: string | null, nextKeys: readonly string[]): string | null {
