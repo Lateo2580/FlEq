@@ -5,7 +5,8 @@
   import { resolveWeatherKindKeys } from "../lib/weather-expanded-kinds";
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
-  import { createEpochCoordinator, type EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
+  import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
+  import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
   import type { PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PlacementChoice } from "../lib/legacy-standby/types";
@@ -24,7 +25,8 @@
   import VolcanoCard from "./VolcanoCard.svelte";
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
 
-  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, rotationTick, cardPageTick }: {
+  type TestMeasurementOverride = Partial<Record<string, number>> | ((pass: number) => Partial<Record<string, number>>);
+  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
@@ -32,7 +34,15 @@
     onTsunamiReplay?: (level: DisplayTsunamiLevel) => void;
     onStageChange?: (stage: LadderStage) => void;
     /** Test-only deterministic geometry injection; never supplied by App. */
-    testMeasurementOverride?: Partial<Record<string, number>>;
+    testMeasurementOverride?: TestMeasurementOverride;
+    /** Test-only hook for a synchronous probe registered by the final DOM flush. */
+    testLateProbeDuringFinalCommit?: (epoch: EpochCoordinatorControl) => void;
+    /** Test-only hook that leaves a probe pending at a bounded pass boundary. */
+    testProbeAfterMeasurementPass?: (epoch: EpochCoordinatorControl, pass: number) => void;
+    /** Test-only hook for queuing a successor before a terminal commit. */
+    testBeforeTerminalCommit?: (queueSuccessor: () => void) => void;
+    /** Test-only observation point after a terminal epoch boundary. */
+    testAfterTerminalBoundary?: () => void;
     /** Capture/test-only deterministic scheduler positions. */
     rotationTick?: number;
     cardPageTick?: number;
@@ -58,8 +68,6 @@
     onAppearance: (key) => cardPageCoordinator.recordRotationAppearance(key),
   });
   const MAX_SETTLE_PASSES = 4;
-  // Layout changes are deliberately non-animated in U3; keep the shared
-  // motion token as the hand-off point for U6 rather than a local duration.
   const layoutMotionDuration = SPRING_SPATIAL_DEFAULT_MS;
   const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough"]);
   const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
@@ -127,6 +135,14 @@
   let lastInputKey = "";
   let lastContentKey = "";
   let fontsReady = typeof document === "undefined" || document.fonts == null;
+  const layoutMotionCoordinator = createLayoutMotionCoordinator({
+    root: () => standbyEl,
+    durationMs: layoutMotionDuration,
+  });
+
+  function registerLayoutCard(node: HTMLElement, identity: LayoutMotionIdentity) {
+    return layoutMotionCoordinator.register(node, identity);
+  }
 
   function clearCloseTimer(): void {
     closeGen += 1;
@@ -575,12 +591,15 @@
   });
 
   function readMeasurements(): void {
+    const measurementOverride = typeof testMeasurementOverride === "function"
+      ? testMeasurementOverride(measurementPass)
+      : testMeasurementOverride;
     const next: Record<string, number> = {};
-    for (const [id, node] of measureNodes) next[id] = testMeasurementOverride?.[id] ?? Math.round(node.getBoundingClientRect().height);
+    for (const [id, node] of measureNodes) next[id] = measurementOverride?.[id] ?? Math.round(node.getBoundingClientRect().height);
     const nextPrefixes = { ...prefixMeasurements };
     for (const [id, node] of prefixMeasureNodes) {
       const entry = prefixMeasureEntries.find((candidate) => candidate.id === id);
-      const genericOverride = entry == null ? undefined : testMeasurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
+      const genericOverride = entry == null ? undefined : measurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
       if (entry?.purpose === "page") {
         const body = node.querySelector<HTMLElement>("[data-page-probe-body]");
         const card = node.querySelector<HTMLElement>("[data-page-probe-card]") ?? body;
@@ -590,33 +609,33 @@
         const bodyFitsVertically = body == null || body.clientHeight === 0 || body.scrollHeight <= body.clientHeight + 1;
         const fitsHorizontally = body == null || body.clientWidth === 0 || body.scrollWidth <= body.clientWidth + 1;
         const fits = cardFitsVertically && bodyFitsVertically && fitsHorizontally;
-        nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? (fits ? 0 : 2);
+        nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? (fits ? 0 : 2);
       } else {
-        nextPrefixes[id] = testMeasurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
+        nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
       }
     }
     const rect = layoutEl?.getBoundingClientRect();
     const style = layoutEl == null ? null : getComputedStyle(layoutEl);
     measurements = next;
     prefixMeasurements = nextPrefixes;
-    layoutWidthPx = testMeasurementOverride?.layoutWidthPx ?? Math.round(rect?.width ?? 0);
-    layoutHeightPx = testMeasurementOverride?.layoutHeightPx ?? Math.round(rect?.height ?? 0);
-    nankaiHeightPx = testMeasurementOverride?.nankaiHeightPx ?? Math.round(nankaiEl?.getBoundingClientRect().height ?? 0);
-    statsHeightPx = testMeasurementOverride?.statsHeightPx ?? Math.round(statsMeasureEl?.getBoundingClientRect().height ?? 0);
-    recentHeightPx = testMeasurementOverride?.recentHeightPx ?? Math.round(recentMeasureEl?.getBoundingClientRect().height ?? 0);
-    connectionHeightPx = testMeasurementOverride?.connectionHeightPx ?? Math.round(connectionMeasureEl?.getBoundingClientRect().height ?? 0);
+    layoutWidthPx = measurementOverride?.layoutWidthPx ?? Math.round(rect?.width ?? 0);
+    layoutHeightPx = measurementOverride?.layoutHeightPx ?? Math.round(rect?.height ?? 0);
+    nankaiHeightPx = measurementOverride?.nankaiHeightPx ?? Math.round(nankaiEl?.getBoundingClientRect().height ?? 0);
+    statsHeightPx = measurementOverride?.statsHeightPx ?? Math.round(statsMeasureEl?.getBoundingClientRect().height ?? 0);
+    recentHeightPx = measurementOverride?.recentHeightPx ?? Math.round(recentMeasureEl?.getBoundingClientRect().height ?? 0);
+    connectionHeightPx = measurementOverride?.connectionHeightPx ?? Math.round(connectionMeasureEl?.getBoundingClientRect().height ?? 0);
     const clockRect = clockFaceEl?.getBoundingClientRect();
     const nankaiRect = nankaiEl?.getBoundingClientRect();
     const standbyRect = standbyEl?.getBoundingClientRect();
-    const boundaryTop = testMeasurementOverride?.boundaryTopPx ?? nankaiRect?.top ?? standbyRect?.bottom;
-    const clockBottom = testMeasurementOverride?.clockBottomPx ?? clockRect?.bottom;
+    const boundaryTop = measurementOverride?.boundaryTopPx ?? nankaiRect?.top ?? standbyRect?.bottom;
+    const clockBottom = measurementOverride?.clockBottomPx ?? clockRect?.bottom;
     const belowItemCount = (snapshot.stats == null ? 0 : 1) + (snapshot.recentQuakes.length === 0 ? 0 : 1);
     const belowContentHeight = (snapshot.stats == null ? 0 : statsHeightPx) + (snapshot.recentQuakes.length === 0 ? 0 : recentHeightPx);
     const freeLowerSpace = clockBottom == null || boundaryTop == null ? 0 : Math.max(0, Math.round(boundaryTop - clockBottom - belowContentHeight));
     clusterGapPx = belowItemCount > 0 && freeLowerSpace > 0 ? Math.floor(freeLowerSpace / (belowItemCount + 1)) : 0;
     clusterFlowHeightPx = belowItemCount > 0 ? belowContentHeight + Math.max(0, belowItemCount - 1) * clusterGapPx : 0;
-    gapPx = testMeasurementOverride?.gapPx ?? Math.max(0, Number.parseFloat(style?.rowGap ?? "12") || 12);
-    baselineGapPx = testMeasurementOverride?.baselineGapPx
+    gapPx = measurementOverride?.gapPx ?? Math.max(0, Number.parseFloat(style?.rowGap ?? "12") || 12);
+    baselineGapPx = measurementOverride?.baselineGapPx
       ?? (Math.max(0, Math.round(baselineGapMeasureEl?.getBoundingClientRect().width ?? 0)) || 12);
     measurementReadCount = measureNodes.size + prefixMeasureNodes.size + 8;
     measurementPass += 1;
@@ -635,6 +654,7 @@
     coordinator.begin(activeEpoch);
     let previous = "";
     let superseded = false;
+    let pendingStageChange: LadderStage | null = null;
     for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
       let probeSteps = 0;
       // B and the two U4 pageable cards may each consume their bounded probe
@@ -654,12 +674,14 @@
         probeSteps += 1;
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
       if (disposed) break;
+      testProbeAfterMeasurementPass?.(coordinator, pass);
       if (plan.stage > floorStage) floorStage = plan.stage;
       const next = signature();
       if (next === previous && !coordinator.hasPendingProbes()) {
-        if (coordinator.settle()) {
-          measurementSettled = true;
-          contentDemotionRequested = false;
+        if (!coordinator.canSettle(activeEpoch)) {
+          coordinator.settle();
+          if (coordinator.epochKey() !== activeEpoch) { superseded = true; break; }
+        } else {
           const nextPlan = snapshotPlan(plan);
           const nextSelection = { ...selection };
           const firstCommit = committedPlan == null;
@@ -668,15 +690,80 @@
             committedPlan = nextPlan;
             committedSelection = nextSelection;
             committedStage = nextPlan.stage;
-            if (firstCommit || stageChanged) onStageChange?.(committedStage);
+            if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
+            testLateProbeDuringFinalCommit?.(coordinator);
           });
+          if (!coordinator.settle()) {
+            // A false settle is only a supersede if the epoch key changed. A
+            // synchronous remount may have registered a same-epoch probe in
+            // the final flush; drain and reconverge it within this bounded
+            // settle loop instead of leaving both schedulers held.
+            if (coordinator.epochKey() !== activeEpoch) {
+              superseded = true;
+              break;
+            }
+            previous = "";
+            continue;
+          }
+          flushSync(() => {
+            measurementSettled = true;
+            contentDemotionRequested = false;
+            if (pendingStageChange != null) onStageChange?.(pendingStageChange);
+            pendingStageChange = null;
+          });
+          layoutMotionCoordinator.runForEpoch(activeEpoch, () => {
+            cardPageCoordinator.releaseAfterLayoutMotion();
+            rotationScheduler.releaseAfterLayoutMotion();
+          }, { skipMotion: firstCommit });
           break;
         }
-        if (coordinator.epochKey() !== activeEpoch) { superseded = true; break; }
       }
       previous = next;
     }
-    if (!measurementSettled && !disposed && !superseded) measurementNonConverged = true;
+    if (!measurementSettled && !disposed && !superseded) {
+      // The bounded loop must still terminate the epoch. Commit the last
+      // measured plan with its diagnostic, then hand off or immediately
+      // release the two schedulers instead of leaving them held forever.
+      measurementNonConverged = true;
+      testBeforeTerminalCommit?.(requestSettle);
+      // Match the normal pre-commit boundary: a queued successor wins before
+      // this epoch may mutate visible state or discard its probe ownership.
+      if (!coordinator.canSettle(activeEpoch)) {
+        coordinator.settle();
+        if (coordinator.epochKey() !== activeEpoch) superseded = true;
+      }
+      if (!superseded) {
+        const nextPlan = snapshotPlan(plan);
+        const nextSelection = { ...selection };
+        const firstCommit = committedPlan == null;
+        flushSync(() => {
+          const stageChanged = committedStage !== nextPlan.stage;
+          committedPlan = nextPlan;
+          committedSelection = nextSelection;
+          committedStage = nextPlan.stage;
+          if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
+        });
+        // A probe still queued at pass exhaustion cannot keep the coordinator
+        // busy, or the released schedulers cannot re-arm their next tick.
+        coordinator.discardPendingProbes();
+        const settled = coordinator.settle();
+        if (!settled && coordinator.epochKey() !== activeEpoch) {
+          superseded = true;
+        } else {
+          flushSync(() => {
+            measurementSettled = true;
+            contentDemotionRequested = false;
+            if (pendingStageChange != null) onStageChange?.(pendingStageChange);
+            pendingStageChange = null;
+          });
+          layoutMotionCoordinator.runForEpoch(activeEpoch, () => {
+            cardPageCoordinator.releaseAfterLayoutMotion();
+            rotationScheduler.releaseAfterLayoutMotion();
+          }, { skipMotion: firstCommit || !settled });
+        }
+      }
+      testAfterTerminalBoundary?.();
+    }
     settling = false;
     if (settleRequested && !disposed) {
       settleRequested = false;
@@ -686,7 +773,10 @@
   function requestSettle(): void {
     epoch += 1;
     epochKey = String(epoch);
+    layoutMotionCoordinator.preEpochCapture(epochKey);
     coordinator.begin(epochKey);
+    rotationScheduler.holdForEpoch();
+    cardPageCoordinator.holdForEpoch();
     measurementSettled = false;
     prefixMeasurements = {};
     prefixMeasureEntries = [];
@@ -696,7 +786,7 @@
     }
     void settleMeasurements();
   }
-  $effect(() => {
+  $effect.pre(() => {
     const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", snapshot.standbyItems?.map((item) => `${item.kind}:${item.updatedAt}`).join(",") ?? "", snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
     const input = [contentKey, sseConnected].join("|");
     if (input !== lastInputKey) {
@@ -726,6 +816,7 @@
   onDestroy(() => {
     disposed = true;
     clearCloseTimer();
+    layoutMotionCoordinator.dispose();
     rotationScheduler.dispose();
     cardPageCoordinator.dispose();
     coordinator.dispose();
@@ -840,18 +931,25 @@
   <div class="baseline-gap-measure" bind:this={baselineGapMeasureEl} aria-hidden="true"></div>
   <div class="rotation-failure-measure" bind:this={failureMeasureEl} aria-hidden="true">ほか {renderPlan.rotationFailureCount} 件を表示できません</div>
 
-  {#if renderStage === 0}
-    <section class="clock-landmark" data-clock-landmark aria-label="画面中央時計と中央クラスタ">
-      <div class="clock-wrap">{#if connectionVisible}<div class="clock-connection" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}<div class="clock-face" bind:this={clockFaceEl}><Clock {now} /></div>
-        <div class="clock-below">{#if snapshot.stats != null}<div class="instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}{#if snapshot.recentQuakes.length > 0}<div class="quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}</div>
-      </div>
-    </section>
-  {/if}
+  <section
+    class="clock-landmark"
+    class:clock-away={renderStage !== 0}
+    data-clock-landmark={renderStage === 0 ? "true" : undefined}
+    aria-label="画面中央時計と中央クラスタ"
+    aria-hidden={renderStage === 0 ? undefined : "true"}
+    inert={renderStage === 0 ? undefined : true}
+  >
+    <div class="clock-wrap">
+      {#if renderStage === 0 && connectionVisible}<div class="clock-connection" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
+      <div class="clock-face" bind:this={clockFaceEl}><Clock {now} /></div>
+      {#if renderStage === 0}<div class="clock-below">{#if snapshot.stats != null}<div class="instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}{#if snapshot.recentQuakes.length > 0}<div class="quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}</div>{/if}
+    </div>
+  </section>
   <section class="legacy-layout" bind:this={layoutEl} aria-label="従来待機画面 改良">
     <div class="side corner-left side-left" data-side="left">
       {#each renderPlan.left as card (card.key)}
         {@const fixedHeight = pageFixedHeight(card, "left")}
-        <article class="legacy-card corner-item" class:paged-card={fixedHeight != null} class:tsunami-corner={card.key === "tsunami"} class:quake-corner={card.key === "quake"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined}>{@render renderCard(card.key, displayVariant(card), "left", false, renderSelection)}</article>
+        <article class="legacy-card corner-item" class:paged-card={fixedHeight != null} class:tsunami-corner={card.key === "tsunami"} class:quake-corner={card.key === "quake"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined} data-layout-motion-card={`${card.key}:left`} use:registerLayoutCard={{ key: card.key, surface: "left" }}>{@render renderCard(card.key, displayVariant(card), "left", false, renderSelection)}</article>
       {/each}
     </div>
     {#if renderStage === 0}<div class="center-grid-spacer" aria-hidden="true"></div>{:else}
@@ -859,7 +957,7 @@
         {#if connectionVisible}<div class="connection-stage-card" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
         {#each renderPlan.center as card (card.key)}
           {@const fixedHeight = pageFixedHeight(card, "center")}
-          <article class="legacy-card" class:paged-card={fixedHeight != null} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined}>{@render renderCard(card.key, displayVariant(card), "center", false, renderSelection)}</article>
+          <article class="legacy-card" class:paged-card={fixedHeight != null} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined} data-layout-motion-card={`${card.key}:center`} use:registerLayoutCard={{ key: card.key, surface: "center" }}>{@render renderCard(card.key, displayVariant(card), "center", false, renderSelection)}</article>
         {/each}
         {#if snapshot.stats != null}<div class="center-stack-card instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}
         {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
@@ -868,12 +966,12 @@
     <div class="side corner-right side-right" data-side="right">
       {#each renderPlan.right as card (card.key)}
         {@const fixedHeight = pageFixedHeight(card, "right")}
-        <article class="legacy-card" class:paged-card={fixedHeight != null} class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>
+        <article class="legacy-card" class:paged-card={fixedHeight != null} class:weather-corner={card.key === "weather"} class:flood-slot={card.key === "flood"} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined} data-layout-motion-card={`${card.key}:right`} use:registerLayoutCard={{ key: card.key, surface: "right" }}>{@render renderCard(card.key, displayVariant(card), "right", false, renderSelection)}</article>
       {/each}
       {#if renderStage === 3}
         <div class="rotation-slot" bind:this={rotationSlotEl} style:height={`${renderPlan.rotationSlotHeight}px`}>
           {#each renderPlan.rotationKeys as key (key)}
-            <div class="rotation-card" hidden={key !== rotationActiveKey} data-rotation-card={key}>
+            <div class="rotation-card" hidden={key !== rotationActiveKey} data-rotation-card={key} data-layout-motion-card={`${key}:rotation`} use:registerLayoutCard={{ key, surface: "rotation" }}>
               {@render renderCard(key, "compact", "right", false, renderSelection)}
             </div>
           {/each}
@@ -903,7 +1001,8 @@
   .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }
   .center-card-region > .legacy-card, .center-stack-card { width: 100%; }
   .center-stack-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }
-  .clock-landmark { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .clock-landmark { position: fixed; inset: 0; z-index: 2; pointer-events: none; opacity: 1; transition: opacity var(--spring-spatial-default-dur) var(--spring-spatial-default); }
+  .clock-landmark.clock-away { opacity: 0; }
   .clock-wrap { position: absolute; top: 50%; left: 50%; width: var(--center-width); container-type: inline-size; text-align: center; transform: translate(-50%, -50%); }
   .clock-connection { position: absolute; right: 0; bottom: calc(100% + var(--gap)); left: 0; }
   .clock-below { position: absolute; top: calc(100% + var(--cluster-gap)); left: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--cluster-gap); width: 100%; height: var(--cluster-flow-height); }
@@ -922,5 +1021,5 @@
   .standby.dim .weather-corner,
   .standby.dim .tsunami-corner,
   .standby.dim .flood-slot { opacity: .7; }
-  @media (prefers-reduced-motion: reduce) { .standby { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .standby, .clock-landmark { transition: none; } }
 </style>

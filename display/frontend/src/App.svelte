@@ -16,7 +16,7 @@
   import TierOverlay from "./components/TierOverlay.svelte";
   import { fade } from "svelte/transition";
   import { emergencyEnter } from "./lib/transitions";
-  import { SPRING_SPATIAL_QUICK_MS, SPRING_EFFECTS_SLOW_MS, EXIT_MS } from "./lib/motion";
+  import { SPRING_SPATIAL_DEFAULT_MS, SPRING_SPATIAL_QUICK_MS, SPRING_EFFECTS_SLOW_MS, EXIT_MS } from "./lib/motion";
   import { createTipsFeeder } from "./lib/tips-feeder.svelte";
   import { deriveEmergencyCompanionControl } from "./lib/emergency-tips-policy";
   import { buildTsunamiReplayDto } from "./lib/tsunami-replay";
@@ -30,6 +30,13 @@
     shouldToggleDimOnClick,
     shouldToggleDimOnKey,
   } from "./lib/dim-interaction";
+
+  let { testStandbyStage, testStandbyMeasurementOverride }: {
+    /** Test-only confirmed standby stage override for clock handoff coverage. */
+    testStandbyStage?: 0 | 1 | 2 | 3;
+    /** Test-only geometry forwarded to the real StandbyScreen stage solver. */
+    testStandbyMeasurementOverride?: Partial<Record<string, number>>;
+  } = $props();
 
   const RELOAD_STORAGE_KEY = "fleq-display-last-reload";
   const RELOAD_CHECK_INTERVAL_MS = 60_000;
@@ -163,6 +170,77 @@
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   });
+  // The central standby clock stays mounted while it fades away. Keep the
+  // ticker clock mounted for the inverse fade so stage ownership changes on
+  // the same confirmed snapshot without attempting a FLIP between two DOMs.
+  let tickerClockMounted = $state(false);
+  let tickerClockVisible = $state(false);
+  let tickerClockRemoval: ReturnType<typeof setTimeout> | null = null;
+  let tickerClockReveal: number | null = null;
+  let tickerClockToken = 0;
+  function clearTickerClockRemoval(): void {
+    if (tickerClockRemoval != null) clearTimeout(tickerClockRemoval);
+    tickerClockRemoval = null;
+  }
+  function clearTickerClockReveal(): void {
+    if (tickerClockReveal != null) cancelAnimationFrame(tickerClockReveal);
+    tickerClockReveal = null;
+  }
+  $effect(() => {
+    const effectiveStandbyStage = testStandbyStage ?? standbyStage;
+    // Emergency keeps its pre-U6 direct ticker clock ownership. The two-DOM
+    // crossfade belongs only to a confirmed standby stage handoff.
+    if (mode === "emergency") {
+      clearTickerClockRemoval();
+      clearTickerClockReveal();
+      tickerClockMounted = true;
+      tickerClockVisible = true;
+      return;
+    }
+    if (mode !== "standby") {
+      clearTickerClockRemoval();
+      clearTickerClockReveal();
+      tickerClockMounted = false;
+      tickerClockVisible = false;
+      return;
+    }
+    const desired = effectiveStandbyStage >= 1;
+    const reduce = reducedMotion;
+    untrack(() => {
+      const token = ++tickerClockToken;
+      clearTickerClockRemoval();
+      clearTickerClockReveal();
+      if (desired) {
+        if (tickerClockMounted || reduce) {
+          tickerClockMounted = true;
+          tickerClockVisible = true;
+          return;
+        }
+        tickerClockMounted = true;
+        tickerClockVisible = false;
+        tickerClockReveal = requestAnimationFrame(() => {
+          tickerClockReveal = null;
+          if (token === tickerClockToken) tickerClockVisible = true;
+        });
+        return;
+      }
+      tickerClockVisible = false;
+      if (!tickerClockMounted) return;
+      if (reduce) {
+        tickerClockMounted = false;
+        return;
+      }
+      tickerClockRemoval = setTimeout(() => {
+        tickerClockRemoval = null;
+        if (token === tickerClockToken) tickerClockMounted = false;
+      }, SPRING_SPATIAL_DEFAULT_MS);
+    });
+  });
+  $effect(() => () => {
+    tickerClockToken += 1;
+    clearTickerClockRemoval();
+    clearTickerClockReveal();
+  });
   // 緊急入場は transform のみの短い spring (spec §0-a、~142ms)。緊急→待機の回復と待機の入場は
   // 落ち着いた opacity クロスフェード、待機→緊急で退く待機は消失感を出さない短い fade。
   const enterDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_QUICK_MS);
@@ -204,6 +282,7 @@
           now={clock.now}
           dim={effectiveDim}
           sseConnected={connection.state.sseConnected}
+          testMeasurementOverride={testStandbyMeasurementOverride}
           onTsunamiReplay={replayTsunami}
           onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }}
         />
@@ -229,11 +308,11 @@
       </div>
     {/if}
   </div>
-  <div class="ticker-frame">
+  <div class="ticker-frame" class:ticker-clock-visible={tickerClockVisible}>
     <Ticker
       bind:this={tickerApi}
       lines={displayTickerLines}
-      now={mode === "emergency" || (mode === "standby" && standbyStage >= 1) ? clock.now : null}
+      now={tickerClockMounted ? clock.now : null}
       tickerGeneration={connection.state.tickerGeneration}
       tsunamiGeneration={tsunamiGeneration}
       dim={effectiveDim}
@@ -298,6 +377,14 @@
     right: 0;
     height: calc(var(--ticker-row-h) * var(--ticker-rows));
     background: var(--bg);
+  }
+  .ticker-frame :global(.ticker-clock) {
+    opacity: 0;
+    transition: opacity var(--spring-spatial-default-dur) var(--spring-spatial-default);
+  }
+  .ticker-frame.ticker-clock-visible :global(.ticker-clock) { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-frame :global(.ticker-clock) { transition: none; }
   }
   .loading {
     display: flex;

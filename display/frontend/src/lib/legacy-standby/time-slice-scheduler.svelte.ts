@@ -102,6 +102,7 @@ export class RotationScheduler {
   private transition: Animation | null = null;
   private transitionDeadline: Timer | null = null;
   private transitionToken = 0;
+  private epochHeld = false;
   private unsubscribeSettled: () => void;
   private notify = (): void => {};
   private readonly subscribe = createSubscriber((update) => {
@@ -121,7 +122,7 @@ export class RotationScheduler {
       && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     this.onAppearance = options.onAppearance ?? (() => {});
     this.unsubscribeSettled = this.epoch.onSettled(() => {
-      if (!this.mounted) return;
+      if (!this.mounted || this.epochHeld) return;
       if (this.tickPending) {
         this.tickPending = false;
         this.processTick();
@@ -133,6 +134,27 @@ export class RotationScheduler {
 
   setTransitionTarget(node: HTMLElement | null): void {
     this.target = node;
+  }
+
+  holdForEpoch(): void {
+    if (!this.mounted) return;
+    this.epochHeld = true;
+    this.tickPending = true;
+    this.clearTimer();
+    this.cancelTransition();
+    this.notify();
+  }
+
+  releaseAfterLayoutMotion(): void {
+    if (!this.mounted || !this.epochHeld) return;
+    this.epochHeld = false;
+    if (this.tickPending) {
+      this.tickPending = false;
+      this.processTick();
+    } else {
+      this.scheduleTimer();
+      this.notify();
+    }
   }
 
   currentKey(): CardKey | null {
@@ -211,7 +233,7 @@ export class RotationScheduler {
 
   private scheduleTimer(nowMs = this.clock.now()): void {
     this.clearTimer();
-    if (!this.mounted || this.tickOverride != null || this.stage !== 3 || this.suspended || this.keys.length === 0) return;
+    if (!this.mounted || this.epochHeld || this.tickOverride != null || this.stage !== 3 || this.suspended || this.keys.length === 0) return;
     const elapsedTicks = Math.max(0, Math.floor((nowMs - this.phaseStartedAtMs) / this.periodMs));
     const deadline = this.phaseStartedAtMs + (elapsedTicks + 1) * this.periodMs;
     this.timer = setTimeout(() => {
@@ -226,7 +248,7 @@ export class RotationScheduler {
 
   private processTickInternal(): void {
     if (!this.mounted || this.stage !== 3 || this.suspended || this.keys.length === 0) return;
-    if (this.epoch.isBusy() || (this.transition != null && this.transition.playState === "running")) {
+    if (this.epochHeld || this.epoch.isBusy() || (this.transition != null && this.transition.playState === "running")) {
       this.tickPending = true;
       return;
     }
@@ -324,6 +346,7 @@ export class RotationScheduler {
       }
     }
     if (resuming) this.tickPending = true;
+    if (this.epochHeld) return;
     if (this.tickPending && !this.epoch.isBusy()) {
       this.tickPending = false;
       this.processTick();
@@ -349,6 +372,7 @@ export class RotationScheduler {
       seenKeys: [...this.seenKeys],
       processedTick: this.processedTick,
       tickPending: this.tickPending,
+      epochHeld: this.epochHeld,
       suspended: this.suspended,
       tickOverride: this.tickOverride,
       timerActive: this.timer != null,
@@ -365,6 +389,7 @@ export class RotationScheduler {
     this.keys = [];
     this.activeKey = null;
     this.tickPending = false;
+    this.epochHeld = false;
     this.notify();
   }
 }
@@ -407,6 +432,8 @@ export class CardPageCoordinator {
   private substates: Record<PageableCardKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE() };
   private labels: Record<PageableCardKey, string[]> = { quake: [], weather: [] };
   private timer: Timer | null = null;
+  private epochHeld = false;
+  private pendingAppearanceKeys = new Set<PageableCardKey>();
   private unsubscribeSettled: () => void;
   private notify = (): void => {};
   private readonly subscribe = createSubscriber((update) => {
@@ -422,7 +449,7 @@ export class CardPageCoordinator {
     this.periodMs = options.periodMs ?? TIME_SLICE_PERIOD_MS;
     this.tickOverride = options.tickOverride ?? null;
     this.unsubscribeSettled = this.epoch.onSettled(() => {
-      if (!this.mounted) return;
+      if (!this.mounted || this.epochHeld) return;
       if (this.tickPending) {
         this.tickPending = false;
         this.processTick();
@@ -437,6 +464,31 @@ export class CardPageCoordinator {
       const state = this.substates[key];
       return state.pageCount > 1 && state.mode === "real";
     });
+  }
+
+  holdForEpoch(): void {
+    if (!this.mounted) return;
+    this.epochHeld = true;
+    this.tickPending = true;
+    this.clearTimer();
+    this.notify();
+  }
+
+  releaseAfterLayoutMotion(): void {
+    if (!this.mounted || !this.epochHeld) return;
+    this.epochHeld = false;
+    const pendingAppearances = [...this.pendingAppearanceKeys];
+    this.pendingAppearanceKeys.clear();
+    if (this.tickPending) {
+      this.tickPending = false;
+      this.processTick();
+    } else {
+      this.scheduleTimer();
+    }
+    for (const key of pendingAppearances) {
+      if (this.substates[key].mode === "logical" && this.substates[key].pageCount > 1) this.advance(key, 1);
+    }
+    this.notify();
   }
 
   private clearTimer(): void {
@@ -479,7 +531,7 @@ export class CardPageCoordinator {
   private scheduleTimer(nowMs = this.clock.now()): void {
     this.clearTimer();
     const realKeys = this.realKeys();
-    if (!this.mounted || this.tickOverride != null || realKeys.length === 0) return;
+    if (!this.mounted || this.epochHeld || this.tickOverride != null || realKeys.length === 0) return;
     const deadline = Math.min(...realKeys.map((key) => {
       const state = this.substates[key];
       return state.phaseStartedAtMs + (state.processedTick + 1) * this.periodMs;
@@ -497,7 +549,7 @@ export class CardPageCoordinator {
 
   processTick(): void {
     if (!this.mounted || this.realKeys().length === 0) return;
-    if (this.epoch.isBusy()) {
+    if (this.epochHeld || this.epoch.isBusy()) {
       this.tickPending = true;
       this.notify();
       return;
@@ -569,6 +621,11 @@ export class CardPageCoordinator {
   recordRotationAppearance(key: CardKey): void {
     if (key !== "quake" && key !== "weather") return;
     if (this.substates[key].mode !== "logical" || this.substates[key].pageCount <= 1) return;
+    if (this.epochHeld) {
+      this.pendingAppearanceKeys.add(key);
+      this.notify();
+      return;
+    }
     this.advance(key, 1);
     this.notify();
   }
@@ -609,6 +666,8 @@ export class CardPageCoordinator {
     return {
       processedTick: this.processedTick,
       tickPending: this.tickPending,
+      epochHeld: this.epochHeld,
+      pendingAppearanceKeys: [...this.pendingAppearanceKeys],
       tickOverride: this.tickOverride,
       timerActive: this.timer != null,
       cards: {
@@ -627,6 +686,8 @@ export class CardPageCoordinator {
     this.unsubscribeSettled();
     this.clearTimer();
     this.tickPending = false;
+    this.epochHeld = false;
+    this.pendingAppearanceKeys.clear();
     this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME() };
     this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE() };
     this.labels = { quake: [], weather: [] };

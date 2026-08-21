@@ -57,4 +57,59 @@ describe("EpochCoordinator", () => {
     expect(coordinator.settle()).toBe(true);
     expect(settledKeys).toEqual(["epoch-new"]);
   });
+
+  it("exposes a commit guard without notifying until the owner settles after flush", () => {
+    const coordinator = createEpochCoordinator();
+    const listener = vi.fn();
+    coordinator.onSettled(listener);
+    coordinator.begin("layout-final");
+
+    expect(coordinator.canSettle("other")).toBe(false);
+    expect(coordinator.canSettle("layout-final")).toBe(true);
+    expect(listener).not.toHaveBeenCalled();
+    expect(coordinator.settle()).toBe(true);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a stale final commit when a newer epoch is queued", () => {
+    const coordinator = createEpochCoordinator();
+    coordinator.begin("old");
+    coordinator.begin("new");
+
+    expect(coordinator.canSettle("old")).toBe(false);
+    expect(coordinator.settle()).toBe(false);
+    expect(coordinator.epochKey()).toBe("new");
+    expect(coordinator.canSettle("new")).toBe(true);
+  });
+
+  it("keeps a same-epoch late probe busy until its bounded owner loop drains it", () => {
+    const coordinator = createEpochCoordinator();
+    const lateMeasure = vi.fn();
+    coordinator.begin("same");
+    expect(coordinator.canSettle("same")).toBe(true);
+
+    // Models a page partition probe registered synchronously by final DOM
+    // commit. This is not an epoch supersede.
+    coordinator.enqueueProbe("page:late", lateMeasure);
+    expect(coordinator.settle()).toBe(false);
+    expect(coordinator.epochKey()).toBe("same");
+    expect(coordinator.isBusy()).toBe(true);
+
+    coordinator.drainProbes();
+    expect(lateMeasure).toHaveBeenCalledOnce();
+    expect(coordinator.settle()).toBe(true);
+    expect(coordinator.isBusy()).toBe(false);
+  });
+
+  it("discards a terminal pending probe so the coordinator can settle", () => {
+    const coordinator = createEpochCoordinator();
+    const dropped = vi.fn();
+    coordinator.begin("terminal");
+    coordinator.enqueueProbe("late", dropped);
+    coordinator.discardPendingProbes();
+
+    expect(coordinator.settle()).toBe(true);
+    expect(coordinator.isBusy()).toBe(false);
+    expect(dropped).not.toHaveBeenCalled();
+  });
 });

@@ -1,14 +1,41 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { render, screen } from "@testing-library/svelte";
-import { tick } from "svelte";
+import { cleanup, render, screen } from "@testing-library/svelte";
+import { flushSync, tick } from "svelte";
 import StandbyScreen from "../StandbyScreen.svelte";
+import App from "../../App.svelte";
 import { baseSnapshot } from "../../lib/__tests__/fixtures";
-import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayTsunamiStateV1, DisplayTyphoonV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
+import type { ActiveStandbyCardV1, DisplayActiveEewV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayTsunamiStateV1, DisplayTyphoonV1, DisplayWeatherAlertV1 } from "../../lib/protocol";
 import { collectWeatherExpandedKinds } from "../../lib/weather-expanded-kinds";
+import { SPRING_SPATIAL_DEFAULT_MS } from "../../lib/motion";
+import { TIME_SLICE_PERIOD_MS } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
+import type { EpochCoordinatorControl } from "../../lib/legacy-standby/epoch-coordinator";
 
 const now = new Date("2026-08-20T12:00:00+09:00");
+const appStageOneMeasurement: Partial<Record<string, number>> = {
+  layoutWidthPx: 1280, layoutHeightPx: 100,
+  "quake:compact:right": 80, "quake:expanded:right": 80, "quake:full:right": 80,
+  "quake:compact:center": 80, "quake:expanded:center": 80, "quake:full:center": 80,
+  "weather:compact:right": 120, "weather:expanded:right": 120, "weather:full:right": 120,
+  "weather:compact:center": 90, "weather:expanded:center": 90, "weather:full:center": 90,
+};
+
+type SnapshotListener = (event: MessageEvent<string>) => void;
+class ClockTestEventSource {
+  static instance: ClockTestEventSource | null = null;
+  private readonly listeners = new Map<string, SnapshotListener[]>();
+  constructor(_url: string | URL) { ClockTestEventSource.instance = this; }
+  addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    const callback = listener as unknown as SnapshotListener;
+    this.listeners.set(type, [...(this.listeners.get(type) ?? []), callback]);
+  }
+  emitSnapshot(snapshot: ReturnType<typeof baseSnapshot>): void {
+    const event = new MessageEvent<string>("snapshot", { data: JSON.stringify({ type: "snapshot", snapshot }) });
+    for (const listener of this.listeners.get("snapshot") ?? []) listener(event);
+  }
+  close(): void {}
+}
 const recent: DisplayRecentQuakeV1 = {
   eventId: "q-1", reportDateTime: "2026-08-20T12:00:00+09:00", originTime: "2026-08-20T11:58:00+09:00",
   hypocenterName: "日向灘", magnitude: "5.2", maxInt: "5弱", maxIntRank: 5, depth: "20km", tsunamiWarning: false,
@@ -143,6 +170,167 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const source = readFileSync(join(__dirname, "..", "..", "App.svelte"), "utf8");
     expect(source).toMatch(/if \(mode !== "standby"\)[\s\S]*standbyStage = 0;[\s\S]*standbyRef\?\.closeQuakeCard\(\)/);
     expect(source).toContain('onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }}');
+  });
+
+  it("wires the scoped motion handoff", () => {
+    const standbySource = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    const requestStart = standbySource.indexOf("function requestSettle");
+    const requestEnd = standbySource.indexOf("$effect.pre", requestStart);
+    const request = standbySource.slice(requestStart, requestEnd);
+    expect(request.indexOf("preEpochCapture")).toBeLessThan(request.indexOf("coordinator.begin"));
+    expect(request.indexOf("coordinator.begin")).toBeLessThan(request.indexOf("holdForEpoch"));
+    const finalCommit = standbySource.indexOf("flushSync(() =>", standbySource.indexOf("async function settleMeasurements"));
+    expect(finalCommit).toBeLessThan(standbySource.indexOf("coordinator.settle()", finalCommit));
+    expect(standbySource.indexOf("coordinator.settle()", finalCommit)).toBeLessThan(standbySource.indexOf("runForEpoch", finalCommit));
+    expect(standbySource).toContain("releaseAfterLayoutMotion");
+    for (const surface of ["left", "right", "center", "rotation"]) {
+      expect(standbySource).toContain(`surface: "${surface}"`);
+    }
+    expect(standbySource).toContain("class:clock-away={renderStage !== 0}");
+  });
+
+  it("keeps the ticker clock present through 0↔1 reversal, reduced motion, and disposal", async () => {
+    vi.useFakeTimers();
+    let reduce = false;
+    vi.stubGlobal("EventSource", ClockTestEventSource);
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      get matches() { return reduce; }, media: "(prefers-reduced-motion: reduce)", onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList)));
+    const view = render(App, { testStandbyStage: 0 });
+    ClockTestEventSource.instance?.emitSnapshot(baseSnapshot());
+    flushSync();
+    expect(view.container.querySelector(".ticker-clock")).toBeNull();
+
+    await view.rerender({ testStandbyStage: 1 });
+    flushSync();
+    expect(view.container.querySelector(".ticker-clock")).toBeTruthy();
+    await view.rerender({ testStandbyStage: 0 });
+    flushSync();
+    // The outgoing ticker clock remains mounted while its removal timer runs.
+    expect(view.container.querySelector(".ticker-clock")).toBeTruthy();
+    await view.rerender({ testStandbyStage: 1 });
+    flushSync();
+    vi.advanceTimersByTime(SPRING_SPATIAL_DEFAULT_MS + 1);
+    expect(view.container.querySelector(".ticker-clock")).toBeTruthy();
+
+    await view.rerender({ testStandbyStage: 0 });
+    flushSync();
+    vi.advanceTimersByTime(SPRING_SPATIAL_DEFAULT_MS + 1);
+    await tick();
+    expect(view.container.querySelector(".ticker-clock")).toBeNull();
+    view.unmount();
+
+    reduce = true;
+    const reduced = render(App, { testStandbyStage: 1 });
+    ClockTestEventSource.instance?.emitSnapshot(baseSnapshot());
+    flushSync();
+    expect(reduced.container.querySelector(".ticker-clock")).toBeTruthy();
+    await reduced.rerender({ testStandbyStage: 0 });
+    flushSync();
+    expect(reduced.container.querySelector(".ticker-clock")).toBeNull();
+    reduced.unmount();
+    cleanup();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("disposes a pending ticker-clock removal timer on unmount", async () => {
+    vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+    vi.stubGlobal("EventSource", ClockTestEventSource);
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches: false, media: "(prefers-reduced-motion: reduce)", onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList)));
+    const view = render(App, { testStandbyStage: 1 });
+    ClockTestEventSource.instance?.emitSnapshot(baseSnapshot());
+    flushSync();
+    await view.rerender({ testStandbyStage: 0 });
+    flushSync();
+    expect(view.container.querySelector(".ticker-clock")).toBeTruthy();
+    let removalCallIndex = -1;
+    for (let index = setTimeoutSpy.mock.calls.length - 1; index >= 0; index -= 1) {
+      if (setTimeoutSpy.mock.calls[index]?.[1] === SPRING_SPATIAL_DEFAULT_MS) {
+        removalCallIndex = index;
+        break;
+      }
+    }
+    expect(removalCallIndex).toBeGreaterThanOrEqual(0);
+    const removalTimer = setTimeoutSpy.mock.results[removalCallIndex]?.value;
+
+    view.unmount();
+    expect(view.container.querySelector(".ticker-clock")).toBeNull();
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(removalTimer);
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("keeps one physical clock through a real stage-1 handoff and cancels its pending reveal rAF", async () => {
+    vi.useFakeTimers();
+    const reveal = { callback: null as FrameRequestCallback | null };
+    const cancelReveal = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", vi.fn((callback: FrameRequestCallback) => {
+      reveal.callback = callback;
+      return 41;
+    }));
+    vi.stubGlobal("cancelAnimationFrame", cancelReveal);
+    vi.stubGlobal("EventSource", ClockTestEventSource);
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches: false, media: "(prefers-reduced-motion: reduce)", onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList)));
+    const view = render(App, { testStandbyMeasurementOverride: appStageOneMeasurement });
+    ClockTestEventSource.instance?.emitSnapshot(baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }));
+    flushSync();
+    expect(view.container.querySelector("[data-clock-landmark]")).toBeTruthy();
+    expect(view.container.querySelector(".ticker-clock")).toBeNull();
+
+    for (let pass = 0; pass < 10; pass += 1) await tick();
+    // Stage 1 came from the real StandbyScreen solver. The outgoing central
+    // clock remains in the DOM while the ticker clock waits for its rAF reveal.
+    expect(view.container.querySelector(".clock-landmark.clock-away")).toBeTruthy();
+    expect(view.container.querySelector(".ticker-clock")).toBeTruthy();
+    expect(reveal.callback).not.toBeNull();
+
+    view.unmount();
+    expect(cancelReveal).toHaveBeenCalledWith(41);
+    expect(view.container.querySelector(".clock-landmark, .ticker-clock")).toBeNull();
+    reveal.callback?.(0);
+    expect(view.container.querySelector(".clock-landmark, .ticker-clock")).toBeNull();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("keeps the emergency ticker clock on its direct, non-crossfade path", () => {
+    vi.useFakeTimers();
+    const requestReveal = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", requestReveal);
+    vi.stubGlobal("EventSource", ClockTestEventSource);
+    vi.stubGlobal("matchMedia", vi.fn(() => ({
+      matches: false, media: "(prefers-reduced-motion: reduce)", onchange: null,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    } as unknown as MediaQueryList)));
+    const emergency: DisplayActiveEewV1 = {
+      kind: "eew", eventId: "e1", serial: "1", isWarning: true, isFinal: false, isCancellation: false,
+      hypocenterName: "駿河湾", forecastMaxInt: "5弱", forecastMaxIntRank: 5, magnitude: "5.0", colorIndex: null,
+      reportDateTime: "2026-08-20T12:00:00+09:00", originTime: "2026-08-20T11:59:00+09:00",
+      isAssumedHypocenter: false, depth: "10km", maxLgInt: null, regions: [], updatedAtMs: 1,
+    };
+    const view = render(App);
+    ClockTestEventSource.instance?.emitSnapshot(baseSnapshot({ activeEews: [emergency], severityTier: "alert" }));
+    flushSync();
+
+    expect(view.container.querySelector("main")?.dataset.mode).toBe("emergency");
+    expect(view.container.querySelector(".ticker-clock")).toBeTruthy();
+    expect(view.container.querySelector(".ticker-frame")?.classList.contains("ticker-clock-visible")).toBe(true);
+    expect(requestReveal).not.toHaveBeenCalled();
+    view.unmount();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 });
 
@@ -484,6 +672,129 @@ describe("StandbyScreen measured stage epoch", () => {
     else expect(container.querySelector(".rotation-slot")).toBeTruthy();
   });
 
+  it("commits and releases a bounded nonconvergent final pass", async () => {
+    const changingGeometry = (pass: number) => ({
+      ...cardHeights(120, 90),
+      layoutHeightPx: 100 + pass,
+    });
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }),
+      now, dim: false, sseConnected: true, testMeasurementOverride: changingGeometry,
+    });
+    for (let pass = 0; pass < 12; pass += 1) await tick();
+
+    const root = view.container.querySelector<HTMLElement>(".standby")!;
+    expect(root.dataset.measurementNonconverged).toBe("true");
+    expect(root.dataset.measurementSettled).toBe("true");
+    await tick();
+    expect(JSON.parse(root.dataset.schedulerState ?? "{}")).toMatchObject({
+      rotation: { epochHeld: false },
+      paging: { epochHeld: false },
+    });
+    view.unmount();
+  });
+
+  it("terminally settles a pending-probe exhaustion and re-arms the next rotation tick", async () => {
+    vi.useFakeTimers();
+    try {
+      const pendingProbe = vi.fn();
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: rotationItems }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: (pass) => ({ ...rotationStage, layoutHeightPx: 90 + pass }),
+        testProbeAfterMeasurementPass: (epoch) => epoch.enqueueProbe("test:terminal-pending", pendingProbe),
+      });
+      for (let pass = 0; pass < 14; pass += 1) await tick();
+
+      const root = view.container.querySelector<HTMLElement>(".standby")!;
+      expect(root.dataset.measurementNonconverged).toBe("true");
+      expect(root.dataset.measurementSettled).toBe("true");
+      await tick();
+      expect(JSON.parse(root.dataset.schedulerState ?? "{}")).toMatchObject({
+        rotation: { epochHeld: false, timerActive: true },
+        paging: { epochHeld: false },
+      });
+      const before = root.dataset.rotationActiveKey;
+      vi.advanceTimersByTime(TIME_SLICE_PERIOD_MS);
+      await tick();
+      vi.advanceTimersByTime(0);
+      await tick();
+      expect(root.dataset.rotationActiveKey).not.toBe(before);
+      view.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lets a queued successor replace a nonconvergent epoch before its terminal commit", async () => {
+    let successorQueued = false;
+    const onStageChange = vi.fn();
+    const afterOldTerminalBoundary = vi.fn(() => {
+      // This runs before the queued successor starts its own settle loop.
+      expect(onStageChange).not.toHaveBeenCalled();
+    });
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }),
+      now, dim: false, sseConnected: true,
+      testMeasurementOverride: (pass) => successorQueued
+        ? { ...cardHeights(120, 90), layoutHeightPx: 250, baselineGapPx: 10 }
+        : { ...cardHeights(120, 90), layoutHeightPx: 100 + pass },
+      testBeforeTerminalCommit: (queueSuccessor) => {
+        successorQueued = true;
+        queueSuccessor();
+      },
+      testAfterTerminalBoundary: afterOldTerminalBoundary,
+      onStageChange,
+    });
+    for (let pass = 0; pass < 24; pass += 1) await tick();
+
+    const root = view.container.querySelector<HTMLElement>(".standby")!;
+    // The old nonconvergent epoch had no final commit; the successor retained
+    // the promoted stage through its normal hysteresis-constrained settle.
+    expect(afterOldTerminalBoundary).toHaveBeenCalledOnce();
+    expect(onStageChange).toHaveBeenCalledExactlyOnceWith(1);
+    expect(root.dataset.ladderStage).toBe("1");
+    expect(root.dataset.measurementNonconverged).toBe("false");
+    expect(root.dataset.measurementSettled).toBe("true");
+    view.unmount();
+  });
+
+  it("drains a final-flush same-epoch probe and releases both scheduler owners", async () => {
+    vi.useFakeTimers();
+    try {
+      let injected = false;
+      const onStageChange = vi.fn();
+      const lateProbe = vi.fn();
+      const finalCommitHook = vi.fn((epoch: EpochCoordinatorControl) => {
+        if (injected) return;
+        injected = true;
+        epoch.enqueueProbe("test:late-final-flush", lateProbe);
+      });
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: cardHeights(120, 90),
+        testLateProbeDuringFinalCommit: finalCommitHook,
+        onStageChange,
+      });
+      for (let pass = 0; pass < 12; pass += 1) await tick();
+
+      const root = view.container.querySelector<HTMLElement>(".standby")!;
+      expect(lateProbe).toHaveBeenCalledOnce();
+      expect(root.dataset.measurementSettled).toBe("true");
+      expect(onStageChange).toHaveBeenCalledExactlyOnceWith(1);
+      vi.advanceTimersByTime(SPRING_SPATIAL_DEFAULT_MS + 1);
+      await tick();
+      expect(JSON.parse(root.dataset.schedulerState ?? "{}")).toMatchObject({
+        rotation: { epochHeld: false },
+        paging: { epochHeld: false },
+      });
+      view.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("renders exactly the tick-override rotation key and exposes scheduler diagnostics", async () => {
     for (const rotationTick of [0, 1, 4]) {
       const view = render(StandbyScreen, {
@@ -530,6 +841,46 @@ describe("StandbyScreen measured stage epoch", () => {
       expect(exited.dataset.rotationActiveKey).toBeUndefined();
       expect(JSON.parse(exited.dataset.schedulerState ?? "{}")).toMatchObject({ rotation: { timerActive: false, inFlight: false } });
       expect(view.container.querySelector(".rotation-slot")).toBeNull();
+      view.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a due rotation tick held through final commit and releases it after layout fallback", async () => {
+    vi.useFakeTimers();
+    try {
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: rotationItems }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: rotationStage,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      const before = view.container.querySelector<HTMLElement>(".standby")?.dataset.rotationActiveKey;
+      vi.advanceTimersByTime(TIME_SLICE_PERIOD_MS - 1);
+
+      await view.rerender({
+        snapshot: baseSnapshot({
+          latestQuake: latestQuake({ updatedAtMs: 2, hypocenterName: "更新後の震源" }),
+          weatherAlerts: [weather()],
+          standbyItems: rotationItems,
+        }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: rotationStage,
+      });
+      for (let pass = 0; pass < 12; pass += 1) await tick();
+      const held = view.container.querySelector<HTMLElement>(".standby")!;
+      expect(JSON.parse(held.dataset.schedulerState ?? "{}").rotation).toMatchObject({ epochHeld: true, tickPending: true });
+      vi.advanceTimersByTime(1);
+      await tick();
+      expect(held.dataset.rotationActiveKey).toBe(before);
+
+      vi.advanceTimersByTime(SPRING_SPATIAL_DEFAULT_MS);
+      await tick();
+      expect(held.dataset.rotationActiveKey).not.toBe(before);
+      expect(JSON.parse(held.dataset.schedulerState ?? "{}").rotation).toMatchObject({ epochHeld: false, tickPending: false });
+      // test-setup の WAAPI stub が即時 finish 用に所有する 0ms callback を消化する。
+      vi.advanceTimersByTime(0);
+      await tick();
       view.unmount();
       expect(vi.getTimerCount()).toBe(0);
     } finally {

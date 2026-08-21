@@ -16,7 +16,11 @@ export interface EpochCoordinatorControl extends EpochCoordinator {
   begin(key: string): void;
   /** Runs queued probes in FIFO order. The caller owns the DOM flush. */
   drainProbes(): void;
+  /** Drops same-epoch probes when a bounded owner must terminally commit. */
+  discardPendingProbes(): void;
   hasPendingProbes(): boolean;
+  /** True only when this epoch may commit immediately before settle(). */
+  canSettle(expectedKey: string): boolean;
   /** false when a probe arrived after the caller's final read. */
   settle(): boolean;
 }
@@ -67,7 +71,14 @@ export function createEpochCoordinator(): EpochCoordinatorControl {
       if (disposed) return;
       while (probes.length > 0) probes.shift()?.measure();
     },
+    discardPendingProbes() {
+      if (disposed) return;
+      probes = [];
+    },
     hasPendingProbes: () => probes.length > 0,
+    canSettle(expectedKey) {
+      return !disposed && busy && probes.length === 0 && queuedKey == null && key === expectedKey;
+    },
     settle() {
       if (disposed || probes.length > 0) return false;
       if (queuedKey != null) {

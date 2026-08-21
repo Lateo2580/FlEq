@@ -97,6 +97,84 @@ describe("time-slice scheduler contract", () => {
     rotation.dispose();
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("keeps settle notifications held until layout motion explicitly releases one pending tick", () => {
+    const time = controlledClock();
+    const epoch = createEpochCoordinator();
+    const rotation = createRotationScheduler({ epoch, clock: time.clock });
+    rotation.sync({ stage: 3, keys: ["weather", "typhoon"] });
+
+    epoch.begin("layout-held");
+    rotation.holdForEpoch();
+    time.advance(TIME_SLICE_PERIOD_MS);
+    expect(epoch.settle()).toBe(true);
+    expect(rotation.activeKey).toBe("weather");
+    expect(rotation.diagnostics()).toMatchObject({ epochHeld: true, tickPending: true, timerActive: false });
+
+    rotation.releaseAfterLayoutMotion();
+    expect(rotation.activeKey).toBe("typhoon");
+    expect(rotation.diagnostics()).toMatchObject({ epochHeld: false, tickPending: false, processedTick: 1 });
+    rotation.releaseAfterLayoutMotion();
+    expect(rotation.processedTick).toBe(1);
+    rotation.dispose();
+    epoch.dispose();
+  });
+
+  it("cancels an in-flight transition on epoch hold without clearing the active key", async () => {
+    const time = controlledClock();
+    const cancel = vi.fn();
+    const animation = { playState: "running", cancel, onfinish: null, oncancel: null } as unknown as Animation;
+    const target = document.createElement("div");
+    target.animate = vi.fn(() => animation);
+    const rotation = createRotationScheduler({ clock: time.clock, reducedMotion: () => false });
+    rotation.setTransitionTarget(target);
+    rotation.sync({ stage: 3, keys: ["weather", "typhoon"] });
+    time.advance(TIME_SLICE_PERIOD_MS);
+    await tick();
+    const active = rotation.activeKey;
+
+    rotation.holdForEpoch();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(rotation.activeKey).toBe(active);
+    expect(rotation.diagnostics()).toMatchObject({ epochHeld: true, inFlight: false, timerActive: false });
+    rotation.dispose();
+  });
+
+  it("holds shared page ticks through settle and re-evaluates them once on release", () => {
+    const time = controlledClock();
+    const epoch = createEpochCoordinator();
+    const pages = createCardPageCoordinator({ epoch, clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1", "q2"] });
+
+    epoch.begin("page-layout");
+    pages.holdForEpoch();
+    time.advance(TIME_SLICE_PERIOD_MS);
+    expect(epoch.settle()).toBe(true);
+    expect(pages.cardDiagnostics("quake").activeKey).toBe("q1");
+    expect(pages.diagnostics()).toMatchObject({ epochHeld: true, tickPending: true, timerActive: false });
+
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("quake").activeKey).toBe("q2");
+    expect(pages.diagnostics()).toMatchObject({ epochHeld: false, tickPending: false, processedTick: 1 });
+    pages.releaseAfterLayoutMotion();
+    expect(pages.processedTick).toBe(1);
+    pages.dispose();
+    epoch.dispose();
+  });
+
+  it("defers one logical appearance while held without resetting page state", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "weather", identities: ["w1", "w2"], rotationMember: true });
+    pages.holdForEpoch();
+    pages.recordRotationAppearance("weather");
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("weather").activeKey).toBe("w1");
+    expect(pages.diagnostics()).toMatchObject({ pendingAppearanceKeys: ["weather"] });
+
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("weather").activeKey).toBe("w2");
+    pages.dispose();
+  });
 });
 
 describe("rotation instance", () => {
