@@ -171,6 +171,72 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
     expect(source.indexOf("const geometry = readRenderedGeometry()"))
       .toBeLessThan(source.indexOf("measurementSettled = true", source.indexOf("function publishSettledGeometry")));
+    expect(source).toMatch(/gate-overflow :global\(\.flood-wide-card\)[^}]*min-height:\s*1px !important;/s);
+  });
+
+  it("reports flood rows clipped by their card root even without row self-overflow", async () => {
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.classList.contains("flood-card") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.classList.contains("flood-card") ? 240 : 0; },
+    });
+    try {
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ standbyItems: [flood()] }), now, dim: false, sseConnected: true,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      const root = container.querySelector(".standby")!;
+      const riverRow = container.querySelector<HTMLElement>(".legacy-layout .flood-card .river-row")!;
+      expect(riverRow.scrollHeight).toBe(riverRow.clientHeight);
+      expect(root.getAttribute("data-flood-readable-overflow-keys")).toContain("flood:0:root");
+    } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+    }
+  });
+
+  it("ignores flood rows with no rendered box under an ancestor display:none", async () => {
+    const originalClientRects = HTMLElement.prototype.getClientRects;
+    const originalBoundingRect = HTMLElement.prototype.getBoundingClientRect;
+    const oneRect = { length: 1 } as unknown as DOMRectList;
+    const noRects = { length: 0 } as unknown as DOMRectList;
+    const clientRects = vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (this: HTMLElement): DOMRectList {
+      if (this.matches(".legacy-layout .flood-card .river-entry:nth-of-type(3) .river-row")) return noRects;
+      if (this.matches(".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row")) return oneRect;
+      return originalClientRects.call(this);
+    });
+    const boundingRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement): DOMRect {
+      if (this.matches(".legacy-layout .flood-card")) return new DOMRect(0, 0, 200, 200);
+      if (this.matches(".legacy-layout .flood-card .river-entry:nth-of-type(3) .river-row")) return new DOMRect(0, 220, 100, 20);
+      if (this.matches(".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row")) return new DOMRect(0, 50, 100, 20);
+      return originalBoundingRect.call(this);
+    });
+    try {
+      const base = flood();
+      const item = {
+        ...base,
+        data: {
+          rivers: Array.from({ length: 3 }, (_, index) => ({
+            ...base.data.rivers[0]!, riverKey: `river:${index}`, riverName: `河川${index}`,
+          })),
+        },
+      };
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ standbyItems: [item] }), now, dim: false, sseConnected: true,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(container.querySelector(".standby")?.getAttribute("data-flood-readable-overflow-keys")).toBe("");
+    } finally {
+      clientRects.mockRestore();
+      boundingRect.mockRestore();
+    }
   });
 
   it("suppresses an unrecognised future DTO and exposes its count", () => {

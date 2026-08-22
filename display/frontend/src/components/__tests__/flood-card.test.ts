@@ -88,10 +88,36 @@ describe("FloodCard", () => {
     expect(source).toMatch(/\.trend-falling[^}]*var\(--role-connectionOk\)/s);
   });
 
-  it("狭い side card でも kind と観測所副行を ellipsis にせず折り返す", () => {
+  it("通常幅は nowrap、狭い side card だけ kind と観測所副行を折り返す", () => {
     const source = readFileSync(join(__dirname, "..", "FloodCard.svelte"), "utf8");
-    expect(source).toMatch(/\.river-row\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
-    expect(source).toMatch(/\.station-row\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
+    const narrow = /@container \(max-width: 320px\) \{([\s\S]*)\n  \}/.exec(source)?.[1] ?? "";
+    expect(source).toContain("container-type: inline-size");
+    expect(source).toMatch(/\.river-row\s*\{[^}]*white-space:\s*nowrap;/s);
+    expect(source).toMatch(/\.station-row\s*\{[^}]*white-space:\s*nowrap;/s);
+    expect(narrow).toMatch(/\.river-row,[\s\S]*\.station-row\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
+  });
+
+  it("200px を超える side 河川は通常幅2件・狭幅1件の集約行へ送る", () => {
+    const { container } = render(FloodCard, { item: floodItem([
+      river("大淀", "L5"), river("小丸", "L4"), river("五ヶ瀬", "L4"), river("耳", "L3"), river("一ツ瀬", "L3"),
+    ]) });
+    const card = container.querySelector(".flood-card");
+    expect(card?.classList.contains("height-budgeted")).toBe(true);
+    expect(card?.classList.contains("many-rivers")).toBe(true);
+    expect(container.querySelector(".more-many")?.textContent).toBe("ほか 3 河川");
+    expect(container.querySelector(".more-narrow")?.textContent).toBe("ほか 4 河川");
+
+    const three = render(FloodCard, { item: floodItem([
+      river("大淀", "L4"), river("小丸", "L3"), river("五ヶ瀬", "L3"),
+    ]) });
+    expect(three.container.querySelector(".flood-card")?.classList.contains("many-rivers")).toBe(true);
+    expect(three.container.querySelector(".more-many")?.textContent).toBe("ほか 1 河川");
+
+    const source = readFileSync(join(__dirname, "..", "FloodCard.svelte"), "utf8");
+    expect(source).toMatch(/\.many-rivers \.river-entry:nth-of-type\(n \+ 3\)\s*\{\s*display:\s*none;/s);
+    expect(source).toMatch(/@container \(max-width: 320px\)[\s\S]*\.river-entry:nth-of-type\(n \+ 2\)\s*\{\s*display:\s*none;/s);
+    expect(source).toMatch(/\.height-budgeted\s*\{\s*min-height:\s*200px;/s);
+    expect(source).toMatch(/\.more-rivers\s*\{[^}]*padding:\s*var\(--space-1\) var\(--space-4\);/s);
   });
 
   it("marks a restored card as synchronizing", () => {

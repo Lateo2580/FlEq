@@ -269,6 +269,12 @@ function assertCardContainment(diagnostics) {
   if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
 }
 
+function assertFloodReadability(diagnostics) {
+  const overflowKeys = diagnostics["data-flood-readable-overflow-keys"];
+  if (overflowKeys == null) throw new Error("flood readability diagnostic is missing");
+  if (overflowKeys !== "") throw new Error(`flood readability invalid: ${overflowKeys}`);
+}
+
 function assertGeometry(diagnostics, { skipWeatherHeight = false } = {}) {
   const selectedWeather = numberDiagnostic(diagnostics, "data-weather-selected-height-px");
   const liveWeather = numberDiagnostic(diagnostics, "data-weather-live-height-px");
@@ -419,6 +425,12 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   if (!clusterFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
   assertNankaiSeparation(diagnostics);
   assertStageZeroClock(diagnostics);
+  // With an explicit flood-bearing scenario (for example
+  // --scenario 7 --fixture overflow), run this before generic containment so
+  // the fixture proves the flood root-clipping diagnostic itself. The default
+  // fixture starts at quiet, which has no flood card and intentionally falls
+  // through to the generic containment counterexample.
+  assertFloodReadability(diagnostics);
   assertCardContainment(diagnostics);
   assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
   if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });

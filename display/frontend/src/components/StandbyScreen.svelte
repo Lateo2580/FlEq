@@ -971,10 +971,28 @@
       return indicator == null || rider == null ? 0 : overlapArea(indicator.getBoundingClientRect(), rider.getBoundingClientRect());
     }));
     const floodReadableOverflowKeys = [...(standbyEl?.querySelectorAll<HTMLElement>(
-      ".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row, .legacy-layout .flood-wide-card .river-line, .legacy-layout .flood-wide-card .cell-station, .legacy-layout .flood-wide-card .cell-level",
+      ".legacy-layout .flood-card, .legacy-layout .flood-wide-card",
     ) ?? [])]
-      .filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
-      .map((element, index) => `${element.className.split(" ")[0] || "flood-readable"}:${index}`)
+      .filter(paintable)
+      .flatMap((card, cardIndex) => {
+        const cardKey = `${card.classList.contains("flood-wide-card") ? "flood-wide" : "flood"}:${cardIndex}`;
+        const cardRect = card.getBoundingClientRect();
+        const readable = [...card.querySelectorAll<HTMLElement>(
+          ".river-row, .station-row, .river-line, .cell-station, .cell-level",
+        )].filter((element) => paintable(element) && element.getClientRects().length > 0);
+        return [
+          ...(card.scrollWidth > card.clientWidth + 1 || card.scrollHeight > card.clientHeight + 1
+            ? [`${cardKey}:root`]
+            : []),
+          ...readable.flatMap((element, index) => {
+            const selfOverflow = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+            const clippedByCard = !rectContainedBy(element.getBoundingClientRect(), cardRect);
+            return selfOverflow || clippedByCard
+              ? [`${cardKey}:${element.className.split(" ")[0] || "readable"}:${index}`]
+              : [];
+          }),
+        ];
+      })
       .join(",");
     const weatherMeasurementPlacement: Placement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "right";
     const weatherMeasurementVariant = selectedVariant("weather", renderSelection);
@@ -1616,6 +1634,10 @@
   /* E-gate only: break the rendered layout, never the diagnostic values. */
   .standby.gate-overflow .legacy-card { height: 1px !important; overflow: hidden; }
   .standby.gate-overflow :global(.weather-card [data-page-probe-body]) { height: 1px; overflow: hidden; }
+  /* Pin the ancestor-clipping counterexample too: readable flood rows can
+     have no self overflow while their max-height root hides the lower rows. */
+  .standby.gate-overflow :global(.flood-card),
+  .standby.gate-overflow :global(.flood-wide-card) { height: 1px !important; min-height: 1px !important; max-height: 1px !important; overflow: hidden; }
   /* Put both independently measured targets at one fixed origin. Unlike a
      percentage bottom offset, this remains an overlap at every viewport. */
   .standby.gate-overlap .nankai-ticker { top: 0; right: auto; bottom: auto; left: 0; width: 280px; }
