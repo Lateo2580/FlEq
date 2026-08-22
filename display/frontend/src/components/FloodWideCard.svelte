@@ -18,7 +18,27 @@
 
   let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
   let viewportHeightPx = $state(typeof window === "undefined" ? 720 : window.innerHeight);
-  const rows = $derived(layoutFloodWideRows(item.data.rivers, viewportHeightPx));
+  // Read the actual card width so the row budget follows the same 400px
+  // container-query branch as the rendered station grid. Infinity preserves
+  // the normal-width fallback until the browser's ResizeObserver reports.
+  let cardWidthPx = $state(Number.POSITIVE_INFINITY);
+  const rows = $derived(layoutFloodWideRows(item.data.rivers, viewportHeightPx, cardWidthPx));
+
+  function measureCardWidth(node: HTMLElement): { destroy?: () => void } {
+    const update = (): void => {
+      // clientWidth follows the container query's inner inline-size; a border
+      // box rect would switch up to 2px later around the 400px boundary.
+      const width = node.clientWidth;
+      // A zero rect means "not laid out yet" (and is the jsdom fallback), not
+      // the 400px narrow branch. Keep the normal model until a real box exists.
+      if (width > 0) cardWidthPx = width;
+    };
+    update();
+    if (typeof ResizeObserver === "undefined") return {};
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
 
   // 見出し帯の段階カラーはカード内最高レベルで決める (L3 氾濫警戒=赤 / L4 氾濫危険=紫 /
   // L5 氾濫発生=黒帯白枠白リボン黄文字、FloodCard と同型)
@@ -60,7 +80,7 @@
   );
 </script>
 
-<section class="standby-card flood-wide-card band-{band}">
+<section class="standby-card flood-wide-card band-{band}" use:measureCardWidth>
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>

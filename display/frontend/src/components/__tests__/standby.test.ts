@@ -93,11 +93,21 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(previewSource).toContain("legacyStandbyGate");
   });
 
+  it("pins the overlap fixture to a real page-indicator/tornado-rider intersection", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    const runner = readFileSync(join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs"), "utf8");
+    expect(source).toMatch(/gate-overlap :global\(\.weather-card\.has-page-footer\.has-tornado \.tornado-rider\) \{ margin-top: 0; \}/);
+    expect(runner).toContain('overlapDefault ? ["7"]');
+    expect(runner).toContain('overlapDefault ? ["960x620"]');
+  });
+
   it("guarantees readable side tracks at 960px and measures shelves against the same track widths", async () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
     expect(source).toContain("--side-readable-width: 17.5rem");
     expect(source).toContain("--center-width: min(36rem, calc(100vw - var(--edge) * 2 - var(--gap) * 2 - var(--side-readable-width) * 2))");
     expect(source).toMatch(/\.measure-shelf, \.center-measure-shelf \{[^}]*calc\(\(100% - var\(--edge\) \* 2 - var\(--gap\) \* 2 - var\(--center-width\)\) \/ 2\)/);
+    expect(source).toMatch(/\.measure-item :global\(\.standby-card\)[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
+    expect(source).toMatch(/\.measure-item :global\(\.flood-wide-card\)[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
 
     const { container } = render(StandbyScreen, {
       snapshot: baseSnapshot(), now, dim: false, sseConnected: true,
@@ -289,6 +299,21 @@ describe("StandbyScreen legacy-improved skeleton", () => {
         snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:03:00+09:00")] }), now, dim: false, sseConnected: true,
       });
       for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(container.querySelector(".standby")?.getAttribute("data-flood-visibility-violation-keys"))
+        .toContain("flood:0:card:missing");
+
+      // Reproduce the exact inactive-rotation ancestor contract around the
+      // same missing-box card. Only that explicit wrapper may exempt it.
+      const rotationWrapper = container.querySelector<HTMLElement>(".legacy-layout .flood-card")
+        ?.closest<HTMLElement>(".legacy-card");
+      expect(rotationWrapper).toBeTruthy();
+      rotationWrapper?.classList.add("rotation-card");
+      if (rotationWrapper != null) rotationWrapper.hidden = true;
+      await rerender({
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:04:00+09:00")] }), now, dim: false, sseConnected: true,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(container.querySelector(".rotation-card[hidden] .flood-card")).toBeTruthy();
       expect(container.querySelector(".standby")?.getAttribute("data-flood-visibility-violation-keys")).toBe("");
     } finally {
       clientRects.mockRestore();

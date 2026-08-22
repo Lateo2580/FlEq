@@ -182,6 +182,10 @@ export const VOLCANO_LEVEL_LABELS: Record<number, string> = {
 const FLOOD_WIDE_HEADER_ESTIMATE_PX = 48;
 // 主行 + 2×2 グリッド (観測所/水位/水位の情報/ミニグラフ、値のみ) のセル実高目安。
 const FLOOD_WIDE_ROW_ESTIMATE_PX = 88;
+// 400px 以下では river-line が折り返し、station grid も観測所・水位・基準・グラフの
+// 4 段になる。121px 程度の実内容幅で、主行2行(34px) + station 4段(約105px) +
+// padding/gap/border を合算した保守値。通常幅の 88px を流用すると表示数を過大評価する。
+const FLOOD_WIDE_NARROW_ROW_ESTIMATE_PX = 160;
 // 集約行「ほか N 河川」の実高目安。1 行テキスト + padding/border。preview 実測 36.4px (2026-07-23)
 // に余裕を乗せた値。実測と乖離したら上げる方向で調整する (過小見積りが再クリップの主リスク)。
 const FLOOD_WIDE_MORE_ROW_ESTIMATE_PX = 40;
@@ -194,16 +198,20 @@ export type FloodWideRow =
 export function layoutFloodWideRows(
   rivers: DisplayFloodRiverV1[],
   viewportHeightPx: number,
+  containerWidthPx = Number.POSITIVE_INFINITY,
 ): FloodWideRow[] {
   const availablePx = Math.max(0, viewportHeightPx * 0.3 - FLOOD_WIDE_HEADER_ESTIMATE_PX);
+  const rowEstimatePx = containerWidthPx <= 400
+    ? FLOOD_WIDE_NARROW_ROW_ESTIMATE_PX
+    : FLOOD_WIDE_ROW_ESTIMATE_PX;
   const riverRow = (river: DisplayFloodRiverV1): FloodWideRow =>
     ({ kind: "river", key: `river:${river.riverKey}`, river });
   // 全河川が収まるなら集約なし (最低 1 行は保証。旧実装の「最低 2 行強制」は 720p 溢れの直接原因)
-  const fullRows = Math.max(1, Math.floor(availablePx / FLOOD_WIDE_ROW_ESTIMATE_PX));
+  const fullRows = Math.max(1, Math.floor(availablePx / rowEstimatePx));
   if (rivers.length <= fullRows * 2) return rivers.map(riverRow);
   // 収まらない場合は集約行の実高を先に差し引いてから河川行数を決める (集約行を「2 セル分」と
   // みなす旧予約は過大で、720p の表示可能セルを不当に削っていた)
-  const rowsWithMore = Math.max(0, Math.floor((availablePx - FLOOD_WIDE_MORE_ROW_ESTIMATE_PX) / FLOOD_WIDE_ROW_ESTIMATE_PX));
+  const rowsWithMore = Math.max(0, Math.floor((availablePx - FLOOD_WIDE_MORE_ROW_ESTIMATE_PX) / rowEstimatePx));
   const visibleCount = Math.min(rivers.length, rowsWithMore * 2);
   return [
     ...rivers.slice(0, visibleCount).map(riverRow),

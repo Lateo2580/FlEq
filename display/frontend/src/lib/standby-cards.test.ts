@@ -204,6 +204,12 @@ describe("layoutFloodWideRows (部位別予算 + タグ付き union)", () => {
     expect(layoutFloodWideRows(riverFixture(5), 1080).map((r) => r.kind)).toEqual(["river", "river", "river", "river", "river"]);
   });
 
+  it("1080p でも 400px 以下は4段セル高で見積もり、2セル + 集約へ縮める", () => {
+    const rows = layoutFloodWideRows(riverFixture(5), 1080, 307);
+    expect(rows.map((row) => row.kind)).toEqual(["river", "river", "more"]);
+    expect(rows[2]).toMatchObject({ kind: "more", omittedCount: 3 });
+  });
+
   it("720p・3 河川は 2 セル + 集約 1 (最低 2 行の強制を廃止し実予算で決める)", () => {
     const rows = layoutFloodWideRows(riverFixture(3), 720);
     expect(rows.map((row) => row.kind)).toEqual(["river", "river", "more"]);

@@ -453,7 +453,13 @@ async function main() {
   let options;
   try { options = parseArgs(process.argv.slice(2)); } catch (error) { usage(error.message); return; }
   if (options == null) { usage(); return; }
-  const scenarios = options.scenarios.length === 0 ? DEFAULT_SCENARIOS : options.scenarios;
+  // The overlap counterexample needs the first paged weather+tornado cell.
+  // Scenario 7 / 960 is that deterministic surface; starting from quiet would
+  // exercise no badge at all and could leave the rider diagnostic unproven.
+  const overlapDefault = options.fixture === "overlap" && options.scenarios.length === 0;
+  const scenarios = options.scenarios.length === 0
+    ? overlapDefault ? ["7"] : DEFAULT_SCENARIOS
+    : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
   if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm"].includes(options.fixture)) throw new Error("fixture must be overflow, overlap, rotation, cluster, or cluster-calm");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
@@ -468,7 +474,8 @@ async function main() {
     const results = [];
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
-        ? scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
+        ? overlapDefault ? ["960x620"]
+          : scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
         : requestedViewports.map((viewport) => viewport.label);
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {

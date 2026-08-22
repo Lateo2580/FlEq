@@ -974,15 +974,15 @@
     }));
     const floodCards = [...(standbyEl?.querySelectorAll<HTMLElement>(
       ".legacy-layout .flood-card, .legacy-layout .flood-wide-card",
-    ) ?? [])].filter(paintable);
+    ) ?? [])];
     const hasRenderedBox = (element: HTMLElement): boolean => Array.from(element.getClientRects())
       .some((rect) => rect.width > 0 && rect.height > 0);
     const floodVisibilityViolationKeys = floodCards
       // Rotation keeps every candidate mounted and hides inactive wrappers.
-      // Validate entry/summary boxes only while the compact card itself owns
-      // a rendered box; an inactive rotation candidate has no visibility
-      // contract until its tick becomes active.
-      .filter((card) => card.classList.contains("flood-card") && hasRenderedBox(card))
+      // Exempt exactly those inactive wrappers. A fixed or active compact card
+      // that loses every box is a cascade failure and must stay observable.
+      .filter((card) => card.classList.contains("flood-card")
+        && card.closest(".rotation-card[hidden]") == null)
       .flatMap((card, cardIndex) => {
         const cardKey = `flood:${cardIndex}`;
         const entries = [...card.querySelectorAll<HTMLElement>("[data-flood-entry-index]")];
@@ -994,6 +994,7 @@
           ? null
           : aggregates.find((element) => element.dataset.floodAggregate === expectedAggregate) ?? null;
         return [
+          ...(!hasRenderedBox(card) ? [`${cardKey}:card:missing`] : []),
           ...entries.flatMap((entry, index) => {
             const expected = index < expectedVisibleCount;
             const actual = hasRenderedBox(entry);
@@ -1012,6 +1013,7 @@
       })
       .join(",");
     const floodReadableOverflowKeys = floodCards
+      .filter(paintable)
       .flatMap((card, cardIndex) => {
         const cardKey = `${card.classList.contains("flood-wide-card") ? "flood-wide" : "flood"}:${cardIndex}`;
         const cardRect = card.getBoundingClientRect();
@@ -1645,7 +1647,9 @@
   .measure-item { width: 100%; flex: 0 0 auto; }
   /* The live card gets this through .legacy-card. Shelf cards are direct
      children, so bridge the same surface contract for every variant. */
-  .measure-item :global(.weather-card) { width: 100%; max-width: 100%; }
+  .measure-item :global(.weather-card),
+  .measure-item :global(.standby-card),
+  .measure-item :global(.flood-wide-card) { width: 100%; max-width: 100%; }
   .partition-preflight { width: 100%; flex: 0 0 auto; }
   .baseline-gap-measure { position: absolute; width: var(--base-gap); height: 1px; visibility: hidden; pointer-events: none; }
   .rotation-indicator-measure { position: absolute; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; }
@@ -1685,11 +1689,10 @@
      have no self overflow while their max-height root hides the lower rows. */
   .standby.gate-overflow :global(.flood-card),
   .standby.gate-overflow :global(.flood-wide-card) { height: 1px !important; min-height: 1px !important; max-height: 1px !important; overflow: hidden; }
-  /* Put both independently measured targets at one fixed origin. Unlike a
-     percentage bottom offset, this remains an overlap at every viewport. */
-  .standby.gate-overlap .nankai-ticker { top: 0; right: auto; bottom: auto; left: 0; width: 280px; }
-  .standby.gate-overlap .center-card-region .quakes-card,
-  .standby.gate-overlap .clock-landmark .quakes-card { position: fixed; top: 0; left: 0; width: 280px; }
+  /* E-gate counterexample: remove only the compensated badge gap. The page
+     indicator then paints directly into the tornado rider, so the production
+     rect-overlap diagnostic (not an injected value) must turn red. */
+  .standby.gate-overlap :global(.weather-card.has-page-footer.has-tornado .tornado-rider) { margin-top: 0; }
   /* E-gate success fixture: scenario 4 の stage 0–2 fixed cluster を
      measured/live とも膨らませ、r-f が時計を消さず縮退することを実証する。 */
   .standby.gate-cluster :global(.center-measure-shelf .center-stack-card.quakes-card),

@@ -180,7 +180,7 @@
 **B. レイアウト実測ゲート**（headless Chrome runner。期待表は §5・本節の実測表を正本とし、実装後の観測値で書き換えない）:
 - runner は `data-measurement-settled="true"` を待って採寸する。この属性は **fonts.ready・測定 epoch・stage settle・partition queue の全消化**が揃った時点でのみ true（途中状態の撮影禁止）。
 - scenario（quiet/4/7/max）× viewport（1920×1080・1512×982・1280×720・960×620）と max＋floodWide の2セルで `data-ladder-stage`・輪番集合・`data-layout-unresolved="false"` が §5／本節の固定表と一致し、`data-measurement-nonconverged="false"`。runner の `--report` はこの期待表を全セル JSON 照合する。
-- **切れゼロ（縦横）**: 各カード root の `scrollHeight ≤ clientHeight + 1`・`scrollWidth ≤ clientWidth + 1`・カード矩形が viewport 内。時計の秒・日付矩形がクラスタ矩形に包含。台風カードの名前と位置情報が同一行（矩形縦中心差 ≤ 2px、compact/full 両形式）。ページ番号矩形と地域本文矩形の交差 0。
+- **切れゼロ（縦横）**: 各カード root の `scrollHeight ≤ clientHeight + 1`・`scrollWidth ≤ clientWidth + 1`・カード矩形が viewport 内。時計の秒・日付矩形がクラスタ矩形に包含。台風カードの名前と位置情報が同一行（矩形縦中心差 ≤ 2px、compact/full 両形式）。ページ番号矩形と地域本文矩形の交差 0、ページ番号矩形と竜巻 rider 矩形の交差 0。
 - **狭幅トラック整合**: 960×620 で `data-left/right-track-width-px ≥ 280`、`data-center-track-width-px` は実トラック幅と一致し、`data-side-measure-shelf-width-px` は左右トラック幅、`data-center-measure-shelf-width-px` は中央トラック幅との差が各 ≤ 1px。時計の秒・日付を含む全要素で横切れゼロ。
 - **重なりゼロ**: カード矩形同士・時計クラスタ・南海帯の交差面積 0（境界 1px 許容）。
 - **時計中心**: stage 0 で時刻要素中心と viewport 中心の差が各軸 ≤ 1px（DPR 込み実測 rect）。列スクロールなし（各列 `scrollHeight ≤ clientHeight + 1`）。
@@ -214,7 +214,7 @@
 
 **D. wire 契約ユニットテスト（engine 側）**: ①同一 kind・複数 source・一部重複の union（順序・重複排除・totalAreaCount）②安全弁 128 の境界（127/128/129——129 で prefix 128 切り・candidateTruncated=true・残数正。**複数 group/kind をまたいで 128 に到達する fixture を含み、切られた group/kind の帰属が正しいこと**）③optional 欠落の旧互換④budget 縮退で候補が本体より先に落ち truncated=true が残る⑤sanitizer・protocol 複製後も候補と flag が保持⑥正規化関数コピーの同一性（同一入力→出力一致）。
 
-**E. ゲートの反証テスト**（runner 自体の失敗能力）: 意図的に壊した 3 種の fixture（`--fixture overflow`／`overlap`／`rotation`）で runner が非ゼロ終了する。壊し方は `gateFixture` のテスト専用パラメータで注入し本番経路に置かない。§10 の unknown 単体検証も含む。
+**E. ゲートの反証テスト**（runner 自体の失敗能力）: 意図的に壊した 3 種の fixture（`--fixture overflow`／`overlap`／`rotation`）で runner が非ゼロ終了する。`overlap` はページ番号の非算入契約を保ったまま竜巻 rider の予約 gap だけを除き、両矩形を実際に交差させる（診断値の直接注入は禁止）。壊し方は `gateFixture` のテスト専用パラメータで注入し本番経路に置かない。§10 の unknown 単体検証も含む。
 
 ### 11.2 人間検証必須（ご主人の目視 packet が判定）
 

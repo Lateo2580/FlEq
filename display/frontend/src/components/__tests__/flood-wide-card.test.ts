@@ -27,6 +27,13 @@ function floodItem(count: number, restored = false): Extract<ActiveStandbyCardV1
 afterEach(() => Object.defineProperty(window, "innerHeight", { configurable: true, value: originalInnerHeight }));
 
 describe("FloodWideCard", () => {
+  it("feeds its live width into the same branch that restacks narrow cells", () => {
+    const source = readFileSync(join(__dirname, "..", "FloodWideCard.svelte"), "utf8");
+    expect(source).toContain("use:measureCardWidth");
+    expect(source).toContain('if (typeof ResizeObserver === "undefined") return {}');
+    expect(source).toContain("layoutFloodWideRows(item.data.rivers, viewportHeightPx, cardWidthPx)");
+  });
+
   it("lays rivers out in two columns and aggregates rows that do not fit", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
     const { container } = render(FloodWideCard, { item: floodItem(12) });
