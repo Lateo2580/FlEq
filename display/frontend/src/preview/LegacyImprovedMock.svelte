@@ -19,6 +19,7 @@
     DisplayWeatherAlertItemV1,
     DisplayWeatherAlertV1,
   } from "../lib/protocol";
+  import { floodWideRowsIncludeDetail } from "../lib/standby-cards";
   import {
     latestQuakeStandbyCards,
     legacyImprovedExpandedLatestQuake,
@@ -1970,6 +1971,10 @@
       capacityPx: { left: capacity, right: capacity, center: centerCapacityPx() },
       centerFixedHeightPx: centerFixedNaturalHeight(),
       floodIsWide,
+      // jsdom has no layout width; retain its historical mock fallback there.
+      // A rendered preview uses the measured side width and the live rule.
+      floodWidePromotionAllowed: floodIsWide && flood != null && (measuredCardWidthPx <= 0
+        || floodWideRowsIncludeDetail(flood.data.rivers, window.innerHeight, measuredCardWidthPx)),
       candidateSupplyLimit: candidateSupplyLimit(),
       rotationSlotHeight: (keys) => Math.max(0, ...keys.map((key) => measuredHeight(key, "compact"))),
       failureRowHeight: measuredRotationFailureHeightPx,

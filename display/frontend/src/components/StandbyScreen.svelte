@@ -3,6 +3,7 @@
   import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayStateSnapshotV1, DisplayTsunamiLevel } from "../lib/protocol";
   import { recentQuakeId } from "../lib/format";
   import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
+  import { floodWideRowsIncludeDetail } from "../lib/standby-cards";
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
@@ -555,6 +556,15 @@
   function naturalColumnHeight(cards: readonly CardCandidate[]): number {
     return cards.reduce((total, card) => total + card.naturalHeight, 0) + Math.max(0, cards.length - 1) * gapPx;
   }
+  function floodWideDetailAllowed(placement: "side" | "center"): boolean {
+    if (floodItem == null || floodItem.surface !== "clock-top-wide") return false;
+    const widthPx = placement === "center" ? centerMeasureShelfWidthPx : sideMeasureShelfWidthPx;
+    // Unknown geometry is not permission to promote. The measurement epoch
+    // will re-evaluate once the shelf owns the same positive width as live.
+    if (widthPx <= 0) return false;
+    const viewportHeightPx = typeof window === "undefined" ? 720 : window.innerHeight;
+    return floodWideRowsIncludeDetail(floodItem.data.rivers, viewportHeightPx, widthPx);
+  }
   function centerHeight(choice: PlacementChoice, selection: DisplaySelection, hidden: readonly CenterClusterItem[], measureGap = gapPx): number {
     const fixedCenter = centerFixed(hidden, measureGap);
     const fixed = fixedCenter.height;
@@ -583,7 +593,10 @@
       },
       capacityPx: { left: capacityLimit, right: capacityLimit, center: capacityLimit },
       centerFixedHeightPx: fixedCenter.height,
-      floodIsWide: floodItem?.surface === "clock-top-wide",
+      // A center placement is "wide" only when that surface retains detail;
+      // otherwise comparison must not prefer it over the compact card.
+      floodIsWide: floodWideDetailAllowed("center"),
+      floodWidePromotionAllowed: floodWideDetailAllowed("side"),
       candidateSupplyLimit: MAX_PREFIX_ROWS,
       rotationSlotHeight: (keys) => keys.length === 0
         ? 0
@@ -652,6 +665,15 @@
     if (key === "weather" && selected.weatherRows > 0) return "expanded";
     return "compact";
   }
+  function renderFloodWide(placement: Placement, variant: CardVariant, measuring: boolean, selected: DisplaySelection): boolean {
+    if (floodItem == null || floodItem.surface !== "clock-top-wide") return false;
+    // Keep the expanded shelf as the true wide counterfactual so the solver
+    // can price it, even when the eligibility guard ultimately rejects it.
+    if (measuring && variant === "expanded") return true;
+    const surface = placement === "center" ? "center" : "side";
+    const requested = placement === "center" || (!measuring && selected.floodWide);
+    return requested && floodWideDetailAllowed(surface);
+  }
   const displayVariant = (card: CardCandidate): CardVariant => selectedVariant(card.key, renderSelection);
   const rotationActiveKey = $derived(rotationScheduler.currentKey());
   const effectiveRotationKey = $derived.by(() => rotationActiveKey != null && renderPlan.rotationKeys.includes(rotationActiveKey)
@@ -688,7 +710,7 @@
   const renderFloodForm = $derived.by(() => {
     if (floodItem == null) return "none";
     const placement = renderPlan.center.some((card) => card.key === "flood") ? "center" : "side";
-    return (placement === "center" && floodItem.surface === "clock-top-wide") || renderSelection.floodWide ? "wide" : "card";
+    return renderFloodWide(placement, selectedVariant("flood", renderSelection), false, renderSelection) ? "wide" : "card";
   });
   // Selection retains a type-level default even when the candidate is absent.
   // The diagnostic describes rendered reality, not that solver default.
@@ -1417,7 +1439,7 @@
       pagePlacement={placement === "center" ? "center" : "side"}
     />
   {:else if key === "flood" && floodItem != null}
-    {#if (placement === "center" && floodItem.surface === "clock-top-wide") || (measuring ? variant === "expanded" : selected.floodWide)}<FloodWideCard item={floodItem} />{:else}<FloodCard item={floodItem} />{/if}
+    {#if renderFloodWide(placement, variant, measuring, selected)}<FloodWideCard item={floodItem} />{:else}<FloodCard item={floodItem} />{/if}
   {:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />
   {:else if key === "volcano" && volcanoItem != null}<VolcanoCard item={volcanoItem} />
   {:else if key === "heat" && heatItem != null}<HeatAlertCard item={heatItem} />

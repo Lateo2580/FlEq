@@ -218,3 +218,22 @@ export function layoutFloodWideRows(
     { kind: "more", key: "meta:more", omittedCount: rivers.length - visibleCount },
   ];
 }
+
+/** A wide placement is useful only when it can retain at least one supplied
+ * river. Callers fall back to FloodCard when the wide budget would collapse
+ * to the aggregate row alone. */
+export function floodWideRowsIncludeDetail(
+  rivers: DisplayFloodRiverV1[],
+  viewportHeightPx: number,
+  containerWidthPx: number,
+): boolean {
+  const availablePx = Math.max(0, viewportHeightPx * 0.3 - FLOOD_WIDE_HEADER_ESTIMATE_PX);
+  const rowEstimatePx = containerWidthPx <= 400
+    ? FLOOD_WIDE_NARROW_ROW_ESTIMATE_PX
+    : FLOOD_WIDE_ROW_ESTIMATE_PX;
+  // layoutFloodWideRows guarantees one logical row for non-empty input; that
+  // fallback is not physical proof that the row fits under max-height:30vh.
+  if (availablePx < rowEstimatePx) return false;
+  return layoutFloodWideRows(rivers, viewportHeightPx, containerWidthPx)
+    .some((row) => row.kind === "river");
+}

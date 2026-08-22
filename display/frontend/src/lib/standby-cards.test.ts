@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ActiveStandbyCardV1, StandbySeverity } from "./protocol";
 import {
+  floodWideRowsIncludeDetail,
   layoutFloodWideRows,
   partitionStandbyItems,
   rightStackBudgetPx,
@@ -208,6 +209,14 @@ describe("layoutFloodWideRows (部位別予算 + タグ付き union)", () => {
     const rows = layoutFloodWideRows(riverFixture(5), 1080, 307);
     expect(rows.map((row) => row.kind)).toEqual(["river", "river", "more"]);
     expect(rows[2]).toMatchObject({ kind: "more", omittedCount: 3 });
+  });
+
+  it("狭幅・低高で集約行しか残らない境界を wide 昇格不可として識別する", () => {
+    expect(layoutFloodWideRows(riverFixture(4), 720, 307).map((row) => row.kind)).toEqual(["more"]);
+    expect(floodWideRowsIncludeDetail(riverFixture(4), 720, 307)).toBe(false);
+    expect(floodWideRowsIncludeDetail(riverFixture(4), 620, 280)).toBe(false);
+    expect(floodWideRowsIncludeDetail(riverFixture(1), 620, 280)).toBe(false);
+    expect(floodWideRowsIncludeDetail(riverFixture(4), 1080, 307)).toBe(true);
   });
 
   it("720p・3 河川は 2 セル + 集約 1 (最低 2 行の強制を廃止し実予算で決める)", () => {

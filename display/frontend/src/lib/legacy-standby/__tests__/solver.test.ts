@@ -16,6 +16,7 @@ function context(measureSelection: (choice: PlacementChoice, selection: Paramete
     capacityPx: { left: 100, right: 100, center: 100 },
     centerFixedHeightPx: 0,
     floodIsWide: false,
+    floodWidePromotionAllowed: false,
     candidateSupplyLimit: 128,
     rotationSlotHeight: () => 0,
     failureRowHeight: 0,
@@ -92,6 +93,21 @@ describe("legacy standby solver", () => {
     const ctx = context((_, selection) => selection.quakeRows === 2 ? 0 : selection.quakeRows === 0 ? 0 : 1);
 
     expect(promoteAndExpand(plan, ctx).quakeRows).toBe(2);
+  });
+
+  it("cannot select a side wide flood when its budget would retain no detailed river", () => {
+    const flood = card("flood", 0, 20);
+    const plan: ColumnPlan = {
+      left: [], right: [flood], center: [], moved: new Set(), unresolved: false, centerUnresolved: false,
+      stage: 0, variants: { quake: "compact", weather: "compact", typhoon: "compact" }, rotationKeys: [],
+      rotationCurrentKey: null, rotationSlotHeight: 0, rotationFailureCount: 0, layoutFailure: false,
+    };
+    const rejected = { ...context(() => 0), floodIsWide: true, floodWidePromotionAllowed: false };
+    const eligible = { ...rejected, floodWidePromotionAllowed: true };
+
+    expect(promoteAndExpand(plan, rejected).floodWide).toBe(false);
+    expect(achievableSurplusUse({ left: [], right: [flood], center: [], moved: new Set() }, rejected)).toBe(0);
+    expect(promoteAndExpand(plan, eligible).floodWide).toBe(true);
   });
 
   it("ranks rotation placements with the reserved slot height", () => {
@@ -202,7 +218,7 @@ describe("legacy standby solver", () => {
     const quake = card("quake", 0, 40);
     const flood = card("flood", 1, 20);
     const weather = card("weather", 2, 20, 1);
-    const ctx = { ...context((choice, selection) => choice.left.some((entry) => entry.key === "weather") && selection.weatherRows > 0 ? 1 : 0), floodIsWide: true };
+    const ctx = { ...context((choice, selection) => choice.left.some((entry) => entry.key === "weather") && selection.weatherRows > 0 ? 1 : 0), floodIsWide: true, floodWidePromotionAllowed: true };
     const fewerCenter: PlacementChoice = { left: [quake], right: [flood, weather], center: [], moved: new Set() };
     const moreCenter: PlacementChoice = { left: [quake], right: [weather], center: [flood], moved: new Set() };
     const wideCenter: PlacementChoice = { left: [quake], right: [weather], center: [flood], moved: new Set() };

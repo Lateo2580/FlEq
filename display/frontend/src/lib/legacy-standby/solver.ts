@@ -26,6 +26,8 @@ export interface SolverContext {
   capacityPx: { left: number; right: number; center: number };
   centerFixedHeightPx: number;
   floodIsWide: boolean;
+  /** Side-track wide promotion must retain at least one detailed river. */
+  floodWidePromotionAllowed: boolean;
   candidateSupplyLimit: number;
   rotationSlotHeight(keys: readonly CardKey[]): number;
   failureRowHeight: number;
@@ -116,7 +118,7 @@ export function achievableSurplusUse(choice: PlacementChoice, ctx: SolverContext
   };
   let achieved = 0;
   const floodPlacement = cardPlacement(choice, "flood");
-  if (ctx.floodIsWide && floodPlacement != null && floodPlacement !== "center") {
+  if (ctx.floodIsWide && ctx.floodWidePromotionAllowed && floodPlacement != null && floodPlacement !== "center") {
     const promoted = { ...selection, floodWide: true };
     if (selectionFits(choice, promoted, ctx, reservedRightHeight(choice, ctx, rotationSlotHeight, failureHeight))) {
       selection = promoted;
@@ -306,7 +308,7 @@ export function promoteAndExpand(plan: ColumnPlan, ctx: SolverContext): DisplayS
     const placement = cardPlacement(plan, key);
     if (placement == null || plan.rotationKeys.includes(key)) continue;
     const promoted = key === "flood" ? { ...selection, floodWide: true } : { ...selection, typhoon: "full" as TyphoonVariant };
-    if ((key !== "flood" || ctx.floodIsWide && placement !== "center") && (key !== "typhoon" || selection.typhoon === "compact") && selectionFits(choice, promoted, ctx)) selection = promoted;
+    if ((key !== "flood" || ctx.floodIsWide && ctx.floodWidePromotionAllowed && placement !== "center") && (key !== "typhoon" || selection.typhoon === "compact") && selectionFits(choice, promoted, ctx)) selection = promoted;
   }
   for (const key of ["quake", "weather"] as const) {
     if (plan.rotationKeys.includes(key)) continue;

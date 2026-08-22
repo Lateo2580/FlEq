@@ -143,6 +143,49 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(container.querySelector(".standby")?.getAttribute("data-flood-form")).toBe(visibleWide ? "wide" : "card");
   });
 
+  it("rejects a shorter summary-only wide promotion and restores it when one detailed row fits", async () => {
+    const innerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
+    const base = flood("clock-top-wide");
+    const item = (updatedAt: string) => ({
+      ...base,
+      updatedAt,
+      data: {
+        rivers: Array.from({ length: 4 }, (_, index) => ({
+          ...base.data.rivers[0]!, riverKey: `river:${index}`, riverName: `河川${index}`,
+        })),
+      },
+    });
+    const measurements = {
+      layoutWidthPx: 1280, layoutHeightPx: 600,
+      sideMeasureShelfWidthPx: 307, centerMeasureShelfWidthPx: 576,
+      "flood:compact:right": 200, "flood:expanded:right": 40, "flood:full:right": 200,
+      "flood:compact:center": 200, "flood:expanded:center": 200, "flood:full:center": 200,
+    };
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 720 });
+    try {
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:00:00+09:00")] }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: measurements,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(view.container.querySelector(".standby")?.getAttribute("data-flood-form")).toBe("card");
+      expect(view.container.querySelector(".legacy-layout .flood-card")).toBeTruthy();
+
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: 1080 });
+      await view.rerender({
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:01:00+09:00")] }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: measurements,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(view.container.querySelector(".standby")?.getAttribute("data-flood-form")).toBe("wide");
+      expect(view.container.querySelector(".legacy-layout .flood-wide-card")).toBeTruthy();
+      view.unmount();
+    } finally {
+      if (innerHeight == null) delete (window as { innerHeight?: number }).innerHeight;
+      else Object.defineProperty(window, "innerHeight", innerHeight);
+    }
+  });
+
   it("does not count an initially full typhoon as placement surplus", async () => {
     const { container } = render(StandbyScreen, {
       snapshot: baseSnapshot({ standbyItems: [typhoon()] }), now, dim: false, sseConnected: true,
