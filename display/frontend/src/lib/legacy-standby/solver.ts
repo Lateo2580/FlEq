@@ -71,7 +71,10 @@ function overflow(height: number, capacity: number): number {
 function placementTotalOverflow(choice: PlacementChoice, ctx: SolverContext, rotationSlotHeight = 0, failureHeight = 0): number {
   return overflow(columnHeight(choice.left, ctx.gapPx), ctx.capacityPx.left)
     + overflow(rightHeight(choice.right, ctx, rotationSlotHeight, failureHeight), ctx.capacityPx.right)
-    + (choice.center.length === 0 ? 0 : overflow(centerHeight(choice.center, ctx), ctx.capacityPx.center));
+    // The clock/statistics/recent-quake cluster is a real center consumer even
+    // when every eligible card has moved out of the center.  Omitting it here
+    // let an empty center appear fit while the fixed cluster crossed Nankai.
+    + overflow(centerHeight(choice.center, ctx), ctx.capacityPx.center);
 }
 
 function placementFits(choice: PlacementChoice | null, ctx: SolverContext, rotationSlotHeight = 0, failureHeight = 0): boolean {
@@ -291,7 +294,7 @@ export function makeColumnPlan(input: ColumnPlanInput): ColumnPlan {
   const rotationHeight = rotationResult?.slotHeight ?? 0;
   const failureCount = rotationResult?.failureCount ?? 0;
   const layoutFailure = rotationResult?.layoutFailure ?? false;
-  const centerUnresolved = selected.center.length > 0 && centerHeight(selected.center, ctx) > ctx.capacityPx.center;
+  const centerUnresolved = centerHeight(selected.center, ctx) > ctx.capacityPx.center;
   const sideUnresolved = columnHeight(selected.left, ctx.gapPx) > ctx.capacityPx.left || rightHeight(selected.right, ctx, rotationHeight, failureCount > 0 ? ctx.failureRowHeight : 0) > ctx.capacityPx.right;
   return { left: selected.left, right: selected.right, center: selected.center, moved: selected.moved, unresolved: layoutFailure || sideUnresolved || centerUnresolved, centerUnresolved, stage, variants, rotationKeys: rotationResult?.rotationKeys ?? [], rotationCurrentKey: rotationResult?.currentKey ?? null, rotationSlotHeight: rotationHeight, rotationFailureCount: failureCount, layoutFailure };
 }

@@ -32,6 +32,18 @@ describe("legacy standby solver", () => {
     expect(makeColumnPlan({ candidates: only.left, ctx, floorStage: 0, requestedLadder: 0 }).unresolved).toBe(true);
   });
 
+  it("reports a fixed-center overflow even when no eligible card occupies center", () => {
+    const ctx = { ...context(() => 0), centerFixedHeightPx: 101 };
+    const plan = makeColumnPlan({ candidates: [], ctx, floorStage: 0, requestedLadder: null });
+
+    // With no rotation candidate, this remains the stage-2 fallback; r-f must
+    // still receive unresolved=true and reduce the fixed cluster.
+    expect(plan.stage).toBe(2);
+    expect(plan.center).toEqual([]);
+    expect(plan.centerUnresolved).toBe(true);
+    expect(plan.unresolved).toBe(true);
+  });
+
   it("prefers a fitting placement before every later comparator tier", () => {
     const fit: PlacementChoice = { left: [card("quake", 0, 100)], right: [], center: [], moved: new Set(["volcano"]) };
     const overflow: PlacementChoice = { left: [card("quake", 0, 101)], right: [], center: [], moved: new Set() };

@@ -169,4 +169,30 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+  /* 狭い中央トラックでは震央名を先に確保し、数値列の固定幅と間隔を詰める。
+     それでも一行に入らない場合は stats 一式を次行へ送り、震央名を省略しない。 */
+  @media (max-width: 960px) {
+    .row {
+      flex-wrap: wrap;
+      column-gap: var(--space-1);
+      row-gap: var(--space-1);
+    }
+    .hypocenter {
+      flex-shrink: 0;
+      min-width: max-content;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .stats {
+      flex: 1 1 auto;
+      min-width: 0;
+      justify-content: flex-end;
+      gap: var(--space-1);
+    }
+    .magnitude,
+    .depth,
+    .time {
+      width: auto;
+    }
+  }
 </style>

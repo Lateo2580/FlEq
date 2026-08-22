@@ -19,6 +19,8 @@ export interface EpochCoordinatorControl extends EpochCoordinator {
   /** Drops same-epoch probes when a bounded owner must terminally commit. */
   discardPendingProbes(): void;
   hasPendingProbes(): boolean;
+  /** Queue depth for gate-only settle diagnostics. */
+  pendingProbeCount(): number;
   /** True only when this epoch may commit immediately before settle(). */
   canSettle(expectedKey: string): boolean;
   /** false when a probe arrived after the caller's final read. */
@@ -76,6 +78,7 @@ export function createEpochCoordinator(): EpochCoordinatorControl {
       probes = [];
     },
     hasPendingProbes: () => probes.length > 0,
+    pendingProbeCount: () => probes.length,
     canSettle(expectedKey) {
       return !disposed && busy && probes.length === 0 && queuedKey == null && key === expectedKey;
     },

@@ -113,6 +113,12 @@
     ? gateScenarioParam
     : "4";
   const legacyStandbyGate = $derived(currentHash === "#legacy-standby-gate");
+  const gateFixture = $derived.by(() => {
+    if (!legacyStandbyGate) return undefined;
+    const value = new URLSearchParams(window.location.search).get("gateFixture");
+    return value === "overflow" || value === "overlap" || value === "rotation" || value === "cluster" || value === "cluster-calm" ? value : undefined;
+  });
+  let standbyStage = $state<0 | 1 | 2 | 3>(0);
 
   const PREVIEW_TIPS = [
     "震度は「ある場所の揺れの強さ」、マグニチュードは「地震そのものの規模」です。",
@@ -248,6 +254,9 @@
       ? "emergency"
       : "standby",
   );
+  $effect(() => {
+    if (mode !== "standby") standbyStage = 0;
+  });
   const snapshot = $derived<DisplayStateSnapshotV1>(
     legacyStandbyGate
       ? legacyStandbyGateSnapshot(gateScenario)
@@ -597,7 +606,7 @@
         in:fade={{ duration: calmDur }}
         out:fade={{ duration: exitDur }}
       >
-        <StandbyScreen {snapshot} {now} {dim} {sseConnected} />
+        <StandbyScreen {snapshot} {now} {dim} {sseConnected} {gateFixture} onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }} />
       </div>
     {:else}
       <div
@@ -614,7 +623,7 @@
   <div class="ticker-frame">
     <Ticker
       lines={tickerFeed}
-      now={mode === "emergency" ? now : null}
+      now={mode === "emergency" || (mode === "standby" && standbyStage >= 1) ? now : null}
       tickerGeneration={tickerGen}
       {dim}
       onJobComplete={(key) => tipsFeeder.notifyComplete(key)}

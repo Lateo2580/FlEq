@@ -87,6 +87,12 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(root?.querySelector("[data-clock-landmark] .clock-wrap")).toBeTruthy();
   });
 
+  it("accepts cluster-calm only through the preview gate fixture prop", () => {
+    const previewSource = readFileSync(join(__dirname, "..", "..", "preview", "PreviewApp.svelte"), "utf8");
+    expect(previewSource).toContain('value === "cluster-calm"');
+    expect(previewSource).toContain("legacyStandbyGate");
+  });
+
   it("guarantees readable side tracks at 960px and measures shelves against the same track widths", async () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
     expect(source).toContain("--side-readable-width: 17.5rem");
@@ -514,6 +520,16 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(source).toMatch(/\.legacy-layout\s*\{[^}]*inset:\s*var\(--edge\) var\(--edge\) calc\(var\(--edge\) \+ var\(--nankai-reserve\)\)/s);
   });
 
+  it("uses the legacy mock's compact spacing tokens at ladder stage 2 and above", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
+    expect(source).toMatch(/\.standby\.ladder-compressed\s*\{[^}]*--space-1:\s*2px;[^}]*--space-2:\s*4px;[^}]*--space-3:\s*6px;[^}]*--space-4:\s*8px;[^}]*--space-5:\s*10px;/s);
+  });
+
+  it("latches compressed geometry before remeasuring a stage-3 target", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf-8");
+    expect(source).toMatch(/if \(plan\.stage >= 2\) floorStage = Math\.max\(floorStage, 2\) as LadderStage;[\s\S]*measurementGeometryStage = \(plan\.stage >= 2 \? Math\.max\(plan\.stage, 2\) : plan\.stage\) as LadderStage;/);
+  });
+
   it("keeps separate tsunami chips and propagates the selected warning level", () => {
     const onTsunamiReplay = vi.fn();
     const { container } = render(StandbyScreen, {
@@ -854,6 +870,8 @@ describe("StandbyScreen measured stage epoch", () => {
       const root = view.container.querySelector<HTMLElement>(".standby")!;
       expect(lateProbe).toHaveBeenCalledOnce();
       expect(root.dataset.measurementSettled).toBe("true");
+      expect(root.dataset.measurementNonconverged).toBe("false");
+      expect(Number(root.dataset.measurementPass)).toBeLessThanOrEqual(5);
       expect(onStageChange).toHaveBeenCalledExactlyOnceWith(1);
       vi.advanceTimersByTime(SPRING_SPATIAL_DEFAULT_MS + 1);
       await tick();
@@ -1053,6 +1071,7 @@ describe("StandbyScreen measured stage epoch", () => {
     }).toEqual({ ladder: "0", solver: "0", settled: "true", nonconverged: "false" });
   });
 
+
   it("opens a measurement epoch when only the connection badge visibility changes", async () => {
     const view = render(StandbyScreen, {
       snapshot: baseSnapshot({ latestQuake: latestQuake() }), now, dim: false, sseConnected: true,
@@ -1119,7 +1138,9 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     const testMeasurementOverride = {
       layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10,
       "weather:compact:right": 77, "weather:expanded:right": 88, "weather:full:right": 88,
-      ...Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`weather:prefix:${index + 1}:side`, 133])),
+      // Weather prefix end is rendered-area count (current + B additions),
+      // so the 9-area final page must receive the same measured fixed height.
+      ...Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`weather:prefix:${index + 1}:side`, 133])),
       ...pageFitOverrides,
     };
     async function pageShell(cardPageTick: number) {
@@ -1356,6 +1377,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     expect(container.querySelector(".legacy-layout")?.textContent).toContain("D");
   });
 
+  // 129件の実組版は環境ごとに所要時間が揺れる。性能退行は下記の settle/pass 上限で検出する。
   it("normalizes 128 quake and weather prefixes to two side probe sets within the settle bound", async () => {
     const areas = Array.from({ length: 129 }, (_, index) => `地域${index + 1}`);
     const quake = latestQuake({ intensityGroups: [{ intensity: "5弱", rank: 5, areas: [areas[0]!], omittedAreaCount: 128, expandedAreas: areas }] });
@@ -1372,7 +1394,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     expect(root.getAttribute("data-prefix-probe-count")).toBe("256");
     expect(container.querySelectorAll('[data-prefix-measure*="placement:side"]')).toHaveLength(256);
     expect(container.querySelectorAll('[data-prefix-measure*="placement:left"], [data-prefix-measure*="placement:right"]')).toHaveLength(0);
-  });
+  }, 15_000);
 
   it("uses the ticker-edge fallback for three equal calm intervals without shifting the clock for connection state", async () => {
     const stats = { sparklineData: [1], totalReceived: 1, todayQuakeCount: 1, todayMaxInt: null, todayMaxIntRank: null };

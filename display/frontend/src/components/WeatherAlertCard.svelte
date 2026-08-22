@@ -9,7 +9,7 @@
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
-  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange }: {
+  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false }: {
     alerts: DisplayWeatherAlertV1[];
     tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null;
     pageCoordinator?: CardPageCoordinator;
@@ -20,6 +20,8 @@
     pagePlacement?: "side" | "center";
     /** A single shelf probe renders exactly this candidate range. */
     measurementRange?: PageRange;
+    /** This is a non-scheduled ordinary-variant shelf, not a live card. */
+    measurementPageFooter?: boolean;
   } = $props();
   const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
   const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
@@ -226,15 +228,22 @@
     measurementRange != null && (measurementRange.start > 0 || measurementRange.end < pageCandidates.length),
   );
   const measurementNeedsPageIndicator = $derived(measurementRange != null && (measurementHasMultiplePages || pageTruncated));
+  // A normal variant shelf has no local scheduler.  It still needs the same
+  // 1/1 footer as live only when live pagination/truncation would draw one;
+  // never add that surface to an ordinary one-page, untruncated measurement.
+  const measurementNeedsLiveFooter = $derived(
+    measurementPageFooter && (pageCandidates.length > WEATHER_PAGE_AREA_CAPACITY || pageTruncated),
+  );
   const showPageIndicator = $derived(
     measurementNeedsPageIndicator
+      || measurementNeedsLiveFooter
       || (pageDiagnostics.page !== "0/0" && (weatherPages.length > 1 || pageTruncated)),
   );
   const pageIndicatorLabel = $derived(
     pageDiagnostics.page !== "0/0"
       ? pageDiagnostics.page
-      : measurementRange != null
-        ? `${measurementRange.start > 0 ? 2 : 1}/${measurementHasMultiplePages ? 2 : 1}`
+      : measurementRange != null || measurementNeedsLiveFooter
+        ? `${(measurementRange?.start ?? 0) > 0 ? 2 : 1}/${measurementHasMultiplePages ? 2 : 1}`
         : "",
   );
 
@@ -252,7 +261,7 @@
 
 {#if alerts.length > 0 || tornado != null}
   <div
-    class="weather-card"
+    class="weather-card" class:has-page-footer={showPageIndicator}
     data-card-page={pageDiagnostics.page}
     data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
     data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
@@ -265,7 +274,7 @@
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
     >{headerLabel(topRole, alerts)}<UpdatedStamp iso={latestUpdatedAt} /></div>
-    {#if alerts.length > 0}<ul data-page-probe-body={measurementRange != null ? "" : undefined}>
+    {#if alerts.length > 0}<ul data-page-probe-body>
       {#each displayItems as entry (entry.item.kindKey)}
         <li class="rank-{entry.item.rank}" data-kind-key={entry.item.kindKey}>
           <span class="kind">{entry.item.kind}</span>
@@ -288,8 +297,8 @@
         </li>
       {/each}
     </ul>{/if}
-    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas.length > 0 ? tornado.data.areas.join("、") : "対象地域"}）{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
     {#if showPageIndicator}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></div>{/if}
+    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas.length > 0 ? tornado.data.areas.join("、") : "対象地域"}）{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
   </div>
 {/if}
 
@@ -332,6 +341,9 @@
     font-size: max(14px, var(--type-label-l-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
   }
   .tornado-rider { border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); }
+  /* The zero-height page footer paints at this boundary. Keep long rider text
+     out of the indicator's right-hand paint area. */
+  .weather-card.has-page-footer .tornado-rider { padding-right: calc(var(--space-4) + 3.5rem); }
   .tornado-rider.sighted { color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 10%, var(--surface-standby)); }
   .kind {
     font-weight: var(--type-body-weight-emphasized);
@@ -383,9 +395,21 @@
     font-size: var(--type-label-xs-size);
   }
   .card-page-footer {
+    /* The legacy solver measures the weather shell without the page badge:
+       the mock places it over the lower edge. Keep the actual badge just
+       above the tornado rider in DOM/paint order too, without adding a row. */
     display: flex;
+    flex: 0 0 0;
     justify-content: flex-end;
-    padding: 0 var(--space-4) var(--space-2);
+    box-sizing: border-box;
+    height: 0;
+    min-height: 0;
+    padding: 0 var(--space-4);
+    overflow: visible;
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+    transform: translateY(-100%);
   }
   .card-page-indicator {
     padding: 1px var(--space-2);

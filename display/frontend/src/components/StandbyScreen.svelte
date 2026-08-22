@@ -6,6 +6,7 @@
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
+  import { nextCenterClusterHidden, type CenterClusterItem } from "../lib/legacy-standby/center-cluster";
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
   import type { PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
@@ -26,7 +27,7 @@
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
 
   type TestMeasurementOverride = Partial<Record<string, number>> | ((pass: number) => Partial<Record<string, number>>);
-  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick }: {
+  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
@@ -46,6 +47,8 @@
     /** Capture/test-only deterministic scheduler positions. */
     rotationTick?: number;
     cardPageTick?: number;
+    /** Preview gate only; production App never supplies this. */
+    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm";
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
@@ -61,6 +64,10 @@
   const coordinator = createEpochCoordinator();
   const cardPageTickOverride = untrack(() => schedulerTickOverride(cardPageTick, "cardPageTick"));
   const rotationTickOverride = untrack(() => schedulerTickOverride(rotationTick, "rotationTick"));
+  // The recent-quake clipping check is a gate-only visual assertion. Keep it
+  // out of ordinary settle epochs, especially the 128-candidate probe tests.
+  const gateCapture = untrack(() => typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("gateScenario"));
   const cardPageCoordinator = createCardPageCoordinator({ epoch: coordinator, tickOverride: cardPageTickOverride });
   const rotationScheduler = createRotationScheduler({
     epoch: coordinator,
@@ -68,6 +75,9 @@
     onAppearance: (key) => cardPageCoordinator.recordRotationAppearance(key),
   });
   const MAX_SETTLE_PASSES = 4;
+  // A final DOM commit may mount one same-epoch probe. It gets one bounded
+  // confirmation pass; this is not a general retry budget.
+  const MAX_POST_COMMIT_VERIFICATION_PASSES = 1;
   const layoutMotionDuration = SPRING_SPATIAL_DEFAULT_MS;
   const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough"]);
   const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
@@ -84,9 +94,22 @@
     placement: PrefixPlacement;
     start: number;
     end: number;
+    /** B additional rows; distinct from end, which is the rendered range. */
+    selectionRows?: number;
     tails: PrefixTail[];
     omittedAreaCount: number;
     purpose?: "prefix" | "page";
+  }
+  interface SettleTraceEntry {
+    pass: number;
+    step: number;
+    stage: LadderStage;
+    measurementGeometryStage: LadderStage;
+    rotationKeys: string;
+    weatherRows: number;
+    weatherVariant: CardVariant;
+    signature: string;
+    pendingProbes: number;
   }
 
   let selectedRecentQuake = $state<DisplayRecentQuakeV1 | null>(null);
@@ -140,17 +163,51 @@
   let centerMeasureShelfRectWidthPx = $state(0);
   let clockHorizontallyClipped = $state(false);
   let clockChildrenHorizontallyClipped = $state(false);
+  let clockCenterDeltaXPx = $state(0);
+  let clockCenterDeltaYPx = $state(0);
+  let clockSecondsWithinCluster = $state(true);
+  let clockDateWithinCluster = $state(true);
+  let recentHypocentersHorizontallyClipped = $state(false);
+  let recentQuakesRectTopPx = $state(0);
+  let recentQuakesRectBottomPx = $state(0);
+  let nankaiRectTopPx = $state(0);
+  let nankaiRectBottomPx = $state(0);
+  let recentQuakesNankaiOverlapPx = $state(0);
   let rotationCardViewportRectHeightPx = $state(0);
   let rotationFooterRectHeightPx = $state(0);
   let rotationViewportFooterOverlapPx = $state(0);
+  let cardOverflowCount = $state(0);
+  let cardOverflowKeys = $state("");
+  let pageViewportOverflowKeys = $state("");
+  let geometryViolationCount = $state(0);
+  let geometryViolationKeys = $state("");
+  let rightTrackScrollHeightPx = $state(0);
+  let rightTrackClientHeightPx = $state(0);
+  let weatherLiveHeightPx = $state(0);
+  let weatherProbeHeightPx = $state(0);
+  let weatherProbeWidthPx = $state(0);
+  let weatherLiveWidthPx = $state(0);
+  let weatherProbeCardHeightPx = $state(0);
+  let weatherProbeCardWidthPx = $state(0);
+  let weatherLiveCardHeightPx = $state(0);
+  let weatherLiveCardWidthPx = $state(0);
+  let rightTrackChildExtents = $state("");
+  let typhoonTitleMisalignmentPx = $state(0);
+  let pageIndicatorBodyOverlapPx = $state(0);
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
+  let settleTrace = $state<SettleTraceEntry[]>([]);
   let epoch = $state(0);
   let epochKey = $state("0");
   let floorStage = $state<LadderStage>(0);
   let committedStage = $state<LadderStage>(0);
   let committedPlan = $state<ColumnPlan | null>(null);
   let committedSelection = $state<DisplaySelection | null>(null);
+  // The solver may try a reduced centre cluster, but only this committed copy
+  // is allowed to drive visible DOM. This keeps superseded settle epochs from
+  // leaking a half-applied reduction.
+  let solvingCenterClusterHidden = $state<CenterClusterItem[]>([]);
+  let committedCenterClusterHidden = $state<CenterClusterItem[]>([]);
   let contentDemotionRequested = false;
   let settling = false;
   let settleRequested = false;
@@ -328,6 +385,14 @@
       ? [{ kindKey: weatherKindKey(item), omittedAreaCount: item.omittedAreaCount }]
       : []));
   }
+  // Weather rows are B's *additional* areas; prefix ranges are rendered area
+  // counts. A 3-row promotion over two current areas must probe [0,5), not
+  // [0,3), or the shelf measures a different page from the live card.
+  function prefixRenderedEnd(key: PrefixCardKey, rows: number): number {
+    return key === "weather"
+      ? weatherWithSelection(rows).reduce((total, alert) => total + alert.items.reduce((sum, item) => sum + item.shownAreas.length, 0), 0)
+      : rows;
+  }
   function prefixTailSignature(tails: readonly PrefixTail[]): string {
     return tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
   }
@@ -341,7 +406,7 @@
     // The left and right columns share one shelf and width.  Keep their B
     // cache entries identical too; only the center needs its own geometry.
     const measurePlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-    const id = prefixMeasureId("prefix", key, measurePlacement, 0, rows, tails);
+    const id = prefixMeasureId("prefix", key, measurePlacement, 0, prefixRenderedEnd(key, rows), tails);
     const cached = prefixMeasurements[id];
     if (cached != null) return cached;
     // The first render precedes the mount/input effect that opens epoch 1.
@@ -350,7 +415,7 @@
     if (epoch === 0) return null;
     coordinator.enqueueProbe(id, () => {
       if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
-      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: rows, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0), purpose: "prefix" }];
+      prefixMeasureEntries = [...prefixMeasureEntries, { id, key, placement: measurePlacement, start: 0, end: prefixRenderedEnd(key, rows), selectionRows: rows, tails, omittedAreaCount: tails.reduce((total, tail) => total + tail.omittedAreaCount, 0), purpose: "prefix" }];
     });
     return null;
   }
@@ -442,7 +507,7 @@
     if (rows > 0 && (card.key === "quake" || card.key === "weather")) {
       const tails = prefixTails(card.key, rows);
       const prefixPlacement: PrefixPlacement = placement === "center" ? "center" : "side";
-      const id = prefixMeasureId("prefix", card.key, prefixPlacement, 0, rows, tails);
+      const id = prefixMeasureId("prefix", card.key, prefixPlacement, 0, prefixRenderedEnd(card.key, rows), tails);
       // B が採用するのは prefixHeight と同じ棚の実測値。描画側で probe を
       // 追加せず、未確定時だけ variant 棚へ安全に戻す。
       return prefixMeasurements[id] ?? measured(card.key, selectedVariant(card.key, renderSelection), measurementPlacement);
@@ -452,13 +517,18 @@
   function pageFixedHeight(card: CardCandidate, placement: Placement): number | null {
     return pageFormattingActive(card.key) ? selectedCardHeight(card, placement) : null;
   }
-  const fixedCenterItemCount = $derived((connectionVisible ? 1 : 0) + (snapshot.stats == null ? 0 : 1) + (snapshot.recentQuakes.length === 0 ? 0 : 1));
-  const fixedCenterContentHeight = $derived(
-    (connectionVisible ? connectionHeightPx : 0)
-      + (snapshot.stats == null ? 0 : statsHeightPx)
-      + (snapshot.recentQuakes.length === 0 ? 0 : recentHeightPx),
-  );
-  const fixedCenterHeight = $derived(fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * gapPx);
+  function centerFixed(hidden: readonly CenterClusterItem[], measureGap = gapPx) {
+    // quiet のように connection / stats / recent-quakes が全て無い入力では
+    // 固定クラスタは存在しないため height=0 が正しい。r-f fixture はその
+    // 場合を避け、固定行を持つ scenario 4 でのみ縮退を実証する。
+    const statsVisible = snapshot.stats != null && !hidden.includes("stats");
+    const recentVisible = snapshot.recentQuakes.length > 0 && !hidden.includes("recent-quakes");
+    const itemCount = (connectionVisible ? 1 : 0) + Number(statsVisible) + Number(recentVisible);
+    const contentHeight = (connectionVisible ? connectionHeightPx : 0)
+      + (statsVisible ? statsHeightPx : 0)
+      + (recentVisible ? recentHeightPx : 0);
+    return { statsVisible, recentVisible, itemCount, contentHeight, height: contentHeight + Math.max(0, itemCount - 1) * measureGap };
+  }
   // jsdom and the initial pre-layout pass report a zero rect. Until the first
   // synchronous read has a real screen-area size, retain all cards rather
   // than manufacture a stage-3 overflow from that transient zero.
@@ -482,12 +552,14 @@
   function naturalColumnHeight(cards: readonly CardCandidate[]): number {
     return cards.reduce((total, card) => total + card.naturalHeight, 0) + Math.max(0, cards.length - 1) * gapPx;
   }
-  function centerHeight(choice: PlacementChoice, selection: DisplaySelection, measureGap = gapPx): number {
-    const fixed = fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * measureGap;
+  function centerHeight(choice: PlacementChoice, selection: DisplaySelection, hidden: readonly CenterClusterItem[], measureGap = gapPx): number {
+    const fixedCenter = centerFixed(hidden, measureGap);
+    const fixed = fixedCenter.height;
     const selected = selectedHeight(choice.center, "center", selection, measureGap);
-    return (selected ?? Number.POSITIVE_INFINITY) + fixed + (choice.center.length > 0 && fixedCenterItemCount > 0 ? measureGap : 0);
+    return (selected ?? Number.POSITIVE_INFINITY) + fixed + (choice.center.length > 0 && fixedCenter.itemCount > 0 ? measureGap : 0);
   }
-  function solverContext(plan: ColumnPlan | null = null, capacityLimit = capacity, measureGap = gapPx): SolverContext {
+  function solverContext(plan: ColumnPlan | null = null, capacityLimit = capacity, measureGap = gapPx, hidden: readonly CenterClusterItem[] = []): SolverContext {
+    const fixedCenter = centerFixed(hidden, measureGap);
     const rotationReserve = plan == null ? 0
       : (plan.rotationSlotHeight > 0 ? (plan.right.length > 0 ? measureGap : 0) + plan.rotationSlotHeight : 0)
         + (plan.rotationFailureCount > 0 ? measureGap + (failureMeasureEl?.getBoundingClientRect().height ?? 28) : 0);
@@ -496,7 +568,7 @@
       measureSelection: (choice, selection) => {
         const leftHeight = selectedHeight(choice.left, "left", selection, measureGap);
         const rightHeight = selectedHeight(choice.right, "right", selection, measureGap);
-        const selectedCenterHeight = choice.center.length === 0 ? 0 : centerHeight(choice, selection, measureGap);
+        const selectedCenterHeight = choice.center.length === 0 ? 0 : centerHeight(choice, selection, hidden, measureGap);
         if (leftHeight == null || rightHeight == null || !Number.isFinite(selectedCenterHeight)) return null;
         return {
           leftOverflowPx: leftHeight - capacityLimit,
@@ -507,7 +579,7 @@
         };
       },
       capacityPx: { left: capacityLimit, right: capacityLimit, center: capacityLimit },
-      centerFixedHeightPx: fixedCenterContentHeight + Math.max(0, fixedCenterItemCount - 1) * measureGap,
+      centerFixedHeightPx: fixedCenter.height,
       floodIsWide: floodItem?.surface === "clock-top-wide",
       candidateSupplyLimit: MAX_PREFIX_ROWS,
       rotationSlotHeight: (keys) => keys.length === 0
@@ -522,31 +594,32 @@
     // before the compressed CSS class itself is drawn.
     return Math.min(10, Math.max(4, baselineGapPx * 0.6));
   }
-  function automaticPlan(capacityLimit: number): ColumnPlan {
-    const baseline = makeColumnPlan({ candidates: candidates(), ctx: solverContext(null, capacityLimit, baselineGapPx), floorStage: 0, requestedLadder: null });
+  function automaticPlan(capacityLimit: number, hidden: readonly CenterClusterItem[] = []): ColumnPlan {
+    const baseline = makeColumnPlan({ candidates: candidates(), ctx: solverContext(null, capacityLimit, baselineGapPx, hidden), floorStage: 0, requestedLadder: null });
     if (baseline.stage !== 3) return baseline;
     const compressedMeasureGap = compressedGap();
     const compressed = makeColumnPlan({
       candidates: candidates(),
-      ctx: solverContext(null, capacityLimit, compressedMeasureGap),
+      ctx: solverContext(null, capacityLimit, compressedMeasureGap, hidden),
       floorStage: 2,
       requestedLadder: null,
     });
     return compressed.stage === 2 && !compressed.unresolved ? compressed : baseline;
   }
-  function solvePlan(solveFloor: LadderStage, capacityLimit = capacity): ColumnPlan {
-    const automatic = automaticPlan(capacityLimit);
+  function solvePlan(solveFloor: LadderStage, capacityLimit = capacity, hidden: readonly CenterClusterItem[] = []): ColumnPlan {
+    const automatic = automaticPlan(capacityLimit, hidden);
     if (automatic.stage >= solveFloor) return automatic;
     const retainedGap = solveFloor >= 2 ? compressedGap() : baselineGapPx;
     return makeColumnPlan({
       candidates: candidates(),
-      ctx: solverContext(null, capacityLimit, retainedGap),
+      ctx: solverContext(null, capacityLimit, retainedGap, hidden),
       floorStage: solveFloor,
       requestedLadder: solveFloor,
     });
   }
-  const plan = $derived.by(() => solvePlan(floorStage));
-  const selection = $derived.by(() => promoteAndExpand(plan, solverContext(plan)));
+  const fixedCenter = $derived(centerFixed(committedCenterClusterHidden));
+  const plan = $derived.by(() => solvePlan(floorStage, capacity, solvingCenterClusterHidden));
+  const selection = $derived.by(() => promoteAndExpand(plan, solverContext(plan, capacity, gapPx, solvingCenterClusterHidden)));
   const stage = $derived(plan.stage);
   // A solver epoch may revise placement several times while measurements and
   // prefix probes converge.  The visible grid stays on this last complete
@@ -614,6 +687,9 @@
     const placement = renderPlan.center.some((card) => card.key === "flood") ? "center" : "side";
     return (placement === "center" && floodItem.surface === "clock-top-wide") || renderSelection.floodWide ? "wide" : "card";
   });
+  // Selection retains a type-level default even when the candidate is absent.
+  // The diagnostic describes rendered reality, not that solver default.
+  const renderTyphoonVariant = $derived(typhoonItem == null ? "none" : renderSelection.typhoon);
   const renderSurplusUse = $derived.by(() => {
     const typhoonWasCompact = [...renderPlan.left, ...renderPlan.right, ...renderPlan.center]
       .find((card) => card.key === "typhoon")?.variant === "compact";
@@ -621,6 +697,22 @@
     return renderSelection.quakeRows + renderSelection.weatherRows
       + Number(typhoonWasCompact && renderSelection.typhoon === "full")
       + Number(floodInSide && renderSelection.floodWide);
+  });
+  const renderWeatherSelectedHeight = $derived.by(() => {
+    const card = [...renderPlan.left, ...renderPlan.right, ...renderPlan.center].find((candidate) => candidate.key === "weather");
+    const placement: Placement = renderPlan.center.some((candidate) => candidate.key === "weather") ? "center"
+      : renderPlan.left.some((candidate) => candidate.key === "weather") ? "left" : "right";
+    // Compare the exact prefix probe used for this rendered surface. Do not
+    // fall back through a side variant when the committed card is in center.
+    if (card == null) return 0;
+    if (renderSelection.weatherRows > 0) return prefixHeight("weather", renderSelection.weatherRows, placement) ?? 0;
+    return measured("weather", selectedVariant("weather", renderSelection), placement === "center" ? "center" : "right");
+  });
+  const renderWeatherPrefixId = $derived.by(() => {
+    if (renderSelection.weatherRows <= 0) return "";
+    const placement: PrefixPlacement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "side";
+    const tails = prefixTails("weather", renderSelection.weatherRows);
+    return prefixMeasureId("prefix", "weather", placement, 0, prefixRenderedEnd("weather", renderSelection.weatherRows), tails);
   });
   function snapshotPlan(source: ColumnPlan): ColumnPlan {
     return { ...source, left: [...source.left], right: [...source.right], center: [...source.center], moved: new Set(source.moved), rotationKeys: [...source.rotationKeys] };
@@ -680,7 +772,10 @@
     statsHeightPx = measurementOverride?.statsHeightPx ?? Math.round(statsMeasureEl?.getBoundingClientRect().height ?? 0);
     recentHeightPx = measurementOverride?.recentHeightPx ?? Math.round(recentMeasureEl?.getBoundingClientRect().height ?? 0);
     connectionHeightPx = measurementOverride?.connectionHeightPx ?? Math.round(connectionMeasureEl?.getBoundingClientRect().height ?? 0);
-    const clockRect = clockFaceEl?.getBoundingClientRect();
+    // At stage 1+ this is the opacity-zero central handoff ghost; the visible
+    // clock lives in the ticker outside the layout capacity and is not a card
+    // collision target. Only stage 0's central clock has a meaningful rect.
+    const clockRect = renderStage === 0 ? clockFaceEl?.getBoundingClientRect() : undefined;
     const nankaiRect = nankaiEl?.getBoundingClientRect();
     const standbyRect = standbyEl?.getBoundingClientRect();
     const boundaryTop = measurementOverride?.boundaryTopPx ?? nankaiRect?.top ?? standbyRect?.bottom;
@@ -697,7 +792,36 @@
     measurementPass += 1;
   }
   function signature(): string {
-    return [stage, measurementGeometryStage, capacity, nankaiHeightPx, rotationIndicatorHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+    // Geometry 2 and 3 share the same compressed token surface. Only a
+    // crossing of that boundary changes any measured DOM, so the later 2→3
+    // plan-number synchronization must not consume a settle confirmation pass.
+    const compressedGeometry = isCompressedGeometry(measurementGeometryStage) ? 1 : 0;
+    return [stage, compressedGeometry, capacity, nankaiHeightPx, rotationIndicatorHeightPx, gapPx, baselineGapPx, plan.rotationKeys.join(","), ...Object.entries(measurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`), ...Object.entries(prefixMeasurements).sort(([a], [b]) => a.localeCompare(b)).map(([id, h]) => `${id}:${h}`)].join("|");
+  }
+  function isCompressedGeometry(stage: LadderStage): boolean { return stage >= 2; }
+  function shortSignatureHash(value: string): string {
+    let hash = 0x811c9dc5;
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(36);
+  }
+  function recordSettleTrace(pass: number, step: number): void {
+    if (!gateCapture) return;
+    const tracePlan = plan;
+    const traceSelection = selection;
+    settleTrace = [...settleTrace, {
+      pass: pass + 1,
+      step: step + 1,
+      stage: tracePlan.stage,
+      measurementGeometryStage,
+      rotationKeys: tracePlan.rotationKeys.join(","),
+      weatherRows: traceSelection.weatherRows,
+      weatherVariant: selectedVariant("weather", traceSelection),
+      signature: shortSignatureHash(signature()),
+      pendingProbes: coordinator.pendingProbeCount(),
+    }];
   }
   interface RenderedGeometry {
     leftTrackWidthPx: number;
@@ -707,9 +831,37 @@
     centerShelfWidthPx: number;
     clockClipped: boolean;
     clockChildrenClipped: boolean;
+    clockCenterDeltaXPx: number;
+    clockCenterDeltaYPx: number;
+    clockSecondsWithinCluster: boolean;
+    clockDateWithinCluster: boolean;
+    recentHypocentersClipped: boolean;
+    recentQuakesTopPx: number;
+    recentQuakesBottomPx: number;
+    nankaiTopPx: number;
+    nankaiBottomPx: number;
+    recentQuakesNankaiOverlapPx: number;
     rotationViewportHeightPx: number;
     rotationFooterHeightPx: number;
     rotationOverlapPx: number;
+    cardOverflowCount: number;
+    cardOverflowKeys: string;
+    pageViewportOverflowKeys: string;
+    geometryViolationCount: number;
+    geometryViolationKeys: string;
+    rightTrackScrollHeightPx: number;
+    rightTrackClientHeightPx: number;
+    weatherLiveHeightPx: number;
+    weatherProbeHeightPx: number;
+    weatherProbeWidthPx: number;
+    weatherLiveWidthPx: number;
+    weatherProbeCardHeightPx: number;
+    weatherProbeCardWidthPx: number;
+    weatherLiveCardHeightPx: number;
+    weatherLiveCardWidthPx: number;
+    rightTrackChildExtents: string;
+    typhoonTitleMisalignmentPx: number;
+    pageIndicatorBodyOverlapPx: number;
   }
   function readRenderedGeometry(): RenderedGeometry {
     const standbyRect = standbyEl?.getBoundingClientRect();
@@ -723,6 +875,37 @@
       const rect = child.getBoundingClientRect();
       return !containsHorizontally(rect, standbyRect) || child.scrollWidth > child.clientWidth + 1;
     });
+    // §11.1 B: stage 0 is the visible central clock. Later stages retain an
+    // opacity-zero handoff ghost and use the ticker-clock contract instead.
+    const clockSeconds = clockEl?.querySelector<HTMLElement>(".time .sec") ?? null;
+    const clockDate = clockEl?.querySelector<HTMLElement>(".date") ?? null;
+    const rectContainedBy = (rect: DOMRect | null | undefined, bounds: DOMRect | null | undefined) => rect != null && bounds != null
+      && rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
+    // getBoundingClientRect() is viewport-relative. The standby box excludes
+    // the ticker, while §3 centers the stage-0 clock in the whole screen, so
+    // use the browser viewport rather than standbyRect as the reference box.
+    const viewportWidth = typeof window === "undefined" ? 0 : window.innerWidth;
+    const viewportHeight = typeof window === "undefined" ? 0 : window.innerHeight;
+    const stageZeroClock = renderStage === 0 && clockRect != null && viewportWidth > 0 && viewportHeight > 0;
+    const clockCenterDeltaXPx = stageZeroClock ? Math.abs((clockRect.left + clockRect.right - viewportWidth) / 2) : 0;
+    const clockCenterDeltaYPx = stageZeroClock ? Math.abs((clockRect.top + clockRect.bottom - viewportHeight) / 2) : 0;
+    const clockSecondsWithinCluster = renderStage !== 0 || rectContainedBy(clockSeconds?.getBoundingClientRect(), clockRect);
+    const clockDateWithinCluster = renderStage !== 0 || rectContainedBy(clockDate?.getBoundingClientRect(), clockRect);
+    const recentHypocentersClipped = gateCapture
+      && [...(standbyEl?.querySelectorAll<HTMLElement>(".quakes-card .hypocenter") ?? [])]
+        .some((hypocenter) => {
+          const rowRect = hypocenter.closest<HTMLElement>(".row")?.getBoundingClientRect();
+          const rect = hypocenter.getBoundingClientRect();
+          return (rowRect != null && !containsHorizontally(rect, rowRect))
+            || hypocenter.scrollWidth > hypocenter.clientWidth + 1;
+        });
+    const recentQuakesRect = (renderStage === 0
+      ? standbyEl?.querySelector<HTMLElement>(".clock-landmark .quakes-card")
+      : standbyEl?.querySelector<HTMLElement>(".center-card-region .quakes-card"))?.getBoundingClientRect();
+    const nankaiRect = nankaiEl?.getBoundingClientRect();
+    const recentQuakesNankaiOverlapPx = recentQuakesRect == null || nankaiRect == null
+      ? 0
+      : Math.max(0, Math.min(recentQuakesRect.bottom, nankaiRect.bottom) - Math.max(recentQuakesRect.top, nankaiRect.top));
     const rotationViewportRect = standbyEl?.querySelector<HTMLElement>(".rotation-card-viewport")?.getBoundingClientRect();
     // The measure shelf holds an aria-hidden copy of the footer earlier in
     // document order — select the live footer by its data attribute instead.
@@ -730,6 +913,70 @@
     const rotationOverlapPx = rotationViewportRect == null || rotationFooterRect == null
       ? 0
       : Math.max(0, Math.min(rotationViewportRect.bottom, rotationFooterRect.bottom) - Math.max(rotationViewportRect.top, rotationFooterRect.top));
+    // Measurement shelves intentionally retain off-screen/hidden variants.
+    // Geometry gates describe only paintable layout cards, never those copies.
+    const paintable = (card: HTMLElement) => !card.closest(".measure-shelf, .center-measure-shelf")
+      && !card.hidden && getComputedStyle(card).visibility !== "hidden"
+      && getComputedStyle(card).display !== "none";
+    const shells = [...(standbyEl?.querySelectorAll<HTMLElement>(".legacy-card") ?? [])].filter(paintable);
+    // Fixed center members and the active rotation card do not use a
+    // .legacy-card shell. They are nevertheless visible layout consumers and
+    // must receive the same viewport/overlap/Nankai containment sweep.
+    const fixedCenterCards = [...(standbyEl?.querySelectorAll<HTMLElement>(".center-stack-card[data-layout-motion-card], .connection-stage-card[data-layout-motion-card], .clock-connection[data-layout-motion-card]") ?? [])].filter(paintable);
+    const activeRotationCards = [...(standbyEl?.querySelectorAll<HTMLElement>(".rotation-card:not([hidden])") ?? [])].filter(paintable);
+    const sweepCards = [...shells, ...fixedCenterCards, ...activeRotationCards];
+    // A paged shell deliberately clips the non-current pages to a fixed outer
+    // height. Its actual viewport is the page body, so inspect that instead.
+    const overflowingCards = [...shells, ...fixedCenterCards].filter((card) => !card.classList.contains("paged-card")
+      && (card.scrollHeight > card.clientHeight + 1 || card.scrollWidth > card.clientWidth + 1));
+    const pageViewportOverflow = shells.filter((card) => card.classList.contains("paged-card"))
+      .filter((card) => [...card.querySelectorAll<HTMLElement>("[data-page-probe-body]")]
+        .some((page) => page.scrollHeight > page.clientHeight + 1 || page.scrollWidth > page.clientWidth + 1));
+    const cardOverflowKeys = overflowingCards.map((card) => card.dataset.layoutMotionCard ?? "unknown").join(",");
+    const pageViewportOverflowKeys = pageViewportOverflow.map((card) => card.dataset.layoutMotionCard ?? "unknown").join(",");
+    const cardOverflowCount = overflowingCards.length + pageViewportOverflow.length;
+    const overlapArea = (a: DOMRect, b: DOMRect) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const contained = (rect: DOMRect, bounds: DOMRect) => rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 && rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1;
+    const cardRects = sweepCards.map((card) => card.getBoundingClientRect());
+    const geometryViolationKeys: string[] = [];
+    if (standbyRect != null) cardRects.forEach((rect, index) => { if (!contained(rect, standbyRect)) geometryViolationKeys.push(`viewport:${sweepCards[index].dataset.layoutMotionCard ?? index}`); });
+    for (let index = 0; index < cardRects.length; index += 1) for (let other = index + 1; other < cardRects.length; other += 1) if (overlapArea(cardRects[index], cardRects[other]) > 1) geometryViolationKeys.push(`card-overlap:${sweepCards[index].dataset.layoutMotionCard ?? index}/${sweepCards[other].dataset.layoutMotionCard ?? other}`);
+    // At stage 1+ the central clockFaceEl is the opacity-zero handoff ghost;
+    // the visible clock lives in the ticker outside the layout capacity, so
+    // only stage 0's central clock is a card-collision target.
+    if (clockRect != null && renderStage === 0) cardRects.forEach((rect, index) => { if (overlapArea(rect, clockRect) > 1) geometryViolationKeys.push(`clock:${sweepCards[index].dataset.layoutMotionCard ?? index}`); });
+    if (nankaiRect != null) cardRects.forEach((rect, index) => { if (overlapArea(rect, nankaiRect) > 1) geometryViolationKeys.push(`nankai:${sweepCards[index].dataset.layoutMotionCard ?? index}`); });
+    if (rotationViewportRect != null) activeRotationCards.forEach((card) => {
+      if (!contained(card.getBoundingClientRect(), rotationViewportRect)) geometryViolationKeys.push(`rotation-viewport:${card.dataset.layoutMotionCard ?? "unknown"}`);
+    });
+    [leftTrackEl, centerTrackEl, rightTrackEl].forEach((track, index) => { if (track != null && track.scrollHeight > track.clientHeight + 1) geometryViolationKeys.push(`column-scroll:${["left", "center", "right"][index]}`); });
+    const geometryViolationCount = geometryViolationKeys.length;
+    const typhoonTitleMisalignmentPx = Math.max(0, ...[...(standbyEl?.querySelectorAll<HTMLElement>(".typhoon-card") ?? [])].map((card) => {
+      const name = card.querySelector<HTMLElement>(".typhoon-title-row strong, .compact-primary strong");
+      const location = card.querySelector<HTMLElement>(".typhoon-title-row .location, .compact-primary .location");
+      return name == null || location == null ? 0 : Math.abs((name.getBoundingClientRect().top + name.getBoundingClientRect().bottom) / 2 - (location.getBoundingClientRect().top + location.getBoundingClientRect().bottom) / 2);
+    }));
+    const pageIndicatorBodyOverlapPx = Math.max(0, ...[...(standbyEl?.querySelectorAll<HTMLElement>(".weather-card") ?? [])].map((card) => {
+      const indicator = card.querySelector<HTMLElement>("[data-card-page-indicator]");
+      const body = card.querySelector<HTMLElement>("[data-page-probe-body]");
+      return indicator == null || body == null ? 0 : overlapArea(indicator.getBoundingClientRect(), body.getBoundingClientRect());
+    }));
+    const weatherMeasurementPlacement: Placement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "right";
+    const weatherMeasurementVariant = selectedVariant("weather", renderSelection);
+    // B selection reads a prefix shelf only after it has promoted rows. At
+    // compact/full, it reads the ordinary variant shelf; use that same node
+    // for the diagnostics rather than publishing a misleading zero probe.
+    const activeWeatherProbe = renderWeatherPrefixId === ""
+      ? measureNodes.get(measureId("weather", weatherMeasurementVariant, weatherMeasurementPlacement)) ?? null
+      : [...(standbyEl?.querySelectorAll<HTMLElement>("[data-prefix-measure]") ?? [])]
+        .find((entry) => entry.dataset.prefixMeasure === renderWeatherPrefixId) ?? null;
+    const liveWeatherShell = standbyEl?.querySelector<HTMLElement>(".legacy-card .weather-card")?.closest<HTMLElement>(".legacy-card");
+    // The shelf item itself is always the center/side track width. Measure the
+    // WeatherAlertCard child too: unlike a live card it has no .legacy-card
+    // ancestor, so a missing width bridge here would silently wrap at its own
+    // 28vw maximum and poison the B-prefix cache.
+    const weatherProbeCard = activeWeatherProbe?.querySelector<HTMLElement>(".weather-card");
+    const liveWeatherCard = liveWeatherShell?.querySelector<HTMLElement>(".weather-card");
     return {
       leftTrackWidthPx: Math.round(leftTrackEl?.getBoundingClientRect().width ?? 0),
       centerTrackWidthPx: Math.round(centerTrackEl?.getBoundingClientRect().width ?? 0),
@@ -738,9 +985,42 @@
       centerShelfWidthPx: Math.round(centerMeasureShelfEl?.getBoundingClientRect().width ?? 0),
       clockClipped,
       clockChildrenClipped,
+      clockCenterDeltaXPx: Math.round(clockCenterDeltaXPx * 100) / 100,
+      clockCenterDeltaYPx: Math.round(clockCenterDeltaYPx * 100) / 100,
+      clockSecondsWithinCluster,
+      clockDateWithinCluster,
+      recentHypocentersClipped,
+      recentQuakesTopPx: Math.round(recentQuakesRect?.top ?? 0),
+      recentQuakesBottomPx: Math.round(recentQuakesRect?.bottom ?? 0),
+      nankaiTopPx: Math.round(nankaiRect?.top ?? 0),
+      nankaiBottomPx: Math.round(nankaiRect?.bottom ?? 0),
+      recentQuakesNankaiOverlapPx: Math.round(recentQuakesNankaiOverlapPx),
       rotationViewportHeightPx: Math.round(rotationViewportRect?.height ?? 0),
       rotationFooterHeightPx: Math.round(rotationFooterRect?.height ?? 0),
       rotationOverlapPx: Math.round(rotationOverlapPx),
+      cardOverflowCount,
+      cardOverflowKeys,
+      pageViewportOverflowKeys,
+      geometryViolationCount,
+      geometryViolationKeys: geometryViolationKeys.join(","),
+      rightTrackScrollHeightPx: rightTrackEl?.scrollHeight ?? 0,
+      rightTrackClientHeightPx: rightTrackEl?.clientHeight ?? 0,
+      weatherLiveHeightPx: Math.round(liveWeatherShell?.getBoundingClientRect().height ?? 0),
+      weatherProbeHeightPx: Math.round(activeWeatherProbe?.getBoundingClientRect().height ?? 0),
+      weatherProbeWidthPx: Math.round(activeWeatherProbe?.getBoundingClientRect().width ?? 0),
+      weatherLiveWidthPx: Math.round(liveWeatherShell?.getBoundingClientRect().width ?? 0),
+      weatherProbeCardHeightPx: Math.round(weatherProbeCard?.getBoundingClientRect().height ?? 0),
+      weatherProbeCardWidthPx: Math.round(weatherProbeCard?.getBoundingClientRect().width ?? 0),
+      weatherLiveCardHeightPx: Math.round(liveWeatherCard?.getBoundingClientRect().height ?? 0),
+      weatherLiveCardWidthPx: Math.round(liveWeatherCard?.getBoundingClientRect().width ?? 0),
+      // Per-child layout extents of the right track, for pinpointing which
+      // element pushes scrollHeight past clientHeight in the gate.
+      rightTrackChildExtents: rightTrackEl == null ? "" : [...rightTrackEl.children].map((child) => {
+        const el = child as HTMLElement;
+        return `${el.className.split(" ")[0] || el.tagName}:${el.offsetTop}+${el.offsetHeight}`;
+      }).join(","),
+      typhoonTitleMisalignmentPx: Math.round(typhoonTitleMisalignmentPx),
+      pageIndicatorBodyOverlapPx: Math.round(pageIndicatorBodyOverlapPx),
     };
   }
   function publishSettledGeometry(pendingStageChange: LadderStage | null): void {
@@ -755,9 +1035,37 @@
       centerMeasureShelfRectWidthPx = geometry.centerShelfWidthPx;
       clockHorizontallyClipped = geometry.clockClipped;
       clockChildrenHorizontallyClipped = geometry.clockChildrenClipped;
+      clockCenterDeltaXPx = geometry.clockCenterDeltaXPx;
+      clockCenterDeltaYPx = geometry.clockCenterDeltaYPx;
+      clockSecondsWithinCluster = geometry.clockSecondsWithinCluster;
+      clockDateWithinCluster = geometry.clockDateWithinCluster;
+      recentHypocentersHorizontallyClipped = geometry.recentHypocentersClipped;
+      recentQuakesRectTopPx = geometry.recentQuakesTopPx;
+      recentQuakesRectBottomPx = geometry.recentQuakesBottomPx;
+      nankaiRectTopPx = geometry.nankaiTopPx;
+      nankaiRectBottomPx = geometry.nankaiBottomPx;
+      recentQuakesNankaiOverlapPx = geometry.recentQuakesNankaiOverlapPx;
       rotationCardViewportRectHeightPx = geometry.rotationViewportHeightPx;
       rotationFooterRectHeightPx = geometry.rotationFooterHeightPx;
       rotationViewportFooterOverlapPx = geometry.rotationOverlapPx;
+      cardOverflowCount = geometry.cardOverflowCount;
+      cardOverflowKeys = geometry.cardOverflowKeys;
+      pageViewportOverflowKeys = geometry.pageViewportOverflowKeys;
+      geometryViolationCount = geometry.geometryViolationCount;
+      geometryViolationKeys = geometry.geometryViolationKeys;
+      rightTrackScrollHeightPx = geometry.rightTrackScrollHeightPx;
+      rightTrackClientHeightPx = geometry.rightTrackClientHeightPx;
+      weatherLiveHeightPx = geometry.weatherLiveHeightPx;
+      weatherProbeHeightPx = geometry.weatherProbeHeightPx;
+      weatherProbeWidthPx = geometry.weatherProbeWidthPx;
+      weatherLiveWidthPx = geometry.weatherLiveWidthPx;
+      weatherProbeCardHeightPx = geometry.weatherProbeCardHeightPx;
+      weatherProbeCardWidthPx = geometry.weatherProbeCardWidthPx;
+      weatherLiveCardHeightPx = geometry.weatherLiveCardHeightPx;
+      weatherLiveCardWidthPx = geometry.weatherLiveCardWidthPx;
+      rightTrackChildExtents = geometry.rightTrackChildExtents;
+      typhoonTitleMisalignmentPx = geometry.typhoonTitleMisalignmentPx;
+      pageIndicatorBodyOverlapPx = geometry.pageIndicatorBodyOverlapPx;
       measurementSettled = true;
       contentDemotionRequested = false;
       if (pendingStageChange != null) onStageChange?.(pendingStageChange);
@@ -769,13 +1077,15 @@
     settleRequested = false;
     measurementSettled = false;
     measurementNonConverged = false;
+    settleTrace = [];
     const activeEpoch = String(epoch);
     epochKey = activeEpoch;
     coordinator.begin(activeEpoch);
     let previous = "";
     let superseded = false;
     let pendingStageChange: LadderStage | null = null;
-    for (let pass = 0; pass < MAX_SETTLE_PASSES; pass += 1) {
+    let postCommitVerificationPasses = 0;
+    for (let pass = 0; pass < MAX_SETTLE_PASSES + postCommitVerificationPasses; pass += 1) {
       let probeSteps = 0;
       // B and the two U4 pageable cards may each consume their bounded probe
       // budget in the same epoch (128 × 2 candidates per card).
@@ -788,8 +1098,13 @@
         // measurements made in the preceding geometry. Re-read immediately in
         // the target geometry before this pass may settle; do not spend an
         // extra outer pass or extend the prefix-probe budget.
-        if ((measurementGeometryStage >= 2) !== (plan.stage >= 2)) {
-          measurementGeometryStage = plan.stage;
+        if (isCompressedGeometry(measurementGeometryStage) !== isCompressedGeometry(plan.stage)) {
+          // A target stage-3 plan must be remeasured in its compressed CSS,
+          // but that remeasurement can make a lower (stage-1) plan look fit.
+          // Latch the stage-2 floor before the synchronous read: otherwise the
+          // same epoch flips geometry 0→3→1→3 and exhausts all settle passes.
+          if (plan.stage >= 2) floorStage = Math.max(floorStage, 2) as LadderStage;
+          measurementGeometryStage = (plan.stage >= 2 ? Math.max(plan.stage, 2) : plan.stage) as LadderStage;
           flushSync();
           await tick();
           if (disposed) break;
@@ -797,7 +1112,7 @@
         }
         if (contentDemotionRequested) {
           const hysteresisCapacity = Math.max(0, capacity - baselineGapPx * 2 - 0.01);
-          const lowerPlan = solvePlan(0, hysteresisCapacity);
+          const lowerPlan = solvePlan(0, hysteresisCapacity, solvingCenterClusterHidden);
           floorStage = lowerPlan.stage < committedStage ? lowerPlan.stage : committedStage;
         }
         coordinator.drainProbes();
@@ -805,13 +1120,35 @@
         // register the next partition range. Flush those effects before the
         // pending check so the whole bounded probe chain stays in this pass.
         flushSync();
+        recordSettleTrace(pass, probeSteps);
         probeSteps += 1;
       } while (!disposed && coordinator.hasPendingProbes() && probeSteps < maxProbeSteps);
       if (disposed) break;
       testProbeAfterMeasurementPass?.(coordinator, pass);
+      const nextHidden = nextCenterClusterHidden({
+        previous: solvingCenterClusterHidden,
+        capacity,
+        baseGap: baselineGapPx,
+        unresolved: (hidden, capacityLimit) => {
+          const candidate = solvePlan(floorStage, capacityLimit, hidden);
+          // Fixed center overflow is independent of the card ladder: quiet
+          // and stages 0–2 can have no center candidates while stats/recent
+          // still need r-f reduction to stay above the Nankai reservation.
+          return candidate.unresolved || centerFixed(hidden).height > capacityLimit;
+        },
+      });
+      if (nextHidden.join(",") !== solvingCenterClusterHidden.join(",")) {
+        solvingCenterClusterHidden = nextHidden;
+        flushSync();
+        previous = "";
+        continue;
+      }
       if (plan.stage > floorStage) floorStage = plan.stage;
       const next = signature();
-      if (next === previous && !coordinator.hasPendingProbes() && (measurementGeometryStage >= 2) === (plan.stage >= 2)) {
+      // The signature already carries the effective compressed/non-compressed
+      // surface. Once it repeats with no pending shelf work, a raw stage 2↔3
+      // synchronization cannot make the DOM more settled, so commit now.
+      if (next === previous && !coordinator.hasPendingProbes()) {
         if (!coordinator.canSettle(activeEpoch)) {
           coordinator.settle();
           if (coordinator.epochKey() !== activeEpoch) { superseded = true; break; }
@@ -823,6 +1160,7 @@
             const stageChanged = committedStage !== nextPlan.stage;
             committedPlan = nextPlan;
             committedSelection = nextSelection;
+            committedCenterClusterHidden = [...solvingCenterClusterHidden];
             committedStage = nextPlan.stage;
             measurementGeometryStage = nextPlan.stage;
             if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
@@ -838,11 +1176,12 @@
               break;
             }
             // The final placement flush can mount a center/rotation page probe.
-            // Materialize that same-epoch entry now, so the next outer pass can
-            // measure it instead of spending one of the four passes merely
-            // discovering the callback and exhausting before confirmation.
+            // Materialize that same-epoch entry now. Give its resulting DOM
+            // exactly one confirmation pass beyond the ordinary four-pass
+            // bound; a second late probe cannot extend the epoch again.
             coordinator.drainProbes();
             flushSync();
+            postCommitVerificationPasses = MAX_POST_COMMIT_VERIFICATION_PASSES;
             previous = "";
             continue;
           }
@@ -877,6 +1216,7 @@
           const stageChanged = committedStage !== nextPlan.stage;
           committedPlan = nextPlan;
           committedSelection = nextSelection;
+          committedCenterClusterHidden = [...solvingCenterClusterHidden];
           committedStage = nextPlan.stage;
           measurementGeometryStage = nextPlan.stage;
           if (firstCommit || stageChanged || pendingStageChange != null) pendingStageChange = committedStage;
@@ -913,6 +1253,7 @@
     cardPageCoordinator.holdForEpoch();
     measurementSettled = false;
     measurementGeometryStage = committedPlan?.stage ?? 0;
+    solvingCenterClusterHidden = [...committedCenterClusterHidden];
     prefixMeasurements = {};
     prefixMeasureEntries = [];
     if (settling) {
@@ -975,12 +1316,18 @@
       pagePlacement={placement === "center" ? "center" : "side"}
     />
   {:else if key === "weather"}
+    <!-- A normal weather shelf entry needs the live 1/1 footer/rider surface,
+         but must not start a private scheduler whose registration adds a
+         post-measurement settle pass. -->
     <WeatherAlertCard
-      alerts={weatherWithSelection(measuring ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0) : MAX_PREFIX_ROWS)}
+      alerts={weatherWithSelection(measuring
+        ? (variant === "expanded" ? candidates().find((candidate) => candidate.key === "weather")?.maxRegionRows ?? 0 : 0)
+        : selected.weatherRows)}
       tornado={tornadoItem}
       pageCoordinator={measuring ? undefined : cardPageCoordinator}
       rotationMember={!measuring && renderPlan.rotationKeys.includes("weather")}
       pageScheduling={!measuring}
+      measurementPageFooter={measuring}
       partitionProbe={measuring ? undefined : pagePartitionProbe("weather", placement === "center" ? "center" : "side")}
       pagePlacement={placement === "center" ? "center" : "side"}
     />
@@ -996,18 +1343,22 @@
   {#if entry.key === "quake" && snapshot.latestQuake != null}
     <LatestQuakeCard quake={quakeWithSelection(MAX_PREFIX_ROWS) ?? snapshot.latestQuake} longPeriod={longPeriodItem == null || longPeriodItem.data.eventId !== snapshot.latestQuake.eventId ? null : { ...longPeriodItem.data, restored: longPeriodItem.restored }} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
   {:else if entry.key === "weather"}
-    <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry} pagePlacement={entry.placement} />
+    <!-- Keep the probe's omitted-tail rows identical to the live B prefix.
+         Passing MAX_PREFIX_ROWS here erased the live "ほか n地域" rider and
+         under-measured a grouped weather card by its omitted-row height. -->
+    <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} />
   {/if}
 {/snippet}
 
 <div
   bind:this={standbyEl}
-  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
+  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} class:gate-overflow={gateFixture === "overflow"} class:gate-overlap={gateFixture === "overlap"} class:gate-rotation={gateFixture === "rotation"} class:gate-cluster={gateFixture === "cluster" || gateFixture === "cluster-calm"} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
   data-ladder-stage={renderStage}
   data-solver-stage={stage}
   data-layout-unresolved={renderPlan.unresolved ? "true" : "false"}
   data-measurement-settled={measurementSettled ? "true" : "false"}
   data-measurement-nonconverged={measurementNonConverged ? "true" : "false"}
+  data-settle-trace={gateCapture ? JSON.stringify(settleTrace) : undefined}
   data-measurement-pass={measurementPass}
   data-measurement-read-count={measurementReadCount}
   data-layout-motion-duration={layoutMotionDuration}
@@ -1015,7 +1366,7 @@
   data-suppressed-unknown-count={unknownInputs.length}
   data-left-natural-height-px={naturalColumnHeight(renderPlan.left)}
   data-right-natural-height-px={naturalColumnHeight(renderPlan.right) + (renderPlan.rotationSlotHeight > 0 ? gapPx + renderPlan.rotationSlotHeight : 0) + (renderPlan.rotationFailureCount > 0 ? gapPx + (failureMeasureEl?.getBoundingClientRect().height ?? 0) : 0)}
-  data-center-natural-height-px={renderPlan.center.reduce((total, card) => total + card.centerNaturalHeight, fixedCenterContentHeight) + Math.max(0, renderPlan.center.length + fixedCenterItemCount - 1) * gapPx}
+  data-center-natural-height-px={renderPlan.center.reduce((total, card) => total + card.centerNaturalHeight, fixedCenter.contentHeight) + Math.max(0, renderPlan.center.length + fixedCenter.itemCount - 1) * gapPx}
   data-left-capacity-px={capacity} data-right-capacity-px={capacity} data-center-capacity-px={capacity}
   data-layout-height-px={layoutHeightPx} data-layout-width-px={layoutWidthPx} data-nankai-height-px={nankaiHeightPx}
   data-left-track-width-px={leftTrackWidthPx} data-center-track-width-px={centerTrackWidthPx} data-right-track-width-px={rightTrackWidthPx}
@@ -1035,6 +1386,28 @@
   data-side-measure-shelf-rect-width-px={sideMeasureShelfRectWidthPx} data-center-measure-shelf-rect-width-px={centerMeasureShelfRectWidthPx}
   data-clock-horizontal-clipped={clockHorizontallyClipped ? "true" : "false"}
   data-clock-children-horizontal-clipped={clockChildrenHorizontallyClipped ? "true" : "false"}
+  data-clock-center-delta-x-px={clockCenterDeltaXPx}
+  data-clock-center-delta-y-px={clockCenterDeltaYPx}
+  data-clock-seconds-within-cluster={clockSecondsWithinCluster ? "true" : "false"}
+  data-clock-date-within-cluster={clockDateWithinCluster ? "true" : "false"}
+  data-recent-hypocenters-horizontal-clipped={recentHypocentersHorizontallyClipped ? "true" : "false"}
+  data-weather-compact-side-height-px={hasWeather ? measured("weather", "compact", "right") : 0}
+  data-weather-compact-center-height-px={hasWeather ? measured("weather", "compact", "center") : 0}
+  data-center-cluster-hidden={committedCenterClusterHidden.join(",")}
+  data-center-fixed-height-px={fixedCenter.height}
+  data-recent-quakes-rect-top-px={recentQuakesRectTopPx} data-recent-quakes-rect-bottom-px={recentQuakesRectBottomPx}
+  data-nankai-rect-top-px={nankaiRectTopPx} data-nankai-rect-bottom-px={nankaiRectBottomPx}
+  data-recent-quakes-nankai-overlap-px={recentQuakesNankaiOverlapPx}
+  data-card-overflow-count={cardOverflowCount}
+  data-card-overflow-keys={cardOverflowKeys}
+  data-page-viewport-overflow-keys={pageViewportOverflowKeys}
+  data-geometry-violation-count={geometryViolationCount}
+  data-geometry-violation-keys={geometryViolationKeys}
+  data-right-track-scroll-height-px={rightTrackScrollHeightPx}
+  data-right-track-client-height-px={rightTrackClientHeightPx}
+  data-right-track-child-extents={rightTrackChildExtents}
+  data-typhoon-title-misalignment-px={typhoonTitleMisalignmentPx}
+  data-page-indicator-body-overlap-px={pageIndicatorBodyOverlapPx}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}
@@ -1042,12 +1415,22 @@
   data-scheduler-state={JSON.stringify({ rotation: rotationScheduler.diagnostics(), paging: cardPageCoordinator.diagnostics() })}
   data-expanded-counts={expandedCounts}
   data-prefix-probe-count={prefixMeasureEntries.length}
-  data-typhoon-variant={renderSelection.typhoon}
+  data-typhoon-variant={renderTyphoonVariant}
   data-flood-form={renderFloodForm}
   data-placement-left={renderPlan.left.map((card) => card.key).join(",")}
   data-placement-right={renderPlan.right.map((card) => card.key).join(",")}
   data-placement-center={renderPlan.center.map((card) => card.key).join(",")}
   data-placement-surplus-use={renderSurplusUse}
+  data-weather-selected-height-px={renderWeatherSelectedHeight}
+  data-weather-live-height-px={weatherLiveHeightPx}
+  data-weather-probe-height-px={weatherProbeHeightPx}
+  data-weather-probe-width-px={weatherProbeWidthPx}
+  data-weather-live-width-px={weatherLiveWidthPx}
+  data-weather-probe-card-height-px={weatherProbeCardHeightPx}
+  data-weather-probe-card-width-px={weatherProbeCardWidthPx}
+  data-weather-live-card-height-px={weatherLiveCardHeightPx}
+  data-weather-live-card-width-px={weatherLiveCardWidthPx}
+  data-weather-selected-prefix-id={renderWeatherPrefixId}
   data-outer-paging="none"
 >
   <div class="measure-shelf" bind:this={sideMeasureShelfEl} aria-hidden="true" inert>
@@ -1088,8 +1471,10 @@
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
       <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
-    {#if snapshot.stats != null}<div class="center-stack-card" bind:this={statsMeasureEl}><InstrumentRow stats={snapshot.stats} /></div>{/if}
-    {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card" bind:this={recentMeasureEl}><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
+    <!-- Keep shelf wrappers on the exact live surface too: r-f prices these
+         rects directly, including their border/padding and fixture height. -->
+    {#if snapshot.stats != null}<div class="center-stack-card instrument-row-wrap" bind:this={statsMeasureEl}><InstrumentRow stats={snapshot.stats} /></div>{/if}
+    {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card" bind:this={recentMeasureEl}><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
   </div>
   <div class="baseline-gap-measure" bind:this={baselineGapMeasureEl} aria-hidden="true"></div>
   <div class="rotation-indicator-measure rotation-indicator-footer" bind:this={rotationIndicatorMeasureEl} aria-hidden="true"><span class="rotation-indicator">5/5</span></div>
@@ -1104,9 +1489,9 @@
     inert={renderStage === 0 ? undefined : true}
   >
     <div class="clock-wrap">
-      {#if renderStage === 0 && connectionVisible}<div class="clock-connection" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
+      {#if renderStage === 0 && connectionVisible}<div class="clock-connection" data-layout-motion-card="connection:center" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
       <div class="clock-face" bind:this={clockFaceEl}><Clock {now} /></div>
-      {#if renderStage === 0}<div class="clock-below">{#if snapshot.stats != null}<div class="instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}{#if snapshot.recentQuakes.length > 0}<div class="quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}</div>{/if}
+      {#if renderStage === 0}<div class="clock-below">{#if snapshot.stats != null}<div class="center-stack-card instrument-row-wrap" data-layout-motion-card="stats:center"><InstrumentRow stats={snapshot.stats} /></div>{/if}{#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card" data-layout-motion-card="recent-quakes:center"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}</div>{/if}
     </div>
   </section>
   <section class="legacy-layout" bind:this={layoutEl} aria-label="従来待機画面 改良">
@@ -1118,13 +1503,13 @@
     </div>
     {#if renderStage === 0}<div class="center-grid-spacer" bind:this={centerTrackEl} aria-hidden="true"></div>{:else}
       <section class="center-card-region center-landmark" bind:this={centerTrackEl} data-side="center">
-        {#if connectionVisible}<div class="connection-stage-card" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
+        {#if connectionVisible}<div class="connection-stage-card" data-layout-motion-card="connection:center" bind:this={connectionMeasureEl}><ConnectionBadge connection={snapshot.connection} {sseConnected} /></div>{/if}
         {#each renderPlan.center as card (card.key)}
           {@const fixedHeight = pageFixedHeight(card, "center")}
           <article class="legacy-card" class:paged-card={fixedHeight != null} style:height={fixedHeight == null ? undefined : `${fixedHeight}px`} data-card-page-fixed-height={fixedHeight ?? undefined} data-layout-motion-card={`${card.key}:center`} use:registerLayoutCard={{ key: card.key, surface: "center" }}>{@render renderCard(card.key, displayVariant(card), "center", false, renderSelection)}</article>
         {/each}
-        {#if snapshot.stats != null}<div class="center-stack-card instrument-row-wrap"><InstrumentRow stats={snapshot.stats} /></div>{/if}
-        {#if snapshot.recentQuakes.length > 0}<div class="center-stack-card quakes-card"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
+        {#if fixedCenter.statsVisible}<div class="center-stack-card instrument-row-wrap" data-layout-motion-card="stats:center"><InstrumentRow stats={snapshot.stats!} /></div>{/if}
+        {#if fixedCenter.recentVisible}<div class="center-stack-card quakes-card" data-layout-motion-card="recent-quakes:center"><RecentQuakes quakes={snapshot.recentQuakes} onSelect={selectRecentQuake} /></div>{/if}
       </section>
     {/if}
     <div class="side corner-right side-right" bind:this={rightTrackEl} data-side="right">
@@ -1155,11 +1540,26 @@
      would resolve against the grid for tracks but against .standby for shelves,
      making the solver measure a different width from the visible cards. */
   .standby { --base-edge: clamp(14px, 2.5vw, 48px); --base-gap: clamp(8px, 1vw, 18px); --compressed-edge: clamp(10px, 1.8vw, 32px); --compressed-gap: clamp(4px, .6vw, 10px); --edge: var(--base-edge); --gap: var(--base-gap); --side-readable-width: 17.5rem; --center-width: min(36rem, calc(100vw - var(--edge) * 2 - var(--gap) * 2 - var(--side-readable-width) * 2)); position: relative; width: 100%; height: 100%; overflow: hidden; color: var(--fg); background: var(--bg); transition: opacity var(--dur-standby-dim) ease; }
-  .standby.ladder-compressed { --edge: var(--compressed-edge); --gap: var(--compressed-gap); }
+  /* Match the compact-stage token set used by the legacy measurement mock.
+     Without these overrides the actual weather card keeps 8/12/16px padding
+     while the mock measures 4/6/8px, adding about 32px for a three-prefecture
+     weather card and spuriously rotating it at 1280x720. */
+  .standby.ladder-compressed {
+    --edge: var(--compressed-edge);
+    --gap: var(--compressed-gap);
+    --space-1: 2px;
+    --space-2: 4px;
+    --space-3: 6px;
+    --space-4: 8px;
+    --space-5: 10px;
+  }
   .measure-shelf, .center-measure-shelf { position: absolute; top: 0; display: flex; flex-direction: column; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; z-index: -1; }
   .measure-shelf { right: 0; } .center-measure-shelf { left: 50%; width: var(--center-width); transform: translateX(-50%); }
   .measure-shelf :global(*), .center-measure-shelf :global(*) { animation: none !important; transition: none !important; }
   .measure-item { width: 100%; flex: 0 0 auto; }
+  /* The live card gets this through .legacy-card. Shelf cards are direct
+     children, so bridge the same surface contract for every variant. */
+  .measure-item :global(.weather-card) { width: 100%; max-width: 100%; }
   .partition-preflight { width: 100%; flex: 0 0 auto; }
   .baseline-gap-measure { position: absolute; width: var(--base-gap); height: 1px; visibility: hidden; pointer-events: none; }
   .rotation-indicator-measure { position: absolute; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; }
@@ -1183,12 +1583,29 @@
   /* A shared grid track gives the viewport and footer one exact boundary.
      Flex item pixel distribution can otherwise make their independently
      rounded rects overlap by a subpixel in tall rotation slots. */
-  .rotation-slot { display: grid; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; }
+  /* The active compact card may be taller than its viewport. It is clipped
+     inside the reserved slot; contain its descendants so that internal paint
+     overflow cannot inflate the right track's scrollHeight. */
+  .rotation-slot { display: grid; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; contain: layout paint; }
   .rotation-card-viewport { min-height: 0; width: 100%; overflow: hidden; }
   .rotation-card { width: 100%; } .rotation-card[hidden] { display: none; } .rotation-card > :global(*) { width: 100%; }
   .rotation-indicator-footer { display: flex; flex: 0 0 auto; justify-content: flex-end; box-sizing: border-box; width: 100%; padding: 0 var(--space-4) var(--space-2); }
   .rotation-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); background: color-mix(in srgb, var(--surface-standby) 92%, transparent); color: var(--role-muted); font-size: var(--type-label-xs-size); font-variant-numeric: tabular-nums; }
   .rotation-failure { padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; }
+  /* E-gate only: break the rendered layout, never the diagnostic values. */
+  .standby.gate-overflow .legacy-card { height: 1px !important; overflow: hidden; }
+  .standby.gate-overflow :global(.weather-card [data-page-probe-body]) { height: 1px; overflow: hidden; }
+  /* Put both independently measured targets at one fixed origin. Unlike a
+     percentage bottom offset, this remains an overlap at every viewport. */
+  .standby.gate-overlap .nankai-ticker { top: 0; right: auto; bottom: auto; left: 0; width: 280px; }
+  .standby.gate-overlap .center-card-region .quakes-card,
+  .standby.gate-overlap .clock-landmark .quakes-card { position: fixed; top: 0; left: 0; width: 280px; }
+  /* E-gate success fixture: scenario 4 の stage 0–2 fixed cluster を
+     measured/live とも膨らませ、r-f が時計を消さず縮退することを実証する。 */
+  .standby.gate-cluster :global(.center-measure-shelf .center-stack-card.quakes-card),
+  .standby.gate-cluster .center-card-region .center-stack-card.quakes-card,
+  .standby.gate-cluster .clock-landmark .center-stack-card.quakes-card { min-height: 1000px; }
+  .standby.gate-rotation .rotation-indicator-footer { display: none; }
   .standby.dim { opacity: .35; }
   /* Normal information and warning-grade fixed tiers remain separate groups:
      their current floor is equal, but keeping the selectors separate prevents

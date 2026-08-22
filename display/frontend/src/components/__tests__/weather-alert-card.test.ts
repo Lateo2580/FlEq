@@ -345,23 +345,53 @@ describe("WeatherAlertCard", () => {
     expect(src).not.toContain("clip-hidden");
   });
 
-  it("測定棚ではページ番号を本文・riderと同じin-flow footerで組版する", () => {
+  it("測定棚ではページ番号を本文とriderの間にゼロ高 footer として組版する", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [weatherAlert({ items: [{
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
       }] })],
       tornado: restoredTornado(),
+      measurementPageFooter: true,
       measurementRange: { start: 0, end: 1, tails: [{ kindKey: "warning|大雨警報", omittedAreaCount: 3 }], omittedAreaCount: 3 },
     });
     const card = container.querySelector<HTMLElement>(".weather-card");
     const body = card?.querySelector<HTMLElement>("[data-page-probe-body]");
     const footer = card?.querySelector<HTMLElement>("[data-card-page-footer]");
+    const rider = card?.querySelector<HTMLElement>(".tornado-rider");
     expect(card?.hasAttribute("data-page-probe-card")).toBe(true);
     expect(footer?.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/1");
     expect(body?.contains(footer ?? null)).toBe(false);
+    expect(footer?.nextElementSibling).toBe(rider);
     const source = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
-    expect(source).toMatch(/\.card-page-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*flex-end;/s);
+    expect(source).toMatch(/\.card-page-footer\s*\{[^}]*display:\s*flex;[^}]*flex:\s*0 0 0;[^}]*height:\s*0;[^}]*transform:\s*translateY\(-100%\);/s);
     expect(source).not.toMatch(/\.card-page-indicator\s*\{[^}]*position:\s*absolute;/s);
+  });
+
+  it("通常変異の測定棚は live と同じく truncate 時だけ 1/1 footer を持つ", () => {
+    const { container } = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{
+        kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
+      }] })],
+      tornado: restoredTornado(),
+      measurementPageFooter: true,
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card");
+    expect(card?.classList.contains("has-page-footer")).toBe(true);
+    expect(card?.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/1");
+  });
+
+  it("非 paginate・非 truncate の棚は footer を増やさず rider の幅を live と揃える", () => {
+    const { container } = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{
+        kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 0,
+      }] })],
+      tornado: restoredTornado(),
+      measurementPageFooter: true,
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card");
+    expect(card?.classList.contains("has-page-footer")).toBe(false);
+    expect(card?.querySelector("[data-card-page-footer]")).toBeNull();
+    expect(card?.querySelector(".tornado-rider")).toBeTruthy();
   });
 
   it("複数バケツ (emergency + warning) を渡したとき、最高ランク (emergency) の item だけが描画され、下位 (warning) は省略される", () => {

@@ -2596,6 +2596,8 @@
   data-weather-expanded-rows={contentSelection.weatherRows}
   data-typhoon-variant={typhoon == null ? "none" : contentSelection.typhoon}
   data-flood-form={floodForm}
+  data-weather-compact-side-height-px={fullWeatherAlerts.length === 0 ? 0 : measuredHeight("weather", "compact")}
+  data-weather-compact-center-height-px={fullWeatherAlerts.length === 0 ? 0 : measuredHeight("weather", "compact", "center")}
   data-expanded-counts={expandedCounts}
   data-placement-surplus-use={placementSurplusUse}
   data-card-page-tick={currentCardPageTick}

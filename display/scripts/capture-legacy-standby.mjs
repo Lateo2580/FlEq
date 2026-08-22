@@ -15,10 +15,8 @@ import { spawn } from "node:child_process";
 
 const DISPLAY_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_DIR = join(DISPLAY_DIR, "dist");
-// max-floodWide is explicit-only until the §11.1 1920×1080 cell receives the
-// ご主人再裁定; keeping it out of the default gate preserves a green baseline.
-const DEFAULT_SCENARIOS = ["quiet", "4", "7", "max"];
-const SUPPORTED_SCENARIOS = [...DEFAULT_SCENARIOS, "max-floodWide"];
+const DEFAULT_SCENARIOS = ["quiet", "4", "7", "max", "max-floodWide"];
+const SUPPORTED_SCENARIOS = [...DEFAULT_SCENARIOS];
 const DEFAULT_VIEWPORTS = ["1920x1080", "1512x982", "1280x720", "960x620"];
 const FLOOD_WIDE_VIEWPORTS = ["1920x1080", "1280x720"];
 const MIME_TYPES = new Map([
@@ -28,25 +26,27 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH] (max-floodWide is explicit-only pending §11.1 1920×1080 ご主人再裁定)\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
 function parseArgs(argv) {
-  const result = { url: null, scenarios: [], viewports: [], outDir: null };
+  const result = { url: null, scenarios: [], viewports: [], outDir: null, report: false, fixture: null };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     const value = argv[index + 1];
-    if (argument === "--url" || argument === "--scenario" || argument === "--viewport" || argument === "--out-dir") {
+    if (argument === "--url" || argument === "--scenario" || argument === "--viewport" || argument === "--out-dir" || argument === "--fixture") {
       if (value == null) throw new Error(`${argument} requires a value`);
       index += 1;
       if (argument === "--url") result.url = value;
       if (argument === "--scenario") result.scenarios.push(value);
       if (argument === "--viewport") result.viewports.push(value);
       if (argument === "--out-dir") result.outDir = value;
+      if (argument === "--fixture") result.fixture = value;
       continue;
     }
     if (argument === "--help" || argument === "-h") return null;
+    if (argument === "--report") { result.report = true; continue; }
     throw new Error(`unknown argument: ${argument}`);
   }
   return result;
@@ -130,11 +130,12 @@ async function startStaticServer() {
   };
 }
 
-function gateUrl(baseUrl, scenario, rotationTick = null) {
+function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null) {
   const url = new URL(baseUrl);
   url.searchParams.set("nav", "0");
   url.searchParams.set("gateScenario", scenario);
   if (rotationTick != null) url.searchParams.set("rotationTick", String(rotationTick));
+  if (fixture != null) url.searchParams.set("gateFixture", fixture);
   url.hash = "legacy-standby-gate";
   return url.toString();
 }
@@ -158,14 +159,34 @@ function assertCompleteDom(dom) {
 function diagnosticsFromDom(dom) {
   const attributes = [
     "data-ladder-stage", "data-measurement-settled", "data-layout-unresolved", "data-measurement-nonconverged",
+    "data-settle-trace",
     "data-rotation-keys", "data-flood-form", "data-expanded-counts", "data-placement-surplus-use",
     "data-left-track-width-px", "data-center-track-width-px", "data-right-track-width-px",
     "data-side-measure-shelf-width-px", "data-center-measure-shelf-width-px",
     "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-right-track-rect-width-px",
     "data-side-measure-shelf-rect-width-px", "data-center-measure-shelf-rect-width-px",
     "data-clock-horizontal-clipped", "data-clock-children-horizontal-clipped",
+    "data-clock-center-delta-x-px", "data-clock-center-delta-y-px",
+    "data-clock-seconds-within-cluster", "data-clock-date-within-cluster",
+    "data-recent-hypocenters-horizontal-clipped",
+    "data-weather-compact-side-height-px", "data-weather-compact-center-height-px",
+    "data-center-cluster-hidden", "data-center-fixed-height-px",
+    "data-recent-quakes-rect-top-px", "data-recent-quakes-rect-bottom-px",
+    "data-nankai-rect-top-px", "data-nankai-rect-bottom-px", "data-recent-quakes-nankai-overlap-px",
     "data-rotation-active-key", "data-rotation-position", "data-rotation-slot-height-px", "data-rotation-indicator-height-px", "data-rotation-compact-max-height-px",
     "data-rotation-card-viewport-rect-height-px", "data-rotation-footer-rect-height-px", "data-rotation-viewport-footer-overlap-px",
+    "data-card-overflow-count",
+    "data-card-overflow-keys", "data-page-viewport-overflow-keys",
+    "data-geometry-violation-count",
+    "data-geometry-violation-keys",
+    "data-right-track-scroll-height-px", "data-right-track-client-height-px",
+    "data-weather-selected-height-px",
+    "data-weather-live-height-px",
+    "data-weather-probe-height-px", "data-weather-probe-width-px", "data-weather-live-width-px",
+    "data-weather-probe-card-height-px", "data-weather-probe-card-width-px", "data-weather-live-card-height-px", "data-weather-live-card-width-px",
+    "data-weather-selected-prefix-id",
+    "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px",
+    "data-typhoon-variant",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
     const escaped = attribute.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -181,7 +202,9 @@ function expectEqual(actual, expected, label) {
 }
 
 function numberDiagnostic(diagnostics, name) {
-  const value = Number(diagnostics[name]);
+  const raw = diagnostics[name];
+  if (raw == null || raw === "") throw new Error(`missing numeric diagnostic: ${name}`);
+  const value = Number(raw);
   if (!Number.isFinite(value)) throw new Error(`${name}: expected a numeric diagnostic, got ${diagnostics[name]}`);
   return value;
 }
@@ -189,14 +212,14 @@ function numberDiagnostic(diagnostics, name) {
 function assertNarrowGeometry(diagnostics, scenario, viewport) {
   if (viewport.label !== "960x620") return;
   if (scenario === "quiet") expectEqual(diagnostics["data-ladder-stage"], "0", "960px quiet stage");
-  // Spec §5 expects stage 3 (rotation) here, but the empty-rotation solver
-  // fallback lands at stage 2 — a divergence pending ご主人再裁定. Pin the
-  // measured value so regressions still fail; restore "3" or revise the spec
-  // table once the adjudication lands.
-  if (scenario === "max") expectEqual(diagnostics["data-ladder-stage"], "2", "960px max stage (§5 裁定待ち)");
-  // Scenario 7 at 960px sits in the same pending divergence — pin it too so
-  // the cell is asserted rather than silently skipped.
-  if (scenario === "7") expectEqual(diagnostics["data-ladder-stage"], "2", "960px scenario-7 stage (§5 裁定待ち)");
+  // Spec §5 / ruling ⑤ follow-up: scenario 7 makes weather permanent after
+  // the surface fix, while max still requires weather in the rotation slot.
+  if (scenario === "max" || scenario === "7") {
+    expectEqual(diagnostics["data-ladder-stage"], "3", `960px scenario-${scenario} stage (§5)`);
+    expectEqual(diagnostics["data-rotation-keys"], scenario === "7" ? "flood,typhoon,volcano,heat" : "weather,flood,typhoon,volcano,heat", `960px scenario-${scenario} rotation set (§5)`);
+    expectEqual(diagnostics["data-layout-unresolved"], "false", `960px scenario-${scenario} resolved layout (§5)`);
+  }
+  if (scenario !== "quiet") expectEqual(diagnostics["data-recent-hypocenters-horizontal-clipped"], "false", "960px recent-quake hypocenter clipping");
   if (scenario !== "quiet" && scenario !== "max") return;
   const left = numberDiagnostic(diagnostics, "data-left-track-width-px");
   const center = numberDiagnostic(diagnostics, "data-center-track-width-px");
@@ -218,6 +241,69 @@ function assertNarrowGeometry(diagnostics, scenario, viewport) {
   expectEqual(diagnostics["data-clock-children-horizontal-clipped"], "false", "960px clock child horizontal clipping");
 }
 
+function stageZeroClockMismatches(diagnostics) {
+  if (diagnostics["data-ladder-stage"] !== "0") return [];
+  const dx = numberDiagnostic(diagnostics, "data-clock-center-delta-x-px");
+  const dy = numberDiagnostic(diagnostics, "data-clock-center-delta-y-px");
+  return [
+    ...(dx <= 1 ? [] : [{ key: "clockCenterDeltaX", expected: "<=1", actual: String(dx) }]),
+    ...(dy <= 1 ? [] : [{ key: "clockCenterDeltaY", expected: "<=1", actual: String(dy) }]),
+    ...(diagnostics["data-clock-seconds-within-cluster"] === "true" ? [] : [{ key: "clockSecondsWithinCluster", expected: "true", actual: diagnostics["data-clock-seconds-within-cluster"] }]),
+    ...(diagnostics["data-clock-date-within-cluster"] === "true" ? [] : [{ key: "clockDateWithinCluster", expected: "true", actual: diagnostics["data-clock-date-within-cluster"] }]),
+  ];
+}
+
+function assertStageZeroClock(diagnostics) {
+  const mismatches = stageZeroClockMismatches(diagnostics);
+  if (mismatches.length > 0) throw new Error(`stage-0 clock geometry invalid: ${JSON.stringify(mismatches)}`);
+}
+
+function assertNankaiSeparation(diagnostics) {
+  const overlap = numberDiagnostic(diagnostics, "data-recent-quakes-nankai-overlap-px");
+  if (overlap > 0) throw new Error(`recent-quakes/Nankai overlap: ${overlap}px`);
+}
+
+function assertCardContainment(diagnostics) {
+  const overflow = numberDiagnostic(diagnostics, "data-card-overflow-count");
+  if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
+}
+
+function assertGeometry(diagnostics, { skipWeatherHeight = false } = {}) {
+  const selectedWeather = numberDiagnostic(diagnostics, "data-weather-selected-height-px");
+  const liveWeather = numberDiagnostic(diagnostics, "data-weather-live-height-px");
+  if (!skipWeatherHeight && selectedWeather > 0 && liveWeather > 0 && Math.abs(selectedWeather - liveWeather) > 1) throw new Error(`weather probe/live height mismatch: ${selectedWeather} != ${liveWeather}`);
+  const probeCardWidth = numberDiagnostic(diagnostics, "data-weather-probe-card-width-px");
+  const liveCardWidth = numberDiagnostic(diagnostics, "data-weather-live-card-width-px");
+  if (!skipWeatherHeight && probeCardWidth > 0 && liveCardWidth > 0 && Math.abs(probeCardWidth - liveCardWidth) > 1) throw new Error(`weather probe/live card-width mismatch: ${probeCardWidth} != ${liveCardWidth}`);
+  const violations = numberDiagnostic(diagnostics, "data-geometry-violation-count");
+  if (violations !== 0) throw new Error(`card/viewport/clock/nankai geometry invalid: ${violations} violation(s): ${diagnostics["data-geometry-violation-keys"]}`);
+  if (numberDiagnostic(diagnostics, "data-typhoon-title-misalignment-px") > 2) throw new Error("typhoon title/location rows are misaligned");
+  if (numberDiagnostic(diagnostics, "data-page-indicator-body-overlap-px") > 0) throw new Error("page indicator overlaps its body");
+}
+
+function assertClusterFixture(diagnostics, { requirePreRotation = false } = {}) {
+  const hidden = (diagnostics["data-center-cluster-hidden"] ?? "").split(",");
+  if (!hidden.includes("stats")) throw new Error("cluster fixture did not reduce stats");
+  expectEqual(diagnostics["data-layout-unresolved"], "false", "cluster fixture resolved layout");
+  if (numberDiagnostic(diagnostics, "data-recent-quakes-nankai-overlap-px") !== 0) throw new Error("cluster fixture overlaps Nankai band");
+  if (requirePreRotation) {
+    // data-center-fixed-height-px is the POST-reduction fixed cluster height:
+    // once both stats and recent-quakes are hidden it legitimately reads 0.
+    // The non-empty hidden list above already proves there was a cluster to
+    // reduce, so only reject when nothing was hidden AND nothing is left.
+    if (hidden.filter(Boolean).length === 0 && numberDiagnostic(diagnostics, "data-center-fixed-height-px") <= 0) throw new Error("cluster-calm fixture has no fixed cluster to reduce");
+    if (Number(diagnostics["data-ladder-stage"]) > 2) throw new Error(`cluster-calm fixture escaped stage 0–2: ${diagnostics["data-ladder-stage"]}`);
+  }
+}
+
+function assertClockHandoff(dom, diagnostics) {
+  const stage = Number(diagnostics["data-ladder-stage"]);
+  const tickerClock = /class="[^"]*ticker-clock[^"]*"/.test(dom);
+  const centralAway = /class="[^"]*clock-landmark[^"]*clock-away[^"]*"/.test(dom);
+  if (stage === 0 && (tickerClock || centralAway)) throw new Error("stage 0 clock handoff is not exclusive");
+  if (stage >= 1 && (!tickerClock || !centralAway)) throw new Error("evacuated clock is not rendered in ticker exclusively");
+}
+
 function assertRotationDiagnostics(diagnostics, rotationTick) {
   if (rotationTick == null || diagnostics["data-ladder-stage"] !== "3") return;
   const keys = (diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
@@ -236,9 +322,58 @@ function assertRotationDiagnostics(diagnostics, rotationTick) {
 }
 
 const FLOOD_WIDE_EXPECTATIONS = {
-  "1920x1080": { stage: "0", rotationKeys: "", floodForm: "card", expandedCounts: { quake: { count: 7, n: 0 }, weather: { "大雨警報(土砂災害)": { count: 5, n: 19 } } }, surplus: "5" },
-  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", floodForm: "card", expandedCounts: { quake: { count: 7, n: 0 }, weather: { "大雨警報(土砂災害)": { count: 4, n: 20 } } }, surplus: "4" },
+  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
+  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 10, n: 14 } } }, surplus: "7" },
 };
+
+// §5 / §11.1 fixed tables. --report emits this comparison without mutating
+// either source of truth, so a newly measured table needs an explicit ruling.
+const TABLE_EXPECTATIONS = {
+  quiet: { "1920x1080": { stage: "0", rotationKeys: "" }, "1512x982": { stage: "0", rotationKeys: "" }, "1280x720": { stage: "0", rotationKeys: "" }, "960x620": { stage: "0", rotationKeys: "" } },
+  "4": { "1920x1080": { stage: "0", rotationKeys: "" }, "1512x982": { stage: "0", rotationKeys: "" }, "1280x720": { stage: "1", rotationKeys: "" }, "960x620": { stage: "2", rotationKeys: "" } },
+  "7": { "1920x1080": { stage: "0", rotationKeys: "" }, "1512x982": { stage: "0", rotationKeys: "" }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat" }, "960x620": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat" } },
+  max: { "1920x1080": { stage: "1", rotationKeys: "" }, "1512x982": { stage: "1", rotationKeys: "" }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat" }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat" } },
+};
+// §11.1 C, keyed independently of the §5 ladder table. Keeping the measured
+// payload here makes --report reject a stage match with stale expansion data.
+const UTIL_EXPECTATIONS = {
+  // In §11.1's human table "−（不在）" is encoded as the always-emitted
+  // diagnostic value "none"; absence is never represented by a missing attr.
+  "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13], "1512x982": ["none", "none", 7, 0, 12, 0, 13], "1280x720": ["none", "none", 7, 0, 12, 0, 13], "960x620": ["none", "none", 7, 0, 9, 3, 10] },
+  "7": { "1920x1080": ["compact", "card", 4, 3, 12, 0, 10], "1512x982": ["compact", "card", 4, 3, 2, 10, 0], "1280x720": ["compact", "card", 4, 3, 12, 0, 10], "960x620": ["compact", "card", 4, 3, 2, 10, 0] },
+  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25], "1512x982": ["compact", "card", 4, 3, 24, 0, 21], "1280x720": ["compact", "card", 4, 3, 10, 14, 7], "960x620": ["compact", "card", 4, 3, 3, 21, 0] },
+};
+
+function tableMismatches(diagnostics, scenario, viewport) {
+  const expected = scenario === "max-floodWide"
+    ? FLOOD_WIDE_EXPECTATIONS[viewport.label]
+    : (() => {
+      const base = TABLE_EXPECTATIONS[scenario]?.[viewport.label];
+      const util = UTIL_EXPECTATIONS[scenario]?.[viewport.label];
+      return base == null || util == null ? base : { ...base, typhoonVariant: util[0], floodForm: util[1], expandedCounts: { quake: { count: util[2], n: util[3] }, weather: { "大雨警報(土砂災害)": { count: util[4], n: util[5] } } }, surplus: String(util[6]) };
+    })();
+  if (expected == null) return [];
+  const observed = {
+    stage: diagnostics["data-ladder-stage"], rotationKeys: diagnostics["data-rotation-keys"],
+    unresolved: diagnostics["data-layout-unresolved"], nonconverged: diagnostics["data-measurement-nonconverged"],
+    centerClusterHidden: diagnostics["data-center-cluster-hidden"], floodForm: diagnostics["data-flood-form"],
+    typhoonVariant: diagnostics["data-typhoon-variant"], expandedCounts: diagnostics["data-expanded-counts"],
+    surplus: diagnostics["data-placement-surplus-use"],
+  };
+  const expectedValues = { stage: expected.stage, rotationKeys: expected.rotationKeys, unresolved: "false", nonconverged: "false", centerClusterHidden: "" };
+  for (const key of ["floodForm", "typhoonVariant", "expandedCounts", "surplus"]) {
+    if (expected[key] != null) expectedValues[key] = key === "expandedCounts" ? JSON.stringify(expected[key]) : expected[key];
+  }
+  return [
+    ...Object.entries(expectedValues).flatMap(([key, value]) => observed[key] === value ? [] : [{ key, expected: value, actual: observed[key] }]),
+    ...stageZeroClockMismatches(diagnostics),
+  ];
+}
+
+function assertTableDiagnostics(diagnostics, scenario, viewport) {
+  const mismatches = tableMismatches(diagnostics, scenario, viewport);
+  if (mismatches.length > 0) throw new Error(`${viewport.label} scenario-${scenario} table mismatch: ${JSON.stringify(mismatches)}`);
+}
 
 function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   if (scenario !== "max-floodWide") return;
@@ -253,7 +388,7 @@ function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   expectEqual(diagnostics["data-measurement-nonconverged"], "false", `${viewport.label} floodWide convergence`);
 }
 
-async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null }) {
+async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, assertTable = true }) {
   const tickSuffix = rotationTick == null ? "" : `-tick-${rotationTick}`;
   const stem = `legacy-standby-${scenario}-${viewport.label}${tickSuffix}`;
   const pngPath = join(outDir, `${stem}.png`);
@@ -276,13 +411,24 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const dom = await readFile(domPath, "utf8");
   assertCompleteDom(dom);
   const diagnostics = diagnosticsFromDom(dom);
-  assertNarrowGeometry(diagnostics, scenario, viewport);
-  assertRotationDiagnostics(diagnostics, rotationTick);
-  assertFloodWideDiagnostics(diagnostics, scenario, viewport);
-  const report = { scenario, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics };
+  const clusterFixture = url.includes("gateFixture=cluster");
+  const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
+  if (!clusterFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
+  assertNankaiSeparation(diagnostics);
+  assertStageZeroClock(diagnostics);
+  assertCardContainment(diagnostics);
+  assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
+  if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
+  assertClockHandoff(dom, diagnostics);
+  if (!clusterFixture) assertRotationDiagnostics(diagnostics, rotationTick);
+  if (assertTable && !url.includes("gateFixture=cluster")) {
+    assertTableDiagnostics(diagnostics, scenario, viewport);
+    assertFloodWideDiagnostics(diagnostics, scenario, viewport);
+  }
+  const report = { scenario, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport) };
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
   await rm(domPath, { force: true });
-  return { pngPath, jsonPath, diagnostics };
+  return { scenario, viewport, rotationTick, pngPath, jsonPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport) };
 }
 
 async function main() {
@@ -291,6 +437,8 @@ async function main() {
   if (options == null) { usage(); return; }
   const scenarios = options.scenarios.length === 0 ? DEFAULT_SCENARIOS : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
+  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm"].includes(options.fixture)) throw new Error("fixture must be overflow, overlap, rotation, cluster, or cluster-calm");
+  if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
   await mkdir(outDir, { recursive: true });
@@ -302,21 +450,25 @@ async function main() {
     const results = [];
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
-        ? scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
+        ? scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
         : requestedViewports.map((viewport) => viewport.label);
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {
-        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0), scenario, viewport, outDir, rotationTick: 0 });
+        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture), scenario, viewport, outDir, rotationTick: 0, assertTable: !options.report });
         results.push(first);
         const rotationKeys = (first.diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
         if (first.diagnostics["data-ladder-stage"] === "3") {
           for (let rotationTick = 1; rotationTick < rotationKeys.length; rotationTick += 1) {
-            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick), scenario, viewport, outDir, rotationTick }));
+            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, options.fixture), scenario, viewport, outDir, rotationTick, assertTable: !options.report }));
           }
         }
       }
     }
-    process.stdout.write(`${JSON.stringify({ outDir, results }, null, 2)}\n`);
+    const cells = results.filter((result) => result.rotationTick === 0).map((result) => ({
+      scenario: result.scenario, viewport: result.viewport, match: result.mismatches.length === 0,
+      mismatches: result.mismatches, diagnostics: result.diagnostics,
+    }));
+    process.stdout.write(`${JSON.stringify(options.report ? { outDir, cells } : { outDir, results }, null, 2)}\n`);
   } finally {
     await rm(profileDir, { recursive: true, force: true });
     if (staticServer != null) await staticServer.close();
