@@ -186,7 +186,7 @@ function diagnosticsFromDom(dom) {
     "data-weather-probe-card-height-px", "data-weather-probe-card-width-px", "data-weather-live-card-height-px", "data-weather-live-card-width-px",
     "data-weather-selected-prefix-id",
     "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px", "data-page-indicator-rider-overlap-px",
-    "data-flood-readable-overflow-keys",
+    "data-flood-visibility-violation-keys", "data-flood-readable-overflow-keys",
     "data-typhoon-variant",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
@@ -270,6 +270,9 @@ function assertCardContainment(diagnostics) {
 }
 
 function assertFloodReadability(diagnostics) {
+  const visibilityKeys = diagnostics["data-flood-visibility-violation-keys"];
+  if (visibilityKeys == null) throw new Error("flood visibility diagnostic is missing");
+  if (visibilityKeys !== "") throw new Error(`flood visibility invalid: ${visibilityKeys}`);
   const overflowKeys = diagnostics["data-flood-readable-overflow-keys"];
   if (overflowKeys == null) throw new Error("flood readability diagnostic is missing");
   if (overflowKeys !== "") throw new Error(`flood readability invalid: ${overflowKeys}`);

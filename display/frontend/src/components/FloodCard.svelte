@@ -18,8 +18,13 @@
   class:many-rivers={item.data.rivers.length >= 3}
 >
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
-  {#each item.data.rivers as river (river.riverKey)}
-  <div class="river-entry">
+  {#each item.data.rivers as river, index (river.riverKey)}
+  <div
+    class="river-entry"
+    data-flood-entry-index={index}
+    data-flood-aggregated-normal={index >= 2 ? "true" : undefined}
+    data-flood-aggregated-narrow={index >= 1 ? "true" : undefined}
+  >
     <div class:critical-river={river.levelRank >= 40} class="river-row">{river.riverName}　{river.kindName}（{river.level}）</div>
     {#if river.station != null}
       {@const station = river.station}
@@ -28,10 +33,10 @@
   </div>
   {/each}
   {#if item.data.rivers.length >= 3}
-    <div class="more-rivers more-many">ほか {item.data.rivers.length - 2} 河川</div>
+    <div class="more-rivers more-many" data-flood-aggregate="normal">ほか {item.data.rivers.length - 2} 河川</div>
   {/if}
   {#if item.data.rivers.length >= 2}
-    <div class="more-rivers more-narrow">ほか {item.data.rivers.length - 1} 河川</div>
+    <div class="more-rivers more-narrow" data-flood-aggregate="narrow">ほか {item.data.rivers.length - 1} 河川</div>
   {/if}
 </section>
 
@@ -81,7 +86,7 @@
   .more-rivers { display: none; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); color: var(--role-muted); font-size: max(14px, var(--type-label-l-fluid)); text-align: center; white-space: nowrap; }
   /* 3 河川 + 観測所副行2本でも200pxを超えるため、通常幅から先頭2河川を
      残して集約する。wide surface の side/rotation 変換 (最大5河川) も同じ契約。 */
-  .many-rivers .river-entry:nth-of-type(n + 3) { display: none; }
+  .many-rivers [data-flood-aggregated-normal] { display: none; }
   .many-rivers .more-many { display: block; }
   .station-level { color: var(--fg); --number-unit-affix-size: 1em; }
   .trend-rising { color: var(--role-tsunamiWarning); }
@@ -91,7 +96,7 @@
   /* 960px gate の side card (約 269px) だけ折返しを許可する。折返しで自然高が
      増える分、先頭 1 河川 + 集約行へ切り替えて 200px の可読領域を守る。 */
   @container (max-width: 320px) {
-    .river-entry:nth-of-type(n + 2) { display: none; }
+    [data-flood-aggregated-narrow] { display: none; }
     .many-rivers .more-many { display: none; }
     .more-narrow { display: block; }
     .river-row,

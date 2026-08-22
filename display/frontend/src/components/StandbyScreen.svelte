@@ -195,6 +195,7 @@
   let typhoonTitleMisalignmentPx = $state(0);
   let pageIndicatorBodyOverlapPx = $state(0);
   let pageIndicatorRiderOverlapPx = $state(0);
+  let floodVisibilityViolationKeys = $state("");
   let floodReadableOverflowKeys = $state("");
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
@@ -865,6 +866,7 @@
     typhoonTitleMisalignmentPx: number;
     pageIndicatorBodyOverlapPx: number;
     pageIndicatorRiderOverlapPx: number;
+    floodVisibilityViolationKeys: string;
     floodReadableOverflowKeys: string;
   }
   function readRenderedGeometry(): RenderedGeometry {
@@ -970,16 +972,58 @@
       const rider = card.querySelector<HTMLElement>(".tornado-rider");
       return indicator == null || rider == null ? 0 : overlapArea(indicator.getBoundingClientRect(), rider.getBoundingClientRect());
     }));
-    const floodReadableOverflowKeys = [...(standbyEl?.querySelectorAll<HTMLElement>(
+    const floodCards = [...(standbyEl?.querySelectorAll<HTMLElement>(
       ".legacy-layout .flood-card, .legacy-layout .flood-wide-card",
-    ) ?? [])]
-      .filter(paintable)
+    ) ?? [])].filter(paintable);
+    const hasRenderedBox = (element: HTMLElement): boolean => Array.from(element.getClientRects())
+      .some((rect) => rect.width > 0 && rect.height > 0);
+    const floodVisibilityViolationKeys = floodCards
+      // Rotation keeps every candidate mounted and hides inactive wrappers.
+      // Validate entry/summary boxes only while the compact card itself owns
+      // a rendered box; an inactive rotation candidate has no visibility
+      // contract until its tick becomes active.
+      .filter((card) => card.classList.contains("flood-card") && hasRenderedBox(card))
+      .flatMap((card, cardIndex) => {
+        const cardKey = `flood:${cardIndex}`;
+        const entries = [...card.querySelectorAll<HTMLElement>("[data-flood-entry-index]")];
+        const narrow = card.clientWidth <= 320;
+        const expectedVisibleCount = Math.min(entries.length, narrow ? 1 : entries.length >= 3 ? 2 : entries.length);
+        const expectedAggregate = entries.length > expectedVisibleCount ? (narrow ? "narrow" : "normal") : null;
+        const aggregates = [...card.querySelectorAll<HTMLElement>("[data-flood-aggregate]")];
+        const expectedAggregateElement = expectedAggregate == null
+          ? null
+          : aggregates.find((element) => element.dataset.floodAggregate === expectedAggregate) ?? null;
+        return [
+          ...entries.flatMap((entry, index) => {
+            const expected = index < expectedVisibleCount;
+            const actual = hasRenderedBox(entry);
+            return expected === actual ? [] : [`${cardKey}:entry:${index}:${expected ? "missing" : "unexpected"}`];
+          }),
+          ...(expectedAggregate != null && (expectedAggregateElement == null || !hasRenderedBox(expectedAggregateElement))
+            ? [`${cardKey}:aggregate:${expectedAggregate}:missing`]
+            : []),
+          ...aggregates.flatMap((aggregate) => {
+            const variant = aggregate.dataset.floodAggregate ?? "unknown";
+            return variant !== expectedAggregate && hasRenderedBox(aggregate)
+              ? [`${cardKey}:aggregate:${variant}:unexpected`]
+              : [];
+          }),
+        ];
+      })
+      .join(",");
+    const floodReadableOverflowKeys = floodCards
       .flatMap((card, cardIndex) => {
         const cardKey = `${card.classList.contains("flood-wide-card") ? "flood-wide" : "flood"}:${cardIndex}`;
         const cardRect = card.getBoundingClientRect();
+        const aggregateAttribute = card.clientWidth <= 320
+          ? "data-flood-aggregated-narrow"
+          : "data-flood-aggregated-normal";
         const readable = [...card.querySelectorAll<HTMLElement>(
           ".river-row, .station-row, .river-line, .cell-station, .cell-level",
-        )].filter((element) => paintable(element) && element.getClientRects().length > 0);
+        )].filter((element) => {
+          const entry = element.closest<HTMLElement>("[data-flood-entry-index]");
+          return paintable(element) && (entry == null || !entry.hasAttribute(aggregateAttribute));
+        });
         return [
           ...(card.scrollWidth > card.clientWidth + 1 || card.scrollHeight > card.clientHeight + 1
             ? [`${cardKey}:root`]
@@ -1055,6 +1099,7 @@
       typhoonTitleMisalignmentPx: Math.round(typhoonTitleMisalignmentPx),
       pageIndicatorBodyOverlapPx: Math.round(pageIndicatorBodyOverlapPx),
       pageIndicatorRiderOverlapPx: Math.round(pageIndicatorRiderOverlapPx),
+      floodVisibilityViolationKeys,
       floodReadableOverflowKeys,
     };
   }
@@ -1102,6 +1147,7 @@
       typhoonTitleMisalignmentPx = geometry.typhoonTitleMisalignmentPx;
       pageIndicatorBodyOverlapPx = geometry.pageIndicatorBodyOverlapPx;
       pageIndicatorRiderOverlapPx = geometry.pageIndicatorRiderOverlapPx;
+      floodVisibilityViolationKeys = geometry.floodVisibilityViolationKeys;
       floodReadableOverflowKeys = geometry.floodReadableOverflowKeys;
       measurementSettled = true;
       contentDemotionRequested = false;
@@ -1446,6 +1492,7 @@
   data-typhoon-title-misalignment-px={typhoonTitleMisalignmentPx}
   data-page-indicator-body-overlap-px={pageIndicatorBodyOverlapPx}
   data-page-indicator-rider-overlap-px={pageIndicatorRiderOverlapPx}
+  data-flood-visibility-violation-keys={floodVisibilityViolationKeys}
   data-flood-readable-overflow-keys={floodReadableOverflowKeys}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}

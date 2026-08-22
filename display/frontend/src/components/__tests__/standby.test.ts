@@ -165,7 +165,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const root = container.querySelector(".standby")!;
     expect(Number(root.getAttribute("data-measurement-pass"))).toBeLessThanOrEqual(4);
     expect(root.getAttribute("data-measurement-settled")).toBe("true");
-    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px", "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-clock-children-horizontal-clipped", "data-page-indicator-rider-overlap-px", "data-flood-readable-overflow-keys"]) {
+    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px", "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-clock-children-horizontal-clipped", "data-page-indicator-rider-overlap-px", "data-flood-visibility-violation-keys", "data-flood-readable-overflow-keys"]) {
       expect(root.hasAttribute(name)).toBe(true);
     }
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
@@ -202,40 +202,99 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     }
   });
 
-  it("ignores flood rows with no rendered box under an ancestor display:none", async () => {
+  it("validates normal/narrow flood entry counts and rejects a missing expected row", async () => {
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
     const originalClientRects = HTMLElement.prototype.getClientRects;
     const originalBoundingRect = HTMLElement.prototype.getBoundingClientRect;
-    const oneRect = { length: 1 } as unknown as DOMRectList;
-    const noRects = { length: 0 } as unknown as DOMRectList;
+    const visibleRect = new DOMRect(0, 0, 100, 20);
+    const zeroHeightRect = new DOMRect(0, 0, 100, 0);
+    const oneRect = { 0: visibleRect, length: 1, item: () => visibleRect } as unknown as DOMRectList;
+    const zeroRect = { 0: zeroHeightRect, length: 1, item: () => zeroHeightRect } as unknown as DOMRectList;
+    const noRects = { length: 0, item: () => null } as unknown as DOMRectList;
+    let cardWidth = 360;
+    let hideFirst = false;
+    let hideCard = false;
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement): number {
+        if (this.matches(".legacy-layout .flood-card")) return cardWidth;
+        return clientWidth?.get?.call(this) ?? 0;
+      },
+    });
     const clientRects = vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (this: HTMLElement): DOMRectList {
-      if (this.matches(".legacy-layout .flood-card .river-entry:nth-of-type(3) .river-row")) return noRects;
-      if (this.matches(".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row")) return oneRect;
+      if (this.matches(".legacy-layout .flood-card")) return hideCard ? noRects : oneRect;
+      if (this.matches(".legacy-layout .flood-card [data-flood-entry-index]")) {
+        const index = Number(this.dataset.floodEntryIndex);
+        const expectedCount = cardWidth <= 320 ? 1 : 2;
+        if (hideFirst && index === 0) return zeroRect;
+        return index < expectedCount ? oneRect : noRects;
+      }
+      if (this.matches(".legacy-layout .flood-card [data-flood-aggregate]")) {
+        const expected = cardWidth <= 320 ? "narrow" : "normal";
+        return this.dataset.floodAggregate === expected ? oneRect : noRects;
+      }
       return originalClientRects.call(this);
     });
     const boundingRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement): DOMRect {
-      if (this.matches(".legacy-layout .flood-card")) return new DOMRect(0, 0, 200, 200);
-      if (this.matches(".legacy-layout .flood-card .river-entry:nth-of-type(3) .river-row")) return new DOMRect(0, 220, 100, 20);
-      if (this.matches(".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row")) return new DOMRect(0, 50, 100, 20);
+      if (this.matches(".legacy-layout .flood-card")) return new DOMRect(0, 0, cardWidth, 200);
+      if (this.matches(".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row")) {
+        const entry = this.closest<HTMLElement>("[data-flood-entry-index]");
+        const aggregatedAttribute = cardWidth <= 320 ? "data-flood-aggregated-narrow" : "data-flood-aggregated-normal";
+        if (entry?.hasAttribute(aggregatedAttribute) || (hideFirst && entry?.dataset.floodEntryIndex === "0")) {
+          return new DOMRect(0, 220, 100, 20);
+        }
+        return new DOMRect(0, 50, 100, 20);
+      }
       return originalBoundingRect.call(this);
     });
     try {
       const base = flood();
-      const item = {
+      const item = (updatedAt: string) => ({
         ...base,
+        updatedAt,
         data: {
           rivers: Array.from({ length: 3 }, (_, index) => ({
             ...base.data.rivers[0]!, riverKey: `river:${index}`, riverName: `河川${index}`,
           })),
         },
-      };
-      const { container } = render(StandbyScreen, {
-        snapshot: baseSnapshot({ standbyItems: [item] }), now, dim: false, sseConnected: true,
+      });
+      const { container, rerender } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:00:00+09:00")] }), now, dim: false, sseConnected: true,
       });
       for (let pass = 0; pass < 8; pass += 1) await tick();
+      let root = container.querySelector(".standby")!;
+      expect(root.getAttribute("data-flood-visibility-violation-keys")).toBe("");
+      expect(root.getAttribute("data-flood-readable-overflow-keys")).toBe("");
+
+      cardWidth = 280;
+      await rerender({
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:01:00+09:00")] }), now, dim: false, sseConnected: true,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      root = container.querySelector(".standby")!;
+      expect(root.getAttribute("data-flood-visibility-violation-keys")).toBe("");
       expect(container.querySelector(".standby")?.getAttribute("data-flood-readable-overflow-keys")).toBe("");
+
+      hideFirst = true;
+      await rerender({
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:02:00+09:00")] }), now, dim: false, sseConnected: true,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(container.querySelector(".standby")?.getAttribute("data-flood-visibility-violation-keys"))
+        .toContain("flood:0:entry:0:missing");
+
+      hideFirst = false;
+      hideCard = true;
+      await rerender({
+        snapshot: baseSnapshot({ standbyItems: [item("2026-08-20T12:03:00+09:00")] }), now, dim: false, sseConnected: true,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(container.querySelector(".standby")?.getAttribute("data-flood-visibility-violation-keys")).toBe("");
     } finally {
       clientRects.mockRestore();
       boundingRect.mockRestore();
+      if (clientWidth == null) delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      else Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
     }
   });
 

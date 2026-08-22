@@ -114,8 +114,10 @@ describe("FloodCard", () => {
     expect(three.container.querySelector(".more-many")?.textContent).toBe("ほか 1 河川");
 
     const source = readFileSync(join(__dirname, "..", "FloodCard.svelte"), "utf8");
-    expect(source).toMatch(/\.many-rivers \.river-entry:nth-of-type\(n \+ 3\)\s*\{\s*display:\s*none;/s);
-    expect(source).toMatch(/@container \(max-width: 320px\)[\s\S]*\.river-entry:nth-of-type\(n \+ 2\)\s*\{\s*display:\s*none;/s);
+    expect(source).toContain('data-flood-aggregated-normal={index >= 2 ? "true" : undefined}');
+    expect(source).toContain('data-flood-aggregated-narrow={index >= 1 ? "true" : undefined}');
+    expect(source).toMatch(/\.many-rivers \[data-flood-aggregated-normal\]\s*\{\s*display:\s*none;/s);
+    expect(source).toMatch(/@container \(max-width: 320px\)[\s\S]*\[data-flood-aggregated-narrow\]\s*\{\s*display:\s*none;/s);
     expect(source).toMatch(/\.height-budgeted\s*\{\s*min-height:\s*200px;/s);
     expect(source).toMatch(/\.more-rivers\s*\{[^}]*padding:\s*var\(--space-1\) var\(--space-4\);/s);
   });
