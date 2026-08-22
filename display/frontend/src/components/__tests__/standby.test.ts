@@ -165,7 +165,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const root = container.querySelector(".standby")!;
     expect(Number(root.getAttribute("data-measurement-pass"))).toBeLessThanOrEqual(4);
     expect(root.getAttribute("data-measurement-settled")).toBe("true");
-    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px", "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-clock-children-horizontal-clipped"]) {
+    for (const name of ["data-left-capacity-px", "data-right-capacity-px", "data-center-capacity-px", "data-left-natural-height-px", "data-right-natural-height-px", "data-center-natural-height-px", "data-left-track-rect-width-px", "data-center-track-rect-width-px", "data-clock-children-horizontal-clipped", "data-page-indicator-rider-overlap-px", "data-flood-readable-overflow-keys"]) {
       expect(root.hasAttribute(name)).toBe(true);
     }
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");

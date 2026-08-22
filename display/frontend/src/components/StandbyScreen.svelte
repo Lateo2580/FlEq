@@ -194,6 +194,8 @@
   let rightTrackChildExtents = $state("");
   let typhoonTitleMisalignmentPx = $state(0);
   let pageIndicatorBodyOverlapPx = $state(0);
+  let pageIndicatorRiderOverlapPx = $state(0);
+  let floodReadableOverflowKeys = $state("");
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
   let settleTrace = $state<SettleTraceEntry[]>([]);
@@ -862,6 +864,8 @@
     rightTrackChildExtents: string;
     typhoonTitleMisalignmentPx: number;
     pageIndicatorBodyOverlapPx: number;
+    pageIndicatorRiderOverlapPx: number;
+    floodReadableOverflowKeys: string;
   }
   function readRenderedGeometry(): RenderedGeometry {
     const standbyRect = standbyEl?.getBoundingClientRect();
@@ -961,6 +965,17 @@
       const body = card.querySelector<HTMLElement>("[data-page-probe-body]");
       return indicator == null || body == null ? 0 : overlapArea(indicator.getBoundingClientRect(), body.getBoundingClientRect());
     }));
+    const pageIndicatorRiderOverlapPx = Math.max(0, ...[...(standbyEl?.querySelectorAll<HTMLElement>(".weather-card") ?? [])].map((card) => {
+      const indicator = card.querySelector<HTMLElement>("[data-card-page-indicator]");
+      const rider = card.querySelector<HTMLElement>(".tornado-rider");
+      return indicator == null || rider == null ? 0 : overlapArea(indicator.getBoundingClientRect(), rider.getBoundingClientRect());
+    }));
+    const floodReadableOverflowKeys = [...(standbyEl?.querySelectorAll<HTMLElement>(
+      ".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row, .legacy-layout .flood-wide-card .river-line, .legacy-layout .flood-wide-card .cell-station, .legacy-layout .flood-wide-card .cell-level",
+    ) ?? [])]
+      .filter((element) => element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1)
+      .map((element, index) => `${element.className.split(" ")[0] || "flood-readable"}:${index}`)
+      .join(",");
     const weatherMeasurementPlacement: Placement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "right";
     const weatherMeasurementVariant = selectedVariant("weather", renderSelection);
     // B selection reads a prefix shelf only after it has promoted rows. At
@@ -1021,6 +1036,8 @@
       }).join(","),
       typhoonTitleMisalignmentPx: Math.round(typhoonTitleMisalignmentPx),
       pageIndicatorBodyOverlapPx: Math.round(pageIndicatorBodyOverlapPx),
+      pageIndicatorRiderOverlapPx: Math.round(pageIndicatorRiderOverlapPx),
+      floodReadableOverflowKeys,
     };
   }
   function publishSettledGeometry(pendingStageChange: LadderStage | null): void {
@@ -1066,6 +1083,8 @@
       rightTrackChildExtents = geometry.rightTrackChildExtents;
       typhoonTitleMisalignmentPx = geometry.typhoonTitleMisalignmentPx;
       pageIndicatorBodyOverlapPx = geometry.pageIndicatorBodyOverlapPx;
+      pageIndicatorRiderOverlapPx = geometry.pageIndicatorRiderOverlapPx;
+      floodReadableOverflowKeys = geometry.floodReadableOverflowKeys;
       measurementSettled = true;
       contentDemotionRequested = false;
       if (pendingStageChange != null) onStageChange?.(pendingStageChange);
@@ -1408,6 +1427,8 @@
   data-right-track-child-extents={rightTrackChildExtents}
   data-typhoon-title-misalignment-px={typhoonTitleMisalignmentPx}
   data-page-indicator-body-overlap-px={pageIndicatorBodyOverlapPx}
+  data-page-indicator-rider-overlap-px={pageIndicatorRiderOverlapPx}
+  data-flood-readable-overflow-keys={floodReadableOverflowKeys}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}

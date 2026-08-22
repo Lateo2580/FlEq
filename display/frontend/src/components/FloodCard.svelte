@@ -50,7 +50,7 @@
     border: 1px solid #fff;
     border-bottom: var(--header-band-width) solid #fff;
   }
-  .river-row { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; }
+  .river-row { padding: var(--space-2) var(--space-4); border-top: 1px solid var(--hairline); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); white-space: normal; overflow-wrap: anywhere; }
   .river-row:first-of-type { border-top: none; }
   .critical-river { color: var(--role-weatherEmergency); }
   /* 副行 (層2): 主行より深いインデント・muted。critical 河川でも muted のまま (色は主行が担う) */
@@ -58,7 +58,8 @@
     padding: 0 var(--space-4) var(--space-2) calc(var(--space-4) + var(--space-3));
     color: var(--role-muted);
     font-size: max(12px, var(--type-label-s-fluid));
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .station-level { color: var(--fg); --number-unit-affix-size: 1em; }
   .trend-rising { color: var(--role-tsunamiWarning); }

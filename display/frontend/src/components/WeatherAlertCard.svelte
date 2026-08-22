@@ -261,7 +261,7 @@
 
 {#if alerts.length > 0 || tornado != null}
   <div
-    class="weather-card" class:has-page-footer={showPageIndicator}
+    class="weather-card" class:has-page-footer={showPageIndicator} class:has-tornado={tornado != null}
     data-card-page={pageDiagnostics.page}
     data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
     data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
@@ -316,6 +316,10 @@
     flex-direction: column;
     color: var(--fg);
   }
+  .weather-card.has-page-footer {
+    /* label-xs 12px at line-height:1 + 1px block padding + 1px border on each side. */
+    --card-page-indicator-block-size: calc(var(--type-label-xs-size) + 4px);
+  }
   .card-header {
     /* 最終更新時刻を右端へ寄せるため flex 行にする (他カードの header と同じ文法) */
     display: flex;
@@ -341,9 +345,30 @@
     font-size: max(14px, var(--type-label-l-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
   }
   .tornado-rider { border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); }
-  /* The zero-height page footer paints at this boundary. Keep long rider text
-     out of the indicator's right-hand paint area. */
-  .weather-card.has-page-footer .tornado-rider { padding-right: calc(var(--space-4) + 3.5rem); }
+  /* The zero-height footer paints downward into a real gap immediately above
+     the rider. Fund that gap from existing fixed vertical whitespace so the
+     weather card's measured height stays identical: ul -10px + rider -6px +
+     margin +16px = 0px. The arithmetic is resolution-independent even when
+     standby swaps --space-* tokens at compressed ladder stages. */
+  .weather-card.has-page-footer ul {
+    padding-top: calc(var(--space-2) - 4px);
+    padding-bottom: calc(var(--space-3) - 6px);
+  }
+  .weather-card.has-page-footer.has-tornado .tornado-rider {
+    margin-top: var(--card-page-indicator-block-size);
+    padding-top: calc(var(--space-2) - 3px);
+    padding-bottom: calc(var(--space-2) - 3px);
+  }
+  /* A paged card without a tornado rider still needs the same post-body paint
+     gap. Reclaim the remaining 6px from the header, then expose all 16px as
+     card bottom padding; total measured height again stays unchanged. */
+  .weather-card.has-page-footer:not(.has-tornado) {
+    padding-bottom: var(--card-page-indicator-block-size);
+  }
+  .weather-card.has-page-footer:not(.has-tornado) .card-header {
+    padding-top: calc(var(--space-2) - 3px);
+    padding-bottom: calc(var(--space-2) - 3px);
+  }
   .tornado-rider.sighted { color: var(--role-weatherEmergency); background: color-mix(in srgb, var(--role-weatherEmergency) 10%, var(--surface-standby)); }
   .kind {
     font-weight: var(--type-body-weight-emphasized);
@@ -396,8 +421,8 @@
   }
   .card-page-footer {
     /* The legacy solver measures the weather shell without the page badge:
-       the mock places it over the lower edge. Keep the actual badge just
-       above the tornado rider in DOM/paint order too, without adding a row. */
+       its zero-height boundary starts the compensated pre-rider gap, so the
+       badge paints downward without adding its own measured row. */
     display: flex;
     flex: 0 0 0;
     justify-content: flex-end;
@@ -409,15 +434,17 @@
     pointer-events: none;
     position: relative;
     z-index: 1;
-    transform: translateY(-100%);
   }
   .card-page-indicator {
+    box-sizing: border-box;
+    block-size: var(--card-page-indicator-block-size);
     padding: 1px var(--space-2);
     border: 1px solid var(--hairline);
     border-radius: var(--radius-s);
     background: color-mix(in srgb, var(--surface-standby) 92%, transparent);
     color: var(--role-muted);
     font-size: var(--type-label-xs-size);
+    line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 </style>

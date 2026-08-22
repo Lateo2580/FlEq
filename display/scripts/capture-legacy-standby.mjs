@@ -185,7 +185,8 @@ function diagnosticsFromDom(dom) {
     "data-weather-probe-height-px", "data-weather-probe-width-px", "data-weather-live-width-px",
     "data-weather-probe-card-height-px", "data-weather-probe-card-width-px", "data-weather-live-card-height-px", "data-weather-live-card-width-px",
     "data-weather-selected-prefix-id",
-    "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px",
+    "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px", "data-page-indicator-rider-overlap-px",
+    "data-flood-readable-overflow-keys",
     "data-typhoon-variant",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
@@ -279,6 +280,7 @@ function assertGeometry(diagnostics, { skipWeatherHeight = false } = {}) {
   if (violations !== 0) throw new Error(`card/viewport/clock/nankai geometry invalid: ${violations} violation(s): ${diagnostics["data-geometry-violation-keys"]}`);
   if (numberDiagnostic(diagnostics, "data-typhoon-title-misalignment-px") > 2) throw new Error("typhoon title/location rows are misaligned");
   if (numberDiagnostic(diagnostics, "data-page-indicator-body-overlap-px") > 0) throw new Error("page indicator overlaps its body");
+  if (numberDiagnostic(diagnostics, "data-page-indicator-rider-overlap-px") > 0) throw new Error("page indicator overlaps the tornado rider");
 }
 
 function assertClusterFixture(diagnostics, { requirePreRotation = false } = {}) {
@@ -386,6 +388,7 @@ function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   const expandedCounts = JSON.parse(diagnostics["data-expanded-counts"] ?? "null");
   if (JSON.stringify(expandedCounts) !== JSON.stringify(expected.expandedCounts)) throw new Error(`${viewport.label} floodWide expanded counts: expected ${JSON.stringify(expected.expandedCounts)}, got ${JSON.stringify(expandedCounts)}`);
   expectEqual(diagnostics["data-measurement-nonconverged"], "false", `${viewport.label} floodWide convergence`);
+  if (viewport.label === "1280x720") expectEqual(diagnostics["data-flood-readable-overflow-keys"], "", "1280x720 flood station/kind readability");
 }
 
 async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, assertTable = true }) {

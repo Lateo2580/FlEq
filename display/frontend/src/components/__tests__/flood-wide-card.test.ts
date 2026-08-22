@@ -90,6 +90,16 @@ describe("FloodWideCard", () => {
     expect(source).toContain("overflow: hidden");
   });
 
+  it("狭い side track ではセル内を一列化し、観測所名・水位・kind の ellipsis を解除する", () => {
+    const source = readFileSync(join(__dirname, "..", "FloodWideCard.svelte"), "utf8");
+    const narrow = /@container \(max-width: 400px\) \{([\s\S]*)\n  \}/.exec(source)?.[1] ?? "";
+    expect(source).toContain("container-type: inline-size");
+    expect(narrow).toMatch(/\.station-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+    expect(narrow).toMatch(/\.cell-level\s*\{[^}]*grid-column:\s*1;[^}]*grid-row:\s*2;/s);
+    expect(narrow).toMatch(/\.river-line\s*\{[^}]*white-space:\s*normal;[^}]*text-overflow:\s*clip;/s);
+    expect(narrow).toMatch(/\.cell\s*\{[^}]*white-space:\s*normal;[^}]*text-overflow:\s*clip;/s);
+  });
+
   it("wires cell in/out/flip transitions and the measured-height card transition on the project motion vocabulary", () => {
     // jsdom ではアニメーションの動き自体を検証できないため、ディレクティブの存在を source で固定する
     // (既存の source 検査流儀)。動き検証は全体アニメーション検証で追って行う。

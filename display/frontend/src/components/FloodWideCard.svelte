@@ -118,7 +118,7 @@
 </section>
 
 <style>
-  .standby-card { width: min(720px, 56vw); max-height: 30vh; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: min(720px, 56vw); max-height: 30vh; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; container-type: inline-size; }
   /* 看板ヘッダ帯 (FloodCard と同型): band クラスで段階切替 (L3=赤 / L4=紫 / L5=氾濫発生黒帯) */
   header {
     display: flex;
@@ -202,4 +202,31 @@
   .flood-graph { width: 100%; height: 36px; }
   .more-rivers { grid-column: 1 / -1; color: var(--role-muted); text-align: center; font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; }
   .critical-river .river-line { color: var(--role-weatherEmergency); }
+
+  /* 720p の side/rotation track では wide card 自体が約 320px まで狭まる。
+     外側の二河川並列は保ちつつ、各セル内だけを一列へ動的に組み替え、観測所名・
+     水位・kind を省略せず読めるようにする。36rem center track (1920px gate) は
+     この query の外なので、従来の 2x2 station grid と見え方を維持する。 */
+  @container (max-width: 400px) {
+    .river-cell { min-height: 0; }
+    .river-line {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .station-grid {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+    }
+    .cell-station { grid-column: 1; grid-row: 1; }
+    .cell-level { grid-column: 1; grid-row: 2; }
+    .cell-threshold { grid-column: 1; grid-row: 3; }
+    .cell-graph { grid-column: 1; grid-row: 4; }
+    .cell {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .cell.cell-level { white-space: nowrap; }
+  }
 </style>

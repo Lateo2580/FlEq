@@ -345,7 +345,7 @@ describe("WeatherAlertCard", () => {
     expect(src).not.toContain("clip-hidden");
   });
 
-  it("測定棚ではページ番号を本文とriderの間にゼロ高 footer として組版する", () => {
+  it("測定棚ではページ番号を本文とriderの間の補償済み隙間へゼロ高 footer で組版する", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [weatherAlert({ items: [{
         kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
@@ -359,11 +359,17 @@ describe("WeatherAlertCard", () => {
     const footer = card?.querySelector<HTMLElement>("[data-card-page-footer]");
     const rider = card?.querySelector<HTMLElement>(".tornado-rider");
     expect(card?.hasAttribute("data-page-probe-card")).toBe(true);
+    expect(card?.classList.contains("has-tornado")).toBe(true);
     expect(footer?.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/1");
     expect(body?.contains(footer ?? null)).toBe(false);
     expect(footer?.nextElementSibling).toBe(rider);
     const source = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
-    expect(source).toMatch(/\.card-page-footer\s*\{[^}]*display:\s*flex;[^}]*flex:\s*0 0 0;[^}]*height:\s*0;[^}]*transform:\s*translateY\(-100%\);/s);
+    expect(source).toMatch(/\.card-page-footer\s*\{[^}]*display:\s*flex;[^}]*flex:\s*0 0 0;[^}]*height:\s*0;/s);
+    expect(source).toMatch(/\.weather-card\.has-page-footer ul\s*\{[^}]*padding-top:\s*calc\(var\(--space-2\) - 4px\);[^}]*padding-bottom:\s*calc\(var\(--space-3\) - 6px\);/s);
+    expect(source).toMatch(/\.weather-card\.has-page-footer\.has-tornado \.tornado-rider\s*\{[^}]*margin-top:\s*var\(--card-page-indicator-block-size\);[^}]*padding-top:\s*calc\(var\(--space-2\) - 3px\);[^}]*padding-bottom:\s*calc\(var\(--space-2\) - 3px\);/s);
+    expect(source).toMatch(/\.weather-card\.has-page-footer:not\(\.has-tornado\)\s*\{[^}]*padding-bottom:\s*var\(--card-page-indicator-block-size\);/s);
+    expect(source).toMatch(/\.card-page-indicator\s*\{[^}]*block-size:\s*var\(--card-page-indicator-block-size\);[^}]*line-height:\s*1;/s);
+    expect(source).not.toMatch(/\.card-page-footer\s*\{[^}]*transform:/s);
     expect(source).not.toMatch(/\.card-page-indicator\s*\{[^}]*position:\s*absolute;/s);
   });
 
