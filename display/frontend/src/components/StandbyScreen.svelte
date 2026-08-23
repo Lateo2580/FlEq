@@ -1578,7 +1578,7 @@
            nor changes solver/live flood rendering. -->
       <div class="flood-partition-preflight">
         <FloodCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "side", 200, "compact")} pagePlacement="side" />
-        {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "side", floodWideFixedHeightPx, "wide")} pagePlacement="side" />{/if}
+        {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "side", floodWideFixedHeightPx, "wide")} pagePlacement="side" measurementFixedHeightPx={floodWideFixedHeightPx} />{/if}
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
@@ -1604,7 +1604,7 @@
     {#if floodItem != null}
       <div class="flood-partition-preflight">
         <FloodCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", 200, "compact")} pagePlacement="center" />
-        {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", floodWideFixedHeightPx, "wide")} pagePlacement="center" />{/if}
+        {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", floodWideFixedHeightPx, "wide")} pagePlacement="center" measurementFixedHeightPx={floodWideFixedHeightPx} />{/if}
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}

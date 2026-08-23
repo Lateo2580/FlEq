@@ -143,6 +143,25 @@ describe("FloodWideCard", () => {
     expect(container.querySelector("[data-card-page-footer]")?.textContent).toBe("2/2");
   });
 
+  it("30vh の measurement budget で fail sentinel を reject し、fit sentinel を accept する", () => {
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
+    const fixedHeightPx = window.innerHeight * 0.3;
+    const failing = render(FloodWideCard, {
+      item: floodItem(2), measurementFixedHeightPx: fixedHeightPx,
+      partitionProbe: () => fixedHeightPx + 1,
+    });
+    // 181 は旧既定の 200px では誤 accept になる。30vh=180px と同じ基準なら 1件目で reject する。
+    expect(failing.container.querySelector(".flood-wide-card")?.getAttribute("data-partition-probe-count")).toBe("1");
+    failing.unmount();
+
+    const fitting = render(FloodWideCard, {
+      item: floodItem(2), measurementFixedHeightPx: fixedHeightPx,
+      partitionProbe: () => 0,
+    });
+    expect(fitting.container.querySelector(".flood-wide-card")?.getAttribute("data-partition-probe-count")).toBe("2");
+    fitting.unmount();
+  });
+
   it("renders the hydrograph SVG with an aria-label and omits it when the station has no hydrograph", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
     const item: Extract<ActiveStandbyCardV1, { kind: "flood" }> = {
