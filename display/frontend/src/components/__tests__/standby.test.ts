@@ -143,6 +143,34 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(container.querySelector(".standby")?.getAttribute("data-flood-form")).toBe(visibleWide ? "wide" : "card");
   });
 
+  it("exposes flood-only page sentinels without changing the quake page namespace", async () => {
+    const item = flood();
+    const rivers = Array.from({ length: 3 }, (_, index) => ({
+      ...item.data.rivers[0]!, riverKey: `river:${index}`, riverName: `河川${index}`,
+    }));
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [{ ...item, data: { rivers } }] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: {
+        "flood:page-fit:0:1:placement:side:form:compact": 0,
+        "flood:page-fit:0:2:placement:side:form:compact": 201,
+        "flood:page-fit:1:2:placement:side:form:compact": 0,
+        "flood:page-fit:1:3:placement:side:form:compact": 201,
+        "flood:page-fit:2:3:placement:side:form:compact": 0,
+      },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    expect(root.dataset.floodPage).toBe("1/3");
+    expect(JSON.parse(root.dataset.floodPageKeys ?? "[]")).toEqual(["河川0", "河川1", "河川2"]);
+    expect(JSON.parse(root.dataset.floodPageIdentities ?? "[]")).toEqual(["氾濫危険情報|河川0|0|code:river:0", "氾濫危険情報|河川1|0|code:river:1", "氾濫危険情報|河川2|0|code:river:2"]);
+    expect(root.dataset.floodPageInfeasible).toBe("false");
+    expect(root.dataset.cardPage).toBe("0/0");
+    expect(container.querySelectorAll(".legacy-layout .flood-card [data-flood-entry-index]")).toHaveLength(1);
+    expect(container.querySelector(".legacy-layout .flood-card [data-card-page-footer]")).toBeTruthy();
+    const runner = readFileSync(join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs"), "utf8");
+    for (const attribute of ["data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible"]) expect(runner).toContain(`"${attribute}"`);
+  });
+
   it("rejects a shorter summary-only wide promotion and restores it when one detailed row fits", async () => {
     const innerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
     const base = flood("clock-top-wide");
@@ -962,16 +990,19 @@ describe("StandbyScreen preserved standby behaviour", () => {
     let card = view.container.querySelector<HTMLElement>(".legacy-layout .flood-card");
     expect(card).toBeTruthy();
     expect(card?.dataset.cardPageInfeasible).toBe("false");
+    expect(view.container.querySelector<HTMLElement>(".standby")?.dataset.floodPageInfeasible).toBe("false");
 
     await view.rerender({ snapshot: baseSnapshot({ standbyItems: [revised(2)] }), now, dim: false, sseConnected: true, testMeasurementOverride: forms(10_000, 10_000, 0) });
     await settle();
     card = view.container.querySelector<HTMLElement>(".legacy-layout .flood-card");
     expect(card?.dataset.cardPageInfeasible).toBe("aggregate");
     expect(card?.querySelector("[data-flood-aggregate]")).toBeTruthy();
+    expect(view.container.querySelector<HTMLElement>(".standby")?.dataset.floodPageInfeasible).toBe("aggregate");
 
     await view.rerender({ snapshot: baseSnapshot({ standbyItems: [revised(3)] }), now, dim: false, sseConnected: true, testMeasurementOverride: forms(10_000, 10_000, 10_000) });
     await settle();
     expect(view.container.querySelector<HTMLElement>(".legacy-layout .flood-card")?.dataset.cardPageInfeasible).toBe("clip");
+    expect(view.container.querySelector<HTMLElement>(".standby")?.dataset.floodPageInfeasible).toBe("clip");
     view.unmount();
   });
 

@@ -187,6 +187,7 @@ function diagnosticsFromDom(dom) {
     "data-weather-selected-prefix-id",
     "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px", "data-page-indicator-rider-overlap-px",
     "data-flood-visibility-violation-keys", "data-flood-readable-overflow-keys",
+    "data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible",
     "data-typhoon-variant",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
@@ -333,8 +334,8 @@ function assertRotationDiagnostics(diagnostics, rotationTick) {
 }
 
 const FLOOD_WIDE_EXPECTATIONS = {
-  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
-  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 10, n: 14 } } }, surplus: "7" },
+  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
+  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 10, n: 14 } } }, surplus: "7" },
 };
 
 // §5 / §11.1 fixed tables. --report emits this comparison without mutating
@@ -350,9 +351,9 @@ const TABLE_EXPECTATIONS = {
 const UTIL_EXPECTATIONS = {
   // In §11.1's human table "−（不在）" is encoded as the always-emitted
   // diagnostic value "none"; absence is never represented by a missing attr.
-  "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13], "1512x982": ["none", "none", 7, 0, 12, 0, 13], "1280x720": ["none", "none", 7, 0, 12, 0, 13], "960x620": ["none", "none", 7, 0, 9, 3, 10] },
-  "7": { "1920x1080": ["compact", "card", 4, 3, 12, 0, 10], "1512x982": ["compact", "card", 4, 3, 2, 10, 0], "1280x720": ["compact", "card", 4, 3, 12, 0, 10], "960x620": ["compact", "card", 4, 3, 2, 10, 0] },
-  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25], "1512x982": ["compact", "card", 4, 3, 24, 0, 21], "1280x720": ["compact", "card", 4, 3, 10, 14, 7], "960x620": ["compact", "card", 4, 3, 3, 21, 0] },
+  "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13, "false"], "1512x982": ["none", "none", 7, 0, 12, 0, 13, "false"], "1280x720": ["none", "none", 7, 0, 12, 0, 13, "false"], "960x620": ["none", "none", 7, 0, 9, 3, 10, "false"] },
+  "7": { "1920x1080": ["compact", "card", 4, 3, 12, 0, 10, "false"], "1512x982": ["compact", "card", 4, 3, 2, 10, 0, "false"], "1280x720": ["compact", "card", 4, 3, 12, 0, 10, "false"], "960x620": ["compact", "card", 4, 3, 2, 10, 0, "false"] },
+  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 10, 14, 7, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
 };
 
 function tableMismatches(diagnostics, scenario, viewport) {
@@ -361,18 +362,18 @@ function tableMismatches(diagnostics, scenario, viewport) {
     : (() => {
       const base = TABLE_EXPECTATIONS[scenario]?.[viewport.label];
       const util = UTIL_EXPECTATIONS[scenario]?.[viewport.label];
-      return base == null || util == null ? base : { ...base, typhoonVariant: util[0], floodForm: util[1], expandedCounts: { quake: { count: util[2], n: util[3] }, weather: { "大雨警報(土砂災害)": { count: util[4], n: util[5] } } }, surplus: String(util[6]) };
+      return base == null || util == null ? base : { ...base, typhoonVariant: util[0], floodForm: util[1], expandedCounts: { quake: { count: util[2], n: util[3] }, weather: { "大雨警報(土砂災害)": { count: util[4], n: util[5] } } }, surplus: String(util[6]), floodInfeasible: util[7] };
     })();
   if (expected == null) return [];
   const observed = {
     stage: diagnostics["data-ladder-stage"], rotationKeys: diagnostics["data-rotation-keys"],
     unresolved: diagnostics["data-layout-unresolved"], nonconverged: diagnostics["data-measurement-nonconverged"],
-    centerClusterHidden: diagnostics["data-center-cluster-hidden"], floodForm: diagnostics["data-flood-form"],
+    centerClusterHidden: diagnostics["data-center-cluster-hidden"], floodForm: diagnostics["data-flood-form"], floodInfeasible: diagnostics["data-flood-page-infeasible"],
     typhoonVariant: diagnostics["data-typhoon-variant"], expandedCounts: diagnostics["data-expanded-counts"],
     surplus: diagnostics["data-placement-surplus-use"],
   };
   const expectedValues = { stage: expected.stage, rotationKeys: expected.rotationKeys, unresolved: "false", nonconverged: "false", centerClusterHidden: "" };
-  for (const key of ["floodForm", "typhoonVariant", "expandedCounts", "surplus"]) {
+  for (const key of ["floodForm", "floodInfeasible", "typhoonVariant", "expandedCounts", "surplus"]) {
     if (expected[key] != null) expectedValues[key] = key === "expandedCounts" ? JSON.stringify(expected[key]) : expected[key];
   }
   return [

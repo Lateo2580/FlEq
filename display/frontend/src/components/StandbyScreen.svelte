@@ -204,6 +204,7 @@
   let pageIndicatorRiderOverlapPx = $state(0);
   let floodVisibilityViolationKeys = $state("");
   let floodReadableOverflowKeys = $state("");
+  let floodPageInfeasible = $state("false");
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
   let settleTrace = $state<SettleTraceEntry[]>([]);
@@ -964,6 +965,7 @@
     pageIndicatorRiderOverlapPx: number;
     floodVisibilityViolationKeys: string;
     floodReadableOverflowKeys: string;
+    floodPageInfeasible: string;
   }
   function readRenderedGeometry(): RenderedGeometry {
     const standbyRect = standbyEl?.getBoundingClientRect();
@@ -1131,6 +1133,10 @@
         ];
       })
       .join(",");
+    const floodPageInfeasible = floodCards
+      .filter(paintable)
+      .map((card) => card.dataset.cardPageInfeasible ?? "false")
+      .find((value) => value !== "false") ?? "false";
     const weatherMeasurementPlacement: Placement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "right";
     const weatherMeasurementVariant = selectedVariant("weather", renderSelection);
     // B selection reads a prefix shelf only after it has promoted rows. At
@@ -1194,6 +1200,7 @@
       pageIndicatorRiderOverlapPx: Math.round(pageIndicatorRiderOverlapPx),
       floodVisibilityViolationKeys,
       floodReadableOverflowKeys,
+      floodPageInfeasible,
     };
   }
   function publishSettledGeometry(pendingStageChange: LadderStage | null): void {
@@ -1242,6 +1249,7 @@
       pageIndicatorRiderOverlapPx = geometry.pageIndicatorRiderOverlapPx;
       floodVisibilityViolationKeys = geometry.floodVisibilityViolationKeys;
       floodReadableOverflowKeys = geometry.floodReadableOverflowKeys;
+      floodPageInfeasible = geometry.floodPageInfeasible;
       measurementSettled = true;
       contentDemotionRequested = false;
       if (pendingStageChange != null) onStageChange?.(pendingStageChange);
@@ -1617,6 +1625,10 @@
   data-page-indicator-rider-overlap-px={pageIndicatorRiderOverlapPx}
   data-flood-visibility-violation-keys={floodVisibilityViolationKeys}
   data-flood-readable-overflow-keys={floodReadableOverflowKeys}
+  data-flood-page={cardPageCoordinator.cardDiagnostics("flood").page}
+  data-flood-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("flood").keys)}
+  data-flood-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("flood").identities)}
+  data-flood-page-infeasible={floodPageInfeasible}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}
