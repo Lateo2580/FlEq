@@ -114,6 +114,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
 
   it("tornado と weather prefix は selected / outer / rotation に同じ contract height を流す", () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toMatch(/function tornadoPagingContractActive[\s\S]*tornadoItem != null[\s\S]*areas\.length > 0/);
     expect(source).toMatch(/selectedHeight[\s\S]*weather" && tornadoPagingOrProbing\(\)[\s\S]*weatherTornadoContractHeight/);
     expect(source).toMatch(/function measured[\s\S]*weather" && tornadoPagingOrProbing\(\)[\s\S]*weatherTornadoContractHeight/);
     expect(source).toMatch(/function pageFixedHeight[\s\S]*weather" && tornadoPagingOrProbing\(\)[\s\S]*weatherTornadoContractHeight/);
@@ -212,6 +213,8 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(root.dataset.floodPageFooter).toBeDefined();
     expect(root.dataset.floodPageVisibleCount).toBeDefined();
     for (const attribute of ["data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible", "data-flood-page-footer", "data-flood-page-visible-count"]) expect(runner).toContain(`"${attribute}"`);
+    for (const attribute of ["data-tornado-page", "data-tornado-page-keys", "data-tornado-page-identities", "data-tornado-page-infeasible", "data-tornado-page-footer", "data-tornado-page-visible-count", "data-tornado-page-host", "data-tornado-page-mode", "data-tornado-page-pending-appearance"]) expect(runner).toContain(`"${attribute}"`);
+    expect(runner).toContain("TORNADO_EXPECTATIONS");
   });
 
   it("rejects a shorter summary-only wide promotion and restores it when one detailed row fits", async () => {

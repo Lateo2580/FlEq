@@ -2198,6 +2198,17 @@ export const legacyImprovedTornadoFullAreas = [
   "宮崎県北部平野部",
 ] as const;
 
+/** Preview pager の竜巻 rider 用。官署横断で到着した順を保ち、同名も落とさない。 */
+export const legacyImprovedTornadoFixtures = {
+  one: ["宮崎県南部平野部"],
+  two: ["宮崎県南部平野部", "宮崎県北部平野部"],
+  five: ["宮崎県南部平野部", "宮崎県北部平野部", "都城地区", "延岡地区", "日向地区"],
+  twelve: [
+    "宮崎県南部平野部", "宮崎県北部平野部", "都城地区", "延岡地区", "日向地区", "西都地区",
+    "小林地区", "高千穂地区", "串間地区", "宮崎県南部平野部", "非常に長い名称の竜巻注意情報対象地域（官署横断）", "えびの地区",
+  ],
+} as const;
+
 /** 実機再現 (2026-07-23/24 実機不具合 5・熱中症カード欠落): 気象カードあり + volcano(warning) +
  *  typhoon(発生予想 1 エントリのみ = 実高が見積 240px より大幅に低いカード) + heat×2。720p で
  *  全カードが visible になることを検証する (spec standby-right-stack T3、#standby-right-stack-budget) */

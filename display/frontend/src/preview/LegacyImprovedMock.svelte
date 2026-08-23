@@ -43,6 +43,7 @@
     legacyImprovedWeatherAlertsExpanded,
     legacyImprovedWeatherAlertsCompact,
     legacyImprovedTornadoFullAreas,
+    legacyImprovedTornadoFixtures,
     recentQuakesRich,
     standbyItemsShowcase,
     standbyItemsFloodWide,
@@ -137,6 +138,15 @@
     tails: PageTail[];
   }
 
+  interface TornadoPage {
+    range: PageRange;
+    areas: string[];
+    firstArea: string;
+    identity: string;
+    areaKeys: string[];
+    tails: PageTail[];
+  }
+
   interface CardPagePartition<T> {
     pages: T[];
     /** 表示用のページ先頭地域名。v20 の診断互換を維持する。 */
@@ -149,7 +159,7 @@
     probeCount: number;
   }
 
-  const EMPTY_TORNADO_PAGE_PARTITION: CardPagePartition<never> = {
+  const EMPTY_TORNADO_PAGE_PARTITION: CardPagePartition<TornadoPage> = {
     pages: [], keys: [], identities: [], usesCandidate: false,
     infeasible: false, candidateTruncated: false, probeCount: 0,
   };
@@ -326,9 +336,14 @@
   const volcano = findItem(activeItems, "volcano");
   const heat = findItem(activeItems, "heat");
   const tornado = findItem(activeItems, "tornado");
+  const tornadoFixture = params.get("tornadoFixture");
   const tornadoFullAreas = tornado == null
     ? []
-    : [...new Set([...legacyImprovedTornadoFullAreas, ...tornado.data.areas])];
+    : tornadoFixture === "1" ? [...legacyImprovedTornadoFixtures.one]
+      : tornadoFixture === "2" ? [...legacyImprovedTornadoFixtures.two]
+        : tornadoFixture === "5" ? [...legacyImprovedTornadoFixtures.five]
+          : tornadoFixture === "12" ? [...legacyImprovedTornadoFixtures.twelve]
+            : [...legacyImprovedTornadoFullAreas, ...tornado.data.areas];
   const longPeriod = findItem(activeItems, "longPeriod");
   const nankai = findItem(activeItems, "nankaiTrough");
   const fixedRecentRows = recentQuakesRich.slice(0, scenario === "4" ? 3 : 5);
@@ -576,7 +591,7 @@
     }
   }
 
-  function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> | CardPagePartition<never> {
+  function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> | CardPagePartition<TornadoPage> {
     return key === "quake" ? cardPagePartitions.quake
       : key === "weather" ? cardPagePartitions.weather
         : key === "flood" ? cardPagePartitions.flood
@@ -586,7 +601,8 @@
   function pageCardIsVisible(key: PageableCardKey): boolean {
     // 輪番枠は通常列と別経路で描画されるが、改ページ instance にとっては exit ではない。
     // 非 active slot の間も substate を保持し、再登場 event でだけ logical tick を進める。
-    return key !== "tornado" && (cardPlacement(layoutPlan, key) != null || schedulerRotationKeys.includes(key));
+    if (key === "tornado") return tornado != null && pageCardIsVisible("weather");
+    return cardPlacement(layoutPlan, key) != null || schedulerRotationKeys.includes(key);
   }
 
   function pageKeysFor(key: PageableCardKey): string[] {
@@ -597,12 +613,14 @@
     return PAGEABLE_CARD_KEYS.filter((key) => {
       const partition = pagePartitionFor(key);
       return pageCardIsVisible(key) && partition.pages.length > 1
-        && (key === "tornado" || !schedulerRotationKeys.includes(key));
+        && (key === "tornado" ? !schedulerRotationKeys.includes("weather") : !schedulerRotationKeys.includes(key));
     });
   }
 
   function pageSchedulerMode(key: PageableCardKey): "real" | "logical" {
-    return key !== "tornado" && schedulerRotationKeys.includes(key) ? "logical" : "real";
+    return key === "tornado"
+      ? (schedulerRotationKeys.includes("weather") ? "logical" : "real")
+      : schedulerRotationKeys.includes(key) ? "logical" : "real";
   }
 
   function updateCardPageRuntime(
@@ -662,6 +680,7 @@
   function advanceCardPageOnRotation(key: CardKey | null): void {
     if (key !== "quake" && key !== "weather" && key !== "flood") return;
     advanceCardPageFor(key, 1);
+    if (key === "weather") advanceCardPageFor("tornado", 1);
   }
 
   function recordRotationAppearance(key: CardKey | null): void {
@@ -725,7 +744,7 @@
       quake: pageCardIsVisible("quake") ? cardPagePartitions.quake.pages.length : 0,
       weather: pageCardIsVisible("weather") ? cardPagePartitions.weather.pages.length : 0,
       flood: pageCardIsVisible("flood") ? cardPagePartitions.flood.pages.length : 0,
-      tornado: 0,
+      tornado: pageCardIsVisible("tornado") ? cardPagePartitions.tornado.pages.length : 0,
     };
     const initialScheduler = cardPageSchedulerStage == null;
     const nowMs = monotonicNowMs();
@@ -1859,6 +1878,33 @@
     return { pages, keys: pages.map((page) => page.firstArea), identities: pages.map((page) => page.identity), usesCandidate: ranges.length > 1, infeasible: false, candidateTruncated: false, probeCount: 0 };
   }
 
+  // Preview は live coordinator を輸入しない独立 pager。rider も二件ずつに
+  // 分割して、同名は occurrence を含む identity で保持する。
+  function partitionTornadoPages(): CardPagePartition<TornadoPage> {
+    const occurrenceByArea = new Map<string, number>();
+    const entries = tornadoFullAreas.map((area) => {
+      const occurrenceIndex = occurrenceByArea.get(area) ?? 0;
+      occurrenceByArea.set(area, occurrenceIndex + 1);
+      return { kindKey: "tornado", area, occurrenceIndex } satisfies PageAreaEntry;
+    });
+    if (entries.length === 0) return EMPTY_TORNADO_PAGE_PARTITION;
+    const pages: TornadoPage[] = [];
+    for (let start = 0; start < entries.length; start += 2) {
+      const selected = entries.slice(start, Math.min(entries.length, start + 2));
+      const first = selected[0];
+      if (first == null) continue;
+      pages.push({
+        range: { start, end: start + selected.length, tails: [], omittedAreaCount: 0 },
+        areas: selected.map((entry) => entry.area),
+        firstArea: first.area,
+        identity: pageIdentityForEntry(first),
+        areaKeys: selected.map((entry) => entry.area),
+        tails: [],
+      });
+    }
+    return { pages, keys: pages.map((page) => page.firstArea), identities: pages.map((page) => page.identity), usesCandidate: pages.length > 1, infeasible: false, candidateTruncated: false, probeCount: pages.length };
+  }
+
   function quakeProbeForRange(start: number, end: number, tails: readonly PageTail[] = []): DisplayLatestQuakeStateV1 {
     const supplied = suppliedQuakeGroups();
     return {
@@ -2195,7 +2241,7 @@
     quake: partitionQuakePages(contentSelection.quakeRows),
     weather: partitionWeatherPages(contentSelection.weatherRows),
     flood: partitionFloodPages(),
-    tornado: EMPTY_TORNADO_PAGE_PARTITION,
+    tornado: partitionTornadoPages(),
   }));
   const cardPageLists = $derived.by(() => ({
     quake: cardPagePartitions.quake.pages,
@@ -2209,7 +2255,7 @@
     flood: cardPageLists.flood.length,
     tornado: cardPageLists.tornado.length,
   }));
-  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1 || cardPageCounts.flood > 1);
+  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1 || cardPageCounts.flood > 1 || cardPageCounts.tornado > 1);
   const cardPageInfeasible = $derived(cardPagePartitions.quake.infeasible || cardPagePartitions.weather.infeasible);
   const candidateTruncated = $derived(cardPagePartitions.quake.candidateTruncated || cardPagePartitions.weather.candidateTruncated);
   const partitionProbeCounts = $derived({
@@ -2231,12 +2277,15 @@
       cardPagePartitions.quake.keys.join(","),
       cardPagePartitions.weather.keys.join(","),
       cardPagePartitions.flood.keys.join(","),
+      cardPagePartitions.tornado.keys.join(","),
       cardPagePartitions.quake.identities.join(","),
       cardPagePartitions.weather.identities.join(","),
       cardPagePartitions.flood.identities.join(","),
+      cardPagePartitions.tornado.identities.join(","),
       cardPagePartitions.quake.usesCandidate,
       cardPagePartitions.weather.usesCandidate,
       cardPagePartitions.flood.usesCandidate,
+      cardPagePartitions.tornado.usesCandidate,
     ].join("|");
   }
 
@@ -2277,6 +2326,19 @@
     const activeKey = cardPageRuntime[key].activeKey;
     const index = cardPageIdentityKeys(key).indexOf(activeKey ?? "");
     return index >= 0 ? index : 0;
+  }
+
+  function tornadoPageIndex(): number {
+    const total = cardPageCounts.tornado;
+    if (total <= 1) return 0;
+    if (cardPageTickOverride != null) return cardPageTickOverride % total;
+    const activeKey = cardPageRuntime.tornado.activeKey;
+    const index = cardPagePartitions.tornado.identities.indexOf(activeKey ?? "");
+    return index >= 0 ? index : 0;
+  }
+
+  function tornadoPageForRender(): TornadoPage | null {
+    return cardPagePartitions.tornado.pages[tornadoPageIndex()] ?? cardPagePartitions.tornado.pages[0] ?? null;
   }
 
   function cardPageAttribute(key: CardKey): string | undefined {
@@ -2523,6 +2585,15 @@
   });
 </script>
 
+  {#snippet renderTornadoRider(page: TornadoPage | null, probe = false)}
+    {#if tornado != null && page != null}
+      <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-page-probe-readable={probe ? "true" : undefined} data-tornado-rider>
+        ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each page.areas as area, index}{#if index > 0}、{/if}{area}{/each}）
+        {#if cardPageCounts.tornado > 1}<span class="mock-tornado-page" data-tornado-page-marker>対象地域 {tornadoPageIndex() + 1}/{cardPageCounts.tornado}</span>{/if}
+      </div>
+    {/if}
+  {/snippet}
+
   {#snippet renderPageProbe(entry: PageMeasureEntry)}
     {#if entry.key === "quake"}
       <LatestQuakeCard
@@ -2532,14 +2603,13 @@
     {:else if entry.key === "weather"}
       <div class="mock-weather-shell" data-weather-two-column="true">
         <WeatherAlertCard alerts={weatherProbeForRange(entry.start, entry.end, entry.tails)} tornado={null} />
-        {#if tornado != null}
-          <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-tornado-full>
-            ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each tornadoFullAreas as area, index}{#if index > 0}、{/if}{area}{/each}）
-          </div>
-        {/if}
+        {@render renderTornadoRider(tornadoPageForRender(), true)}
       </div>
     {:else if entry.key === "tornado"}
-      <!-- Unit 1 receiver only: tornado's forced rider range is wired in Unit 3. -->
+      <div class="mock-weather-shell" data-weather-two-column="true" data-page-probe-card>
+        <WeatherAlertCard alerts={weatherForRegionRows(contentSelection.weatherRows)} tornado={null} />
+        {@render renderTornadoRider(tornadoPageForRender(), true)}
+      </div>
     {/if}
   {/snippet}
 
@@ -2567,11 +2637,7 @@
     <div class="card-page-body" data-card-page-body>
       <div class="mock-weather-shell" data-weather-two-column="true">
         <WeatherAlertCard alerts={useCardPage && cardPageUsesCandidate("weather") ? weatherPageForRender(regionRows, pageIndex) : weatherForRegionRows(regionRows)} tornado={null} />
-        {#if tornado != null}
-          <div class:sighted={tornado.data.isSighted} class="mock-tornado-rider" data-tornado-full>
-            ⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{#each tornadoFullAreas as area, index}{#if index > 0}、{/if}{area}{/each}）
-          </div>
-        {/if}
+        {@render renderTornadoRider(tornadoPageForRender())}
       </div>
     </div>
     {#if useCardPage && (pageCount > 1 || cardPagePartition("weather")?.candidateTruncated)}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
@@ -2684,16 +2750,25 @@
   data-placement-surplus-use={placementSurplusUse}
   data-card-page-tick={currentCardPageTick}
   data-card-page-tick-override={cardPageTickOverride ?? undefined}
-  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather},flood:${cardPageCounts.flood}`}
+  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather},flood:${cardPageCounts.flood},tornado:${cardPageCounts.tornado}`}
   data-card-page-active={cardPageIsActive ? "true" : "false"}
-  data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys, flood: cardPagePartitions.flood.keys })}
-  data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities, flood: cardPagePartitions.flood.identities })}
-  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather"), flood: cardPageTailEntries("flood") })}
-  data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey, flood: cardPageRuntime.flood.activeKey })}
+  data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys, flood: cardPagePartitions.flood.keys, tornado: cardPagePartitions.tornado.keys })}
+  data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities, flood: cardPagePartitions.flood.identities, tornado: cardPagePartitions.tornado.identities })}
+  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather"), flood: cardPageTailEntries("flood"), tornado: cardPagePartitions.tornado.pages.map((page) => page.tails) })}
+  data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey, flood: cardPageRuntime.flood.activeKey, tornado: cardPageRuntime.tornado.activeKey })}
   data-partition-probe-count={JSON.stringify(partitionProbeCounts)}
   data-partition-tail-probe={partitionTailProbeMeasured ? "true" : "false"}
   data-card-page-infeasible={cardPageInfeasible ? "true" : "false"}
   data-card-page-revision={cardPageFixtureRevision}
+  data-tornado-page={`${cardPageCounts.tornado === 0 ? 0 : tornadoPageIndex() + 1}/${cardPageCounts.tornado}`}
+  data-tornado-page-keys={JSON.stringify(cardPagePartitions.tornado.keys)}
+  data-tornado-page-identities={JSON.stringify(cardPagePartitions.tornado.identities)}
+  data-tornado-page-infeasible={cardPagePartitions.tornado.infeasible ? "clip" : "false"}
+  data-tornado-page-footer={cardPageCounts.tornado > 1 ? "true" : "false"}
+  data-tornado-page-visible-count={tornadoPageForRender()?.areas.length ?? 0}
+  data-tornado-page-host="weather"
+  data-tornado-page-mode={pageSchedulerMode("tornado")}
+  data-tornado-page-pending-appearance="false"
   data-candidate-truncated={candidateTruncated ? "true" : "false"}
   data-center-eligible-keys="weather,flood,typhoon,volcano"
   data-clock-mode={layoutPlan.stage === 0 ? "viewport-center" : "ticker-bottom-right"}

@@ -291,6 +291,20 @@ describe("legacy improved standby mock v26", () => {
     expect(mockSource).toMatch(/\{:else if entry\.key === "weather"\}[\s\S]*?\{:else if entry\.key === "tornado"\}/);
   });
 
+  it("pages tornado preview fixtures without collapsing duplicate regions", () => {
+    const { rendered, root } = renderMock("legacyMock2=4&ladder=0&tornadoFixture=12");
+    expect(root.dataset.tornadoPage).toBe("1/6");
+    expect(root.dataset.tornadoPageHost).toBe("weather");
+    expect(root.dataset.tornadoPageMode).toBe("real");
+    expect(root.dataset.tornadoPagePendingAppearance).toBe("false");
+    expect(JSON.parse(root.dataset.tornadoPageKeys ?? "[]")).toHaveLength(6);
+    const identities = JSON.parse(root.dataset.tornadoPageIdentities ?? "[]") as string[];
+    expect(new Set(identities).size).toBe(identities.length);
+    const rider = rendered.container.querySelector<HTMLElement>("[data-tornado-rider]");
+    expect(rider?.textContent).toContain("対象地域 1/6");
+    expect(rider?.textContent).not.toContain("非常に長い名称");
+  });
+
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -385,10 +399,12 @@ describe("legacy improved standby mock v26", () => {
     }
     expect(rendered.container.querySelector('[data-mock-card="quake"]')?.textContent).not.toContain("ほか3地域");
     expect(rendered.container.querySelector('[data-mock-card="weather"] [data-weather-two-column]')).toBeTruthy();
-    const tornado = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"] [data-tornado-full]');
+    const tornado = rendered.container.querySelector<HTMLElement>('[data-mock-card="weather"] [data-tornado-rider]');
     expect(tornado?.textContent).toContain("宮崎県南部平野部");
     expect(tornado?.textContent).toContain("宮崎県北部平野部");
     expect(tornado?.textContent).not.toContain("ほか");
+    expect(tornado?.querySelector("[data-tornado-page-marker]")?.textContent).toBe("対象地域 1/2");
+    expect(mockSource).not.toContain("data-tornado-full");
     expect(mockSource).toContain("tornado={null}");
     expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul\)\s*\{[^}]*column-count:\s*2/s);
     expect(mockSource).toMatch(/\.mock-weather-shell :global\(\.weather-card > ul \.pref-group\)\s*\{[^}]*break-inside:\s*avoid/s);
@@ -1473,7 +1489,9 @@ describe("legacy improved standby mock v26", () => {
     try {
       const { rendered, root } = renderMock("legacyMock2=4&ladder=0&fixtureRemove=quake,weather&fixtureRemoveAt=1000");
       await settleMockMeasurements(320);
-      expect(schedulerState(root).paging.activeSubstateKeys).toEqual(["quake", "weather"]);
+      // 全件 rider を独立 tornado pager に置換したため、weather host と同時に
+      // tornado の real substate も稼働する。
+      expect(schedulerState(root).paging.activeSubstateKeys).toEqual(["quake", "weather", "tornado"]);
       expect(schedulerState(root).paging.timerActive).toBe(true);
 
       vi.advanceTimersByTime(1_000);

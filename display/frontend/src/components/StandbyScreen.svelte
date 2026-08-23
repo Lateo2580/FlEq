@@ -209,6 +209,7 @@
   let pageIndicatorRiderOverlapPx = $state(0);
   let tornadoMarkerBodyOverlapPx = $state(0);
   let tornadoMarkerTextOverlapPx = $state(0);
+  let tornadoPageInfeasible = $state("false");
   let floodVisibilityViolationKeys = $state("");
   let floodReadableOverflowKeys = $state("");
   let floodPageInfeasible = $state("false");
@@ -552,8 +553,15 @@
   function tornadoPagingActive(): boolean {
     return Number(cardPageCoordinator.cardDiagnostics("tornado").page.split("/")[1] ?? 0) > 1;
   }
+  function tornadoPagingContractActive(): boolean {
+    // Registration has not yet published a page count while composed probes
+    // are pending. The rider itself is the stable contract input, so solver,
+    // shelves, and live outer shell reserve the same height from epoch start.
+    return tornadoItem != null && tornadoItem.data.areas.length > 0;
+  }
   function tornadoPagingOrProbing(): boolean {
-    return tornadoPagingActive() || prefixMeasureEntries.some((entry) => entry.key === "tornado" && entry.purpose === "page");
+    return tornadoPagingContractActive() || tornadoPagingActive()
+      || prefixMeasureEntries.some((entry) => entry.key === "tornado" && entry.purpose === "page");
   }
   const weatherTornadoContractHeight = $derived(Math.min(viewportHeightPx * 0.44, 280));
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
@@ -1241,6 +1249,7 @@
     // 28vw maximum and poison the B-prefix cache.
     const weatherProbeCard = activeWeatherProbe?.querySelector<HTMLElement>(".weather-card");
     const liveWeatherCard = liveWeatherShell?.querySelector<HTMLElement>(".weather-card");
+    tornadoPageInfeasible = liveWeatherCard?.dataset.tornadoPageInfeasible ?? "false";
     return {
       leftTrackWidthPx: Math.round(leftTrackEl?.getBoundingClientRect().width ?? 0),
       centerTrackWidthPx: Math.round(centerTrackEl?.getBoundingClientRect().width ?? 0),
@@ -1608,6 +1617,7 @@
       pageCoordinator={measuring ? undefined : cardPageCoordinator}
       rotationMember={!measuring && renderPlan.rotationKeys.includes("weather")}
       pageScheduling={!measuring}
+      forceTornadoPagingContract={tornadoPagingContractActive()}
       measurementPageFooter={measuring}
       partitionProbe={measuring ? undefined : pagePartitionProbe("weather", placement === "center" ? "center" : "side")}
       tornadoPartitionProbe={measuring ? undefined : (tornadoRange, weatherRange) => {
@@ -1659,7 +1669,7 @@
     <!-- Keep the probe's omitted-tail rows identical to the live B prefix.
          Passing MAX_PREFIX_ROWS here erased the live "ほか n地域" rider and
          under-measured a grouped weather card by its omitted-row height. -->
-    <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} />
+    <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
   {:else if entry.key === "flood" && floodItem != null}
     {#if entry.floodForm === "wide"}
       <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
@@ -1669,7 +1679,7 @@
   {:else if entry.key === "tornado"}
     <!-- The envelope includes the complete current weather candidate set, so
          a rider range is never accepted against an unrelated empty shell. -->
-    <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? 0)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry.weatherRange} measurementTornadoRange={entry} tornadoAggregateProbe={entry.tornadoAggregateFallback} pagePlacement={entry.placement} />
+    <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? 0)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry.weatherRange} measurementTornadoRange={entry} tornadoAggregateProbe={entry.tornadoAggregateFallback} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
   {/if}
 {/snippet}
 
@@ -1742,6 +1752,15 @@
   data-flood-page-infeasible={floodPageInfeasible}
   data-flood-page-footer={floodPageFooter}
   data-flood-page-visible-count={floodVisibleCount}
+  data-tornado-page={cardPageCoordinator.cardDiagnostics("tornado").page}
+  data-tornado-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("tornado").keys)}
+  data-tornado-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("tornado").identities)}
+  data-tornado-page-infeasible={tornadoPageInfeasible}
+  data-tornado-page-footer={tornadoItem != null && Number(cardPageCoordinator.cardDiagnostics("tornado").page.split("/")[1] ?? 0) > 1 ? "true" : "false"}
+  data-tornado-page-visible-count={tornadoItem?.data.areas.length ?? 0}
+  data-tornado-page-host={cardPageCoordinator.diagnostics().cards.tornado.appearanceHost ?? ""}
+  data-tornado-page-mode={cardPageCoordinator.diagnostics().cards.tornado.mode}
+  data-tornado-page-pending-appearance={cardPageCoordinator.diagnostics().pendingAppearanceKeys.includes("tornado") ? "true" : "false"}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}

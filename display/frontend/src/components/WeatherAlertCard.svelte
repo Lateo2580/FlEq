@@ -10,7 +10,7 @@
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
-  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, tornadoPartitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementTornadoRange, tornadoPageIndex, tornadoPageCount, tornadoPending = false, tornadoAggregatePending = false, tornadoAggregateProbe = false, tornadoInfeasible = null }: {
+  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, tornadoPartitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementTornadoRange, tornadoPageIndex, tornadoPageCount, tornadoPending = false, tornadoAggregatePending = false, tornadoAggregateProbe = false, tornadoInfeasible = null, forceTornadoPagingContract = false }: {
     alerts: DisplayWeatherAlertV1[];
     tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null;
     pageCoordinator?: CardPageCoordinator;
@@ -38,6 +38,8 @@
     tornadoAggregateProbe?: boolean;
     /** The rider-side result of the aggregate then clip infeasible defence. */
     tornadoInfeasible?: "aggregate" | "clip" | null;
+    /** Live scheduling can be pending before a range is confirmed. */
+    forceTornadoPagingContract?: boolean;
   } = $props();
   const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
   const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
@@ -352,13 +354,10 @@
   const tornadoPagingContract = $derived(
     tornado != null && (tornadoPending || tornadoPartition.pending.length > 0 || resolvedTornadoAggregatePending || resolvedTornadoInfeasible != null || resolvedTornadoPageCount > 1),
   );
-  // A weather 1/1 truncation has always retained its natural height.  Only
-  // actual weather paging, its unsettled probe, or its infeasible fallback
-  // enters the fixed shell contract.
-  const weatherPagingContract = $derived(
-    weatherPages.length > 1 || pagePartition.pending.length > 0 || pagePartition.infeasible,
-  );
-  const hasPagingContract = $derived(weatherPagingContract || tornadoPagingContract);
+  // The fixed shell is rider-specific. Weather's established pager remains
+  // natural-height based even while it probes or repartitions; only tornado
+  // paging/pending/infeasible may reserve the 44vh contract.
+  const hasPagingContract = $derived(forceTornadoPagingContract || tornadoPagingContract);
   const tornadoRiderText = $derived(
     resolvedTornadoInfeasible === "aggregate" || tornadoAggregateProbe
       ? `竜巻注意情報（対象 ${tornadoAreas.length} 地域）`

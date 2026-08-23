@@ -439,7 +439,15 @@ describe("WeatherAlertCard", () => {
     view.unmount();
   });
 
-  it("weather の pending/infeasible だけを固定高にし、単一 truncate は自然高のままにする", async () => {
+  it("pending 前の rider scheduling でも shared contract を先行適用できる", () => {
+    const view = render(WeatherAlertCard, {
+      alerts: [], tornado: restoredTornado(), forceTornadoPagingContract: true,
+    });
+    expect(view.container.querySelector<HTMLElement>(".weather-card")?.classList.contains("paging-contract")).toBe(true);
+    view.unmount();
+  });
+
+  it("weather 単独の pending/infeasible と単一 truncate は自然高のままにする", async () => {
     const alerts = [weatherAlert({ items: [{
       kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市"], omittedAreaCount: 3,
     }] })];
@@ -448,7 +456,7 @@ describe("WeatherAlertCard", () => {
     });
     const card = view.container.querySelector<HTMLElement>(".weather-card");
     expect(card?.dataset.cardPagePending).toBe("true");
-    expect(card?.classList.contains("paging-contract")).toBe(true);
+    expect(card?.classList.contains("paging-contract")).toBe(false);
     await view.rerender({ alerts, pageScheduling: true, partitionProbe: () => 0 });
     expect(card?.dataset.cardPagePending).toBe("false");
     expect(card?.classList.contains("paging-contract")).toBe(false);
@@ -462,7 +470,7 @@ describe("WeatherAlertCard", () => {
       alerts, pageScheduling: true, partitionProbe: () => 2,
     });
     expect(infeasible.container.querySelector<HTMLElement>(".weather-card")?.dataset.cardPageInfeasible).toBe("true");
-    expect(infeasible.container.querySelector<HTMLElement>(".weather-card")?.classList.contains("paging-contract")).toBe(true);
+    expect(infeasible.container.querySelector<HTMLElement>(".weather-card")?.classList.contains("paging-contract")).toBe(false);
     infeasible.unmount();
   });
 

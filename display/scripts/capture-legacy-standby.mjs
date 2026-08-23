@@ -188,6 +188,8 @@ function diagnosticsFromDom(dom) {
     "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px", "data-page-indicator-rider-overlap-px",
     "data-flood-visibility-violation-keys", "data-flood-readable-overflow-keys",
     "data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible", "data-flood-page-footer", "data-flood-page-visible-count",
+    "data-tornado-page", "data-tornado-page-keys", "data-tornado-page-identities", "data-tornado-page-infeasible", "data-tornado-page-footer", "data-tornado-page-visible-count",
+    "data-tornado-page-host", "data-tornado-page-mode", "data-tornado-page-pending-appearance",
     "data-typhoon-variant",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
@@ -214,11 +216,12 @@ function numberDiagnostic(diagnostics, name) {
 function assertNarrowGeometry(diagnostics, scenario, viewport) {
   if (viewport.label !== "960x620") return;
   if (scenario === "quiet") expectEqual(diagnostics["data-ladder-stage"], "0", "960px quiet stage");
-  // Spec §5 / ruling ⑤ follow-up: scenario 7 makes weather permanent after
-  // the surface fix, while max still requires weather in the rotation slot.
+  // Scenario 7 includes the tornado rider. Its 44vh contract height is
+  // reserved before partition confirmation, so at 960px weather joins the
+  // rotation slot just as max does.
   if (scenario === "max" || scenario === "7") {
     expectEqual(diagnostics["data-ladder-stage"], "3", `960px scenario-${scenario} stage (§5)`);
-    expectEqual(diagnostics["data-rotation-keys"], scenario === "7" ? "flood,typhoon,volcano,heat" : "weather,flood,typhoon,volcano,heat", `960px scenario-${scenario} rotation set (§5)`);
+    expectEqual(diagnostics["data-rotation-keys"], "weather,flood,typhoon,volcano,heat", `960px scenario-${scenario} rotation set (§5)`);
     expectEqual(diagnostics["data-layout-unresolved"], "false", `960px scenario-${scenario} resolved layout (§5)`);
   }
   if (scenario !== "quiet") expectEqual(diagnostics["data-recent-hypocenters-horizontal-clipped"], "false", "960px recent-quake hypocenter clipping");
@@ -334,39 +337,55 @@ function assertRotationDiagnostics(diagnostics, rotationTick) {
 }
 
 const FLOOD_NONE = { floodForm: "none", floodPage: "0/0", floodPageKeys: "[]", floodPageIdentities: "[]", floodPageFooter: "false", floodVisibleCount: "0", floodInfeasible: "false" };
+// 2026-08-23 Chrome observed values. The three forms cover every table cell:
+// no rider, permanent weather host, and rotation-hosted weather.
+const TORNADO_EXPECTATIONS = {
+  none: { tornadoPage: "0/0", tornadoPageKeys: "[]", tornadoPageIdentities: "[]", tornadoInfeasible: "false", tornadoFooter: "false", tornadoVisibleCount: "0", tornadoHost: "", tornadoMode: "real", tornadoPendingAppearance: "false" },
+  real: { tornadoPage: "1/1", tornadoPageKeys: '["宮崎県南部平野部"]', tornadoPageIdentities: '["tornado|宮崎県南部平野部|0"]', tornadoInfeasible: "false", tornadoFooter: "false", tornadoVisibleCount: "2", tornadoHost: "weather", tornadoMode: "real", tornadoPendingAppearance: "false" },
+  logical: { tornadoPage: "1/1", tornadoPageKeys: '["宮崎県南部平野部"]', tornadoPageIdentities: '["tornado|宮崎県南部平野部|0"]', tornadoInfeasible: "false", tornadoFooter: "false", tornadoVisibleCount: "2", tornadoHost: "weather", tornadoMode: "logical", tornadoPendingAppearance: "false" },
+};
+function tornadoExpectation(scenario, viewport) {
+  if (scenario === "quiet") return TORNADO_EXPECTATIONS.none;
+  return (scenario === "4" && viewport.label === "960x620")
+    || (scenario !== "4" && ["1280x720", "960x620"].includes(viewport.label))
+    ? TORNADO_EXPECTATIONS.logical
+    : TORNADO_EXPECTATIONS.real;
+}
 const FLOOD_CARD_TWO = { floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫危険情報|大淀川|0|code:8303040001","氾濫警戒情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "2", floodInfeasible: "false" };
 const FLOOD_CARD_ONE = { floodForm: "card", floodPage: "1/1", floodPageKeys: '["大淀川"]', floodPageIdentities: '["氾濫危険情報|大淀川|0|code:8303040001"]', floodPageFooter: "false", floodVisibleCount: "3", floodInfeasible: "false" };
 const FLOOD_WIDE_EXPECTATIONS = {
   "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", floodPage: "1/2", floodPageKeys: '["大淀川","一ツ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫警戒情報|一ツ瀬川|0|code:8303040005"]', floodPageFooter: "true", floodVisibleCount: "4", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
-  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫危険情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "2", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 10, n: 14 } } }, surplus: "7" },
+  "1280x720": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫危険情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "0", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 3, n: 21 } } }, surplus: "0" },
 };
 
 // §5 / §11.1 fixed tables. --report emits this comparison without mutating
 // either source of truth, so a newly measured table needs an explicit ruling.
 const TABLE_EXPECTATIONS = {
   quiet: { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "0", rotationKeys: "", ...FLOOD_NONE } },
-  "4": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "1", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "2", rotationKeys: "", ...FLOOD_NONE } },
-  "7": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE }, "960x620": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE } },
-  max: { "1920x1080": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
+  "4": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "2", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "3", rotationKeys: "weather,volcano,heat", ...FLOOD_NONE } },
+  "7": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
+  max: { "1920x1080": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
 };
 // §11.1 C, keyed independently of the §5 ladder table. Keeping the measured
 // payload here makes --report reject a stage match with stale expansion data.
 const UTIL_EXPECTATIONS = {
   // In §11.1's human table "−（不在）" is encoded as the always-emitted
   // diagnostic value "none"; absence is never represented by a missing attr.
-  "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13, "false"], "1512x982": ["none", "none", 7, 0, 12, 0, 13, "false"], "1280x720": ["none", "none", 7, 0, 12, 0, 13, "false"], "960x620": ["none", "none", 7, 0, 9, 3, 10, "false"] },
-  "7": { "1920x1080": ["compact", "card", 4, 3, 12, 0, 10, "false"], "1512x982": ["compact", "card", 4, 3, 2, 10, 0, "false"], "1280x720": ["compact", "card", 4, 3, 12, 0, 10, "false"], "960x620": ["compact", "card", 4, 3, 2, 10, 0, "false"] },
-  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 10, 14, 7, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
+  "4": { "1920x1080": ["none", "none", 7, 0, 12, 0, 13, "false"], "1512x982": ["none", "none", 7, 0, 12, 0, 13, "false"], "1280x720": ["none", "none", 7, 0, 12, 0, 13, "false"], "960x620": ["none", "none", 7, 0, 2, 10, 3, "false"] },
+  "7": { "1920x1080": ["compact", "card", 4, 3, 12, 0, 10, "false"], "1512x982": ["compact", "card", 7, 0, 12, 0, 13, "false"], "1280x720": ["compact", "card", 4, 3, 2, 10, 0, "false"], "960x620": ["compact", "card", 4, 3, 2, 10, 0, "false"] },
+  max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
 };
 
 function tableMismatches(diagnostics, scenario, viewport) {
-  const expected = scenario === "max-floodWide"
+  const baseExpected = scenario === "max-floodWide"
     ? FLOOD_WIDE_EXPECTATIONS[viewport.label]
     : (() => {
       const base = TABLE_EXPECTATIONS[scenario]?.[viewport.label];
       const util = UTIL_EXPECTATIONS[scenario]?.[viewport.label];
-      return base == null || util == null ? base : { ...base, typhoonVariant: util[0], floodForm: util[1], expandedCounts: { quake: { count: util[2], n: util[3] }, weather: { "大雨警報(土砂災害)": { count: util[4], n: util[5] } } }, surplus: String(util[6]), floodInfeasible: util[7] };
+      const combined = base == null || util == null ? base : { ...base, typhoonVariant: util[0], floodForm: util[1], expandedCounts: { quake: { count: util[2], n: util[3] }, weather: { "大雨警報(土砂災害)": { count: util[4], n: util[5] } } }, surplus: String(util[6]), floodInfeasible: util[7] };
+      return combined;
     })();
+  const expected = baseExpected == null ? null : { ...baseExpected, ...tornadoExpectation(scenario, viewport) };
   if (expected == null) return [];
   const observed = {
     stage: diagnostics["data-ladder-stage"], rotationKeys: diagnostics["data-rotation-keys"],
@@ -374,11 +393,14 @@ function tableMismatches(diagnostics, scenario, viewport) {
     centerClusterHidden: diagnostics["data-center-cluster-hidden"], floodForm: diagnostics["data-flood-form"], floodInfeasible: diagnostics["data-flood-page-infeasible"],
     floodPage: diagnostics["data-flood-page"], floodPageKeys: diagnostics["data-flood-page-keys"], floodPageIdentities: diagnostics["data-flood-page-identities"],
     floodPageFooter: diagnostics["data-flood-page-footer"], floodVisibleCount: diagnostics["data-flood-page-visible-count"],
+    tornadoPage: diagnostics["data-tornado-page"], tornadoPageKeys: diagnostics["data-tornado-page-keys"], tornadoPageIdentities: diagnostics["data-tornado-page-identities"],
+    tornadoInfeasible: diagnostics["data-tornado-page-infeasible"], tornadoFooter: diagnostics["data-tornado-page-footer"], tornadoVisibleCount: diagnostics["data-tornado-page-visible-count"],
+    tornadoHost: diagnostics["data-tornado-page-host"], tornadoMode: diagnostics["data-tornado-page-mode"], tornadoPendingAppearance: diagnostics["data-tornado-page-pending-appearance"],
     typhoonVariant: diagnostics["data-typhoon-variant"], expandedCounts: diagnostics["data-expanded-counts"],
     surplus: diagnostics["data-placement-surplus-use"],
   };
   const expectedValues = { stage: expected.stage, rotationKeys: expected.rotationKeys, unresolved: "false", nonconverged: "false", centerClusterHidden: "" };
-  for (const key of ["floodForm", "floodInfeasible", "floodPage", "floodPageKeys", "floodPageIdentities", "floodPageFooter", "floodVisibleCount", "typhoonVariant", "expandedCounts", "surplus"]) {
+  for (const key of ["floodForm", "floodInfeasible", "floodPage", "floodPageKeys", "floodPageIdentities", "floodPageFooter", "floodVisibleCount", "typhoonVariant", "expandedCounts", "surplus", ...Object.keys(TORNADO_EXPECTATIONS.none)]) {
     if (expected[key] != null) expectedValues[key] = key === "expandedCounts" ? JSON.stringify(expected[key]) : expected[key];
   }
   return [
