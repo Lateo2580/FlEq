@@ -159,6 +159,33 @@ function eventIdOf(meta: TelegramMeta): string | null {
   return meta.eventId.valid ? nonBlank(meta.eventId.value) : null;
 }
 
+function normalizedEventId(
+  rule: LegacyCounterpartRule,
+  side: "source" | "counterpart",
+  meta: TelegramMeta,
+): string | null {
+  const eventId = eventIdOf(meta);
+  if (eventId == null) return null;
+  try {
+    const normalized = rule.normalizeEventId == null
+      ? eventId
+      : rule.normalizeEventId({
+          side,
+          headType: nonBlank(meta.type.value) ?? "",
+          eventId,
+          rawEventId: eventId,
+        });
+    return nonBlank(normalized);
+  } catch {
+    return null;
+  }
+}
+
+function isEligibleForCorrelation(rule: LegacyCounterpartRule, meta: TelegramMeta): boolean {
+  return rule.eligibleInfoTypes == null
+    || (meta.infoType.value != null && rule.eligibleInfoTypes.includes(meta.infoType.value));
+}
+
 function serialOf(meta: TelegramMeta): number | null {
   return meta.serial.valid ? meta.serial.numeric : null;
 }
@@ -242,7 +269,11 @@ function correlationIdentityAndTimeMatches(
   const sourceEventId = eventIdOf(sourceMeta);
   const counterpartEventId = eventIdOf(counterpartMeta);
   if (sourceEventId != null && counterpartEventId != null) {
-    return sourceEventId === counterpartEventId;
+    const normalizedSourceEventId = normalizedEventId(rule, "source", sourceMeta);
+    const normalizedCounterpartEventId = normalizedEventId(rule, "counterpart", counterpartMeta);
+    return normalizedSourceEventId != null
+      && normalizedCounterpartEventId != null
+      && normalizedSourceEventId === normalizedCounterpartEventId;
   }
   return codeIdentityMatches(sourceKey, counterpartKey);
 }
@@ -402,6 +433,15 @@ export class LegacyCounterpartCorrelator {
     const rule = this.registry.ruleBySourceType.get(outcome.parsed.type);
     if (rule == null) return this.decide({ kind: "emitNow", outcome, reason: "unrelated" });
     const meta = outcome.parsed.meta;
+    if (!isEligibleForCorrelation(rule, meta)) {
+      return this.decide({
+        kind: "releaseSource",
+        outcome,
+        sourceIdentity: sourceIdentity(outcome),
+        reason: "releasedUpdate",
+        candidateCount: 0,
+      });
+    }
     const revision = strictRevisionIdentity(meta);
     if (revision == null) return this.decide({ kind: "releaseSource", outcome, sourceIdentity: sourceIdentity(outcome), reason: "correlatorCapacityExceeded", candidateCount: 0 });
     const key = rule.extractEventKey(meta, outcome.parsed);
@@ -508,6 +548,9 @@ export class LegacyCounterpartCorrelator {
     const meta = metaOf(outcome);
     const revision = meta == null ? null : strictRevisionIdentity(meta);
     if (meta == null || revision == null) return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
+    if (!isEligibleForCorrelation(rule, meta)) {
+      return this.decide({ kind: "emitNow", outcome, reason: "counterpart", sourceType: rule.sourceType });
+    }
     const key = rule.extractEventKey(meta, parsedOf(outcome));
     const id = counterpartIdentity(outcome, meta, key);
     const existing = this.counterparts.get(id);

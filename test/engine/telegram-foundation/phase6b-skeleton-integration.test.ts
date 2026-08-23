@@ -116,12 +116,12 @@ describe("Phase 6B unit 5: skeleton integration gate", () => {
     vi.restoreAllMocks();
   });
 
-  it("Phase 0 characterizationとproduction counterpart registryを未確認の三typeへ固定し、VPOA50だけseverity/body extractorを有効化する", () => {
+  it("Phase 0 characterizationは未確認のまま保ち、productionはVPOA50→VPBS50だけを有効化する", () => {
     expect(LEGACY_COUNTERPART_SOURCE_TYPES).toEqual(SOURCE_TYPES);
     expect(LEGACY_COUNTERPART_CHARACTERIZATION.map((entry) => entry.sourceType)).toEqual(SOURCE_TYPES);
     expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.rules.map((rule) => rule.sourceType)).toEqual(SOURCE_TYPES);
-    expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.activeCounterpartTypes.size).toBe(0);
-    expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.ruleByCounterpartType.size).toBe(0);
+    expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.activeCounterpartTypes).toEqual(new Set(["VPBS50"]));
+    expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.ruleByCounterpartType.size).toBe(1);
     expect(PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES.size).toBe(1);
     expect(PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES.has("VPOA50")).toBe(true);
     expect(LEGACY_COUNTERPART_BODY_EXTRACTORS).toEqual(["VPOA50"]);
@@ -135,7 +135,9 @@ describe("Phase 6B unit 5: skeleton integration gate", () => {
         sourceFixtures: [],
         counterpartFixtures: [],
       });
-      expect(rule).toMatchObject({ status: "unconfirmed", counterpartTypes: [] });
+      expect(rule).toMatchObject(type === "VPOA50"
+        ? { status: "confirmed", counterpartTypes: ["VPBS50"], eligibleInfoTypes: ["発表"] }
+        : { status: "unconfirmed", counterpartTypes: [] });
       const message = makeMessage({ type, id: `${type}:registry` });
       expect(rule?.extractEventKey(message.meta!, null)).toBeNull();
     }

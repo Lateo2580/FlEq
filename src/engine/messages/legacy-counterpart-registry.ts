@@ -1,5 +1,6 @@
 import type {
   LegacyCounterpartSourceType,
+  TelegramInfoTypeValue,
   TelegramMeta,
 } from "../../types";
 
@@ -24,6 +25,15 @@ export interface LegacyCounterpartCorrelationKey {
   targetRevision?: LegacyCounterpartRevisionRef | null;
 }
 
+export interface LegacyCounterpartEventIdNormalizationInput {
+  side: "source" | "counterpart";
+  headType: string;
+  /** trim 済みの raw EventID。比較だけに使い、meta／表示の raw 値は変更しない。 */
+  eventId: string;
+  /** eventId と同じ値。hook 実装で raw 性を明示したい場合の additive alias。 */
+  rawEventId: string;
+}
+
 export interface LegacyCounterpartRule {
   sourceType: LegacyCounterpartSourceType;
   status: "unconfirmed" | "confirmed";
@@ -35,6 +45,12 @@ export interface LegacyCounterpartRule {
   windowBeforeMs: number;
   windowAfterMs: number;
   holdbackMs: number;
+  /** 両側に raw EventID があるときだけ、比較用 canonical EventID を返す additive hook。 */
+  normalizeEventId?: (
+    input: LegacyCounterpartEventIdNormalizationInput,
+  ) => string | null;
+  /** 相関 cache へ入れる InfoType。未指定時は既存の全 InfoType を受理する。 */
+  eligibleInfoTypes?: readonly TelegramInfoTypeValue[];
 }
 
 export interface LegacyCounterpartRegistry {
@@ -48,6 +64,9 @@ function freezeRule(rule: LegacyCounterpartRule): LegacyCounterpartRule {
   return Object.freeze({
     ...rule,
     counterpartTypes: Object.freeze([...rule.counterpartTypes]),
+    ...(rule.eligibleInfoTypes == null
+      ? {}
+      : { eligibleInfoTypes: Object.freeze([...rule.eligibleInfoTypes]) }),
   });
 }
 
@@ -102,9 +121,30 @@ function unconfirmedRule(sourceType: LegacyCounterpartSourceType): LegacyCounter
   };
 }
 
-/** 実在 counterpart を推定しない production registry。 */
+function normalizeVpoa50EventId(
+  input: LegacyCounterpartEventIdNormalizationInput,
+): string | null {
+  if (input.side === "source") return input.eventId;
+  if (input.headType !== "VPBS50") return null;
+  return /^K(JP[A-Z]{2}\d{12}_\d{12})$/.exec(input.eventId)?.[1] ?? null;
+}
+
+/** 実 pair で確認済みの VPOA50→VPBS50 rule。code fallback は未確認のため成立させない。 */
+const vpoa50Rule: LegacyCounterpartRule = {
+  sourceType: "VPOA50",
+  status: "confirmed",
+  counterpartTypes: ["VPBS50"],
+  extractEventKey: () => null,
+  windowBeforeMs: LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+  windowAfterMs: LEGACY_CORRELATION_WINDOW_AFTER_MS,
+  holdbackMs: LEGACY_SOURCE_HOLDBACK_MS,
+  normalizeEventId: normalizeVpoa50EventId,
+  eligibleInfoTypes: ["発表"],
+};
+
+/** VPOA50→VPBS50 だけを実 pair で確認済みとして有効化する production registry。 */
 export const PRODUCTION_LEGACY_COUNTERPART_REGISTRY = createLegacyCounterpartRegistry([
-  unconfirmedRule("VPOA50"),
+  vpoa50Rule,
   unconfirmedRule("VPNO50"),
   unconfirmedRule("VXWW50"),
 ]);

@@ -17,6 +17,8 @@ import {
   type LegacyCounterpartLifecycleEvent,
   type LegacyCounterpartTimerScheduler,
 } from "../../../src/engine/messages/legacy-counterpart-correlator";
+import { processBriefing } from "../../../src/engine/presentation/processors/process-briefing";
+import { processLegacyCounterpart } from "../../../src/engine/presentation/processors/process-legacy-counterpart";
 import {
   LEGACY_CORRELATION_RETENTION_MS,
   LEGACY_CORRELATION_WINDOW_AFTER_MS,
@@ -25,12 +27,30 @@ import {
   PRODUCTION_LEGACY_COUNTERPART_REGISTRY,
   createLegacyCounterpartRegistry,
   type LegacyCounterpartCorrelationKey,
+  type LegacyCounterpartEventIdNormalizationInput,
   type LegacyCounterpartRegistry,
   type LegacyCounterpartRule,
 } from "../../../src/engine/messages/legacy-counterpart-registry";
+import {
+  createMockWsDataMessage,
+  FIXTURE_PHASE6B_VPBS50_KJPDE202608201757_202608201757,
+  FIXTURE_PHASE6B_VPBS50_KJPTC202608211633_202608211633,
+  FIXTURE_PHASE6B_VPBS50_KJPTC202608221709_202608221709,
+  FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709,
+  FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221717,
+  FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221727,
+  FIXTURE_PHASE6B_VPOA50_JPDE202608201757_202608201757,
+  FIXTURE_PHASE6B_VPOA50_JPTC202608211633_202608211633,
+  FIXTURE_PHASE6B_VPOA50_JPTC202608221709_202608221709,
+  FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709,
+  FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221717,
+  FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221727,
+} from "../../helpers/mock-message";
 
 const BASE_MS = Date.parse("2026-08-11T00:00:00.000Z");
 const KEYS = new Map<string, LegacyCounterpartCorrelationKey | null>();
+const VPOA50_EVENT_ID = "JPTK202608221709_202608221709";
+const VPBS50_EVENT_ID = `K${VPOA50_EVENT_ID}`;
 
 class FakeRuntime implements LegacyCounterpartTimerScheduler {
   now = BASE_MS;
@@ -256,21 +276,35 @@ function kinds(actions: readonly LegacyCounterpartAction[]): string[] {
   return actions.map((action) => action.kind);
 }
 
-describe("Phase 6B unit 3: legacy counterpart registry", () => {
+describe("Phase 6B unit 2: legacy counterpart registry", () => {
   beforeEach(() => KEYS.clear());
 
-  it("production 三 entry は unconfirmed・counterpartTypes 空・extractEventKey null のまま", () => {
+  it("production はVPOA50→VPBS50だけconfirmedにし、他二typeをunconfirmedのまま残す", () => {
     expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.rules.map((rule) => ({
       sourceType: rule.sourceType,
       status: rule.status,
       counterpartTypes: rule.counterpartTypes,
       key: rule.extractEventKey(makeMeta({ messageId: rule.sourceType, type: rule.sourceType }), null),
     }))).toEqual([
-      { sourceType: "VPOA50", status: "unconfirmed", counterpartTypes: [], key: null },
+      { sourceType: "VPOA50", status: "confirmed", counterpartTypes: ["VPBS50"], key: null },
       { sourceType: "VPNO50", status: "unconfirmed", counterpartTypes: [], key: null },
       { sourceType: "VXWW50", status: "unconfirmed", counterpartTypes: [], key: null },
     ]);
-    expect([...PRODUCTION_LEGACY_COUNTERPART_REGISTRY.activeCounterpartTypes]).toEqual([]);
+    const vpoa = PRODUCTION_LEGACY_COUNTERPART_REGISTRY.ruleBySourceType.get("VPOA50");
+    expect(vpoa?.eligibleInfoTypes).toEqual(["発表"]);
+    expect(vpoa?.normalizeEventId?.({
+      side: "source",
+      headType: "VPOA50",
+      eventId: "JPTK202608221709_202608221709",
+      rawEventId: "JPTK202608221709_202608221709",
+    })).toBe("JPTK202608221709_202608221709");
+    expect(vpoa?.normalizeEventId?.({
+      side: "counterpart",
+      headType: "VPBS50",
+      eventId: "KJPTK202608221709_202608221709",
+      rawEventId: "KJPTK202608221709_202608221709",
+    })).toBe("JPTK202608221709_202608221709");
+    expect([...PRODUCTION_LEGACY_COUNTERPART_REGISTRY.activeCounterpartTypes]).toEqual(["VPBS50"]);
   });
 
   it("confirmed counterpart type の source rule 間重複を構築時に拒否する", () => {
@@ -297,7 +331,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
 
   beforeEach(() => KEYS.clear());
 
-  it("production 空 rule でも source を60秒 holdし、60,000msは保持・60,001msでreleaseする", () => {
+  it("production VPOA50 source は60秒 holdし、60,000msは保持・60,001msでreleaseする", () => {
     const { correlator, runtime, actions } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
     expect(correlator.accept(makeSource({ key: null }))).toMatchObject({ kind: "holdSource" });
     runtime.advanceBy(60_000);
@@ -346,7 +380,7 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     expect(correlator.accept(makeSource({ reportOffsetMs: sourceOffset }))).toMatchObject({ kind: expectedKind });
   });
 
-  it("両EventID一致を優先し、不一致ならcode fallbackせず、片側欠落時だけcode一致へfallbackする", () => {
+  it("normalizeEventId 未指定時はraw EventID比較を維持し、不一致だけcode fallbackせず片側欠落時だけcode一致へfallbackする", () => {
     const same = harness();
     same.correlator.accept(makeCounterpart({ id: "same-cp", eventId: "E1", key: correlationKey({ areaCodes: ["OTHER"] }) }));
     expect(same.correlator.accept(makeSource({ id: "same-src", eventId: "E1" }))).toMatchObject({ kind: "suppressSource" });
@@ -360,6 +394,104 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     const fallback = harness();
     fallback.correlator.accept(makeCounterpart({ id: "fallback-cp", eventId: null }));
     expect(fallback.correlator.accept(makeSource({ id: "fallback-src", eventId: "E1" }))).toMatchObject({ kind: "suppressSource" });
+  });
+
+  it.each([
+    ["source hook throw", (input: LegacyCounterpartEventIdNormalizationInput) => {
+      if (input.side === "source") throw new Error("source hook failure");
+      return input.eventId;
+    }],
+    ["counterpart hook throw", (input: LegacyCounterpartEventIdNormalizationInput) => {
+      if (input.side === "counterpart") throw new Error("counterpart hook failure");
+      return input.eventId;
+    }],
+    ["source hook empty", (input: LegacyCounterpartEventIdNormalizationInput) =>
+      input.side === "source" ? "" : input.eventId],
+    ["counterpart hook empty", (input: LegacyCounterpartEventIdNormalizationInput) =>
+      input.side === "counterpart" ? "" : input.eventId],
+    ["source hook blank", (input: LegacyCounterpartEventIdNormalizationInput) =>
+      input.side === "source" ? "   " : input.eventId],
+    ["counterpart hook blank", (input: LegacyCounterpartEventIdNormalizationInput) =>
+      input.side === "counterpart" ? "   " : input.eventId],
+  ] as const)("両raw EventIDがある %s はcode fallbackせずfail-openする", (_label, normalizeEventId) => {
+    const rule: LegacyCounterpartRule = { ...syntheticRule(), normalizeEventId };
+    const { correlator } = harness({ registry: registryOf(rule) });
+    correlator.accept(makeCounterpart({ id: "normalization-counterpart", eventId: "E1" }));
+    expect(correlator.accept(makeSource({ id: "normalization-source", eventId: "E1" }))).toMatchObject({
+      kind: "holdSource",
+    });
+    expect(correlator.snapshot()).toMatchObject({ sourceCount: 1, counterpartCount: 1 });
+  });
+
+  it.each([
+    [-300_000, "suppressSource"],
+    [300_000, "suppressSource"],
+    [-300_001, "holdSource"],
+    [300_001, "holdSource"],
+  ] as const)("production VPOA50→VPBS50 はReportDateTime差 %dms の±5分inclusive窓だけで相関する", (sourceOffset, expectedKind) => {
+    const { correlator } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    correlator.accept(makeCounterpart({
+      type: "VPBS50",
+      eventId: VPBS50_EVENT_ID,
+      reportOffsetMs: 0,
+      key: null,
+    }));
+    expect(correlator.accept(makeSource({
+      type: "VPOA50",
+      eventId: VPOA50_EVENT_ID,
+      reportOffsetMs: sourceOffset,
+      key: null,
+    }))).toMatchObject({ kind: expectedKind });
+  });
+
+  it.each([
+    ["余分なK", `K${VPBS50_EVENT_ID}`],
+    ["小文字prefix", `k${VPOA50_EVENT_ID}`],
+    ["小文字canonical", "KJPtk202608221709_202608221709"],
+    ["桁不足", "KJPTK202608221709_20260822170"],
+    ["正規化後不一致", "KJPDE202608201757_202608201757"],
+  ] as const)("production VPBS50 EventIDの%sはstrict normalizerでnon-matchにする", (_label, counterpartEventId) => {
+    const { correlator } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    correlator.accept(makeCounterpart({
+      type: "VPBS50",
+      eventId: counterpartEventId,
+      key: correlationKey(),
+    }));
+    expect(correlator.accept(makeSource({
+      type: "VPOA50",
+      eventId: VPOA50_EVENT_ID,
+      key: correlationKey(),
+    }))).toMatchObject({ kind: "holdSource" });
+  });
+
+  it.each([
+    ["source", null, VPBS50_EVENT_ID],
+    ["counterpart", VPOA50_EVENT_ID, null],
+  ] as const)("production %s側のEventID欠落は未確認code fallbackへ降りずnon-matchにする", (_side, sourceEventId, counterpartEventId) => {
+    const { correlator } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    correlator.accept(makeCounterpart({ type: "VPBS50", eventId: counterpartEventId, key: correlationKey() }));
+    expect(correlator.accept(makeSource({ type: "VPOA50", eventId: sourceEventId, key: correlationKey() }))).toMatchObject({
+      kind: "holdSource",
+    });
+  });
+
+  it.each(["訂正", "取消"] as const)("production pair の%sはadmission前にfail-openしcacheを変えない", (infoType) => {
+    const { correlator } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    correlator.accept(makeCounterpart({ type: "VPBS50", eventId: VPBS50_EVENT_ID, key: null }));
+    const before = correlator.snapshot();
+    expect(correlator.accept(makeSource({
+      type: "VPOA50",
+      eventId: VPOA50_EVENT_ID,
+      infoType,
+      key: null,
+    }))).toMatchObject({ kind: "releaseSource", reason: "releasedUpdate" });
+    expect(correlator.accept(makeCounterpart({
+      type: "VPBS50",
+      eventId: VPBS50_EVENT_ID,
+      infoType,
+      key: null,
+    }))).toMatchObject({ kind: "emitNow", reason: "counterpart" });
+    expect(correlator.snapshot()).toEqual(before);
   });
 
   it("code不一致・地名だけ相当のcode欠落・対象時刻欠落・blank-only codeは一致させない", () => {
@@ -1020,5 +1152,54 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     expect(events.filter((event) => event.kind === "legacyCounterpartArrivedFirst")).toEqual([
       expect.objectContaining({ sourceType: "VPOA50" }),
     ]);
+  });
+
+  it.each([
+    [
+      FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709,
+      FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709,
+    ],
+    [
+      FIXTURE_PHASE6B_VPOA50_JPDE202608201757_202608201757,
+      FIXTURE_PHASE6B_VPBS50_KJPDE202608201757_202608201757,
+    ],
+    [
+      FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221717,
+      FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221717,
+    ],
+    [
+      FIXTURE_PHASE6B_VPOA50_JPTC202608211633_202608211633,
+      FIXTURE_PHASE6B_VPBS50_KJPTC202608211633_202608211633,
+    ],
+    [
+      FIXTURE_PHASE6B_VPOA50_JPTC202608221709_202608221709,
+      FIXTURE_PHASE6B_VPBS50_KJPTC202608221709_202608221709,
+    ],
+    [
+      FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221727,
+      FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221727,
+    ],
+  ] as const)("実fixture pair %s / %s は両先着順で一意に相関する", (sourceFixture, counterpartFixture) => {
+    const source = processLegacyCounterpart(createMockWsDataMessage(sourceFixture));
+    const counterpart = processBriefing(createMockWsDataMessage(counterpartFixture));
+    if (source == null || counterpart == null) throw new Error("phase6b fixture pair did not parse");
+
+    const sourceFirst = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    expect(sourceFirst.correlator.accept(source)).toMatchObject({ kind: "holdSource" });
+    expect(sourceFirst.correlator.accept(counterpart)).toMatchObject({
+      kind: "suppressSource",
+      counterpartOutcome: { msg: { id: counterpart.msg.id } },
+    });
+
+    const counterpartFirst = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    expect(counterpartFirst.correlator.accept(counterpart)).toMatchObject({
+      kind: "emitNow",
+      reason: "counterpart",
+      sourceType: "VPOA50",
+    });
+    expect(counterpartFirst.correlator.accept(source)).toMatchObject({
+      kind: "suppressSource",
+      counterpartOutcome: { msg: { id: counterpart.msg.id } },
+    });
   });
 });
