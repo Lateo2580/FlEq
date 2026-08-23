@@ -428,7 +428,9 @@ describe("shared card-page coordinator", () => {
   });
 
   it("visits every quake/weather/flood page within the 15×R×P logical-rotation bound", () => {
-    const pages = createCardPageCoordinator();
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    const rotation = createRotationScheduler({ clock: time.clock, reducedMotion: () => true });
     const members = {
       quake: ["q1", "q2", "q3"],
       weather: ["w1", "w2"],
@@ -437,16 +439,23 @@ describe("shared card-page coordinator", () => {
     for (const [key, identities] of Object.entries(members) as Array<["quake" | "weather" | "flood", readonly string[]]>) {
       pages.register({ key, identities, rotationMember: true });
     }
+    const rotationKeys = ["quake", "weather", "flood"] as const;
+    const pageMaximum = Math.max(...Object.values(members).map((identities) => identities.length));
+    const deadlineMs = TIME_SLICE_PERIOD_MS * rotationKeys.length * pageMaximum;
+    const expected = new Set(Object.entries(members).flatMap(([key, identities]) => identities.map((identity) => `${key}:${identity}`)));
     const seen = new Set<string>();
-    const rotation = ["quake", "weather", "flood"] as const;
-    const pageTotal = Object.values(members).reduce((sum, identities) => sum + identities.length, 0);
-    const bound = 15 * rotation.length * pageTotal;
-    for (let step = 0; step < bound && seen.size < pageTotal; step += 1) {
-      const key = rotation[step % rotation.length]!;
+    rotation.sync({ stage: 3, keys: rotationKeys });
+    const initialKey = rotation.activeKey as "quake" | "weather" | "flood";
+    seen.add(`${initialKey}:${pages.cardDiagnostics(initialKey).activeKey}`);
+    for (let elapsedMs = TIME_SLICE_PERIOD_MS; elapsedMs <= deadlineMs; elapsedMs += TIME_SLICE_PERIOD_MS) {
+      time.advance(TIME_SLICE_PERIOD_MS);
+      const key = rotation.activeKey as "quake" | "weather" | "flood";
       pages.recordRotationAppearance(key);
       seen.add(`${key}:${pages.cardDiagnostics(key).activeKey}`);
     }
-    expect(seen.size).toBe(pageTotal);
+    expect(deadlineMs).toBe(TIME_SLICE_PERIOD_MS * rotationKeys.length * pageMaximum);
+    expect(seen).toEqual(expected);
+    rotation.dispose();
     pages.dispose();
   });
 

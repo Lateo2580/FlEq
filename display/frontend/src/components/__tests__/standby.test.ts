@@ -933,6 +933,48 @@ describe("StandbyScreen preserved standby behaviour", () => {
     }
   });
 
+  it("runs wide → compact → aggregate → clip through the live flood form state machine", async () => {
+    const width = { sideMeasureShelfWidthPx: 320, centerMeasureShelfWidthPx: 480 };
+    const forms = (wide: number, compact: number, aggregate: number) => ({
+      ...width,
+      "flood:page-fit:0:1:placement:center:form:wide": wide,
+      "flood:page-fit:0:1:placement:side:form:wide": wide,
+      "flood:page-fit:0:1:placement:center:form:compact": compact,
+      "flood:page-fit:0:1:placement:side:form:compact": compact,
+      "flood:page-fit:0:0:placement:center:form:compact": aggregate,
+      "flood:page-fit:0:0:placement:side:form:compact": aggregate,
+    });
+    const initial = flood("clock-top-wide");
+    const revised = (revision: number) => ({
+      ...initial,
+      updatedAt: `2026-08-20T12:0${revision}:00+09:00`,
+      data: { rivers: initial.data.rivers.map((river) => ({ ...river, station: { name: `詳細${revision}`, levelM: revision, trend: null, thresholdLabel: null } })) },
+    });
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [revised(0)] }), now, dim: false, sseConnected: true, testMeasurementOverride: forms(0, 0, 0),
+    });
+    const settle = async () => { for (let pass = 0; pass < 12; pass += 1) await tick(); };
+    await settle();
+    expect(view.container.querySelector(".legacy-layout .flood-wide-card")).toBeTruthy();
+
+    await view.rerender({ snapshot: baseSnapshot({ standbyItems: [revised(1)] }), now, dim: false, sseConnected: true, testMeasurementOverride: forms(10_000, 0, 0) });
+    await settle();
+    let card = view.container.querySelector<HTMLElement>(".legacy-layout .flood-card");
+    expect(card).toBeTruthy();
+    expect(card?.dataset.cardPageInfeasible).toBe("false");
+
+    await view.rerender({ snapshot: baseSnapshot({ standbyItems: [revised(2)] }), now, dim: false, sseConnected: true, testMeasurementOverride: forms(10_000, 10_000, 0) });
+    await settle();
+    card = view.container.querySelector<HTMLElement>(".legacy-layout .flood-card");
+    expect(card?.dataset.cardPageInfeasible).toBe("aggregate");
+    expect(card?.querySelector("[data-flood-aggregate]")).toBeTruthy();
+
+    await view.rerender({ snapshot: baseSnapshot({ standbyItems: [revised(3)] }), now, dim: false, sseConnected: true, testMeasurementOverride: forms(10_000, 10_000, 10_000) });
+    await settle();
+    expect(view.container.querySelector<HTMLElement>(".legacy-layout .flood-card")?.dataset.cardPageInfeasible).toBe("clip");
+    view.unmount();
+  });
+
   it("reduces typhoon full to compact and retains it when weather increases", async () => {
     const testMeasurementOverride = {
       layoutWidthPx: 1280, layoutHeightPx: 100,

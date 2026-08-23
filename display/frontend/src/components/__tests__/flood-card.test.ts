@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import FloodCard from "../FloodCard.svelte";
-import FloodWideCard from "../FloodWideCard.svelte";
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 
@@ -119,36 +118,6 @@ describe("FloodCard", () => {
     await tick();
     expect(coordinator.cardDiagnostics("flood").page).toBe("2/3");
     view.unmount();
-    coordinator.dispose();
-  });
-
-  it("takes wide, compact, aggregate, then clip fallback steps in one live-card scenario", async () => {
-    const coordinator = createCardPageCoordinator();
-    const item = floodItem([river("r1")]);
-    const wide = render(FloodWideCard, {
-      item, pageCoordinator: coordinator, pageScheduling: true, measurementFixedHeightPx: 300,
-      partitionProbe: (_key, _placement, range) => range.end === 0 ? 0 : 301,
-    });
-    await tick();
-    expect(wide.container.querySelector<HTMLElement>(".flood-wide-card")?.dataset.cardPageInfeasible).toBe("aggregate");
-    wide.unmount();
-
-    let aggregateFails = false;
-    const compactProbe = (_key: string, _placement: string, range: { start: number; end: number }) =>
-      range.end === 0 ? aggregateFails ? 201 : 0 : 201;
-    const compact = render(FloodCard, {
-      item, pageCoordinator: coordinator, pageScheduling: true, pageForm: "compact", measurementFixedHeightPx: 200,
-      partitionProbe: compactProbe,
-    });
-    await tick();
-    const card = compact.container.querySelector<HTMLElement>(".flood-card");
-    expect(card?.dataset.cardPageInfeasible).toBe("aggregate");
-    expect(card?.querySelector("[data-flood-aggregate]")?.textContent).toBe("ほか 1 河川");
-    aggregateFails = true;
-    await compact.rerender({ item, pageCoordinator: coordinator, pageScheduling: true, pageForm: "compact", measurementFixedHeightPx: 200, partitionProbe: (key, placement, range) => compactProbe(key, placement, range) });
-    await tick();
-    expect(card?.dataset.cardPageInfeasible).toBe("clip");
-    compact.unmount();
     coordinator.dispose();
   });
 
