@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import FloodCard from "../FloodCard.svelte";
+import FloodWideCard from "../FloodWideCard.svelte";
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 
@@ -85,6 +86,69 @@ describe("FloodCard", () => {
     await tick();
     expect(coordinator.cardDiagnostics("flood").page).toBe("2/3");
     view.unmount();
+    coordinator.dispose();
+  });
+
+  it("resets live pages independently for river addition, removal, and form changes but not details", async () => {
+    const coordinator = createCardPageCoordinator();
+    const probe = (_key: string, _placement: string, range: { start: number; end: number }) => range.end - range.start <= 1 ? 0 : 201;
+    const base = [river("r1"), river("r2"), river("r3")];
+    const view = render(FloodCard, { item: floodItem(base), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe });
+    await tick();
+    coordinator.jumpTo("flood", 1);
+    await tick();
+    await view.rerender({ item: floodItem([...base, river("r4")]), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe });
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("1/4");
+
+    coordinator.jumpTo("flood", 2);
+    await tick();
+    await view.rerender({ item: floodItem(base), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe });
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("1/3");
+
+    coordinator.jumpTo("flood", 1);
+    await tick();
+    await view.rerender({ item: floodItem(base), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe, pageForm: "wide" });
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("1/3");
+
+    coordinator.jumpTo("flood", 1);
+    await tick();
+    await view.rerender({ item: floodItem(base.map((entry) => ({ ...entry, station: { name: "詳細", levelM: 2, trend: null, thresholdLabel: null } }))), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe, pageForm: "wide" });
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("2/3");
+    view.unmount();
+    coordinator.dispose();
+  });
+
+  it("takes wide, compact, aggregate, then clip fallback steps in one live-card scenario", async () => {
+    const coordinator = createCardPageCoordinator();
+    const item = floodItem([river("r1")]);
+    const wide = render(FloodWideCard, {
+      item, pageCoordinator: coordinator, pageScheduling: true, measurementFixedHeightPx: 300,
+      partitionProbe: (_key, _placement, range) => range.end === 0 ? 0 : 301,
+    });
+    await tick();
+    expect(wide.container.querySelector<HTMLElement>(".flood-wide-card")?.dataset.cardPageInfeasible).toBe("aggregate");
+    wide.unmount();
+
+    let aggregateFails = false;
+    const compactProbe = (_key: string, _placement: string, range: { start: number; end: number }) =>
+      range.end === 0 ? aggregateFails ? 201 : 0 : 201;
+    const compact = render(FloodCard, {
+      item, pageCoordinator: coordinator, pageScheduling: true, pageForm: "compact", measurementFixedHeightPx: 200,
+      partitionProbe: compactProbe,
+    });
+    await tick();
+    const card = compact.container.querySelector<HTMLElement>(".flood-card");
+    expect(card?.dataset.cardPageInfeasible).toBe("aggregate");
+    expect(card?.querySelector("[data-flood-aggregate]")?.textContent).toBe("ほか 1 河川");
+    aggregateFails = true;
+    await compact.rerender({ item, pageCoordinator: coordinator, pageScheduling: true, pageForm: "compact", measurementFixedHeightPx: 200, partitionProbe: (key, placement, range) => compactProbe(key, placement, range) });
+    await tick();
+    expect(card?.dataset.cardPageInfeasible).toBe("clip");
+    compact.unmount();
     coordinator.dispose();
   });
 

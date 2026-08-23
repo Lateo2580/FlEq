@@ -427,6 +427,29 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("visits every quake/weather/flood page within the 15×R×P logical-rotation bound", () => {
+    const pages = createCardPageCoordinator();
+    const members = {
+      quake: ["q1", "q2", "q3"],
+      weather: ["w1", "w2"],
+      flood: ["f1", "f2", "f3", "f4"],
+    } as const;
+    for (const [key, identities] of Object.entries(members) as Array<["quake" | "weather" | "flood", readonly string[]]>) {
+      pages.register({ key, identities, rotationMember: true });
+    }
+    const seen = new Set<string>();
+    const rotation = ["quake", "weather", "flood"] as const;
+    const pageTotal = Object.values(members).reduce((sum, identities) => sum + identities.length, 0);
+    const bound = 15 * rotation.length * pageTotal;
+    for (let step = 0; step < bound && seen.size < pageTotal; step += 1) {
+      const key = rotation[step % rotation.length]!;
+      pages.recordRotationAppearance(key);
+      seen.add(`${key}:${pages.cardDiagnostics(key).activeKey}`);
+    }
+    expect(seen.size).toBe(pageTotal);
+    pages.dispose();
+  });
+
   it("keeps newly added pages deferred until the old cycle returns to its origin", () => {
     const time = controlledClock();
     const pages = createCardPageCoordinator({ clock: time.clock });

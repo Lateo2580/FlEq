@@ -890,6 +890,49 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(Number(root.dataset.floodRotationSlotHeightPx)).toBe(200);
   });
 
+  it("keeps a selected wide flood form through a pending probe and demotes only on confirmed failure", async () => {
+    const previousResizeObserver = globalThis.ResizeObserver;
+    class PendingResizeObserver { observe(): void {} disconnect(): void {} unobserve(): void {} }
+    vi.stubGlobal("ResizeObserver", PendingResizeObserver);
+    const wideFit = {
+      sideMeasureShelfWidthPx: 320, centerMeasureShelfWidthPx: 480,
+      "flood:page-fit:0:1:placement:center:form:wide": 0,
+      "flood:page-fit:0:1:placement:side:form:wide": 0,
+    };
+    const widthsOnly = { sideMeasureShelfWidthPx: 320, centerMeasureShelfWidthPx: 480 };
+    const wideFail = {
+      ...widthsOnly,
+      "flood:page-fit:0:1:placement:center:form:wide": 10_000,
+      "flood:page-fit:0:1:placement:side:form:wide": 10_000,
+    };
+    try {
+      const initial = flood("clock-top-wide");
+      const view = render(StandbyScreen, {
+        snapshot: baseSnapshot({ standbyItems: [initial] }), now, dim: false, sseConnected: true, testMeasurementOverride: wideFit,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(view.container.querySelector(".legacy-layout .flood-wide-card")).toBeTruthy();
+
+      await view.rerender({
+        snapshot: baseSnapshot({ standbyItems: [{ ...initial, data: { rivers: initial.data.rivers.map((river) => ({ ...river, station: { name: "更新", levelM: 2, trend: null, thresholdLabel: null } })) } }] }),
+        now, dim: false, sseConnected: true, testMeasurementOverride: widthsOnly,
+      });
+      for (let pass = 0; pass < 4; pass += 1) await tick();
+      expect(view.container.querySelector(".legacy-layout .flood-wide-card")).toBeTruthy();
+
+      await view.rerender({
+        snapshot: baseSnapshot({ standbyItems: [initial] }), now, dim: false, sseConnected: true, testMeasurementOverride: wideFail,
+      });
+      for (let pass = 0; pass < 8; pass += 1) await tick();
+      expect(view.container.querySelector(".legacy-layout .flood-wide-card")).toBeNull();
+      expect(view.container.querySelector(".legacy-layout .flood-card")).toBeTruthy();
+      view.unmount();
+    } finally {
+      vi.unstubAllGlobals();
+      if (previousResizeObserver != null) globalThis.ResizeObserver = previousResizeObserver;
+    }
+  });
+
   it("reduces typhoon full to compact and retains it when weather increases", async () => {
     const testMeasurementOverride = {
       layoutWidthPx: 1280, layoutHeightPx: 100,
