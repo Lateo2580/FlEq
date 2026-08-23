@@ -78,6 +78,15 @@ function heat(): Extract<ActiveStandbyCardV1, { kind: "heat" }> {
 }
 
 describe("StandbyScreen legacy-improved skeleton", () => {
+  it("has an explicit no-op receiver for a tornado measurement entry", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    const dispatchStart = source.indexOf("{#snippet renderPrefixProbe(entry: PrefixMeasureEntry)}");
+    const dispatchEnd = source.indexOf("{/snippet}", dispatchStart);
+    const dispatch = source.slice(dispatchStart, dispatchEnd);
+    expect(dispatch).toContain('{:else if entry.key === "tornado"}');
+    expect(dispatch).not.toMatch(/\{:else\}[\s\S]*WeatherAlertCard/);
+  });
+
   it("renders the fixed three-column grid, viewport clock landmark, and no outer paging", () => {
     const { container } = render(StandbyScreen, { snapshot: baseSnapshot(), now, dim: false, sseConnected: true });
     const root = container.querySelector(".standby");

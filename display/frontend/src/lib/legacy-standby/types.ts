@@ -1,5 +1,9 @@
 export type LadderStage = 0 | 1 | 2 | 3;
 export type CardKey = "tsunami" | "quake" | "weather" | "flood" | "typhoon" | "volcano" | "heat";
+/** Keys used only for paging partition/probe measurements, including dependent riders. */
+export type PagePartitionKey = CardKey | "tornado";
+/** Keys with independent page-coordinator runtime state. */
+export type PageableKey = "quake" | "weather" | "flood" | "tornado";
 export type CardVariant = "compact" | "expanded" | "full";
 export type TyphoonVariant = "compact" | "full";
 
@@ -75,7 +79,7 @@ export interface PageRange {
 
 export interface PageMeasureEntry {
   id: string;
-  key: CardKey;
+  key: PagePartitionKey;
   start: number;
   end: number;
   tails: PageTail[];

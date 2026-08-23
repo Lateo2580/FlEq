@@ -554,6 +554,17 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("keeps a tornado runtime separate from layout card keys", () => {
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "tornado", identities: ["t1", "t2"] });
+
+    time.advance(TIME_SLICE_PERIOD_MS);
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    expect(pages.diagnostics()).toMatchObject({ cards: { tornado: { page: "2/2" } } });
+    pages.dispose();
+  });
+
   it("keeps an atomic active page through a non-animated tick and exposes its deferred state", () => {
     const time = controlledClock();
     const pages = createCardPageCoordinator({ clock: time.clock });

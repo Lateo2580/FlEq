@@ -183,16 +183,18 @@ interface SchedulerDiagnosticState {
   };
   paging: {
     stage: number | null;
-    activeKeys: { quake: string | null; weather: string | null };
-    pendingKeys: { quake: string[]; weather: string[] };
-    cycleOriginKeys: { quake: string | null; weather: string | null };
+    activeKeys: { quake: string | null; weather: string | null; flood: string | null; tornado: string | null };
+    pendingKeys: { quake: string[]; weather: string[]; flood: string[]; tornado: string[] };
+    cycleOriginKeys: { quake: string | null; weather: string | null; flood: string | null; tornado: string | null };
     processedTick: number;
-    previousPageCounts: { quake: number; weather: number };
+    previousPageCounts: { quake: number; weather: number; flood: number; tornado: number };
     substates: {
       quake: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
       weather: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
+      flood: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
+      tornado: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
     };
-    activeSubstateKeys: Array<"quake" | "weather" | "flood">;
+    activeSubstateKeys: Array<"quake" | "weather" | "flood" | "tornado">;
     tickPending: boolean;
     suspendedKeys: string[];
     inFlight: boolean;
@@ -285,6 +287,10 @@ function installAnimationProbe(): { animations: AnimationProbe[]; restore: () =>
 }
 
 describe("legacy improved standby mock v26", () => {
+  it("keeps a tornado measurement entry out of the weather probe branch", () => {
+    expect(mockSource).toMatch(/\{:else if entry\.key === "weather"\}[\s\S]*?\{:else if entry\.key === "tornado"\}/);
+  });
+
   it.each([
     ["legacyMock2=4&ladder=0", "4", 1, 3, 0, 4],
     ["legacyMock2=7&ladder=0", "7", 2, 5, 0, 7],
@@ -1476,7 +1482,13 @@ describe("legacy improved standby mock v26", () => {
       expect(rendered.container.querySelector('[data-mock-card="quake"]')).toBeNull();
       expect(rendered.container.querySelector('[data-mock-card="weather"]')).toBeNull();
       expect(afterExit.activeSubstateKeys).toEqual([]);
-      expect(afterExit.activeKeys).toEqual({ quake: null, weather: null, flood: null });
+      // Unit 1 extends the mock's independent pager record without changing
+      // the three existing layout-card substates.
+      expect(afterExit.activeKeys).toEqual({ quake: null, weather: null, flood: null, tornado: null });
+      expect(afterExit.pendingKeys).toEqual({ quake: [], weather: [], flood: [], tornado: [] });
+      expect(afterExit.cycleOriginKeys).toEqual({ quake: null, weather: null, flood: null, tornado: null });
+      expect(afterExit.previousPageCounts).toMatchObject({ tornado: 0 });
+      expect(afterExit.substates.tornado).toMatchObject({ mode: "real", pageCount: 0, processedTick: 0 });
       expect(afterExit.timerActive).toBe(false);
       const tickAfterExit = root.dataset.cardPageTick;
 

@@ -2,13 +2,13 @@ import { tick } from "svelte";
 import { createSubscriber } from "svelte/reactivity";
 import type { EpochCoordinator } from "./epoch-coordinator";
 import { planCardPageRuntimeUpdate } from "./page-partition";
-import type { CardKey, CardPageRuntime, LadderStage } from "./types";
+import type { CardKey, CardPageRuntime, LadderStage, PageableKey } from "./types";
 
 export const TIME_SLICE_PERIOD_MS = 15_000;
 export const TIME_SLICE_TRANSITION_DEADLINE_MS = 500;
 
 type Timer = ReturnType<typeof setTimeout>;
-export type PageableCardKey = Extract<CardKey, "quake" | "weather" | "flood">;
+const PAGEABLE_KEYS = ["quake", "weather", "flood", "tornado"] as const satisfies readonly PageableKey[];
 
 export interface MonotonicClock {
   now(): number;
@@ -403,7 +403,7 @@ interface CardPageSubstate {
 }
 
 export interface CardPageRegistration {
-  key: PageableCardKey;
+  key: PageableKey;
   identities: readonly string[];
   labels?: readonly string[];
   rotationMember?: boolean;
@@ -428,12 +428,12 @@ export class CardPageCoordinator {
   private readonly clock: MonotonicClock;
   private readonly periodMs: number;
   private readonly tickOverride: number | null;
-  private runtime: Record<PageableCardKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME() };
-  private substates: Record<PageableCardKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE() };
-  private labels: Record<PageableCardKey, string[]> = { quake: [], weather: [], flood: [] };
+  private runtime: Record<PageableKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
+  private substates: Record<PageableKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
+  private labels: Record<PageableKey, string[]> = { quake: [], weather: [], flood: [], tornado: [] };
   private timer: Timer | null = null;
   private epochHeld = false;
-  private pendingAppearanceKeys = new Set<PageableCardKey>();
+  private pendingAppearanceKeys = new Set<PageableKey>();
   private unsubscribeSettled: () => void;
   private notify = (): void => {};
   private readonly subscribe = createSubscriber((update) => {
@@ -459,8 +459,8 @@ export class CardPageCoordinator {
     });
   }
 
-  private realKeys(): PageableCardKey[] {
-    return (["quake", "weather", "flood"] as const).filter((key) => {
+  private realKeys(): PageableKey[] {
+    return PAGEABLE_KEYS.filter((key) => {
       const state = this.substates[key];
       return state.pageCount > 1 && state.mode === "real";
     });
@@ -496,11 +496,11 @@ export class CardPageCoordinator {
     this.timer = null;
   }
 
-  private setRuntime(key: PageableCardKey, runtime: CardPageRuntime): void {
+  private setRuntime(key: PageableKey, runtime: CardPageRuntime): void {
     this.runtime = { ...this.runtime, [key]: runtime };
   }
 
-  private advance(key: PageableCardKey, steps: number): void {
+  private advance(key: PageableKey, steps: number): void {
     if (this.tickOverride != null || steps <= 0) return;
     const keys = this.runtime[key].knownKeys;
     if (keys.length <= 1) return;
@@ -607,7 +607,7 @@ export class CardPageCoordinator {
     this.notify();
   }
 
-  unregister(key: PageableCardKey): void {
+  unregister(key: PageableKey): void {
     if (!this.mounted) return;
     this.clearTimer();
     this.setRuntime(key, EMPTY_RUNTIME());
@@ -630,7 +630,7 @@ export class CardPageCoordinator {
     this.notify();
   }
 
-  jumpTo(key: PageableCardKey, index: number): void {
+  jumpTo(key: PageableKey, index: number): void {
     const keys = this.runtime[key].knownKeys;
     if (keys.length === 0) return;
     const normalized = ((index % keys.length) + keys.length) % keys.length;
@@ -642,7 +642,7 @@ export class CardPageCoordinator {
     this.notify();
   }
 
-  activeIndex(key: PageableCardKey): number {
+  activeIndex(key: PageableKey): number {
     // Reading revision makes this getter reactive even when only nested runtime state changed.
     this.subscribe();
     const runtime = this.runtime[key];
@@ -650,7 +650,7 @@ export class CardPageCoordinator {
     return index < 0 ? 0 : index;
   }
 
-  cardDiagnostics(key: PageableCardKey): { page: string; keys: string[]; identities: string[]; activeKey: string | null } {
+  cardDiagnostics(key: PageableKey): { page: string; keys: string[]; identities: string[]; activeKey: string | null } {
     this.subscribe();
     const state = this.substates[key];
     return {
@@ -674,8 +674,9 @@ export class CardPageCoordinator {
         quake: { ...this.cardDiagnostics("quake"), ...this.substates.quake, ...this.runtime.quake },
         weather: { ...this.cardDiagnostics("weather"), ...this.substates.weather, ...this.runtime.weather },
         flood: { ...this.cardDiagnostics("flood"), ...this.substates.flood, ...this.runtime.flood },
+        tornado: { ...this.cardDiagnostics("tornado"), ...this.substates.tornado, ...this.runtime.tornado },
       },
-      activeSubstates: (['quake', 'weather', 'flood'] as const)
+      activeSubstates: PAGEABLE_KEYS
         .filter((key) => this.substates[key].pageCount > 0)
         .map((key) => ({ key, ...this.substates[key], ...this.runtime[key] })),
     };
@@ -689,9 +690,9 @@ export class CardPageCoordinator {
     this.tickPending = false;
     this.epochHeld = false;
     this.pendingAppearanceKeys.clear();
-    this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME() };
-    this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE() };
-    this.labels = { quake: [], weather: [], flood: [] };
+    this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
+    this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
+    this.labels = { quake: [], weather: [], flood: [], tornado: [] };
     this.notify();
   }
 }

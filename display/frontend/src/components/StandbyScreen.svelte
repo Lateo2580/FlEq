@@ -11,7 +11,7 @@
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
   import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
-  import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PlacementChoice } from "../lib/legacy-standby/types";
+  import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
   import ConnectionBadge from "./ConnectionBadge.svelte";
   import FloodCard from "./FloodCard.svelte";
@@ -87,7 +87,7 @@
   type Placement = "left" | "right" | "center";
   type PrefixPlacement = "side" | "center";
   type MeasureId = `${CardKey}:${CardVariant}:${Placement}`;
-  type PrefixCardKey = "quake" | "weather" | "flood";
+  type PrefixCardKey = PagePartitionKey;
   type FloodProbeForm = "compact" | "wide";
   interface PrefixTail { kindKey: string; omittedAreaCount: number }
   interface PrefixMeasureEntry {
@@ -394,6 +394,7 @@
         ? [{ kindKey: `${index}:${group.intensity}`, omittedAreaCount: group.omittedAreaCount }]
         : []);
     }
+    if (key === "tornado") return [];
     return weatherWithSelection(rows).flatMap((alert) => alert.items.flatMap((item) => item.omittedAreaCount > 0
       ? [{ kindKey: weatherKindKey(item), omittedAreaCount: item.omittedAreaCount }]
       : []));
@@ -1590,6 +1591,8 @@
     {:else}
       <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? 200} pageForm="compact" />
     {/if}
+  {:else if entry.key === "tornado"}
+    <!-- Unit 1 receiver only: tornado's forced rider range is wired in Unit 3. -->
   {/if}
 {/snippet}
 

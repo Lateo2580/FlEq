@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { pageIdentity, planCardPageRuntimeUpdate, sequentialPartitionRanges } from "../page-partition";
+import type { CardKey, PagePartitionKey } from "../types";
+
+type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
+type Assert<Value extends true> = Value;
+type CardKeyExcludesTornado = Assert<Equal<Extract<CardKey, "tornado">, never>>;
+type PagePartitionKeyIncludesTornado = Assert<Equal<Extract<PagePartitionKey, "tornado">, "tornado">>;
+
+void (null as unknown as CardKeyExcludesTornado);
+void (null as unknown as PagePartitionKeyIncludesTornado);
 
 describe("legacy standby page partition", () => {
   it("partitions sequentially and preserves the accepted prefix before an unmeasured probe", () => {
@@ -15,6 +24,14 @@ describe("legacy standby page partition", () => {
     expect(result.ranges).toEqual([{ start: 0, end: 2, tails: [], omittedAreaCount: 0 }, { start: 2, end: 3, tails: [], omittedAreaCount: 0 }]);
     expect(result.pending).toHaveLength(1);
     expect(result.pending[0]?.id).toBe("quake:page:2:4");
+  });
+
+  it("keeps a dependent tornado rider on the partition/probe key path", () => {
+    const result = sequentialPartitionRanges("tornado", "side", 1, 20, () => null, () => []);
+
+    expect(result.pending).toEqual([{
+      id: "tornado:page:0:1", key: "tornado", start: 0, end: 1, tails: [], omittedAreaCount: 0,
+    }]);
   });
 
   it("uses kind and occurrence as stable page identity", () => {

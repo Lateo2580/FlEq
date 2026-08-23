@@ -1,18 +1,18 @@
-import type { CardKey, CardPageRuntime, PageAreaEntry, PageRange, PageTail, PartitionResult } from "./types";
+import type { CardPageRuntime, PageAreaEntry, PagePartitionKey, PageRange, PageTail, PartitionResult } from "./types";
 
-export type PartitionProbe = (key: CardKey, placement: "side" | "center", range: PageRange, tail: readonly PageTail[]) => number | null;
+export type PartitionProbe = (key: PagePartitionKey, placement: "side" | "center", range: PageRange, tail: readonly PageTail[]) => number | null;
 
 function omittedAreaCount(tails: readonly PageTail[]): number {
   return tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
 }
 
-function measureId(key: CardKey, range: PageRange): string {
+function measureId(key: PagePartitionKey, range: PageRange): string {
   if (range.tails.length === 0) return `${key}:page:${range.start}:${range.end}`;
   const tailSignature = range.tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
   return `${key}:page:${range.start}:${range.end}:omitted:${range.omittedAreaCount}:tails:${tailSignature}`;
 }
 
-export function sequentialPartitionRanges(key: CardKey, placement: "side" | "center", areaCount: number, fixedHeightPx: number, probe: PartitionProbe, tailEntriesForRange: (range: PageRange) => readonly PageTail[]): PartitionResult {
+export function sequentialPartitionRanges(key: PagePartitionKey, placement: "side" | "center", areaCount: number, fixedHeightPx: number, probe: PartitionProbe, tailEntriesForRange: (range: PageRange) => readonly PageTail[]): PartitionResult {
   const ranges: PageRange[] = [];
   const pending: PartitionResult["pending"] = [];
   const probedIds = new Set<string>();
