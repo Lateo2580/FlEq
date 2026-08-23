@@ -134,12 +134,12 @@ function aggregateQuakeIntensity(
 
 /**
  * 地震情報の津波コメント文字列から「津波」表示フラグを判定する (Phase A #2)。
- * text が無い・空文字・空白のみ、または「心配はありません」を含む場合は false。
- * それ以外 (津波警報・注意報等への言及) は true とみなす安全側判定。
+ * text が無い・空文字・空白のみ、「津波」を含まない、または「心配はありません」を含む場合は false。
+ * 「津波」への言及があり、かつ「心配はありません」を含まない場合だけ true とする。
  */
 export function resolveEarthquakeTsunamiWarning(text: string | null | undefined): boolean {
   if (text == null || text.trim() === "") return false;
-  return !text.includes("心配はありません");
+  return text.includes("津波") && !text.includes("心配はありません");
 }
 
 /** EarthquakeOutcome → PresentationEvent */

@@ -8,6 +8,7 @@ import {
   createMockWsDataMessage,
   FIXTURE_VXSE53_DRILL_1,
   FIXTURE_VXSE53_ENCHI,
+  FIXTURE_VXSE51_FIXED_COMMENT,
 } from "../../../helpers/mock-message";
 import type { EarthquakeOutcome } from "../../../../src/engine/presentation/types";
 import type { JmaIntensity, SpecialValue } from "../../../../src/types";
@@ -15,6 +16,10 @@ import type { JmaIntensity, SpecialValue } from "../../../../src/types";
 describe("resolveEarthquakeTsunamiWarning", () => {
   it("text が null なら false", () => {
     expect(resolveEarthquakeTsunamiWarning(null)).toBe(false);
+  });
+
+  it("text が undefined なら false", () => {
+    expect(resolveEarthquakeTsunamiWarning(undefined)).toBe(false);
   });
 
   it("text が空文字なら false", () => {
@@ -29,6 +34,14 @@ describe("resolveEarthquakeTsunamiWarning", () => {
     expect(resolveEarthquakeTsunamiWarning("この地震による津波の心配はありません")).toBe(false);
   });
 
+  it("「津波の心配はありません。」は false", () => {
+    expect(resolveEarthquakeTsunamiWarning("津波の心配はありません。")).toBe(false);
+  });
+
+  it("「今後の情報に注意してください。」は津波への言及がないため false", () => {
+    expect(resolveEarthquakeTsunamiWarning("今後の情報に注意してください。")).toBe(false);
+  });
+
   it("「若干の海面変動があるかもしれませんが被害の心配はありません」は false", () => {
     expect(
       resolveEarthquakeTsunamiWarning("若干の海面変動があるかもしれませんが被害の心配はありません"),
@@ -37,6 +50,12 @@ describe("resolveEarthquakeTsunamiWarning", () => {
 
   it("「津波警報を発表中です」は true", () => {
     expect(resolveEarthquakeTsunamiWarning("津波警報を発表中です")).toBe(true);
+  });
+
+  it("「津波警報等（大津波警報・津波警報あるいは津波注意報）を発表しました」は true", () => {
+    expect(
+      resolveEarthquakeTsunamiWarning("津波警報等（大津波警報・津波警報あるいは津波注意報）を発表しました"),
+    ).toBe(true);
   });
 });
 
@@ -75,6 +94,13 @@ describe("fromEarthquakeOutcome", () => {
       parsed: { ...outcome.parsed, tsunami: { text: "津波警報を発表中です" } },
     });
     expect(event.tsunamiWarning).toBe(true);
+  });
+
+  it("VXSE51 の固定付加文は parser→presentation で tsunamiWarning=false になる", () => {
+    const outcome = processEarthquake(createMockWsDataMessage(FIXTURE_VXSE51_FIXED_COMMENT));
+    expect(outcome).not.toBeNull();
+    expect(outcome!.parsed.tsunami?.text).toBe("今後の情報に注意してください。");
+    expect(fromEarthquakeOutcome(outcome!).tsunamiWarning).toBe(false);
   });
 
   it("intensity.maxLgInt を PresentationEvent.maxLgInt にそのまま渡す", () => {

@@ -22,6 +22,9 @@ export const FIXTURE_VXSE51_SHINDO_2 = "32-35_07_01_100915_VXSE51.xml";
 /** VXSE51 取消報 */
 export const FIXTURE_VXSE51_CANCEL = "32-35_10_01_220510_VXSE51.xml";
 
+/** VXSE51 震度速報 (固定付加文「今後の情報に注意してください。」) */
+export const FIXTURE_VXSE51_FIXED_COMMENT = "32-35_01_01_260824_VXSE51.xml";
+
 /** VXSE53 遠地地震 (フィジー Mj7.1) */
 export const FIXTURE_VXSE53_ENCHI = "32-35_01_03_100514_VXSE53.xml";
 
