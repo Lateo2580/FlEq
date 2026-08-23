@@ -577,7 +577,6 @@ export class CardPageCoordinator {
 
   register(input: CardPageRegistration): void {
     if (!this.mounted) return;
-    this.clearTimer();
     const key = input.key;
     const identities = [...input.identities];
     const labels = input.labels == null ? identities : [...input.labels];
@@ -588,6 +587,16 @@ export class CardPageCoordinator {
     const appearanceHost = input.appearanceHost ?? (key === "tornado" ? null : key);
     const escalationGeneration = input.escalationGeneration ?? previousState.escalationGeneration;
     const resetKey = String(input.resetKey ?? "");
+    // Effects may observe coordinator diagnostics while registering. An
+    // identical registration must be a true no-op, otherwise notify() loops
+    // the effect indefinitely before a layout epoch can settle.
+    if (sameKeys(this.runtime[key].knownKeys, identities)
+      && sameKeys(this.labels[key], labels)
+      && previousState.mode === nextMode
+      && previousState.appearanceHost === appearanceHost
+      && previousState.escalationGeneration === escalationGeneration
+      && previousState.resetKey === resetKey) return;
+    this.clearTimer();
     const exit = previousCount > 1 && nextCount <= 1;
     const entry = previousCount <= 1 && nextCount > 1;
     const explicitReset = previousState.resetKey !== "" && previousState.resetKey !== resetKey;

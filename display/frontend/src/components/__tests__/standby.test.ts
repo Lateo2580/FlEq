@@ -76,15 +76,47 @@ function heat(): Extract<ActiveStandbyCardV1, { kind: "heat" }> {
     severity: "warning", data: { targetDate: "2026-08-20", areas: [{ areaName: "宮崎県", isSpecial: false }] },
   };
 }
+function tornado(areas: string[]): Extract<ActiveStandbyCardV1, { kind: "tornado" }> {
+  return {
+    kind: "tornado", surface: "weather-rider", key: "tornado:1", sourceEventIds: ["tornado:1"],
+    updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: "2026-08-20T13:00:00+09:00", restored: false,
+    severity: "warning", data: { areas, isSighted: false },
+  };
+}
 
 describe("StandbyScreen legacy-improved skeleton", () => {
-  it("has an explicit no-op receiver for a tornado measurement entry", () => {
+  it("renders a tornado measurement entry in the shared weather shell", () => {
     const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
     const dispatchStart = source.indexOf("{#snippet renderPrefixProbe(entry: PrefixMeasureEntry)}");
     const dispatchEnd = source.indexOf("{/snippet}", dispatchStart);
     const dispatch = source.slice(dispatchStart, dispatchEnd);
     expect(dispatch).toContain('{:else if entry.key === "tornado"}');
-    expect(dispatch).not.toMatch(/\{:else\}[\s\S]*WeatherAlertCard/);
+    expect(dispatch).toMatch(/entry\.key === "tornado"[\s\S]*WeatherAlertCard[\s\S]*measurementTornadoRange=\{entry\}/);
+  });
+
+  it("live weather shell registers tornado pages and renders only the active rider range", async () => {
+    const overrides: Partial<Record<string, number>> = {
+      layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10,
+      "tornado:page-fit:0:2:placement:side:with:weather:0:0:rows:0:tails::identity::form:normal": 2,
+      "tornado:page-fit:1:2:placement:side:with:weather:0:0:rows:0:tails::identity::form:normal": 0,
+    };
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [tornado(["先頭地域", "後続地域"])] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: overrides,
+    });
+    for (let pass = 0; pass < 16; pass += 1) await tick();
+    const card = container.querySelector<HTMLElement>(".legacy-layout .weather-card");
+    expect(card?.dataset.tornadoPage).toBe("1/2");
+    expect(card?.querySelector(".tornado-rider")?.textContent).toContain("先頭地域");
+    expect(card?.querySelector(".tornado-rider")?.textContent).not.toContain("後続地域");
+    expect(card?.closest<HTMLElement>(".legacy-card")?.dataset.cardPageFixedHeight).toBeTruthy();
+  });
+
+  it("tornado と weather prefix は selected / outer / rotation に同じ contract height を流す", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toMatch(/selectedHeight[\s\S]*weather" && tornadoPagingOrProbing\(\)[\s\S]*weatherTornadoContractHeight/);
+    expect(source).toMatch(/function measured[\s\S]*weather" && tornadoPagingOrProbing\(\)[\s\S]*weatherTornadoContractHeight/);
+    expect(source).toMatch(/function pageFixedHeight[\s\S]*weather" && tornadoPagingOrProbing\(\)[\s\S]*weatherTornadoContractHeight/);
   });
 
   it("renders the fixed three-column grid, viewport clock landmark, and no outer paging", () => {
@@ -1668,12 +1700,22 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     }
   });
 
-  it("zero-size の readable probe は fit にせず pending のまま保留する", async () => {
+  it("全無寸法の probe は layoutless fallback として fit にする", async () => {
     class TestResizeObserver {
       observe(): void {}
       unobserve(): void {}
       disconnect(): void {}
     }
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(): number { return 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(): number { return 0; },
+    });
     vi.stubGlobal("ResizeObserver", TestResizeObserver);
     try {
       const { container } = render(StandbyScreen, {
@@ -1685,9 +1727,15 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       });
       for (let pass = 0; pass < 16; pass += 1) await tick();
       const card = container.querySelector<HTMLElement>(".legacy-layout .weather-card");
-      expect(card?.dataset.cardPagePending).toBe("true");
+      // 方針転換: card root を含む全 probe が無寸法の jsdom 棚だけは
+      // layoutless fallback として fit へ収束させる。
+      expect(card?.dataset.cardPagePending).toBe("false");
       expect(card?.dataset.cardPageInfeasible).toBe("false");
     } finally {
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (clientWidth == null) delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      else Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
       vi.unstubAllGlobals();
     }
   });

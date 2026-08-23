@@ -493,6 +493,103 @@ describe("WeatherAlertCard", () => {
     view.unmount();
   });
 
+  it("tornado の1地域 fail は aggregate probe を経て aggregate / clip を決める", () => {
+    const calls: string[] = [];
+    const aggregate = render(WeatherAlertCard, {
+      alerts: [], tornado: restoredTornado(), pageScheduling: true,
+      tornadoPartitionProbe: (tornadoRange) => {
+        calls.push(`${tornadoRange.start}:${tornadoRange.end}:${tornadoRange.omittedAreaCount}`);
+        return tornadoRange.end - tornadoRange.start === 1 ? 2 : 0;
+      },
+    });
+    expect(aggregate.container.querySelector<HTMLElement>(".weather-card")?.dataset.tornadoPageInfeasible).toBe("aggregate");
+    expect(calls).toContain("0:0:2");
+    aggregate.unmount();
+
+    const clip = render(WeatherAlertCard, {
+      alerts: [], tornado: restoredTornado(), pageScheduling: true,
+      tornadoPartitionProbe: () => 2,
+    });
+    expect(clip.container.querySelector<HTMLElement>(".weather-card")?.dataset.tornadoPageInfeasible).toBe("clip");
+    clip.unmount();
+  });
+
+  it("tornado range は weather の全 live page 組合せが測定されるまで登録しない", () => {
+    const combinations: string[] = [];
+    const { container } = render(WeatherAlertCard, {
+      alerts: [weatherAlert({ items: [{
+        kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["宮崎市", "都城市"], omittedAreaCount: 0,
+      }] })],
+      tornado: { ...restoredTornado(), data: { areas: ["宮崎県", "鹿児島県"], isSighted: false } },
+      pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
+      tornadoPartitionProbe: (tornadoRange, weatherRange) => {
+        combinations.push(`${weatherRange.start}:${weatherRange.end}/${tornadoRange.start}:${tornadoRange.end}`);
+        return tornadoRange.end - tornadoRange.start > 1 ? 2 : 0;
+      },
+    });
+    expect(combinations).toContain("0:1/0:1");
+    expect(combinations).toContain("1:2/0:1");
+    expect(container.querySelector<HTMLElement>(".weather-card")?.dataset.tornadoPage).toBe("1/2");
+  });
+
+  it("weather 内容更新は新しい組合せ probe を要求してから tornado を再 publish する", async () => {
+    const probes: string[] = [];
+    const coordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const makeAlerts = (area: string) => [weatherAlert({ items: [{
+      kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: [area], omittedAreaCount: 1,
+    }] })];
+    const view = render(WeatherAlertCard, {
+      alerts: makeAlerts("更新前"), tornado: restoredTornado(), pageCoordinator: coordinator, pageScheduling: true,
+      tornadoPartitionProbe: (tornadoRange, weatherRange) => { probes.push(`${weatherRange.start}:${weatherRange.end}/${tornadoRange.start}:${tornadoRange.end}`); return 0; },
+    });
+    await tick();
+    const before = probes.length;
+    await view.rerender({ alerts: makeAlerts("更新後"), tornado: restoredTornado(), pageCoordinator: coordinator, pageScheduling: true,
+      tornadoPartitionProbe: (tornadoRange, weatherRange) => { probes.push(`${weatherRange.start}:${weatherRange.end}/${tornadoRange.start}:${tornadoRange.end}`); return 0; },
+    });
+    await tick();
+    expect(probes.length).toBeGreaterThan(before);
+    view.unmount(); coordinator.dispose();
+  });
+
+  it("confirmed tornado pages register once per settled input without oscillation", async () => {
+    const coordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const register = vi.spyOn(coordinator, "register");
+    const view = render(WeatherAlertCard, {
+      alerts: [], tornado: restoredTornado(), pageCoordinator: coordinator, pageScheduling: true,
+      tornadoPartitionProbe: () => 0,
+    });
+    await tick(); await tick();
+    const tornadoCalls = register.mock.calls.filter(([entry]) => entry.key === "tornado");
+    expect(tornadoCalls).toHaveLength(1);
+    view.unmount(); coordinator.dispose();
+  });
+
+  it("weather infeasible 中は tornado を先頭 provisional range に固定する", () => {
+    const { container } = render(WeatherAlertCard, {
+      alerts: [weatherAlert()], tornado: { ...restoredTornado(), data: { areas: ["先頭", "未証明"], isSighted: false } },
+      pageScheduling: true, partitionProbe: () => 2, tornadoPartitionProbe: () => 0,
+    });
+    const card = container.querySelector<HTMLElement>(".weather-card");
+    expect(card?.dataset.cardPageInfeasible).toBe("true");
+    expect(card?.dataset.tornadoPageRange).toBe("0:1");
+    expect(card?.querySelector(".tornado-rider")?.textContent).not.toContain("未証明");
+  });
+
+  it("aggregate final publish replaces an old multi-page tornado registration", async () => {
+    const coordinator = createCardPageCoordinator({ tickOverride: 0 });
+    const register = vi.spyOn(coordinator, "register");
+    const view = render(WeatherAlertCard, { alerts: [], tornado: restoredTornado(), pageCoordinator: coordinator, pageScheduling: true, tornadoPartitionProbe: (range) => range.end - range.start > 1 ? 2 : 0 });
+    await tick();
+    await view.rerender({ alerts: [], tornado: restoredTornado(), pageCoordinator: coordinator, pageScheduling: true, tornadoPartitionProbe: () => 2 });
+    await tick(); await tick();
+    const calls = register.mock.calls.filter(([entry]) => entry.key === "tornado");
+    expect(calls[0]?.[0].identities.length).toBeGreaterThan(1);
+    expect(calls.at(-1)?.[0].identities).toHaveLength(1);
+    view.unmount(); coordinator.dispose();
+  });
+
   it("右上予算と一致する WeatherAlertCard の高さ上限を持つ", () => {
     const src = readFileSync(join(__dirname, "..", "WeatherAlertCard.svelte"), "utf-8");
     expect(src).toMatch(/\.weather-card\s*\{[^}]*max-height:\s*min\(44vh,\s*280px\);/);

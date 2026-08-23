@@ -11,7 +11,7 @@
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
   import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
-  import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PlacementChoice } from "../lib/legacy-standby/types";
+  import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PageRange, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
   import ConnectionBadge from "./ConnectionBadge.svelte";
   import FloodCard from "./FloodCard.svelte";
@@ -105,6 +105,11 @@
     fixedHeightPx?: number;
     floodForm?: FloodProbeForm;
     floodAggregateFallback?: boolean;
+    /** A rider probe is keyed by the weather shell context it shares. */
+    composition?: string;
+    weatherRange?: PageRange;
+    weatherSelectionRows?: number;
+    tornadoAggregateFallback?: boolean;
   }
   interface SettleTraceEntry {
     pass: number;
@@ -202,6 +207,8 @@
   let typhoonTitleMisalignmentPx = $state(0);
   let pageIndicatorBodyOverlapPx = $state(0);
   let pageIndicatorRiderOverlapPx = $state(0);
+  let tornadoMarkerBodyOverlapPx = $state(0);
+  let tornadoMarkerTextOverlapPx = $state(0);
   let floodVisibilityViolationKeys = $state("");
   let floodReadableOverflowKeys = $state("");
   let floodPageInfeasible = $state("false");
@@ -410,10 +417,10 @@
   function prefixTailSignature(tails: readonly PrefixTail[]): string {
     return tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
   }
-  function prefixMeasureId(purpose: "prefix" | "page-fit", key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[], floodForm?: FloodProbeForm): string {
+  function prefixMeasureId(purpose: "prefix" | "page-fit", key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[], floodForm?: FloodProbeForm, composition?: string): string {
     const omitted = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
     const tailPart = tails.length === 0 ? "" : `:omitted:${omitted}:tails:${prefixTailSignature(tails)}`;
-    return `${key}:${purpose}:${start}:${end}${tailPart}:placement:${placement}${floodForm == null ? "" : `:form:${floodForm}`}`;
+    return `${key}:${purpose}:${start}:${end}${tailPart}:placement:${placement}${floodForm == null ? "" : `:form:${floodForm}`}${composition == null ? "" : `:with:${composition}`}`;
   }
   function prefixHeight(key: PrefixCardKey, rows: number, placement: Placement): number | null {
     const tails = prefixTails(key, rows);
@@ -433,12 +440,12 @@
     });
     return null;
   }
-  function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement, fixedHeightPx = 1, floodForm?: FloodProbeForm): PartitionProbe {
+  function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement, fixedHeightPx = 1, floodForm?: FloodProbeForm, composition?: string, weatherRange?: PageRange, weatherSelectionRows?: number): PartitionProbe {
     return (_cardKey, _probePlacement, range, tails) => {
       const override = typeof testMeasurementOverride === "function"
         ? testMeasurementOverride(measurementPass)
         : testMeasurementOverride;
-      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm);
+      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
       const genericOverride = override?.[`${key}:prefix:${range.end}:${placement}`];
       if (override?.[id] != null || genericOverride != null) return override?.[id] ?? genericOverride ?? null;
       // jsdom has no layout engine. Returning a fitting measurement here keeps
@@ -453,6 +460,10 @@
           id, key, placement, start: range.start, end: range.end,
           tails: [...tails], omittedAreaCount: range.omittedAreaCount, purpose: "page", fixedHeightPx, floodForm,
           floodAggregateFallback: key === "flood" && range.start === 0 && range.end === 0,
+          composition,
+          weatherRange,
+          weatherSelectionRows,
+          tornadoAggregateFallback: key === "tornado" && range.start === 0 && range.end === 0 && range.omittedAreaCount > 0,
         }];
       });
       return null;
@@ -480,6 +491,10 @@
   function measureId(key: CardKey, variant: CardVariant, placement: Placement): MeasureId { return `${key}:${variant}:${placement}`; }
   function measured(key: CardKey, variant: CardVariant, placement: Placement): number {
     if (key === "flood") return floodContractHeight(variant, placement);
+    // This value feeds CardCandidate naturalHeight, hence both the solver's
+    // selected height and rotation-slot reserve.  Keep all three consumers on
+    // the declared weather+rider contract while any tornado probe is active.
+    if (key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
     return measurements[measureId(key, variant, placement)] ?? defaultHeight(key, variant);
   }
   function captureMeasure(node: HTMLElement, id: MeasureId) {
@@ -526,13 +541,23 @@
     const pageCount = Number(page.split("/")[1] ?? 0);
     if (pageCount > 1) return true;
     if (key === "weather") {
+      const tornadoPage = cardPageCoordinator.cardDiagnostics("tornado").page;
+      if (Number(tornadoPage.split("/")[1] ?? 0) > 1) return true;
       return [...weatherDisplayGroups.values()].some((group) =>
         group.candidateTruncated || group.totalAreaCount > group.areas.length);
     }
     return key === "quake" && (snapshot.latestQuake?.intensityGroups.some((group) =>
       group.omittedAreaCount > 0 || (group as { candidateTruncated?: boolean }).candidateTruncated === true) ?? false);
   }
+  function tornadoPagingActive(): boolean {
+    return Number(cardPageCoordinator.cardDiagnostics("tornado").page.split("/")[1] ?? 0) > 1;
+  }
+  function tornadoPagingOrProbing(): boolean {
+    return tornadoPagingActive() || prefixMeasureEntries.some((entry) => entry.key === "tornado" && entry.purpose === "page");
+  }
+  const weatherTornadoContractHeight = $derived(Math.min(viewportHeightPx * 0.44, 280));
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
+    if (card.key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
     if (card.key === "flood") return renderedFloodContractHeight(placement, renderSelection);
     const rows = card.key === "quake" ? renderSelection.quakeRows : card.key === "weather" ? renderSelection.weatherRows : 0;
     const measurementPlacement = placement === "center" ? "center" : "right";
@@ -552,6 +577,7 @@
     // are still pending; a one-page result simply leaves the card's own
     // non-paged height-budget styling in control inside that shell.
     if (card.key === "flood") return renderedFloodContractHeight(placement, renderSelection);
+    if (card.key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
     return pageFormattingActive(card.key) ? selectedCardHeight(card, placement) : null;
   }
   function centerFixed(hidden: readonly CenterClusterItem[], measureGap = gapPx) {
@@ -580,6 +606,8 @@
       const rows = card.key === "quake" ? selection.quakeRows : card.key === "weather" ? selection.weatherRows : 0;
       const height = card.key === "flood"
         ? renderedFloodContractHeight(placement, selection)
+        : card.key === "weather" && tornadoPagingOrProbing()
+        ? weatherTornadoContractHeight
         : rows > 0 && (card.key === "quake" || card.key === "weather")
         ? prefixHeight(card.key, rows, placement)
         : measured(card.key, selectedVariant(card.key, selection), measurementPlacement);
@@ -840,6 +868,7 @@
     // actual card disappearance/replay replacement exits the page substate.
     if (snapshot.latestQuake == null || selectedRecentQuake != null) cardPageCoordinator.unregister("quake");
     if (!hasWeather) cardPageCoordinator.unregister("weather");
+    if (tornadoItem == null) cardPageCoordinator.unregister("tornado");
     if (floodItem == null) cardPageCoordinator.unregister("flood");
   });
 
@@ -854,6 +883,11 @@
       const entry = prefixMeasureEntries.find((candidate) => candidate.id === id);
       const genericOverride = entry == null ? undefined : measurementOverride?.[`${entry.key}:prefix:${entry.end}:${entry.placement}`];
       if (entry?.purpose === "page") {
+        const forcedMeasurement = measurementOverride?.[id] ?? genericOverride;
+        if (forcedMeasurement != null) {
+          nextPrefixes[id] = forcedMeasurement;
+          continue;
+        }
         const body = node.querySelector<HTMLElement>("[data-page-probe-body]");
         const card = node.querySelector<HTMLElement>("[data-page-probe-card]") ?? body;
         // The whole shell owns vertical budget (footer and rider included).
@@ -863,15 +897,22 @@
         const readableRegions = readable.length > 0 ? readable : body == null ? [] : [body];
         const measured = card != null && card.clientHeight > 0 && readableRegions.length > 0
           && readableRegions.every((region) => region.clientHeight > 0 && region.clientWidth > 0);
-        if (!measured) {
+        // A layoutless test shelf has no measurable box at all. Only that
+        // total absence falls back to fit; any partial zero-size is a real
+        // incomplete measurement and must remain pending.
+        const allUnmeasured = card == null || readableRegions.length === 0 || (card.clientHeight === 0
+          && card.clientWidth === 0
+          && readableRegions.length > 0
+          && readableRegions.every((region) => region.clientHeight === 0 && region.clientWidth === 0));
+        if (!measured && !allUnmeasured) {
           delete nextPrefixes[id];
           continue;
         }
-        const cardFitsVertically = card.scrollHeight <= card.clientHeight + 1;
-        const readableFit = readableRegions.every((region) => region.scrollHeight <= region.clientHeight + 1
+        const cardFitsVertically = allUnmeasured || card.scrollHeight <= card.clientHeight + 1;
+        const readableFit = allUnmeasured || readableRegions.every((region) => region.scrollHeight <= region.clientHeight + 1
           && region.scrollWidth <= region.clientWidth + 1);
         const fits = cardFitsVertically && readableFit;
-        nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? (entry.key === "flood"
+        nextPrefixes[id] = (entry.key === "flood"
           ? floodPartitionProbeSentinel(fits, entry.fixedHeightPx ?? 0)
           : (fits ? 0 : 2));
       } else {
@@ -985,6 +1026,8 @@
     typhoonTitleMisalignmentPx: number;
     pageIndicatorBodyOverlapPx: number;
     pageIndicatorRiderOverlapPx: number;
+    tornadoMarkerBodyOverlapPx: number;
+    tornadoMarkerTextOverlapPx: number;
     floodVisibilityViolationKeys: string;
     floodReadableOverflowKeys: string;
     floodPageInfeasible: string;
@@ -1093,6 +1136,16 @@
       const indicator = card.querySelector<HTMLElement>("[data-card-page-indicator]");
       const rider = card.querySelector<HTMLElement>(".tornado-rider");
       return indicator == null || rider == null ? 0 : overlapArea(indicator.getBoundingClientRect(), rider.getBoundingClientRect());
+    }));
+    const tornadoMarkerBodyOverlapPx = Math.max(0, ...[...(standbyEl?.querySelectorAll<HTMLElement>(".weather-card") ?? [])].map((card) => {
+      const marker = card.querySelector<HTMLElement>("[data-tornado-page-marker]");
+      const body = card.querySelector<HTMLElement>("[data-page-probe-body]");
+      return marker == null || body == null ? 0 : overlapArea(marker.getBoundingClientRect(), body.getBoundingClientRect());
+    }));
+    const tornadoMarkerTextOverlapPx = Math.max(0, ...[...(standbyEl?.querySelectorAll<HTMLElement>(".weather-card") ?? [])].map((card) => {
+      const marker = card.querySelector<HTMLElement>("[data-tornado-page-marker]");
+      const text = card.querySelector<HTMLElement>("[data-tornado-rider-text]");
+      return marker == null || text == null ? 0 : overlapArea(marker.getBoundingClientRect(), text.getBoundingClientRect());
     }));
     const floodCards = [...(standbyEl?.querySelectorAll<HTMLElement>(
       ".legacy-layout .flood-card, .legacy-layout .flood-wide-card",
@@ -1233,6 +1286,8 @@
       typhoonTitleMisalignmentPx: Math.round(typhoonTitleMisalignmentPx),
       pageIndicatorBodyOverlapPx: Math.round(pageIndicatorBodyOverlapPx),
       pageIndicatorRiderOverlapPx: Math.round(pageIndicatorRiderOverlapPx),
+      tornadoMarkerBodyOverlapPx: Math.round(tornadoMarkerBodyOverlapPx),
+      tornadoMarkerTextOverlapPx: Math.round(tornadoMarkerTextOverlapPx),
       floodVisibilityViolationKeys,
       floodReadableOverflowKeys,
       floodPageInfeasible,
@@ -1284,6 +1339,8 @@
       typhoonTitleMisalignmentPx = geometry.typhoonTitleMisalignmentPx;
       pageIndicatorBodyOverlapPx = geometry.pageIndicatorBodyOverlapPx;
       pageIndicatorRiderOverlapPx = geometry.pageIndicatorRiderOverlapPx;
+      tornadoMarkerBodyOverlapPx = geometry.tornadoMarkerBodyOverlapPx;
+      tornadoMarkerTextOverlapPx = geometry.tornadoMarkerTextOverlapPx;
       floodVisibilityViolationKeys = geometry.floodVisibilityViolationKeys;
       floodReadableOverflowKeys = geometry.floodReadableOverflowKeys;
       floodPageInfeasible = geometry.floodPageInfeasible;
@@ -1553,6 +1610,15 @@
       pageScheduling={!measuring}
       measurementPageFooter={measuring}
       partitionProbe={measuring ? undefined : pagePartitionProbe("weather", placement === "center" ? "center" : "side")}
+      tornadoPartitionProbe={measuring ? undefined : (tornadoRange, weatherRange) => {
+        const probePlacement = placement === "center" ? "center" : "side";
+        const weatherContext = weatherWithSelection(selected.weatherRows).flatMap((alert) => alert.items.map((item) =>
+          `${weatherKindKey(item)}=${item.shownAreas.map((area) => encodeURIComponent(area)).join(",")};omitted=${item.omittedAreaCount}`,
+        )).join("|");
+        const tailContext = weatherRange.tails.map((tail) => `${tail.kindKey}:${tail.omittedAreaCount}`).join(",");
+        const composition = `weather:${weatherRange.start}:${weatherRange.end}:rows:${selected.weatherRows}:tails:${tailContext}:identity:${encodeURIComponent(weatherContext)}:form:normal`;
+        return pagePartitionProbe("tornado", probePlacement, 1, undefined, composition, weatherRange, selected.weatherRows)("tornado", probePlacement, tornadoRange, []);
+      }}
       pagePlacement={placement === "center" ? "center" : "side"}
     />
   {:else if key === "flood" && floodItem != null}
@@ -1601,7 +1667,9 @@
       <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? 200} pageForm="compact" />
     {/if}
   {:else if entry.key === "tornado"}
-    <!-- Unit 1 receiver only: tornado's forced rider range is wired in Unit 3. -->
+    <!-- The envelope includes the complete current weather candidate set, so
+         a rider range is never accepted against an unrelated empty shell. -->
+    <WeatherAlertCard alerts={weatherWithSelection(entry.weatherSelectionRows ?? 0)} tornado={tornadoItem} pageScheduling={false} measurementRange={entry.weatherRange} measurementTornadoRange={entry} tornadoAggregateProbe={entry.tornadoAggregateFallback} pagePlacement={entry.placement} />
   {/if}
 {/snippet}
 
@@ -1664,6 +1732,8 @@
   data-typhoon-title-misalignment-px={typhoonTitleMisalignmentPx}
   data-page-indicator-body-overlap-px={pageIndicatorBodyOverlapPx}
   data-page-indicator-rider-overlap-px={pageIndicatorRiderOverlapPx}
+  data-tornado-marker-body-overlap-px={tornadoMarkerBodyOverlapPx}
+  data-tornado-marker-text-overlap-px={tornadoMarkerTextOverlapPx}
   data-flood-visibility-violation-keys={floodVisibilityViolationKeys}
   data-flood-readable-overflow-keys={floodReadableOverflowKeys}
   data-flood-page={cardPageCoordinator.cardDiagnostics("flood").page}

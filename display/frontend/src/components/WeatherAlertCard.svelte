@@ -6,10 +6,11 @@
   import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import type { PageRange } from "../lib/legacy-standby/types";
   import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
+  import { tornadoPageAreaEntries, tornadoPageResetKey } from "../lib/standby-cards";
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
-  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementTornadoRange, tornadoPageIndex, tornadoPageCount, tornadoPending = false, tornadoAggregatePending = false, tornadoInfeasible = null }: {
+  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, tornadoPartitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementTornadoRange, tornadoPageIndex, tornadoPageCount, tornadoPending = false, tornadoAggregatePending = false, tornadoAggregateProbe = false, tornadoInfeasible = null }: {
     alerts: DisplayWeatherAlertV1[];
     tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null;
     pageCoordinator?: CardPageCoordinator;
@@ -17,6 +18,8 @@
     pageScheduling?: boolean;
     /** U3 shelf-backed actual page composition probe. */
     partitionProbe?: PartitionProbe;
+    /** The rider is independently partitioned but measured in the same shell. */
+    tornadoPartitionProbe?: (tornadoRange: PageRange, weatherRange: PageRange) => number | null;
     pagePlacement?: "side" | "center";
     /** A single shelf probe renders exactly this candidate range. */
     measurementRange?: PageRange;
@@ -31,6 +34,8 @@
     tornadoPending?: boolean;
     /** The aggregate fallback is on the shelf but its fit result is not confirmed. */
     tornadoAggregatePending?: boolean;
+    /** Forced shelf form for the aggregate fallback before its fit is known. */
+    tornadoAggregateProbe?: boolean;
     /** The rider-side result of the aggregate then clip infeasible defence. */
     tornadoInfeasible?: "aggregate" | "clip" | null;
   } = $props();
@@ -190,7 +195,7 @@
     );
   });
   const weatherPages = $derived(pagePartition.ranges.map((range) => ({
-    entries: pageCandidates.slice(range.start, range.end), tails: range.tails,
+    range, entries: pageCandidates.slice(range.start, range.end), tails: range.tails,
   })));
   const pageIdentities = $derived(weatherPages.map((page, index) => pageIdentity(page.entries[0] ?? {
     kindKey: "weather", area: `page-${index + 1}`, occurrenceIndex: 0,
@@ -206,6 +211,7 @@
   });
   onDestroy(() => {
     if (ownsPageCoordinator) pageCoordinator.dispose();
+    else pageCoordinator.unregister("tornado");
   });
   const currentPageIndex = $derived(pageCoordinator.activeIndex("weather"));
   const currentPage = $derived(weatherPages[currentPageIndex] ?? weatherPages[0] ?? { entries: [], tails: [] });
@@ -234,6 +240,7 @@
       .filter((item) => item.shownAreas.length > 0 || item.omittedAreaCount > 0);
   });
   const pageDiagnostics = $derived(pageCoordinator.cardDiagnostics("weather"));
+  const tornadoDiagnostics = $derived(pageCoordinator.cardDiagnostics("tornado"));
   const pageTruncated = $derived(items.some((item) => item.omittedAreaCount > 0 || item.candidateTruncated === true));
   const measurementHasMultiplePages = $derived(
     measurementRange != null && (measurementRange.start > 0 || measurementRange.end < pageCandidates.length),
@@ -259,22 +266,91 @@
   );
 
   const tornadoAreas = $derived(tornado?.data.areas ?? []);
+  let previousTornadoSighted = $state(false);
+  let tornadoEscalationGeneration = $state(0);
+  $effect(() => {
+    const sighted = tornado?.data.isSighted === true;
+    if (sighted && !previousTornadoSighted) tornadoEscalationGeneration += 1;
+    previousTornadoSighted = sighted;
+  });
+  const tornadoPartition = $derived.by(() => {
+    if (measurementTornadoRange != null) return { ranges: [measurementTornadoRange], pending: [], infeasible: false, probeCount: 1 };
+    if (tornadoPartitionProbe != null) return sequentialPartitionRanges(
+      "tornado", pagePlacement, tornadoAreas.length, 1, (_key, _placement, tornadoRange) => {
+        const weatherRanges = weatherPages.length > 0
+          ? weatherPages.map((page) => page.range)
+          : [{ start: 0, end: 0, tails: [], omittedAreaCount: 0 }];
+        const results = weatherRanges.map((weatherRange) => tornadoPartitionProbe(tornadoRange, weatherRange));
+        return results.some((result) => result == null) ? null : Math.max(...results as number[]);
+      }, () => [],
+    );
+    return { ranges: [{ start: 0, end: tornadoAreas.length, tails: [], omittedAreaCount: 0 }], pending: [], infeasible: false, probeCount: 0 };
+  });
+  const tornadoPages = $derived(tornadoPartition.ranges);
+  // Publish tornado pages atomically.  A new probe generation may render a
+  // provisional range, but cannot replace (or reset) the coordinator record
+  // until every weather×tornado composition is confirmed.
+  let confirmedTornadoPages = $state<PageRange[]>([]);
+  let confirmedTornadoResetKey = $state("");
+  $effect(() => {
+    // The live weather infeasible form renders all items, while the ordinary
+    // range shelf is empty. Hold publication until U4 has an identical shell.
+    if (pagePartition.pending.length > 0 || pagePartition.infeasible || tornadoPartition.pending.length > 0) return;
+    if (tornadoPartition.infeasible && resolvedTornadoInfeasible == null) return;
+    confirmedTornadoPages = tornadoPartition.infeasible
+      ? [{ start: 0, end: 0, tails: [], omittedAreaCount: tornadoAreas.length }]
+      : tornadoPages;
+    confirmedTornadoResetKey = tornadoPageResetKey(tornadoAreas);
+  });
+  const tornadoAggregateMeasurement = $derived.by(() => {
+    if (!tornadoPartition.infeasible || tornadoPartitionProbe == null) return null;
+    const weatherRanges = weatherPages.length > 0
+      ? weatherPages.map((page) => page.range)
+      : [{ start: 0, end: 0, tails: [], omittedAreaCount: 0 }];
+    const aggregateRange = { start: 0, end: 0, tails: [], omittedAreaCount: tornadoAreas.length };
+    const results = weatherRanges.map((weatherRange) => tornadoPartitionProbe(aggregateRange, weatherRange));
+    return results.some((result) => result == null) ? null : Math.max(...(results as number[]));
+  });
+  const resolvedTornadoInfeasible = $derived(tornadoInfeasible ?? (tornadoPartition.infeasible
+    ? tornadoAggregateMeasurement == null ? null : tornadoAggregateMeasurement <= 1 ? "aggregate" : "clip"
+    : null));
+  const resolvedTornadoAggregatePending = $derived(tornadoAggregatePending || (tornadoPartition.infeasible && tornadoAggregateMeasurement == null));
+  const tornadoIdentities = $derived(confirmedTornadoPages.map((range, index) => pageIdentity(
+    tornadoPageAreaEntries(tornadoAreas)[range.start] ?? { kindKey: "tornado", area: `page-${index + 1}`, occurrenceIndex: 0 },
+  )));
+  const tornadoLabels = $derived(confirmedTornadoPages.map((range, index) => tornadoAreas[range.start] ?? `page-${index + 1}`));
+  $effect(() => {
+    if (!pageScheduling || measurementRange != null || measurementTornadoRange != null) {
+      pageCoordinator.unregister("tornado");
+      return;
+    }
+    pageCoordinator.register({
+      key: "tornado",
+      identities: tornadoIdentities,
+      labels: tornadoLabels,
+      rotationMember,
+      appearanceHost: "weather",
+      resetKey: confirmedTornadoResetKey,
+      escalationGeneration: tornadoEscalationGeneration,
+    });
+  });
+  const currentTornadoPageIndex = $derived(pageCoordinator.activeIndex("tornado"));
   // A forced shelf must never fall back to the complete rider while a probe is
   // pending.  Live wiring supplies the published range in U4; until then the
   // ordinary one-page card is the complete [0, N) range.
-  const activeTornadoRange = $derived(measurementTornadoRange ?? (tornadoPending
+  const activeTornadoRange = $derived(measurementTornadoRange ?? (tornadoPending || pagePartition.pending.length > 0 || pagePartition.infeasible || tornadoPartition.pending.length > 0 || resolvedTornadoAggregatePending
     ? { start: 0, end: Math.min(1, tornadoAreas.length), tails: [], omittedAreaCount: 0 }
-    : { start: 0, end: tornadoAreas.length, tails: [], omittedAreaCount: 0 }));
+    : tornadoPages[currentTornadoPageIndex] ?? tornadoPages[0] ?? { start: 0, end: tornadoAreas.length, tails: [], omittedAreaCount: 0 }));
   const visibleTornadoAreas = $derived(tornadoAreas.slice(activeTornadoRange.start, activeTornadoRange.end));
   const inferredTornadoPage = $derived(activeTornadoRange.start > 0 ? 2 : 1);
   const inferredTornadoPageCount = $derived(
     activeTornadoRange.end < tornadoAreas.length ? inferredTornadoPage + 1 : inferredTornadoPage,
   );
-  const resolvedTornadoPage = $derived(tornadoPageIndex ?? inferredTornadoPage);
-  const resolvedTornadoPageCount = $derived(tornadoPageCount ?? inferredTornadoPageCount);
-  const showTornadoPageMarker = $derived(tornado != null && tornadoInfeasible == null && resolvedTornadoPageCount > 1);
+  const resolvedTornadoPage = $derived(tornadoPageIndex ?? (measurementTornadoRange == null ? currentTornadoPageIndex + 1 : inferredTornadoPage));
+  const resolvedTornadoPageCount = $derived(tornadoPageCount ?? (measurementTornadoRange == null ? tornadoPages.length : inferredTornadoPageCount));
+  const showTornadoPageMarker = $derived(tornado != null && resolvedTornadoInfeasible == null && resolvedTornadoPageCount > 1);
   const tornadoPagingContract = $derived(
-    tornado != null && (tornadoPending || tornadoAggregatePending || tornadoInfeasible != null || resolvedTornadoPageCount > 1),
+    tornado != null && (tornadoPending || tornadoPartition.pending.length > 0 || resolvedTornadoAggregatePending || resolvedTornadoInfeasible != null || resolvedTornadoPageCount > 1),
   );
   // A weather 1/1 truncation has always retained its natural height.  Only
   // actual weather paging, its unsettled probe, or its infeasible fallback
@@ -284,9 +360,9 @@
   );
   const hasPagingContract = $derived(weatherPagingContract || tornadoPagingContract);
   const tornadoRiderText = $derived(
-    tornadoInfeasible === "aggregate"
+    resolvedTornadoInfeasible === "aggregate" || tornadoAggregateProbe
       ? `竜巻注意情報（対象 ${tornadoAreas.length} 地域）`
-      : tornadoInfeasible === "clip"
+      : resolvedTornadoInfeasible === "clip"
         ? `竜巻注意情報（対象 ${tornadoAreas.length} 地域…）`
         : `竜巻${tornado?.data.isSighted ? "目撃情報" : "注意情報"}（${visibleTornadoAreas.length > 0 ? visibleTornadoAreas.join("、") : "対象地域"}）`,
   );
@@ -315,9 +391,10 @@
     data-card-page-pending={pagePartition.pending.length > 0 ? "true" : "false"}
     data-page-probe-card={measurementRange != null || measurementTornadoRange != null ? "" : undefined}
     data-tornado-page-range={tornado == null ? undefined : `${activeTornadoRange.start}:${activeTornadoRange.end}`}
+    data-tornado-page={tornado == null ? undefined : tornadoDiagnostics.page}
     data-tornado-page-pending={tornado == null ? undefined : String(tornadoPending)}
-    data-tornado-page-infeasible={tornado == null ? undefined : tornadoInfeasible ?? "false"}
-    data-tornado-page-fallback={tornado == null ? undefined : tornadoInfeasible ?? (tornadoAggregatePending ? "aggregate-pending" : "false")}
+    data-tornado-page-infeasible={tornado == null ? undefined : resolvedTornadoInfeasible ?? "false"}
+    data-tornado-page-fallback={tornado == null ? undefined : resolvedTornadoInfeasible ?? (resolvedTornadoAggregatePending ? "aggregate-pending" : "false")}
   >
     <div
       class="card-header"
@@ -347,7 +424,7 @@
       {/each}
     </ul>{/if}
     {#if showPageIndicator}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></div>{/if}
-    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider" data-page-probe-readable>⚠ {tornadoRiderText}{#if showTornadoPageMarker}<span class="tornado-page-marker" data-tornado-page-marker>対象地域 {resolvedTornadoPage}/{resolvedTornadoPageCount}</span>{/if}{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
+    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider" data-page-probe-readable><span data-tornado-rider-text>⚠ {tornadoRiderText}</span>{#if showTornadoPageMarker}<span class="tornado-page-marker" data-tornado-page-marker>対象地域 {resolvedTornadoPage}/{resolvedTornadoPageCount}</span>{/if}{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
   </div>
 {/if}
 
