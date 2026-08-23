@@ -293,6 +293,74 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("registers, jumps, indexes, and unregisters river-flood pages", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({
+      key: "flood",
+      identities: ["flood-1", "flood-2", "flood-3"],
+      labels: ["河川洪水: 多摩川", "河川洪水: 利根川", "河川洪水: 淀川"],
+    });
+    expect(pages.activeIndex("flood")).toBe(0);
+    pages.jumpTo("flood", 2);
+    expect(pages.activeIndex("flood")).toBe(2);
+    expect(pages.cardDiagnostics("flood")).toMatchObject({
+      activeKey: "flood-3",
+      keys: ["河川洪水: 多摩川", "河川洪水: 利根川", "河川洪水: 淀川"],
+    });
+    pages.unregister("flood");
+    expect(pages.activeIndex("flood")).toBe(0);
+    expect(pages.cardDiagnostics("flood")).toMatchObject({ page: "0/0", keys: [], activeKey: null });
+    pages.dispose();
+  });
+
+  it("advances quake, weather, and river-flood cards together in real mode", () => {
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1", "q2"] });
+    pages.register({ key: "weather", identities: ["w1", "w2", "w3"] });
+    pages.register({ key: "flood", identities: ["f1", "f2"] });
+    const visited = {
+      quake: new Set([pages.cardDiagnostics("quake").activeKey]),
+      weather: new Set([pages.cardDiagnostics("weather").activeKey]),
+      flood: new Set([pages.cardDiagnostics("flood").activeKey]),
+    };
+    for (let tickIndex = 0; tickIndex < 6; tickIndex += 1) {
+      time.advance(TIME_SLICE_PERIOD_MS);
+      visited.quake.add(pages.cardDiagnostics("quake").activeKey);
+      visited.weather.add(pages.cardDiagnostics("weather").activeKey);
+      visited.flood.add(pages.cardDiagnostics("flood").activeKey);
+    }
+    expect(visited.quake).toEqual(new Set(["q1", "q2"]));
+    expect(visited.weather).toEqual(new Set(["w1", "w2", "w3"]));
+    expect(visited.flood).toEqual(new Set(["f1", "f2"]));
+    pages.dispose();
+  });
+
+  it("advances a logical river-flood card only on rotation reappearance", () => {
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "flood", identities: ["f1", "f2", "f3"], rotationMember: true });
+    time.advance(TIME_SLICE_PERIOD_MS * 3);
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("f1");
+    pages.recordRotationAppearance("flood");
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("f2");
+    pages.recordRotationAppearance("flood");
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("f3");
+    pages.dispose();
+  });
+
+  it("includes river-flood state in coordinator diagnostics", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "flood", identities: ["f1", "f2"] });
+    const diagnostics = pages.diagnostics() as {
+      cards: { flood: { page: string; activeKey: string | null } };
+      activeSubstates: Array<{ key: string }>;
+    };
+    expect(diagnostics.cards.flood).toMatchObject({ page: "1/2", activeKey: "f1" });
+    expect(diagnostics.activeSubstates).toEqual(expect.arrayContaining([expect.objectContaining({ key: "flood" })]));
+    pages.dispose();
+  });
+
   it("defers a page tick behind the active epoch and consumes it on settle", () => {
     const time = controlledClock();
     const epoch = createEpochCoordinator();

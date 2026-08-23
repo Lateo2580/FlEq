@@ -8,7 +8,7 @@ export const TIME_SLICE_PERIOD_MS = 15_000;
 export const TIME_SLICE_TRANSITION_DEADLINE_MS = 500;
 
 type Timer = ReturnType<typeof setTimeout>;
-export type PageableCardKey = Extract<CardKey, "quake" | "weather">;
+export type PageableCardKey = Extract<CardKey, "quake" | "weather" | "flood">;
 
 export interface MonotonicClock {
   now(): number;
@@ -428,9 +428,9 @@ export class CardPageCoordinator {
   private readonly clock: MonotonicClock;
   private readonly periodMs: number;
   private readonly tickOverride: number | null;
-  private runtime: Record<PageableCardKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME() };
-  private substates: Record<PageableCardKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE() };
-  private labels: Record<PageableCardKey, string[]> = { quake: [], weather: [] };
+  private runtime: Record<PageableCardKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME() };
+  private substates: Record<PageableCardKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE() };
+  private labels: Record<PageableCardKey, string[]> = { quake: [], weather: [], flood: [] };
   private timer: Timer | null = null;
   private epochHeld = false;
   private pendingAppearanceKeys = new Set<PageableCardKey>();
@@ -460,7 +460,7 @@ export class CardPageCoordinator {
   }
 
   private realKeys(): PageableCardKey[] {
-    return (["quake", "weather"] as const).filter((key) => {
+    return (["quake", "weather", "flood"] as const).filter((key) => {
       const state = this.substates[key];
       return state.pageCount > 1 && state.mode === "real";
     });
@@ -619,7 +619,7 @@ export class CardPageCoordinator {
   }
 
   recordRotationAppearance(key: CardKey): void {
-    if (key !== "quake" && key !== "weather") return;
+    if (key !== "quake" && key !== "weather" && key !== "flood") return;
     if (this.substates[key].mode !== "logical" || this.substates[key].pageCount <= 1) return;
     if (this.epochHeld) {
       this.pendingAppearanceKeys.add(key);
@@ -673,8 +673,9 @@ export class CardPageCoordinator {
       cards: {
         quake: { ...this.cardDiagnostics("quake"), ...this.substates.quake, ...this.runtime.quake },
         weather: { ...this.cardDiagnostics("weather"), ...this.substates.weather, ...this.runtime.weather },
+        flood: { ...this.cardDiagnostics("flood"), ...this.substates.flood, ...this.runtime.flood },
       },
-      activeSubstates: (['quake', 'weather'] as const)
+      activeSubstates: (['quake', 'weather', 'flood'] as const)
         .filter((key) => this.substates[key].pageCount > 0)
         .map((key) => ({ key, ...this.substates[key], ...this.runtime[key] })),
     };
@@ -688,9 +689,9 @@ export class CardPageCoordinator {
     this.tickPending = false;
     this.epochHeld = false;
     this.pendingAppearanceKeys.clear();
-    this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME() };
-    this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE() };
-    this.labels = { quake: [], weather: [] };
+    this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME() };
+    this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE() };
+    this.labels = { quake: [], weather: [], flood: [] };
     this.notify();
   }
 }

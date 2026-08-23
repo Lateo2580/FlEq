@@ -93,7 +93,7 @@
 1. **coordinator 拡張**: `PageableCardKey` + 全 key 列挙箇所（§2 参照）＋ unit test
 2. **洪水 pagination 計測基盤**: identity adapter＋カードの計測用 props（`measurementRange`/`measurementPageFooter`）と forced-range 描画＋計測棚 entry 計測点＋probe 経路＋ unit test（**カードの計測経路はこの単位。live 経路は単位 3**）
 3. **live 配線**: StandbyScreen の props 注入・**契約高の solver 全経路接続（`selectedHeight`/`measuredHeight`/rotation slot reserve/`pageFixedHeight` が同一値であること・完了条件に含む）**・wide 適格判定の専用 probe 置換・infeasible/pending 状態機械＋ standby test
-4. **カード live 描画**: FloodCard / FloodWideCard の paged 描画・CSS 集約撤去・page footer ＋ component test
+4. **カード live 描画**: FloodCard / FloodWideCard の paged 描画・CSS 集約撤去・page footer ＋ component test。**`preview/LegacyImprovedMock.svelte` の独立 pager 実装（自前の `PageableCardKey` 列挙・`:111` 以下）への flood 追加もこの単位**（mock は lib と独立コピーのため単位 1 では触らない——2026-08-23 単位 1 停止点裁定）
 5. **診断・番兵同期**: compact/wide 検査の別置換・--report 属性 3 点セット（属性出力・capture allowlist・期待表/fixture）・E fixture
 
 依存順: 1 → 2 → 3 → 4 → 5（3 と 4 は同一 patch でも可、レビューは分ける）
