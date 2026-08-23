@@ -463,12 +463,19 @@
     if (key === "heat") return 150;
     return 150;
   }
-  function floodContractHeight(variant: CardVariant): number {
+  function floodContractHeight(variant: CardVariant, placement: Placement): number {
+    // Center always uses the actual physical form.  Side shelves retain the
+    // expanded counterfactual for A/rotation solving; a compact rotation slot
+    // therefore remains 200px even if the ordinary card is promoted wide.
+    if (placement === "center") return floodItem?.surface === "clock-top-wide" && floodWideVisibleAllowed("center") ? floodWideFixedHeightPx : 200;
     return variant === "expanded" ? floodWideFixedHeightPx : 200;
+  }
+  function renderedFloodContractHeight(placement: Placement, selected: DisplaySelection): number {
+    return renderFloodWide(placement, selectedVariant("flood", selected), false, selected) ? floodWideFixedHeightPx : 200;
   }
   function measureId(key: CardKey, variant: CardVariant, placement: Placement): MeasureId { return `${key}:${variant}:${placement}`; }
   function measured(key: CardKey, variant: CardVariant, placement: Placement): number {
-    if (key === "flood") return floodContractHeight(variant);
+    if (key === "flood") return floodContractHeight(variant, placement);
     return measurements[measureId(key, variant, placement)] ?? defaultHeight(key, variant);
   }
   function captureMeasure(node: HTMLElement, id: MeasureId) {
@@ -522,7 +529,7 @@
       group.omittedAreaCount > 0 || (group as { candidateTruncated?: boolean }).candidateTruncated === true) ?? false);
   }
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
-    if (card.key === "flood") return floodContractHeight(selectedVariant("flood", renderSelection));
+    if (card.key === "flood") return renderedFloodContractHeight(placement, renderSelection);
     const rows = card.key === "quake" ? renderSelection.quakeRows : card.key === "weather" ? renderSelection.weatherRows : 0;
     const measurementPlacement = placement === "center" ? "center" : "right";
     if (rows > 0 && (card.key === "quake" || card.key === "weather")) {
@@ -540,7 +547,7 @@
     // Keep the outer live shell identical to every solver path while probes
     // are still pending; a one-page result simply leaves the card's own
     // non-paged height-budget styling in control inside that shell.
-    if (card.key === "flood") return floodContractHeight(selectedVariant("flood", renderSelection));
+    if (card.key === "flood") return renderedFloodContractHeight(placement, renderSelection);
     return pageFormattingActive(card.key) ? selectedCardHeight(card, placement) : null;
   }
   function centerFixed(hidden: readonly CenterClusterItem[], measureGap = gapPx) {
@@ -568,7 +575,7 @@
     for (const card of cards) {
       const rows = card.key === "quake" ? selection.quakeRows : card.key === "weather" ? selection.weatherRows : 0;
       const height = card.key === "flood"
-        ? floodContractHeight(selectedVariant("flood", selection))
+        ? renderedFloodContractHeight(placement, selection)
         : rows > 0 && (card.key === "quake" || card.key === "weather")
         ? prefixHeight(card.key, rows, placement)
         : measured(card.key, selectedVariant(card.key, selection), measurementPlacement);
@@ -580,9 +587,14 @@
   function naturalColumnHeight(cards: readonly CardCandidate[]): number {
     return cards.reduce((total, card) => total + card.naturalHeight, 0) + Math.max(0, cards.length - 1) * gapPx;
   }
-  function floodWideDetailAllowed(placement: "side" | "center"): boolean {
+  function floodWideProbeResult(placement: "side" | "center"): boolean | null {
     if (floodItem == null || floodItem.surface !== "clock-top-wide") return false;
-    const widthPx = placement === "center" ? centerMeasureShelfWidthPx : sideMeasureShelfWidthPx;
+    const override = typeof testMeasurementOverride === "function"
+      ? testMeasurementOverride(measurementPass)
+      : testMeasurementOverride;
+    const widthPx = placement === "center"
+      ? override?.centerMeasureShelfWidthPx ?? centerMeasureShelfWidthPx
+      : override?.sideMeasureShelfWidthPx ?? sideMeasureShelfWidthPx;
     // Unknown geometry is not permission to promote. The measurement epoch
     // will re-evaluate once the shelf owns the same positive width as live.
     if (widthPx <= 0) return false;
@@ -592,7 +604,11 @@
     const result = pagePartitionProbe("flood", placement, fixedHeightPx, "wide")(
       "flood", placement, { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, [],
     );
-    return result != null && result <= fixedHeightPx;
+    return result == null ? null : result <= fixedHeightPx;
+  }
+  /** Coordinator-free, initial-unknown-is-not-a-promotion eligibility guard. */
+  function floodWideDetailAllowed(placement: "side" | "center"): boolean {
+    return floodWideProbeResult(placement) === true;
   }
   function centerHeight(choice: PlacementChoice, selection: DisplaySelection, hidden: readonly CenterClusterItem[], measureGap = gapPx): number {
     const fixedCenter = centerFixed(hidden, measureGap);
@@ -624,8 +640,8 @@
       centerFixedHeightPx: fixedCenter.height,
       // A center placement is "wide" only when that surface retains detail;
       // otherwise comparison must not prefer it over the compact card.
-      floodIsWide: floodWideDetailAllowed("center"),
-      floodWidePromotionAllowed: floodWideDetailAllowed("side"),
+      floodIsWide: floodWideVisibleAllowed("center"),
+      floodWidePromotionAllowed: floodWideVisibleAllowed("side"),
       candidateSupplyLimit: MAX_PREFIX_ROWS,
       rotationSlotHeight: (keys) => keys.length === 0
         ? 0
@@ -694,6 +710,14 @@
     if (key === "weather" && selected.weatherRows > 0) return "expanded";
     return "compact";
   }
+  let floodWideSticky = $state<{ key: string | null; side: boolean; center: boolean }>({ key: null, side: false, center: false });
+  function floodWideVisibleAllowed(placement: "side" | "center"): boolean {
+    const result = floodWideProbeResult(placement);
+    if (result != null) return result;
+    // Unknown may never cause an initial promotion, but a form already chosen
+    // for this flood item must survive an epoch refresh until a confirmed fail.
+    return floodWideSticky.key === floodItem?.key && floodWideSticky[placement];
+  }
   function renderFloodWide(placement: Placement, variant: CardVariant, measuring: boolean, selected: DisplaySelection): boolean {
     if (floodItem == null || floodItem.surface !== "clock-top-wide") return false;
     // Keep the expanded shelf as the true wide counterfactual so the solver
@@ -701,7 +725,7 @@
     if (measuring && variant === "expanded") return true;
     const surface = placement === "center" ? "center" : "side";
     const requested = placement === "center" || (!measuring && selected.floodWide);
-    return requested && floodWideDetailAllowed(surface);
+    return requested && floodWideVisibleAllowed(surface);
   }
   const displayVariant = (card: CardCandidate): CardVariant => selectedVariant(card.key, renderSelection);
   const rotationActiveKey = $derived(rotationScheduler.currentKey());
@@ -742,6 +766,23 @@
     return renderFloodWide(placement === "center" ? "center" : "right", selectedVariant("flood", renderSelection), false, renderSelection) ? "wide" : "card";
   });
   const floodWideFixedHeightPx = $derived(viewportHeightPx * 0.3);
+  $effect(() => {
+    const key = floodItem?.key ?? null;
+    if (key == null || floodItem?.surface !== "clock-top-wide") {
+      if (floodWideSticky.key !== key || floodWideSticky.side || floodWideSticky.center) {
+        floodWideSticky = { key, side: false, center: false };
+      }
+      return;
+    }
+    const side = floodWideProbeResult("side");
+    const center = floodWideProbeResult("center");
+    const next = {
+      key,
+      side: side == null ? floodWideSticky.key === key && floodWideSticky.side : side,
+      center: center == null ? floodWideSticky.key === key && floodWideSticky.center : center,
+    };
+    if (next.key !== floodWideSticky.key || next.side !== floodWideSticky.side || next.center !== floodWideSticky.center) floodWideSticky = next;
+  });
   // Selection retains a type-level default even when the candidate is absent.
   // The diagnostic describes rendered reality, not that solver default.
   const renderTyphoonVariant = $derived(typhoonItem == null ? "none" : renderSelection.typhoon);
@@ -1585,6 +1626,12 @@
   data-prefix-probe-count={prefixMeasureEntries.length}
   data-typhoon-variant={renderTyphoonVariant}
   data-flood-form={renderFloodForm}
+  data-flood-center-selected-height-px={floodItem == null ? undefined : renderedFloodContractHeight("center", renderSelection)}
+  data-flood-center-measured-height-px={floodItem == null ? undefined : measured("flood", "compact", "center")}
+  data-flood-center-probe-height-px={floodItem?.surface === "clock-top-wide" ? floodWideFixedHeightPx : 200}
+  data-flood-center-outer-height-px={floodItem == null ? undefined : renderedFloodContractHeight("center", renderSelection)}
+  data-flood-center-wide-allowed={floodWideVisibleAllowed("center") ? "true" : "false"}
+  data-flood-rotation-slot-height-px={floodItem == null ? undefined : measured("flood", "compact", "right")}
   data-placement-left={renderPlan.left.map((card) => card.key).join(",")}
   data-placement-right={renderPlan.right.map((card) => card.key).join(",")}
   data-placement-center={renderPlan.center.map((card) => card.key).join(",")}

@@ -60,6 +60,34 @@ describe("FloodCard", () => {
     coordinator.dispose();
   });
 
+  it("keeps the confirmed active page through a detail-update pending epoch", async () => {
+    const coordinator = createCardPageCoordinator();
+    let pending = false;
+    const probe = (_key: string, _placement: string, range: { start: number; end: number }) =>
+      pending ? null : range.end - range.start <= 1 ? 0 : 201;
+    const rivers = [river("r1"), river("r2"), river("r3")];
+    const view = render(FloodCard, {
+      item: floodItem(rivers), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe,
+    });
+    await tick();
+    coordinator.jumpTo("flood", 1);
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("2/3");
+
+    pending = true;
+    await view.rerender({ item: floodItem(rivers.map((entry) => ({ ...entry, station: { name: "更新", levelM: 1, trend: null, thresholdLabel: null } }))), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe });
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("2/3");
+    expect(view.container.querySelector("[data-flood-aggregate]")).toBeNull();
+
+    pending = false;
+    await view.rerender({ item: floodItem(rivers), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: probe });
+    await tick();
+    expect(coordinator.cardDiagnostics("flood").page).toBe("2/3");
+    view.unmount();
+    coordinator.dispose();
+  });
+
   it("uses aggregate fallback and marks clip when even that fallback exceeds the contract", async () => {
     const coordinator = createCardPageCoordinator();
     const view = render(FloodCard, {

@@ -156,7 +156,7 @@ const schedulerContractCases: readonly SchedulerContractCase[] = [
   },
 ];
 
-function contractPage(rendered: ReturnType<typeof renderMock>, key: "quake" | "weather" = "quake"): string {
+function contractPage(rendered: ReturnType<typeof renderMock>, key: "quake" | "weather" | "flood" = "quake"): string {
   const rotationCard = rendered.rendered.container.querySelector<HTMLElement>(
     `[data-rotation-slot] [data-mock-card="${key}"]`,
   );
@@ -1116,6 +1116,31 @@ describe("legacy improved standby mock v26", () => {
       expect([...observed].map((page) => Number(page.split("/")[0])).sort((a, b) => a - b)).toEqual(
         Array.from({ length: pageCount }, (_, index) => index + 1),
       );
+      rendered.unmount();
+    } finally {
+      restoreMeasuredLayout();
+      vi.useRealTimers();
+    }
+  });
+
+  it("advances flood's logical pager when the rotation slot reappears", async () => {
+    vi.useFakeTimers();
+    const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40 });
+    try {
+      const { rendered, root } = renderMock("legacyMock2=max&flood=wide&ladder=3&rotationKeys=flood,heat");
+      await settleMockMeasurements(320);
+      const first = rendered.container.querySelector<HTMLElement>('[data-mock-card="flood"]');
+      const pageCount = Number(first?.dataset.cardPage?.split("/")[1] ?? 0);
+      expect(pageCount).toBeGreaterThan(1);
+      const pages = new Set<string>(first?.dataset.cardPage == null ? [] : [first.dataset.cardPage]);
+      for (let reappearance = 0; reappearance < pageCount - 1; reappearance += 1) {
+        vi.advanceTimersByTime(30_000);
+        await tick();
+        expect(root.dataset.rotationActiveKey).toBe("flood");
+        const current = rendered.container.querySelector<HTMLElement>('[data-mock-card="flood"]')?.dataset.cardPage;
+        if (current != null) pages.add(current);
+      }
+      expect(pages.size).toBe(pageCount);
       rendered.unmount();
     } finally {
       restoreMeasuredLayout();

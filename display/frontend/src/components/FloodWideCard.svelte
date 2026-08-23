@@ -56,6 +56,10 @@
   const pageLabels = $derived(pagePartition.ranges.map((range, index) => pageEntries[range.start]?.area ?? `page-${index + 1}`));
   const resetKey = $derived(`${pageForm}:${item.data.rivers.map((river) => river.riverKey).join(",")}`);
   $effect(() => {
+    // Pending composition is deliberately rendered, but never registered as
+    // a one-page scheduler state.  The old confirmed partition remains live
+    // until this epoch has a confirmed replacement.
+    if (!pageScheduling || pagePartition.pending.length > 0) return;
     pageCoordinator.register({ key: "flood", identities: pageScheduling ? pageIdentities : [], labels: pageScheduling ? pageLabels : [], rotationMember, resetKey });
   });
   onDestroy(() => { if (ownsPageCoordinator) pageCoordinator.dispose(); });

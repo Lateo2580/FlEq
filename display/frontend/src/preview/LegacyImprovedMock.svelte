@@ -647,7 +647,7 @@
   }
 
   function advanceCardPageOnRotation(key: CardKey | null): void {
-    if (key !== "quake" && key !== "weather") return;
+    if (key !== "quake" && key !== "weather" && key !== "flood") return;
     advanceCardPageFor(key, 1);
   }
 

@@ -870,12 +870,24 @@ describe("StandbyScreen preserved standby behaviour", () => {
     expect(container.querySelector('.measure-item[data-measure-variant="expanded"] .flood-wide-card')).toBeTruthy();
   });
 
-  it("routes the flood contract height through selected, measured, rotation, and live shell paths", () => {
-    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
-    expect(source).toMatch(/function selectedCardHeight[\s\S]*card\.key === "flood"\) return floodContractHeight/s);
-    expect(source).toMatch(/function measured[\s\S]*key === "flood"\) return floodContractHeight/s);
-    expect(source).toMatch(/rotationSlotHeight:[\s\S]*measured\(key, "compact", "right"\)/s);
-    expect(source).toMatch(/function pageFixedHeight[\s\S]*card\.key === "flood"\) return floodContractHeight/s);
+  it("uses the same numeric wide contract for center selection, measurement, probe, and live shell", async () => {
+    const testMeasurementOverride = {
+      sideMeasureShelfWidthPx: 320, centerMeasureShelfWidthPx: 480,
+      "flood:page-fit:0:1:placement:center:form:wide": 0,
+      "flood:page-fit:0:1:placement:side:form:wide": 0,
+      "flood:prefix:1:center": 0, "flood:prefix:1:side": 0,
+    };
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [flood("clock-top-wide")] }), now, dim: false, sseConnected: true, testMeasurementOverride,
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = container.querySelector<HTMLElement>(".standby")!;
+    const expected = Number(root.dataset.floodCenterProbeHeightPx);
+    expect(root.dataset.floodCenterWideAllowed).toBe("true");
+    expect(Number(root.dataset.floodCenterSelectedHeightPx)).toBe(expected);
+    expect(Number(root.dataset.floodCenterMeasuredHeightPx)).toBe(expected);
+    expect(Number(root.dataset.floodCenterOuterHeightPx)).toBe(expected);
+    expect(Number(root.dataset.floodRotationSlotHeightPx)).toBe(200);
   });
 
   it("reduces typhoon full to compact and retains it when weather increases", async () => {

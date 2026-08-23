@@ -51,6 +51,11 @@
   const pageLabels = $derived(pagePartition.ranges.map((range, index) => pageEntries[range.start]?.area ?? `page-${index + 1}`));
   const resetKey = $derived(`${pageForm}:${item.data.rivers.map((river) => river.riverKey).join(",")}`);
   $effect(() => {
+    // A provisional range is visible so the card never blanks during a new
+    // measurement epoch, but it is not a scheduler fact.  Keeping the last
+    // confirmed registration intact avoids a transient many -> one -> many
+    // reset while the same river sequence is remeasured.
+    if (!pageScheduling || pagePartition.pending.length > 0) return;
     pageCoordinator.register({ key: "flood", identities: pageScheduling ? pageIdentities : [], labels: pageScheduling ? pageLabels : [], rotationMember, resetKey });
   });
   onDestroy(() => { if (ownsPageCoordinator) pageCoordinator.dispose(); });
