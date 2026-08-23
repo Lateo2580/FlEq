@@ -131,6 +131,18 @@ describe("FloodWideCard", () => {
     expect(container.querySelectorAll(".river-grid > *")).toHaveLength(3);
   });
 
+  it("measurement range は集約せず指定河川と footer を同じ page shell に描画する", () => {
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
+    const { container } = render(FloodWideCard, {
+      item: floodItem(5), measurementRange: { start: 1, end: 3, tails: [], omittedAreaCount: 0 }, measurementPageFooter: true,
+    });
+    expect(container.querySelectorAll(".river-cell")).toHaveLength(2);
+    expect(container.querySelector(".more-rivers")).toBeNull();
+    expect(container.querySelector("[data-page-probe-card]")).toBeTruthy();
+    expect(container.querySelector("[data-page-probe-body]")).toBeTruthy();
+    expect(container.querySelector("[data-card-page-footer]")?.textContent).toBe("2/2");
+  });
+
   it("renders the hydrograph SVG with an aria-label and omits it when the station has no hydrograph", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
     const item: Extract<ActiveStandbyCardV1, { kind: "flood" }> = {

@@ -1,27 +1,50 @@
 <script lang="ts">
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import { FLOOD_TREND_ARROW } from "../lib/standby-cards";
+  import type { PageRange } from "../lib/legacy-standby/types";
+  import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import NumberUnit from "./NumberUnit.svelte";
   import RestoredChip from "./RestoredChip.svelte";
-  let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
+  let { item, measurementRange, measurementPageFooter = false, partitionProbe, pagePlacement = "side", measurementFixedHeightPx = 200 }: {
+    item: Extract<ActiveStandbyCardV1, { kind: "flood" }>;
+    /** Shelf-only forced page composition; live pagination is wired separately. */
+    measurementRange?: PageRange;
+    /** Include the ordinary page-shell footer while measuring a forced range. */
+    measurementPageFooter?: boolean;
+    /** Used only by the shelf preflight to enqueue forced-range probes. */
+    partitionProbe?: PartitionProbe;
+    pagePlacement?: "side" | "center";
+    measurementFixedHeightPx?: number;
+  } = $props();
 
   // 見出し帯の段階カラーはカード内最高レベルで決める (JMA 配色: L3 氾濫警戒=赤 / L4 氾濫危険=紫 /
   // L5 氾濫発生=黒帯白枠白リボン黄文字の専用スタイル)。severity では段階が足りないため
   // rivers の最高 levelRank から導出する (L5=50 以上)
   const maxLevelRank = $derived(item.data.rivers.reduce((max, river) => Math.max(max, river.levelRank), 0));
   const band = $derived(maxLevelRank >= 50 ? "flooding" : maxLevelRank >= 40 ? "emergency" : "red");
+  const visibleRivers = $derived(measurementRange == null
+    ? item.data.rivers
+    : item.data.rivers.slice(measurementRange.start, measurementRange.end));
+  const measurementFooterLabel = $derived(measurementRange == null ? "" : `${measurementRange.start > 0 ? 2 : 1}/${measurementRange.end < item.data.rivers.length ? 2 : 1}`);
+  const measurementPartition = $derived.by(() => partitionProbe == null
+    ? { probeCount: 0 }
+    : sequentialPartitionRanges("flood", pagePlacement, item.data.rivers.length, measurementFixedHeightPx, partitionProbe, () => []));
 </script>
 
 <section
   class="standby-card flood-card band-{band}"
-  class:height-budgeted={item.data.rivers.length >= 3}
-  class:many-rivers={item.data.rivers.length >= 3}
+  class:height-budgeted={measurementRange == null && item.data.rivers.length >= 3}
+  class:many-rivers={measurementRange == null && item.data.rivers.length >= 3}
+  class:measurement-range={measurementRange != null}
+  data-page-probe-card={measurementRange != null ? "" : undefined}
+  data-page-probe-body={measurementRange != null ? "" : undefined}
+  data-partition-probe-count={measurementPartition.probeCount}
 >
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
-  {#each item.data.rivers as river, index (river.riverKey)}
+  {#each visibleRivers as river, index (river.riverKey)}
   <div
     class="river-entry"
-    data-flood-entry-index={index}
+    data-flood-entry-index={measurementRange == null ? index : measurementRange.start + index}
     data-flood-aggregated-normal={index >= 2 ? "true" : undefined}
     data-flood-aggregated-narrow={index >= 1 ? "true" : undefined}
   >
@@ -32,12 +55,13 @@
     {/if}
   </div>
   {/each}
-  {#if item.data.rivers.length >= 3}
+  {#if measurementRange == null && item.data.rivers.length >= 3}
     <div class="more-rivers more-many" data-flood-aggregate="normal">ほか {item.data.rivers.length - 2} 河川</div>
   {/if}
-  {#if item.data.rivers.length >= 2}
+  {#if measurementRange == null && item.data.rivers.length >= 2}
     <div class="more-rivers more-narrow" data-flood-aggregate="narrow">ほか {item.data.rivers.length - 1} 河川</div>
   {/if}
+  {#if measurementRange != null && measurementPageFooter}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{measurementFooterLabel}</span></div>{/if}
 </section>
 
 <style>
@@ -92,6 +116,8 @@
   .trend-rising { color: var(--role-tsunamiWarning); }
   .trend-steady { color: var(--role-muted); }
   .trend-falling { color: var(--role-connectionOk); }
+  .card-page-footer { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); }
+  .card-page-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
 
   /* 960px gate の side card (約 269px) だけ折返しを許可する。折返しで自然高が
      増える分、先頭 1 河川 + 集約行へ切り替えて 200px の可読領域を守る。 */

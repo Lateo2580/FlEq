@@ -1,10 +1,33 @@
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "./protocol";
+import type { PageAreaEntry } from "./legacy-standby/types";
 
 export const FLOOD_TREND_ARROW: Record<NonNullable<DisplayFloodStationV1["trend"]>, string> = {
   rising: "↑",
   falling: "↓",
   steady: "→",
 };
+
+/**
+ * Page identity follows the weather adapter's kind/name occurrence contract.
+ * riverKey is the reducer's snapshot-stable key and distinguishes same-named
+ * rivers without claiming a permanent external uniqueness guarantee.
+ */
+export function floodPageAreaEntries(rivers: readonly DisplayFloodRiverV1[]): PageAreaEntry[] {
+  const occurrenceByArea = new Map<string, number>();
+  return rivers.map((river) => {
+    const kindKey = river.kindName;
+    const area = river.riverName;
+    const occurrenceKey = `${kindKey}\u0000${area}`;
+    const occurrenceIndex = occurrenceByArea.get(occurrenceKey) ?? 0;
+    occurrenceByArea.set(occurrenceKey, occurrenceIndex + 1);
+    return { kindKey, area, areaCode: river.riverKey, occurrenceIndex };
+  });
+}
+
+/** page-partition compares the returned number with the fixed page budget. */
+export function floodPartitionProbeSentinel(fits: boolean, fixedHeightPx: number): number {
+  return fits ? 0 : fixedHeightPx + 1;
+}
 
 export interface StandbyPartitions {
   cornerRight: ActiveStandbyCardV1[];

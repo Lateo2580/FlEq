@@ -3,7 +3,9 @@
   import { flip } from "svelte/animate";
   import { fade } from "svelte/transition";
   import type { ActiveStandbyCardV1, DisplayFloodStationV1 } from "../lib/protocol";
-  import { FLOOD_TREND_ARROW, layoutFloodWideRows } from "../lib/standby-cards";
+  import { FLOOD_TREND_ARROW, layoutFloodWideRows, type FloodWideRow } from "../lib/standby-cards";
+  import type { PageRange } from "../lib/legacy-standby/types";
+  import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { buildFloodHydrograph, type FloodHydrographGeometry } from "../lib/flood-hydrograph";
   import { SPRING_EFFECTS_DEFAULT_MS, SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
@@ -16,13 +18,30 @@
     return station.hydrograph == null ? null : buildFloodHydrograph(station.hydrograph);
   }
 
-  let { item }: { item: Extract<ActiveStandbyCardV1, { kind: "flood" }> } = $props();
+  let { item, measurementRange, measurementPageFooter = false, partitionProbe, pagePlacement = "side", measurementFixedHeightPx = 200 }: {
+    item: Extract<ActiveStandbyCardV1, { kind: "flood" }>;
+    /** Shelf-only forced page composition; live pagination is wired separately. */
+    measurementRange?: PageRange;
+    /** Include the ordinary page-shell footer while measuring a forced range. */
+    measurementPageFooter?: boolean;
+    /** Used only by the shelf preflight to enqueue forced-range probes. */
+    partitionProbe?: PartitionProbe;
+    pagePlacement?: "side" | "center";
+    measurementFixedHeightPx?: number;
+  } = $props();
   let viewportHeightPx = $state(typeof window === "undefined" ? 720 : window.innerHeight);
   // Read the actual card width so the row budget follows the same 400px
   // container-query branch as the rendered station grid. Infinity preserves
   // the normal-width fallback until the browser's ResizeObserver reports.
   let cardWidthPx = $state(Number.POSITIVE_INFINITY);
-  const rows = $derived(layoutFloodWideRows(item.data.rivers, viewportHeightPx, cardWidthPx));
+  const rows = $derived<FloodWideRow[]>(measurementRange == null
+    ? layoutFloodWideRows(item.data.rivers, viewportHeightPx, cardWidthPx)
+    : item.data.rivers.slice(measurementRange.start, measurementRange.end)
+      .map((river) => ({ kind: "river", key: `river:${river.riverKey}`, river })));
+  const measurementFooterLabel = $derived(measurementRange == null ? "" : `${measurementRange.start > 0 ? 2 : 1}/${measurementRange.end < item.data.rivers.length ? 2 : 1}`);
+  const measurementPartition = $derived.by(() => partitionProbe == null
+    ? { probeCount: 0 }
+    : sequentialPartitionRanges("flood", pagePlacement, item.data.rivers.length, measurementFixedHeightPx, partitionProbe, () => []));
 
   function measureCardWidth(node: HTMLElement): { destroy?: () => void } {
     const update = (): void => {
@@ -80,7 +99,7 @@
   );
 </script>
 
-<section class="standby-card flood-wide-card band-{band}" use:measureCardWidth>
+<section class="standby-card flood-wide-card band-{band}" use:measureCardWidth data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount}>
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>
@@ -135,6 +154,7 @@
     {/each}
   </div>
   </div>
+  {#if measurementRange != null && measurementPageFooter}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{measurementFooterLabel}</span></div>{/if}
 </section>
 
 <style>
@@ -222,6 +242,8 @@
   .flood-graph { width: 100%; height: 36px; }
   .more-rivers { grid-column: 1 / -1; color: var(--role-muted); text-align: center; font-size: max(14px, var(--type-label-l-fluid)); white-space: nowrap; }
   .critical-river .river-line { color: var(--role-weatherEmergency); }
+  .card-page-footer { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); }
+  .card-page-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }
 
   /* 720p の side/rotation track では wide card 自体が約 320px まで狭まる。
      外側の二河川並列は保ちつつ、各セル内だけを一列へ動的に組み替え、観測所名・

@@ -3,7 +3,7 @@
   import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayStateSnapshotV1, DisplayTsunamiLevel } from "../lib/protocol";
   import { recentQuakeId } from "../lib/format";
   import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
-  import { floodWideRowsIncludeDetail } from "../lib/standby-cards";
+  import { floodPartitionProbeSentinel, floodWideRowsIncludeDetail } from "../lib/standby-cards";
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
@@ -87,7 +87,8 @@
   type Placement = "left" | "right" | "center";
   type PrefixPlacement = "side" | "center";
   type MeasureId = `${CardKey}:${CardVariant}:${Placement}`;
-  type PrefixCardKey = "quake" | "weather";
+  type PrefixCardKey = "quake" | "weather" | "flood";
+  type FloodProbeForm = "compact" | "wide";
   interface PrefixTail { kindKey: string; omittedAreaCount: number }
   interface PrefixMeasureEntry {
     id: string;
@@ -100,6 +101,9 @@
     tails: PrefixTail[];
     omittedAreaCount: number;
     purpose?: "prefix" | "page";
+    /** Flood's page-shell contract budget; absent for quake/weather's 1px sentinel. */
+    fixedHeightPx?: number;
+    floodForm?: FloodProbeForm;
   }
   interface SettleTraceEntry {
     pass: number;
@@ -145,6 +149,7 @@
   let rightTrackWidthPx = $state(0);
   let sideMeasureShelfWidthPx = $state(0);
   let centerMeasureShelfWidthPx = $state(0);
+  let viewportHeightPx = $state(typeof window === "undefined" ? 720 : window.innerHeight);
   let nankaiHeightPx = $state(0);
   let rotationIndicatorHeightPx = $state(0);
   let statsHeightPx = $state(0);
@@ -400,10 +405,10 @@
   function prefixTailSignature(tails: readonly PrefixTail[]): string {
     return tails.map((tail) => `${encodeURIComponent(tail.kindKey)}=${tail.omittedAreaCount}`).join(",");
   }
-  function prefixMeasureId(purpose: "prefix" | "page-fit", key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[]): string {
+  function prefixMeasureId(purpose: "prefix" | "page-fit", key: PrefixCardKey, placement: PrefixPlacement, start: number, end: number, tails: readonly PrefixTail[], floodForm?: FloodProbeForm): string {
     const omitted = tails.reduce((total, tail) => total + tail.omittedAreaCount, 0);
     const tailPart = tails.length === 0 ? "" : `:omitted:${omitted}:tails:${prefixTailSignature(tails)}`;
-    return `${key}:${purpose}:${start}:${end}${tailPart}:placement:${placement}`;
+    return `${key}:${purpose}:${start}:${end}${tailPart}:placement:${placement}${floodForm == null ? "" : `:form:${floodForm}`}`;
   }
   function prefixHeight(key: PrefixCardKey, rows: number, placement: Placement): number | null {
     const tails = prefixTails(key, rows);
@@ -423,12 +428,12 @@
     });
     return null;
   }
-  function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement): PartitionProbe {
+  function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement, fixedHeightPx = 1, floodForm?: FloodProbeForm): PartitionProbe {
     return (_cardKey, _probePlacement, range, tails) => {
       // jsdom has no layout engine. Returning a fitting measurement here keeps
       // its U3 settle contract deterministic; browsers enter the shelf path.
       if (typeof ResizeObserver === "undefined") return 0;
-      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails);
+      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm);
       const cached = prefixMeasurements[id];
       if (cached != null) return cached;
       if (epoch === 0) return null;
@@ -436,7 +441,7 @@
         if (prefixMeasureEntries.some((entry) => entry.id === id)) return;
         prefixMeasureEntries = [...prefixMeasureEntries, {
           id, key, placement, start: range.start, end: range.end,
-          tails: [...tails], omittedAreaCount: range.omittedAreaCount, purpose: "page",
+          tails: [...tails], omittedAreaCount: range.omittedAreaCount, purpose: "page", fixedHeightPx, floodForm,
         }];
       });
       return null;
@@ -712,6 +717,7 @@
     const placement = renderPlan.center.some((card) => card.key === "flood") ? "center" : "side";
     return renderFloodWide(placement, selectedVariant("flood", renderSelection), false, renderSelection) ? "wide" : "card";
   });
+  const floodWideFixedHeightPx = $derived(viewportHeightPx * 0.3);
   // Selection retains a type-level default even when the candidate is absent.
   // The diagnostic describes rendered reality, not that solver default.
   const renderTyphoonVariant = $derived(typhoonItem == null ? "none" : renderSelection.typhoon);
@@ -776,7 +782,9 @@
         const bodyFitsVertically = body == null || body.clientHeight === 0 || body.scrollHeight <= body.clientHeight + 1;
         const fitsHorizontally = body == null || body.clientWidth === 0 || body.scrollWidth <= body.clientWidth + 1;
         const fits = cardFitsVertically && bodyFitsVertically && fitsHorizontally;
-        nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? (fits ? 0 : 2);
+        nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? (entry.key === "flood"
+          ? floodPartitionProbeSentinel(fits, entry.fixedHeightPx ?? 0)
+          : (fits ? 0 : 2));
       } else {
         nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? Math.round(node.getBoundingClientRect().height);
       }
@@ -1382,6 +1390,7 @@
   });
   onMount(() => {
     const onViewportResize = () => {
+      viewportHeightPx = window.innerHeight;
       // A geometry-only epoch may promote, but must retain its committed
       // stage.  Demotion is reserved for a content-changing epoch that clears
       // the strict two-gap hysteresis margin.
@@ -1454,6 +1463,12 @@
          Passing MAX_PREFIX_ROWS here erased the live "ほか n地域" rider and
          under-measured a grouped weather card by its omitted-row height. -->
     <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} />
+  {:else if entry.key === "flood" && floodItem != null}
+    {#if entry.floodForm === "wide"}
+      <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter />
+    {:else}
+      <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter />
+    {/if}
   {/if}
 {/snippet}
 
@@ -1558,6 +1573,14 @@
         <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "side")} pagePlacement="side" />
       </div>
     {/if}
+    {#if floodItem != null}
+      <!-- Unit 2 preflights only the shelf. It neither registers a live pager
+           nor changes solver/live flood rendering. -->
+      <div class="flood-partition-preflight">
+        <FloodCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "side", 200, "compact")} pagePlacement="side" />
+        {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "side", floodWideFixedHeightPx, "wide")} pagePlacement="side" />{/if}
+      </div>
+    {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
       <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
@@ -1576,6 +1599,12 @@
            already active, so the final placement flush has no new probe chain. -->
       <div class="partition-preflight">
         <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "center")} pagePlacement="center" />
+      </div>
+    {/if}
+    {#if floodItem != null}
+      <div class="flood-partition-preflight">
+        <FloodCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", 200, "compact")} pagePlacement="center" />
+        {#if floodItem.surface === "clock-top-wide"}<FloodWideCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", floodWideFixedHeightPx, "wide")} pagePlacement="center" />{/if}
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
@@ -1672,7 +1701,7 @@
   .measure-item :global(.weather-card),
   .measure-item :global(.standby-card),
   .measure-item :global(.flood-wide-card) { width: 100%; max-width: 100%; }
-  .partition-preflight { width: 100%; flex: 0 0 auto; }
+  .partition-preflight, .flood-partition-preflight { width: 100%; flex: 0 0 auto; }
   .baseline-gap-measure { position: absolute; width: var(--base-gap); height: 1px; visibility: hidden; pointer-events: none; }
   .rotation-indicator-measure { position: absolute; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); visibility: hidden; pointer-events: none; }
   .rotation-failure-measure { position: absolute; visibility: hidden; width: min(30rem, calc((100% - var(--edge) * 2 - var(--gap) * 2 - var(--center-width)) / 2)); box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); color: var(--role-muted); text-align: center; pointer-events: none; }

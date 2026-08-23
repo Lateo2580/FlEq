@@ -122,6 +122,18 @@ describe("FloodCard", () => {
     expect(source).toMatch(/\.more-rivers\s*\{[^}]*padding:\s*var\(--space-1\) var\(--space-4\);/s);
   });
 
+  it("measurement range は指定河川だけを footer 込みの page shell として描画する", () => {
+    const { container } = render(FloodCard, { item: floodItem([
+      river("大淀"), river("小丸"), river("五ヶ瀬"), river("耳"),
+    ]), measurementRange: { start: 1, end: 3, tails: [], omittedAreaCount: 0 }, measurementPageFooter: true });
+    expect([...container.querySelectorAll(".river-row")].map((row) => row.textContent))
+      .toEqual(["小丸川　氾濫警戒情報（L3）", "五ヶ瀬川　氾濫警戒情報（L3）"]);
+    expect(container.querySelector("[data-page-probe-card]")).toBeTruthy();
+    expect(container.querySelector("[data-page-probe-body]")).toBeTruthy();
+    expect(container.querySelector("[data-card-page-footer]")?.textContent).toBe("2/2");
+    expect(container.querySelector("[data-flood-aggregate]")).toBeNull();
+  });
+
   it("marks a restored card as synchronizing", () => {
     const { container } = render(FloodCard, { item: floodItem([river("多摩")], true) });
     expect(container.querySelector(".restored-chip")?.textContent).toBe("同期中");
