@@ -27,28 +27,25 @@ function floodItem(count: number, restored = false): Extract<ActiveStandbyCardV1
 afterEach(() => Object.defineProperty(window, "innerHeight", { configurable: true, value: originalInnerHeight }));
 
 describe("FloodWideCard", () => {
-  it("feeds its live width into the same branch that restacks narrow cells", () => {
+  it("does not retain the old row-estimate aggregation path", () => {
     const source = readFileSync(join(__dirname, "..", "FloodWideCard.svelte"), "utf8");
-    expect(source).toContain("use:measureCardWidth");
-    expect(source).toContain('if (typeof ResizeObserver === "undefined") return {}');
-    expect(source).toContain("layoutFloodWideRows(item.data.rivers, viewportHeightPx, cardWidthPx)");
+    expect(source).not.toContain("layoutFloodWideRows");
+    expect(source).not.toContain("use:measureCardWidth");
   });
 
-  it("lays rivers out in two columns and aggregates rows that do not fit", () => {
+  it("lays every river out in two columns until page partition selects a range", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
     const { container } = render(FloodWideCard, { item: floodItem(12) });
-    expect(container.querySelectorAll(".river-cell")).toHaveLength(2);
-    expect(container.querySelector(".more-rivers")?.textContent).toBe("ほか 10 河川");
+    expect(container.querySelectorAll(".river-cell")).toHaveLength(12);
+    expect(container.querySelector(".more-rivers")).toBeNull();
     expect(container.textContent).toContain("第1川　氾濫危険情報（L4）");
   });
 
-  it("caps visible cells to the cell-height estimate at a large viewport", () => {
-    // innerHeight 1400 → maxHeight 420、(420-48)/88 = 4 grid 行 → cell 容量 8。
-    // 12 河川なら最終行を集約に予約して 6 セル可視 + ほか 6 河川。
+  it("viewport height no longer changes a static estimated visible count", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 1400 });
     const { container } = render(FloodWideCard, { item: floodItem(12) });
-    expect(container.querySelectorAll(".river-cell")).toHaveLength(6);
-    expect(container.querySelector(".more-rivers")?.textContent).toBe("ほか 6 河川");
+    expect(container.querySelectorAll(".river-cell")).toHaveLength(12);
+    expect(container.querySelector(".more-rivers")).toBeNull();
   });
 
   it("lays the station out as a value-only 2×2 grid (観測所名/水位/しきい値/グラフ, no labels) and omits it for rivers without station data", () => {
@@ -115,7 +112,7 @@ describe("FloodWideCard", () => {
     expect(source).toContain("in:spatialScaleIn={{ duration: enterDur, start: 0.97 }}");
     expect(source).not.toContain("in:spatialScaleIn|global");
     expect(source).toContain("out:fade={{ duration: exitDur }}");
-    expect(source).toContain("{#each rows as row (row.key)}");
+    expect(source).toContain("{#each rows as row, index (row.key)}");
     expect(source).toContain("use:measureBorderHeight={(height) => (gridHeightPx = height)}");
     expect(source).toContain("transition: height var(--flood-grid-dur, 0ms) var(--spring-effects-default)");
     expect(source).toContain("prefers-reduced-motion: reduce");
@@ -123,12 +120,12 @@ describe("FloodWideCard", () => {
     expect(source).toContain("reducedMotion ? 0 : EXIT_MS");
   });
 
-  it("集約行は keyed each 内の .more-rivers として描画される (ほか N 河川)", () => {
+  it("wide card no longer adds an aggregate row in the normal path", () => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 720 });
     const { container } = render(FloodWideCard, { item: floodItem(4) });
-    expect(container.querySelectorAll(".river-cell")).toHaveLength(2);
-    expect(container.querySelector(".more-rivers")?.textContent).toBe("ほか 2 河川");
-    expect(container.querySelectorAll(".river-grid > *")).toHaveLength(3);
+    expect(container.querySelectorAll(".river-cell")).toHaveLength(4);
+    expect(container.querySelector(".more-rivers")).toBeNull();
+    expect(container.querySelectorAll(".river-grid > *")).toHaveLength(4);
   });
 
   it("measurement range は集約せず指定河川と footer を同じ page shell に描画する", () => {

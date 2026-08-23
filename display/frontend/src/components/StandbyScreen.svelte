@@ -3,7 +3,7 @@
   import type { ActiveStandbyCardV1, DisplayLatestQuakeStateV1, DisplayRecentQuakeV1, DisplayStateSnapshotV1, DisplayTsunamiLevel } from "../lib/protocol";
   import { recentQuakeId } from "../lib/format";
   import { resolveWeatherKindKeys, weatherAreaIdentity } from "../lib/weather-expanded-kinds";
-  import { floodPartitionProbeSentinel, floodWideRowsIncludeDetail } from "../lib/standby-cards";
+  import { floodPartitionProbeSentinel } from "../lib/standby-cards";
   import { makeColumnPlan, promoteAndExpand, type SolverContext } from "../lib/legacy-standby/solver";
   import { SPRING_SPATIAL_DEFAULT_MS } from "../lib/motion";
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
@@ -104,6 +104,7 @@
     /** Flood's page-shell contract budget; absent for quake/weather's 1px sentinel. */
     fixedHeightPx?: number;
     floodForm?: FloodProbeForm;
+    floodAggregateFallback?: boolean;
   }
   interface SettleTraceEntry {
     pass: number;
@@ -430,10 +431,15 @@
   }
   function pagePartitionProbe(key: PrefixCardKey, placement: PrefixPlacement, fixedHeightPx = 1, floodForm?: FloodProbeForm): PartitionProbe {
     return (_cardKey, _probePlacement, range, tails) => {
+      const override = typeof testMeasurementOverride === "function"
+        ? testMeasurementOverride(measurementPass)
+        : testMeasurementOverride;
+      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm);
+      const genericOverride = override?.[`${key}:prefix:${range.end}:${placement}`];
+      if (override?.[id] != null || genericOverride != null) return override?.[id] ?? genericOverride ?? null;
       // jsdom has no layout engine. Returning a fitting measurement here keeps
       // its U3 settle contract deterministic; browsers enter the shelf path.
       if (typeof ResizeObserver === "undefined") return 0;
-      const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm);
       const cached = prefixMeasurements[id];
       if (cached != null) return cached;
       if (epoch === 0) return null;
@@ -442,6 +448,7 @@
         prefixMeasureEntries = [...prefixMeasureEntries, {
           id, key, placement, start: range.start, end: range.end,
           tails: [...tails], omittedAreaCount: range.omittedAreaCount, purpose: "page", fixedHeightPx, floodForm,
+          floodAggregateFallback: key === "flood" && range.start === 0 && range.end === 0,
         }];
       });
       return null;
@@ -456,8 +463,12 @@
     if (key === "heat") return 150;
     return 150;
   }
+  function floodContractHeight(variant: CardVariant): number {
+    return variant === "expanded" ? floodWideFixedHeightPx : 200;
+  }
   function measureId(key: CardKey, variant: CardVariant, placement: Placement): MeasureId { return `${key}:${variant}:${placement}`; }
   function measured(key: CardKey, variant: CardVariant, placement: Placement): number {
+    if (key === "flood") return floodContractHeight(variant);
     return measurements[measureId(key, variant, placement)] ?? defaultHeight(key, variant);
   }
   function captureMeasure(node: HTMLElement, id: MeasureId) {
@@ -511,6 +522,7 @@
       group.omittedAreaCount > 0 || (group as { candidateTruncated?: boolean }).candidateTruncated === true) ?? false);
   }
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
+    if (card.key === "flood") return floodContractHeight(selectedVariant("flood", renderSelection));
     const rows = card.key === "quake" ? renderSelection.quakeRows : card.key === "weather" ? renderSelection.weatherRows : 0;
     const measurementPlacement = placement === "center" ? "center" : "right";
     if (rows > 0 && (card.key === "quake" || card.key === "weather")) {
@@ -524,6 +536,11 @@
     return measured(card.key, selectedVariant(card.key, renderSelection), measurementPlacement);
   }
   function pageFixedHeight(card: CardCandidate, placement: Placement): number | null {
+    // Flood's page-shell budget is a declared contract, not a shelf result.
+    // Keep the outer live shell identical to every solver path while probes
+    // are still pending; a one-page result simply leaves the card's own
+    // non-paged height-budget styling in control inside that shell.
+    if (card.key === "flood") return floodContractHeight(selectedVariant("flood", renderSelection));
     return pageFormattingActive(card.key) ? selectedCardHeight(card, placement) : null;
   }
   function centerFixed(hidden: readonly CenterClusterItem[], measureGap = gapPx) {
@@ -550,7 +567,9 @@
     let total = Math.max(0, cards.length - 1) * measureGap;
     for (const card of cards) {
       const rows = card.key === "quake" ? selection.quakeRows : card.key === "weather" ? selection.weatherRows : 0;
-      const height = rows > 0 && (card.key === "quake" || card.key === "weather")
+      const height = card.key === "flood"
+        ? floodContractHeight(selectedVariant("flood", selection))
+        : rows > 0 && (card.key === "quake" || card.key === "weather")
         ? prefixHeight(card.key, rows, placement)
         : measured(card.key, selectedVariant(card.key, selection), measurementPlacement);
       if (height == null) return null;
@@ -567,8 +586,13 @@
     // Unknown geometry is not permission to promote. The measurement epoch
     // will re-evaluate once the shelf owns the same positive width as live.
     if (widthPx <= 0) return false;
-    const viewportHeightPx = typeof window === "undefined" ? 720 : window.innerHeight;
-    return floodWideRowsIncludeDetail(floodItem.data.rivers, viewportHeightPx, widthPx);
+    // This is deliberately a coordinator-free one-river shelf probe.  The
+    // form selection must not depend on live registration/reset state.
+    const fixedHeightPx = floodWideFixedHeightPx;
+    const result = pagePartitionProbe("flood", placement, fixedHeightPx, "wide")(
+      "flood", placement, { start: 0, end: 1, tails: [], omittedAreaCount: 0 }, [],
+    );
+    return result != null && result <= fixedHeightPx;
   }
   function centerHeight(choice: PlacementChoice, selection: DisplaySelection, hidden: readonly CenterClusterItem[], measureGap = gapPx): number {
     const fixedCenter = centerFixed(hidden, measureGap);
@@ -715,7 +739,7 @@
   const renderFloodForm = $derived.by(() => {
     if (floodItem == null) return "none";
     const placement = renderPlan.center.some((card) => card.key === "flood") ? "center" : "side";
-    return renderFloodWide(placement, selectedVariant("flood", renderSelection), false, renderSelection) ? "wide" : "card";
+    return renderFloodWide(placement === "center" ? "center" : "right", selectedVariant("flood", renderSelection), false, renderSelection) ? "wide" : "card";
   });
   const floodWideFixedHeightPx = $derived(viewportHeightPx * 0.3);
   // Selection retains a type-level default even when the candidate is absent.
@@ -761,6 +785,7 @@
     // actual card disappearance/replay replacement exits the page substate.
     if (snapshot.latestQuake == null || selectedRecentQuake != null) cardPageCoordinator.unregister("quake");
     if (!hasWeather) cardPageCoordinator.unregister("weather");
+    if (floodItem == null) cardPageCoordinator.unregister("flood");
   });
 
   function readMeasurements(): void {
@@ -1016,26 +1041,24 @@
       .flatMap((card, cardIndex) => {
         const cardKey = `flood:${cardIndex}`;
         const entries = [...card.querySelectorAll<HTMLElement>("[data-flood-entry-index]")];
-        const narrow = card.clientWidth <= 320;
-        const expectedVisibleCount = Math.min(entries.length, narrow ? 1 : entries.length >= 3 ? 2 : entries.length);
-        const expectedAggregate = entries.length > expectedVisibleCount ? (narrow ? "narrow" : "normal") : null;
         const aggregates = [...card.querySelectorAll<HTMLElement>("[data-flood-aggregate]")];
-        const expectedAggregateElement = expectedAggregate == null
-          ? null
-          : aggregates.find((element) => element.dataset.floodAggregate === expectedAggregate) ?? null;
+        const infeasible = card.dataset.cardPageInfeasible != null && card.dataset.cardPageInfeasible !== "false";
+        const expectedAggregateElement = infeasible
+          ? aggregates.find((element) => element.dataset.floodAggregate === "infeasible") ?? null
+          : null;
         return [
           ...(!hasRenderedBox(card) ? [`${cardKey}:card:missing`] : []),
           ...entries.flatMap((entry, index) => {
-            const expected = index < expectedVisibleCount;
+            const expected = true;
             const actual = hasRenderedBox(entry);
             return expected === actual ? [] : [`${cardKey}:entry:${index}:${expected ? "missing" : "unexpected"}`];
           }),
-          ...(expectedAggregate != null && (expectedAggregateElement == null || !hasRenderedBox(expectedAggregateElement))
-            ? [`${cardKey}:aggregate:${expectedAggregate}:missing`]
+          ...(infeasible && (expectedAggregateElement == null || !hasRenderedBox(expectedAggregateElement))
+            ? [`${cardKey}:aggregate:infeasible:missing`]
             : []),
           ...aggregates.flatMap((aggregate) => {
             const variant = aggregate.dataset.floodAggregate ?? "unknown";
-            return variant !== expectedAggregate && hasRenderedBox(aggregate)
+            return variant !== (infeasible ? "infeasible" : null) && hasRenderedBox(aggregate)
               ? [`${cardKey}:aggregate:${variant}:unexpected`]
               : [];
           }),
@@ -1047,14 +1070,11 @@
       .flatMap((card, cardIndex) => {
         const cardKey = `${card.classList.contains("flood-wide-card") ? "flood-wide" : "flood"}:${cardIndex}`;
         const cardRect = card.getBoundingClientRect();
-        const aggregateAttribute = card.clientWidth <= 320
-          ? "data-flood-aggregated-narrow"
-          : "data-flood-aggregated-normal";
         const readable = [...card.querySelectorAll<HTMLElement>(
           ".river-row, .station-row, .river-line, .cell-station, .cell-level",
         )].filter((element) => {
           const entry = element.closest<HTMLElement>("[data-flood-entry-index]");
-          return paintable(element) && (entry == null || !entry.hasAttribute(aggregateAttribute));
+          return paintable(element) && entry != null;
         });
         return [
           ...(card.scrollWidth > card.clientWidth + 1 || card.scrollHeight > card.clientHeight + 1
@@ -1448,7 +1468,30 @@
       pagePlacement={placement === "center" ? "center" : "side"}
     />
   {:else if key === "flood" && floodItem != null}
-    {#if renderFloodWide(placement, variant, measuring, selected)}<FloodWideCard item={floodItem} />{:else}<FloodCard item={floodItem} />{/if}
+    {@const wide = renderFloodWide(placement, variant, measuring, selected)}
+    {#if wide}
+      <FloodWideCard
+        item={floodItem}
+        pageCoordinator={measuring ? undefined : cardPageCoordinator}
+        rotationMember={!measuring && renderPlan.rotationKeys.includes("flood")}
+        pageScheduling={!measuring}
+        partitionProbe={measuring ? undefined : pagePartitionProbe("flood", placement === "center" ? "center" : "side", floodWideFixedHeightPx, "wide")}
+        pagePlacement={placement === "center" ? "center" : "side"}
+        measurementFixedHeightPx={floodWideFixedHeightPx}
+        pageForm="wide"
+      />
+    {:else}
+      <FloodCard
+        item={floodItem}
+        pageCoordinator={measuring ? undefined : cardPageCoordinator}
+        rotationMember={!measuring && renderPlan.rotationKeys.includes("flood")}
+        pageScheduling={!measuring}
+        partitionProbe={measuring ? undefined : pagePartitionProbe("flood", placement === "center" ? "center" : "side", 200, "compact")}
+        pagePlacement={placement === "center" ? "center" : "side"}
+        measurementFixedHeightPx={200}
+        pageForm="compact"
+      />
+    {/if}
   {:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />
   {:else if key === "volcano" && volcanoItem != null}<VolcanoCard item={volcanoItem} />
   {:else if key === "heat" && heatItem != null}<HeatAlertCard item={heatItem} />
@@ -1465,9 +1508,9 @@
     <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} />
   {:else if entry.key === "flood" && floodItem != null}
     {#if entry.floodForm === "wide"}
-      <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter />
+      <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
     {:else}
-      <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter />
+      <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? 200} pageForm="compact" />
     {/if}
   {/if}
 {/snippet}

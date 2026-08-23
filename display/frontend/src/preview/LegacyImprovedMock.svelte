@@ -19,7 +19,6 @@
     DisplayWeatherAlertItemV1,
     DisplayWeatherAlertV1,
   } from "../lib/protocol";
-  import { floodWideRowsIncludeDetail } from "../lib/standby-cards";
   import {
     latestQuakeStandbyCards,
     legacyImprovedExpandedLatestQuake,
@@ -108,7 +107,7 @@
     areas: string[];
   }
 
-  type PageableCardKey = "quake" | "weather";
+  type PageableCardKey = "quake" | "weather" | "flood";
 
   interface QuakePage {
     state: DisplayLatestQuakeStateV1;
@@ -120,6 +119,14 @@
 
   interface WeatherPage {
     alerts: DisplayWeatherAlertV1[];
+    firstArea: string;
+    identity: string;
+    areaKeys: string[];
+    tails: PageTail[];
+  }
+
+  interface FloodPage {
+    range: PageRange;
     firstArea: string;
     identity: string;
     areaKeys: string[];
@@ -473,10 +480,11 @@
   let cardPageEpochBusy = false;
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
-  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0 };
+  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, flood: 0 };
   let cardPageSchedulerSubstates = $state<Record<PageableCardKey, CardPageSchedulerSubstate>>({
     quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+    flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
   });
   let schedulerDiagnosticRevision = $state(0);
 
@@ -488,6 +496,7 @@
   let cardPageRuntime = $state<Record<PageableCardKey, CardPageRuntime>>({
     quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+    flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
   });
 
   function captureMeasure(node: HTMLElement, id: string): { destroy: () => void } {
@@ -558,8 +567,8 @@
     }
   }
 
-  function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> {
-    return key === "quake" ? cardPagePartitions.quake : cardPagePartitions.weather;
+  function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> {
+    return key === "quake" ? cardPagePartitions.quake : key === "weather" ? cardPagePartitions.weather : cardPagePartitions.flood;
   }
 
   function pageCardIsVisible(key: PageableCardKey): boolean {
@@ -573,7 +582,7 @@
   }
 
   function selfAdvancingPageKeys(): PageableCardKey[] {
-    return (["quake", "weather"] as const).filter((key) => {
+    return (["quake", "weather", "flood"] as const).filter((key) => {
       const partition = pagePartitionFor(key);
       return pageCardIsVisible(key) && partition.pages.length > 1 && !schedulerRotationKeys.includes(key);
     });
@@ -702,6 +711,7 @@
     const currentPageCounts: Record<PageableCardKey, number> = {
       quake: pageCardIsVisible("quake") ? cardPagePartitions.quake.pages.length : 0,
       weather: pageCardIsVisible("weather") ? cardPagePartitions.weather.pages.length : 0,
+      flood: pageCardIsVisible("flood") ? cardPagePartitions.flood.pages.length : 0,
     };
     const initialScheduler = cardPageSchedulerStage == null;
     const nowMs = monotonicNowMs();
@@ -714,7 +724,7 @@
       cardPageStartedAtMs = nowMs;
       cardPageProcessedTick = 0;
       cardPageTick = cardPageTickOverride ?? 0;
-      for (const key of ["quake", "weather"] as const) {
+      for (const key of ["quake", "weather", "flood"] as const) {
         reconcileCardPageRuntime(key, true);
         nextSubstates[key] = {
           mode: pageSchedulerMode(key),
@@ -729,7 +739,7 @@
       cardPageSchedulerStage = stage;
       // 1ページ化は改ページインスタンスの exit。再び複数ページへ戻ったときは
       // stage が同じでも reset し、輪番 suspend/resume や通常の repartition とは分離する。
-      for (const key of ["quake", "weather"] as const) {
+      for (const key of ["quake", "weather", "flood"] as const) {
         const previousCount = cardPageSchedulerPageCounts[key];
         const currentCount = currentPageCounts[key];
         const pageExitBoundary = previousCount > 1 && currentCount <= 1;
@@ -779,14 +789,16 @@
     cardPageTick = 0;
     cardPageEpochBusy = false;
     cardPageTickPending = false;
-    cardPageSchedulerPageCounts = { quake: 0, weather: 0 };
+    cardPageSchedulerPageCounts = { quake: 0, weather: 0, flood: 0 };
     cardPageSchedulerSubstates = {
       quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+      flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     };
     cardPageRuntime = {
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+      flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     };
     touchSchedulerDiagnostics();
   }
@@ -1808,6 +1820,29 @@
     };
   }
 
+  // The preview owns its pager rather than importing the live coordinator.
+  // Keep flood equally observable here with a deterministic two-river page;
+  // live partitioning remains shelf-probe based in StandbyScreen.
+  function partitionFloodPages(): CardPagePartition<FloodPage> {
+    const rivers = flood?.data.rivers ?? [];
+    const ranges: PageRange[] = [];
+    for (let start = 0; start < rivers.length; start += 2) {
+      ranges.push({ start, end: Math.min(rivers.length, start + 2), tails: [], omittedAreaCount: 0 });
+    }
+    if (ranges.length === 0) ranges.push({ start: 0, end: 0, tails: [], omittedAreaCount: 0 });
+    const pages = ranges.map((range, index) => {
+      const first = rivers[range.start];
+      return {
+        range,
+        firstArea: first?.riverName ?? `page-${index + 1}`,
+        identity: first == null ? `flood|page-${index + 1}|0` : `${first.kindName}|${first.riverName}|0|code:${first.riverKey}`,
+        areaKeys: rivers.slice(range.start, range.end).map((river) => river.riverName),
+        tails: [],
+      };
+    });
+    return { pages, keys: pages.map((page) => page.firstArea), identities: pages.map((page) => page.identity), usesCandidate: ranges.length > 1, infeasible: false, candidateTruncated: false, probeCount: 0 };
+  }
+
   function quakeProbeForRange(start: number, end: number, tails: readonly PageTail[] = []): DisplayLatestQuakeStateV1 {
     const supplied = suppliedQuakeGroups();
     return {
@@ -1971,10 +2006,9 @@
       capacityPx: { left: capacity, right: capacity, center: centerCapacityPx() },
       centerFixedHeightPx: centerFixedNaturalHeight(),
       floodIsWide,
-      // jsdom has no layout width; retain its historical mock fallback there.
-      // A rendered preview uses the measured side width and the live rule.
-      floodWidePromotionAllowed: floodIsWide && flood != null && (measuredCardWidthPx <= 0
-        || floodWideRowsIncludeDetail(flood.data.rivers, window.innerHeight, measuredCardWidthPx)),
+      // The preview has no live measurement shelf. Keep its fixture request
+      // deterministic; live eligibility is exclusively the dedicated probe.
+      floodWidePromotionAllowed: floodIsWide && flood != null,
       candidateSupplyLimit: candidateSupplyLimit(),
       rotationSlotHeight: (keys) => Math.max(0, ...keys.map((key) => measuredHeight(key, "compact"))),
       failureRowHeight: measuredRotationFailureHeightPx,
@@ -2144,16 +2178,19 @@
   const cardPagePartitions = $derived.by(() => ({
     quake: partitionQuakePages(contentSelection.quakeRows),
     weather: partitionWeatherPages(contentSelection.weatherRows),
+    flood: partitionFloodPages(),
   }));
   const cardPageLists = $derived.by(() => ({
     quake: cardPagePartitions.quake.pages,
     weather: cardPagePartitions.weather.pages,
+    flood: cardPagePartitions.flood.pages,
   }));
   const cardPageCounts = $derived.by(() => ({
     quake: cardPageLists.quake.length,
     weather: cardPageLists.weather.length,
+    flood: cardPageLists.flood.length,
   }));
-  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1);
+  const cardPageIsActive = $derived(cardPageCounts.quake > 1 || cardPageCounts.weather > 1 || cardPageCounts.flood > 1);
   const cardPageInfeasible = $derived(cardPagePartitions.quake.infeasible || cardPagePartitions.weather.infeasible);
   const candidateTruncated = $derived(cardPagePartitions.quake.candidateTruncated || cardPagePartitions.weather.candidateTruncated);
   const partitionProbeCounts = $derived({
@@ -2174,16 +2211,20 @@
       schedulerRotationKeys.join(","),
       cardPagePartitions.quake.keys.join(","),
       cardPagePartitions.weather.keys.join(","),
+      cardPagePartitions.flood.keys.join(","),
       cardPagePartitions.quake.identities.join(","),
       cardPagePartitions.weather.identities.join(","),
+      cardPagePartitions.flood.identities.join(","),
       cardPagePartitions.quake.usesCandidate,
       cardPagePartitions.weather.usesCandidate,
+      cardPagePartitions.flood.usesCandidate,
     ].join("|");
   }
 
-  function cardPagePartition(key: CardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | null {
+  function cardPagePartition(key: CardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> | null {
     if (key === "quake") return cardPagePartitions.quake;
     if (key === "weather") return cardPagePartitions.weather;
+    if (key === "flood") return cardPagePartitions.flood;
     return null;
   }
 
@@ -2213,14 +2254,14 @@
     const total = cardPageCount(key);
     if (total <= 1) return 0;
     if (cardPageTickOverride != null) return cardPageTickOverride % total;
-    if (key !== "quake" && key !== "weather") return 0;
+    if (key !== "quake" && key !== "weather" && key !== "flood") return 0;
     const activeKey = cardPageRuntime[key].activeKey;
     const index = cardPageIdentityKeys(key).indexOf(activeKey ?? "");
     return index >= 0 ? index : 0;
   }
 
   function cardPageAttribute(key: CardKey): string | undefined {
-    if (key !== "quake" && key !== "weather") return undefined;
+    if (key !== "quake" && key !== "weather" && key !== "flood") return undefined;
     return `${cardPageIndex(key) + 1}/${cardPageCount(key)}`;
   }
 
@@ -2234,6 +2275,12 @@
     return cardPagePartitions.weather.pages[pageIndex]?.alerts
       ?? cardPagePartitions.weather.pages[0]?.alerts
       ?? weatherForRegionRows(regionRows);
+  }
+
+  function floodPageForRender(pageIndex: number): PageRange {
+    return cardPagePartitions.flood.pages[pageIndex]?.range
+      ?? cardPagePartitions.flood.pages[0]?.range
+      ?? { start: 0, end: flood?.data.rivers.length ?? 0, tails: [], omittedAreaCount: 0 };
   }
 
   // scheduler は layoutPlan の stage/key と測定完了だけを購読する。active key 自身は読まないため、
@@ -2422,26 +2469,30 @@
         activeKeys: {
           quake: cardPageRuntime.quake.activeKey,
           weather: cardPageRuntime.weather.activeKey,
+          flood: cardPageRuntime.flood.activeKey,
         },
         pendingKeys: {
           quake: [...cardPageRuntime.quake.pendingKeys],
           weather: [...cardPageRuntime.weather.pendingKeys],
+          flood: [...cardPageRuntime.flood.pendingKeys],
         },
         cycleOriginKeys: {
           quake: cardPageRuntime.quake.cycleOriginKey,
           weather: cardPageRuntime.weather.cycleOriginKey,
+          flood: cardPageRuntime.flood.cycleOriginKey,
         },
         processedTick: cardPageProcessedTick,
         previousPageCounts: { ...cardPageSchedulerPageCounts },
         substates: {
           quake: { ...cardPageSchedulerSubstates.quake },
           weather: { ...cardPageSchedulerSubstates.weather },
+          flood: { ...cardPageSchedulerSubstates.flood },
         },
-        activeSubstateKeys: (["quake", "weather"] as const).filter(
+        activeSubstateKeys: (["quake", "weather", "flood"] as const).filter(
           (key) => cardPageSchedulerSubstates[key].pageCount > 1,
         ),
         tickPending: cardPageTickPending,
-        suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather"),
+        suspendedKeys: schedulerRotationKeys.filter((key) => key === "quake" || key === "weather" || key === "flood"),
         inFlight: cardPageEpochBusy,
         timerActive: cardPageSchedulerTimer != null,
       },
@@ -2501,10 +2552,11 @@
     {#if useCardPage && (pageCount > 1 || cardPagePartition("weather")?.candidateTruncated)}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
   {:else if key === "flood" && flood != null}
     {#if floodIsWide && (placement === "center" || floodWide)}
-      <FloodWideCard item={flood} />
+      <FloodWideCard item={flood} measurementRange={useCardPage ? floodPageForRender(pageIndex) : undefined} />
     {:else}
-      <FloodCard item={flood} />
+      <FloodCard item={flood} measurementRange={useCardPage ? floodPageForRender(pageIndex) : undefined} />
     {/if}
+    {#if useCardPage && pageCount > 1}<span class="mock-card-page" data-card-page-indicator>{pageIndex + 1}/{pageCount}</span>{/if}
   {:else if key === "typhoon" && typhoon != null}
     <TyphoonCard item={typhoon} displayMode={variant === "compact" ? "compact" : "full"} />
   {:else if key === "volcano" && volcano != null}
@@ -2607,12 +2659,12 @@
   data-placement-surplus-use={placementSurplusUse}
   data-card-page-tick={currentCardPageTick}
   data-card-page-tick-override={cardPageTickOverride ?? undefined}
-  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather}`}
+  data-card-page-counts={`quake:${cardPageCounts.quake},weather:${cardPageCounts.weather},flood:${cardPageCounts.flood}`}
   data-card-page-active={cardPageIsActive ? "true" : "false"}
-  data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys })}
-  data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities })}
-  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather") })}
-  data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey })}
+  data-card-page-keys={JSON.stringify({ quake: cardPagePartitions.quake.keys, weather: cardPagePartitions.weather.keys, flood: cardPagePartitions.flood.keys })}
+  data-card-page-identities={JSON.stringify({ quake: cardPagePartitions.quake.identities, weather: cardPagePartitions.weather.identities, flood: cardPagePartitions.flood.identities })}
+  data-card-page-tail-counts={JSON.stringify({ quake: cardPageTailEntries("quake"), weather: cardPageTailEntries("weather"), flood: cardPageTailEntries("flood") })}
+  data-card-page-active-keys={JSON.stringify({ quake: cardPageRuntime.quake.activeKey, weather: cardPageRuntime.weather.activeKey, flood: cardPageRuntime.flood.activeKey })}
   data-partition-probe-count={JSON.stringify(partitionProbeCounts)}
   data-partition-tail-probe={partitionTailProbeMeasured ? "true" : "false"}
   data-card-page-infeasible={cardPageInfeasible ? "true" : "false"}

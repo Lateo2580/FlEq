@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { flip } from "svelte/animate";
   import { fade } from "svelte/transition";
   import type { ActiveStandbyCardV1, DisplayFloodStationV1 } from "../lib/protocol";
-  import { FLOOD_TREND_ARROW, layoutFloodWideRows, type FloodWideRow } from "../lib/standby-cards";
+  import { floodPageAreaEntries, FLOOD_TREND_ARROW } from "../lib/standby-cards";
   import type { PageRange } from "../lib/legacy-standby/types";
-  import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { pageIdentity, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import { buildFloodHydrograph, type FloodHydrographGeometry } from "../lib/flood-hydrograph";
   import { SPRING_EFFECTS_DEFAULT_MS, SPRING_SPATIAL_DEFAULT_MS, EXIT_MS, springSpatialOut } from "../lib/motion";
   import { spatialScaleIn } from "../lib/transitions";
@@ -18,57 +19,63 @@
     return station.hydrograph == null ? null : buildFloodHydrograph(station.hydrograph);
   }
 
-  let { item, measurementRange, measurementPageFooter = false, partitionProbe, pagePlacement = "side", measurementFixedHeightPx = 200 }: {
+  let { item, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementInfeasibleFallback = false, measurementFixedHeightPx = 200, pageForm = "wide" }: {
     item: Extract<ActiveStandbyCardV1, { kind: "flood" }>;
-    /** Shelf-only forced page composition; live pagination is wired separately. */
+    pageCoordinator?: CardPageCoordinator;
+    rotationMember?: boolean;
+    pageScheduling?: boolean;
     measurementRange?: PageRange;
     /** Include the ordinary page-shell footer while measuring a forced range. */
     measurementPageFooter?: boolean;
+    measurementInfeasibleFallback?: boolean;
     /** Used only by the shelf preflight to enqueue forced-range probes. */
     partitionProbe?: PartitionProbe;
     pagePlacement?: "side" | "center";
     measurementFixedHeightPx?: number;
+    pageForm?: "compact" | "wide";
   } = $props();
-  let viewportHeightPx = $state(typeof window === "undefined" ? 720 : window.innerHeight);
-  // Read the actual card width so the row budget follows the same 400px
-  // container-query branch as the rendered station grid. Infinity preserves
-  // the normal-width fallback until the browser's ResizeObserver reports.
-  let cardWidthPx = $state(Number.POSITIVE_INFINITY);
-  const rows = $derived<FloodWideRow[]>(measurementRange == null
-    ? layoutFloodWideRows(item.data.rivers, viewportHeightPx, cardWidthPx)
-    : item.data.rivers.slice(measurementRange.start, measurementRange.end)
-      .map((river) => ({ kind: "river", key: `river:${river.riverKey}`, river })));
-  const measurementFooterLabel = $derived(measurementRange == null ? "" : `${measurementRange.start > 0 ? 2 : 1}/${measurementRange.end < item.data.rivers.length ? 2 : 1}`);
+  const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
+  const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
+  const ownsPageCoordinator = initialPageCoordinator == null;
+  const pageEntries = $derived(floodPageAreaEntries(item.data.rivers));
   const measurementPartition = $derived.by(() => partitionProbe == null
     ? { probeCount: 0 }
     : sequentialPartitionRanges("flood", pagePlacement, item.data.rivers.length, measurementFixedHeightPx, partitionProbe, () => []));
-
-  function measureCardWidth(node: HTMLElement): { destroy?: () => void } {
-    const update = (): void => {
-      // clientWidth follows the container query's inner inline-size; a border
-      // box rect would switch up to 2px later around the 400px boundary.
-      const width = node.clientWidth;
-      // A zero rect means "not laid out yet" (and is the jsdom fallback), not
-      // the 400px narrow branch. Keep the normal model until a real box exists.
-      if (width > 0) cardWidthPx = width;
-    };
-    update();
-    if (typeof ResizeObserver === "undefined") return {};
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return { destroy: () => observer.disconnect() };
-  }
+  const pagePartition = $derived.by(() => {
+    if (measurementRange != null) return { ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1 };
+    if (partitionProbe != null) return sequentialPartitionRanges("flood", pagePlacement, pageEntries.length, measurementFixedHeightPx, partitionProbe, () => []);
+    return { ranges: [{ start: 0, end: pageEntries.length, tails: [], omittedAreaCount: 0 }], pending: [], infeasible: false, probeCount: 0 };
+  });
+  const aggregateMeasurement = $derived(pagePartition.infeasible && partitionProbe != null
+    ? partitionProbe("flood", pagePlacement, { start: 0, end: 0, tails: [], omittedAreaCount: 0 }, [])
+    : null);
+  const aggregateClipped = $derived(pagePartition.infeasible && aggregateMeasurement != null && aggregateMeasurement > measurementFixedHeightPx);
+  const pageIdentities = $derived(pagePartition.ranges.map((range, index) => pageIdentity(pageEntries[range.start] ?? {
+    kindKey: "flood", area: `page-${index + 1}`, occurrenceIndex: 0,
+  })));
+  const pageLabels = $derived(pagePartition.ranges.map((range, index) => pageEntries[range.start]?.area ?? `page-${index + 1}`));
+  const resetKey = $derived(`${pageForm}:${item.data.rivers.map((river) => river.riverKey).join(",")}`);
+  $effect(() => {
+    pageCoordinator.register({ key: "flood", identities: pageScheduling ? pageIdentities : [], labels: pageScheduling ? pageLabels : [], rotationMember, resetKey });
+  });
+  onDestroy(() => { if (ownsPageCoordinator) pageCoordinator.dispose(); });
+  const currentPageIndex = $derived(pageCoordinator.activeIndex("flood"));
+  const currentRange = $derived(measurementRange ?? pagePartition.ranges[currentPageIndex] ?? pagePartition.ranges[0] ?? null);
+  const rows = $derived((currentRange == null ? [] : item.data.rivers.slice(currentRange.start, currentRange.end))
+    .map((river) => ({ key: `river:${river.riverKey}`, river })));
+  const pageDiagnostics = $derived(pageCoordinator.cardDiagnostics("flood"));
+  const paginationActive = $derived(pageScheduling && (pagePartition.ranges.length > 1 || pagePartition.pending.length > 0));
+  const showPageIndicator = $derived(measurementRange != null
+    ? measurementPageFooter
+    : pageScheduling && pagePartition.ranges.length > 1);
+  const pageIndicatorLabel = $derived(measurementRange != null
+    ? `${measurementRange.start > 0 ? 2 : 1}/${measurementRange.end < item.data.rivers.length ? 2 : 1}`
+    : pageDiagnostics.page);
 
   // 見出し帯の段階カラーはカード内最高レベルで決める (L3 氾濫警戒=赤 / L4 氾濫危険=紫 /
   // L5 氾濫発生=黒帯白枠白リボン黄文字、FloodCard と同型)
   const maxLevelRank = $derived(item.data.rivers.reduce((max, river) => Math.max(max, river.levelRank), 0));
   const band = $derived(maxLevelRank >= 50 ? "flooding" : maxLevelRank >= 40 ? "emergency" : "red");
-
-  onMount(() => {
-    const updateViewport = (): void => { viewportHeightPx = window.innerHeight; };
-    window.addEventListener("resize", updateViewport);
-    return () => window.removeEventListener("resize", updateViewport);
-  });
 
   // prefers-reduced-motion を購読する (StandbyScreen の既存パターンを踏襲)。matchMedia 未実装環境
   // (jsdom 等) ではスキップし通常 duration。reduced-motion では flip/in/out/高さ遷移すべて duration 0。
@@ -95,24 +102,23 @@
   // 高さ transition は easing と同じ effects 系 231ms。spatial 435ms の流用は fade 後も高さが動く二段階見えの一因だった。
   const gridDurMs = $derived(reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS);
   const gridWrapStyle = $derived(
-    (gridHeightPx > 0 ? `height: ${gridHeightPx}px; ` : "") + `--flood-grid-dur: ${gridDurMs}ms`,
+    (paginationActive ? "" : gridHeightPx > 0 ? `height: ${gridHeightPx}px; ` : "") + `--flood-grid-dur: ${paginationActive ? 0 : gridDurMs}ms`,
   );
 </script>
 
-<section class="standby-card flood-wide-card band-{band}" use:measureCardWidth data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount}>
+<section class="standby-card flood-wide-card band-{band}" class:paged-flood={paginationActive} data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount} data-card-page={pageDiagnostics.page} data-card-page-keys={JSON.stringify(pageDiagnostics.keys)} data-card-page-identities={JSON.stringify(pageDiagnostics.identities)} data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}>
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>
-    {#each rows as row (row.key)}
+    {#each rows as row, index (row.key)}
       <div
-        class:river-cell={row.kind === "river"}
-        class:more-rivers={row.kind === "more"}
-        class:critical-river={row.kind === "river" && row.river.levelRank >= 40}
+        class:river-cell={true}
+        class:critical-river={row.river.levelRank >= 40}
+        data-flood-entry-index={(currentRange?.start ?? 0) + index}
         animate:flip={{ duration: flipDur, easing: springSpatialOut }}
         in:spatialScaleIn={{ duration: enterDur, start: 0.97 }}
         out:fade={{ duration: exitDur }}
       >
-        {#if row.kind === "river"}
           <div class="river-line">{row.river.riverName}　{row.river.kindName}（{row.river.level}）</div>
           {#if row.river.station != null}
           {@const station = row.river.station}
@@ -147,14 +153,12 @@
             {/if}
           </div>
           {/if}
-        {:else}
-          ほか {row.omittedCount} 河川
-        {/if}
       </div>
     {/each}
   </div>
   </div>
-  {#if measurementRange != null && measurementPageFooter}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{measurementFooterLabel}</span></div>{/if}
+  {#if pagePartition.infeasible || measurementInfeasibleFallback}<div class="more-rivers flood-infeasible" data-flood-aggregate="infeasible">ほか {item.data.rivers.length} 河川</div>{/if}
+  {#if showPageIndicator}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></div>{/if}
 </section>
 
 <style>

@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
+import { tick } from "svelte";
 import FloodCard from "../FloodCard.svelte";
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "../../lib/protocol";
+import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 
 function river(key: string, level: "L3" | "L4" | "L5" = "L3", station: DisplayFloodStationV1 | null = null): DisplayFloodRiverV1 {
   return {
@@ -23,6 +25,53 @@ function floodItem(rivers: DisplayFloodRiverV1[], restored = false): Extract<Act
 }
 
 describe("FloodCard", () => {
+  it.each([1, 2, 3, 5, 12])("paginates n=%i rivers through every current-page range", async (count) => {
+    const coordinator = createCardPageCoordinator();
+    const rivers = Array.from({ length: count }, (_, index) => river(`r${index + 1}`));
+    const view = render(FloodCard, {
+      item: floodItem(rivers), pageCoordinator: coordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start <= 2 ? 0 : 201,
+    });
+    await tick();
+    const pageCount = Math.ceil(count / 2);
+    expect(view.container.querySelector("[data-card-page-footer]") != null).toBe(pageCount > 1);
+    const visited = new Set<string>();
+    for (let page = 0; page < pageCount; page += 1) {
+      coordinator.jumpTo("flood", page);
+      await tick();
+      for (const entry of view.container.querySelectorAll<HTMLElement>("[data-flood-entry-index]")) visited.add(entry.dataset.floodEntryIndex ?? "");
+    }
+    expect(visited).toEqual(new Set(rivers.map((_, index) => String(index))));
+    view.unmount();
+    coordinator.dispose();
+  });
+
+  it("draws a provisional pending range without entering the infeasible fallback", async () => {
+    const coordinator = createCardPageCoordinator();
+    const view = render(FloodCard, {
+      item: floodItem([river("r1"), river("r2"), river("r3")]), pageCoordinator: coordinator, pageScheduling: true,
+      partitionProbe: () => null,
+    });
+    await tick();
+    expect(view.container.querySelectorAll("[data-flood-entry-index]")).toHaveLength(1);
+    expect(view.container.querySelector("[data-flood-aggregate]")).toBeNull();
+    expect(view.container.querySelector<HTMLElement>(".flood-card")?.dataset.cardPageInfeasible).toBe("false");
+    view.unmount();
+    coordinator.dispose();
+  });
+
+  it("uses aggregate fallback and marks clip when even that fallback exceeds the contract", async () => {
+    const coordinator = createCardPageCoordinator();
+    const view = render(FloodCard, {
+      item: floodItem([river("r1")]), pageCoordinator: coordinator, pageScheduling: true,
+      partitionProbe: () => 201,
+    });
+    await tick();
+    expect(view.container.querySelector("[data-flood-aggregate]")?.textContent).toBe("ほか 1 河川");
+    expect(view.container.querySelector<HTMLElement>(".flood-card")?.dataset.cardPageInfeasible).toBe("clip");
+    view.unmount();
+    coordinator.dispose();
+  });
   it("renders one river per row with kind and level", () => {
     const { container } = render(FloodCard, { item: floodItem([river("多摩", "L4"), river("浅", "L3")]) });
     const rows = [...container.querySelectorAll(".river-row")].map((row) => row.textContent);
@@ -97,27 +146,23 @@ describe("FloodCard", () => {
     expect(narrow).toMatch(/\.river-row,[\s\S]*\.station-row\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
   });
 
-  it("200px を超える side 河川は通常幅2件・狭幅1件の集約行へ送る", () => {
+  it("通常描画は全河川を保持し、集約 CSS は infeasible fallback 以外に残さない", () => {
     const { container } = render(FloodCard, { item: floodItem([
       river("大淀", "L5"), river("小丸", "L4"), river("五ヶ瀬", "L4"), river("耳", "L3"), river("一ツ瀬", "L3"),
     ]) });
     const card = container.querySelector(".flood-card");
     expect(card?.classList.contains("height-budgeted")).toBe(true);
-    expect(card?.classList.contains("many-rivers")).toBe(true);
-    expect(container.querySelector(".more-many")?.textContent).toBe("ほか 3 河川");
-    expect(container.querySelector(".more-narrow")?.textContent).toBe("ほか 4 河川");
+    expect(container.querySelectorAll(".river-entry")).toHaveLength(5);
+    expect(container.querySelector("[data-flood-aggregate]")).toBeNull();
 
     const three = render(FloodCard, { item: floodItem([
       river("大淀", "L4"), river("小丸", "L3"), river("五ヶ瀬", "L3"),
     ]) });
-    expect(three.container.querySelector(".flood-card")?.classList.contains("many-rivers")).toBe(true);
-    expect(three.container.querySelector(".more-many")?.textContent).toBe("ほか 1 河川");
+    expect(three.container.querySelectorAll(".river-entry")).toHaveLength(3);
 
     const source = readFileSync(join(__dirname, "..", "FloodCard.svelte"), "utf8");
-    expect(source).toContain('data-flood-aggregated-normal={index >= 2 ? "true" : undefined}');
-    expect(source).toContain('data-flood-aggregated-narrow={index >= 1 ? "true" : undefined}');
-    expect(source).toMatch(/\.many-rivers \[data-flood-aggregated-normal\]\s*\{\s*display:\s*none;/s);
-    expect(source).toMatch(/@container \(max-width: 320px\)[\s\S]*\[data-flood-aggregated-narrow\]\s*\{\s*display:\s*none;/s);
+    expect(source).not.toContain("data-flood-aggregated-normal");
+    expect(source).not.toContain("data-flood-aggregated-narrow");
     expect(source).toMatch(/\.height-budgeted\s*\{\s*min-height:\s*200px;/s);
     expect(source).toMatch(/\.more-rivers\s*\{[^}]*padding:\s*var\(--space-1\) var\(--space-4\);/s);
   });

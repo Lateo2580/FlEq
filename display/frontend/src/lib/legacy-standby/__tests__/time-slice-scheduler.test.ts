@@ -175,6 +175,20 @@ describe("time-slice scheduler contract", () => {
     expect(pages.cardDiagnostics("weather").activeKey).toBe("w2");
     pages.dispose();
   });
+
+  it("holds a flood reappearance and advances it exactly once after release", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "flood", identities: ["f1", "f2", "f3"], rotationMember: true });
+    pages.holdForEpoch();
+    pages.recordRotationAppearance("flood");
+    pages.recordRotationAppearance("flood");
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("f1");
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("f2");
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("f2");
+    pages.dispose();
+  });
 });
 
 describe("rotation instance", () => {
@@ -399,6 +413,17 @@ describe("shared card-page coordinator", () => {
     expect(pages.cardDiagnostics("quake").page).toBe("1/1");
     pages.register({ key: "quake", identities: ["q1", "q2"] });
     expect(pages.cardDiagnostics("quake").activeKey).toBe("q1");
+    pages.dispose();
+  });
+
+  it("resets flood on ordered river-key changes but not on detail-only updates", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "flood", identities: ["a", "b", "c"], resetKey: "compact:a,b,c" });
+    pages.jumpTo("flood", 2);
+    pages.register({ key: "flood", identities: ["a", "b", "c"], resetKey: "compact:a,b,c" });
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("c");
+    pages.register({ key: "flood", identities: ["b", "a", "c"], resetKey: "compact:b,a,c" });
+    expect(pages.cardDiagnostics("flood").activeKey).toBe("b");
     pages.dispose();
   });
 

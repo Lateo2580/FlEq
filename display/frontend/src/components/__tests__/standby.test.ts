@@ -155,12 +155,13 @@ describe("StandbyScreen legacy-improved skeleton", () => {
         })),
       },
     });
-    const measurements = {
+      const measurements = () => ({
       layoutWidthPx: 1280, layoutHeightPx: 600,
       sideMeasureShelfWidthPx: 307, centerMeasureShelfWidthPx: 576,
       "flood:compact:right": 200, "flood:expanded:right": 40, "flood:full:right": 200,
-      "flood:compact:center": 200, "flood:expanded:center": 200, "flood:full:center": 200,
-    };
+        "flood:compact:center": 200, "flood:expanded:center": 200, "flood:full:center": 200,
+        "flood:prefix:1:side": window.innerHeight <= 720 ? 217 : 0,
+      });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 720 });
     try {
       const view = render(StandbyScreen, {
@@ -277,14 +278,8 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     const clientRects = vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (this: HTMLElement): DOMRectList {
       if (this.matches(".legacy-layout .flood-card")) return hideCard ? noRects : oneRect;
       if (this.matches(".legacy-layout .flood-card [data-flood-entry-index]")) {
-        const index = Number(this.dataset.floodEntryIndex);
-        const expectedCount = cardWidth <= 320 ? 1 : 2;
-        if (hideFirst && index === 0) return zeroRect;
-        return index < expectedCount ? oneRect : noRects;
-      }
-      if (this.matches(".legacy-layout .flood-card [data-flood-aggregate]")) {
-        const expected = cardWidth <= 320 ? "narrow" : "normal";
-        return this.dataset.floodAggregate === expected ? oneRect : noRects;
+        if (hideFirst && this.dataset.floodEntryIndex === "0") return zeroRect;
+        return oneRect;
       }
       return originalClientRects.call(this);
     });
@@ -292,8 +287,7 @@ describe("StandbyScreen legacy-improved skeleton", () => {
       if (this.matches(".legacy-layout .flood-card")) return new DOMRect(0, 0, cardWidth, 200);
       if (this.matches(".legacy-layout .flood-card .river-row, .legacy-layout .flood-card .station-row")) {
         const entry = this.closest<HTMLElement>("[data-flood-entry-index]");
-        const aggregatedAttribute = cardWidth <= 320 ? "data-flood-aggregated-narrow" : "data-flood-aggregated-normal";
-        if (entry?.hasAttribute(aggregatedAttribute) || (hideFirst && entry?.dataset.floodEntryIndex === "0")) {
+        if (hideFirst && entry?.dataset.floodEntryIndex === "0") {
           return new DOMRect(0, 220, 100, 20);
         }
         return new DOMRect(0, 50, 100, 20);
@@ -874,6 +868,14 @@ describe("StandbyScreen preserved standby behaviour", () => {
     const { container } = render(StandbyScreen, { snapshot: baseSnapshot({ standbyItems: [flood("clock-top-wide")] }), now, dim: false, sseConnected: true });
     expect(container.querySelector('.measure-item[data-measure-variant="compact"] .flood-card')).toBeTruthy();
     expect(container.querySelector('.measure-item[data-measure-variant="expanded"] .flood-wide-card')).toBeTruthy();
+  });
+
+  it("routes the flood contract height through selected, measured, rotation, and live shell paths", () => {
+    const source = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    expect(source).toMatch(/function selectedCardHeight[\s\S]*card\.key === "flood"\) return floodContractHeight/s);
+    expect(source).toMatch(/function measured[\s\S]*key === "flood"\) return floodContractHeight/s);
+    expect(source).toMatch(/rotationSlotHeight:[\s\S]*measured\(key, "compact", "right"\)/s);
+    expect(source).toMatch(/function pageFixedHeight[\s\S]*card\.key === "flood"\) return floodContractHeight/s);
   });
 
   it("reduces typhoon full to compact and retains it when weather increases", async () => {

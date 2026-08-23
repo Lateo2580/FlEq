@@ -192,7 +192,7 @@ interface SchedulerDiagnosticState {
       quake: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
       weather: { mode: "real" | "logical"; phaseStartedAtMs: number; processedTick: number; pageCount: number };
     };
-    activeSubstateKeys: Array<"quake" | "weather">;
+    activeSubstateKeys: Array<"quake" | "weather" | "flood">;
     tickPending: boolean;
     suspendedKeys: string[];
     inFlight: boolean;
@@ -1451,7 +1451,7 @@ describe("legacy improved standby mock v26", () => {
       expect(rendered.container.querySelector('[data-mock-card="quake"]')).toBeNull();
       expect(rendered.container.querySelector('[data-mock-card="weather"]')).toBeNull();
       expect(afterExit.activeSubstateKeys).toEqual([]);
-      expect(afterExit.activeKeys).toEqual({ quake: null, weather: null });
+      expect(afterExit.activeKeys).toEqual({ quake: null, weather: null, flood: null });
       expect(afterExit.timerActive).toBe(false);
       const tickAfterExit = root.dataset.cardPageTick;
 
