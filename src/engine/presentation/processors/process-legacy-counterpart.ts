@@ -9,15 +9,35 @@ import type { LegacyCounterpartOutcome } from "../types";
 
 export type LegacyCounterpartSeverityRule = (
   parsed: ParsedLegacyCounterpartInfo,
-) => Exclude<LegacyCounterpartSeverity, "unknown">;
+) => LegacyCounterpartSeverity;
 
-/** 実 code fixture の確認前は空のまま維持する production severity registry。 */
+function isConfirmedVpoaActiveEvidence(
+  evidence: ParsedLegacyCounterpartInfo["severityEvidence"][number],
+): boolean {
+  if (evidence.severity !== "high" || evidence.kindCode !== "1") return false;
+  return evidence.source === "head"
+    ? evidence.condition === "発表"
+    : evidence.source === "body" && evidence.status === "発表";
+}
+
+function resolveVpoa50Severity(parsed: ParsedLegacyCounterpartInfo): LegacyCounterpartSeverity {
+  if (parsed.infoType === "取消") return "unknown";
+  if (parsed.infoType !== "発表" && parsed.infoType !== "訂正") return "unknown";
+  return parsed.severityEvidence.length === 2
+    && new Set(parsed.severityEvidence.map((evidence) => evidence.source)).size === 2
+    && parsed.severityEvidence.every(isConfirmedVpoaActiveEvidence)
+    ? "high"
+    : "unknown";
+}
+
+/** 実 fixture で確認済みの VPOA50 severity rule。counterpart rule は別単位で有効化する。 */
 export const PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES:
-ReadonlyMap<LegacyCounterpartSourceType, LegacyCounterpartSeverityRule> = new Map();
+ReadonlyMap<LegacyCounterpartSourceType, LegacyCounterpartSeverityRule> = new Map([
+  ["VPOA50", resolveVpoa50Severity],
+]);
 
 /**
- * 旧形式防災情報の最小表示経路。
- * body はこの段階では解釈せず、対応電文の確定は Phase 6B 単位 3 に委ねる。
+ * 旧形式防災情報の表示経路。対応電文の確定は Phase 6B 単位 2 に委ねる。
  */
 export function processLegacyCounterpart(msg: WsDataMessage): LegacyCounterpartOutcome | null {
   const parsed = parseLegacyCounterpart(msg);
@@ -37,7 +57,10 @@ export function processLegacyCounterpart(msg: WsDataMessage): LegacyCounterpartO
       eventId: parsed.eventId,
     },
     presentation: {
-      frameLevel: "info",
+      frameLevel: severity === "high" ? "warning" : "info",
+      ...(severity === "high"
+        ? { soundLevel: "warning" as const, notifyCategory: "weather" as const }
+        : {}),
     },
   };
 }

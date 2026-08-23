@@ -145,16 +145,24 @@ export interface LegacyCounterpartCodeNamePair {
 
 export type LegacyCounterpartSeverity = "high" | "nonHigh" | "unknown";
 
-/** 高 Severity 判定の根拠。骨組みでは extractor／registry が空なので空配列を保持する。 */
+export type LegacyCounterpartSeverityEvidenceSource =
+  | "registry"
+  | "unknown"
+  | "head"
+  | "body";
+
+/** 高 Severity 判定の根拠。raw XML の Head／Body evidence は本文そのものを保持しない。 */
 export interface LegacyCounterpartSeverityEvidence {
-  source: "registry" | "unknown";
+  source: LegacyCounterpartSeverityEvidenceSource;
   severity: LegacyCounterpartSeverity;
   phenomenonCode: string | null;
   kindCode: string | null;
   levelCode: string | null;
+  condition?: string | null;
+  status?: string | null;
 }
 
-/** VPOA50／VPNO50／VXWW50 の header-only parsed model。本文 XML は保持しない。 */
+/** VPOA50／VPNO50／VXWW50 の選択項目 parsed model。本文 XML は保持しない。 */
 export interface ParsedLegacyCounterpartInfo {
   type: LegacyCounterpartSourceType;
   infoType: string;

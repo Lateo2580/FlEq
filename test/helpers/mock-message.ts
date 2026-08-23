@@ -239,6 +239,34 @@ export const FIXTURE_VPHW50_ALT = "19_03_01_130906_VPHW50.xml";
 /** VPHW51 竜巻注意情報 (目撃情報付き) */
 export const FIXTURE_VPHW51_SIGHTING = "19_04_01_140425_VPHW51.xml";
 
+// ── Phase 6B 後半・第1縦切り (VPOA50 → VPBS50) ──
+
+export const FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709 =
+  "phase6b_VPOA50_JPTK202608221709_202608221709.xml";
+export const FIXTURE_PHASE6B_VPOA50_JPDE202608201757_202608201757 =
+  "phase6b_VPOA50_JPDE202608201757_202608201757.xml";
+export const FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221717 =
+  "phase6b_VPOA50_JPTK202608221709_202608221717.xml";
+export const FIXTURE_PHASE6B_VPOA50_JPTC202608211633_202608211633 =
+  "phase6b_VPOA50_JPTC202608211633_202608211633.xml";
+export const FIXTURE_PHASE6B_VPOA50_JPTC202608221709_202608221709 =
+  "phase6b_VPOA50_JPTC202608221709_202608221709.xml";
+export const FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221727 =
+  "phase6b_VPOA50_JPTK202608221709_202608221727.xml";
+
+export const FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221717 =
+  "phase6b_VPBS50_KJPTK202608221709_202608221717.xml";
+export const FIXTURE_PHASE6B_VPBS50_KJPTC202608221709_202608221709 =
+  "phase6b_VPBS50_KJPTC202608221709_202608221709.xml";
+export const FIXTURE_PHASE6B_VPBS50_KJPTC202608211633_202608211633 =
+  "phase6b_VPBS50_KJPTC202608211633_202608211633.xml";
+export const FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221727 =
+  "phase6b_VPBS50_KJPTK202608221709_202608221727.xml";
+export const FIXTURE_PHASE6B_VPBS50_KJPDE202608201757_202608201757 =
+  "phase6b_VPBS50_KJPDE202608201757_202608201757.xml";
+export const FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709 =
+  "phase6b_VPBS50_KJPTK202608221709_202608221709.xml";
+
 // ── 気象防災速報 (VPBS50) ──
 
 /** VPBS50 気象防災速報 (線状降水帯発生 - 千葉県) */
@@ -547,7 +575,7 @@ export function createMockWsDataMessage(
   const body = encodeXml(xml);
 
   // ファイル名から type を推定
-  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+|VPWW\d+|VPWS\d+|VPHW\d+|VPBS\d+|VPAW\d+|VPWP\d+|VPZI\d+|VPCI\d+|VPCJ\d+|VPZJ\d+|VPFJ\d+|VMCJ\d+|VPFT\d+|VPTW\d+|VPTA\d+|VXKO\d+|VXSU\d+)/);
+  const typeMatch = fixtureName.match(/(V[TXYZ]SE\d+|VFVO\d+|VFSVii|VZVO\d+|VPOA\d+|VPWW\d+|VPWS\d+|VPHW\d+|VPBS\d+|VPAW\d+|VPWP\d+|VPZI\d+|VPCI\d+|VPCJ\d+|VPZJ\d+|VPFJ\d+|VMCJ\d+|VPFT\d+|VPTW\d+|VPTA\d+|VXKO\d+|VXSU\d+)/);
   const type = typeMatch ? typeMatch[1] : "VXSE53";
   const classification = type === "VXSE43"
     ? "eew.warning"
@@ -555,7 +583,7 @@ export function createMockWsDataMessage(
       ? "eew.forecast"
       : (type.startsWith("VFVO") || type.startsWith("VFSV") || type === "VZVO40")
         ? "telegram.volcano"
-        : (type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
+        : (type.startsWith("VPOA") || type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
           ? "telegram.weather"
           : "telegram.earthquake";
   const envelope = fixtureEnvelope(xml, type);
@@ -603,7 +631,7 @@ export function createMockWsDataMessageFromXml(
       ? "eew.forecast"
       : (type.startsWith("VFVO") || type.startsWith("VFSV") || type === "VZVO40")
         ? "telegram.volcano"
-        : (type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
+        : (type.startsWith("VPOA") || type.startsWith("VPWW") || type.startsWith("VPWS") || type.startsWith("VPHW") || type.startsWith("VPBS") || type.startsWith("VPAW") || type.startsWith("VPWP") || type.startsWith("VPZI") || type.startsWith("VPCI") || type.startsWith("VPCJ") || type.startsWith("VPZJ") || type.startsWith("VPFJ") || type.startsWith("VMCJ") || type.startsWith("VPFT") || type.startsWith("VPTW") || type.startsWith("VPTA") || type.startsWith("VXKO") || type.startsWith("VXSU"))
           ? "telegram.weather"
           : "telegram.earthquake";
   const envelope = fixtureEnvelope(xml, type);

@@ -116,14 +116,15 @@ describe("Phase 6B unit 5: skeleton integration gate", () => {
     vi.restoreAllMocks();
   });
 
-  it("Phase 0 characterizationとproduction counterpart/severity/body registryを未確認の三typeへ一対一固定する", () => {
+  it("Phase 0 characterizationとproduction counterpart registryを未確認の三typeへ固定し、VPOA50だけseverity/body extractorを有効化する", () => {
     expect(LEGACY_COUNTERPART_SOURCE_TYPES).toEqual(SOURCE_TYPES);
     expect(LEGACY_COUNTERPART_CHARACTERIZATION.map((entry) => entry.sourceType)).toEqual(SOURCE_TYPES);
     expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.rules.map((rule) => rule.sourceType)).toEqual(SOURCE_TYPES);
     expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.activeCounterpartTypes.size).toBe(0);
     expect(PRODUCTION_LEGACY_COUNTERPART_REGISTRY.ruleByCounterpartType.size).toBe(0);
-    expect(PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES.size).toBe(0);
-    expect(LEGACY_COUNTERPART_BODY_EXTRACTORS).toHaveLength(0);
+    expect(PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES.size).toBe(1);
+    expect(PRODUCTION_LEGACY_COUNTERPART_SEVERITY_RULES.has("VPOA50")).toBe(true);
+    expect(LEGACY_COUNTERPART_BODY_EXTRACTORS).toEqual(["VPOA50"]);
 
     for (const type of SOURCE_TYPES) {
       const characterization = LEGACY_COUNTERPART_CHARACTERIZATION.find((entry) => entry.sourceType === type);
