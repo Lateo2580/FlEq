@@ -1830,7 +1830,7 @@ npm --prefix display run typecheck
 
 6B後半・第1縦切り実装契約（2026-08-23 起草。VPOA50→VPBS50 の production rule 有効化）:
 
-状態: **起草済み・late reconcile A裁定済み（2026-08-23）**。本契約は `corpus-6b-latter/raw-VPOA50/` と `corpus-6b-latter/raw-VPBS50-all/` の各 `index.jsonl` および実 XML を照合した結果に限定する。各 index.jsonl は dmdata message id と XML file の対応だけを示し、EventID、ReportDateTime、PublishingOffice、Kind 等の実値の真実源は XML 本体である。VPOA50 と VPBS50 は実 6 pair すべてで ReportDateTime、PublishingOffice、記録的短時間大雨の内容が対応し、VPBS50 の EventID は VPOA50 の EventID に `K` を前置した値だった。反例は観測していないため、これは §11.2 の「名称類似」ではなく EventID 構造と両側実電文による確認済み規則として登録できる。一方、VXWW50→VPWW56 は内容対応を確認したものの Kind `3`／`49` と官署 code の canonical identity が未確定、VPNO50 は実電文未観測のため、本縦切りでは両 rule を `unconfirmed` のまま維持する。
+状態: **実装済み（2026-08-23。late reconcile A 裁定・全 3 単位＋xhigh 補修・Sol xhigh 最終 GO）**。本契約は `corpus-6b-latter/raw-VPOA50/` と `corpus-6b-latter/raw-VPBS50-all/` の各 `index.jsonl` および実 XML を照合した結果に限定する。各 index.jsonl は dmdata message id と XML file の対応だけを示し、EventID、ReportDateTime、PublishingOffice、Kind 等の実値の真実源は XML 本体である。VPOA50 と VPBS50 は実 6 pair すべてで ReportDateTime、PublishingOffice、記録的短時間大雨の内容が対応し、VPBS50 の EventID は VPOA50 の EventID に `K` を前置した値だった。反例は観測していないため、これは §11.2 の「名称類似」ではなく EventID 構造と両側実電文による確認済み規則として登録できる。一方、VXWW50→VPWW56 は内容対応を確認したものの Kind `3`／`49` と官署 code の canonical identity が未確定、VPNO50 は実電文未観測のため、本縦切りでは両 rule を `unconfirmed` のまま維持する。
 
 契約変更と保存範囲:
 
