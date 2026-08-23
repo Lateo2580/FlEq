@@ -616,7 +616,12 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
               actionNowMs,
             );
           }
-          if (evaluateNotification) {
+          // VPOA50 取消だけは共通 gate 後に fail-open 表示するが、通知評価・
+          // 取消用 diagnostic / metric は増やさない。他 legacy type は既存挙動を保つ。
+          if (
+            evaluateNotification
+            && !(disposition.outcome.parsed.type === "VPOA50" && disposition.outcome.parsed.infoType === "取消")
+          ) {
             recordLegacyNotificationDisposition(
               disposition.outcome,
               emitted.notified,

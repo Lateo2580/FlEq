@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ProcessOutcome } from "../../../src/engine/presentation/types";
+import type { PresentationEvent, ProcessOutcome } from "../../../src/engine/presentation/types";
 import { classifyMessage } from "../../../src/engine/messages/route-catalog";
 import { processMessage } from "../../../src/engine/presentation/processors/process-message";
 import {
@@ -21,6 +21,7 @@ import { displayLegacyCounterpartInfo } from "../../../src/ui/legacy-counterpart
 import { buildSummaryModel } from "../../../src/ui/summary/summary-model";
 import { buildSummaryTokens } from "../../../src/ui/summary/token-builders";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
+import { playSound } from "../../../src/engine/notification/sound-player";
 import { normalizeTelegramMessage } from "../../../src/dmdata/telegram-ingress";
 import { makeProcessDeps } from "../../helpers/process-deps";
 import {
@@ -271,6 +272,21 @@ function replaceVpoaSerial(xml: string, serial: string): string {
   return xml.replace(/<Serial>1<\/Serial>/, `<Serial>${serial}</Serial>`);
 }
 
+function withLegacyInfoType(
+  message: ReturnType<typeof makeLegacyMessage>,
+  infoType: "発表" | "訂正" | "取消",
+): ReturnType<typeof makeLegacyMessage> {
+  if (message.xmlReport == null) throw new Error("fixture envelope is missing");
+  return normalizeTelegramMessage({
+    ...message,
+    xmlReport: {
+      ...message.xmlReport,
+      head: { ...message.xmlReport.head, infoType, serial: "2" },
+    },
+    meta: undefined,
+  }, message.meta?.receivedAtMs).message;
+}
+
 function createLegacyDisplay(): DisplayCallbacks {
   return {
     displayOutcome: vi.fn(),
@@ -456,6 +472,132 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     ]));
     expect(notifyMock).not.toHaveBeenCalled();
     expect(stats.getSnapshot().foundation.notified).toBe(notifiedBeforeCancellation);
+    expect(stats.getSnapshot().foundation.legacySeverityUnknownNotificationSuppressed).toBe(0);
+    expect(stats.getSnapshot().foundation.legacyCancellationMismatch).toBe(0);
+  });
+
+  it.each(["VPNO50", "VXWW50"] as const)("%s 取消は既存unknown通知抑止metricを維持してfail-openする", (type) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const result = createMessageHandler();
+    result.notifier.setAll(true);
+    const cancellation = withLegacyInfoType(makeLegacyMessage(type, `${type}-CANCEL`, `${type}:cancel`), "取消");
+
+    result.handler(cancellation);
+    vi.advanceTimersByTime(60_001);
+
+    const snapshot = result.stats.getSnapshot(Date.now());
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+    expect(snapshot.foundationByHeadType.get(type)?.legacySeverityUnknownNotificationSuppressed).toBe(1);
+    expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+  });
+
+  it("source-only VPOA50 発表 Code 1 は60秒後にqualifier付きweather/warning通知とhigh metricを一回だけ発行する", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const displayed: PresentationEvent[] = [];
+    const result = createMessageHandler({
+      displaySink: { ingest: (event) => displayed.push(event) },
+    });
+    result.notifier.setAll(true);
+    vi.mocked(playSound).mockClear();
+
+    result.handler(createMockWsDataMessage(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709));
+    expect(displayed).toHaveLength(0);
+    expect(notifyMock).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(60_001);
+
+    const snapshot = result.stats.getSnapshot(Date.now());
+    expect(displayed).toMatchObject([{ domain: "legacyCounterpart", type: "VPOA50", legacySeverity: "high" }]);
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(notifyMock.mock.calls[0][0]).toMatchObject({
+      title: expect.stringContaining("対応電文未確認"),
+      message: expect.stringContaining("対応電文未確認"),
+    });
+    expect(playSound).toHaveBeenCalledWith("warning");
+    expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(1);
+    expect(snapshot.foundation.notified).toBe(1);
+    expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyUnmatchedHighSeverityNotified).toBe(1);
+  });
+
+  it("Holdback内の実 VPOA50→VPBS50 pair はsourceを表示・通知せずVPBS50既存経路だけを一回通す", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const displayed: PresentationEvent[] = [];
+    const result = createMessageHandler({
+      displaySink: { ingest: (event) => displayed.push(event) },
+    });
+    result.notifier.setAll(true);
+    vi.mocked(playSound).mockClear();
+
+    result.handler(createMockWsDataMessage(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709));
+    result.handler(createMockWsDataMessage(FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709));
+
+    const snapshot = result.stats.getSnapshot(Date.now());
+    expect(displayed).toHaveLength(1);
+    expect(displayed[0]).toMatchObject({ domain: "briefing", type: "VPBS50" });
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(playSound).toHaveBeenCalledOnce();
+    expect(snapshot.foundation.legacyMatchedSuppressed).toBe(1);
+    expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(0);
+    expect(snapshot.foundation.notified).toBe(1);
+  });
+
+  it("無関係なVPBS50は既存briefing経路を一回だけ通りlegacy suppressionを起こさない", () => {
+    const displayed: PresentationEvent[] = [];
+    const result = createMessageHandler({ displaySink: { ingest: (event) => displayed.push(event) } });
+    result.notifier.setAll(true);
+
+    result.handler(createMockWsDataMessage(FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709));
+
+    const snapshot = result.stats.getSnapshot();
+    expect(displayed).toMatchObject([{ domain: "briefing", type: "VPBS50" }]);
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(snapshot.countByType.get("VPBS50")).toBe(1);
+    expect(snapshot.foundation.legacyMatchedSuppressed).toBe(0);
+  });
+
+  it("unknown VPOA50 は60秒後も表示だけで通知しない", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const unknownXml = replaceVpoaKindCode(
+      readFixture(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709),
+      "99",
+    );
+    const result = createMessageHandler();
+    result.notifier.setAll(true);
+
+    result.handler(withNewMessageId(phase6bVpoaMessage(unknownXml), "VPOA50:unknown"));
+    vi.advanceTimersByTime(60_001);
+
+    const snapshot = result.stats.getSnapshot(Date.now());
+    expect(notifyMock).not.toHaveBeenCalled();
+    expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(0);
+    expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(1);
+  });
+
+  it("VPOA50 Code 1 訂正は相関へ参加せず即時に訂正/qualifier付き通知を一回だけ発行する", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const correctionXml = replaceVpoaSerial(replaceVpoaInfoType(
+      readFixture(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709),
+      "訂正",
+    ), "2");
+    const result = createMessageHandler();
+    result.notifier.setAll(true);
+
+    result.handler(withNewMessageId(phase6bVpoaMessage(correctionXml), "VPOA50:correction"));
+
+    const snapshot = result.stats.getSnapshot(Date.now());
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(notifyMock.mock.calls[0][0]).toMatchObject({
+      title: expect.stringContaining("[訂正]"),
+      message: expect.stringContaining("訂正:"),
+    });
+    expect(JSON.stringify(notifyMock.mock.calls[0][0])).toContain("対応電文未確認");
+    expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(1);
+    expect(snapshot.foundation.notified).toBe(1);
   });
 
   it.each(SOURCE_TYPES)("%s は header-only parsed model を作り、body を流出させない", (type) => {

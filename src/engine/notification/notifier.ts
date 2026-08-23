@@ -1067,6 +1067,9 @@ export class Notifier {
     info: ParsedLegacyCounterpartInfo,
     isHighSeverity: boolean,
   ): boolean {
+    // VPOA50 の取消は severity rule 側でも unknown 固定だが、通知境界でも
+    // 構造的に遮断する。将来の caller / rule の誤昇格で取消を通知しないため。
+    if (info.type === "VPOA50" && info.infoType === "取消") return false;
     if (isHighSeverity !== true) return false;
     if (!this.settings.weather || this.isMuted()) return false;
     const qualifier = "対応電文未確認";

@@ -153,6 +153,29 @@ describe("Notifier", () => {
     expect(notifyMock).not.toHaveBeenCalled();
   });
 
+  it("legacy counterpart取消はcallerがhighを渡しても通知境界で拒否する", () => {
+    const info: ParsedLegacyCounterpartInfo = {
+      type: "VPOA50",
+      infoType: "取消",
+      title: "旧形式情報",
+      controlTitle: "旧形式情報",
+      reportDateTime: "2026-08-11T09:00:00+09:00",
+      headline: "見出し",
+      publishingOffice: "気象庁",
+      editorialOffice: "",
+      eventId: "CANCELLED",
+      serial: "2",
+      areas: [],
+      phenomena: [],
+      kinds: [],
+      severityEvidence: [],
+      meta: testTelegramMeta(false),
+      isTest: false,
+    };
+    expect(new Notifier().notifyLegacyCounterpart(info, true)).toBe(false);
+    expect(notifyMock).not.toHaveBeenCalled();
+  });
+
   it("legacy counterpart high訂正通知は訂正と対応電文未確認を明示し制御文字を除く", () => {
     const info: ParsedLegacyCounterpartInfo = {
       type: "VXWW50",
