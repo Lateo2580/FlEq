@@ -494,6 +494,56 @@ describe("Phase 6B unit 3: pure legacy counterpart correlator", () => {
     expect(correlator.snapshot()).toEqual(before);
   });
 
+  it.each(["訂正", "取消"] as const)("pending VPOA50 発表は%s到着でtimerごと静かに失効しdeadline後に旧payloadをreleaseしない", (infoType) => {
+    const { correlator, runtime, actions } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    const published = makeSource({
+      id: `pending-published-${infoType}`,
+      type: "VPOA50",
+      eventId: VPOA50_EVENT_ID,
+      serial: "1",
+      key: null,
+    });
+    expect(correlator.accept(published)).toMatchObject({ kind: "holdSource" });
+    expect(runtime.pendingCount()).toBe(2);
+
+    const update = makeSource({
+      id: `pending-update-${infoType}`,
+      type: "VPOA50",
+      eventId: VPOA50_EVENT_ID,
+      serial: "2",
+      infoType,
+      key: null,
+    });
+    expect(correlator.accept(update)).toMatchObject({
+      kind: "releaseSource",
+      displayLifecycleOnly: true,
+      outcome: { parsed: { infoType: "発表" } },
+      triggerOutcome: { parsed: { infoType } },
+    });
+    expect(correlator.snapshot()).toMatchObject({ sourceCount: 0, counterpartCount: 0, tombstoneCount: 0 });
+    expect(runtime.pendingCount()).toBe(0);
+    runtime.advanceBy(60_001);
+    expect(actions).toEqual([]);
+  });
+
+  it("60,001ms後のVPOA50訂正は既にreleaseした発表を失効させず自身だけfail-openする", () => {
+    const { correlator, runtime, actions } = harness({ registry: PRODUCTION_LEGACY_COUNTERPART_REGISTRY });
+    correlator.accept(makeSource({ type: "VPOA50", eventId: VPOA50_EVENT_ID, serial: "1", key: null }));
+    runtime.advanceBy(60_001);
+    expect(actions).toMatchObject([{ kind: "releaseSource", reason: "timeout", outcome: { parsed: { infoType: "発表" } } }]);
+    expect(correlator.accept(makeSource({
+      type: "VPOA50",
+      eventId: VPOA50_EVENT_ID,
+      serial: "2",
+      infoType: "訂正",
+      key: null,
+    }))).toMatchObject({
+      kind: "releaseSource",
+      reason: "releasedUpdate",
+      outcome: { parsed: { infoType: "訂正" } },
+    });
+  });
+
   it("code不一致・地名だけ相当のcode欠落・対象時刻欠落・blank-only codeは一致させない", () => {
     const mismatch = harness();
     mismatch.correlator.accept(makeCounterpart({ eventId: null, key: correlationKey({ areaCodes: ["AREA-X"] }) }));

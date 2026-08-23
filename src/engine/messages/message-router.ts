@@ -537,6 +537,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           outcome: action.outcome,
           sourceIdentity: action.sourceIdentity,
           reason: action.reason,
+          ...(action.displayLifecycleOnly === true ? { displayLifecycleOnly: true } : {}),
         }];
       case "ambiguousSource":
         return [{
@@ -590,7 +591,22 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
     const triggerOutcome = "triggerOutcome" in action ? action.triggerOutcome : undefined;
     if (triggerOutcome != null) {
-      emitAcceptedOutcome(triggerOutcome, actionNowMs);
+      const emitted = emitAcceptedOutcome(triggerOutcome, actionNowMs);
+      const invalidatedPendingSource = sourceDispositions(action).some(
+        (disposition) => disposition.kind === "releaseSource" && disposition.displayLifecycleOnly === true,
+      );
+      if (invalidatedPendingSource && triggerOutcome.domain === "legacyCounterpart") {
+        if (emitted.presented) {
+          stats.recordFoundationForHeadType(
+            triggerOutcome.parsed.type,
+            "legacyUnmatchedDisplayed",
+            actionNowMs,
+          );
+        }
+        if (!(triggerOutcome.parsed.type === "VPOA50" && triggerOutcome.parsed.infoType === "取消")) {
+          recordLegacyNotificationDisposition(triggerOutcome, emitted.notified, actionNowMs);
+        }
+      }
     }
 
     for (const disposition of sourceDispositions(action)) {
@@ -603,6 +619,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           );
           break;
         case "releaseSource": {
+          if (disposition.displayLifecycleOnly === true) break;
           const evaluateNotification = disposition.reason !== "counterpartCancelled";
           const emitted = emitAcceptedOutcome(
             disposition.outcome,

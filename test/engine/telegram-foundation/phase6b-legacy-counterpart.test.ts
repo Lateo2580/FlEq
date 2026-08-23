@@ -493,6 +493,76 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
   });
 
+  it.each(["訂正", "取消"] as const)("pending VPOA50 発表→%s は旧発表を静かに失効しdeadline後も再表示・再通知しない", (infoType) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const normalXml = readFixture(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const updateXml = replaceVpoaSerial(replaceVpoaInfoType(normalXml, infoType), "2");
+    const display = createLegacyDisplay();
+    const { handler, notifier, stats } = createMessageHandler({ display });
+    notifier.setAll(true);
+
+    handler(withNewMessageId(phase6bVpoaMessage(normalXml), `pending:${infoType}:normal`));
+    handler(withNewMessageId(phase6bVpoaMessage(updateXml), `pending:${infoType}:update`));
+    vi.advanceTimersByTime(60_001);
+
+    const snapshot = stats.getSnapshot(Date.now());
+    expect(display.displayOutcome).toHaveBeenCalledOnce();
+    expect(display.displayOutcome).toHaveBeenCalledWith(expect.objectContaining({
+      parsed: expect.objectContaining({ infoType }),
+    }));
+    expect(notifyMock).toHaveBeenCalledTimes(infoType === "訂正" ? 1 : 0);
+    expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+    expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(infoType === "訂正" ? 1 : 0);
+    expect(snapshot.foundation.legacySeverityUnknownNotificationSuppressed).toBe(0);
+    expect(snapshot.foundation.notified).toBe(infoType === "訂正" ? 1 : 0);
+  });
+
+  it("pending発表→訂正のsemantic replayは旧timerも訂正通知も再実行しない", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const normalXml = readFixture(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const correctionXml = replaceVpoaSerial(replaceVpoaInfoType(normalXml, "訂正"), "2");
+    const display = createLegacyDisplay();
+    const { handler, notifier, stats } = createMessageHandler({ display });
+    notifier.setAll(true);
+    handler(withNewMessageId(phase6bVpoaMessage(normalXml), "pending:replay:normal"));
+    const correction = withNewMessageId(phase6bVpoaMessage(correctionXml), "pending:replay:correction");
+    handler(correction);
+    handler(withNewMessageId(correction, "pending:replay:semantic-replay"));
+    vi.advanceTimersByTime(60_001);
+
+    const snapshot = stats.getSnapshot(Date.now());
+    expect(display.displayOutcome).toHaveBeenCalledOnce();
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(snapshot.foundation.semanticDuplicate).toBe(1);
+    expect(snapshot.foundation.legacyUnmatchedHighSeverityNotified).toBe(1);
+    expect(snapshot.foundation.legacyUnmatchedDisplayed).toBe(1);
+  });
+
+  it("restart後の空cacheで訂正を受けても失効済みpending発表をreleaseしない", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));
+    const normalXml = readFixture(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const correctionXml = replaceVpoaSerial(replaceVpoaInfoType(normalXml, "訂正"), "2");
+    const oldDisplay = createLegacyDisplay();
+    const old = createMessageHandler({ display: oldDisplay });
+    old.notifier.setAll(true);
+    old.handler(withNewMessageId(phase6bVpoaMessage(normalXml), "restart:pending"));
+    old.disposeLegacyCounterpartCorrelator();
+    vi.advanceTimersByTime(60_001);
+    expect(oldDisplay.displayOutcome).not.toHaveBeenCalled();
+
+    const newDisplay = createLegacyDisplay();
+    const restarted = createMessageHandler({ display: newDisplay });
+    restarted.notifier.setAll(true);
+    restarted.handler(withNewMessageId(phase6bVpoaMessage(correctionXml), "restart:correction"));
+    vi.advanceTimersByTime(60_001);
+    expect(newDisplay.displayOutcome).toHaveBeenCalledOnce();
+    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(restarted.stats.getSnapshot(Date.now()).foundation.legacyUnmatchedHighSeverityNotified).toBe(1);
+  });
+
   it("source-only VPOA50 発表 Code 1 は60秒後にqualifier付きweather/warning通知とhigh metricを一回だけ発行する", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-22T17:09:00+09:00"));

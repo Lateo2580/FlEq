@@ -30,7 +30,7 @@ export interface LegacyCounterpartTimerScheduler {
 
 export type LegacyCounterpartAffectedSource =
   | { kind: "suppressSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; counterpartOutcome: ProcessOutcome }
-  | { kind: "releaseSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; reason: "timeout" | "counterpartCancelled" | "correlatorCapacityExceeded" | "releasedUpdate" }
+  | { kind: "releaseSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; reason: "timeout" | "counterpartCancelled" | "correlatorCapacityExceeded" | "releasedUpdate"; displayLifecycleOnly?: boolean }
   | { kind: "ambiguousSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; candidateCount: number; ambiguityReason?: "multipleCandidates" | "multipleSources" }
   | { kind: "reconcileLateCounterpart"; outcome: ProcessOutcome; sourceOutcome: LegacyCounterpartOutcome; sourceIdentity: string };
 
@@ -44,7 +44,7 @@ type LegacyCounterpartActionPayload =
   | { kind: "emitNow"; outcome: ProcessOutcome; reason: "unrelated" }
   | { kind: "holdSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; deadlineMs: number }
   | ({ kind: "suppressSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; counterpartOutcome: ProcessOutcome; triggerOutcome?: ProcessOutcome } & LegacyCounterpartBatch)
-  | ({ kind: "releaseSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; reason: "timeout" | "counterpartCancelled" | "correlatorCapacityExceeded" | "releasedUpdate"; triggerOutcome?: ProcessOutcome; candidateCount?: number } & LegacyCounterpartBatch)
+  | ({ kind: "releaseSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; reason: "timeout" | "counterpartCancelled" | "correlatorCapacityExceeded" | "releasedUpdate"; triggerOutcome?: ProcessOutcome; candidateCount?: number; displayLifecycleOnly?: boolean } & LegacyCounterpartBatch)
   | ({ kind: "ambiguousSource"; outcome: LegacyCounterpartOutcome; sourceIdentity: string; candidateCount: number; ambiguityReason?: "multipleCandidates" | "multipleSources"; triggerOutcome?: ProcessOutcome } & LegacyCounterpartBatch)
   | ({ kind: "reconcileLateCounterpart"; outcome: ProcessOutcome; sourceOutcome: LegacyCounterpartOutcome; sourceIdentity: string } & LegacyCounterpartBatch);
 
@@ -434,12 +434,17 @@ export class LegacyCounterpartCorrelator {
     if (rule == null) return this.decide({ kind: "emitNow", outcome, reason: "unrelated" });
     const meta = outcome.parsed.meta;
     if (!isEligibleForCorrelation(rule, meta)) {
+      const id = sourceIdentity(outcome);
+      const invalidated = this.invalidatePendingPublishedSource(id);
       return this.decide({
         kind: "releaseSource",
-        outcome,
-        sourceIdentity: sourceIdentity(outcome),
+        outcome: invalidated?.outcome ?? outcome,
+        sourceIdentity: id,
         reason: "releasedUpdate",
         candidateCount: 0,
+        ...(invalidated == null
+          ? {}
+          : { displayLifecycleOnly: true, triggerOutcome: outcome }),
       });
     }
     const revision = strictRevisionIdentity(meta);
@@ -772,6 +777,7 @@ export class LegacyCounterpartCorrelator {
           outcome: action.outcome,
           sourceIdentity: action.sourceIdentity,
           reason: action.reason,
+          ...(action.displayLifecycleOnly === true ? { displayLifecycleOnly: true } : {}),
         };
       case "ambiguousSource":
         return {
@@ -810,6 +816,21 @@ export class LegacyCounterpartCorrelator {
       record.rule === rule
       && correlationMatches(rule, sourceMeta, sourceKey, record.meta, record.key),
     );
+  }
+
+  /** 非対象訂正／取消が同 subject の pending 発表を静かに失効させる。 */
+  private invalidatePendingPublishedSource(id: string): SourceRecord | null {
+    const record = this.sources.get(id);
+    if (record == null || record.status !== "pending" || record.meta.infoType.value !== "発表") {
+      return null;
+    }
+    this.sources.delete(id);
+    record.generation += 1;
+    this.clearTimer(record.holdTimer);
+    this.clearTimer(record.expiryTimer);
+    record.holdTimer = null;
+    record.expiryTimer = null;
+    return record;
   }
 
   private recomputeSource(
