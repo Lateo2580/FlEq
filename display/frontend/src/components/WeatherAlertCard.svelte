@@ -9,7 +9,7 @@
   import RestoredChip from "./RestoredChip.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
-  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false }: {
+  let { alerts, tornado = null, pageCoordinator: suppliedPageCoordinator, rotationMember = false, pageScheduling = false, partitionProbe, pagePlacement = "side", measurementRange, measurementPageFooter = false, measurementTornadoRange, tornadoPageIndex, tornadoPageCount, tornadoPending = false, tornadoAggregatePending = false, tornadoInfeasible = null }: {
     alerts: DisplayWeatherAlertV1[];
     tornado?: Extract<ActiveStandbyCardV1, { kind: "tornado" }> | null;
     pageCoordinator?: CardPageCoordinator;
@@ -22,6 +22,17 @@
     measurementRange?: PageRange;
     /** This is a non-scheduled ordinary-variant shelf, not a live card. */
     measurementPageFooter?: boolean;
+    /** A forced rider probe renders only this tornado-area range. */
+    measurementTornadoRange?: PageRange;
+    /** The published tornado pager coordinates; shelves may provide these directly. */
+    tornadoPageIndex?: number;
+    tornadoPageCount?: number;
+    /** A provisional rider range is still readable, but not yet registered. */
+    tornadoPending?: boolean;
+    /** The aggregate fallback is on the shelf but its fit result is not confirmed. */
+    tornadoAggregatePending?: boolean;
+    /** The rider-side result of the aggregate then clip infeasible defence. */
+    tornadoInfeasible?: "aggregate" | "clip" | null;
   } = $props();
   const initialPageCoordinator = untrack(() => suppliedPageCoordinator);
   const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
@@ -247,6 +258,39 @@
         : "",
   );
 
+  const tornadoAreas = $derived(tornado?.data.areas ?? []);
+  // A forced shelf must never fall back to the complete rider while a probe is
+  // pending.  Live wiring supplies the published range in U4; until then the
+  // ordinary one-page card is the complete [0, N) range.
+  const activeTornadoRange = $derived(measurementTornadoRange ?? (tornadoPending
+    ? { start: 0, end: Math.min(1, tornadoAreas.length), tails: [], omittedAreaCount: 0 }
+    : { start: 0, end: tornadoAreas.length, tails: [], omittedAreaCount: 0 }));
+  const visibleTornadoAreas = $derived(tornadoAreas.slice(activeTornadoRange.start, activeTornadoRange.end));
+  const inferredTornadoPage = $derived(activeTornadoRange.start > 0 ? 2 : 1);
+  const inferredTornadoPageCount = $derived(
+    activeTornadoRange.end < tornadoAreas.length ? inferredTornadoPage + 1 : inferredTornadoPage,
+  );
+  const resolvedTornadoPage = $derived(tornadoPageIndex ?? inferredTornadoPage);
+  const resolvedTornadoPageCount = $derived(tornadoPageCount ?? inferredTornadoPageCount);
+  const showTornadoPageMarker = $derived(tornado != null && tornadoInfeasible == null && resolvedTornadoPageCount > 1);
+  const tornadoPagingContract = $derived(
+    tornado != null && (tornadoPending || tornadoAggregatePending || tornadoInfeasible != null || resolvedTornadoPageCount > 1),
+  );
+  // A weather 1/1 truncation has always retained its natural height.  Only
+  // actual weather paging, its unsettled probe, or its infeasible fallback
+  // enters the fixed shell contract.
+  const weatherPagingContract = $derived(
+    weatherPages.length > 1 || pagePartition.pending.length > 0 || pagePartition.infeasible,
+  );
+  const hasPagingContract = $derived(weatherPagingContract || tornadoPagingContract);
+  const tornadoRiderText = $derived(
+    tornadoInfeasible === "aggregate"
+      ? `竜巻注意情報（対象 ${tornadoAreas.length} 地域）`
+      : tornadoInfeasible === "clip"
+        ? `竜巻注意情報（対象 ${tornadoAreas.length} 地域…）`
+        : `竜巻${tornado?.data.isSighted ? "目撃情報" : "注意情報"}（${visibleTornadoAreas.length > 0 ? visibleTornadoAreas.join("、") : "対象地域"}）`,
+  );
+
   const displayItems = $derived.by(() => {
     return visibleItems.map((item) => ({
       item,
@@ -261,20 +305,25 @@
 
 {#if alerts.length > 0 || tornado != null}
   <div
-    class="weather-card" class:has-page-footer={showPageIndicator} class:has-tornado={tornado != null}
+    class="weather-card" class:has-page-footer={showPageIndicator} class:has-tornado={tornado != null} class:paging-contract={hasPagingContract}
     data-card-page={pageDiagnostics.page}
     data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
     data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
     data-card-page-truncated={pageTruncated ? "true" : "false"}
     data-partition-probe-count={pagePartition.probeCount}
     data-card-page-infeasible={pagePartition.infeasible ? "true" : "false"}
-    data-page-probe-card={measurementRange != null ? "" : undefined}
+    data-card-page-pending={pagePartition.pending.length > 0 ? "true" : "false"}
+    data-page-probe-card={measurementRange != null || measurementTornadoRange != null ? "" : undefined}
+    data-tornado-page-range={tornado == null ? undefined : `${activeTornadoRange.start}:${activeTornadoRange.end}`}
+    data-tornado-page-pending={tornado == null ? undefined : String(tornadoPending)}
+    data-tornado-page-infeasible={tornado == null ? undefined : tornadoInfeasible ?? "false"}
+    data-tornado-page-fallback={tornado == null ? undefined : tornadoInfeasible ?? (tornadoAggregatePending ? "aggregate-pending" : "false")}
   >
     <div
       class="card-header"
       style="background: {headerContainerVar(topRole)}; color: {headerOnVar(topRole)}; border-bottom: var(--header-band-width) solid {headerBandVar(topRole)}"
     >{headerLabel(topRole, alerts)}<UpdatedStamp iso={latestUpdatedAt} /></div>
-    {#if alerts.length > 0}<ul data-page-probe-body>
+    {#if alerts.length > 0}<ul data-page-probe-body data-page-probe-readable>
       {#each displayItems as entry (entry.item.kindKey)}
         <li class="rank-{entry.item.rank}" data-kind-key={entry.item.kindKey}>
           <span class="kind">{entry.item.kind}</span>
@@ -298,7 +347,7 @@
       {/each}
     </ul>{/if}
     {#if showPageIndicator}<div class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></div>{/if}
-    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider">⚠ {tornado.data.isSighted ? "竜巻目撃情報" : "竜巻注意情報"}（{tornado.data.areas.length > 0 ? tornado.data.areas.join("、") : "対象地域"}）{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
+    {#if tornado != null}<div class:sighted={tornado.data.isSighted} class="tornado-rider" data-page-probe-readable>⚠ {tornadoRiderText}{#if showTornadoPageMarker}<span class="tornado-page-marker" data-tornado-page-marker>対象地域 {resolvedTornadoPage}/{resolvedTornadoPageCount}</span>{/if}{#if tornado.restored}<RestoredChip />{/if}</div>{/if}
   </div>
 {/if}
 
@@ -315,6 +364,12 @@
     display: flex;
     flex-direction: column;
     color: var(--fg);
+  }
+  /* Paging, provisional probes, and either infeasible fallback share the same
+     outer shell budget.  This is intentionally a height, not a measurement
+     derived from contents, so confirmation cannot make the card jump. */
+  .weather-card.paging-contract {
+    height: min(44vh, 280px);
   }
   .weather-card.has-page-footer {
     /* label-xs 12px at line-height:1 + 1px block padding + 1px border on each side. */
@@ -345,6 +400,7 @@
     font-size: max(14px, var(--type-label-l-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
   }
   .tornado-rider { border-top: 1px solid var(--hairline); padding: var(--space-2) var(--space-4); color: var(--role-weatherWarning); font-size: max(14px, var(--type-label-l-fluid)); font-weight: var(--type-body-weight-emphasized); }
+  .tornado-page-marker { display: inline; margin-inline-start: 0.5em; white-space: nowrap; font-size: var(--type-label-xs-size); font-weight: var(--type-body-weight-regular); color: var(--role-muted); }
   /* The zero-height footer paints downward into a real gap immediately above
      the rider. Fund that gap from existing fixed vertical whitespace so the
      weather card's measured height stays identical: ul -10px + rider -6px +

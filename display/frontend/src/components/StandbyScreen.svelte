@@ -856,12 +856,21 @@
       if (entry?.purpose === "page") {
         const body = node.querySelector<HTMLElement>("[data-page-probe-body]");
         const card = node.querySelector<HTMLElement>("[data-page-probe-card]") ?? body;
-        // 縦はページ番号・残置行・rider を含むカード全体、横は多段組の地域リストで判定する。
-        // column-count の第3列以降は scrollHeight に現れないため、scrollWidth も必須。
-        const cardFitsVertically = card == null || card.clientHeight === 0 || card.scrollHeight <= card.clientHeight + 1;
-        const bodyFitsVertically = body == null || body.clientHeight === 0 || body.scrollHeight <= body.clientHeight + 1;
-        const fitsHorizontally = body == null || body.clientWidth === 0 || body.scrollWidth <= body.clientWidth + 1;
-        const fits = cardFitsVertically && bodyFitsVertically && fitsHorizontally;
+        // The whole shell owns vertical budget (footer and rider included).
+        // Every separately readable viewport owns both axes; a zero box is an
+        // unmeasured shelf, never evidence of fit.
+        const readable = [...(card?.querySelectorAll<HTMLElement>("[data-page-probe-readable]") ?? [])];
+        const readableRegions = readable.length > 0 ? readable : body == null ? [] : [body];
+        const measured = card != null && card.clientHeight > 0 && readableRegions.length > 0
+          && readableRegions.every((region) => region.clientHeight > 0 && region.clientWidth > 0);
+        if (!measured) {
+          delete nextPrefixes[id];
+          continue;
+        }
+        const cardFitsVertically = card.scrollHeight <= card.clientHeight + 1;
+        const readableFit = readableRegions.every((region) => region.scrollHeight <= region.clientHeight + 1
+          && region.scrollWidth <= region.clientWidth + 1);
+        const fits = cardFitsVertically && readableFit;
         nextPrefixes[id] = measurementOverride?.[id] ?? genericOverride ?? (entry.key === "flood"
           ? floodPartitionProbeSentinel(fits, entry.fixedHeightPx ?? 0)
           : (fits ? 0 : 2));

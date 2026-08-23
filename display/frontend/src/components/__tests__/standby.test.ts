@@ -1569,9 +1569,19 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     vi.stubGlobal("ResizeObserver", TestResizeObserver);
     Object.defineProperty(HTMLElement.prototype, "clientHeight", {
       configurable: true,
-      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 10 : 0; },
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? 100 : this.matches("[data-page-probe-body]") ? 10 : 0; },
     });
     Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : this.matches("[data-page-probe-card]") ? 100 : 0; },
+    });
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
       configurable: true,
       get(this: HTMLElement): number { return this.matches("[data-page-probe-body]") ? 100 : 0; },
     });
@@ -1598,6 +1608,10 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
       if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
       else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      if (clientWidth == null) delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      else Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
+      if (scrollWidth == null) delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
+      else Object.defineProperty(HTMLElement.prototype, "scrollWidth", scrollWidth);
       vi.unstubAllGlobals();
     }
   });
@@ -1615,7 +1629,7 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
     vi.stubGlobal("ResizeObserver", TestResizeObserver);
     Object.defineProperty(HTMLElement.prototype, "clientHeight", {
       configurable: true,
-      get(this: HTMLElement): number { return this.matches("[data-page-probe-card]") ? 100 : 0; },
+      get(this: HTMLElement): number { return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 100 : 0; },
     });
     Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
       configurable: true,
@@ -1650,6 +1664,30 @@ describe("StandbyScreen prefix probes and fixed-center geometry", () => {
       else Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
       if (scrollWidth == null) delete (HTMLElement.prototype as { scrollWidth?: number }).scrollWidth;
       else Object.defineProperty(HTMLElement.prototype, "scrollWidth", scrollWidth);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("zero-size の readable probe は fit にせず pending のまま保留する", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    try {
+      const { container } = render(StandbyScreen, {
+        snapshot: baseSnapshot({ weatherAlerts: [weather({ items: [{
+          kind: "大雨警報", displaySeverity: "warning", rank: "warning", shownAreas: ["A"], omittedAreaCount: 1,
+        }] })] }),
+        now, dim: false, sseConnected: true,
+        testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 10_000, baselineGapPx: 10 },
+      });
+      for (let pass = 0; pass < 16; pass += 1) await tick();
+      const card = container.querySelector<HTMLElement>(".legacy-layout .weather-card");
+      expect(card?.dataset.cardPagePending).toBe("true");
+      expect(card?.dataset.cardPageInfeasible).toBe("false");
+    } finally {
       vi.unstubAllGlobals();
     }
   });
