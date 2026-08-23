@@ -950,6 +950,7 @@ describe("StandbyScreen preserved standby behaviour", () => {
       "flood:page-fit:0:1:placement:side:form:wide": 0,
     };
     const widthsOnly = { sideMeasureShelfWidthPx: 320, centerMeasureShelfWidthPx: 480 };
+    const zeroWidths = { sideMeasureShelfWidthPx: 0, centerMeasureShelfWidthPx: 0 };
     const wideFail = {
       ...widthsOnly,
       "flood:page-fit:0:1:placement:center:form:wide": 10_000,
@@ -965,7 +966,7 @@ describe("StandbyScreen preserved standby behaviour", () => {
 
       await view.rerender({
         snapshot: baseSnapshot({ standbyItems: [{ ...initial, data: { rivers: initial.data.rivers.map((river) => ({ ...river, station: { name: "更新", levelM: 2, trend: null, thresholdLabel: null } })) } }] }),
-        now, dim: false, sseConnected: true, testMeasurementOverride: widthsOnly,
+        now, dim: false, sseConnected: true, testMeasurementOverride: zeroWidths,
       });
       for (let pass = 0; pass < 4; pass += 1) await tick();
       expect(view.container.querySelector(".legacy-layout .flood-wide-card")).toBeTruthy();

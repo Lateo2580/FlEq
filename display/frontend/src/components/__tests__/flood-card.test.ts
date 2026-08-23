@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import FloodCard from "../FloodCard.svelte";
+import FloodWideCard from "../FloodWideCard.svelte";
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1, DisplayFloodStationV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 
@@ -60,9 +61,7 @@ describe("FloodCard", () => {
     coordinator.dispose();
   });
 
-  it.each([
-    ["compact", 320], ["wide", 400],
-  ] as const)("uses the %s contract at the side/center fit boundary", async (_form, height) => {
+  it.each([320, 400] as const)("uses the compact %ipx contract at the side/center fit boundary", async (height) => {
     for (const placement of ["side", "center"] as const) {
       const coordinator = createCardPageCoordinator();
       const probes: number[] = [];
@@ -73,6 +72,22 @@ describe("FloodCard", () => {
       await tick();
       expect(view.container.querySelector<HTMLElement>(".flood-card")?.dataset.cardPageInfeasible).toBe("false");
       expect(probes).toContain(height);
+      view.unmount(); coordinator.dispose();
+    }
+  });
+
+  it("uses FloodWideCard's 30vh shell, footer, and station content at the 400px side/center boundary", async () => {
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 400 / 0.3 });
+    for (const placement of ["side", "center"] as const) {
+      const coordinator = createCardPageCoordinator();
+      const view = render(FloodWideCard, {
+        item: { ...floodItem([river("r1", "L4", { name: "観測", levelM: 3.2, trend: "rising", thresholdLabel: "危険" })]), surface: "clock-top-wide" },
+        pageCoordinator: coordinator, pageScheduling: true, pagePlacement: placement, measurementFixedHeightPx: 400,
+        partitionProbe: (_key, _placement, range) => range.end - range.start <= 1 ? 400 : 401,
+      });
+      await tick();
+      expect(view.container.querySelector(".flood-wide-card")?.textContent).toContain("観測");
+      expect(view.container.querySelector("[data-card-page-footer]")).toBeNull();
       view.unmount(); coordinator.dispose();
     }
   });

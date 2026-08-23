@@ -333,18 +333,21 @@ function assertRotationDiagnostics(diagnostics, rotationTick) {
   if (viewport <= 0 || footer <= 0 || overlap > 0) throw new Error(`rotation viewport/footer geometry invalid: viewport=${viewport}, footer=${footer}, overlap=${overlap}`);
 }
 
+const FLOOD_NONE = { floodForm: "none", floodPage: "0/0", floodPageKeys: "[]", floodPageIdentities: "[]", floodPageFooter: "false", floodVisibleCount: "0", floodInfeasible: "false" };
+const FLOOD_CARD_TWO = { floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫危険情報|大淀川|0|code:8303040001","氾濫警戒情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "2", floodInfeasible: "false" };
+const FLOOD_CARD_ONE = { floodForm: "card", floodPage: "1/1", floodPageKeys: '["大淀川"]', floodPageIdentities: '["氾濫危険情報|大淀川|0|code:8303040001"]', floodPageFooter: "false", floodVisibleCount: "3", floodInfeasible: "false" };
 const FLOOD_WIDE_EXPECTATIONS = {
-  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
-  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 10, n: 14 } } }, surplus: "7" },
+  "1920x1080": { stage: "1", rotationKeys: "", typhoonVariant: "compact", floodForm: "wide", floodPage: "1/2", floodPageKeys: '["大淀川","一ツ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫警戒情報|一ツ瀬川|0|code:8303040005"]', floodPageFooter: "true", floodVisibleCount: "4", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 24, n: 0 } } }, surplus: "21" },
+  "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", typhoonVariant: "compact", floodForm: "card", floodPage: "1/2", floodPageKeys: '["大淀川","五ヶ瀬川"]', floodPageIdentities: '["氾濫発生情報|大淀川|0|code:8303040001","氾濫危険情報|五ヶ瀬川|0|code:8303040003"]', floodPageFooter: "true", floodVisibleCount: "2", floodInfeasible: "false", expandedCounts: { quake: { count: 4, n: 3 }, weather: { "大雨警報(土砂災害)": { count: 10, n: 14 } } }, surplus: "7" },
 };
 
 // §5 / §11.1 fixed tables. --report emits this comparison without mutating
 // either source of truth, so a newly measured table needs an explicit ruling.
 const TABLE_EXPECTATIONS = {
-  quiet: { "1920x1080": { stage: "0", rotationKeys: "" }, "1512x982": { stage: "0", rotationKeys: "" }, "1280x720": { stage: "0", rotationKeys: "" }, "960x620": { stage: "0", rotationKeys: "" } },
-  "4": { "1920x1080": { stage: "0", rotationKeys: "" }, "1512x982": { stage: "0", rotationKeys: "" }, "1280x720": { stage: "1", rotationKeys: "" }, "960x620": { stage: "2", rotationKeys: "" } },
-  "7": { "1920x1080": { stage: "0", rotationKeys: "" }, "1512x982": { stage: "0", rotationKeys: "" }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat" }, "960x620": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat" } },
-  max: { "1920x1080": { stage: "1", rotationKeys: "" }, "1512x982": { stage: "1", rotationKeys: "" }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat" }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat" } },
+  quiet: { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "0", rotationKeys: "", ...FLOOD_NONE } },
+  "4": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_NONE }, "1280x720": { stage: "1", rotationKeys: "", ...FLOOD_NONE }, "960x620": { stage: "2", rotationKeys: "", ...FLOOD_NONE } },
+  "7": { "1920x1080": { stage: "0", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "0", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE }, "960x620": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE } },
+  max: { "1920x1080": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1512x982": { stage: "1", rotationKeys: "", ...FLOOD_CARD_TWO }, "1280x720": { stage: "3", rotationKeys: "flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE }, "960x620": { stage: "3", rotationKeys: "weather,flood,typhoon,volcano,heat", ...FLOOD_CARD_ONE, floodVisibleCount: "0" } },
 };
 // §11.1 C, keyed independently of the §5 ladder table. Keeping the measured
 // payload here makes --report reject a stage match with stale expansion data.
