@@ -41,7 +41,7 @@
 - `CardPageCoordinator` は `PageableKey` の全 record、`realKeys()`、diagnostics、dispose、mock 独立実装を tornado まで拡張する。`PageableKey` を列挙する全箇所を型で網羅する。
 - registration に `appearanceHost?: CardKey` を追加する。tornado の logical host は `weather` とし、`recordRotationAppearance("weather")` は host=weather の dependent pager を 1 回進める。weather が 1 page でも tornado が P>1 なら進める。
 - weather 常駐時は tornado real mode（15 秒 tick）、weather rotation member 時は logical mode（weather 再登場時だけ 1 step）とする。非表示中は進めない。weather/tornado 双方が複数 page でも、それぞれの mode / active identity は独立に維持する。
-- epoch hold 中の appearance は既存と同じく保留し、layout motion 解放後に 1 回だけ反映する。`pageScheduling=false` の計測棚・単体 component は registration も page timer も開始しない。消滅 / unmount は tornado を unregister する。
+- epoch hold 中の appearance は既存と同じく保留し、layout motion 解放後に 1 回だけ反映する。`pageScheduling=false` の計測棚・単体 component は registration も page timer も開始しない。tornado の unregister は**実消滅時のみ**（snapshot から tornado item が消えたとき、親 StandbyScreen が行う）。placement remount（side/center/rotation の keyed block 移動）では unregister せず active identity・位相・pending appearance を維持する。
 
 ### 3.4 カード、fit、計測順
 
