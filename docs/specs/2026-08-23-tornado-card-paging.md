@@ -1,6 +1,6 @@
-# spec: 竜巻注意情報カード内ページ送り（draft v0.2, 2026-08-23）
+# spec: 竜巻注意情報カード内ページ送り（draft v0.3, 2026-08-23）
 
-> v0.1 → v0.2: 独立 Sol high レビューの blocking / major を反映。共通 paging/probe key、契約高、複数 readable region の fit、infeasible 多段防衛、`--report` の host/epoch 番兵を追加した。D1〜D4 はご主人裁定待ちであり、推奨は実装決定ではない。
+> v0.2 → v0.3: D2-B の `first` 診断値と、D4-C の `false→true` 専用 reset 機構を明記。D1〜D4 はご主人裁定待ちであり、推奨は実装決定ではない。
 
 ## §1 背景・目的
 
@@ -27,7 +27,7 @@
 - layout の `CardKey` は変更しない。新設する `PagePartitionKey` は **layout card と dependent rider を区別せず partition / measurement だけで使う共通型**とし、`CardKey | "tornado"` とする。別途 `PageableKey = "quake" | "weather" | "flood" | "tornado"` を coordinator の record 用に定義する。
 - `page-partition.ts` の `PartitionProbe` / `sequentialPartitionRanges()` / probe id、`types.ts` の `PageMeasureEntry.key` / `PartitionResult.pending`、StandbyScreen の `PrefixCardKey` / `PrefixMeasureEntry` / `pagePartitionProbe()` / forced-probe dispatch を `PagePartitionKey` へ通す。`CardKey` が必要な layout / solver / rotation API には渡さない。
 - `tornadoPageAreaEntries(areas)` は `{kindKey:"tornado", area, occurrenceIndex}` を出す。同名地域も削らず、出現順の occurrence で `pageIdentity()` を一意にする。wire に area code はない。
-- resetKey は順序付き地域列を必須とし、D4-A なら地域列のみ、D4-B なら `isSighted` を含む、D4-C なら `false→true` のときだけ変化する条件付き key とする。内容更新だけで再分割して active identity が消えたときは、既存 successor-after-removal に遷移し、1 ページ目 reset と混同しない。
+- resetKey は順序付き地域列を必須とし、D4-A なら地域列のみ、D4-B なら `isSighted` を含む。D4-C は `isSighted` を resetKey に直結せず、前状態を持つ escalation generation（`false→true` 時だけ更新）または同等の明示 `forceReset` 契約で reset を要求する。`true→false` は同じ generation / `forceReset=false` を維持し、単純な key 差分による再 reset を起こさない。内容更新だけで再分割して active identity が消えたときは、既存 successor-after-removal に遷移し、1 ページ目 reset と混同しない。
 
 ### 3.2 rider を含むカードの契約高
 
@@ -54,7 +54,7 @@
 
 - pending は partition の provisional range を描画する。全件 rider へ戻さず、scheduler registration は旧 confirmed state のままにする。
 - 確定して 1 地域 range も fail したとき、D2-A では (i) aggregate fallback `竜巻注意情報（対象 N 地域）` を forced probe、(ii) aggregate fit なら `infeasible=aggregate`、(iii) aggregate も fail なら契約高内の固定最終 clip / ellipsis を出し `infeasible=clip` とする。最終 clip は「全地域を読めた」と扱わない。
-- D2-B を選ぶ場合も、先頭 1 地域を含む fallback を probe し、fail 時は同じ最終 `clip` へ落とす。empty / cancellation は既存 state の責務であり fallback を起動しない。
+- D2-B を選ぶ場合は、先頭 1 地域を含む fallback を probe し、fit なら `infeasible=first`、fail 時は同じ最終 `infeasible=clip` へ落とす。empty / cancellation は既存 state の責務であり fallback を起動しない。
 
 ### 3.6 診断・`--report` 契約
 
@@ -89,13 +89,13 @@
 
 - 案 A: 地域列だけを resetKey とし、`isSighted` の上下変化では reset しない。
 - 案 B: `isSighted` の上下どちらの変化でも reset する。
-- 案 C: **`false→true` の危険側変化だけ** reset、`true→false` は active page を維持する。
+- 案 C: **`false→true` の危険側変化だけ** reset、`true→false` は active page を維持する。これは単純な resetKey の値切替では実現しない。前回の `isSighted` を比較して増分時だけ escalation generation を進める、または coordinator registration に当該遷移だけを示す `forceReset` を渡す機構を実装単位で選ぶ。
 - **推奨: 案 C**。危険度上昇は先頭地域から再提示し、解除側は読む途中のページを不用意に巻き戻さない。
 
 ## §5 実装単位
 
 1. **型基盤**: `PagePartitionKey` / `PageableKey` を導入し、page-partition、types の `PageMeasureEntry`、probe id、StandbyScreen measurement entry / dispatch の全経路を layout `CardKey` から分離する。scheduler と mock の全 key record を tornado まで拡張する。
-2. **identity / coordinator**: tornado identity adapter、D4 条件付き resetKey、appearance host、real/logical / epoch hold / successor の unit test。
+2. **identity / coordinator**: tornado identity adapter、D4 条件付き reset（C は stateful escalation generation または明示 `forceReset`）、appearance host、real/logical / epoch hold / successor の unit test。
 3. **WeatherAlertCard と契約高**: tornado range、複数 readable probe body、D3 marker、§3.2 の固定 outer height を追加する。weather+tornado の safety envelope と pending / infeasible 三段防衛を component test する。
 4. **StandbyScreen 配線**: side / center preflight、合成 forced probes、非振動の publish 順、solver selected/measured height・rotation reserve・pageFixedHeight の同値接続、overflow / marker overlap 診断を実装する。
 5. **preview / `--report`**: LegacyImprovedMock 独立経路、fixture、平坦 tornado 番兵、capture allowlist、期待表 / assertion を更新する。
@@ -117,12 +117,12 @@
 - [ ] tornado P page の常駐表示は **15×P 秒以内**に全地域を 1 回表示する。weather rotation set が R 枚なら **15×R×P 秒以内**に表示する。
 - [ ] host weather が 1 page、tornado が P>1 の logical case、weather / tornado の双方が複数 page の case、side / center の各 case を観測する。非表示中の tornado advance はない。
 - [ ] epoch hold 中の host appearance は layout motion 解放後にちょうど 1 step だけ反映し、`host/mode/pending-appearance` 番兵で観測できる。
-- [ ] 集合・順序変更と D4 が要求する `isSighted` 変化は reset。同一 resetKey の再分割で active identity が消えた場合は successor-after-removal へ遷移し、先頭 reset を起こさない。
+- [ ] 集合・順序変更と D4-A/B が要求する `isSighted` 変化は reset。D4-C では `false→true` だけ reset、`true→false` は active page を維持する。同一 resetKey / escalation generation の再分割で active identity が消えた場合は successor-after-removal へ遷移し、先頭 reset を起こさない。
 - [ ] 全 live weather/tornado 組成を probe、またはそれを安全側に包含する envelope を probe する。未測定の組成を fit とせず、publish / registration は確定結果だけで 1 回行われ settle oscillation を起こさない。
 
 ### marker、infeasible、番兵・回帰
 
 - [ ] 1 page は marker なし、複数 page は D3 の裁定どおりの DOM・位置・ラベルを出す。marker 同士、weather body、rider text の overlap は全て 0。
-- [ ] 1 地域 fail → D2 fallback probe → fallback 自身が fail なら最終 clip の多段防衛を通し、`data-tornado-page-infeasible` が `aggregate` / `clip` を正しく区別する。
+- [ ] 1 地域 fail → D2 fallback probe → fallback 自身が fail なら最終 clip の多段防衛を通す。D2-A では `data-tornado-page-infeasible` が `aggregate` / `clip`、D2-B では `first` / `clip` を正しく区別する。
 - [ ] `data-tornado-page*`、host / mode / pending-appearance は capture allowlist と期待表を通って `--report` で検証され、quake / weather / flood 番兵と衝突しない。
 - [ ] StandbyScreen、WeatherAlertCard、page-partition、time-slice scheduler、LegacyImprovedMock、capture `--report` の関連検査がグリーン。共有 scheduler / mock state を触るため `npm run test:shuffle` もグリーン。
