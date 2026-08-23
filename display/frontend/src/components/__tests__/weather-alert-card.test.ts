@@ -574,15 +574,15 @@ describe("WeatherAlertCard", () => {
     view.unmount(); coordinator.dispose();
   });
 
-  it("weather infeasible 中は tornado を先頭 provisional range に固定する", () => {
+  it("weather infeasible は同一 full-body shell の probe 確定後に tornado を公開する", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [weatherAlert()], tornado: { ...restoredTornado(), data: { areas: ["先頭", "未証明"], isSighted: false } },
       pageScheduling: true, partitionProbe: () => 2, tornadoPartitionProbe: () => 0,
     });
     const card = container.querySelector<HTMLElement>(".weather-card");
     expect(card?.dataset.cardPageInfeasible).toBe("true");
-    expect(card?.dataset.tornadoPageRange).toBe("0:1");
-    expect(card?.querySelector(".tornado-rider")?.textContent).not.toContain("未証明");
+    expect(card?.dataset.tornadoPageRange).toBe("0:2");
+    expect(card?.querySelector(".tornado-rider")?.textContent).toContain("未証明");
   });
 
   it("aggregate final publish replaces an old multi-page tornado registration", async () => {

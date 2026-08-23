@@ -26,7 +26,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -136,6 +136,9 @@ function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null) {
   url.searchParams.set("gateScenario", scenario);
   if (rotationTick != null) url.searchParams.set("rotationTick", String(rotationTick));
   if (fixture != null) url.searchParams.set("gateFixture", fixture);
+  // The release of an epoch-held logical appearance consumes one, and only
+  // one, dependent page step.  The fixture pins that post-release coordinate.
+  if (fixture === "tornado-epoch-release") url.searchParams.set("cardPageTick", "1");
   url.hash = "legacy-standby-gate";
   return url.toString();
 }
@@ -344,6 +347,17 @@ const TORNADO_EXPECTATIONS = {
   real: { tornadoPage: "1/1", tornadoPageKeys: '["宮崎県南部平野部"]', tornadoPageIdentities: '["tornado|宮崎県南部平野部|0"]', tornadoInfeasible: "false", tornadoFooter: "false", tornadoVisibleCount: "2", tornadoHost: "weather", tornadoMode: "real", tornadoPendingAppearance: "false" },
   logical: { tornadoPage: "1/1", tornadoPageKeys: '["宮崎県南部平野部"]', tornadoPageIdentities: '["tornado|宮崎県南部平野部|0"]', tornadoInfeasible: "false", tornadoFooter: "false", tornadoVisibleCount: "2", tornadoHost: "weather", tornadoMode: "logical", tornadoPendingAppearance: "false" },
 };
+const TORNADO_IMPOSSIBLE_AREA = "宮崎県南部平野部（竜巻注意情報の可読性とページ分割を確認するための極端に長い対象地域名）".repeat(8);
+const TORNADO_IMPOSSIBLE_KEYS = JSON.stringify([TORNADO_IMPOSSIBLE_AREA]);
+const TORNADO_IMPOSSIBLE_IDENTITIES = JSON.stringify([`tornado|${TORNADO_IMPOSSIBLE_AREA}|0`]);
+// Dedicated real-Chrome cells, promoted only after observed output was checked
+// against the §3.3 / §3.5 pager and infeasible contracts.
+const TORNADO_FIXTURE_EXPECTATIONS = Object.freeze({
+  "tornado-pages": { "7": { "1280x720": { tornadoPage: "1/5", tornadoPageKeys: '["宮崎県南部平野部","宮崎県北部平野部","鹿児島県大隅地方","熊本県球磨地方","大分県佐伯市"]', tornadoPageIdentities: '["tornado|宮崎県南部平野部|0","tornado|宮崎県北部平野部|0","tornado|鹿児島県大隅地方|0","tornado|熊本県球磨地方|0","tornado|大分県佐伯市|0"]', tornadoInfeasible: "false", tornadoFooter: "true", tornadoVisibleCount: "1", tornadoHost: "weather", tornadoMode: "logical", tornadoPendingAppearance: "false" } } },
+  "tornado-aggregate": { "7": { "960x620": { tornadoPage: "1/1", tornadoPageKeys: TORNADO_IMPOSSIBLE_KEYS, tornadoPageIdentities: TORNADO_IMPOSSIBLE_IDENTITIES, tornadoInfeasible: "aggregate", tornadoFooter: "false", tornadoVisibleCount: "0", tornadoHost: "weather", tornadoMode: "logical", tornadoPendingAppearance: "false" } } },
+  "tornado-clip": { "7": { "960x620": { tornadoPage: "1/1", tornadoPageKeys: TORNADO_IMPOSSIBLE_KEYS, tornadoPageIdentities: TORNADO_IMPOSSIBLE_IDENTITIES, tornadoInfeasible: "clip", tornadoFooter: "false", tornadoVisibleCount: "0", tornadoHost: "weather", tornadoMode: "logical", tornadoPendingAppearance: "false" } } },
+  "tornado-epoch-release": { "7": { "1280x720": { tornadoPage: "2/5", tornadoPageKeys: '["宮崎県南部平野部","宮崎県北部平野部","鹿児島県大隅地方","熊本県球磨地方","大分県佐伯市"]', tornadoPageIdentities: '["tornado|宮崎県南部平野部|0","tornado|宮崎県北部平野部|0","tornado|鹿児島県大隅地方|0","tornado|熊本県球磨地方|0","tornado|大分県佐伯市|0"]', tornadoInfeasible: "false", tornadoFooter: "true", tornadoVisibleCount: "1", tornadoHost: "weather", tornadoMode: "logical", tornadoPendingAppearance: "false" } } },
+});
 function tornadoExpectation(scenario, viewport) {
   if (scenario === "quiet") return TORNADO_EXPECTATIONS.none;
   return (scenario === "4" && viewport.label === "960x620")
@@ -376,7 +390,8 @@ const UTIL_EXPECTATIONS = {
   max: { "1920x1080": ["full", "card", 7, 0, 24, 0, 25, "false"], "1512x982": ["compact", "card", 4, 3, 24, 0, 21, "false"], "1280x720": ["compact", "card", 4, 3, 3, 21, 0, "false"], "960x620": ["compact", "card", 4, 3, 3, 21, 0, "false"] },
 };
 
-function tableMismatches(diagnostics, scenario, viewport) {
+function tableMismatches(diagnostics, scenario, viewport, fixture = null) {
+  const fixtureExpected = fixture == null ? null : TORNADO_FIXTURE_EXPECTATIONS[fixture]?.[scenario]?.[viewport.label];
   const baseExpected = scenario === "max-floodWide"
     ? FLOOD_WIDE_EXPECTATIONS[viewport.label]
     : (() => {
@@ -385,7 +400,7 @@ function tableMismatches(diagnostics, scenario, viewport) {
       const combined = base == null || util == null ? base : { ...base, typhoonVariant: util[0], floodForm: util[1], expandedCounts: { quake: { count: util[2], n: util[3] }, weather: { "大雨警報(土砂災害)": { count: util[4], n: util[5] } } }, surplus: String(util[6]), floodInfeasible: util[7] };
       return combined;
     })();
-  const expected = baseExpected == null ? null : { ...baseExpected, ...tornadoExpectation(scenario, viewport) };
+  const expected = fixtureExpected ?? (baseExpected == null ? null : { ...baseExpected, ...tornadoExpectation(scenario, viewport) });
   if (expected == null) return [];
   const observed = {
     stage: diagnostics["data-ladder-stage"], rotationKeys: diagnostics["data-rotation-keys"],
@@ -399,18 +414,20 @@ function tableMismatches(diagnostics, scenario, viewport) {
     typhoonVariant: diagnostics["data-typhoon-variant"], expandedCounts: diagnostics["data-expanded-counts"],
     surplus: diagnostics["data-placement-surplus-use"],
   };
-  const expectedValues = { stage: expected.stage, rotationKeys: expected.rotationKeys, unresolved: "false", nonconverged: "false", centerClusterHidden: "" };
+  const expectedValues = fixtureExpected == null
+    ? { stage: expected.stage, rotationKeys: expected.rotationKeys, unresolved: "false", nonconverged: "false", centerClusterHidden: "" }
+    : {};
   for (const key of ["floodForm", "floodInfeasible", "floodPage", "floodPageKeys", "floodPageIdentities", "floodPageFooter", "floodVisibleCount", "typhoonVariant", "expandedCounts", "surplus", ...Object.keys(TORNADO_EXPECTATIONS.none)]) {
     if (expected[key] != null) expectedValues[key] = key === "expandedCounts" ? JSON.stringify(expected[key]) : expected[key];
   }
   return [
     ...Object.entries(expectedValues).flatMap(([key, value]) => observed[key] === value ? [] : [{ key, expected: value, actual: observed[key] }]),
-    ...stageZeroClockMismatches(diagnostics),
+    ...(fixtureExpected == null ? stageZeroClockMismatches(diagnostics) : []),
   ];
 }
 
-function assertTableDiagnostics(diagnostics, scenario, viewport) {
-  const mismatches = tableMismatches(diagnostics, scenario, viewport);
+function assertTableDiagnostics(diagnostics, scenario, viewport, fixture = null) {
+  const mismatches = tableMismatches(diagnostics, scenario, viewport, fixture);
   if (mismatches.length > 0) throw new Error(`${viewport.label} scenario-${scenario} table mismatch: ${JSON.stringify(mismatches)}`);
 }
 
@@ -428,9 +445,10 @@ function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   if (viewport.label === "1280x720") expectEqual(diagnostics["data-flood-readable-overflow-keys"], "", "1280x720 flood station/kind readability");
 }
 
-async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, assertTable = true }) {
+async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, assertTable = true, fixture = null }) {
   const tickSuffix = rotationTick == null ? "" : `-tick-${rotationTick}`;
-  const stem = `legacy-standby-${scenario}-${viewport.label}${tickSuffix}`;
+  const fixtureSuffix = fixture == null ? "" : `-${fixture}`;
+  const stem = `legacy-standby-${scenario}-${viewport.label}${fixtureSuffix}${tickSuffix}`;
   const pngPath = join(outDir, `${stem}.png`);
   const jsonPath = join(outDir, `${stem}.json`);
   const domPath = join(outDir, `${stem}.dom.html`);
@@ -467,14 +485,14 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
   assertClockHandoff(dom, diagnostics);
   if (!clusterFixture) assertRotationDiagnostics(diagnostics, rotationTick);
-  if (assertTable && !url.includes("gateFixture=cluster")) {
-    assertTableDiagnostics(diagnostics, scenario, viewport);
+  if (assertTable && fixture == null) {
+    assertTableDiagnostics(diagnostics, scenario, viewport, fixture);
     assertFloodWideDiagnostics(diagnostics, scenario, viewport);
   }
-  const report = { scenario, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport) };
+  const report = { scenario, fixture, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
   await rm(domPath, { force: true });
-  return { scenario, viewport, rotationTick, pngPath, jsonPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport) };
+  return { scenario, fixture, viewport, rotationTick, pngPath, jsonPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
 }
 
 async function main() {
@@ -485,11 +503,18 @@ async function main() {
   // Scenario 7 / 960 is that deterministic surface; starting from quiet would
   // exercise no badge at all and could leave the rider diagnostic unproven.
   const overlapDefault = options.fixture === "overlap" && options.scenarios.length === 0;
+  const tornadoFixtureDefaults = {
+    "tornado-pages": { scenario: "7", viewport: "1280x720" },
+    "tornado-aggregate": { scenario: "7", viewport: "960x620" },
+    "tornado-clip": { scenario: "7", viewport: "960x620" },
+    "tornado-epoch-release": { scenario: "7", viewport: "1280x720" },
+  };
+  const tornadoFixtureDefault = options.fixture == null ? null : tornadoFixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
-    ? overlapDefault ? ["7"] : DEFAULT_SCENARIOS
+    ? tornadoFixtureDefault?.scenario != null ? [tornadoFixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm"].includes(options.fixture)) throw new Error("fixture must be overflow, overlap, rotation, cluster, or cluster-calm");
+  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
@@ -502,17 +527,18 @@ async function main() {
     const results = [];
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
-        ? overlapDefault ? ["960x620"]
+        ? tornadoFixtureDefault?.viewport != null ? [tornadoFixtureDefault.viewport]
+          : overlapDefault ? ["960x620"]
           : scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
         : requestedViewports.map((viewport) => viewport.label);
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {
-        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture), scenario, viewport, outDir, rotationTick: 0, assertTable: !options.report });
+        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture), scenario, viewport, outDir, rotationTick: 0, assertTable: !options.report, fixture: options.fixture });
         results.push(first);
         const rotationKeys = (first.diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
         if (first.diagnostics["data-ladder-stage"] === "3") {
           for (let rotationTick = 1; rotationTick < rotationKeys.length; rotationTick += 1) {
-            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, options.fixture), scenario, viewport, outDir, rotationTick, assertTable: !options.report }));
+            results.push(await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, rotationTick, options.fixture), scenario, viewport, outDir, rotationTick, assertTable: !options.report, fixture: options.fixture }));
           }
         }
       }

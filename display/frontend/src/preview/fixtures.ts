@@ -2500,8 +2500,20 @@ function legacyStandbyGateWeatherExpandedKinds(
  * #legacy-standby-gate の scenario snapshot。
  * compact 本文と wire の canonical 展開候補を分け、本番と同じ余裕利用経路を通す。
  */
+export type LegacyStandbyGateFixture =
+  | "overflow"
+  | "overlap"
+  | "rotation"
+  | "cluster"
+  | "cluster-calm"
+  | "tornado-pages"
+  | "tornado-aggregate"
+  | "tornado-clip"
+  | "tornado-epoch-release";
+
 export function legacyStandbyGateSnapshot(
   scenario: LegacyStandbyGateScenario,
+  fixture?: LegacyStandbyGateFixture,
 ): DisplayStateSnapshotV1 {
   if (scenario === "quiet") {
     return standbySnapshot({ recentQuakes: [], recentTicker: [] });
@@ -2529,6 +2541,17 @@ export function legacyStandbyGateSnapshot(
       : scenario === "max"
       ? legacyImprovedMaxItems
       : standbyItemsShowcase;
+  const impossibleRiderArea = "宮崎県南部平野部（竜巻注意情報の可読性とページ分割を確認するための極端に長い対象地域名）".repeat(8);
+  const tornadoFixtureAreas = fixture === "tornado-pages" || fixture === "tornado-epoch-release"
+    ? ["宮崎県南部平野部", "宮崎県北部平野部", "鹿児島県大隅地方", "熊本県球磨地方", "大分県佐伯市"]
+    : fixture === "tornado-aggregate" || fixture === "tornado-clip"
+      ? [impossibleRiderArea, "宮崎県北部平野部", "鹿児島県大隅地方"]
+      : null;
+  const fixtureItems = tornadoFixtureAreas == null
+    ? sourceItems
+    : sourceItems.map((item) => item.kind === "tornado"
+      ? { ...item, data: { ...item.data, areas: tornadoFixtureAreas } }
+      : item);
 
   return standbySnapshot({
     tsunami: scenario === "4" ? null : tsunamiBanner,
@@ -2537,6 +2560,6 @@ export function legacyStandbyGateSnapshot(
     weatherExpandedKinds: legacyStandbyGateWeatherExpandedKinds(weatherCandidates),
     recentQuakes: recentQuakesRich.slice(0, scenario === "4" ? 3 : 5),
     stats: statsStandbyCards,
-    standbyItems: sourceItems,
+    standbyItems: fixtureItems,
   });
 }

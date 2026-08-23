@@ -26,13 +26,13 @@
 
 - layout の `CardKey` は変更しない。新設する `PagePartitionKey` は **layout card と dependent rider を区別せず partition / measurement だけで使う共通型**とし、`CardKey | "tornado"` とする。別途 `PageableKey = "quake" | "weather" | "flood" | "tornado"` を coordinator の record 用に定義する。
 - `page-partition.ts` の `PartitionProbe` / `sequentialPartitionRanges()` / probe id、`types.ts` の `PageMeasureEntry.key` / `PartitionResult.pending`、StandbyScreen の `PrefixCardKey` / `PrefixMeasureEntry` / `pagePartitionProbe()` / forced-probe dispatch を `PagePartitionKey` へ通す。`CardKey` が必要な layout / solver / rotation API には渡さない。
-- `tornadoPageAreaEntries(areas)` は `{kindKey:"tornado", area, occurrenceIndex}` を出す。同名地域も削らず、出現順の occurrence で `pageIdentity()` を一意にする。wire に area code はない。
+- 官署横断統合時に同名地域は上流 snapshot の順序保持 Set で除去される。`tornadoPageAreaEntries(areas)` の occurrence は、将来の重複入力に対する防御層として `pageIdentity()` を一意化する。wire に area code はない。
 - resetKey は順序付き地域列を必須とする。`isSighted` は resetKey に直結せず、前状態を持つ escalation generation（`false→true` 時だけ更新）または同等の明示 `forceReset` 契約で reset を要求する。`true→false` は同じ generation / `forceReset=false` を維持し、単純な key 差分による再 reset を起こさない。内容更新だけで再分割して active identity が消えたときは、既存 successor-after-removal に遷移し、1 ページ目 reset と混同しない。
 
 ### 3.2 rider を含むカードの契約高
 
-- tornado または weather のどちらかが paging / pending / infeasible fallback 中なら、weather+rider shell の契約高を `min(44vh, 280px)`（現在の CSS 上限と同じ viewport 依存定数）に固定する。header、weather 本文、rider、rider 行末の inline marker を含む外枠予算である。
-- この**同一の契約高**を `selectedHeight` / `measured`（solver）/ rotation slot reserve / `pageFixedHeight()` / live outer `.paged-card` / pending と確定済み page のすべてに流す。tornado 単独の複数 page も例外にしない。従ってページ送りと pending→確定で外枠高は揺れない。
+- tornado rider が存在し paging / pending / infeasible fallback に関与する組成だけ、weather+rider shell の契約高を `min(44vh, 280px)`（現在の CSS 上限と同じ viewport 依存定数）に固定する。header、weather 本文、rider、rider 行末の inline marker を含む外枠予算である。weather 単独の paging / pending / infeasible は既存の自然高契約を維持する。
+- この**同一の契約高**を tornado 関与組成の `selectedHeight` / `measured`（solver）/ rotation slot reserve / `pageFixedHeight()` / live outer `.paged-card` / pending と確定済み page のすべてに流す。tornado 単独の複数 page も例外にしない。従ってその組成のページ送りと pending→確定で外枠高は揺れない。
 - probe は boolean を返さず、`fit=0` / `fail=contractHeightPx+1` の sentinel を使う。weather の旧 0/2 sentinel は、tornado と同一 shell を測る経路ではこの一般形へ置換する。実測値から契約高を導かず、固定高⇄partition の循環を作らない。
 - safety envelope は、同一 snapshot の weather / tornado の live 組成のうち最も高い（または全組成を個別に）forced probe して契約高内を確認する。安全側の根拠なしに一方の page range を他方へ流用しない。
 
@@ -101,8 +101,8 @@
 
 - [ ] parser の優先層全地域が event、官署 state、統合 rider candidate まで順序どおり到達し、ticker / TTL / revision guard を変えない。
 - [ ] 1、2、5、12 地域、同名地域、長い地域名、weather 本文あり / なしで、全可読 region の縦横 overflow が 0。`data-page-probe-readable` の全件検査で証明し、`overflow:hidden` による黙殺を許さない。
-- [ ] 同名地域の page identity は occurrence により一意で、同名を含む update 後も active identity を正しく追跡する。
-- [ ] tornado 単独 paging、weather 単独 paging、双方 paging、pending、pending→確定の全てで solver selected/measured height、rotation reserve、live outer `pageFixedHeight` が §3.2 の契約高と一致し、外枠高が揺れない。
+- [ ] 同名地域は官署横断統合時に除去される。occurrence identity は重複入力への防御層として一意である。
+- [ ] tornado 単独 paging、双方 paging、pending、pending→確定で solver selected/measured height、rotation reserve、live outer `pageFixedHeight` が §3.2 の契約高と一致し、外枠高が揺れない。weather 単独の paging / pending / infeasible は従来の自然高契約を維持する。
 - [ ] `pageScheduling=false` の棚は pager を登録・advance せず、forced range と本番同じ shell を測る。
 
 ### ページ送り時刻・identity

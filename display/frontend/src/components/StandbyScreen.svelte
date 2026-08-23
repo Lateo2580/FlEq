@@ -49,7 +49,7 @@
     rotationTick?: number;
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
-    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm";
+    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release";
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
@@ -210,6 +210,7 @@
   let tornadoMarkerBodyOverlapPx = $state(0);
   let tornadoMarkerTextOverlapPx = $state(0);
   let tornadoPageInfeasible = $state("false");
+  let tornadoPageVisibleCount = $state(0);
   let floodVisibilityViolationKeys = $state("");
   let floodReadableOverflowKeys = $state("");
   let floodPageInfeasible = $state("false");
@@ -449,6 +450,12 @@
       const id = prefixMeasureId("page-fit", key, placement, range.start, range.end, tails, floodForm, composition);
       const genericOverride = override?.[`${key}:prefix:${range.end}:${placement}`];
       if (override?.[id] != null || genericOverride != null) return override?.[id] ?? genericOverride ?? null;
+      // Capture-only multi-page fixtures exercise a one-area fit / two-area
+      // fail boundary without depending on a particular font rasterizer.
+      // Aggregate and clip use physical forced-shelf overflow below instead.
+      if (key === "tornado" && (gateFixture === "tornado-pages" || gateFixture === "tornado-epoch-release")) {
+        return range.end - range.start <= 1 ? 0 : 2;
+      }
       // jsdom has no layout engine. Returning a fitting measurement here keeps
       // its U3 settle contract deterministic; browsers enter the shelf path.
       if (typeof ResizeObserver === "undefined") return 0;
@@ -1242,7 +1249,12 @@
       ? measureNodes.get(measureId("weather", weatherMeasurementVariant, weatherMeasurementPlacement)) ?? null
       : [...(standbyEl?.querySelectorAll<HTMLElement>("[data-prefix-measure]") ?? [])]
         .find((entry) => entry.dataset.prefixMeasure === renderWeatherPrefixId) ?? null;
-    const liveWeatherShell = standbyEl?.querySelector<HTMLElement>(".legacy-card .weather-card")?.closest<HTMLElement>(".legacy-card");
+    // Shelves precede the live layout in DOM order.  Select only a paintable
+    // live shell, or the sentinel would publish a shelf's forced/empty range
+    // instead of the rider the viewer can actually read.
+    const liveWeatherShell = [...(standbyEl?.querySelectorAll<HTMLElement>(".legacy-card, .rotation-card:not([hidden])") ?? [])]
+      .filter(paintable)
+      .find((shell) => shell.querySelector(".weather-card") != null) ?? null;
     // The shelf item itself is always the center/side track width. Measure the
     // WeatherAlertCard child too: unlike a live card it has no .legacy-card
     // ancestor, so a missing width bridge here would silently wrap at its own
@@ -1250,6 +1262,12 @@
     const weatherProbeCard = activeWeatherProbe?.querySelector<HTMLElement>(".weather-card");
     const liveWeatherCard = liveWeatherShell?.querySelector<HTMLElement>(".weather-card");
     tornadoPageInfeasible = liveWeatherCard?.dataset.tornadoPageInfeasible ?? "false";
+    // Count the actual live rider tokens, not its range metadata: a forced
+    // shelf can have a different range and an aggregate/clip rider has no
+    // individually readable area token by definition.
+    tornadoPageVisibleCount = [...(liveWeatherCard?.querySelectorAll<HTMLElement>("[data-tornado-visible-area]") ?? [])]
+      .filter((area) => paintable(area) && Array.from(area.getClientRects()).some((rect) => rect.width > 0 && rect.height > 0))
+      .length;
     return {
       leftTrackWidthPx: Math.round(leftTrackEl?.getBoundingClientRect().width ?? 0),
       centerTrackWidthPx: Math.round(centerTrackEl?.getBoundingClientRect().width ?? 0),
@@ -1685,7 +1703,7 @@
 
 <div
   bind:this={standbyEl}
-  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} class:gate-overflow={gateFixture === "overflow"} class:gate-overlap={gateFixture === "overlap"} class:gate-rotation={gateFixture === "rotation"} class:gate-cluster={gateFixture === "cluster" || gateFixture === "cluster-calm"} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
+  class="standby" class:dim class:ladder-compressed={measurementGeometryStage >= 2} class:gate-overflow={gateFixture === "overflow"} class:gate-overlap={gateFixture === "overlap"} class:gate-rotation={gateFixture === "rotation"} class:gate-cluster={gateFixture === "cluster" || gateFixture === "cluster-calm"} class:gate-tornado-aggregate={gateFixture === "tornado-aggregate"} class:gate-tornado-clip={gateFixture === "tornado-clip"} style={`--nankai-reserve: ${nankaiHeightPx}px; --cluster-gap: ${clusterGapPx}px; --cluster-flow-height: ${clusterFlowHeightPx}px`}
   data-ladder-stage={renderStage}
   data-solver-stage={stage}
   data-layout-unresolved={renderPlan.unresolved ? "true" : "false"}
@@ -1757,7 +1775,7 @@
   data-tornado-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("tornado").identities)}
   data-tornado-page-infeasible={tornadoPageInfeasible}
   data-tornado-page-footer={tornadoItem != null && Number(cardPageCoordinator.cardDiagnostics("tornado").page.split("/")[1] ?? 0) > 1 ? "true" : "false"}
-  data-tornado-page-visible-count={tornadoItem?.data.areas.length ?? 0}
+  data-tornado-page-visible-count={tornadoPageVisibleCount}
   data-tornado-page-host={cardPageCoordinator.diagnostics().cards.tornado.appearanceHost ?? ""}
   data-tornado-page-mode={cardPageCoordinator.diagnostics().cards.tornado.mode}
   data-tornado-page-pending-appearance={cardPageCoordinator.diagnostics().pendingAppearanceKeys.includes("tornado") ? "true" : "false"}
@@ -1804,7 +1822,7 @@
       <!-- Keep the rotation-slot (side geometry) page partition ready before
            stage 3 changes weather from a permanent card into a slot member. -->
       <div class="partition-preflight">
-        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "side")} pagePlacement="side" />
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "side")} tornadoPartitionProbe={(tornadoRange, weatherRange) => pagePartitionProbe("tornado", "side", 1, undefined, "preflight:weather+tornado", weatherRange, MAX_PREFIX_ROWS)("tornado", "side", tornadoRange, [])} pagePlacement="side" />
       </div>
     {/if}
     {#if floodItem != null}
@@ -1832,7 +1850,7 @@
            its center-width page partition while the measurement shelf is
            already active, so the final placement flush has no new probe chain. -->
       <div class="partition-preflight">
-        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "center")} pagePlacement="center" />
+        <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "center")} tornadoPartitionProbe={(tornadoRange, weatherRange) => pagePartitionProbe("tornado", "center", 1, undefined, "preflight:weather+tornado", weatherRange, MAX_PREFIX_ROWS)("tornado", "center", tornadoRange, [])} pagePlacement="center" />
       </div>
     {/if}
     {#if floodItem != null}
@@ -1978,6 +1996,12 @@
      indicator then paints directly into the tornado rider, so the production
      rect-overlap diagnostic (not an injected value) must turn red. */
   .standby.gate-overlap :global(.weather-card.has-page-footer.has-tornado .tornado-rider) { margin-top: 0; }
+  /* Capture fixtures constrain forced shelves only.  The aggregate label fits
+     in one line after an individual pathological area fails; clip rejects the
+     aggregate too.  Live final forms retain their production CSS. */
+  .standby.gate-tornado-aggregate :global([data-page-probe-card] .tornado-rider) { max-height: 2.5rem; overflow: hidden; }
+  .standby.gate-tornado-aggregate :global([data-page-probe-card] .tornado-rider [data-tornado-rider-text]) { display: block; white-space: normal; }
+  .standby.gate-tornado-clip :global([data-page-probe-card] .tornado-rider) { max-height: 1px; overflow: hidden; }
   /* E-gate success fixture: scenario 4 の stage 0–2 fixed cluster を
      measured/live とも膨らませ、r-f が時計を消さず縮退することを実証する。 */
   .standby.gate-cluster :global(.center-measure-shelf .center-stack-card.quakes-card),

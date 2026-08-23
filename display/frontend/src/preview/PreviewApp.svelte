@@ -53,6 +53,7 @@
     backgroundTonePreviewFixtures,
     legacyStandbyGateSnapshot,
     type LegacyStandbyGateScenario,
+    type LegacyStandbyGateFixture,
   } from "./fixtures";
   import { createTipsFeeder } from "../lib/tips-feeder.svelte";
 
@@ -116,7 +117,9 @@
   const gateFixture = $derived.by(() => {
     if (!legacyStandbyGate) return undefined;
     const value = new URLSearchParams(window.location.search).get("gateFixture");
-    return value === "overflow" || value === "overlap" || value === "rotation" || value === "cluster" || value === "cluster-calm" ? value : undefined;
+    return value === "overflow" || value === "overlap" || value === "rotation" || value === "cluster" || value === "cluster-calm"
+      || value === "tornado-pages" || value === "tornado-aggregate" || value === "tornado-clip" || value === "tornado-epoch-release"
+      ? value as LegacyStandbyGateFixture : undefined;
   });
   let standbyStage = $state<0 | 1 | 2 | 3>(0);
 
@@ -259,7 +262,7 @@
   });
   const snapshot = $derived<DisplayStateSnapshotV1>(
     legacyStandbyGate
-      ? legacyStandbyGateSnapshot(gateScenario)
+      ? legacyStandbyGateSnapshot(gateScenario, gateFixture)
       : scenario === "standby-weather-warning"
       ? weatherWarningSnapshot
       : scenario === "standby-weather-advisory"
