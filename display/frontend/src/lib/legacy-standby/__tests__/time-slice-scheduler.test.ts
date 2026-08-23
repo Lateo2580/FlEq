@@ -565,6 +565,129 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("reports an empty tornado candidate as 0/0", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "tornado", identities: [], resetKey: "areas:" });
+    expect(pages.cardDiagnostics("tornado")).toMatchObject({ page: "0/0", activeKey: null, identities: [] });
+    pages.dispose();
+  });
+
+  it("resets tornado only when its escalation generation increases", () => {
+    const pages = createCardPageCoordinator();
+    const stable = { key: "tornado" as const, identities: ["t1", "t2"], resetKey: "areas:t1,t2", escalationGeneration: 0 };
+    pages.register(stable);
+    pages.jumpTo("tornado", 1);
+    pages.register(stable);
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+
+    pages.register({ ...stable, escalationGeneration: 1 });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t1");
+    pages.jumpTo("tornado", 1);
+    pages.register({ ...stable, escalationGeneration: 1 });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    pages.dispose();
+  });
+
+  it("applies a pending escalation generation once when the confirmed pages register", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "tornado", identities: ["t1", "t2"], resetKey: "areas:t1,t2", escalationGeneration: 0 });
+    pages.jumpTo("tornado", 1);
+    // The pending publish reports the escalation before its final page set is known.
+    pages.register({ key: "tornado", identities: ["t1", "t2"], resetKey: "areas:t1,t2", escalationGeneration: 1 });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t1");
+    pages.jumpTo("tornado", 1);
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"], resetKey: "areas:t1,t2", escalationGeneration: 1 });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    pages.dispose();
+  });
+
+  it("advances a logical tornado only when its weather host reappears", () => {
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"], rotationMember: true, appearanceHost: "weather" });
+    time.advance(TIME_SLICE_PERIOD_MS * 2);
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t1");
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t3");
+    pages.unregister("tornado");
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("tornado").page).toBe("0/0");
+    pages.dispose();
+  });
+
+  it("applies a held weather appearance to tornado exactly once after release", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"], rotationMember: true, appearanceHost: "weather" });
+    pages.holdForEpoch();
+    pages.recordRotationAppearance("weather");
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t1");
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    pages.dispose();
+  });
+
+  it("drops held appearances when tornado unregisters before re-registration", () => {
+    const pages = createCardPageCoordinator();
+    const registration = { key: "tornado" as const, identities: ["t1", "t2"], rotationMember: true, appearanceHost: "weather" as const };
+    pages.register(registration);
+    pages.holdForEpoch();
+    pages.recordRotationAppearance("weather");
+    pages.unregister("tornado");
+    pages.register(registration);
+    pages.releaseAfterLayoutMotion();
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t1");
+    pages.dispose();
+  });
+
+  it("uses successor-after-removal for unchanged tornado reset keys", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"], resetKey: "areas:t1,t2,t3" });
+    pages.jumpTo("tornado", 1);
+    pages.register({ key: "tornado", identities: ["t1", "t3", "t4"], resetKey: "areas:t1,t2,t3" });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t3");
+    pages.dispose();
+  });
+
+  it("uses successor for an unchanged area reset key but resets for an ordered-area change", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"], resetKey: "areas:t1,t2,t3" });
+    pages.jumpTo("tornado", 1);
+    pages.register({ key: "tornado", identities: ["t1", "t3", "t4"], resetKey: "areas:t1,t2,t3" });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t3");
+    pages.register({ key: "tornado", identities: ["t4", "t3", "t1"], resetKey: "areas:t4,t3,t1" });
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t4");
+    pages.dispose();
+  });
+
+  it("advances weather and its tornado dependent independently on one appearance", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "weather", identities: ["w1", "w2", "w3"], rotationMember: true });
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"], rotationMember: true, appearanceHost: "weather" });
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("weather").activeKey).toBe("w2");
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t2");
+    pages.dispose();
+  });
+
+  it("cycles every real-mode tornado page within 15 times its page count", () => {
+    const time = controlledClock();
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "tornado", identities: ["t1", "t2", "t3"] });
+    const seen = new Set<string>([pages.cardDiagnostics("tornado").activeKey ?? ""]);
+    for (let step = 0; step < 3; step += 1) {
+      time.advance(TIME_SLICE_PERIOD_MS);
+      seen.add(pages.cardDiagnostics("tornado").activeKey ?? "");
+    }
+    expect(seen).toEqual(new Set(["t1", "t2", "t3"]));
+    expect(pages.cardDiagnostics("tornado").activeKey).toBe("t1");
+    pages.dispose();
+  });
+
   it("keeps an atomic active page through a non-animated tick and exposes its deferred state", () => {
     const time = controlledClock();
     const pages = createCardPageCoordinator({ clock: time.clock });

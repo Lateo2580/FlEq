@@ -24,6 +24,24 @@ export function floodPageAreaEntries(rivers: readonly DisplayFloodRiverV1[]): Pa
   });
 }
 
+/**
+ * Tornado wire data has no area code. Preserve duplicate names by their
+ * snapshot occurrence, so pageIdentity remains stable within a snapshot.
+ */
+export function tornadoPageAreaEntries(areas: readonly string[]): PageAreaEntry[] {
+  const occurrenceByArea = new Map<string, number>();
+  return areas.map((area) => {
+    const occurrenceIndex = occurrenceByArea.get(area) ?? 0;
+    occurrenceByArea.set(area, occurrenceIndex + 1);
+    return { kindKey: "tornado", area, occurrenceIndex };
+  });
+}
+
+/** Ordered wire areas are the reset boundary; duplicate names are preserved. */
+export function tornadoPageResetKey(areas: readonly string[]): string {
+  return `areas:${areas.map((area) => encodeURIComponent(area)).join(",")}`;
+}
+
 /** page-partition compares the returned number with the fixed page budget. */
 export function floodPartitionProbeSentinel(fits: boolean, fixedHeightPx: number): number {
   return fits ? 0 : fixedHeightPx + 1;

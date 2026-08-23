@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { floodPageAreaEntries, floodPartitionProbeSentinel } from "../standby-cards";
+import { floodPageAreaEntries, floodPartitionProbeSentinel, tornadoPageAreaEntries, tornadoPageResetKey } from "../standby-cards";
+import { pageIdentity } from "../legacy-standby/page-partition";
 import type { DisplayFloodRiverV1 } from "../protocol";
 
 function river(riverKey: string, riverName: string, kindName = "氾濫警戒情報"): DisplayFloodRiverV1 {
@@ -10,6 +11,19 @@ function river(riverKey: string, riverName: string, kindName = "氾濫警戒情�
 }
 
 describe("flood pagination adapters", () => {
+  it("maps tornado areas to stable occurrence identities without wire codes", () => {
+    const entries = tornadoPageAreaEntries(["宮崎県", "宮崎県", "鹿児島県"]);
+    expect(entries).toEqual([
+      { kindKey: "tornado", area: "宮崎県", occurrenceIndex: 0 },
+      { kindKey: "tornado", area: "宮崎県", occurrenceIndex: 1 },
+      { kindKey: "tornado", area: "鹿児島県", occurrenceIndex: 0 },
+    ]);
+    expect(entries.map(pageIdentity)).toEqual(["tornado|宮崎県|0", "tornado|宮崎県|1", "tornado|鹿児島県|0"]);
+    expect(tornadoPageAreaEntries([])).toEqual([]);
+    expect(tornadoPageResetKey(["宮崎県", "鹿児島県"])).toBe(tornadoPageResetKey(["宮崎県", "鹿児島県"]));
+    expect(tornadoPageResetKey(["宮崎県", "鹿児島県"])).not.toBe(tornadoPageResetKey(["鹿児島県", "宮崎県"]));
+  });
+
   it("maps rivers to PageAreaEntry with weather-style kind/name occurrences and riverKey identity", () => {
     expect(floodPageAreaEntries([
       river("r-1", "多摩川"), river("r-2", "多摩川"), river("r-3", "荒川", "氾濫危険情報"),

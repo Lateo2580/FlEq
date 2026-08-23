@@ -396,6 +396,8 @@ export class RotationScheduler {
 
 interface CardPageSubstate {
   mode: "real" | "logical";
+  appearanceHost: CardKey | null;
+  escalationGeneration: number;
   phaseStartedAtMs: number;
   processedTick: number;
   pageCount: number;
@@ -407,7 +409,11 @@ export interface CardPageRegistration {
   identities: readonly string[];
   labels?: readonly string[];
   rotationMember?: boolean;
+  /** Layout-card appearance that advances this logical dependent pager. */
+  appearanceHost?: CardKey;
   resetKey?: string | number;
+  /** Increases only for a false-to-true tornado sighting escalation. */
+  escalationGeneration?: number;
   suppressAddedKeys?: boolean;
 }
 
@@ -416,7 +422,7 @@ export interface CardPageCoordinatorOptions extends SchedulerOptions {
 }
 
 const EMPTY_RUNTIME = (): CardPageRuntime => ({ activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null });
-const EMPTY_SUBSTATE = (): CardPageSubstate => ({ mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0, resetKey: "" });
+const EMPTY_SUBSTATE = (): CardPageSubstate => ({ mode: "real", appearanceHost: null, escalationGeneration: 0, phaseStartedAtMs: 0, processedTick: 0, pageCount: 0, resetKey: "" });
 
 export class CardPageCoordinator {
   revision = 0;
@@ -579,11 +585,14 @@ export class CardPageCoordinator {
     const previousCount = previousState.pageCount;
     const nextCount = identities.length;
     const nextMode = input.rotationMember === true ? "logical" : "real";
+    const appearanceHost = input.appearanceHost ?? (key === "tornado" ? null : key);
+    const escalationGeneration = input.escalationGeneration ?? previousState.escalationGeneration;
     const resetKey = String(input.resetKey ?? "");
     const exit = previousCount > 1 && nextCount <= 1;
     const entry = previousCount <= 1 && nextCount > 1;
     const explicitReset = previousState.resetKey !== "" && previousState.resetKey !== resetKey;
-    const reset = exit || entry || explicitReset;
+    const escalationReset = key === "tornado" && escalationGeneration > previousState.escalationGeneration;
+    const reset = exit || entry || explicitReset || escalationReset;
     const nowMs = this.clock.now();
     let runtime = planCardPageRuntimeUpdate(this.runtime[key], identities, reset, input.suppressAddedKeys === true);
     if (this.tickOverride != null && identities.length > 0) {
@@ -596,6 +605,8 @@ export class CardPageCoordinator {
       ...this.substates,
       [key]: {
         mode: nextMode,
+        appearanceHost,
+        escalationGeneration,
         phaseStartedAtMs: modeChanged || reset ? nowMs : previousState.phaseStartedAtMs,
         processedTick: modeChanged || reset ? 0 : previousState.processedTick,
         pageCount: nextCount,
@@ -610,6 +621,7 @@ export class CardPageCoordinator {
   unregister(key: PageableKey): void {
     if (!this.mounted) return;
     this.clearTimer();
+    this.pendingAppearanceKeys.delete(key);
     this.setRuntime(key, EMPTY_RUNTIME());
     this.labels = { ...this.labels, [key]: [] };
     this.substates = { ...this.substates, [key]: EMPTY_SUBSTATE() };
@@ -619,14 +631,17 @@ export class CardPageCoordinator {
   }
 
   recordRotationAppearance(key: CardKey): void {
-    if (key !== "quake" && key !== "weather" && key !== "flood") return;
-    if (this.substates[key].mode !== "logical" || this.substates[key].pageCount <= 1) return;
+    const dependentKeys = PAGEABLE_KEYS.filter((pageableKey) => {
+      const state = this.substates[pageableKey];
+      return state.appearanceHost === key && state.mode === "logical" && state.pageCount > 1;
+    });
+    if (dependentKeys.length === 0) return;
     if (this.epochHeld) {
-      this.pendingAppearanceKeys.add(key);
+      for (const dependentKey of dependentKeys) this.pendingAppearanceKeys.add(dependentKey);
       this.notify();
       return;
     }
-    this.advance(key, 1);
+    for (const dependentKey of dependentKeys) this.advance(dependentKey, 1);
     this.notify();
   }
 
