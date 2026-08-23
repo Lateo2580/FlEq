@@ -83,6 +83,7 @@
   data-card-page={pageDiagnostics.page}
   data-card-page-keys={JSON.stringify(pageDiagnostics.keys)}
   data-card-page-identities={JSON.stringify(pageDiagnostics.identities)}
+  data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`}
   data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}
 >
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>

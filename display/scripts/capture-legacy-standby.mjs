@@ -187,7 +187,7 @@ function diagnosticsFromDom(dom) {
     "data-weather-selected-prefix-id",
     "data-typhoon-title-misalignment-px", "data-page-indicator-body-overlap-px", "data-page-indicator-rider-overlap-px",
     "data-flood-visibility-violation-keys", "data-flood-readable-overflow-keys",
-    "data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible",
+    "data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible", "data-flood-page-footer", "data-flood-page-visible-count",
     "data-typhoon-variant",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
@@ -369,11 +369,13 @@ function tableMismatches(diagnostics, scenario, viewport) {
     stage: diagnostics["data-ladder-stage"], rotationKeys: diagnostics["data-rotation-keys"],
     unresolved: diagnostics["data-layout-unresolved"], nonconverged: diagnostics["data-measurement-nonconverged"],
     centerClusterHidden: diagnostics["data-center-cluster-hidden"], floodForm: diagnostics["data-flood-form"], floodInfeasible: diagnostics["data-flood-page-infeasible"],
+    floodPage: diagnostics["data-flood-page"], floodPageKeys: diagnostics["data-flood-page-keys"], floodPageIdentities: diagnostics["data-flood-page-identities"],
+    floodPageFooter: diagnostics["data-flood-page-footer"], floodVisibleCount: diagnostics["data-flood-page-visible-count"],
     typhoonVariant: diagnostics["data-typhoon-variant"], expandedCounts: diagnostics["data-expanded-counts"],
     surplus: diagnostics["data-placement-surplus-use"],
   };
   const expectedValues = { stage: expected.stage, rotationKeys: expected.rotationKeys, unresolved: "false", nonconverged: "false", centerClusterHidden: "" };
-  for (const key of ["floodForm", "floodInfeasible", "typhoonVariant", "expandedCounts", "surplus"]) {
+  for (const key of ["floodForm", "floodInfeasible", "floodPage", "floodPageKeys", "floodPageIdentities", "floodPageFooter", "floodVisibleCount", "typhoonVariant", "expandedCounts", "surplus"]) {
     if (expected[key] != null) expectedValues[key] = key === "expandedCounts" ? JSON.stringify(expected[key]) : expected[key];
   }
   return [

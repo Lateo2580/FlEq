@@ -9,7 +9,7 @@
   import { createEpochCoordinator, type EpochCoordinator, type EpochCoordinatorControl } from "../lib/legacy-standby/epoch-coordinator";
   import { nextCenterClusterHidden, type CenterClusterItem } from "../lib/legacy-standby/center-cluster";
   import { createLayoutMotionCoordinator, type LayoutMotionIdentity } from "../lib/legacy-standby/layout-motion.svelte";
-  import type { PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
@@ -205,6 +205,8 @@
   let floodVisibilityViolationKeys = $state("");
   let floodReadableOverflowKeys = $state("");
   let floodPageInfeasible = $state("false");
+  let floodPageFooter = $state("false");
+  let floodVisibleCount = $state(0);
   let measurementSettled = $state(false);
   let measurementNonConverged = $state(false);
   let settleTrace = $state<SettleTraceEntry[]>([]);
@@ -598,7 +600,7 @@
       : override?.sideMeasureShelfWidthPx ?? sideMeasureShelfWidthPx;
     // Unknown geometry is not permission to promote. The measurement epoch
     // will re-evaluate once the shelf owns the same positive width as live.
-    if (widthPx <= 0) return false;
+    if (widthPx <= 0) return null;
     // This is deliberately a coordinator-free one-river shelf probe.  The
     // form selection must not depend on live registration/reset state.
     const fixedHeightPx = floodWideFixedHeightPx;
@@ -610,6 +612,16 @@
   /** Coordinator-free, initial-unknown-is-not-a-promotion eligibility guard. */
   function floodWideDetailAllowed(placement: "side" | "center"): boolean {
     return floodWideProbeResult(placement) === true;
+  }
+  function floodWidePartitionInfeasible(placement: "side" | "center"): boolean {
+    if (floodItem == null || floodItem.surface !== "clock-top-wide") return false;
+    const result = sequentialPartitionRanges(
+      "flood", placement, floodItem.data.rivers.length, floodWideFixedHeightPx,
+      pagePartitionProbe("flood", placement, floodWideFixedHeightPx, "wide"), () => [],
+    );
+    // Pending is not a demotion signal. A fully measured empty partition is
+    // the wide-form failure which must hand control to compact first.
+    return result.pending.length === 0 && result.infeasible && result.ranges.length === 0;
   }
   function centerHeight(choice: PlacementChoice, selection: DisplaySelection, hidden: readonly CenterClusterItem[], measureGap = gapPx): number {
     const fixedCenter = centerFixed(hidden, measureGap);
@@ -726,7 +738,7 @@
     if (measuring && variant === "expanded") return true;
     const surface = placement === "center" ? "center" : "side";
     const requested = placement === "center" || (!measuring && selected.floodWide);
-    return requested && floodWideVisibleAllowed(surface);
+    return requested && floodWideVisibleAllowed(surface) && !floodWidePartitionInfeasible(surface);
   }
   const displayVariant = (card: CardCandidate): CardVariant => selectedVariant(card.key, renderSelection);
   const rotationActiveKey = $derived(rotationScheduler.currentKey());
@@ -966,6 +978,8 @@
     floodVisibilityViolationKeys: string;
     floodReadableOverflowKeys: string;
     floodPageInfeasible: string;
+    floodPageFooter: string;
+    floodVisibleCount: number;
   }
   function readRenderedGeometry(): RenderedGeometry {
     const standbyRect = standbyEl?.getBoundingClientRect();
@@ -1086,16 +1100,23 @@
         const entries = [...card.querySelectorAll<HTMLElement>("[data-flood-entry-index]")];
         const aggregates = [...card.querySelectorAll<HTMLElement>("[data-flood-aggregate]")];
         const infeasible = card.dataset.cardPageInfeasible != null && card.dataset.cardPageInfeasible !== "false";
+        const range = /^(\d+):(\d+)$/.exec(card.dataset.floodPageRange ?? "");
+        const expectedIndices = new Set<number>(infeasible || range == null
+          ? []
+          : Array.from({ length: Math.max(0, Number(range[2]) - Number(range[1])) }, (_, offset) => Number(range[1]) + offset));
+        const visibleIndices = new Set(entries
+          .filter(hasRenderedBox)
+          .flatMap((entry) => {
+            const index = Number(entry.dataset.floodEntryIndex);
+            return Number.isInteger(index) ? [index] : [];
+          }));
         const expectedAggregateElement = infeasible
           ? aggregates.find((element) => element.dataset.floodAggregate === "infeasible") ?? null
           : null;
         return [
           ...(!hasRenderedBox(card) ? [`${cardKey}:card:missing`] : []),
-          ...entries.flatMap((entry, index) => {
-            const expected = true;
-            const actual = hasRenderedBox(entry);
-            return expected === actual ? [] : [`${cardKey}:entry:${index}:${expected ? "missing" : "unexpected"}`];
-          }),
+          ...[...expectedIndices].filter((index) => !visibleIndices.has(index)).map((index) => `${cardKey}:entry:${index}:missing`),
+          ...[...visibleIndices].filter((index) => !expectedIndices.has(index)).map((index) => `${cardKey}:entry:${index}:unexpected`),
           ...(infeasible && (expectedAggregateElement == null || !hasRenderedBox(expectedAggregateElement))
             ? [`${cardKey}:aggregate:infeasible:missing`]
             : []),
@@ -1137,6 +1158,10 @@
       .filter(paintable)
       .map((card) => card.dataset.cardPageInfeasible ?? "false")
       .find((value) => value !== "false") ?? "false";
+    const activeFloodCard = floodCards.find(paintable) ?? null;
+    const floodPageFooter = activeFloodCard?.querySelector("[data-card-page-footer]") == null ? "false" : "true";
+    const floodVisibleCount = activeFloodCard == null ? 0
+      : [...activeFloodCard.querySelectorAll<HTMLElement>("[data-flood-entry-index]")].filter(hasRenderedBox).length;
     const weatherMeasurementPlacement: Placement = renderPlan.center.some((card) => card.key === "weather") ? "center" : "right";
     const weatherMeasurementVariant = selectedVariant("weather", renderSelection);
     // B selection reads a prefix shelf only after it has promoted rows. At
@@ -1201,6 +1226,8 @@
       floodVisibilityViolationKeys,
       floodReadableOverflowKeys,
       floodPageInfeasible,
+      floodPageFooter,
+      floodVisibleCount,
     };
   }
   function publishSettledGeometry(pendingStageChange: LadderStage | null): void {
@@ -1250,6 +1277,8 @@
       floodVisibilityViolationKeys = geometry.floodVisibilityViolationKeys;
       floodReadableOverflowKeys = geometry.floodReadableOverflowKeys;
       floodPageInfeasible = geometry.floodPageInfeasible;
+      floodPageFooter = geometry.floodPageFooter;
+      floodVisibleCount = geometry.floodVisibleCount;
       measurementSettled = true;
       contentDemotionRequested = false;
       if (pendingStageChange != null) onStageChange?.(pendingStageChange);
@@ -1557,9 +1586,9 @@
     <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} />
   {:else if entry.key === "flood" && floodItem != null}
     {#if entry.floodForm === "wide"}
-      <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
+      <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
     {:else}
-      <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? 200} pageForm="compact" />
+      <FloodCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? 200} pageForm="compact" />
     {/if}
   {/if}
 {/snippet}
@@ -1629,6 +1658,8 @@
   data-flood-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("flood").keys)}
   data-flood-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("flood").identities)}
   data-flood-page-infeasible={floodPageInfeasible}
+  data-flood-page-footer={floodPageFooter}
+  data-flood-page-visible-count={floodVisibleCount}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}

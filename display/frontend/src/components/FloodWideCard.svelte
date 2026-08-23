@@ -110,7 +110,7 @@
   );
 </script>
 
-<section class="standby-card flood-wide-card band-{band}" class:paged-flood={paginationActive} data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount} data-card-page={pageDiagnostics.page} data-card-page-keys={JSON.stringify(pageDiagnostics.keys)} data-card-page-identities={JSON.stringify(pageDiagnostics.identities)} data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}>
+<section class="standby-card flood-wide-card band-{band}" class:paged-flood={paginationActive} data-page-probe-card={measurementRange != null ? "" : undefined} data-page-probe-body={measurementRange != null ? "" : undefined} data-partition-probe-count={measurementPartition.probeCount} data-card-page={pageDiagnostics.page} data-card-page-keys={JSON.stringify(pageDiagnostics.keys)} data-card-page-identities={JSON.stringify(pageDiagnostics.identities)} data-flood-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`} data-card-page-infeasible={pagePartition.infeasible ? aggregateClipped ? "clip" : "aggregate" : "false"}>
   <header>河川洪水情報{#if item.restored}<RestoredChip />{/if}</header>
   <div class="river-grid-wrap" style={gridWrapStyle}>
   <div class="river-grid" use:measureBorderHeight={(height) => (gridHeightPx = height)}>

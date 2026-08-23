@@ -60,6 +60,23 @@ describe("FloodCard", () => {
     coordinator.dispose();
   });
 
+  it.each([
+    ["compact", 320], ["wide", 400],
+  ] as const)("uses the %s contract at the side/center fit boundary", async (_form, height) => {
+    for (const placement of ["side", "center"] as const) {
+      const coordinator = createCardPageCoordinator();
+      const probes: number[] = [];
+      const view = render(FloodCard, {
+        item: floodItem([river("r1")]), pageCoordinator: coordinator, pageScheduling: true, pagePlacement: placement,
+        measurementFixedHeightPx: height, partitionProbe: (_key, _placement, _range) => { probes.push(height); return height; },
+      });
+      await tick();
+      expect(view.container.querySelector<HTMLElement>(".flood-card")?.dataset.cardPageInfeasible).toBe("false");
+      expect(probes).toContain(height);
+      view.unmount(); coordinator.dispose();
+    }
+  });
+
   it("keeps the confirmed active page through a detail-update pending epoch", async () => {
     const coordinator = createCardPageCoordinator();
     let pending = false;

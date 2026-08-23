@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
+import { tick } from "svelte";
 import FloodWideCard from "../FloodWideCard.svelte";
 import type { ActiveStandbyCardV1, DisplayFloodRiverV1 } from "../../lib/protocol";
+import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
 
 const originalInnerHeight = window.innerHeight;
 
@@ -27,6 +29,32 @@ function floodItem(count: number, restored = false): Extract<ActiveStandbyCardV1
 afterEach(() => Object.defineProperty(window, "innerHeight", { configurable: true, value: originalInnerHeight }));
 
 describe("FloodWideCard", () => {
+  it.each([1, 2, 3, 5, 12])("paginates wide n=%i through every river and hides a one-page footer", async (count) => {
+    const coordinator = createCardPageCoordinator();
+    const view = render(FloodWideCard, {
+      item: floodItem(count), pageCoordinator: coordinator, pageScheduling: true,
+      partitionProbe: (_key, _placement, range) => range.end - range.start <= 2 ? 0 : 999,
+    });
+    await tick();
+    const pages = Math.ceil(count / 2);
+    expect(view.container.querySelector("[data-card-page-footer]") != null).toBe(pages > 1);
+    const visited = new Set<string>();
+    for (let index = 0; index < pages; index += 1) {
+      coordinator.jumpTo("flood", index); await tick();
+      for (const row of view.container.querySelectorAll<HTMLElement>("[data-flood-entry-index]")) visited.add(row.dataset.floodEntryIndex ?? "");
+    }
+    expect(visited.size).toBe(count);
+    view.unmount(); coordinator.dispose();
+  });
+
+  it("keeps a provisional wide range visible without footer or fallback", async () => {
+    const coordinator = createCardPageCoordinator();
+    const view = render(FloodWideCard, { item: floodItem(3), pageCoordinator: coordinator, pageScheduling: true, partitionProbe: () => null });
+    await tick();
+    expect(view.container.querySelectorAll("[data-flood-entry-index]")).toHaveLength(1);
+    expect(view.container.querySelector("[data-card-page-footer], [data-flood-aggregate]")).toBeNull();
+    view.unmount(); coordinator.dispose();
+  });
   it("does not retain the old row-estimate aggregation path", () => {
     const source = readFileSync(join(__dirname, "..", "FloodWideCard.svelte"), "utf8");
     expect(source).not.toContain("layoutFloodWideRows");

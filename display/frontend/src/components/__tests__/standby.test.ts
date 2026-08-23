@@ -168,7 +168,9 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(container.querySelectorAll(".legacy-layout .flood-card [data-flood-entry-index]")).toHaveLength(1);
     expect(container.querySelector(".legacy-layout .flood-card [data-card-page-footer]")).toBeTruthy();
     const runner = readFileSync(join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs"), "utf8");
-    for (const attribute of ["data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible"]) expect(runner).toContain(`"${attribute}"`);
+    expect(root.dataset.floodPageFooter).toBeDefined();
+    expect(root.dataset.floodPageVisibleCount).toBeDefined();
+    for (const attribute of ["data-flood-page", "data-flood-page-keys", "data-flood-page-identities", "data-flood-page-infeasible", "data-flood-page-footer", "data-flood-page-visible-count"]) expect(runner).toContain(`"${attribute}"`);
   });
 
   it("rejects a shorter summary-only wide promotion and restores it when one detailed row fits", async () => {
@@ -213,6 +215,26 @@ describe("StandbyScreen legacy-improved skeleton", () => {
       if (innerHeight == null) delete (window as { innerHeight?: number }).innerHeight;
       else Object.defineProperty(window, "innerHeight", innerHeight);
     }
+  });
+
+  it("demotes wide when a later one-river partition range is confirmed impossible", async () => {
+    const base = flood("clock-top-wide");
+    const rivers = ["a", "b"].map((riverKey) => ({ ...base.data.rivers[0]!, riverKey, riverName: riverKey }));
+    const { container } = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [{ ...base, data: { rivers } }] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: {
+        sideMeasureShelfWidthPx: 320, centerMeasureShelfWidthPx: 480,
+        "flood:page-fit:0:1:placement:center:form:wide": 0, "flood:page-fit:0:2:placement:center:form:wide": 999,
+        "flood:page-fit:1:2:placement:center:form:wide": 999,
+        "flood:page-fit:0:1:placement:side:form:wide": 0, "flood:page-fit:0:2:placement:side:form:wide": 999,
+        "flood:page-fit:1:2:placement:side:form:wide": 999,
+        "flood:page-fit:0:1:placement:center:form:compact": 0, "flood:page-fit:0:2:placement:center:form:compact": 0,
+        "flood:page-fit:0:1:placement:side:form:compact": 0, "flood:page-fit:0:2:placement:side:form:compact": 0,
+      },
+    });
+    for (let pass = 0; pass < 12; pass += 1) await tick();
+    expect(container.querySelector(".legacy-layout .flood-wide-card")).toBeNull();
+    expect(container.querySelector(".legacy-layout .flood-card")).toBeTruthy();
   });
 
   it("does not count an initially full typhoon as placement surplus", async () => {
