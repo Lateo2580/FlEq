@@ -37,7 +37,10 @@ interface RecentTickerEntry {
 function isPairEligibleTicker(dto: DisplayEventDtoV1): boolean {
   return dto.infoType === "発表"
     && dto.isCancellation !== true
-    && (dto.type === "VPOA50" || dto.type === "VPBS50");
+    && (
+      (dto.type === "VPOA50" && dto.domain === "legacyCounterpart")
+      || (dto.type === "VPBS50" && dto.domain === "briefing")
+    );
 }
 
 function tickerExpiryAtMs(dto: DisplayEventDtoV1, receivedMs: number): number {

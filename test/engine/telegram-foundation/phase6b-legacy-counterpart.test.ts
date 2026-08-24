@@ -14,6 +14,8 @@ import { toPresentationEvent } from "../../../src/engine/presentation/events/to-
 import { projectDisplayEvent } from "../../../src/engine/display/project-event";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
+import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { tickerTtlMs } from "../../../src/engine/display/ticker-ttl";
 import type {
   DisplayBroadcastResult,
@@ -685,6 +687,34 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     expect(run.metric).toBe(1);
     expect(run.localMetric).toBe(1);
     expect(run.hub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+  });
+
+  it("createDisplaySink→InfoDisplayHub→router の production seam で late reconcile を原子的に通す", () => {
+    vi.useFakeTimers();
+    const expected = PHASE6B_PAIR_EXPECTATIONS[0]!;
+    const reportDateTimeMs = Date.parse(expected.reportDateTime);
+    vi.setSystemTime(reportDateTimeMs);
+    const hub = createPhase6bHub();
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => hub,
+      now: () => Date.now(),
+    });
+    const result = createMessageHandler({ displaySink: sink });
+    result.handler(phase6bMessageAt(expected.sourceFixture, "production-seam:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    result.handler(phase6bMessageAt(
+      expected.counterpartFixture,
+      "production-seam:counterpart",
+      reportDateTimeMs + 60_001,
+    ));
+
+    expect(hub.buildSnapshot().recentTicker).toEqual([expect.objectContaining({ type: "VPBS50" })]);
+    expect(hub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+    expect(result.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(1);
+    result.disposeLegacyCounterpartCorrelator();
   });
 
   it("同一 receipt generation の typed reconcileLateCounterpart action 重送は metric と hub 状態を変えない", () => {

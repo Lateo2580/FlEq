@@ -100,11 +100,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       if (hub == null) {
         return { kind: "unsupported", reason: "hubUnavailable" };
       }
-      const reconcile = hub.reconcileLateCounterpart;
-      if (reconcile == null) {
+      if (hub.reconcileLateCounterpart == null) {
         return { kind: "unsupported", reason: "capabilityUnavailable" };
       }
-      return reconcile(event, sourceEventKeys);
+      // method を取り出すと InfoDisplayHub の receiver が失われる。hub 自身を経由して
+      // 呼び、recent/transport/state の this を保つ。
+      return hub.reconcileLateCounterpart(event, sourceEventKeys);
     },
   };
 }

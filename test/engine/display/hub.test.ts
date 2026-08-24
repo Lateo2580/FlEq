@@ -416,6 +416,18 @@ describe("InfoDisplayHub: ingest / ring buffer", () => {
     expect(hub.sweepTicker(T0 + 120 * 60_000 + 1)).toBe(true);
   });
 
+  it("6B後半: raw に fail-open した VPOA50/VPBS50 は pair 相関参加入力でなく受信時刻 anchor を保つ", () => {
+    const { hub } = makeHub();
+    hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00", { domain: "raw" }));
+    hub.ingest(vpbsTickerEvent("2026-07-06T20:00:00+09:00", { domain: "raw" }));
+
+    // raw は同じ type/InfoType でも pair correlator に参加しない。ReportDateTime+120分
+    // ではなく、hub ingest 時刻 T0 からの通常 TTL を使う。
+    expect(hub.sweepTicker(Date.parse("2026-07-06T22:00:00+09:00") + 1)).toBe(false);
+    expect(hub.sweepTicker(T0 + 120 * 60_000)).toBe(false);
+    expect(hub.sweepTicker(T0 + 120 * 60_000 + 1)).toBe(true);
+  });
+
   it("6B後半: source surface 不在の reconcile は seq／recent を変更せず failure", () => {
     const { hub, transport } = makeHub();
     hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
