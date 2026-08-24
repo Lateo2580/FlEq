@@ -89,6 +89,14 @@ interface DisplayReceiptView {
   sourceEventKeys: readonly string[];
 }
 
+interface ConsumedDisplayReceipt {
+  generation: number;
+  createdOrder: number;
+  expiresAtMs: number;
+  sourceVersionToken: string;
+  timer: unknown | null;
+}
+
 function isDisplayIngestResult(value: unknown): value is DisplayIngestResult {
   if (typeof value !== "object" || value == null || !("kind" in value)) return false;
   const kind = value.kind;
@@ -133,6 +141,8 @@ function sourceVersionToken(outcome: LegacyCounterpartOutcome): string {
 /** router handler 内だけで生存する、遅着 counterpart 用 ticker receipt。 */
 class LegacyDisplayReceiptStore {
   private readonly records = new Map<string, DisplayReceipt>();
+  /** 同一 receipt generation の action 重送は通常 ingest へ fail-open させない。 */
+  private readonly consumed = new Map<string, ConsumedDisplayReceipt>();
   private nextGeneration = 1;
   private nextCreatedOrder = 1;
 
@@ -144,6 +154,7 @@ class LegacyDisplayReceiptStore {
   /** 同じ source identity の新 lifecycle admission は旧 receipt を再利用しない。 */
   beginNewLifecycle(sourceIdentity: string): void {
     this.remove(sourceIdentity);
+    this.removeConsumed(sourceIdentity);
   }
 
   recordSourceIngest(
@@ -158,6 +169,7 @@ class LegacyDisplayReceiptStore {
     if (reason === "timeout") {
       // timeout は新 lifecycle の表示。旧 EventID の receipt が残っていてもここで切り替える。
       this.remove(sourceIdentity);
+      this.removeConsumed(sourceIdentity);
       const expiresAtMs = sourceReceivedAtMs(outcome, nowMs) + LEGACY_DISPLAY_RECEIPT_RETENTION_MS;
       if (eventKeys.length === 0 || nowMs > expiresAtMs) return;
       this.evictIfFull();
@@ -207,17 +219,45 @@ class LegacyDisplayReceiptStore {
     };
   }
 
-  consume(view: DisplayReceiptView): void {
+  wasConsumedForLateAction(
+    sourceIdentity: string,
+    sourceOutcome: LegacyCounterpartOutcome,
+    nowMs: number,
+  ): boolean {
+    const consumed = this.consumed.get(sourceIdentity);
+    if (consumed == null) return false;
+    if (nowMs > consumed.expiresAtMs) {
+      this.removeConsumed(sourceIdentity, consumed);
+      return false;
+    }
+    return consumed.sourceVersionToken === sourceVersionToken(sourceOutcome);
+  }
+
+  consume(view: DisplayReceiptView): boolean {
     if (
       this.records.get(view.record.sourceIdentity) !== view.record
       || view.record.generation !== view.generation
-    ) return;
+    ) return false;
     this.remove(view.record.sourceIdentity, view.record);
+    const consumed: ConsumedDisplayReceipt = {
+      generation: view.generation,
+      createdOrder: this.nextCreatedOrder++,
+      expiresAtMs: view.record.expiresAtMs,
+      sourceVersionToken: view.record.sourceVersionToken,
+      timer: null,
+    };
+    this.evictIfFull();
+    this.consumed.set(view.record.sourceIdentity, consumed);
+    this.armConsumed(view.record.sourceIdentity, consumed);
+    return true;
   }
 
   dispose(): void {
     for (const record of this.records.values()) this.clearTimer(record);
     this.records.clear();
+    for (const [sourceIdentity, consumed] of this.consumed) {
+      this.removeConsumed(sourceIdentity, consumed);
+    }
   }
 
   private addKeys(record: DisplayReceipt, eventKeys: readonly string[]): void {
@@ -233,10 +273,24 @@ class LegacyDisplayReceiptStore {
   }
 
   private evictIfFull(): void {
-    if (this.records.size < LEGACY_DISPLAY_RECEIPT_CAPACITY) return;
-    const oldest = [...this.records.values()]
+    if (this.records.size + this.consumed.size < LEGACY_DISPLAY_RECEIPT_CAPACITY) return;
+    const oldestRecord = [
+      ...[...this.records.values()].map((record) => ({
+        kind: "record" as const,
+        sourceIdentity: record.sourceIdentity,
+        createdOrder: record.createdOrder,
+        record,
+      })),
+      ...[...this.consumed.entries()].map(([sourceIdentity, consumed]) => ({
+        kind: "consumed" as const,
+        sourceIdentity,
+        createdOrder: consumed.createdOrder,
+        consumed,
+      })),
+    ]
       .sort((left, right) => left.createdOrder - right.createdOrder)[0];
-    if (oldest != null) this.remove(oldest.sourceIdentity, oldest);
+    if (oldestRecord?.kind === "record") this.remove(oldestRecord.sourceIdentity, oldestRecord.record);
+    if (oldestRecord?.kind === "consumed") this.removeConsumed(oldestRecord.sourceIdentity, oldestRecord.consumed);
   }
 
   private arm(record: DisplayReceipt, nowMs = this.clock.nowMs()): void {
@@ -274,11 +328,53 @@ class LegacyDisplayReceiptStore {
     }
   }
 
+  private armConsumed(sourceIdentity: string, consumed: ConsumedDisplayReceipt, nowMs = this.clock.nowMs()): void {
+    this.clearConsumedTimer(consumed);
+    const delayMs = Math.max(0, consumed.expiresAtMs + 1 - nowMs);
+    const generation = consumed.generation;
+    try {
+      consumed.timer = this.scheduler.set(delayMs, () => {
+        if (
+          this.consumed.get(sourceIdentity) !== consumed
+          || consumed.generation !== generation
+        ) return;
+        consumed.timer = null;
+        const nowMs = this.clock.nowMs();
+        if (nowMs <= consumed.expiresAtMs) {
+          this.armConsumed(sourceIdentity, consumed);
+          return;
+        }
+        this.consumed.delete(sourceIdentity);
+      });
+    } catch {
+      // timer を張れない consumed marker は重送抑止の根拠に残さない。
+      this.consumed.delete(sourceIdentity);
+    }
+  }
+
+  private clearConsumedTimer(consumed: ConsumedDisplayReceipt): void {
+    if (consumed.timer == null) return;
+    try {
+      this.scheduler.clear(consumed.timer);
+    } catch {
+      // disposal must not leave the consumed marker half alive when a DI scheduler fails.
+    } finally {
+      consumed.timer = null;
+    }
+  }
+
   private remove(sourceIdentity: string, expected?: DisplayReceipt): void {
     const record = this.records.get(sourceIdentity);
     if (record == null || (expected != null && record !== expected)) return;
     this.clearTimer(record);
     this.records.delete(sourceIdentity);
+  }
+
+  private removeConsumed(sourceIdentity: string, expected?: ConsumedDisplayReceipt): void {
+    const consumed = this.consumed.get(sourceIdentity);
+    if (consumed == null || (expected != null && consumed !== expected)) return;
+    this.clearConsumedTimer(consumed);
+    this.consumed.delete(sourceIdentity);
   }
 }
 
@@ -953,6 +1049,18 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
             disposition.sourceOutcome,
             receiptNowMs,
           );
+          if (
+            receipt == null
+            && displayReceipts.wasConsumedForLateAction(
+              disposition.sourceIdentity,
+              disposition.sourceOutcome,
+              receiptNowMs,
+            )
+          ) {
+            // 同じ receipt generation の typed action が重送された。初回 reconcile は
+            // 完了済みなので、canonical 通常 ingest へ落とさず状態を不変に保つ。
+            break;
+          }
           const displayIngestOverride: DisplayIngestOperation | undefined = receipt == null
             ? undefined
             : (event) => {
@@ -966,7 +1074,16 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
                 result = undefined;
               }
               if (displayIngestApplied(result)) {
-                displayReceipts.consume(receipt);
+                // delivery の成否とは別に、server-side ticker mutation が applied なら
+                // receipt generation ごとに一度だけ production metric を確定する。
+                // noClients／blocked／byteGuardDropped は mutation の rollback 理由にしない。
+                if (displayReceipts.consume(receipt)) {
+                  stats.recordFoundationForHeadType(
+                    disposition.sourceOutcome.parsed.type,
+                    "legacyLateCounterpartReconciled",
+                    actionNowMs,
+                  );
+                }
                 return result;
               }
               // capability 不在／hub 停止／mutation failure は canonical event の通常

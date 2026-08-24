@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +14,13 @@ import { toPresentationEvent } from "../../../src/engine/presentation/events/to-
 import { projectDisplayEvent } from "../../../src/engine/display/project-event";
 import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
+import { tickerTtlMs } from "../../../src/engine/display/ticker-ttl";
+import type {
+  DisplayBroadcastResult,
+  DisplayIngestSink,
+  DisplayServerMessageWithReconcile,
+  DisplayTransport,
+} from "../../../src/engine/display/types";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import {
   LEGACY_COUNTERPART_BODY_EXTRACTORS,
@@ -21,8 +30,29 @@ import { displayLegacyCounterpartInfo } from "../../../src/ui/legacy-counterpart
 import { buildSummaryModel } from "../../../src/ui/summary/summary-model";
 import { buildSummaryTokens } from "../../../src/ui/summary/token-builders";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
+import {
+  LegacyCounterpartCorrelator,
+  type LegacyCounterpartAction,
+  type LegacyCounterpartCorrelatorFactory,
+} from "../../../src/engine/messages/legacy-counterpart-correlator";
+import {
+  createLegacyCounterpartRegistry,
+  LEGACY_CORRELATION_WINDOW_AFTER_MS,
+  LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+  LEGACY_SOURCE_HOLDBACK_MS,
+  type LegacyCounterpartCorrelationKey,
+} from "../../../src/engine/messages/legacy-counterpart-registry";
 import { playSound } from "../../../src/engine/notification/sound-player";
 import { normalizeTelegramMessage } from "../../../src/dmdata/telegram-ingress";
+import {
+  initialState as initialFrontendState,
+  reduce as reduceFrontend,
+} from "../../../display/frontend/src/lib/store";
+import {
+  createSchedulerState,
+  reconcileScheduler,
+  toTickerJob,
+} from "../../../display/frontend/src/lib/ticker-schedule";
 import { makeProcessDeps } from "../../helpers/process-deps";
 import {
   createMockWsDataMessageFromXml,
@@ -217,6 +247,59 @@ function makeLegacyMessage(
   }).message;
 }
 
+function phase6bMessageWithEventId(
+  fixture: string,
+  id: string,
+  eventId: string,
+  receivedAtMs: number,
+  titleSuffix = "",
+) {
+  const message = phase6bMessageAt(fixture, id, receivedAtMs);
+  if (message.xmlReport == null) throw new Error("fixture envelope is missing");
+  const title = `${message.xmlReport.head.title}${titleSuffix}`;
+  const bodyXml = readFixture(fixture)
+    .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`)
+    .replace(message.xmlReport.head.title, title);
+  return normalizeTelegramMessage({
+    ...message,
+    body: encodeXml(bodyXml),
+    xmlReport: {
+      ...message.xmlReport,
+      head: {
+        ...message.xmlReport.head,
+        eventId,
+        title,
+      },
+    },
+    meta: undefined,
+  }, receivedAtMs).message;
+}
+
+function phase6bAmbiguousCorrelatorFactory(): LegacyCounterpartCorrelatorFactory {
+  const key: LegacyCounterpartCorrelationKey = {
+    officeCode: "PHASE6B-OFFICE",
+    areaCodes: ["PHASE6B-AREA"],
+    phenomenonCodes: ["PHASE6B-PHENOM"],
+    kindCodes: ["PHASE6B-KIND"],
+    targetTimeMs: Date.parse("2026-08-22T08:09:00.000Z"),
+  };
+  const registry = createLegacyCounterpartRegistry([{
+    sourceType: "VPOA50",
+    status: "confirmed",
+    counterpartTypes: ["VPBS50"],
+    normalizeEventId: () => "PHASE6B-AMBIGUOUS",
+    extractEventKey: () => key,
+    windowBeforeMs: LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+    windowAfterMs: LEGACY_CORRELATION_WINDOW_AFTER_MS,
+    holdbackMs: LEGACY_SOURCE_HOLDBACK_MS,
+  }]);
+  return ({ actionSink, lifecycleEventSink }) => new LegacyCounterpartCorrelator({
+    registry,
+    onAction: actionSink,
+    onLifecycleEvent: lifecycleEventSink,
+  });
+}
+
 function withNewMessageId(message: ReturnType<typeof makeLegacyMessage>, id: string) {
   return normalizeTelegramMessage({ ...message, id, meta: undefined }).message;
 }
@@ -298,6 +381,162 @@ function createLegacyDisplay(): DisplayCallbacks {
   };
 }
 
+function phase6bMessageAt(fixture: string, id: string, receivedAtMs: number) {
+  const message = createMockWsDataMessage(fixture, { id });
+  return normalizeTelegramMessage({ ...message, meta: undefined }, receivedAtMs).message;
+}
+
+type Phase6bDelivery = "delivered" | "noClients" | "blockedSkipped" | "byteGuardDropped";
+
+class Phase6bTransport implements DisplayTransport {
+  readonly messages: DisplayServerMessageWithReconcile[] = [];
+  constructor(private readonly delivery: Phase6bDelivery) {}
+
+  async start(): Promise<void> {}
+  async stop(): Promise<void> {}
+
+  broadcast(message: DisplayServerMessageWithReconcile): DisplayBroadcastResult {
+    this.messages.push(message);
+    switch (this.delivery) {
+      case "delivered":
+        return { total: 1, blockedSkipped: 0 };
+      case "noClients":
+        return { total: 0, blockedSkipped: 0 };
+      case "blockedSkipped":
+        return { total: 1, blockedSkipped: 1 };
+      case "byteGuardDropped":
+        return { total: 1, blockedSkipped: 1, byteGuardDropped: true };
+    }
+  }
+
+  clientCount(): number {
+    return this.delivery === "noClients" ? 0 : 1;
+  }
+}
+
+class SwitchablePhase6bSink implements DisplayIngestSink {
+  hub: InfoDisplayHub | undefined;
+  readonly ingested: PresentationEvent[] = [];
+
+  constructor(hub?: InfoDisplayHub) {
+    this.hub = hub;
+  }
+
+  ingest(event: PresentationEvent) {
+    this.ingested.push(event);
+    return this.hub?.ingest(event);
+  }
+
+  reconcileLateCounterpart(event: PresentationEvent, sourceEventKeys: readonly string[]) {
+    return this.hub?.reconcileLateCounterpart(event, sourceEventKeys);
+  }
+}
+
+function frontendStateFromFrames(messages: readonly DisplayServerMessageWithReconcile[]) {
+  let state = initialFrontendState();
+  for (const message of messages) {
+    if (message.type === "event" || message.type === "reconcile") {
+      state = reduceFrontend(state, message);
+    }
+  }
+  return state;
+}
+
+function frontendStateFromSnapshot(hub: InfoDisplayHub) {
+  return reduceFrontend(initialFrontendState(), { type: "snapshot", snapshot: hub.buildSnapshot() });
+}
+
+function createPhase6bHub() {
+  return new InfoDisplayHub(new DisplayStateStore(), {
+    summarize: (event) => event.title,
+    weatherAlerts: () => [],
+    now: () => Date.now(),
+  });
+}
+
+function phase6bCounterpartEvent(
+  expected: typeof PHASE6B_PAIR_EXPECTATIONS[number],
+  id: string,
+  receivedAtMs: number,
+) {
+  return toPresentationEvent(expectOutcome(processMessage(
+    phase6bMessageAt(expected.counterpartFixture, id, receivedAtMs),
+    "briefing",
+    makeProcessDeps(),
+  )));
+}
+
+function runPhase6bDisplayPair(
+  expected: typeof PHASE6B_PAIR_EXPECTATIONS[number],
+  order: "source-first-late" | "counterpart-first",
+  options: { delivery?: Phase6bDelivery; replayLateCounterpart?: boolean } = {},
+) {
+  const reportDateTimeMs = Date.parse(expected.reportDateTime);
+  vi.setSystemTime(reportDateTimeMs);
+  const sourceId = `phase6b:${expected.sourceEventId}`;
+  const counterpartId = `phase6b:${expected.counterpartEventId}`;
+  const source = phase6bMessageAt(expected.sourceFixture, sourceId, reportDateTimeMs);
+  const counterpart = phase6bMessageAt(expected.counterpartFixture, counterpartId, reportDateTimeMs);
+  const hub = new InfoDisplayHub(new DisplayStateStore(), {
+    summarize: (event) => event.title,
+    weatherAlerts: () => [],
+    now: () => Date.now(),
+  });
+  const transport = new Phase6bTransport(options.delivery ?? "delivered");
+  hub.attachTransport(transport);
+  const result = createMessageHandler({ displaySink: hub });
+
+  if (order === "source-first-late") {
+    result.handler(source);
+    vi.advanceTimersByTime(60_001);
+    const sourceTicker = hub.buildSnapshot().recentTicker.find((dto) => dto.type === "VPOA50");
+    if (sourceTicker == null) throw new Error("source ticker was not released");
+    vi.advanceTimersByTime(599_999);
+    result.handler(
+      phase6bMessageAt(expected.counterpartFixture, counterpartId, reportDateTimeMs + 660_000),
+    );
+    if (options.replayLateCounterpart === true) {
+      result.handler(
+        phase6bMessageAt(
+          expected.counterpartFixture,
+          `${counterpartId}:replay`,
+          reportDateTimeMs + 660_000,
+        ),
+      );
+    }
+    result.disposeLegacyCounterpartCorrelator();
+    const statsSnapshot = result.stats.getSnapshot(Date.now());
+    return {
+      hub,
+      transport,
+      ticker: hub.buildSnapshot().recentTicker,
+      frontend: frontendStateFromFrames(transport.messages),
+      frontendReconnect: frontendStateFromSnapshot(hub),
+      sourcePriority: sourceTicker.tickerPriority ?? "low",
+      metric: statsSnapshot.foundation.legacyLateCounterpartReconciled,
+      localMetric: statsSnapshot.foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0,
+    };
+  }
+
+  result.handler(counterpart);
+  vi.advanceTimersByTime(60_001);
+  result.handler(
+    phase6bMessageAt(expected.sourceFixture, sourceId, reportDateTimeMs + 60_001),
+  );
+  result.disposeLegacyCounterpartCorrelator();
+  const statsSnapshot = result.stats.getSnapshot(Date.now());
+  return {
+    hub,
+    transport,
+    ticker: hub.buildSnapshot().recentTicker,
+    frontend: frontendStateFromFrames(transport.messages),
+    frontendReconnect: frontendStateFromSnapshot(hub),
+    sourcePriority: "mid" as const,
+    metric: statsSnapshot.foundation.legacyLateCounterpartReconciled,
+    localMetric: statsSnapshot.foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0,
+  };
+}
+
 describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -354,6 +593,434 @@ describe("Phase 6B legacy counterpart route and VPOA50 production slice", () => 
     });
     expect(source.xmlReport?.control.publishingOffice).toBe("気象庁");
     expect(counterpart.xmlReport?.control.publishingOffice).toBe("気象庁");
+  });
+
+  it.each(PHASE6B_PAIR_EXPECTATIONS)(
+    "実6 pair の late reconcile と counterpart-first は canonical ticker identity/content/expiry を一致させる ($sourceEventId)",
+    (expected) => {
+      vi.useFakeTimers();
+      const sourceFirst = runPhase6bDisplayPair(expected, "source-first-late");
+      const counterpartFirst = runPhase6bDisplayPair(expected, "counterpart-first");
+
+      expect(sourceFirst.ticker).toHaveLength(1);
+      expect(counterpartFirst.ticker).toHaveLength(1);
+      expect(sourceFirst.ticker[0]).toMatchObject({ type: "VPBS50", infoType: "発表" });
+      expect(counterpartFirst.ticker[0]).toMatchObject({ type: "VPBS50", infoType: "発表" });
+      expect(sourceFirst.ticker.some((dto) => dto.type === "VPOA50")).toBe(false);
+      expect(counterpartFirst.ticker.some((dto) => dto.type === "VPOA50")).toBe(false);
+
+      const sourceReconcile = sourceFirst.transport.messages.filter((message) => message.type === "reconcile");
+      expect(sourceReconcile).toHaveLength(1);
+      expect(sourceReconcile[0]).toMatchObject({
+        event: expect.objectContaining({ type: "VPBS50" }),
+        sourceEventKeys: expect.any(Array),
+      });
+      // hub の実 reconcile frame を protocol reducer に通した後、その command を
+      // Ticker.svelte と同じ scheduler reducer へ渡す。catalog で source が残らず、
+      // canonical が一回だけになることまで fixture pair ごとに固定する。
+      const sourceOnlyFrontend = frontendStateFromFrames(
+        sourceFirst.transport.messages.filter((message) => message.type === "event"),
+      );
+      const schedulerBeforeReconcile = createSchedulerState(
+        sourceOnlyFrontend.ticker.map((dto, index) => toTickerJob(dto, index + 1)),
+      );
+      const schedulerAfterReconcile = reconcileScheduler(
+        schedulerBeforeReconcile,
+        sourceReconcile[0].sourceEventKeys,
+        toTickerJob(sourceReconcile[0].event, sourceOnlyFrontend.ticker.length + 1),
+        Date.parse(expected.reportDateTime) + 660_000,
+      );
+      expect(schedulerAfterReconcile.catalog.some(
+        (job) => sourceReconcile[0].sourceEventKeys.includes(job.key),
+      )).toBe(false);
+      expect(schedulerAfterReconcile.catalog.filter(
+        (job) => job.key === sourceReconcile[0].event.eventKey,
+      )).toHaveLength(1);
+      expect(schedulerAfterReconcile.catalog.map((job) => job.key)).toEqual(
+        sourceFirst.frontend.ticker.map((dto) => dto.eventKey),
+      );
+      expect(sourceFirst.frontend.ticker).toEqual(sourceFirst.ticker);
+      expect(counterpartFirst.frontend.ticker).toEqual(counterpartFirst.ticker);
+      expect(sourceFirst.frontendReconnect.ticker).toEqual(sourceFirst.ticker);
+      expect(counterpartFirst.frontendReconnect.ticker).toEqual(counterpartFirst.ticker);
+      expect(sourceFirst.frontend.ticker.some((dto) => dto.type === "VPOA50")).toBe(false);
+      expect(sourceFirst.frontendReconnect.ticker.some((dto) => dto.type === "VPOA50")).toBe(false);
+
+      const { seq: _sourceSeq, ...sourceCanonical } = sourceFirst.ticker[0]!;
+      const { seq: _counterpartSeq, ...counterpartCanonical } = counterpartFirst.ticker[0]!;
+      expect(sourceCanonical).toEqual(counterpartCanonical);
+      expect(sourceFirst.metric).toBe(1);
+      expect(sourceFirst.localMetric).toBe(1);
+      expect(counterpartFirst.metric).toBe(0);
+      expect(counterpartFirst.localMetric).toBe(0);
+
+      const expectedExpiryAtMs = Math.min(
+        Date.parse(expected.reportDateTime) + tickerTtlMs(sourceFirst.sourcePriority, "legacyCounterpart"),
+        Date.parse(expected.reportDateTime)
+          + tickerTtlMs(sourceFirst.ticker[0]?.tickerPriority ?? "low", sourceFirst.ticker[0]?.domain),
+      );
+      for (const run of [sourceFirst, counterpartFirst]) {
+        expect(run.hub.sweepTicker(expectedExpiryAtMs)).toBe(false);
+        expect(run.hub.buildSnapshot().recentTicker).toHaveLength(1);
+        expect(run.hub.sweepTicker(expectedExpiryAtMs + 1)).toBe(true);
+        expect(run.hub.buildSnapshot().recentTicker).toHaveLength(0);
+      }
+    },
+  );
+
+  it.each([
+    "delivered",
+    "noClients",
+    "blockedSkipped",
+    "byteGuardDropped",
+  ] as const)("実 pair の reconcile delivery=%s でも metric は receipt generation ごとに一回だけ確定する", (delivery) => {
+    vi.useFakeTimers();
+    const run = runPhase6bDisplayPair(
+      PHASE6B_PAIR_EXPECTATIONS[0]!,
+      "source-first-late",
+      { delivery, replayLateCounterpart: true },
+    );
+
+    expect(run.transport.messages.filter((message) => message.type === "reconcile")).toHaveLength(1);
+    expect(run.metric).toBe(1);
+    expect(run.localMetric).toBe(1);
+    expect(run.hub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+  });
+
+  it("同一 receipt generation の typed reconcileLateCounterpart action 重送は metric と hub 状態を変えない", () => {
+    vi.useFakeTimers();
+    const expected = PHASE6B_PAIR_EXPECTATIONS[0]!;
+    const reportDateTimeMs = Date.parse(expected.reportDateTime);
+    vi.setSystemTime(reportDateTimeMs);
+    let actionSink: ((action: LegacyCounterpartAction) => void) | undefined;
+    const observedActions: LegacyCounterpartAction[] = [];
+    const factory: LegacyCounterpartCorrelatorFactory = (context) => {
+      actionSink = context.actionSink;
+      return new LegacyCounterpartCorrelator({
+        onAction: (action) => {
+          observedActions.push(action);
+          context.actionSink(action);
+        },
+        onLifecycleEvent: context.lifecycleEventSink,
+      });
+    };
+    const hub = createPhase6bHub();
+    const result = createMessageHandler({ displaySink: hub, legacyCounterpartCorrelatorFactory: factory });
+    result.handler(phase6bMessageAt(expected.sourceFixture, "duplicate-action:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    const release = observedActions.find(
+      (action): action is Extract<LegacyCounterpartAction, { kind: "releaseSource" }> => action.kind === "releaseSource",
+    );
+    if (release == null || actionSink == null) throw new Error("source receipt action sink was not captured");
+    const counterpartOutcome = expectOutcome(processMessage(
+      phase6bMessageAt(expected.counterpartFixture, "duplicate-action:counterpart", reportDateTimeMs + 60_001),
+      "briefing",
+      makeProcessDeps(),
+    ));
+    const action = {
+      kind: "reconcileLateCounterpart" as const,
+      outcome: counterpartOutcome,
+      sourceOutcome: release.outcome,
+      sourceIdentity: release.sourceIdentity,
+      decidedAtMs: Date.now(),
+    };
+
+    actionSink(action);
+    const stateAfterFirstAction = hub.buildSnapshot();
+    const metricsAfterFirstAction = result.stats.getSnapshot(Date.now());
+    actionSink(action);
+
+    expect(hub.buildSnapshot()).toEqual(stateAfterFirstAction);
+    expect(hub.buildSnapshot().recentTicker.filter((dto) => dto.type === "VPBS50")).toHaveLength(1);
+    expect(hub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+    expect(result.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled)
+      .toBe(metricsAfterFirstAction.foundation.legacyLateCounterpartReconciled);
+    expect(result.stats.getSnapshot(Date.now()).foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0)
+      .toBe(metricsAfterFirstAction.foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0);
+
+    // consumed marker も元 receipt と同じ t0+660,001ms で timer 破棄する。期限後は
+    // typed action が重送抑止されず canonical の通常 ingest へ fail-open する。
+    const expiryIngest = vi.spyOn(hub, "ingest");
+    vi.advanceTimersByTime(600_000);
+    actionSink(action);
+    expect(expiryIngest).toHaveBeenLastCalledWith(expect.objectContaining({ type: "VPBS50" }));
+
+    // 新 generation の consumed marker は dispose の唯一の入口でも timer ごと破棄する。
+    const disposeSourceReceivedAtMs = Date.now();
+    result.handler(phase6bMessageAt(
+      expected.sourceFixture,
+      "duplicate-action:dispose-source",
+      disposeSourceReceivedAtMs,
+    ));
+    vi.advanceTimersByTime(60_001);
+    const disposeRelease = [...observedActions].reverse().find(
+      (candidate): candidate is Extract<LegacyCounterpartAction, { kind: "releaseSource" }> => candidate.kind === "releaseSource",
+    );
+    if (disposeRelease == null) throw new Error("dispose receipt action was not captured");
+    const disposeAction = {
+      kind: "reconcileLateCounterpart" as const,
+      outcome: expectOutcome(processMessage(
+        phase6bMessageAt(expected.counterpartFixture, "duplicate-action:dispose-counterpart", Date.now()),
+        "briefing",
+        makeProcessDeps(),
+      )),
+      sourceOutcome: disposeRelease.outcome,
+      sourceIdentity: disposeRelease.sourceIdentity,
+      decidedAtMs: Date.now(),
+    };
+    actionSink(disposeAction);
+    result.disposeLegacyCounterpartCorrelator();
+    const disposeIngest = vi.spyOn(hub, "ingest");
+    actionSink(disposeAction);
+    expect(disposeIngest).toHaveBeenLastCalledWith(expect.objectContaining({ type: "VPBS50" }));
+  });
+
+  it("実 pair の sink 不在・source既除去・hub停止・mutation failure は canonical通常経路を保ち metric 0 にする", () => {
+    vi.useFakeTimers();
+    const expected = PHASE6B_PAIR_EXPECTATIONS[0]!;
+    const reportDateTimeMs = Date.parse(expected.reportDateTime);
+
+    vi.setSystemTime(reportDateTimeMs);
+    const noSinkDisplay = createLegacyDisplay();
+    const noSink = createMessageHandler({ display: noSinkDisplay });
+    noSink.handler(phase6bMessageAt(expected.sourceFixture, "failure:no-sink:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    noSink.handler(phase6bMessageAt(expected.counterpartFixture, "failure:no-sink:counterpart", reportDateTimeMs + 60_001));
+    expect(noSinkDisplay.displayOutcome).toHaveBeenCalledTimes(2);
+    expect(noSink.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    expect(noSink.stats.getSnapshot(Date.now()).foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0).toBe(0);
+    noSink.disposeLegacyCounterpartCorrelator();
+
+    vi.setSystemTime(reportDateTimeMs);
+    const removedHub = new InfoDisplayHub(new DisplayStateStore(), {
+      summarize: (event) => event.title,
+      weatherAlerts: () => [],
+      now: () => Date.now(),
+    });
+    const removed = createMessageHandler({ displaySink: removedHub });
+    removed.handler(phase6bMessageAt(expected.sourceFixture, "failure:removed:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    const sourceKey = removedHub.buildSnapshot().recentTicker[0]?.eventKey;
+    if (sourceKey == null) throw new Error("source ticker missing before external removal");
+    expect(removedHub.reconcileLateCounterpart(
+      phase6bCounterpartEvent(expected, "failure:removed:external", reportDateTimeMs + 60_001),
+      [sourceKey],
+    )).toMatchObject({ kind: "applied" });
+    const removedIngest = vi.spyOn(removedHub, "ingest");
+    removed.handler(phase6bMessageAt(expected.counterpartFixture, "failure:removed:counterpart", reportDateTimeMs + 60_001));
+    expect(removedIngest).toHaveBeenCalledWith(expect.objectContaining({ type: "VPBS50" }));
+    expect(removedHub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+    expect(removed.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    expect(removed.stats.getSnapshot(Date.now()).foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0).toBe(0);
+    removed.disposeLegacyCounterpartCorrelator();
+
+    vi.setSystemTime(reportDateTimeMs);
+    const stoppedHub = new InfoDisplayHub(new DisplayStateStore(), {
+      summarize: (event) => event.title,
+      weatherAlerts: () => [],
+      now: () => Date.now(),
+    });
+    const stopped = createMessageHandler({ displaySink: stoppedHub });
+    const stoppedIngest = vi.spyOn(stoppedHub, "ingest");
+    stopped.handler(phase6bMessageAt(expected.sourceFixture, "failure:stopped:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    stoppedHub.stop();
+    stopped.handler(phase6bMessageAt(expected.counterpartFixture, "failure:stopped:counterpart", reportDateTimeMs + 60_001));
+    expect(stoppedIngest).toHaveBeenLastCalledWith(expect.objectContaining({ type: "VPBS50" }));
+    expect(stopped.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    expect(stopped.stats.getSnapshot(Date.now()).foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0).toBe(0);
+    stopped.disposeLegacyCounterpartCorrelator();
+
+    vi.setSystemTime(reportDateTimeMs);
+    const ingested: PresentationEvent[] = [];
+    const mutationFailure = createMessageHandler({
+      displaySink: {
+        ingest: (event) => {
+          ingested.push(event);
+          return { kind: "applied" as const, eventKeys: [`failure:${event.id}`] };
+        },
+        reconcileLateCounterpart: () => ({
+          kind: "failure" as const,
+          status: "failure" as const,
+          reason: "reconcileMutationFailed" as const,
+        }),
+      },
+    });
+    mutationFailure.handler(phase6bMessageAt(expected.sourceFixture, "failure:mutation:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    mutationFailure.handler(phase6bMessageAt(expected.counterpartFixture, "failure:mutation:counterpart", reportDateTimeMs + 60_001));
+    expect(ingested).toMatchObject([
+      { type: "VPOA50" },
+      { type: "VPBS50" },
+    ]);
+    expect(mutationFailure.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    expect(mutationFailure.stats.getSnapshot(Date.now()).foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0).toBe(0);
+    mutationFailure.disposeLegacyCounterpartCorrelator();
+  });
+
+  it("実 pair の display off/on 5分岐と process restart は receipt を遡及せず canonical通常 ingest と metric境界を保つ", () => {
+    vi.useFakeTimers();
+    const expected = PHASE6B_PAIR_EXPECTATIONS[0]!;
+    const reportDateTimeMs = Date.parse(expected.reportDateTime);
+
+    vi.setSystemTime(reportDateTimeMs);
+    const onHub = createPhase6bHub();
+    const on = new SwitchablePhase6bSink(onHub);
+    const onResult = createMessageHandler({ displaySink: on });
+    onResult.handler(phase6bMessageAt(expected.sourceFixture, "display:on:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    onResult.handler(phase6bMessageAt(expected.counterpartFixture, "display:on:counterpart", reportDateTimeMs + 60_001));
+    expect(onHub.buildSnapshot().recentTicker).toEqual([expect.objectContaining({ type: "VPBS50" })]);
+    expect(onResult.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(1);
+    onResult.disposeLegacyCounterpartCorrelator();
+
+    vi.setSystemTime(reportDateTimeMs);
+    const offThenOn = new SwitchablePhase6bSink();
+    const offThenOnResult = createMessageHandler({ displaySink: offThenOn });
+    offThenOnResult.handler(phase6bMessageAt(expected.sourceFixture, "display:off-on:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    const lateHub = createPhase6bHub();
+    offThenOn.hub = lateHub;
+    offThenOnResult.handler(phase6bMessageAt(expected.counterpartFixture, "display:off-on:counterpart", reportDateTimeMs + 60_001));
+    expect(lateHub.buildSnapshot().recentTicker).toEqual([expect.objectContaining({ type: "VPBS50" })]);
+    expect(lateHub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+    expect(offThenOn.ingested).toMatchObject([{ type: "VPOA50" }, { type: "VPBS50" }]);
+    expect(offThenOnResult.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    offThenOnResult.disposeLegacyCounterpartCorrelator();
+
+    vi.setSystemTime(reportDateTimeMs);
+    const sourceHub = createPhase6bHub();
+    const onThenOff = new SwitchablePhase6bSink(sourceHub);
+    const onThenOffResult = createMessageHandler({ displaySink: onThenOff });
+    onThenOffResult.handler(phase6bMessageAt(expected.sourceFixture, "display:on-off:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    expect(sourceHub.buildSnapshot().recentTicker).toEqual([expect.objectContaining({ type: "VPOA50" })]);
+    onThenOff.hub = undefined;
+    onThenOffResult.handler(phase6bMessageAt(expected.counterpartFixture, "display:on-off:counterpart", reportDateTimeMs + 60_001));
+    const recoveredHub = createPhase6bHub();
+    onThenOff.hub = recoveredHub;
+    expect(recoveredHub.buildSnapshot().recentTicker).toEqual([]);
+    expect(onThenOff.ingested).toMatchObject([{ type: "VPOA50" }, { type: "VPBS50" }]);
+    expect(onThenOffResult.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    onThenOffResult.disposeLegacyCounterpartCorrelator();
+
+    vi.setSystemTime(reportDateTimeMs);
+    const preRestartHub = createPhase6bHub();
+    const preRestart = createMessageHandler({ displaySink: preRestartHub });
+    preRestart.handler(phase6bMessageAt(expected.sourceFixture, "display:restart:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    preRestart.disposeLegacyCounterpartCorrelator();
+    const restartedHub = createPhase6bHub();
+    const restarted = createMessageHandler({ displaySink: restartedHub });
+    restarted.handler(phase6bMessageAt(expected.counterpartFixture, "display:restart:counterpart", reportDateTimeMs + 60_001));
+    expect(restartedHub.buildSnapshot().recentTicker).toEqual([expect.objectContaining({ type: "VPBS50" })]);
+    expect(restartedHub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(false);
+    expect(restarted.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    restarted.disposeLegacyCounterpartCorrelator();
+  });
+
+  it("negative matrix は router→hub 統合で unrelated／ambiguous／訂正／取消を fail-open し metric 0 にする", () => {
+    vi.useFakeTimers();
+    const expected = PHASE6B_PAIR_EXPECTATIONS[0]!;
+    const reportDateTimeMs = Date.parse(expected.reportDateTime);
+
+    vi.setSystemTime(reportDateTimeMs);
+    const unrelatedHub = createPhase6bHub();
+    const unrelated = createMessageHandler({ displaySink: unrelatedHub });
+    unrelated.handler(phase6bMessageAt(expected.sourceFixture, "negative:unrelated:source", reportDateTimeMs));
+    vi.advanceTimersByTime(60_001);
+    unrelated.handler(phase6bMessageAt(
+      PHASE6B_PAIR_EXPECTATIONS[4]!.counterpartFixture,
+      "negative:unrelated:counterpart",
+      reportDateTimeMs + 60_001,
+    ));
+    expect(unrelatedHub.buildSnapshot().recentTicker.map((dto) => dto.type)).toEqual(
+      expect.arrayContaining(["VPOA50", "VPBS50"]),
+    );
+    expect(unrelated.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    unrelated.disposeLegacyCounterpartCorrelator();
+
+    for (const infoType of ["訂正", "取消"] as const) {
+      vi.setSystemTime(reportDateTimeMs);
+      const hub = createPhase6bHub();
+      const result = createMessageHandler({ displaySink: hub });
+      const sourceXml = replaceVpoaSerial(replaceVpoaInfoType(
+        readFixture(expected.sourceFixture),
+        infoType,
+      ), "2");
+      result.handler(withNewMessageId(
+        phase6bVpoaMessage(sourceXml),
+        `negative:${infoType}:source`,
+      ));
+      result.handler(phase6bMessageAt(
+        expected.counterpartFixture,
+        `negative:${infoType}:counterpart`,
+        reportDateTimeMs,
+      ));
+      expect(hub.buildSnapshot().recentTicker.map((dto) => dto.type)).toEqual(
+        expect.arrayContaining(["VPOA50", "VPBS50"]),
+      );
+      const snapshot = result.stats.getSnapshot(Date.now());
+      expect(snapshot.foundation.legacyLateCounterpartReconciled).toBe(0);
+      expect(snapshot.foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0).toBe(0);
+      result.disposeLegacyCounterpartCorrelator();
+    }
+
+    vi.setSystemTime(reportDateTimeMs);
+    const ambiguousHub = createPhase6bHub();
+    const ambiguous = createMessageHandler({
+      displaySink: ambiguousHub,
+      legacyCounterpartCorrelatorFactory: phase6bAmbiguousCorrelatorFactory(),
+    });
+    ambiguous.handler(phase6bMessageWithEventId(
+      expected.counterpartFixture,
+      "negative:ambiguous:first",
+      "KAMBIGUOUS-1",
+      reportDateTimeMs,
+    ));
+    ambiguous.handler(phase6bMessageWithEventId(
+      expected.counterpartFixture,
+      "negative:ambiguous:second",
+      "KAMBIGUOUS-2",
+      reportDateTimeMs,
+      "（別候補）",
+    ));
+    ambiguous.handler(phase6bMessageAt(expected.sourceFixture, "negative:ambiguous:source", reportDateTimeMs));
+    expect(ambiguousHub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPOA50")).toBe(true);
+    expect(ambiguousHub.buildSnapshot().recentTicker.some((dto) => dto.type === "VPBS50")).toBe(true);
+    const ambiguousStats = ambiguous.stats.getSnapshot(Date.now());
+    expect(ambiguousStats.foundation.legacyAmbiguousDisplayed).toBe(1);
+    expect(ambiguousStats.foundation.legacyLateCounterpartReconciled).toBe(0);
+    expect(ambiguousStats.foundationByHeadType.get("VPOA50")?.legacyLateCounterpartReconciled ?? 0).toBe(0);
+    ambiguous.disposeLegacyCounterpartCorrelator();
+  });
+
+  it("実 pair の t0+660,001ms は receipt expiry 後の通常 ingestへfail-openしsource tickerを残す", () => {
+    vi.useFakeTimers();
+    const expected = PHASE6B_PAIR_EXPECTATIONS[0]!;
+    const reportDateTimeMs = Date.parse(expected.reportDateTime);
+    vi.setSystemTime(reportDateTimeMs);
+    const hub = new InfoDisplayHub(new DisplayStateStore(), {
+      summarize: (event) => event.title,
+      weatherAlerts: () => [],
+      now: () => Date.now(),
+    });
+    const result = createMessageHandler({ displaySink: hub });
+    const sourceId = `phase6b:expiry:${expected.sourceEventId}`;
+    const counterpartId = `phase6b:expiry:${expected.counterpartEventId}`;
+    result.handler(phase6bMessageAt(expected.sourceFixture, sourceId, reportDateTimeMs));
+    vi.advanceTimersByTime(660_001);
+    result.handler(
+      phase6bMessageAt(expected.counterpartFixture, counterpartId, reportDateTimeMs + 660_001),
+    );
+
+    const snapshot = hub.buildSnapshot();
+    expect(snapshot.recentTicker).toHaveLength(2);
+    expect(snapshot.recentTicker.map((dto) => dto.type)).toEqual(
+      expect.arrayContaining(["VPOA50", "VPBS50"]),
+    );
+    expect(result.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    result.disposeLegacyCounterpartCorrelator();
   });
 
   it.each(VPOA_EXPECTATIONS)("VPOA50 実 fixture $fixture は raw evidence から high を確定する", (expected) => {
