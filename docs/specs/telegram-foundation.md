@@ -1866,7 +1866,7 @@ late reconcile の確定裁定:
 
 6B後半・第2縦切り実装契約（2026-08-24 改訂。VPOA50→VPBS50 ticker reconcile slice）:
 
-状態: **起草済み・裁定済み（A/A/A、2026-08-24 オーケストレーション裁定・ご主人追認待ち、未実装）**。本縦切りは第1縦切りで production 有効化済みの VPOA50→VPBS50 `InfoType=発表` 一意 pair に限り、source admission から11分以内かつ Holdback timeout 後の typed `reconcileLateCounterpart` action を ticker surface の原子的 reconcile へ接続する。対象は `InfoDisplayHub.recent`、frontend ticker scheduler／catalog、display protocol sync、`legacyLateCounterpartReconciled` metric だけである。browser active card は現状未実装で除去対象がなく、standalone VPBS50 を含む card の新規表示は本縦切りの範囲外とする。現状の `DisplayIngestSink` は `ingest(event):void` だけで、legacy DTO の `groupKey` は `null`、通常 event ingest 時には source の exact key を置換しない。既存 `src/engine/messages/legacy-counterpart-correlator.ts` の action は canonical `outcome`、`sourceOutcome`、`sourceIdentity` を既に型付きで返すため、相関器へ display receipt／TTL を持ち込まず、この action を router の起点として保存する。
+状態: **実装済み（2026-08-24。裁定 A/A/A はオーケストレーション裁定・ご主人追認待ち。単位1 926e070・単位2 9a22809・単位3 3a6f250・単位4 33b5ccd、各単位 Sol high レビュー ADDRESSED・全ゲート緑）**。本縦切りは第1縦切りで production 有効化済みの VPOA50→VPBS50 `InfoType=発表` 一意 pair に限り、source admission から11分以内かつ Holdback timeout 後の typed `reconcileLateCounterpart` action を ticker surface の原子的 reconcile へ接続する。対象は `InfoDisplayHub.recent`、frontend ticker scheduler／catalog、display protocol sync、`legacyLateCounterpartReconciled` metric だけである。browser active card は現状未実装で除去対象がなく、standalone VPBS50 を含む card の新規表示は本縦切りの範囲外とする。現状の `DisplayIngestSink` は `ingest(event):void` だけで、legacy DTO の `groupKey` は `null`、通常 event ingest 時には source の exact key を置換しない。既存 `src/engine/messages/legacy-counterpart-correlator.ts` の action は canonical `outcome`、`sourceOutcome`、`sourceIdentity` を既に型付きで返すため、相関器へ display receipt／TTL を持ち込まず、この action を router の起点として保存する。
 
 前提・不変条件:
 
