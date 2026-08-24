@@ -7,14 +7,17 @@ import {
   MAX_SNAPSHOT_BYTES,
   MAX_WRITABLE_LENGTH,
 } from "./constants";
-import type { DisplayBroadcastResult, DisplayServerMessage } from "./types";
+import type {
+  DisplayBroadcastResult,
+  DisplayServerMessageWithReconcile,
+} from "./types";
 
 /** encode + byte 上限ガード。上限超過は null (呼び出し元で警告ログ)。接続時 snapshot 送信もこれを必ず通す */
-export function encodeSseGuarded(msg: DisplayServerMessage): string | null {
+export function encodeSseGuarded(msg: DisplayServerMessageWithReconcile): string | null {
   const json = JSON.stringify(msg);
-  const id = msg.type === "event" ? `id: ${msg.event.seq}\n` : "";
+  const id = msg.type === "event" || msg.type === "reconcile" ? `id: ${msg.event.seq}\n` : "";
   const encoded = `${id}event: ${msg.type}\ndata: ${json}\n\n`;
-  const limit = msg.type === "event" ? MAX_EVENT_BYTES : MAX_SNAPSHOT_BYTES;
+  const limit = msg.type === "event" || msg.type === "reconcile" ? MAX_EVENT_BYTES : MAX_SNAPSHOT_BYTES;
   if (Buffer.byteLength(encoded, "utf8") > limit) return null;
   return encoded;
 }
@@ -78,7 +81,7 @@ export class SseClients {
    * 戻り値 false = サイズ上限超過で未送信 (呼び出し元が縮退を判断する)。
    * 未登録の res (error/close で除去済み) は送る先が無いだけなので true を返し縮退させない。
    */
-  sendTo(res: ServerResponse, msg: DisplayServerMessage): boolean {
+  sendTo(res: ServerResponse, msg: DisplayServerMessageWithReconcile): boolean {
     const encoded = encodeSseGuarded(msg);
     if (encoded == null) return false;
     const entry = this.clients.get(res);
@@ -91,12 +94,12 @@ export class SseClients {
    * 戻り値で「blocked 等でこの message を受け取れなかった client 数」を返し、authoritative
    * sync (tickerSynced) の完全配送を呼び出し元 (hub) が判定できるようにする (最終レビュー finding 2)。
    */
-  broadcast(msg: DisplayServerMessage): DisplayBroadcastResult {
+  broadcast(msg: DisplayServerMessageWithReconcile): DisplayBroadcastResult {
     const total = this.clients.size;
     const encoded = encodeSseGuarded(msg);
     if (encoded == null) {
       log.warn(`SseClients: payload がバイト上限を超えたため送信をスキップしました (type=${msg.type})`);
-      return { total, blockedSkipped: total }; // 誰にも届いていない
+      return { total, blockedSkipped: total, byteGuardDropped: true }; // 誰にも届いていない
     }
     const nowMs = this.now();
     let blockedSkipped = 0;

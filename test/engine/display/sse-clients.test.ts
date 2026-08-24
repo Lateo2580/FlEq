@@ -9,6 +9,7 @@ import {
 import { encodeSseGuarded, SseClients } from "../../../src/engine/display/sse-clients";
 import type {
   DisplayEventDtoV1,
+  DisplayReconcileMessageV1,
   DisplayServerMessage,
   DisplayStateSnapshotV1,
 } from "../../../src/engine/display/types";
@@ -53,6 +54,10 @@ function eventMsg(seq: number, over: Partial<DisplayEventDtoV1> = {}): DisplaySe
   return { type: "event", event: eventDto(seq, over) };
 }
 
+function reconcileMsg(seq: number, over: Partial<DisplayEventDtoV1> = {}): DisplayReconcileMessageV1 {
+  return { type: "reconcile", event: eventDto(seq, over), sourceEventKeys: ["source:key"] };
+}
+
 const baseSnapshot = displaySnapshot;
 
 function snapshotMsg(over: Partial<DisplayStateSnapshotV1> = {}): DisplayServerMessage {
@@ -90,6 +95,17 @@ describe("SseClients", () => {
     const chunk = res1.write.mock.calls[0][0] as string;
     expect(chunk).toContain("id: 7\n");
     expect(chunk).toContain("event: event\n");
+  });
+
+  it("6B後半: reconcile も canonical seq を SSE id として一 frame で送る", () => {
+    const clients = new SseClients();
+    const res = makeFakeRes();
+    clients.add(asRes(res));
+    clients.broadcast(reconcileMsg(8));
+    const chunk = res.write.mock.calls[0][0] as string;
+    expect(chunk).toContain("id: 8\n");
+    expect(chunk).toContain("event: reconcile\n");
+    expect(chunk).toContain('"sourceEventKeys":["source:key"]');
   });
 
   it("③ write が false を返したクライアントは blocked になり以降 skip、drain 後に復帰", () => {
@@ -135,8 +151,18 @@ describe("SseClients", () => {
     clients.add(asRes(res2));
     const hugeTitle = "A".repeat(MAX_EVENT_BYTES + 100);
     const r = clients.broadcast(eventMsg(1, { title: hugeTitle }));
-    expect(r).toEqual({ total: 2, blockedSkipped: 2 });
+    expect(r).toEqual({ total: 2, blockedSkipped: 2, byteGuardDropped: true });
     expect(res1.write).not.toHaveBeenCalled();
+  });
+
+  it("6B後半: reconcile frame の byte guard は byteGuardDropped として型付きで返す", () => {
+    const clients = new SseClients();
+    const res = makeFakeRes();
+    clients.add(asRes(res));
+    const r = clients.broadcast(reconcileMsg(8, { title: "A".repeat(MAX_EVENT_BYTES + 100) }));
+
+    expect(r).toEqual({ total: 1, blockedSkipped: 1, byteGuardDropped: true });
+    expect(res.write).not.toHaveBeenCalled();
   });
 
   it("④ blocked が MAX_BLOCKED_MS 超で destroy", () => {

@@ -4,7 +4,12 @@ import { join } from "node:path";
 import { HEARTBEAT_MS } from "./constants";
 import { createDisplayRequestListener } from "./http-server";
 import { SseClients } from "./sse-clients";
-import type { DisplayBroadcastResult, DisplayServerMessage, DisplayStateSnapshotV1, DisplayTransport } from "./types";
+import type {
+  DisplayBroadcastResult,
+  DisplayServerMessageWithReconcile,
+  DisplayStateSnapshotV1,
+  DisplayTransport,
+} from "./types";
 
 export interface DisplayServerOptions {
   host: string;
@@ -92,7 +97,7 @@ export class InProcessSseDisplayTransport implements DisplayTransport {
     });
   }
 
-  broadcast(msg: DisplayServerMessage): DisplayBroadcastResult {
+  broadcast(msg: DisplayServerMessageWithReconcile): DisplayBroadcastResult {
     return this.clients.broadcast(msg);
   }
 

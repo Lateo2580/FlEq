@@ -16,13 +16,43 @@ import { tickerTtlMs } from "./ticker-ttl";
 import type {
   DisplayConnectionStateV1,
   DisplayEventDtoV1,
+  DisplayBroadcastResult,
+  DisplayIngestDelivery,
+  DisplayIngestResult,
   DisplayIngestSink,
+  DisplayReconcileMessageV1,
   DisplayStateSnapshotV1,
   DisplayStatsV1,
   DisplayTransport,
   DisplayWeatherAlertV1,
 } from "./types";
 import type { DisplayMutation } from "./standby-registry";
+
+interface RecentTickerEntry {
+  dto: DisplayEventDtoV1;
+  receivedMs: number;
+  expiresAtMs: number;
+}
+
+function isPairEligibleTicker(dto: DisplayEventDtoV1): boolean {
+  return dto.infoType === "発表"
+    && dto.isCancellation !== true
+    && (dto.type === "VPOA50" || dto.type === "VPBS50");
+}
+
+function tickerExpiryAtMs(dto: DisplayEventDtoV1, receivedMs: number): number {
+  const ttlMs = tickerTtlMs(dto.tickerPriority ?? "low", dto.domain);
+  if (!isPairEligibleTicker(dto)) return receivedMs + ttlMs;
+  const reportDateTimeMs = Date.parse(dto.reportDateTime);
+  return Number.isFinite(reportDateTimeMs) ? reportDateTimeMs + ttlMs : receivedMs + ttlMs;
+}
+
+function deliveryOf(result: DisplayBroadcastResult | undefined): DisplayIngestDelivery {
+  if (result == null || result.total === 0) return "noClients";
+  if (result.byteGuardDropped === true) return "byteGuardDropped";
+  if (result.blockedSkipped > 0) return "blockedSkipped";
+  return "delivered";
+}
 
 export interface InfoDisplayHubDeps {
   /** monitor が DisplayCallbacks.renderSummaryLine の DI で渡す (engine から ui を import しない) */
@@ -50,7 +80,7 @@ export interface InfoDisplayHubDeps {
 // 連続 KILL_SWITCH_ERRORS 回のエラーで stop() + onFatal (kill switch)。
 export class InfoDisplayHub implements DisplayIngestSink {
   private seq = 0;
-  private recent: Array<{ dto: DisplayEventDtoV1; receivedMs: number }> = [];
+  private recent: RecentTickerEntry[] = [];
   private transport: DisplayTransport | null = null;
   private consecutiveErrors = 0;
   private stopped = false;
@@ -92,8 +122,8 @@ export class InfoDisplayHub implements DisplayIngestSink {
     this.transport = t;
   }
 
-  ingest(event: PresentationEvent): void {
-    if (this.stopped) return;
+  ingest(event: PresentationEvent): DisplayIngestResult {
+    if (this.stopped) return { kind: "failure", status: "failure", reason: "hubStopped" };
     try {
       const nowMs = this.now();
       const quakeMapCommand = projectQuakeMapCommand(event, nowMs);
@@ -126,15 +156,32 @@ export class InfoDisplayHub implements DisplayIngestSink {
         stateChanged = true;
       }
       if (dto.tickerSuppressed !== true) {
-        this.recent.push({ dto, receivedMs: nowMs });
+        this.recent.push({
+          dto,
+          receivedMs: nowMs,
+          expiresAtMs: tickerExpiryAtMs(dto, nowMs),
+        });
         if (this.recent.length > RECENT_TICKER_MAX) this.recent.shift();
       } else {
         // 情報ゼロ電文の抑制 (spec T5-2)。broadcast は seq 整合のため通常どおり流す
         log.warn(`display: テロップ抑制 ${dto.domain} ${dto.type} (${dto.eventKey}) — 情報ゼロ電文`);
       }
-      this.transport?.broadcast({ type: "event", event: dto });
+      const delivery = deliveryOf(this.transport?.broadcast({ type: "event", event: dto }));
       if (stateChanged) this.markStateDirty();
       this.consecutiveErrors = 0;
+      return {
+        kind: "applied",
+        status: "applied",
+        seq: dto.seq,
+        ...(dto.tickerSuppressed === true
+          ? {}
+          : {
+              eventKey: dto.eventKey,
+              eventKeys: [dto.eventKey],
+              tickerEventKeys: [dto.eventKey],
+            }),
+        delivery,
+      };
     } catch (err) {
       this.consecutiveErrors += 1;
       if (this.consecutiveErrors >= KILL_SWITCH_ERRORS) {
@@ -145,7 +192,89 @@ export class InfoDisplayHub implements DisplayIngestSink {
           // onFatal (DI) の障害も ingest から漏らさない (例外封じ込めの絶対不変条件)
         }
       }
+      return { kind: "failure", status: "failure", reason: "ingestFailed" };
     }
+  }
+
+  /**
+   * timeout 後の counterpart を、source exact key の targeted remove と同一 frame の
+   * canonical insert へ置き換える。store／standby／persistence は触らず、ticker surface
+   * だけを mutation する。
+   */
+  reconcileLateCounterpart(
+    event: PresentationEvent,
+    sourceEventKeys: readonly string[],
+  ): DisplayIngestResult {
+    if (this.stopped) return { kind: "failure", status: "failure", reason: "hubStopped" };
+    const exactSourceKeys = [...new Set(sourceEventKeys.filter((key) => key.trim() !== ""))];
+    if (exactSourceKeys.length === 0) {
+      return { kind: "failure", status: "failure", reason: "sourceTickerKeysMissing" };
+    }
+
+    const previousRecent = this.recent;
+    const previousSeq = this.seq;
+    let dto: DisplayEventDtoV1;
+    let message: DisplayReconcileMessageV1;
+    try {
+      const nowMs = this.now();
+      const sourceKeySet = new Set(exactSourceKeys);
+      const sourceEntries = previousRecent.filter((entry) => sourceKeySet.has(entry.dto.eventKey));
+      if (sourceEntries.length === 0) {
+        return { kind: "failure", status: "failure", reason: "sourceTickerMissing" };
+      }
+
+      const quakeMapCommand = projectQuakeMapCommand(event, nowMs);
+      dto = projectDisplayEvent(event, this.deps.summarize(event), quakeMapCommand);
+      if (dto.tickerSuppressed === true) {
+        return { kind: "failure", status: "failure", reason: "canonicalTickerSuppressed" };
+      }
+
+      const sourceExpiryAtMs = Math.min(...sourceEntries.map((entry) => entry.expiresAtMs));
+      const canonicalExpiryAtMs = tickerExpiryAtMs(dto, nowMs);
+      dto.seq = previousSeq + 1;
+      const nextRecent = previousRecent.filter((entry) => !sourceKeySet.has(entry.dto.eventKey));
+      nextRecent.push({
+        dto,
+        receivedMs: nowMs,
+        expiresAtMs: Math.min(sourceExpiryAtMs, canonicalExpiryAtMs),
+      });
+      if (nextRecent.length > RECENT_TICKER_MAX) nextRecent.shift();
+
+      message = {
+        type: "reconcile",
+        event: dto,
+        sourceEventKeys: exactSourceKeys,
+      };
+      this.recent = nextRecent;
+      this.seq = dto.seq;
+    } catch {
+      this.recent = previousRecent;
+      this.seq = previousSeq;
+      this.consecutiveErrors += 1;
+      return { kind: "failure", status: "failure", reason: "reconcileMutationFailed" };
+    }
+
+    // mutation の commit 後は配信例外で recent / seq を戻さない。一部 client への到達後に
+    // rollback すると snapshot が source へ逆行し、同じ seq を再利用して収束不能になるためだ。
+    let delivery: DisplayIngestDelivery;
+    try {
+      delivery = deliveryOf(this.transport?.broadcast(message));
+    } catch (err) {
+      log.warn(`display: reconcile frame の broadcast に失敗しました: ${String(err)}`);
+      delivery = this.transport == null || this.transport.clientCount() === 0
+        ? "noClients"
+        : "blockedSkipped";
+    }
+    this.consecutiveErrors = 0;
+    return {
+      kind: "applied",
+      status: "applied",
+      eventKey: dto.eventKey,
+      eventKeys: [dto.eventKey],
+      tickerEventKeys: [dto.eventKey],
+      seq: dto.seq,
+      delivery,
+    };
   }
 
   publishConnection(patch: Partial<DisplayConnectionStateV1>): void {
@@ -266,8 +395,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
       if (e.dto.domain === "tornado" && standbyKeys != null) {
         return key != null && standbyKeys.has(key);
       }
-      const priority = e.dto.tickerPriority ?? "low";
-      const expired = nowMs - e.receivedMs > tickerTtlMs(priority, e.dto.domain);
+      const expired = nowMs > e.expiresAtMs;
       if (!expired) return true;
       if (key == null) return false;
       return activeKeys.has(key) || activePrefixes.some((p) => key.startsWith(p)); // active なら残す

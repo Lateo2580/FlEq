@@ -912,3 +912,21 @@ export type DisplayServerMessage =
   | { type: "state"; snapshot: DisplayStateSnapshotV1 };
 
 // PROTOCOL-SYNC-END
+
+/**
+ * Server-only additive wire command for a targeted ticker reconcile.
+ *
+ * The common protocol region above remains byte-for-byte synchronized with the
+ * frontend until the frontend targeted-reduce slice is implemented.  The
+ * server can nevertheless emit this command now; its event DTO carries the
+ * authoritative sequence used as the SSE id, while sourceEventKeys identifies
+ * the exact ticker entries to purge in one frame.
+ */
+export interface DisplayReconcileMessageV1 {
+  type: "reconcile";
+  event: DisplayEventDtoV1;
+  sourceEventKeys: readonly string[];
+}
+
+/** DisplayServerMessage plus the server-side reconcile command. */
+export type DisplayServerMessageWithReconcile = DisplayServerMessage | DisplayReconcileMessageV1;

@@ -12,6 +12,7 @@ import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import type {
   DisplayBroadcastResult,
   DisplayServerMessage,
+  DisplayServerMessageWithReconcile,
   DisplayStatsV1,
   DisplayTransport,
   DisplayWeatherAlertV1,
@@ -23,6 +24,7 @@ import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dm
 import type {
   ParsedWeatherWarning,
   ParsedWeatherWarningTimeseriesInfo,
+  ParsedLegacyCounterpartInfo,
   WeatherItem,
   WeatherKind,
   Vpws50Diff,
@@ -55,15 +57,21 @@ function vpws50Info(items: WeatherItem[]): ParsedWeatherWarning {
 }
 
 class FakeTransport implements DisplayTransport {
-  messages: DisplayServerMessage[] = [];
+  messages: DisplayServerMessageWithReconcile[] = [];
   /** テストで設定すると broadcast がこの blockedSkipped を返す (finding 2: 一部 client 未達を模す) */
   blockedSkipped = 0;
+  /** byte 上限で frame 全体を落とした配送診断を模す。 */
+  byteGuardDropped = false;
   clients = 1;
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
-  broadcast(msg: DisplayServerMessage): DisplayBroadcastResult {
+  broadcast(msg: DisplayServerMessageWithReconcile): DisplayBroadcastResult {
     this.messages.push(msg);
-    return { total: this.clients, blockedSkipped: this.blockedSkipped };
+    return {
+      total: this.clients,
+      blockedSkipped: this.blockedSkipped,
+      ...(this.byteGuardDropped ? { byteGuardDropped: true } : {}),
+    };
   }
   clientCount(): number {
     return this.clients;
@@ -199,6 +207,57 @@ function vpws50ChangeEvent(
   });
 }
 
+function vpoaTickerEvent(
+  reportDateTime: string,
+  over: Partial<PresentationEvent> = {},
+): PresentationEvent {
+  const raw: ParsedLegacyCounterpartInfo = {
+    type: "VPOA50",
+    infoType: "発表",
+    title: "記録的短時間大雨情報",
+    controlTitle: "記録的短時間大雨情報",
+    reportDateTime,
+    headline: "対応電文未確認",
+    publishingOffice: "気象庁",
+    editorialOffice: "気象庁",
+    eventId: "PAIR-EVENT",
+    serial: "1",
+    areas: [{ code: "130000", name: "東京都" }],
+    phenomena: [{ code: "50", name: "記録的短時間大雨" }],
+    kinds: [{ code: "1", name: "記録的短時間大雨" }],
+    severityEvidence: [],
+    meta: testTelegramMeta(false),
+    isTest: false,
+  };
+  return baseEvent({
+    id: `vpoa-${reportDateTime}`,
+    domain: "legacyCounterpart",
+    type: "VPOA50",
+    eventId: "PAIR-EVENT",
+    serial: "1",
+    reportDateTime,
+    frameLevel: "warning",
+    raw,
+    ...over,
+  });
+}
+
+function vpbsTickerEvent(
+  reportDateTime: string,
+  over: Partial<PresentationEvent> = {},
+): PresentationEvent {
+  return baseEvent({
+    id: `vpbs-${reportDateTime}`,
+    domain: "briefing",
+    type: "VPBS50",
+    eventId: "KPAIR-EVENT",
+    serial: "1",
+    reportDateTime,
+    frameLevel: "warning",
+    ...over,
+  });
+}
+
 /** VTSE41 (津波警報・注意報・予報)。emergency:tsunami を組む状態確立イベント */
 function tsunamiWarningEvent(kind: string): PresentationEvent {
   return baseEvent({
@@ -276,6 +335,157 @@ describe("InfoDisplayHub: ingest / ring buffer", () => {
     const { hub } = makeHub({ now: () => T0 + 5_000 });
     hub.ingest(weatherEvent("w1"));
     expect(hub.buildSnapshot().connection.lastReceivedAt).toBe(new Date(T0 + 5_000).toISOString());
+  });
+
+  it("6B後半: late reconcile は source exact key を全て除去し canonical を一 frame で挿入する", () => {
+    const { hub, transport } = makeHub();
+    const first = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00", { id: "vpoa-1" }));
+    const second = hub.ingest(vpoaTickerEvent("2026-07-06T20:01:00+09:00", { id: "vpoa-2" }));
+    if (first.kind !== "applied" || second.kind !== "applied") throw new Error("source ingest was not applied");
+    const sourceKeys = [first.eventKey, second.eventKey].filter((key): key is string => key != null);
+    expect(sourceKeys).toHaveLength(2);
+
+    const result = hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      sourceKeys,
+    );
+
+    expect(result).toMatchObject({
+      kind: "applied",
+      seq: 3,
+      eventKeys: ["briefing:KPAIR-EVENT:1"],
+      delivery: "delivered",
+    });
+    expect(hub.buildSnapshot().recentTicker).toEqual([
+      expect.objectContaining({
+        type: "VPBS50",
+        domain: "briefing",
+        eventKey: "briefing:KPAIR-EVENT:1",
+        seq: 3,
+      }),
+    ]);
+    expect(hub.buildSnapshot().recentTicker.some((dto) => sourceKeys.includes(dto.eventKey))).toBe(false);
+    expect(transport.messages.at(-1)).toMatchObject({
+      type: "reconcile",
+      event: expect.objectContaining({ type: "VPBS50", seq: 3 }),
+      sourceEventKeys: sourceKeys,
+    });
+  });
+
+  it("6B後半: pair ticker の expiry は ReportDateTime anchor と source/canonical の min を使う", () => {
+    const { hub } = makeHub();
+    const source = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (source.kind !== "applied" || source.eventKey == null) throw new Error("source key missing");
+    const result = hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [source.eventKey],
+    );
+    expect(result.kind).toBe("applied");
+
+    // VPOA50 は warning/mid の120分。source の 22:00 が canonical の 22:30 より早いため、
+    // 遅着 VPBS50 で source TTL を延長してはならない。
+    expect(hub.sweepTicker(Date.parse("2026-07-06T22:00:00+09:00"))).toBe(false);
+    expect(hub.buildSnapshot().recentTicker).toHaveLength(1);
+    expect(hub.sweepTicker(Date.parse("2026-07-06T22:00:00+09:00") + 1)).toBe(true);
+    expect(hub.buildSnapshot().recentTicker).toHaveLength(0);
+  });
+
+  it("6B後半: canonical 自身の priority TTL が短い場合も source/canonical の min を使う", () => {
+    const { hub } = makeHub();
+    const source = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (source.kind !== "applied" || source.eventKey == null) throw new Error("source key missing");
+    const result = hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00", { frameLevel: "critical" }),
+      [source.eventKey],
+    );
+    expect(result.kind).toBe("applied");
+
+    // source は mid で22:00、canonical は high で21:00。短い canonical 側も上限になる。
+    expect(hub.sweepTicker(Date.parse("2026-07-06T21:00:00+09:00"))).toBe(false);
+    expect(hub.sweepTicker(Date.parse("2026-07-06T21:00:00+09:00") + 1)).toBe(true);
+    expect(hub.buildSnapshot().recentTicker).toHaveLength(0);
+  });
+
+  it("6B後半: pair 不適格の訂正は ReportDateTime ではなく受信時刻 anchor を保つ", () => {
+    const { hub } = makeHub();
+    hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00", { infoType: "訂正" }));
+
+    // mid の受信時刻 anchor は T0+120分。ReportDateTime+120分 (22:00) ではまだ消えない。
+    expect(hub.sweepTicker(Date.parse("2026-07-06T22:00:00+09:00") + 1)).toBe(false);
+    expect(hub.sweepTicker(T0 + 120 * 60_000)).toBe(false);
+    expect(hub.sweepTicker(T0 + 120 * 60_000 + 1)).toBe(true);
+  });
+
+  it("6B後半: source surface 不在の reconcile は seq／recent を変更せず failure", () => {
+    const { hub, transport } = makeHub();
+    hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    const before = hub.buildSnapshot();
+    const result = hub.reconcileLateCounterpart(vpbsTickerEvent("2026-07-06T20:30:00+09:00"), ["missing:key"]);
+    expect(result).toMatchObject({ kind: "failure", reason: "sourceTickerMissing" });
+    expect(hub.buildSnapshot()).toMatchObject({ seq: before.seq, recentTicker: before.recentTicker });
+    expect(transport.messages.filter((message) => (message as { type: string }).type === "reconcile")).toHaveLength(0);
+  });
+
+  it("6B後半: reconcile の noClients／blocked／byte guard は mutation を rollback せず snapshot で収束する", () => {
+    const noClient = makeHub();
+    noClient.transport.clients = 0;
+    const noClientSource = noClient.hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (noClientSource.kind !== "applied" || noClientSource.eventKey == null) throw new Error("source key missing");
+    expect(noClientSource.delivery).toBe("noClients");
+    expect(noClient.hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [noClientSource.eventKey],
+    )).toMatchObject({ kind: "applied", delivery: "noClients" });
+    expect(noClient.hub.buildSnapshot()).toMatchObject({
+      seq: 2,
+      recentTicker: [{ type: "VPBS50" }],
+    });
+
+    const blocked = makeHub();
+    blocked.transport.blockedSkipped = 1;
+    const blockedSource = blocked.hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (blockedSource.kind !== "applied" || blockedSource.eventKey == null) throw new Error("source key missing");
+    expect(blocked.hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [blockedSource.eventKey],
+    )).toMatchObject({ kind: "applied", delivery: "blockedSkipped" });
+    // blocked client は reconcile frame を取り逃しても、再接続 snapshot の canonical で gap から回復する。
+    expect(blocked.hub.buildSnapshot()).toMatchObject({
+      seq: 2,
+      recentTicker: [{ type: "VPBS50" }],
+    });
+
+    const byteGuard = makeHub();
+    const byteGuardSource = byteGuard.hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (byteGuardSource.kind !== "applied" || byteGuardSource.eventKey == null) throw new Error("source key missing");
+    byteGuard.transport.byteGuardDropped = true;
+    expect(byteGuard.hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [byteGuardSource.eventKey],
+    )).toMatchObject({ kind: "applied", delivery: "byteGuardDropped" });
+    expect(byteGuard.hub.buildSnapshot()).toMatchObject({
+      seq: 2,
+      recentTicker: [{ type: "VPBS50" }],
+    });
+  });
+
+  it("6B後半: reconcile broadcast 例外後も mutation と seq を維持し、snapshot で gap 回復する", () => {
+    const { hub, transport } = makeHub();
+    const source = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (source.kind !== "applied" || source.eventKey == null) throw new Error("source key missing");
+    const broadcast = vi.spyOn(transport, "broadcast").mockImplementation((message) => {
+      if ((message as { type: string }).type === "reconcile") throw new Error("synthetic transport failure");
+      return { total: transport.clients, blockedSkipped: 0 };
+    });
+    const result = hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [source.eventKey],
+    );
+    expect(result).toMatchObject({ kind: "applied", seq: 2, delivery: "blockedSkipped" });
+    expect(hub.buildSnapshot()).toMatchObject({ seq: 2, recentTicker: [{ type: "VPBS50" }] });
+    expect(broadcast).toHaveBeenCalledTimes(1);
+    expect(hub.ingest(weatherEvent("after-reconcile"))).toMatchObject({ kind: "applied", seq: 3 });
+    expect(broadcast).toHaveBeenCalledTimes(2);
   });
 });
 

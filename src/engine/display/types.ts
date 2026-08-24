@@ -2,7 +2,7 @@ export * from "./protocol";
 import type { PresentationEvent } from "../presentation/types";
 import type {
   DisplayQuakeIntensityMapEventV1,
-  DisplayServerMessage,
+  DisplayServerMessageWithReconcile,
   DisplayStatsV1,
 } from "./protocol";
 import type { StandbyRevision } from "./standby-registry";
@@ -97,12 +97,14 @@ export interface DisplayBroadcastResult {
   /** 既に blocked (backpressure) で今回の配信をスキップされた、または上限超過で切断され、
    *  この message を受け取れなかった client 数。0 なら全 client の socket buffer へ届いている */
   blockedSkipped: number;
+  /** payload が上限を超え、今回の message を誰にも送らなかったとき true。 */
+  byteGuardDropped?: boolean;
 }
 
 export interface DisplayTransport {
   start(): Promise<void>;
   stop(): Promise<void>;
-  broadcast(msg: DisplayServerMessage): DisplayBroadcastResult;
+  broadcast(msg: DisplayServerMessageWithReconcile): DisplayBroadcastResult;
   clientCount(): number;
 }
 
