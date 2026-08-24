@@ -314,6 +314,7 @@
       lines={displayTickerLines}
       now={tickerClockMounted ? clock.now : null}
       tickerGeneration={connection.state.tickerGeneration}
+      reconcile={connection.state.reconcile}
       tsunamiGeneration={tsunamiGeneration}
       dim={effectiveDim}
       onJobComplete={(key) => tipsFeeder.notifyComplete(key)}

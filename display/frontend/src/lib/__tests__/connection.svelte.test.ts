@@ -73,6 +73,61 @@ describe("createDisplayConnection: seq gap 検知での再同期 (2026-07-10, �
     expect(FakeEventSource.instances.length).toBe(3);
   });
 
+  it("reconcile SSE を listener から受け、source を除去して canonical state へ一回で反映する", () => {
+    const conn = createDisplayConnection("/events");
+    conn.start();
+    const first = FakeEventSource.instances[0]!;
+    const source = tickerEvent({ id: "source", eventKey: "source:key", seq: 1 });
+    const keep = tickerEvent({ id: "keep", eventKey: "keep:key", seq: 1 });
+    const canonical = tickerEvent({
+      id: "canonical",
+      eventKey: "canonical:key",
+      seq: 2,
+      type: "VPBS50",
+      domain: "legacyCounterpart",
+    });
+
+    first.emit("snapshot", { type: "snapshot", snapshot: baseSnapshot({ seq: 1, recentTicker: [source, keep] }) });
+    expect(first.listeners.reconcile).toHaveLength(1);
+    first.emit("reconcile", { type: "reconcile", event: canonical, sourceEventKeys: ["source:key"] });
+
+    expect(conn.state.ticker.map((event) => event.eventKey)).toEqual(["canonical:key", "keep:key"]);
+    expect(conn.state.reconcile).toMatchObject({ type: "reconcile", event: { eventKey: "canonical:key" } });
+    expect(conn.state.lastEventSeq).toBe(2);
+    expect(conn.state.seqGapDetected).toBe(false);
+  });
+
+  it("reconcile 直後の再接続 snapshot は同じ canonical ticker 構成へ収束する", () => {
+    const conn = createDisplayConnection("/events");
+    conn.start();
+    const first = FakeEventSource.instances[0]!;
+    const source = tickerEvent({ id: "source", eventKey: "source:key", seq: 1 });
+    const keep = tickerEvent({ id: "keep", eventKey: "keep:key", seq: 1 });
+    const canonical = tickerEvent({
+      id: "canonical",
+      eventKey: "canonical:key",
+      seq: 2,
+      type: "VPBS50",
+      domain: "legacyCounterpart",
+    });
+
+    first.emit("snapshot", { type: "snapshot", snapshot: baseSnapshot({ seq: 1, recentTicker: [source, keep] }) });
+    first.emit("reconcile", { type: "reconcile", event: canonical, sourceEventKeys: ["source:key"] });
+    const reconciledKeys = conn.state.ticker.map((event) => event.eventKey);
+
+    // missed event を表す state.seq で既存の gap recovery を起動し、直後の接続 snapshot に収束させる。
+    first.emit("state", { type: "state", snapshot: baseSnapshot({ seq: 3 }) });
+    expect(first.closed).toBe(true);
+    const second = FakeEventSource.instances[1]!;
+    second.emit("snapshot", {
+      type: "snapshot",
+      snapshot: baseSnapshot({ seq: 3, recentTicker: [canonical, keep] }),
+    });
+
+    expect(conn.state.seqGapDetected).toBe(false);
+    expect(conn.state.ticker.map((event) => event.eventKey)).toEqual(reconciledKeys);
+  });
+
   it("blocked 中に event が欠落 → drain 後の定期 state で gap を検知 → 接続を張り直して "
     + "新しい snapshot から ticker が回復する", () => {
     const conn = createDisplayConnection("/events");

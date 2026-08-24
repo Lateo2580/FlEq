@@ -842,18 +842,7 @@ export function purgeJobs(state: SchedulerState, shouldPurge: (job: TickerJob) =
       // onFadeComplete の昇格経路と同じ状態更新を行う (退避だけは旧 current が purge 対象なのでスキップ)。
       const replacement = lane.replacement;
       const outgoing = lane.current; // 破棄する対象 (退避しない)
-      lane.current = { ...replacement, deferUntil: null, deferKind: null };
-      lane.replacement = null;
-      lane.coalescedRevision = null;
-      lane.revisionFirstQueuedAt = null;
-      lane.revisionDebounceUntil = null;
-      lane.phase = "running";
-      lane.currentStartedAt = now; // 昇格 = 新 current の最短表示起点
-      if (replacement.priority === "high" && (outgoing == null || outgoing.groupKey !== replacement.groupKey)) {
-        lane.highSliceStartedAt = now; // 別 groupKey high への交替で量子を張り直す (§7-2)
-      }
-      s.lastShownAt[replacement.key] = now;
-      lane.generation += 1;
+      promoteReplacement(s, lane, replacement, outgoing, now);
       continue;
     }
     if (currentPurge) {
@@ -870,5 +859,112 @@ export function purgeJobs(state: SchedulerState, shouldPurge: (job: TickerJob) =
   }
   s.queue = s.queue.filter((j) => !shouldPurge(j));
   s.deferred = s.deferred.filter((j) => !shouldPurge(j));
+  return s;
+}
+
+function hasSchedulerKey(state: SchedulerState, key: string): boolean {
+  for (const job of schedulerJobs(state)) if (job.key === key) return true;
+  return state.catalog.some((job) => job.key === key);
+}
+
+function resetRevisionBuffer(lane: LaneState): void {
+  lane.coalescedRevision = null;
+  lane.revisionFirstQueuedAt = null;
+  lane.revisionDebounceUntil = null;
+}
+
+/** targeted purge で current を捨てる際、同じレーンに残った続報を失わないため queue へ退避する。 */
+function retainReconcileRevision(state: SchedulerState, job: TickerJob | null): void {
+  if (job == null) return;
+  state.queue.push({
+    ...job,
+    runIndex: 0,
+    segmentIndex: job.runs[0]?.startSegmentIndex ?? 0,
+    deferUntil: null,
+    deferKind: null,
+    revisionAt: null,
+  });
+}
+
+/** fading 中の非対象 replacement を、対象 current の purge 後も停止させない。 */
+function promoteReplacement(
+  state: SchedulerState,
+  lane: LaneState,
+  replacement: TickerJob,
+  outgoing: TickerJob | null,
+  now: number,
+): void {
+  lane.current = { ...replacement, deferUntil: null, deferKind: null };
+  lane.replacement = null;
+  resetRevisionBuffer(lane);
+  lane.phase = "running";
+  lane.currentStartedAt = now;
+  if (replacement.priority === "high" && (outgoing == null || outgoing.groupKey !== replacement.groupKey)) {
+    lane.highSliceStartedAt = now;
+  }
+  state.lastShownAt[replacement.key] = now;
+  lane.generation += 1;
+}
+
+/**
+ * late reconcile 専用の scheduler reducer。
+ *
+ * snapshot の resetScheduler と異なり、sourceEventKeys に一致する job だけを lane の
+ * current/replacement/coalescedRevision、queue、deferred、catalog から除去する。canonical は
+ * 同じ reducer 内で一度だけ投入し、無関係な lane の generation と走行位置を保持する。
+ */
+export function reconcileScheduler(
+  state: SchedulerState,
+  sourceEventKeys: readonly string[],
+  canonical: TickerJob,
+  now: number,
+): SchedulerState {
+  const sourceKeys = new Set(sourceEventKeys);
+  const s = cloneState(state);
+
+  for (let i = 0; i < s.lanes.length; i++) {
+    const lane = s.lanes[i]!;
+    const currentTarget = lane.current != null && sourceKeys.has(lane.current.key);
+    const replacementTarget = lane.replacement != null && sourceKeys.has(lane.replacement.key);
+    const coalescedTarget = lane.coalescedRevision != null && sourceKeys.has(lane.coalescedRevision.key);
+
+    if (currentTarget) {
+      if (lane.replacement != null && !replacementTarget) {
+        // 対象 current が fade 中でも、無関係な replacement は直ちに current へ昇格させる。
+        retainReconcileRevision(s, coalescedTarget ? null : lane.coalescedRevision);
+        promoteReplacement(s, lane, lane.replacement, lane.current, now);
+      } else {
+        retainReconcileRevision(s, coalescedTarget ? null : lane.coalescedRevision);
+        s.lanes[i] = idleLane(lane.generation + 1);
+      }
+      continue;
+    }
+
+    if (replacementTarget) {
+      // replacement だけが対象なら、無関係な current を走行へ戻して保持する。
+      lane.replacement = null;
+      if (lane.current == null) {
+        lane.phase = "idle";
+      } else if (lane.phase === "fading") {
+        lane.phase = "running";
+        lane.generation += 1;
+      }
+    }
+    if (coalescedTarget) resetRevisionBuffer(lane);
+  }
+
+  s.queue = s.queue.filter((job) => !sourceKeys.has(job.key));
+  s.deferred = s.deferred.filter((job) => !sourceKeys.has(job.key));
+  s.catalog = s.catalog.filter((job) => !sourceKeys.has(job.key));
+  for (const key of sourceKeys) delete s.lastShownAt[key];
+
+  // 同じ canonical key の再送で重複を作らない。catalog は最新 DTO へ更新し、source の groupKey
+  // を残さない。canonical が scheduler 上に無ければ queue へ一度だけ投入する。
+  const canonicalAlreadyPresent = hasSchedulerKey(s, canonical.key);
+  s.catalog = foldCatalog([
+    canonical,
+    ...s.catalog.filter((job) => job.key !== canonical.key),
+  ]);
+  if (!canonicalAlreadyPresent) return enqueueJob(s, canonical, now);
   return s;
 }

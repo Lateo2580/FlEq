@@ -19,6 +19,7 @@ import {
   HIGH_SLICE_MS,
   CYCLE_MIN_INTERVAL_MS,
   purgeJobs,
+  reconcileScheduler,
   hasNonTipActivity,
   hasAlertActivity,
   hasActiveReplay,
@@ -91,6 +92,20 @@ function stateWith(over: Partial<SchedulerState>): SchedulerState {
     companionShown: over.companionShown ?? 0,
     companionLastShownAt: over.companionLastShownAt ?? null,
   };
+}
+
+function retainedJobs(state: SchedulerState): TickerJob[] {
+  return [
+    ...state.lanes.flatMap((lane) => [lane.current, lane.replacement, lane.coalescedRevision])
+      .filter((job): job is TickerJob => job != null),
+    ...state.queue,
+    ...state.deferred,
+  ];
+}
+
+function expectAbsentFromScheduler(state: SchedulerState, key: string): void {
+  expect(retainedJobs(state).some((job) => job.key === key)).toBe(false);
+  expect(state.catalog.some((job) => job.key === key)).toBe(false);
 }
 
 describe("toTickerJob", () => {
@@ -1105,6 +1120,102 @@ describe("purgeJobs: フィラー (Tips) の即時除去 (緊急遷移で豆知�
       queue: [job({ key: "vpww", priority: "mid" })],
     });
     expect(purgeJobs(s, isTip, 1000)).toBe(s);
+  });
+});
+
+describe("reconcileScheduler: late counterpart の targeted purge", () => {
+  const canonical = () => job({ key: "canonical", priority: "mid", seq: 99, groupKey: null });
+
+  it("queue 内だけの source を除去し canonical を一度だけ queue/catalog へ入れる", () => {
+    const source = job({ key: "source" });
+    const keep = job({ key: "keep" });
+    const out = reconcileScheduler(
+      stateWith({ queue: [source, keep], catalog: [source, keep] }),
+      ["source"],
+      canonical(),
+      1000,
+    );
+
+    expectAbsentFromScheduler(out, "source");
+    expect(out.queue.map((job) => job.key)).toEqual(["keep", "canonical"]);
+    expect(out.catalog.map((job) => job.key)).toEqual(["canonical", "keep"]);
+  });
+
+  it("deferred 内だけの source を除去し、無関係な defer 状態は保つ", () => {
+    const source = job({ key: "source", deferKind: "long", deferUntil: 90_000 });
+    const keep = job({ key: "keep", deferKind: "quiet", deferUntil: null, retryCount: 2, segmentIndex: 1 });
+    const out = reconcileScheduler(stateWith({ deferred: [source, keep] }), ["source"], canonical(), 1000);
+
+    expectAbsentFromScheduler(out, "source");
+    expect(out.deferred).toEqual([keep]);
+    expect(out.queue.map((job) => job.key)).toEqual(["canonical"]);
+  });
+
+  it("catalog 内だけの source を除去して巡回復活を防ぐ", () => {
+    const source = job({ key: "source" });
+    const keep = job({ key: "keep" });
+    const out = reconcileScheduler(stateWith({ catalog: [source, keep] }), ["source"], canonical(), 1000);
+
+    expectAbsentFromScheduler(out, "source");
+    expect(out.catalog.map((job) => job.key)).toEqual(["canonical", "keep"]);
+    expect(out.queue.map((job) => job.key)).toEqual(["canonical"]);
+  });
+
+  it("replacement だけが source なら無関係 current の走行位置を保って running へ戻す", () => {
+    const current = job({ key: "current", segmentIndex: 2, runIndex: 0 });
+    const source = job({ key: "source", priority: "high" });
+    const fading: LaneState = {
+      phase: "fading", current, replacement: source, coalescedRevision: null,
+      currentStartedAt: 500, highSliceStartedAt: null, revisionFirstQueuedAt: null, revisionDebounceUntil: null,
+      generation: 7, completedGeneration: 6,
+    };
+    const out = reconcileScheduler(stateWith({ lanes: [fading, idleLane()] }), ["source"], canonical(), 1000);
+
+    expectAbsentFromScheduler(out, "source");
+    expect(out.lanes[0]).toMatchObject({ phase: "running", generation: 8 });
+    expect(out.lanes[0]!.current).toMatchObject({ key: "current", segmentIndex: 2, runIndex: 0 });
+    expect(out.lanes[0]!.replacement).toBeNull();
+  });
+
+  it("coalescedRevision の source だけを除去し current の走行位置を保つ", () => {
+    const current = job({ key: "current", segmentIndex: 1 });
+    const source = job({ key: "source" });
+    const lane = runningLane(current, 11);
+    lane.coalescedRevision = source;
+    lane.revisionFirstQueuedAt = 100;
+    lane.revisionDebounceUntil = 850;
+    const out = reconcileScheduler(stateWith({ lanes: [lane, idleLane()] }), ["source"], canonical(), 1000);
+
+    expectAbsentFromScheduler(out, "source");
+    expect(out.lanes[0]!.current).toMatchObject({ key: "current", segmentIndex: 1 });
+    expect(out.lanes[0]!.generation).toBe(11);
+    expect(out.lanes[0]!.revisionFirstQueuedAt).toBeNull();
+    expect(out.lanes[0]!.revisionDebounceUntil).toBeNull();
+  });
+
+  it("対象不在でも canonical を投入し、無関係 lane の generation・走行位置・deferred を保つ", () => {
+    const current = job({ key: "current", segmentIndex: 2, runIndex: 0 });
+    const deferred = job({ key: "deferred", deferKind: "long", deferUntil: 99_999, retryCount: 2, segmentIndex: 1 });
+    const out = reconcileScheduler(
+      stateWith({ lanes: [runningLane(current, 13), idleLane()], deferred: [deferred] }),
+      ["missing"],
+      canonical(),
+      1000,
+    );
+
+    expect(out.lanes[0]).toMatchObject({ generation: 13, current: { key: "current", segmentIndex: 2, runIndex: 0 } });
+    expect(out.deferred).toEqual([deferred]);
+    expect(out.queue.map((job) => job.key)).toEqual(["canonical"]);
+  });
+
+  it("同じ reconcile を二度適用しても canonical を重複投入しない", () => {
+    const source = job({ key: "source" });
+    const first = reconcileScheduler(stateWith({ queue: [source], catalog: [source] }), ["source"], canonical(), 1000);
+    const second = reconcileScheduler(first, ["source"], canonical(), 1001);
+
+    expectAbsentFromScheduler(second, "source");
+    expect(retainedJobs(second).filter((job) => job.key === "canonical")).toHaveLength(1);
+    expect(second.catalog.filter((job) => job.key === "canonical")).toHaveLength(1);
   });
 });
 

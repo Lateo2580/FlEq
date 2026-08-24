@@ -1,4 +1,9 @@
-import type { DisplayEventDtoV1, DisplayServerMessage, DisplayStateSnapshotV1 } from "./protocol";
+import type {
+  DisplayEventDtoV1,
+  DisplayReconcileMessageV1,
+  DisplayServerMessageWithReconcile,
+  DisplayStateSnapshotV1,
+} from "./protocol";
 import { filterStaleEews } from "./ticker-freshness";
 
 // RECENT_TICKER_MAX (src/engine/display/constants.ts) と同値。protocol.ts の SYNC 複製対象外のため
@@ -51,12 +56,14 @@ export interface DisplayClientState {
    * 同一 seq の再 snapshot・seq 巻戻り (hub 再起動) でも snapshot 受信ごとに進むので確実に検出できる。
    */
   tickerGeneration: number;
+  /** 最後に受信した targeted reconcile command。通常の frame でクリアする。 */
+  reconcile?: DisplayReconcileMessageV1 | null;
 }
 
 export function initialState(): DisplayClientState {
   return {
     snapshot: null, ticker: [], sseConnected: false, lastSeq: 0, lastEventSeq: 0, seqGapDetected: false,
-    tickerGeneration: 0,
+    tickerGeneration: 0, reconcile: null,
   };
 }
 
@@ -75,7 +82,7 @@ function hasStateSeqGap(lastEventSeq: number, stateSeq: number): boolean {
   return stateSeq > lastEventSeq;
 }
 
-export function reduce(state: DisplayClientState, msg: DisplayServerMessage): DisplayClientState {
+export function reduce(state: DisplayClientState, msg: DisplayServerMessageWithReconcile): DisplayClientState {
   switch (msg.type) {
     case "snapshot": {
       // 接続時 snapshot のみ recentTicker で ticker を初期化する。ticker を全再構築するので
@@ -90,6 +97,7 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
         lastSeq: Math.max(state.lastSeq, snapshot.seq),
         lastEventSeq: snapshot.seq,
         seqGapDetected: false,
+        reconcile: null,
         // ticker 全差し替えなので generation を進める (スケジューラ reset の契機、§6)
         tickerGeneration: state.tickerGeneration + 1,
       };
@@ -109,6 +117,7 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
         ticker: tickerSynced ? filterStaleEews(snapshot.recentTicker, snapshot).slice(0, TICKER_MAX) : state.ticker,
         lastSeq: Math.max(state.lastSeq, snapshot.seq),
         seqGapDetected: state.seqGapDetected || hasStateSeqGap(state.lastEventSeq, snapshot.seq),
+        reconcile: null,
         tickerGeneration: tickerSynced ? state.tickerGeneration + 1 : state.tickerGeneration,
       };
     }
@@ -122,7 +131,25 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessage): Di
         lastSeq: Math.max(state.lastSeq, msg.event.seq),
         lastEventSeq: Math.max(state.lastEventSeq, msg.event.seq),
         seqGapDetected: state.seqGapDetected || hasEventSeqGap(state.lastEventSeq, msg.event.seq),
+        reconcile: null,
       };
+    case "reconcile": {
+      // source keys と canonical key を先に除去してから canonical を一度だけ先頭へ入れる。
+      // reconcile は tickerGeneration を進めないため、frontend scheduler は全 reset されない。
+      const sourceKeys = new Set(msg.sourceEventKeys);
+      const canonicalKey = msg.event.eventKey;
+      return {
+        ...state,
+        ticker: [
+          msg.event,
+          ...state.ticker.filter((event) => !sourceKeys.has(event.eventKey) && event.eventKey !== canonicalKey),
+        ].slice(0, TICKER_MAX),
+        lastSeq: Math.max(state.lastSeq, msg.event.seq),
+        lastEventSeq: Math.max(state.lastEventSeq, msg.event.seq),
+        seqGapDetected: state.seqGapDetected || hasEventSeqGap(state.lastEventSeq, msg.event.seq),
+        reconcile: msg,
+      };
+    }
   }
 }
 

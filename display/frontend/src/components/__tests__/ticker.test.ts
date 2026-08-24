@@ -71,6 +71,41 @@ describe("Ticker (親スケジューラ)", () => {
     expect(screen.getByText("新しい本文です。")).toBeTruthy();
   });
 
+  it("reconcile は generation を変えず source ticker を targeted purge し canonical を一度だけ走行させる", async () => {
+    const source = tickerEvent({
+      id: "source",
+      eventKey: "source:key",
+      tickerSentence: "対応前の source テロップです。",
+      tickerPriority: "low",
+    });
+    const keep = tickerEvent({
+      id: "keep",
+      eventKey: "keep:key",
+      tickerSentence: "無関係なテロップです。",
+      tickerPriority: "low",
+    });
+    const canonical = tickerEvent({
+      id: "canonical",
+      eventKey: "canonical:key",
+      type: "VPBS50",
+      domain: "legacyCounterpart",
+      tickerSentence: "対応電文の canonical テロップです。",
+      tickerPriority: "mid",
+    });
+    const command = { type: "reconcile" as const, event: canonical, sourceEventKeys: ["source:key"] };
+    const view = render(Ticker, { lines: [source, keep], tickerGeneration: 0 });
+    await tick();
+    expect(view.container.textContent).toContain("対応前の source テロップです。");
+
+    await view.rerender({ lines: [canonical, keep], tickerGeneration: 0, reconcile: command });
+    await tick();
+
+    expect(view.container.textContent).not.toContain("対応前の source テロップです。");
+    expect(view.container.textContent).toContain("対応電文の canonical テロップです。");
+    expect(view.container.textContent).toContain("無関係なテロップです。");
+    expect(view.container.querySelectorAll(".ticker-line")).toHaveLength(2);
+  });
+
   it("legacyの安定idが同じでもrevision固有eventKeyなら続報をenqueueする", async () => {
     const first = tickerEvent({
       id: "legacy:VPOA50:EVENT-1",

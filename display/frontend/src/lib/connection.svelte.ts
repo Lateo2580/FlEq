@@ -1,5 +1,5 @@
 import { initialState, reduce, setSseConnected, type DisplayClientState } from "./store";
-import type { DisplayServerMessage } from "./protocol";
+import type { DisplayServerMessageWithReconcile } from "./protocol";
 
 // サーバの keepalive ping 周期 (src/engine/display/constants.ts HEARTBEAT_MS と同値、手動複製)。
 // ping は sse-clients.ts が名前付き "ping" イベントで送る (SSE コメントは EventSource から観測できない)。
@@ -24,8 +24,14 @@ function hasValidSeq(value: unknown): boolean {
 }
 
 /** SSE payload の最小限の境界検証。詳細な DTO の整合性は reducer 以下の既存契約に委ねる。 */
-function isDisplayServerMessage(value: unknown): value is DisplayServerMessage {
+function isDisplayServerMessage(value: unknown): value is DisplayServerMessageWithReconcile {
   if (!isRecord(value)) return false;
+  if (value.type === "reconcile") {
+    const sourceEventKeys = value.sourceEventKeys;
+    return hasValidSeq(value.event)
+      && Array.isArray(sourceEventKeys)
+      && sourceEventKeys.every((key) => typeof key === "string");
+  }
   if (value.type === "event") return hasValidSeq(value.event);
   if (value.type === "snapshot" || value.type === "state") return hasValidSeq(value.snapshot);
   return false;
@@ -218,6 +224,7 @@ export function createDisplayConnection(
     es.addEventListener("snapshot", handleMessage);
     es.addEventListener("event", handleMessage);
     es.addEventListener("state", handleMessage);
+    es.addEventListener("reconcile", handleMessage);
     es.addEventListener("ping", handlePing);
     es.onopen = () => {
       markReceived();

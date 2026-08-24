@@ -14,6 +14,7 @@
     collectSchedulerKeys,
     maxLaneGeneration,
     purgeJobs,
+    reconcileScheduler,
     hasNonTipActivity,
     hasAlertActivity,
     hasActiveReplay,
@@ -23,6 +24,7 @@
     type SchedulerState,
     type DisplayTickerDtoV1,
   } from "../lib/ticker-schedule";
+  import type { DisplayReconcileMessageV1 } from "../lib/protocol";
   import type { EmergencyCompanionControl } from "../lib/emergency-tips-policy";
   import TickerLane from "./TickerLane.svelte";
 
@@ -48,6 +50,7 @@
     lines,
     now = null,
     tickerGeneration = 0,
+    reconcile = null,
     tsunamiGeneration = 0,
     dim = false,
     onJobComplete,
@@ -58,6 +61,7 @@
     lines: DisplayTickerDtoV1[];
     now?: Date | null;
     tickerGeneration?: number;
+    reconcile?: DisplayReconcileMessageV1 | null;
     tsunamiGeneration?: number;
     dim?: boolean;
     onJobComplete?: (eventKey: string) => void;
@@ -86,6 +90,7 @@
   let seqCounter = 0; // dto.seq=0 用の親 fallback (単調増加)
   let knownKeys = new Set<string>();
   let lastGeneration = -1;
+  let lastReconcileMessage: DisplayReconcileMessageV1 | null = null;
   let wakeTimer: ReturnType<typeof setTimeout> | null = null;
 
   // mode/session の制御は App が所有し、Ticker は scheduler の安全 state にだけ反映する。
@@ -144,16 +149,33 @@
   $effect(() => {
     const gen = tickerGeneration;
     const ls = lines;
+    const command = reconcile;
     untrack(() => {
       if (gen !== lastGeneration) {
         // snapshot 由来の ticker 全差し替え → スケジューラ全 reset (§6)。
         // 旧レーンの世代最大値を種に渡し、世代を reset を跨いで単調増加させる (Critical 1)
         lastGeneration = gen;
+        lastReconcileMessage = command;
         scheduler = resetScheduler(catalogFromLines(ls), maxLaneGeneration(scheduler) + 1);
         runTick();
         knownKeys = new Set([...ls.map((l) => l.eventKey), ...collectSchedulerKeys(scheduler)]);
         return;
       }
+
+      if (command != null && command !== lastReconcileMessage) {
+        // late reconcile は tickerGeneration を進めず、source exact key の targeted purge と
+        // canonical の一回投入を同じ scheduler reduce で行う。resetScheduler は使わない。
+        lastReconcileMessage = command;
+        const canonical = toTickerJob(command.event, ++seqCounter);
+        const reconciled = reconcileScheduler(scheduler, command.sourceEventKeys, canonical, Date.now());
+        scheduler = { ...reconciled, catalog: catalogFromLines(ls) };
+        runTick();
+        knownKeys = new Set([...ls.map((l) => l.eventKey), ...collectSchedulerKeys(scheduler)]);
+        return;
+      }
+      // 通常 event で store が command をクリアした後、同じ command object が再利用されても
+      // 次の reconcile を新しい targeted reduce として扱えるようにする。
+      lastReconcileMessage = command;
       // 同一 generation (event 追加) → 新着のみ enqueue。lines は新しい順なので古い順に積む
       const fresh = ls.filter((l) => !knownKeys.has(l.eventKey));
       let next: SchedulerState;

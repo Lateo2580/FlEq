@@ -86,6 +86,45 @@ describe("reduce", () => {
     expect(filled.ticker[filled.ticker.length - 1].id).toBe("f5"); // 古い 5 件 (f0-f4) が落ちる
   });
 
+  it("reconcile は source exact key だけを除去して canonical を一度だけ入れ、generation を進めない", () => {
+    const sourceA = tickerEvent({ id: "source-a", eventKey: "source:a", seq: 4 });
+    const sourceB = tickerEvent({ id: "source-b", eventKey: "source:b", seq: 3 });
+    const oldCanonical = tickerEvent({ id: "canonical-old", eventKey: "canonical", seq: 2 });
+    const keep = tickerEvent({ id: "keep", eventKey: "keep", seq: 1 });
+    let state = reduce(initialState(), {
+      type: "snapshot",
+      snapshot: snapshot({ seq: 4, recentTicker: [sourceA, oldCanonical, sourceB, keep] }),
+    });
+    const generation = state.tickerGeneration;
+    const canonical = tickerEvent({
+      id: "canonical-new",
+      eventKey: "canonical",
+      seq: 5,
+      type: "VPBS50",
+      domain: "legacyCounterpart",
+      tickerSentence: "対応電文の本文です。",
+    });
+
+    state = reduce(state, {
+      type: "reconcile",
+      event: canonical,
+      sourceEventKeys: ["source:a", "source:b"],
+    });
+
+    expect(state.ticker.map((event) => event.eventKey)).toEqual(["canonical", "keep"]);
+    expect(state.ticker.find((event) => event.eventKey === "canonical")?.id).toBe("canonical-new");
+    expect(state.tickerGeneration).toBe(generation);
+    expect(state.snapshot?.seq).toBe(4);
+    expect(state.lastSeq).toBe(5);
+    expect(state.lastEventSeq).toBe(5);
+    expect(state.seqGapDetected).toBe(false);
+    expect(state.reconcile).toMatchObject({
+      type: "reconcile",
+      event: { eventKey: "canonical" },
+      sourceEventKeys: ["source:a", "source:b"],
+    });
+  });
+
   it("③ event 受信は snapshot 内の recentQuakes 等を変更しない (state/snapshot だけが差し替える)", () => {
     const snap = snapshot({ recentQuakes: [{ eventId: "Q1", reportDateTime: "t", originTime: null, hypocenterName: null, magnitude: null, maxInt: null, maxIntRank: null, depth: null, tsunamiWarning: false }] });
     const afterSnapshot = reduce(initialState(), { type: "snapshot", snapshot: snap });
