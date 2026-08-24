@@ -11,6 +11,16 @@ import {
   readFixture,
 } from "../../helpers/mock-message";
 import { normalizeTelegramMessage } from "../../../src/dmdata/telegram-ingress";
+import {
+  LegacyCounterpartCorrelator,
+  type LegacyCounterpartCorrelatorFactory,
+} from "../../../src/engine/messages/legacy-counterpart-correlator";
+import {
+  createLegacyCounterpartRegistry,
+  LEGACY_CORRELATION_WINDOW_AFTER_MS,
+  LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+  LEGACY_SOURCE_HOLDBACK_MS,
+} from "../../../src/engine/messages/legacy-counterpart-registry";
 import * as log from "../../../src/logger";
 
 // sound-player をモックしてテスト中に通知音が鳴るのを抑制
@@ -27,6 +37,50 @@ function createMockDisplay(): DisplayCallbacks {
     getDisplayMode: () => "normal",
     renderSummaryLine: () => "要約",
   };
+}
+
+function displayLegacyMessage(type: "VPOA50" | "SYNTH-CP", id: string, eventId: string) {
+  const base = createMockWsDataMessageFromXml(readFixture(FIXTURE_VXSE51_SHINDO), type);
+  if (base.xmlReport == null) throw new Error("fixture envelope is missing");
+  const nowMs = Date.now();
+  return normalizeTelegramMessage({
+    ...base,
+    id,
+    classification: "classification.synthetic",
+    head: { ...base.head, type, time: new Date(nowMs).toISOString() },
+    xmlReport: {
+      ...base.xmlReport,
+      head: {
+        ...base.xmlReport.head,
+        title: type === "VPOA50" ? "旧形式情報" : "synthetic counterpart",
+        reportDateTime: new Date(nowMs).toISOString(),
+        eventId,
+        serial: "1",
+        infoType: "発表",
+      },
+    },
+    meta: undefined,
+  }, nowMs).message;
+}
+
+function displayLegacyCorrelatorFactory(): LegacyCounterpartCorrelatorFactory {
+  const registry = createLegacyCounterpartRegistry([{
+    sourceType: "VPOA50",
+    status: "confirmed",
+    counterpartTypes: ["SYNTH-CP"],
+    extractEventKey: () => ({
+      officeCode: "DISPLAY-OFFICE",
+      areaCodes: ["DISPLAY-AREA"],
+      phenomenonCodes: ["DISPLAY-PHENOM"],
+      kindCodes: ["DISPLAY-KIND"],
+      targetTimeMs: Date.parse("2026-08-11T00:00:00.000Z"),
+    }),
+    windowBeforeMs: LEGACY_CORRELATION_WINDOW_BEFORE_MS,
+    windowAfterMs: LEGACY_CORRELATION_WINDOW_AFTER_MS,
+    holdbackMs: LEGACY_SOURCE_HOLDBACK_MS,
+  }]);
+  return ({ actionSink, lifecycleEventSink }) =>
+    new LegacyCounterpartCorrelator({ registry, onAction: actionSink, onLifecycleEvent: lifecycleEventSink });
 }
 
 describe("message-router displaySink 挿入", () => {
@@ -202,5 +256,58 @@ describe("message-router displaySink 挿入", () => {
     vi.advanceTimersByTime(1);
     expect(ingested).toHaveLength(1);
     expect(ingested[0].domain).toBe("legacyCounterpart");
+  });
+
+  it("optional reconcile capability があれば late counterpart を atomic に委譲する", () => {
+    vi.useFakeTimers();
+    const nowMs = Date.parse("2026-08-11T00:00:00.000Z");
+    vi.setSystemTime(nowMs);
+    const ingested: PresentationEvent[] = [];
+    const reconciled = vi.fn((_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({ kind: "applied" as const }));
+    const { handler } = createMessageHandler({
+      display: createMockDisplay(),
+      displaySink: {
+        ingest: (event) => ({
+          kind: "applied" as const,
+          eventKeys: (ingested.push(event), [event.id]),
+        }),
+        reconcileLateCounterpart: reconciled,
+      },
+      legacyCounterpartCorrelatorFactory: displayLegacyCorrelatorFactory(),
+    });
+
+    handler(displayLegacyMessage("VPOA50", "display-cap-source", "DISPLAY-CAP"));
+    vi.advanceTimersByTime(60_001);
+    handler(displayLegacyMessage("SYNTH-CP", "display-cap-counterpart", "DISPLAY-CAP"));
+
+    expect(reconciled).toHaveBeenCalledOnce();
+    expect(reconciled.mock.calls[0]?.[1]).toEqual(["legacy:VPOA50:DISPLAY-CAP"]);
+    expect(ingested).toHaveLength(1);
+  });
+
+  it("optional capability 不在時は late counterpart を通常 ingest へ一回だけ fail-open する", () => {
+    vi.useFakeTimers();
+    const nowMs = Date.parse("2026-08-11T00:00:00.000Z");
+    vi.setSystemTime(nowMs);
+    const ingested: PresentationEvent[] = [];
+    const { handler } = createMessageHandler({
+      display: createMockDisplay(),
+      displaySink: {
+        ingest: (event) => ({
+          kind: "applied" as const,
+          eventKeys: (ingested.push(event), [event.id]),
+        }),
+      },
+      legacyCounterpartCorrelatorFactory: displayLegacyCorrelatorFactory(),
+    });
+
+    handler(displayLegacyMessage("VPOA50", "display-fallback-source", "DISPLAY-FALLBACK"));
+    vi.advanceTimersByTime(60_001);
+    handler(displayLegacyMessage("SYNTH-CP", "display-fallback-counterpart", "DISPLAY-FALLBACK"));
+
+    expect(ingested.map((event) => event.id)).toEqual([
+      "legacy:VPOA50:DISPLAY-FALLBACK",
+      "display-fallback-counterpart",
+    ]);
   });
 });

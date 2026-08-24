@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
-import { createMessageHandler } from "../../src/engine/messages/message-router";
+import {
+  createMessageHandler,
+  LEGACY_DISPLAY_RECEIPT_CAPACITY,
+  LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY,
+  LEGACY_DISPLAY_RECEIPT_RETENTION_MS,
+} from "../../src/engine/messages/message-router";
 import { createDisplayAdapter } from "../../src/ui/display-adapter";
 import { TelegramStats } from "../../src/engine/messages/telegram-stats";
 import { IGNORED_HEAD_TYPES as ROUTE_CATALOG_IGNORED_HEAD_TYPES } from "../../src/engine/messages/route-catalog";
@@ -42,6 +47,7 @@ import {
 import { notifyMock } from "../setup";
 import { WsDataMessage } from "../../src/types";
 import type { DisplayStatsV1 } from "../../src/engine/display/types";
+import type { DisplayIngestSink } from "../../src/engine/display/types";
 import type { PresentationEvent } from "../../src/engine/presentation/types";
 import { parseTsunamiTelegram } from "../../src/dmdata/telegram-parser";
 import { createTelegramMeta } from "../../src/dmdata/telegram-meta";
@@ -1907,6 +1913,341 @@ describe("message-router 統合テスト", () => {
       expect(factory).toHaveBeenCalledTimes(1);
       expect(outcomes).toHaveLength(0);
       expect(result.stats.getSnapshot(Date.now()).foundation.legacyUnmatchedDisplayed).toBe(0);
+    });
+
+    it("timeout の applied result から receipt を作り、660,000ms の late action を atomic capability へ渡す", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const ingested: PresentationEvent[] = [];
+      const reconciled = vi.fn(
+        (_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({
+          kind: "applied" as const,
+          delivery: "noClients" as const,
+        }),
+      );
+      const sink: DisplayIngestSink = {
+        ingest: (event) => {
+          ingested.push(event);
+          return {
+            kind: "applied" as const,
+            eventKeys: [`source:${event.eventId ?? event.id}`],
+            delivery: "delivered" as const,
+          };
+        },
+        reconcileLateCounterpart: reconciled,
+      };
+      const result = createHandler({
+        displaySink: sink,
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+
+      result.handler(makeLegacyRouterMessage({ id: "receipt-source", eventId: "RECEIPT" }));
+      vi.advanceTimersByTime(60_001);
+      expect(ingested).toHaveLength(1);
+
+      vi.advanceTimersByTime(599_999);
+      result.handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP",
+        id: "receipt-counterpart",
+        eventId: "RECEIPT",
+        receivedAtMs: LEGACY_ROUTER_BASE_MS + 660_000,
+      }));
+
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(reconciled.mock.calls[0]?.[1]).toEqual(["source:RECEIPT"]);
+      expect(ingested).toHaveLength(1);
+    });
+
+    it("無関係な handler 入力で stats 時刻が進んでも、期限内 receipt は late reconcile する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      let receiptNowMs = LEGACY_ROUTER_BASE_MS;
+      const reconciled = vi.fn((_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({ kind: "applied" as const }));
+      const ingested: PresentationEvent[] = [];
+      const result = createHandler({
+        displayReceiptClock: { nowMs: () => receiptNowMs },
+        displaySink: {
+          ingest: (event) => {
+            ingested.push(event);
+            return { kind: "applied" as const, eventKeys: [event.id] };
+          },
+          reconcileLateCounterpart: reconciled,
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+
+      result.handler(makeLegacyRouterMessage({ id: "clock-source", eventId: "CLOCK" }));
+      vi.advanceTimersByTime(60_001);
+      const unrelated = createMockWsDataMessage(FIXTURE_VXSE53_ENCHI);
+      if (unrelated.meta == null) throw new Error("fixture metadata is missing");
+      // 実際の handler 入力で router 内 lastStatsNowMs を receipt 期限より先へ進める。
+      const futureStatsMs = LEGACY_ROUTER_BASE_MS + LEGACY_DISPLAY_RECEIPT_RETENTION_MS + 1;
+      result.handler({
+        ...unrelated,
+        id: "clock-unrelated-future",
+        meta: { ...unrelated.meta, messageId: "clock-unrelated-future", receivedAtMs: futureStatsMs },
+      });
+      receiptNowMs = LEGACY_ROUTER_BASE_MS + LEGACY_DISPLAY_RECEIPT_RETENTION_MS;
+      const ingestedBeforeCounterpart = ingested.length;
+      result.handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP", id: "clock-counterpart", eventId: "CLOCK",
+        receivedAtMs: receiptNowMs,
+      }));
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(ingested).toHaveLength(ingestedBeforeCounterpart);
+    });
+
+    it("t0+660,001ms の receipt timer callback が receipt を破棄し、以後は fail-open する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      let receiptNowMs = LEGACY_ROUTER_BASE_MS;
+      let receiptTimerCallbacks = 0;
+      const deferredCorrelatorTimers = new Set<object>();
+      const reconciled = vi.fn((_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({ kind: "applied" as const }));
+      const ingested: PresentationEvent[] = [];
+      const result = createHandler({
+        displayReceiptClock: { nowMs: () => receiptNowMs },
+        displayReceiptTimerScheduler: {
+          set: (delayMs, callback) => setTimeout(() => {
+            receiptTimerCallbacks += 1;
+            callback();
+          }, delayMs),
+          clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+        },
+        displaySink: {
+          ingest: (event) => {
+            ingested.push(event);
+            return { kind: "applied" as const, eventKeys: [event.id] };
+          },
+          reconcileLateCounterpart: reconciled,
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory({
+          timerScheduler: {
+            // holdback だけは fake timer で発火させ、correlator expiry は未発火の
+            // handle に退避する。receipt timer 単独の破棄を観測するためだ。
+            set: (delayMs, callback) => {
+              if (delayMs < 100_000) return setTimeout(callback, delayMs);
+              const handle = {};
+              deferredCorrelatorTimers.add(handle);
+              return handle;
+            },
+            clear: (handle) => {
+              if (typeof handle === "object" && handle != null && deferredCorrelatorTimers.delete(handle)) return;
+              clearTimeout(handle as ReturnType<typeof setTimeout>);
+            },
+          },
+        }),
+      });
+      result.handler(makeLegacyRouterMessage({ id: "expiry-source", eventId: "EXPIRY" }));
+      receiptNowMs = LEGACY_ROUTER_BASE_MS + 60_001;
+      vi.advanceTimersByTime(60_001);
+      expect(deferredCorrelatorTimers.size).toBeGreaterThan(0);
+      receiptNowMs = LEGACY_ROUTER_BASE_MS + LEGACY_DISPLAY_RECEIPT_RETENTION_MS + 1;
+      vi.advanceTimersByTime(600_000);
+      expect(receiptTimerCallbacks).toBe(1);
+      result.handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "expiry-counterpart", eventId: "EXPIRY" }));
+      expect(reconciled).not.toHaveBeenCalled();
+      expect(ingested).toHaveLength(2);
+    });
+
+    it("512 lifecycle 上限では最古 receipt を eviction し、513 件目は保持する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const reconciled = vi.fn((_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({ kind: "applied" as const }));
+      const ingested: PresentationEvent[] = [];
+      const result = createHandler({
+        displaySink: {
+          ingest: (event) => { ingested.push(event); return { kind: "applied" as const, eventKeys: [event.id] }; },
+          reconcileLateCounterpart: reconciled,
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory({ sourceCapacity: 1024 }),
+      });
+      for (let index = 0; index <= LEGACY_DISPLAY_RECEIPT_CAPACITY; index += 1) {
+        result.handler(makeLegacyRouterMessage({
+          id: `receipt-cap-source-${index}`,
+          eventId: `RECEIPT-CAP-${index}`,
+          key: legacyRouterKey({ officeCode: `OFFICE-${index}` }),
+        }));
+      }
+      vi.advanceTimersByTime(60_001);
+      result.handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP", id: "receipt-cap-old", eventId: "RECEIPT-CAP-0",
+        key: legacyRouterKey({ officeCode: "OFFICE-0" }),
+      }));
+      result.handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP", id: "receipt-cap-new", eventId: `RECEIPT-CAP-${LEGACY_DISPLAY_RECEIPT_CAPACITY}`,
+        key: legacyRouterKey({ officeCode: `OFFICE-${LEGACY_DISPLAY_RECEIPT_CAPACITY}` }),
+      }));
+
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(reconciled.mock.calls[0]?.[1]).toEqual([
+        `legacy:VPOA50:RECEIPT-CAP-${LEGACY_DISPLAY_RECEIPT_CAPACITY}`,
+      ]);
+      expect(ingested.filter((event) => event.eventId === "RECEIPT-CAP-0")).toHaveLength(2);
+    });
+
+    it("lifecycle 内の 32 key を蓄積し、33 key では capability を使わず fail-open する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const reconciled = vi.fn((_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({ kind: "applied" as const }));
+      const ingested: PresentationEvent[] = [];
+      let sourceKey = 0;
+      const result = createHandler({
+        displaySink: {
+          ingest: (event) => {
+            ingested.push(event);
+            sourceKey += 1;
+            return { kind: "applied" as const, eventKeys: [`key-${sourceKey}`] };
+          },
+          reconcileLateCounterpart: reconciled,
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      const addLifecycle = (eventId: string, count: number) => {
+        result.handler(makeLegacyRouterMessage({ id: `${eventId}-1`, eventId, serial: "1" }));
+        vi.advanceTimersByTime(60_001);
+        for (let index = 2; index <= count; index += 1) {
+          vi.advanceTimersByTime(1);
+          const nowMs = LEGACY_ROUTER_BASE_MS + 60_000 + index;
+          result.handler(makeLegacyRouterMessage({
+            id: `${eventId}-${index}`, eventId, serial: String(index),
+            reportDateTimeMs: nowMs, receivedAtMs: nowMs,
+          }));
+        }
+      };
+      addLifecycle("KEYS-32", LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY);
+      result.handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "keys-32-counterpart", eventId: "KEYS-32" }));
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(reconciled.mock.calls[0]?.[1]).toEqual(
+        Array.from({ length: LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY }, (_, index) => `key-${index + 1}`),
+      );
+
+      addLifecycle("KEYS-33", LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY + 1);
+      result.handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "keys-33-counterpart", eventId: "KEYS-33" }));
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(ingested.filter((event) => event.eventId === "KEYS-33")).toHaveLength(34);
+    });
+
+    it("receipt 不在・unsupported capability は canonical ingest へ fail-open し metric は 0 のまま", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const missingIngested: PresentationEvent[] = [];
+      const missing = createHandler({
+        displaySink: { ingest: (event) => { missingIngested.push(event); } },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      missing.handler(makeLegacyRouterMessage({ id: "missing-source", eventId: "MISSING" }));
+      vi.advanceTimersByTime(60_001);
+      missing.handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "missing-counterpart", eventId: "MISSING" }));
+      expect(missingIngested).toHaveLength(2);
+
+      const unsupportedIngested: PresentationEvent[] = [];
+      const unsupported = createHandler({
+        displaySink: {
+          ingest: (event) => { unsupportedIngested.push(event); return { kind: "applied" as const, eventKeys: [event.id] }; },
+          reconcileLateCounterpart: () => ({ kind: "unsupported" as const, reason: "capabilityUnavailable" }),
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      unsupported.handler(makeLegacyRouterMessage({ id: "unsupported-source", eventId: "UNSUPPORTED" }));
+      vi.advanceTimersByTime(60_001);
+      unsupported.handler(makeLegacyRouterMessage({ type: "SYNTH-CP", id: "unsupported-counterpart", eventId: "UNSUPPORTED" }));
+      expect(unsupportedIngested).toHaveLength(2);
+      expect(unsupported.stats.getSnapshot(Date.now()).foundation.legacyLateCounterpartReconciled).toBe(0);
+    });
+
+    it("同一 EventID の新 lifecycle は旧 receipt と古い timer を generation 照合で捨てる", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      let receiptNowMs = LEGACY_ROUTER_BASE_MS;
+      let nextHandle = 1;
+      const callbacks = new Map<number, () => void>();
+      const clear = vi.fn((_handle: unknown) => {});
+      const reconciled = vi.fn((_event: PresentationEvent, _sourceEventKeys: readonly string[]) => ({ kind: "applied" as const }));
+      const result = createHandler({
+        displayReceiptClock: { nowMs: () => receiptNowMs },
+        displayReceiptTimerScheduler: {
+          set: (_delayMs, callback) => {
+            const handle = nextHandle++;
+            callbacks.set(handle, callback);
+            return handle;
+          },
+          clear,
+        },
+        displaySink: {
+          ingest: (event) => ({ kind: "applied" as const, eventKeys: [event.id] }),
+          reconcileLateCounterpart: reconciled,
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+      result.handler(makeLegacyRouterMessage({ id: "generation-old", eventId: "GENERATION", serial: "1" }));
+      vi.advanceTimersByTime(60_001);
+      const oldTimer = 1;
+
+      // correlator の旧 lifecycle を期限切れにして、同じ EventID の新 lifecycle を admission する。
+      vi.advanceTimersByTime(600_000);
+      receiptNowMs = Date.now();
+      result.handler(makeLegacyRouterMessage({
+        id: "generation-new", eventId: "GENERATION", serial: "2",
+        reportDateTimeMs: receiptNowMs, receivedAtMs: receiptNowMs,
+      }));
+      vi.advanceTimersByTime(60_001);
+      // clear 済みの古い callback が遅れて実行されても、新 generation を消してはならない。
+      callbacks.get(oldTimer)?.();
+      result.handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP", id: "generation-counterpart", eventId: "GENERATION",
+        reportDateTimeMs: Date.now(), receivedAtMs: Date.now(),
+      }));
+
+      expect(clear).toHaveBeenCalledWith(oldTimer);
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(reconciled.mock.calls[0]?.[1]).toEqual(["legacy:VPOA50:GENERATION"]);
+      result.disposeLegacyCounterpartCorrelator();
+      expect(clear).toHaveBeenCalled();
+    });
+
+    it("reconcile failure は receipt を消費せず、canonical の通常 ingest へ一回だけ fail-open する", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(LEGACY_ROUTER_BASE_MS);
+      const clearReceiptTimer = vi.fn((handle: unknown) => {
+        clearTimeout(handle as ReturnType<typeof setTimeout>);
+      });
+      const reconciled = vi.fn(
+        () => ({ kind: "failure" as const, reason: "hubMutationFailed" }),
+      );
+      const ingested: PresentationEvent[] = [];
+      const sink: DisplayIngestSink = {
+        ingest: (event) => {
+          ingested.push(event);
+          return {
+            kind: "applied" as const,
+            eventKeys: [`key:${event.eventId ?? event.id}`],
+          };
+        },
+        reconcileLateCounterpart: reconciled,
+      };
+      const result = createHandler({
+        displaySink: sink,
+        displayReceiptTimerScheduler: {
+          set: (delayMs, callback) => setTimeout(callback, delayMs),
+          clear: clearReceiptTimer,
+        },
+        legacyCounterpartCorrelatorFactory: syntheticLegacyCorrelatorFactory(),
+      });
+
+      result.handler(makeLegacyRouterMessage({ id: "failure-source", eventId: "FAILURE" }));
+      vi.advanceTimersByTime(60_001);
+      result.handler(makeLegacyRouterMessage({
+        type: "SYNTH-CP",
+        id: "failure-counterpart",
+        eventId: "FAILURE",
+      }));
+
+      expect(reconciled).toHaveBeenCalledOnce();
+      expect(ingested).toHaveLength(2);
+      expect(clearReceiptTimer).not.toHaveBeenCalled();
+      result.disposeLegacyCounterpartCorrelator();
+      expect(clearReceiptTimer).toHaveBeenCalledOnce();
     });
   });
 });

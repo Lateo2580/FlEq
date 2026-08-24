@@ -22,14 +22,24 @@ import type { Route } from "./route-catalog";
 import { assertNever } from "../../utils/assert-never";
 import { SummaryWindowTracker } from "./summary-tracker";
 import { DailyQuakeCounter } from "./daily-quake-counter";
-import type { DisplayStatsV1 } from "../display/types";
+import type {
+  DisplayIngestResult,
+  DisplayReceiptClock,
+  DisplayReceiptTimerScheduler,
+  DisplayStatsV1,
+} from "../display/types";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
 import { toPresentationEvent } from "../presentation/events/to-presentation-event";
 import { expandVolcanoBatchForDisplay } from "../presentation/events/from-volcano";
 import { shouldDisplay, renderTemplate } from "../filter-template/pipeline";
 import type { FilterTemplatePipeline } from "../filter-template/pipeline";
 import { PresentationDiffStore } from "../presentation/diff-store";
-import type { ProcessOutcome, VolcanoBatchOutcome, PresentationEvent } from "../presentation/types";
+import type {
+  LegacyCounterpartOutcome,
+  ProcessOutcome,
+  PresentationEvent,
+  VolcanoBatchOutcome,
+} from "../presentation/types";
 import { VolcanoRouteHandler } from "./volcano-route-handler";
 import type { DisplayCallbacks } from "./display-callbacks";
 import type { DisplayIngestSink } from "../display/types";
@@ -51,6 +61,226 @@ import {
   type LegacyCounterpartCorrelatorFactory,
   type LegacyCounterpartLifecycleEvent,
 } from "./legacy-counterpart-correlator";
+
+export const LEGACY_DISPLAY_RECEIPT_CAPACITY = 512;
+export const LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY = 32;
+export const LEGACY_DISPLAY_RECEIPT_RETENTION_MS = 11 * 60_000;
+
+type DisplayIngestOperation = (event: PresentationEvent) => DisplayIngestResult | void | number;
+
+interface DisplayIngestCapture {
+  result?: DisplayIngestResult;
+}
+
+interface DisplayReceipt {
+  sourceIdentity: string;
+  generation: number;
+  createdOrder: number;
+  expiresAtMs: number;
+  sourceVersionToken: string;
+  eventKeys: Set<string>;
+  keyOverflowed: boolean;
+  timer: unknown | null;
+}
+
+interface DisplayReceiptView {
+  record: DisplayReceipt;
+  generation: number;
+  sourceEventKeys: readonly string[];
+}
+
+function isDisplayIngestResult(value: unknown): value is DisplayIngestResult {
+  if (typeof value !== "object" || value == null || !("kind" in value)) return false;
+  const kind = value.kind;
+  return kind === "applied" || kind === "unsupported" || kind === "failure" || kind === "failed";
+}
+
+function displayIngestApplied(result: unknown): result is Extract<DisplayIngestResult, { kind: "applied" }> {
+  return isDisplayIngestResult(result) && result.kind === "applied";
+}
+
+function displayIngestEventKeys(result: unknown): readonly string[] {
+  if (!displayIngestApplied(result)) return [];
+  const candidates = [
+    ...(result.eventKeys ?? []),
+    ...(result.tickerEventKeys ?? []),
+    ...(result.eventKey == null ? [] : [result.eventKey]),
+  ];
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const candidate of candidates) {
+    if (candidate.trim() === "" || seen.has(candidate)) continue;
+    seen.add(candidate);
+    keys.push(candidate);
+  }
+  return keys;
+}
+
+function sourceReceivedAtMs(outcome: LegacyCounterpartOutcome, fallbackMs: number): number {
+  const receivedAtMs = outcome.parsed.meta.receivedAtMs;
+  return Number.isFinite(receivedAtMs) ? receivedAtMs : fallbackMs;
+}
+
+function sourceVersionToken(outcome: LegacyCounterpartOutcome): string {
+  const meta = outcome.parsed.meta;
+  return JSON.stringify([
+    meta.messageId,
+    meta.reportDateTime.raw,
+    meta.serial.raw,
+  ]);
+}
+
+/** router handler 内だけで生存する、遅着 counterpart 用 ticker receipt。 */
+class LegacyDisplayReceiptStore {
+  private readonly records = new Map<string, DisplayReceipt>();
+  private nextGeneration = 1;
+  private nextCreatedOrder = 1;
+
+  constructor(
+    private readonly clock: DisplayReceiptClock,
+    private readonly scheduler: DisplayReceiptTimerScheduler,
+  ) {}
+
+  /** 同じ source identity の新 lifecycle admission は旧 receipt を再利用しない。 */
+  beginNewLifecycle(sourceIdentity: string): void {
+    this.remove(sourceIdentity);
+  }
+
+  recordSourceIngest(
+    sourceIdentity: string,
+    outcome: LegacyCounterpartOutcome,
+    result: DisplayIngestResult | void,
+    reason: "timeout" | "releasedUpdate" | "counterpartCancelled" | "correlatorCapacityExceeded",
+    nowMs: number,
+  ): void {
+    if (reason === "counterpartCancelled" || reason === "correlatorCapacityExceeded") return;
+    const eventKeys = displayIngestEventKeys(result);
+    if (reason === "timeout") {
+      // timeout は新 lifecycle の表示。旧 EventID の receipt が残っていてもここで切り替える。
+      this.remove(sourceIdentity);
+      const expiresAtMs = sourceReceivedAtMs(outcome, nowMs) + LEGACY_DISPLAY_RECEIPT_RETENTION_MS;
+      if (eventKeys.length === 0 || nowMs > expiresAtMs) return;
+      this.evictIfFull();
+      const record: DisplayReceipt = {
+        sourceIdentity,
+        generation: this.nextGeneration++,
+        createdOrder: this.nextCreatedOrder++,
+        expiresAtMs,
+        sourceVersionToken: sourceVersionToken(outcome),
+        eventKeys: new Set(),
+        keyOverflowed: false,
+        timer: null,
+      };
+      this.records.set(sourceIdentity, record);
+      this.addKeys(record, eventKeys);
+      this.arm(record, nowMs);
+      return;
+    }
+
+    const record = this.records.get(sourceIdentity);
+    if (record == null) return;
+    if (nowMs > record.expiresAtMs) {
+      this.remove(sourceIdentity, record);
+      return;
+    }
+    this.addKeys(record, eventKeys);
+    record.sourceVersionToken = sourceVersionToken(outcome);
+  }
+
+  viewForLateAction(
+    sourceIdentity: string,
+    sourceOutcome: LegacyCounterpartOutcome,
+    nowMs: number,
+  ): DisplayReceiptView | null {
+    const record = this.records.get(sourceIdentity);
+    if (record == null) return null;
+    if (nowMs > record.expiresAtMs) {
+      this.remove(sourceIdentity, record);
+      return null;
+    }
+    if (record.sourceVersionToken !== sourceVersionToken(sourceOutcome)) return null;
+    if (record.keyOverflowed || record.eventKeys.size === 0) return null;
+    return {
+      record,
+      generation: record.generation,
+      sourceEventKeys: [...record.eventKeys],
+    };
+  }
+
+  consume(view: DisplayReceiptView): void {
+    if (
+      this.records.get(view.record.sourceIdentity) !== view.record
+      || view.record.generation !== view.generation
+    ) return;
+    this.remove(view.record.sourceIdentity, view.record);
+  }
+
+  dispose(): void {
+    for (const record of this.records.values()) this.clearTimer(record);
+    this.records.clear();
+  }
+
+  private addKeys(record: DisplayReceipt, eventKeys: readonly string[]): void {
+    if (record.keyOverflowed) return;
+    for (const eventKey of eventKeys) {
+      if (record.eventKeys.has(eventKey)) continue;
+      if (record.eventKeys.size >= LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY) {
+        record.keyOverflowed = true;
+        return;
+      }
+      record.eventKeys.add(eventKey);
+    }
+  }
+
+  private evictIfFull(): void {
+    if (this.records.size < LEGACY_DISPLAY_RECEIPT_CAPACITY) return;
+    const oldest = [...this.records.values()]
+      .sort((left, right) => left.createdOrder - right.createdOrder)[0];
+    if (oldest != null) this.remove(oldest.sourceIdentity, oldest);
+  }
+
+  private arm(record: DisplayReceipt, nowMs = this.clock.nowMs()): void {
+    this.clearTimer(record);
+    const delayMs = Math.max(0, record.expiresAtMs + 1 - nowMs);
+    const generation = record.generation;
+    try {
+      record.timer = this.scheduler.set(delayMs, () => {
+        if (
+          this.records.get(record.sourceIdentity) !== record
+          || record.generation !== generation
+        ) return;
+        record.timer = null;
+        const nowMs = this.clock.nowMs();
+        if (nowMs <= record.expiresAtMs) {
+          this.arm(record);
+          return;
+        }
+        this.records.delete(record.sourceIdentity);
+      });
+    } catch {
+      // timer を張れない receipt は late reconcile の根拠に残さない。
+      this.records.delete(record.sourceIdentity);
+    }
+  }
+
+  private clearTimer(record: DisplayReceipt): void {
+    if (record.timer == null) return;
+    try {
+      this.scheduler.clear(record.timer);
+    } catch {
+      // disposal must not leave the receipt map half alive when a DI scheduler fails.
+    } finally {
+      record.timer = null;
+    }
+  }
+
+  private remove(sourceIdentity: string, expected?: DisplayReceipt): void {
+    const record = this.records.get(sourceIdentity);
+    if (record == null || (expected != null && record !== expected)) return;
+    this.clearTimer(record);
+    this.records.delete(sourceIdentity);
+  }
+}
 
 // ── 電文分類 (Route) ──
 //
@@ -284,6 +514,10 @@ export interface MessageHandlerOptions {
   getDeliveryCapabilities?: () => DeliveryCapabilities;
   /** Phase 6B integration test 用。未指定時は production correlator を handler が所有する。 */
   legacyCounterpartCorrelatorFactory?: LegacyCounterpartCorrelatorFactory;
+  /** 6B後半の display receipt timer 用 clock DI。省略時は Date.now。 */
+  displayReceiptClock?: DisplayReceiptClock;
+  /** 6B後半の display receipt timer 用 scheduler DI。省略時は setTimeout。 */
+  displayReceiptTimerScheduler?: DisplayReceiptTimerScheduler;
 }
 
 /** createMessageHandler の戻り値 */
@@ -313,6 +547,18 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const display = options?.display;
   const displaySink = options?.displaySink;
+  const displayReceiptClock: DisplayReceiptClock = options?.displayReceiptClock ?? {
+    nowMs: () => Date.now(),
+  };
+  const displayReceiptTimerScheduler: DisplayReceiptTimerScheduler =
+    options?.displayReceiptTimerScheduler ?? {
+      set: (delayMs, callback) => setTimeout(callback, delayMs),
+      clear: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    };
+  const displayReceipts = new LegacyDisplayReceiptStore(
+    displayReceiptClock,
+    displayReceiptTimerScheduler,
+  );
   const routeTaps = options?.routeTaps;
   const outcomeTaps = options?.outcomeTaps;
   const eewLogger = new EewEventLogger();
@@ -434,6 +680,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     outcome: ProcessOutcome | VolcanoBatchOutcome,
     displayFn: () => void,
     statsAtMs?: number,
+    displayIngestOverride?: DisplayIngestOperation,
+    displayIngestCapture?: DisplayIngestCapture,
   ): boolean {
     // 処理済み outcome の汎用 tap (filter 非適用: shouldDisplay の判定より前)。
     // 線形ルート・火山単発・火山バッチの全 outcome がここを通る。例外は本体へ波及させない。
@@ -463,10 +711,18 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         outcome.domain === "volcano" && "isBatch" in outcome && outcome.isBatch === true;
       if (isVolcanoBatch && outcome.sources.length > 0) {
         for (const volcanoEvent of expandVolcanoBatchForDisplay(outcome)) {
-          displaySink?.ingest(volcanoEvent);
+          const result = displaySink?.ingest(volcanoEvent);
+          if (displayIngestCapture != null && isDisplayIngestResult(result)) {
+            displayIngestCapture.result = result;
+          }
         }
       } else {
-        displaySink?.ingest(event);
+        const result = displayIngestOverride == null
+          ? displaySink?.ingest(event)
+          : displayIngestOverride(event);
+        if (displayIngestCapture != null && isDisplayIngestResult(result)) {
+          displayIngestCapture.result = result;
+        }
       }
       displaySink?.publishStats?.(buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, statsAtMs));
     } catch {
@@ -502,7 +758,8 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     outcome: ProcessOutcome,
     actionNowMs: number,
     allowNotification = true,
-  ): { notified: boolean; presented: boolean } {
+    displayIngestOverride?: DisplayIngestOperation,
+  ): { notified: boolean; presented: boolean; displayIngestResult?: DisplayIngestResult } {
     const notified = allowNotification && dispatchNotify(outcome, notifier);
     const acceptedCorrection = outcome.domain === "eew"
       ? outcome.eewResult.isCorrection === true
@@ -511,13 +768,22 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       stats.recordFoundation("correctionNotified", actionNowMs);
     }
     if (notified) stats.recordFoundation("notified", actionNowMs);
+    const displayIngestCapture: DisplayIngestCapture = {};
     const presented = runDisplayPipeline(
       outcome,
       () => display?.displayOutcome(outcome),
       actionNowMs,
+      displayIngestOverride,
+      displayIngestCapture,
     );
     if (presented) stats.recordFoundation("presented", actionNowMs);
-    return { notified, presented };
+    return {
+      notified,
+      presented,
+      ...(displayIngestCapture.result == null
+        ? {}
+        : { displayIngestResult: displayIngestCapture.result }),
+    };
   }
 
   function sourceDispositions(action: LegacyCounterpartAction): readonly LegacyCounterpartAffectedSource[] {
@@ -583,11 +849,17 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
 
   function handleLegacyCounterpartAction(action: LegacyCounterpartAction): void {
     const actionNowMs = statsNowMs(action.decidedAtMs);
+    // receipt の寿命は stats の単調時刻とは独立させる。別電文の stats 記録が
+    // 先行しても、late counterpart の照合期限を早めてはならない。
+    const receiptNowMs = displayReceiptClock.nowMs();
     if (action.kind === "emitNow") {
       emitAcceptedOutcome(action.outcome, actionNowMs);
       return;
     }
-    if (action.kind === "holdSource") return;
+    if (action.kind === "holdSource") {
+      displayReceipts.beginNewLifecycle(action.sourceIdentity);
+      return;
+    }
 
     const triggerOutcome = "triggerOutcome" in action ? action.triggerOutcome : undefined;
     if (triggerOutcome != null) {
@@ -612,6 +884,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     for (const disposition of sourceDispositions(action)) {
       switch (disposition.kind) {
         case "suppressSource":
+          displayReceipts.beginNewLifecycle(disposition.sourceIdentity);
           stats.recordFoundationForHeadType(
             disposition.outcome.parsed.type,
             "legacyMatchedSuppressed",
@@ -619,7 +892,13 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           );
           break;
         case "releaseSource": {
-          if (disposition.displayLifecycleOnly === true) break;
+          if (disposition.displayLifecycleOnly === true) {
+            displayReceipts.beginNewLifecycle(disposition.sourceIdentity);
+            break;
+          }
+          if (disposition.reason === "correlatorCapacityExceeded") {
+            displayReceipts.beginNewLifecycle(disposition.sourceIdentity);
+          }
           const evaluateNotification = disposition.reason !== "counterpartCancelled";
           const emitted = emitAcceptedOutcome(
             disposition.outcome,
@@ -645,9 +924,19 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
               actionNowMs,
             );
           }
+          if (disposition.reason === "timeout" || disposition.reason === "releasedUpdate") {
+            displayReceipts.recordSourceIngest(
+              disposition.sourceIdentity,
+              disposition.outcome,
+              emitted.displayIngestResult,
+              disposition.reason,
+              receiptNowMs,
+            );
+          }
           break;
         }
         case "ambiguousSource": {
+          displayReceipts.beginNewLifecycle(disposition.sourceIdentity);
           const emitted = emitAcceptedOutcome(disposition.outcome, actionNowMs, false);
           if (emitted.presented) {
             stats.recordFoundationForHeadType(
@@ -658,13 +947,42 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           }
           break;
         }
-        case "reconcileLateCounterpart":
-          // 骨組みでは typed action と canonical outcome の通常 emit まで。
-          // active surface の原子的 reconcile 成功 metric は 6B 後半で有効化する。
+        case "reconcileLateCounterpart": {
+          const receipt = displayReceipts.viewForLateAction(
+            disposition.sourceIdentity,
+            disposition.sourceOutcome,
+            receiptNowMs,
+          );
+          const displayIngestOverride: DisplayIngestOperation | undefined = receipt == null
+            ? undefined
+            : (event) => {
+              let result: DisplayIngestResult | void;
+              try {
+                result = displaySink?.reconcileLateCounterpart?.(
+                  event,
+                  receipt.sourceEventKeys,
+                );
+              } catch {
+                result = undefined;
+              }
+              if (displayIngestApplied(result)) {
+                displayReceipts.consume(receipt);
+                return result;
+              }
+              // capability 不在／hub 停止／mutation failure は canonical event の通常
+              // ingest へ一回だけ fail-open する。receipt は成功時以外消費しない。
+              return displaySink?.ingest(event);
+            };
           if (disposition.outcome !== triggerOutcome) {
-            emitAcceptedOutcome(disposition.outcome, actionNowMs);
+            emitAcceptedOutcome(
+              disposition.outcome,
+              actionNowMs,
+              true,
+              displayIngestOverride,
+            );
           }
           break;
+        }
       }
     }
   }
@@ -899,6 +1217,10 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       statsNowMs(now ?? Date.now()),
     ),
     flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),
-    disposeLegacyCounterpartCorrelator: () => legacyCounterpartCorrelator.dispose(),
+    disposeLegacyCounterpartCorrelator: () => {
+      // correlator と display receipt は別 owner だが、shutdown の一つの入口から双方を破棄する。
+      displayReceipts.dispose();
+      legacyCounterpartCorrelator.dispose();
+    },
   };
 }

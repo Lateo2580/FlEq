@@ -7,6 +7,57 @@ import type {
 } from "./protocol";
 import type { StandbyRevision } from "./standby-registry";
 
+/** 表示 sink が mutation／配信の成否を返すときの client 配送状態。 */
+export type DisplayIngestDelivery =
+  | "delivered"
+  | "noClients"
+  | "blockedSkipped"
+  | "byteGuardDropped";
+
+/**
+ * 表示 ingest／atomic reconcile の結果。
+ *
+ * `ingest()` は旧 sink との段階導入互換のため `void` も返し得る。新しい hub は
+ * `applied` と exact ticker key 集合を返し、router はその結果だけを receipt の根拠にする。
+ */
+export type DisplayIngestResult =
+  | {
+      kind: "applied";
+      /** 移行期の wire／テスト実装が status を使う場合の additive alias。 */
+      status?: "applied";
+      /** 通常 ingest の canonical event key。 */
+      eventKey?: string;
+      /** 通常 ingest が作った ticker の exact key 集合。 */
+      eventKeys?: readonly string[];
+      /** 上記の別名。protocol／hub 実装の段階導入用。 */
+      tickerEventKeys?: readonly string[];
+      /** mutation 後の server seq。未実装 sink では省略可。 */
+      seq?: number;
+      /** no client／backpressure／byte guard を mutation と分離して観測する。 */
+      delivery?: DisplayIngestDelivery;
+    }
+  | {
+      kind: "unsupported";
+      status?: "unsupported";
+      reason: string;
+    }
+  | {
+      kind: "failure" | "failed";
+      status?: "failure" | "failed";
+      reason: string;
+    };
+
+/** router が所有する非永続 receipt の timer DI。 */
+export interface DisplayReceiptTimerScheduler {
+  set(delayMs: number, callback: () => void): unknown;
+  clear(handle: unknown): void;
+}
+
+/** router が所有する非永続 receipt の clock DI。 */
+export interface DisplayReceiptClock {
+  nowMs(): number;
+}
+
 export type DisplayQuakeMapEventUpdateV1 = Pick<
   DisplayQuakeIntensityMapEventV1,
   | "eventId"
@@ -56,7 +107,16 @@ export interface DisplayTransport {
 }
 
 export interface DisplayIngestSink {
-  ingest(event: PresentationEvent): void;
+  /**
+   * 旧 sink は void、新 hub は discriminated result を返す段階導入型。
+   * `number` は旧テスト／adapter の `array.push()` の戻り値を void 互換として受けるためだけに許す。
+   */
+  ingest(event: PresentationEvent): DisplayIngestResult | void | number;
+  /** 遅着 counterpart の ticker surface を一回で reconcile する optional capability。 */
+  reconcileLateCounterpart?(
+    event: PresentationEvent,
+    sourceEventKeys: readonly string[],
+  ): DisplayIngestResult | void;
   /** monitor 所有の表示状態が変化したとき、snapshot の再配信を要求する。 */
   markExternalStateDirty?(): void;
   publishStats?(stats: DisplayStatsV1): void;

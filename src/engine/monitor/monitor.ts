@@ -341,6 +341,9 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   });
   const displaySink: DisplayIngestSink = {
     ingest: (e) => baseDisplaySink.ingest(e),
+    reconcileLateCounterpart: (e, sourceEventKeys) =>
+      baseDisplaySink.reconcileLateCounterpart?.(e, sourceEventKeys)
+      ?? { kind: "unsupported", reason: "capabilityUnavailable" },
     publishStats: (s) => displayHubRef?.publishStats?.(s),
   };
   let displayRuntime: DisplayRuntime | null = null;

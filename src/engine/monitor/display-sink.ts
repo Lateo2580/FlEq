@@ -93,7 +93,18 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
       // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
       if (quakeExtremeChanged || dailyQuakeChanged) hub?.markExternalStateDirty?.();
-      hub?.ingest(event);
+      return hub?.ingest(event);
+    },
+    reconcileLateCounterpart: (event, sourceEventKeys) => {
+      const hub = deps.getHub();
+      if (hub == null) {
+        return { kind: "unsupported", reason: "hubUnavailable" };
+      }
+      const reconcile = hub.reconcileLateCounterpart;
+      if (reconcile == null) {
+        return { kind: "unsupported", reason: "capabilityUnavailable" };
+      }
+      return reconcile(event, sourceEventKeys);
     },
   };
 }

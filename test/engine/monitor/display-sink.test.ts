@@ -3,7 +3,10 @@ import { createDisplaySink } from "../../../src/engine/monitor/display-sink";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
 import { QuakeExtremeStore } from "../../../src/engine/display/quake-extreme-store";
 import { DailyQuakeCounter } from "../../../src/engine/messages/daily-quake-counter";
-import type { DisplayIngestSink } from "../../../src/engine/display/types";
+import type {
+  DisplayIngestResult,
+  DisplayIngestSink,
+} from "../../../src/engine/display/types";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type { Vpws50CurrentAreasForDisplay } from "../../../src/types";
 
@@ -94,6 +97,35 @@ describe("createDisplaySink (monitor の実配線)", () => {
     h.sink.ingest(weatherEvent({ type: "VPWS50" }));
     expect(h.promotions.get("vpws50")?.level).toBe(4);
     expect(hubCalls).toBe(1);
+  });
+
+  it("hub の ingest result を router 側へ返す", () => {
+    const result: DisplayIngestResult = {
+      kind: "applied",
+      eventKeys: ["legacy:source:1"],
+      delivery: "noClients",
+    };
+    const h = harness();
+    h.setHub({ ingest: () => result });
+
+    expect(h.sink.ingest(weatherEvent({ type: "VPWS50" }))).toBe(result);
+  });
+
+  it("late reconcile capability を hub へ転送し、hub 不在は unsupported にする", () => {
+    const result: DisplayIngestResult = { kind: "applied", delivery: "delivered" };
+    const reconcile = vi.fn(() => result);
+    const h = harness();
+    h.setHub({ ingest: () => undefined, reconcileLateCounterpart: reconcile });
+    const event = weatherEvent({ type: "VPWS50" });
+
+    expect(h.sink.reconcileLateCounterpart?.(event, ["source:key"])).toBe(result);
+    expect(reconcile).toHaveBeenCalledWith(event, ["source:key"]);
+
+    h.setHub(null);
+    expect(h.sink.reconcileLateCounterpart?.(event, ["source:key"])).toEqual({
+      kind: "unsupported",
+      reason: "hubUnavailable",
+    });
   });
 
   it("hub が無くても気象警報カード現況を monitor 所有 store へ渡す", () => {
