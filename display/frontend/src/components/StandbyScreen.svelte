@@ -526,7 +526,7 @@
   }
   function candidates(): CardCandidate[] {
     return CARD_ORDER.filter(candidatePresent).map((key, order) => ({
-      key, order, score: CARD_ORDER.length - order,
+      key, order, score: candidateScore(key),
       variant: key === "typhoon" ? "full" : "compact",
       naturalHeight: measured(key, key === "typhoon" ? "full" : "compact", "right"),
       centerNaturalHeight: measured(key, key === "typhoon" ? "full" : "compact", "center"),
@@ -543,6 +543,18 @@
             total + Math.max(0, group.areas.length - group.currentAreas.length), 0))
           : 0,
     }));
+  }
+  function candidateScore(key: CardKey): number {
+    if (key === "tsunami") return (snapshot.tsunami?.coasts.length ?? 0) + 3;
+    if (key === "quake") return 6 + (snapshot.latestQuake?.intensityGroups.length ?? 0) * 2
+      + Number(longPeriodItem?.data.eventId === snapshot.latestQuake?.eventId);
+    if (key === "weather") return 3 + [...weatherDisplayGroups.values()]
+      .reduce((total, group) => total + group.currentAreas.length + 1, 0)
+      + (tornadoItem == null ? 0 : tornadoItem.data.areas.length + 1);
+    if (key === "flood") return 2 + (floodItem?.data.rivers.length ?? 0) * 2;
+    if (key === "typhoon") return 2 + (typhoonItem?.data.typhoons.length ?? 0) * 4;
+    if (key === "volcano") return 2 + (volcanoItem?.data.volcanoes.length ?? 0) * 2;
+    return 2 + (heatItem?.data.areas.length ?? 0);
   }
   function pageFormattingActive(key: CardKey): boolean {
     const page = key === "quake" || key === "weather" ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
@@ -713,7 +725,7 @@
     return Math.min(10, Math.max(4, baselineGapPx * 0.6));
   }
   function automaticPlan(capacityLimit: number, hidden: readonly CenterClusterItem[] = []): ColumnPlan {
-    const baseline = makeColumnPlan({ candidates: candidates(), ctx: solverContext(null, capacityLimit, baselineGapPx, hidden), floorStage: 0, requestedLadder: null });
+    const baseline = makeColumnPlan({ candidates: candidates(), ctx: solverContext(null, capacityLimit, baselineGapPx, hidden), floorStage: 0, requestedLadder: null, previousPlan: committedPlan });
     if (baseline.stage !== 3) return baseline;
     const compressedMeasureGap = compressedGap();
     const compressed = makeColumnPlan({
@@ -721,6 +733,7 @@
       ctx: solverContext(null, capacityLimit, compressedMeasureGap, hidden),
       floorStage: 2,
       requestedLadder: null,
+      previousPlan: committedPlan,
     });
     return compressed.stage === 2 && !compressed.unresolved ? compressed : baseline;
   }
@@ -733,6 +746,7 @@
       ctx: solverContext(null, capacityLimit, retainedGap, hidden),
       floorStage: solveFloor,
       requestedLadder: solveFloor,
+      previousPlan: committedPlan,
     });
   }
   const fixedCenter = $derived(centerFixed(committedCenterClusterHidden));
@@ -868,7 +882,15 @@
     return prefixMeasureId("prefix", "weather", placement, 0, prefixRenderedEnd("weather", renderSelection.weatherRows), tails);
   });
   function snapshotPlan(source: ColumnPlan): ColumnPlan {
-    return { ...source, left: [...source.left], right: [...source.right], center: [...source.center], moved: new Set(source.moved), rotationKeys: [...source.rotationKeys] };
+    return {
+      ...source,
+      left: [...source.left],
+      right: [...source.right],
+      center: [...source.center],
+      moved: new Set(source.moved),
+      rotationKeys: [...source.rotationKeys],
+      candidateScores: source.candidateScores == null ? undefined : { ...source.candidateScores },
+    };
   }
 
   $effect(() => {
@@ -1960,7 +1982,7 @@
   .legacy-layout { position: absolute; inset: var(--edge) var(--edge) calc(var(--edge) + var(--nankai-reserve)); display: grid; grid-template-columns: minmax(0, 1fr) var(--center-width) minmax(0, 1fr); gap: var(--gap); min-height: 0; }
   .side, .center-card-region { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; min-height: 0; overflow: visible; }
   .side-left, .side-right { align-items: center; }
-  .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe center; box-sizing: border-box; }
+  .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe flex-start; box-sizing: border-box; }
   .legacy-card, .rotation-slot, .rotation-failure { flex: 0 0 auto; box-sizing: border-box; width: min(30rem, 100%); max-width: 100%; }
   .legacy-card.paged-card { position: relative; overflow: hidden; }
   .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }

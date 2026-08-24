@@ -63,6 +63,8 @@ export interface ColumnPlan {
   rotationSlotHeight: number;
   rotationFailureCount: number;
   layoutFailure: boolean;
+  /** Scores retained for the next epoch's priority-rise stability check. */
+  candidateScores?: Partial<Record<CardKey, number>>;
 }
 
 export interface PageTail {

@@ -685,7 +685,7 @@ export class CardPageCoordinator {
     };
   }
 
-  diagnostics(): object {
+  diagnostics() {
     this.subscribe();
     return {
       processedTick: this.processedTick,

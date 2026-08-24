@@ -129,6 +129,35 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     expect(root?.querySelector("[data-clock-landmark] .clock-wrap")).toBeTruthy();
   });
 
+  it("keeps committed card surfaces through a same-priority content refresh", async () => {
+    const testMeasurementOverride: Partial<Record<string, number>> = {
+      layoutWidthPx: 1280, layoutHeightPx: 100, baselineGapPx: 10,
+      "quake:compact:right": 60, "quake:expanded:right": 60, "quake:full:right": 60,
+      "quake:compact:center": 60, "quake:expanded:center": 60, "quake:full:center": 60,
+      "weather:compact:right": 20, "weather:expanded:right": 20, "weather:full:right": 20,
+      "weather:compact:center": 20, "weather:expanded:center": 20, "weather:full:center": 20,
+      "volcano:compact:right": 20, "volcano:expanded:right": 20, "volcano:full:right": 20,
+      "volcano:compact:center": 20, "volcano:expanded:center": 20, "volcano:full:center": 20,
+    };
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ latestQuake: latestQuake(), weatherAlerts: [weather()], standbyItems: [volcano()] }),
+      now, dim: false, sseConnected: true, testMeasurementOverride,
+    });
+    const surfaces = () => [...view.container.querySelectorAll<HTMLElement>(".legacy-layout article[data-layout-motion-card]")]
+      .map((card) => card.dataset.layoutMotionCard)
+      .sort();
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const before = surfaces();
+
+    await view.rerender({
+      snapshot: baseSnapshot({ latestQuake: latestQuake({ updatedAtMs: 2 }), weatherAlerts: [weather({ updatedAt: "2026-08-20T12:01:00+09:00" })], standbyItems: [volcano()] }),
+      now, dim: false, sseConnected: true, testMeasurementOverride,
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+
+    expect(surfaces()).toEqual(before);
+  });
+
   it("accepts cluster-calm only through the preview gate fixture prop", () => {
     const previewSource = readFileSync(join(__dirname, "..", "..", "preview", "PreviewApp.svelte"), "utf8");
     expect(previewSource).toContain('value === "cluster-calm"');

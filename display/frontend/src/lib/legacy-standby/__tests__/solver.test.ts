@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import { achievableSurplusUse, bestPlacement, comparePlacements, enumeratePlacements, makeColumnPlan, promoteAndExpand, solveRotation, type SolverContext } from "../solver";
 import type { CardCandidate, ColumnPlan, PlacementChoice } from "../types";
 
-function card(key: CardCandidate["key"], order: number, height: number, maxRegionRows = 0): CardCandidate {
-  return { key, order, score: 0, variant: "compact", naturalHeight: height, centerNaturalHeight: height, maxRegionRows };
+function card(key: CardCandidate["key"], order: number, height: number, maxRegionRows = 0, score = 0): CardCandidate {
+  return { key, order, score, variant: "compact", naturalHeight: height, centerNaturalHeight: height, maxRegionRows };
+}
+
+function committedPlan(left: CardCandidate[], right: CardCandidate[], center: CardCandidate[] = []): ColumnPlan {
+  return {
+    left, right, center, moved: new Set(), unresolved: false, centerUnresolved: false,
+    stage: 0, variants: { quake: "compact", weather: "compact", typhoon: "compact" }, rotationKeys: [],
+    rotationCurrentKey: null, rotationSlotHeight: 0, rotationFailureCount: 0, layoutFailure: false,
+  };
 }
 
 function context(measureSelection: (choice: PlacementChoice, selection: Parameters<SolverContext["measureSelection"]>[1]) => number): SolverContext {
@@ -50,6 +58,150 @@ describe("legacy standby solver", () => {
     const overflow: PlacementChoice = { left: [card("quake", 0, 101)], right: [], center: [], moved: new Set() };
 
     expect(comparePlacements(fit, overflow, context(() => 0))).toBeLessThan(0);
+  });
+
+  it("keeps a fitting committed surface when candidates and priorities are unchanged", () => {
+    const quake = card("quake", 0, 60);
+    const weather = card("weather", 1, 30);
+    const volcano = card("volcano", 2, 30);
+    const previousPlan = committedPlan([quake, weather], [volcano]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["volcano"]);
+  });
+
+  it("replaces a committed surface when its updated height overflows", () => {
+    const quake = card("quake", 0, 60);
+    const previousWeather = card("weather", 1, 30);
+    const weather = card("weather", 1, 60);
+    const volcano = card("volcano", 2, 30);
+    const previousPlan = committedPlan([quake, previousWeather], [volcano]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano], ctx: context(() => 0), floorStage: 0, requestedLadder: null, previousPlan,
+    });
+
+    expect(plan.unresolved).toBe(false);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "volcano"]);
+  });
+
+  it("retains remaining cards across a candidate removal", () => {
+    const quake = card("quake", 0, 50);
+    const weather = card("weather", 1, 50);
+    const volcano = card("volcano", 2, 50);
+    const previousPlan = committedPlan([quake], [weather, volcano]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather"]);
+  });
+
+  it("retains a fitting surface after a priority rise when no relocation is required", () => {
+    const quake = card("quake", 0, 60);
+    const previousWeather = card("weather", 1, 30, 0, 1);
+    const weather = card("weather", 1, 30, 0, 2);
+    const volcano = card("volcano", 2, 30);
+    const previousPlan = committedPlan([quake, previousWeather], [volcano]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.candidateScores?.weather).toBe(2);
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "weather"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["volcano"]);
+  });
+
+  it("keeps a zero-move fitting plan ahead of a one-move balance improvement", () => {
+    const quake = card("quake", 0, 60);
+    const weather = card("weather", 1, 20);
+    const volcano = card("volcano", 2, 20);
+    const heat = card("heat", 3, 20);
+    const previousPlan = committedPlan([quake, volcano], [weather]);
+
+    const plan = makeColumnPlan({
+      candidates: [quake, weather, volcano, heat], ctx: context(() => 0), floorStage: 0, requestedLadder: 0, previousPlan,
+    });
+
+    expect(plan.left.map((entry) => entry.key)).toEqual(["quake", "volcano"]);
+    expect(plan.right.map((entry) => entry.key)).toEqual(["weather", "heat"]);
+  });
+
+  it("keeps a committed stage-3 rotation surface when candidates are unchanged", () => {
+    const quake = card("quake", 0, 80);
+    const weather = card("weather", 1, 10);
+    const volcano = card("volcano", 2, 10);
+    const heat = card("heat", 3, 50);
+    const previousPlan: ColumnPlan = {
+      ...committedPlan([quake, volcano], [weather]),
+      stage: 3,
+      rotationKeys: ["heat"],
+      rotationCurrentKey: "heat",
+      rotationSlotHeight: 50,
+      candidateScores: { quake: 0, weather: 0, volcano: 0, heat: 0 },
+    };
+    const ctx = { ...context(() => 0), rotationSlotHeight: (keys: readonly CardCandidate["key"][]) => keys.includes("heat") ? 50 : 0 };
+
+    const solution = solveRotation([quake, weather, volcano, heat], ctx, previousPlan);
+
+    expect(solution.rotationKeys).toEqual(["heat"]);
+    expect(solution.placement.left.map((entry) => entry.key)).toEqual(["quake", "volcano"]);
+    expect(solution.placement.right.map((entry) => entry.key)).toEqual(["weather"]);
+  });
+
+  it("keeps a weather rotation when the earlier heat candidate also fits", () => {
+    const quake = card("quake", 0, 80);
+    const weather = card("weather", 1, 20);
+    const heat = card("heat", 2, 20);
+    const previousPlan: ColumnPlan = {
+      ...committedPlan([quake], [heat]),
+      stage: 3,
+      rotationKeys: ["weather"],
+      rotationCurrentKey: "weather",
+      rotationSlotHeight: 20,
+      candidateScores: { quake: 0, weather: 0, heat: 0 },
+    };
+    const ctx = { ...context(() => 0), rotationSlotHeight: (keys: readonly CardCandidate["key"][]) => keys.length === 0 ? 0 : 20 };
+
+    const solution = solveRotation([quake, weather, heat], ctx, previousPlan);
+
+    expect(solution.rotationKeys).toEqual(["weather"]);
+    expect(solution.currentKey).toBe("weather");
+    expect(solution.placement.left.map((entry) => entry.key)).toEqual(["quake"]);
+    expect(solution.placement.right.map((entry) => entry.key)).toEqual(["heat"]);
+  });
+
+  it.each([
+    { name: "a candidate is added", candidates: ["quake", "weather", "heat", "volcano"], weatherScore: 0 },
+    { name: "weather priority rises", candidates: ["quake", "weather", "heat"], weatherScore: 1 },
+  ] as const satisfies readonly { name: string; candidates: readonly CardCandidate["key"][]; weatherScore: number }[])("releases the committed rotation when $name", ({ candidates: candidateKeys, weatherScore }) => {
+    const quake = card("quake", 0, 80);
+    const weather = card("weather", 1, 20, 0, weatherScore);
+    const heat = card("heat", 2, 20);
+    const volcano = card("volcano", 3, 10);
+    const previousPlan: ColumnPlan = {
+      ...committedPlan([quake], [heat]),
+      stage: 3,
+      rotationKeys: ["weather"],
+      rotationCurrentKey: "weather",
+      rotationSlotHeight: 20,
+      candidateScores: { quake: 0, weather: 0, heat: 0 },
+    };
+    const byKey = { quake, weather, heat, volcano } as const;
+    const currentCandidates = candidateKeys.map((key) => byKey[key]);
+    const ctx = { ...context(() => 0), rotationSlotHeight: (keys: readonly CardCandidate["key"][]) => keys.length === 0 ? 0 : 20 };
+
+    const solution = solveRotation(currentCandidates, ctx, previousPlan);
+
+    expect(solution.rotationKeys).toEqual(["heat"]);
   });
 
   it("orders two non-fitting placements by their total overflow", () => {
