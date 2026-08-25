@@ -1,13 +1,17 @@
 import type { PresentationEvent } from "../presentation/types";
 import type {
+  ParsedLegacyCounterpartInfo,
   ParsedLgObservationInfo,
   ParsedNankaiTroughInfo,
   ParsedTornadoAdvisory,
+  ParsedWeatherBriefing,
   SpecialValue,
 } from "../../types";
 import * as log from "../../logger";
 import type {
   ActiveStandbyCardV1,
+  DisplayBriefingEntryV1,
+  DisplayBriefingSeverityEvidenceV1,
   DisplayHeatAreaV1,
   DisplayTyphoonV1,
   DisplayVolcanoAlertClassV1,
@@ -28,6 +32,10 @@ import { projectFloodUpdate } from "./project-flood";
 import { resolveQuakeIntensitySafetyRank } from "./project-event";
 import { projectHeatUpdate, projectTyphoonUpdate, projectVolcanoUpdates, type VolcanoUpdate } from "./project-standby";
 import {
+  BRIEFING_CARD_CANCEL_TTL_MS,
+  BRIEFING_CARD_KEY,
+  BRIEFING_CARD_MAX_ENTRIES,
+  BRIEFING_CARD_TTL_MS,
   NO_MUTATION,
   compareRevision,
   revisionOf,
@@ -45,6 +53,7 @@ import {
 import { normalizeTornadoPublishingOffice, tornadoTickerGroupKey } from "./tornado-group-key";
 import { FLOOD_FORECAST_MAX_SUBJECTS } from "../messages/revision-family-registry";
 import {
+  briefingFrameLevel,
   formatLgIntensitySpecialValue,
   resolveLgIntensitySafetyRank,
 } from "../presentation/level-helpers";
@@ -158,6 +167,55 @@ interface NankaiState {
   restored: boolean;
 }
 
+interface BriefingCardEntryState {
+  entry: DisplayBriefingEntryV1;
+  updatedAtMs: number;
+  expiresAtMs: number;
+}
+
+type BriefingCardEntryCandidate = BriefingCardEntryState;
+
+export type BriefingCardMutationResult =
+  | {
+      kind: "applied";
+      status: "applied";
+      applied: true;
+      generation: number;
+      evictedKey: string | null;
+      action: "upsert" | "expiredCancellationRemoved" | "pruned";
+    }
+  | {
+      kind: "ignored";
+      status: "ignored";
+      applied: false;
+      generation: number;
+      evictedKey: null;
+      reason: "notBriefing" | "expired" | "unchanged";
+    };
+
+export type CardReconcileResult =
+  | {
+      kind: "applied";
+      status: "applied";
+      applied: true;
+      sourceKey: string;
+      canonicalKey: string;
+      generation: number;
+      expiresAt: string | null;
+      canonicalInserted: boolean;
+      evictedKey: null;
+    }
+  | {
+      kind: "ignored";
+      status: "ignored";
+      applied: false;
+      sourceKey: string;
+      canonicalKey: string | null;
+      generation: number;
+      evictedKey: null;
+      reason: "sourceNotFound" | "sourceNotVpoa50" | "canonicalNotBriefing" | "expired";
+    };
+
 export interface VolcanoSeedEntry {
   volcanoCode: string;
   volcanoName: string;
@@ -186,6 +244,9 @@ export class StandbyStateStore {
   /** v1 migration survivors are not pruned until each subject receives a foundation-gated report. */
   private readonly managedStandbySubjects = new Map<string, Set<string>>();
   private readonly revisionGuard = new RevisionGuard();
+  /** VPBS50／VPOA50 browser card only. This map is intentionally non-persistent. */
+  private readonly briefingEntries = new Map<string, BriefingCardEntryState>();
+  private briefingGeneration = 0;
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
 
@@ -193,6 +254,10 @@ export class StandbyStateStore {
     if (event.domain === "earthquake" && event.foundationMutationAccepted === false) {
       return NO_MUTATION;
     }
+    if (
+      ["briefing", "legacyCounterpart"].includes(event.domain)
+      && event.foundationMutationAccepted === false
+    ) return NO_MUTATION;
     if (
       ["tornado", "heatAlert", "typhoonAnalysis", "nankaiTrough", "lgObservation"].includes(event.domain)
       && event.standbyStateMutationAccepted === false
@@ -235,6 +300,12 @@ export class StandbyStateStore {
       case "nankaiTrough":
         mutation = this.applyNankai(event, nowMs);
         break;
+      case "briefing":
+      case "legacyCounterpart": {
+        const result = this.applyBriefingCardEvent(event, nowMs);
+        mutation = briefingCardMutationToDisplayMutation(result);
+        break;
+      }
       default:
         return NO_MUTATION;
     }
@@ -249,6 +320,181 @@ export class StandbyStateStore {
     }
     this.notify(mutation);
     return mutation;
+  }
+
+  /**
+   * Apply only the browser-card projection for VPBS50 or VPOA50.
+   * The normal applyEvent path owns notification; this method is public for
+   * card-only tests and for the later typed reconcile sink.
+   */
+  applyBriefingCardEvent(event: PresentationEvent, nowMs: number): BriefingCardMutationResult {
+    const candidate = briefingCardEntryCandidate(event, nowMs);
+    if (candidate == null) {
+      return {
+        kind: "ignored", status: "ignored", applied: false,
+        generation: this.briefingGeneration, evictedKey: null, reason: "notBriefing",
+      };
+    }
+    return this.upsertBriefingCardEntry(candidate, nowMs);
+  }
+
+  /**
+   * Atomically replace one VPOA50 card entry with its canonical VPBS50 entry.
+   * No ticker key, receipt, or ticker state is consulted here.
+   */
+  reconcileBriefingCard(
+    sourceKey: string,
+    canonicalEvent: PresentationEvent,
+    nowMs: number,
+  ): CardReconcileResult {
+    const pruned = this.pruneBriefingCardEntries(nowMs);
+    const source = this.briefingEntries.get(sourceKey);
+    const canonicalCandidate = briefingCardEntryCandidate(canonicalEvent, nowMs);
+    const canonicalKey = canonicalCandidate?.entry.key ?? null;
+    if (source == null) {
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "sourceNotFound",
+      };
+    }
+    if (source.entry.source !== "vpoa50") {
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "sourceNotVpoa50",
+      };
+    }
+    if (canonicalCandidate == null || canonicalCandidate.entry.source !== "vpbs50") {
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
+      };
+    }
+    if (canonicalKey === sourceKey) {
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
+      };
+    }
+
+    const expiresAtMs = Math.min(source.expiresAtMs, canonicalCandidate.expiresAtMs);
+    if (expiresAtMs <= nowMs) {
+      const generation = this.briefingGeneration + 1;
+      this.briefingEntries.delete(sourceKey);
+      this.briefingGeneration = generation;
+      this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "applied", status: "applied", applied: true, sourceKey,
+        canonicalKey: canonicalCandidate.entry.key, generation, expiresAt: null,
+        canonicalInserted: false, evictedKey: null,
+      };
+    }
+
+    const generation = this.briefingGeneration + 1;
+    const entry: DisplayBriefingEntryV1 = {
+      ...canonicalCandidate.entry,
+      expiresAt: new Date(expiresAtMs).toISOString(),
+      generation,
+    };
+    this.briefingEntries.delete(sourceKey);
+    const resolvedCanonicalKey = canonicalCandidate.entry.key;
+    this.briefingEntries.set(resolvedCanonicalKey, {
+      entry,
+      updatedAtMs: canonicalCandidate.updatedAtMs,
+      expiresAtMs,
+    });
+    this.briefingGeneration = generation;
+    this.notify({ viewChanged: true, durableChanged: false });
+    return {
+      kind: "applied", status: "applied", applied: true, sourceKey, canonicalKey: resolvedCanonicalKey,
+      generation, expiresAt: entry.expiresAt, canonicalInserted: true, evictedKey: null,
+    };
+  }
+
+  /** Current card-only mutation generation, for targeted reconcile tests. */
+  briefingCardGeneration(): number {
+    return this.briefingGeneration;
+  }
+
+  /** Current number of active card entries before the next sweep. */
+  briefingCardEntryCount(): number {
+    return this.briefingEntries.size;
+  }
+
+  private upsertBriefingCardEntry(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+  ): BriefingCardMutationResult {
+    const pruned = this.pruneBriefingCardEntries(nowMs);
+    const previous = this.briefingEntries.get(candidate.entry.key);
+    if (candidate.expiresAtMs <= nowMs) {
+      if (candidate.entry.source === "vpbs50" && candidate.entry.frameLevel === "cancel" && previous != null) {
+        this.briefingEntries.delete(candidate.entry.key);
+        this.briefingGeneration += 1;
+        return {
+          kind: "applied", status: "applied", applied: true,
+          generation: this.briefingGeneration, evictedKey: null, action: "expiredCancellationRemoved",
+        };
+      }
+      return pruned
+        ? {
+            kind: "applied", status: "applied", applied: true,
+            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
+          }
+        : {
+            kind: "ignored", status: "ignored", applied: false,
+            generation: this.briefingGeneration, evictedKey: null, reason: "expired",
+          };
+    }
+    if (previous != null && sameBriefingCardEntry(previous.entry, candidate.entry)) {
+      return pruned
+        ? {
+            kind: "applied", status: "applied", applied: true,
+            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
+          }
+        : {
+            kind: "ignored", status: "ignored", applied: false,
+            generation: this.briefingGeneration, evictedKey: null, reason: "unchanged",
+          };
+    }
+
+    let evictedKey: string | null = null;
+    if (previous == null && this.briefingEntries.size >= BRIEFING_CARD_MAX_ENTRIES) {
+      const victim = [...this.briefingEntries.values()]
+        .sort((left, right) => left.updatedAtMs - right.updatedAtMs || compareBriefingKeys(left.entry.key, right.entry.key))[0];
+      if (victim != null) {
+        this.briefingEntries.delete(victim.entry.key);
+        evictedKey = victim.entry.key;
+      }
+    }
+
+    const generation = this.briefingGeneration + 1;
+    const entry: DisplayBriefingEntryV1 = { ...candidate.entry, generation };
+    this.briefingEntries.set(entry.key, {
+      entry,
+      updatedAtMs: candidate.updatedAtMs,
+      expiresAtMs: candidate.expiresAtMs,
+    });
+    this.briefingGeneration = generation;
+    return {
+      kind: "applied", status: "applied", applied: true,
+      generation, evictedKey, action: "upsert",
+    };
+  }
+
+  private pruneBriefingCardEntries(nowMs: number): boolean {
+    let changed = false;
+    for (const [key, state] of this.briefingEntries) {
+      if (state.expiresAtMs <= nowMs) {
+        this.briefingEntries.delete(key);
+        changed = true;
+      }
+    }
+    if (changed) this.briefingGeneration += 1;
+    return changed;
   }
 
   private retainManagedStandbySubjects(
@@ -923,6 +1169,9 @@ export class StandbyStateStore {
         durableChanged = true;
       }
     }
+    if (this.pruneBriefingCardEntries(nowMs)) {
+      viewChanged = true;
+    }
     if (this.revisionGuard.sweep(nowMs)) durableChanged = true;
     const floodMutation = this.floods.sweep(nowMs);
     this.reconcileLegacyFloodEvents();
@@ -1024,7 +1273,32 @@ export class StandbyStateStore {
       updatedAt: new Date(this.nankaiTrough.revision.reportTimeMs).toISOString(), expiresAt: new Date(this.nankaiTrough.expiresAtMs).toISOString(), restored: this.nankaiTrough.restored,
       severity: this.nankaiTrough.label.includes("警戒") ? "critical" : "warning", data: { statusCode: this.nankaiTrough.statusCode, label: this.nankaiTrough.label },
     });
+    const briefing = this.snapshotBriefingCard();
+    if (briefing != null) items.push(briefing);
     return sortStandbyItems(items);
+  }
+
+  snapshotBriefingCard(): Extract<ActiveStandbyCardV1, { kind: "briefing" }> | null {
+    if (this.briefingEntries.size === 0) return null;
+    const states = [...this.briefingEntries.values()]
+      .sort((left, right) => right.updatedAtMs - left.updatedAtMs || compareBriefingKeys(left.entry.key, right.entry.key));
+    const entries = states.map((state) => copyBriefingEntry(state.entry));
+    const severity = entries.some((entry) => entry.frameLevel === "critical")
+      ? "critical"
+      : entries.some((entry) => entry.frameLevel === "warning" || entry.frameLevel === "cancel")
+        ? "warning"
+        : "info";
+    return {
+      kind: "briefing",
+      surface: "corner-right",
+      key: BRIEFING_CARD_KEY,
+      sourceEventIds: entries.map((entry) => entry.sourceEventId),
+      updatedAt: new Date(Math.max(...states.map((state) => state.updatedAtMs))).toISOString(),
+      expiresAt: new Date(Math.max(...states.map((state) => state.expiresAtMs))).toISOString(),
+      restored: false,
+      severity,
+      data: { generation: this.briefingGeneration, entries },
+    };
   }
 
   exportActiveState(): PersistedStandbyStateV1 {
@@ -1097,6 +1371,8 @@ export class StandbyStateStore {
     this.nankaiTrough = null;
     this.weatherAlerts.clear();
     this.legacyFloodEventIds.clear();
+    this.briefingEntries.clear();
+    this.briefingGeneration = 0;
     for (const state of data.heat) {
       if (state.targetDateEndMs <= nowMs) continue;
       this.heatAlerts.set(state.key, {
@@ -1200,6 +1476,210 @@ export class StandbyStateStore {
     if (mutation.viewChanged) for (const cb of this.changeListeners) cb();
     if (mutation.durableChanged) for (const cb of this.durableListeners) cb();
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object" && !Array.isArray(value);
+}
+
+function nonBlank(value: string | null | undefined): string | null {
+  return value != null && value.trim() !== "" ? value : null;
+}
+
+function parsedBriefing(event: PresentationEvent): ParsedWeatherBriefing | null {
+  if (event.domain !== "briefing" || event.type !== "VPBS50" || !isRecord(event.raw)) return null;
+  return Array.isArray(event.raw.briefingConditions) && Array.isArray(event.raw.targetAreas)
+    ? event.raw as unknown as ParsedWeatherBriefing
+    : null;
+}
+
+function parsedVpoa(event: PresentationEvent): ParsedLegacyCounterpartInfo | null {
+  if (event.domain !== "legacyCounterpart" || event.type !== "VPOA50" || !isRecord(event.raw)) return null;
+  return Array.isArray(event.raw.areas) && Array.isArray(event.raw.severityEvidence)
+    ? event.raw as unknown as ParsedLegacyCounterpartInfo
+    : null;
+}
+
+function rawMessageId(event: PresentationEvent): string | null {
+  if (!isRecord(event.raw) || !isRecord(event.raw.meta)) return null;
+  return typeof event.raw.meta.messageId === "string" ? nonBlank(event.raw.meta.messageId) : null;
+}
+
+function sourceEventId(event: PresentationEvent): string | null {
+  const raw = isRecord(event.raw) && typeof event.raw.eventId === "string"
+    ? nonBlank(event.raw.eventId)
+    : null;
+  return raw ?? rawMessageId(event);
+}
+
+/** Card identity deliberately preserves the raw EventID/messageId spelling. */
+export function briefingCardIdentity(event: PresentationEvent): string | null {
+  const source = parsedBriefing(event) != null
+    ? "vpbs"
+    : parsedVpoa(event) != null
+      ? "vpoa"
+      : event.domain === "briefing" && event.type === "VPBS50"
+        ? "vpbs"
+        : event.domain === "legacyCounterpart" && event.type === "VPOA50"
+          ? "vpoa"
+          : null;
+  const rawIdentity = sourceEventId(event);
+  if (source == null || rawIdentity == null) return null;
+  return `card:${source}:${rawIdentity}`;
+}
+
+function reportTimeMs(reportDateTime: string, nowMs: number): number {
+  const parsed = Date.parse(reportDateTime);
+  return Number.isFinite(parsed) ? parsed : nowMs;
+}
+
+function briefingAreaItems(event: PresentationEvent): Array<{ name: string; code: string }> {
+  return event.areaItems
+    .map((area) => ({ name: area.name, code: nonBlank(area.code ?? area.areaCode) }))
+    .filter((area): area is { name: string; code: string } => area.code != null);
+}
+
+function uniqueStrings(values: readonly (string | null | undefined)[]): string[] {
+  return [...new Set(values.map((value) => nonBlank(value)).filter((value): value is string => value != null))];
+}
+
+function briefingEvidenceToWire(info: ParsedWeatherBriefing): DisplayBriefingSeverityEvidenceV1[] {
+  return info.briefingSeverityEvidence.map((evidence) => ({
+    source: evidence.source,
+    condition: evidence.condition,
+    tag: evidence.tag,
+    displaySeverity: evidence.displaySeverity,
+    soundLevel: evidence.soundLevel,
+    severity: null,
+    phenomenonCode: null,
+    kindCode: null,
+    levelCode: null,
+    status: null,
+  }));
+}
+
+function vpoaEvidenceToWire(info: ParsedLegacyCounterpartInfo): DisplayBriefingSeverityEvidenceV1[] {
+  return info.severityEvidence.map((evidence) => ({
+    source: evidence.source,
+    condition: evidence.condition ?? null,
+    tag: null,
+    displaySeverity: evidence.severity === "high" ? "critical" : "warning",
+    soundLevel: null,
+    severity: evidence.severity,
+    phenomenonCode: evidence.phenomenonCode,
+    kindCode: evidence.kindCode,
+    levelCode: evidence.levelCode,
+    status: evidence.status ?? null,
+  }));
+}
+
+function isConfirmedVpoaCardEvidence(
+  evidence: ParsedLegacyCounterpartInfo["severityEvidence"][number],
+): boolean {
+  if (evidence.severity !== "high" || evidence.kindCode !== "1") return false;
+  return evidence.source === "head"
+    ? evidence.condition === "発表"
+    : evidence.source === "body" && evidence.status === "発表";
+}
+
+function isHighVpoaCard(info: ParsedLegacyCounterpartInfo): boolean {
+  if (info.infoType !== "発表" && info.infoType !== "訂正") return false;
+  return info.severityEvidence.length === 2
+    && new Set(info.severityEvidence.map((evidence) => evidence.source)).size === 2
+    && info.severityEvidence.every(isConfirmedVpoaCardEvidence);
+}
+
+function briefingCardEntryCandidate(
+  event: PresentationEvent,
+  nowMs: number,
+): BriefingCardEntryCandidate | null {
+  const info = parsedBriefing(event);
+  const vpoa = parsedVpoa(event);
+  const source = info != null || event.domain === "briefing" && event.type === "VPBS50"
+    ? "vpbs50"
+    : vpoa != null || event.domain === "legacyCounterpart" && event.type === "VPOA50"
+      ? "vpoa50"
+      : null;
+  const key = briefingCardIdentity(event);
+  const rawIdentity = sourceEventId(event);
+  if (source == null || key == null || rawIdentity == null) return null;
+
+  const infoType = nonBlank(info?.infoType ?? vpoa?.infoType ?? event.infoType) ?? event.infoType;
+  const reportDateTime = info?.reportDateTime ?? vpoa?.reportDateTime ?? event.reportDateTime;
+  const updatedAtMs = reportTimeMs(reportDateTime, nowMs);
+  const isVpbsCancellation = source === "vpbs50" && (infoType === "取消" || event.isCancellation);
+  const ownTtlMs = isVpbsCancellation ? BRIEFING_CARD_CANCEL_TTL_MS : BRIEFING_CARD_TTL_MS;
+  const ownExpiresAtMs = updatedAtMs + ownTtlMs;
+  const expiresAtMs = ownExpiresAtMs;
+
+  const targetAreas = info != null
+    ? info.targetAreas.map((area) => ({ name: area.name, code: area.code }))
+    : vpoa != null
+      ? vpoa.areas.map((area) => ({ name: area.name, code: area.code }))
+      : briefingAreaItems(event);
+  const frameLevel = source === "vpbs50"
+    ? normalizeBriefingFrameLevel(info == null ? event.frameLevel : briefingFrameLevel(info))
+    : vpoa != null && isHighVpoaCard(vpoa) ? "critical" : "warning";
+  const severityEvidence = info != null
+    ? briefingEvidenceToWire(info)
+    : vpoa != null
+      ? vpoaEvidenceToWire(vpoa)
+      : [];
+  const conditions = info != null
+    ? [...info.briefingConditions]
+    : vpoa != null
+      ? uniqueStrings(vpoa.severityEvidence.map((item) => item.condition))
+      : [];
+
+  const entry: DisplayBriefingEntryV1 = {
+    key,
+    source,
+    sourceEventId: rawIdentity,
+    title: info?.title ?? vpoa?.title ?? event.title,
+    headline: info?.headline ?? vpoa?.headline ?? event.headline,
+    conditions,
+    targetAreas,
+    reportDateTime,
+    publishingOffice: info?.publishingOffice ?? vpoa?.publishingOffice ?? event.publishingOffice,
+    infoType,
+    frameLevel,
+    severityEvidence,
+    qualifier: source === "vpoa50" ? "対応電文未確認" : null,
+    updatedAt: new Date(updatedAtMs).toISOString(),
+    expiresAt: new Date(expiresAtMs).toISOString(),
+    generation: 0,
+  };
+  return { entry, updatedAtMs, expiresAtMs };
+}
+
+function normalizeBriefingFrameLevel(
+  level: PresentationEvent["frameLevel"],
+): DisplayBriefingEntryV1["frameLevel"] {
+  if (level === "critical" || level === "warning" || level === "info" || level === "cancel") return level;
+  return "info";
+}
+
+function sameBriefingCardEntry(left: DisplayBriefingEntryV1, right: DisplayBriefingEntryV1): boolean {
+  const { generation: _leftGeneration, ...leftRest } = left;
+  const { generation: _rightGeneration, ...rightRest } = right;
+  return JSON.stringify(leftRest) === JSON.stringify(rightRest);
+}
+
+function compareBriefingKeys(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function briefingCardMutationToDisplayMutation(result: BriefingCardMutationResult): DisplayMutation {
+  return result.applied ? { viewChanged: true, durableChanged: false } : NO_MUTATION;
+}
+
+function copyBriefingEntry(entry: DisplayBriefingEntryV1): DisplayBriefingEntryV1 {
+  return {
+    ...entry,
+    conditions: [...entry.conditions],
+    targetAreas: entry.targetAreas.map((area) => ({ ...area })),
+    severityEvidence: entry.severityEvidence.map((evidence) => ({ ...evidence })),
+  };
 }
 
 function copyWeatherAlert(alert: DisplayWeatherAlertV1): DisplayWeatherAlertV1 {

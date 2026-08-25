@@ -707,6 +707,68 @@ export interface ActiveStandbyBaseV1 {
   severity: StandbySeverity;
 }
 
+export type DisplayBriefingSourceV1 = "vpoa50" | "vpbs50";
+
+export type DisplayBriefingFrameLevelV1 = Extract<
+  DisplayFrameLevel,
+  "critical" | "warning" | "info" | "cancel"
+>;
+
+export interface DisplayBriefingTargetAreaV1 {
+  name: string;
+  /** Headline.Information の Area.Code。名称から推定しない。 */
+  code: string;
+}
+
+/**
+ * VPBS50／VPOA50 の severity evidence を raw XML なしで監査可能にする wire model。
+ * VPBS50 は tag/displaySeverity/source、VPOA50 は code/status evidence を使う。
+ */
+export interface DisplayBriefingSeverityEvidenceV1 {
+  source: string;
+  condition: string | null;
+  tag: string | null;
+  displaySeverity: string | null;
+  soundLevel: string | null;
+  severity: string | null;
+  phenomenonCode: string | null;
+  kindCode: string | null;
+  levelCode: string | null;
+  status: string | null;
+}
+
+/** 一 outer card に集約される VPBS50／VPOA50 の card entry。 */
+export interface DisplayBriefingEntryV1 {
+  /** card 専用 exact identity。ticker eventKey／groupKey ではない。 */
+  key: string;
+  source: DisplayBriefingSourceV1;
+  /** raw EventID、または EventID 欠落時の raw messageId。 */
+  sourceEventId: string;
+  title: string;
+  headline: string | null;
+  /** Headline.Information の Condition 集合。 */
+  conditions: string[];
+  targetAreas: DisplayBriefingTargetAreaV1[];
+  reportDateTime: string;
+  publishingOffice: string;
+  infoType: string;
+  /** engine が解決した frame level。frontend で文字列再判定しない。 */
+  frameLevel: DisplayBriefingFrameLevelV1;
+  severityEvidence: DisplayBriefingSeverityEvidenceV1[];
+  /** VPOA50 の fail-open qualifier 等。 */
+  qualifier: string | null;
+  updatedAt: string;
+  expiresAt: string;
+  /** card 専用 mutation generation。 */
+  generation: number;
+}
+
+export interface DisplayBriefingCardDataV1 {
+  /** card 専用 state の generation。 */
+  generation: number;
+  entries: DisplayBriefingEntryV1[];
+}
+
 export interface DisplayVolcanoEntryV1 {
   code: string;
   name: string;
@@ -862,6 +924,11 @@ export type ActiveStandbyCardV1 =
       kind: "nankaiTrough";
       surface: "clock-below";
       data: { statusCode: string; label: string };
+    })
+  | (ActiveStandbyBaseV1 & {
+      kind: "briefing";
+      surface: "corner-right";
+      data: DisplayBriefingCardDataV1;
     });
 
 export type StandbyKind = ActiveStandbyCardV1["kind"];

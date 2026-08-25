@@ -3,8 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 import { parseTyphoonAnalysis } from "../../../src/dmdata/typhoon-analysis-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
+import { parseWeatherBriefing } from "../../../src/dmdata/briefing-parser";
 import * as log from "../../../src/logger";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
+import {
+  BRIEFING_CARD_CANCEL_TTL_MS,
+  BRIEFING_CARD_MAX_ENTRIES,
+  BRIEFING_CARD_TTL_MS,
+} from "../../../src/engine/display/standby-registry";
+import { fromLegacyCounterpartOutcome } from "../../../src/engine/presentation/events/from-legacy-counterpart";
+import { processLegacyCounterpart } from "../../../src/engine/presentation/processors/process-legacy-counterpart";
+import { briefingFrameLevel } from "../../../src/engine/presentation/level-helpers";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import type {
   JmaIntensity,
@@ -25,7 +34,13 @@ import {
   FIXTURE_VPTW61,
   FIXTURE_VXKO50_16_05_01,
   FIXTURE_VXKO50_16_14_01,
+  FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709,
+  FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709,
 } from "../../helpers/mock-message";
+import {
+  BRIEFING_CARD_FIXTURE_MATRIX,
+  PHASE6B_BRIEFING_CARD_FIXTURE_MATRIX,
+} from "../../helpers/display-fixtures";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
 
@@ -130,6 +145,64 @@ function longPeriodEvent(
     ...(over.maxLgIntValue == null ? {} : { maxLgIntValue: over.maxLgIntValue }),
     raw,
   });
+}
+
+function briefingEvent(fixture: string): PresentationEvent {
+  const info = parseWeatherBriefing(createMockWsDataMessage(fixture));
+  if (info == null) throw new Error(`briefing fixture did not parse: ${fixture}`);
+  const areaItems = info.targetAreas.map((area) => ({
+    name: area.name,
+    code: area.code,
+    kind: info.briefingCondition || "気象防災速報",
+  }));
+  return heatEvent({
+    id: info.meta.messageId,
+    domain: "briefing",
+    type: "VPBS50",
+    infoType: info.infoType,
+    title: info.title,
+    controlTitle: info.controlTitle,
+    headline: info.headline,
+    reportDateTime: info.reportDateTime,
+    publishingOffice: info.publishingOffice,
+    isTest: info.isTest,
+    frameLevel: briefingFrameLevel(info),
+    isCancellation: info.infoType === "取消",
+    eventId: info.eventId,
+    serial: info.serial,
+    areaNames: info.targetAreas.map((area) => area.name),
+    areaCount: areaItems.length,
+    areaItems,
+    observationNames: info.observations
+      .map((observation) => observation.locationName)
+      .filter((name): name is string => name != null),
+    observationCount: info.observations.length,
+    raw: info,
+  });
+}
+
+function minimalBriefingEvent(id: string, reportDateTime: string): PresentationEvent {
+  return heatEvent({
+    id,
+    domain: "briefing",
+    type: "VPBS50",
+    infoType: "発表",
+    title: "気象防災速報",
+    reportDateTime,
+    frameLevel: "info",
+    isCancellation: false,
+    eventId: id,
+    raw: {
+      eventId: id,
+      meta: { messageId: `message:${id}` },
+    } as unknown as PresentationEvent["raw"],
+  });
+}
+
+function vpoaEvent(fixture: string): PresentationEvent {
+  const outcome = processLegacyCounterpart(createMockWsDataMessage(fixture));
+  if (outcome == null) throw new Error(`VPOA50 fixture did not parse: ${fixture}`);
+  return fromLegacyCounterpartOutcome(outcome);
 }
 
 describe("RevisionGuard", () => {
@@ -1268,5 +1341,306 @@ describe("StandbyStateStore: flood", () => {
       kind: "flood", key: "flood:active", surface: "corner-right",
       data: { rivers: [expect.objectContaining({ riverKey: "river-1", riverName: "多摩川", level: "L3" })] },
     })]);
+  });
+});
+
+describe("StandbyStateStore: independent briefing card", () => {
+  it.each(BRIEFING_CARD_FIXTURE_MATRIX)("fixture $fixture is projected without ticker fields", (expected) => {
+    const info = parseWeatherBriefing(createMockWsDataMessage(expected.fixture));
+    if (info == null) throw new Error(`briefing fixture did not parse: ${expected.fixture}`);
+    const reportTimeMs = Date.parse(expected.reportDateTime);
+    const store = new StandbyStateStore();
+
+    expect(store.applyEvent(briefingEvent(expected.fixture), reportTimeMs + 1))
+      .toEqual({ viewChanged: true, durableChanged: false });
+
+    const card = store.snapshotBriefingCard();
+    expect(card).not.toBeNull();
+    const entry = card!.data.entries[0];
+    expect(card!.data.entries).toHaveLength(1);
+    expect(entry).toMatchObject({
+      key: `card:vpbs:${info.eventId}`,
+      source: "vpbs50",
+      title: expected.title,
+      headline: expected.headline,
+      conditions: expected.conditions,
+      targetAreas: expected.targetAreas,
+      reportDateTime: expected.reportDateTime,
+      publishingOffice: expected.publishingOffice,
+      infoType: expected.infoType,
+      qualifier: expected.qualifier,
+    });
+    expect(entry.frameLevel).toBe(briefingFrameLevel(info));
+    expect(entry.severityEvidence).toMatchObject(expected.severityEvidence);
+    expect(entry.severityEvidence).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ tickerSentence: expect.anything() }),
+    ]));
+  });
+
+  it.each(PHASE6B_BRIEFING_CARD_FIXTURE_MATRIX)("static phase6b fixture $fixture is a card entry", (expected) => {
+    const event = expected.source === "vpbs50"
+      ? briefingEvent(expected.fixture)
+      : vpoaEvent(expected.fixture);
+    const store = new StandbyStateStore();
+
+    store.applyEvent(event, Date.parse(expected.reportDateTime) + 1);
+    const entry = store.snapshotBriefingCard()!.data.entries[0];
+    expect(entry).toMatchObject({
+      key: `card:${expected.source === "vpbs50" ? "vpbs" : "vpoa"}:${expected.sourceEventId}`,
+      source: expected.source,
+      sourceEventId: expected.sourceEventId,
+      title: expected.title,
+      headline: expected.headline,
+      conditions: expected.conditions,
+      reportDateTime: expected.reportDateTime,
+      publishingOffice: expected.publishingOffice,
+      infoType: expected.infoType,
+      frameLevel: expected.frameLevel,
+      targetAreas: expected.targetAreas,
+      qualifier: expected.qualifier,
+    });
+    expect(entry.severityEvidence).toMatchObject(expected.severityEvidence);
+    expect(entry.targetAreas.every((area) => area.code !== "")).toBe(true);
+  });
+
+  it("VPOA50 fail-open は card 専用 identity・qualifier・code付き地域を持つ", () => {
+    const source = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const nowMs = Date.parse(source.reportDateTime) + 1;
+    const store = new StandbyStateStore();
+
+    expect(store.applyEvent(source, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    const entry = store.snapshotBriefingCard()!.data.entries[0];
+    expect(entry).toMatchObject({
+      key: `card:vpoa:${source.eventId}`,
+      source: "vpoa50",
+      sourceEventId: source.eventId,
+      qualifier: "対応電文未確認",
+      frameLevel: source.legacySeverity === "high" ? "critical" : "warning",
+      targetAreas: source.areaItems.map((area) => ({ name: area.name, code: area.code })),
+    });
+  });
+
+  it("EventID 欠落時は raw messageId 相当を card identity にする", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const source = minimalBriefingEvent("non-raw-id", new Date(nowMs).toISOString());
+    source.domain = "legacyCounterpart";
+    source.type = "VPOA50";
+    source.eventId = null;
+    source.raw = { meta: { messageId: "raw-message-id" } } as unknown as PresentationEvent["raw"];
+    const store = new StandbyStateStore();
+
+    store.applyEvent(source, nowMs);
+    const sourceKey = "card:vpoa:raw-message-id";
+    expect(store.snapshotBriefingCard()!.data.entries[0].key).toBe(sourceKey);
+  });
+
+  it("raw EventID と raw messageId がともに欠落すれば card candidate を作らない", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const source = minimalBriefingEvent("non-raw-id", new Date(nowMs).toISOString());
+    source.eventId = "presentation-only-id";
+    source.raw = null;
+    const store = new StandbyStateStore();
+
+    expect(store.applyBriefingCardEvent(source, nowMs)).toMatchObject({
+      kind: "ignored", applied: false, reason: "notBriefing", generation: 0,
+    });
+    expect(store.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("VPOA50 source は canonical VPBS50へ純粋置換され、再送しても generation が進まない", () => {
+    const source = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const canonical = briefingEvent(FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709);
+    const nowMs = Date.parse(source.reportDateTime) + 1;
+    const store = new StandbyStateStore();
+    const sourceKey = `card:vpoa:${source.eventId}`;
+
+    store.applyEvent(source, nowMs);
+    const applied = store.reconcileBriefingCard(sourceKey, canonical, nowMs);
+    expect(applied.kind).toBe("applied");
+    expect(store.briefingCardGeneration()).toBe(applied.generation);
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
+    expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({
+      source: "vpbs50",
+      key: `card:vpbs:${canonical.eventId}`,
+    });
+
+    const repeated = store.reconcileBriefingCard(sourceKey, canonical, nowMs);
+    expect(repeated).toMatchObject({ kind: "ignored", reason: "sourceNotFound" });
+    expect(repeated.generation).toBe(applied.generation);
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
+  });
+
+  it("reconcile min expiry が残る間は canonical を source の絶対expiryで失効させる", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = minimalBriefingEvent("source-min", new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString());
+    source.domain = "legacyCounterpart";
+    source.type = "VPOA50";
+    const canonical = minimalBriefingEvent("canonical-min", new Date(nowMs - BRIEFING_CARD_TTL_MS + 2_000).toISOString());
+    const store = new StandbyStateStore();
+
+    store.applyEvent(source, nowMs);
+    const result = store.reconcileBriefingCard("card:vpoa:source-min", canonical, nowMs);
+    expect(result).toMatchObject({ kind: "applied", applied: true, canonicalInserted: true, evictedKey: null });
+    if (result.kind !== "applied") throw new Error("reconcile must apply before its expiry");
+    const expiresAtMs = nowMs + 1_000;
+    expect(result.expiresAt).toBe(new Date(expiresAtMs).toISOString());
+    expect(store.sweep(expiresAtMs - 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.sweep(expiresAtMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.sweep(expiresAtMs + 1)).toEqual({ viewChanged: false, durableChanged: false });
+  });
+
+  it("reconcile min expiry が到達済みなら source だけを一回除去する", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const source = minimalBriefingEvent("source-expired", new Date(nowMs - BRIEFING_CARD_TTL_MS + 1_000).toISOString());
+    source.domain = "legacyCounterpart";
+    source.type = "VPOA50";
+    const canonical = minimalBriefingEvent("canonical-expired", new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString());
+    const store = new StandbyStateStore();
+
+    store.applyEvent(source, nowMs);
+    const result = store.reconcileBriefingCard("card:vpoa:source-expired", canonical, nowMs);
+    expect(result).toMatchObject({
+      kind: "applied", applied: true, canonicalInserted: false, expiresAt: null, generation: 2,
+    });
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.reconcileBriefingCard("card:vpoa:source-expired", canonical, nowMs))
+      .toMatchObject({ kind: "ignored", applied: false, reason: "sourceNotFound", generation: 2 });
+  });
+
+  it("card 専用 mutation は durable listener を起動しない", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const source = minimalBriefingEvent("source-durable", new Date(nowMs).toISOString());
+    source.domain = "legacyCounterpart";
+    source.type = "VPOA50";
+    const canonical = minimalBriefingEvent("canonical-durable", new Date(nowMs).toISOString());
+    const store = new StandbyStateStore();
+    let durableCalls = 0;
+    store.onDurable(() => { durableCalls += 1; });
+
+    store.applyEvent(source, nowMs);
+    store.reconcileBriefingCard("card:vpoa:source-durable", canonical, nowMs);
+    store.sweep(nowMs + BRIEFING_CARD_TTL_MS);
+    expect(durableCalls).toBe(0);
+  });
+
+  it("同一 raw identity の受理済み訂正は entry を置換し generation を進める", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const issued = minimalBriefingEvent("corrected", new Date(nowMs).toISOString());
+    const corrected: PresentationEvent = {
+      ...issued,
+      infoType: "訂正",
+      title: "訂正済み気象防災速報",
+      reportDateTime: new Date(nowMs + 1_000).toISOString(),
+    };
+    const store = new StandbyStateStore();
+
+    expect(store.applyEvent(issued, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.applyEvent(corrected, nowMs + 1_000)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({
+      key: "card:vpbs:corrected", title: "訂正済み気象防災速報", infoType: "訂正", generation: 2,
+    });
+  });
+
+  it("VPBS50 取消は同一 entry を cancel frame と独立10分TTLへ置換する", () => {
+    const normal = briefingEvent("82_01_03_241031_VPBS50.xml");
+    const cancelled = briefingEvent("synthetic_VPBS50_cancel.xml");
+    const reportTimeMs = Date.parse(normal.reportDateTime);
+    const store = new StandbyStateStore();
+
+    store.applyEvent(normal, reportTimeMs + 1);
+    store.applyEvent(cancelled, reportTimeMs + 2);
+    const entry = store.snapshotBriefingCard()!.data.entries[0];
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
+    expect(entry).toMatchObject({
+      key: `card:vpbs:${normal.eventId}`,
+      infoType: "取消",
+      frameLevel: "cancel",
+    });
+    const expiresAtMs = Date.parse(entry.expiresAt);
+    expect(expiresAtMs).toBe(reportTimeMs + BRIEFING_CARD_CANCEL_TTL_MS);
+    expect(store.sweep(expiresAtMs - 1).viewChanged).toBe(false);
+    expect(store.sweep(expiresAtMs).viewChanged).toBe(true);
+    expect(store.sweep(expiresAtMs + 1)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("10分TTLを越えた取消は旧通常 entry を除去し generation を一度だけ進める", () => {
+    const normal = briefingEvent("82_01_03_241031_VPBS50.xml");
+    const cancelled = briefingEvent("synthetic_VPBS50_cancel.xml");
+    const reportTimeMs = Date.parse(normal.reportDateTime);
+    const store = new StandbyStateStore();
+
+    store.applyEvent(normal, reportTimeMs + 1);
+    expect(store.briefingCardGeneration()).toBe(1);
+    expect(store.applyEvent(cancelled, reportTimeMs + BRIEFING_CARD_CANCEL_TTL_MS))
+      .toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.briefingCardGeneration()).toBe(2);
+    expect(store.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("ReportDateTime + card TTL を過ぎた遅着 entry は新規表示しない", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const expiredAt = new Date(nowMs - 120 * 60_000).toISOString();
+    const store = new StandbyStateStore();
+
+    expect(store.applyEvent(minimalBriefingEvent("briefing-expired", expiredAt), nowMs))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("card entry は128件の -1/exact/+1 境界で安定key eviction を返す", () => {
+    const baseMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const store = new StandbyStateStore();
+    for (let index = 0; index < BRIEFING_CARD_MAX_ENTRIES - 1; index += 1) {
+      const id = `b-${String(index).padStart(3, "0")}`;
+      expect(store.applyBriefingCardEvent(minimalBriefingEvent(id, new Date(baseMs).toISOString()), baseMs))
+        .toMatchObject({ kind: "applied", evictedKey: null });
+    }
+    expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES - 1);
+    expect(store.applyBriefingCardEvent(minimalBriefingEvent("z-boundary", new Date(baseMs).toISOString()), baseMs))
+      .toMatchObject({ kind: "applied", evictedKey: null });
+    expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
+
+    expect(store.applyBriefingCardEvent(minimalBriefingEvent("a-overflow", new Date(baseMs).toISOString()), baseMs))
+      .toMatchObject({ kind: "applied", evictedKey: "card:vpbs:b-000" });
+    expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
+    const entries = store.snapshotBriefingCard()!.data.entries;
+    expect(entries).toHaveLength(BRIEFING_CARD_MAX_ENTRIES);
+    expect(entries.some((entry) => entry.key === "card:vpbs:b-000")).toBe(false);
+    expect(entries.some((entry) => entry.key === "card:vpbs:a-overflow")).toBe(true);
+  });
+
+  it("prune 後の追加は eviction を報告せず128件を保つ", () => {
+    const nowMs = Date.parse("2026-08-25T02:00:00.000Z");
+    const store = new StandbyStateStore();
+    store.applyEvent(minimalBriefingEvent("expired-first", new Date(nowMs - BRIEFING_CARD_TTL_MS).toISOString()), nowMs - BRIEFING_CARD_TTL_MS + 1);
+    for (let index = 0; index < BRIEFING_CARD_MAX_ENTRIES - 1; index += 1) {
+      store.applyEvent(minimalBriefingEvent(`fresh-${index}`, new Date(nowMs).toISOString()), nowMs);
+    }
+
+    expect(store.applyBriefingCardEvent(minimalBriefingEvent("fresh-new", new Date(nowMs).toISOString()), nowMs))
+      .toMatchObject({ kind: "applied", evictedKey: null });
+    expect(store.briefingCardEntryCount()).toBe(BRIEFING_CARD_MAX_ENTRIES);
+    expect(store.snapshotBriefingCard()!.data.entries.some((entry) => entry.key === "card:vpbs:expired-first")).toBe(false);
+  });
+
+  it("briefing 追加後も既存 kind の snapshot byte shape を変えない", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const store = new StandbyStateStore();
+    store.applyEvent(heatEvent({}, { reportDateTime: new Date(nowMs).toISOString() }), nowMs);
+    const before = JSON.stringify(store.snapshotItems().find((item) => item.kind === "heat"));
+
+    store.applyEvent(minimalBriefingEvent("shape-briefing", new Date(nowMs).toISOString()), nowMs);
+    expect(JSON.stringify(store.snapshotItems().find((item) => item.kind === "heat"))).toBe(before);
+  });
+
+  it("briefing card は persistence export/restore に入らず、process restart で空になる", () => {
+    const nowMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const live = new StandbyStateStore();
+    live.applyEvent(minimalBriefingEvent("briefing-restart", new Date(nowMs).toISOString()), nowMs);
+
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(live.exportActiveState(), nowMs);
+    expect(restored.snapshotBriefingCard()).toBeNull();
   });
 });

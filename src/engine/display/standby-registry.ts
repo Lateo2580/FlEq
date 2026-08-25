@@ -11,6 +11,13 @@ export interface CardPolicy {
 const HOUR = 60 * 60_000;
 const DAY = 24 * HOUR;
 
+/** briefing card は ticker／revision family と別の非永続 state を持つ。 */
+export const BRIEFING_CARD_TTL_MS = 120 * 60_000;
+export const BRIEFING_CARD_CANCEL_TTL_MS = 10 * 60_000;
+export const BRIEFING_CARD_MAX_ENTRIES = 128;
+export const BRIEFING_CARD_PRIORITY = 450;
+export const BRIEFING_CARD_KEY = "briefing:active";
+
 export const STANDBY_CARD_REGISTRY = {
   tornado: { priority: 600, fallbackTtlMs: HOUR, tombstoneTtlMs: DAY + HOUR },
   flood: { priority: 500, fallbackTtlMs: 12 * HOUR, tombstoneTtlMs: DAY + 12 * HOUR },
@@ -19,7 +26,7 @@ export const STANDBY_CARD_REGISTRY = {
   heat: { priority: 200, fallbackTtlMs: null, tombstoneTtlMs: 2 * DAY },
   longPeriod: { priority: 100, fallbackTtlMs: 12 * HOUR, tombstoneTtlMs: DAY + 12 * HOUR },
   nankaiTrough: { priority: 100, fallbackTtlMs: 7 * DAY, tombstoneTtlMs: 14 * DAY },
-} satisfies Record<StandbyKind, CardPolicy>;
+} satisfies Record<Exclude<StandbyKind, "briefing">, CardPolicy>;
 
 export function tombstoneTtlForKey(key: string): number {
   if (key.startsWith("volcano:alert:")) return 30 * DAY;
@@ -72,8 +79,12 @@ export function mergeMutation(a: DisplayMutation, b: DisplayMutation): DisplayMu
 
 export function sortStandbyItems(items: ActiveStandbyCardV1[]): ActiveStandbyCardV1[] {
   return [...items].sort((x, y) => {
-    const priority = STANDBY_CARD_REGISTRY[y.kind].priority - STANDBY_CARD_REGISTRY[x.kind].priority;
+    const priority = priorityForKind(y.kind) - priorityForKind(x.kind);
     if (priority !== 0) return priority;
     return Date.parse(y.updatedAt) - Date.parse(x.updatedAt);
   });
+}
+
+function priorityForKind(kind: StandbyKind): number {
+  return kind === "briefing" ? BRIEFING_CARD_PRIORITY : STANDBY_CARD_REGISTRY[kind].priority;
 }
