@@ -856,6 +856,115 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 - EventID 欠落または不一致では観測値を別電文へ持ち越さない。
 - latest quake、recent quake、daily counter、永続化 restore 後で同じ helper／同じ意味規則を使用する。
 
+### 7.5 特殊値適用第 1 例: 震度 Condition（未入電）実装契約
+
+状態: **再監査・実電文適用契約の起草完了、表示文言はご主人裁定待ち**（2026-08-26、調査基準 HEAD `37568dd6c`）。
+
+本項は §3 の特殊値基盤を初めて domain の全経路へ適用する契約である。ただし調査基準 HEAD には Phase 4A の synthetic fixture ベース実装が既に存在するため、既存実装を未実装として扱わない。現在の semantic 配線を baseline とし、実電文 corpus による schema 確認、plain `未入電` の安全側表示ギャップ、ならびにご主人裁定が必要な表示文言を差分として閉じる。
+
+#### 7.5.1 前提・不変条件
+
+- 対象は地震情報 `VXSE51`／`VXSE53` の Observation／Pref／Area／City／IntensityStation にある `MaxInt`／`Int` とする。`VXSE52` は震度構造を持たない電文として `missing` のまま扱い、名称や同一 EventID から parser が震度を補完しない。後続報との保持は §7.4 だけが担う。
+- parser は `specialValueBody` の shadow tree を読み、本文、`condition`、`description`、From／To、空要素、空白 raw を失わない。通常 tree の `str()`、既存 scalar、表示文言から `SpecialValue` を再構成しない。
+- plain `未入電` は `presence:"unknown"`、`value:null`、数値 rank なしとする。震度0、震度1、震度5弱、または「閾値未満」へ変換しない。
+- `5弱以上未入電` は `presence:"qualitative"`、`value:null`、`lowerBound:"5-"` とする。exact 震度5弱へ変換せず、安全判定だけが lower rank 5 を使う。
+- Condition が数値本文、From／To、Description と矛盾する場合は §3.5 の優先順位と diagnostics に従う。既知 Condition を無視せず、未知語から値の無効化を推定しない。
+- Area／City／IntensityStation の provenance と code を相互に畳み込まない。地図キーは code とし、名称から code を推定しない。
+- qualifier は parser → presentation → CLI／通知 → ticker → display protocol／地図／カード → daily persistence の各境界を通過する。旧 scalar は互換 adapter に限り、severity、色、badge、通知 gate、永続化の真実源にしない。
+- `unknown`／`qualitative` は構造的 `missing` ではない。§7.4 の VXSE51→VXSE52／VXSE61 観測値保持を誤発火させず、同一 EventID の明示状態として置換する。
+- exact 震度、EEW、長周期地震動、Magnitude／Depth、取消・訂正・revision gate の現行挙動は、本項で明示した差分以外変更しない。
+
+#### 7.5.2 現状調査と基盤との差分
+
+| 面 | plain `未入電` の現 HEAD | `5弱以上未入電` の現 HEAD | 契約差分 |
+|---|---|---|---|
+| parser／presentation | Observation MaxInt、Pref／Area／City MaxInt、IntensityStation Int を `unknown` として raw／Condition／Description ごと保持し、exact scalar／`maxIntRank` は null | 同じ階層を `qualitative`＋`lowerBound:"5-"` として保持し、exact scalar は null | synthetic shape では一致。実 XML の各階層、名前空間、属性形を未確認 |
+| severity／通知発火 | 通知自体は発行するが、`earthquakeFrameLevel`／sound は unknown 専用 branch を持たず `?? 0` 相当で normal へ落ちる | safety rank 5 により warning frame／sound、地図 host、カード選択を通る | plain unknown を rank 0 相当の安全状態として扱わない明示 branch が必要。router の notifier dispatch に震度 gate はない |
+| 通知文言 | overall なら現共通 formatter は `最大震度不明（未入電）`。地域だけの未入電は通知本文へ列挙しない | overall なら `最大震度5弱以上未入電` | 文言は §7.5.4 D のご主人裁定待ち。qualifier を省略する案は不可 |
+| CLI／ticker | CLI は `不明（未入電）`、ticker は `不明`。地域 group は `不明（未入電）` | CLI／ticker とも `5弱以上未入電` | 見た目は §7.5.4 A〜D の裁定待ち。raw semantic の保持は実装済み |
+| 地図 | 同じ電文に rank 3 以上の既知候補があれば unknown 色＋`?` badge で地域を出せる。一方、全候補 unknown では overall gate が `-1` となり map command が `nonExact` remove になる | lower rank 5 の色＋`≥` badge で map と large-quake surface を発火 | 全候補 unknown を「閾値未満」と同じ remove にする現分岐は §§2.2、3.6、7.3 と不一致。表示継続／unknown map 用の明示 branch が必要 |
+| カード／履歴行 | latest／recent と地域 group に semantic を保持し、unknown chip＋`?` badge を表示 | latest／recent と地域 group に qualifier chip＋`≥` badge を表示。daily の件数／最大震度統計は exact-only のため加算しない | semantic card／履歴は配線済み。表示文言は §7.5.4、exact-only 日次統計は現行維持 |
+| 永続化 | `maxIntValue` の raw／Condition／Description／presence と display semantic を round-trip | 左記に bounds／safety semantic を加えて round-trip | synthetic round-trip は一致。実 XML 起点の restart 同値を追加する |
+
+階層ごとの現在の到達点と、今後の検証責務を次で固定する。`parser-only` は捨ててよい意味ではなく、表示面へ新規に畳み込む前に canonical parser field と単体テストだけで保持する範囲を指す。
+
+| 階層 | parser canonical | presentation | map・card・persistence | 本契約で固定すること |
+|---|---|---|---|---|
+| Pref `MaxInt` | `prefs[].maxIntValue` | parser result／`raw` のみ | parser-only | raw、Condition、bounds を parser test で固定し、Area へ推定・複製しない |
+| Area `MaxInt` | `areas[].intensityValue` | `areaItems`／`quakeIntensityValues.localAreas` | map、地域 group、latest／recent、daily persistence | end-to-end の主対象。unknown と lower-bound の wire semantic を保存する |
+| City `MaxInt` | `municipalities[].intensityValue` | `municipalityNames`／`quakeIntensityValues.municipalities` | 現 HEAD は map・card・daily persistence の入力外 | presentation までの qualifier を固定する。市町村 map／card を導入する場合は Area と混在させない別変更単位を起こす |
+| IntensityStation `Int` | `stations[].intensityValue` | 現 HEAD は parser result／`raw` のみ | parser-only | raw、Condition、bounds を parser test で固定する。観測点 map／card／persistence は本契約の非対象 |
+
+fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤用抜粋は `test/fixtures/telegram-foundation/`、人工ケースは `test/fixtures/synthetic_phase4a_*.xml` だった。`未入電`／`5弱以上未入電` を含む tracked XML は Phase 4A の synthetic fixture のみで、2026-07-28 熊本地震の実 XML はこの checkout 内に存在しない。`[[reference_weathercw_fixtures]]` の実体を示す path／symlink／manifest も checkout 内では解決できなかったため、checkout 外を探索せず「実電文未確認」を維持する。未追跡 `evidence-vxse51/` の 2026-08-24 VXSE51 は Condition を含まず、本契約の代替 evidence にはしない。
+
+#### 7.5.3 確定裁定
+
+次は §3、§7.1〜7.4 から一意に導けるため、ご主人の表示裁定を待たず固定する。
+
+1. `extractSpecialValue("Intensity", node)` を Observation／Pref／Area／City の `MaxInt` と IntensityStation の `Int` へ一度だけ適用し、`SpecialValue<JmaIntensity>` を canonical field とする。
+2. plain `未入電` の安全評価は `kind:"unknown"` とし、exact rank、wire の正常 rank、daily 最大震度へ入れない。既知の高震度 state を降格させる根拠にも使わない。
+3. `5弱以上未入電` は safety lower rank 5 とし、frame／sound、地図 host、カード選択を通す。router は震度 rank を問わず受理済み earthquake outcome を notifier へ dispatch するため、「通知 gate」と呼ばない。ただし表示 label、tooltip、ARIA、永続値を `震度5弱` に置換しない。
+4. 地図 semantic は plain `未入電` が unknown 色＋`?`、`5弱以上未入電` が rank 5 色＋`≥` とする。plain unknown の map wire は `maxIntRank:-1` を予約済み sentinel とし、`maxIntSemantic.presence:"unknown"`、`color:"unknown"`、`badge:"?"` を必須にする。`-1` は数値震度、safety rank、通常の色 rank、日次統計へ流用しない。
+5. **all-unknown map host**: `DisplayQuakeMapStateV1` に optional additive な `unknownHost:{ eventKey, expiresAtMs }` を導入する。これは rank 3〜4 専用の既存 `nonEmergencyHost` と別であり、新規の all-unknown 地震は既知の map host または large-quake map reference がない場合にだけ `unknownHost` として選択する。選択時の TTL は既存 non-emergency host と同じ5分、tier は `calm`、frame／sound の昇格なしとする。同一 EventID の newer unknown revision は同じ `unknownHost` の TTL だけを更新し、別 EventID の unknown は先行する有効 known host を置換しない。known host または large-quake map reference が成立した時点で `unknownHost` を外し、取消は当該 EventID の unknown host と map contribution を直ちに削除する。
+6. **既知 emergency→unknown 続報**: 震度5弱以上で既に参照されている map contribution／large-quake は、同一 EventID の unknown 続報で置換・TTL延長・rank降格しない。続報の震源諸元だけは既存 structural-missing preservation と同じ `eventUpdate` 経路で更新できる。取消または有効な低震度訂正は既存の取消／訂正規則で処理し、unknown をその代用にしない。
+7. plain unknown の frame・sound・通知 cadence は次表を唯一の期待値とする。いずれも revision gate を通過した電文だけを対象とし、notifier は rank gate なしで一電文につき一回 dispatch する。
+
+| ケース | frameLevel | soundLevel | 通知 cadence | map／state |
+|---|---|---|---|---|
+| 新規 plain unknown | `info` | `info` | 受理 revision ごとに1回。通常報・訂正報の既存 dedup を越えて再送しない | `maxIntRank:-1` の `unknownHost` を、known host／large-quake がなければ5分保持 |
+| 既知の高震度→plain unknown 続報 | `info` | `info` | 受理 revision ごとに1回。高震度通知を再発火しない | 既知 emergency の map contribution と hold を保存し、unknown は host を奪わない |
+| 取消 | `cancel` | `cancel` | 取消通知を1回 | 当該 EventID の unknown／known host と contribution を既存取消規則で削除 |
+8. recent／latest／地域 group は unknown／qualitative の履歴行を保持する。日次の数値統計（件数、exact 最大震度）は推定値を混ぜないため現行の exact-only を維持する。
+9. persistence は canonical `SpecialValue` と表示 semantic を保存し、live と restart 後で presence、raw、Condition、Description、bounds、badge、color rank、history row を一致させる。旧 scalar-only schema は既存 migration を維持する。
+10. 実 fixture は取得した XML を意味変更せず保存し、出典、取得日、EventID の取扱いをテストコメントまたは manifest に記録する。Condition を注入した加工 XML を「実 fixture」と呼ばない。
+
+#### 7.5.4 裁定待ち（ご主人の表示領域）
+
+基盤 semantic、safety rank、色、badge は裁定対象外である。次の A〜D は文字列とカード内の情報配置だけを選ぶ。裁定までは現 HEAD の見た目を暫定 baseline とし、実装変更を開始しない。
+
+- **A: plain 未入電地域の表示文言** — A案 `不明（未入電）`（現 HEAD、unknown と理由を明示）／B案 `未入電`（原文を短く表示）。**推奨 A**: §3.7 の「不明＋理由」と他 domain の unknown formatter に揃う。B案を選べるのはカード、地図 tooltip／ARIA、地域 group などの非 CLI 面だけであり、CLI 詳細は裁定にかかわらず §3.7 に従い `不明`＋理由を表示する。
+- **B: `5弱以上未入電` の履歴行** — A案 `5弱以上未入電` の独立 group／chip を残し `≥` badge を付ける（現 HEAD）／B案 `5弱以上（未入電）` と自然文へ整形して `≥` badge を付ける。**推奨 A**: 電文 qualifier と ticker／map label が一致し、exact 震度5弱との混同が少ない。
+- **C: `5弱以上未入電` のカード** — A案主 label に `5弱以上未入電`＋`≥`、tooltip／ARIA に Condition／Description（現 HEAD）／B案主 label は `5弱以上`＋`≥`、`未入電` を副 label に分離。**推奨 A**: 狭幅でも情報の一部が装飾依存にならず、qualifier を落とさない。
+- **D: 通知文言** — A案共通 formatter の `最大震度不明（未入電）`／`最大震度5弱以上未入電`（現 HEAD）／B案通知専用の `最大震度は未入電`／`最大震度は5弱以上（未入電）`。**推奨 B**: semantic を保ったまま読み上げと自然文の明瞭さが上がる。
+
+#### 7.5.5 変更単位、対象ファイル、完了条件
+
+変更単位は次の依存順とし、一単位内で parser だけ、または UI だけを先行 release しない。括弧内は調査基準 HEAD で実在を確認した対象である。
+
+1. **実 evidence 固定**: 熊本地震の原本を `test/fixtures/` へ追加し、fixture helper と出典情報を固定する（`test/helpers/mock-message.ts`、`test/engine/telegram-foundation/phase0-manifest.ts`、`test/fixtures/telegram-foundation/`）。原本を checkout 内へ提供できない場合は blocked とし、synthetic を実電文扱いして進めない。
+2. **parser 契約**: 実 XML で Observation／Pref／Area／City／IntensityStation の出現階層と raw 属性を固定し、plain unknown／qualitative／矛盾／missing を検証する（`src/dmdata/special-value.ts`、`src/dmdata/telegram-parser.ts`、`src/types.ts`、`test/dmdata/special-value.test.ts`、`test/dmdata/telegram-parser.test.ts`）。
+3. **安全評価・presentation・CLI**: unknown 専用 frame／sound branch と `5弱以上未入電` lower gate を固定し、裁定 A の非 CLI 面制約を守る（`src/utils/intensity.ts`、`src/engine/presentation/level-helpers.ts`、`src/engine/presentation/events/from-earthquake.ts`、`src/ui/earthquake-info-formatter.ts`、`test/engine/presentation/level-helpers.test.ts`、`test/engine/presentation/events/from-earthquake.test.ts`、`test/ui/earthquake-info-formatter.test.ts`）。
+4. **通知・ticker**: 裁定 D と qualifier 非欠落、訂正／取消／通常値回帰を固定する（`src/engine/notification/notifier.ts`、`src/engine/display/ticker-sentence.ts`、`test/engine/notifier.test.ts`、`test/engine/display/ticker-sentence.test.ts`）。
+5. **地図・カード・履歴**: all-unknown の sentinel wire、unknown host 選択・5分TTL・tier・既存地図置換、既知 emergency→unknown 保存、unknown／lower-bound の色・badge、裁定 B／C、tooltip／ARIA を固定する。frontend は `unknownHost` を protocol から受け、`deriveQuakeMapHostEvent()` で known host を優先した上で、未期限の unknown host だけを選択する。largeQuake がある間、または known host が有効な間は unknown host を画面選択しない（`src/engine/display/intensity-groups.ts`、`src/engine/display/project-event.ts`、`src/engine/display/protocol.ts`、`src/engine/display/state-store.ts`、`display/frontend/src/lib/protocol.ts`、`display/frontend/src/lib/derive.ts`、`display/frontend/src/lib/quake-map-colors.ts`、`display/frontend/src/components/LatestQuakeCard.svelte`、`display/frontend/src/components/RecentQuakes.svelte`、`test/engine/display/project-event.test.ts`、`test/engine/display/quake-map-state.test.ts`、`test/engine/display/standby-state-store.test.ts`、`display/frontend/src/lib/__tests__/derive.test.ts`、`display/frontend/src/components/__tests__/quake-map.test.ts`、`display/frontend/src/components/__tests__/latest-quake-card.test.ts`、`display/frontend/src/components/__tests__/recent-quakes.test.ts`）。
+6. **状態・永続化**: §7.4 merge、daily recent history、live／restart 同値を実 fixture 起点で固定する（`src/engine/display/quake-observation-merge.ts`、`src/engine/display/state-store.ts`、`src/engine/messages/daily-quake-counter.ts`、`src/engine/messages/daily-quake-persistence.ts`、`test/engine/display/quake-observation-merge.test.ts`、`test/engine/display/standby-state-store.test.ts`、`test/engine/messages/daily-quake-counter.test.ts`、`test/engine/messages/daily-quake-persistence.test.ts`）。
+7. **端到端・production-shaped 検証**: 実 fixture を router の parser → presentation → notifier → ticker → quake map → latest／recent card → persistence／restore に通す。加えて同じ実 shape の値だけを最小加工した all-unknown 検証を synthetic と明記して置き、新規 all-unknown と既知 emergency→unknown 続報を別 test に固定する。`nonExact` remove、normal への暗黙降格、rank 0、qualifier 消失がないことを固定する（`test/engine/telegram-foundation/phase4a-contract.test.ts`、`test/engine/presentation/level-helpers.test.ts`、`test/engine/presentation/events/from-earthquake.test.ts`、`test/engine/display/project-event.test.ts`、`test/engine/display/quake-map-state.test.ts`、`test/engine/display/quake-observation-merge.test.ts`、`test/engine/messages/daily-quake-counter.test.ts`、`display/frontend/src/components/__tests__/quake-map.test.ts`、`display/frontend/src/components/__tests__/latest-quake-card.test.ts`、`display/frontend/src/components/__tests__/recent-quakes.test.ts`）。
+
+実装完了条件は、両特殊語について Pref／Area／City／IntensityStation の実在する階層ごとに上表の到達点が固定され、overall frame／sound／通知実文字列／cadence、ticker 実文字列、map command、unknown sentinel／host／TTL、unknown／`≥` badge、latest／recent、daily round-trip の具体値が一本の実 fixture 系列で固定されることとする。frontend host 選択は known host 優先、unknownHost の5分有効・期限切れ後の非選択、largeQuake 中の unknownHost 非選択を `derive.test.ts` で固定する。新規 all-unknown と既知 emergency→unknown 続報は別 test とし、exact 震度4と §7.4 の VXSE51→VXSE52／VXSE61 保持が回帰しないことを要する。
+
+必須検証コマンド:
+
+```text
+npx vitest run test/dmdata/special-value.test.ts test/dmdata/telegram-parser.test.ts test/engine/telegram-foundation/phase4a-contract.test.ts
+npm run build
+npm test
+npm run test:shuffle
+npm run typecheck:test
+npm run display:build
+npm run display:test
+npm --prefix display run typecheck
+git diff --check
+```
+
+#### 7.5.6 非対象・既存挙動保存
+
+- EEW の ForecastInt／親 Area Condition、LgInt、PLUM／主要動到達、regionless 処理の再設計。
+- 震度 map の閾値、配色 palette、SVG geometry、badge 座標計算そのものの変更。all-unknown は既存 unknown semantic を表示可能にする差分だけとする。
+- 日次地震件数と「本日の最大震度」へ qualitative lower bound を exact 値として加算すること。
+- 震度以外の SpecialValue、TelegramMeta、revision／cancellation policy、通知頻度、音源、カード全体 layout の変更。
+- corpus に存在しない階層へ、地域名や既存 synthetic shape だけから Condition を補完すること。
+
+本項の**起草完了条件**について、コード・fixture・snapshot の変更、build、runtime test は N/A とする。文書差分が本項だけであること、対象 path が現 HEAD に実在すること、`git diff --check` が成功することを文書タスクの完了条件とする。実装完了は上記7変更単位と全検証が成功するまで未完了である。
+
 ## 8. EEW 同一 serial 訂正
 
 ### 8.1 revision
