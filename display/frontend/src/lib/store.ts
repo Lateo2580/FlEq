@@ -10,6 +10,15 @@ import { filterStaleEews } from "./ticker-freshness";
 // ここではローカル定数として複製する。
 const TICKER_MAX = 200;
 
+/**
+ * Unit 2 adds this field server-side without extending the byte-synchronised
+ * protocol region yet. Keep the frontend's targeted reducer tolerant of both
+ * older ticker-only frames and the additive card-bearing frame.
+ */
+type ReconcileWithBriefingCard = DisplayReconcileMessageV1 & {
+  card?: Extract<NonNullable<DisplayStateSnapshotV1["standbyItems"]>[number], { kind: "briefing" }> | null;
+};
+
 /** protocol v1 の旧 snapshot は mapLayers を持たない。consumer では空 state として扱う。 */
 function withMapLayerDefaults(snapshot: DisplayStateSnapshotV1): DisplayStateSnapshotV1 {
   if (snapshot.mapLayers?.quake != null) return snapshot;
@@ -19,6 +28,22 @@ function withMapLayerDefaults(snapshot: DisplayStateSnapshotV1): DisplayStateSna
       ...snapshot.mapLayers,
       quake: { events: [], nonEmergencyHost: null },
     },
+  };
+}
+
+function withReconciledBriefingCard(
+  snapshot: DisplayStateSnapshotV1 | null,
+  card: ReconcileWithBriefingCard["card"],
+): DisplayStateSnapshotV1 | null {
+  if (snapshot == null || card === undefined) return snapshot;
+  const standbyItems = snapshot.standbyItems ?? [];
+  return {
+    ...snapshot,
+    // The card state is authoritative for this single kind. Do not retain a
+    // VPOA source alongside the canonical VPBS entry during the one reduce.
+    standbyItems: card == null
+      ? standbyItems.filter((item) => item.kind !== "briefing")
+      : [...standbyItems.filter((item) => item.kind !== "briefing"), card],
   };
 }
 
@@ -138,8 +163,10 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessageWithR
       // reconcile は tickerGeneration を進めないため、frontend scheduler は全 reset されない。
       const sourceKeys = new Set(msg.sourceEventKeys);
       const canonicalKey = msg.event.eventKey;
+      const reconcile = msg as ReconcileWithBriefingCard;
       return {
         ...state,
+        snapshot: withReconciledBriefingCard(state.snapshot, reconcile.card),
         ticker: [
           msg.event,
           ...state.ticker.filter((event) => !sourceKeys.has(event.eventKey) && event.eventKey !== canonicalKey),

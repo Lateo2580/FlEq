@@ -13,6 +13,7 @@
   import { createCardPageCoordinator, createRotationScheduler } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import type { CardCandidate, CardKey, CardVariant, ColumnPlan, DisplaySelection, LadderStage, PagePartitionKey, PageRange, PlacementChoice } from "../lib/legacy-standby/types";
   import Clock from "./Clock.svelte";
+  import BriefingCard from "./BriefingCard.svelte";
   import ConnectionBadge from "./ConnectionBadge.svelte";
   import FloodCard from "./FloodCard.svelte";
   import FloodWideCard from "./FloodWideCard.svelte";
@@ -80,8 +81,8 @@
   // confirmation pass; this is not a general retry budget.
   const MAX_POST_COMMIT_VERIFICATION_PASSES = 1;
   const layoutMotionDuration = SPRING_SPATIAL_DEFAULT_MS;
-  const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough"]);
-  const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "flood", "typhoon", "volcano", "heat"];
+  const KNOWN_KINDS = new Set<string>(["volcano", "typhoon", "heat", "flood", "tornado", "longPeriod", "nankaiTrough", "briefing"]);
+  const CARD_ORDER: readonly CardKey[] = ["tsunami", "quake", "weather", "briefing", "flood", "typhoon", "volcano", "heat"];
   const MAX_PREFIX_ROWS = 128;
   const QUAKE_CARD_AUTO_CLOSE_MS = 20_000;
   type Placement = "left" | "right" | "center";
@@ -283,6 +284,7 @@
   const typhoonItem = $derived(itemOf("typhoon"));
   const volcanoItem = $derived(itemOf("volcano"));
   const heatItem = $derived(itemOf("heat"));
+  const briefingItem = $derived(itemOf("briefing"));
   const nankaiItem = $derived(itemOf("nankaiTrough"));
   const hasWeather = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
   const hasQuake = $derived(snapshot.latestQuake != null || selectedRecentQuake != null);
@@ -403,7 +405,7 @@
         ? [{ kindKey: `${index}:${group.intensity}`, omittedAreaCount: group.omittedAreaCount }]
         : []);
     }
-    if (key === "tornado") return [];
+    if (key === "tornado" || key === "briefing") return [];
     return weatherWithSelection(rows).flatMap((alert) => alert.items.flatMap((item) => item.omittedAreaCount > 0
       ? [{ kindKey: weatherKindKey(item), omittedAreaCount: item.omittedAreaCount }]
       : []));
@@ -484,6 +486,7 @@
     if (key === "weather") return variant === "expanded" ? 270 : 178;
     if (key === "typhoon") return variant === "full" ? 240 : 120;
     if (key === "heat") return 150;
+    if (key === "briefing") return briefingPageShellHeight;
     return 150;
   }
   function floodContractHeight(variant: CardVariant, placement: Placement): number {
@@ -519,6 +522,7 @@
     return key === "tsunami" ? snapshot.tsunami != null
       : key === "quake" ? hasQuake
       : key === "weather" ? hasWeather
+      : key === "briefing" ? briefingItem != null && briefingItem.data.entries.length > 0
       : key === "flood" ? floodItem != null
       : key === "typhoon" ? typhoonItem != null
       : key === "volcano" ? volcanoItem != null
@@ -551,13 +555,19 @@
     if (key === "weather") return 3 + [...weatherDisplayGroups.values()]
       .reduce((total, group) => total + group.currentAreas.length + 1, 0)
       + (tornadoItem == null ? 0 : tornadoItem.data.areas.length + 1);
+    if (key === "briefing") return 2 + (briefingItem?.data.entries.reduce((score, entry) => {
+      // frameLevel is engine authority. This only ranks that explicit wire value;
+      // it never infers severity from title, Condition, or any other text.
+      const rank = entry.frameLevel === "critical" ? 3 : entry.frameLevel === "warning" ? 2 : 1;
+      return Math.max(score, rank);
+    }, 0) ?? 0);
     if (key === "flood") return 2 + (floodItem?.data.rivers.length ?? 0) * 2;
     if (key === "typhoon") return 2 + (typhoonItem?.data.typhoons.length ?? 0) * 4;
     if (key === "volcano") return 2 + (volcanoItem?.data.volcanoes.length ?? 0) * 2;
     return 2 + (heatItem?.data.areas.length ?? 0);
   }
   function pageFormattingActive(key: CardKey): boolean {
-    const page = key === "quake" || key === "weather" ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
+    const page = key === "quake" || key === "weather" || key === "briefing" ? cardPageCoordinator.cardDiagnostics(key).page : "0/0";
     const pageCount = Number(page.split("/")[1] ?? 0);
     if (pageCount > 1) return true;
     if (key === "weather") {
@@ -583,8 +593,10 @@
       || prefixMeasureEntries.some((entry) => entry.key === "tornado" && entry.purpose === "page");
   }
   const weatherTornadoContractHeight = $derived(Math.min(viewportHeightPx * 0.44, 280));
+  const briefingPageShellHeight = $derived(Math.min(viewportHeightPx * 0.44, 280));
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
     if (card.key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
+    if (card.key === "briefing") return briefingPageShellHeight;
     if (card.key === "flood") return renderedFloodContractHeight(placement, renderSelection);
     const rows = card.key === "quake" ? renderSelection.quakeRows : card.key === "weather" ? renderSelection.weatherRows : 0;
     const measurementPlacement = placement === "center" ? "center" : "right";
@@ -604,6 +616,7 @@
     // are still pending; a one-page result simply leaves the card's own
     // non-paged height-budget styling in control inside that shell.
     if (card.key === "flood") return renderedFloodContractHeight(placement, renderSelection);
+    if (card.key === "briefing") return briefingPageShellHeight;
     if (card.key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
     return pageFormattingActive(card.key) ? selectedCardHeight(card, placement) : null;
   }
@@ -631,7 +644,9 @@
     let total = Math.max(0, cards.length - 1) * measureGap;
     for (const card of cards) {
       const rows = card.key === "quake" ? selection.quakeRows : card.key === "weather" ? selection.weatherRows : 0;
-      const height = card.key === "flood"
+      const height = card.key === "briefing"
+        ? briefingPageShellHeight
+        : card.key === "flood"
         ? renderedFloodContractHeight(placement, selection)
         : card.key === "weather" && tornadoPagingOrProbing()
         ? weatherTornadoContractHeight
@@ -907,6 +922,7 @@
     if (!hasWeather) cardPageCoordinator.unregister("weather");
     if (tornadoItem == null) cardPageCoordinator.unregister("tornado");
     if (floodItem == null) cardPageCoordinator.unregister("flood");
+    if (briefingItem == null || briefingItem.data.entries.length === 0) cardPageCoordinator.unregister("briefing");
   });
 
   function readMeasurements(): void {
@@ -1592,7 +1608,10 @@
     void settleMeasurements();
   }
   $effect.pre(() => {
-    const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", snapshot.standbyItems?.map((item) => `${item.kind}:${item.updatedAt}`).join(",") ?? "", snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
+    const standbyContentIdentity = snapshot.standbyItems?.map((item) => item.kind === "briefing"
+      ? `${item.kind}:${item.updatedAt}:generation:${item.data.generation}`
+      : `${item.kind}:${item.updatedAt}`).join(",") ?? "";
+    const contentKey = [snapshot.generatedAt, snapshot.seq, snapshot.latestQuake?.updatedAtMs ?? "", selectedId ?? "", standbyContentIdentity, snapshot.weatherAlerts.map((alert) => alert.updatedAt).join(",")].join("|");
     const input = [contentKey, sseConnected].join("|");
     if (input !== lastInputKey) {
       lastInputKey = input;
@@ -1671,6 +1690,16 @@
       }}
       pagePlacement={placement === "center" ? "center" : "side"}
     />
+  {:else if key === "briefing" && briefingItem != null}
+    <BriefingCard
+      item={briefingItem}
+      pageCoordinator={measuring ? undefined : cardPageCoordinator}
+      rotationMember={!measuring && renderPlan.rotationKeys.includes("briefing")}
+      pageScheduling={!measuring}
+      partitionProbe={measuring ? undefined : pagePartitionProbe("briefing", placement === "center" ? "center" : "side", briefingPageShellHeight)}
+      pagePlacement={placement === "center" ? "center" : "side"}
+      shellHeightPx={briefingPageShellHeight}
+    />
   {:else if key === "flood" && floodItem != null}
     {@const wide = renderFloodWide(placement, variant, measuring, selected)}
     {#if wide}
@@ -1710,6 +1739,8 @@
          Passing MAX_PREFIX_ROWS here erased the live "ほか n地域" rider and
          under-measured a grouped weather card by its omitted-row height. -->
     <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
+  {:else if entry.key === "briefing" && briefingItem != null}
+    <BriefingCard item={briefingItem} pageScheduling={false} measurementRange={entry} measurementPageFooter shellHeightPx={briefingPageShellHeight} pagePlacement={entry.placement} />
   {:else if entry.key === "flood" && floodItem != null}
     {#if entry.floodForm === "wide"}
       <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
@@ -1801,6 +1832,12 @@
   data-tornado-page-host={cardPageCoordinator.diagnostics().cards.tornado.appearanceHost ?? ""}
   data-tornado-page-mode={cardPageCoordinator.diagnostics().cards.tornado.mode}
   data-tornado-page-pending-appearance={cardPageCoordinator.diagnostics().pendingAppearanceKeys.includes("tornado") ? "true" : "false"}
+  data-briefing-page={cardPageCoordinator.cardDiagnostics("briefing").page}
+  data-briefing-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("briefing").keys)}
+  data-briefing-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("briefing").identities)}
+  data-briefing-page-host={cardPageCoordinator.diagnostics().cards.briefing.appearanceHost ?? ""}
+  data-briefing-page-mode={cardPageCoordinator.diagnostics().cards.briefing.mode}
+  data-briefing-page-pending-appearance={cardPageCoordinator.diagnostics().pendingAppearanceKeys.includes("briefing") ? "true" : "false"}
   data-card-page={cardPageCoordinator.cardDiagnostics("quake").page}
   data-card-page-keys={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").keys)}
   data-card-page-identities={JSON.stringify(cardPageCoordinator.cardDiagnostics("quake").identities)}
@@ -1973,6 +2010,7 @@
   /* The live card gets this through .legacy-card. Shelf cards are direct
      children, so bridge the same surface contract for every variant. */
   .measure-item :global(.weather-card),
+  .measure-item :global(.briefing-card),
   .measure-item :global(.standby-card),
   .measure-item :global(.flood-wide-card) { width: 100%; max-width: 100%; }
   .partition-preflight, .flood-partition-preflight { width: 100%; flex: 0 0 auto; }
@@ -1985,7 +2023,7 @@
   .standby[data-ladder-stage="1"] .side, .standby[data-ladder-stage="2"] .side, .standby[data-ladder-stage="3"] .side, .center-card-region { justify-content: safe flex-start; box-sizing: border-box; }
   .legacy-card, .rotation-slot, .rotation-failure { flex: 0 0 auto; box-sizing: border-box; width: min(30rem, 100%); max-width: 100%; }
   .legacy-card.paged-card { position: relative; overflow: hidden; }
-  .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }
+  .legacy-card :global(.tsunami-banner), .legacy-card :global(.quake-card), .legacy-card :global(.weather-card), .legacy-card :global(.briefing-card), .legacy-card :global(.standby-card), .legacy-card :global(.flood-wide-card) { width: 100%; max-width: 100%; }
   .center-card-region > .legacy-card, .center-stack-card { width: 100%; }
   .center-stack-card { box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--hairline); border-radius: var(--radius-standby); background: var(--surface-standby); }
   .clock-landmark { position: fixed; inset: 0; z-index: 2; pointer-events: none; opacity: 1; transition: opacity var(--spring-spatial-default-dur) var(--spring-spatial-default); }

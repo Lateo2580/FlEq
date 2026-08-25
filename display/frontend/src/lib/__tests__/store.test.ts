@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { initialState, reduce, setSseConnected } from "../store";
 import type {
+  ActiveStandbyCardV1,
   DisplayConnectionStateV1,
   DisplayEventDtoV1,
   DisplayStateSnapshotV1,
 } from "../protocol";
+
+function briefingCard(key = "card:vpbs:canonical"): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
+  return {
+    kind: "briefing", surface: "corner-right", key: "briefing:active", sourceEventIds: [key],
+    updatedAt: "2026-08-25T12:00:00+09:00", expiresAt: "2026-08-25T14:00:00+09:00", restored: false, severity: "warning",
+    data: {
+      generation: 2,
+      entries: [{
+        key, source: "vpbs50", sourceEventId: "canonical", title: "防災気象情報", headline: "本文", conditions: [], targetAreas: [],
+        reportDateTime: "2026-08-25T12:00:00+09:00", publishingOffice: "気象庁", infoType: "発表", frameLevel: "warning",
+        severityEvidence: [], qualifier: null, updatedAt: "2026-08-25T12:00:00+09:00", expiresAt: "2026-08-25T14:00:00+09:00", generation: 2,
+      }],
+    },
+  };
+}
 
 function connection(): DisplayConnectionStateV1 {
   return { dmdata: "connected", lastReceivedAt: null, disconnectedSince: null, reason: null };
@@ -123,6 +139,23 @@ describe("reduce", () => {
       event: { eventKey: "canonical" },
       sourceEventKeys: ["source:a", "source:b"],
     });
+  });
+
+  it("card 付き reconcile は ticker scheduler generation を触らず briefing source を canonical 一つへ置換する", () => {
+    const source = briefingCard("card:vpoa:source");
+    const canonical = briefingCard("card:vpbs:canonical");
+    const current = reduce(initialState(), { type: "snapshot", snapshot: snapshot({ standbyItems: [source] }) });
+    const message = {
+      type: "reconcile" as const,
+      event: tickerEvent({ id: "canonical", eventKey: "canonical:key", seq: 2 }),
+      sourceEventKeys: ["source:key"],
+      card: canonical,
+    };
+
+    const next = reduce(current, message);
+
+    expect(next.snapshot?.standbyItems?.filter((item) => item.kind === "briefing")).toEqual([canonical]);
+    expect(next.tickerGeneration).toBe(current.tickerGeneration);
   });
 
   it("③ event 受信は snapshot 内の recentQuakes 等を変更しない (state/snapshot だけが差し替える)", () => {

@@ -12,9 +12,11 @@ import type {
 } from "./types";
 
 const LEFT_KEYS = new Set<CardKey>(["tsunami", "quake"]);
-const CENTER_ELIGIBLE_KEYS = new Set<CardKey>(["weather", "flood", "typhoon", "volcano"]);
-const ROTATION_REVERSE_ORDER: readonly CardKey[] = ["heat", "volcano", "typhoon", "flood", "weather"];
-const MAX_ROTATION_CANDIDATE_PASSES = 5;
+const CENTER_ELIGIBLE_KEYS = new Set<CardKey>(["weather", "briefing", "flood", "typhoon", "volcano"]);
+const ROTATION_REVERSE_ORDER: readonly CardKey[] = ["heat", "volcano", "typhoon", "flood", "briefing", "weather"];
+// Five existing rotation candidates plus briefing. Keep this explicit: the
+// preview contract guards the bounded search separately from DOM settle passes.
+const MAX_ROTATION_CANDIDATE_PASSES = 6;
 
 export interface SolverContext {
   measuredHeight(key: CardKey, variant: CardVariant): number | null;

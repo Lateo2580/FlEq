@@ -1338,7 +1338,7 @@ describe("legacy improved standby mock v26", () => {
 
   it("separates DOM settle and rotation candidate counters", () => {
     expect(mockSource).toContain("const MAX_SETTLE_PASSES = 4;");
-    expect(solverSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 5;");
+    expect(solverSource).toContain("const MAX_ROTATION_CANDIDATE_PASSES = 6;");
     expect(solverSource).toMatch(/pass < MAX_ROTATION_CANDIDATE_PASSES[^\n]*displayed\.length \+ failed\.length/);
   });
 

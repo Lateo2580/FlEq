@@ -112,7 +112,7 @@
 
   type PageableCardKey = PageableKey;
   type MeasurablePageKey = Extract<PageableKey, "quake" | "weather">;
-  const PAGEABLE_CARD_KEYS = ["quake", "weather", "flood", "tornado"] as const satisfies readonly PageableCardKey[];
+  const PAGEABLE_CARD_KEYS = ["quake", "weather", "briefing", "flood", "tornado"] as const satisfies readonly PageableCardKey[];
 
   interface QuakePage {
     state: DisplayLatestQuakeStateV1;
@@ -502,10 +502,11 @@
   let cardPageEpochBusy = false;
   let cardPageTickPending = false;
   let cardPageSchedulerStage: LadderStage | null = null;
-  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, flood: 0, tornado: 0 };
+  let cardPageSchedulerPageCounts: Record<PageableCardKey, number> = { quake: 0, weather: 0, briefing: 0, flood: 0, tornado: 0 };
   let cardPageSchedulerSubstates = $state<Record<PageableCardKey, CardPageSchedulerSubstate>>({
     quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+    briefing: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     tornado: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
   });
@@ -519,6 +520,7 @@
   let cardPageRuntime = $state<Record<PageableCardKey, CardPageRuntime>>({
     quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+    briefing: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     tornado: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
   });
@@ -594,7 +596,8 @@
   function pagePartitionFor(key: PageableCardKey): CardPagePartition<QuakePage> | CardPagePartition<WeatherPage> | CardPagePartition<FloodPage> | CardPagePartition<TornadoPage> {
     return key === "quake" ? cardPagePartitions.quake
       : key === "weather" ? cardPagePartitions.weather
-        : key === "flood" ? cardPagePartitions.flood
+        : key === "briefing" ? cardPagePartitions.quake
+          : key === "flood" ? cardPagePartitions.flood
           : cardPagePartitions.tornado;
   }
 
@@ -602,6 +605,7 @@
     // 輪番枠は通常列と別経路で描画されるが、改ページ instance にとっては exit ではない。
     // 非 active slot の間も substate を保持し、再登場 event でだけ logical tick を進める。
     if (key === "tornado") return tornado != null && pageCardIsVisible("weather");
+    if (key === "briefing") return false;
     return cardPlacement(layoutPlan, key) != null || schedulerRotationKeys.includes(key);
   }
 
@@ -743,6 +747,7 @@
     const currentPageCounts: Record<PageableCardKey, number> = {
       quake: pageCardIsVisible("quake") ? cardPagePartitions.quake.pages.length : 0,
       weather: pageCardIsVisible("weather") ? cardPagePartitions.weather.pages.length : 0,
+      briefing: 0,
       flood: pageCardIsVisible("flood") ? cardPagePartitions.flood.pages.length : 0,
       tornado: pageCardIsVisible("tornado") ? cardPagePartitions.tornado.pages.length : 0,
     };
@@ -822,16 +827,18 @@
     cardPageTick = 0;
     cardPageEpochBusy = false;
     cardPageTickPending = false;
-    cardPageSchedulerPageCounts = { quake: 0, weather: 0, flood: 0, tornado: 0 };
+    cardPageSchedulerPageCounts = { quake: 0, weather: 0, briefing: 0, flood: 0, tornado: 0 };
     cardPageSchedulerSubstates = {
       quake: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       weather: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
+      briefing: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       flood: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
       tornado: { mode: "real", phaseStartedAtMs: 0, processedTick: 0, pageCount: 0 },
     };
     cardPageRuntime = {
       quake: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       weather: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
+      briefing: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       flood: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
       tornado: { activeKey: null, knownKeys: [], pendingKeys: [], cycleOriginKey: null },
     };

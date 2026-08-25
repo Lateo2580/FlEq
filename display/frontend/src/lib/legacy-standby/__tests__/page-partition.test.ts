@@ -11,6 +11,13 @@ void (null as unknown as CardKeyExcludesTornado);
 void (null as unknown as PagePartitionKeyIncludesTornado);
 
 describe("legacy standby page partition", () => {
+  it("keeps a pending briefing block probe distinct from an infeasible outer entry", () => {
+    const result = sequentialPartitionRanges("briefing", "side", 3, 260, (_key, _placement, range) => range.end === 2 ? null : 260, () => []);
+    expect(result.infeasible).toBe(false);
+    expect(result.ranges).toEqual([{ start: 0, end: 1, tails: [], omittedAreaCount: 0 }]);
+    expect(result.pending[0]?.key).toBe("briefing");
+  });
+
   it("partitions sequentially and preserves the accepted prefix before an unmeasured probe", () => {
     const result = sequentialPartitionRanges(
       "quake",

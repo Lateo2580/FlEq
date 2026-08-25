@@ -357,13 +357,15 @@ describe("legacy standby solver", () => {
     expect(solution.failureCount).toBeGreaterThan(0);
   });
 
-  it("tries all five rotation candidates before accepting the fifth-fit solution", () => {
+  it("briefing を含む六候補を探索し、既存五種の相対 rotation 順を保つ", () => {
     const candidates = [
-      card("quake", 0, 80), card("weather", 1, 110), card("flood", 2, 110),
-      card("typhoon", 3, 110), card("volcano", 4, 110), card("heat", 5, 110),
+      card("quake", 0, 80), card("weather", 1, 110), card("briefing", 2, 110), card("flood", 3, 110),
+      card("typhoon", 4, 110), card("volcano", 5, 110), card("heat", 6, 110),
     ];
     const ctx = { ...context(() => 0), rotationSlotHeight: (keys: readonly CardCandidate["key"][]) => keys.length === 0 ? 0 : 20 };
-    expect(solveRotation(candidates, ctx).rotationKeys).toEqual(["weather", "flood", "typhoon", "volcano", "heat"]);
+    const keys = solveRotation(candidates, ctx).rotationKeys;
+    expect(keys).toEqual(["weather", "briefing", "flood", "typhoon", "volcano", "heat"]);
+    expect(keys.filter((key) => key !== "briefing")).toEqual(["weather", "flood", "typhoon", "volcano", "heat"]);
   });
 
   it("applies lexicographic center, wide-flood, surplus, maximum-height, then balance ordering", () => {

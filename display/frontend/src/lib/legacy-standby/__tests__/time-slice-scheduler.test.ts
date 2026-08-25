@@ -327,6 +327,22 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("registers briefing entry pages in the same coordinator and clears them on dispose", () => {
+    const pages = createCardPageCoordinator();
+    pages.register({
+      key: "briefing",
+      identities: ["card:vpoa:source", "card:vpbs:canonical"],
+      labels: ["記録的短時間大雨情報", "気象速報"],
+    });
+
+    expect(pages.cardDiagnostics("briefing")).toMatchObject({
+      page: "1/2", keys: ["記録的短時間大雨情報", "気象速報"], activeKey: "card:vpoa:source",
+    });
+    pages.unregister("briefing");
+    expect(pages.cardDiagnostics("briefing")).toMatchObject({ page: "0/0", keys: [], activeKey: null });
+    pages.dispose();
+  });
+
   it("advances quake, weather, and river-flood cards together in real mode", () => {
     const time = controlledClock();
     const pages = createCardPageCoordinator({ clock: time.clock });

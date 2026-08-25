@@ -83,6 +83,17 @@ function tornado(areas: string[]): Extract<ActiveStandbyCardV1, { kind: "tornado
     severity: "warning", data: { areas, isSighted: false },
   };
 }
+function briefing(generation = 1, headline = "大雨に警戒してください"): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
+  return {
+    kind: "briefing", surface: "corner-right", key: "briefing:active", sourceEventIds: ["card:vpbs:1"],
+    updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: "2026-08-20T14:00:00+09:00", restored: false, severity: "warning",
+    data: { generation, entries: [{
+      key: "card:vpbs:1", source: "vpbs50", sourceEventId: "vpbs-1", title: "気象速報", headline, conditions: [], targetAreas: [],
+      reportDateTime: "2026-08-20T12:00:00+09:00", publishingOffice: "気象庁", infoType: "発表", frameLevel: "warning",
+      severityEvidence: [], qualifier: null, updatedAt: "2026-08-20T12:00:00+09:00", expiresAt: "2026-08-20T14:00:00+09:00", generation,
+    }] },
+  };
+}
 
 describe("StandbyScreen legacy-improved skeleton", () => {
   it("renders a tornado measurement entry in the shared weather shell", () => {
@@ -156,6 +167,25 @@ describe("StandbyScreen legacy-improved skeleton", () => {
     for (let pass = 0; pass < 8; pass += 1) await tick();
 
     expect(surfaces()).toEqual(before);
+  });
+
+  it("briefing generation のみが変わる non-latest entry 訂正でも再測定 epoch を開始する", async () => {
+    const view = render(StandbyScreen, {
+      snapshot: baseSnapshot({ standbyItems: [briefing(1)] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 1_000 },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+    const root = view.container.querySelector<HTMLElement>(".standby")!;
+    const before = Number(root.dataset.measurementEpoch);
+
+    await view.rerender({
+      snapshot: baseSnapshot({ standbyItems: [briefing(2, "訂正後の長い本文")] }), now, dim: false, sseConnected: true,
+      testMeasurementOverride: { layoutWidthPx: 1280, layoutHeightPx: 1_000 },
+    });
+    for (let pass = 0; pass < 8; pass += 1) await tick();
+
+    expect(Number(root.dataset.measurementEpoch)).toBeGreaterThan(before);
+    expect(root.querySelector("[data-layout-motion-card^='briefing:']")).toBeTruthy();
   });
 
   it("accepts cluster-calm only through the preview gate fixture prop", () => {
