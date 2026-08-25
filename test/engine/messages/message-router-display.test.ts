@@ -285,6 +285,98 @@ describe("message-router displaySink 挿入", () => {
     expect(ingested).toHaveLength(1);
   });
 
+  it("receipt があっても card-only capability を一回配送し、ticker は別 fallback にする", () => {
+    vi.useFakeTimers();
+    const nowMs = Date.parse("2026-08-11T00:00:00.000Z");
+    vi.setSystemTime(nowMs);
+    const ingested: PresentationEvent[] = [];
+    const reconcileCard = vi.fn(() => ({
+      cardResult: {
+        kind: "applied" as const, status: "applied" as const, applied: true as const,
+        sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical", generation: 7,
+        expiresAt: "2026-08-11T02:00:00.000Z", canonicalInserted: true as const, evictedKey: null,
+      },
+    }));
+    const tickerOnly = vi.fn(() => ({ kind: "applied" as const, eventKey: "ticker:canonical" }));
+    const { handler } = createMessageHandler({
+      display: createMockDisplay(),
+      displaySink: {
+        ingest: (event) => ({ kind: "applied" as const, eventKeys: (ingested.push(event), [event.id]) }),
+        reconcileLateCounterpartCard: reconcileCard,
+        ingestTickerOnly: tickerOnly,
+      },
+      legacyCounterpartCorrelatorFactory: displayLegacyCorrelatorFactory(),
+    });
+
+    handler(displayLegacyMessage("VPOA50", "display-card-only-source", "DISPLAY-CARD-ONLY"));
+    vi.advanceTimersByTime(60_001);
+    handler(displayLegacyMessage("SYNTH-CP", "display-card-only-counterpart", "DISPLAY-CARD-ONLY"));
+
+    expect(reconcileCard).toHaveBeenCalledOnce();
+    expect(tickerOnly).toHaveBeenCalledOnce();
+    expect(ingested.map((event) => event.id)).toEqual(["legacy:VPOA50:DISPLAY-CARD-ONLY"]);
+  });
+
+  it("card result が applied でも ticker reconcile failure は ticker-only へ fail-open する", () => {
+    vi.useFakeTimers();
+    const nowMs = Date.parse("2026-08-11T00:00:00.000Z");
+    vi.setSystemTime(nowMs);
+    const tickerOnly = vi.fn(() => ({ kind: "applied" as const, eventKey: "ticker:canonical" }));
+    const reconciled = vi.fn(() => ({
+      tickerResult: { kind: "failure" as const, reason: "hubStopped" },
+      cardResult: {
+        kind: "applied" as const, status: "applied" as const, applied: true as const,
+        sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical", generation: 8,
+        expiresAt: "2026-08-11T02:00:00.000Z", canonicalInserted: false as const, evictedKey: null,
+      },
+    }));
+    const { handler } = createMessageHandler({
+      display: createMockDisplay(),
+      displaySink: {
+        ingest: () => ({ kind: "applied" as const, eventKeys: ["ticker:source"] }),
+        reconcileLateCounterpart: reconciled,
+        ingestTickerOnly: tickerOnly,
+      },
+      legacyCounterpartCorrelatorFactory: displayLegacyCorrelatorFactory(),
+    });
+
+    handler(displayLegacyMessage("VPOA50", "display-fallback-source", "DISPLAY-TICKER-FALLBACK"));
+    vi.advanceTimersByTime(60_001);
+    handler(displayLegacyMessage("SYNTH-CP", "display-fallback-counterpart", "DISPLAY-TICKER-FALLBACK"));
+
+    expect(reconciled).toHaveBeenCalledOnce();
+    expect(tickerOnly).toHaveBeenCalledOnce();
+  });
+
+  it("card metric callback は delivery と無関係に generation ごと一回だけ発火する", () => {
+    vi.useFakeTimers();
+    const nowMs = Date.parse("2026-08-11T00:00:00.000Z");
+    vi.setSystemTime(nowMs);
+    const onCardMutationApplied = vi.fn();
+    const { handler } = createMessageHandler({
+      display: createMockDisplay(),
+      displaySink: {
+        ingest: () => ({ kind: "applied" as const, eventKeys: ["ticker:source"] }),
+        reconcileLateCounterpart: () => ({
+          tickerResult: { kind: "applied" as const, delivery: "blockedSkipped" as const },
+          cardResult: {
+            kind: "applied" as const, status: "applied" as const, applied: true as const,
+            sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical", generation: 9,
+            expiresAt: "2026-08-11T02:00:00.000Z", canonicalInserted: true as const, evictedKey: null,
+          },
+        }),
+      },
+      onCardMutationApplied,
+      legacyCounterpartCorrelatorFactory: displayLegacyCorrelatorFactory(),
+    });
+
+    handler(displayLegacyMessage("VPOA50", "display-metric-source", "DISPLAY-METRIC"));
+    vi.advanceTimersByTime(60_001);
+    handler(displayLegacyMessage("SYNTH-CP", "display-metric-counterpart", "DISPLAY-METRIC"));
+
+    expect(onCardMutationApplied).toHaveBeenCalledWith({ kind: "reconcile", generation: 9, sourceType: "SYNTH-CP" });
+  });
+
   it("optional capability 不在時は late counterpart を通常 ingest へ一回だけ fail-open する", () => {
     vi.useFakeTimers();
     const nowMs = Date.parse("2026-08-11T00:00:00.000Z");

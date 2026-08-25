@@ -10,7 +10,18 @@
  */
 
 import type { PresentationEvent } from "../presentation/types";
-import type { DisplayIngestSink } from "../display/types";
+import type {
+  DisplayCardIngestResult,
+  DisplayCardReconcileResult,
+  DisplayIngestResult,
+  DisplayIngestSink,
+  DisplayIngestOutcome,
+  DisplayLateCounterpartContext,
+  DisplayLateCounterpartResult,
+} from "../display/types";
+import type { ActiveStandbyCardV1 } from "../display/protocol";
+import { briefingCardIdentity } from "../display/standby-state-store";
+import type { CardReconcileResult } from "../display/standby-state-store";
 import {
   applyWeatherPromotionOnIngest,
   type WeatherPromotionViewSources,
@@ -27,6 +38,16 @@ export interface DisplaySinkDeps {
   /** monitor 所有の待機画面 state */
   standby: {
     applyEvent(event: PresentationEvent, nowMs: number): unknown;
+    /** normal ingest の card mutation を generation 単位で観測する。 */
+    briefingCardGeneration?(): number;
+    /** card 専用 state の source→canonical 置換。ticker state を参照しない。 */
+    reconcileBriefingCard?(
+      sourceKey: string,
+      canonicalEvent: PresentationEvent,
+      nowMs: number,
+    ): CardReconcileResult;
+    /** reconcile frame／authoritative snapshot に載せる monitor 所有 card。 */
+    snapshotBriefingCard?(): Extract<ActiveStandbyCardV1, { kind: "briefing" }> | null;
     applyWeatherAlerts?(
       source: DisplayWeatherSourceV1,
       alerts: DisplayWeatherAlertV1[],
@@ -48,16 +69,85 @@ export interface DisplaySinkDeps {
   vpws50Identity?: () => WeatherReportIdentity | null;
   /** 現在の display hub (未起動なら null) */
   getHub: () => DisplayIngestSink | null;
+  /** combined reconcile の間だけ monitor の通常 standby dirty 通知を抑止する。 */
+  withStandbyDirtySuppressed?<T>(callback: () => T): T;
   /** テスト注入用。省略時 Date.now */
   now?: () => number;
 }
 
+interface BriefingCardReconcileState {
+  cardResult?: DisplayCardReconcileResult;
+  card?: DisplayLateCounterpartContext["card"];
+  /** card payload を combined frame に載せられず、snapshot 再同期が必要。 */
+  cardSnapshotUnavailable?: boolean;
+}
+
+function reconcileBriefingCardState(
+  deps: DisplaySinkDeps,
+  event: PresentationEvent,
+  context: DisplayLateCounterpartContext | undefined,
+  nowMs: number,
+): BriefingCardReconcileState {
+  const sourceKey = context?.sourceEvent == null
+    ? null
+    : briefingCardIdentity(context.sourceEvent);
+  if (sourceKey == null || deps.standby.reconcileBriefingCard == null) return {};
+
+  let cardResult: CardReconcileResult;
+  try {
+    cardResult = deps.standby.reconcileBriefingCard(sourceKey, event, nowMs);
+  } catch {
+    return { cardResult: { kind: "failure", status: "failure", applied: false, reason: "cardReconcileFailed" } };
+  }
+
+  let card: DisplayLateCounterpartContext["card"] | undefined;
+  let cardSnapshotUnavailable = deps.standby.snapshotBriefingCard == null;
+  if (deps.standby.snapshotBriefingCard != null) {
+    try {
+      card = deps.standby.snapshotBriefingCard();
+    } catch {
+      cardSnapshotUnavailable = true;
+    }
+  }
+  return { cardResult, card, cardSnapshotUnavailable };
+}
+
+function briefingCardIngestResult(
+  event: PresentationEvent,
+  beforeGeneration: number | undefined,
+  afterGeneration: number | undefined,
+): DisplayCardIngestResult | undefined {
+  if (
+    !["briefing", "legacyCounterpart"].includes(event.domain)
+    || beforeGeneration == null
+    || afterGeneration == null
+    || beforeGeneration === afterGeneration
+  ) return undefined;
+  return { kind: "applied", status: "applied", applied: true, generation: afterGeneration };
+}
+
+function tickerResultOf(value: unknown): DisplayIngestResult | undefined {
+  if (typeof value !== "object" || value == null) return undefined;
+  if ("tickerResult" in value) {
+    return tickerResultOf(value.tickerResult);
+  }
+  if (!("kind" in value)) return undefined;
+  return value.kind === "applied" || value.kind === "unsupported" || value.kind === "failure" || value.kind === "failed"
+    ? value as DisplayIngestResult
+    : undefined;
+}
+
 export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
   const now = deps.now ?? Date.now;
-  return {
-    ingest: (event) => {
+  const ingest = (event: PresentationEvent): DisplayIngestResult | DisplayIngestOutcome | void | number => {
       const nowMs = now();
+      const beforeCardGeneration = deps.standby.briefingCardGeneration?.();
       deps.standby.applyEvent(event, nowMs);
+      const cardResult = briefingCardIngestResult(
+        event,
+        beforeCardGeneration,
+        deps.standby.briefingCardGeneration?.(),
+      );
       const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
       const acceptedVpww56Mutation = event.type !== "VPWW56"
         || event.weatherStateMutationAccepted === true;
@@ -93,19 +183,75 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
       // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
       // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
       if (quakeExtremeChanged || dailyQuakeChanged) hub?.markExternalStateDirty?.();
-      return hub?.ingest(event);
-    },
-    reconcileLateCounterpart: (event, sourceEventKeys) => {
+      const tickerResult = tickerResultOf(hub?.ingest(event));
+      return cardResult == null ? tickerResult : {
+        ...(tickerResult == null || typeof tickerResult !== "object" ? {} : { tickerResult }),
+        cardResult,
+      };
+    };
+  const reconcileLateCounterpart = (
+    event: PresentationEvent,
+    sourceEventKeys: readonly string[],
+    context?: DisplayLateCounterpartContext,
+  ): DisplayLateCounterpartResult => {
+      const exactSourceKeys = sourceEventKeys.filter((key) => key.trim() !== "");
       const hub = deps.getHub();
-      if (hub == null) {
-        return { kind: "unsupported", reason: "hubUnavailable" };
+      const combined = exactSourceKeys.length > 0 && hub?.reconcileLateCounterpart != null;
+      const cardState = deps.withStandbyDirtySuppressed == null
+        ? reconcileBriefingCardState(deps, event, context, now())
+        : deps.withStandbyDirtySuppressed(() => reconcileBriefingCardState(deps, event, context, now()));
+      const { cardResult, card, cardSnapshotUnavailable } = cardState;
+      if (combined) {
+        const hubContext: DisplayLateCounterpartContext = {
+          ...(context?.sourceEvent == null ? {} : { sourceEvent: context.sourceEvent }),
+          ...(card === undefined ? {} : { card }),
+        };
+        // method を取り出すと InfoDisplayHub の receiver が失われる。hub 自身を経由して
+        // 呼び、recent/transport/state の this を保つ。
+        try {
+          const tickerResult = tickerResultOf(Object.keys(hubContext).length === 0
+            ? hub.reconcileLateCounterpart!(event, exactSourceKeys)
+            : hub.reconcileLateCounterpart!(event, exactSourceKeys, hubContext));
+          // hub stopped/failure では combined frame は存在しない。card の applied は
+          // authoritative snapshot へ切り替えて保持する。
+          if (
+            cardResult?.kind === "applied"
+            && (tickerResult?.kind !== "applied" || cardSnapshotUnavailable)
+          ) {
+            hub?.markExternalStateDirty?.();
+          }
+          return { tickerResult, ...(cardResult == null ? {} : { cardResult }) };
+        } catch {
+          // card mutation は rollback しない。single frame を作れなかったので snapshot で収束する。
+          if (cardResult?.kind === "applied") hub?.markExternalStateDirty?.();
+          return {
+            tickerResult: { kind: "failure", status: "failure", reason: "tickerReconcileFailed" },
+            ...(cardResult == null ? {} : { cardResult }),
+          };
+        }
       }
-      if (hub.reconcileLateCounterpart == null) {
-        return { kind: "unsupported", reason: "capabilityUnavailable" };
-      }
-      // method を取り出すと InfoDisplayHub の receiver が失われる。hub 自身を経由して
-      // 呼び、recent/transport/state の this を保つ。
-      return hub.reconcileLateCounterpart(event, sourceEventKeys);
-    },
+      if (cardResult?.kind === "applied") hub?.markExternalStateDirty?.();
+      return { ...(cardResult == null ? {} : { cardResult }) };
+    };
+  const reconcileLateCounterpartCard = (
+    event: PresentationEvent,
+    context: DisplayLateCounterpartContext,
+  ): DisplayLateCounterpartResult => {
+    const cardState = deps.withStandbyDirtySuppressed == null
+      ? reconcileBriefingCardState(deps, event, context, now())
+      : deps.withStandbyDirtySuppressed(() => reconcileBriefingCardState(deps, event, context, now()));
+    const hub = deps.getHub();
+    // ticker receipt が無い場合は card だけを確定し、表示中なら authoritative snapshot
+    // の再配信へ渡す。hub 不在／停止中は次回 display on の seed が唯一の配送経路になる。
+    if (cardState.cardResult?.kind === "applied") hub?.markExternalStateDirty?.();
+    return cardState.cardResult == null ? {} : { cardResult: cardState.cardResult };
+  };
+  const ingestTickerOnly = (event: PresentationEvent): DisplayIngestResult | void =>
+    tickerResultOf(deps.getHub()?.ingest(event));
+  return {
+    ingest,
+    ingestTickerOnly,
+    reconcileLateCounterpart,
+    reconcileLateCounterpartCard,
   };
 }

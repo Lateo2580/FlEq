@@ -1,10 +1,15 @@
 export * from "./protocol";
 import type { PresentationEvent } from "../presentation/types";
 import type {
+  ActiveStandbyCardV1,
   DisplayQuakeIntensityMapEventV1,
   DisplayServerMessageWithReconcile,
   DisplayStatsV1,
 } from "./protocol";
+import type {
+  BriefingCardMutationResult,
+  CardReconcileResult,
+} from "./standby-state-store";
 import type { StandbyRevision } from "./standby-registry";
 
 /** 表示 sink が mutation／配信の成否を返すときの client 配送状態。 */
@@ -15,7 +20,7 @@ export type DisplayIngestDelivery =
   | "byteGuardDropped";
 
 /**
- * 表示 ingest／atomic reconcile の結果。
+ * ticker surface の ingest 結果。
  *
  * `ingest()` は旧 sink との段階導入互換のため `void` も返し得る。新しい hub は
  * `applied` と exact ticker key 集合を返し、router はその結果だけを receipt の根拠にする。
@@ -46,6 +51,49 @@ export type DisplayIngestResult =
       status?: "failure" | "failed";
       reason: string;
     };
+
+/** 通常 ingest で card generation が進んだことだけを表す、metric 境界用の結果。 */
+export interface DisplayCardIngestResult {
+  kind: "applied";
+  status: "applied";
+  applied: true;
+  generation: number;
+}
+
+/** card reconcile が例外になった場合も ticker result と独立して返す。 */
+export type DisplayCardReconcileResult = CardReconcileResult | {
+  kind: "failure";
+  status: "failure";
+  applied: false;
+  reason: "cardReconcileFailed";
+};
+
+/** 通常 ingest の ticker/card 分離結果。旧 sink は ticker result を直接返してよい。 */
+export interface DisplayIngestOutcome {
+  tickerResult?: DisplayIngestResult;
+  cardResult?: DisplayCardIngestResult;
+}
+
+/** late counterpart action 専用の ticker/card 分離結果。 */
+export interface DisplayLateCounterpartResult {
+  tickerResult?: DisplayIngestResult;
+  cardResult?: DisplayCardReconcileResult;
+}
+
+/** Unit 4 が card metric へ接続するための、generation 単位の型付き境界。 */
+export interface DisplayCardMutationMetricEvent {
+  kind: "ingest" | "reconcile";
+  generation: number;
+  sourceType: string;
+}
+
+/** typed late counterpart action が sink 間を渡す、ticker/card 分離済みの補助情報。 */
+export interface DisplayLateCounterpartContext {
+  /** source 側の PresentationEvent。card 専用 raw identity の解決にだけ使う。 */
+  sourceEvent?: PresentationEvent;
+  /** card mutation 後の authoritative briefing card。null は card 消滅を表す。 */
+  card?: Extract<ActiveStandbyCardV1, { kind: "briefing" }> | null;
+}
 
 /** router が所有する非永続 receipt の timer DI。 */
 export interface DisplayReceiptTimerScheduler {
@@ -113,12 +161,20 @@ export interface DisplayIngestSink {
    * 旧 sink は void、新 hub は discriminated result を返す段階導入型。
    * `number` は旧テスト／adapter の `array.push()` の戻り値を void 互換として受けるためだけに許す。
    */
-  ingest(event: PresentationEvent): DisplayIngestResult | void | number;
+  ingest(event: PresentationEvent): DisplayIngestResult | DisplayIngestOutcome | void | number;
+  /** card を再適用せず ticker surface だけを通常 ingest する fail-open 経路。 */
+  ingestTickerOnly?(event: PresentationEvent): DisplayIngestResult | void;
   /** 遅着 counterpart の ticker surface を一回で reconcile する optional capability。 */
   reconcileLateCounterpart?(
     event: PresentationEvent,
     sourceEventKeys: readonly string[],
-  ): DisplayIngestResult | void;
+    context?: DisplayLateCounterpartContext,
+  ): DisplayLateCounterpartResult | DisplayIngestResult | void;
+  /** ticker receipt が無い late action 用。card mutation だけを必ず確定する。 */
+  reconcileLateCounterpartCard?(
+    event: PresentationEvent,
+    context: DisplayLateCounterpartContext,
+  ): DisplayLateCounterpartResult | DisplayIngestResult | void;
   /** monitor 所有の表示状態が変化したとき、snapshot の再配信を要求する。 */
   markExternalStateDirty?(): void;
   publishStats?(stats: DisplayStatsV1): void;

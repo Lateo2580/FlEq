@@ -108,6 +108,18 @@ describe("SseClients", () => {
     expect(chunk).toContain('"sourceEventKeys":["source:key"]');
   });
 
+  it("6B後半: card payload を含む reconcile も同じ SSE id／byte guard 経路を通る", () => {
+    const clients = new SseClients();
+    const res = makeFakeRes();
+    clients.add(asRes(res));
+    const message: DisplayReconcileMessageV1 = { ...reconcileMsg(9), card: null };
+
+    expect(clients.broadcast(message)).toEqual({ total: 1, blockedSkipped: 0 });
+    const chunk = res.write.mock.calls[0][0] as string;
+    expect(chunk).toContain("id: 9\n");
+    expect(chunk).toContain('"card":null');
+  });
+
   it("③ write が false を返したクライアントは blocked になり以降 skip、drain 後に復帰", () => {
     const clients = new SseClients();
     const res = makeFakeRes();

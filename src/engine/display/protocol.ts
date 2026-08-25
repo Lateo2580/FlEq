@@ -995,3 +995,16 @@ export interface DisplayReconcileMessageV1 {
 
 /** DisplayServerMessage plus the server-side reconcile command. */
 export type DisplayServerMessageWithReconcile = DisplayServerMessage | DisplayReconcileMessageV1;
+
+/**
+ * Unit 2 の server-only additive payload。
+ *
+ * `DisplayReconcileMessageV1` の共通定義は frontend protocol と byte sync するため、
+ * frontend slice が targeted reduce を実装するまで declaration merge で server wire
+ * にだけ card payload を加える。SSE の実体型 (DisplayServerMessageWithReconcile) は
+ * この追加 field を含む。
+ */
+export interface DisplayReconcileMessageV1 {
+  /** card mutation 後の authoritative browser card。null は card の消滅を表す。 */
+  card?: Extract<ActiveStandbyCardV1, { kind: "briefing" }> | null;
+}

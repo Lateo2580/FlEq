@@ -438,6 +438,23 @@ describe("InfoDisplayHub: ingest / ring buffer", () => {
     expect(transport.messages.filter((message) => (message as { type: string }).type === "reconcile")).toHaveLength(0);
   });
 
+  it("6B後半: combined reconcile は card payload を同じ一 frame にだけ載せる", () => {
+    const { hub, transport } = makeHub();
+    const source = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (source.kind !== "applied" || source.eventKey == null) throw new Error("source key missing");
+
+    hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [source.eventKey],
+      { card: null },
+    );
+
+    expect(transport.messages.filter((message) => message.type === "reconcile")).toEqual([
+      expect.objectContaining({ card: null, sourceEventKeys: [source.eventKey] }),
+    ]);
+    expect(transport.messages.filter((message) => message.type === "state")).toHaveLength(0);
+  });
+
   it("6B後半: reconcile の noClients／blocked／byte guard は mutation を rollback せず snapshot で収束する", () => {
     const noClient = makeHub();
     noClient.transport.clients = 0;

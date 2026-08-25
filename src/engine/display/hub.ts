@@ -20,6 +20,7 @@ import type {
   DisplayIngestDelivery,
   DisplayIngestResult,
   DisplayIngestSink,
+  DisplayLateCounterpartContext,
   DisplayReconcileMessageV1,
   DisplayStateSnapshotV1,
   DisplayStatsV1,
@@ -207,6 +208,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
   reconcileLateCounterpart(
     event: PresentationEvent,
     sourceEventKeys: readonly string[],
+    context?: DisplayLateCounterpartContext,
   ): DisplayIngestResult {
     if (this.stopped) return { kind: "failure", status: "failure", reason: "hubStopped" };
     const exactSourceKeys = [...new Set(sourceEventKeys.filter((key) => key.trim() !== ""))];
@@ -247,6 +249,7 @@ export class InfoDisplayHub implements DisplayIngestSink {
         type: "reconcile",
         event: dto,
         sourceEventKeys: exactSourceKeys,
+        ...(context != null && "card" in context ? { card: context.card ?? null } : {}),
       };
       this.recent = nextRecent;
       this.seq = dto.seq;

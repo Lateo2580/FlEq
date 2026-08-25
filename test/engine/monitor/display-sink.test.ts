@@ -46,6 +46,17 @@ function weatherEvent(over: Partial<PresentationEvent>): PresentationEvent {
   } as PresentationEvent;
 }
 
+function cardEvent(
+  domain: "briefing" | "legacyCounterpart",
+  type: "VPBS50" | "VPOA50",
+  eventId: string,
+): PresentationEvent {
+  return {
+    ...weatherEvent({ domain, type }),
+    raw: { eventId } as unknown as PresentationEvent["raw"],
+  };
+}
+
 interface Harness {
   sink: DisplayIngestSink;
   promotions: WeatherPromotionStore;
@@ -111,20 +122,162 @@ describe("createDisplaySink (monitor の実配線)", () => {
     expect(h.sink.ingest(weatherEvent({ type: "VPWS50" }))).toBe(result);
   });
 
-  it("late reconcile capability を hub へ転送し、hub 不在は unsupported にする", () => {
+  it("late reconcile の ticker result は card result と分離して hub へ転送する", () => {
     const result: DisplayIngestResult = { kind: "applied", delivery: "delivered" };
     const reconcile = vi.fn(() => result);
     const h = harness();
     h.setHub({ ingest: () => undefined, reconcileLateCounterpart: reconcile });
     const event = weatherEvent({ type: "VPWS50" });
 
-    expect(h.sink.reconcileLateCounterpart?.(event, ["source:key"])).toBe(result);
+    expect(h.sink.reconcileLateCounterpart?.(event, ["source:key"])).toEqual({ tickerResult: result });
     expect(reconcile).toHaveBeenCalledWith(event, ["source:key"]);
 
     h.setHub(null);
-    expect(h.sink.reconcileLateCounterpart?.(event, ["source:key"])).toEqual({
-      kind: "unsupported",
-      reason: "hubUnavailable",
+    expect(h.sink.reconcileLateCounterpart?.(event, ["source:key"])).toEqual({});
+  });
+
+  it("combined reconcile は card/ticker を別結果にし、standby dirty を追加配信しない", () => {
+    const tickerResult: DisplayIngestResult = { kind: "applied", delivery: "delivered" };
+    const cardResult = {
+      kind: "applied" as const, status: "applied" as const, applied: true as const,
+      sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical",
+      generation: 2, expiresAt: "2026-07-25T23:00:00.000Z", canonicalInserted: true as const, evictedKey: null,
+    };
+    const reconcileTicker = vi.fn(() => tickerResult);
+    const markDirty = vi.fn();
+    let suppressions = 0;
+    const sink = createDisplaySink({
+      standby: {
+        applyEvent: () => undefined,
+        reconcileBriefingCard: vi.fn(() => cardResult),
+        snapshotBriefingCard: () => null,
+      },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => undefined, reconcileLateCounterpart: reconcileTicker, markExternalStateDirty: markDirty }),
+      withStandbyDirtySuppressed: (callback) => { suppressions += 1; return callback(); },
+      now: () => T0,
+    });
+    const source = cardEvent("legacyCounterpart", "VPOA50", "source");
+    const canonical = cardEvent("briefing", "VPBS50", "canonical");
+
+    expect(sink.reconcileLateCounterpart?.(canonical, ["ticker:source"], { sourceEvent: source })).toEqual({
+      tickerResult, cardResult,
+    });
+    expect(suppressions).toBe(1);
+    expect(markDirty).not.toHaveBeenCalled();
+    expect(reconcileTicker).toHaveBeenCalledWith(canonical, ["ticker:source"], expect.objectContaining({ card: null }));
+  });
+
+  it("combined reconcile で card snapshot の取得に失敗した場合は snapshot 再同期を予約する", () => {
+    const markDirty = vi.fn();
+    const reconcileTicker = vi.fn(() => ({ kind: "applied" as const }));
+    const cardResult = {
+      kind: "applied" as const, status: "applied" as const, applied: true as const,
+      sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical",
+      generation: 2, expiresAt: "2026-07-25T23:00:00.000Z", canonicalInserted: true as const, evictedKey: null,
+    };
+    const sink = createDisplaySink({
+      standby: {
+        applyEvent: () => undefined,
+        reconcileBriefingCard: () => cardResult,
+        snapshotBriefingCard: () => { throw new Error("snapshot failed"); },
+      },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => undefined, reconcileLateCounterpart: reconcileTicker, markExternalStateDirty: markDirty }),
+      now: () => T0,
+    });
+    const source = cardEvent("legacyCounterpart", "VPOA50", "source");
+    const canonical = cardEvent("briefing", "VPBS50", "canonical");
+
+    expect(sink.reconcileLateCounterpart?.(canonical, ["ticker:source"], { sourceEvent: source })).toMatchObject({
+      tickerResult: { kind: "applied" }, cardResult: { kind: "applied" },
+    });
+    expect(reconcileTicker).toHaveBeenCalledWith(canonical, ["ticker:source"], { sourceEvent: source });
+    expect(markDirty).toHaveBeenCalledTimes(1);
+  });
+
+  it("card reconcile の失敗は ticker reconcile を止めない", () => {
+    const reconcileTicker = vi.fn(() => ({ kind: "applied" as const }));
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, reconcileBriefingCard: () => { throw new Error("card failure"); } },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => undefined, reconcileLateCounterpart: reconcileTicker }),
+      now: () => T0,
+    });
+    const source = cardEvent("legacyCounterpart", "VPOA50", "source");
+    const canonical = cardEvent("briefing", "VPBS50", "canonical");
+
+    expect(sink.reconcileLateCounterpart?.(canonical, ["ticker:source"], { sourceEvent: source })).toMatchObject({
+      tickerResult: { kind: "applied" }, cardResult: { kind: "failure", reason: "cardReconcileFailed" },
+    });
+    expect(reconcileTicker).toHaveBeenCalledTimes(1);
+  });
+
+  it("combined ticker failure 後は card を snapshot dirty で収束させる", () => {
+    const markDirty = vi.fn();
+    const cardResult = {
+      kind: "applied" as const, status: "applied" as const, applied: true as const,
+      sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical",
+      generation: 2, expiresAt: "2026-07-25T23:00:00.000Z", canonicalInserted: true as const, evictedKey: null,
+    };
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, reconcileBriefingCard: () => cardResult, snapshotBriefingCard: () => null },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({
+        ingest: () => undefined,
+        reconcileLateCounterpart: () => ({ kind: "failure" as const, reason: "hubStopped" }),
+        markExternalStateDirty: markDirty,
+      }),
+      now: () => T0,
+    });
+    const source = cardEvent("legacyCounterpart", "VPOA50", "source");
+    const canonical = cardEvent("briefing", "VPBS50", "canonical");
+
+    expect(sink.reconcileLateCounterpart?.(canonical, ["ticker:source"], { sourceEvent: source })).toMatchObject({
+      tickerResult: { kind: "failure" }, cardResult: { kind: "applied" },
+    });
+    expect(markDirty).toHaveBeenCalledTimes(1);
+  });
+
+  it("card-only reconcile は ticker を触らず authoritative state を一回 dirty にする", () => {
+    const markDirty = vi.fn();
+    const cardResult = {
+      kind: "applied" as const, status: "applied" as const, applied: true as const,
+      sourceKey: "card:vpoa:source", canonicalKey: "card:vpbs:canonical",
+      generation: 2, expiresAt: "2026-07-25T23:00:00.000Z", canonicalInserted: true as const, evictedKey: null,
+    };
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => undefined, reconcileBriefingCard: () => cardResult, snapshotBriefingCard: () => null },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: vi.fn(), markExternalStateDirty: markDirty }),
+      now: () => T0,
+    });
+    const source = cardEvent("legacyCounterpart", "VPOA50", "source");
+    const canonical = cardEvent("briefing", "VPBS50", "canonical");
+
+    expect(sink.reconcileLateCounterpartCard?.(canonical, { sourceEvent: source })).toEqual({ cardResult });
+    expect(markDirty).toHaveBeenCalledTimes(1);
+  });
+
+  it("通常 briefing ingest は card generation を ticker result と別に返す", () => {
+    let generation = 1;
+    const tickerResult: DisplayIngestResult = { kind: "applied", eventKey: "briefing:canonical" };
+    const sink = createDisplaySink({
+      standby: { applyEvent: () => { generation += 1; }, briefingCardGeneration: () => generation },
+      promotions: new WeatherPromotionStore(),
+      weatherViews: { vpws50: () => undefined, vpww56: () => undefined },
+      getHub: () => ({ ingest: () => tickerResult }),
+      now: () => T0,
+    });
+    generation = 0;
+    expect(sink.ingest(weatherEvent({ domain: "briefing", type: "VPBS50", eventId: "canonical" }))).toEqual({
+      tickerResult,
+      cardResult: { kind: "applied", status: "applied", applied: true, generation: 1 },
     });
   });
 

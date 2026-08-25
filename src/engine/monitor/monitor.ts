@@ -12,7 +12,11 @@ import { withReplDisplay, updateReplConnectionState } from "./repl-coordinator";
 import { createShutdownHandler, registerShutdownSignals } from "./shutdown";
 import * as log from "../../logger";
 import type { PipelineController } from "../filter-template/pipeline-controller";
-import type { DisplayConnectionStateV1, DisplayIngestSink } from "../display/types";
+import type {
+  DisplayConnectionStateV1,
+  DisplayIngestSink,
+  DisplayLateCounterpartContext,
+} from "../display/types";
 import type { DisplayRuntime } from "../display/runtime";
 import { StandbyPersistence } from "../display/standby-persistence";
 import { StandbyStateStore } from "../display/standby-state-store";
@@ -124,7 +128,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     }),
   );
   let standbyDirtyNotify: (() => void) | null = null;
-  standbyStore.onChange(() => standbyDirtyNotify?.());
+  let standbyDirtySuppressed = false;
+  standbyStore.onChange(() => {
+    if (!standbyDirtySuppressed) standbyDirtyNotify?.();
+  });
   // 受信コールスタック上で同期 I/O を走らせない。実書き込みは debounce 後に非同期で行い、
   // 終了時は stopStandbySweep -> flush() で書き切る
   standbyStore.onDurable(() => standbyPersistence.schedule(standbyStore.exportActiveState()));
@@ -338,12 +345,27 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
     vpws50Identity: () => vpws50State.getCurrentIdentity(),
     getHub: () => displayHubRef,
+    withStandbyDirtySuppressed: <T>(callback: () => T): T => {
+      standbyDirtySuppressed = true;
+      try {
+        return callback();
+      } finally {
+        standbyDirtySuppressed = false;
+      }
+    },
   });
   const displaySink: DisplayIngestSink = {
     ingest: (e) => baseDisplaySink.ingest(e),
-    reconcileLateCounterpart: (e, sourceEventKeys) =>
-      baseDisplaySink.reconcileLateCounterpart?.(e, sourceEventKeys)
-      ?? { kind: "unsupported", reason: "capabilityUnavailable" },
+    ingestTickerOnly: (e) => baseDisplaySink.ingestTickerOnly?.(e),
+    reconcileLateCounterpart: (e, sourceEventKeys, context?: DisplayLateCounterpartContext) => {
+      const result = context == null
+        ? baseDisplaySink.reconcileLateCounterpart?.(e, sourceEventKeys)
+        : baseDisplaySink.reconcileLateCounterpart?.(e, sourceEventKeys, context);
+      return result ?? { kind: "unsupported", reason: "capabilityUnavailable" };
+    },
+    reconcileLateCounterpartCard: (e, context) =>
+      baseDisplaySink.reconcileLateCounterpartCard?.(e, context)
+      ?? {},
     publishStats: (s) => displayHubRef?.publishStats?.(s),
   };
   let displayRuntime: DisplayRuntime | null = null;

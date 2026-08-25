@@ -23,9 +23,15 @@ import { assertNever } from "../../utils/assert-never";
 import { SummaryWindowTracker } from "./summary-tracker";
 import { DailyQuakeCounter } from "./daily-quake-counter";
 import type {
+  DisplayCardIngestResult,
+  DisplayCardMutationMetricEvent,
+  DisplayCardReconcileResult,
+  DisplayIngestOutcome,
   DisplayIngestResult,
+  DisplayLateCounterpartResult,
   DisplayReceiptClock,
   DisplayReceiptTimerScheduler,
+  DisplayLateCounterpartContext,
   DisplayStatsV1,
 } from "../display/types";
 import { processMessage as processMsg, ProcessDeps } from "../presentation/processors/process-message";
@@ -66,10 +72,13 @@ export const LEGACY_DISPLAY_RECEIPT_CAPACITY = 512;
 export const LEGACY_DISPLAY_RECEIPT_EVENT_KEY_CAPACITY = 32;
 export const LEGACY_DISPLAY_RECEIPT_RETENTION_MS = 11 * 60_000;
 
-type DisplayIngestOperation = (event: PresentationEvent) => DisplayIngestResult | void | number;
+type DisplayIngestOperation = (
+  event: PresentationEvent,
+) => DisplayIngestResult | DisplayIngestOutcome | DisplayLateCounterpartResult | void | number;
 
 interface DisplayIngestCapture {
   result?: DisplayIngestResult;
+  cardResult?: DisplayCardIngestResult | DisplayCardReconcileResult;
 }
 
 interface DisplayReceipt {
@@ -103,16 +112,40 @@ function isDisplayIngestResult(value: unknown): value is DisplayIngestResult {
   return kind === "applied" || kind === "unsupported" || kind === "failure" || kind === "failed";
 }
 
+function tickerResultOf(result: unknown): DisplayIngestResult | undefined {
+  if (isDisplayIngestResult(result)) return result;
+  if (typeof result !== "object" || result == null || !("tickerResult" in result)) return undefined;
+  return isDisplayIngestResult(result.tickerResult) ? result.tickerResult : undefined;
+}
+
+function cardResultOf(result: unknown): DisplayCardIngestResult | DisplayCardReconcileResult | undefined {
+  if (typeof result !== "object" || result == null || !("cardResult" in result)) return undefined;
+  const cardResult = result.cardResult;
+  if (typeof cardResult !== "object" || cardResult == null || !("kind" in cardResult)) return undefined;
+  return cardResult as DisplayCardIngestResult | DisplayCardReconcileResult;
+}
+
 function displayIngestApplied(result: unknown): result is Extract<DisplayIngestResult, { kind: "applied" }> {
-  return isDisplayIngestResult(result) && result.kind === "applied";
+  const tickerResult = tickerResultOf(result);
+  return tickerResult != null && tickerResult.kind === "applied";
+}
+
+function cardMutationMetric(
+  result: DisplayIngestCapture["cardResult"],
+  kind: "ingest" | "reconcile",
+  sourceType: string,
+): DisplayCardMutationMetricEvent | undefined {
+  if (result?.kind !== "applied") return undefined;
+  return { kind, generation: result.generation, sourceType };
 }
 
 function displayIngestEventKeys(result: unknown): readonly string[] {
-  if (!displayIngestApplied(result)) return [];
+  const tickerResult = tickerResultOf(result);
+  if (tickerResult?.kind !== "applied") return [];
   const candidates = [
-    ...(result.eventKeys ?? []),
-    ...(result.tickerEventKeys ?? []),
-    ...(result.eventKey == null ? [] : [result.eventKey]),
+    ...(tickerResult.eventKeys ?? []),
+    ...(tickerResult.tickerEventKeys ?? []),
+    ...(tickerResult.eventKey == null ? [] : [tickerResult.eventKey]),
   ];
   const seen = new Set<string>();
   const keys: string[] = [];
@@ -581,6 +614,8 @@ export interface MessageHandlerOptions {
   pipeline?: FilterTemplatePipeline;
   display?: DisplayCallbacks;
   displaySink?: DisplayIngestSink;
+  /** Unit 4 が telegram-stats へ接続する card mutation の generation 境界。 */
+  onCardMutationApplied?: (event: DisplayCardMutationMetricEvent) => void;
   /** 分類済みの全電文を観測する汎用 tap (同期・軽量前提)。@see RoutedMessageTap */
   routeTaps?: readonly RoutedMessageTap[];
   /** 処理済み outcome を観測する汎用 tap (同期・軽量前提)。@see ProcessedOutcomeTap */
@@ -643,6 +678,16 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const display = options?.display;
   const displaySink = options?.displaySink;
+  let highestCardMutationGeneration = 0;
+  const emitCardMutationApplied = (event: DisplayCardMutationMetricEvent | undefined): void => {
+    if (event == null || event.generation <= highestCardMutationGeneration) return;
+    highestCardMutationGeneration = event.generation;
+    try {
+      options?.onCardMutationApplied?.(event);
+    } catch {
+      // metric observer は電文処理を止めない。
+    }
+  };
   const displayReceiptClock: DisplayReceiptClock = options?.displayReceiptClock ?? {
     nowMs: () => Date.now(),
   };
@@ -808,17 +853,29 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       if (isVolcanoBatch && outcome.sources.length > 0) {
         for (const volcanoEvent of expandVolcanoBatchForDisplay(outcome)) {
           const result = displaySink?.ingest(volcanoEvent);
-          if (displayIngestCapture != null && isDisplayIngestResult(result)) {
-            displayIngestCapture.result = result;
+          const tickerResult = tickerResultOf(result);
+          const cardResult = cardResultOf(result);
+          if (displayIngestCapture != null) {
+            if (tickerResult != null) displayIngestCapture.result = tickerResult;
+            if (cardResult != null) displayIngestCapture.cardResult = cardResult;
           }
+          emitCardMutationApplied(cardMutationMetric(cardResult, "ingest", volcanoEvent.type));
         }
       } else {
         const result = displayIngestOverride == null
           ? displaySink?.ingest(event)
           : displayIngestOverride(event);
-        if (displayIngestCapture != null && isDisplayIngestResult(result)) {
-          displayIngestCapture.result = result;
+        const tickerResult = tickerResultOf(result);
+        const cardResult = cardResultOf(result);
+        if (displayIngestCapture != null) {
+          if (tickerResult != null) displayIngestCapture.result = tickerResult;
+          if (cardResult != null) displayIngestCapture.cardResult = cardResult;
         }
+        emitCardMutationApplied(cardMutationMetric(
+          cardResult,
+          displayIngestOverride == null ? "ingest" : "reconcile",
+          event.type,
+        ));
       }
       displaySink?.publishStats?.(buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, statsAtMs));
     } catch {
@@ -1061,35 +1118,65 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
             // 完了済みなので、canonical 通常 ingest へ落とさず状態を不変に保つ。
             break;
           }
-          const displayIngestOverride: DisplayIngestOperation | undefined = receipt == null
-            ? undefined
-            : (event) => {
-              let result: DisplayIngestResult | void;
-              try {
-                result = displaySink?.reconcileLateCounterpart?.(
+          const hasCardOnlyCapability = displaySink?.reconcileLateCounterpartCard != null;
+          const hasTickerReconcileCapability = displaySink?.reconcileLateCounterpart != null;
+          const displayIngestOverride: DisplayIngestOperation | undefined = (event) => {
+            let sourceEvent: PresentationEvent | undefined;
+            try {
+              sourceEvent = toPresentationEvent(disposition.sourceOutcome);
+            } catch {
+              sourceEvent = undefined;
+            }
+            const context: DisplayLateCounterpartContext = sourceEvent == null ? {} : { sourceEvent };
+            let lateResult: DisplayLateCounterpartResult | DisplayIngestResult | void = undefined;
+            try {
+              if (receipt != null && hasTickerReconcileCapability) {
+                lateResult = displaySink?.reconcileLateCounterpart?.(
                   event,
                   receipt.sourceEventKeys,
+                  context,
                 );
-              } catch {
-                result = undefined;
+              } else if (hasCardOnlyCapability) {
+                // receipt の有無ではなく card capability で配送を決める。
+                lateResult = displaySink?.reconcileLateCounterpartCard?.(event, context);
               }
-              if (displayIngestApplied(result)) {
-                // delivery の成否とは別に、server-side ticker mutation が applied なら
-                // receipt generation ごとに一度だけ production metric を確定する。
-                // noClients／blocked／byteGuardDropped は mutation の rollback 理由にしない。
-                if (displayReceipts.consume(receipt)) {
-                  stats.recordFoundationForHeadType(
-                    disposition.sourceOutcome.parsed.type,
-                    "legacyLateCounterpartReconciled",
-                    actionNowMs,
-                  );
-                }
-                return result;
+            } catch {
+              lateResult = undefined;
+            }
+
+            const cardResult = cardResultOf(lateResult) as DisplayCardReconcileResult | undefined;
+            const tickerResult = tickerResultOf(lateResult);
+            if (receipt != null && tickerResult?.kind === "applied") {
+              // ticker receipt の一回性は card generation と独立する。
+              if (displayReceipts.consume(receipt)) {
+                stats.recordFoundationForHeadType(
+                  disposition.sourceOutcome.parsed.type,
+                  "legacyLateCounterpartReconciled",
+                  actionNowMs,
+                );
               }
-              // capability 不在／hub 停止／mutation failure は canonical event の通常
-              // ingest へ一回だけ fail-open する。receipt は成功時以外消費しない。
-              return displaySink?.ingest(event);
+              return lateResult;
+            }
+
+            // card result では ticker fallback を止めない。card capable sink には必ず
+            // ticker-only 経路を使い、canonical card を二度 apply しない。
+            let fallbackResult: DisplayIngestResult | void | number | DisplayIngestOutcome;
+            try {
+              fallbackResult = displaySink?.ingestTickerOnly?.(event);
+              // card capability を持たない旧 ticker-only sink だけは既存 ingest へ戻す。
+              // card capable sink は ticker-only capability が無い場合でも card を二度 apply しない。
+              if (fallbackResult == null && !hasCardOnlyCapability) {
+                fallbackResult = displaySink?.ingest(event);
+              }
+            } catch {
+              fallbackResult = undefined;
+            }
+            const fallbackTickerResult = tickerResultOf(fallbackResult);
+            return {
+              ...(fallbackTickerResult == null ? {} : { tickerResult: fallbackTickerResult }),
+              ...(cardResult == null ? {} : { cardResult }),
             };
+          };
           if (disposition.outcome !== triggerOutcome) {
             emitAcceptedOutcome(
               disposition.outcome,
