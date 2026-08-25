@@ -69,12 +69,19 @@ export function expiryFromReport(reportTimeMs: number, nowMs: number, ttlMs: num
 export interface DisplayMutation {
   viewChanged: boolean;
   durableChanged: boolean;
+  /** briefing card の容量 eviction を sink へ一段だけ伝える内部 metadata。 */
+  cardEvictedKey?: string;
 }
 
 export const NO_MUTATION: DisplayMutation = { viewChanged: false, durableChanged: false };
 
 export function mergeMutation(a: DisplayMutation, b: DisplayMutation): DisplayMutation {
-  return { viewChanged: a.viewChanged || b.viewChanged, durableChanged: a.durableChanged || b.durableChanged };
+  const cardEvictedKey = b.cardEvictedKey ?? a.cardEvictedKey;
+  return {
+    viewChanged: a.viewChanged || b.viewChanged,
+    durableChanged: a.durableChanged || b.durableChanged,
+    ...(cardEvictedKey == null ? {} : { cardEvictedKey }),
+  };
 }
 
 export function sortStandbyItems(items: ActiveStandbyCardV1[]): ActiveStandbyCardV1[] {

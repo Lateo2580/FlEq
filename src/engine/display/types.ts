@@ -58,6 +58,8 @@ export interface DisplayCardIngestResult {
   status: "applied";
   applied: true;
   generation: number;
+  /** 容量超過で同一 mutation 中に追い出した card entry。 */
+  evictedKey?: string;
 }
 
 /** card reconcile が例外になった場合も ticker result と独立して返す。 */
@@ -85,6 +87,8 @@ export interface DisplayCardMutationMetricEvent {
   kind: "ingest" | "reconcile";
   generation: number;
   sourceType: string;
+  /** 容量 eviction を伴う applied mutation のときだけ存在する。 */
+  evictedKey?: string;
 }
 
 /** typed late counterpart action が sink 間を渡す、ticker/card 分離済みの補助情報。 */

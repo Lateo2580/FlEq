@@ -99,6 +99,9 @@ const FOUNDATION_METRICS = [
   "legacySourceArrivedFirst",
   "legacyLateCounterpartReconciled",
   "legacyLateCounterpartExpired",
+  "legacyCardDisplayed",
+  "legacyCardReconciled",
+  "legacyCardEvicted",
 ] as const;
 
 export type TelegramFoundationMetric = (typeof FOUNDATION_METRICS)[number];

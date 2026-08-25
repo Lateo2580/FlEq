@@ -258,6 +258,25 @@ describe("TelegramStats", () => {
       expect(vxse44?.vxse44SuppressedByCapability).toBe(1);
     });
 
+    it("card metric は既存 ticker metric と独立した additive counter として初期化・加算される", () => {
+      const metrics = [
+        "legacyCardDisplayed",
+        "legacyCardReconciled",
+        "legacyCardEvicted",
+      ] as const satisfies readonly TelegramFoundationMetric[];
+      for (const metric of metrics) {
+        stats.recordFoundationForHeadType("VPBS50", metric, BASE);
+      }
+
+      const snapshot = stats.getSnapshot(BASE);
+      const local = snapshot.foundationByHeadType.get("VPBS50");
+      for (const metric of metrics) {
+        expect(snapshot.foundation[metric]).toBe(1);
+        expect(local?.[metric]).toBe(1);
+      }
+      expect(snapshot.foundation.legacyLateCounterpartReconciled).toBe(0);
+    });
+
     it("同じ metric を複数 head type へ独立して記録する", () => {
       stats.recordFoundationForHeadType("VXSE44", "semanticDuplicate", BASE);
       stats.recordFoundationForHeadType("VXSE45", "semanticDuplicate", BASE);

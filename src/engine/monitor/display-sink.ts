@@ -116,6 +116,7 @@ function briefingCardIngestResult(
   event: PresentationEvent,
   beforeGeneration: number | undefined,
   afterGeneration: number | undefined,
+  mutation: unknown,
 ): DisplayCardIngestResult | undefined {
   if (
     !["briefing", "legacyCounterpart"].includes(event.domain)
@@ -123,7 +124,14 @@ function briefingCardIngestResult(
     || afterGeneration == null
     || beforeGeneration === afterGeneration
   ) return undefined;
-  return { kind: "applied", status: "applied", applied: true, generation: afterGeneration };
+  const evictedKey = typeof mutation === "object" && mutation != null && "cardEvictedKey" in mutation
+    && typeof mutation.cardEvictedKey === "string"
+    ? mutation.cardEvictedKey
+    : undefined;
+  return {
+    kind: "applied", status: "applied", applied: true, generation: afterGeneration,
+    ...(evictedKey == null ? {} : { evictedKey }),
+  };
 }
 
 function tickerResultOf(value: unknown): DisplayIngestResult | undefined {
@@ -142,11 +150,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
   const ingest = (event: PresentationEvent): DisplayIngestResult | DisplayIngestOutcome | void | number => {
       const nowMs = now();
       const beforeCardGeneration = deps.standby.briefingCardGeneration?.();
-      deps.standby.applyEvent(event, nowMs);
+      const standbyMutation = deps.standby.applyEvent(event, nowMs);
       const cardResult = briefingCardIngestResult(
         event,
         beforeCardGeneration,
         deps.standby.briefingCardGeneration?.(),
+        standbyMutation,
       );
       const unsafeVpws50 = event.type === "VPWS50" && event.weatherConfidence === "unsafe";
       const acceptedVpww56Mutation = event.type !== "VPWW56"

@@ -136,7 +136,12 @@ function cardMutationMetric(
   sourceType: string,
 ): DisplayCardMutationMetricEvent | undefined {
   if (result?.kind !== "applied") return undefined;
-  return { kind, generation: result.generation, sourceType };
+  return {
+    kind,
+    generation: result.generation,
+    sourceType,
+    ...(result.evictedKey == null ? {} : { evictedKey: result.evictedKey }),
+  };
 }
 
 function displayIngestEventKeys(result: unknown): readonly string[] {
@@ -678,16 +683,6 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const pipeline: FilterTemplatePipeline = options?.pipeline ?? { filter: null, template: null, focus: null };
   const display = options?.display;
   const displaySink = options?.displaySink;
-  let highestCardMutationGeneration = 0;
-  const emitCardMutationApplied = (event: DisplayCardMutationMetricEvent | undefined): void => {
-    if (event == null || event.generation <= highestCardMutationGeneration) return;
-    highestCardMutationGeneration = event.generation;
-    try {
-      options?.onCardMutationApplied?.(event);
-    } catch {
-      // metric observer は電文処理を止めない。
-    }
-  };
   const displayReceiptClock: DisplayReceiptClock = options?.displayReceiptClock ?? {
     nowMs: () => Date.now(),
   };
@@ -730,6 +725,23 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       return callback();
     } finally {
       activeMessageStatsNowMs = null;
+    }
+  };
+  let highestCardMutationGeneration = 0;
+  const emitCardMutationApplied = (event: DisplayCardMutationMetricEvent | undefined): void => {
+    if (event == null || event.generation <= highestCardMutationGeneration) return;
+    highestCardMutationGeneration = event.generation;
+    const metric = event.kind === "ingest"
+      ? "legacyCardDisplayed"
+      : "legacyCardReconciled";
+    stats.recordFoundationForHeadType(event.sourceType, metric, callbackStatsNowMs());
+    if (event.evictedKey != null) {
+      stats.recordFoundationForHeadType(event.sourceType, "legacyCardEvicted", callbackStatsNowMs());
+    }
+    try {
+      options?.onCardMutationApplied?.(event);
+    } catch {
+      // metric observer は電文処理を止めない。
     }
   };
   const eewTracker = new EewTracker({

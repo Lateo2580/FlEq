@@ -24,6 +24,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:shuffle": "vitest run --sequence.shuffle",
+    "test:phase6b-production": "npm --prefix display run test -- --config vitest.phase6b-production.config.ts",
     "typecheck:test": "tsc -p tsconfig.test.json",
     "prepack": "npm run build && npm run display:build",
     "prepublishOnly": "npm test",

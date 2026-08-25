@@ -69,9 +69,11 @@ const HOUR_MS = 60 * 60_000;
 const NANKAI_TTL_MS = 7 * DAY_MS;
 
 function combineMutations(left: DisplayMutation, right: DisplayMutation): DisplayMutation {
+  const cardEvictedKey = right.cardEvictedKey ?? left.cardEvictedKey;
   return {
     viewChanged: left.viewChanged || right.viewChanged,
     durableChanged: left.durableChanged || right.durableChanged,
+    ...(cardEvictedKey == null ? {} : { cardEvictedKey }),
   };
 }
 
@@ -1670,7 +1672,12 @@ function compareBriefingKeys(left: string, right: string): number {
 }
 
 function briefingCardMutationToDisplayMutation(result: BriefingCardMutationResult): DisplayMutation {
-  return result.applied ? { viewChanged: true, durableChanged: false } : NO_MUTATION;
+  if (!result.applied) return NO_MUTATION;
+  return {
+    viewChanged: true,
+    durableChanged: false,
+    ...(result.evictedKey == null ? {} : { cardEvictedKey: result.evictedKey }),
+  };
 }
 
 function copyBriefingEntry(entry: DisplayBriefingEntryV1): DisplayBriefingEntryV1 {

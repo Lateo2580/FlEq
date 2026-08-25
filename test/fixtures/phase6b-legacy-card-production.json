@@ -1,0 +1,263 @@
+{
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-22T08:20:00.000Z",
+    "seq": 2,
+    "activeEews": [],
+    "tsunami": null,
+    "largeQuakes": [],
+    "weatherAlerts": [],
+    "weatherChange": null,
+    "weatherPromotion": {
+      "vpws50": null,
+      "vpww56": null,
+      "activationKey": "0"
+    },
+    "weatherL5Active": false,
+    "weatherExpandedKinds": [],
+    "recentQuakes": [],
+    "latestQuake": null,
+    "stats": null,
+    "severityTier": "alert",
+    "backgroundTone": "alert",
+    "connection": {
+      "dmdata": "connecting",
+      "lastReceivedAt": "2026-08-22T08:10:00.001Z",
+      "disconnectedSince": null,
+      "reason": null
+    },
+    "recentTicker": [
+      {
+        "version": 1,
+        "seq": 2,
+        "id": "production:counterpart:KJPTK202608221709_202608221709",
+        "eventKey": "briefing:KJPTK202608221709_202608221709:1",
+        "groupKey": null,
+        "domain": "briefing",
+        "type": "VPBS50",
+        "infoType": "発表",
+        "reportDateTime": "2026-08-22T17:09:00+09:00",
+        "serial": "1",
+        "title": "東京都気象防災速報（記録的短時間大雨）",
+        "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+        "publishingOffice": "気象庁",
+        "isTest": false,
+        "frameLevel": "critical",
+        "isCancellation": false,
+        "summary": {
+          "text": "東京都気象防災速報（記録的短時間大雨）",
+          "role": "critical"
+        },
+        "emergency": null,
+        "recentQuake": null,
+        "tickerDetail": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。 ▪ 記録雨: 東京地方",
+        "tickerCategory": "気象防災速報",
+        "tickerSubject": null,
+        "tickerSuppressed": false,
+        "tickerSurface": "none",
+        "tickerSentence": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+        "tickerPriority": "high",
+        "tickerBody": null,
+        "tickerEmphasis": null,
+        "latestQuake": null
+      }
+    ],
+    "standbyItems": [
+      {
+        "kind": "briefing",
+        "surface": "corner-right",
+        "key": "briefing:active",
+        "sourceEventIds": [
+          "KJPTK202608221709_202608221709"
+        ],
+        "updatedAt": "2026-08-22T08:09:00.000Z",
+        "expiresAt": "2026-08-22T10:09:00.000Z",
+        "restored": false,
+        "severity": "critical",
+        "data": {
+          "generation": 2,
+          "entries": [
+            {
+              "key": "card:vpbs:KJPTK202608221709_202608221709",
+              "source": "vpbs50",
+              "sourceEventId": "KJPTK202608221709_202608221709",
+              "title": "東京都気象防災速報（記録的短時間大雨）",
+              "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+              "conditions": [
+                "記録雨"
+              ],
+              "targetAreas": [
+                {
+                  "name": "東京地方",
+                  "code": "130010"
+                }
+              ],
+              "reportDateTime": "2026-08-22T17:09:00+09:00",
+              "publishingOffice": "気象庁",
+              "infoType": "発表",
+              "frameLevel": "critical",
+              "severityEvidence": [
+                {
+                  "source": "map",
+                  "condition": "記録雨",
+                  "tag": "recordRain",
+                  "displaySeverity": "nonLevelSpecial",
+                  "soundLevel": "warning",
+                  "severity": null,
+                  "phenomenonCode": null,
+                  "kindCode": null,
+                  "levelCode": null,
+                  "status": null
+                }
+              ],
+              "qualifier": null,
+              "updatedAt": "2026-08-22T08:09:00.000Z",
+              "expiresAt": "2026-08-22T10:09:00.000Z",
+              "generation": 2
+            }
+          ]
+        }
+      }
+    ],
+    "mapLayers": {
+      "quake": {
+        "events": [],
+        "nonEmergencyHost": null
+      }
+    }
+  },
+  "messages": [
+    {
+      "type": "event",
+      "event": {
+        "version": 1,
+        "seq": 1,
+        "id": "legacy:VPOA50:JPTK202608221709_202608221709",
+        "eventKey": "legacy:VPOA50:JPTK202608221709_202608221709:revision:[\"1\",\"2026-08-22T17:09:00+09:00\",\"production:source:JPTK202608221709_202608221709\"]",
+        "groupKey": null,
+        "domain": "legacyCounterpart",
+        "type": "VPOA50",
+        "infoType": "発表",
+        "reportDateTime": "2026-08-22T17:09:00+09:00",
+        "serial": "1",
+        "title": "東京都記録的短時間大雨情報",
+        "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。 北区付近で１時間に約１００ミリ。 板橋区付近で１時間に約１００ミリ。 猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+        "publishingOffice": "気象庁",
+        "isTest": false,
+        "frameLevel": "warning",
+        "isCancellation": false,
+        "summary": {
+          "text": "東京都記録的短時間大雨情報",
+          "role": "warning"
+        },
+        "emergency": null,
+        "recentQuake": null,
+        "tickerDetail": "１７時、東京都北区、板橋区で記録的短時間大雨。 北区付近で１時間に約１００ミリ。 板橋区付近で１時間に約１００ミリ。 猛烈な雨が降っており、災害発生の危険度が急激に高まっています。 ▪ 対応電文未確認 ▪ 対象地域 東京都（130000） ▪ 種別 記録的短時間大雨情報（1）",
+        "tickerCategory": "旧形式防災情報",
+        "tickerSubject": null,
+        "tickerSuppressed": false,
+        "tickerSurface": "none",
+        "tickerSentence": "１７時、東京都北区、板橋区で記録的短時間大雨。 北区付近で１時間に約１００ミリ。 板橋区付近で１時間に約１００ミリ。 猛烈な雨が降っており、災害発生の危険度が急激に高まっています。対応電文未確認 対象地域 東京都（130000）、種別 記録的短時間大雨情報（1）。",
+        "tickerPriority": "mid",
+        "tickerBody": null,
+        "tickerEmphasis": null,
+        "latestQuake": null
+      }
+    },
+    {
+      "type": "reconcile",
+      "event": {
+        "version": 1,
+        "seq": 2,
+        "id": "production:counterpart:KJPTK202608221709_202608221709",
+        "eventKey": "briefing:KJPTK202608221709_202608221709:1",
+        "groupKey": null,
+        "domain": "briefing",
+        "type": "VPBS50",
+        "infoType": "発表",
+        "reportDateTime": "2026-08-22T17:09:00+09:00",
+        "serial": "1",
+        "title": "東京都気象防災速報（記録的短時間大雨）",
+        "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+        "publishingOffice": "気象庁",
+        "isTest": false,
+        "frameLevel": "critical",
+        "isCancellation": false,
+        "summary": {
+          "text": "東京都気象防災速報（記録的短時間大雨）",
+          "role": "critical"
+        },
+        "emergency": null,
+        "recentQuake": null,
+        "tickerDetail": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。 ▪ 記録雨: 東京地方",
+        "tickerCategory": "気象防災速報",
+        "tickerSubject": null,
+        "tickerSuppressed": false,
+        "tickerSurface": "none",
+        "tickerSentence": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+        "tickerPriority": "high",
+        "tickerBody": null,
+        "tickerEmphasis": null,
+        "latestQuake": null
+      },
+      "sourceEventKeys": [
+        "legacy:VPOA50:JPTK202608221709_202608221709:revision:[\"1\",\"2026-08-22T17:09:00+09:00\",\"production:source:JPTK202608221709_202608221709\"]"
+      ],
+      "card": {
+        "kind": "briefing",
+        "surface": "corner-right",
+        "key": "briefing:active",
+        "sourceEventIds": [
+          "KJPTK202608221709_202608221709"
+        ],
+        "updatedAt": "2026-08-22T08:09:00.000Z",
+        "expiresAt": "2026-08-22T10:09:00.000Z",
+        "restored": false,
+        "severity": "critical",
+        "data": {
+          "generation": 2,
+          "entries": [
+            {
+              "key": "card:vpbs:KJPTK202608221709_202608221709",
+              "source": "vpbs50",
+              "sourceEventId": "KJPTK202608221709_202608221709",
+              "title": "東京都気象防災速報（記録的短時間大雨）",
+              "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
+              "conditions": [
+                "記録雨"
+              ],
+              "targetAreas": [
+                {
+                  "name": "東京地方",
+                  "code": "130010"
+                }
+              ],
+              "reportDateTime": "2026-08-22T17:09:00+09:00",
+              "publishingOffice": "気象庁",
+              "infoType": "発表",
+              "frameLevel": "critical",
+              "severityEvidence": [
+                {
+                  "source": "map",
+                  "condition": "記録雨",
+                  "tag": "recordRain",
+                  "displaySeverity": "nonLevelSpecial",
+                  "soundLevel": "warning",
+                  "severity": null,
+                  "phenomenonCode": null,
+                  "kindCode": null,
+                  "levelCode": null,
+                  "status": null
+                }
+              ],
+              "qualifier": null,
+              "updatedAt": "2026-08-22T08:09:00.000Z",
+              "expiresAt": "2026-08-22T10:09:00.000Z",
+              "generation": 2
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
