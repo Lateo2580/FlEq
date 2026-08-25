@@ -271,6 +271,12 @@ export class InfoDisplayHub implements DisplayIngestSink {
         ? "noClients"
         : "blockedSkipped";
     }
+    if (delivery === "blockedSkipped" || delivery === "byteGuardDropped") {
+      // mutation は commit 済みだが生存 client が reconcile frame を受け取れていない。
+      // 次の state 配信で authoritative ticker を送り、既存の retry ラダーへ乗せる。
+      this.tickerSyncPending = true;
+      this.markStateDirty();
+    }
     this.consecutiveErrors = 0;
     return {
       kind: "applied",
@@ -529,10 +535,11 @@ export class InfoDisplayHub implements DisplayIngestSink {
         if (hadTickerSync) {
           // authoritative sync が「完全な構成で」かつ「全 client へ」届いたときだけ pending を落とす。
           // backpressure 中の client は state broadcast をスキップされるため、その分は届いておらず
-          // pending を落とすと stale ticker が再接続まで残る (最終レビュー finding 2)。blockedSkipped>0 なら
-          // pending 維持で再試行し、blocked client は drain で受け取るか MAX_BLOCKED_MS 超過で切断され
+          // pending を落とすと stale ticker が再接続まで残る (最終レビュー finding 2)。blockedSkipped>0 または
+          // byteGuardDropped なら pending 維持で再試行し、blocked client は drain で受け取るか MAX_BLOCKED_MS 超過で切断され
           // 再接続時の完全な snapshot で整合する。transport 未接続 (delivery==null) は client 0 扱い
-          const fullyDelivered = delivery == null || delivery.blockedSkipped === 0;
+          const fullyDelivered = delivery == null
+            || (delivery.blockedSkipped === 0 && delivery.byteGuardDropped !== true);
           if (result.snapshot.tickerSynced === true && fullyDelivered) {
             this.tickerSyncPending = false;
             this.clearTickerSyncRetry();

@@ -18,6 +18,10 @@ import type {
   DisplayWeatherAlertV1,
 } from "../../../src/engine/display/types";
 import type { PresentationEvent, PresentationTsunamiObservation } from "../../../src/engine/presentation/types";
+import {
+  initialState as initialFrontendState,
+  reduce as reduceFrontend,
+} from "../../../display/frontend/src/lib/store";
 import { Vpws50StateHolder } from "../../../src/engine/messages/vpws50-state";
 import { weatherAlertsFromVpws50 } from "../../../src/engine/display/runtime";
 import { computeMaxDisplaySeverity, computeMaxSoundLevel } from "../../../src/dmdata/weather-warning-level";
@@ -62,10 +66,13 @@ class FakeTransport implements DisplayTransport {
   blockedSkipped = 0;
   /** byte 上限で frame 全体を落とした配送診断を模す。 */
   byteGuardDropped = false;
+  /** reconcile frame の broadcast 例外を模す。 */
+  throwOnReconcile = false;
   clients = 1;
   async start(): Promise<void> {}
   async stop(): Promise<void> {}
   broadcast(msg: DisplayServerMessageWithReconcile): DisplayBroadcastResult {
+    if (this.throwOnReconcile && msg.type === "reconcile") throw new Error("synthetic transport failure");
     this.messages.push(msg);
     return {
       total: this.clients,
@@ -515,6 +522,74 @@ describe("InfoDisplayHub: ingest / ring buffer", () => {
     expect(broadcast).toHaveBeenCalledTimes(1);
     expect(hub.ingest(weatherEvent("after-reconcile"))).toMatchObject({ kind: "applied", seq: 3 });
     expect(broadcast).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    "blockedSkipped",
+    "byteGuardDropped",
+    "broadcastThrow",
+  ] as const)("6B後半: reconcile の %s は tickerSynced:true state / retry で frontend ticker を収束させる", (failure) => {
+    vi.useFakeTimers();
+    const { hub, transport } = makeHub();
+    let frontend = reduceFrontend(initialFrontendState(), {
+      type: "snapshot",
+      snapshot: hub.buildSnapshot(),
+    });
+    const source = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (source.kind !== "applied" || source.eventKey == null) throw new Error("source key missing");
+    const sourceFrame = transport.events()[0];
+    if (sourceFrame == null) throw new Error("source event frame missing");
+    frontend = reduceFrontend(frontend, sourceFrame);
+    expect(frontend.ticker.map((event) => event.type)).toEqual(["VPOA50"]);
+
+    if (failure === "blockedSkipped") transport.blockedSkipped = 1;
+    if (failure === "byteGuardDropped") transport.byteGuardDropped = true;
+    if (failure === "broadcastThrow") transport.throwOnReconcile = true;
+    expect(hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [source.eventKey],
+    )).toMatchObject({
+      kind: "applied",
+      delivery: failure === "broadcastThrow" ? "blockedSkipped" : failure,
+    });
+
+    vi.advanceTimersByTime(STATE_DEBOUNCE_MS);
+    expect(transport.states()).toHaveLength(1);
+    expect(transport.states()[0]!.snapshot.tickerSynced).toBe(true);
+    if (failure === "broadcastThrow") {
+      // reconcile だけが例外でも、直後の authoritative state が全配送できれば一回で収束する。
+      frontend = reduceFrontend(frontend, transport.states()[0]!);
+      expect(frontend.ticker.map((event) => event.type)).toEqual(["VPBS50"]);
+      expect(frontend.ticker.some((event) => event.type === "VPOA50")).toBe(false);
+      return;
+    }
+
+    // 最初の authoritative state も同じ未達条件で失われ、pending が retry まで残る。
+    if (failure === "blockedSkipped") transport.blockedSkipped = 0;
+    if (failure === "byteGuardDropped") transport.byteGuardDropped = false;
+
+    vi.advanceTimersByTime(TICKER_SYNC_RETRY_MS);
+    vi.advanceTimersByTime(STATE_DEBOUNCE_MS);
+    expect(transport.states()).toHaveLength(2);
+    const retry = transport.states()[1]!;
+    expect(retry.snapshot.tickerSynced).toBe(true);
+    frontend = reduceFrontend(frontend, retry);
+    expect(frontend.ticker.map((event) => event.type)).toEqual(["VPBS50"]);
+    expect(frontend.ticker.some((event) => event.type === "VPOA50")).toBe(false);
+  });
+
+  it("6B後半: reconcile の全 client 配送成功時は余分な ticker authoritative sync を予約しない", () => {
+    vi.useFakeTimers();
+    const { hub, transport } = makeHub();
+    const source = hub.ingest(vpoaTickerEvent("2026-07-06T20:00:00+09:00"));
+    if (source.kind !== "applied" || source.eventKey == null) throw new Error("source key missing");
+
+    expect(hub.reconcileLateCounterpart(
+      vpbsTickerEvent("2026-07-06T20:30:00+09:00"),
+      [source.eventKey],
+    )).toMatchObject({ kind: "applied", delivery: "delivered" });
+    vi.advanceTimersByTime(TICKER_SYNC_RETRY_MS + STATE_DEBOUNCE_MS);
+    expect(transport.states()).toHaveLength(0);
   });
 });
 
