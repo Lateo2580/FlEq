@@ -327,19 +327,35 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
       intensityGroups: [{
         intensity: "3",
         rank: 3,
-        areas: ["現行表示地域"],
+        areas: ["A", "B"],
         omittedAreaCount: 0,
-        expandedAreas: Array.from({ length: 12_000 }, (_, i) => `展開候補${i}${"候補".repeat(20)}`),
+        expandedAreas: ["A", "B", "C", "D", ...Array.from({ length: 12_000 }, (_, i) => `展開候補${i}${"候補".repeat(20)}`)],
         candidateTruncated: false,
       }],
     };
     const full = baseSnapshot({
       latestQuake,
+      weatherAlerts: [{
+        source: "vpws50",
+        label: "大雨特別警報",
+        role: "weatherEmergency",
+        totalAreas: 2,
+        items: [{
+          kind: "大雨特別警報",
+          phenomenonKey: "大雨",
+          displaySeverity: "officialL5",
+          rank: "emergency",
+          shownAreas: ["A", "B"],
+          shownAreaCodes: ["001", "002"],
+          omittedAreaCount: 0,
+        }],
+        updatedAt: "2026-07-06T21:00:00+09:00",
+      }],
       weatherExpandedKinds: [{
         kindKey: "officialL5|大雨",
-        areas: Array.from({ length: 12_000 }, (_, i) => `気象候補${i}${"候補".repeat(20)}`),
-        areaCodes: Array.from({ length: 12_000 }, (_, i) => `452${String(i).padStart(4, "0")}`),
-        totalAreaCount: 12_000,
+        areas: ["A", "B", "C", "D", ...Array.from({ length: 12_000 }, (_, i) => `気象候補${i}${"候補".repeat(20)}`)],
+        areaCodes: ["001", "002", "003", "004", ...Array.from({ length: 12_000 }, (_, i) => `452${String(i).padStart(4, "0")}`)],
+        totalAreaCount: 12_004,
         candidateTruncated: false,
       }],
     });
@@ -349,12 +365,34 @@ describe("degradeSnapshotToBudget (純関数、初回 snapshot と定期 state �
     expect(result!.level).toBe(1);
     expect(result!.snapshot.latestQuake?.hypocenterName).toBe("現行カードの震源");
     expect(result!.snapshot.latestQuake?.intensityGroups[0]).toMatchObject({
-      areas: ["現行表示地域"],
-      expandedAreas: [],
+      areas: ["A", "B"],
+      expandedAreas: ["A", "B"],
       candidateTruncated: true,
     });
     expect(result!.snapshot.weatherExpandedKinds).toEqual([{
       kindKey: "officialL5|大雨",
+      areas: ["A", "B"],
+      areaCodes: ["001", "002"],
+      totalAreaCount: 12_004,
+      candidateTruncated: true,
+    }]);
+  });
+
+  it("対応する気象カードがない候補は空のまま縮退し、例外にしない", () => {
+    const full = baseSnapshot({
+      weatherExpandedKinds: [{
+        kindKey: "officialL5|対応なし",
+        areas: Array.from({ length: 12_000 }, (_, i) => `候補${i}${"候補".repeat(20)}`),
+        areaCodes: Array.from({ length: 12_000 }, (_, i) => `999${String(i).padStart(4, "0")}`),
+        totalAreaCount: 12_000,
+        candidateTruncated: false,
+      }],
+    });
+
+    const result = degradeSnapshotToBudget(full, "snapshot");
+    expect(result).not.toBeNull();
+    expect(result!.snapshot.weatherExpandedKinds).toEqual([{
+      kindKey: "officialL5|対応なし",
       areas: [],
       areaCodes: [],
       totalAreaCount: 12_000,
@@ -645,6 +683,71 @@ describe("degradeSyncedStateToBudget (tickerSynced 専用ラダー、recentTicke
     expect(result).not.toBeNull();
     expect(result!.level).toBe(0);
     expect(result!.snapshot).toBe(full);
+  });
+
+  it("第1段でも地震と気象の現行表示分を残し、追加候補だけを落とす", () => {
+    const full = baseSnapshot({
+      tickerSynced: true,
+      latestQuake: {
+        eventId: "synced-candidate-budget",
+        headline: null,
+        originTime: null,
+        hypocenterName: "現行カードの震源",
+        depth: "10km",
+        magnitude: "M5.0",
+        maxInt: "3",
+        maxIntRank: 3,
+        tsunamiWarning: false,
+        reportDateTime: "2026-07-06T21:00:00+09:00",
+        updatedAtMs: 1,
+        intensityGroups: [{
+          intensity: "3",
+          rank: 3,
+          areas: ["A", "B"],
+          omittedAreaCount: 0,
+          expandedAreas: ["A", "B", "C", "D", ...Array.from({ length: 12_000 }, (_, i) => `地震候補${i}${"候補".repeat(20)}`)],
+          candidateTruncated: false,
+        }],
+      },
+      weatherAlerts: [{
+        source: "vpws50",
+        label: "大雨特別警報",
+        role: "weatherEmergency",
+        totalAreas: 2,
+        items: [{
+          kind: "大雨特別警報",
+          phenomenonKey: "大雨",
+          displaySeverity: "officialL5",
+          rank: "emergency",
+          shownAreas: ["A", "B"],
+          shownAreaCodes: ["001", "002"],
+          omittedAreaCount: 0,
+        }],
+        updatedAt: "2026-07-06T21:00:00+09:00",
+      }],
+      weatherExpandedKinds: [{
+        kindKey: "officialL5|大雨",
+        areas: ["A", "B", "C", "D", ...Array.from({ length: 12_000 }, (_, i) => `気象候補${i}${"候補".repeat(20)}`)],
+        areaCodes: ["001", "002", "003", "004", ...Array.from({ length: 12_000 }, (_, i) => `452${String(i).padStart(4, "0")}`)],
+        totalAreaCount: 12_004,
+        candidateTruncated: false,
+      }],
+    });
+
+    const result = degradeSyncedStateToBudget(full);
+    expect(result).not.toBeNull();
+    expect(result!.level).toBe(1);
+    expect(result!.snapshot.latestQuake?.intensityGroups[0]).toMatchObject({
+      expandedAreas: ["A", "B"],
+      candidateTruncated: true,
+    });
+    expect(result!.snapshot.weatherExpandedKinds).toEqual([{
+      kindKey: "officialL5|大雨",
+      areas: ["A", "B"],
+      areaCodes: ["001", "002"],
+      totalAreaCount: 12_004,
+      candidateTruncated: true,
+    }]);
   });
 
   it("他フィールド (weatherAlerts) が巨大でも recentTicker はそのまま保ち、他フィールドだけ縮退する", () => {

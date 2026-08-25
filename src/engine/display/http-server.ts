@@ -9,6 +9,7 @@ import type { SseClients } from "./sse-clients";
 import { RECENT_TICKER_BODY_MAX } from "./constants";
 import { displayWeatherPromotionLevel, isDisplayWeatherSeverity } from "./protocol";
 import type { DisplayEventDtoV1, DisplayIntensityGroupV1, DisplayRecentQuakeV1, DisplayServerMessage, DisplayStateSnapshotV1, DisplayWeatherAlertV1, DisplayWeatherChangeKindV1, DisplayWeatherChangeV1, DisplayWeatherExpandedKindV1, DisplayWeatherPromotionEntryV1, DisplayWeatherPromotionV1 } from "./types";
+import { resolveWeatherKindKeys, weatherAreaIdentity } from "./weather-expanded-kinds";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -319,19 +320,76 @@ function stripIntensityExpansionCandidates(
   const stripped = groups.map((group) => {
     if (group.expandedAreas == null && group.candidateTruncated !== true) return group;
     changed = true;
-    return { ...group, expandedAreas: [], candidateTruncated: true };
+    return { ...group, expandedAreas: [...group.areas], candidateTruncated: true };
   });
   return changed ? stripped : groups as DisplayIntensityGroupV1[];
 }
 
+interface CurrentWeatherAreas {
+  areas: string[];
+  areaCodes: string[];
+  identities: Set<string>;
+}
+
+/** weatherExpandedKinds と同じ kindKey 規則で、現行カードの表示地域を種別ごとに集約する。 */
+function currentWeatherAreasByKind(
+  alerts: readonly DisplayWeatherAlertV1[],
+): Map<string, CurrentWeatherAreas> {
+  const roleRank = {
+    weatherEmergency: 3,
+    weatherWarning: 2,
+    weatherAdvisory: 1,
+  } as const;
+  const highestRoleRank = Math.max(0, ...alerts.map((alert) => roleRank[alert.role]));
+  const items = alerts
+    .filter((alert) => roleRank[alert.role] === highestRoleRank)
+    .flatMap((alert) => alert.items);
+  const kindKeys = resolveWeatherKindKeys(items);
+  const byKind = new Map<string, CurrentWeatherAreas>();
+
+  for (const [itemIndex, item] of items.entries()) {
+    const kindKey = kindKeys[itemIndex]!;
+    const current = byKind.get(kindKey) ?? { areas: [], areaCodes: [], identities: new Set<string>() };
+    for (const [areaIndex, area] of item.shownAreas.entries()) {
+      const areaCode = item.shownAreaCodes?.[areaIndex] ?? "";
+      const identity = weatherAreaIdentity(area, areaCode);
+      if (current.identities.has(identity)) continue;
+      current.identities.add(identity);
+      current.areas.push(area);
+      current.areaCodes.push(areaCode);
+    }
+    if (!byKind.has(kindKey)) byKind.set(kindKey, current);
+  }
+  return byKind;
+}
+
+function sameStringArray(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 function stripWeatherExpansionCandidates(
   kinds: readonly DisplayWeatherExpandedKindV1[],
+  alerts: readonly DisplayWeatherAlertV1[],
 ): DisplayWeatherExpandedKindV1[] {
+  const currentByKind = currentWeatherAreasByKind(alerts);
   let changed = false;
   const stripped = kinds.map((kind) => {
-    if (kind.areas.length === 0 && kind.candidateTruncated) return kind;
+    const current = currentByKind.get(kind.kindKey);
+    const areas = current?.areas ?? [];
+    const areaCodes = current?.areaCodes ?? [];
+    const currentAreaCodes = kind.areaCodes == null ? undefined : areaCodes;
+    if (
+      kind.candidateTruncated
+      && sameStringArray(kind.areas, areas)
+      && (kind.areaCodes == null || sameStringArray(kind.areaCodes, currentAreaCodes!))
+    ) return kind;
     changed = true;
-    return { ...kind, areas: [], ...(kind.areaCodes == null ? {} : { areaCodes: [] }), candidateTruncated: true };
+    return {
+      ...kind,
+      areas,
+      ...(currentAreaCodes == null ? {} : { areaCodes: currentAreaCodes }),
+      candidateTruncated: true,
+    };
   });
   return changed ? stripped : kinds as DisplayWeatherExpandedKindV1[];
 }
@@ -355,7 +413,7 @@ function stripExpansionCandidates(snapshot: DisplayStateSnapshotV1): DisplayStat
   if (mapEvents?.some((event, index) => event !== quakeMap?.events[index])) changed = true;
   const weatherExpandedKinds = snapshot.weatherExpandedKinds == null
     ? undefined
-    : stripWeatherExpansionCandidates(snapshot.weatherExpandedKinds);
+    : stripWeatherExpansionCandidates(snapshot.weatherExpandedKinds, snapshot.weatherAlerts);
   if (weatherExpandedKinds !== snapshot.weatherExpandedKinds) changed = true;
   if (!changed) return snapshot;
   return {
@@ -420,14 +478,17 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
     recentTicker: capTickerKeepingActiveEews(s.recentTicker, s.activeEews, DEGRADED_TICKER_MAX),
   };
   attempts.push(s);
-  s = {
+  s = stripExpansionCandidates({
     ...s,
     latestQuake: s.latestQuake != null
       ? { ...s.latestQuake, intensityGroups: capIntensityGroups(s.latestQuake.intensityGroups, QUAKE_GROUP_AREA_MAX) }
       : s.latestQuake,
-  };
+  });
   attempts.push(s);
-  s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
+  s = stripExpansionCandidates({
+    ...s,
+    weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion),
+  });
   attempts.push(s);
   const wireWeatherChange = s.weatherChange;
   if (wireWeatherChange != null) {
@@ -436,7 +497,10 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   }
   s = { ...s, recentTicker: [] };
   attempts.push(s);
-  s = { ...s, weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion) };
+  s = stripExpansionCandidates({
+    ...s,
+    weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion),
+  });
   attempts.push(s);
   const compactWeatherChange = s.weatherChange;
   if (compactWeatherChange != null) {
@@ -445,7 +509,10 @@ function buildDegradeAttempts(full: DisplayStateSnapshotV1): DisplayStateSnapsho
   }
   s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
-  s = { ...s, recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX) };
+  s = stripExpansionCandidates({
+    ...s,
+    recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX),
+  });
   attempts.push(s);
   s = { ...s, recentQuakes: s.recentQuakes.map((q) => ({ ...q, intensityGroups: [] })) };
   attempts.push(s);
@@ -529,21 +596,27 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
     s = withoutExpansionCandidates;
     attempts.push(s);
   }
-  s = {
+  s = stripExpansionCandidates({
     ...s,
     latestQuake: s.latestQuake != null
       ? { ...s.latestQuake, intensityGroups: capIntensityGroups(s.latestQuake.intensityGroups, QUAKE_GROUP_AREA_MAX) }
       : s.latestQuake,
-  };
+  });
   attempts.push(s);
-  s = { ...s, weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion) };
+  s = stripExpansionCandidates({
+    ...s,
+    weatherAlerts: capWeatherAreas(s.weatherAlerts, WEATHER_AREA_MAX, s.weatherPromotion),
+  });
   attempts.push(s);
   const syncedWireWeatherChange = s.weatherChange;
   if (syncedWireWeatherChange != null) {
     s = { ...s, weatherChange: capWeatherChangeItems(syncedWireWeatherChange, WEATHER_CHANGE_WIRE_MAX) };
     attempts.push(s);
   }
-  s = { ...s, weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion) };
+  s = stripExpansionCandidates({
+    ...s,
+    weatherAlerts: prioritizePromotedWeatherItems(s.weatherAlerts, s.weatherPromotion),
+  });
   attempts.push(s);
   const syncedCompactWeatherChange = s.weatherChange;
   if (syncedCompactWeatherChange != null) {
@@ -554,7 +627,10 @@ function buildDegradeAttemptsPreserveTicker(full: DisplayStateSnapshotV1): Displ
   s = dropUnreferencedQuakeMapEvents(s);
   attempts.push(s);
   // recentQuakes[].intensityGroups も件数削減より先に刈る (標準ラダーと同じ段順序の設計原則)
-  s = { ...s, recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX) };
+  s = stripExpansionCandidates({
+    ...s,
+    recentQuakes: capRecentQuakeGroups(s.recentQuakes, QUAKE_GROUP_AREA_MAX),
+  });
   attempts.push(s);
   s = { ...s, recentQuakes: s.recentQuakes.map((q) => ({ ...q, intensityGroups: [] })) };
   attempts.push(s);
