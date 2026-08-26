@@ -1,6 +1,7 @@
 import type { TornadoOutcome, PresentationEvent, PresentationAreaItem } from "../types";
 import { presentationTelegramMeta } from "./presentation-meta";
 import { selectPreferredTornadoLayer } from "../../../dmdata/tornado-parser";
+import { projectTornadoDisplay } from "./tornado-display";
 
 /** TornadoOutcome → PresentationEvent */
 export function fromTornadoOutcome(outcome: TornadoOutcome): PresentationEvent {
@@ -9,6 +10,7 @@ export function fromTornadoOutcome(outcome: TornadoOutcome): PresentationEvent {
 
   const preferred = selectPreferredTornadoLayer(info.layers);
   const areaNames = preferred ? preferred.areas.map((a) => a.name) : [];
+  const tornadoDisplay = projectTornadoDisplay(outcome.msg, info.layers, preferred);
 
   // 目撃情報地域は地方単位 (例: "東京地方")、preferred は市町村単位なので階層が異なる。
   // 直接 areaItems に flag を立てることはせず、目撃情報の有無は raw.hasSightingAreas /
@@ -61,6 +63,7 @@ export function fromTornadoOutcome(outcome: TornadoOutcome): PresentationEvent {
     municipalityCount: 0,
     observationCount: 0,
     areaItems,
+    tornadoDisplay,
 
     raw: info,
   };

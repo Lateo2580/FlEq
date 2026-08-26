@@ -556,6 +556,12 @@ export interface PresentationEvent {
   observationCount: number;
 
   areaItems: PresentationAreaItem[];
+  /** 竜巻 rider だけに使う全域集約 bridge。テロップ等は areaItems を維持する。 */
+  tornadoDisplay?: {
+    aggregation: "proven-full-scope" | "none";
+    areaNames: string[];
+    sourceAreaCount: number;
+  };
 
   // code欠落除外・重複集約済みの地震中間表現。Phase 3でmap stateへ射影する
   quakeIntensity?: PresentationQuakeIntensity;

@@ -331,6 +331,16 @@ describe("WeatherAlertCard", () => {
     expect(rider?.textContent).not.toContain("ほか");
   });
 
+  it("集約済みの rider 表示は全域ラベルを一要素としてそのまま描画する", () => {
+    const { container } = render(WeatherAlertCard, {
+      alerts: [],
+      tornado: { ...restoredTornado(), data: { areas: ["長崎県内全域"], isSighted: false } },
+    });
+    const rider = container.querySelector(".tornado-rider");
+    expect(rider?.textContent).toContain("竜巻注意情報（長崎県内全域）");
+    expect(rider?.querySelectorAll("[data-tornado-visible-area]")).toHaveLength(1);
+  });
+
   it("forced tornado range は rider に現在ページだけを描画し、全件へ戻さない", () => {
     const { container } = render(WeatherAlertCard, {
       alerts: [],

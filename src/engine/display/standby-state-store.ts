@@ -677,7 +677,7 @@ export class StandbyStateStore {
     this.tornadoByOffice.set(publishingOffice, {
       publishingOffice,
       sourceEventId: event.id,
-      areas: event.areaItems.map((area) => area.name),
+      areas: event.tornadoDisplay?.areaNames ?? event.areaItems.map((area) => area.name),
       isSighted: raw.hasSightingAreas,
       revision,
       appliedSemanticKey: event.standbyAppliedSemanticKey ?? undefined,
