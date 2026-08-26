@@ -174,6 +174,21 @@ function matchesAnySpecialTerm(value: string | null, terms: readonly string[]): 
   return normalized != null && terms.includes(normalized);
 }
 
+function normalizeIntensitySpecialTerm(value: string | null): string | null {
+  const normalized = normalizeSpecialTerm(value);
+  if (normalized === "震度5弱以上未入電") return "5弱以上未入電";
+  if (normalized === "震度未入電") return "未入電";
+  return normalized;
+}
+
+function matchesAnyIntensitySpecialTerm(
+  value: string | null,
+  terms: readonly string[],
+): boolean {
+  const normalized = normalizeIntensitySpecialTerm(value);
+  return normalized != null && terms.includes(normalized);
+}
+
 type TyphoonNumericDomain = "Pressure" | "WindSpeed" | "MovementSpeed";
 
 function isTyphoonNumericDomain(domain: SpecialValueDomain): domain is TyphoonNumericDomain {
@@ -466,8 +481,10 @@ function specialPresenceForSource(
 ): SpecialPresence | null {
   if (domain === "Intensity") {
     // 同一 source 内では、より具体的な語を先に判定する。
-    if (matchesAnySpecialTerm(value, ["5弱以上未入電"])) return "qualitative";
-    if (matchesAnySpecialTerm(value, UNKNOWN_TERMS)) return "unknown";
+    if (matchesAnyIntensitySpecialTerm(value, ["5弱以上未入電"])) {
+      return "qualitative";
+    }
+    if (matchesAnyIntensitySpecialTerm(value, UNKNOWN_TERMS)) return "unknown";
     return null;
   }
   return matchesAnySpecialTerm(value, ["未入電", "不明", "不詳"])
@@ -683,6 +700,8 @@ function specialValueDiagnostics(
           || depthRangeDirectionForSource(normalizedCondition) != null
         : domain === "PlumeHeight"
           ? isKnownPlumeHeightCondition(normalizedCondition)
+        : domain === "Intensity"
+          ? matchesAnyIntensitySpecialTerm(normalizedCondition, knownTerms)
         : knownTerms.some((term) => term === normalizedCondition);
     if (!isKnown) {
       diagnostics.push("unmappedSpecialValue");

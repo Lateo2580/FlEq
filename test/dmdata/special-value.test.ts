@@ -214,6 +214,48 @@ describe("extractSpecialValue", () => {
     expect(extractSpecialValue(domain, node)).toMatchObject(expected);
   });
 
+  it.each(["震度５弱以上未入電", "震度5弱以上未入電"] as const)(
+    "震度前置の5弱以上未入電を比較用 normalization だけで分類する: %s",
+    (raw) => {
+      expect(extractSpecialValue("Intensity", { "#text": raw })).toMatchObject({
+        raw,
+        value: null,
+        presence: "qualitative",
+        lowerBound: "5-",
+      });
+    },
+  );
+
+  it("震度前置の未入電を既知 unknown として分類する", () => {
+    expect(extractSpecialValue("Intensity", { "#text": "震度未入電" })).toMatchObject({
+      raw: "震度未入電",
+      value: null,
+      presence: "unknown",
+    });
+  });
+
+  it.each([
+    ["range", "震度以上"],
+    ["negated", "震度5弱以上未入電ではない"],
+    ["suffix", "震度5弱以上未入電（暫定）"],
+    ["unrelated", "地域震度5弱以上未入電"],
+  ] as const)("震度前置の未知 Condition を既知語へ過剰一致させない: %s", (
+    _label,
+    condition,
+  ) => {
+    expect(extractSpecialValue("Intensity", {
+      "#text": "4",
+      "@_condition": condition,
+    })).toEqual({
+      raw: "4",
+      value: "4",
+      condition,
+      description: null,
+      presence: "value",
+      diagnostics: ["unmappedSpecialValue", "specialValueConflict"],
+    });
+  });
+
   it.each([
     ["value", { "#text": "3" }, { value: "3", presence: "value" }],
     ["missing", undefined, { raw: null, value: null, presence: "missing" }],

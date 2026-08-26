@@ -388,7 +388,14 @@ function extractIntensity(
       const rawCityNodes = listOf(dig(rawArea, "City"));
       for (const [cityIndex, city] of cityNodes.entries()) {
         const rawCity = rawCityNodes[cityIndex];
-        const cityIntensityValue = extractSpecialValue("Intensity", dig(rawCity, "MaxInt"));
+        const cityMaxInt = dig(rawCity, "MaxInt");
+        const cityCondition = dig(rawCity, "Condition");
+        const cityIntensityValue = extractSpecialValue(
+          "Intensity",
+          cityMaxInt === undefined && cityCondition !== undefined
+            ? { "@_condition": cityCondition }
+            : cityMaxInt,
+        );
         const cityLgIntensityValue = extractSpecialValue("LgInt", dig(rawCity, "MaxLgInt"));
         const cityLgInt = specialValueScalar(cityLgIntensityValue);
         municipalities.push({

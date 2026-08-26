@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { extractSpecialValue } from "../../../src/dmdata/special-value";
-import { readFixture } from "../../helpers/mock-message";
+import { parseEarthquakeTelegram } from "../../../src/dmdata/telegram-parser";
+import { createMockWsDataMessage, readFixture } from "../../helpers/mock-message";
 import { createXmlEvidenceParser, selectXml, xmlText } from "../../helpers/xml-selector";
 import {
   INTENSITY_CONDITION_SYNTHETIC_FIXTURE_PROVENANCE,
@@ -12,8 +13,31 @@ import {
 
 const CORPUS_ROOT = resolve(__dirname, "../../../corpus-kumamoto-0728");
 const corpusByteEqualityTest = existsSync(CORPUS_ROOT) ? it : it.skip;
+const corpusIndexValidationTest = existsSync(CORPUS_ROOT) ? it : it.skip;
 const xmlParser = createXmlEvidenceParser();
 const REAL_SPECIAL_VALUE = "震度５弱以上未入電";
+
+interface CorpusIndexEntry {
+  file: string;
+  originalId: string;
+}
+
+function readCorpusIndex(): CorpusIndexEntry[] {
+  return readFileSync(resolve(CORPUS_ROOT, "index.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => {
+      const parsed: unknown = JSON.parse(line);
+      if (typeof parsed !== "object" || parsed == null) {
+        throw new Error("invalid Kumamoto corpus index entry");
+      }
+      const { file, originalId } = parsed as Record<string, unknown>;
+      if (typeof file !== "string" || typeof originalId !== "string") {
+        throw new Error("Kumamoto corpus index entry lacks file or originalId");
+      }
+      return { file, originalId };
+    });
+}
 
 function findXmlElementWithText(node: unknown, name: string, text: string): unknown | undefined {
   if (Array.isArray(node)) {
@@ -41,12 +65,31 @@ describe("§7.5 unit 1: Kumamoto 2026-07-28 real fixtures", () => {
     }
   });
 
+  it("tracked 8 fixture の SHA-256 は manifest と常に一致する", () => {
+    for (const provenance of KUMAMOTO_0728_REAL_FIXTURE_PROVENANCE) {
+      const fixture = readFileSync(resolve(__dirname, "../../fixtures", provenance.fixture));
+      expect(createHash("sha256").update(fixture).digest("hex")).toBe(provenance.sha256);
+    }
+  });
+
   corpusByteEqualityTest("持込済み8 fixture は corpus 原本と byte equality を持つ", () => {
     for (const provenance of KUMAMOTO_0728_REAL_FIXTURE_PROVENANCE) {
       const fixture = readFileSync(resolve(__dirname, "../../fixtures", provenance.fixture));
       const corpus = readFileSync(resolve(__dirname, "../../../", provenance.corpusPath));
       expect(fixture, provenance.fixture).toEqual(corpus);
-      expect(createHash("sha256").update(fixture).digest("hex")).toBe(provenance.sha256);
+    }
+  });
+
+  corpusIndexValidationTest("corpus index の8 originalId は manifest と一致する", () => {
+    const indexEntries = readCorpusIndex();
+    expect(indexEntries).toHaveLength(8);
+    const originalIdsByFile = new Map(
+      indexEntries.map(({ file, originalId }) => [file, originalId]),
+    );
+    expect(originalIdsByFile.size).toBe(8);
+    for (const provenance of KUMAMOTO_0728_REAL_FIXTURE_PROVENANCE) {
+      const corpusFile = provenance.corpusPath.replace("corpus-kumamoto-0728/", "");
+      expect(originalIdsByFile.get(corpusFile)).toBe(provenance.dmdataOriginalId);
     }
   });
 
@@ -65,7 +108,7 @@ describe("§7.5 unit 1: Kumamoto 2026-07-28 real fixtures", () => {
   });
 
   // §7.5 単位2 で matcher 修正後、fails を外して通常 assertion に戻すこと。
-  it.fails("Condition／Int／Name の実表層を matcher が Intensity SpecialValue として分類する", () => {
+  it("Condition／Int／Name の実表層を matcher が Intensity SpecialValue として分類する", () => {
     const fixture = KUMAMOTO_0728_REAL_FIXTURE_PROVENANCE
       .find(({ fixture: name }) => name.includes("_VXSE53_") && name.includes("99e82c812e72"));
     if (fixture == null) throw new Error("missing VXSE53 real fixture provenance");
@@ -83,6 +126,31 @@ describe("§7.5 unit 1: Kumamoto 2026-07-28 real fixtures", () => {
         value: null,
         presence: "qualitative",
         lowerBound: "5-",
+      });
+    }
+  });
+
+  it("実 VXSE53 の City sibling Condition を municipality intensityValue へ保持する", () => {
+    const fixture = KUMAMOTO_0728_REAL_FIXTURE_PROVENANCE
+      .find(({ fixture: name }) => name.includes("_VXSE53_") && name.includes("99e82c812e72"));
+    if (fixture == null) throw new Error("missing VXSE53 real fixture provenance");
+    const parsed = parseEarthquakeTelegram(createMockWsDataMessage(fixture.fixture));
+    expect(parsed).not.toBeNull();
+
+    for (const [code, name] of [["4344200", "嘉島町"], ["4344400", "甲佐町"]] as const) {
+      const city = parsed!.intensity!.municipalities.find((item) => item.code === code);
+      expect(city).toMatchObject({
+        name,
+        code,
+        intensity: "",
+        intensityValue: {
+          raw: "",
+          value: null,
+          condition: REAL_SPECIAL_VALUE,
+          description: null,
+          presence: "qualitative",
+          lowerBound: "5-",
+        },
       });
     }
   });
