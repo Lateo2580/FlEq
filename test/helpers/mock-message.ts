@@ -25,6 +25,26 @@ export const FIXTURE_VXSE51_CANCEL = "32-35_10_01_220510_VXSE51.xml";
 /** VXSE51 震度速報 (固定付加文「今後の情報に注意してください。」) */
 export const FIXTURE_VXSE51_FIXED_COMMENT = "32-35_01_01_260824_VXSE51.xml";
 
+/** §7.5 単位1 synthetic: 実 XML に無い単独「未入電」VXSE51 補完 */
+export const FIXTURE_VXSE51_INTENSITY_CONDITION_SYNTHETIC =
+  "telegram-foundation/synthetic_phase4a_VXSE51_condition.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE51（第1報） */
+export const FIXTURE_PHASE7_5_VXSE51_072850 =
+  "telegram-foundation/phase7_5_VXSE51_20260728162718_fd74a5616fbb.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE51（第2報） */
+export const FIXTURE_PHASE7_5_VXSE51_072905 =
+  "telegram-foundation/phase7_5_VXSE51_20260728162718_10e84031ad8b.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE51（第3報） */
+export const FIXTURE_PHASE7_5_VXSE51_073005 =
+  "telegram-foundation/phase7_5_VXSE51_20260728162718_6854218b287a.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE51（第4報） */
+export const FIXTURE_PHASE7_5_VXSE51_073105 =
+  "telegram-foundation/phase7_5_VXSE51_20260728162718_059a2b392646.xml";
+
 /** VXSE53 遠地地震 (フィジー Mj7.1) */
 export const FIXTURE_VXSE53_ENCHI = "32-35_01_03_100514_VXSE53.xml";
 
@@ -36,6 +56,26 @@ export const FIXTURE_VXSE53_DRILL_1 = "32-35_01_03_240613_VXSE53.xml";
 
 /** VXSE53 震源・震度情報 (訓練 別報) */
 export const FIXTURE_VXSE53_DRILL_2 = "32-35_04_04_240613_VXSE53.xml";
+
+/** §7.5 単位1 synthetic: 実 XML に無い単独「未入電」VXSE53 補完 */
+export const FIXTURE_VXSE53_INTENSITY_CONDITION_SYNTHETIC =
+  "telegram-foundation/synthetic_phase4a_VXSE53_condition.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE53（詳細第1報） */
+export const FIXTURE_PHASE7_5_VXSE53_073149 =
+  "telegram-foundation/phase7_5_VXSE53_20260728162718_99e82c812e72.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE53（詳細第2報） */
+export const FIXTURE_PHASE7_5_VXSE53_073528 =
+  "telegram-foundation/phase7_5_VXSE53_20260728162718_bf35e8ea1825.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE61 */
+export const FIXTURE_PHASE7_5_VXSE61_113024 =
+  "telegram-foundation/phase7_5_VXSE61_20260728162718_d7e630bbb653.xml";
+
+/** §7.5 実 fixture: 2026-07-28 熊本地震 VXSE62 */
+export const FIXTURE_PHASE7_5_VXSE62_073711 =
+  "telegram-foundation/phase7_5_VXSE62_20260728162718_f9786edc27df.xml";
 
 /** VXSE44 EEW予報 Serial=10 */
 export const FIXTURE_VXSE44_S10 = "36_01_10_240613_VXSE44.xml";

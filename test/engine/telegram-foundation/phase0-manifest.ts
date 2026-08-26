@@ -1,4 +1,16 @@
 import type { PresentationDomain } from "../../../src/engine/presentation/types";
+import {
+  FIXTURE_PHASE7_5_VXSE51_072850,
+  FIXTURE_PHASE7_5_VXSE51_072905,
+  FIXTURE_PHASE7_5_VXSE51_073005,
+  FIXTURE_PHASE7_5_VXSE51_073105,
+  FIXTURE_PHASE7_5_VXSE53_073149,
+  FIXTURE_PHASE7_5_VXSE53_073528,
+  FIXTURE_PHASE7_5_VXSE61_113024,
+  FIXTURE_PHASE7_5_VXSE62_073711,
+  FIXTURE_VXSE51_INTENSITY_CONDITION_SYNTHETIC,
+  FIXTURE_VXSE53_INTENSITY_CONDITION_SYNTHETIC,
+} from "../../helpers/mock-message";
 
 export const PHASE0_TIMING_CONTRACT = {
   legacySourceHoldbackMs: 60_000,
@@ -88,6 +100,69 @@ export interface SpecialValueCell {
   expectedPresence: FiveStatePresence;
   evidence: readonly CorpusEvidence[];
 }
+
+export interface Kumamoto0728FixtureProvenance {
+  fixture: string;
+  corpusPath: string;
+  dmdataOriginalId: string;
+  eventId: "20260728162718";
+  acquiredDate: "2026-08-26";
+  sha256: string;
+}
+
+/**
+ * §7.5 単位1の実 fixture provenance。dmdata GD earthquake event API から採取した原本を
+ * 内容無編集で tracked fixture へ持ち込む。corpus がない checkout でも fixture test は実行でき、
+ * corpus が在る持込時だけ byte equality test を有効化する。
+ */
+export const KUMAMOTO_0728_REAL_FIXTURE_PROVENANCE: readonly Kumamoto0728FixtureProvenance[] = [
+  { fixture: FIXTURE_PHASE7_5_VXSE51_072850, corpusPath: "corpus-kumamoto-0728/VXSE51_2026-07-28_072850_fd74a5616fbb.xml", dmdataOriginalId: "fd74a5616fbba6d6d4e47704ac0b08c7c584fca82a1be1329274d325e0684d1383e1c191c2c78010d2ec54e74ed026ee", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "749cffc520fad1e623bddf659048c9fa96f6f45fcc99948834b930c571eb9a3c" },
+  { fixture: FIXTURE_PHASE7_5_VXSE51_072905, corpusPath: "corpus-kumamoto-0728/VXSE51_2026-07-28_072905_10e84031ad8b.xml", dmdataOriginalId: "10e84031ad8b5b51ec2a715e5e753bbc94a5d85117b15b3d49449e03a4e186cbac086282126a85c56c796f7eb262271f", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "ea420391f07e5012a978dcb76fb1bc23802c7b18e40d19c4b899de452ec1e238" },
+  { fixture: FIXTURE_PHASE7_5_VXSE51_073005, corpusPath: "corpus-kumamoto-0728/VXSE51_2026-07-28_073005_6854218b287a.xml", dmdataOriginalId: "6854218b287a55d91d2392c8207a6de9c5b8f3d3b235b2f95a354db2a4f06de73e82b89a6474e57a22a132afe29b72d0", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "b272f7994a4e8abf63da27b1dce38384b0fd4b69d988544b939b445265e15208" },
+  { fixture: FIXTURE_PHASE7_5_VXSE51_073105, corpusPath: "corpus-kumamoto-0728/VXSE51_2026-07-28_073105_059a2b392646.xml", dmdataOriginalId: "059a2b392646aff479652578ee6e378f8d8b81ea47f67d4538bd2d444bfcccb031e977065cf83443048c4dbafc932f58", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "76ced827e57c4b46812c1573534cdccb5b848851e7fb9d823bab23c106627821" },
+  { fixture: FIXTURE_PHASE7_5_VXSE53_073149, corpusPath: "corpus-kumamoto-0728/VXSE53_2026-07-28_073149_99e82c812e72.xml", dmdataOriginalId: "99e82c812e724ecb1e6d7ea651bbdbf8af48babee7826b900963270d5a3b1fe87095b1ddbce7775405d762868e5a6be9", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "699a3843399a98fa5e33b2061083e223a6e8fd1e90a9cba66b11180210fd1dcf" },
+  { fixture: FIXTURE_PHASE7_5_VXSE53_073528, corpusPath: "corpus-kumamoto-0728/VXSE53_2026-07-28_073528_bf35e8ea1825.xml", dmdataOriginalId: "bf35e8ea18255b4c5fe21ef93103840879b2763804cf0e62c1a9289809f8eb92f0b3f63fccbdcc2efd7e592f0e0feae4", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "d4cd6009891a1bfa20e3cc2842b71040c649a03ebb1a29d10ec8ffe16b328b89" },
+  { fixture: FIXTURE_PHASE7_5_VXSE61_113024, corpusPath: "corpus-kumamoto-0728/VXSE61_2026-07-28_113024_d7e630bbb653.xml", dmdataOriginalId: "d7e630bbb653ecde45b30b8283b5921bf760cd4e2c902ec4615b0d0382918da34094e0d976e1285c9d79100d56bb290c", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "afb25e9c0a789645813134bdf6f54c63434217ffc2c91c3c81afe4af36d55c30" },
+  { fixture: FIXTURE_PHASE7_5_VXSE62_073711, corpusPath: "corpus-kumamoto-0728/VXSE62_2026-07-28_073711_f9786edc27df.xml", dmdataOriginalId: "f9786edc27df88d4cbc97d57cac253b80c3f7d1e25520d6b2b2aab5bb83db21ee0685df034f7af05e2623dc431f5471e", eventId: "20260728162718", acquiredDate: "2026-08-26", sha256: "a51c6642e662a66da9f3f2b35bb8fd1f9003974816c3793a0dde16408b3c2bad" },
+];
+
+/** 実 XML に無い単独「未入電」を補う synthetic fixture。実 fixture の代替ではない。 */
+export const INTENSITY_CONDITION_SYNTHETIC_FIXTURE_PROVENANCE = {
+  source: "synthetic",
+  confirmed: false,
+  realCorpus: "dmdata GD earthquake event API 2026-08-26 / eventId 20260728162718",
+  uncoveredShape: "単独「未入電」（実 VXSE53 は「震度５弱以上未入電」のみ）",
+  fixtures: [
+    {
+      fixture: FIXTURE_VXSE51_INTENSITY_CONDITION_SYNTHETIC,
+      transportType: "VXSE51",
+      selectors: [
+        "Report/Body/Intensity/Observation/MaxInt[@condition=未入電]",
+        "Report/Body/Intensity/Observation/Pref/MaxInt[@condition=未入電]",
+        "Report/Body/Intensity/Observation/Pref/Area/MaxInt[@condition=未入電]",
+      ],
+    },
+    {
+      fixture: FIXTURE_VXSE53_INTENSITY_CONDITION_SYNTHETIC,
+      transportType: "VXSE53",
+      selectors: [
+        "Report/Body/Intensity/Observation/MaxInt[@condition=未入電]",
+        "Report/Body/Intensity/Observation/Pref/MaxInt[@condition=未入電]",
+        "Report/Body/Intensity/Observation/Pref/Area/MaxInt[@condition=未入電]",
+        "Report/Body/Intensity/Observation/Pref/Area/City/MaxInt[@condition=未入電]",
+        "Report/Body/Intensity/Observation/Pref/Area/City/IntensityStation/Int[@condition=未入電]",
+      ],
+    },
+  ],
+} as const;
+
+const syntheticFixture = (fixture: string, selector: string, note: string): CorpusEvidence => ({
+  source: "synthetic",
+  fixture,
+  selector,
+  observed: false,
+  note,
+});
 
 const synthetic = (domain: SpecialValueDomain, presence: FiveStatePresence, note: string): CorpusEvidence => ({
   source: "synthetic",
@@ -196,11 +271,26 @@ export const FIVE_STATE_SPECIAL_VALUE_MATRIX = {
     },
     unknown: {
       expectedPresence: "unknown",
-      evidence: [synthetic("Intensity", "unknown", "未入電を Phase 1 fixture で補う")],
+      evidence: [
+        syntheticFixture(
+          FIXTURE_VXSE51_INTENSITY_CONDITION_SYNTHETIC,
+          "Report/Body/Intensity/Observation/MaxInt[@condition=未入電]",
+          "実 corpus に無い単独 未入電 を synthetic で補う",
+        ),
+        syntheticFixture(
+          FIXTURE_VXSE53_INTENSITY_CONDITION_SYNTHETIC,
+          "Report/Body/Intensity/Observation/Pref/MaxInt[@condition=未入電]",
+          "実 corpus に無い単独 未入電 を synthetic で補う",
+        ),
+      ],
     },
     qualitative: {
       expectedPresence: "qualitative",
-      evidence: [synthetic("Intensity", "qualitative", "5弱以上未入電を Phase 1 fixture で補う")],
+      evidence: [synthetic(
+        "Intensity",
+        "qualitative",
+        "実 XML の全角・震度前置形は phase7_5-real-fixtures.test.ts で固定する。matrix には runtime projection 未登録の実 evidence を加えない",
+      )],
     },
     range: {
       expectedPresence: "range",

@@ -1,0 +1,1520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>長周期地震動に関する観測情報</Title>
+<DateTime>2026-07-28T07:37:10Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>大阪管区気象台</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>長周期地震動に関する観測情報</Title>
+<ReportDateTime>2026-07-28T16:37:00+09:00</ReportDateTime>
+<TargetDateTime>2026-07-28T16:37:00+09:00</TargetDateTime>
+<EventID>20260728162718</EventID>
+<InfoType>発表</InfoType>
+<Serial>1</Serial>
+<InfoKind>長周期地震動に関する観測情報</InfoKind>
+<InfoKindVersion>1.3_0</InfoKindVersion>
+<Headline>
+<Text>２８日１６時２７分ころの地震により、長周期地震動階級４を観測した地域があります。</Text>
+<Information type="長周期地震動に関する観測情報（細分区域）">
+<Item>
+<Kind><Name>長周期地震動階級４</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>熊本県熊本</Name><Code>741</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>長周期地震動階級３</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>熊本県天草・芦北</Name><Code>743</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>長周期地震動階級２</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>佐賀県南部</Name><Code>721</Code></Area>
+<Area><Name>熊本県阿蘇</Name><Code>740</Code></Area>
+<Area><Name>熊本県球磨</Name><Code>742</Code></Area>
+<Area><Name>大分県西部</Name><Code>753</Code></Area>
+<Area><Name>宮崎県北部平野部</Name><Code>760</Code></Area>
+<Area><Name>宮崎県南部山沿い</Name><Code>763</Code></Area>
+<Area><Name>鹿児島県薩摩</Name><Code>770</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>長周期地震動階級１</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>大阪府南部</Name><Code>521</Code></Area>
+<Area><Name>鳥取県西部</Name><Code>563</Code></Area>
+<Area><Name>徳島県北部</Name><Code>600</Code></Area>
+<Area><Name>高知県東部</Name><Code>630</Code></Area>
+<Area><Name>福岡県筑後</Name><Code>713</Code></Area>
+<Area><Name>長崎県北部</Name><Code>730</Code></Area>
+<Area><Name>長崎県南西部</Name><Code>731</Code></Area>
+<Area><Name>長崎県島原半島</Name><Code>732</Code></Area>
+<Area><Name>大分県北部</Name><Code>750</Code></Area>
+<Area><Name>大分県中部</Name><Code>751</Code></Area>
+<Area><Name>大分県南部</Name><Code>752</Code></Area>
+<Area><Name>宮崎県北部山沿い</Name><Code>761</Code></Area>
+<Area><Name>宮崎県南部平野部</Name><Code>762</Code></Area>
+<Area><Name>鹿児島県大隅</Name><Code>771</Code></Area>
+<Area><Name>鹿児島県甑島</Name><Code>775</Code></Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Earthquake>
+<OriginTime>2026-07-28T16:27:00+09:00</OriginTime>
+<ArrivalTime>2026-07-28T16:27:00+09:00</ArrivalTime>
+<Hypocenter>
+<Area>
+<Name>熊本県熊本地方</Name>
+<Code type="震央地名">741</Code>
+<jmx_eb:Coordinate description="北緯３２．６度　東経１３０．７度　深さ　１０ｋｍ">+32.6+130.7-10000/</jmx_eb:Coordinate>
+<NameFromMark>長崎の東８０ｋｍ付近</NameFromMark>
+<MarkCode type="震央補助">705</MarkCode>
+<Direction>東</Direction>
+<Distance unit="km">80</Distance>
+</Area>
+</Hypocenter>
+<jmx_eb:Magnitude type="Mj" description="Ｍ７．１">7.1</jmx_eb:Magnitude>
+</Earthquake>
+<Intensity>
+<Observation>
+<CodeDefine>
+<Type xpath="Pref/Code">地震情報／都道府県等</Type>
+<Type xpath="Pref/Area/Code">地震情報／細分区域</Type>
+<Type xpath="Pref/Area/IntensityStation/Code">長周期地震動観測点</Type>
+</CodeDefine>
+<MaxInt>7</MaxInt>
+<MaxLgInt>4</MaxLgInt>
+<LgCategory>3</LgCategory>
+<Pref>
+<Name>熊本県</Name>
+<Code>43</Code>
+<MaxInt>7</MaxInt>
+<MaxLgInt>4</MaxLgInt>
+<Area>
+<Name>熊本県熊本</Name>
+<Code>741</Code>
+<MaxInt>7</MaxInt>
+<MaxLgInt>4</MaxLgInt>
+<IntensityStation>
+<Name>八代市平山新町</Name>
+<Code>4320200</Code>
+<Int>6-</Int>
+<LgInt>4</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">4</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">4</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">4</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">4</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">2</LgIntPerPeriod>
+<Sva unit="cm/s">268.5</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">268.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">250.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">211.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">108.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">47.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">24.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">19.2</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>宇城市松橋町</Name>
+<Code>4321300</Code>
+<Int>6+</Int>
+<LgInt>4</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">4</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">4</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">3</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">2</LgIntPerPeriod>
+<Sva unit="cm/s">191.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">190.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">191.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">81.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">49.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">39.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">46.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">46.5</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>熊本西区春日</Name>
+<Code>4310300</Code>
+<Int>5+</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">42.1</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">42.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">42.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">38.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">18.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">16.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">15.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">14.0</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>八代市泉町</Name>
+<Code>4320202</Code>
+<Int>5-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">2</LgIntPerPeriod>
+<Sva unit="cm/s">32.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">24.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">32.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">25.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">18.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">21.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">21.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">20.2</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>玉名市築地</Name>
+<Code>4320600</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">5.9</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">3.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.6</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>熊本県天草・芦北</Name>
+<Code>743</Code>
+<MaxInt>6-</MaxInt>
+<MaxLgInt>3</MaxLgInt>
+<IntensityStation>
+<Name>芦北町芦北</Name>
+<Code>4348201</Code>
+<Int>6-</Int>
+<LgInt>3</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">3</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">3</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">2</LgIntPerPeriod>
+<Sva unit="cm/s">67.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">67.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">56.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">42.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">40.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">38.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">26.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">17.2</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>上天草市大矢野町</Name>
+<Code>4321200</Code>
+<Int>6-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">38.6</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">38.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">24.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">25.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">12.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">13.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">11.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">7.4</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>天草市牛深町</Name>
+<Code>4321501</Code>
+<Int>5-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">23.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">23.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">14.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">13.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">17.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">17.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">14.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">10.0</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>天草市本町</Name>
+<Code>4321500</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">12.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">12.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">8.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">10.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">9.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">9.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">8.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.0</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>熊本県阿蘇</Name>
+<Code>740</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>南阿蘇村中松</Name>
+<Code>4343300</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">17.9</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">17.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">16.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">11.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">9.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">8.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">9.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">9.4</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>熊本県球磨</Name>
+<Code>742</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>人吉市西間下町</Name>
+<Code>4320301</Code>
+<Int>5-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">36.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">36.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">35.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">20.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">16.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">13.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">11.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">9.4</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>多良木町多良木</Name>
+<Code>4350500</Code>
+<Int>5-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">47.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">25.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">47.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">37.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">19.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">13.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">11.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">11.1</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>佐賀県</Name>
+<Code>41</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<Area>
+<Name>佐賀県南部</Name>
+<Code>721</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>佐賀市駅前中央</Name>
+<Code>4120100</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">33.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">11.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">17.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">33.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">19.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">10.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.5</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>太良町多良</Name>
+<Code>4144100</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">6.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">6.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.3</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>大分県</Name>
+<Code>44</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<Area>
+<Name>大分県西部</Name>
+<Code>753</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>玖珠町帆足</Name>
+<Code>4446200</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">16.2</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">16.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">14.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">8.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">8.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.8</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>日田市中津江村合瀬</Name>
+<Code>4420401</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">9.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">8.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">7.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">7.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">9.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">8.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">7.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">7.2</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>日田市三本松</Name>
+<Code>4420402</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">8.9</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">8.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">8.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">7.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">8.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">7.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.0</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>大分県北部</Name>
+<Code>750</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>国東市国見町西方寺</Name>
+<Code>4421400</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">10.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">10.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">8.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">3.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">3.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">3.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">3.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">3.9</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>大分県中部</Name>
+<Code>751</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>大分市明野北</Name>
+<Code>4420102</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">13.6</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">7.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">9.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">13.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">11.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">11.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">9.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.3</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>別府市鶴見</Name>
+<Code>4420200</Code>
+<Int>2</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">5.7</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">3.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">3.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">3.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">4.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.2</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>別府市天間</Name>
+<Code>4420201</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">6.9</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">6.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.3</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>大分県南部</Name>
+<Code>752</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>豊後大野市三重町</Name>
+<Code>4421200</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">6.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">4.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">3.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">3.0</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>宮崎県</Name>
+<Code>45</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<Area>
+<Name>宮崎県北部平野部</Name>
+<Code>760</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>新富町上富田</Name>
+<Code>4540200</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">2</LgIntPerPeriod>
+<Sva unit="cm/s">25.1</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">17.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">25.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">24.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">25.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">20.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">17.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">16.7</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>延岡市天神小路</Name>
+<Code>4520303</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">7.1</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">7.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">6.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.1</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>延岡市北方総合運動公園</Name>
+<Code>4520304</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">8.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">8.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">7.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">8.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">8.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">7.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">7.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">7.3</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>日向市亀崎</Name>
+<Code>4520601</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">8.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">8.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.1</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>日向市大王谷運動公園</Name>
+<Code>4520602</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">7.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">7.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.0</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>宮崎都農町川北</Name>
+<Code>4540600</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">7.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">6.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">6.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">7.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">7.0</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>宮崎県南部山沿い</Name>
+<Code>763</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>都城市菖蒲原</Name>
+<Code>4520200</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">19.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">19.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">15.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.4</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>小林市真方</Name>
+<Code>4520501</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">43.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">43.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">31.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">17.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">9.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">10.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">10.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.9</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>都城市高崎町江平</Name>
+<Code>4520201</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">6.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">4.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.0</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>宮崎県北部山沿い</Name>
+<Code>761</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>高千穂町三田井</Name>
+<Code>4544100</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">7.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">6.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">7.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">7.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">7.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.2</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>宮崎県南部平野部</Name>
+<Code>762</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>宮崎市霧島</Name>
+<Code>4520101</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">11.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">8.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">8.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">11.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">10.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">9.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">9.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">9.4</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>日南市油津</Name>
+<Code>4520400</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">7.5</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">4.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">6.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">7.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">7.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.0</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>日南市北郷町大藤</Name>
+<Code>4520401</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">7.2</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">6.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">6.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">7.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">7.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.9</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>串間市奈留</Name>
+<Code>4520701</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">5.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">4.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">3.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">3.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">3.2</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>鹿児島県</Name>
+<Code>46</Code>
+<MaxInt>5+</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<Area>
+<Name>鹿児島県薩摩</Name>
+<Code>770</Code>
+<MaxInt>5+</MaxInt>
+<MaxLgInt>2</MaxLgInt>
+<IntensityStation>
+<Name>鹿児島市東郡元</Name>
+<Code>4620100</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">25.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">25.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">24.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">14.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">16.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">12.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">8.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.1</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>阿久根市赤瀬川</Name>
+<Code>4620601</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">2</LgIntPerPeriod>
+<Sva unit="cm/s">39.5</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">39.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">27.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">23.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">24.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">24.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">21.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">15.8</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>薩摩川内市中郷</Name>
+<Code>4621500</Code>
+<Int>5-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">23.0</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">23.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">13.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">14.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">18.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">18.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">16.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">13.0</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>鹿児島空港</Name>
+<Code>4621802</Code>
+<Int>4</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">21.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">18.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">21.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">20.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">15.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">9.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.8</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>さつま町宮之城屋地</Name>
+<Code>4639201</Code>
+<Int>5-</Int>
+<LgInt>2</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">2</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">21.9</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">21.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">12.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">11.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">14.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">14.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">11.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">9.4</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>鹿児島市下福元</Name>
+<Code>4620101</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">6.6</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">3.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">3.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">6.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.1</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>枕崎市高見町</Name>
+<Code>4620401</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">6.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">3.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">4.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.3</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>指宿市山川新生町</Name>
+<Code>4621000</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">11.2</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">10.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">11.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">7.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">7.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.0</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>霧島市隼人町内山田</Name>
+<Code>4621800</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">13.4</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">10.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">12.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">13.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">8.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.7</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>鹿児島県大隅</Name>
+<Code>771</Code>
+<MaxInt>3</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>志布志市志布志町志布志</Name>
+<Code>4622100</Code>
+<Int>2</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">5.6</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">3.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">3.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">4.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.1</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>鹿児島県甑島</Name>
+<Code>775</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>薩摩川内市下甑町青瀬</Name>
+<Code>4621501</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">6.6</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">4.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">4.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.7</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>大阪府</Name>
+<Code>27</Code>
+<MaxInt>2</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<Area>
+<Name>大阪府南部</Name>
+<Code>521</Code>
+<MaxInt>2</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>関西国際空港</Name>
+<Code>2736200</Code>
+<Int>2</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">6.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">4.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">4.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">6.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">6.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.4</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>鳥取県</Name>
+<Code>31</Code>
+<MaxInt>3</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<Area>
+<Name>鳥取県西部</Name>
+<Code>563</Code>
+<MaxInt>3</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>境港市東本町</Name>
+<Code>3120401</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">10.5</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">10.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">3.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">1.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">2.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">2.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">2.3</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>徳島県</Name>
+<Code>36</Code>
+<MaxInt>2</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<Area>
+<Name>徳島県北部</Name>
+<Code>600</Code>
+<MaxInt>2</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>徳島市大和町</Name>
+<Code>3620101</Code>
+<Int>1</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">7.7</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">7.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">1.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">1.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">1.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">1.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">1.1</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>高知県</Name>
+<Code>39</Code>
+<MaxInt>3</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<Area>
+<Name>高知県東部</Name>
+<Code>630</Code>
+<MaxInt>2</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>安芸市西浜</Name>
+<Code>3920300</Code>
+<Int>2</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">5.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">5.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">1.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">1.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">1.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">1.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">1.4</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>福岡県</Name>
+<Code>40</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<Area>
+<Name>福岡県筑後</Name>
+<Code>713</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>八女市黒木町北木屋</Name>
+<Code>4021000</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">6.8</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">6.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">4.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">5.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">6.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">6.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.2</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>筑前町下高場</Name>
+<Code>4044700</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">7.2</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">7.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">3.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.8</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">4.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">3.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">3.8</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+<Pref>
+<Name>長崎県</Name>
+<Code>42</Code>
+<MaxInt>5+</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<Area>
+<Name>長崎県北部</Name>
+<Code>730</Code>
+<MaxInt>4</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>平戸市岩の上町</Name>
+<Code>4220701</Code>
+<Int>3</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">9.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">9.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">5.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">5.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.4</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>長崎県南西部</Name>
+<Code>731</Code>
+<MaxInt>5-</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>諫早市東小路町</Name>
+<Code>4220401</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">0</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">0</LgIntPerPeriod>
+<Sva unit="cm/s">8.3</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">8.3</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">6.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">4.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">5.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">5.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">4.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">4.8</SvaPerPeriod>
+</IntensityStation>
+</Area>
+<Area>
+<Name>長崎県島原半島</Name>
+<Code>732</Code>
+<MaxInt>5+</MaxInt>
+<MaxLgInt>1</MaxLgInt>
+<IntensityStation>
+<Name>雲仙市国見町</Name>
+<Code>4221300</Code>
+<Int>4</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">13.9</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">12.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">13.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">13.4</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">8.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">8.5</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">6.9</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">5.4</SvaPerPeriod>
+</IntensityStation>
+<IntensityStation>
+<Name>雲仙市小浜町雲仙</Name>
+<Code>4221301</Code>
+<Int>5-</Int>
+<LgInt>1</LgInt>
+<LgIntPerPeriod PeriodicBand="1" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="2" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="3" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="4" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="5" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="6" PeriodUnit="秒台">1</LgIntPerPeriod>
+<LgIntPerPeriod PeriodicBand="7" PeriodUnit="秒台">1</LgIntPerPeriod>
+<Sva unit="cm/s">11.6</Sva>
+<SvaPerPeriod unit="cm/s" PeriodicBand="1" PeriodUnit="秒台">7.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="2" PeriodUnit="秒台">7.7</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="3" PeriodUnit="秒台">10.2</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="4" PeriodUnit="秒台">11.6</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="5" PeriodUnit="秒台">11.0</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="6" PeriodUnit="秒台">7.1</SvaPerPeriod>
+<SvaPerPeriod unit="cm/s" PeriodicBand="7" PeriodUnit="秒台">6.2</SvaPerPeriod>
+</IntensityStation>
+</Area>
+</Pref>
+</Observation>
+</Intensity>
+<Comments>
+<ForecastComment codeType="固定付加文">
+<Text>この地震について、緊急地震速報を発表しています。</Text>
+<Code>0241</Code>
+</ForecastComment>
+<FreeFormComment>各長周期地震動階級に対する簡易な現象表現
+ 階級１やや大きな揺れ
+ 階級２大きな揺れ
+ 階級３非常に大きな揺れ
+ 階級４極めて大きな揺れ
+波形、スペクトル等、本地震の長周期地震動に関する詳細な情報は気象庁の長周期地震動に関する観測情報のウェブサイト ( https://www.data.jma.go.jp/eew/data/ltpgm/event.php?eventId=20260728162718 ) もあわせてご活用ください。
+</FreeFormComment>
+<URI>https://www.data.jma.go.jp/eew/data/ltpgm/event.php?eventId=20260728162718</URI>
+</Comments>
+</Body>
+</Report>

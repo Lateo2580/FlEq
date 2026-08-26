@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>顕著な地震の震源要素更新のお知らせ</Title>
+<DateTime>2026-07-28T11:30:23Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>気象庁本庁</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>顕著な地震の震源要素更新のお知らせ</Title>
+<ReportDateTime>2026-07-28T20:30:00+09:00</ReportDateTime>
+<TargetDateTime>2026-07-28T20:30:00+09:00</TargetDateTime>
+<EventID>20260728162718</EventID>
+<InfoType>発表</InfoType>
+<Serial></Serial>
+<InfoKind>震源要素更新のお知らせ</InfoKind>
+<InfoKindVersion>1.0_0</InfoKindVersion>
+<Headline>
+<Text>令和　８年　７月２８日２０時３０分をもって、地震の発生場所と規模を更新します。</Text>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Earthquake>
+<OriginTime>2026-07-28T16:27:00+09:00</OriginTime>
+<ArrivalTime>2026-07-28T16:27:00+09:00</ArrivalTime>
+<Hypocenter>
+<Area>
+<Name>熊本県熊本地方</Name>
+<Code type="震央地名">741</Code>
+<jmx_eb:Coordinate description="北緯３２．６度　東経１３０．７度　深さ　２０ｋｍ">+32.6+130.7-20000/</jmx_eb:Coordinate>
+<jmx_eb:Coordinate type="震源位置（度分）" description="北緯３２度３７．５分　東経１３０度４０．７分　深さ　１６ｋｍ">+3237.5+13040.7-16000/</jmx_eb:Coordinate>
+</Area>
+</Hypocenter>
+<jmx_eb:Magnitude type="Mj" description="Ｍ７．１">7.1</jmx_eb:Magnitude>
+</Earthquake>
+<Comments>
+<FreeFormComment>度単位の震源要素は、津波情報等を引き続き発表する場合に使用されます。</FreeFormComment>
+</Comments>
+</Body>
+</Report>
+
+

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  §7.5 変更単位1の synthetic fixture。
+  dmdata GD earthquake event API から採取済みの 2026-07-28熊本地震実 XML には含まれない
+  単独「未入電」だけを補う。実 fixture の代替ではない。
+-->
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+  <Control>
+    <Title>震度速報</Title>
+    <DateTime>2026-07-28T12:00:00Z</DateTime>
+    <Status>通常</Status>
+    <EditorialOffice>気象庁本庁</EditorialOffice>
+    <PublishingOffice>気象庁</PublishingOffice>
+  </Control>
+  <Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+    <Title>震度速報</Title>
+    <ReportDateTime>2026-07-28T21:00:00+09:00</ReportDateTime>
+    <TargetDateTime>2026-07-28T20:59:00+09:00</TargetDateTime>
+    <EventID>synthetic-phase4a-vxse51-condition</EventID>
+    <InfoType>発表</InfoType>
+    <Serial>1</Serial>
+    <InfoKind>震度速報</InfoKind>
+    <InfoKindVersion>1.0_0</InfoKindVersion>
+    <Headline>
+      <Text>§7.5 synthetic 震度 Condition</Text>
+    </Headline>
+  </Head>
+  <Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+    <Earthquake>
+      <OriginTime>2026-07-28T20:59:00+09:00</OriginTime>
+      <ArrivalTime>2026-07-28T20:59:05+09:00</ArrivalTime>
+      <Hypocenter>
+        <Area>
+          <Name>合成熊本県</Name>
+          <Code type="震央地名">741</Code>
+          <jmx_eb:Coordinate description="北緯３２．８度　東経１３０．７度　深さ　１０ｋｍ">+32.8+130.7-10000/</jmx_eb:Coordinate>
+        </Area>
+      </Hypocenter>
+      <jmx_eb:Magnitude type="Mj" description="Ｍ４．５">4.5</jmx_eb:Magnitude>
+    </Earthquake>
+    <Intensity>
+      <Observation>
+        <CodeDefine>
+          <Type xpath="Pref/Code">地震情報／都道府県等</Type>
+          <Type xpath="Pref/Area/Code">地震情報／細分区域</Type>
+        </CodeDefine>
+        <MaxInt condition="未入電" description="最大震度不明"/>
+        <Pref>
+          <Name>熊本県</Name>
+          <Code>43</Code>
+          <MaxInt condition="未入電" description="県最大震度未入電"/>
+          <Area>
+            <Name>熊本県熊本</Name>
+            <Code>741</Code>
+            <MaxInt condition="未入電" description="地域最大震度未入電"/>
+          </Area>
+        </Pref>
+      </Observation>
+    </Intensity>
+  </Body>
+</Report>

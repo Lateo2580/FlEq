@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+<Title>震度速報</Title>
+<DateTime>2026-07-28T07:28:48Z</DateTime>
+<Status>通常</Status>
+<EditorialOffice>大阪管区気象台</EditorialOffice>
+<PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>震度速報</Title>
+<ReportDateTime>2026-07-28T16:28:00+09:00</ReportDateTime>
+<TargetDateTime>2026-07-28T16:27:00+09:00</TargetDateTime>
+<EventID>20260728162718</EventID>
+<InfoType>発表</InfoType>
+<Serial></Serial>
+<InfoKind>震度速報</InfoKind>
+<InfoKindVersion>1.0_1</InfoKindVersion>
+<Headline>
+<Text>２８日１６時２７分ころ、地震による強い揺れを感じました。震度３以上が観測された地域をお知らせします。</Text>
+<Information type="震度速報">
+<Item>
+<Kind><Name>震度７</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>熊本県熊本</Name><Code>741</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>震度６弱</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>熊本県天草・芦北</Name><Code>743</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>震度５強</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>長崎県島原半島</Name><Code>732</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>震度５弱</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>福岡県筑後</Name><Code>713</Code></Area>
+<Area><Name>熊本県球磨</Name><Code>742</Code></Area>
+<Area><Name>宮崎県北部山沿い</Name><Code>761</Code></Area>
+<Area><Name>鹿児島県薩摩</Name><Code>770</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>震度４</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>佐賀県南部</Name><Code>721</Code></Area>
+<Area><Name>長崎県南西部</Name><Code>731</Code></Area>
+<Area><Name>熊本県阿蘇</Name><Code>740</Code></Area>
+<Area><Name>大分県中部</Name><Code>751</Code></Area>
+<Area><Name>大分県西部</Name><Code>753</Code></Area>
+<Area><Name>宮崎県南部山沿い</Name><Code>763</Code></Area>
+</Areas>
+</Item>
+<Item>
+<Kind><Name>震度３</Name></Kind>
+<Areas codeType="地震情報／細分区域">
+<Area><Name>福岡県北九州</Name><Code>711</Code></Area>
+</Areas>
+</Item>
+</Information>
+</Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/seismology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+<Intensity>
+<Observation>
+<CodeDefine>
+<Type xpath="Pref/Code">地震情報／都道府県等</Type>
+<Type xpath="Pref/Area/Code">地震情報／細分区域</Type>
+</CodeDefine>
+<MaxInt>7</MaxInt>
+<Pref>
+<Name>熊本県</Name><Code>43</Code><MaxInt>7</MaxInt>
+<Area><Name>熊本県熊本</Name><Code>741</Code><MaxInt>7</MaxInt></Area>
+<Area><Name>熊本県天草・芦北</Name><Code>743</Code><MaxInt>6-</MaxInt></Area>
+<Area><Name>熊本県球磨</Name><Code>742</Code><MaxInt>5-</MaxInt></Area>
+<Area><Name>熊本県阿蘇</Name><Code>740</Code><MaxInt>4</MaxInt></Area>
+</Pref>
+<Pref>
+<Name>長崎県</Name><Code>42</Code><MaxInt>5+</MaxInt>
+<Area><Name>長崎県島原半島</Name><Code>732</Code><MaxInt>5+</MaxInt></Area>
+<Area><Name>長崎県南西部</Name><Code>731</Code><MaxInt>4</MaxInt></Area>
+</Pref>
+<Pref>
+<Name>福岡県</Name><Code>40</Code><MaxInt>5-</MaxInt>
+<Area><Name>福岡県筑後</Name><Code>713</Code><MaxInt>5-</MaxInt></Area>
+<Area><Name>福岡県北九州</Name><Code>711</Code><MaxInt>3</MaxInt></Area>
+</Pref>
+<Pref>
+<Name>宮崎県</Name><Code>45</Code><MaxInt>5-</MaxInt>
+<Area><Name>宮崎県北部山沿い</Name><Code>761</Code><MaxInt>5-</MaxInt></Area>
+<Area><Name>宮崎県南部山沿い</Name><Code>763</Code><MaxInt>4</MaxInt></Area>
+</Pref>
+<Pref>
+<Name>鹿児島県</Name><Code>46</Code><MaxInt>5-</MaxInt>
+<Area><Name>鹿児島県薩摩</Name><Code>770</Code><MaxInt>5-</MaxInt></Area>
+</Pref>
+<Pref>
+<Name>佐賀県</Name><Code>41</Code><MaxInt>4</MaxInt>
+<Area><Name>佐賀県南部</Name><Code>721</Code><MaxInt>4</MaxInt></Area>
+</Pref>
+<Pref>
+<Name>大分県</Name><Code>44</Code><MaxInt>4</MaxInt>
+<Area><Name>大分県中部</Name><Code>751</Code><MaxInt>4</MaxInt></Area>
+<Area><Name>大分県西部</Name><Code>753</Code><MaxInt>4</MaxInt></Area>
+</Pref>
+</Observation>
+</Intensity>
+<Comments>
+<ForecastComment codeType="固定付加文">
+<Text>今後の情報に注意してください。</Text>
+<Code>0217</Code>
+</ForecastComment>
+</Comments>
+</Body>
+</Report>

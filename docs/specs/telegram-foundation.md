@@ -895,7 +895,7 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 | City `MaxInt` | `municipalities[].intensityValue` | `municipalityNames`／`quakeIntensityValues.municipalities` | 現 HEAD は map・card・daily persistence の入力外 | presentation までの qualifier を固定する。市町村 map／card を導入する場合は Area と混在させない別変更単位を起こす |
 | IntensityStation `Int` | `stations[].intensityValue` | 現 HEAD は parser result／`raw` のみ | parser-only | raw、Condition、bounds を parser test で固定する。観測点 map／card／persistence は本契約の非対象 |
 
-fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤用抜粋は `test/fixtures/telegram-foundation/`、人工ケースは `test/fixtures/synthetic_phase4a_*.xml` だった。2026-07-28熊本地震の実 XML は旧 Windows 機アーカイブ（WeatherCW）からの後日持込を正とする（ご主人作業）。持込までは synthetic fixture を synthetic と明記して仮組みし、実 XML なしで「確認済み」へ昇格させない。持込後は元ファイル識別子・取得日・EventID・SHA-256を provenance として記録し、byte equality を検証して tracked fixture へ差し替える。Condition を含まない未追跡 `evidence-vxse51/` は、この provenance の代替 evidence にしない。
+fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤用抜粋は `test/fixtures/telegram-foundation/`、人工ケースは `test/fixtures/synthetic_phase4a_*.xml` だった。2026-07-28熊本地震の実 XML は dmdata GD earthquake イベント API（eventId 20260728162718・originalId 経由の raw XML）から 2026-08-26 に採取済みで、これを正とする（採取実測: VXSE51×4・VXSE53×2・VXSE61・VXSE62、VXSE53 に「震度５弱以上未入電」が Condition／Int／Name の3要素で実在）。元ファイル識別子・取得日・EventID・SHA-256を provenance として記録し、byte equality を検証して tracked fixture 化する。実 XML に無い形（単独「未入電」等）だけを synthetic で補い、synthetic と明記する。Condition を含まない未追跡 `evidence-vxse51/` は、この provenance の代替 evidence にしない。
 
 #### 7.5.3 確定裁定
 
@@ -916,7 +916,7 @@ fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤�
 | 取消 | `cancel` | `cancel` | 取消通知を1回 | 当該 EventID の unknown／known host と contribution を既存取消規則で削除 |
 8. recent／latest／地域 group は unknown／qualitative の履歴行を保持する。日次の数値統計（件数、exact 最大震度）は推定値を混ぜないため現行の exact-only を維持する。
 9. persistence は canonical `SpecialValue` と表示 semantic を保存し、live と restart 後で presence、raw、Condition、Description、bounds、badge、color rank、history row を一致させる。旧 scalar-only schema は既存 migration を維持する。
-10. 2026-07-28熊本地震の実 XML は旧 Windows 機アーカイブ（WeatherCW）からの後日持込を正とする（ご主人作業）。持込までは synthetic fixture を synthetic と明記し、実 XML なしで「確認済み」へ昇格させない。持込後は原本を意味変更せず保存し、元ファイル識別子、取得日、EventID、SHA-256を test comment または manifest に記録して、持込時と test で byte equality を検証する。Condition を注入した加工 XML を「実 fixture」と呼ばない。
+10. 2026-07-28熊本地震の実 XML は dmdata GD earthquake イベント API から採取済み（2026-08-26）で、これを正とする。原本を意味変更せず保存し、元ファイル識別子、取得日、EventID、SHA-256を test comment または manifest に記録して、持込時と test で byte equality を検証する。Condition を注入した加工 XML を「実 fixture」と呼ばない。
 
 #### 7.5.4 確定表示裁定
 
@@ -931,7 +931,7 @@ fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤�
 
 変更単位は次の依存順とし、一単位内で parser だけ、または UI だけを先行 release しない。括弧内は調査基準 HEAD で実在を確認した対象である。
 
-1. **実 evidence 固定**: 持込までは synthetic fixture を synthetic と明記して仮組みし、実 XML なしで「確認済み」へ昇格させない。2026-07-28熊本地震の実 XML は旧 Windows 機アーカイブ（WeatherCW）からの後日持込を正とする（ご主人作業）。持込後に原本を `test/fixtures/` へ byte equality を保って差し替え、元ファイル識別子・取得日・EventID・SHA-256を provenance として fixture helper／manifest に固定する手順を test comment または manifest へ記載する（`test/helpers/mock-message.ts`、`test/engine/telegram-foundation/phase0-manifest.ts`、`test/fixtures/telegram-foundation/`）。
+1. **実 evidence 固定**: 2026-07-28熊本地震の実 XML は dmdata GD earthquake イベント API から採取済み（2026-08-26）で、これを正とする。実 XML に無い形だけを synthetic で補い、synthetic と明記する。原本を `test/fixtures/` へ byte equality を保って差し替え、元ファイル識別子・取得日・EventID・SHA-256を provenance として fixture helper／manifest に固定する手順を test comment または manifest へ記載する（`test/helpers/mock-message.ts`、`test/engine/telegram-foundation/phase0-manifest.ts`、`test/fixtures/telegram-foundation/`）。
 2. **parser 契約**: 実 XML で Observation／Pref／Area／City／IntensityStation の出現階層と raw 属性を固定し、plain unknown／qualitative／矛盾／missing を検証する（`src/dmdata/special-value.ts`、`src/dmdata/telegram-parser.ts`、`src/types.ts`、`test/dmdata/special-value.test.ts`、`test/dmdata/telegram-parser.test.ts`）。
 3. **安全評価・presentation・CLI**: unknown 専用 frame／sound branch と `5弱以上未入電` lower gate を固定し、裁定 A の非 CLI 表示と CLI `不明` 固定を守る（`src/utils/intensity.ts`、`src/engine/presentation/level-helpers.ts`、`src/engine/presentation/events/from-earthquake.ts`、`src/ui/earthquake-info-formatter.ts`、`test/engine/presentation/level-helpers.test.ts`、`test/engine/presentation/events/from-earthquake.test.ts`、`test/ui/earthquake-info-formatter.test.ts`）。
 4. **通知・ticker**: 裁定 D と qualifier 非欠落、訂正／取消／通常値回帰を固定する（`src/engine/notification/notifier.ts`、`src/engine/display/ticker-sentence.ts`、`test/engine/notifier.test.ts`、`test/engine/display/ticker-sentence.test.ts`）。
