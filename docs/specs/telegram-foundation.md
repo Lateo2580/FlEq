@@ -858,9 +858,9 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 
 ### 7.5 特殊値適用第 1 例: 震度 Condition（未入電）実装契約
 
-状態: **再監査・実電文適用契約の起草完了、表示文言はご主人裁定待ち**（2026-08-26、調査基準 HEAD `37568dd6c`）。
+状態: **確定版**（2026-08-26、ご主人表示裁定・実 fixture provenance 裁定を反映。調査基準 HEAD `37568dd6c`）。
 
-本項は §3 の特殊値基盤を初めて domain の全経路へ適用する契約である。ただし調査基準 HEAD には Phase 4A の synthetic fixture ベース実装が既に存在するため、既存実装を未実装として扱わない。現在の semantic 配線を baseline とし、実電文 corpus による schema 確認、plain `未入電` の安全側表示ギャップ、ならびにご主人裁定が必要な表示文言を差分として閉じる。
+本項は §3 の特殊値基盤を初めて domain の全経路へ適用する契約である。ただし調査基準 HEAD には Phase 4A の synthetic fixture ベース実装が既に存在するため、既存実装を未実装として扱わない。現在の semantic 配線を baseline とし、実電文 corpus による schema 確認、plain `未入電` の安全側表示ギャップ、確定した表示文言を差分として閉じる。
 
 #### 7.5.1 前提・不変条件
 
@@ -880,8 +880,8 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 |---|---|---|---|
 | parser／presentation | Observation MaxInt、Pref／Area／City MaxInt、IntensityStation Int を `unknown` として raw／Condition／Description ごと保持し、exact scalar／`maxIntRank` は null | 同じ階層を `qualitative`＋`lowerBound:"5-"` として保持し、exact scalar は null | synthetic shape では一致。実 XML の各階層、名前空間、属性形を未確認 |
 | severity／通知発火 | 通知自体は発行するが、`earthquakeFrameLevel`／sound は unknown 専用 branch を持たず `?? 0` 相当で normal へ落ちる | safety rank 5 により warning frame／sound、地図 host、カード選択を通る | plain unknown を rank 0 相当の安全状態として扱わない明示 branch が必要。router の notifier dispatch に震度 gate はない |
-| 通知文言 | overall なら現共通 formatter は `最大震度不明（未入電）`。地域だけの未入電は通知本文へ列挙しない | overall なら `最大震度5弱以上未入電` | 文言は §7.5.4 D のご主人裁定待ち。qualifier を省略する案は不可 |
-| CLI／ticker | CLI は `不明（未入電）`、ticker は `不明`。地域 group は `不明（未入電）` | CLI／ticker とも `5弱以上未入電` | 見た目は §7.5.4 A〜D の裁定待ち。raw semantic の保持は実装済み |
+| 通知文言 | overall なら現共通 formatter は `最大震度不明（未入電）`。地域だけの未入電は通知本文へ列挙しない | overall なら `最大震度5弱以上未入電` | §7.5.4 D の自然文テンプレートへ移行し、`未入電` を必ず明示する |
+| CLI／ticker | CLI は `不明` 固定、非 CLI 面は `不明（未入電）` | 現 HEAD は `5弱以上未入電` | §7.5.4 B／C の `5弱以上（未入電）` 一体表示へ統一する。raw semantic の保持は実装済み |
 | 地図 | 同じ電文に rank 3 以上の既知候補があれば unknown 色＋`?` badge で地域を出せる。一方、全候補 unknown では overall gate が `-1` となり map command が `nonExact` remove になる | lower rank 5 の色＋`≥` badge で map と large-quake surface を発火 | 全候補 unknown を「閾値未満」と同じ remove にする現分岐は §§2.2、3.6、7.3 と不一致。表示継続／unknown map 用の明示 branch が必要 |
 | カード／履歴行 | latest／recent と地域 group に semantic を保持し、unknown chip＋`?` badge を表示 | latest／recent と地域 group に qualifier chip＋`≥` badge を表示。daily の件数／最大震度統計は exact-only のため加算しない | semantic card／履歴は配線済み。表示文言は §7.5.4、exact-only 日次統計は現行維持 |
 | 永続化 | `maxIntValue` の raw／Condition／Description／presence と display semantic を round-trip | 左記に bounds／safety semantic を加えて round-trip | synthetic round-trip は一致。実 XML 起点の restart 同値を追加する |
@@ -895,7 +895,7 @@ fixture helper は実 XML の次を解析して envelope を構成する。
 | City `MaxInt` | `municipalities[].intensityValue` | `municipalityNames`／`quakeIntensityValues.municipalities` | 現 HEAD は map・card・daily persistence の入力外 | presentation までの qualifier を固定する。市町村 map／card を導入する場合は Area と混在させない別変更単位を起こす |
 | IntensityStation `Int` | `stations[].intensityValue` | 現 HEAD は parser result／`raw` のみ | parser-only | raw、Condition、bounds を parser test で固定する。観測点 map／card／persistence は本契約の非対象 |
 
-fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤用抜粋は `test/fixtures/telegram-foundation/`、人工ケースは `test/fixtures/synthetic_phase4a_*.xml` だった。`未入電`／`5弱以上未入電` を含む tracked XML は Phase 4A の synthetic fixture のみで、2026-07-28 熊本地震の実 XML はこの checkout 内に存在しない。`[[reference_weathercw_fixtures]]` の実体を示す path／symlink／manifest も checkout 内では解決できなかったため、checkout 外を探索せず「実電文未確認」を維持する。未追跡 `evidence-vxse51/` の 2026-08-24 VXSE51 は Condition を含まず、本契約の代替 evidence にはしない。
+fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤用抜粋は `test/fixtures/telegram-foundation/`、人工ケースは `test/fixtures/synthetic_phase4a_*.xml` だった。2026-07-28熊本地震の実 XML は旧 Windows 機アーカイブ（WeatherCW）からの後日持込を正とする（ご主人作業）。持込までは synthetic fixture を synthetic と明記して仮組みし、実 XML なしで「確認済み」へ昇格させない。持込後は元ファイル識別子・取得日・EventID・SHA-256を provenance として記録し、byte equality を検証して tracked fixture へ差し替える。Condition を含まない未追跡 `evidence-vxse51/` は、この provenance の代替 evidence にしない。
 
 #### 7.5.3 確定裁定
 
@@ -916,24 +916,24 @@ fixture 調査では、tracked corpus の置き場は `test/fixtures/`、基盤�
 | 取消 | `cancel` | `cancel` | 取消通知を1回 | 当該 EventID の unknown／known host と contribution を既存取消規則で削除 |
 8. recent／latest／地域 group は unknown／qualitative の履歴行を保持する。日次の数値統計（件数、exact 最大震度）は推定値を混ぜないため現行の exact-only を維持する。
 9. persistence は canonical `SpecialValue` と表示 semantic を保存し、live と restart 後で presence、raw、Condition、Description、bounds、badge、color rank、history row を一致させる。旧 scalar-only schema は既存 migration を維持する。
-10. 実 fixture は取得した XML を意味変更せず保存し、出典、取得日、EventID の取扱いをテストコメントまたは manifest に記録する。Condition を注入した加工 XML を「実 fixture」と呼ばない。
+10. 2026-07-28熊本地震の実 XML は旧 Windows 機アーカイブ（WeatherCW）からの後日持込を正とする（ご主人作業）。持込までは synthetic fixture を synthetic と明記し、実 XML なしで「確認済み」へ昇格させない。持込後は原本を意味変更せず保存し、元ファイル識別子、取得日、EventID、SHA-256を test comment または manifest に記録して、持込時と test で byte equality を検証する。Condition を注入した加工 XML を「実 fixture」と呼ばない。
 
-#### 7.5.4 裁定待ち（ご主人の表示領域）
+#### 7.5.4 確定表示裁定
 
-基盤 semantic、safety rank、色、badge は裁定対象外である。次の A〜D は文字列とカード内の情報配置だけを選ぶ。裁定までは現 HEAD の見た目を暫定 baseline とし、実装変更を開始しない。
+基盤 semantic、safety rank、色、badge は裁定対象外である。次の A〜D は文字列とカード内の情報配置について確定した。未採択案を実装またはテスト期待値へ残さない。
 
-- **A: plain 未入電地域の表示文言** — A案 `不明（未入電）`（現 HEAD、unknown と理由を明示）／B案 `未入電`（原文を短く表示）。**推奨 A**: §3.7 の「不明＋理由」と他 domain の unknown formatter に揃う。B案を選べるのはカード、地図 tooltip／ARIA、地域 group などの非 CLI 面だけであり、CLI 詳細は裁定にかかわらず §3.7 に従い `不明`＋理由を表示する。
-- **B: `5弱以上未入電` の履歴行** — A案 `5弱以上未入電` の独立 group／chip を残し `≥` badge を付ける（現 HEAD）／B案 `5弱以上（未入電）` と自然文へ整形して `≥` badge を付ける。**推奨 A**: 電文 qualifier と ticker／map label が一致し、exact 震度5弱との混同が少ない。
-- **C: `5弱以上未入電` のカード** — A案主 label に `5弱以上未入電`＋`≥`、tooltip／ARIA に Condition／Description（現 HEAD）／B案主 label は `5弱以上`＋`≥`、`未入電` を副 label に分離。**推奨 A**: 狭幅でも情報の一部が装飾依存にならず、qualifier を落とさない。
-- **D: 通知文言** — A案共通 formatter の `最大震度不明（未入電）`／`最大震度5弱以上未入電`（現 HEAD）／B案通知専用の `最大震度は未入電`／`最大震度は5弱以上（未入電）`。**推奨 B**: semantic を保ったまま読み上げと自然文の明瞭さが上がる。
+- **A: plain 未入電地域の表示文言** — CLI 以外のカード、地図 tooltip／ARIA、地域 group は `不明（未入電）` と表示する。CLI 詳細は §3.7 に従い `不明` を固定する。
+- **B: `5弱以上未入電` の履歴行** — `5弱以上（未入電）` の独立 group／chip とし、`≥` badge を付ける。exact 震度5弱として扱わない。
+- **C: `5弱以上未入電` のカード** — `5弱以上（未入電）` を qualifier 一体の主 label とし、`≥` badge を付ける。`未入電` を副 label へ分離しない。tooltip／ARIA は Condition／Description を保持する。
+- **D: 通知文言** — 自然文で `未入電` を必ず明示する。`5弱以上未入電` は、たとえば「最大震度は5弱以上とみられます（未入電）」の形とする。テンプレートの助詞・句読点は既存 notifier の実装慣行に合わせて確定してよいが、qualifier を落とさない。
 
 #### 7.5.5 変更単位、対象ファイル、完了条件
 
 変更単位は次の依存順とし、一単位内で parser だけ、または UI だけを先行 release しない。括弧内は調査基準 HEAD で実在を確認した対象である。
 
-1. **実 evidence 固定**: 熊本地震の原本を `test/fixtures/` へ追加し、fixture helper と出典情報を固定する（`test/helpers/mock-message.ts`、`test/engine/telegram-foundation/phase0-manifest.ts`、`test/fixtures/telegram-foundation/`）。原本を checkout 内へ提供できない場合は blocked とし、synthetic を実電文扱いして進めない。
+1. **実 evidence 固定**: 持込までは synthetic fixture を synthetic と明記して仮組みし、実 XML なしで「確認済み」へ昇格させない。2026-07-28熊本地震の実 XML は旧 Windows 機アーカイブ（WeatherCW）からの後日持込を正とする（ご主人作業）。持込後に原本を `test/fixtures/` へ byte equality を保って差し替え、元ファイル識別子・取得日・EventID・SHA-256を provenance として fixture helper／manifest に固定する手順を test comment または manifest へ記載する（`test/helpers/mock-message.ts`、`test/engine/telegram-foundation/phase0-manifest.ts`、`test/fixtures/telegram-foundation/`）。
 2. **parser 契約**: 実 XML で Observation／Pref／Area／City／IntensityStation の出現階層と raw 属性を固定し、plain unknown／qualitative／矛盾／missing を検証する（`src/dmdata/special-value.ts`、`src/dmdata/telegram-parser.ts`、`src/types.ts`、`test/dmdata/special-value.test.ts`、`test/dmdata/telegram-parser.test.ts`）。
-3. **安全評価・presentation・CLI**: unknown 専用 frame／sound branch と `5弱以上未入電` lower gate を固定し、裁定 A の非 CLI 面制約を守る（`src/utils/intensity.ts`、`src/engine/presentation/level-helpers.ts`、`src/engine/presentation/events/from-earthquake.ts`、`src/ui/earthquake-info-formatter.ts`、`test/engine/presentation/level-helpers.test.ts`、`test/engine/presentation/events/from-earthquake.test.ts`、`test/ui/earthquake-info-formatter.test.ts`）。
+3. **安全評価・presentation・CLI**: unknown 専用 frame／sound branch と `5弱以上未入電` lower gate を固定し、裁定 A の非 CLI 表示と CLI `不明` 固定を守る（`src/utils/intensity.ts`、`src/engine/presentation/level-helpers.ts`、`src/engine/presentation/events/from-earthquake.ts`、`src/ui/earthquake-info-formatter.ts`、`test/engine/presentation/level-helpers.test.ts`、`test/engine/presentation/events/from-earthquake.test.ts`、`test/ui/earthquake-info-formatter.test.ts`）。
 4. **通知・ticker**: 裁定 D と qualifier 非欠落、訂正／取消／通常値回帰を固定する（`src/engine/notification/notifier.ts`、`src/engine/display/ticker-sentence.ts`、`test/engine/notifier.test.ts`、`test/engine/display/ticker-sentence.test.ts`）。
 5. **地図・カード・履歴**: all-unknown の sentinel wire、unknown host 選択・5分TTL・tier・既存地図置換、既知 emergency→unknown 保存、unknown／lower-bound の色・badge、裁定 B／C、tooltip／ARIA を固定する。frontend は `unknownHost` を protocol から受け、`deriveQuakeMapHostEvent()` で known host を優先した上で、未期限の unknown host だけを選択する。largeQuake がある間、または known host が有効な間は unknown host を画面選択しない（`src/engine/display/intensity-groups.ts`、`src/engine/display/project-event.ts`、`src/engine/display/protocol.ts`、`src/engine/display/state-store.ts`、`display/frontend/src/lib/protocol.ts`、`display/frontend/src/lib/derive.ts`、`display/frontend/src/lib/quake-map-colors.ts`、`display/frontend/src/components/LatestQuakeCard.svelte`、`display/frontend/src/components/RecentQuakes.svelte`、`test/engine/display/project-event.test.ts`、`test/engine/display/quake-map-state.test.ts`、`test/engine/display/standby-state-store.test.ts`、`display/frontend/src/lib/__tests__/derive.test.ts`、`display/frontend/src/components/__tests__/quake-map.test.ts`、`display/frontend/src/components/__tests__/latest-quake-card.test.ts`、`display/frontend/src/components/__tests__/recent-quakes.test.ts`）。
 6. **状態・永続化**: §7.4 merge、daily recent history、live／restart 同値を実 fixture 起点で固定する（`src/engine/display/quake-observation-merge.ts`、`src/engine/display/state-store.ts`、`src/engine/messages/daily-quake-counter.ts`、`src/engine/messages/daily-quake-persistence.ts`、`test/engine/display/quake-observation-merge.test.ts`、`test/engine/display/standby-state-store.test.ts`、`test/engine/messages/daily-quake-counter.test.ts`、`test/engine/messages/daily-quake-persistence.test.ts`）。
