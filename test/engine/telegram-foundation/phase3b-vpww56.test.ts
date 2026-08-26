@@ -666,6 +666,34 @@ describe("Phase 3B VPWW56 common registry", () => {
       .toEqual(["weather:VPWW56:office-a", "weather:VPWW56:office-b"]);
   });
 
+  it("state:null の重複 cancellation-only subject は局所破棄し、別官署の tombstone を保全する", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ vpww56State: holder, revisionGate: gate });
+    processWeather(message("office-a", T1, "1"), deps);
+    processWeather(message("office-b", T1, "1"), deps);
+    const file = tempPath();
+    new StandbyPersistence(file, 0, foundationProvider(holder, gate)).save(legacyWithView(holder, T1, "1"));
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: { vpww56: { state: unknown; gateEntries: Array<Record<string, unknown>> } };
+    };
+    raw.telegramFoundation.vpww56.state = null;
+    for (const entry of raw.telegramFoundation.vpww56.gateEntries) entry.cancelled = true;
+    raw.telegramFoundation.vpww56.gateEntries.push(
+      structuredClone(raw.telegramFoundation.vpww56.gateEntries[0]!),
+    );
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file, 0).load()!;
+    expect(loaded.telegramFoundation.vpww56.gateEntries.map((entry) => entry.stateSubjectKey))
+      .toEqual(["weather:VPWW56:office-b"]);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.vpww56 unit=subject discarded=1 retained=1 reason=duplicate-subject",
+    );
+  });
+
   it("旧 v1 の官署不明 union は旧粒度を固着させず、表示も watermark も復元しない", () => {
     const file = tempPath();
     const legacy = legacyState();

@@ -2975,6 +2975,7 @@ function sanitizeVpww56Foundation(
       || !Array.isArray(salvageState.pendingSubjects)) return null;
     const invalidSubjects = new Set<string>();
     const couplingSubjects = new Set<string>();
+    const duplicateSubjects = new Set<string>();
     const gates = value.gateEntries.flatMap((raw) => {
       if (isGateEntry(raw) && raw.domain === "weather" && raw.revisionFamily === "VPWW56"
         && isVpww56SubjectKey(raw.stateSubjectKey)) return [raw];
@@ -2996,7 +2997,7 @@ function sanitizeVpww56Foundation(
     const markDuplicates = (subjects: readonly string[]): void => {
       const counts = new Map<string, number>();
       for (const subject of subjects) counts.set(subject, (counts.get(subject) ?? 0) + 1);
-      for (const [subject, count] of counts) if (count > 1) couplingSubjects.add(subject);
+      for (const [subject, count] of counts) if (count > 1) duplicateSubjects.add(subject);
     };
     markDuplicates(gates.map((entry) => entry.stateSubjectKey));
     markDuplicates(streams.map((stream) => stream.subjectKey as string));
@@ -3007,8 +3008,11 @@ function sanitizeVpww56Foundation(
     }
     const activeGates = new Set(gates.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey));
     for (const subject of represented) if (!activeGates.has(subject) && !invalidSubjects.has(subject)) couplingSubjects.add(subject);
-    const rejected = new Set([...invalidSubjects, ...couplingSubjects]);
-    let filteredGates = gates.filter((entry) => entry.cancelled || !rejected.has(entry.stateSubjectKey));
+    const rejected = new Set([...invalidSubjects, ...duplicateSubjects, ...couplingSubjects]);
+    let filteredGates = gates.filter((entry) =>
+      !duplicateSubjects.has(entry.stateSubjectKey)
+      && !couplingSubjects.has(entry.stateSubjectKey)
+      && (entry.cancelled || !invalidSubjects.has(entry.stateSubjectKey)));
     let filteredStreams = streams.filter((stream) => !rejected.has(stream.subjectKey as string));
     let filteredPending = pending.filter((subject) => !rejected.has(subject));
     const retainedByLimit = filteredGates.slice(-VPWW56_REVISION_FAMILY_POLICY.maxSubjects!);
@@ -3030,7 +3034,8 @@ function sanitizeVpww56Foundation(
       ]);
       recordRepair("foundation.vpww56", "subject", discardedSubjects.size || 1, retainedSubjects.size,
         invalidSubjects.size > 0 ? "invalid-entry"
-          : couplingSubjects.size > 0 ? "coupling-mismatch" : "limit-exceeded");
+          : duplicateSubjects.size > 0 ? "duplicate-subject"
+            : couplingSubjects.size > 0 ? "coupling-mismatch" : "limit-exceeded");
     }
     return sanitizeVpww56Foundation({
       ...value,
