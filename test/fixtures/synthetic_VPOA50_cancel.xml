@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control><Title>記録的短時間大雨情報</Title><DateTime>2026-08-22T08:09:31Z</DateTime><Status>通常</Status><EditorialOffice>気象庁本庁</EditorialOffice><PublishingOffice>気象庁</PublishingOffice></Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+<Title>東京都記録的短時間大雨情報</Title><ReportDateTime>2026-08-22T17:09:00+09:00</ReportDateTime><TargetDateTime>2026-08-22T17:09:00+09:00</TargetDateTime><EventID>JPTEST202608221709</EventID><InfoType>取消</InfoType><Serial>2</Serial><InfoKind>記録的短時間大雨情報</InfoKind><InfoKindVersion>1.0_0</InfoKindVersion>
+<Headline><Text>東京都記録的短時間大雨情報を取り消します。</Text><Information type="記録的短時間大雨情報（発表細分）"><Item><Kind><Name>記録的短時間大雨情報</Name><Code>1</Code><Condition>発表</Condition></Kind><Areas><Area><Name>東京都</Name><Code>130000</Code></Area></Areas></Item></Information></Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/meteorology1/"><Warning type="記録的短時間大雨情報（発表細分）"><Item><Kind><Name>記録的短時間大雨情報</Name><Code>1</Code><Status>取消</Status></Kind><Area><Name>東京都</Name><Code>130000</Code></Area></Item></Warning></Body>
+</Report>

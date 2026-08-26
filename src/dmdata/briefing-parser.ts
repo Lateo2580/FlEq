@@ -184,6 +184,18 @@ function deriveObservationDescription(
   return "";
 }
 
+/** Body Property.Type を exact に分類する。本文や headline の推測はしない。 */
+function briefingObservationPartKind(
+  propertyType: string,
+): WeatherObservation["partKind"] {
+  switch (propertyType.normalize("NFKC")) {
+    case "気象現象の実況": return "event";
+    case "雨の実況": return "precipitation";
+    case "雪の実況": return "snowfall";
+    default: return "other";
+  }
+}
+
 /**
  * Body.MeteorologicalInfos > MeteorologicalInfo > Item を WeatherObservation[] に変換。
  * Item.Kind.Property の Type と各 *Part の構造から description / value / unit / time を抽出。
@@ -251,6 +263,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
           for (const prop of listOf(dig(kind, "Property"))) {
             if (prop == null) continue;
             const propType = str(dig(prop, "Type")) || "観測";
+            const partKind = briefingObservationPartKind(propType);
 
             // EventPart (線状降水帯 など)
             const eventPart = dig(prop, "EventPart");
@@ -268,6 +281,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
                 str(dig(eventPart, "Time")) ||
                 contextTime;
               result.push({
+                partKind,
                 observationType,
                 description: eventName || observationType,
                 value: null,
@@ -293,6 +307,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
               const time = str(dig(precipPart, "Time")) || contextTime;
               const value = isNaN(valueNum) ? null : valueNum;
               result.push({
+                partKind,
                 observationType: propType,
                 description: deriveObservationDescription(description, altType, value, unit),
                 value,
@@ -318,6 +333,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
               const time = str(dig(snowPart, "Time")) || contextTime;
               const value = isNaN(valueNum) ? null : valueNum;
               result.push({
+                partKind,
                 observationType: propType,
                 description: deriveObservationDescription(description, altType, value, unit),
                 value,
@@ -333,6 +349,7 @@ function extractObservations(body: unknown): WeatherObservation[] {
 
             // フォールバック: Type だけでも記録
             result.push({
+              partKind,
               observationType: propType,
               description: propType,
               value: null,

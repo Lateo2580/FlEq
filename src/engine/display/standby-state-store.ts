@@ -11,7 +11,11 @@ import * as log from "../../logger";
 import type {
   ActiveStandbyCardV1,
   DisplayBriefingEntryV1,
+  DisplayBriefingFactV1,
+  DisplayBriefingKindV1,
   DisplayBriefingSeverityEvidenceV1,
+  DisplayBriefingSummaryItemV1,
+  DisplayBriefingSummaryV1,
   DisplayHeatAreaV1,
   DisplayTyphoonV1,
   DisplayVolcanoAlertClassV1,
@@ -60,6 +64,7 @@ import {
 import { typhoonNumericValueFromLegacyScalar } from "../typhoon-numeric-persistence";
 import { projectTyphoonNumericSemantic } from "./typhoon-numeric-semantic";
 import { attachWeatherExpandedKinds } from "./weather-expanded-kinds";
+import { DISPLAY_SEVERITY_RANK } from "../../dmdata/weather-warning-level";
 
 export { RevisionGuard } from "./revision-guard";
 export type { PersistedSeenEntry } from "./revision-guard";
@@ -1591,6 +1596,108 @@ function isHighVpoaCard(info: ParsedLegacyCounterpartInfo): boolean {
     && info.severityEvidence.every(isConfirmedVpoaCardEvidence);
 }
 
+const BRIEFING_KIND: Readonly<Record<string, { kind: DisplayBriefingKindV1; lead: string }>> = {
+  "線状降水帯発生": { kind: "linearRainObserved", lead: "線状降水帯が発生" },
+  "線状降水帯直前": { kind: "linearRainPredicted", lead: "３時間以内に線状降水帯発生のおそれ" },
+  "記録雨": { kind: "recordRain", lead: "記録的短時間大雨" },
+  "記録的短時間大雨": { kind: "recordRain", lead: "記録的短時間大雨" },
+  "短時間大雪": { kind: "shortSnow", lead: "短時間大雪" },
+};
+
+const BRIEFING_TITLE_KIND: Readonly<Record<string, { kind: DisplayBriefingKindV1; lead: string }>> = {
+  "線状降水帯発生": BRIEFING_KIND["線状降水帯発生"],
+  "線状降水帯直前予測": BRIEFING_KIND["線状降水帯直前"],
+  "記録的短時間大雨": BRIEFING_KIND["記録的短時間大雨"],
+  "短時間大雪": BRIEFING_KIND["短時間大雪"],
+};
+
+function exactBriefingTitleKind(title: string): { kind: DisplayBriefingKindV1; lead: string } | null {
+  const matched = /\(([^()]+)\)/.exec(title.normalize("NFKC"));
+  return matched == null ? null : BRIEFING_TITLE_KIND[matched[1]!] ?? null;
+}
+
+function observationFacts(
+  info: ParsedWeatherBriefing,
+  kind: DisplayBriefingKindV1,
+): DisplayBriefingFactV1[] {
+  if (kind === "linearRainObserved" || kind === "linearRainPredicted") {
+    const expected = kind === "linearRainObserved" ? "線状降水帯発生" : "線状降水帯予想";
+    return info.observations
+      .filter((observation) => observation.partKind === "event" && observation.description.normalize("NFKC") === expected)
+      .map((observation) => ({
+        kind: "event" as const,
+        label: kind === "linearRainObserved" ? "発生" as const : "予想" as const,
+        areaName: observation.locationName,
+        areaCode: observation.locationCode,
+        at: observation.time,
+      }));
+  }
+  const partKind = kind === "recordRain" ? "precipitation" : "snowfall";
+  return info.observations
+    .filter((observation) => observation.partKind === partKind)
+    .map((observation) => ({
+      kind: partKind,
+      locationName: observation.locationName,
+      locationCode: observation.locationCode,
+      description: observation.description,
+      value: observation.value,
+      unit: observation.unit,
+      at: observation.time,
+    }));
+}
+
+function briefingSummary(info: ParsedWeatherBriefing | null, vpoa: ParsedLegacyCounterpartInfo | null, infoType: string): DisplayBriefingSummaryV1 {
+  if (info != null && infoType === "取消") {
+    return { mode: "cancellation", items: [], hasUnknownKind: false };
+  }
+  if (vpoa != null) {
+    if (infoType === "取消") return { mode: "rawHeadlineFallback", items: [], hasUnknownKind: false };
+    if (!isHighVpoaCard(vpoa)) return { mode: "rawHeadlineFallback", items: [], hasUnknownKind: false };
+    return {
+      mode: "structured",
+      items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }],
+      hasUnknownKind: false,
+    };
+  }
+  if (info == null) return { mode: "rawHeadlineFallback", items: [], hasUnknownKind: false };
+
+  const tagged = info.briefingSeverityEvidence
+    .map((evidence, sourceOrdinal) => ({ evidence, sourceOrdinal }))
+    .filter(({ evidence }) => evidence.source !== "none");
+  if (tagged.length === 0) {
+    const fallback = info.briefingConditions.length === 0 ? exactBriefingTitleKind(info.title) : null;
+    return fallback == null
+      ? { mode: "rawHeadlineFallback", items: [], hasUnknownKind: false }
+      : {
+          mode: "structured",
+          items: [{ ...fallback, sourceOrdinal: 0, facts: observationFacts(info, fallback.kind) }],
+          hasUnknownKind: false,
+        };
+  }
+
+  const hasUnknownKind = tagged.some(({ evidence }) => BRIEFING_KIND[evidence.condition.normalize("NFKC")] == null);
+  const seen = new Set<DisplayBriefingKindV1>();
+  const items: Array<DisplayBriefingSummaryItemV1 & { severityRank: number }> = [];
+  for (const { evidence, sourceOrdinal } of tagged) {
+    const known = BRIEFING_KIND[evidence.condition.normalize("NFKC")];
+    if (known == null || seen.has(known.kind)) continue;
+    seen.add(known.kind);
+    items.push({
+      ...known,
+      sourceOrdinal,
+      facts: observationFacts(info, known.kind),
+      severityRank: evidence.displaySeverity == null ? -1 : DISPLAY_SEVERITY_RANK[evidence.displaySeverity],
+    });
+  }
+  items.sort((left, right) => right.severityRank - left.severityRank || left.sourceOrdinal - right.sourceOrdinal);
+  if (items.length === 0) return { mode: "rawHeadlineFallback", items: [], hasUnknownKind };
+  return {
+    mode: hasUnknownKind ? "mixed" : "structured",
+    items: items.map(({ severityRank: _severityRank, ...item }) => item),
+    hasUnknownKind,
+  };
+}
+
 function briefingCardEntryCandidate(
   event: PresentationEvent,
   nowMs: number,
@@ -1646,6 +1753,7 @@ function briefingCardEntryCandidate(
     infoType,
     frameLevel,
     severityEvidence,
+    summary: briefingSummary(info, vpoa, infoType),
     qualifier: source === "vpoa50" ? "対応電文未確認" : null,
     updatedAt: new Date(updatedAtMs).toISOString(),
     expiresAt: new Date(expiresAtMs).toISOString(),
@@ -1686,6 +1794,15 @@ function copyBriefingEntry(entry: DisplayBriefingEntryV1): DisplayBriefingEntryV
     conditions: [...entry.conditions],
     targetAreas: entry.targetAreas.map((area) => ({ ...area })),
     severityEvidence: entry.severityEvidence.map((evidence) => ({ ...evidence })),
+    ...(entry.summary == null ? {} : {
+      summary: {
+        ...entry.summary,
+        items: entry.summary.items.map((item) => ({
+          ...item,
+          facts: item.facts.map((fact) => ({ ...fact })),
+        })),
+      },
+    }),
   };
 }
 

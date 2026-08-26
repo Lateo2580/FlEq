@@ -1415,6 +1415,8 @@ export interface BriefingSeverityEvidence {
 
 /** 観測実況・予測の1エントリ (generic 表現) */
 export interface WeatherObservation {
+  /** Body Item.Kind.Property.Type の exact mapping。表示用の種別根拠。 */
+  partKind: "event" | "precipitation" | "snowfall" | "other";
   /** 観測種別 (Property.Type、例: "雨の実況", "雪の実況") */
   observationType: string;
   /** イベント名や値の文字列表記 (例: "線状降水帯発生", "約100ミリ", "37センチ") */

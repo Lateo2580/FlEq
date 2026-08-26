@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onDestroy, untrack } from "svelte";
-  import type { ActiveStandbyCardV1 } from "../lib/protocol";
+  import type {
+    ActiveStandbyCardV1,
+    DisplayBriefingFactV1,
+    DisplayBriefingSummaryV1,
+  } from "../lib/protocol";
   import type { PageRange } from "../lib/legacy-standby/types";
   import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
@@ -32,7 +36,7 @@
   const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
   const ownsPageCoordinator = initialPageCoordinator == null;
   const entries = $derived(item.data.entries);
-  type BriefingBlockKind = "title" | "headline" | "condition" | "area" | "qualifier" | "meta";
+  type BriefingBlockKind = "title" | "headline" | "condition" | "area" | "areaOverflow" | "areaDetail" | "lead" | "fact" | "qualifier" | "meta";
   interface BriefingBlock {
     identity: string;
     label: string;
@@ -52,19 +56,89 @@
       : Array.from({ length: Math.ceil(line.length / size) }, (_, index) => line.slice(index * size, (index + 1) * size)))
       .filter((part) => part !== "");
   }
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return value != null && typeof value === "object" && !Array.isArray(value);
+  }
+  function nullableString(value: unknown): value is string | null {
+    return value === null || typeof value === "string";
+  }
+  function validFact(value: unknown): value is DisplayBriefingFactV1 {
+    if (!isRecord(value) || typeof value.kind !== "string") return false;
+    if (value.kind === "event") {
+      return (value.label === "発生" || value.label === "予想")
+        && nullableString(value.areaName) && nullableString(value.areaCode) && nullableString(value.at);
+    }
+    return (value.kind === "precipitation" || value.kind === "snowfall")
+      && nullableString(value.locationName) && nullableString(value.locationCode)
+      && typeof value.description === "string" && (typeof value.value === "number" || value.value === null)
+      && nullableString(value.unit) && nullableString(value.at);
+  }
+  function validSummary(value: unknown): value is DisplayBriefingSummaryV1 {
+    if (!isRecord(value) || typeof value.mode !== "string" || typeof value.hasUnknownKind !== "boolean" || !Array.isArray(value.items)) return false;
+    if (!(["structured", "mixed", "rawHeadlineFallback", "cancellation"] as const).includes(value.mode as DisplayBriefingSummaryV1["mode"])) return false;
+    if ((value.mode === "structured" || value.mode === "mixed") && value.items.length === 0) return false;
+    return value.items.every((item) => isRecord(item)
+      && ["linearRainObserved", "linearRainPredicted", "recordRain", "shortSnow"].includes(item.kind as string)
+      && typeof item.lead === "string" && item.lead.trim() !== ""
+      && typeof item.sourceOrdinal === "number" && Number.isSafeInteger(item.sourceOrdinal)
+      && Array.isArray(item.facts) && item.facts.every(validFact));
+  }
+  function displayTime(value: string | null): string {
+    if (value == null) return "時刻不明";
+    const matched = /T(\d{2}:\d{2})/.exec(value);
+    return matched == null ? value : matched[1]!;
+  }
+  function factText(fact: DisplayBriefingFactV1): string {
+    if (fact.kind === "event") return `${displayTime(fact.at)} ${fact.label}`;
+    const location = fact.locationName ?? "地点不明";
+    const amount = fact.description || (fact.value == null ? "値不明" : `${fact.value}${fact.unit ?? ""}`);
+    return `${location} ${amount} / ${displayTime(fact.at)}`;
+  }
+  function addFallbackBlocks(
+    result: BriefingBlock[], entry: (typeof entries)[number], add: (kind: BriefingBlockKind, text: string, suffix: string) => void,
+  ): void {
+    add("title", entry.title, "raw-title");
+    add("headline", entry.headline == null || entry.headline.trim() === "" ? "本文なし" : entry.headline, "raw-headline");
+    for (const [index, condition] of entry.conditions.entries()) add("condition", condition, `raw-condition:${index}`);
+    for (const [index, area] of entry.targetAreas.entries()) add("area", `${area.name} ${area.code}`, `raw-area:${area.code}:${index}`);
+    if (entry.qualifier != null) add("qualifier", entry.qualifier, "qualifier");
+    add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
+  }
   function entryBlocks(entry: (typeof entries)[number]): BriefingBlock[] {
     const result: BriefingBlock[] = [];
-    const add = (kind: BriefingBlockKind, text: string, suffix: string): void => {
-      for (const [index, part] of chunks(text).entries()) result.push({
+    const add = (kind: BriefingBlockKind, text: string, suffix: string, atomic = false): void => {
+      for (const [index, part] of (atomic ? [text] : chunks(text)).entries()) result.push({
         identity: `${entry.key}:${kind}:${suffix}:${index}`, label: `${entry.title} ${kind}`, entry, kind, text: part,
       });
     };
-    add("title", entry.title, "title");
-    if (entry.headline != null) add("headline", entry.headline, "headline");
-    for (const [index, condition] of entry.conditions.entries()) add("condition", condition, String(index));
-    for (const [index, area] of entry.targetAreas.entries()) add("area", area.name, `${area.code}:${index}`);
+    const summary = validSummary(entry.summary) ? entry.summary : null;
+    if (summary == null || summary.mode === "rawHeadlineFallback") {
+      addFallbackBlocks(result, entry, add);
+      return result;
+    }
+    if (summary.mode === "cancellation") {
+      add("lead", "気象防災速報を取消", "cancel-lead");
+      add("title", entry.title, "cancel-title");
+      if (entry.headline != null && entry.headline.trim() !== "") add("headline", entry.headline, "cancel-headline");
+      add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
+      return result;
+    }
+    for (const item of summary.items) add("lead", item.lead, `lead:${item.sourceOrdinal}`, true);
+    const primaryAreas = entry.targetAreas.slice(0, 3);
+    for (const [index, area] of primaryAreas.entries()) add("area", `${area.name} ${area.code}`, `area:${area.code}:${index}`);
+    if (entry.targetAreas.length > 3) add("areaOverflow", `ほか${entry.targetAreas.length - 3}地域`, "area-overflow");
+    add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
     if (entry.qualifier != null) add("qualifier", entry.qualifier, "qualifier");
-    add("meta", `${entry.publishingOffice}　${entry.reportDateTime}`, "meta");
+    for (const item of summary.items) {
+      for (const [index, fact] of item.facts.entries()) add("fact", factText(fact), `fact:${item.sourceOrdinal}:${fact.kind}:${fact.kind === "event" ? fact.areaCode ?? index : fact.locationCode ?? index}:${index}`, true);
+    }
+    if (entry.targetAreas.length > 3) {
+      for (const [index, area] of entry.targetAreas.entries()) add("areaDetail", `${area.name} ${area.code}`, `all-area:${area.code}:${index}`);
+    }
+    if (summary.mode === "mixed") {
+      add("title", entry.title, "mixed-title");
+      add("headline", entry.headline == null || entry.headline.trim() === "" ? "本文なし" : entry.headline, "mixed-headline");
+    }
     return result;
   }
   const blocks = $derived(entries.flatMap(entryBlocks));
@@ -145,7 +219,11 @@
           {#if block.kind === "title"}<h2 data-briefing-block={block.identity}>{block.text}</h2>
           {:else if block.kind === "headline"}<p class="headline" data-briefing-block={block.identity}>{block.text}</p>
           {:else if block.kind === "condition"}<p class="conditions" data-briefing-block={block.identity}>{block.text}</p>
+          {:else if block.kind === "lead"}<h2 class="lead" data-briefing-block={block.identity}>{block.text}</h2>
           {:else if block.kind === "area"}<p class="areas" data-briefing-block={block.identity}>対象: {block.text}</p>
+          {:else if block.kind === "areaOverflow"}<p class="areas" data-briefing-block={block.identity}>{block.text}</p>
+          {:else if block.kind === "areaDetail"}<p class="areas" data-briefing-block={block.identity}>対象: {block.text}</p>
+          {:else if block.kind === "fact"}<p class="fact" data-briefing-block={block.identity}>{block.text}</p>
           {:else if block.kind === "qualifier"}<p class="qualifier" data-briefing-block={block.identity}>{block.text}</p>
           {:else}<p class="meta" data-briefing-block={block.identity}>{block.text}</p>
           {/if}
@@ -167,8 +245,10 @@
   .body { padding: var(--space-2) var(--space-4); }
   h2, p { margin: 0; }
   h2 { font-size: var(--type-label-l-fluid); line-height: 1.35; }
+  .lead { color: var(--role-weatherWarning); }
   .headline { margin-top: var(--space-1); font-size: var(--type-body-s-fluid); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .conditions, .areas, .qualifier, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
+  .conditions, .areas, .fact, .qualifier, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
+  .fact { color: var(--role-text); }
   .qualifier { color: var(--role-weatherWarning); }
   .card-page-footer { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); }
   .card-page-indicator { padding: 1px var(--space-2); border: 1px solid var(--hairline); border-radius: var(--radius-s); color: var(--role-muted); font-size: var(--type-label-xs-size); line-height: 1; font-variant-numeric: tabular-nums; }

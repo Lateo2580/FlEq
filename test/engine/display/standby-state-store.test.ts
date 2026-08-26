@@ -26,6 +26,7 @@ import type {
   SpecialValue,
 } from "../../../src/types";
 import {
+  createMockWsDataMessageFromXml,
   createMockWsDataMessage,
   FIXTURE_VFVO51_EXTRA,
   FIXTURE_VFVO56_FLASH_1,
@@ -36,6 +37,11 @@ import {
   FIXTURE_VXKO50_16_14_01,
   FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709,
   FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709,
+  FIXTURE_VPBS50_SYNTH_CANCEL,
+  FIXTURE_VPBS50_SYNTH_MULTI,
+  FIXTURE_VPBS50_SYNTH_UNKNOWN,
+  FIXTURE_VPOA50_SYNTH_CANCEL,
+  readFixture,
 } from "../../helpers/mock-message";
 import {
   BRIEFING_CARD_FIXTURE_MATRIX,
@@ -43,6 +49,34 @@ import {
 } from "../../helpers/display-fixtures";
 
 const T0 = Date.parse("2026-07-21T05:00:00+09:00");
+
+const BRIEFING_STATIC_SUMMARY_FACTS: Readonly<Record<string, readonly Record<string, unknown>[]>> = {
+  "82_01_01_260324_VPBS50.xml": [
+    { kind: "event", label: "発生", areaName: "北西部", areaCode: "120010", at: "2023-09-08T10:10:00+09:00" },
+    { kind: "event", label: "発生", areaName: "北東部", areaCode: "120020", at: "2023-09-08T10:10:00+09:00" },
+    { kind: "event", label: "発生", areaName: "南部", areaCode: "120030", at: "2023-09-08T10:10:00+09:00" },
+  ],
+  "82_03_01_260324_VPBS50.xml": [{ kind: "event", label: "予想", areaName: "福岡地方", areaCode: "400010", at: "2023-07-10T01:50:00+09:00" }],
+  "82_01_02_250630_VPBS50.xml": [
+    { kind: "precipitation", locationName: "美幌町", locationCode: "0154300", description: "約１００ミリ", value: 100, unit: "mm", at: "2023-07-13T13:10:00+09:00" },
+    { kind: "precipitation", locationName: "美幌", locationCode: "17631", description: "９３ミリ", value: 93, unit: "mm", at: "2023-07-13T13:10:00+09:00" },
+  ],
+  "82_01_03_241031_VPBS50.xml": [{ kind: "snowfall", locationName: "長浜市余呉町柳ケ瀬", locationCode: "60026", description: "３７センチ", value: 37, unit: "cm", at: "2024-01-24T06:00:00+09:00" }],
+};
+
+const PHASE6B_VPBS_SUMMARY_FACTS: Readonly<Record<string, readonly {
+  locationName: string; locationCode: string; description: string; value: number; unit: string; at: string;
+}[]>> = {
+  "phase6b_VPBS50_KJPDE202608201757_202608201757.xml": [{ locationName: "北塩原村", locationCode: "0740200", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-20T17:50:00+09:00" }],
+  "phase6b_VPBS50_KJPTC202608211633_202608211633.xml": [{ locationName: "さいたま市", locationCode: "1110000", description: "約１１０ミリ", value: 110, unit: "mm", at: "2026-08-21T16:20:00+09:00" }],
+  "phase6b_VPBS50_KJPTC202608221709_202608221709.xml": [{ locationName: "戸田市", locationCode: "1122400", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-22T17:00:00+09:00" }],
+  "phase6b_VPBS50_KJPTK202608221709_202608221709.xml": [
+    { locationName: "北区", locationCode: "1311700", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-22T17:00:00+09:00" },
+    { locationName: "板橋区", locationCode: "1311900", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-22T17:00:00+09:00" },
+  ],
+  "phase6b_VPBS50_KJPTK202608221709_202608221717.xml": [{ locationName: "板橋区", locationCode: "1311900", description: "１２０ミリ以上", value: 120, unit: "mm", at: "2026-08-22T17:00:00+09:00" }],
+  "phase6b_VPBS50_KJPTK202608221709_202608221727.xml": [{ locationName: "豊島区", locationCode: "1311600", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-22T17:20:00+09:00" }],
+};
 
 function heatRaw(over: Partial<ParsedHeatAlertInfo> = {}): ParsedHeatAlertInfo {
   return {
@@ -1345,6 +1379,130 @@ describe("StandbyStateStore: flood", () => {
 });
 
 describe("StandbyStateStore: independent briefing card", () => {
+  it.each([
+    ["82_01_01_260324_VPBS50.xml", "linearRainObserved", "線状降水帯が発生", "event"],
+    ["82_03_01_260324_VPBS50.xml", "linearRainPredicted", "３時間以内に線状降水帯発生のおそれ", "event"],
+    ["82_01_02_250630_VPBS50.xml", "recordRain", "記録的短時間大雨", "precipitation"],
+    ["82_01_03_241031_VPBS50.xml", "shortSnow", "短時間大雪", "snowfall"],
+  ] as const)("known VPBS50 %s is projected as structured summary", (fixture, kind, lead, factKind) => {
+    const event = briefingEvent(fixture);
+    const store = new StandbyStateStore();
+    store.applyEvent(event, Date.parse(event.reportDateTime) + 1);
+    const summary = store.snapshotBriefingCard()!.data.entries[0]!.summary;
+
+    expect(summary).toMatchObject({ mode: "structured", hasUnknownKind: false, items: [{ kind, lead }] });
+    expect(summary?.items[0]?.facts[0]?.kind).toBe(factKind);
+    expect(summary?.items[0]?.facts).toEqual(BRIEFING_STATIC_SUMMARY_FACTS[fixture]);
+  });
+
+  it("複数 known kind は severity 降順で畳み、unknown 混在は mixed にする", () => {
+    const event = briefingEvent(FIXTURE_VPBS50_SYNTH_MULTI);
+    const store = new StandbyStateStore();
+    store.applyEvent(event, Date.parse(event.reportDateTime) + 1);
+    expect(store.snapshotBriefingCard()!.data.entries[0]!.summary).toMatchObject({
+      mode: "structured", items: [{ kind: "recordRain" }, { kind: "shortSnow" }],
+    });
+
+    const raw = event.raw as typeof event.raw & { briefingConditions: string[]; briefingSeverityEvidence: unknown[] };
+    const mixed = { ...event, raw: {
+      ...raw,
+      briefingConditions: [...raw.briefingConditions, "未知種別"],
+      briefingSeverityEvidence: [...raw.briefingSeverityEvidence, {
+        condition: "未知種別", tag: "other", displaySeverity: null, soundLevel: null, source: "unknown",
+      }],
+    } };
+    const mixedStore = new StandbyStateStore();
+    mixedStore.applyEvent(mixed, Date.parse(event.reportDateTime) + 1);
+    expect(mixedStore.snapshotBriefingCard()!.data.entries[0]!.summary).toMatchObject({
+      mode: "mixed", hasUnknownKind: true,
+    });
+  });
+
+  it("unknown・VPBS50取消・VPOA50 fail-open を推測せず summary mode に分ける", () => {
+    const unknown = new StandbyStateStore();
+    const unknownEvent = briefingEvent(FIXTURE_VPBS50_SYNTH_UNKNOWN);
+    unknown.applyEvent(unknownEvent, Date.parse(unknownEvent.reportDateTime) + 1);
+    expect(unknown.snapshotBriefingCard()!.data.entries[0]!.summary).toMatchObject({ mode: "rawHeadlineFallback", hasUnknownKind: true });
+
+    const cancelled = new StandbyStateStore();
+    const cancelEvent = briefingEvent(FIXTURE_VPBS50_SYNTH_CANCEL);
+    cancelled.applyEvent(cancelEvent, Date.parse(cancelEvent.reportDateTime) + 1);
+    expect(cancelled.snapshotBriefingCard()!.data.entries[0]!.summary).toMatchObject({ mode: "cancellation" });
+
+    const vpoa = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const vpoaStore = new StandbyStateStore();
+    vpoaStore.applyEvent(vpoa, Date.parse(vpoa.reportDateTime) + 1);
+    expect(vpoaStore.snapshotBriefingCard()!.data.entries[0]!.summary).toEqual({
+      mode: "structured", hasUnknownKind: false,
+      items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }],
+    });
+
+    const vpoaCancel = vpoaEvent(FIXTURE_VPOA50_SYNTH_CANCEL);
+    const vpoaCancelStore = new StandbyStateStore();
+    const vpoaCancelNow = Date.parse(vpoaCancel.reportDateTime) + 1;
+    vpoaCancelStore.applyEvent(vpoaCancel, vpoaCancelNow);
+    const vpoaCancelEntry = vpoaCancelStore.snapshotBriefingCard()!.data.entries[0]!;
+    expect(vpoaCancelEntry.summary).toMatchObject({ mode: "rawHeadlineFallback" });
+    expect(Date.parse(vpoaCancelEntry.expiresAt)).toBe(Date.parse(vpoaCancel.reportDateTime) + BRIEFING_CARD_TTL_MS);
+  });
+
+  it("headline を無関係な散文へ置換しても summary は変わらない", () => {
+    const event = briefingEvent("82_01_02_250630_VPBS50.xml");
+    const changed: PresentationEvent = {
+      ...event,
+      headline: "無関係な散文",
+      raw: { ...(event.raw as object), headline: "無関係な散文" } as PresentationEvent["raw"],
+    };
+    const originalStore = new StandbyStateStore();
+    const changedStore = new StandbyStateStore();
+    const nowMs = Date.parse(event.reportDateTime) + 1;
+    originalStore.applyEvent(event, nowMs);
+    changedStore.applyEvent(changed, nowMs);
+    expect(changedStore.snapshotBriefingCard()!.data.entries[0]!.summary).toEqual(originalStore.snapshotBriefingCard()!.data.entries[0]!.summary);
+  });
+
+  it("VPOA50 evidence の欠落・矛盾は structured にせず raw fallback にする", () => {
+    const event = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const raw = event.raw as unknown as { severityEvidence: Array<Record<string, unknown>> };
+    for (const severityEvidence of [raw.severityEvidence.slice(0, 1), [{ ...raw.severityEvidence[0], kindCode: "9" }]]) {
+      const store = new StandbyStateStore();
+      store.applyEvent({
+        ...event,
+        raw: { ...(event.raw as object), severityEvidence } as unknown as PresentationEvent["raw"],
+      }, Date.parse(event.reportDateTime) + 1);
+      expect(store.snapshotBriefingCard()!.data.entries[0]!).toMatchObject({
+        title: event.title, headline: event.headline, summary: { mode: "rawHeadlineFallback" },
+      });
+    }
+  });
+
+  it("VPOA50 の Kind.Name 不一致は record-rain に昇格せず raw fallback にする", () => {
+    const xml = readFixture(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709)
+      .replace(/<Name>記録的短時間大雨情報<\/Name>/g, "<Name>別の情報</Name>");
+    const outcome = processLegacyCounterpart(createMockWsDataMessageFromXml(xml, "VPOA50"));
+    if (outcome == null) throw new Error("VPOA50 fixture did not parse");
+    const event = fromLegacyCounterpartOutcome(outcome);
+    const store = new StandbyStateStore();
+
+    store.applyEvent(event, Date.parse(event.reportDateTime) + 1);
+
+    expect(store.snapshotBriefingCard()!.data.entries[0]!).toMatchObject({
+      title: event.title,
+      headline: event.headline,
+      summary: { mode: "rawHeadlineFallback" },
+    });
+  });
+
+  it("Condition 空の VPBS50 は NFKC 後の括弧内 title を exact fallback に使う", () => {
+    const event = briefingEvent("82_03_01_260324_VPBS50.xml");
+    const raw = event.raw as typeof event.raw & { briefingConditions: string[]; briefingSeverityEvidence: unknown[] };
+    const store = new StandbyStateStore();
+    store.applyEvent({ ...event, raw: { ...raw, briefingConditions: [], briefingSeverityEvidence: [] } }, Date.parse(event.reportDateTime) + 1);
+    expect(store.snapshotBriefingCard()!.data.entries[0]!.summary).toMatchObject({
+      mode: "structured", items: [{ kind: "linearRainPredicted", lead: "３時間以内に線状降水帯発生のおそれ" }],
+    });
+  });
+
   it.each(BRIEFING_CARD_FIXTURE_MATRIX)("fixture $fixture is projected without ticker fields", (expected) => {
     const info = parseWeatherBriefing(createMockWsDataMessage(expected.fixture));
     if (info == null) throw new Error(`briefing fixture did not parse: ${expected.fixture}`);
@@ -1401,6 +1559,22 @@ describe("StandbyStateStore: independent briefing card", () => {
     });
     expect(entry.severityEvidence).toMatchObject(expected.severityEvidence);
     expect(entry.targetAreas.every((area) => area.code !== "")).toBe(true);
+    if (expected.source === "vpbs50") {
+      const facts = PHASE6B_VPBS_SUMMARY_FACTS[expected.fixture];
+      expect(facts).toBeDefined();
+      expect(entry.summary).toEqual({
+        mode: "structured", hasUnknownKind: false,
+        items: [{
+          kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0,
+          facts: facts!.map((fact) => ({ kind: "precipitation", ...fact })),
+        }],
+      });
+    } else {
+      expect(entry.summary).toEqual({
+        mode: "structured", hasUnknownKind: false,
+        items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }],
+      });
+    }
   });
 
   it("VPOA50 fail-open は card 専用 identity・qualifier・code付き地域を持つ", () => {

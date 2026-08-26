@@ -339,6 +339,12 @@ export const FIXTURE_VPBS50_SYNTH_EMPTY = "synthetic_VPBS50_empty.xml";
 /** VPBS50 人工: InfoType="取消" (Headline.Information 削除) */
 export const FIXTURE_VPBS50_SYNTH_CANCEL = "synthetic_VPBS50_cancel.xml";
 
+/** 2026-08-27 Pi 実受信: 富山／石川の線状降水帯直前予測・発生。 */
+export const FIXTURE_VPBS50_HJPNA202608270258 = "VPBS50_HJPNA202608270258.xml";
+export const FIXTURE_VPBS50_HJPNB202608270308 = "VPBS50_HJPNB202608270308.xml";
+export const FIXTURE_VPBS50_YJPNA202608270448 = "VPBS50_YJPNA202608270448.xml";
+export const FIXTURE_VPBS50_YJPNB202608270448 = "VPBS50_YJPNB202608270448.xml";
+
 // ── 早期天候情報 (VPAW51) ──
 
 /** VPAW51 早期天候情報 (高温 - 東北地方) */
@@ -541,6 +547,7 @@ export const FIXTURE_SYNTHETIC_VXKO50_CANCEL = "synthetic_VXKO50_cancel.xml";
 export const FIXTURE_SYNTHETIC_VXKO50_CORRECTION = "synthetic_VXKO50_correction.xml";
 export const FIXTURE_SYNTHETIC_VXKO50_CODE31 = "synthetic_VXKO50_code31.xml";
 export const FIXTURE_SYNTHETIC_VXSU50_CANCEL = "synthetic_VXSU50_cancel.xml";
+export const FIXTURE_VPOA50_SYNTH_CANCEL = "synthetic_VPOA50_cancel.xml";
 
 /** フィクスチャXMLを読み込む (fixtures/ → selected_xml/ フォールバック) */
 export function readFixture(filename: string): string {

@@ -33,7 +33,10 @@ export async function renderProductionStandby(
   if (root.querySelector("[data-layout-motion-card='briefing:right']") == null) return null;
   if (root.querySelector("[data-briefing-card]") == null) return null;
   const renderedEntry = root.querySelector<HTMLElement>("[data-briefing-entry]");
-  if (renderedEntry?.textContent?.includes(entry.title) !== true) return null;
+  const expectedText = entry.summary?.mode === "structured" || entry.summary?.mode === "mixed"
+    ? entry.summary.items[0]?.lead
+    : entry.title;
+  if (expectedText == null || renderedEntry?.textContent?.includes(expectedText) !== true) return null;
   if (renderedEntry.getAttribute("data-frame-level") !== entry.frameLevel) return null;
   return root;
 }

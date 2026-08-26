@@ -15,6 +15,7 @@ import {
   FIXTURE_VPBS50_SYNTH_EMPTY,
   FIXTURE_VPBS50_SYNTH_CANCEL,
   encodeXml,
+  readFixture,
 } from "../helpers/mock-message";
 
 describe("deriveBriefingTag", () => {
@@ -97,6 +98,21 @@ describe("parseWeatherBriefing - 短時間大雪", () => {
       (o) => o.unit === "cm" && o.value != null,
     );
     expect(hasSnowObs).toBe(true);
+  });
+});
+
+describe("WeatherObservation.partKind", () => {
+  it("Property.Type の exact mapping を4値として保持する", () => {
+    expect(parseWeatherBriefing(createMockWsDataMessage(FIXTURE_VPBS50_LINEAR_OBSERVED))!.observations
+      .every((observation) => observation.partKind === "event")).toBe(true);
+    expect(parseWeatherBriefing(createMockWsDataMessage(FIXTURE_VPBS50_RECORD_RAIN))!.observations
+      .every((observation) => observation.partKind === "precipitation")).toBe(true);
+    expect(parseWeatherBriefing(createMockWsDataMessage(FIXTURE_VPBS50_SHORT_SNOW))!.observations
+      .every((observation) => observation.partKind === "snowfall")).toBe(true);
+
+    const message = createMockWsDataMessage(FIXTURE_VPBS50_SHORT_SNOW);
+    message.body = encodeXml(readFixture(FIXTURE_VPBS50_SHORT_SNOW).replace("<Type>雪の実況</Type>", "<Type>雪の予想</Type>"));
+    expect(parseWeatherBriefing(message)!.observations[0]?.partKind).toBe("other");
   });
 });
 

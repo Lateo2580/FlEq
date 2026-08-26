@@ -750,6 +750,43 @@ export interface DisplayBriefingSeverityEvidenceV1 {
   status: string | null;
 }
 
+export type DisplayBriefingKindV1 =
+  | "linearRainObserved"
+  | "linearRainPredicted"
+  | "recordRain"
+  | "shortSnow";
+
+export type DisplayBriefingFactV1 =
+  | {
+      kind: "event";
+      label: "発生" | "予想";
+      areaName: string | null;
+      areaCode: string | null;
+      at: string | null;
+    }
+  | {
+      kind: "precipitation" | "snowfall";
+      locationName: string | null;
+      locationCode: string | null;
+      description: string;
+      value: number | null;
+      unit: string | null;
+      at: string | null;
+    };
+
+export interface DisplayBriefingSummaryItemV1 {
+  kind: DisplayBriefingKindV1;
+  lead: string;
+  sourceOrdinal: number;
+  facts: DisplayBriefingFactV1[];
+}
+
+export interface DisplayBriefingSummaryV1 {
+  mode: "structured" | "mixed" | "rawHeadlineFallback" | "cancellation";
+  items: DisplayBriefingSummaryItemV1[];
+  hasUnknownKind: boolean;
+}
+
 /** 一 outer card に集約される VPBS50／VPOA50 の card entry。 */
 export interface DisplayBriefingEntryV1 {
   /** card 専用 exact identity。ticker eventKey／groupKey ではない。 */
@@ -768,6 +805,8 @@ export interface DisplayBriefingEntryV1 {
   /** engine が解決した frame level。frontend で文字列再判定しない。 */
   frameLevel: DisplayBriefingFrameLevelV1;
   severityEvidence: DisplayBriefingSeverityEvidenceV1[];
+  /** engine が構造化した briefing semantic。旧 wire では欠落し得る。 */
+  summary?: DisplayBriefingSummaryV1;
   /** VPOA50 の fail-open qualifier 等。 */
   qualifier: string | null;
   updatedAt: string;

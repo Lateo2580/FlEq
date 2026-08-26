@@ -21,6 +21,7 @@ export const LEGACY_COUNTERPART_SOURCE_TYPES = [
 export const LEGACY_COUNTERPART_BODY_EXTRACTORS = ["VPOA50"] as const;
 
 const VPOA_INFORMATION_TYPE = "記録的短時間大雨情報（発表細分）";
+const VPOA_KIND_NAME = "記録的短時間大雨情報";
 const VPOA_ARRAY_TAGS = new Set([
   "Information",
   "Warning",
@@ -143,6 +144,10 @@ function activeSide(side: VpoaSideExtraction): boolean {
     && side.validShape
     && kindCodes.length === 1
     && kindCodes[0] === "1"
+    // VPOA50 の code 1 は単独では record-rain の根拠にならない。Kind.Name も
+    // 電文仕様どおりの値であることを、Head/Body それぞれで確かめる。
+    && side.kinds.length > 0
+    && side.kinds.every((kind) => kind.name === VPOA_KIND_NAME)
     && side.states.length > 0
     && side.states.every((state) => state === "発表");
 }

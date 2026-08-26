@@ -110,6 +110,37 @@
                   "status": null
                 }
               ],
+              "summary": {
+                "mode": "structured",
+                "items": [
+                  {
+                    "kind": "recordRain",
+                    "lead": "記録的短時間大雨",
+                    "sourceOrdinal": 0,
+                    "facts": [
+                      {
+                        "kind": "precipitation",
+                        "locationName": "北区",
+                        "locationCode": "1311700",
+                        "description": "約１００ミリ",
+                        "value": 100,
+                        "unit": "mm",
+                        "at": "2026-08-22T17:00:00+09:00"
+                      },
+                      {
+                        "kind": "precipitation",
+                        "locationName": "板橋区",
+                        "locationCode": "1311900",
+                        "description": "約１００ミリ",
+                        "value": 100,
+                        "unit": "mm",
+                        "at": "2026-08-22T17:00:00+09:00"
+                      }
+                    ]
+                  }
+                ],
+                "hasUnknownKind": false
+              },
               "qualifier": null,
               "updatedAt": "2026-08-22T08:09:00.000Z",
               "expiresAt": "2026-08-22T10:09:00.000Z",
@@ -250,6 +281,37 @@
                   "status": null
                 }
               ],
+              "summary": {
+                "mode": "structured",
+                "items": [
+                  {
+                    "kind": "recordRain",
+                    "lead": "記録的短時間大雨",
+                    "sourceOrdinal": 0,
+                    "facts": [
+                      {
+                        "kind": "precipitation",
+                        "locationName": "北区",
+                        "locationCode": "1311700",
+                        "description": "約１００ミリ",
+                        "value": 100,
+                        "unit": "mm",
+                        "at": "2026-08-22T17:00:00+09:00"
+                      },
+                      {
+                        "kind": "precipitation",
+                        "locationName": "板橋区",
+                        "locationCode": "1311900",
+                        "description": "約１００ミリ",
+                        "value": 100,
+                        "unit": "mm",
+                        "at": "2026-08-22T17:00:00+09:00"
+                      }
+                    ]
+                  }
+                ],
+                "hasUnknownKind": false
+              },
               "qualifier": null,
               "updatedAt": "2026-08-22T08:09:00.000Z",
               "expiresAt": "2026-08-22T10:09:00.000Z",
