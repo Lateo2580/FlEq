@@ -289,8 +289,8 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
       }),
     ]);
     expect(result.event.maxIntLabel).toBe("5弱以上未入電");
-    expect(result.dto.tickerSentence).toBe("Phase 4A synthetic。 最大震度5弱以上未入電を観測しています。");
-    expectNotification("最大震度5弱以上未入電");
+    expect(result.dto.tickerSentence).toBe("Phase 4A synthetic。 最大震度5弱以上（未入電）を観測しています。");
+    expectNotification("最大震度は5弱以上とみられます（未入電）");
     expect(result.dto.emergency).toMatchObject({
       kind: "largeQuake",
       maxInt: "5弱以上未入電",

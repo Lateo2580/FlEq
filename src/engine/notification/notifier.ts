@@ -25,6 +25,8 @@ import {
   ParsedEarthquakeHypocenter,
   TyphoonProbPeak,
   DEFAULT_CONFIG,
+  JmaIntensity,
+  SpecialValue,
 } from "../../types";
 import { VolcanoPresentation } from "../presentation/volcano-presentation";
 import { loadConfig, saveConfig } from "../../config";
@@ -246,6 +248,44 @@ function notificationMagnitude(
   return formatted;
 }
 
+function containsUnreportedIntensity(value: SpecialValue<JmaIntensity>): boolean {
+  return [value.condition, value.description, value.raw]
+    .some((candidate) => candidate?.normalize("NFKC").includes("未入電") === true);
+}
+
+/** 未入電を含む震度だけ、通知では意味を保った自然文へ投影する。 */
+function notificationIntensityLabel(
+  value: SpecialValue<JmaIntensity> | undefined,
+  scalar: string | null | undefined,
+): string | null {
+  const formatted = formatIntensitySpecialValue(value, scalar, "notification");
+  if (formatted == null) return null;
+
+  const normalized = formatted.normalize("NFKC").trim();
+  const isUnreported = value == null
+    ? normalized.includes("未入電")
+    : containsUnreportedIntensity(value);
+  if (
+    !isUnreported
+    || (value != null && value.presence !== "unknown" && value.presence !== "qualitative")
+  ) {
+    return `最大震度${formatted}`;
+  }
+
+  if (value?.presence === "unknown" || normalized === "未入電" || normalized === "不明") {
+    return "最大震度は不明とみられます（未入電）";
+  }
+
+  const qualifier = normalized
+    .replace(/\s*(?:\(未入電\)|（未入電）|未入電)\s*$/, "")
+    .replace(/^最大震度\s*(?:は)?\s*/, "")
+    .replace(/(?:ですが|だが)\s*$/, "")
+    .trim();
+  return qualifier === "" || qualifier === "不明"
+    ? "最大震度は不明とみられます（未入電）"
+    : `最大震度は${qualifier}とみられます（未入電）`;
+}
+
 export class Notifier {
   private settings: NotifySettings;
   private soundEnabled: boolean;
@@ -394,8 +434,11 @@ export class Notifier {
       if (magnitude != null) parts.push(magnitude);
     }
     if (info.intensity) {
-      const maxInt = formatIntensitySpecialValue(info.intensity.maxIntValue, info.intensity.maxInt, "notification");
-      if (maxInt != null) parts.push(`最大震度${maxInt}`);
+      const maxInt = notificationIntensityLabel(
+        info.intensity.maxIntValue,
+        info.intensity.maxInt,
+      );
+      if (maxInt != null) parts.push(maxInt);
     }
     const notification = correctionNotification(
       info.infoType,

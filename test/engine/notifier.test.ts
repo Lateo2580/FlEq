@@ -233,8 +233,10 @@ describe("Notifier", () => {
   it.each([
     ["missing", special<JmaIntensity>({ presence: "missing" }), null],
     ["empty", special<JmaIntensity>({ raw: "", presence: "empty" }), null],
-    ["unknown", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "最大震度不明（未入電）"],
-    ["qualitative", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "最大震度5弱以上未入電"],
+    ["unknown", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "最大震度は不明とみられます（未入電）"],
+    ["qualitative", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "最大震度は5弱以上とみられます（未入電）"],
+    ["qualitative parentheses condition", special<JmaIntensity>({ condition: "5弱以上（未入電）", presence: "qualitative", lowerBound: "5-" }), "最大震度は5弱以上とみられます（未入電）"],
+    ["qualitative parentheses raw", special<JmaIntensity>({ raw: "5弱以上（未入電）", presence: "qualitative", lowerBound: "5-" }), "最大震度は5弱以上とみられます（未入電）"],
     ["range", special<JmaIntensity>({ presence: "range", lowerBound: "4", upperBound: "5-" }), "最大震度4〜5弱"],
     ["lower-only", special<JmaIntensity>({ presence: "range", lowerBound: "5-", rawUpperBound: "over" }), "最大震度5弱程度以上"],
     ["qualitative upper-only", special<JmaIntensity>({ presence: "qualitative", upperBound: "5-" }), "最大震度5弱以下"],
@@ -274,6 +276,54 @@ describe("Notifier", () => {
       },
     });
     expect(playSound).toHaveBeenCalledWith(expectedSound);
+  });
+
+  it("受理済みの plain unknown 続報と取消を各1回通知し、infoへ降格する", () => {
+    const base = parseEarthquakeTelegram(createMockWsDataMessage(FIXTURE_VXSE51_SHINDO))!;
+    const playSoundMock = vi.mocked(playSound);
+    playSoundMock.mockClear();
+    const notifier = new Notifier();
+    notifier.setSoundEnabled(true);
+
+    notifier.notifyEarthquake({
+      ...base,
+      intensity: {
+        ...base.intensity!,
+        maxInt: "4",
+        maxIntValue: special<JmaIntensity>({ raw: "4", value: "4", presence: "value" }),
+      },
+    });
+    notifier.notifyEarthquake({
+      ...base,
+      infoType: "訂正",
+      intensity: {
+        ...base.intensity!,
+        maxInt: "",
+        maxIntValue: special<JmaIntensity>({ condition: "未入電", presence: "unknown" }),
+      },
+    });
+    notifier.notifyEarthquake({
+      ...base,
+      infoType: "訂正",
+      intensity: {
+        ...base.intensity!,
+        maxInt: "3",
+        maxIntValue: special<JmaIntensity>({ raw: "3", value: "3", presence: "value" }),
+      },
+    });
+    notifier.notifyEarthquake({ ...base, infoType: "取消" });
+
+    expect(notifyMock).toHaveBeenCalledTimes(4);
+    expect(notifyMock.mock.calls[1][0].message).toContain(
+      "最大震度は不明とみられます（未入電）",
+    );
+    expect(notifyMock.mock.calls[2][0].message).toContain("最大震度3");
+    expect(notifyMock.mock.calls[2][0].message).not.toContain("未入電");
+    expect(notifyMock.mock.calls[3][0].message).toBe("この情報は取り消されました");
+    expect(playSoundMock).toHaveBeenNthCalledWith(1, "warning");
+    expect(playSoundMock).toHaveBeenNthCalledWith(2, "info");
+    expect(playSoundMock).toHaveBeenNthCalledWith(3, "normal");
+    expect(playSoundMock).toHaveBeenNthCalledWith(4, "cancel");
   });
 
   it.each([

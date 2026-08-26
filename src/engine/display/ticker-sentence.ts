@@ -179,7 +179,27 @@ const EARTHQUAKE_AREA_SUMMARY_MAX_LENGTH = 120;
 const EARTHQUAKE_AREA_NAME_MAX_LENGTH = 16;
 
 function tickerIntensityText(event: PresentationEvent): string | null {
-  return formatIntensitySpecialValue(event.maxIntValue, event.maxInt, "ticker");
+  const formatted = formatIntensitySpecialValue(event.maxIntValue, event.maxInt, "ticker");
+  if (formatted == null) return null;
+  const value = event.maxIntValue;
+  const hasUnreported = value == null
+    ? formatted.normalize("NFKC").includes("未入電")
+    : [value.condition, value.description, value.raw]
+      .some((candidate) => candidate?.normalize("NFKC").includes("未入電") === true);
+  if (!hasUnreported) return formatted;
+  if (value?.presence === "unknown" || formatted === "不明" || formatted === "未入電") {
+    return "不明（未入電）";
+  }
+  return tickerIntensityLabel(formatted);
+}
+
+/** ticker／地域 group では qualifier と未入電理由を一体表示する。 */
+function tickerIntensityLabel(label: string): string {
+  const normalized = label.normalize("NFKC").trim();
+  if (normalized.endsWith("（未入電）")) return normalized;
+  if (!normalized.endsWith("未入電")) return label;
+  const qualifier = normalized.slice(0, -"未入電".length).trim();
+  return `${qualifier === "" ? "不明" : qualifier}（未入電）`;
 }
 
 function hasExplicitIntensityQualifier(event: PresentationEvent): boolean {
@@ -205,7 +225,7 @@ function earthquakeAreaSummary(items: PresentationAreaItem[]): string | null {
       .map((name) => ellipsize(name.trim(), EARTHQUAKE_AREA_NAME_MAX_LENGTH))
       .join("・");
     const omitted = group.areas.length - 2;
-    const part = `震度${group.intensity} ${listed}${omitted > 0 ? ` ほか${omitted}地域` : ""}`;
+    const part = `震度${tickerIntensityLabel(group.intensity)} ${listed}${omitted > 0 ? ` ほか${omitted}地域` : ""}`;
     const candidate = [...parts, part].join("／");
     const remaining = groups.length - consumed - 1;
     const folded = remaining > 0 ? `${candidate}／ほか${remaining}震度` : candidate;
@@ -232,7 +252,7 @@ function earthquakeSentence(event: PresentationEvent): string | null {
   if (!hasExplicitQualifier && top != null && top.names.length > 0) {
     const listed = top.names.slice(0, 2).join("・");
     const suffix = top.names.length > 2 ? "など" : "";
-    sentence += `${listed}${suffix}で最大震度${top.intensity}を観測しています。`;
+    sentence += `${listed}${suffix}で最大震度${tickerIntensityLabel(top.intensity)}を観測しています。`;
   } else if (maxInt != null) {
     sentence += `最大震度${maxInt}を観測しています。`;
   }

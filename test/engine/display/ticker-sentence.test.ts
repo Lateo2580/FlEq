@@ -125,8 +125,8 @@ describe("buildTickerSentence", () => {
   });
 
   it.each([
-    ["unknown", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "最大震度不明を観測しています。"],
-    ["qualitative", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "最大震度5弱以上未入電を観測しています。"],
+    ["unknown", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "最大震度不明（未入電）を観測しています。"],
+    ["qualitative", special<JmaIntensity>({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "最大震度5弱以上（未入電）を観測しています。"],
     ["range", special<JmaIntensity>({ presence: "range", lowerBound: "4", upperBound: "5-" }), "最大震度4〜5弱を観測しています。"],
     ["lower-only", special<JmaIntensity>({ presence: "range", lowerBound: "5-", rawUpperBound: "over" }), "最大震度5弱程度以上を観測しています。"],
     ["qualitative upper-only", special<JmaIntensity>({ presence: "qualitative", upperBound: "5-" }), "最大震度5弱以下を観測しています。"],
@@ -165,8 +165,35 @@ describe("buildTickerSentence", () => {
       }),
       areaItems: [{ name: "石巻市", maxInt: "4" }],
     }));
-    expect(sentence).toContain("最大震度5弱以上未入電を観測しています。");
+    expect(sentence).toContain("最大震度5弱以上（未入電）を観測しています。");
     expect(sentence).not.toContain("最大震度4");
+  });
+
+  it("地域 group の未入電 qualifier も一体表示する", () => {
+    const sentence = buildTickerSentence(makeEvent({
+      headline: "震度速報です。",
+      hypocenterName: null,
+      maxInt: null,
+      maxIntValue: special<JmaIntensity>({ presence: "missing" }),
+      areaItems: [
+        {
+          name: "未入電地域",
+          maxInt: "",
+          maxIntValue: special<JmaIntensity>({ condition: "未入電", presence: "unknown" }),
+        },
+        {
+          name: "下限地域",
+          maxInt: "",
+          maxIntValue: special<JmaIntensity>({
+            condition: "5弱以上未入電",
+            presence: "qualitative",
+            lowerBound: "5-",
+          }),
+        },
+      ],
+    }));
+    expect(sentence).toContain("震度5弱以上（未入電） 下限地域");
+    expect(sentence).toContain("震度不明（未入電） 未入電地域");
   });
 
   it("地震・EEW: 巨大地震 description を優先し NaN を出さない", () => {
