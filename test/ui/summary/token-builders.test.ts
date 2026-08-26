@@ -186,6 +186,7 @@ describe("buildSummaryTokens", () => {
 
       const banner = tokens.find((t) => t.id === "bannerKind")!;
       expect(banner.priority).toBe(0);
+      // 意味を保つ短縮形がないため、種別は最終省略だけで幅契約へ収める。
       expect(banner.dropMode).toBe("never");
     });
   });
@@ -247,11 +248,13 @@ describe("buildSummaryTokens", () => {
 
   describe("volcano", () => {
     it("VFVO50: severity + type + volcanoName + alertLevel", () => {
-      const { tokens } = makeTokens(FIXTURE_VFVO50_ALERT_LV3, "volcano");
+      const { tokens, event } = makeTokens(FIXTURE_VFVO50_ALERT_LV3, "volcano");
 
       expect(ids(tokens)).toContain("severity");
       expect(ids(tokens)).toContain("type");
       expect(ids(tokens)).toContain("volcanoName");
+      expect(tokens.find((token) => token.id === "type")?.text).toBe(event.title);
+      expect(tokens.find((token) => token.id === "volcanoName")?.dropMode).toBe("never");
     });
 
     it("VFVO52: 噴火情報トークン", () => {
@@ -409,7 +412,7 @@ describe("buildSummaryTokens", () => {
 
   describe("raw", () => {
     it("severity + RAW + type のトークン構成", () => {
-      const { tokens } = makeTokens(FIXTURE_VZSE40_NOTICE, "raw");
+      const { tokens, event } = makeTokens(FIXTURE_VZSE40_NOTICE, "raw");
 
       expect(ids(tokens)).toContain("severity");
       expect(ids(tokens)).toContain("RAW");
@@ -419,6 +422,9 @@ describe("buildSummaryTokens", () => {
       expect(rawToken.text).toBe("RAW");
       expect(rawToken.priority).toBe(0);
       expect(rawToken.dropMode).toBe("never");
+      const typeToken = tokens.find((t) => t.id === "type")!;
+      expect(typeToken.text).toBe(event.type);
+      expect(typeToken.shortText).toBeUndefined();
     });
   });
 

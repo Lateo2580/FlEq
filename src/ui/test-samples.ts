@@ -1033,6 +1033,33 @@ function floodForecastFromFixture(filename: string): ParsedFloodForecastInfo | n
 
 // ── テスト表示ディスパッチマップ ──
 
+/**
+ * display-adapter の entry formatter を test registry として固定する。
+ * TEST_TABLES の UI 表示順とは別の、到達性監査用集合である。
+ */
+export const FORMATTER_TEST_REGISTRY = [
+  "briefing-formatter",
+  "climate-info-formatter",
+  "early-weather-formatter",
+  "earthquake-info-formatter",
+  "eew-formatter",
+  "flood-forecast-formatter",
+  "heat-alert-formatter",
+  "legacy-counterpart-formatter",
+  "lg-observation-formatter",
+  "nankai-trough-formatter",
+  "seismic-text-formatter",
+  "tornado-formatter",
+  "tsunami-formatter",
+  "typhoon-analysis-formatter",
+  "typhoon-probability-formatter",
+  "volcano-formatter",
+  "weather-core-formatter",
+  "weather-explanation-formatter",
+  "weather-formatter",
+  "weather-warning-timeseries-formatter",
+] as const;
+
 /** テスト表示マップ (バリエーション番号付き) */
 export const TEST_TABLES: Record<string, TestTableEntry> = {
   earthquake: {

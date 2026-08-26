@@ -65,28 +65,78 @@ describe("fitTokensToWidth", () => {
     expect(result).toBe("[警告]  EEW");
   });
 
-  it("priority 0 + never は常に表示される", () => {
+  it("priority 0 + never も最終省略で幅契約を守る", () => {
     const tokens: SummaryToken[] = [
       tok("a", "[緊急]", { priority: 0, dropMode: "never" }),
       tok("b", "大地震", { priority: 4, dropMode: "drop" }),
     ];
-    // 幅 1 でも priority 0 は残る
+    // priority 0 は drop しないが、幅 1 では最終省略が優先される
     const result = fitTokensToWidth(tokens, 1);
-    expect(result).toContain("[緊急]");
+    expect(result).toBe("…");
+    expect(visualWidth(result)).toBeLessThanOrEqual(1);
     expect(result).not.toContain("大地震");
+  });
+
+  it("最終省略は OSC 8 hyperlink を閉じる", () => {
+    const open = "\x1b]8;;https://example.test\x1b\\";
+    const close = "\x1b]8;;\x1b\\";
+    const result = fitTokensToWidth([
+      tok("required", `${open}${"リンク先の長い説明".repeat(10)}${close}`, { priority: 0, dropMode: "never" }),
+    ], 12);
+    expect(result).toContain(close);
+    expect(result.lastIndexOf(close)).toBeLessThan(result.lastIndexOf("…"));
+    expect(visualWidth(result)).toBeLessThanOrEqual(12);
+  });
+
+  it("OSC 8 の params 付き開始形式も最終省略で閉じる", () => {
+    const open = "\x1b]8;id=summary;https://example.test\x1b\\";
+    const close = "\x1b]8;;\x1b\\";
+    const result = fitTokensToWidth([
+      tok("required", `${open}${"リンク先の長い説明".repeat(10)}`, { priority: 0, dropMode: "never" }),
+    ], 12);
+    expect(result).toContain(close);
+    expect(result.lastIndexOf(close)).toBeLessThan(result.lastIndexOf("…"));
+  });
+
+  it.each([0, 1, 4, 10, 36, 40, 60, 80, 200])("任意の入力で M=%i を超えない", (maxWidth) => {
+    const result = fitTokensToWidth([
+      tok("required", "非常に長い必須電文名", { priority: 0, dropMode: "never" }),
+      tok("invalid-short", "さらに長い補足", { priority: 1, dropMode: "shorten", shortText: "これは元より長い短縮候補" }),
+      tok("drop-last", "後方の省略対象", { priority: 4, dropMode: "drop" }),
+    ], maxWidth);
+    expect(result).not.toMatch(/[\r\n]/);
+    expect(visualWidth(result)).toBeLessThanOrEqual(maxWidth);
+  });
+
+  it("同 priority の drop は後方 token から一つずつ行う", () => {
+    const result = fitTokensToWidth([
+      tok("first", "先頭", { priority: 4, dropMode: "drop" }),
+      tok("last", "後方", { priority: 4, dropMode: "drop" }),
+    ], 4);
+    expect(result).toBe("先頭");
+  });
+
+  it("実幅に余裕がある場合も token 内の CR/LF を物理 1 行へ正規化する", () => {
+    const result = fitTokensToWidth([
+      tok("first", "先頭\r\n次行", { priority: 0, dropMode: "never" }),
+      tok("second", "後半\r末尾", { priority: 1, dropMode: "never" }),
+    ], 200);
+    expect(result).toBe("先頭 次行  後半 末尾");
+    expect(result).not.toMatch(/[\r\n]/);
   });
 
   it("空トークン配列は空文字列を返す", () => {
     expect(fitTokensToWidth([], 100)).toBe("");
   });
 
-  it("shorten で shortText が未指定の場合は text を維持", () => {
+  it("shorten で shortText が未指定でも最終幅契約を破らない", () => {
     const tokens: SummaryToken[] = [
       tok("a", "[情報]", { priority: 0, dropMode: "never" }),
       tok("b", "地震情報", { priority: 1, dropMode: "shorten" }),
     ];
-    // shorten だが shortText なし → text そのまま
+    // shorten 候補が無い場合も、最終省略で契約を守る
     const result = fitTokensToWidth(tokens, 5);
-    expect(result).toContain("地震情報");
+    expect(visualWidth(result)).toBeLessThanOrEqual(5);
+    expect(result).toBe("[情…");
   });
 });

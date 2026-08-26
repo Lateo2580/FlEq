@@ -31,6 +31,17 @@ function shortenHypocenter(name: string): string {
     .replace(/^.+県/, "");
 }
 
+function shortenVolcanoType(type: string): string | undefined {
+  if (type === "火山の状況に関する解説情報") return "火山解説情報";
+  if (type === "噴火に関する火山観測報") return "噴火火山観測報";
+  return undefined;
+}
+
+function shortenLegacyType(type: string): string | undefined {
+  const shortened = type.replace("情報", "");
+  return shortened === type || shortened === "" ? undefined : shortened;
+}
+
 /**
  * areaNames を先頭 n 件で結合し、残りがあれば「ほかN」の shortText を返す。
  */
@@ -216,7 +227,7 @@ function buildVolcanoTokens(event: PresentationEvent, model: SummaryModel): Summ
 
   if (headType === "VFVO50" || headType.startsWith("VFSV")) {
     // 火山警報
-    tokens.push(token("type", event.title, 0, "shorten"));
+    tokens.push(token("type", event.title, 0, "shorten", shortenVolcanoType(event.title)));
     if (event.volcanoName) tokens.push(token("volcanoName", event.volcanoName, 0, "never"));
     if (event.alertLevel != null) {
       tokens.push(token("alertLevel", `Lv${event.alertLevel}`, 0, "shorten"));
@@ -226,20 +237,20 @@ function buildVolcanoTokens(event: PresentationEvent, model: SummaryModel): Summ
     }
   } else if (headType === "VFVO52" || headType === "VFVO56") {
     // 噴火速報 / 噴火情報
-    tokens.push(token("type", event.title, 0, "never"));
+    tokens.push(token("type", event.title, 0, "shorten", shortenVolcanoType(event.title)));
     if (event.volcanoName) tokens.push(token("volcanoName", event.volcanoName, 0, "never"));
     // phenomenon/plumeHeight: try to extract from raw if available
     // Phase 3 - use available info only
   } else if (headType === "VFVO53" || headType === "VFVO54" || headType === "VFVO55") {
     // 降灰
-    tokens.push(token("type", event.title, 0, "shorten"));
+    tokens.push(token("type", event.title, 0, "shorten", shortenVolcanoType(event.title)));
     if (event.volcanoName) tokens.push(token("volcanoName", event.volcanoName, 0, "never"));
     if (event.areaCount > 0) {
       tokens.push(token("areaCount", `対象${event.areaCount}地域`, 1, "drop"));
     }
   } else if (headType === "VFVO51" || headType === "VZVO40") {
     // 火山テキスト
-    tokens.push(token("type", event.title, 0, "shorten"));
+    tokens.push(token("type", event.title, 0, "shorten", shortenVolcanoType(event.title)));
     if (event.volcanoName) tokens.push(token("volcanoName", event.volcanoName, 0, "never"));
     if (event.headline) {
       tokens.push(token("headline", event.headline, 1, "shorten"));
@@ -249,11 +260,11 @@ function buildVolcanoTokens(event: PresentationEvent, model: SummaryModel): Summ
     }
   } else if (headType === "VFVO60") {
     // 噴煙流向
-    tokens.push(token("type", event.title, 0, "shorten"));
+    tokens.push(token("type", event.title, 0, "shorten", shortenVolcanoType(event.title)));
     if (event.volcanoName) tokens.push(token("volcanoName", event.volcanoName, 0, "never"));
   } else {
     // fallback
-    tokens.push(token("type", event.title, 0, "shorten"));
+    tokens.push(token("type", event.title, 0, "shorten", shortenVolcanoType(event.title)));
     if (event.volcanoName) tokens.push(token("volcanoName", event.volcanoName, 0, "never"));
   }
 
@@ -654,8 +665,8 @@ function buildLegacyCounterpartTokens(event: PresentationEvent, model: SummaryMo
     : normalizeLegacyCounterpartDisplayText(event.headline);
   const areaNames = event.areaNames.map(normalizeLegacyCounterpartDisplayText);
   tokens.push(token("severity", model.severity, 0, "never"));
-  tokens.push(token("type", type, 0, "never"));
-  tokens.push(token("qualifier", "対応電文未確認", 0, "shorten"));
+  tokens.push(token("type", type, 0, "shorten", shortenLegacyType(type)));
+  tokens.push(token("qualifier", "対応電文未確認", 0, "shorten", "対応未確認"));
   if (title) tokens.push(token("title", title, 1, "shorten"));
   if (headline) tokens.push(token("headline", headline, 2, "drop"));
   const parts = topAreaTokenParts(areaNames, 2);

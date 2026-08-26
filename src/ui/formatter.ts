@@ -137,6 +137,35 @@ export interface RenderBuffer {
   readonly headlineLines: readonly string[];
 }
 
+/** `frameLine*` の最後の幅防衛が発動した回数。formatter matrix では 0 を要求する。 */
+let frameLineClampFallbackCount = 0;
+
+/** 最終防衛の発動回数を取得する。 */
+export function getFrameLineClampFallbackCount(): number {
+  return frameLineClampFallbackCount;
+}
+
+/** テストごとに最終防衛の発動回数をリセットする。 */
+export function resetFrameLineClampFallbackCount(): void {
+  frameLineClampFallbackCount = 0;
+}
+
+export type FrameLinePurpose = "title" | "region" | "type" | "headline" | "diagnostic" | "prose";
+
+export interface FrameLinePart {
+  text: string;
+  priority: 0 | 1 | 2 | 3 | 4;
+  shortText?: string;
+  omission: "never" | "shorten" | "drop";
+}
+
+export interface PushWrappedFrameLineOptions {
+  width: number;
+  purpose: FrameLinePurpose;
+  borderColor?: (s: string) => string;
+  indent?: number;
+}
+
 export function createRenderBuffer(): RenderBuffer {
   const _lines: MarkedLine[] = [];
   let _titleLine: string | null = null;
@@ -339,12 +368,13 @@ export function frameLine(level: FrameLevel, content: string, width: number = FR
   const f = getFrame(level);
   // 生改行が混入すると罫線が崩れるため、空白に置換して防御
   const safeContent = (content.includes("\n") || content.includes("\r"))
-    ? content.replace(/\r?\n/g, " ")
+    ? content.replace(/\r\n?|\n/g, " ")
     : content;
   // ANSI エスケープを除去して可視幅を計算
-  const visibleLen = visualWidth(safeContent);
-  const pad = Math.max(0, width - 4 - visibleLen);
-  return f.color(f.v) + " " + safeContent + " ".repeat(pad) + " " + f.color(f.v);
+  const innerWidth = Math.max(0, width - 4);
+  const clampedContent = clampFrameLineContent(safeContent, innerWidth);
+  const pad = Math.max(0, innerWidth - visualWidth(clampedContent));
+  return f.color(f.v) + " " + clampedContent + " ".repeat(pad) + " " + f.color(f.v);
 }
 
 export function frameDivider(level: FrameLevel, width: number = FRAME_WIDTH): string {
@@ -445,11 +475,22 @@ export function frameLineColored(
 ): string {
   const c = FRAME_CHARS[styleLevel];
   const safeContent = (content.includes("\n") || content.includes("\r"))
-    ? content.replace(/\r?\n/g, " ")
+    ? content.replace(/\r\n?|\n/g, " ")
     : content;
-  const visibleLen = visualWidth(safeContent);
-  const pad = Math.max(0, width - 4 - visibleLen);
-  return borderColor(c.v) + " " + safeContent + " ".repeat(pad) + " " + borderColor(c.v);
+  const innerWidth = Math.max(0, width - 4);
+  const clampedContent = clampFrameLineContent(safeContent, innerWidth);
+  const pad = Math.max(0, innerWidth - visualWidth(clampedContent));
+  return borderColor(c.v) + " " + clampedContent + " ".repeat(pad) + " " + borderColor(c.v);
+}
+
+/**
+ * frame primitive の最終防衛。通常経路は wrap / table builder でここへ到達しない。
+ * ANSI を途中で切らず、必要時だけ末尾省略する。
+ */
+function clampFrameLineContent(content: string, innerWidth: number): string {
+  if (visualWidth(content) <= innerWidth) return content;
+  frameLineClampFallbackCount++;
+  return truncateAnsiWithEllipsis(content, innerWidth);
 }
 
 export function frameDividerColored(
@@ -470,7 +511,13 @@ function clipAnsiLabelToVisualWidth(label: string, maxWidth: number): string {
   let result = "";
   let width = 0;
   let hasSgr = false;
+  let hasOpenOsc8Hyperlink = false;
   let offset = 0;
+
+  const terminateSequences = (): string => {
+    const hyperlinkClose = hasOpenOsc8Hyperlink ? "\x1b]8;;\x1b\\" : "";
+    return hyperlinkClose + (hasSgr ? "\x1b[0m" : "");
+  };
 
   const appendText = (text: string): boolean => {
     for (const ch of text) {
@@ -484,16 +531,27 @@ function clipAnsiLabelToVisualWidth(label: string, maxWidth: number): string {
 
   for (const match of label.matchAll(ansiPattern)) {
     if (!appendText(label.slice(offset, match.index))) {
-      return hasSgr ? result + "\x1b[0m" : result;
+      return result + terminateSequences();
     }
     result += match[0];
     hasSgr ||= match[0].endsWith("m");
+    if (match[0].startsWith("\x1b]8;")) {
+      hasOpenOsc8Hyperlink = /^\x1b\]8;[^;\x07\x1b]*;[^\x07\x1b]+(?:\x07|\x1b\\)$/.test(match[0]);
+    }
     offset = (match.index ?? 0) + match[0].length;
   }
   if (!appendText(label.slice(offset))) {
-    return hasSgr ? result + "\x1b[0m" : result;
+    return result + terminateSequences();
   }
   return result;
+}
+
+/** ANSI スタイルを壊さず、必要時は末尾の `…` を付けて指定幅へ収める。 */
+function truncateAnsiWithEllipsis(text: string, maxWidth: number): string {
+  if (maxWidth <= 0) return "";
+  if (visualWidth(text) <= maxWidth) return text;
+  if (maxWidth === 1) return "…";
+  return clipAnsiLabelToVisualWidth(text, maxWidth - 1) + "…";
 }
 
 /**
@@ -661,6 +719,41 @@ export function renderFrameTable(
 }
 
 /**
+ * `renderFrameTable()` が frame primitive へ渡す直前の本文幅で overflow を判定する。
+ * primitive の最終 clamp は出力境界だけを守り、table builder の row fallback 選択には
+ * 介入しない。この関数と `renderFrameTable()` は同じ列幅計算を使う。
+ */
+export function wouldFrameTableOverflow(
+  headers: string[],
+  rows: string[][],
+  width: number,
+  indent: number = 0,
+): boolean {
+  const innerWidth = width - 4 - indent;
+  const colWidths = headers.map((header, index) => {
+    let maxWidth = visualWidth(header);
+    for (const row of rows) {
+      if (row[index] != null) maxWidth = Math.max(maxWidth, visualWidth(row[index]));
+    }
+    return maxWidth;
+  });
+  const separatorWidth = (headers.length - 1) * 3;
+  const totalContent = colWidths.reduce((sum, columnWidth) => sum + columnWidth, 0) + separatorWidth;
+  if (totalContent > innerWidth) {
+    colWidths[colWidths.length - 1] = Math.max(4, colWidths[colWidths.length - 1] - (totalContent - innerWidth));
+  }
+
+  const pad = " ".repeat(indent);
+  const colSep = " │ ";
+  const contents = [
+    headers.map((header, index) => visualPadEnd(header, colWidths[index])).join(colSep),
+    colWidths.map((columnWidth) => "─".repeat(columnWidth)).join("─┼─"),
+    ...rows.map((row) => row.map((cell, index) => visualPadEnd(cell ?? "", colWidths[index])).join(colSep)),
+  ];
+  return contents.some((content) => visualWidth(pad + content) > width - 4);
+}
+
+/**
  * コンテンツがフレーム幅を超える場合に折り返して複数の frameLine を生成する。
  * 改行文字で段落分割した上で、各段落を区切り文字ベースで折り返す。
  * カンマ+スペース / 日本語句読点(、。) / パイプ区切りを基準に折り返す。
@@ -691,6 +784,113 @@ export function wrapFrameLinesColored(
     (c) => frameLineColored(level, borderColor, c, width),
     content, width, indent,
   );
+}
+
+/**
+ * 可変本文を用途別の規約に従って wrap し、契約適合済みの frame 行だけを buffer へ積む。
+ * title/type の part 指定は 2 行までに縮退し、それ以外は全文を行数無制限で折り返す。
+ */
+export function pushWrappedFrameLine(
+  buf: Pick<RenderBuffer, "push">,
+  level: FrameLevel,
+  options: PushWrappedFrameLineOptions,
+  content: string | readonly FrameLinePart[],
+): void {
+  const { width, purpose, borderColor, indent = 0 } = options;
+  const pushLines = (text: string): void => {
+    const lines = borderColor == null
+      ? wrapFrameLines(level, text, width, indent)
+      : wrapFrameLinesColored(level, borderColor, text, width, indent);
+    for (const line of lines) buf.push(line);
+  };
+
+  if (typeof content === "string" && purpose !== "title" && purpose !== "type") {
+    pushLines(content);
+    return;
+  }
+
+  if (typeof content === "string") {
+    const part: FrameLinePart = { text: normalizeFrameLineText(content), priority: 0, omission: "never" };
+    for (const line of fitFramePartsToTwoLines([part], Math.max(0, width - 4))) {
+      pushLines(line);
+    }
+    return;
+  }
+
+  if (purpose !== "title" && purpose !== "type") {
+    pushLines(content.map((part) => part.text).filter(Boolean).join("  "));
+    return;
+  }
+
+  const normalizedParts = content.map((part) => ({
+    ...part,
+    text: normalizeFrameLineText(part.text),
+    shortText: part.shortText == null ? undefined : normalizeFrameLineText(part.shortText),
+  }));
+  for (const line of fitFramePartsToTwoLines(normalizedParts, Math.max(0, width - 4))) {
+    pushLines(line);
+  }
+}
+
+/** title/type は上限判定より先に物理 1 行へ正規化する。 */
+function normalizeFrameLineText(text: string): string {
+  return text.replace(/\r\n?|\n/g, " ");
+}
+
+function fitFramePartsToTwoLines(parts: readonly FrameLinePart[], innerWidth: number): string[] {
+  const remaining = parts.filter((part) => part.text !== "");
+  if (remaining.length === 0) return [];
+
+  const lines: string[] = [];
+  let current: FrameLinePart[] = [];
+  for (let index = 0; index < remaining.length; index++) {
+    const part = remaining[index];
+    const candidate = [...current, part];
+    if (visualWidth(joinFrameParts(candidate)) <= innerWidth) {
+      current = candidate;
+      continue;
+    }
+    if (current.length === 0) {
+      current = candidate;
+      continue;
+    }
+    if (lines.length === 0) {
+      lines.push(fitFramePartsToWidth(current, innerWidth));
+      current = [part];
+      continue;
+    }
+    return [...lines, fitFramePartsToWidth([...current, ...remaining.slice(index)], innerWidth)];
+  }
+  return [...lines, fitFramePartsToWidth(current, innerWidth)];
+}
+
+function fitFramePartsToWidth(parts: readonly FrameLinePart[], maxWidth: number): string {
+  let remaining = parts.map((part) => ({ ...part }));
+  if (visualWidth(joinFrameParts(remaining)) <= maxWidth) return joinFrameParts(remaining);
+
+  for (const priority of [4, 3, 2, 1, 0] as const) {
+    for (let index = remaining.length - 1; index >= 0; index--) {
+      const part = remaining[index];
+      const shortText = part.shortText;
+      if (part.priority !== priority || part.omission !== "shorten" || shortText == null
+        || shortText === "" || visualWidth(shortText) >= visualWidth(part.text)) continue;
+      remaining[index] = { ...part, text: shortText };
+      if (visualWidth(joinFrameParts(remaining)) <= maxWidth) return joinFrameParts(remaining);
+    }
+  }
+
+  for (const priority of [4, 3, 2, 1] as const) {
+    for (let index = remaining.length - 1; index >= 0; index--) {
+      if (remaining[index].priority !== priority || remaining[index].omission !== "drop") continue;
+      remaining = remaining.filter((_, candidateIndex) => candidateIndex !== index);
+      if (visualWidth(joinFrameParts(remaining)) <= maxWidth) return joinFrameParts(remaining);
+    }
+  }
+  return truncateAnsiWithEllipsis(joinFrameParts(remaining), maxWidth);
+}
+
+function joinFrameParts(parts: readonly Pick<FrameLinePart, "text">[]): string {
+  return parts.map((part) => part.text).filter(Boolean).join("  ");
 }
 
 /** wrap 本体 (renderLine = 1 行を frame 行に整形する関数を注入) */

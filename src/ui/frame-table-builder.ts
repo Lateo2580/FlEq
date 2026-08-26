@@ -1,12 +1,12 @@
 import chalk from "chalk";
 import {
   renderFrameTable,
+  wouldFrameTableOverflow,
   frameLine,
   frameLineColored,
   wrapFrameLines,
   wrapFrameLinesColored,
   visualWidth,
-  createRenderBuffer,
   type RenderBuffer,
   type FrameLevel,
 } from "./formatter";
@@ -56,17 +56,14 @@ export function pushFrameTable(
     return;
   }
 
-  const temp = createRenderBuffer();
-  renderFrameTable(level, headers, normalized, width, temp, borderColor, indent);
-  const overflow = temp.lines.some((l) => visualWidth(l.text) > width);
-  if (overflow) {
+  // D2 の primitive clamp 後の出力幅ではなく、table 本文の実幅で判定する。
+  // ここで fallback を選べなければ、セル本文が最終 clamp により失われてしまう。
+  if (wouldFrameTableOverflow(headers, normalized, width, indent)) {
     pushRowFallback(buf, level, width, columns, normalized, borderColor, indent);
     return;
   }
 
-  for (const line of temp.lines) {
-    buf.push(line.text);
-  }
+  renderFrameTable(level, headers, normalized, width, buf, borderColor, indent);
 }
 
 function pushRowFallback(

@@ -3,12 +3,21 @@ import chalk from "chalk";
 import {
   frameTopColored, frameBottomColored, frameLineColored, frameDividerColored,
   frameDividerLabeledColored, stripAnsi, visualWidth, wrapFrameLines,
+  getFrameLineClampFallbackCount, resetFrameLineClampFallbackCount,
 } from "../../src/ui/formatter";
 
 const id = (s: string) => s;            // 色なし (素通し) で幾何検証
 const tag = (s: string) => `<${s}>`;    // 注入色のダミー
 
 describe("色注入版 frame primitive — 幅と罫線スタイル", () => {
+  it("過長本文は最終省略し、右枠を指定幅の末尾へ戻す", () => {
+    resetFrameLineClampFallbackCount();
+    const out = frameLineColored("critical", id, "あ".repeat(100), 40);
+    expect(visualWidth(stripAnsi(out))).toBe(40);
+    expect(stripAnsi(out).endsWith("║")).toBe(true);
+    expect(stripAnsi(out)).toContain("…");
+    expect(getFrameLineClampFallbackCount()).toBe(1);
+  });
   it("frameLineColored: 全体 visualWidth = width、styleLevel=critical で ║", () => {
     const out = frameLineColored("critical", id, "本文", 40);
     expect(visualWidth(stripAnsi(out))).toBe(40);
