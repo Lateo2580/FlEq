@@ -355,6 +355,44 @@ describe("DisplayStateStore quake map lifecycle", () => {
     ]);
   });
 
+  it("同一 revision 訂正の known↔unknown でも host を再選択する", () => {
+    const store = new DisplayStateStore();
+    const known = upsert("earthquake:A", 4, T0, "1");
+    expect(apply(store, known, 4)).toBe(true);
+
+    const unknown = { ...unknownUpsert("earthquake:A", T0, "1"), isCorrection: true };
+    expect(apply(store, unknown, -1, T0 + MINUTE)).toBe(true);
+    expect(store.snapshot(0, T0 + MINUTE).mapLayers?.quake).toEqual({
+      events: [expect.objectContaining({ maxIntRank: -1 })],
+      nonEmergencyHost: null,
+      unknownHost: { eventKey: "earthquake:A", expiresAtMs: T0 + 6 * MINUTE },
+    });
+
+    const knownCorrection = { ...upsert("earthquake:A", 4, T0, "1"), isCorrection: true };
+    expect(apply(store, knownCorrection, 4, T0 + 2 * MINUTE)).toBe(true);
+    expect(store.snapshot(0, T0 + 2 * MINUTE).mapLayers?.quake).toEqual({
+      events: [expect.objectContaining({ maxIntRank: 4 })],
+      nonEmergencyHost: { eventKey: "earthquake:A", expiresAtMs: T0 + 7 * MINUTE },
+    });
+  });
+
+  it("同一 revision 訂正の emergency→unknown は既知地図と largeQuake を降格しない", () => {
+    const store = new DisplayStateStore();
+    const emergency = upsert("earthquake:A", 5, T0, "1");
+    expect(apply(store, emergency, 5)).toBe(true);
+
+    const unknown = { ...unknownUpsert("earthquake:A", T0, "1"), isCorrection: true };
+    expect(apply(store, unknown, -1, T0 + MINUTE)).toBe(true);
+    const snapshot = store.snapshot(0, T0 + MINUTE);
+    expect(snapshot.mapLayers?.quake).toEqual({
+      events: [expect.objectContaining({ maxIntRank: 5, revision: emergency.revision })],
+      nonEmergencyHost: null,
+    });
+    expect(snapshot.largeQuakes).toEqual([
+      expect.objectContaining({ maxIntRank: 5, mapRevision: emergency.revision }),
+    ]);
+  });
+
   it("同時刻で片方の serial が欠落する場合は後着を同一 revision として拒否する", () => {
     const serialFirst = new DisplayStateStore();
     const first = upsert("earthquake:A", 3, T0, "2");

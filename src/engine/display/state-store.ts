@@ -108,6 +108,17 @@ function sameRevision(a: StandbyRevision | undefined, b: StandbyRevision | undef
   return a != null && b != null && a.reportTimeMs === b.reportTimeMs && a.serial === b.serial;
 }
 
+/** revision／source は caller が別途比較する。受信時刻だけの揺れは host 再選択に使わない。 */
+function sameQuakeMapPayload(
+  left: DisplayQuakeIntensityMapEventV1 | null | undefined,
+  right: DisplayQuakeIntensityMapEventV1 | null | undefined,
+): boolean {
+  if (left == null || right == null) return left === right;
+  const { sourceType: _leftSourceType, revision: _leftRevision, updatedAtMs: _leftUpdatedAtMs, ...leftPayload } = left;
+  const { sourceType: _rightSourceType, revision: _rightRevision, updatedAtMs: _rightUpdatedAtMs, ...rightPayload } = right;
+  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
+}
+
 function tsunamiObservationNameKey(observation: DisplayTsunamiObservationV1): string {
   return `name:${JSON.stringify([
     observation.areaName ?? "",
@@ -546,7 +557,10 @@ export class DisplayStateStore {
     const effective = this.effectiveQuakeMapEvent(eventKey);
     const effectiveChanged =
       previousEffective?.sourceType !== effective?.sourceType
-      || !sameRevision(previousEffective?.revision, effective?.revision);
+      || !sameRevision(previousEffective?.revision, effective?.revision)
+      // 同一 revision の訂正は RevisionGuard が allowEqual で受理する。host 種別は
+      // payload (known <-> unknown を含む) から再導出するため、revision だけで同値扱いしない。
+      || !sameQuakeMapPayload(previousEffective, effective);
     if (
       effectiveChanged
       && effective != null
