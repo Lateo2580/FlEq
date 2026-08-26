@@ -5,6 +5,7 @@ import type { DisplayTsunamiStateV1 } from "../protocol";
 function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunamiStateV1 {
   return {
     kind: "tsunami",
+    eventId: over.eventId ?? "T1",
     level: "majorWarning",
     levelLabel: "大津波警報",
     coasts: [
@@ -16,7 +17,7 @@ function tsunamiState(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunami
     observations: [],
     reportDateTime: "2026-07-14T14:32:00+09:00",
     updatedAtMs: 111,
-    ...over,
+    ...over, unkeyedSequence: over.unkeyedSequence ?? null,
   };
 }
 

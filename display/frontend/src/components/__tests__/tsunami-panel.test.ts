@@ -23,6 +23,7 @@ function settleFade(): void {
 function tsunamiInput(over: Partial<DisplayTsunamiInputV1> = {}): DisplayTsunamiInputV1 {
   return {
     kind: "tsunami",
+    eventId: "T1",
     level: "warning",
     levelLabel: "津波警報",
     coasts: [],
@@ -512,6 +513,44 @@ describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () =>
 
       // level が warning へ上昇 (昇格) → 先頭ページへリセットされる
       rerender({ input: tsunamiInput({ level: "warning", levelLabel: "津波警報", coasts }) });
+      settleFade();
+      expectCurrentDot(container, 1, 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("EventID が変わると level が同じでもページャを先頭へ戻す", () => {
+    vi.useFakeTimers();
+    try {
+      const coasts = [...coastsOfKind("津波警報", 12)];
+      const { container, rerender } = render(TsunamiPanel, {
+        input: tsunamiInput({ eventId: "T1", coasts }),
+      });
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
+      settleFade();
+      expectCurrentDot(container, 2, 2);
+
+      rerender({ input: tsunamiInput({ eventId: "T2", coasts }) });
+      settleFade();
+      expectCurrentDot(container, 1, 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("unkeyed snapshot episode reset で pager を先頭へ戻す", () => {
+    vi.useFakeTimers();
+    try {
+      const coasts = [...coastsOfKind("津波警報", 12)];
+      const { container, rerender } = render(TsunamiPanel, {
+        input: tsunamiInput({ eventId: null, coasts }), episodeResetKey: 1,
+      });
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
+      settleFade();
+      expectCurrentDot(container, 2, 2);
+
+      rerender({ input: tsunamiInput({ eventId: null, coasts }), episodeResetKey: 2 });
       settleFade();
       expectCurrentDot(container, 1, 2);
     } finally {

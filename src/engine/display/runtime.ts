@@ -99,6 +99,7 @@ export function tsunamiSeedFromParsed(
     label === "大津波警報" ? "majorWarning" : label === "津波警報" ? "warning" : "advisory";
   const magnitudeSemantic = projectMagnitudeSemantic(info.earthquake?.magnitudeValue);
   const depthSemantic = projectDepthSemantic(info.earthquake?.depthValue);
+  const eventId = info.meta.eventId.valid ? info.meta.eventId.value?.trim() : null;
   // 津波予報 (0.2m 以下) の沿岸を一覧に混ぜない (project-event.ts の pickAlertCoasts と同方針)
   const coasts = forecast
     .filter((f) => /警報|注意報/.test(f.kind))
@@ -116,6 +117,7 @@ export function tsunamiSeedFromParsed(
     });
   return {
     kind: "tsunami",
+    eventId: eventId === "" || eventId == null ? null : eventId,
     level,
     levelLabel: label,
     coasts,

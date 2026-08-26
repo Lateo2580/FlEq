@@ -187,7 +187,7 @@
   {#if p.input.kind === "eew"}
     <EewPanel input={p.input} {compact} {settling} emphasized={p.key === emphasizedEewKey} />
   {:else if p.input.kind === "tsunami"}
-    <TsunamiPanel input={p.input} {compact} layoutSettling={settling} />
+    <TsunamiPanel input={p.input} {compact} layoutSettling={settling} episodeResetKey={p.episodeResetKey} />
   {:else if p.input.kind === "largeQuake"}
     <QuakePanel input={p.input} mapEvent={p.quakeMap ?? null} {compact} layoutSettling={settling} />
   {:else if p.input.kind === "weather"}

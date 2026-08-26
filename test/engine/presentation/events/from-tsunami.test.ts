@@ -17,6 +17,8 @@ describe("fromTsunamiOutcome", () => {
     if (result.kind !== "ok") throw new Error(`processTsunami が ${result.kind} を返した`);
     const event = fromTsunamiOutcome(result.outcome);
 
+    expect(event.eventId).toBe(result.outcome.msg.xmlReport?.head.eventId ?? null);
+
     const iwate = event.areaItems.find((a) => a.name === "岩手県");
     expect(iwate).toMatchObject({
       areaCode: "210", kindCode: "53", kind: "大津波警報：発表", maxHeightDescription: "巨大",

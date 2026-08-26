@@ -622,6 +622,7 @@ const tsunamiAdvisoryObservations: DisplayTsunamiObservationV1[] = [
 
 const tsunamiAdvisoryInput: DisplayTsunamiInputV1 = {
   kind: "tsunami",
+  eventId: "preview-tsunami-advisory",
   level: "advisory",
   levelLabel: "津波注意報",
   coasts: [
@@ -651,6 +652,7 @@ const tsunamiWarningObservations: DisplayTsunamiObservationV1[] = [
 
 const tsunamiWarningInput: DisplayTsunamiInputV1 = {
   kind: "tsunami",
+  eventId: "preview-tsunami-warning",
   level: "warning",
   levelLabel: "津波警報",
   coasts: [
@@ -677,6 +679,7 @@ const tsunamiMajorObservations: DisplayTsunamiObservationV1[] = [
 
 const tsunamiMajorInput: DisplayTsunamiInputV1 = {
   kind: "tsunami",
+  eventId: "preview-tsunami-major",
   level: "majorWarning",
   levelLabel: "大津波警報",
   coasts: [
@@ -697,6 +700,7 @@ const tsunamiMajorInput: DisplayTsunamiInputV1 = {
 export const tsunamiAdvisory: DisplayTsunamiStateV1 = {
   ...tsunamiAdvisoryInput,
   updatedAtMs: NOW_MS,
+  unkeyedSequence: null,
 };
 
 // standby-tsunami シナリオ用: 待機画面の津波継続バナーが「複数レベル混在 + 多地域 + 観測あり」を
@@ -716,6 +720,7 @@ const tsunamiBannerCoasts: DisplayTsunamiInputV1["coasts"] = [
 
 export const tsunamiBanner: DisplayTsunamiStateV1 = {
   kind: "tsunami",
+  eventId: "preview-tsunami-banner",
   level: "majorWarning",
   levelLabel: "大津波警報",
   coasts: tsunamiBannerCoasts,
@@ -723,14 +728,17 @@ export const tsunamiBanner: DisplayTsunamiStateV1 = {
   observations: tsunamiMajorObservations,
   reportDateTime: NOW_ISO,
   updatedAtMs: NOW_MS,
+  unkeyedSequence: null,
 };
 export const tsunamiWarning: DisplayTsunamiStateV1 = {
   ...tsunamiWarningInput,
   updatedAtMs: NOW_MS,
+  unkeyedSequence: null,
 };
 export const tsunamiMajor: DisplayTsunamiStateV1 = {
   ...tsunamiMajorInput,
   updatedAtMs: NOW_MS,
+  unkeyedSequence: null,
 };
 
 const largeQuakeIntensityGroups: DisplayIntensityGroupV1[] = [
@@ -1398,6 +1406,7 @@ const tsunamiStressCoasts: DisplayTsunamiInputV1["coasts"] = [
 
 const tsunamiStressInput: DisplayTsunamiInputV1 = {
   kind: "tsunami",
+  eventId: "preview-tsunami-stress",
   level: "majorWarning",
   levelLabel: "大津波警報",
   coasts: tsunamiStressCoasts,
@@ -1406,7 +1415,7 @@ const tsunamiStressInput: DisplayTsunamiInputV1 = {
   reportDateTime: STRESS_NOW_ISO,
 };
 
-export const tsunamiStress: DisplayTsunamiStateV1 = { ...tsunamiStressInput, updatedAtMs: STRESS_NOW_MS };
+export const tsunamiStress: DisplayTsunamiStateV1 = { ...tsunamiStressInput, updatedAtMs: STRESS_NOW_MS, unkeyedSequence: null };
 export { eewStressInput, tsunamiStressInput, largeQuakeStressInput };
 
 // #emergency-stress / #standby-stress 用のテロップ (長文文章体、種別ラベル付き)
@@ -1778,6 +1787,7 @@ const tsunamiNankaiCoasts: DisplayTsunamiInputV1["coasts"] = [
 
 const tsunamiNankaiInput: DisplayTsunamiInputV1 = {
   kind: "tsunami",
+  eventId: "preview-tsunami-nankai",
   level: "majorWarning",
   levelLabel: "大津波警報",
   coasts: tsunamiNankaiCoasts,
@@ -1786,7 +1796,7 @@ const tsunamiNankaiInput: DisplayTsunamiInputV1 = {
   reportDateTime: NANKAI_NOW_ISO,
 };
 
-export const tsunamiNankai: DisplayTsunamiStateV1 = { ...tsunamiNankaiInput, updatedAtMs: NANKAI_NOW_MS };
+export const tsunamiNankai: DisplayTsunamiStateV1 = { ...tsunamiNankaiInput, updatedAtMs: NANKAI_NOW_MS, unkeyedSequence: null };
 export { eewNankaiInput, tsunamiNankaiInput, largeQuakeNankaiInput };
 
 // #emergency-nankai / #standby-nankai 用のテロップ (長文文章体、種別ラベル付き)

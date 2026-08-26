@@ -45,7 +45,7 @@ function latestQuake(over: Partial<DisplayLatestQuakeStateV1> = {}): DisplayLate
   return { eventId: "latest-1", headline: null, originTime: "2026-08-20T11:58:00+09:00", hypocenterName: "日向灘", depth: "20km", magnitude: "5.2", maxInt: "5弱", maxIntRank: 5, tsunamiWarning: false, intensityGroups: [], reportDateTime: "2026-08-20T12:00:00+09:00", updatedAtMs: 1, ...over };
 }
 function tsunami(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunamiStateV1 {
-  return { kind: "tsunami", level: "warning", levelLabel: "津波警報", coasts: [{ name: "宮崎県", kind: "津波警報", maxHeight: "3m", firstHeight: null }], warningComment: null, observations: [], reportDateTime: "2026-08-20T12:00:00+09:00", updatedAtMs: 1, ...over };
+  return { kind: "tsunami", level: "warning", levelLabel: "津波警報", coasts: [{ name: "宮崎県", kind: "津波警報", maxHeight: "3m", firstHeight: null }], warningComment: null, observations: [], reportDateTime: "2026-08-20T12:00:00+09:00", updatedAtMs: 1, ...over, eventId: over.eventId ?? "T1", unkeyedSequence: over.unkeyedSequence ?? null };
 }
 function weather(over: Partial<DisplayWeatherAlertV1> = {}): DisplayWeatherAlertV1 {
   return { source: "vpww56", label: "気象特別警報", role: "weatherEmergency", totalAreas: 1, items: [{ kind: "大雨特別警報", displaySeverity: "Emergency", rank: "emergency", shownAreas: ["宮崎市"], omittedAreaCount: 0 }], updatedAt: "2026-08-20T12:00:00+09:00", ...over };

@@ -260,6 +260,8 @@ export interface DisplayTsunamiObservationV1 {
 
 export interface DisplayTsunamiInputV1 {
   kind: "tsunami";
+  /** VTSE41 Head.EventID。津波 episode の正本であり、欠落時は null。 */
+  eventId: string | null;
   level: DisplayTsunamiLevel;
   levelLabel: string; // "大津波警報" | "津波警報" | "津波注意報"
   coasts: Array<{
@@ -692,6 +694,8 @@ export interface DisplayActiveEewV1 extends DisplayEewInputV1 {
 
 export interface DisplayTsunamiStateV1 extends DisplayTsunamiInputV1 {
   updatedAtMs: number;
+  /** EventID 欠落時の fail-safe episode。display runtime 内で単調増加する。 */
+  unkeyedSequence: number | null;
 }
 
 export interface DisplayLargeQuakeStateV1 extends DisplayLargeQuakeInputV1 {
@@ -988,6 +992,12 @@ export type DisplayServerMessage =
   | { type: "state"; snapshot: DisplayStateSnapshotV1 };
 
 // PROTOCOL-SYNC-END
+
+/** 空白だけの EventID は EventID 未知として扱う frontend 共通の正規化。 */
+export function normalizeTsunamiEventId(eventId: string | null | undefined): string | null {
+  const normalized = eventId?.trim();
+  return normalized == null || normalized === "" ? null : normalized;
+}
 
 /**
  * Server-only additive wire command for a targeted ticker reconcile.

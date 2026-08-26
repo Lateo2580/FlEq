@@ -4,6 +4,7 @@ import type {
   DisplayServerMessageWithReconcile,
   DisplayStateSnapshotV1,
 } from "./protocol";
+import { normalizeTsunamiEventId } from "./protocol";
 import { filterStaleEews } from "./ticker-freshness";
 
 // RECENT_TICKER_MAX (src/engine/display/constants.ts) と同値。protocol.ts の SYNC 複製対象外のため
@@ -81,6 +82,10 @@ export interface DisplayClientState {
    * 同一 seq の再 snapshot・seq 巻戻り (hub 再起動) でも snapshot 受信ごとに進むので確実に検出できる。
    */
   tickerGeneration: number;
+  /** unkeyed tsunami は snapshot 境界で前 episode を必ず破棄する。 */
+  unkeyedTsunamiEpisodeGeneration: number;
+  /** unkeyedSequence 欠落・不正値を検出した。connection が通常の snapshot resync を行う。 */
+  unkeyedTsunamiProtocolViolation: boolean;
   /** 最後に受信した targeted reconcile command。通常の frame でクリアする。 */
   reconcile?: DisplayReconcileMessageV1 | null;
 }
@@ -88,7 +93,31 @@ export interface DisplayClientState {
 export function initialState(): DisplayClientState {
   return {
     snapshot: null, ticker: [], sseConnected: false, lastSeq: 0, lastEventSeq: 0, seqGapDetected: false,
-    tickerGeneration: 0, reconcile: null,
+    tickerGeneration: 0, unkeyedTsunamiEpisodeGeneration: 0, unkeyedTsunamiProtocolViolation: false, reconcile: null,
+  };
+}
+
+function hasValidUnkeyedTsunamiSequence(snapshot: DisplayStateSnapshotV1): boolean {
+  const tsunami = snapshot.tsunami;
+  if (tsunami == null || !isUnkeyedTsunami(snapshot)) return true;
+  const sequence = tsunami.unkeyedSequence;
+  return typeof sequence === "number" && Number.isSafeInteger(sequence) && sequence > 0;
+}
+
+function isUnkeyedTsunami(snapshot: DisplayStateSnapshotV1): boolean {
+  const tsunami = snapshot.tsunami;
+  return tsunami != null && normalizeTsunamiEventId(tsunami.eventId) == null;
+}
+
+/**
+ * 初期接続・SSE reconnect・gap resync の snapshot 境界で、unkeyed tsunami だけの
+ * panel/page episode state を破棄する。この unit では generation が唯一の local state で、
+ * TsunamiPanel の resetKey として渡される。
+ */
+export function discardUnkeyedTsunamiEpisodeState(state: DisplayClientState): DisplayClientState {
+  return {
+    ...state,
+    unkeyedTsunamiEpisodeGeneration: state.unkeyedTsunamiEpisodeGeneration + 1,
   };
 }
 
@@ -115,13 +144,17 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessageWithR
       // lastEventSeq は Math.max ではなく代入でリセットする: hub 再起動で seq が巻き戻ると
       // (プロセス内カウンタのため実経路)、max では古い高水位が残り以後の gap を検知できなくなる
       const snapshot = withMapLayerDefaults(msg.snapshot);
+      const unkeyedTsunami = isUnkeyedTsunami(snapshot);
+      const nextState = unkeyedTsunami ? discardUnkeyedTsunamiEpisodeState(state) : state;
+      const unkeyedTsunamiProtocolViolation = unkeyedTsunami && !hasValidUnkeyedTsunamiSequence(snapshot);
       return {
-        ...state,
+        ...nextState,
         snapshot,
         ticker: filterStaleEews(snapshot.recentTicker, snapshot).slice(0, TICKER_MAX),
         lastSeq: Math.max(state.lastSeq, snapshot.seq),
         lastEventSeq: snapshot.seq,
-        seqGapDetected: false,
+        seqGapDetected: unkeyedTsunamiProtocolViolation,
+        unkeyedTsunamiProtocolViolation,
         reconcile: null,
         // ticker 全差し替えなので generation を進める (スケジューラ reset の契機、§6)
         tickerGeneration: state.tickerGeneration + 1,
@@ -136,14 +169,19 @@ export function reduce(state: DisplayClientState, msg: DisplayServerMessageWithR
       // 丸ごと差し替え、tickerGeneration を進めてスケジューラを再構築させる (snapshot 受信と同じ扱い)
       const tickerSynced = msg.snapshot.tickerSynced === true;
       const snapshot = withMapLayerDefaults(msg.snapshot);
+      const unkeyedTsunamiProtocolViolation = isUnkeyedTsunami(snapshot)
+        && !hasValidUnkeyedTsunamiSequence(snapshot);
       return {
         ...state,
         snapshot,
         ticker: tickerSynced ? filterStaleEews(snapshot.recentTicker, snapshot).slice(0, TICKER_MAX) : state.ticker,
         lastSeq: Math.max(state.lastSeq, snapshot.seq),
-        seqGapDetected: state.seqGapDetected || hasStateSeqGap(state.lastEventSeq, snapshot.seq),
+        seqGapDetected: state.seqGapDetected
+          || hasStateSeqGap(state.lastEventSeq, snapshot.seq)
+          || unkeyedTsunamiProtocolViolation,
         reconcile: null,
         tickerGeneration: tickerSynced ? state.tickerGeneration + 1 : state.tickerGeneration,
+        unkeyedTsunamiProtocolViolation,
       };
     }
     case "event":

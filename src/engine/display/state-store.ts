@@ -203,6 +203,8 @@ export class DisplayStateStore {
     { eventId: string; serial: string | null; updatedAtMs: number }
   >();
   private tsunami: DisplayTsunamiStateV1 | null = null;
+  /** EventID を持たない津波 payload の episode を受理順で分離する session-local counter。 */
+  private tsunamiUnkeyedSequence = 0;
   private tsunamiObservationGroups: DisplayTsunamiObservationGroups = {
     VTSE51: [],
     VTSE52: [],
@@ -762,6 +764,7 @@ export class DisplayStateStore {
           this.tsunami = {
             ...this.tsunami,
             observations: this.allTsunamiObservations(),
+            unkeyedSequence: this.unkeyedSequenceForTsunamiEvent(this.tsunami.eventId),
           };
           return true;
         }
@@ -774,7 +777,11 @@ export class DisplayStateStore {
       );
       this.tsunamiObservationGroups[dto.type] = merged;
       if (this.tsunami == null) return false;
-      this.tsunami = { ...this.tsunami, observations: this.allTsunamiObservations() };
+      this.tsunami = {
+        ...this.tsunami,
+        observations: this.allTsunamiObservations(),
+        unkeyedSequence: this.unkeyedSequenceForTsunamiEvent(this.tsunami.eventId),
+      };
       return true;
     }
     // 津波状態の真実源は VTSE41 (津波警報・注意報・予報) のみ。
@@ -805,6 +812,7 @@ export class DisplayStateStore {
         ...dto.emergency,
         observations: this.allTsunamiObservations(),
         updatedAtMs: nowMs,
+        unkeyedSequence: this.unkeyedSequenceForTsunamiEvent(dto.emergency.eventId),
       };
       return true;
     }
@@ -827,6 +835,15 @@ export class DisplayStateStore {
 
   private clearTsunamiObservations(): void {
     this.tsunamiObservationGroups = { VTSE51: [], VTSE52: [] };
+  }
+
+  private nextTsunamiUnkeyedSequence(): number {
+    this.tsunamiUnkeyedSequence += 1;
+    return this.tsunamiUnkeyedSequence;
+  }
+
+  private unkeyedSequenceForTsunamiEvent(eventId: string | null): number | null {
+    return eventId?.trim() ? null : this.nextTsunamiUnkeyedSequence();
   }
 
   private applyRecentQuake(q: DisplayRecentQuakeV1, nowMs: number): boolean {
@@ -1034,6 +1051,7 @@ export class DisplayStateStore {
       ...input,
       observations: this.allTsunamiObservations(),
       updatedAtMs: nowMs,
+      unkeyedSequence: this.unkeyedSequenceForTsunamiEvent(input.eventId),
     };
   }
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { initialState, reduce, setSseConnected } from "../store";
+import { deriveEmergencyPanels } from "../derive";
 import type {
   ActiveStandbyCardV1,
   DisplayConnectionStateV1,
   DisplayEventDtoV1,
   DisplayStateSnapshotV1,
+  DisplayTsunamiStateV1,
 } from "../protocol";
 
 function briefingCard(key = "card:vpbs:canonical"): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
@@ -70,7 +72,78 @@ function snapshot(over: Partial<DisplayStateSnapshotV1> = {}): DisplayStateSnaps
   };
 }
 
+function tsunami(eventId: string | null, updatedAtMs: number, unkeyedSequence: number | null = null): DisplayTsunamiStateV1 {
+  return {
+    kind: "tsunami", eventId, level: "warning", levelLabel: "津波警報", coasts: [],
+    warningComment: null, observations: [], reportDateTime: "2026-08-26T12:00:00+09:00", updatedAtMs, unkeyedSequence,
+  };
+}
+
 describe("reduce", () => {
+  it("空白 EventID の reconnect snapshot は unkeyed sequence 再送でも local episode generation を fresh 化する", () => {
+    const payload = tsunami("   ", 100, 1);
+    const first = reduce(initialState(), {
+      type: "snapshot", snapshot: snapshot({ seq: 7, frontendBuildId: "same", tsunami: payload }),
+    });
+    expect(first.unkeyedTsunamiEpisodeGeneration).toBe(1);
+
+    const reconnected = reduce(first, {
+      type: "snapshot", snapshot: snapshot({ seq: 7, frontendBuildId: "same", tsunami: payload }),
+    });
+    expect(reconnected.unkeyedTsunamiEpisodeGeneration).toBe(2);
+    expect(reconnected.snapshot?.tsunami?.unkeyedSequence).toBe(1);
+  });
+
+  it("keyed tsunami は snapshot をまたいでも local episode generation を変えない", () => {
+    const first = reduce(initialState(), {
+      type: "snapshot", snapshot: snapshot({ tsunami: tsunami("T1", 100) }),
+    });
+    const reconnected = reduce(first, {
+      type: "snapshot", snapshot: snapshot({ seq: 1, tsunami: tsunami("T1", 200) }),
+    });
+    expect(reconnected.unkeyedTsunamiEpisodeGeneration).toBe(0);
+    expect(reconnected.snapshot?.tsunami?.eventId).toBe("T1");
+    expect(deriveEmergencyPanels(first, 0)[0]?.key).toBe("tsunami:T1");
+    expect(deriveEmergencyPanels(reconnected, 0)[0]?.key).toBe("tsunami:T1");
+  });
+
+  it("通常 state の unkeyed 更新は snapshot 境界 reset を起こさない", () => {
+    const first = reduce(initialState(), {
+      type: "snapshot", snapshot: snapshot({ tsunami: tsunami(null, 100, 1) }),
+    });
+    const updated = reduce(first, {
+      type: "state", snapshot: snapshot({ seq: 1, tsunami: tsunami(null, 100, 2) }),
+    });
+    expect(updated.unkeyedTsunamiEpisodeGeneration).toBe(1);
+    expect(deriveEmergencyPanels(updated, 0)[0]?.key).toBe("tsunami:unkeyed:2");
+  });
+
+  it("空白 EventID の unkeyedSequence 欠落は protocol violation として snapshot resync を要求する", () => {
+    const invalid = { ...tsunami("   ", 100, 1), unkeyedSequence: null } as DisplayTsunamiStateV1;
+    const next = reduce(initialState(), { type: "snapshot", snapshot: snapshot({ tsunami: invalid }) });
+    expect(next.unkeyedTsunamiProtocolViolation).toBe(true);
+    expect(next.seqGapDetected).toBe(true);
+  });
+
+  it("state frame の不正 unkeyedSequence も protocol violation として snapshot resync を要求する", () => {
+    const invalid = { ...tsunami(null, 100, 1), unkeyedSequence: 0 } as DisplayTsunamiStateV1;
+    const next = reduce(initialState(), { type: "state", snapshot: snapshot({ tsunami: invalid }) });
+    expect(next.unkeyedTsunamiProtocolViolation).toBe(true);
+    expect(next.seqGapDetected).toBe(true);
+  });
+
+  it("reconnect snapshot は tsunami EventID を保持し、次の episode へ丸ごと置換する", () => {
+    const connected = reduce(initialState(), {
+      type: "snapshot", snapshot: snapshot({ tsunami: tsunami("T1", 100) }),
+    });
+    expect(connected.snapshot?.tsunami?.eventId).toBe("T1");
+
+    const reconnected = reduce(connected, {
+      type: "snapshot", snapshot: snapshot({ seq: 1, tsunami: tsunami("T2", 200) }),
+    });
+    expect(reconnected.snapshot?.tsunami).toMatchObject({ eventId: "T2", updatedAtMs: 200 });
+  });
+
   it("① snapshot 受信で state を初期化し recentTicker (新しい順) がそのまま ticker になる", () => {
     const snap = snapshot({
       seq: 3,

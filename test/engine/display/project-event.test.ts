@@ -933,12 +933,15 @@ describe("projectDisplayEvent", () => {
     const dto = projectDisplayEvent(
       baseEvent({
         domain: "tsunami", type: "VTSE41", tsunamiKinds: ["津波警報"],
+        eventId: "  VTSE41-episode-1  ",
         areaItems: [{ name: "石川県能登", kind: "津波警報" }],
         frameLevel: "warning",
       }),
       "津波要約",
     );
-    expect(dto.emergency).toMatchObject({ kind: "tsunami", level: "warning", levelLabel: "津波警報" });
+    expect(dto.emergency).toMatchObject({
+      kind: "tsunami", eventId: "VTSE41-episode-1", level: "warning", levelLabel: "津波警報",
+    });
     expect(dto.groupKey).toBe("tsunami:current");
     expect(dto.summary.role).toBe("tsunamiWarning");
   });
@@ -957,6 +960,16 @@ describe("projectDisplayEvent", () => {
       "取消要約",
     );
     expect(dto.emergency).toBeNull();
+  });
+
+  it.each([null, "", "   "])("津波 EventID %j は episode として推測せず null を投影する", (eventId) => {
+    const dto = projectDisplayEvent(
+      baseEvent({
+        domain: "tsunami", type: "VTSE41", eventId, tsunamiKinds: ["津波警報"],
+      }),
+      "津波要約",
+    );
+    expect(dto.emergency).toMatchObject({ kind: "tsunami", eventId: null });
   });
 
   it("震度5弱以上の地震を emergency(largeQuake) に射影し震度別グループを降順で組む", () => {

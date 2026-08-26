@@ -51,6 +51,7 @@ function eewInput(over: Partial<DisplayEewInputV1> = {}): DisplayEewInputV1 {
 function tsunamiInput(over: Partial<DisplayTsunamiInputV1> = {}): DisplayTsunamiInputV1 {
   return {
     kind: "tsunami",
+    eventId: over.eventId ?? "T1",
     level: "warning",
     levelLabel: "津波警報",
     coasts: [

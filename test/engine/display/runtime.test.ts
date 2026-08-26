@@ -163,6 +163,7 @@ describe("tsunamiSeedFromParsed", () => {
       },
     ]);
     expect(seed!.reportDateTime).toBe("2026-07-06T21:00:00+09:00");
+    expect(seed!.eventId).toBe("synthetic-test-event");
   });
 
   it.each([
@@ -211,6 +212,7 @@ describe("tsunamiSeedFromParsed", () => {
     });
     const liveWire = tsunamiSeedFromParsed(active);
     expect(liveWire).not.toBeNull();
+    expect(liveWire!.eventId).toBe("restart-tsunami-event");
     const liveProjection = liveTsunamiProjection(active);
     expect(liveWire).toMatchObject({
       magnitudeSemantic: liveProjection.magnitudeSemantic,

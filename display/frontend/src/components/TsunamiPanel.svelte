@@ -4,6 +4,7 @@
     DisplayTsunamiInputV1,
     DisplayTsunamiObservationV1,
   } from "../lib/protocol";
+  import { normalizeTsunamiEventId } from "../lib/protocol";
   import { formatHm } from "../lib/format";
   import {
     bucketTsunamiHeight,
@@ -56,7 +57,8 @@
     input,
     compact = false,
     layoutSettling = false,
-  }: { input: DisplayTsunamiInputV1; compact?: boolean; layoutSettling?: boolean } = $props();
+    episodeResetKey,
+  }: { input: DisplayTsunamiInputV1; compact?: boolean; layoutSettling?: boolean; episodeResetKey?: number } = $props();
 
   // 固定サマリ計器 (spec §2-c) の行動語: level から導出、JMA の呼びかけ表現に準拠
   // 【確定 2026-07-09 レビュー決定】
@@ -462,16 +464,22 @@
     return pages;
   });
 
-  // resetSeq: level が「上がった」ときだけ単調増加させ、ページャの先頭ページへ巻き戻す
-  // (spec §3「level 低下では変えない」)。DisplayTsunamiInputV1 に eventId が無いため
-  // (protocol §7 自地域フェーズ以降の課題)、この画面で判断できる唯一の昇格シグナルである
-  // level ランクの上昇を代理指標として使う
+  // resetSeq: episode (VTSE41 EventID) が変わった時点で先頭へ戻す。同一 EventID の
+  // 続報は位置を維持し、level 上昇だけは従来どおり見直しとして先頭へ戻す。
   const LEVEL_RANK: Record<DisplayTsunamiInputV1["level"], number> = { advisory: 0, warning: 1, majorWarning: 2 };
   let resetSeq = $state(0);
   let prevLevelRank = -1;
+  let prevEpisodeId: string | null | undefined;
+  let prevEpisodeResetKey: number | undefined;
   $effect(() => {
     const rank = LEVEL_RANK[input.level];
-    if (rank > prevLevelRank) resetSeq += 1;
+    const episodeId = normalizeTsunamiEventId(input.eventId);
+    const resetAtSnapshotBoundary = episodeResetKey != null
+      && prevEpisodeResetKey !== undefined
+      && episodeResetKey !== prevEpisodeResetKey;
+    if ((prevEpisodeId !== undefined && episodeId !== prevEpisodeId) || resetAtSnapshotBoundary || rank > prevLevelRank) resetSeq += 1;
+    prevEpisodeId = episodeId;
+    prevEpisodeResetKey = episodeResetKey;
     prevLevelRank = rank;
   });
 

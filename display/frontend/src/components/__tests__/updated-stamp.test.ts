@@ -47,9 +47,9 @@ function weatherAlert(source: "vpws50" | "vpww56", updatedAt: string): DisplayWe
 
 function tsunamiState(reportDateTime: string): DisplayTsunamiStateV1 {
   return {
-    kind: "tsunami", level: "warning", levelLabel: "津波警報",
+    kind: "tsunami", eventId: "T1", level: "warning", levelLabel: "津波警報",
     coasts: [{ name: "岩手県", kind: "warning", maxHeight: null, firstHeight: null }],
-    warningComment: null, observations: [], reportDateTime, updatedAtMs: 0,
+    warningComment: null, observations: [], reportDateTime, updatedAtMs: 0, unkeyedSequence: null,
   };
 }
 

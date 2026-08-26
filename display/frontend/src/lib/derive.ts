@@ -6,6 +6,7 @@ import type {
   DisplayQuakeMapEventV1,
   DisplayTsunamiStateV1,
 } from "./protocol";
+import { normalizeTsunamiEventId } from "./protocol";
 import { buildWeatherEmergencyInput, type WeatherEmergencyInputV1 } from "./weather-panel";
 import { comparableMagnitudeRank } from "./magnitude";
 
@@ -18,6 +19,8 @@ export interface EmergencyPanelModel {
   key: string;
   input: EmergencyPanelInputV1;
   quakeMap?: DisplayQuakeMapEventV1;
+  /** snapshot 境界で unkeyed tsunami の pager を reset する local generation。 */
+  episodeResetKey?: number;
 }
 
 /** 旧 server が送るフィールドの読み取り専用互換。現行 wire 型には含めない。 */
@@ -111,7 +114,21 @@ export function deriveEmergencyPanels(
   const panels: EmergencyPanelModel[] = [];
   const tsunami = snap.tsunami as LegacyTsunamiCompat | null;
   if (tsunami != null && tsunami.demoted !== true) {
-    panels.push({ key: "tsunami:current", input: tsunami });
+    const eventId = normalizeTsunamiEventId(tsunami.eventId);
+    // EventID 不明の payload は episode を推測しない。runtime の受理順 sequence ごとに
+    // 新規 panel key を作り、未表示状態を誤って引き継がないようにする。
+    if (eventId == null) {
+      const sequence = tsunami.unkeyedSequence;
+      if (typeof sequence === "number" && Number.isSafeInteger(sequence) && sequence > 0) {
+        panels.push({
+          key: `tsunami:unkeyed:${sequence}`,
+          input: tsunami,
+          episodeResetKey: s.unkeyedTsunamiEpisodeGeneration,
+        });
+      }
+    } else {
+      panels.push({ key: `tsunami:${eventId}`, input: tsunami });
+    }
   }
   // 気象警報の昇格は engine が権威 (weatherPromotion)。パネルは source 横断で全体 1 枚、key は
   // 固定 (`weather:current`) にして再昇格でも再マウントさせない (spec C §3)

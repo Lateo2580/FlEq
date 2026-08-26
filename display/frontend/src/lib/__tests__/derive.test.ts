@@ -63,9 +63,9 @@ function eewFixture(over: Partial<DisplayActiveEewV1> = {}): DisplayActiveEewV1 
 
 function tsunamiFixture(over: Partial<DisplayTsunamiStateV1> = {}): DisplayTsunamiStateV1 {
   return {
-    kind: "tsunami", level: "warning", levelLabel: "津波警報", coasts: [], reportDateTime: "t",
+    kind: "tsunami", eventId: "T1", level: "warning", levelLabel: "津波警報", coasts: [], reportDateTime: "t",
     warningComment: null, observations: [], updatedAtMs: 0,
-    ...over,
+    ...over, unkeyedSequence: over.unkeyedSequence ?? null,
   };
 }
 
@@ -137,6 +137,7 @@ describe("deriveMode", () => {
   it("snapshot が null なら standby", () => {
     expect(deriveMode({
       snapshot: null, ticker: [], sseConnected: false, lastSeq: 0, lastEventSeq: 0, seqGapDetected: false, tickerGeneration: 0,
+      unkeyedTsunamiEpisodeGeneration: 0, unkeyedTsunamiProtocolViolation: false,
     })).toBe("standby");
   });
 
@@ -292,7 +293,56 @@ describe("deriveEmergencyPanels", () => {
 
   it("demoted が欠落した tsunami は主役パネルに表示する", () => {
     expect(deriveEmergencyPanels(baseState({ tsunami: tsunamiFixture() })).map((p) => p.key))
-      .toEqual(["tsunami:current"]);
+      .toEqual(["tsunami:T1"]);
+  });
+
+  it("同じ EventID の続報は key を維持し、異なる EventID は episode を分ける", () => {
+    expect(deriveEmergencyPanels(baseState({ tsunami: tsunamiFixture({ eventId: "T1", updatedAtMs: 1 }) }))[0]?.key)
+      .toBe("tsunami:T1");
+    expect(deriveEmergencyPanels(baseState({ tsunami: tsunamiFixture({ eventId: "T1", updatedAtMs: 2 }) }))[0]?.key)
+      .toBe("tsunami:T1");
+    expect(deriveEmergencyPanels(baseState({ tsunami: tsunamiFixture({ eventId: "T2", updatedAtMs: 2 }) }))[0]?.key)
+      .toBe("tsunami:T2");
+  });
+
+  it.each([null, "", "   "])("EventID %j は受理順 sequence を使う unkeyed fail-safe key になる", (eventId) => {
+    const panel = deriveEmergencyPanels(baseState({
+      tsunami: tsunamiFixture({ eventId, updatedAtMs: 12345, unkeyedSequence: 7 }),
+    }))[0];
+    expect(panel?.key).toBe("tsunami:unkeyed:7");
+  });
+
+  it("連続する unkeyed payload は updatedAtMs が同じでも別 key になる", () => {
+    const first = deriveEmergencyPanels(baseState({
+      tsunami: tsunamiFixture({ eventId: null, updatedAtMs: 12345, unkeyedSequence: 8 }),
+    }))[0]?.key;
+    const second = deriveEmergencyPanels(baseState({
+      tsunami: tsunamiFixture({ eventId: null, updatedAtMs: 12345, unkeyedSequence: 9 }),
+    }))[0]?.key;
+    expect(first).toBe("tsunami:unkeyed:8");
+    expect(second).toBe("tsunami:unkeyed:9");
+  });
+
+  it.each([null, 0, 1.5])("不正な unkeyedSequence %j は panel を作らず snapshot.seq へ fallback しない", (unkeyedSequence) => {
+    const panels = deriveEmergencyPanels(baseState({
+      seq: 999,
+      tsunami: tsunamiFixture({ eventId: null, unkeyedSequence }),
+    }));
+    expect(panels).toEqual([]);
+  });
+
+  it("不正な unkeyed tsunami は落とすが同一 snapshot の EEW・地震・気象は描画する", () => {
+    const panels = deriveEmergencyPanels(baseState({
+      tsunami: tsunamiFixture({ eventId: null, unkeyedSequence: null }),
+      activeEews: [eewFixture()],
+      largeQuakes: [largeQuakeFixture()],
+      ...weatherPromotion(4),
+    }));
+    expect(panels.map((panel) => panel.key)).toEqual(["eew:E1", "quake:Q1", "weather:current"]);
+  });
+
+  it("取消で tsunami state が null なら panel を作らない", () => {
+    expect(deriveEmergencyPanels(baseState({ tsunami: null }))).toEqual([]);
   });
 
   it("⑦ 優先順位: 津波 (大津波>津波警報>注意報) > EEW (警報>予報) > largeQuake の順に並ぶ (津波は常に主役)", () => {
@@ -311,11 +361,11 @@ describe("deriveEmergencyPanels", () => {
       largeQuakes: state.snapshot!.largeQuakes,
     });
     const panels = deriveEmergencyPanels(majorState);
-    expect(panels.map((p) => p.key)).toEqual(["tsunami:current", "eew:E1", "eew:E2", "quake:Q1"]);
+    expect(panels.map((p) => p.key)).toEqual(["tsunami:T1", "eew:E1", "eew:E2", "quake:Q1"]);
 
     // 津波警報でも EEW 警報より先頭 (津波常時主役への変更、2026-07-13)。EEW 警報 > EEW 予報 は維持
     const panels2 = deriveEmergencyPanels(state);
-    expect(panels2.map((p) => p.key)).toEqual(["tsunami:current", "eew:E1", "eew:E2", "quake:Q1"]);
+    expect(panels2.map((p) => p.key)).toEqual(["tsunami:T1", "eew:E1", "eew:E2", "quake:Q1"]);
   });
 
   // 津波常時主役化のエッジ (ユーザー決定 2026-07-13): 津波注意報 (最も弱い津波) と EEW 警報 (最も強い
@@ -326,7 +376,7 @@ describe("deriveEmergencyPanels", () => {
       activeEews: [eewFixture({ eventId: "E1", serial: "1", isWarning: true })],
     });
     const keys = deriveEmergencyPanels(state).map((p) => p.key);
-    expect(keys).toEqual(["tsunami:current", "eew:E1"]);
+    expect(keys).toEqual(["tsunami:T1", "eew:E1"]);
   });
 
   it("eventId が null のパネルが複数あっても key が重複しない", () => {
@@ -447,7 +497,7 @@ describe("deriveEmergencyPanels", () => {
       ...weatherPromotion(5),
     });
     const keys = deriveEmergencyPanels(state).map((p) => p.key);
-    expect(keys).toEqual(["tsunami:current", "eew:E1", "eew:E2", "quake:Q1", "weather:current"]);
+    expect(keys).toEqual(["tsunami:T1", "eew:E1", "eew:E2", "quake:Q1", "weather:current"]);
   });
 
   it("気象 L4 も EEW 予報より後に置く", () => {
@@ -466,7 +516,7 @@ describe("deriveEmergencyPanels", () => {
       ...weatherPromotion(5),
     });
     expect(deriveEmergencyPanels(state).map((p) => p.key))
-      .toEqual(["tsunami:current", "eew:E1", "quake:Q1", "weather:current"]);
+      .toEqual(["tsunami:T1", "eew:E1", "quake:Q1", "weather:current"]);
   });
 
   it("気象パネルは source が増減しても key 固定 (weather:current) で 1 枚のまま", () => {

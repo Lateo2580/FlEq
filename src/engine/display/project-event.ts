@@ -276,10 +276,12 @@ function projectEmergency(
       : event.tsunamiDisplay.warningComment;
     const info = resolveTsunamiLevel(displayKinds);
     if (info == null) return null;
+    const eventId = event.eventId?.trim();
     const magnitudeSemantic = projectMagnitudeSemantic(event.magnitudeValue);
     const depthSemantic = projectDepthSemantic(event.depthValue);
     return {
       kind: "tsunami",
+      eventId: eventId === "" || eventId == null ? null : eventId,
       level: info.level,
       levelLabel: info.label,
       coasts: pickAlertCoasts(displayAreaItems, info.label),

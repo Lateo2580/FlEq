@@ -162,6 +162,7 @@ function tsunamiDto(over: Partial<{
   type: string;
   hasEmergency: boolean;
   level: DisplayTsunamiLevel;
+  eventId: string | null;
   reportDateTime: string;
   serial: string | null;
   infoType: string;
@@ -170,6 +171,7 @@ function tsunamiDto(over: Partial<{
     type: "VTSE41",
     hasEmergency: true,
     level: "warning" as DisplayTsunamiLevel,
+    eventId: "T1",
     reportDateTime: "2026-07-06T21:00:00+09:00",
     serial: null,
     infoType: "発表",
@@ -186,6 +188,7 @@ function tsunamiDto(over: Partial<{
     emergency: o.hasEmergency
       ? {
           kind: "tsunami", level: o.level, levelLabel: labels[o.level],
+          eventId: o.eventId,
           coasts: [{ name: "千葉県九十九里・外房", kind: labels[o.level], maxHeight: null, firstHeight: null }],
           warningComment: null, observations: [],
           reportDateTime: o.reportDateTime,
@@ -697,6 +700,50 @@ describe("DisplayStateStore: 津波", () => {
     expect(store.applyEvent(tsunamiDto({ hasEmergency: false }), T0 + 6 * MIN)).toBe(false);
   });
 
+  it("EventID 欠落では VTSE51 観測続報も session 内 unkeyed sequence を進める", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({ eventId: null }), T0)).toBe(true);
+    expect(store.snapshot(1, T0).tsunami?.unkeyedSequence).toBe(1);
+
+    const observation: DisplayTsunamiObservationV1 = {
+      areaName: "岩手県", areaKind: "津波警報", stationName: "宮古", stationCode: "21001",
+      arrivalTime: null, initial: null, maxHeightValue: null, condition: "観測中",
+    };
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false, eventId: null }),
+      T0 + MIN,
+      [observation],
+    )).toBe(true);
+    const continued = store.snapshot(2, T0 + MIN).tsunami;
+    expect(continued).toMatchObject({ eventId: null, updatedAtMs: T0, unkeyedSequence: 2 });
+  });
+
+  it("EventID ありの VTSE41・観測更新・seed は unkeyedSequence を採番しない", () => {
+    const store = new DisplayStateStore();
+    expect(store.applyEvent(tsunamiDto({ eventId: "T-keyed" }), T0)).toBe(true);
+    expect(store.snapshot(1, T0).tsunami?.unkeyedSequence).toBeNull();
+
+    const observation: DisplayTsunamiObservationV1 = {
+      areaName: "岩手県", areaKind: "津波警報", stationName: "宮古", stationCode: "21001",
+      arrivalTime: null, initial: null, maxHeightValue: null, condition: "観測中",
+    };
+    expect(store.applyEvent(
+      tsunamiDto({ type: "VTSE51", hasEmergency: false, eventId: "T-keyed" }),
+      T0 + MIN,
+      [observation],
+    )).toBe(true);
+    expect(store.snapshot(2, T0 + MIN).tsunami?.unkeyedSequence).toBeNull();
+
+    store.seedTsunami({
+      kind: "tsunami", eventId: "T-keyed-seed", level: "warning", levelLabel: "津波警報", coasts: [],
+      warningComment: null, observations: [], reportDateTime: "2026-07-06T21:02:00+09:00",
+    }, T0 + 2 * MIN);
+    expect(store.snapshot(3, T0 + 2 * MIN).tsunami?.unkeyedSequence).toBeNull();
+
+    expect(store.applyEvent(tsunamiDto({ eventId: null }), T0 + 3 * MIN)).toBe(true);
+    expect(store.snapshot(4, T0 + 3 * MIN).tsunami?.unkeyedSequence).toBe(1);
+  });
+
   it("VTSE41 以外の津波電文 (VTSE51 続報など emergency null の DTO) では tsunami 状態が消えない", () => {
     const store = new DisplayStateStore();
     expect(store.applyEvent(tsunamiDto({}), T0)).toBe(true);
@@ -955,6 +1002,7 @@ describe("DisplayStateStore: 津波", () => {
     };
     store.seedTsunami({
       kind: "tsunami",
+      eventId: "T-seed-observation",
       level: "warning",
       levelLabel: "津波警報",
       coasts: [],
@@ -1030,12 +1078,13 @@ describe("DisplayStateStore: 津波", () => {
     const store = new DisplayStateStore();
     store.seedTsunami({
       kind: "tsunami", level: "advisory", levelLabel: "津波注意報",
+      eventId: "T-seed",
       coasts: [{ name: "伊豆諸島", kind: "津波注意報", maxHeight: null, firstHeight: null }],
       warningComment: null, observations: [],
       reportDateTime: "2026-07-06T20:30:00+09:00",
     }, T0);
     const snap = store.snapshot(1, T0);
-    expect(snap.tsunami).toMatchObject({ level: "advisory", updatedAtMs: T0 });
+    expect(snap.tsunami).toMatchObject({ eventId: "T-seed", level: "advisory", updatedAtMs: T0 });
     expect(store.sweep(T0 + 11 * MIN)).toBe(false);
     expect(store.snapshot(2, T0 + 11 * MIN).tsunami?.level).toBe("advisory");
   });
