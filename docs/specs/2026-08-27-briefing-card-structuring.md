@@ -1,6 +1,6 @@
 # spec: briefing card の内容構造化（draft v0.2, 2026-08-27）
 
-> 状態: **ご主人裁定 B（カード化を維持し、見せ方を構造化する）を反映済み**。§8 の D1〜D4 は裁定待ちであり、裁定後に規範を一本化してから実装する。
+> 状態: **全裁定確定（2026-08-27 ご主人裁定: D1〜D4 すべて B）**。実装可能。
 
 ## §1 背景・目的
 
@@ -203,27 +203,27 @@ card と ticker の併存は第3縦切り裁定7のまま維持する。ticker �
 
 headline を card wire に残すことは必須である。構造化表示の成功を根拠に raw field、fixture の原文、監査 evidence を削除しない。
 
-## §8 裁定待ち分岐
+## §8 裁定済み分岐（2026-08-27 ご主人裁定: 全件 B）
 
-### D1: 既知 kind の定型要点の粒度
+### D1: 既知 kind の定型要点の粒度【裁定: B】
 
 - **案 A: lead＋地域＋発表時刻だけ**。Body の観測 fact は raw headline 後段だけに委ねる。
 - **案 B: lead＋地域＋発表時刻＋構造化 fact**。主面に収まる fact を出し、残りは同じ pager 後段へ送る。headline 解析はしない。
 - **推奨: B**。記録雨の地点・雨量、短時間大雪の地点・降雪量を構造化値のまま残せ、単なる種別ラベルへの過剰圧縮を避けられるためだ。
 
-### D2: 主面の地域 chip 上限
+### D2: 主面の地域 chip 上限【裁定: B】
 
 - **案 A: 主面から全件**。収まらない場合は同じ structured summary の連続ページへ送る。
 - **案 B: 主面は先頭3件＋`ほかN地域`**。後段ページで code 付き全地域を表示する。
 - **推奨: B**。初見性を保ちつつ、後段で全件を必ず読める。上限は描画だけであり state／wire の切捨てではない。
 
-### D3: 既知 kind の raw headline 全文の置き場
+### D3: 既知 kind の raw headline 全文の置き場【裁定: B＝ticker のみ・カード主面/pager には載せない】
 
 - **案 A: card pager 後段**。structured summary の後に原文全文を semantic block として巡回表示し、ticker も従来どおり併存する。
 - **案 B: ticker のみ**。card は構造化要点に限定し、全文は既存 ticker で読む。unknown／mixed／取消だけは card 内 raw 表示を残す。
 - **推奨: A**。ticker の表示時期や scheduler state に依存せず、card のactive TTL中に原文へ戻れる。既存「長文は pager」の裁定とも一致する。
 
-### D4: raw title の主面配置
+### D4: raw title の主面配置【裁定: B】
 
 - **案 A: raw title を主面に残す**。現行 title の直後に定型 lead を出す。
 - **案 B: 主面は短い source header＋定型 lead**。D3=Aなら raw title は headline と同じ詳細ページへ移し、D3=Bなら wire に保持したまま card 主面では省略する。unknown／mixed／取消では主面に残す。
