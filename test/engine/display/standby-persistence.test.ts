@@ -508,8 +508,26 @@ describe("StandbyPersistence", () => {
       persistenceSalvageBackupRecovered: 0,
       pendingSources: 1,
     });
+    expect(readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"))).toEqual([]);
     expect(new StandbyPersistence(path).load()?.savedAt).toBe(state().savedAt);
     writeSync.mockRestore();
+  });
+
+  it("salvage backup の file fsync 失敗はこの試行で作成した backup を残さない", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    const fsyncSync = vi.spyOn(fs, "fsyncSync").mockImplementationOnce(() => {
+      throw new Error("fsync blocked");
+    });
+
+    persistence.schedule(state({ savedAt: "blocked" }));
+    await persistence.__test_writePending();
+
+    expect(readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"))).toEqual([]);
+    fsyncSync.mockRestore();
   });
 
   it("salvage backup は file fsync → directory fsync の順に呼ぶ", async () => {

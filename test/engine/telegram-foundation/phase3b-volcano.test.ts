@@ -1079,12 +1079,12 @@ describe("Phase 3B volcano foundation", () => {
     writeFileSync(v2Path, JSON.stringify(broken), "utf8");
     const salvaged = new StandbyPersistence(path).load()!;
     expect(salvaged.telegramFoundation.volcano).toEqual({
-      authoritative: false, state: null, active: [], gateEntries: [],
+      authoritative: true, state: null, active: [], gateEntries: [],
     });
     expect(salvaged.telegramFoundation.vpws50).toEqual({
       authoritative: true, state: null, gateEntries: [],
     });
-    expect(salvaged.volcanoes[0]?.code).toBe("506");
+    expect(salvaged.volcanoes).toEqual([]);
   });
 
   it("subject 上限超過時も gate・holder・standby が同じ LRU 順で退場する", () => {

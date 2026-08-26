@@ -639,6 +639,33 @@ describe("Phase 3B VPWW56 common registry", () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
+  it("state:null の cancellation-only gate は壊れた別官署を局所破棄しても保持する", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ vpww56State: holder, revisionGate: gate });
+    processWeather(message("office-a", T1, "1"), deps);
+    processWeather(message("office-b", T1, "1"), deps);
+    const file = tempPath();
+    new StandbyPersistence(file, 0, foundationProvider(holder, gate)).save(legacyWithView(holder, T1, "1"));
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: { vpww56: { state: unknown; gateEntries: Array<Record<string, unknown>> } };
+    };
+    raw.telegramFoundation.vpww56.state = null;
+    for (const entry of raw.telegramFoundation.vpww56.gateEntries) entry.cancelled = true;
+    raw.telegramFoundation.vpww56.gateEntries.push({
+      stateSubjectKey: "weather:VPWW56:broken-office",
+      cancelled: true,
+    });
+    fs.writeFileSync(v2Path, JSON.stringify(raw), "utf8");
+
+    const loaded = new StandbyPersistence(file, 0).load()!;
+    expect(loaded.telegramFoundation.vpww56.state).toBeNull();
+    expect(loaded.telegramFoundation.vpww56.gateEntries).toHaveLength(2);
+    expect(loaded.telegramFoundation.vpww56.gateEntries.map((entry) => entry.stateSubjectKey).sort())
+      .toEqual(["weather:VPWW56:office-a", "weather:VPWW56:office-b"]);
+  });
+
   it("旧 v1 の官署不明 union は旧粒度を固着させず、表示も watermark も復元しない", () => {
     const file = tempPath();
     const legacy = legacyState();

@@ -373,11 +373,19 @@ interface RepairMetric {
   discarded: number;
   retained: number;
   reasons: Set<SalvageReason>;
+  /** backup 成功まで source ごとの domain/unit/reason 件数を原文と一緒に保持する。 */
+  distribution: Map<SalvageUnit, Map<SalvageReason, number>>;
   discard: boolean;
 }
 
 interface RepairCollector {
   source: string;
+  metrics: Map<SalvageDomain, RepairMetric>;
+}
+
+/** 原文と同じ寿命で保持する。backup が成功するまで repair の内訳を失わない。 */
+interface RepairSource {
+  bytes: Buffer;
   metrics: Map<SalvageDomain, RepairMetric>;
 }
 
@@ -398,8 +406,10 @@ function recordRepair(
   if (discarded === 0 || activeRepairCollector == null) return;
   const existing = activeRepairCollector.metrics.get(domain);
   if (existing == null) {
+    const distribution = new Map<SalvageUnit, Map<SalvageReason, number>>();
+    distribution.set(unit, new Map([[reason, discarded]]));
     activeRepairCollector.metrics.set(domain, {
-      units: new Set([unit]), discarded, retained, reasons: new Set([reason]), discard,
+      units: new Set([unit]), discarded, retained, reasons: new Set([reason]), distribution, discard,
     });
     return;
   }
@@ -407,6 +417,9 @@ function recordRepair(
   existing.retained = Math.max(existing.retained, retained);
   existing.units.add(unit);
   existing.reasons.add(reason);
+  const unitDistribution = existing.distribution.get(unit) ?? new Map<SalvageReason, number>();
+  unitDistribution.set(reason, (unitDistribution.get(reason) ?? 0) + discarded);
+  existing.distribution.set(unit, unitDistribution);
   existing.discard ||= discard;
 }
 
@@ -438,7 +451,7 @@ export class StandbyPersistence {
   private renamedSeq = 0;
   private migrationConflictCount = 0;
   /** salvage した source の原文。canonical write の前に必ず退避する。 */
-  private readonly repairSources = new Map<string, Buffer>();
+  private readonly repairSources = new Map<string, RepairSource>();
   private readonly repairBackupAttempts = new Map<string, number>();
   private readonly repairBackupBlockedSince = new Map<string, number>();
   private readonly repairBackupLastWarn = new Map<string, number>();
@@ -641,10 +654,10 @@ export class StandbyPersistence {
         log.warn(`[standby-persistence] top-level structure validation 失敗 — 破棄 (${path.basename(filePath)})`);
         // Top-level failures have no closed domain token, but still require original-byte backup
         // if another source supplies a canonical state.
-        this.repairSources.set(filePath, raw);
+        this.repairSources.set(filePath, { bytes: raw, metrics: collector.metrics });
       } else if (collector.metrics.size > 0) {
         emitRepairWarnings(collector);
-        this.repairSources.set(filePath, raw);
+        this.repairSources.set(filePath, { bytes: raw, metrics: collector.metrics });
       }
       return {
         state: sanitized,
@@ -654,7 +667,7 @@ export class StandbyPersistence {
       };
     } catch (err) {
       log.warn(`[standby-persistence] load 失敗 (${path.basename(filePath)}): ${err instanceof Error ? err.message : String(err)}`);
-      if (raw != null) this.repairSources.set(filePath, raw);
+      if (raw != null) this.repairSources.set(filePath, { bytes: raw, metrics: collector.metrics });
       return { state: null, migrationConflict: false };
     }
   }
@@ -777,11 +790,11 @@ export class StandbyPersistence {
   private backupRepairSources(): boolean {
     if (this.repairSources.size === 0) return true;
     let allSucceeded = true;
-    for (const [sourcePath, bytes] of [...this.repairSources]) {
+    for (const [sourcePath, source] of [...this.repairSources]) {
       const attempts = (this.repairBackupAttempts.get(sourcePath) ?? 0) + 1;
       this.repairBackupAttempts.set(sourcePath, attempts);
       try {
-        this.writeSalvageBackup(sourcePath, bytes);
+        this.writeSalvageBackup(sourcePath, source.bytes);
         this.repairSources.delete(sourcePath);
         this.repairBackupAttempts.delete(sourcePath);
         this.repairBackupBlockedSince.delete(sourcePath);
@@ -820,11 +833,13 @@ export class StandbyPersistence {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     let fd: number | null = null;
     let backupPath = "";
+    let created = false;
     try {
       for (let suffix = 0; ; suffix++) {
         backupPath = path.join(directory, `${base}.${timestamp}.${suffix}.salvage-backup`);
         try {
           fd = fs.openSync(backupPath, "wx");
+          created = true;
           break;
         } catch (err) {
           if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
@@ -843,6 +858,10 @@ export class StandbyPersistence {
     } catch (err) {
       if (fd != null) {
         try { fs.closeSync(fd); } catch { /* original backup error takes precedence */ }
+      }
+      // この試行で wx 作成した未完了 backup だけを残さない。既存 collision file は触れない。
+      if (created && backupPath !== "") {
+        try { fs.unlinkSync(backupPath); } catch { /* original backup error takes precedence */ }
       }
       throw err;
     }
@@ -2602,6 +2621,13 @@ function sanitizeTsunamiFoundation(
       || entry.stateSubjectKey !== legacySubject && entry.stateSubjectKey !== "tsunami:current",
   ));
   const retainedVtse41Subjects = new Set(vtse41Entries.map((entry) => entry.stateSubjectKey));
+  const limitedVtse41Subjects = new Set(salvageableVtse41Candidates
+    .filter((entry) => !retainedVtse41Subjects.has(entry.stateSubjectKey))
+    .map((entry) => entry.stateSubjectKey));
+  if (limitedVtse41Subjects.size > 0) {
+    recordRepair("foundation.tsunami", "eventId", limitedVtse41Subjects.size,
+      retainedVtse41Subjects.size, "limit-exceeded");
+  }
   const keyedActive = retainNewestKeyedTsunamiActive(matchedKeyedActive, vtse41Entries).active;
   let boundedEntries = (entries as PersistedTelegramRevisionGateEntryV2[]).filter(
     (entry) => entry.domain !== "tsunami"
@@ -2937,13 +2963,16 @@ function sanitizeVpww56Foundation(
   if (value.generation !== VPWW56_SNAPSHOT_GENERATION) {
     return migrateLegacyVpww56Foundation(value);
   }
-  if (salvage && value.authoritative && value.state != null
-    && isRecord(value.state) && value.state.generation === VPWW56_SNAPSHOT_GENERATION
-    && Array.isArray(value.state.streams) && value.state.streams.every((stream) =>
+  const salvageState = value.state == null
+    ? { generation: VPWW56_SNAPSHOT_GENERATION, streams: [], pendingSubjects: [] }
+    : value.state;
+  if (salvage && value.authoritative
+    && isRecord(salvageState) && salvageState.generation === VPWW56_SNAPSHOT_GENERATION
+    && Array.isArray(salvageState.streams) && salvageState.streams.every((stream) =>
       !isRecord(stream) || typeof stream.subjectKey !== "string"
         || stream.generation === VPWW56_SNAPSHOT_GENERATION)) {
-    if (!isRecord(value.state) || !Array.isArray(value.state.streams)
-      || !Array.isArray(value.state.pendingSubjects)) return null;
+    if (!Array.isArray(salvageState.streams)
+      || !Array.isArray(salvageState.pendingSubjects)) return null;
     const invalidSubjects = new Set<string>();
     const couplingSubjects = new Set<string>();
     const gates = value.gateEntries.flatMap((raw) => {
@@ -2954,13 +2983,13 @@ function sanitizeVpww56Foundation(
       }
       return [];
     }) as PersistedTelegramRevisionGateEntryV2[];
-    const streams = value.state.streams.flatMap((raw) => {
+    const streams = salvageState.streams.flatMap((raw) => {
       if (isRecord(raw) && raw.generation === VPWW56_SNAPSHOT_GENERATION
         && isVpww56SubjectKey(raw.subjectKey) && isVpww56View(raw.view)) return [raw];
       if (isRecord(raw) && typeof raw.subjectKey === "string" && isVpww56SubjectKey(raw.subjectKey)) invalidSubjects.add(raw.subjectKey);
       return [];
     });
-    const pending = value.state.pendingSubjects.flatMap((raw) => {
+    const pending = salvageState.pendingSubjects.flatMap((raw) => {
       if (isVpww56SubjectKey(raw)) return [raw];
       return [];
     });
@@ -2979,23 +3008,36 @@ function sanitizeVpww56Foundation(
     const activeGates = new Set(gates.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey));
     for (const subject of represented) if (!activeGates.has(subject) && !invalidSubjects.has(subject)) couplingSubjects.add(subject);
     const rejected = new Set([...invalidSubjects, ...couplingSubjects]);
-    const filteredGates = gates.filter((entry) => entry.cancelled || !rejected.has(entry.stateSubjectKey));
-    const filteredStreams = streams.filter((stream) => !rejected.has(stream.subjectKey as string));
-    const filteredPending = pending.filter((subject) => !rejected.has(subject));
+    let filteredGates = gates.filter((entry) => entry.cancelled || !rejected.has(entry.stateSubjectKey));
+    let filteredStreams = streams.filter((stream) => !rejected.has(stream.subjectKey as string));
+    let filteredPending = pending.filter((subject) => !rejected.has(subject));
+    const retainedByLimit = filteredGates.slice(-VPWW56_REVISION_FAMILY_POLICY.maxSubjects!);
+    const limitedSubjects = new Set(filteredGates
+      .filter((entry) => !retainedByLimit.includes(entry))
+      .map((entry) => entry.stateSubjectKey));
+    if (limitedSubjects.size > 0) {
+      filteredGates = retainedByLimit;
+      filteredStreams = filteredStreams.filter((stream) => !limitedSubjects.has(stream.subjectKey as string));
+      filteredPending = filteredPending.filter((subject) => !limitedSubjects.has(subject));
+    }
+    const discardedSubjects = new Set([...rejected, ...limitedSubjects]);
     if (filteredGates.length !== value.gateEntries.length
-      || filteredStreams.length !== value.state.streams.length
-      || filteredPending.length !== value.state.pendingSubjects.length) {
+      || filteredStreams.length !== salvageState.streams.length
+      || filteredPending.length !== salvageState.pendingSubjects.length) {
       const retainedSubjects = new Set([
         ...filteredStreams.map((stream) => stream.subjectKey as string), ...filteredPending,
         ...filteredGates.map((entry) => entry.stateSubjectKey),
       ]);
-      recordRepair("foundation.vpww56", "subject", rejected.size || 1, retainedSubjects.size,
-        invalidSubjects.size > 0 ? "invalid-entry" : "coupling-mismatch");
+      recordRepair("foundation.vpww56", "subject", discardedSubjects.size || 1, retainedSubjects.size,
+        invalidSubjects.size > 0 ? "invalid-entry"
+          : couplingSubjects.size > 0 ? "coupling-mismatch" : "limit-exceeded");
     }
     return sanitizeVpww56Foundation({
       ...value,
       gateEntries: filteredGates,
-      state: { ...value.state, streams: filteredStreams, pendingSubjects: filteredPending },
+      state: value.state == null && filteredStreams.length === 0 && filteredPending.length === 0
+        ? null
+        : { ...salvageState, streams: filteredStreams, pendingSubjects: filteredPending },
     }, false);
   }
   if (!value.gateEntries.every((entry) =>
@@ -3231,20 +3273,29 @@ function sanitizeVolcanoFoundation(
       }, false);
       if (bundle == null) rejected.add(code); else kept.push(bundle);
     }
-    if (rejected.size > 0 || active.length !== value.active.length || gates.length !== value.gateEntries.length) {
-      recordRepair("foundation.volcano", "code", rejected.size || 1, kept.length,
-        rejected.size > 0 ? "coupling-mismatch" : "invalid-entry");
+    const boundedKept = kept.slice(-Math.min(
+      VOLCANO_ALERT_REVISION_FAMILY_POLICY.maxSubjects!,
+      VOLCANO_ERUPTION_REVISION_FAMILY_POLICY.maxSubjects!,
+    ));
+    const limitedCodes = new Set(kept.filter((bundle) => !boundedKept.includes(bundle)).flatMap((bundle) => [
+      ...bundle.active.map((item) => item.code),
+      ...(bundle.state?.alerts.map((item) => item.volcanoCode) ?? []),
+      ...(bundle.state?.eruptions.map((item) => item.volcanoCode) ?? []),
+      ...bundle.gateEntries.map((item) => item.stateSubjectKey.split(":").at(-1)!),
+    ]));
+    if (rejected.size > 0 || limitedCodes.size > 0
+      || active.length !== value.active.length || gates.length !== value.gateEntries.length) {
+      recordRepair("foundation.volcano", "code", rejected.size + limitedCodes.size || 1, boundedKept.length,
+        rejected.size > 0 ? "coupling-mismatch" : "limit-exceeded");
     }
-    if (kept.length === 0 && (value.active.length > 0 || value.gateEntries.length > 0
-      || rawAlerts.length > 0 || rawEruptions.length > 0)) return null;
     return {
       authoritative: true,
-      state: kept.flatMap((item) => item.state == null ? [] : [item.state]).length === 0 ? null : {
-        alerts: kept.flatMap((item) => item.state?.alerts ?? []),
-        eruptions: kept.flatMap((item) => item.state?.eruptions ?? []),
+      state: boundedKept.flatMap((item) => item.state == null ? [] : [item.state]).length === 0 ? null : {
+        alerts: boundedKept.flatMap((item) => item.state?.alerts ?? []),
+        eruptions: boundedKept.flatMap((item) => item.state?.eruptions ?? []),
       },
-      active: kept.flatMap((item) => item.active),
-      gateEntries: kept.flatMap((item) => item.gateEntries),
+      active: boundedKept.flatMap((item) => item.active),
+      gateEntries: boundedKept.flatMap((item) => item.gateEntries),
     };
   }
   if (!value.active.every(isVolcanoState)) return null;
