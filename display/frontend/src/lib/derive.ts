@@ -139,9 +139,14 @@ export function deriveQuakeMapHostEvent(
   nowMs: number,
 ): DisplayQuakeMapEventV1 | undefined {
   const quake = s.snapshot?.mapLayers?.quake;
-  const host = quake?.nonEmergencyHost;
-  if (host == null || nowMs >= host.expiresAtMs) return undefined;
-  return quake?.events.find((event) => event.eventKey === host.eventKey);
+  const knownHost = quake?.nonEmergencyHost;
+  if (knownHost != null && nowMs < knownHost.expiresAtMs) {
+    return quake?.events.find((event) => event.eventKey === knownHost.eventKey);
+  }
+  if (s.snapshot?.largeQuakes.length !== 0) return undefined;
+  const unknownHost = quake?.unknownHost;
+  if (unknownHost == null || nowMs >= unknownHost.expiresAtMs) return undefined;
+  return quake?.events.find((event) => event.eventKey === unknownHost.eventKey);
 }
 
 export function deriveMode(s: DisplayClientState, nowMs: number): ScreenMode {

@@ -211,29 +211,30 @@ describe("LatestQuakeCard", () => {
 
   it("最大値と地域別の qualifier を badge・tooltip・aria 付きで完全表示する", () => {
     const lower = semantic({
-      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上（未入電）",
       condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
       safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
     });
     const unknown = semantic({
-      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      raw: "未入電", presence: "unknown", label: "不明（未入電）", condition: "未入電",
       badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
       safetyRank: null, colorRank: null,
     });
     const { container } = render(LatestQuakeCard, { quake: latestQuake({
       maxInt: "", maxIntRank: 5, maxIntSemantic: lower,
       intensityGroups: [{
-        intensity: "不明", rank: -1, intensitySemantic: unknown,
+        intensity: "不明（未入電）", rank: -1, intensitySemantic: unknown,
         areas: ["宮崎県宮崎市"], omittedAreaCount: 0,
       }],
     }) });
     const maximum = container.querySelector(".int-chip");
-    expect(maximum?.textContent).toBe("5弱以上未入電≥");
+    expect(maximum?.textContent).toBe("5弱以上（未入電）≥");
     expect(maximum?.getAttribute("title")).toContain("以上（下限値）");
     const group = container.querySelector(".g-int");
-    expect(group?.textContent).toBe("震度不明?");
+    expect(group?.textContent).toBe("震度不明（未入電）?");
     expect(group?.classList.contains("special-unknown")).toBe(true);
-    expect(group?.getAttribute("aria-label")).toContain("理由: 未入電");
+    expect(group?.getAttribute("title")).toBe("震度不明（未入電）、記号 ?: 不明、理由: 未入電");
+    expect(group?.getAttribute("aria-label")).toBe("震度不明（未入電）、記号 ?: 不明、理由: 未入電");
     const source = readFileSync(join(__dirname, "..", "LatestQuakeCard.svelte"), "utf8");
     expect(source).toMatch(/\.int-chip\s*\{[^}]*max-width: 12em;[^}]*overflow-wrap: anywhere;/s);
   });

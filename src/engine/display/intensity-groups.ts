@@ -113,6 +113,21 @@ export function projectIntensitySemantic(
   };
 }
 
+/** earthquake のカード・地図・履歴では未入電 qualifier を engine 側で一体表示する。 */
+export function projectEarthquakeIntensitySemantic(
+  value: SpecialValue<JmaIntensity> | undefined,
+  scalar?: string | null,
+): DisplayIntensitySemanticV1 | undefined {
+  const semantic = projectIntensitySemantic(value, scalar);
+  if (
+    semantic?.presence === "qualitative"
+    && semantic.lowerBound === "5-"
+    && [semantic.raw, semantic.condition, semantic.description]
+      .some((part) => part?.includes("未入電") === true)
+  ) return { ...semantic, label: "5弱以上（未入電）" };
+  return semantic;
+}
+
 /** EEW 長周期階級を震度とは独立した 0〜4 safety rank の V1 semantic へ投影する。 */
 export function projectLgIntensitySemantic(
   value: SpecialValue<JmaLgIntensity> | undefined,
@@ -209,17 +224,17 @@ export function isProjectedIntensitySemantic(
           rawUpperBound: semantic.rawUpperBound,
         }),
   };
-  const expected = projectIntensitySemantic(
-    source,
-    semantic.presence === "value" ? semantic.label : undefined,
-  );
-  return expected != null && (
+  const expected = [
+    projectIntensitySemantic(source, semantic.presence === "value" ? semantic.label : undefined),
+    projectEarthquakeIntensitySemantic(source, semantic.presence === "value" ? semantic.label : undefined),
+  ];
+  return expected.some((candidate) => candidate != null && (
     [
       "raw", "presence", "label", "condition", "description", "lowerBound", "upperBound",
       "rawLowerBound", "rawUpperBound", "badge", "color", "render", "safetyLowerRank",
       "safetyUpperRank", "safetyRank", "colorRank",
     ] as const
-  ).every((key) => Object.is(expected[key], semantic[key]));
+  ).every((key) => Object.is(candidate[key], semantic[key])));
 }
 
 /** missing を除外し、特殊値の qualifier と色・badge semantic を保ったまま地域をまとめる。 */
@@ -228,7 +243,7 @@ export function groupIntensityAreas(items: PresentationAreaItem[]): IntensityAre
   for (const item of items) {
     if (item.maxIntValue == null) {
       if (item.maxInt == null || item.maxInt.trim() === "") continue;
-      const semantic = projectIntensitySemantic(undefined, item.maxInt);
+      const semantic = projectEarthquakeIntensitySemantic(undefined, item.maxInt);
       if (semantic == null || semantic.label == null) continue;
       const intensity = semantic.label;
       const rank = semantic.colorRank ?? -1;
@@ -250,7 +265,7 @@ export function groupIntensityAreas(items: PresentationAreaItem[]): IntensityAre
       });
       continue;
     }
-    const semantic = projectIntensitySemantic(item.maxIntValue, item.maxInt);
+    const semantic = projectEarthquakeIntensitySemantic(item.maxIntValue, item.maxInt);
     if (semantic == null || !semantic.render || semantic.label == null) continue;
     // frontend V1 は group.intensity を keyed-each の key にするため、表示 label ごとに一意化する。
     // raw/description が異なる同義値は同じ group に束ね、代表 semantic は safety rank 最大を採る。
@@ -324,7 +339,7 @@ export function projectIntensityMapValues(
   const byCode = new Map<string, DisplayIntensityMapValueV1>();
   for (const item of items) {
     if (item.code == null || item.code.trim() === "") continue;
-    const semantic = projectIntensitySemantic(item.maxIntValue, item.maxInt);
+    const semantic = projectEarthquakeIntensitySemantic(item.maxIntValue, item.maxInt);
     if (semantic == null || !semantic.render) continue;
     const candidate: DisplayIntensityMapValueV1 = {
       code: item.code,

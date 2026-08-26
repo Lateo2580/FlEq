@@ -47,6 +47,47 @@ function upsert(
   };
 }
 
+function unknownUpsert(
+  eventKey: string,
+  reportTimeMs = T0,
+  serial: string | null = "1",
+): DisplayQuakeMapCommandV1 {
+  return {
+    kind: "upsert",
+    sourceType: "VXSE53",
+    revision: revision(reportTimeMs, serial),
+    event: {
+      eventKey,
+      eventId: eventKey.slice("earthquake:".length),
+      reportDateTime: new Date(reportTimeMs).toISOString(),
+      originTime: new Date(reportTimeMs - MINUTE).toISOString(),
+      hypocenterName: "test unknown hypocenter",
+      depth: "10km",
+      magnitude: "5.0",
+      maxInt: "不明（未入電）",
+      maxIntRank: -1,
+      maxIntSemantic: {
+        raw: "未入電", presence: "unknown", label: "不明（未入電）",
+        condition: "未入電", description: null, lowerBound: null, upperBound: null,
+        rawLowerBound: null, rawUpperBound: null, badge: "?", color: "unknown", render: true,
+        safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+      },
+      tsunamiWarning: false,
+      intensityGroups: [],
+      localAreas: [{
+        code: "440", rank: -1,
+        intensitySemantic: {
+          raw: "未入電", presence: "unknown", label: "不明（未入電）",
+          condition: "未入電", description: null, lowerBound: null, upperBound: null,
+          rawLowerBound: null, rawUpperBound: null, badge: "?", color: "unknown", render: true,
+          safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+        },
+      }],
+      updatedAtMs: reportTimeMs,
+    },
+  };
+}
+
 function remove(
   eventKey: string,
   reportTimeMs: number,
@@ -114,6 +155,138 @@ function apply(
 }
 
 describe("DisplayStateStore quake map lifecycle", () => {
+  it("all-unknown を -1 sentinel の calm unknownHost として5分保持し、続報でのみTTLを更新する", () => {
+    const store = new DisplayStateStore();
+    const first = unknownUpsert("earthquake:unknown", T0, "1");
+    expect(apply(store, first, -1)).toBe(true);
+    let quake = store.snapshot(0, T0).mapLayers?.quake;
+    expect(quake?.events[0]).toMatchObject({
+      eventKey: "earthquake:unknown", maxIntRank: -1,
+      maxIntSemantic: { presence: "unknown", color: "unknown", badge: "?" },
+    });
+    expect(quake?.nonEmergencyHost).toBeNull();
+    expect(quake?.unknownHost).toEqual({ eventKey: "earthquake:unknown", expiresAtMs: T0 + 5 * MINUTE });
+    expect(store.snapshot(0, T0).severityTier).toBe("calm");
+
+    const next = unknownUpsert("earthquake:unknown", T0 + MINUTE, "2");
+    expect(apply(store, next, -1, T0 + MINUTE)).toBe(true);
+    quake = store.snapshot(0, T0 + MINUTE).mapLayers?.quake;
+    expect(quake?.unknownHost?.expiresAtMs).toBe(T0 + 6 * MINUTE);
+
+    expect(store.sweep(T0 + 6 * MINUTE)).toBe(true);
+    expect(store.snapshot(0, T0 + 6 * MINUTE).mapLayers?.quake).toEqual({
+      events: [], nonEmergencyHost: null,
+    });
+  });
+
+  it("known host または largeQuake 中は別 event の unknown を選択せず、同一 emergency の unknown 続報も既知地図を置換しない", () => {
+    const known = new DisplayStateStore();
+    apply(known, upsert("earthquake:known", 4), 4);
+    apply(known, unknownUpsert("earthquake:unknown", T0 + MINUTE), -1, T0 + MINUTE);
+    expect(known.snapshot(0, T0 + MINUTE).mapLayers?.quake).toEqual({
+      events: [expect.objectContaining({ eventKey: "earthquake:known", maxIntRank: 4 })],
+      nonEmergencyHost: { eventKey: "earthquake:known", expiresAtMs: T0 + 5 * MINUTE },
+    });
+
+    const emergency = new DisplayStateStore();
+    const large = upsert("earthquake:large", 5);
+    apply(emergency, large, 5);
+    apply(emergency, unknownUpsert("earthquake:large", T0 + MINUTE, "2"), -1, T0 + MINUTE);
+    expect(emergency.snapshot(0, T0 + MINUTE).mapLayers?.quake).toEqual({
+      events: [expect.objectContaining({ eventKey: "earthquake:large", maxIntRank: 5 })],
+      nonEmergencyHost: null,
+    });
+  });
+
+  it("bridge 経由の emergency→unknown は元の hold 期限を保ち、震源諸元と地図 revision だけを更新する", () => {
+    const store = new DisplayStateStore();
+    const first = upsert("earthquake:A", 5, T0, "1", "VXSE51");
+    apply(store, first, 5, T0);
+
+    const reportTimeMs = T0 + 5 * MINUTE;
+    const reportDateTime = new Date(reportTimeMs).toISOString();
+    const originTime = new Date(T0 - 30_000).toISOString();
+    const unknown = unknownUpsert("earthquake:A", reportTimeMs, "2");
+    if (unknown.kind !== "upsert") throw new Error("test fixture must be an upsert");
+    const command: DisplayQuakeMapCommandV1 = {
+      ...unknown,
+      event: {
+        ...unknown.event,
+        reportDateTime,
+        originTime,
+        hypocenterName: "updated unknown hypocenter",
+        depth: "20km",
+        magnitude: "5.8",
+        tsunamiWarning: true,
+      },
+    };
+    const latest = withQuakeObservationMeta({
+      eventId: "A",
+      headline: null,
+      originTime,
+      hypocenterName: "updated unknown hypocenter",
+      depth: "20km",
+      magnitude: "5.8",
+      maxInt: null,
+      maxIntRank: null,
+      tsunamiWarning: true,
+      intensityGroups: [],
+      reportDateTime,
+    }, {
+      sourceType: "VXSE53",
+      observationSourceType: "VXSE53",
+      infoType: "発表",
+      resolvedTrigger: null,
+      cancellationPolicy: null,
+      intensityStructureMissing: false,
+      maxIntValue: {
+        raw: "未入電",
+        value: null,
+        condition: "未入電",
+        description: null,
+        presence: "unknown",
+      },
+    });
+    const dto = displayEventDto({
+      domain: "earthquake",
+      type: "VXSE53",
+      groupKey: "quake:A",
+      reportDateTime,
+      serial: "2",
+    });
+    attachQuakeObservationBridge(dto, { recent: null, latest });
+    expect(store.applyEvent(dto, reportTimeMs, null, command)).toBe(true);
+
+    const snapshot = store.snapshot(0, reportTimeMs);
+    expect(snapshot.mapLayers?.quake?.events[0]).toMatchObject({
+      sourceType: "VXSE51",
+      revision: command.revision,
+      reportDateTime,
+      originTime,
+      hypocenterName: "updated unknown hypocenter",
+      depth: "20km",
+      magnitude: "5.8",
+      tsunamiWarning: true,
+      maxIntRank: 5,
+      localAreas: [{ code: "440", rank: 5 }],
+      updatedAtMs: T0,
+    });
+    expect(snapshot.largeQuakes[0]).toMatchObject({
+      reportDateTime,
+      originTime,
+      hypocenterName: "updated unknown hypocenter",
+      depth: "20km",
+      magnitude: "5.8",
+      tsunamiWarning: true,
+      maxIntRank: 5,
+      mapSourceType: "VXSE51",
+      mapRevision: command.revision,
+      updatedAtMs: T0,
+    });
+    expect(store.sweep(T0 + 10 * MINUTE + 1)).toBe(true);
+    expect(store.snapshot(0, T0 + 10 * MINUTE + 1).largeQuakes).toEqual([]);
+  });
+
   it("震度3〜4を5分 host として保持し、severity/background に caution として寄与する", () => {
     const store = new DisplayStateStore();
     const command = upsert("earthquake:A", 4);

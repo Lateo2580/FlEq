@@ -28,14 +28,14 @@ function semantic(over: Partial<DisplayIntensitySemanticV1>): DisplayIntensitySe
 }
 
 describe("RecentQuakes intensity semantic", () => {
-  it("5弱以上未入電・unknown・empty を label/badge/専用色で表示する", () => {
+  it("5弱以上（未入電）・unknown・empty を label/badge/専用色で表示する", () => {
     const lower = semantic({
-      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上（未入電）",
       condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
       safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
     });
     const unknown = semantic({
-      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      raw: "未入電", presence: "unknown", label: "不明（未入電）", condition: "未入電",
       badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
       safetyRank: null, colorRank: null,
     });
@@ -49,12 +49,13 @@ describe("RecentQuakes intensity semantic", () => {
       quake({ eventId: "E", hypocenterName: "空", maxInt: null, maxIntRank: null, maxIntSemantic: empty }),
     ] });
     const chips = [...container.querySelectorAll(".int-chip")];
-    expect(chips.map((chip) => chip.textContent)).toEqual(["5弱以上未入電≥", "不明?", "空欄∅"]);
+    expect(chips.map((chip) => chip.textContent)).toEqual(["5弱以上（未入電）≥", "不明（未入電）?", "空欄∅"]);
     expect(chips[0].classList.contains("int-r5")).toBe(true);
     expect(chips[1].classList.contains("special-unknown")).toBe(true);
     expect(chips[2].classList.contains("special-empty")).toBe(true);
     expect(chips[0].getAttribute("title")).toContain("以上（下限値）");
-    expect(chips[1].getAttribute("aria-label")).toContain("理由: 未入電");
+    expect(chips[1].getAttribute("title")).toBe("震度不明（未入電）、記号 ?: 不明、理由: 未入電");
+    expect(chips[1].getAttribute("aria-label")).toBe("震度不明（未入電）、記号 ?: 不明、理由: 未入電");
   });
 
   it("scalar-only magnitude:null の空表示と ARIA を一致させる", () => {

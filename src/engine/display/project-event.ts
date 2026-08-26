@@ -6,6 +6,7 @@ import { normalizeLegacyCounterpartDisplayText } from "../presentation/legacy-co
 import {
   groupIntensityAreas,
   projectIntensityMapValues,
+  projectEarthquakeIntensitySemantic,
   projectIntensitySemantic,
   projectLgIntensitySemantic,
 } from "./intensity-groups";
@@ -120,7 +121,8 @@ export function projectQuakeMapCommand(
   const intensitySource = quakeLocalIntensitySource(event);
   const localAreas = projectIntensityMapValues(intensitySource);
   const gateRank = adoptedIntensity.semantic.safetyLowerRank ?? -1;
-  if (gateRank < QUAKE_MAP_MIN_RANK) {
+  const allUnknown = adoptedIntensity.semantic.presence === "unknown";
+  if (!allUnknown && gateRank < QUAKE_MAP_MIN_RANK) {
     return {
       kind: "remove",
       eventKey,
@@ -137,7 +139,9 @@ export function projectQuakeMapCommand(
   if (displaySemantic?.label == null) {
     return { kind: "remove", eventKey, sourceType, reason: "nonExact", revision, isCorrection };
   }
-  const maxIntRank = displaySemantic.colorRank ?? displaySemantic.safetyRank ?? gateRank;
+  const maxIntRank = allUnknown
+    ? -1
+    : displaySemantic.colorRank ?? displaySemantic.safetyRank ?? gateRank;
   return {
     kind: "upsert",
     sourceType,
@@ -381,13 +385,13 @@ function quakeLocalIntensitySource(event: PresentationEvent) {
 
 export function resolveQuakeIntensityProjection(event: PresentationEvent) {
   const reportedValue = presentationMaxIntValue(event);
-  const reportedSemantic = projectIntensitySemantic(reportedValue, event.maxInt)!;
+  const reportedSemantic = projectEarthquakeIntensitySemantic(reportedValue, event.maxInt)!;
   const candidates = [
     { value: reportedValue, scalar: event.maxInt ?? null, semantic: reportedSemantic },
     ...quakeLocalIntensitySource(event).map((item) => {
       const scalar = "maxInt" in item ? item.maxInt ?? null : null;
       const value = item.maxIntValue ?? scalarMaxIntValue(scalar);
-      return { value, scalar, semantic: projectIntensitySemantic(value, scalar)! };
+      return { value, scalar, semantic: projectEarthquakeIntensitySemantic(value, scalar)! };
     }),
   ];
   const known = candidates

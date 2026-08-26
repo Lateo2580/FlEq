@@ -293,10 +293,10 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
     expectNotification("最大震度は5弱以上とみられます（未入電）");
     expect(result.dto.emergency).toMatchObject({
       kind: "largeQuake",
-      maxInt: "5弱以上未入電",
+      maxInt: "5弱以上（未入電）",
       maxIntRank: 5,
       maxIntSemantic: {
-        presence: "qualitative", label: "5弱以上未入電", badge: "≥", color: "safetyRank",
+        presence: "qualitative", label: "5弱以上（未入電）", badge: "≥", color: "safetyRank",
         safetyLowerRank: 5, safetyRank: 5, colorRank: 5,
       },
       intensityGroups: expect.arrayContaining([
@@ -309,7 +309,7 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
     expect(result.quakeMapCommand).toMatchObject({
       kind: "upsert",
       event: {
-        maxInt: "5弱以上未入電",
+        maxInt: "5弱以上（未入電）",
         maxIntRank: 5,
         maxIntSemantic: expect.objectContaining({ presence: "qualitative", badge: "≥", colorRank: 5 }),
         localAreas: expect.arrayContaining([
@@ -323,7 +323,7 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
           {
             code: "991", rank: 5,
             intensitySemantic: expect.objectContaining({
-              presence: "qualitative", label: "5弱以上未入電", badge: "≥", color: "safetyRank",
+              presence: "qualitative", label: "5弱以上（未入電）", badge: "≥", color: "safetyRank",
               safetyLowerRank: 5, safetyRank: 5, colorRank: 5,
             }),
           },
@@ -331,7 +331,7 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
       },
     });
     expect(result.displaySnapshot.largeQuakes[0]).toMatchObject({
-      eventId: "synthetic-phase4a-vxse51", maxInt: "5弱以上未入電", maxIntRank: 5,
+      eventId: "synthetic-phase4a-vxse51", maxInt: "5弱以上（未入電）", maxIntRank: 5,
       maxIntSemantic: expect.objectContaining({ presence: "qualitative", badge: "≥" }),
     });
     expect(result.standbyLoaded?.quakeHost).toMatchObject({
@@ -346,7 +346,7 @@ describe("Phase 4A synthetic contract: parser to persistence", () => {
         maxInt: null,
         maxIntRank: null,
         maxIntSemantic: expect.objectContaining({
-          presence: "qualitative", label: "5弱以上未入電", badge: "≥", safetyLowerRank: 5,
+          presence: "qualitative", label: "5弱以上（未入電）", badge: "≥", safetyLowerRank: 5,
         }),
         intensityGroups: expect.arrayContaining([
           expect.objectContaining({

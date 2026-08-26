@@ -193,6 +193,45 @@ describe("deriveMode", () => {
     });
     expect(deriveMode(state, 1_000_000)).toBe("standby");
   });
+
+  it("unknownHost は有効期限内だけ選択し、known host と largeQuake が常に優先する", () => {
+    const unknown = quakeMapFixture({
+      eventKey: "earthquake:unknown", maxInt: "不明（未入電）", maxIntRank: -1,
+      maxIntSemantic: {
+        raw: "未入電", presence: "unknown", label: "不明（未入電）",
+        condition: "未入電", description: null, lowerBound: null, upperBound: null,
+        rawLowerBound: null, rawUpperBound: null, badge: "?", color: "unknown", render: true,
+        safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+      },
+      localAreas: [{
+        code: "440", rank: -1,
+        intensitySemantic: {
+          raw: "未入電", presence: "unknown", label: "不明（未入電）",
+          condition: "未入電", description: null, lowerBound: null, upperBound: null,
+          rawLowerBound: null, rawUpperBound: null, badge: "?", color: "unknown", render: true,
+          safetyLowerRank: null, safetyUpperRank: null, safetyRank: null, colorRank: null,
+        },
+      }],
+    });
+    const until = 1_300_000;
+    const unknownOnly = {
+      quake: { events: [unknown], nonEmergencyHost: null, unknownHost: { eventKey: unknown.eventKey, expiresAtMs: until } },
+    };
+    expect(deriveQuakeMapHostEvent(baseState({ mapLayers: unknownOnly }), 1_000_000)).toBe(unknown);
+    expect(deriveMode(baseState({ mapLayers: unknownOnly }), until)).toBe("standby");
+
+    const known = quakeMapFixture({ eventKey: "earthquake:known", maxInt: "4", maxIntRank: 4 });
+    const both = {
+      quake: {
+        events: [known, unknown],
+        nonEmergencyHost: { eventKey: known.eventKey, expiresAtMs: until },
+        unknownHost: { eventKey: unknown.eventKey, expiresAtMs: until },
+      },
+    };
+    expect(deriveQuakeMapHostEvent(baseState({ mapLayers: both }), 1_000_000)).toBe(known);
+    expect(deriveQuakeMapHostEvent(baseState({ mapLayers: unknownOnly, largeQuakes: [largeQuakeFixture()] }), 1_000_000))
+      .toBeUndefined();
+  });
 });
 
 describe("deriveEmergencyPanels", () => {

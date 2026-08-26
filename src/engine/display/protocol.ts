@@ -337,6 +337,11 @@ export interface DisplayQuakeIntensityMapV1 {
     eventKey: string;
     expiresAtMs: number;
   } | null;
+  /** all-unknown 専用の additive host。既知 host と同時に画面選択しない。 */
+  unknownHost?: {
+    eventKey: string;
+    expiresAtMs: number;
+  } | null;
 }
 
 /** spec §5.2 の名称との互換 alias。 */

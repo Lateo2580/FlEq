@@ -10,6 +10,7 @@ import type {
 } from "../display/types";
 import {
   isProjectedIntensitySemantic,
+  projectEarthquakeIntensitySemantic,
   projectIntensitySemantic,
 } from "../display/intensity-groups";
 import {
@@ -261,7 +262,8 @@ function parseRecentQuake(
     : projectDepthSemantic(depthValue);
   if (magnitudeSemantic == null || depthSemantic == null) return null;
   quake = { ...quake, magnitudeSemantic, depthSemantic };
-  const projectedSemantic = projectIntensitySemantic(observation.maxIntValue, quake.maxInt);
+  const legacyProjectedSemantic = projectIntensitySemantic(observation.maxIntValue, quake.maxInt);
+  const projectedSemantic = projectEarthquakeIntensitySemantic(observation.maxIntValue, quake.maxInt);
   if (projectedSemantic == null) return null;
   const expectedMaxIntSemantic = projectedSemantic.presence === "value"
     ? undefined
@@ -269,7 +271,8 @@ function parseRecentQuake(
   if (
     persistedMaxIntSemantic != null
     && (expectedMaxIntSemantic == null
-      || !sameIntensitySemantic(persistedMaxIntSemantic, expectedMaxIntSemantic))
+      || !sameIntensitySemantic(persistedMaxIntSemantic, expectedMaxIntSemantic)
+      && (legacyProjectedSemantic == null || !sameIntensitySemantic(persistedMaxIntSemantic, legacyProjectedSemantic)))
   ) return null;
   if (expectedMaxIntSemantic != null) quake = { ...quake, maxIntSemantic: expectedMaxIntSemantic };
   return withQuakeObservationMeta(quake, migratedObservation);

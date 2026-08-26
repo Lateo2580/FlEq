@@ -483,12 +483,39 @@ describe("DailyQuakePersistence", () => {
     firstPersistence.save(counter.export(), T0 + 1);
     const loaded = firstPersistence.load(T0 + 2);
     expect(loaded?.recentQuakes[0]?.maxIntSemantic).toMatchObject({
-      presence: "qualitative", badge: "≥", safetyRank: 5,
+      presence: "qualitative", label: "5弱以上（未入電）", badge: "≥", safetyRank: 5,
     });
     new DailyQuakePersistence(second).save(loaded!, T0 + 1);
     expect(JSON.parse(fs.readFileSync(second, "utf8"))).toEqual(
       JSON.parse(fs.readFileSync(first, "utf8")),
     );
+  });
+
+  it("旧 qualifier label を load し、新 label で save し直す", () => {
+    const file = filePath();
+    const qualitative: SpecialValue<JmaIntensity> = {
+      raw: "", value: null, condition: "5弱以上未入電", description: null,
+      presence: "qualitative", lowerBound: "5-",
+    };
+    const counter = new DailyQuakeCounter(T0);
+    counter.recordRecentQuake(projectRecentQuake(event({
+      eventId: "Q-legacy-label", maxInt: null, maxIntRank: null, maxIntValue: qualitative,
+    })), T0);
+    const persistence = new DailyQuakePersistence(file);
+    persistence.save(counter.export(), T0 + 1);
+    const persisted = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedTestFile;
+    expect(persisted.state.recentQuakes[0]?.maxIntSemantic).toMatchObject({ label: "5弱以上（未入電）" });
+    persisted.state.recentQuakes[0]!.maxIntSemantic = {
+      ...persisted.state.recentQuakes[0]!.maxIntSemantic,
+      label: "5弱以上未入電",
+    };
+    fs.writeFileSync(file, JSON.stringify(persisted), "utf8");
+
+    const loaded = persistence.load(T0 + 2);
+    expect(loaded?.recentQuakes[0]?.maxIntSemantic).toMatchObject({ label: "5弱以上（未入電）" });
+    persistence.save(loaded!, T0 + 3);
+    const saved = JSON.parse(fs.readFileSync(file, "utf8")) as PersistedTestFile;
+    expect(saved.state.recentQuakes[0]?.maxIntSemantic).toMatchObject({ label: "5弱以上（未入電）" });
   });
 
   it("意味矛盾した maxIntSemantic は entry 単位で fail-closed にする", () => {

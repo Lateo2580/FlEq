@@ -192,12 +192,12 @@ describe("QuakeMap", () => {
       },
     }))));
     const lower = semantic({
-      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上（未入電）",
       condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
       safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
     });
     const unknown = semantic({
-      raw: "未入電", presence: "unknown", label: "不明", condition: "未入電",
+      raw: "未入電", presence: "unknown", label: "不明（未入電）", condition: "未入電",
       badge: "?", color: "unknown", safetyLowerRank: null, safetyUpperRank: null,
       safetyRank: null, colorRank: null,
     });
@@ -230,7 +230,10 @@ describe("QuakeMap", () => {
     expect(container.querySelector('[data-code="443"]')?.getAttribute("aria-hidden")).toBe("true");
     expect(container.querySelector('[data-badge-code="443"]')).toBeNull();
     expect(container.querySelector('[data-code="440"] title')?.textContent).toContain("以上（下限値）");
-    expect(container.querySelector('[data-code="441"]')?.getAttribute("aria-label")).toContain("理由: 未入電");
+    expect(container.querySelector('[data-code="441"] title')?.textContent)
+      .toBe("地域コード441、震度不明（未入電）、記号 ?: 不明、理由: 未入電");
+    expect(container.querySelector('[data-code="441"]')?.getAttribute("aria-label"))
+      .toBe("地域コード441、震度不明（未入電）、記号 ?: 不明、理由: 未入電");
     expect(container.querySelector(".quake-map-legend")?.textContent).toContain("≥以上（下限値）");
     expect(container.querySelector(".quake-map-legend")?.textContent).toContain("↔範囲");
   });
@@ -298,7 +301,7 @@ describe("QuakePanel map integration", () => {
 
   it("地震カードへ最大値と地域別 qualifier/badge を貫通させる", () => {
     const lower = semantic({
-      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上未入電",
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上（未入電）",
       condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
       safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
     });
@@ -310,7 +313,7 @@ describe("QuakePanel map integration", () => {
       maxInt: "", maxIntRank: 5, maxIntSemantic: lower,
       intensityGroups: [{ intensity: "空欄", rank: -1, intensitySemantic: empty, areas: ["静岡県東部"], omittedAreaCount: 0 }],
     }), mapEvent: null });
-    expect(container.querySelector(".max-int")?.textContent).toContain("最大震度5弱以上未入電≥");
+    expect(container.querySelector(".max-int")?.textContent).toContain("最大震度5弱以上（未入電）≥");
     const group = container.querySelector(".int-chip");
     expect(group?.textContent).toBe("空欄∅");
     expect(group?.classList.contains("special-empty")).toBe(true);
