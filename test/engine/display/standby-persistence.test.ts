@@ -14,6 +14,7 @@ import { VPWW56_SNAPSHOT_GENERATION } from "../../../src/engine/messages/vpww56-
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { fromFloodForecastOutcome } from "../../../src/engine/presentation/events/from-flood-forecast";
+import * as log from "../../../src/logger";
 import type { FloodForecastOutcome, PresentationEvent } from "../../../src/engine/presentation/types";
 import type { SpecialValue } from "../../../src/types";
 import {
@@ -62,6 +63,90 @@ function state(over: Partial<PersistedStandbyStateV1> = {}): PersistedStandbySta
     quakeHost: null,
     nankaiTrough: null,
     ...over,
+  };
+}
+
+function rootHeat(key: string, targetDate: string): PersistedStandbyStateV1["heat"][number] {
+  return {
+    key,
+    sourceEventIds: [`${key}-source`],
+    targetDate,
+    targetDateEndMs: Date.parse(`${targetDate}T23:59:59+09:00`),
+    areas: [{ areaName: "東京都", isSpecial: false }],
+    isSpecial: false,
+    revision: { reportTimeMs: T0, serial: "1" },
+  };
+}
+
+function rootTyphoon(key: string): PersistedStandbyStateV1["typhoons"][number] {
+  return {
+    key: `typhoon:${key}`,
+    sourceEventId: `${key}-source`,
+    typhoon: {
+      typhoonKey: key,
+      name: "Alpha",
+      nameKana: null,
+      remark: null,
+      typhoonNumber: "2601",
+      category: "TS",
+      location: "ocean",
+      pressureHpa: 990,
+      maxWindMs: 25,
+      maxGustMs: null,
+      moveDirection: "N",
+      moveSpeedKmh: 20,
+      reportDateTime: new Date(T0).toISOString(),
+    },
+    revision: { reportTimeMs: T0, serial: "1" },
+    expiresAtMs: T0 + 24 * 60 * 60_000,
+  };
+}
+
+function rootVolcano(code: string): PersistedStandbyStateV1["volcanoes"][number] {
+  return {
+    code,
+    name: `Volcano ${code}`,
+    alertLevel: null,
+    alertClass: null,
+    warningKind: null,
+    targetKinds: [],
+    alertExpiresAtMs: null,
+    latestEvent: null,
+    latestEventId: null,
+    eventExpiresAtMs: null,
+    sourceEventIds: [`volcano-${code}`],
+    alertRevision: null,
+    eventRevision: null,
+  };
+}
+
+function rootTornado(office: string): NonNullable<PersistedStandbyStateV1["tornado"]>[number] {
+  return {
+    publishingOffice: office,
+    sourceEventId: `tornado-${office}`,
+    areas: ["東京都"],
+    isSighted: false,
+    revision: { reportTimeMs: T0, serial: "1" },
+    expiresAtMs: T0 + 60 * 60_000,
+  };
+}
+
+function rootLongPeriod(eventId: string, hosted = false): NonNullable<PersistedStandbyStateV1["longPeriod"]>[number] {
+  return {
+    eventId,
+    maxLgInt: "3",
+    safetyRank: 3,
+    revision: { reportTimeMs: T0, serial: "1" },
+    hosted,
+    expiresAtMs: T0 + 60 * 60_000,
+  };
+}
+
+function rootSeen(key: string): PersistedStandbyStateV1["seen"][number] {
+  return {
+    key,
+    revision: { reportTimeMs: T0, serial: "1" },
+    forgetAtMs: T0 + 24 * 60 * 60_000,
   };
 }
 
@@ -161,6 +246,8 @@ function expectNoTyphoonNumericTrend(store: StandbyStateStore): void {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -199,11 +286,326 @@ describe("StandbyPersistence", () => {
     expect(new StandbyPersistence(path).load()).toEqual(expect.objectContaining({ heat: [], seen: state().seen }));
   });
 
+  it("root 6 collection は不正 entry だけを除外し、valid の値と順序を保つ", () => {
+    const path = tempPath();
+    const heat = [rootHeat("heat-a", "2026-07-21"), { key: "broken" }, rootHeat("heat-b", "2026-07-22")];
+    const typhoons = [rootTyphoon("TC-A"), { key: "broken" }, rootTyphoon("TC-B")];
+    const volcanoes = [rootVolcano("V-A"), { code: "broken", alertLevel: "bad" }, rootVolcano("V-B")];
+    const tornado = [rootTornado("office-a"), { publishingOffice: "broken", areas: "bad" }, rootTornado("office-b")];
+    const longPeriod = [rootLongPeriod("lg-a"), { eventId: "broken", maxLgInt: "bad" }, rootLongPeriod("lg-b")];
+    const seen = [rootSeen("heat:a"), { key: "broken", revision: "bad" }, rootSeen("tornado:b")];
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      ...state(), heat, typhoons, volcanoes, tornado, longPeriod, seen,
+    }), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.heat.map((entry) => entry.key)).toEqual(["heat-a", "heat-b"]);
+    expect(loaded?.typhoons.map((entry) => entry.typhoon.typhoonKey)).toEqual(["TC-A", "TC-B"]);
+    expect(loaded?.volcanoes.map((entry) => entry.code)).toEqual(["V-A", "V-B"]);
+    expect(loaded?.tornado?.map((entry) => entry.publishingOffice)).toEqual(["office-a", "office-b"]);
+    expect(loaded?.longPeriod?.map((entry) => entry.eventId)).toEqual(["lg-a", "lg-b"]);
+    expect(loaded?.seen.map((entry) => entry.key)).toEqual(["heat:a", "tornado:b"]);
+    expect(warn.mock.calls.map(([message]) => message)).toEqual([
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.heat unit=entry discarded=1 retained=2 reason=invalid-entry",
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.typhoons unit=entry discarded=1 retained=2 reason=invalid-entry",
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.volcanoes unit=code discarded=1 retained=2 reason=invalid-entry",
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.tornado unit=entry discarded=1 retained=2 reason=invalid-entry",
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.longPeriod unit=entry discarded=1 retained=2 reason=invalid-entry",
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.seen unit=entry discarded=1 retained=2 reason=invalid-entry",
+    ]);
+    warn.mockRestore();
+  });
+
+  it.each([
+    ["heat", "root.heat", "entry"],
+    ["typhoons", "root.typhoons", "entry"],
+    ["volcanoes", "root.volcanoes", "code"],
+    ["tornado", "root.tornado", "entry"],
+    ["longPeriod", "root.longPeriod", "entry"],
+    ["seen", "root.seen", "entry"],
+  ] as const)("root %s の all-invalid は空の present domain を返す", (field, domain, unit) => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), [field]: [{ broken: true }] }), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded).not.toBeNull();
+    expect((loaded as unknown as Record<string, unknown>)[field]).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      `[standby-persistence] salvage source=display-active-state-v1.json domain=${domain} unit=${unit} discarded=1 retained=0 reason=invalid-entry`,
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it.each([
+    ["heat", "root.heat"],
+    ["typhoons", "root.typhoons"],
+    ["volcanoes", "root.volcanoes"],
+    ["tornado", "root.tornado"],
+    ["longPeriod", "root.longPeriod"],
+    ["seen", "root.seen"],
+  ] as const)("root %s の invalid-container はその domain だけを空にする", (field, domain) => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), [field]: "invalid-container" }), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded).not.toBeNull();
+    expect((loaded as unknown as Record<string, unknown>)[field]).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      `[standby-persistence] discard source=display-active-state-v1.json domain=${domain} unit=domain reason=invalid-container`,
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("malformed root seen は他 domain の tombstone を巻き込まず、quakeHost 不正時は longPeriod hosted を false にする", () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({
+      ...state({
+        seen: [rootSeen("tornado:kept"), { key: "broken-seen", revision: "bad", forgetAtMs: T0 } as never],
+        longPeriod: [rootLongPeriod("lg-kept", true)],
+        quakeHost: { eventId: 42, maxIntRank: 4, revision: { reportTimeMs: T0, serial: "1" }, expiresAtMs: T0 + 60_000 } as never,
+        floods: {
+          events: [],
+          seen: [rootSeen("flood:cancelled")],
+        },
+      }),
+    }), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(path).load();
+    expect(loaded?.seen).toEqual([rootSeen("tornado:kept")]);
+    expect(loaded?.floods?.seen).toEqual([rootSeen("flood:cancelled")]);
+    expect(loaded?.longPeriod).toEqual([rootLongPeriod("lg-kept", true)]);
+    expect(loaded?.quakeHost).toBeNull();
+    const restored = new StandbyStateStore();
+    restored.restoreActiveState(loaded!, T0 + 1);
+    expect(restored.exportActiveState().longPeriod).toEqual([
+      expect.objectContaining({ eventId: "lg-kept", hosted: false }),
+    ]);
+    expect(warn.mock.calls.map(([message]) => message)).toEqual([
+      "[standby-persistence] discard source=display-active-state-v1.json domain=root.quakeHost unit=domain reason=invalid-entry",
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.seen unit=entry discarded=1 retained=1 reason=invalid-entry",
+    ]);
+    warn.mockRestore();
+  });
+
   it("壊れた JSON を破棄する", () => {
     const path = tempPath();
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, "{broken", "utf8");
     expect(new StandbyPersistence(path).load()).toBeNull();
+  });
+
+  it("salvage した raw bytes を canonical write より先に同一directoryへ退避する", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    const raw = Buffer.from(`${JSON.stringify({ ...state(), heat: [{ key: "broken" }] }, null, 2)}\n`, "utf8");
+    writeFileSync(path, raw);
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+
+    const backups = readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"));
+    expect(backups).toHaveLength(1);
+    expect(readFileSync(join(dirname(path), backups[0]!))).toEqual(raw);
+    expect(persistence.salvageBackupDiagnostics()).toEqual({
+      persistenceSalvageBackupBlocked: 0,
+      persistenceSalvageBackupRecovered: 0,
+      pendingSources: 0,
+    });
+  });
+
+  it("salvage warn は source/domain ごとに固定 token と bundle 数を一回だけ出す", () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    expect(new StandbyPersistence(path).load()?.heat).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.heat unit=entry discarded=1 retained=0 reason=invalid-entry",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("backup 失敗中は rename せず、次回 write で退避成功後に最新 pending だけを保存する", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    const originalOpenSync = fs.openSync;
+    const openSync = vi.spyOn(fs, "openSync");
+    openSync.mockImplementation((file, flags, ...args) => {
+      if (typeof file === "string" && file.endsWith(".salvage-backup") && flags === "wx") {
+        const error = new Error("backup blocked") as NodeJS.ErrnoException;
+        error.code = "EACCES";
+        throw error;
+      }
+      return originalOpenSync(file, flags, ...args);
+    });
+    persistence.schedule(state({ savedAt: "old" }));
+    await persistence.__test_writePending();
+    expect(persistence.salvageBackupDiagnostics()).toEqual({
+      persistenceSalvageBackupBlocked: 1, persistenceSalvageBackupRecovered: 0, pendingSources: 1,
+    });
+    openSync.mockRestore();
+    persistence.schedule(state({ savedAt: "latest" }));
+    await persistence.__test_writePending();
+    expect(persistence.salvageBackupDiagnostics()).toEqual({
+      persistenceSalvageBackupBlocked: 1, persistenceSalvageBackupRecovered: 1, pendingSources: 0,
+    });
+    expect(new StandbyPersistence(path).load()?.savedAt).toBe("latest");
+  });
+
+  it("salvage backup の同一 timestamp 衝突は wx suffix で回避する", async () => {
+    vi.useFakeTimers({ now: T0 });
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    const raw = Buffer.from(`${JSON.stringify({ ...state(), heat: [{ key: "broken" }] })}\n`, "utf8");
+    writeFileSync(path, raw);
+    const timestamp = new Date(T0).toISOString().replace(/[:.]/g, "-");
+    const collided = join(dirname(path), `${path.split("/").at(-1)}.${timestamp}.0.salvage-backup`);
+    writeFileSync(collided, "collision", "utf8");
+
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+
+    const backups = readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"));
+    expect(backups).toEqual([
+      `${path.split("/").at(-1)}.${timestamp}.0.salvage-backup`,
+      `${path.split("/").at(-1)}.${timestamp}.1.salvage-backup`,
+    ]);
+    expect(readFileSync(join(dirname(path), `${path.split("/").at(-1)}.${timestamp}.1.salvage-backup`)))
+      .toEqual(raw);
+  });
+
+  it.each([0, -1] as const)("salvage backup write の戻り値 %s 以下は block として扱う", async (written) => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    const writeSync = vi.spyOn(fs, "writeSync").mockReturnValue(written);
+
+    persistence.schedule(state({ savedAt: "blocked" }));
+    await persistence.__test_writePending();
+
+    expect(persistence.salvageBackupDiagnostics()).toEqual({
+      persistenceSalvageBackupBlocked: 1,
+      persistenceSalvageBackupRecovered: 0,
+      pendingSources: 1,
+    });
+    expect(new StandbyPersistence(path).load()?.savedAt).toBe(state().savedAt);
+    writeSync.mockRestore();
+  });
+
+  it("salvage backup は file fsync → directory fsync の順に呼ぶ", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    const persistence = new StandbyPersistence(path, 0);
+    expect(persistence.load()?.heat).toEqual([]);
+    const openSync = vi.spyOn(fs, "openSync");
+    const fsyncSync = vi.spyOn(fs, "fsyncSync").mockImplementation(() => undefined);
+
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+
+    expect(openSync.mock.calls.map(([target]) => target)).toEqual([
+      expect.stringMatching(/\.salvage-backup$/),
+      dirname(path),
+    ]);
+    expect(fsyncSync).toHaveBeenCalledTimes(2);
+    expect(fsyncSync.mock.calls[0]?.[0]).toBe(openSync.mock.results[0]?.value);
+    expect(fsyncSync.mock.calls[1]?.[0]).toBe(openSync.mock.results[1]?.value);
+    fsyncSync.mockRestore();
+    openSync.mockRestore();
+  });
+
+  it("v2 採用側と v1 fallback 側の両方に異常があれば、両 source を個別に退避する", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    const seedPersistence = new StandbyPersistence(path, 0);
+    seedPersistence.save(state());
+    const v2Path = standbyPersistenceV2Path(path);
+    const v2Raw = {
+      ...JSON.parse(readFileSync(v2Path, "utf8")) as Record<string, unknown>,
+      heat: [{ key: "broken-v2" }],
+    };
+    const v1Raw = {
+      ...JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>,
+      typhoons: [{ key: "broken-v1" }],
+    };
+    const v2Bytes = Buffer.from(`${JSON.stringify(v2Raw)}\n`, "utf8");
+    const v1Bytes = Buffer.from(`${JSON.stringify(v1Raw)}\n`, "utf8");
+    writeFileSync(v2Path, v2Bytes);
+    writeFileSync(path, v1Bytes);
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const persistence = new StandbyPersistence(path, 0);
+
+    expect(persistence.load()?.heat).toEqual([]);
+    expect(persistence.salvageBackupDiagnostics().pendingSources).toBe(2);
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+
+    expect(readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"))).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^display-active-state-v2\.json\..+\.salvage-backup$/),
+      expect.stringMatching(/^display-active-state-v1\.json\..+\.salvage-backup$/),
+    ]));
+    const backups = readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"));
+    expect(readFileSync(join(dirname(path), backups.find((name) => name.startsWith("display-active-state-v2.json."))!)))
+      .toEqual(v2Bytes);
+    expect(readFileSync(join(dirname(path), backups.find((name) => name.startsWith("display-active-state-v1.json."))!)))
+      .toEqual(v1Bytes);
+    expect(warn.mock.calls.map(([message]) => message)).toContain(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=root.heat unit=entry discarded=1 retained=0 reason=invalid-entry",
+    );
+    expect(warn.mock.calls.map(([message]) => message)).toContain(
+      "[standby-persistence] salvage source=display-active-state-v1.json domain=root.typhoons unit=entry discarded=1 retained=0 reason=invalid-entry",
+    );
+  });
+
+  it("通常 load では salvage backup を作らない", async () => {
+    const path = tempPath();
+    const persistence = new StandbyPersistence(path, 0);
+    persistence.save(state());
+    expect(persistence.load()).not.toBeNull();
+    persistence.schedule(state());
+    await persistence.__test_writePending();
+    expect(readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"))).toEqual([]);
+  });
+
+  it("canonical rewrite 後の再起動では salvage warn と backup を重複させない", async () => {
+    const path = tempPath();
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ ...state(), heat: [{ key: "broken" }] }), "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+    const first = new StandbyPersistence(path, 0);
+    expect(first.load()?.heat).toEqual([]);
+    first.schedule(state());
+    await first.__test_writePending();
+    const backupCount = readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup")).length;
+    expect(backupCount).toBe(1);
+
+    const second = new StandbyPersistence(path, 0);
+    expect(second.load()).not.toBeNull();
+    expect(readdirSync(dirname(path)).filter((name) => name.endsWith(".salvage-backup"))).toHaveLength(backupCount);
+    expect(warn.mock.calls.filter(([message]) =>
+      message === "[standby-persistence] salvage source=display-active-state-v1.json domain=root.heat unit=entry discarded=1 retained=0 reason=invalid-entry",
+    )).toHaveLength(1);
   });
 
   it("洪水 EventID state と seen revision を検証して永続化する", () => {
@@ -348,7 +750,7 @@ describe("StandbyPersistence", () => {
       },
     };
     writeFileSync(standbyPersistenceV2Path(path), JSON.stringify({ ...persistence.load(), ...broken, version: 2 }), "utf8");
-    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: { events: [], seen: [] } }));
   });
 
   it("hydrograph 込みで round-trip し、壊れた hydrograph は洪水 domain だけ破棄する", () => {
@@ -400,7 +802,7 @@ describe("StandbyPersistence", () => {
       },
     };
     writeFileSync(standbyPersistenceV2Path(path), JSON.stringify({ ...persistence.load(), ...broken, version: 2 }), "utf8");
-    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: { events: [], seen: [] } }));
   });
 
   it.each([
@@ -444,7 +846,7 @@ describe("StandbyPersistence", () => {
     };
     writeFileSync(path, JSON.stringify(broken), "utf8");
     const persistence = new StandbyPersistence(path);
-    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: undefined }));
+    expect(persistence.load()).toEqual(expect.objectContaining({ heat: persisted.heat, floods: { events: [], seen: [] } }));
   });
 
   it("typhoon/volcano/tornado/longPeriod/nankai を深く検証し、壊れた domain だけを破棄して起動を続ける", () => {

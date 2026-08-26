@@ -1,5 +1,5 @@
 import { testTelegramMeta } from "../../helpers/telegram-meta";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import type { DisplayRuntime } from "../../../src/engine/display/runtime";
 import type { PresentationEvent } from "../../../src/engine/presentation/types";
 import { createShutdownHandler } from "../../../src/engine/monitor/shutdown";
+import * as shutdownModule from "../../../src/engine/monitor/shutdown";
 import { DEFAULT_CONFIG, type ParsedHeatAlertInfo, type ParsedTornadoAdvisory } from "../../../src/types";
 
 const mockStartDisplayRuntime = vi.fn();
@@ -209,5 +210,77 @@ describe("standby monitor wiring", () => {
     expect(stopStandbySweep).toHaveBeenCalledTimes(1);
     expect(order).toEqual(["display", "standby"]);
     expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("startMonitor の実 restore→sweep 経路は salvage rewrite を一度だけ予約する", async () => {
+    const root = mkdtempSync(join(tmpdir(), "fleq-standby-monitor-rewrite-"));
+    tempRoots.push(root);
+    const runtimeDir = join(root, "data", "runtime");
+    mkdirSync(runtimeDir, { recursive: true });
+    const persisted = new StandbyStateStore().exportActiveState();
+    persisted.heat = [{ key: "broken-heat" }] as never;
+    writeFileSync(
+      join(runtimeDir, "display-active-state-v1.json"),
+      `${JSON.stringify(persisted)}\n`,
+      "utf8",
+    );
+
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(root);
+    const schedule = vi.spyOn(StandbyPersistence.prototype, "schedule")
+      .mockImplementation(() => undefined);
+    const registerShutdownSignals = vi.spyOn(shutdownModule, "registerShutdownSignals")
+      .mockImplementation(() => undefined);
+    const connect = vi.fn().mockResolvedValue(undefined);
+
+    vi.doMock("../../../src/dmdata/multi-connection-manager", () => {
+      class FakeMultiConnectionManager {
+        connect = connect;
+        close = vi.fn();
+        startBackup = vi.fn().mockResolvedValue("started");
+        getStatus = vi.fn(() => ({ connected: false, socketId: null }));
+        getDeliveryCapabilities = vi.fn(() => ({
+          connected: false,
+          effectiveClassifications: [],
+          guaranteedHeadTypes: new Set<string>(),
+          source: "unknown" as const,
+        }));
+      }
+      return { MultiConnectionManager: FakeMultiConnectionManager };
+    });
+    vi.doMock("../../../src/engine/startup/tsunami-initializer", () => ({
+      restoreTsunamiState: vi.fn().mockResolvedValue(null),
+    }));
+    vi.doMock("../../../src/engine/startup/volcano-initializer", () => ({
+      restoreVolcanoState: vi.fn().mockResolvedValue("failed"),
+    }));
+    vi.doMock("../../../src/engine/notification/notifier", () => ({
+      Notifier: class FakeNotifier {},
+    }));
+    vi.doMock("../../../src/ui/display-adapter", () => ({
+      createDisplayAdapter: () => ({
+        displayOutcome: vi.fn(),
+        displayRawHeader: vi.fn(),
+        displayTelegramDiagnostic: vi.fn(),
+        displayVolcano: vi.fn(),
+        displayVolcanoBatch: vi.fn(),
+        getDisplayMode: () => "normal",
+        renderSummaryLine: () => "summary",
+      }),
+    }));
+    vi.doMock("../../../src/ui/repl", () => ({
+      ReplHandler: class FakeReplHandler {
+        setSummaryTimerControl = vi.fn();
+        start = vi.fn();
+        stop = vi.fn();
+      },
+    }));
+
+    const { startMonitor } = await import("../../../src/engine/monitor/monitor");
+    await startMonitor({ ...DEFAULT_CONFIG, apiKey: "test" });
+
+    expect(cwd).toHaveBeenCalled();
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(registerShutdownSignals).toHaveBeenCalledTimes(1);
+    expect(schedule).toHaveBeenCalledTimes(1);
   });
 });

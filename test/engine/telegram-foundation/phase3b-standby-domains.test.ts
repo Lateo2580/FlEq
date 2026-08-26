@@ -19,6 +19,7 @@ import {
   StandbyPersistence,
   standbyPersistenceV2Path,
 } from "../../../src/engine/display/standby-persistence";
+import type { PersistedTelegramRevisionGateEntryV2 } from "../../../src/engine/messages/telegram-revision-gate";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import { Notifier } from "../../../src/engine/notification/notifier";
@@ -36,12 +37,77 @@ import {
   FIXTURE_VYSE51_ADVISORY,
   readFixture,
 } from "../../helpers/mock-message";
+import * as log from "../../../src/logger";
 
 const tempDirs: string[] = [];
 
 function withReceivedAtMs(message: WsDataMessage, receivedAtMs: number): WsDataMessage {
   if (message.meta == null) throw new Error("fixture message must have TelegramMeta");
   return { ...message, meta: { ...message.meta, receivedAtMs } };
+}
+
+function tornadoGate(): PersistedTelegramRevisionGateEntryV2 {
+  const deps = makeProcessDeps();
+  const outcome = processMessage(
+    createMockWsDataMessageFromXml(readFixture(FIXTURE_VPHW50_TOKYO), "VPHW50"),
+    "tornado",
+    deps,
+  );
+  if (outcome == null) throw new Error("tornado fixture was not accepted");
+  const gate = deps.revisionGate.exportDurableEntries().find((entry) => entry.domain === "tornado");
+  if (gate == null) throw new Error("tornado gate was not created");
+  return gate;
+}
+
+function remapTornadoGate(
+  entry: PersistedTelegramRevisionGateEntryV2,
+  office: string,
+): PersistedTelegramRevisionGateEntryV2 {
+  const subject = `tornado:${office}`;
+  return {
+    ...structuredClone(entry),
+    stateSubjectKey: subject,
+    comparison: {
+      ...structuredClone(entry.comparison),
+      stateSubjectKey: subject,
+      revision: {
+        ...structuredClone(entry.comparison.revision),
+        eventId: { raw: subject, value: subject, valid: true },
+      },
+    },
+    legacyRevisionKey: subject,
+    legacyRevisionKeyProvenance: "eventId",
+  };
+}
+
+function saveStandbyFoundation(
+  file: string,
+  gateEntries: readonly PersistedTelegramRevisionGateEntryV2[],
+): void {
+  const persistence = new StandbyPersistence(file, 0, () => ({
+    vpws50: { authoritative: true, state: null, gateEntries: [] },
+    standbyDomains: { gateEntries: [...gateEntries] },
+  }));
+  persistence.save(new StandbyStateStore().exportActiveState());
+}
+
+function seenForStandbyGates(
+  entries: readonly PersistedTelegramRevisionGateEntryV2[],
+): Array<{
+  key: string;
+  revision: { reportTimeMs: number; serial: string | null };
+  forgetAtMs: number;
+}> {
+  return entries.flatMap((entry) => {
+    const reportTimeMs = entry.comparison.revision.reportDateTime.epochMs;
+    const retentionMs = entry.tombstoneRetentionMs ?? TORNADO_REVISION_FAMILY_POLICY.tombstoneRetentionMs;
+    if (reportTimeMs == null || retentionMs == null) return [];
+    return [{
+      key: entry.legacyRevisionKey?.trim() || entry.stateSubjectKey,
+      revision: { reportTimeMs, serial: entry.comparison.revision.serial.raw },
+      forgetAtMs: entry.acceptedAtMs + retentionMs + 1,
+    }];
+  });
 }
 
 afterEach(() => {
@@ -219,6 +285,92 @@ describe("Phase 3B standby domain registry", () => {
     const legacy = JSON.parse(fs.readFileSync(file, "utf8")) as { version: number; seen: Array<{ key: string }> };
     expect(legacy.version).toBe(1);
     expect(legacy.seen).toContainEqual(expect.objectContaining({ key: "tornado:気象庁予報部" }));
+  });
+
+  it("standbyDomains は malformed subject だけを落とし、正常 gate と warn token を保つ", () => {
+    const seed = remapTornadoGate(tornadoGate(), "office-a");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-standby-domains-malformed-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "display-active-state-v1.json");
+    saveStandbyFoundation(file, [seed]);
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: { standbyDomains: { gateEntries: unknown[] } };
+    };
+    raw.telegramFoundation.standbyDomains.gateEntries.push({ stateSubjectKey: "tornado:broken" });
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file).load();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tornado:office-a" }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.standbyDomains unit=subject discarded=1 retained=1 reason=invalid-entry",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("standbyDomains の重複 subject は競合 bundle だけを落とし、別 subject を保つ", () => {
+    const seed = tornadoGate();
+    const first = remapTornadoGate(seed, "office-a");
+    const second = remapTornadoGate(seed, "office-b");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-standby-domains-duplicate-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "display-active-state-v1.json");
+    saveStandbyFoundation(file, [first, second]);
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: { standbyDomains: { gateEntries: PersistedTelegramRevisionGateEntryV2[] } };
+    };
+    raw.telegramFoundation.standbyDomains.gateEntries.push(structuredClone(first));
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file).load();
+    expect(loaded?.telegramFoundation.standbyDomains.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "tornado:office-b" }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.standbyDomains unit=subject discarded=2 retained=1 reason=duplicate-subject",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("standbyDomains は family policy の上限超過を末尾保持し limit-exceeded を記録する", () => {
+    const seed = tornadoGate();
+    const initial = Array.from({ length: TORNADO_REVISION_FAMILY_POLICY.maxSubjects! }, (_, index) =>
+      remapTornadoGate(seed, `office-${String(index).padStart(3, "0")}`));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fleq-standby-domains-limit-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "display-active-state-v1.json");
+    saveStandbyFoundation(file, initial);
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      version: 2;
+      seen: Array<{ key: string; revision: { reportTimeMs: number; serial: string | null }; forgetAtMs: number }>;
+      telegramFoundation: { standbyDomains: { gateEntries: PersistedTelegramRevisionGateEntryV2[] } };
+    };
+    const extra = remapTornadoGate(seed, "office-128");
+    raw.telegramFoundation.standbyDomains.gateEntries.push(extra);
+    const retained = raw.telegramFoundation.standbyDomains.gateEntries.slice(-TORNADO_REVISION_FAMILY_POLICY.maxSubjects!);
+    raw.seen = seenForStandbyGates(retained);
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const legacy = structuredClone(raw) as unknown as Record<string, unknown>;
+    delete legacy.telegramFoundation;
+    legacy.version = 1;
+    fs.writeFileSync(file, `${JSON.stringify(legacy)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file).load();
+    const gates = loaded?.telegramFoundation.standbyDomains.gateEntries ?? [];
+    expect(gates).toHaveLength(TORNADO_REVISION_FAMILY_POLICY.maxSubjects!);
+    expect(gates[0]?.stateSubjectKey).toBe("tornado:office-001");
+    expect(gates.at(-1)?.stateSubjectKey).toBe("tornado:office-128");
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.standbyDomains unit=subject discarded=1 retained=128 reason=limit-exceeded",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it.each([

@@ -753,6 +753,22 @@ describe("message-router 統合テスト", () => {
         vi.useRealTimers();
       }
     });
+
+    it("DisplayStats に persistence salvage の blocked/recovered/pending 3 指標を載せる", () => {
+      const result = createHandler({
+        getPersistenceSalvageDiagnostics: () => ({
+          persistenceSalvageBackupBlocked: 2,
+          persistenceSalvageBackupRecovered: 3,
+          pendingSources: 4,
+        }),
+      });
+
+      expect(result.buildDisplayStats()).toMatchObject({
+        persistenceSalvageBackupBlocked: 2,
+        persistenceSalvageBackupRecovered: 3,
+        persistenceSalvageBackupPendingSources: 4,
+      });
+    });
   });
 
   describe("テキスト系ルーティング", () => {

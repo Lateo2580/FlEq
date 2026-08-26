@@ -360,6 +360,74 @@ interface PersistedReadResult {
   migrationConflict: boolean;
 }
 
+type SalvageDomain =
+  | "root.heat" | "root.typhoons" | "root.volcanoes" | "root.tornado" | "root.longPeriod"
+  | "root.seen" | "root.floods" | "root.weatherAlerts" | "root.quakeHost" | "root.nankaiTrough"
+  | "foundation.vpws50" | "foundation.vpww56" | "foundation.tsunami" | "foundation.volcano"
+  | "foundation.floodForecast" | "foundation.standbyDomains";
+type SalvageUnit = "entry" | "source" | "eventId" | "code" | "subject" | "stationCode" | "family" | "singleton" | "domain";
+type SalvageReason = "invalid-entry" | "invalid-container" | "coupling-mismatch" | "duplicate-subject" | "limit-exceeded";
+
+interface RepairMetric {
+  units: Set<SalvageUnit>;
+  discarded: number;
+  retained: number;
+  reasons: Set<SalvageReason>;
+  discard: boolean;
+}
+
+interface RepairCollector {
+  source: string;
+  metrics: Map<SalvageDomain, RepairMetric>;
+}
+
+const REPAIR_REASON_PRIORITY: readonly SalvageReason[] = [
+  "invalid-container", "invalid-entry", "duplicate-subject", "coupling-mismatch", "limit-exceeded",
+];
+
+let activeRepairCollector: RepairCollector | null = null;
+
+function recordRepair(
+  domain: SalvageDomain,
+  unit: SalvageUnit,
+  discarded: number,
+  retained: number,
+  reason: SalvageReason,
+  discard = false,
+): void {
+  if (discarded === 0 || activeRepairCollector == null) return;
+  const existing = activeRepairCollector.metrics.get(domain);
+  if (existing == null) {
+    activeRepairCollector.metrics.set(domain, {
+      units: new Set([unit]), discarded, retained, reasons: new Set([reason]), discard,
+    });
+    return;
+  }
+  existing.discarded += discarded;
+  existing.retained = Math.max(existing.retained, retained);
+  existing.units.add(unit);
+  existing.reasons.add(reason);
+  existing.discard ||= discard;
+}
+
+function emitRepairWarnings(collector: RepairCollector): void {
+  for (const [domain, metric] of collector.metrics) {
+    const reason = REPAIR_REASON_PRIORITY.find((item) => metric.reasons.has(item))!;
+    if (metric.discard) {
+      log.warn(`[standby-persistence] discard source=${collector.source} domain=${domain} unit=domain reason=${reason}`);
+      continue;
+    }
+    const unit = domain === "foundation.tsunami"
+      ? metric.units.has("family") ? "family"
+        : metric.units.has("stationCode") ? "stationCode"
+          : "eventId"
+      : [...metric.units][0]!;
+    log.warn(
+      `[standby-persistence] salvage source=${collector.source} domain=${domain} unit=${unit} discarded=${metric.discarded} retained=${metric.retained} reason=${reason}`,
+    );
+  }
+}
+
 export class StandbyPersistence {
   private pending: { state: PersistedStandbyStateV2; seq: number } | null = null;
   private timer: NodeJS.Timeout | null = null;
@@ -369,6 +437,15 @@ export class StandbyPersistence {
   /** 実際に rename まで到達した最大 seq。これより古い書き込みは rename せずに捨てる */
   private renamedSeq = 0;
   private migrationConflictCount = 0;
+  /** salvage した source の原文。canonical write の前に必ず退避する。 */
+  private readonly repairSources = new Map<string, Buffer>();
+  private readonly repairBackupAttempts = new Map<string, number>();
+  private readonly repairBackupBlockedSince = new Map<string, number>();
+  private readonly repairBackupLastWarn = new Map<string, number>();
+  private directoryFsyncSupported: boolean | null = null;
+  private persistenceSalvageBackupBlocked = 0;
+  private persistenceSalvageBackupRecovered = 0;
+  private salvageBackupWriteBlocked = false;
 
   constructor(
     private readonly persistPath: string,
@@ -443,6 +520,24 @@ export class StandbyPersistence {
     const count = this.migrationConflictCount;
     this.migrationConflictCount = 0;
     return count;
+  }
+
+  /** monitor diagnostics 用。counter は process lifetime で単調増加する。 */
+  salvageBackupDiagnostics(): {
+    persistenceSalvageBackupBlocked: number;
+    persistenceSalvageBackupRecovered: number;
+    pendingSources: number;
+  } {
+    return {
+      persistenceSalvageBackupBlocked: this.persistenceSalvageBackupBlocked,
+      persistenceSalvageBackupRecovered: this.persistenceSalvageBackupRecovered,
+      pendingSources: this.repairSources.size,
+    };
+  }
+
+  /** restore と startup sweep の後に一度だけ canonical rewrite を予約するための問い合せ。 */
+  hasPendingSalvageRepair(): boolean {
+    return this.repairSources.size > 0;
   }
 
   private recordMigrationConflict(detail: string): void {
@@ -525,16 +620,31 @@ export class StandbyPersistence {
 
   private readPath(filePath: string, allowV1: boolean): PersistedReadResult {
     if (!fs.existsSync(filePath)) return { state: null, migrationConflict: false };
+    let raw: Buffer | null = null;
+    const collector: RepairCollector = { source: path.basename(filePath), metrics: new Map() };
     try {
-      const parsed: unknown = JSON.parse(fs.readFileSync(filePath, "utf8"));
+      raw = fs.readFileSync(filePath);
+      const parsed: unknown = JSON.parse(raw.toString("utf8"));
       const version = isRecord(parsed) ? parsed.version : undefined;
-      const sanitized = version === PERSIST_SCHEMA_VERSION
-        ? sanitizePersistedStandbyStateV2(parsed)
-        : allowV1 && version === 1
-          ? migratePersistedStandbyStateV1(parsed)
-          : null;
+      activeRepairCollector = collector;
+      let sanitized: PersistedStandbyStateV2 | null;
+      try {
+        sanitized = version === PERSIST_SCHEMA_VERSION
+          ? sanitizePersistedStandbyStateV2(parsed)
+          : allowV1 && version === 1
+            ? migratePersistedStandbyStateV1(parsed)
+            : null;
+      } finally {
+        activeRepairCollector = null;
+      }
       if (sanitized == null) {
         log.warn(`[standby-persistence] top-level structure validation 失敗 — 破棄 (${path.basename(filePath)})`);
+        // Top-level failures have no closed domain token, but still require original-byte backup
+        // if another source supplies a canonical state.
+        this.repairSources.set(filePath, raw);
+      } else if (collector.metrics.size > 0) {
+        emitRepairWarnings(collector);
+        this.repairSources.set(filePath, raw);
       }
       return {
         state: sanitized,
@@ -544,6 +654,7 @@ export class StandbyPersistence {
       };
     } catch (err) {
       log.warn(`[standby-persistence] load 失敗 (${path.basename(filePath)}): ${err instanceof Error ? err.message : String(err)}`);
+      if (raw != null) this.repairSources.set(filePath, raw);
       return { state: null, migrationConflict: false };
     }
   }
@@ -573,6 +684,10 @@ export class StandbyPersistence {
   }
 
   private writeSync(state: PersistedStandbyStateV2, seq: number): void {
+    if (!this.backupRepairSources()) {
+      this.pending = { state, seq };
+      return;
+    }
     const v2Path = standbyPersistenceV2Path(this.persistPath);
     const v2TmpPath = this.tmpPathFor(v2Path, seq);
     const v1TmpPath = this.tmpPathFor(this.persistPath, seq);
@@ -624,6 +739,10 @@ export class StandbyPersistence {
     if (this.writing) return;
     const pending = this.pending;
     if (pending == null) return;
+    if (!this.backupRepairSources()) {
+      if (this.pending == null || this.pending.seq < pending.seq) this.pending = pending;
+      return;
+    }
     this.pending = null;
     this.writing = true;
     const v2Path = standbyPersistenceV2Path(this.persistPath);
@@ -652,6 +771,102 @@ export class StandbyPersistence {
       this.writing = false;
       // 書き込み中に届いた更新は、終わってからもう一度だけ書く
       if (this.pending != null) this.armTimer();
+    }
+  }
+
+  private backupRepairSources(): boolean {
+    if (this.repairSources.size === 0) return true;
+    let allSucceeded = true;
+    for (const [sourcePath, bytes] of [...this.repairSources]) {
+      const attempts = (this.repairBackupAttempts.get(sourcePath) ?? 0) + 1;
+      this.repairBackupAttempts.set(sourcePath, attempts);
+      try {
+        this.writeSalvageBackup(sourcePath, bytes);
+        this.repairSources.delete(sourcePath);
+        this.repairBackupAttempts.delete(sourcePath);
+        this.repairBackupBlockedSince.delete(sourcePath);
+        this.repairBackupLastWarn.delete(sourcePath);
+      } catch (err) {
+        allSucceeded = false;
+        if (!this.salvageBackupWriteBlocked) {
+          this.salvageBackupWriteBlocked = true;
+          this.persistenceSalvageBackupBlocked++;
+        }
+        const nowMs = Date.now();
+        const blockedSince = this.repairBackupBlockedSince.get(sourcePath) ?? nowMs;
+        this.repairBackupBlockedSince.set(sourcePath, blockedSince);
+        const lastWarn = this.repairBackupLastWarn.get(sourcePath) ?? -Infinity;
+        if (nowMs - lastWarn >= 60_000) {
+          this.repairBackupLastWarn.set(sourcePath, nowMs);
+          log.warn(
+            `[standby-persistence] salvage backup blocked source=${path.basename(sourcePath)} attempts=${attempts} blockedMs=${nowMs - blockedSince}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
+    if (allSucceeded) {
+      if (this.salvageBackupWriteBlocked) {
+        this.salvageBackupWriteBlocked = false;
+        this.persistenceSalvageBackupRecovered++;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private writeSalvageBackup(sourcePath: string, bytes: Buffer): void {
+    const directory = path.dirname(sourcePath);
+    const base = path.basename(sourcePath);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    let fd: number | null = null;
+    let backupPath = "";
+    try {
+      for (let suffix = 0; ; suffix++) {
+        backupPath = path.join(directory, `${base}.${timestamp}.${suffix}.salvage-backup`);
+        try {
+          fd = fs.openSync(backupPath, "wx");
+          break;
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+        }
+      }
+      let offset = 0;
+      while (offset < bytes.length) {
+        const written = fs.writeSync(fd, bytes, offset, bytes.length - offset);
+        if (written <= 0) throw new Error("salvage backup write made no progress");
+        offset += written;
+      }
+      fs.fsyncSync(fd);
+      fs.closeSync(fd);
+      fd = null;
+      this.fsyncBackupDirectory(directory);
+    } catch (err) {
+      if (fd != null) {
+        try { fs.closeSync(fd); } catch { /* original backup error takes precedence */ }
+      }
+      throw err;
+    }
+  }
+
+  private fsyncBackupDirectory(directory: string): void {
+    if (this.directoryFsyncSupported === false) return;
+    let fd: number | null = null;
+    try {
+      fd = fs.openSync(directory, "r");
+      fs.fsyncSync(fd);
+      this.directoryFsyncSupported = true;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "EINVAL" || code === "ENOTSUP" || code === "EOPNOTSUPP") {
+        if (this.directoryFsyncSupported == null) {
+          log.debug("[standby-persistence] directory fsync is not supported on this platform");
+        }
+        this.directoryFsyncSupported = false;
+        return;
+      }
+      throw err;
+    } finally {
+      if (fd != null) fs.closeSync(fd);
     }
   }
 }
@@ -749,7 +964,10 @@ function isFloodEvent(value: unknown): value is PersistedFloodState["events"][nu
 }
 
 function sanitizeFloodState(value: unknown): PersistedFloodState | undefined {
-  if (!isRecord(value) || !Array.isArray(value.events) || !Array.isArray(value.seen)) return undefined;
+  if (!isRecord(value) || !Array.isArray(value.events) || !Array.isArray(value.seen)) {
+    recordRepair("root.floods", "eventId", 1, 0, "invalid-container", true);
+    return undefined;
+  }
   const events = value.events.filter(isFloodEvent);
   const validEventIds = new Set(events.map((event) => event.eventId));
   const discardedEventIds = new Set<string>();
@@ -761,9 +979,19 @@ function sanitizeFloodState(value: unknown): PersistedFloodState | undefined {
   const seen = value.seen.filter(
     (entry): entry is PersistedSeenEntry => isSeenEntry(entry) && !discardedEventIds.has(entry.key),
   );
-  if (value.events.length > 0 && events.length === 0 && seen.length === 0) return undefined;
   if (events.length !== value.events.length || seen.length !== value.seen.length) {
-    log.warn("[standby-persistence] floods の壊れた EventID/seen entry だけを破棄");
+    const discardedBundles = new Set(discardedEventIds);
+    for (const entry of value.seen) {
+      if (isRecord(entry) && typeof entry.key === "string" && !isSeenEntry(entry)) discardedBundles.add(entry.key);
+    }
+    const retainedBundles = new Set([...events.map((event) => event.eventId), ...seen.map((entry) => entry.key)]);
+    recordRepair(
+      "root.floods",
+      "eventId",
+      discardedBundles.size || 1,
+      retainedBundles.size,
+      "invalid-entry",
+    );
   }
   return { events, seen };
 }
@@ -854,15 +1082,17 @@ function sanitizeTyphoonState(value: unknown): PersistedTyphoonStateV1 | null {
 
 function sanitizeTyphoonStates(value: unknown): PersistedTyphoonStateV1[] {
   if (!Array.isArray(value)) {
-    log.warn("[standby-persistence] typhoons structure validation 失敗 — domain 破棄");
+    recordRepair("root.typhoons", "entry", 1, 0, "invalid-container", true);
     return [];
   }
-  const states = value.map(sanitizeTyphoonState);
-  if (states.some((state) => state == null)) {
-    log.warn("[standby-persistence] typhoons structure validation 失敗 — domain 破棄");
-    return [];
+  const states = value.flatMap((entry) => {
+    const state = sanitizeTyphoonState(entry);
+    return state == null ? [] : [state];
+  });
+  if (states.length !== value.length) {
+    recordRepair("root.typhoons", "entry", value.length - states.length, states.length, "invalid-entry");
   }
-  return states as PersistedTyphoonStateV1[];
+  return states;
 }
 
 function normalizeTyphoonStatesForWrite(
@@ -966,11 +1196,15 @@ function migrateVolcanoStateForRead(
 
 function sanitizeVolcanoStates(value: unknown): PersistedVolcanoStateV1[] {
   if (value == null) return [];
-  if (!Array.isArray(value) || !value.every(isVolcanoState)) {
-    log.warn("[standby-persistence] volcanoes structure validation 失敗 — domain 破棄");
+  if (!Array.isArray(value)) {
+    recordRepair("root.volcanoes", "code", 1, 0, "invalid-container", true);
     return [];
   }
-  return (value as PersistedVolcanoStateV1[]).map(migrateVolcanoStateForRead);
+  const states = value.filter(isVolcanoState).map(migrateVolcanoStateForRead);
+  if (states.length !== value.length) {
+    recordRepair("root.volcanoes", "code", value.length - states.length, states.length, "invalid-entry");
+  }
+  return states;
 }
 
 function isTornadoState(value: unknown): value is PersistedTornadoStateV1 {
@@ -1083,44 +1317,58 @@ function isWeatherAlertState(value: unknown): value is PersistedWeatherAlertStat
 function sanitizeWeatherAlertStates(value: unknown): PersistedWeatherAlertStateV1[] {
   if (value == null) return [];
   if (!Array.isArray(value)) {
-    log.warn("[standby-persistence] weatherAlerts structure validation 失敗 — domain 破棄");
+    recordRepair("root.weatherAlerts", "source", 1, 0, "invalid-container", true);
     return [];
   }
   const states = value.filter(isWeatherAlertState);
   if (states.length !== value.length) {
-    log.warn("[standby-persistence] weatherAlerts の壊れた source だけを破棄");
+    recordRepair("root.weatherAlerts", "source", value.length - states.length, states.length, "invalid-entry");
   }
   return states;
 }
 
-function validDomainArray<T>(value: unknown, predicate: (entry: unknown) => entry is T, domain: string): T[] {
+function validDomainArray<T>(
+  value: unknown,
+  predicate: (entry: unknown) => entry is T,
+  domain: SalvageDomain,
+): T[] {
   if (value == null) return [];
-  if (Array.isArray(value) && value.every(predicate)) return value;
-  log.warn(`[standby-persistence] ${domain} structure validation 失敗 — domain 破棄`);
-  return [];
+  if (!Array.isArray(value)) {
+    recordRepair(domain, "entry", 1, 0, "invalid-container", true);
+    return [];
+  }
+  const entries = value.filter(predicate);
+  if (entries.length !== value.length) {
+    recordRepair(domain, "entry", value.length - entries.length, entries.length, "invalid-entry");
+  }
+  return entries;
 }
 
 function sanitizePersistedStandbyStateV1(value: unknown): PersistedStandbyStateV1 | null {
   if (!isRecord(value) || value.version !== 1 || typeof value.savedAt !== "string") return null;
   const floods = value.floods == null ? undefined : sanitizeFloodState(value.floods);
-  if (value.floods != null && floods == null) log.warn("[standby-persistence] floods structure validation 失敗 — domain 破棄");
+  // floods の container 不正は sanitizeFloodState で source 別 repair report に集約する。
   const nankaiTrough = value.nankaiTrough == null || isNankaiState(value.nankaiTrough) ? value.nankaiTrough : null;
-  if (value.nankaiTrough != null && nankaiTrough == null) log.warn("[standby-persistence] nankaiTrough structure validation 失敗 — domain 破棄");
+  if (value.nankaiTrough != null && nankaiTrough == null) {
+    recordRepair("root.nankaiTrough", "singleton", 1, 0, "invalid-entry", true);
+  }
   const quakeHost = value.quakeHost == null || isQuakeHostState(value.quakeHost) ? value.quakeHost : null;
-  if (value.quakeHost != null && quakeHost == null) log.warn("[standby-persistence] quakeHost structure validation 失敗 — domain 破棄");
+  if (value.quakeHost != null && quakeHost == null) {
+    recordRepair("root.quakeHost", "singleton", 1, 0, "invalid-entry", true);
+  }
   return {
     version: 1,
     savedAt: value.savedAt,
-    heat: validDomainArray(value.heat, isHeatState, "heat"),
+    heat: validDomainArray(value.heat, isHeatState, "root.heat"),
     typhoons: sanitizeTyphoonStates(value.typhoons),
     volcanoes: sanitizeVolcanoStates(value.volcanoes),
     floods,
     weatherAlerts: sanitizeWeatherAlertStates(value.weatherAlerts),
-    tornado: validDomainArray(value.tornado, isTornadoState, "tornado"),
-    longPeriod: validDomainArray(value.longPeriod, isLongPeriodState, "longPeriod"),
+    tornado: validDomainArray(value.tornado, isTornadoState, "root.tornado"),
+    longPeriod: validDomainArray(value.longPeriod, isLongPeriodState, "root.longPeriod"),
     quakeHost,
     nankaiTrough,
-    seen: validDomainArray(value.seen, isSeenEntry, "seen"),
+    seen: validDomainArray(value.seen, isSeenEntry, "root.seen"),
   };
 }
 
@@ -1223,7 +1471,23 @@ function sanitizeStandbyDomainsFoundation(
       semanticKeys: compactPersistedSemanticKeys(entry.semanticKeys),
     }];
   });
-  return normalizeStandbyDomainsFoundationForWrite({ gateEntries });
+  const duplicateSubjects = new Set<string>();
+  const counts = new Map<string, number>();
+  for (const entry of gateEntries) counts.set(entry.stateSubjectKey, (counts.get(entry.stateSubjectKey) ?? 0) + 1);
+  for (const [subject, count] of counts) if (count > 1) duplicateSubjects.add(subject);
+  const retained = gateEntries.filter((entry) => !duplicateSubjects.has(entry.stateSubjectKey));
+  const discarded = value.gateEntries.length - retained.length;
+  if (discarded > 0) recordRepair(
+    "foundation.standbyDomains", "subject", discarded, retained.length,
+    duplicateSubjects.size > 0 ? "duplicate-subject" : "invalid-entry",
+  );
+  const normalized = normalizeStandbyDomainsFoundationForWrite({ gateEntries: retained });
+  if (normalized.gateEntries.length !== retained.length) {
+    recordRepair(
+      "foundation.standbyDomains", "subject", 1, normalized.gateEntries.length, "limit-exceeded",
+    );
+  }
+  return normalized;
 }
 
 function emptyVolcanoFoundation(): PersistedTelegramFoundationV2["volcano"] {
@@ -2216,24 +2480,24 @@ function sanitizeTsunamiFoundation(
     scalarActive = parseActive(value.active) ?? null;
     if (scalarActive == null) {
       rememberRejectedActiveSubject(value.active);
-      log.warn("[standby-persistence] tsunami の壊れた旧 scalar active を破棄");
+      recordRepair("foundation.tsunami", "eventId", 1, 0, "invalid-entry");
     }
   } else if (hasKeyedSchema && value.active != null && parseActive(value.active) == null) {
     // keyed schema が権威入力なので、rollback projection の破損は domain を巻き込まない。
     rememberRejectedActiveSubject(value.active);
-    log.warn("[standby-persistence] tsunami keyed schema と併存する壊れた scalar active を無視");
+    recordRepair("foundation.tsunami", "eventId", 1, 0, "invalid-entry");
   }
 
   const rawKeyedCandidates = hasKeyedSchema && Array.isArray(value.keyedActive)
     ? value.keyedActive
     : [];
   if (hasKeyedSchema && !Array.isArray(value.keyedActive)) {
-    log.warn("[standby-persistence] tsunami keyedActive 配列の破損を局所破棄");
+    recordRepair("foundation.tsunami", "eventId", 1, 0, "invalid-container", true);
   }
   const parsedKeyedCandidates = rawKeyedCandidates.flatMap((raw) => {
     const active = parseActive(raw);
     if (active == null || !isKeyedTsunamiActive(active)) {
-      log.warn("[standby-persistence] tsunami の壊れた keyed EventID state を局所破棄");
+      recordRepair("foundation.tsunami", "eventId", 1, 0, "invalid-entry");
       const subject = persistedTsunamiSubjectFromUnknown(raw);
       if (subject != null && !isPersistedTsunamiCancellationUnknown(raw)) {
         rejectedActiveSubjects.add(subject);
@@ -2249,7 +2513,7 @@ function sanitizeTsunamiFoundation(
   const schemaLegacy = value.legacyActive == null ? null : parseActive(value.legacyActive) ?? null;
   if (value.legacyActive != null && schemaLegacy == null) {
     rememberRejectedActiveSubject(value.legacyActive);
-    log.warn("[standby-persistence] tsunami の壊れた legacy active を局所破棄");
+    recordRepair("foundation.tsunami", "eventId", 1, 0, "invalid-entry");
   }
   const candidateLegacy = schemaLegacy
     ?? (!hasKeyedSchema && scalarActive != null && !isKeyedTsunamiActive(scalarActive)
@@ -2263,12 +2527,10 @@ function sanitizeTsunamiFoundation(
     ? candidateLegacy
     : null;
   const rawGroups = value.observations;
-  if (
-    !Array.isArray(rawGroups.VTSE51)
-    || !rawGroups.VTSE51.every(isTsunamiObservation)
-    || !Array.isArray(rawGroups.VTSE52)
-    || !rawGroups.VTSE52.every(isTsunamiObservation)
-  ) return null;
+  if (!Array.isArray(rawGroups.VTSE51) || !Array.isArray(rawGroups.VTSE52)) {
+    recordRepair("foundation.tsunami", "family", 1, 0, "invalid-container", true);
+    return null;
+  }
   const validEntries = value.gateEntries.flatMap((entry) => {
     if (!isGateEntry(entry)) return [];
     if (entry.domain === "tsunami") {
@@ -2284,13 +2546,13 @@ function sanitizeTsunamiFoundation(
       : [];
   }) as PersistedTelegramRevisionGateEntryV2[];
   if (validEntries.length !== value.gateEntries.length) {
-    log.warn("[standby-persistence] tsunami の壊れた gate subject を局所破棄");
+    recordRepair("foundation.tsunami", "eventId", value.gateEntries.length - validEntries.length, validEntries.length, "invalid-entry");
   }
   const collapsedEntries = collapseTsunamiGateEntries(validEntries);
   if (collapsedEntries.rejectedKeys.size > 0) {
-    log.warn("[standby-persistence] tsunami の unordered な重複 gate subject を局所破棄");
+    recordRepair("foundation.tsunami", "eventId", collapsedEntries.rejectedKeys.size, collapsedEntries.entries.length, "duplicate-subject");
   } else if (collapsedEntries.entries.length !== validEntries.length) {
-    log.warn("[standby-persistence] tsunami の重複 gate subject を revision 順で一件へ集約");
+    recordRepair("foundation.tsunami", "eventId", validEntries.length - collapsedEntries.entries.length, collapsedEntries.entries.length, "duplicate-subject");
   }
   let entries = collapsedEntries.entries;
   if (
@@ -2318,7 +2580,7 @@ function sanitizeTsunamiFoundation(
   const matchedKeyedActive = matchedSelection.active;
   for (const subject of matchedSelection.rejectedSubjects) rejectedActiveSubjects.add(subject);
   if (matchedKeyedActive.length !== parsedKeyedCandidates.length) {
-    log.warn("[standby-persistence] tsunami の不整合または重複 keyed EventID state を局所破棄");
+    recordRepair("foundation.tsunami", "eventId", parsedKeyedCandidates.length - matchedKeyedActive.length, matchedKeyedActive.length, "coupling-mismatch");
   }
   const keyedSubjectsBeforeCompaction = new Set(matchedKeyedActive.flatMap((active) => {
     const subject = tsunamiStateSubjectKey(active.meta);
@@ -2341,32 +2603,55 @@ function sanitizeTsunamiFoundation(
   ));
   const retainedVtse41Subjects = new Set(vtse41Entries.map((entry) => entry.stateSubjectKey));
   const keyedActive = retainNewestKeyedTsunamiActive(matchedKeyedActive, vtse41Entries).active;
-  const boundedEntries = (entries as PersistedTelegramRevisionGateEntryV2[]).filter(
+  let boundedEntries = (entries as PersistedTelegramRevisionGateEntryV2[]).filter(
     (entry) => entry.domain !== "tsunami"
       || retainedVtse41Subjects.has(entry.stateSubjectKey),
   );
 
   const groups = {
-    VTSE51: rawGroups.VTSE51
-      .map((item) => canonicalizeLegacyTsunamiObservation(sanitizePersistedTsunamiObservation(item)))
-      .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
-    VTSE52: rawGroups.VTSE52
-      .map((item) => canonicalizeLegacyTsunamiObservation(sanitizePersistedTsunamiObservation(item)))
-      .slice(-TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY),
+    VTSE51: rawGroups.VTSE51.flatMap((item) => isTsunamiObservation(item)
+      ? [canonicalizeLegacyTsunamiObservation(sanitizePersistedTsunamiObservation(item))] : []),
+    VTSE52: rawGroups.VTSE52.flatMap((item) => isTsunamiObservation(item)
+      ? [canonicalizeLegacyTsunamiObservation(sanitizePersistedTsunamiObservation(item))] : []),
   };
+  let discardedObservationFamily = false;
   for (const family of ["VTSE51", "VTSE52"] as const) {
-    const familyEntries = boundedEntries.filter((entry) => entry.revisionFamily === family);
+    const rawFamily = rawGroups[family] as unknown[];
+    const invalidStations = new Set(rawFamily.flatMap((item) =>
+      isRecord(item) && typeof item.stationCode === "string" && !isTsunamiObservation(item)
+        ? [item.stationCode.trim()] : []));
+    if (groups[family].length !== rawFamily.length) {
+      recordRepair("foundation.tsunami", "stationCode", rawFamily.length - groups[family].length, groups[family].length, "invalid-entry");
+    }
+    let familyEntries = boundedEntries.filter((entry) => entry.revisionFamily === family);
     const wholeSubject = `tsunami:observations:${family}`;
     const wholeEntries = familyEntries.filter((entry) => entry.stateSubjectKey === wholeSubject);
-    if ((familyEntries.length > 0 || groups[family].length > 0) && wholeEntries.length !== 1) {
-      return null;
-    }
-    if (wholeEntries[0]?.cancelled === true && groups[family].length > 0) return null;
     const codes = groups[family].map((item) => item.stationCode!.trim());
-    if (new Set(codes).size !== codes.length) return null;
-    if (codes.some((code) => !familyEntries.some(
-      (entry) => entry.stateSubjectKey === code && !entry.cancelled,
-    ))) return null;
+    const duplicateCodes = new Set(codes.filter((code, index) => codes.indexOf(code) !== index));
+    const validWhole = wholeEntries.length === 1 && wholeEntries[0]?.cancelled !== true;
+    if ((familyEntries.length > 0 || groups[family].length > 0) && !validWhole) {
+      // whole-family watermark が壊れても、別 family / VTSE41 を巻き込まない。
+      const discarded = groups[family].length + familyEntries.filter((entry) => !entry.cancelled).length;
+      groups[family] = [];
+      discardedObservationFamily = true;
+      familyEntries = familyEntries.filter((entry) => entry.cancelled);
+      boundedEntries = boundedEntries.filter((entry) => entry.revisionFamily !== family || entry.cancelled);
+      if (discarded > 0) recordRepair("foundation.tsunami", "family", 1, 0, "coupling-mismatch");
+      continue;
+    }
+    const rejectedStations = new Set([...invalidStations, ...duplicateCodes]);
+    groups[family] = groups[family].filter((item) => !rejectedStations.has(item.stationCode!.trim()));
+    for (const code of groups[family].map((item) => item.stationCode!.trim())) {
+      if (!familyEntries.some((entry) => entry.stateSubjectKey === code && !entry.cancelled)) {
+        rejectedStations.add(code);
+      }
+    }
+    if (rejectedStations.size > 0) {
+      groups[family] = groups[family].filter((item) => !rejectedStations.has(item.stationCode!.trim()));
+      boundedEntries = boundedEntries.filter((entry) => entry.revisionFamily !== family
+        || entry.cancelled || !rejectedStations.has(entry.stateSubjectKey));
+      recordRepair("foundation.tsunami", "stationCode", rejectedStations.size, groups[family].length, duplicateCodes.size > 0 ? "duplicate-subject" : "coupling-mismatch");
+    }
   }
 
   // active は caller 互換の read-only projection。writer は keyedActive /
@@ -2375,7 +2660,7 @@ function sanitizeTsunamiFoundation(
     ? keyedActive[0]
     : keyedActive.length === 0 ? legacyActive : null;
   return {
-    ...(compatibilityActive != null || Object.hasOwn(value, "active")
+    ...(compatibilityActive != null || Object.hasOwn(value, "active") || discardedObservationFamily
       ? { active: compatibilityActive == null ? null : structuredClone(compatibilityActive) }
       : {}),
     keyedActive: keyedActive.map((active) => structuredClone(active)),
@@ -2640,6 +2925,7 @@ function migrateLegacyVpww56Foundation(
 
 function sanitizeVpww56Foundation(
   value: unknown,
+  salvage = true,
 ): PersistedTelegramFoundationV2["vpww56"] | null {
   if (
     !isRecord(value)
@@ -2650,6 +2936,67 @@ function sanitizeVpww56Foundation(
   }
   if (value.generation !== VPWW56_SNAPSHOT_GENERATION) {
     return migrateLegacyVpww56Foundation(value);
+  }
+  if (salvage && value.authoritative && value.state != null
+    && isRecord(value.state) && value.state.generation === VPWW56_SNAPSHOT_GENERATION
+    && Array.isArray(value.state.streams) && value.state.streams.every((stream) =>
+      !isRecord(stream) || typeof stream.subjectKey !== "string"
+        || stream.generation === VPWW56_SNAPSHOT_GENERATION)) {
+    if (!isRecord(value.state) || !Array.isArray(value.state.streams)
+      || !Array.isArray(value.state.pendingSubjects)) return null;
+    const invalidSubjects = new Set<string>();
+    const couplingSubjects = new Set<string>();
+    const gates = value.gateEntries.flatMap((raw) => {
+      if (isGateEntry(raw) && raw.domain === "weather" && raw.revisionFamily === "VPWW56"
+        && isVpww56SubjectKey(raw.stateSubjectKey)) return [raw];
+      if (isRecord(raw) && typeof raw.stateSubjectKey === "string" && isVpww56SubjectKey(raw.stateSubjectKey)) {
+        invalidSubjects.add(raw.stateSubjectKey);
+      }
+      return [];
+    }) as PersistedTelegramRevisionGateEntryV2[];
+    const streams = value.state.streams.flatMap((raw) => {
+      if (isRecord(raw) && raw.generation === VPWW56_SNAPSHOT_GENERATION
+        && isVpww56SubjectKey(raw.subjectKey) && isVpww56View(raw.view)) return [raw];
+      if (isRecord(raw) && typeof raw.subjectKey === "string" && isVpww56SubjectKey(raw.subjectKey)) invalidSubjects.add(raw.subjectKey);
+      return [];
+    });
+    const pending = value.state.pendingSubjects.flatMap((raw) => {
+      if (isVpww56SubjectKey(raw)) return [raw];
+      return [];
+    });
+    const markDuplicates = (subjects: readonly string[]): void => {
+      const counts = new Map<string, number>();
+      for (const subject of subjects) counts.set(subject, (counts.get(subject) ?? 0) + 1);
+      for (const [subject, count] of counts) if (count > 1) couplingSubjects.add(subject);
+    };
+    markDuplicates(gates.map((entry) => entry.stateSubjectKey));
+    markDuplicates(streams.map((stream) => stream.subjectKey as string));
+    markDuplicates(pending);
+    const represented = new Set([...streams.map((stream) => stream.subjectKey as string), ...pending]);
+    for (const gate of gates) {
+      if (!gate.cancelled && !represented.has(gate.stateSubjectKey) && !invalidSubjects.has(gate.stateSubjectKey)) couplingSubjects.add(gate.stateSubjectKey);
+    }
+    const activeGates = new Set(gates.filter((entry) => !entry.cancelled).map((entry) => entry.stateSubjectKey));
+    for (const subject of represented) if (!activeGates.has(subject) && !invalidSubjects.has(subject)) couplingSubjects.add(subject);
+    const rejected = new Set([...invalidSubjects, ...couplingSubjects]);
+    const filteredGates = gates.filter((entry) => entry.cancelled || !rejected.has(entry.stateSubjectKey));
+    const filteredStreams = streams.filter((stream) => !rejected.has(stream.subjectKey as string));
+    const filteredPending = pending.filter((subject) => !rejected.has(subject));
+    if (filteredGates.length !== value.gateEntries.length
+      || filteredStreams.length !== value.state.streams.length
+      || filteredPending.length !== value.state.pendingSubjects.length) {
+      const retainedSubjects = new Set([
+        ...filteredStreams.map((stream) => stream.subjectKey as string), ...filteredPending,
+        ...filteredGates.map((entry) => entry.stateSubjectKey),
+      ]);
+      recordRepair("foundation.vpww56", "subject", rejected.size || 1, retainedSubjects.size,
+        invalidSubjects.size > 0 ? "invalid-entry" : "coupling-mismatch");
+    }
+    return sanitizeVpww56Foundation({
+      ...value,
+      gateEntries: filteredGates,
+      state: { ...value.state, streams: filteredStreams, pendingSubjects: filteredPending },
+    }, false);
   }
   if (!value.gateEntries.every((entry) =>
     isGateEntry(entry)
@@ -2821,6 +3168,7 @@ function normalizeVolcanoFoundationForWrite(
 
 function sanitizeVolcanoFoundation(
   value: unknown,
+  salvage = true,
 ): PersistedTelegramFoundationV2["volcano"] | null {
   if (
     !isRecord(value)
@@ -2832,6 +3180,72 @@ function sanitizeVolcanoFoundation(
     return value.state == null && value.active.length === 0 && value.gateEntries.length === 0
       ? emptyVolcanoFoundation()
       : null;
+  }
+  if (salvage) {
+    if (value.state != null && (!isRecord(value.state) || !Array.isArray(value.state.alerts)
+      || !Array.isArray(value.state.eruptions))) return null;
+    const rawState = value.state as Record<string, unknown> | null;
+    const rawAlerts = rawState == null ? [] : rawState.alerts as unknown[];
+    const rawEruptions = rawState == null ? [] : rawState.eruptions as unknown[];
+    const rejected = new Set<string>();
+    const codeOf = (raw: unknown): string | null => isRecord(raw) && typeof raw.volcanoCode === "string"
+      ? raw.volcanoCode : isRecord(raw) && typeof raw.code === "string" ? raw.code : null;
+    const active = value.active.filter(isVolcanoState) as PersistedVolcanoStateV1[];
+    for (const raw of value.active) if (!isVolcanoState(raw)) {
+      const code = codeOf(raw); if (code != null) rejected.add(code);
+    }
+    const alerts = rawAlerts.flatMap((raw) =>
+      isPersistedVolcanoHolderState({ alerts: [raw], eruptions: [] })
+        ? [raw as PersistedVolcanoStateV2["alerts"][number]] : []);
+    const eruptions = rawEruptions.flatMap((raw) =>
+      isPersistedVolcanoHolderState({ alerts: [], eruptions: [raw] })
+        ? [raw as PersistedVolcanoStateV2["eruptions"][number]] : []);
+    for (const raw of [...rawAlerts, ...rawEruptions]) {
+      const valid = isPersistedVolcanoHolderState({ alerts: [raw], eruptions: [] })
+        || isPersistedVolcanoHolderState({ alerts: [], eruptions: [raw] });
+      if (!valid) { const code = codeOf(raw); if (code != null) rejected.add(code); }
+    }
+    const gates = value.gateEntries.filter((raw) =>
+      isGateEntry(raw) && isVolcanoFoundationSubject(raw)) as PersistedTelegramRevisionGateEntryV2[];
+    for (const raw of value.gateEntries) if (!(isGateEntry(raw) && isVolcanoFoundationSubject(raw))) {
+      if (isRecord(raw) && typeof raw.stateSubjectKey === "string") {
+        const code = raw.stateSubjectKey.split(":").at(-1); if (code != null) rejected.add(code);
+      }
+    }
+    const codes = new Set<string>([
+      ...active.map((item) => item.code), ...alerts.map((item) => item.volcanoCode),
+      ...eruptions.map((item) => item.volcanoCode),
+      ...gates.map((item) => item.stateSubjectKey.split(":").at(-1)!),
+    ]);
+    const kept: PersistedTelegramFoundationV2["volcano"][] = [];
+    for (const code of codes) {
+      if (rejected.has(code)) continue;
+      const bundle = sanitizeVolcanoFoundation({
+        authoritative: true,
+        active: active.filter((item) => item.code === code),
+        state: rawState == null ? null : {
+          alerts: alerts.filter((item) => item.volcanoCode === code),
+          eruptions: eruptions.filter((item) => item.volcanoCode === code),
+        },
+        gateEntries: gates.filter((item) => item.stateSubjectKey.endsWith(`:${code}`)),
+      }, false);
+      if (bundle == null) rejected.add(code); else kept.push(bundle);
+    }
+    if (rejected.size > 0 || active.length !== value.active.length || gates.length !== value.gateEntries.length) {
+      recordRepair("foundation.volcano", "code", rejected.size || 1, kept.length,
+        rejected.size > 0 ? "coupling-mismatch" : "invalid-entry");
+    }
+    if (kept.length === 0 && (value.active.length > 0 || value.gateEntries.length > 0
+      || rawAlerts.length > 0 || rawEruptions.length > 0)) return null;
+    return {
+      authoritative: true,
+      state: kept.flatMap((item) => item.state == null ? [] : [item.state]).length === 0 ? null : {
+        alerts: kept.flatMap((item) => item.state?.alerts ?? []),
+        eruptions: kept.flatMap((item) => item.state?.eruptions ?? []),
+      },
+      active: kept.flatMap((item) => item.active),
+      gateEntries: kept.flatMap((item) => item.gateEntries),
+    };
   }
   if (!value.active.every(isVolcanoState)) return null;
   if (value.state != null && !isPersistedVolcanoHolderState(value.state)) return null;
@@ -2988,6 +3402,7 @@ function normalizeFloodFoundationForWrite(
 
 function sanitizeFloodFoundation(
   value: unknown,
+  salvage = true,
 ): PersistedTelegramFoundationV2["floodForecast"] | null {
   if (
     !isRecord(value)
@@ -3001,6 +3416,111 @@ function sanitizeFloodFoundation(
         || Array.isArray(value.legacyEventIds) && value.legacyEventIds.length === 0)
       ? emptyFloodFoundation()
       : null;
+  }
+  if (salvage) {
+    const rawActive = value.active;
+    const rawEntries = value.gateEntries;
+    const rawLegacy = value.legacyEventIds;
+    const active = rawActive.filter(isFloodEvent);
+    const entries = rawEntries.filter((entry) =>
+      isGateEntry(entry)
+      && isFloodFoundationSubject(entry)
+      && floodGateHasValidSerial(entry),
+    ) as PersistedTelegramRevisionGateEntryV2[];
+    const invalidEventIds = new Set<string>();
+    const invalidEntryEventIds = new Set<string>();
+    let unidentifiedEntryIndex = 0;
+    for (const item of rawActive) {
+      if (isRecord(item) && typeof item.eventId === "string" && !isFloodEvent(item)) {
+        invalidEventIds.add(item.eventId);
+        invalidEntryEventIds.add(item.eventId);
+      } else if (!isFloodEvent(item)) {
+        const synthetic = `unidentified:active:${unidentifiedEntryIndex++}`;
+        invalidEventIds.add(synthetic);
+        invalidEntryEventIds.add(synthetic);
+      }
+    }
+    for (const item of rawEntries) {
+      if (isRecord(item) && typeof item.stateSubjectKey === "string"
+        && item.stateSubjectKey.startsWith("flood:event:")
+        && (!isGateEntry(item) || !isFloodFoundationSubject(item) || !floodGateHasValidSerial(item))) {
+        invalidEventIds.add(item.stateSubjectKey.slice("flood:event:".length));
+        invalidEntryEventIds.add(item.stateSubjectKey.slice("flood:event:".length));
+      } else if (!(isGateEntry(item) && isFloodFoundationSubject(item) && floodGateHasValidSerial(item))) {
+        const synthetic = `unidentified:gate:${unidentifiedEntryIndex++}`;
+        invalidEventIds.add(synthetic);
+        invalidEntryEventIds.add(synthetic);
+      }
+    }
+    const duplicateEventIds = new Set<string>();
+    const counts = new Map<string, number>();
+    for (const entry of entries) {
+      const eventId = entry.stateSubjectKey.slice("flood:event:".length);
+      counts.set(eventId, (counts.get(eventId) ?? 0) + 1);
+    }
+    for (const [eventId, count] of counts) if (count > 1) duplicateEventIds.add(eventId);
+    const activeCounts = new Map<string, number>();
+    for (const event of active) activeCounts.set(event.eventId, (activeCounts.get(event.eventId) ?? 0) + 1);
+    for (const [eventId, count] of activeCounts) if (count > 1) duplicateEventIds.add(eventId);
+    const legacyEventIds = Array.isArray(rawLegacy)
+      ? rawLegacy.filter((eventId): eventId is string => typeof eventId === "string" && eventId !== "")
+      : [];
+    const legacyCounts = new Map<string, number>();
+    for (const eventId of legacyEventIds) legacyCounts.set(eventId, (legacyCounts.get(eventId) ?? 0) + 1);
+    for (const [eventId, count] of legacyCounts) if (count > 1) duplicateEventIds.add(eventId);
+    if (rawLegacy != null && !Array.isArray(rawLegacy)) {
+      recordRepair("foundation.floodForecast", "eventId", 1, active.length + entries.length, "invalid-container", true);
+      return null;
+    }
+    for (const eventId of duplicateEventIds) invalidEventIds.add(eventId);
+    const filteredActive = active.filter((event) => !invalidEventIds.has(event.eventId));
+    const filteredEntries = entries.filter((entry) => {
+      const eventId = entry.stateSubjectKey.slice("flood:event:".length);
+      return !duplicateEventIds.has(eventId) && (entry.cancelled || !invalidEventIds.has(eventId));
+    });
+    const filteredLegacy = legacyEventIds.filter((eventId) =>
+      !invalidEventIds.has(eventId) && filteredActive.some((event) => event.eventId === eventId)
+        && !filteredEntries.some((entry) => entry.stateSubjectKey === `flood:event:${eventId}`));
+    const maxSubjects = FLOOD_FORECAST_REVISION_FAMILY_POLICY.maxSubjects!;
+    const boundedEntries = filteredEntries.slice(-maxSubjects);
+    const boundedEntryIds = new Set(boundedEntries.map((entry) =>
+      entry.stateSubjectKey.slice("flood:event:".length)));
+    const boundedActive = filteredActive
+      .filter((event) => boundedEntryIds.has(event.eventId) || filteredLegacy.includes(event.eventId))
+      .slice(-maxSubjects * 2);
+    const boundedLegacy = filteredLegacy.filter((eventId) =>
+      boundedActive.some((event) => event.eventId === eventId)).slice(-maxSubjects);
+    if (boundedEntries.length !== filteredEntries.length
+      || boundedActive.length !== filteredActive.length
+      || boundedLegacy.length !== filteredLegacy.length) {
+      const retainedBundles = new Set([
+        ...boundedEntries.map((entry) => entry.stateSubjectKey),
+        ...boundedActive.map((event) => `flood:event:${event.eventId}`),
+      ]);
+      recordRepair("foundation.floodForecast", "eventId", 1, retainedBundles.size, "limit-exceeded");
+    }
+    const discardedBundles = new Set([...invalidEventIds, ...duplicateEventIds]);
+    const retainedBundles = new Set([
+      ...filteredActive.map((event) => event.eventId),
+      ...filteredEntries.map((entry) => entry.stateSubjectKey.slice("flood:event:".length)),
+      ...filteredLegacy,
+    ]);
+    const discarded = discardedBundles.size;
+    if (discarded > 0) {
+      recordRepair(
+        "foundation.floodForecast",
+        "eventId",
+        discarded,
+        retainedBundles.size,
+        invalidEntryEventIds.size > 0 ? "invalid-entry" : "duplicate-subject",
+      );
+    }
+    return sanitizeFloodFoundation({
+      ...value,
+      active: boundedActive,
+      gateEntries: boundedEntries,
+      legacyEventIds: boundedLegacy,
+    }, false);
   }
   if (!value.active.every(isFloodEvent)) return null;
   if (value.legacyEventIds != null && (
@@ -3044,7 +3564,7 @@ function sanitizeFloodFoundation(
       && floodProjectionWasAppliedThroughGate(event, gate);
   });
   if (salvagedActive.length !== active.length) {
-    log.warn("[standby-persistence] flood active projection/gate coupling validation failed; salvaging gate entries");
+    recordRepair("foundation.floodForecast", "eventId", active.length - salvagedActive.length, salvagedActive.length, "coupling-mismatch");
   }
   return {
     authoritative: true,
@@ -3059,42 +3579,42 @@ function sanitizeFoundation(value: unknown): PersistedTelegramFoundationV2 | nul
   const validatedVpws50 = sanitizeVpws50Foundation(value.vpws50);
   const vpws50 = validatedVpws50 ?? emptyVpws50Foundation();
   if (validatedVpws50 == null) {
-    log.warn("[standby-persistence] VPWS50 foundation structure validation 失敗 — domain 破棄");
+    recordRepair("foundation.vpws50", "singleton", 1, 0, "invalid-entry", true);
   }
   const validatedVpww56 = value.vpww56 == null
     ? emptyVpww56Foundation()
     : sanitizeVpww56Foundation(value.vpww56);
   const vpww56 = validatedVpww56 ?? emptyVpww56Foundation();
   if (validatedVpww56 == null) {
-    log.warn("[standby-persistence] VPWW56 foundation structure validation 失敗 — domain 破棄");
+    recordRepair("foundation.vpww56", "subject", 1, 0, "invalid-entry", true);
   }
   const validatedTsunami = value.tsunami == null
     ? emptyTsunamiFoundation()
     : sanitizeTsunamiFoundation(value.tsunami);
   const tsunami = validatedTsunami ?? emptyTsunamiFoundation();
   if (validatedTsunami == null) {
-    log.warn("[standby-persistence] tsunami foundation structure validation 失敗 — domain 破棄");
+    recordRepair("foundation.tsunami", "eventId", 1, 0, "invalid-entry", true);
   }
   const validatedVolcano = value.volcano == null
     ? emptyVolcanoFoundation()
     : sanitizeVolcanoFoundation(value.volcano);
   const volcano = validatedVolcano ?? emptyVolcanoFoundation();
   if (validatedVolcano == null) {
-    log.warn("[standby-persistence] volcano foundation structure validation 失敗 — domain 破棄");
+    recordRepair("foundation.volcano", "code", 1, 0, "invalid-entry", true);
   }
   const validatedFlood = value.floodForecast == null
     ? emptyFloodFoundation()
     : sanitizeFloodFoundation(value.floodForecast);
   const floodForecast = validatedFlood ?? emptyFloodFoundation();
   if (validatedFlood == null) {
-    log.warn("[standby-persistence] flood foundation structure validation failed; salvaging other domains");
+    recordRepair("foundation.floodForecast", "eventId", 1, 0, "invalid-entry", true);
   }
   const validatedStandbyDomains = value.standbyDomains == null
     ? emptyStandbyDomainsFoundation()
     : sanitizeStandbyDomainsFoundation(value.standbyDomains);
   const standbyDomains = validatedStandbyDomains ?? emptyStandbyDomainsFoundation();
   if (validatedStandbyDomains == null) {
-    log.warn("[standby-persistence] standby domain foundation structure validation failed; domain watermarks discarded");
+    recordRepair("foundation.standbyDomains", "subject", 1, 0, "invalid-entry", true);
   }
   return { vpws50, vpww56, tsunami, volcano, floodForecast, standbyDomains };
 }
@@ -3129,7 +3649,7 @@ function salvageStandbyDomainProjections(
       ? semanticKey == null
       : standbyProjectionMatchesGate(revision, semanticKey, gate);
   };
-  return {
+  const salvaged = {
     ...base,
     heat: base.heat.filter((state) => keep(state.key, state.revision, state.appliedSemanticKey)),
     typhoons: base.typhoons.filter((state) => keep(`typhoon:${state.key}`, state.revision, state.appliedSemanticKey)),
@@ -3149,6 +3669,13 @@ function salvageStandbyDomainProjections(
       base.nankaiTrough.appliedSemanticKey,
     ) ? base.nankaiTrough : null,
   };
+  const discarded = base.heat.length - salvaged.heat.length
+    + base.typhoons.length - salvaged.typhoons.length
+    + (base.tornado?.length ?? 0) - (salvaged.tornado?.length ?? 0)
+    + (base.longPeriod?.length ?? 0) - (salvaged.longPeriod?.length ?? 0)
+    + Number(base.nankaiTrough != null && salvaged.nankaiTrough == null);
+  if (discarded > 0) recordRepair("foundation.standbyDomains", "subject", discarded, 0, "coupling-mismatch");
+  return salvaged;
 }
 
 function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV2 | null {
@@ -3164,7 +3691,20 @@ function sanitizePersistedStandbyStateV2(value: unknown): PersistedStandbyStateV
         ...base,
         weatherAlerts: base.weatherAlerts?.filter((entry) => entry.source !== "vpww56"),
       };
-  const salvaged = salvageStandbyDomainProjections(withoutLegacyVpww56, telegramFoundation.standbyDomains);
+  // volcano foundation は code bundle が真実源である。foundation 側で code を落としたら、
+  // rollback 用 root projection だけを残して次回保存で復活させてはならない。
+  const acceptedVolcanoCodes = new Set([
+    ...telegramFoundation.volcano.active.map((entry) => entry.code),
+    ...(telegramFoundation.volcano.state?.alerts.map((entry) => entry.volcanoCode) ?? []),
+    ...(telegramFoundation.volcano.state?.eruptions.map((entry) => entry.volcanoCode) ?? []),
+  ]);
+  const foundationSynchronized = telegramFoundation.volcano.authoritative
+    ? {
+        ...withoutLegacyVpww56,
+        volcanoes: withoutLegacyVpww56.volcanoes.filter((entry) => acceptedVolcanoCodes.has(entry.code)),
+      }
+    : withoutLegacyVpww56;
+  const salvaged = salvageStandbyDomainProjections(foundationSynchronized, telegramFoundation.standbyDomains);
   return { ...salvaged, version: 2, telegramFoundation };
 }
 

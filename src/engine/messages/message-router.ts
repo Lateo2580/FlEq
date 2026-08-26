@@ -554,16 +554,29 @@ function buildDisplayStats(
   summary: SummaryWindowTracker,
   stats: TelegramStats,
   daily: DailyQuakeCounter,
+  persistenceSalvageDiagnostics: (() => {
+    persistenceSalvageBackupBlocked: number;
+    persistenceSalvageBackupRecovered: number;
+    pendingSources: number;
+  }) | undefined,
   now?: number,
 ): DisplayStatsV1 {
   const s = summary.getSnapshot(now);
   const d = daily.getSnapshot(now);
+  const repair = persistenceSalvageDiagnostics?.() ?? {
+    persistenceSalvageBackupBlocked: 0,
+    persistenceSalvageBackupRecovered: 0,
+    pendingSources: 0,
+  };
   return {
     sparklineData: s.sparklineData,
     totalReceived: stats.totalCount(now),
     todayQuakeCount: d.todayQuakeCount,
     todayMaxInt: d.todayMaxInt,
     todayMaxIntRank: d.todayMaxIntRank,
+    persistenceSalvageBackupBlocked: repair.persistenceSalvageBackupBlocked,
+    persistenceSalvageBackupRecovered: repair.persistenceSalvageBackupRecovered,
+    persistenceSalvageBackupPendingSources: repair.pendingSources,
   };
 }
 
@@ -648,6 +661,11 @@ export interface MessageHandlerOptions {
   onStandbyRevisionDecision?: (decision: TelegramRevisionDecision) => void;
   /** message 処理時点の process-wide capability を読む遅延 getter。 */
   getDeliveryCapabilities?: () => DeliveryCapabilities;
+  getPersistenceSalvageDiagnostics?: () => {
+    persistenceSalvageBackupBlocked: number;
+    persistenceSalvageBackupRecovered: number;
+    pendingSources: number;
+  };
   /** Phase 6B integration test 用。未指定時は production correlator を handler が所有する。 */
   legacyCounterpartCorrelatorFactory?: LegacyCounterpartCorrelatorFactory;
   /** 6B後半の display receipt timer 用 clock DI。省略時は Date.now。 */
@@ -889,7 +907,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
           event.type,
         ));
       }
-      displaySink?.publishStats?.(buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, statsAtMs));
+      displaySink?.publishStats?.(buildDisplayStats(
+        summaryTracker, stats, dailyQuakeCounter, options?.getPersistenceSalvageDiagnostics, statsAtMs,
+      ));
     } catch {
       // 表示系の障害を本体に波及させない
     }
@@ -1338,7 +1358,9 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
         try {
           displaySink?.ingest(dateDiagnosticPresentationEvent(msg, diagnostic));
           displaySink?.publishStats?.(
-            buildDisplayStats(summaryTracker, stats, dailyQuakeCounter, admissionNowMs),
+            buildDisplayStats(
+              summaryTracker, stats, dailyQuakeCounter, options?.getPersistenceSalvageDiagnostics, admissionNowMs,
+            ),
           );
         } catch {
           // 診断表示の配送障害を受信本体へ波及させない。
@@ -1430,6 +1452,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
       summaryTracker,
       stats,
       dailyQuakeCounter,
+      options?.getPersistenceSalvageDiagnostics,
       statsNowMs(now ?? Date.now()),
     ),
     flushAndDisposeVolcanoBuffer: () => volcanoHandler.flushAndDispose(),

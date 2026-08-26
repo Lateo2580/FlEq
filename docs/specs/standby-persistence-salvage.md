@@ -197,10 +197,12 @@ domain ごとに raw entry を subject bundle へ分類してから、構造・�
 
 load 中の salvage / discard を source file 別に集約し、最初の post-load write より前に byte-for-byte backup を作る。v2 canonical、standalone v1 fallback、両方に異常があるケース、backup 名衝突、backup 失敗時の write block、正常 load で backup が増えないことを検証する。
 
-### 単位 4: restore 後の canonical rewrite
+### 単位 4: restore 後の canonical rewrite と診断可視化
 
 - `src/engine/monitor/monitor.ts`
 - `test/engine/display/standby-wiring.test.ts`
+- `src/engine/messages/message-router.ts`（実装時裁定 2026-08-26: D4-A の「運用可視化」の機械的必然として、salvage backup 診断 3 指標＝blocked 侵入・実解除 recovered・pending source 数を `buildDisplayStats()` 系へ additive 接続するために対象へ追加）
+- `src/engine/display/protocol.ts`（同上: `DisplayStatsV1` への additive field 追加。engine⇔frontend protocol sync 区間の byte-for-byte 一致が必要な場合は `display/frontend/src/lib/protocol.ts` の mirror 行と `test/engine/display/protocol-sync.test.ts` も同裁定で対象に含める。additive のみ・既存 field 非変更）
 
 standby store、VPWS50 / VPWW56 / tsunami / volcano / flood holder、revision gate の restore と起動時 sweep より後、dmdata 接続開始より前に repair rewrite を 1 回だけ予約する。通常 load では追加 write を発生させない。
 

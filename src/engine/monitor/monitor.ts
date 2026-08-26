@@ -216,6 +216,11 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     }
   }
   standbyStore.sweep(Date.now());
+  // salvage source は全 holder / gate の restore と起動時 sweep が完了してからだけ
+  // canonical 化する。通常 load では pending repair が無く、追加 write は発生しない。
+  if (persistedStandby != null && standbyPersistence.hasPendingSalvageRepair()) {
+    standbyPersistence.schedule(standbyStore.exportActiveState());
+  }
 
   // 気象警報の昇格 lifecycle も monitor 所有にする。display runtime は `display off` → `on` で
   // 作り直されるが、昇格の時計は電文を受理してからの壁時計経過なので途切れさせない。
@@ -432,6 +437,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     },
     getDeliveryCapabilities: () => manager?.getDeliveryCapabilities()
       ?? createUnknownDeliveryCapabilities(),
+    getPersistenceSalvageDiagnostics: () => standbyPersistence.salvageBackupDiagnostics(),
   });
   for (let i = 0; i < standbyPersistence.takeMigrationConflictCount(); i++) {
     stats.recordFoundation("persistenceMigrationConflict");

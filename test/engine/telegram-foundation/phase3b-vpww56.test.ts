@@ -26,6 +26,7 @@ import type { DisplayIngestSink } from "../../../src/engine/display/types";
 import type { DisplayCallbacks } from "../../../src/engine/messages/display-callbacks";
 import type { WsDataMessage } from "../../../src/types";
 import { makeProcessDeps } from "../../helpers/process-deps";
+import * as log from "../../../src/logger";
 import {
   createMockWsDataMessageFromXml,
   FIXTURE_VPWW56_DOSHA,
@@ -585,6 +586,57 @@ describe("Phase 3B VPWW56 common registry", () => {
       active: null, keyedActive: [], legacyActive: null,
       observations: { VTSE51: [], VTSE52: [] }, gateEntries: [],
     });
+  });
+
+  it("VPWW56 は壊れた官署だけを落とし、正常官署と cancellation gate を保全する", () => {
+    const holder = new Vpww56StateHolder();
+    const gate = new TelegramRevisionGate();
+    const deps = makeProcessDeps({ vpww56State: holder, revisionGate: gate });
+    expect(processWeather(message("office-a", T1, "1"), deps).kind).toBe("ok");
+    expect(processWeather(message("office-b", T1, "1"), deps).kind).toBe("ok");
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, foundationProvider(holder, gate));
+    persistence.save(legacyWithView(holder, T1, "1"));
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as {
+      telegramFoundation: {
+        vpww56: {
+          state: { streams: Array<{ subjectKey: string; view: unknown }> } | null;
+          gateEntries: Array<Record<string, unknown>>;
+        };
+      };
+    };
+    const brokenStream = raw.telegramFoundation.vpww56.state?.streams.find(
+      (stream) => stream.subjectKey === "weather:VPWW56:office-a",
+    );
+    expect(brokenStream).toBeDefined();
+    if (brokenStream == null) return;
+    brokenStream.view = { broken: true };
+    const cancellationGate = raw.telegramFoundation.vpww56.gateEntries.find((entry) =>
+      entry.stateSubjectKey === "weather:VPWW56:office-a",
+    ) as unknown as {
+      cancelled: boolean;
+      comparison: { revision: { infoType: { raw: string; value: string; valid: boolean } } };
+    } | undefined;
+    expect(cancellationGate).toBeDefined();
+    if (cancellationGate == null) return;
+    cancellationGate.cancelled = true;
+    cancellationGate.comparison.revision.infoType = { raw: "取消", value: "取消", valid: true };
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file, 0).load();
+    expect(loaded?.telegramFoundation.vpww56.state?.streams.map((stream) => stream.subjectKey))
+      .toEqual(["weather:VPWW56:office-b"]);
+    expect(loaded?.telegramFoundation.vpww56.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "weather:VPWW56:office-a", cancelled: true }),
+      expect.objectContaining({ stateSubjectKey: "weather:VPWW56:office-b", cancelled: false }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.vpww56 unit=subject discarded=1 retained=2 reason=invalid-entry",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("旧 v1 の官署不明 union は旧粒度を固着させず、表示も watermark も復元しない", () => {

@@ -6,6 +6,7 @@ import {
   StandbyPersistence,
   standbyPersistenceV2Path,
   type PersistedStandbyStateV1,
+  type PersistedStandbyStateV2,
 } from "../../../src/engine/display/standby-persistence";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
@@ -16,7 +17,10 @@ import {
   FLOOD_FORECAST_RETENTION_MS,
   FLOOD_FORECAST_REVISION_FAMILY_POLICY,
 } from "../../../src/engine/messages/revision-family-registry";
-import { TelegramRevisionGate } from "../../../src/engine/messages/telegram-revision-gate";
+import {
+  TelegramRevisionGate,
+  type PersistedTelegramRevisionGateEntryV2,
+} from "../../../src/engine/messages/telegram-revision-gate";
 import { FloodForecastStateHolder } from "../../../src/engine/messages/flood-forecast-state";
 import { sweepFloodForecastFoundation } from "../../../src/engine/messages/flood-forecast-lifecycle";
 import { createMessageHandler } from "../../../src/engine/messages/message-router";
@@ -31,6 +35,7 @@ import {
   FIXTURE_VXSU50_91_01_01,
   readFixture,
 } from "../../helpers/mock-message";
+import * as log from "../../../src/logger";
 
 const T1 = "2026-07-30T10:00:00+09:00";
 const T2 = "2026-07-30T11:00:00+09:00";
@@ -704,8 +709,9 @@ describe("Phase 3B flood common registry", () => {
     removeFloodGateSerial(file);
 
     expect(persistence.load()!.telegramFoundation.floodForecast).toEqual({
-      authoritative: false,
+      authoritative: true,
       active: [],
+      legacyEventIds: [],
       gateEntries: [],
     });
   });
@@ -731,8 +737,9 @@ describe("Phase 3B flood common registry", () => {
     removeFloodGateSerial(file);
 
     expect(persistence.load()!.telegramFoundation.floodForecast).toEqual({
-      authoritative: false,
+      authoritative: true,
       active: [],
+      legacyEventIds: [],
       gateEntries: [],
     });
   });
@@ -869,6 +876,125 @@ describe("Phase 3B flood common registry", () => {
       semanticDuplicate: 1,
     });
   });
+
+  it("複数 EventID の重複・上限・cancellation-only gate を組み合わせても subject 単位で救済する", () => {
+    const gate = new TelegramRevisionGate();
+    const holder = new FloodForecastStateHolder();
+    const store = new StandbyStateStore();
+    const deps = makeProcessDeps({ revisionGate: gate, floodForecastState: holder });
+    for (let index = 0; index < FLOOD_FORECAST_MAX_SUBJECTS; index++) {
+      const eventId = `combo-${String(index).padStart(3, "0")}`;
+      const outcome = processFloodForecast(
+        message(T1, String(index + 1), "発表", eventId),
+        deps,
+        Date.parse(T1) + index,
+      );
+      expect(outcome.kind).toBe("ok");
+      if (outcome.kind === "ok") {
+        store.applyEvent(toPresentationEvent(outcome.outcome), Date.parse(T1) + index);
+      }
+    }
+
+    const file = tempPath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      floodForecast: {
+        authoritative: true,
+        active: store.exportActiveState().floods?.events ?? [],
+        gateEntries: gate.exportDurableEntries().filter((entry) => entry.domain === "floodForecast"),
+      },
+    }));
+    persistence.save(legacyState(store));
+
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const flood = raw.telegramFoundation.floodForecast;
+    const lastActive = flood.active.at(-1);
+    const lastGate = flood.gateEntries.at(-1);
+    expect(lastActive).toBeDefined();
+    expect(lastGate).toBeDefined();
+    if (lastActive == null || lastGate == null) return;
+
+    const remapGate = (
+      entry: PersistedTelegramRevisionGateEntryV2,
+      eventId: string,
+      cancelled = false,
+    ): PersistedTelegramRevisionGateEntryV2 => {
+      const subject = `flood:event:${eventId}`;
+      return {
+        ...structuredClone(entry),
+        stateSubjectKey: subject,
+        cancelled,
+        comparison: {
+          ...structuredClone(entry.comparison),
+          stateSubjectKey: subject,
+          revision: {
+            ...structuredClone(entry.comparison.revision),
+            eventId: { raw: subject, value: subject, valid: true },
+            infoType: cancelled
+              ? { raw: "取消", value: "取消", valid: true }
+              : entry.comparison.revision.infoType,
+          },
+        },
+        legacyRevisionKey: eventId,
+        legacyRevisionKeyProvenance: "eventId",
+      };
+    };
+    const duplicateActive = structuredClone(lastActive);
+    const duplicateGate = structuredClone(lastGate);
+    const overflowActive = { ...structuredClone(lastActive), eventId: "combo-overflow" };
+    const overflowGate = remapGate(lastGate, "combo-overflow");
+    const cancellationGate = remapGate(lastGate, "combo-cancel-only", true);
+    flood.active.push(duplicateActive, overflowActive, { broken: true } as never);
+    flood.gateEntries.push(duplicateGate, overflowGate, cancellationGate);
+    if (raw.floods != null) {
+      raw.floods.events = raw.floods.events
+        .filter((event) => event.eventId !== "combo-000" && event.eventId !== lastActive.eventId)
+        .concat([structuredClone(overflowActive)]);
+      const seenGateEntries = flood.gateEntries
+        .filter((entry) => entry.stateSubjectKey !== lastGate.stateSubjectKey)
+        .slice(-FLOOD_FORECAST_MAX_SUBJECTS);
+      raw.floods.seen = seenGateEntries.flatMap((entry) => {
+        const eventId = entry.legacyRevisionKey?.trim();
+        const reportTimeMs = entry.comparison.revision.reportDateTime.epochMs;
+        if (eventId == null || eventId === "" || reportTimeMs == null) return [];
+        return [{
+          key: eventId,
+          revision: { reportTimeMs, serial: entry.comparison.revision.serial.raw },
+          forgetAtMs: entry.acceptedAtMs
+            + (entry.tombstoneRetentionMs ?? FLOOD_FORECAST_RETENTION_MS) + 1,
+        }];
+      });
+    }
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const probe = new StandbyPersistence(file).load();
+    expect(probe?.floods).toBeDefined();
+    if (probe?.floods == null) return;
+    raw.floods = structuredClone(probe.floods);
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const legacy = structuredClone(probe) as unknown as Record<string, unknown>;
+    delete legacy.telegramFoundation;
+    legacy.version = 1;
+    fs.writeFileSync(file, `${JSON.stringify(legacy)}\n`, "utf8");
+    warn.mockClear();
+
+    const loaded = new StandbyPersistence(file).load();
+    const loadedFlood = loaded?.telegramFoundation.floodForecast;
+    expect(loadedFlood?.active.some((event) => event.eventId === "combo-overflow")).toBe(true);
+    expect(loadedFlood?.active.some((event) => event.eventId === lastActive.eventId)).toBe(false);
+    expect(loadedFlood?.gateEntries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ stateSubjectKey: "flood:event:combo-overflow", cancelled: false }),
+      expect.objectContaining({ stateSubjectKey: "flood:event:combo-cancel-only", cancelled: true }),
+    ]));
+    expect(loadedFlood?.active).toHaveLength(FLOOD_FORECAST_MAX_SUBJECTS - 1);
+    expect(loadedFlood?.gateEntries).toHaveLength(FLOOD_FORECAST_MAX_SUBJECTS);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.floodForecast unit=eventId discarded=3 retained=513 reason=invalid-entry",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  }, 30_000);
 
   it("enforces the 512 EventID bound with the same oldest-event eviction in gate and holder", () => {
     const gate = new TelegramRevisionGate();

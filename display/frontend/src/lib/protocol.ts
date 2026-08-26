@@ -383,6 +383,10 @@ export interface DisplayStatsV1 {
   todayQuakeCount: number;   // 本日 (JST) の地震件数
   todayMaxInt: string | null;
   todayMaxIntRank: number | null;
+  /** standby salvage backup が memory-only のままかを運用側へ示す。 */
+  persistenceSalvageBackupBlocked?: number;
+  persistenceSalvageBackupRecovered?: number;
+  persistenceSalvageBackupPendingSources?: number;
 }
 
 /** 画面全体の緊張度 tier (server 導出)。描画は §4 別プラン */

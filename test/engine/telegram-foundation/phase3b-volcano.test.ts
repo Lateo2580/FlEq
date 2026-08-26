@@ -23,9 +23,11 @@ import { revisionOf } from "../../../src/engine/display/standby-registry";
 import {
   StandbyPersistence,
   standbyPersistenceV2Path,
+  type PersistedStandbyStateV2,
 } from "../../../src/engine/display/standby-persistence";
 import { fromVolcanoOutcome } from "../../../src/engine/presentation/events/from-volcano";
 import type { ProcessOutcome, VolcanoBatchOutcome, VolcanoOutcome } from "../../../src/engine/presentation/types";
+import * as log from "../../../src/logger";
 
 const T0 = Date.parse("2026-08-01T09:00:00+09:00");
 const TEST_NOW = Date.parse("2026-07-31T12:30:00+09:00");
@@ -775,6 +777,66 @@ describe("Phase 3B volcano foundation", () => {
       stateSubjectKey: "volcano:alert:401",
       cancelled: true,
     }));
+  });
+
+  it("複数火山 code のうち壊れた code bundle だけを atomic に除外し root projection も同期する", () => {
+    const first = alert(
+      "code-salvage-506",
+      "506",
+      new Date(T0).toISOString(),
+      "1",
+    );
+    const second = alert(
+      "code-salvage-306",
+      "306",
+      new Date(T0).toISOString(),
+      "1",
+    );
+    currentParsed.set(first.meta.messageId, first);
+    currentParsed.set(second.meta.messageId, second);
+    const h = createHarness();
+    h.handler.handle(message(first.meta.messageId, "VFVO50", first.reportDateTime));
+    h.handler.handle(message(second.meta.messageId, "VFVO50", second.reportDateTime));
+
+    const root = tempRoot("code-bundle-salvage");
+    const persistPath = join(root, "display-active-state-v1.json");
+    mkdirSync(dirname(persistPath), { recursive: true });
+    const foundation = () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      volcano: {
+        authoritative: true,
+        state: h.holder.exportPersistedState(),
+        active: h.standby.exportActiveState().volcanoes,
+        gateEntries: h.gate.exportDurableEntries().filter((entry) => entry.domain === "volcano"),
+      },
+    });
+    new StandbyPersistence(persistPath, 0, foundation).save(h.standby.exportActiveState());
+
+    const v2Path = standbyPersistenceV2Path(persistPath);
+    const raw = JSON.parse(readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const broken = raw.telegramFoundation.volcano.state?.alerts.find((entry) => entry.volcanoCode === "506");
+    expect(broken).toBeDefined();
+    if (broken == null) return;
+    broken.reportDateTime = "not-a-report-date";
+    writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const legacy = JSON.parse(readFileSync(persistPath, "utf8")) as {
+      volcanoes: Array<{ code: string }>;
+    };
+    legacy.volcanoes = legacy.volcanoes.filter((entry) => entry.code === "306");
+    writeFileSync(persistPath, `${JSON.stringify(legacy)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(persistPath).load();
+    expect(loaded?.telegramFoundation.volcano.active.map((entry) => entry.code)).toEqual(["306"]);
+    expect(loaded?.telegramFoundation.volcano.state?.alerts.map((entry) => entry.volcanoCode)).toEqual(["306"]);
+    expect(loaded?.volcanoes.map((entry) => entry.code)).toEqual(["306"]);
+    expect(loaded?.telegramFoundation.volcano.gateEntries).toEqual([
+      expect.objectContaining({ stateSubjectKey: "volcano:alert:306" }),
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.volcano unit=code discarded=1 retained=1 reason=coupling-mismatch",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("VFVO51 訂正内の同一 subject は最後の entry を一度だけ適用する", () => {

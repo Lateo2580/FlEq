@@ -39,6 +39,7 @@ import {
   canonicalizeLegacyTsunamiObservation,
   type LegacyTsunamiForecastItemInput,
 } from "../../../src/dmdata/tsunami-legacy-adapter";
+import * as log from "../../../src/logger";
 
 const { parseTsunamiMock } = vi.hoisted(() => ({ parseTsunamiMock: vi.fn() }));
 vi.mock("../../../src/dmdata/telegram-parser", () => ({
@@ -52,6 +53,7 @@ const T4 = "2026-01-01T00:03:00+09:00";
 const tempDirs: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -491,6 +493,102 @@ describe("Phase 3B tsunami common registry", () => {
       messageId: "active-retry-after-restart",
     }), restored)).toEqual({ kind: "suppressed" });
     expect(restored.tsunamiState.getObservationGroups().VTSE51).toEqual([station]);
+  });
+
+  it("tsunami observation は壊れた stationCode 単位だけを落とし、VTSE41 と反対 family を保つ", () => {
+    const shared = deps();
+    const warning = info({ eventId: "warning-event", messageId: "warning-for-observation-salvage" });
+    const vtse51 = observation("21001", "宮古", "1.0m");
+    const vtse52 = observation("22001", "釜石", "0.8m");
+    expect(run(warning, shared).kind).toBe("ok");
+    expect(run(info({ type: "VTSE51", observations: [vtse51], messageId: "vtse51-valid" }), shared).kind)
+      .toBe("ok");
+    expect(run(info({ type: "VTSE52", observations: [vtse52], messageId: "vtse52-valid" }), shared).kind)
+      .toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        legacyActive: shared.tsunamiState.getPersistedLegacyActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "tsunami" || entry.domain === "tsunamiObservation"),
+      },
+    }));
+    persistence.save(legacyState());
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    const broken = { ...vtse51, stationCode: 21002, name: "壊れた観測所" } as unknown as Record<string, unknown>;
+    raw.telegramFoundation.tsunami.observations.VTSE51 = [vtse51, broken] as never;
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file, 0).load();
+    expect(loaded?.telegramFoundation.tsunami.observations.VTSE51).toEqual([vtse51]);
+    expect(loaded?.telegramFoundation.tsunami.observations.VTSE52).toEqual([vtse52]);
+    expect(loaded?.telegramFoundation.tsunami.keyedActive).toEqual([
+      expect.objectContaining({ meta: expect.objectContaining({ eventId: expect.objectContaining({ value: "warning-event" }) }) }),
+    ]);
+    expect(loaded?.telegramFoundation.tsunami.gateEntries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ domain: "tsunami", stateSubjectKey: "tsunami:warning-event" }),
+      expect.objectContaining({ domain: "tsunamiObservation", revisionFamily: "VTSE51", stateSubjectKey: "21001" }),
+      expect.objectContaining({ domain: "tsunamiObservation", revisionFamily: "VTSE52", stateSubjectKey: "22001" }),
+    ]));
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.tsunami unit=stationCode discarded=1 retained=1 reason=invalid-entry",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("tsunami observation の whole-family gate 破損はその family だけを捨て、VTSE41 と反対 family を保つ", () => {
+    const shared = deps();
+    expect(run(info({ eventId: "warning-event", messageId: "warning-for-family-salvage" }), shared).kind)
+      .toBe("ok");
+    const vtse51 = observation("21001", "宮古", "1.0m");
+    const vtse52 = observation("22001", "釜石", "0.8m");
+    expect(run(info({ type: "VTSE51", observations: [vtse51], messageId: "vtse51-family" }), shared).kind)
+      .toBe("ok");
+    expect(run(info({ type: "VTSE52", observations: [vtse52], messageId: "vtse52-family" }), shared).kind)
+      .toBe("ok");
+
+    const file = persistencePath();
+    const persistence = new StandbyPersistence(file, 0, () => ({
+      vpws50: { authoritative: true, state: null, gateEntries: [] },
+      tsunami: {
+        keyedActive: shared.tsunamiState.getPersistedKeyedActive(),
+        observations: shared.tsunamiState.getObservationGroups(),
+        gateEntries: shared.revisionGate.exportDurableEntries().filter((entry) =>
+          entry.domain === "tsunami" || entry.domain === "tsunamiObservation"),
+      },
+    }));
+    persistence.save(legacyState());
+    const v2Path = standbyPersistenceV2Path(file);
+    const raw = JSON.parse(fs.readFileSync(v2Path, "utf8")) as PersistedStandbyStateV2;
+    raw.telegramFoundation.tsunami.gateEntries = raw.telegramFoundation.tsunami.gateEntries.filter(
+      (entry) => entry.stateSubjectKey !== "tsunami:observations:VTSE51",
+    );
+    fs.writeFileSync(v2Path, `${JSON.stringify(raw)}\n`, "utf8");
+    const warn = vi.spyOn(log, "warn").mockImplementation(() => undefined);
+
+    const loaded = new StandbyPersistence(file, 0).load();
+    expect(loaded?.telegramFoundation.tsunami.observations.VTSE51).toEqual([]);
+    expect(loaded?.telegramFoundation.tsunami.observations.VTSE52).toEqual([vtse52]);
+    expect(loaded?.telegramFoundation.tsunami.keyedActive).toEqual([
+      expect.objectContaining({ meta: expect.objectContaining({ eventId: expect.objectContaining({ value: "warning-event" }) }) }),
+    ]);
+    expect(loaded?.telegramFoundation.tsunami.gateEntries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ domain: "tsunami", stateSubjectKey: "tsunami:warning-event" }),
+      expect.objectContaining({ domain: "tsunamiObservation", revisionFamily: "VTSE52", stateSubjectKey: "22001" }),
+    ]));
+    expect(loaded?.telegramFoundation.tsunami.gateEntries).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ revisionFamily: "VTSE51" }),
+    ]));
+    expect(warn).toHaveBeenCalledWith(
+      "[standby-persistence] salvage source=display-active-state-v2.json domain=foundation.tsunami unit=family discarded=1 retained=0 reason=coupling-mismatch",
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("津波地震要素の Magnitude/Depth semantic を往復し、scalar-only v2 を読込移行する", () => {
