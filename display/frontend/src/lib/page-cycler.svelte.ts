@@ -34,8 +34,23 @@ export interface PageCycler {
 export function createPageCycler(opts: {
   pageCount: () => number; // リアクティブ getter (例: () => pages.length)
   resetKey?: () => string | number; // 値が変わったら index=0。リセットすべきかの判定は呼び出し側の責務
+  /** App が単独で購読した prefers-reduced-motion の reactive getter。 */
+  reducedMotion?: () => boolean;
+  /** active page の stable identity。保持途中の差替えを検出する。 */
+  pageIdentity?: () => string | null;
+  /** active page の表示 fingerprint。保持途中の訂正を検出する。 */
+  pageFingerprint?: () => string;
+  /** active page が通常の保持時間を満了した時点で一度だけ呼ぶ。 */
+  onHoldComplete?: (index: number, identity?: string, fingerprint?: string) => void;
 }): PageCycler {
-  const { pageCount, resetKey } = opts;
+  const {
+    pageCount,
+    resetKey,
+    reducedMotion: reducedMotionSource,
+    pageIdentity: pageIdentitySource,
+    pageFingerprint: pageFingerprintSource,
+    onHoldComplete,
+  } = opts;
   let index = $state(0);
   let total = $state(pageCount());
   let reducedMotion = $state(false);
@@ -43,9 +58,11 @@ export function createPageCycler(opts: {
   // 「同じ index への再ジャンプ (現在ページのドットを再クリック)」でも Svelte の値等価性による
   // effect スキップを回避し、必ず静止タイマーを再スタートできる (jumpTo 自体は本文参照)
   let jumpEpoch = $state(0);
-  // total>1 の crossing でのみ値が変わる派生値。周回 effect がこれを読むことで、total が
-  // 3→5 のように複数ページのまま変化しても再スケジュールされない (Svelte の値等価性による)
-  const hasMultiplePages = $derived(total > 1);
+  // 1 page でも満了後に次の保持を張り直すための epoch。pageCount 更新には使わない。
+  let holdEpoch = $state(0);
+  // total の 0 境界だけを timer effect に伝える。表示中 page が不変な他 page の増減で
+  // 保持時計を打ち切らない。
+  const hasPages = $derived(total > 0);
 
   let resetKeySeen = false;
   let prevResetKey: string | number | undefined;
@@ -74,6 +91,7 @@ export function createPageCycler(opts: {
       if (key !== prevResetKey) {
         prevResetKey = key;
         index = 0;
+        jumpEpoch += 1; // index が既に 0 の episode reset でも保持時間を再開始する
       }
     });
 
@@ -81,11 +99,18 @@ export function createPageCycler(opts: {
     $effect(() => {
       void index; // 依存: ページが変わる (周回・巻き戻し・reset・jumpTo) たびに静止をやり直す
       void jumpEpoch; // 依存: index が変わらないジャンプ (同じページへの再クリック) でも再スタートする
-      if (!hasMultiplePages) return; // total<=1 はタイマー不要
+      void holdEpoch;
+      // identity/fingerprint は、保持を始めた page が満了まで同一だったことの条件でもある。
+      const heldIdentity = pageIdentitySource?.() ?? null;
+      const heldFingerprint = pageFingerprintSource?.() ?? "";
+      if (!hasPages) return;
       let cancelled = false;
       const timer = setTimeout(() => {
         if (!cancelled) {
-          index = total > 0 ? (index + 1) % total : 0;
+          onHoldComplete?.(index, heldIdentity ?? undefined, heldFingerprint);
+          const nextIndex = total > 0 ? (index + 1) % total : 0;
+          if (nextIndex === index) holdEpoch += 1;
+          index = nextIndex;
           // このコールバックは effect の同期実行の外 (マクロタスク) で走るため、Svelte の
           // 通常の非同期 flush 待ちだと次の advanceTimersByTime までに再スケジュール effect が
           // 走らない (fake timers 環境で顕在化)。直後に flushSync して即座に再登録する
@@ -98,15 +123,18 @@ export function createPageCycler(opts: {
       };
     });
 
-    // prefers-reduced-motion を購読する (撤去済みの vertical-ping-pong-scroll.svelte.ts と同一パターン)。
-    // reduced でもページ送り自体 (上の周回 effect) は止めない — 1 枚固定は情報が消えるので禁止
+    // TODO(attention-visibility unit 3): App から reducedMotion を全 pager へ渡せた時点で
+    // fallback を削除する。移行中は既存 panel の挙動を壊さないため、未注入時だけ従来の
+    // matchMedia listener を使う。注入済み pager は listener を作らない。
     $effect(() => {
+      if (reducedMotionSource != null) {
+        reducedMotion = reducedMotionSource();
+        return;
+      }
       if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
       const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
       reducedMotion = mq.matches;
-      const onChange = (e: MediaQueryListEvent): void => {
-        reducedMotion = e.matches;
-      };
+      const onChange = (event: MediaQueryListEvent): void => { reducedMotion = event.matches; };
       mq.addEventListener("change", onChange);
       return () => mq.removeEventListener("change", onChange);
     });

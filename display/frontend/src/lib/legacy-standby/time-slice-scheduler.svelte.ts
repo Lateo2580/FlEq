@@ -407,6 +407,8 @@ interface CardPageSubstate {
 export interface CardPageRegistration {
   key: PageableKey;
   identities: readonly string[];
+  /** identities と同順の表示 fingerprint。省略時は identity 自身を fingerprint とする。 */
+  fingerprints?: readonly string[];
   labels?: readonly string[];
   rotationMember?: boolean;
   /** Layout-card appearance that advances this logical dependent pager. */
@@ -415,6 +417,9 @@ export interface CardPageRegistration {
   /** Increases only for a false-to-true tornado sighting escalation. */
   escalationGeneration?: number;
   suppressAddedKeys?: boolean;
+  /** Real-time mode only: called after the active page has remained visible for periodMs.
+   * Logical mode is advanced by card-slot appearances, which are not individual page holds. */
+  onHoldComplete?: (identity: string) => void;
 }
 
 export interface CardPageCoordinatorOptions extends SchedulerOptions {
@@ -437,6 +442,10 @@ export class CardPageCoordinator {
   private runtime: Record<PageableKey, CardPageRuntime> = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), briefing: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
   private substates: Record<PageableKey, CardPageSubstate> = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), briefing: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
   private labels: Record<PageableKey, string[]> = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
+  private fingerprints: Record<PageableKey, string[]> = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
+  private holdComplete: Record<PageableKey, ((identity: string) => void) | undefined> = {
+    quake: undefined, weather: undefined, briefing: undefined, flood: undefined, tornado: undefined,
+  };
   private timer: Timer | null = null;
   private epochHeld = false;
   private pendingAppearanceKeys = new Set<PageableKey>();
@@ -468,7 +477,10 @@ export class CardPageCoordinator {
   private realKeys(): PageableKey[] {
     return PAGEABLE_KEYS.filter((key) => {
       const state = this.substates[key];
-      return state.pageCount > 1 && state.mode === "real";
+      // 既存 card の 1 page は timer を持たない契約を維持する。未表示集合へ接続した
+      // ページだけは、1 page でも保持満了を受け取る必要がある。
+      return state.pageCount > 0 && state.mode === "real"
+        && (state.pageCount > 1 || this.holdComplete[key] != null);
     });
   }
 
@@ -504,6 +516,13 @@ export class CardPageCoordinator {
 
   private setRuntime(key: PageableKey, runtime: CardPageRuntime): void {
     this.runtime = { ...this.runtime, [key]: runtime };
+  }
+
+  private activeFingerprint(key: PageableKey, runtime = this.runtime[key], fingerprints = this.fingerprints[key]): string | null {
+    const activeKey = runtime.activeKey;
+    if (activeKey == null) return null;
+    const index = runtime.knownKeys.indexOf(activeKey);
+    return fingerprints[index] ?? activeKey;
   }
 
   private advance(key: PageableKey, steps: number): void {
@@ -566,7 +585,13 @@ export class CardPageCoordinator {
       const state = nextSubstates[key];
       const elapsedTicks = Math.max(0, Math.floor((nowMs - state.phaseStartedAtMs) / this.periodMs));
       if (elapsedTicks <= state.processedTick) continue;
-      this.advance(key, elapsedTicks - state.processedTick);
+      const steps = elapsedTicks - state.processedTick;
+      // A delayed callback may catch up several virtual page advances. Only the page that
+      // actually remained mounted until this callback earns a read receipt; skipped pages
+      // are merely navigation state and must remain unseen.
+      const activeKey = this.runtime[key].activeKey;
+      if (activeKey != null) this.holdComplete[key]?.(activeKey);
+      this.advance(key, steps);
       nextSubstates = { ...nextSubstates, [key]: { ...state, processedTick: elapsedTicks } };
     }
     this.substates = nextSubstates;
@@ -579,6 +604,7 @@ export class CardPageCoordinator {
     if (!this.mounted) return;
     const key = input.key;
     const identities = [...input.identities];
+    const fingerprints = input.fingerprints == null ? [...identities] : [...input.fingerprints];
     const labels = input.labels == null ? identities : [...input.labels];
     const previousState = this.substates[key];
     const previousCount = previousState.pageCount;
@@ -587,37 +613,60 @@ export class CardPageCoordinator {
     const appearanceHost = input.appearanceHost ?? (key === "tornado" ? null : key);
     const escalationGeneration = input.escalationGeneration ?? previousState.escalationGeneration;
     const resetKey = String(input.resetKey ?? "");
+    const previousHoldComplete = this.holdComplete[key];
+    const holdReceiptEligibilityChanged = (previousHoldComplete == null) !== (input.onHoldComplete == null);
+    this.holdComplete[key] = input.onHoldComplete;
     // Effects may observe coordinator diagnostics while registering. An
     // identical registration must be a true no-op, otherwise notify() loops
     // the effect indefinitely before a layout epoch can settle.
     if (sameKeys(this.runtime[key].knownKeys, identities)
+      && sameKeys(this.fingerprints[key], fingerprints)
       && sameKeys(this.labels[key], labels)
       && previousState.mode === nextMode
       && previousState.appearanceHost === appearanceHost
       && previousState.escalationGeneration === escalationGeneration
-      && previousState.resetKey === resetKey) return;
+      && previousState.resetKey === resetKey) {
+      // A structurally identical page set may gain or lose its receipt callback after mount.
+      // Re-evaluate timer eligibility without treating the registration as a content reset.
+      if (holdReceiptEligibilityChanged) {
+        this.scheduleTimer();
+        this.notify();
+      }
+      return;
+    }
     this.clearTimer();
-    const exit = previousCount > 1 && nextCount <= 1;
-    const entry = previousCount <= 1 && nextCount > 1;
+    // First registration starts a hold. Thereafter 1→2 / 2→1 alone is not a
+    // receipt reset: if the active identity/fingerprint remains stable, its
+    // already elapsed hold time belongs to that same displayed page.
+    const initialEntry = previousCount === 0 && nextCount > 0;
     const explicitReset = previousState.resetKey !== "" && previousState.resetKey !== resetKey;
     const escalationReset = key === "tornado" && escalationGeneration > previousState.escalationGeneration;
-    const reset = exit || entry || explicitReset || escalationReset;
+    const reset = initialEntry || explicitReset || escalationReset;
     const nowMs = this.clock.now();
+    const previousActiveKey = this.runtime[key].activeKey;
+    const previousActiveFingerprint = this.activeFingerprint(key);
     let runtime = planCardPageRuntimeUpdate(this.runtime[key], identities, reset, input.suppressAddedKeys === true);
     if (this.tickOverride != null && identities.length > 0) {
       runtime = { ...runtime, activeKey: identities[this.tickOverride % identities.length] ?? identities[0] ?? null };
     }
     this.setRuntime(key, runtime);
     this.labels = { ...this.labels, [key]: labels };
+    this.fingerprints = { ...this.fingerprints, [key]: fingerprints };
     const modeChanged = previousState.mode !== nextMode;
+    // Deleting/replacing the active identity selects a successor. It has not yet had the
+    // predecessor's remaining hold time, so its receipt clock always restarts.
+    const activePageChanged = runtime.activeKey !== previousActiveKey;
+    const activeFingerprintChanged = runtime.activeKey != null
+      && runtime.activeKey === previousActiveKey
+      && this.activeFingerprint(key, runtime, fingerprints) !== previousActiveFingerprint;
     this.substates = {
       ...this.substates,
       [key]: {
         mode: nextMode,
         appearanceHost,
         escalationGeneration,
-        phaseStartedAtMs: modeChanged || reset ? nowMs : previousState.phaseStartedAtMs,
-        processedTick: modeChanged || reset ? 0 : previousState.processedTick,
+        phaseStartedAtMs: modeChanged || reset || activePageChanged || activeFingerprintChanged ? nowMs : previousState.phaseStartedAtMs,
+        processedTick: modeChanged || reset || activePageChanged || activeFingerprintChanged ? 0 : previousState.processedTick,
         pageCount: nextCount,
         resetKey,
       },
@@ -633,6 +682,8 @@ export class CardPageCoordinator {
     this.pendingAppearanceKeys.delete(key);
     this.setRuntime(key, EMPTY_RUNTIME());
     this.labels = { ...this.labels, [key]: [] };
+    this.fingerprints = { ...this.fingerprints, [key]: [] };
+    this.holdComplete[key] = undefined;
     this.substates = { ...this.substates, [key]: EMPTY_SUBSTATE() };
     this.revision += 1;
     this.scheduleTimer();
@@ -718,6 +769,10 @@ export class CardPageCoordinator {
     this.runtime = { quake: EMPTY_RUNTIME(), weather: EMPTY_RUNTIME(), briefing: EMPTY_RUNTIME(), flood: EMPTY_RUNTIME(), tornado: EMPTY_RUNTIME() };
     this.substates = { quake: EMPTY_SUBSTATE(), weather: EMPTY_SUBSTATE(), briefing: EMPTY_SUBSTATE(), flood: EMPTY_SUBSTATE(), tornado: EMPTY_SUBSTATE() };
     this.labels = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
+    this.fingerprints = { quake: [], weather: [], briefing: [], flood: [], tornado: [] };
+    this.holdComplete = {
+      quake: undefined, weather: undefined, briefing: undefined, flood: undefined, tornado: undefined,
+    };
     this.notify();
   }
 }

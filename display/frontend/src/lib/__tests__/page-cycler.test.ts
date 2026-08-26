@@ -4,22 +4,7 @@ import { createPageCycler, createTestSignal, PAGE_HOLD_MS } from "../page-cycler
 
 // createPageCycler はコンストラクタ内 flushSync を撤去した (リアクティブマウント時の再入クラッシュ回避、
 // 2026-07-12)。コンポーネント文脈を持たない本ファイルでは、$effect.root の初期 effect (周回タイマー・
-// total 追従・matchMedia 購読) を確定させるため、createPageCycler 直後に明示 flushSync() する。
-
-// prefers-reduced-motion: reduce をシミュレートする matchMedia モック
-// (jsdom は未実装なのでテスト内でのみスタブする。ticker-lane.test.ts と同じパターン)
-function stubReducedMotion(matches: boolean): () => void {
-  const original = window.matchMedia;
-  window.matchMedia = ((query: string) => ({
-    matches,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  })) as unknown as typeof window.matchMedia;
-  return () => {
-    window.matchMedia = original;
-  };
-}
+// total 追従・外部注入された reduced-motion 値) を確定させるため、createPageCycler 直後に明示 flushSync() する。
 
 describe("createPageCycler", () => {
   it("PAGE_HOLD_MS ごとに index が 0→1→2→0 と周回する", () => {
@@ -45,13 +30,15 @@ describe("createPageCycler", () => {
     }
   });
 
-  it("total=1 のときはタイマーが発火せず index=0 のまま", () => {
+  it("1ページも保持時間満了を通知し、index=0 のまま", () => {
     vi.useFakeTimers();
     try {
-      const cycler = createPageCycler({ pageCount: () => 1 });
+      const completed: number[] = [];
+      const cycler = createPageCycler({ pageCount: () => 1, onHoldComplete: (index) => completed.push(index) });
       flushSync();
-      vi.advanceTimersByTime(PAGE_HOLD_MS * 3);
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
       expect(cycler.index).toBe(0);
+      expect(completed).toEqual([0]);
       cycler.destroy();
     } finally {
       vi.useRealTimers();
@@ -73,6 +60,78 @@ describe("createPageCycler", () => {
       expect(cycler.total).toBe(2);
       expect(cycler.index).toBe(0);
 
+      cycler.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("active page の identity/fingerprint が保持途中で変わると、その保持をやり直す", () => {
+    vi.useFakeTimers();
+    try {
+      const identity = createTestSignal("page:a");
+      const fingerprint = createTestSignal("v1");
+      const completed: Array<[number, string | undefined, string | undefined]> = [];
+      const cycler = createPageCycler({
+        pageCount: () => 1,
+        pageIdentity: () => identity.value,
+        pageFingerprint: () => fingerprint.value,
+        onHoldComplete: (index, heldIdentity, heldFingerprint) => completed.push([index, heldIdentity, heldFingerprint]),
+      });
+      flushSync();
+      vi.advanceTimersByTime(PAGE_HOLD_MS - 1);
+      fingerprint.value = "v2";
+      flushSync();
+      vi.advanceTimersByTime(1);
+      expect(completed).toEqual([]);
+      vi.advanceTimersByTime(PAGE_HOLD_MS - 2);
+      expect(completed).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(completed).toEqual([[0, "page:a", "v2"]]);
+      cycler.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("1ページの満了後に2ページへ増えても巡回タイマーを再評価する", () => {
+    vi.useFakeTimers();
+    try {
+      const count = createTestSignal(1);
+      const cycler = createPageCycler({ pageCount: () => count.value });
+      flushSync();
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
+      expect(cycler.index).toBe(0);
+      count.value = 2;
+      flushSync();
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
+      expect(cycler.index).toBe(1);
+      cycler.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("他 page の追加が10秒未満で続いても、安定した active page は保持満了する", () => {
+    vi.useFakeTimers();
+    try {
+      const count = createTestSignal(2);
+      const completed: string[] = [];
+      const cycler = createPageCycler({
+        pageCount: () => count.value,
+        pageIdentity: () => "stable:page",
+        pageFingerprint: () => "stable:v1",
+        onHoldComplete: (_index, identity) => { if (identity != null) completed.push(identity); },
+      });
+      flushSync();
+      for (let update = 0; update < 9; update += 1) {
+        vi.advanceTimersByTime(1_000);
+        count.value += 1;
+        flushSync();
+      }
+      expect(completed).toEqual([]);
+      vi.advanceTimersByTime(1_000);
+      expect(completed).toEqual(["stable:page"]);
       cycler.destroy();
     } finally {
       vi.useRealTimers();
@@ -114,6 +173,28 @@ describe("createPageCycler", () => {
       cycler.destroy();
       vi.advanceTimersByTime(PAGE_HOLD_MS * 5);
       expect(cycler.index).toBe(1); // destroy 時点のまま変化しない
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("保持満了前の destroy は完了通知を出さず、満了後にだけ出す", () => {
+    vi.useFakeTimers();
+    try {
+      const abandoned: number[] = [];
+      const abandonedCycler = createPageCycler({ pageCount: () => 2, onHoldComplete: (index) => abandoned.push(index) });
+      flushSync();
+      vi.advanceTimersByTime(PAGE_HOLD_MS - 1);
+      abandonedCycler.destroy();
+      vi.advanceTimersByTime(1);
+      expect(abandoned).toEqual([]);
+
+      const completed: number[] = [];
+      const cycler = createPageCycler({ pageCount: () => 2, onHoldComplete: (index) => completed.push(index) });
+      flushSync();
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
+      expect(completed).toEqual([0]);
+      cycler.destroy();
     } finally {
       vi.useRealTimers();
     }
@@ -191,11 +272,11 @@ describe("createPageCycler", () => {
     });
   });
 
-  it("reduced-motion でも reducedMotion=true を返しつつページ送りは継続する (1枚固定禁止)", () => {
-    const restoreMatchMedia = stubReducedMotion(true);
+  it("App から注入された reduced-motion 値でもページ送りは継続する (1枚固定禁止)", () => {
     vi.useFakeTimers();
     try {
-      const cycler = createPageCycler({ pageCount: () => 3 });
+      const reduced = createTestSignal(true);
+      const cycler = createPageCycler({ pageCount: () => 3, reducedMotion: () => reduced.value });
       flushSync();
       expect(cycler.reducedMotion).toBe(true);
 
@@ -207,7 +288,42 @@ describe("createPageCycler", () => {
       cycler.destroy();
     } finally {
       vi.useRealTimers();
-      restoreMatchMedia();
+    }
+  });
+
+  it("注入済み pager は matchMedia listener を作らない", () => {
+    const original = window.matchMedia;
+    const matchMedia = vi.fn();
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
+    try {
+      const cycler = createPageCycler({ pageCount: () => 2, reducedMotion: () => false });
+      flushSync();
+      expect(matchMedia).not.toHaveBeenCalled();
+      cycler.destroy();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it("未注入 pager は移行期 fallback の matchMedia listener を購読し、destroy で解除する", () => {
+    const original = window.matchMedia;
+    const addEventListener = vi.fn();
+    const removeEventListener = vi.fn();
+    window.matchMedia = vi.fn(() => ({
+      matches: true,
+      media: "(prefers-reduced-motion: reduce)",
+      addEventListener,
+      removeEventListener,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const cycler = createPageCycler({ pageCount: () => 2 });
+      flushSync();
+      expect(cycler.reducedMotion).toBe(true);
+      expect(addEventListener).toHaveBeenCalledOnce();
+      cycler.destroy();
+      expect(removeEventListener).toHaveBeenCalledOnce();
+    } finally {
+      window.matchMedia = original;
     }
   });
 });

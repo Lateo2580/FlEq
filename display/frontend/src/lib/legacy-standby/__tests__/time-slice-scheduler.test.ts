@@ -307,6 +307,134 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
+  it("reports only a completed hold, including a single page", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock, periodMs: 10_000 });
+    pages.register({
+      key: "quake",
+      identities: ["emergency:quake:0"],
+      onHoldComplete: (identity) => completed.push(identity),
+    });
+    time.advance(9_999);
+    expect(completed).toEqual([]);
+    pages.dispose(); // unmount before the hold has elapsed must not mark it seen.
+    time.advance(1);
+    expect(completed).toEqual([]);
+
+    const retained = createCardPageCoordinator({ clock: time.clock, periodMs: 10_000 });
+    retained.register({
+      key: "weather",
+      identities: ["emergency:tsunami:0"],
+      onHoldComplete: (identity) => completed.push(identity),
+    });
+    time.advance(10_000);
+    expect(completed).toEqual(["emergency:tsunami:0"]);
+    retained.dispose();
+  });
+
+  it("does not mark virtual catch-up pages as held", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1", "q2", "q3"], onHoldComplete: (identity) => completed.push(identity) });
+    time.advance(TIME_SLICE_PERIOD_MS * 3);
+    expect(completed).toEqual(["q1"]);
+    expect(pages.cardDiagnostics("quake").activeKey).toBe("q1");
+    pages.dispose();
+  });
+
+  it("resets the receipt clock when active identity is removed for its successor", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1", "q2", "q3"], onHoldComplete: (identity) => completed.push(identity) });
+    pages.jumpTo("quake", 1);
+    time.advance(TIME_SLICE_PERIOD_MS - 1);
+    pages.register({ key: "quake", identities: ["q1", "q3"], onHoldComplete: (identity) => completed.push(identity) });
+    expect(pages.cardDiagnostics("quake").activeKey).toBe("q3");
+    time.advance(1);
+    expect(completed).toEqual([]);
+    time.advance(TIME_SLICE_PERIOD_MS - 2);
+    expect(completed).toEqual([]);
+    time.advance(1);
+    expect(completed).toEqual(["q3"]);
+    pages.dispose();
+  });
+
+  it("resets the receipt clock when the active identity receives a fingerprint correction", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({
+      key: "quake",
+      identities: ["q1", "q2"],
+      fingerprints: ["q1:v1", "q2:v1"],
+      onHoldComplete: (identity) => completed.push(identity),
+    });
+    time.advance(TIME_SLICE_PERIOD_MS - 1);
+    pages.register({
+      key: "quake",
+      identities: ["q1", "q2"],
+      fingerprints: ["q1:v2", "q2:v1"],
+      onHoldComplete: (identity) => completed.push(identity),
+    });
+    time.advance(1);
+    expect(completed).toEqual([]);
+    time.advance(TIME_SLICE_PERIOD_MS - 2);
+    expect(completed).toEqual([]);
+    time.advance(1);
+    expect(completed).toEqual(["q1"]);
+    pages.dispose();
+  });
+
+  it("keeps the active hold through a 1→2 addition", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1"], onHoldComplete: (identity) => completed.push(identity) });
+    time.advance(TIME_SLICE_PERIOD_MS - 1);
+    pages.register({ key: "quake", identities: ["q1", "q2"], onHoldComplete: (identity) => completed.push(identity) });
+    time.advance(1);
+    expect(completed).toEqual(["q1"]);
+    pages.dispose();
+  });
+
+  it("keeps the active hold through a 2→1 deletion", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1", "q2"], onHoldComplete: (identity) => completed.push(identity) });
+    time.advance(TIME_SLICE_PERIOD_MS - 1);
+    pages.register({ key: "quake", identities: ["q1"], onHoldComplete: (identity) => completed.push(identity) });
+    time.advance(1);
+    expect(completed).toEqual(["q1"]);
+    pages.dispose();
+  });
+
+  it("re-evaluates a structurally unchanged page when a hold callback is attached later", () => {
+    const time = controlledClock();
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator({ clock: time.clock });
+    pages.register({ key: "quake", identities: ["q1"] });
+    expect(vi.getTimerCount()).toBe(0);
+    pages.register({ key: "quake", identities: ["q1"], onHoldComplete: (identity) => completed.push(identity) });
+    expect(vi.getTimerCount()).toBe(1);
+    time.advance(TIME_SLICE_PERIOD_MS);
+    expect(completed).toEqual(["q1"]);
+    pages.dispose();
+  });
+
+  it("does not issue hold receipts for logical appearance-driven pages", () => {
+    const completed: string[] = [];
+    const pages = createCardPageCoordinator();
+    pages.register({ key: "weather", identities: ["w1", "w2"], rotationMember: true, onHoldComplete: (identity) => completed.push(identity) });
+    pages.recordRotationAppearance("weather");
+    expect(pages.cardDiagnostics("weather").activeKey).toBe("w2");
+    expect(completed).toEqual([]);
+    pages.dispose();
+  });
+
   it("registers, jumps, indexes, and unregisters river-flood pages", () => {
     const pages = createCardPageCoordinator();
     pages.register({
@@ -416,7 +544,7 @@ describe("shared card-page coordinator", () => {
     pages.dispose();
   });
 
-  it("resets on one-page exit but preserves identity across stage-neutral repartition", () => {
+  it("keeps the active identity through one-page transitions and stage-neutral repartition", () => {
     const time = controlledClock();
     const pages = createCardPageCoordinator({ clock: time.clock });
     pages.register({ key: "quake", identities: ["q1", "q2", "q3"] });
@@ -428,7 +556,7 @@ describe("shared card-page coordinator", () => {
     pages.register({ key: "quake", identities: ["q2"] });
     expect(pages.cardDiagnostics("quake").page).toBe("1/1");
     pages.register({ key: "quake", identities: ["q1", "q2"] });
-    expect(pages.cardDiagnostics("quake").activeKey).toBe("q1");
+    expect(pages.cardDiagnostics("quake").activeKey).toBe("q2");
     pages.dispose();
   });
 
