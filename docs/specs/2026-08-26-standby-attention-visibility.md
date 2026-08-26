@@ -27,7 +27,7 @@
 - 気象緊急パネルの行動文位置は変更しない。
 - EEW／Quake の震源名を主役とする文字サイズ、ウェイト、色、配置上の視覚階層は変更しない。
 - `RecentQuakes` は折返しと列配置だけを直し、震源名・震度・統計の意味、順序、文字の視覚ウェイトを変更しない。
-- §4.1 の津波 `eventId` 最小 DTO 拡張を除き、緊急パネルの優先順位、待機カードの surface 選択、ticker、通知、電文 DTO は変更しない。
+- §4.1 の津波 `eventId` と `unkeyedSequence` の最小 DTO 拡張を除き、緊急パネルの優先順位、待機カードの surface 選択、ticker、通知、電文 DTO は変更しない。runtime／stream epoch 用の wire field は追加しない。
 - 停止手段を持つ静止モードの新設は対象外である。既存 design system に記録された将来課題をこの仕様だけで解決したとは扱わない。
 
 ## §3 現状挙動と目標挙動
@@ -86,7 +86,7 @@
 
 ### §4.1 津波 episode identity の正本と伝搬
 
-`DisplayTsunamiInputV1`（`display/frontend/src/lib/protocol.ts:261` と engine 側の同型 protocol）へ、最小拡張として `eventId: string | null` を追加する。これは page identity 専用の新規採番値ではない。**正本は VTSE41 の XML `Head.EventID`**であり、`fromTsunamiOutcome()` が既に作る `PresentationEvent.eventId` を、そのまま display projection へ伝搬する。
+この節で許可する最小 DTO 拡張は二つだけである。`DisplayTsunamiInputV1`（`display/frontend/src/lib/protocol.ts:261` と engine 側の同型 protocol）の `eventId: string | null` と、`DisplayTsunamiStateV1` の `unkeyedSequence: number | null` である。前者は page identity 専用の新規採番値ではない。**正本は VTSE41 の XML `Head.EventID`**であり、`fromTsunamiOutcome()` が既に作る `PresentationEvent.eventId` を、そのまま display projection へ伝搬する。後者だけが、EventID を持たない payload を受理順に区別する display runtime 専用 wire field である。
 
 経路は次で固定する。
 
@@ -95,7 +95,15 @@
 3. `DisplayStateStore` は `dto.emergency.eventId` を `this.tsunami` へ保持し、snapshot／SSE／reconnect seed で欠落させない。`tsunamiSeedFromParsed()` も、復元済み `ParsedTsunamiInfo.meta.eventId` の同じ正本を投影する。
 4. `deriveEmergencyPanels()` は固定の `"tsunami:current"` をやめ、正規化済み eventId による `"tsunami:<eventId>"` を panel key とする。`TsunamiPanel` はその eventId を reset／未表示世代の episode key として読む。
 
-`eventId` が null、空、または空白だけの旧 server／不完全電文は `null` とする。この場合は episode を推測して継承しない。derive key は `tsunami:unkeyed:<updatedAtMs>` とし、各受理 payload を fresh episode として reset する。これは未表示状態の誤った持越しを防ぐ fail-safe であり、keyed VTSE41 の通常経路では発生しない。取消は既存どおり `tsunami:null` へ遷移し、取消 DTO に episode を捏造しない。
+`eventId` が null、空、または空白だけの payload は null とする。この場合は episode を推測して継承しない。**案 B を確定**し、`DisplayStateStore` 所有の session-local `unkeyedSequence` を、表示中の unkeyed 津波 state を更新する各受理（VTSE41、VTSE51/52 の観測追加・取消、seed を含む）ごとに厳密に単調増加させ、snapshot／SSE／reconnect snapshot に載せる。derive key は必ず `tsunami:unkeyed:<unkeyedSequence>` とする。`updatedAtMs`、`reportDateTime`、message id、snapshot `seq` を代用しない。
+
+案 A は不採用である。`snapshot.seq` は `InfoDisplayHub` の全 domain 共通採番で、津波と無関係な ingest でも進むため、unkeyed 津波が不変でも panel key が変わる。これは無関係 update による false fresh episode を生む。案 C も、VTSE51/52 観測続報と同一ミリ秒連続受理で fresh episode を保証できないため不採用とする。
+
+`eventId === null` の live snapshot では `unkeyedSequence` を正の安全整数として必須にする。欠落・0・非整数の旧 server payload は protocol violation として診断し、通常の snapshot 再同期を要求するが、global `snapshot.seq` への fallback は禁止する。runtime 再起動後の unkeyed seed は新しい sequence から始め、旧 runtime の未表示状態を持ち越さない。取消は既存どおり `tsunami:null` へ遷移し、取消 DTO に episode を捏造しない。
+
+runtime／stream epoch を表す既存 wire field は確認できなかった。`DisplayStateSnapshotV1` の wire 定義は `src/engine/display/protocol.ts:947-984` にあり、候補の `seq` は `src/engine/display/hub.ts:86,135,309` の全 domain 共通 Hub counter である。また `frontendBuildId` は `src/engine/display/protocol.ts:984` および `src/engine/display/hub.ts:353-371` の frontend asset hash であって、runtime／stream の世代ではない。従って、これらを unkeyed key に含める案は採らず、新規 wire field も増やさない。
+
+代わりに、connection 層が `type:"snapshot"` を受信するたび（初期接続、SSE reconnect、gap 後の resync を含む）、snapshot を表示 state へ適用する**前**に、`eventId === null` のときだけ `discardUnkeyedTsunamiEpisodeState()` を必ず実行する。これは unkeyed の panel reset key、active page、page fingerprint、`unseenIdentities`、episode cache を破棄する操作である。通常の `type:"state"` 受信では実行しない。keyed state は EventID が再起動をまたいで安定する episode identity であり、message type にかかわらず同一 EventID の続報は同一 episode とするため、snapshot／reconnect で破棄してはならない。`snapshot.seq` の増減・一致、`frontendBuildId` の一致、payload 内容の一致から unkeyed の境界を推測して省略してはならない。この保守的な snapshot 境界契約により、再起動前後でともに `tsunami:unkeyed:1` でも旧 unkeyed state が残らず、新 payload を fresh episode として開始する。
 
 ### §4.2 pageCoordinator / partition
 
@@ -173,7 +181,7 @@ D1-B の場合も item identity、content fingerprint、diagnostics は共通化
 裁定後は次の単位で進める。各単位は対象 component test と diagnostics を同じ patch に含める。
 
 1. **共通状態**: page identity、未表示集合、保持完了、`k/P・未表示n` view model、reduced-motion 配線を追加する。
-2. **津波 identity**: protocol の `eventId` 拡張、`PresentationEvent` → project-event → state store → snapshot → reconnect seed → derive key → TsunamiPanel reset の経路を一単位で配線する。null fallback と取消もこの単位で test する。
+2. **津波 identity**: protocol の `eventId`／`unkeyedSequence` 拡張、`PresentationEvent` → project-event → state store → snapshot → reconnect seed → derive key → TsunamiPanel reset の経路を一単位で配線する。各 `snapshot` 適用前の `discardUnkeyedTsunamiEpisodeState()` と、unkeyed の単調採番、protocol violation、取消もこの単位で test する。
 3. **緊急 panel**: D1 に従い TsunamiPanel／QuakePanel の隠し scroll を置換する。D1-A では partition probe、固定本文高、単一 pager、fingerprint による reset／update を配線する。
 4. **待機マーキー**: TsunamiStandbyBanner／HeatAlertCard に D3／D4 の静的アンカーを追加し、マーキーを補助へ降格する。§3.2 の高さ契約を measurement に接続し、reduce 時の clamp を全件静止ページへ置換する。
 5. **狭幅履歴**: RecentQuakes を D5 の reflow に変更し、長名 fixture と container 境界を追加する。
@@ -190,7 +198,11 @@ D1-B の場合も item identity、content fingerprint、diagnostics は共通化
 - [ ] 2ページ以上で `k/P` が DOM に常設される。D1-A + D2-A の場合は未表示数も常設され、手動 jump と自動保持完了で値が正しく変わる。
 - [ ] D1-A + D2-A では、active page が保持時間を満了する前の unmount／panel 切替で未表示数が減らず、満了後だけ減る。D1-B では未表示 state／diagnostic を作らない。
 - [ ] 同一 episode の追加・訂正では page fingerprint が新規／変化した page だけ未表示へ入り、別 event、severity 上昇、順序付き identity の置換では定義どおり reset する。時刻だけの変化、undefined/null の表現差、measurement 値では reset しない。
-- [ ] XML EventID → `PresentationEvent.eventId` → `DisplayTsunamiInputV1.eventId` → state snapshot/reconnect seed → `deriveEmergencyPanels` key → `TsunamiPanel` reset が同じ値である。異なる EventID は必ず fresh episode、同じ EventID の続報は同じ episode、null／空／空白は `tsunami:unkeyed:<updatedAtMs>` の fail-safe reset、取消は null state になる。
+- [ ] XML EventID → `PresentationEvent.eventId` → `DisplayTsunamiInputV1.eventId` → state snapshot/reconnect seed → `deriveEmergencyPanels` key → `TsunamiPanel` reset が同じ値である。異なる EventID は必ず fresh episode、同じ EventID の続報は `type:"state"`／`type:"snapshot"` を問わず同じ episode とし、snapshot／reconnect で keyed pager・未表示状態を破棄しない。取消は null state になる。
+- [ ] EventID null の VTSE41、VTSE51/52 観測追加・取消、seed は、`DisplayStateStore` の `unkeyedSequence` を受理順に一意かつ単調増加させ、同一 `updatedAtMs` でも別の `tsunami:unkeyed:<unkeyedSequence>` key になる。無関係 domain の ingest／snapshot `seq` 更新だけでは unkeyed key は変わらない。
+- [ ] EventID null で `unkeyedSequence` が欠落・0・非整数なら protocol violation diagnostic と通常の snapshot 再同期を発生させる。derive に `snapshot.seq` fallback、時刻／message id による代用、前回 episode の継承がない。
+- [ ] runtime 再起動を模した reconnect で、旧 stream と新 stream がともに `eventId:null`、`unkeyedSequence:1`、同じ `snapshot.seq`、同じ `frontendBuildId`、同じ表示内容でも、新 `snapshot` の適用前に旧 unkeyed episode state（panel reset key、active page、fingerprint、`unseenIdentities`、cache）が全て破棄され、新 payload は fresh episode として page 1／未表示初期値から始まる。並存する keyed state は維持する。
+- [ ] 同一 runtime の初期 snapshot／reconnect snapshot／gap 後 resync のいずれも、unkeyed だけが同じ破棄契約を通る。一方、通常の `type:"state"` の受信だけでは unkeyed episode state を破棄しない。`snapshot.seq` や `frontendBuildId` を runtime epoch の判定または unkeyed key の構成要素に使わない。
 - [ ] coordinator の layout epoch hold 中にページが進まず、release 後に一度だけ進む。dispose 後に coordinator timer が残らない。
 - [ ] `matchMedia("(prefers-reduced-motion: reduce)")` の listener は App に一つだけある。StandbyScreen、EmergencyScreen、4対象 component、pager は listener を作らず、App unmount の cleanup で一度だけ解除される。
 - [ ] `prefers-reduced-motion: reduce` でも全ページが巡回し、fade／FLIP／marquee animation は 0ms／none、現在位置と、D1-A + D2-A の未表示数は残る。
