@@ -118,11 +118,31 @@ describe("§7.5 unit 6: real fixture persistence", () => {
     });
   });
 
-  it("実 VXSE53 の qualifier を含む詳細履歴は exact area semantic を daily restart で保つ", () => {
+  it("実 VXSE53 の exact Area group は daily restart 後も具体値を保つ", () => {
     const event = realEvent(FIXTURE_PHASE7_5_VXSE53_073149);
     const nowMs = Date.parse(event.reportDateTime);
     const recent = projectRecentQuake(event);
     if (recent == null) throw new Error("real VXSE53 did not produce a recent projection");
+    // この実 fixture の daily history は Area の exact group を射影する。
+    // qualitative の raw/Condition/Description/bounds round-trip は §7.5 単位5の
+    // phase4a-contract [§13-1/5/6/7/10/11] synthetic daily persistence 契約で固定する。
+    expect(recent.intensityGroups).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        intensity: "7",
+        rank: 9,
+        areas: ["熊本県熊本"],
+        omittedAreaCount: 0,
+      }),
+    ]));
+    expect(quakeObservationMetaOf(recent)).toMatchObject({
+      maxIntValue: {
+        raw: "7",
+        value: "7",
+        condition: null,
+        description: null,
+        presence: "value",
+      },
+    });
 
     const tempDir = fs.mkdtempSync(path.join(process.cwd(), ".phase7_5-persistence-"));
     tempDirs.push(tempDir);
@@ -141,16 +161,9 @@ describe("§7.5 unit 6: real fixture persistence", () => {
       todayMaxInt: "7",
       todayMaxIntRank: 9,
     });
-    expect(restored.getRecentQuakes(nowMs + 2)[0]).toMatchObject({
-      eventId: "20260728162718",
-      maxInt: "7",
-      maxIntRank: 9,
-      intensityGroups: recent.intensityGroups,
-    });
-    expect(quakeObservationMetaOf(restored.getRecentQuakes(nowMs + 2)[0]!)).toMatchObject({
-      sourceType: "VXSE53",
-      observationSourceType: "VXSE53",
-      maxIntValue: { presence: "value", value: "7" },
-    });
+    expect(restored.getRecentQuakes(nowMs + 2)).toEqual([recent]);
+    expect(quakeObservationMetaOf(restored.getRecentQuakes(nowMs + 2)[0]!)).toEqual(
+      quakeObservationMetaOf(recent),
+    );
   });
 });
