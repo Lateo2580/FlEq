@@ -1,6 +1,6 @@
 # spec: 竜巻 rider の地域集約（draft, 2026-08-26）
 
-> Status: D1-D adopted; D2 decision required
+> Status: **全裁定確定（2026-08-27 ご主人裁定: D2=A）**。D1-D＋D2-A で実装可能。
 >
 > 対象: VPHW50 / VPHW51 の待機画面 `WeatherAlertCard` 竜巻 rider
 >
@@ -140,7 +140,7 @@ rider 表示は `A県内全域、B市、C町、D村` となる。各電文内順
 
 ただし現行の `tornado:${publishingOffice}` は、2026-05-28以降 PublishingOffice が一律 `気象庁` である実電文と整合しない。複数府県予報区の共存・続報置換を正しくする scope key / durable subject の是正は、本仕様の rider 集約を有効化する**前提依存**として別作業契約で確定する。この未是正のまま A県＋B県の混在を受入済みとは扱わない。
 
-## §5 CLI・テロップとの線引き（D2: 裁定待ち）
+## §5 CLI・テロップとの線引き（D2: 裁定済み【A】・2026-08-27 ご主人）
 
 - **案 A — rider のみ集約（推奨）**: §4.1 の bridge だけに集約を適用する。テロップは細粒度全件、CLI 通常表示は細粒度30件＋省略数、`detail tornado` は細粒度全件を維持する。CLI は高さ固定の rider ではなく、`d72394c` で全件確認経路を得た直後なので、正確な drill-down を優先する。
 - **案 B — CLI 通常表示も同じ集約、detail は細粒度**: `displayTornadoAdvisory()` は `proven-full-scope` 時に `○○県内全域`、`displayTornadoAdvisoryDetail()` は常に市町村等全件を出す。通常面の表記は揃うが、「通常カードと detail は同じ細粒度 layer を基準にする」という `d72394c` の直近契約を改訂し、通常表示の `発表中 N地域` と表示行の件数が一致しなくなる。
