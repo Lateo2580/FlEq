@@ -28,6 +28,7 @@ import {
 } from "../display/weather-promotion-ingest";
 import type { WeatherPromotionStore } from "../display/weather-promotion-store";
 import type { QuakeExtremeStore } from "../display/quake-extreme-store";
+import type { QuakeDisplayStore } from "../display/quake-display-store";
 import { projectRecentQuake } from "../display/project-event";
 import type { DailyQuakeCounter } from "../messages/daily-quake-counter";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "../display/weather-alert-view";
@@ -61,6 +62,8 @@ export interface DisplaySinkDeps {
   promotions: WeatherPromotionStore;
   /** 震度 7 の 12 時間保持。display off 中も電文受理と同時に更新する。 */
   quakeExtreme?: QuakeExtremeStore;
+  /** 地図 host／contribution／large-quake reference。display lifecycle の外で更新する。 */
+  quakeDisplay?: QuakeDisplayStore;
   /** 当日地震履歴。display off 中も更新し、runtime 起動時の seed に使う。 */
   dailyQuakes?: DailyQuakeCounter;
   /** 昇格判定に使う現況 view (state holder) */
@@ -187,11 +190,12 @@ export function createDisplaySink(deps: DisplaySinkDeps): DisplayIngestSink {
         applyWeatherPromotionOnIngest(deps.promotions, deps.weatherViews, event, nowMs);
       }
       const quakeExtremeChanged = deps.quakeExtreme?.applyPresentationEvent(event, nowMs) ?? false;
+      const quakeDisplayChanged = deps.quakeDisplay?.applyPresentationEvent(event, nowMs) ?? false;
       const dailyQuakeChanged = deps.dailyQuakes?.recordRecentQuake(projectRecentQuake(event), nowMs) ?? false;
       const hub = deps.getHub();
       // monitor 側で先に更新した store は hub の state-store からは差分に見えない。
       // 特に取消・下方修正を即時に snapshot へ反映するため、外部 dirty を明示する。
-      if (quakeExtremeChanged || dailyQuakeChanged) hub?.markExternalStateDirty?.();
+      if (quakeExtremeChanged || quakeDisplayChanged || dailyQuakeChanged) hub?.markExternalStateDirty?.();
       const tickerResult = tickerResultOf(hub?.ingest(event));
       return cardResult == null ? tickerResult : {
         ...(tickerResult == null || typeof tickerResult !== "object" ? {} : { tickerResult }),

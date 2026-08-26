@@ -17,6 +17,7 @@ import { DISPLAY_SUMMARY_WIDTH } from "./constants";
 import { createFrontendBuildIdReader } from "./frontend-build-id";
 import { InfoDisplayHub } from "./hub";
 import { DisplayStateStore } from "./state-store";
+import type { DisplayQuakeLifecyclePersistedV1 } from "./state-store";
 import { weatherAlertsFromVpws50, weatherAlertsFromVpww56 } from "./weather-alert-view";
 import { WeatherPromotionStore } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
@@ -64,6 +65,8 @@ export interface DisplaySeedSources {
   quakeExtreme?: () => QuakeExtremeStore;
   /** monitor 所有の当日地震履歴。display off/on・再起動をまたぐ。 */
   recentQuakes?: () => DisplayRecentQuakeV1[];
+  /** monitor 所有の地図 host／contribution／large-quake reference／revision。 */
+  quakeLifecycle?: () => DisplayQuakeLifecyclePersistedV1;
   /** monitor 所有の、再起動をまたぐ気象警報カード現況。 */
   weatherAlerts?: () => DisplayWeatherAlertV1[];
   /** 起動直後 snapshot に載せる当日統計。 */
@@ -203,6 +206,8 @@ export async function startDisplayRuntime(
 
   // 起動時 seed: 津波は restore 済み state から、気象警報は現況 (通常は未受信で空)
   const nowMs = Date.now();
+  const quakeLifecycle = seeds.quakeLifecycle?.();
+  if (quakeLifecycle != null) store.restoreQuakeLifecycle(quakeLifecycle, nowMs);
   const initialStats = seeds.stats?.();
   if (initialStats != null) store.setStats(initialStats);
   const tsunamiInfo = seeds.tsunami();

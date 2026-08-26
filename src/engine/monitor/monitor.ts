@@ -24,6 +24,8 @@ import { WeatherPromotionPersistence } from "../display/weather-promotion-persis
 import { WeatherPromotionStore } from "../display/weather-promotion-store";
 import { QuakeExtremePersistence } from "../display/quake-extreme-persistence";
 import { QuakeExtremeStore } from "../display/quake-extreme-store";
+import { QuakeDisplayPersistence } from "../display/quake-display-persistence";
+import { QuakeDisplayStore } from "../display/quake-display-store";
 import { DailyQuakeCounter } from "../messages/daily-quake-counter";
 import { DailyQuakePersistence } from "../messages/daily-quake-persistence";
 import { Vpws50StateHolder } from "../messages/vpws50-state";
@@ -256,6 +258,22 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     }
   });
 
+  // 地図の contribution／host 絶対期限／large-quake reference／revision は display runtime
+  // ではなく monitor が所有する。display off 中も受理し、別ファイルの additive v1 へ保存する。
+  const quakeDisplayStore = new QuakeDisplayStore();
+  const quakeDisplayPersistence = new QuakeDisplayPersistence(
+    join(process.cwd(), "data", "runtime", "quake-display-v1.json"),
+  );
+  quakeDisplayStore.onDurable(
+    () => quakeDisplayPersistence.schedule(quakeDisplayStore.export(), Date.now()),
+  );
+  try {
+    const persistedQuakeDisplay = quakeDisplayPersistence.load(Date.now());
+    if (persistedQuakeDisplay != null) quakeDisplayStore.restore(persistedQuakeDisplay, Date.now());
+  } catch (err) {
+    log.warn(`地震地図状態の復元に失敗しました: ${err instanceof Error ? err.message : err} (本体は継続します)`);
+  }
+
   // 震度 7 の背景保持は、表示用 largeQuake/latestQuake の TTL から独立した originTime 基準の 12 時間時計。
   // monitor 所有にして display off/on とプロセス再起動をまたいで維持する。
   const quakeExtremeStore = new QuakeExtremeStore();
@@ -317,6 +335,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   // runtime 稼働中は standby sweep が hub へ移るため、ここを兼用すると日替わりが保存されない。
   let dailyQuakeSweepTimer: NodeJS.Timeout | null = setInterval(() => {
     const nowMs = Date.now();
+    if (quakeDisplayStore.sweep(nowMs)) displayHubRef?.markExternalStateDirty?.();
     if (dailyQuakeCounter.sweep(nowMs)) {
       dailyQuakePersistence.dispose();
       dailyQuakePersistence.save(dailyQuakeCounter.export(), nowMs);
@@ -338,6 +357,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     standby: standbyStore,
     promotions: weatherPromotionStore,
     quakeExtreme: quakeExtremeStore,
+    quakeDisplay: quakeDisplayStore,
     dailyQuakes: dailyQuakeCounter,
     weatherViews: {
       vpws50: () => vpws50State.getCurrentAreasForDisplay(),
@@ -438,6 +458,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
       weatherAlerts: () => standbyStore.snapshotWeatherAlerts(),
       weatherPromotions: () => weatherPromotionStore,
       quakeExtreme: () => quakeExtremeStore,
+      quakeLifecycle: () => quakeDisplayStore.export(),
       recentQuakes: () => dailyQuakeCounter.getRecentQuakes(),
       stats: () => buildDisplayStats(),
       standbySweep: sweepStandbyFoundation,
@@ -519,6 +540,10 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
     flushQuakeExtreme: () => {
       quakeExtremePersistence.dispose();
       quakeExtremePersistence.save(quakeExtremeStore.export(), Date.now());
+    },
+    flushQuakeDisplay: () => {
+      quakeDisplayPersistence.dispose();
+      quakeDisplayPersistence.save(quakeDisplayStore.export(), Date.now());
     },
     flushDailyQuake: () => {
       stopDailyQuakeSweep();

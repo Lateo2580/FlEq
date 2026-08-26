@@ -58,7 +58,7 @@ import {
   type WeatherPromotionRecord,
 } from "./weather-promotion-store";
 import { QuakeExtremeStore } from "./quake-extreme-store";
-import { RevisionGuard } from "./revision-guard";
+import { RevisionGuard, type PersistedSeenEntry } from "./revision-guard";
 import type { StandbyRevision } from "./standby-registry";
 import { TSUNAMI_OBSERVATION_MAX_STATIONS_PER_FAMILY } from "../messages/tsunami-state";
 import { projectDisplayTsunamiObservations } from "./tsunami-observation-projection";
@@ -81,6 +81,14 @@ interface QuakeMapMutationResult {
   accepted: boolean;
   changed: boolean;
   preservation: "none" | "structuralMissing" | "knownEmergencyUnknown";
+}
+
+export interface DisplayQuakeLifecyclePersistedV1 {
+  contributions: DisplayQuakeIntensityMapEventV1[];
+  largeQuakes: Array<{ key: string; value: DisplayLargeQuakeStateV1 }>;
+  nonEmergencyHost: { eventKey: string; expiresAtMs: number } | null;
+  unknownHost?: { eventKey: string; expiresAtMs: number } | null;
+  revisions: PersistedSeenEntry[];
 }
 
 function quakeMapSafetyLowerRank(event: DisplayQuakeIntensityMapEventV1): number {
@@ -218,6 +226,69 @@ export class DisplayStateStore {
   ) {
     this.promotions = promotions ?? new WeatherPromotionStore();
     this.quakeExtreme = quakeExtreme ?? new QuakeExtremeStore();
+  }
+
+  /** monitor 所有 state の display runtime seed／永続化境界。wire schema には載せない。 */
+  exportQuakeLifecycle(): DisplayQuakeLifecyclePersistedV1 {
+    return {
+      contributions: [...this.quakeMapContributions.values()]
+        .flatMap((bySource) => [...bySource.values()])
+        .map((event) => structuredClone(event)),
+      largeQuakes: [...this.largeQuakes]
+        .map(([key, value]) => ({ key, value: structuredClone(value) })),
+      nonEmergencyHost: this.quakeMapHost == null ? null : { ...this.quakeMapHost },
+      ...(this.unknownQuakeMapHost == null
+        ? {}
+        : { unknownHost: { ...this.unknownQuakeMapHost } }),
+      revisions: this.quakeMapRevisionGuard.export(),
+    };
+  }
+
+  /**
+   * additive persistence または monitor の in-memory state から復元する。
+   * TTL は保存時の残時間ではなく絶対期限で判定し、event 単位で salvage 済みの入力だけを採用する。
+   */
+  restoreQuakeLifecycle(state: DisplayQuakeLifecyclePersistedV1, nowMs: number): void {
+    this.quakeMapContributions.clear();
+    this.largeQuakes.clear();
+    this.quakeMapHost = null;
+    this.unknownQuakeMapHost = null;
+
+    for (const event of state.contributions) {
+      const bySource = this.quakeMapContributions.get(event.eventKey) ?? new Map();
+      bySource.set(event.sourceType, structuredClone(event));
+      this.quakeMapContributions.set(event.eventKey, bySource);
+    }
+    for (const entry of state.largeQuakes) {
+      if (nowMs - entry.value.updatedAtMs <= LARGE_QUAKE_HOLD_MIN * MIN_MS) {
+        this.largeQuakes.set(entry.key, structuredClone(entry.value));
+      }
+    }
+    this.quakeMapRevisionGuard.restore(state.revisions, nowMs);
+
+    const knownHost = state.nonEmergencyHost;
+    if (
+      knownHost != null
+      && nowMs < knownHost.expiresAtMs
+      && this.effectiveQuakeMapEvent(knownHost.eventKey) != null
+    ) {
+      this.quakeMapHost = { ...knownHost };
+    }
+    const unknownHost = state.unknownHost;
+    const unknownEvent = unknownHost == null
+      ? null
+      : this.effectiveQuakeMapEvent(unknownHost.eventKey);
+    if (
+      unknownHost != null
+      && nowMs < unknownHost.expiresAtMs
+      && unknownEvent != null
+      && isUnknownQuakeMapEvent(unknownEvent)
+      && !this.hasActiveKnownQuakeMapHost(nowMs)
+      && !this.hasLargeQuakeMapReference()
+    ) {
+      this.unknownQuakeMapHost = { ...unknownHost };
+    }
+    this.pruneUnreferencedQuakeMapEvents();
   }
 
   /**

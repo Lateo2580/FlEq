@@ -8,7 +8,8 @@ import { InfoDisplayHub } from "../../../src/engine/display/hub";
 import { DisplayStateStore } from "../../../src/engine/display/state-store";
 import { StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import { WeatherPromotionStore } from "../../../src/engine/display/weather-promotion-store";
-import { LARGE_QUAKE_HOLD_MIN } from "../../../src/engine/display/constants";
+import { QuakeDisplayStore } from "../../../src/engine/display/quake-display-store";
+import { QuakeDisplayPersistence } from "../../../src/engine/display/quake-display-persistence";
 import type {
   DisplayServerMessageWithReconcile,
   DisplayTransport,
@@ -69,6 +70,7 @@ class CapturingTransport implements DisplayTransport {
 
 interface ProductionHarness {
   readonly daily: DailyQuakeCounter;
+  readonly quakeDisplay: QuakeDisplayStore;
   readonly display: DisplayStateStore;
   readonly hub: InfoDisplayHub;
   readonly handler: ReturnType<typeof createMessageHandler>;
@@ -76,6 +78,8 @@ interface ProductionHarness {
   readonly events: PresentationEvent[];
   readonly transport: CapturingTransport;
   setNow(nowMs: number): void;
+  displayOff(): void;
+  displayOn(): void;
 }
 
 function linearOutcome(candidate: ProcessOutcome | VolcanoBatchOutcome): ProcessOutcome {
@@ -85,20 +89,19 @@ function linearOutcome(candidate: ProcessOutcome | VolcanoBatchOutcome): Process
   return candidate;
 }
 
-function productionHarness(initialNowMs: number): ProductionHarness {
+function productionHarness(
+  initialNowMs: number,
+  restored: { daily?: DailyQuakeCounter; quakeDisplay?: QuakeDisplayStore } = {},
+): ProductionHarness {
   let nowMs = initialNowMs;
   vi.setSystemTime(initialNowMs);
-  const daily = new DailyQuakeCounter(initialNowMs);
+  const daily = restored.daily ?? new DailyQuakeCounter(initialNowMs);
+  const quakeDisplay = restored.quakeDisplay ?? new QuakeDisplayStore();
   const standby = new StandbyStateStore();
   const events: PresentationEvent[] = [];
   const outcomes: ProcessOutcome[] = [];
   const transport = new CapturingTransport();
-  const display = new DisplayStateStore(
-    () => standby.snapshotItems(),
-    undefined,
-    undefined,
-    () => daily.getRecentQuakes(nowMs),
-  );
+  let display: DisplayStateStore;
   let hub: InfoDisplayHub | null = null;
   const sink = createDisplaySink({
     standby: {
@@ -108,6 +111,7 @@ function productionHarness(initialNowMs: number): ProductionHarness {
       },
     },
     promotions: new WeatherPromotionStore(),
+    quakeDisplay,
     dailyQuakes: daily,
     weatherViews: {
       vpws50: () => undefined,
@@ -123,17 +127,31 @@ function productionHarness(initialNowMs: number): ProductionHarness {
   });
   handler.notifier.setAll(true);
   handler.notifier.setSoundEnabled(true);
-  hub = new InfoDisplayHub(display, {
-    summarize: (event) => event.title,
-    weatherAlerts: () => [],
-    now: () => nowMs,
-  });
-  hub.attachTransport(transport);
+  const displayOn = () => {
+    display = new DisplayStateStore(
+      () => standby.snapshotItems(),
+      undefined,
+      undefined,
+      () => daily.getRecentQuakes(nowMs),
+    );
+    display.restoreQuakeLifecycle(quakeDisplay.export(), nowMs);
+    hub = new InfoDisplayHub(display, {
+      summarize: (event) => event.title,
+      weatherAlerts: () => [],
+      now: () => nowMs,
+    });
+    hub.attachTransport(transport);
+  };
+  displayOn();
 
   return {
     daily,
-    display,
-    hub,
+    quakeDisplay,
+    get display() { return display; },
+    get hub() {
+      if (hub == null) throw new Error("display is off");
+      return hub;
+    },
     handler,
     outcomes,
     events,
@@ -142,6 +160,8 @@ function productionHarness(initialNowMs: number): ProductionHarness {
       nowMs = nextNowMs;
       vi.setSystemTime(nextNowMs);
     },
+    displayOff: () => { hub = null; },
+    displayOn,
   };
 }
 
@@ -240,6 +260,26 @@ function persistAndRestore(counter: DailyQuakeCounter, nowMs: number): DailyQuak
   const restored = new DailyQuakeCounter(nowMs + 2);
   if (!restored.restore(loaded, nowMs + 2)) throw new Error("daily persistence restore rejected");
   return restored;
+}
+
+function persistAndRestoreQuakeDisplay(store: QuakeDisplayStore, nowMs: number): QuakeDisplayStore {
+  const tempDir = fs.mkdtempSync(path.join(process.cwd(), `.phase7_5-quake-display-${process.pid}-`));
+  tempDirs.push(tempDir);
+  const persistence = new QuakeDisplayPersistence(path.join(tempDir, "quake-display.json"), 0);
+  persistence.save(store.export(), nowMs + 1);
+  const loaded = persistence.load(nowMs + 2);
+  persistence.dispose();
+  if (loaded == null) throw new Error("quake display persistence did not load");
+  const restored = new QuakeDisplayStore();
+  restored.restore(loaded, nowMs + 2);
+  return restored;
+}
+
+function restartProductionHarness(harness: ProductionHarness, nowMs: number): ProductionHarness {
+  return productionHarness(nowMs + 2, {
+    daily: persistAndRestore(harness.daily, nowMs),
+    quakeDisplay: persistAndRestoreQuakeDisplay(harness.quakeDisplay, nowMs),
+  });
 }
 
 function restartDisplaySnapshot(
@@ -517,7 +557,51 @@ describe("§7.5 unit 7: earthquake production-shaped end-to-end gate", () => {
     expect(vi.mocked(playSound).mock.calls.map(([level]) => level)).toContain("info");
   });
 
-  it("既知 emergency→unknown 続報は通知 cadence を保ち、map contribution/large-quake を降格しない", () => {
+  it("display off 中の all-unknown を絶対期限内の display on で unknown map に復元する", () => {
+    const xml = allUnknownXmlFromRealFixture(readFixture(REAL_VXSE53_SECOND));
+    const nowMs = reportDateTimeMsFromXml(xml, "VXSE53");
+    const harness = productionHarness(nowMs);
+    harness.displayOff();
+
+    deliverXml(harness, xml, "VXSE53", "phase7.5:lifecycle:off-unknown", nowMs);
+    expect(harness.quakeDisplay.export().unknownHost).toEqual({
+      eventKey: "earthquake:20260728162718",
+      expiresAtMs: nowMs + UNKNOWN_HOST_TTL_MS,
+    });
+
+    harness.setNow(nowMs + UNKNOWN_HOST_TTL_MS - 1);
+    harness.displayOn();
+    expect(harness.hub.buildSnapshot().mapLayers?.quake).toMatchObject({
+      unknownHost: {
+        eventKey: "earthquake:20260728162718",
+        expiresAtMs: nowMs + UNKNOWN_HOST_TTL_MS,
+      },
+      events: [expect.objectContaining({ maxIntRank: -1 })],
+    });
+  });
+
+  it("既知 emergency の restart 後に unknown 続報を受けても known map／large-quake を維持する", () => {
+    const firstNowMs = reportDateTimeMs(REAL_VXSE53_FIRST);
+    const secondXml = allUnknownXmlFromRealFixture(readFixture(REAL_VXSE53_SECOND));
+    const secondNowMs = reportDateTimeMsFromXml(secondXml, "VXSE53");
+    const beforeRestart = productionHarness(firstNowMs);
+    deliverFixture(beforeRestart, REAL_VXSE53_FIRST, "phase7.5:lifecycle:known-before-restart", firstNowMs);
+
+    const restarted = restartProductionHarness(beforeRestart, firstNowMs);
+    expect(restarted.hub.buildSnapshot().largeQuakes[0]).toMatchObject({ maxInt: "7", maxIntRank: 9 });
+    deliverXml(restarted, secondXml, "VXSE53", "phase7.5:lifecycle:unknown-after-restart", secondNowMs);
+
+    const snapshot = restarted.hub.buildSnapshot();
+    expect(snapshot.mapLayers?.quake?.unknownHost).toBeUndefined();
+    expect(snapshot.mapLayers?.quake?.events).toEqual([
+      expect.objectContaining({ maxInt: "7", maxIntRank: 9, updatedAtMs: firstNowMs }),
+    ]);
+    expect(snapshot.largeQuakes).toEqual([
+      expect.objectContaining({ maxInt: "7", maxIntRank: 9, updatedAtMs: firstNowMs }),
+    ]);
+  });
+
+  it("known→unknown 受信直後の restart でも非降格と通知 cadence を維持する", () => {
     const firstNowMs = reportDateTimeMs(REAL_VXSE53_FIRST);
     const secondXml = allUnknownXmlFromRealFixture(readFixture(REAL_VXSE53_SECOND));
     const secondNowMs = reportDateTimeMsFromXml(secondXml, "VXSE53");
@@ -580,10 +664,6 @@ describe("§7.5 unit 7: earthquake production-shaped end-to-end gate", () => {
       expect.arrayContaining(["warning", "info"]),
     );
 
-    harness.setNow(firstNowMs + LARGE_QUAKE_HOLD_MIN * 60_000 + 1);
-    expect(harness.display.sweep(firstNowMs + LARGE_QUAKE_HOLD_MIN * 60_000 + 1)).toBe(true);
-    expect(harness.hub.buildSnapshot().largeQuakes).toHaveLength(0);
-
     const restored = persistAndRestore(harness.daily, secondNowMs);
     expect(restored.getSnapshot(secondNowMs + 2)).toEqual({
       todayQuakeCount: 1,
@@ -595,10 +675,11 @@ describe("§7.5 unit 7: earthquake production-shaped end-to-end gate", () => {
     if (restoredRecent == null) throw new Error("restored emergency→unknown row missing");
     expect(restoredRecent.intensityGroups).toEqual(liveHistoryRow.intensityGroups);
     expect(quakeObservationMetaOf(restoredRecent)).toEqual(quakeObservationMetaOf(liveHistoryRow));
-    const restartedSnapshot = restartDisplaySnapshot(restored, eventDto(harness), secondNowMs + 2);
-    expect(withoutUpdatedAt(restartedSnapshot.latestQuake)).toEqual(
-      withoutUpdatedAt(snapshot.latestQuake),
-    );
+    const restarted = restartProductionHarness(harness, secondNowMs);
+    const restartedSnapshot = restarted.hub.buildSnapshot();
+    expect(restartedSnapshot.mapLayers?.quake?.unknownHost).toBeUndefined();
+    expect(restartedSnapshot.mapLayers?.quake?.events).toEqual(map?.events);
+    expect(restartedSnapshot.largeQuakes).toEqual(snapshot.largeQuakes);
     expect(restartedSnapshot.recentQuakes).toEqual(snapshot.recentQuakes);
   });
 });
