@@ -133,6 +133,7 @@ export interface RenderBuffer {
   readonly lineCount: number;
   readonly lines: readonly MarkedLine[];
   readonly titleLine: string | null;
+  readonly titleLines: readonly string[];
   readonly cardLine: string | null;
   readonly headlineLines: readonly string[];
 }
@@ -169,6 +170,7 @@ export interface PushWrappedFrameLineOptions {
 export function createRenderBuffer(): RenderBuffer {
   const _lines: MarkedLine[] = [];
   let _titleLine: string | null = null;
+  const _titleLines: string[] = [];
   let _cardLine: string | null = null;
   const _headlineLines: string[] = [];
 
@@ -182,6 +184,7 @@ export function createRenderBuffer(): RenderBuffer {
     pushTitle(line: string) {
       _lines.push({ text: line, kind: "title" });
       if (_titleLine == null) _titleLine = line;
+      _titleLines.push(line);
     },
     pushCard(line: string) {
       _lines.push({ text: line, kind: "card" });
@@ -195,6 +198,7 @@ export function createRenderBuffer(): RenderBuffer {
     get lineCount() { return _lines.length; },
     get lines() { return _lines; },
     get titleLine() { return _titleLine; },
+    get titleLines() { return _titleLines; },
     get cardLine() { return _cardLine; },
     get headlineLines() { return _headlineLines; },
   };
@@ -261,7 +265,7 @@ export function flushWithRecap(
   }
 
   // recap セクション — 要約データがある場合のみ表示
-  const hasRecapData = buf.titleLine != null || buf.cardLine != null || buf.headlineLines.length > 0;
+  const hasRecapData = buf.titleLines.length > 0 || buf.cardLine != null || buf.headlineLines.length > 0;
   if (hasRecapData) {
     if (borderColor != null) {
       console.log(frameDividerColored(level, borderColor, width));
@@ -270,9 +274,7 @@ export function flushWithRecap(
       console.log(frameDivider(level, width));
       console.log(frameLine(level, chalk.gray("▼ サマリー"), width));
     }
-    if (buf.titleLine != null) {
-      console.log(buf.titleLine);
-    }
+    for (const titleLine of buf.titleLines) console.log(titleLine);
     if (buf.cardLine != null) {
       console.log(buf.cardLine);
     }

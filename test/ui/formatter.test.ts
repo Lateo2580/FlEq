@@ -1435,6 +1435,27 @@ describe("バッファリング + recap", () => {
     expect(lines[summaryIdx - 1]).toBe(frameDivider("normal", 60));
     expect(lines[summaryIdx]).toBe(frameLine("normal", chalk.gray("▼ サマリー"), 60));
   });
+
+  it("複数の title 行を recap に順序どおり再掲する", () => {
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+
+    const buf = createRenderBuffer();
+    const firstTitle = frameLine("normal", "長いタイトル本体", 60);
+    const secondTitle = frameLine("normal", "発表  [情報]", 60);
+    buf.pushTitle(firstTitle);
+    buf.pushTitle(secondTitle);
+    for (let i = 0; i < 20; i++) buf.push(frameLine("normal", `行${i}`, 60));
+    buf.push(frameBottom("normal", 60));
+    buf.pushEmpty();
+
+    flushWithRecap(buf, "normal", 60);
+
+    const lines = logSpy.mock.calls.map((args) => String(args[0] ?? ""));
+    const summaryIdx = lines.findIndex((line) => line.includes("▼ サマリー"));
+    expect(summaryIdx).toBeGreaterThan(0);
+    expect(lines.slice(summaryIdx + 1, summaryIdx + 3)).toEqual([firstTitle, secondTitle]);
+  });
 });
 
 // ── renderGroupedItemList ──

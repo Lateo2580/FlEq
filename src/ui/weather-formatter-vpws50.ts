@@ -24,9 +24,9 @@ import {
 } from "./weather-warning-level-theme";
 import {
   FrameLevel,
+  FrameLinePurpose,
   SEVERITY_LABELS,
   frameLine,
-  frameLineColored,
   frameDivider,
   frameDividerColored,
   frameDividerLabeledColored,
@@ -37,6 +37,7 @@ import {
   getFrameWidth,
   wrapFrameLines,
   wrapFrameLinesColored,
+  pushWrappedFrameLine,
   visualWidth,
   clipToVisualWidth,
 } from "./formatter";
@@ -271,16 +272,21 @@ export interface Vpws50BodyBorderColors {
   tail: (s: string) => string;
 }
 
-/** 本文系 frame 行 (colors 指定時は tail 色、未指定は level 色) */
-function bodyLine(
+/** 本文系 frame 行。可変本文は用途別 wrapper 経由で幅を証明する。 */
+function pushBodyLine(
+  buf: ReturnType<typeof createRenderBuffer>,
   level: FrameLevel,
   content: string,
   width: number,
   colors: Vpws50BodyBorderColors | undefined,
-): string {
-  return colors == null
-    ? frameLine(level, content, width)
-    : frameLineColored(level, colors.tail, content, width);
+  purpose: FrameLinePurpose = "prose",
+): void {
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose, ...(colors == null ? {} : { borderColor: colors.tail }) },
+    content,
+  );
 }
 
 /** 本文系 divider (colors 指定時は tail 色、未指定は level 色) */
@@ -423,7 +429,7 @@ function renderSubline(
   buf: ReturnType<typeof createRenderBuffer>,
   colors?: Vpws50BodyBorderColors,
 ): void {
-  buf.push(bodyLine(level, `  ${chalk.gray(text)}`, width, colors));
+  pushBodyLine(buf, level, `  ${chalk.gray(text)}`, width, colors);
 }
 
 /** 差分セクション (★ 今回の変化) を描く。added/upgraded/downgraded のみ (released は別枠) */
@@ -434,7 +440,7 @@ function renderChangeSection(
   buf: ReturnType<typeof createRenderBuffer>,
   colors?: Vpws50BodyBorderColors,
 ): void {
-  buf.push(bodyLine(level, "★ 今回の変化", width, colors));
+  pushBodyLine(buf, level, "★ 今回の変化", width, colors, "type");
   for (const a of diff.added) {
     const kindsText = a.changes
       .map((c) => formatDisplayTokenResolved(
@@ -483,7 +489,7 @@ function renderReleasedSection(
 ): void {
   if (diff.released.length === 0) return;
   buf.push(bodyDivider(level, width, colors));
-  buf.push(bodyLine(level, "▼ 今回解除", width, colors));
+  pushBodyLine(buf, level, "▼ 今回解除", width, colors, "type");
   for (const a of diff.released) {
     const kindsText = a.changes.map((c) =>
       formatPrevDisplayToken(c.kindShortName, c.prevDisplaySeverity, c.prevOfficialAlertLevel),
@@ -701,10 +707,17 @@ function renderLegacyVpws50List(
 
   // セクションヘッダ (R2 修正: rows=0 でも凡例/解除を出すため必ず先に push)
   buf.push(bodyDivider(level, width, colors));
-  buf.push(bodyLine(level, chalk.gray("[気象警報・注意報（府県予報区等）]"), width, colors));
+  pushBodyLine(
+    buf,
+    level,
+    chalk.gray("[気象警報・注意報（府県予報区等）]"),
+    width,
+    colors,
+    "type",
+  );
 
   if (rows.length === 0) {
-    buf.push(bodyLine(level, chalk.gray("現在発令中の警報・注意報はありません"), width, colors));
+    pushBodyLine(buf, level, chalk.gray("現在発令中の警報・注意報はありません"), width, colors);
   } else {
     const maxAreaWidth = Math.max(...rows.map((r) => visualWidth(r.areaName)));
     for (const row of rows) {
@@ -729,13 +742,13 @@ function renderLegacyVpws50List(
   // 解除セクション (lastKindName をフル名で出す)
   if (releasedItems.length > 0) {
     buf.pushEmpty();
-    buf.push(
-      bodyLine(
-        level,
-        chalk.gray(`■ 今回解除された警報・注意報 (${releasedItems.length}予報区)`),
-        width,
-        colors,
-      ),
+    pushBodyLine(
+      buf,
+      level,
+      chalk.gray(`■ 今回解除された警報・注意報 (${releasedItems.length}予報区)`),
+      width,
+      colors,
+      "type",
     );
     for (const item of releasedItems) {
       const lastKindsText = item.lastKinds.join("、");
@@ -772,8 +785,8 @@ function displayVpws50List(
       : diff.unsafeReason === "abnormal_release_rate"
         ? "異常な解除率を検出しました"
         : "解析できませんでした";
-    buf.push(bodyLine(level, `⚠ ${reasonText}`, width, colors));
-    buf.push(bodyLine(level, "  入力電文の構造を確認してください", width, colors));
+    pushBodyLine(buf, level, `⚠ ${reasonText}`, width, colors, "diagnostic");
+    pushBodyLine(buf, level, "  入力電文の構造を確認してください", width, colors, "diagnostic");
     return;
   }
 
@@ -781,19 +794,19 @@ function displayVpws50List(
   if (diff?.isCancelRollback) {
     renderSubline("取消報 — 直前報を巻き戻し", level, width, buf, colors);
     buf.push(bodyDivider(level, width, colors));
-    buf.push(bodyLine(level, "直前報を取り消しました", width, colors));
-    buf.push(bodyLine(level, "現況を巻き戻し後の状態に戻して再表示します", width, colors));
+    pushBodyLine(buf, level, "直前報を取り消しました", width, colors);
+    pushBodyLine(buf, level, "現況を巻き戻し後の状態に戻して再表示します", width, colors);
     buf.push(bodyDivider(level, width, colors));
     if (diff.currentAreasForDisplay != null) {
       renderCurrentSummaryFromDisplay(diff.currentAreasForDisplay, level, width, buf, colors);
     } else {
-      buf.push(
-        bodyLine(
-          level,
-          "現況: state を保持していません (次回受信時にフル現況を表示します)",
-          width,
-          colors,
-        ),
+      pushBodyLine(
+        buf,
+        level,
+        "現況: state を保持していません (次回受信時にフル現況を表示します)",
+        width,
+        colors,
+        "diagnostic",
       );
     }
     return;

@@ -4,10 +4,10 @@
 import chalk from "chalk";
 import type { ParsedWeatherWarning } from "../types";
 import {
-  getFrameWidth, SEVERITY_LABELS, visualWidth, clipToVisualWidth,
+  getFrameWidth, SEVERITY_LABELS,
   frameTopColored, frameBottomColored, frameLineColored,
   frameDividerColored,
-  createRenderBuffer, flushWithRecap, renderFooter,
+  createRenderBuffer, flushWithRecap, renderFooter, pushWrappedFrameLine,
 } from "./formatter";
 import * as theme from "./theme";
 import {
@@ -30,6 +30,26 @@ const WHITE_BORDER = chalk.rgb(232, 232, 232);
 const BANNER_SEVERITIES: ReadonlySet<DisplaySeverity> = new Set<DisplaySeverity>([
   "officialL5", "officialL4", "officialL3", "nonLevelSpecial", "nonLevelWarning",
 ]);
+
+function pushWrappedTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: Parameters<typeof pushWrappedFrameLine>[1],
+  width: number,
+  content: Parameters<typeof pushWrappedFrameLine>[3],
+  borderColor?: (s: string) => string,
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", ...(borderColor == null ? {} : { borderColor }) },
+    content,
+  );
+  const [first, ...rest] = titleBuf.getLines();
+  if (first == null) return;
+  buf.pushTitle(first);
+  for (const line of rest) buf.pushTitle(line);
+}
 
 export function displayWeatherWarningCore(
   info: ParsedWeatherWarning,
@@ -79,13 +99,23 @@ export function displayWeatherWarningCore(
   // ── 外枠 + タイトル (最大 severity 色) ──
   buf.push(frameTopColored(styleLevel, outerColor, width));
   if (info.isTest) {
-    buf.push(frameLineColored(styleLevel, outerColor, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(styleLevel, outerColor, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        styleLevel,
+        { width, purpose: "type", borderColor: outerColor },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
   // title が長い電文 (VPWW61 の全現象連結等) でも幅内に収める。
-  const titleSuffix = `  ${info.infoType}  ${SEVERITY_LABELS[styleLevel]}`;
-  const titleBudget = Math.max(4, width - 4 - visualWidth(titleSuffix));
-  const title = chalk.bold(clipToVisualWidth(info.title, titleBudget)) + chalk.gray(titleSuffix);
-  buf.pushTitle(frameLineColored(styleLevel, outerColor, title, width));
+  pushWrappedTitle(buf, styleLevel, width, [
+    { text: chalk.bold(info.title), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[styleLevel]), priority: 2, omission: "drop" },
+  ], outerColor);
 
   // ── 取消パス (固定。早期 return、layout の影響を受けない) ──
   if (isCancelPath(info.infoType, counts)) {
@@ -93,7 +123,12 @@ export function displayWeatherWarningCore(
     // 2026-06-11 レビュー決定。VPWP50 の取消パスと同形)
     const cancelColor = getDisplaySeverityText("release");
     buf.push(frameDividerColored(styleLevel, cancelColor, width));
-    buf.push(frameLineColored(styleLevel, cancelColor, chalk.gray("この情報は取り消されました"), width));
+    pushWrappedFrameLine(
+      buf,
+      styleLevel,
+      { width, purpose: "diagnostic", borderColor: cancelColor },
+      chalk.gray("この情報は取り消されました"),
+    );
     renderFooter(styleLevel, info.type, info.reportDateTime, info.publishingOffice, width, buf, cancelColor);
     buf.push(frameBottomColored(styleLevel, cancelColor, width));
     buf.pushEmpty();

@@ -13,7 +13,6 @@ import {
   getFrameWidth,
   SEVERITY_LABELS,
   frameTop,
-  frameLine,
   frameDivider,
   frameBottom,
   frameTopColored,
@@ -24,6 +23,7 @@ import {
   flushWithRecap,
   wrapFrameLines,
   wrapFrameLinesColored,
+  pushWrappedFrameLine,
   renderFooter,
 } from "./formatter";
 import {
@@ -40,6 +40,26 @@ import {
   vpws50BannerSeverity,
   buildVpws50BannerText,
 } from "./weather-formatter-vpws50";
+
+function pushWrappedTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: Parameters<typeof pushWrappedFrameLine>[1],
+  width: number,
+  content: Parameters<typeof pushWrappedFrameLine>[3],
+  borderColor?: (s: string) => string,
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", ...(borderColor == null ? {} : { borderColor }) },
+    content,
+  );
+  const [first, ...rest] = titleBuf.getLines();
+  if (first == null) return;
+  buf.pushTitle(first);
+  for (const line of rest) buf.pushTitle(line);
+}
 
 /** 電文タイプの日本語名 (気象警報・注意報) */
 function weatherTypeLabel(type: string): string {
@@ -226,17 +246,31 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
     buf.push(frameTopColored(level, headColor, width));
 
     if (info.isTest) {
-      buf.push(frameLineColored(level, headColor, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
+      if (chalk.level === 0) {
+        buf.push(frameLineColored(level, headColor, " テスト電文 ", width));
+      } else {
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "type", borderColor: headColor },
+          theme.getRoleChalk("testBadge")(" テスト電文 "),
+        );
+      }
     }
 
-    const titleContent =
-      chalk.bold(label) +
-      chalk.gray(`  ${info.infoType}`) +
-      chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-    buf.pushTitle(frameLineColored(level, headColor, titleContent, width));
+    pushWrappedTitle(buf, level, width, [
+      { text: chalk.bold(label), priority: 0, omission: "never" },
+      { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+      { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+    ], headColor);
 
     if (info.title && info.title !== label) {
-      buf.push(frameLineColored(level, headColor, chalk.white(info.title), width));
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "title", borderColor: headColor },
+        chalk.white(info.title),
+      );
     }
 
     // 取消ロールバック (diff.isCancelRollback) は VPWS50 専用 renderer に通すため、
@@ -244,7 +278,12 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
     // 取消は headColor = tailColor = release でフレーム全体単色。
     if (info.infoType === "取消" && !diff?.isCancelRollback) {
       buf.push(frameDividerColored(level, headColor, width));
-      buf.push(frameLineColored(level, headColor, chalk.gray("この情報は取り消されました"), width));
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "diagnostic", borderColor: headColor },
+        chalk.gray("この情報は取り消されました"),
+      );
       renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf, tailColor);
       buf.push(frameBottomColored(level, tailColor, width));
       buf.pushEmpty();
@@ -274,7 +313,12 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
       if (advZones > 0) summaryParts.push(severityColor("advisory")(`注意報 ${advZones}予報区`));
       if (summaryParts.length > 0) {
         buf.push(frameDividerColored(level, tailColor, width));
-        buf.push(frameLineColored(level, tailColor, summaryParts.join("  "), width));
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "prose", borderColor: tailColor },
+          summaryParts.join("  "),
+        );
       }
     }
 
@@ -298,28 +342,39 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
 
   // テスト電文バッジ
   if (info.isTest) {
-    buf.push(
-      frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type" },
+      theme.getRoleChalk("testBadge")(" テスト電文 "),
     );
   }
 
   // タイトル行
-  const titleContent =
-    chalk.bold(label) +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
+  pushWrappedTitle(buf, level, width, [
+    { text: chalk.bold(label), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ]);
 
   // info.title が typeLabel と異なる場合 (例: "島根県大雨警報・注意報") はサブタイトルとして表示
   if (info.title && info.title !== label) {
-    buf.push(frameLine(level, chalk.white(info.title), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "title" },
+      chalk.white(info.title),
+    );
   }
 
   // 取消の場合はそれだけ目立たせて終了
   if (info.infoType === "取消") {
     buf.push(frameDivider(level, width));
-    buf.push(
-      frameLine(level, chalk.gray("この情報は取り消されました"), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic" },
+      chalk.gray("この情報は取り消されました"),
     );
     renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
     buf.push(frameBottom(level, width));
@@ -355,7 +410,7 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
   }
   if (summaryParts.length > 0) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, summaryParts.join("  "), width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "prose" }, summaryParts.join("  "));
   }
 
   // 階層別表示: 最も粒度の細かい層を選ぶ。ただし items が大量の場合 (VPWS50 集約等) は
@@ -364,8 +419,11 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
   const displayLayer = pickDisplayableLayer(info.layers, fineLayer);
   if (displayLayer && displayLayer.items.length > 0) {
     buf.push(frameDivider(level, width));
-    buf.push(
-      frameLine(level, chalk.gray(`[${displayLayer.type}]`), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type" },
+      chalk.gray(`[${displayLayer.type}]`),
     );
 
     const grouped = groupItemsBySeverity(displayLayer);
@@ -375,7 +433,7 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
       if (!items || items.length === 0) continue;
 
       const header = severityColor(severity)(`■ ${SEVERITY_HEADER[severity]}`);
-      buf.push(frameLine(level, header, width));
+      pushWrappedFrameLine(buf, level, { width, purpose: "type" }, header);
 
       const limit = MAX_AREAS_PER_SEVERITY_GROUP;
       const visible = items.slice(0, limit);
@@ -389,12 +447,11 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
         }
       }
       if (omitted > 0) {
-        buf.push(
-          frameLine(
-            level,
-            chalk.gray(`  ... 他 ${omitted} 地域 (省略)`),
-            width,
-          ),
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "diagnostic" },
+          chalk.gray(`  ... 他 ${omitted} 地域 (省略)`),
         );
       }
     }
@@ -405,8 +462,11 @@ export function displayWeatherWarning(info: ParsedWeatherWarning, diff?: Vpws50D
     buf.push(frameDivider(level, width));
     for (const comment of info.comments) {
       if (comment.type) {
-        buf.push(
-          frameLine(level, chalk.gray(`[${comment.type}]`), width),
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "type" },
+          chalk.gray(`[${comment.type}]`),
         );
       }
       for (const line of wrapFrameLines(level, chalk.white(comment.text), width)) {

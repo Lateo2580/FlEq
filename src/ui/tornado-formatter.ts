@@ -13,6 +13,7 @@ import {
   createRenderBuffer,
   flushWithRecap,
   wrapFrameLinesColored,
+  pushWrappedFrameLine,
   renderFooter,
 } from "./formatter";
 import {
@@ -25,6 +26,26 @@ import { selectPreferredTornadoLayer } from "../dmdata/tornado-parser";
 
 // 本文・フッタ・取消外の白系罫線色 (normal 概念色 #e8e8e8)。briefing-formatter と同値。
 const WHITE_BORDER = chalk.rgb(232, 232, 232);
+
+function pushWrappedTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: Parameters<typeof pushWrappedFrameLine>[1],
+  width: number,
+  content: Parameters<typeof pushWrappedFrameLine>[3],
+  borderColor?: (s: string) => string,
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", ...(borderColor == null ? {} : { borderColor }) },
+    content,
+  );
+  const [first, ...rest] = titleBuf.getLines();
+  if (first == null) return;
+  buf.pushTitle(first);
+  for (const line of rest) buf.pushTitle(line);
+}
 
 /** 電文タイプの日本語名 */
 function tornadoTypeLabel(type: string): string {
@@ -111,28 +132,43 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
 
   // テスト電文バッジ
   if (info.isTest) {
-    buf.push(
-      frameLineColored(level, outerColor, theme.getRoleChalk("testBadge")(" テスト電文 "), width),
-    );
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, outerColor, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor: outerColor },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
 
   // タイトル行
-  const titleContent =
-    chalk.bold(label) +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLineColored(level, outerColor, titleContent, width));
+  pushWrappedTitle(buf, level, width, [
+    { text: chalk.bold(label), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ], outerColor);
 
   // info.title が typeLabel と異なる場合のサブタイトル
   if (info.title && info.title !== label) {
-    buf.push(frameLineColored(level, outerColor, chalk.white(info.title), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "title", borderColor: outerColor },
+      chalk.white(info.title),
+    );
   }
 
   // 取消は短く (フレーム全体 release 単色、早期 return)
   if (isCancel) {
     buf.push(frameDividerColored(level, bodyColor, width));
-    buf.push(
-      frameLineColored(level, bodyColor, chalk.gray("竜巻注意情報は取り消されました"), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor: bodyColor },
+      chalk.gray("竜巻注意情報は取り消されました"),
     );
     renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf, bodyColor);
     buf.push(frameBottomColored(level, bodyColor, width));
@@ -183,7 +219,12 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
   }
   if (summaryParts.length > 0) {
     buf.push(frameDividerColored(level, bodyColor, width));
-    buf.push(frameLineColored(level, bodyColor, summaryParts.join("  "), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor: bodyColor },
+      summaryParts.join("  "),
+    );
   }
 
   // 階層別表示
@@ -193,8 +234,11 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
   const displayLayer = finePreferred;
   if (displayLayer && displayLayer.areas.length > 0) {
     buf.push(frameDividerColored(level, bodyColor, width));
-    buf.push(
-      frameLineColored(level, bodyColor, chalk.gray(`[${displayLayer.type}]`), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor: bodyColor },
+      chalk.gray(`[${displayLayer.type}]`),
     );
 
     const visible = showAllAreas
@@ -207,13 +251,11 @@ function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolea
       buf.push(wrapped);
     }
     if (omitted > 0) {
-      buf.push(
-        frameLineColored(
-          level,
-          bodyColor,
-          chalk.gray(`  ... ほか ${omitted} 区域 (詳細: detail tornado)`),
-          width,
-        ),
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "diagnostic", borderColor: bodyColor },
+        chalk.gray(`  ... ほか ${omitted} 区域 (詳細: detail tornado)`),
       );
     }
   }

@@ -3,8 +3,15 @@ import { testTelegramMeta } from "../helpers/telegram-meta";
 // in-memory ParsedWeatherWarning で検証する (合成 XML は壊れやすいため避ける)。
 // Code 解決自体は test/dmdata/weather-warning-level.test.ts で網羅済み。
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import chalk from "chalk";
 import { displayWeatherWarningCore } from "../../src/ui/weather-core-formatter";
-import { setFrameWidth, stripAnsi } from "../../src/ui/formatter";
+import {
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  setFrameWidth,
+  stripAnsi,
+  visualWidth,
+} from "../../src/ui/formatter";
 import type { ParsedWeatherWarning } from "../../src/types";
 
 function makeInfo(kinds: { code: string; name: string }[]): ParsedWeatherWarning {
@@ -70,5 +77,38 @@ describe("特別警報級 (L5 / nonLevelSpecial) 描画経路", () => {
     expect(bannerLine).toBeDefined();
     expect(out).toContain("★★ 特別警報 (L5)");   // L5 section divider
     expect(out).toContain("◆◆ 特別警報");          // nonLevelSpecial section divider
+  });
+
+  it.each([40, 60, 80, 120, 200])("過長 title / type / region / prose を幅 %i に収める", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        logs = [];
+        resetFrameLineClampFallbackCount();
+        const info = makeInfo([{ code: "33", name: "大雨特別警報" }]);
+        info.title = `長い電文タイトル ${"大雨・洪水・土砂災害 ".repeat(20)}`;
+        info.infoType = `発表 ${"追加種別情報 ".repeat(10)}`;
+        info.layers[0]!.type = `市町村等 ${"対象地域階層 ".repeat(12)}`;
+        info.layers[0]!.items[0]!.areaName = `非常に長い対象地域名 ${"北部・南部 ".repeat(12)}`;
+        info.layers[0]!.items[0]!.kinds[0]!.name = `非常に長い警報名 ${"大雨特別警報情報 ".repeat(10)}`;
+        info.comments = [{
+          type: `長い補足見出し ${"診断 ".repeat(12)}`,
+          text: `長い本文 ${"対象地域の最新情報を確認してください。 ".repeat(40)}`,
+        }];
+        displayWeatherWarningCore(info);
+        for (const line of logs) {
+          const plain = stripAnsi(line);
+          const widthOfLine = visualWidth(plain);
+          expect(widthOfLine, `color=${level} width=${width} line=${JSON.stringify(plain.slice(0, 60))}`)
+            .toBeLessThanOrEqual(width);
+          if (/^[┌╔├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+        }
+        expect(getFrameLineClampFallbackCount(), `color=${level} width=${width}`).toBe(0);
+      }
+    } finally {
+      chalk.level = originalLevel;
+    }
   });
 });

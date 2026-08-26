@@ -1,7 +1,14 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { displayTornadoAdvisory, displayTornadoAdvisoryDetail } from "../../src/ui/tornado-formatter";
 import { parseTornadoAdvisory } from "../../src/dmdata/tornado-parser";
-import { setDisplayMode, clearFrameWidth, setFrameWidth, visualWidth } from "../../src/ui/formatter";
+import {
+  clearFrameWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  setDisplayMode,
+  setFrameWidth,
+  visualWidth,
+} from "../../src/ui/formatter";
 import {
   createMockWsDataMessage,
   FIXTURE_VPHW50_TOKYO,
@@ -111,6 +118,36 @@ describe("displayTornadoAdvisory - Phase D 配色言語", () => {
     const detail = stripAnsi(capture(() => displayTornadoAdvisoryDetail(info)));
     expect(detail).toContain("細粒度区域101");
     expect(detail).not.toContain("粗い地域");
+  });
+
+  it.each([40, 60, 80, 120, 200])("過長 title / region / headline / diagnostic を幅 %i に収める", (width) => {
+    const info = parseTornadoAdvisory(createMockWsDataMessage(FIXTURE_VPHW51_SIGHTING))!;
+    info.infoType = `発表 ${"追加種別情報 ".repeat(10)}`;
+    info.title = `長い竜巻注意情報タイトル ${"目撃情報・対象地域 ".repeat(20)}`;
+    info.headline = `長いヘッドライン ${"安全な場所へ移動してください。 ".repeat(40)}`;
+    info.validDateTime = "2026-08-27T23:59:00+09:00";
+    info.layers = [{
+      type: `竜巻注意情報（市町村等） ${"対象地域階層 ".repeat(12)}`,
+      areas: Array.from({ length: 31 }, (_, index) => ({
+        name: `非常に長い目撃対象地域名${String(index + 1).padStart(2, "0")} ${"北部・南部 ".repeat(6)}`,
+        code: String(index + 1),
+        status: "active" as const,
+      })),
+    }];
+    info.sightingAreas = info.layers[0]!.areas.slice(0, 3);
+    info.hasSightingAreas = true;
+    info.activeAreaCount = info.layers[0]!.areas.length;
+
+    setFrameWidth(width);
+    resetFrameLineClampFallbackCount();
+    const out = capture(() => displayTornadoAdvisory(info));
+    for (const line of out.split("\n")) {
+      const plain = stripAnsi(line);
+      const widthOfLine = visualWidth(plain);
+      expect(widthOfLine, `width=${width} line=${JSON.stringify(plain.slice(0, 60))}`).toBeLessThanOrEqual(width);
+      if (/^[┌╔├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+    }
+    expect(getFrameLineClampFallbackCount(), `width=${width}`).toBe(0);
   });
 
   // 代表 NO_COLOR snapshot (Codex R3 P1-5: sighting / normal / fail-safe / cancel)

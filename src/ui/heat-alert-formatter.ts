@@ -11,7 +11,7 @@ import {
   frameDividerColored,
   createRenderBuffer,
   flushWithRecap,
-  wrapFrameLinesColored,
+  pushWrappedFrameLine,
   renderFooter,
 } from "./formatter";
 import {
@@ -20,6 +20,26 @@ import {
   drawSeverityBanner,
 } from "./weather-warning-level-theme";
 import { heatAlertFrameLevel } from "../engine/presentation/level-helpers";
+
+function pushWrappedTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: Parameters<typeof pushWrappedFrameLine>[1],
+  width: number,
+  content: Parameters<typeof pushWrappedFrameLine>[3],
+  borderColor?: (s: string) => string,
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(
+    titleBuf,
+    level,
+    { width, purpose: "title", ...(borderColor == null ? {} : { borderColor }) },
+    content,
+  );
+  const [first, ...rest] = titleBuf.getLines();
+  if (first == null) return;
+  buf.pushTitle(first);
+  for (const line of rest) buf.pushTitle(line);
+}
 
 /**
  * 熱中症警戒アラート (VPFT50) の full 表示。
@@ -59,43 +79,64 @@ export function displayHeatAlertInfo(info: ParsedHeatAlertInfo): void {
 
   // テスト電文バッジ
   if (info.isTest) {
-    buf.push(
-      frameLineColored(level, outerColor, theme.getRoleChalk("testBadge")(" テスト電文 "), width),
-    );
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, outerColor, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor: outerColor },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
 
   // タイトル行 (controlTitle = 電文自身の名乗り「熱中症警戒アラート」)
-  const titleContent =
-    chalk.bold(info.controlTitle || "熱中症警戒アラート") +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLineColored(level, outerColor, titleContent, width));
+  pushWrappedTitle(buf, level, width, [
+    { text: chalk.bold(info.controlTitle || "熱中症警戒アラート"), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ], outerColor);
 
   // 対象府県 + 電文タイトル (取消フレームでも対象府県が判るよう、取消分岐の前に出す。
   // briefing-formatter / climate-info-formatter と同じ前例)
   if (info.targetAreaName) {
-    buf.push(
-      frameLineColored(level, bodyColor, `  ${chalk.bold.white(info.targetAreaName)}`, width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "region", borderColor: bodyColor },
+      `  ${chalk.bold.white(info.targetAreaName)}`,
     );
   }
   if (info.title) {
-    for (const wrapped of wrapFrameLinesColored(level, bodyColor, `  ${chalk.white(info.title)}`, width)) {
-      buf.push(wrapped);
-    }
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "title", borderColor: bodyColor },
+      `  ${chalk.white(info.title)}`,
+    );
   }
 
   if (isCancel) {
     buf.push(frameDividerColored(level, bodyColor, width));
-    buf.push(frameLineColored(level, bodyColor, chalk.gray("この情報は取り消されました"), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor: bodyColor },
+      chalk.gray("この情報は取り消されました"),
+    );
   } else {
     // 本文 (Comment 平文)。段落をそのまま wrap 表示
     if (info.bodyText) {
       buf.push(frameDividerColored(level, bodyColor, width));
       for (const rawLine of info.bodyText.split("\n")) {
         const trimmed = rawLine.replace(/　/g, " ");
-        for (const wrapped of wrapFrameLinesColored(level, bodyColor, `    ${chalk.white(trimmed)}`, width)) {
-          buf.push(wrapped);
-        }
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "prose", borderColor: bodyColor },
+          `    ${chalk.white(trimmed)}`,
+        );
       }
     }
   }

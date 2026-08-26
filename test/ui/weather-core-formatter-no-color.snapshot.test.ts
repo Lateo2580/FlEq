@@ -37,4 +37,22 @@ describe("NO_COLOR golden snapshot (chalk.level=0)", () => {
       });
     }
   }
+
+  it("VPWW61 幅60のrecapは2行目 title の発表・情報も再掲する", () => {
+    const originalIsTTY = process.stdout.isTTY;
+    const originalRows = process.stdout.rows;
+    Object.defineProperty(process.stdout, "isTTY", { value: true, writable: true, configurable: true });
+    Object.defineProperty(process.stdout, "rows", { value: 5, writable: true, configurable: true });
+    try {
+      const info = parseWeatherWarning(createMockWsDataMessage("15_16_07_250825_VPWW61.xml"))!;
+      setFrameWidth(60);
+      displayWeatherWarningCore(info);
+      const summaryIndex = logs.findIndex((line) => line.includes("▼ サマリー"));
+      expect(summaryIndex).toBeGreaterThan(-1);
+      expect(logs.slice(summaryIndex + 1).join("\n")).toContain("発表  [情報]");
+    } finally {
+      Object.defineProperty(process.stdout, "isTTY", { value: originalIsTTY, writable: true, configurable: true });
+      Object.defineProperty(process.stdout, "rows", { value: originalRows, writable: true, configurable: true });
+    }
+  });
 });

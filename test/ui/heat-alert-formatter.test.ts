@@ -2,7 +2,13 @@ import { describe, it, expect, afterEach } from "vitest";
 import chalk from "chalk";
 import { displayHeatAlertInfo } from "../../src/ui/heat-alert-formatter";
 import { parseHeatAlert } from "../../src/dmdata/heat-alert-parser";
-import { clearFrameWidth, setFrameWidth, visualWidth } from "../../src/ui/formatter";
+import {
+  clearFrameWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  setFrameWidth,
+  visualWidth,
+} from "../../src/ui/formatter";
 import {
   createMockWsDataMessage,
   FIXTURE_VPFT50_SAITAMA,
@@ -63,6 +69,37 @@ describe("displayHeatAlertInfo", () => {
       for (const line of out.split("\n")) {
         expect(visualWidth(stripAnsi(line))).toBeLessThanOrEqual(w);
       }
+    }
+  });
+
+  it.each([40, 60, 80, 120, 200])("過長 title / region / prose を幅 %i に収める", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        resetFrameLineClampFallbackCount();
+        const base = parseHeatAlert(createMockWsDataMessage(FIXTURE_VPFT50_SAITAMA))!;
+        const info = {
+          ...base,
+          controlTitle: `熱中症警戒アラート ${"追加電文名 ".repeat(12)}`,
+          infoType: `発表 ${"追加種別情報 ".repeat(10)}`,
+          title: `長い対象府県熱中症警戒アラート ${"対象地域情報 ".repeat(20)}`,
+          targetAreaName: `非常に長い対象府県名 ${"北部・南部 ".repeat(12)}`,
+          bodyText: `長い本文 ${"こまめな水分補給と暑さ対策を確認してください。 ".repeat(40)}`,
+        };
+        const out = capture(() => displayHeatAlertInfo(info));
+        for (const line of out.split("\n")) {
+          const plain = stripAnsi(line);
+          const widthOfLine = visualWidth(plain);
+          expect(widthOfLine, `color=${level} width=${width} line=${JSON.stringify(plain.slice(0, 60))}`)
+            .toBeLessThanOrEqual(width);
+          if (/^[┌╔├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+        }
+        expect(getFrameLineClampFallbackCount(), `color=${level} width=${width}`).toBe(0);
+      }
+    } finally {
+      chalk.level = originalLevel;
     }
   });
 

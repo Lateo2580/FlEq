@@ -23,6 +23,7 @@ import {
   flushWithRecap,
   visualPadEnd,
   wrapFrameLines,
+  pushWrappedFrameLine,
   intensityColor,
   lgIntensityColor,
   lgIntToNumeric,
@@ -30,6 +31,7 @@ import {
   renderFooter,
   formatTimestamp,
   visualWidth,
+  clipToVisualWidth,
   stripAnsi,
 } from "./formatter";
 import {
@@ -61,6 +63,20 @@ export interface EewDisplayContext {
   diff?: EewDiff;
   /** バナー色分け用のカラーインデックス (0始まり) */
   colorIndex?: number;
+}
+
+function pushWrappedCard(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: Parameters<typeof pushWrappedFrameLine>[1],
+  width: number,
+  content: Parameters<typeof pushWrappedFrameLine>[3],
+): void {
+  const cardBuf = createRenderBuffer();
+  pushWrappedFrameLine(cardBuf, level, { width, purpose: "type" }, content);
+  const [first, ...rest] = cardBuf.getLines();
+  if (first == null) return;
+  buf.pushCard(first);
+  for (const line of rest) buf.push(line);
 }
 
 function magnitudeDiffLine(diff: EewDiff | undefined): string | null {
@@ -442,7 +458,7 @@ export function displayEewInfo(
     const bannerText = ` 緊急地震速報 取消${serialTag}${hypocenterTag}`;
     const cancelBanner = theme.getRoleChalk("eewCancelBanner");
     buf.push(cancelBanner(" ".repeat(bannerWidth)));
-    buf.push(cancelBanner(visualPadEnd(bannerText, bannerWidth)));
+    buf.push(cancelBanner(visualPadEnd(clipToVisualWidth(bannerText, bannerWidth), bannerWidth)));
     buf.push(cancelBanner(" ".repeat(bannerWidth)));
   } else {
     const bannerStyle = getEewBannerStyle(info.isWarning, colorIndex);
@@ -450,7 +466,7 @@ export function displayEewInfo(
     const bannerText = ` 緊急地震速報（${typeLbl}）${serialTag}${hypocenterTag}`;
     const decorStyle = info.isAssumedHypocenter ? getPlumDecorStyle(info.isWarning) : bannerStyle;
     buf.push(decorStyle(" ".repeat(bannerWidth)));
-    buf.push(bannerStyle(visualPadEnd(bannerText, bannerWidth)));
+    buf.push(bannerStyle(visualPadEnd(clipToVisualWidth(bannerText, bannerWidth), bannerWidth)));
     buf.push(decorStyle(" ".repeat(bannerWidth)));
   }
 
@@ -462,12 +478,26 @@ export function displayEewInfo(
 
   // テスト電文
   if (info.isTest) {
-    buf.push(frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
+    if (chalk.level === 0) {
+      buf.push(frameLine(level, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type" },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
 
   // PLUM法ラベル (MaxIntChangeReason=9)
   if (info.maxIntChangeReason === 9) {
-    buf.push(frameLine(level, theme.getRoleChalk("plumLabel")("PLUM法") + chalk.gray(" による予測震度変化"), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type" },
+      theme.getRoleChalk("plumLabel")("PLUM法") + chalk.gray(" による予測震度変化"),
+    );
   }
 
   // カード1行目: infoType + 最重要項目
@@ -526,23 +556,19 @@ export function displayEewInfo(
     if (cardDepth != null && !info.isAssumedHypocenter) {
       cardParts.push({ text: chalk.white("深さ ") + chalk.white(cardDepth), priority: 2 });
     }
-    buf.pushCard(frameLine(level, clampFrameContent(buildEewCardLine(cardParts, width), width), width));
+    pushWrappedCard(buf, level, width, clampFrameContent(buildEewCardLine(cardParts, width), width));
   } else {
     // 取消時はinfoTypeのみ
     if (!hasPreContent) {
       buf.push(frameTop(level, width));
     }
     if (activeCount >= 2 && info.eventId) {
-      buf.push(frameLine(level,
-        theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`) +
-          chalk.gray(`  ${info.infoType}`),
-        width
-      ));
+      pushWrappedFrameLine(buf, level, { width, purpose: "type" }, [
+        { text: theme.getRoleChalk("concurrent")(`同時${activeCount}件発生中`), priority: 0, omission: "never" },
+        { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+      ]);
     } else {
-      buf.push(frameLine(level,
-        chalk.gray(info.infoType),
-        width
-      ));
+      pushWrappedFrameLine(buf, level, { width, purpose: "type" }, chalk.gray(info.infoType));
     }
   }
 
@@ -658,7 +684,12 @@ export function displayEewInfo(
     }
     if (info.eventId) {
       buf.push(frameDivider(level, width));
-      buf.push(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "diagnostic" },
+        chalk.gray(`EventID: ${info.eventId}`),
+      );
     }
     renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf);
     buf.push(frameBottom(level, width));
@@ -705,7 +736,12 @@ export function displayEewInfo(
   // EventID
   if (info.eventId) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.gray(`EventID: ${info.eventId}`), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic" },
+      chalk.gray(`EventID: ${info.eventId}`),
+    );
   }
 
   // フッター

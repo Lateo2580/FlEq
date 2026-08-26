@@ -8,7 +8,12 @@ import {
   buildVpws50BannerText,
 } from "../../src/ui/weather-formatter-vpws50";
 import { drawSeverityBanner, getDisplaySeverityText } from "../../src/ui/weather-warning-level-theme";
-import { stripAnsi, visualWidth } from "../../src/ui/formatter";
+import {
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  stripAnsi,
+  visualWidth,
+} from "../../src/ui/formatter";
 import { parseWeatherWarning } from "../../src/dmdata/weather-parser";
 import {
   createMockWsDataMessage,
@@ -2392,6 +2397,62 @@ describe("幅境界 + ANSI 保持 (Phase C Task 9)", () => {
               visualWidth(stripAnsi(line)),
               `${state.name} width=${width} line=${JSON.stringify(stripAnsi(line))}`,
             ).toBeLessThanOrEqual(width);
+          }
+        }
+      }
+    } finally {
+      chalkRef.level = original;
+    }
+  });
+
+  it("第1波 synthetic: plain / colored の過長 title / region / type / headline / prose / diagnostic を幅 matrix で検査", () => {
+    const original = chalkRef.level;
+    const makeLongInfo = (type: string): ParsedWeatherWarning => {
+      const layerType = type === "VPWS50"
+        ? `気象警報・注意報（府県予報区等） ${"対象地域階層 ".repeat(12)}`
+        : `気象警報・注意報（市町村等） ${"対象地域階層 ".repeat(12)}`;
+      const items = Array.from({ length: 31 }, (_, index) => ({
+        areaName: `非常に長い対象地域名${String(index + 1).padStart(2, "0")} ${"北部・南部 ".repeat(6)}`,
+        areaCode: `${String(index + 1).padStart(2, "0")}0000`,
+        kinds: [{
+          name: `非常に長い警報種別 ${"大雨・洪水・土砂災害 ".repeat(6)}`,
+          code: "99",
+          severity: "warning" as const,
+        }],
+        statuses: [],
+      }));
+      return makeFakeInfo({
+        type,
+        infoType: `発表 ${"追加種別情報 ".repeat(10)}`,
+        title: `長い電文タイトル ${"大雨・洪水・土砂災害 ".repeat(20)}`,
+        headline: `長いヘッドライン ${"対象地域の最新情報を確認してください。 ".repeat(40)}`,
+        layers: [{ type: layerType, items }],
+        comments: [{
+          type: `長い補足見出し ${"診断 ".repeat(12)}`,
+          text: `長い本文 ${"対象地域の最新情報を確認してください。 ".repeat(40)}`,
+        }],
+        maxSeverity: "warning",
+        maxDisplaySeverity: "officialL3",
+        warningAreaCount: items.length,
+        advisoryAreaCount: 0,
+      });
+    };
+
+    try {
+      for (const colorLevel of [0, 3]) {
+        chalkRef.level = colorLevel;
+        for (const type of ["VPWS50", "VPWW55"]) {
+          for (const width of [40, 60, 80, 120, 200]) {
+            resetFrameLineClampFallbackCount();
+            const lines = captureDisplay(makeLongInfo(type), undefined, width);
+            for (const line of lines) {
+              const plain = stripAnsi(line);
+              const widthOfLine = visualWidth(plain);
+              expect(widthOfLine, `color=${colorLevel} type=${type} width=${width} line=${JSON.stringify(plain.slice(0, 60))}`)
+                .toBeLessThanOrEqual(width);
+              if (/^[┌╔├╠│║└╚]/.test(plain)) expect(widthOfLine).toBe(width);
+            }
+            expect(getFrameLineClampFallbackCount(), `color=${colorLevel} type=${type} width=${width}`).toBe(0);
           }
         }
       }
