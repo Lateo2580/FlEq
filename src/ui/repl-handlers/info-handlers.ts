@@ -254,7 +254,7 @@ export function getCurrentSettingValues(ctx: ReplContext): Record<string, { curr
 
 // ── コマンドハンドラ ──
 
-const KNOWN_DETAIL_CATEGORIES = ["tsunami", "vpws50", "vpwp50", "volcano"] as const;
+const KNOWN_DETAIL_CATEGORIES = ["tsunami", "tornado", "vpws50", "vpwp50", "volcano"] as const;
 
 export function handleDetail(ctx: ReplContext, args: string): void {
   const sub = args.trim().toLowerCase();

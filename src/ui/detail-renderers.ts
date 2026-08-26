@@ -4,6 +4,7 @@ import type {
   DetailSnapshotOf,
 } from "../types";
 import { displayTsunamiInfo } from "./tsunami-formatter";
+import { displayTornadoAdvisoryDetail } from "./tornado-formatter";
 import { renderVolcanoDetail } from "./volcano-formatter";
 import { displayVpws50FromState } from "./weather-formatter-vpws50";
 import { displayVpwp50Detail } from "./vpwp50-detail-formatter";
@@ -14,6 +15,7 @@ type DetailRenderers = {
 
 const RENDERERS = {
   tsunami: (snapshot) => displayTsunamiInfo(snapshot.info),
+  tornado: (snapshot) => displayTornadoAdvisoryDetail(snapshot.info),
   volcano: (snapshot) => renderVolcanoDetail(snapshot.entries),
   vpws50: (snapshot) => displayVpws50FromState(snapshot.display),
   vpwp50: (snapshot) => displayVpwp50Detail(snapshot.detail),
@@ -27,6 +29,7 @@ function assertNever(value: never): never {
 export function renderDetail(snapshot: DetailSnapshot): void {
   switch (snapshot.kind) {
     case "tsunami": return RENDERERS.tsunami(snapshot);
+    case "tornado": return RENDERERS.tornado(snapshot);
     case "volcano": return RENDERERS.volcano(snapshot);
     case "vpws50": return RENDERERS.vpws50(snapshot);
     case "vpwp50": return RENDERERS.vpwp50(snapshot);

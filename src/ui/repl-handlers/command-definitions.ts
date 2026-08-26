@@ -42,11 +42,12 @@ export function buildCommandMap(getCtx: () => ReplContext): Record<string, Comma
       handler: () => info.handleColors(),
     },
     detail: {
-      description: "直近の情報を再表示 (例: detail tsunami, detail vpws50, detail vpwp50, detail volcano)",
-      detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示\n  detail vpws50: VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示\n  detail vpwp50: VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示\n  detail volcano: 火山警報状態を再表示",
+      description: "直近の情報を再表示 (例: detail tsunami, detail tornado, detail vpws50, detail vpwp50, detail volcano)",
+      detail: "引数なし: 津波情報を再表示 (デフォルト)\n  detail tsunami: 津波情報を再表示\n  detail tornado: 竜巻注意情報の全対象地域を再表示\n  detail vpws50: VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示\n  detail vpwp50: VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示\n  detail volcano: 火山警報状態を再表示",
       category: "info",
       subcommands: {
         tsunami: { description: "津波情報を再表示" },
+        tornado: { description: "竜巻注意情報の全対象地域を再表示" },
         vpws50: { description: "VPWS50 全国集約電文の最新受信内容 (注意報含む全予報区) を再表示" },
         vpwp50: { description: "VPWP50 気象警報・注意報時系列情報の最新受信内容 (注意報フル + 基準到達詳細) を再表示" },
         volcano: { description: "火山警報状態を再表示" },

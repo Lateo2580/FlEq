@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { displayTornadoAdvisory } from "../../src/ui/tornado-formatter";
+import { displayTornadoAdvisory, displayTornadoAdvisoryDetail } from "../../src/ui/tornado-formatter";
 import { parseTornadoAdvisory } from "../../src/dmdata/tornado-parser";
 import { setDisplayMode, clearFrameWidth, setFrameWidth, visualWidth } from "../../src/ui/formatter";
 import {
@@ -64,6 +64,53 @@ describe("displayTornadoAdvisory - Phase D 配色言語", () => {
     for (const line of out.split("\n")) {
       expect(visualWidth(stripAnsi(line))).toBeLessThanOrEqual(60);
     }
+  });
+
+  it("31件目以降はカードから detail tornado へ誘導し、detail では全件を表示する", () => {
+    setFrameWidth(80);
+    const info = parseTornadoAdvisory(createMockWsDataMessage(FIXTURE_VPHW50_TOKYO))!;
+    info.layers = [{
+      type: "竜巻注意情報（市町村等）",
+      areas: Array.from({ length: 31 }, (_, index) => ({
+        name: `検証区域${String(index + 1).padStart(2, "0")}`,
+        code: String(index + 1),
+        status: "active" as const,
+      })),
+    }];
+
+    const card = stripAnsi(capture(() => displayTornadoAdvisory(info)));
+    expect(card).toContain("ほか 1 区域 (詳細: detail tornado)");
+    expect(card).not.toContain("検証区域31");
+
+    const detail = stripAnsi(capture(() => displayTornadoAdvisoryDetail(info)));
+    expect(detail).toContain("検証区域31");
+  });
+
+  it("100件超の細粒度 layer でも、カードと detail は同じ対象地域を基準にする", () => {
+    setFrameWidth(80);
+    const info = parseTornadoAdvisory(createMockWsDataMessage(FIXTURE_VPHW50_TOKYO))!;
+    info.layers = [
+      {
+        type: "竜巻注意情報（市町村等をまとめた地域等）",
+        areas: [{ name: "粗い地域", code: "coarse", status: "active" }],
+      },
+      {
+        type: "竜巻注意情報（市町村等）",
+        areas: Array.from({ length: 101 }, (_, index) => ({
+          name: `細粒度区域${String(index + 1).padStart(3, "0")}`,
+          code: String(index + 1),
+          status: "active" as const,
+        })),
+      },
+    ];
+
+    const card = stripAnsi(capture(() => displayTornadoAdvisory(info)));
+    expect(card).toContain("ほか 71 区域 (詳細: detail tornado)");
+    expect(card).not.toContain("粗い地域");
+
+    const detail = stripAnsi(capture(() => displayTornadoAdvisoryDetail(info)));
+    expect(detail).toContain("細粒度区域101");
+    expect(detail).not.toContain("粗い地域");
   });
 
   // 代表 NO_COLOR snapshot (Codex R3 P1-5: sighting / normal / fail-safe / cancel)

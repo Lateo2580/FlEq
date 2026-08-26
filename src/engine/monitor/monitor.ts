@@ -403,7 +403,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
   const persistAcceptedTsunamiRevision = () => {
     standbyPersistence.schedule(standbyStore.exportActiveState());
   };
-  const { handler: routeMessage, eewLogger, notifier, vpwp50Cache, stats, summaryTracker, flushAndDisposeVolcanoBuffer, disposeLegacyCounterpartCorrelator, buildDisplayStats } = createMessageHandler({
+  const { handler: routeMessage, eewLogger, notifier, vpwp50Cache, tornadoDetailProvider, stats, summaryTracker, flushAndDisposeVolcanoBuffer, disposeLegacyCounterpartCorrelator, buildDisplayStats } = createMessageHandler({
     pipeline: pipeline ?? undefined,
     display,
     displaySink,
@@ -560,7 +560,7 @@ export async function startMonitor(config: AppConfig, pipelineController?: Pipel
 
   // REPL ハンドラ (遅延ロード)
   const { ReplHandler } = await import("../../ui/repl");
-  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController);
+  replHandler = new ReplHandler(config, manager, notifier, eewLogger, shutdown, stats, [tsunamiState, volcanoState], [tsunamiState, volcanoState, tornadoDetailProvider, vpws50State, vpwp50Cache], pipelineController, summaryTracker, displayController);
 
   registerShutdownSignals(shutdown);
 

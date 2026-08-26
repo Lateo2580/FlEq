@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { ParsedTornadoAdvisory, TornadoAreaLayer } from "../types";
+import { ParsedTornadoAdvisory } from "../types";
 import * as theme from "./theme";
 import {
   FrameLevel,
@@ -38,20 +38,6 @@ function tornadoTypeLabel(type: string): string {
 /** 1 グループ内の最大表示地域数 */
 const MAX_AREAS_PER_GROUP = 30;
 
-/** 表示用にレイヤーを選ぶ。多すぎる場合は上位レイヤーへフォールバック */
-function pickDisplayableLayer(
-  layers: TornadoAreaLayer[],
-  finePreferred: TornadoAreaLayer | undefined,
-): TornadoAreaLayer | undefined {
-  if (!finePreferred) return undefined;
-  if (finePreferred.areas.length <= 100) return finePreferred;
-  return (
-    layers.find((l) => l.type.includes("市町村等をまとめた地域等")) ??
-    layers.find((l) => l.type.includes("一次細分区域等")) ??
-    finePreferred
-  );
-}
-
 /**
  * 有効期限を短い時刻表記に。
  * reportDateTime と同日なら "HH:MM"、日跨ぎなら "MM/DD HH:MM"。
@@ -82,8 +68,7 @@ function formatValidUntil(
   return `${validMonth}/${validDay} ${validHour}:${validMinute}`;
 }
 
-/** 竜巻注意情報を表示 */
-export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
+function renderTornadoAdvisory(info: ParsedTornadoAdvisory, showAllAreas: boolean): void {
   const level = tornadoFrameLevel(info);
   const label = tornadoTypeLabel(info.type);
   const width = getFrameWidth();
@@ -203,14 +188,18 @@ export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
 
   // 階層別表示
   const finePreferred = selectPreferredTornadoLayer(info.layers);
-  const displayLayer = pickDisplayableLayer(info.layers, finePreferred);
+  // detail はもちろん、カードの上限・省略数も同じ細粒度 layer を基準にする。
+  // 上位 layer へ退避すると、detail で市町村等の全対象地域を復元できなくなる。
+  const displayLayer = finePreferred;
   if (displayLayer && displayLayer.areas.length > 0) {
     buf.push(frameDividerColored(level, bodyColor, width));
     buf.push(
       frameLineColored(level, bodyColor, chalk.gray(`[${displayLayer.type}]`), width),
     );
 
-    const visible = displayLayer.areas.slice(0, MAX_AREAS_PER_GROUP);
+    const visible = showAllAreas
+      ? displayLayer.areas
+      : displayLayer.areas.slice(0, MAX_AREAS_PER_GROUP);
     const omitted = displayLayer.areas.length - visible.length;
     const namesLine = visible.map((a) => chalk.white(a.name)).join(", ");
 
@@ -222,7 +211,7 @@ export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
         frameLineColored(
           level,
           bodyColor,
-          chalk.gray(`  ... 他 ${omitted} 地域 (省略)`),
+          chalk.gray(`  ... ほか ${omitted} 区域 (詳細: detail tornado)`),
           width,
         ),
       );
@@ -244,4 +233,14 @@ export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
   buf.pushEmpty();
 
   flushWithRecap(buf, level, width, bodyColor);
+}
+
+/** 竜巻注意情報を表示 */
+export function displayTornadoAdvisory(info: ParsedTornadoAdvisory): void {
+  renderTornadoAdvisory(info, false);
+}
+
+/** REPL detail 用に、対象地域を省略せず表示する。 */
+export function displayTornadoAdvisoryDetail(info: ParsedTornadoAdvisory): void {
+  renderTornadoAdvisory(info, true);
 }

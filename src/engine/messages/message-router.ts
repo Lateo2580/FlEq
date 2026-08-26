@@ -14,6 +14,7 @@ import { VolcanoStateHolder } from "./volcano-state";
 import { Vpws50StateHolder } from "./vpws50-state";
 import { Vpww56StateHolder } from "./vpww56-state";
 import { Vpwp50DetailCache } from "./vpwp50-detail-cache";
+import { TornadoDetailProvider } from "./tornado-detail-provider";
 import { TyphoonProbabilityStateHolder } from "./typhoon-probability-state";
 import { FloodForecastStateHolder } from "./flood-forecast-state";
 import { TelegramStats, routeToCategory } from "./telegram-stats";
@@ -686,6 +687,7 @@ export interface MessageHandlerResult {
   vpww56State: Vpww56StateHolder;
   floodForecastState: FloodForecastStateHolder;
   vpwp50Cache: Vpwp50DetailCache;
+  tornadoDetailProvider: TornadoDetailProvider;
   stats: TelegramStats;
   summaryTracker: SummaryWindowTracker;
   dailyQuakeCounter: DailyQuakeCounter;
@@ -722,6 +724,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
   const vpws50State = options?.vpws50State ?? new Vpws50StateHolder();
   const vpww56State = options?.vpww56State ?? new Vpww56StateHolder();
   const vpwp50Cache = new Vpwp50DetailCache();
+  const tornadoDetailProvider = new TornadoDetailProvider();
   const typhoonProbabilityState = new TyphoonProbabilityStateHolder();
   const floodForecastState = options?.floodForecastState ?? new FloodForecastStateHolder();
   const stats = new TelegramStats();
@@ -821,6 +824,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     vpww56State,
     floodForecastState,
     vpwp50Cache,
+    tornadoDetailProvider,
     typhoonProbabilityState,
     revisionGate,
     onRevisionDecision: recordRevisionDecision,
@@ -1445,6 +1449,7 @@ export function createMessageHandler(options?: MessageHandlerOptions): MessageHa
     vpww56State,
     floodForecastState,
     vpwp50Cache,
+    tornadoDetailProvider,
     stats,
     summaryTracker,
     dailyQuakeCounter,

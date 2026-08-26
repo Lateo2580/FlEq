@@ -520,6 +520,7 @@ export interface Vpwp50DetailSnapshot {
 /** 詳細表示用スナップショット。ドメイン別 discriminated union */
 export type DetailSnapshot =
   | { kind: "tsunami"; info: ParsedTsunamiInfo }
+  | { kind: "tornado"; info: ParsedTornadoAdvisory }
   | { kind: "volcano"; entries: VolcanoAlertEntrySnapshot[] }
   | { kind: "vpws50"; display: Vpws50CurrentAreasForDisplay }
   | { kind: "vpwp50"; detail: Vpwp50DetailSnapshot };
