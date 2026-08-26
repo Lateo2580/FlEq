@@ -94,7 +94,7 @@ export function buildIntensityRows(
     // 別グループに割れ、かつ INTENSITY_ORDER.indexOf が -1 (未知) 扱いになり
     // 先頭 (震度7より上) に誤配置される。intensityToRank (utils/intensity.ts)
     // と同じ正規化をここでも適用する (formatter 側防御、parser は触らない)。
-    const key = formatIntensitySpecialValue(area.intensityValue, area.intensity) ?? "—";
+    const key = formatIntensitySpecialValue(area.intensityValue, area.intensity, "detail") ?? "—";
     const colorIntensity = area.intensityValue?.value
       ?? area.intensityValue?.upperBound
       ?? area.intensityValue?.lowerBound
@@ -211,7 +211,7 @@ export function displayEarthquakeInfo(info: ParsedEarthquakeInfo): void {
   // カード行: 最大震度 / 長周期階級 / M / 深さ / 津波短縮 (clamp 経由)
   const cardParts: string[] = [];
   if (info.intensity) {
-    const maxInt = formatIntensitySpecialValue(info.intensity.maxIntValue, info.intensity.maxInt);
+    const maxInt = formatIntensitySpecialValue(info.intensity.maxIntValue, info.intensity.maxInt, "detail");
     if (maxInt != null) {
       const colorValue = info.intensity.maxIntValue?.value
         ?? info.intensity.maxIntValue?.upperBound

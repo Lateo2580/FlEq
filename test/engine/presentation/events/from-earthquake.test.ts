@@ -147,6 +147,26 @@ describe("fromEarthquakeOutcome", () => {
     expect(event.maxIntLabel).toBe("5弱以上未入電");
   });
 
+  it("plain 未入電の非 CLI label は理由を保持する", () => {
+    const outcome = outcomeFromDrillFixture();
+    const maxIntValue: SpecialValue<JmaIntensity> = {
+      raw: "未入電",
+      value: null,
+      condition: "未入電",
+      description: "観測値未入電",
+      presence: "unknown",
+    };
+    const event = fromEarthquakeOutcome({
+      ...outcome,
+      parsed: {
+        ...outcome.parsed,
+        intensity: { ...outcome.parsed.intensity!, maxInt: "", maxIntValue },
+      },
+    });
+    expect(event.maxInt).toBeNull();
+    expect(event.maxIntLabel).toBe("不明（未入電）");
+  });
+
   it("Area/City の非 exact SpecialValue を発火用 quakeIntensity と独立して保持する", () => {
     const outcome = outcomeFromDrillFixture();
     const unknown = {

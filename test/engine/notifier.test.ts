@@ -251,7 +251,8 @@ describe("Notifier", () => {
   });
 
   it.each([
-    ["plain 未入電", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "", "発表", "normal"],
+    // §7.5 単位3 裁定表: plain unknown の frame/sound は info（normal から変更）
+    ["plain 未入電", special<JmaIntensity>({ condition: "未入電", presence: "unknown" }), "", "発表", "info"],
     ["exact 3", special<JmaIntensity>({ raw: "3", value: "3", presence: "value" }), "3", "発表", "normal"],
     ["exact 4", special<JmaIntensity>({ raw: "4", value: "4", presence: "value" }), "4", "発表", "warning"],
     ["range 3〜5弱", special<JmaIntensity>({ presence: "range", lowerBound: "3", upperBound: "5-" }), "3", "発表", "warning"],

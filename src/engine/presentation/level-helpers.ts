@@ -53,7 +53,7 @@ export interface EewLevels {
   forecastSafetyGate: EewIntensitySafetyGate;
 }
 
-export type SpecialValueTextMode = "detail" | "notification" | "ticker";
+export type SpecialValueTextMode = "detail" | "display" | "notification" | "ticker";
 
 function intensityTextToken(value: JmaIntensity): string {
   return ({
@@ -84,11 +84,11 @@ function formatSpecialValueText<T extends string>(
     case "value":
       return scalar != null && scalar !== "" ? scalar : value.value == null ? null : token(value.value);
     case "missing":
-      return mode === "detail" ? "—" : null;
+      return mode === "detail" || mode === "display" ? "—" : null;
     case "empty":
-      return mode === "detail" ? "（空欄）" : null;
+      return mode === "detail" || mode === "display" ? "（空欄）" : null;
     case "unknown": {
-      if (mode === "ticker") return "不明";
+      if (mode === "detail" || mode === "ticker") return "不明";
       const reason = specialValueQualifier(value);
       return reason == null || reason === "不明" ? "不明" : `不明（${reason}）`;
     }
@@ -120,7 +120,7 @@ function formatSpecialValueText<T extends string>(
 export function formatIntensitySpecialValue(
   value: SpecialValue<JmaIntensity> | undefined,
   scalar?: string | null,
-  mode: SpecialValueTextMode = "detail",
+  mode: SpecialValueTextMode = "display",
 ): string | null {
   const normalizedScalar = scalar != null && intensityToRank(scalar) > 0
     ? scalar.replace(/\s+/g, "")
@@ -131,7 +131,7 @@ export function formatIntensitySpecialValue(
 export function formatLgIntensitySpecialValue(
   value: SpecialValue<JmaLgIntensity> | undefined,
   scalar?: string | null,
-  mode: SpecialValueTextMode = "detail",
+  mode: SpecialValueTextMode = "display",
 ): string | null {
   return formatSpecialValueText(value, scalar, (item) => item, mode);
 }
@@ -201,6 +201,7 @@ export function resolveLgIntensitySafetyRank(
 export function earthquakeFrameLevel(info: ParsedEarthquakeInfo): FrameLevel {
   if (info.infoType === "取消") return "cancel";
   if (info.intensity) {
+    if (info.intensity.maxIntValue?.presence === "unknown") return "info";
     const rank = resolveIntensitySafetyRank(
       info.intensity.maxIntValue,
       info.intensity.maxInt,
@@ -274,6 +275,7 @@ export function eewSoundLevel(info: ParsedEewInfo): SoundLevel {
 export function earthquakeSoundLevel(info: ParsedEarthquakeInfo): SoundLevel {
   if (info.infoType === "取消") return "cancel";
   if (!info.intensity) return "normal";
+  if (info.intensity.maxIntValue?.presence === "unknown") return "info";
   const rank = resolveIntensitySafetyRank(
     info.intensity.maxIntValue,
     info.intensity.maxInt,

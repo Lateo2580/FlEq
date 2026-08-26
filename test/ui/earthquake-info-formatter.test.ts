@@ -232,7 +232,7 @@ describe("displayEarthquakeInfo (新デザイン言語)", () => {
   it.each([
     ["missing", intensitySpecial({ presence: "missing" }), "—"],
     ["empty", intensitySpecial({ raw: "", presence: "empty" }), "（空欄）"],
-    ["unknown", intensitySpecial({ condition: "未入電", presence: "unknown" }), "不明（未入電）"],
+    ["unknown", intensitySpecial({ condition: "未入電", presence: "unknown" }), "不明"],
     ["qualitative", intensitySpecial({ condition: "5弱以上未入電", presence: "qualitative", lowerBound: "5-" }), "5弱以上未入電"],
     ["range", intensitySpecial({ presence: "range", lowerBound: "4", upperBound: "5-", rawLowerBound: "4", rawUpperBound: "5-" }), "4〜5弱"],
     ["lower-only", intensitySpecial({ presence: "range", lowerBound: "5-", rawLowerBound: "5-", rawUpperBound: "over" }), "5弱程度以上"],

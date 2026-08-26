@@ -154,6 +154,9 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
   const maxLgIntValue = info.intensity?.maxLgIntValue
     ?? legacyLgIntensityValue(info.intensity?.maxLgInt, info.intensity?.maxLgInt !== undefined);
   const maxLgInt = exactSpecialScalar(maxLgIntValue);
+  const maxIntLabelMode = maxIntValue.presence === "missing" || maxIntValue.presence === "empty"
+    ? "ticker"
+    : "display";
 
   const areas = info.intensity?.areas ?? [];
   const municipalities = info.intensity?.municipalities ?? [];
@@ -245,7 +248,7 @@ export function fromEarthquakeOutcome(outcome: EarthquakeOutcome): PresentationE
       : {}),
 
     maxIntValue,
-    maxIntLabel: formatIntensitySpecialValue(maxIntValue, maxInt, "ticker"),
+    maxIntLabel: formatIntensitySpecialValue(maxIntValue, maxInt, maxIntLabelMode),
     maxInt,
     maxIntRank,
     maxLgIntValue,

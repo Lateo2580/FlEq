@@ -314,7 +314,7 @@ describe("eewFrameLevel", () => {
 
 describe("earthquakeFrameLevel", () => {
   it.each([
-    ["plain 未入電", intensityValue({ condition: "未入電", presence: "unknown" }), "", "normal"],
+    ["plain 未入電", intensityValue({ condition: "未入電", presence: "unknown" }), "", "info"],
     ["exact 3", intensityValue({ raw: "3", value: "3", presence: "value" }), "3", "normal"],
     ["exact 4", intensityValue({ raw: "4", value: "4", presence: "value" }), "4", "warning"],
     ["range 3〜5弱", intensityValue({ presence: "range", lowerBound: "3", upperBound: "5-" }), "3", "warning"],
@@ -664,7 +664,7 @@ describe("eewSoundLevel", () => {
 
 describe("earthquakeSoundLevel", () => {
   it.each([
-    ["plain 未入電", intensityValue({ condition: "未入電", presence: "unknown" }), "", "発表", "normal"],
+    ["plain 未入電", intensityValue({ condition: "未入電", presence: "unknown" }), "", "発表", "info"],
     ["exact 3", intensityValue({ raw: "3", value: "3", presence: "value" }), "3", "発表", "normal"],
     ["exact 4", intensityValue({ raw: "4", value: "4", presence: "value" }), "4", "発表", "warning"],
     ["range 3〜5弱", intensityValue({ presence: "range", lowerBound: "3", upperBound: "5-" }), "3", "発表", "warning"],
