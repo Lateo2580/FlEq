@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import chalk from "chalk";
 import { pushFrameTable } from "../../src/ui/frame-table-builder";
-import { createRenderBuffer, visualWidth as vw } from "../../src/ui/formatter";
+import {
+  createRenderBuffer, getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount, visualWidth as vw,
+} from "../../src/ui/formatter";
 
 chalk.level = 0;
 
@@ -68,6 +71,7 @@ describe("pushFrameTable", () => {
   });
 
   it("最後列セルが長くフレーム外溢れする組合せでも fallback で吸収する", () => {
+    resetFrameLineClampFallbackCount();
     const buf = createRenderBuffer();
     pushFrameTable(
       buf,
@@ -94,6 +98,7 @@ describe("pushFrameTable", () => {
       expect(vw(line.text)).toBeLessThanOrEqual(60);
     }
     expect(buf.lines.some((l) => l.text.includes("A: "))).toBe(true);
+    expect(getFrameLineClampFallbackCount()).toBe(0);
   });
 });
 
@@ -128,6 +133,21 @@ describe("pushFrameTable - indent", () => {
     expect(bufZero.lines.map((l) => l.text)).toEqual(
       bufDefault.lines.map((l) => l.text),
     );
+  });
+
+  it("W=60 / indent=4 / table content 49 は偽 overflow にせず table を維持する", () => {
+    const buf = createRenderBuffer();
+    pushFrameTable(
+      buf,
+      "warning",
+      60,
+      [{ header: "A" }, { header: "B" }, { header: "C" }, { header: "D" }, { header: "E" }],
+      [["12345678", "12345678", "12345678", "12345678", "12345"]],
+      undefined,
+      4,
+    );
+    expect(buf.lines.some((line) => line.text.includes("A:"))).toBe(false);
+    for (const line of buf.lines) expect(vw(line.text)).toBe(60);
   });
 
   it.each([60, 80, 100])(
