@@ -1,6 +1,6 @@
 # spec: CLI 幅規約（width contract）（draft v0.1, 2026-08-26）
 
-> 状態: 起草。§ 8 の D1–D4 はご主人の裁定待ちであり、本 spec は推奨案を既決と扱わない。
+> 状態: **裁定済み（2026-08-26 ご主人）**。§ 8 の D1〜D4・D4-diagnostic は**すべて案 A で確定**。実装可能。
 
 ## § 1. 背景と目的
 
@@ -143,33 +143,33 @@ D3 の裁定前に一括 / 縦切りを確定しない。推奨する縦切り�
 
 単位 2–4 は各々 review 可能な停止点である。単位の途中で「新 helper と旧直渡し」が混在する期間は、D2=A または test gate により外幅契約を維持する。
 
-## § 8. 裁定待ちの分岐
+## § 8. 裁定済みの分岐（2026-08-26 ご主人裁定: 全件 A）
 
-### D1: priority 0 可変 token の縮退
+### D1: priority 0 可変 token の縮退【裁定: A】
 
 - **案 A: ドメイン短縮形 + 最終末尾省略**。津波種別、火山電文名、qualifier 等に意味を保つ `shortText` を持たせ、それでも入らない極小幅だけ ANSI-safe な `…` で頭打ちする。
 - **案 B: 共通の末尾省略のみ**。必須 token に短縮辞書を持たせず、残予算まで一律に切る。
 - **推奨: A**。通常の論理幅 40 付近では「どの警報 / 電文か」を保て、予算が短縮形より狭い場合だけ契約を優先するためだ。
 
-### D2: `frameLine` / `frameLineColored` の後方互換
+### D2: `frameLine` / `frameLineColored` の後方互換【裁定: A】
 
 - **案 A: primitive 自体に最終 clamp を持たせる**。本文が I を超えた場合は ANSI-safe に末尾省略し、常に右枠を論理幅 W の末尾に戻す。可変文字列の直渡し禁止は、情報喪失を防ぐ上位規約として併存する。
 - **案 B: primitive は現行の pad-only を保つ**。呼び出し側 wrapper と全体出力 test のみで幅を保証する。
 - **推奨: A**。移行漏れ、将来の新 formatter、動的診断文に対する最終防衛になる。出力変更はすでに契約違反している行に限られる。
 
-### D3: 17 移行対象フォーマッタの導入単位
+### D3: 17 移行対象フォーマッタの導入単位【裁定: A】
 
 - **案 A: § 7 の縦切り**。基盤の後に 3 系統へ分け、各 patch で formatter test と幅 matrix を完結させる。
 - **案 B: 基盤 + 17 フォーマッタを一括移行**。新旧混在期間はないが、snapshot 差分と回帰調査が一度に集中する。
 - **推奨: A**。受入条件を系統ごとに証明でき、色付き / plain、長文 / 複合 title の回帰範囲を狭められる。D2=A なら移行中も外幅は守られる。
 
-### D4: title / type の複数行上限
+### D4: title / type の複数行上限【裁定: A】
 
 - **案 A: 2 行上限 + priority 縮退**。タイトル本体を優先し、info type / severity / qualifier を 2 行目へ送る。2 行でも入らなければ `shortText` →低優先 drop →最終省略とする。region / headline / prose は上限なしのまま。
 - **案 B: title / type も上限なしの全文 wrap**。情報は失わないが、長い電文名で header が大きくなる。
 - **推奨: A**。CLI の一覧性を保ちつつ、地域・headline・診断文の全文は本文側に残せるためだ。
 
-#### D4-diagnostic: diagnostic の件数・行数制限
+#### D4-diagnostic: diagnostic の件数・行数制限【裁定: A】
 
 - **案 A: 無制限の全文 wrap**。parser diagnostic、unknown code、code-name 見出しを含む各 diagnostic を省略せず `pushWrappedFrameLine` で出す。
 - **案 B: 用途別の件数または行数上限**。上限を超えた diagnostic は優先度順に集約し、`… 他 N 件` と明示する。上限値、集約単位、全件の復元先を同時に決める。
