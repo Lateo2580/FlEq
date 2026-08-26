@@ -464,7 +464,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
       { header: "観測点", value: (r) => r.name, hidden: false },
       { header: "センサー", value: (r) => r.sensor, hidden: mode === "ultra-narrow" },
       { header: "初動", value: (r) => r.initial, hidden: mode === "ultra-narrow" },
-      { header: "最大波高", value: (r) => r.maxHeightCondition, hidden: false },
+      { header: "最大波高", value: formatObservedMaxHeight, hidden: mode === "ultra-narrow" },
       { header: "到達時刻", value: (r) => (r.arrivalTime ? prettyTimeOrText(r.arrivalTime) : ""), hidden: mode === "ultra-narrow" },
     ], details);
     if (hidden > 0) {
@@ -473,7 +473,7 @@ export function displayTsunamiInfo(info: ParsedTsunamiInfo): void {
         head: `【沖合観測】表示上限で ${hidden} 件省略`,
         body: info.observations.slice(shown.length).flatMap((r) => [
           `    ${r.name}`,
-          `    最大波高: ${r.maxHeightCondition || "―"}`,
+          `    最大波高: ${formatObservedMaxHeight(r)}`,
           `    到達時刻: ${r.arrivalTime ? prettyTimeOrText(r.arrivalTime) : "―"}`,
         ]),
       });

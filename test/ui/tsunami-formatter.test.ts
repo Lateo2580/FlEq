@@ -374,7 +374,10 @@ describe("折りたたみ detail 復元 (Codex review Important #2)", () => {
     observations: [
       { name: "神津島", sensor: "検潮所", arrivalTime: "2026-07-02T10:05:00+09:00", initial: "押し", maxHeightCondition: "０.２ｍ" , areaName: null, maxHeightValue: null },
       { name: "八丈島", sensor: "検潮所", arrivalTime: "2026-07-02T10:10:00+09:00", initial: "引き", maxHeightCondition: "０.３ｍ" , areaName: null, maxHeightValue: null },
-      { name: "父島", sensor: "検潮所", arrivalTime: "2026-07-02T10:15:00+09:00", initial: "押し", maxHeightCondition: "０.４ｍ" , areaName: null, maxHeightValue: null },
+      {
+        name: "父島", sensor: "検潮所", arrivalTime: "2026-07-02T10:15:00+09:00", initial: "押し",
+        maxHeightCondition: "第1波", maxHeightValue: "０.４ｍ", maxHeightValueCondition: "微弱な津波", areaName: null,
+      },
     ],
     estimations: [
       { areaName: "小笠原諸島", maxHeightDescription: "０.５ｍ", firstHeight: "2026-07-02T10:35:00+09:00" },
@@ -391,12 +394,19 @@ describe("折りたたみ detail 復元 (Codex review Important #2)", () => {
     expect(flat).toContain("10:28:00");
   });
 
-  it("observations: 折りたたまれた観測点の最大波高・到達時刻が detail に現れる", () => {
+  it("observations: 折りたたまれた観測点の最大波高値・条件・到達時刻が detail に現れる", () => {
     setMaxObservations(1);
     const out = captureDisplay(manyStationInfo());
     const flat = flattenFrame(out);
     expect(flat).toContain("父島");
-    expect(flat).toContain("０.４ｍ");
+    expect(flat).toContain("０.４ｍ（第1波・微弱な津波）");
+  });
+
+  it("observations: ultra-narrow の detail で最大波高値・条件を復元する", () => {
+    setFrameWidth(60);
+    setMaxObservations(null);
+    const out = captureDisplay(manyStationInfo());
+    expect(flattenFrame(out)).toContain("０.４ｍ（第1波・微弱な津波）");
   });
 
   it("estimations: 折りたたまれた地域の波高・到達予想が detail に現れる", () => {
