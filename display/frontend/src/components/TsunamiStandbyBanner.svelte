@@ -310,7 +310,11 @@
     color: var(--role-muted);
   }
   .static-anchor { position: relative; flex: 0 0 min(16em, calc(100% - 8em)); min-width: 0; white-space: nowrap; }
-  .anchor-probe { position: absolute; visibility: hidden; white-space: nowrap; pointer-events: none; }
+  /* left/top 0 でアンカー先頭にピン留めし、max-width + overflow で probe の
+     border box をアンカー幅に留める (HeatAlertCard と同型)。left 未指定だと
+     static position から始まり containment 診断が overflow を報告する。
+     計測は scrollWidth (コンテンツ自然幅) を読むので clamp の影響を受けない */
+  .anchor-probe { position: absolute; left: 0; top: 0; visibility: hidden; white-space: nowrap; pointer-events: none; max-width: 100%; overflow: hidden; }
   .scan-viewport { position: relative; flex: 1 0 7em; min-width: 7em; height: 1.5em; overflow: hidden; }
   .marquee-text {
     position: absolute;

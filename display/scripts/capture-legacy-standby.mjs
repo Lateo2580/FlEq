@@ -375,7 +375,10 @@ function assertAttentionVisibilityFixture(dom, diagnostics, fixture, geometry = 
     const banner = geometry?.tsunamiBanner;
     const baseline = baselineGeometry?.tsunamiBanner;
     if (banner == null || baseline == null || Math.abs(banner.height - baseline.height) > 1) throw new Error(`tsunami banner baseline differs by more than 1px: ${JSON.stringify({ banner, baseline })}`);
-    if ([...dom.matchAll(/class="(?:magnitude|depth|time)"/g)].length < 3) throw new Error("RecentQuakes statistics three columns missing");
+    // Svelte scopes the class attribute (e.g. class="magnitude stat-value svelte-…"),
+    // so match the leading token rather than the whole attribute value — and require
+    // each of the three columns individually so 3 hits of one class cannot mask the rest.
+    if (["magnitude", "depth", "time"].some((token) => !new RegExp(`class="${token}(?=["\\s])`).test(dom))) throw new Error("RecentQuakes statistics three columns missing");
     expectEqual(diagnostics["data-preview-reduced-motion"], fixture === "attention-visibility-reduced-motion" ? "true" : null, "attention reduced-motion marker");
   }
 }
@@ -737,7 +740,18 @@ async function main() {
     }));
     process.stdout.write(`${JSON.stringify(options.report ? { outDir, cells } : { outDir, results }, null, 2)}\n`);
   } finally {
-    await rm(profileDir, { recursive: true, force: true });
+    // A SIGTERM-ed Chrome may still be flushing its profile while the recursive
+    // rm walks it, surfacing ENOTEMPTY on macOS. Retry briefly, then leave the
+    // stray profile behind rather than failing an otherwise-green run.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        await rm(profileDir, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        if (attempt === 4) process.stderr.write(`profile cleanup failed, leaving ${profileDir}: ${error}\n`);
+        else await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+      }
+    }
     if (staticServer != null) await staticServer.close();
   }
 }

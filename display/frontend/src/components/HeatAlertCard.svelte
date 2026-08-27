@@ -154,7 +154,11 @@
     line-height: 1.5;
     white-space: nowrap;
   }
-  .anchor-probe { position: absolute; visibility: hidden; white-space: nowrap; pointer-events: none; }
+  /* left/top 0 でアンカー先頭にピン留めし、max-width + overflow で probe の
+     border box をアンカー幅に留める。left 未指定だと static position (可視スパンの
+     直後) から始まり、狭トラックでカードの scroll containment 診断が overflow を
+     報告する。計測は scrollWidth (コンテンツ自然幅) を読むので clamp の影響を受けない */
+  .anchor-probe { position: absolute; left: 0; top: 0; visibility: hidden; white-space: nowrap; pointer-events: none; max-width: 100%; overflow: hidden; }
   /* 対象府県のカード内マーキー行 (1 行固定、静的アンカーの補助レーン)。
      高さ 1.5em 固定なので府県数によらずカード高が一定 = 右スタックの実測選抜にも優しい */
   .areas {
