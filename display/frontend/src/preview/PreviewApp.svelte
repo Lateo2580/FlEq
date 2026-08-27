@@ -118,7 +118,7 @@
     if (!legacyStandbyGate) return undefined;
     const value = new URLSearchParams(window.location.search).get("gateFixture");
     return value === "overflow" || value === "overlap" || value === "rotation" || value === "cluster" || value === "cluster-calm"
-      || value === "tornado-pages" || value === "tornado-aggregate" || value === "tornado-clip" || value === "tornado-epoch-release"
+      || value === "tornado-pages" || value === "tornado-aggregate" || value === "tornado-clip" || value === "tornado-epoch-release" || value === "recent-quakes-narrow"
       ? value as LegacyStandbyGateFixture : undefined;
   });
   let standbyStage = $state<0 | 1 | 2 | 3>(0);

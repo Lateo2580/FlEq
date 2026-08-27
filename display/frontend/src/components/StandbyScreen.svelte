@@ -50,7 +50,7 @@
     rotationTick?: number;
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
-    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release";
+    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow";
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/svelte";
 import RecentQuakes from "../RecentQuakes.svelte";
@@ -96,6 +98,63 @@ describe("RecentQuakes 発生日付表示", () => {
     const quakes = [quake({ originTime: null, reportDateTime: "2026-07-06T18:20:00+09:00" })];
     render(RecentQuakes, { quakes });
     expect(screen.getByText("7/6 18:20")).toBeTruthy();
+  });
+});
+
+describe("RecentQuakes 狭幅 reflow", () => {
+  it("長い日本語名と空白なし ASCII 名 + badge + 津波印でも主情報と統計 group の順序を保つ", () => {
+    const longJapanese = "北海道東方沖の非常に長い震源名を折り返しても完全に表示できるようにするためのテスト地名";
+    const longAscii = "NorthPacificSeismicObservationZoneWithoutWhitespace".repeat(3);
+    const lower = semantic({
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上（未入電）",
+      condition: "5弱以上未入電", lowerBound: "5-", badge: "≥", color: "safetyRank",
+      safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    });
+    const { container } = render(RecentQuakes, {
+      quakes: [
+        quake({ eventId: "long-japanese", hypocenterName: longJapanese, tsunamiWarning: true }),
+        quake({
+          eventId: "long-ascii", hypocenterName: longAscii, tsunamiWarning: true,
+          magnitude: "5.2", depth: "30km", reportDateTime: "2026-08-27T13:18:00+09:00",
+          maxInt: null, maxIntRank: 5, maxIntSemantic: lower,
+        }),
+      ],
+    });
+    const row = container.querySelectorAll("button.row")[1]!;
+    const main = row.querySelector(".row-main")!;
+    const stats = row.querySelector(".stats")!;
+
+    expect(container.querySelectorAll(".hypocenter")[0]?.textContent).toBe(longJapanese);
+    expect(main.querySelector(".int-chip")?.textContent).toBe("5弱以上（未入電）≥");
+    expect(main.querySelector(".hypocenter")?.textContent).toBe(longAscii);
+    expect(main.querySelector(".tsunami-mark")?.textContent).toBe("津波");
+    expect([...row.children].map((child) => child.classList[0])).toEqual(["row-main", "stats"]);
+    expect([...stats.children].map((child) => child.classList[0])).toEqual(["magnitude", "depth", "time"]);
+    expect(stats.textContent).toContain("5.2");
+    expect(stats.textContent).toContain("30km");
+    expect(stats.textContent).toContain("8/27 13:18");
+  });
+
+  it("通常 card は一段、420px 未満の container 境界だけで二段へ切り替える", () => {
+    const source = readFileSync(join(__dirname, "..", "RecentQuakes.svelte"), "utf8");
+    const fixtures = readFileSync(join(__dirname, "..", "..", "preview", "fixtures.ts"), "utf8");
+    const preview = readFileSync(join(__dirname, "..", "..", "preview", "PreviewApp.svelte"), "utf8");
+    const standby = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    const runner = readFileSync(join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs"), "utf8");
+    const narrow = /@container \(max-width: 420px\) \{([\s\S]*)\n  \}/.exec(source)?.[1] ?? "";
+
+    expect(source).toMatch(/\.recent-quakes\s*\{[^}]*container-type:\s*inline-size;/s);
+    expect(source).toMatch(/\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s);
+    expect(narrow).toMatch(/\.row\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s);
+    expect(narrow).toMatch(/\.hypocenter\s*\{[^}]*min-width:\s*0;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/s);
+    expect(narrow).toMatch(/\.stats\s*\{[^}]*grid-column:\s*1;[^}]*flex-wrap:\s*wrap;[^}]*justify-content:\s*flex-end;/s);
+    expect(narrow).toMatch(/\.magnitude,[\s\S]*\.time\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*overflow-wrap:\s*anywhere;/s);
+    expect(source).not.toContain("@container (max-width: 960px)");
+    expect(source).not.toMatch(/min-width:\s*max-content/);
+    expect(source).not.toMatch(/overflow:\s*visible/);
+    for (const registration of [fixtures, preview, standby, runner]) expect(registration).toContain("recent-quakes-narrow");
+    expect(runner).toContain('"recent-quakes-narrow": { scenario: "quiet", viewport: "960x620" }');
+    expect(runner).toContain("assertRecentQuakesNarrowFixture");
   });
 });
 

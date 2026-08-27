@@ -146,6 +146,38 @@ export const recentQuakesRich: DisplayRecentQuakeV1[] = [
   },
 ];
 
+/** Chrome gate 専用: 狭い center track での折返し、badge、津波印を同時に確認する。 */
+const recentQuakesNarrowGate: DisplayRecentQuakeV1[] = [
+  {
+    eventId: "quake-narrow-japanese",
+    reportDateTime: NOW_ISO,
+    originTime: "2026-07-07T14:28:00+09:00",
+    hypocenterName: "北海道東方沖の非常に長い震源名を狭い表示領域で折り返して確認するための地震活動観測領域",
+    magnitude: "6.3",
+    maxInt: null,
+    maxIntRank: 5,
+    maxIntSemantic: {
+      raw: "5弱以上未入電", presence: "qualitative", label: "5弱以上（未入電）",
+      condition: "5弱以上未入電", description: null, lowerBound: "5-", upperBound: null,
+      rawLowerBound: "5弱", rawUpperBound: null, badge: "≥", color: "safetyRank",
+      render: true, safetyLowerRank: 5, safetyUpperRank: null, safetyRank: 5, colorRank: 5,
+    },
+    depth: "20km",
+    tsunamiWarning: true,
+  },
+  {
+    eventId: "quake-narrow-ascii",
+    reportDateTime: "2026-07-07T12:10:00+09:00",
+    originTime: "2026-07-07T12:06:00+09:00",
+    hypocenterName: "NorthPacificSeismicObservationZoneWithoutWhitespaceNorthPacificSeismicObservationZoneWithoutWhitespace",
+    magnitude: "4.2",
+    maxInt: "2",
+    maxIntRank: 2,
+    depth: "60km",
+    tsunamiWarning: true,
+  },
+];
+
 export const weatherAlerts: DisplayWeatherAlertV1[] = [
   {
     source: "vpws50",
@@ -2519,12 +2551,16 @@ export type LegacyStandbyGateFixture =
   | "tornado-pages"
   | "tornado-aggregate"
   | "tornado-clip"
-  | "tornado-epoch-release";
+  | "tornado-epoch-release"
+  | "recent-quakes-narrow";
 
 export function legacyStandbyGateSnapshot(
   scenario: LegacyStandbyGateScenario,
   fixture?: LegacyStandbyGateFixture,
 ): DisplayStateSnapshotV1 {
+  if (fixture === "recent-quakes-narrow") {
+    return standbySnapshot({ recentQuakes: recentQuakesNarrowGate, recentTicker: [] });
+  }
   if (scenario === "quiet") {
     return standbySnapshot({ recentQuakes: [], recentTicker: [] });
   }

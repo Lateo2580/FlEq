@@ -41,9 +41,11 @@
       {@const depth = depthVisual(q.depthSemantic, q.depth)}
       <li>
         <button class="row" type="button" onclick={(e) => handleClick(e, q)}>
-          {#if visual.render}<span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}
-          <span class="hypocenter">{q.hypocenterName ?? "不明"}</span>
-          {#if q.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
+          <span class="row-main">
+            {#if visual.render}<span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>{/if}
+            <span class="hypocenter">{q.hypocenterName ?? "不明"}</span>
+            {#if q.tsunamiWarning}<span class="tsunami-mark">津波</span>{/if}
+          </span>
           <span class="stats">
             <span class="magnitude" class:magnitude-description={magnitude.numericValue == null} title={magnitude.tooltip ?? undefined} aria-label={q.magnitudeSemantic == null && q.magnitude == null ? "マグニチュード: 空欄" : magnitude.ariaLabel}>{q.magnitudeSemantic == null && q.magnitude == null ? "" : magnitude.label}{#if magnitude.badge != null}<b class="semantic-badge">{magnitude.badge}</b>{/if}</span>
             <span class="depth" title={depth.tooltip ?? undefined} aria-label={depth.ariaLabel}>{depth.label}{#if depth.badge != null}<b class="semantic-badge">{depth.badge}</b>{/if}</span>
@@ -59,6 +61,9 @@
   .recent-quakes {
     color: var(--fg);
     font-size: var(--type-body-s-fluid);
+    min-width: 0;
+    max-width: 100%;
+    container-type: inline-size;
   }
   h2 {
     font-size: var(--type-label-l-fluid);
@@ -78,10 +83,13 @@
   /* 行全体をタッチ/マウス操作のボタンにする (kiosk 想定)。button の既定装飾は消し、元の行
      レイアウト (baseline 揃えの flex) を踏襲する。詳細カード再表示の当たり判定 (2026-07-14) */
   .row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: baseline;
     gap: var(--space-2);
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     padding: 3px 0;
     margin: 0;
     border: 0;
@@ -106,6 +114,13 @@
     background: var(--surface-panel-raised);
     overflow-wrap: anywhere;
   }
+  .row-main {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+    max-width: 100%;
+  }
   .int-r0 { color: var(--role-muted); }
   .int-r1 { color: var(--int-1); }
   .int-r2 { color: var(--int-2); }
@@ -126,6 +141,8 @@
   .int-chip.special-unknown { color: var(--c-raspberry); border: 1px dashed currentColor; }
   .int-chip.special-empty { color: var(--role-muted); border: 1px dotted currentColor; }
   .hypocenter {
+    min-width: 0;
+    flex: 1 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -140,6 +157,7 @@
   .stats {
     flex-shrink: 0;
     display: flex;
+    min-width: 0;
     gap: var(--space-3);
     margin-left: auto;
   }
@@ -169,30 +187,42 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
-  /* 狭い中央トラックでは震央名を先に確保し、数値列の固定幅と間隔を詰める。
-     それでも一行に入らない場合は stats 一式を次行へ送り、震央名を省略しない。 */
-  @media (max-width: 960px) {
+  /* 通常 card の最大幅は 36rem = 576px。最大 font 時の統計列は M 4.5em + 深さ 4.5em +
+     時刻 11ch + 2 gap で約310px、chip／津波印と主情報 gap は約100px必要になる。
+     420px 未満だけを二段化し、通常 card は一段の密度を維持する。 */
+  @container (max-width: 420px) {
     .row {
-      flex-wrap: wrap;
-      column-gap: var(--space-1);
+      grid-template-columns: minmax(0, 1fr);
       row-gap: var(--space-1);
     }
+    .row-main {
+      width: 100%;
+      gap: var(--space-1);
+    }
     .hypocenter {
-      flex-shrink: 0;
-      min-width: max-content;
-      overflow: visible;
+      min-width: 0;
       text-overflow: clip;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     .stats {
-      flex: 1 1 auto;
+      grid-column: 1;
+      width: 100%;
+      max-width: 100%;
       min-width: 0;
+      flex-wrap: wrap;
       justify-content: flex-end;
       gap: var(--space-1);
     }
     .magnitude,
     .depth,
     .time {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 100%;
       width: auto;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
   }
 </style>
