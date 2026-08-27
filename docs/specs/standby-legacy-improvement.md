@@ -8,6 +8,7 @@
 
 ## 改版履歴
 
+- **2026-08-27 ご主人裁定（macOS gate 初実走・レイアウト品質ラウンド追従再実測）**: 親機（macOS Chrome）で capture gate を初めて実走し、静的アンカー追加等による高さ変化を §5・§11.1 の固定表へ反映した（7/1920 の stage 0→1・台風 full 化・quake 全展開、max/1920 の台風 compact 化・surplus 24）。あわせて本文の両表が runner 側期待値（08-23 実測焼き込み）に対し複数セル追従漏れだったことを確認し、2026-08-27 実測 18 セル（全セル収束・`data-layout-unresolved="false"`）へ全面同期した。今後の表改版は spec と runner を同一コミットで更新する。
 - **2026-08-22 ご主人裁定（最終目視・packet 第四号）起因の改版**: 解像度間で時計寸法が揺れる列幅追従 `clamp` を廃止した。中央 36rem 時の実測解決値を丸め、時刻 92px・日付 21px・日付上余白 16px を全解像度で固定する。
 - **2026-08-22 測定系統一再実測改版**: probe/live 一致 assert 導入後の U7 report32 を固定表へ反映した。通常4 pass＋commit後検証1 passで全18セルが収束（`data-measurement-nonconverged="false"`）したため、stage・輪番・展開数・surplus を実測値へ更新する。
 - **2026-08-22 ご主人裁定⑤追補（測定系統一）**: weather の通常変異棚・prefix 棚を live と同じ幅・ページ footer/rider 契約で測定するよう統一した。960×620 の scenario 7 は weather が常設で fit し、stage 3 の輪番集合を flood,typhoon,volcano,heat の4種へ更新した。一方 max は供給が重く weather を含む5種輪番を維持する。§11.1 の展開数・surplus は U7 report の全セル再測定で同時に確定する。
@@ -88,14 +89,14 @@
 - 旧 4 段案の「左退避」は stage 0 の割当自由度に統合（ご主人裁定）。モックの `ladder` パラメータ旧番号との対応は新 0→旧 0・新 1→旧 2・新 2→旧 3（旧 1 は廃止・本実装へ移植しない）。診断属性は新番号 0/1/2/3 が正。
 - **輪番集合の構成（stage 3）**: canonical order 逆順（熱中症→火山→台風→河川→気象警報。津波・地震・中央クラスタは対象外）でカードを 1 枚ずつ輪番集合へ移し、そのたびにソルバを再実行する。**候補列挙 loop は DOM settle pass（最大 4）とは独立のカウンタで、最大 5 枚まで必ず試し切る**。全常設カード＋輪番枠（右列末尾固定・高さは集合の compact 実測高の最大値＋§7.3 のインジケータ footer 実測高を予約）が収まった時点で確定。
 - **終端（省略告知）**: 集合の最大 compact 高でも枠を確保できない場合、集合中最大のカード（同値なら canonical 逆順で先）を予約対象から外して枠高を次点で再計算し、外れた枚数 N の「ほか N 件を表示できません」行を枠直下に 1 行描画する（グリッド期資産流用。failure 行の実測高も予約に含める）。診断は `data-rotation-omitted-count`（省略告知）と `data-layout-unresolved`（真の未解決）に分離する。
-- **期待 stage 表（2026-08-22 ご主人裁定改版の実装を再実測・rotationTick=0）**:
+- **期待 stage 表（2026-08-27 ご主人裁定改版・macOS gate 実走 18 セル再実測・rotationTick=0）**:
 
 | viewport | scenario 4 | scenario 7 | scenario max |
 |---|---|---|---|
-| 1920×1080 | 0 | 0 | 1 |
-| 1512×982 | 0 | 0 | 1 |
-| 1280×720 | 1 | 3（輪番: flood,typhoon,volcano,heat） | 3（輪番: flood,typhoon,volcano,heat） |
-| 960×620 | 2 | 3（輪番: flood,typhoon,volcano,heat） | 3（輪番: weather,flood,typhoon,volcano,heat） |
+| 1920×1080 | 0 | 1 | 1 |
+| 1512×982 | 0 | 1 | 1 |
+| 1280×720 | 2 | 3（輪番: weather,flood,typhoon,volcano,heat） | 3（輪番: weather,flood,typhoon,volcano,heat） |
+| 960×620 | 3（輪番: weather,volcano,heat） | 3（輪番: weather,flood,typhoon,volcano,heat） | 3（輪番: weather,flood,typhoon,volcano,heat） |
 
   - 全セルで `data-layout-unresolved="false"`。
   - **720p の注記**: 720p の scenario 7 以上は圧縮でも収容できず stage 3 へ到達する。720p の見え方は §11.2 の目視必須項目とし、「現行 main より読める情報量が減らないこと」を比較 gate に含める。カード側の 720p 向け縮退調整は後続課題（§13）。
@@ -187,24 +188,24 @@
 - ソルバ決定性: 同一入力・入力順 shuffle で診断属性（配置キー列・stage）完全一致。
 
 **C. 余裕利用・時分割ゲート**:
-- **余裕利用の期待値表（2026-08-22 ご主人裁定改版の実装を再実測・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
+- **余裕利用の期待値表（2026-08-27 ご主人裁定改版・macOS gate 実走 18 セル再実測・rotationTick=0）**: 診断属性 `data-typhoon-variant` / `data-flood-form` / `data-expanded-counts` / `data-placement-surplus-use` との一致を検査。
 
 | セル | 台風 variant | flood 形式 | quake 展開 | weather 展開（大雨警報） | surplus |
 |---|---|---|---|---|---|
 | 1920×1080 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
-| 1920×1080 / 7 | compact | card | 4 (n=3) | 12 (n=0) | 10 |
-| 1920×1080 / max | full | card | 7 (n=0) | 24 (n=0) | 25 |
+| 1920×1080 / 7 | full | card | 7 (n=0) | 12 (n=0) | 14 |
+| 1920×1080 / max | compact | card | 7 (n=0) | 24 (n=0) | 24 |
 | 1512×982 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
-| 1512×982 / 7 | compact | card | 4 (n=3) | 2 (n=10) | 0 |
+| 1512×982 / 7 | compact | card | 7 (n=0) | 12 (n=0) | 13 |
 | 1512×982 / max | compact | card | 4 (n=3) | 24 (n=0) | 21 |
 | 1280×720 / 4 | −（不在） | −（不在） | 7 (n=0) | 12 (n=0) | 13 |
-| 1280×720 / 7 | compact | card | 4 (n=3) | 12 (n=0) | 10 |
-| 1280×720 / max | compact | card | 4 (n=3) | 10 (n=14) | 7 |
-| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 9 (n=3) | 10 |
+| 1280×720 / 7 | compact | card | 4 (n=3) | 2 (n=10) | 0 |
+| 1280×720 / max | compact | card | 4 (n=3) | 3 (n=21) | 0 |
+| 960×620 / 4 | −（不在） | −（不在） | 7 (n=0) | 2 (n=10) | 3 |
 | 960×620 / 7 | compact | card | 4 (n=3) | 2 (n=10) | 0 |
 | 960×620 / max | compact | card | 4 (n=3) | 3 (n=21) | 0 |
 | 1920×1080 / max＋floodWide | compact / stage 1 | wide | 4 (n=3) | 24 (n=0) | 21 |
-| 1280×720 / max＋floodWide | compact / stage 3（輪番: flood,typhoon,volcano,heat） | card | 4 (n=3) | 10 (n=14) | 7 |
+| 1280×720 / max＋floodWide | compact / stage 3（輪番: weather,flood,typhoon,volcano,heat） | card | 4 (n=3) | 3 (n=21) | 0 |
 
   - surplus は `data-placement-surplus-use`。「−（不在）」はカード不在であり、機械照合では `data-typhoon-variant` / `data-flood-form` とも常時出力する文字列 `none` に正規化する。存在するのに非検査の欄は本表に置かない。stage 3 セルの輪番カードは昇格・展開の対象外。
   - **比較器 ①'' の反証 fixture**: 旧比較器なら低展開配置・①'' 込みなら高展開配置を選ぶ入力を固定し、配置キー列が高展開側であることを検査。
