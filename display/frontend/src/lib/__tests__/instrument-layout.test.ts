@@ -8,6 +8,7 @@ import {
   cityBudgetFromArea,
   effectiveAreaCount,
   isStackedLayout,
+  mergeDetailPageSections,
   paginateAreas,
   rowCapacity,
   sectionAvailableHeight,
@@ -365,6 +366,38 @@ describe("paginateAreas", () => {
     expect(pages[0].prefGroups).toEqual([
       { pref: "宮崎県", cities: ["宮崎市"], continuation: false },
       { pref: null, cities: ["宗谷地方"], continuation: false },
+    ]);
+  });
+});
+
+describe("mergeDetailPageSections", () => {
+  it("同一ページ内の同震度断片と「その他」の継続ブロックを結合する", () => {
+    const fragments = [
+      ...paginateAreas([group("6弱", 7, ["宮崎市", "日南市"])], DETAIL_SECTION_HEADER_WEIGHT + 1),
+      ...paginateAreas([group("5強", 6, ["都城市", "延岡市"])], DETAIL_SECTION_HEADER_WEIGHT + 1),
+    ];
+    const pageSections = fragments.flatMap((page) => page.sections);
+
+    expect(mergeDetailPageSections(pageSections)).toEqual([
+      {
+        intensity: "6弱",
+        rank: 7,
+        prefGroups: [{ pref: null, cities: ["宮崎市", "日南市"], continuation: false }],
+      },
+      {
+        intensity: "5強",
+        rank: 6,
+        prefGroups: [{ pref: null, cities: ["都城市", "延岡市"], continuation: false }],
+      },
+    ]);
+  });
+
+  it("ページ先頭から続く県ブロックの continuation を保つ", () => {
+    expect(mergeDetailPageSections([
+      { intensity: "6強", rank: 8, prefGroups: [{ pref: "高知県", cities: ["高知市"], continuation: true }] },
+      { intensity: "6強", rank: 8, prefGroups: [{ pref: "高知県", cities: ["室戸市"], continuation: true }] },
+    ])).toEqual([
+      { intensity: "6強", rank: 8, prefGroups: [{ pref: "高知県", cities: ["高知市", "室戸市"], continuation: true }] },
     ]);
   });
 });

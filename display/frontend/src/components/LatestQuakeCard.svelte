@@ -7,6 +7,7 @@
     DETAIL_SECTION_HEADER_WEIGHT,
     PAGE_CITY_BUDGET,
     cityBudgetFromArea,
+    mergeDetailPageSections,
     paginateAreas,
     type DetailPage,
   } from "../lib/instrument-layout";
@@ -214,6 +215,9 @@
   // 範囲外 fallback は pages[0] へ置き、交代時に null の空フレームを経由させない。
   const currentPageIndex = $derived(pageCoordinator.activeIndex("quake"));
   const currentPage = $derived(pages[currentPageIndex] ?? pages[0] ?? null);
+  // ページ分割結果は計測・ページIDの基準として不変に保ち、描画直前だけ同一ページ内の
+  // 同震度断片を結合する。これで本来のページ境界をまたぐ continuation は維持される。
+  const currentPageSections = $derived(mergeDetailPageSections(currentPage?.sections ?? []));
   const currentPageTails = $derived.by(() => {
     const tails = new Map<string, number>();
     for (const section of currentPage?.sections ?? []) {
@@ -298,7 +302,7 @@
                   <li class="line-ruler" aria-hidden="true" use:measureHeight={(h) => (pageBodyLineHeight = h)}
                     >測</li
                   >
-                  {#each currentPage.sections as section, sectionIndex (`${section.rank}:${section.intensity}:${section.prefGroups[0]?.pref ?? ""}:${sectionIndex}`)}
+                  {#each currentPageSections as section, sectionIndex (`${section.rank}:${section.intensity}:${section.prefGroups[0]?.pref ?? ""}:${sectionIndex}`)}
                     {@const visual = groupVisual(section.intensity, section.rank)}
                     <li class="page-section">
                       <span class="g-int int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>震度{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>

@@ -167,6 +167,35 @@ export interface DetailPage {
   prefGroups: DetailPrefGroup[];
 }
 
+/** 同じ表示ページに並んだ、同一震度の隣接 section 断片を描画用に結合する。
+ *
+ * ページング自体は変更しない。結合した section の境界で同じ都道府県が連続するときだけ
+ * cities をつなぎ、先頭ブロックの continuation を保つ。従ってページ先頭から続く県名の
+ * 「（続き）」は残る一方、同一ページ内で分断された断片の重複表示は消える。 */
+export function mergeDetailPageSections(sections: DetailPageSection[]): DetailPageSection[] {
+  const merged: DetailPageSection[] = [];
+  const appendPrefGroup = (target: DetailPrefGroup[], prefGroup: DetailPrefGroup): void => {
+    const previousPrefGroup = target.at(-1);
+    if (previousPrefGroup != null && previousPrefGroup.pref === prefGroup.pref) {
+      previousPrefGroup.cities.push(...prefGroup.cities);
+    } else {
+      target.push({ ...prefGroup, cities: [...prefGroup.cities] });
+    }
+  };
+  for (const section of sections) {
+    const previous = merged.at(-1);
+    if (previous == null || previous.rank !== section.rank || previous.intensity !== section.intensity) {
+      const prefGroups: DetailPrefGroup[] = [];
+      for (const prefGroup of section.prefGroups) appendPrefGroup(prefGroups, prefGroup);
+      merged.push({ ...section, prefGroups });
+      continue;
+    }
+
+    for (const prefGroup of section.prefGroups) appendPrefGroup(previous.prefGroups, prefGroup);
+  }
+  return merged;
+}
+
 export interface PaginateAreasOptions {
   allowCrossIntensity?: boolean;
   widowOrphanMinFillRatio?: number;
