@@ -8,6 +8,7 @@ import {
   frameLineColored,
   getFrameLineClampFallbackCount,
   pushWrappedFrameLine,
+  pushWrappedFrameTitle,
   resetFrameLineClampFallbackCount,
   stripAnsi,
   visualWidth,
@@ -30,24 +31,25 @@ const FRAME_LINE_SOURCE_CATALOG = [
   "weather-formatter-vpws50.ts", "weather-formatter.ts", "weather-warning-timeseries-formatter.ts",
 ] as const;
 
-// §6 の移行対象の残り 7 本。縦切り patch が進むごとにここから空にしていく。
-const MIGRATION_PENDING_FRAME_LINE_SOURCES = [
-  "climate-info-formatter.ts", "early-weather-formatter.ts",
-  "legacy-counterpart-formatter.ts", "statistics-formatter.ts",
-  "typhoon-analysis-formatter.ts", "typhoon-probability-formatter.ts", "vpwp50-detail-formatter.ts",
-] as const;
+// §7 最終単位: 移行待ち source は残さない。
+const MIGRATION_PENDING_FRAME_LINE_SOURCES = [] as const;
 
 const WIDTH_PROVEN_FRAME_LINE_SOURCES = [
   "briefing-formatter.ts",
+  "climate-info-formatter.ts",
+  "early-weather-formatter.ts",
   "earthquake-info-formatter.ts", "eew-formatter.ts", "formatter.ts", "frame-table-builder.ts",
   "flood-forecast-formatter.ts",
   "heat-alert-formatter.ts",
+  "legacy-counterpart-formatter.ts",
   "lg-observation-formatter.ts", "nankai-trough-formatter.ts", "responsive-table-engine.ts",
   "seismic-text-formatter.ts", "tornado-formatter.ts",
+  "statistics-formatter.ts",
   "tsunami-formatter.ts", "volcano-formatter.ts", "weather-core-action-guide.ts",
   "weather-core-detail.ts", "weather-core-formatter.ts", "weather-core-table.ts",
   "weather-core-tail-blocks.ts", "weather-formatter-vpws50.ts", "weather-formatter.ts",
   "weather-explanation-formatter.ts", "weather-warning-timeseries-formatter.ts",
+  "typhoon-analysis-formatter.ts", "typhoon-probability-formatter.ts", "vpwp50-detail-formatter.ts",
 ] as const;
 
 /** §6 の可変 call site を source 単位ではなく site 単位で固定する。 */
@@ -55,20 +57,11 @@ function siteIds(file: string, lines: number[]): string[] {
   return lines.map((line) => `${file}:${line}`);
 }
 
-const MIGRATION_PENDING_FRAME_LINE_SITES = new Set([
-  ...siteIds("climate-info-formatter.ts", [276, 285, 297, 316, 332, 333, 339, 344, 410, 413, 427]),
-  ...siteIds("early-weather-formatter.ts", [84, 93, 96, 103, 117, 123, 124, 132, 133, 139, 186]),
-  ...siteIds("legacy-counterpart-formatter.ts", [38, 62, 65, 73, 78]),
-  // const 渡しでも値解決しない規則のため、移行待ち site として明示管理する。
-  ...siteIds("statistics-formatter.ts", [192, 193, 236]),
-  ...siteIds("typhoon-analysis-formatter.ts", [27, 74, 83, 87, 106]),
-  ...siteIds("typhoon-probability-formatter.ts", [100, 135, 143, 159, 187, 236, 279, 335]),
-  ...siteIds("vpwp50-detail-formatter.ts", [31, 74]),
-]);
+const MIGRATION_PENDING_FRAME_LINE_SITES = new Set<string>();
 
 const WIDTH_PROVEN_FRAME_LINE_SITES = new Set([
   ...siteIds("earthquake-info-formatter.ts", [191, 196, 258]),
-  ...siteIds("formatter.ts", [272, 275, 681, 682, 771, 786, 1614, 1619]),
+  ...siteIds("formatter.ts", [274, 277, 683, 684, 773, 788, 1654, 1659]),
   ...siteIds("lg-observation-formatter.ts", [134, 139, 195]),
   ...siteIds("nankai-trough-formatter.ts", [99, 104, 112]),
   ...siteIds("responsive-table-engine.ts", [71]),
@@ -174,6 +167,41 @@ function findDispatcherFormatterImports(): string[] {
   });
 }
 
+const FORMATTER_SYNTHETIC_MATRIX_TESTS: Readonly<Record<string, string>> = {
+  "briefing-formatter": "briefing-formatter.test.ts",
+  "climate-info-formatter": "climate-info-formatter.test.ts",
+  "early-weather-formatter": "early-weather-formatter.test.ts",
+  "earthquake-info-formatter": "earthquake-info-formatter.test.ts",
+  "eew-formatter": "eew-formatter-width-sweep.test.ts",
+  "flood-forecast-formatter": "flood-forecast-formatter.test.ts",
+  "heat-alert-formatter": "heat-alert-formatter.test.ts",
+  "legacy-counterpart-formatter": "legacy-counterpart-formatter.test.ts",
+  "lg-observation-formatter": "lg-observation-formatter.test.ts",
+  "nankai-trough-formatter": "nankai-trough-formatter.test.ts",
+  "seismic-text-formatter": "seismic-text-formatter.test.ts",
+  "tornado-formatter": "tornado-formatter.test.ts",
+  "tsunami-formatter": "tsunami-formatter.test.ts",
+  "typhoon-analysis-formatter": "typhoon-analysis-formatter.test.ts",
+  "typhoon-probability-formatter": "typhoon-probability-formatter.test.ts",
+  "volcano-formatter": "volcano-formatter.test.ts",
+  "weather-core-formatter": "weather-core-formatter-synthetic.test.ts",
+  "weather-explanation-formatter": "weather-explanation-formatter.test.ts",
+  "weather-formatter": "weather-formatter-vpws50.test.ts",
+  "weather-warning-timeseries-formatter": "weather-warning-timeseries-formatter.test.ts",
+};
+
+function assertFormatterSyntheticMatrixRegistration(registry: readonly string[]): void {
+  expect(sorted(Object.keys(FORMATTER_SYNTHETIC_MATRIX_TESTS))).toEqual(sorted(registry));
+  for (const formatter of registry) {
+    const testFile = FORMATTER_SYNTHETIC_MATRIX_TESTS[formatter];
+    expect(testFile, `${formatter} の synthetic fixture / purpose test が未登録`).toBeDefined();
+    const source = readFileSync(path.join(process.cwd(), "test/ui", testFile), "utf8");
+    expect(source, `${formatter} の fixture が未接続`).toMatch(/FIXTURE_|synthetic|SAMPLE_|makeInfo/u);
+    expect(source, `${formatter} の用途別表示 test が未接続`).toMatch(/describe\(/u);
+    expect(source, `${formatter} の幅 matrix が未接続`).toMatch(/visualWidth|setFrameWidth/u);
+  }
+}
+
 describe("CLI width contract — primitive matrix", () => {
   it.each(WIDTHS)("W=%i の frame primitive は外幅を正確に守る", (width) => {
     resetFrameLineClampFallbackCount();
@@ -194,13 +222,15 @@ describe("CLI width contract — primitive matrix", () => {
 
   it("title/type は 2 行を上限に part を縮退する", () => {
     const buf = createRenderBuffer();
-    pushWrappedFrameLine(buf, "warning", { width: 40, purpose: "title" }, [
+    pushWrappedFrameTitle(buf, "warning", { width: 40 }, [
       { text: "長い電文タイトル", priority: 0, omission: "never" },
       { text: "追加種別情報", shortText: "種別", priority: 2, omission: "shorten" },
+      { text: "対象地域", priority: 1, omission: "never" },
       { text: "低優先の補足", priority: 4, omission: "drop" },
     ]);
     expect(buf.getLines()).toHaveLength(2);
     for (const line of buf.getLines()) expect(visualWidth(stripAnsi(line))).toBe(40);
+    expect(buf.lines.every((line) => line.kind === "title")).toBe(true);
   });
 
   it("文字列入力の title/type も 2 行上限で最終省略する", () => {
@@ -306,12 +336,23 @@ describe("CLI width contract — static inventory gates", () => {
     expect(new Set(pendingSites.map((site) => `${site.file}:${site.line}`))).toEqual(MIGRATION_PENDING_FRAME_LINE_SITES);
     expect(new Set(widthProvenSites.map((site) => `${site.file}:${site.line}`))).toEqual(WIDTH_PROVEN_FRAME_LINE_SITES);
     expect(sites.filter((site) => site.classification === "unapproved")).toEqual([]);
-    expect(pendingSites.length).toBeGreaterThan(0);
-    expect(new Set(MIGRATION_PENDING_FRAME_LINE_SOURCES).size).toBe(7);
+    expect(pendingSites).toEqual([]);
+    expect(new Set(MIGRATION_PENDING_FRAME_LINE_SOURCES).size).toBe(0);
     expect(sorted([...MIGRATION_PENDING_FRAME_LINE_SOURCES, ...WIDTH_PROVEN_FRAME_LINE_SOURCES])).toEqual(sorted(FRAME_LINE_SOURCE_CATALOG));
   });
 
   it("dispatcher entry formatter と test registry は別集合として exact-set-equal", () => {
     expect(sorted(findDispatcherFormatterImports())).toEqual(sorted(FORMATTER_TEST_REGISTRY));
+  });
+
+  it.each(WIDTHS)("W=%i の formatter registry は fixture・用途 test・matrix をすべて登録する", () => {
+    assertFormatterSyntheticMatrixRegistration(FORMATTER_TEST_REGISTRY);
+  });
+
+  it("test 未登録の formatter entry 追加は registry gate で失敗する", () => {
+    expect(() => assertFormatterSyntheticMatrixRegistration([
+      ...FORMATTER_TEST_REGISTRY,
+      "unregistered-formatter",
+    ])).toThrow();
   });
 });

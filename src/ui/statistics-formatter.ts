@@ -1,8 +1,10 @@
 import {
   frameTop,
   frameBottom,
-  frameLine,
   frameDivider,
+  frameLine,
+  createRenderBuffer,
+  pushWrappedFrameLine,
   visualWidth,
   intensityColor,
 } from "./formatter";
@@ -180,17 +182,19 @@ export function formatStatsDuration(ms: number): string {
 }
 
 /** 電文受信統計をフレームボックス形式で標準出力に表示する */
-export function displayStatistics(snapshot: StatsSnapshot, now?: Date): void {
+export function displayStatistics(snapshot: StatsSnapshot, now?: Date, widthOverride?: number): void {
   const effectiveNow = now ?? new Date();
   const elapsedMs = effectiveNow.getTime() - snapshot.startTime.getTime();
 
   if (snapshot.totalCount === 0) {
     const title = "統計";
     const msg = muted("まだ電文を受信していません");
-    const width = calcWidth([title, msg]);
+    const width = widthOverride == null ? calcWidth([title, msg]) : normalizeWidth(widthOverride);
     console.log(frameTop(FRAME_LEVEL, width));
-    console.log(frameLine(FRAME_LEVEL, title, width));
-    console.log(frameLine(FRAME_LEVEL, msg, width));
+    console.log(frameLine(FRAME_LEVEL, "統計", width));
+    for (const line of wrappedStatisticsLine(FRAME_LEVEL, width, "prose", msg)) {
+      console.log(line);
+    }
     console.log(frameBottom(FRAME_LEVEL, width));
     return;
   }
@@ -224,7 +228,9 @@ export function displayStatistics(snapshot: StatsSnapshot, now?: Date): void {
     elapsedMs,
     countWidth,
   );
-  const width = calcWidth(["統計", ...allContentLines]);
+  const width = widthOverride == null
+    ? calcWidth(["統計", ...allContentLines])
+    : normalizeWidth(widthOverride);
 
   // 出力
   console.log(frameTop(FRAME_LEVEL, width));
@@ -233,13 +239,32 @@ export function displayStatistics(snapshot: StatsSnapshot, now?: Date): void {
     if (line === "__DIVIDER__") {
       console.log(frameDivider(FRAME_LEVEL, width));
     } else {
-      console.log(frameLine(FRAME_LEVEL, line, width));
+      for (const wrapped of wrappedStatisticsLine(FRAME_LEVEL, width, "prose", line)) {
+        console.log(wrapped);
+      }
     }
   }
   console.log(frameBottom(FRAME_LEVEL, width));
 }
 
 // ── 内部ヘルパー ──
+
+/** 統計行も共通 wrapper を通し、上限幅での clamp に依存しない。 */
+function wrappedStatisticsLine(
+  level: FrameLevel,
+  width: number,
+  purpose: "title" | "prose",
+  content: string,
+): string[] {
+  const buf = createRenderBuffer();
+  pushWrappedFrameLine(buf, level, { width, purpose }, content);
+  return buf.getLines();
+}
+
+/** テスト・埋め込み呼出し用の幅指定を CLI の契約範囲へ正規化する。 */
+function normalizeWidth(width: number): number {
+  return Math.max(40, Math.min(200, width));
+}
 
 /** フレーム幅をコンテンツ行の最大幅から計算する (最小40、最大200) */
 function calcWidth(contentLines: string[]): number {

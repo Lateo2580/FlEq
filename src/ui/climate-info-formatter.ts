@@ -15,7 +15,8 @@ import {
   frameBottom,
   createRenderBuffer,
   flushWithRecap,
-  wrapFrameLines,
+  pushWrappedFrameLine,
+  pushWrappedFrameTitle,
   renderFooter,
   visualPadEnd,
   visualWidth,
@@ -259,6 +260,21 @@ function bodyTextHeaderLabel(bt: ClimateBodyText): string {
   return bt.textType;
 }
 
+/** タイトルを幅に合わせて折り返し、recap 用の title 行として積む。 */
+function pushClimateTitle(
+  buf: ReturnType<typeof createRenderBuffer>,
+  level: FrameLevel,
+  width: number,
+  label: string,
+  infoType: string,
+): void {
+  pushWrappedFrameTitle(buf, level, { width }, [
+    { text: chalk.bold(label), priority: 0, omission: "never" },
+    { text: chalk.gray(infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ]);
+}
+
 /** 天候情報 (VPZI50 全般 / VPCI50 地方) を表示 */
 export function displayClimateInfo(info: ParsedClimateInfo): void {
   const level = climateInfoFrameLevel(info);
@@ -272,29 +288,33 @@ export function displayClimateInfo(info: ParsedClimateInfo): void {
 
   // テスト電文バッジ
   if (info.isTest) {
-    buf.push(
-      frameLine(level, theme.getRoleChalk("testBadge")(" テスト電文 "), width),
-    );
+    if (chalk.level === 0) {
+      buf.push(frameLine(level, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type" },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
 
   // タイトル行
-  const titleContent =
-    chalk.bold(label) +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLine(level, titleContent, width));
+  pushClimateTitle(buf, level, width, label, info.infoType);
 
   if (info.title && info.title !== label) {
-    for (const wrapped of wrapFrameLines(level, chalk.white(info.title), width)) {
-      buf.push(wrapped);
-    }
+    pushWrappedFrameLine(buf, level, { width, purpose: "title" }, chalk.white(info.title));
   }
 
   // 取消は短く
   if (info.infoType === "取消") {
     buf.push(frameDivider(level, width));
-    buf.push(
-      frameLine(level, chalk.gray(`${label}は取り消されました`), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic" },
+      chalk.gray(`${label}は取り消されました`),
     );
     renderFooter(
       level,
@@ -313,58 +333,48 @@ export function displayClimateInfo(info: ParsedClimateInfo): void {
   // Headline
   if (info.headline) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.gray("[ヘッドライン]"), width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type" }, chalk.gray("[ヘッドライン]"));
     for (const rawLine of info.headline.split("\n")) {
       const trimmed = rawLine.replace(/　/g, " ");
-      for (const wrapped of wrapFrameLines(
-        level,
-        `  ${chalk.white(trimmed)}`,
-        width,
-      )) {
-        buf.push(wrapped);
-      }
+      pushWrappedFrameLine(buf, level, { width, purpose: "headline" }, `  ${chalk.white(trimmed)}`);
     }
   }
 
   // 対象地域
   if (info.targetArea) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.gray("[対象地域]"), width));
-    buf.push(frameLine(level, `  ${chalk.white(info.targetArea.name)}`, width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type" }, chalk.gray("[対象地域]"));
+    pushWrappedFrameLine(buf, level, { width, purpose: "region" }, `  ${chalk.white(info.targetArea.name)}`);
   }
 
   // 本文ブロック (概況 / 今後の見通し / 防災事項 等)
   if (info.bodyTexts.length > 0) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.gray("[本文]"), width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type" }, chalk.gray("[本文]"));
     for (const bt of info.bodyTexts) {
       // [レビュー Minor] 外側の controlTitle 由来 `label` と shadowing しないよう btLabel
       const btLabel = bodyTextHeaderLabel(bt);
-      buf.push(
-        frameLine(level, `  ${chalk.bold.yellow(`▸ ${btLabel}`)}`, width),
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type" },
+        `  ${chalk.bold.yellow(`▸ ${btLabel}`)}`,
       );
       for (const rawLine of bt.text.split("\n")) {
         const trimmed = rawLine.replace(/　/g, " ");
-        for (const wrapped of wrapFrameLines(
-          level,
-          `    ${chalk.white(trimmed)}`,
-          width,
-        )) {
-          buf.push(wrapped);
-        }
+        pushWrappedFrameLine(buf, level, { width, purpose: "prose" }, `    ${chalk.white(trimmed)}`);
       }
       // 地域 (TargetArea と異なる細分のみ表示)
       const areaNames = bt.areas
         .filter((a) => info.targetArea == null || a.code !== info.targetArea.code)
         .map((a) => a.name);
       if (areaNames.length > 0) {
-        for (const wrapped of wrapFrameLines(
+        pushWrappedFrameLine(
+          buf,
           level,
+          { width, purpose: "region" },
           `    ${chalk.gray("対象: " + areaNames.join(", "))}`,
-          width,
-        )) {
-          buf.push(wrapped);
-        }
+        );
       }
     }
   }
@@ -381,21 +391,18 @@ export function displayClimateInfo(info: ParsedClimateInfo): void {
       if (ev.lastYearDescription) subParts.push(`昨年 ${ev.lastYearDescription}`);
       const sub = subParts.length > 0 ? chalk.gray(` (${subParts.join(" / ")})`) : "";
       const line = `  ${chalk.bold.yellow(`▸ ${ev.eventType}`)} ${chalk.white(main)}${sub}`;
-      for (const wrapped of wrapFrameLines(level, line, width)) {
-        buf.push(wrapped);
-      }
+      pushWrappedFrameLine(buf, level, { width, purpose: "prose" }, line);
       // 地域 (TargetArea と異なる細分のみ表示。bodyTexts と同じ挙動)
       const evAreaNames = ev.areas
         .filter((a) => info.targetArea == null || a.code !== info.targetArea.code)
         .map((a) => a.name);
       if (evAreaNames.length > 0) {
-        for (const wrapped of wrapFrameLines(
+        pushWrappedFrameLine(
+          buf,
           level,
+          { width, purpose: "region" },
           `    ${chalk.gray("対象: " + evAreaNames.join(", "))}`,
-          width,
-        )) {
-          buf.push(wrapped);
-        }
+        );
       }
     }
   }
@@ -406,34 +413,34 @@ export function displayClimateInfo(info: ParsedClimateInfo): void {
     // 期間ラベル (代表 1 件) があれば表示
     const periodLabel = info.stations.find((s) => s.periodLabel)?.periodLabel;
     if (periodLabel) {
-      buf.push(
-        frameLine(level, chalk.gray(`[観測点別気候値] ${periodLabel}`), width),
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "prose" },
+        chalk.gray(`[観測点別気候値] ${periodLabel}`),
       );
     } else {
-      buf.push(frameLine(level, chalk.gray("[観測点別気候値]"), width));
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type" },
+        chalk.gray("[観測点別気候値]"),
+      );
     }
     // [Codex R1 I1] 観測点名は日本語幅を考慮する (visualPadEnd)。
     // 数値列も全観測点スキャンの右揃えで列を揃える (formatStationLines)。
     for (const line of formatStationLines(info.stations)) {
-      for (const wrapped of wrapFrameLines(level, line, width)) {
-        buf.push(wrapped);
-      }
+      pushWrappedFrameLine(buf, level, { width, purpose: "prose" }, line);
     }
   }
 
   // 末文 (Comment)
   if (info.comment) {
     buf.push(frameDivider(level, width));
-    buf.push(frameLine(level, chalk.gray("[末文]"), width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type" }, chalk.gray("[末文]"));
     for (const rawLine of info.comment.split("\n")) {
       const trimmed = rawLine.replace(/　/g, " ");
-      for (const wrapped of wrapFrameLines(
-        level,
-        `  ${chalk.dim(trimmed)}`,
-        width,
-      )) {
-        buf.push(wrapped);
-      }
+      pushWrappedFrameLine(buf, level, { width, purpose: "prose" }, `  ${chalk.dim(trimmed)}`);
     }
   }
 

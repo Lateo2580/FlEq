@@ -14,7 +14,8 @@ import {
   frameBottomColored,
   createRenderBuffer,
   flushWithRecap,
-  wrapFrameLinesColored,
+  pushWrappedFrameLine,
+  pushWrappedFrameTitle,
   renderFooter,
 } from "./formatter";
 import { getDisplaySeverityText } from "./weather-warning-level-theme";
@@ -80,27 +81,42 @@ export function displayEarlyWeatherInfo(info: ParsedEarlyWeatherInfo): void {
 
   // テスト電文バッジ
   if (info.isTest) {
-    buf.push(
-      frameLineColored(level, borderColor, theme.getRoleChalk("testBadge")(" テスト電文 "), width),
-    );
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, borderColor, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
 
   // タイトル行
-  const titleContent =
-    chalk.bold("早期天候情報") +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`);
-  buf.pushTitle(frameLineColored(level, borderColor, titleContent, width));
+  pushWrappedFrameTitle(buf, level, { width, borderColor }, [
+    { text: chalk.bold("早期天候情報"), priority: 0, omission: "never" },
+    { text: chalk.gray(info.infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ]);
 
   if (info.title && info.title !== "早期天候情報") {
-    buf.push(frameLineColored(level, borderColor, chalk.white(info.title), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "title", borderColor },
+      chalk.white(info.title),
+    );
   }
 
   // 取消は短く
   if (info.infoType === "取消") {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(
-      frameLineColored(level, borderColor, chalk.gray("早期天候情報は取り消されました"), width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor },
+      chalk.gray("早期天候情報は取り消されました"),
     );
     renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf, borderColor);
     buf.push(frameBottomColored(level, borderColor, width));
@@ -114,14 +130,19 @@ export function displayEarlyWeatherInfo(info: ParsedEarlyWeatherInfo): void {
   if (tags.length > 0) {
     buf.push(frameDividerColored(level, borderColor, width));
     const tagBanner = chalk.bold.yellow(` ${tags.join("・")} `);
-    buf.push(frameLineColored(level, borderColor, tagBanner, width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type", borderColor }, tagBanner);
   }
 
   // 対象地域
   if (info.targetArea) {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(frameLineColored(level, borderColor, chalk.gray("[対象地域]"), width));
-    buf.push(frameLineColored(level, borderColor, `  ${chalk.white(info.targetArea.name)}`, width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type", borderColor }, chalk.gray("[対象地域]"));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "region", borderColor },
+      `  ${chalk.white(info.targetArea.name)}`,
+    );
   }
 
   // 期間
@@ -129,14 +150,19 @@ export function displayEarlyWeatherInfo(info: ParsedEarlyWeatherInfo): void {
     info.phenomena.find((p) => p.periodLabel)?.periodLabel || null;
   if (periodLabel) {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(frameLineColored(level, borderColor, chalk.gray("[対象期間]"), width));
-    buf.push(frameLineColored(level, borderColor, `  ${chalk.white(periodLabel)}`, width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type", borderColor }, chalk.gray("[対象期間]"));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor },
+      `  ${chalk.white(periodLabel)}`,
+    );
   }
 
   // 現象 (本文以外の Item.Kind.Property)
   if (info.phenomena.length > 0) {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(frameLineColored(level, borderColor, chalk.gray("[現象]"), width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type", borderColor }, chalk.gray("[現象]"));
     for (const p of info.phenomena) {
       const arrow = trendArrow(p);
       const headerParts: string[] = [];
@@ -150,32 +176,31 @@ export function displayEarlyWeatherInfo(info: ParsedEarlyWeatherInfo): void {
         const sign = p.trend === "below" ? "−" : p.trend === "above" ? "+" : "";
         headerParts.push(chalk.gray(`閾値 ${sign}${p.thresholdValue}${unit}`));
       }
-      for (const wrapped of wrapFrameLinesColored(level, borderColor, `  ${headerParts.join(" ")}`, width)) {
-        buf.push(wrapped);
-      }
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor },
+        `  ${headerParts.join(" ")}`,
+      );
       if (p.climateText) {
-        for (const wrapped of wrapFrameLinesColored(
+        pushWrappedFrameLine(
+          buf,
           level,
-          borderColor,
+          { width, purpose: "prose", borderColor },
           `    ${chalk.dim(p.climateText)}`,
-          width,
-        )) {
-          buf.push(wrapped);
-        }
+        );
       }
       // 地域 (TargetArea と異なる細分があれば表示)
       const areaNames = p.areas
         .filter((a) => info.targetArea == null || a.code !== info.targetArea.code)
         .map((a) => a.name);
       if (areaNames.length > 0) {
-        for (const wrapped of wrapFrameLinesColored(
+        pushWrappedFrameLine(
+          buf,
           level,
-          borderColor,
+          { width, purpose: "region", borderColor },
           `    ${chalk.gray("対象: " + areaNames.join(", "))}`,
-          width,
-        )) {
-          buf.push(wrapped);
-        }
+        );
       }
     }
   }
@@ -183,18 +208,16 @@ export function displayEarlyWeatherInfo(info: ParsedEarlyWeatherInfo): void {
   // 補足本文 (Property.Type=本文)
   if (info.bodyTexts.length > 0) {
     buf.push(frameDividerColored(level, borderColor, width));
-    buf.push(frameLineColored(level, borderColor, chalk.gray("[本文]"), width));
+    pushWrappedFrameLine(buf, level, { width, purpose: "type", borderColor }, chalk.gray("[本文]"));
     for (const bt of info.bodyTexts) {
       for (const rawLine of bt.text.split("\n")) {
         const trimmed = rawLine.replace(/　/g, " ");
-        for (const wrapped of wrapFrameLinesColored(
+        pushWrappedFrameLine(
+          buf,
           level,
-          borderColor,
+          { width, purpose: "prose", borderColor },
           `  ${chalk.white(trimmed)}`,
-          width,
-        )) {
-          buf.push(wrapped);
-        }
+        );
       }
     }
   }

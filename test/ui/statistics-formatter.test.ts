@@ -3,8 +3,14 @@ import {
   formatStatsDuration,
   displayStatistics,
 } from "../../src/ui/statistics-formatter";
-import { stripAnsi } from "../../src/ui/formatter";
+import {
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  stripAnsi,
+  visualWidth,
+} from "../../src/ui/formatter";
 import type { StatsSnapshot } from "../../src/engine/messages/telegram-stats";
+import { expectCompleteWrappedValue } from "./width-contract-assertions";
 
 vi.mock("../../src/ui/theme", () => ({
   getRoleChalk: () => (s: string) => s,
@@ -242,5 +248,29 @@ describe("displayStatistics", () => {
     expect(text).not.toContain("vxse44SuppressedByCapability");
     expect(text).not.toContain("legacyUnmatchedDisplayed");
     expect(text).not.toContain("legacySeverityUnknownNotificationSuppressed");
+  });
+
+  it.each([40, 60, 80, 120, 200])("過長な統計 type / label 行を幅 %i に収め内容を保持する", (width) => {
+    const marker = "STATS_TYPE_KEEP";
+    const longType = `${marker}_${"長いコード名 ".repeat(18)}`;
+    resetFrameLineClampFallbackCount();
+    displayStatistics(
+      makeSnapshot({
+        countByType: new Map([[longType, 7]]),
+        categoryByType: new Map([[longType, "other" as const]]),
+        totalCount: 7,
+      }),
+      new Date("2025-01-01T00:30:00Z"),
+      width,
+    );
+    const plain = stripAnsi(output());
+    for (const line of plain.split("\n")) {
+      const lineWidth = visualWidth(line);
+      expect(lineWidth, `width=${width} line=${JSON.stringify(line.slice(0, 60))}`)
+        .toBeLessThanOrEqual(width);
+      if (/^[┌╔├╠│║└╚]/.test(line)) expect(lineWidth).toBe(width);
+    }
+    expectCompleteWrappedValue(plain, longType, `width=${width}`);
+    expect(getFrameLineClampFallbackCount(), `width=${width}`).toBe(0);
   });
 });

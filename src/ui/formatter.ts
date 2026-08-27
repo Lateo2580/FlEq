@@ -158,6 +158,8 @@ export interface FrameLinePart {
   priority: 0 | 1 | 2 | 3 | 4;
   shortText?: string;
   omission: "never" | "shorten" | "drop";
+  /** 先行 part との区切り。省略時は従来どおり半角 2 空白。 */
+  separatorBefore?: string;
 }
 
 export interface PushWrappedFrameLineOptions {
@@ -834,6 +836,18 @@ export function pushWrappedFrameLine(
   }
 }
 
+/** 可変タイトルを共通 wrapper で整形し、recap 用の title 行として積む。 */
+export function pushWrappedFrameTitle(
+  buf: Pick<RenderBuffer, "pushTitle">,
+  level: FrameLevel,
+  options: Omit<PushWrappedFrameLineOptions, "purpose">,
+  content: string | readonly FrameLinePart[],
+): void {
+  const titleBuf = createRenderBuffer();
+  pushWrappedFrameLine(titleBuf, level, { ...options, purpose: "title" }, content);
+  for (const line of titleBuf.getLines()) buf.pushTitle(line);
+}
+
 /** title/type は上限判定より先に物理 1 行へ正規化する。 */
 function normalizeFrameLineText(text: string): string {
   return text.replace(/\r\n?|\n/g, " ");
@@ -843,27 +857,19 @@ function fitFramePartsToTwoLines(parts: readonly FrameLinePart[], innerWidth: nu
   const remaining = parts.filter((part) => part.text !== "");
   if (remaining.length === 0) return [];
 
-  const lines: string[] = [];
-  let current: FrameLinePart[] = [];
-  for (let index = 0; index < remaining.length; index++) {
-    const part = remaining[index];
-    const candidate = [...current, part];
-    if (visualWidth(joinFrameParts(candidate)) <= innerWidth) {
-      current = candidate;
-      continue;
+  const lineParts: FrameLinePart[][] = [[], []];
+  for (const part of remaining) {
+    const first = lineParts[0];
+    if (lineParts[1].length === 0 && (first.length === 0
+      || visualWidth(joinFrameParts([...first, part])) <= innerWidth)) {
+      first.push(part);
+    } else {
+      lineParts[1].push(part);
     }
-    if (current.length === 0) {
-      current = candidate;
-      continue;
-    }
-    if (lines.length === 0) {
-      lines.push(fitFramePartsToWidth(current, innerWidth));
-      current = [part];
-      continue;
-    }
-    return [...lines, fitFramePartsToWidth([...current, ...remaining.slice(index)], innerWidth)];
   }
-  return [...lines, fitFramePartsToWidth(current, innerWidth)];
+  return lineParts
+    .filter((line) => line.length > 0)
+    .map((line) => fitFramePartsToWidth(line, innerWidth));
 }
 
 function fitFramePartsToWidth(parts: readonly FrameLinePart[], maxWidth: number): string {
@@ -888,11 +894,45 @@ function fitFramePartsToWidth(parts: readonly FrameLinePart[], maxWidth: number)
       if (visualWidth(joinFrameParts(remaining)) <= maxWidth) return joinFrameParts(remaining);
     }
   }
-  return truncateAnsiWithEllipsis(joinFrameParts(remaining), maxWidth);
+  return fitRequiredFramePartsToWidth(remaining, maxWidth);
 }
 
-function joinFrameParts(parts: readonly Pick<FrameLinePart, "text">[]): string {
-  return parts.map((part) => part.text).filter(Boolean).join("  ");
+function joinFrameParts(parts: readonly Pick<FrameLinePart, "text" | "separatorBefore">[]): string {
+  return parts
+    .filter((part) => part.text !== "")
+    .map((part, index) => `${index === 0 ? "" : part.separatorBefore ?? "  "}${part.text}`)
+    .join("");
+}
+
+/** 必須 part をまとめて捨てず、各 part の先頭を残したまま最終幅へ縮退する。 */
+function fitRequiredFramePartsToWidth(
+  parts: readonly Pick<FrameLinePart, "text" | "separatorBefore">[],
+  maxWidth: number,
+): string {
+  const nonEmpty = parts.filter((part) => part.text !== "");
+  if (nonEmpty.length === 0 || maxWidth <= 0) return "";
+  const separatorWidth = nonEmpty.slice(1)
+    .reduce((total, part) => total + visualWidth(part.separatorBefore ?? "  "), 0);
+  if (separatorWidth >= maxWidth) {
+    return truncateAnsiWithEllipsis(joinFrameParts(nonEmpty), maxWidth);
+  }
+
+  let contentBudget = maxWidth - separatorWidth;
+  const fitted: Array<Pick<FrameLinePart, "text" | "separatorBefore">> = [];
+  for (let index = 0; index < nonEmpty.length; index += 1) {
+    if (contentBudget <= 0) break;
+    const partsLeft = nonEmpty.length - index;
+    const allocation = partsLeft === 1
+      ? contentBudget
+      : Math.max(1, Math.floor(contentBudget / partsLeft));
+    const text = visualWidth(nonEmpty[index].text) <= allocation
+      ? nonEmpty[index].text
+      : truncateAnsiWithEllipsis(nonEmpty[index].text, allocation);
+    if (text === "") break;
+    fitted.push({ ...nonEmpty[index], text });
+    contentBudget -= visualWidth(text);
+  }
+  return joinFrameParts(fitted);
 }
 
 /** wrap 本体 (renderLine = 1 行を frame 行に整形する関数を注入) */

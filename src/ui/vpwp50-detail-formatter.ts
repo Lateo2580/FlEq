@@ -17,6 +17,8 @@ import {
   frameLine,
   frameTop,
   getFrameWidth,
+  pushWrappedFrameLine,
+  pushWrappedFrameTitle,
 } from "./formatter";
 import { pushFrameTable } from "./frame-table-builder";
 
@@ -27,13 +29,20 @@ export function displayVpwp50Detail(data: Vpwp50DetailSnapshot): void {
   const buf = createRenderBuffer();
 
   buf.push(frameTop(level, width));
-  buf.push(
-    frameLine(
-      level,
-      `[detail] VPWP50 ${data.targetArea ?? ""} (${data.infoType})  保存 ${data.savedAt.slice(0, 19).replace("T", " ")}`,
-      width,
-    ),
-  );
+  const titleParts = [
+    { text: "[detail] VPWP50", priority: 0 as const, omission: "never" as const },
+    ...(data.targetArea == null || data.targetArea === "" ? [] : [{
+      text: data.targetArea, priority: 1 as const, omission: "never" as const, separatorBefore: " ",
+    }]),
+    { text: `(${data.infoType})`, priority: 1 as const, omission: "never" as const, separatorBefore: " " },
+    {
+      text: `保存 ${data.savedAt.slice(0, 19).replace("T", " ")}`,
+      priority: 2 as const,
+      omission: "drop" as const,
+      separatorBefore: "  ",
+    },
+  ];
+  pushWrappedFrameTitle(buf, level, { width }, titleParts);
 
   const part = partitionBySeverity(data.entries);
 
@@ -70,12 +79,11 @@ export function displayVpwp50Detail(data: Vpwp50DetailSnapshot): void {
     buf.push(frameDivider(level, width));
     buf.push(frameLine(level, "[未知コード]", width));
     for (const unknown of data.unknownCodes) {
-      buf.push(
-        frameLine(
-          level,
-          `  ${unknown.areaName} ${unknown.propertyType} code=${unknown.code} ref=${unknown.timeRef} 高め扱い`,
-          width,
-        ),
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "diagnostic" },
+        `  ${unknown.areaName} ${unknown.propertyType} code=${unknown.code} ref=${unknown.timeRef} 高め扱い`,
       );
     }
   }

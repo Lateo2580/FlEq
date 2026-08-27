@@ -1,9 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
+import chalk from "chalk";
 import { displayTyphoonAnalysisInfo } from "../../src/ui/typhoon-analysis-formatter";
 import { parseTyphoonAnalysis } from "../../src/dmdata/typhoon-analysis-parser";
 import { createMockWsDataMessage, FIXTURE_VPTW60_2020, FIXTURE_VPTW61, FIXTURE_VPTW60_CANCEL } from "../helpers/mock-message";
-import { visualWidth, setFrameWidth, clearFrameWidth } from "../../src/ui/formatter";
+import {
+  clearFrameWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  setFrameWidth,
+  visualWidth,
+} from "../../src/ui/formatter";
 import type { ParsedTyphoonAnalysis, SpecialValue } from "../../src/types";
+import { expectCompleteWrappedValue } from "./width-contract-assertions";
 
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
 
@@ -120,6 +128,62 @@ describe("displayTyphoonAnalysisInfo", () => {
       } finally {
         clearFrameWidth();
       }
+    }
+  });
+
+  it.each([40, 60, 80, 120, 200])("過長 title / region / type を幅 %i に収め内容を保持する", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        resetFrameLineClampFallbackCount();
+        const info = structuredClone(parseTyphoonAnalysis(createMockWsDataMessage(FIXTURE_VPTW60_2020))!);
+        info.infoType = `TA_TYPE_KEEP ${"追加種別情報 ".repeat(12)}`;
+        info.name = {
+          name: `TA_NAME_KEEP ${"台風名 ".repeat(14)}`,
+          nameKana: "テスト",
+          number: "9901",
+          remark: null,
+        };
+        const first = info.frames[0];
+        if (first == null) throw new Error("typhoon analysis synthetic の実況 frame が不足している");
+        first.typhoonClass = {
+          ...first.typhoonClass,
+          category: `TA_CLASS_KEEP ${"階級 ".repeat(12)}`,
+        };
+        first.center = {
+          ...first.center,
+          location: `TA_REGION_KEEP ${"中心位置 ".repeat(18)}`,
+          moveDirection: `DIR ${"移動方向 ".repeat(12)}`,
+        };
+
+        const out = renderInfo(info).join("\n");
+        const plain = stripAnsi(out);
+        for (const line of plain.split("\n")) {
+          const lineWidth = visualWidth(line);
+          expect(lineWidth, `color=${level} width=${width} line=${JSON.stringify(line.slice(0, 60))}`)
+            .toBeLessThanOrEqual(width);
+          if (/^[┌╔├╠│║└╚]/.test(line)) expect(lineWidth).toBe(width);
+        }
+        for (const marker of [
+          "TA_TYPE_KEEP",
+          "TA_NAME_KEEP",
+          "TA_CLASS_KEEP",
+        ]) {
+          expect(plain, `color=${level} width=${width} marker=${marker}`).toContain(marker);
+        }
+        for (const value of [first.center.location]) {
+          if (value != null) expectCompleteWrappedValue(plain, value, `color=${level} width=${width}`);
+        }
+        const titleOrder = ["TA_TYPE_KEEP", "TA_NAME_KEEP"]
+          .map((marker) => plain.indexOf(marker));
+        expect(titleOrder, `color=${level} width=${width} title order`).toEqual([...titleOrder].sort((a, b) => a - b));
+        expect(getFrameLineClampFallbackCount(), `color=${level} width=${width}`).toBe(0);
+      }
+    } finally {
+      chalk.level = originalLevel;
+      clearFrameWidth();
     }
   });
 });

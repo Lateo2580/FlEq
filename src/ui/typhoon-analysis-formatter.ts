@@ -4,7 +4,8 @@ import * as theme from "./theme";
 import {
   FrameLevel, getFrameWidth, SEVERITY_LABELS,
   frameTopColored, frameBottomColored, frameLineColored, frameDividerColored,
-  createRenderBuffer, flushWithRecap, wrapFrameLinesColored, renderFooter, visualWidth,
+  createRenderBuffer, flushWithRecap, pushWrappedFrameLine, pushWrappedFrameTitle,
+  renderFooter, visualWidth,
 } from "./formatter";
 import { getDisplaySeverityText } from "./weather-warning-level-theme";
 import { pushFrameTable, FrameTableColumn } from "./frame-table-builder";
@@ -24,7 +25,12 @@ function pushConfirmedBlock(
   width: number, f: TyphoonFrame, heading: string,
 ): void {
   buf.push(frameDividerColored(level, color, width));
-  buf.push(frameLineColored(level, color, `  ${chalk.bold.cyan(`▸ ${heading}`)}`, width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "type", borderColor: color },
+    `  ${chalk.bold.cyan(`▸ ${heading}`)}`,
+  );
   const c = f.center;
   const qualitativeSpeed = movementSpeedQualitativeDisplay(c.moveSpeedKmhValue);
   const movement = c.moveDirection
@@ -41,7 +47,12 @@ function pushConfirmedBlock(
     windAreaLine(f),
   ].filter(Boolean);
   for (const line of lines) {
-    for (const w of wrapFrameLinesColored(level, color, `    ${chalk.white(line)}`, width)) buf.push(w);
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor: color },
+      `    ${chalk.white(line)}`,
+    );
   }
 }
 
@@ -71,20 +82,45 @@ export function displayTyphoonAnalysisInfo(info: ParsedTyphoonAnalysis): void {
   buf.pushEmpty();
   buf.push(frameTopColored(level, color, width));
   if (info.isTest) {
-    buf.push(frameLineColored(level, color, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, color, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor: color },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
   const nameLabel = info.name?.name
     ? `${info.name.name}${info.name.number ? ` (台風${info.name.number.slice(2)}号)` : ""}`
     : info.name?.remark || "";
-  const titleContent =
-    chalk.bold("台風解析・予報情報") + chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`) +
-    (nameLabel ? chalk.white(`  ${nameLabel}`) : "");
-  buf.pushTitle(frameLineColored(level, color, titleContent, width));
+  const titleBasePart = {
+    text: chalk.bold("台風解析・予報情報"), priority: 0 as const, omission: "never" as const,
+  };
+  const titleInfoPart = {
+    text: chalk.gray(info.infoType), priority: 1 as const, omission: "never" as const,
+  };
+  const titleSeverityPart = {
+    text: chalk.gray(SEVERITY_LABELS[level]), priority: 2 as const, omission: "drop" as const,
+  };
+  const titleNamePart = nameLabel === "" ? null : {
+    text: chalk.white(nameLabel), priority: 1 as const, omission: "never" as const,
+  };
+  const titleParts = titleNamePart == null
+    ? [titleBasePart, titleInfoPart, titleSeverityPart]
+    : [titleBasePart, titleInfoPart, titleSeverityPart, titleNamePart];
+  pushWrappedFrameTitle(buf, level, { width, borderColor: color }, titleParts);
 
   if (isCancel) {
     buf.push(frameDividerColored(level, color, width));
-    buf.push(frameLineColored(level, color, chalk.gray("この台風情報は取り消されました"), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor: color },
+      chalk.gray("この台風情報は取り消されました"),
+    );
     renderFooter(level, info.type, info.reportDateTime, info.publishingOffice, width, buf, color);
     buf.push(frameBottomColored(level, color, width));
     buf.pushEmpty();
@@ -103,7 +139,12 @@ export function displayTyphoonAnalysisInfo(info: ParsedTyphoonAnalysis): void {
   const forecasts = info.frames.filter((f) => f.kind === "予報");
   if (forecasts.length > 0) {
     buf.push(frameDividerColored(level, color, width));
-    buf.push(frameLineColored(level, color, `  ${chalk.bold.cyan("▸ ５日予報")}`, width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "type", borderColor: color },
+      `  ${chalk.bold.cyan("▸ ５日予報")}`,
+    );
     const columns: FrameTableColumn[] = [
       { header: "時刻" }, { header: "階級" }, { header: "中心位置" },
       { header: "気圧" }, { header: "最大風速" }, { header: "予報円" },

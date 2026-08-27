@@ -17,7 +17,8 @@ import {
   createRenderBuffer,
   flushWithRecap,
   renderFooter,
-  wrapFrameLinesColored,
+  pushWrappedFrameLine,
+  pushWrappedFrameTitle,
 } from "./formatter";
 
 const WHITE_BORDER = chalk.rgb(232, 232, 232);
@@ -32,15 +33,19 @@ function pushPairSection(
   level: FrameLevel,
   color: (s: string) => string,
   width: number,
+  purpose: "region" | "prose",
 ): void {
   if (pairs.length === 0) return;
   buf.push(frameDividerColored(level, color, width));
-  buf.push(frameLineColored(level, color, chalk.gray(`[${label}]`), width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "type", borderColor: color },
+    chalk.gray(`[${label}]`),
+  );
   for (const pair of pairs) {
     const line = `  ${safeText(pair.code)}  ${safeText(pair.name)}`;
-    for (const wrapped of wrapFrameLinesColored(level, color, line, width)) {
-      buf.push(wrapped);
-    }
+    pushWrappedFrameLine(buf, level, { width, purpose, borderColor: color }, line);
   }
 }
 
@@ -59,37 +64,51 @@ export function displayLegacyCounterpartInfo(
   buf.pushEmpty();
   buf.push(frameTopColored(level, color, width));
   if (info.isTest) {
-    buf.push(frameLineColored(level, color, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, color, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor: color },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
-  buf.pushTitle(
-    frameLineColored(
-      level,
-      color,
-      chalk.bold(title) + chalk.gray(`  ${infoType}  ${SEVERITY_LABELS[level]}`),
-      width,
-    ),
-  );
+  pushWrappedFrameTitle(buf, level, { width, borderColor: color }, [
+    { text: chalk.bold(title), priority: 0, omission: "never" },
+    { text: chalk.gray(infoType), priority: 1, omission: "never" },
+    { text: chalk.gray(SEVERITY_LABELS[level]), priority: 2, omission: "drop" },
+  ]);
   if (safeText(info.title) !== title) {
-    buf.push(frameLineColored(level, color, chalk.white(safeText(info.title)), width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "title", borderColor: color },
+      chalk.white(safeText(info.title)),
+    );
   }
 
   buf.push(frameDividerColored(level, color, width));
   const qualifier = QUALIFIER_BY_REASON[reason];
-  buf.push(frameLineColored(level, color, chalk.yellow.bold(`  ${qualifier}`), width));
+  pushWrappedFrameLine(
+    buf,
+    level,
+    { width, purpose: "prose", borderColor: color },
+    chalk.yellow.bold(`  ${qualifier}`),
+  );
   if (info.headline != null && safeText(info.headline) !== "") {
-    for (const wrapped of wrapFrameLinesColored(
+    pushWrappedFrameLine(
+      buf,
       level,
-      color,
+      { width, purpose: "headline", borderColor: color },
       `  ${chalk.white(safeText(info.headline))}`,
-      width,
-    )) {
-      buf.push(wrapped);
-    }
+    );
   }
 
-  pushPairSection(info.areas, "対象地域", buf, level, color, width);
-  pushPairSection(info.phenomena, "現象", buf, level, color, width);
-  pushPairSection(info.kinds, "種別", buf, level, color, width);
+  pushPairSection(info.areas, "対象地域", buf, level, color, width, "region");
+  pushPairSection(info.phenomena, "現象", buf, level, color, width, "prose");
+  pushPairSection(info.kinds, "種別", buf, level, color, width, "prose");
 
   renderFooter(
     level,

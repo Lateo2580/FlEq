@@ -12,6 +12,8 @@ import {
   getFrameWidth,
   SEVERITY_LABELS,
   renderFooter,
+  pushWrappedFrameLine,
+  pushWrappedFrameTitle,
   visualWidth,
   stripAnsi,
 } from "./formatter";
@@ -51,9 +53,6 @@ function nameLabel(info: ParsedTyphoonProbability): string {
   return info.name?.remark ?? "";
 }
 
-const MAX_SAMPLE_CODES = 3; // 各 note 行の例示コード上限
-const MAX_NOTE_LINES = 3; // 表示する note 行数の上限
-
 function pushDiagnosticsNote(
   buf: ReturnType<typeof createRenderBuffer>,
   level: "normal" | "cancel",
@@ -64,40 +63,27 @@ function pushDiagnosticsNote(
   const d = info.parserDiagnostics;
   const notes: string[] = [];
   if (d.duplicateCodes.length > 0) {
-    const sample = d.duplicateCodes.slice(0, MAX_SAMPLE_CODES).join(", ");
-    const suffix =
-      d.duplicateCodes.length > MAX_SAMPLE_CODES
-        ? ` (ほか ${d.duplicateCodes.length - MAX_SAMPLE_CODES} 件)`
-        : "";
-    notes.push(`[警告] 地域コード重複: ${sample}${suffix}`);
+    notes.push(`[警告] 地域コード重複: ${d.duplicateCodes.join(", ")}`);
   }
   if (d.dailyAnomalies.length > 0) {
-    const sample = d.dailyAnomalies
-      .slice(0, MAX_SAMPLE_CODES)
-      .map((a) => a.areaCode)
-      .join(", ");
-    const suffix =
-      d.dailyAnomalies.length > MAX_SAMPLE_CODES
-        ? ` (ほか ${d.dailyAnomalies.length - MAX_SAMPLE_CODES} 件)`
-        : "";
-    notes.push(`[警告] daily 単調性違反: ${sample}${suffix}`);
+    const codes = d.dailyAnomalies.map((a) => a.areaCode).join(", ");
+    notes.push(`[警告] daily 単調性違反: ${codes}`);
   }
   if (d.sectionCodeCountMismatch) {
     notes.push("[警告] 全6セクションの地域コード集合に不一致");
   }
   if (d.unknownAttributes.length > 0) {
-    const sample = d.unknownAttributes.slice(0, MAX_SAMPLE_CODES).join(", ");
-    const suffix =
-      d.unknownAttributes.length > MAX_SAMPLE_CODES
-        ? ` (ほか ${d.unknownAttributes.length - MAX_SAMPLE_CODES} 件)`
-        : "";
-    notes.push(`[情報] 想定外属性: ${sample}${suffix}`);
+    notes.push(`[情報] 想定外属性: ${d.unknownAttributes.join(", ")}`);
   }
   if (notes.length === 0) return;
   buf.push(frameDividerLabeledColored(level, color, "▸ 注記", width));
-  // 警告を先に push しているので、4 件超過時は [情報] が落ちる (priority drop)
-  for (const n of notes.slice(0, MAX_NOTE_LINES)) {
-    buf.push(frameLineColored(level, color, `   ${n}`, width));
+  for (const n of notes) {
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor: color },
+      `   ${n}`,
+    );
   }
 }
 
@@ -132,19 +118,43 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
   buf.pushEmpty();
   buf.push(frameTopColored(level, color, width));
   if (info.isTest) {
-    buf.push(frameLineColored(level, color, theme.getRoleChalk("testBadge")(" テスト電文 "), width));
+    if (chalk.level === 0) {
+      buf.push(frameLineColored(level, color, " テスト電文 ", width));
+    } else {
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "type", borderColor: color },
+        theme.getRoleChalk("testBadge")(" テスト電文 "),
+      );
+    }
   }
   const label = nameLabel(info);
-  const headline =
-    chalk.bold("台風の暴風域に入る確率") +
-    chalk.gray(`  ${info.infoType}`) +
-    chalk.gray(`  ${SEVERITY_LABELS[level]}`) +
-    (label ? chalk.white(`  ${label}`) : "");
-  buf.pushTitle(frameLineColored(level, color, headline, width));
+  const titleBasePart = {
+    text: chalk.bold("台風の暴風域に入る確率"), priority: 0 as const, omission: "never" as const,
+  };
+  const titleInfoPart = {
+    text: chalk.gray(info.infoType), priority: 1 as const, omission: "never" as const,
+  };
+  const titleSeverityPart = {
+    text: chalk.gray(SEVERITY_LABELS[level]), priority: 2 as const, omission: "drop" as const,
+  };
+  const titleNamePart = label === "" ? null : {
+    text: chalk.white(label), priority: 1 as const, omission: "never" as const,
+  };
+  const titleParts = titleNamePart == null
+    ? [titleBasePart, titleInfoPart, titleSeverityPart]
+    : [titleBasePart, titleInfoPart, titleSeverityPart, titleNamePart];
+  pushWrappedFrameTitle(buf, level, { width, borderColor: color }, titleParts);
   buf.push(frameDividerColored(level, color, width));
 
   if (isCancel) {
-    buf.push(frameLineColored(level, color, "この台風情報は取り消されました", width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "diagnostic", borderColor: color },
+      "この台風情報は取り消されました",
+    );
     pushDiagnosticsNote(buf, level, color, width, info);
     renderTrailer(info, level, color, buf, width);
     return;
@@ -154,11 +164,26 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
   // 現時点では「いずれかの region の daily[4] > 0」かどうかで空状態判定する。
   const hasActive = info.regions.some((r) => (r.daily[4] ?? 0) > 0);
   if (!hasActive) {
-    buf.push(frameLineColored(level, color, "暴風域に入る確率が1%以上の地域はありません", width));
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor: color },
+      "暴風域に入る確率が1%以上の地域はありません",
+    );
     if (info.name != null) {
-      buf.push(frameLineColored(level, color, `(120時間先まで予測対象 / ${nameLabel(info)})`, width));
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "prose", borderColor: color },
+        `(120時間先まで予測対象 / ${nameLabel(info)})`,
+      );
     } else {
-      buf.push(frameLineColored(level, color, "(120時間先まで予測対象)", width));
+      pushWrappedFrameLine(
+        buf,
+        level,
+        { width, purpose: "prose", borderColor: color },
+        "(120時間先まで予測対象)",
+      );
     }
     pushDiagnosticsNote(buf, level, color, width, info);
     renderTrailer(info, level, color, buf, width);
@@ -183,13 +208,11 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
     ),
   );
   if (isCompact) {
-    buf.push(
-      frameLineColored(
-        level,
-        color,
-        chalk.bgGray.white(" [省略] ") + " 表示量制限のため要約",
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor: color },
+      chalk.bgGray.white(" [省略] ") + " 表示量制限のため要約",
     );
   }
 
@@ -232,13 +255,11 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
     const hidden = active.slice(visible.length);
     const minProb = hidden[hidden.length - 1].maxDaily5;
     const maxProb = hidden[0].maxDaily5;
-    buf.push(
-      frameLineColored(
-        level,
-        color,
-        `   …ほか ${hiddenCount}府県 (${minProb}〜${maxProb}%)`,
-        width,
-      ),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "region", borderColor: color },
+      `   …ほか ${hiddenCount}府県 (${minProb}〜${maxProb}%)`,
     );
   }
 
@@ -247,8 +268,11 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
     (a) => a.worstPeak.kind === "value" && a.worstPeak.ties.length >= 3,
   );
   if (hasTies) {
-    buf.push(
-      frameLineColored(level, color, "   * 同確率が複数時刻に存在", width),
+    pushWrappedFrameLine(
+      buf,
+      level,
+      { width, purpose: "prose", borderColor: color },
+      "   * 同確率が複数時刻に存在",
     );
   }
 
@@ -276,10 +300,14 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
         if (allItems.length === 0) continue;
 
         // 見出し行: ◇ 府県名
-        buf.push(frameLineColored(level, color, `   ◇ ${chalk.bold.cyan(agg.prefName)}`, width));
+        pushWrappedFrameLine(
+          buf,
+          level,
+          { width, purpose: "region", borderColor: color },
+          `   ◇ ${chalk.bold.cyan(agg.prefName)}`,
+        );
 
         // 地域行: items を item 単位でパックして折り返す (ANSI 保持 + 地域名境界保護)
-        const MAX_LINES = 3;
         const innerWidth = width - 4; // フレーム内の有効幅
         const ITEM_PREFIX = "      "; // 6 スペース (◇ 見出しより 1 段深い)
         const prefixWidth = visualWidth(ITEM_PREFIX);
@@ -318,21 +346,14 @@ export function displayTyphoonProbabilityInfo(info: ParsedTyphoonProbability): v
           return result;
         }
 
-        let visibleItems = allItems;
-        let hiddenItemCount = 0;
-        let packedLines: string[] = [];
-        while (true) {
-          const candidate =
-            hiddenItemCount > 0
-              ? [...visibleItems, `…ほか ${hiddenItemCount} 地域`]
-              : visibleItems;
-          packedLines = packLines(candidate);
-          if (packedLines.length <= MAX_LINES || visibleItems.length <= 1) break;
-          hiddenItemCount++;
-          visibleItems = visibleItems.slice(0, visibleItems.length - 1);
-        }
+        const packedLines = packLines(allItems);
         for (const line of packedLines) {
-          buf.push(frameLineColored(level, color, line, width));
+          pushWrappedFrameLine(
+            buf,
+            level,
+            { width, purpose: "region", borderColor: color },
+            line,
+          );
         }
       }
     }

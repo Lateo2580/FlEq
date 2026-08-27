@@ -6,6 +6,14 @@ import { parseTyphoonProbability } from "../../src/dmdata/typhoon-probability-pa
 import { createMockWsDataMessage, createMockWsDataMessageFromXml, FIXTURE_VPTA50_DAMREY, FIXTURE_VPTA50_JANGMI_GONE } from "../helpers/mock-message";
 import { buildVpta50Synthetic } from "../helpers/build-vpta50-synthetic";
 import type { ParsedTyphoonProbability, TyphoonProbRegion, TyphoonProbPeak } from "../../src/types";
+import {
+  clearFrameWidth,
+  getFrameLineClampFallbackCount,
+  resetFrameLineClampFallbackCount,
+  setFrameWidth,
+  visualWidth,
+} from "../../src/ui/formatter";
+import { expectCompleteWrappedValue } from "./width-contract-assertions";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
@@ -39,6 +47,67 @@ describe("displayTyphoonProbabilityInfo — 共通枠", () => {
     const cancelInfo = { ...info, infoType: "取消" };
     displayTyphoonProbabilityInfo(cancelInfo);
     expect(stripAnsi(logs.join("\n"))).toContain("この台風情報は取り消されました");
+  });
+});
+
+describe("displayTyphoonProbabilityInfo - CLI width contract synthetic matrix", () => {
+  it.each([40, 60, 80, 120, 200])("過長 title / region / prose / diagnostic を幅 %i に収め内容を保持する", (width) => {
+    const originalLevel = chalk.level;
+    try {
+      for (const level of [0, 3] as const) {
+        chalk.level = level;
+        setFrameWidth(width);
+        resetFrameLineClampFallbackCount();
+        const info = buildSyntheticInfo("PROB_PREF_KEEP", [
+          { areaName: "PROB_REGION_KEEP", daily4: 80 },
+          { areaName: "PROB_AREA2_KEEP", daily4: 75 },
+          { areaName: "PROB_AREA3_KEEP", daily4: 70 },
+        ]);
+        info.infoType = `PROB_TYPE_KEEP ${"追加種別情報 ".repeat(12)}`;
+        info.name = {
+          name: `PROB_NAME_KEEP ${"台風名 ".repeat(14)}`,
+          nameKana: "テスト",
+          number: "9901",
+          remark: null,
+        };
+        info.parserDiagnostics = {
+          duplicateCodes: [`PROB_DIAG_${"D".repeat(20)}`],
+          missingCodesPerSection: [],
+          sectionCodeCountMismatch: false,
+          dailyAnomalies: [],
+          unknownAttributes: [],
+        };
+
+        displayTyphoonProbabilityInfo(info);
+        const rendered = stripAnsi(logs.join("\n"));
+        for (const line of rendered.split("\n")) {
+          const lineWidth = visualWidth(line);
+          expect(lineWidth, `color=${level} width=${width} line=${JSON.stringify(line.slice(0, 60))}`)
+            .toBeLessThanOrEqual(width);
+          if (/^[┌╔├╠│║└╚]/.test(line)) expect(lineWidth).toBe(width);
+        }
+        for (const marker of [
+          "PROB_TYPE_KEEP",
+          "PROB_NAME_KEEP",
+        ]) {
+          expect(rendered, `color=${level} width=${width} marker=${marker}`).toContain(marker);
+        }
+        for (const value of [
+          info.regions[0]?.prefName,
+          ...info.regions.map((region) => region.areaName),
+          info.parserDiagnostics.duplicateCodes[0],
+        ]) {
+          if (value != null) expectCompleteWrappedValue(rendered, value, `color=${level} width=${width}`);
+        }
+        const titleOrder = ["PROB_TYPE_KEEP", "PROB_NAME_KEEP"]
+          .map((marker) => rendered.indexOf(marker));
+        expect(titleOrder, `color=${level} width=${width} title order`).toEqual([...titleOrder].sort((a, b) => a - b));
+        expect(getFrameLineClampFallbackCount(), `color=${level} width=${width}`).toBe(0);
+      }
+    } finally {
+      chalk.level = originalLevel;
+      clearFrameWidth();
+    }
   });
 });
 
@@ -394,8 +463,8 @@ describe("displayTyphoonProbabilityInfo — wrap 境界保護 (item-atomic)", ()
   });
 });
 
-describe("displayTyphoonProbabilityInfo — 内訳 overflow 省略 (…ほか N 地域)", () => {
-  it("items が MAX_LINES を超えるほど多い場合 '…ほか N 地域' が出る", async () => {
+describe("displayTyphoonProbabilityInfo — 内訳 overflow 全文 wrap", () => {
+  it("items が多くても地域名を省略せず全文 wrap する", async () => {
     const { setFrameWidth, clearFrameWidth } = await import("../../src/ui/formatter");
     setFrameWidth(80);
     try {
@@ -407,19 +476,9 @@ describe("displayTyphoonProbabilityInfo — 内訳 overflow 省略 (…ほか N 
       const info = buildSyntheticInfo("多地域府県", regions);
       displayTyphoonProbabilityInfo(info);
       const joined = stripAnsi(logs.join(""));
-      expect(joined).toMatch(/…ほか \d+ 地域/);
-
-      // 表示件数 + 隠し件数 = 合計 20 であることを検証
-      const m = joined.match(/…ほか (\d+) 地域/);
-      if (m != null) {
-        const hidden = parseInt(m[1], 10);
-        // items 行から表示地域数 (「地区NN」出現数) を数える。
-        // …ほか N 地域 の "地域" は "地区" とは異なるため地区\d+ で正確に数えられる
-        const rawLines = logs.join("\n").split("\n");
-        const contents = extractFrameContents(rawLines);
-        const itemContent = contents.filter(c => c.startsWith("      ") && c.includes("%")).join("");
-        const visibleCount = itemContent.match(/地区\d+/g)?.length ?? 0;
-        expect(visibleCount + hidden).toBe(20);
+      expect(joined).not.toMatch(/…ほか \d+ 地域/);
+      for (let index = 1; index <= 20; index++) {
+        expect(joined).toContain(`地区${String(index).padStart(2, "0")}`);
       }
     } finally {
       clearFrameWidth();
