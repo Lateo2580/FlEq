@@ -36,7 +36,7 @@
   const pageCoordinator = initialPageCoordinator ?? createCardPageCoordinator();
   const ownsPageCoordinator = initialPageCoordinator == null;
   const entries = $derived(item.data.entries);
-  type BriefingBlockKind = "title" | "headline" | "condition" | "area" | "areaOverflow" | "areaDetail" | "lead" | "fact" | "qualifier" | "meta";
+  type BriefingBlockKind = "title" | "headline" | "condition" | "areaContext" | "area" | "areaOverflow" | "areaDetail" | "lead" | "fact" | "qualifier" | "meta";
   interface BriefingBlock {
     identity: string;
     label: string;
@@ -102,13 +102,35 @@
     const amount = fact.description || (fact.value == null ? "値不明" : `${fact.value}${fact.unit ?? ""}`);
     return `${location} ${amount} / ${displayTime(fact.at)}`;
   }
+  // Display context is deliberately narrower than a generic title heuristic.
+  // Head.Title is trusted only when it is the canonical prefectural briefing
+  // title, so an unrelated title can never manufacture a prefecture label.
+  const PREFECTURES = "北海道|東京都|京都府|大阪府|青森県|岩手県|宮城県|秋田県|山形県|福島県|茨城県|栃木県|群馬県|埼玉県|千葉県|神奈川県|新潟県|富山県|石川県|福井県|山梨県|長野県|岐阜県|静岡県|愛知県|三重県|滋賀県|兵庫県|奈良県|和歌山県|鳥取県|島根県|岡山県|広島県|山口県|徳島県|香川県|愛媛県|高知県|福岡県|佐賀県|長崎県|熊本県|大分県|宮崎県|鹿児島県|沖縄県";
+  const PREFECTURAL_BRIEFING_TITLE = new RegExp(`^(${PREFECTURES})気象防災速報(?:\\([^)]*\\))?$`);
+  function prefectureContext(title: string): string | null {
+    return PREFECTURAL_BRIEFING_TITLE.exec(title.normalize("NFKC").trim())?.[1] ?? null;
+  }
+  function titleWithoutPrefectureContext(title: string, context: string | null): string {
+    return context != null && title.startsWith(context) ? title.slice(context.length).trimStart() : title;
+  }
+  function addTargetAreas(
+    entry: (typeof entries)[number],
+    add: (kind: BriefingBlockKind, text: string, suffix: string) => void,
+    kind: "area" | "areaDetail" = "area",
+  ): void {
+    const names = entry.targetAreas.map((area) => area.name).filter((name) => name.trim() !== "");
+    if (names.length === 0) return;
+    // Code remains in targetAreas for transport/identity/audit, never in a
+    // rendered text node. One element is the target-region DOM contract.
+    add(kind, names.join("、"), `${kind}:${entry.targetAreas.map((area) => area.code).join(",")}`);
+  }
   function addFallbackBlocks(
     result: BriefingBlock[], entry: (typeof entries)[number], add: (kind: BriefingBlockKind, text: string, suffix: string) => void,
   ): void {
     add("title", entry.title, "raw-title");
     add("headline", entry.headline == null || entry.headline.trim() === "" ? "本文なし" : entry.headline, "raw-headline");
     for (const [index, condition] of entry.conditions.entries()) add("condition", condition, `raw-condition:${index}`);
-    for (const [index, area] of entry.targetAreas.entries()) add("area", `${area.name} ${area.code}`, `raw-area:${area.code}:${index}`);
+    addTargetAreas(entry, add);
     if (entry.qualifier != null) add("qualifier", entry.qualifier, "qualifier");
     add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
   }
@@ -132,8 +154,10 @@
       return result;
     }
     for (const item of summary.items) add("lead", item.lead, `lead:${item.sourceOrdinal}`, true);
+    const context = prefectureContext(entry.title);
+    if (context != null) add("areaContext", context, "prefecture-context");
     const primaryAreas = entry.targetAreas.slice(0, 3);
-    for (const [index, area] of primaryAreas.entries()) add("area", `${area.name} ${area.code}`, `area:${area.code}:${index}`);
+    if (primaryAreas.length > 0) add("area", primaryAreas.map((area) => area.name).join("、"), `area:${primaryAreas.map((area) => area.code).join(",")}`);
     if (entry.targetAreas.length > 3) add("areaOverflow", `ほか${entry.targetAreas.length - 3}地域`, "area-overflow");
     add("meta", `${entry.publishingOffice}　${displayTime(entry.reportDateTime)}発表`, "meta");
     if (entry.qualifier != null) add("qualifier", entry.qualifier, "qualifier");
@@ -141,10 +165,12 @@
       for (const [index, fact] of item.facts.entries()) add("fact", factText(fact), `fact:${item.sourceOrdinal}:${fact.kind}:${fact.kind === "event" ? fact.areaCode ?? index : fact.locationCode ?? index}:${index}`, true);
     }
     if (entry.targetAreas.length > 3) {
-      for (const [index, area] of entry.targetAreas.entries()) add("areaDetail", `${area.name} ${area.code}`, `all-area:${area.code}:${index}`);
+      addTargetAreas(entry, add, "areaDetail");
     }
     if (summary.mode === "mixed") {
-      add("title", entry.title, "mixed-title");
+      // Keep the title's phenomenon detail for mixed summaries, but do not
+      // repeat the prefecture already rendered as the entry context.
+      add("title", titleWithoutPrefectureContext(entry.title, context), "mixed-title");
       add("headline", entry.headline == null || entry.headline.trim() === "" ? "本文なし" : entry.headline, "mixed-headline");
     }
     return result;
@@ -228,9 +254,10 @@
           {:else if block.kind === "headline"}<p class="headline" data-briefing-block={block.identity}>{block.text}</p>
           {:else if block.kind === "condition"}<p class="conditions" data-briefing-block={block.identity}>{block.text}</p>
           {:else if block.kind === "lead"}<h2 class="lead" data-briefing-block={block.identity}>{block.text}</h2>
-          {:else if block.kind === "area"}<p class="areas" data-briefing-block={block.identity}>対象: {block.text}</p>
+          {:else if block.kind === "areaContext"}<p class="area-context" data-briefing-prefecture-context data-briefing-block={block.identity}>{block.text}</p>
+          {:else if block.kind === "area"}<p class="areas" data-briefing-target-regions data-briefing-block={block.identity}>対象: {block.text}</p>
           {:else if block.kind === "areaOverflow"}<p class="areas" data-briefing-block={block.identity}>{block.text}</p>
-          {:else if block.kind === "areaDetail"}<p class="areas" data-briefing-block={block.identity}>対象: {block.text}</p>
+          {:else if block.kind === "areaDetail"}<p class="areas" data-briefing-target-regions data-briefing-block={block.identity}>対象: {block.text}</p>
           {:else if block.kind === "fact"}<p class="fact" data-briefing-block={block.identity}>{block.text}</p>
           {:else if block.kind === "qualifier"}<p class="qualifier" data-briefing-block={block.identity}>{block.text}</p>
           {:else}<p class="meta" data-briefing-block={block.identity}>{block.text}</p>
@@ -255,7 +282,7 @@
   h2 { font-size: var(--type-label-l-fluid); line-height: 1.35; }
   .lead { color: var(--role-weatherWarning); }
   .headline { margin-top: var(--space-1); font-size: var(--type-body-s-fluid); line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .conditions, .areas, .fact, .qualifier, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
+  .conditions, .area-context, .areas, .fact, .qualifier, .meta { margin-top: var(--space-1); color: var(--role-muted); font-size: var(--type-label-s-fluid); line-height: 1.35; }
   .fact { color: var(--role-text); }
   .qualifier { color: var(--role-weatherWarning); }
   .card-page-footer { display: flex; justify-content: flex-end; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--hairline); }

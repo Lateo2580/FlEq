@@ -5,6 +5,17 @@ import BriefingCard from "../BriefingCard.svelte";
 import { initialState, reduce } from "../../lib/store";
 import type { ActiveStandbyCardV1, DisplayEventDtoV1, DisplayStateSnapshotV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
+import { parseWeatherBriefing } from "../../../../../src/dmdata/briefing-parser";
+import { StandbyStateStore } from "../../../../../src/engine/display/standby-state-store";
+import { fromBriefingOutcome } from "../../../../../src/engine/presentation/events/from-briefing";
+import { processBriefing } from "../../../../../src/engine/presentation/processors/process-briefing";
+import {
+  createMockWsDataMessage,
+  FIXTURE_VPBS50_HJPNA202608270258,
+  FIXTURE_VPBS50_HJPNB202608270308,
+  FIXTURE_VPBS50_YJPNA202608270448,
+  FIXTURE_VPBS50_YJPNB202608270448,
+} from "../../../../../test/helpers/mock-message";
 
 function briefing(entries = 1): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
   return {
@@ -56,6 +67,18 @@ function briefingFromFrontendFrame(
   const briefingItem = state.snapshot?.standbyItems?.find((candidate) => candidate.kind === "briefing");
   if (briefingItem == null || briefingItem.kind !== "briefing") throw new Error("briefing card was not reduced");
   return briefingItem;
+}
+
+function corpusBriefing(fixture: string): Extract<ActiveStandbyCardV1, { kind: "briefing" }> {
+  const message = createMockWsDataMessage(fixture);
+  const parsed = parseWeatherBriefing(message);
+  const outcome = processBriefing(message);
+  if (parsed == null || outcome == null) throw new Error(`briefing corpus did not parse: ${fixture}`);
+  const store = new StandbyStateStore();
+  store.applyEvent(fromBriefingOutcome(outcome), Date.parse(parsed.reportDateTime) + 1);
+  const item = store.snapshotBriefingCard();
+  if (item == null) throw new Error(`briefing corpus did not reach wire: ${fixture}`);
+  return item;
 }
 
 describe("BriefingCard", () => {
@@ -209,5 +232,71 @@ describe("BriefingCard", () => {
 
     expect(container.textContent).toContain("旧 wire title");
     expect(container.textContent).toContain("旧 wire headline");
+  });
+
+  it.each([
+    [FIXTURE_VPBS50_HJPNA202608270258, "富山県"],
+    [FIXTURE_VPBS50_HJPNB202608270308, "石川県"],
+    [FIXTURE_VPBS50_YJPNA202608270448, "富山県"],
+    [FIXTURE_VPBS50_YJPNB202608270448, "石川県"],
+  ] as const)("corpus %s は実 XML→parser→wire 経由で県文脈を一度だけ、対象地域 DOM には名称だけを描画する", (fixture, prefecture) => {
+    const item = corpusBriefing(fixture);
+    const entry = item.data.entries[0]!;
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const renderedEntry = container.querySelector<HTMLElement>("[data-briefing-entry]");
+    const contexts = renderedEntry?.querySelectorAll<HTMLElement>("[data-briefing-prefecture-context]") ?? [];
+    const target = renderedEntry?.querySelector<HTMLElement>("[data-briefing-target-regions]");
+
+    expect(contexts).toHaveLength(1);
+    expect(contexts[0]?.textContent).toBe(prefecture);
+    expect(target?.textContent).toBe(`対象: ${entry.targetAreas.map((area) => area.name).join("、")}`);
+    for (const area of entry.targetAreas) expect(renderedEntry?.textContent).not.toContain(area.code);
+  });
+
+  it("Head.Title から県名を安全に抽出できない場合は対象地域名だけを描画する", () => {
+    const item = briefing();
+    const entry = item.data.entries[0]!;
+    entry.title = "気象防災速報（対象県不明）";
+    entry.targetAreas = [{ name: "西部", code: "160020" }, { name: "東部", code: "160010" }];
+    entry.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "linearRainObserved", lead: "線状降水帯が発生", sourceOrdinal: 0, facts: [] }] };
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const renderedEntry = container.querySelector<HTMLElement>("[data-briefing-entry]");
+
+    expect(renderedEntry?.querySelector("[data-briefing-prefecture-context]")).toBeNull();
+    expect(renderedEntry?.querySelector<HTMLElement>("[data-briefing-target-regions]")?.textContent).toBe("対象: 西部、東部");
+    expect(renderedEntry?.textContent).not.toContain("160020");
+    expect(renderedEntry?.textContent).not.toContain("160010");
+  });
+
+  it("mixed summary でも県文脈を一度だけ表示し、title の現象詳細は保持する", () => {
+    const item = briefing();
+    const entry = item.data.entries[0]!;
+    entry.title = "富山県気象防災速報（未分類の現象）";
+    entry.targetAreas = [{ name: "西部", code: "160020" }];
+    entry.summary = { mode: "mixed", hasUnknownKind: true, items: [{ kind: "linearRainObserved", lead: "線状降水帯が発生", sourceOrdinal: 0, facts: [] }] };
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const renderedEntry = container.querySelector<HTMLElement>("[data-briefing-entry]");
+
+    expect(renderedEntry?.textContent?.match(/富山県/g)).toHaveLength(1);
+    expect(renderedEntry?.textContent).toContain("気象防災速報（未分類の現象）");
+  });
+
+  it("raw fallback と4地域以上の areaDetail でも areaCode を可視文字列に出さない", () => {
+    const raw = briefing();
+    raw.data.entries[0]!.targetAreas = [{ name: "西部", code: "160020" }, { name: "東部", code: "160010" }];
+    const rawView = render(BriefingCard, { item: raw, shellHeightPx: 260 });
+    expect(rawView.container.querySelector<HTMLElement>("[data-briefing-target-regions]")?.textContent).toBe("対象: 西部、東部");
+    expect(rawView.container.textContent).not.toContain("160020");
+    expect(rawView.container.textContent).not.toContain("160010");
+
+    const detailed = briefing();
+    detailed.data.entries[0]!.targetAreas = [
+      { name: "一", code: "01" }, { name: "二", code: "02" }, { name: "三", code: "03" }, { name: "四", code: "04" },
+    ];
+    detailed.data.entries[0]!.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
+    const detailView = render(BriefingCard, { item: detailed, shellHeightPx: 260 });
+    const targets = [...detailView.container.querySelectorAll<HTMLElement>("[data-briefing-target-regions]")];
+    expect(targets.map((target) => target.textContent)).toEqual(["対象: 一、二、三", "対象: 一、二、三、四"]);
+    for (const code of ["01", "02", "03", "04"]) expect(detailView.container.textContent).not.toContain(code);
   });
 });
