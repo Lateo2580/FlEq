@@ -19,6 +19,7 @@ const DEFAULT_SCENARIOS = ["quiet", "4", "7", "max", "max-floodWide"];
 const SUPPORTED_SCENARIOS = [...DEFAULT_SCENARIOS];
 const DEFAULT_VIEWPORTS = ["1920x1080", "1512x982", "1280x720", "960x620"];
 const FLOOD_WIDE_VIEWPORTS = ["1920x1080", "1280x720"];
+const ATTENTION_VISIBILITY_FIXTURES = new Set(["attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"]);
 const MIME_TYPES = new Map([
   [".css", "text/css"], [".html", "text/html"], [".js", "text/javascript"],
   [".map", "application/json"], [".svg", "image/svg+xml"], [".woff2", "font/woff2"],
@@ -26,7 +27,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -130,6 +131,118 @@ async function startStaticServer() {
   };
 }
 
+function wait(ms) {
+  return new Promise((resolveWait) => setTimeout(resolveWait, ms));
+}
+
+function createCdpPipe(child) {
+  const input = child.stdio[3];
+  const output = child.stdio[4];
+  if (input == null || output == null) throw new Error("Chrome remote-debugging-pipe was not opened");
+  let nextId = 1;
+  let buffer = "";
+  let terminalError = null;
+  const pending = new Map();
+  output.setEncoding("utf8");
+  output.on("data", (chunk) => {
+    buffer += chunk;
+    let boundary = buffer.indexOf("\0");
+    while (boundary >= 0) {
+      const raw = buffer.slice(0, boundary);
+      buffer = buffer.slice(boundary + 1);
+      if (raw !== "") {
+        const message = JSON.parse(raw);
+        const request = pending.get(message.id);
+        if (request != null) {
+          pending.delete(message.id);
+          if (message.error != null) request.reject(new Error(`${request.method}: ${message.error.message ?? JSON.stringify(message.error)}`));
+          else request.resolve(message.result);
+        }
+      }
+      boundary = buffer.indexOf("\0");
+    }
+  });
+  const rejectPending = (error) => {
+    terminalError = error;
+    for (const request of pending.values()) request.reject(error);
+    pending.clear();
+  };
+  output.on("error", rejectPending);
+  child.on("error", rejectPending);
+  return {
+    command(method, params = {}, sessionId = undefined) {
+      const id = nextId++;
+      return new Promise((resolveCommand, rejectCommand) => {
+        if (terminalError != null) {
+          rejectCommand(terminalError);
+          return;
+        }
+        pending.set(id, { method, resolve: resolveCommand, reject: rejectCommand });
+        input.write(`${JSON.stringify({ id, method, params, ...(sessionId == null ? {} : { sessionId }) })}\0`);
+      });
+    },
+    close() { rejectPending(new Error("Chrome remote-debugging-pipe closed")); },
+  };
+}
+
+async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
+  const geometryProfile = join(profileDir, `.geometry-${Date.now()}`);
+  const child = spawn(chrome, [
+    "--headless=new", "--no-sandbox", "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
+    "--remote-debugging-pipe", `--user-data-dir=${geometryProfile}`, `--window-size=${viewport.width},${viewport.height}`, url,
+  ], { stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] });
+  const cdp = createCdpPipe(child);
+  try {
+    let page = null;
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      try {
+        const targets = await cdp.command("Target.getTargets");
+        page = targets.targetInfos.find((candidate) => candidate.type === "page" && candidate.url === url)
+          ?? targets.targetInfos.find((candidate) => candidate.type === "page")
+          ?? null;
+      } catch {
+        // Chrome has not opened its first page target yet.
+      }
+      if (page != null) break;
+      await wait(100);
+    }
+    if (page == null) throw new Error("Chrome DevTools page target did not become ready");
+    const attached = await cdp.command("Target.attachToTarget", { targetId: page.targetId, flatten: true });
+    await wait(500);
+    const result = await cdp.command("Runtime.evaluate", {
+      awaitPromise: true,
+      returnByValue: true,
+      expression: `(() => {
+        const pick = (selector) => [...document.querySelectorAll(selector)]
+          .filter((node) => node.clientWidth > 0 && node.clientHeight > 0)
+          .sort((left, right) => right.getBoundingClientRect().width * right.getBoundingClientRect().height - left.getBoundingClientRect().width * left.getBoundingClientRect().height)[0] ?? null;
+        const measure = (node) => node == null ? null : (() => {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return { clientWidth: node.clientWidth, scrollWidth: node.scrollWidth, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, width: rect.width, height: rect.height, maxHeight: style.maxHeight };
+        })();
+        const overlap = (left, right) => left == null || right == null ? 0 : (() => {
+          const a = left.getBoundingClientRect();
+          const b = right.getBoundingClientRect();
+          return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+        })();
+        const panels = [...document.querySelectorAll('.tsunami-panel, .quake-panel')]
+          .filter((panel) => panel.clientWidth > 0 && panel.clientHeight > 0)
+          .map((panel) => ({
+            panel: measure(panel),
+            body: measure(panel.querySelector('.page-body, .page-list-body')),
+            indicatorBodyOverlap: overlap(panel.querySelector('.page-dots'), panel.querySelector('.page-body, .page-list-body')),
+          }));
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels };
+      })()`,
+    }, attached.sessionId);
+    return result.result.value;
+  } finally {
+    cdp.close();
+    child.kill("SIGTERM");
+  }
+}
+
 function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null) {
   const url = new URL(baseUrl);
   url.searchParams.set("nav", "0");
@@ -139,7 +252,11 @@ function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null) {
   // The release of an epoch-held logical appearance consumes one, and only
   // one, dependent page step.  The fixture pins that post-release coordinate.
   if (fixture === "tornado-epoch-release") url.searchParams.set("cardPageTick", "1");
-  url.hash = "legacy-standby-gate";
+  url.hash = fixture === "attention-visibility-emergency"
+    ? fixture
+    : fixture === "attention-visibility-reduced-motion"
+      ? "standby-attention-visibility-reduced-motion"
+      : "legacy-standby-gate";
   return url.toString();
 }
 
@@ -194,13 +311,16 @@ function diagnosticsFromDom(dom) {
     "data-tornado-page", "data-tornado-page-keys", "data-tornado-page-identities", "data-tornado-page-infeasible", "data-tornado-page-footer", "data-tornado-page-visible-count",
     "data-tornado-page-host", "data-tornado-page-mode", "data-tornado-page-pending-appearance",
     "data-typhoon-variant",
+    "data-preview-attention-visibility", "data-preview-reduced-motion", "data-preview-mode",
+    "data-tsunami-page", "data-tsunami-page-unseen", "data-tsunami-page-infeasible",
+    "data-quake-page", "data-quake-page-unseen", "data-quake-page-infeasible",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
     const escaped = attribute.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = new RegExp(`${escaped}="([^"]*)"`).exec(dom);
     return [attribute, match == null ? null : decodeHtmlAttribute(match[1])];
   }));
-  if (diagnostics["data-measurement-settled"] !== "true") throw new Error(`measurement did not settle: ${JSON.stringify(diagnostics)}`);
+  if (diagnostics["data-preview-mode"] !== "emergency" && diagnostics["data-measurement-settled"] !== "true") throw new Error(`measurement did not settle: ${JSON.stringify(diagnostics)}`);
   return diagnostics;
 }
 
@@ -214,6 +334,50 @@ function numberDiagnostic(diagnostics, name) {
   const value = Number(raw);
   if (!Number.isFinite(value)) throw new Error(`${name}: expected a numeric diagnostic, got ${diagnostics[name]}`);
   return value;
+}
+
+function assertAttentionPage(diagnostics, prefix) {
+  const page = diagnostics[`data-${prefix}-page`];
+  const match = /^(\d+)\/(\d+)$/.exec(page ?? "");
+  if (match == null || Number(match[2]) < 2) throw new Error(`${prefix} multi-page diagnostic missing: ${page}`);
+  const unseen = Number(diagnostics[`data-${prefix}-page-unseen`]);
+  if (!Number.isInteger(unseen) || unseen < 0 || unseen > Number(match[2])) throw new Error(`${prefix} unseen diagnostic invalid: ${diagnostics[`data-${prefix}-page-unseen`]}`);
+  expectEqual(diagnostics[`data-${prefix}-page-infeasible`], "false", `${prefix} infeasible`);
+}
+
+function assertEmergencyGeometry(geometry) {
+  const panels = geometry?.panels ?? [];
+  if (panels.length < 2) throw new Error(`emergency panels were not measurably rendered: ${JSON.stringify(geometry)}`);
+  for (const [index, entry] of panels.entries()) {
+    for (const [name, box] of Object.entries({ panel: entry.panel, body: entry.body })) {
+      if (box == null || box.clientWidth <= 0 || box.clientHeight <= 0
+        || box.scrollWidth > box.clientWidth + 1 || box.scrollHeight > box.clientHeight + 1) {
+        throw new Error(`emergency ${index} ${name} containment failed: ${JSON.stringify(box)}`);
+      }
+    }
+    if (entry.indicatorBodyOverlap > 0) throw new Error(`emergency ${index} page indicator overlaps body: ${entry.indicatorBodyOverlap}`);
+  }
+}
+
+function assertAttentionVisibilityFixture(dom, diagnostics, fixture, geometry = null, baselineGeometry = null) {
+  expectEqual(diagnostics["data-preview-attention-visibility"], "true", "attention fixture marker");
+  if (fixture === "attention-visibility-emergency") {
+    expectEqual(diagnostics["data-preview-mode"], "emergency", "attention emergency mode");
+    assertAttentionPage(diagnostics, "tsunami");
+    assertAttentionPage(diagnostics, "quake");
+    assertEmergencyGeometry(geometry);
+  } else {
+    expectEqual(diagnostics["data-preview-mode"], "standby", "attention standby mode");
+    if (!dom.includes("data-static-anchor")) throw new Error("attention fixture static anchor missing");
+    if (!dom.includes("対象40")) throw new Error("attention fixture Heat 40-area anchor missing");
+    const heat = geometry?.heat;
+    if (heat == null || heat.clientHeight > 161 || heat.scrollHeight > heat.clientHeight + 1) throw new Error(`Heat live geometry violates 160px containment: ${JSON.stringify(heat)}`);
+    const banner = geometry?.tsunamiBanner;
+    const baseline = baselineGeometry?.tsunamiBanner;
+    if (banner == null || baseline == null || Math.abs(banner.height - baseline.height) > 1) throw new Error(`tsunami banner baseline differs by more than 1px: ${JSON.stringify({ banner, baseline })}`);
+    if ([...dom.matchAll(/class="(?:magnitude|depth|time)"/g)].length < 3) throw new Error("RecentQuakes statistics three columns missing");
+    expectEqual(diagnostics["data-preview-reduced-motion"], fixture === "attention-visibility-reduced-motion" ? "true" : null, "attention reduced-motion marker");
+  }
 }
 
 function assertNarrowGeometry(diagnostics, scenario, viewport) {
@@ -473,26 +637,41 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const dom = await readFile(domPath, "utf8");
   assertCompleteDom(dom);
   const diagnostics = diagnosticsFromDom(dom);
+  const attentionFixture = fixture != null && ATTENTION_VISIBILITY_FIXTURES.has(fixture);
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
-  if (!clusterFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
-  assertNankaiSeparation(diagnostics);
-  assertStageZeroClock(diagnostics);
-  // With an explicit flood-bearing scenario (for example
-  // --scenario 7 --fixture overflow), run this before generic containment so
-  // the fixture proves the flood root-clipping diagnostic itself. The default
-  // fixture starts at quiet, which has no flood card and intentionally falls
-  // through to the generic containment counterexample.
-  assertFloodReadability(diagnostics);
-  assertCardContainment(diagnostics);
-  if (fixture === "recent-quakes-narrow") assertRecentQuakesNarrowFixture(diagnostics);
-  assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
-  if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
-  assertClockHandoff(dom, diagnostics);
-  if (!clusterFixture) assertRotationDiagnostics(diagnostics, rotationTick);
-  if (assertTable && fixture == null) {
-    assertTableDiagnostics(diagnostics, scenario, viewport, fixture);
-    assertFloodWideDiagnostics(diagnostics, scenario, viewport);
+  if (attentionFixture) {
+    const geometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
+    const baselineUrl = new URL(url);
+    baselineUrl.search = "nav=0";
+    baselineUrl.hash = "standby-cards";
+    const baselineGeometry = fixture === "attention-visibility-emergency"
+      ? null
+      : await captureLiveGeometry({ chrome, profileDir, url: baselineUrl.toString(), viewport });
+    assertAttentionVisibilityFixture(dom, diagnostics, fixture, geometry, baselineGeometry);
+  }
+  // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
+  // containment and indicator-overlap checks above; only track-specific probes are inapplicable.
+  if (fixture !== "attention-visibility-emergency") {
+    if (!clusterFixture) assertNarrowGeometry(diagnostics, scenario, viewport);
+    assertNankaiSeparation(diagnostics);
+    assertStageZeroClock(diagnostics);
+    // With an explicit flood-bearing scenario (for example
+    // --scenario 7 --fixture overflow), run this before generic containment so
+    // the fixture proves the flood root-clipping diagnostic itself. The default
+    // fixture starts at quiet, which has no flood card and intentionally falls
+    // through to the generic containment counterexample.
+    assertFloodReadability(diagnostics);
+    assertCardContainment(diagnostics);
+    if (fixture === "recent-quakes-narrow") assertRecentQuakesNarrowFixture(diagnostics);
+    assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
+    if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
+    assertClockHandoff(dom, diagnostics);
+    if (!clusterFixture) assertRotationDiagnostics(diagnostics, rotationTick);
+    if (assertTable && fixture == null) {
+      assertTableDiagnostics(diagnostics, scenario, viewport, fixture);
+      assertFloodWideDiagnostics(diagnostics, scenario, viewport);
+    }
   }
   const report = { scenario, fixture, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -515,13 +694,15 @@ async function main() {
     "tornado-epoch-release": { scenario: "7", viewport: "1280x720" },
     "recent-quakes-narrow": { scenario: "quiet", viewport: "960x620" },
     "attention-visibility-standby": { scenario: "max", viewport: "1280x720" },
+    "attention-visibility-emergency": { scenario: "max", viewport: "1280x720" },
+    "attention-visibility-reduced-motion": { scenario: "max", viewport: "1280x720" },
   };
   const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
     ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));

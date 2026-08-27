@@ -556,7 +556,13 @@
   </div>
 {/snippet}
 
-<div class="tsunami-panel tsunami-{input.level}" class:compact>
+<div
+  class="tsunami-panel tsunami-{input.level}"
+  class:compact
+  data-tsunami-page={attentionView.page ?? "1/1"}
+  data-tsunami-page-unseen={attentionView.unseenCount}
+  data-tsunami-page-infeasible={currentTsunamiPage?.infeasible ? "true" : "false"}
+>
   <div class="level-label">{input.levelLabel}</div>
   {#if input.warningComment != null}
     <p class="warning-comment prose">{input.warningComment}</p>

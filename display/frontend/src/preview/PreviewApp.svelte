@@ -73,6 +73,11 @@
     "standby-stress",
     "standby-nankai",
     "standby-longbody",
+    "standby-attention-visibility",
+    "standby-attention-visibility-dim",
+    "standby-attention-visibility-critical",
+    "standby-attention-visibility-reduced-motion",
+    "attention-visibility-emergency",
     "emergency-1",
     "emergency-2",
     "emergency-3",
@@ -232,6 +237,13 @@
     stats: statsStandbyCards,
     severityTier: "critical",
   });
+  // §6-6: 長大の津波・熱中症・RecentQuakes を一つの fixture に集める。dim / critical /
+  // reduced-motion は同一データ面を使い、表示経路だけを比較できるようにする。
+  const attentionVisibilitySnapshot = legacyStandbyGateSnapshot("max", "attention-visibility-standby");
+  const attentionVisibilityCriticalSnapshot = {
+    ...attentionVisibilitySnapshot,
+    severityTier: "critical" as const,
+  };
   // B2a 目視用: 気象警報/注意報のみのヘッダ container を単独確認する
   const weatherWarningSnapshot = standbySnapshot({ weatherAlerts: weatherWarningOnlyStandbyCards });
   const weatherAdvisorySnapshot = standbySnapshot({ weatherAlerts: weatherAdvisoryOnlyStandbyCards });
@@ -251,6 +263,7 @@
       scenario === "emergency-weather" ||
       scenario === "emergency-weather-mix" ||
       scenario === "emergency-weather-syncing" ||
+      scenario === "attention-visibility-emergency" ||
       scenario === "motion-panels" ||
       scenario === "motion-card-grow" ||
       motionEnterEmergency
@@ -285,11 +298,25 @@
                 ? cardsTierCriticalSnapshot
                 : scenario === "standby-stress"
                   ? stressStandbySnapshot
-                  : scenario === "standby-nankai"
-                    ? nankaiStandbySnapshot
+                    : scenario === "standby-nankai"
+                      ? nankaiStandbySnapshot
+                    : scenario === "standby-attention-visibility" || scenario === "standby-attention-visibility-dim"
+                      || scenario === "standby-attention-visibility-reduced-motion"
+                      ? attentionVisibilitySnapshot
+                    : scenario === "standby-attention-visibility-critical"
+                      ? attentionVisibilityCriticalSnapshot
                     : quietSnapshot,
   );
-  const dim = $derived(scenario === "standby-dim");
+  const dim = $derived(scenario === "standby-dim" || scenario === "standby-attention-visibility-dim");
+  const reducedMotionForPreview = $derived(
+    reducedMotion || scenario === "standby-attention-visibility-reduced-motion",
+  );
+  const attentionVisibilityPreviewFixture = $derived(
+    scenario.includes("attention-visibility") || gateFixture === "attention-visibility-standby",
+  );
+  // この fixture は OS の media query を変えず単独で reduced-motion 契約を再現する。
+  const forcedReducedMotionFixture = $derived(scenario === "standby-attention-visibility-reduced-motion");
+  const fixtureTransitionDuration = $derived(forcedReducedMotionFixture ? 0 : undefined);
   // standby-rich は数字チップ・深さ・時刻・津波マークに加え、切断バッジの見た目も一望できるようにする
   const sseConnected = $derived(scenario !== "standby-disconnected" && scenario !== "standby-rich");
 
@@ -315,6 +342,12 @@
         { key: "tsunami:stress", input: tsunamiStressInput },
         { key: "eew:stress", input: eewStressInput },
         { key: "quake:stress", input: largeQuakeStressInput },
+      ];
+    }
+    if (scenario === "attention-visibility-emergency") {
+      return [
+        { key: "tsunami:attention-visibility", input: tsunamiStressInput },
+        { key: "quake:attention-visibility", input: largeQuakeStressInput },
       ];
     }
     if (scenario === "emergency-nankai") {
@@ -600,26 +633,33 @@
 {:else if scenario === "legacy-improved-mock"}
   <LegacyImprovedMock />
 {:else}
-<main class="preview-screen" data-tier={snapshot.severityTier} data-background-tone={snapshot.backgroundTone ?? "calm"}>
+<main
+  class="preview-screen"
+  data-tier={snapshot.severityTier}
+  data-background-tone={snapshot.backgroundTone ?? "calm"}
+  data-preview-attention-visibility={attentionVisibilityPreviewFixture ? "true" : undefined}
+  data-preview-reduced-motion={reducedMotionForPreview ? "true" : undefined}
+  data-preview-mode={mode}
+>
   <div class="screen-area">
     {#if mode === "standby"}
       <div
         class="screen-layer"
         data-kind="standby"
-        in:fade={{ duration: calmDur }}
-        out:fade={{ duration: exitDur }}
+        in:fade={{ duration: fixtureTransitionDuration ?? calmDur }}
+        out:fade={{ duration: fixtureTransitionDuration ?? exitDur }}
       >
-        <StandbyScreen {snapshot} {now} {dim} {sseConnected} {gateFixture} onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }} />
+        <StandbyScreen {snapshot} {now} {dim} reducedMotion={reducedMotionForPreview} {sseConnected} {gateFixture} onStageChange={(stage) => { if (mode === "standby") standbyStage = stage; }} />
       </div>
     {:else}
       <div
         class="screen-layer"
         data-kind="emergency"
         data-motion-reveal="scale"
-        in:emergencyEnter={{ duration: enterDur }}
-        out:fade={{ duration: calmDur }}
+        in:emergencyEnter={{ duration: fixtureTransitionDuration ?? enterDur }}
+        out:fade={{ duration: fixtureTransitionDuration ?? calmDur }}
       >
-        <EmergencyScreen panels={emergencyPanels} />
+        <EmergencyScreen panels={emergencyPanels} reducedMotion={reducedMotionForPreview} />
       </div>
     {/if}
   </div>

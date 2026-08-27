@@ -634,6 +634,22 @@ export const MARKERS = {
   },
 };
 
+// §6 の本文は生成表の外にあるため、トークン同期だけでは C6 の規範が消えても
+// docs:design:check が検知できない。表示実装が依存する最小の静的契約をここで固定する。
+export const ATTENTION_VISIBILITY_REQUIREMENTS = [
+  "重要情報を、無標識の隠しスクロールまたはマーキーだけに置かない。",
+  "続きの存在、総量、現在位置、到達方法は静止要素だけで判別可能にする。",
+  "実測で収まらない一覧は clip を収容策にせず離散ページへ分割し、複数ページでは `k/P` と未表示数を常設する。",
+  "reduced-motion では transition を 0ms にするが、自動巡回と全件への到達経路は維持する。",
+  "津波継続バナーと熱中症カードは、初回 paint から実在する先頭地域名と総対象数を視覚上の静的アンカーで示す。",
+  "`ほか n` は静的アンカーに載らない項目数であり、マーキー走行で減算しない。",
+  "reduced-motion の全件経路で line-clamp、ellipsis により終端を捨てない。",
+];
+
+export function validateAttentionVisibilityContract(doc) {
+  return ATTENTION_VISIBILITY_REQUIREMENTS.filter((requirement) => !doc.includes(requirement));
+}
+
 function countOccurrences(s, sub) {
   let n = 0;
   let i = 0;
@@ -707,10 +723,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     const evaluated = evaluatePairs(map);
     const gated = auditGate(applyAllowlist(evaluated, ALLOWLIST));
     const allowlistViolations = validateAllowlist(ALLOWLIST, evaluated);
-    if (!ok || gated.length > 0 || allowlistViolations.length > 0) {
+    const attentionVisibilityViolations = validateAttentionVisibilityContract(md);
+    if (!ok || gated.length > 0 || allowlistViolations.length > 0 || attentionVisibilityViolations.length > 0) {
       if (!ok) console.error(`design-docs 乖離: [${diffs.join(", ")}] が古い。'npm run docs:design' を実行して再生成せよ`);
       if (gated.length > 0) console.error(`許容外の FAIL/STALE: [${gated.join(", ")}]。許容リストへ追記するか色を修正せよ`);
       if (allowlistViolations.length > 0) console.error(`許容リスト検証エラー:\n${allowlistViolations.join("\n")}`);
+      if (attentionVisibilityViolations.length > 0) console.error(`C6 本文契約の欠落: [${attentionVisibilityViolations.join(", ")}]`);
       process.exit(1);
     }
     console.error("design-docs 同期 OK (FAIL/STALE なし・許容リスト健全)");

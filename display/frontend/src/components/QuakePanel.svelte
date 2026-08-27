@@ -405,7 +405,13 @@
   {/each}
 {/snippet}
 
-<div class="quake-panel role-quakeMajor" class:compact>
+<div
+  class="quake-panel role-quakeMajor"
+  class:compact
+  data-quake-page={attentionView.page ?? "1/1"}
+  data-quake-page-unseen={attentionView.unseenCount}
+  data-quake-page-infeasible={quakePartition.infeasible ? "true" : "false"}
+>
   <div class="heading" class:critical={(maxSeverityRank ?? 0) >= 7}>
     <span class="heading-text">地震情報</span>
   </div>

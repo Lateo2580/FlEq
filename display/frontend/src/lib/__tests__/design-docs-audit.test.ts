@@ -4,7 +4,7 @@ import { join } from "node:path";
 import {
   parseTokens, buildTokenMap,
   evaluatePairs, computeInputHash, applyAllowlist, auditGate, validateAllowlist,
-  ALERT_TEXT_ROLES, ALERT_CHIP_ROLES, ADVISORY_ROLES, HIGH_ROLES,
+  ALERT_TEXT_ROLES, ALERT_CHIP_ROLES, ADVISORY_ROLES, HIGH_ROLES, validateAttentionVisibilityContract,
 } from "../../../../scripts/generate-design-docs.mjs";
 import { isAlertRole, KNOWN_COLOR_ROLES } from "../alert-roles";
 import { resolveChipTokens } from "../ticker-chip";
@@ -18,6 +18,31 @@ function headerRoleOf(tokens: { on: string }): string {
 
 const css = readFileSync(join(__dirname, "..", "theme.css"), "utf-8");
 const map = buildTokenMap(parseTokens(css));
+const designSystemDoc = readFileSync(join(__dirname, "..", "..", "..", "..", "..", "docs", "specs", "display-design-system.md"), "utf-8");
+
+describe("C6 本文契約", () => {
+  it("design system の生成チェック対象に隠しスクロール・静的アンカー規範を含める", () => {
+    expect(validateAttentionVisibilityContract(designSystemDoc)).toEqual([]);
+  });
+
+  it("C6 の後半要件を削除すると docs:design:check 用の検査が失敗する", () => {
+    const withoutReducedMotion = designSystemDoc.replace(
+      "reduced-motion では transition を 0ms にするが、自動巡回と全件への到達経路は維持する。",
+      "",
+    );
+    const withoutAnchorTail = designSystemDoc.replace(
+      "`ほか n` は静的アンカーに載らない項目数であり、マーキー走行で減算しない。",
+      "",
+    );
+    const withoutClampRule = designSystemDoc.replace(
+      "reduced-motion の全件経路で line-clamp、ellipsis により終端を捨てない。",
+      "",
+    );
+    expect(validateAttentionVisibilityContract(withoutReducedMotion)).toContain("reduced-motion では transition を 0ms にするが、自動巡回と全件への到達経路は維持する。");
+    expect(validateAttentionVisibilityContract(withoutAnchorTail)).toContain("`ほか n` は静的アンカーに載らない項目数であり、マーキー走行で減算しない。");
+    expect(validateAttentionVisibilityContract(withoutClampRule)).toContain("reduced-motion の全件経路で line-clamp、ellipsis により終端を捨てない。");
+  });
+});
 
 describe("background tone production tokens", () => {
   it("uses the LCD-confirmed canonical colors without preview aliases", () => {

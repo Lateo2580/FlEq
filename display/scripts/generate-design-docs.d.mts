@@ -69,6 +69,8 @@ export function renderTokensBlock(resolved: Array<TokenEntry & { resolved: strin
 export function renderContrastBlock(audited: ContrastPair[]): string;
 export function generateBlocks(css: string): { tokens: string; contrast: string };
 export const MARKERS: Record<"tokens" | "contrast", { start: string; end: string }>;
+export const ATTENTION_VISIBILITY_REQUIREMENTS: string[];
+export function validateAttentionVisibilityContract(doc: string): string[];
 export function assertMarkers(md: string): void;
 export function extractBlock(md: string, key: "tokens" | "contrast"): string;
 export function replaceBlock(md: string, key: "tokens" | "contrast", content: string): string;

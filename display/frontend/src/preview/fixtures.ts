@@ -147,7 +147,7 @@ export const recentQuakesRich: DisplayRecentQuakeV1[] = [
 ];
 
 /** Chrome gate 専用: 狭い center track での折返し、badge、津波印を同時に確認する。 */
-const recentQuakesNarrowGate: DisplayRecentQuakeV1[] = [
+export const recentQuakesNarrowGate: DisplayRecentQuakeV1[] = [
   {
     eventId: "quake-narrow-japanese",
     reportDateTime: NOW_ISO,
@@ -2464,6 +2464,12 @@ const legacyImprovedMaxHeatAreas = [
   "岡山県", "広島県", "山口県",
 ];
 
+// max fixture は既存の 30 府県入力を保持する。C6 の40府県は attention fixture だけが負う。
+const attentionVisibilityHeatAreas = [
+  ...legacyImprovedMaxHeatAreas,
+  "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県",
+];
+
 export const legacyImprovedMaxItems: ActiveStandbyCardV1[] = [
   ...standbyItemsShowcase.filter((item) =>
     item.kind === "flood" || item.kind === "tornado" || item.kind === "longPeriod" || item.kind === "nankaiTrough"),
@@ -2601,14 +2607,24 @@ export function legacyStandbyGateSnapshot(
     : sourceItems.map((item) => item.kind === "tornado"
       ? { ...item, data: { ...item.data, areas: tornadoFixtureAreas } }
       : item);
+  const attentionFixtureItems = fixture === "attention-visibility-standby"
+    ? fixtureItems.map((item) => item.kind === "heat"
+      ? { ...item, data: { ...item.data, areas: attentionVisibilityHeatAreas.map((areaName) => ({ areaName, isSpecial: false })) } }
+      : item)
+    : fixtureItems;
 
   return standbySnapshot({
     tsunami: scenario === "4" ? null : tsunamiBanner,
     latestQuake,
     weatherAlerts,
     weatherExpandedKinds: legacyStandbyGateWeatherExpandedKinds(weatherCandidates),
-    recentQuakes: recentQuakesRich.slice(0, scenario === "4" ? 3 : 5),
+    // attention-visibility は RecentQuakes の狭幅二段 reflow も同時に確認する。
+    // 通常の gate で使う密度を変えず、この fixture だけに長い日本語名・空白なし ASCII・
+    // 意味値 badge・津波印を集める。
+    recentQuakes: fixture === "attention-visibility-standby"
+      ? recentQuakesNarrowGate
+      : recentQuakesRich.slice(0, scenario === "4" ? 3 : 5),
     stats: statsStandbyCards,
-    standbyItems: fixtureItems,
+    standbyItems: attentionFixtureItems,
   });
 }

@@ -4,6 +4,7 @@ import { cleanup, render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import LegacyImprovedMock from "../LegacyImprovedMock.svelte";
+import { legacyImprovedMaxItems, legacyStandbyGateSnapshot } from "../fixtures";
 
 const mockSource = readFileSync(join(__dirname, "..", "LegacyImprovedMock.svelte"), "utf8");
 const solverSource = readFileSync(join(__dirname, "..", "..", "lib", "legacy-standby", "solver.ts"), "utf8");
@@ -287,6 +288,19 @@ function installAnimationProbe(): { animations: AnimationProbe[]; restore: () =>
 }
 
 describe("legacy improved standby mock v26", () => {
+  it("keeps the attention-visibility fixture long enough to exercise every C6 path", () => {
+    const snapshot = legacyStandbyGateSnapshot("max", "attention-visibility-standby");
+    expect(snapshot.tsunami?.coasts.length).toBeGreaterThan(1);
+    expect(snapshot.recentQuakes.map((quake) => quake.hypocenterName)).toEqual([
+      expect.stringContaining("非常に長い震源名"),
+      expect.stringContaining("WithoutWhitespace"),
+    ]);
+    const heat = snapshot.standbyItems?.find((item) => item.kind === "heat");
+    expect(heat?.kind === "heat" ? heat.data.areas.length : 0).toBe(40);
+    const maxHeat = legacyImprovedMaxItems.find((item) => item.kind === "heat");
+    expect(maxHeat?.kind === "heat" ? maxHeat.data.areas.length : 0).toBe(30);
+  });
+
   it("keeps a tornado measurement entry out of the weather probe branch", () => {
     expect(mockSource).toMatch(/\{:else if entry\.key === "weather"\}[\s\S]*?\{:else if entry\.key === "tornado"\}/);
   });
