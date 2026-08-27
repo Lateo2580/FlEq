@@ -466,6 +466,7 @@ describe("legacy improved standby mock v26", () => {
     }
   });
 
+  // 各 pageTick を実DOMで収束させて全ページを読む。低速CIではjsdom組版の実時間が5秒を超える。
   it("greedily partitions canonical regions by measured range height and keeps page identity keys", async () => {
     const restoreMeasuredLayout = installMeasuredLayout({
       capacityPx: 90,
@@ -527,7 +528,7 @@ describe("legacy improved standby mock v26", () => {
     } finally {
       restoreMeasuredLayout();
     }
-  });
+  }, 30_000);
 
   it("starts partitioning from a zero-visible group and marks only supply shrink as truncated", async () => {
     const restoreMeasuredLayout = installMeasuredLayout({ capacityPx: 90, baseCardPx: 40, prefixRowPx: 10 });
@@ -601,6 +602,7 @@ describe("legacy improved standby mock v26", () => {
   });
 
   // 129件の実組版は環境ごとに所要時間が揺れる。性能退行は probe 上限 assertion で検出する。
+  // fake timerではtick()ごとの実DOM組版は短縮できないため、2 core CI向けに余裕を持たせる。
   it("keeps 129-candidate partition probes linear for both pageable cards", async () => {
     const restoreMeasuredLayout = installMeasuredLayout({
       capacityPx: 90,
@@ -626,9 +628,10 @@ describe("legacy improved standby mock v26", () => {
     } finally {
       restoreMeasuredLayout();
     }
-  }, 15_000);
+  }, 60_000);
 
   // 129件の実組版は環境ごとに所要時間が揺れる。settle状態の遷移 assertion は維持する。
+  // fake timerではtick()ごとの実DOM組版は短縮できないため、2 core CI向けに余裕を持たせる。
   it("keeps measurement unsettled while the partition queue is still being consumed", async () => {
     const restoreMeasuredLayout = installMeasuredLayout({
       capacityPx: 90,
@@ -650,7 +653,7 @@ describe("legacy improved standby mock v26", () => {
     } finally {
       restoreMeasuredLayout();
     }
-  }, 15_000);
+  }, 60_000);
 
   it("keeps truncated-tail measurement in the sequential partition probe", async () => {
     const restoreMeasuredLayout = installMeasuredLayout({
