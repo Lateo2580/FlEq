@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageIdentity, planCardPageRuntimeUpdate, sequentialPartitionRanges, SplitOnlyPartitionStateMachine } from "../page-partition";
+import { pageIdentity, pageRangeNeedsFooter, planCardPageRuntimeUpdate, sequentialPartitionRanges, SplitOnlyPartitionStateMachine } from "../page-partition";
 import type { CardKey, PagePartitionKey } from "../types";
 
 type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends (<Value>() => Value extends Right ? 1 : 2) ? true : false;
@@ -11,6 +11,12 @@ void (null as unknown as CardKeyExcludesTornado);
 void (null as unknown as PagePartitionKeyIncludesTornado);
 
 describe("legacy standby page partition", () => {
+  it("shows a page footer only for a candidate split from the complete atom", () => {
+    expect(pageRangeNeedsFooter({ start: 0, end: 6 }, 6)).toBe(false);
+    expect(pageRangeNeedsFooter({ start: 0, end: 5 }, 6)).toBe(true);
+    expect(pageRangeNeedsFooter({ start: 1, end: 6 }, 6)).toBe(true);
+  });
+
   it("keeps a pending briefing block probe distinct from an infeasible outer entry", () => {
     const result = sequentialPartitionRanges("briefing", "side", 3, 260, (_key, _placement, range) => range.end === 2 ? null : 260, () => []);
     expect(result.infeasible).toBe(false);

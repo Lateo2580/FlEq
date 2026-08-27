@@ -2293,6 +2293,32 @@ export const briefingStandbyItems: ActiveStandbyCardV1[] = [
   },
 ];
 
+/** Phase 4 browser gate: two entries deliberately cross a page boundary.
+ * The critical/warning pair proves that every re-rendered entry chrome is
+ * included in the page atom, rather than being a partition-only estimate. */
+const briefingPagingBase = briefingStandbyItems[0]! as Extract<ActiveStandbyCardV1, { kind: "briefing" }>;
+export const briefingPagingStandbyItems: ActiveStandbyCardV1[] = [{
+  ...briefingPagingBase,
+  key: "briefing:phase4-pages",
+  sourceEventIds: ["card:vpbs:preview", "card:vpoa:preview"],
+  data: {
+    generation: 4,
+    entries: briefingPagingBase.data.entries.slice(0, 2),
+  },
+}];
+
+/** Phase 4 browser gate: one complete entry must remain a one-page atom, with
+ * no pager footer, through the same live layout path as the split fixture. */
+export const briefingSinglePageStandbyItems: ActiveStandbyCardV1[] = [{
+  ...briefingPagingBase,
+  key: "briefing:phase4-single-page",
+  sourceEventIds: ["card:vpbs:preview"],
+  data: {
+    generation: 5,
+    entries: briefingPagingBase.data.entries.slice(0, 1),
+  },
+}];
+
 /** v10 の気象カード mock 用: WeatherAlertCard の「ほか」省略を展開して全対象地域を見せる。 */
 export const legacyImprovedTornadoFullAreas = [
   "宮崎県南部平野部",
@@ -2618,12 +2644,20 @@ export type LegacyStandbyGateFixture =
   | "tornado-clip"
   | "tornado-epoch-release"
   | "recent-quakes-narrow"
-  | "attention-visibility-standby";
+  | "attention-visibility-standby"
+  | "briefing-pages"
+  | "briefing-single-page";
 
 export function legacyStandbyGateSnapshot(
   scenario: LegacyStandbyGateScenario,
   fixture?: LegacyStandbyGateFixture,
 ): DisplayStateSnapshotV1 {
+  if (fixture === "briefing-pages") {
+    return standbySnapshot({ standbyItems: briefingPagingStandbyItems, recentQuakes: [], recentTicker: [] });
+  }
+  if (fixture === "briefing-single-page") {
+    return standbySnapshot({ standbyItems: briefingSinglePageStandbyItems, recentQuakes: [], recentTicker: [] });
+  }
   if (fixture === "recent-quakes-narrow") {
     return standbySnapshot({ recentQuakes: recentQuakesNarrowGate, recentTicker: [] });
   }

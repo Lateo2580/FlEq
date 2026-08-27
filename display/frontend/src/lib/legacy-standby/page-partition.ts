@@ -21,6 +21,13 @@ function bareRange(start: number, end: number): PageRange {
   return { start, end, tails: [], omittedAreaCount: 0 };
 }
 
+/** A footer belongs to an atom only when that atom is one page of a split set.
+ * Keeping this decision on the candidate range lets probe and live render the
+ * same DOM without a separate reserved footer height. */
+export function pageRangeNeedsFooter(range: Pick<PageRange, "start" | "end">, itemCount: number): boolean {
+  return range.start > 0 || range.end < itemCount;
+}
+
 function quantize(value: number): number {
   return Math.round(value * 100) / 100;
 }

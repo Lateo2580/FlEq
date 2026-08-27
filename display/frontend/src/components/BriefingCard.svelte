@@ -6,7 +6,7 @@
     DisplayBriefingSummaryV1,
   } from "../lib/protocol";
   import type { PageRange } from "../lib/legacy-standby/types";
-  import { sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
+  import { pageRangeNeedsFooter, sequentialPartitionRanges, type PartitionProbe } from "../lib/legacy-standby/page-partition";
   import { createCardPageCoordinator, type CardPageCoordinator } from "../lib/legacy-standby/time-slice-scheduler.svelte";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
@@ -16,9 +16,12 @@
     rotationMember = false,
     pageScheduling = false,
     partitionProbe,
+    partitionRevision = "",
+    partitionEpoch = "0",
+    measurementWidthPx,
+    measurementPageFooter,
     pagePlacement = "side",
     measurementRange,
-    measurementPageFooter = false,
     shellHeightPx = 260,
   }: {
     item: Extract<ActiveStandbyCardV1, { kind: "briefing" }>;
@@ -26,9 +29,19 @@
     rotationMember?: boolean;
     pageScheduling?: boolean;
     partitionProbe?: PartitionProbe;
+    /** Parent-owned probe cache revision; keeps the live pager subscribed to
+     * measurements that are collected in StandbyScreen's shelf. */
+    partitionRevision?: string;
+    /** Parent-owned measurement pass. Its first non-zero value starts the
+     * shelf probe chain after StandbyScreen has mounted. */
+    partitionEpoch?: string;
+    /** Exact live-surface width supplied to an off-layout measurement card. */
+    measurementWidthPx?: number;
+    /** Once the live pager has settled, its page-count chrome is also used by
+     * shelf probes. Undefined keeps the candidate-range rule during solve. */
+    measurementPageFooter?: boolean;
     pagePlacement?: "side" | "center";
     measurementRange?: PageRange;
-    measurementPageFooter?: boolean;
     /** The solver, probe, and live outer shell share this declared page height. */
     shellHeightPx?: number;
   } = $props();
@@ -216,21 +229,39 @@
     return result;
   }
   const blocks = $derived(entries.flatMap(entryBlocks));
+  // These are the page atoms. An atom begins with the entry chrome whenever a
+  // page range enters an entry, then carries that entry's independently
+  // readable block. The renderer below groups adjacent atoms only after a
+  // range is chosen, so a candidate crossing an entry boundary naturally
+  // includes the second entry chrome in its measured DOM.
+  const pageAtoms = $derived(blocks);
   const pagePartition = $derived.by(() => {
-    if (measurementRange != null) return { ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1 };
+    // partitionProbe closes over StandbyScreen's measurement cache. Keep that
+    // parent revision in this derived graph, or a live card can retain its
+    // initial all-block range after the shelf has already rejected it.
+    const revision = partitionRevision;
+    // The first render occurs before StandbyScreen's requestSettle() pass.
+    // Subscribe to that pass explicitly: a revision cannot change until this
+    // derived callback has first enqueued a shelf candidate.
+    const epoch = partitionEpoch;
+    if (measurementRange != null) return { ranges: [measurementRange], pending: [], infeasible: false, probeCount: 1, epoch, revision };
     if (partitionProbe != null) {
-      const partition = sequentialPartitionRanges("briefing", pagePlacement, blocks.length, shellHeightPx, partitionProbe, () => []);
+      // StandbyScreen's shared page shelf publishes the common fit sentinel:
+      // 0 means the forced atom fits the shell and 2 means it does not.  The
+      // physical shell height is already applied while measuring, so compare
+      // the sentinel against the same 1px contract as weather/tornado.
+      const partition = sequentialPartitionRanges("briefing", pagePlacement, pageAtoms.length, 1, partitionProbe, () => []);
       // An atomic block can still exceed the physical shelf (for example a
       // narrow-font long token). Never convert that into an empty card: retain
       // every block on a stable one-block page until a future measurement can
       // accept a denser partition.
       if (partition.infeasible) return {
-        ranges: blocks.map((_, index) => ({ start: index, end: index + 1, tails: [], omittedAreaCount: 0 })),
-        pending: [], infeasible: false, probeCount: partition.probeCount,
+        ranges: pageAtoms.map((_, index) => ({ start: index, end: index + 1, tails: [], omittedAreaCount: 0 })),
+        pending: [], infeasible: false, probeCount: partition.probeCount, epoch, revision,
       };
-      return partition;
+      return { ...partition, epoch, revision };
     }
-    return { ranges: [{ start: 0, end: blocks.length, tails: [], omittedAreaCount: 0 }], pending: [], infeasible: false, probeCount: 0 };
+    return { ranges: [{ start: 0, end: pageAtoms.length, tails: [], omittedAreaCount: 0 }], pending: [], infeasible: false, probeCount: 0, epoch, revision };
   });
   const pageIdentities = $derived(pagePartition.ranges.map((range, index) => blocks[range.start]?.identity ?? `briefing:page:${index + 1}`));
   const pageLabels = $derived(pagePartition.ranges.map((range, index) => blocks[range.start]?.label ?? `page-${index + 1}`));
@@ -251,7 +282,7 @@
 
   const currentPageIndex = $derived(pageCoordinator.activeIndex("briefing"));
   const currentRange = $derived(measurementRange ?? pagePartition.ranges[currentPageIndex] ?? pagePartition.ranges[0] ?? null);
-  const visibleBlocks = $derived(currentRange == null ? [] : blocks.slice(currentRange.start, currentRange.end));
+  const visibleBlocks = $derived(currentRange == null ? [] : pageAtoms.slice(currentRange.start, currentRange.end));
   const visibleGroups = $derived.by(() => {
     const groups: Array<{ entry: (typeof entries)[number]; blocks: BriefingBlock[] }> = [];
     for (const block of visibleBlocks) {
@@ -262,26 +293,70 @@
     return groups;
   });
   const diagnostics = $derived(pageCoordinator.cardDiagnostics("briefing"));
-  const showPageIndicator = $derived(measurementRange != null
+  const probeWidth = $derived(measurementRange != null && measurementWidthPx != null && measurementWidthPx > 0
+    ? measurementWidthPx
+    : null);
+  // A full candidate has no page footer. A split candidate does. This is the
+  // same boundary rule for the probe, live card, and pager; no fixed footer
+  // reservation is guessed outside the rendered atom.
+  const showPageIndicator = $derived(currentRange != null && (measurementRange != null && measurementPageFooter != null
     ? measurementPageFooter
-    : pageScheduling && pagePartition.ranges.length > 1);
-  const pageIndicatorLabel = $derived(measurementRange != null
-    ? `${measurementRange.start > 0 ? 2 : 1}/${measurementRange.end < blocks.length ? 2 : 1}`
-    : diagnostics.page);
+    : pageRangeNeedsFooter(currentRange, pageAtoms.length)));
+  // Probes share the live coordinator, so this label updates to exactly the
+  // pager text of the matching final range rather than estimating "2 pages".
+  const pageIndicatorLabel = $derived(diagnostics.page);
 </script>
+
+{#snippet briefingBlock(block: BriefingBlock)}
+  {#if block.kind === "title"}<h2 data-briefing-block={block.identity}>{block.text}</h2>
+  {:else if block.kind === "headline"}<p class="headline" data-briefing-block={block.identity}>{block.text}</p>
+  {:else if block.kind === "condition"}<p class="conditions" data-briefing-block={block.identity}>{block.text}</p>
+  {:else if block.kind === "lead"}<h2 class="lead" data-briefing-block={block.identity}>{block.text}</h2>
+  {:else if block.kind === "areaContext"}<div class="pref-group" data-briefing-prefecture-context data-briefing-block={block.identity}><span class="pref-name">{block.text}</span></div>
+  {:else if block.kind === "area"}<div class="pref-group" data-briefing-target-regions data-briefing-block={block.identity}><span class="cities">{#each block.areaNames ?? [block.text] as area, index}<span class="city-name">{index === 0 ? "対象: " : ""}{area}</span>{/each}</span></div>
+  {:else if block.kind === "areaOverflow"}<span class="omitted" data-briefing-block={block.identity}>{block.text}</span>
+  {:else if block.kind === "areaDetail"}<div class="pref-group" data-briefing-target-regions data-briefing-block={block.identity}><span class="cities">{#each block.areaNames ?? [block.text] as area, index}<span class="city-name">{index === 0 ? "対象: " : ""}{area}</span>{/each}</span></div>
+  {:else if block.kind === "fact"}<p class="fact" data-briefing-block={block.identity}>{block.text}</p>
+  {:else if block.kind === "qualifier"}<p class="qualifier" data-briefing-block={block.identity}>{block.text}</p>
+  {:else}<p class="meta" data-briefing-block={block.identity}>{block.text}</p>
+  {/if}
+{/snippet}
+
+{#snippet pageAtom(groups: Array<{ entry: (typeof entries)[number]; blocks: BriefingBlock[] }>, hasFooter: boolean, footerLabel: string)}
+  <div data-briefing-page-atom data-briefing-page-atom-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`}>
+    {#each groups as group, groupIndex (group.blocks[0]?.identity)}
+      {@const entry = group.entry}
+      <article class="briefing-entry" class:entry-divider={groupIndex > 0} data-briefing-entry={entry.key} data-briefing-page-atom-entry data-frame-level={entry.frameLevel}>
+        <div class="body" data-page-probe-body data-page-probe-readable>
+          <div class="entry-label" data-briefing-entry-label>
+          <span>{entry.source === "vpbs50" ? "気象速報" : "記録的短時間大雨情報"}</span>
+          <span class="source">{entry.infoType}</span>
+          </div>
+          {#each group.blocks as block (block.identity)}
+            {@render briefingBlock(block)}
+          {/each}
+        </div>
+      </article>
+    {/each}
+    {#if hasFooter}<footer class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{footerLabel}</span></footer>{/if}
+  </div>
+{/snippet}
 
 <section
   class="briefing-card"
   class:has-page-footer={showPageIndicator}
-  style:height={`${shellHeightPx}px`}
+  style={`${measurementRange == null ? `height: ${shellHeightPx}px;` : ""}${probeWidth == null ? "" : ` width: ${probeWidth}px; max-width: ${probeWidth}px;`}`}
   data-briefing-card
   data-briefing-top-frame={topFrameLevel}
   data-page-probe-card={measurementRange != null ? "" : undefined}
   data-card-page={diagnostics.page}
+  data-card-page-pending={pagePartition.pending.length > 0 ? "true" : "false"}
   data-card-page-keys={JSON.stringify(diagnostics.keys)}
   data-card-page-identities={JSON.stringify(diagnostics.identities)}
   data-briefing-page-range={currentRange == null ? "" : `${currentRange.start}:${currentRange.end}`}
   data-briefing-generation={item.data.generation}
+  data-briefing-shell-height-px={shellHeightPx}
+  data-briefing-probe-width-px={probeWidth ?? undefined}
 >
   <div
     class="card-header"
@@ -291,32 +366,7 @@
     data-briefing-card-header
     style="background: {headerContainerVar(topFrameLevel)}; color: {headerOnVar(topFrameLevel)}; border-bottom: var(--header-band-width) solid {headerBandVar(topFrameLevel)}"
   >{headerLabel}<UpdatedStamp iso={latestUpdatedAt} /></div>
-  {#each visibleGroups as group, groupIndex (group.blocks[0]?.identity)}
-    {@const entry = group.entry}
-    <article class="briefing-entry" class:entry-divider={groupIndex > 0} data-briefing-entry={entry.key} data-frame-level={entry.frameLevel}>
-      <div class="body" data-page-probe-body data-page-probe-readable>
-        <div class="entry-label" data-briefing-entry-label>
-        <span>{entry.source === "vpbs50" ? "気象速報" : "記録的短時間大雨情報"}</span>
-        <span class="source">{entry.infoType}</span>
-        </div>
-        {#each group.blocks as block (block.identity)}
-          {#if block.kind === "title"}<h2 data-briefing-block={block.identity}>{block.text}</h2>
-          {:else if block.kind === "headline"}<p class="headline" data-briefing-block={block.identity}>{block.text}</p>
-          {:else if block.kind === "condition"}<p class="conditions" data-briefing-block={block.identity}>{block.text}</p>
-          {:else if block.kind === "lead"}<h2 class="lead" data-briefing-block={block.identity}>{block.text}</h2>
-          {:else if block.kind === "areaContext"}<div class="pref-group" data-briefing-prefecture-context data-briefing-block={block.identity}><span class="pref-name">{block.text}</span></div>
-          {:else if block.kind === "area"}<div class="pref-group" data-briefing-target-regions data-briefing-block={block.identity}><span class="cities">{#each block.areaNames ?? [block.text] as area, index}<span class="city-name">{index === 0 ? "対象: " : ""}{area}</span>{/each}</span></div>
-          {:else if block.kind === "areaOverflow"}<span class="omitted" data-briefing-block={block.identity}>{block.text}</span>
-          {:else if block.kind === "areaDetail"}<div class="pref-group" data-briefing-target-regions data-briefing-block={block.identity}><span class="cities">{#each block.areaNames ?? [block.text] as area, index}<span class="city-name">{index === 0 ? "対象: " : ""}{area}</span>{/each}</span></div>
-          {:else if block.kind === "fact"}<p class="fact" data-briefing-block={block.identity}>{block.text}</p>
-          {:else if block.kind === "qualifier"}<p class="qualifier" data-briefing-block={block.identity}>{block.text}</p>
-          {:else}<p class="meta" data-briefing-block={block.identity}>{block.text}</p>
-          {/if}
-        {/each}
-      </div>
-    </article>
-  {/each}
-  {#if showPageIndicator}<footer class="card-page-footer" data-card-page-footer><span class="card-page-indicator" data-card-page-indicator>{pageIndicatorLabel}</span></footer>{/if}
+  {@render pageAtom(visibleGroups, showPageIndicator, pageIndicatorLabel)}
 </section>
 
 <style>

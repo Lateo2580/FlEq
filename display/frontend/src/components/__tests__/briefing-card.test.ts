@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import BriefingCard from "../BriefingCard.svelte";
+import StandbyScreen from "../StandbyScreen.svelte";
 import { initialState, reduce } from "../../lib/store";
 import type { ActiveStandbyCardV1, DisplayEventDtoV1, DisplayStateSnapshotV1 } from "../../lib/protocol";
 import { createCardPageCoordinator } from "../../lib/legacy-standby/time-slice-scheduler.svelte";
@@ -9,6 +10,7 @@ import { parseWeatherBriefing } from "../../../../../src/dmdata/briefing-parser"
 import { StandbyStateStore } from "../../../../../src/engine/display/standby-state-store";
 import { fromBriefingOutcome } from "../../../../../src/engine/presentation/events/from-briefing";
 import { processBriefing } from "../../../../../src/engine/presentation/processors/process-briefing";
+import { briefingPagingStandbyItems, briefingSinglePageStandbyItems } from "../../preview/fixtures";
 import {
   createMockWsDataMessage,
   FIXTURE_VPBS50_HJPNA202608270258,
@@ -99,7 +101,7 @@ describe("BriefingCard", () => {
     const coordinator = createCardPageCoordinator();
     const { container } = render(BriefingCard, {
       item: briefing(2), pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 260,
-      partitionProbe: (_key, _placement, range) => range.end - range.start > 6 ? 261 : 260,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 6 ? 2 : 0,
     });
 
     expect(coordinator.cardDiagnostics("briefing")).toMatchObject({ page: "1/2", identities: ["card:vpbs:1:title:raw-title:0", "card:vpbs:2:headline:raw-headline:0"] });
@@ -108,13 +110,225 @@ describe("BriefingCard", () => {
     coordinator.dispose();
   });
 
+  it("probe と live は同じ page atom を使い、entry 境界の chrome と必要な footer だけを描画する", () => {
+    const full = render(BriefingCard, {
+      item: briefing(), measurementRange: { start: 0, end: 5, tails: [], omittedAreaCount: 0 }, shellHeightPx: 260,
+    });
+    expect(full.container.querySelector("[data-page-probe-card] [data-briefing-page-atom]")).toBeTruthy();
+    expect(full.container.querySelectorAll("[data-briefing-page-atom-entry]")).toHaveLength(1);
+    expect(full.container.querySelector("[data-card-page-footer]")).toBeNull();
+
+    const splitAcrossEntries = render(BriefingCard, {
+      item: briefing(2), measurementRange: { start: 0, end: 6, tails: [], omittedAreaCount: 0 }, shellHeightPx: 260,
+    });
+    expect(splitAcrossEntries.container.querySelectorAll("[data-briefing-page-atom-entry]")).toHaveLength(2);
+    expect(splitAcrossEntries.container.querySelectorAll("[data-briefing-entry-label]")).toHaveLength(2);
+    expect(splitAcrossEntries.container.querySelector("[data-card-page-footer]")).toBeTruthy();
+  });
+
+  it("briefing-pages fixture の range 0:5 は一つ目の entry atom だけを描画する", () => {
+    const item = briefingPagingStandbyItems[0];
+    if (item == null || item.kind !== "briefing") throw new Error("briefing-pages fixture is missing");
+    const { container } = render(BriefingCard, {
+      item, measurementRange: { start: 0, end: 5, tails: [], omittedAreaCount: 0 }, shellHeightPx: 253.88,
+    });
+    expect([...container.querySelectorAll<HTMLElement>("[data-briefing-page-atom-entry]")]
+      .map((entry) => entry.dataset.frameLevel)).toEqual(["critical"]);
+    expect(container.querySelectorAll("[data-page-probe-readable]")).toHaveLength(1);
+  });
+
+  it("briefing-single-page fixture は live pager 経路で footer なしの 1/1 を保つ", () => {
+    const item = briefingSinglePageStandbyItems[0];
+    if (item == null || item.kind !== "briefing") throw new Error("briefing-single-page fixture is missing");
+    const coordinator = createCardPageCoordinator();
+    const { container } = render(BriefingCard, {
+      item, pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 253.88,
+      partitionProbe: () => 0,
+    });
+    expect(coordinator.cardDiagnostics("briefing")).toMatchObject({ page: "1/1" });
+    expect(container.querySelector("[data-card-page-footer]")).toBeNull();
+    coordinator.dispose();
+  });
+
+  it("settled 1/1 の shelf probe は候補途中 range でも footer を描かない", () => {
+    const item = briefingSinglePageStandbyItems[0];
+    if (item == null || item.kind !== "briefing") throw new Error("briefing-single-page fixture is missing");
+    const { container } = render(BriefingCard, {
+      item, measurementRange: { start: 0, end: 1, tails: [], omittedAreaCount: 0 },
+      measurementPageFooter: false, shellHeightPx: 253.88,
+    });
+    expect(container.querySelector("[data-card-page-footer]")).toBeNull();
+  });
+
+  it("live pager は range 0:6 から 0:5 へ縮むと二つ目の entry chrome を除去する", async () => {
+    const item = briefingPagingStandbyItems[0];
+    if (item == null || item.kind !== "briefing") throw new Error("briefing-pages fixture is missing");
+    const coordinator = createCardPageCoordinator();
+    const view = render(BriefingCard, {
+      item, pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 253.88,
+      partitionProbe: (_key, _placement, range) => range.end - range.start <= 6 ? 0 : 2,
+    });
+    expect([...view.container.querySelectorAll<HTMLElement>("[data-briefing-page-atom-entry]")]
+      .map((entry) => entry.dataset.frameLevel)).toEqual(["critical", "warning"]);
+
+    await view.rerender({
+      item, pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 253.88,
+      partitionProbe: (_key, _placement, range) => range.end - range.start <= 5 ? 0 : 2,
+    });
+    await tick();
+    expect(view.container.querySelector<HTMLElement>("[data-briefing-card]")?.dataset.briefingPageRange).toBe("0:5");
+    expect([...view.container.querySelectorAll<HTMLElement>("[data-briefing-page-atom-entry]")]
+      .map((entry) => entry.dataset.frameLevel)).toEqual(["critical"]);
+    coordinator.dispose();
+  });
+
+  it("off-layout probe は live surface と同じ明示幅を受け取る", () => {
+    const { container } = render(BriefingCard, {
+      item: briefing(), measurementRange: { start: 0, end: 5, tails: [], omittedAreaCount: 0 },
+      measurementWidthPx: 384, shellHeightPx: 260,
+    });
+    const card = container.querySelector<HTMLElement>("[data-page-probe-card]");
+    expect(card?.style.width).toBe("384px");
+    expect(card?.style.height).toBe("");
+    expect(card?.dataset.briefingProbeWidthPx).toBe("384");
+  });
+
+  it("全 atom が fit した live card も coordinator に 1/1 として登録する", () => {
+    const coordinator = createCardPageCoordinator();
+    render(BriefingCard, {
+      item: briefing(2), pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 260,
+      partitionProbe: () => 0,
+    });
+    expect(coordinator.cardDiagnostics("briefing")).toMatchObject({ page: "1/1" });
+    coordinator.dispose();
+  });
+
+  it("probe footer は live pager と同じ coordinator 文言を描画する", async () => {
+    const coordinator = createCardPageCoordinator();
+    coordinator.register({
+      key: "briefing", identities: ["first", "second"], labels: ["first", "second"],
+      rotationMember: false, resetKey: "two-pages",
+    });
+    const { container } = render(BriefingCard, {
+      item: briefing(), pageCoordinator: coordinator,
+      measurementRange: { start: 0, end: 4, tails: [], omittedAreaCount: 0 }, shellHeightPx: 260,
+    });
+    expect(container.querySelector("[data-card-page-indicator]")?.textContent).toBe("1/2");
+    coordinator.jumpTo("briefing", 1);
+    await tick();
+    expect(container.querySelector("[data-card-page-indicator]")?.textContent).toBe("2/2");
+    coordinator.dispose();
+  });
+
+  it("mount 後の Standby measurement epoch で最初の page probe を開始する", async () => {
+    const calls: string[] = [];
+    const probe = (_key: string, _placement: "side" | "center", range: { start: number; end: number }) => {
+      calls.push(`${range.start}:${range.end}`);
+      return null;
+    };
+    const view = render(BriefingCard, {
+      item: briefing(2), partitionProbe: probe, partitionEpoch: "0", shellHeightPx: 260,
+    });
+
+    expect(calls).toEqual(["0:1"]);
+    await view.rerender({ item: briefing(2), partitionProbe: probe, partitionEpoch: "1", shellHeightPx: 260 });
+    expect(calls).toEqual(["0:1", "0:1"]);
+  });
+
+  it("StandbyScreen の live card が probe 解決後の page range と coordinator 属性を描画する", async () => {
+    class TestResizeObserver {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+    const descriptors = Object.fromEntries(["clientHeight", "scrollHeight", "clientWidth", "scrollWidth"].map((name) => [
+      name, Object.getOwnPropertyDescriptor(HTMLElement.prototype, name),
+    ]));
+    const innerHeight = Object.getOwnPropertyDescriptor(window, "innerHeight");
+    const probeHeight = (node: HTMLElement): number => {
+      const card = node.matches("[data-page-probe-card]") ? node : node.closest<HTMLElement>("[data-page-probe-card]");
+      const [start = 0, end = 0] = (card?.dataset.briefingPageRange ?? "0:0").split(":").map(Number);
+      const count = end - start;
+      return count <= 5 ? 230 : count === 6 ? 254 : 340;
+    };
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 577 });
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const originalGetComputedStyle = getComputedStyle;
+    vi.stubGlobal("getComputedStyle", (node: Element): CSSStyleDeclaration => {
+      const style = originalGetComputedStyle(node);
+      if (!(node instanceof HTMLElement) || !node.matches("[data-page-probe-card]")) return style;
+      return new Proxy(style, {
+        get(target, property) {
+          if (property === "boxSizing") return "border-box";
+          if (property === "borderTopWidth" || property === "borderBottomWidth") return "1px";
+          return Reflect.get(target, property, target);
+        },
+      }) as CSSStyleDeclaration;
+    });
+    Object.defineProperties(HTMLElement.prototype, {
+      clientHeight: { configurable: true, get(this: HTMLElement): number {
+        return this.matches("[data-page-probe-card]") ? probeHeight(this) : this.matches("[data-page-probe-readable]") ? 100 : 0;
+      } },
+      scrollHeight: { configurable: true, get(this: HTMLElement): number {
+        if (this.matches("[data-page-probe-card]")) return probeHeight(this);
+        if (this.matches("[data-page-probe-readable]")) return 100;
+        if (this.matches("[data-briefing-card]") && this.closest(".legacy-layout") != null) {
+          const [start = 0, end = 0] = (this.dataset.briefingPageRange ?? "0:0").split(":").map(Number);
+          return end - start <= 5 ? 230 : 254;
+        }
+        return 0;
+      } },
+      clientWidth: { configurable: true, get(this: HTMLElement): number {
+        return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0;
+      } },
+      scrollWidth: { configurable: true, get(this: HTMLElement): number {
+        return this.matches("[data-page-probe-card], [data-page-probe-readable]") ? 307 : 0;
+      } },
+    });
+    try {
+      const { container } = render(StandbyScreen, {
+        snapshot: snapshotWithBriefing(briefing(2)), now: new Date("2026-08-25T12:00:00+09:00"),
+        dim: false, sseConnected: true,
+        testMeasurementOverride: {
+          layoutWidthPx: 1280, layoutHeightPx: 1_000,
+          leftTrackWidthPx: 307, centerTrackWidthPx: 576, rightTrackWidthPx: 307,
+          sideMeasureShelfWidthPx: 307, centerMeasureShelfWidthPx: 576,
+        },
+      });
+      const live = () => container.querySelector<HTMLElement>(".legacy-layout [data-briefing-card]");
+      expect(live()?.dataset.cardPage).toBe("0/0");
+      expect(live()?.dataset.cardPagePending).toBe("true");
+
+      for (let pass = 0; pass < 80; pass += 1) await tick();
+
+      expect(live()?.dataset.cardPage).toBe("1/2");
+      expect(live()?.dataset.cardPagePending).toBe("false");
+      expect(JSON.parse(live()?.dataset.cardPageIdentities ?? "[]")).toHaveLength(2);
+      expect(live()?.dataset.briefingPageRange).toBe("0:5");
+      expect(live()?.dataset.briefingShellHeightPx).toBe("253.88");
+      expect(live()?.querySelectorAll("[data-briefing-block]")).toHaveLength(5);
+      const rejectedBoundary = Array.from(container.querySelectorAll<HTMLElement>("[data-prefix-measure]"))
+        .find((probe) => probe.dataset.prefixMeasure?.startsWith("briefing:page-fit:0:6"));
+      expect(rejectedBoundary?.dataset.pageProbeFit).toBe("false");
+      expect(rejectedBoundary?.querySelector("[data-card-page-footer]")).toBeTruthy();
+    } finally {
+      for (const [name, descriptor] of Object.entries(descriptors)) {
+        if (descriptor == null) delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name];
+        else Object.defineProperty(HTMLElement.prototype, name, descriptor);
+      }
+      if (innerHeight == null) delete (window as unknown as Record<string, unknown>).innerHeight;
+      else Object.defineProperty(window, "innerHeight", innerHeight);
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("単一の長文 entry を安定した行 block に分け、infeasible で丸ごと消さない", async () => {
     const item = briefing();
     item.data.entries[0]!.headline = "長文".repeat(160);
     const coordinator = createCardPageCoordinator();
     const { container } = render(BriefingCard, {
       item, pageCoordinator: coordinator, pageScheduling: true, shellHeightPx: 260,
-      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 261 : 260,
+      partitionProbe: (_key, _placement, range) => range.end - range.start > 1 ? 2 : 0,
     });
 
     expect(coordinator.cardDiagnostics("briefing").page).not.toBe("0/0");

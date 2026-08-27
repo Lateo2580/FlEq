@@ -26,6 +26,7 @@
     latestQuakeStandbyCards,
     standbyItemsShowcase,
     briefingStandbyItems,
+    briefingPagingStandbyItems,
     standbyItemsRightStackBudget,
     standbyItemsFloodWide,
     motionStandbyFloodPhases,
@@ -68,6 +69,7 @@
     "standby-cards",
     "standby-active-cards",
     "standby-briefing",
+    "standby-briefing-pages",
     "standby-active-wide",
     "standby-right-stack-budget",
     "standby-tier-critical",
@@ -127,6 +129,7 @@
     const value = new URLSearchParams(window.location.search).get("gateFixture");
     return value === "overflow" || value === "overlap" || value === "rotation" || value === "cluster" || value === "cluster-calm"
       || value === "tornado-pages" || value === "tornado-aggregate" || value === "tornado-clip" || value === "tornado-epoch-release" || value === "recent-quakes-narrow" || value === "attention-visibility-standby"
+      || value === "briefing-pages" || value === "briefing-single-page"
       ? value as LegacyStandbyGateFixture : undefined;
   });
   let standbyStage = $state<0 | 1 | 2 | 3>(0);
@@ -220,6 +223,7 @@
   // standby-briefing: Phase 3 の card chrome。critical/warning の複数 entry、観測 fact、
   // VPOA50 の未確認 qualifier、取消を一枚の header と本文区切りで確認する。
   const briefingSnapshot = standbySnapshot({ standbyItems: briefingStandbyItems });
+  const briefingPagingSnapshot = standbySnapshot({ standbyItems: briefingPagingStandbyItems });
   // standby-active-wide: 洪水 5 河川で時計上ワイド表示へ移行した状態
   const activeWideSnapshot = standbySnapshot({
     latestQuake: latestQuakeStandbyCards,
@@ -296,6 +300,8 @@
                 ? activeCardsSnapshot
                 : scenario === "standby-briefing"
                   ? briefingSnapshot
+                : scenario === "standby-briefing-pages"
+                  ? briefingPagingSnapshot
                 : scenario === "standby-active-wide"
                   ? activeWideSnapshot
                 : scenario === "standby-right-stack-budget"

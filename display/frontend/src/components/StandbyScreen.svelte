@@ -51,7 +51,7 @@
     rotationTick?: number;
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
-    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby";
+    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby" | "briefing-pages" | "briefing-single-page";
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
@@ -286,6 +286,19 @@
   const volcanoItem = $derived(itemOf("volcano"));
   const heatItem = $derived(itemOf("heat"));
   const briefingItem = $derived(itemOf("briefing"));
+  // Candidate ranges need their own footer rule while partitioning. Once the
+  // live pager is settled, however, every shelf probe must render its current
+  // chrome signature (not a stale candidate-local approximation).
+  const briefingMeasurementPageFooter = $derived.by(() => {
+    const page = cardPageCoordinator.cardDiagnostics("briefing").page;
+    return page === "0/0" ? undefined : page !== "1/1";
+  });
+  // Cache keys must follow the same chrome signature. Otherwise a candidate
+  // measured with provisional footer geometry could be reused after the live
+  // pager settles to 1/1 (or vice versa).
+  const briefingMeasurementChromeSignature = $derived(briefingMeasurementPageFooter == null
+    ? "briefing-footer:candidate"
+    : `briefing-footer:${briefingMeasurementPageFooter ? "present" : "absent"}`);
   const nankaiItem = $derived(itemOf("nankaiTrough"));
   const hasWeather = $derived(snapshot.weatherAlerts.length > 0 || tornadoItem != null);
   const hasQuake = $derived(snapshot.latestQuake != null || selectedRecentQuake != null);
@@ -519,6 +532,14 @@
     let current = id;
     return { update(next: string) { prefixMeasureNodes.delete(current); current = next; prefixMeasureNodes.set(current, node); }, destroy() { prefixMeasureNodes.delete(current); } };
   }
+  function pageProbeFit(entry: PrefixMeasureEntry): "true" | "false" | "" | undefined {
+    if (entry.purpose !== "page") return undefined;
+    const measured = prefixMeasurements[entry.id];
+    if (measured == null) return "";
+    // Briefing/weather/tornado use the common 0/2 sentinel. Flood has a
+    // height sentinel of its own and is not consumed by this diagnostic.
+    return measured === 0 ? "true" : "false";
+  }
   function candidatePresent(key: CardKey): boolean {
     return key === "tsunami" ? snapshot.tsunami != null
       : key === "quake" ? hasQuake
@@ -595,6 +616,22 @@
   }
   const weatherTornadoContractHeight = $derived(Math.min(viewportHeightPx * 0.44, 280));
   const briefingPageShellHeight = $derived(Math.min(viewportHeightPx * 0.44, 280));
+  // BriefingCard's partition callback closes over prefixMeasurements. Pass a
+  // stable, explicit revision into every live instance so its local derived
+  // partition re-runs when a shelf candidate resolves.
+  const briefingPartitionRevision = $derived(Object.entries(prefixMeasurements)
+    .filter(([id]) => id.startsWith("briefing:page-fit:"))
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([id, value]) => `${id}:${value}`)
+    .join("|"));
+  function briefingProbeWidth(placement: PrefixPlacement): number | undefined {
+    // The shelf is deliberately outside the grid. Its percentage width can be
+    // unresolved while the grid track has already been measured; use the
+    // identical live card width as the concrete probe box in that interval.
+    const trackWidth = placement === "center" ? centerTrackWidthPx : rightTrackWidthPx;
+    if (trackWidth <= 0) return undefined;
+    return placement === "center" ? trackWidth : Math.min(480, trackWidth);
+  }
   function selectedCardHeight(card: CardCandidate, placement: Placement): number {
     if (card.key === "weather" && tornadoPagingOrProbing()) return weatherTornadoContractHeight;
     if (card.key === "briefing") return briefingPageShellHeight;
@@ -967,7 +1004,22 @@
           delete nextPrefixes[id];
           continue;
         }
-        const cardFitsVertically = allUnmeasured || card.scrollHeight <= card.clientHeight + 1;
+        // Briefing probes deliberately have no live-shell height. Their
+        // natural content height must be compared with the same available
+        // shell budget that the live page receives; comparing scrollHeight to
+        // their own auto clientHeight would make every candidate fit.
+        // scrollHeight/clientHeight are padding-box measurements. Briefing's
+        // declared shell height is border-box, so subtract its physical
+        // vertical borders before comparing a natural-height probe. Otherwise
+        // a 2px border lets a candidate pass here but overflow the live card
+        // by exactly those two pixels.
+        const cardStyle = card == null ? null : getComputedStyle(card);
+        const briefingContentHeight = Math.max(0, (entry.fixedHeightPx ?? 0) - (cardStyle?.boxSizing === "border-box"
+          ? (Number.parseFloat(cardStyle.borderTopWidth) || 0) + (Number.parseFloat(cardStyle.borderBottomWidth) || 0)
+          : 0));
+        const cardFitsVertically = allUnmeasured || (entry.key === "briefing"
+          ? card.scrollHeight <= briefingContentHeight + 1
+          : card.scrollHeight <= card.clientHeight + 1);
         const readableFit = allUnmeasured || readableRegions.every((region) => region.scrollHeight <= region.clientHeight + 1
           && region.scrollWidth <= region.clientWidth + 1);
         const fits = cardFitsVertically && readableFit;
@@ -1702,7 +1754,9 @@
       pageCoordinator={measuring ? undefined : cardPageCoordinator}
       rotationMember={!measuring && renderPlan.rotationKeys.includes("briefing")}
       pageScheduling={!measuring}
-      partitionProbe={measuring ? undefined : pagePartitionProbe("briefing", placement === "center" ? "center" : "side", briefingPageShellHeight)}
+      partitionProbe={measuring ? undefined : pagePartitionProbe("briefing", placement === "center" ? "center" : "side", briefingPageShellHeight, undefined, briefingMeasurementChromeSignature)}
+      partitionRevision={briefingPartitionRevision}
+      partitionEpoch={epochKey}
       pagePlacement={placement === "center" ? "center" : "side"}
       shellHeightPx={briefingPageShellHeight}
     />
@@ -1746,7 +1800,7 @@
          under-measured a grouped weather card by its omitted-row height. -->
     <WeatherAlertCard alerts={weatherWithSelection(entry.selectionRows ?? entry.end)} tornado={tornadoItem} pageScheduling={true} measurementRange={entry} pagePlacement={entry.placement} forceTornadoPagingContract={tornadoPagingContractActive()} />
   {:else if entry.key === "briefing" && briefingItem != null}
-    <BriefingCard item={briefingItem} pageScheduling={false} measurementRange={entry} measurementPageFooter shellHeightPx={briefingPageShellHeight} pagePlacement={entry.placement} />
+    <BriefingCard item={briefingItem} pageCoordinator={cardPageCoordinator} pageScheduling={false} measurementRange={entry} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} measurementWidthPx={briefingProbeWidth(entry.placement)} measurementPageFooter={briefingMeasurementPageFooter} shellHeightPx={briefingPageShellHeight} pagePlacement={entry.placement} />
   {:else if entry.key === "flood" && floodItem != null}
     {#if entry.floodForm === "wide"}
       <FloodWideCard item={floodItem} measurementRange={entry} measurementPageFooter={!entry.floodAggregateFallback} measurementInfeasibleFallback={entry.floodAggregateFallback} pagePlacement={entry.placement} measurementFixedHeightPx={entry.fixedHeightPx ?? floodWideFixedHeightPx} pageForm="wide" />
@@ -1890,6 +1944,13 @@
         <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "side")} tornadoPartitionProbe={(tornadoRange, weatherRange) => pagePartitionProbe("tornado", "side", 1, undefined, "preflight:weather+tornado", weatherRange, MAX_PREFIX_ROWS)("tornado", "side", tornadoRange, [])} pagePlacement="side" />
       </div>
     {/if}
+    {#if briefingItem != null}
+      <!-- Briefing probes render the same atom as its final side page. The
+           candidate range itself decides whether a footer is present. -->
+      <div class="partition-preflight">
+        <BriefingCard item={briefingItem} pageScheduling={false} partitionProbe={pagePartitionProbe("briefing", "side", briefingPageShellHeight, undefined, briefingMeasurementChromeSignature)} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} pagePlacement="side" shellHeightPx={briefingPageShellHeight} />
+      </div>
+    {/if}
     {#if floodItem != null}
       <!-- Unit 2 preflights only the shelf. It neither registers a live pager
            nor changes solver/live flood rendering. -->
@@ -1899,7 +1960,7 @@
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "side") as entry (entry.id)}
-      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
   </div>
   <div class="center-measure-shelf" bind:this={centerMeasureShelfEl} aria-hidden="true" inert>
@@ -1918,6 +1979,11 @@
         <WeatherAlertCard alerts={weatherWithSelection(MAX_PREFIX_ROWS)} tornado={tornadoItem} pageScheduling={false} partitionProbe={pagePartitionProbe("weather", "center")} tornadoPartitionProbe={(tornadoRange, weatherRange) => pagePartitionProbe("tornado", "center", 1, undefined, "preflight:weather+tornado", weatherRange, MAX_PREFIX_ROWS)("tornado", "center", tornadoRange, [])} pagePlacement="center" />
       </div>
     {/if}
+    {#if briefingItem != null}
+      <div class="partition-preflight">
+        <BriefingCard item={briefingItem} pageScheduling={false} partitionProbe={pagePartitionProbe("briefing", "center", briefingPageShellHeight, undefined, briefingMeasurementChromeSignature)} partitionRevision={briefingPartitionRevision} partitionEpoch={epochKey} pagePlacement="center" shellHeightPx={briefingPageShellHeight} />
+      </div>
+    {/if}
     {#if floodItem != null}
       <div class="flood-partition-preflight">
         <FloodCard item={floodItem} partitionProbe={pagePartitionProbe("flood", "center", 200, "compact")} pagePlacement="center" />
@@ -1925,7 +1991,7 @@
       </div>
     {/if}
     {#each prefixMeasureEntries.filter((entry) => entry.placement === "center") as entry (entry.id)}
-      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
+      <div class="measure-item prefix-measure-item" data-prefix-measure={entry.id} data-prefix-rows={entry.end} data-page-probe={entry.purpose === "page" ? "true" : undefined} data-page-probe-fit={pageProbeFit(entry)} use:capturePrefixMeasure={entry.id}>{@render renderPrefixProbe(entry)}</div>
     {/each}
     <!-- Keep shelf wrappers on the exact live surface too: r-f prices these
          rects directly, including their border/padding and fixture height. -->

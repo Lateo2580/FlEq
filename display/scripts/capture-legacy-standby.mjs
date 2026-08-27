@@ -27,7 +27,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow|attention-visibility-standby|attention-visibility-emergency|attention-visibility-reduced-motion|briefing-pages|briefing-single-page] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -226,7 +226,13 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
           const style = getComputedStyle(node);
           const chain = [];
           for (let parent = node.parentElement, depth = 0; parent != null && depth < 5; parent = parent.parentElement, depth += 1) chain.push(parent.className.split(" ").slice(0, 2).join("."));
-          return { clientWidth: node.clientWidth, scrollWidth: node.scrollWidth, clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, width: rect.width, height: rect.height, maxHeight: style.maxHeight, cls: node.className, chain, hiddenAncestor: node.closest('[aria-hidden="true"], [hidden], [inert]') != null };
+          return {
+            clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+            clientHeight: node.clientHeight, scrollHeight: node.scrollHeight,
+            verticalBorderPx: (Number.parseFloat(style.borderTopWidth) || 0) + (Number.parseFloat(style.borderBottomWidth) || 0),
+            width: rect.width, height: rect.height, maxHeight: style.maxHeight, cls: node.className, chain,
+            hiddenAncestor: node.closest('[aria-hidden="true"], [hidden], [inert]') != null,
+          };
         })();
         const overlap = (left, right) => left == null || right == null ? 0 : (() => {
           const a = left.getBoundingClientRect();
@@ -249,7 +255,34 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
                indicatorBodyOverlap: overlap(livePage?.querySelector('.page-dots') ?? null, body),
              };
            });
-        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels };
+        const briefingCards = [...document.querySelectorAll('.briefing-card')]
+          .map((card) => {
+            const shelf = card.closest('.measure-shelf, .center-measure-shelf');
+            const surface = card.closest('[data-layout-motion-card]')?.getAttribute('data-layout-motion-card') ?? null;
+            const placement = shelf == null
+              ? surface?.endsWith(':center') ? 'center' : 'side'
+              : shelf.classList.contains('center-measure-shelf') ? 'center' : 'side';
+            return {
+            shelf: shelf != null,
+            placement,
+            surface,
+            probe: card.hasAttribute('data-page-probe-card'),
+            probeFit: card.closest('[data-prefix-measure]')?.getAttribute('data-page-probe-fit') ?? null,
+            page: card.getAttribute('data-card-page') ?? '',
+            range: card.getAttribute('data-briefing-page-range') ?? '',
+            atomRange: card.querySelector('[data-briefing-page-atom]')?.getAttribute('data-briefing-page-atom-range') ?? '',
+            shellHeightPx: Number.parseFloat(card.getAttribute('data-briefing-shell-height-px') ?? ''),
+            card: measure(card),
+            header: measure(card.querySelector('[data-briefing-card-header]')),
+            footer: measure(card.querySelector('[data-card-page-footer]')),
+            footerText: card.querySelector('[data-card-page-indicator]')?.textContent ?? '',
+            pending: card.getAttribute('data-card-page-pending') ?? '',
+            frameLevels: [...card.querySelectorAll('[data-briefing-page-atom-entry]')].map((entry) => entry.getAttribute('data-frame-level') ?? ''),
+            entryKeys: [...card.querySelectorAll('[data-briefing-page-atom-entry]')].map((entry) => entry.getAttribute('data-briefing-entry') ?? ''),
+            readable: [...card.querySelectorAll('[data-page-probe-readable]')].map(measure),
+          };
+          });
+        return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels, briefingCards };
       })()`,
     }, attached.sessionId);
     // Entry animations (height reveal) can hold a mid-flight value for several
@@ -272,7 +305,7 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
   }
 }
 
-function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null) {
+function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null, cardPageTick = null) {
   const url = new URL(baseUrl);
   url.searchParams.set("nav", "0");
   url.searchParams.set("gateScenario", scenario);
@@ -281,6 +314,7 @@ function gateUrl(baseUrl, scenario, rotationTick = null, fixture = null) {
   // The release of an epoch-held logical appearance consumes one, and only
   // one, dependent page step.  The fixture pins that post-release coordinate.
   if (fixture === "tornado-epoch-release") url.searchParams.set("cardPageTick", "1");
+  else if (cardPageTick != null) url.searchParams.set("cardPageTick", String(cardPageTick));
   url.hash = fixture === "attention-visibility-emergency"
     ? fixture
     : fixture === "attention-visibility-reduced-motion"
@@ -490,6 +524,79 @@ function assertCardContainment(diagnostics) {
   if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
 }
 
+function assertBriefingPagingFixture(geometry, { expectedPage, expectedFooter, expectedEntryBoundary }) {
+  const cards = geometry?.briefingCards ?? [];
+  const live = cards.filter((card) => !card.shelf);
+  const probes = cards.filter((card) => card.shelf && card.probe);
+  if (live.length !== 1 || probes.length === 0) throw new Error(`briefing page atoms missing: ${JSON.stringify({ live: live.length, probes: probes.length })}`);
+  const fits = (box) => box != null && box.clientWidth > 0 && box.clientHeight > 0
+    && box.scrollWidth <= box.clientWidth + 1 && box.scrollHeight <= box.clientHeight + 1;
+  // Match StandbyScreen's probe budget exactly: the declared live shell is
+  // border-box, while shelf scrollHeight is padding-box. A natural probe's
+  // own clientHeight is not a budget; use the live shell height instead.
+  const liveShellHeight = live[0].shellHeightPx;
+  const liveShellBorder = live[0].card?.verticalBorderPx ?? Number.NaN;
+  if (!Number.isFinite(liveShellHeight) || !Number.isFinite(liveShellBorder)) {
+    throw new Error(`briefing live shell budget missing: ${JSON.stringify(live[0])}`);
+  }
+  const liveShellContentBudget = Math.max(0, liveShellHeight - liveShellBorder);
+  const briefingProbeFits = (box) => box != null && box.clientWidth > 0 && box.clientHeight > 0
+    && box.scrollWidth <= box.clientWidth + 1
+    && box.scrollHeight <= liveShellContentBudget + 1;
+  if (live[0].pending !== "false") throw new Error(`briefing live partition remained pending: ${JSON.stringify(live[0])}`);
+  if (!fits(live[0].card)) throw new Error(`briefing live card containment failed: ${JSON.stringify(live[0])}`);
+  for (const card of [...live, ...probes]) {
+    if (card.header == null || card.readable.length === 0 || card.readable.some((readable) => !fits(readable))) {
+      throw new Error(`briefing atom readable containment failed: ${JSON.stringify(card)}`);
+    }
+  }
+  for (const probe of probes) {
+    if (probe.probeFit !== "true" && probe.probeFit !== "false"
+      || briefingProbeFits(probe.card) !== (probe.probeFit === "true")) {
+      throw new Error(`briefing probe card fit disagrees with measured result: ${JSON.stringify(probe)}`);
+    }
+  }
+  // side and center shelves can produce the same logical range.  The live
+  // card must only be compared with the probe from its actual surface; range
+  // alone previously selected the first shelf entry nondeterministically.
+  const matchingProbe = probes.find((probe) => probe.placement === live[0].placement
+    && probe.range === live[0].range && probe.atomRange === live[0].atomRange);
+  // Probes are natural-height measurements while the live card fills its
+  // fixed shell, so their outer card heights deliberately differ. Compare the
+  // atom itself instead: chrome, entry identity, and every readable body box.
+  const sameValues = (left, right) => left.length === right.length
+    && left.every((value, index) => value === right[index]);
+  const readableHeightsMatch = matchingProbe != null
+    && matchingProbe.readable.length === live[0].readable.length
+    && matchingProbe.readable.every((readable, index) => {
+      const liveReadable = live[0].readable[index];
+      return readable != null && liveReadable != null
+        && Math.abs(readable.height - liveReadable.height) <= 1;
+    });
+  if (matchingProbe == null || Math.abs(matchingProbe.card.width - live[0].card.width) > 1
+    || !sameValues(matchingProbe.entryKeys, live[0].entryKeys)
+    || !sameValues(matchingProbe.frameLevels, live[0].frameLevels)
+    || !readableHeightsMatch
+    || matchingProbe.header == null || Math.abs(matchingProbe.header.height - live[0].header.height) > 1
+    || (matchingProbe.footer == null) !== (live[0].footer == null)
+    || matchingProbe.footerText !== live[0].footerText
+    || (matchingProbe.footer != null && live[0].footer != null
+      && (Math.abs(matchingProbe.footer.width - live[0].footer.width) > 1
+        || Math.abs(matchingProbe.footer.height - live[0].footer.height) > 1))) {
+    throw new Error(`briefing probe/live atom mismatch: ${JSON.stringify({ live: live[0], matchingProbe })}`);
+  }
+  if (expectedEntryBoundary) {
+    const frameLevels = new Set(probes.flatMap((card) => card.frameLevels));
+    if (!frameLevels.has("critical") || !frameLevels.has("warning") || !probes.some((card) => card.frameLevels.length > 1)) {
+      throw new Error(`briefing entry chrome boundary missing: ${JSON.stringify(probes)}`);
+    }
+  }
+  if (live[0].page !== expectedPage || (live[0].footer != null) !== expectedFooter
+    || !probes.every((card) => (card.footer != null) === expectedFooter)) {
+    throw new Error(`briefing page footer contract failed: ${JSON.stringify({ expectedPage, expectedFooter, live: live[0], probes })}`);
+  }
+}
+
 function assertRecentQuakesNarrowFixture(diagnostics) {
   expectEqual(diagnostics["data-recent-hypocenters-horizontal-clipped"], "false", "recent-quakes-narrow hypocenter clipping");
 }
@@ -663,10 +770,11 @@ function assertFloodWideDiagnostics(diagnostics, scenario, viewport) {
   if (viewport.label === "1280x720") expectEqual(diagnostics["data-flood-readable-overflow-keys"], "", "1280x720 flood station/kind readability");
 }
 
-async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, assertTable = true, fixture = null }) {
+async function capture({ chrome, profileDir, url, scenario, viewport, outDir, rotationTick = null, cardPageTick = null, assertTable = true, fixture = null }) {
   const tickSuffix = rotationTick == null ? "" : `-tick-${rotationTick}`;
+  const cardPageTickSuffix = cardPageTick == null ? "" : `-page-tick-${cardPageTick}`;
   const fixtureSuffix = fixture == null ? "" : `-${fixture}`;
-  const stem = `legacy-standby-${scenario}-${viewport.label}${fixtureSuffix}${tickSuffix}`;
+  const stem = `legacy-standby-${scenario}-${viewport.label}${fixtureSuffix}${tickSuffix}${cardPageTickSuffix}`;
   const pngPath = join(outDir, `${stem}.png`);
   const jsonPath = join(outDir, `${stem}.json`);
   const domPath = join(outDir, `${stem}.dom.html`);
@@ -691,15 +799,21 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
   let attentionGeometry = null;
-  if (attentionFixture) {
+  if (attentionFixture || fixture === "briefing-pages" || fixture === "briefing-single-page") {
     attentionGeometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
-    const baselineUrl = new URL(url);
-    baselineUrl.search = "nav=0";
-    baselineUrl.hash = "standby-cards";
-    const baselineGeometry = fixture === "attention-visibility-emergency"
-      ? null
-      : await captureLiveGeometry({ chrome, profileDir, url: baselineUrl.toString(), viewport });
-    assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, baselineGeometry);
+    if (attentionFixture) {
+      const baselineUrl = new URL(url);
+      baselineUrl.search = "nav=0";
+      baselineUrl.hash = "standby-cards";
+      const baselineGeometry = fixture === "attention-visibility-emergency"
+        ? null
+        : await captureLiveGeometry({ chrome, profileDir, url: baselineUrl.toString(), viewport });
+      assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, baselineGeometry);
+    } else {
+      assertBriefingPagingFixture(attentionGeometry, fixture === "briefing-pages"
+        ? { expectedPage: `${(cardPageTick ?? 0) + 1}/2`, expectedFooter: true, expectedEntryBoundary: true }
+        : { expectedPage: "1/1", expectedFooter: false, expectedEntryBoundary: false });
+    }
   }
   // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
   // containment and indicator-overlap checks above; only track-specific probes are inapplicable.
@@ -727,7 +841,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const report = { scenario, fixture, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
   await rm(domPath, { force: true });
-  return { scenario, fixture, viewport, rotationTick, pngPath, jsonPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
+  return { scenario, fixture, viewport, rotationTick, cardPageTick, pngPath, jsonPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
 }
 
 async function main() {
@@ -747,13 +861,15 @@ async function main() {
     "attention-visibility-standby": { scenario: "max", viewport: "1280x720" },
     "attention-visibility-emergency": { scenario: "max", viewport: "1280x720" },
     "attention-visibility-reduced-motion": { scenario: "max", viewport: "1280x720" },
+    "briefing-pages": { scenario: "4", viewport: "1280x720" },
+    "briefing-single-page": { scenario: "4", viewport: "1280x720" },
   };
   const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
     ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby", "attention-visibility-emergency", "attention-visibility-reduced-motion", "briefing-pages", "briefing-single-page"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
@@ -772,8 +888,22 @@ async function main() {
         : requestedViewports.map((viewport) => viewport.label);
       const viewports = viewportLabels.map(parseViewport);
       for (const viewport of viewports) {
-        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture), scenario, viewport, outDir, rotationTick: 0, assertTable: !options.report, fixture: options.fixture });
+        const initialCardPageTick = options.fixture === "briefing-pages" || options.fixture === "briefing-single-page" ? 0 : null;
+        const first = await capture({ chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, initialCardPageTick), scenario, viewport, outDir, rotationTick: 0, cardPageTick: initialCardPageTick, assertTable: !options.report, fixture: options.fixture });
         results.push(first);
+        if (options.fixture === "briefing-pages") {
+          // Deterministically drive the real page coordinator through every
+          // resolved briefing page, then prove the no-footer one-page branch
+          // on its own live browser fixture.
+          results.push(await capture({
+            chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, options.fixture, 1), scenario, viewport, outDir,
+            rotationTick: 0, cardPageTick: 1, assertTable: !options.report, fixture: options.fixture,
+          }));
+          results.push(await capture({
+            chrome, profileDir, url: gateUrl(baseUrl, scenario, 0, "briefing-single-page", 0), scenario, viewport, outDir,
+            rotationTick: 0, cardPageTick: 0, assertTable: !options.report, fixture: "briefing-single-page",
+          }));
+        }
         const rotationKeys = (first.diagnostics["data-rotation-keys"] ?? "").split(",").filter(Boolean);
         if (first.diagnostics["data-ladder-stage"] === "3") {
           for (let rotationTick = 1; rotationTick < rotationKeys.length; rotationTick += 1) {
