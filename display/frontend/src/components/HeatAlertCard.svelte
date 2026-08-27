@@ -1,8 +1,12 @@
 <script lang="ts">
+  import { onDestroy, tick } from "svelte";
   import type { ActiveStandbyCardV1 } from "../lib/protocol";
   import { relativeJstDayLabel } from "../lib/jst-day-key";
+  import { createPageCycler } from "../lib/page-cycler.svelte";
+  import { heatAnchor, staticNamePages } from "../lib/standby-marquee-pages";
+  import { observeResize } from "../lib/measure-height";
   import RestoredChip from "./RestoredChip.svelte";
-  let { item, staticMarquee = false }: { item: Extract<ActiveStandbyCardV1, { kind: "heat" }>; staticMarquee?: boolean } = $props();
+  let { item, staticMarquee = false, reducedMotion = false }: { item: Extract<ActiveStandbyCardV1, { kind: "heat" }>; staticMarquee?: boolean; reducedMotion?: boolean } = $props();
   function staticMarqueeFromUrl(): boolean {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("marquee") === "static";
@@ -24,6 +28,9 @@
   // TsunamiStandbyBanner のカード内マーキーと同じ速度規範 (全角 3 文字/秒・最低 18 秒)。
   // 収まるときはマーキーせず静的表示 (少数府県で無意味に流さない)
   const areaText = $derived(item.data.areas.map((area) => area.areaName).join("・"));
+  const areaNames = $derived(item.data.areas.map((area) => area.areaName));
+  const staticPages = $derived(staticNamePages(areaNames));
+  const staticScan = $derived(reducedMotion || staticMarqueeEnabled);
 
   const MIN_DURATION_S = 18;
   const CHARS_PER_SECOND = 3; // TsunamiStandbyBanner と同じ速度規範 (第3波 Fix15)
@@ -33,7 +40,47 @@
   let needsMarquee = $state(false);
   let shiftPx = $state(0);
   let durationS = $state(MIN_DURATION_S);
-  let reducedMotion = $state(false);
+  let anchorEl = $state<HTMLDivElement | null>(null);
+  let cardEl = $state<HTMLElement | null>(null);
+  let anchorCount = $state(1);
+  let anchorInfeasible = $state(false);
+  let anchorMeasureEpoch = 0;
+  const anchorText = $derived(anchorInfeasible ? `表示領域不足（対象${areaNames.length}府県）` : heatAnchor(areaNames, anchorCount));
+  const staticPager = createPageCycler({
+    pageCount: () => staticPages.length,
+    resetKey: () => `${item.key}:${item.updatedAt}:${areaText}`,
+    reducedMotion: () => reducedMotion,
+  });
+  onDestroy(() => staticPager.destroy());
+
+  function requestAnchorMeasure(): void {
+    anchorMeasureEpoch += 1;
+    void settleAnchorCount(anchorMeasureEpoch);
+  }
+  async function settleAnchorCount(epoch: number): Promise<void> {
+    if (anchorEl == null || cardEl == null || areaNames.length === 0) return;
+    const available = anchorEl.clientWidth;
+    if (available <= 0) return;
+    for (const count of [3, 2, 1]) {
+      const probe = anchorEl.querySelector<HTMLElement>(`[data-anchor-probe="${count}"]`);
+      if (probe == null || probe.scrollWidth > available) continue;
+      anchorCount = Math.min(count, areaNames.length);
+      anchorInfeasible = false;
+      await tick();
+      if (epoch !== anchorMeasureEpoch) return;
+      if (cardEl.scrollHeight <= cardEl.clientHeight + 1) return;
+    }
+    anchorCount = 1;
+    anchorInfeasible = true;
+  }
+  $effect(() => {
+    void areaText;
+    void anchorEl;
+    void cardEl;
+    anchorCount = 1;
+    anchorInfeasible = false;
+    requestAnchorMeasure();
+  });
 
   // 走行距離・duration は areaText/レイアウト変化のたびに実測して再計算する
   // (「left:100% + 実測 px shift」パターン、TsunamiStandbyBanner と同型)
@@ -52,31 +99,24 @@
     }
   });
 
-  // prefers-reduced-motion: reduce ではマーキーを止め、2 行 clamp の静的表示にフォールバック
-  $effect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    reducedMotion = mq.matches;
-    const onChange = (e: MediaQueryListEvent): void => {
-      reducedMotion = e.matches;
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  });
 </script>
 
-<section class:critical={special} class="standby-card heat-card">
+<section bind:this={cardEl} class:critical={special} class="standby-card heat-card" data-live-border-box data-anchor-infeasible={anchorInfeasible ? "true" : undefined}>
   <header><span class="title">{special ? "熱中症特別警戒アラート" : "熱中症警戒アラート"}</span>{#if item.restored}<RestoredChip />{/if}<span class="date">{targetDateLabel}</span></header>
+  <div class="static-anchor" bind:this={anchorEl} use:observeResize={requestAnchorMeasure} data-static-anchor>
+    <span>{anchorText}</span>
+    {#each [1, 2, 3] as count}
+      <span class="anchor-probe" data-anchor-probe={count}>{heatAnchor(areaNames, count)}</span>
+    {/each}
+  </div>
   <div class="areas" bind:this={areasEl}>
-    {#if reducedMotion}
-      <span class="areas-static">{areaText}</span>
+    {#if staticScan}
+      <span class="areas-static" data-static-page data-marquee-static={staticMarqueeEnabled ? "true" : undefined}>{staticPages[staticPager.index] ?? "表示領域不足"}</span>
     {:else}
       <span
         class="marquee-text"
-        class:running={needsMarquee && !staticMarqueeEnabled}
-        class:capture-static={staticMarqueeEnabled}
+        class:running={needsMarquee}
         bind:this={textEl}
-        data-marquee-static={staticMarqueeEnabled ? "true" : undefined}
         style="animation-duration: {durationS}s; --marquee-shift: {shiftPx}px;"
       >{areaText}</span>
     {/if}
@@ -84,7 +124,7 @@
 </section>
 
 <style>
-  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: hidden; }
+  .standby-card { width: var(--standby-card-width, min(360px, 28vw)); max-height: 160px; background: var(--surface-standby); border: 1px solid var(--hairline); border-radius: var(--radius-standby); box-shadow: var(--elevation-2); overflow: visible; }
   /* 看板ヘッダ帯: 警戒=warning 橙帯 / 特別警戒=emergency 紫帯 */
   header {
     display: flex;
@@ -105,7 +145,17 @@
   .title { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* 日付は見出し帯の右端に寄せる (header は flex 済み)。色は帯上の --header-*-on を継承 */
   .date { flex: 0 0 auto; margin-left: auto; white-space: nowrap; font-size: max(12px, var(--type-label-s-fluid)); }
-  /* 対象府県のカード内マーキー行 (1 行固定、TsunamiStandbyBanner .banner-areas と同型)。
+  .static-anchor {
+    position: relative;
+    min-width: 0;
+    margin: var(--space-2) var(--space-4) 0;
+    font-size: max(14px, var(--type-label-l-fluid));
+    color: var(--fg);
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  .anchor-probe { position: absolute; visibility: hidden; white-space: nowrap; pointer-events: none; }
+  /* 対象府県のカード内マーキー行 (1 行固定、静的アンカーの補助レーン)。
      高さ 1.5em 固定なので府県数によらずカード高が一定 = 右スタックの実測選抜にも優しい */
   .areas {
     position: relative;
@@ -128,11 +178,6 @@
     /* duration は inline style (animation-duration: {durationS}s) が shorthand より優先される */
     animation: heat-card-marquee linear infinite;
   }
-  .marquee-text.capture-static {
-    position: static;
-    animation: none;
-    transform: none;
-  }
   @keyframes heat-card-marquee {
     from {
       transform: translateX(0);
@@ -141,20 +186,9 @@
       transform: translateX(var(--marquee-shift, -200vw));
     }
   }
-  /* reduced-motion 静的フォールバック: 2 行 clamp + 省略記号 (TsunamiStandbyBanner と同じ規約) */
+  /* reduce 時も全件へ到達する静止ページであり、line clamp にはしない。 */
   .areas-static {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .areas {
-      height: auto;
-      max-height: 2.6em;
-    }
+    display: block;
+    white-space: nowrap;
   }
 </style>

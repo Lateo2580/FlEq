@@ -29,10 +29,11 @@
   import WeatherAlertCard from "./WeatherAlertCard.svelte";
 
   type TestMeasurementOverride = Partial<Record<string, number>> | ((pass: number) => Partial<Record<string, number>>);
-  let { snapshot, now, dim, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture }: {
+  let { snapshot, now, dim, reducedMotion = false, sseConnected, onTsunamiReplay, onStageChange, testMeasurementOverride, testLateProbeDuringFinalCommit, testProbeAfterMeasurementPass, testBeforeTerminalCommit, testAfterTerminalBoundary, rotationTick, cardPageTick, gateFixture }: {
     snapshot: DisplayStateSnapshotV1;
     now: Date;
     dim: boolean;
+    reducedMotion?: boolean;
     sseConnected: boolean;
     onTsunamiReplay?: (level: DisplayTsunamiLevel) => void;
     onStageChange?: (stage: LadderStage) => void;
@@ -50,7 +51,7 @@
     rotationTick?: number;
     cardPageTick?: number;
     /** Preview gate only; production App never supplies this. */
-    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow";
+    gateFixture?: "overflow" | "overlap" | "rotation" | "cluster" | "cluster-calm" | "tornado-pages" | "tornado-aggregate" | "tornado-clip" | "tornado-epoch-release" | "recent-quakes-narrow" | "attention-visibility-standby";
   } = $props();
 
   export type { EpochCoordinator } from "../lib/legacy-standby/epoch-coordinator";
@@ -925,12 +926,17 @@
     if (briefingItem == null || briefingItem.data.entries.length === 0) cardPageCoordinator.unregister("briefing");
   });
 
+  function liveBorderBoxHeight(node: HTMLElement): number {
+    const live = node.querySelector<HTMLElement>("[data-live-border-box]");
+    if (live == null) return Math.round(node.getBoundingClientRect().height);
+    return Math.round(Math.max(live.getBoundingClientRect().height, live.scrollHeight));
+  }
   function readMeasurements(): void {
     const measurementOverride = typeof testMeasurementOverride === "function"
       ? testMeasurementOverride(measurementPass)
       : testMeasurementOverride;
     const next: Record<string, number> = {};
-    for (const [id, node] of measureNodes) next[id] = measurementOverride?.[id] ?? Math.round(node.getBoundingClientRect().height);
+    for (const [id, node] of measureNodes) next[id] = measurementOverride?.[id] ?? liveBorderBoxHeight(node);
     const nextPrefixes = { ...prefixMeasurements };
     for (const [id, node] of prefixMeasureNodes) {
       const entry = prefixMeasureEntries.find((candidate) => candidate.id === id);
@@ -1651,7 +1657,7 @@
 
 {#snippet renderCard(key: CardKey, variant: CardVariant = "compact", placement: Placement = "right", measuring = false, selected: DisplaySelection = selection)}
   {#if key === "tsunami" && snapshot.tsunami != null}
-    <TsunamiStandbyBanner tsunami={snapshot.tsunami} onReplayLevel={onTsunamiReplay} />
+    <TsunamiStandbyBanner tsunami={snapshot.tsunami} onReplayLevel={onTsunamiReplay} {reducedMotion} />
   {:else if key === "quake" && selectedRecentQuake != null}
     <QuakeReplayCard quake={selectedRecentQuake} onClose={closeQuakeCard} />
   {:else if key === "quake" && snapshot.latestQuake != null}
@@ -1727,7 +1733,7 @@
     {/if}
   {:else if key === "typhoon" && typhoonItem != null}<TyphoonCard item={typhoonItem} displayMode={variant === "full" ? "full" : "compact"} />
   {:else if key === "volcano" && volcanoItem != null}<VolcanoCard item={volcanoItem} />
-  {:else if key === "heat" && heatItem != null}<HeatAlertCard item={heatItem} />
+  {:else if key === "heat" && heatItem != null}<HeatAlertCard item={heatItem} {reducedMotion} />
   {/if}
 {/snippet}
 

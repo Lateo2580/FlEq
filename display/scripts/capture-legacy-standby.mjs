@@ -514,13 +514,14 @@ async function main() {
     "tornado-clip": { scenario: "7", viewport: "960x620" },
     "tornado-epoch-release": { scenario: "7", viewport: "1280x720" },
     "recent-quakes-narrow": { scenario: "quiet", viewport: "960x620" },
+    "attention-visibility-standby": { scenario: "max", viewport: "1280x720" },
   };
   const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
     ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow", "attention-visibility-standby"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));

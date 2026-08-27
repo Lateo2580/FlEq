@@ -2552,7 +2552,8 @@ export type LegacyStandbyGateFixture =
   | "tornado-aggregate"
   | "tornado-clip"
   | "tornado-epoch-release"
-  | "recent-quakes-narrow";
+  | "recent-quakes-narrow"
+  | "attention-visibility-standby";
 
 export function legacyStandbyGateSnapshot(
   scenario: LegacyStandbyGateScenario,
@@ -2580,7 +2581,9 @@ export function legacyStandbyGateSnapshot(
       candidateTruncated: false,
     })),
   };
-  const sourceItems = scenario === "4"
+  const sourceItems = fixture === "attention-visibility-standby"
+    ? legacyImprovedMaxItems
+    : scenario === "4"
     ? standbyItemsShowcase.filter((item) => item.kind !== "flood" && item.kind !== "typhoon")
     : scenario === "max-floodWide"
       ? [...legacyImprovedMaxItems.filter((item) => item.kind !== "flood"), ...standbyItemsFloodWide.filter((item) => item.kind === "flood")]

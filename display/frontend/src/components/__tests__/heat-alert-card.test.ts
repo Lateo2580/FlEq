@@ -66,14 +66,17 @@ describe("対象都道府県のカード内マーキー (2026-07-25 実機報告
   const manyAreas = (n: number) =>
     Array.from({ length: n }, (_, i) => ({ areaName: `県${i + 1}`, isSpecial: false }));
 
-  it("40 府県でも全数がテキストに含まれ「ほか」表記を使わない", () => {
+  it("40 府県では静的アンカーが先頭府県・総数・ほか数を常設し、補助レーンには全数を残す", () => {
     const { container } = render(HeatAlertCard, {
       item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(40) } }),
     });
+    const anchor = container.querySelector("[data-static-anchor]")?.textContent ?? "";
     const text = container.querySelector(".areas")?.textContent ?? "";
+    expect(anchor).toContain("県1");
+    expect(anchor).toContain("対象40府県");
+    expect(anchor).toContain("ほか39");
     expect(text).toContain("県1・");
     expect(text).toContain("県40");
-    expect(text).not.toContain("ほか");
   });
 
   it("マーキー用の単一行構造 (marquee-text) で描画される", () => {
@@ -86,17 +89,20 @@ describe("対象都道府県のカード内マーキー (2026-07-25 実機報告
     expect(marquee!.classList.contains("running")).toBe(false);
   });
 
-  it("staticMarquee は撮影時だけ in-flow 静止にし、通常表示の走行経路を残す", () => {
+  it("staticMarquee は全件静止ページを一周し、補助経路を残す", async () => {
+    vi.useFakeTimers();
     const { container } = render(HeatAlertCard, {
       item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(40) } }),
       staticMarquee: true,
     });
-    const marquee = container.querySelector<HTMLElement>(".areas .marquee-text");
-    expect(marquee?.dataset.marqueeStatic).toBe("true");
-    expect(marquee?.classList.contains("capture-static")).toBe(true);
-    expect(marquee?.classList.contains("running")).toBe(false);
+    const page = container.querySelector<HTMLElement>(".areas .areas-static");
+    expect(page?.dataset.marqueeStatic).toBe("true");
+    expect(page?.textContent).toBe("県1");
+    await vi.advanceTimersByTimeAsync(390_000);
+    await tick();
+    expect(container.querySelector(".areas-static")?.textContent).toBe("県40");
     const source = readFileSync(join(__dirname, "..", "HeatAlertCard.svelte"), "utf-8");
-    expect(source).toMatch(/\.marquee-text\.capture-static\s*\{[^}]*position:\s*static;[^}]*animation:\s*none;/s);
+    expect(source).toContain("const staticScan = $derived(reducedMotion || staticMarqueeEnabled)");
   });
 
   it("少数府県は従来どおり全列挙 (静的)", () => {
@@ -104,5 +110,28 @@ describe("対象都道府県のカード内マーキー (2026-07-25 実機報告
       item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(2) } }),
     });
     expect(container.querySelector(".areas")?.textContent).toBe("県1・県2");
+  });
+
+  it("reduce 時は clamp せず、補助レーンを全府県へ到達する静止ページに替える", async () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(HeatAlertCard, { item: heatItem({ data: { targetDate: "2026-07-25", areas: manyAreas(3) } }), reducedMotion: true });
+      expect(container.querySelector(".areas-static")?.textContent).toBe("県1");
+      await vi.advanceTimersByTimeAsync(10_000);
+      await tick();
+      expect(container.querySelector(".areas-static")?.textContent).toBe("県2");
+      const source = readFileSync(join(__dirname, "..", "HeatAlertCard.svelte"), "utf-8");
+      expect(source).not.toContain("-webkit-line-clamp");
+      expect(source).not.toContain("line-clamp:");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("アンカーは 3→2→1 の probe を使い、160px 内へ縮退する契約を持つ", () => {
+    const source = readFileSync(join(__dirname, "..", "HeatAlertCard.svelte"), "utf-8");
+    expect(source).toContain("for (const count of [3, 2, 1])");
+    expect(source).toContain("max-height: 160px");
+    expect(source).not.toMatch(/\.static-anchor\s*\{[^}]*overflow:\s*hidden/s);
+    expect(source).toContain("表示領域不足（対象\${areaNames.length}府県）");
+    expect(source).toContain("data-anchor-infeasible");
   });
 });

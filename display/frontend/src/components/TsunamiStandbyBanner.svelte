@@ -14,13 +14,18 @@
     joinMarqueeSegments,
     nextSegmentIndex,
   } from "../lib/tsunami-marquee-sequence";
+  import { onDestroy } from "svelte";
+  import { createPageCycler } from "../lib/page-cycler.svelte";
+  import { observeResize } from "../lib/measure-height";
+  import { tsunamiAnchor, tsunamiAnchorCandidates, tsunamiStaticPages } from "../lib/standby-marquee-pages";
   import UpdatedStamp from "./UpdatedStamp.svelte";
 
   // onReplayLevel: チップクリックでその種別のテロップ再生を要求する (2026-07-14)。省略時は非対話。
-  let { tsunami, onReplayLevel, staticMarquee = false }: {
+  let { tsunami, onReplayLevel, staticMarquee = false, reducedMotion = false }: {
     tsunami: DisplayTsunamiStateV1;
     onReplayLevel?: (level: DisplayTsunamiLevel) => void;
     staticMarquee?: boolean;
+    reducedMotion?: boolean;
   } = $props();
 
   function staticMarqueeFromUrl(): boolean {
@@ -44,6 +49,10 @@
   // reduced-motion の静的フォールバック用: 全種別を連結した文字列 (第3波 Fix12 でもアニメーション
   // なしのときは従来どおり全部を一度に見せる。個別セグメントだけだと未巡回の種別が一切見えなくなる)
   const fullText = $derived(joinMarqueeSegments(segments));
+  const anchorText = $derived(tsunamiAnchor(tsunami.coasts, tsunami.level));
+  const anchorCandidates = $derived(tsunamiAnchorCandidates(tsunami.coasts, tsunami.level));
+  const staticPages = $derived(tsunamiStaticPages(tsunami.coasts));
+  const staticScan = $derived(reducedMotion || staticMarqueeEnabled);
 
   const MIN_DURATION_S = 18;
   // 「ゆっくり」流す: 下部テロップ (TickerLane、全角 5 文字/秒) より明確に遅く、全角 3 文字/秒相当に
@@ -57,7 +66,14 @@
   let textEl = $state<HTMLSpanElement | null>(null);
   let shiftPx = $state(0);
   let durationS = $state(MIN_DURATION_S);
-  let reducedMotion = $state(false);
+  let anchorEl = $state<HTMLSpanElement | null>(null);
+  let anchorLabel = $state("");
+  const staticPager = createPageCycler({
+    pageCount: () => staticPages.length,
+    resetKey: () => `${tsunami.eventId ?? tsunami.unkeyedSequence ?? "none"}:${fullText}`,
+    reducedMotion: () => reducedMotion,
+  });
+  onDestroy(() => staticPager.destroy());
 
   // 種別 (segments) の増減で currentIndex が範囲外になったら先頭に戻す
   $effect(() => {
@@ -96,17 +112,24 @@
     durationS = Math.max(MIN_DURATION_S, distancePx / (CHARS_PER_SECOND * fontSizePx));
   });
 
-  // prefers-reduced-motion: reduce のときは marquee を止め (既存フォールバック)、チップは全て
-  // 通常表示にする (第3波 Fix12: 強調/減光の差をつけない)
+  function fitAnchor(): void {
+    if (anchorEl == null) return;
+    const available = anchorEl.clientWidth;
+    if (available <= 0) return;
+    for (const [index, candidate] of anchorCandidates.entries()) {
+      const probe = anchorEl.querySelector<HTMLElement>(`[data-anchor-probe="${index}"]`);
+      if (probe != null && probe.scrollWidth <= available) {
+        anchorLabel = candidate;
+        return;
+      }
+    }
+    anchorLabel = anchorCandidates.at(-1) ?? anchorText;
+  }
   $effect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    reducedMotion = mq.matches;
-    const onChange = (e: MediaQueryListEvent): void => {
-      reducedMotion = e.matches;
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    void anchorText;
+    void anchorEl;
+    anchorLabel = anchorText;
+    fitAnchor();
   });
 
   function highestLabel(level: DisplayTsunamiLevel): string {
@@ -180,21 +203,26 @@
     </div>
   {/if}
   {#if segments.length > 0}
-    <div class="banner-areas" bind:this={areasEl}>
-      {#if !reducedMotion}
-        {#key displayGen}
-          <span
-            class="marquee-text"
-            class:capture-static={staticMarqueeEnabled}
-            bind:this={textEl}
-            data-marquee-static={staticMarqueeEnabled ? "true" : undefined}
-            style="animation-duration: {durationS}s; animation-iteration-count: {multiSegment ? 1 : 'infinite'}; --marquee-shift: {shiftPx}px;"
-            onanimationend={onSegmentEnd}
-          >{marqueeText}</span>
-        {/key}
-      {:else}
-        <span class="marquee-text-static">{fullText}</span>
-      {/if}
+    <div class="banner-areas">
+      <span class="static-anchor" bind:this={anchorEl} use:observeResize={fitAnchor} data-static-anchor><span data-anchor-label>{anchorLabel || anchorText}</span>
+        {#each anchorCandidates as candidate, index}
+          <span class="anchor-probe" aria-hidden="true" data-anchor-probe={index}>{candidate}</span>
+        {/each}
+      </span>
+      <div class="scan-viewport" bind:this={areasEl} data-scan-viewport>
+        {#if !staticScan}
+          {#key displayGen}
+            <span
+              class="marquee-text"
+              bind:this={textEl}
+              style="animation-duration: {durationS}s; animation-iteration-count: {multiSegment ? 1 : 'infinite'}; --marquee-shift: {shiftPx}px;"
+              onanimationend={onSegmentEnd}
+            >{marqueeText}</span>
+          {/key}
+        {:else}
+          <span class="marquee-text-static" data-static-page data-marquee-static={staticMarqueeEnabled ? "true" : undefined}>{staticPages[staticPager.index] ?? "表示領域不足"}</span>
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
@@ -272,14 +300,18 @@
     outline-offset: 2px;
   }
   .banner-areas {
-    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
     height: 1.5em;
-    overflow: hidden;
     margin: 2px 0 10px;
     padding: 0 16px;
     font-size: max(14px, var(--type-label-s-fluid)); /* spec D1: 層1 (安全・常設 14px 以上) */
     color: var(--role-muted);
   }
+  .static-anchor { position: relative; flex: 0 0 min(16em, calc(100% - 8em)); min-width: 0; white-space: nowrap; }
+  .anchor-probe { position: absolute; visibility: hidden; white-space: nowrap; pointer-events: none; }
+  .scan-viewport { position: relative; flex: 1 0 7em; min-width: 7em; height: 1.5em; overflow: hidden; }
   .marquee-text {
     position: absolute;
     top: 0;
@@ -293,11 +325,6 @@
     animation-timing-function: linear;
     animation-fill-mode: forwards;
   }
-  .marquee-text.capture-static {
-    position: static;
-    animation: none;
-    transform: none;
-  }
   @keyframes tsunami-banner-marquee {
     from {
       transform: translateX(0);
@@ -306,24 +333,10 @@
       transform: translateX(var(--marquee-shift, -200vw));
     }
   }
-  /* reduced-motion 静的フォールバック用の全種別連結テキスト。通常時は非表示、marquee-text と
-     入れ替わりで表示する (JS の reducedMotion 分岐と対になる、第3波 Fix12) */
+  /* reduce 時も scan は全件へ到達する静止ページであり、line clamp にはしない。 */
   .marquee-text-static {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal;
-  }
-  /* テロップ (TickerLane) とは速度・高さを明確に変える (遅く、行高も低く)。
-     prefers-reduced-motion では marquee を止め、2 行の折返し + 省略記号にフォールバックする */
-  @media (prefers-reduced-motion: reduce) {
-    .banner-areas {
-      height: auto;
-      max-height: 2.6em;
-    }
+    display: block;
+    white-space: nowrap;
   }
   @container (max-width: 240px) {
     .banner-header :global(.updated-stamp) { display: none; }

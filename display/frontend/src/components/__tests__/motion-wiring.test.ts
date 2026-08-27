@@ -98,6 +98,15 @@ describe("reduced-motion 配線 (spec §4-b): 切替後開始分を 0ms にす�
     expect(emg).not.toContain('matchMedia("(prefers-reduced-motion: reduce)")');
     expect(emg).toContain("{reducedMotion}");
     expect(preview).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(app).toContain("<StandbyScreen");
+    expect(app).toContain("{reducedMotion}");
+    const standby = readFileSync(join(__dirname, "..", "StandbyScreen.svelte"), "utf8");
+    const banner = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf8");
+    const heat = readFileSync(join(__dirname, "..", "HeatAlertCard.svelte"), "utf8");
+    expect(standby).toContain("<TsunamiStandbyBanner tsunami={snapshot.tsunami} onReplayLevel={onTsunamiReplay} {reducedMotion} />");
+    expect(standby).toContain("<HeatAlertCard item={heatItem} {reducedMotion} />");
+    expect(banner).not.toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(heat).not.toContain('matchMedia("(prefers-reduced-motion: reduce)")');
   });
 
   it("QuakePanel/TsunamiPanel は App 注入値を pager と reveal に共有して 0ms にする", () => {

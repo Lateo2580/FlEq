@@ -84,6 +84,25 @@ describe("TsunamiStandbyBanner", () => {
     expect(marquee?.textContent).toBe("【津波警報】宮崎県・大分県瀬戸内海沿岸");
   });
 
+  it("初回 paint から最上位区分の先頭予報区と全体総数を静的アンカーに出す", () => {
+    const tsunami = tsunamiState({
+      level: "majorWarning",
+      coasts: [
+        { name: "宮崎県", kind: "大津波警報", maxHeight: "10m超", firstHeight: null },
+        { name: "高知県", kind: "津波警報", maxHeight: "3m", firstHeight: null },
+        { name: "沖縄本島地方", kind: "津波注意報", maxHeight: "1m", firstHeight: null },
+      ],
+    });
+    const { container } = render(TsunamiStandbyBanner, { tsunami });
+    expect(container.querySelector("[data-anchor-label]")?.textContent).toBe("対象 3予報区・先頭 宮崎県（ほか2）");
+  });
+
+  it("既存の一行高の中で anchor と補助 scan viewport を並べる", () => {
+    const source = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
+    expect(source).toMatch(/\.banner-areas\s*\{[^}]*display:\s*flex;[^}]*height:\s*1\.5em;/s);
+    expect(source).toMatch(/\.scan-viewport\s*\{[^}]*height:\s*1\.5em;[^}]*overflow:\s*hidden;/s);
+  });
+
   it("coasts が空なら marquee 領域が render されない", () => {
     const { container } = render(TsunamiStandbyBanner, { tsunami: tsunamiState({ coasts: [] }) });
     expect(container.querySelector(".banner-areas")).toBeFalsy();
@@ -162,16 +181,20 @@ describe("TsunamiStandbyBanner", () => {
     expect(duration).toBeGreaterThanOrEqual(18);
   });
 
-  it("staticMarquee は撮影時だけ in-flow 静止にし、通常の走行経路は残す", () => {
+  it("staticMarquee は全件静止ページを一周し、補助経路を残す", async () => {
+    vi.useFakeTimers();
     const { container } = render(TsunamiStandbyBanner, {
       tsunami: tsunamiState(),
       staticMarquee: true,
     });
-    const marquee = container.querySelector<HTMLElement>(".marquee-text");
-    expect(marquee?.dataset.marqueeStatic).toBe("true");
-    expect(marquee?.classList.contains("capture-static")).toBe(true);
+    const page = container.querySelector<HTMLElement>(".marquee-text-static");
+    expect(page?.dataset.marqueeStatic).toBe("true");
+    expect(page?.textContent).toBe("【津波警報】");
+    await vi.advanceTimersByTimeAsync(10_000);
+    await tick();
+    expect(container.querySelector(".marquee-text-static")?.textContent).toBe("宮崎県");
     const source = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
-    expect(source).toMatch(/\.marquee-text\.capture-static\s*\{[^}]*position:\s*static;[^}]*animation:\s*none;/s);
+    expect(source).toContain("const staticScan = $derived(reducedMotion || staticMarqueeEnabled)");
   });
 
   // 第3波 Fix16: 減光は opacity ではなく background の color-mix (surface へのトーンブレンド) で
@@ -239,24 +262,22 @@ describe("TsunamiStandbyBanner", () => {
     }
   });
 
-  it("reduced-motion 時は marquee-text-static に全種別を連結表示し、チップはどれも dim しない", () => {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: true,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    })) as unknown as typeof window.matchMedia;
+  it("reduced-motion 時は clamp せず、補助 scan を全種別へ到達する静止ページに替え、チップはどれも dim しない", async () => {
+    vi.useFakeTimers();
     try {
-      const { container } = render(TsunamiStandbyBanner, { tsunami: multiLevelTsunami() });
+      const { container } = render(TsunamiStandbyBanner, { tsunami: multiLevelTsunami(), reducedMotion: true });
       expect(container.querySelector(".marquee-text")).toBeFalsy();
       const staticEl = container.querySelector(".marquee-text-static");
-      expect(staticEl?.textContent).toBe("【大津波警報】宮崎県　【津波警報】高知県　【津波注意報】沖縄本島地方");
+      expect(staticEl?.textContent).toBe("【大津波警報】");
+      await vi.advanceTimersByTimeAsync(10_000);
+      await tick();
+      expect(container.querySelector(".marquee-text-static")?.textContent).toBe("宮崎県");
       const chips = Array.from(container.querySelectorAll(".count-chip"));
       expect(chips.every((c) => !isDim(c))).toBe(true);
-    } finally {
-      window.matchMedia = original;
-    }
+      const source = readFileSync(join(__dirname, "..", "TsunamiStandbyBanner.svelte"), "utf-8");
+      expect(source).not.toContain("-webkit-line-clamp");
+      expect(source).not.toContain("line-clamp:");
+    } finally { vi.useRealTimers(); }
   });
 
   // 第3波 Fix16: opacity ベースの減光は祖先 .standby.dim (親0.35×子0.7=実効約0.245) と乗算し、

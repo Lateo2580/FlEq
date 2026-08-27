@@ -281,6 +281,7 @@
           snapshot={connection.state.snapshot}
           now={clock.now}
           dim={effectiveDim}
+          {reducedMotion}
           sseConnected={connection.state.sseConnected}
           testMeasurementOverride={testStandbyMeasurementOverride}
           onTsunamiReplay={replayTsunami}
