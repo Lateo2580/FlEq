@@ -26,7 +26,7 @@ const MIME_TYPES = new Map([
 
 function usage(message) {
   if (message != null) process.stderr.write(`${message}\n`);
-  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
+  process.stderr.write("Usage: node scripts/capture-legacy-standby.mjs [--report] [--fixture overflow|overlap|rotation|cluster|cluster-calm|tornado-pages|tornado-aggregate|tornado-clip|tornado-epoch-release|recent-quakes-narrow] [--url URL] [--scenario quiet|4|7|max|max-floodWide] [--viewport WIDTHxHEIGHT] [--out-dir PATH]\n");
   process.exitCode = 2;
 }
 
@@ -276,6 +276,10 @@ function assertCardContainment(diagnostics) {
   if (overflow !== 0) throw new Error(`card scroll containment invalid: ${overflow} overflowing card(s): ${diagnostics["data-card-overflow-keys"]}; paged viewport: ${diagnostics["data-page-viewport-overflow-keys"]}`);
 }
 
+function assertRecentQuakesNarrowFixture(diagnostics) {
+  expectEqual(diagnostics["data-recent-hypocenters-horizontal-clipped"], "false", "recent-quakes-narrow hypocenter clipping");
+}
+
 function assertFloodReadability(diagnostics) {
   const visibilityKeys = diagnostics["data-flood-visibility-violation-keys"];
   if (visibilityKeys == null) throw new Error("flood visibility diagnostic is missing");
@@ -481,6 +485,7 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   // through to the generic containment counterexample.
   assertFloodReadability(diagnostics);
   assertCardContainment(diagnostics);
+  if (fixture === "recent-quakes-narrow") assertRecentQuakesNarrowFixture(diagnostics);
   assertGeometry(diagnostics, { skipWeatherHeight: clusterFixture });
   if (clusterFixture) assertClusterFixture(diagnostics, { requirePreRotation: clusterCalmFixture });
   assertClockHandoff(dom, diagnostics);
@@ -503,18 +508,19 @@ async function main() {
   // Scenario 7 / 960 is that deterministic surface; starting from quiet would
   // exercise no badge at all and could leave the rider diagnostic unproven.
   const overlapDefault = options.fixture === "overlap" && options.scenarios.length === 0;
-  const tornadoFixtureDefaults = {
+  const fixtureDefaults = {
     "tornado-pages": { scenario: "7", viewport: "1280x720" },
     "tornado-aggregate": { scenario: "7", viewport: "960x620" },
     "tornado-clip": { scenario: "7", viewport: "960x620" },
     "tornado-epoch-release": { scenario: "7", viewport: "1280x720" },
+    "recent-quakes-narrow": { scenario: "quiet", viewport: "960x620" },
   };
-  const tornadoFixtureDefault = options.fixture == null ? null : tornadoFixtureDefaults[options.fixture] ?? null;
+  const fixtureDefault = options.fixture == null ? null : fixtureDefaults[options.fixture] ?? null;
   const scenarios = options.scenarios.length === 0
-    ? tornadoFixtureDefault?.scenario != null ? [tornadoFixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
+    ? fixtureDefault?.scenario != null ? [fixtureDefault.scenario] : overlapDefault ? ["7"] : DEFAULT_SCENARIOS
     : options.scenarios;
   if (scenarios.some((scenario) => !SUPPORTED_SCENARIOS.includes(scenario))) throw new Error("scenario must be quiet, 4, 7, max, or max-floodWide");
-  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release"].includes(options.fixture)) throw new Error("unknown fixture");
+  if (options.fixture != null && !["overflow", "overlap", "rotation", "cluster", "cluster-calm", "tornado-pages", "tornado-aggregate", "tornado-clip", "tornado-epoch-release", "recent-quakes-narrow"].includes(options.fixture)) throw new Error("unknown fixture");
   if (options.fixture === "cluster-calm" && (scenarios.length !== 1 || scenarios[0] !== "4")) throw new Error("cluster-calm fixture requires --scenario 4: quiet has no fixed cluster to reduce");
   const requestedViewports = options.viewports.length === 0 ? null : options.viewports.map(parseViewport);
   const outDir = resolve(options.outDir ?? join(DISPLAY_DIR, "artifacts", "legacy-standby"));
@@ -527,7 +533,7 @@ async function main() {
     const results = [];
     for (const scenario of scenarios) {
       const viewportLabels = requestedViewports == null
-        ? tornadoFixtureDefault?.viewport != null ? [tornadoFixtureDefault.viewport]
+        ? fixtureDefault?.viewport != null ? [fixtureDefault.viewport]
           : overlapDefault ? ["960x620"]
           : scenario === "max-floodWide" ? FLOOD_WIDE_VIEWPORTS : options.report ? DEFAULT_VIEWPORTS : scenario === "quiet" ? ["960x620"] : DEFAULT_VIEWPORTS
         : requestedViewports.map((viewport) => viewport.label);
