@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { parseTyphoonAnalysis } from "../../../src/dmdata/typhoon-analysis-parser";
 import { parseVolcanoTelegram } from "../../../src/dmdata/volcano-parser";
 import { parseFloodForecast } from "../../../src/dmdata/flood-forecast-parser";
-import { parseWeatherBriefing } from "../../../src/dmdata/briefing-parser";
+import { deriveBriefingTag, parseWeatherBriefing } from "../../../src/dmdata/briefing-parser";
 import * as log from "../../../src/logger";
 import { RevisionGuard, StandbyStateStore } from "../../../src/engine/display/standby-state-store";
 import {
@@ -23,6 +23,7 @@ import type {
   ParsedLgObservationInfo,
   ParsedTyphoonAnalysis,
   ParsedVolcanoInfo,
+  ParsedWeatherBriefing,
   SpecialValue,
 } from "../../../src/types";
 import {
@@ -231,6 +232,45 @@ function minimalBriefingEvent(id: string, reportDateTime: string): PresentationE
       meta: { messageId: `message:${id}` },
     } as unknown as PresentationEvent["raw"],
   });
+}
+
+function semanticBriefingEvent(
+  eventId: string,
+  reportDateTime: string,
+  serial: string,
+  condition: "線状降水帯発生" | "線状降水帯直前" | "記録的短時間大雨" | "短時間大雪" = "線状降水帯発生",
+  editorialOffice = "試験地方気象台",
+): PresentationEvent {
+  const base = briefingEvent("82_01_01_260324_VPBS50.xml");
+  const info = base.raw as ParsedWeatherBriefing;
+  const tag = condition === "線状降水帯発生"
+    ? "linearRainObserved"
+    : condition === "線状降水帯直前"
+      ? "linearRainPredicted"
+      : condition === "記録的短時間大雨"
+        ? "recordRain"
+        : "shortSnow";
+  const raw: ParsedWeatherBriefing = {
+    ...info,
+    eventId,
+    reportDateTime,
+    serial,
+    editorialOffice,
+    briefingCondition: condition,
+    briefingConditions: [condition],
+    briefingSeverityEvidence: info.briefingSeverityEvidence.map((evidence) => ({
+      ...evidence, condition, tag,
+    })),
+  };
+  return {
+    ...base,
+    id: `message:${eventId}`,
+    eventId,
+    serial,
+    reportDateTime,
+    editorialOffice,
+    raw,
+  };
 }
 
 function vpoaEvent(fixture: string): PresentationEvent {
@@ -1426,8 +1466,9 @@ describe("StandbyStateStore: independent briefing card", () => {
 
     const cancelled = new StandbyStateStore();
     const cancelEvent = briefingEvent(FIXTURE_VPBS50_SYNTH_CANCEL);
-    cancelled.applyEvent(cancelEvent, Date.parse(cancelEvent.reportDateTime) + 1);
-    expect(cancelled.snapshotBriefingCard()!.data.entries[0]!.summary).toMatchObject({ mode: "cancellation" });
+    expect(cancelled.applyEvent(cancelEvent, Date.parse(cancelEvent.reportDateTime) + 1))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(cancelled.snapshotBriefingCard()).toBeNull();
 
     const vpoa = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
     const vpoaStore = new StandbyStateStore();
@@ -1509,7 +1550,13 @@ describe("StandbyStateStore: independent briefing card", () => {
     const reportTimeMs = Date.parse(expected.reportDateTime);
     const store = new StandbyStateStore();
 
-    expect(store.applyEvent(briefingEvent(expected.fixture), reportTimeMs + 1))
+    const mutation = store.applyEvent(briefingEvent(expected.fixture), reportTimeMs + 1);
+    if (expected.fixture === "synthetic_VPBS50_cancel.xml") {
+      expect(mutation).toEqual({ viewChanged: false, durableChanged: false });
+      expect(store.snapshotBriefingCard()).toBeNull();
+      return;
+    }
+    expect(mutation)
       .toEqual({ viewChanged: true, durableChanged: false });
 
     const card = store.snapshotBriefingCard();
@@ -1517,7 +1564,10 @@ describe("StandbyStateStore: independent briefing card", () => {
     const entry = card!.data.entries[0];
     expect(card!.data.entries).toHaveLength(1);
     expect(entry).toMatchObject({
-      key: `card:vpbs:${info.eventId}`,
+      key: info.briefingSeverityEvidence.some((evidence) => evidence.tag !== "other")
+        && info.editorialOffice !== ""
+        ? expect.stringMatching(/^card:vpbs:semantic:/)
+        : `card:vpbs:${info.eventId}`,
       source: "vpbs50",
       title: expected.title,
       headline: expected.headline,
@@ -1544,7 +1594,9 @@ describe("StandbyStateStore: independent briefing card", () => {
     store.applyEvent(event, Date.parse(expected.reportDateTime) + 1);
     const entry = store.snapshotBriefingCard()!.data.entries[0];
     expect(entry).toMatchObject({
-      key: `card:${expected.source === "vpbs50" ? "vpbs" : "vpoa"}:${expected.sourceEventId}`,
+      key: expected.source === "vpbs50"
+        ? expect.stringMatching(/^card:vpbs:semantic:/)
+        : `card:vpoa:${expected.sourceEventId}`,
       source: expected.source,
       sourceEventId: expected.sourceEventId,
       title: expected.title,
@@ -1635,7 +1687,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
     expect(store.snapshotBriefingCard()!.data.entries[0]).toMatchObject({
       source: "vpbs50",
-      key: `card:vpbs:${canonical.eventId}`,
+      key: expect.stringMatching(/^card:vpbs:semantic:/),
     });
 
     const repeated = store.reconcileBriefingCard(sourceKey, canonical, nowMs);
@@ -1705,6 +1757,7 @@ describe("StandbyStateStore: independent briefing card", () => {
       infoType: "訂正",
       title: "訂正済み気象防災速報",
       reportDateTime: new Date(nowMs + 1_000).toISOString(),
+      serial: "2",
     };
     const store = new StandbyStateStore();
 
@@ -1726,7 +1779,7 @@ describe("StandbyStateStore: independent briefing card", () => {
     const entry = store.snapshotBriefingCard()!.data.entries[0];
     expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
     expect(entry).toMatchObject({
-      key: `card:vpbs:${normal.eventId}`,
+      key: expect.stringMatching(/^card:vpbs:semantic:/),
       infoType: "取消",
       frameLevel: "cancel",
     });
@@ -1816,5 +1869,329 @@ describe("StandbyStateStore: independent briefing card", () => {
     const restored = new StandbyStateStore();
     restored.restoreActiveState(live.exportActiveState(), nowMs);
     expect(restored.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("VPBS50 は EventID exact を優先し、同一官署・kind の後報だけを semantic subject へ畳む", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const first = semanticBriefingEvent("first", "2026-08-25T00:00:00.000Z", "1");
+    const followup = semanticBriefingEvent("followup", "2026-08-25T00:01:00.000Z", "2", "線状降水帯発生");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(first, nowMs);
+    store.applyEvent(followup, nowMs);
+    const entry = store.snapshotBriefingCard()!.data.entries[0]!;
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(1);
+    expect(entry).toMatchObject({ sourceEventId: "followup", phenomenonKind: "linearRainObserved" });
+    expect(entry.key).toBe("card:vpbs:semantic:linearRainObserved:試験地方気象台");
+  });
+
+  it("Condition 集合が増えても初回 subject を固定し、曖昧・空・官署空は exact fallback にする", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const first = semanticBriefingEvent("first", "2026-08-25T00:00:00.000Z", "1", "線状降水帯発生");
+    const record = semanticBriefingEvent("record", "2026-08-25T00:00:30.000Z", "1", "記録的短時間大雨");
+    const combined = semanticBriefingEvent("combined", "2026-08-25T00:01:00.000Z", "2", "線状降水帯発生");
+    const raw = combined.raw as ParsedWeatherBriefing;
+    combined.raw = {
+      ...raw,
+      briefingConditions: ["線状降水帯発生", "記録的短時間大雨"],
+      briefingSeverityEvidence: [
+        ...raw.briefingSeverityEvidence,
+        { ...raw.briefingSeverityEvidence[0]!, condition: "記録的短時間大雨", tag: "recordRain" },
+      ],
+    };
+    const store = new StandbyStateStore();
+
+    store.applyEvent(first, nowMs);
+    store.applyEvent(record, nowMs);
+    store.applyEvent(combined, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(3);
+    expect(store.snapshotBriefingCard()!.data.entries.find((entry) => entry.sourceEventId === "combined"))
+      .toMatchObject({ key: "card:vpbs:combined", phenomenonKind: null, semanticKey: null });
+
+    const empty = semanticBriefingEvent("empty", "2026-08-25T00:02:00.000Z", "3");
+    empty.raw = { ...(empty.raw as ParsedWeatherBriefing), briefingConditions: [], briefingSeverityEvidence: [] };
+    const officeEmpty = semanticBriefingEvent("office-empty", "2026-08-25T00:03:00.000Z", "4", "線状降水帯発生", "");
+    store.applyEvent(empty, nowMs);
+    store.applyEvent(officeEmpty, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries.map((entry) => entry.sourceEventId))
+      .toEqual(expect.arrayContaining(["empty", "office-empty"]));
+  });
+
+  it("同 revision は payload 一致・相違とも no-op にし、older は semantic entry を置換しない", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const current = semanticBriefingEvent("current", "2026-08-25T00:02:00.000Z", "2");
+    const same = semanticBriefingEvent("same", "2026-08-25T00:02:00.000Z", "2");
+    const conflict = semanticBriefingEvent("conflict", "2026-08-25T00:02:00.000Z", "2");
+    conflict.raw = { ...(conflict.raw as ParsedWeatherBriefing), title: "同revisionだが異なるpayload" };
+    const older = semanticBriefingEvent("older", "2026-08-25T00:01:00.000Z", "9");
+    const warn = vi.spyOn(log, "warn");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(current, nowMs);
+    expect(store.applyEvent(same, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.applyEvent(conflict, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.applyEvent(older, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotBriefingCard()!.data.entries[0]!.sourceEventId).toBe("current");
+    expect(warn).toHaveBeenCalledWith("[briefing-card] same revision payload conflict key=card:vpbs:semantic:linearRainObserved:試験地方気象台");
+    warn.mockRestore();
+  });
+
+  it("VPBS50 取消は EventID exact を優先し、EventID 欠落時だけ一意 semantic fallback を許す", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const normal = semanticBriefingEvent("normal", "2026-08-25T00:00:00.000Z", "1");
+    const cancel = semanticBriefingEvent("cancel", "2026-08-25T00:01:00.000Z", "2");
+    const cancelRaw = cancel.raw as ParsedWeatherBriefing;
+    cancel.eventId = null;
+    cancel.infoType = "取消";
+    cancel.isCancellation = true;
+    cancel.raw = { ...cancelRaw, eventId: null, infoType: "取消" };
+    const store = new StandbyStateStore();
+
+    store.applyEvent(normal, nowMs);
+    store.applyEvent(cancel, nowMs);
+    const entry = store.snapshotBriefingCard()!.data.entries[0]!;
+    expect(entry).toMatchObject({ sourceEventId: expect.stringContaining("fixture:"), infoType: "取消", frameLevel: "cancel" });
+    expect(Date.parse(entry.expiresAt)).toBe(Date.parse(cancel.reportDateTime) + BRIEFING_CARD_CANCEL_TTL_MS);
+  });
+
+  it("VPBS50 取消の EventID exact は revision 欠落でも cancel frame に置換する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const normal = semanticBriefingEvent("cancel-exact", "2026-08-25T00:00:00.000Z", "1");
+    const cancel = semanticBriefingEvent("cancel-exact", "", "2");
+    const cancelRaw = cancel.raw as ParsedWeatherBriefing;
+    cancel.infoType = "取消";
+    cancel.isCancellation = true;
+    cancel.serial = null;
+    cancel.raw = { ...cancelRaw, infoType: "取消", reportDateTime: "", serial: null };
+    const store = new StandbyStateStore();
+
+    store.applyEvent(normal, nowMs);
+    store.applyEvent(cancel, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+      expect.objectContaining({
+        sourceEventId: "cancel-exact",
+        key: "card:vpbs:semantic:linearRainObserved:試験地方気象台",
+        infoType: "取消",
+        frameLevel: "cancel",
+      }),
+    ]);
+  });
+
+  it("VPBS50 取消は同一 EventID の raw fallback が共存しても semantic subject を確実に取消す", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const normal = semanticBriefingEvent("cancel-many", "2026-08-25T00:00:00.000Z", "1");
+    const unordered = semanticBriefingEvent("cancel-many", "2026-08-25T00:01:00.000Z", "2");
+    unordered.serial = null;
+    unordered.raw = { ...(unordered.raw as ParsedWeatherBriefing), serial: null };
+    const cancel = semanticBriefingEvent("cancel-many", "", "3");
+    cancel.serial = null;
+    cancel.infoType = "取消";
+    cancel.isCancellation = true;
+    cancel.raw = { ...(cancel.raw as ParsedWeatherBriefing), infoType: "取消", reportDateTime: "", serial: null };
+    const store = new StandbyStateStore();
+
+    store.applyEvent(normal, nowMs);
+    store.applyEvent(unordered, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(2);
+    store.applyEvent(cancel, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries).toEqual([
+      expect.objectContaining({
+        sourceEventId: "cancel-many",
+        key: "card:vpbs:semantic:linearRainObserved:試験地方気象台",
+        frameLevel: "cancel",
+      }),
+    ]);
+  });
+
+  it("late reconcile は古い canonical で新しい VPBS50 も VPOA50 source も置換しない", () => {
+    const source = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const canonical = briefingEvent(FIXTURE_PHASE6B_VPBS50_KJPTK202608221709_202608221709);
+    const newer = semanticBriefingEvent("newer", "2026-08-22T17:10:00+09:00", "2", "記録的短時間大雨", "気象庁本庁");
+    const nowMs = Date.parse("2026-08-22T17:11:00+09:00");
+    const warn = vi.spyOn(log, "warn");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(newer, nowMs);
+    store.applyEvent(source, nowMs);
+    expect(store.reconcileBriefingCard(`card:vpoa:${source.eventId}`, canonical, nowMs))
+      .toMatchObject({ kind: "ignored", reason: "canonicalNotNewer" });
+    expect(store.snapshotBriefingCard()!.data.entries.map((entry) => entry.sourceEventId))
+      .toEqual(expect.arrayContaining(["newer", source.eventId]));
+    expect(warn).toHaveBeenCalledWith("[briefing-card] late reconcile canonical is not newer");
+    warn.mockRestore();
+  });
+
+  it("late reconcile は unordered canonical で VPBS50 も VPOA50 source も変更しない", () => {
+    const source = vpoaEvent(FIXTURE_PHASE6B_VPOA50_JPTK202608221709_202608221709);
+    const nowMs = Date.parse(source.reportDateTime) + 1;
+    const existing = semanticBriefingEvent("late-existing", "2026-08-22T17:10:00+09:00", "2");
+    const unordered = semanticBriefingEvent("late-unordered", "2026-08-22T17:11:00+09:00", "3");
+    unordered.serial = null;
+    unordered.raw = { ...(unordered.raw as ParsedWeatherBriefing), serial: null };
+    const warn = vi.spyOn(log, "warn");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(existing, nowMs);
+    store.applyEvent(source, nowMs);
+    expect(store.reconcileBriefingCard(`card:vpoa:${source.eventId}`, unordered, nowMs))
+      .toMatchObject({ kind: "ignored", reason: "canonicalNotNewer" });
+    expect(store.snapshotBriefingCard()!.data.entries.map((entry) => entry.sourceEventId))
+      .toEqual(expect.arrayContaining(["late-existing", source.eventId]));
+    expect(warn).toHaveBeenCalledWith("[briefing-card] late reconcile canonical is unordered");
+    warn.mockRestore();
+  });
+
+  it("exact EventID は競合する Condition 集合より先に既存 subject を解決する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const issued = semanticBriefingEvent("exact", "2026-08-25T00:00:00.000Z", "1", "線状降水帯発生");
+    const competing = semanticBriefingEvent("competing", "2026-08-25T00:00:10.000Z", "1", "記録的短時間大雨");
+    const corrected = semanticBriefingEvent("exact", "2026-08-25T00:01:00.000Z", "2", "記録的短時間大雨");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(issued, nowMs);
+    store.applyEvent(competing, nowMs);
+    store.applyEvent(corrected, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceEventId: "exact", phenomenonKind: "linearRainObserved", semanticKey: "card:vpbs:semantic:linearRainObserved:試験地方気象台" }),
+      expect.objectContaining({ sourceEventId: "competing", phenomenonKind: "recordRain" }),
+    ]));
+  });
+
+  it("一意 subject は Condition 追加後も初回 kind/key を保ち、raw fallback を候補に混ぜない", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const first = semanticBriefingEvent("first", "2026-08-25T00:00:00.000Z", "1");
+    const added = semanticBriefingEvent("added", "2026-08-25T00:01:00.000Z", "2");
+    const addedRaw = added.raw as ParsedWeatherBriefing;
+    added.raw = { ...addedRaw, briefingConditions: ["線状降水帯発生", "記録的短時間大雨"], briefingSeverityEvidence: [
+      ...addedRaw.briefingSeverityEvidence,
+      { ...addedRaw.briefingSeverityEvidence[0]!, condition: "記録的短時間大雨", tag: "recordRain" },
+    ] };
+    const record = semanticBriefingEvent("record", "2026-08-25T00:01:20.000Z", "3", "記録的短時間大雨");
+    const rawFallback = semanticBriefingEvent("raw", "2026-08-25T00:01:30.000Z", "3", "記録的短時間大雨");
+    const rawFallbackRaw = rawFallback.raw as ParsedWeatherBriefing;
+    rawFallback.raw = { ...rawFallbackRaw, briefingConditions: ["線状降水帯発生", "記録的短時間大雨"], briefingSeverityEvidence: [
+      ...rawFallbackRaw.briefingSeverityEvidence,
+      { ...rawFallbackRaw.briefingSeverityEvidence[0]!, condition: "線状降水帯発生", tag: "linearRainObserved" },
+    ] };
+    const followup = semanticBriefingEvent("followup", "2026-08-25T00:02:00.000Z", "4", "線状降水帯発生");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(first, nowMs);
+    store.applyEvent(added, nowMs);
+    store.applyEvent(record, nowMs);
+    store.applyEvent(rawFallback, nowMs);
+    store.applyEvent(followup, nowMs);
+    const entries = store.snapshotBriefingCard()!.data.entries;
+    expect(entries.find((entry) => entry.sourceEventId === "followup"))
+      .toMatchObject({ key: "card:vpbs:semantic:linearRainObserved:試験地方気象台", phenomenonKind: "linearRainObserved" });
+    expect(entries.find((entry) => entry.sourceEventId === "raw"))
+      .toMatchObject({ key: "card:vpbs:raw", editorialOffice: "試験地方気象台", semanticKey: null, phenomenonKind: null });
+  });
+
+  it("EventID 欠落取消の複数 semantic 候補は保護し、VPOA50取消とは混ざらない", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const linear = semanticBriefingEvent("linear", "2026-08-25T00:00:00.000Z", "1");
+    const record = semanticBriefingEvent("record", "2026-08-25T00:00:10.000Z", "1", "記録的短時間大雨");
+    const cancel = semanticBriefingEvent("cancel", "2026-08-25T00:01:00.000Z", "2");
+    const cancelRaw = cancel.raw as ParsedWeatherBriefing;
+    cancel.eventId = null;
+    cancel.infoType = "取消";
+    cancel.isCancellation = true;
+    cancel.raw = { ...cancelRaw, eventId: null, infoType: "取消", briefingConditions: ["線状降水帯発生", "記録的短時間大雨"], briefingSeverityEvidence: [
+      ...cancelRaw.briefingSeverityEvidence,
+      { ...cancelRaw.briefingSeverityEvidence[0]!, condition: "記録的短時間大雨", tag: "recordRain" },
+    ] };
+    const vpoaCancel = vpoaEvent(FIXTURE_VPOA50_SYNTH_CANCEL);
+    const warn = vi.spyOn(log, "warn");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(linear, nowMs);
+    store.applyEvent(record, nowMs);
+    expect(store.applyEvent(cancel, nowMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotBriefingCard()!.data.entries).toHaveLength(2);
+    store.applyEvent(vpoaCancel, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries.filter((entry) => entry.source === "vpbs50")).toHaveLength(2);
+    expect(warn).toHaveBeenCalledWith("[briefing-card] cancellation semantic target is ambiguous");
+    warn.mockRestore();
+  });
+
+  it("NFKC Condition と4種 K の順序を固定する", () => {
+    expect(["線状降水帯　直前", "線状降水帯", "記録的短時間大雨", "短時間大雪"].map(deriveBriefingTag))
+      .toEqual(["linearRainPredicted", "linearRainObserved", "recordRain", "shortSnow"]);
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const all = semanticBriefingEvent("all", "2026-08-25T00:00:00.000Z", "1");
+    const raw = all.raw as ParsedWeatherBriefing;
+    all.raw = { ...raw, briefingConditions: ["短時間大雪", "記録的短時間大雨", "線状降水帯直前", "線状降水帯発生"], briefingSeverityEvidence: [
+      { ...raw.briefingSeverityEvidence[0]!, condition: "短時間大雪", tag: "shortSnow" },
+      { ...raw.briefingSeverityEvidence[0]!, condition: "記録的短時間大雨", tag: "recordRain" },
+      { ...raw.briefingSeverityEvidence[0]!, condition: "線状降水帯直前", tag: "linearRainPredicted" },
+      { ...raw.briefingSeverityEvidence[0]!, condition: "線状降水帯発生", tag: "linearRainObserved" },
+    ] };
+    const store = new StandbyStateStore();
+    store.applyEvent(all, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries[0]!.phenomenonKind).toBe("linearRainObserved");
+  });
+
+  it("unordered exact は semantic subject を上書きせず raw exact fallback にし、prune は ignored 経路でも通知する", () => {
+    const nowMs = Date.parse("2026-08-25T00:10:00.000Z");
+    const issued = semanticBriefingEvent("same", "2026-08-25T00:00:00.000Z", "1");
+    const unordered = semanticBriefingEvent("same", "2026-08-25T00:01:00.000Z", "2");
+    unordered.raw = { ...(unordered.raw as ParsedWeatherBriefing), serial: null };
+    unordered.serial = null;
+    const expired = semanticBriefingEvent("expired", "2026-08-24T21:59:00.000Z", "1");
+    expired.raw = { ...(expired.raw as ParsedWeatherBriefing), editorialOffice: "" };
+    const missingCancel = semanticBriefingEvent("missing", "2026-08-25T00:02:00.000Z", "2");
+    missingCancel.infoType = "取消";
+    missingCancel.isCancellation = true;
+    missingCancel.raw = { ...(missingCancel.raw as ParsedWeatherBriefing), infoType: "取消" };
+    const store = new StandbyStateStore();
+
+    store.applyEvent(issued, nowMs);
+    store.applyEvent(unordered, nowMs);
+    expect(store.snapshotBriefingCard()!.data.entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceEventId: "same", semanticKey: "card:vpbs:semantic:linearRainObserved:試験地方気象台" }),
+      expect.objectContaining({ key: "card:vpbs:same", semanticKey: null }),
+    ]));
+    store.applyEvent(expired, Date.parse("2026-08-24T22:00:00.000Z"));
+    expect(store.applyEvent(missingCancel, nowMs)).toEqual({ viewChanged: true, durableChanged: false });
+  });
+
+  it("cancel frame の TTL 後も semantic revision watermark は遅着旧報の復活を防ぐ", () => {
+    const issuedAtMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const cancelAtMs = issuedAtMs + 60_000;
+    const issued = semanticBriefingEvent("watermark-current", new Date(issuedAtMs).toISOString(), "2");
+    const cancel = semanticBriefingEvent("watermark-current", new Date(cancelAtMs).toISOString(), "3");
+    cancel.infoType = "取消";
+    cancel.isCancellation = true;
+    cancel.raw = { ...(cancel.raw as ParsedWeatherBriefing), infoType: "取消" };
+    const lateOlder = semanticBriefingEvent("watermark-late", new Date(issuedAtMs).toISOString(), "1");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(issued, issuedAtMs);
+    store.applyEvent(cancel, cancelAtMs);
+    expect(store.sweep(cancelAtMs + BRIEFING_CARD_CANCEL_TTL_MS)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.applyEvent(lateOlder, cancelAtMs + BRIEFING_CARD_CANCEL_TTL_MS))
+      .toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
+  });
+
+  it("TTL 切れ取消の到着でも取消 revision watermark は中間 revision の遅着報を防ぐ", () => {
+    const issuedAtMs = Date.parse("2026-08-25T00:00:00.000Z");
+    const cancelReportAtMs = issuedAtMs + BRIEFING_CARD_CANCEL_TTL_MS;
+    const cancelArrivalAtMs = cancelReportAtMs + BRIEFING_CARD_CANCEL_TTL_MS;
+    const issued = semanticBriefingEvent("expired-cancel-current", new Date(issuedAtMs).toISOString(), "1");
+    const cancel = semanticBriefingEvent("expired-cancel-current", new Date(cancelReportAtMs).toISOString(), "3");
+    cancel.infoType = "取消";
+    cancel.isCancellation = true;
+    cancel.raw = { ...(cancel.raw as ParsedWeatherBriefing), infoType: "取消" };
+    const intermediateLate = semanticBriefingEvent("expired-cancel-late", new Date(issuedAtMs + 5 * 60_000).toISOString(), "2");
+    const store = new StandbyStateStore();
+
+    store.applyEvent(issued, issuedAtMs);
+    expect(store.applyEvent(cancel, cancelArrivalAtMs)).toEqual({ viewChanged: true, durableChanged: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
+    expect(store.applyEvent(intermediateLate, cancelArrivalAtMs)).toEqual({ viewChanged: false, durableChanged: false });
+    expect(store.snapshotBriefingCard()).toBeNull();
   });
 });

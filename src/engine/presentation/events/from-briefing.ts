@@ -30,6 +30,7 @@ export function fromBriefingOutcome(outcome: BriefingOutcome): PresentationEvent
     headline: info.headline,
     reportDateTime: xmlReport?.head.reportDateTime ?? info.reportDateTime,
     publishingOffice: xmlReport?.control.publishingOffice ?? info.publishingOffice,
+    editorialOffice: xmlReport?.control.editorialOffice ?? info.editorialOffice,
     isTest: presentationTelegramMeta(outcome.msg).isTest,
 
     frameLevel: outcome.presentation.frameLevel,

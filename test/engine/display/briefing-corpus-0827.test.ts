@@ -30,6 +30,7 @@ const PI_BRIEFING_CORPUS = [
     kind: "linearRainObserved" as const,
     lead: "線状降水帯が発生",
     condition: "線状降水帯発生",
+    editorialOffice: "富山地方気象台",
     areas: [{ name: "西部", code: "160020" }],
     eventName: "線状降水帯発生",
     at: "2026-08-27T02:50:00+09:00",
@@ -46,6 +47,7 @@ const PI_BRIEFING_CORPUS = [
     kind: "linearRainObserved" as const,
     lead: "線状降水帯が発生",
     condition: "線状降水帯発生",
+    editorialOffice: "金沢地方気象台",
     areas: [{ name: "加賀", code: "170010" }, { name: "能登", code: "170020" }],
     eventName: "線状降水帯発生",
     at: "2026-08-27T03:00:00+09:00",
@@ -62,6 +64,7 @@ const PI_BRIEFING_CORPUS = [
     kind: "linearRainPredicted" as const,
     lead: "３時間以内に線状降水帯発生のおそれ",
     condition: "線状降水帯直前",
+    editorialOffice: "富山地方気象台",
     areas: [{ name: "東部", code: "160010" }, { name: "西部", code: "160020" }],
     eventName: "線状降水帯予想",
     at: "2026-08-27T04:40:00+09:00",
@@ -78,6 +81,7 @@ const PI_BRIEFING_CORPUS = [
     kind: "linearRainPredicted" as const,
     lead: "３時間以内に線状降水帯発生のおそれ",
     condition: "線状降水帯直前",
+    editorialOffice: "金沢地方気象台",
     areas: [{ name: "能登", code: "170020" }],
     eventName: "線状降水帯予想",
     at: "2026-08-27T04:40:00+09:00",
@@ -102,7 +106,7 @@ describe("2026-08-27 Pi briefing corpus fixtures", () => {
     const message = createMockWsDataMessage(expected.fixture);
     const parsed = parseWeatherBriefing(message);
     expect(parsed).not.toBeNull();
-    expect(parsed).toMatchObject({ eventId: expected.eventId, headline: expected.headline, reportDateTime: expected.reportDateTime, briefingConditions: [expected.condition], targetAreas: expected.areas });
+    expect(parsed).toMatchObject({ eventId: expected.eventId, headline: expected.headline, reportDateTime: expected.reportDateTime, editorialOffice: expected.editorialOffice, briefingConditions: [expected.condition], targetAreas: expected.areas });
     expect(parsed?.observations).toEqual(expect.arrayContaining(expected.areas.map((area) => expect.objectContaining({
       partKind: "event", locationName: area.name, locationCode: area.code, description: expected.eventName, time: expected.at,
     }))));
@@ -112,7 +116,7 @@ describe("2026-08-27 Pi briefing corpus fixtures", () => {
     const store = new StandbyStateStore();
     store.applyEvent(fromBriefingOutcome(outcome), Date.parse(outcome.parsed.reportDateTime) + 1);
     const entry = store.snapshotBriefingCard()?.data.entries[0];
-    expect(entry).toMatchObject({ headline: expected.headline, reportDateTime: expected.reportDateTime, targetAreas: expected.areas, summary: {
+    expect(entry).toMatchObject({ headline: expected.headline, reportDateTime: expected.reportDateTime, editorialOffice: expected.editorialOffice, targetAreas: expected.areas, summary: {
       mode: "structured", hasUnknownKind: false, items: [{ kind: expected.kind, lead: expected.lead }],
     } });
     expect(entry?.summary?.items[0]?.facts).toEqual(expected.areas.map((area) => ({

@@ -180,7 +180,16 @@ interface BriefingCardEntryState {
   expiresAtMs: number;
 }
 
-type BriefingCardEntryCandidate = BriefingCardEntryState;
+interface BriefingRevisionWatermark {
+  revision: StandbyRevision;
+  expiresAtMs: number;
+}
+
+interface BriefingCardEntryCandidate extends BriefingCardEntryState {
+  phenomenonKinds: DisplayBriefingKindV1[];
+  hasRawEventId: boolean;
+  isVpbsCancellation: boolean;
+}
 
 export type BriefingCardMutationResult =
   | {
@@ -197,7 +206,7 @@ export type BriefingCardMutationResult =
       applied: false;
       generation: number;
       evictedKey: null;
-      reason: "notBriefing" | "expired" | "unchanged";
+      reason: "notBriefing" | "expired" | "unchanged" | "older" | "cancelTargetAmbiguous" | "cancelTargetMissing";
     };
 
 export type CardReconcileResult =
@@ -220,7 +229,7 @@ export type CardReconcileResult =
       canonicalKey: string | null;
       generation: number;
       evictedKey: null;
-      reason: "sourceNotFound" | "sourceNotVpoa50" | "canonicalNotBriefing" | "expired";
+      reason: "sourceNotFound" | "sourceNotVpoa50" | "canonicalNotBriefing" | "expired" | "canonicalNotNewer";
     };
 
 export interface VolcanoSeedEntry {
@@ -253,6 +262,11 @@ export class StandbyStateStore {
   private readonly revisionGuard = new RevisionGuard();
   /** VPBS50／VPOA50 browser card only. This map is intentionally non-persistent. */
   private readonly briefingEntries = new Map<string, BriefingCardEntryState>();
+  /**
+   * Semantic revision memory survives a cancel frame's shorter TTL so a late,
+   * older VPBS50 report cannot resurrect the cancelled subject.
+   */
+  private readonly briefingRevisionWatermarks = new Map<string, BriefingRevisionWatermark>();
   private briefingGeneration = 0;
   private readonly changeListeners: Array<() => void> = [];
   private readonly durableListeners: Array<() => void> = [];
@@ -379,12 +393,73 @@ export class StandbyStateStore {
         generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
       };
     }
+    if (strictBriefingRevision(canonicalCandidate.entry) == null) {
+      log.warn("[briefing-card] late reconcile canonical is unordered");
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
+      };
+    }
     if (canonicalKey === sourceKey) {
       if (pruned) this.notify({ viewChanged: true, durableChanged: false });
       return {
         kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
         generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
       };
+    }
+
+    const canonicalSubjectCandidate = this.resolveBriefingCardTarget(canonicalCandidate);
+    if (canonicalSubjectCandidate == null) {
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotBriefing",
+      };
+    }
+    const semanticKey = canonicalSubjectCandidate.entry.semanticKey ?? null;
+    const existingCanonical = semanticKey == null
+      ? []
+      : [...this.briefingEntries.values()].filter((state) =>
+        state.entry.key !== sourceKey && state.entry.source === "vpbs50" && state.entry.semanticKey === semanticKey,
+      );
+    if (existingCanonical.length > 1) {
+      log.warn("[briefing-card] late reconcile canonical subject is ambiguous");
+      if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+      return {
+        kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+        generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
+      };
+    }
+    const existing = existingCanonical[0];
+    if (existing != null) {
+      const comparison = compareBriefingEntryRevision(existing.entry, canonicalSubjectCandidate.entry);
+      if (comparison == null || comparison < 0) {
+        log.warn("[briefing-card] late reconcile canonical is not newer");
+        if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+        return {
+          kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+          generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
+        };
+      }
+      if (comparison === 0) {
+        if (!sameBriefingPayload(existing.entry, canonicalSubjectCandidate.entry)) {
+          log.warn("[briefing-card] late reconcile same revision payload conflict");
+          if (pruned) this.notify({ viewChanged: true, durableChanged: false });
+          return {
+            kind: "ignored", status: "ignored", applied: false, sourceKey, canonicalKey,
+            generation: this.briefingGeneration, evictedKey: null, reason: "canonicalNotNewer",
+          };
+        }
+        this.briefingEntries.delete(sourceKey);
+        this.briefingGeneration += 1;
+        this.notify({ viewChanged: true, durableChanged: false });
+        return {
+          kind: "applied", status: "applied", applied: true, sourceKey,
+          canonicalKey: existing.entry.key, generation: this.briefingGeneration,
+          expiresAt: existing.entry.expiresAt, canonicalInserted: false, evictedKey: null,
+        };
+      }
     }
 
     const expiresAtMs = Math.min(source.expiresAtMs, canonicalCandidate.expiresAtMs);
@@ -401,18 +476,21 @@ export class StandbyStateStore {
     }
 
     const generation = this.briefingGeneration + 1;
+    const resolvedCanonical = canonicalSubjectCandidate;
     const entry: DisplayBriefingEntryV1 = {
-      ...canonicalCandidate.entry,
+      ...resolvedCanonical.entry,
       expiresAt: new Date(expiresAtMs).toISOString(),
       generation,
     };
     this.briefingEntries.delete(sourceKey);
-    const resolvedCanonicalKey = canonicalCandidate.entry.key;
+    if (existing != null) this.briefingEntries.delete(existing.entry.key);
+    const resolvedCanonicalKey = resolvedCanonical.entry.key;
     this.briefingEntries.set(resolvedCanonicalKey, {
       entry,
       updatedAtMs: canonicalCandidate.updatedAtMs,
       expiresAtMs,
     });
+    this.rememberBriefingRevision(entry, nowMs);
     this.briefingGeneration = generation;
     this.notify({ viewChanged: true, durableChanged: false });
     return {
@@ -436,9 +514,46 @@ export class StandbyStateStore {
     nowMs: number,
   ): BriefingCardMutationResult {
     const pruned = this.pruneBriefingCardEntries(nowMs);
+    const exactCancellationTargets = candidate.isVpbsCancellation && candidate.hasRawEventId
+      ? this.exactVpbsEntries(candidate.entry.sourceEventId)
+      : [];
+    if (exactCancellationTargets.length > 0) {
+      return this.applyExactVpbsCancellation(candidate, exactCancellationTargets, nowMs);
+    }
+    const resolved = this.resolveBriefingCardTarget(candidate);
+    if (resolved == null) {
+      return pruned
+        ? {
+            kind: "applied", status: "applied", applied: true,
+            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
+          }
+        : {
+            kind: "ignored", status: "ignored", applied: false,
+            generation: this.briefingGeneration, evictedKey: null,
+            reason: candidate.isVpbsCancellation
+              ? candidate.hasRawEventId ? "cancelTargetMissing" : "cancelTargetAmbiguous"
+              : "notBriefing",
+          };
+    }
+    candidate = resolved;
     const previous = this.briefingEntries.get(candidate.entry.key);
+    if (previous == null && this.isRejectedByBriefingRevisionWatermark(candidate, nowMs)) {
+      log.warn(`[briefing-card] semantic revision watermark rejected older report key=${candidate.entry.key}`);
+      return pruned
+        ? {
+            kind: "applied", status: "applied", applied: true,
+            generation: this.briefingGeneration, evictedKey: null, action: "pruned",
+          }
+        : {
+            kind: "ignored", status: "ignored", applied: false,
+            generation: this.briefingGeneration, evictedKey: null, reason: "older",
+          };
+    }
     if (candidate.expiresAtMs <= nowMs) {
       if (candidate.entry.source === "vpbs50" && candidate.entry.frameLevel === "cancel" && previous != null) {
+        // Even an already-expired cancellation advances the semantic revision
+        // watermark before its frame disappears.
+        this.rememberBriefingRevision(candidate.entry, nowMs);
         this.briefingEntries.delete(candidate.entry.key);
         this.briefingGeneration += 1;
         return {
@@ -455,6 +570,34 @@ export class StandbyStateStore {
             kind: "ignored", status: "ignored", applied: false,
             generation: this.briefingGeneration, evictedKey: null, reason: "expired",
           };
+    }
+    if (previous != null && !candidate.isVpbsCancellation) {
+      const comparison = compareBriefingEntryRevision(previous.entry, candidate.entry);
+      if (comparison != null && comparison < 0) {
+        return pruned
+          ? {
+              kind: "applied", status: "applied", applied: true,
+              generation: this.briefingGeneration, evictedKey: null, action: "pruned",
+            }
+          : {
+              kind: "ignored", status: "ignored", applied: false,
+              generation: this.briefingGeneration, evictedKey: null, reason: "older",
+            };
+      }
+      if (comparison === 0) {
+        if (!sameBriefingPayload(previous.entry, candidate.entry)) {
+          log.warn(`[briefing-card] same revision payload conflict key=${candidate.entry.key}`);
+        }
+        return pruned
+          ? {
+              kind: "applied", status: "applied", applied: true,
+              generation: this.briefingGeneration, evictedKey: null, action: "pruned",
+            }
+          : {
+              kind: "ignored", status: "ignored", applied: false,
+              generation: this.briefingGeneration, evictedKey: null, reason: "unchanged",
+            };
+      }
     }
     if (previous != null && sameBriefingCardEntry(previous.entry, candidate.entry)) {
       return pruned
@@ -485,10 +628,120 @@ export class StandbyStateStore {
       updatedAtMs: candidate.updatedAtMs,
       expiresAtMs: candidate.expiresAtMs,
     });
+    this.rememberBriefingRevision(entry, nowMs);
     this.briefingGeneration = generation;
     return {
       kind: "applied", status: "applied", applied: true,
       generation, evictedKey, action: "upsert",
+    };
+  }
+
+  private exactVpbsEntries(sourceEventId: string): BriefingCardEntryState[] {
+    return [...this.briefingEntries.values()].filter((state) =>
+      state.entry.source === "vpbs50" && state.entry.sourceEventId === sourceEventId,
+    );
+  }
+
+  /** Cancel every exact projection, collapsing raw fallbacks onto semantic subjects. */
+  private applyExactVpbsCancellation(
+    candidate: BriefingCardEntryCandidate,
+    exact: readonly BriefingCardEntryState[],
+    nowMs: number,
+  ): BriefingCardMutationResult {
+    const semanticTargets = exact.filter((state) => isSemanticBriefingSubject(state.entry));
+    const targets = semanticTargets.length === 0 ? exact : semanticTargets;
+    for (const state of exact) this.rememberBriefingRevision(state.entry, nowMs);
+    for (const state of exact) this.briefingEntries.delete(state.entry.key);
+
+    const generation = this.briefingGeneration + 1;
+    // Record cancellation revisions before checking the short cancel-frame TTL.
+    // This preserves ordering when an expired cancellation arrives late.
+    for (const target of targets) this.rememberBriefingRevision(inheritBriefingSubject(candidate, target).entry, nowMs);
+    if (candidate.expiresAtMs <= nowMs) {
+      this.briefingGeneration = generation;
+      return {
+        kind: "applied", status: "applied", applied: true,
+        generation, evictedKey: null, action: "expiredCancellationRemoved",
+      };
+    }
+    for (const target of targets) {
+      const inherited = inheritBriefingSubject(candidate, target);
+      const entry: DisplayBriefingEntryV1 = { ...inherited.entry, generation };
+      this.briefingEntries.set(entry.key, {
+        entry,
+        updatedAtMs: inherited.updatedAtMs,
+        expiresAtMs: inherited.expiresAtMs,
+      });
+      this.rememberBriefingRevision(entry, nowMs);
+    }
+    this.briefingGeneration = generation;
+    return {
+      kind: "applied", status: "applied", applied: true,
+      generation, evictedKey: null, action: "upsert",
+    };
+  }
+
+  /** Resolve card-only identity without weakening parser/transport EventID identity. */
+  private resolveBriefingCardTarget(
+    candidate: BriefingCardEntryCandidate,
+  ): BriefingCardEntryCandidate | null {
+    if (candidate.entry.source !== "vpbs50") return candidate;
+    const exact = [...this.briefingEntries.values()].filter((state) =>
+      state.entry.source === "vpbs50" && state.entry.sourceEventId === candidate.entry.sourceEventId,
+    );
+    if (exact.length === 1) {
+      const existing = exact[0]!;
+      // VPBS50 cancellation is exact-first regardless of revision completeness.
+      // Its independent 10-minute frame must replace the resolved subject.
+      if (candidate.isVpbsCancellation) return inheritBriefingSubject(candidate, existing);
+      // Exact EventID still wins, but an unordered report must not overwrite a
+      // semantic subject. Keep it as the raw exact fallback instead.
+      if (!isSemanticBriefingSubject(existing.entry)
+        || strictBriefingRevision(existing.entry) != null && strictBriefingRevision(candidate.entry) != null) {
+        return inheritBriefingSubject(candidate, existing);
+      }
+      log.warn("[briefing-card] exact VPBS50 match is unordered; preserving semantic subject");
+      return candidate;
+    }
+
+    const semanticCandidates = briefingSemanticCandidates(
+      this.briefingEntries.values(), candidate.entry.editorialOffice ?? "", candidate.phenomenonKinds,
+    );
+    if (candidate.isVpbsCancellation) {
+      // A cancellation with an EventID is never allowed to jump to a merely
+      // similar subject. messageId-only fail-open input may use the guarded
+      // unique fallback specified for VPBS50 cancellation.
+      if (candidate.hasRawEventId) {
+        log.warn("[briefing-card] cancellation sourceEventId target is missing");
+        return null;
+      }
+      if (candidate.phenomenonKinds.length === 0) {
+        log.warn("[briefing-card] cancellation semantic fallback has no phenomenon kind");
+        return null;
+      }
+      if ((candidate.entry.editorialOffice ?? "") === "") {
+        log.warn("[briefing-card] cancellation semantic fallback has no editorial office");
+        return null;
+      }
+      if (semanticCandidates.length === 1) return inheritBriefingSubject(candidate, semanticCandidates[0]!);
+      if (semanticCandidates.length === 0) log.warn("[briefing-card] cancellation semantic target is missing");
+      else log.warn("[briefing-card] cancellation semantic target is ambiguous");
+      return null;
+    }
+    if (candidate.phenomenonKinds.length === 0 || (candidate.entry.editorialOffice ?? "") === "") return candidate;
+    if (strictBriefingRevision(candidate.entry) == null) return candidate;
+    if (semanticCandidates.length === 1) return inheritBriefingSubject(candidate, semanticCandidates[0]!);
+    if (semanticCandidates.length > 1) return candidate;
+    const phenomenonKind = candidate.phenomenonKinds[0]!;
+    const semanticKey = briefingSemanticKey(candidate.entry.editorialOffice!, phenomenonKind);
+    return {
+      ...candidate,
+      entry: {
+        ...candidate.entry,
+        key: semanticKey,
+        phenomenonKind,
+        semanticKey,
+      },
     };
   }
 
@@ -500,8 +753,36 @@ export class StandbyStateStore {
         changed = true;
       }
     }
+    for (const [semanticKey, watermark] of this.briefingRevisionWatermarks) {
+      if (watermark.expiresAtMs <= nowMs) this.briefingRevisionWatermarks.delete(semanticKey);
+    }
     if (changed) this.briefingGeneration += 1;
     return changed;
+  }
+
+  private rememberBriefingRevision(entry: DisplayBriefingEntryV1, nowMs: number): void {
+    if (!isSemanticBriefingSubject(entry)) return;
+    const revision = strictBriefingRevision(entry);
+    if (revision == null) return;
+    const previous = this.briefingRevisionWatermarks.get(entry.semanticKey);
+    const retainedRevision = previous != null && compareRevision(previous.revision, revision) >= 0
+      ? previous.revision
+      : revision;
+    this.briefingRevisionWatermarks.set(entry.semanticKey, {
+      revision: { ...retainedRevision },
+      expiresAtMs: nowMs + BRIEFING_CARD_TTL_MS,
+    });
+  }
+
+  private isRejectedByBriefingRevisionWatermark(
+    candidate: BriefingCardEntryCandidate,
+    nowMs: number,
+  ): boolean {
+    if (!isSemanticBriefingSubject(candidate.entry) || candidate.isVpbsCancellation) return false;
+    const revision = strictBriefingRevision(candidate.entry);
+    const watermark = this.briefingRevisionWatermarks.get(candidate.entry.semanticKey);
+    return revision != null && watermark != null && watermark.expiresAtMs > nowMs
+      && compareRevision(revision, watermark.revision) <= 0;
   }
 
   private retainManagedStandbySubjects(
@@ -1379,6 +1660,7 @@ export class StandbyStateStore {
     this.weatherAlerts.clear();
     this.legacyFloodEventIds.clear();
     this.briefingEntries.clear();
+    this.briefingRevisionWatermarks.clear();
     this.briefingGeneration = 0;
     for (const state of data.heat) {
       if (state.targetDateEndMs <= nowMs) continue;
@@ -1517,6 +1799,82 @@ function sourceEventId(event: PresentationEvent): string | null {
     ? nonBlank(event.raw.eventId)
     : null;
   return raw ?? rawMessageId(event);
+}
+
+function rawEventId(event: PresentationEvent): string | null {
+  return isRecord(event.raw) && typeof event.raw.eventId === "string"
+    ? nonBlank(event.raw.eventId)
+    : null;
+}
+
+const BRIEFING_KIND_ORDER: readonly DisplayBriefingKindV1[] = [
+  "linearRainObserved", "linearRainPredicted", "recordRain", "shortSnow",
+];
+
+function briefingPhenomenonKinds(info: ParsedWeatherBriefing | null): DisplayBriefingKindV1[] {
+  if (info == null) return [];
+  const known = new Set(info.briefingSeverityEvidence
+    .map((evidence) => evidence.tag)
+    .filter((tag): tag is DisplayBriefingKindV1 => BRIEFING_KIND_ORDER.includes(tag as DisplayBriefingKindV1)));
+  return BRIEFING_KIND_ORDER.filter((kind) => known.has(kind));
+}
+
+function briefingSemanticKey(editorialOffice: string, phenomenonKind: DisplayBriefingKindV1): string {
+  return `card:vpbs:semantic:${phenomenonKind}:${editorialOffice}`;
+}
+
+function briefingSemanticCandidates(
+  entries: Iterable<BriefingCardEntryState>,
+  editorialOffice: string,
+  kinds: readonly DisplayBriefingKindV1[],
+): BriefingCardEntryState[] {
+  if (editorialOffice === "" || kinds.length === 0) return [];
+  return [...entries].filter((state) => state.entry.source === "vpbs50"
+    && state.entry.editorialOffice === editorialOffice
+    && isSemanticBriefingSubject(state.entry)
+    && kinds.includes(state.entry.phenomenonKind));
+}
+
+function isSemanticBriefingSubject(entry: DisplayBriefingEntryV1): entry is DisplayBriefingEntryV1 & {
+  phenomenonKind: DisplayBriefingKindV1;
+  semanticKey: string;
+} {
+  return entry.source === "vpbs50" && entry.phenomenonKind != null && entry.semanticKey != null;
+}
+
+function inheritBriefingSubject(
+  candidate: BriefingCardEntryCandidate,
+  existing: BriefingCardEntryState,
+): BriefingCardEntryCandidate {
+  return {
+    ...candidate,
+    entry: {
+      ...candidate.entry,
+      key: existing.entry.key,
+      editorialOffice: existing.entry.editorialOffice,
+      phenomenonKind: existing.entry.phenomenonKind,
+      semanticKey: existing.entry.semanticKey,
+    },
+  };
+}
+
+function strictBriefingRevision(entry: DisplayBriefingEntryV1): StandbyRevision | null {
+  const reportTimeMs = Date.parse(entry.reportDateTime);
+  if (!Number.isFinite(reportTimeMs) || entry.serial == null || entry.serial.trim() === "") return null;
+  const serial = Number(entry.serial);
+  return Number.isFinite(serial) ? { reportTimeMs, serial: entry.serial } : null;
+}
+
+/** null means unordered: only raw exact identity may fail open. */
+function compareBriefingEntryRevision(
+  previous: DisplayBriefingEntryV1,
+  candidate: DisplayBriefingEntryV1,
+): number | null {
+  const previousRevision = strictBriefingRevision(previous);
+  const candidateRevision = strictBriefingRevision(candidate);
+  return previousRevision == null || candidateRevision == null
+    ? null
+    : compareRevision(candidateRevision, previousRevision);
 }
 
 /** Card identity deliberately preserves the raw EventID/messageId spelling. */
@@ -1739,11 +2097,19 @@ function briefingCardEntryCandidate(
     : vpoa != null
       ? uniqueStrings(vpoa.severityEvidence.map((item) => item.condition))
       : [];
+  const phenomenonKinds = briefingPhenomenonKinds(info);
+  const editorialOffice = nonBlank(info?.editorialOffice ?? vpoa?.editorialOffice ?? event.editorialOffice) ?? "";
 
   const entry: DisplayBriefingEntryV1 = {
     key,
     source,
     sourceEventId: rawIdentity,
+    editorialOffice,
+    // A fail-open raw entry must not look like a semantic subject. The kind is
+    // written only by subject creation or inheritance after guarded matching.
+    phenomenonKind: null,
+    semanticKey: null,
+    serial: info?.serial ?? vpoa?.serial ?? event.serial ?? null,
     title: info?.title ?? vpoa?.title ?? event.title,
     headline: info?.headline ?? vpoa?.headline ?? event.headline,
     conditions,
@@ -1759,7 +2125,14 @@ function briefingCardEntryCandidate(
     expiresAt: new Date(expiresAtMs).toISOString(),
     generation: 0,
   };
-  return { entry, updatedAtMs, expiresAtMs };
+  return {
+    entry,
+    updatedAtMs,
+    expiresAtMs,
+    phenomenonKinds,
+    hasRawEventId: rawEventId(event) != null,
+    isVpbsCancellation,
+  };
 }
 
 function normalizeBriefingFrameLevel(
@@ -1773,6 +2146,23 @@ function sameBriefingCardEntry(left: DisplayBriefingEntryV1, right: DisplayBrief
   const { generation: _leftGeneration, ...leftRest } = left;
   const { generation: _rightGeneration, ...rightRest } = right;
   return JSON.stringify(leftRest) === JSON.stringify(rightRest);
+}
+
+/** Revision equality is about the semantic payload, not the raw EventID lineage. */
+function sameBriefingPayload(left: DisplayBriefingEntryV1, right: DisplayBriefingEntryV1): boolean {
+  const {
+    key: _leftKey,
+    sourceEventId: _leftSourceEventId,
+    generation: _leftGeneration,
+    ...leftPayload
+  } = left;
+  const {
+    key: _rightKey,
+    sourceEventId: _rightSourceEventId,
+    generation: _rightGeneration,
+    ...rightPayload
+  } = right;
+  return JSON.stringify(leftPayload) === JSON.stringify(rightPayload);
 }
 
 function compareBriefingKeys(left: string, right: string): number {

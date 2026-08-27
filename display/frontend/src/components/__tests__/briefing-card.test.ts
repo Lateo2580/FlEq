@@ -14,6 +14,8 @@ function briefing(entries = 1): Extract<ActiveStandbyCardV1, { kind: "briefing" 
       generation: 3,
       entries: Array.from({ length: entries }, (_, index) => ({
         key: `card:vpbs:${index + 1}`, source: "vpbs50" as const, sourceEventId: `event-${index + 1}`,
+        editorialOffice: "気象庁", phenomenonKind: "linearRainObserved" as const,
+        semanticKey: `card:vpbs:semantic:linearRainObserved:気象庁`, serial: "1",
         title: `防災気象情報 ${index + 1}`, headline: "大雨に警戒してください", conditions: ["発表"],
         targetAreas: [{ name: "宮崎県", code: "450000" }], reportDateTime: "2026-08-25T12:00:00+09:00",
         publishingOffice: "気象庁", infoType: "発表", frameLevel: index === 0 ? "critical" as const : "warning" as const,
@@ -192,5 +194,20 @@ describe("BriefingCard", () => {
     expect(container.textContent).toContain("美幌町 約１００ミリ / 13:10");
     expect(container.textContent).not.toContain("長い raw title");
     expect(container.textContent).not.toContain("長い raw headline");
+  });
+
+  it("Phase 1 subject fields が欠落した旧 wire は raw headline fallback にする", () => {
+    const item = briefing();
+    const entry = item.data.entries[0]!;
+    entry.title = "旧 wire title";
+    entry.headline = "旧 wire headline";
+    delete entry.editorialOffice;
+    delete entry.phenomenonKind;
+    delete entry.semanticKey;
+    delete entry.serial;
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+
+    expect(container.textContent).toContain("旧 wire title");
+    expect(container.textContent).toContain("旧 wire headline");
   });
 });

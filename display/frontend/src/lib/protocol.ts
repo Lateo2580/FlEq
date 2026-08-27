@@ -794,6 +794,14 @@ export interface DisplayBriefingEntryV1 {
   source: DisplayBriefingSourceV1;
   /** raw EventID、または EventID 欠落時の raw messageId。 */
   sourceEventId: string;
+  /** Control.EditorialOffice。旧 wire では欠落し得る。 */
+  editorialOffice?: string;
+  /** VPBS50 表示 subject の作成時に固定する kind。旧 wire は raw fallback にする。 */
+  phenomenonKind?: DisplayBriefingKindV1 | null;
+  /** 表示専用 subject。raw EventID identity は sourceEventId に常に保持する。 */
+  semanticKey?: string | null;
+  /** ReportDateTime 同値時の revision 比較用 serial。 */
+  serial?: string | null;
   title: string;
   headline: string | null;
   /** Headline.Information の Condition 集合。 */

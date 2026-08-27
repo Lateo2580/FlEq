@@ -83,6 +83,14 @@
       && typeof item.sourceOrdinal === "number" && Number.isSafeInteger(item.sourceOrdinal)
       && Array.isArray(item.facts) && item.facts.every(validFact));
   }
+  /** Additive Phase 1 subject fields are the version marker for structured wire.
+   * Snapshots from before the marker retain the safe raw-headline renderer. */
+  function hasBriefingSubjectWire(entry: (typeof entries)[number]): boolean {
+    return typeof entry.editorialOffice === "string"
+      && "phenomenonKind" in entry
+      && "semanticKey" in entry
+      && "serial" in entry;
+  }
   function displayTime(value: string | null): string {
     if (value == null) return "時刻不明";
     const matched = /T(\d{2}:\d{2})/.exec(value);
@@ -111,7 +119,7 @@
         identity: `${entry.key}:${kind}:${suffix}:${index}`, label: `${entry.title} ${kind}`, entry, kind, text: part,
       });
     };
-    const summary = validSummary(entry.summary) ? entry.summary : null;
+    const summary = hasBriefingSubjectWire(entry) && validSummary(entry.summary) ? entry.summary : null;
     if (summary == null || summary.mode === "rawHeadlineFallback") {
       addFallbackBlocks(result, entry, add);
       return result;

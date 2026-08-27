@@ -445,6 +445,8 @@ export interface PresentationEvent {
   headline: string | null;
   reportDateTime: string;
   publishingOffice: string;
+  /** Control.EditorialOffice。BriefingCard の表示 subject にのみ用いる。 */
+  editorialOffice?: string;
   isTest: boolean;
 
   /** legacy counterpart の fail-open qualifier／未確定 severity。 */
