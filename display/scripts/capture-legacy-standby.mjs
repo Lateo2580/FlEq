@@ -233,13 +233,22 @@ async function captureLiveGeometry({ chrome, profileDir, url, viewport }) {
           const b = right.getBoundingClientRect();
           return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
         })();
-        const panels = [...document.querySelectorAll('.tsunami-panel, .quake-panel')]
-          .filter((panel) => panel.clientWidth > 0 && panel.clientHeight > 0)
-          .map((panel) => ({
-            panel: measure(panel),
-            body: measure(panel.querySelector('.page-body, .page-list-body')),
-            indicatorBodyOverlap: overlap(panel.querySelector('.page-dots'), panel.querySelector('.page-body, .page-list-body')),
-          }));
+         const panels = [...document.querySelectorAll('.tsunami-panel, .quake-panel')]
+           .filter((panel) => panel.clientWidth > 0 && panel.clientHeight > 0)
+           .map((panel) => {
+             const livePage = panel.querySelector('.page-fade');
+             const probePage = panel.querySelector('[data-partition-probe-geometry="true"]');
+             const body = livePage?.querySelector('.page-body, .page-list-body') ?? null;
+             return {
+               kind: panel.classList.contains('tsunami-panel') ? 'tsunami' : 'quake',
+               panel: measure(panel),
+               body: measure(body),
+               chrome: measure(livePage?.querySelector('.page-frame, .page-header') ?? null),
+               probeChrome: measure(probePage?.querySelector('.page-frame, .page-header') ?? null),
+               probeBody: measure(probePage?.querySelector('.partition-probe-body') ?? null),
+               indicatorBodyOverlap: overlap(livePage?.querySelector('.page-dots') ?? null, body),
+             };
+           });
         return { heat: measure(pick('.heat-card')), tsunamiBanner: measure(pick('.tsunami-banner')), panels };
       })()`,
     }, attached.sessionId);
@@ -333,6 +342,7 @@ function diagnosticsFromDom(dom) {
     "data-typhoon-variant",
     "data-preview-attention-visibility", "data-preview-reduced-motion", "data-preview-mode",
     "data-tsunami-page", "data-tsunami-page-unseen", "data-tsunami-page-infeasible",
+    "data-tsunami-partition-stable", "data-tsunami-partition-diagnostic", "data-tsunami-partition-logical-passes",
     "data-quake-page", "data-quake-page-unseen", "data-quake-page-infeasible",
   ];
   const diagnostics = Object.fromEntries(attributes.map((attribute) => {
@@ -376,6 +386,21 @@ function assertEmergencyGeometry(geometry) {
       }
     }
     if (entry.indicatorBodyOverlap > 0) throw new Error(`emergency ${index} page indicator overlaps body: ${entry.indicatorBodyOverlap}`);
+    if (entry.kind !== "tsunami") continue;
+    const probeBody = entry.probeBody;
+    if (probeBody == null || probeBody.clientWidth <= 0 || probeBody.clientHeight <= 0
+      || probeBody.scrollWidth > probeBody.clientWidth + 1 || probeBody.scrollHeight > probeBody.clientHeight + 1) {
+      throw new Error(`emergency ${index} probeBody containment failed: ${JSON.stringify(probeBody)}`);
+    }
+    if (entry.probeChrome == null || entry.chrome == null
+      || entry.probeChrome.clientWidth <= 0 || entry.probeChrome.clientHeight <= 0
+      || Math.abs(entry.probeChrome.height - entry.chrome.height) > 1) {
+      throw new Error(`emergency ${index} probe/live chrome mismatch: ${JSON.stringify(entry)}`);
+    }
+    if (entry.probeBody == null || entry.body == null
+      || Math.abs(entry.probeBody.width - entry.body.width) > 1) {
+      throw new Error(`emergency ${index} probe/live body width mismatch: ${JSON.stringify(entry)}`);
+    }
   }
 }
 
@@ -385,6 +410,8 @@ function assertAttentionVisibilityFixture(dom, diagnostics, fixture, geometry = 
     expectEqual(diagnostics["data-preview-mode"], "emergency", "attention emergency mode");
     assertAttentionPage(diagnostics, "tsunami");
     assertAttentionPage(diagnostics, "quake");
+    expectEqual(diagnostics["data-tsunami-partition-stable"], "true", "tsunami partition stable");
+    expectEqual(diagnostics["data-tsunami-partition-diagnostic"], "", "tsunami partition diagnostic");
     assertEmergencyGeometry(geometry);
   } else {
     expectEqual(diagnostics["data-preview-mode"], "standby", "attention standby mode");
@@ -663,15 +690,16 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
   const attentionFixture = fixture != null && ATTENTION_VISIBILITY_FIXTURES.has(fixture);
   const clusterFixture = url.includes("gateFixture=cluster");
   const clusterCalmFixture = url.includes("gateFixture=cluster-calm");
+  let attentionGeometry = null;
   if (attentionFixture) {
-    const geometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
+    attentionGeometry = await captureLiveGeometry({ chrome, profileDir, url, viewport });
     const baselineUrl = new URL(url);
     baselineUrl.search = "nav=0";
     baselineUrl.hash = "standby-cards";
     const baselineGeometry = fixture === "attention-visibility-emergency"
       ? null
       : await captureLiveGeometry({ chrome, profileDir, url: baselineUrl.toString(), viewport });
-    assertAttentionVisibilityFixture(dom, diagnostics, fixture, geometry, baselineGeometry);
+    assertAttentionVisibilityFixture(dom, diagnostics, fixture, attentionGeometry, baselineGeometry);
   }
   // EmergencyScreen has no StandbyScreen layout tracks. It instead runs the live panel
   // containment and indicator-overlap checks above; only track-specific probes are inapplicable.
@@ -696,10 +724,10 @@ async function capture({ chrome, profileDir, url, scenario, viewport, outDir, ro
       assertFloodWideDiagnostics(diagnostics, scenario, viewport);
     }
   }
-  const report = { scenario, fixture, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
+  const report = { scenario, fixture, rotationTick, viewport: { width: viewport.width, height: viewport.height }, url, pngPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
   await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
   await rm(domPath, { force: true });
-  return { scenario, fixture, viewport, rotationTick, pngPath, jsonPath, diagnostics, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
+  return { scenario, fixture, viewport, rotationTick, pngPath, jsonPath, diagnostics, geometry: attentionGeometry, mismatches: tableMismatches(diagnostics, scenario, viewport, fixture) };
 }
 
 async function main() {
@@ -756,7 +784,7 @@ async function main() {
     }
     const cells = results.filter((result) => result.rotationTick === 0).map((result) => ({
       scenario: result.scenario, viewport: result.viewport, match: result.mismatches.length === 0,
-      mismatches: result.mismatches, diagnostics: result.diagnostics,
+      mismatches: result.mismatches, diagnostics: result.diagnostics, geometry: result.geometry,
     }));
     process.stdout.write(`${JSON.stringify(options.report ? { outDir, cells } : { outDir, results }, null, 2)}\n`);
   } finally {

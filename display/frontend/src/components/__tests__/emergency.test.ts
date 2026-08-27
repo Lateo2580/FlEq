@@ -1846,6 +1846,16 @@ describe("EmergencyScreen", () => {
     });
   });
 
+  it("emergency gate は成功時も tsunami probe/live geometry を出力し、chrome 不一致と probe body containment を失敗にする", () => {
+    const source = readFileSync(join(__dirname, "..", "..", "..", "..", "scripts", "capture-legacy-standby.mjs"), "utf-8");
+    expect(source).toContain("data-partition-probe-geometry");
+    expect(source).toContain("probe/live chrome mismatch");
+    expect(source).toContain("probe/live body width mismatch");
+    expect(source).toContain("probeBody containment failed");
+    expect(source).not.toContain("probeChrome containment failed");
+    expect(source).toContain("geometry: attentionGeometry");
+  });
+
   // T5c: ページ行容量の画面高さ駆動化 + 切替フェード (spec §2-c)。jsdom は ResizeObserver 未実装
   // かつ layout 未解決のため実測 px の挙動 (T7 preview 実測対象) はソース文字列で配線を検査する
   describe("QuakePanel T5c 配線 (画面高さ駆動 + フェード)", () => {

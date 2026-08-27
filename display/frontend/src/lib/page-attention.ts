@@ -91,6 +91,16 @@ export function pageAttentionViewModel(input: {
   return { page, unseenCount, text: parts.join("・") };
 }
 
+/** Pager chrome reservation: final active index and maximum unseen count for this pageCount. */
+export function pageAttentionReservationViewModel(pageCount: number): PageAttentionViewModel {
+  const normalizedPageCount = Math.max(0, pageCount);
+  return pageAttentionViewModel({
+    activeIndex: Math.max(0, normalizedPageCount - 1),
+    pageCount: normalizedPageCount,
+    unseenCount: normalizedPageCount,
+  });
+}
+
 function sameIdentityOrder(left: readonly AttentionPage[], right: readonly AttentionPage[]): boolean {
   const leftIds = left.map((page) => page.identity);
   const rightIds = right.map((page) => page.identity);

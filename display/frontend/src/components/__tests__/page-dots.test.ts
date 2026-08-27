@@ -63,4 +63,27 @@ describe("PageDots", () => {
     expect(src).not.toMatch(/opacity\s*:/); // CSS プロパティとしての opacity 宣言が無いこと (解説コメントの語自体は許容)
     expect(src).toContain("color-mix(in srgb, var(--fg)");
   });
+
+  it("reduced-motion では ::after のドット拡縮 transition も停止する", () => {
+    const src = readFileSync(join(__dirname, "..", "PageDots.svelte"), "utf-8");
+    expect(src).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.page-dot::after\s*\{\s*transition: none;/);
+  });
+
+  it("pageCount=10 は active index 0/9 とも外形8pxで chrome 高を変えない", async () => {
+    const rendered = render(PageDots, { total: 10, current: 0, onJump: () => {} });
+    const outerSize = () => Array.from(rendered.container.querySelectorAll(".page-dot")).map((dot) => {
+      const style = getComputedStyle(dot);
+      return [style.flexBasis, style.width, style.height];
+    });
+    const firstActive = outerSize();
+    await rendered.rerender({ total: 10, current: 9, onJump: () => {} });
+    expect(outerSize()).toEqual(firstActive);
+
+    const src = readFileSync(join(__dirname, "..", "PageDots.svelte"), "utf-8");
+    expect(src).toContain("flex: 0 0 8px");
+    expect(src).toMatch(/\.page-dots\s*\{[^}]*min-height: 24px;/);
+    expect(src).toMatch(/\.page-dot\s*\{[^}]*width: 8px;[^}]*height: 8px;/);
+    expect(src).toMatch(/\.page-dot::after\s*\{[^}]*width: 6px;[^}]*height: 6px;/);
+    expect(src).toMatch(/\.page-dot\.current::after\s*\{[^}]*width: 8px;[^}]*height: 8px;/);
+  });
 });

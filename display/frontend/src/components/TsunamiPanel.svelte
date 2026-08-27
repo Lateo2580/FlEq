@@ -6,18 +6,14 @@
   } from "../lib/protocol";
   import { normalizeTsunamiEventId } from "../lib/protocol";
   import { formatHm } from "../lib/format";
+  import { TSUNAMI_PAGE_ROW_CAPACITY } from "../lib/instrument-layout";
   import {
     bucketTsunamiHeight,
     bucketTsunamiArrival,
     formatArrivalDisplay,
     maxTsunamiObservation,
   } from "../lib/tsunami-bucket";
-  import { TSUNAMI_PAGE_ROW_CAPACITY } from "../lib/instrument-layout";
-  import {
-    sequentialPartitionRanges,
-    type PartitionProbe,
-  } from "../lib/legacy-standby/page-partition";
-  import type { PageRange, PartitionResult } from "../lib/legacy-standby/types";
+  import { SplitOnlyPartitionStateMachine } from "../lib/legacy-standby/page-partition";
   import { createPageCycler } from "../lib/page-cycler.svelte";
   import {
     SPRING_EFFECTS_DEFAULT_MS,
@@ -40,7 +36,9 @@
   import {
     PageAttentionState,
     itemContentFingerprint,
+    pageAttentionReservationViewModel,
     pageContentFingerprint,
+    type PageAttentionViewModel,
   } from "../lib/page-attention";
 
   // compact: main-stack の非 main スロット (狭い右列) から true が渡る。情報密度が高い津波パネルを
@@ -280,11 +278,6 @@
     coasts: KeyedRow<Coast>[];
     observations: KeyedRow<DisplayTsunamiObservationV1>[];
   }
-  interface ProbeMeasurement {
-    contentHeight: number;
-    availableHeight: number;
-  }
-
   const tsunamiSections = $derived.by((): TsunamiPartitionSection[] => [
     ...coastGroups.map((group) => ({
       id: `coast:${group.key}`,
@@ -322,13 +315,17 @@
     return section.type === "coast" ? section.coasts.length : section.observations.length;
   }
 
-  // sequentialPartitionRanges の pending range を隠し棚で強制描画する。cache key は表示内容の
-  // fingerprint と実測幅・高さを含み、続報・compact 切替・container 寸法変更のどれでも古い高さを再利用しない。
+  // split-only state machine が要求する exact candidate range を隠し棚で強制描画する。
+  // probe delivery は recordProbeOpportunity、境界確定は advance と分離し、候補探索中の
+  // ResizeObserver delivery を logical pass として数えない。
   let probeWidth = $state(0);
   let probeHeight = $state(0);
-  let probeMeasurements = $state<Record<string, ProbeMeasurement>>({});
+  const splitOnlyPartition = new SplitOnlyPartitionStateMachine();
   let pendingProbeBox: { width: number; height: number } | null = null;
-  const pendingProbeMeasurements = new Map<string, ProbeMeasurement>();
+  const pendingProbeDeliveries: Array<{ id: string; fit: boolean | null }> = [];
+  let partitionRevision = $state(0);
+  let logicalPassScheduled = false;
+  let partitionDisposed = false;
   // spec §4 の再測定契機 document.fonts.ready を probe cache にも伝える（QuakePanel と同型）
   let fontsGeneration = $state(0);
   void (typeof document === "undefined" ? null : document.fonts?.ready?.then(() => { fontsGeneration = 1; }));
@@ -339,51 +336,47 @@
       fingerprint: entry.fingerprint,
     }))),
   ));
-  const tsunamiProbeGeneration = $derived(`${tsunamiProbeFingerprint}:f${fontsGeneration}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
-  function tsunamiProbeId(sectionId: string, range: Pick<PageRange, "start" | "end">): string {
-    return `${tsunamiProbeGeneration}:${sectionId}:${range.start}:${range.end}`;
-  }
-  function partitionProbeFor(section: TsunamiPartitionSection): PartitionProbe {
-    return (_key, _placement, range) => {
-      // jsdom has no layout engine. Production always takes the shelf/cache path.
-      if (typeof ResizeObserver === "undefined") {
-        return range.end - range.start <= TSUNAMI_PAGE_ROW_CAPACITY ? 0 : 2;
-      }
-      const measured = probeMeasurements[tsunamiProbeId(section.id, range)];
-      if (measured == null) return null;
-      return measured.contentHeight <= measured.availableHeight + 1 ? 0 : 2;
-    };
-  }
-  const tsunamiPartitions = $derived.by((): Array<{ section: TsunamiPartitionSection; result: PartitionResult }> =>
-    tsunamiSections.map((section) => ({
+  const tsunamiPartitionEpoch = $derived(`${tsunamiProbeFingerprint}:f${fontsGeneration}`);
+  let pagerReservationCount = $state(1);
+  const tsunamiReservation = $derived(pageAttentionReservationViewModel(pagerReservationCount));
+  const tsunamiChromeSignature = $derived(JSON.stringify({
+    pageCount: pagerReservationCount,
+    reservationText: tsunamiReservation.text,
+    chromeLayoutVersion: "pager-v2",
+  }));
+  const tsunamiPartitionSnapshot = $derived.by(() => {
+    partitionRevision;
+    return splitOnlyPartition.advance({
+      epoch: tsunamiPartitionEpoch,
+      sections: tsunamiSections.map((section) => ({ id: section.id, itemCount: sectionCount(section) })),
+      chromeSignature: tsunamiChromeSignature,
+      probeBox: { width: probeWidth, height: probeHeight },
+      fallbackProbe: typeof ResizeObserver === "undefined"
+        ? (_sectionId, range) => range.end - range.start <= TSUNAMI_PAGE_ROW_CAPACITY
+        : undefined,
+    });
+  });
+  const tsunamiPartitions = $derived.by(() => tsunamiSections.map((section) => ({
       section,
-      result: sequentialPartitionRanges(
-        "tsunami",
-        compact ? "side" : "center",
-        sectionCount(section),
-        1,
-        partitionProbeFor(section),
-        () => [],
-      ),
-    })),
-  );
-  const panelPages = $derived.by((): EmergencyTsunamiPage[] => tsunamiPartitions.flatMap(({ section, result }): EmergencyTsunamiPage[] => {
-    if (result.infeasible) {
-      return [{
-        identity: `emergency-tsunami-details:${section.id}:infeasible`,
-        fingerprint: pageContentFingerprint(
-          { type: section.type, kind: section.kind ?? null, infeasible: true },
-          sectionEntries(section),
-        ),
-        type: section.type,
-        kind: section.kind,
-        infeasible: true,
-        itemCount: sectionCount(section),
-      }];
-    }
-    return result.ranges.map((range) => {
+      state: tsunamiPartitionSnapshot.sections.find((candidate) => candidate.id === section.id),
+    })));
+  const panelPages = $derived.by((): EmergencyTsunamiPage[] => tsunamiPartitions.flatMap(({ section, state }): EmergencyTsunamiPage[] =>
+    (state?.ranges ?? []).map((range) => {
       const entries = sectionEntries(section).slice(range.start, range.end);
       const identity = `emergency-tsunami-details:${section.id}:${entries[0]?.identity ?? range.start}:${entries.at(-1)?.identity ?? range.end}`;
+      if (range.status === "infeasible") {
+        return {
+          identity: `${identity}:infeasible`,
+          fingerprint: pageContentFingerprint(
+            { type: section.type, kind: section.kind ?? null, infeasible: true, start: range.start, end: range.end },
+            entries,
+          ),
+          type: section.type,
+          kind: section.kind,
+          infeasible: true,
+          itemCount: range.end - range.start,
+        };
+      }
       return {
         identity,
         fingerprint: pageContentFingerprint(
@@ -395,43 +388,79 @@
         coasts: section.type === "coast" ? section.coasts.slice(range.start, range.end) : undefined,
         observations: section.type === "observation" ? section.observations.slice(range.start, range.end) : undefined,
       };
-    });
-  }));
-  const tsunamiPartitionPending = $derived(tsunamiPartitions.some(({ result }) => result.pending.length > 0));
-  const tsunamiProbePages = $derived(tsunamiPartitions.flatMap(({ section, result }) =>
-    result.pending.map((range) => ({
-      id: tsunamiProbeId(section.id, range),
-      section,
-      range,
-      coasts: section.coasts.slice(range.start, range.end),
-      observations: section.observations.slice(range.start, range.end),
-    })),
+    }),
   ));
+  const tsunamiPartitionPending = $derived(!tsunamiPartitionSnapshot.stable);
+  const tsunamiProbePages = $derived.by(() => {
+    const pending = tsunamiPartitionSnapshot.pendingProbes.flatMap((probe) => {
+      const section = tsunamiSections.find((candidate) => candidate.id === probe.sectionId);
+      if (section == null) return [];
+      return [{
+        id: probe.id,
+        measurementId: probe.id as string | null,
+        geometryOnly: false,
+        section,
+        range: probe.range,
+        coasts: section.coasts.slice(probe.range.start, probe.range.end),
+        observations: section.observations.slice(probe.range.start, probe.range.end),
+      }];
+    });
+    if (pending.length > 0 || !tsunamiPartitionSnapshot.stable || typeof ResizeObserver === "undefined") return pending;
+    const geometryRange = tsunamiPartitionSnapshot.sections
+      .flatMap((sectionState) => sectionState.ranges
+        .filter((range) => range.status === "ready")
+        .map((range) => ({ sectionState, range })))[0];
+    if (geometryRange == null) return pending;
+    const section = tsunamiSections.find((candidate) => candidate.id === geometryRange.sectionState.id);
+    if (section == null) return pending;
+    return [{
+      id: `geometry:${geometryRange.sectionState.id}:${geometryRange.range.start}:${geometryRange.range.end}`,
+      measurementId: null,
+      geometryOnly: true,
+      section,
+      range: geometryRange.range,
+      coasts: section.coasts.slice(geometryRange.range.start, geometryRange.range.end),
+      observations: section.observations.slice(geometryRange.range.start, geometryRange.range.end),
+    }];
+  });
 
-  function commitProbeMeasurement(id: string, measurement: ProbeMeasurement): void {
+  $effect(() => {
+    const snapshot = tsunamiPartitionSnapshot;
+    const nextReservationCount = Math.max(1, snapshot.pageCount);
+    if (pagerReservationCount !== nextReservationCount) pagerReservationCount = nextReservationCount;
+    if (snapshot.diagnostic == null && snapshot.pendingProbes.length === 0 && !snapshot.stable && !logicalPassScheduled) {
+      logicalPassScheduled = true;
+      queueMicrotask(() => {
+        logicalPassScheduled = false;
+        if (!partitionDisposed) partitionRevision += 1;
+      });
+    }
+  });
+
+  function commitProbeDelivery(id: string, fit: boolean | null): void {
     if (layoutSettling) {
-      pendingProbeMeasurements.set(id, measurement);
+      pendingProbeDeliveries.push({ id, fit });
       return;
     }
-    const previous = probeMeasurements[id];
-    if (previous?.contentHeight === measurement.contentHeight
-      && previous.availableHeight === measurement.availableHeight) return;
-    probeMeasurements = { ...probeMeasurements, [id]: measurement };
+    if (splitOnlyPartition.recordProbeOpportunity(id, fit)) partitionRevision += 1;
   }
-  function measurePartitionProbe(node: HTMLElement, id: string) {
+  function measurePartitionProbe(node: HTMLElement, id: string | null) {
+    if (id == null) return {};
     let currentId = id;
     const measure = (): void => {
-      const measurement = { contentHeight: node.scrollHeight, availableHeight: node.clientHeight };
-      if (measurement.contentHeight > 0 && measurement.availableHeight > 0) {
-        commitProbeMeasurement(currentId, measurement);
-      }
+      const contentHeight = node.scrollHeight;
+      const availableHeight = node.clientHeight;
+      commitProbeDelivery(
+        currentId,
+        contentHeight > 0 && availableHeight > 0 ? contentHeight <= availableHeight + 1 : null,
+      );
     };
     if (typeof ResizeObserver === "undefined") return { update(next: string) { currentId = next; } };
     const observer = new ResizeObserver(measure);
+    measure();
     observer.observe(node);
-    queueMicrotask(measure);
     return {
-      update(next: string) { currentId = next; measure(); },
+      update(next: string | null) { if (next != null) { currentId = next; measure(); } },
       destroy() { observer.disconnect(); },
     };
   }
@@ -457,9 +486,9 @@
       probeHeight = pendingProbeBox.height;
       pendingProbeBox = null;
     }
-    if (pendingProbeMeasurements.size > 0) {
-      probeMeasurements = { ...probeMeasurements, ...Object.fromEntries(pendingProbeMeasurements) };
-      pendingProbeMeasurements.clear();
+    if (pendingProbeDeliveries.length > 0) {
+      const deliveries = pendingProbeDeliveries.splice(0);
+      for (const delivery of deliveries) commitProbeDelivery(delivery.id, delivery.fit);
     }
   });
 
@@ -507,6 +536,7 @@
   });
   // unmount (main-stack のモード切替・panel 差替え) で $effect.root のタイマー/matchMedia
   // リスナーがリークしないよう、コンポーネント破棄時に必ず destroy() する (Codex R レビュー M1)
+  onDestroy(() => { partitionDisposed = true; });
   onDestroy(() => pageCycler.destroy());
   const maxObservation = $derived(maxTsunamiObservation(input.observations));
   const currentTsunamiPage = $derived(panelPages[pageCycler.index] ?? panelPages[0] ?? null);
@@ -540,6 +570,12 @@
   </div>
 {/snippet}
 
+{#snippet pagerChrome(total: number, current: number, view: PageAttentionViewModel, reservation: PageAttentionViewModel, onJump: (index: number) => void)}
+  {#if total > 1}<PageDots {total} current={current} {onJump} />{/if}
+  <span class="page-attention-reservation" aria-hidden="true">{reservation.text}</span>
+  {#if view.text !== ""}<span class="page-attention" data-page-attention={view.text}>{view.text}</span>{/if}
+{/snippet}
+
 {#snippet observationRowBody(o: DisplayTsunamiObservationV1, _i: number, reveal: boolean)}
   <div
     class="observation-row"
@@ -564,7 +600,10 @@
   class:compact
   data-tsunami-page={attentionView.page ?? "1/1"}
   data-tsunami-page-unseen={attentionView.unseenCount}
-  data-tsunami-page-infeasible={currentTsunamiPage?.infeasible ? "true" : "false"}
+  data-tsunami-page-infeasible={tsunamiPartitionSnapshot.sections.some((section) => section.infeasibleRanges.length > 0) ? "true" : "false"}
+  data-tsunami-partition-stable={tsunamiPartitionSnapshot.stable ? "true" : "false"}
+  data-tsunami-partition-diagnostic={tsunamiPartitionSnapshot.diagnostic ?? ""}
+  data-tsunami-partition-logical-passes={tsunamiPartitionSnapshot.logicalPasses}
 >
   <div class="level-label">{input.levelLabel}</div>
   {#if input.warningComment != null}
@@ -629,8 +668,7 @@
             <div class="page-frame">
               <h2 class="page-heading">{currentTsunamiPage.type === "coast" ? "予報区" : "観測"}</h2>
               {#if currentTsunamiPage.type === "coast"}<span class="page-kind" style="color: {coastKindHeaderOnVar(currentTsunamiPage.kind ?? "")}">{currentTsunamiPage.kind}</span>{/if}
-              {#if pageCycler.total > 1}<PageDots total={pageCycler.total} current={pageCycler.index} onJump={(i) => pageCycler.jumpTo(i)} />{/if}
-              {#if attentionView.text !== ""}<span class="page-attention" data-page-attention={attentionView.text}>{attentionView.text}</span>{/if}
+              {@render pagerChrome(pageCycler.total, pageCycler.index, attentionView, tsunamiReservation, (i) => pageCycler.jumpTo(i))}
             </div>
             {#if currentTsunamiPage.infeasible}
               <div class="partition-infeasible-message">表示領域不足・{currentTsunamiPage.itemCount ?? 0}{currentTsunamiPage.type === "coast" ? "予報区" : "地点"}</div>
@@ -656,18 +694,21 @@
       {/if}
       <div class="partition-probe-shelf" aria-hidden="true" inert data-partition-probe-shelf>
         {#each tsunamiProbePages as probe (probe.id)}
-          <div class="partition-probe-page" class:coast-probe={probe.section.type === "coast"}>
+          <div
+            class="partition-probe-page"
+            class:coast-probe={probe.section.type === "coast"}
+            data-partition-probe-geometry={probe.geometryOnly ? "true" : undefined}
+          >
             <div class="page-frame">
               <h2 class="page-heading">{probe.section.type === "coast" ? "予報区" : "観測"}</h2>
               {#if probe.section.type === "coast"}<span class="page-kind">{probe.section.kind}</span>{/if}
-              {#if panelPages.length > 1}<span class="partition-probe-dots">{#each panelPages as _, index (index)}<i class:current={index === 0}></i>{/each}</span>{/if}
-              <span class="page-attention">{panelPages.length > 1 ? `1/${panelPages.length}・未表示${panelPages.length}` : "未表示1"}</span>
+              {@render pagerChrome(panelPages.length, Math.max(0, panelPages.length - 1), tsunamiReservation, tsunamiReservation, () => {})}
             </div>
             {#if probe.section.type === "coast"}
               <ul
                 class="coasts page-list-body partition-probe-body"
                 data-partition-probe-range={`${probe.range.start}:${probe.range.end}`}
-                use:measurePartitionProbe={probe.id}
+                use:measurePartitionProbe={probe.measurementId}
               >
                 {#each probe.coasts as row, rowIndex (row.key)}
                   <li class="coast-row-wrap">{@render coastRowBody(row.row, rowIndex, false, false)}</li>
@@ -677,7 +718,7 @@
               <ul
                 class="observations page-list-body partition-probe-body"
                 data-partition-probe-range={`${probe.range.start}:${probe.range.end}`}
-                use:measurePartitionProbe={probe.id}
+                use:measurePartitionProbe={probe.measurementId}
               >
                 {#each probe.observations as row, rowIndex (row.key)}
                   <li class="observation-row-wrap">{@render observationRowBody(row.row, rowIndex, false)}</li>
@@ -831,6 +872,15 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+  .page-attention-reservation,
+  .page-attention {
+    grid-area: attention;
+  }
+  .page-attention-reservation {
+    visibility: hidden;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
   .obs-summary-frame {
     display: flex;
     align-items: baseline;
@@ -849,13 +899,18 @@
     white-space: nowrap;
   }
   .page-frame {
-    display: flex;
+    /* reservation model の最悪 attention と PageDots は pagerChrome が実描画する。
+       この frame は live/probe で同じ snippet を使うため、固定値で高さを再予約せず
+       内容の自然高を共通の reservation block とする。 */
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "heading kind dots attention";
     align-items: baseline;
-    flex-wrap: wrap;
     gap: var(--space-4);
     margin-bottom: var(--space-3);
   }
   .page-heading {
+    grid-area: heading;
     font-size: calc(var(--type-body-s-size) * var(--panel-scale, 1));
     letter-spacing: 0.2em;
     color: var(--role-muted);
@@ -863,6 +918,7 @@
     margin: 0;
   }
   .page-kind {
+    grid-area: kind;
     font-size: calc(var(--type-title-s-size) * var(--panel-scale, 1));
     font-weight: var(--type-title-weight);
   }
@@ -881,7 +937,7 @@
     display: flex;
     flex-direction: column;
   }
-  /* sequentialPartitionRanges の pending 候補を live と同じ固定枠で強制描画する棚。
+  /* split-only state machine の pending 候補を live と同じ固定枠で強制描画する棚。
      aria-hidden/inert と absolute + visibility:hidden により表示・通常レイアウトの外に置く。 */
   .partition-probe-shelf,
   .partition-probe-page {
@@ -900,23 +956,7 @@
   .partition-probe-page {
     padding: var(--space-4) var(--space-5);
   }
-  .partition-probe-dots {
-    display: flex;
-    align-items: center;
-    align-self: center;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-left: auto;
-  }
-  .partition-probe-dots i {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-  .partition-probe-dots i.current {
-    width: 8px;
-    height: 8px;
-  }
+  :global(.page-dots) { grid-area: dots; }
   .partition-infeasible-message {
     color: var(--role-muted);
     font-size: calc(var(--type-title-m-size) * var(--panel-scale, 1));

@@ -1268,6 +1268,24 @@ const largeQuakeStressInput: DisplayLargeQuakeInputV1 = {
 
 export const largeQuakeStress: DisplayLargeQuakeStateV1 = { ...largeQuakeStressInput, updatedAtMs: STRESS_NOW_MS };
 
+// attention-visibility emergency は地震側も必ず実測 pager を通す。通常の stress 電文は
+// 1280x720 の二枚構成では一枚へ収まる場合があるため、fixture 専用に十分な地域群を持たせる。
+const attentionVisibilityQuakeLevels = [
+  ["7", 9], ["6強", 8], ["6弱", 7], ["5強", 6],
+] as const satisfies ReadonlyArray<readonly [string, number]>;
+const attentionVisibilityQuakeGroups: DisplayIntensityGroupV1[] = attentionVisibilityQuakeLevels.map(([intensity, rank], groupIndex) => ({
+  intensity,
+  rank,
+  areas: Array.from({ length: 24 }, (_, areaIndex) =>
+    `${["岩手県", "宮城県", "福島県", "茨城県"][groupIndex]}緊急観測地域${String(areaIndex + 1).padStart(2, "0")}`),
+  omittedAreaCount: 0,
+}));
+export const attentionVisibilityQuakeInput: DisplayLargeQuakeInputV1 = {
+  ...largeQuakeStressInput,
+  eventId: "quake-attention-visibility",
+  intensityGroups: attentionVisibilityQuakeGroups,
+};
+
 // standby-stress シナリオ用: 地震情報カード表示 (headline に速報 M8.4 → 確定 M9.0 の引き上げを明記)
 export const latestQuakeStress: DisplayLatestQuakeStateV1 = {
   eventId: "quake-311-main",

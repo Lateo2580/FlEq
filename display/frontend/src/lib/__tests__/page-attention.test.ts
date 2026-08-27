@@ -3,6 +3,7 @@ import {
   PageAttentionState,
   canonicalAttentionJson,
   itemContentFingerprint,
+  pageAttentionReservationViewModel,
   pageAttentionViewModel,
   pageContentFingerprint,
   pageIdentity,
@@ -104,6 +105,17 @@ describe("page attention state", () => {
   it("1 page は位置を省略し、未表示量だけを常設できる", () => {
     expect(pageAttentionViewModel({ activeIndex: 0, pageCount: 1, unseenCount: 1 }))
       .toEqual({ page: null, unseenCount: 1, text: "未表示1" });
+  });
+
+  it("1/10・10/10 と未読0・10の live chrome は予約 block を超えない", () => {
+    const reserved = pageAttentionReservationViewModel(10);
+    expect(reserved.text).toBe("10/10・未表示10");
+    for (const activeIndex of [0, 9]) {
+      for (const unseenCount of [0, 10]) {
+        const live = pageAttentionViewModel({ activeIndex, pageCount: 10, unseenCount });
+        expect(live.text.length).toBeLessThanOrEqual(reserved.text.length);
+      }
+    }
   });
 
   it("1 page の保持完了で reactive unseen 集合が減り、未表示1 を残さない", () => {

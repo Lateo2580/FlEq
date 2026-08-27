@@ -416,6 +416,17 @@ function coastsOfKind(kind: string, count: number): DisplayTsunamiInputV1["coast
 }
 
 describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () => {
+  it("live/probe 共通 page-frame は reservation model を同じ pagerChrome で自然高として描画する", () => {
+    // jsdom は grid の実レイアウトを計算しないため、固定 min-height を置かず、同じ
+    // pager snippet が live/probe の双方へ reservation を描く構造を固定する。
+    const source = readFileSync(join(import.meta.dirname, "../TsunamiPanel.svelte"), "utf8");
+    expect(source).not.toContain("--pager-chrome-reservation-h");
+    expect(source).not.toContain("min-block-size: var(--pager-chrome-reservation-h)");
+    expect(source).toContain("{@render pagerChrome(pageCycler.total, pageCycler.index, attentionView, tsunamiReservation");
+    expect(source).toContain("{@render pagerChrome(panelPages.length, Math.max(0, panelPages.length - 1), tsunamiReservation, tsunamiReservation");
+    expect(source.match(/<div class=\"page-frame\">/g)).toHaveLength(2);
+  });
+
   it("D1-A の少数予報区も固定本文 page で表示し、位置は一頁なら省略する", () => {
     const coasts = [...coastsOfKind("大津波警報", 3), ...coastsOfKind("津波警報", 2)];
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
@@ -628,6 +639,59 @@ describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () =>
     }
   });
 
+  it("単一 item 不適合だけを terminal page にし、後続 range の境界を維持する", async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    class ProbeResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(target: Element): void {
+        this.callback([{ contentRect: { width: 320, height: 100 }, target } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect(): void {}
+      unobserve(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", ProbeResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() { return this.classList.contains("partition-probe-body") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        if (!this.classList.contains("partition-probe-body")) return 0;
+        const names = Array.from((this as HTMLElement).querySelectorAll<HTMLElement>(".coast-name"), (node) => node.textContent ?? "");
+        return names.some((name) => name.includes("不適合")) ? 140 : names.length * 70;
+      },
+    });
+    let unmount: (() => void) | undefined;
+    try {
+      const rendered = render(TsunamiPanel, {
+        input: tsunamiInput({
+          coasts: [
+            { name: "単一不適合区域", kind: "津波警報", maxHeight: "3m", firstHeight: null },
+            { name: "後続適合区域", kind: "津波警報", maxHeight: "3m", firstHeight: null },
+          ],
+        }),
+      });
+      unmount = rendered.unmount;
+      await vi.waitFor(() => expect(rendered.container.querySelector(".tsunami-panel")?.getAttribute("data-tsunami-partition-stable")).toBe("true"));
+      expectCurrentDot(rendered.container.querySelector(".page-fade"), 1, 2);
+      expect(rendered.container.querySelector(".partition-infeasible-message")?.textContent)
+        .toBe("表示領域不足・1予報区");
+      expect(rendered.container.querySelector(".tsunami-panel")?.getAttribute("data-tsunami-page-infeasible")).toBe("true");
+      expect(rendered.container.querySelector(".tsunami-panel")?.getAttribute("data-tsunami-partition-diagnostic")).toBe("");
+      expect(rendered.container.querySelector('[data-partition-probe-geometry="true"]')).not.toBeNull();
+    } finally {
+      unmount?.();
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      vi.stubGlobal("ResizeObserver", originalResizeObserver);
+    }
+  });
+
   it("host 高だけが縮んでも probe cache を再計測し、page を分割し直す", async () => {
     const originalResizeObserver = globalThis.ResizeObserver;
     const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
@@ -675,7 +739,7 @@ describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () =>
 
       hostHeight = 100;
       ProbeResizeObserver.emitAll();
-      await vi.waitFor(() => expectCurrentDot(rendered.container, 1, 2));
+      await vi.waitFor(() => expectCurrentDot(rendered.container.querySelector(".page-fade"), 1, 2));
     } finally {
       unmount?.();
       if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
@@ -879,11 +943,13 @@ describe("TsunamiPanel 予報区ページ領域の種別別背景色面 (spec §
 
 // D1-A: 平均行高ではなく候補 range の実描画高を sequentialPartitionRanges へ返す。
 describe("TsunamiPanel 実測 probe partition 配線", () => {
-  it("予報区・観測を section ごとに sequentialPartitionRanges へ渡し、単一 pager へ平坦化する", () => {
+  it("予報区・観測を split-only snapshot から単一 pager へ平坦化する", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    expect(source).toContain("sequentialPartitionRanges(");
+    expect(source).toContain("new SplitOnlyPartitionStateMachine()");
+    expect(source).toContain("const tsunamiPartitionSnapshot = $derived.by");
     expect(source).toContain("const tsunamiPartitions = $derived.by");
     expect(source).toContain("const panelPages = $derived.by");
+    expect(source).toContain("(state?.ranges ?? []).map((range)");
     expect(source).not.toContain("rowCapacity(");
     expect(source).not.toContain("sectionAvailableHeight(");
   });
@@ -891,18 +957,19 @@ describe("TsunamiPanel 実測 probe partition 配線", () => {
   it("隠し棚は aria-hidden/inert かつ layout 外で、候補本文の scrollHeight/clientHeight を比較する", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
     expect(source).toContain('class="partition-probe-shelf" aria-hidden="true" inert data-partition-probe-shelf');
-    expect(source).toContain("contentHeight: node.scrollHeight");
-    expect(source).toContain("availableHeight: node.clientHeight");
+    expect(source).toContain("const contentHeight = node.scrollHeight");
+    expect(source).toContain("const availableHeight = node.clientHeight");
+    expect(source).toContain("recordProbeOpportunity(id, fit)");
     expect(source).toMatch(/\.partition-probe-shelf\s*\{[^}]*visibility: hidden;[^}]*pointer-events: none;/);
   });
 
-  it("高さ cache の generation は表示 fingerprint と host 幅・高さに紐づく", () => {
+  it("partition epoch と exact probeBox は表示 fingerprint・font・host 寸法に紐づく", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
     expect(source).toContain("tsunamiProbeFingerprint");
-    expect(source).toContain("tsunamiProbeGeneration");
+    expect(source).toContain("tsunamiPartitionEpoch");
+    expect(source).toContain("probeBox: { width: probeWidth, height: probeHeight }");
     expect(source).toContain("probeWidth");
     expect(source).toContain("probeHeight");
-    expect(source).toContain(":h${Math.round(probeHeight * 100) / 100}");
     expect(source).toContain("use:observeProbeBox");
   });
 

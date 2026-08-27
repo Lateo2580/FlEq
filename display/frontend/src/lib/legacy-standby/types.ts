@@ -95,6 +95,42 @@ export interface PartitionResult {
   probeCount: number;
 }
 
+/** A monotonic, measurement-driven partition used by the emergency tsunami pager. */
+export interface SplitOnlyPartitionRange extends PageRange {
+  status: "pending" | "ready" | "infeasible";
+}
+
+export interface SplitOnlyPartitionSection {
+  id: string;
+  itemCount: number;
+  ranges: SplitOnlyPartitionRange[];
+  pending: SplitOnlyPartitionRange[];
+  infeasibleRanges: SplitOnlyPartitionRange[];
+}
+
+export interface SplitOnlyProbeRequest {
+  id: string;
+  sectionId: string;
+  /** sequential candidate range in global section coordinates. */
+  range: PageRange;
+  /** Parent whose boundary is not committed until all candidate probes resolve. */
+  parentRange: PageRange;
+  opportunities: number;
+}
+
+export interface SplitOnlyPartitionSnapshot {
+  epoch: string;
+  chromeSignature: string;
+  probeBox: { width: number; height: number };
+  sections: SplitOnlyPartitionSection[];
+  pendingProbes: SplitOnlyProbeRequest[];
+  pageCount: number;
+  logicalPasses: number;
+  stable: boolean;
+  diagnostic: "partition-cycle" | "partition-nonconverged" | "partition-probe-unresolved" | null;
+  diagnosticProbeId: string | null;
+}
+
 export interface CardPageRuntime {
   activeKey: string | null;
   knownKeys: string[];

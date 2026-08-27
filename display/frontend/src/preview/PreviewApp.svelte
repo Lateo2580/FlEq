@@ -33,6 +33,7 @@
     eewStressInput,
     tsunamiStressInput,
     largeQuakeStressInput,
+    attentionVisibilityQuakeInput,
     nankaiSnapshot,
     eewNankaiInput,
     tsunamiNankaiInput,
@@ -347,7 +348,7 @@
     if (scenario === "attention-visibility-emergency") {
       return [
         { key: "tsunami:attention-visibility", input: tsunamiStressInput },
-        { key: "quake:attention-visibility", input: largeQuakeStressInput },
+        { key: "quake:attention-visibility", input: attentionVisibilityQuakeInput },
       ];
     }
     if (scenario === "emergency-nankai") {

@@ -42,6 +42,10 @@
     display: flex;
     align-items: center;
     align-self: center;
+    /* .page-dot::before の 24px hit target を chrome の box 内へ収める。
+       8px の見える dot だけで行高を決めると、absolute な hit target が親の
+       scrollHeight にだけ加算され、probe/live geometry の containment を壊す。 */
+    min-height: 24px;
     flex-wrap: wrap;
     gap: 4px; /* Task13 以前の間隔に復帰 (下記 .page-dot 撤回理由と同じ経緯) */
     margin-left: auto;
@@ -53,23 +57,35 @@
      docs/specs/display-design-system.md §6 に記載する */
   .page-dot {
     position: relative; /* ::before ヒット領域拡張の基準 */
-    flex-shrink: 0;
-    width: 6px;
-    height: 6px;
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
     padding: 0;
     border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  /* button の外形は current に関係なく 8px。見える円だけを内側で 6px/8px に変え、
+     active index の移動が flex wrap と chrome 高を変えないようにする。 */
+  .page-dot::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
+    transform: translate(-50%, -50%);
     /* 現在ページは大きさ + 濃さで強調する。非強調側は透明との color-mix で薄める
        (opacity プロパティは使わない、§8 規範)。透明との混色なので背景色 (種別色面等) が
        透けて自然に馴染む */
     background: color-mix(in srgb, var(--fg) 35%, transparent);
-    cursor: pointer;
     transition:
       background-color var(--spring-effects-default-dur) var(--spring-effects-default),
       width var(--spring-effects-default-dur) var(--spring-effects-default),
       height var(--spring-effects-default-dur) var(--spring-effects-default);
   }
-  .page-dot.current {
+  .page-dot.current::after {
     width: 8px;
     height: 8px;
     background: var(--fg);
@@ -88,10 +104,10 @@
     transform: translate(-50%, -50%);
   }
   @media (hover: hover) {
-    .page-dot:hover {
+    .page-dot:hover::after {
       background: color-mix(in srgb, var(--fg) 60%, transparent);
     }
-    .page-dot.current:hover {
+    .page-dot.current:hover::after {
       background: var(--fg);
     }
   }
@@ -100,7 +116,7 @@
     outline-offset: 2px; /* ドット同士が隣接しなくなったため外側 offset で描ける */
   }
   @media (prefers-reduced-motion: reduce) {
-    .page-dot {
+    .page-dot::after {
       transition: none;
     }
   }
