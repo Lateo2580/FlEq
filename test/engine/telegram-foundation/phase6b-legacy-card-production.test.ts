@@ -182,6 +182,44 @@ function fixtureMeta(fixture: string): { eventId: string; reportDateTime: string
   return { eventId, reportDateTime, reportDateTimeMs };
 }
 
+type VpbsPhenomenonKind = "linearRainObserved" | "linearRainPredicted" | "recordRain" | "shortSnow";
+
+const VPBS_KIND_PRIORITY: readonly VpbsPhenomenonKind[] = [
+  "linearRainObserved",
+  "linearRainPredicted",
+  "recordRain",
+  "shortSnow",
+];
+
+function expectedVpbsSemantic(fixture: string): {
+  editorialOffice: string;
+  phenomenonKind: VpbsPhenomenonKind;
+  semanticKey: string;
+  serial: string;
+} {
+  const xml = readFixture(fixture);
+  const editorialOffice = xml.match(/<EditorialOffice>([^<]+)<\/EditorialOffice>/)?.[1];
+  const serial = xml.match(/<Serial>([^<]+)<\/Serial>/)?.[1];
+  if (editorialOffice == null || serial == null) throw new Error(`VPBS semantic metadata missing: ${fixture}`);
+
+  const kinds = new Set<VpbsPhenomenonKind>();
+  for (const match of xml.matchAll(/<Condition>([^<]*)<\/Condition>/g)) {
+    const condition = match[1]!.normalize("NFKC");
+    if (condition.includes("線状降水帯発生")) kinds.add("linearRainObserved");
+    if (condition.includes("線状降水帯直前")) kinds.add("linearRainPredicted");
+    if (condition.includes("記録雨") || condition.includes("記録的短時間大雨")) kinds.add("recordRain");
+    if (condition.includes("短時間大雪")) kinds.add("shortSnow");
+  }
+  const phenomenonKind = VPBS_KIND_PRIORITY.find((kind) => kinds.has(kind));
+  if (phenomenonKind == null) throw new Error(`VPBS phenomenon kind missing: ${fixture}`);
+  return {
+    editorialOffice,
+    phenomenonKind,
+    semanticKey: `card:vpbs:semantic:${phenomenonKind}:${editorialOffice}`,
+    serial,
+  };
+}
+
 function cardOf(harness: ProductionHarness) {
   return harness.standby.snapshotBriefingCard();
 }
@@ -256,12 +294,14 @@ async function expectCanonicalCard(
   });
   if (card == null) return;
   expect(card.data.entries).toHaveLength(1);
+  const semantic = expectedSource === "vpbs50" ? expectedVpbsSemantic(counterpartFixture) : null;
   expect(card.data.entries[0]).toMatchObject({
-    key: `card:${expectedSource === "vpbs50" ? "vpbs" : "vpoa"}:${meta.eventId}`,
+    key: semantic?.semanticKey ?? `card:vpoa:${meta.eventId}`,
     source: expectedSource,
     sourceEventId: meta.eventId,
     reportDateTime: meta.reportDateTime,
     infoType: "発表",
+    ...(semantic == null ? {} : semantic),
   });
   const expectedExpiry = meta.reportDateTimeMs + BRIEFING_CARD_TTL_MS;
   expect(Date.parse(card.data.entries[0]?.expiresAt ?? "")).toBe(expectedExpiry);
@@ -495,12 +535,32 @@ describe("Phase 6B legacy card production-shaped gate", () => {
     harness.startHub();
     vi.setSystemTime(reportDateTimeMs + 1);
     harness.handler.handler(messageAt("synthetic_VPBS50_multi.xml", "production:revision:normal", reportDateTimeMs + 1));
+    const semantic = expectedVpbsSemantic("synthetic_VPBS50_multi.xml");
+    expect(cardOf(harness)?.data.entries[0]).toMatchObject({
+      ...semantic,
+      key: semantic.semanticKey,
+      sourceEventId: eventId,
+      infoType: "発表",
+    });
     const firstGeneration = cardOf(harness)?.data.generation;
     harness.handler.handler(xmlMessageAt(correctionXml, "VPBS50", "production:revision:correction", reportDateTimeMs + 2));
-    expect(cardOf(harness)?.data.entries[0]).toMatchObject({ key: `card:vpbs:${eventId}`, infoType: "訂正" });
+    expect(cardOf(harness)?.data.entries[0]).toMatchObject({
+      ...semantic,
+      key: semantic.semanticKey,
+      sourceEventId: eventId,
+      serial: "7",
+      infoType: "訂正",
+    });
     expect(cardOf(harness)?.data.generation).toBeGreaterThan(firstGeneration ?? 0);
     harness.handler.handler(xmlMessageAt(cancelXml, "VPBS50", "production:revision:cancel", reportDateTimeMs + 3));
-    expect(cardOf(harness)?.data.entries[0]).toMatchObject({ key: `card:vpbs:${eventId}`, infoType: "取消", frameLevel: "cancel" });
+    expect(cardOf(harness)?.data.entries[0]).toMatchObject({
+      ...semantic,
+      key: semantic.semanticKey,
+      sourceEventId: eventId,
+      serial: "8",
+      infoType: "取消",
+      frameLevel: "cancel",
+    });
     await expectFrontendSnapshotCard(harness);
     vi.setSystemTime(reportDateTimeMs + BRIEFING_CARD_CANCEL_TTL_MS);
     expect(harness.standby.sweep(Date.now()).viewChanged).toBe(true);
@@ -610,12 +670,17 @@ describe("Phase 6B legacy card production-shaped gate", () => {
     vi.setSystemTime(meta.reportDateTimeMs);
     for (let index = 0; index < BRIEFING_CARD_MAX_ENTRIES + 1; index += 1) {
       const eventId = `PRODUCTION-CAP-${String(index).padStart(3, "0")}`;
-      const xml = baseXml.replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`);
+      const editorialOffice = `容量試験${String(index).padStart(3, "0")}`;
+      const xml = baseXml
+        .replace(/<EventID>[^<]*<\/EventID>/, `<EventID>${eventId}</EventID>`)
+        .replace(/<EditorialOffice>[^<]*<\/EditorialOffice>/, `<EditorialOffice>${editorialOffice}</EditorialOffice>`);
       harness.handler.handler(xmlMessageAt(xml, "VPBS50", `production:capacity:${index}`, meta.reportDateTimeMs + index));
     }
     const card = cardOf(harness);
     expect(card?.data.entries).toHaveLength(BRIEFING_CARD_MAX_ENTRIES);
-    expect(card?.data.entries.some((entry) => entry.key === "card:vpbs:PRODUCTION-CAP-000")).toBe(false);
+    expect(new Set(card?.data.entries.map((entry) => entry.key)).size).toBe(BRIEFING_CARD_MAX_ENTRIES);
+    expect(card?.data.entries.some((entry) => entry.sourceEventId === "PRODUCTION-CAP-000")).toBe(false);
+    expect(card?.data.entries.some((entry) => entry.key === "card:vpbs:semantic:recordRain:容量試験000")).toBe(false);
     await expectFrontendSnapshotCard(harness);
     const stats = harness.handler.stats.getSnapshot(Date.now());
     expect(stats.foundation.legacyCardEvicted).toBe(1);
@@ -627,10 +692,13 @@ describe("Phase 6B legacy card production-shaped gate", () => {
 function expectCanonicalCardWithoutHub(harness: ProductionHarness, counterpartFixture: string): void {
   const card = cardOf(harness);
   const meta = fixtureMeta(counterpartFixture);
+  const semantic = expectedVpbsSemantic(counterpartFixture);
   expect(card?.data.entries).toHaveLength(1);
   expect(card?.data.entries[0]).toMatchObject({
-    key: `card:vpbs:${meta.eventId}`,
+    ...semantic,
+    key: semantic.semanticKey,
     source: "vpbs50",
+    sourceEventId: meta.eventId,
   });
   expect(Date.parse(card?.data.entries[0]?.expiresAt ?? "")).toBe(meta.reportDateTimeMs + BRIEFING_CARD_TTL_MS);
 }

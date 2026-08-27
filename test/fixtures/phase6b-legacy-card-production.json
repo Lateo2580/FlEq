@@ -78,9 +78,13 @@
           "generation": 2,
           "entries": [
             {
-              "key": "card:vpbs:KJPTK202608221709_202608221709",
+              "key": "card:vpbs:semantic:recordRain:気象庁本庁",
               "source": "vpbs50",
               "sourceEventId": "KJPTK202608221709_202608221709",
+              "editorialOffice": "気象庁本庁",
+              "phenomenonKind": "recordRain",
+              "semanticKey": "card:vpbs:semantic:recordRain:気象庁本庁",
+              "serial": "1",
               "title": "東京都気象防災速報（記録的短時間大雨）",
               "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
               "conditions": [
@@ -249,9 +253,13 @@
           "generation": 2,
           "entries": [
             {
-              "key": "card:vpbs:KJPTK202608221709_202608221709",
+              "key": "card:vpbs:semantic:recordRain:気象庁本庁",
               "source": "vpbs50",
               "sourceEventId": "KJPTK202608221709_202608221709",
+              "editorialOffice": "気象庁本庁",
+              "phenomenonKind": "recordRain",
+              "semanticKey": "card:vpbs:semantic:recordRain:気象庁本庁",
+              "serial": "1",
               "title": "東京都気象防災速報（記録的短時間大雨）",
               "headline": "１７時、東京都北区、板橋区で記録的短時間大雨。\n北区付近で１時間に約１００ミリ。\n板橋区付近で１時間に約１００ミリ。\n猛烈な雨が降っており、災害発生の危険度が急激に高まっています。",
               "conditions": [
