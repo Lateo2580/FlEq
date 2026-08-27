@@ -14,7 +14,7 @@
   }
 
   // 時計は第 3 波でテロップ (Ticker) 右端に移設したため、このコンポーネントは now を持たない
-  let { panels }: { panels: EmergencyPanelModel[] } = $props();
+  let { panels, reducedMotion = false }: { panels: EmergencyPanelModel[]; reducedMotion?: boolean } = $props();
 
   // 同時 EEW では並び替え先頭だけを視覚強調する。主役/副役という文言は表示しない。
   const emphasizedEewKey = $derived(panels.find((p) => p.input.kind === "eew")?.key ?? null);
@@ -30,20 +30,7 @@
   // 隠すことになるため、cap ではなくグリッドの縮退で吸収する。
   const STACK_ROW_SLOTS = 4;
 
-  // prefers-reduced-motion 購読 (StandbyScreen と同型)。切替後に開始する再配置/遷移を 0ms にする。
-  let reducedMotion = $state(
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
-  );
-  $effect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    reducedMotion = mq.matches;
-    const onChange = (e: MediaQueryListEvent): void => {
-      reducedMotion = e.matches;
-    };
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  });
+  // prefers-reduced-motion の listener は App が唯一所有し、ここには値だけが渡る。
   // 並べ替え FLIP・compact 遅延・レイアウト整定は同じ quick トークン (142ms) を共有する。
   const flipDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_QUICK_MS);
 
@@ -185,13 +172,13 @@
   <!-- 全 kind を明示分岐する (フォールスルー撲滅、spec C §3)。else へ落とすと新 kind が黙って
        QuakePanel で描画されるため、末尾は assertNever で型と実行時の両方から塞ぐ -->
   {#if p.input.kind === "eew"}
-    <EewPanel input={p.input} {compact} {settling} emphasized={p.key === emphasizedEewKey} />
+    <EewPanel input={p.input} {compact} {settling} {reducedMotion} emphasized={p.key === emphasizedEewKey} />
   {:else if p.input.kind === "tsunami"}
-    <TsunamiPanel input={p.input} {compact} layoutSettling={settling} episodeResetKey={p.episodeResetKey} />
+    <TsunamiPanel input={p.input} {compact} {reducedMotion} layoutSettling={settling} episodeResetKey={p.episodeResetKey} />
   {:else if p.input.kind === "largeQuake"}
-    <QuakePanel input={p.input} mapEvent={p.quakeMap ?? null} {compact} layoutSettling={settling} />
+    <QuakePanel input={p.input} mapEvent={p.quakeMap ?? null} {compact} {reducedMotion} layoutSettling={settling} />
   {:else if p.input.kind === "weather"}
-    <WeatherEmergencyPanel input={p.input} {compact} layoutSettling={settling} />
+    <WeatherEmergencyPanel input={p.input} {compact} layoutSettling={settling} reducedMotionInput={reducedMotion} />
   {:else}
     {assertNever(p.input)}
   {/if}

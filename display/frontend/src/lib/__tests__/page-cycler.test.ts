@@ -305,7 +305,7 @@ describe("createPageCycler", () => {
     }
   });
 
-  it("未注入 pager は移行期 fallback の matchMedia listener を購読し、destroy で解除する", () => {
+  it("未注入 pager も matchMedia listener を作らず、App からの注入がない間は通常 motion に縮退する", () => {
     const original = window.matchMedia;
     const addEventListener = vi.fn();
     const removeEventListener = vi.fn();
@@ -318,10 +318,10 @@ describe("createPageCycler", () => {
     try {
       const cycler = createPageCycler({ pageCount: () => 2 });
       flushSync();
-      expect(cycler.reducedMotion).toBe(true);
-      expect(addEventListener).toHaveBeenCalledOnce();
+      expect(cycler.reducedMotion).toBe(false);
+      expect(addEventListener).not.toHaveBeenCalled();
       cycler.destroy();
-      expect(removeEventListener).toHaveBeenCalledOnce();
+      expect(removeEventListener).not.toHaveBeenCalled();
     } finally {
       window.matchMedia = original;
     }

@@ -2,24 +2,33 @@
   import type { DisplayLargeQuakeInputV1, DisplayQuakeMapEventV1 } from "../lib/protocol";
   import { formatHm, formatMdHm, formatIntShort } from "../lib/format";
   import { depthVisual, magnitudeVisual } from "../lib/magnitude";
-  import { groupByPrefecture } from "../lib/prefecture-group";
   import {
     PAGE_CITY_BUDGET,
-    cityBudgetFromArea,
-    effectiveAreaCount,
     paginateAreas,
-    shouldPageDetails,
+    type DetailPage,
+    type DetailPageSection,
   } from "../lib/instrument-layout";
+  import { groupByPrefecture } from "../lib/prefecture-group";
+  import {
+    sequentialPartitionRanges,
+    type PartitionProbe,
+  } from "../lib/legacy-standby/page-partition";
+  import type { PageRange } from "../lib/legacy-standby/types";
   import { createPageCycler } from "../lib/page-cycler.svelte";
-  import { measureHeight } from "../lib/measure-height";
   import { SPRING_EFFECTS_DEFAULT_MS, SPRING_SPATIAL_DEFAULT_MS, springEffectsOut } from "../lib/motion";
   import { revealScaleIn, heightReveal } from "../lib/transitions";
   import { fade } from "svelte/transition";
   import { onDestroy } from "svelte";
+  import { untrack } from "svelte";
   import PageDots from "./PageDots.svelte";
   import QuakeMap from "./QuakeMap.svelte";
   import { intensityVisual } from "../lib/quake-map-colors";
   import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
+  import {
+    PageAttentionState,
+    itemContentFingerprint,
+    pageContentFingerprint,
+  } from "../lib/page-attention";
 
   // compact: main-stack の非 main スロット (EewPanel と同じ縮小パターンを適用し、
   // emergency-3 等で tile-main + tile-stats + 震度別グループが縦に収まりきらず
@@ -31,11 +40,13 @@
     mapEvent = null,
     compact = false,
     layoutSettling = false,
+    reducedMotion = false,
   }: {
     input: DisplayLargeQuakeInputV1;
     mapEvent?: DisplayQuakeMapEventV1 | null;
     compact?: boolean;
     layoutSettling?: boolean;
+    reducedMotion?: boolean;
   } = $props();
 
   const magnitude = $derived(magnitudeVisual(input.magnitudeSemantic, input.magnitude));
@@ -64,48 +75,198 @@
   const displayGroups = $derived(input.intensityGroups.filter((group) =>
     intensityVisual(group.intensitySemantic, formatIntShort(group.intensity), group.rank).render
   ));
-  const totalEffective = $derived(
-    displayGroups.reduce((sum, g) => sum + effectiveAreaCount(g), 0),
-  );
-  const paging = $derived(shouldPageDetails(totalEffective));
+  // D1-A: 件数閾値ではなく、実測本文高から得た partition だけを表示単位にする。
+  // 1 枚なら位置表示を省略し、複数枚なら同じ pager で全地域へ到達させる。
 
-  // ページ本文領域の実測高さ・行高から市町村数バジェットを導出する (T5c、spec §2-c「画面高さ
-  // 駆動の可変」)。未マウント・実測0 (jsdom 含む) のときは PAGE_CITY_BUDGET と同値の fallback
-  // に落ちる (cityBudgetFromArea 内部で保証、既存テストの回帰対策)
-  let pageBodyAreaHeight = $state(0);
-  let pageBodyLineHeight = $state(0);
-  const cityBudget = $derived(cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET));
-
-  // レイアウト遷移中 (layoutSettling) の測定は最新 1 件だけ保持し、完了時に一度だけ反映する (spec §4)。
-  // 途中で逆方向へ遷移しても最新 target に合流する (pending は上書き)。reduced-motion では
-  // layoutSettling が常に false になり同期反映になる (EmergencyScreen が settling を立てない)。
-  let pendingArea: number | null = null;
-  let pendingLine: number | null = null;
-  function applyPageBodyArea(h: number): void {
-    if (layoutSettling) pendingArea = h;
-    else pageBodyAreaHeight = h;
+  interface QuakeAreaEntry {
+    groupIndex: number;
+    areaIndex: number;
+    area: string;
+    omittedOnly: boolean;
+    identity: string;
+    fingerprint: string;
   }
-  function applyPageBodyLine(h: number): void {
-    if (layoutSettling) pendingLine = h;
-    else pageBodyLineHeight = h;
+  interface ProbeMeasurement {
+    contentHeight: number;
+    availableHeight: number;
+  }
+
+  const quakeAreaEntries = $derived.by((): QuakeAreaEntry[] => displayGroups.flatMap((group, groupIndex) => {
+    const areas = group.areas.map((area, areaIndex) => ({
+      groupIndex,
+      areaIndex,
+      area,
+      omittedOnly: false,
+      identity: `${group.intensity}|${group.rank}|${area}|${areaIndex}`,
+      fingerprint: itemContentFingerprint({
+        intensity: group.intensity,
+        rank: group.rank,
+        intensitySemantic: intensityFingerprint(group.intensitySemantic),
+        area,
+      }),
+    }));
+    // 表示対象が「ほか N 地域」だけになった group も、本文/attention の 1 entry として残す。
+    // 空配列のままでは partition が空になり、縮退情報そのものが消えてしまう。
+    if (areas.length > 0 || group.omittedAreaCount <= 0) return areas;
+    return [{
+      groupIndex,
+      areaIndex: 0,
+      area: "",
+      omittedOnly: true,
+      identity: `${group.intensity}|${group.rank}|omitted`,
+      fingerprint: itemContentFingerprint({
+        intensity: group.intensity,
+        rank: group.rank,
+        intensitySemantic: intensityFingerprint(group.intensitySemantic),
+        omittedAreaCount: group.omittedAreaCount,
+      }),
+    }];
+  }));
+
+  function detailPageForRange(range: PageRange): DetailPage | null {
+    const selected = quakeAreaEntries.slice(range.start, range.end);
+    if (selected.length === 0) return null;
+    const sections: DetailPageSection[] = [];
+    for (let cursor = 0; cursor < selected.length;) {
+      const groupIndex = selected[cursor]!.groupIndex;
+      const group = displayGroups[groupIndex]!;
+      let end = cursor + 1;
+      while (end < selected.length && selected[end]!.groupIndex === groupIndex) end += 1;
+      const entries = selected.slice(cursor, end);
+      if (entries[0]!.omittedOnly) {
+        sections.push({ intensity: group.intensity, rank: group.rank, prefGroups: [] });
+        cursor = end;
+        continue;
+      }
+      const priorPrefectures = new Set(
+        groupByPrefecture(group.areas.slice(0, entries[0]!.areaIndex)).map((pref) => pref.pref),
+      );
+      sections.push({
+        intensity: group.intensity,
+        rank: group.rank,
+        prefGroups: groupByPrefecture(entries.map((entry) => entry.area)).map((pref) => ({
+          ...pref,
+          continuation: priorPrefectures.has(pref.pref),
+        })),
+      });
+      cursor = end;
+    }
+    const first = sections[0]!;
+    return { sections, ...first };
+  }
+
+  const omittedOnlyPages = $derived.by((): DetailPage[] => displayGroups.flatMap((group) => {
+    if (group.areas.length > 0 || group.omittedAreaCount <= 0) return [];
+    const section = { intensity: group.intensity, rank: group.rank, prefGroups: [] };
+    return [{ sections: [section], ...section }];
+  }));
+
+  // 実ブラウザでは候補 range を隠し棚へ同じ幅・同じ固定本文高で強制描画し、自然高と
+  // 利用可能高を比較する。jsdom には layout engine が無いため、そこだけは従来の純関数を
+  // fallback として残す（本番 partition では使われない）。
+  let probeWidth = $state(0);
+  let probeHeight = $state(0);
+  let probeMeasurements = $state<Record<string, ProbeMeasurement>>({});
+  let pendingProbeBox: { width: number; height: number } | null = null;
+  const pendingProbeMeasurements = new Map<string, ProbeMeasurement>();
+  const quakeProbeFingerprint = $derived(pageContentFingerprint(
+    { compact },
+    quakeAreaEntries.map(({ identity, fingerprint }) => ({ identity, fingerprint })),
+  ));
+  const quakeProbeGeneration = $derived(`${quakeProbeFingerprint}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
+  function quakeProbeId(range: Pick<PageRange, "start" | "end">): string {
+    return `${quakeProbeGeneration}:${range.start}:${range.end}`;
+  }
+  const quakePartitionProbe: PartitionProbe = (_key, _placement, range) => {
+    const measured = probeMeasurements[quakeProbeId(range)];
+    if (measured == null) return null;
+    return measured.contentHeight <= measured.availableHeight + 1 ? 0 : 2;
+  };
+  const quakePartition = $derived(sequentialPartitionRanges(
+    "quake",
+    compact ? "side" : "center",
+    quakeAreaEntries.length,
+    1,
+    quakePartitionProbe,
+    () => [],
+  ));
+  const pages = $derived.by(() => {
+    if (typeof ResizeObserver === "undefined") {
+      return [
+        ...paginateAreas(displayGroups, PAGE_CITY_BUDGET, { allowCrossIntensity: true }),
+        ...omittedOnlyPages,
+      ];
+    }
+    return quakePartition.ranges.flatMap((range) => {
+      const page = detailPageForRange(range);
+      return page == null ? [] : [page];
+    });
+  });
+  const pageRanges = $derived(typeof ResizeObserver === "undefined" ? [] : quakePartition.ranges);
+  const quakePartitionPending = $derived(quakePartition.pending.length > 0);
+  const quakeProbePages = $derived((typeof ResizeObserver === "undefined" ? [] : quakePartition.pending).flatMap((range) => {
+    const page = detailPageForRange(range);
+    return page == null ? [] : [{ id: quakeProbeId(range), range, page }];
+  }));
+  const paging = $derived(pages.length > 1);
+
+  function commitProbeMeasurement(id: string, measurement: ProbeMeasurement): void {
+    if (layoutSettling) {
+      pendingProbeMeasurements.set(id, measurement);
+      return;
+    }
+    const previous = probeMeasurements[id];
+    if (previous?.contentHeight === measurement.contentHeight
+      && previous.availableHeight === measurement.availableHeight) return;
+    probeMeasurements = { ...probeMeasurements, [id]: measurement };
+  }
+  function measurePartitionProbe(node: HTMLElement, id: string) {
+    let currentId = id;
+    const measure = (): void => {
+      const measurement = {
+        contentHeight: node.scrollHeight,
+        availableHeight: node.clientHeight,
+      };
+      if (measurement.contentHeight > 0 && measurement.availableHeight > 0) {
+        commitProbeMeasurement(currentId, measurement);
+      }
+    };
+    if (typeof ResizeObserver === "undefined") return { update(next: string) { currentId = next; } };
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    queueMicrotask(measure);
+    return {
+      update(next: string) { currentId = next; measure(); },
+      destroy() { observer.disconnect(); },
+    };
+  }
+  function observeProbeBox(node: HTMLElement) {
+    if (typeof ResizeObserver === "undefined") return {};
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? node.getBoundingClientRect().width;
+      const height = entries[0]?.contentRect.height ?? node.getBoundingClientRect().height;
+      if (!(width > 0) || !(height > 0)) return;
+      if (layoutSettling) pendingProbeBox = { width, height };
+      else {
+        probeWidth = width;
+        probeHeight = height;
+      }
+    });
+    observer.observe(node);
+    return { destroy() { observer.disconnect(); } };
   }
   $effect(() => {
     if (layoutSettling) return;
-    if (pendingArea != null) {
-      pageBodyAreaHeight = pendingArea;
-      pendingArea = null;
+    if (pendingProbeBox != null) {
+      probeWidth = pendingProbeBox.width;
+      probeHeight = pendingProbeBox.height;
+      pendingProbeBox = null;
     }
-    if (pendingLine != null) {
-      pageBodyLineHeight = pendingLine;
-      pendingLine = null;
+    if (pendingProbeMeasurements.size > 0) {
+      probeMeasurements = { ...probeMeasurements, ...Object.fromEntries(pendingProbeMeasurements) };
+      pendingProbeMeasurements.clear();
     }
   });
-
-  // 詳細ページ配列 (県単位、paging=false のときは空)。旧「1/4」(グループ内番号) の文字表示は
-  // T8① でドットインジケータ (PageDots) に撤去済み。ドット列のグループ境界 gap 機能は
-  // preview 目視レビューで「間隔が不揃いに見える」と不評だったため T8⑤ で撤去し、pageGroupMeta
-  // ベースの境界計算も不要になった (削除済み)
-  const pages = $derived(paging ? paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true }) : []);
 
   // 別イベント (eventId 変化) か、同一イベントの続報で severityTier (地震は最大震度 rank) が
   // 「上昇」したときにページを先頭に戻す。下降・同値ではリセットしない (spec §3、Codex R
@@ -125,10 +286,72 @@
     prevMaxIntRank = rank;
   });
 
+  const attention = new PageAttentionState();
+  function intensityFingerprint(intensity: DisplayLargeQuakeInputV1["intensityGroups"][number]["intensitySemantic"] | undefined) {
+    return {
+      raw: intensity?.raw ?? null, presence: intensity?.presence ?? null, label: intensity?.label ?? null,
+      condition: intensity?.condition ?? null, description: intensity?.description ?? null,
+      lowerBound: intensity?.lowerBound ?? null, upperBound: intensity?.upperBound ?? null,
+      rawLowerBound: intensity?.rawLowerBound ?? null, rawUpperBound: intensity?.rawUpperBound ?? null,
+      badge: intensity?.badge ?? null, color: intensity?.color ?? null, render: intensity?.render ?? null,
+      safetyLowerRank: intensity?.safetyLowerRank ?? null, safetyUpperRank: intensity?.safetyUpperRank ?? null,
+      safetyRank: intensity?.safetyRank ?? null, colorRank: intensity?.colorRank ?? null,
+    };
+  }
+  const attentionPages = $derived(pages.map((page, index) => {
+    const entries = page.sections.flatMap((section) => {
+      const cities = section.prefGroups.flatMap((pref) => pref.cities.map((city, cityIndex) => ({
+        identity: `${section.intensity}|${section.rank}|${pref.pref ?? "その他"}|${city}|${cityIndex}`,
+        fingerprint: itemContentFingerprint({
+          intensity: section.intensity, rank: section.rank,
+          intensitySemantic: intensityFingerprint(displayGroups.find((group) => group.intensity === section.intensity && group.rank === section.rank)?.intensitySemantic),
+          prefecture: pref.pref, city,
+        }),
+      })));
+      const omitted = omittedAreaCount(section.intensity, section.rank);
+      if (omitted > 0 && isLastSectionOnSequence(index, section.intensity, section.rank)) {
+        cities.push({
+          identity: `${section.intensity}|${section.rank}|omitted`,
+          fingerprint: itemContentFingerprint({
+            intensity: section.intensity,
+            rank: section.rank,
+            omittedAreaCount: omitted,
+          }),
+        });
+      }
+      return cities;
+    });
+    const first = entries[0]?.identity ?? `empty:${index}`;
+    const last = entries.at(-1)?.identity ?? `empty:${index}`;
+    return {
+      identity: `emergency-quake-regions:${first}:${last}`,
+      fingerprint: pageContentFingerprint({ title: "観測震度 詳細", range: index }, entries),
+    };
+  }));
+  $effect(() => {
+    const generation = {
+      episodeKey: `quake:${identityKey}`,
+      severityRank: input.maxIntRank ?? 0,
+      pages: attentionPages,
+      preserveStablePages: true,
+      partitionPending: quakePartitionPending,
+    };
+    untrack(() => attention.sync(generation));
+  });
   const cycler = createPageCycler({
     pageCount: () => pages.length,
     resetKey: () => resetSeq,
+    reducedMotion: () => reducedMotion,
+    pageIdentity: () => attentionPages[cycler.index]?.identity ?? null,
+    pageFingerprint: () => attentionPages[cycler.index]?.fingerprint ?? "",
+    onHoldComplete: (_index, identity, fingerprint) => {
+      const active = attentionPages[cycler.index];
+      if (identity != null && active?.identity === identity && active.fingerprint === fingerprint) {
+        attention.markHoldComplete(identity);
+      }
+    },
   });
+  const attentionView = $derived(attention.viewModel(cycler.index));
   // unmount (main-stack のモード切替・panel 差替え) で $effect.root のタイマー/matchMedia
   // リスナーがリークしないよう、コンポーネント破棄時に必ず destroy() する (Codex R レビュー M1)
   onDestroy(() => cycler.destroy());
@@ -145,7 +368,42 @@
     const group = displayGroups.find((item) => item.intensity === intensity && item.rank === rank);
     return intensityVisual(group?.intensitySemantic, formatIntShort(intensity), rank);
   }
+  function omittedAreaCount(intensity: string, rank: number): number {
+    return displayGroups.find((group) => group.intensity === intensity && group.rank === rank)?.omittedAreaCount ?? 0;
+  }
+  function isLastSectionOnSequence(pageIndex: number, intensity: string, rank: number): boolean {
+    return !(pages.slice(pageIndex + 1).some((page) =>
+      page.sections.some((section) => section.intensity === intensity && section.rank === rank)
+    ));
+  }
+  function isLastSectionInRange(range: PageRange, intensity: string, rank: number): boolean {
+    return !quakeAreaEntries.slice(range.end).some((entry) => {
+      const group = displayGroups[entry.groupIndex];
+      return group?.intensity === intensity && group.rank === rank;
+    });
+  }
 </script>
+
+{#snippet detailPageBody(page: DetailPage, pageIndex: number, measurementRange: PageRange | null = null)}
+  {#each page.sections as section (`${section.intensity}:${section.rank}`)}
+    {@const visual = groupVisual(section.intensity, section.rank)}
+    <div class="page-section">
+      <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
+      {#each section.prefGroups as pg (`${pg.pref ?? "その他"}:${pg.continuation}`)}
+        <div class="pref-group">
+          <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
+          {#if pg.cities.length > 0}<span class="cities">{#each pg.cities as city, cityIndex (`${city}:${cityIndex}`)}<span class="city-name">{city}</span>{/each}</span>{/if}
+        </div>
+      {/each}
+      {#if (measurementRange == null
+        ? isLastSectionOnSequence(pageIndex, section.intensity, section.rank)
+        : isLastSectionInRange(measurementRange, section.intensity, section.rank))
+        && omittedAreaCount(section.intensity, section.rank) > 0}
+        <span class="omitted-areas">ほか {omittedAreaCount(section.intensity, section.rank)} 地域</span>
+      {/if}
+    </div>
+  {/each}
+{/snippet}
 
 <div class="quake-panel role-quakeMajor" class:compact>
   <div class="heading" class:critical={(maxSeverityRank ?? 0) >= 7}>
@@ -226,9 +484,8 @@
         </div>
       {/if}
       <div class="detail-text">
-        {#if paging}
-          {#if currentPage != null}
-            <div class="tile tile-page-detail">
+        {#if currentPage != null}
+            <div class="tile tile-page-detail" use:observeProbeBox>
               {#key cycler.index}
                 <div
                   class="page-fade"
@@ -239,56 +496,37 @@
                 >
                   <div class="page-header">
                     <span class="page-title">観測震度 詳細</span>
-                    <PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />
+                    {#if paging}<PageDots total={cycler.total} current={cycler.index} onJump={(i) => cycler.jumpTo(i)} />{/if}
+                    {#if attentionView.text !== ""}<span class="page-attention" data-page-attention={attentionView.text}>{attentionView.text}</span>{/if}
                   </div>
-                  <div class="page-body" use:measureHeight={applyPageBodyArea}>
-                    <span class="line-ruler" aria-hidden="true" use:measureHeight={applyPageBodyLine}
-                      >測</span
-                    >
-                    {#each currentPage.sections as section (section.intensity)}
-                      {@const visual = groupVisual(section.intensity, section.rank)}
-                      <div class="page-section">
-                        <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
-                        {#each section.prefGroups as pg (pg.pref ?? "その他")}
-                          <div class="pref-group">
-                            <span class="pref-name">{pg.pref ?? "その他"}{pg.continuation ? "（続き）" : ""}</span>
-                            {#if pg.cities.length > 0}<span class="cities">{#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}</span>{/if}
-                          </div>
-                        {/each}
-                      </div>
-                    {/each}
+                  <div class="page-body">
+                    {@render detailPageBody(currentPage, cycler.index, pageRanges[cycler.index] ?? null)}
                   </div>
                 </div>
               {/key}
-            </div>
-          {/if}
-        {:else if displayGroups.length > 0}
-          <div class="tile tile-groups">
-            <div class="groups">
-              {#each displayGroups as g (g.intensity)}
-                {@const visual = intensityVisual(g.intensitySemantic, formatIntShort(g.intensity), g.rank)}
-                <div class="group">
-                  <span class="int-chip int-r{visual.colorRank ?? 0}" class:special-unknown={visual.colorClass === "quake-map-unknown"} class:special-empty={visual.colorClass === "quake-map-neutral"} title={visual.tooltip ?? undefined} aria-label={visual.ariaLabel ?? undefined}>{visual.label ?? ""}{#if visual.badge != null}<b class="semantic-badge">{visual.badge}</b>{/if}</span>
-                  <div class="group-pref-groups">
-                    <!-- T7 回帰修正: 静的リストは spec §2-b の例 (「震度6強 宮崎市 日南市」) どおり
-                         県プレフィックス無しの area (pref:null) はラベル無しで市名だけ出す。
-                         ページング側 (currentPage.prefGroups、上の分岐) は「その他」ラベルを維持する
-                         (原則3のラベル明示はページ側にだけ意味がある、レビュー指示) -->
-                    {#each groupByPrefecture(g.areas) as pg (pg.pref ?? "その他")}
-                      <div class="pref-group">
-                        {#if pg.pref != null}<span class="pref-name">{pg.pref}</span>{/if}
-                        {#if pg.cities.length > 0}
-                          <span class="cities">
-                            {#each pg.cities as city (city)}<span class="city-name">{city}</span>{/each}
-                          </span>
-                        {/if}
-                      </div>
-                    {/each}
-                    {#if g.omittedAreaCount > 0}<span class="group-omitted">ほか{g.omittedAreaCount}地域</span>{/if}
+              <div class="partition-probe-shelf" aria-hidden="true" inert data-partition-probe-shelf>
+                {#each quakeProbePages as probe (probe.id)}
+                  <div class="page-fade partition-probe-page">
+                    <div class="page-header">
+                      <span class="page-title">観測震度 詳細</span>
+                      {#if pages.length > 1}<span class="partition-probe-dots">{#each pages as _, index (index)}<i class:current={index === 0}></i>{/each}</span>{/if}
+                      <span class="page-attention">{pages.length > 1 ? `1/${pages.length}・未表示${pages.length}` : "未表示1"}</span>
+                    </div>
+                    <div
+                      class="page-body partition-probe-body"
+                      data-partition-probe-range={`${probe.range.start}:${probe.range.end}`}
+                      use:measurePartitionProbe={probe.id}
+                    >
+                      {@render detailPageBody(probe.page, 0, probe.range)}
+                    </div>
                   </div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
+        {:else if quakePartition.infeasible}
+          <div class="tile tile-page-detail partition-infeasible">
+            <div class="page-header"><span class="page-title">観測震度 詳細</span></div>
+            <div class="partition-infeasible-message">表示領域不足・{quakeAreaEntries.length}地域</div>
           </div>
         {/if}
       </div>
@@ -412,11 +650,6 @@
   .stat-value.lg {
     color: var(--c-orange);
   }
-  .tile-groups {
-    flex: 1;
-    min-height: 0;
-    padding: var(--space-4) var(--space-5);
-  }
   .quake-detail {
     flex: 1;
     min-height: 0;
@@ -437,17 +670,6 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-  }
-  .groups {
-    height: 100%;
-    overflow-y: auto;
-    scrollbar-width: none;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-  .groups::-webkit-scrollbar {
-    display: none;
   }
   /* 詳細ページング (spec §3): 各ページに見出し・ページ位置を固定枠で常時表示する
      (原則3「任意の瞬間が単独で読める」)。ページ切替は旧ページ・新ページを重ねたクロスフェード
@@ -489,6 +711,11 @@
     font-weight: var(--type-body-weight-emphasized);
     color: var(--role-muted);
   }
+  .page-attention {
+    color: var(--role-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
   .page-body {
     position: relative;
     flex: 1;
@@ -499,13 +726,44 @@
     gap: var(--space-2);
     font-size: calc(var(--type-title-l-size) * var(--panel-scale, 1));
   }
-  /* 実測用の隠しルーラー (T5c)。.page-body と同じ font-size を継承させ、1 行ぶんの実高さを
-     ResizeObserver で読む (measureHeight action)。position:absolute で flex レイアウトから
-     外し、表示にも読み上げにも影響させない */
-  .line-ruler {
+  /* sequentialPartitionRanges が要求した候補だけを、live と同じ固定本文幅・高さで強制描画する。
+     absolute + visibility:hidden で通常レイアウトと視覚から外し、aria-hidden/inert は markup 側で持つ。 */
+  .partition-probe-shelf,
+  .partition-probe-page {
     position: absolute;
+    inset: 0;
+  }
+  .partition-probe-shelf {
     visibility: hidden;
     pointer-events: none;
+    z-index: -1;
+  }
+  .partition-probe-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+  }
+  .partition-probe-dots {
+    display: flex;
+    align-items: center;
+    align-self: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .partition-probe-dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .partition-probe-dots i.current {
+    width: 8px;
+    height: 8px;
+  }
+  .partition-infeasible-message {
+    color: var(--role-muted);
+    font-size: calc(var(--type-title-l-size) * var(--panel-scale, 1));
   }
   .group {
     display: flex;
@@ -633,8 +891,6 @@
   }
   .quake-panel.compact .tile-groups {
     padding: var(--space-1) var(--space-2);
-    /* 静的リスト表示 (自動スクロールは撤去、原則5「動くものは読めたら補足まで」)。
-       収まらない分はネイティブスクロール (.groups の overflow-y:auto、非アニメ) に委ねる */
     overflow: hidden;
   }
   .quake-panel.compact .groups {
@@ -651,6 +907,10 @@
   /* 実効 padding は inset:0 の .page-fade 側が持つ (containing block = padding box のため祖先
      padding は absolute 子に効かない)。compact の縮小 padding も .page-fade へ追従させる */
   .quake-panel.compact .page-fade {
+    padding: var(--space-1) var(--space-2);
+  }
+  .quake-panel.compact .partition-probe-page {
+    gap: var(--space-1);
     padding: var(--space-1) var(--space-2);
   }
   .quake-panel.compact .page-header {

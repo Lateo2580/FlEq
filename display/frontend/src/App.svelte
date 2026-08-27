@@ -294,7 +294,7 @@
         in:fade={{ duration: calmDur }}
         out:fade={{ duration: calmDur }}
       >
-        <QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} />
+        <QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} {reducedMotion} />
       </div>
     {:else}
       <div
@@ -304,7 +304,7 @@
         in:emergencyEnter={{ duration: enterDur }}
         out:fade={{ duration: calmDur }}
       >
-        <EmergencyScreen panels={emergencyPanels} />
+      <EmergencyScreen panels={emergencyPanels} {reducedMotion} />
       </div>
     {/if}
   </div>

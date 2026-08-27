@@ -293,8 +293,8 @@ describe("QuakePanel map integration", () => {
     vi.stubGlobal("fetch", vi.fn(async () => response(asset())));
     const { container } = render(QuakePanel, { input: panelInput(), mapEvent: mapEvent() });
     await waitFor(() => expect(container.querySelector(".quake-map-svg")).toBeTruthy());
-    expect(container.querySelector(".tile-groups .pref-name")?.textContent).toBe("静岡県");
-    expect(container.querySelector(".tile-groups .city-name")?.textContent).toBe("東部");
+    expect(container.querySelector(".tile-page-detail .pref-name")?.textContent).toBe("静岡県");
+    expect(container.querySelector(".tile-page-detail .city-name")?.textContent).toBe("東部");
     expect(container.querySelector(".hypocenter")?.textContent).toBe("静岡県東部");
     expect(container.querySelector(".tsunami-mark")?.textContent).toBe("津波");
   });
@@ -334,7 +334,7 @@ describe("QuakePanel map integration", () => {
     }), mapEvent: null });
     expect(container.querySelector(".max-int")).toBeNull();
     expect(container.querySelector(".heading")?.classList.contains("critical")).toBe(false);
-    expect(container.querySelectorAll(".tile-groups .group")).toHaveLength(1);
+    expect(container.querySelectorAll(".tile-page-detail .page-section")).toHaveLength(1);
     expect(container.textContent).not.toContain("地域欠落");
     expect(container.textContent).not.toContain("最大震度7");
   });
@@ -352,8 +352,8 @@ describe("QuakePanel map integration", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(container.querySelector(".heading-text")?.textContent).toBe("地震情報");
     expect(container.querySelector(".hypocenter")?.textContent).toBe("静岡県東部");
-    expect(container.querySelector(".tile-groups .pref-name")?.textContent).toBe("静岡県");
-    expect(container.querySelector(".tile-groups .city-name")?.textContent).toBe("東部");
+    expect(container.querySelector(".tile-page-detail .pref-name")?.textContent).toBe("静岡県");
+    expect(container.querySelector(".tile-page-detail .city-name")?.textContent).toBe("東部");
   });
 
   it("地図併設中も既存文字一覧のページングを継続する", async () => {
@@ -389,8 +389,8 @@ describe("QuakePanel map integration", () => {
       compact: true,
     });
     expect(container.querySelector(".quake-map")).toBeNull();
-    expect(container.querySelector(".tile-groups .pref-name")?.textContent).toBe("静岡県");
-    expect(container.querySelector(".tile-groups .city-name")?.textContent).toBe("東部");
+    expect(container.querySelector(".tile-page-detail .pref-name")?.textContent).toBe("静岡県");
+    expect(container.querySelector(".tile-page-detail .city-name")?.textContent).toBe("東部");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -399,8 +399,8 @@ describe("QuakePanel map integration", () => {
     expect(container.querySelector(".quake-map")).toBeNull();
     expect(container.querySelector(".heading-text")?.textContent).toBe("地震情報");
     expect(container.querySelector(".max-int")?.textContent).toContain("最大震度5-");
-    expect(container.querySelector(".tile-groups .pref-name")?.textContent).toBe("静岡県");
-    expect(container.querySelector(".tile-groups .city-name")?.textContent).toBe("東部");
+    expect(container.querySelector(".tile-page-detail .pref-name")?.textContent).toBe("静岡県");
+    expect(container.querySelector(".tile-page-detail .city-name")?.textContent).toBe("東部");
   });
 });
 

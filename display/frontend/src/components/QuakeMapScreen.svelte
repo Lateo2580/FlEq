@@ -21,9 +21,11 @@
   let {
     event,
     dim = false,
+    reducedMotion = false,
   }: {
     event: DisplayQuakeMapEventV1;
     dim?: boolean;
+    reducedMotion?: boolean;
   } = $props();
 
   const displayGroups = $derived(event.intensityGroups.filter((group) =>
@@ -40,6 +42,7 @@
   const cycler = createPageCycler({
     pageCount: () => pages.length,
     resetKey: () => resetKey,
+    reducedMotion: () => reducedMotion,
   });
   const currentPage = $derived(pages[cycler.index]);
   const pageFadeMs = $derived(cycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS);

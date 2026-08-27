@@ -1371,7 +1371,7 @@ describe("EmergencyScreen", () => {
       const p1 = panel("quake:1", quakeInput());
       const p2 = panel("eew:1", eewInput());
       const p3 = panel("tsunami:1", tsunamiInput());
-      const { container, rerender } = render(EmergencyScreen, { panels: [p1, p2] });
+      const { container, rerender } = render(EmergencyScreen, { panels: [p1, p2], reducedMotion: false });
       flushSync();
       const settling = (): string | null => container.querySelector(".panels")?.getAttribute("data-settling") ?? null;
 
@@ -1380,10 +1380,9 @@ describe("EmergencyScreen", () => {
       flushSync();
       expect(settling()).toBe("true");
 
-      // fallback を待たず (t=50) に reduced-motion をオン → grid sig 不変でも即時解除
+      // App から reduced-motion が注入されると、grid sig 不変でも fallback を待たず即時解除する。
       vi.advanceTimersByTime(50);
-      rmMatches = true;
-      for (const cb of listeners) cb({ matches: true } as MediaQueryListEvent);
+      await rerender({ panels: [p1, p2, p3], reducedMotion: true });
       flushSync();
       expect(settling()).toBe("false");
     } finally {
@@ -1541,6 +1540,21 @@ describe("EmergencyScreen", () => {
 
   // 詳細ページング (T5a: spec §3/§4)
   describe("QuakePanel: 詳細ページング", () => {
+    it("D1-A+D2-A は Quake の保持満了で未表示数を一つだけ減らす", () => {
+      vi.useFakeTimers();
+      try {
+        const areas = Array.from({ length: 60 }, (_, i) => `高知県市町村${i}`);
+        const { container } = render(EmergencyScreen, {
+          panels: [panel("quake:attention", quakeInput({ intensityGroups: [{ intensity: "6強", rank: 8, areas, omittedAreaCount: 0 }] }))],
+        });
+        expect(container.querySelector("[data-page-attention]")?.textContent).toBe("1/4・未表示4");
+        vi.advanceTimersByTime(PAGE_HOLD_MS);
+        settleFade();
+        expect(container.querySelector("[data-page-attention]")?.textContent).toBe("2/4・未表示3");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
     it("本文 budget 20 満杯でも最初の section 見出しを含めて 2 ページに割る", () => {
       const areas = Array.from({ length: 20 }, (_, i) => `高知県市町村${i}`);
       const { container } = render(EmergencyScreen, {
@@ -1557,7 +1571,7 @@ describe("EmergencyScreen", () => {
       expectCurrentDot(container.querySelector(".tile-page-detail"), 1, 2);
     });
 
-    it("静的リスト (totalEffective<=30) では .tile-groups の全件を静的表示し、ページャは出さない", () => {
+    it("D1-A では少数地域も実測 partition の単一 page へ置き、位置表示を省略する", () => {
       const { container } = render(EmergencyScreen, {
         panels: [
           panel(
@@ -1571,13 +1585,91 @@ describe("EmergencyScreen", () => {
           ),
         ],
       });
-      expect(container.querySelector(".tile-groups")).toBeTruthy();
-      expect(container.querySelector(".tile-page-detail")).toBeFalsy();
+      expect(container.querySelector(".tile-groups")).toBeFalsy();
+      expect(container.querySelector(".tile-page-detail")).toBeTruthy();
+      expect(container.querySelector(".page-attention")?.textContent).toBe("未表示1");
     });
 
-    // T7 回帰修正 (spec §2-b の静的リスト例「震度6強 宮崎市 日南市」どおり): 静的リストは
-    // pref:null バケツに「その他」ラベルを出さず市名だけにする (ページング側は維持、別テスト参照)
-    it("静的リストでは県プレフィックス無しの area がラベル無しで市名だけ render される", () => {
+    it("area が空でも縮退した ほか N 地域 を page に残し、件数訂正で再び未表示にする", async () => {
+      vi.useFakeTimers();
+      try {
+        const { container, rerender } = render(EmergencyScreen, {
+          panels: [panel("quake:omitted-only", quakeInput({
+            intensityGroups: [{ intensity: "6強", rank: 8, areas: [], omittedAreaCount: 9 }],
+          }))],
+        });
+        expect(container.querySelector(".omitted-areas")?.textContent).toBe("ほか 9 地域");
+        expect(container.querySelector("[data-page-attention]")?.textContent).toBe("未表示1");
+
+        vi.advanceTimersByTime(PAGE_HOLD_MS);
+        settleFade();
+        expect(container.querySelector("[data-page-attention]")).toBeNull();
+
+        await rerender({
+          panels: [panel("quake:omitted-only", quakeInput({
+            intensityGroups: [{ intensity: "6強", rank: 8, areas: [], omittedAreaCount: 10 }],
+          }))],
+        });
+        flushSync();
+        expect(container.querySelector(".omitted-areas")?.textContent).toBe("ほか 10 地域");
+        expect(container.querySelector("[data-page-attention]")?.textContent).toBe("未表示1");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("実測 probe は極端に長い市町村名を同じ page へ過積載しない", async () => {
+      const originalResizeObserver = globalThis.ResizeObserver;
+      const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+      const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+      class ProbeResizeObserver {
+        constructor(private readonly callback: ResizeObserverCallback) {}
+        observe(target: Element): void {
+          this.callback([{ contentRect: { width: 320, height: 100 }, target } as ResizeObserverEntry], this as unknown as ResizeObserver);
+        }
+        disconnect(): void {}
+        unobserve(): void {}
+      }
+      vi.stubGlobal("ResizeObserver", ProbeResizeObserver);
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+        configurable: true,
+        get() { return this.classList.contains("partition-probe-body") ? 100 : 0; },
+      });
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+        configurable: true,
+        get() {
+          if (!this.classList.contains("partition-probe-body")) return 0;
+          return this.querySelectorAll(".city-name").length * 70;
+        },
+      });
+      let unmount: (() => void) | undefined;
+      try {
+        const long = "極端に長い市町村名".repeat(18);
+        const rendered = render(EmergencyScreen, {
+          panels: [panel("quake:probe", quakeInput({
+            intensityGroups: [{
+              intensity: "6強",
+              rank: 8,
+              areas: [`高知県${long}甲`, `高知県${long}乙`],
+              omittedAreaCount: 0,
+            }],
+          }))],
+        });
+        unmount = rendered.unmount;
+        await vi.waitFor(() => expectCurrentDot(rendered.container.querySelector(".tile-page-detail"), 1, 2));
+        expect(rendered.container.querySelectorAll(".page-fade:not(.partition-probe-page) .city-name")).toHaveLength(1);
+        expect(rendered.container.querySelector("[data-partition-probe-shelf]")?.getAttribute("aria-hidden")).toBe("true");
+      } finally {
+        unmount?.();
+        if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+        else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+        if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+        else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+        vi.stubGlobal("ResizeObserver", originalResizeObserver);
+      }
+    });
+
+    it("D1-A の単一 page でも県プレフィックス無しの area は明示ラベル付きで render する", () => {
       const { container } = render(EmergencyScreen, {
         panels: [
           panel(
@@ -1588,8 +1680,8 @@ describe("EmergencyScreen", () => {
           ),
         ],
       });
-      const group = container.querySelector(".tile-groups .group");
-      expect(group?.querySelector(".pref-name")).toBeNull();
+      const group = container.querySelector(".tile-page-detail .page-section");
+      expect(group?.querySelector(".pref-name")?.textContent).toBe("その他");
       expect(
         Array.from(group?.querySelectorAll(".city-name") ?? []).map((el) => el.textContent),
       ).toEqual(["宮崎市", "日南市"]);
@@ -1747,22 +1839,28 @@ describe("EmergencyScreen", () => {
       expect(src).toContain("onDestroy(() => cycler.destroy())");
     });
 
-    it("TsunamiPanel は onDestroy で pageCycler.destroy() と obsPageCycler.destroy() を呼ぶ", () => {
+    it("TsunamiPanel は単一 pageCycler を onDestroy で破棄する", () => {
       const src = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
       expect(src).toContain('import { onDestroy } from "svelte"');
       expect(src).toContain("onDestroy(() => pageCycler.destroy())");
-      expect(src).toContain("onDestroy(() => obsPageCycler.destroy())");
     });
   });
 
   // T5c: ページ行容量の画面高さ駆動化 + 切替フェード (spec §2-c)。jsdom は ResizeObserver 未実装
   // かつ layout 未解決のため実測 px の挙動 (T7 preview 実測対象) はソース文字列で配線を検査する
   describe("QuakePanel T5c 配線 (画面高さ駆動 + フェード)", () => {
-    it("ページ本文は measureHeight (面積+代表行) で実測し、cityBudgetFromArea でバジェットを導出する", () => {
+    it("ページ本文は sequentialPartitionRanges と隠し実測棚で候補 range の自然高を判定する", () => {
       const source = readFileSync(join(__dirname, "..", "QuakePanel.svelte"), "utf-8");
-      expect(source).toContain("cityBudgetFromArea(pageBodyAreaHeight, pageBodyLineHeight, PAGE_CITY_BUDGET)");
-      expect(source).toContain("use:measureHeight={applyPageBodyArea}");
-      expect(source).toContain("paginateAreas(displayGroups, cityBudget, { allowCrossIntensity: true })");
+      expect(source).toContain("sequentialPartitionRanges(");
+      expect(source).toContain("data-partition-probe-shelf");
+      expect(source).toContain("contentHeight: node.scrollHeight");
+      expect(source).toContain("availableHeight: node.clientHeight");
+      expect(source).toContain("quakeProbeFingerprint");
+      expect(source).toContain("probeWidth");
+      expect(source).toContain("probeHeight");
+      expect(source).toContain(":h${Math.round(probeHeight * 100) / 100}");
+      expect(source).toContain("use:observeProbeBox");
+      expect(source).not.toContain("cityBudgetFromArea(");
     });
 
     it("ページ切替は {#key cycler.index} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {

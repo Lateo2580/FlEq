@@ -21,7 +21,7 @@
   import NumericSemanticLegend from "./NumericSemanticLegend.svelte";
 
   // compact: main-stack の非 main スロットで regions を密度 tier に応じて縮小表示する
-  let { input, compact = false, settling = false, emphasized = false }: { input: DisplayEewInputV1; compact?: boolean; settling?: boolean; emphasized?: boolean } = $props();
+  let { input, compact = false, settling = false, reducedMotion = false, emphasized = false }: { input: DisplayEewInputV1; compact?: boolean; settling?: boolean; reducedMotion?: boolean; emphasized?: boolean } = $props();
 
   const role = $derived(input.isWarning ? "eewWarning" : "eewForecast");
   const displayRegions = $derived(input.regions.filter(eewRegionRenderable));
@@ -99,7 +99,7 @@
   const showStaticList = $derived(displayRegions.length > 0 && displayRegions.length <= EEW_STATIC_LIST_MAX);
   const showRegionPages = $derived(displayRegions.length > EEW_STATIC_LIST_MAX && regionPages.length > 0);
   const regionResetKey = $derived(`${input.eventId ?? ""}:${input.serial ?? ""}:${displayRegions.length}`);
-  const regionCycler = createPageCycler({ pageCount: () => regionPages.length, resetKey: () => regionResetKey });
+  const regionCycler = createPageCycler({ pageCount: () => regionPages.length, resetKey: () => regionResetKey, reducedMotion: () => reducedMotion });
   onDestroy(() => regionCycler.destroy());
   const currentRegionPage = $derived(regionPages[regionCycler.index] ?? regionPages[0] ?? null);
   function measureRegionArea(height: number): void {

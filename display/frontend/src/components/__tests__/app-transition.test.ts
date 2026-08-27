@@ -127,7 +127,8 @@ describe("App クロスフェード中の入力所有権 (指摘1 → レビュ�
   it("quakeMap は専用画面層を使い、時計・待機 stack・緊急 reveal と競合しない", () => {
     expect(src).toContain('import QuakeMapScreen from "./components/QuakeMapScreen.svelte"');
     expect(src).toContain('data-kind="quakeMap"');
-    expect(src).toContain("<QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} />");
+    // App が唯一の matchMedia 所有者なので、地震図 pager にも注入する。
+    expect(src).toContain("<QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} {reducedMotion} />");
     expect(src).toMatch(/mode === "quakeMap"[\s\S]*?in:fade=\{\{ duration: calmDur \}\}/);
     expect(src).not.toMatch(/data-kind="quakeMap"[\s\S]{0,180}data-motion-reveal/);
     // clock 値を nowMs に束ね、mode/panel/ticker へ同じ時刻を渡す契約へ更新した。

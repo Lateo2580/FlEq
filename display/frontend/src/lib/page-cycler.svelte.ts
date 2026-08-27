@@ -123,20 +123,10 @@ export function createPageCycler(opts: {
       };
     });
 
-    // TODO(attention-visibility unit 3): App から reducedMotion を全 pager へ渡せた時点で
-    // fallback を削除する。移行中は既存 panel の挙動を壊さないため、未注入時だけ従来の
-    // matchMedia listener を使う。注入済み pager は listener を作らない。
+    // reduced motion の listener は App だけが所有する。pager は注入された reactive
+    // 値を読むだけで、component mount/unmount ごとに MediaQueryList を作らない。
     $effect(() => {
-      if (reducedMotionSource != null) {
-        reducedMotion = reducedMotionSource();
-        return;
-      }
-      if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-      reducedMotion = mq.matches;
-      const onChange = (event: MediaQueryListEvent): void => { reducedMotion = event.matches; };
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
+      reducedMotion = reducedMotionSource?.() ?? false;
     });
   });
   // 旧: ここで flushSync() して初期 total/タイマーをコンストラクタ内で確定させていた。しかし

@@ -22,6 +22,10 @@ export interface AttentionGeneration {
   episodeKey: string;
   severityRank: number;
   pages: readonly AttentionPage[];
+  /** 実測 partition の再収束では、同じ本文 fingerprint の既読 page を保持する。 */
+  preserveStablePages?: boolean;
+  /** provisional page が残る間は、消えた既読 fingerprint も最終 partition まで保持する。 */
+  partitionPending?: boolean;
 }
 
 export interface PageAttentionViewModel {
@@ -101,10 +105,17 @@ export class PageAttentionState {
   // SvelteMap に置くことで、page 削除など generation 自体の更新も viewModel の読取りを invalidate する。
   private readonly generation = new SvelteMap<"current", AttentionGeneration>();
   private readonly unseenIdentities = new SvelteSet<string>();
+  private readonly stableReadFingerprints = new Map<string, true>();
 
   private replaceUnseen(identities: Iterable<string>): void {
     this.unseenIdentities.clear();
     for (const identity of identities) this.unseenIdentities.add(identity);
+  }
+
+  private rememberReadPages(pages: readonly AttentionPage[]): void {
+    for (const page of pages) {
+      if (!this.unseenIdentities.has(page.identity)) this.stableReadFingerprints.set(page.fingerprint, true);
+    }
   }
 
   sync(next: AttentionGeneration): void {
@@ -114,9 +125,32 @@ export class PageAttentionState {
     const severityEscalated = previous != null && next.severityRank > previous.severityRank;
     const identityOrderReplaced = previous != null && !sameIdentityOrder(previous.pages, nextPages);
 
-    if (episodeChanged || severityEscalated || identityOrderReplaced) {
+    if (episodeChanged || severityEscalated) {
+      this.stableReadFingerprints.clear();
+      this.replaceUnseen(nextPages.map((page) => page.identity));
+    } else if (next.preserveStablePages) {
+      // provisional range から実測 range へ収束すると page identity/order が一時的に変わり得る。
+      // provisional で一時的に消えた既読 page も、最終 range に再出現するまで fingerprint で覚える。
+      this.rememberReadPages(previous.pages);
+      const previousUnseenFingerprints = new Set(
+        previous.pages
+          .filter((page) => this.unseenIdentities.has(page.identity))
+          .map((page) => page.fingerprint),
+      );
+      this.replaceUnseen(nextPages
+        .filter((page) => previousUnseenFingerprints.has(page.fingerprint) || !this.stableReadFingerprints.has(page.fingerprint))
+        .map((page) => page.identity));
+      if (!next.partitionPending) {
+        const finalFingerprints = new Set(nextPages.map((page) => page.fingerprint));
+        for (const fingerprint of this.stableReadFingerprints.keys()) {
+          if (!finalFingerprints.has(fingerprint)) this.stableReadFingerprints.delete(fingerprint);
+        }
+      }
+    } else if (identityOrderReplaced) {
+      this.stableReadFingerprints.clear();
       this.replaceUnseen(nextPages.map((page) => page.identity));
     } else {
+      this.stableReadFingerprints.clear();
       const previousByIdentity = new Map(previous.pages.map((page) => [page.identity, page.fingerprint]));
       const nextIds = new Set(nextPages.map((page) => page.identity));
       for (const identity of this.unseenIdentities) {
@@ -131,6 +165,8 @@ export class PageAttentionState {
 
   markHoldComplete(identity: string): void {
     this.unseenIdentities.delete(identity);
+    const page = this.generation.get("current")?.pages.find((candidate) => candidate.identity === identity);
+    if (page != null) this.stableReadFingerprints.set(page.fingerprint, true);
   }
 
   unseenCount(): number {
@@ -152,5 +188,6 @@ export class PageAttentionState {
   dispose(): void {
     this.generation.clear();
     this.unseenIdentities.clear();
+    this.stableReadFingerprints.clear();
   }
 }

@@ -56,6 +56,36 @@ describe("page attention state", () => {
     expect(visibleCorrection).not.toBe(original);
   });
 
+  it("provisional で消えて最終 partition に再出現した fingerprint 一致 page は既読を維持する", () => {
+    const state = new PageAttentionState();
+    state.sync({
+      episodeKey: "event:a",
+      severityRank: 1,
+      pages: [page("initial:0-2", "stable"), page("initial:2-3", "old")],
+      preserveStablePages: true,
+    });
+    state.markHoldComplete("initial:0-2");
+
+    state.sync({
+      episodeKey: "event:a",
+      severityRank: 1,
+      pages: [page("provisional:0-1", "provisional")],
+      preserveStablePages: true,
+      partitionPending: true,
+    });
+
+    state.sync({
+      episodeKey: "event:a",
+      severityRank: 1,
+      pages: [page("measured:0-2", "stable"), page("measured:2-4", "changed")],
+      preserveStablePages: true,
+    });
+
+    expect(state.isUnseen("measured:0-2")).toBe(false);
+    expect(state.isUnseen("measured:2-4")).toBe(true);
+    expect(state.unseenCount()).toBe(1);
+  });
+
   it("severity 上昇と既存 page の並べ替えは全 page を未表示に戻し、dispose は世代を破棄する", () => {
     const state = new PageAttentionState();
     state.sync({ episodeKey: "event:a", severityRank: 1, pages: [page("p1", "a"), page("p2", "b")] });

@@ -88,9 +88,7 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
     const { container, rerender } = render(TsunamiPanel, {
       input: tsunamiInput({ coasts: [beforeCoast] }),
     });
-    const beforeGroup = container.querySelector(".coast-group");
     const beforeRow = container.querySelector(".coast-row-wrap");
-    expect(beforeGroup).not.toBeNull();
     expect(beforeRow).not.toBeNull();
 
     await rerender({
@@ -104,9 +102,8 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
     });
     flushSync();
 
-    expect(container.querySelector(".coast-group")).toBe(beforeGroup);
     expect(container.querySelector(".coast-row-wrap")).toBe(beforeRow);
-    expect(container.querySelector(".coast-kind")?.textContent).toBe("新種別名");
+    expect(container.querySelector(".page-kind")?.textContent).toBe("新種別名");
     expect(container.querySelector(".coast-name")?.textContent).toBe("新予報区名");
   });
 
@@ -117,7 +114,7 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
     ];
     const { container } = render(
       TsunamiPanel,
-      { input: tsunamiInput({ observations }) },
+      { input: tsunamiInput({ coasts: [], observations }) },
     );
     expect(container.querySelectorAll(".observation-row").length).toBe(2);
     expect(screen.getAllByText("石巻").length).toBe(2);
@@ -129,7 +126,7 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
       condition: "重要",
       heightCondition: "上昇中",
     })];
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
     expect(container.querySelector(".obs-max-value")?.textContent).toBe("３．２ｍ");
     expect(container.querySelector(".obs-condition")?.textContent).toBe("重要（上昇中）");
   });
@@ -213,15 +210,10 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
           maxHeightSemantic: blankUnknown,
           firstHeight: null,
         }],
-        observations: [observation({
-          stationName: "空文字ラベル",
-          maxHeightValue: "999m",
-          maxHeightSemantic: heightSemantic({ presence: "unknown", label: "" }),
-        })],
+        observations: [],
       }),
     });
     expect(container.querySelector(".coast-height")?.textContent).toBe("不明?");
-    expect(container.querySelector(".obs-max-value")?.textContent).toBe("不明?");
     expect(container.querySelector(".headline-value")?.textContent).toBe("不明?");
   });
 
@@ -263,7 +255,7 @@ describe("TsunamiPanel keyed-each 重複耐性", () => {
       }),
       condition: "重要",
     })];
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
     const value = container.querySelector<HTMLElement>(".obs-max-value");
     expect(value?.textContent).toBe("0.5m");
     expect(value?.title).toContain("上昇中");
@@ -424,12 +416,12 @@ function coastsOfKind(kind: string, count: number): DisplayTsunamiInputV1["coast
 }
 
 describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () => {
-  it("少数予報区 (1 ページ収まり) ではページャを出さず既存の静的グルーピングのまま全件表示する", () => {
+  it("D1-A の少数予報区も固定本文 page で表示し、位置は一頁なら省略する", () => {
     const coasts = [...coastsOfKind("大津波警報", 3), ...coastsOfKind("津波警報", 2)];
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
-    expect(container.querySelector(".page-frame")).toBeNull();
-    expect(container.querySelectorAll(".coast-group").length).toBe(2);
-    expect(container.querySelectorAll(".coast-row").length).toBe(5);
+    expect(container.querySelector(".page-frame")).not.toBeNull();
+    expect(container.querySelector(".page-attention")?.textContent).toBe("1/2・未表示2");
+    expect(container.querySelectorAll(".coast-row").length).toBe(3);
   });
 
   it("多数予報区 (nankai 相当 29 区、3 種別) はページ分割し、固定枠 (見出し/種別/ページ番号) を出す。種別境界でページが切れる", () => {
@@ -498,6 +490,24 @@ describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () =>
     }
   });
 
+  it("D1-A+D2-A は単一 pager の保持満了後だけ未表示数を減らし、予報区 identity を重複表示しない", () => {
+    vi.useFakeTimers();
+    try {
+      const coasts = coastsOfKind("津波警報", 12);
+      const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
+      expect(container.querySelector("[data-page-attention]")?.textContent).toBe("1/2・未表示2");
+      const firstNames = Array.from(container.querySelectorAll(".coast-name")).map((node) => node.textContent);
+      expect(new Set(firstNames).size).toBe(firstNames.length);
+      vi.advanceTimersByTime(PAGE_HOLD_MS);
+      settleFade();
+      expect(container.querySelector("[data-page-attention]")?.textContent).toBe("2/2・未表示1");
+      const secondNames = Array.from(container.querySelectorAll(".coast-name")).map((node) => node.textContent);
+      expect(secondNames.every((name) => !firstNames.includes(name))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("resetSeq (level 上昇) でページャが先頭ページへ戻る", () => {
     vi.useFakeTimers();
     try {
@@ -558,15 +568,122 @@ describe("TsunamiPanel 予報区ページャ配線 (spec §2-c/§3, T5b)", () =>
     }
   });
 
-  it("境界: ちょうど容量 8 区は静的表示のまま、9 区でページングが発火する", () => {
+  it("境界: ちょうど容量 8 区も固定 page、9 区では位置を常設する", () => {
     const eight = render(TsunamiPanel, { input: tsunamiInput({ coasts: coastsOfKind("津波警報", 8) }) });
-    expect(eight.container.querySelector(".page-frame")).toBeNull();
+    expect(eight.container.querySelector(".page-frame")).not.toBeNull();
     expect(eight.container.querySelectorAll(".coast-row").length).toBe(8);
 
     const nine = render(TsunamiPanel, { input: tsunamiInput({ coasts: coastsOfKind("津波警報", 9) }) });
     expect(nine.container.querySelector(".page-frame")).not.toBeNull();
     expectCurrentDot(nine.container, 1, 2);
     expect(nine.container.querySelectorAll(".coast-row").length).toBe(8);
+  });
+
+  it("実測 probe は極端に長い予報区名を同じ page へ過積載しない", async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    class ProbeResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(target: Element): void {
+        this.callback([{ contentRect: { width: 320, height: 100 }, target } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect(): void {}
+      unobserve(): void {}
+    }
+    vi.stubGlobal("ResizeObserver", ProbeResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() { return this.classList.contains("partition-probe-body") ? 100 : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        if (!this.classList.contains("partition-probe-body")) return 0;
+        return this.querySelectorAll(".coast-name").length * 70;
+      },
+    });
+    let unmount: (() => void) | undefined;
+    try {
+      const long = "極端に長い津波予報区名".repeat(18);
+      const rendered = render(TsunamiPanel, {
+        input: tsunamiInput({
+          coasts: [
+            { name: `${long}甲`, kind: "津波警報", maxHeight: "3m", firstHeight: null },
+            { name: `${long}乙`, kind: "津波警報", maxHeight: "3m", firstHeight: null },
+          ],
+        }),
+      });
+      unmount = rendered.unmount;
+      await vi.waitFor(() => expectCurrentDot(rendered.container, 1, 2));
+      expect(rendered.container.querySelectorAll(".page-fade:not(.partition-probe-page) .coast-name")).toHaveLength(1);
+      expect(rendered.container.querySelector("[data-partition-probe-shelf]")?.getAttribute("aria-hidden")).toBe("true");
+    } finally {
+      unmount?.();
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      vi.stubGlobal("ResizeObserver", originalResizeObserver);
+    }
+  });
+
+  it("host 高だけが縮んでも probe cache を再計測し、page を分割し直す", async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const clientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    const scrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollHeight");
+    let hostHeight = 150;
+    class ProbeResizeObserver {
+      private static readonly observers = new Set<ProbeResizeObserver>();
+      private readonly targets = new Set<Element>();
+      constructor(private readonly callback: ResizeObserverCallback) {
+        ProbeResizeObserver.observers.add(this);
+      }
+      observe(target: Element): void {
+        this.targets.add(target);
+        this.emit(target);
+      }
+      disconnect(): void { ProbeResizeObserver.observers.delete(this); }
+      unobserve(target: Element): void { this.targets.delete(target); }
+      private emit(target: Element): void {
+        this.callback([{ contentRect: { width: 320, height: hostHeight }, target } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      static emitAll(): void {
+        for (const observer of ProbeResizeObserver.observers) {
+          for (const target of observer.targets) observer.emit(target);
+        }
+      }
+    }
+    vi.stubGlobal("ResizeObserver", ProbeResizeObserver);
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() { return this.classList.contains("partition-probe-body") ? hostHeight : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return this.classList.contains("partition-probe-body")
+          ? this.querySelectorAll(".coast-name").length * 70
+          : 0;
+      },
+    });
+    let unmount: (() => void) | undefined;
+    try {
+      const rendered = render(TsunamiPanel, { input: tsunamiInput({ coasts: coastsOfKind("津波警報", 2) }) });
+      unmount = rendered.unmount;
+      await vi.waitFor(() => expect(rendered.container.querySelector(".page-dots")).toBeNull());
+
+      hostHeight = 100;
+      ProbeResizeObserver.emitAll();
+      await vi.waitFor(() => expectCurrentDot(rendered.container, 1, 2));
+    } finally {
+      unmount?.();
+      if (clientHeight == null) delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight;
+      else Object.defineProperty(HTMLElement.prototype, "clientHeight", clientHeight);
+      if (scrollHeight == null) delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      else Object.defineProperty(HTMLElement.prototype, "scrollHeight", scrollHeight);
+      vi.stubGlobal("ResizeObserver", originalResizeObserver);
+    }
   });
 
   it("resetSeq は level 低下ではリセットしない (非対称性)", () => {
@@ -605,7 +722,7 @@ describe("TsunamiPanel 見出し階層 (最終レビュー Finding 1)", () => {
     );
   }
 
-  it("少数予報区 (静的枝) では h1 の直後が h2 (coast-kind) になり、h3 へ飛ばない", () => {
+  it("D1-A の固定 page では h1 の直後が h2 (page-heading) になり、h3 へ飛ばない", () => {
     const appHeading = document.createElement("h1");
     appHeading.className = "visually-hidden";
     appHeading.textContent = "FlEq 防災情報ディスプレイ";
@@ -617,9 +734,9 @@ describe("TsunamiPanel 見出し階層 (最終レビュー Finding 1)", () => {
       ];
       render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
 
-      const coastKindEls = Array.from(document.body.querySelectorAll(".coast-kind"));
-      expect(coastKindEls.length).toBeGreaterThan(0);
-      for (const el of coastKindEls) expect(el.tagName).toBe("H2");
+      const headings = Array.from(document.body.querySelectorAll(".page-heading"));
+      expect(headings.length).toBeGreaterThan(0);
+      for (const el of headings) expect(el.tagName).toBe("H2");
 
       const levels = headingLevels();
       expect(levels[0]).toBe(1); // App の h1
@@ -646,7 +763,7 @@ describe("TsunamiPanel 観測津波の 3 層化 (spec §2-c フィードバッ�
       observation({ stationName: "大洗", maxHeightValue: "4.0m" }),
       observation({ stationName: "不明地点", maxHeightValue: null }),
     ];
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
     expect(container.querySelector(".obs-summary-line")?.textContent).toBe(
       "最大観測: 8.5m以上 宮古 / 観測 3地点",
     );
@@ -654,25 +771,23 @@ describe("TsunamiPanel 観測津波の 3 層化 (spec §2-c フィードバッ�
 
   it("最大値がパースできる観測が 1 件も無ければ最大観測を省き地点数のみ表示する", () => {
     const observations = [observation({ stationName: "A", maxHeightValue: null })];
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
     expect(container.querySelector(".obs-summary-line")?.textContent).toBe("観測 1地点");
   });
 
-  it("少数観測 (1ページ収まり) はページャを出さず静的に全件表示する", () => {
+  it("少数観測 (1ページ収まり) も固定本文 page で全件表示する", () => {
     const observations = tsunamiObservationsOfCount(5);
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
-    const obsTile = container.querySelector(".tile-observations")!;
-    expect(obsTile.querySelector(".page-frame")).toBeNull();
-    expect(obsTile.querySelectorAll(".observation-row").length).toBe(5);
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
+    expect(container.querySelector(".page-heading")?.textContent).toBe("観測");
+    expect(container.querySelectorAll(".observation-row").length).toBe(5);
   });
 
   it("多数観測 (容量超) はページングを発火し固定枠 (見出し「観測」・ページ番号) を出す", () => {
     const observations = tsunamiObservationsOfCount(21); // stress fixture 相当規模
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
-    const obsTile = container.querySelector(".tile-observations")!;
-    expect(obsTile.querySelector(".page-frame .page-heading")?.textContent).toBe("観測");
-    expectCurrentDot(obsTile, 1, 3); // ceil(21/8)
-    expect(obsTile.querySelectorAll(".observation-row").length).toBe(8);
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
+    expect(container.querySelector(".page-frame .page-heading")?.textContent).toBe("観測");
+    expectCurrentDot(container, 1, 3); // ceil(21/8)
+    expect(container.querySelectorAll(".observation-row").length).toBe(8);
   });
 
   // T5c: 固定高さの実現方式が「行容量ぶんの min-height calc」から「flex:1 で .tiles 内の
@@ -683,11 +798,7 @@ describe("TsunamiPanel 観測津波の 3 層化 (spec §2-c フィードバッ�
   // ソース文字列で検査する
   it("ページ本文領域 (予報区・観測とも) は flex:1 で実測高さを受け取るページホストを持つ (下位ブロックの上下移動防止)", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    // 予報区: .tile-coasts.page-tinted が position:relative + flex:1;min-height:0
-    expect(source).toMatch(/\.tile-coasts\.page-tinted\s*\{[^}]*position: relative;[^}]*flex: 1;[^}]*min-height: 0;/);
-    // 観測: .obs-list-host.paged が position:relative + flex:1;min-height:0
-    expect(source).toMatch(/\.obs-list-host\.paged\s*\{[^}]*position: relative;[^}]*flex: 1;[^}]*min-height: 0;/);
-    // どちらも .page-fade を position:absolute;inset:0 で重ねる
+    expect(source).toMatch(/\.unified-page\s*\{[^}]*position: relative;[^}]*flex: 1;[^}]*min-height: 0;/);
     expect(source).toMatch(/\.page-fade\s*\{[^}]*position: absolute;[^}]*inset: 0;/);
 
     const coasts = Array.from({ length: 12 }, (_, i) => ({
@@ -698,8 +809,7 @@ describe("TsunamiPanel 観測津波の 3 層化 (spec §2-c フィードバッ�
     }));
     const observations = tsunamiObservationsOfCount(21);
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts, observations }) });
-    expect(container.querySelector(".tile-coasts.page-tinted")).not.toBeNull();
-    expect(container.querySelector(".tile-observations.paged .obs-list-host.paged")).not.toBeNull();
+    expect(container.querySelector(".tile-coasts.unified-page")).not.toBeNull();
   });
 });
 
@@ -752,165 +862,59 @@ describe("TsunamiPanel 予報区ページ領域の種別別背景色面 (spec §
     expect(source).not.toContain("--page-fg"); // 旧改訂の残骸トークンが残っていないこと
   });
 
-  it("静的表示 (ページャなし) のときは背景色面を付けない", () => {
+  it("単一 coast page でも種別背景色面を維持する", () => {
     const coasts = coastsOfKind("大津波警報", 3);
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts }) });
     const tile = container.querySelector(".tile-coasts") as HTMLElement;
-    expect(tile.classList.contains("page-tinted")).toBe(false);
+    expect(tile.classList.contains("page-tinted")).toBe(true);
   });
 
-  it("観測ページ領域には種別色面を付けない (種別色は予報区のみ)", () => {
+  it("観測 page には種別色面を付けない (種別色は予報区のみ)", () => {
     const observations = tsunamiObservationsOfCount(21);
-    const { container } = render(TsunamiPanel, { input: tsunamiInput({ observations }) });
-    const obsTile = container.querySelector(".tile-observations") as HTMLElement;
-    expect(obsTile.classList.contains("page-tinted")).toBe(false);
+    const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts: [], observations }) });
+    const tile = container.querySelector(".tile-coasts") as HTMLElement;
+    expect(tile.classList.contains("page-tinted")).toBe(false);
   });
 });
 
-// T5c/T6/T6b: ページ行容量の画面高さ駆動化 + 切替フェード (spec §2-c)。jsdom は ResizeObserver
-// 未実装かつ layout 未解決のため実測 px の挙動 (T7 preview 実測対象) はソース文字列で配線を検査
-// する。可用高さ算出の算術自体 (昇格判定・収束・2カラム分岐) は instrument-layout.test.ts の
-// sectionAvailableHeight/isStackedLayout 単体テストが担う (jsdom で ResizeObserver の
-// コールバックを直接叩く経路が存在しないため)
-describe("TsunamiPanel T5c/T6/T6b 配線 (画面高さ駆動 + フェード)", () => {
-  // T6 (Codex R レビュー M3 の最終解決): 静的表示中のタイルは content-driven の自然高さで
-  // 測定されるため、旧実装 (rowCapacity(coastsAreaHeight, ...) のように自タイルの実測を
-  // そのまま容量に使う) は「全件が収まる高さを自分自身が返す」自己参照になり、狭い画面でも
-  // needsPaging へ昇格できない不具合が残っていた。.tiles (常時 flex:1 constrained な共通
-  // ビューポート) の実測高さから、相手タイルの実測高さ (obsBox.height/coastsBox.height、
-  // 静的でもページング中でも「実際に消費している高さ」) を差し引いた sectionAvailableHeight を
-  // 容量算出の入力にし、自己参照を解消した。T6b で両タイルの実測を統合し、isStackedLayout で
-  // 2 カラム grid 時は相手が競合しない扱いにした。coastRowCapacity は T6c ② の page-fade padding
-  // 補正 (PAGE_FADE_PADDING_PX) も加わっている
-  it("両タイルの利用可能高さは .tiles 実測 − 相手タイルの実測高さ (sectionAvailableHeight) から導出し、自タイルの実測をそのまま使い回さない", () => {
+// D1-A: 平均行高ではなく候補 range の実描画高を sequentialPartitionRanges へ返す。
+describe("TsunamiPanel 実測 probe partition 配線", () => {
+  it("予報区・観測を section ごとに sequentialPartitionRanges へ渡し、単一 pager へ平坦化する", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    expect(source).not.toContain("tilesAreaHeight");
-    expect(source).toContain("use:measureHeight={applyTilesHeight}");
-    expect(source).toContain(
-      "sectionAvailableHeight(tilesHeight, obsBox.height, TILES_GAP_PX, visibleObservations.length > 0 && stacked)",
-    );
-    expect(source).toContain("sectionAvailableHeight(tilesHeight, coastsBox.height, TILES_GAP_PX, stacked)");
-    expect(source).toContain(
-      "rowCapacity(Math.max(0, coastsAvailableHeight - coastHeaderOverheadPx), coastRowHeight, TSUNAMI_PAGE_ROW_CAPACITY)",
-    );
-    expect(source).toContain(
-      "rowCapacity(Math.max(0, obsAvailableHeight - obsHeaderOverheadPx), obsRowHeight, TSUNAMI_PAGE_ROW_CAPACITY)",
-    );
-    // 自タイルの実測 (coastsBox/obsBox) は「相手の可用高さを出す入力」としてのみ使われ、
-    // rowCapacity の直接の第一引数には渡らない (自己参照の再発防止)
-    expect(source).not.toContain("rowCapacity(coastsBox");
-    expect(source).not.toContain("rowCapacity(obsBox");
+    expect(source).toContain("sequentialPartitionRanges(");
+    expect(source).toContain("const tsunamiPartitions = $derived.by");
+    expect(source).toContain("const panelPages = $derived.by");
+    expect(source).not.toContain("rowCapacity(");
+    expect(source).not.toContain("sectionAvailableHeight(");
   });
 
-  // ヘッダ実測補正 (T-a11y-gate fix、preview 実機確認 2026-07-18: 予報区・観測タイルとも
-  // 末尾行が切れる)。旧実装は coastRowCapacity が PAGE_FADE_PADDING_PX (page-fade 自身の padding)
-  // だけを差し引き、page-frame (見出し・PageDots) や obs-summary-frame (観測サマリ見出し) の
-  // 実高さは容量計算に一切反映されていなかった (obsRowCapacity にいたっては無補正)。
-  // page-frame は PageDots の折返し (多ページ時) で実高さが伸びうるため固定定数では追従できず、
-  // ResizeObserver 実測 ($state) を capacity から差し引く構造にした。jsdom は ResizeObserver
-  // 未実装のため実測 px の挙動そのものは検証できないが、配線 (実測 state → capacity 算出への
-  // 加算) をソース文字列で固定する
-  it("予報区・観測とも、ページ見出し (.page-frame) と観測サマリ見出し (.obs-summary-frame) の実測高さを capacity 計算から差し引く", () => {
+  it("隠し棚は aria-hidden/inert かつ layout 外で、候補本文の scrollHeight/clientHeight を比較する", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    // 実測配線: .page-frame (予報区・観測) と .obs-summary-frame に measureBorderHeight を付ける
-    expect(source).toMatch(/class="page-frame" use:measureBorderHeight=\{applyCoastFrameHeight\}/);
-    expect(source).toMatch(/class="obs-summary-frame" use:measureBorderHeight=\{applyObsSummaryHeight\}/);
-    expect(source).toMatch(/class="page-frame" use:measureBorderHeight=\{applyObsFrameHeight\}/);
-    // 実測 $state は margin-bottom 分の定数を加算してからオーバーヘッドに算入する
-    // (border-box 実測は margin を含まないため)
-    expect(source).toContain(
-      "PAGE_FADE_PADDING_PX + (coastFrameHeight > 0 ? coastFrameHeight + PAGE_FRAME_MARGIN_PX : 0)",
-    );
-    expect(source).toContain(
-      "(obsSummaryHeight > 0 ? obsSummaryHeight + OBS_SUMMARY_FRAME_MARGIN_PX : 0)",
-    );
-    expect(source).toContain("(obsFrameHeight > 0 ? obsFrameHeight + PAGE_FRAME_MARGIN_PX : 0)");
-    // 観測タイルは予報区と違って tile 自身の padding が通常フローで直接効くため、
-    // TILE_PADDING_PX を観測側だけのオーバーヘッドに加える
-    expect(source).toContain("const obsHeaderOverheadPx = $derived(\n    TILE_PADDING_PX +");
-    // layoutSettling 中は他の実測 (coastRowHeight 等) と同じ pending 機構で保留する
-    expect(source).toContain("function applyCoastFrameHeight(h: number): void {");
-    expect(source).toContain("function applyObsSummaryHeight(h: number): void {");
-    expect(source).toContain("function applyObsFrameHeight(h: number): void {");
+    expect(source).toContain('class="partition-probe-shelf" aria-hidden="true" inert data-partition-probe-shelf');
+    expect(source).toContain("contentHeight: node.scrollHeight");
+    expect(source).toContain("availableHeight: node.clientHeight");
+    expect(source).toMatch(/\.partition-probe-shelf\s*\{[^}]*visibility: hidden;[^}]*pointer-events: none;/);
   });
 
-  // T6b M-a: .tiles は `@container (min-width: 1200px)` で 2 カラム grid に切り替わり、その
-  // 状態では予報区/観測は縦方向に高さを奪い合わない。container query の状態を JS から直接
-  // 読む API が無いため、両 tile の実測 top/bottom から isStackedLayout で幾何的に判定し、
-  // 横並びのときは sectionAvailableHeight に「相手は競合しない」を渡す
-  it("縦積みか横並びかは isStackedLayout (両 tile の実測 top/bottom の幾何判定) から導出し、stacked を可用高さの競合フラグに渡す", () => {
+  it("高さ cache の generation は表示 fingerprint と host 幅・高さに紐づく", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    expect(source).toMatch(/isStackedLayout[\s\S]{0,60}\} from "\.\.\/lib\/instrument-layout"/);
-    expect(source).toContain("const stacked = $derived(isStackedLayout(coastsBox.bottom, obsBox.top));");
+    expect(source).toContain("tsunamiProbeFingerprint");
+    expect(source).toContain("tsunamiProbeGeneration");
+    expect(source).toContain("probeWidth");
+    expect(source).toContain("probeHeight");
+    expect(source).toContain(":h${Math.round(probeHeight * 100) / 100}");
+    expect(source).toContain("use:observeProbeBox");
   });
 
-  // T6c (再レビュー M-a 残 major): measureBox (自分の rect だけを書き込む旧構造) だと、
-  // サイズは変わらず位置だけ動いた相手 tile の rect が古いまま取り残される (静的→ページング昇格で
-  // 片方の高さが変わっても、もう片方は自分のサイズが変わらなければ ResizeObserver が発火しない)。
-  // 両 tile の node 参照を親が保持し、単一の remeasureTiles() が両方の rect を常にペアで
-  // 読み直す構造に置き換えた。① 各 tile 自身の resize (observeResize) と ② 表示モード切替
-  // (needsPaging/obsNeedsPaging の変化を追う $effect) の両方から remeasureTiles() を呼ぶ
-  it("両 tile の rect は remeasureTiles() で常にペアで読み直され、resize イベントと表示モード切替 (needsPaging/obsNeedsPaging) の両方から呼ばれる", () => {
-    const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    // remeasureTiles は coastsTileEl/obsTileEl 両方を読み直す (どちらか片方だけの resize でも
-    // 両方の rect が最新化される)。レイアウト遷移中 (layoutSettling) は保留し settling 完了時に flush する
-    expect(source).toContain("if (coastsTileEl != null) coastsBox = readBox(coastsTileEl);");
-    expect(source).toContain("if (obsTileEl != null) obsBox = readBox(obsTileEl);");
-    // ① 両 tile とも observeResize + bind:this で remeasureTiles を直接渡している
-    expect(source).toMatch(/class="tile tile-coasts"[\s\S]{0,500}?bind:this=\{coastsTileEl\}/);
-    expect(source).toMatch(/class="tile tile-coasts"[\s\S]{0,500}?use:observeResize=\{remeasureTiles\}/);
-    expect(source).toMatch(/class="tile tile-observations"[\s\S]{0,300}?bind:this=\{obsTileEl\}/);
-    expect(source).toMatch(/class="tile tile-observations"[\s\S]{0,300}?use:observeResize=\{remeasureTiles\}/);
-    // ② needsPaging/obsNeedsPaging の変化を追う $effect が remeasureTiles を呼ぶ
-    expect(source).toMatch(
-      /\$effect\(\(\) => \{\s*void needsPaging;\s*void obsNeedsPaging;\s*remeasureTiles\(\);\s*\}\);/,
-    );
-  });
-
-  // T6b M-b: measureHeight (content-box) は .tile の padding/border を含まないため、相手タイルの
-  // 実消費高さを過小評価し可用高さを過大評価する。予報区/観測タイルは border-box 込みの実測
-  // (readBox、T6c)、行高 (coastRowHeight/obsRowHeight) は border-box のみの measureBorderHeight に
-  // 切り替えた。.tiles 自体 (子に使える content-box 高さが正しい単位) は measureHeight のまま
-  it("行高 (代表行) は border-box 込みの measureBorderHeight で測る (padding を含めた実消費高さ)", () => {
-    const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    expect(source).toContain("use:measureBorderHeight={i === 0 ? applyCoastRowHeight : undefined}");
-    expect(source).toContain("use:measureBorderHeight={i === 0 ? applyObsRowHeight : undefined}");
-    // .tiles (コンテナが子に使える高さ) は content-box のままでよい (padding は子に使えないため)
-    expect(source).toContain("use:measureHeight={applyTilesHeight}");
-  });
-
-  // M3 派生の major fix (Codex R 再確認): measureHeight が {#if needsPaging}/{#if obsNeedsPaging}
-  // の内側にしか mount されない旧構造だと、(a) 初期 fallback (8行) 以下の件数だと静的枝から
-  // 一度も抜けられずページングへ昇格できない鶏卵、(b) 画面縮小後も静的枝では observer が消えて
-  // 容量が更新されない stale、の2つの不具合があった。静的表示中でも測定 host (.tile-coasts /
-  // .obs-list-host) が存在し続けることを確認する
-  it("静的表示中 (ページング未発火) でも予報区 tile と観測リストホストが同一要素として常時マウントされている", () => {
+  it("統一 page host は少数件でも常時マウントされる", () => {
     const coasts = [
       { name: "岩手県", kind: "warning", maxHeight: null, firstHeight: null },
       { name: "宮城県", kind: "warning", maxHeight: null, firstHeight: null },
     ];
     const observations = tsunamiObservationsOfCount(2);
     const { container } = render(TsunamiPanel, { input: tsunamiInput({ coasts, observations }) });
-
-    const coastsTile = container.querySelector(".tile-coasts");
-    expect(coastsTile).not.toBeNull();
-    expect(coastsTile!.classList.contains("page-tinted")).toBe(false); // 静的表示中
-
-    const obsHost = container.querySelector(".tile-observations .obs-list-host");
-    expect(obsHost).not.toBeNull();
-    expect(obsHost!.classList.contains("paged")).toBe(false); // 静的表示中
-
-    // ソース上も、observeResize が {#if needsPaging}/{#if obsNeedsPaging} の外側 (常時マウント
-    // される要素自体) に配線されていることを検査し、分岐の内側だけに存在する構造への回帰を防ぐ。
-    // T6: 観測タイルの実測は内側の .obs-list-host ではなく外側の .tile-observations
-    // (summary-frame ぶんの overhead も含めた「タイルが実際に消費している高さ」) に移設した
-    const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
-    expect(source).toMatch(
-      /class="tile tile-coasts"[\s\S]{0,500}?use:observeResize=\{remeasureTiles\}/,
-    );
-    expect(source).toMatch(
-      /class="tile tile-observations"[\s\S]{0,300}?use:observeResize=\{remeasureTiles\}/,
-    );
+    expect(container.querySelector(".tile-coasts.unified-page")).not.toBeNull();
+    expect(container.querySelector("[data-partition-probe-shelf]")).not.toBeNull();
   });
 
   // T6c ②: 文字がカード縁に密着するバグの修正 (preview 目視指摘)。position:absolute な
@@ -918,17 +922,23 @@ describe("TsunamiPanel T5c/T6/T6b 配線 (画面高さ駆動 + フェード)", (
   // ないため、祖先自身の padding 宣言は絶対配置の子には効かない) になるので、.tile-coasts の
   // padding (.tile 由来) が予報区ページ本文で無視されていた。.page-fade 自体に padding を
   // 持たせて復元する。既存 spacing トークン (.tile と同じ var(--space-4) var(--space-5)) を
-  // 再利用し、新規直値は使わない。観測側の .page-fade (.obs-list-host 内) はこの落とし穴の
-  // 対象外だった (position:relative の祖先が padding を持たない別要素) ため、対称に padding を
-  // 追加してはいけない (追加すると意図せず二重パディングになる)
-  it("予報区ページ本文 (.page-fade) には .tile と同じ既存 spacing トークンで内側 padding を復元する (観測側には追加しない)", () => {
+  // 再利用し、新規直値は使わない。観測 page も同じ unified-page の absolute な子なので、
+  // tile 契約の padding をここで一元して実効化する。
+  it("予報区・観測 page 本文 (.page-fade) には .tile と同じ既存 spacing トークンで内側 padding を復元する", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
     expect(source).toMatch(
-      /\.tile-coasts\.page-tinted \.page-fade \{\s*padding: var\(--space-4\) var\(--space-5\);\s*\}/,
+      /\.tile-coasts\.unified-page \.page-fade \{\s*padding: var\(--space-4\) var\(--space-5\);\s*\}/,
     );
     // 新規直値 (px 直書き) や opacity 減光を使っていないことの確認
-    expect(source).not.toMatch(/\.tile-coasts\.page-tinted \.page-fade \{[^}]*\d+px/);
-    expect(source).not.toMatch(/\.tile-coasts\.page-tinted \.page-fade \{[^}]*opacity/);
+    expect(source).not.toMatch(/\.tile-coasts\.unified-page \.page-fade \{[^}]*\d+px/);
+    expect(source).not.toMatch(/\.tile-coasts\.unified-page \.page-fade \{[^}]*opacity/);
+  });
+
+  it("compact 時も coast live page と隠し probe は同じ padding token で測定する", () => {
+    const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
+    expect(source).toMatch(
+      /\.tsunami-panel\.compact \.tile-coasts\.unified-page \.page-fade,\s*\.tsunami-panel\.compact \.partition-probe-page \{\s*padding: var\(--space-2\) var\(--space-3\);\s*\}/,
+    );
   });
 
   // T6c ③: 「8.5m以上」のような観測値・「10m超」のような波高値が CJK/英数字の境界で途中改行
@@ -974,17 +984,13 @@ describe("TsunamiPanel T5c/T6/T6b 配線 (画面高さ駆動 + フェード)", (
   it("ページ切替は {#key} + transition:fade の重ねクロスフェードで、時間/easing は既存の spring-effects-default を流用する (新規定数なし)", () => {
     const source = readFileSync(join(__dirname, "..", "TsunamiPanel.svelte"), "utf-8");
     expect(source).toContain("{#key pageCycler.index}");
-    expect(source).toContain("{#key obsPageCycler.index}");
     expect(source).toContain('import { fade } from "svelte/transition"');
     // モーション振り付け spec で revealScaleIn/heightReveal 用に SPRING_SPATIAL_DEFAULT_MS /
     // springSpatialOut も motion から取り込むため、import 行の固定はやめ必要シンボルを個別に確認する
     expect(source).toMatch(/\bSPRING_EFFECTS_DEFAULT_MS\b/);
     expect(source).toMatch(/\bspringEffectsOut\b[\s\S]*?from "\.\.\/lib\/motion"/);
     expect(source).toMatch(
-      /transition:fade=\{\{\s*duration: pageCycler\.reducedMotion \? 0 : SPRING_EFFECTS_DEFAULT_MS,\s*easing: springEffectsOut,\s*\}\}/,
-    );
-    expect(source).toMatch(
-      /transition:fade=\{\{\s*duration: obsPageCycler\.reducedMotion \? 0 : SPRING_EFFECTS_DEFAULT_MS,\s*easing: springEffectsOut,\s*\}\}/,
+      /transition:fade=\{\{\s*duration: reducedMotion \? 0 : SPRING_EFFECTS_DEFAULT_MS,\s*easing: springEffectsOut,\s*\}\}/,
     );
   });
 

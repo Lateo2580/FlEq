@@ -14,6 +14,9 @@ const preview = read("../preview/PreviewApp.svelte");
 const emg = read("EmergencyScreen.svelte");
 const quake = read("QuakePanel.svelte");
 const tsu = read("TsunamiPanel.svelte");
+const eew = read("EewPanel.svelte");
+const weather = read("WeatherEmergencyPanel.svelte");
+const quakeMap = read("QuakeMapScreen.svelte");
 
 describe("frame-1 可視: opacity-0 入場撤去 + 生成時キー snapshot 配線 (spec §3 検証 2)", () => {
   it("画面/パネル入場の opacity:0 keyframe を撤去し、生成時 const snapshot で初期/後発を判定する", () => {
@@ -90,15 +93,26 @@ describe("App.svelte と PreviewApp.svelte の screen-layer stacking (spec §6 /
 });
 
 describe("reduced-motion 配線 (spec §4-b): 切替後開始分を 0ms にする", () => {
-  it("App/EmergencyScreen/PreviewApp は reducedMotion を matchMedia で購読する", () => {
-    for (const s of [app, emg, preview]) {
-      expect(s).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
-    }
+  it("App だけが reducedMotion を matchMedia で購読し、EmergencyScreen は prop を下流へ渡す", () => {
+    expect(app).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(emg).not.toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    expect(emg).toContain("{reducedMotion}");
+    expect(preview).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
   });
 
-  it("QuakePanel/TsunamiPanel は page-cycler の reducedMotion を共有して reveal を 0ms にする", () => {
-    expect(quake).toContain("cycler.reducedMotion");
-    expect(tsu).toContain("pageCycler.reducedMotion");
+  it("QuakePanel/TsunamiPanel は App 注入値を pager と reveal に共有して 0ms にする", () => {
+    expect(quake).toContain("reducedMotion: () => reducedMotion");
+    expect(tsu).toContain("reducedMotion: () => reducedMotion");
+  });
+
+  it("EEW・気象緊急・地震図も App 注入値を pager へ渡し、fallback listener を持たない", () => {
+    expect(emg).toContain("<EewPanel input={p.input} {compact} {settling} {reducedMotion}");
+    expect(emg).toContain("reducedMotionInput={reducedMotion}");
+    expect(app).toContain("<QuakeMapScreen event={quakeMapEvent} dim={effectiveDim} {reducedMotion} />");
+    for (const source of [eew, weather, quakeMap]) {
+      expect(source).toContain("reducedMotion: () =>");
+      expect(source).not.toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+    }
   });
 });
 

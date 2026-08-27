@@ -12,25 +12,13 @@
     formatArrivalDisplay,
     maxTsunamiObservation,
   } from "../lib/tsunami-bucket";
+  import { TSUNAMI_PAGE_ROW_CAPACITY } from "../lib/instrument-layout";
   import {
-    TSUNAMI_PAGE_ROW_CAPACITY,
-    TILES_GAP_PX,
-    PAGE_FADE_PADDING_PX,
-    PAGE_FRAME_MARGIN_PX,
-    OBS_SUMMARY_FRAME_MARGIN_PX,
-    TILE_PADDING_PX,
-    isStackedLayout,
-    rowCapacity,
-    sectionAvailableHeight,
-  } from "../lib/instrument-layout";
+    sequentialPartitionRanges,
+    type PartitionProbe,
+  } from "../lib/legacy-standby/page-partition";
+  import type { PageRange, PartitionResult } from "../lib/legacy-standby/types";
   import { createPageCycler } from "../lib/page-cycler.svelte";
-  import {
-    measureHeight,
-    measureBorderHeight,
-    observeResize,
-    readBox,
-    type MeasuredBox,
-  } from "../lib/measure-height";
   import {
     SPRING_EFFECTS_DEFAULT_MS,
     SPRING_SPATIAL_DEFAULT_MS,
@@ -47,7 +35,13 @@
   import { fade } from "svelte/transition";
   import { flip } from "svelte/animate";
   import { onDestroy } from "svelte";
+  import { untrack } from "svelte";
   import PageDots from "./PageDots.svelte";
+  import {
+    PageAttentionState,
+    itemContentFingerprint,
+    pageContentFingerprint,
+  } from "../lib/page-attention";
 
   // compact: main-stack の非 main スロット (狭い右列) から true が渡る。情報密度が高い津波パネルを
   // 狭域に収めるため、見出し・計器・行の type と padding を一段圧縮する (下記 .tsunami-panel.compact)。
@@ -58,7 +52,8 @@
     compact = false,
     layoutSettling = false,
     episodeResetKey,
-  }: { input: DisplayTsunamiInputV1; compact?: boolean; layoutSettling?: boolean; episodeResetKey?: number } = $props();
+    reducedMotion = false,
+  }: { input: DisplayTsunamiInputV1; compact?: boolean; layoutSettling?: boolean; episodeResetKey?: number; reducedMotion?: boolean } = $props();
 
   // 固定サマリ計器 (spec §2-c) の行動語: level から導出、JMA の呼びかけ表現に準拠
   // 【確定 2026-07-09 レビュー決定】
@@ -95,9 +90,7 @@
       }
     };
     for (const coast of input.coasts) collect(coast.maxHeightSemantic);
-    for (const observation of input.observations) {
-      if (observationVisible(observation)) collect(observation.maxHeightSemantic);
-    }
+    for (const observation of input.observations) collect(observation.maxHeightSemantic);
     return HEIGHT_BADGE_LEGEND.filter((item) => badges.has(item.badge));
   }
 
@@ -209,6 +202,16 @@
     if (semantic == null || !semantic.render || semantic.presence === "missing") return null;
     return semantic.badge;
   }
+  function heightFingerprint(semantic: DisplayTsunamiHeightSemanticV1 | undefined) {
+    return {
+      raw: semantic?.raw ?? null, presence: semantic?.presence ?? null, label: semantic?.label ?? null,
+      condition: semantic?.condition ?? null, description: semantic?.description ?? null,
+      value: semantic?.value ?? null, lowerBound: semantic?.lowerBound ?? null,
+      upperBound: semantic?.upperBound ?? null, rawLowerBound: semantic?.rawLowerBound ?? null,
+      rawUpperBound: semantic?.rawUpperBound ?? null, badge: semantic?.badge ?? null,
+      color: semantic?.color ?? null, render: semantic?.render ?? null,
+    };
+  }
 
   const panelRoleVar = $derived(
     input.level === "majorWarning"
@@ -248,21 +251,6 @@
     });
   });
 
-  // 予報区リストのページング (spec §2-c / §3)。全件が 1 ページに収まるなら (種別をまたいでいても)
-  // ページャを出さず既存の静的グルーピング表示のまま。収まらない場合のみ、種別ごとに
-  // TSUNAMI_PAGE_ROW_CAPACITY 行単位でチャンク化し、種別をまたぐときは必ずページ境界を切る
-  interface TsunamiPage {
-    kind: string;
-    coasts: KeyedRow<Coast>[];
-  }
-
-  function observationVisible(o: DisplayTsunamiObservationV1): boolean {
-    if (o.areaKind == null) return true; // 対応が取れない実測値は安全側で常に表示
-    if (input.level === "majorWarning") return o.areaKind === "大津波警報" || o.areaKind === "津波警報";
-    if (input.level === "warning") return o.areaKind === "津波警報";
-    return o.areaKind === "津波注意報";
-  }
-
   function observationCondition(o: DisplayTsunamiObservationV1): string {
     const condition = o.condition?.trim() ?? "";
     const heightCondition = o.maxHeightSemantic != null
@@ -272,196 +260,204 @@
     return `${condition}（${heightCondition}）`;
   }
 
-  const visibleObsRows = $derived(obsRows.filter((r) => observationVisible(r.row)));
-  const visibleObservations = $derived(visibleObsRows.map((r) => r.row));
+  // 観測は警報レベルとの対応で間引かない。電文 input の全 identity を一巡列へ一度だけ載せる。
+  const visibleObsRows = $derived(obsRows);
 
-  // ページ行容量の画面高さ駆動化 (T5c、spec §2-c)。rowHeightPx は実際に描画された行
-  // (.coast-row / .observation-row の先頭要素) の実測高さ。行は padding 込みでリスト内の
-  // 1 行として縦幅を消費するため border-box で測る (measureBorderHeight、T6b M-b 対応。
-  // content-box (measureHeight) だと .coast-row/.observation-row の padding 4px ぶん
-  // rowHeightPx を過小評価し、rowCapacity が実際より多く行を詰め込めると誤判定する)。
-  //
-  // areaHeightPx (容量算出に使う「利用可能高さ」) は T6 (M3 の最終解決) → T6b (2 カラム grid +
-  // border-box 対応) で見直した:
-  // 旧実装は各タイル自身の実測 clientHeight をそのまま使っていたが、静的表示中のタイルは
-  // constrained (flex:1) ではなく content-driven の自然高さで測定されるため、全件が収まる
-  // 高さを自分自身が返してしまい needsPaging へ昇格できない自己参照になっていた
-  // (Codex レビュー M3 派生、狭い画面で静的表示のまま溢れる不具合)。
-  // 代わりに .tiles (両タイルの共通ビューポート、常時 flex:1 constrained) の実測高さから
-  // 「相手セクションが今すでに消費している実測高さ + gap」を差し引いた値を使う
-  // (sectionAvailableHeight、instrument-layout.ts)。相手の実測高さは静的でもページング中でも
-  // 同じ「実際に描画されている高さ」なので分岐が要らず、双方とも相手の $state を読むだけの
-  // 相互参照 (非循環) になる。収束の根拠は sectionAvailableHeight のコメント参照。
-  //
-  // T6b M-a: ただし .tiles は `@container (min-width: 1200px)` で 2 カラム grid に切り替わり
-  // (下記 CSS)、その状態では予報区/観測は縦方向に高さを奪い合わない。container query の
-  // 判定結果は JS から直接読めないため、両 tile の実測 top/bottom から幾何的に縦積みかどうかを
-  // isStackedLayout で逆算し、横並びのときは「相手は競合しない」として sectionAvailableHeight に
-  // false を渡す (= 各セクションが tilesHeight をそのまま使える)。
-  //
-  // T6c (再レビュー M-a 残 major): 両 tile の rect (top/bottom/height) は
-  // remeasureTiles() で「常にペアで」読み直す (下記)。片方の tile だけの ResizeObserver
-  // コールバックで自分の rect だけ書き込む旧構造 (measureBox) だと、サイズは変わらず位置だけ
-  // 動いた相手 tile の rect が古いまま取り残される問題があった (静的→ページング昇格で片方の
-  // 高さが変わっても、もう片方は自分のサイズが変わらなければ ResizeObserver が発火しない)。
-  let tilesHeight = $state(0);
-  let coastsBox = $state<MeasuredBox>({ height: 0, top: 0, bottom: 0 });
-  let obsBox = $state<MeasuredBox>({ height: 0, top: 0, bottom: 0 });
-  let coastRowHeight = $state(0);
-  let obsRowHeight = $state(0);
-  // ヘッダ実測補正 (T-a11y-gate fix、preview 実機確認 2026-07-18: 予報区・観測とも末尾行が
-  // 切れる)。.page-frame (予報区/観測ページ見出し・PageDots) と .obs-summary-frame (観測サマリ
-  // 見出し) は行リストと同じ .tile 内に同居する非リスト領域だが、これまで capacity 計算に
-  // 反映されていなかった (下記 coastHeaderOverheadPx/obsHeaderOverheadPx 参照)。.page-frame は
-  // ページング枝でしか mount されないため (.coast-row/.observation-row と違い静的枝には存在しない)、
-  // 実測値は $state に保持し続け未 mount 中も最後の実測値を使い回す (0 のときだけ「まだ一度も
-  // 実測していない」= 加算しない fallback、初回ページング遷移の一瞬だけ粗い見積りになるが
-  // coastRowHeight 等の既存 fallback 機構と同じ性質)
-  let coastFrameHeight = $state(0);
-  let obsSummaryHeight = $state(0);
-  let obsFrameHeight = $state(0);
-  // isStackedLayout の初期値 (未実測 0,0,0 同士) は true (縦積み扱い) になり、既存の
-  // 「未実測時は保守的に fallback へ」という方針と一致する (モバイル/狭い画面優先の既定)
-  const stacked = $derived(isStackedLayout(coastsBox.bottom, obsBox.top));
-  const coastsAvailableHeight = $derived(
-    sectionAvailableHeight(tilesHeight, obsBox.height, TILES_GAP_PX, visibleObservations.length > 0 && stacked),
-  );
-  const obsAvailableHeight = $derived(sectionAvailableHeight(tilesHeight, coastsBox.height, TILES_GAP_PX, stacked));
-  // 予報区ページの本文 (.page-fade) には、可視バグ修正 (T6c ②、preview 目視指摘「文字が
-  // カード縁にくっついている」) で `.tile` と同じ内側 padding を復元した。この padding は
-  // coastsBox (.tile-coasts の outer border-box) の実測には既に含まれていた (タイル自体の
-  // 総footprint は元々変わっていない) ので coastsAvailableHeight/obsAvailableHeight の
-  // クロスセクション計算は無修正で正しいが、.page-fade 内部の実際に使える行表示領域は
-  // その分だけ狭くなる。coastRowCapacity は「outer tile 高さ」を行数に近似変換する粗い近似
-  // (T6 由来) を使っているため、この padding ぶんは PAGE_FADE_PADDING_PX で明示的に差し引く。
-  //
-  // ヘッダ実測補正 (T-a11y-gate fix、preview 実機確認 2026-07-18: 予報区・観測タイルとも
-  // 末尾行が切れる): 上記の近似は page-frame (見出し・種別ラベル・PageDots) や
-  // obs-summary-frame (観測サマリ見出し) といった非リスト領域を「元々未補正」のまま容量計算に
-  // 含めており、特に PageDots が多ページで折返すと page-frame の実高さが伸びる (PageDots.svelte
-  // 参照) ため固定定数では追従できない。coastFrameHeight/obsSummaryHeight/obsFrameHeight
-  // (実測 $state、下記テンプレートの measureBorderHeight 配線) を capacity 計算から追加で
-  // 差し引く。border-box 実測は margin を含まないため、CSS の margin-bottom と揃えた定数
-  // (PAGE_FRAME_MARGIN_PX/OBS_SUMMARY_FRAME_MARGIN_PX) を加算する。観測タイルの .tile 自身の
-  // padding (TILE_PADDING_PX) は予報区と違って absolute 重ねの quirk が無く通常フローで直接
-  // 効くため、予報区の PAGE_FADE_PADDING_PX とは別に観測側だけへ加える
-  const coastHeaderOverheadPx = $derived(
-    PAGE_FADE_PADDING_PX + (coastFrameHeight > 0 ? coastFrameHeight + PAGE_FRAME_MARGIN_PX : 0),
-  );
-  const obsHeaderOverheadPx = $derived(
-    TILE_PADDING_PX +
-      (obsSummaryHeight > 0 ? obsSummaryHeight + OBS_SUMMARY_FRAME_MARGIN_PX : 0) +
-      (obsFrameHeight > 0 ? obsFrameHeight + PAGE_FRAME_MARGIN_PX : 0),
-  );
-  const coastRowCapacity = $derived(
-    rowCapacity(Math.max(0, coastsAvailableHeight - coastHeaderOverheadPx), coastRowHeight, TSUNAMI_PAGE_ROW_CAPACITY),
-  );
-  const obsRowCapacity = $derived(
-    rowCapacity(Math.max(0, obsAvailableHeight - obsHeaderOverheadPx), obsRowHeight, TSUNAMI_PAGE_ROW_CAPACITY),
-  );
+  interface EmergencyTsunamiPage {
+    identity: string;
+    fingerprint: string;
+    type: "coast" | "observation";
+    kind?: string;
+    coasts?: KeyedRow<Coast>[];
+    observations?: KeyedRow<DisplayTsunamiObservationV1>[];
+    infeasible?: boolean;
+    itemCount?: number;
+  }
+  interface TsunamiPartitionSection {
+    id: string;
+    type: "coast" | "observation";
+    kind?: string;
+    coasts: KeyedRow<Coast>[];
+    observations: KeyedRow<DisplayTsunamiObservationV1>[];
+  }
+  interface ProbeMeasurement {
+    contentHeight: number;
+    availableHeight: number;
+  }
 
-  // remeasureTiles: 両 tile の rect をまとめて読み直す (T6c M-a rect 鮮度対応)。
-  // ① 各 tile 自身の resize (observeResize、下記テンプレート) と
-  // ② 表示モード切替 (needsPaging/obsNeedsPaging の変化、下の $effect) の両方から呼ばれる。
-  // coastsBox/obsBox への書き込みだけで、両者を読むことは無い (非循環維持: この関数と
-  // それを呼ぶ $effect は state を書くだけで、coastsAvailableHeight 等の $derived 側を
-  // 読み返さない)
-  let coastsTileEl: HTMLElement | undefined = $state();
-  let obsTileEl: HTMLElement | undefined = $state();
-  // レイアウト遷移中 (layoutSettling) はタイル/行の実測を保留する (最新 1 件だけ保持、完了時に一度だけ
-  // 反映)。tilesHeight/coastRowHeight/obsRowHeight は最新値を pending に、tile rect の読み直しは
-  // dirty フラグに畳んで、settling 完了時に flush する (spec §4)。reduced-motion では layoutSettling が
-  // 常に false になり同期反映になる (EmergencyScreen が settling を立てない)。
-  let pendingTilesHeight: number | null = null;
-  let pendingCoastRow: number | null = null;
-  let pendingObsRow: number | null = null;
-  let pendingCoastFrame: number | null = null;
-  let pendingObsSummary: number | null = null;
-  let pendingObsFrame: number | null = null;
-  let pendingRemeasure = false;
-  function applyTilesHeight(h: number): void {
-    if (layoutSettling) pendingTilesHeight = h;
-    else tilesHeight = h;
+  const tsunamiSections = $derived.by((): TsunamiPartitionSection[] => [
+    ...coastGroups.map((group) => ({
+      id: `coast:${group.key}`,
+      type: "coast" as const,
+      kind: group.kind,
+      coasts: group.coasts,
+      observations: [],
+    })),
+    ...(visibleObsRows.length === 0 ? [] : [{
+      id: "observation",
+      type: "observation" as const,
+      coasts: [],
+      observations: visibleObsRows,
+    }]),
+  ]);
+  function sectionEntries(section: TsunamiPartitionSection) {
+    if (section.type === "coast") return section.coasts.map((row) => ({
+      identity: `coast:${row.key}`,
+      fingerprint: itemContentFingerprint({
+        name: row.row.name, kind: row.row.kind, maxHeight: row.row.maxHeight,
+        maxHeightSemantic: heightFingerprint(row.row.maxHeightSemantic), firstHeight: row.row.firstHeight,
+      }),
+    }));
+    return section.observations.map((row) => ({
+      identity: `observation:${row.key}`,
+      fingerprint: itemContentFingerprint({
+        areaName: row.row.areaName ?? null, areaKind: row.row.areaKind ?? null,
+        stationName: row.row.stationName, arrivalTime: row.row.arrivalTime, initial: row.row.initial,
+        maxHeightValue: row.row.maxHeightValue, maxHeightSemantic: heightFingerprint(row.row.maxHeightSemantic),
+        condition: row.row.condition ?? null, heightCondition: row.row.heightCondition ?? null,
+      }),
+    }));
   }
-  function applyCoastRowHeight(h: number): void {
-    if (layoutSettling) pendingCoastRow = h;
-    else coastRowHeight = h;
+  function sectionCount(section: TsunamiPartitionSection): number {
+    return section.type === "coast" ? section.coasts.length : section.observations.length;
   }
-  function applyObsRowHeight(h: number): void {
-    if (layoutSettling) pendingObsRow = h;
-    else obsRowHeight = h;
+
+  // sequentialPartitionRanges の pending range を隠し棚で強制描画する。cache key は表示内容の
+  // fingerprint と実測幅・高さを含み、続報・compact 切替・container 寸法変更のどれでも古い高さを再利用しない。
+  let probeWidth = $state(0);
+  let probeHeight = $state(0);
+  let probeMeasurements = $state<Record<string, ProbeMeasurement>>({});
+  let pendingProbeBox: { width: number; height: number } | null = null;
+  const pendingProbeMeasurements = new Map<string, ProbeMeasurement>();
+  const tsunamiProbeFingerprint = $derived(pageContentFingerprint(
+    { compact },
+    tsunamiSections.flatMap((section) => sectionEntries(section).map((entry) => ({
+      identity: `${section.id}:${entry.identity}`,
+      fingerprint: entry.fingerprint,
+    }))),
+  ));
+  const tsunamiProbeGeneration = $derived(`${tsunamiProbeFingerprint}:w${Math.round(probeWidth * 100) / 100}:h${Math.round(probeHeight * 100) / 100}`);
+  function tsunamiProbeId(sectionId: string, range: Pick<PageRange, "start" | "end">): string {
+    return `${tsunamiProbeGeneration}:${sectionId}:${range.start}:${range.end}`;
   }
-  function applyCoastFrameHeight(h: number): void {
-    if (layoutSettling) pendingCoastFrame = h;
-    else coastFrameHeight = h;
+  function partitionProbeFor(section: TsunamiPartitionSection): PartitionProbe {
+    return (_key, _placement, range) => {
+      // jsdom has no layout engine. Production always takes the shelf/cache path.
+      if (typeof ResizeObserver === "undefined") {
+        return range.end - range.start <= TSUNAMI_PAGE_ROW_CAPACITY ? 0 : 2;
+      }
+      const measured = probeMeasurements[tsunamiProbeId(section.id, range)];
+      if (measured == null) return null;
+      return measured.contentHeight <= measured.availableHeight + 1 ? 0 : 2;
+    };
   }
-  function applyObsSummaryHeight(h: number): void {
-    if (layoutSettling) pendingObsSummary = h;
-    else obsSummaryHeight = h;
-  }
-  function applyObsFrameHeight(h: number): void {
-    if (layoutSettling) pendingObsFrame = h;
-    else obsFrameHeight = h;
-  }
-  function remeasureTiles(): void {
+  const tsunamiPartitions = $derived.by((): Array<{ section: TsunamiPartitionSection; result: PartitionResult }> =>
+    tsunamiSections.map((section) => ({
+      section,
+      result: sequentialPartitionRanges(
+        "tsunami",
+        compact ? "side" : "center",
+        sectionCount(section),
+        1,
+        partitionProbeFor(section),
+        () => [],
+      ),
+    })),
+  );
+  const panelPages = $derived.by((): EmergencyTsunamiPage[] => tsunamiPartitions.flatMap(({ section, result }): EmergencyTsunamiPage[] => {
+    if (result.infeasible) {
+      return [{
+        identity: `emergency-tsunami-details:${section.id}:infeasible`,
+        fingerprint: pageContentFingerprint(
+          { type: section.type, kind: section.kind ?? null, infeasible: true },
+          sectionEntries(section),
+        ),
+        type: section.type,
+        kind: section.kind,
+        infeasible: true,
+        itemCount: sectionCount(section),
+      }];
+    }
+    return result.ranges.map((range) => {
+      const entries = sectionEntries(section).slice(range.start, range.end);
+      const identity = `emergency-tsunami-details:${section.id}:${entries[0]?.identity ?? range.start}:${entries.at(-1)?.identity ?? range.end}`;
+      return {
+        identity,
+        fingerprint: pageContentFingerprint(
+          { type: section.type, kind: section.kind ?? null, start: range.start },
+          entries,
+        ),
+        type: section.type,
+        kind: section.kind,
+        coasts: section.type === "coast" ? section.coasts.slice(range.start, range.end) : undefined,
+        observations: section.type === "observation" ? section.observations.slice(range.start, range.end) : undefined,
+      };
+    });
+  }));
+  const tsunamiPartitionPending = $derived(tsunamiPartitions.some(({ result }) => result.pending.length > 0));
+  const tsunamiProbePages = $derived(tsunamiPartitions.flatMap(({ section, result }) =>
+    result.pending.map((range) => ({
+      id: tsunamiProbeId(section.id, range),
+      section,
+      range,
+      coasts: section.coasts.slice(range.start, range.end),
+      observations: section.observations.slice(range.start, range.end),
+    })),
+  ));
+
+  function commitProbeMeasurement(id: string, measurement: ProbeMeasurement): void {
     if (layoutSettling) {
-      pendingRemeasure = true;
+      pendingProbeMeasurements.set(id, measurement);
       return;
     }
-    if (coastsTileEl != null) coastsBox = readBox(coastsTileEl);
-    if (obsTileEl != null) obsBox = readBox(obsTileEl);
+    const previous = probeMeasurements[id];
+    if (previous?.contentHeight === measurement.contentHeight
+      && previous.availableHeight === measurement.availableHeight) return;
+    probeMeasurements = { ...probeMeasurements, [id]: measurement };
+  }
+  function measurePartitionProbe(node: HTMLElement, id: string) {
+    let currentId = id;
+    const measure = (): void => {
+      const measurement = { contentHeight: node.scrollHeight, availableHeight: node.clientHeight };
+      if (measurement.contentHeight > 0 && measurement.availableHeight > 0) {
+        commitProbeMeasurement(currentId, measurement);
+      }
+    };
+    if (typeof ResizeObserver === "undefined") return { update(next: string) { currentId = next; } };
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    queueMicrotask(measure);
+    return {
+      update(next: string) { currentId = next; measure(); },
+      destroy() { observer.disconnect(); },
+    };
+  }
+  function observeProbeBox(node: HTMLElement) {
+    if (typeof ResizeObserver === "undefined") return {};
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? node.getBoundingClientRect().width;
+      const height = entries[0]?.contentRect.height ?? node.getBoundingClientRect().height;
+      if (!(width > 0) || !(height > 0)) return;
+      if (layoutSettling) pendingProbeBox = { width, height };
+      else {
+        probeWidth = width;
+        probeHeight = height;
+      }
+    });
+    observer.observe(node);
+    return { destroy() { observer.disconnect(); } };
   }
   $effect(() => {
     if (layoutSettling) return;
-    if (pendingTilesHeight != null) {
-      tilesHeight = pendingTilesHeight;
-      pendingTilesHeight = null;
+    if (pendingProbeBox != null) {
+      probeWidth = pendingProbeBox.width;
+      probeHeight = pendingProbeBox.height;
+      pendingProbeBox = null;
     }
-    if (pendingCoastRow != null) {
-      coastRowHeight = pendingCoastRow;
-      pendingCoastRow = null;
+    if (pendingProbeMeasurements.size > 0) {
+      probeMeasurements = { ...probeMeasurements, ...Object.fromEntries(pendingProbeMeasurements) };
+      pendingProbeMeasurements.clear();
     }
-    if (pendingObsRow != null) {
-      obsRowHeight = pendingObsRow;
-      pendingObsRow = null;
-    }
-    if (pendingCoastFrame != null) {
-      coastFrameHeight = pendingCoastFrame;
-      pendingCoastFrame = null;
-    }
-    if (pendingObsSummary != null) {
-      obsSummaryHeight = pendingObsSummary;
-      pendingObsSummary = null;
-    }
-    if (pendingObsFrame != null) {
-      obsFrameHeight = pendingObsFrame;
-      pendingObsFrame = null;
-    }
-    if (pendingRemeasure) {
-      pendingRemeasure = false;
-      remeasureTiles();
-    }
-  });
-
-  const needsPaging = $derived(input.coasts.length > coastRowCapacity);
-
-  // 旧「pageInKind/totalInKind」(種別内番号) の文字表示は T8① でドットインジケータ (PageDots)
-  // に撤去済み。ドット列のグループ境界 gap 機能 (種別境界に gap を入れる任意機能) は
-  // preview 目視レビューで「間隔が不揃いに見える」と不評だったため T8⑤ で撤去し、TsunamiPage の
-  // pageInKind/totalInKind フィールド (境界計算専用だった) も不要になったので削除した
-  const tsunamiPages = $derived.by((): TsunamiPage[] => {
-    if (!needsPaging) return [];
-    const pages: TsunamiPage[] = [];
-    for (const g of coastGroups) {
-      const chunkCount = Math.ceil(g.coasts.length / coastRowCapacity);
-      for (let i = 0; i < chunkCount; i++) {
-        pages.push({
-          kind: g.kind,
-          coasts: g.coasts.slice(i * coastRowCapacity, (i + 1) * coastRowCapacity),
-        });
-      }
-    }
-    return pages;
   });
 
   // resetSeq: episode (VTSE41 EventID) が変わった時点で先頭へ戻す。同一 EventID の
@@ -483,73 +479,37 @@
     prevLevelRank = rank;
   });
 
+  const attention = new PageAttentionState();
+  const episodeKey = $derived(normalizeTsunamiEventId(input.eventId) ?? `unkeyed:${episodeResetKey ?? 0}`);
+  $effect(() => {
+    const generation = {
+      episodeKey: `tsunami:${episodeKey}`,
+      severityRank: LEVEL_RANK[input.level],
+      pages: panelPages,
+      preserveStablePages: true,
+      partitionPending: tsunamiPartitionPending,
+    };
+    untrack(() => attention.sync(generation));
+  });
   const pageCycler = createPageCycler({
-    pageCount: () => tsunamiPages.length,
+    pageCount: () => panelPages.length,
     resetKey: () => resetSeq,
+    reducedMotion: () => reducedMotion,
+    pageIdentity: () => panelPages[pageCycler.index]?.identity ?? null,
+    pageFingerprint: () => panelPages[pageCycler.index]?.fingerprint ?? "",
+    onHoldComplete: (_index, identity, fingerprint) => {
+      const active = panelPages[pageCycler.index];
+      if (identity != null && active?.identity === identity && active.fingerprint === fingerprint) attention.markHoldComplete(identity);
+    },
   });
   // unmount (main-stack のモード切替・panel 差替え) で $effect.root のタイマー/matchMedia
   // リスナーがリークしないよう、コンポーネント破棄時に必ず destroy() する (Codex R レビュー M1)
   onDestroy(() => pageCycler.destroy());
-  // pageCycler.index の巻き戻し ($effect) はデータ更新と非同期に走るため、テンプレート側の
-  // 参照が一瞬 index >= tsunamiPages.length の状態を読む理論上の窓がある。範囲外アクセスで
-  // undefined を掴んで落ちないよう `?? tsunamiPages[0]` で防御する (レビュー指摘)
-
-  // 表示中のページ (paging=false のときは null)。予報区 tile 自体を静的/ページングどちらの
-  // 枝でも常時マウントされる単一要素にする (下記テンプレート) ための派生値。旧実装は
-  // measureHeight が {#if needsPaging} の内側にしか mount されず、(a) 初期 fallback (8行)
-  // 以下の件数だと静的枝から一度も抜けられずページングへ昇格できない鶏卵と、(b) 画面縮小後も
-  // 静的枝では observer が存在せず容量が更新されない stale の 2 つの不具合を持っていた
-  // (Codex R レビュー M3 派生)
-  const currentTsunamiPage = $derived(tsunamiPages[pageCycler.index] ?? tsunamiPages[0] ?? null);
-
-  // observationVisible/visibleObservations は上の行容量算出 (coastsAvailableHeight が
-  // 観測 tile の有無を見る) でも参照するため、スクリプト冒頭で定義済み
-
-  // 観測実況の 3 層化 (spec §2-c レビュー決定 2026-07-09): 固定計器行「最大観測」+ 全件は
-  // 収まれば静的・収まらなければ予報区と同じページャ文法 (行容量は予報区と同じ lib 定数を共有。
-  // 両リストとも 1 行 = padding 4px 0 のグリッド行で構造が同型なため、容量を分ける理由が無い)
-  const maxObservation = $derived(maxTsunamiObservation(visibleObservations));
-  const obsNeedsPaging = $derived(visibleObservations.length > obsRowCapacity);
-  const obsPages = $derived.by((): KeyedRow<DisplayTsunamiObservationV1>[][] => {
-    if (!obsNeedsPaging) return [];
-    const pages: KeyedRow<DisplayTsunamiObservationV1>[][] = [];
-    for (let i = 0; i < visibleObsRows.length; i += obsRowCapacity) {
-      pages.push(visibleObsRows.slice(i, i + obsRowCapacity));
-    }
-    return pages;
-  });
-
-  // resetSeq (level 上昇) は予報区ページャと共有する。観測実況も同じ「最重要ページから見せ直す」
-  // 対象のため、別イベント扱いの基準を分ける理由が無い
-  const obsPageCycler = createPageCycler({
-    pageCount: () => obsPages.length,
-    resetKey: () => resetSeq,
-  });
-  onDestroy(() => obsPageCycler.destroy());
-
-  // reduced-motion は page-cycler の matchMedia 購読を共有する (2 本目の subscription を作らない)。
-  // 後発行の FLIP・reveal は切替後開始分が 0ms になる (spec §4-b)。
-  const reducedMotion = $derived(pageCycler.reducedMotion);
+  const maxObservation = $derived(maxTsunamiObservation(input.observations));
+  const currentTsunamiPage = $derived(panelPages[pageCycler.index] ?? panelPages[0] ?? null);
+  const attentionView = $derived(attention.viewModel(pageCycler.index));
   const flipDur = $derived(reducedMotion ? 0 : SPRING_SPATIAL_DEFAULT_MS);
 
-  // 表示中の観測ページ (obsNeedsPaging=false のときは null)。予報区と同じ理由で、観測リスト
-  // ホストも静的/ページングどちらの枝でも常時マウントされる単一要素にする (Codex R レビュー M3 派生)
-  const currentObsPage = $derived(obsPages[obsPageCycler.index] ?? obsPages[0] ?? null);
-
-  // T6c (M-a rect 鮮度対応、再レビュー残 major): 表示モード切替 (needsPaging/obsNeedsPaging
-  // の変化) は片方の tile の高さを変えるが、もう片方は自分のサイズが変わらなければ
-  // ResizeObserver (observeResize、下記テンプレート) が発火せず top/bottom が stale なままになる
-  // (縦積みで coasts が static→paged に変わると obs の top が動くが obs 自身の高さは不変、
-  // という具体例)。needsPaging/obsNeedsPaging の変化を $effect で追い、Svelte が DOM を更新した
-  // 後に remeasureTiles() で両方の rect を読み直す。この $effect は coastsBox/obsBox に
-  // 書き込むだけで読み返さないため、非循環は維持される (needsPaging/obsNeedsPaging という
-  // primitive の値が実際に変わらない限り Svelte はこの $effect を再スケジュールしない = 実 DOM
-  // レイアウトが安定すれば有限回で収束し、無限ループにはならない)
-  $effect(() => {
-    void needsPaging;
-    void obsNeedsPaging;
-    remeasureTiles();
-  });
 </script>
 
 <!-- 行の「中身」だけを snippet 化する (spec §2-c Medium 3): animate:flip は keyed each の直接
@@ -557,11 +517,10 @@
      <li> を各 each 内へインライン展開し高さ wrapper 化 (overflow:hidden・padding は body 側)、
      内側 body (.coast-row/.observation-row) をこの snippet が返す。body は transform+opacity の
      revealScaleIn、<li> は高さの heightReveal と位置の flip を担う (軸が異なるため共存可)。 -->
-{#snippet coastRowBody(c: Coast, i: number, tintHeight: boolean, reveal: boolean)}
+{#snippet coastRowBody(c: Coast, _i: number, tintHeight: boolean, reveal: boolean)}
   <div
     class="coast-row"
     data-motion-reveal="scale"
-    use:measureBorderHeight={i === 0 ? applyCoastRowHeight : undefined}
     in:revealScaleIn={{ reveal, duration: SPRING_SPATIAL_DEFAULT_MS }}
   >
     <span class="coast-name">{c.name}</span>
@@ -578,11 +537,10 @@
   </div>
 {/snippet}
 
-{#snippet observationRowBody(o: DisplayTsunamiObservationV1, i: number, reveal: boolean)}
+{#snippet observationRowBody(o: DisplayTsunamiObservationV1, _i: number, reveal: boolean)}
   <div
     class="observation-row"
     data-motion-reveal="scale"
-    use:measureBorderHeight={i === 0 ? applyObsRowHeight : undefined}
     in:revealScaleIn={{ reveal, duration: SPRING_SPATIAL_DEFAULT_MS }}
   >
     <span class="obs-name">{o.stationName}</span>
@@ -635,169 +593,92 @@
       {/each}
     </div>
   {/if}
-  <!-- .tiles: 両タイル共通のビューポート。常時 flex:1;min-height:0 で constrained なため、
-       実測高さは静的/ページングどちらの表示モードでも「実際に使える全高」を表す (T6)。
-       各タイルの利用可能高さ (coastsAvailableHeight/obsAvailableHeight) はここから
-       相手タイルの実測高さを差し引いて導出する (sectionAvailableHeight、instrument-layout.ts) -->
-  <div class="tiles" use:measureHeight={applyTilesHeight}>
-    <!-- 予報区 tile: 静的/ページングどちらの枝でも同一要素を維持し (中身だけ {#if} で切替)、
-         measureHeight を常時マウントする (Codex R レビュー M3 派生。旧実装は {#if needsPaging}
-         の外側に別々の div を置いていたため、静的表示中は observer が存在せず measure できなかった) -->
+  {#if input.observations.length > 0}
+    <div class="fixed-observation-summary" data-observation-summary>
+      <div class="obs-summary-frame">
+        <span class="obs-summary-line">{#if maxObservation != null}最大観測: <span class="obs-summary-value">{tsunamiHeightLabel(maxObservation.label, maxObservation.semantic)}</span> {maxObservation.stationName} / {/if}{#if maxObservation != null}{" "}{/if}観測 {input.observations.length}地点</span>
+      </div>
+    </div>
+  {/if}
+  <div class="tiles">
     <div
-      class="tile tile-coasts"
-      class:page-tinted={currentTsunamiPage != null}
-      style={currentTsunamiPage != null ? `--page-bg: ${coastKindPageBg(currentTsunamiPage.kind)};` : undefined}
-      bind:this={coastsTileEl}
-      use:observeResize={remeasureTiles}
+      class="tile tile-coasts unified-page"
+      class:page-tinted={currentTsunamiPage?.type === "coast"}
+      style={currentTsunamiPage?.type === "coast" ? `--page-bg: ${coastKindPageBg(currentTsunamiPage.kind ?? "")};` : undefined}
+      use:observeProbeBox
     >
       {#if currentTsunamiPage != null}
         {#key pageCycler.index}
           <div
             class="page-fade"
             transition:fade={{
-              duration: pageCycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS,
+              duration: reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS,
               easing: springEffectsOut,
             }}
+            data-page-identity={currentTsunamiPage.identity}
           >
-            <div class="page-frame" use:measureBorderHeight={applyCoastFrameHeight}>
-              <h2 class="page-heading">予報区</h2>
-              <span class="page-kind" style="color: {coastKindHeaderOnVar(currentTsunamiPage.kind)}"
-                >{currentTsunamiPage.kind}</span
-              >
-              <PageDots total={pageCycler.total} current={pageCycler.index} onJump={(i) => pageCycler.jumpTo(i)} />
+            <div class="page-frame">
+              <h2 class="page-heading">{currentTsunamiPage.type === "coast" ? "予報区" : "観測"}</h2>
+              {#if currentTsunamiPage.type === "coast"}<span class="page-kind" style="color: {coastKindHeaderOnVar(currentTsunamiPage.kind ?? "")}">{currentTsunamiPage.kind}</span>{/if}
+              {#if pageCycler.total > 1}<PageDots total={pageCycler.total} current={pageCycler.index} onJump={(i) => pageCycler.jumpTo(i)} />{/if}
+              {#if attentionView.text !== ""}<span class="page-attention" data-page-attention={attentionView.text}>{attentionView.text}</span>{/if}
             </div>
-            <ul class="coasts">
-              <!-- ページング枝は page-fade の {#key} 重ねクロスフェードが入替演出を担う。行個別の
-                   reveal を付けるとページ送りのたびに再発火して二重演出になる (レビュー指摘 Medium 1、
-                   spec「ページング領域は触らない」)。よって reveal:false 固定。後発行の reveal は
-                   静的枝だけが担当する。flip は位置補正なので残す。 -->
-              {#each currentTsunamiPage.coasts as r, i (r.key)}
-                <li
-                  class="coast-row-wrap"
-                  data-motion-reveal="height"
-                  animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-                  in:heightReveal={{ reveal: false, duration: SPRING_EFFECTS_DEFAULT_MS }}
-                >
-                  {@render coastRowBody(r.row, i, false, false)}
-                </li>
-              {/each}
-            </ul>
+            {#if currentTsunamiPage.infeasible}
+              <div class="partition-infeasible-message">表示領域不足・{currentTsunamiPage.itemCount ?? 0}{currentTsunamiPage.type === "coast" ? "予報区" : "地点"}</div>
+            {:else if currentTsunamiPage.type === "coast"}
+              <ul class="coasts page-list-body">
+                {#each currentTsunamiPage.coasts ?? [] as r, i (r.key)}
+                  <li class="coast-row-wrap" data-motion-reveal="height" animate:flip={{ duration: flipDur, easing: springSpatialOut }} in:heightReveal={{ reveal: false, duration: SPRING_EFFECTS_DEFAULT_MS }}>
+                    {@render coastRowBody(r.row, i, false, false)}
+                  </li>
+                {/each}
+              </ul>
+            {:else}
+              <ul class="observations page-list-body">
+                {#each currentTsunamiPage.observations ?? [] as r, i (r.key)}
+                  <li class="observation-row-wrap" data-motion-reveal="height" animate:flip={{ duration: flipDur, easing: springSpatialOut }} in:heightReveal={{ reveal: false, duration: SPRING_EFFECTS_DEFAULT_MS }}>
+                    {@render observationRowBody(r.row, i, false)}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
           </div>
         {/key}
-      {:else}
-        <!-- A11y (最終レビュー Finding 1): 静的枝には h2「予報区」が無く、h3.coast-kind が
-             App の h1 (App.svelte 単一 visually-hidden h1) から直接 h3 になっていた (h1→h3 スキップ)。
-             ページング枝は h2.page-heading「予報区」を持つが、その配下の種別ラベルは見出しではない
-             単なる span (.page-kind、1 ページ 1 種別のため見出しにする必要が無い)。一方この静的枝は
-             複数種別を同時併記するグルーピング構造そのものが「予報区」節の内訳なので、
-             coast-kind を新規 h2 でラップし直すのではなく、coast-kind 自身を h2 に昇格させる方が
-             構造に合う (この画面の中で「予報区」に相当する唯一の見出しになる)。.coast-kind の
-             CSS はクラスセレクタのみ (h3.coast-kind 等の要素型セレクタは存在しない) で見た目は
-             不変。ページング枝には対応する coast-kind 相当の見出しが無いため h3 のままにする
-             対象自体が無く、両枝の要素型差分は発生しない -->
-        {#each coastGroups as g (g.key)}
-          <div class="coast-group">
-            <h2 class="coast-kind" style="color: {coastKindRoleVar(g.kind)}">{g.kind}</h2>
-            <ul class="coasts">
-              {#each g.coasts as r, i (r.key)}
-                <li
-                  class="coast-row-wrap"
-                  data-motion-reveal="height"
-                  animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-                  in:heightReveal={{
-                    reveal: !initialCoastKeys.has(r.key) && !reducedMotion,
-                    duration: SPRING_EFFECTS_DEFAULT_MS,
-                  }}
-                >
-                  {@render coastRowBody(r.row, i, true, !initialCoastKeys.has(r.key) && !reducedMotion)}
-                </li>
-              {/each}
-            </ul>
+      {/if}
+      <div class="partition-probe-shelf" aria-hidden="true" inert data-partition-probe-shelf>
+        {#each tsunamiProbePages as probe (probe.id)}
+          <div class="partition-probe-page" class:coast-probe={probe.section.type === "coast"}>
+            <div class="page-frame">
+              <h2 class="page-heading">{probe.section.type === "coast" ? "予報区" : "観測"}</h2>
+              {#if probe.section.type === "coast"}<span class="page-kind">{probe.section.kind}</span>{/if}
+              {#if panelPages.length > 1}<span class="partition-probe-dots">{#each panelPages as _, index (index)}<i class:current={index === 0}></i>{/each}</span>{/if}
+              <span class="page-attention">{panelPages.length > 1 ? `1/${panelPages.length}・未表示${panelPages.length}` : "未表示1"}</span>
+            </div>
+            {#if probe.section.type === "coast"}
+              <ul
+                class="coasts page-list-body partition-probe-body"
+                data-partition-probe-range={`${probe.range.start}:${probe.range.end}`}
+                use:measurePartitionProbe={probe.id}
+              >
+                {#each probe.coasts as row, rowIndex (row.key)}
+                  <li class="coast-row-wrap">{@render coastRowBody(row.row, rowIndex, false, false)}</li>
+                {/each}
+              </ul>
+            {:else}
+              <ul
+                class="observations page-list-body partition-probe-body"
+                data-partition-probe-range={`${probe.range.start}:${probe.range.end}`}
+                use:measurePartitionProbe={probe.id}
+              >
+                {#each probe.observations as row, rowIndex (row.key)}
+                  <li class="observation-row-wrap">{@render observationRowBody(row.row, rowIndex, false)}</li>
+                {/each}
+              </ul>
+            {/if}
           </div>
         {/each}
-      {/if}
-    </div>
-    {#if visibleObservations.length > 0}
-      <!-- 観測 tile: 予報区タイルと同じ理由で静的/ページングどちらの枝でも同一要素を維持する
-           (Codex R レビュー M3 派生)。この outer tile の実測値は「相手 (予報区) タイルが利用可能
-           高さを出すときに差し引く、観測タイルの実測消費高さ + 幾何判定用の top/bottom」として
-           使う (obsBox、旧実装は内側の obs-list-host だけを測っていたが、summary-frame ぶんの
-           overhead も含めて outer tile を測るほうが coasts 側の available-height 計算の整合性が
-           高い)。rect の読み直しは remeasureTiles (observeResize + $effect、T6c) に統合した -->
-      <div
-        class="tile tile-observations"
-        class:paged={obsNeedsPaging}
-        bind:this={obsTileEl}
-        use:observeResize={remeasureTiles}
-      >
-        <div class="obs-summary-frame" use:measureBorderHeight={applyObsSummaryHeight}>
-          <h2 class="observations-heading">観測された津波</h2>
-          <!-- T6c ③ (preview 目視指摘「8.5m以上」等の値が途中で改行される): maxObservation.label
-               だけを個別 span (white-space:nowrap、.city-name と同じ「値の途中で折らない」規範) に
-               切り出す。1 行のテキストに戻して見せかけの単純さを保つため改行・インデント無しの
-               単一行で書く (obsSummaryLine という 1 本の文字列 $derived だった旧実装をやめて
-               テンプレート側で組み立てる形に変えたが、textContent は完全に一致する) -->
-          <span class="obs-summary-line">{#if maxObservation != null}最大観測: <span
-            class="obs-summary-value"
-            style="color: {tsunamiHeightColorVar(maxObservation.semantic, panelRoleVar)}"
-            title={tsunamiHeightMeaning(maxObservation.label, maxObservation.semantic)}
-            aria-label={tsunamiHeightMeaning(maxObservation.label, maxObservation.semantic)}
-          >{tsunamiHeightLabel(maxObservation.label, maxObservation.semantic)}{#if tsunamiHeightBadge(maxObservation.semantic) != null}<b class="semantic-badge height-badge" aria-hidden="true">{tsunamiHeightBadge(maxObservation.semantic)}</b>{/if}</span> {maxObservation.stationName} / 観測 {visibleObservations.length}地点{:else}観測 {visibleObservations.length}地点{/if}</span>
-        </div>
-        <div class="obs-list-host" class:paged={currentObsPage != null}>
-          {#if currentObsPage != null}
-            {#key obsPageCycler.index}
-              <div
-                class="page-fade"
-                transition:fade={{
-                  duration: obsPageCycler.reducedMotion ? 0 : SPRING_EFFECTS_DEFAULT_MS,
-                  easing: springEffectsOut,
-                }}
-              >
-                <div class="page-frame" use:measureBorderHeight={applyObsFrameHeight}>
-                  <h2 class="page-heading">観測</h2>
-                  <PageDots
-                    total={obsPageCycler.total}
-                    current={obsPageCycler.index}
-                    onJump={(i) => obsPageCycler.jumpTo(i)}
-                  />
-                </div>
-                <!-- ページング枝は page-fade のクロスフェードが入替を担うため行 reveal は無効化
-                     (レビュー指摘 Medium 1)。flip のみ残す。後発行の reveal は静的枝が担当する。 -->
-                <ul>
-                  {#each currentObsPage as r, i (r.key)}
-                    <li
-                      class="observation-row-wrap"
-                      data-motion-reveal="height"
-                      animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-                      in:heightReveal={{ reveal: false, duration: SPRING_EFFECTS_DEFAULT_MS }}
-                    >
-                      {@render observationRowBody(r.row, i, false)}
-                    </li>
-                  {/each}
-                </ul>
-              </div>
-            {/key}
-          {:else}
-            <ul>
-              {#each visibleObsRows as r, i (r.key)}
-                <li
-                  class="observation-row-wrap"
-                  data-motion-reveal="height"
-                  animate:flip={{ duration: flipDur, easing: springSpatialOut }}
-                  in:heightReveal={{
-                    reveal: !initialObsKeys.has(r.key) && !reducedMotion,
-                    duration: SPRING_EFFECTS_DEFAULT_MS,
-                  }}
-                >
-                  {@render observationRowBody(r.row, i, !initialObsKeys.has(r.key) && !reducedMotion)}
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </div>
       </div>
-    {/if}
+    </div>
   </div>
 </div>
 
@@ -910,18 +791,19 @@
     color: var(--fg);
     font-weight: var(--type-weight-bold);
   }
+  .fixed-observation-summary {
+    flex: 0 0 auto;
+    padding: var(--space-2) calc(28px * var(--panel-scale, 1)) 0;
+    color: var(--role-muted);
+    font-size: calc(var(--type-title-s-size) * var(--panel-scale, 1));
+    font-variant-numeric: tabular-nums;
+  }
   .tiles {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
     padding: var(--space-3) calc(28px * var(--panel-scale, 1)) calc(24px * var(--panel-scale, 1));
-  }
-  .tiles::-webkit-scrollbar {
-    display: none;
   }
   .tile {
     background: var(--surface-panel-raised);
@@ -929,6 +811,16 @@
     border: 1px solid var(--hairline);
     box-shadow: var(--elevation-1);
     padding: var(--space-4) var(--space-5);
+  }
+  .unified-page {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+  .page-attention {
+    color: var(--role-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
   .obs-summary-frame {
     display: flex;
@@ -980,6 +872,46 @@
     display: flex;
     flex-direction: column;
   }
+  /* sequentialPartitionRanges の pending 候補を live と同じ固定枠で強制描画する棚。
+     aria-hidden/inert と absolute + visibility:hidden により表示・通常レイアウトの外に置く。 */
+  .partition-probe-shelf,
+  .partition-probe-page {
+    position: absolute;
+    inset: 0;
+  }
+  .partition-probe-shelf {
+    visibility: hidden;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .partition-probe-page {
+    display: flex;
+    flex-direction: column;
+  }
+  .partition-probe-page {
+    padding: var(--space-4) var(--space-5);
+  }
+  .partition-probe-dots {
+    display: flex;
+    align-items: center;
+    align-self: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .partition-probe-dots i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .partition-probe-dots i.current {
+    width: 8px;
+    height: 8px;
+  }
+  .partition-infeasible-message {
+    color: var(--role-muted);
+    font-size: calc(var(--type-title-m-size) * var(--panel-scale, 1));
+  }
   /* 予報区ページ領域の種別別背景色面 (spec §2-c 改訂、可読性優先の高コントラスト版)。--page-bg
      は coastKindPageBg (種別色 15% + 最暗 --bg の color-mix) で JS 側から差し込む。本文文字は
      色相を乗せない --fg そのもの (page-kind の見出しラベルだけ inline style でヘッダトークン色を
@@ -1011,10 +943,9 @@
      .page-fade に同じ padding を明示的に持たせて復元する。.tile-coasts の総 footprint
      (coastsBox 実測) はこの padding を元から含んでいた (padding は .tile 自身の border-box の
      一部) ので変わらないが、.page-fade 内部の実行可能な行表示領域はこの分だけ狭くなる
-     (coastRowCapacity の PAGE_FADE_PADDING_PX 補正、上のスクリプト参照)。観測側の .page-fade
-     (.obs-list-host.paged 内) は position:relative の祖先 (.obs-list-host) が padding を
-     持たない別要素なので、この落とし穴の対象外 — padding は追加しない */
-  .tile-coasts.page-tinted .page-fade {
+     (coastRowCapacity の PAGE_FADE_PADDING_PX 補正、上のスクリプト参照)。観測 page も同じ
+     unified-page の直下で absolute に重なるため、同じ tile 契約の padding をここで復元する。 */
+  .tile-coasts.unified-page .page-fade {
     padding: var(--space-4) var(--space-5);
   }
   .coast-group {
@@ -1034,6 +965,11 @@
     margin: 0;
     padding: 0;
   }
+  .observations {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
   /* 行の高さ wrapper (spec §2-c 最終改稿 3): <li> 自身は padding/border/margin 0。heightReveal が
      height:0 で完全に閉じるよう、行の見た目 padding (4px 0) は内側 body (.coast-row/.observation-row)
      側に残す。flip=位置・heightReveal=高さで軸が異なり共存する。overflow はアニメ中だけ heightReveal
@@ -1045,11 +981,9 @@
     border: 0;
     margin: 0;
   }
-  /* ページング時 (.page-tinted .page-fade 内) の予報区リストは .page-fade の flex 子として
-     残り高さを受け取り、ページ本文領域の固定高さを保つ (spec §2-c「下位ブロックが上下移動
-     しないよう固定」)。静的グルーピング表示 (.coast-group 内) の .coasts はこの対象外
-     (自然な block 高さのまま) */
-  .page-tinted .page-fade .coasts {
+  /* live と probe の本文は同じ固定領域を受ける。scrollHeight/clientHeight の比較で候補 range
+     全体が収まることを証明してから live page に採用する。 */
+  .page-list-body {
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -1193,6 +1127,12 @@
   .tsunami-panel.compact .tile {
     padding: var(--space-2) var(--space-3);
   }
+  /* compact でも probe は live page と同じ内側余白で測る。片方だけを狭めると、
+     partition の fit 判定が実表示より楽観的になり、末尾行を clip し得る。 */
+  .tsunami-panel.compact .tile-coasts.unified-page .page-fade,
+  .tsunami-panel.compact .partition-probe-page {
+    padding: var(--space-2) var(--space-3);
+  }
   .tsunami-panel.compact .coast-row {
     font-size: var(--type-label-l-size);
     gap: var(--space-2);
@@ -1201,7 +1141,7 @@
     font-size: var(--type-label-m-size);
     gap: var(--space-2);
   }
-  .tsunami-panel.compact .obs-summary-line {
+  .tsunami-panel.compact .fixed-observation-summary {
     font-size: var(--type-label-m-size);
   }
 
@@ -1209,21 +1149,9 @@
      閾値 1200px: 860px だと左右分割/スタック内 (パネル幅 ~950px) で観測実況タイルに
      行が入らず右端が見切れるため、全面幅 (~1870px) でのみ発動するよう引き上げた */
   @container (min-width: 1200px) {
-    .tiles {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      align-items: start;
-    }
-    .tile-coasts:only-child {
-      grid-column: 1 / -1;
-    }
-    /* grid の align-items:start は既定で子を content-driven の高さに揃える (stretch しない)。
-       ページング中の flex:1;min-height:0 が実測高さを受け取るには、この 2 タイルだけ
-       stretch へ戻す必要がある (T5c) */
-    .tile-coasts.page-tinted,
-    .tile-observations.paged {
-      align-self: stretch;
-    }
+    /* D1-A の単一 pager は 1 枚の固定本文 tile を使う。旧二列 tile の reset を残すと
+       観測ページだけ content-height へ縮み、本文が clip するためここでは再配置しない。 */
+    .unified-page { min-height: 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {

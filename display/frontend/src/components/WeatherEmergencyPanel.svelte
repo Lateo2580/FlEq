@@ -39,7 +39,8 @@
     input,
     compact = false,
     layoutSettling = false,
-  }: { input: WeatherEmergencyInputV1; compact?: boolean; layoutSettling?: boolean } = $props();
+    reducedMotionInput = false,
+  }: { input: WeatherEmergencyInputV1; compact?: boolean; layoutSettling?: boolean; reducedMotionInput?: boolean } = $props();
 
   // L5 相当 = officialL5 ∪ nonLevelSpecial (どちらも特別警報級)、L4 相当 = officialL4 (警報級)。
   // 色 role は既存の weatherEmergency / weatherWarning を再利用する (新規トークンを作らない、spec §3)
@@ -255,6 +256,7 @@
   const cycler = createPageCycler({
     pageCount: () => pages.length,
     resetKey: () => `${input.generation}|${input.level}`,
+    reducedMotion: () => reducedMotionInput,
   });
   onDestroy(() => cycler.destroy());
   const currentPage = $derived(pages[cycler.index] ?? pages[0] ?? []);
