@@ -25,6 +25,7 @@
     weatherAdvisoryOnlyStandbyCards,
     latestQuakeStandbyCards,
     standbyItemsShowcase,
+    briefingStandbyItems,
     standbyItemsRightStackBudget,
     standbyItemsFloodWide,
     motionStandbyFloodPhases,
@@ -66,6 +67,7 @@
     "standby-tsunami",
     "standby-cards",
     "standby-active-cards",
+    "standby-briefing",
     "standby-active-wide",
     "standby-right-stack-budget",
     "standby-tier-critical",
@@ -215,6 +217,9 @@
     stats: statsStandbyCards,
     standbyItems: standbyItemsShowcase,
   });
+  // standby-briefing: Phase 3 の card chrome。critical/warning の複数 entry、観測 fact、
+  // VPOA50 の未確認 qualifier、取消を一枚の header と本文区切りで確認する。
+  const briefingSnapshot = standbySnapshot({ standbyItems: briefingStandbyItems });
   // standby-active-wide: 洪水 5 河川で時計上ワイド表示へ移行した状態
   const activeWideSnapshot = standbySnapshot({
     latestQuake: latestQuakeStandbyCards,
@@ -289,6 +294,8 @@
               ? cardsSnapshot
               : scenario === "standby-active-cards"
                 ? activeCardsSnapshot
+                : scenario === "standby-briefing"
+                  ? briefingSnapshot
                 : scenario === "standby-active-wide"
                   ? activeWideSnapshot
                 : scenario === "standby-right-stack-budget"

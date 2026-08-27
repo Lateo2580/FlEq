@@ -85,8 +85,11 @@ describe("BriefingCard", () => {
   it("engine frame level をそのまま描画し、raw XML ではなく card payload だけを表示する", () => {
     const { container } = render(BriefingCard, { item: briefing(), shellHeightPx: 260 });
     const entry = container.querySelector<HTMLElement>("[data-briefing-entry]");
+    const header = container.querySelector<HTMLElement>("[data-briefing-card-header]");
 
     expect(entry?.dataset.frameLevel).toBe("critical");
+    expect(header?.classList.contains("critical")).toBe(true);
+    expect(header?.querySelector(".updated-stamp")?.textContent).toContain("更新");
     expect(entry?.textContent).toContain("防災気象情報 1");
     expect(entry?.textContent).toContain("対象: 宮崎県");
     expect(container.querySelector<HTMLElement>("[data-briefing-card]")?.style.height).toBe("260px");
@@ -149,15 +152,54 @@ describe("BriefingCard", () => {
   });
 
   it.each([
-    ["critical", "critical"], ["warning", "warning"], ["info", "info"], ["cancel", "cancel"],
-  ] as const)("%s frame を明示した header class として描画する", (frameLevel, className) => {
+    ["critical", "critical"], ["warning", "warning"], ["info", "advisory"], ["cancel", "advisory"],
+  ] as const)("%s frame を card header の severity token として描画する", (frameLevel, className) => {
     const item = briefing();
     item.data.entries[0]!.frameLevel = frameLevel;
     item.data.entries[0]!.source = frameLevel === "info" ? "vpoa50" : "vpbs50";
     const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
 
-    expect(container.querySelector("header")?.classList.contains(className)).toBe(true);
+    expect(container.querySelector("[data-briefing-card-header]")?.classList.contains(className)).toBe(true);
     expect(container.textContent).toContain(frameLevel === "info" ? "記録的短時間大雨情報" : "気象速報");
+  });
+
+  it("複数 entry は最上位 severity の card header と本文区切りへ集約し、更新時刻を一度だけ表示する", () => {
+    const item = briefing(2);
+    item.data.entries[0]!.frameLevel = "warning";
+    item.data.entries[0]!.updatedAt = "2026-08-25T12:00:00+09:00";
+    item.data.entries[1]!.frameLevel = "critical";
+    item.data.entries[1]!.updatedAt = "2026-08-25T13:30:00+09:00";
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const header = container.querySelector<HTMLElement>("[data-briefing-card-header]");
+    const entries = container.querySelectorAll<HTMLElement>("[data-briefing-entry]");
+
+    expect(header?.classList.contains("critical")).toBe(true);
+    expect(header?.getAttribute("style")).toContain("var(--header-weatherEmergency-container)");
+    expect(header?.querySelector(".updated-stamp")?.textContent).toContain("13:30");
+    expect(container.querySelectorAll("[data-briefing-card-header]")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-briefing-entry-label]")).toHaveLength(2);
+    expect(entries[1]?.classList.contains("entry-divider")).toBe(true);
+  });
+
+  it("現象 lead・観測 fact・取消・VPOA50 の未確認 qualifier を本文で維持する", () => {
+    const item = briefing(2);
+    const observation = item.data.entries[0]!;
+    observation.source = "vpoa50";
+    observation.qualifier = "未確認";
+    observation.summary = {
+      mode: "structured", hasUnknownKind: false,
+      items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [
+        { kind: "precipitation", locationName: "美幌町", locationCode: "001", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-08-25T13:10:00+09:00" },
+      ] }],
+    };
+    const cancelled = item.data.entries[1]!;
+    cancelled.summary = { mode: "cancellation", hasUnknownKind: false, items: [] };
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+
+    expect(container.textContent).toContain("記録的短時間大雨");
+    expect(container.textContent).toContain("美幌町 約１００ミリ / 13:10");
+    expect(container.textContent).toContain("未確認");
+    expect(container.textContent).toContain("気象防災速報を取消");
   });
 
   it.each([
@@ -249,7 +291,12 @@ describe("BriefingCard", () => {
 
     expect(contexts).toHaveLength(1);
     expect(contexts[0]?.textContent).toBe(prefecture);
-    expect(target?.textContent).toBe(`対象: ${entry.targetAreas.map((area) => area.name).join("、")}`);
+    expect(contexts[0]?.classList.contains("pref-group")).toBe(true);
+    expect(contexts[0]?.querySelector(".pref-name")?.textContent).toBe(prefecture);
+    expect(target?.classList.contains("pref-group")).toBe(true);
+    expect([...target?.querySelectorAll<HTMLElement>(".cities .city-name") ?? []].map((city) => city.textContent)).toEqual(
+      entry.targetAreas.map((area, index) => `${index === 0 ? "対象: " : ""}${area.name}`),
+    );
     for (const area of entry.targetAreas) expect(renderedEntry?.textContent).not.toContain(area.code);
   });
 
@@ -263,7 +310,9 @@ describe("BriefingCard", () => {
     const renderedEntry = container.querySelector<HTMLElement>("[data-briefing-entry]");
 
     expect(renderedEntry?.querySelector("[data-briefing-prefecture-context]")).toBeNull();
-    expect(renderedEntry?.querySelector<HTMLElement>("[data-briefing-target-regions]")?.textContent).toBe("対象: 西部、東部");
+    const target = renderedEntry?.querySelector<HTMLElement>("[data-briefing-target-regions]");
+    expect(target?.classList.contains("pref-group")).toBe(true);
+    expect([...target?.querySelectorAll<HTMLElement>(".cities .city-name") ?? []].map((city) => city.textContent)).toEqual(["対象: 西部", "東部"]);
     expect(renderedEntry?.textContent).not.toContain("160020");
     expect(renderedEntry?.textContent).not.toContain("160010");
   });
@@ -285,7 +334,7 @@ describe("BriefingCard", () => {
     const raw = briefing();
     raw.data.entries[0]!.targetAreas = [{ name: "西部", code: "160020" }, { name: "東部", code: "160010" }];
     const rawView = render(BriefingCard, { item: raw, shellHeightPx: 260 });
-    expect(rawView.container.querySelector<HTMLElement>("[data-briefing-target-regions]")?.textContent).toBe("対象: 西部、東部");
+    expect([...rawView.container.querySelectorAll<HTMLElement>("[data-briefing-target-regions] .cities .city-name")].map((city) => city.textContent)).toEqual(["対象: 西部", "東部"]);
     expect(rawView.container.textContent).not.toContain("160020");
     expect(rawView.container.textContent).not.toContain("160010");
 
@@ -296,7 +345,31 @@ describe("BriefingCard", () => {
     detailed.data.entries[0]!.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
     const detailView = render(BriefingCard, { item: detailed, shellHeightPx: 260 });
     const targets = [...detailView.container.querySelectorAll<HTMLElement>("[data-briefing-target-regions]")];
-    expect(targets.map((target) => target.textContent)).toEqual(["対象: 一、二、三", "対象: 一、二、三、四"]);
+    expect(targets.map((target) => [...target.querySelectorAll<HTMLElement>(".cities .city-name")].map((city) => city.textContent))).toEqual([
+      ["対象: 一", "二", "三"], ["対象: 一", "二", "三", "四"],
+    ]);
+    expect(targets.every((target) => target.classList.contains("pref-group") && target.querySelectorAll(".cities .city-name").length > 0)).toBe(true);
     for (const code of ["01", "02", "03", "04"]) expect(detailView.container.textContent).not.toContain(code);
+  });
+
+  it("長い4地域は WeatherAlertCard と同じ地域ごとの city-name として実レンダリングされる", () => {
+    const item = briefing();
+    item.data.entries[0]!.targetAreas = [
+      { name: "非常に長い富山県西部の対象地域", code: "01" },
+      { name: "非常に長い富山県東部の対象地域", code: "02" },
+      { name: "非常に長い石川県加賀の対象地域", code: "03" },
+      { name: "非常に長い石川県能登の対象地域", code: "04" },
+    ];
+    item.data.entries[0]!.summary = { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [] }] };
+    const { container } = render(BriefingCard, { item, shellHeightPx: 260 });
+    const targetGroups = [...container.querySelectorAll<HTMLElement>("[data-briefing-target-regions]")];
+    const cities = [...targetGroups[1]?.querySelectorAll<HTMLElement>(".cities .city-name") ?? []];
+
+    expect(targetGroups).toHaveLength(2);
+    expect(cities.map((city) => city.textContent)).toEqual([
+      "対象: 非常に長い富山県西部の対象地域", "非常に長い富山県東部の対象地域",
+      "非常に長い石川県加賀の対象地域", "非常に長い石川県能登の対象地域",
+    ]);
+    expect(cities).toHaveLength(4);
   });
 });

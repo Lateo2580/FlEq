@@ -2252,6 +2252,47 @@ export const standbyItemsShowcase: ActiveStandbyCardV1[] = [
   },
 ];
 
+/** BriefingCard Phase 3 目視用。card header は critical、entry は本文内で区切る。 */
+export const briefingStandbyItems: ActiveStandbyCardV1[] = [
+  {
+    ...STANDBY_ITEM_BASE, kind: "briefing", surface: "corner-right", key: "briefing:preview", severity: "critical",
+    sourceEventIds: ["card:vpbs:preview", "card:vpoa:preview", "card:vpbs:cancel-preview"],
+    updatedAt: "2026-07-07T14:32:00+09:00", expiresAt: "2026-07-07T16:32:00+09:00",
+    data: { generation: 3, entries: [
+      {
+        key: "card:vpbs:preview", source: "vpbs50", sourceEventId: "VPBS50-preview", editorialOffice: "富山地方気象台",
+        phenomenonKind: "linearRainObserved", semanticKey: "card:vpbs:semantic:linearRainObserved:富山地方気象台", serial: "3",
+        title: "富山県気象防災速報", headline: null, conditions: ["線状降水帯が発生"],
+        targetAreas: [{ name: "西部", code: "160020" }, { name: "東部", code: "160010" }], reportDateTime: "2026-07-07T14:31:00+09:00",
+        publishingOffice: "富山地方気象台", infoType: "発表", frameLevel: "critical", severityEvidence: [], qualifier: null,
+        updatedAt: "2026-07-07T14:31:00+09:00", expiresAt: "2026-07-07T16:31:00+09:00", generation: 1,
+        summary: { mode: "structured", hasUnknownKind: false, items: [{ kind: "linearRainObserved", lead: "線状降水帯が発生", sourceOrdinal: 0, facts: [
+          { kind: "event", label: "発生", areaName: "富山県西部", areaCode: "160020", at: "2026-07-07T14:30:00+09:00" },
+        ] }] },
+      },
+      {
+        key: "card:vpoa:preview", source: "vpoa50", sourceEventId: "VPOA50-preview", editorialOffice: "富山地方気象台",
+        phenomenonKind: null, semanticKey: null, serial: "1",
+        title: "富山県気象防災速報", headline: null, conditions: [],
+        targetAreas: [{ name: "西部", code: "160020" }], reportDateTime: "2026-07-07T14:32:00+09:00",
+        publishingOffice: "富山地方気象台", infoType: "発表", frameLevel: "warning", severityEvidence: [], qualifier: "未確認",
+        updatedAt: "2026-07-07T14:32:00+09:00", expiresAt: "2026-07-07T16:32:00+09:00", generation: 2,
+        summary: { mode: "structured", hasUnknownKind: false, items: [{ kind: "recordRain", lead: "記録的短時間大雨", sourceOrdinal: 0, facts: [
+          { kind: "precipitation", locationName: "高岡市", locationCode: "16202", description: "約１００ミリ", value: 100, unit: "mm", at: "2026-07-07T14:20:00+09:00" },
+        ] }] },
+      },
+      {
+        key: "card:vpbs:cancel-preview", source: "vpbs50", sourceEventId: "VPBS50-cancel-preview", editorialOffice: "富山地方気象台",
+        phenomenonKind: "linearRainPredicted", semanticKey: "card:vpbs:semantic:linearRainPredicted:富山地方気象台", serial: "4",
+        title: "富山県気象防災速報", headline: "発表を取り消しました", conditions: [], targetAreas: [],
+        reportDateTime: "2026-07-07T14:32:00+09:00", publishingOffice: "富山地方気象台", infoType: "取消", frameLevel: "cancel", severityEvidence: [], qualifier: null,
+        updatedAt: "2026-07-07T14:32:00+09:00", expiresAt: "2026-07-07T14:42:00+09:00", generation: 3,
+        summary: { mode: "cancellation", hasUnknownKind: false, items: [] },
+      },
+    ] },
+  },
+];
+
 /** v10 の気象カード mock 用: WeatherAlertCard の「ほか」省略を展開して全対象地域を見せる。 */
 export const legacyImprovedTornadoFullAreas = [
   "宮崎県南部平野部",
